@@ -1,0 +1,45 @@
+name: Deploy to GitHub Pages
+
+# main へ push されると自動デプロイ。手動実行も可（workflow_dispatch）。
+# 公開対象は `フォワーダー支援/` フォルダの中身（見積支援/ は保険なので公開しない）。
+# URL: https://shogoa68-cmyk.github.io/forwarder-support/
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'フォワーダー支援/**'
+      - '.github/workflows/deploy.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# 同時実行は 1 つに絞る（連続 push で並行デプロイにならないように）
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload artifact (フォワーダー支援/)
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: './フォワーダー支援'
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
