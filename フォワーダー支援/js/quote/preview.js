@@ -32,6 +32,11 @@
         rows.push({ _type: 'subtotal', label, billingText, subtotalText, profitText });
         return;
       }
+      if (tr.dataset.type === 'remark') {
+        const text = tr.querySelector('.remark-text')?.value || '';
+        rows.push({ _type: 'remark', text });
+        return;
+      }
       const id     = tr.id.replace('row-', '');
       const taxed  = document.getElementById(`tx-${id}`)?.checked || false;
       const cat    = document.getElementById(`cat-${id}`)?.value || '';
@@ -60,6 +65,7 @@
     const data = [];
     rows.forEach(tr => {
       if (tr.dataset.type === 'subtotal') return; // 小計行スキップ
+      if (tr.dataset.type === 'remark')   return; // リマーク行スキップ
       const id     = tr.id.replace('row-', '');
       const taxed  = document.getElementById(`tx-${id}`)?.checked || false;
       const cat    = document.getElementById(`cat-${id}`)?.value || '';
@@ -125,6 +131,12 @@
           <td class="pv-num pv-subtotal">${escHtml(d.subtotalText)}</td>
           <td class="pv-pr ${sepPc} pv-num">${escHtml(d.profitText)}</td>
           <td colspan="2"></td>
+        </tr>`;
+        return;
+      }
+      if (d._type === 'remark') {
+        html += `<tr class="pv-remark-row">
+          <td colspan="15" class="pv-remark-cell">📝 ${escHtml(d.text || '')}</td>
         </tr>`;
         return;
       }
@@ -409,6 +421,10 @@
           `━━ ${d.label || '小計'}`, '', '', '', '', '', '', '', '', '',
           '', d.subtotalText, d.profitText, '', ''
         ]);
+        return;
+      }
+      if (d._type === 'remark') {
+        aoaRows.push([`[リマーク] ${d.text || ''}`, '', '', '', '', '', '', '', '', '', '', '', '', '', '']);
         return;
       }
       const sub = (d.bq || 0) * (d.bp || 0);

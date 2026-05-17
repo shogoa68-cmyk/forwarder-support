@@ -1995,12 +1995,14 @@
               <span class="btn-group-label">行操作</span>
               <button class="btn-add"         onclick="addRow()">＋ 行を追加</button>
               <button class="btn-subtotal"    onclick="insertSubtotalRow()" title="現在の末尾に小計行を挿入">＝ 小計行を挿入</button>
+              <button class="btn-remark"      onclick="insertRemarkRow()"   title="現在の末尾にリマーク行を挿入">📝 リマーク行を挿入</button>
               <button class="btn-sort-cat"    onclick="sortByCategory()">🔀 カテゴリー順</button>
               <button class="btn-clean-empty" onclick="deleteEmptyRows()" title="未入力（グレーアウト）の行をまとめて削除">🧹 未入力行を削除</button>
             </div>
             <div class="btn-group-row">
               <span class="btn-group-label">選択行</span>
               <button class="btn-bulk-copy"   onclick="copySelectedRows()" title="チェックした行を複製">📋 コピー</button>
+              <button class="btn-bulk-cat"    onclick="bulkChangeCategoryForSelected()" title="チェックした行のカテゴリーを一括変更">📂 カテゴリ変更</button>
               <button class="btn-bulk-delete" onclick="deleteSelectedRows()" title="チェックした行を削除">🗑️ 削除</button>
             </div>
             <div class="btn-group-row">
@@ -2335,6 +2337,25 @@
 </div>
 
 <button class="fb-fab" onclick="openFeedback('全体')" title="フィードバックを送る">💬</button>
+
+<!-- 選択行のカテゴリ一括変更モーダル（見積タブ専用） -->
+<div id="bulkCatOverlay" onclick="closeBulkCatModal(event)">
+  <div id="bulkCatBox" onclick="event.stopPropagation()">
+    <div class="bulk-cat-head">
+      <h3>📂 カテゴリーを一括変更</h3>
+      <button class="bulk-cat-close-x" onclick="closeBulkCatModal()" aria-label="閉じる">×</button>
+    </div>
+    <div class="bulk-cat-body">
+      <p id="bulkCatCount" class="bulk-cat-count"></p>
+      <label class="bulk-cat-label" for="bulkCatSelect">新しいカテゴリー</label>
+      <select id="bulkCatSelect"></select>
+    </div>
+    <div class="bulk-cat-foot">
+      <button type="button" class="bulk-cat-cancel" onclick="closeBulkCatModal()">キャンセル</button>
+      <button type="button" class="bulk-cat-ok" onclick="applyBulkCategoryChange()">適用</button>
+    </div>
+  </div>
+</div>
 
 <div id="toast-container"></div>
 

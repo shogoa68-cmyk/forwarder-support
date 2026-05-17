@@ -10,12 +10,13 @@
  * =================================================================== */
 
 /* スコープルート — :root の CSS 変数と body の基本スタイルをここに集約 */
+/* --base-font-size は :root で管理（changeFontSize() が documentElement に設定）。
+   ここで再宣言すると CSS カスケードが遮断されて A-/A+ が効かなくなるため宣言しない。 */
 #tab-quote-make {
-  --base-font-size: 13px;
   font-family: 'Helvetica Neue', Arial, 'Hiragino Kaku Gothic ProN', sans-serif;
   background: #f0f2f5;
   color: #333;
-  font-size: var(--base-font-size);
+  font-size: var(--base-font-size, 13px);
   /* 見積タブは全幅レイアウト（テーブル min-width:1300px のため） */
   max-width: none;
 }
@@ -2375,6 +2376,73 @@
   font-weight: normal;
 }
 #tab-quote-make .subtotal-del-btn:hover { color: #c00; background: #fee; }
+/* ===== リマーク行（小計行と同じ機構で挿入する自由テキスト行） ===== */
+#tab-quote-make tr.remark-row {
+  background: #fff8e1 !important;
+}
+#tab-quote-make tr.remark-row td {
+  background: #fff8e1;
+  border-top: 1px dashed #d4b900 !important;
+  border-bottom: 1px dashed #d4b900 !important;
+  padding: 4px 4px;
+}
+#tab-quote-make .remark-drag-cell {
+  text-align: center;
+  cursor: grab;
+  color: #aaa;
+  font-size: 14px;
+  width: 20px;
+  padding: 0 2px !important;
+}
+#tab-quote-make .remark-drag-cell:active { cursor: grabbing; }
+#tab-quote-make .remark-text-cell {
+  text-align: left;
+  padding: 3px 8px !important;
+}
+#tab-quote-make .remark-marker {
+  font-size: 12px;
+  font-weight: 700;
+  color: #8a6d00;
+  margin-right: 6px;
+}
+#tab-quote-make .remark-text {
+  width: calc(100% - 30px);
+  font-size: 12px;
+  font-weight: 600;
+  color: #5a4a00;
+  border: 1px solid #e4cd6a;
+  border-radius: 4px;
+  padding: 3px 8px;
+  background: #fff;
+}
+#tab-quote-make .remark-del-cell {
+  text-align: center;
+  padding: 2px !important;
+}
+#tab-quote-make .remark-del-btn {
+  background: none;
+  border: none;
+  color: #aaa;
+  cursor: pointer;
+  font-size: 12px;
+  padding: 2px 4px;
+  border-radius: 3px;
+  line-height: 1;
+}
+#tab-quote-make .remark-del-btn:hover { color: #c00; background: #fee; }
+/* プレビュー上のリマーク表示 */
+#tab-quote-make #previewTable tr.pv-remark-row td {
+  background: #fff8e1;
+  border-top: 1px dashed #d4b900;
+  border-bottom: 1px dashed #d4b900;
+}
+#tab-quote-make #previewTable .pv-remark-cell {
+  text-align: left;
+  padding: 6px 10px;
+  font-weight: 600;
+  color: #5a4a00;
+  font-size: 12px;
+}
 /* ===== 付箋メモ（Feature 3） ===== */
 #tab-quote-make .sticky-fab {
   position: fixed;
@@ -2606,4 +2674,76 @@
     flex-direction: column;
   }
 }
+
+/* ====================================================================
+   選択行のカテゴリー一括変更モーダル（サイト全体スコープ）
+   #fbOverlay と同パターン
+   ==================================================================== */
+#bulkCatOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,.55);
+  z-index: 3000;
+  display: none;
+  align-items: center;
+  justify-content: center;
+}
+#bulkCatOverlay.open { display: flex; }
+#bulkCatBox {
+  background: #fff;
+  border-radius: 12px;
+  width: min(420px, 94vw);
+  box-shadow: 0 8px 32px rgba(0,0,0,.22);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  font-family: 'Helvetica Neue', Arial, 'Hiragino Kaku Gothic ProN', sans-serif;
+}
+.bulk-cat-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 18px;
+  background: #16a085;
+  color: #fff;
+}
+.bulk-cat-head h3 { font-size: 14px; margin: 0; font-weight: 600; }
+.bulk-cat-close-x {
+  background: transparent;
+  color: #fff;
+  border: none;
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+}
+.bulk-cat-body { padding: 18px; }
+.bulk-cat-count { font-size: 12px; color: #555; margin: 0 0 12px; }
+.bulk-cat-label { display: block; font-size: 12px; font-weight: 600; margin-bottom: 6px; color: #333; }
+#bulkCatSelect {
+  width: 100%;
+  padding: 8px 10px;
+  font-size: 13px;
+  border: 1px solid #cfd8dc;
+  border-radius: 6px;
+  background: #fff;
+}
+.bulk-cat-foot {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 12px 18px;
+  background: #f7f9fa;
+  border-top: 1px solid #e0e6ea;
+}
+.bulk-cat-cancel,
+.bulk-cat-ok {
+  padding: 6px 14px;
+  font-size: 12px;
+  border-radius: 6px;
+  border: 1px solid #cfd8dc;
+  cursor: pointer;
+}
+.bulk-cat-cancel { background: #fff; color: #333; }
+.bulk-cat-ok { background: #16a085; color: #fff; border-color: #16a085; }
+.bulk-cat-ok:hover { background: #138875; }
 

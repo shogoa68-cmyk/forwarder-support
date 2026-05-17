@@ -306,6 +306,54 @@
     quoteShowToast(`📋 ${srcRows.length}行をコピーしました`, 'success');
   }
 
+  // ========== 選択行のカテゴリー一括変更 ==========
+  function bulkChangeCategoryForSelected() {
+    const checkboxes = document.querySelectorAll('.row-select-chk:checked');
+    if (!checkboxes.length) {
+      quoteShowToast('⚠️ カテゴリーを変更したい行のチェックボックスにチェックを入れてください', 'warn', 3000);
+      return;
+    }
+    const overlay = document.getElementById('bulkCatOverlay');
+    const sel     = document.getElementById('bulkCatSelect');
+    const countEl = document.getElementById('bulkCatCount');
+    if (!overlay || !sel) return;
+    // 選択肢を毎回再構築（ユーザー追加カテゴリが反映されるよう）
+    sel.innerHTML = catOpts('');
+    countEl.textContent = `${checkboxes.length} 行が対象です`;
+    overlay.classList.add('open');
+  }
+
+  function closeBulkCatModal() {
+    const overlay = document.getElementById('bulkCatOverlay');
+    if (overlay) overlay.classList.remove('open');
+  }
+
+  function applyBulkCategoryChange() {
+    const sel = document.getElementById('bulkCatSelect');
+    const newCat = sel ? sel.value : '';
+    if (!newCat) {
+      quoteShowToast('⚠️ カテゴリーを選択してください', 'warn', 2500);
+      return;
+    }
+    const checkboxes = document.querySelectorAll('.row-select-chk:checked');
+    if (!checkboxes.length) { closeBulkCatModal(); return; }
+    let n = 0;
+    checkboxes.forEach(chk => {
+      const tr = chk.closest('tr');
+      if (!tr) return;
+      const nm = tr.querySelector('[data-field="nm"]');
+      if (!nm) return;
+      const rowId = nm.id.replace('nm-', '');
+      const catSel = document.getElementById(`cat-${rowId}`);
+      if (!catSel) return;
+      catSel.value = newCat;
+      onCatChange(rowId);
+      n++;
+    });
+    closeBulkCatModal();
+    quoteShowToast(`📂 ${n}行のカテゴリーを「${newCat}」に変更しました`, 'success');
+  }
+
   // ========== 選択行削除 ==========
   function deleteSelectedRows() {
     const checkboxes = document.querySelectorAll('.row-select-chk:checked');
@@ -904,6 +952,7 @@
       if (document.getElementById('cmdPalette')?.classList.contains('open'))     closeCmdPalette();
       if (document.getElementById('presetMgrModal')?.classList.contains('open')) closePresetMgr();
       if (document.getElementById('previewOverlay')?.classList.contains('open')) closePreview();
+      if (document.getElementById('bulkCatOverlay')?.classList.contains('open')) closeBulkCatModal();
     }
   });
 

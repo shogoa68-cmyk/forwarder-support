@@ -303,6 +303,7 @@
     let hasFx = false;
     rows.forEach(tr => {
       if (tr.dataset.type === 'subtotal') return; // 小計行をスキップ
+      if (tr.dataset.type === 'remark')   return; // リマーク行をスキップ
       const id  = tr.id.replace('row-', '');
       const pc  = document.getElementById(`pc-${id}`)?.value || 'JPY';
       const bc  = document.getElementById(`bc-${id}`)?.value || 'JPY';
@@ -451,6 +452,63 @@
     updateTotals();
   }
 
+  // ========== リマーク行 ==========
+  let remarkCount = 0;
+
+  /**
+   * リマーク行を挿入する。
+   * afterId が指定された場合はその行の直後に、省略時は末尾に追加。
+   * initText が指定された場合は、テキスト入力欄に初期値をセット（復元用）。
+   */
+  function insertRemarkRow(afterId, initText) {
+    remarkCount++;
+    const id = `remark-${remarkCount}`;
+    const tr = document.createElement('tr');
+    tr.id = `row-${id}`;
+    tr.dataset.type = 'remark';
+    tr.className = 'remark-row';
+    // 19 列構成（subtotal 行と揃える）：drag(1) + handle(1) + text(16) + del(1)
+    tr.innerHTML = `
+      <td class="remark-drag-cell">
+        <span class="drag-handle" title="ドラッグして並び替え">⠿</span>
+      </td>
+      <td class="handle-cell">
+        <button type="button" class="row-move-btn remark-move-up"   tabindex="-1" title="上に移動">▲</button>
+        <button type="button" class="row-move-btn remark-move-down" tabindex="-1" title="下に移動">▼</button>
+      </td>
+      <td colspan="16" class="remark-text-cell">
+        <span class="remark-marker">📝</span>
+        <input type="text" class="remark-text" placeholder="リマーク（フリーテキスト）" />
+      </td>
+      <td class="remark-del-cell">
+        <button type="button" class="remark-del-btn" onclick="removeRemarkRow('${id}')">✕ 削除</button>
+      </td>
+    `;
+    const tbody = document.getElementById('tableBody');
+    if (afterId) {
+      const afterRow = document.getElementById(`row-${afterId}`);
+      if (afterRow?.nextSibling) tbody.insertBefore(tr, afterRow.nextSibling);
+      else if (afterRow)         tbody.appendChild(tr);
+      else                       tbody.appendChild(tr);
+    } else {
+      tbody.appendChild(tr);
+    }
+    if (typeof initText === 'string') {
+      const input = tr.querySelector('.remark-text');
+      if (input) input.value = initText;
+    }
+    // subtotal 行と同じドラッグ＋上下移動ボタンの仕組みを流用
+    initSubtotalDrag(tr);
+    const upBtn   = tr.querySelector('.remark-move-up');
+    const downBtn = tr.querySelector('.remark-move-down');
+    if (upBtn)   upBtn.addEventListener('click',  () => moveRow(tr, -1));
+    if (downBtn) downBtn.addEventListener('click', () => moveRow(tr, +1));
+  }
+
+  function removeRemarkRow(id) {
+    document.getElementById(`row-${id}`)?.remove();
+  }
+
   function updateSubtotalRows() {
     const tbody = document.getElementById('tableBody');
     const allRows = Array.from(tbody.querySelectorAll('tr'));
@@ -472,6 +530,8 @@
           profitEl.className   = `subtotal-group-profit profit-cell ${pClass(profit)}`;
         }
         groupBill = 0; groupCost = 0;
+      } else if (tr.dataset.type === 'remark') {
+        // リマーク行は集計対象外
       } else {
         const id = tr.id.replace('row-', '');
         groupBill += val(`bq-${id}`) * val(`bp-${id}`);

@@ -63,9 +63,19 @@
     // テーブル行
     const rows = [];
     document.querySelectorAll('#tableBody tr').forEach(tr => {
-      if (tr.dataset.type === 'subtotal') return; // 小計行はスキップ
+      if (tr.dataset.type === 'subtotal') return; // 小計行はスキップ（再計算で復元）
+      if (tr.dataset.type === 'remark') {
+        // リマーク行は { _type: 'remark', text } メタ付きで保存
+        const text = tr.querySelector('.remark-text')?.value || '';
+        rows.push({ _type: 'remark', text });
+        return;
+      }
       const cells = [];
-      tr.querySelectorAll('input, select, textarea').forEach(el => cells.push(el.value));
+      tr.querySelectorAll('input, select, textarea').forEach(el => {
+        // checkbox は value だけだと checked 状態が失われるため { v, c } で保存
+        if (el.type === 'checkbox') cells.push({ v: el.value, c: el.checked });
+        else cells.push(el.value);
+      });
       rows.push(cells);
     });
     return { fields, rows, ts: new Date().toISOString() };
@@ -94,19 +104,34 @@
       if (el.type === 'checkbox') el.checked = val;
       else el.value = val;
     });
-    // テーブル行復元
+    // テーブル行復元（リマーク行は insertRemarkRow / それ以外は addRow）
     document.getElementById('tableBody').innerHTML = '';
     rowCount = 0;
-    (data.rows || []).forEach(() => addRow());
+    (data.rows || []).forEach(rec => {
+      if (rec && !Array.isArray(rec) && rec._type === 'remark') {
+        insertRemarkRow(null, rec.text || '');
+      } else {
+        addRow();
+      }
+    });
     const trs = document.querySelectorAll('#tableBody tr');
-    (data.rows || []).forEach((cells, i) => {
+    (data.rows || []).forEach((rec, i) => {
       if (!trs[i]) return;
+      if (rec && !Array.isArray(rec) && rec._type === 'remark') return; // 初回ループで生成済み
       trs[i].querySelectorAll('input, select, textarea').forEach((el, j) => {
-        if (cells[j] !== undefined) el.value = cells[j];
+        const cell = rec[j];
+        if (cell === undefined) return;
+        if (el.type === 'checkbox') {
+          // 新形式: { v, c }、旧形式: 文字列（旧データの checkbox は復元不可で false）
+          el.checked = (cell && typeof cell === 'object') ? !!cell.c : false;
+        } else {
+          el.value = (cell && typeof cell === 'object') ? (cell.v ?? '') : cell;
+        }
       });
     });
     // グレーアウト・カテゴリ色・計算を全行更新（値セット後に再適用）
     trs.forEach(tr => {
+      if (tr.dataset.type === 'remark') return; // リマーク行は対象外
       const nm = tr.querySelector('[data-field="nm"]');
       if (!nm) return;
       const rowId = nm.id.replace('nm-', '');
@@ -140,21 +165,39 @@
       if (el.type === 'checkbox') el.checked = val;
       else el.value = val;
     });
-    // テーブル行復元
+    // テーブル行復元（リマーク行は insertRemarkRow / それ以外は addRow）
     document.getElementById('tableBody').innerHTML = '';
     rowCount = 0;
-    (data.rows || []).forEach(() => addRow());
+    (data.rows || []).forEach(rec => {
+      if (rec && !Array.isArray(rec) && rec._type === 'remark') {
+        insertRemarkRow(null, rec.text || '');
+      } else {
+        addRow();
+      }
+    });
     const trs = document.querySelectorAll('#tableBody tr');
-    (data.rows || []).forEach((cells, i) => {
+    (data.rows || []).forEach((rec, i) => {
       if (!trs[i]) return;
+      if (rec && !Array.isArray(rec) && rec._type === 'remark') return;
       trs[i].querySelectorAll('input, select, textarea').forEach((el, j) => {
-        if (cells[j] !== undefined) el.value = cells[j];
+        const cell = rec[j];
+        if (cell === undefined) return;
+        if (el.type === 'checkbox') {
+          el.checked = (cell && typeof cell === 'object') ? !!cell.c : false;
+        } else {
+          el.value = (cell && typeof cell === 'object') ? (cell.v ?? '') : cell;
+        }
       });
     });
-    // グレーアウト状態を更新
+    // グレーアウト・カテゴリ色・課税再計算を全行に適用（restoreAutoSave と揃える）
     trs.forEach(tr => {
+      if (tr.dataset.type === 'remark') return;
       const nm = tr.querySelector('[data-field="nm"]');
-      if (nm) checkUnfilled(nm.id.replace('nm-', ''));
+      if (!nm) return;
+      const rowId = nm.id.replace('nm-', '');
+      checkUnfilled(rowId);
+      onCatChange(rowId);
+      onPay(parseInt(rowId));
     });
     updateTotals();
     updateRouteModeIcon();

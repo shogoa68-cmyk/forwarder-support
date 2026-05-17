@@ -127,7 +127,9 @@ function calcAirCW() {
   if (results.length === 1) {
     const r   = results[0];
     const tag = r.weight >= r.volW1 ? '実重量適用（W）' : '容積重量適用（V）';
-    appendCalcResult('air-result', `<div class="calc-row">
+    appendCalcResult('air-result',
+      `<div style="font-size:11px;font-weight:700;color:var(--accent);margin-bottom:6px;">入力　${r.l}×${r.w}×${r.h}cm / ${r.weight}kg × ${r.qty}個</div>` +
+      `<div class="calc-row">
       <div class="calc-item"><div class="calc-item-label">容積重量 (1個)</div><div class="calc-item-value">${r.volW1.toFixed(2)} kg</div></div>
       <div class="calc-item"><div class="calc-item-label">実重量 (1個)</div><div class="calc-item-value">${r.weight.toFixed(2)} kg</div></div>
       <div class="calc-item hl"><div class="calc-item-label">CW (1個) ／ ${tag}</div><div class="calc-item-value">${r.cw1.toFixed(2)} kg</div></div>
@@ -180,7 +182,9 @@ function calcLclRT() {
   if (results.length === 1) {
     const r   = results[0];
     const tag = r.wTon1 >= r.cbm1 ? 'W（実重量トン）適用' : 'M（容積）適用';
-    appendCalcResult('lcl-result', `<div class="calc-row">
+    appendCalcResult('lcl-result',
+      `<div style="font-size:11px;font-weight:700;color:var(--accent);margin-bottom:6px;">入力　${r.l}×${r.w}×${r.h}cm / ${r.weight}kg × ${r.qty}個</div>` +
+      `<div class="calc-row">
       <div class="calc-item"><div class="calc-item-label">CBM (1個)</div><div class="calc-item-value">${r.cbm1.toFixed(4)} CBM</div></div>
       <div class="calc-item"><div class="calc-item-label">W (1個)</div><div class="calc-item-value">${r.wTon1.toFixed(4)} ton</div></div>
       <div class="calc-item hl"><div class="calc-item-label">RT (1個) ／ ${tag}</div><div class="calc-item-value">${r.rt1.toFixed(4)} RT</div></div>
@@ -245,7 +249,8 @@ function calcCBMSai() {
       '<div class="calc-item"><div class="calc-item-label">'+t.name+'（〜'+t.cap+'才）</div><div class="calc-item-value">'+Math.ceil(r.saiTot/t.cap)+' 台</div></div>'
     ).join('');
     appendCalcResult('cbm-result',
-      '<div class="calc-row">'
+      '<div style="font-size:11px;font-weight:700;color:var(--accent);margin-bottom:6px;">入力　'+r.l+'×'+r.w+'×'+r.h+unit+' × '+r.qty+'個</div>'
+      + '<div class="calc-row">'
       + '<div class="calc-item hl"><div class="calc-item-label">CBM（1個）</div><div class="calc-item-value">'+r.cbm1.toFixed(4)+' CBM</div></div>'
       + '<div class="calc-item hl"><div class="calc-item-label">才数（1個）</div><div class="calc-item-value">'+r.sai1.toFixed(2)+' 才</div></div>'
       + (r.qty>1
@@ -326,7 +331,9 @@ function calcPalletize() {
 
   if (results.length === 1) {
     const r = results[0];
-    appendCalcResult('pal-result', `<div class="calc-row">
+    appendCalcResult('pal-result',
+      `<div style="font-size:11px;font-weight:700;color:var(--accent);margin-bottom:6px;">入力　箱 ${r.bl}×${r.bw}×${r.bh}mm${r.tot>0?' / 総'+r.tot+'個':''}</div>` +
+      `<div class="calc-row">
       <div class="calc-item"><div class="calc-item-label">パレットサイズ</div><div class="calc-item-value">${pw}×${pd} mm</div></div>
       <div class="calc-item hl"><div class="calc-item-label">1段あたり</div><div class="calc-item-value">${r.perPer1L} 個 <span class="calc-note">(${r.best.cols}列×${r.best.rows}行)</span></div></div>
       <div class="calc-item hl"><div class="calc-item-label">1パレット合計（${lay}段）</div><div class="calc-item-value">${r.perPallet} 個</div></div>
@@ -429,6 +436,7 @@ function calcVanning() {
 
     const svgHtml = Object.entries(CONT).map(([key,c]) => buildContainerSVG(key, c, [bl,bw,bh], noStack, rec.key)).join('');
     appendCalcResult('van-result',
+      `<div style="font-size:11px;font-weight:700;color:var(--accent);margin-bottom:6px;">入力　${bl}×${bw}×${bh}cm / ${bkg}kg${qty>0?' × '+qty+'個':''}${noStack?' / 段積み不可':''}</div>` +
       `<div class="calc-row">${cardsHtml}</div>
       <p style="font-size:11px;color:#718096;margin-top:10px;">※ ダンネージなしの理論値。実際の積み付けは現場でご確認ください。</p>
       <div style="margin-top:12px;font-size:11px;font-weight:700;color:var(--text-md);">📐 コンテナ断面図（端面ビュー）</div>
