@@ -1,0 +1,2342 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>フォワーダー支援</title>
+<link rel="stylesheet" href="css/style.css">
+<link rel="stylesheet" href="css/quote.css">
+<!-- 見積タブで CSV/Excel/PDF 出力に使用（SheetJS） -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" defer></script>
+</head>
+<body>
+<!-- #clipboard-toast は Phase 2c-Step2 で削除（callers ゼロ、quoteShowToast に統一） -->
+<div class="app">
+
+  <!-- ===================== BANNER =====================
+       差し替え手順: 下の <img> タグの src を画像パスまたはURLに変更するだけです。
+       プレースホルダー期間中はグラデーションヘッダーが表示されます。
+  ====================================================== -->
+  <!-- BANNER START -->
+  <!-- <img src="banner.png" alt="フォワーダー実務ポータル" style="width:100%;border-radius:14px;margin-bottom:18px;display:block;"> -->
+  <!-- BANNER END -->
+
+  <!-- Header（バナー差し替え後はこのブロックを削除またはコメントアウト） -->
+  <div class="header">
+    <h1>🛠️ フォワーダー支援</h1>
+    <div class="subtitle">ブックマーク・知識・計算機・見積もりをひとまとめに &nbsp;｜&nbsp; 最終更新: <span id="last-updated">-</span></div>
+  </div>
+
+  <!-- Tab Navigation -->
+  <!-- ===== カテゴリーナビ（上段） ===== -->
+  <div class="cat-nav">
+    <button class="cat-btn active" onclick="switchCategory('calc',   this)">🧮 計算</button>
+    <button class="cat-btn"        onclick="switchCategory('vessel', this)">🚢 本船・航路</button>
+    <button class="cat-btn"        onclick="switchCategory('cost',   this)">💴 料金・費用</button>
+    <button class="cat-btn"        onclick="switchCategory('quote',  this)">💼 見積</button>
+    <button class="cat-btn"        onclick="switchCategory('docs',   this)">📄 書類・通関</button>
+    <button class="cat-btn"        onclick="switchCategory('ref',    this)">📚 知識・参考</button>
+
+    <button class="cat-btn"        onclick="switchCategory('booking', this)">📋 Booking/SI</button>
+  </div>
+
+  <!-- ===== サブタブナビ（下段・カテゴリー別） ===== -->
+  <div class="tab-nav sub-nav active" id="sub-calc">
+    <button class="tab-btn active" onclick="switchTab('calc',   this)">📐 計算（サイズ）</button>
+    <button class="tab-btn"        onclick="switchTab('rate',   this)">💰 計算（お金）</button>
+  </div>
+  <div class="tab-nav sub-nav" id="sub-vessel">
+    <button class="tab-btn" onclick="switchTab('tracking', this)">🔍 トラッキング</button>
+    <button class="tab-btn" onclick="switchTab('vessel',   this)">🚢 スケジュール</button>
+    <button class="tab-btn" onclick="switchTab('cycut',    this)">📅 CY OPEN/CUT</button>
+    <button class="tab-btn" onclick="switchTab('route',    this)">🗺️ サービス航路</button>
+  </div>
+  <div class="tab-nav sub-nav" id="sub-cost">
+    <button class="tab-btn" onclick="switchTab('surcharge', this)">💴 サーチャージ 🚧</button>
+    <button class="tab-btn" onclick="switchTab('freetime',  this)">⏱️ フリータイム 🚧</button>
+  </div>
+  <div class="tab-nav sub-nav" id="sub-quote">
+    <button class="tab-btn" onclick="switchTab('quote-make', this)">📝 見積もり作成</button>
+  </div>
+  <div class="tab-nav sub-nav" id="sub-docs">
+    <button class="tab-btn" onclick="switchTab('bldo',    this)">📄 書類</button>
+    <button class="tab-btn" onclick="switchTab('blrules', this)">📋 BL記載事項 🚧</button>
+    <button class="tab-btn" onclick="switchTab('regs',    this)">🔒 貿易管理令・他法令</button>
+  </div>
+  <div class="tab-nav sub-nav" id="sub-ref">
+    <button class="tab-btn" onclick="switchTab('incoterms',  this)">📦 インコタームズ</button>
+    <button class="tab-btn" onclick="switchTab('sizes',      this)">📏 種類・サイズ</button>
+    <button class="tab-btn" onclick="switchTab('insurance',  this)">🛡️ 海上貨物保険</button>
+    <button class="tab-btn" onclick="switchTab('blclause',   this)">📜 BL約款</button>
+  </div>
+  <div class="tab-nav sub-nav" id="sub-booking">
+    <button class="tab-btn" onclick="switchTab('booking-tab', this)">🛳️ Booking</button>
+    <button class="tab-btn" onclick="switchTab('si', this)">📝 S/I</button>
+    <button class="tab-btn" onclick="switchTab('filing', this)">📡 ファイリングルール</button>
+  </div>
+
+  <!-- ===================== Tab 1: コンテナ追跡 ===================== -->
+  <div class="tab-content" id="tab-tracking">
+
+    <!-- 追跡履歴スタック -->
+    <div class="card track-history-wrap" id="track-history-wrap" style="display:none;">
+      <div class="section-title">🕐 最近の追跡履歴</div>
+      <p style="font-size:12px;color:var(--text-md);margin-bottom:8px;">クリックするとその番号で再追跡します。</p>
+      <div class="track-history-list" id="track-history-list"></div>
+    </div>
+
+    <div class="card">
+      <div class="section-title">🔍 クイック追跡</div>
+      <div class="lookup-form">
+        <select id="ql-carrier"></select>
+        <input type="text" id="ql-number" placeholder="コンテナ番号 or B/L番号 (例: MSKU1234567)" />
+        <button class="btn-primary" onclick="quickLookup()">追跡する 🔍</button>
+      </div>
+      <div class="result-box" id="ql-result">
+        <span class="result-url" id="ql-url"></span>
+        <a class="btn-open" id="ql-link" href="#" target="_blank">開く ↗</a>
+      </div>
+    </div>
+
+
+    <div class="card">
+      <div class="section-title">🌐 船会社別 トラッキングページ</div>
+      <p style="font-size:12px;color:#718096;margin-bottom:12px;">番号入力後にクリックするとその船会社のトラッキングページへ直接ジャンプ。番号なしの場合はトップページへ。</p>
+      <div class="carrier-grid" id="carrier-grid"></div>
+    </div>  </div><!-- /tab-tracking -->
+
+  <!-- ===================== Tab 2: 本船動静 ===================== -->
+  <div class="tab-content" id="tab-vessel">
+
+    <div class="card">
+      <div class="section-title">🌐 国内動静ポータル</div>
+      <p style="font-size:12px;color:#718096;margin-bottom:14px;">国内の本船入出港・動静を調べられる外部ポータルです。</p>
+      <div id="vessel-portal-grid" style="display:flex;flex-wrap:wrap;gap:12px;"></div>
+    </div>
+
+    <div class="card">
+      <div class="section-title">🚢 Search by Vessel — 船会社別ページへジャンプ</div>
+      <p style="font-size:12px;color:#718096;margin-bottom:14px;">船会社のボタンをクリックすると、各社の本船スケジュール検索ページへ直接移動します。</p>
+      <div class="carrier-grid" id="vessel-grid"></div>
+    </div>  </div><!-- /tab-vessel -->
+
+  <!-- ===================== CY OPEN/CUT tab ===================== -->
+  <div class="tab-content" id="tab-cycut">
+
+    <div class="card">
+      <div class="section-title">📅 CY OPEN / CUT — 船会社別ページへジャンプ</div>
+      <p style="font-size:12px;color:#718096;margin-bottom:14px;">各船会社のCY OPEN・CUTカットオフ情報ページへジャンプします。グレーの船会社は情報未登録またはご確認ください。</p>
+      <div class="carrier-grid" id="cycut-grid"></div>
+    </div>  </div><!-- /tab-cycut -->
+
+  <!-- ===================== サービス航路 tab ===================== -->
+  <div class="tab-content" id="tab-route">
+
+    <div class="card">
+      <div class="section-title">🚢 船会社別 サービス航路ページ</div>
+      <p style="font-size:12px;color:var(--text-md);margin-bottom:14px;">各船会社のサービス航路一覧ページへジャンプします。</p>
+      <div class="carrier-grid" id="route-carrier-grid"></div>
+    </div>
+
+    <div class="card">
+      <div class="section-title">🗺️ 航路記事一覧</div>
+      <p style="font-size:12px;color:var(--text-md);margin-bottom:14px;">航路記事の一覧です。クリックすると記事ページへ移動します。</p>
+      <div id="route-articles" style="display:flex;flex-direction:column;gap:10px;">
+        <div style="color:var(--text-lt);font-size:13px;padding:12px 0;">読み込み中...</div>
+      </div>
+    </div>  </div><!-- /tab-route -->
+
+  <!-- ===================== サーチャージ tab ===================== -->
+  <div class="tab-content" id="tab-surcharge">
+
+    <div class="card">
+      <div class="section-title">📥 輸入サーチャージ <span class="wip-badge">🚧 URL未登録</span></div>
+      <p style="font-size:12px;color:#718096;margin-bottom:14px;">各船会社の輸入サーチャージ案内ページへジャンプします。</p>
+      <div class="carrier-grid" id="surcharge-import-grid"></div>
+    </div>
+
+    <div class="card">
+      <div class="section-title">📤 輸出サーチャージ <span class="wip-badge">🚧 URL未登録</span></div>
+      <p style="font-size:12px;color:#718096;margin-bottom:14px;">各船会社の輸出サーチャージ案内ページへジャンプします。</p>
+      <div class="carrier-grid" id="surcharge-export-grid"></div>
+    </div>
+
+    <div class="card">
+      <div class="section-title">📋 その他サーチャージ <span class="wip-badge">🚧 URL未登録</span></div>
+      <p style="font-size:12px;color:#718096;margin-bottom:14px;">PSS・GRI・EIS等の各種サーチャージ案内ページへジャンプします。</p>
+      <div class="carrier-grid" id="surcharge-other-grid"></div>
+    </div>  </div><!-- /tab-surcharge -->
+
+  <!-- ===================== Tab 4: 書類 ===================== -->
+  <div class="tab-content" id="tab-bldo">
+
+    <div class="card">
+      <div class="section-title">📥 輸入申請 <span class="wip-badge">🚧 一部登録済み</span></div>
+      <p style="font-size:12px;color:#718096;margin-bottom:14px;">DO発行依頼など、輸入に関する申請フォームへジャンプします。</p>
+      <div class="carrier-grid" id="bldo-import-grid"></div>
+    </div>
+
+    <div class="card">
+      <div class="section-title">📤 輸出申請 <span class="wip-badge">🚧 一部登録済み</span></div>
+      <p style="font-size:12px;color:#718096;margin-bottom:14px;">BL発行依頼など、輸出に関する申請フォームへジャンプします。</p>
+      <div class="carrier-grid" id="bldo-export-grid"></div>
+    </div>  </div><!-- /tab-bldo -->
+
+  <!-- ===================== Tab 5: BL 記載事項 ===================== -->
+  <div class="tab-content" id="tab-blrules">
+
+    <div class="card">
+      <div class="section-title">📋 BL記載事項（国・地域別規則）<span class="wip-badge">🚧 URL未登録</span></div>
+      <p style="font-size:12px;color:#718096;margin-bottom:12px;">
+        国・地域ごとのBL記載規則。各船会社の案内ページが登録されると「案内ページ ↗」リンクが表示されます。
+      </p>
+      <div class="blrules-grid" id="blrules-grid"></div>
+    </div>  </div><!-- /tab-blrules -->
+
+  <!-- ===================== Tab 6: フリータイム ===================== -->
+  <div class="tab-content" id="tab-freetime">
+
+    <div class="card">
+      <div class="section-title">⏱️ フリータイム検索<span class="wip-badge">🚧 URL未登録</span></div>
+      <p style="font-size:12px;color:#718096;margin-bottom:12px;">船会社・コンテナ番号を入力してフリータイム情報を検索します。</p>
+      <div class="lookup-form">
+        <select id="ft-carrier"></select>
+        <input type="text" id="ft-number" placeholder="コンテナ番号 (例: MSKU1234567)" />
+        <button class="btn-primary" onclick="freetimeLookup()">検索 🔍</button>
+      </div>
+      <div class="result-box" id="ft-result">
+        <span class="result-url" id="ft-url"></span>
+        <a class="btn-open" id="ft-link" href="#" target="_blank">開く ↗</a>
+      </div>
+    </div>  </div><!-- /tab-freetime -->
+
+  <!-- ===================== Tab: インコタームズ ===================== -->
+  <div class="tab-content" id="tab-incoterms">
+
+    <!-- 判定ツール -->
+    <div class="card">
+      <div class="section-title">🔍 インコタームズ判定ツール</div>
+      <p style="font-size:12px;color:#718096;margin-bottom:4px;">
+        <strong>自分（売り手）が担当する作業</strong>を選択して「判定する」を押してください。
+      </p>
+
+      <div class="inco-group-label">📤 輸出側の作業</div>
+      <div class="inco-stage-grid" id="inco-stages-export"></div>
+
+      <div class="inco-group-label">📥 輸入側の作業（売り手が代行する場合）</div>
+      <div class="inco-stage-grid" id="inco-stages-import"></div>
+
+      <div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap;">
+        <button class="btn-primary" onclick="judgeIncoterms()">判定する 🔍</button>
+        <button class="proc-type-btn" onclick="resetIncoterms()">リセット</button>
+      </div>
+      <div id="inco-result" style="margin-top:14px;"></div>
+    </div>
+
+    <!-- 作業範囲一覧表 -->
+    <div class="card">
+      <div class="section-title">📋 インコタームズ別 作業範囲一覧表</div>
+      <p style="font-size:12px;color:#718096;margin-bottom:10px;">
+        <span style="display:inline-block;background:#bbf7d0;color:#14532d;font-weight:700;padding:1px 7px;border-radius:3px;font-size:10px;">売</span>＝売り手負担　
+        <span style="display:inline-block;background:var(--bg);color:var(--text-lt);padding:1px 7px;border-radius:3px;font-size:10px;border:1px solid var(--border);">買</span>＝買い手負担
+      </p>
+      <div class="inco-table-wrap">
+        <table class="inco-table" id="inco-table"></table>
+      </div>
+    </div>
+
+
+    <!-- 申告価格解説 -->
+    <div class="card">
+      <div class="section-title">💴 輸出入通関における申告価格</div>
+      <p style="font-size:12px;color:#718096;margin-bottom:14px;">
+        売買契約のインコタームズに関わらず、通関申告に使う価格は税関のルールで決まっています。
+      </p>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;">
+
+        <!-- 輸出 -->
+        <div style="background:#e8f4f0;border-radius:9px;padding:14px 16px;border:1px solid #b2dfdb;">
+          <div style="font-size:12px;font-weight:800;color:#1a5c45;margin-bottom:8px;">📤 輸出通関の申告価格</div>
+          <div style="font-size:22px;font-weight:900;color:#1a5c45;text-align:center;margin:10px 0;">FOB価格</div>
+          <p style="font-size:11px;color:#2d6a4f;line-height:1.6;margin:0;">
+            売買条件がCIFやCFRであっても、輸出申告書には<strong>FOB価格（本船積込渡し価格）</strong>で申告します。<br>
+            運賃・保険料が含まれている場合は差し引いてFOBに換算します。
+          </p>
+        </div>
+
+        <!-- 輸入 -->
+        <div style="background:#fef3e8;border-radius:9px;padding:14px 16px;border:1px solid #f9c784;">
+          <div style="font-size:12px;font-weight:800;color:#7c3a0e;margin-bottom:8px;">📥 輸入通関の申告価格</div>
+          <div style="font-size:22px;font-weight:900;color:#7c3a0e;text-align:center;margin:10px 0;">CIF価格</div>
+          <p style="font-size:11px;color:#92400e;line-height:1.6;margin:0;">
+            売買条件がFOBやEXWであっても、課税標準は<strong>CIF価格（運賃・保険料込み価格）</strong>です。<br>
+            運賃・保険料が含まれていない場合は加算してCIFに換算します。
+          </p>
+        </div>
+
+      </div>
+
+      <!-- 換算早見表 -->
+      <div style="font-size:11px;font-weight:700;color:var(--text-md);margin-bottom:8px;letter-spacing:0.5px;">📐 よく使う換算パターン</div>
+      <div style="overflow-x:auto;">
+        <table style="border-collapse:collapse;width:100%;min-width:480px;font-size:11px;">
+          <thead>
+            <tr style="background:var(--accent-lt);">
+              <th style="padding:7px 10px;border:1px solid var(--border);text-align:left;color:var(--accent-dk);">売買条件</th>
+              <th style="padding:7px 10px;border:1px solid var(--border);text-align:center;color:#1a5c45;">輸出申告（FOB換算）</th>
+              <th style="padding:7px 10px;border:1px solid var(--border);text-align:center;color:#7c3a0e;">輸入申告（CIF換算）</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td style="padding:7px 10px;border:1px solid var(--border);font-weight:700;">EXW</td>
+              <td style="padding:7px 10px;border:1px solid var(--border);text-align:center;background:#e8f4f0;">EXW価格＋国内輸送費＋輸出通関費 → FOB</td>
+              <td style="padding:7px 10px;border:1px solid var(--border);text-align:center;background:#fef3e8;">FOB＋海上運賃＋保険料 → CIF</td>
+            </tr>
+            <tr style="background:#fafaf8;">
+              <td style="padding:7px 10px;border:1px solid var(--border);font-weight:700;">FOB</td>
+              <td style="padding:7px 10px;border:1px solid var(--border);text-align:center;background:#e8f4f0;">そのままFOB価格で申告</td>
+              <td style="padding:7px 10px;border:1px solid var(--border);text-align:center;background:#fef3e8;">FOB＋海上運賃＋保険料 → CIF</td>
+            </tr>
+            <tr>
+              <td style="padding:7px 10px;border:1px solid var(--border);font-weight:700;">CFR / CPT</td>
+              <td style="padding:7px 10px;border:1px solid var(--border);text-align:center;background:#e8f4f0;">CFR価格－海上運賃 → FOB</td>
+              <td style="padding:7px 10px;border:1px solid var(--border);text-align:center;background:#fef3e8;">CFR＋保険料 → CIF</td>
+            </tr>
+            <tr style="background:#fafaf8;">
+              <td style="padding:7px 10px;border:1px solid var(--border);font-weight:700;">CIF / CIP</td>
+              <td style="padding:7px 10px;border:1px solid var(--border);text-align:center;background:#e8f4f0;">CIF価格－海上運賃－保険料 → FOB</td>
+              <td style="padding:7px 10px;border:1px solid var(--border);text-align:center;background:#fef3e8;">そのままCIF価格で申告</td>
+            </tr>
+            <tr>
+              <td style="padding:7px 10px;border:1px solid var(--border);font-weight:700;">DAP / DPU / DDP</td>
+              <td style="padding:7px 10px;border:1px solid var(--border);text-align:center;background:#e8f4f0;">売買価格から運賃・保険等を差し引きFOB換算</td>
+              <td style="padding:7px 10px;border:1px solid var(--border);text-align:center;background:#fef3e8;">輸入港到着時のCIF相当額を使用</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div style="margin-top:12px;padding:10px 14px;background:#fffbeb;border-radius:7px;border:1px solid #fcd34d;">
+        <span style="font-size:11px;font-weight:700;color:#92400e;">⚠️ 注意点</span>
+        <p style="font-size:11px;color:#78350f;margin:4px 0 0;line-height:1.6;">
+          日本の輸入関税はCIF価格を課税標準とします（関税定率法第4条）。<br>
+          FOB建て取引で輸入する際、インボイスにFOB価格しか記載がない場合でも、
+          通関申告時に運賃・保険料を加算したCIF価格を申告する必要があります。<br>
+          運賃が不明な場合は税関が認定した方法（実費証明など）で計算します。
+        </p>
+      </div>
+    </div>  </div><!-- /tab-incoterms -->
+  <!-- ===================== Tab: 種類・サイズ ===================== -->
+  <div class="tab-content" id="tab-sizes">
+
+    <!-- コンテナ -->
+    <div class="card">
+      <div class="section-title">📦 コンテナ 種類・サイズ</div>
+      <p style="font-size:12px;color:#718096;margin-bottom:12px;">※内寸・重量はメーカーにより若干異なる場合があります。</p>
+
+      <div style="font-size:11px;font-weight:700;color:var(--accent-dk);margin:0 0 6px;">🟫 ドライコンテナ（汎用）</div>
+      <div style="overflow-x:auto;margin-bottom:14px;">
+        <table class="inco-table" style="min-width:600px;">
+          <thead><tr>
+            <th>種類</th><th>外寸 L×W×H</th><th>内寸 L×W×H</th><th>内容積</th><th>最大積載</th><th>備考</th>
+          </tr></thead>
+          <tbody>
+            <tr><td class="code-cell">20ft</td><td>6.06×2.44×2.59m</td><td>5.90×2.35×2.39m</td><td>33.2m³</td><td>21,700kg</td><td style="font-size:10px;color:var(--text-lt);">最も一般的。スペース効率◎</td></tr>
+            <tr><td class="code-cell">40ft</td><td>12.19×2.44×2.59m</td><td>12.03×2.35×2.39m</td><td>67.6m³</td><td>26,680kg</td><td style="font-size:10px;color:var(--text-lt);">20ft×2より容積大</td></tr>
+            <tr><td class="code-cell">40ft HC</td><td>12.19×2.44×2.90m</td><td>12.03×2.35×2.70m</td><td>76.4m³</td><td>26,460kg</td><td style="font-size:10px;color:var(--text-lt);">High Cube。かさ高貨物に最適</td></tr>
+            <tr><td class="code-cell">45ft HC</td><td>13.72×2.44×2.90m</td><td>13.56×2.35×2.70m</td><td>86.1m³</td><td>27,600kg</td><td style="font-size:10px;color:var(--text-lt);">欧州・北米航路で使用多い</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div style="font-size:11px;font-weight:700;color:var(--accent-dk);margin:0 0 6px;">🧊 リーファーコンテナ（温度管理）</div>
+      <div style="overflow-x:auto;margin-bottom:14px;">
+        <table class="inco-table" style="min-width:600px;">
+          <thead><tr>
+            <th>種類</th><th>内寸 L×W×H</th><th>内容積</th><th>最大積載</th><th>温度範囲</th>
+          </tr></thead>
+          <tbody>
+            <tr><td class="code-cell">20ft Reefer</td><td>5.44×2.29×2.27m</td><td>28.4m³</td><td>約21,000kg</td><td>-30°C〜+30°C</td></tr>
+            <tr><td class="code-cell">40ft HC Reefer</td><td>11.59×2.29×2.51m</td><td>66.7m³</td><td>約26,000kg</td><td>-30°C〜+30°C</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div style="font-size:11px;font-weight:700;color:var(--accent-dk);margin:0 0 6px;">⚙️ 特殊コンテナ</div>
+      <div style="overflow-x:auto;">
+        <table class="inco-table" style="min-width:500px;">
+          <thead><tr><th>種類</th><th>構造の特徴</th><th>主な対象貨物</th></tr></thead>
+          <tbody>
+            <tr><td class="code-cell">Open Top</td><td>天井なし（タープ被覆）</td><td>石材、木材、機械類など背高貨物</td></tr>
+            <tr><td class="code-cell">Flat Rack</td><td>側壁・天井なし、フレームのみ</td><td>重機、建設機械、鋼材、車両</td></tr>
+            <tr><td class="code-cell">Platform</td><td>床面のみ（壁・天井なし）</td><td>超大型・超重量貨物</td></tr>
+            <tr><td class="code-cell">Tank</td><td>円筒タンク型</td><td>液体化学品、食品液体、ガス類</td></tr>
+            <tr><td class="code-cell">Ventilated</td><td>側面に換気口</td><td>コーヒー豆、コルクなど呼吸する貨物</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- トラック -->
+    <div class="card">
+      <div class="section-title">🚛 トラック 種類・荷室サイズ</div>
+      <p style="font-size:12px;color:#718096;margin-bottom:12px;">荷室サイズはメーカー・仕様により異なります。目安としてお使いください。</p>
+      <div style="overflow-x:auto;">
+        <table class="inco-table" style="min-width:620px;">
+          <thead><tr>
+            <th>車種</th><th>最大積載量</th><th>車両総重量</th><th>荷室サイズ目安<br>L×W×H</th><th>主な用途</th>
+          </tr></thead>
+          <tbody>
+            <tr><td class="code-cell">軽バン</td><td>〜350kg</td><td>〜1.0t</td><td>1.4×1.2×1.2m</td><td>小口荷物、宅配</td></tr>
+            <tr><td class="code-cell">小型（1.5t）</td><td>〜1.5t</td><td>〜3.5t</td><td>2.8×1.6×1.6m</td><td>一般雑貨、引越し</td></tr>
+            <tr><td class="code-cell">小型（2t）</td><td>〜2.0t</td><td>〜3.5t</td><td>3.4×1.8×1.7m</td><td>一般雑貨、パレット輸送</td></tr>
+            <tr><td class="code-cell">中型（4t）</td><td>〜4.0t</td><td>〜8.0t</td><td>4.3×2.0×1.9m</td><td>雑貨、食品、パレット</td></tr>
+            <tr><td class="code-cell">大型（10t）</td><td>〜10.0t</td><td>〜20.0t</td><td>6.2×2.3×2.4m</td><td>重量物、コンテナ貨物</td></tr>
+            <tr><td class="code-cell">トレーラー<br>（20ftコンテナ）</td><td>〜20.0t</td><td>〜36.0t</td><td>コンテナ内寸に依存</td><td>港湾〜工場・倉庫間輸送</td></tr>
+            <tr><td class="code-cell">トレーラー<br>（40ftコンテナ）</td><td>〜20.0t</td><td>〜36.0t</td><td>コンテナ内寸に依存</td><td>港湾〜工場・倉庫間輸送</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- 道路交通法の制限 -->
+    <div class="card">
+      <div class="section-title">🚦 道路交通法・車両制限令による制限値</div>
+      <p style="font-size:12px;color:#718096;margin-bottom:12px;">一般制限値を超える車両は<strong>特殊車両通行許可</strong>（国道事務所等）の取得が必要です。</p>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px;">
+        <div style="overflow-x:auto;">
+          <div style="font-size:11px;font-weight:700;color:var(--accent-dk);margin-bottom:6px;">📏 寸法・重量の一般制限値</div>
+          <table class="inco-table" style="min-width:280px;">
+            <thead><tr><th>制限項目</th><th>一般制限値</th><th>高さ指定道路</th></tr></thead>
+            <tbody>
+              <tr><td style="text-align:left;padding:5px 8px;font-weight:600;">全長</td><td>12.0m以下</td><td>—</td></tr>
+              <tr><td style="text-align:left;padding:5px 8px;font-weight:600;">全幅</td><td>2.5m以下</td><td>—</td></tr>
+              <tr><td style="text-align:left;padding:5px 8px;font-weight:600;">全高</td><td>3.8m以下</td><td class="seller" style="background:#bbf7d0;color:#14532d;">4.1m以下</td></tr>
+              <tr><td style="text-align:left;padding:5px 8px;font-weight:600;">車両総重量</td><td>20.0t以下</td><td>—</td></tr>
+              <tr><td style="text-align:left;padding:5px 8px;font-weight:600;">軸重</td><td>10.0t以下</td><td>—</td></tr>
+              <tr><td style="text-align:left;padding:5px 8px;font-weight:600;">隣接軸重</td><td>18.0t以下</td><td>—</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div style="overflow-x:auto;">
+          <div style="font-size:11px;font-weight:700;color:var(--accent-dk);margin-bottom:6px;">🚢 コンテナ輸送での注意点</div>
+          <table class="inco-table" style="min-width:280px;">
+            <thead><tr><th>コンテナ</th><th>全長目安</th><th>要許可</th></tr></thead>
+            <tbody>
+              <tr><td class="code-cell">20ft</td><td>約13〜14m</td><td style="color:#b91c1c;font-weight:700;">要</td></tr>
+              <tr><td class="code-cell">40ft</td><td>約15〜16m</td><td style="color:#b91c1c;font-weight:700;">要</td></tr>
+              <tr><td class="code-cell">40ft HC</td><td>約15〜16m<br>高さ4.1m超も</td><td style="color:#b91c1c;font-weight:700;">要</td></tr>
+            </tbody>
+          </table>
+          <p style="font-size:10px;color:var(--text-lt);margin-top:6px;line-height:1.5;">
+            コンテナトレーラーはほぼすべて全長12m超となるため、特殊車両通行許可が必要です。輸送会社が事前に許可を取得しているのが一般的です。
+          </p>
+        </div>
+      </div>
+
+      <div style="padding:10px 14px;background:#fffbeb;border-radius:7px;border:1px solid #fcd34d;">
+        <span style="font-size:11px;font-weight:700;color:#92400e;">⚠️ 特殊車両通行許可について</span>
+        <p style="font-size:11px;color:#78350f;margin:4px 0 0;line-height:1.6;">
+          一般制限値を超える車両は、通行する経路ごとに<strong>道路管理者（国道事務所・都道府県・市区町村）</strong>への許可申請が必要です（道路法第47条の2）。<br>
+          申請はオンライン（特車申請システム）でも可能。許可には条件（夜間通行、誘導車の配置等）が付される場合があります。
+        </p>
+      </div>
+    </div>  </div><!-- /tab-sizes -->
+  <!-- ===================== Tab: 海上貨物保険 ===================== -->
+  <div class="tab-content" id="tab-insurance">
+
+    <!-- ICC条項比較 -->
+    <div class="card">
+      <div class="section-title">🛡️ 協会貨物約款（ICC）の種類と担保範囲</div>
+      <p style="font-size:12px;color:#718096;margin-bottom:12px;">
+        ICC（Institute Cargo Clauses）は海上貨物保険の国際標準約款。A・B・Cの3種があり、カバー範囲が異なります。
+      </p>
+      <div style="overflow-x:auto;">
+        <table class="inco-table" style="min-width:580px;">
+          <thead>
+            <tr>
+              <th style="text-align:left;padding-left:10px;">担保リスク</th>
+              <th style="background:#bbf7d0;color:#14532d;">ICC (A)<br>全危険担保</th>
+              <th style="background:#bfdbfe;color:#1e40af;">ICC (B)</th>
+              <th style="background:#fef9c3;color:#713f12;">ICC (C)</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td style="text-align:left;padding:6px 10px;font-weight:600;">火災・爆発</td>
+              <td class="seller">●</td><td class="seller">●</td><td class="seller">●</td></tr>
+            <tr style="background:#fafaf8;"><td style="text-align:left;padding:6px 10px;font-weight:600;">座礁・沈没・転覆</td>
+              <td class="seller">●</td><td class="seller">●</td><td class="seller">●</td></tr>
+            <tr><td style="text-align:left;padding:6px 10px;font-weight:600;">陸上輸送具の転覆・脱線</td>
+              <td class="seller">●</td><td class="seller">●</td><td class="seller">●</td></tr>
+            <tr style="background:#fafaf8;"><td style="text-align:left;padding:6px 10px;font-weight:600;">本船・はしけの衝突・座礁</td>
+              <td class="seller">●</td><td class="seller">●</td><td class="seller">●</td></tr>
+            <tr><td style="text-align:left;padding:6px 10px;font-weight:600;">共同海損・救助費用</td>
+              <td class="seller">●</td><td class="seller">●</td><td class="seller">●</td></tr>
+            <tr style="background:#fafaf8;"><td style="text-align:left;padding:6px 10px;font-weight:600;">地震・火山噴火・落雷</td>
+              <td class="seller">●</td><td class="seller">●</td><td class="buyer">×</td></tr>
+            <tr><td style="text-align:left;padding:6px 10px;font-weight:600;">海水・川水・湖水の浸入</td>
+              <td class="seller">●</td><td class="seller">●</td><td class="buyer">×</td></tr>
+            <tr style="background:#fafaf8;"><td style="text-align:left;padding:6px 10px;font-weight:600;">波かぶり・デッキからの流出</td>
+              <td class="seller">●</td><td class="seller">●</td><td class="buyer">×</td></tr>
+            <tr><td style="text-align:left;padding:6px 10px;font-weight:600;">荷役中の落下・海没</td>
+              <td class="seller">●</td><td class="seller">●</td><td class="buyer">×</td></tr>
+            <tr style="background:#fafaf8;"><td style="text-align:left;padding:6px 10px;font-weight:600;">盗難・抜荷・不着</td>
+              <td class="seller">●</td><td class="buyer">×</td><td class="buyer">×</td></tr>
+            <tr><td style="text-align:left;padding:6px 10px;font-weight:600;">雨水濡れ・結露</td>
+              <td class="seller">●</td><td class="buyer">×</td><td class="buyer">×</td></tr>
+            <tr style="background:#fafaf8;"><td style="text-align:left;padding:6px 10px;font-weight:600;">破損・曲がり・へこみ</td>
+              <td class="seller">●</td><td class="buyer">×</td><td class="buyer">×</td></tr>
+            <tr><td style="text-align:left;padding:6px 10px;font-weight:600;">混合・汚染</td>
+              <td class="seller">●</td><td class="buyer">×</td><td class="buyer">×</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p style="font-size:11px;color:var(--text-lt);margin-top:8px;">
+        ※ 旧約款名：ICC(C)≒FPA（単独海損不担保）、ICC(B)≒WA（分損担保）、ICC(A)≒AR（全危険担保）
+      </p>
+    </div>
+
+    <!-- 免責・共通事項 -->
+    <div class="card">
+      <div class="section-title">⚠️ 共通の免責事項（A・B・C すべて不担保）</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+        <div>
+          <ul style="font-size:11px;color:var(--text);line-height:2;margin:0;padding-left:16px;">
+            <li>被保険者の故意または重大な過失</li>
+            <li>通常の漏損・目減り・自然消耗</li>
+            <li>不適切な梱包・荷造りによる損害</li>
+            <li>貨物固有の瑕疵・性質による損害</li>
+            <li>遅延によって生じた損失（利益損失等）</li>
+          </ul>
+        </div>
+        <div>
+          <ul style="font-size:11px;color:var(--text);line-height:2;margin:0;padding-left:16px;">
+            <li>原子力・放射線・核反応による損害</li>
+            <li>戦争・内乱（別途 戦争条項で追加可）</li>
+            <li>ストライキ・暴動（別途 ストライキ条項で追加可）</li>
+            <li>本船の堪航能力の欠如</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- 保険価額・保険料 -->
+    <div class="card">
+      <div class="section-title">💰 保険価額・保険料の計算</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+        <div style="background:#e8f4f0;border-radius:9px;padding:14px 16px;border:1px solid #b2dfdb;">
+          <div style="font-size:12px;font-weight:800;color:#1a5c45;margin-bottom:8px;">📐 保険価額（慣行）</div>
+          <div style="font-size:18px;font-weight:900;color:#1a5c45;text-align:center;margin:8px 0;">CIF価格 × 110%</div>
+          <p style="font-size:11px;color:#2d6a4f;line-height:1.6;margin:0;">
+            貨物のCIF価格に10%の希望利益を上乗せした金額が一般的。インボイス価格がFOBの場合は運賃・保険料を加算してからCIFを算出します。
+          </p>
+        </div>
+        <div style="background:#fef3e8;border-radius:9px;padding:14px 16px;border:1px solid #f9c784;">
+          <div style="font-size:12px;font-weight:800;color:#7c3a0e;margin-bottom:8px;">💴 保険料の計算</div>
+          <div style="font-size:18px;font-weight:900;color:#7c3a0e;text-align:center;margin:8px 0;">保険価額 × 保険料率</div>
+          <p style="font-size:11px;color:#92400e;line-height:1.6;margin:0;">
+            料率は品目・航路・条件により異なります。付保はCIF建て取引では売り手（輸出者）が行い、FOB建てでは買い手（輸入者）が手配するのが通例です。
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <!-- 保険金請求手続き -->
+    <div class="card">
+      <div class="section-title">📋 クレーム（保険金請求）の手続き</div>
+      <div style="overflow-x:auto;">
+        <table class="inco-table" style="min-width:520px;">
+          <thead><tr><th>ステップ</th><th>内容</th><th>ポイント</th></tr></thead>
+          <tbody>
+            <tr><td style="text-align:center;font-weight:700;">①</td>
+              <td style="font-size:11px;">損害の発見・確認</td>
+              <td style="font-size:10px;color:var(--text-lt);">本船・港湾・倉庫で損害を発見したらその場で記録（写真必須）</td></tr>
+            <tr style="background:#fafaf8;"><td style="text-align:center;font-weight:700;">②</td>
+              <td style="font-size:11px;">運送人・保管業者への損害通知（クレームレター）</td>
+              <td style="font-size:10px;color:var(--text-lt);">B/L上の運送人に書面で通知。受取時は清潔でも発見次第速やかに</td></tr>
+            <tr><td style="text-align:center;font-weight:700;">③</td>
+              <td style="font-size:11px;">保険会社へ事故通知</td>
+              <td style="font-size:10px;color:var(--text-lt);">保険証券記載の保険会社・代理店へ連絡。サーベイヤー（検定人）の手配を依頼</td></tr>
+            <tr style="background:#fafaf8;"><td style="text-align:center;font-weight:700;">④</td>
+              <td style="font-size:11px;">サーベイレポートの取得</td>
+              <td style="font-size:10px;color:var(--text-lt);">保険会社指定のサーベイヤーが損害を調査・鑑定し報告書を作成</td></tr>
+            <tr><td style="text-align:center;font-weight:700;">⑤</td>
+              <td style="font-size:11px;">クレーム書類の提出</td>
+              <td style="font-size:10px;color:var(--text-lt);">保険証券・B/L・インボイス・パッキングリスト・サーベイレポート・損害明細</td></tr>
+            <tr style="background:#fafaf8;"><td style="text-align:center;font-weight:700;">⑥</td>
+              <td style="font-size:11px;">保険金の受取</td>
+              <td style="font-size:10px;color:var(--text-lt);">書類審査後に保険会社から支払い。求償権（運送人への追求権）は保険会社へ移転</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>  </div><!-- /tab-insurance -->
+
+  <!-- ===================== Tab: BL約款 ===================== -->
+  <div class="tab-content" id="tab-blclause">
+
+    <!-- BLの種類 -->
+    <div class="card">
+      <div class="section-title">📄 船荷証券（B/L）の種類</div>
+      <div style="overflow-x:auto;">
+        <table class="inco-table" style="min-width:580px;">
+          <thead><tr><th style="width:22%;">区分</th><th style="width:24%;">種類</th><th>内容・特徴</th></tr></thead>
+          <tbody>
+            <tr>
+              <td style="text-align:left;padding:6px 10px;font-weight:700;" rowspan="2">積み込み状態</td>
+              <td class="code-cell" style="font-size:11px;">Shipped B/L<br>（船積式）</td>
+              <td style="font-size:11px;">本船への積み込み完了後に発行。信用状取引で最も一般的に求められる。</td>
+            </tr>
+            <tr style="background:#fafaf8;">
+              <td class="code-cell" style="font-size:11px;">Received B/L<br>（受取式）</td>
+              <td style="font-size:11px;">CYやCFSへの搬入時点で発行。On Board Notation（船積み注記）を追記することで Shipped B/L として扱える。</td>
+            </tr>
+            <tr>
+              <td style="text-align:left;padding:6px 10px;font-weight:700;" rowspan="2">貨物状態</td>
+              <td class="code-cell" style="font-size:11px;">Clean B/L<br>（無故障）</td>
+              <td style="font-size:11px;">貨物の外観に異常なし。信用状決済に必須。</td>
+            </tr>
+            <tr style="background:#fafaf8;">
+              <td class="code-cell" style="font-size:11px;">Claused/Dirty B/L<br>（故障付）</td>
+              <td style="font-size:11px;">破損・汚損等の留保文言（Remarks）あり。L/C決済では原則使用不可。</td>
+            </tr>
+            <tr>
+              <td style="text-align:left;padding:6px 10px;font-weight:700;" rowspan="3">流通性</td>
+              <td class="code-cell" style="font-size:11px;">Negotiable B/L<br>（流通式）</td>
+              <td style="font-size:11px;">裏書（Endorsement）により第三者へ権利譲渡が可能。L/C決済・船積み書類で主流。</td>
+            </tr>
+            <tr style="background:#fafaf8;">
+              <td class="code-cell" style="font-size:11px;">Surrender B/L<br>（サレンダー）</td>
+              <td style="font-size:11px;">輸出地で原本を返却（サレンダー）し、テレックスリリースで荷渡し。近距離・信頼取引で使用。</td>
+            </tr>
+            <tr>
+              <td class="code-cell" style="font-size:11px;">Sea Waybill<br>（海上貨物運送状）</td>
+              <td style="font-size:11px;">非流通式。権利証券ではなく受取証。原本不要で荷渡し可能。グループ間取引・電子化に向く。</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- 主要約款 -->
+    <div class="card">
+      <div class="section-title">📜 B/Lの主要約款（クローズ）解説</div>
+      <div style="overflow-x:auto;">
+        <table class="inco-table" style="min-width:620px;">
+          <thead><tr>
+            <th style="width:22%;">約款名</th>
+            <th style="width:30%;">内容</th>
+            <th>実務上の影響・注意点</th>
+          </tr></thead>
+          <tbody>
+            <tr>
+              <td class="code-cell" style="font-size:11px;">Said to Contain<br>（STC条項）</td>
+              <td style="font-size:11px;">「荷送人の申告による」という意味。コンテナ内容物は船社が確認していない。</td>
+              <td style="font-size:11px;color:var(--text-lt);">コンテナバンニングの内容は荷主責任。申告と実際の相違は荷主負担。</td>
+            </tr>
+            <tr style="background:#fafaf8;">
+              <td class="code-cell" style="font-size:11px;">Shipper's Load<br>& Count（SL&C）</td>
+              <td style="font-size:11px;">貨物の数量・重量はすべて荷送人の申告値。船社は検証していない。</td>
+              <td style="font-size:11px;color:var(--text-lt);">数量違いのクレームは荷主間で解決。船社免責。</td>
+            </tr>
+            <tr>
+              <td class="code-cell" style="font-size:11px;">ヒマラヤ条項<br>（Himalaya）</td>
+              <td style="font-size:11px;">船社の免責・責任制限（ヘーグ・ヴィスビールール）を、使用人・代理人・下請け運送人にも適用拡大。</td>
+              <td style="font-size:11px;color:var(--text-lt);">港運業者・NVOCC等への求償も制限される場合がある。</td>
+            </tr>
+            <tr style="background:#fafaf8;">
+              <td class="code-cell" style="font-size:11px;">責任制限条項<br>（ヘーグ・ヴィスビー）</td>
+              <td style="font-size:11px;">運送人の賠償責任上限を、コンテナ1本につきSDR835または貨物1kg当たりSDR2.5の高い方に制限。</td>
+              <td style="font-size:11px;color:var(--text-lt);">高額貨物は申告価額（Declared Value）を別途記載し責任額を引き上げること。</td>
+            </tr>
+            <tr>
+              <td class="code-cell" style="font-size:11px;">自由裁量条項<br>（Liberty Clause）</td>
+              <td style="font-size:11px;">船社は航路変更・寄港地変更・積替・迂回等を行う自由を持つ。</td>
+              <td style="font-size:11px;color:var(--text-lt);">船社による迂回・延着は免責になる場合が多い。契約書等で到着日を保証させることは困難。</td>
+            </tr>
+            <tr style="background:#fafaf8;">
+              <td class="code-cell" style="font-size:11px;">共同海損条項<br>（GA Clause）</td>
+              <td style="font-size:11px;">共同海損（GA）発生時、荷主はGAアジャスターへの供託（Security）提出が必要。</td>
+              <td style="font-size:11px;color:var(--text-lt);">供託しないと貨物が留置される。貨物保険でGAは通常カバーされる。</td>
+            </tr>
+            <tr>
+              <td class="code-cell" style="font-size:11px;">留置権条項<br>（Lien Clause）</td>
+              <td style="font-size:11px;">運賃・料金未払いの場合、船社は貨物を留置・売却する権利を持つ。</td>
+              <td style="font-size:11px;color:var(--text-lt);">着払い（Freight Collect）取引では荷受人の支払いが荷渡しの前提。</td>
+            </tr>
+            <tr style="background:#fafaf8;">
+              <td class="code-cell" style="font-size:11px;">裁判管轄条項<br>（Jurisdiction）</td>
+              <td style="font-size:11px;">紛争は船社本店所在地（多くは本船の旗国）の裁判所で解決する旨を規定。</td>
+              <td style="font-size:11px;color:var(--text-lt);">日本の荷主が欧州船社に提訴する場合、現地での対応が必要になる場合あり。</td>
+            </tr>
+            <tr>
+              <td class="code-cell" style="font-size:11px;">危険物条項<br>（Dangerous Goods）</td>
+              <td style="font-size:11px;">IMDG Codeに基づく危険物の申告義務・梱包要件・積付け制限を規定。</td>
+              <td style="font-size:11px;color:var(--text-lt);">未申告・虚偽申告は船社が輸送を拒否でき、損害は荷送人全額負担。</td>
+            </tr>
+            <tr style="background:#fafaf8;">
+              <td class="code-cell" style="font-size:11px;">提訴期限条項<br>（Time Bar）</td>
+              <td style="font-size:11px;">損害賠償請求の時効は貨物引渡しから1年（ヘーグ・ヴィスビー準拠）。</td>
+              <td style="font-size:11px;color:var(--text-lt);">1年を超えると原則クレーム不可。損害発見後は速やかに手続きを開始すること。</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div style="margin-top:12px;padding:10px 14px;background:#fffbeb;border-radius:7px;border:1px solid #fcd34d;">
+        <span style="font-size:11px;font-weight:700;color:#92400e;">💡 実務ポイント</span>
+        <p style="font-size:11px;color:#78350f;margin:4px 0 0;line-height:1.6;">
+          B/Lの約款は船社ごとに内容が異なります。輸送条件の確認はB/L裏面（Back Clause）または各船社のウェブサイト上の約款ページで行ってください。<br>
+          高価な貨物・精密機器の輸送では、B/Lへの<strong>申告価額（Declared Value）記載</strong>による責任額引き上げと、<strong>ICC(A)条件の貨物保険</strong>の付保を強く推奨します。
+        </p>
+      </div>
+    </div>  </div><!-- /tab-blclause -->
+
+
+  <!-- ===================== Tab: 貿易管理令・他法令 ===================== -->
+  <div class="tab-content" id="tab-regs">
+
+    <!-- 輸入通関：他法令 -->
+    <div class="card">
+      <div class="section-title">📥 輸入通関 ― 他法令（関税法以外の規制）</div>
+      <p style="font-size:12px;color:#718096;margin-bottom:12px;">
+        輸入申告に加えて、品目によっては他省庁の許可・承認・確認が必要です。通関前に要件を確認してください。
+      </p>
+      <div style="overflow-x:auto;">
+        <table class="inco-table" style="min-width:700px;">
+          <thead>
+            <tr>
+              <th style="width:14%;">法令名</th>
+              <th style="width:16%;">管轄省庁・窓口</th>
+              <th style="width:20%;">主な対象品目</th>
+              <th style="width:27%;">主な要件・手続き</th>
+              <th style="width:23%;">通関への影響</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="code-cell" style="font-size:11px;">食品衛生法</td>
+              <td style="font-size:10px;">厚生労働省<br>検疫所（FAMS）</td>
+              <td style="font-size:10px;">食品、飲料、添加物、食器・包装容器</td>
+              <td style="font-size:10px;">輸入届出書提出→検査（書類/現物）→食品等輸入届出済証の取得</td>
+              <td style="font-size:10px;color:#b91c1c;">届出済証の取得が輸入許可の前提。違反品は廃棄・積戻し。</td>
+            </tr>
+            <tr style="background:#fafaf8;">
+              <td class="code-cell" style="font-size:11px;">植物防疫法</td>
+              <td style="font-size:10px;">農林水産省<br>植物防疫所</td>
+              <td style="font-size:10px;">植物・種子・土壌・木材梱包材（ISPM15非対応）</td>
+              <td style="font-size:10px;">輸出国発行の植物検疫証明書。木材梱包材はIPPC/ISPM15マーク確認。くん蒸処理が必要な場合あり。</td>
+              <td style="font-size:10px;color:#b91c1c;">検疫所の合格証明なしに搬出不可。輸入禁止品目あり。</td>
+            </tr>
+            <tr>
+              <td class="code-cell" style="font-size:11px;">家畜伝染病<br>予防法</td>
+              <td style="font-size:10px;">農林水産省<br>動物検疫所</td>
+              <td style="font-size:10px;">動物・畜産物（肉・乳・卵）、飼料、ペット</td>
+              <td style="font-size:10px;">輸出国政府発行の衛生証明書。動物検疫所での検査・隔離。</td>
+              <td style="font-size:10px;color:#b91c1c;">検査・隔離期間は輸入スケジュールに影響大。</td>
+            </tr>
+            <tr style="background:#fafaf8;">
+              <td class="code-cell" style="font-size:11px;">薬機法<br>（医薬品医療<br>機器等法）</td>
+              <td style="font-size:10px;">厚生労働省<br>都道府県</td>
+              <td style="font-size:10px;">医薬品、医薬部外品、化粧品、医療機器、再生医療等製品</td>
+              <td style="font-size:10px;">輸入業者登録（医薬品輸入販売業等）。品目ごとに製造販売承認・認証・届出が必要。</td>
+              <td style="font-size:10px;color:#b91c1c;">未承認品・個人使用目的以外は原則輸入不可。</td>
+            </tr>
+            <tr>
+              <td class="code-cell" style="font-size:11px;">電気用品<br>安全法（PSE）</td>
+              <td style="font-size:10px;">経済産業省</td>
+              <td style="font-size:10px;">電気用品（電源コード・ACアダプター・電気機器等）</td>
+              <td style="font-size:10px;">特定電気用品（◇PSE）：登録検査機関による適合性検査。<br>特定外（○PSE）：自己確認・届出。</td>
+              <td style="font-size:10px;color:#b91c1c;">PSEマーク未取得品は国内販売・配布禁止。</td>
+            </tr>
+            <tr style="background:#fafaf8;">
+              <td class="code-cell" style="font-size:11px;">電波法<br>（技適）</td>
+              <td style="font-size:10px;">総務省<br>総合通信局</td>
+              <td style="font-size:10px;">無線設備を内蔵する機器（Wi-Fi・Bluetooth・携帯等）</td>
+              <td style="font-size:10px;">技術基準適合証明（技適マーク）の取得または確認。海外認証品は国内では原則使用不可。</td>
+              <td style="font-size:10px;color:#b91c1c;">技適なし機器の国内使用は電波法違反。輸入自体は可能だが使用・販売は不可。</td>
+            </tr>
+            <tr>
+              <td class="code-cell" style="font-size:11px;">消費生活用<br>製品安全法<br>（PSC）</td>
+              <td style="font-size:10px;">経済産業省</td>
+              <td style="font-size:10px;">乗車用ヘルメット、登山用ロープ、石油給湯機、児童用ベッド等</td>
+              <td style="font-size:10px;">特別特定製品（菱形PSC）：第三者機関認証。<br>特定製品（丸形PSC）：自己確認。</td>
+              <td style="font-size:10px;color:#b91c1c;">PSCマーク未取得品は販売禁止。</td>
+            </tr>
+            <tr style="background:#fafaf8;">
+              <td class="code-cell" style="font-size:11px;">化審法<br>（化学物質<br>審査規制法）</td>
+              <td style="font-size:10px;">経産省・環境省<br>厚生労働省</td>
+              <td style="font-size:10px;">新規化学物質、特定化学物質、優先評価化学物質</td>
+              <td style="font-size:10px;">新規化学物質は製造・輸入前に届出・審査が必要。年間1t超が対象（少量・低懸念は簡易手続き）。</td>
+              <td style="font-size:10px;color:#b91c1c;">事前審査なしに輸入した場合は違法。審査期間は数ヶ月かかる場合あり。</td>
+            </tr>
+            <tr>
+              <td class="code-cell" style="font-size:11px;">毒物劇物<br>取締法</td>
+              <td style="font-size:10px;">厚生労働省<br>都道府県</td>
+              <td style="font-size:10px;">毒物・劇物に指定された化学物質（塩酸・硫酸・農薬原体等）</td>
+              <td style="font-size:10px;">毒物劇物輸入業登録（都道府県知事への申請）。保管・管理基準の遵守。</td>
+              <td style="font-size:10px;color:#b91c1c;">登録なしの輸入は禁止。輸入時に通関書類へ記載必要。</td>
+            </tr>
+            <tr style="background:#fafaf8;">
+              <td class="code-cell" style="font-size:11px;">ワシントン<br>条約（CITES）</td>
+              <td style="font-size:10px;">経済産業省<br>動植物検疫</td>
+              <td style="font-size:10px;">絶滅危惧種の動植物・毛皮・象牙・サンゴ・木材等</td>
+              <td style="font-size:10px;">輸出国のCITES輸出許可書＋日本の輸入許可書（経産省）が必要。</td>
+              <td style="font-size:10px;color:#b91c1c;">許可書なしは没収・刑事罰。古物・加工品も対象になる場合あり。</td>
+            </tr>
+            <tr>
+              <td class="code-cell" style="font-size:11px;">外為法<br>輸入承認<br>（IQ等）</td>
+              <td style="font-size:10px;">経済産業省<br>財務省</td>
+              <td style="font-size:10px;">輸入割当品目（IQ）、輸入公表品目（武器・核燃料等）</td>
+              <td style="font-size:10px;">輸入承認申請（経産省）→輸入承認書の取得。IQ品目は割当数量の範囲内で輸入可。</td>
+              <td style="font-size:10px;color:#b91c1c;">承認書なしの通関申告は受理されない。</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- 輸出通関：貿易管理令 -->
+    <div class="card">
+      <div class="section-title">📤 輸出通関 ― 貿易管理令・安全保障輸出管理</div>
+      <p style="font-size:12px;color:#718096;margin-bottom:14px;">
+        日本では<strong>外国為替及び外国貿易法（外為法）</strong>に基づく<strong>輸出貿易管理令</strong>により、特定の品目・地域への輸出には経産省の許可が必要です。
+      </p>
+
+      <!-- 規制の2本柱 -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;">
+        <div style="background:#e8f4f0;border-radius:9px;padding:14px 16px;border:1px solid #b2dfdb;">
+          <div style="font-size:12px;font-weight:800;color:#1a5c45;margin-bottom:8px;">📋 リスト規制</div>
+          <p style="font-size:11px;color:#2d6a4f;line-height:1.6;margin:0;">
+            輸出令別表第1に掲げられた品目（武器・核・化学兵器・ミサイル・汎用品等）は、<strong>仕向地・需要者に関わらず</strong>輸出許可が必要。<br>
+            品目は16のカテゴリー（1〜15＋貨物等省令）に分類されます。
+          </p>
+        </div>
+        <div style="background:#fef3e8;border-radius:9px;padding:14px 16px;border:1px solid #f9c784;">
+          <div style="font-size:12px;font-weight:800;color:#7c3a0e;margin-bottom:8px;">🌐 キャッチオール規制</div>
+          <p style="font-size:11px;color:#92400e;line-height:1.6;margin:0;">
+            リスト非該当品でも、<strong>大量破壊兵器等の開発・製造・使用に用いられるおそれ</strong>がある場合は許可申請が必要。<br>
+            ホワイト国（貿易上信頼できる国）向けは適用除外。
+          </p>
+        </div>
+      </div>
+
+      <!-- リスト規制カテゴリー表 -->
+      <div style="font-size:11px;font-weight:700;color:var(--accent-dk);margin-bottom:8px;">📑 輸出令別表第1 規制カテゴリー</div>
+      <div style="overflow-x:auto;margin-bottom:16px;">
+        <table class="inco-table" style="min-width:520px;">
+          <thead><tr><th style="width:8%;">項番</th><th style="width:32%;">カテゴリー</th><th>主な品目例</th></tr></thead>
+          <tbody>
+            <tr><td style="text-align:center;font-weight:700;">1</td><td>武器</td><td style="font-size:10px;">銃砲・火薬・戦車・軍用機・軍用船舶</td></tr>
+            <tr style="background:#fafaf8;"><td style="text-align:center;font-weight:700;">2〜4</td><td>核兵器・核関連品</td><td style="font-size:10px;">核物質、原子炉、ウラン濃縮設備、核爆発装置関連</td></tr>
+            <tr><td style="text-align:center;font-weight:700;">5・6</td><td>化学・生物兵器関連</td><td style="font-size:10px;">特定有毒物質、発酵・合成装置、防護装備</td></tr>
+            <tr style="background:#fafaf8;"><td style="text-align:center;font-weight:700;">7</td><td>ミサイル関連</td><td style="font-size:10px;">推進システム、ロケット、無人機（特定用途）</td></tr>
+            <tr><td style="text-align:center;font-weight:700;">8〜15</td><td>汎用品（デュアルユース）</td><td style="font-size:10px;">先端材料、材料加工機械、電子部品、コンピュータ、通信機器、センサー、航法装置、海洋機器、推進装置</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- 非該当証明 -->
+      <div style="font-size:11px;font-weight:700;color:var(--accent-dk);margin-bottom:8px;">📄 非該当証明（Non-Subject Certificate）</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;">
+        <div style="font-size:11px;color:var(--text);line-height:1.7;">
+          <strong>目的：</strong>輸出品がリスト規制の対象外であることを証明する書類。<br>
+          <strong>発行者：</strong>メーカーまたは輸出者が自己判断で発行。<br>
+          <strong>求められる場面：</strong>輸入国税関・輸入者から提出を要求された場合、または社内規程による自主確認。
+        </div>
+        <div style="font-size:11px;color:var(--text);line-height:1.7;">
+          <strong>記載内容：</strong>品名・型番・HSコード・輸出令別表の非該当根拠・確認者情報。<br>
+          <strong>注意：</strong>非該当証明はあくまで<em>自社判断</em>の確認書。虚偽記載は外為法違反となる。<br>
+          <strong>用途確認：</strong>大量破壊兵器への転用可能性も含めて確認が必要。
+        </div>
+      </div>
+
+      <!-- 輸出許可申請フロー -->
+      <div style="font-size:11px;font-weight:700;color:var(--accent-dk);margin-bottom:8px;">🔄 輸出許可申請フロー</div>
+      <div style="overflow-x:auto;margin-bottom:16px;">
+        <table class="inco-table" style="min-width:600px;">
+          <thead><tr><th>ステップ</th><th>内容</th><th>担当</th><th>目安期間</th></tr></thead>
+          <tbody>
+            <tr><td style="text-align:center;font-weight:700;">①</td><td style="font-size:10px;">品目の該非判定（リスト規制・キャッチオール確認）</td><td style="font-size:10px;">輸出者・メーカー</td><td style="font-size:10px;">数日〜数週間</td></tr>
+            <tr style="background:#fafaf8;"><td style="text-align:center;font-weight:700;">②</td><td style="font-size:10px;">輸出許可申請書・添付書類の作成（用途証明書、需要者証明書等）</td><td style="font-size:10px;">輸出者</td><td style="font-size:10px;">数日</td></tr>
+            <tr><td style="text-align:center;font-weight:700;">③</td><td style="font-size:10px;">管轄の経済産業局へ申請（電子申請可）</td><td style="font-size:10px;">輸出者</td><td style="font-size:10px;">申請日当日</td></tr>
+            <tr style="background:#fafaf8;"><td style="text-align:center;font-weight:700;">④</td><td style="font-size:10px;">経産局による審査・照会対応</td><td style="font-size:10px;">経産局</td><td style="font-size:10px;">通常2〜4週間</td></tr>
+            <tr><td style="text-align:center;font-weight:700;">⑤</td><td style="font-size:10px;">輸出許可証（Export License）受領</td><td style="font-size:10px;">経産局→輸出者</td><td style="font-size:10px;">—</td></tr>
+            <tr style="background:#fafaf8;"><td style="text-align:center;font-weight:700;">⑥</td><td style="font-size:10px;">輸出許可証を添付して税関へ輸出申告</td><td style="font-size:10px;">通関業者</td><td style="font-size:10px;">—</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div style="padding:10px 14px;background:#fffbeb;border-radius:7px;border:1px solid #fcd34d;">
+        <span style="font-size:11px;font-weight:700;color:#92400e;">⚠️ 罰則と社内管理体制</span>
+        <p style="font-size:11px;color:#78350f;margin:4px 0 0;line-height:1.6;">
+          無許可輸出は<strong>外為法違反（最大懲役5年・罰金3億円）</strong>となります。<br>
+          多くの企業では社内管理プログラム（CP: Compliance Program）を整備し、取引審査・役職員教育・帳票管理を体系的に実施しています。<br>
+          輸出管理違反が発覚した場合、輸出禁止措置（行政制裁）が科されることもあります。
+        </p>
+      </div>
+    </div>  </div><!-- /tab-regs -->
+  <!-- ===================== Tab: ファイリングルール ===================== -->
+  <!-- ===== tab-booking-tab ===== -->
+  <div class="tab-content" id="tab-booking-tab">
+    <div class="card">
+      <div class="section-title">🛳️ 船会社 e-Booking ページ</div>
+      <p style="font-size:12px;color:var(--text-md);margin-bottom:16px;">
+        各船会社の e-Booking（オンライン予約）ページへのリンクです。<br>
+        <span style="font-size:11px;">🔐 = ログインが必要 ／ ⚠️ = URL未確認・要確認</span>
+      </p>
+      <div class="carrier-grid" id="booking-grid"></div>
+    </div>  </div><!-- /tab-booking-tab -->
+
+  <!-- ===== tab-si ===== -->
+  <div class="tab-content" id="tab-si">
+    <div class="card">
+      <div class="section-title">📝 仕向地別 BL 記載事項</div>
+      <p style="font-size:12px;color:var(--text-md);margin-bottom:16px;">
+        国・地域によってはB/Lに特定の情報を必ず記載しなければならないルールがあります。<br>
+        記載漏れ・誤記はD/Oリリース遅延・罰金・貨物抑留につながります。
+      </p>
+      <div style="padding:18px;background:var(--accent-lt);border-radius:10px;border:1px dashed var(--border-md);text-align:center;color:var(--text-md);">
+        <div style="font-size:28px;margin-bottom:8px;">🚧</div>
+        <div style="font-size:13px;font-weight:700;color:var(--accent-dk);">仕向地別BL記載事項を順次追加予定</div>
+        <div style="font-size:11px;margin-top:6px;line-height:1.8;">
+          Egypt（ACID番号必須）/ USA（Ultimate Consignee）/ India（IEC番号）など<br>
+          追加すべき仕向地があればフィードバックからお知らせください。
+        </div>
+      </div>
+    </div>
+    <!-- エジプト ACID -->
+    <div class="card">
+      <div class="section-title">🇪🇬 エジプト — ACID番号（NAFEZA）必須記載</div>
+      <p style="font-size:12px;color:var(--text-md);margin-bottom:12px;">
+        エジプト輸入者が取得した <strong>ACID番号</strong> をB/L・Invoice・Packing Listに必ず記載します。
+        詳細はファイリングルールタブのエジプトセクションを参照してください。
+      </p>
+      <div style="padding:10px 14px;background:#e8f5e9;border-radius:7px;border:1px solid #a5d6a7;font-size:11px;color:#1b5e20;">
+        <strong>記載例：</strong> Description of Goods 欄の末尾に <code style="background:#fff;padding:1px 5px;border-radius:3px;">ACID: 1234567890123456</code> を追記
+      </div>
+    </div>  </div><!-- /tab-si -->
+
+
+  <div class="tab-content" id="tab-filing">
+
+    <!-- 制度概要一覧 -->
+    <div class="card">
+      <div class="section-title">📡 主要国のファイリング制度一覧</div>
+      <p style="font-size:12px;color:#718096;margin-bottom:12px;">
+        各国の税関は貨物の安全管理のため、本船出港前に貨物情報の事前申告を義務付けています。提出遅延・不備はリレース拒否・罰則の対象となります。
+      </p>
+      <div style="overflow-x:auto;">
+        <table class="inco-table" style="min-width:700px;">
+          <thead>
+            <tr>
+              <th>制度名</th>
+              <th>対象</th>
+              <th>提出義務者</th>
+              <th>提出期限（海上）</th>
+              <th>提出先・システム</th>
+              <th>未提出時のペナルティ</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="code-cell" style="font-size:11px;">AFR<br><span style="font-weight:400;font-size:10px;">事前報告制度（日本）</span></td>
+              <td style="font-size:10px;">日本<b>宛て</b>輸入貨物（海上）</td>
+              <td style="font-size:10px;">船社・NVOCC</td>
+              <td style="font-size:10px;font-weight:700;color:#b91c1c;">積出港出港<b>24時間前</b></td>
+              <td style="font-size:10px;">日本税関（NACCS）</td>
+              <td style="font-size:10px;color:#b91c1c;">過料（最大50万円）・荷揚げ禁止</td>
+            </tr>
+            <tr style="background:#fafaf8;">
+              <td class="code-cell" style="font-size:11px;">AMS<br><span style="font-weight:400;font-size:10px;">Automated Manifest System</span></td>
+              <td style="font-size:10px;">米国<b>宛て</b>輸入貨物（海上）</td>
+              <td style="font-size:10px;">船社（NVOCC含む）</td>
+              <td style="font-size:10px;font-weight:700;color:#b91c1c;">積出港出港<b>24時間前</b></td>
+              <td style="font-size:10px;">米国CBP（AMS/ABI）</td>
+              <td style="font-size:10px;color:#b91c1c;">DO NOT LOAD命令・罰金</td>
+            </tr>
+            <tr>
+              <td class="code-cell" style="font-size:11px;">ISF<br><span style="font-weight:400;font-size:10px;">Importer Security Filing（10+2）</span></td>
+              <td style="font-size:10px;">米国<b>宛て</b>輸入貨物（海上）</td>
+              <td style="font-size:10px;">輸入者<br>（CBカスタムスブローカーが代行）</td>
+              <td style="font-size:10px;font-weight:700;color:#b91c1c;">積出港出港<b>24時間前</b></td>
+              <td style="font-size:10px;">米国CBP（ABI経由）</td>
+              <td style="font-size:10px;color:#b91c1c;">最大$5,000/違反 · 貨物検査</td>
+            </tr>
+            <tr style="background:#fafaf8;">
+              <td class="code-cell" style="font-size:11px;">ENS<br><span style="font-weight:400;font-size:10px;">Entry Summary Declaration</span></td>
+              <td style="font-size:10px;">EU<b>宛て</b>輸入貨物（海上）</td>
+              <td style="font-size:10px;">First Carrier（最初の運送人）</td>
+              <td style="font-size:10px;font-weight:700;color:#b91c1c;">積出港出港<b>24時間前</b></td>
+              <td style="font-size:10px;">EU加盟国税関（ICS2）</td>
+              <td style="font-size:10px;color:#b91c1c;">入港拒否・積み直し指示</td>
+            </tr>
+            <tr>
+              <td class="code-cell" style="font-size:11px;">ACI<br><span style="font-weight:400;font-size:10px;">Advance Commercial Information</span></td>
+              <td style="font-size:10px;">カナダ<b>宛て</b>輸入貨物（海上）</td>
+              <td style="font-size:10px;">船社</td>
+              <td style="font-size:10px;font-weight:700;color:#b91c1c;">積出港出港<b>24時間前</b></td>
+              <td style="font-size:10px;">カナダ国境サービス庁（CBSA）</td>
+              <td style="font-size:10px;color:#b91c1c;">貨物の荷揚げ拒否</td>
+            </tr>
+            <tr style="background:#fafaf8;">
+              <td class="code-cell" style="font-size:11px;">UK Safety &amp;<br>Security<br><span style="font-weight:400;font-size:10px;">（Brexit後）</span></td>
+              <td style="font-size:10px;">英国<b>宛て</b>輸入貨物（海上）</td>
+              <td style="font-size:10px;">First Carrier</td>
+              <td style="font-size:10px;font-weight:700;color:#b91c1c;">積出港出港<b>24時間前</b></td>
+              <td style="font-size:10px;">英国HMRC（CDS）</td>
+              <td style="font-size:10px;color:#b91c1c;">入港拒否・罰則</td>
+            </tr>
+            <tr>
+              <td class="code-cell" style="font-size:11px;">SOLAS VGM<br><span style="font-weight:400;font-size:10px;">（厳密にはファイリングではないが必須）</span></td>
+              <td style="font-size:10px;">全世界向け輸出コンテナ</td>
+              <td style="font-size:10px;">荷送人（Shipper）</td>
+              <td style="font-size:10px;font-weight:700;color:#b91c1c;">船社締め切り前<br>（CY搬入前が一般的）</td>
+              <td style="font-size:10px;">船社へ提出（書面/電子）</td>
+              <td style="font-size:10px;color:#b91c1c;">VGM未提出コンテナは船積み不可</td>
+            </tr>
+            <tr style="background:#fafaf8;">
+              <td class="code-cell" style="font-size:11px;">NAFEZA / ACID<br><span style="font-weight:400;font-size:10px;">（エジプト）</span></td>
+              <td style="font-size:10px;">エジプト<b>宛て</b>輸入貨物</td>
+              <td style="font-size:10px;">輸入者（ACID取得）<br>船社・NVOCC（B/L記載）</td>
+              <td style="font-size:10px;font-weight:700;color:#b91c1c;">積出港出港<b>48時間前</b></td>
+              <td style="font-size:10px;">NAFEZA（nafeza.gov.eg）</td>
+              <td style="font-size:10px;color:#b91c1c;">港湾留め置き・通関不可</td>
+            </tr>
+            <tr>
+              <td class="code-cell" style="font-size:11px;">UAE 事前申告<br><span style="font-weight:400;font-size:10px;">（Dubai/Abu Dhabi）</span></td>
+              <td style="font-size:10px;">UAE<b>宛て</b>輸入貨物</td>
+              <td style="font-size:10px;">船社・フォワーダー</td>
+              <td style="font-size:10px;font-weight:700;color:#b91c1c;">入港<b>24時間前</b>（目安）</td>
+              <td style="font-size:10px;">Dubai: Mirsal2<br>Abu Dhabi: ADCUSTOMSGATE</td>
+              <td style="font-size:10px;color:#b91c1c;">クリアランス遅延・留め置き</td>
+            </tr>
+            <tr style="background:#fafaf8;">
+              <td class="code-cell" style="font-size:11px;">Saudi Customs<br><span style="font-weight:400;font-size:10px;">（サウジアラビア）</span></td>
+              <td style="font-size:10px;">サウジ<b>宛て</b>輸入貨物</td>
+              <td style="font-size:10px;">輸入者・船社</td>
+              <td style="font-size:10px;">入港前（FASAH経由）</td>
+              <td style="font-size:10px;">FASAH（国家物流窓口）</td>
+              <td style="font-size:10px;color:#b91c1c;">貨物留め置き</td>
+            </tr>
+            <tr>
+              <td class="code-cell" style="font-size:11px;">India IGM<br><span style="font-weight:400;font-size:10px;">（インド）</span></td>
+              <td style="font-size:10px;">インド<b>宛て</b>輸入貨物</td>
+              <td style="font-size:10px;">船社（Arrival Agent経由）</td>
+              <td style="font-size:10px;">入港<b>24時間前</b></td>
+              <td style="font-size:10px;">インド税関 ICEGATE</td>
+              <td style="font-size:10px;color:#b91c1c;">入港許可遅延</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- AFR詳細 -->
+    <div class="card">
+      <div class="section-title">🇯🇵 AFR（事前報告制度）― 日本税関</div>
+      <p style="font-size:12px;color:#718096;margin-bottom:12px;">
+        2014年3月施行。関税法第15条の3に基づき、外国から日本へ海上コンテナで輸入される貨物の情報を積出港出港24時間前までに日本税関へ報告する制度。
+      </p>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;">
+        <div>
+          <div style="font-size:11px;font-weight:700;color:var(--accent-dk);margin-bottom:6px;">📋 提出が必要な情報（主要項目）</div>
+          <table class="inco-table">
+            <thead><tr><th>項目</th><th>内容</th></tr></thead>
+            <tbody>
+              <tr><td style="text-align:left;padding:4px 8px;font-size:10px;font-weight:600;">B/L番号</td><td style="font-size:10px;">MBL・HBL両方</td></tr>
+              <tr style="background:#fafaf8;"><td style="text-align:left;padding:4px 8px;font-size:10px;font-weight:600;">品名（英語）</td><td style="font-size:10px;">一般的品名。FAKは不可</td></tr>
+              <tr><td style="text-align:left;padding:4px 8px;font-size:10px;font-weight:600;">重量・数量</td><td style="font-size:10px;">総重量・コンテナ数</td></tr>
+              <tr style="background:#fafaf8;"><td style="text-align:left;padding:4px 8px;font-size:10px;font-weight:600;">荷送人（Shipper）</td><td style="font-size:10px;">名称・住所</td></tr>
+              <tr><td style="text-align:left;padding:4px 8px;font-size:10px;font-weight:600;">荷受人（Consignee）</td><td style="font-size:10px;">名称・住所</td></tr>
+              <tr style="background:#fafaf8;"><td style="text-align:left;padding:4px 8px;font-size:10px;font-weight:600;">Notify Party</td><td style="font-size:10px;">着荷通知先</td></tr>
+              <tr><td style="text-align:left;padding:4px 8px;font-size:10px;font-weight:600;">積出港・仕向港</td><td style="font-size:10px;">港コード（UNLOC）</td></tr>
+              <tr style="background:#fafaf8;"><td style="text-align:left;padding:4px 8px;font-size:10px;font-weight:600;">コンテナ番号</td><td style="font-size:10px;">全コンテナ</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div>
+          <div style="font-size:11px;font-weight:700;color:var(--accent-dk);margin-bottom:6px;">⚠️ AFRの注意点</div>
+          <ul style="font-size:11px;color:var(--text);line-height:2;margin:0;padding-left:16px;">
+            <li><b>報告義務者は船社またはNVOCC</b>（フォワーダーは船社経由で情報提供）</li>
+            <li>品名は具体的に記載。「Freight All Kinds（FAK）」「General Cargo」等は不可</li>
+            <li>NVOCCは<b>HBL情報</b>を別途船社経由でNACCSへ報告</li>
+            <li>訂正申告は出港後でも可能だが、虚偽申告は過料対象</li>
+            <li>危険物を含む場合は品名・UN番号を正確に記載</li>
+            <li>積替え貨物（Transshipment）も対象</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- AMS / ISF詳細 -->
+    <div class="card">
+      <div class="section-title">🇺🇸 AMS / ISF（10+2）― 米国CBP</div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;">
+        <!-- AMS -->
+        <div style="background:#e8f4f0;border-radius:9px;padding:14px;border:1px solid #b2dfdb;">
+          <div style="font-size:12px;font-weight:800;color:#1a5c45;margin-bottom:8px;">📤 AMS（Automated Manifest System）</div>
+          <p style="font-size:11px;color:#2d6a4f;line-height:1.7;margin:0 0 8px;">
+            <b>義務者：</b>船社・NVOCC（HBL発行者）<br>
+            <b>期限：</b>積出港出港24時間前<br>
+            <b>システム：</b>CBP AMS / ABI
+          </p>
+          <div style="font-size:11px;font-weight:700;color:#1a5c45;margin-bottom:4px;">主な記載項目</div>
+          <ul style="font-size:10px;color:#2d6a4f;line-height:1.8;margin:0;padding-left:14px;">
+            <li>B/L番号（MBL / HBL）</li>
+            <li>品名（具体的な一般名称。FAK不可）</li>
+            <li>重量・数量・コンテナ番号</li>
+            <li>荷送人・荷受人・Notify Party（名称・住所）</li>
+            <li>積出港・仕向港・SCAC CODE</li>
+          </ul>
+        </div>
+
+        <!-- ISF -->
+        <div style="background:#fef3e8;border-radius:9px;padding:14px;border:1px solid #f9c784;">
+          <div style="font-size:12px;font-weight:800;color:#7c3a0e;margin-bottom:8px;">📥 ISF 10+2（Importer Security Filing）</div>
+          <p style="font-size:11px;color:#92400e;line-height:1.7;margin:0 0 8px;">
+            <b>義務者：</b>米国輸入者（カスタムスブローカーが代行）<br>
+            <b>期限：</b>積出港出港24時間前<br>
+            <b>罰則：</b>最大$5,000/違反
+          </p>
+          <div style="font-size:11px;font-weight:700;color:#7c3a0e;margin-bottom:4px;">10項目（輸入者が提出）</div>
+          <ol style="font-size:10px;color:#92400e;line-height:1.8;margin:0;padding-left:16px;">
+            <li>製造者（Manufacturer）</li>
+            <li>販売者（Seller）</li>
+            <li>買い手（Buyer）</li>
+            <li>荷受人（Ship-to party）</li>
+            <li>容器詰め業者（Container Stuffer）</li>
+            <li>貨物取りまとめ業者（Consolidator）</li>
+            <li>輸入者（Importer of Record）</li>
+            <li>仕向地（Consignee）</li>
+            <li>HSコード（米国HTS 6桁）</li>
+            <li>原産国（Country of Origin）</li>
+          </ol>
+          <div style="font-size:10px;color:#92400e;margin-top:6px;">＋2項目（船社が提出）：コンテナ番号・船積み状況</div>
+        </div>
+      </div>
+
+      <div style="padding:10px 14px;background:#fffbeb;border-radius:7px;border:1px solid #fcd34d;">
+        <span style="font-size:11px;font-weight:700;color:#92400e;">⚠️ 品名記載の注意（AMS・AFR共通）</span>
+        <p style="font-size:11px;color:#78350f;margin:4px 0 0;line-height:1.6;">
+          <b>「FAK（Freight All Kinds）」「General Cargo」「Various」「Parts」等の汎用品名は各国税関で拒否されます。</b><br>
+          「Automobile Parts」→「Brake Pads for Automobiles」、「Machinery」→「Industrial Sewing Machines」のように具体的な品名を記載してください。<br>
+          不適切品名は Do Not Load（積み込み禁止）命令の原因となります。
+        </p>
+      </div>
+    </div>
+
+    <!-- SOLAS VGM -->
+    <div class="card">
+      <div class="section-title">⚖️ SOLAS VGM（コンテナ総重量確認）</div>
+      <p style="font-size:12px;color:#718096;margin-bottom:12px;">
+        2016年7月施行。SOLAS条約改正によりすべての輸出コンテナについて荷送人が<b>VGM（Verified Gross Mass：確認済み総重量）</b>を船社へ提出することが義務化されました。
+      </p>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+        <div>
+          <div style="font-size:11px;font-weight:700;color:var(--accent-dk);margin-bottom:6px;">Method 1（計量方式）</div>
+          <p style="font-size:11px;color:var(--text);line-height:1.7;">
+            コンテナ全体を計量機器で計測。<br>
+            <b>VGM ＝ コンテナ総重量（貨物＋梱包＋コンテナ自体の風袋）</b><br>
+            最も正確。大型計量機のある港頭地区でが対応。
+          </p>
+        </div>
+        <div>
+          <div style="font-size:11px;font-weight:700;color:var(--accent-dk);margin-bottom:6px;">Method 2（計算方式）</div>
+          <p style="font-size:11px;color:var(--text);line-height:1.7;">
+            個々の貨物・梱包材・パレットの重量を合計し、コンテナの風袋重量（Tare Weight）を加算。<br>
+            <b>VGM ＝ 貨物合計重量 ＋ 梱包重量 ＋ コンテナ風袋重量</b>
+          </p>
+        </div>
+      </div>
+      <div style="margin-top:10px;padding:10px 14px;background:#f0f9ff;border-radius:7px;border:1px solid #bae6fd;">
+        <span style="font-size:11px;font-weight:700;color:#0c4a6e;">💡 VGM提出のポイント</span>
+        <p style="font-size:11px;color:#0e7490;margin:4px 0 0;line-height:1.6;">
+          提出期限は船社のSI（Shipping Instruction）締め切りと同タイミングが一般的。VGM未提出コンテナは本船に積み込めません。<br>
+          提出方法は船社ポータル・EDI・メール等。フォワーダーが荷主に代わって提出代行することも多い。
+        </p>
+      </div>
+    </div>
+
+
+
+    <!-- エジプト NAFEZA/ACID 詳細 -->
+    <div class="card">
+      <div class="section-title">🇪🇬 エジプト — NAFEZA / ACID（事前貨物情報申告）</div>
+      <p style="font-size:12px;color:var(--text-md);margin-bottom:12px;">
+        2021年10月より段階的に義務化。エジプト輸入者が <strong>NAFEZA（National Single Window for Foreign Trade Facilitation）</strong> ポータルで
+        <strong>ACID（Advance Cargo Information Declaration）番号</strong> を取得し、B/L・Invoice・Packing Listに記載することが必須です。
+      </p>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;">
+        <div style="background:#e8f5e9;border-radius:9px;padding:14px;border:1px solid #a5d6a7;">
+          <div style="font-size:12px;font-weight:800;color:#1b5e20;margin-bottom:8px;">📋 ACID取得フロー</div>
+          <ol style="font-size:11px;color:#2e7d32;line-height:2;margin:0;padding-left:16px;">
+            <li>エジプト輸入者がNAFEZAポータルに登録</li>
+            <li>貨物情報（品名・HSコード・重量・価額・Shipper/Consignee）を入力</li>
+            <li>ACID番号が発行される</li>
+            <li>輸出者・フォワーダーへACID番号を通知</li>
+            <li>B/L・Invoice・Packing ListにACID番号を記載</li>
+          </ol>
+        </div>
+        <div>
+          <div style="font-size:11px;font-weight:700;color:var(--accent-dk);margin-bottom:6px;">📄 B/Lへの記載方法</div>
+          <table class="inco-table">
+            <thead><tr><th>記載箇所</th><th>内容</th></tr></thead>
+            <tbody>
+              <tr><td style="font-size:10px;">Description of Goods</td><td style="font-size:10px;">品名末尾に「ACID: XXXXXXXXXXXXXXXX」を追記</td></tr>
+              <tr style="background:#fafaf8;"><td style="font-size:10px;">Marks &amp; Numbers</td><td style="font-size:10px;">ACIDを記載する船社もあり（船社指示に従う）</td></tr>
+              <tr><td style="font-size:10px;">Invoice・P/L</td><td style="font-size:10px;">必ず同じACID番号を記載</td></tr>
+            </tbody>
+          </table>
+          <div style="margin-top:10px;padding:8px 12px;background:#fff8e1;border-radius:7px;border:1px solid #ffe082;font-size:11px;color:#e65100;">
+            ⚠️ <strong>申告情報との不一致</strong>（品名・数量・HSコードなど）があると、アレキサンドリア港等で<strong>貨物が留め置き</strong>になります。
+            輸入者から正確なACIDを受領してから船積みすること。
+          </div>
+        </div>
+      </div>
+      <div style="padding:8px 14px;background:#e3f2fd;border-radius:7px;border:1px solid #90caf9;font-size:11px;color:#1565c0;">
+        ⏱️ 期限：積出港出港の <strong>48時間前</strong> までにACID番号をB/Lに反映　／　
+        🌐 <a href="https://www.nafeza.gov.eg" target="_blank" style="color:#1565c0;">nafeza.gov.eg</a>
+      </div>
+    </div>
+
+    <!-- UAE 詳細 -->
+    <div class="card">
+      <div class="section-title">🇦🇪 UAE — 事前マニフェスト申告（Dubai / Abu Dhabi）</div>
+      <p style="font-size:12px;color:var(--text-md);margin-bottom:12px;">
+        UAEには Dubai（Mirsal2）と Abu Dhabi（ADCUSTOMSGATE）の2つの主要税関システムがあります。
+        いずれも <strong>入港前に事前マニフェスト申告</strong> が必要で、申告内容はB/Lと一致していなければなりません。
+      </p>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;">
+        <div style="background:#e3f2fd;border-radius:9px;padding:14px;border:1px solid #90caf9;">
+          <div style="font-size:12px;font-weight:800;color:#0d47a1;margin-bottom:8px;">🏙️ Dubai Customs — Mirsal2</div>
+          <ul style="font-size:11px;color:#1565c0;line-height:2;margin:0;padding-left:14px;">
+            <li>申告システム：<strong>Mirsal2</strong>（Dubai Trade Portal経由）</li>
+            <li>義務者：船社・フォワーダー（NVOCC）</li>
+            <li>期限：<strong>入港24時間前</strong>（目安）</li>
+            <li>貨物記述はB/Lと完全一致が必要</li>
+            <li>危険物（DG）は別途事前通知が必要</li>
+          </ul>
+        </div>
+        <div style="background:#f3e5f5;border-radius:9px;padding:14px;border:1px solid #ce93d8;">
+          <div style="font-size:12px;font-weight:800;color:#4a148c;margin-bottom:8px;">🏛️ Abu Dhabi Customs — ADCUSTOMSGATE</div>
+          <ul style="font-size:11px;color:#6a1b9a;line-height:2;margin:0;padding-left:14px;">
+            <li>申告システム：<strong>ADCUSTOMSGATE</strong></li>
+            <li>義務者：船社・フォワーダー（Clearing Agent経由が一般的）</li>
+            <li>期限：<strong>入港前</strong></li>
+            <li>貨物情報（品名・HSコード・重量・積地・荷受人）を申告</li>
+            <li>Clearing Agent（通関代理人）のサポートが実務上必要</li>
+          </ul>
+        </div>
+      </div>
+      <div style="padding:10px 14px;background:#fff8e1;border-radius:7px;border:1px solid #ffe082;font-size:11px;color:#e65100;">
+        ⚠️ <strong>新ルール情報：</strong> UAEは通関制度を継続的に更新中です。最新情報は各船社・現地エージェントへ必ず確認してください。
+      </div>
+    </div>  </div><!-- /tab-filing -->
+
+
+
+
+
+  <!-- ===================== Tab 7: 計算ツール ===================== -->
+  <div class="tab-content active" id="tab-calc">
+
+    <!-- 1. 航空チャージャブルウェイト -->
+    <div class="card">
+      <div class="section-title">✈️ 航空チャージャブルウェイト計算</div>
+      <p class="calc-desc">実重量と容積重量を比較し、大きい方がチャージャブルウェイト（請求対象重量）になります。<br>
+        <span style="font-size:11px;">容積重量(kg) = L × W × H(cm) ÷ 6,000　（IATA基準）</span></p>
+      <div class="multi-row-wrap" id="air-rows-wrap">
+        <div class="calc-multi-row">
+          <span class="row-num">1</span>
+          <div class="calc-field"><span class="calc-label">長さ (cm)</span><input type="number" class="calc-input" data-key="l" placeholder="60" min="0"></div>
+          <div class="calc-field"><span class="calc-label">幅 (cm)</span><input type="number" class="calc-input" data-key="w" placeholder="40" min="0"></div>
+          <div class="calc-field"><span class="calc-label">高さ (cm)</span><input type="number" class="calc-input" data-key="h" placeholder="30" min="0"></div>
+          <div class="calc-field"><span class="calc-label">実重量 (kg)</span><input type="number" class="calc-input" data-key="weight" placeholder="5" min="0"></div>
+          <div class="calc-field"><span class="calc-label">個数</span><input type="number" class="calc-input" data-key="qty" value="1" min="1" style="width:70px;"></div>
+          <button class="btn-row-del" onclick="removeCalcRow(this)" title="この行を削除" style="display:none;">×</button>
+        </div>
+      </div>
+      <div class="calc-row-actions">
+        <button class="btn-add-row" onclick="addCalcRow('air')">＋ 行を追加</button>
+        <button class="btn-primary" onclick="calcAirCW()">計算 →</button>
+        <button class="btn-clear" onclick="clearCalcResult('air-result')">クリア</button>
+      </div>
+      <div id="air-result" class="calc-result" style="display:none;"></div>
+    </div>
+
+    <!-- 2. LCL RT/W/M計算 -->
+    <div class="card">
+      <div class="section-title">🚢 LCL RT（W/M）計算</div>
+      <p class="calc-desc">LCL運賃は <strong>RT（Revenue Ton）</strong>= CBM と 重量(ton) の大きい方（W/M）で計算されます。<br>
+        <span style="font-size:11px;">W（Weight）= 実重量(kg) ÷ 1,000　／　M（Measurement）= CBM　／　大きい方を1RTとして運賃計算</span></p>
+      <div class="multi-row-wrap" id="lcl-rows-wrap">
+        <div class="calc-multi-row">
+          <span class="row-num">1</span>
+          <div class="calc-field"><span class="calc-label">長さ (cm)</span><input type="number" class="calc-input" data-key="l" placeholder="60" min="0"></div>
+          <div class="calc-field"><span class="calc-label">幅 (cm)</span><input type="number" class="calc-input" data-key="w" placeholder="40" min="0"></div>
+          <div class="calc-field"><span class="calc-label">高さ (cm)</span><input type="number" class="calc-input" data-key="h" placeholder="30" min="0"></div>
+          <div class="calc-field"><span class="calc-label">実重量 (kg)</span><input type="number" class="calc-input" data-key="weight" placeholder="50" min="0"></div>
+          <div class="calc-field"><span class="calc-label">個数</span><input type="number" class="calc-input" data-key="qty" value="1" min="1" style="width:70px;"></div>
+          <button class="btn-row-del" onclick="removeCalcRow(this)" title="この行を削除" style="display:none;">×</button>
+        </div>
+      </div>
+      <div class="calc-row-actions">
+        <button class="btn-add-row" onclick="addCalcRow('lcl')">＋ 行を追加</button>
+        <button class="btn-primary" onclick="calcLclRT()">計算 →</button>
+        <button class="btn-clear" onclick="clearCalcResult('lcl-result')">クリア</button>
+      </div>
+      <div id="lcl-result" class="calc-result" style="display:none;"></div>
+    </div>
+
+    <!-- 3. 容積（CBM）・才数計算 統合 -->
+    <div class="card">
+      <div class="section-title">📦 容積（CBM）・才数計算</div>
+      <p class="calc-desc">CBM（海上輸送の容積単位）と才数（国内運送の容積単位）を同時に算出します。<br>
+        <span style="font-size:11px;">CBM = L×W×H(m)　／　才数 = L×W×H(cm) ÷ 27,826.5　／　各単位で自動換算</span><br>
+        <span style="font-size:11px;line-height:1.9;">🚛 トラック積載目安：軽バン <strong>〜40才</strong>　／　2t <strong>〜120才</strong>　／　4t <strong>〜250才</strong>　／　10t <strong>〜580才</strong></span></p>
+      <div class="calc-shared-opts">
+        <div class="calc-field"><span class="calc-label">単位（全行共通）</span>
+          <select id="cbm-unit" style="padding:10px 13px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:13px;background:#f8fafc;min-width:90px;">
+            <option value="cm">cm</option>
+            <option value="mm">mm</option>
+            <option value="in">inch</option>
+            <option value="m">m</option>
+          </select>
+        </div>
+      </div>
+      <div class="multi-row-wrap" id="cbm-rows-wrap">
+        <div class="calc-multi-row">
+          <span class="row-num">1</span>
+          <div class="calc-field"><span class="calc-label">長さ</span><input type="number" class="calc-input" data-key="l" placeholder="60" min="0"></div>
+          <div class="calc-field"><span class="calc-label">幅</span><input type="number" class="calc-input" data-key="w" placeholder="40" min="0"></div>
+          <div class="calc-field"><span class="calc-label">高さ</span><input type="number" class="calc-input" data-key="h" placeholder="30" min="0"></div>
+          <div class="calc-field"><span class="calc-label">個数</span><input type="number" class="calc-input" data-key="qty" value="1" min="1" style="width:70px;"></div>
+          <button class="btn-row-del" onclick="removeCalcRow(this)" title="この行を削除" style="display:none;">×</button>
+        </div>
+      </div>
+      <div class="calc-row-actions">
+        <button class="btn-add-row" onclick="addCalcRow('cbm')">＋ 行を追加</button>
+        <button class="btn-primary" onclick="calcCBMSai()">計算 →</button>
+        <button class="btn-clear" onclick="clearCalcResult('cbm-result')">クリア</button>
+      </div>
+      <div id="cbm-result" class="calc-result" style="display:none;"></div>
+    </div>
+
+    <!-- 4. パレタイズシミュレーション -->
+    <div class="card">
+      <div class="section-title">🔲 パレタイズシミュレーション</div>
+      <p class="calc-desc">パレット上に箱が何個積めるかをシミュレーションします。最も効率的な向きを自動選択します。<br>
+        <span style="font-size:11px;line-height:1.9;">📦 標準パレットサイズ：T11（日本標準） <strong>1100×1100mm</strong>　／　ISO/EUR-2 <strong>1200×1000mm</strong>　／　EUR pallet <strong>1200×800mm</strong>　／　北米標準 <strong>1219×1016mm</strong>（48×40インチ）</span></p>
+      <div class="calc-shared-opts">
+        <div class="calc-field"><span class="calc-label">パレットサイズ（全行共通）</span>
+          <select id="pal-size" onchange="togglePalCustom()" style="padding:10px 13px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:13px;background:#f8fafc;min-width:190px;">
+            <option value="1100x1100">T11: 1100×1100 mm</option>
+            <option value="1200x1000">ISO: 1200×1000 mm</option>
+            <option value="1200x800">EUR: 1200×800 mm</option>
+            <option value="1219x1016">北米: 1219×1016 mm</option>
+            <option value="custom">カスタム</option>
+          </select>
+        </div>
+        <div id="pal-custom-wrap" style="display:none;flex-direction:row;gap:8px;flex-wrap:wrap;align-items:flex-end;">
+          <div class="calc-field"><span class="calc-label">パレット縦 (mm)</span><input type="number" class="calc-input" id="pal-pw" placeholder="1100" style="width:100px;"></div>
+          <div class="calc-field"><span class="calc-label">パレット横 (mm)</span><input type="number" class="calc-input" id="pal-pd" placeholder="1100" style="width:100px;"></div>
+        </div>
+        <div class="calc-field"><span class="calc-label">積み段数（全行共通）</span><input type="number" class="calc-input" id="pal-layers" value="5" min="1" style="width:70px;"></div>
+      </div>
+      <div class="multi-row-wrap" id="pal-rows-wrap">
+        <div class="calc-multi-row">
+          <span class="row-num">1</span>
+          <div class="calc-field"><span class="calc-label">箱 長さ (mm)</span><input type="number" class="calc-input" data-key="l" placeholder="400" min="0"></div>
+          <div class="calc-field"><span class="calc-label">箱 幅 (mm)</span><input type="number" class="calc-input" data-key="w" placeholder="300" min="0"></div>
+          <div class="calc-field"><span class="calc-label">箱 高さ (mm)</span><input type="number" class="calc-input" data-key="h" placeholder="250" min="0"></div>
+          <div class="calc-field"><span class="calc-label">総個数（任意）</span><input type="number" class="calc-input" data-key="total" placeholder="100" min="1" style="width:90px;"></div>
+          <button class="btn-row-del" onclick="removeCalcRow(this)" title="この行を削除" style="display:none;">×</button>
+        </div>
+      </div>
+      <div class="calc-row-actions">
+        <button class="btn-add-row" onclick="addCalcRow('pal')">＋ 品種を追加</button>
+        <button class="btn-primary" onclick="calcPalletize()">計算 →</button>
+        <button class="btn-clear" onclick="clearCalcResult('pal-result')">クリア</button>
+      </div>
+      <div id="pal-result" class="calc-result" style="display:none;"></div>
+    </div>
+
+    <!-- 5. バンニングシミュレーション -->
+    <div class="card">
+      <div class="section-title">🚢 バンニングシミュレーション</div>
+      <p class="calc-desc">貨物の物量から3種類のコンテナを比較し、最適なサイズを提案します（理論値）。</p>
+      <div class="calc-shared-opts">
+        <div class="calc-field" style="align-self:flex-end;padding-bottom:2px;">
+          <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--text);cursor:pointer;white-space:nowrap;">
+            <input type="checkbox" id="van-no-stack" style="width:16px;height:16px;cursor:pointer;accent-color:var(--accent);">
+            段積み不可（全行共通）
+          </label>
+        </div>
+      </div>
+      <div class="multi-row-wrap" id="van-rows-wrap">
+        <div class="calc-multi-row">
+          <span class="row-num">1</span>
+          <div class="calc-field"><span class="calc-label">貨物 長さ (cm)</span><input type="number" class="calc-input" data-key="l" placeholder="60" min="0"></div>
+          <div class="calc-field"><span class="calc-label">貨物 幅 (cm)</span><input type="number" class="calc-input" data-key="w" placeholder="40" min="0"></div>
+          <div class="calc-field"><span class="calc-label">貨物 高さ (cm)</span><input type="number" class="calc-input" data-key="h" placeholder="30" min="0"></div>
+          <div class="calc-field"><span class="calc-label">1個の重量 (kg)</span><input type="number" class="calc-input" data-key="weight" placeholder="10" min="0"></div>
+          <div class="calc-field"><span class="calc-label">個数</span><input type="number" class="calc-input" data-key="qty" placeholder="100" min="1" style="width:90px;"></div>
+          <button class="btn-row-del" onclick="removeCalcRow(this)" title="この行を削除" style="display:none;">×</button>
+        </div>
+      </div>
+      <div class="calc-row-actions">
+        <button class="btn-add-row" onclick="addCalcRow('van')">＋ 品種を追加</button>
+        <button class="btn-primary" onclick="calcVanning()">計算 →</button>
+        <button class="btn-clear" onclick="clearCalcResult('van-result')">クリア</button>
+      </div>
+      <div id="van-result" class="calc-result" style="display:none;"></div>
+    </div>  </div><!-- /tab-calc -->
+
+  <!-- ===================== Tab: レート換算 ===================== -->
+  <div class="tab-content" id="tab-rate">
+
+    <div class="card">
+      <div class="section-title">💱 通貨レート換算</div>
+      <p class="calc-desc">
+        リアルタイムレート（open.er-api.com）を使用します。ページを開いた後、初回換算時に自動取得します。<br>
+        <span style="font-size:11px;">
+          📋 税関公示レート（輸出入申告用・月次）は
+          <a href="https://www.customs.go.jp/tetsuzuki/kawase/index.htm"
+             target="_blank" style="color:#2b6cb0;font-weight:600;">税関ホームページ ↗</a> でご確認ください。
+        </span>
+      </p>
+
+      <div class="lookup-form" style="align-items:flex-end;">
+        <div class="calc-field"><span class="calc-label">基準通貨</span>
+          <select id="rate-from" style="padding:10px 13px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:13px;background:#f8fafc;min-width:190px;">
+            <option value="JPY">🇯🇵 JPY　日本円</option>
+            <option value="USD">🇺🇸 USD　米ドル</option>
+            <option value="EUR">🇪🇺 EUR　ユーロ</option>
+            <option value="GBP">🇬🇧 GBP　英ポンド</option>
+            <option value="CNY">🇨🇳 CNY　中国人民元</option>
+            <option value="HKD">🇭🇰 HKD　香港ドル</option>
+            <option value="SGD">🇸🇬 SGD　シンガポールドル</option>
+            <option value="KRW">🇰🇷 KRW　韓国ウォン</option>
+            <option value="THB">🇹🇭 THB　タイバーツ</option>
+          </select>
+        </div>
+        <div class="calc-field"><span class="calc-label">金額</span>
+          <input type="number" class="calc-input" id="rate-amount" placeholder="10000" min="0" style="width:120px;">
+        </div>
+        <button class="btn-primary" onclick="calcRate()">換算 →</button>
+        <button class="btn-clear" onclick="clearCalcResult('rate-result')">クリア</button>
+      </div>
+
+      <div id="rate-status" style="font-size:12px;color:#718096;margin-top:10px;min-height:18px;"></div>
+      <div id="rate-result" class="calc-result" style="display:none;"></div>
+    </div>
+
+
+    <!-- 保険料計算 -->
+    <div class="card" style="margin-top:16px;">
+      <div class="section-title">🛡️ 保険料計算（海上貨物保険）</div>
+      <p class="calc-desc">
+        保険価額 ＝（FOB ＋ 運賃）× 1.10（慣行上 CIF の 10% 上乗せ）<br>
+        保険料 ＝ 保険価額 × 保険料率
+      </p>
+      <div class="lookup-form" style="flex-wrap:wrap;gap:10px;align-items:flex-end;">
+        <div class="calc-field"><span class="calc-label">FOB金額（円）</span>
+          <input type="number" class="calc-input" id="ins-fob" placeholder="1000000" min="0" style="width:130px;">
+        </div>
+        <div class="calc-field"><span class="calc-label">運賃（円）</span>
+          <input type="number" class="calc-input" id="ins-freight" placeholder="50000" min="0" style="width:130px;">
+        </div>
+        <div class="calc-field"><span class="calc-label">保険料率（%）</span>
+          <input type="number" class="calc-input" id="ins-rate" value="0.3" step="0.01" min="0" style="width:90px;">
+        </div>
+        <button class="btn-primary" onclick="calcInsurance()">計算 →</button>
+        <button class="btn-clear" onclick="clearCalcResult('ins-result')">クリア</button>
+      </div>
+      <div id="ins-result" class="calc-result" style="display:none;"></div>
+    </div>
+
+    <!-- 関税・消費税計算 -->
+    <div class="card" style="margin-top:16px;">
+      <div class="section-title">🏛️ 関税・消費税計算（輸入）</div>
+      <p class="calc-desc">
+        課税価格（CIF建て円換算）をもとに関税・消費税・地方消費税を試算します。<br>
+        <span style="font-size:11px;">
+          📋 HSコード別の関税率は
+          <a href="https://www.kanzei.or.jp/statistical/tariff/top/index/j/" target="_blank" style="color:#2b6cb0;font-weight:600;">
+            実行関税率表（税関） ↗</a> で確認してください。
+        </span>
+      </p>
+      <div class="lookup-form" style="flex-wrap:wrap;gap:10px;align-items:flex-end;">
+        <div class="calc-field"><span class="calc-label">課税価格（円・CIF建て）</span>
+          <input type="number" class="calc-input" id="duty-cif" placeholder="500000" min="0" style="width:150px;">
+        </div>
+        <div class="calc-field"><span class="calc-label">HSコード（参考）</span>
+          <input type="text" class="calc-input" id="duty-hs" placeholder="例: 8471.30" style="width:120px;">
+        </div>
+        <div class="calc-field"><span class="calc-label">関税率（%）</span>
+          <input type="number" class="calc-input" id="duty-rate" placeholder="0" step="0.1" min="0" style="width:90px;">
+        </div>
+        <div class="calc-field"><span class="calc-label">追加関税率（%）</span>
+          <input type="number" class="calc-input" id="duty-extra" value="0" step="0.1" min="0" style="width:90px;">
+          <span style="font-size:11px;color:#718096;margin-top:3px;">※対中制裁等</span>
+        </div>
+        <button class="btn-primary" onclick="calcDuty()">計算 →</button>
+        <button class="btn-clear" onclick="clearCalcResult('duty-result')">クリア</button>
+      </div>
+      <p style="font-size:11px;color:#718096;margin:8px 0 0 0;">
+        ⚠️ 試算値です。実際の税額は品目・原産地・適用協定等により異なります。輸入申告は通関士にご相談ください。
+      </p>
+      <div id="duty-result" class="calc-result" style="display:none;"></div>
+    </div>  </div><!-- /tab-rate -->
+
+  <!-- ===================== Tab: 見積もり作成（見積支援アプリを統合・直接マージ版） =====
+       Phase 2b 完了時点：見積支援/index.html の body 内容を直接マージ。
+       初期化は js/app.js の switchTab() フックから window.initQuoteTab() を呼ぶ。 -->
+  <div class="tab-content" id="tab-quote-make">
+
+    <!-- ========== 保存/読み込みツールバー ========== -->
+    <div class="save-toolbar" id="saveToolbar">
+      <button class="save-btn save-btn-preset"
+              onclick="openPresetMgr()" title="入力パターンや一時保存の管理">
+        🗂️ プリセット/一時保存
+      </button>
+      <label class="autosave-label" title="入力・変更から2秒後にブラウザへ自動保存します（同じブラウザ内のみ有効）">
+        <input type="checkbox" id="autoSaveChk" onchange="toggleAutoSave(this.checked)" />
+        自動保存
+        <span class="autosave-info">ⓘ</span>
+      </label>
+      <span class="save-toolbar-sep"></span>
+      <span class="save-toolbar-label">📁 ファイル</span>
+      <button class="save-btn save-btn-export" onclick="exportToFile()" title="見積データをJSONファイルに出力">
+        📤 出力
+      </button>
+      <button class="save-btn save-btn-import" onclick="document.getElementById('importFileInput').click()" title="JSONファイルから見積データを読み込む">
+        📥 読込
+      </button>
+      <input type="file" id="importFileInput" accept=".json" style="display:none" onchange="importFromFile(event)" />
+      <span class="save-status" id="saveStatus"></span>
+      <span class="save-toolbar-sep"></span>
+      <span class="save-toolbar-label">🔠 文字サイズ</span>
+      <button class="font-size-btn" onclick="changeFontSize(-1)" title="文字を小さく">A-</button>
+      <button class="font-size-btn" onclick="changeFontSize(1)"  title="文字を大きく">A+</button>
+    </div>
+
+    <!-- ========== 自動保存 復元バナー ========== -->
+    <div id="autosave-restore-bar">
+      <span>💾 前回の自動保存データがあります</span>
+      <button class="autosave-restore-btn" onclick="restoreAutoSave()">↩ 復元する</button>
+      <button type="button" class="autosave-restore-close" onclick="dismissRestoreBar()" title="閉じる">✕</button>
+    </div>
+
+    <!-- フィードバックモーダル/FAB/トーストコンテナは Phase 2c-Step1 でサイト全体スコープに移動済み（</body> 直前を参照） -->
+
+    <!-- ========== 付箋メモ ========== -->
+    <div id="stickyNotePanel">
+      <div class="sticky-note-header" id="stickyNoteHeader">
+        <span>📝 付箋メモ</span>
+        <div class="sticky-color-picker">
+          <button type="button" class="sticky-color-btn" data-color="yellow" title="黄" style="background:#ffd966;"></button>
+          <button type="button" class="sticky-color-btn" data-color="green"  title="緑" style="background:#81c784;"></button>
+          <button type="button" class="sticky-color-btn" data-color="blue"   title="青" style="background:#64b5f6;"></button>
+          <button type="button" class="sticky-color-btn" data-color="pink"   title="ピンク" style="background:#f48fb1;"></button>
+          <button type="button" class="sticky-color-btn" data-color="purple" title="紫" style="background:#ce93d8;"></button>
+          <button type="button" class="sticky-color-btn" data-color="orange" title="橙" style="background:#ffb74d;"></button>
+        </div>
+        <button type="button" class="sticky-note-clear" onclick="clearStickyNote()" title="メモを消去">🗑️</button>
+        <button type="button" class="sticky-note-close" onclick="toggleStickyNote()" title="閉じる">✕</button>
+      </div>
+      <textarea id="stickyNoteArea" class="sticky-note-area" placeholder="ここに自由にメモを書けます&#10;（自動保存）"></textarea>
+    </div>
+    <button class="sticky-fab" onclick="toggleStickyNote()" title="付箋メモを開く">📝</button>
+
+    <!-- フィードバックFAB／トーストコンテナは Phase 2c-Step1 でサイト全体スコープに移動済み（</body> 直前を参照） -->
+
+    <!-- ========== コマンドパレット (Ctrl+K) ========== -->
+    <div id="cmdPalette" onclick="if(event.target===this)closeCmdPalette()">
+      <div id="cmdPaletteBox">
+        <input id="cmdInput" type="text"
+          placeholder="🔍 コマンド名・セクション名を入力..."
+          oninput="filterCmd()" onkeydown="cmdKeydown(event)" autocomplete="off" />
+        <div id="cmdList"></div>
+        <div class="cmd-palette-hint">↑↓ で移動　Enter で実行　Esc で閉じる</div>
+      </div>
+    </div>
+
+    <!-- ========== プリセット管理モーダル ========== -->
+    <div class="preset-mgr-modal" id="presetMgrModal"
+         onclick="if(event.target===this)closePresetMgr()">
+      <div class="preset-mgr-box">
+        <h3>🗂️ プリセット/一時保存</h3>
+        <p class="preset-mgr-desc">
+          現在の入力状態を名前付きで保存・呼び出しできます（最大10件）。<br>
+          「輸入案件用」「国内配送用」などテンプレートとして使うほか、<br>
+          「一時保存」のような名前で作業途中のデータを退避させることもできます。
+        </p>
+        <div class="preset-save-row">
+          <input type="text" class="preset-name-input" id="presetNameInput"
+                 placeholder="例）輸入案件用・国内配送用" maxlength="30"
+                 onkeydown="if(event.key==='Enter')savePreset()" />
+          <button class="btn-preset-save-new" onclick="savePreset()">💾 現在の状態を保存</button>
+        </div>
+        <div class="preset-list-wrap" id="presetListWrap">
+          <div class="preset-empty">保存済みのプリセットはありません</div>
+        </div>
+        <div class="preset-mgr-footer">
+          <button class="btn-preset-close" onclick="closePresetMgr()">閉じる</button>
+        </div>
+      </div>
+    </div>
+
+    <h1>見積もり作成支援ページ</h1>
+
+    <!-- ① 管理番号入力 -->
+    <div class="condition-section" id="section-ref">
+      <h2>🗂️ 管理番号入力</h2>
+      <div id="refBody">
+        <p class="section-desc">案件を管理するための識別情報を入力します。<b>仮 REF #</b> は見積もり番号や問い合わせ番号など任意の形式で OK。後でフィルタリングや整理に使えます。</p>
+        <div class="quote-header">
+          <div class="quote-field">
+            <label>仮 REF #</label>
+            <input type="text" id="qf-ref" placeholder="例）2024-001" />
+          </div>
+          <div class="quote-field">
+            <label>引き合い元名称</label>
+            <input type="text" id="qf-customer" placeholder="例）○○商事" />
+          </div>
+          <div class="quote-field">
+            <label>担当</label>
+            <input type="text" id="qf-person" placeholder="例）山田" />
+          </div>
+        </div>
+        <button class="fb-section-btn" onclick="openFeedback('管理番号入力')" title="このセクションへのフィードバック">💬 このセクションへのフィードバック</button>
+      </div>
+    </div>
+
+    <!-- ② 引き合い条件（作業範囲・輸送ルート） -->
+    <div class="condition-section" id="section-cond">
+      <h2>🚢 引き合い条件</h2>
+      <div id="condBody">
+        <p class="section-desc">まず<b>① インコタームズ</b>を選び、次に<b>② 輸出/輸入</b>と<b>③ 輸送モード</b>を選択し、<b>④ ゾーンカード</b>でサービス範囲をピースごとに組み立ててください。</p>
+
+        <div class="cond-inco-bar">
+          <label class="cond-inco-label">🔖 インコタームズ</label>
+          <select id="cond-incoterms">
+            <option value="">— 選択 —</option>
+            <optgroup label="任意の場所">
+              <option>EXW（工場渡し）</option>
+              <option>FCA（運送人渡し）</option>
+              <option>CPT（輸送費込み）</option>
+              <option>CIP（輸送費・保険料込み）</option>
+              <option>DAP（仕向地持込渡し）</option>
+              <option>DPU（荷卸込持込渡し）</option>
+              <option>DDP（関税込持込渡し）</option>
+            </optgroup>
+            <optgroup label="海上・内水路専用" id="inco-sea-group">
+              <option>FAS（船側渡し）</option>
+              <option>FOB（本船渡し）</option>
+              <option>CFR（運賃込み）</option>
+              <option>CIF（運賃・保険料込み）</option>
+            </optgroup>
+          </select>
+        </div>
+
+        <div class="cond-primary-bar">
+          <div class="cond-prim-group">
+            <span class="cond-prim-label">方向</span>
+            <div class="cond-prim-btns" id="dirBtns">
+              <button class="cond-prim-btn" data-dir="export" onclick="setDirection('export')">📤 輸出</button>
+              <button class="cond-prim-btn" data-dir="import" onclick="setDirection('import')">📥 輸入</button>
+            </div>
+          </div>
+          <div class="cond-prim-group">
+            <span class="cond-prim-label">輸送モード</span>
+            <div class="cond-prim-btns" id="seaAirBtns">
+              <button class="cond-prim-btn" data-transport="sea" onclick="setTransport('sea')">🚢 Sea</button>
+              <button class="cond-prim-btn" data-transport="air" onclick="setTransport('air')">✈️ Air</button>
+            </div>
+            <div class="cond-sub-btns" id="fclLclBtns" style="display:none;">
+              <button class="cond-sub-btn active" data-sub="fcl" onclick="setSeaSub('fcl')">FCL</button>
+              <button class="cond-sub-btn"        data-sub="lcl" onclick="setSeaSub('lcl')">LCL</button>
+            </div>
+            <select id="cond-mode" style="display:none">
+              <option value="">— 選択 —</option>
+              <option>海上（FCL）</option>
+              <option>海上（LCL）</option>
+              <option>航空（AIR）</option>
+              <option>海上＋陸上</option>
+              <option>航空＋陸上</option>
+              <option>陸上のみ</option>
+            </select>
+            <span id="mode-container-hint" style="display:none;font-size:10px;color:#e67e22;margin-top:4px;">
+              📦 LCL/AIR → コンテナ欄を非表示
+            </span>
+          </div>
+          <div class="cond-prim-group">
+            <span class="cond-prim-label">オプション</span>
+            <div class="cond-prim-btns">
+              <button class="wh-toggle-btn" id="insToggleBtn" onclick="toggleInsurance()">🛡️ 保険付保あり</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="zone-builder" id="zoneBuilder">
+          <div class="zone-card zone-origin zone-off" id="zone1Card">
+            <div class="zone-card-header">
+              <button class="zone-toggle-btn" id="zone1Btn" onclick="toggleZone(1)">OFF</button>
+              <div class="zone-card-title">
+                <span class="zone-num">① 出発地側</span>
+                <span class="zone-subcon" id="zone1Subcon">日本協力会社</span>
+              </div>
+            </div>
+            <div class="zone-addr-row">
+              <input type="text" id="z1Place"   class="zone-addr-input"
+                     placeholder="📍 場所（例：川崎市）" disabled>
+              <input type="text" id="z1Country" class="zone-addr-input zone-addr-country"
+                     placeholder="🌏 国（例：日本）" disabled>
+            </div>
+            <div class="zone-pieces" id="zone1Pieces" oninput="onZonePiecesInput(event,1)">
+              <div class="zone-default-sc">
+                <span class="z-ds-label">🏢</span>
+                <input type="text" class="zone-default-input" id="z1DefaultSc"
+                       placeholder="デフォルトサブコン（全ピース共通）"
+                       disabled oninput="applyDefaultSubcon(1,this.value)">
+              </div>
+              <div class="piece-row">
+                <label class="piece-item"><input type="checkbox" id="piece-pickup" disabled onchange="applyZoneState();onPieceCheck(this,'sc-pickup')"> 🚚 集荷</label>
+                <div class="piece-subcon-area" id="sc-pickup">
+                  <div class="sc-entry"><input type="text" class="sc-input" placeholder="サブコン（例：A商事）"><button class="sc-add-btn" type="button" onclick="addScEntry('sc-pickup')">＋</button></div>
+                </div>
+              </div>
+              <div class="piece-row">
+                <label class="piece-item"><input type="checkbox" id="piece-wh-origin" disabled onchange="applyZoneState();onPieceCheck(this,'sc-wh-origin')"> 🏬 倉庫/梱包/バンニング</label>
+                <div class="piece-subcon-area" id="sc-wh-origin">
+                  <div class="sc-entry"><input type="text" class="sc-input" placeholder="サブコン（例：B倉庫）"><button class="sc-add-btn" type="button" onclick="addScEntry('sc-wh-origin')">＋</button></div>
+                </div>
+              </div>
+              <div class="piece-row">
+                <label class="piece-item"><input type="checkbox" id="piece-customs-e" disabled onchange="applyZoneState();onPieceCheck(this,'sc-customs-e')"> 🛃 通関（輸出）</label>
+                <div class="piece-subcon-area" id="sc-customs-e">
+                  <div class="sc-entry"><input type="text" class="sc-input" placeholder="サブコン（例：C通関）"><button class="sc-add-btn" type="button" onclick="addScEntry('sc-customs-e')">＋</button></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="zone-card zone-main">
+            <div class="zone-card-header">
+              <div class="zone-card-title">
+                <span class="zone-num">② 幹線輸送</span>
+                <span class="zone-subcon">キャリア</span>
+              </div>
+            </div>
+            <div class="zone2-inputs">
+              <div class="z2-row">
+                <span class="z2-label">🚢</span>
+                <input type="text" id="z2Carrier" class="z2-input"
+                       placeholder="キャリア名（例：ONE）">
+              </div>
+              <div class="z2-pol-pod-row">
+                <div class="z2-port">
+                  <span class="z2-port-label">📦 POL</span>
+                  <input type="text" id="z2Pol" class="z2-input"
+                         placeholder="例）Yokohama">
+                </div>
+                <span class="z2-arrow">→</span>
+                <div class="z2-port">
+                  <span class="z2-port-label">🏁 POD</span>
+                  <input type="text" id="z2Pod" class="z2-input"
+                         placeholder="例）Shanghai">
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="zone-card zone-dest zone-off" id="zone3Card">
+            <div class="zone-card-header">
+              <button class="zone-toggle-btn" id="zone3Btn" onclick="toggleZone(3)">OFF</button>
+              <div class="zone-card-title">
+                <span class="zone-num">③ 到着地側</span>
+                <span class="zone-subcon" id="zone3Subcon">現地代理店</span>
+              </div>
+            </div>
+            <div class="zone-addr-row">
+              <input type="text" id="z3Place"   class="zone-addr-input"
+                     placeholder="📍 場所（例：上海市浦東新区）" disabled>
+              <input type="text" id="z3Country" class="zone-addr-input zone-addr-country"
+                     placeholder="🌏 国（例：中国）" disabled>
+            </div>
+            <div class="zone-pieces" id="zone3Pieces" oninput="onZonePiecesInput(event,3)">
+              <div class="zone-default-sc">
+                <span class="z-ds-label">🏢</span>
+                <input type="text" class="zone-default-input" id="z3DefaultSc"
+                       placeholder="デフォルトサブコン（全ピース共通）"
+                       disabled oninput="applyDefaultSubcon(3,this.value)">
+              </div>
+              <div class="piece-row">
+                <label class="piece-item"><input type="checkbox" id="piece-customs-i" disabled onchange="applyZoneState();onPieceCheck(this,'sc-customs-i')"> 🛃 通関（輸入）</label>
+                <div class="piece-subcon-area" id="sc-customs-i">
+                  <div class="sc-entry"><input type="text" class="sc-input" placeholder="サブコン（例：D通関）"><button class="sc-add-btn" type="button" onclick="addScEntry('sc-customs-i')">＋</button></div>
+                </div>
+              </div>
+              <div class="piece-row">
+                <label class="piece-item"><input type="checkbox" id="piece-wh-dest" disabled onchange="applyZoneState();onPieceCheck(this,'sc-wh-dest')"> 🏬 倉庫/デバン</label>
+                <div class="piece-subcon-area" id="sc-wh-dest">
+                  <div class="sc-entry"><input type="text" class="sc-input" placeholder="サブコン（例：E倉庫）"><button class="sc-add-btn" type="button" onclick="addScEntry('sc-wh-dest')">＋</button></div>
+                </div>
+              </div>
+              <div class="piece-row">
+                <label class="piece-item"><input type="checkbox" id="piece-deliver" disabled onchange="applyZoneState();onPieceCheck(this,'sc-deliver')"> 📬 納入</label>
+                <div class="piece-subcon-area" id="sc-deliver">
+                  <div class="sc-entry"><input type="text" class="sc-input" placeholder="サブコン（例：F運輸）"><button class="sc-add-btn" type="button" onclick="addScEntry('sc-deliver')">＋</button></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="zone-preset-bar">
+          <button class="btn-zone-preset" onclick="applyZoneBasedPreset()">🔧 この構成でプリセット適用</button>
+        </div>
+
+        <button class="fb-section-btn" onclick="openFeedback('引き合い条件')" title="このセクションへのフィードバック">💬 このセクションへのフィードバック</button>
+      </div>
+    </div>
+
+    <!-- ③ 貨物情報 ＋ サイズ計算（統合） -->
+    <div class="condition-section" id="section-cargo">
+      <h2>📦 貨物情報・サイズ計算</h2>
+      <div id="cargoBody">
+        <p class="section-desc">貨物の基本情報を入力し、寸法から CBM・チャージャブルウェイトを自動計算できます。<b>計算結果</b>は下の見積もり表の数量欄へそのまま転記できます。</p>
+        <div class="condition-grid" id="cargoCondGrid">
+          <div class="cond-field" data-field-id="cargo" draggable="true">
+            <label><span class="cond-sort-handle" title="ドラッグして並び替え">⠿</span><span class="cond-icon">🏷️</span> 貨物名</label>
+            <input type="text" id="cond-cargo" placeholder="例）自動車部品" />
+          </div>
+          <div class="cond-field" data-field-id="container-type" data-scope-key="container" draggable="true">
+            <label><span class="cond-sort-handle" title="ドラッグして並び替え">⠿</span><span class="cond-icon">📐</span> コンテナ種類・サイズ</label>
+            <select id="cond-container-type">
+              <option value="">— 選択 —</option>
+              <option>20'GP</option>
+              <option>40'GP</option>
+              <option>40'HQ</option>
+              <option>20'RF（冷凍）</option>
+              <option>40'RF（冷凍）</option>
+              <option>20'OT（オープントップ）</option>
+              <option>40'OT（オープントップ）</option>
+              <option>20'FR（フラットラック）</option>
+              <option>40'FR（フラットラック）</option>
+              <option>LCL（混載）</option>
+              <option>未定</option>
+            </select>
+          </div>
+          <div class="cond-field" data-field-id="container-count" data-scope-key="container" draggable="true">
+            <label><span class="cond-sort-handle" title="ドラッグして並び替え">⠿</span><span class="cond-icon">🔢</span> 本数</label>
+            <input type="number" id="cond-container-count" min="0" step="1" placeholder="例）1" />
+          </div>
+          <div class="cond-field" data-field-id="weight" draggable="true">
+            <label><span class="cond-sort-handle" title="ドラッグして並び替え">⠿</span><span class="cond-icon">⚖️</span> 重量（概算）</label>
+            <input type="text" id="cond-weight" placeholder="例）5,000 kg" />
+          </div>
+          <div class="cond-field" data-field-id="volume" draggable="true">
+            <label><span class="cond-sort-handle" title="ドラッグして並び替え">⠿</span><span class="cond-icon">📏</span> 容積（概算）</label>
+            <input type="text" id="cond-volume" placeholder="例）20 CBM" />
+          </div>
+          <div class="cond-field" data-field-id="packing" draggable="true">
+            <label><span class="cond-sort-handle" title="ドラッグして並び替え">⠿</span><span class="cond-icon">📦</span> 荷姿</label>
+            <div class="packing-field-wrap">
+              <select id="cond-packing-preset" onchange="onPackingPresetChange(this)" title="よく使う荷姿を選択"></select>
+              <input type="text" id="cond-packing" placeholder="例）カートン / パレット" oninput="renderPackingPreset()" />
+            </div>
+          </div>
+          <div class="cond-field" data-field-id="hazmat" draggable="true">
+            <label><span class="cond-sort-handle" title="ドラッグして並び替え">⠿</span><span class="cond-icon">☣️</span> 危険品・特殊貨物</label>
+            <select id="cond-hazmat">
+              <option value="">— 選択 —</option>
+              <option>なし（一般貨物）</option>
+              <option>危険品あり（クラス要確認）</option>
+              <option>温度管理品（冷蔵）</option>
+              <option>温度管理品（冷凍）</option>
+              <option>重量物・大型貨物</option>
+              <option>その他（特記事項参照）</option>
+            </select>
+          </div>
+        </div>
+        <div class="cond-actions">
+          <button class="btn-cond-clear" onclick="clearConditions()">クリア</button>
+        </div>
+
+        <div style="margin: 18px 0 14px; border-top: 1px dashed #d0dce8; padding-top: 14px;">
+          <div style="font-size:12px; font-weight:700; color:#2980b9; margin-bottom:10px; letter-spacing:.04em;">
+            📐 寸法・重量の詳細入力（CBM / CW 自動計算）
+          </div>
+          <div class="calc-wrapper">
+            <table class="calc-mini-table" id="calcTable">
+              <thead>
+                <tr>
+                  <th>個数</th>
+                  <th>荷姿</th>
+                  <th>長さ(cm)</th>
+                  <th>幅(cm)</th>
+                  <th>高さ(cm)</th>
+                  <th>CBM小計</th>
+                  <th title="1個あたりの重量">単重量<br>(kg/個)</th>
+                  <th title="単重量 × 個数（自動計算）">総重量<br>(kg)</th>
+                  <th title="段積みできるかどうか">段積み</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="calcBody"></tbody>
+            </table>
+            <button class="btn-calc-add" onclick="addCalcRow()">＋ 荷物の種類を追加</button>
+            <button class="btn-calc-run" onclick="runCalc()">📐 計算する</button>
+            <div class="calc-results-panel" id="calcResultsPanel">
+              <div class="calc-results-grid" id="calcResultsGrid"></div>
+              <hr class="calc-divider-line">
+              <div class="calc-reflect-title">📦 上の貨物情報に反映</div>
+              <div id="calcCargoReflect" class="calc-cargo-reflect">
+                <button type="button" class="btn-calc-cargo-reflect" onclick="reflectToCargoInfo()" title="重量・容積を上の「貨物情報」へ上書き">
+                  📋 貨物情報へ反映（重量・容積を上書き）
+                </button>
+              </div>
+              <hr class="calc-divider-line">
+              <div class="calc-reflect-title">📋 見積もり行に数量を反映</div>
+              <div id="calcReflectRows"></div>
+            </div>
+          </div>
+        </div>
+
+        <button class="fb-section-btn" onclick="openFeedback('貨物情報・サイズ計算')" title="このセクションへのフィードバック">💬 このセクションへのフィードバック</button>
+      </div>
+    </div>
+
+    <!-- ⑤ 見積もりテーブル -->
+    <div class="condition-section" id="section-table">
+      <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px; margin-bottom:4px;">
+        <h2 style="margin:0;">📋 見積もりテーブル</h2>
+        <label style="display:flex; align-items:center; gap:6px; font-size:12px; color:#555; cursor:pointer;"
+               title="OFFにすると、備考欄でTabを押しても新しい行が追加されません（次の入力欄へ移動するだけ）">
+          <input type="checkbox" id="tabAddChk" checked onchange="toggleTabAdd(this.checked)"
+                 style="width:14px; height:14px; cursor:pointer; accent-color:#3498db;" />
+          <span>Tabキーで行追加</span>
+          <span style="color:#aaa; font-size:11px;">ⓘ</span>
+        </label>
+      </div>
+      <div id="tableWrap">
+        <p class="section-desc">費用項目ごとに <b>支払い（仕入）</b> と <b>請求</b> の数量・通貨・単価を入力します。<b>③ 乗せ幅</b> を入力すると請求単価に自動加算、<b>④ 利益</b> 欄で粗利をリアルタイム確認できます。CSV インポートやカテゴリ順並び替えも利用可能です。</p>
+        <div class="container">
+          <div id="tableScrollWrap">
+          <table id="quoteTable">
+            <thead>
+              <tr>
+                <th rowspan="2" class="hd-base" style="width:22px; padding:2px; text-align:center;">
+                  <input type="checkbox" id="selectAllChk" title="全選択 / 解除"
+                         style="width:13px;height:13px;cursor:pointer;margin:0;"
+                         onclick="toggleSelectAll(this.checked)" />
+                </th>
+                <th rowspan="2" class="hd-base" style="width:28px;"></th>
+                <th rowspan="2" class="hd-base" style="width:105px;">カテゴリ</th>
+                <th rowspan="2" class="hd-base" style="width:44px;">課税</th>
+                <th rowspan="2" class="hd-base">項目名</th>
+                <th colspan="5" class="hd-pay">支払い</th>
+                <th colspan="3" class="hd-bill">請求</th>
+                <th colspan="4" class="hd-profit">利益計算</th>
+                <th rowspan="2" class="hd-base" style="width:90px;">サブコン</th>
+                <th rowspan="2" class="hd-base"></th>
+              </tr>
+              <tr>
+                <th class="hd-pay">数量</th>
+                <th class="hd-pay">単位</th>
+                <th class="hd-pay">通貨</th>
+                <th class="hd-pay">単価</th>
+                <th class="hd-pay" style="color:#ccc;">① CD</th>
+                <th class="hd-bill" style="color:#bde8c8;">② 数量</th>
+                <th class="hd-bill" style="color:#bde8c8;">② 通貨</th>
+                <th class="hd-bill" style="color:#bde8c8;">② 単価</th>
+                <th class="hd-profit">③ 乗せ幅</th>
+                <th class="hd-profit">④ 小計</th>
+                <th class="hd-profit">⑤ 利益</th>
+                <th class="hd-profit">備考</th>
+              </tr>
+            </thead>
+            <tbody id="tableBody"></tbody>
+            <tfoot>
+              <tr>
+                <td></td><td></td><td></td>
+                <td colspan="4" style="text-align:right; color:#555;">合　計</td>
+                <td>—</td>
+                <td>—</td>
+                <td style="background:#f0f0f0; color:#aaa; text-align:center;">—</td>
+                <td colspan="2">—</td>
+                <td id="tot-billing" style="text-align:right; padding-right:10px; min-width:85px;">—</td>
+                <td id="tot-markup"  style="text-align:right; padding-right:10px; min-width:85px;">—</td>
+                <td id="tot-subtotal" style="text-align:right; padding-right:10px; min-width:85px; font-weight:bold; background:#eef5fb;">—</td>
+                <td class="profit-cell profit-zero" id="tot-profit">—</td>
+                <td colspan="3"></td>
+              </tr>
+              <tr id="tot-jpy-row" style="display:none; font-size:11px; color:#888; background:#fffbe6;">
+                <td></td><td></td><td></td>
+                <td colspan="4" style="text-align:right;">JPY換算合計</td>
+                <td colspan="5">—</td>
+                <td id="tot-billing-jpy" style="text-align:right; padding-right:10px;">—</td>
+                <td>—</td>
+                <td id="tot-subtotal-jpy" style="text-align:right; padding-right:10px; font-weight:bold;">—</td>
+                <td id="tot-profit-jpy" class="profit-cell profit-zero">—</td>
+                <td colspan="3"></td>
+              </tr>
+            </tfoot>
+          </table>
+          </div>
+          <div class="table-btn-group">
+            <div class="btn-group-row">
+              <span class="btn-group-label">行操作</span>
+              <button class="btn-add"         onclick="addRow()">＋ 行を追加</button>
+              <button class="btn-subtotal"    onclick="insertSubtotalRow()" title="現在の末尾に小計行を挿入">＝ 小計行を挿入</button>
+              <button class="btn-sort-cat"    onclick="sortByCategory()">🔀 カテゴリー順</button>
+              <button class="btn-clean-empty" onclick="deleteEmptyRows()" title="未入力（グレーアウト）の行をまとめて削除">🧹 未入力行を削除</button>
+            </div>
+            <div class="btn-group-row">
+              <span class="btn-group-label">選択行</span>
+              <button class="btn-bulk-copy"   onclick="copySelectedRows()" title="チェックした行を複製">📋 コピー</button>
+              <button class="btn-bulk-delete" onclick="deleteSelectedRows()" title="チェックした行を削除">🗑️ 削除</button>
+            </div>
+            <div class="btn-group-row">
+              <button class="btn-preview"    onclick="openPreview()">📋 プレビュー</button>
+              <button class="btn-csv-import" onclick="toggleCsvZone()">📂 CSV読み込み</button>
+              <button class="btn-reset"      onclick="resetAll()">リセット</button>
+            </div>
+          </div>
+          <div id="fxRatePanel">
+            <details id="fxRateDetails">
+              <summary onclick="renderFxPanel()">💱 為替レート設定（JPY換算用）</summary>
+              <div class="fx-mode-bar">
+                <label class="fx-mode-label">
+                  <input type="checkbox" id="fxAutoModeChk"
+                         onchange="onFxAutoModeChange(this.checked)" />
+                  起動時に自動取得
+                </label>
+                <button type="button" id="fxFetchBtn" class="fx-fetch-btn" onclick="doFetchFxRates()">🔄 今すぐ取得</button>
+                <span id="fxLastFetched" class="fx-last-fetched"></span>
+              </div>
+              <div id="fxRateGrid"></div>
+              <div style="margin-top:6px; font-size:11px; color:#888;">※ 合計行にJPY換算額を表示します。自動取得はopen.er-api.comを使用します。</div>
+            </details>
+          </div>
+          <div id="userCatPanel">
+            <details id="userCatDetails">
+              <summary>🏷️ カスタムカテゴリ管理</summary>
+              <div id="userCatList" class="user-cat-list"></div>
+              <div class="user-cat-add-row">
+                <input type="text" id="newCatInput" class="user-cat-input"
+                       placeholder="例）🔴 スポット費用"
+                       maxlength="20"
+                       onkeydown="if(event.key==='Enter')doAddUserCat()" />
+                <button type="button" class="user-cat-add-btn" onclick="doAddUserCat()">＋ 追加</button>
+              </div>
+              <div style="margin-top:5px; font-size:11px; color:#888;">※ カテゴリ削除後、そのカテゴリが設定された行は「未設定」になります。</div>
+            </details>
+          </div>
+          <div id="csvDropZone" onclick="document.getElementById('csvFileInput').click()"
+               ondragover="onDragOver(event)" ondragleave="onDragLeave(event)" ondrop="onDrop(event)">
+            📂 クリックしてCSVを選択、またはここにドラッグ＆ドロップ
+            <p>※ 1行目にヘッダー行がある場合は自動で読み飛ばします</p>
+            <input type="file" id="csvFileInput" accept=".csv" style="display:none" onchange="loadCSV(event)" />
+          </div>
+          <div id="csvMsg"></div>
+          <p class="tip">
+            <b class="blue" style="font-size:14px;background:#aed6f1;color:#1b4f72;padding:2px 6px;border-radius:4px;">⠿</b>：<b>左端のこのハンドルを掴んで上下にドラッグ</b>すると行を並び替えできます　／
+            <b>＋</b>：その行の直下に行を挿入　／
+            <b class="red">課税</b>：チェックで * を項目名先頭に追記<br>
+            <b class="gray">CD・②列</b>：表示専用（編集・Tab 不可）　／
+            ③ 乗せ幅 → ②単価へ加算　／　④ 小計 ＝ 請求 数量 × 単価　／　⑤ 利益 ＝ 請求合計 － 支払い合計<br>
+            <b class="purple">↑↓キー</b>：同じ列で行間移動
+          </p>
+        </div>
+        <button class="fb-section-btn" onclick="openFeedback('見積もりテーブル')" title="このセクションへのフィードバック">💬 このセクションへのフィードバック</button>
+      </div>
+    </div>
+
+    <!-- ⑥ 特記事項 -->
+    <div class="condition-section" id="section-free">
+      <h2>📝 特記事項・補足（自由入力）</h2>
+      <div id="freeBody">
+        <p class="section-desc">荷主からの特別な要望や制約事項を自由に記入します。指定船会社・B/L 条件・バン詰め場所・その他の注意点など、<b>見積もりには含まれないが把握しておくべき情報</b>を残す欄として活用してください。</p>
+        <div class="cond-free">
+          <textarea id="condFreeText" placeholder="例）&#10;・荷主の工場でのバン詰め（FC Stuff）希望&#10;・特定船会社指定あり（ONE / MSC）&#10;・B/L条件：Shipper's Order B/L希望&#10;・その他ご要望・注意事項をご記入ください"></textarea>
+        </div>
+        <button class="fb-section-btn" onclick="openFeedback('特記事項・補足')" title="このセクションへのフィードバック">💬 このセクションへのフィードバック</button>
+      </div>
+    </div>
+
+    <!-- ⑦ 全体リマーク -->
+    <div class="condition-section remark-section" id="section-remark">
+      <h2>📝 全体リマーク（条件・免責事項）</h2>
+      <div id="remarkBody" class="remark-body">
+        <p class="section-desc">見積もり全体に共通して適用する条件・免責事項を入力します。<b>プリセットボタン</b>（有効期限・運賃変動条項・フリータイムなど）をクリックすると定型文を追加できます。提出前に必ず内容を確認してください。</p>
+        <div class="remark-presets" id="presetBtns"></div>
+        <textarea id="remarkTextarea" placeholder="見積もり全体に適用する条件・免責事項を入力してください。上のボタンでプリセットを追加できます。"></textarea>
+        <div class="remark-actions">
+          <button class="btn-remark-clear" onclick="clearRemark()">クリア</button>
+          <span class="remark-char" id="remarkChar">0文字</span>
+        </div>
+        <button class="fb-section-btn" onclick="openFeedback('全体リマーク')" title="このセクションへのフィードバック">💬 このセクションへのフィードバック</button>
+      </div>
+    </div>
+
+    <!-- ========== スコーププリセットダイアログ ========== -->
+    <div class="scope-preset-modal" id="scopePresetModal">
+      <div class="scope-preset-box">
+        <div class="scope-preset-title" id="scopePresetTitle">📋 プリセットを挿入しますか？</div>
+        <div class="scope-preset-desc" id="scopePresetDesc">
+          この作業範囲に対応した標準見積項目を挿入できます。<br>
+          挿入後に内容を自由に編集できます。
+        </div>
+        <div class="scope-preset-items" id="scopePresetItems"></div>
+        <div class="scope-preset-btns">
+          <button class="scope-preset-btn scope-preset-btn-replace"
+                  onclick="applyScopePreset('replace')">🔄 置換（現在の行を全て入れ替え）</button>
+          <button class="scope-preset-btn scope-preset-btn-append"
+                  onclick="applyScopePreset('append')">➕ 追加（末尾に追記）</button>
+          <button class="scope-preset-btn scope-preset-btn-skip"
+                  onclick="closeScopePresetDlg()">スキップ</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ========== CSV列選択モーダル ========== -->
+    <div id="csvColModal" onclick="if(event.target===this)closeCsvColModal()">
+      <div id="csvColBox">
+        <h3>⬇ CSV出力：列を選択してください</h3>
+        <div class="csv-col-presets">
+          <button type="button" class="csv-col-preset-btn" onclick="applyCsvPreset('client')" title="請求項目のみ表示（支払い・マークアップ・利益を非表示）">📄 客先提示用</button>
+          <button type="button" class="csv-col-preset-btn" onclick="applyCsvPreset('internal')" title="支払い・マークアップ・利益・サブコンを含む全列表示">🏢 社内管理用</button>
+        </div>
+        <span class="csv-col-all-toggle" onclick="toggleAllCsvCols()">すべて選択 / 解除</span>
+        <div class="csv-col-grid" id="csvColGrid">
+          <label><input type="checkbox" class="csv-col-chk" data-col="cat"    checked> カテゴリ</label>
+          <label><input type="checkbox" class="csv-col-chk" data-col="name"   checked> 項目名</label>
+          <label><input type="checkbox" class="csv-col-chk" data-col="pq"     checked> 支払い数量</label>
+          <label><input type="checkbox" class="csv-col-chk" data-col="un"     checked> 単位</label>
+          <label><input type="checkbox" class="csv-col-chk" data-col="pc"     checked> 支払い通貨</label>
+          <label><input type="checkbox" class="csv-col-chk" data-col="pp"     checked> 支払い単価</label>
+          <label><input type="checkbox" class="csv-col-chk" data-col="cd"            > CD</label>
+          <label><input type="checkbox" class="csv-col-chk" data-col="bq"     checked> 請求数量</label>
+          <label><input type="checkbox" class="csv-col-chk" data-col="bc"     checked> 請求通貨</label>
+          <label><input type="checkbox" class="csv-col-chk" data-col="bp"     checked> 請求単価</label>
+          <label><input type="checkbox" class="csv-col-chk" data-col="mk"            > 乗せ幅</label>
+          <label><input type="checkbox" class="csv-col-chk" data-col="sub"    checked> 小計</label>
+          <label><input type="checkbox" class="csv-col-chk" data-col="profit"        > 利益</label>
+          <label><input type="checkbox" class="csv-col-chk" data-col="note"   checked> 備考</label>
+          <label><input type="checkbox" class="csv-col-chk" data-col="sv"            > サブコン</label>
+        </div>
+        <div class="csv-col-modal-btns">
+          <button class="csv-col-modal-btn cancel" onclick="closeCsvColModal()">キャンセル</button>
+          <button class="csv-col-modal-btn ok"     onclick="doDownloadCSV()">⬇ ダウンロード</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ========== プレビューモーダル ========== -->
+    <div id="previewOverlay" onclick="overlayClick(event)">
+      <div id="previewBox">
+        <h2>📋 プレビュー（表計算形式）</h2>
+        <div id="pvMeta" class="pv-meta" style="display:none;"></div>
+        <div id="pvCondBox" style="display:none;"><strong>🚢 引き合い条件</strong></div>
+        <div id="pvCargoBox" style="display:none;"></div>
+        <div id="previewTableWrap"></div>
+        <div id="pvTaxBox" class="pv-tax-box">
+          <label class="pv-tax-label">🧾 消費税：</label>
+          <select id="pvTaxRate" onchange="updatePreviewTax()" class="pv-tax-select">
+            <option value="0">なし</option>
+            <option value="10">10%（標準）</option>
+            <option value="8">8%（軽減）</option>
+            <option value="5">5%</option>
+          </select>
+          <span class="pv-tax-detail">消費税額: <b id="pvTaxAmount">—</b>　税込合計: <b id="pvTaxTotal">—</b></span>
+          <span id="pvTotalSubtotal" data-raw="0" style="display:none;"></span>
+        </div>
+        <div id="pvRemarkBox" style="display:none;"><strong>📝 条件・リマーク</strong></div>
+        <div class="pv-btns">
+          <button class="pv-btn-copy" onclick="copyTSV()">📑 クリップボードにコピー（Excel 貼り付け用）</button>
+          <button class="pv-btn-csv"  onclick="downloadCSV()">⬇ CSV ダウンロード</button>
+          <button class="pv-btn-excel" onclick="exportExcel()">📊 Excel 出力</button>
+          <button class="pv-btn-pdf"   onclick="exportPDF()">🖨️ PDF 出力（印刷）</button>
+          <button class="pv-btn-close" onclick="closePreview()">閉じる</button>
+          <span class="pv-copy-msg" id="copyMsg">✅ コピーしました！</span>
+        </div>
+        <details class="pv-customize-wrap" id="pvCustomizeWrap">
+          <summary class="pv-customize-toggle">⚙️ 表示カスタマイズ</summary>
+          <div class="pv-customize-body">
+            <div class="pv-cust-group">
+              <span class="pv-cust-label">表示列：</span>
+              <label><input type="checkbox" class="pv-col-chk" data-col="cat"     checked> カテゴリ</label>
+              <label><input type="checkbox" class="pv-col-chk" data-col="pay"     checked> 原価列（数量/通貨/単価/CD）</label>
+              <label><input type="checkbox" class="pv-col-chk" data-col="bill"    checked> 請求列（数量/通貨/単価）</label>
+              <label><input type="checkbox" class="pv-col-chk" data-col="mk"      checked> 乗せ幅</label>
+              <label><input type="checkbox" class="pv-col-chk" data-col="profit"  checked> 利益</label>
+              <label><input type="checkbox" class="pv-col-chk" data-col="note"    checked> 備考</label>
+              <label><input type="checkbox" class="pv-col-chk" data-col="sv"      checked> サブコン</label>
+            </div>
+            <div class="pv-cust-group">
+              <span class="pv-cust-label">セクション：</span>
+              <label><input type="checkbox" class="pv-sec-chk" data-sec="meta"    checked> REF/引き合い元/担当</label>
+              <label><input type="checkbox" class="pv-sec-chk" data-sec="cond"    checked> 引き合い条件</label>
+              <label><input type="checkbox" class="pv-sec-chk" data-sec="cargo"   checked> 貨物ボリューム情報</label>
+              <label><input type="checkbox" class="pv-sec-chk" data-sec="remark"  checked> 条件・リマーク</label>
+              <label><input type="checkbox" class="pv-sec-chk" data-sec="tax"     checked> 消費税</label>
+            </div>
+          </div>
+        </details>
+        <p class="pv-hint">
+          ※ CSV はデータ行のみ出力（カテゴリ列を先頭に付与）。再読み込みにも対応。<br>
+          ※ 課税項目は項目名の先頭に * が付いています。
+        </p>
+      </div>
+    </div>
+
+    <!-- ===== 行テンプレート ===== -->
+    <datalist id="unit-list">
+      <option value="B/L"></option>
+      <option value="CNTR"></option>
+      <option value="CBM"></option>
+      <option value="R/T"></option>
+      <option value="kg"></option>
+      <option value="TON"></option>
+      <option value="pcs"></option>
+      <option value="件"></option>
+      <option value="式"></option>
+      <option value="set"></option>
+      <option value="shipment"></option>
+      <option value="CTN"></option>
+      <option value="PLT"></option>
+      <option value="時間"></option>
+      <option value="日"></option>
+      <option value="HOUR"></option>
+      <option value="DAY"></option>
+    </datalist>
+
+    <template id="row-tpl">
+      <td class="check-cell">
+        <input type="checkbox" class="row-select-chk" tabindex="-1" title="この行を選択（コピー・削除用）" style="width:13px;height:13px;cursor:pointer;margin:0;" />
+      </td>
+      <td class="handle-cell">
+        <button type="button" class="row-move-btn row-move-up"  data-field="move-up"   tabindex="-1" title="上に移動">▲</button>
+        <span class="drag-handle" title="ドラッグして並び替え">⠿</span>
+        <button type="button" class="row-move-btn row-move-down" data-field="move-down" tabindex="-1" title="下に移動">▼</button>
+      </td>
+      <td class="cat-cell"><select class="w-cat" data-field="cat" data-col="0"></select></td>
+      <td class="tax-cell"><input type="checkbox" data-field="tx" title="課税"></td>
+      <td><input type="text" data-field="nm" class="w-name" placeholder="例）海上運賃" data-col="1" /></td>
+      <td><input type="number" data-field="pq" class="w-qty" min="0" value="1" data-col="2" /></td>
+      <td><input type="text" list="unit-list" data-field="un" class="w-unit" data-col="2u" placeholder="単位" /></td>
+      <td><select data-field="pc" class="w-cur" data-col="3"></select></td>
+      <td><input type="number" data-field="pp" class="w-price" min="0" value="0" data-col="4" /></td>
+      <td class="cd-cell"><input type="number" data-field="cd" class="w-price display-field" value="9999" tabindex="-1" readonly /></td>
+      <td><input type="number" data-field="bq" class="w-qty display-field" value="1" tabindex="-1" readonly /></td>
+      <td><select data-field="bc" class="w-cur display-field" tabindex="-1"></select></td>
+      <td><input type="number" data-field="bp" class="w-price display-field" value="0" tabindex="-1" readonly data-base="0" /></td>
+      <td><input type="number" data-field="mk" class="w-mkup" value="0" data-col="5" /></td>
+      <td class="subtotal-cell" data-field="st">—</td>
+      <td class="profit-cell profit-zero" data-field="pr">0</td>
+      <td><input type="text" data-field="nt" class="w-note" placeholder="備考" data-col="6" /></td>
+      <td><input type="text" data-field="sv" class="w-subcon" placeholder="サブコン名" /></td>
+      <td>
+        <button class="done-btn" data-field="done" title="処理済みにする（再クリックで解除）">✓</button>
+        <button class="btn-del" data-field="del" tabindex="-1">削除</button>
+        <button class="btn-ins" data-field="ins" tabindex="-1">＋</button>
+        <button class="btn-subtotal-ins" data-field="subins" tabindex="-1" title="この行の下に小計行を挿入">＝</button>
+      </td>
+    </template>
+
+  </div><!-- /#tab-quote-make -->
+
+  <!-- Footer -->
+  <div class="footer">
+    <span class="footer-text">フォワーダー実務支援ツール</span>
+  </div>
+
+</div><!-- /app -->
+
+
+<!-- 共通モジュール（見積支援と共有） -->
+<script src="shared/fx.js"></script>
+<script src="shared/format.js"></script>
+<script src="shared/storage.js"></script>
+<script src="shared/ui-utils.js"></script>
+<script src="shared/calc.js"></script>
+<script src="data/carriers.js"></script>
+<script src="data/incoterms.js"></script>
+<script src="js/calculator.js"></script>
+<script src="js/app.js"></script>
+<!-- 見積タブ用：初期化は switchTab フックで遅延実行（js/app.js 内） -->
+<script src="js/quote/constants.js"></script>
+<script src="js/quote/row.js"></script>
+<script src="js/quote/preview.js"></script>
+<script src="js/quote/cargo.js"></script>
+<script src="js/quote/conditions.js"></script>
+<script src="js/quote/save.js"></script>
+<script src="js/quote/ui.js"></script>
+
+<!-- =================================================================
+     サイト全体スコープのフローティング UI（Phase 2c-Step1 で見積タブから昇格）
+     - フィードバックモーダル（独自フォーム → 裏で Google Form に no-cors POST）
+     - フィードバック FAB（💬）
+     - トースト通知コンテナ（quoteShowToast の挿入先）
+     ハンドラ: js/quote/save.js (openFeedback / closeFeedback / submitFeedback)
+              js/quote/ui.js   (quoteShowToast)
+     ================================================================ -->
+<div id="fbOverlay" onclick="closeFeedback(event)">
+  <div id="fbBox" onclick="event.stopPropagation()">
+    <div class="fb-head">
+      <h3 id="fbHeadTitle">💬 フィードバック</h3>
+      <button class="fb-close-x" onclick="closeFeedback()" aria-label="閉じる">×</button>
+    </div>
+    <div id="fbNoUrlMsg" class="fb-no-url-msg">
+      ⚠️ Googleフォームの entry ID がまだ設定されていません。<br>
+      HTML 内の <code>__ENTRY_*__</code> プレースホルダを置き換えてください。
+    </div>
+    <form id="fbForm" onsubmit="submitFeedback(event)" autocomplete="off">
+      <div class="fb-field">
+        <label class="fb-label">カテゴリ <span class="fb-required">必須</span></label>
+        <div class="fb-radios" id="fbCategoryRadios">
+          <label class="fb-radio"><input type="radio" name="fbCategory" value="バグ報告" required><span>🐛 バグ報告</span></label>
+          <label class="fb-radio"><input type="radio" name="fbCategory" value="改善要望"><span>💡 改善要望</span></label>
+          <label class="fb-radio"><input type="radio" name="fbCategory" value="質問"><span>❓ 質問</span></label>
+          <label class="fb-radio"><input type="radio" name="fbCategory" value="その他"><span>📌 その他</span></label>
+        </div>
+      </div>
+      <div class="fb-field">
+        <label class="fb-label" for="fbSection">該当セクション <span class="fb-required">必須</span></label>
+        <select id="fbSection" name="fbSection" required>
+          <option value="全体">全体</option>
+          <option value="管理番号入力">管理番号入力</option>
+          <option value="引き合い条件">引き合い条件</option>
+          <option value="貨物情報・サイズ計算">貨物情報・サイズ計算</option>
+          <option value="見積もりテーブル">見積もりテーブル</option>
+          <option value="特記事項・補足">特記事項・補足</option>
+          <option value="全体リマーク">全体リマーク</option>
+        </select>
+      </div>
+      <div class="fb-field">
+        <label class="fb-label" for="fbBody">内容 <span class="fb-required">必須</span></label>
+        <textarea id="fbBody" name="fbBody" rows="5" required
+          placeholder="例）〇〇のとき動作がおかしい / 〇〇機能を追加してほしい など"></textarea>
+      </div>
+      <div class="fb-foot">
+        <a id="fbOpenTab" class="fb-foot-link" href="#" target="_blank" rel="noopener">Googleフォームで開く ↗</a>
+        <button type="button" class="fb-btn-close" onclick="closeFeedback()">キャンセル</button>
+        <button type="submit" class="fb-btn-send" id="fbSubmitBtn">送信</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<button class="fb-fab" onclick="openFeedback('全体')" title="フィードバックを送る">💬</button>
+
+<div id="toast-container"></div>
+
+</body>
+</html>

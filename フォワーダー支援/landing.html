@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>コンテナの片隅で</title>
+<style>
+:root {
+  --bg:        #f2ede6;
+  --card-bg:   #faf7f2;
+  --border:    #d9cfc2;
+  --border-md: #c4b49a;
+  --accent:    #6b5a42;
+  --accent-dk: #3d2e1e;
+  --accent-lt: #f0e8d8;
+  --text:      #2d2418;
+  --text-md:   #7d6b56;
+  --text-lt:   #a8947e;
+  color-scheme: light;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 14px;
+  line-height: 1.5;
+  min-height: 100vh;
+}
+.app { max-width: 960px; margin: 0 auto; padding: 20px 16px; }
+
+/* Header */
+.header {
+  background: var(--accent-dk);
+  color: #f5ede0;
+  border-radius: 12px;
+  padding: 22px 28px;
+  margin-bottom: 20px;
+}
+.header h1 { font-size: 20px; font-weight: 700; letter-spacing: 0.02em; }
+.header .subtitle { font-size: 12px; opacity: 0.6; margin-top: 4px; }
+
+/* Section title */
+.section-title {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-md);
+  text-transform: uppercase;
+  letter-spacing: 0.9px;
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* Hero grid */
+.hero-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  margin-bottom: 20px;
+}
+@media (max-width: 600px) { .hero-grid { grid-template-columns: 1fr; } }
+
+.hero-card {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 22px 22px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  transition: border-color 0.15s;
+}
+.hero-card:hover { border-color: var(--border-md); }
+.hero-icon { font-size: 28px; }
+.hero-name { font-size: 16px; font-weight: 700; color: var(--text); }
+.hero-desc { font-size: 12px; color: var(--text-md); line-height: 1.6; flex: 1; }
+.hero-btn {
+  display: inline-block;
+  background: var(--accent);
+  color: #f5ede0;
+  text-decoration: none;
+  padding: 9px 18px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 700;
+  text-align: center;
+  transition: background 0.2s;
+  align-self: flex-start;
+}
+.hero-btn:hover { background: var(--accent-dk); }
+
+/* X embed */
+.x-card {
+  background: var(--card-bg);
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  overflow: hidden;
+  margin-bottom: 20px;
+}
+.x-header {
+  padding: 14px 16px 10px;
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; gap: 8px;
+}
+.x-header-icon { font-size: 16px; }
+.x-header-title { font-size: 12px; font-weight: 700; color: var(--text-md); letter-spacing: 0.05em; text-transform: uppercase; }
+.x-timeline-wrap { padding: 8px; }
+
+/* Footer */
+.footer {
+  margin-top: 22px;
+  padding: 14px 20px;
+  background: var(--card-bg);
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  text-align: center;
+  font-size: 11px;
+  color: var(--text-lt);
+}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- Header -->
+  <div class="header">
+    <h1>🚢 コンテナの片隅で</h1>
+    <div class="subtitle">実務ツール × 知識ベース — フォワーダーの仕事をまとめてサポート</div>
+  </div>
+
+  <!-- Hero: 2つのサービスへの入口 -->
+  <div class="hero-grid">
+    <div class="hero-card">
+      <div class="hero-icon">🛠️</div>
+      <div class="hero-name">フォワーダー支援</div>
+      <div class="hero-desc">ブックマーク・知識・計算機・見積もりをひとまとめに。</div>
+      <a class="hero-btn" href="portal.html">ポータルを開く →</a>
+    </div>
+    <div class="hero-card">
+      <div class="hero-icon">📚</div>
+      <div class="hero-name">Notionデータベース</div>
+      <div class="hero-desc">フォワーダー業界界隈のニュースや知識のまとめ。</div>
+      <a class="hero-btn" href="https://fuchsia-tiglon-5dc.notion.site/32672d90504a8010a5dfc8ff1b0519c8" target="_blank" rel="noopener">知識ベースを見る →</a>
+    </div>
+  </div>
+
+  <!-- X タイムライン -->
+  <div class="x-card">
+    <div class="x-header">
+      <span class="x-header-icon">𝕏</span>
+      <span class="x-header-title">最新投稿 @JK1694619382592</span>
+    </div>
+    <div class="x-timeline-wrap">
+      <a class="twitter-timeline"
+         data-lang="ja"
+         data-height="500"
+         data-theme="light"
+         data-chrome="noheader nofooter noborders"
+         href="https://x.com/JK1694619382592">
+        読み込み中...
+      </a>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <div class="footer">
+    コンテナの片隅で
+  </div>
+
+</div><!-- /app -->
+
+<script async src="https://platform.twitter.com/widgets.js" charset="utf-8"></script>
+</body>
+</html>

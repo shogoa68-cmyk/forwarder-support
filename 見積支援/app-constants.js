@@ -1,0 +1,193 @@
+// ========== 定数・グローバル変数 ==========
+// ※ このファイルを最初に読み込むこと
+
+  // ========== 定数 ==========
+  const CURRENCIES = ['JPY','USD','EUR','CNY','KRW','SGD','HKD','GBP','AUD','TWD','THB','VND','MYR','IDR'];
+  const UNITS = ['', 'B/L', 'CNTR', 'CBM', 'R/T', 'CW', 'kg', 'TON', 'pcs', '件', '式', 'set', 'shipment', 'CTN', 'PLT', '時間', '日', 'HOUR', 'DAY'];
+
+  const CATEGORIES = [
+    { value: '',           label: '— カテゴリ —',         cls: '' },
+    { value: 'domestic',   label: '🏠 国内作業',           cls: 'cat-domestic'   },
+    { value: 'export-local', label: '📤 輸出ローカルチャージ', cls: 'cat-export-local' },
+    { value: 'ocean',      label: '🚢 海上運賃',           cls: 'cat-ocean'      },
+    { value: 'air',        label: '✈️ 航空運賃',          cls: 'cat-air'        },
+    { value: 'surcharge',  label: '⚡ サーチャージ',        cls: 'cat-surcharge'  },
+    { value: 'import-local', label: '📥 輸入ローカルチャージ', cls: 'cat-import-local' },
+    { value: 'overseas',   label: '🌏 海外作業',           cls: 'cat-overseas'   },
+    { value: 'customs',    label: '🛃 通関費',             cls: 'cat-customs'    },
+    { value: 'insurance',  label: '🛡️ 保険料',            cls: 'cat-insurance'  },
+    { value: 'other',      label: '📋 その他',             cls: 'cat-other'      },
+  ];
+  const CAT_VALUES = CATEGORIES.map(c => c.value);
+
+  // ---- 各スコープに対応する見積プリセット行 ----
+  // cat: CATEGORIES の value と一致させること
+  const SCOPE_PRESETS = {
+    domestic: [
+      { cat: 'domestic',  name: '国内集荷・陸送費',  note: '集荷先〜倉庫/港' },
+      { cat: 'domestic',  name: '荷役・仕分け費',    note: '積み下ろし・仕分け作業' },
+      { cat: 'domestic',  name: '国内配送費',        note: '倉庫/港〜納入地' },
+      { cat: 'other',     name: 'その他国内費用',    note: '' },
+    ],
+    export: [
+      { cat: 'domestic',  name: '国内集荷・陸送費',  note: '集荷先〜輸出港' },
+      { cat: 'customs',   name: '輸出通関費',        note: '通関手数料・書類作成' },
+      { cat: 'domestic',  name: '港湾諸費用（輸出）', note: 'THC・ドキュメント費等' },
+      { cat: 'ocean',     name: '海上運賃',          note: 'ポート〜ポート' },
+      { cat: 'surcharge', name: 'サーチャージ類',    note: 'BAF/CAF/PSS 等' },
+      { cat: 'overseas',  name: '仕向地費用',        note: 'D/O・目的港荷役等' },
+    ],
+    import: [
+      { cat: 'ocean',     name: '海上運賃',          note: '積み地港〜仕向港' },
+      { cat: 'surcharge', name: 'サーチャージ類',    note: 'BAF/CAF/PSS 等' },
+      { cat: 'overseas',  name: '仕向港費用',        note: 'THC・D/O 等' },
+      { cat: 'customs',   name: '輸入通関費',        note: '通関手数料・書類作成' },
+      { cat: 'domestic',  name: '国内配送費',        note: '港〜納入地' },
+      { cat: 'insurance', name: '海上保険料',        note: '保険条件に応じて' },
+    ],
+    dtd: [
+      { cat: 'domestic',  name: '国内集荷・陸送費',  note: '集荷先〜輸出港' },
+      { cat: 'customs',   name: '輸出通関費',        note: '通関手数料・書類作成' },
+      { cat: 'domestic',  name: '港湾諸費用（輸出）', note: 'THC・ドキュメント費等' },
+      { cat: 'ocean',     name: '海上運賃',          note: 'ポート〜ポート' },
+      { cat: 'surcharge', name: 'サーチャージ類',    note: 'BAF/CAF/PSS 等' },
+      { cat: 'overseas',  name: '仕向地費用',        note: 'D/O・目的港荷役等' },
+      { cat: 'customs',   name: '輸入通関費',        note: '通関手数料・書類作成' },
+      { cat: 'domestic',  name: '国内配送費（着地）', note: '港〜最終納入地' },
+    ],
+  };
+
+  // ===== 倉庫オプショントグル =====
+  // ===== コンテナ表示更新（輸送モードに応じて） =====
+  function updateRouteModeIcon() {
+    const mode = document.getElementById('cond-mode')?.value || '';
+    const needsContainer = !mode || mode.includes('FCL') || mode.includes('海上＋陸上');
+    const noContainer = !!mode && !needsContainer;
+    document.querySelectorAll('[data-scope-key="container"]').forEach(el => {
+      el.classList.toggle('mode-hidden', noContainer);
+      if (noContainer) el.setAttribute('data-mode-hidden','1');
+      else              el.removeAttribute('data-mode-hidden');
+    });
+    const modeHint = document.getElementById('mode-container-hint');
+    if (modeHint) modeHint.style.display = noContainer ? '' : 'none';
+  }
+
+  let insuranceOn = false;
+  function toggleInsurance() {
+    insuranceOn = !insuranceOn;
+    const btn = document.getElementById('insToggleBtn');
+    if (btn) btn.classList.toggle('ins-on', insuranceOn);
+  }
+
+
+  function curOpts(sel) {
+    return CURRENCIES.map(c =>
+      `<option value="${c}"${c === sel ? ' selected' : ''}>${c}</option>`
+    ).join('');
+  }
+
+  function getUserCategories() {
+    return SharedStorage.getJSON(SharedStorage.KEYS.USER_CATEGORIES, []);
+  }
+  function saveUserCategories(cats) {
+    SharedStorage.setJSON(SharedStorage.KEYS.USER_CATEGORIES, cats);
+  }
+  function getAllCategories() {
+    return [...CATEGORIES, ...getUserCategories()];
+  }
+
+  function catOpts(sel) {
+    const userCats = getUserCategories();
+    let html = CATEGORIES.map(c =>
+      `<option value="${c.value}"${c.value === sel ? ' selected' : ''}>${c.label}</option>`
+    ).join('');
+    if (userCats.length) {
+      html += `<option value="" disabled>──────────</option>`;
+      html += userCats.map(c =>
+        `<option value="${c.value}"${c.value === sel ? ' selected' : ''}>${c.label}</option>`
+      ).join('');
+    }
+    return html;
+  }
+
+  function unitOpts(sel) {
+    return UNITS.map(u =>
+      `<option value="${u}"${u === sel ? ' selected' : ''}>${u || '— 単位 —'}</option>`
+    ).join('');
+  }
+
+  function fmt(n) {
+    if (isNaN(n) || n === null) return '—';
+    return n.toLocaleString('ja-JP', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+  }
+
+// ========== グローバル変数 ==========
+let rowCount      = 0;
+let dragSrcRow    = null;
+let tabAddEnabled = true;
+let calcRowCount  = 0;
+let _lastCalcResult = null;
+let _presetPendingScope = null;
+let autoSaveTimer   = null;
+let autoSaveEnabled = false;
+
+// ========== 為替レート管理 ==========
+// JPY以外の通貨のJPY換算レート（1単位 = XX JPY）
+// キーはCURRENCIES の値と一致させる
+const DEFAULT_FX_RATES = {
+  USD: 150, EUR: 165, CNY: 21, KRW: 0.11, SGD: 112,
+  HKD: 19, GBP: 192, AUD: 99, TWD: 4.7, THB: 4.2,
+  VND: 0.006, MYR: 32, IDR: 0.0096
+};
+
+// ユーザーが上書きしたレート（localStorageから復元）
+let _fxRates = { ...DEFAULT_FX_RATES };
+// 自動取得モード（true=起動時にAPIから取得、false=手動）
+let _fxAutoMode = false;
+
+function loadFxRates() {
+  const saved = SharedStorage.getJSON(SharedStorage.KEYS.FX_RATES, {});
+  _fxRates = { ...DEFAULT_FX_RATES, ...saved };
+  _fxAutoMode = SharedStorage.get(SharedStorage.KEYS.FX_AUTO_MODE, '0') === '1';
+}
+
+function saveFxRates() {
+  SharedStorage.setJSON(SharedStorage.KEYS.FX_RATES, _fxRates);
+}
+
+function setFxAutoMode(on) {
+  _fxAutoMode = !!on;
+  SharedStorage.set(SharedStorage.KEYS.FX_AUTO_MODE, on ? '1' : '0');
+}
+
+/**
+ * open.er-api.com から JPYベースのレートを取得して _fxRates を更新する。
+ * 取得できなかった通貨は DEFAULT_FX_RATES のままにする。
+ * fetch は SharedFX に委譲（実務支援と共通）。
+ */
+async function fetchAutoFxRates() {
+  try {
+    const rates = await SharedFX.fetchRates('JPY'); // 1 JPY = X 外貨
+    const nonJpy = CURRENCIES.filter(c => c !== 'JPY');
+    nonJpy.forEach(cur => {
+      if (rates[cur] && rates[cur] > 0) {
+        _fxRates[cur] = parseFloat((1 / rates[cur]).toFixed(6)); // 1 外貨 = X JPY
+      }
+    });
+    saveFxRates();
+    localStorage.setItem(SharedStorage.KEYS.FX_LAST_FETCHED, new Date().toISOString());
+    return true;
+  } catch(e) {
+    console.warn('為替レート取得失敗:', e);
+    return false;
+  }
+}
+
+/** 金額を JPY に換算（cur が JPY なら そのまま） */
+function toJPY(amount, cur) {
+  if (!cur || cur === 'JPY') return amount;
+  const rate = _fxRates[cur] || 1;
+  return amount * rate;
+}
+
+loadFxRates();
