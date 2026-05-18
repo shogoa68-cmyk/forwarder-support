@@ -470,6 +470,14 @@ body {
 }
 .btn-copy-result:hover { background: var(--accent-lt); border-color: var(--accent); color: var(--accent-dk); }
 
+/* ===== 計算結果 → 見積もり自由入力欄 転記ボタン ===== */
+.btn-send-to-quote {
+  background: var(--accent-lt); border: 1px solid var(--border-md); color: var(--accent-dk);
+  padding: 2px 8px; border-radius: 5px; font-size: 11px; font-weight: 600;
+  cursor: pointer; white-space: nowrap; transition: all 0.15s;
+}
+.btn-send-to-quote:hover { background: var(--accent); border-color: var(--accent-dk); color: #f5ede0; }
+
 /* ===== コンテナ断面SVG ===== */
 .container-svg-wrap  { margin-top: 14px; display: flex; flex-wrap: wrap; gap: 14px; align-items: flex-start; }
 .container-svg-item  { text-align: center; }
