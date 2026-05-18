@@ -723,25 +723,6 @@ body {
   color: #fff8ec;
   border-color: #92400e;
 }
-.cat-badge {
-  display: inline-block;
-  margin-left: 6px;
-  padding: 1px 6px;
-  font-size: 9px;
-  font-weight: 800;
-  letter-spacing: 0.5px;
-  color: #fff;
-  background: #e11d48;
-  border-radius: 8px;
-  vertical-align: 1px;
-  line-height: 1.4;
-  box-shadow: 0 1px 2px rgba(0,0,0,0.15);
-}
-.cat-btn-featured.active .cat-badge {
-  background: #fff8ec;
-  color: #b45309;
-}
-
 /* サブタブナビ（2段タブ下段）*/
 .sub-nav { display: none !important; margin-bottom: 14px; }
 .sub-nav.active { display: flex !important; }
