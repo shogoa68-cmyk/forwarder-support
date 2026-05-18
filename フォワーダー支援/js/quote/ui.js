@@ -1182,13 +1182,19 @@
   const FONT_SIZE_MAX = 18;
   const FONT_SIZE_DEFAULT = 13;
 
+  // Phase 2b 以降、--base-font-size は #tab-quote-make スコープに定義されている。
+  // documentElement に書いてもスコープ内の宣言で上書きされるため、見積タブ要素に直接書く。
+  function getQuoteScopeEl() {
+    return document.getElementById('tab-quote-make') || document.documentElement;
+  }
+
   function changeFontSize(delta) {
-    const root = document.documentElement;
+    const el = getQuoteScopeEl();
     const current = parseFloat(
-      getComputedStyle(root).getPropertyValue('--base-font-size')
+      getComputedStyle(el).getPropertyValue('--base-font-size')
     ) || FONT_SIZE_DEFAULT;
     const next = Math.min(FONT_SIZE_MAX, Math.max(FONT_SIZE_MIN, current + delta));
-    root.style.setProperty('--base-font-size', next + 'px');
+    el.style.setProperty('--base-font-size', next + 'px');
     localStorage.setItem(FONT_SIZE_KEY, next);
     quoteShowToast(`🔠 文字サイズ: ${next}px`, 'info', 1500);
   }
@@ -1196,7 +1202,7 @@
   function restoreFontSize() {
     const saved = localStorage.getItem(FONT_SIZE_KEY);
     if (saved) {
-      document.documentElement.style.setProperty('--base-font-size', saved + 'px');
+      getQuoteScopeEl().style.setProperty('--base-font-size', saved + 'px');
     }
   }
 

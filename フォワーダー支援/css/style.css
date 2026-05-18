@@ -693,6 +693,43 @@ body {
   color: #f5ede0;
   border-color: var(--accent-dk);
 }
+
+/* 見積カテゴリの差し色（オレンジ系）＋NEWバッジ */
+.cat-btn-featured {
+  position: relative;
+  background: linear-gradient(135deg, #fff4e0 0%, #ffe2b8 100%);
+  color: #b45309;
+  border-color: #f59e0b;
+}
+.cat-btn-featured:hover {
+  background: linear-gradient(135deg, #ffe2b8 0%, #fcb96a 100%);
+  color: #7c3a0e;
+  border-color: #d97706;
+}
+.cat-btn-featured.active {
+  background: linear-gradient(135deg, #d97706 0%, #b45309 100%);
+  color: #fff8ec;
+  border-color: #92400e;
+}
+.cat-badge {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 1px 6px;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  color: #fff;
+  background: #e11d48;
+  border-radius: 8px;
+  vertical-align: 1px;
+  line-height: 1.4;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.15);
+}
+.cat-btn-featured.active .cat-badge {
+  background: #fff8ec;
+  color: #b45309;
+}
+
 /* サブタブナビ（2段タブ下段）*/
 .sub-nav { display: none !important; margin-bottom: 14px; }
 .sub-nav.active { display: flex !important; }
