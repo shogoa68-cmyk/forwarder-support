@@ -71,14 +71,21 @@
     _fbExtraContext = null;
     const secSel = document.getElementById('fbSection');
     if (secSel) {
+      // 前回 openFeedback で追加した動的 option を一旦削除
+      Array.from(secSel.options).filter(o => o.dataset.dynamic === '1').forEach(o => o.remove());
       const exists = Array.from(secSel.options).some(o => o.value === sec);
-      if (exists) {
-        secSel.value = sec;
-      } else {
-        // 未登録セクションは「全体」にフォールバックし、ラベルは本文側で表現
-        secSel.value = '全体';
+      if (!exists) {
+        // 未登録セクション: 動的 option として追加・選択表示
+        // ただし Google Form 側の dropdown は固定選択肢で未登録値を弾く可能性があるため、
+        // 送信時の保険として本文先頭にも「【セクション名】」を残す
+        const opt = document.createElement('option');
+        opt.value = sec;
+        opt.textContent = sec;
+        opt.dataset.dynamic = '1';
+        secSel.appendChild(opt);
         _fbExtraContext = sec;
       }
+      secSel.value = sec;
     }
     // 設定状態
     const noUrl  = document.getElementById('fbNoUrlMsg');
