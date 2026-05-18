@@ -423,6 +423,15 @@ body {
   outline: none; transition: border-color 0.2s;
 }
 .calc-input:focus { border-color: var(--accent); }
+.calc-select {
+  padding: 9px 10px;
+  border: 1px solid var(--border); border-radius: 7px;
+  font-size: 12px; background: #fff; color: var(--text);
+  outline: none; transition: border-color 0.2s;
+  min-width: 130px;
+}
+.calc-select[data-key="stack"] { min-width: 80px; }
+.calc-select:focus { border-color: var(--accent); }
 .calc-result {
   margin-top: 14px; padding: 15px;
   background: var(--accent-lt); border: 1px solid var(--border-md); border-radius: 9px;
@@ -436,6 +445,30 @@ body {
 .calc-item-label { font-size: 11px; color: var(--text-md); font-weight: 600; margin-bottom: 4px; }
 .calc-item-value { font-size: 16px; font-weight: 700; color: var(--accent); }
 .calc-note { font-size: 11px; color: var(--text-lt); font-weight: 400; }
+
+/* 入力情報エコー（単品モードで結果上部に表示） */
+.calc-input-echo {
+  background: #fff;
+  border: 1px dashed var(--border-md);
+  border-radius: 7px;
+  padding: 7px 11px;
+  font-size: 11px;
+  color: var(--text-md);
+  margin-bottom: 10px;
+  line-height: 1.6;
+}
+/* 複数行モードの行ラベル */
+.calc-row-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--accent);
+  margin-bottom: 4px;
+  background: #fff;
+  padding: 4px 8px;
+  border-radius: 5px;
+  display: inline-block;
+  border: 1px solid var(--border);
+}
 
 .calc-history-entry { border-bottom: 1px solid var(--border); padding-bottom: 12px; margin-bottom: 12px; }
 .calc-history-entry:last-child { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }

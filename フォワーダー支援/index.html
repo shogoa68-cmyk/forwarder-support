@@ -1514,7 +1514,16 @@
         <h4>🔲 パレタイズシミュレーション</h4>
         <p>パレット上に箱が何個積めるかを計算。標準パレット（T11／ISO／EUR／北米）から選択 or カスタム指定、段数指定が可能。最も効率的な向きを自動選択します。</p>
         <h4>🚢 バンニングシミュレーション</h4>
-        <p>貨物寸法・個数からコンテナ3種を比較し、最適サイズを提案します（理論値）。「段積み不可」オプション対応。</p>
+        <p>貨物寸法・個数からコンテナ3種を比較し、最適サイズを提案します（理論値）。「段積み不可」オプション対応（行ごとに設定可・全行一括チェックも有効）。</p>
+        <h4>🏷️ 荷姿・段積み（各セクション共通）</h4>
+        <p>各行に <strong>荷姿</strong>（ダンボール／木箱／木枠（クレート）／パレット積み／ドラム缶／袋／鋼材・コイル／バラ積み／その他）と <strong>段積み可否</strong>（可／不可）の選択欄があります。</p>
+        <ul>
+          <li>計算結果カードの先頭に <strong>「📥 入力：…」</strong>として、寸法・重量・荷姿・段積み・個数が表示されます</li>
+          <li>複数品種モードでは行ラベルにも同じ情報が並びます</li>
+          <li><strong>パレタイズ</strong>で段積み不可を選ぶと、その行は<strong>1段固定</strong>で計算されます</li>
+          <li><strong>バンニング</strong>で段積み不可を選ぶと、その行は<strong>床に1段のみ</strong>で積載数を計算します。一部の行のみ段積み不可の場合は、合計コンテナ本数を簡易補正します</li>
+          <li>他セクション（航空 CW・LCL RT・CBM/才数）では計算式に影響せず、表示・転記用の情報として扱われます</li>
+        </ul>
         <h4>📤 結果を見積もりへ移すには</h4>
         <p>各計算結果カードの右上にあるボタンで反映先を選べます:</p>
         <ul>
@@ -1653,9 +1662,9 @@
       <p class="calc-desc">貨物の物量から3種類のコンテナを比較し、最適なサイズを提案します（理論値）。</p>
       <div class="calc-shared-opts">
         <div class="calc-field" style="align-self:flex-end;padding-bottom:2px;">
-          <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--text);cursor:pointer;white-space:nowrap;">
+          <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--text);cursor:pointer;white-space:nowrap;" title="チェックすると行ごとの段積み設定を上書きして全行を段積み不可で計算します">
             <input type="checkbox" id="van-no-stack" style="width:16px;height:16px;cursor:pointer;accent-color:var(--accent);">
-            段積み不可（全行共通）
+            🛑 全行を段積み不可にする（行設定を上書き）
           </label>
         </div>
       </div>
