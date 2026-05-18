@@ -148,6 +148,20 @@ function buildVesselGrid() {
     portalGrid.appendChild(btn);
   }
 
+  // VSS移行済み船会社の直接リンクカード
+  const vssGrid = document.getElementById('vss-carrier-grid');
+  if (vssGrid && typeof VSS_CARRIERS !== 'undefined') {
+    for (const v of VSS_CARRIERS) {
+      const info = CARRIERS[v.name] || {};
+      const card = document.createElement('div');
+      card.className = 'carrier-card';
+      const domain = info.domain || 'vessel-schedule-service.com';
+      card.innerHTML = `<div class="name">${v.name}</div><div class="domain">${domain}</div><div class="vss-badge">VSS ↗</div>`;
+      card.onclick = () => window.open(v.url, '_blank', 'noopener');
+      vssGrid.appendChild(card);
+    }
+  }
+
   // 船会社別サービス航路グリッド
   const routeCarrierGrid = document.getElementById('route-carrier-grid');
   if (routeCarrierGrid) {
