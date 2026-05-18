@@ -803,3 +803,82 @@ body {
   font-weight: 600;
   letter-spacing: 0.03em;
 }
+
+/* ===== Tab Help (collapsible feature/usage description) ===== */
+.tab-help {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  margin-bottom: 12px;
+  font-size: 12px;
+  color: var(--text);
+  overflow: hidden;
+}
+.tab-help > summary {
+  list-style: none;
+  cursor: pointer;
+  padding: 8px 12px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-md);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  user-select: none;
+  letter-spacing: 0.02em;
+}
+.tab-help > summary::-webkit-details-marker { display: none; }
+.tab-help > summary::before {
+  content: "▶";
+  font-size: 9px;
+  color: var(--text-lt);
+  transition: transform 0.15s;
+  display: inline-block;
+}
+.tab-help[open] > summary::before { transform: rotate(90deg); }
+.tab-help > summary:hover { background: var(--accent-lt); color: var(--accent-dk); }
+.tab-help[open] > summary {
+  border-bottom: 1px solid var(--border);
+  background: var(--accent-lt);
+  color: var(--accent-dk);
+}
+.tab-help-body {
+  padding: 12px 16px 14px;
+  line-height: 1.75;
+}
+.tab-help-body h4 {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--accent-dk);
+  margin: 10px 0 4px;
+  letter-spacing: 0.02em;
+}
+.tab-help-body h4:first-child { margin-top: 0; }
+.tab-help-body ul {
+  margin: 0 0 6px 18px;
+  padding: 0;
+  font-size: 12px;
+}
+.tab-help-body ul li { margin-bottom: 2px; }
+.tab-help-body p {
+  margin: 0 0 6px;
+  font-size: 12px;
+  color: var(--text);
+}
+.tab-help-body code {
+  background: var(--bg);
+  padding: 1px 5px;
+  border-radius: 3px;
+  font-size: 11px;
+  color: var(--accent-dk);
+}
+.tab-help-body .help-tip {
+  background: #fffbeb;
+  border: 1px solid #fcd34d;
+  border-radius: 6px;
+  padding: 7px 10px;
+  margin-top: 8px;
+  font-size: 11px;
+  color: #78350f;
+  line-height: 1.6;
+}

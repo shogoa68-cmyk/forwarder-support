@@ -78,6 +78,19 @@
   <!-- ===================== Tab 1: コンテナ追跡 ===================== -->
   <div class="tab-content" id="tab-tracking">
 
+    <details class="tab-help">
+      <summary>ℹ️ このタブの使い方・機能説明</summary>
+      <div class="tab-help-body">
+        <h4>🔍 クイック追跡</h4>
+        <p>船会社を選び、コンテナ番号または B/L 番号を入力して「追跡する」を押すと、その船会社の追跡ページが新しいタブで開きます。番号は <code>MSKU1234567</code> のように英字4＋数字7のフォーマットが一般的です。</p>
+        <h4>🕐 最近の追跡履歴</h4>
+        <p>過去に追跡した船会社・番号を自動で保存し、ワンクリックで再追跡できます（ブラウザの localStorage に保存）。同じブラウザ内のみ有効です。</p>
+        <h4>🌐 船会社別 トラッキングページ</h4>
+        <p>各船会社のロゴをクリックすると、入力済みの番号をそのまま渡してトラッキングページへ直接ジャンプします。番号未入力時は船会社トップページへ移動します。</p>
+        <div class="help-tip">💡 番号フォーマットが船会社により異なる場合があります（B/L 番号は数字のみのケース等）。検索でうまくヒットしない場合は番号種別を切り替えて再試行してください。</div>
+      </div>
+    </details>
+
     <!-- 追跡履歴スタック -->
     <div class="card track-history-wrap" id="track-history-wrap" style="display:none;">
       <div class="section-title">🕐 最近の追跡履歴</div>
@@ -108,6 +121,19 @@
   <!-- ===================== Tab 2: 本船動静 ===================== -->
   <div class="tab-content" id="tab-vessel">
 
+    <details class="tab-help">
+      <summary>ℹ️ このタブの使い方・機能説明</summary>
+      <div class="tab-help-body">
+        <h4>🌐 国内動静ポータル</h4>
+        <p>国内主要港の本船入出港・動静情報を提供する外部ポータル（マリンネット・タイドテーブル等）へのリンク集です。複数港の動静を横断的に確認したい場合に便利です。</p>
+        <h4>📍 VSS移行済み船会社</h4>
+        <p>近年多くの船会社が独自の Vessel Schedule System（VSS）に移行しています。VSS への直接リンクを集めたショートカット集です。</p>
+        <h4>🚢 Search by Vessel（船会社別ページへジャンプ）</h4>
+        <p>船会社別の本船スケジュール検索ページへ直接アクセスできます。本船名・航海番号でスケジュールを調べる際に使用します。</p>
+        <div class="help-tip">💡 動静は刻々と変動します。実務で確定情報が必要な場合は、船会社カスタマーサービスまたは代理店へ最終確認してください。</div>
+      </div>
+    </details>
+
     <div class="card">
       <div class="section-title">🌐 国内動静ポータル</div>
       <p style="font-size:12px;color:#718096;margin-bottom:14px;">国内の本船入出港・動静を調べられる外部ポータルです。</p>
@@ -129,6 +155,20 @@
   <!-- ===================== CY OPEN/CUT tab ===================== -->
   <div class="tab-content" id="tab-cycut">
 
+    <details class="tab-help">
+      <summary>ℹ️ このタブの使い方・機能説明</summary>
+      <div class="tab-help-body">
+        <h4>📅 CY OPEN / CUT — 船会社別ページへジャンプ</h4>
+        <p>各船会社の <strong>CY OPEN（コンテナヤード搬入開始日）</strong> と <strong>CY CUT（搬入締切日）</strong> を確認できるページへのリンク集です。輸出ブッキング後に「いつから・いつまでに CY 搬入できるか」を調べる際に使用します。</p>
+        <h4>🎨 表示の見方</h4>
+        <ul>
+          <li>カラー表示の船会社：CY OPEN/CUT ページが登録済み</li>
+          <li>グレー表示の船会社：情報未登録 — 船会社サイトを直接ご確認ください</li>
+        </ul>
+        <div class="help-tip">💡 CY カット時刻は<strong>港・ターミナル・ブッキングごと</strong>に異なります（VGM・書類カット・本船カット）。最終確定情報は必ずブッキング控え／船会社案内でご確認ください。</div>
+      </div>
+    </details>
+
     <div class="card">
       <div class="section-title">📅 CY OPEN / CUT — 船会社別ページへジャンプ</div>
       <p style="font-size:12px;color:#718096;margin-bottom:14px;">各船会社のCY OPEN・CUTカットオフ情報ページへジャンプします。グレーの船会社は情報未登録またはご確認ください。</p>
@@ -137,6 +177,17 @@
 
   <!-- ===================== サービス航路 tab ===================== -->
   <div class="tab-content" id="tab-route">
+
+    <details class="tab-help">
+      <summary>ℹ️ このタブの使い方・機能説明</summary>
+      <div class="tab-help-body">
+        <h4>🚢 船会社別 サービス航路ページ</h4>
+        <p>各船会社が提供するサービス航路（ループ・ルート）の一覧ページへ直接ジャンプできます。航路名・寄港地・所要日数・船型などを確認できます。</p>
+        <h4>🗺️ 航路記事一覧</h4>
+        <p>船会社の航路解説記事・寄港地マップ・新規航路のアナウンスなどを集約した記事リストです。クリックすると外部記事ページへ移動します。</p>
+        <div class="help-tip">💡 航路は再編・休止・新設が頻繁に行われます。重要案件では「航路名 + 直近のニュース」で最新情報を確認してください。</div>
+      </div>
+    </details>
 
     <div class="card">
       <div class="section-title">🚢 船会社別 サービス航路ページ</div>
@@ -154,6 +205,19 @@
 
   <!-- ===================== サーチャージ tab ===================== -->
   <div class="tab-content" id="tab-surcharge">
+
+    <details class="tab-help">
+      <summary>ℹ️ このタブの使い方・機能説明</summary>
+      <div class="tab-help-body">
+        <h4>💴 サーチャージとは</h4>
+        <p>基本運賃に加算される追加料金の総称。燃料費の高騰、為替変動、繁忙期の需給逼迫、港湾の混雑等を運賃に反映するため、各船会社が定期的に告示します。</p>
+        <h4>📥 輸入サーチャージ / 📤 輸出サーチャージ</h4>
+        <p>各船会社が公示する輸入・輸出方向別のサーチャージ案内ページへのリンク集です。BAF/CAF・THC・港湾混雑料金などが該当します。</p>
+        <h4>📋 その他サーチャージ</h4>
+        <p>PSS（Peak Season Surcharge）・GRI（General Rate Increase）・EIS（緊急輸入サーチャージ）など、特定状況下で課される追加料金の案内ページ。</p>
+        <div class="help-tip">🚧 多くのリンクは未登録です。船会社サイトの「Tariffs」「Local Charges」「Surcharges」ページから直接ご確認ください。</div>
+      </div>
+    </details>
 
     <div class="card">
       <div class="section-title">📥 輸入サーチャージ <span class="wip-badge">🚧 URL未登録</span></div>
@@ -176,6 +240,27 @@
   <!-- ===================== Tab 4: 書類 ===================== -->
   <div class="tab-content" id="tab-bldo">
 
+    <details class="tab-help">
+      <summary>ℹ️ このタブの使い方・機能説明</summary>
+      <div class="tab-help-body">
+        <h4>📥 輸入申請</h4>
+        <p>輸入時に船会社へ提出する各種申請フォームへのリンク集です。代表例：</p>
+        <ul>
+          <li><strong>D/O 発行依頼（Delivery Order Request）</strong> — 荷渡指図書の発行依頼</li>
+          <li>運賃精算・支払い通知</li>
+          <li>本船名・コンテナ番号の変更依頼</li>
+        </ul>
+        <h4>📤 輸出申請</h4>
+        <p>輸出時に船会社へ提出するフォームへのリンク集です。代表例：</p>
+        <ul>
+          <li><strong>BL 発行依頼（B/L Issuance Request）</strong> — 船荷証券の発行依頼</li>
+          <li>S/I（Shipping Instruction）提出</li>
+          <li>VGM（Verified Gross Mass）申告</li>
+        </ul>
+        <div class="help-tip">🚧 一部の船会社のみ登録済みです。未登録の船会社は各社のカスタマーサービスまたは e-Booking サイトから手続きしてください。</div>
+      </div>
+    </details>
+
     <div class="card">
       <div class="section-title">📥 輸入申請 <span class="wip-badge">🚧 一部登録済み</span></div>
       <p style="font-size:12px;color:#718096;margin-bottom:14px;">DO発行依頼など、輸入に関する申請フォームへジャンプします。</p>
@@ -191,6 +276,22 @@
   <!-- ===================== Tab 5: BL 記載事項 ===================== -->
   <div class="tab-content" id="tab-blrules">
 
+    <details class="tab-help">
+      <summary>ℹ️ このタブの使い方・機能説明</summary>
+      <div class="tab-help-body">
+        <h4>📋 BL記載事項（国・地域別規則）</h4>
+        <p>仕向地国・地域ごとに定められた B/L 記載ルールの確認ページへのリンク集です。記載漏れや誤記は D/O リリース遅延・罰金・貨物抑留につながるため、出港前のチェックリストとして使います。</p>
+        <h4>代表的な国別ルール</h4>
+        <ul>
+          <li><strong>エジプト</strong>：ACID 番号（NAFEZA）必須記載</li>
+          <li><strong>米国</strong>：Ultimate Consignee 情報・ISF 連動</li>
+          <li><strong>インド</strong>：IEC コード・GSTIN</li>
+          <li><strong>中東諸国</strong>：商工会議所認証・Legalization 要件</li>
+        </ul>
+        <div class="help-tip">🚧 URL は順次登録中です。Booking/SI タブの「S/I」サブタブにも仕向地別の記載例があります。</div>
+      </div>
+    </details>
+
     <div class="card">
       <div class="section-title">📋 BL記載事項（国・地域別規則）<span class="wip-badge">🚧 URL未登録</span></div>
       <p style="font-size:12px;color:#718096;margin-bottom:12px;">
@@ -201,6 +302,27 @@
 
   <!-- ===================== Tab 6: フリータイム ===================== -->
   <div class="tab-content" id="tab-freetime">
+
+    <details class="tab-help">
+      <summary>ℹ️ このタブの使い方・機能説明</summary>
+      <div class="tab-help-body">
+        <h4>⏱️ フリータイムとは</h4>
+        <p>コンテナを CY や保税地域に無料で置ける猶予期間。期間を超過すると <strong>Demurrage（保管料）</strong>・<strong>Detention（コンテナ滞留料）</strong> が発生します。</p>
+        <h4>使い方</h4>
+        <ul>
+          <li>船会社を選択</li>
+          <li>コンテナ番号を入力</li>
+          <li>「検索」を押すと該当船会社のフリータイム照会ページが新タブで開きます</li>
+        </ul>
+        <h4>📌 用語</h4>
+        <ul>
+          <li><strong>Demurrage（保管料・港湾留置料）</strong> — CY内で引取りが遅れた場合の料金</li>
+          <li><strong>Detention（コンテナ滞留料）</strong> — コンテナを CY 外へ持ち出してから返却が遅れた場合の料金</li>
+          <li><strong>Combined Free Time</strong> — 両者を合算した期間設定（船社により異なる）</li>
+        </ul>
+        <div class="help-tip">🚧 URL は順次登録中です。多くの船会社で「Freetime Calculator」「Detention Calculator」をサイト内で提供しています。</div>
+      </div>
+    </details>
 
     <div class="card">
       <div class="section-title">⏱️ フリータイム検索<span class="wip-badge">🚧 URL未登録</span></div>
@@ -218,6 +340,24 @@
 
   <!-- ===================== Tab: インコタームズ ===================== -->
   <div class="tab-content" id="tab-incoterms">
+
+    <details class="tab-help">
+      <summary>ℹ️ このタブの使い方・機能説明</summary>
+      <div class="tab-help-body">
+        <h4>🔍 インコタームズ判定ツール</h4>
+        <p>「自分（売り手）が担当する作業」を輸出側・輸入側に分けてチェックボックスで選択し、「判定する」を押すと条件にマッチする <strong>Incoterms 2020</strong> の規則を表示します。<br>輸出申告者・輸入申告者から見て、どの条件が業務範囲・コスト負担に最適かを瞬時に確認できます。</p>
+        <h4>📋 インコタームズ別 作業範囲一覧表</h4>
+        <p>11規則（EXW・FCA・CPT・CIP・DAP・DPU・DDP・FAS・FOB・CFR・CIF）について、輸出/輸入の各作業（梱包・輸出通関・本船積込・海上輸送・保険・輸入通関・配送など）を <strong>売（売り手負担）</strong> / <strong>買（買い手負担）</strong> で一覧表示します。</p>
+        <h4>💴 輸出入通関における申告価格</h4>
+        <p>売買契約の Incoterms と通関申告価格は別概念です。日本の場合：</p>
+        <ul>
+          <li><strong>輸出通関 → FOB 価格</strong>で申告</li>
+          <li><strong>輸入通関 → CIF 価格</strong>で申告（課税標準）</li>
+        </ul>
+        <p>EXW・CFR・CIF・DDP 等それぞれからの換算パターンを早見表で確認できます。</p>
+        <div class="help-tip">💡 Incoterms は売買当事者間の費用・危険移転の合意。通関申告価格は税関のルール。混同しないようご注意ください。</div>
+      </div>
+    </details>
 
     <!-- 判定ツール -->
     <div class="card">
@@ -337,6 +477,24 @@
   <!-- ===================== Tab: 種類・サイズ ===================== -->
   <div class="tab-content" id="tab-sizes">
 
+    <details class="tab-help">
+      <summary>ℹ️ このタブの使い方・機能説明</summary>
+      <div class="tab-help-body">
+        <h4>📦 コンテナ 種類・サイズ</h4>
+        <p>主要なコンテナ規格の外寸・内寸・容積・最大積載量を一覧表で確認できます。</p>
+        <ul>
+          <li><strong>ドライコンテナ</strong>：20ft / 40ft / 40ft HC / 45ft HC</li>
+          <li><strong>リーファーコンテナ</strong>：温度管理用（-30°C〜+30°C）</li>
+          <li><strong>特殊コンテナ</strong>：Open Top / Flat Rack / Platform / Tank / Ventilated</li>
+        </ul>
+        <h4>🚛 トラック 種類・荷室サイズ</h4>
+        <p>軽バンから 10t 車・トレーラーまで、最大積載量・車両総重量・荷室寸法の目安を一覧表示。バンニング計画や国内配送の見積もりに使えます。</p>
+        <h4>🚦 道路交通法・車両制限令による制限値</h4>
+        <p>一般制限値（全長12m・全幅2.5m・全高3.8m・総重量20t）と高さ指定道路（4.1m）の差分、コンテナトレーラー輸送で<strong>特殊車両通行許可</strong>が必要となるケースを解説します。</p>
+        <div class="help-tip">💡 内寸・最大積載はメーカー・年式により若干異なります。クリティカルな案件では現物確認を推奨します。</div>
+      </div>
+    </details>
+
     <!-- コンテナ -->
     <div class="card">
       <div class="section-title">📦 コンテナ 種類・サイズ</div>
@@ -453,6 +611,21 @@
     </div>  </div><!-- /tab-sizes -->
   <!-- ===================== Tab: 海上貨物保険 ===================== -->
   <div class="tab-content" id="tab-insurance">
+
+    <details class="tab-help">
+      <summary>ℹ️ このタブの使い方・機能説明</summary>
+      <div class="tab-help-body">
+        <h4>🛡️ 協会貨物約款（ICC）の種類と担保範囲</h4>
+        <p>ICC（Institute Cargo Clauses）の <strong>A・B・C</strong> 3区分について、火災・座礁から盗難・破損まで主要リスクのカバー有無を一覧で比較できます。旧約款名（FPA/WA/AR）との対応も併記。</p>
+        <h4>⚠️ 共通の免責事項</h4>
+        <p>A・B・C すべてで担保されない事項（故意・過失、自然消耗、不適切な梱包、戦争・ストライキ等）をまとめています。</p>
+        <h4>💰 保険価額・保険料の計算</h4>
+        <p>慣行上の保険価額は <code>CIF × 110%</code>。保険料は <code>保険価額 × 保険料率</code>。具体的な料率は品目・航路・条件により異なります。</p>
+        <h4>📋 クレーム（保険金請求）の手続き</h4>
+        <p>損害発見からサーベイレポート取得・保険金受取までの6ステップを表形式で確認できます。</p>
+        <div class="help-tip">💡 「計算（お金）」タブの「🛡️ 保険料計算」と組み合わせると、FOB＋運賃から保険価額・保険料を即座に試算できます。</div>
+      </div>
+    </details>
 
     <!-- ICC条項比較 -->
     <div class="card">
@@ -583,6 +756,24 @@
   <!-- ===================== Tab: BL約款 ===================== -->
   <div class="tab-content" id="tab-blclause">
 
+    <details class="tab-help">
+      <summary>ℹ️ このタブの使い方・機能説明</summary>
+      <div class="tab-help-body">
+        <h4>📄 船荷証券（B/L）の種類</h4>
+        <p>積み込み状態（Shipped / Received）、貨物状態（Clean / Claused）、流通性（Negotiable / Surrender / Sea Waybill）の3軸で B/L を分類し、それぞれの特徴と実務上の使い分けを表で確認できます。</p>
+        <h4>📜 B/L の主要約款（クローズ）解説</h4>
+        <p>B/L 裏面に記載される主要約款を実務影響と合わせて解説：</p>
+        <ul>
+          <li><strong>STC / SL&C</strong>（内容物・数量は荷送人申告）</li>
+          <li><strong>ヒマラヤ条項</strong>（船社の免責拡大）</li>
+          <li><strong>責任制限条項</strong>（ヘーグ・ヴィスビールール SDR835）</li>
+          <li><strong>自由裁量 / 共同海損 / 留置権 / 裁判管轄</strong></li>
+          <li><strong>危険物条項 / 提訴期限（1年）</strong></li>
+        </ul>
+        <div class="help-tip">💡 高額貨物は <strong>申告価額（Declared Value）の B/L 記載</strong>＋<strong>ICC(A) 付保</strong>で責任額を確保することが推奨されます。</div>
+      </div>
+    </details>
+
     <!-- BLの種類 -->
     <div class="card">
       <div class="section-title">📄 船荷証券（B/L）の種類</div>
@@ -703,6 +894,17 @@
 
   <!-- ===================== Tab: 貿易管理令・他法令 ===================== -->
   <div class="tab-content" id="tab-regs">
+
+    <details class="tab-help">
+      <summary>ℹ️ このタブの使い方・機能説明</summary>
+      <div class="tab-help-body">
+        <h4>📥 輸入通関 ― 他法令（関税法以外の規制）</h4>
+        <p>関税法とは別に、品目によって遵守が必要となる11法令を一覧表で確認できます：食品衛生法・植物防疫法・家畜伝染病予防法・薬機法・電気用品安全法（PSE）・電波法（技適）・PSC・化審法・毒物劇物取締法・ワシントン条約（CITES）・外為法輸入承認。各法令の管轄省庁・対象品目・手続き・通関影響を併記しています。</p>
+        <h4>📤 輸出通関 ― 貿易管理令・安全保障輸出管理</h4>
+        <p>外為法に基づく <strong>リスト規制</strong>（武器・核・化学兵器・ミサイル・汎用品）と <strong>キャッチオール規制</strong>（大量破壊兵器転用懸念）の2本柱を解説。輸出令別表第1のカテゴリー（1〜15項）、非該当証明（Non-Subject Certificate）の発行方法、輸出許可申請の6ステップフローと所要期間を確認できます。</p>
+        <div class="help-tip">⚠️ 無許可輸出は外為法違反（最大懲役5年・罰金3億円）。社内 CP（Compliance Program）の整備と該非判定の文書化を強く推奨します。</div>
+      </div>
+    </details>
 
     <!-- 輸入通関：他法令 -->
     <div class="card">
@@ -887,6 +1089,22 @@
   <!-- ===================== Tab: ファイリングルール ===================== -->
   <!-- ===== tab-booking-tab ===== -->
   <div class="tab-content" id="tab-booking-tab">
+
+    <details class="tab-help">
+      <summary>ℹ️ このタブの使い方・機能説明</summary>
+      <div class="tab-help-body">
+        <h4>🛳️ 船会社 e-Booking ページ</h4>
+        <p>各船会社が提供するオンラインブッキング（e-Booking）ページへのリンク集です。船腹確保（Space Booking）から S/I 提出まで一連の手続きが可能です。</p>
+        <h4>📌 表示記号</h4>
+        <ul>
+          <li><strong>🔐</strong> ＝ ログイン（船会社アカウント）が必要</li>
+          <li><strong>⚠️</strong> ＝ URL 未確認・要再確認</li>
+          <li>記号なし ＝ ゲスト利用可、または公開ページ</li>
+        </ul>
+        <div class="help-tip">💡 ブッキング後に取得した Booking# は本船動静・CY OPEN/CUT 検索でも使用します。番号は「コンテナ追跡」タブの履歴機能でも参照できます。</div>
+      </div>
+    </details>
+
     <div class="card">
       <div class="section-title">🛳️ 船会社 e-Booking ページ</div>
       <p style="font-size:12px;color:var(--text-md);margin-bottom:16px;">
@@ -898,6 +1116,18 @@
 
   <!-- ===== tab-si ===== -->
   <div class="tab-content" id="tab-si">
+
+    <details class="tab-help">
+      <summary>ℹ️ このタブの使い方・機能説明</summary>
+      <div class="tab-help-body">
+        <h4>📝 仕向地別 BL 記載事項</h4>
+        <p>S/I（Shipping Instruction）作成時に必要となる、国・地域固有の B/L 記載要件をまとめます。記載漏れや誤記は D/O リリース遅延・罰金・貨物抑留の原因になります。</p>
+        <h4>🇪🇬 エジプト — ACID番号（NAFEZA）</h4>
+        <p>エジプト輸入者が事前に取得した <strong>ACID 番号</strong>（16桁）を B/L・Invoice・Packing List に必須記載します。詳細フォーマット・提出期限は「ファイリングルール」タブの NAFEZA セクションで確認可能です。</p>
+        <div class="help-tip">🚧 USA（Ultimate Consignee）・India（IEC）・中東諸国など、追加すべき仕向地は順次拡充予定。「💬 フィードバック」FAB からリクエストできます。</div>
+      </div>
+    </details>
+
     <div class="card">
       <div class="section-title">📝 仕向地別 BL 記載事項</div>
       <p style="font-size:12px;color:var(--text-md);margin-bottom:16px;">
@@ -927,6 +1157,26 @@
 
 
   <div class="tab-content" id="tab-filing">
+
+    <details class="tab-help">
+      <summary>ℹ️ このタブの使い方・機能説明</summary>
+      <div class="tab-help-body">
+        <h4>📡 主要国のファイリング制度一覧</h4>
+        <p>本船出港前に各国税関へ提出が義務付けられている事前申告制度（マニフェスト等）を一覧表で確認できます。対象貨物・提出義務者・提出期限・提出先システム・違反時のペナルティを横断比較できます。</p>
+        <h4>📌 収録されている主な制度</h4>
+        <ul>
+          <li><strong>AFR</strong>（日本宛て・出港24時間前・NACCS）</li>
+          <li><strong>AMS / ISF（10+2）</strong>（米国宛て・CBP）</li>
+          <li><strong>ENS / ICS2</strong>（EU宛て）</li>
+          <li><strong>ACI</strong>（カナダ・CBSA）</li>
+          <li><strong>UK Safety &amp; Security</strong>（英国・Brexit後）</li>
+          <li><strong>SOLAS VGM</strong>（全世界向け輸出コンテナ）</li>
+          <li><strong>NAFEZA / ACID</strong>（エジプト・48時間前）</li>
+          <li><strong>UAE / Saudi（FASAH）</strong> など</li>
+        </ul>
+        <div class="help-tip">⚠️ 提出遅延・不備はリリース拒否・罰則の対象。実務では複数制度（AMS＋ISF など）が同時に課されるケースが多いため、案件ごとに必要制度のチェックリストを作成してください。</div>
+      </div>
+    </details>
 
     <!-- 制度概要一覧 -->
     <div class="card">
@@ -1250,6 +1500,25 @@
   <!-- ===================== Tab 7: 計算ツール ===================== -->
   <div class="tab-content active" id="tab-calc">
 
+    <details class="tab-help">
+      <summary>ℹ️ このタブの使い方・機能説明</summary>
+      <div class="tab-help-body">
+        <h4>✈️ 航空チャージャブルウェイト計算</h4>
+        <p>航空運賃の課金重量を計算します。実重量と容積重量を比較し、大きい方が請求対象（C/W）となります。<br>
+        式：<code>容積重量(kg) = L × W × H(cm) ÷ 6,000</code>（IATA 基準）。複数アイテムを行追加で一括計算可能。</p>
+        <h4>🚢 LCL RT（W/M）計算</h4>
+        <p>LCL 海上運賃の課金単位 <strong>RT（Revenue Ton）</strong>を計算します。W（重量トン）と M（容積トン＝CBM）の大きい方を 1RT とします。複数明細の合算も可能。</p>
+        <h4>📦 容積（CBM）・才数計算</h4>
+        <p>海上の <strong>CBM</strong> と国内運送の <strong>才数</strong> を同時に算出します（単位 cm/mm/inch/m 切替可）。<br>
+        トラック積載目安：軽バン〜40才 / 2t〜120才 / 4t〜250才 / 10t〜580才。</p>
+        <h4>🔲 パレタイズシミュレーション</h4>
+        <p>パレット上に箱が何個積めるかを計算。標準パレット（T11／ISO／EUR／北米）から選択 or カスタム指定、段数指定が可能。最も効率的な向きを自動選択します。</p>
+        <h4>🚢 バンニングシミュレーション</h4>
+        <p>貨物寸法・個数からコンテナ3種を比較し、最適サイズを提案します（理論値）。「段積み不可」オプション対応。</p>
+        <div class="help-tip">💡 各計算カードの「＋ 行を追加」で複数アイテムを一度に処理できます。結果は見積もり作成タブの数量欄へ転記可能です。</div>
+      </div>
+    </details>
+
     <!-- 1. 航空チャージャブルウェイト -->
     <div class="card">
       <div class="section-title">✈️ 航空チャージャブルウェイト計算</div>
@@ -1405,6 +1674,21 @@
   <!-- ===================== Tab: レート換算 ===================== -->
   <div class="tab-content" id="tab-rate">
 
+    <details class="tab-help">
+      <summary>ℹ️ このタブの使い方・機能説明</summary>
+      <div class="tab-help-body">
+        <h4>💱 通貨レート換算</h4>
+        <p>JPY・USD・EUR・GBP・CNY・HKD・SGD・KRW・THB 等のリアルタイム為替レート（open.er-api.com）で換算します。レートは 1時間メモリキャッシュ、初回利用時に自動取得します。<br>
+        ※税関公示レート（輸出入申告用・月次）は税関ホームページのリンクから別途参照してください。</p>
+        <h4>🛡️ 保険料計算（海上貨物保険）</h4>
+        <p>FOB ＋ 運賃 から保険価額（CIF×110% 慣行）と保険料を算出します。<br>
+        式：<code>保険価額 =（FOB + 運賃）× 1.10</code> / <code>保険料 = 保険価額 × 料率</code></p>
+        <h4>🏛️ 関税・消費税計算（輸入）</h4>
+        <p>CIF 建て課税価格をもとに、関税・消費税・地方消費税を試算します。追加関税率（対中制裁等）にも対応。HSコード入力は参考表示のみ（自動取得はしません）。</p>
+        <div class="help-tip">⚠️ 関税試算は概算です。実際の税額は品目・原産地・適用協定（EPA/FTA）により異なります。輸入申告は通関士にご相談ください。</div>
+      </div>
+    </details>
+
     <div class="card">
       <div class="section-title">💱 通貨レート換算</div>
       <p class="calc-desc">
@@ -1503,6 +1787,60 @@
        Phase 2b 完了時点：見積支援/index.html の body 内容を直接マージ。
        初期化は js/app.js の switchTab() フックから window.initQuoteTab() を呼ぶ。 -->
   <div class="tab-content" id="tab-quote-make">
+
+    <details class="tab-help">
+      <summary>ℹ️ このタブの使い方・機能説明</summary>
+      <div class="tab-help-body">
+        <h4>📝 見積もり作成タブの全体像</h4>
+        <p>引き合い案件の管理番号入力 → 引き合い条件（インコタームズ・方向・モード・ゾーン構成）→ 貨物情報 → 見積もりテーブル → 特記事項 → プレビュー（表計算形式・CSV/Excel/PDF 出力）まで、一画面で完結する見積もり作成ツールです。</p>
+
+        <h4>🗂️ 保存/読み込みツールバー（上部）</h4>
+        <ul>
+          <li><strong>プリセット/一時保存</strong>：現在の入力状態を名前付きで最大10件保存。「輸入案件用」「国内配送用」などのテンプレートや、作業途中の退避に使えます</li>
+          <li><strong>自動保存</strong>：チェックすると入力2秒後にブラウザへ自動保存（localStorage、同じブラウザ内のみ有効）。次回開いた時に復元バナーから戻せます</li>
+          <li><strong>📤 出力 / 📥 読込</strong>：JSON ファイルで端末間共有・バックアップが可能</li>
+          <li><strong>🔠 文字サイズ A- / A+</strong>：表示倍率を調整</li>
+        </ul>
+
+        <h4>① 管理番号入力</h4>
+        <p>仮 REF#・引き合い元名称・担当者を入力。後でフィルタや整理に使う識別情報です。</p>
+
+        <h4>② 引き合い条件</h4>
+        <ul>
+          <li><strong>インコタームズ</strong>：EXW〜DDP の 11規則を選択</li>
+          <li><strong>方向</strong>：📤 輸出 / 📥 輸入</li>
+          <li><strong>輸送モード</strong>：🚢 Sea（FCL/LCL）/ ✈️ Air</li>
+          <li><strong>オプション</strong>：🛡️ 保険付保 ON/OFF</li>
+          <li><strong>ゾーンビルダー</strong>：① 出発地側 → ② 幹線輸送 → ③ 到着地側 の3カードで作業ピース（集荷／梱包／通関／配送など）を組み立て</li>
+          <li><strong>🔧 この構成でプリセット適用</strong>で見積もり表の行を一括生成</li>
+        </ul>
+
+        <h4>③ 貨物情報・サイズ計算</h4>
+        <p>貨物の基本情報（品名・個数・重量・寸法）を入力。CBM・チャージャブルウェイト（C/W）が自動計算され、見積もりテーブルの数量欄へ転記できます。</p>
+
+        <h4>📋 見積もりテーブル</h4>
+        <ul>
+          <li>項目ごとに <strong>通貨・単価・数量・カテゴリ</strong> を入力</li>
+          <li>行のドラッグ&amp;ドロップで並び替え、<kbd>↑/↓</kbd> キーでも移動可能</li>
+          <li>多通貨混在時も内部で為替換算して合計表示（FXパネルでレート確認・上書き可）</li>
+          <li>数式評価ペースト対応（<code>=A1+B1</code> のような Excel スタイル）</li>
+        </ul>
+
+        <h4>📝 特記事項・全体リマーク</h4>
+        <p>見積書下部に表示される自由記述欄。免責事項や有効期限、適用条件などを記載できます。</p>
+
+        <h4>📋 プレビュー出力</h4>
+        <p>「プレビュー」ボタンで表計算形式のレイアウトに整形表示。そのまま <strong>CSV / Excel（.xlsx）/ PDF</strong> で出力できます（SheetJS を使用）。</p>
+
+        <h4>🧰 便利機能</h4>
+        <ul>
+          <li><strong>📝 付箋メモ</strong>（右下FAB）：6色から選べる作業メモ。自動保存</li>
+          <li><strong>Ctrl + K</strong>：コマンドパレットでセクションへ高速ジャンプ</li>
+          <li><strong>💬 フィードバック</strong>（FAB／各セクションのボタン）：改善要望・バグ報告を送信</li>
+        </ul>
+        <div class="help-tip">💡 自動保存は<strong>同じブラウザ内のみ</strong>有効です。端末や OS をまたぐ場合は <strong>📤 出力</strong>で JSON ファイルとして書き出し、別端末で <strong>📥 読込</strong>してください。</div>
+      </div>
+    </details>
 
     <!-- ========== 保存/読み込みツールバー ========== -->
     <div class="save-toolbar" id="saveToolbar">
