@@ -747,60 +747,6 @@ body {
 .sub-nav.active { display: flex !important; }
 
 
-/* ===== セクション別フィードバックウィジェット ===== */
-.section-fb {
-  margin-top: 14px;
-  padding-top: 10px;
-  border-top: 1px solid var(--border);
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-}
-.section-fb-btn {
-  background: none;
-  border: 1px solid var(--border);
-  color: var(--text-lt);
-  font-size: 11px;
-  padding: 4px 11px;
-  border-radius: 5px;
-  cursor: pointer;
-  transition: all 0.15s;
-  line-height: 1.5;
-}
-.section-fb-btn:hover {
-  background: var(--accent-lt);
-  border-color: var(--accent);
-  color: var(--accent-dk);
-}
-.section-fb-form {
-  display: none;
-  width: 100%;
-  margin-top: 8px;
-}
-.section-fb-form.open { display: block; }
-.section-fb-textarea {
-  width: 100%;
-  min-height: 60px;
-  padding: 8px 10px;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  font-size: 12px;
-  font-family: inherit;
-  resize: vertical;
-  background: #fff;
-  color: var(--text);
-  box-sizing: border-box;
-  transition: border-color 0.2s;
-}
-.section-fb-textarea:focus { outline: none; border-color: var(--accent); }
-.section-fb-actions {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin-top: 6px;
-}
-.section-fb-status { font-size: 12px; }
-
 /* ===== 複数行追加（計算ツール） ===== */
 .multi-row-wrap {
   display: flex;

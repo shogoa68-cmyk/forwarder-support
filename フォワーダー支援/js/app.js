@@ -573,7 +573,13 @@ buildBookingGrid();
 
 // ================================================================
 //  セクション別フィードバック
-//  (postToGoogleForm は js/calculator.js から読み込む)
+//
+//  Phase 2c-Step6（2026-05-18）: フィードバック構造を統合
+//  - 旧 .section-fb アコーディオン UI / postToGoogleForm 経由送信 を廃止
+//  - 旧 #feedback-overlay モーダル系関数（HTML 不在で完全な dead code）削除
+//  - 各カードの末尾に .fb-section-btn を注入し、サイト全体スコープの
+//    openFeedback(label) （js/quote/save.js）でモーダルを起動
+//  - 見積タブ（#tab-quote-make）は HTML にハードコード済みなのでスキップ
 // ================================================================
 const SECTION_FB_TAB_NAMES = {
   'tracking':    'コンテナ追跡',
@@ -596,41 +602,6 @@ const SECTION_FB_TAB_NAMES = {
   'rate':        '計算（お金）',
 };
 
-function toggleSectionFb(btn) {
-  const form = btn.nextElementSibling;
-  const isOpen = form.classList.toggle('open');
-  btn.textContent = isOpen ? '✕ 閉じる' : '💬 フィードバック';
-}
-
-async function submitSectionFb(btn, tabName, sectionName) {
-  const form = btn.closest('.section-fb-form');
-  const textarea = form.querySelector('.section-fb-textarea');
-  const statusEl = form.querySelector('.section-fb-status');
-  const text = textarea.value.trim();
-  if (!text) { alert('フィードバック内容を入力してください'); return; }
-
-  statusEl.style.color = '#718096';
-  statusEl.textContent = '送信中...';
-  btn.disabled = true;
-
-  try {
-    await postToGoogleForm({ tabName, sectionName, feedbackText: text });
-    statusEl.style.color = '#48bb78';
-    statusEl.textContent = '✅ 送信しました！';
-    textarea.value = '';
-    setTimeout(() => {
-      statusEl.textContent = '';
-      form.classList.remove('open');
-      btn.previousElementSibling.textContent = '💬 フィードバック';
-    }, 2000);
-  } catch(e) {
-    statusEl.style.color = '#e53e3e';
-    statusEl.textContent = '❌ 送信失敗: ' + (e.message || 'ネットワークエラー');
-  } finally {
-    btn.disabled = false;
-  }
-}
-
 function getSectionName(titleEl) {
   // テキストノードのみを連結して、絵文字・記号を除去
   let text = Array.from(titleEl.childNodes)
@@ -651,26 +622,21 @@ function initSectionFeedbacks() {
   document.querySelectorAll('.tab-content .card').forEach(card => {
     const titleEl = card.querySelector('.section-title');
     if (!titleEl) return;
+    // 既に .fb-section-btn が置かれているセクション（見積タブ）はスキップ
+    if (card.querySelector('.fb-section-btn')) return;
     const tabEl = card.closest('.tab-content');
     if (!tabEl) return;
 
     const tabKey = tabEl.id.replace(/^tab-/, '');
     const tabName = SECTION_FB_TAB_NAMES[tabKey] || tabKey;
     const sectionName = getSectionName(titleEl);
+    const label = sectionName ? `${tabName} › ${sectionName}` : tabName;
 
     const esc = s => s.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
 
     card.insertAdjacentHTML('beforeend', `
-      <div class="section-fb">
-        <button class="section-fb-btn" onclick="toggleSectionFb(this)">💬 フィードバック</button>
-        <div class="section-fb-form">
-          <textarea class="section-fb-textarea" placeholder="${sectionName} へのご意見・改善要望などをどうぞ"></textarea>
-          <div class="section-fb-actions">
-            <button class="btn-primary" style="padding:7px 14px;font-size:12px;"
-              onclick="submitSectionFb(this,'${esc(tabName)}','${esc(sectionName)}')">送信</button>
-            <span class="section-fb-status"></span>
-          </div>
-        </div>
+      <div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--border);text-align:left;">
+        <button class="fb-section-btn" onclick="openFeedback('${esc(label)}')">💬 このセクションへのフィードバック</button>
       </div>
     `);
   });
@@ -678,129 +644,3 @@ function initSectionFeedbacks() {
 
 document.addEventListener('DOMContentLoaded', initSectionFeedbacks);
 
-// ================================================================
-//  フローティングフィードバックウィジェット（タブ別 / サイト全体）
-// ================================================================
-
-let _fbScope  = 'tab';   // 'tab' | 'all'
-let _fbRating = null;    // 'good' | 'neutral' | 'bad' | null
-
-/** 現在アクティブなカテゴリー名・サブタブ名を取得 */
-function _getFeedbackTabInfo() {
-  // カテゴリー名（上段ナビ）
-  const catBtn  = document.querySelector('.cat-btn.active');
-  const catName = catBtn ? catBtn.textContent.trim().replace(/^[\u{1F000}-\u{1FFFF}\u{2600}-\u{27BF}\s]+/gu, '').trim() : '';
-
-  // サブタブ名（下段ナビ）
-  const tabContent = document.querySelector('.tab-content.active');
-  const tabKey     = tabContent ? tabContent.id.replace(/^tab-/, '') : '';
-  const tabName    = SECTION_FB_TAB_NAMES[tabKey] || tabKey;
-
-  return { catName, tabName };
-}
-
-/** フィードバックモーダルを開く */
-function openFeedback() {
-  _fbScope  = 'tab';
-  _fbRating = null;
-
-  // フォームを初期状態にリセット
-  document.getElementById('feedback-form-view').style.display    = '';
-  document.getElementById('feedback-success-view').style.display = 'none';
-  document.getElementById('feedback-modal-text').value           = '';
-  document.querySelectorAll('.rating-btn').forEach(b => b.classList.remove('selected'));
-  document.getElementById('scope-btn-tab').classList.add('active');
-  document.getElementById('scope-btn-all').classList.remove('active');
-
-  // 現在タブのラベルをセット
-  _updateFeedbackContextLabel();
-
-  document.getElementById('feedback-overlay').classList.add('open');
-  // テキストエリアにフォーカス（アクセシビリティ向上）
-  setTimeout(() => document.getElementById('feedback-modal-text').focus(), 50);
-}
-
-/** モーダルを閉じる */
-function closeFeedback() {
-  document.getElementById('feedback-overlay').classList.remove('open');
-}
-
-/** オーバーレイ背景クリックで閉じる */
-function closeFeedbackOnOverlay(e) {
-  if (e.target === document.getElementById('feedback-overlay')) closeFeedback();
-}
-
-/** コンテキストラベルを更新 */
-function _updateFeedbackContextLabel() {
-  const label = document.getElementById('feedback-context-label');
-  if (_fbScope === 'all') {
-    label.textContent = 'サイト全体についてのご意見をお寄せください';
-  } else {
-    const { catName, tabName } = _getFeedbackTabInfo();
-    label.textContent = tabName
-      ? `現在のタブ: ${catName}${catName && tabName !== catName ? ' › ' + tabName : ''}`
-      : '';
-  }
-}
-
-/** スコープ切り替え */
-function setFeedbackScope(scope) {
-  _fbScope = scope;
-  document.getElementById('scope-btn-tab').classList.toggle('active', scope === 'tab');
-  document.getElementById('scope-btn-all').classList.toggle('active', scope === 'all');
-  _updateFeedbackContextLabel();
-}
-
-/** 評価ボタン選択 */
-function setFeedbackRating(rating, btn) {
-  _fbRating = rating;
-  document.querySelectorAll('.rating-btn').forEach(b => b.classList.remove('selected'));
-  btn.classList.add('selected');
-}
-
-/** フィードバック送信 */
-async function submitFeedback() {
-  const text = document.getElementById('feedback-modal-text').value.trim();
-
-  if (!_fbRating && !text) {
-    showToast('評価を選択するかコメントを入力してください');
-    return;
-  }
-
-  const ratingLabel = { good: '👍 役に立った', neutral: '🤔 まあまあ', bad: '👎 改善希望' };
-  const ratingText  = _fbRating ? ratingLabel[_fbRating] : '';
-  const feedbackText = [ratingText, text].filter(Boolean).join('\n');
-
-  let tabName, sectionName;
-  if (_fbScope === 'all') {
-    tabName     = 'サイト全体';
-    sectionName = null;
-  } else {
-    const { catName, tabName: subTabName } = _getFeedbackTabInfo();
-    tabName     = catName || subTabName;
-    sectionName = subTabName && subTabName !== catName ? subTabName : null;
-  }
-
-  const submitBtn = document.getElementById('feedback-submit-btn');
-  submitBtn.disabled    = true;
-  submitBtn.textContent = '送信中...';
-
-  try {
-    await postToGoogleForm({ tabName, sectionName, feedbackText });
-    // 完了ビューへ切り替え
-    document.getElementById('feedback-form-view').style.display    = 'none';
-    document.getElementById('feedback-success-view').style.display = '';
-    // 3秒後に自動クローズ
-    setTimeout(closeFeedback, 3000);
-  } catch(e) {
-    showToast('送信に失敗しました。しばらく後にお試しください。');
-  } finally {
-    submitBtn.disabled    = false;
-    submitBtn.textContent = '送信 →';
-  }
-}
-
-// ESCキーでモーダルを閉じる
-document.addEventListener('keydown', e => {
-  if (e.key === 'Escape') closeFeedback();
-});

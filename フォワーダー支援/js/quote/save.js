@@ -55,6 +55,11 @@
     document.querySelectorAll('#fbForm .fb-radio').forEach(r => r.classList.remove('checked'));
   }
 
+  // フォームに固定登録されていないセクション名（他タブから渡された場合）を
+  // 一時保管しておき、送信時に本文先頭へ「【...】」プレフィックスとして付与する。
+  // Google Form 側の select は固定選択肢のため、未登録値を直接送ると拒否される。
+  let _fbExtraContext = null;
+
   function openFeedback(section) {
     const overlay = document.getElementById('fbOverlay');
     if (!overlay) return;
@@ -63,8 +68,18 @@
       sec === '全体' ? '💬 フィードバック（ページ全体）' : `💬 フィードバック（${sec}）`;
     // フォーム初期化
     _fbClearForm();
+    _fbExtraContext = null;
     const secSel = document.getElementById('fbSection');
-    if (secSel) secSel.value = sec;
+    if (secSel) {
+      const exists = Array.from(secSel.options).some(o => o.value === sec);
+      if (exists) {
+        secSel.value = sec;
+      } else {
+        // 未登録セクションは「全体」にフォールバックし、ラベルは本文側で表現
+        secSel.value = '全体';
+        _fbExtraContext = sec;
+      }
+    }
     // 設定状態
     const noUrl  = document.getElementById('fbNoUrlMsg');
     const submitBtn = document.getElementById('fbSubmitBtn');
@@ -104,10 +119,11 @@
     submitBtn.textContent = '送信中…';
     // Google Formは CORS を許可していないので no-cors で投げて
     // レスポンス検証はできないが送信自体は通る
+    const bodyWithContext = _fbExtraContext ? `【${_fbExtraContext}】\n${body}` : body;
     const fd = new FormData();
     fd.append(FEEDBACK_FORM.entries.category, category);
     fd.append(FEEDBACK_FORM.entries.section,  section);
-    fd.append(FEEDBACK_FORM.entries.body,     body);
+    fd.append(FEEDBACK_FORM.entries.body,     bodyWithContext);
     try {
       await fetch(_fbSubmitUrl(), { method: 'POST', mode: 'no-cors', body: fd });
       quoteShowToast('✅ フィードバックを送信しました。ありがとうございます！', 'success', 5000);
