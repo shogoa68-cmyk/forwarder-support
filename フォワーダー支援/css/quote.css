@@ -25,19 +25,22 @@
 #tab-quote-make *::before,
 #tab-quote-make *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
+/* h1「見積もり作成支援ページ」は Phase 2c-Step7 で削除（タブボタンが見出し代替）。
+   念のため残存 h1 用のフォールバック（最小限） */
 #tab-quote-make h1 {
-  font-size: 18px;
-  margin-bottom: 16px;
+  font-size: 16px;
+  margin-bottom: 12px;
   color: #3d2e1e;
-  border-left: 4px solid #8b6914;
-  padding-left: 12px;
+  font-weight: 700;
 }
 
+/* 見積もりテーブル外側のラッパー。.condition-section 内に入れ子されるため
+   独自の background / box-shadow / padding は最小限にして二重カード化を避ける */
 #tab-quote-make .container {
-  background: white;
-  border-radius: 8px;
-  padding: 20px;
-  box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+  background: transparent;
+  border-radius: 0;
+  padding: 0;
+  box-shadow: none;
 }
 
 /* ========== 見積もりヘッダー ========== */
@@ -291,23 +294,31 @@
 }
 #tab-quote-make #csvMsg.success { background: #dcebd8; color: #5a6e42; display: block; }
 #tab-quote-make #csvMsg.error { background: #fdf2f2; color: #c0392b; display: block; }
-/* ========== 引き合い条件 ========== */
+/* ========== 引き合い条件 ==========
+   Phase 2c-Step7: ポータル他タブの .card / .section-title 規約に合わせて
+   .condition-section / h2 を統一。CSS 変数を使わず実値で記述（quote.css は
+   #tab-quote-make スコープでポータル変数が継承されないため）
+*/
 #tab-quote-make .condition-section {
-  margin-top: 24px;
-  background: white;
-  border-radius: 8px;
-  padding: 20px;
-  box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+  margin-top: 0;
+  margin-bottom: 14px;
+  background: #faf7f2;
+  border: 1px solid #d9cfc2;
+  border-radius: 10px;
+  padding: 18px 20px;
+  box-shadow: none;
 }
 #tab-quote-make .condition-section h2 {
-  font-size: 15px;
-  color: #3d2e1e;
-  border-left: 4px solid #6b5a42;
-  padding-left: 10px;
-  margin-bottom: 16px;
+  font-size: 13px;
+  font-weight: 700;
+  color: #7d6b56;
+  letter-spacing: 0.5px;
+  margin-bottom: 14px;
+  padding-left: 0;
+  border-left: none;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
 }
 #tab-quote-make .condition-grid {
   display: grid;
@@ -1100,24 +1111,11 @@
   font-size: 12px; color: #3d2e1e;
   white-space: pre-wrap; line-height: 1.7;
 }
-/* ========== リマーク欄 ========== */
-#tab-quote-make .remark-section {
-  margin-top: 24px;
-  background: white;
-  border-radius: 8px;
-  padding: 20px;
-  box-shadow: 0 2px 12px rgba(0,0,0,0.08);
-}
-#tab-quote-make .remark-section h2 {
-  font-size: 15px;
-  color: #3d2e1e;
-  border-left: 4px solid #e67e22;
-  padding-left: 10px;
-  margin-bottom: 14px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
+/* ========== リマーク欄 ==========
+   .condition-section (class 併用) から自動継承するためここでは追加スタイル不要。
+   Phase 2c-Step7 でカードルールを統一する前は独自の背景・h2 ボーダーを持って
+   いたが、ポータル他タブとの一貫性を優先して撤去した。
+*/
 #tab-quote-make .remark-presets {
   display: flex;
   flex-wrap: wrap;
@@ -1648,16 +1646,17 @@
   font-size: 11px;
   color: #c0392b;
 }
-/* セクション説明 */
+/* セクション説明 — ポータル他タブの「<p style="font-size:12px;color:#718096;
+   margin-bottom:14px;">…」と揃える */
 #tab-quote-make .section-desc {
-  font-size: 11.5px;
+  font-size: 12px;
   color: #7d6b56;
   line-height: 1.6;
   margin: 0 0 12px 0;
-  padding: 6px 10px;
-  border-left: 3px solid #d9e4ef;
-  background: #faf7f2;
-  border-radius: 0 4px 4px 0;
+  padding: 0;
+  border-left: none;
+  background: transparent;
+  border-radius: 0;
 }
 #tab-quote-make .section-desc b { color: #7d6b56; font-weight: 600; }
 /* 反映フラッシュ */@keyframes flash-green {
