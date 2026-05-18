@@ -37,17 +37,20 @@
     return _fbViewUrl() + sep + (parts.length ? '&' + parts.join('&') : '');
   }
 
-  // ラジオの見た目を選択状態に応じて更新
-  function _fbWireRadios() {
-    document.querySelectorAll('#fbForm .fb-radio input[type="radio"]').forEach(input => {
-      input.addEventListener('change', () => {
-        const name = input.name;
-        document.querySelectorAll(`#fbForm .fb-radio input[name="${name}"]`).forEach(i => {
-          i.closest('.fb-radio').classList.toggle('checked', i.checked);
-        });
-      });
+  // ラジオの見た目を選択状態に応じて更新（イベント委譲）
+  //
+  // 注: save.js は index.html の #fbOverlay より前で読み込まれるため、
+  // querySelectorAll で個別バインドする方式だとリスナー未アタッチになる。
+  // document へのデリゲートに切り替えて DOM 構築タイミング非依存にする。
+  document.addEventListener('change', function _fbRadioDelegated(e) {
+    const target = e.target;
+    if (!target || target.type !== 'radio') return;
+    if (!target.closest('#fbForm .fb-radio')) return;
+    const name = target.name;
+    document.querySelectorAll(`#fbForm .fb-radio input[name="${name}"]`).forEach(i => {
+      i.closest('.fb-radio').classList.toggle('checked', i.checked);
     });
-  }
+  });
   function _fbClearForm() {
     const form = document.getElementById('fbForm');
     if (!form) return;
@@ -144,8 +147,6 @@
       submitBtn.textContent = '送信';
     }
   }
-  // ラジオの選択状態見た目を初期化
-  _fbWireRadios();
 
   // 入力変化で自動保存をトリガー（Phase 2b：見積タブ内に限定）
   function initQuoteAutoSaveListeners() {
