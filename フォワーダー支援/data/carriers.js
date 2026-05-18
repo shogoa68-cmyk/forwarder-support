@@ -271,10 +271,24 @@ const VESSEL_PORTALS = [
   {
     name: 'VSS (Vessel Schedule Service)',
     desc: '国内本船スケジュール（東洋信号の新プラットフォーム）',
-    note: '移行済み: SITC / Maersk / MSC / ONE / OOCL',
+    note: '移行済み: SITC / Maersk / MSC / ONE / OOCL / Wan Hai / IAL',
     url: 'https://vessel-schedule-service.com/',
   },
   // 必要に応じてオブジェクトを追加してください
+];
+
+// ================================================================
+//  VSS (Vessel Schedule Service) へ移行済みの船会社別ダイレクトリンク
+//  name は CARRIERS のキーに揃える（アイコン・ドメイン参照のため）
+// ================================================================
+const VSS_CARRIERS = [
+  { name: 'SITC',    url: 'https://vessel-schedule-service.com/sitc/vessel-schedule?tab=2' },
+  { name: 'Maersk',  url: 'https://vessel-schedule-service.com/maersk/vessel-schedule?tab=2' },
+  { name: 'MSC',     url: 'https://vessel-schedule-service.com/msc/vessel-schedule?tab=2' },
+  { name: 'ONE',     url: 'https://vessel-schedule-service.com/one/vessel-schedule?tab=2' },
+  { name: 'OOCL',    url: 'https://vessel-schedule-service.com/oocl/vessel-schedule?tab=2' },
+  { name: 'Wan Hai', url: 'https://vessel-schedule-service.com/wanhai/vessel-schedule?tab=2' },
+  { name: 'IAL',     url: 'https://vessel-schedule-service.com/interasia/vessel-schedule?tab=2' },
 ];
 
 // ================================================================
