@@ -1902,7 +1902,7 @@
         <h4>📋 プレビュー出力</h4>
         <p>「プレビュー」ボタンで表計算形式のレイアウトに整形表示。そのまま <strong>CSV / Excel（.xlsx）/ PDF</strong> で出力できます（SheetJS を使用）。<br>
         プレビュー右上の<strong>「表示カスタマイズ」</strong>でカテゴリ／支払い／<strong>単位（個別）</strong>／請求／乗せ幅／<strong>消費税</strong>／利益／備考／サブコンの表示・非表示を切り替えると、その設定が<strong>そのまま Excel / CSV / TSV コピー / PDF 印刷にも反映</strong>されます（CSV はモーダルで再編集も可）。<br>
-        消費税列は「課税」にチェックを入れた行に対し、画面下の消費税率（なし／5％／8％／10％）から自動計算されます。<strong>項目名の先頭にある <code>*</code> は課税項目を示す印</strong>です。</p>
+        消費税列は「課税」にチェックを入れた行に対し、<strong>10%（標準）固定</strong>で自動計算されます。<strong>項目名の先頭にある <code>*</code> は課税項目を示す印</strong>です。</p>
 
         <h4>🧰 便利機能</h4>
         <ul>
@@ -2346,7 +2346,7 @@
       </div>
       <div id="tableWrap">
         <p class="section-desc">費用項目ごとに <b>支払い（仕入）</b> と <b>請求</b> の数量・通貨・単価を入力します。<b>③ 乗せ幅</b> を入力すると請求単価に自動加算、<b>④ 利益</b> 欄で粗利をリアルタイム確認できます。CSV インポートやカテゴリ順並び替えも利用可能です。<br>
-        <span style="font-size:11px;color:var(--text-md);">💡 <b>項目名の先頭にある <code style="background:#fff;padding:1px 4px;border-radius:3px;">*</code> は課税項目を示します</b>（課税欄のチェックで自動付与）。プレビュー画面では消費税列に税額が表示されます。</span></p>
+        <span style="font-size:11px;color:var(--text-md);">💡 <b>項目名の先頭にある <code style="background:#fff;padding:1px 4px;border-radius:3px;">*</code> は課税項目を示します</b>（課税欄のチェックで自動付与）。プレビュー画面では消費税列に税額（10% 固定）が表示されます。</span></p>
         <div class="container">
           <div id="tableScrollWrap">
           <table id="quoteTable">
@@ -2576,12 +2576,8 @@
         <div id="previewTableWrap"></div>
         <div id="pvTaxBox" class="pv-tax-box">
           <label class="pv-tax-label">🧾 消費税：</label>
-          <select id="pvTaxRate" onchange="updatePreviewTax()" class="pv-tax-select">
-            <option value="0">なし</option>
-            <option value="10" selected>10%（標準）</option>
-            <option value="8">8%（軽減）</option>
-            <option value="5">5%</option>
-          </select>
+          <span class="pv-tax-fixed">10%（標準・固定）</span>
+          <input type="hidden" id="pvTaxRate" value="10">
           <span class="pv-tax-detail">消費税額: <b id="pvTaxAmount">—</b>　税込合計: <b id="pvTaxTotal">—</b></span>
           <span id="pvTotalSubtotal" data-raw="0" style="display:none;"></span>
         </div>
