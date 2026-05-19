@@ -2560,12 +2560,16 @@
    body 直下の全要素（ヘッダー/ナビ/他タブ/付箋/FAB/モーダル/トースト等）を非表示にする。
    プレビュー未表示時に Ctrl+P した場合は何も加工せず通常印刷。 */
 @media print {
-  /* body 直下：#tab-quote-make 以外を全て非表示（ヘッダー/カテゴリナビ/サブナビ/付箋/FAB/モーダル/トースト 等） */
-  body:has(#previewOverlay.open) > *:not(#tab-quote-make) { display: none !important; }
+  /* body 直下：.app 以外を全て非表示（フィードバックモーダル/FAB/トースト 等） */
+  body:has(#previewOverlay.open) > *:not(.app) { display: none !important; }
+  /* .app 内：#tab-quote-make 以外を全て非表示（ヘッダー/カテゴリナビ/サブナビ/他タブ 等） */
+  body:has(#previewOverlay.open) .app > *:not(#tab-quote-make) { display: none !important; }
   /* #tab-quote-make 内：#previewOverlay 以外を全て非表示（ツールバー/フォーム/テーブル/付箋 等） */
   body:has(#previewOverlay.open) #tab-quote-make > *:not(#previewOverlay) { display: none !important; }
   /* #tab-quote-make 自体は .tab-content の display:none を上書きして表示（プレビューの親階層として必要） */
   body:has(#previewOverlay.open) #tab-quote-make { display: block !important; }
+  /* .app コンテナの max-width/padding を印刷時はリセットして紙幅いっぱいに */
+  body:has(#previewOverlay.open) .app { max-width: none !important; padding: 0 !important; margin: 0 !important; }
   body:has(#previewOverlay.open) #previewOverlay {
     position: static !important;
     background: transparent !important;
