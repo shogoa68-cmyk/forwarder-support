@@ -257,6 +257,61 @@
       const curVal = sel.value;
       sel.innerHTML = catOpts(curVal);
     });
+    refreshBulkCatSelect();
+  }
+
+  // 「選択行 → カテゴリ一括変更」用セレクトを最新カテゴリで再構築
+  function refreshBulkCatSelect() {
+    const sel = document.getElementById('bulkCatSelect');
+    if (!sel) return;
+    const curVal = sel.value;
+    const userCats = getUserCategories();
+    let html = '<option value="__none__">— カテゴリを選択 —</option>';
+    // 既定カテゴリ（先頭の「— カテゴリ —」= 未設定 を含む）
+    html += CATEGORIES.map(c =>
+      `<option value="${c.value}"${c.value === curVal ? ' selected' : ''}>${c.label}</option>`
+    ).join('');
+    if (userCats.length) {
+      html += '<option value="" disabled>──────────</option>';
+      html += userCats.map(c =>
+        `<option value="${c.value}"${c.value === curVal ? ' selected' : ''}>${c.label}</option>`
+      ).join('');
+    }
+    sel.innerHTML = html;
+  }
+
+  // チェック済み行のカテゴリを一括変更
+  function applyBulkCategory() {
+    const sel = document.getElementById('bulkCatSelect');
+    if (!sel) return;
+    if (sel.value === '__none__') {
+      quoteShowToast('⚠️ 適用するカテゴリを選んでください', 'warn', 3000);
+      return;
+    }
+    const checkboxes = document.querySelectorAll('.row-select-chk:checked');
+    if (!checkboxes.length) {
+      quoteShowToast('⚠️ カテゴリを変更したい行のチェックボックスにチェックを入れてください', 'warn', 3000);
+      return;
+    }
+    const newCat = sel.value;
+    let count = 0;
+    checkboxes.forEach(chk => {
+      const tr = chk.closest('tr');
+      if (!tr) return;
+      const id = tr.id.replace('row-', '');
+      const catSel = document.getElementById(`cat-${id}`);
+      if (!catSel) return;
+      catSel.value = newCat;
+      if (typeof onCatChange === 'function') onCatChange(id);
+      count++;
+    });
+    // 元行のチェックを外し、全選択もリセット、セレクトもプレースホルダへ戻す
+    checkboxes.forEach(chk => { chk.checked = false; });
+    const allChk = document.getElementById('selectAllChk');
+    if (allChk) allChk.checked = false;
+    sel.value = '__none__';
+    const catLabel = getAllCategories().find(c => c.value === newCat)?.label || '— カテゴリ —';
+    quoteShowToast(`🏷️ ${count}行のカテゴリを「${catLabel}」に変更しました`, 'success');
   }
 
   // ========== 一括コピー機能 ==========
@@ -1213,6 +1268,7 @@
     initStickyNote();
     renderPackingPreset();
     restoreFontSize();
+    refreshBulkCatSelect();   // 「選択行 → カテゴリ一括変更」セレクトを初期構築
   }
 
   // ===== Phase 2b：見積タブ初回表示時の遅延初期化集約 =====

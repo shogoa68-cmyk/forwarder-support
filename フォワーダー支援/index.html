@@ -1891,6 +1891,7 @@
           <li>行のドラッグ&amp;ドロップで並び替え、<kbd>↑/↓</kbd> キーでも移動可能</li>
           <li>多通貨混在時も内部で為替換算して合計表示（FXパネルでレート確認・上書き可）</li>
           <li>数式評価ペースト対応（<code>=A1+B1</code> のような Excel スタイル）</li>
+          <li><strong>選択行の一括操作</strong>：左端のチェックボックスで複数行を選択し、ツールバーの「選択行」グループから <strong>📋 コピー / 🗑️ 削除 / 🏷️ カテゴリ変更</strong>（プルダウンで対象カテゴリを選んで「カテゴリ変更」ボタン）を実行できます。ヘッダーのチェックボックスで全選択／解除も可能</li>
         </ul>
 
         <h4>📝 特記事項・全体リマーク</h4>
@@ -2413,6 +2414,9 @@
               <span class="btn-group-label">選択行</span>
               <button class="btn-bulk-copy"   onclick="copySelectedRows()" title="チェックした行を複製">📋 コピー</button>
               <button class="btn-bulk-delete" onclick="deleteSelectedRows()" title="チェックした行を削除">🗑️ 削除</button>
+              <span class="btn-group-sep" aria-hidden="true">|</span>
+              <select id="bulkCatSelect" class="bulk-cat-select" title="チェックした行に適用するカテゴリ"></select>
+              <button class="btn-bulk-cat" onclick="applyBulkCategory()" title="チェックした行のカテゴリを一括変更">🏷️ カテゴリ変更</button>
             </div>
             <div class="btn-group-row">
               <button class="btn-preview"    onclick="openPreview()">📋 プレビュー</button>
