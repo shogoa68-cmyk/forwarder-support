@@ -106,23 +106,28 @@
     metaEl.innerHTML = metaHTML;
     metaEl.style.display = metaHTML ? 'flex' : 'none';
 
+    // 現在のプレビュー消費税率を読む（行ごとの税額計算用）
+    const taxRatePct = parseFloat(document.getElementById('pvTaxRate')?.value || '0') || 0;
+    const taxRate    = taxRatePct / 100;
+
     let html = `<table id="previewTable">
       <thead><tr>
         <th>カテゴリ</th><th>項目名</th>
         <th class="ph-pay">数量</th><th class="ph-pay">単位</th><th class="ph-pay">通貨</th>
         <th class="ph-pay">単価</th><th class="ph-pay" style="color:#ccc;">CD</th>
         <th class="ph-bill">数量</th><th class="ph-bill">通貨</th><th class="ph-bill">単価</th>
-        <th class="ph-profit">乗せ幅</th><th class="ph-profit">小計</th><th class="ph-profit">利益</th><th class="ph-profit">備考</th><th>サブコン</th>
+        <th class="ph-profit">乗せ幅</th><th class="ph-profit">小計</th><th class="ph-profit">消費税</th><th class="ph-profit">利益</th><th class="ph-profit">備考</th><th>サブコン</th>
       </tr></thead><tbody>`;
 
-    let totSub = 0;
+    let totSub = 0, totTax = 0;
     allRows.forEach(d => {
       if (d._type === 'subtotal') {
-        // 小計行セパレーター
+        // 小計行セパレーター（消費税セルは空欄で挟む）
         const sepPc = d.profitText.startsWith('-') ? 'pv-neg' : (d.profitText === '—' || d.profitText === '0') ? 'pv-zero' : 'pv-pos';
         html += `<tr class="pv-subtotal-sep">
           <td colspan="11" class="pv-subtotal-sep-label">━━ ${escHtml(d.label || '小計')}</td>
           <td class="pv-num pv-subtotal">${escHtml(d.subtotalText)}</td>
+          <td class="pv-num pv-tax-cell"></td>
           <td class="pv-pr ${sepPc} pv-num">${escHtml(d.profitText)}</td>
           <td colspan="2"></td>
         </tr>`;
@@ -131,7 +136,10 @@
       const pc      = d.profit > 0 ? 'pv-pos' : d.profit < 0 ? 'pv-neg' : 'pv-zero';
       const nameCls = d.taxed ? 'pv-name pv-taxed' : 'pv-name';
       const sub     = (d.bq || 0) * (d.bp || 0);
+      const taxAmt  = d.taxed ? sub * taxRate : 0;
       totSub += sub;
+      totTax += taxAmt;
+      const taxCellText = (d.taxed && taxRate > 0) ? fmtRaw(taxAmt) : (d.taxed ? '—' : '');
       html += `<tr>
         <td class="pv-name" style="font-size:11px;">${escHtml(getCatLabel(d.cat))}</td>
         <td class="${nameCls}">${escHtml(d.name)}</td>
@@ -142,6 +150,7 @@
         <td class="pv-num">${fmtRaw(d.bp)}</td>
         <td class="pv-num">${fmtRaw(d.mk)}</td>
         <td class="pv-num pv-subtotal">${fmtRaw(sub)}</td>
+        <td class="pv-num pv-tax-cell" data-sub="${sub}" data-taxed="${d.taxed ? 1 : 0}">${taxCellText}</td>
         <td class="pv-pr ${pc} pv-num">${fmtRaw(d.profit)}</td>
         <td class="pv-name">${escHtml(d.note)}</td>
         <td class="pv-name">${escHtml(d.sv)}</td>
@@ -149,12 +158,14 @@
     });
 
     const totPc = totPr > 0 ? 'pv-pos' : totPr < 0 ? 'pv-neg' : 'pv-zero';
+    const totTaxText = taxRate > 0 ? fmtRaw(totTax) : '—';
     html += `</tbody><tfoot><tr class="pv-total">
       <td colspan="2" style="text-align:right;">合　計</td>
       <td colspan="4">—</td><td style="background:#e8e8e8;color:#aaa;">—</td>
       <td colspan="2">—</td><td class="pv-num">—</td>
       <td class="pv-num">${fmtRaw(totMk)}</td>
       <td class="pv-num pv-subtotal">${fmtRaw(totSub)}</td>
+      <td class="pv-num pv-tax-total">${totTaxText}</td>
       <td class="pv-pr ${totPc} pv-num">${fmtRaw(totPr)}</td>
       <td></td><td></td>
     </tr></tfoot></table>`;
@@ -246,6 +257,21 @@
     const totalSub  = parseFloat(document.getElementById('pvTotalSubtotal')?.dataset.raw || '0');
     if (!taxRateEl) return;
     const rate = parseFloat(taxRateEl.value) / 100 || 0;
+    // 行ごとの消費税セルを更新（課税行のみ計算）
+    let totTax = 0;
+    document.querySelectorAll('#previewTable .pv-tax-cell').forEach(td => {
+      const sub    = parseFloat(td.dataset.sub) || 0;
+      const taxed  = td.dataset.taxed === '1';
+      if (!taxed) { td.textContent = ''; return; }
+      if (rate <= 0) { td.textContent = '—'; return; }
+      const amt = sub * rate;
+      totTax += amt;
+      td.textContent = fmtRaw(amt);
+    });
+    // 合計行の消費税セル
+    const totTaxEl = document.querySelector('#previewTable .pv-tax-total');
+    if (totTaxEl) totTaxEl.textContent = rate > 0 ? fmtRaw(totTax) : '—';
+    // 既存：底部サマリ（消費税額・税込合計）
     const tax  = totalSub * rate;
     const total = totalSub + tax;
     const taxEl   = document.getElementById('pvTaxAmount');
@@ -261,22 +287,18 @@
     const table = document.getElementById('previewTable');
     if (!table) return;
 
-    // 列表示切り替え
-    // pay列: col index 2,3,4,5,6  (pq, un, pc, pp, cd) → th/td index 3-7
-    // bill列: index 7,8,9 → th/td index 8-10
-    // cat: index 0
-    // mk: index 10
-    // profit: index 12
-    // note: index 13
-    // sv: index 14
+    // 列表示切り替え（消費税列を 12 に挿入、unit を pay から分離）
+    // index 構成: 0:cat 1:name 2:pq 3:un 4:pc 5:pp 6:cd 7:bq 8:bc 9:bp 10:mk 11:sub 12:tax 13:profit 14:note 15:sv
     const colMap = {
-      cat:    [0],
-      pay:    [2, 3, 4, 5, 6],
-      bill:   [7, 8, 9],
-      mk:     [10],
-      profit: [12],
-      note:   [13],
-      sv:     [14],
+      cat:        [0],
+      pay:        [2, 4, 5, 6],   // pq / pc / pp / cd
+      unit:       [3],            // un を pay から分離して独立トグル
+      bill:       [7, 8, 9],
+      mk:         [10],
+      'tax-col':  [12],           // 消費税列
+      profit:     [13],
+      note:       [14],
+      sv:         [15],
     };
 
     document.querySelectorAll('.pv-col-chk').forEach(chk => {
@@ -344,10 +366,11 @@
     });
     return def;
   }
-  // PV グループ → CSV/TSV/Excel の列キー集合
+  // PV グループ → CSV/TSV/Excel の列キー集合（unit は pay から独立トグル）
   const PV_GROUP_TO_KEYS = {
     cat:    ['cat'],
-    pay:    ['pq', 'un', 'pc', 'pp', 'cd'],
+    pay:    ['pq', 'pc', 'pp', 'cd'],
+    unit:   ['un'],
     bill:   ['bq', 'bc', 'bp'],
     mk:     ['mk'],
     profit: ['profit'],
