@@ -757,6 +757,156 @@
     }).join('');
   }
 
+  // ========== 行パターン（チェック行を一時保存・読込） ==========
+  const ROW_PATTERN_KEY = 'quoteRowPatterns_v1';
+  const ROW_PATTERN_MAX = 20;
+
+  function getRowPatterns()      { return SharedStorage.getJSON(ROW_PATTERN_KEY, []); }
+  function setRowPatterns(arr)   { SharedStorage.setJSON(ROW_PATTERN_KEY, arr); }
+
+  // チェック済み行のデータを抽出（小計行は除外）
+  function _gatherCheckedRowsData() {
+    const out = [];
+    document.querySelectorAll('#tableBody tr .row-select-chk:checked').forEach(chk => {
+      const tr = chk.closest('tr');
+      if (!tr || tr.dataset.type === 'subtotal') return;
+      const id = tr.id.replace('row-', '');
+      const g = sid => document.getElementById(sid + '-' + id);
+      out.push({
+        cat:   g('cat')?.value || '',
+        name:  g('nm')?.value || '',
+        taxed: g('tx')?.checked || false,
+        pq:    g('pq')?.value || '',
+        un:    g('un')?.value || '',
+        pc:    g('pc')?.value || 'JPY',
+        pp:    g('pp')?.value || '',
+        bq:    g('bq')?.value || '',
+        bc:    g('bc')?.value || 'JPY',
+        bp:    g('bp')?.value || '',
+        mk:    g('mk')?.value || '',
+        note:  g('nt')?.value || '',
+        sv:    g('sv')?.value || '',
+      });
+    });
+    return out;
+  }
+
+  function openRowPatternMgr() {
+    renderRowPatternList();
+    const inp = document.getElementById('rowPatternNameInput');
+    if (inp && !inp.value) {
+      const d = new Date();
+      const pad = n => String(n).padStart(2, '0');
+      inp.value = `パターン_${pad(d.getMonth()+1)}${pad(d.getDate())}_${pad(d.getHours())}${pad(d.getMinutes())}`;
+    }
+    document.getElementById('rowPatternModal').classList.add('open');
+    setTimeout(() => inp?.focus(), 50);
+  }
+  function closeRowPatternMgr() { document.getElementById('rowPatternModal').classList.remove('open'); }
+
+  function saveRowPatternFromChecked() {
+    const rows = _gatherCheckedRowsData();
+    if (!rows.length) {
+      quoteShowToast('⚠️ 保存する行のチェックボックスを選択してください', 'warn', 3000);
+      return;
+    }
+    const nameInp = document.getElementById('rowPatternNameInput');
+    const name = (nameInp?.value || '').trim();
+    if (!name) {
+      quoteShowToast('⚠️ パターン名を入力してください', 'warn');
+      nameInp?.focus();
+      return;
+    }
+    const patterns = getRowPatterns();
+    const entry = { name, ts: new Date().toISOString(), rows };
+    const idx = patterns.findIndex(p => p.name === name);
+    if (idx >= 0) {
+      if (!confirm(`「${name}」を上書きしますか？`)) return;
+      patterns[idx] = entry;
+    } else {
+      patterns.unshift(entry);
+      if (patterns.length > ROW_PATTERN_MAX) patterns.length = ROW_PATTERN_MAX;
+    }
+    setRowPatterns(patterns);
+    if (nameInp) nameInp.value = '';
+    renderRowPatternList();
+    quoteShowToast(`💾 行パターン「${name}」を保存（${rows.length}行）`, 'success');
+  }
+
+  function loadRowPattern(idx) {
+    const patterns = getRowPatterns();
+    const p = patterns[idx];
+    if (!p) return;
+    if (!confirm(`「${p.name}」の ${p.rows.length} 行を末尾に追加しますか？`)) return;
+    p.rows.forEach(rd => {
+      addRow(); // 末尾に空行を追加
+      const trs = document.querySelectorAll('#tableBody tr');
+      const tr = trs[trs.length - 1];
+      if (!tr) return;
+      const id = tr.id.replace('row-', '');
+      const set = (sid, val, kind) => {
+        const el = document.getElementById(sid + '-' + id);
+        if (!el) return;
+        if (kind === 'check') el.checked = !!val;
+        else el.value = val ?? '';
+      };
+      set('cat', rd.cat);
+      set('nm',  rd.name);
+      set('tx',  rd.taxed, 'check');
+      set('pq',  rd.pq);
+      set('un',  rd.un);
+      set('pc',  rd.pc);
+      set('pp',  rd.pp);
+      set('bq',  rd.bq);
+      set('bc',  rd.bc);
+      set('bp',  rd.bp);
+      set('mk',  rd.mk);
+      set('nt',  rd.note);
+      set('sv',  rd.sv);
+      // 課税クラスを反映（toggleTax は * 重複を回避するので安全に呼べる）
+      if (typeof toggleTax === 'function') toggleTax(id);
+      checkUnfilled(id);
+      onCatChange(id);
+      onPay(id);
+    });
+    updateTotals();
+    closeRowPatternMgr();
+    quoteShowToast(`📂 「${p.name}」の ${p.rows.length} 行を追加しました`, 'success');
+  }
+
+  function deleteRowPattern(idx) {
+    const patterns = getRowPatterns();
+    const p = patterns[idx];
+    if (!p) return;
+    if (!confirm(`行パターン「${p.name}」を削除しますか？`)) return;
+    patterns.splice(idx, 1);
+    setRowPatterns(patterns);
+    renderRowPatternList();
+    quoteShowToast(`🗑️ 「${p.name}」を削除しました`, 'info');
+  }
+
+  function renderRowPatternList() {
+    const patterns = getRowPatterns();
+    const wrap = document.getElementById('rowPatternListWrap');
+    if (!wrap) return;
+    if (!patterns.length) {
+      wrap.innerHTML = '<div class="preset-empty">保存済みの行パターンはありません<br><small style="color:#bbb;">行をチェックして上のフォームから保存できます</small></div>';
+      return;
+    }
+    wrap.innerHTML = patterns.map((p, i) => {
+      const ts = p.ts
+        ? new Date(p.ts).toLocaleString('ja-JP', { month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit' })
+        : '';
+      return '<div class="preset-list-item">' +
+        '<span class="preset-list-name">' + escHtml(p.name) +
+          ' <small style="color:#999;">(' + p.rows.length + '行)</small></span>' +
+        '<span class="preset-list-ts">'   + ts + '</span>' +
+        '<button class="btn-preset-load" onclick="loadRowPattern(' + i + ')">読込</button>' +
+        '<button class="btn-preset-del"  onclick="deleteRowPattern(' + i + ')" title="削除">✕</button>' +
+        '</div>';
+    }).join('');
+  }
+
   // ========== ファイル出力・読込 ==========
 
   function exportToFile() {
