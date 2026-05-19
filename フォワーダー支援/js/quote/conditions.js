@@ -62,7 +62,12 @@
   let   _historyApplying = false; // applySnapshot 実行中はスナップショット採取を抑止
 
   function _currentSnapshot() {
-    try { return JSON.stringify(gatherAllData()); } catch(_) { return null; }
+    try {
+      const data = gatherAllData();
+      // 履歴比較から ts を除外（毎回更新されるので等価判定が常に false になる）
+      delete data.ts;
+      return JSON.stringify(data);
+    } catch(_) { return null; }
   }
 
   // 現在の状態を確定スナップショットとして記録。前回と異なれば履歴に push。
