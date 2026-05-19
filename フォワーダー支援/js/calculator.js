@@ -16,14 +16,13 @@ const PACKING_OPTIONS = [
   { v: 'ドラム缶',          l: '🛢 ドラム缶' },
   { v: '袋（バッグ）',      l: '👜 袋（バッグ）' },
   { v: '鋼材・コイル',      l: '🔩 鋼材・コイル' },
-  { v: 'バラ積み',          l: '📤 バラ積み' },
-  { v: 'その他',            l: '🔧 その他' }
+  { v: 'その他',            l: '✏️ その他（自由入力）' }
 ];
 
 // セクション別に除外する荷姿（パレタイズに不適切なもの等）
 const PACKING_EXCLUDE_BY_SECTION = {
-  // パレタイズ：パレット上にパレットは積まない／バラ積みはパレット化と矛盾
-  pal: ['パレット積み', 'バラ積み']
+  // パレタイズ：パレット上にパレットは積まない
+  pal: ['パレット積み']
 };
 
 function _buildPackingFieldHtml(section) {
@@ -31,10 +30,26 @@ function _buildPackingFieldHtml(section) {
   const opts = PACKING_OPTIONS.filter(o => !excluded.has(o.v));
   return '<div class="calc-field" data-aux="packing">'
     + '<span class="calc-label">荷姿</span>'
-    + '<select class="calc-select" data-key="packing">'
+    + '<select class="calc-select" data-key="packing" onchange="onPackingChange(this)">'
     +   opts.map(o => `<option value="${o.v}">${o.l}</option>`).join('')
     + '</select>'
+    + '<input type="text" class="calc-input calc-packing-other-input" data-key="packing-other"'
+    +   ' placeholder="荷姿を入力" style="display:none;margin-top:4px;width:130px;">'
     + '</div>';
+}
+
+// 荷姿セレクト変更時：「その他」なら自由入力欄を表示
+function onPackingChange(sel) {
+  const wrap = sel.closest('.calc-field');
+  const txt = wrap?.querySelector('[data-key="packing-other"]');
+  if (!txt) return;
+  if (sel.value === 'その他') {
+    txt.style.display = '';
+    txt.focus();
+  } else {
+    txt.style.display = 'none';
+    txt.value = '';
+  }
 }
 
 function _buildStackFieldHtml() {
@@ -79,8 +94,13 @@ if (typeof document !== 'undefined') {
 
 // 行から荷姿・段積み・寸法ラベルを取得
 function getRowMeta(row, unit) {
-  const packing = row.querySelector('[data-key="packing"]')?.value || '';
-  const stack   = row.querySelector('[data-key="stack"]')?.value || 'ok';
+  const packingSel = row.querySelector('[data-key="packing"]')?.value || '';
+  const otherTxt   = row.querySelector('[data-key="packing-other"]')?.value?.trim() || '';
+  let packing = packingSel;
+  if (packingSel === 'その他') {
+    packing = otherTxt ? `その他：${otherTxt}` : 'その他';
+  }
+  const stack = row.querySelector('[data-key="stack"]')?.value || 'ok';
   return { packing, stack, stackLabel: stack === 'ng' ? '段積み不可' : '段積み可' };
 }
 
@@ -265,6 +285,11 @@ function addCalcRow(prefix) {
     const key = sel.dataset.key;
     if (key === 'packing') sel.value = '';
     else if (key === 'stack') sel.value = 'ok';
+  });
+  // 荷姿「その他」の自由入力欄もリセット（クローン直後は非表示）
+  tpl.querySelectorAll('[data-key="packing-other"]').forEach(el => {
+    el.value = '';
+    el.style.display = 'none';
   });
   // 削除ボタンを表示
   const del = tpl.querySelector('.btn-row-del');
