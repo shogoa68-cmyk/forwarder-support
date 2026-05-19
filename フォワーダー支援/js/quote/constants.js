@@ -132,6 +132,7 @@ window.QuoteApp = window.QuoteApp || { state: {}, data: {}, fx: {} };
 // ========== グローバル変数 ==========
 let rowCount      = 0;
 let dragSrcRow    = null;
+let dragSrcRows   = null;  // 多選択ドラッグ時に実際に移動する行群（単一なら [dragSrcRow]）
 let tabAddEnabled = true;
 let calcRowCount  = 0;
 let _lastCalcResult = null;
@@ -220,6 +221,7 @@ Object.assign(QuoteApp.data, {
 Object.defineProperties(QuoteApp.state, {
   rowCount:            { get: () => rowCount,            set: v => { rowCount = v; },            enumerable: true },
   dragSrcRow:          { get: () => dragSrcRow,          set: v => { dragSrcRow = v; },          enumerable: true },
+  dragSrcRows:         { get: () => dragSrcRows,         set: v => { dragSrcRows = v; },         enumerable: true },
   tabAddEnabled:       { get: () => tabAddEnabled,       set: v => { tabAddEnabled = v; },       enumerable: true },
   calcRowCount:        { get: () => calcRowCount,        set: v => { calcRowCount = v; },        enumerable: true },
   lastCalcResult:      { get: () => _lastCalcResult,     set: v => { _lastCalcResult = v; },     enumerable: true },

@@ -42,23 +42,36 @@
       }
       _dragFromHandle = false;
       dragSrcRow = tr;
+      // 多選択ドラッグ：掴んだ行がチェック済みなら、チェックされている全行をまとめて移動
+      const myChk = tr.querySelector('.row-select-chk');
+      if (myChk?.checked) {
+        const selected = Array.from(
+          document.querySelectorAll('#tableBody tr .row-select-chk:checked')
+        ).map(c => c.closest('tr')).filter(Boolean);
+        dragSrcRows = selected.length > 1 ? selected : [tr];
+      } else {
+        dragSrcRows = [tr];
+      }
       e.dataTransfer.effectAllowed = 'move';
       e.dataTransfer.setData('text/plain', tr.id);
-      setTimeout(() => tr.classList.add('dragging'), 0);
+      const movingRows = dragSrcRows;
+      setTimeout(() => movingRows.forEach(r => r.classList.add('dragging')), 0);
     });
     tr.addEventListener('dragend', () => {
-      tr.classList.remove('dragging');
+      (dragSrcRows || [tr]).forEach(r => r.classList.remove('dragging'));
       document.querySelectorAll('#tableBody tr').forEach(r =>
         r.classList.remove('drag-over-top', 'drag-over-bottom'));
       dragSrcRow = null;
+      dragSrcRows = null;
       updateTotals();
     });
     tr.addEventListener('dragover', e => {
-      if (!dragSrcRow) return;
+      if (!dragSrcRows || !dragSrcRows.length) return;
       e.preventDefault();
       e.stopPropagation();
       e.dataTransfer.dropEffect = 'move';
-      if (dragSrcRow === tr) return;
+      // ドラッグ中の行群の上には挿入インジケータを出さない
+      if (dragSrcRows.includes(tr)) return;
       const mid = tr.getBoundingClientRect().top + tr.getBoundingClientRect().height / 2;
       document.querySelectorAll('#tableBody tr').forEach(r =>
         r.classList.remove('drag-over-top', 'drag-over-bottom'));
@@ -69,10 +82,14 @@
     tr.addEventListener('drop', e => {
       e.preventDefault();
       e.stopPropagation();
-      if (!dragSrcRow || dragSrcRow === tr) return;
+      if (!dragSrcRows || !dragSrcRows.length || dragSrcRows.includes(tr)) return;
       const mid = tr.getBoundingClientRect().top + tr.getBoundingClientRect().height / 2;
       const tbody = document.getElementById('tableBody');
-      tbody.insertBefore(dragSrcRow, e.clientY < mid ? tr : tr.nextSibling);
+      const insertBefore = e.clientY < mid ? tr : tr.nextSibling;
+      // document 順で挿入することで元の並びを保持
+      dragSrcRows.forEach(srcTr => {
+        tbody.insertBefore(srcTr, insertBefore);
+      });
       tr.classList.remove('drag-over-top', 'drag-over-bottom');
     });
 
@@ -361,22 +378,25 @@
       if (!handle || !_dragFromHandle) { e.preventDefault(); return; }
       _dragFromHandle = false;
       dragSrcRow = tr;
+      // 小計行はチェックボックスを持たない → 常に単一行ドラッグ
+      dragSrcRows = [tr];
       e.dataTransfer.effectAllowed = 'move';
       e.dataTransfer.setData('text/plain', tr.id);
       setTimeout(() => tr.classList.add('dragging'), 0);
     });
     tr.addEventListener('dragend', () => {
-      tr.classList.remove('dragging');
+      (dragSrcRows || [tr]).forEach(r => r.classList.remove('dragging'));
       document.querySelectorAll('#tableBody tr').forEach(r =>
         r.classList.remove('drag-over-top', 'drag-over-bottom'));
       dragSrcRow = null;
+      dragSrcRows = null;
       updateTotals();
     });
     tr.addEventListener('dragover', e => {
-      if (!dragSrcRow) return;
+      if (!dragSrcRows || !dragSrcRows.length) return;
       e.preventDefault(); e.stopPropagation();
       e.dataTransfer.dropEffect = 'move';
-      if (dragSrcRow === tr) return;
+      if (dragSrcRows.includes(tr)) return;
       const mid = tr.getBoundingClientRect().top + tr.getBoundingClientRect().height / 2;
       document.querySelectorAll('#tableBody tr').forEach(r =>
         r.classList.remove('drag-over-top', 'drag-over-bottom'));
@@ -386,9 +406,13 @@
       tr.classList.remove('drag-over-top', 'drag-over-bottom'));
     tr.addEventListener('drop', e => {
       e.preventDefault(); e.stopPropagation();
-      if (!dragSrcRow || dragSrcRow === tr) return;
+      if (!dragSrcRows || !dragSrcRows.length || dragSrcRows.includes(tr)) return;
       const mid = tr.getBoundingClientRect().top + tr.getBoundingClientRect().height / 2;
-      document.getElementById('tableBody').insertBefore(dragSrcRow, e.clientY < mid ? tr : tr.nextSibling);
+      const tbody = document.getElementById('tableBody');
+      const insertBefore = e.clientY < mid ? tr : tr.nextSibling;
+      dragSrcRows.forEach(srcTr => {
+        tbody.insertBefore(srcTr, insertBefore);
+      });
       tr.classList.remove('drag-over-top', 'drag-over-bottom');
     });
     const upBtn   = tr.querySelector('.subtotal-move-up');
