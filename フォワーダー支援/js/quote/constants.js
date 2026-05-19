@@ -149,6 +149,10 @@ const DEFAULT_FX_RATES = {
   VND: 0.006, MYR: 32, IDR: 0.0096
 };
 
+// 為替レートパネルで表示・編集する通貨を絞り込む
+// （行ごとの通貨セレクタや fetchAutoFxRates の対象には影響しない）
+const FX_DISPLAY_CURRENCIES = ['USD', 'EUR', 'GBP', 'CNY'];
+
 // ユーザーが上書きしたレート（localStorageから復元）
 let _fxRates = { ...DEFAULT_FX_RATES };
 // 自動取得モード（true=起動時にAPIから取得、false=手動）
