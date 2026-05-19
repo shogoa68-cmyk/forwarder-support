@@ -1,5 +1,8 @@
 // ========== プレビュー・CSV (app-preview.js) ==========
 
+  // 消費税率（プレビュー）：10% 固定。ユーザー選択は廃止。
+  const PV_TAX_RATE = 0.10;
+
   // ========== プレビュー＆エクスポート ==========
   function getQuoteHeader() {
     return {
@@ -106,9 +109,8 @@
     metaEl.innerHTML = metaHTML;
     metaEl.style.display = metaHTML ? 'flex' : 'none';
 
-    // 現在のプレビュー消費税率を読む（行ごとの税額計算用）
-    const taxRatePct = parseFloat(document.getElementById('pvTaxRate')?.value || '0') || 0;
-    const taxRate    = taxRatePct / 100;
+    // 消費税率は 10% 固定（プレビュー仕様）
+    const taxRate = PV_TAX_RATE;
 
     let html = `<table id="previewTable">
       <thead><tr>
@@ -139,7 +141,7 @@
       const taxAmt  = d.taxed ? sub * taxRate : 0;
       totSub += sub;
       totTax += taxAmt;
-      const taxCellText = (d.taxed && taxRate > 0) ? fmtRaw(taxAmt) : (d.taxed ? '—' : '');
+      const taxCellText = d.taxed ? fmtRaw(taxAmt) : '';
       html += `<tr>
         <td class="pv-name" style="font-size:11px;">${escHtml(getCatLabel(d.cat))}</td>
         <td class="${nameCls}">${escHtml(d.name)}</td>
@@ -158,7 +160,7 @@
     });
 
     const totPc = totPr > 0 ? 'pv-pos' : totPr < 0 ? 'pv-neg' : 'pv-zero';
-    const totTaxText = taxRate > 0 ? fmtRaw(totTax) : '—';
+    const totTaxText = fmtRaw(totTax);
     html += `</tbody><tfoot><tr class="pv-total">
       <td colspan="2" style="text-align:right;">合　計</td>
       <td colspan="4">—</td><td style="background:#e8e8e8;color:#aaa;">—</td>
@@ -251,33 +253,30 @@
     }
   }
 
-  // ========== プレビュー消費税計算 ==========
+  // ========== プレビュー消費税計算（10% 固定）==========
   function updatePreviewTax() {
-    const taxRateEl = document.getElementById('pvTaxRate');
     const totalSub  = parseFloat(document.getElementById('pvTotalSubtotal')?.dataset.raw || '0');
-    if (!taxRateEl) return;
-    const rate = parseFloat(taxRateEl.value) / 100 || 0;
+    const rate = PV_TAX_RATE;
     // 行ごとの消費税セルを更新（課税行のみ計算）
     let totTax = 0;
     document.querySelectorAll('#previewTable .pv-tax-cell').forEach(td => {
-      const sub    = parseFloat(td.dataset.sub) || 0;
-      const taxed  = td.dataset.taxed === '1';
+      const sub   = parseFloat(td.dataset.sub) || 0;
+      const taxed = td.dataset.taxed === '1';
       if (!taxed) { td.textContent = ''; return; }
-      if (rate <= 0) { td.textContent = '—'; return; }
       const amt = sub * rate;
       totTax += amt;
       td.textContent = fmtRaw(amt);
     });
     // 合計行の消費税セル
     const totTaxEl = document.querySelector('#previewTable .pv-tax-total');
-    if (totTaxEl) totTaxEl.textContent = rate > 0 ? fmtRaw(totTax) : '—';
+    if (totTaxEl) totTaxEl.textContent = fmtRaw(totTax);
     // 既存：底部サマリ（消費税額・税込合計）
-    const tax  = totalSub * rate;
+    const tax   = totalSub * rate;
     const total = totalSub + tax;
     const taxEl   = document.getElementById('pvTaxAmount');
     const totalEl = document.getElementById('pvTaxTotal');
-    if (taxEl)   taxEl.textContent   = rate > 0 ? fmt(tax)   : '—';
-    if (totalEl) totalEl.textContent = rate > 0 ? fmt(total) : '—';
+    if (taxEl)   taxEl.textContent   = fmt(tax);
+    if (totalEl) totalEl.textContent = fmt(total);
   }
 
   // ========== プレビュー 表示カスタマイズ ==========

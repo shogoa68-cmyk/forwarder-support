@@ -2538,13 +2538,15 @@
   font-size: 13px;
 }
 #tab-quote-make .pv-tax-label { font-weight: 600; color: #7d6b56; white-space: nowrap; }
-#tab-quote-make .pv-tax-select {
+#tab-quote-make .pv-tax-fixed {
+  font-weight: 700;
+  color: #3d2e1e;
+  background: #f4ecd8;
   border: 1px solid #d9cfc2;
   border-radius: 4px;
-  padding: 3px 8px;
+  padding: 2px 8px;
   font-size: 12px;
-  background: white;
-  cursor: pointer;
+  white-space: nowrap;
 }
 #tab-quote-make .pv-tax-detail { color: #2d2418; }
 #tab-quote-make .pv-tax-detail b { color: #8b6914; }
