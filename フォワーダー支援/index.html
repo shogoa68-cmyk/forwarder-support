@@ -1893,7 +1893,8 @@
           <li>多通貨混在時も内部で為替換算して合計表示（FXパネルでレート確認・上書き可。表示通貨は <strong>USD / EUR / GBP / CNY</strong>）</li>
           <li>数式評価ペースト対応（<code>=A1+B1</code> のような Excel スタイル）</li>
           <li><strong>選択行の一括操作</strong>：左端のチェックボックスで複数行を選択し、ツールバーの「選択行」グループから <strong>📋 コピー / 🗑️ 削除</strong> を実行。プルダウンでカテゴリを選び、<strong>✅ 同カテゴリ選択</strong>でそのカテゴリの行を一括チェック、<strong>🏷️ カテゴリ変更</strong>でチェック行のカテゴリを一括変更できます。ヘッダーのチェックボックスで全選択／解除も可能</li>
-          <li><strong>🗂️ 行パターン（一時保存）</strong>：チェックを入れた行を名前付きで保存し、後で末尾にまとめて追加できます（最大 20 件・このブラウザ内のみ）。「輸出ローカル一式」「通関費セット」のような<strong>頻出費用セットの使い回し</strong>に便利。保存内容にはカテゴリ・項目名・課税フラグ・通貨・単価・数量・乗せ幅・備考・サブコンが含まれます</li>
+          <li><strong>🗂️ 行パターン（一時保存）</strong>：チェックを入れた行を名前付きで保存し、後でまとめて挿入できます（最大 20 件・このブラウザ内のみ）。「輸出ローカル一式」「通関費セット」のような<strong>頻出費用セットの使い回し</strong>に便利。<br>
+          挿入位置は読込モーダル上部の <strong>「📍 読込時の挿入位置」</strong>で <strong>末尾追加／選択行の下／先頭</strong>から選択できます。保存内容にはカテゴリ・項目名・課税フラグ・通貨・単価・数量・乗せ幅・備考・サブコンが含まれます</li>
         </ul>
 
         <h4>📝 特記事項・全体リマーク</h4>
@@ -2019,7 +2020,7 @@
       <div class="preset-mgr-box">
         <h3>🗂️ 行パターン（チェック行の一時保存）</h3>
         <p class="preset-mgr-desc">
-          <b>チェックを入れた行</b>を名前付きで保存し、後で末尾に追加できます（最大 20 件・このブラウザのみ）。<br>
+          <b>チェックを入れた行</b>を名前付きで保存し、後でまとめて挿入できます（最大 20 件・このブラウザのみ）。<br>
           「輸出ローカル一式」「通関費セット」など、よく使う費用項目セットの<strong>使い回し</strong>に便利です。
         </p>
         <div class="preset-save-row">
@@ -2027,6 +2028,14 @@
                  placeholder="例）輸出ローカル一式" maxlength="30"
                  onkeydown="if(event.key==='Enter')saveRowPatternFromChecked()" />
           <button class="btn-preset-save-new" onclick="saveRowPatternFromChecked()">💾 チェック行を保存</button>
+        </div>
+        <div class="row-pattern-pos-row">
+          <label class="row-pattern-pos-lbl">📍 読込時の挿入位置：</label>
+          <select id="rowPatternInsertPos" class="row-pattern-pos-sel" title="「読込」ボタンを押した時の挿入位置">
+            <option value="end" selected>末尾に追加</option>
+            <option value="selected">選択行の下に挿入</option>
+            <option value="top">先頭に挿入</option>
+          </select>
         </div>
         <div class="preset-list-wrap" id="rowPatternListWrap">
           <div class="preset-empty">保存済みの行パターンはありません</div>

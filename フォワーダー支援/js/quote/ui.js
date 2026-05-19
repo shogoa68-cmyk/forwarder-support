@@ -832,12 +832,36 @@
     const patterns = getRowPatterns();
     const p = patterns[idx];
     if (!p) return;
-    if (!confirm(`「${p.name}」の ${p.rows.length} 行を末尾に追加しますか？`)) return;
+
+    // 挿入位置を決定（モーダルの select 値を読む）
+    const pos = document.getElementById('rowPatternInsertPos')?.value || 'end';
+    const tbody = document.getElementById('tableBody');
+    let anchor = null;       // null = 末尾 append。それ以外なら anchor の直前に挿入
+    let posLabel = '末尾';
+    if (pos === 'selected') {
+      const checked = document.querySelectorAll('#tableBody tr .row-select-chk:checked');
+      if (!checked.length) {
+        quoteShowToast('⚠️ 挿入位置「選択行の下」が選ばれていますがチェック行がありません。末尾に追加します', 'warn', 3500);
+      } else {
+        const lastTr = checked[checked.length - 1].closest('tr');
+        anchor = lastTr?.nextSibling || null;  // null なら結果的に末尾追加と同じ
+        posLabel = '選択行の下';
+      }
+    } else if (pos === 'top') {
+      anchor = tbody.querySelector('tr') || null;  // 先頭行の直前へ
+      posLabel = '先頭';
+    }
+
+    if (!confirm(`「${p.name}」の ${p.rows.length} 行を${posLabel}に挿入しますか？`)) return;
+
     p.rows.forEach(rd => {
-      addRow(); // 末尾に空行を追加
+      // 末尾に追加してから anchor の直前に移動（addRow を流用）
+      addRow();
       const trs = document.querySelectorAll('#tableBody tr');
       const tr = trs[trs.length - 1];
       if (!tr) return;
+      if (anchor) tbody.insertBefore(tr, anchor);
+      // anchor は元 DOM ノードを保持し続けるので、次回も同じ前に挿入 → 元順序保持
       const id = tr.id.replace('row-', '');
       const set = (sid, val, kind) => {
         const el = document.getElementById(sid + '-' + id);
@@ -858,7 +882,6 @@
       set('mk',  rd.mk);
       set('nt',  rd.note);
       set('sv',  rd.sv);
-      // 課税クラスを反映（toggleTax は * 重複を回避するので安全に呼べる）
       if (typeof toggleTax === 'function') toggleTax(id);
       checkUnfilled(id);
       onCatChange(id);
@@ -866,7 +889,7 @@
     });
     updateTotals();
     closeRowPatternMgr();
-    quoteShowToast(`📂 「${p.name}」の ${p.rows.length} 行を追加しました`, 'success');
+    quoteShowToast(`📂 「${p.name}」の ${p.rows.length} 行を${posLabel}に挿入しました`, 'success');
   }
 
   function deleteRowPattern(idx) {
