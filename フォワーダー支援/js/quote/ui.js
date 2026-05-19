@@ -163,9 +163,11 @@
         ? '最終取得: ' + new Date(lastFetched).toLocaleString('ja-JP', { month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit' })
         : '未取得（デフォルト値）';
     }
-    // レート入力グリッドを再描画
-    const nonJpy = CURRENCIES.filter(c => c !== 'JPY');
-    grid.innerHTML = nonJpy.map(cur => `
+    // レート入力グリッドを再描画（USD/EUR/GBP/CNY のみ表示）
+    const displayCurs = (typeof FX_DISPLAY_CURRENCIES !== 'undefined' && FX_DISPLAY_CURRENCIES.length)
+      ? FX_DISPLAY_CURRENCIES
+      : CURRENCIES.filter(c => c !== 'JPY');
+    grid.innerHTML = displayCurs.map(cur => `
       <div class="fx-rate-item">
         <label class="fx-rate-lbl">${cur} =</label>
         <input type="number" class="fx-rate-inp" data-cur="${cur}"

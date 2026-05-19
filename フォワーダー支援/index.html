@@ -1890,7 +1890,7 @@
         <ul>
           <li>項目ごとに <strong>通貨・単価・数量・カテゴリ</strong> を入力</li>
           <li>行のドラッグ&amp;ドロップで並び替え、<kbd>↑/↓</kbd> キーでも移動可能。<strong>チェックした複数行を掴めば一塊で移動</strong>できます（document 順を維持）</li>
-          <li>多通貨混在時も内部で為替換算して合計表示（FXパネルでレート確認・上書き可）</li>
+          <li>多通貨混在時も内部で為替換算して合計表示（FXパネルでレート確認・上書き可。表示通貨は <strong>USD / EUR / GBP / CNY</strong>）</li>
           <li>数式評価ペースト対応（<code>=A1+B1</code> のような Excel スタイル）</li>
           <li><strong>選択行の一括操作</strong>：左端のチェックボックスで複数行を選択し、ツールバーの「選択行」グループから <strong>📋 コピー / 🗑️ 削除</strong> を実行。プルダウンでカテゴリを選び、<strong>✅ 同カテゴリ選択</strong>でそのカテゴリの行を一括チェック、<strong>🏷️ カテゴリ変更</strong>でチェック行のカテゴリを一括変更できます。ヘッダーのチェックボックスで全選択／解除も可能</li>
           <li><strong>🗂️ 行パターン（一時保存）</strong>：チェックを入れた行を名前付きで保存し、後で末尾にまとめて追加できます（最大 20 件・このブラウザ内のみ）。「輸出ローカル一式」「通関費セット」のような<strong>頻出費用セットの使い回し</strong>に便利。保存内容にはカテゴリ・項目名・課税フラグ・通貨・単価・数量・乗せ幅・備考・サブコンが含まれます</li>
@@ -2462,7 +2462,7 @@
           </div>
           <div id="fxRatePanel">
             <details id="fxRateDetails">
-              <summary onclick="renderFxPanel()">💱 為替レート設定（JPY換算用）</summary>
+              <summary onclick="renderFxPanel()">💱 為替レート設定（JPY換算用：USD / EUR / GBP / CNY）</summary>
               <div class="fx-mode-bar">
                 <label class="fx-mode-label">
                   <input type="checkbox" id="fxAutoModeChk"
