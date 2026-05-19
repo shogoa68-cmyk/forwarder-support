@@ -334,6 +334,59 @@
   function closePreview()  { document.getElementById('previewOverlay').classList.remove('open'); }
   function overlayClick(e) { if (e.target === document.getElementById('previewOverlay')) closePreview(); }
 
+  // ========== プレビュー表示カスタマイズ → 出力書類への連動 ==========
+  // 現在の pv-col-chk 状態をオブジェクトで取得（チェックボックスが無ければ既定値 true）
+  function getPreviewVisibility() {
+    const def = { cat: true, pay: true, bill: true, mk: true, profit: true, note: true, sv: true };
+    document.querySelectorAll('.pv-col-chk').forEach(chk => {
+      const k = chk.dataset.col;
+      if (k && k in def) def[k] = chk.checked;
+    });
+    return def;
+  }
+  // PV グループ → CSV/TSV/Excel の列キー集合
+  const PV_GROUP_TO_KEYS = {
+    cat:    ['cat'],
+    pay:    ['pq', 'un', 'pc', 'pp', 'cd'],
+    bill:   ['bq', 'bc', 'bp'],
+    mk:     ['mk'],
+    profit: ['profit'],
+    note:   ['note'],
+    sv:     ['sv'],
+  };
+  function getVisibleKeysFromPreview() {
+    const vis = getPreviewVisibility();
+    // 'name' と 'sub' は常時表示（プレビューでもトグル対象外）
+    const visKeys = new Set(['name', 'sub']);
+    Object.keys(PV_GROUP_TO_KEYS).forEach(g => {
+      if (vis[g]) PV_GROUP_TO_KEYS[g].forEach(k => visKeys.add(k));
+    });
+    return visKeys;
+  }
+  // CSV モーダルのチェックボックスをプレビュー設定に同期
+  function syncCsvColsToPreview() {
+    const visKeys = getVisibleKeysFromPreview();
+    document.querySelectorAll('.csv-col-chk').forEach(chk => {
+      chk.checked = visKeys.has(chk.dataset.col);
+    });
+  }
+
+  // TSV 列定義（プレビュー表示カスタマイズに連動）
+  const TSV_COL_DEFS = [
+    { hdr: 'カテゴリ', fn: d => getCatLabel(d.cat),    pvGroup: 'cat',    role: 'cat'    },
+    { hdr: '項目名',   fn: d => d.name,                pvGroup: null,     role: 'name'   },
+    { hdr: '数量',     fn: d => fmtRaw(d.pq),          pvGroup: 'pay',    role: 'pq'     },
+    { hdr: '通貨',     fn: d => d.pc,                  pvGroup: 'pay',    role: 'pc'     },
+    { hdr: '単価',     fn: d => fmtRaw(d.pp),          pvGroup: 'pay',    role: 'pp'     },
+    { hdr: 'CD',       fn: d => fmtRaw(d.cd),          pvGroup: 'pay',    role: 'cd'     },
+    { hdr: '数量',     fn: d => fmtRaw(d.bq),          pvGroup: 'bill',   role: 'bq'     },
+    { hdr: '通貨',     fn: d => d.bc,                  pvGroup: 'bill',   role: 'bc'     },
+    { hdr: '単価',     fn: d => fmtRaw(d.bp),          pvGroup: 'bill',   role: 'bp'     },
+    { hdr: '乗せ幅',   fn: d => fmtRaw(d.mk),          pvGroup: 'mk',     role: 'mk'     },
+    { hdr: '利益',     fn: d => fmtRaw(d.profit),      pvGroup: 'profit', role: 'profit' },
+    { hdr: '備考',     fn: d => d.note,                pvGroup: 'note',   role: 'note'   },
+  ];
+
   function copyTSV() {
     const data = collectData();
     if (!data.length) return;
@@ -341,6 +394,10 @@
     let totCost = 0, totBill = 0, totMk = 0;
     data.forEach(d => { totCost += d.cost; totBill += d.bill; totMk += d.mk; });
     const totPr = totBill - totCost;
+    const vis = getPreviewVisibility();
+    const visCols = TSV_COL_DEFS.filter(c => !c.pvGroup || vis[c.pvGroup]);
+    const idxOf = role => visCols.findIndex(c => c.role === role);
+
     const lines = [];
     if (hdr.ref || hdr.customer || hdr.person) {
       if (hdr.ref)      lines.push(`仮REF#\t${hdr.ref}`);
@@ -348,12 +405,19 @@
       if (hdr.person)   lines.push(`担当\t${hdr.person}`);
       lines.push('');
     }
-    lines.push(['カテゴリ','項目名','数量','通貨','単価','CD','数量','通貨','単価','乗せ幅','利益','備考'].join('\t'));
-    data.forEach(d => lines.push([
-      getCatLabel(d.cat), d.name, fmtRaw(d.pq), d.pc, fmtRaw(d.pp), fmtRaw(d.cd),
-      fmtRaw(d.bq), d.bc, fmtRaw(d.bp), fmtRaw(d.mk), fmtRaw(d.profit), d.note
-    ].join('\t')));
-    lines.push(['合計','','','','','—','','','',fmtRaw(totMk),fmtRaw(totPr),''].join('\t'));
+    // ヘッダ行
+    lines.push(visCols.map(c => c.hdr).join('\t'));
+    // データ行
+    data.forEach(d => lines.push(visCols.map(c => c.fn(d)).join('\t')));
+    // 合計行（先頭セルに「合計」、利益／乗せ幅列に値、CD/通貨は「—」または空）
+    const totalRow = visCols.map(c => {
+      if (c.role === 'cat')    return '合計';
+      if (c.role === 'cd')     return '—';
+      if (c.role === 'mk')     return fmtRaw(totMk);
+      if (c.role === 'profit') return fmtRaw(totPr);
+      return '';
+    });
+    lines.push(totalRow.join('\t'));
     const remarkText = getRemarkText();
     if (remarkText) {
       lines.push('');
@@ -375,6 +439,26 @@
   }
 
   // ========== Excel 出力（SheetJS） ==========
+  // 各列定義に pvGroup を付け、プレビュー表示カスタマイズに連動して列を絞り込む
+  // pvGroup: null は常時表示（名前/課税/小計）
+  const XLSX_COL_DEFS = [
+    { hdr: 'カテゴリ',     fn: d => getCatLabel(d.cat),    pvGroup: 'cat',    role: 'cat'    },
+    { hdr: '項目名',       fn: d => d.name,                pvGroup: null,     role: 'name'   },
+    { hdr: '課税',         fn: d => d.taxed ? '●' : '',   pvGroup: null,     role: 'tax'    },
+    { hdr: '数量(原価)',   fn: d => d.pq,                  pvGroup: 'pay',    role: 'pq'     },
+    { hdr: '通貨(原価)',   fn: d => d.pc,                  pvGroup: 'pay',    role: 'pc'     },
+    { hdr: '単価(原価)',   fn: d => d.pp,                  pvGroup: 'pay',    role: 'pp'     },
+    { hdr: 'CD',           fn: d => d.cd,                  pvGroup: 'pay',    role: 'cd'     },
+    { hdr: '数量(請求)',   fn: d => d.bq,                  pvGroup: 'bill',   role: 'bq'     },
+    { hdr: '通貨(請求)',   fn: d => d.bc,                  pvGroup: 'bill',   role: 'bc'     },
+    { hdr: '単価(請求)',   fn: d => d.bp,                  pvGroup: 'bill',   role: 'bp'     },
+    { hdr: '乗せ幅',       fn: d => d.mk,                  pvGroup: 'mk',     role: 'mk'     },
+    { hdr: '小計',         fn: d => (d.bq || 0) * (d.bp || 0), pvGroup: null, role: 'sub'    },
+    { hdr: '利益',         fn: d => d.profit,              pvGroup: 'profit', role: 'profit' },
+    { hdr: '備考',         fn: d => d.note,                pvGroup: 'note',   role: 'note'   },
+    { hdr: 'サブコン',     fn: d => d.sv,                  pvGroup: 'sv',     role: 'sv'     },
+  ];
+
   function exportExcel() {
     if (typeof XLSX === 'undefined') {
       alert('SheetJSライブラリが読み込まれていません。ページを再読み込みしてください。');
@@ -384,53 +468,44 @@
     const data = allRows.filter(r => r._type === 'data');
     if (!data.length) { alert('行がありません。'); return; }
     const hdr = getQuoteHeader();
+    const vis = getPreviewVisibility();
+    // プレビュー表示カスタマイズで非表示にしたグループの列を除外
+    const visCols = XLSX_COL_DEFS.filter(c => !c.pvGroup || vis[c.pvGroup]);
+    const idxOf = role => visCols.findIndex(c => c.role === role);
+    const idxSub    = idxOf('sub');
+    const idxProfit = idxOf('profit');
 
     const aoaRows = [];
-    // ヘッダ情報
     if (hdr.ref)      aoaRows.push(['仮 REF #', hdr.ref]);
     if (hdr.customer) aoaRows.push(['引き合い元', hdr.customer]);
     if (hdr.person)   aoaRows.push(['担当', hdr.person]);
     if (aoaRows.length) aoaRows.push([]);
 
     // 列ヘッダ
-    aoaRows.push([
-      'カテゴリ', '項目名', '課税',
-      '数量(原価)', '通貨(原価)', '単価(原価)',
-      'CD',
-      '数量(請求)', '通貨(請求)', '単価(請求)',
-      '乗せ幅', '小計', '利益', '備考', 'サブコン'
-    ]);
+    aoaRows.push(visCols.map(c => c.hdr));
 
     let totSub = 0, totProfit = 0;
     allRows.forEach(d => {
       if (d._type === 'subtotal') {
-        // 小計セパレーター行
-        aoaRows.push([
-          `━━ ${d.label || '小計'}`, '', '', '', '', '', '', '', '', '',
-          '', d.subtotalText, d.profitText, '', ''
-        ]);
+        const row = visCols.map(() => '');
+        row[0] = `━━ ${d.label || '小計'}`;
+        if (idxSub    >= 0) row[idxSub]    = d.subtotalText;
+        if (idxProfit >= 0) row[idxProfit] = d.profitText;
+        aoaRows.push(row);
         return;
       }
       const sub = (d.bq || 0) * (d.bp || 0);
       totSub    += sub;
       totProfit += d.profit;
-      aoaRows.push([
-        getCatLabel(d.cat),
-        d.name,
-        d.taxed ? '●' : '',
-        d.pq, d.pc, d.pp,
-        d.cd,
-        d.bq, d.bc, d.bp,
-        d.mk,
-        sub,
-        d.profit,
-        d.note,
-        d.sv
-      ]);
+      aoaRows.push(visCols.map(c => c.fn(d)));
     });
     // 合計行
     aoaRows.push([]);
-    aoaRows.push(['合　計', '', '', '', '', '', '', '', '', '', '', totSub, totProfit, '', '']);
+    const totalRow = visCols.map(() => '');
+    totalRow[0] = '合　計';
+    if (idxSub    >= 0) totalRow[idxSub]    = totSub;
+    if (idxProfit >= 0) totalRow[idxProfit] = totProfit;
+    aoaRows.push(totalRow);
 
     // 条件・リマーク
     const remarkText = getRemarkText?.() || '';
@@ -469,6 +544,8 @@
   function downloadCSV() {
     const data = collectData();
     if (!data.length) { alert('行がありません。'); return; }
+    // プレビューの表示カスタマイズを CSV モーダルへ反映（モーダル内で再編集可）
+    syncCsvColsToPreview();
     document.getElementById('csvColModal').classList.add('open');
   }
 
