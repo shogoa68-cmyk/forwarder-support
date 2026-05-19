@@ -432,6 +432,18 @@ body {
 }
 .calc-select[data-key="stack"] { min-width: 80px; }
 .calc-select:focus { border-color: var(--accent); }
+.calc-unit-select {
+  padding: 10px 13px;
+  border: 1.5px solid var(--border);
+  border-radius: 8px;
+  font-size: 13px;
+  background: #fff;
+  color: var(--text);
+  min-width: 90px;
+  outline: none;
+  transition: border-color 0.2s;
+}
+.calc-unit-select:focus { border-color: var(--accent); }
 .calc-result {
   margin-top: 14px; padding: 15px;
   background: var(--accent-lt); border: 1px solid var(--border-md); border-radius: 9px;

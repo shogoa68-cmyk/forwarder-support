@@ -1509,8 +1509,15 @@
         <h4>🚢 LCL RT（W/M）計算</h4>
         <p>LCL 海上運賃の課金単位 <strong>RT（Revenue Ton）</strong>を計算します。W（重量トン）と M（容積トン＝CBM）の大きい方を 1RT とします。複数明細の合算も可能。</p>
         <h4>📦 容積（CBM）・才数計算</h4>
-        <p>海上の <strong>CBM</strong> と国内運送の <strong>才数</strong> を同時に算出します（単位 cm/mm/inch/m 切替可）。<br>
+        <p>海上の <strong>CBM</strong> と国内運送の <strong>才数</strong> を同時に算出します。<br>
         トラック積載目安：軽バン〜40才 / 2t〜120才 / 4t〜250才 / 10t〜580才。</p>
+        <h4>📏 単位設定（全 5 セクション共通仕様）</h4>
+        <p>各計算カードの上部に <strong>単位セレクト（cm / mm / inch / m）</strong>があります。寸法欄に入力した値はこの単位として解釈され、内部で各計算式の基準単位（航空 CW・LCL・バンニング = cm、パレタイズ = mm）へ自動換算されます。重量はどのセクションも常に kg です。</p>
+        <ul>
+          <li>初期値：CBM・航空・LCL・バンニング → cm、パレタイズ → mm</li>
+          <li>入力エコー・行ラベル・コピー出力は、選択した単位のまま表示されます（例：<code>60×40×30cm</code>、<code>2.5×1.6×1.2m</code>）</li>
+          <li>パレタイズの「カスタム」パレットサイズも同じ単位で扱われます（標準パレット T11/ISO/EUR/北米は mm 固定）</li>
+        </ul>
         <h4>🔲 パレタイズシミュレーション</h4>
         <p>パレット上に箱が何個積めるかを計算。標準パレット（T11／ISO／EUR／北米）から選択 or カスタム指定、段数指定が可能。最も効率的な向きを自動選択します。</p>
         <h4>🚢 バンニングシミュレーション</h4>
@@ -1540,12 +1547,22 @@
       <div class="section-title">✈️ 航空チャージャブルウェイト計算</div>
       <p class="calc-desc">実重量と容積重量を比較し、大きい方がチャージャブルウェイト（請求対象重量）になります。<br>
         <span style="font-size:11px;">容積重量(kg) = L × W × H(cm) ÷ 6,000　（IATA基準）</span></p>
+      <div class="calc-shared-opts">
+        <div class="calc-field"><span class="calc-label">単位（全行共通）</span>
+          <select id="air-unit" class="calc-unit-select">
+            <option value="cm">cm</option>
+            <option value="mm">mm</option>
+            <option value="in">inch</option>
+            <option value="m">m</option>
+          </select>
+        </div>
+      </div>
       <div class="multi-row-wrap" id="air-rows-wrap">
         <div class="calc-multi-row">
           <span class="row-num">1</span>
-          <div class="calc-field"><span class="calc-label">長さ (cm)</span><input type="number" class="calc-input" data-key="l" placeholder="60" min="0"></div>
-          <div class="calc-field"><span class="calc-label">幅 (cm)</span><input type="number" class="calc-input" data-key="w" placeholder="40" min="0"></div>
-          <div class="calc-field"><span class="calc-label">高さ (cm)</span><input type="number" class="calc-input" data-key="h" placeholder="30" min="0"></div>
+          <div class="calc-field"><span class="calc-label">長さ</span><input type="number" class="calc-input" data-key="l" placeholder="60" min="0"></div>
+          <div class="calc-field"><span class="calc-label">幅</span><input type="number" class="calc-input" data-key="w" placeholder="40" min="0"></div>
+          <div class="calc-field"><span class="calc-label">高さ</span><input type="number" class="calc-input" data-key="h" placeholder="30" min="0"></div>
           <div class="calc-field"><span class="calc-label">実重量 (kg)</span><input type="number" class="calc-input" data-key="weight" placeholder="5" min="0"></div>
           <div class="calc-field"><span class="calc-label">個数</span><input type="number" class="calc-input" data-key="qty" value="1" min="1" style="width:70px;"></div>
           <button class="btn-row-del" onclick="removeCalcRow(this)" title="この行を削除" style="display:none;">×</button>
@@ -1564,12 +1581,22 @@
       <div class="section-title">🚢 LCL RT（W/M）計算</div>
       <p class="calc-desc">LCL運賃は <strong>RT（Revenue Ton）</strong>= CBM と 重量(ton) の大きい方（W/M）で計算されます。<br>
         <span style="font-size:11px;">W（Weight）= 実重量(kg) ÷ 1,000　／　M（Measurement）= CBM　／　大きい方を1RTとして運賃計算</span></p>
+      <div class="calc-shared-opts">
+        <div class="calc-field"><span class="calc-label">単位（全行共通）</span>
+          <select id="lcl-unit" class="calc-unit-select">
+            <option value="cm">cm</option>
+            <option value="mm">mm</option>
+            <option value="in">inch</option>
+            <option value="m">m</option>
+          </select>
+        </div>
+      </div>
       <div class="multi-row-wrap" id="lcl-rows-wrap">
         <div class="calc-multi-row">
           <span class="row-num">1</span>
-          <div class="calc-field"><span class="calc-label">長さ (cm)</span><input type="number" class="calc-input" data-key="l" placeholder="60" min="0"></div>
-          <div class="calc-field"><span class="calc-label">幅 (cm)</span><input type="number" class="calc-input" data-key="w" placeholder="40" min="0"></div>
-          <div class="calc-field"><span class="calc-label">高さ (cm)</span><input type="number" class="calc-input" data-key="h" placeholder="30" min="0"></div>
+          <div class="calc-field"><span class="calc-label">長さ</span><input type="number" class="calc-input" data-key="l" placeholder="60" min="0"></div>
+          <div class="calc-field"><span class="calc-label">幅</span><input type="number" class="calc-input" data-key="w" placeholder="40" min="0"></div>
+          <div class="calc-field"><span class="calc-label">高さ</span><input type="number" class="calc-input" data-key="h" placeholder="30" min="0"></div>
           <div class="calc-field"><span class="calc-label">実重量 (kg)</span><input type="number" class="calc-input" data-key="weight" placeholder="50" min="0"></div>
           <div class="calc-field"><span class="calc-label">個数</span><input type="number" class="calc-input" data-key="qty" value="1" min="1" style="width:70px;"></div>
           <button class="btn-row-del" onclick="removeCalcRow(this)" title="この行を削除" style="display:none;">×</button>
@@ -1591,7 +1618,7 @@
         <span style="font-size:11px;line-height:1.9;">🚛 トラック積載目安：軽バン <strong>〜40才</strong>　／　2t <strong>〜120才</strong>　／　4t <strong>〜250才</strong>　／　10t <strong>〜580才</strong></span></p>
       <div class="calc-shared-opts">
         <div class="calc-field"><span class="calc-label">単位（全行共通）</span>
-          <select id="cbm-unit" style="padding:10px 13px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:13px;background:#f8fafc;min-width:90px;">
+          <select id="cbm-unit" class="calc-unit-select">
             <option value="cm">cm</option>
             <option value="mm">mm</option>
             <option value="in">inch</option>
@@ -1623,8 +1650,16 @@
       <p class="calc-desc">パレット上に箱が何個積めるかをシミュレーションします。最も効率的な向きを自動選択します。<br>
         <span style="font-size:11px;line-height:1.9;">📦 標準パレットサイズ：T11（日本標準） <strong>1100×1100mm</strong>　／　ISO/EUR-2 <strong>1200×1000mm</strong>　／　EUR pallet <strong>1200×800mm</strong>　／　北米標準 <strong>1219×1016mm</strong>（48×40インチ）</span></p>
       <div class="calc-shared-opts">
+        <div class="calc-field"><span class="calc-label">単位（全行共通／カスタムパレット含む）</span>
+          <select id="pal-unit" class="calc-unit-select">
+            <option value="mm">mm</option>
+            <option value="cm">cm</option>
+            <option value="in">inch</option>
+            <option value="m">m</option>
+          </select>
+        </div>
         <div class="calc-field"><span class="calc-label">パレットサイズ（全行共通）</span>
-          <select id="pal-size" onchange="togglePalCustom()" style="padding:10px 13px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:13px;background:#f8fafc;min-width:190px;">
+          <select id="pal-size" onchange="togglePalCustom()" class="calc-unit-select" style="min-width:190px;">
             <option value="1100x1100">T11: 1100×1100 mm</option>
             <option value="1200x1000">ISO: 1200×1000 mm</option>
             <option value="1200x800">EUR: 1200×800 mm</option>
@@ -1633,17 +1668,17 @@
           </select>
         </div>
         <div id="pal-custom-wrap" style="display:none;flex-direction:row;gap:8px;flex-wrap:wrap;align-items:flex-end;">
-          <div class="calc-field"><span class="calc-label">パレット縦 (mm)</span><input type="number" class="calc-input" id="pal-pw" placeholder="1100" style="width:100px;"></div>
-          <div class="calc-field"><span class="calc-label">パレット横 (mm)</span><input type="number" class="calc-input" id="pal-pd" placeholder="1100" style="width:100px;"></div>
+          <div class="calc-field"><span class="calc-label">パレット縦</span><input type="number" class="calc-input" id="pal-pw" placeholder="1100" style="width:100px;"></div>
+          <div class="calc-field"><span class="calc-label">パレット横</span><input type="number" class="calc-input" id="pal-pd" placeholder="1100" style="width:100px;"></div>
         </div>
         <div class="calc-field"><span class="calc-label">積み段数（全行共通）</span><input type="number" class="calc-input" id="pal-layers" value="5" min="1" style="width:70px;"></div>
       </div>
       <div class="multi-row-wrap" id="pal-rows-wrap">
         <div class="calc-multi-row">
           <span class="row-num">1</span>
-          <div class="calc-field"><span class="calc-label">箱 長さ (mm)</span><input type="number" class="calc-input" data-key="l" placeholder="400" min="0"></div>
-          <div class="calc-field"><span class="calc-label">箱 幅 (mm)</span><input type="number" class="calc-input" data-key="w" placeholder="300" min="0"></div>
-          <div class="calc-field"><span class="calc-label">箱 高さ (mm)</span><input type="number" class="calc-input" data-key="h" placeholder="250" min="0"></div>
+          <div class="calc-field"><span class="calc-label">箱 長さ</span><input type="number" class="calc-input" data-key="l" placeholder="400" min="0"></div>
+          <div class="calc-field"><span class="calc-label">箱 幅</span><input type="number" class="calc-input" data-key="w" placeholder="300" min="0"></div>
+          <div class="calc-field"><span class="calc-label">箱 高さ</span><input type="number" class="calc-input" data-key="h" placeholder="250" min="0"></div>
           <div class="calc-field"><span class="calc-label">総個数（任意）</span><input type="number" class="calc-input" data-key="total" placeholder="100" min="1" style="width:90px;"></div>
           <button class="btn-row-del" onclick="removeCalcRow(this)" title="この行を削除" style="display:none;">×</button>
         </div>
@@ -1661,6 +1696,14 @@
       <div class="section-title">🚢 バンニングシミュレーション</div>
       <p class="calc-desc">貨物の物量から3種類のコンテナを比較し、最適なサイズを提案します（理論値）。</p>
       <div class="calc-shared-opts">
+        <div class="calc-field"><span class="calc-label">単位（全行共通）</span>
+          <select id="van-unit" class="calc-unit-select">
+            <option value="cm">cm</option>
+            <option value="mm">mm</option>
+            <option value="in">inch</option>
+            <option value="m">m</option>
+          </select>
+        </div>
         <div class="calc-field" style="align-self:flex-end;padding-bottom:2px;">
           <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--text);cursor:pointer;white-space:nowrap;" title="チェックすると行ごとの段積み設定を上書きして全行を段積み不可で計算します">
             <input type="checkbox" id="van-no-stack" style="width:16px;height:16px;cursor:pointer;accent-color:var(--accent);">
@@ -1671,9 +1714,9 @@
       <div class="multi-row-wrap" id="van-rows-wrap">
         <div class="calc-multi-row">
           <span class="row-num">1</span>
-          <div class="calc-field"><span class="calc-label">貨物 長さ (cm)</span><input type="number" class="calc-input" data-key="l" placeholder="60" min="0"></div>
-          <div class="calc-field"><span class="calc-label">貨物 幅 (cm)</span><input type="number" class="calc-input" data-key="w" placeholder="40" min="0"></div>
-          <div class="calc-field"><span class="calc-label">貨物 高さ (cm)</span><input type="number" class="calc-input" data-key="h" placeholder="30" min="0"></div>
+          <div class="calc-field"><span class="calc-label">貨物 長さ</span><input type="number" class="calc-input" data-key="l" placeholder="60" min="0"></div>
+          <div class="calc-field"><span class="calc-label">貨物 幅</span><input type="number" class="calc-input" data-key="w" placeholder="40" min="0"></div>
+          <div class="calc-field"><span class="calc-label">貨物 高さ</span><input type="number" class="calc-input" data-key="h" placeholder="30" min="0"></div>
           <div class="calc-field"><span class="calc-label">1個の重量 (kg)</span><input type="number" class="calc-input" data-key="weight" placeholder="10" min="0"></div>
           <div class="calc-field"><span class="calc-label">個数</span><input type="number" class="calc-input" data-key="qty" placeholder="100" min="1" style="width:90px;"></div>
           <button class="btn-row-del" onclick="removeCalcRow(this)" title="この行を削除" style="display:none;">×</button>

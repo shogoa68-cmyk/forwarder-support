@@ -69,6 +69,17 @@ function getRowMeta(row, unit) {
   return { packing, stack, stackLabel: stack === 'ng' ? '段積み不可' : '段積み可' };
 }
 
+// 単位変換係数を取得（選択された unit から target unit への倍率）
+// 例：選択=cm, target=mm → 10　／　選択=in, target=cm → 2.54
+const _UNIT_TO_MM = { cm: 10, mm: 1, in: 25.4, m: 1000 };
+function getUnitConversion(selectId, targetUnit) {
+  const unit = document.getElementById(selectId)?.value || targetUnit;
+  const from = _UNIT_TO_MM[unit];
+  const to   = _UNIT_TO_MM[targetUnit];
+  if (!from || !to) return { unit: targetUnit, factor: 1 };
+  return { unit, factor: from / to };
+}
+
 // 結果表示用の入力情報サマリー文字列（例：60×40×30cm / 5kg / ダンボール / 段積み可 × 10個）
 function formatRowInputSummary(parts) {
   return parts.filter(Boolean).join(' / ');
@@ -273,20 +284,23 @@ function updateRowNums(wrap) {
 // ================================================================
 
 function calcAirCW() {
+  const { unit, factor } = getUnitConversion('air-unit', 'cm');
   const wrap = document.getElementById('air-rows-wrap');
   const rows = wrap.querySelectorAll('.calc-multi-row');
   const results = [];
   for (const row of rows) {
-    const l      = parseFloat(row.querySelector('[data-key="l"]').value);
-    const w      = parseFloat(row.querySelector('[data-key="w"]').value);
-    const h      = parseFloat(row.querySelector('[data-key="h"]').value);
+    const lInput = parseFloat(row.querySelector('[data-key="l"]').value);
+    const wInput = parseFloat(row.querySelector('[data-key="w"]').value);
+    const hInput = parseFloat(row.querySelector('[data-key="h"]').value);
     const weight = parseFloat(row.querySelector('[data-key="weight"]').value);
     const qty    = parseInt(row.querySelector('[data-key="qty"]').value) || 1;
-    if ([l,w,h,weight].some(isNaN)) continue;
+    if ([lInput,wInput,hInput,weight].some(isNaN)) continue;
     const meta  = getRowMeta(row);
+    // cm 換算で計算式に投入（IATA 基準は cm ベース）
+    const l = lInput * factor, w = wInput * factor, h = hInput * factor;
     const volW1 = (l*w*h) / 6000;
     const cw1   = Math.max(volW1, weight);
-    results.push({ l, w, h, weight, qty, volW1, cw1, cwTot: cw1*qty, tag: weight>=volW1?'W':'V', ...meta });
+    results.push({ l, w, h, lInput, wInput, hInput, weight, qty, volW1, cw1, cwTot: cw1*qty, tag: weight>=volW1?'W':'V', ...meta });
   }
   if (results.length === 0) { alert('すべての値を入力してください'); return; }
 
@@ -294,7 +308,7 @@ function calcAirCW() {
     const r   = results[0];
     const tag = r.weight >= r.volW1 ? '実重量適用（W）' : '容積重量適用（V）';
     const inputLine = formatRowInputSummary([
-      `${r.l}×${r.w}×${r.h}cm`,
+      `${r.lInput}×${r.wInput}×${r.hInput}${unit}`,
       `${r.weight}kg`,
       r.packing,
       r.stackLabel,
@@ -314,7 +328,7 @@ function calcAirCW() {
     const totalQty = results.reduce((s, r) => s + r.qty,   0);
     const rowsHtml = results.map((r, i) => {
       const lbl = formatRowInputSummary([
-        `${r.l}×${r.w}×${r.h}cm`, `${r.weight}kg`, r.packing, r.stackLabel, `× ${r.qty}個`
+        `${r.lInput}×${r.wInput}×${r.hInput}${unit}`, `${r.weight}kg`, r.packing, r.stackLabel, `× ${r.qty}個`
       ]);
       return `
       <div style="margin-bottom:8px;">
@@ -339,21 +353,24 @@ function calcAirCW() {
 // ================================================================
 
 function calcLclRT() {
+  const { unit, factor } = getUnitConversion('lcl-unit', 'cm');
   const wrap = document.getElementById('lcl-rows-wrap');
   const rows = wrap.querySelectorAll('.calc-multi-row');
   const results = [];
   for (const row of rows) {
-    const l      = parseFloat(row.querySelector('[data-key="l"]').value);
-    const w      = parseFloat(row.querySelector('[data-key="w"]').value);
-    const h      = parseFloat(row.querySelector('[data-key="h"]').value);
+    const lInput = parseFloat(row.querySelector('[data-key="l"]').value);
+    const wInput = parseFloat(row.querySelector('[data-key="w"]').value);
+    const hInput = parseFloat(row.querySelector('[data-key="h"]').value);
     const weight = parseFloat(row.querySelector('[data-key="weight"]').value);
     const qty    = parseInt(row.querySelector('[data-key="qty"]').value) || 1;
-    if ([l,w,h,weight].some(isNaN)) continue;
+    if ([lInput,wInput,hInput,weight].some(isNaN)) continue;
     const meta  = getRowMeta(row);
+    // cm 換算で計算式に投入（CBM = L*W*H[cm] / 1e6）
+    const l = lInput * factor, w = wInput * factor, h = hInput * factor;
     const cbm1  = (l*w*h) / 1e6;
     const wTon1 = weight / 1000;
     const rt1   = Math.max(cbm1, wTon1);
-    results.push({ l, w, h, weight, qty, cbm1, wTon1, rt1,
+    results.push({ l, w, h, lInput, wInput, hInput, weight, qty, cbm1, wTon1, rt1,
       cbmTot: cbm1*qty, wTonTot: wTon1*qty, rtTot: rt1*qty,
       tag: wTon1>=cbm1?'W':'M', ...meta });
   }
@@ -363,7 +380,7 @@ function calcLclRT() {
     const r   = results[0];
     const tag = r.wTon1 >= r.cbm1 ? 'W（実重量トン）適用' : 'M（容積）適用';
     const inputLine = formatRowInputSummary([
-      `${r.l}×${r.w}×${r.h}cm`, `${r.weight}kg`, r.packing, r.stackLabel, `× ${r.qty}個`
+      `${r.lInput}×${r.wInput}×${r.hInput}${unit}`, `${r.weight}kg`, r.packing, r.stackLabel, `× ${r.qty}個`
     ]);
     appendCalcResult('lcl-result',
       renderInputEcho(inputLine) +
@@ -383,7 +400,7 @@ function calcLclRT() {
     const totalQty  = results.reduce((s, r) => s + r.qty,     0);
     const rowsHtml  = results.map((r, i) => {
       const lbl = formatRowInputSummary([
-        `${r.l}×${r.w}×${r.h}cm`, `${r.weight}kg`, r.packing, r.stackLabel, `× ${r.qty}個`
+        `${r.lInput}×${r.wInput}×${r.hInput}${unit}`, `${r.weight}kg`, r.packing, r.stackLabel, `× ${r.qty}個`
       ]);
       return `
       <div style="margin-bottom:8px;">
@@ -498,26 +515,34 @@ function togglePalCustom() {
 }
 
 function calcPalletize() {
+  const { unit, factor } = getUnitConversion('pal-unit', 'mm');
   const sv = document.getElementById('pal-size').value;
+  // 標準パレットサイズは mm 固定。カスタム入力のみ単位変換を適用。
   const SIZES = {'1100x1100':[1100,1100],'1200x1000':[1200,1000],'1200x800':[1200,800],'1219x1016':[1219,1016]};
-  let pw, pd;
-  if (SIZES[sv]) { [pw,pd] = SIZES[sv]; }
-  else {
-    pw = parseFloat(document.getElementById('pal-pw').value);
-    pd = parseFloat(document.getElementById('pal-pd').value);
-    if (isNaN(pw)||isNaN(pd)) { alert('パレットサイズを入力してください'); return; }
+  let pw, pd, pwDisp, pdDisp, palUnit;
+  if (SIZES[sv]) {
+    [pw,pd] = SIZES[sv];
+    pwDisp = pw; pdDisp = pd; palUnit = 'mm';
+  } else {
+    const pwInput = parseFloat(document.getElementById('pal-pw').value);
+    const pdInput = parseFloat(document.getElementById('pal-pd').value);
+    if (isNaN(pwInput)||isNaN(pdInput)) { alert('パレットサイズを入力してください'); return; }
+    pw = pwInput * factor; pd = pdInput * factor;
+    pwDisp = pwInput; pdDisp = pdInput; palUnit = unit;
   }
   const lay  = parseInt(document.getElementById('pal-layers').value) || 1;
   const wrap = document.getElementById('pal-rows-wrap');
   const rows = wrap.querySelectorAll('.calc-multi-row');
   const results = [];
   for (const row of rows) {
-    const bl  = parseFloat(row.querySelector('[data-key="l"]').value);
-    const bw  = parseFloat(row.querySelector('[data-key="w"]').value);
-    const bh  = parseFloat(row.querySelector('[data-key="h"]').value);
+    const blInput = parseFloat(row.querySelector('[data-key="l"]').value);
+    const bwInput = parseFloat(row.querySelector('[data-key="w"]').value);
+    const bhInput = parseFloat(row.querySelector('[data-key="h"]').value);
     const tot = parseInt(row.querySelector('[data-key="total"]').value) || 0;
-    if ([bl,bw,bh].some(isNaN)) continue;
+    if ([blInput,bwInput,bhInput].some(isNaN)) continue;
     const meta = getRowMeta(row);
+    // mm 換算で計算式に投入
+    const bl = blInput * factor, bw = bwInput * factor, bh = bhInput * factor;
     const o1 = {cols:Math.floor(pw/bl),rows:Math.floor(pd/bw)};
     const o2 = {cols:Math.floor(pw/bw),rows:Math.floor(pd/bl)};
     const p1 = o1.cols*o1.rows, p2 = o2.cols*o2.rows;
@@ -527,15 +552,15 @@ function calcPalletize() {
     const effLay   = meta.stack === 'ng' ? 1 : lay;
     const perPallet = perPer1L * effLay;
     const pNeeded   = (tot > 0 && perPallet > 0) ? Math.ceil(tot/perPallet) : null;
-    results.push({ bl, bw, bh, tot, best, perPer1L, perPallet, pNeeded, effLay, ...meta });
+    results.push({ bl, bw, bh, blInput, bwInput, bhInput, tot, best, perPer1L, perPallet, pNeeded, effLay, ...meta });
   }
   if (results.length === 0) { alert('箱の寸法を入力してください'); return; }
 
   if (results.length === 1) {
     const r = results[0];
     const inputLine = formatRowInputSummary([
-      `箱 ${r.bl}×${r.bw}×${r.bh}mm`,
-      `パレット ${pw}×${pd}mm`,
+      `箱 ${r.blInput}×${r.bwInput}×${r.bhInput}${unit}`,
+      `パレット ${pwDisp}×${pdDisp}${palUnit}`,
       `${r.effLay}段${r.stack==='ng'?'（段積み不可で 1 段固定）':''}`,
       r.packing,
       r.tot>0?`総 ${r.tot}個`:''
@@ -543,7 +568,7 @@ function calcPalletize() {
     appendCalcResult('pal-result',
       renderInputEcho(inputLine) +
       `<div class="calc-row">
-      <div class="calc-item"><div class="calc-item-label">パレットサイズ</div><div class="calc-item-value">${pw}×${pd} mm</div></div>
+      <div class="calc-item"><div class="calc-item-label">パレットサイズ</div><div class="calc-item-value">${pwDisp}×${pdDisp} ${palUnit}</div></div>
       <div class="calc-item hl"><div class="calc-item-label">1段あたり</div><div class="calc-item-value">${r.perPer1L} 個 <span class="calc-note">(${r.best.cols}列×${r.best.rows}行)</span></div></div>
       <div class="calc-item hl"><div class="calc-item-label">1パレット合計（${r.effLay}段）</div><div class="calc-item-value">${r.perPallet} 個</div></div>
       <div class="calc-item"><div class="calc-item-label">積載後高さ（箱のみ）</div><div class="calc-item-value">${(r.bh*r.effLay).toLocaleString()} mm</div></div>
@@ -555,7 +580,7 @@ function calcPalletize() {
     const rowsHtml = results.map((r, i) => {
       if (r.pNeeded !== null) totalPallets += r.pNeeded;
       const lbl = formatRowInputSummary([
-        `箱${r.bl}×${r.bw}×${r.bh}mm`,
+        `箱${r.blInput}×${r.bwInput}×${r.bhInput}${unit}`,
         r.packing,
         r.stack==='ng'?'段積み不可':'',
         r.tot>0?`総${r.tot}個`:''
@@ -574,7 +599,7 @@ function calcPalletize() {
             <div class="calc-item hl" style="flex:1;"><div class="calc-item-label">合計パレット数（全${results.length}品種）</div><div class="calc-item-value">${totalPallets} パレット</div></div>
           </div></div>` : '';
     appendCalcResult('pal-result', rowsHtml + totalHtml,
-      `${results.length}品種 / パレット${pw}×${pd}mm ${lay}段${totalPallets>0?' / 合計'+totalPallets+'パレット':''}`);
+      `${results.length}品種 / パレット${pwDisp}×${pdDisp}${palUnit} ${lay}段${totalPallets>0?' / 合計'+totalPallets+'パレット':''}`);
   }
 }
 
@@ -583,6 +608,7 @@ function calcPalletize() {
 // ================================================================
 
 function calcVanning() {
+  const { unit, factor } = getUnitConversion('van-unit', 'cm');
   const CONT = {
     '20ft':{l:589,w:235,h:239,maxPay:28000,label:'20ft Dry'},
     '40ft':{l:1203,w:235,h:239,maxPay:26500,label:'40ft Dry'},
@@ -591,26 +617,27 @@ function calcVanning() {
   const globalNoStack = document.getElementById('van-no-stack').checked;
   const PERMS   = [[0,1,2],[0,2,1],[1,0,2],[1,2,0],[2,0,1],[2,1,0]];
 
-  // 行データを収集（段積み可否は per-row）
+  // 行データを収集（段積み可否は per-row）。cm 換算で計算式に投入
   const wrap    = document.getElementById('van-rows-wrap');
   const rowEls  = wrap.querySelectorAll('.calc-multi-row');
   const cargo   = [];
   for (const row of rowEls) {
-    const bl  = parseFloat(row.querySelector('[data-key="l"]').value);
-    const bw  = parseFloat(row.querySelector('[data-key="w"]').value);
-    const bh  = parseFloat(row.querySelector('[data-key="h"]').value);
-    const bkg = parseFloat(row.querySelector('[data-key="weight"]').value) || 0;
-    const qty = parseInt(row.querySelector('[data-key="qty"]').value) || 0;
-    if ([bl,bw,bh].some(isNaN)) continue;
+    const blInput = parseFloat(row.querySelector('[data-key="l"]').value);
+    const bwInput = parseFloat(row.querySelector('[data-key="w"]').value);
+    const bhInput = parseFloat(row.querySelector('[data-key="h"]').value);
+    const bkg     = parseFloat(row.querySelector('[data-key="weight"]').value) || 0;
+    const qty     = parseInt(row.querySelector('[data-key="qty"]').value) || 0;
+    if ([blInput,bwInput,bhInput].some(isNaN)) continue;
     const meta = getRowMeta(row);
     const rowNoStack = globalNoStack || meta.stack === 'ng';
-    cargo.push({ bl, bw, bh, bkg, qty, rowNoStack, ...meta });
+    const bl = blInput * factor, bw = bwInput * factor, bh = bhInput * factor;
+    cargo.push({ bl, bw, bh, blInput, bwInput, bhInput, bkg, qty, rowNoStack, ...meta });
   }
   if (cargo.length === 0) { alert('貨物の寸法を入力してください'); return; }
 
   // ── 単品モード（従来動作 + SVG）──────────────────────────
   if (cargo.length === 1) {
-    const { bl, bw, bh, bkg, qty, rowNoStack, packing, stackLabel } = cargo[0];
+    const { bl, bw, bh, blInput, bwInput, bhInput, bkg, qty, rowNoStack, packing, stackLabel } = cargo[0];
     const dims = [bl,bw,bh];
     const cCBM = (bl*bw*bh)/1e6;
 
@@ -653,7 +680,7 @@ function calcVanning() {
 
     const svgHtml = Object.entries(CONT).map(([key,c]) => buildContainerSVG(key, c, [bl,bw,bh], rowNoStack, rec.key)).join('');
     const inputLine = formatRowInputSummary([
-      `${bl}×${bw}×${bh}cm`,
+      `${blInput}×${bwInput}×${bhInput}${unit}`,
       `${bkg}kg`,
       packing,
       rowNoStack ? '段積み不可' : stackLabel,
@@ -673,7 +700,7 @@ function calcVanning() {
   // ── 複数品種モード（CBM/重量ベース推定）──────────────────
   // 品種ごとに per-container 最大数も計算して内訳に使う（段積み可否は行単位）
   let totalCBM = 0, totalKg = 0, totalQty = 0;
-  const cargoDetail = cargo.map(({ bl, bw, bh, bkg, qty, rowNoStack, packing, stackLabel }) => {
+  const cargoDetail = cargo.map(({ bl, bw, bh, blInput, bwInput, bhInput, bkg, qty, rowNoStack, packing, stackLabel }) => {
     const cCBM = (bl*bw*bh)/1e6;
     const dims = [bl,bw,bh];
     // 各コンテナタイプの最大積載数（行ごとの段積み可否を反映）
@@ -692,13 +719,13 @@ function calcVanning() {
     totalCBM += subtotalCBM;
     totalKg  += subtotalKg;
     totalQty += (qty || 1);
-    return { bl, bw, bh, bkg, qty, cCBM, subtotalCBM, subtotalKg, maxPerCont, rowNoStack, packing, stackLabel };
+    return { bl, bw, bh, blInput, bwInput, bhInput, bkg, qty, cCBM, subtotalCBM, subtotalKg, maxPerCont, rowNoStack, packing, stackLabel };
   });
 
   // 品種別内訳HTML
   const detailHtml = cargoDetail.map((r, i) => {
     const lbl = formatRowInputSummary([
-      `${r.bl}×${r.bw}×${r.bh}cm`,
+      `${r.blInput}×${r.bwInput}×${r.bhInput}${unit}`,
       r.bkg>0?`${r.bkg}kg`:'',
       r.packing,
       r.rowNoStack?'段積み不可':'',
