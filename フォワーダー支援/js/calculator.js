@@ -20,11 +20,19 @@ const PACKING_OPTIONS = [
   { v: 'その他',            l: '🔧 その他' }
 ];
 
-function _buildPackingFieldHtml() {
+// セクション別に除外する荷姿（パレタイズに不適切なもの等）
+const PACKING_EXCLUDE_BY_SECTION = {
+  // パレタイズ：パレット上にパレットは積まない／バラ積みはパレット化と矛盾
+  pal: ['パレット積み', 'バラ積み']
+};
+
+function _buildPackingFieldHtml(section) {
+  const excluded = new Set(PACKING_EXCLUDE_BY_SECTION[section] || []);
+  const opts = PACKING_OPTIONS.filter(o => !excluded.has(o.v));
   return '<div class="calc-field" data-aux="packing">'
     + '<span class="calc-label">荷姿</span>'
     + '<select class="calc-select" data-key="packing">'
-    +   PACKING_OPTIONS.map(o => `<option value="${o.v}">${o.l}</option>`).join('')
+    +   opts.map(o => `<option value="${o.v}">${o.l}</option>`).join('')
     + '</select>'
     + '</div>';
 }
@@ -39,13 +47,20 @@ function _buildStackFieldHtml() {
     + '</div>';
 }
 
+function _getSectionPrefix(row) {
+  const wrap = row.closest('[id$="-rows-wrap"]');
+  if (!wrap) return '';
+  return wrap.id.replace('-rows-wrap', '');
+}
+
 function injectAuxCalcFields(row) {
   if (!row || row.dataset._auxInjected === '1') return;
   if (row.querySelector('[data-key="packing"]')) { row.dataset._auxInjected = '1'; return; }
   const anchor = row.querySelector('[data-key="qty"], [data-key="total"]')?.closest('.calc-field');
   if (!anchor) return;
+  const section = _getSectionPrefix(row);
   const tmp = document.createElement('div');
-  tmp.innerHTML = _buildPackingFieldHtml() + _buildStackFieldHtml();
+  tmp.innerHTML = _buildPackingFieldHtml(section) + _buildStackFieldHtml();
   while (tmp.firstChild) anchor.parentNode.insertBefore(tmp.firstChild, anchor);
   row.dataset._auxInjected = '1';
 }
