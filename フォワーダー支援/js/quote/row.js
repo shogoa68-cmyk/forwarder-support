@@ -220,7 +220,7 @@
     const q    = f => frag.querySelector(`[data-field="${f}"]`);
 
     // IDs
-    ['cat','tx','nm','pq','un','pc','pp','cd','bq','bc','bp','mk','st','pr','nt','sv','done']
+    ['cat','tx','nm','pq','un','pc','pp','cd','bq','bc','bp','mk','st','pr','nt','sv']
       .forEach(f => { q(f).id = `${f}-${id}`; });
 
     // Select options
@@ -237,7 +237,6 @@
     q('pp').oninput   = () => onPay(id);
     q('mk').oninput   = () => calc(id);
     q('nt').onkeydown = e  => noteKeydown(e, id);
-    q('done').onclick = () => toggleDone(id);
     q('del').onclick  = () => delRow(id);
     q('ins').onclick    = () => addRowAfter(id);
     q('subins').onclick = () => insertSubtotalRow(id);

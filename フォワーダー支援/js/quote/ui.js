@@ -611,16 +611,9 @@
     });
   }
 
-  // ========== 処理済みマーク ==========
-  function toggleDone(id) {
-    const btn = document.getElementById('done-' + id);
-    const tr  = document.getElementById('row-' + id);
-    if (!btn || !tr) return;
-    const isDone = btn.classList.toggle('done');
-    tr.classList.toggle('row-done', isDone);
-    quoteShowToast(isDone ? '✅ 処理済みにしました' : '↩ 未処理に戻しました',
-              isDone ? 'success' : 'info', 1800);
-  }
+  // ========== 処理済みマーク（廃止：done-btn を撤去）==========
+  // 旧 toggleDone は呼び出しゼロのため削除。インポート時に旧データ
+  // (doneStates) は無視される。
 
   // ========== プリセット管理 ==========
   const PRESET_KEY = 'quotePresets_v1';
@@ -915,16 +908,6 @@
     // 基本データ収集
     const base = gatherAllData();
 
-    // doneボタン状態を収集（行ID → true/false）
-    const doneStates = {};
-    document.querySelectorAll('#tableBody tr').forEach(tr => {
-      const btn = tr.querySelector('.done-btn');
-      if (btn) {
-        const id = btn.id.replace('done-', '');
-        doneStates[id] = btn.classList.contains('done');
-      }
-    });
-
     // calc行データを収集（IDがなくクラスのみのため個別取得）
     const calcRows = [];
     document.querySelectorAll('#calcBody tr').forEach(tr => {
@@ -948,7 +931,6 @@
       exportedAt: new Date().toISOString(),
       fields: base.fields,
       rows: base.rows,
-      doneStates,
       calcRows
     };
 
@@ -1006,18 +988,7 @@
         });
       });
 
-      // ---- doneボタン状態復元 ----
-      Object.entries(data.doneStates || {}).forEach(([rowId, isDone]) => {
-        const btn = document.getElementById('done-' + rowId);
-        if (!btn) return;
-        if (isDone) {
-          btn.classList.add('done');
-          btn.closest('tr')?.classList.add('row-done');
-        } else {
-          btn.classList.remove('done');
-          btn.closest('tr')?.classList.remove('row-done');
-        }
-      });
+      // ---- doneボタン状態（廃止）：旧 JSON との互換のため doneStates は読み飛ばす ----
 
       // ---- calc行復元 ----
       document.getElementById('calcBody').innerHTML = '';
