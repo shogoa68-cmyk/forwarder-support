@@ -322,9 +322,10 @@
       return;
     }
     const tbody = document.getElementById('tableBody');
+    // querySelectorAll は document order を返すので、元の並びを保持
     const srcRows = Array.from(checkboxes).map(chk => chk.closest('tr')).filter(Boolean);
-    // 最後の選択行の後ろに追加
-    const lastSrc = srcRows[srcRows.length - 1];
+    // 最後の選択行の直後を起点に、新行を順番に追加していく（anchor を更新して並び順を保持）
+    let anchor = srcRows[srcRows.length - 1];
     srcRows.forEach(srcTr => {
       rowCount++;
       const newId = rowCount;
@@ -337,9 +338,10 @@
       const srcCat = document.getElementById(`cat-${srcId}`)?.value || '';
       const srcCur = document.getElementById(`pc-${srcId}`)?.value  || 'JPY';
       newTr.replaceChildren(buildRowHTML(newId, srcCat, srcCur));
-      // 末尾または最後の選択行の後に挿入
-      if (lastSrc.nextSibling) tbody.insertBefore(newTr, lastSrc.nextSibling);
+      // anchor の直後に挿入し、anchor を新行に更新（次の新行はさらにその後ろ）
+      if (anchor.nextSibling) tbody.insertBefore(newTr, anchor.nextSibling);
       else tbody.appendChild(newTr);
+      anchor = newTr;
       // 値を復元
       newTr.querySelectorAll('input, select, textarea').forEach((el, j) => {
         if (cells[j] !== undefined) el.value = cells[j];
