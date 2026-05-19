@@ -2436,16 +2436,39 @@
 /* 行アクション列（左端） */
 #tab-quote-make td.action-cell {
   text-align: center;
-  padding: 2px 4px !important;
+  padding: 1px 3px !important;
   white-space: nowrap;
   background: #f8f5ef;
   border-right: 1px solid #d9cfc2;
+  width: 1px;        /* 内容に合わせて自動収縮 */
 }
 #tab-quote-make th.hd-action {
-  width: 1px;        /* 内容に合わせて自動収縮 */
+  width: 1px;
   background: #f4ecd8;
 }
 #tab-quote-make tr:hover td.action-cell { background: #f0e8d8; }
+
+/* アクション列内のボタンを共通アイコンスタイルに（コンパクト 19x19） */
+#tab-quote-make .action-cell .done-btn,
+#tab-quote-make .action-cell .btn-del,
+#tab-quote-make .action-cell .btn-ins,
+#tab-quote-make .action-cell .btn-subtotal-ins,
+#tab-quote-make .action-cell .subtotal-del-btn {
+  width: 19px;
+  height: 19px;
+  padding: 0 !important;
+  font-size: 11px;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 3px;
+  margin: 0 1px;
+  vertical-align: middle;
+  font-weight: 700;
+}
+/* done-btn だけは円形を維持（トグル状態の視覚的区別） */
+#tab-quote-make .action-cell .done-btn { border-radius: 50%; }
 
 /* 削除ボタン列 */
 #tab-quote-make .subtotal-del-cell {
