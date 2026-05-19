@@ -436,7 +436,7 @@
     // 行アクションは左端へ統一（regular row のアクションセル位置に合わせる）。
     tr.innerHTML = `
       <td class="subtotal-del-cell action-cell">
-        <button type="button" class="subtotal-del-btn" onclick="removeSubtotalRow('${id}')">✕ 削除</button>
+        <button type="button" class="subtotal-del-btn" onclick="removeSubtotalRow('${id}')" title="この小計行を削除">✕</button>
       </td>
       <td class="subtotal-drag-cell">
         <span class="drag-handle" title="ドラッグして並び替え">⠿</span>
