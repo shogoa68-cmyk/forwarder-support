@@ -1899,7 +1899,8 @@
         <strong>「計算」タブの結果カードの「📝 見積もりへ」ボタン</strong>を押すと、この自由入力欄（特記事項・補足）へ計算結果を末尾追記し、自動的に見積もりタブへ切替＋スクロールします。</p>
 
         <h4>📋 プレビュー出力</h4>
-        <p>「プレビュー」ボタンで表計算形式のレイアウトに整形表示。そのまま <strong>CSV / Excel（.xlsx）/ PDF</strong> で出力できます（SheetJS を使用）。</p>
+        <p>「プレビュー」ボタンで表計算形式のレイアウトに整形表示。そのまま <strong>CSV / Excel（.xlsx）/ PDF</strong> で出力できます（SheetJS を使用）。<br>
+        プレビュー右上の<strong>「表示カスタマイズ」</strong>でカテゴリ／支払い／請求／乗せ幅／利益／備考／サブコンなどの表示・非表示を切り替えると、その設定が<strong>そのまま Excel / CSV / TSV コピー / PDF 印刷にも反映</strong>されます（CSV はモーダルで再編集も可）。</p>
 
         <h4>🧰 便利機能</h4>
         <ul>
@@ -2526,6 +2527,9 @@
     <div id="csvColModal" onclick="if(event.target===this)closeCsvColModal()">
       <div id="csvColBox">
         <h3>⬇ CSV出力：列を選択してください</h3>
+        <p style="font-size:11px;color:#7d6b56;margin:-4px 0 8px;line-height:1.5;">
+          ℹ️ プレビュー（表計算形式）の表示カスタマイズを初期反映済みです。必要に応じてここで再編集できます。
+        </p>
         <div class="csv-col-presets">
           <button type="button" class="csv-col-preset-btn" onclick="applyCsvPreset('client')" title="請求項目のみ表示（支払い・マークアップ・利益を非表示）">📄 客先提示用</button>
           <button type="button" class="csv-col-preset-btn" onclick="applyCsvPreset('internal')" title="支払い・マークアップ・利益・サブコンを含む全列表示">🏢 社内管理用</button>
