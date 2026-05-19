@@ -2288,8 +2288,20 @@
 }
 #tab-quote-make .btn-bulk-cat       { background: #eef3ff; }
 #tab-quote-make .btn-bulk-cat-pick  { background: #f0fff0; border-color: #9cca9c; color: #5a6e42; }
+#tab-quote-make .btn-bulk-pattern {
+  background: #fff4e0;
+  border: 1px solid #e8c870;
+  color: #7a5500;
+  border-radius: 3px;
+  font-size: 11px;
+  padding: 5px 10px;
+  cursor: pointer;
+  line-height: 1;
+  margin: 0;
+}
 #tab-quote-make .btn-bulk-cat:hover,
-#tab-quote-make .btn-bulk-cat-pick:hover { filter: brightness(0.95); transform: translateY(-1px); }
+#tab-quote-make .btn-bulk-cat-pick:hover,
+#tab-quote-make .btn-bulk-pattern:hover { filter: brightness(0.95); transform: translateY(-1px); }
 #tab-quote-make .bulk-cat-select {
   font-size: 11px;
   padding: 4px 6px;

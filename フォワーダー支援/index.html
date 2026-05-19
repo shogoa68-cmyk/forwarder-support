@@ -1893,6 +1893,7 @@
           <li>多通貨混在時も内部で為替換算して合計表示（FXパネルでレート確認・上書き可）</li>
           <li>数式評価ペースト対応（<code>=A1+B1</code> のような Excel スタイル）</li>
           <li><strong>選択行の一括操作</strong>：左端のチェックボックスで複数行を選択し、ツールバーの「選択行」グループから <strong>📋 コピー / 🗑️ 削除</strong> を実行。プルダウンでカテゴリを選び、<strong>✅ 同カテゴリ選択</strong>でそのカテゴリの行を一括チェック、<strong>🏷️ カテゴリ変更</strong>でチェック行のカテゴリを一括変更できます。ヘッダーのチェックボックスで全選択／解除も可能</li>
+          <li><strong>🗂️ 行パターン（一時保存）</strong>：チェックを入れた行を名前付きで保存し、後で末尾にまとめて追加できます（最大 20 件・このブラウザ内のみ）。「輸出ローカル一式」「通関費セット」のような<strong>頻出費用セットの使い回し</strong>に便利。保存内容にはカテゴリ・項目名・課税フラグ・通貨・単価・数量・乗せ幅・備考・サブコンが含まれます</li>
         </ul>
 
         <h4>📝 特記事項・全体リマーク</h4>
@@ -2007,6 +2008,30 @@
         </div>
         <div class="preset-mgr-footer">
           <button class="btn-preset-close" onclick="closePresetMgr()">閉じる</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ========== 行パターン管理モーダル（チェック行のみ保存） ========== -->
+    <div class="preset-mgr-modal" id="rowPatternModal"
+         onclick="if(event.target===this)closeRowPatternMgr()">
+      <div class="preset-mgr-box">
+        <h3>🗂️ 行パターン（チェック行の一時保存）</h3>
+        <p class="preset-mgr-desc">
+          <b>チェックを入れた行</b>を名前付きで保存し、後で末尾に追加できます（最大 20 件・このブラウザのみ）。<br>
+          「輸出ローカル一式」「通関費セット」など、よく使う費用項目セットの<strong>使い回し</strong>に便利です。
+        </p>
+        <div class="preset-save-row">
+          <input type="text" class="preset-name-input" id="rowPatternNameInput"
+                 placeholder="例）輸出ローカル一式" maxlength="30"
+                 onkeydown="if(event.key==='Enter')saveRowPatternFromChecked()" />
+          <button class="btn-preset-save-new" onclick="saveRowPatternFromChecked()">💾 チェック行を保存</button>
+        </div>
+        <div class="preset-list-wrap" id="rowPatternListWrap">
+          <div class="preset-empty">保存済みの行パターンはありません</div>
+        </div>
+        <div class="preset-mgr-footer">
+          <button class="btn-preset-close" onclick="closeRowPatternMgr()">閉じる</button>
         </div>
       </div>
     </div>
@@ -2426,6 +2451,8 @@
               <select id="bulkCatSelect" class="bulk-cat-select" title="対象カテゴリ（選択／一括変更で共有）"></select>
               <button class="btn-bulk-cat-pick" onclick="selectByCategory()" title="このカテゴリの行をすべてチェック">✅ 同カテゴリ選択</button>
               <button class="btn-bulk-cat"     onclick="applyBulkCategory()" title="チェックした行のカテゴリをこのカテゴリへ一括変更">🏷️ カテゴリ変更</button>
+              <span class="btn-group-sep" aria-hidden="true">|</span>
+              <button class="btn-bulk-pattern" onclick="openRowPatternMgr()" title="チェックした行を名前付きで保存・末尾に追加で読込">🗂️ 行パターン</button>
             </div>
             <div class="btn-group-row">
               <button class="btn-preview"    onclick="openPreview()">📋 プレビュー</button>
