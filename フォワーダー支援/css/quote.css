@@ -2267,8 +2267,8 @@
 #tab-quote-make .btn-subtotal { background: #efffef; border-color: #9dcf9d; color: #5a6e42; }
 #tab-quote-make .btn-bulk-copy { background: #faf7f2; border-color: #d9cfc2; color: #2d2418; }
 #tab-quote-make .btn-bulk-delete { background: #fff0f0; border-color: #f0b0b0; color: #c00; }
-#tab-quote-make .btn-bulk-cat {
-  background: #eef3ff;
+#tab-quote-make .btn-bulk-cat,
+#tab-quote-make .btn-bulk-cat-pick {
   border: 1px solid #a8947e;
   color: #3d2e1e;
   border-radius: 3px;
@@ -2278,7 +2278,10 @@
   line-height: 1;
   margin: 0;
 }
-#tab-quote-make .btn-bulk-cat:hover { filter: brightness(0.95); transform: translateY(-1px); }
+#tab-quote-make .btn-bulk-cat       { background: #eef3ff; }
+#tab-quote-make .btn-bulk-cat-pick  { background: #f0fff0; border-color: #9cca9c; color: #5a6e42; }
+#tab-quote-make .btn-bulk-cat:hover,
+#tab-quote-make .btn-bulk-cat-pick:hover { filter: brightness(0.95); transform: translateY(-1px); }
 #tab-quote-make .bulk-cat-select {
   font-size: 11px;
   padding: 4px 6px;

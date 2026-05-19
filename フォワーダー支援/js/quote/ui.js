@@ -280,6 +280,42 @@
     sel.innerHTML = html;
   }
 
+  // bulkCatSelect で選んだカテゴリの行をすべてチェック（小計行を除く）
+  function selectByCategory() {
+    const sel = document.getElementById('bulkCatSelect');
+    if (!sel) return;
+    if (sel.value === '__none__') {
+      quoteShowToast('⚠️ 対象カテゴリを選んでください', 'warn', 3000);
+      return;
+    }
+    const target = sel.value;
+    let matched = 0;
+    let totalChkRows = 0;
+    document.querySelectorAll('#tableBody tr').forEach(tr => {
+      if (tr.dataset.type === 'subtotal') return;
+      const chk = tr.querySelector('.row-select-chk');
+      if (!chk) return;
+      totalChkRows++;
+      const id = tr.id.replace('row-', '');
+      const cat = document.getElementById(`cat-${id}`)?.value || '';
+      if (cat === target) {
+        chk.checked = true;
+        matched++;
+      } else {
+        chk.checked = false;
+      }
+    });
+    // ヘッダー全選択チェックは「すべての対象行が一致したとき」のみ ON
+    const allChk = document.getElementById('selectAllChk');
+    if (allChk) allChk.checked = matched > 0 && matched === totalChkRows;
+    const catLabel = getAllCategories().find(c => c.value === target)?.label || '— カテゴリ —';
+    if (matched === 0) {
+      quoteShowToast(`ℹ️ 「${catLabel}」の行はありません`, 'info', 3000);
+    } else {
+      quoteShowToast(`✅ 「${catLabel}」の ${matched} 行を選択しました`, 'success');
+    }
+  }
+
   // チェック済み行のカテゴリを一括変更
   function applyBulkCategory() {
     const sel = document.getElementById('bulkCatSelect');
