@@ -456,6 +456,8 @@
         if (ok) updateTotals();
       });
     }
+    // Undo/Redo 履歴の初期化（初期スナップショットを採取し input/mutation 監視を開始）
+    if (typeof initQuoteHistory === 'function') initQuoteHistory();
   }
 
   // ========== トースト通知 ==========
@@ -991,6 +993,21 @@
       e.preventDefault();
       const pal = document.getElementById('cmdPalette');
       pal.classList.contains('open') ? closeCmdPalette() : openCmdPalette();
+    }
+    // Ctrl/Cmd+Z → Undo（Shift で Redo）。Ctrl/Cmd+Y → Redo。
+    const ctrl = e.ctrlKey || e.metaKey;
+    if (ctrl && !e.altKey && (e.key === 'z' || e.key === 'Z')) {
+      e.preventDefault();
+      e.stopPropagation();
+      if (e.shiftKey) { if (typeof quoteRedo === 'function') quoteRedo(); }
+      else            { if (typeof quoteUndo === 'function') quoteUndo(); }
+      return;
+    }
+    if (ctrl && !e.altKey && !e.shiftKey && (e.key === 'y' || e.key === 'Y')) {
+      e.preventDefault();
+      e.stopPropagation();
+      if (typeof quoteRedo === 'function') quoteRedo();
+      return;
     }
     // Escape → 見積タブ内のモーダルをすべて閉じる
     if (e.key === 'Escape') {
