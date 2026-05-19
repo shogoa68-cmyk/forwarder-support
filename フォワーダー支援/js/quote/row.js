@@ -432,8 +432,12 @@
     tr.id = `row-${id}`;
     tr.dataset.type = 'subtotal';
     tr.className = 'subtotal-row';
-    // 19 列構成（tfoot の合計行と同じ列レイアウト）
+    // 19 列構成（tfoot の合計行と同じ列レイアウト）。
+    // 行アクションは左端へ統一（regular row のアクションセル位置に合わせる）。
     tr.innerHTML = `
+      <td class="subtotal-del-cell action-cell">
+        <button type="button" class="subtotal-del-btn" onclick="removeSubtotalRow('${id}')">✕ 削除</button>
+      </td>
       <td class="subtotal-drag-cell">
         <span class="drag-handle" title="ドラッグして並び替え">⠿</span>
       </td>
@@ -452,9 +456,6 @@
       <td class="subtotal-group-subtotal subtotal-cell">—</td>
       <td class="subtotal-group-profit profit-cell profit-zero">—</td>
       <td colspan="2"></td>
-      <td class="subtotal-del-cell">
-        <button type="button" class="subtotal-del-btn" onclick="removeSubtotalRow('${id}')">✕ 削除</button>
-      </td>
     `;
     const tbody = document.getElementById('tableBody');
     if (afterId) {
