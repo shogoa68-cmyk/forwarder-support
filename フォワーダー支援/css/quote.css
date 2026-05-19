@@ -1948,6 +1948,26 @@
 #tab-quote-make .preset-mgr-box h3 { font-size: 15px; color: #3d2e1e; margin-bottom: 6px; }
 #tab-quote-make .preset-mgr-desc { font-size: 12px; color: #7d6b56; margin-bottom: 14px; line-height: 1.6; }
 #tab-quote-make .preset-save-row { display: flex; gap: 8px; margin-bottom: 16px; }
+#tab-quote-make .row-pattern-pos-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+  padding: 6px 10px;
+  background: #f4ecd8;
+  border: 1px solid #d9cfc2;
+  border-radius: 5px;
+}
+#tab-quote-make .row-pattern-pos-lbl { font-size: 12px; font-weight: 600; color: #5d4e3a; }
+#tab-quote-make .row-pattern-pos-sel {
+  font-size: 12px;
+  padding: 3px 8px;
+  border: 1px solid #d9cfc2;
+  border-radius: 4px;
+  background: #fff;
+  color: #2d2418;
+  cursor: pointer;
+}
 #tab-quote-make .preset-name-input {
   flex: 1;
   border: 1px solid #d9cfc2;
