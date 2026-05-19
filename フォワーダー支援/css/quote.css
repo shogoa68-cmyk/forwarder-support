@@ -326,7 +326,7 @@
   gap: 14px 20px;
   margin-bottom: 16px;
 }
-/* ===== フォントサイズ変更ボタン ===== */
+/* ===== 旧：フォントサイズ変更ボタン（後方互換） ===== */
 #tab-quote-make .font-size-btn {
   background: #ede5d6;
   border: 1px solid #d9cfc2;
@@ -339,10 +339,35 @@
   line-height: 1.4;
   transition: background 0.15s;
 }
-#tab-quote-make .font-size-btn:hover {
-  background: #d9cfc2;
-  border-color: #a8947e;
+#tab-quote-make .font-size-btn:hover { background: #d9cfc2; border-color: #a8947e; }
+
+/* ===== レイアウトスケール（大/中/小）ボタン ===== */
+#tab-quote-make .layout-scale-btn {
+  background: #faf7f2;
+  border: 1px solid #d9cfc2;
+  border-radius: 4px;
+  padding: 3px 10px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  color: #7d6b56;
+  line-height: 1.4;
+  margin: 0 1px;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
 }
+#tab-quote-make .layout-scale-btn:hover { background: #f0e8d8; }
+#tab-quote-make .layout-scale-btn.active {
+  background: #8b6914;
+  color: #fff;
+  border-color: #8b6914;
+}
+
+/* ===== 大/中/小 スケール本体（zoom で全体を拡縮） ===== */
+/* zoom は Chrome/Edge/Safari/Firefox 126+ で動作。フォールバックは
+   --base-font-size の JS 設定で行う（小さめ・大きめの文字に切替）。 */
+#tab-quote-make.scale-lg { zoom: 1.15; }
+#tab-quote-make.scale-md { zoom: 1; }
+#tab-quote-make.scale-sm { zoom: 0.85; }
 @media (max-width: 900px) {#tab-quote-make .condition-grid { grid-template-columns: repeat(2, 1fr); }
 }
 @media (max-width: 560px) {#tab-quote-make .condition-grid { grid-template-columns: 1fr; }

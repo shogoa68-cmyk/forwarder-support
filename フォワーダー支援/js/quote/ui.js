@@ -1438,34 +1438,52 @@
   }
 
 
-  // ===== フォントサイズ変更 =====
-  const FONT_SIZE_KEY = 'quoteFontSize';
-  const FONT_SIZE_MIN = 10;
-  const FONT_SIZE_MAX = 18;
-  const FONT_SIZE_DEFAULT = 13;
+  // ===== レイアウトスケール（大/中/小） =====
+  // 大：デスクトップ向け、中：タブレット向け、小：スマホ向け
+  const LAYOUT_SCALE_KEY = 'quoteLayoutScale_v1';
+  const LAYOUT_SCALES = {
+    lg: { font: 15, label: '大（デスクトップ）' },
+    md: { font: 13, label: '中（タブレット）' },
+    sm: { font: 11, label: '小（スマホ）' }
+  };
 
-  // Phase 2b 以降、--base-font-size は #tab-quote-make スコープに定義されている。
-  // documentElement に書いてもスコープ内の宣言で上書きされるため、見積タブ要素に直接書く。
   function getQuoteScopeEl() {
     return document.getElementById('tab-quote-make') || document.documentElement;
   }
 
-  function changeFontSize(delta) {
+  // クラス付与とフォントサイズ変数を適用（トースト・保存なし）
+  function applyLayoutScale(scale) {
+    if (!LAYOUT_SCALES[scale]) scale = 'md';
     const el = getQuoteScopeEl();
-    const current = parseFloat(
-      getComputedStyle(el).getPropertyValue('--base-font-size')
-    ) || FONT_SIZE_DEFAULT;
-    const next = Math.min(FONT_SIZE_MAX, Math.max(FONT_SIZE_MIN, current + delta));
-    el.style.setProperty('--base-font-size', next + 'px');
-    localStorage.setItem(FONT_SIZE_KEY, next);
-    quoteShowToast(`🔠 文字サイズ: ${next}px`, 'info', 1500);
+    el.classList.remove('scale-sm', 'scale-md', 'scale-lg');
+    el.classList.add('scale-' + scale);
+    el.style.setProperty('--base-font-size', LAYOUT_SCALES[scale].font + 'px');
+    // ボタンの選択状態を反映
+    document.querySelectorAll('.layout-scale-btn').forEach(b => {
+      b.classList.toggle('active', b.dataset.scale === scale);
+    });
   }
 
-  function restoreFontSize() {
-    const saved = localStorage.getItem(FONT_SIZE_KEY);
-    if (saved) {
-      getQuoteScopeEl().style.setProperty('--base-font-size', saved + 'px');
-    }
+  function setLayoutScale(scale) {
+    if (!LAYOUT_SCALES[scale]) return;
+    applyLayoutScale(scale);
+    localStorage.setItem(LAYOUT_SCALE_KEY, scale);
+    quoteShowToast(`📐 ${LAYOUT_SCALES[scale].label}`, 'info', 1500);
+  }
+
+  function restoreLayoutScale() {
+    // 旧 quoteFontSize（px 数値）は破棄してデフォルト md にフォールバック
+    const saved = localStorage.getItem(LAYOUT_SCALE_KEY) || 'md';
+    applyLayoutScale(saved);
+  }
+
+  // 後方互換：古い呼び出し（A-/A+ ボタン由来）を新しい3段階に翻訳
+  function changeFontSize(delta) {
+    const order = ['sm','md','lg'];
+    const cur = localStorage.getItem(LAYOUT_SCALE_KEY) || 'md';
+    const i = order.indexOf(cur);
+    const next = Math.max(0, Math.min(order.length - 1, i + (delta > 0 ? 1 : -1)));
+    setLayoutScale(order[next]);
   }
 
   // Phase 2b：DOMContentLoaded ではなく initQuoteUI() として呼び出すように変更
@@ -1474,8 +1492,8 @@
     initCargoSort();
     initStickyNote();
     renderPackingPreset();
-    restoreFontSize();
-    refreshBulkCatSelect();   // 「選択行 → カテゴリ一括変更」セレクトを初期構築
+    restoreLayoutScale();      // 大/中/小 スケールを復元
+    refreshBulkCatSelect();    // 「選択行 → カテゴリ一括変更」セレクトを初期構築
   }
 
   // ===== Phase 2b：見積タブ初回表示時の遅延初期化集約 =====
