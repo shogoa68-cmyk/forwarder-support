@@ -53,6 +53,133 @@
     autoSaveTimer = setTimeout(() => saveData(true), 2000);
   }
 
+  // ========== Undo / Redo（スナップショット履歴） ==========
+  const _UNDO_MAX = 50;
+  const _undoStack = [];
+  const _redoStack = [];
+  let   _lastSnapshot = null;     // 最後に確定したスナップショット（JSON 文字列）
+  let   _snapshotTimer = null;
+  let   _historyApplying = false; // applySnapshot 実行中はスナップショット採取を抑止
+
+  function _currentSnapshot() {
+    try { return JSON.stringify(gatherAllData()); } catch(_) { return null; }
+  }
+
+  // 現在の状態を確定スナップショットとして記録。前回と異なれば履歴に push。
+  function snapshotNow() {
+    if (_historyApplying) return;
+    const cur = _currentSnapshot();
+    if (cur === null) return;
+    if (_lastSnapshot !== null && _lastSnapshot !== cur) {
+      _undoStack.push(_lastSnapshot);
+      if (_undoStack.length > _UNDO_MAX) _undoStack.shift();
+      _redoStack.length = 0; // 新しい操作で redo はクリア
+      _updateHistoryButtonsUI();
+    }
+    _lastSnapshot = cur;
+  }
+
+  function scheduleSnapshot() {
+    if (_historyApplying) return;
+    clearTimeout(_snapshotTimer);
+    _snapshotTimer = setTimeout(snapshotNow, 500);
+  }
+
+  // データを画面に適用（restoreAutoSave と同等。トースト・restoreBar 操作なし）
+  function _applyQuoteData(data) {
+    if (!data) return;
+    Object.entries(data.fields || {}).forEach(([id, val]) => {
+      const el = document.getElementById(id);
+      if (!el) return;
+      if (el.type === 'checkbox') el.checked = val;
+      else el.value = val;
+    });
+    document.getElementById('tableBody').innerHTML = '';
+    rowCount = 0;
+    (data.rows || []).forEach(() => addRow());
+    const trs = document.querySelectorAll('#tableBody tr');
+    (data.rows || []).forEach((cells, i) => {
+      if (!trs[i]) return;
+      trs[i].querySelectorAll('input, select, textarea').forEach((el, j) => {
+        if (cells[j] !== undefined) el.value = cells[j];
+      });
+    });
+    trs.forEach(tr => {
+      const nm = tr.querySelector('[data-field="nm"]');
+      if (!nm) return;
+      const rowId = nm.id.replace('nm-', '');
+      checkUnfilled(rowId);
+      onCatChange(rowId);
+      onPay(parseInt(rowId));
+    });
+    if (typeof updateTotals === 'function') updateTotals();
+    if (typeof updateRouteModeIcon === 'function') updateRouteModeIcon();
+  }
+
+  function quoteUndo() {
+    snapshotNow(); // 入力途中の保留分を確定
+    if (!_undoStack.length) {
+      quoteShowToast('ℹ️ これ以上戻せません', 'info', 1500);
+      return;
+    }
+    const prev = _undoStack.pop();
+    if (_lastSnapshot !== null) _redoStack.push(_lastSnapshot);
+    if (_redoStack.length > _UNDO_MAX) _redoStack.shift();
+    _historyApplying = true;
+    try {
+      const data = JSON.parse(prev);
+      _applyQuoteData(data);
+    } catch(e) { /* ignore */ }
+    _lastSnapshot = prev;
+    // DOM 変更で発火する mutation/input は無視するため、少し遅らせて解除
+    setTimeout(() => { _historyApplying = false; }, 150);
+    _updateHistoryButtonsUI();
+    quoteShowToast('↶ 元に戻しました', 'info', 1200);
+  }
+
+  function quoteRedo() {
+    if (!_redoStack.length) {
+      quoteShowToast('ℹ️ やり直す変更がありません', 'info', 1500);
+      return;
+    }
+    const next = _redoStack.pop();
+    if (_lastSnapshot !== null) _undoStack.push(_lastSnapshot);
+    if (_undoStack.length > _UNDO_MAX) _undoStack.shift();
+    _historyApplying = true;
+    try {
+      const data = JSON.parse(next);
+      _applyQuoteData(data);
+    } catch(e) { /* ignore */ }
+    _lastSnapshot = next;
+    setTimeout(() => { _historyApplying = false; }, 150);
+    _updateHistoryButtonsUI();
+    quoteShowToast('↷ やり直しました', 'info', 1200);
+  }
+
+  function _updateHistoryButtonsUI() {
+    const u = document.getElementById('btnQuoteUndo');
+    const r = document.getElementById('btnQuoteRedo');
+    if (u) u.disabled = _undoStack.length === 0;
+    if (r) r.disabled = _redoStack.length === 0;
+  }
+
+  // 見積タブ表示時に初期化（initQuoteState から呼ぶ）
+  function initQuoteHistory() {
+    _undoStack.length = 0;
+    _redoStack.length = 0;
+    _lastSnapshot = _currentSnapshot();
+    _updateHistoryButtonsUI();
+    // input/change（タイピング・選択変更）に対するデバウンス収録
+    const root = document.getElementById('tab-quote-make') || document;
+    root.addEventListener('input',  scheduleSnapshot);
+    root.addEventListener('change', scheduleSnapshot);
+    // テーブル行の追加・削除・ドラッグ並び替え・ソートを検出
+    const tbody = document.getElementById('tableBody');
+    if (tbody && typeof MutationObserver !== 'undefined') {
+      new MutationObserver(scheduleSnapshot).observe(tbody, { childList: true });
+    }
+  }
+
   function gatherAllData() {
     // フォーム値
     const fields = {};

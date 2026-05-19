@@ -1859,6 +1859,7 @@
         <ul>
           <li><strong>プリセット/一時保存</strong>：現在の入力状態を名前付きで最大10件保存。「輸入案件用」「国内配送用」などのテンプレートや、作業途中の退避に使えます</li>
           <li><strong>自動保存</strong>：チェックすると入力2秒後にブラウザへ自動保存（localStorage、同じブラウザ内のみ有効）。次回開いた時に復元バナーから戻せます</li>
+          <li><strong>↶ 戻す / ↷ 進む（Undo / Redo）</strong>：見積タブ全体（行・条件・自由入力・特記事項など）の編集を最大 50 ステップ巻き戻し／やり直し。<kbd>Ctrl+Z</kbd>（macOS は <kbd>⌘+Z</kbd>）で戻す、<kbd>Ctrl+Y</kbd> もしくは <kbd>Ctrl+Shift+Z</kbd> で進む。連続タイピングは 1 ステップにまとめられます</li>
           <li><strong>📤 出力 / 📥 読込</strong>：JSON ファイルで端末間共有・バックアップが可能</li>
           <li><strong>🔠 文字サイズ A- / A+</strong>：表示倍率を調整</li>
         </ul>
@@ -1923,6 +1924,10 @@
         自動保存
         <span class="autosave-info">ⓘ</span>
       </label>
+      <span class="save-toolbar-sep"></span>
+      <span class="save-toolbar-label">↺ 履歴</span>
+      <button class="save-btn save-btn-undo" id="btnQuoteUndo" onclick="quoteUndo()" disabled title="元に戻す (Ctrl+Z)">↶ 戻す</button>
+      <button class="save-btn save-btn-redo" id="btnQuoteRedo" onclick="quoteRedo()" disabled title="やり直す (Ctrl+Y / Ctrl+Shift+Z)">↷ 進む</button>
       <span class="save-toolbar-sep"></span>
       <span class="save-toolbar-label">📁 ファイル</span>
       <button class="save-btn save-btn-export" onclick="exportToFile()" title="見積データをJSONファイルに出力">
