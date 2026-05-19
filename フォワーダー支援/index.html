@@ -1901,7 +1901,8 @@
 
         <h4>📋 プレビュー出力</h4>
         <p>「プレビュー」ボタンで表計算形式のレイアウトに整形表示。そのまま <strong>CSV / Excel（.xlsx）/ PDF</strong> で出力できます（SheetJS を使用）。<br>
-        プレビュー右上の<strong>「表示カスタマイズ」</strong>でカテゴリ／支払い／請求／乗せ幅／利益／備考／サブコンなどの表示・非表示を切り替えると、その設定が<strong>そのまま Excel / CSV / TSV コピー / PDF 印刷にも反映</strong>されます（CSV はモーダルで再編集も可）。</p>
+        プレビュー右上の<strong>「表示カスタマイズ」</strong>でカテゴリ／支払い／<strong>単位（個別）</strong>／請求／乗せ幅／<strong>消費税</strong>／利益／備考／サブコンの表示・非表示を切り替えると、その設定が<strong>そのまま Excel / CSV / TSV コピー / PDF 印刷にも反映</strong>されます（CSV はモーダルで再編集も可）。<br>
+        消費税列は「課税」にチェックを入れた行に対し、画面下の消費税率（なし／5％／8％／10％）から自動計算されます。<strong>項目名の先頭にある <code>*</code> は課税項目を示す印</strong>です。</p>
 
         <h4>🧰 便利機能</h4>
         <ul>
@@ -2344,7 +2345,8 @@
         </label>
       </div>
       <div id="tableWrap">
-        <p class="section-desc">費用項目ごとに <b>支払い（仕入）</b> と <b>請求</b> の数量・通貨・単価を入力します。<b>③ 乗せ幅</b> を入力すると請求単価に自動加算、<b>④ 利益</b> 欄で粗利をリアルタイム確認できます。CSV インポートやカテゴリ順並び替えも利用可能です。</p>
+        <p class="section-desc">費用項目ごとに <b>支払い（仕入）</b> と <b>請求</b> の数量・通貨・単価を入力します。<b>③ 乗せ幅</b> を入力すると請求単価に自動加算、<b>④ 利益</b> 欄で粗利をリアルタイム確認できます。CSV インポートやカテゴリ順並び替えも利用可能です。<br>
+        <span style="font-size:11px;color:var(--text-md);">💡 <b>項目名の先頭にある <code style="background:#fff;padding:1px 4px;border-radius:3px;">*</code> は課税項目を示します</b>（課税欄のチェックで自動付与）。プレビュー画面では消費税列に税額が表示されます。</span></p>
         <div class="container">
           <div id="tableScrollWrap">
           <table id="quoteTable">
@@ -2599,8 +2601,10 @@
               <span class="pv-cust-label">表示列：</span>
               <label><input type="checkbox" class="pv-col-chk" data-col="cat"     checked> カテゴリ</label>
               <label><input type="checkbox" class="pv-col-chk" data-col="pay"     checked> 原価列（数量/通貨/単価/CD）</label>
+              <label><input type="checkbox" class="pv-col-chk" data-col="unit"    checked> 単位</label>
               <label><input type="checkbox" class="pv-col-chk" data-col="bill"    checked> 請求列（数量/通貨/単価）</label>
               <label><input type="checkbox" class="pv-col-chk" data-col="mk"      checked> 乗せ幅</label>
+              <label><input type="checkbox" class="pv-col-chk" data-col="tax-col" checked> 消費税</label>
               <label><input type="checkbox" class="pv-col-chk" data-col="profit"  checked> 利益</label>
               <label><input type="checkbox" class="pv-col-chk" data-col="note"    checked> 備考</label>
               <label><input type="checkbox" class="pv-col-chk" data-col="sv"      checked> サブコン</label>
@@ -2617,7 +2621,7 @@
         </details>
         <p class="pv-hint">
           ※ CSV はデータ行のみ出力（カテゴリ列を先頭に付与）。再読み込みにも対応。<br>
-          ※ 課税項目は項目名の先頭に * が付いています。
+          ※ <b>項目名の先頭にある <code>*</code> は課税項目を示します</b>（課税欄のチェックで自動付与）。消費税の列・税率は「消費税」セクションで設定できます。
         </p>
       </div>
     </div>
