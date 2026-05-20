@@ -11,7 +11,7 @@ window.QuoteApp = window.QuoteApp || { state: {}, data: {}, fx: {} };
 
   // ========== 定数 ==========
   const CURRENCIES = ['JPY','USD','EUR','CNY','KRW','SGD','HKD','GBP','AUD','TWD','THB','VND','MYR','IDR'];
-  const UNITS = ['', 'B/L', 'CNTR', 'CBM', 'R/T', 'CW', 'kg', 'TON', 'pcs', '件', '式', 'set', 'shipment', 'CTN', 'PLT', '時間', '日', 'HOUR', 'DAY'];
+  const UNITS = ['', 'B/L', 'CNTR', 'CBM', 'R/T', 'W/M', 'CW', 'kg', 'TON', 'pcs', '件', '式', 'set', 'shipment', 'CTN', 'PLT', '時間', '日'];
 
   const CATEGORIES = [
     { value: '',           label: '— カテゴリ —',         cls: '' },
@@ -38,30 +38,34 @@ window.QuoteApp = window.QuoteApp || { state: {}, data: {}, fx: {} };
       { cat: 'other',     name: 'その他国内費用',    note: '' },
     ],
     export: [
-      { cat: 'domestic',  name: '国内集荷・陸送費',  note: '集荷先〜輸出港' },
-      { cat: 'customs',   name: '輸出通関費',        note: '通関手数料・書類作成' },
-      { cat: 'domestic',  name: '港湾諸費用（輸出）', note: 'THC・ドキュメント費等' },
-      { cat: 'ocean',     name: '海上運賃',          note: 'ポート〜ポート' },
-      { cat: 'surcharge', name: 'サーチャージ類',    note: 'BAF/CAF/PSS 等' },
-      { cat: 'overseas',  name: '仕向地費用',        note: 'D/O・目的港荷役等' },
+      { cat: 'domestic',      name: '国内集荷・陸送費',  note: '集荷先〜輸出港' },
+      { cat: 'customs',       name: '輸出通関費',        note: '通関手数料・書類作成' },
+      { cat: 'export-local',  name: '港湾諸費用（輸出）', note: 'THC・Doc Fee・Seal Fee 等' },
+      { cat: 'ocean',         name: '海上運賃',          note: 'ポート〜ポート' },
+      { cat: 'surcharge',     name: 'サーチャージ類',    note: 'BAF/EBS/GRI 等' },
+      { cat: 'overseas',      name: '仕向地費用',        note: '目的港荷役・現地作業' },
     ],
     import: [
-      { cat: 'ocean',     name: '海上運賃',          note: '積み地港〜仕向港' },
-      { cat: 'surcharge', name: 'サーチャージ類',    note: 'BAF/CAF/PSS 等' },
-      { cat: 'overseas',  name: '仕向港費用',        note: 'THC・D/O 等' },
-      { cat: 'customs',   name: '輸入通関費',        note: '通関手数料・書類作成' },
-      { cat: 'domestic',  name: '国内配送費',        note: '港〜納入地' },
-      { cat: 'insurance', name: '海上保険料',        note: '保険条件に応じて' },
+      { cat: 'ocean',         name: '海上運賃',          note: '積み地港〜仕向港' },
+      { cat: 'surcharge',     name: 'サーチャージ類',    note: 'BAF/EBS/GRI 等' },
+      { cat: 'import-local',  name: '輸入 THC',          note: '仕向港ターミナルチャージ' },
+      { cat: 'import-local',  name: 'D/O Fee',           note: 'Delivery Order 発行手数料' },
+      { cat: 'import-local',  name: 'CFS費',             note: 'LCL輸入・デバンニング' },
+      { cat: 'customs',       name: '輸入通関費',        note: '通関手数料・書類作成' },
+      { cat: 'domestic',      name: '国内配送費',        note: '港〜納入地' },
+      { cat: 'insurance',     name: '海上保険料',        note: '保険条件に応じて' },
     ],
     dtd: [
-      { cat: 'domestic',  name: '国内集荷・陸送費',  note: '集荷先〜輸出港' },
-      { cat: 'customs',   name: '輸出通関費',        note: '通関手数料・書類作成' },
-      { cat: 'domestic',  name: '港湾諸費用（輸出）', note: 'THC・ドキュメント費等' },
-      { cat: 'ocean',     name: '海上運賃',          note: 'ポート〜ポート' },
-      { cat: 'surcharge', name: 'サーチャージ類',    note: 'BAF/CAF/PSS 等' },
-      { cat: 'overseas',  name: '仕向地費用',        note: 'D/O・目的港荷役等' },
-      { cat: 'customs',   name: '輸入通関費',        note: '通関手数料・書類作成' },
-      { cat: 'domestic',  name: '国内配送費（着地）', note: '港〜最終納入地' },
+      { cat: 'domestic',      name: '国内集荷・陸送費',  note: '集荷先〜輸出港' },
+      { cat: 'customs',       name: '輸出通関費',        note: '通関手数料・書類作成' },
+      { cat: 'export-local',  name: '港湾諸費用（輸出）', note: 'THC・Doc Fee・Seal Fee 等' },
+      { cat: 'ocean',         name: '海上運賃',          note: 'ポート〜ポート' },
+      { cat: 'surcharge',     name: 'サーチャージ類',    note: 'BAF/EBS/GRI 等' },
+      { cat: 'overseas',      name: '仕向地費用',        note: '現地代理店費・現地作業' },
+      { cat: 'import-local',  name: '輸入 THC',          note: '仕向港ターミナルチャージ' },
+      { cat: 'import-local',  name: 'D/O Fee',           note: 'Delivery Order 発行手数料' },
+      { cat: 'customs',       name: '輸入通関費',        note: '通関手数料・書類作成' },
+      { cat: 'domestic',      name: '国内配送費（着地）', note: '港〜最終納入地' },
     ],
   };
 
