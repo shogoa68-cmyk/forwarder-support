@@ -3,7 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>フォワーダー支援</title>
+<meta name="description" content="フォワーダー向け業務支援ツール。コンテナ追跡・計算（航空CW/LCL RT/CBM）・見積もり作成・インコタームズ・ファイリングルール等をひとまとめに。">
+<title>フォワーダー支援 — 計算・見積・参考ツール</title>
 <link rel="stylesheet" href="css/style.css">
 <link rel="stylesheet" href="css/quote.css">
 <!-- 見積タブで CSV/Excel/PDF 出力に使用（SheetJS） -->
@@ -29,54 +30,54 @@
 
   <!-- Tab Navigation -->
   <!-- ===== カテゴリーナビ（上段） ===== -->
-  <div class="cat-nav">
-    <button class="cat-btn cat-btn-featured" onclick="switchCategory('quote',  this)">💼 見積</button>
-    <button class="cat-btn active" onclick="switchCategory('calc',   this)">🧮 計算</button>
-    <button class="cat-btn"        onclick="switchCategory('vessel', this)">🚢 本船・航路</button>
-    <button class="cat-btn"        onclick="switchCategory('cost',   this)">💴 料金・費用</button>
-    <button class="cat-btn"        onclick="switchCategory('docs',   this)">📄 書類・通関</button>
-    <button class="cat-btn"        onclick="switchCategory('ref',    this)">📚 知識・参考</button>
+  <nav class="cat-nav" role="tablist" aria-label="カテゴリナビゲーション">
+    <button type="button" class="cat-btn cat-btn-featured" role="tab" onclick="switchCategory('quote',  this)">💼 見積</button>
+    <button type="button" class="cat-btn active" role="tab"           onclick="switchCategory('calc',   this)">🧮 計算</button>
+    <button type="button" class="cat-btn" role="tab"                  onclick="switchCategory('vessel', this)">🚢 本船・航路</button>
+    <button type="button" class="cat-btn" role="tab"                  onclick="switchCategory('cost',   this)">💴 料金・費用</button>
+    <button type="button" class="cat-btn" role="tab"                  onclick="switchCategory('docs',   this)">📄 書類・通関</button>
+    <button type="button" class="cat-btn" role="tab"                  onclick="switchCategory('ref',    this)">📚 知識・参考</button>
 
-    <button class="cat-btn"        onclick="switchCategory('booking', this)">📋 Booking/SI</button>
-  </div>
+    <button type="button" class="cat-btn" role="tab"        onclick="switchCategory('booking', this)">📋 Booking/SI</button>
+  </nav>
 
   <!-- ===== サブタブナビ（下段・カテゴリー別） ===== -->
-  <div class="tab-nav sub-nav active" id="sub-calc">
-    <button class="tab-btn active" onclick="switchTab('calc',   this)">📐 計算（サイズ）</button>
-    <button class="tab-btn"        onclick="switchTab('rate',   this)">💰 計算（お金）</button>
+  <div class="tab-nav sub-nav active" role="tablist" id="sub-calc">
+    <button type="button" class="tab-btn active" role="tab" onclick="switchTab('calc',   this)">📐 計算（サイズ）</button>
+    <button type="button" class="tab-btn" role="tab"        onclick="switchTab('rate',   this)">💰 計算（お金）</button>
   </div>
-  <div class="tab-nav sub-nav" id="sub-vessel">
-    <button class="tab-btn" onclick="switchTab('tracking', this)">🔍 トラッキング</button>
-    <button class="tab-btn" onclick="switchTab('vessel',   this)">🚢 スケジュール</button>
-    <button class="tab-btn" onclick="switchTab('cycut',    this)">📅 CY OPEN/CUT</button>
-    <button class="tab-btn" onclick="switchTab('route',    this)">🗺️ サービス航路</button>
+  <div class="tab-nav sub-nav" role="tablist" id="sub-vessel">
+    <button type="button" class="tab-btn" role="tab" onclick="switchTab('tracking', this)">🔍 トラッキング</button>
+    <button type="button" class="tab-btn" role="tab" onclick="switchTab('vessel',   this)">🚢 スケジュール</button>
+    <button type="button" class="tab-btn" role="tab" onclick="switchTab('cycut',    this)">📅 CY OPEN/CUT</button>
+    <button type="button" class="tab-btn" role="tab" onclick="switchTab('route',    this)">🗺️ サービス航路</button>
   </div>
-  <div class="tab-nav sub-nav" id="sub-cost">
-    <button class="tab-btn" onclick="switchTab('surcharge', this)">💴 サーチャージ 🚧</button>
-    <button class="tab-btn" onclick="switchTab('freetime',  this)">⏱️ フリータイム 🚧</button>
+  <div class="tab-nav sub-nav" role="tablist" id="sub-cost">
+    <button type="button" class="tab-btn" role="tab" onclick="switchTab('surcharge', this)">💴 サーチャージ 🚧</button>
+    <button type="button" class="tab-btn" role="tab" onclick="switchTab('freetime',  this)">⏱️ フリータイム 🚧</button>
   </div>
-  <div class="tab-nav sub-nav" id="sub-quote">
-    <button class="tab-btn" onclick="switchTab('quote-make', this)">📝 見積もり作成</button>
+  <div class="tab-nav sub-nav" role="tablist" id="sub-quote">
+    <button type="button" class="tab-btn" role="tab" onclick="switchTab('quote-make', this)">📝 見積もり作成</button>
   </div>
-  <div class="tab-nav sub-nav" id="sub-docs">
-    <button class="tab-btn" onclick="switchTab('bldo',    this)">📄 書類</button>
-    <button class="tab-btn" onclick="switchTab('blrules', this)">📋 BL記載事項 🚧</button>
-    <button class="tab-btn" onclick="switchTab('regs',    this)">🔒 貿易管理令・他法令</button>
+  <div class="tab-nav sub-nav" role="tablist" id="sub-docs">
+    <button type="button" class="tab-btn" role="tab" onclick="switchTab('bldo',    this)">📄 書類</button>
+    <button type="button" class="tab-btn" role="tab" onclick="switchTab('blrules', this)">📋 BL記載事項 🚧</button>
+    <button type="button" class="tab-btn" role="tab" onclick="switchTab('regs',    this)">🔒 貿易管理令・他法令</button>
   </div>
-  <div class="tab-nav sub-nav" id="sub-ref">
-    <button class="tab-btn" onclick="switchTab('incoterms',  this)">📦 インコタームズ</button>
-    <button class="tab-btn" onclick="switchTab('sizes',      this)">📏 種類・サイズ</button>
-    <button class="tab-btn" onclick="switchTab('insurance',  this)">🛡️ 海上貨物保険</button>
-    <button class="tab-btn" onclick="switchTab('blclause',   this)">📜 BL約款</button>
+  <div class="tab-nav sub-nav" role="tablist" id="sub-ref">
+    <button type="button" class="tab-btn" role="tab" onclick="switchTab('incoterms',  this)">📦 インコタームズ</button>
+    <button type="button" class="tab-btn" role="tab" onclick="switchTab('sizes',      this)">📏 種類・サイズ</button>
+    <button type="button" class="tab-btn" role="tab" onclick="switchTab('insurance',  this)">🛡️ 海上貨物保険</button>
+    <button type="button" class="tab-btn" role="tab" onclick="switchTab('blclause',   this)">📜 BL約款</button>
   </div>
-  <div class="tab-nav sub-nav" id="sub-booking">
-    <button class="tab-btn" onclick="switchTab('booking-tab', this)">🛳️ Booking</button>
-    <button class="tab-btn" onclick="switchTab('si', this)">📝 S/I</button>
-    <button class="tab-btn" onclick="switchTab('filing', this)">📡 ファイリングルール</button>
+  <div class="tab-nav sub-nav" role="tablist" id="sub-booking">
+    <button type="button" class="tab-btn" role="tab" onclick="switchTab('booking-tab', this)">🛳️ Booking</button>
+    <button type="button" class="tab-btn" role="tab" onclick="switchTab('si', this)">📝 S/I</button>
+    <button type="button" class="tab-btn" role="tab" onclick="switchTab('filing', this)">📡 ファイリングルール</button>
   </div>
 
   <!-- ===================== Tab 1: コンテナ追跡 ===================== -->
-  <div class="tab-content" id="tab-tracking">
+  <div class="tab-content" id="tab-tracking" role="tabpanel" tabindex="0">
 
     <details class="tab-help">
       <summary>ℹ️ このタブの使い方・機能説明</summary>
@@ -103,7 +104,7 @@
       <div class="lookup-form">
         <select id="ql-carrier"></select>
         <input type="text" id="ql-number" placeholder="コンテナ番号 or B/L番号 (例: MSKU1234567)" />
-        <button class="btn-primary" onclick="quickLookup()">追跡する 🔍</button>
+        <button type="button" class="btn-primary" onclick="quickLookup()">追跡する 🔍</button>
       </div>
       <div class="result-box" id="ql-result">
         <span class="result-url" id="ql-url"></span>
@@ -119,7 +120,7 @@
     </div>  </div><!-- /tab-tracking -->
 
   <!-- ===================== Tab 2: 本船動静 ===================== -->
-  <div class="tab-content" id="tab-vessel">
+  <div class="tab-content" id="tab-vessel" role="tabpanel" tabindex="0">
 
     <details class="tab-help">
       <summary>ℹ️ このタブの使い方・機能説明</summary>
@@ -153,7 +154,7 @@
     </div>  </div><!-- /tab-vessel -->
 
   <!-- ===================== CY OPEN/CUT tab ===================== -->
-  <div class="tab-content" id="tab-cycut">
+  <div class="tab-content" id="tab-cycut" role="tabpanel" tabindex="0">
 
     <details class="tab-help">
       <summary>ℹ️ このタブの使い方・機能説明</summary>
@@ -176,7 +177,7 @@
     </div>  </div><!-- /tab-cycut -->
 
   <!-- ===================== サービス航路 tab ===================== -->
-  <div class="tab-content" id="tab-route">
+  <div class="tab-content" id="tab-route" role="tabpanel" tabindex="0">
 
     <details class="tab-help">
       <summary>ℹ️ このタブの使い方・機能説明</summary>
@@ -204,7 +205,7 @@
     </div>  </div><!-- /tab-route -->
 
   <!-- ===================== サーチャージ tab ===================== -->
-  <div class="tab-content" id="tab-surcharge">
+  <div class="tab-content" id="tab-surcharge" role="tabpanel" tabindex="0">
 
     <details class="tab-help">
       <summary>ℹ️ このタブの使い方・機能説明</summary>
@@ -238,7 +239,7 @@
     </div>  </div><!-- /tab-surcharge -->
 
   <!-- ===================== Tab 4: 書類 ===================== -->
-  <div class="tab-content" id="tab-bldo">
+  <div class="tab-content" id="tab-bldo" role="tabpanel" tabindex="0">
 
     <details class="tab-help">
       <summary>ℹ️ このタブの使い方・機能説明</summary>
@@ -274,7 +275,7 @@
     </div>  </div><!-- /tab-bldo -->
 
   <!-- ===================== Tab 5: BL 記載事項 ===================== -->
-  <div class="tab-content" id="tab-blrules">
+  <div class="tab-content" id="tab-blrules" role="tabpanel" tabindex="0">
 
     <details class="tab-help">
       <summary>ℹ️ このタブの使い方・機能説明</summary>
@@ -301,7 +302,7 @@
     </div>  </div><!-- /tab-blrules -->
 
   <!-- ===================== Tab 6: フリータイム ===================== -->
-  <div class="tab-content" id="tab-freetime">
+  <div class="tab-content" id="tab-freetime" role="tabpanel" tabindex="0">
 
     <details class="tab-help">
       <summary>ℹ️ このタブの使い方・機能説明</summary>
@@ -330,7 +331,7 @@
       <div class="lookup-form">
         <select id="ft-carrier"></select>
         <input type="text" id="ft-number" placeholder="コンテナ番号 (例: MSKU1234567)" />
-        <button class="btn-primary" onclick="freetimeLookup()">検索 🔍</button>
+        <button type="button" class="btn-primary" onclick="freetimeLookup()">検索 🔍</button>
       </div>
       <div class="result-box" id="ft-result">
         <span class="result-url" id="ft-url"></span>
@@ -339,7 +340,7 @@
     </div>  </div><!-- /tab-freetime -->
 
   <!-- ===================== Tab: インコタームズ ===================== -->
-  <div class="tab-content" id="tab-incoterms">
+  <div class="tab-content" id="tab-incoterms" role="tabpanel" tabindex="0">
 
     <details class="tab-help">
       <summary>ℹ️ このタブの使い方・機能説明</summary>
@@ -373,8 +374,8 @@
       <div class="inco-stage-grid" id="inco-stages-import"></div>
 
       <div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap;">
-        <button class="btn-primary" onclick="judgeIncoterms()">判定する 🔍</button>
-        <button class="proc-type-btn" onclick="resetIncoterms()">リセット</button>
+        <button type="button" class="btn-primary" onclick="judgeIncoterms()">判定する 🔍</button>
+        <button type="button" class="proc-type-btn" onclick="resetIncoterms()">リセット</button>
       </div>
       <div id="inco-result" style="margin-top:14px;"></div>
     </div>
@@ -475,7 +476,7 @@
       </div>
     </div>  </div><!-- /tab-incoterms -->
   <!-- ===================== Tab: 種類・サイズ ===================== -->
-  <div class="tab-content" id="tab-sizes">
+  <div class="tab-content" id="tab-sizes" role="tabpanel" tabindex="0">
 
     <details class="tab-help">
       <summary>ℹ️ このタブの使い方・機能説明</summary>
@@ -610,7 +611,7 @@
       </div>
     </div>  </div><!-- /tab-sizes -->
   <!-- ===================== Tab: 海上貨物保険 ===================== -->
-  <div class="tab-content" id="tab-insurance">
+  <div class="tab-content" id="tab-insurance" role="tabpanel" tabindex="0">
 
     <details class="tab-help">
       <summary>ℹ️ このタブの使い方・機能説明</summary>
@@ -754,7 +755,7 @@
     </div>  </div><!-- /tab-insurance -->
 
   <!-- ===================== Tab: BL約款 ===================== -->
-  <div class="tab-content" id="tab-blclause">
+  <div class="tab-content" id="tab-blclause" role="tabpanel" tabindex="0">
 
     <details class="tab-help">
       <summary>ℹ️ このタブの使い方・機能説明</summary>
@@ -893,7 +894,7 @@
 
 
   <!-- ===================== Tab: 貿易管理令・他法令 ===================== -->
-  <div class="tab-content" id="tab-regs">
+  <div class="tab-content" id="tab-regs" role="tabpanel" tabindex="0">
 
     <details class="tab-help">
       <summary>ℹ️ このタブの使い方・機能説明</summary>
@@ -1088,7 +1089,7 @@
     </div>  </div><!-- /tab-regs -->
   <!-- ===================== Tab: ファイリングルール ===================== -->
   <!-- ===== tab-booking-tab ===== -->
-  <div class="tab-content" id="tab-booking-tab">
+  <div class="tab-content" id="tab-booking-tab" role="tabpanel" tabindex="0">
 
     <details class="tab-help">
       <summary>ℹ️ このタブの使い方・機能説明</summary>
@@ -1105,6 +1106,7 @@
       </div>
     </details>
 
+
     <div class="card">
       <div class="section-title">🛳️ 船会社 e-Booking ページ</div>
       <p style="font-size:12px;color:var(--text-md);margin-bottom:16px;">
@@ -1115,7 +1117,7 @@
     </div>  </div><!-- /tab-booking-tab -->
 
   <!-- ===== tab-si ===== -->
-  <div class="tab-content" id="tab-si">
+  <div class="tab-content" id="tab-si" role="tabpanel" tabindex="0">
 
     <details class="tab-help">
       <summary>ℹ️ このタブの使い方・機能説明</summary>
@@ -1127,6 +1129,7 @@
         <div class="help-tip">🚧 USA（Ultimate Consignee）・India（IEC）・中東諸国など、追加すべき仕向地は順次拡充予定。「💬 フィードバック」FAB からリクエストできます。</div>
       </div>
     </details>
+
 
     <div class="card">
       <div class="section-title">📝 仕向地別 BL 記載事項</div>
@@ -1156,7 +1159,7 @@
     </div>  </div><!-- /tab-si -->
 
 
-  <div class="tab-content" id="tab-filing">
+  <div class="tab-content" id="tab-filing" role="tabpanel" tabindex="0">
 
     <details class="tab-help">
       <summary>ℹ️ このタブの使い方・機能説明</summary>
@@ -1498,7 +1501,7 @@
 
 
   <!-- ===================== Tab 7: 計算ツール ===================== -->
-  <div class="tab-content active" id="tab-calc">
+  <div class="tab-content active" id="tab-calc" role="tabpanel" tabindex="0">
 
     <details class="tab-help">
       <summary>ℹ️ このタブの使い方・機能説明</summary>
@@ -1567,13 +1570,13 @@
           <div class="calc-field"><span class="calc-label">高さ</span><input type="number" class="calc-input" data-key="h" placeholder="30" min="0"></div>
           <div class="calc-field"><span class="calc-label">実重量 (kg)</span><input type="number" class="calc-input" data-key="weight" placeholder="5" min="0"></div>
           <div class="calc-field"><span class="calc-label">個数</span><input type="number" class="calc-input" data-key="qty" value="1" min="1" style="width:70px;"></div>
-          <button class="btn-row-del" onclick="removeCalcRow(this)" title="この行を削除" style="display:none;">×</button>
+          <button type="button" class="btn-row-del" onclick="removeCalcRow(this)" title="この行を削除" style="display:none;">×</button>
         </div>
       </div>
       <div class="calc-row-actions">
-        <button class="btn-add-row" onclick="addCalcRow('air')">＋ 行を追加</button>
-        <button class="btn-primary" onclick="calcAirCW()">計算 →</button>
-        <button class="btn-clear" onclick="clearCalcResult('air-result')">クリア</button>
+        <button type="button" class="btn-add-row" onclick="addCalcRow('air')">＋ 行を追加</button>
+        <button type="button" class="btn-primary" onclick="calcAirCW()">計算 →</button>
+        <button type="button" class="btn-clear" onclick="clearCalcResult('air-result')">クリア</button>
       </div>
       <div id="air-result" class="calc-result" style="display:none;"></div>
     </div>
@@ -1601,13 +1604,13 @@
           <div class="calc-field"><span class="calc-label">高さ</span><input type="number" class="calc-input" data-key="h" placeholder="30" min="0"></div>
           <div class="calc-field"><span class="calc-label">実重量 (kg)</span><input type="number" class="calc-input" data-key="weight" placeholder="50" min="0"></div>
           <div class="calc-field"><span class="calc-label">個数</span><input type="number" class="calc-input" data-key="qty" value="1" min="1" style="width:70px;"></div>
-          <button class="btn-row-del" onclick="removeCalcRow(this)" title="この行を削除" style="display:none;">×</button>
+          <button type="button" class="btn-row-del" onclick="removeCalcRow(this)" title="この行を削除" style="display:none;">×</button>
         </div>
       </div>
       <div class="calc-row-actions">
-        <button class="btn-add-row" onclick="addCalcRow('lcl')">＋ 行を追加</button>
-        <button class="btn-primary" onclick="calcLclRT()">計算 →</button>
-        <button class="btn-clear" onclick="clearCalcResult('lcl-result')">クリア</button>
+        <button type="button" class="btn-add-row" onclick="addCalcRow('lcl')">＋ 行を追加</button>
+        <button type="button" class="btn-primary" onclick="calcLclRT()">計算 →</button>
+        <button type="button" class="btn-clear" onclick="clearCalcResult('lcl-result')">クリア</button>
       </div>
       <div id="lcl-result" class="calc-result" style="display:none;"></div>
     </div>
@@ -1635,13 +1638,13 @@
           <div class="calc-field"><span class="calc-label">幅</span><input type="number" class="calc-input" data-key="w" placeholder="40" min="0"></div>
           <div class="calc-field"><span class="calc-label">高さ</span><input type="number" class="calc-input" data-key="h" placeholder="30" min="0"></div>
           <div class="calc-field"><span class="calc-label">個数</span><input type="number" class="calc-input" data-key="qty" value="1" min="1" style="width:70px;"></div>
-          <button class="btn-row-del" onclick="removeCalcRow(this)" title="この行を削除" style="display:none;">×</button>
+          <button type="button" class="btn-row-del" onclick="removeCalcRow(this)" title="この行を削除" style="display:none;">×</button>
         </div>
       </div>
       <div class="calc-row-actions">
-        <button class="btn-add-row" onclick="addCalcRow('cbm')">＋ 行を追加</button>
-        <button class="btn-primary" onclick="calcCBMSai()">計算 →</button>
-        <button class="btn-clear" onclick="clearCalcResult('cbm-result')">クリア</button>
+        <button type="button" class="btn-add-row" onclick="addCalcRow('cbm')">＋ 行を追加</button>
+        <button type="button" class="btn-primary" onclick="calcCBMSai()">計算 →</button>
+        <button type="button" class="btn-clear" onclick="clearCalcResult('cbm-result')">クリア</button>
       </div>
       <div id="cbm-result" class="calc-result" style="display:none;"></div>
     </div>
@@ -1682,13 +1685,13 @@
           <div class="calc-field"><span class="calc-label">箱 幅</span><input type="number" class="calc-input" data-key="w" placeholder="300" min="0"></div>
           <div class="calc-field"><span class="calc-label">箱 高さ</span><input type="number" class="calc-input" data-key="h" placeholder="250" min="0"></div>
           <div class="calc-field"><span class="calc-label">総個数（任意）</span><input type="number" class="calc-input" data-key="total" placeholder="100" min="1" style="width:90px;"></div>
-          <button class="btn-row-del" onclick="removeCalcRow(this)" title="この行を削除" style="display:none;">×</button>
+          <button type="button" class="btn-row-del" onclick="removeCalcRow(this)" title="この行を削除" style="display:none;">×</button>
         </div>
       </div>
       <div class="calc-row-actions">
-        <button class="btn-add-row" onclick="addCalcRow('pal')">＋ 品種を追加</button>
-        <button class="btn-primary" onclick="calcPalletize()">計算 →</button>
-        <button class="btn-clear" onclick="clearCalcResult('pal-result')">クリア</button>
+        <button type="button" class="btn-add-row" onclick="addCalcRow('pal')">＋ 品種を追加</button>
+        <button type="button" class="btn-primary" onclick="calcPalletize()">計算 →</button>
+        <button type="button" class="btn-clear" onclick="clearCalcResult('pal-result')">クリア</button>
       </div>
       <div id="pal-result" class="calc-result" style="display:none;"></div>
     </div>
@@ -1721,19 +1724,19 @@
           <div class="calc-field"><span class="calc-label">貨物 高さ</span><input type="number" class="calc-input" data-key="h" placeholder="30" min="0"></div>
           <div class="calc-field"><span class="calc-label">1個の重量 (kg)</span><input type="number" class="calc-input" data-key="weight" placeholder="10" min="0"></div>
           <div class="calc-field"><span class="calc-label">個数</span><input type="number" class="calc-input" data-key="qty" placeholder="100" min="1" style="width:90px;"></div>
-          <button class="btn-row-del" onclick="removeCalcRow(this)" title="この行を削除" style="display:none;">×</button>
+          <button type="button" class="btn-row-del" onclick="removeCalcRow(this)" title="この行を削除" style="display:none;">×</button>
         </div>
       </div>
       <div class="calc-row-actions">
-        <button class="btn-add-row" onclick="addCalcRow('van')">＋ 品種を追加</button>
-        <button class="btn-primary" onclick="calcVanning()">計算 →</button>
-        <button class="btn-clear" onclick="clearCalcResult('van-result')">クリア</button>
+        <button type="button" class="btn-add-row" onclick="addCalcRow('van')">＋ 品種を追加</button>
+        <button type="button" class="btn-primary" onclick="calcVanning()">計算 →</button>
+        <button type="button" class="btn-clear" onclick="clearCalcResult('van-result')">クリア</button>
       </div>
       <div id="van-result" class="calc-result" style="display:none;"></div>
     </div>  </div><!-- /tab-calc -->
 
   <!-- ===================== Tab: レート換算 ===================== -->
-  <div class="tab-content" id="tab-rate">
+  <div class="tab-content" id="tab-rate" role="tabpanel" tabindex="0">
 
     <details class="tab-help">
       <summary>ℹ️ このタブの使い方・機能説明</summary>
@@ -1778,8 +1781,8 @@
         <div class="calc-field"><span class="calc-label">金額</span>
           <input type="number" class="calc-input" id="rate-amount" placeholder="10000" min="0" style="width:120px;">
         </div>
-        <button class="btn-primary" onclick="calcRate()">換算 →</button>
-        <button class="btn-clear" onclick="clearCalcResult('rate-result')">クリア</button>
+        <button type="button" class="btn-primary" onclick="calcRate()">換算 →</button>
+        <button type="button" class="btn-clear" onclick="clearCalcResult('rate-result')">クリア</button>
       </div>
 
       <div id="rate-status" style="font-size:12px;color:#718096;margin-top:10px;min-height:18px;"></div>
@@ -1804,8 +1807,8 @@
         <div class="calc-field"><span class="calc-label">保険料率（%）</span>
           <input type="number" class="calc-input" id="ins-rate" value="0.3" step="0.01" min="0" style="width:90px;">
         </div>
-        <button class="btn-primary" onclick="calcInsurance()">計算 →</button>
-        <button class="btn-clear" onclick="clearCalcResult('ins-result')">クリア</button>
+        <button type="button" class="btn-primary" onclick="calcInsurance()">計算 →</button>
+        <button type="button" class="btn-clear" onclick="clearCalcResult('ins-result')">クリア</button>
       </div>
       <div id="ins-result" class="calc-result" style="display:none;"></div>
     </div>
@@ -1835,8 +1838,8 @@
           <input type="number" class="calc-input" id="duty-extra" value="0" step="0.1" min="0" style="width:90px;">
           <span style="font-size:11px;color:#718096;margin-top:3px;">※対中制裁等</span>
         </div>
-        <button class="btn-primary" onclick="calcDuty()">計算 →</button>
-        <button class="btn-clear" onclick="clearCalcResult('duty-result')">クリア</button>
+        <button type="button" class="btn-primary" onclick="calcDuty()">計算 →</button>
+        <button type="button" class="btn-clear" onclick="clearCalcResult('duty-result')">クリア</button>
       </div>
       <p style="font-size:11px;color:#718096;margin:8px 0 0 0;">
         ⚠️ 試算値です。実際の税額は品目・原産地・適用協定等により異なります。輸入申告は通関士にご相談ください。
@@ -1847,7 +1850,7 @@
   <!-- ===================== Tab: 見積もり作成（見積支援アプリを統合・直接マージ版） =====
        Phase 2b 完了時点：見積支援/index.html の body 内容を直接マージ。
        初期化は js/app.js の switchTab() フックから window.initQuoteTab() を呼ぶ。 -->
-  <div class="tab-content" id="tab-quote-make">
+  <div class="tab-content" id="tab-quote-make" role="tabpanel" tabindex="0">
 
     <details class="tab-help">
       <summary>ℹ️ このタブの使い方・機能説明</summary>
@@ -1918,7 +1921,7 @@
 
     <!-- ========== 保存/読み込みツールバー ========== -->
     <div class="save-toolbar" id="saveToolbar">
-      <button class="save-btn save-btn-preset"
+      <button type="button" class="save-btn save-btn-preset"
               onclick="openPresetMgr()" title="入力パターンや一時保存の管理">
         🗂️ プリセット/一時保存
       </button>
@@ -1933,25 +1936,25 @@
       <button class="save-btn save-btn-redo" id="btnQuoteRedo" onclick="quoteRedo()" disabled title="やり直す (Ctrl+Y / Ctrl+Shift+Z)">↷ 進む</button>
       <span class="save-toolbar-sep"></span>
       <span class="save-toolbar-label">📁 ファイル</span>
-      <button class="save-btn save-btn-export" onclick="exportToFile()" title="見積データをJSONファイルに出力">
+      <button type="button" class="save-btn save-btn-export" onclick="exportToFile()" title="見積データをJSONファイルに出力">
         📤 出力
       </button>
-      <button class="save-btn save-btn-import" onclick="document.getElementById('importFileInput').click()" title="JSONファイルから見積データを読み込む">
+      <button type="button" class="save-btn save-btn-import" onclick="document.getElementById('importFileInput').click()" title="JSONファイルから見積データを読み込む">
         📥 読込
       </button>
       <input type="file" id="importFileInput" accept=".json" style="display:none" onchange="importFromFile(event)" />
       <span class="save-status" id="saveStatus"></span>
       <span class="save-toolbar-sep"></span>
       <span class="save-toolbar-label">📐 表示サイズ</span>
-      <button class="layout-scale-btn" data-scale="lg" onclick="setLayoutScale('lg')" title="大（デスクトップ向け）">大</button>
-      <button class="layout-scale-btn" data-scale="md" onclick="setLayoutScale('md')" title="中（タブレット向け）">中</button>
-      <button class="layout-scale-btn" data-scale="sm" onclick="setLayoutScale('sm')" title="小（スマホ向け）">小</button>
+      <button type="button" class="layout-scale-btn" data-scale="lg" onclick="setLayoutScale('lg')" title="大（デスクトップ向け）">大</button>
+      <button type="button" class="layout-scale-btn" data-scale="md" onclick="setLayoutScale('md')" title="中（タブレット向け）">中</button>
+      <button type="button" class="layout-scale-btn" data-scale="sm" onclick="setLayoutScale('sm')" title="小（スマホ向け）">小</button>
     </div>
 
     <!-- ========== 自動保存 復元バナー ========== -->
     <div id="autosave-restore-bar">
       <span>💾 前回の自動保存データがあります</span>
-      <button class="autosave-restore-btn" onclick="restoreAutoSave()">↩ 復元する</button>
+      <button type="button" class="autosave-restore-btn" onclick="restoreAutoSave()">↩ 復元する</button>
       <button type="button" class="autosave-restore-close" onclick="dismissRestoreBar()" title="閉じる">✕</button>
     </div>
 
@@ -1974,7 +1977,7 @@
       </div>
       <textarea id="stickyNoteArea" class="sticky-note-area" placeholder="ここに自由にメモを書けます&#10;（自動保存）"></textarea>
     </div>
-    <button class="sticky-fab" onclick="toggleStickyNote()" title="付箋メモを開く">📝</button>
+    <button type="button" class="sticky-fab" onclick="toggleStickyNote()" title="付箋メモを開く">📝</button>
 
     <!-- フィードバックFAB／トーストコンテナは Phase 2c-Step1 でサイト全体スコープに移動済み（</body> 直前を参照） -->
 
@@ -2003,13 +2006,13 @@
           <input type="text" class="preset-name-input" id="presetNameInput"
                  placeholder="例）輸入案件用・国内配送用" maxlength="30"
                  onkeydown="if(event.key==='Enter')savePreset()" />
-          <button class="btn-preset-save-new" onclick="savePreset()">💾 現在の状態を保存</button>
+          <button type="button" class="btn-preset-save-new" onclick="savePreset()">💾 現在の状態を保存</button>
         </div>
         <div class="preset-list-wrap" id="presetListWrap">
           <div class="preset-empty">保存済みのプリセットはありません</div>
         </div>
         <div class="preset-mgr-footer">
-          <button class="btn-preset-close" onclick="closePresetMgr()">閉じる</button>
+          <button type="button" class="btn-preset-close" onclick="closePresetMgr()">閉じる</button>
         </div>
       </div>
     </div>
@@ -2067,7 +2070,7 @@
             <input type="text" id="qf-person" placeholder="例）山田　※出力時に「様」付与" title="敬称略で入力。出力時に自動で「様」が付きます" />
           </div>
         </div>
-        <button class="fb-section-btn" onclick="openFeedback('管理番号入力')" title="このセクションへのフィードバック">💬 このセクションへのフィードバック</button>
+        <button type="button" class="fb-section-btn" onclick="openFeedback('管理番号入力')" title="このセクションへのフィードバック">💬 このセクションへのフィードバック</button>
       </div>
     </div>
 
@@ -2103,19 +2106,19 @@
           <div class="cond-prim-group">
             <span class="cond-prim-label">方向</span>
             <div class="cond-prim-btns" id="dirBtns">
-              <button class="cond-prim-btn" data-dir="export" onclick="setDirection('export')">📤 輸出</button>
-              <button class="cond-prim-btn" data-dir="import" onclick="setDirection('import')">📥 輸入</button>
+              <button type="button" class="cond-prim-btn" data-dir="export" onclick="setDirection('export')">📤 輸出</button>
+              <button type="button" class="cond-prim-btn" data-dir="import" onclick="setDirection('import')">📥 輸入</button>
             </div>
           </div>
           <div class="cond-prim-group">
             <span class="cond-prim-label">輸送モード</span>
             <div class="cond-prim-btns" id="seaAirBtns">
-              <button class="cond-prim-btn" data-transport="sea" onclick="setTransport('sea')">🚢 Sea</button>
-              <button class="cond-prim-btn" data-transport="air" onclick="setTransport('air')">✈️ Air</button>
+              <button type="button" class="cond-prim-btn" data-transport="sea" onclick="setTransport('sea')">🚢 Sea</button>
+              <button type="button" class="cond-prim-btn" data-transport="air" onclick="setTransport('air')">✈️ Air</button>
             </div>
             <div class="cond-sub-btns" id="fclLclBtns" style="display:none;">
-              <button class="cond-sub-btn active" data-sub="fcl" onclick="setSeaSub('fcl')">FCL</button>
-              <button class="cond-sub-btn"        data-sub="lcl" onclick="setSeaSub('lcl')">LCL</button>
+              <button type="button" class="cond-sub-btn active" data-sub="fcl" onclick="setSeaSub('fcl')">FCL</button>
+              <button type="button" class="cond-sub-btn"        data-sub="lcl" onclick="setSeaSub('lcl')">LCL</button>
             </div>
             <select id="cond-mode" style="display:none">
               <option value="">— 選択 —</option>
@@ -2133,7 +2136,7 @@
           <div class="cond-prim-group">
             <span class="cond-prim-label">オプション</span>
             <div class="cond-prim-btns">
-              <button class="wh-toggle-btn" id="insToggleBtn" onclick="toggleInsurance()">🛡️ 保険付保あり</button>
+              <button type="button" class="wh-toggle-btn" id="insToggleBtn" onclick="toggleInsurance()">🛡️ 保険付保あり</button>
             </div>
           </div>
         </div>
@@ -2141,7 +2144,7 @@
         <div class="zone-builder" id="zoneBuilder">
           <div class="zone-card zone-origin zone-off" id="zone1Card">
             <div class="zone-card-header">
-              <button class="zone-toggle-btn" id="zone1Btn" onclick="toggleZone(1)">OFF</button>
+              <button type="button" class="zone-toggle-btn" id="zone1Btn" onclick="toggleZone(1)">OFF</button>
               <div class="zone-card-title">
                 <span class="zone-num">① 出発地側</span>
                 <span class="zone-subcon" id="zone1Subcon">日本協力会社</span>
@@ -2212,7 +2215,7 @@
 
           <div class="zone-card zone-dest zone-off" id="zone3Card">
             <div class="zone-card-header">
-              <button class="zone-toggle-btn" id="zone3Btn" onclick="toggleZone(3)">OFF</button>
+              <button type="button" class="zone-toggle-btn" id="zone3Btn" onclick="toggleZone(3)">OFF</button>
               <div class="zone-card-title">
                 <span class="zone-num">③ 到着地側</span>
                 <span class="zone-subcon" id="zone3Subcon">現地代理店</span>
@@ -2254,10 +2257,10 @@
         </div>
 
         <div class="zone-preset-bar">
-          <button class="btn-zone-preset" onclick="applyZoneBasedPreset()">🔧 この構成でプリセット適用</button>
+          <button type="button" class="btn-zone-preset" onclick="applyZoneBasedPreset()">🔧 この構成でプリセット適用</button>
         </div>
 
-        <button class="fb-section-btn" onclick="openFeedback('引き合い条件')" title="このセクションへのフィードバック">💬 このセクションへのフィードバック</button>
+        <button type="button" class="fb-section-btn" onclick="openFeedback('引き合い条件')" title="このセクションへのフィードバック">💬 このセクションへのフィードバック</button>
       </div>
     </div>
 
@@ -2321,7 +2324,7 @@
           </div>
         </div>
         <div class="cond-actions">
-          <button class="btn-cond-clear" onclick="clearConditions()">クリア</button>
+          <button type="button" class="btn-cond-clear" onclick="clearConditions()">クリア</button>
         </div>
 
         <div style="margin: 18px 0 14px; border-top: 1px dashed #d0dce8; padding-top: 14px;">
@@ -2346,8 +2349,8 @@
               </thead>
               <tbody id="calcBody"></tbody>
             </table>
-            <button class="btn-calc-add" onclick="addCalcRow()">＋ 荷物の種類を追加</button>
-            <button class="btn-calc-run" onclick="runCalc()">📐 計算する</button>
+            <button type="button" class="btn-calc-add" onclick="addCalcRow()">＋ 荷物の種類を追加</button>
+            <button type="button" class="btn-calc-run" onclick="runCalc()">📐 計算する</button>
             <div class="calc-results-panel" id="calcResultsPanel">
               <div class="calc-results-grid" id="calcResultsGrid"></div>
               <hr class="calc-divider-line">
@@ -2364,7 +2367,7 @@
           </div>
         </div>
 
-        <button class="fb-section-btn" onclick="openFeedback('貨物情報・サイズ計算')" title="このセクションへのフィードバック">💬 このセクションへのフィードバック</button>
+        <button type="button" class="fb-section-btn" onclick="openFeedback('貨物情報・サイズ計算')" title="このセクションへのフィードバック">💬 このセクションへのフィードバック</button>
       </div>
     </div>
 
@@ -2449,24 +2452,24 @@
           <div class="table-btn-group">
             <div class="btn-group-row">
               <span class="btn-group-label">行操作</span>
-              <button class="btn-sort-cat"    onclick="sortByCategory()">🔀 カテゴリー順</button>
-              <button class="btn-clean-empty" onclick="deleteEmptyRows()" title="未入力（グレーアウト）の行をまとめて削除">🧹 未入力行を削除</button>
+              <button type="button" class="btn-sort-cat"    onclick="sortByCategory()">🔀 カテゴリー順</button>
+              <button type="button" class="btn-clean-empty" onclick="deleteEmptyRows()" title="未入力（グレーアウト）の行をまとめて削除">🧹 未入力行を削除</button>
             </div>
             <div class="btn-group-row">
               <span class="btn-group-label">選択行</span>
-              <button class="btn-bulk-copy"   onclick="copySelectedRows()" title="チェックした行を複製">📋 コピー</button>
-              <button class="btn-bulk-delete" onclick="deleteSelectedRows()" title="チェックした行を削除">🗑️ 削除</button>
+              <button type="button" class="btn-bulk-copy"   onclick="copySelectedRows()" title="チェックした行を複製">📋 コピー</button>
+              <button type="button" class="btn-bulk-delete" onclick="deleteSelectedRows()" title="チェックした行を削除">🗑️ 削除</button>
               <span class="btn-group-sep" aria-hidden="true">|</span>
               <select id="bulkCatSelect" class="bulk-cat-select" title="対象カテゴリ（選択／一括変更で共有）"></select>
-              <button class="btn-bulk-cat-pick" onclick="selectByCategory()" title="このカテゴリの行をすべてチェック">✅ 同カテゴリ選択</button>
-              <button class="btn-bulk-cat"     onclick="applyBulkCategory()" title="チェックした行のカテゴリをこのカテゴリへ一括変更">🏷️ カテゴリ変更</button>
+              <button type="button" class="btn-bulk-cat-pick" onclick="selectByCategory()" title="このカテゴリの行をすべてチェック">✅ 同カテゴリ選択</button>
+              <button type="button" class="btn-bulk-cat"     onclick="applyBulkCategory()" title="チェックした行のカテゴリをこのカテゴリへ一括変更">🏷️ カテゴリ変更</button>
               <span class="btn-group-sep" aria-hidden="true">|</span>
-              <button class="btn-bulk-pattern" onclick="openRowPatternMgr()" title="チェックした行を名前付きで保存・末尾に追加で読込">🗂️ 行パターン</button>
+              <button type="button" class="btn-bulk-pattern" onclick="openRowPatternMgr()" title="チェックした行を名前付きで保存・末尾に追加で読込">🗂️ 行パターン</button>
             </div>
             <div class="btn-group-row">
-              <button class="btn-preview"    onclick="openPreview()">📋 プレビュー</button>
-              <button class="btn-csv-import" onclick="toggleCsvZone()">📂 CSV読み込み</button>
-              <button class="btn-reset"      onclick="resetAll()">リセット</button>
+              <button type="button" class="btn-preview"    onclick="openPreview()">📋 プレビュー</button>
+              <button type="button" class="btn-csv-import" onclick="toggleCsvZone()">📂 CSV読み込み</button>
+              <button type="button" class="btn-reset"      onclick="resetAll()">リセット</button>
             </div>
           </div>
           <div id="fxRatePanel">
@@ -2515,7 +2518,7 @@
             <b class="purple">↑↓キー</b>：同じ列で行間移動
           </p>
         </div>
-        <button class="fb-section-btn" onclick="openFeedback('見積もりテーブル')" title="このセクションへのフィードバック">💬 このセクションへのフィードバック</button>
+        <button type="button" class="fb-section-btn" onclick="openFeedback('見積もりテーブル')" title="このセクションへのフィードバック">💬 このセクションへのフィードバック</button>
       </div>
     </div>
 
@@ -2527,7 +2530,7 @@
         <div class="cond-free">
           <textarea id="condFreeText" placeholder="例）&#10;・荷主の工場でのバン詰め（FC Stuff）希望&#10;・特定船会社指定あり（ONE / MSC）&#10;・B/L条件：Shipper's Order B/L希望&#10;・その他ご要望・注意事項をご記入ください"></textarea>
         </div>
-        <button class="fb-section-btn" onclick="openFeedback('特記事項・補足')" title="このセクションへのフィードバック">💬 このセクションへのフィードバック</button>
+        <button type="button" class="fb-section-btn" onclick="openFeedback('特記事項・補足')" title="このセクションへのフィードバック">💬 このセクションへのフィードバック</button>
       </div>
     </div>
 
@@ -2539,10 +2542,10 @@
         <div class="remark-presets" id="presetBtns"></div>
         <textarea id="remarkTextarea" placeholder="見積もり全体に適用する条件・免責事項を入力してください。上のボタンでプリセットを追加できます。"></textarea>
         <div class="remark-actions">
-          <button class="btn-remark-clear" onclick="clearRemark()">クリア</button>
+          <button type="button" class="btn-remark-clear" onclick="clearRemark()">クリア</button>
           <span class="remark-char" id="remarkChar">0文字</span>
         </div>
-        <button class="fb-section-btn" onclick="openFeedback('全体リマーク')" title="このセクションへのフィードバック">💬 このセクションへのフィードバック</button>
+        <button type="button" class="fb-section-btn" onclick="openFeedback('全体リマーク')" title="このセクションへのフィードバック">💬 このセクションへのフィードバック</button>
       </div>
     </div>
 
@@ -2556,11 +2559,11 @@
         </div>
         <div class="scope-preset-items" id="scopePresetItems"></div>
         <div class="scope-preset-btns">
-          <button class="scope-preset-btn scope-preset-btn-replace"
+          <button type="button" class="scope-preset-btn scope-preset-btn-replace"
                   onclick="applyScopePreset('replace')">🔄 置換（現在の行を全て入れ替え）</button>
-          <button class="scope-preset-btn scope-preset-btn-append"
+          <button type="button" class="scope-preset-btn scope-preset-btn-append"
                   onclick="applyScopePreset('append')">➕ 追加（末尾に追記）</button>
-          <button class="scope-preset-btn scope-preset-btn-skip"
+          <button type="button" class="scope-preset-btn scope-preset-btn-skip"
                   onclick="closeScopePresetDlg()">スキップ</button>
         </div>
       </div>
@@ -2596,8 +2599,8 @@
           <label><input type="checkbox" class="csv-col-chk" data-col="sv"            > サブコン</label>
         </div>
         <div class="csv-col-modal-btns">
-          <button class="csv-col-modal-btn cancel" onclick="closeCsvColModal()">キャンセル</button>
-          <button class="csv-col-modal-btn ok"     onclick="doDownloadCSV()">⬇ ダウンロード</button>
+          <button type="button" class="csv-col-modal-btn cancel" onclick="closeCsvColModal()">キャンセル</button>
+          <button type="button" class="csv-col-modal-btn ok"     onclick="doDownloadCSV()">⬇ ダウンロード</button>
         </div>
       </div>
     </div>
@@ -2619,11 +2622,11 @@
         </div>
         <div id="pvRemarkBox" style="display:none;"><strong>📝 条件・リマーク</strong></div>
         <div class="pv-btns">
-          <button class="pv-btn-copy" onclick="copyTSV()">📑 クリップボードにコピー（Excel 貼り付け用）</button>
-          <button class="pv-btn-csv"  onclick="downloadCSV()">⬇ CSV ダウンロード</button>
-          <button class="pv-btn-excel" onclick="exportExcel()">📊 Excel 出力</button>
-          <button class="pv-btn-pdf"   onclick="exportPDF()">🖨️ PDF 出力（印刷）</button>
-          <button class="pv-btn-close" onclick="closePreview()">閉じる</button>
+          <button type="button" class="pv-btn-copy" onclick="copyTSV()">📑 クリップボードにコピー（Excel 貼り付け用）</button>
+          <button type="button" class="pv-btn-csv"  onclick="downloadCSV()">⬇ CSV ダウンロード</button>
+          <button type="button" class="pv-btn-excel" onclick="exportExcel()">📊 Excel 出力</button>
+          <button type="button" class="pv-btn-pdf"   onclick="exportPDF()">🖨️ PDF 出力（印刷）</button>
+          <button type="button" class="pv-btn-close" onclick="closePreview()">閉じる</button>
           <span class="pv-copy-msg" id="copyMsg">✅ コピーしました！</span>
         </div>
         <details class="pv-customize-wrap" id="pvCustomizeWrap">
@@ -2709,6 +2712,7 @@
       <td class="profit-cell profit-zero" data-field="pr">0</td>
       <td><input type="text" data-field="nt" class="w-note" placeholder="備考" data-col="6" /></td>
       <td><input type="text" data-field="sv" class="w-subcon" placeholder="サブコン名" /></td>
+
     </template>
 
   </div><!-- /#tab-quote-make -->
@@ -2722,23 +2726,23 @@
 
 
 <!-- 共通モジュール（見積支援と共有） -->
-<script src="shared/fx.js"></script>
-<script src="shared/format.js"></script>
-<script src="shared/storage.js"></script>
-<script src="shared/ui-utils.js"></script>
-<script src="shared/calc.js"></script>
-<script src="data/carriers.js"></script>
-<script src="data/incoterms.js"></script>
-<script src="js/calculator.js"></script>
-<script src="js/app.js"></script>
+<script src="shared/fx.js" defer></script>
+<script src="shared/format.js" defer></script>
+<script src="shared/storage.js" defer></script>
+<script src="shared/ui-utils.js" defer></script>
+<script src="shared/calc.js" defer></script>
+<script src="data/carriers.js" defer></script>
+<script src="data/incoterms.js" defer></script>
+<script src="js/calculator.js" defer></script>
+<script src="js/app.js" defer></script>
 <!-- 見積タブ用：初期化は switchTab フックで遅延実行（js/app.js 内） -->
-<script src="js/quote/constants.js"></script>
-<script src="js/quote/row.js"></script>
-<script src="js/quote/preview.js"></script>
-<script src="js/quote/cargo.js"></script>
-<script src="js/quote/conditions.js"></script>
-<script src="js/quote/save.js"></script>
-<script src="js/quote/ui.js"></script>
+<script src="js/quote/constants.js" defer></script>
+<script src="js/quote/row.js" defer></script>
+<script src="js/quote/preview.js" defer></script>
+<script src="js/quote/cargo.js" defer></script>
+<script src="js/quote/conditions.js" defer></script>
+<script src="js/quote/save.js" defer></script>
+<script src="js/quote/ui.js" defer></script>
 
 <!-- =================================================================
      サイト全体スコープのフローティング UI（Phase 2c-Step1 で見積タブから昇格）
@@ -2752,7 +2756,7 @@
   <div id="fbBox" onclick="event.stopPropagation()">
     <div class="fb-head">
       <h3 id="fbHeadTitle">💬 フィードバック</h3>
-      <button class="fb-close-x" onclick="closeFeedback()" aria-label="閉じる">×</button>
+      <button type="button" class="fb-close-x" onclick="closeFeedback()" aria-label="閉じる">×</button>
     </div>
     <div id="fbNoUrlMsg" class="fb-no-url-msg">
       ⚠️ Googleフォームの entry ID がまだ設定されていません。<br>
@@ -2794,7 +2798,7 @@
   </div>
 </div>
 
-<button class="fb-fab" onclick="openFeedback('全体')" title="フィードバックを送る">💬</button>
+<button type="button" class="fb-fab" id="fb-fab" aria-label="フィードバックを送る" onclick="openFeedback('全体')" title="フィードバックを送る">💬</button>
 
 <div id="toast-container"></div>
 
