@@ -18,8 +18,12 @@
 // タブ切り替え
 function switchCategory(cat, btn) {
   // カテゴリーボタンのアクティブ切替
-  document.querySelectorAll('.cat-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.cat-btn').forEach(b => {
+    b.classList.remove('active');
+    b.setAttribute('aria-selected', 'false');
+  });
   btn.classList.add('active');
+  btn.setAttribute('aria-selected', 'true');
   // サブナビの表示切替
   document.querySelectorAll('.sub-nav').forEach(s => s.classList.remove('active'));
   document.getElementById('sub-' + cat).classList.add('active');
@@ -30,14 +34,26 @@ function switchCategory(cat, btn) {
 
 function switchTab(tabId, btn) {
   document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
-  document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(el => {
+    el.classList.remove('active');
+    el.setAttribute('aria-selected', 'false');
+  });
   document.getElementById('tab-' + tabId).classList.add('active');
   btn.classList.add('active');
+  btn.setAttribute('aria-selected', 'true');
   // Phase 2b：見積タブ(新版)が初めて表示されたタイミングで遅延初期化
   if (tabId === 'quote-make' && typeof window.initQuoteTab === 'function') {
     window.initQuoteTab();
   }
 }
+
+// aria-selected の初期状態を設定（WAI-ARIA タブパターン）
+document.querySelectorAll('.cat-btn').forEach(b => {
+  b.setAttribute('aria-selected', b.classList.contains('active') ? 'true' : 'false');
+});
+document.querySelectorAll('.tab-btn').forEach(b => {
+  b.setAttribute('aria-selected', b.classList.contains('active') ? 'true' : 'false');
+});
 
 // セレクトボックスを船会社リストで初期化
 function populateSelect(id) {
@@ -633,10 +649,9 @@ function initSectionFeedbacks() {
     const label = sectionName ? `${tabName} › ${sectionName}` : tabName;
 
     const esc = s => s.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
-
     card.insertAdjacentHTML('beforeend', `
       <div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--border);text-align:left;">
-        <button class="fb-section-btn" onclick="openFeedback('${esc(label)}')">💬 このセクションへのフィードバック</button>
+        <button type="button" class="fb-section-btn" onclick="openFeedback('${esc(label)}')">💬 このセクションへのフィードバック</button>
       </div>
     `);
   });
