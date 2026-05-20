@@ -12,6 +12,15 @@
     };
   }
 
+  // 担当者名に敬称（既定：様）を付与。既に様/さん/御中/殿 等が付いていれば追加しない。
+  // ファイル名生成には敬称を付けない（buildFileName は raw を使用）。
+  function formatPersonWithHonorific(name) {
+    const n = (name || '').trim();
+    if (!n) return '';
+    if (/(様|さま|サマ|さん|御中|殿|先生|社長|部長|課長|主任|Mr\.|Ms\.|Mrs\.|Dear)\s*$/i.test(n)) return n;
+    return n + ' 様';
+  }
+
   /**
    * ファイル名生成: REF_引き合い元_担当.<ext>
    * 入力がある項目だけ使用。すべて空なら "見積もり_YYYYMMDD"
@@ -104,7 +113,7 @@
     const metaHTML = [
       hdr.ref      ? `<div class="pv-meta-item"><span class="lbl">仮 REF #</span><span class="val">${escHtml(hdr.ref)}</span></div>` : '',
       hdr.customer ? `<div class="pv-meta-item"><span class="lbl">引き合い元</span><span class="val">${escHtml(hdr.customer)}</span></div>` : '',
-      hdr.person   ? `<div class="pv-meta-item"><span class="lbl">担当</span><span class="val">${escHtml(hdr.person)}</span></div>` : '',
+      hdr.person   ? `<div class="pv-meta-item"><span class="lbl">担当</span><span class="val">${escHtml(formatPersonWithHonorific(hdr.person))}</span></div>` : '',
     ].join('');
     metaEl.innerHTML = metaHTML;
     metaEl.style.display = metaHTML ? 'flex' : 'none';
@@ -424,7 +433,7 @@
     if (hdr.ref || hdr.customer || hdr.person) {
       if (hdr.ref)      lines.push(`仮REF#\t${hdr.ref}`);
       if (hdr.customer) lines.push(`引き合い元\t${hdr.customer}`);
-      if (hdr.person)   lines.push(`担当\t${hdr.person}`);
+      if (hdr.person)   lines.push(`担当\t${formatPersonWithHonorific(hdr.person)}`);
       lines.push('');
     }
     // ヘッダ行
@@ -500,7 +509,7 @@
     const aoaRows = [];
     if (hdr.ref)      aoaRows.push(['仮 REF #', hdr.ref]);
     if (hdr.customer) aoaRows.push(['引き合い元', hdr.customer]);
-    if (hdr.person)   aoaRows.push(['担当', hdr.person]);
+    if (hdr.person)   aoaRows.push(['担当', formatPersonWithHonorific(hdr.person)]);
     if (aoaRows.length) aoaRows.push([]);
 
     // 列ヘッダ
