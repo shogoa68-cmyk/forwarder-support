@@ -694,6 +694,26 @@
 }
 #tab-quote-make .z2-input:focus { border-color: #6b5a42; outline: none; }
 #tab-quote-make .z2-arrow { color: #6b5a42; font-weight: bold; font-size: 14px; padding-bottom: 3px; flex-shrink: 0; }
+#tab-quote-make .carrier-links-panel {
+  display: flex; flex-wrap: wrap; align-items: center;
+  gap: 6px; padding: 6px 4px 4px; margin-top: 2px;
+  border-top: 1px solid #e0d4c0; background: #faf7f2;
+  border-radius: 0 0 6px 6px;
+}
+#tab-quote-make .carrier-links-name {
+  font-size: 11px; font-weight: 700; color: #6b5a42;
+  white-space: nowrap; margin-right: 2px;
+}
+#tab-quote-make .carrier-link-chip {
+  display: inline-block; padding: 2px 8px;
+  font-size: 11px; border-radius: 12px; text-decoration: none;
+  background: #fff; border: 1px solid #b5a08a; color: #4a3828;
+  transition: background 0.15s, color 0.15s;
+  white-space: nowrap;
+}
+#tab-quote-make .carrier-link-chip:hover {
+  background: #6b5a42; color: #fff; border-color: #6b5a42;
+}
 #tab-quote-make .zone-fixed-content {
   padding: 16px 10px;
   text-align: center;

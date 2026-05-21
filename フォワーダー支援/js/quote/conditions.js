@@ -618,3 +618,30 @@
     }
   }
 
+  /** z2Carrier 入力時：一致するキャリアのリンクパネルを表示 */
+  function onZ2CarrierChange() {
+    const panel = document.getElementById('z2CarrierLinks');
+    if (!panel || typeof CARRIERS === 'undefined') return;
+    const val = (document.getElementById('z2Carrier')?.value || '').trim();
+    const c = CARRIERS[val];
+    if (!c) { panel.style.display = 'none'; panel.innerHTML = ''; return; }
+
+    const links = [
+      { label: '🗓 スケジュール', url: c.vessel?.(),    title: '本船スケジュール' },
+      { label: '📥 輸入サーチャージ', url: c.surchargeImport?.(), title: c.surchargeImportNote || '輸入ローカルチャージ' },
+      { label: '📤 輸出サーチャージ', url: c.surchargeExport?.(), title: '輸出ローカルチャージ' },
+      { label: '🗺 航路',          url: c.routePage,   title: '航路・サービスマップ' },
+      { label: '⏱ CY-CUT',        url: c.cycut,        title: c.cycutNote || 'CYオープン/カット情報' },
+    ].filter(l => l.url);
+
+    if (!links.length) { panel.style.display = 'none'; panel.innerHTML = ''; return; }
+
+    const icon = c.icon || '';
+    panel.innerHTML =
+      `<span class="carrier-links-name">${icon} ${val}</span>` +
+      links.map(l =>
+        `<a class="carrier-link-chip" href="${l.url}" target="_blank" rel="noopener" title="${l.title}">${l.label}</a>`
+      ).join('');
+    panel.style.display = 'flex';
+  }
+

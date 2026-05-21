@@ -451,6 +451,11 @@
       const bar = document.getElementById('autosave-restore-bar');
       if (bar) setTimeout(() => bar.classList.add('show'), 600);
     }
+    // carriers-dl datalist を CARRIERS マスタで初期化
+    const dl = document.getElementById('carriers-dl');
+    if (dl && typeof CARRIERS !== 'undefined') {
+      dl.innerHTML = Object.keys(CARRIERS).map(k => `<option value="${k}">`).join('');
+    }
     // カスタムカテゴリパネルを描画
     renderUserCatPanel();
     // 為替レート：自動モードなら起動時に取得
