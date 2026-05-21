@@ -313,3 +313,147 @@ const BOOKING_URLS = {
   'TSL':          { url: null, note: '⚠️ URL未確認' },
   'KMTC':         { url: 'https://www.kmtc.co.kr/e-service/booking', note: '⚠️ URL要確認' },
 };
+
+// ================================================================
+//  LCL / NVOCC キャリアマスタ
+//  schedule: スケジュール照会 URL（静的 string または () => URL）
+//  rate:     料金照会 URL（null = 未登録）
+//  tracking: 貨物追跡 URL
+//  contact:  問い合わせページ
+// ================================================================
+const CARRIERS_LCL = {
+  '近鉄エクスプレス': {
+    icon: '🟦', cls: 'KWE', domain: 'kkf.co.jp',
+    top:      'https://www.kkf.co.jp',
+    schedule: 'https://www.kkf.co.jp/service/ocean/lcl/',
+    rate:     null,
+    tracking: 'https://www.kkf.co.jp/tracking/',
+    contact:  'https://www.kkf.co.jp/contact/',
+  },
+  '日本通運': {
+    icon: '🟥', cls: 'NX', domain: 'nipponexpress.com',
+    top:      'https://www.nipponexpress.com/jp/',
+    schedule: 'https://www.nipponexpress.com/jp/service/logistics/ocean/',
+    rate:     null,
+    tracking: 'https://tracking.nipponexpress.com',
+    contact:  'https://www.nipponexpress.com/jp/contact/',
+  },
+  'MOLロジスティクス': {
+    icon: '🟠', cls: 'MOL', domain: 'mol-logistics.com',
+    top:      'https://www.mol-logistics.com/jp/',
+    schedule: null,
+    rate:     null,
+    tracking: null,
+    contact:  'https://www.mol-logistics.com/jp/contact/',
+  },
+  '郵船ロジスティクス': {
+    icon: '🔵', cls: 'YusenLog', domain: 'yusen-logistics.com',
+    top:      'https://www.yusen-logistics.com/jp/',
+    schedule: null,
+    rate:     null,
+    tracking: null,
+    contact:  null,
+  },
+  'Kラインロジスティクス': {
+    icon: '🟡', cls: 'KLL', domain: 'klinelog.co.jp',
+    top:      'https://www.klinelog.co.jp',
+    schedule: null,
+    rate:     null,
+    tracking: null,
+    contact:  'https://www.klinelog.co.jp/contact/',
+  },
+};
+
+// ================================================================
+//  航空キャリアマスタ
+//  schedule: フライトスケジュール URL
+//  rate:     料金照会 URL
+//  tracking: 貨物追跡 URL
+//  awb:      e-AWB / 運送状発行 URL
+// ================================================================
+const CARRIERS_AIR = {
+  'JAL Cargo': {
+    icon: '🔴', cls: 'JAL', domain: 'jal.co.jp',
+    top:      'https://cargo.jal.co.jp',
+    schedule: 'https://cargo.jal.co.jp/cargo/schedules',
+    rate:     'https://cargo.jal.co.jp/cargo/rate',
+    tracking: 'https://cargo.jal.co.jp/cargo/tracking',
+    awb:      null,
+  },
+  'ANA Cargo': {
+    icon: '🔵', cls: 'ANA', domain: 'anacargo.jp',
+    top:      'https://www.anacargo.jp',
+    schedule: 'https://www.anacargo.jp/ja/schedules/',
+    rate:     'https://www.anacargo.jp/ja/tariff/',
+    tracking: 'https://www.anacargo.jp/ja/tracking/',
+    awb:      null,
+  },
+  'Cathay Cargo': {
+    icon: '🟢', cls: 'Cathay', domain: 'cathaycargo.com',
+    top:      'https://www.cathaycargo.com',
+    schedule: 'https://www.cathaycargo.com/en/cargo-services/flight-schedule/',
+    rate:     null,
+    tracking: 'https://www.cathaycargo.com/en/tracking/',
+    awb:      null,
+  },
+  'Korean Air Cargo': {
+    icon: '⚫', cls: 'KAL', domain: 'koreanair.com',
+    top:      'https://www.koreanair.com/global/en/booking/cargo',
+    schedule: null,
+    rate:     null,
+    tracking: null,
+    awb:      null,
+  },
+  'SIA Cargo': {
+    icon: '🟡', cls: 'SIA', domain: 'singaporeaircargo.com',
+    top:      'https://www.singaporeaircargo.com',
+    schedule: null,
+    rate:     null,
+    tracking: null,
+    awb:      null,
+  },
+  'NCA': {
+    icon: '⚪', cls: 'NCA', domain: 'nca.aero',
+    top:      'https://www.nca.aero',
+    schedule: null,
+    rate:     null,
+    tracking: 'https://www.nca.aero/tracking/',
+    awb:      null,
+  },
+  'Emirates SkyCargo': {
+    icon: '🟣', cls: 'Emirates', domain: 'skycargo.com',
+    top:      'https://www.skycargo.com',
+    schedule: null,
+    rate:     null,
+    tracking: null,
+    awb:      null,
+  },
+};
+
+// ================================================================
+//  キャリアタイプ別リンク定義
+//  key:     キャリアオブジェクトのプロパティ名
+//  label:   表示ラベル
+//  noteKey: ツールチップ用 note を取る別プロパティ名（null = key+'Note' or key）
+// ================================================================
+const CARRIER_LINK_DEFS = {
+  fcl: [
+    { key: 'vessel',          label: '🗓 スケジュール',    noteKey: null },
+    { key: 'surchargeImport', label: '📥 輸入サーチャージ', noteKey: 'surchargeImportNote' },
+    { key: 'surchargeExport', label: '📤 輸出サーチャージ', noteKey: null },
+    { key: 'routePage',       label: '🗺 航路',             noteKey: null },
+    { key: 'cycut',           label: '⏱ CY-CUT',           noteKey: 'cycutNote' },
+  ],
+  lcl: [
+    { key: 'schedule', label: '🗓 スケジュール', noteKey: null },
+    { key: 'rate',     label: '💴 料金照会',     noteKey: null },
+    { key: 'tracking', label: '📦 追跡',         noteKey: null },
+    { key: 'contact',  label: '📞 問い合わせ',   noteKey: null },
+  ],
+  air: [
+    { key: 'schedule', label: '🗓 フライト',     noteKey: null },
+    { key: 'rate',     label: '💴 料金照会',     noteKey: null },
+    { key: 'tracking', label: '📦 追跡',         noteKey: null },
+    { key: 'awb',      label: '📋 e-AWB',        noteKey: null },
+  ],
+};
