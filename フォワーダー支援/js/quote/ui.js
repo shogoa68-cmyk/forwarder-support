@@ -669,6 +669,7 @@
       savePresetsToStorage(presets);
       document.getElementById('presetNameInput').value = '';
       renderPresetList();
+      setCurrentQuoteName(name);
       quoteShowToast(`💾 「${name}」を上書き保存しました`, 'success');
       return;
     }
@@ -680,6 +681,7 @@
     savePresetsToStorage(presets);
     document.getElementById('presetNameInput').value = '';
     renderPresetList();
+    setCurrentQuoteName(name);
     quoteShowToast(`💾 「${name}」を保存しました`, 'success');
   }
 
@@ -718,7 +720,16 @@
     calcLiveUpdate();
     updateRouteModeIcon();
     closePresetMgr();
+    setCurrentQuoteName(preset.name);
     quoteShowToast('📂 「' + preset.name + '」を読み込みました', 'success');
+  }
+
+  // 保存ツールバーの「編集中の見積名」表示を更新
+  function setCurrentQuoteName(name) {
+    const el = document.getElementById('currentQuoteName');
+    if (!el) return;
+    el.textContent = name ? '📝 ' + name : '📝 新規見積';
+    el.dataset.name = name || '';
   }
 
   function deletePreset(idx) {

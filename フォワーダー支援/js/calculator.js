@@ -336,9 +336,10 @@ function calcAirCW() {
     const qty    = parseInt(row.querySelector('[data-key="qty"]').value) || 1;
     if ([lInput,wInput,hInput,weight].some(isNaN)) continue;
     const meta  = getRowMeta(row);
-    // cm 換算で計算式に投入（IATA 基準は cm ベース）
+    // cm 換算で計算式に投入。divisor は IATA 6000 / Express 5000 / Courier 4000 から選択
+    const divisor = parseInt(document.getElementById('air-divisor')?.value, 10) || 6000;
     const l = lInput * factor, w = wInput * factor, h = hInput * factor;
-    const volW1 = (l*w*h) / 6000;
+    const volW1 = (l*w*h) / divisor;
     const cw1   = Math.max(volW1, weight);
     results.push({ l, w, h, lInput, wInput, hInput, weight, qty, volW1, cw1, cwTot: cw1*qty, tag: weight>=volW1?'W':'V', ...meta });
   }
@@ -1023,7 +1024,25 @@ function calcDuty() {
   const hs       = document.getElementById('duty-hs').value.trim();
   const dutyRate = parseFloat(document.getElementById('duty-rate').value)  || 0;
   const extraRate= parseFloat(document.getElementById('duty-extra').value) || 0;
+  const lowMode  = document.getElementById('duty-low-mode')?.value || 'none';
   if (cifRaw <= 0) { alert('課税価格（CIF）を入力してください'); return; }
+
+  // 少額免税モード：1 万円以下なら関税・消費税ともに 0（個人輸入は別表のため要確認）
+  if (lowMode === 'micro' && cifRaw <= 10000) {
+    const fmt0 = v => v.toLocaleString('ja-JP');
+    const note = '少額免税モード適用：課税価格 10,000 円以下のため関税・消費税は免除（関税定率法第 14 条 18 号）。<br>※個人使用目的・該当除外品（酒税・たばこ等）は別表で要確認。';
+    appendCalcResult('duty-result',
+      `<div style="padding:14px;background:#d4edda;border:1px solid #5a8a52;border-radius:6px;font-size:12px;color:#155724;line-height:1.7;">
+         <strong>🌿 少額免税適用</strong><br>
+         課税価格：¥${fmt0(cifRaw)}<br>
+         関税：¥0／消費税：¥0／地方消費税：¥0<br>
+         <span style="font-size:11px;">${note}</span>
+       </div>`,
+      `少額免税 / CIF ¥${fmt0(cifRaw)} → 税合計 ¥0`);
+    return;
+  }
+  // 簡易税率モード：20 万円以下で概算ガイドを表示（実適用は税関ルール参照）
+  const simpleMode = (lowMode === 'simple' && cifRaw <= 200000);
 
   // 課税価格: 1,000円未満切り捨て
   const cifBase = Math.floor(cifRaw / 1000) * 1000;
@@ -1065,8 +1084,14 @@ function calcDuty() {
       <td style="padding:5px 10px;font-size:11px;color:#718096;">${note}</td></tr>`;
   }).join('');
 
+  const simpleNote = simpleMode
+    ? `<div style="margin-top:10px;padding:8px 12px;background:#fff3cd;border-left:3px solid #e8c870;font-size:11px;color:#7a5500;line-height:1.6;">
+         💡 <strong>簡易税率モード参考表示</strong>：課税価格 20 万円以下では HS 詳細不要の<strong>少額輸入貨物簡易税率</strong>が選択可。
+         代表的な区分：酒類等（除外）・コーヒー類 15%・衣類 10%・履物 30%・一般雑貨 3%。
+         上記計算は <strong>通常税率</strong>での試算なので、実適用時は税関の最新ルールで簡易税率と比較してください。
+       </div>` : '';
   appendCalcResult('duty-result',
-    `<table style="width:100%;border-collapse:collapse;">${tableRows}</table>`,
+    `<table style="width:100%;border-collapse:collapse;">${tableRows}</table>${simpleNote}`,
     `CIF ¥${fmt(cifRaw)} / 関税${dutyRate}%${hsNote} → 税合計 ¥${fmt(totalTax)}`
   );
 }

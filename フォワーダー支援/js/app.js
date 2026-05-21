@@ -664,3 +664,16 @@ function populateCarriersDatalist() {
 }
 document.addEventListener('DOMContentLoaded', populateCarriersDatalist);
 
+// インコタームズ select の onchange で 1 行ヘルプを表示
+function showIncotermsHint(label) {
+  const hintEl = document.getElementById('cond-incoterms-hint');
+  if (!hintEl) return;
+  if (!label) { hintEl.textContent = ''; hintEl.style.display = 'none'; return; }
+  // ラベル先頭 3 文字（EXW/FOB/...）で INCO_DATA を引く
+  const code = (label.match(/^[A-Z]{3}/) || [''])[0];
+  const entry = (typeof INCO_DATA === 'object') ? INCO_DATA.find(d => d.code === code) : null;
+  if (!entry) { hintEl.textContent = ''; hintEl.style.display = 'none'; return; }
+  hintEl.textContent = '💡 ' + entry.code + '（' + entry.name + '）：' + entry.note;
+  hintEl.style.display = '';
+}
+

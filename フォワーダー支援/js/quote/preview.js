@@ -152,9 +152,13 @@
       let zeroPriceCount = 0, mixedCcyCount = 0, emptyNameCount = 0;
       data.forEach(d => {
         if (!d.name || !d.name.trim()) emptyNameCount++;
-        // 名前あり・かつ請求単価ゼロ
-        if (d.name && d.name.trim() && (!d.bp || d.bp === 0)) zeroPriceCount++;
-        if (d.pc && d.bc && d.pc !== d.bc)                    mixedCcyCount++;
+        // 名前あり・かつ請求単価ゼロ（ただし「式」「note」単位や明示メモ行は除外）
+        const isMemoRow = (d.un === '式' || d.un === 'note' || d.un === 'memo')
+                       || (d.name && /^[#＃].+/.test(d.name.trim()));
+        if (d.name && d.name.trim() && !isMemoRow && (!d.bp || d.bp === 0) && (!d.bq || d.bq === 0)) {
+          zeroPriceCount++;
+        }
+        if (d.pc && d.bc && d.pc !== d.bc) mixedCcyCount++;
       });
       if (emptyNameCount)  warnings.push(`項目名が空の行が ${emptyNameCount} 件あります`);
       if (zeroPriceCount)  warnings.push(`請求単価がゼロの行が ${zeroPriceCount} 件あります`);

@@ -1185,6 +1185,13 @@
       <p style="font-size:12px;color:#718096;margin-bottom:12px;">
         各国の税関は貨物の安全管理のため、本船出港前に貨物情報の事前申告を義務付けています。提出遅延・不備はリレース拒否・罰則の対象となります。
       </p>
+      <div style="margin-bottom:12px;padding:10px 14px;background:#fff3cd;border:1px solid #e8c870;border-radius:6px;font-size:11px;color:#7a5500;line-height:1.6;">
+        <strong>⚠️ 「24 時間前」の基準点は制度ごとに異なります</strong><br>
+        ・<strong>積出港出港 24h 前基準</strong>：AFR（日本）／AMS（米国）／ISF 10+2（米国）／ACI（カナダ）／UK S&amp;S（英国）<br>
+        ・<strong>入港 24h 前基準</strong>：ENS（EU・ICS2、コンテナ船以外は別ルール）／UAE 事前申告<br>
+        ・<strong>船積み前／本船到着前</strong>：NAFEZA / ACID（エジプト、船社 SI カット合わせが現実運用）<br>
+        実務では**船社のオペマニュアル・最新通達を一次資料**として確認すること。
+      </p>
       <div style="overflow-x:auto;">
         <table class="inco-table" style="min-width:700px;">
           <thead>
@@ -1192,7 +1199,7 @@
               <th>制度名</th>
               <th>対象</th>
               <th>提出義務者</th>
-              <th>提出期限（海上）</th>
+              <th>提出期限（海上）<br><small style="font-weight:400;color:#999;">⚠️ 基準点（積出／入港）に注意</small></th>
               <th>提出先・システム</th>
               <th>未提出時のペナルティ</th>
             </tr>
@@ -1549,8 +1556,15 @@
     <div class="card">
       <div class="section-title">✈️ 航空チャージャブルウェイト計算</div>
       <p class="calc-desc">実重量と容積重量を比較し、大きい方がチャージャブルウェイト（請求対象重量）になります。<br>
-        <span style="font-size:11px;">容積重量(kg) = L × W × H(cm) ÷ 6,000　（IATA基準）</span></p>
+        <span style="font-size:11px;">容積重量(kg) = L × W × H(cm) ÷ divisor（IATA = 6,000 ／ Express = 5,000）</span></p>
       <div class="calc-shared-opts">
+        <div class="calc-field"><span class="calc-label">体積換算 divisor</span>
+          <select id="air-divisor" class="calc-unit-select" title="IATA 標準 6000／Express（DHL/FedEx/UPS）5000／Courier 任意" style="min-width:160px;">
+            <option value="6000" selected>IATA 6,000（一般航空）</option>
+            <option value="5000">Express 5,000（DHL/FedEx/UPS）</option>
+            <option value="4000">Courier 4,000（一部 Express 軽量）</option>
+          </select>
+        </div>
         <div class="calc-field"><span class="calc-label">単位（全行共通）</span>
           <select id="air-unit" class="calc-unit-select">
             <option value="cm">cm</option>
@@ -1616,6 +1630,9 @@
     <!-- 3. 容積（CBM）・才数計算 統合 -->
     <div class="card">
       <div class="section-title">📦 容積（CBM）・才数計算</div>
+      <div style="padding:8px 12px;background:#e8f4f0;border-left:3px solid #5a8a52;border-radius:5px;margin-bottom:10px;font-size:11px;color:#1a5c45;line-height:1.6;">
+        💡 <strong>見積もり行へワンクリック反映したい場合は、こちらではなく</strong>「💼 見積もりタブ → ③ 貨物情報」内の同等計算機能をご利用ください（単位 R/T・CW・CBM・kg・pcs ごとに見積行へ「反映」ボタンで一括転記できます）。
+      </div>
       <p class="calc-desc">CBM（海上輸送の容積単位）と才数（国内運送の容積単位）を同時に算出します。<br>
         <span style="font-size:11px;">CBM = L×W×H(m)　／　才数 = L×W×H(cm) ÷ 27,826.5　／　各単位で自動換算</span><br>
         <span style="font-size:11px;line-height:1.9;">🚛 トラック積載目安：軽バン <strong>〜40才</strong>　／　2t <strong>〜120才</strong>　／　4t <strong>〜250才</strong>　／　10t <strong>〜580才</strong></span></p>
@@ -1836,11 +1853,20 @@
           <input type="number" class="calc-input" id="duty-extra" value="0" step="0.1" min="0" style="width:90px;">
           <span style="font-size:11px;color:#718096;margin-top:3px;">※対中制裁等</span>
         </div>
+        <div class="calc-field"><span class="calc-label">少額モード</span>
+          <select id="duty-low-mode" class="calc-unit-select" title="課税価格 ≤ 1 万円なら全額免除（個人輸入除く）、≤ 20 万円なら簡易税率の概算ガイド表示" style="min-width:200px;">
+            <option value="none">通常税率</option>
+            <option value="micro">少額免税モード（1 万円以下 → 0 円）</option>
+            <option value="simple">簡易税率モード（20 万円以下 → 概算）</option>
+          </select>
+        </div>
         <button class="btn-primary" onclick="calcDuty()">計算 →</button>
         <button class="btn-clear" onclick="clearCalcResult('duty-result')">クリア</button>
       </div>
       <p style="font-size:11px;color:#718096;margin:8px 0 0 0;">
-        ⚠️ 試算値です。実際の税額は品目・原産地・適用協定等により異なります。輸入申告は通関士にご相談ください。
+        ⚠️ 試算値です。実際の税額は品目・原産地・適用協定等により異なります。輸入申告は通関士にご相談ください。<br>
+        💡 <strong>少額免税</strong>：課税価格 ≤ 10,000 円なら関税・消費税ともに免税（関税定率法第 14 条 18 号、個人使用目的は別表）。<br>
+        💡 <strong>簡易税率</strong>：課税価格 ≤ 200,000 円の少額貨物に対し、HS 詳細不要の概算税率（一般 3%／15%／20% など）を適用可。実適用時は税関の最新ルール確認。
       </p>
       <div id="duty-result" class="calc-result" style="display:none;"></div>
     </div>  </div><!-- /tab-rate -->
@@ -1941,6 +1967,8 @@
 
     <!-- ========== 保存/読み込みツールバー ========== -->
     <div class="save-toolbar" id="saveToolbar">
+      <span class="current-quote-name" id="currentQuoteName" title="現在編集中のプリセット名（読込・保存時に更新）">📝 新規見積</span>
+      <span class="save-toolbar-sep"></span>
       <button class="save-btn save-btn-preset"
               onclick="openPresetMgr()" title="入力パターンや一時保存の管理">
         🗂️ プリセット/一時保存
@@ -2102,7 +2130,7 @@
 
         <div class="cond-inco-bar">
           <label class="cond-inco-label">🔖 インコタームズ</label>
-          <select id="cond-incoterms">
+          <select id="cond-incoterms" onchange="showIncotermsHint(this.value)">
             <option value="">— 選択 —</option>
             <optgroup label="任意の場所">
               <option>EXW（工場渡し）</option>
@@ -2120,6 +2148,7 @@
               <option>CIF（運賃・保険料込み）</option>
             </optgroup>
           </select>
+          <span id="cond-incoterms-hint" class="cond-incoterms-hint"></span>
         </div>
 
         <div class="cond-primary-bar">
@@ -2721,7 +2750,7 @@
         <button type="button" class="row-move-btn row-move-down" data-field="move-down" tabindex="-1" title="下に移動">▼</button>
       </td>
       <td class="cat-cell"><select class="w-cat" data-field="cat" data-col="0"></select></td>
-      <td class="tax-cell"><input type="checkbox" data-field="tx" title="課税"></td>
+      <td class="tax-cell"><input type="checkbox" data-field="tx" title="ON にすると消費税 10% が自動計算され、項目名先頭に「*」が付きます。輸出免税の行は OFF のままにしてください（輸出方向選択時は自動 0% に切替）。"></td>
       <td><input type="text" data-field="nm" class="w-name" placeholder="例）海上運賃" data-col="1" /></td>
       <td><input type="number" data-field="pq" class="w-qty" min="0" value="1" data-col="2" /></td>
       <td><input type="text" list="unit-list" data-field="un" class="w-unit" data-col="2u" placeholder="単位" /></td>
