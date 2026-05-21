@@ -33,7 +33,7 @@ body {
   margin-bottom: 16px;
 }
 .header h1 { font-size: 18px; font-weight: 700; letter-spacing: 0.02em; }
-.header .subtitle { font-size: 12px; opacity: 0.6; margin-top: 4px; }
+.header .subtitle { font-size: 12px; color: rgba(245,237,224,0.78); margin-top: 4px; }
 
 /* ===== Tab Navigation ===== */
 .tab-nav {
@@ -130,6 +130,7 @@ body {
   transition: background 0.2s;
 }
 .btn-primary:hover { background: var(--accent-dk); }
+.btn-primary:active { filter: brightness(0.85); transform: scale(0.97); }
 
 .btn-open {
   background: var(--accent);
@@ -144,6 +145,7 @@ body {
   display: inline-block;
 }
 .btn-open:hover { background: var(--accent-dk); }
+.btn-open:active { filter: brightness(0.85); transform: scale(0.97); }
 
 /* ===== Result box ===== */
 .result-box {
@@ -739,6 +741,12 @@ body {
   gap: 5px;
   margin-bottom: 6px;
   flex-wrap: wrap;
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  background: var(--bg);
+  padding-top: 6px;
+  margin-top: -6px;
 }
 .cat-btn {
   flex: 1;
@@ -782,7 +790,14 @@ body {
 }
 /* サブタブナビ（2段タブ下段）*/
 .sub-nav { display: none !important; margin-bottom: 14px; }
-.sub-nav.active { display: flex !important; }
+.sub-nav.active {
+  display: flex !important;
+  position: sticky;
+  top: 56px;
+  z-index: 49;
+  background: var(--bg);
+  padding-bottom: 4px;
+}
 
 
 /* ===== 複数行追加（計算ツール） ===== */
@@ -974,4 +989,12 @@ textarea:focus-visible,
 button:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 1px;
+}
+
+/* ===== 印刷時：ナビ・FAB・フィードバック要素を非表示 =====
+   見積プレビュー印刷は quote.css の @media print で別途制御。
+   ここはポータル全体（知識タブ・インコタームズ等）の印刷を改善する。 */
+@media print {
+  .header, .cat-nav, .sub-nav, .footer,
+  .fb-fab, #stickyNotePanel, #fbOverlay, #toast-container { display: none !important; }
 }

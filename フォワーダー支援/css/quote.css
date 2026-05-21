@@ -671,8 +671,8 @@
 #tab-quote-make .w-subcon { width: 90px; font-size: 11px; }
 #tab-quote-make .zone-preset-bar { padding: 10px 0 2px; text-align: center; }
 #tab-quote-make .btn-zone-preset { background: #5a6e42; color: #fff; border: none; padding: 8px 20px; border-radius: 5px; font-size: 12px; font-weight: 600; cursor: pointer; font-family: inherit; transition: background .15s; letter-spacing: .03em; }
-#tab-quote-make .btn-zone-preset:hover { background: #5a6e42; }
-#tab-quote-make .btn-zone-preset:active { background: #1a7d41; }
+#tab-quote-make .btn-zone-preset:hover { filter: brightness(1.2); }
+#tab-quote-make .btn-zone-preset:active { filter: brightness(0.85); transform: scale(0.97); }
 /* ── Zone② 幹線輸送入力 ── */
 #tab-quote-make .zone2-inputs { padding: 10px 10px 8px; }
 #tab-quote-make .z2-row { display: flex; align-items: center; gap: 6px; margin-bottom: 7px; }
@@ -1304,13 +1304,15 @@
   cursor: pointer; padding: 8px 18px; font-size: 13px; font-family: inherit;
   transition: background 0.15s;
 }
-#tab-quote-make .pv-btn-copy:hover { background: #5a6e42; }
+#tab-quote-make .pv-btn-copy:hover { filter: brightness(1.2); }
+#tab-quote-make .pv-btn-copy:active { filter: brightness(0.85); transform: scale(0.97); }
 #tab-quote-make .pv-btn-csv {
   background: #8b6914; color: white; border: none; border-radius: 5px;
   cursor: pointer; padding: 8px 18px; font-size: 13px; font-family: inherit;
   transition: background 0.15s;
 }
-#tab-quote-make .pv-btn-csv:hover { background: #8b6914; }
+#tab-quote-make .pv-btn-csv:hover { filter: brightness(1.2); }
+#tab-quote-make .pv-btn-csv:active { filter: brightness(0.85); transform: scale(0.97); }
 #tab-quote-make .pv-btn-excel {
   background: #f0fff4;
   border: 1px solid #81c784;
@@ -1338,7 +1340,8 @@
   cursor: pointer; padding: 8px 18px; font-size: 13px; font-family: inherit;
   transition: background 0.15s;
 }
-#tab-quote-make .pv-btn-close:hover { background: #7d6b56; }
+#tab-quote-make .pv-btn-close:hover { filter: brightness(1.2); }
+#tab-quote-make .pv-btn-close:active { filter: brightness(0.85); transform: scale(0.97); }
 #tab-quote-make .pv-copy-msg { font-size: 12px; color: #5a6e42; opacity: 0; transition: opacity 0.4s; }
 #tab-quote-make .pv-copy-msg.show { opacity: 1; }
 #tab-quote-make .pv-hint { font-size: 11px; color: #a8947e; margin-top: 10px; }
@@ -1487,7 +1490,8 @@
   cursor: pointer;
   font-family: inherit;
 }
-#tab-quote-make .autosave-restore-btn:hover { background: #5a6e42; }
+#tab-quote-make .autosave-restore-btn:hover { filter: brightness(1.2); }
+#tab-quote-make .autosave-restore-btn:active { filter: brightness(0.85); transform: scale(0.97); }
 #tab-quote-make .autosave-restore-close {
   color: #a8947e;
   cursor: pointer;
@@ -2234,7 +2238,8 @@
   font-size: 12px; cursor: pointer; font-family: inherit;
   white-space: nowrap;
 }
-#tab-quote-make .user-cat-add-btn:hover { background: #5a6e42; }
+#tab-quote-make .user-cat-add-btn:hover { filter: brightness(1.2); }
+#tab-quote-make .user-cat-add-btn:active { filter: brightness(0.85); transform: scale(0.97); }
 /* ユーザーカテゴリ 5色 */
 #tab-quote-make .cat-user-a { background: #fde8d8 !important; border-left: 3px solid #e67e22 !important; }
 #tab-quote-make .cat-user-b { background: #d5e6c8 !important; border-left: 3px solid #5a6e42 !important; }

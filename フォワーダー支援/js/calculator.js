@@ -237,11 +237,7 @@ function sendCalcResultToQuote(btn) {
   const ta = document.getElementById('condFreeText');
   if (!ta) {
     // フォールバック：見積もりタブが描画されていない極稀ケース
-    if (typeof quoteShowToast === 'function') {
-      quoteShowToast('⚠️ 自由入力欄が見つかりません', 'warn');
-    } else {
-      alert('自由入力欄が見つかりません');
-    }
+    quoteShowToast('⚠️ 自由入力欄が見つかりません', 'warning');
     return;
   }
   const sep = ta.value.trim() ? '\n\n' : '';
@@ -343,7 +339,7 @@ function calcAirCW() {
     const cw1   = Math.max(volW1, weight);
     results.push({ l, w, h, lInput, wInput, hInput, weight, qty, volW1, cw1, cwTot: cw1*qty, tag: weight>=volW1?'W':'V', ...meta });
   }
-  if (results.length === 0) { alert('すべての値を入力してください'); return; }
+  if (results.length === 0) { quoteShowToast('⚠️ すべての値を入力してください', 'warning'); return; }
 
   if (results.length === 1) {
     const r   = results[0];
@@ -415,7 +411,7 @@ function calcLclRT() {
       cbmTot: cbm1*qty, wTonTot: wTon1*qty, rtTot: rt1*qty,
       tag: wTon1>=cbm1?'W':'M', ...meta });
   }
-  if (results.length === 0) { alert('すべての値を入力してください'); return; }
+  if (results.length === 0) { quoteShowToast('⚠️ すべての値を入力してください', 'warning'); return; }
 
   if (results.length === 1) {
     const r   = results[0];
@@ -487,7 +483,7 @@ function calcCBMSai() {
     const sai1 = (l*Fcm * w*Fcm * h*Fcm) / 27826.5;
     results.push({ l, w, h, qty, cbm1, sai1, cbmTot: cbm1*qty, saiTot: sai1*qty, ...meta });
   }
-  if (results.length === 0) { alert('寸法を入力してください'); return; }
+  if (results.length === 0) { quoteShowToast('⚠️ 寸法を入力してください', 'warning'); return; }
 
   const TRUCKS = [{name:'軽バン',cap:40},{name:'2tトラック',cap:120},{name:'4tトラック',cap:250},{name:'10tトラック',cap:580}];
 
@@ -567,7 +563,7 @@ function calcPalletize() {
   } else {
     const pwInput = parseFloat(document.getElementById('pal-pw').value);
     const pdInput = parseFloat(document.getElementById('pal-pd').value);
-    if (isNaN(pwInput)||isNaN(pdInput)) { alert('パレットサイズを入力してください'); return; }
+    if (isNaN(pwInput)||isNaN(pdInput)) { quoteShowToast('⚠️ パレットサイズを入力してください', 'warning'); return; }
     pw = pwInput * factor; pd = pdInput * factor;
     pwDisp = pwInput; pdDisp = pdInput; palUnit = unit;
   }
@@ -595,7 +591,7 @@ function calcPalletize() {
     const pNeeded   = (tot > 0 && perPallet > 0) ? Math.ceil(tot/perPallet) : null;
     results.push({ bl, bw, bh, blInput, bwInput, bhInput, tot, best, perPer1L, perPallet, pNeeded, effLay, ...meta });
   }
-  if (results.length === 0) { alert('箱の寸法を入力してください'); return; }
+  if (results.length === 0) { quoteShowToast('⚠️ 箱の寸法を入力してください', 'warning'); return; }
 
   if (results.length === 1) {
     const r = results[0];
@@ -674,7 +670,7 @@ function calcVanning() {
     const bl = blInput * factor, bw = bwInput * factor, bh = bhInput * factor;
     cargo.push({ bl, bw, bh, blInput, bwInput, bhInput, bkg, qty, rowNoStack, ...meta });
   }
-  if (cargo.length === 0) { alert('貨物の寸法を入力してください'); return; }
+  if (cargo.length === 0) { quoteShowToast('⚠️ 貨物の寸法を入力してください', 'warning'); return; }
 
   // ── 単品モード（従来動作 + SVG）──────────────────────────
   if (cargo.length === 1) {
@@ -952,7 +948,7 @@ function fmtRate(r, dec) {
 async function calcRate() {
   const from   = document.getElementById('rate-from').value;
   const amount = parseFloat(document.getElementById('rate-amount').value);
-  if (isNaN(amount) || amount <= 0) { alert('金額を入力してください'); return; }
+  if (isNaN(amount) || amount <= 0) { quoteShowToast('⚠️ 金額を入力してください', 'warning'); return; }
 
   const status = document.getElementById('rate-status');
   status.textContent = '⏳ レートを取得中...';
@@ -989,8 +985,8 @@ function calcInsurance() {
   const fob     = parseFloat(document.getElementById('ins-fob').value) || 0;
   const freight = parseFloat(document.getElementById('ins-freight').value) || 0;
   const rate    = parseFloat(document.getElementById('ins-rate').value) || 0;
-  if (fob <= 0) { alert('FOB金額を入力してください'); return; }
-  if (rate <= 0) { alert('保険料率を入力してください'); return; }
+  if (fob <= 0) { quoteShowToast('⚠️ FOB金額を入力してください', 'warning'); return; }
+  if (rate <= 0) { quoteShowToast('⚠️ 保険料率を入力してください', 'warning'); return; }
 
   const insurable = Math.ceil((fob + freight) * 1.10);  // 保険価額
   const premium   = Math.ceil(insurable * (rate / 100)); // 保険料
@@ -1025,7 +1021,7 @@ function calcDuty() {
   const dutyRate = parseFloat(document.getElementById('duty-rate').value)  || 0;
   const extraRate= parseFloat(document.getElementById('duty-extra').value) || 0;
   const lowMode  = document.getElementById('duty-low-mode')?.value || 'none';
-  if (cifRaw <= 0) { alert('課税価格（CIF）を入力してください'); return; }
+  if (cifRaw <= 0) { quoteShowToast('⚠️ 課税価格（CIF）を入力してください', 'warning'); return; }
 
   // 少額免税モード：1 万円以下なら関税・消費税ともに 0（個人輸入は別表のため要確認）
   if (lowMode === 'micro' && cifRaw <= 10000) {

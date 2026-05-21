@@ -673,9 +673,9 @@
       quoteShowToast(`💾 「${name}」を上書き保存しました`, 'success');
       return;
     }
-    if (presets.length >= 10) {
+    if (presets.length >= 50) {
       quoteShowToast(
-        '⚠️ プリセットは最大 10 件です。同名上書きするか、ツールバー「📤 出力」で JSON ファイルとして書き出してください（長期保管・チーム共有向け）',
+        '⚠️ プリセットは最大 50 件です。同名上書きするか、ツールバー「📤 出力」で JSON ファイルとして書き出してください（長期保管・チーム共有向け）',
         'warning', 6000
       );
       return;
