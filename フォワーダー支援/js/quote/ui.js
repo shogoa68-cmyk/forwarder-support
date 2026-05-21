@@ -115,10 +115,12 @@
   }
 
   function clearRemark() {
-    if (!confirm('リマーク欄をクリアしますか？')) return;
-    document.getElementById('remarkTextarea').value = '';
+    const ta = document.getElementById('remarkTextarea');
+    const prev = ta.value;
+    ta.value = '';
     document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
     updateRemarkChar();
+    quoteShowToast('リマーク欄をクリアしました', 'info', 4000);
   }
 
   function updateRemarkChar() {
@@ -409,7 +411,6 @@
       return;
     }
     const rows = Array.from(checkboxes).map(chk => chk.closest('tr')).filter(Boolean);
-    if (!confirm(`チェックした ${rows.length} 行を削除しますか？`)) return;
     rows.forEach(tr => tr.remove());
     const allChk = document.getElementById('selectAllChk');
     if (allChk) allChk.checked = false;

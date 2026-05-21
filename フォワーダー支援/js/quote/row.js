@@ -536,15 +536,14 @@
       quoteShowToast('🧹 未入力行はありません', 'success', 2500);
       return;
     }
-    if (!confirm(`未入力（グレーアウト）の行を ${empties.length} 件削除しますか？`)) return;
     empties.forEach(tr => tr.remove());
     updateTotals();
     quoteShowToast(`🧹 未入力行を ${empties.length} 件削除しました`, 'success');
   }
 
   function resetAll() {
-    if (!confirm('すべての行を削除してリセットしますか？')) return;
     document.getElementById('tableBody').innerHTML = '';
     rowCount = 0;
     updateTotals();
+    quoteShowToast('🗑️ 全行をリセットしました', 'info', 3000);
   }

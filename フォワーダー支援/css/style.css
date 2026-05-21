@@ -9,6 +9,11 @@
   --text:      #2d2418;
   --text-md:   #7d6b56;
   --text-lt:   #8a7560;  /* Quick Win #2: WCAG AA 4.5:1 達成（旧 #a8947e は 2.7:1） */
+  /* sticky ナビゲーション高さ（cat-nav → sub-nav → save-toolbar の順）
+     cat-nav: min-height:44px + padding:6px + margin ≈ 56px
+     sub-nav: tab-nav 高さ ≈ 50px                                   */
+  --nav-cat-h: 56px;
+  --nav-sub-h: 50px;
   color-scheme: light;
 }
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -22,7 +27,7 @@ body {
   min-height: 100vh;
 }
 
-.app { max-width: clamp(960px, 65vw, 1440px); margin: 0 auto; padding: 20px 16px; }
+.app { max-width: 1440px; margin: 0 auto; padding: 20px 16px; }
 /* 見積タブ active 時は .app の幅制限を解除（テーブル min-width:1300px との衝突を解消）
    :has() は Chrome 105+ / Firefox 121+ / Safari 15.4+ で対応 */
 body:has(#tab-quote-make.active) .app {
@@ -418,6 +423,15 @@ body:has(#tab-quote-make.active) .app {
 .footer-link:hover { opacity: 0.82; }
 
 /* ===== Responsive ===== */
+@media (max-width: 1024px) {
+  .carrier-grid { grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); }
+  .portal-grid  { grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); }
+  .blrules-grid { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
+  .tab-btn      { font-size: 11px; padding: 7px 8px; }
+}
+@media (min-width: 1480px) {
+  .app { max-width: 65vw; }
+}
 @media (max-width: 600px) {
   .lookup-form { flex-direction: column; }
   .lookup-form input, .lookup-form select { width: 100%; }
@@ -800,7 +814,7 @@ body:has(#tab-quote-make.active) .app {
 .sub-nav.active {
   display: flex !important;
   position: sticky;
-  top: 56px;
+  top: var(--nav-cat-h);
   z-index: 49;
   background: var(--bg);
   padding-bottom: 4px;

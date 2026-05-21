@@ -180,11 +180,17 @@
   pointer-events: none !important;
   cursor: default !important;
   user-select: none !important;
-  background: #f4f4f4 !important;
-  border-color: #d9cfc2 !important;
+  background: #ede5d6 !important;
+  border-color: #c8bfb2 !important;
+  border-style: dashed !important;
   color: #7d6b56 !important;
+  opacity: 0.8;
 }
-#tab-quote-make select.display-field { color: #7d6b56 !important; }
+#tab-quote-make select.display-field {
+  color: #7d6b56 !important;
+  -webkit-appearance: none;
+  appearance: none;
+}
 
 /* CD セル */
 #tab-quote-make td.cd-cell { background: #ede5d6; padding: 3px 5px; min-width: 100px; }
@@ -264,7 +270,8 @@
   cursor: pointer; padding: 3px 9px; font-size: 11px;
   transition: background 0.15s; margin-left: 4px;
 }
-#tab-quote-make .btn-ins:hover { background: #5a6e42; }
+#tab-quote-make .btn-ins:hover { filter: brightness(1.2); }
+#tab-quote-make .btn-ins:active { filter: brightness(0.85); transform: scale(0.97); }
 /* 旧スタンドアロン定義（Feature 1 共通リセットに統合済み・互換のため残存） */
 /* .btn-add / .btn-reset / .btn-preview / .btn-csv-import / .btn-sort-cat / .btn-clean-empty は
    下部の共通リセットブロックで定義 */
@@ -283,7 +290,7 @@
   cursor: pointer;
 }
 #tab-quote-make #csvDropZone.active { background: #fde8d0; }
-#tab-quote-make #csvDropZone p { margin-top: 6px; font-size: 11px; color: #a8947e; }
+#tab-quote-make #csvDropZone p { margin-top: 6px; font-size: 11px; color: #7d6b56; }
 #tab-quote-make #csvMsg {
   display: none;
   margin-top: 10px;
@@ -339,7 +346,7 @@
   line-height: 1.4;
   transition: background 0.15s;
 }
-#tab-quote-make .font-size-btn:hover { background: #d9cfc2; border-color: #a8947e; }
+#tab-quote-make .font-size-btn:hover { background: #d9cfc2; border-color: #7d6b56; }
 
 /* ===== レイアウトスケール（大/中/小）ボタン ===== */
 #tab-quote-make .layout-scale-btn {
@@ -593,7 +600,7 @@
   user-select: none;
   transition: background .12s;
 }
-#tab-quote-make .piece-item:hover { background: #f0e8d8; }
+#tab-quote-make .piece-item:hover { background: #e8ddc8; }
 #tab-quote-make .piece-item input[type=checkbox] {
   width: 14px; height: 14px; flex-shrink: 0;
   accent-color: #5a6e42; cursor: pointer;
@@ -665,7 +672,7 @@
 }
 #tab-quote-make .zone-addr-input:not(:disabled) { background: #fff; border-color: #d9cfc2; }
 #tab-quote-make .zone-addr-input:not(:disabled):focus { border-color: #6b5a42; }
-#tab-quote-make .zone-addr-input::placeholder { color: #a8947e; font-size: 10px; }
+#tab-quote-make .zone-addr-input::placeholder { color: #7d6b56; font-size: 10px; }
 #tab-quote-make .zone-addr-input:disabled { opacity: .4; cursor: not-allowed; }
 #tab-quote-make .zone-addr-country { max-width: 88px; }
 #tab-quote-make .w-subcon { width: 90px; font-size: 11px; }
@@ -996,7 +1003,8 @@
   font-family: inherit;
   transition: background 0.15s;
 }
-#tab-quote-make .btn-calc-run:hover { background: #8b6914; }
+#tab-quote-make .btn-calc-run:hover { filter: brightness(1.2); }
+#tab-quote-make .btn-calc-run:active { filter: brightness(0.85); transform: scale(0.97); }
 #tab-quote-make .calc-results-panel {
   display: none;
   margin-top: 10px;
@@ -1209,7 +1217,7 @@
   transition: background 0.15s;
 }
 #tab-quote-make .btn-remark-clear:hover { background: #d9cfc2; color: #3d2e1e; }
-#tab-quote-make .remark-char { font-size: 11px; color: #a8947e; margin-left: auto; }
+#tab-quote-make .remark-char { font-size: 11px; color: #7d6b56; margin-left: auto; }
 #tab-quote-make #pvRemarkBox {
   margin-top: 16px;
   padding: 12px 14px;
@@ -1344,7 +1352,7 @@
 #tab-quote-make .pv-btn-close:active { filter: brightness(0.85); transform: scale(0.97); }
 #tab-quote-make .pv-copy-msg { font-size: 12px; color: #5a6e42; opacity: 0; transition: opacity 0.4s; }
 #tab-quote-make .pv-copy-msg.show { opacity: 1; }
-#tab-quote-make .pv-hint { font-size: 11px; color: #a8947e; margin-top: 10px; }
+#tab-quote-make .pv-hint { font-size: 11px; color: #7d6b56; margin-top: 10px; }
 /* ========== 保存ツールバー ========== */
 #tab-quote-make .save-toolbar {
   display: flex;
@@ -1354,7 +1362,7 @@
   background: #f0e8d8;
   padding: 8px 20px;
   position: sticky;
-  top: 106px;
+  top: calc(var(--nav-cat-h) + var(--nav-sub-h));
   z-index: 45;
   border-bottom: 1px solid #d9cfc2;
   box-shadow: 0 2px 8px rgba(0,0,0,.08);
@@ -1430,7 +1438,7 @@
 /* ---- 非表示バッジ（フィールドの代わりに表示） ---- */
 #tab-quote-make .hidden-badge {
   display: inline-flex; align-items: center; gap: 4px;
-  font-size: 10px; color: #a8947e;
+  font-size: 10px; color: #7d6b56;
   padding: 2px 6px; border-radius: 4px;
   background: #f0e8d8;
   border: 1px dashed #d9cfc2;
@@ -1457,7 +1465,7 @@
 #tab-quote-make .autosave-label input { cursor: pointer; }
 #tab-quote-make .autosave-info {
   font-size: 10px;
-  color: #a8947e;
+  color: #7d6b56;
   cursor: help;
   line-height: 1;
 }
@@ -1493,7 +1501,7 @@
 #tab-quote-make .autosave-restore-btn:hover { filter: brightness(1.2); }
 #tab-quote-make .autosave-restore-btn:active { filter: brightness(0.85); transform: scale(0.97); }
 #tab-quote-make .autosave-restore-close {
-  color: #a8947e;
+  color: #7d6b56;
   cursor: pointer;
   font-size: 16px;
   line-height: 1;
@@ -1505,7 +1513,7 @@
 #tab-quote-make .autosave-restore-close:hover { color: #fff; }
 /* ========== ドラッグ並び替え ========== */
 #tab-quote-make .drag-handle {
-  color: #a8947e;
+  color: #7d6b56;
   font-size: 16px;
   cursor: grab;
   margin-right: 6px;
@@ -1605,7 +1613,7 @@
   display: flex; align-items: center; gap: 6px;
 }
 .fb-required { color: #e74c3c; font-size: 10px; }
-.fb-optional { color: #a8947e; font-size: 10px; font-weight: 500; text-transform: none; }
+.fb-optional { color: #7d6b56; font-size: 10px; font-weight: 500; text-transform: none; }
 .fb-field select,
 .fb-field textarea,
 .fb-field input[type="text"] {
@@ -1752,10 +1760,10 @@
 }
 #tab-quote-make .calc-detail-table tbody tr:hover td { background: #faf7f2; }
 #tab-quote-make .flash-reflect { animation: flash-green 0.9s ease-out; }
-/* ========== トースト通知 ========== */
-#tab-quote-make #toast-container {
+/* ========== トースト通知（Phase 2c-Step1 でサイト全体スコープに昇格） ========== */
+#toast-container {
   position: fixed;
-  top: 112px;
+  top: calc(var(--nav-cat-h) + var(--nav-sub-h) + 6px);
   right: 20px;
   z-index: 9999;
   display: flex;
@@ -1763,7 +1771,7 @@
   gap: 8px;
   pointer-events: none;
 }
-#tab-quote-make .toast {
+.toast {
   background: #3d2e1e;
   color: #fff;
   padding: 10px 18px;
@@ -1777,11 +1785,11 @@
   max-width: 300px;
   line-height: 1.5;
 }
-#tab-quote-make .toast.visible { opacity: 1; transform: translateX(0); }
-#tab-quote-make .toast.success { border-left: 4px solid #5a6e42; }
-#tab-quote-make .toast.info { border-left: 4px solid #8b6914; }
-#tab-quote-make .toast.warning { border-left: 4px solid #e67e22; }
-#tab-quote-make .toast.error { border-left: 4px solid #e74c3c; }
+.toast.visible { opacity: 1; transform: translateX(0); }
+.toast.success { border-left: 4px solid #5a6e42; }
+.toast.info { border-left: 4px solid #8b6914; }
+.toast.warning { border-left: 4px solid #e67e22; }
+.toast.error { border-left: 4px solid #e74c3c; }
 /* ========== コマンドパレット ========== */
 #tab-quote-make #cmdPalette {
   position: fixed;
@@ -1829,11 +1837,11 @@
 #tab-quote-make .cmd-icon { font-size: 16px; width: 24px; text-align: center; flex-shrink: 0; }
 #tab-quote-make .cmd-label { flex: 1; font-weight: 500; }
 #tab-quote-make .cmd-sub { font-size: 11px; color: #7d6b56; margin-top: 1px; }
-#tab-quote-make .cmd-empty { padding: 20px; text-align: center; font-size: 13px; color: #a8947e; }
+#tab-quote-make .cmd-empty { padding: 20px; text-align: center; font-size: 13px; color: #7d6b56; }
 #tab-quote-make .cmd-palette-hint {
   padding: 8px 18px;
   font-size: 11px;
-  color: #a8947e;
+  color: #7d6b56;
   border-top: 1px solid #f0e8d8;
   background: #faf7f2;
 }
@@ -1864,7 +1872,7 @@
   font-size: 13px; cursor: pointer; font-family: inherit;
 }
 #tab-quote-make .csv-col-modal-btn.ok { background: #5a6e42; color: #fff; }
-#tab-quote-make .csv-col-modal-btn.ok:hover { background: #5a6e42; }
+#tab-quote-make .csv-col-modal-btn.ok:hover { filter: brightness(1.2); }
 #tab-quote-make .csv-col-modal-btn.cancel { background: #f0e8d8; color: #7d6b56; }
 #tab-quote-make .csv-col-modal-btn.cancel:hover { background: #d9cfc2; }
 #tab-quote-make .csv-col-presets { display: flex; gap: 8px; margin-bottom: 10px; }
@@ -2028,19 +2036,19 @@
 }
 #tab-quote-make .preset-list-item:last-child { border-bottom: none; }
 #tab-quote-make .preset-list-name { flex: 1; color: #3d2e1e; font-weight: 500; }
-#tab-quote-make .preset-list-ts { font-size: 11px; color: #a8947e; white-space: nowrap; }
+#tab-quote-make .preset-list-ts { font-size: 11px; color: #7d6b56; white-space: nowrap; }
 #tab-quote-make .btn-preset-load {
   background: #8b6914; color: #fff; border: none; border-radius: 4px;
   padding: 4px 10px; font-size: 11px; cursor: pointer; transition: background .15s;
   white-space: nowrap;
 }
-#tab-quote-make .btn-preset-load:hover { background: #8b6914; }
+#tab-quote-make .btn-preset-load:hover { filter: brightness(1.2); }
 #tab-quote-make .btn-preset-del {
   background: none; color: #e74c3c; border: none; font-size: 15px;
   cursor: pointer; padding: 0 4px; line-height: 1;
 }
 #tab-quote-make .btn-preset-del:hover { color: #c0392b; }
-#tab-quote-make .preset-empty { padding: 16px; text-align: center; font-size: 13px; color: #a8947e; }
+#tab-quote-make .preset-empty { padding: 16px; text-align: center; font-size: 13px; color: #7d6b56; }
 #tab-quote-make .preset-mgr-footer { display: flex; justify-content: flex-end; }
 #tab-quote-make .btn-preset-close {
   background: #f0e8d8; color: #7d6b56; border: none; border-radius: 5px;
@@ -2114,7 +2122,7 @@
   list-style: none;
   user-select: none;
 }
-#tab-quote-make #fxRateDetails summary:hover { background: #f0e8d8; }
+#tab-quote-make #fxRateDetails summary:hover { background: #e8ddc8; }
 #tab-quote-make #fxRateGrid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
@@ -2154,9 +2162,9 @@
   padding: 3px 9px; border-radius: 4px; font-size: 11px;
   cursor: pointer; font-family: inherit;
 }
-#tab-quote-make .fx-fetch-btn:hover { background: #8b6914; }
-#tab-quote-make .fx-fetch-btn:disabled { background: #a8947e; cursor: default; }
-#tab-quote-make .fx-last-fetched { color: #a8947e; font-size: 11px; }
+#tab-quote-make .fx-fetch-btn:hover { filter: brightness(1.2); }
+#tab-quote-make .fx-fetch-btn:disabled { background: #7d6b56; cursor: default; }
+#tab-quote-make .fx-last-fetched { color: #7d6b56; font-size: 11px; }
 /* ========== チェックボックス列 ========== */
 #tab-quote-make td.check-cell {
   width: 22px;
@@ -2220,7 +2228,7 @@
 }
 #tab-quote-make .user-cat-del {
   background: none; border: none; cursor: pointer;
-  font-size: 10px; color: #a8947e; padding: 0 1px;
+  font-size: 10px; color: #7d6b56; padding: 0 1px;
   line-height: 1;
 }
 #tab-quote-make .user-cat-del:hover { color: #e74c3c; }
@@ -2256,7 +2264,7 @@
 #tab-quote-make .cond-sort-handle {
   display: inline-block;
   cursor: grab;
-  color: #a8947e;
+  color: #7d6b56;
   font-size: 12px;
   margin-right: 2px;
   user-select: none;
@@ -2300,7 +2308,7 @@
 }
 #tab-quote-make .btn-group-label {
   font-size: 10px;
-  color: #a8947e;
+  color: #7d6b56;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.04em;
@@ -2423,7 +2431,7 @@
 #tab-quote-make .subtotal-drag-cell {
   text-align: center;
   cursor: grab;
-  color: #a8947e;
+  color: #7d6b56;
   font-size: 14px;
   width: 20px;
   padding: 0 2px !important;
@@ -2455,7 +2463,7 @@
 /* ダッシュ列（空欄） */
 #tab-quote-make .subtotal-dash {
   text-align: center;
-  color: #a8947e;
+  color: #7d6b56;
   font-weight: normal;
 }
 /* 請求小計列（tot-billing に対応） */
@@ -2602,7 +2610,7 @@
 #tab-quote-make .subtotal-del-btn {
   background: none;
   border: none;
-  color: #a8947e;
+  color: #7d6b56;
   cursor: pointer;
   font-size: 12px;
   padding: 2px 4px;

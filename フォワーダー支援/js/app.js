@@ -23,6 +23,7 @@ function switchCategory(cat, btn) {
   });
   btn.classList.add('active');
   btn.setAttribute('aria-selected', 'true');
+  try { localStorage.setItem('lastCategory', cat); } catch(e) {}
   // サブナビの表示切替
   document.querySelectorAll('.sub-nav').forEach(s => s.classList.remove('active'));
   document.getElementById('sub-' + cat).classList.add('active');
@@ -45,6 +46,7 @@ function switchTab(tabId, btn) {
   panel.setAttribute('tabindex', '0');
   btn.classList.add('active');
   btn.setAttribute('aria-selected', 'true');
+  try { localStorage.setItem('lastTab', tabId); } catch(e) {}
   // Phase 2b：見積タブ(新版)が初めて表示されたタイミングで遅延初期化
   if (tabId === 'quote-make' && typeof window.initQuoteTab === 'function') {
     window.initQuoteTab();
@@ -253,7 +255,7 @@ function schedLookup() {
   const carrier = document.getElementById('sched-carrier').value;
   const pol     = document.getElementById('sched-pol').value.trim();
   const pod     = document.getElementById('sched-pod').value.trim();
-  if (!carrier) { alert('船会社を選択してください'); return; }
+  if (!carrier) { quoteShowToast('⚠️ 船会社を選択してください', 'warning'); return; }
   const fn = CARRIERS[carrier].schedule;
   if (!fn) { openTopFallback(carrier, '航路検索'); return; }
   const url = fn(encodeURIComponent(pol), encodeURIComponent(pod));
@@ -281,6 +283,12 @@ function buildSurchargeGrids() {
       card.innerHTML = `<div class="name">${name}</div><div class="domain">${info.domain}</div>${noteInfo}${badge}`;
       if (hasUrl) card.onclick = () => window.open(typeof info[def.key] === 'function' ? info[def.key]() : info[def.key], '_blank');
       grid.appendChild(card);
+    }
+    if (!grid.children.length || Array.from(grid.children).every(c => c.classList.contains('tracking-disabled'))) {
+      const msg = document.createElement('p');
+      msg.style.cssText = 'font-size:12px;color:var(--text-md);margin-top:8px;padding:8px 12px;background:#fef9e7;border-left:3px solid #f0ad4e;border-radius:4px;';
+      msg.innerHTML = '⚠️ 現在 URL 未登録です。各船会社サイトの「Tariffs」「Local Charges」「Surcharges」ページから直接ご確認ください。';
+      grid.insertAdjacentElement('afterend', msg);
     }
   }
 }
@@ -479,8 +487,8 @@ function buildBlRulesGrid() {
 function freetimeLookup() {
   const carrier = document.getElementById('ft-carrier').value;
   const num     = document.getElementById('ft-number').value.trim();
-  if (!carrier) { alert('船会社を選択してください'); return; }
-  if (!num)     { alert('コンテナ番号を入力してください'); return; }
+  if (!carrier) { quoteShowToast('⚠️ 船会社を選択してください', 'warning'); return; }
+  if (!num)     { quoteShowToast('⚠️ コンテナ番号を入力してください', 'warning'); return; }
   const fn = CARRIERS[carrier].freetime;
   if (!fn) { openTopFallback(carrier, 'フリータイム検索'); return; }
   const url = fn(encodeURIComponent(num));
@@ -674,7 +682,8 @@ function showIncotermsHint(label) {
   const entry = (typeof INCO_DATA === 'object') ? INCO_DATA.find(d => d.code === code) : null;
   if (!entry) { hintEl.textContent = ''; hintEl.style.display = 'none'; return; }
   hintEl.textContent = '💡 ' + entry.code + '（' + entry.name + '）：' + entry.note;
-  hintEl.style.display = '';
+  hintEl.style.display = 'inline-block';
+  hintEl.style.maxWidth = '520px';
 }
 
 // WAI-ARIA タブパターン：role="tabpanel" + aria-labelledby + ボタンID の一括設定
@@ -694,4 +703,20 @@ function initTabARIA() {
   });
 }
 document.addEventListener('DOMContentLoaded', initTabARIA);
+
+// ================================================================
+//  起動タブの復元（localStorage に前回のカテゴリ/タブが残っていれば復元）
+// ================================================================
+document.addEventListener('DOMContentLoaded', function restoreLastTab() {
+  let lastCat, lastTab;
+  try { lastCat = localStorage.getItem('lastCategory'); lastTab = localStorage.getItem('lastTab'); } catch(e) { return; }
+  if (!lastCat) return;
+  const catBtn = document.querySelector(`.cat-btn[onclick*="'${lastCat}'"]`);
+  if (!catBtn) return;
+  switchCategory(lastCat, catBtn);
+  if (lastTab) {
+    const tabBtn = document.querySelector(`.tab-btn[onclick*="'${lastTab}'"]`);
+    if (tabBtn) tabBtn.click();
+  }
+});
 
