@@ -479,28 +479,47 @@
   function updateSubtotalRows() {
     const tbody = document.getElementById('tableBody');
     const allRows = Array.from(tbody.querySelectorAll('tr'));
-    let groupBill = 0;
-    let groupCost = 0;
+    // 通貨は混在し得るため、JPY 換算で集計する（_fxRates 経由）
+    let groupBill = 0;       // JPY 換算後の請求合計
+    let groupCost = 0;       // JPY 換算後の支払い合計
+    let groupCurrencies = new Set();  // この group に含まれる通貨を記録（多通貨判定用）
     allRows.forEach(tr => {
       if (tr.dataset.type === 'subtotal') {
         const billingEl  = tr.querySelector('.subtotal-group-billing');
         const subtotalEl = tr.querySelector('.subtotal-group-subtotal');
         const profitEl   = tr.querySelector('.subtotal-group-profit');
         const profit = groupBill - groupCost;
-        if (billingEl)  billingEl.textContent  = groupBill ? fmt(groupBill) : '—';
+        const mixed = groupCurrencies.size > 1;
+        const prefix = mixed ? '≈ ' : '';
+        if (billingEl) {
+          billingEl.textContent = groupBill ? prefix + fmt(groupBill) : '—';
+          billingEl.title = mixed ? '多通貨を JPY に換算して合計（FX パネルのレート使用）' : '';
+        }
         if (subtotalEl) {
-          subtotalEl.textContent = groupBill ? fmt(groupBill) : '—';
+          subtotalEl.textContent = groupBill ? prefix + fmt(groupBill) : '—';
           subtotalEl.className   = 'subtotal-group-subtotal subtotal-cell' + (groupBill ? ' subtotal-has-value' : '');
+          subtotalEl.title = mixed ? '多通貨を JPY に換算して合計（FX パネルのレート使用）' : '';
         }
         if (profitEl) {
-          profitEl.textContent = (groupBill || groupCost) ? fmt(profit) : '—';
+          profitEl.textContent = (groupBill || groupCost) ? prefix + fmt(profit) : '—';
           profitEl.className   = `subtotal-group-profit profit-cell ${pClass(profit)}`;
+          profitEl.title = mixed ? '多通貨を JPY に換算して合計（FX パネルのレート使用）' : '';
         }
-        groupBill = 0; groupCost = 0;
+        groupBill = 0; groupCost = 0; groupCurrencies = new Set();
       } else {
         const id = tr.id.replace('row-', '');
-        groupBill += val(`bq-${id}`) * val(`bp-${id}`);
-        groupCost += val(`pq-${id}`) * val(`pp-${id}`);
+        const bq = val(`bq-${id}`);
+        const bp = val(`bp-${id}`);
+        const pq = val(`pq-${id}`);
+        const pp = val(`pp-${id}`);
+        const bc = document.getElementById(`bc-${id}`)?.value || 'JPY';
+        const pc = document.getElementById(`pc-${id}`)?.value || 'JPY';
+        const billRaw = bq * bp;
+        const costRaw = pq * pp;
+        groupBill += toJPY(billRaw, bc);
+        groupCost += toJPY(costRaw, pc);
+        if (billRaw && bc) groupCurrencies.add(bc);
+        if (costRaw && pc) groupCurrencies.add(pc);
       }
     });
   }
