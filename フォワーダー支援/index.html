@@ -2253,9 +2253,11 @@
                 <span class="z2-label">🚢</span>
                 <input type="text" id="z2Carrier" class="z2-input" list="carriers-dl"
                        placeholder="キャリア名（例：ONE）"
-                       title="data/carriers.js のマスタから候補を表示。表記揺れ防止に list 内の候補から選択を推奨。">
+                       title="data/carriers.js のマスタから候補を表示。表記揺れ防止に list 内の候補から選択を推奨。"
+                       oninput="onZ2CarrierChange()">
                 <datalist id="carriers-dl"></datalist>
               </div>
+              <div id="z2CarrierLinks" class="carrier-links-panel" style="display:none"></div>
               <div class="z2-pol-pod-row">
                 <div class="z2-port">
                   <span class="z2-port-label">📦 POL</span>
