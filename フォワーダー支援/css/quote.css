@@ -1397,6 +1397,8 @@
 #tab-quote-make .save-btn-preset:hover { background:#9a4a25; color:#fff; }
 #tab-quote-make .save-btn-import { border-color:#5a6e42; color:#5a6e42; }
 #tab-quote-make .save-btn-import:hover { background:#5a6e42; color:#fff; }
+#tab-quote-make .save-btn-preview { border-color:#d4a017; color:#7a5500; background:#fff8e6; font-weight:700; }
+#tab-quote-make .save-btn-preview:hover { background:#d4a017; color:#fff; border-color:#d4a017; }
 #tab-quote-make .save-btn-undo,
 #tab-quote-make .save-btn-redo { border-color:#7d6b56; color:#3d2e1e; }
 #tab-quote-make .save-btn-undo:hover:not(:disabled),
@@ -2107,9 +2109,8 @@
 #tab-quote-make .btn-bulk-copy:hover { background: #9a4a25; }
 /* ========== 為替レートパネル ========== */
 #tab-quote-make #fxRatePanel {
-  display: inline-block;
-  vertical-align: top;
-  margin-left: 6px;
+  display: block;
+  margin: 0;
 }
 #tab-quote-make #fxRateDetails summary {
   cursor: pointer;
@@ -2195,10 +2196,24 @@
   font-size: 12px; cursor: pointer; font-family: inherit;
 }
 #tab-quote-make .btn-bulk-delete:hover { background: #c0392b; }
+/* ========== 設定エリア（為替・カスタムカテゴリ） ========== */
+#tab-quote-make .table-settings-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: flex-start;
+  padding: 6px 4px 4px;
+  border-top: 1px solid #ede5d6;
+  background: #faf7f2;
+}
+#tab-quote-make .table-settings-row .btn-group-label {
+  margin-top: 5px;
+  flex-shrink: 0;
+}
 /* ========== カスタムカテゴリパネル ========== */
 #tab-quote-make #userCatPanel {
-  display: inline-block; vertical-align: top;
-  margin: 6px 0;
+  display: block;
+  margin: 0;
 }
 #tab-quote-make #userCatDetails {
   font-size: 12px; cursor: pointer;
@@ -2401,7 +2416,7 @@
 }
 #tab-quote-make .btn-preview { background: #fff4e0; border-color: #e8c870; color: #7a5500; font-weight: 600; }
 #tab-quote-make .btn-csv-import { background: #f0fff0; border-color: #9cca9c; color: #5a6e42; }
-#tab-quote-make .btn-reset { background: #fff0f0; border-color: #f0b0b0; color: #c00; }
+#tab-quote-make .btn-reset { background: #fff0f0; border-color: #e08080; color: #c00; margin-left: auto; }
 #tab-quote-make .btn-add:hover,
 #tab-quote-make .btn-sort-cat:hover,
 #tab-quote-make .btn-clean-empty:hover,

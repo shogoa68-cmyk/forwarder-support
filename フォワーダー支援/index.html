@@ -1885,10 +1885,10 @@
 
         <h4>🗂️ 保存/読み込みツールバー（上部）</h4>
         <ul>
-          <li><strong>プリセット/一時保存</strong>：現在の入力状態を名前付きで <strong>最大 50 件</strong>保存（同一ブラウザのみ）。「輸入案件用」「国内配送用」などのテンプレートや作業途中の退避に。<strong>50 件を超える長期保管・他端末／チーム共有には「📤 出力」で JSON 書き出しを推奨</strong></li>
+          <li><strong>プリセット/一時保存</strong>：現在の入力状態を名前付きで <strong>最大 50 件</strong>保存（同一ブラウザのみ）。「輸入案件用」「国内配送用」などのテンプレートや作業途中の退避に。<strong>50 件を超える長期保管・他端末／チーム共有には「📤 JSON」でバックアップを推奨</strong></li>
           <li><strong>自動保存</strong>：チェックすると入力2秒後にブラウザへ自動保存（localStorage、同じブラウザ内のみ有効）。次回開いた時に復元バナーから戻せます</li>
           <li><strong>↶ 戻す / ↷ 進む（Undo / Redo）</strong>：見積タブ全体（行・条件・自由入力・特記事項など）の編集を最大 50 ステップ巻き戻し／やり直し。<kbd>Ctrl+Z</kbd>（macOS は <kbd>⌘+Z</kbd>）で戻す、<kbd>Ctrl+Y</kbd> もしくは <kbd>Ctrl+Shift+Z</kbd> で進む。連続タイピングは 1 ステップにまとめられます</li>
-          <li><strong>📤 出力 / 📥 読込</strong>：JSON ファイルで端末間共有・バックアップが可能</li>
+          <li><strong>📤 JSON / 📥 読込</strong>：JSON ファイルで端末間共有・バックアップが可能（CSV/Excel/PDF 出力は 📋 プレビューから）</li>
           <li><strong>📐 表示サイズ 大 / 中 / 小</strong>：見積タブ全体のレイアウトを 3 段階で拡縮。<strong>大＝デスクトップ向け、中＝タブレット向け（既定）、小＝スマホ向け</strong>。CSS <code>zoom</code> で全体（文字・余白・コントロール）を一括スケールします</li>
         </ul>
 
@@ -1962,7 +1962,7 @@
           <li><strong>DGD / MSDS / SDS</strong>：危険品申告書／製品安全データシート</li>
         </ul>
         <div class="help-tip">💡 略語の意味はテーブルヘッダー（CD・課税 等）にマウスホバーすると <code>title</code> でも表示されます。</div>
-        <div class="help-tip">💡 自動保存は<strong>同じブラウザ内のみ</strong>有効です。端末や OS をまたぐ場合は <strong>📤 出力</strong>で JSON ファイルとして書き出し、別端末で <strong>📥 読込</strong>してください。</div>
+        <div class="help-tip">💡 自動保存は<strong>同じブラウザ内のみ</strong>有効です。端末や OS をまたぐ場合は <strong>📤 JSON</strong> でバックアップを書き出し、別端末で <strong>📥 読込</strong>してください。</div>
       </div>
     </details>
 
@@ -1985,14 +1985,16 @@
       <button class="save-btn save-btn-redo" id="btnQuoteRedo" onclick="quoteRedo()" disabled title="やり直す (Ctrl+Y / Ctrl+Shift+Z)">↷ 進む</button>
       <span class="save-toolbar-sep"></span>
       <span class="save-toolbar-label">📁 ファイル</span>
-      <button class="save-btn save-btn-export" onclick="exportToFile()" title="見積データをJSONファイルに出力">
-        📤 出力
+      <button class="save-btn save-btn-export" onclick="exportToFile()" title="JSONファイルにバックアップ（端末間共有・長期保管用。CSV/Excel/PDFはプレビューから）">
+        📤 JSON
       </button>
       <button class="save-btn save-btn-import" onclick="document.getElementById('importFileInput').click()" title="JSONファイルから見積データを読み込む">
         📥 読込
       </button>
       <input type="file" id="importFileInput" accept=".json" style="display:none" onchange="importFromFile(event)" />
       <span class="save-status" id="saveStatus"></span>
+      <span class="save-toolbar-sep"></span>
+      <button class="save-btn save-btn-preview" onclick="openPreview()" title="見積をプレビュー表示・CSV/Excel/PDF出力はここから">📋 プレビュー</button>
       <span class="save-toolbar-sep"></span>
       <span class="save-toolbar-label">📐 表示サイズ</span>
       <button class="layout-scale-btn" data-scale="lg" onclick="setLayoutScale('lg')" title="大（デスクトップ向け）">大</button>
@@ -2053,7 +2055,7 @@
         </p>
         <div class="preset-mgr-warn">
           💡 <strong>10 件を超える長期保管・他端末との共有・チームでの引き継ぎ</strong>には、ツールバーの
-          「<strong>📤 出力</strong>」ボタンから <strong>JSON ファイル</strong>として書き出すことを推奨します。
+          「<strong>📤 JSON</strong>」ボタンから <strong>JSON ファイル</strong>としてバックアップすることを推奨します。
           JSON ファイルは「📥 読込」で同じ状態を完全復元できます（クラウドフォルダ共有も可）。
         </div>
         <div class="preset-save-row">
@@ -2524,40 +2526,43 @@
               <button class="btn-bulk-pattern" onclick="openRowPatternMgr()" title="チェックした行を名前付きで保存・末尾に追加で読込">🗂️ 行パターン</button>
             </div>
             <div class="btn-group-row">
-              <button class="btn-preview"    onclick="openPreview()">📋 プレビュー</button>
+              <span class="btn-group-label">インポート</span>
               <button class="btn-csv-import" onclick="toggleCsvZone()">📂 CSV読み込み</button>
               <button class="btn-reset"      onclick="resetAll()">リセット</button>
             </div>
           </div>
-          <div id="fxRatePanel">
-            <details id="fxRateDetails">
-              <summary onclick="renderFxPanel()">💱 為替レート設定（JPY換算用：USD / EUR / GBP / CNY）</summary>
-              <div class="fx-mode-bar">
-                <label class="fx-mode-label">
-                  <input type="checkbox" id="fxAutoModeChk"
-                         onchange="onFxAutoModeChange(this.checked)" />
-                  起動時に自動取得
-                </label>
-                <button type="button" id="fxFetchBtn" class="fx-fetch-btn" onclick="doFetchFxRates()">🔄 今すぐ取得</button>
-                <span id="fxLastFetched" class="fx-last-fetched"></span>
-              </div>
-              <div id="fxRateGrid"></div>
-              <div style="margin-top:6px; font-size:11px; color:#888;">※ 合計行にJPY換算額を表示します。自動取得はopen.er-api.comを使用します。</div>
-            </details>
-          </div>
-          <div id="userCatPanel">
-            <details id="userCatDetails">
-              <summary>🏷️ カスタムカテゴリ管理</summary>
-              <div id="userCatList" class="user-cat-list"></div>
-              <div class="user-cat-add-row">
-                <input type="text" id="newCatInput" class="user-cat-input"
-                       placeholder="例）🔴 スポット費用"
-                       maxlength="20"
-                       onkeydown="if(event.key==='Enter')doAddUserCat()" />
-                <button type="button" class="user-cat-add-btn" onclick="doAddUserCat()">＋ 追加</button>
-              </div>
-              <div style="margin-top:5px; font-size:11px; color:#888;">※ カテゴリ削除後、そのカテゴリが設定された行は「未設定」になります。</div>
-            </details>
+          <div class="table-settings-row">
+            <span class="btn-group-label">⚙ 設定</span>
+            <div id="fxRatePanel">
+              <details id="fxRateDetails">
+                <summary onclick="renderFxPanel()">💱 為替レート設定（JPY換算用：USD / EUR / GBP / CNY）</summary>
+                <div class="fx-mode-bar">
+                  <label class="fx-mode-label">
+                    <input type="checkbox" id="fxAutoModeChk"
+                           onchange="onFxAutoModeChange(this.checked)" />
+                    起動時に自動取得
+                  </label>
+                  <button type="button" id="fxFetchBtn" class="fx-fetch-btn" onclick="doFetchFxRates()">🔄 今すぐ取得</button>
+                  <span id="fxLastFetched" class="fx-last-fetched"></span>
+                </div>
+                <div id="fxRateGrid"></div>
+                <div style="margin-top:6px; font-size:11px; color:#888;">※ 合計行にJPY換算額を表示します。自動取得はopen.er-api.comを使用します。</div>
+              </details>
+            </div>
+            <div id="userCatPanel">
+              <details id="userCatDetails">
+                <summary>🏷️ カスタムカテゴリ管理</summary>
+                <div id="userCatList" class="user-cat-list"></div>
+                <div class="user-cat-add-row">
+                  <input type="text" id="newCatInput" class="user-cat-input"
+                         placeholder="例）🔴 スポット費用"
+                         maxlength="20"
+                         onkeydown="if(event.key==='Enter')doAddUserCat()" />
+                  <button type="button" class="user-cat-add-btn" onclick="doAddUserCat()">＋ 追加</button>
+                </div>
+                <div style="margin-top:5px; font-size:11px; color:#888;">※ カテゴリ削除後、そのカテゴリが設定された行は「未設定」になります。</div>
+              </details>
+            </div>
           </div>
           <div id="csvDropZone" onclick="document.getElementById('csvFileInput').click()"
                ondragover="onDragOver(event)" ondragleave="onDragLeave(event)" ondrop="onDrop(event)">
