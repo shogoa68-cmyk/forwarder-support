@@ -2476,13 +2476,12 @@
 #tab-quote-make .subtotal-group-profit.profit-pos { background: #dcebd8 !important; }
 #tab-quote-make .subtotal-group-profit.profit-neg { background: #fadbd8 !important; }
 #tab-quote-make .subtotal-group-profit.profit-zero { background: #d9cfc2 !important; }
-/* 行アクション列（左端）— Quick Win #4: 横スクロール中も常時表示で固定 */
+/* 行アクション列（左端）— 横スクロール中も常時表示で固定。左凍結パネルの最左 */
 #tab-quote-make td.action-cell {
   text-align: center;
   padding: 1px 3px !important;
   white-space: nowrap;
-  background: #f8f5ef;
-  border-right: 1px solid #d9cfc2;
+  background: var(--card-bg);
   min-width: 80px;       /* sticky 計算用に固定（4 ボタン分） */
   width: 80px;
   position: sticky;
@@ -2495,36 +2494,77 @@
   background: #f4ecd8;
   position: sticky;
   left: 0;
-  z-index: 3;
+  z-index: 4;
 }
-#tab-quote-make tbody tr.taxed td.action-cell,
-#tab-quote-make tbody tr.row-unfilled td.action-cell { background: #f8f5ef; }
+#tab-quote-make tbody tr.taxed td.action-cell { background: #fdf1ef; }
 #tab-quote-make tbody tr.row-done td.action-cell { background: #f4ecd8; }
 #tab-quote-make tr:hover td.action-cell { background: #f0e8d8; }
 
-/* サブコン列の幅を固定（sticky 計算で必要） */
-#tab-quote-make td.sv-cell { width: 90px; min-width: 90px; padding: 2px 4px; }
+/* 左凍結パネル列の幅を固定（sticky 計算で必要） */
+#tab-quote-make td.check-cell  { width: 22px;  min-width: 22px;  padding: 2px; text-align: center; }
+#tab-quote-make td.sv-cell     { width: 90px;  min-width: 90px;  padding: 2px 4px; }
+#tab-quote-make td.name-cell   { min-width: 180px; }
 
-/* 項目名列の sticky 化（画面横幅 1280px 以上のみ）
-   累積 left = action(80) + check(22) + handle(32) + cat(105) + sv(90) + tax(44) = 373px */
+/* 左凍結パネル（画面横幅 1280px 以上のみ）
+   action(80) → check(22) → handle(32) → cat(105) → sv(90) → tax(44) → name の順で
+   横スクロール時も常時左端に固定。項目名は凍結パネルの右端にくっつく。
+   累積 left: 0 / 80 / 102 / 134 / 239 / 329 / 373 */
 @media (min-width: 1280px) {
-  #tab-quote-make td.name-cell,
+  #tab-quote-make td.check-cell,
+  #tab-quote-make td.handle-cell,
+  #tab-quote-make td.cat-cell,
+  #tab-quote-make td.sv-cell,
+  #tab-quote-make td.tax-cell,
+  #tab-quote-make td.name-cell {
+    position: sticky;
+    z-index: 2;
+    background: var(--card-bg);
+  }
+  #tab-quote-make td.check-cell  { left: 80px;  }
+  #tab-quote-make td.handle-cell { left: 102px; }
+  #tab-quote-make td.cat-cell    { left: 134px; }
+  #tab-quote-make td.sv-cell     { left: 239px; }
+  #tab-quote-make td.tax-cell    { left: 329px; }
+  #tab-quote-make td.name-cell   {
+    left: 373px;
+    border-right: 2px solid #c9b48a; /* 凍結パネルとスクロール領域の境界線 */
+  }
+
+  /* thead 1行目の対応する th も sticky に */
+  #tab-quote-make #quoteTable thead tr:first-child > th:nth-child(2) { position: sticky; left: 80px;  z-index: 4; background: #f4ecd8; }
+  #tab-quote-make #quoteTable thead tr:first-child > th:nth-child(3) { position: sticky; left: 102px; z-index: 4; background: #f4ecd8; }
+  #tab-quote-make #quoteTable thead tr:first-child > th:nth-child(4) { position: sticky; left: 134px; z-index: 4; background: #f4ecd8; }
+  #tab-quote-make #quoteTable thead tr:first-child > th:nth-child(5) { position: sticky; left: 239px; z-index: 4; background: #f4ecd8; }
+  #tab-quote-make #quoteTable thead tr:first-child > th:nth-child(6) { position: sticky; left: 329px; z-index: 4; background: #f4ecd8; }
   #tab-quote-make #quoteTable thead tr:first-child > th:nth-child(7) {
     position: sticky;
     left: 373px;
-    z-index: 1;
-    background: var(--card-bg);
-    border-right: 1px solid #d9cfc2;
-  }
-  #tab-quote-make #quoteTable thead tr:first-child > th:nth-child(7) {
+    z-index: 4;
     background: #f4ecd8;
-    z-index: 3;
+    border-right: 2px solid #c9b48a;
   }
-  /* 行の状態別背景を維持（既存パレット流用） */
-  #tab-quote-make tbody tr:hover td.name-cell { background: #f0e8d8; }
-  #tab-quote-make tbody tr.taxed td.name-cell,
-  #tab-quote-make tbody tr.row-unfilled td.name-cell { background: var(--card-bg); }
-  #tab-quote-make tbody tr.row-done td.name-cell { background: #f4ecd8; }
+
+  /* 行状態別の背景色を凍結パネル全体で統一（!important で既存断片ルールに優先） */
+  #tab-quote-make tbody tr.taxed td.check-cell,
+  #tab-quote-make tbody tr.taxed td.handle-cell,
+  #tab-quote-make tbody tr.taxed td.cat-cell,
+  #tab-quote-make tbody tr.taxed td.sv-cell,
+  #tab-quote-make tbody tr.taxed td.tax-cell,
+  #tab-quote-make tbody tr.taxed td.name-cell { background: #fdf1ef !important; }
+
+  #tab-quote-make tbody tr.row-done td.check-cell,
+  #tab-quote-make tbody tr.row-done td.handle-cell,
+  #tab-quote-make tbody tr.row-done td.cat-cell,
+  #tab-quote-make tbody tr.row-done td.sv-cell,
+  #tab-quote-make tbody tr.row-done td.tax-cell,
+  #tab-quote-make tbody tr.row-done td.name-cell { background: #f4ecd8 !important; }
+
+  #tab-quote-make tbody tr:hover td.check-cell,
+  #tab-quote-make tbody tr:hover td.handle-cell,
+  #tab-quote-make tbody tr:hover td.cat-cell,
+  #tab-quote-make tbody tr:hover td.sv-cell,
+  #tab-quote-make tbody tr:hover td.tax-cell,
+  #tab-quote-make tbody tr:hover td.name-cell { background: #f0e8d8 !important; }
 }
 
 /* アクション列内のボタンを共通アイコンスタイルに（コンパクト 19x19） */
