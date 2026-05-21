@@ -22,7 +22,7 @@ body {
   min-height: 100vh;
 }
 
-.app { max-width: 960px; margin: 0 auto; padding: 20px 16px; }
+.app { max-width: clamp(960px, 65vw, 1440px); margin: 0 auto; padding: 20px 16px; }
 
 /* ===== Header ===== */
 .header {
@@ -938,6 +938,13 @@ body {
   font-size: 11px;
   color: #78350f;
   line-height: 1.6;
+}
+
+/* 必須項目マーク */
+.req-mark {
+  color: #c0392b;
+  font-weight: 700;
+  margin-left: 2px;
 }
 
 /* ===== Quick Win #1：キーボードフォーカスリングをグローバル復活 =====

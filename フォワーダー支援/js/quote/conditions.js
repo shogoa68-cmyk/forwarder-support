@@ -34,6 +34,7 @@
       cargo: g('cond-cargo'), weight: g('cond-weight'),
       volume: g('cond-volume'), packing: g('cond-packing'), hazmat: g('cond-hazmat'),
       free: g('condFreeText'),
+      direction: _currentDirection || '',   // 'export' | 'import' | ''
     };
   }
 

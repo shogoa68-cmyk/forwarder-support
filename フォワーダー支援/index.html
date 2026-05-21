@@ -2078,16 +2078,16 @@
         <span style="font-size:11px;color:var(--text-md);">💡 <b>担当</b>は<strong>敬称略（呼び捨て）</strong>で入力してください。プレビュー・Excel・コピー出力時に自動で「様」が付与されます。</span></p>
         <div class="quote-header">
           <div class="quote-field">
-            <label>仮 REF #</label>
-            <input type="text" id="qf-ref" placeholder="例）2024-001" />
+            <label>仮 REF # <span class="req-mark" aria-hidden="true">*</span></label>
+            <input type="text" id="qf-ref" placeholder="例）2024-001" aria-required="true" />
           </div>
           <div class="quote-field">
-            <label>引き合い元名称</label>
-            <input type="text" id="qf-customer" placeholder="例）○○商事" />
+            <label>引き合い元名称 <span class="req-mark" aria-hidden="true">*</span></label>
+            <input type="text" id="qf-customer" placeholder="例）○○商事" aria-required="true" />
           </div>
           <div class="quote-field">
-            <label>担当（敬称略）</label>
-            <input type="text" id="qf-person" placeholder="例）山田　※出力時に「様」付与" title="敬称略で入力。出力時に自動で「様」が付きます" />
+            <label>担当（敬称略） <span class="req-mark" aria-hidden="true">*</span></label>
+            <input type="text" id="qf-person" placeholder="例）山田　※氏名のみ。出力時に自動で「様」付与" title="姓のみ／フルネームのみで入力（会社名は含めない）。出力時に自動で「様」が付きます" aria-required="true" />
           </div>
         </div>
         <button class="fb-section-btn" onclick="openFeedback('管理番号入力')" title="このセクションへのフィードバック">💬 このセクションへのフィードバック</button>
@@ -2214,8 +2214,10 @@
             <div class="zone2-inputs">
               <div class="z2-row">
                 <span class="z2-label">🚢</span>
-                <input type="text" id="z2Carrier" class="z2-input"
-                       placeholder="キャリア名（例：ONE）">
+                <input type="text" id="z2Carrier" class="z2-input" list="carriers-dl"
+                       placeholder="キャリア名（例：ONE）"
+                       title="data/carriers.js のマスタから候補を表示。表記揺れ防止に list 内の候補から選択を推奨。">
+                <datalist id="carriers-dl"></datalist>
               </div>
               <div class="z2-pol-pod-row">
                 <div class="z2-port">
@@ -2635,12 +2637,14 @@
         <div id="previewTableWrap"></div>
         <div id="pvTaxBox" class="pv-tax-box">
           <label class="pv-tax-label">🧾 消費税：</label>
-          <span class="pv-tax-fixed">10%（標準・固定）</span>
+          <span class="pv-tax-fixed" id="pvTaxRateLabel">10%（標準）</span>
+          <span class="pv-tax-exempt-badge" id="pvTaxExemptBadge" style="display:none;">🌍 輸出免税適用中（0%）</span>
           <input type="hidden" id="pvTaxRate" value="10">
           <span class="pv-tax-detail">消費税額: <b id="pvTaxAmount">—</b>　税込合計: <b id="pvTaxTotal">—</b></span>
           <span id="pvTotalSubtotal" data-raw="0" style="display:none;"></span>
         </div>
         <div id="pvRemarkBox" style="display:none;"><strong>📝 条件・リマーク</strong></div>
+        <div id="pvAuditMeta" class="pv-audit-meta"></div>
         <div class="pv-btns">
           <button class="pv-btn-copy" onclick="copyTSV()">📑 クリップボードにコピー（Excel 貼り付け用）</button>
           <button class="pv-btn-csv"  onclick="downloadCSV()">⬇ CSV ダウンロード</button>

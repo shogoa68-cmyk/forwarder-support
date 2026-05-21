@@ -1,7 +1,13 @@
 // ========== プレビュー・CSV (app-preview.js) ==========
 
-  // 消費税率（プレビュー）：10% 固定。ユーザー選択は廃止。
-  const PV_TAX_RATE = 0.10;
+  // 消費税率（プレビュー）：基本 10%。ただし輸出取引（cond.direction === 'export'）は
+  // 輸出免税扱いで 0% に自動切替（インボイス制度・消費税法第 7 条）。
+  const PV_TAX_RATE_DEFAULT = 0.10;
+  function getEffectiveTaxRate() {
+    const cond = (typeof getConditions === 'function') ? getConditions() : null;
+    if (cond && cond.direction === 'export') return 0;
+    return PV_TAX_RATE_DEFAULT;
+  }
 
   // ========== プレビュー＆エクスポート ==========
   function getQuoteHeader() {
@@ -14,10 +20,16 @@
 
   // 担当者名に敬称（既定：様）を付与。既に様/さん/御中/殿 等が付いていれば追加しない。
   // ファイル名生成には敬称を付けない（buildFileName は raw を使用）。
+  // スペース（半角/全角）を含む場合は「会社名＋氏名」とみなし、最後のトークンの後ろに「様」を付ける。
   function formatPersonWithHonorific(name) {
     const n = (name || '').trim();
     if (!n) return '';
     if (/(様|さま|サマ|さん|御中|殿|先生|社長|部長|課長|主任|Mr\.|Ms\.|Mrs\.|Dear)\s*$/i.test(n)) return n;
+    if (/[\s　]/.test(n)) {
+      const tokens = n.split(/[\s　]+/);
+      const last = tokens.pop();
+      return tokens.join(' ') + ' ' + last + ' 様';
+    }
     return n + ' 様';
   }
 
@@ -99,6 +111,24 @@
     return CATEGORIES.find(c => c.value === v)?.label || '';
   }
 
+  // 出力物（PDF/Excel/TSV）のフッターに刻む「為替の出典 / 取得日時」「作成日」メタ情報
+  function getFxAuditMeta() {
+    const last = localStorage.getItem('fxLastFetched_v1');
+    const fxLine = last
+      ? `為替出典：open.er-api.com（取得日時 ${new Date(last).toLocaleString('ja-JP', {year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'})}）`
+      : `為替出典：手動設定値（自動取得未実行）`;
+    const created = `作成日：${new Date().toLocaleString('ja-JP', {year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'})}`;
+    return { fxLine, created, hasFresh: !!last };
+  }
+
+  // 為替キャッシュが 24h 超過しているか
+  function isFxStale() {
+    const last = localStorage.getItem('fxLastFetched_v1');
+    if (!last) return true;
+    const ageMs = Date.now() - new Date(last).getTime();
+    return ageMs > 24 * 60 * 60 * 1000;
+  }
+
   // ========== 出力前バリデーション ==========
   // 出力（プレビュー／Excel／CSV／PDF）の前に、よくあるミス／忘れを検出して
   // 「3 件警告がありますが出力しますか？」と確認するゲート。
@@ -129,6 +159,11 @@
       if (emptyNameCount)  warnings.push(`項目名が空の行が ${emptyNameCount} 件あります`);
       if (zeroPriceCount)  warnings.push(`請求単価がゼロの行が ${zeroPriceCount} 件あります`);
       if (mixedCcyCount)   warnings.push(`支払い通貨と請求通貨が異なる行が ${mixedCcyCount} 件あります（乗せ幅は請求通貨建てで加算される点に注意）`);
+      // 為替キャッシュ鮮度チェック（多通貨が絡む案件のみ）
+      const hasNonJpy = data.some(d => (d.pc && d.pc !== 'JPY') || (d.bc && d.bc !== 'JPY'));
+      if (hasNonJpy && isFxStale()) {
+        warnings.push('為替レートが 24 時間以上前の値です。FX パネルから「🔄 今すぐ取得」を推奨');
+      }
     }
 
     if (!warnings.length) return true;
@@ -160,7 +195,8 @@
     metaEl.style.display = metaHTML ? 'flex' : 'none';
 
     // 消費税率は 10% 固定（プレビュー仕様）
-    const taxRate = PV_TAX_RATE;
+    const taxRate = getEffectiveTaxRate();
+    const isExportExempt = taxRate === 0;
 
     let html = `<table id="previewTable">
       <thead><tr>
@@ -281,6 +317,15 @@
     } else {
       pvRemark.style.display = 'none';
     }
+    // 監査メタ：為替出典・取得日時・作成日（プレビュー底部）
+    const pvAudit = document.getElementById('pvAuditMeta');
+    if (pvAudit) {
+      const m = getFxAuditMeta();
+      pvAudit.innerHTML =
+        '<div class="pv-audit-line">' + escHtml(m.fxLine) + '</div>' +
+        '<div class="pv-audit-line">' + escHtml(m.created) + '</div>' +
+        (m.hasFresh ? '' : '<div class="pv-audit-warn">⚠️ 為替を自動取得していません。手動値またはデフォルト値で表示中</div>');
+    }
     // 税計算用に合計小計をセット
     const pvTotSub = document.getElementById('pvTotalSubtotal');
     if (pvTotSub) pvTotSub.dataset.raw = String(totSub);
@@ -303,10 +348,16 @@
     }
   }
 
-  // ========== プレビュー消費税計算（10% 固定）==========
+  // ========== プレビュー消費税計算（10% / 輸出免税 0%）==========
   function updatePreviewTax() {
     const totalSub  = parseFloat(document.getElementById('pvTotalSubtotal')?.dataset.raw || '0');
-    const rate = PV_TAX_RATE;
+    const rate = getEffectiveTaxRate();
+    const isExempt = rate === 0;
+    // 標準ラベル／免税バッジの切替
+    const rateLbl = document.getElementById('pvTaxRateLabel');
+    const exemptBadge = document.getElementById('pvTaxExemptBadge');
+    if (rateLbl)      rateLbl.style.display = isExempt ? 'none' : '';
+    if (exemptBadge)  exemptBadge.style.display = isExempt ? '' : 'none';
     // 行ごとの消費税セルを更新（課税行のみ計算）
     let totTax = 0;
     document.querySelectorAll('#previewTable .pv-tax-cell').forEach(td => {
@@ -497,6 +548,11 @@
       lines.push('【条件・リマーク】');
       remarkText.split('\n').forEach(l => { if (l.trim()) lines.push(l); });
     }
+    // 監査メタ：為替出典・取得日時・作成日
+    const meta = getFxAuditMeta();
+    lines.push('');
+    lines.push(meta.fxLine);
+    lines.push(meta.created);
     navigator.clipboard.writeText(lines.join('\n')).then(() => {
       const msg = document.getElementById('copyMsg');
       msg.classList.add('show');
@@ -589,6 +645,11 @@
       aoaRows.push(['【条件・リマーク】']);
       remarkText.split('\n').forEach(line => { if (line.trim()) aoaRows.push([line]); });
     }
+    // 監査メタ：為替出典・取得日時・作成日（最下段）
+    const xMeta = getFxAuditMeta();
+    aoaRows.push([]);
+    aoaRows.push([xMeta.fxLine]);
+    aoaRows.push([xMeta.created]);
 
     const ws   = XLSX.utils.aoa_to_sheet(aoaRows);
     const wb   = XLSX.utils.book_new();

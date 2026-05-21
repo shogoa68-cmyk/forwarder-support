@@ -656,3 +656,11 @@ function initSectionFeedbacks() {
 
 document.addEventListener('DOMContentLoaded', initSectionFeedbacks);
 
+// data/carriers.js の CARRIERS マスタからキャリアセレクトの datalist を構築
+function populateCarriersDatalist() {
+  const dl = document.getElementById('carriers-dl');
+  if (!dl || typeof CARRIERS !== 'object') return;
+  dl.innerHTML = Object.keys(CARRIERS).map(name => `<option value="${name}">`).join('');
+}
+document.addEventListener('DOMContentLoaded', populateCarriersDatalist);
+
