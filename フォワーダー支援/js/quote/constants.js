@@ -221,6 +221,16 @@ Object.assign(QuoteApp.data, {
   CURRENCIES, UNITS, CATEGORIES, CAT_VALUES, SCOPE_PRESETS,
 });
 
+// ===== 貨物情報フィールド デフォルト順序（モード別） =====
+const CARGO_FIELD_ORDER = {
+  // FCL: コンテナ種類・本数を最優先
+  fcl: ['cargo', 'container-type', 'container-count', 'packing', 'weight', 'volume', 'hazmat'],
+  // LCL: R/T算出の起点となる重量・容積を最優先。コンテナ関連は末尾（非表示）
+  lcl: ['cargo', 'weight', 'volume', 'packing', 'hazmat', 'container-type', 'container-count'],
+  // Air: CW算出の起点となる重量・容積を最優先。コンテナ関連は末尾（非表示）
+  air: ['cargo', 'weight', 'volume', 'packing', 'hazmat', 'container-type', 'container-count'],
+};
+
 // 状態変数（let、書き込み可能なので getter/setter ペア）
 Object.defineProperties(QuoteApp.state, {
   rowCount:            { get: () => rowCount,            set: v => { rowCount = v; },            enumerable: true },

@@ -931,6 +931,21 @@
   transition: background 0.15s;
 }
 #tab-quote-make .btn-cond-clear:hover { background: #d9cfc2; color: #3d2e1e; }
+#tab-quote-make .btn-cargo-reset {
+  background: #e8f0f8; color: #4a6a8a; border: 1px solid #b8cde0; border-radius: 4px;
+  padding: 5px 12px; font-size: 12px; cursor: pointer; font-family: inherit;
+  transition: background 0.15s;
+}
+#tab-quote-make .btn-cargo-reset:hover { background: #cddff0; color: #1e3a5a; }
+#tab-quote-make .banning-hint {
+  font-size: 11px; color: #7d6b56; margin-top: 3px; display: flex; align-items: center; gap: 4px; flex-wrap: wrap;
+}
+#tab-quote-make .banning-hint-link {
+  background: none; border: none; padding: 0; color: #2563c4; font-size: 11px;
+  cursor: pointer; font-family: inherit; text-decoration: underline;
+  text-decoration-style: dotted;
+}
+#tab-quote-make .banning-hint-link:hover { color: #1a3d8a; text-decoration-style: solid; }
 /* ========== サイズ計算 ========== */
 #tab-quote-make .calc-wrapper {
   grid-column: 1 / -1;

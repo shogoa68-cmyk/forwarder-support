@@ -2362,6 +2362,7 @@
           <div class="cond-field" data-field-id="container-count" data-scope-key="container" draggable="true">
             <label><span class="cond-sort-handle" title="ドラッグして並び替え">⠿</span><span class="cond-icon">🔢</span> 本数</label>
             <input type="number" id="cond-container-count" min="0" step="1" placeholder="例）1" />
+            <span class="banning-hint">📦 本数が不明な場合は<button type="button" class="banning-hint-link" onclick="openBanningCalc()">バンニングシミュレーション</button>で確認</span>
           </div>
           <div class="cond-field" data-field-id="weight" draggable="true">
             <label><span class="cond-sort-handle" title="ドラッグして並び替え">⠿</span><span class="cond-icon">⚖️</span> 重量（概算）</label>
@@ -2393,6 +2394,7 @@
         </div>
         <div class="cond-actions">
           <button class="btn-cond-clear" onclick="clearConditions()">クリア</button>
+          <button class="btn-cargo-reset" onclick="resetCargoFieldOrder()" title="モード別の並び順をデフォルトに戻す">並び順リセット</button>
         </div>
 
         <!-- サイズ計算（折りたたみ） -->

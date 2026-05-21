@@ -19,8 +19,9 @@
 
   function getConditions() {
     const g = id => document.getElementById(id)?.value.trim() || '';
-    const ctype  = g('cond-container-type');
-    const ccount = g('cond-container-count');
+    const _isFcl = _currentTransport !== 'air' && _currentSeaSub !== 'lcl';
+    const ctype  = _isFcl ? g('cond-container-type') : '';
+    const ccount = _isFcl ? g('cond-container-count') : '';
     const container = ctype && ccount ? `${ctype} × ${ccount}` : (ctype || '');
     // ゾーンビルダーから積み地・揚げ地・発地・仕向地を取得
     const pol    = g('z2Pol');
@@ -580,6 +581,16 @@
     applyZoneState();
   }
 
+  /** バンニングシミュレーション（計算タブ）へジャンプ */
+  function openBanningCalc() {
+    const calcTab = document.querySelector('[data-tab="calc"]');
+    if (calcTab) calcTab.click();
+    setTimeout(() => {
+      const el = document.getElementById('van-rows-wrap');
+      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 200);
+  }
+
   /** Sea / Air プライマリトグル */
   function setTransport(transport) {
     _currentTransport = transport;
@@ -594,6 +605,7 @@
     updateRouteModeIcon();
     _applyZoneLabels();
     _refreshCarrierDatalist();
+    if (typeof applyCargoFieldOrder === 'function') applyCargoFieldOrder();
   }
 
   /** FCL / LCL サブトグル（Seaのとき表示） */
@@ -606,6 +618,7 @@
     updateRouteModeIcon();
     _applyZoneLabels();
     _refreshCarrierDatalist();
+    if (typeof applyCargoFieldOrder === 'function') applyCargoFieldOrder();
   }
 
   /** ボタン状態を内部 cond-mode select に同期 */

@@ -1185,31 +1185,61 @@
   });
 
   // ========== 貨物情報フィールド並び替え ==========
-  const CARGO_FIELD_ORDER_KEY = 'cargoFieldOrder_v1';
+
+  function _cargoModeKey() {
+    if (typeof _currentTransport === 'undefined') return 'fcl';
+    if (_currentTransport === 'air') return 'air';
+    if (_currentSeaSub === 'lcl')    return 'lcl';
+    return 'fcl';
+  }
+
+  function _cargoOrderKey(modeKey) {
+    return `cargoFieldOrder_${modeKey}_v1`;
+  }
 
   function saveCargoFieldOrder() {
     const grid = document.getElementById('cargoCondGrid');
     if (!grid) return;
     const order = Array.from(grid.querySelectorAll('.cond-field[data-field-id]'))
       .map(el => el.dataset.fieldId);
-    localStorage.setItem(CARGO_FIELD_ORDER_KEY, JSON.stringify(order));
+    localStorage.setItem(_cargoOrderKey(_cargoModeKey()), JSON.stringify(order));
+  }
+
+  function applyCargoFieldOrder(modeKey) {
+    const grid = document.getElementById('cargoCondGrid');
+    if (!grid) return;
+    modeKey = modeKey || _cargoModeKey();
+
+    // LCL / Air ではサイズ計算 details を自動展開
+    const calcDetails = document.querySelector('.cbm-calc-details');
+    if (calcDetails && (modeKey === 'lcl' || modeKey === 'air')) {
+      calcDetails.open = true;
+    }
+
+    // モード別カスタム保存 → なければ CARGO_FIELD_ORDER デフォルト
+    let order = [];
+    try { order = JSON.parse(localStorage.getItem(_cargoOrderKey(modeKey)) || '[]'); } catch(e) {}
+    if (!order.length && typeof CARGO_FIELD_ORDER !== 'undefined') {
+      order = (CARGO_FIELD_ORDER[modeKey] || CARGO_FIELD_ORDER.fcl).slice();
+    }
+    if (!order.length) return;
+
+    const fields = {};
+    grid.querySelectorAll('.cond-field[data-field-id]').forEach(el => {
+      fields[el.dataset.fieldId] = el;
+    });
+    order.forEach(id => { if (fields[id]) grid.appendChild(fields[id]); });
+  }
+
+  function resetCargoFieldOrder() {
+    const modeKey = _cargoModeKey();
+    localStorage.removeItem(_cargoOrderKey(modeKey));
+    applyCargoFieldOrder(modeKey);
+    if (typeof quoteShowToast === 'function') quoteShowToast('並び順をリセットしました', 'info', 1800);
   }
 
   function restoreCargoFieldOrder() {
-    try {
-      const saved = JSON.parse(localStorage.getItem(CARGO_FIELD_ORDER_KEY) || '[]');
-      if (!saved.length) return;
-      const grid = document.getElementById('cargoCondGrid');
-      if (!grid) return;
-      const fields = {};
-      grid.querySelectorAll('.cond-field[data-field-id]').forEach(el => {
-        fields[el.dataset.fieldId] = el;
-      });
-      // 保存順で並べ直す（未知のIDはスキップ、残りは末尾へ）
-      saved.forEach(id => {
-        if (fields[id]) grid.appendChild(fields[id]);
-      });
-    } catch(e) {}
+    applyCargoFieldOrder(_cargoModeKey());
   }
 
   function initCargoSort() {
@@ -1220,7 +1250,6 @@
     grid.querySelectorAll('.cond-field[data-field-id]').forEach(field => {
       const handle = field.querySelector('.cond-sort-handle');
 
-      // ハンドル以外からのドラッグを防ぐ
       let _fromHandle = false;
       if (handle) {
         handle.addEventListener('mousedown', () => { _fromHandle = true; });
@@ -1251,7 +1280,6 @@
       field.addEventListener('drop', e => {
         e.preventDefault();
         if (!dragSrc || dragSrc === field) return;
-        // dragSrcをfieldの前に挿入
         const rect = field.getBoundingClientRect();
         const midX = rect.left + rect.width / 2;
         if (e.clientX < midX) {
