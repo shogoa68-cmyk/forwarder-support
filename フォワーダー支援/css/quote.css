@@ -1792,7 +1792,7 @@
   border-color: #6b5a42;
   background: #fff;
 }
-/* 引き合い条件整理 サブセクションラベル */
+/* サブセクションラベル（引き合い条件整理 / 貨物情報） */
 #tab-quote-make .cond-subsec-label {
   font-size: 12px;
   font-weight: 700;
@@ -1800,6 +1800,50 @@
   padding: 3px 0 8px 8px;
   border-left: 3px solid #b5a08a;
   margin-bottom: 10px;
+}
+#tab-quote-make .cond-subsec-label--cargo {
+  margin-top: 18px;
+  border-left-color: #7ab0a0;
+  color: #3d7068;
+}
+/* サイズ計算 折りたたみ */
+#tab-quote-make .cbm-calc-details {
+  border: 1px solid #d0dce8;
+  border-radius: 6px;
+  margin-top: 14px;
+  background: #f5f9fd;
+}
+#tab-quote-make .cbm-calc-summary {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #2980b9;
+  cursor: pointer;
+  user-select: none;
+  list-style: none;
+}
+#tab-quote-make .cbm-calc-summary::-webkit-details-marker { display: none; }
+#tab-quote-make .cbm-calc-summary::before {
+  content: '▶';
+  font-size: 9px;
+  transition: transform 0.18s;
+  flex-shrink: 0;
+}
+#tab-quote-make .cbm-calc-details[open] > .cbm-calc-summary::before {
+  transform: rotate(90deg);
+}
+#tab-quote-make .cbm-calc-hint {
+  font-size: 10px;
+  font-weight: 400;
+  color: #7baec8;
+  margin-left: auto;
+  flex-shrink: 0;
+}
+#tab-quote-make .cbm-calc-body {
+  padding: 0 12px 12px;
 }
 
 #tab-quote-make .section-desc {

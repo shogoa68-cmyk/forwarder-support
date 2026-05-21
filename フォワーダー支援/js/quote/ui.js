@@ -485,8 +485,7 @@
   // ========== コマンドパレット ==========
   const CMD_LIST = [
     { icon:'🗂️', label:'管理番号入力セクションへ',  sub:'REF # / 引き合い元 / 担当',     action:() => scrollToSection('section-ref')   },
-    { icon:'🚢', label:'引き合い条件セクションへ',   sub:'作業範囲・ルート・インコタームズ', action:() => scrollToSection('section-cond')  },
-    { icon:'📦', label:'貨物情報・サイズ計算セクションへ', sub:'貨物名・CBM・RT・CW 自動計算', action:() => scrollToSection('section-cargo') },
+    { icon:'🚢', label:'引き合い条件・貨物情報セクションへ', sub:'ルート・貨物名・CBM・CW 自動計算', action:() => scrollToSection('section-cond') },
     { icon:'💴', label:'見積もり表セクションへ',      sub:'費用行の入力・集計',              action:() => scrollToSection('section-table') },
     { icon:'📋', label:'特記事項セクションへ',        sub:'フリーテキスト欄',               action:() => scrollToSection('section-free')  },
     { icon:'📝', label:'条件・リマークセクションへ',  sub:'プリセット文を挿入',             action:() => scrollToSection('section-remark')},
