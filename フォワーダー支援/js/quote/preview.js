@@ -99,11 +99,52 @@
     return CATEGORIES.find(c => c.value === v)?.label || '';
   }
 
+  // ========== 出力前バリデーション ==========
+  // 出力（プレビュー／Excel／CSV／PDF）の前に、よくあるミス／忘れを検出して
+  // 「3 件警告がありますが出力しますか？」と確認するゲート。
+  // 戻り値：true = 続行、false = キャンセル
+  function preOutputValidationGate(label) {
+    const data = collectData();
+    const hdr  = getQuoteHeader();
+    const warnings = [];
+
+    if (!hdr.ref)      warnings.push('「仮 REF #」が未入力です');
+    if (!hdr.customer) warnings.push('「引き合い元名称」が未入力です');
+    if (!hdr.person)   warnings.push('「担当」が未入力です');
+
+    const cond = (typeof getConditions === 'function') ? getConditions() : null;
+    if (cond && !cond.incoterms) warnings.push('インコタームズが選択されていません');
+
+    if (!data.length) {
+      warnings.push('見積もり行が 1 件もありません');
+    } else {
+      // 行レベルチェック
+      let zeroPriceCount = 0, mixedCcyCount = 0, emptyNameCount = 0;
+      data.forEach(d => {
+        if (!d.name || !d.name.trim()) emptyNameCount++;
+        // 名前あり・かつ請求単価ゼロ
+        if (d.name && d.name.trim() && (!d.bp || d.bp === 0)) zeroPriceCount++;
+        if (d.pc && d.bc && d.pc !== d.bc)                    mixedCcyCount++;
+      });
+      if (emptyNameCount)  warnings.push(`項目名が空の行が ${emptyNameCount} 件あります`);
+      if (zeroPriceCount)  warnings.push(`請求単価がゼロの行が ${zeroPriceCount} 件あります`);
+      if (mixedCcyCount)   warnings.push(`支払い通貨と請求通貨が異なる行が ${mixedCcyCount} 件あります（乗せ幅は請求通貨建てで加算される点に注意）`);
+    }
+
+    if (!warnings.length) return true;
+
+    const msg = `⚠️ ${label}前に ${warnings.length} 件の確認事項があります：\n\n`
+      + warnings.map((w, i) => `${i+1}. ${w}`).join('\n')
+      + '\n\nこのまま出力しますか？';
+    return confirm(msg);
+  }
+
   function openPreview() {
     try {
     const allRows = collectAllRows();
     const data = allRows.filter(r => r._type === 'data');
     if (!data.length) { alert('行がありません。'); return; }
+    if (!preOutputValidationGate('プレビュー表示')) return;
     const hdr = getQuoteHeader();
     let totCost = 0, totBill = 0, totMk = 0;
     data.forEach(d => { totCost += d.cost; totBill += d.bill; totMk += d.mk; });
@@ -421,6 +462,7 @@
   function copyTSV() {
     const data = collectData();
     if (!data.length) return;
+    if (!preOutputValidationGate('クリップボードコピー')) return;
     const hdr = getQuoteHeader();
     let totCost = 0, totBill = 0, totMk = 0;
     data.forEach(d => { totCost += d.cost; totBill += d.bill; totMk += d.mk; });
@@ -465,6 +507,7 @@
 
   // ========== PDF 出力 ==========
   function exportPDF() {
+    if (!preOutputValidationGate('PDF 出力（印刷）')) return;
     // @media print CSS がプレビュー以外を非表示にする
     window.print();
   }
@@ -495,6 +538,7 @@
       alert('SheetJSライブラリが読み込まれていません。ページを再読み込みしてください。');
       return;
     }
+    if (!preOutputValidationGate('Excel 出力')) return;
     const allRows = collectAllRows();
     const data = allRows.filter(r => r._type === 'data');
     if (!data.length) { alert('行がありません。'); return; }
@@ -575,6 +619,7 @@
   function downloadCSV() {
     const data = collectData();
     if (!data.length) { alert('行がありません。'); return; }
+    if (!preOutputValidationGate('CSV ダウンロード')) return;
     // プレビューの表示カスタマイズを CSV モーダルへ反映（モーダル内で再編集可）
     syncCsvColsToPreview();
     document.getElementById('csvColModal').classList.add('open');
