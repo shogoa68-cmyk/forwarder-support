@@ -2476,30 +2476,56 @@
 #tab-quote-make .subtotal-group-profit.profit-pos { background: #dcebd8 !important; }
 #tab-quote-make .subtotal-group-profit.profit-neg { background: #fadbd8 !important; }
 #tab-quote-make .subtotal-group-profit.profit-zero { background: #d9cfc2 !important; }
-/* 行アクション列（左端）— Quick Win #4: 横スクロール時も常時表示で固定 */
+/* 行アクション列（左端）— Quick Win #4: 横スクロール中も常時表示で固定 */
 #tab-quote-make td.action-cell {
   text-align: center;
   padding: 1px 3px !important;
   white-space: nowrap;
   background: #f8f5ef;
   border-right: 1px solid #d9cfc2;
-  width: 1px;            /* 内容に合わせて自動収縮 */
-  position: sticky;      /* 横スクロール中も左端に張り付く */
+  min-width: 80px;       /* sticky 計算用に固定（4 ボタン分） */
+  width: 80px;
+  position: sticky;
   left: 0;
   z-index: 2;
 }
 #tab-quote-make th.hd-action {
-  width: 1px;
+  min-width: 80px;
+  width: 80px;
   background: #f4ecd8;
   position: sticky;
   left: 0;
-  z-index: 3;            /* ヘッダーが本体より上に */
+  z-index: 3;
 }
-/* sticky の zebra/hover/active 背景を維持するため、各状態でも背景色を再指定 */
 #tab-quote-make tbody tr.taxed td.action-cell,
 #tab-quote-make tbody tr.row-unfilled td.action-cell { background: #f8f5ef; }
 #tab-quote-make tbody tr.row-done td.action-cell { background: #f4ecd8; }
 #tab-quote-make tr:hover td.action-cell { background: #f0e8d8; }
+
+/* サブコン列の幅を固定（sticky 計算で必要） */
+#tab-quote-make td.sv-cell { width: 90px; min-width: 90px; padding: 2px 4px; }
+
+/* 項目名列の sticky 化（画面横幅 1280px 以上のみ）
+   累積 left = action(80) + check(22) + handle(32) + cat(105) + sv(90) + tax(44) = 373px */
+@media (min-width: 1280px) {
+  #tab-quote-make td.name-cell,
+  #tab-quote-make #quoteTable thead tr:first-child > th:nth-child(7) {
+    position: sticky;
+    left: 373px;
+    z-index: 1;
+    background: var(--card-bg);
+    border-right: 1px solid #d9cfc2;
+  }
+  #tab-quote-make #quoteTable thead tr:first-child > th:nth-child(7) {
+    background: #f4ecd8;
+    z-index: 3;
+  }
+  /* 行の状態別背景を維持（既存パレット流用） */
+  #tab-quote-make tbody tr:hover td.name-cell { background: #f0e8d8; }
+  #tab-quote-make tbody tr.taxed td.name-cell,
+  #tab-quote-make tbody tr.row-unfilled td.name-cell { background: var(--card-bg); }
+  #tab-quote-make tbody tr.row-done td.name-cell { background: #f4ecd8; }
+}
 
 /* アクション列内のボタンを共通アイコンスタイルに（コンパクト 19x19） */
 #tab-quote-make .action-cell .done-btn,
