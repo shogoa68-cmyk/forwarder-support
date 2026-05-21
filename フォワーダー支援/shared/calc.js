@@ -71,6 +71,10 @@ window.SharedCalc = (function () {
   }
 
   // ---- 標準コンテナ仕様（CBM 容積／最大ペイロード） ----
+  // maxKg: 日本国内陸送を含む場合の実務的推奨上限（道路法・軸重制限考慮）。
+  // 海上輸送のみ（ISO上限）は 20'GP ≒ 28,230 kg だが国内トラック輸送時は 21,500 kg が安全圏。
+  // バンニング計算（calculator.js）は海上 ISO ベース maxPay:28,000 kg を使用しているため
+  // ドアtoドア案件では本定義値（21,500 kg）を参照して重量チェックすること。
   const containerSpecs = Object.freeze([
     { key: '20gp', name: "20'GP", cbm: 25, maxKg: 21500, dims: { l: 589,  w: 235, h: 239 } },
     { key: '40gp', name: "40'GP", cbm: 57, maxKg: 26500, dims: { l: 1203, w: 235, h: 239 } },

@@ -23,6 +23,13 @@ body {
 }
 
 .app { max-width: clamp(960px, 65vw, 1440px); margin: 0 auto; padding: 20px 16px; }
+/* 見積タブ active 時は .app の幅制限を解除（テーブル min-width:1300px との衝突を解消）
+   :has() は Chrome 105+ / Firefox 121+ / Safari 15.4+ で対応 */
+body:has(#tab-quote-make.active) .app {
+  max-width: none;
+  padding-left: 8px;
+  padding-right: 8px;
+}
 
 /* ===== Header ===== */
 .header {

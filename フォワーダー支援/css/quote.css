@@ -1354,8 +1354,8 @@
   background: #f0e8d8;
   padding: 8px 20px;
   position: sticky;
-  top: 0;
-  z-index: 200;
+  top: 106px;
+  z-index: 45;
   border-bottom: 1px solid #d9cfc2;
   box-shadow: 0 2px 8px rgba(0,0,0,.08);
 }
@@ -1755,7 +1755,7 @@
 /* ========== トースト通知 ========== */
 #tab-quote-make #toast-container {
   position: fixed;
-  top: 60px;
+  top: 112px;
   right: 20px;
   z-index: 9999;
   display: flex;

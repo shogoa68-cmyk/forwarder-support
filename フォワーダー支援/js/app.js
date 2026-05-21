@@ -17,14 +17,11 @@
 
 // タブ切り替え
 function switchCategory(cat, btn) {
-  // カテゴリーボタンのアクティブ切替（aria-current で AT へも通知）
   document.querySelectorAll('.cat-btn').forEach(b => {
     b.classList.remove('active');
-    b.removeAttribute('aria-current');
     b.setAttribute('aria-selected', 'false');
   });
   btn.classList.add('active');
-  btn.setAttribute('aria-current', 'page');
   btn.setAttribute('aria-selected', 'true');
   // サブナビの表示切替
   document.querySelectorAll('.sub-nav').forEach(s => s.classList.remove('active'));
@@ -35,15 +32,18 @@ function switchCategory(cat, btn) {
 }
 
 function switchTab(tabId, btn) {
-  document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+  document.querySelectorAll('.tab-content').forEach(el => {
+    el.classList.remove('active');
+    el.setAttribute('tabindex', '-1');
+  });
   document.querySelectorAll('.tab-btn').forEach(el => {
     el.classList.remove('active');
-    el.removeAttribute('aria-current');
     el.setAttribute('aria-selected', 'false');
   });
-  document.getElementById('tab-' + tabId).classList.add('active');
+  const panel = document.getElementById('tab-' + tabId);
+  panel.classList.add('active');
+  panel.setAttribute('tabindex', '0');
   btn.classList.add('active');
-  btn.setAttribute('aria-current', 'page');
   btn.setAttribute('aria-selected', 'true');
   // Phase 2b：見積タブ(新版)が初めて表示されたタイミングで遅延初期化
   if (tabId === 'quote-make' && typeof window.initQuoteTab === 'function') {
@@ -68,7 +68,7 @@ function showResult(boxId, urlId, linkId, url) {
 
 // URL未登録時のフォールバック
 function openTopFallback(carrier, featureName) {
-  alert(`${carrier} の${featureName}URLは未登録です。\nトップページを開きます。`);
+  quoteShowToast(`${carrier} の${featureName}URLは未登録のため、トップページを開きます。`, 'warning');
   window.open(CARRIERS[carrier].top, '_blank');
 }
 
@@ -93,11 +93,11 @@ function updateQL() {
 function quickLookup() {
   const carrier = document.getElementById('ql-carrier').value;
   const num     = document.getElementById('ql-number').value.trim();
-  if (!carrier) { alert('船会社を選択してください'); return; }
-  if (!num)     { alert('コンテナ番号またはB/L番号を入力してください'); return; }
+  if (!carrier) { quoteShowToast('⚠️ 船会社を選択してください', 'warning'); return; }
+  if (!num)     { quoteShowToast('⚠️ コンテナ番号またはB/L番号を入力してください', 'warning'); return; }
   const info = CARRIERS[carrier];
   if (info.trackingDisabled) {
-    alert(carrier + ' のトラッキングURLは現在調査中です。しばらくお待ちください。');
+    quoteShowToast(`⚠️ ${carrier} のトラッキングURLは現在調査中です。しばらくお待ちください。`, 'warning');
     return;
   }
   saveTrackingHistory(carrier, num);
@@ -676,4 +676,22 @@ function showIncotermsHint(label) {
   hintEl.textContent = '💡 ' + entry.code + '（' + entry.name + '）：' + entry.note;
   hintEl.style.display = '';
 }
+
+// WAI-ARIA タブパターン：role="tabpanel" + aria-labelledby + ボタンID の一括設定
+function initTabARIA() {
+  document.querySelectorAll('.tab-btn[role="tab"]').forEach(btn => {
+    const m = btn.getAttribute('onclick')?.match(/switchTab\('([^']+)'/);
+    if (!m) return;
+    const tabId = m[1];
+    btn.id = 'tab-btn-' + tabId;
+    btn.setAttribute('aria-controls', 'tab-' + tabId);
+    const panel = document.getElementById('tab-' + tabId);
+    if (panel) {
+      panel.setAttribute('role', 'tabpanel');
+      panel.setAttribute('aria-labelledby', 'tab-btn-' + tabId);
+      panel.setAttribute('tabindex', panel.classList.contains('active') ? '0' : '-1');
+    }
+  });
+}
+document.addEventListener('DOMContentLoaded', initTabARIA);
 

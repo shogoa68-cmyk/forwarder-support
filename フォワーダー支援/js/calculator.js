@@ -646,6 +646,8 @@ function calcPalletize() {
 
 function calcVanning() {
   const { unit, factor } = getUnitConversion('van-unit', 'cm');
+  // maxPay: 海上輸送（ISO規格）ベースのペイロード上限。ドアtoドア含む場合は
+  // 道路法軸重制限により 20'GP は 21,500 kg（shared/calc.js の値）が目安。
   const CONT = {
     '20ft':{l:589,w:235,h:239,maxPay:28000,label:'20ft Dry'},
     '40ft':{l:1203,w:235,h:239,maxPay:26500,label:'40ft Dry'},
@@ -1083,8 +1085,8 @@ function calcDuty() {
   const simpleNote = simpleMode
     ? `<div style="margin-top:10px;padding:8px 12px;background:#fff3cd;border-left:3px solid #e8c870;font-size:11px;color:#7a5500;line-height:1.6;">
          💡 <strong>簡易税率モード参考表示</strong>：課税価格 20 万円以下では HS 詳細不要の<strong>少額輸入貨物簡易税率</strong>が選択可。
-         代表的な区分：酒類等（除外）・コーヒー類 15%・衣類 10%・履物 30%・一般雑貨 3%。
-         上記計算は <strong>通常税率</strong>での試算なので、実適用時は税関の最新ルールで簡易税率と比較してください。
+         代表的な区分（<strong>関税定率法別表附則・2025年4月現在参考値</strong>）：酒類等（除外）・コーヒー類 15%・衣類 10%・履物 30%・一般雑貨 3%。
+         上記計算は <strong>通常税率</strong>での試算。実適用時は税関サイトで最新の簡易税率表を確認のこと。毎年4月改定の可能性あり。
        </div>` : '';
   appendCalcResult('duty-result',
     `<table style="width:100%;border-collapse:collapse;">${tableRows}</table>${simpleNote}`,
