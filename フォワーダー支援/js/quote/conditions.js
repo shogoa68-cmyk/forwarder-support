@@ -94,6 +94,7 @@
   // データを画面に適用（restoreAutoSave と同等。トースト・restoreBar 操作なし）
   function _applyQuoteData(data) {
     if (!data) return;
+    data = migrateRowCells(data);   // 旧形式（sv 末尾）を新形式（sv@2）へ
     Object.entries(data.fields || {}).forEach(([id, val]) => {
       const el = document.getElementById(id);
       if (!el) return;
@@ -201,7 +202,30 @@
       tr.querySelectorAll('input, select, textarea').forEach(el => cells.push(el.value));
       rows.push(cells);
     });
-    return { fields, rows, ts: new Date().toISOString() };
+    // _rowFormat: v2 = sv をカテゴリ直後（index 2）に配置した新レイアウト
+    return { fields, rows, ts: new Date().toISOString(), _rowFormat: 'v2-sv-after-cat' };
+  }
+
+  /**
+   * 旧形式（_rowFormat 未指定）の行データを新形式 (sv@index 2) に変換。
+   * 旧 DOM: [chk, cat, tx, nm, pq, un, pc, pp, cd, bq, bc, bp, mk, nt, sv]  (sv at index 14)
+   * 新 DOM: [chk, cat, sv, tx, nm, pq, un, pc, pp, cd, bq, bc, bp, mk, nt]  (sv at index 2)
+   * cells が 15 要素で _rowFormat 未指定なら、cells[14] を取り出して index 2 に挿入。
+   */
+  function migrateRowCells(data) {
+    if (!data || data._rowFormat === 'v2-sv-after-cat') return data;
+    if (!Array.isArray(data.rows)) return data;
+    data.rows = data.rows.map(cells => {
+      if (!Array.isArray(cells)) return cells;
+      if (cells.length !== 15) return cells;  // 旧形式は 15 要素のはず
+      const sv = cells[14];
+      const out = cells.slice();
+      out.splice(14, 1);     // 末尾の sv を除去
+      out.splice(2, 0, sv);  // index 2 に挿入
+      return out;
+    });
+    data._rowFormat = 'v2-sv-after-cat';
+    return data;
   }
 
   function saveData(silent = false) {
@@ -220,6 +244,7 @@
     if (!raw) return;
     let data;
     try { data = JSON.parse(raw); } catch(e) { return; }
+    data = migrateRowCells(data);   // 旧形式を新形式へ
     // フォーム復元
     Object.entries(data.fields || {}).forEach(([id, val]) => {
       const el = document.getElementById(id);
@@ -264,6 +289,7 @@
     if (!raw) { alert('保存データが見つかりません。'); return; }
     let data;
     try { data = JSON.parse(raw); } catch(e) { alert('データの読み込みに失敗しました。'); return; }
+    data = migrateRowCells(data);   // 旧形式を新形式へ
     const ts = data.ts ? new Date(data.ts).toLocaleString('ja-JP') : '不明';
     if (!confirm(`保存日時: ${ts}\n\n現在のデータを上書きして読み込みますか？`)) return;
     // フォーム復元

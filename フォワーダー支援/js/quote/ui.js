@@ -693,6 +693,8 @@
     const preset  = presets[idx];
     if (!preset) return;
     if (!confirm('「' + preset.name + '」を読み込みますか？\n現在の入力内容は上書きされます。')) return;
+    // 旧形式（sv 末尾）を新形式（sv@2）へ
+    if (typeof migrateRowCells === 'function') preset.data = migrateRowCells(preset.data);
     // フォーム復元
     Object.entries(preset.data.fields || {}).forEach(([id, v]) => {
       const el = document.getElementById(id);
@@ -1004,6 +1006,9 @@
         ? new Date(data.exportedAt).toLocaleString('ja-JP')
         : '不明';
       if (!confirm('出力日時: ' + exportedAt + '\n\n現在のデータを上書きして読み込みますか？')) return;
+
+      // 旧形式（sv 末尾）を新形式（sv@2）へ
+      if (typeof migrateRowCells === 'function') data = migrateRowCells(data);
 
       // ---- フォーム復元 ----
       Object.entries(data.fields || {}).forEach(([id, val]) => {
