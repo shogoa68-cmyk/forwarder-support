@@ -1547,7 +1547,7 @@
         <ul>
           <li><strong>📝 見積もりへ</strong> ＝ 見積もりタブの「特記事項・補足（自由入力）」欄へ整形テキストを<strong>追記</strong>し、自動的に見積もりタブへ切替＋スクロール</li>
           <li><strong>📋 コピー</strong> ＝ 整形テキストをクリップボードへ。見積もり表の数量欄や任意のセルへ手動ペースト（数式 <code>=A1+B1</code> 等も評価されます）</li>
-          <li><strong>見積もり表の数量欄へワンクリック反映</strong>したい場合は、見積もりタブ内の「③ 貨物情報・サイズ計算」セクションを使用してください。同じ計算機能を内蔵しており、結果欄の「反映」ボタンで <strong>RT / CW / CBM / kg / pcs</strong> ごとに見積もり行へ一括転記できます</li>
+          <li><strong>見積もり表の数量欄へワンクリック反映</strong>したい場合は、見積もりタブ内の「② 引き合い条件・貨物情報」セクション下部の「🧮 サイズ計算」を使用してください。同じ計算機能を内蔵しており、結果欄の「反映」ボタンで <strong>RT / CW / CBM / kg / pcs</strong> ごとに見積もり行へ一括転記できます</li>
         </ul>
         <div class="help-tip">💡 各計算カードの「＋ 行を追加」で複数アイテムを一度に処理できます。</div>
       </div>
@@ -1905,7 +1905,7 @@
           <li><strong>🔧 この構成でプリセット適用</strong>で見積もり表の行を一括生成</li>
         </ul>
 
-        <h4>③ 貨物情報・サイズ計算</h4>
+        <h4>② 引き合い条件・貨物情報（📦 貨物情報 サブセクション）</h4>
         <p>貨物の基本情報（品名・個数・重量・寸法）を入力。<strong>「📐 計算する」</strong>を押すと CBM・チャージャブルウェイト（C/W）・RT 等が算出されます。<br>
         結果欄の <strong>「反映」</strong>ボタンで:</p>
         <ul>
@@ -2130,9 +2130,9 @@
       </div>
     </div>
 
-    <!-- ② 引き合い条件（作業範囲・輸送ルート） -->
+    <!-- ② 引き合い条件・貨物情報（原文・整理・貨物フィールド・サイズ計算を統合） -->
     <div class="condition-section" id="section-cond">
-      <h2>🚢 引き合い条件</h2>
+      <h2>🚢 引き合い条件・貨物情報</h2>
 
       <!-- サブセクション①：引き合い条件原文（折りたたみ） -->
       <details class="raw-inquiry-details" id="rawInquiryDetails">
@@ -2332,16 +2332,11 @@
         <div class="zone-preset-bar">
           <button class="btn-zone-preset" onclick="applyZoneBasedPreset()">🔧 この構成でプリセット適用</button>
         </div>
-
-        <button class="fb-section-btn" onclick="openFeedback('引き合い条件')" title="このセクションへのフィードバック">💬 このセクションへのフィードバック</button>
       </div>
-    </div>
 
-    <!-- ③ 貨物情報 ＋ サイズ計算（統合） -->
-    <div class="condition-section" id="section-cargo">
-      <h2>📦 貨物情報・サイズ計算</h2>
+      <!-- サブセクション③：貨物情報 -->
+      <div class="cond-subsec-label cond-subsec-label--cargo">📦 貨物情報</div>
       <div id="cargoBody">
-        <p class="section-desc">貨物の基本情報を入力し、寸法から CBM・チャージャブルウェイトを自動計算できます。<b>計算結果</b>は下の見積もり表の数量欄へそのまま転記できます。</p>
         <div class="condition-grid" id="cargoCondGrid">
           <div class="cond-field" data-field-id="cargo" draggable="true">
             <label><span class="cond-sort-handle" title="ドラッグして並び替え">⠿</span><span class="cond-icon">🏷️</span> 貨物名</label>
@@ -2400,48 +2395,49 @@
           <button class="btn-cond-clear" onclick="clearConditions()">クリア</button>
         </div>
 
-        <div style="margin: 18px 0 14px; border-top: 1px dashed #d0dce8; padding-top: 14px;">
-          <div style="font-size:12px; font-weight:700; color:#2980b9; margin-bottom:10px; letter-spacing:.04em;">
-            📐 寸法・重量の詳細入力（CBM / CW 自動計算）
-          </div>
-          <div class="calc-wrapper">
-            <table class="calc-mini-table" id="calcTable">
-              <thead>
-                <tr>
-                  <th>個数</th>
-                  <th>荷姿</th>
-                  <th>長さ(cm)</th>
-                  <th>幅(cm)</th>
-                  <th>高さ(cm)</th>
-                  <th>CBM小計</th>
-                  <th title="1個あたりの重量">単重量<br>(kg/個)</th>
-                  <th title="単重量 × 個数（自動計算）">総重量<br>(kg)</th>
-                  <th title="段積みできるかどうか">段積み</th>
-                  <th></th>
-                </tr>
-              </thead>
-              <tbody id="calcBody"></tbody>
-            </table>
-            <button class="btn-calc-add" onclick="addCalcRow()">＋ 荷物の種類を追加</button>
-            <button class="btn-calc-run" onclick="runCalc()">📐 計算する</button>
-            <div class="calc-results-panel" id="calcResultsPanel">
-              <div class="calc-results-grid" id="calcResultsGrid"></div>
-              <hr class="calc-divider-line">
-              <div class="calc-reflect-title">📦 上の貨物情報に反映</div>
-              <div id="calcCargoReflect" class="calc-cargo-reflect">
-                <button type="button" class="btn-calc-cargo-reflect" onclick="reflectToCargoInfo()" title="重量・容積を上の「貨物情報」へ上書き">
-                  📋 貨物情報へ反映（重量・容積を上書き）
-                </button>
+        <!-- サイズ計算（折りたたみ） -->
+        <details class="cbm-calc-details">
+          <summary class="cbm-calc-summary">🧮 サイズ計算（CBM / CW 自動計算）<span class="cbm-calc-hint">寸法から自動計算・見積もり行へ転記</span></summary>
+          <div class="cbm-calc-body">
+            <div class="calc-wrapper">
+              <table class="calc-mini-table" id="calcTable">
+                <thead>
+                  <tr>
+                    <th>個数</th>
+                    <th>荷姿</th>
+                    <th>長さ(cm)</th>
+                    <th>幅(cm)</th>
+                    <th>高さ(cm)</th>
+                    <th>CBM小計</th>
+                    <th title="1個あたりの重量">単重量<br>(kg/個)</th>
+                    <th title="単重量 × 個数（自動計算）">総重量<br>(kg)</th>
+                    <th title="段積みできるかどうか">段積み</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody id="calcBody"></tbody>
+              </table>
+              <button class="btn-calc-add" onclick="addCalcRow()">＋ 荷物の種類を追加</button>
+              <button class="btn-calc-run" onclick="runCalc()">📐 計算する</button>
+              <div class="calc-results-panel" id="calcResultsPanel">
+                <div class="calc-results-grid" id="calcResultsGrid"></div>
+                <hr class="calc-divider-line">
+                <div class="calc-reflect-title">📦 上の貨物情報に反映</div>
+                <div id="calcCargoReflect" class="calc-cargo-reflect">
+                  <button type="button" class="btn-calc-cargo-reflect" onclick="reflectToCargoInfo()" title="重量・容積を上の「貨物情報」へ上書き">
+                    📋 貨物情報へ反映（重量・容積を上書き）
+                  </button>
+                </div>
+                <hr class="calc-divider-line">
+                <div class="calc-reflect-title">📋 見積もり行に数量を反映</div>
+                <div id="calcReflectRows"></div>
               </div>
-              <hr class="calc-divider-line">
-              <div class="calc-reflect-title">📋 見積もり行に数量を反映</div>
-              <div id="calcReflectRows"></div>
             </div>
           </div>
-        </div>
-
-        <button class="fb-section-btn" onclick="openFeedback('貨物情報・サイズ計算')" title="このセクションへのフィードバック">💬 このセクションへのフィードバック</button>
+        </details>
       </div>
+
+      <button class="fb-section-btn" onclick="openFeedback('引き合い条件・貨物情報')" title="このセクションへのフィードバック">💬 このセクションへのフィードバック</button>
     </div>
 
     <!-- ⑤ 見積もりテーブル -->
@@ -2862,8 +2858,7 @@
         <select id="fbSection" name="fbSection" required>
           <option value="全体">全体</option>
           <option value="管理番号入力">管理番号入力</option>
-          <option value="引き合い条件">引き合い条件</option>
-          <option value="貨物情報・サイズ計算">貨物情報・サイズ計算</option>
+          <option value="引き合い条件・貨物情報">引き合い条件・貨物情報</option>
           <option value="見積もりテーブル">見積もりテーブル</option>
           <option value="特記事項・補足">特記事項・補足</option>
           <option value="全体リマーク">全体リマーク</option>
