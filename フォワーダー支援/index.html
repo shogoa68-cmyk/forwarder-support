@@ -2455,12 +2455,12 @@
                 </th>
                 <th rowspan="2" class="hd-base" style="width:28px;"></th>
                 <th rowspan="2" class="hd-base" style="width:105px;">カテゴリ</th>
+                <th rowspan="2" class="hd-base" style="width:90px;">サブコン</th>
                 <th rowspan="2" class="hd-base" style="width:44px;" title="ON にすると項目名先頭に「*」が付き、プレビューで消費税（10% 固定）が自動計算されます。輸出取引（免税）の行ではチェックを外してください。">課税</th>
                 <th rowspan="2" class="hd-base">項目名</th>
                 <th colspan="5" class="hd-pay">支払い</th>
                 <th colspan="3" class="hd-bill">請求</th>
                 <th colspan="4" class="hd-profit">利益計算</th>
-                <th rowspan="2" class="hd-base" style="width:90px;">サブコン</th>
               </tr>
               <tr>
                 <th class="hd-pay">数量</th>
@@ -2480,7 +2480,7 @@
             <tbody id="tableBody"></tbody>
             <tfoot>
               <tr>
-                <td></td><td></td><td></td><td></td>
+                <td></td><td></td><td></td><td></td><td></td>
                 <td colspan="4" style="text-align:right; color:#555;">合　計</td>
                 <td>—</td>
                 <td>—</td>
@@ -2490,17 +2490,17 @@
                 <td id="tot-markup"  style="text-align:right; padding-right:10px; min-width:85px;">—</td>
                 <td id="tot-subtotal" style="text-align:right; padding-right:10px; min-width:85px; font-weight:bold; background:#eef5fb;">—</td>
                 <td class="profit-cell profit-zero" id="tot-profit">—</td>
-                <td colspan="2"></td>
+                <td></td>
               </tr>
               <tr id="tot-jpy-row" style="display:none; font-size:11px; color:#888; background:#fffbe6;">
-                <td></td><td></td><td></td><td></td>
+                <td></td><td></td><td></td><td></td><td></td>
                 <td colspan="4" style="text-align:right;">JPY換算合計</td>
                 <td colspan="5">—</td>
                 <td id="tot-billing-jpy" style="text-align:right; padding-right:10px;">—</td>
                 <td>—</td>
                 <td id="tot-subtotal-jpy" style="text-align:right; padding-right:10px; font-weight:bold;">—</td>
                 <td id="tot-profit-jpy" class="profit-cell profit-zero">—</td>
-                <td colspan="2"></td>
+                <td></td>
               </tr>
             </tfoot>
           </table>
@@ -2639,6 +2639,7 @@
         <span class="csv-col-all-toggle" onclick="toggleAllCsvCols()">すべて選択 / 解除</span>
         <div class="csv-col-grid" id="csvColGrid">
           <label><input type="checkbox" class="csv-col-chk" data-col="cat"    checked> カテゴリ</label>
+          <label><input type="checkbox" class="csv-col-chk" data-col="sv"     checked> サブコン</label>
           <label><input type="checkbox" class="csv-col-chk" data-col="name"   checked> 項目名</label>
           <label><input type="checkbox" class="csv-col-chk" data-col="pq"     checked> 支払い数量</label>
           <label><input type="checkbox" class="csv-col-chk" data-col="un"     checked> 単位</label>
@@ -2652,7 +2653,6 @@
           <label><input type="checkbox" class="csv-col-chk" data-col="sub"    checked> 小計</label>
           <label><input type="checkbox" class="csv-col-chk" data-col="profit"        > 利益</label>
           <label><input type="checkbox" class="csv-col-chk" data-col="note"   checked> 備考</label>
-          <label><input type="checkbox" class="csv-col-chk" data-col="sv"            > サブコン</label>
         </div>
         <div class="csv-col-modal-btns">
           <button class="csv-col-modal-btn cancel" onclick="closeCsvColModal()">キャンセル</button>
@@ -2755,6 +2755,7 @@
         <button type="button" class="row-move-btn row-move-down" data-field="move-down" tabindex="-1" title="下に移動">▼</button>
       </td>
       <td class="cat-cell"><select class="w-cat" data-field="cat" data-col="0"></select></td>
+      <td class="sv-cell"><input type="text" data-field="sv" class="w-subcon" placeholder="サブコン" /></td>
       <td class="tax-cell"><input type="checkbox" data-field="tx" title="ON にすると消費税 10% が自動計算され、項目名先頭に「*」が付きます。輸出免税の行は OFF のままにしてください（輸出方向選択時は自動 0% に切替）。"></td>
       <td><input type="text" data-field="nm" class="w-name" placeholder="例）海上運賃" data-col="1" /></td>
       <td><input type="number" data-field="pq" class="w-qty" min="0" value="1" data-col="2" /></td>
@@ -2769,7 +2770,6 @@
       <td class="subtotal-cell" data-field="st">—</td>
       <td class="profit-cell profit-zero" data-field="pr">0</td>
       <td><input type="text" data-field="nt" class="w-note" placeholder="備考" data-col="6" /></td>
-      <td><input type="text" data-field="sv" class="w-subcon" placeholder="サブコン名" /></td>
     </template>
 
   </div><!-- /#tab-quote-make -->

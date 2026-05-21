@@ -445,6 +445,7 @@
         <button type="button" class="row-move-btn subtotal-move-down" tabindex="-1" title="下に移動">▼</button>
       </td>
       <td></td>
+      <td></td>
       <td colspan="4" class="subtotal-label-cell">
         <span class="subtotal-marker">━━ 小計</span>
         <input type="text" class="subtotal-label" placeholder="グループ名（任意）" oninput="updateSubtotalRows()" />
@@ -454,7 +455,7 @@
       <td class="subtotal-dash">—</td>
       <td class="subtotal-group-subtotal subtotal-cell">—</td>
       <td class="subtotal-group-profit profit-cell profit-zero">—</td>
-      <td colspan="2"></td>
+      <td></td>
     `;
     const tbody = document.getElementById('tableBody');
     if (afterId) {

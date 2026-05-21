@@ -204,24 +204,24 @@
 
     let html = `<table id="previewTable">
       <thead><tr>
-        <th>カテゴリ</th><th>項目名</th>
+        <th>カテゴリ</th><th>サブコン</th><th>項目名</th>
         <th class="ph-pay">数量</th><th class="ph-pay">単位</th><th class="ph-pay">通貨</th>
         <th class="ph-pay">単価</th><th class="ph-pay" style="color:#ccc;">CD</th>
         <th class="ph-bill">数量</th><th class="ph-bill">通貨</th><th class="ph-bill">単価</th>
-        <th class="ph-profit">乗せ幅</th><th class="ph-profit">小計</th><th class="ph-profit">消費税</th><th class="ph-profit">利益</th><th class="ph-profit">備考</th><th>サブコン</th>
+        <th class="ph-profit">乗せ幅</th><th class="ph-profit">小計</th><th class="ph-profit">消費税</th><th class="ph-profit">利益</th><th class="ph-profit">備考</th>
       </tr></thead><tbody>`;
 
     let totSub = 0, totTax = 0;
     allRows.forEach(d => {
       if (d._type === 'subtotal') {
-        // 小計行セパレーター（消費税セルは空欄で挟む）
+        // 小計セパレーター。先頭ラベルは cat+sv+name+pay(5)+bill(3)+mk = 12 列ぶん
         const sepPc = d.profitText.startsWith('-') ? 'pv-neg' : (d.profitText === '—' || d.profitText === '0') ? 'pv-zero' : 'pv-pos';
         html += `<tr class="pv-subtotal-sep">
-          <td colspan="11" class="pv-subtotal-sep-label">━━ ${escHtml(d.label || '小計')}</td>
+          <td colspan="12" class="pv-subtotal-sep-label">━━ ${escHtml(d.label || '小計')}</td>
           <td class="pv-num pv-subtotal">${escHtml(d.subtotalText)}</td>
           <td class="pv-num pv-tax-cell"></td>
           <td class="pv-pr ${sepPc} pv-num">${escHtml(d.profitText)}</td>
-          <td colspan="2"></td>
+          <td></td>
         </tr>`;
         return;
       }
@@ -234,6 +234,7 @@
       const taxCellText = d.taxed ? fmtRaw(taxAmt) : '';
       html += `<tr>
         <td class="pv-name" style="font-size:11px;">${escHtml(getCatLabel(d.cat))}</td>
+        <td class="pv-name">${escHtml(d.sv)}</td>
         <td class="${nameCls}">${escHtml(d.name)}</td>
         <td class="pv-num">${fmtRaw(d.pq)}</td><td>${escHtml(d.un || '')}</td><td>${escHtml(d.pc)}</td>
         <td class="pv-num">${fmtRaw(d.pp)}</td>
@@ -245,21 +246,21 @@
         <td class="pv-num pv-tax-cell" data-sub="${sub}" data-taxed="${d.taxed ? 1 : 0}">${taxCellText}</td>
         <td class="pv-pr ${pc} pv-num">${fmtRaw(d.profit)}</td>
         <td class="pv-name">${escHtml(d.note)}</td>
-        <td class="pv-name">${escHtml(d.sv)}</td>
       </tr>`;
     });
 
     const totPc = totPr > 0 ? 'pv-pos' : totPr < 0 ? 'pv-neg' : 'pv-zero';
     const totTaxText = fmtRaw(totTax);
+    // 合計行：cat+sv+name = colspan 3 を「合計」ラベルに割当て
     html += `</tbody><tfoot><tr class="pv-total">
-      <td colspan="2" style="text-align:right;">合　計</td>
+      <td colspan="3" style="text-align:right;">合　計</td>
       <td colspan="4">—</td><td style="background:#e8e8e8;color:#aaa;">—</td>
       <td colspan="2">—</td><td class="pv-num">—</td>
       <td class="pv-num">${fmtRaw(totMk)}</td>
       <td class="pv-num pv-subtotal">${fmtRaw(totSub)}</td>
       <td class="pv-num pv-tax-total">${totTaxText}</td>
       <td class="pv-pr ${totPc} pv-num">${fmtRaw(totPr)}</td>
-      <td></td><td></td>
+      <td></td>
     </tr></tfoot></table>`;
 
     document.getElementById('previewTableWrap').innerHTML = html;
@@ -391,18 +392,18 @@
     const table = document.getElementById('previewTable');
     if (!table) return;
 
-    // 列表示切り替え（消費税列を 12 に挿入、unit を pay から分離）
-    // index 構成: 0:cat 1:name 2:pq 3:un 4:pc 5:pp 6:cd 7:bq 8:bc 9:bp 10:mk 11:sub 12:tax 13:profit 14:note 15:sv
+    // 列表示切り替え。sv（サブコン）を cat 直後に移動した新レイアウト：
+    // index 構成: 0:cat 1:sv 2:name 3:pq 4:un 5:pc 6:pp 7:cd 8:bq 9:bc 10:bp 11:mk 12:sub 13:tax 14:profit 15:note
     const colMap = {
       cat:        [0],
-      pay:        [2, 4, 5, 6],   // pq / pc / pp / cd
-      unit:       [3],            // un を pay から分離して独立トグル
-      bill:       [7, 8, 9],
-      mk:         [10],
-      'tax-col':  [12],           // 消費税列
-      profit:     [13],
-      note:       [14],
-      sv:         [15],
+      sv:         [1],            // サブコン（カテゴリの直後）
+      pay:        [3, 5, 6, 7],   // pq / pc / pp / cd
+      unit:       [4],            // un を pay から分離して独立トグル
+      bill:       [8, 9, 10],
+      mk:         [11],
+      'tax-col':  [13],           // 消費税列
+      profit:     [14],
+      note:       [15],
     };
 
     document.querySelectorAll('.pv-col-chk').forEach(chk => {
@@ -498,9 +499,10 @@
     });
   }
 
-  // TSV 列定義（プレビュー表示カスタマイズに連動）
+  // TSV 列定義（プレビュー表示カスタマイズに連動。sv をカテゴリ直後に配置）
   const TSV_COL_DEFS = [
     { hdr: 'カテゴリ', fn: d => getCatLabel(d.cat),    pvGroup: 'cat',    role: 'cat'    },
+    { hdr: 'サブコン', fn: d => d.sv || '',            pvGroup: 'sv',     role: 'sv'     },
     { hdr: '項目名',   fn: d => d.name,                pvGroup: null,     role: 'name'   },
     { hdr: '数量',     fn: d => fmtRaw(d.pq),          pvGroup: 'pay',    role: 'pq'     },
     { hdr: '通貨',     fn: d => d.pc,                  pvGroup: 'pay',    role: 'pc'     },
@@ -577,6 +579,7 @@
   // pvGroup: null は常時表示（名前/課税/小計）
   const XLSX_COL_DEFS = [
     { hdr: 'カテゴリ',     fn: d => getCatLabel(d.cat),    pvGroup: 'cat',    role: 'cat'    },
+    { hdr: 'サブコン',     fn: d => d.sv || '',            pvGroup: 'sv',     role: 'sv'     },
     { hdr: '項目名',       fn: d => d.name,                pvGroup: null,     role: 'name'   },
     { hdr: '課税',         fn: d => d.taxed ? '●' : '',   pvGroup: null,     role: 'tax'    },
     { hdr: '数量(原価)',   fn: d => d.pq,                  pvGroup: 'pay',    role: 'pq'     },
@@ -590,7 +593,6 @@
     { hdr: '小計',         fn: d => (d.bq || 0) * (d.bp || 0), pvGroup: null, role: 'sub'    },
     { hdr: '利益',         fn: d => d.profit,              pvGroup: 'profit', role: 'profit' },
     { hdr: '備考',         fn: d => d.note,                pvGroup: 'note',   role: 'note'   },
-    { hdr: 'サブコン',     fn: d => d.sv,                  pvGroup: 'sv',     role: 'sv'     },
   ];
 
   function exportExcel() {
@@ -662,9 +664,10 @@
     quoteShowToast('📊 Excelファイルを出力しました', 'success');
   }
 
-  // CSV列定義（key: collectData()の行データキー、hdr: ヘッダ文字列）
+  // CSV列定義（key: collectData()の行データキー、hdr: ヘッダ文字列。sv を cat 直後に配置）
   const CSV_COL_DEFS = [
     { key: 'cat',    hdr: 'カテゴリ(raw)',  fn: d => d.cat },
+    { key: 'sv',     hdr: 'サブコン',       fn: d => d.sv || '' },
     { key: 'name',   hdr: '項目名',         fn: d => d.name },
     { key: 'pq',     hdr: '数量',           fn: d => fmtRaw(d.pq) },
     { key: 'un',     hdr: '単位',           fn: d => d.un || '' },
@@ -678,7 +681,6 @@
     { key: 'sub',    hdr: '小計',           fn: d => fmtRaw((d.bq||0)*(d.bp||0)) },
     { key: 'profit', hdr: '利益',           fn: d => fmtRaw(d.profit) },
     { key: 'note',   hdr: '備考',           fn: d => d.note },
-    { key: 'sv',     hdr: 'サブコン',       fn: d => d.sv },
   ];
 
   function downloadCSV() {
