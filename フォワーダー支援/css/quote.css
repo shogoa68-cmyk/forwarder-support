@@ -1728,6 +1728,80 @@
 }
 /* セクション説明 — ポータル他タブの「<p style="font-size:12px;color:#718096;
    margin-bottom:14px;">…」と揃える */
+/* ===== 引き合い条件原文 ===== */
+#tab-quote-make .raw-inquiry-details {
+  border: 1px solid #d9cfc2;
+  border-radius: 6px;
+  margin-bottom: 14px;
+  background: #fff;
+}
+#tab-quote-make .raw-inquiry-summary {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #7d6b56;
+  cursor: pointer;
+  user-select: none;
+  list-style: none;
+}
+#tab-quote-make .raw-inquiry-summary::-webkit-details-marker { display: none; }
+#tab-quote-make .raw-inquiry-summary::before {
+  content: '▶';
+  font-size: 9px;
+  transition: transform 0.18s;
+  flex-shrink: 0;
+}
+#tab-quote-make .raw-inquiry-details[open] > .raw-inquiry-summary::before {
+  transform: rotate(90deg);
+}
+#tab-quote-make .raw-inquiry-badge {
+  font-size: 10px;
+  font-weight: 400;
+  color: #9a8a78;
+  background: #f0ebe3;
+  border-radius: 10px;
+  padding: 1px 7px;
+  margin-left: auto;
+  flex-shrink: 0;
+}
+#tab-quote-make .raw-inquiry-body {
+  padding: 0 12px 10px;
+}
+#tab-quote-make .raw-inquiry-textarea {
+  width: 100%;
+  box-sizing: border-box;
+  min-height: 5em;
+  max-height: 12em;
+  overflow-y: auto;
+  resize: vertical;
+  font-size: 12px;
+  font-family: 'Courier New', Courier, monospace;
+  white-space: pre-wrap;
+  border: 1px solid #c8bfb0;
+  border-radius: 4px;
+  padding: 8px 10px;
+  background: #fffdf9;
+  color: #3d2e1e;
+  line-height: 1.65;
+}
+#tab-quote-make .raw-inquiry-textarea:focus {
+  outline: none;
+  border-color: #6b5a42;
+  background: #fff;
+}
+/* 引き合い条件整理 サブセクションラベル */
+#tab-quote-make .cond-subsec-label {
+  font-size: 12px;
+  font-weight: 700;
+  color: #7d6b56;
+  padding: 3px 0 8px 8px;
+  border-left: 3px solid #b5a08a;
+  margin-bottom: 10px;
+}
+
 #tab-quote-make .section-desc {
   font-size: 12px;
   color: #7d6b56;
