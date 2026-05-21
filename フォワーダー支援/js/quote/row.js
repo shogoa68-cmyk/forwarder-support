@@ -195,24 +195,55 @@
   }
 
   // ========== カテゴリー順ソート ==========
-  function sortByCategory() {
+  function sortBy(type) {
     const tbody = document.getElementById('tableBody');
     const rows  = Array.from(tbody.querySelectorAll('tr'));
     if (rows.length < 2) return;
-    const catOrder = cat => {
-      const idx = CAT_VALUES.indexOf(cat);
-      return idx === -1 ? 999 : idx;
-    };
+    const getId = tr => tr.id.replace('row-', '');
+    const catOrder = cat => { const i = CAT_VALUES.indexOf(cat); return i === -1 ? 999 : i; };
+
     rows.sort((a, b) => {
-      const idA = a.id.replace('row-', '');
-      const idB = b.id.replace('row-', '');
-      const cA  = document.getElementById(`cat-${idA}`)?.value || '';
-      const cB  = document.getElementById(`cat-${idB}`)?.value || '';
-      return catOrder(cA) - catOrder(cB);
+      const idA = getId(a), idB = getId(b);
+      switch (type) {
+        case 'category': {
+          const cA = document.getElementById(`cat-${idA}`)?.value || '';
+          const cB = document.getElementById(`cat-${idB}`)?.value || '';
+          return catOrder(cA) - catOrder(cB);
+        }
+        case 'currency': {
+          const cA = document.getElementById(`pc-${idA}`)?.value || '';
+          const cB = document.getElementById(`pc-${idB}`)?.value || '';
+          return cA.localeCompare(cB);
+        }
+        case 'unit': {
+          const uA = document.getElementById(`un-${idA}`)?.value.trim() || '';
+          const uB = document.getElementById(`un-${idB}`)?.value.trim() || '';
+          if (!uA && !uB) return 0;
+          if (!uA) return 1;
+          if (!uB) return -1;
+          return uA.localeCompare(uB, 'ja');
+        }
+        case 'tax': {
+          const tA = document.getElementById(`tx-${idA}`)?.checked ? 0 : 1;
+          const tB = document.getElementById(`tx-${idB}`)?.checked ? 0 : 1;
+          return tA - tB;
+        }
+        case 'subcon': {
+          const sA = document.getElementById(`sv-${idA}`)?.value.trim() || '';
+          const sB = document.getElementById(`sv-${idB}`)?.value.trim() || '';
+          if (!sA && !sB) return 0;
+          if (!sA) return 1;
+          if (!sB) return -1;
+          return sA.localeCompare(sB, 'ja');
+        }
+        default: return 0;
+      }
     });
     rows.forEach(r => tbody.appendChild(r));
     updateTotals();
   }
+
+  function sortByCategory() { sortBy('category'); }
 
   function buildRowHTML(id, initCat = '', initCur = 'JPY') {
     const tpl  = document.getElementById('row-tpl');

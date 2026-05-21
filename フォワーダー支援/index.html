@@ -2511,7 +2511,15 @@
           <div class="table-btn-group">
             <div class="btn-group-row">
               <span class="btn-group-label">行操作</span>
-              <button class="btn-sort-cat"    onclick="sortByCategory()">🔀 カテゴリー順</button>
+              <select class="sort-type-select" title="並び替え種別を選択すると即実行"
+                      onchange="if(this.value){sortBy(this.value);this.value=''}">
+                <option value="">🔀 並び替え ▼</option>
+                <option value="category">🗂️ カテゴリー順</option>
+                <option value="currency">💱 通貨毎</option>
+                <option value="unit">📦 単位毎</option>
+                <option value="tax">✱ 課税順（課税→非課税）</option>
+                <option value="subcon">🔗 サブコン毎</option>
+              </select>
               <button class="btn-clean-empty" onclick="deleteEmptyRows()" title="未入力（グレーアウト）の行をまとめて削除">🧹 未入力行を削除</button>
             </div>
             <div class="btn-group-row">

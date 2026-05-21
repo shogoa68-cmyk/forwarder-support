@@ -2303,9 +2303,8 @@
 /* ===== ボタングループ整形（Feature 1） ===== */
 #tab-quote-make .table-btn-group {
   display: flex;
-  flex-wrap: wrap;
-  gap: 6px 12px;
-  align-items: center;
+  flex-direction: column;
+  gap: 6px;
   padding: 10px 4px 4px;
   border-top: 1px solid #ede5d6;
   margin-top: 8px;
@@ -2318,8 +2317,8 @@
   gap: 6px;
 }
 #tab-quote-make .btn-group-row + .btn-group-row {
-  border-left: 1px solid #d9cfc2;
-  padding-left: 12px;
+  border-top: 1px solid #ede5d6;
+  padding-top: 4px;
 }
 #tab-quote-make .btn-group-label {
   font-size: 10px;
@@ -2328,6 +2327,15 @@
   text-transform: uppercase;
   letter-spacing: 0.04em;
   white-space: nowrap;
+}
+#tab-quote-make .sort-type-select {
+  font-size: 11px;
+  padding: 4px 6px;
+  border: 1px solid #d9cfc2;
+  border-radius: 3px;
+  background: #fff;
+  color: #2d2418;
+  cursor: pointer;
 }
 /* ボタン共通リセット（個別marginを削除して揃える） */
 #tab-quote-make .btn-add,
@@ -2783,7 +2791,6 @@
 #tab-quote-make .pv-tax-detail { color: #2d2418; }
 #tab-quote-make .pv-tax-detail b { color: #8b6914; }
 @media (max-width: 700px) {#tab-quote-make .table-btn-group { gap: 4px; }
-#tab-quote-make .btn-group-row + .btn-group-row { border-left: none; padding-left: 0; border-top: 1px solid #ede5d6; padding-top: 4px; }
 #tab-quote-make #stickyNotePanel { right: 10px; bottom: 100px; width: calc(100vw - 20px); }
 #tab-quote-make .sticky-fab { bottom: 60px; right: 10px; }
 }
