@@ -592,6 +592,7 @@
     _syncModeSelect();
     updateRouteModeIcon();
     _applyZoneLabels();
+    _refreshCarrierDatalist();
   }
 
   /** FCL / LCL サブトグル（Seaのとき表示） */
@@ -603,6 +604,7 @@
     _syncModeSelect();
     updateRouteModeIcon();
     _applyZoneLabels();
+    _refreshCarrierDatalist();
   }
 
   /** ボタン状態を内部 cond-mode select に同期 */
@@ -618,21 +620,69 @@
     }
   }
 
+  /** 現在の輸送モードに対応するキャリアマップを返す */
+  function _carrierMapForMode() {
+    if (_currentTransport === 'air') return (typeof CARRIERS_AIR !== 'undefined') ? CARRIERS_AIR : {};
+    if (_currentSeaSub === 'lcl')    return (typeof CARRIERS_LCL !== 'undefined') ? CARRIERS_LCL : {};
+    return (typeof CARRIERS !== 'undefined') ? CARRIERS : {};
+  }
+
+  /** 現在の輸送モードに対応するリンク定義を返す */
+  function _linkDefsForMode() {
+    const defs = (typeof CARRIER_LINK_DEFS !== 'undefined') ? CARRIER_LINK_DEFS : {};
+    if (_currentTransport === 'air') return defs.air || [];
+    if (_currentSeaSub === 'lcl')    return defs.lcl || [];
+    return defs.fcl || [];
+  }
+
+  /** URL 値を解決する（関数 or 文字列 or null） */
+  function _resolveCarrierUrl(v) {
+    if (!v) return null;
+    return typeof v === 'function' ? v() : v;
+  }
+
+  /** carriers-dl datalist をモードに合わせて再生成 */
+  function _refreshCarrierDatalist() {
+    const dl = document.getElementById('carriers-dl');
+    if (!dl) return;
+    const map = _carrierMapForMode();
+    dl.innerHTML = Object.keys(map).map(k => `<option value="${k}">`).join('');
+
+    // z2 アイコン・プレースホルダーもモードに合わせて更新
+    const icon  = document.getElementById('z2ModeIcon');
+    const input = document.getElementById('z2Carrier');
+    if (_currentTransport === 'air') {
+      if (icon)  icon.textContent  = '✈️';
+      if (input) input.placeholder = '航空会社名（例：JAL Cargo）';
+    } else if (_currentSeaSub === 'lcl') {
+      if (icon)  icon.textContent  = '🚢';
+      if (input) input.placeholder = 'NVOCC名（例：近鉄エクスプレス）';
+    } else {
+      if (icon)  icon.textContent  = '🚢';
+      if (input) input.placeholder = 'キャリア名（例：ONE）';
+    }
+
+    // 入力値がリセット後の候補と一致しなければパネルを閉じる
+    onZ2CarrierChange();
+  }
+
   /** z2Carrier 入力時：一致するキャリアのリンクパネルを表示 */
   function onZ2CarrierChange() {
     const panel = document.getElementById('z2CarrierLinks');
-    if (!panel || typeof CARRIERS === 'undefined') return;
-    const val = (document.getElementById('z2Carrier')?.value || '').trim();
-    const c = CARRIERS[val];
+    if (!panel) return;
+    const val  = (document.getElementById('z2Carrier')?.value || '').trim();
+    const map  = _carrierMapForMode();
+    const defs = _linkDefsForMode();
+    const c    = map[val];
     if (!c) { panel.style.display = 'none'; panel.innerHTML = ''; return; }
 
-    const links = [
-      { label: '🗓 スケジュール', url: c.vessel?.(),    title: '本船スケジュール' },
-      { label: '📥 輸入サーチャージ', url: c.surchargeImport?.(), title: c.surchargeImportNote || '輸入ローカルチャージ' },
-      { label: '📤 輸出サーチャージ', url: c.surchargeExport?.(), title: '輸出ローカルチャージ' },
-      { label: '🗺 航路',          url: c.routePage,   title: '航路・サービスマップ' },
-      { label: '⏱ CY-CUT',        url: c.cycut,        title: c.cycutNote || 'CYオープン/カット情報' },
-    ].filter(l => l.url);
+    const links = defs
+      .map(d => ({
+        label: d.label,
+        url:   _resolveCarrierUrl(c[d.key]),
+        title: (d.noteKey && c[d.noteKey]) ? c[d.noteKey] : d.label,
+      }))
+      .filter(l => l.url);
 
     if (!links.length) { panel.style.display = 'none'; panel.innerHTML = ''; return; }
 
