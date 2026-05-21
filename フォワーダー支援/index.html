@@ -29,50 +29,50 @@
 
   <!-- Tab Navigation -->
   <!-- ===== カテゴリーナビ（上段） ===== -->
-  <div class="cat-nav">
-    <button class="cat-btn cat-btn-featured" onclick="switchCategory('quote',  this)">💼 見積</button>
-    <button class="cat-btn active" onclick="switchCategory('calc',   this)">🧮 計算</button>
-    <button class="cat-btn"        onclick="switchCategory('vessel', this)">🚢 本船・航路</button>
-    <button class="cat-btn"        onclick="switchCategory('cost',   this)">💴 料金・費用</button>
-    <button class="cat-btn"        onclick="switchCategory('docs',   this)">📄 書類・通関</button>
-    <button class="cat-btn"        onclick="switchCategory('ref',    this)">📚 知識・参考</button>
+  <div class="cat-nav" role="tablist" aria-label="カテゴリ">
+    <button class="cat-btn cat-btn-featured" role="tab" aria-selected="false" onclick="switchCategory('quote',  this)">💼 見積</button>
+    <button class="cat-btn active" role="tab" aria-selected="true" aria-current="page" onclick="switchCategory('calc',   this)">🧮 計算</button>
+    <button class="cat-btn"        role="tab" aria-selected="false" onclick="switchCategory('vessel', this)">🚢 本船・航路</button>
+    <button class="cat-btn"        role="tab" aria-selected="false" onclick="switchCategory('cost',   this)">💴 料金・費用</button>
+    <button class="cat-btn"        role="tab" aria-selected="false" onclick="switchCategory('docs',   this)">📄 書類・通関</button>
+    <button class="cat-btn"        role="tab" aria-selected="false" onclick="switchCategory('ref',    this)">📚 知識・参考</button>
 
-    <button class="cat-btn"        onclick="switchCategory('booking', this)">📋 Booking/SI</button>
+    <button class="cat-btn"        role="tab" aria-selected="false" onclick="switchCategory('booking', this)">📋 Booking/SI</button>
   </div>
 
   <!-- ===== サブタブナビ（下段・カテゴリー別） ===== -->
-  <div class="tab-nav sub-nav active" id="sub-calc">
-    <button class="tab-btn active" onclick="switchTab('calc',   this)">📐 計算（サイズ）</button>
+  <div class="tab-nav sub-nav active" id="sub-calc" role="tablist" aria-label="calc サブタブ">
+    <button class="tab-btn active" role="tab" aria-selected="true" aria-current="page" onclick="switchTab('calc',   this)">📐 計算（サイズ）</button>
     <button class="tab-btn"        onclick="switchTab('rate',   this)">💰 計算（お金）</button>
   </div>
-  <div class="tab-nav sub-nav" id="sub-vessel">
-    <button class="tab-btn" onclick="switchTab('tracking', this)">🔍 トラッキング</button>
-    <button class="tab-btn" onclick="switchTab('vessel',   this)">🚢 スケジュール</button>
-    <button class="tab-btn" onclick="switchTab('cycut',    this)">📅 CY OPEN/CUT</button>
-    <button class="tab-btn" onclick="switchTab('route',    this)">🗺️ サービス航路</button>
+  <div class="tab-nav sub-nav" id="sub-vessel" role="tablist" aria-label="vessel サブタブ">
+    <button class="tab-btn" role="tab" aria-selected="false" onclick="switchTab('tracking', this)">🔍 トラッキング</button>
+    <button class="tab-btn" role="tab" aria-selected="false" onclick="switchTab('vessel',   this)">🚢 スケジュール</button>
+    <button class="tab-btn" role="tab" aria-selected="false" onclick="switchTab('cycut',    this)">📅 CY OPEN/CUT</button>
+    <button class="tab-btn" role="tab" aria-selected="false" onclick="switchTab('route',    this)">🗺️ サービス航路</button>
   </div>
-  <div class="tab-nav sub-nav" id="sub-cost">
-    <button class="tab-btn" onclick="switchTab('surcharge', this)">💴 サーチャージ 🚧</button>
-    <button class="tab-btn" onclick="switchTab('freetime',  this)">⏱️ フリータイム 🚧</button>
+  <div class="tab-nav sub-nav" id="sub-cost" role="tablist" aria-label="cost サブタブ">
+    <button class="tab-btn" role="tab" aria-selected="false" onclick="switchTab('surcharge', this)">💴 サーチャージ 🚧</button>
+    <button class="tab-btn" role="tab" aria-selected="false" onclick="switchTab('freetime',  this)">⏱️ フリータイム 🚧</button>
   </div>
-  <div class="tab-nav sub-nav" id="sub-quote">
-    <button class="tab-btn" onclick="switchTab('quote-make', this)">📝 見積もり作成</button>
+  <div class="tab-nav sub-nav" id="sub-quote" role="tablist" aria-label="quote サブタブ">
+    <button class="tab-btn" role="tab" aria-selected="false" onclick="switchTab('quote-make', this)">📝 見積もり作成</button>
   </div>
-  <div class="tab-nav sub-nav" id="sub-docs">
-    <button class="tab-btn" onclick="switchTab('bldo',    this)">📄 書類</button>
-    <button class="tab-btn" onclick="switchTab('blrules', this)">📋 BL記載事項 🚧</button>
-    <button class="tab-btn" onclick="switchTab('regs',    this)">🔒 貿易管理令・他法令</button>
+  <div class="tab-nav sub-nav" id="sub-docs" role="tablist" aria-label="docs サブタブ">
+    <button class="tab-btn" role="tab" aria-selected="false" onclick="switchTab('bldo',    this)">📄 書類</button>
+    <button class="tab-btn" role="tab" aria-selected="false" onclick="switchTab('blrules', this)">📋 BL記載事項 🚧</button>
+    <button class="tab-btn" role="tab" aria-selected="false" onclick="switchTab('regs',    this)">🔒 貿易管理令・他法令</button>
   </div>
-  <div class="tab-nav sub-nav" id="sub-ref">
-    <button class="tab-btn" onclick="switchTab('incoterms',  this)">📦 インコタームズ</button>
-    <button class="tab-btn" onclick="switchTab('sizes',      this)">📏 種類・サイズ</button>
-    <button class="tab-btn" onclick="switchTab('insurance',  this)">🛡️ 海上貨物保険</button>
-    <button class="tab-btn" onclick="switchTab('blclause',   this)">📜 BL約款</button>
+  <div class="tab-nav sub-nav" id="sub-ref" role="tablist" aria-label="ref サブタブ">
+    <button class="tab-btn" role="tab" aria-selected="false" onclick="switchTab('incoterms',  this)">📦 インコタームズ</button>
+    <button class="tab-btn" role="tab" aria-selected="false" onclick="switchTab('sizes',      this)">📏 種類・サイズ</button>
+    <button class="tab-btn" role="tab" aria-selected="false" onclick="switchTab('insurance',  this)">🛡️ 海上貨物保険</button>
+    <button class="tab-btn" role="tab" aria-selected="false" onclick="switchTab('blclause',   this)">📜 BL約款</button>
   </div>
-  <div class="tab-nav sub-nav" id="sub-booking">
-    <button class="tab-btn" onclick="switchTab('booking-tab', this)">🛳️ Booking</button>
-    <button class="tab-btn" onclick="switchTab('si', this)">📝 S/I</button>
-    <button class="tab-btn" onclick="switchTab('filing', this)">📡 ファイリングルール</button>
+  <div class="tab-nav sub-nav" id="sub-booking" role="tablist" aria-label="booking サブタブ">
+    <button class="tab-btn" role="tab" aria-selected="false" onclick="switchTab('booking-tab', this)">🛳️ Booking</button>
+    <button class="tab-btn" role="tab" aria-selected="false" onclick="switchTab('si', this)">📝 S/I</button>
+    <button class="tab-btn" role="tab" aria-selected="false" onclick="switchTab('filing', this)">📡 ファイリングルール</button>
   </div>
 
   <!-- ===================== Tab 1: コンテナ追跡 ===================== -->
@@ -766,7 +766,7 @@
         <ul>
           <li><strong>STC / SL&C</strong>（内容物・数量は荷送人申告）</li>
           <li><strong>ヒマラヤ条項</strong>（船社の免責拡大）</li>
-          <li><strong>責任制限条項</strong>（ヘーグ・ヴィスビールール SDR835）</li>
+          <li><strong>責任制限条項</strong>（ヘーグ・ヴィスビールール 666.67 SDR/package・unit または 2 SDR/kg）</li>
           <li><strong>自由裁量 / 共同海損 / 留置権 / 裁判管轄</strong></li>
           <li><strong>危険物条項 / 提訴期限（1年）</strong></li>
         </ul>
@@ -845,7 +845,7 @@
             </tr>
             <tr style="background:#fafaf8;">
               <td class="code-cell" style="font-size:11px;">責任制限条項<br>（ヘーグ・ヴィスビー）</td>
-              <td style="font-size:11px;">運送人の賠償責任上限を、コンテナ1本につきSDR835または貨物1kg当たりSDR2.5の高い方に制限。</td>
+              <td style="font-size:11px;">運送人の賠償責任上限を、貨物 1 package・unit につき <strong>666.67 SDR</strong> または 1kg あたり <strong>2 SDR</strong> の<strong>高い方</strong>に制限（ヘーグ・ヴィスビー Art.IV r.5）。日本国際海上物品運送法も同等。コンテナ単位の上限は B/L 約款に明記がある場合のみ適用される個別ルール。</td>
               <td style="font-size:11px;color:var(--text-lt);">高額貨物は申告価額（Declared Value）を別途記載し責任額を引き上げること。</td>
             </tr>
             <tr>
@@ -901,8 +901,8 @@
         <h4>📥 輸入通関 ― 他法令（関税法以外の規制）</h4>
         <p>関税法とは別に、品目によって遵守が必要となる11法令を一覧表で確認できます：食品衛生法・植物防疫法・家畜伝染病予防法・薬機法・電気用品安全法（PSE）・電波法（技適）・PSC・化審法・毒物劇物取締法・ワシントン条約（CITES）・外為法輸入承認。各法令の管轄省庁・対象品目・手続き・通関影響を併記しています。</p>
         <h4>📤 輸出通関 ― 貿易管理令・安全保障輸出管理</h4>
-        <p>外為法に基づく <strong>リスト規制</strong>（武器・核・化学兵器・ミサイル・汎用品）と <strong>キャッチオール規制</strong>（大量破壊兵器転用懸念）の2本柱を解説。輸出令別表第1のカテゴリー（1〜15項）、非該当証明（Non-Subject Certificate）の発行方法、輸出許可申請の6ステップフローと所要期間を確認できます。</p>
-        <div class="help-tip">⚠️ 無許可輸出は外為法違反（最大懲役5年・罰金3億円）。社内 CP（Compliance Program）の整備と該非判定の文書化を強く推奨します。</div>
+        <p>外為法に基づく <strong>リスト規制</strong>（武器・核・化学兵器・ミサイル・汎用品）と <strong>キャッチオール規制</strong>（大量破壊兵器転用懸念）の2本柱を解説。輸出令別表第1のカテゴリー（<strong>1〜16 項</strong>。第 16 項はその他キャッチオール対象）、非該当証明（Non-Subject Certificate）の発行方法、輸出許可申請の6ステップフローと所要期間を確認できます。</p>
+        <div class="help-tip">⚠️ 無許可輸出は外為法違反。2017 年改正以降、罰則は<strong>個人：10 年以下の懲役・3,000 万円以下の罰金（目的物価額の 5 倍が上回る場合は当該額）／法人：10 億円以下の罰金又は目的物価額の 5 倍の高い方</strong>。社内 CP（Compliance Program）の整備と該非判定の文書化を強く推奨します。</div>
       </div>
     </details>
 
@@ -1019,7 +1019,7 @@
           <div style="font-size:12px;font-weight:800;color:#1a5c45;margin-bottom:8px;">📋 リスト規制</div>
           <p style="font-size:11px;color:#2d6a4f;line-height:1.6;margin:0;">
             輸出令別表第1に掲げられた品目（武器・核・化学兵器・ミサイル・汎用品等）は、<strong>仕向地・需要者に関わらず</strong>輸出許可が必要。<br>
-            品目は16のカテゴリー（1〜15＋貨物等省令）に分類されます。
+            品目は <strong>16 のカテゴリー（1〜16 項）</strong> に分類されます（第 16 項はその他キャッチオール）。
           </p>
         </div>
         <div style="background:#fef3e8;border-radius:9px;padding:14px 16px;border:1px solid #f9c784;">
@@ -1042,6 +1042,7 @@
             <tr><td style="text-align:center;font-weight:700;">5・6</td><td>化学・生物兵器関連</td><td style="font-size:10px;">特定有毒物質、発酵・合成装置、防護装備</td></tr>
             <tr style="background:#fafaf8;"><td style="text-align:center;font-weight:700;">7</td><td>ミサイル関連</td><td style="font-size:10px;">推進システム、ロケット、無人機（特定用途）</td></tr>
             <tr><td style="text-align:center;font-weight:700;">8〜15</td><td>汎用品（デュアルユース）</td><td style="font-size:10px;">先端材料、材料加工機械、電子部品、コンピュータ、通信機器、センサー、航法装置、海洋機器、推進装置</td></tr>
+            <tr><td style="text-align:center;font-weight:700;">16</td><td>その他（キャッチオール対象）</td><td style="font-size:10px;">大量破壊兵器・通常兵器の開発・製造・使用への転用懸念がある汎用品。仕向地・需要者・用途を見て判断（インフォーム要件）</td></tr>
           </tbody>
         </table>
       </div>
@@ -1080,7 +1081,7 @@
       <div style="padding:10px 14px;background:#fffbeb;border-radius:7px;border:1px solid #fcd34d;">
         <span style="font-size:11px;font-weight:700;color:#92400e;">⚠️ 罰則と社内管理体制</span>
         <p style="font-size:11px;color:#78350f;margin:4px 0 0;line-height:1.6;">
-          無許可輸出は<strong>外為法違反（最大懲役5年・罰金3億円）</strong>となります。<br>
+          無許可輸出は<strong>外為法違反</strong>。2017 年改正以降、罰則は <strong>個人：10 年以下の懲役・3,000 万円以下の罰金（目的物価額の 5 倍が上回る場合は当該額）／法人：10 億円以下の罰金又は目的物価額の 5 倍の高い方</strong> に強化されました。<br>
           多くの企業では社内管理プログラム（CP: Compliance Program）を整備し、取引審査・役職員教育・帳票管理を体系的に実施しています。<br>
           輸出管理違反が発覚した場合、輸出禁止措置（行政制裁）が科されることもあります。
         </p>
@@ -1912,6 +1913,28 @@
           <li><strong>Ctrl + K</strong>：コマンドパレットでセクションへ高速ジャンプ</li>
           <li><strong>💬 フィードバック</strong>（FAB／各セクションのボタン）：改善要望・バグ報告を送信</li>
         </ul>
+
+        <h4>📖 用語集（業務略語）</h4>
+        <ul style="line-height:1.9;">
+          <li><strong>CD</strong>：Currency Difference（為替差・通貨間調整値、表示専用列）</li>
+          <li><strong>W/M</strong>：Weight or Measurement（重量トンと容積 CBM の<strong>高い方</strong>で運賃計算する LCL の基本ルール）</li>
+          <li><strong>R/T</strong>：Revenue Ton（W/M で確定した課金単位、1 R/T = 1 CBM または 1 ton）</li>
+          <li><strong>C/W</strong>：Chargeable Weight（航空運賃の課金重量、容積重量 cm³÷6,000 と実重量の高い方）</li>
+          <li><strong>GP / HQ</strong>：General Purpose（一般ドライ）／ High Cube（背高 = 40HC）</li>
+          <li><strong>RF / OT / FR</strong>：Reefer（冷凍）／ Open Top（天井開放）／ Flat Rack（フラットラック）</li>
+          <li><strong>FCL / LCL</strong>：Full Container Load（1 本貸切）／ Less than Container Load（混載）</li>
+          <li><strong>POL / POD</strong>：Port of Loading（積み地）／ Port of Discharge（揚げ地）</li>
+          <li><strong>D/O</strong>：Delivery Order（荷渡指図書、輸入で D/O を切ってから引取り可）</li>
+          <li><strong>S/I</strong>：Shipping Instruction（船積依頼書、B/L 作成元情報）</li>
+          <li><strong>VGM</strong>：Verified Gross Mass（SOLAS 義務、コンテナ総重量の事前申告）</li>
+          <li><strong>AMS / ISF / AFR / ENS / ACID</strong>：米国／米国 10+2／日本／EU／エジプトの<strong>事前申告制度</strong>。各国「ファイリングルール」タブ参照</li>
+          <li><strong>サブコン</strong>：Sub-Contractor（協力会社／下請輸送業者）</li>
+          <li><strong>BAF / CAF / PSS / GRI</strong>：燃油／為替／繁忙期／一般運賃改定のサーチャージ</li>
+          <li><strong>THC</strong>：Terminal Handling Charge（コンテナターミナル取扱料）</li>
+          <li><strong>DEM / DET</strong>：Demurrage（CY 内保管料）／ Detention（CY 外滞留料）</li>
+          <li><strong>DGD / MSDS / SDS</strong>：危険品申告書／製品安全データシート</li>
+        </ul>
+        <div class="help-tip">💡 略語の意味はテーブルヘッダー（CD・課税 等）にマウスホバーすると <code>title</code> でも表示されます。</div>
         <div class="help-tip">💡 自動保存は<strong>同じブラウザ内のみ</strong>有効です。端末や OS をまたぐ場合は <strong>📤 出力</strong>で JSON ファイルとして書き出し、別端末で <strong>📥 読込</strong>してください。</div>
       </div>
     </details>
@@ -2275,11 +2298,11 @@
             <label><span class="cond-sort-handle" title="ドラッグして並び替え">⠿</span><span class="cond-icon">📐</span> コンテナ種類・サイズ</label>
             <select id="cond-container-type">
               <option value="">— 選択 —</option>
-              <option>20'GP</option>
-              <option>40'GP</option>
-              <option>40'HQ</option>
-              <option>20'RF（冷凍）</option>
-              <option>40'RF（冷凍）</option>
+              <option title="20ft 一般ドライコンテナ（General Purpose）">20'GP</option>
+              <option title="40ft 一般ドライコンテナ（General Purpose）">40'GP</option>
+              <option title="40ft 背高コンテナ（High Cube／40HQ・40HC）">40'HQ</option>
+              <option title="20ft 冷凍コンテナ（Reefer）">20'RF（冷凍）</option>
+              <option title="40ft 冷凍コンテナ（Reefer）">40'RF（冷凍）</option>
               <option>20'OT（オープントップ）</option>
               <option>40'OT（オープントップ）</option>
               <option>20'FR（フラットラック）</option>
@@ -2396,7 +2419,7 @@
                 </th>
                 <th rowspan="2" class="hd-base" style="width:28px;"></th>
                 <th rowspan="2" class="hd-base" style="width:105px;">カテゴリ</th>
-                <th rowspan="2" class="hd-base" style="width:44px;">課税</th>
+                <th rowspan="2" class="hd-base" style="width:44px;" title="ON にすると項目名先頭に「*」が付き、プレビューで消費税（10% 固定）が自動計算されます。輸出取引（免税）の行ではチェックを外してください。">課税</th>
                 <th rowspan="2" class="hd-base">項目名</th>
                 <th colspan="5" class="hd-pay">支払い</th>
                 <th colspan="3" class="hd-bill">請求</th>
@@ -2408,7 +2431,7 @@
                 <th class="hd-pay">単位</th>
                 <th class="hd-pay">通貨</th>
                 <th class="hd-pay">単価</th>
-                <th class="hd-pay" style="color:#ccc;">① CD</th>
+                <th class="hd-pay" style="color:#ccc;" title="Currency Difference（為替差・通貨間調整値）。表示専用列で初期値 9999、現在は計算上未使用の予約フィールド。">① CD</th>
                 <th class="hd-bill" style="color:#bde8c8;">② 数量</th>
                 <th class="hd-bill" style="color:#bde8c8;">② 通貨</th>
                 <th class="hd-bill" style="color:#bde8c8;">② 単価</th>

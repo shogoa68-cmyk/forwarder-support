@@ -66,6 +66,8 @@ body {
 .tab-btn.active {
   background: var(--accent);
   color: #f5ede0;
+  /* サブタブ active を視覚的に強調（下線で「現在地」を明示） */
+  box-shadow: inset 0 -2px 0 #f5ede0;
 }
 
 /* ===== Tab Content ===== */

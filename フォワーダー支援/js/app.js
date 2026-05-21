@@ -17,9 +17,15 @@
 
 // タブ切り替え
 function switchCategory(cat, btn) {
-  // カテゴリーボタンのアクティブ切替
-  document.querySelectorAll('.cat-btn').forEach(b => b.classList.remove('active'));
+  // カテゴリーボタンのアクティブ切替（aria-current で AT へも通知）
+  document.querySelectorAll('.cat-btn').forEach(b => {
+    b.classList.remove('active');
+    b.removeAttribute('aria-current');
+    b.setAttribute('aria-selected', 'false');
+  });
   btn.classList.add('active');
+  btn.setAttribute('aria-current', 'page');
+  btn.setAttribute('aria-selected', 'true');
   // サブナビの表示切替
   document.querySelectorAll('.sub-nav').forEach(s => s.classList.remove('active'));
   document.getElementById('sub-' + cat).classList.add('active');
@@ -30,9 +36,15 @@ function switchCategory(cat, btn) {
 
 function switchTab(tabId, btn) {
   document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
-  document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(el => {
+    el.classList.remove('active');
+    el.removeAttribute('aria-current');
+    el.setAttribute('aria-selected', 'false');
+  });
   document.getElementById('tab-' + tabId).classList.add('active');
   btn.classList.add('active');
+  btn.setAttribute('aria-current', 'page');
+  btn.setAttribute('aria-selected', 'true');
   // Phase 2b：見積タブ(新版)が初めて表示されたタイミングで遅延初期化
   if (tabId === 'quote-make' && typeof window.initQuoteTab === 'function') {
     window.initQuoteTab();

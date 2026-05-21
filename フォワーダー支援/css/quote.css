@@ -2755,3 +2755,31 @@
   }
 }
 
+/* ===== Cycle 1 UX 改修 ===== */
+/* 数値列の桁揃え（tabular-nums）— 検算ミス・桁ズレ目視を減らす */
+#tab-quote-make table input[type="number"],
+#tab-quote-make tfoot td,
+#tab-quote-make .subtotal-cell,
+#tab-quote-make .profit-cell,
+#tab-quote-make .subtotal-group-billing,
+#tab-quote-make .subtotal-group-subtotal,
+#tab-quote-make .subtotal-group-profit,
+#tab-quote-make .pv-num,
+#tab-quote-make .pv-tax-detail b,
+#tab-quote-make #pvTaxAmount,
+#tab-quote-make #pvTaxTotal {
+  font-variant-numeric: tabular-nums;
+}
+
+/* 印刷時のフォントサイズを 9px → 10.5px へ拡大 ＋ A4 横向き既定 */
+@page { size: A4 landscape; margin: 10mm; }
+@media print {
+  body:has(#previewOverlay.open) #previewTable {
+    font-size: 10.5px !important;
+  }
+  body:has(#previewOverlay.open) #previewTable th,
+  body:has(#previewOverlay.open) #previewTable td {
+    padding: 3px 6px !important;
+  }
+}
+
