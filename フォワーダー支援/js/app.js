@@ -709,8 +709,12 @@ document.addEventListener('DOMContentLoaded', initTabARIA);
 // ================================================================
 document.addEventListener('DOMContentLoaded', function restoreLastTab() {
   let lastCat, lastTab;
-  try { lastCat = localStorage.getItem('lastCategory'); lastTab = localStorage.getItem('lastTab'); } catch(e) { return; }
-  if (!lastCat) return;
+  try { lastCat = localStorage.getItem('lastCategory'); lastTab = localStorage.getItem('lastTab'); } catch(e) {}
+  if (!lastCat) {
+    // 初回アクセス：HTML デフォルト（見積タブ）の lazy-init を起動
+    if (typeof window.initQuoteTab === 'function') window.initQuoteTab();
+    return;
+  }
   const catBtn = document.querySelector(`.cat-btn[onclick*="'${lastCat}'"]`);
   if (!catBtn) return;
   switchCategory(lastCat, catBtn);

@@ -30,20 +30,20 @@
   <!-- Tab Navigation -->
   <!-- ===== カテゴリーナビ（上段） ===== -->
   <div class="cat-nav" role="tablist" aria-label="カテゴリ">
-    <button class="cat-btn cat-btn-featured" role="tab" aria-selected="false" onclick="switchCategory('quote',  this)">💼 見積</button>
-    <button class="cat-btn active" role="tab" aria-selected="true" onclick="switchCategory('calc',   this)">🧮 計算</button>
     <button class="cat-btn"        role="tab" aria-selected="false" onclick="switchCategory('vessel', this)">🚢 本船・航路</button>
-    <button class="cat-btn"        role="tab" aria-selected="false" onclick="switchCategory('cost',   this)">💴 料金・費用</button>
+    <button class="cat-btn active" role="tab" aria-selected="true"  onclick="switchCategory('quote',  this)">💼 見積</button>
+    <button class="cat-btn"        role="tab" aria-selected="false" title="Booking（船腹予約）と S/I（Shipping Instruction：船積指図書）の手続き" onclick="switchCategory('booking', this)">📋 Booking/SI</button>
     <button class="cat-btn"        role="tab" aria-selected="false" onclick="switchCategory('docs',   this)">📄 書類・通関</button>
+    <button class="cat-btn"        role="tab" aria-selected="false" onclick="switchCategory('calc',   this)">🧮 計算</button>
     <button class="cat-btn"        role="tab" aria-selected="false" onclick="switchCategory('ref',    this)">📚 知識・参考</button>
-
-    <button class="cat-btn"        role="tab" aria-selected="false" title="Booking（船腹予約）と S/I（Shipping Instruction：船積指図書）の手続き" onclick="switchCategory('booking', this)">📋 Booking/SI<br><span style="font-size:10px;font-weight:400;opacity:.8;">（ブッキング・SI）</span></button>
+    <!-- 💴 料金・費用：サブタブが全て未実装のため非表示（コンテンツ追加後に表示予定） -->
+    <button class="cat-btn" hidden role="tab" aria-selected="false" onclick="switchCategory('cost',   this)">💴 料金・費用</button>
   </div>
 
   <!-- ===== サブタブナビ（下段・カテゴリー別） ===== -->
-  <div class="tab-nav sub-nav active" id="sub-calc" role="tablist" aria-label="calc サブタブ">
-    <button class="tab-btn active" role="tab" aria-selected="true" onclick="switchTab('calc',   this)">📐 計算（サイズ）</button>
-    <button class="tab-btn"        onclick="switchTab('rate',   this)">💰 計算（お金）</button>
+  <div class="tab-nav sub-nav" id="sub-calc" role="tablist" aria-label="calc サブタブ">
+    <button class="tab-btn" role="tab" aria-selected="false" onclick="switchTab('calc',   this)">📐 計算（サイズ）</button>
+    <button class="tab-btn" role="tab" aria-selected="false" onclick="switchTab('rate',   this)">💰 計算（お金）</button>
   </div>
   <div class="tab-nav sub-nav" id="sub-vessel" role="tablist" aria-label="vessel サブタブ">
     <button class="tab-btn" role="tab" aria-selected="false" onclick="switchTab('tracking', this)">🔍 トラッキング</button>
@@ -52,15 +52,16 @@
     <button class="tab-btn" role="tab" aria-selected="false" onclick="switchTab('route',    this)">🗺️ サービス航路</button>
   </div>
   <div class="tab-nav sub-nav" id="sub-cost" role="tablist" aria-label="cost サブタブ">
-    <button class="tab-btn" role="tab" aria-selected="false" onclick="switchTab('surcharge', this)">💴 サーチャージ 🚧</button>
-    <button class="tab-btn" role="tab" aria-selected="false" onclick="switchTab('freetime',  this)">⏱️ フリータイム 🚧</button>
+    <button class="tab-btn" hidden role="tab" aria-selected="false" onclick="switchTab('surcharge', this)">💴 サーチャージ</button>
+    <button class="tab-btn" hidden role="tab" aria-selected="false" onclick="switchTab('freetime',  this)">⏱️ フリータイム</button>
   </div>
-  <div class="tab-nav sub-nav" id="sub-quote" role="tablist" aria-label="quote サブタブ">
-    <button class="tab-btn" role="tab" aria-selected="false" onclick="switchTab('quote-make', this)">📝 見積もり作成</button>
+  <!-- sub-quote: サブタブ1本のため非表示。switchCategory('quote')で quote-make に直接遷移 -->
+  <div class="tab-nav sub-nav active" id="sub-quote" hidden role="tablist" aria-label="quote サブタブ">
+    <button class="tab-btn active" role="tab" aria-selected="true" onclick="switchTab('quote-make', this)">📝 見積もり作成</button>
   </div>
   <div class="tab-nav sub-nav" id="sub-docs" role="tablist" aria-label="docs サブタブ">
     <button class="tab-btn" role="tab" aria-selected="false" onclick="switchTab('bldo',    this)">📄 書類</button>
-    <button class="tab-btn" role="tab" aria-selected="false" onclick="switchTab('blrules', this)">📋 BL記載事項 🚧</button>
+    <button class="tab-btn" hidden role="tab" aria-selected="false" onclick="switchTab('blrules', this)">📋 BL記載事項</button>
     <button class="tab-btn" role="tab" aria-selected="false" onclick="switchTab('regs',    this)">🔒 貿易管理令・他法令</button>
   </div>
   <div class="tab-nav sub-nav" id="sub-ref" role="tablist" aria-label="ref サブタブ">
@@ -1506,7 +1507,7 @@
 
 
   <!-- ===================== Tab 7: 計算ツール ===================== -->
-  <div class="tab-content active" id="tab-calc">
+  <div class="tab-content" id="tab-calc">
 
     <details class="tab-help">
       <summary>ℹ️ このタブの使い方・機能説明</summary>
@@ -1874,7 +1875,7 @@
   <!-- ===================== Tab: 見積もり作成（見積支援アプリを統合・直接マージ版） =====
        Phase 2b 完了時点：見積支援/index.html の body 内容を直接マージ。
        初期化は js/app.js の switchTab() フックから window.initQuoteTab() を呼ぶ。 -->
-  <div class="tab-content" id="tab-quote-make">
+  <div class="tab-content active" id="tab-quote-make">
 
     <details class="tab-help">
       <summary>ℹ️ このタブの使い方・機能説明</summary>
