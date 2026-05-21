@@ -492,6 +492,7 @@
     { icon:'👁️', label:'プレビューを開く',            sub:'印刷・コピー用のプレビュー',      action: openPreview },
     { icon:'🗂️', label:'プリセット/一時保存',         sub:'入力パターンの保存・呼び出し・一時退避', action: openPresetMgr },
     { icon:'⬇',  label:'CSV ダウンロード',            sub:'見積もり行をCSVファイルとして保存', action: downloadCSV },
+    { icon:'🔀', label:'カテゴリ順にソート',          sub:'カテゴリ種別でテーブルを並び替え', action: sortByCategory },
     { icon:'🗑️', label:'全行リセット',               sub:'見積もり表の全行を削除してリセット', action: resetAll },
   ];
   let _cmdActiveIdx = -1;
@@ -535,7 +536,7 @@
            onclick="execCmdByFiltered(${i})">
         <span class="cmd-icon">${c.icon}</span>
         <div style="flex:1">
-          <div class="cmd-label">${escHtml(c.label)}</div>
+          <div class="cmd-label">${c.label}</div>
           ${c.sub ? `<div class="cmd-sub">${escHtml(c.sub)}</div>` : ''}
         </div>
       </div>`).join('');
@@ -575,22 +576,15 @@
     const el = document.getElementById(sectionId);
     if (!el) return;
     el.scrollIntoView({ behavior:'smooth', block:'start' });
-    const prevShadow = el.style.boxShadow;
-    const prevTrans  = el.style.transition;
-    el.style.transition = 'box-shadow .3s';
-    el.style.boxShadow  = '0 0 0 3px #3498db';
-    setTimeout(() => {
-      el.style.boxShadow  = prevShadow || '';
-      el.style.transition = prevTrans  || '';
-    }, 1400);
+    const prev = el.style.outline;
+    el.style.transition = 'outline .2s';
+    el.style.outline = '2px solid #3498db';
+    setTimeout(() => { el.style.outline = prev || ''; }, 1400);
   }
 
   // ========== フォーミュラ評価（ペースト時に計算式を自動評価） ==========
   function safeEvalExpr(expr) {
     try {
-      // 数字・四則演算子・括弧のみを許可するホワイトリストでサニタイズしてから
-      // Function() で評価する。eval() と同等だが strict モードで副作用を最小化。
-      // CSP で unsafe-eval を禁止している環境では動作しない点に注意。
       const clean = String(expr).replace(/[^0-9+\-*/.() ]/g, '').trim();
       if (!clean || !/[+\-*/]/.test(clean)) return null;
       // eslint-disable-next-line no-new-func
@@ -679,7 +673,7 @@
       return;
     }
     if (presets.length >= 10) {
-      quoteShowToast('⚠️ プリセットは最大10件です（既存と同名にすると上書きできます）', 'warn');
+      quoteShowToast('⚠️ プリセットは最大10件です（既存と同名にすると上書きできます）', 'warning');
       return;
     }
     presets.unshift({ name, data, ts: new Date().toISOString() });
@@ -988,8 +982,7 @@
       try { data = JSON.parse(e.target.result); }
       catch(err) { alert('ファイルの読み込みに失敗しました。\n' + err.message); return; }
 
-      const VALID_APP_IDS = ['見積支援ツール', 'フォワーダー支援ツール'];
-      if (!data._version || !VALID_APP_IDS.includes(data._app)) {
+      if (!data._version || data._app !== '見積支援ツール') {
         if (!confirm('このファイルは見積支援ツール以外から作成された可能性があります。\n続行しますか？')) return;
       }
 
@@ -1021,12 +1014,11 @@
       // ---- doneボタン状態（廃止）：旧 JSON との互換のため doneStates は読み飛ばす ----
 
       // ---- calc行復元 ----
-      const calcBody = document.getElementById('calcBody');
-      calcBody.innerHTML = '';
+      document.getElementById('calcBody').innerHTML = '';
       calcRowCount = 0;
       (data.calcRows || []).forEach(row => {
         addCalcRow();
-        const tr = calcBody.lastElementChild;
+        const tr = document.getElementById('calcBody').lastElementChild;
         if (!tr) return;
         if (row.pcs !== '') tr.querySelector('.calc-pcs').value   = row.pcs;
         if (row.pkg)        tr.querySelector('.calc-pkg').value   = row.pkg;
@@ -1196,7 +1188,7 @@
       saved.forEach(id => {
         if (fields[id]) grid.appendChild(fields[id]);
       });
-    } catch(e) { console.warn('[restoreCargoFieldOrder]', e); }
+    } catch(e) {}
   }
 
   function initCargoSort() {

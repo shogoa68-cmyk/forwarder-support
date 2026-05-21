@@ -8,7 +8,7 @@
   --accent-lt: #f0e8d8;
   --text:      #2d2418;
   --text-md:   #7d6b56;
-  --text-lt:   #a8947e;
+  --text-lt:   #8a7560;  /* Quick Win #2: WCAG AA 4.5:1 達成（旧 #a8947e は 2.7:1） */
   color-scheme: light;
 }
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -49,6 +49,7 @@ body {
 .tab-btn {
   flex: 1;
   min-width: 110px;
+  min-height: 40px;          /* Quick Win #3: タッチターゲット拡大（Apple HIG 44pt 寄り） */
   padding: 8px 10px;
   border: none;
   background: transparent;
@@ -740,6 +741,7 @@ body {
 .cat-btn {
   flex: 1;
   min-width: 90px;
+  min-height: 44px;          /* Quick Win #3: Apple HIG 44pt 準拠 */
   padding: 10px 8px;
   border: 1px solid var(--border-md);
   background: var(--card-bg);
@@ -934,4 +936,23 @@ body {
   font-size: 11px;
   color: #78350f;
   line-height: 1.6;
+}
+
+/* ===== Quick Win #1：キーボードフォーカスリングをグローバル復活 =====
+   多くの focus を outline:none + border-color 変化で消していたため
+   キーボード操作で現在位置が見えない問題を解消（マウスクリックは
+   :focus-visible が立たないので装飾は出ない）。 */
+*:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+  border-radius: 3px;
+}
+/* 入力欄の場合は :focus-visible で border-color が変わる既存ルールを
+   尊重しつつ、追加で outline を被せる */
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
 }
