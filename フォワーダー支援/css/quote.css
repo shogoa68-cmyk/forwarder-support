@@ -2652,6 +2652,17 @@
   font-size: 12px;
   white-space: nowrap;
 }
+#tab-quote-make .pv-tax-exempt-badge {
+  font-weight: 700;
+  color: #155724;
+  background: #d4edda;
+  border: 1px solid #5a8a52;
+  border-radius: 4px;
+  padding: 2px 8px;
+  font-size: 12px;
+  white-space: nowrap;
+  margin-left: 4px;
+}
 #tab-quote-make .pv-tax-detail { color: #2d2418; }
 #tab-quote-make .pv-tax-detail b { color: #8b6914; }
 @media (max-width: 700px) {#tab-quote-make .table-btn-group { gap: 4px; }
@@ -2753,6 +2764,27 @@
 @media (max-width: 600px) {#tab-quote-make .zone-builder {
     flex-direction: column;
   }
+}
+
+/* プレビュー底部の監査メタ（為替出典・取得日時・作成日） */
+#tab-quote-make .pv-audit-meta {
+  margin: 12px 0 4px;
+  padding: 8px 12px;
+  background: #f8f5ef;
+  border-top: 1px dashed #c4b49a;
+  border-radius: 0 0 6px 6px;
+  font-size: 11px;
+  color: #7d6b56;
+  line-height: 1.7;
+}
+#tab-quote-make .pv-audit-line { font-variant-numeric: tabular-nums; }
+#tab-quote-make .pv-audit-warn {
+  margin-top: 4px;
+  padding: 4px 8px;
+  background: #fff3cd;
+  border-left: 3px solid #e8c870;
+  color: #7a5500;
+  font-weight: 600;
 }
 
 /* ===== Cycle 1 UX 改修 ===== */
