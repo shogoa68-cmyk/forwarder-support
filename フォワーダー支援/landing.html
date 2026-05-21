@@ -146,6 +146,25 @@ body {
     </div>
   </div>
 
+  <!-- 利用ガイドライン v3.0（社内展開時の運用ルール） -->
+  <div class="x-card" style="border-color:#e8c870;">
+    <div class="x-header" style="background:#fffbeb;border-bottom:1px solid #e8c870;">
+      <span class="x-header-icon">⚠️</span>
+      <span class="x-header-title" style="color:#7a5500;">本ツール利用ガイドライン v3.0 / 2026-05</span>
+    </div>
+    <div style="padding:14px 18px;font-size:12px;line-height:1.85;color:#5d4e3a;">
+      <ol style="margin:0;padding-left:20px;">
+        <li><strong>試算ツールであり通関申告書ではありません。</strong>関税・消費税・容積重量の計算結果は社内検討用。NACCS 申告・顧客請求書への転記前に、<strong>必ず通関士または上長の二次確認</strong>を経てください。</li>
+        <li><strong>航空 C/W</strong>：IATA 基準 ÷6000 がデフォルト。<strong>Express 案件（DHL/FedEx/UPS）は ÷5000、Courier 軽量は ÷4000</strong> を計算タブのプルダウンで選択。</li>
+        <li><strong>関税計算</strong>：通常税率に加え、少額免税（≤ 10,000 円 → 全額免除）・簡易税率（≤ 200,000 円 → 概算ガイド）モードに対応。EPA 特恵税率は<strong>別途確認</strong>必須。</li>
+        <li><strong>消費税</strong>：見積タブで「方向＝輸出」を選ぶと自動で <strong>0%（輸出免税）</strong> に切替。プレビューに「🌍 輸出免税適用中」バッジが出ます。</li>
+        <li><strong>為替レート</strong>：open.er-api.com の<strong>中値</strong>を 1 時間メモリキャッシュ。24h 超過時は出力前に警告。社内基準レート（経理指定）との乖離 ±3% 以上は要相談。<strong>通関申告には税関公示レート</strong>を使用。</li>
+        <li><strong>法令・カットオフ情報は参考値</strong>。SDR・別表第 1・各国ファイリング期限・船社カットオフは更新される可能性あり。実案件では一次ソース（税関・経産省・船社案内）を確認。</li>
+        <li><strong>入力データはローカル保存</strong>（ブラウザ localStorage）。共用 PC では使用後にプリセット消去、または「📤 出力」で JSON 退避してから「リセット」してください。</li>
+      </ol>
+    </div>
+  </div>
+
   <!-- X タイムライン -->
   <div class="x-card">
     <div class="x-header">

@@ -947,6 +947,16 @@ body {
   margin-left: 2px;
 }
 
+/* prefers-reduced-motion 対応：前庭障害ユーザーの酔い・疲労を軽減 */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+  }
+}
+
 /* ===== Quick Win #1：キーボードフォーカスリングをグローバル復活 =====
    多くの focus を outline:none + border-color 変化で消していたため
    キーボード操作で現在位置が見えない問題を解消（マウスクリックは

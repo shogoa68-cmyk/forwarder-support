@@ -1408,6 +1408,19 @@
   letter-spacing: .04em;
   white-space: nowrap;
 }
+#tab-quote-make .current-quote-name {
+  font-size: 12px;
+  font-weight: 700;
+  color: #3d2e1e;
+  background: #faf7f2;
+  border: 1px solid #d9cfc2;
+  border-radius: 4px;
+  padding: 4px 10px;
+  white-space: nowrap;
+  max-width: 240px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
 /* ---- mode-hidden: コンテナ欄の輸送モード連動 ---- */
 #tab-quote-make .mode-hidden,
 #tab-quote-make [data-mode-hidden="1"] { display: none !important; }
@@ -2764,6 +2777,19 @@
 @media (max-width: 600px) {#tab-quote-make .zone-builder {
     flex-direction: column;
   }
+}
+
+/* インコタームズ選択時の 1 行ヘルプ */
+#tab-quote-make .cond-incoterms-hint {
+  display: none;
+  margin-left: 8px;
+  padding: 4px 10px;
+  background: #f4ecd8;
+  border: 1px solid #d9cfc2;
+  border-radius: 5px;
+  font-size: 11px;
+  color: #5d4e3a;
+  line-height: 1.5;
 }
 
 /* プレビュー底部の監査メタ（為替出典・取得日時・作成日） */
