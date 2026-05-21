@@ -1884,7 +1884,7 @@
 
         <h4>🗂️ 保存/読み込みツールバー（上部）</h4>
         <ul>
-          <li><strong>プリセット/一時保存</strong>：現在の入力状態を名前付きで最大10件保存。「輸入案件用」「国内配送用」などのテンプレートや、作業途中の退避に使えます</li>
+          <li><strong>プリセット/一時保存</strong>：現在の入力状態を名前付きで <strong>最大 10 件</strong>保存（同一ブラウザのみ）。「輸入案件用」「国内配送用」などのテンプレートや作業途中の退避に。<strong>10 件を超える長期保管・他端末／チーム共有には「📤 出力」で JSON 書き出しを推奨</strong></li>
           <li><strong>自動保存</strong>：チェックすると入力2秒後にブラウザへ自動保存（localStorage、同じブラウザ内のみ有効）。次回開いた時に復元バナーから戻せます</li>
           <li><strong>↶ 戻す / ↷ 進む（Undo / Redo）</strong>：見積タブ全体（行・条件・自由入力・特記事項など）の編集を最大 50 ステップ巻き戻し／やり直し。<kbd>Ctrl+Z</kbd>（macOS は <kbd>⌘+Z</kbd>）で戻す、<kbd>Ctrl+Y</kbd> もしくは <kbd>Ctrl+Shift+Z</kbd> で進む。連続タイピングは 1 ステップにまとめられます</li>
           <li><strong>📤 出力 / 📥 読込</strong>：JSON ファイルで端末間共有・バックアップが可能</li>
@@ -2046,10 +2046,15 @@
       <div class="preset-mgr-box">
         <h3>🗂️ プリセット/一時保存</h3>
         <p class="preset-mgr-desc">
-          現在の入力状態を名前付きで保存・呼び出しできます（最大10件）。<br>
+          現在の入力状態を名前付きで保存・呼び出しできます（<strong>最大 10 件・このブラウザのみ</strong>）。<br>
           「輸入案件用」「国内配送用」などテンプレートとして使うほか、<br>
           「一時保存」のような名前で作業途中のデータを退避させることもできます。
         </p>
+        <div class="preset-mgr-warn">
+          💡 <strong>10 件を超える長期保管・他端末との共有・チームでの引き継ぎ</strong>には、ツールバーの
+          「<strong>📤 出力</strong>」ボタンから <strong>JSON ファイル</strong>として書き出すことを推奨します。
+          JSON ファイルは「📥 読込」で同じ状態を完全復元できます（クラウドフォルダ共有も可）。
+        </div>
         <div class="preset-save-row">
           <input type="text" class="preset-name-input" id="presetNameInput"
                  placeholder="例）輸入案件用・国内配送用" maxlength="30"

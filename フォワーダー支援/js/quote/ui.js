@@ -674,7 +674,10 @@
       return;
     }
     if (presets.length >= 10) {
-      quoteShowToast('⚠️ プリセットは最大10件です（既存と同名にすると上書きできます）', 'warning');
+      quoteShowToast(
+        '⚠️ プリセットは最大 10 件です。同名上書きするか、ツールバー「📤 出力」で JSON ファイルとして書き出してください（長期保管・チーム共有向け）',
+        'warning', 6000
+      );
       return;
     }
     presets.unshift({ name, data, ts: new Date().toISOString() });
