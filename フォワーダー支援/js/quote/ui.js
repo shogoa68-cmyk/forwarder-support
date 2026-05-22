@@ -490,6 +490,15 @@
     { icon:'📋', label:'特記事項セクションへ',        sub:'フリーテキスト欄',               action:() => scrollToSection('section-free')  },
     { icon:'📝', label:'条件・リマークセクションへ',  sub:'プリセット文を挿入',             action:() => scrollToSection('section-remark')},
     { icon:'➕', label:'行を追加',                    sub:'見積もり表に新しい行を末尾に追加', action:() => { addRow(); quoteShowToast('✅ 行を追加しました', 'success'); } },
+    { icon:'📋', label:'現在行を複製 (Ctrl+D)',        sub:'フォーカス中の行を直下に複製',     action:() => {
+      const tr = document.activeElement?.closest('#tableBody tr');
+      if (tr && tr.id.startsWith('row-')) {
+        duplicateRow(tr.id.replace('row-', ''));
+        quoteShowToast('✅ 行を複製しました', 'success');
+      } else {
+        quoteShowToast('⚠️ 行にフォーカスを当ててから実行してください', 'warn', 2500);
+      }
+    }},
     { icon:'↕️', label:'カテゴリ順に並び替え',        sub:'カテゴリ種別でソート',            action:() => { sortByCategory(); quoteShowToast('✅ ソートしました', 'success'); } },
     { icon:'👁️', label:'プレビューを開く',            sub:'印刷・コピー用のプレビュー',      action: openPreview },
     { icon:'🗂️', label:'プリセット/一時保存',         sub:'入力パターンの保存・呼び出し・一時退避', action: openPresetMgr },

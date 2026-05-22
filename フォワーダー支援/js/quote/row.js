@@ -116,6 +116,22 @@
   // Phase 2b：DOMContentLoaded ではなく initQuoteKeyNav() として呼び出すように変更
   function initQuoteKeyNav() {
     document.getElementById('tableBody').addEventListener('keydown', e => {
+      // Ctrl+D: 現在行を複製して直下に挿入
+      if (e.ctrlKey && e.key === 'd') {
+        const tr = e.target.closest('tr');
+        if (!tr || !tr.id.startsWith('row-')) return;
+        e.preventDefault();
+        const col   = e.target.dataset.col;
+        const newId = duplicateRow(tr.id.replace('row-', ''));
+        setTimeout(() => {
+          const target = col
+            ? document.querySelector(`#row-${newId} [data-col="${col}"]`)
+            : document.getElementById(`nm-${newId}`);
+          if (target) { target.focus(); if (target.select) target.select(); }
+        }, 0);
+        return;
+      }
+
       if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown') return;
       const el  = e.target;
       const col = el.dataset.col;
@@ -192,6 +208,38 @@
     initDrag(tr);
     onCatChange(id);  // カテゴリ色を適用
     onPay(id);
+  }
+
+  // ========== 行複製（Ctrl+D） ==========
+  function duplicateRow(srcId) {
+    const newId = addRowAfter(srcId);
+
+    // テキスト・数値フィールドをコピー
+    ['nm','pq','un','pp','mk','nt','sv'].forEach(f => {
+      const srcEl = document.getElementById(`${f}-${srcId}`);
+      const dstEl = document.getElementById(`${f}-${newId}`);
+      if (srcEl && dstEl) dstEl.value = srcEl.value;
+    });
+
+    // セレクトをコピー
+    ['cat','pc'].forEach(f => {
+      const srcEl = document.getElementById(`${f}-${srcId}`);
+      const dstEl = document.getElementById(`${f}-${newId}`);
+      if (srcEl && dstEl) dstEl.value = srcEl.value;
+    });
+
+    // チェックボックスをコピー
+    const srcTx = document.getElementById(`tx-${srcId}`);
+    const dstTx = document.getElementById(`tx-${newId}`);
+    if (srcTx && dstTx) dstTx.checked = srcTx.checked;
+
+    // 再計算・色・状態の更新
+    onCatChange(newId);
+    if (dstTx?.checked) toggleTax(newId);
+    checkUnfilled(newId);
+    onPay(newId);
+
+    return newId;
   }
 
   // ========== カテゴリー順ソート ==========
