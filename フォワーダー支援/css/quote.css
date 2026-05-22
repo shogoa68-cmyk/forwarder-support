@@ -12,6 +12,7 @@
 /* スコープルート — :root の CSS 変数と body の基本スタイルをここに集約 */
 #tab-quote-make {
   --base-font-size: 13px;
+  --card-bg: #f2ede6;
   font-family: 'Helvetica Neue', Arial, 'Hiragino Kaku Gothic ProN', sans-serif;
   background: #f2ede6;
   color: #2d2418;
@@ -1419,7 +1420,7 @@
   padding: 10px 18px;
   border-radius: 8px;
   font-size: 12px;
-  z-index: 4000;
+  z-index: 2500;
   box-shadow: 0 4px 16px rgba(0,0,0,.35);
   align-items: center;
   gap: 10px;
@@ -2806,7 +2807,7 @@ body:has(#previewOverlay.open) #autosave-restore-bar { display: none !important;
   line-height: 1.6;
   font-family: inherit;
 }
-#tab-quote-make .sticky-note-area:focus { outline: none; }
+#tab-quote-make .sticky-note-area:focus:not(:focus-visible) { outline: none; }
 /* ===== 荷姿プリセット（Feature 4） ===== */
 #tab-quote-make .packing-field-wrap {
   display: flex;
@@ -3015,8 +3016,7 @@ body:has(#previewOverlay.open) #autosave-restore-bar { display: none !important;
   font-variant-numeric: tabular-nums;
 }
 
-/* 印刷時のフォントサイズを 9px → 10.5px へ拡大 ＋ A4 横向き既定 */
-@page { size: A4 landscape; margin: 10mm; }
+/* 印刷時のフォントサイズを 9px → 10.5px へ拡大（A4 横向きは exportPDF() で動的注入） */
 @media print {
   body:has(#previewOverlay.open) #previewTable {
     font-size: 10.5px !important;

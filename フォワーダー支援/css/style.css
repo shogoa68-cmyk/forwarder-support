@@ -1002,15 +1002,6 @@ body:has(#tab-quote-make.active) .app {
   outline-offset: 1px;
   border-radius: 3px;
 }
-/* 入力欄の場合は :focus-visible で border-color が変わる既存ルールを
-   尊重しつつ、追加で outline を被せる */
-input:focus-visible,
-select:focus-visible,
-textarea:focus-visible,
-button:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 1px;
-}
 
 /* ===== 印刷時：ナビ・FAB・フィードバック要素を非表示 =====
    見積プレビュー印刷は quote.css の @media print で別途制御。

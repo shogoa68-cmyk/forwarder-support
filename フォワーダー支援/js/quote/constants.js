@@ -48,7 +48,7 @@ window.QuoteApp = window.QuoteApp || { state: {}, data: {}, fx: {} };
     import: [
       { cat: 'ocean',     name: '海上運賃',          note: '積み地港〜仕向港' },
       { cat: 'surcharge', name: 'サーチャージ類',    note: 'BAF/CAF/PSS 等' },
-      { cat: 'overseas',  name: '仕向港費用',        note: 'THC・D/O 等' },
+      { cat: 'import-local', name: '仕向港費用（輸入）', note: 'THC・D/O 等' },
       { cat: 'customs',   name: '輸入通関費',        note: '通関手数料・書類作成' },
       { cat: 'domestic',  name: '国内配送費',        note: '港〜納入地' },
       { cat: 'insurance', name: '海上保険料',        note: '保険条件に応じて' },

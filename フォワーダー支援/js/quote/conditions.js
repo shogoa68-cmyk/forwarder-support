@@ -16,14 +16,16 @@
       .forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
     ['cond-incoterms','cond-mode','cond-container-type','cond-hazmat']
       .forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+    if (typeof showIncotermsHint === 'function') showIncotermsHint('');
     // JS 状態変数リセット（消費税判定の誤引継ぎを防ぐ）
     _currentDirection = '';
     _currentTransport = '';
     _currentSeaSub = 'fcl';
-    // 方向ボタンの active 解除
-    document.querySelectorAll('.cond-dir-btn').forEach(b => b.classList.remove('active'));
+    // 方向・輸送ボタンの active 解除
     document.querySelectorAll('.cond-prim-btn').forEach(b => b.classList.remove('active'));
     document.querySelectorAll('.cond-sub-btn').forEach(b => b.classList.remove('active'));
+    // FCL は既定モードなので active を戻す
+    document.querySelector('.cond-sub-btn[data-sub="fcl"]')?.classList.add('active');
     // キャリアリンクパネルを更新
     if (typeof onZ2CarrierChange === 'function') onZ2CarrierChange();
     // calcResultsPanel の安全な非表示
@@ -124,7 +126,7 @@
       const rowId = nm.id.replace('nm-', '');
       checkUnfilled(rowId);
       onCatChange(rowId);
-      onPay(parseInt(rowId));
+      onPay(rowId);
       // taxed クラスを checked 状態から再適用
       const txEl = tr.querySelector('[data-field="tx"]');
       if (txEl?.checked) tr.classList.add('taxed');
@@ -223,7 +225,7 @@
       );
       rows.push({ _type: 'data', cells });
     });
-    return { fields, rows, ts: new Date().toISOString(), _rowFormat: 'v3-mixed-rows' };
+    return { fields, rows, ts: new Date().toISOString(), _rowFormat: 'v3-mixed-rows', _direction: _currentDirection };
   }
 
   /**
@@ -266,6 +268,7 @@
     try { data = JSON.parse(raw); } catch(e) { return; }
     const ts = data.ts ? new Date(data.ts).toLocaleString('ja-JP') : '';
     _rebuildTable(data);
+    if (typeof calcLiveUpdate === 'function') calcLiveUpdate();
     dismissRestoreBar();
     quoteShowToast('↩ 自動保存データを復元しました' + (ts ? '（' + ts + '）' : ''), 'success', 3500);
   }
@@ -283,6 +286,7 @@
     const ts = data.ts ? new Date(data.ts).toLocaleString('ja-JP') : '不明';
     if (!confirm(`保存日時: ${ts}\n\n現在のデータを上書きして読み込みますか？`)) return;
     _rebuildTable(data);
+    if (typeof calcLiveUpdate === 'function') calcLiveUpdate();
     showSaveStatus('📂 読み込みました');
   }
 
@@ -331,8 +335,13 @@
     const pol     = document.getElementById('z2Pol')?.value?.trim()     || '';
     const pod     = document.getElementById('z2Pod')?.value?.trim()     || '';
     const polpod  = [pol, pod].filter(Boolean).join(' → ') || 'ポート〜ポート';
-    items.push({ cat: 'ocean',     name: '海上運賃',       note: polpod,           sv: carrier });
-    items.push({ cat: 'surcharge', name: 'サーチャージ類', note: 'BAF/CAF/PSS 等', sv: carrier });
+    if (_currentTransport === 'air') {
+      items.push({ cat: 'air',       name: '航空運賃',       note: polpod,           sv: carrier });
+      items.push({ cat: 'surcharge', name: 'サーチャージ類', note: 'FSC/SSC 等',     sv: carrier });
+    } else {
+      items.push({ cat: 'ocean',     name: '海上運賃',       note: polpod,           sv: carrier });
+      items.push({ cat: 'surcharge', name: 'サーチャージ類', note: 'BAF/CAF/PSS 等', sv: carrier });
+    }
 
     // Zone ③ 到着地側
     if (_zone3On) {
@@ -725,6 +734,20 @@
       if (el.type === 'checkbox') el.checked = val;
       else el.value = val;
     });
+    // 輸送モード・方向ボタンを cond-mode select から推論して復元
+    const _modeVal = document.getElementById('cond-mode')?.value || '';
+    if (_modeVal === '航空（AIR）') {
+      if (typeof setTransport === 'function') setTransport('air');
+    } else if (_modeVal.includes('LCL')) {
+      if (typeof setTransport === 'function') setTransport('sea');
+      if (typeof setSeaSub === 'function') setSeaSub('lcl');
+    } else if (_modeVal.includes('FCL') || _modeVal.includes('海上')) {
+      if (typeof setTransport === 'function') setTransport('sea');
+      if (typeof setSeaSub === 'function') setSeaSub('fcl');
+    }
+    if (data._direction && typeof setDirection === 'function') {
+      setDirection(data._direction);
+    }
     // テーブル再構築
     document.getElementById('tableBody').innerHTML = '';
     rowCount = 0;
@@ -763,6 +786,7 @@
     if (typeof updateTotals === 'function') updateTotals();
     if (typeof updateSubtotalRows === 'function') updateSubtotalRows();
     if (typeof updateRouteModeIcon === 'function') updateRouteModeIcon();
+    if (typeof onZ2CarrierChange === 'function') onZ2CarrierChange();
     // インコタームズヒントを復元
     const icEl = document.getElementById('cond-incoterms');
     if (icEl && typeof showIncotermsHint === 'function') showIncotermsHint(icEl.value);

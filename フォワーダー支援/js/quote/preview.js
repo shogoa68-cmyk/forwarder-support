@@ -429,17 +429,15 @@
     document.querySelectorAll('.pv-sec-chk').forEach(chk => {
       const el = document.getElementById(secMap[chk.dataset.sec]);
       if (!el) return;
-      // 現在表示中なら記録
-      if (el && el.style.display !== 'none' && !el.dataset.pvHidden) {
-        el.dataset.pvWasVisible = '1';
-      }
-      // Only hide if currently shown (don't override display:none from data absence)
       if (!chk.checked) {
+        // 非表示にする直前に記録（2回目以降の ON→OFF→ON サイクルでも機能）
+        if (el.style.display !== 'none' && !el.dataset.pvHidden) {
+          el.dataset.pvWasVisible = '1';
+        }
         el.dataset.pvHidden = '1';
         el.style.display = 'none';
       } else {
         delete el.dataset.pvHidden;
-        // restore only if it was hidden by us (not by data absence)
         if (el.dataset.pvWasVisible === '1') {
           el.style.display = '';
           delete el.dataset.pvWasVisible;
@@ -579,7 +577,12 @@
   // ========== PDF 出力 ==========
   function exportPDF() {
     if (!preOutputValidationGate('PDF 出力（印刷）')) return;
-    // @media print CSS がプレビュー以外を非表示にする
+    // A4 横向き @page はプレビュー印刷時のみ適用（他タブの Ctrl+P を汚染しないよう動的注入）
+    const pageStyle = document.createElement('style');
+    pageStyle.id = '_pvPageStyle';
+    pageStyle.textContent = '@page { size: A4 landscape; margin: 10mm; }';
+    document.head.appendChild(pageStyle);
+    window.addEventListener('afterprint', () => pageStyle.remove(), { once: true });
     window.print();
   }
 
@@ -782,9 +785,8 @@
         dataRows = dataRows.filter(r => r[0] && r[0] !== '合計' && !r[0].startsWith('カテゴリ'));
         if (!dataRows.length) { showCsvMsg('error', '⚠️ 有効なデータ行がありませんでした'); return; }
 
-        // 先頭列がカテゴリのraw値なら新フォーマット
+        // 先頭列がカテゴリのraw値なら新フォーマット（cat,sv,name,pq,un,pc,pp,cd,bq,bc,bp,mk,sub,profit,note）
         const isNewFmt = CAT_VALUES.includes(dataRows[0][0]);
-        const off = isNewFmt ? 1 : 0;
         let added = 0;
         dataRows.forEach(cols => {
           rowCount++;
@@ -795,15 +797,34 @@
           document.getElementById('tableBody').appendChild(tr);
           initDrag(tr);
 
-          const cat     = isNewFmt ? (cols[0] || '') : '';
-          const rawName = cols[0 + off] || '';
-          const taxed   = rawName.startsWith('*');
-          const name    = taxed ? rawName.slice(1) : rawName;
-          const pq = parseFloat(cols[1 + off]) || 1;
-          const pc = cols[2 + off] || 'JPY';
-          const pp = parseFloat(cols[3 + off]) || 0;
-          const mk = parseFloat(cols[8 + off]) || 0;
-          const nt = cols[10 + off] || '';
+          let cat = '', sv = '', rawName = '', pq = 1, un = '', pc = 'JPY',
+              pp = 0, cd = 0, bq = 0, bc = '', bp = 0, mk = 0, nt = '';
+
+          if (isNewFmt) {
+            cat     = cols[0]  || '';
+            sv      = cols[1]  || '';
+            rawName = cols[2]  || '';
+            pq      = parseFloat(cols[3])  || 1;
+            un      = cols[4]  || '';
+            pc      = cols[5]  || 'JPY';
+            pp      = parseFloat(cols[6])  || 0;
+            cd      = parseFloat(cols[7])  || 0;
+            bq      = parseFloat(cols[8])  || 0;
+            bc      = cols[9]  || '';
+            bp      = parseFloat(cols[10]) || 0;
+            mk      = parseFloat(cols[11]) || 0;
+            nt      = cols[14] || '';
+          } else {
+            rawName = cols[0]  || '';
+            pq      = parseFloat(cols[1])  || 1;
+            pc      = cols[2]  || 'JPY';
+            pp      = parseFloat(cols[3])  || 0;
+            mk      = parseFloat(cols[8])  || 0;
+            nt      = cols[10] || '';
+          }
+
+          const taxed = rawName.startsWith('*');
+          const name  = taxed ? rawName.slice(1) : rawName;
 
           document.getElementById(`nm-${id}`).value = name;
           document.getElementById(`pq-${id}`).value = pq;
@@ -812,6 +833,18 @@
           document.getElementById(`nt-${id}`).value = nt;
           const pcEl = document.getElementById(`pc-${id}`);
           if (pcEl && CURRENCIES.includes(pc)) pcEl.value = pc;
+          const svEl = document.getElementById(`sv-${id}`);
+          if (svEl) svEl.value = sv;
+          const unEl = document.getElementById(`un-${id}`);
+          if (unEl && un) unEl.value = un;
+          const cdEl = document.getElementById(`cd-${id}`);
+          if (cdEl && cd) cdEl.value = cd;
+          const bqEl2 = document.getElementById(`bq-${id}`);
+          if (bqEl2 && bq) bqEl2.value = bq;
+          const bcEl2 = document.getElementById(`bc-${id}`);
+          if (bcEl2 && bc && CURRENCIES.includes(bc)) bcEl2.value = bc;
+          const bpEl2 = document.getElementById(`bp-${id}`);
+          if (bpEl2 && bp) bpEl2.value = bp;
           if (cat && CAT_VALUES.includes(cat)) {
             document.getElementById(`cat-${id}`).value = cat;
             onCatChange(id);

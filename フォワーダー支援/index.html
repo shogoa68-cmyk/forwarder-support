@@ -2033,7 +2033,7 @@
     <!-- フィードバックFAB／トーストコンテナは Phase 2c-Step1 でサイト全体スコープに移動済み（</body> 直前を参照） -->
 
     <!-- ========== コマンドパレット (Ctrl+K) ========== -->
-    <div id="cmdPalette" onclick="if(event.target===this)closeCmdPalette()">
+    <div id="cmdPalette" role="dialog" aria-modal="true" aria-label="コマンドパレット" onclick="if(event.target===this)closeCmdPalette()">
       <div id="cmdPaletteBox">
         <input id="cmdInput" type="text"
           placeholder="🔍 コマンド名・セクション名を入力..."
