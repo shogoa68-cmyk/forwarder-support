@@ -103,7 +103,8 @@
   }
 
   // 行復元後の再計算・スタイル適用ヘルパー
-  function _afterRestoreRows(trs) {
+  // fields: gatherAllData().fields（tx-{id} の boolean が常に正しく入っている）
+  function _afterRestoreRows(trs, fields) {
     trs.forEach(tr => {
       const nm = tr.querySelector('[data-field="nm"]');
       if (!nm) return;
@@ -111,8 +112,10 @@
       checkUnfilled(rowId);
       onCatChange(rowId);
       onPay(parseInt(rowId));
-      // taxed クラスを checked 状態から再適用
+      // tx チェックボックスは fields から確実に復元
+      // （rows の cells[3] は旧データで "on" 固定のため fields を優先）
       const txEl = tr.querySelector('[data-field="tx"]');
+      if (txEl && fields && txEl.id in fields) txEl.checked = !!fields[txEl.id];
       if (txEl?.checked) tr.classList.add('taxed');
       else tr.classList.remove('taxed');
     });
@@ -133,7 +136,7 @@
     (data.rows || []).forEach(() => addRow());
     const trs = document.querySelectorAll('#tableBody tr');
     (data.rows || []).forEach((cells, i) => { if (trs[i]) _applyCells(trs[i], cells); });
-    _afterRestoreRows(trs);
+    _afterRestoreRows(trs, data.fields);
     if (typeof updateTotals === 'function') updateTotals();
     if (typeof updateRouteModeIcon === 'function') updateRouteModeIcon();
   }
@@ -275,7 +278,7 @@
     (data.rows || []).forEach(() => addRow());
     const trs = document.querySelectorAll('#tableBody tr');
     (data.rows || []).forEach((cells, i) => { if (trs[i]) _applyCells(trs[i], cells); });
-    _afterRestoreRows(trs);
+    _afterRestoreRows(trs, data.fields);
     updateTotals();
     updateRouteModeIcon();
     dismissRestoreBar();
@@ -309,7 +312,7 @@
     (data.rows || []).forEach(() => addRow());
     const trs = document.querySelectorAll('#tableBody tr');
     (data.rows || []).forEach((cells, i) => { if (trs[i]) _applyCells(trs[i], cells); });
-    _afterRestoreRows(trs);
+    _afterRestoreRows(trs, data.fields);
     updateTotals();
     updateRouteModeIcon();
     showSaveStatus('📂 読み込みました');
