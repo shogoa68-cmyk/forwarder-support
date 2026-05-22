@@ -56,6 +56,11 @@
         rows.push({ _type: 'subtotal', label, billingText, subtotalText, profitText });
         return;
       }
+      if (tr.dataset.type === 'remark') {
+        const text = tr.querySelector('.remark-row-input')?.value || '';
+        rows.push({ _type: 'remark', text });
+        return;
+      }
       const id     = tr.id.replace('row-', '');
       const taxed  = document.getElementById(`tx-${id}`)?.checked || false;
       const cat    = document.getElementById(`cat-${id}`)?.value || '';
@@ -213,6 +218,12 @@
 
     let totSub = 0, totTax = 0;
     allRows.forEach(d => {
+      if (d._type === 'remark') {
+        html += `<tr class="pv-table-remark-row">
+          <td colspan="16" class="pv-remark-cell">💬 ${escHtml(d.text)}</td>
+        </tr>`;
+        return;
+      }
       if (d._type === 'subtotal') {
         // 小計セパレーター。先頭ラベルは cat+sv+name+pay(5)+bill(3)+mk = 12 列ぶん
         const sepPc = d.profitText.startsWith('-') ? 'pv-neg' : (d.profitText === '—' || d.profitText === '0') ? 'pv-zero' : 'pv-pos';
@@ -437,6 +448,14 @@
         if (el.dataset.pvWasVisible === '1') el.style.display = '';
       }
     });
+
+    // テーブル内リマーク行の表示切り替え
+    const remarkRowChk = document.querySelector('.pv-sec-chk[data-sec="table-remark"]');
+    if (remarkRowChk && table) {
+      table.querySelectorAll('.pv-table-remark-row').forEach(tr => {
+        tr.style.display = remarkRowChk.checked ? '' : 'none';
+      });
+    }
 
     // save settings
     const settings = {};
