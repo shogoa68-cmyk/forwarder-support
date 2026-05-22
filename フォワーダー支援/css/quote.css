@@ -1845,8 +1845,7 @@ body:has(#previewOverlay.open) #autosave-restore-bar { display: none !important;
 .toast.visible { opacity: 1; transform: translateX(0); }
 .toast.success { border-left: 4px solid #5a6e42; }
 .toast.info { border-left: 4px solid #8b6914; }
-.toast.warning { border-left: 4px solid #e67e22; }
-#tab-quote-make .toast.warn { border-left: 4px solid #e67e22; }
+.toast.warning, .toast.warn { border-left: 4px solid #e67e22; }
 .toast.error { border-left: 4px solid #e74c3c; }
 /* ========== コマンドパレット ========== */
 #tab-quote-make #cmdPalette {
@@ -2387,6 +2386,7 @@ body:has(#previewOverlay.open) #autosave-restore-bar { display: none !important;
   cursor: pointer;
   line-height: 1;
   margin: 0;
+  transition: filter 0.15s, transform 0.12s;
 }
 #tab-quote-make .btn-subtotal-ins:hover { background: #f0e8d8; }
 #tab-quote-make .btn-subtotal {
@@ -2743,7 +2743,7 @@ body:has(#previewOverlay.open) #autosave-restore-bar { display: none !important;
   border: 1px solid #f0d070;
   border-radius: 10px;
   box-shadow: 0 6px 24px rgba(0,0,0,0.18);
-  z-index: 1100;
+  z-index: 900;
   display: none;
   flex-direction: column;
   overflow: hidden;
@@ -2902,6 +2902,7 @@ body:has(#previewOverlay.open) #autosave-restore-bar { display: none !important;
   body:has(#previewOverlay.open) .pv-btns,
   body:has(#previewOverlay.open) .pv-hint,
   body:has(#previewOverlay.open) #pvTaxBox { display: none !important; }
+  body:has(#previewOverlay.open) #pvCustomizeWrap { display: none !important; }
   body:has(#previewOverlay.open) #previewTable {
     width: 100% !important;
   }
@@ -3030,5 +3031,12 @@ body:has(#previewOverlay.open) #autosave-restore-bar { display: none !important;
 #tab-quote-make button:focus-visible {
   outline: 2px solid #8b6914;
   outline-offset: 2px;
+}
+#tab-quote-make input[type="text"]:focus-visible,
+#tab-quote-make input[type="number"]:focus-visible,
+#tab-quote-make select:focus-visible,
+#tab-quote-make textarea:focus-visible {
+  outline: 2px solid #8b6914;
+  outline-offset: 1px;
 }
 

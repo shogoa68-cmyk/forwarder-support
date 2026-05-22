@@ -16,7 +16,19 @@
       .forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
     ['cond-incoterms','cond-mode','cond-container-type','cond-hazmat']
       .forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
-    document.getElementById('calcResultsPanel').style.display = 'none';
+    // JS 状態変数リセット（消費税判定の誤引継ぎを防ぐ）
+    _currentDirection = '';
+    _currentTransport = '';
+    _currentSeaSub = 'fcl';
+    // 方向ボタンの active 解除
+    document.querySelectorAll('.cond-dir-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.cond-prim-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.cond-sub-btn').forEach(b => b.classList.remove('active'));
+    // キャリアリンクパネルを更新
+    if (typeof onZ2CarrierChange === 'function') onZ2CarrierChange();
+    // calcResultsPanel の安全な非表示
+    const _panel = document.getElementById('calcResultsPanel');
+    if (_panel) _panel.style.display = 'none';
   }
 
   function getConditions() {
@@ -122,22 +134,7 @@
 
   // データを画面に適用（restoreAutoSave と同等。トースト・restoreBar 操作なし）
   function _applyQuoteData(data) {
-    if (!data) return;
-    data = migrateRowCells(data);   // 旧形式（sv 末尾）を新形式（sv@2）へ
-    Object.entries(data.fields || {}).forEach(([id, val]) => {
-      const el = document.getElementById(id);
-      if (!el) return;
-      if (el.type === 'checkbox') el.checked = val;
-      else el.value = val;
-    });
-    document.getElementById('tableBody').innerHTML = '';
-    rowCount = 0;
-    (data.rows || []).forEach(() => addRow());
-    const trs = document.querySelectorAll('#tableBody tr');
-    (data.rows || []).forEach((cells, i) => { if (trs[i]) _applyCells(trs[i], cells); });
-    _afterRestoreRows(trs);
-    if (typeof updateTotals === 'function') updateTotals();
-    if (typeof updateRouteModeIcon === 'function') updateRouteModeIcon();
+    _rebuildTable(data);
   }
 
   function quoteUndo() {
@@ -205,24 +202,28 @@
   }
 
   function gatherAllData() {
-    // フォーム値
     const fields = {};
-    document.querySelectorAll('input[id], select[id], textarea[id]').forEach(el => {
+    document.querySelectorAll('#tab-quote-make input[id], #tab-quote-make select[id], #tab-quote-make textarea[id]').forEach(el => {
       if (['csvFileInput','importFileInput','autoSaveChk','tabAddChk'].includes(el.id)) return;
       fields[el.id] = el.type === 'checkbox' ? el.checked : el.value;
     });
-    // テーブル行
     const rows = [];
     document.querySelectorAll('#tableBody tr').forEach(tr => {
-      if (tr.dataset.type === 'subtotal' || tr.dataset.type === 'remark') return;
+      if (tr.dataset.type === 'subtotal') {
+        rows.push({ _type: 'subtotal', label: tr.querySelector('.subtotal-label')?.value || '' });
+        return;
+      }
+      if (tr.dataset.type === 'remark') {
+        rows.push({ _type: 'remark', text: tr.querySelector('.remark-row-input')?.value || '' });
+        return;
+      }
       const cells = [];
       tr.querySelectorAll('input, select, textarea').forEach(el =>
         cells.push(el.type === 'checkbox' ? el.checked : el.value)
       );
-      rows.push(cells);
+      rows.push({ _type: 'data', cells });
     });
-    // _rowFormat: v2 = sv をカテゴリ直後（index 2）に配置した新レイアウト
-    return { fields, rows, ts: new Date().toISOString(), _rowFormat: 'v2-sv-after-cat' };
+    return { fields, rows, ts: new Date().toISOString(), _rowFormat: 'v3-mixed-rows' };
   }
 
   /**
@@ -263,25 +264,9 @@
     if (!raw) return;
     let data;
     try { data = JSON.parse(raw); } catch(e) { return; }
-    data = migrateRowCells(data);   // 旧形式を新形式へ
-    // フォーム復元
-    Object.entries(data.fields || {}).forEach(([id, val]) => {
-      const el = document.getElementById(id);
-      if (!el) return;
-      if (el.type === 'checkbox') el.checked = val;
-      else el.value = val;
-    });
-    // テーブル行復元
-    document.getElementById('tableBody').innerHTML = '';
-    rowCount = 0;
-    (data.rows || []).forEach(() => addRow());
-    const trs = document.querySelectorAll('#tableBody tr');
-    (data.rows || []).forEach((cells, i) => { if (trs[i]) _applyCells(trs[i], cells); });
-    _afterRestoreRows(trs);
-    updateTotals();
-    updateRouteModeIcon();
-    dismissRestoreBar();
     const ts = data.ts ? new Date(data.ts).toLocaleString('ja-JP') : '';
+    _rebuildTable(data);
+    dismissRestoreBar();
     quoteShowToast('↩ 自動保存データを復元しました' + (ts ? '（' + ts + '）' : ''), 'success', 3500);
   }
 
@@ -295,25 +280,9 @@
     if (!raw) { alert('保存データが見つかりません。'); return; }
     let data;
     try { data = JSON.parse(raw); } catch(e) { alert('データの読み込みに失敗しました。'); return; }
-    data = migrateRowCells(data);   // 旧形式を新形式へ
     const ts = data.ts ? new Date(data.ts).toLocaleString('ja-JP') : '不明';
     if (!confirm(`保存日時: ${ts}\n\n現在のデータを上書きして読み込みますか？`)) return;
-    // フォーム復元
-    Object.entries(data.fields || {}).forEach(([id, val]) => {
-      const el = document.getElementById(id);
-      if (!el) return;
-      if (el.type === 'checkbox') el.checked = val;
-      else el.value = val;
-    });
-    // テーブル行復元
-    document.getElementById('tableBody').innerHTML = '';
-    rowCount = 0;
-    (data.rows || []).forEach(() => addRow());
-    const trs = document.querySelectorAll('#tableBody tr');
-    (data.rows || []).forEach((cells, i) => { if (trs[i]) _applyCells(trs[i], cells); });
-    _afterRestoreRows(trs);
-    updateTotals();
-    updateRouteModeIcon();
+    _rebuildTable(data);
     showSaveStatus('📂 読み込みました');
   }
 
@@ -354,7 +323,7 @@
       if (document.getElementById('piece-customs-e')?.checked) {
         items.push({ cat: 'customs',   name: '輸出通関費',              note: '通関手数料・書類作成', sv: _getFirstScValue('sc-customs-e')  || def1 });
       }
-      items.push({ cat: 'domestic',    name: '港湾諸費用（輸出）',      note: 'THC・ドキュメント費等', sv: '' });
+      items.push({ cat: 'export-local', name: '港湾諸費用（輸出）',      note: 'THC・ドキュメント費等', sv: '' });
     }
 
     // Zone ② 幹線輸送（常に追加）
@@ -706,23 +675,24 @@
 
   // ========== インコタームズ ヒント表示 ==========
   function showIncotermsHint(val) {
+    const code = (val || '').split('（')[0].trim();
     const hints = {
-      'EXW': '売主工場渡し：売主の負担最小。輸出通関・輸送は全て買主手配',
-      'FCA': '運送人渡し：売主が指定地点で運送人に引渡し。輸出通関は売主',
-      'CPT': '輸送費込み：売主が指定地まで輸送費負担。リスク移転は引渡し時',
-      'CIP': '輸送費・保険料込み：CPT+保険料。最低限ICC(A)保険付保義務',
-      'DAP': '仕向地持込渡し：売主が仕向地まで輸送・費用負担。輸入通関は買主',
-      'DPU': '荷卸込み持込渡し：売主が仕向地で荷卸しまで負担',
-      'DDP': '関税込み持込渡し：売主負担最大。輸入通関・関税も売主',
-      'FAS': '船側渡し：売主が船積み港の船側まで搬入。輸出通関は売主（海上専用）',
-      'FOB': '本船渡し：本船積込完了まで売主負担。輸出通関は売主（海上専用）',
-      'CFR': '運賃込み：売主が仕向港までの運賃負担。リスク移転は積込時（海上専用）',
-      'CIF': '運賃・保険料込み：CFR+保険料。最低限ICC(C)保険（海上専用）',
+      'EXW': '売主工場渡し：売主の負担最小。輸出通関・輸送は全て買主手配（※日本の輸出管理上、輸出者が日本法人でなくなるリスクに注意）',
+      'FCA': '運送人渡し：売主が指定地点で運送人に引渡し。輸出通関は売主。L/C 決済時は買主が運送人に B/L 発行指示可（Incoterms 2020 追加規定）',
+      'CPT': '輸送費込み：売主が指定仕向地まで輸送費負担。ただしリスク移転は最初の運送人引渡し時点（費用負担点とリスク移転点が異なる）',
+      'CIP': '輸送費・保険料込み：CPT+保険料。Incoterms 2020 で最低 ICC(A) 付保義務。リスク移転は最初の運送人引渡し時',
+      'DAP': '仕向地持込渡し：売主が仕向地まで輸送・費用負担。輸入通関・関税は買主。保険料は買主負担',
+      'DPU': '荷卸込み持込渡し：売主が仕向地で荷卸しまで負担（D 条件で唯一、荷卸し義務あり）。保険料は買主負担',
+      'DDP': '関税込み持込渡し：売主負担最大。輸入通関・関税も売主。輸入国での登録・許可取得義務が生じる場合あり',
+      'FAS': '船側渡し：売主が船積み港の船側まで搬入。輸出通関は売主（海上・内水路専用）',
+      'FOB': '本船渡し：本船積込完了まで売主負担。輸出通関は売主（海上・内水路専用）',
+      'CFR': '運賃込み：売主が仕向港までの運賃負担。リスク移転は積込時（海上・内水路専用）',
+      'CIF': '運賃・保険料込み：CFR+保険料。最低 ICC(C) 保険付保（CPT より保険条件が低い）（海上・内水路専用）',
     };
     const el = document.getElementById('cond-incoterms-hint');
     if (!el) return;
-    if (hints[val]) {
-      el.textContent = hints[val];
+    if (hints[code]) {
+      el.textContent = hints[code];
       el.style.display = 'block';
     } else {
       el.textContent = '';
@@ -738,7 +708,16 @@
    */
   function _rebuildTable(data) {
     if (!data) return;
-    data = (typeof migrateRowCells === 'function') ? migrateRowCells(data) : data;
+    // v3 以外は正規化
+    if (data._rowFormat !== 'v3-mixed-rows') {
+      data = (typeof migrateRowCells === 'function') ? migrateRowCells(data) : data;
+      if (Array.isArray(data.rows)) {
+        data = Object.assign({}, data, {
+          rows: data.rows.map(r => Array.isArray(r) ? { _type: 'data', cells: r } : r),
+          _rowFormat: 'v3-mixed-rows'
+        });
+      }
+    }
     // フォーム復元
     Object.entries(data.fields || {}).forEach(([id, val]) => {
       const el = document.getElementById(id);
@@ -751,11 +730,41 @@
     rowCount = 0;
     subtotalCount = 0;
     remarkCount = 0;
-    (data.rows || []).forEach(() => addRow());
-    const trs = document.querySelectorAll('#tableBody tr');
-    (data.rows || []).forEach((cells, i) => { if (trs[i]) _applyCells(trs[i], cells); });
-    _afterRestoreRows(trs);
+    let lastRowId = null;
+    (data.rows || []).forEach(row => {
+      if (!row || typeof row !== 'object') return;
+      if (row._type === 'subtotal') {
+        insertSubtotalRow(lastRowId);
+        const newId = `subtotal-${subtotalCount}`;
+        const stRow = document.getElementById(`row-${newId}`);
+        if (stRow) {
+          const lbl = stRow.querySelector('.subtotal-label');
+          if (lbl) lbl.value = row.label || '';
+        }
+        lastRowId = newId;
+      } else if (row._type === 'remark') {
+        insertRemarkRow(lastRowId);
+        const newId = `remark-${remarkCount}`;
+        const rmRow = document.getElementById(`row-${newId}`);
+        if (rmRow) {
+          const inp = rmRow.querySelector('.remark-row-input');
+          if (inp) inp.value = row.text || '';
+        }
+        lastRowId = newId;
+      } else {
+        addRow();
+        const newId = rowCount;
+        const tr = document.getElementById(`row-${newId}`);
+        if (tr) _applyCells(tr, row.cells || row);
+        lastRowId = String(newId);
+      }
+    });
+    _afterRestoreRows(document.querySelectorAll('#tableBody tr'));
     if (typeof updateTotals === 'function') updateTotals();
+    if (typeof updateSubtotalRows === 'function') updateSubtotalRows();
     if (typeof updateRouteModeIcon === 'function') updateRouteModeIcon();
+    // インコタームズヒントを復元
+    const icEl = document.getElementById('cond-incoterms');
+    if (icEl && typeof showIncotermsHint === 'function') showIncotermsHint(icEl.value);
   }
 

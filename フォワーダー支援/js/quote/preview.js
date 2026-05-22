@@ -429,6 +429,10 @@
     document.querySelectorAll('.pv-sec-chk').forEach(chk => {
       const el = document.getElementById(secMap[chk.dataset.sec]);
       if (!el) return;
+      // 現在表示中なら記録
+      if (el && el.style.display !== 'none' && !el.dataset.pvHidden) {
+        el.dataset.pvWasVisible = '1';
+      }
       // Only hide if currently shown (don't override display:none from data absence)
       if (!chk.checked) {
         el.dataset.pvHidden = '1';
@@ -436,7 +440,10 @@
       } else {
         delete el.dataset.pvHidden;
         // restore only if it was hidden by us (not by data absence)
-        if (el.dataset.pvWasVisible === '1') el.style.display = '';
+        if (el.dataset.pvWasVisible === '1') {
+          el.style.display = '';
+          delete el.dataset.pvWasVisible;
+        }
       }
     });
 

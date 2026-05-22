@@ -686,7 +686,7 @@
     if (presets.length >= 50) {
       quoteShowToast(
         '⚠️ プリセットは最大 50 件です。同名上書きするか、ツールバー「📤 出力」で JSON ファイルとして書き出してください（長期保管・チーム共有向け）',
-        'warning', 6000
+        'warn', 6000
       );
       return;
     }
@@ -853,7 +853,9 @@
 
     if (!confirm(`「${p.name}」の ${p.rows.length} 行を${posLabel}に挿入しますか？`)) return;
 
-    p.rows.forEach(rd => {
+    // pos=top の場合は逆順挿入でオリジナル順序を保持する
+    const rowsToInsert = pos === 'top' ? [...p.rows].reverse() : p.rows;
+    rowsToInsert.forEach(rd => {
       // 末尾に追加してから anchor の直前に移動（addRow を流用）
       addRow();
       const trs = document.querySelectorAll('#tableBody tr');

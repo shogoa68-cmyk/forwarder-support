@@ -249,6 +249,8 @@
     const tbody = document.getElementById('tableBody');
     const rows  = Array.from(tbody.querySelectorAll('tr'));
     if (rows.length < 2) return;
+    const hasSpecialRows = !!document.querySelector('#tableBody tr[data-type="subtotal"], #tableBody tr[data-type="remark"]');
+    if (hasSpecialRows && !confirm('小計行・リマーク行が含まれています。ソートすると位置が変わります。続行しますか？')) return;
     const getId = tr => tr.id.replace('row-', '');
     const catOrder = cat => { const i = CAT_VALUES.indexOf(cat); return i === -1 ? 999 : i; };
 
@@ -672,6 +674,8 @@
     if (!confirm('全行をリセットしますか？この操作は Undo で元に戻せます。')) return;
     document.getElementById('tableBody').innerHTML = '';
     rowCount = 0;
+    subtotalCount = 0;
+    remarkCount = 0;
     updateTotals();
     quoteShowToast('🗑️ 全行をリセットしました', 'info', 3000);
   }
