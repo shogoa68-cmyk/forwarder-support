@@ -121,22 +121,51 @@
     });
   }
 
+  /**
+   * テーブルを再構築（通常行・小計行・リマーク行を順序通り復元）。
+   * v3 形式の rows 配列を受け取り、各行をタイプに応じて挿入する。
+   */
+  function _rebuildTable(data) {
+    document.getElementById('tableBody').innerHTML = '';
+    rowCount = 0;
+    const regularTrs = [];
+    (data.rows || []).forEach(row => {
+      const tbody = document.getElementById('tableBody');
+      if (row && row._type === 'subtotal') {
+        insertSubtotalRow(null);
+        const tr = tbody.lastElementChild;
+        const lbl = tr?.querySelector('.subtotal-label');
+        if (lbl) lbl.value = row.label || '';
+        return;
+      }
+      if (row && row._type === 'remark') {
+        insertRemarkRow(null);
+        const tr = tbody.lastElementChild;
+        const inp = tr?.querySelector('.remark-row-input');
+        if (inp) inp.value = row.text || '';
+        return;
+      }
+      // 通常行（v3 オブジェクト or 旧配列）
+      const cells = Array.isArray(row) ? row : (row?.cells || []);
+      addRow();
+      const tr = tbody.lastElementChild;
+      _applyCells(tr, cells);
+      regularTrs.push(tr);
+    });
+    _afterRestoreRows(regularTrs, data.fields);
+  }
+
   // データを画面に適用（restoreAutoSave と同等。トースト・restoreBar 操作なし）
   function _applyQuoteData(data) {
     if (!data) return;
-    data = migrateRowCells(data);   // 旧形式（sv 末尾）を新形式（sv@2）へ
+    data = migrateRowCells(data);
     Object.entries(data.fields || {}).forEach(([id, val]) => {
       const el = document.getElementById(id);
       if (!el) return;
       if (el.type === 'checkbox') el.checked = val;
       else el.value = val;
     });
-    document.getElementById('tableBody').innerHTML = '';
-    rowCount = 0;
-    (data.rows || []).forEach(() => addRow());
-    const trs = document.querySelectorAll('#tableBody tr');
-    (data.rows || []).forEach((cells, i) => { if (trs[i]) _applyCells(trs[i], cells); });
-    _afterRestoreRows(trs, data.fields);
+    _rebuildTable(data);
     if (typeof updateTotals === 'function') updateTotals();
     if (typeof updateRouteModeIcon === 'function') updateRouteModeIcon();
   }
@@ -212,39 +241,51 @@
       if (['csvFileInput','importFileInput','autoSaveChk','tabAddChk'].includes(el.id)) return;
       fields[el.id] = el.type === 'checkbox' ? el.checked : el.value;
     });
-    // テーブル行
+    // テーブル行（通常行 / 小計行 / リマーク行をすべて保存）
     const rows = [];
     document.querySelectorAll('#tableBody tr').forEach(tr => {
-      if (tr.dataset.type === 'subtotal' || tr.dataset.type === 'remark') return;
+      if (tr.dataset.type === 'subtotal') {
+        rows.push({ _type: 'subtotal', label: tr.querySelector('.subtotal-label')?.value || '' });
+        return;
+      }
+      if (tr.dataset.type === 'remark') {
+        rows.push({ _type: 'remark', text: tr.querySelector('.remark-row-input')?.value || '' });
+        return;
+      }
       const cells = [];
       tr.querySelectorAll('input, select, textarea').forEach(el =>
         cells.push(el.type === 'checkbox' ? el.checked : el.value)
       );
-      rows.push(cells);
+      rows.push({ _type: 'data', cells });
     });
-    // _rowFormat: v2 = sv をカテゴリ直後（index 2）に配置した新レイアウト
-    return { fields, rows, ts: new Date().toISOString(), _rowFormat: 'v2-sv-after-cat' };
+    // _rowFormat: v3 = 小計行・リマーク行を含む型付きオブジェクト配列
+    return { fields, rows, ts: new Date().toISOString(), _rowFormat: 'v3-mixed-rows' };
   }
 
   /**
-   * 旧形式（_rowFormat 未指定）の行データを新形式 (sv@index 2) に変換。
-   * 旧 DOM: [chk, cat, tx, nm, pq, un, pc, pp, cd, bq, bc, bp, mk, nt, sv]  (sv at index 14)
-   * 新 DOM: [chk, cat, sv, tx, nm, pq, un, pc, pp, cd, bq, bc, bp, mk, nt]  (sv at index 2)
-   * cells が 15 要素で _rowFormat 未指定なら、cells[14] を取り出して index 2 に挿入。
+   * 旧形式を v3 に変換。
+   * v1: rows が配列の配列、sv が末尾（index 14）
+   * v2: rows が配列の配列、sv が index 2
+   * v3: rows が {_type, ...} オブジェクトの配列（小計・リマーク含む）
    */
   function migrateRowCells(data) {
-    if (!data || data._rowFormat === 'v2-sv-after-cat') return data;
+    if (!data) return data;
+    if (data._rowFormat === 'v3-mixed-rows') return data;
     if (!Array.isArray(data.rows)) return data;
-    data.rows = data.rows.map(cells => {
-      if (!Array.isArray(cells)) return cells;
-      if (cells.length !== 15) return cells;  // 旧形式は 15 要素のはず
-      const sv = cells[14];
-      const out = cells.slice();
-      out.splice(14, 1);     // 末尾の sv を除去
-      out.splice(2, 0, sv);  // index 2 に挿入
-      return out;
+    const isV2 = data._rowFormat === 'v2-sv-after-cat';
+    data.rows = data.rows.map(row => {
+      // 既にオブジェクト形式（部分的に v3 移行済み）
+      if (row && typeof row === 'object' && !Array.isArray(row)) return row;
+      let cells = Array.isArray(row) ? row.slice() : [];
+      if (!isV2 && cells.length === 15) {
+        // v1→v2: sv を末尾から index 2 へ
+        const sv = cells[14];
+        cells.splice(14, 1);
+        cells.splice(2, 0, sv);
+      }
+      return { _type: 'data', cells };
     });
-    data._rowFormat = 'v2-sv-after-cat';
+    data._rowFormat = 'v3-mixed-rows';
     return data;
   }
 
@@ -264,7 +305,7 @@
     if (!raw) return;
     let data;
     try { data = JSON.parse(raw); } catch(e) { return; }
-    data = migrateRowCells(data);   // 旧形式を新形式へ
+    data = migrateRowCells(data);
     // フォーム復元
     Object.entries(data.fields || {}).forEach(([id, val]) => {
       const el = document.getElementById(id);
@@ -272,13 +313,8 @@
       if (el.type === 'checkbox') el.checked = val;
       else el.value = val;
     });
-    // テーブル行復元
-    document.getElementById('tableBody').innerHTML = '';
-    rowCount = 0;
-    (data.rows || []).forEach(() => addRow());
-    const trs = document.querySelectorAll('#tableBody tr');
-    (data.rows || []).forEach((cells, i) => { if (trs[i]) _applyCells(trs[i], cells); });
-    _afterRestoreRows(trs, data.fields);
+    // テーブル行復元（通常行・小計行・リマーク行を含む）
+    _rebuildTable(data);
     updateTotals();
     updateRouteModeIcon();
     dismissRestoreBar();
@@ -296,7 +332,7 @@
     if (!raw) { alert('保存データが見つかりません。'); return; }
     let data;
     try { data = JSON.parse(raw); } catch(e) { alert('データの読み込みに失敗しました。'); return; }
-    data = migrateRowCells(data);   // 旧形式を新形式へ
+    data = migrateRowCells(data);
     const ts = data.ts ? new Date(data.ts).toLocaleString('ja-JP') : '不明';
     if (!confirm(`保存日時: ${ts}\n\n現在のデータを上書きして読み込みますか？`)) return;
     // フォーム復元
@@ -306,13 +342,8 @@
       if (el.type === 'checkbox') el.checked = val;
       else el.value = val;
     });
-    // テーブル行復元
-    document.getElementById('tableBody').innerHTML = '';
-    rowCount = 0;
-    (data.rows || []).forEach(() => addRow());
-    const trs = document.querySelectorAll('#tableBody tr');
-    (data.rows || []).forEach((cells, i) => { if (trs[i]) _applyCells(trs[i], cells); });
-    _afterRestoreRows(trs, data.fields);
+    // テーブル行復元（通常行・小計行・リマーク行を含む）
+    _rebuildTable(data);
     updateTotals();
     updateRouteModeIcon();
     showSaveStatus('📂 読み込みました');
