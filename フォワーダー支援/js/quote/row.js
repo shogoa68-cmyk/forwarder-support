@@ -223,8 +223,8 @@
       if (srcEl && dstEl) dstEl.value = srcEl.value;
     });
 
-    // セレクトをコピー
-    ['cat','pc'].forEach(f => {
+    // セレクトをコピー（請求通貨 bc を含む）
+    ['cat','pc','bc'].forEach(f => {
       const srcEl = document.getElementById(`${f}-${srcId}`);
       const dstEl = document.getElementById(`${f}-${newId}`);
       if (srcEl && dstEl) dstEl.value = srcEl.value;
@@ -606,32 +606,48 @@
     const tbody = document.getElementById('tableBody');
     const allRows = Array.from(tbody.querySelectorAll('tr'));
     // 通貨は混在し得るため、JPY 換算で集計する（_fxRates 経由）
-    let groupBill = 0;       // JPY 換算後の請求合計
-    let groupCost = 0;       // JPY 換算後の支払い合計
-    let groupCurrencies = new Set();  // この group に含まれる通貨を記録（多通貨判定用）
+    // ただし単一通貨グループは原通貨のまま表示する
+    let groupBillJPY = 0;     // JPY 換算後の請求合計
+    let groupCostJPY = 0;     // JPY 換算後の支払い合計
+    let groupBillRaw = 0;     // 原通貨の請求合計（単一通貨グループ用）
+    let groupCostRaw = 0;     // 原通貨の支払い合計（単一通貨グループ用）
+    let groupBillCurrencies = new Set();  // 請求通貨セット（単一通貨判定用）
+    let groupCostCurrencies = new Set();  // 支払い通貨セット
     allRows.forEach(tr => {
       if (tr.dataset.type === 'subtotal') {
         const billingEl  = tr.querySelector('.subtotal-group-billing');
         const subtotalEl = tr.querySelector('.subtotal-group-subtotal');
         const profitEl   = tr.querySelector('.subtotal-group-profit');
-        const profit = groupBill - groupCost;
-        const mixed = groupCurrencies.size > 1;
-        const prefix = mixed ? '≈ ' : '';
+        const mixedBill = groupBillCurrencies.size > 1;
+        const mixedCost = groupCostCurrencies.size > 1;
+        const mixed = mixedBill || mixedCost;
+        // 単一請求通貨なら原通貨で表示、混在なら JPY 換算
+        const billCur = (!mixedBill && groupBillCurrencies.size === 1)
+          ? [...groupBillCurrencies][0] : null;
+        const billAmt  = billCur ? groupBillRaw : groupBillJPY;
+        const costAmt  = (!mixedCost && groupCostCurrencies.size === 1)
+          ? groupCostRaw : groupCostJPY;
+        const profit   = billAmt - costAmt;
+        const prefix   = mixed ? '≈ ' : '';
+        const curSuffix = (billCur && billCur !== 'JPY') ? ' ' + billCur : '';
+
         if (billingEl) {
-          billingEl.textContent = groupBill ? prefix + fmt(groupBill) : '—';
+          billingEl.textContent = billAmt ? prefix + fmt(billAmt) + curSuffix : '—';
           billingEl.title = mixed ? '多通貨を JPY に換算して合計（FX パネルのレート使用）' : '';
         }
         if (subtotalEl) {
-          subtotalEl.textContent = groupBill ? prefix + fmt(groupBill) : '—';
-          subtotalEl.className   = 'subtotal-group-subtotal subtotal-cell' + (groupBill ? ' subtotal-has-value' : '');
+          subtotalEl.textContent = billAmt ? prefix + fmt(billAmt) + curSuffix : '—';
+          subtotalEl.className   = 'subtotal-group-subtotal subtotal-cell' + (billAmt ? ' subtotal-has-value' : '');
           subtotalEl.title = mixed ? '多通貨を JPY に換算して合計（FX パネルのレート使用）' : '';
         }
         if (profitEl) {
-          profitEl.textContent = (groupBill || groupCost) ? prefix + fmt(profit) : '—';
+          profitEl.textContent = (billAmt || costAmt) ? prefix + fmt(profit) + curSuffix : '—';
           profitEl.className   = `subtotal-group-profit profit-cell ${pClass(profit)}`;
           profitEl.title = mixed ? '多通貨を JPY に換算して合計（FX パネルのレート使用）' : '';
         }
-        groupBill = 0; groupCost = 0; groupCurrencies = new Set();
+        groupBillJPY = 0; groupCostJPY = 0;
+        groupBillRaw = 0; groupCostRaw = 0;
+        groupBillCurrencies = new Set(); groupCostCurrencies = new Set();
       } else {
         const id = tr.id.replace('row-', '');
         const bq = val(`bq-${id}`);
@@ -642,10 +658,12 @@
         const pc = document.getElementById(`pc-${id}`)?.value || 'JPY';
         const billRaw = bq * bp;
         const costRaw = pq * pp;
-        groupBill += toJPY(billRaw, bc);
-        groupCost += toJPY(costRaw, pc);
-        if (billRaw && bc) groupCurrencies.add(bc);
-        if (costRaw && pc) groupCurrencies.add(pc);
+        groupBillJPY += toJPY(billRaw, bc);
+        groupCostJPY += toJPY(costRaw, pc);
+        groupBillRaw += billRaw;
+        groupCostRaw += costRaw;
+        if (billRaw && bc) groupBillCurrencies.add(bc);
+        if (costRaw && pc) groupCostCurrencies.add(pc);
       }
     });
   }

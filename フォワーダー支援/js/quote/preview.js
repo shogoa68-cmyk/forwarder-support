@@ -345,6 +345,12 @@
     // 税計算用に合計小計をセット
     const pvTotSub = document.getElementById('pvTotalSubtotal');
     if (pvTotSub) pvTotSub.dataset.raw = String(totSub);
+    // pvWasVisible を各セクション要素に記録する（applyPreviewCustomize の「戻す」判定に使用）
+    // ここで表示中（display !== 'none'）のセクションを '1' としてマーク
+    ['pvMeta','pvCondBox','pvCargoBox','pvRemarkBox','pvTaxBox'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.dataset.pvWasVisible = (el.style.display !== 'none') ? '1' : '0';
+    });
     document.getElementById('previewOverlay').classList.add('open');
     updatePreviewTax();
     // Apply saved customization
@@ -792,9 +798,9 @@
         dataRows = dataRows.filter(r => r[0] && r[0] !== '合計' && !r[0].startsWith('カテゴリ'));
         if (!dataRows.length) { showCsvMsg('error', '⚠️ 有効なデータ行がありませんでした'); return; }
 
-        // 先頭列がカテゴリのraw値なら新フォーマット
+        // 先頭列がカテゴリのraw値なら新フォーマット（cat, sv, name, pq, un, pc, pp, cd, bq, bc, bp, mk, sub, profit, note）
+        // 旧フォーマット（name, pq, pc, pp, ...）は off=0 で扱う
         const isNewFmt = CAT_VALUES.includes(dataRows[0][0]);
-        const off = isNewFmt ? 1 : 0;
         let added = 0;
         dataRows.forEach(cols => {
           rowCount++;
@@ -805,21 +811,47 @@
           document.getElementById('tableBody').appendChild(tr);
           initDrag(tr);
 
-          const cat     = isNewFmt ? (cols[0] || '') : '';
-          const rawName = cols[0 + off] || '';
-          const taxed   = rawName.startsWith('*');
-          const name    = taxed ? rawName.slice(1) : rawName;
-          const pq = parseFloat(cols[1 + off]) || 1;
-          const pc = cols[2 + off] || 'JPY';
-          const pp = parseFloat(cols[3 + off]) || 0;
-          const mk = parseFloat(cols[8 + off]) || 0;
-          const nt = cols[10 + off] || '';
+          let cat, sv, rawName, pq, un, pc, pp, bq, bc, bp, mk, nt;
+          if (isNewFmt) {
+            // 新フォーマット: col0=cat, col1=sv, col2=name, col3=pq, col4=un, col5=pc, col6=pp,
+            //                  col7=cd, col8=bq, col9=bc, col10=bp, col11=mk, col12=sub, col13=profit, col14=note
+            cat     = cols[0] || '';
+            sv      = cols[1] || '';
+            rawName = cols[2] || '';
+            pq      = parseFloat(cols[3]) || 1;
+            un      = cols[4] || '';
+            pc      = cols[5] || 'JPY';
+            pp      = parseFloat(cols[6]) || 0;
+            bq      = parseFloat(cols[8]) || null;
+            bc      = cols[9] || '';
+            bp      = parseFloat(cols[10]) || null;
+            mk      = parseFloat(cols[11]) || 0;
+            nt      = cols[14] || '';
+          } else {
+            // 旧フォーマット: col0=name, col1=pq, col2=pc, col3=pp, col4=mk, col5=note
+            cat     = '';
+            sv      = '';
+            rawName = cols[0] || '';
+            pq      = parseFloat(cols[1]) || 1;
+            un      = '';
+            pc      = cols[2] || 'JPY';
+            pp      = parseFloat(cols[3]) || 0;
+            bq      = null;
+            bc      = '';
+            bp      = null;
+            mk      = parseFloat(cols[4]) || 0;
+            nt      = cols[5] || '';
+          }
+          const taxed = rawName.startsWith('*');
+          const name  = taxed ? rawName.slice(1) : rawName;
 
           document.getElementById(`nm-${id}`).value = name;
           document.getElementById(`pq-${id}`).value = pq;
           document.getElementById(`pp-${id}`).value = pp;
           document.getElementById(`mk-${id}`).value = mk;
           document.getElementById(`nt-${id}`).value = nt;
+          if (sv) document.getElementById(`sv-${id}`).value = sv;
+          if (un) document.getElementById(`un-${id}`).value = un;
           const pcEl = document.getElementById(`pc-${id}`);
           if (pcEl && CURRENCIES.includes(pc)) pcEl.value = pc;
           if (cat && CAT_VALUES.includes(cat)) {
@@ -827,8 +859,21 @@
             onCatChange(id);
           }
           if (taxed) { document.getElementById(`tx-${id}`).checked = true; toggleTax(id); }
-          checkUnfilled(id);
+          // 請求側フィールドを先に onPay で計算してから、CSV の値で上書き
           onPay(id);
+          if (bq !== null) {
+            const bqEl = document.getElementById(`bq-${id}`);
+            if (bqEl) bqEl.value = bq;
+          }
+          if (bc && CURRENCIES.includes(bc)) {
+            const bcEl = document.getElementById(`bc-${id}`);
+            if (bcEl) bcEl.value = bc;
+          }
+          if (bp !== null) {
+            const bpEl = document.getElementById(`bp-${id}`);
+            if (bpEl) bpEl.value = bp;
+          }
+          checkUnfilled(id);
           added++;
         });
         showCsvMsg('success', `✅ ${added}行を読み込みました！`);
