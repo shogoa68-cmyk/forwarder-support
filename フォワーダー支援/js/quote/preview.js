@@ -1,14 +1,29 @@
 // ========== プレビュー・CSV (app-preview.js) ==========
 
-  // 消費税率（プレビュー）：基本 10%。ただし輸出取引（cond.direction === 'export'）は
-  // 輸出免税扱いで 0% に自動切替（インボイス制度・消費税法第 7 条）。
-  // TODO(Fix10): 輸出免税のカテゴリ別適用。row.cat === 'domestic' または 'customs' の場合は
-  //   輸出方向でも 10% を返すよう row 引数を追加する。
-  //   実装時は openPreview の data-taxcat 属性追加と updatePreviewTax の参照も同時に修正すること。
+  // 輸出方向でも課税になるカテゴリ（国内サービス：消費税法上の国内取引）
+  //   domestic    : 国内陸送・倉庫・集荷（国内運送サービス）
+  //   customs     : 通関手数料（国内で提供する役務）
+  //   export-local: THC・D/F 等の輸出ローカルチャージ（国内港湾サービス）
+  //   other       : 不明は安全側で課税
+  const EXPORT_TAXABLE_CATS = new Set(['domestic', 'customs', 'export-local', 'other']);
+  // 消費税非課税カテゴリ（消費税法第6条・別表第一）
+  //   insurance: 保険料は輸出入問わず非課税
+  const TAX_EXEMPT_CATS = new Set(['insurance']);
+
   const PV_TAX_RATE_DEFAULT = 0.10;
-  function getEffectiveTaxRate() {
+  /**
+   * 行の実効消費税率を返す。
+   * - insurance           → 0%（非課税）
+   * - 輸出方向 + 国際輸送系 → 0%（輸出免税：消費税法第7条）
+   * - 輸出方向 + 国内サービス系 → 10%（domestic/customs/export-local/other）
+   * - その他（輸入・未選択）→ 10%
+   * @param {string} [cat] - 行カテゴリ（row.cat）
+   */
+  function getEffectiveTaxRate(cat) {
     const cond = (typeof getConditions === 'function') ? getConditions() : null;
-    if (cond && cond.direction === 'export') return 0;
+    const isExport = !!(cond && cond.direction === 'export');
+    if (TAX_EXEMPT_CATS.has(cat)) return 0;
+    if (isExport) return EXPORT_TAXABLE_CATS.has(cat) ? PV_TAX_RATE_DEFAULT : 0;
     return PV_TAX_RATE_DEFAULT;
   }
 
@@ -201,9 +216,7 @@
     metaEl.innerHTML = metaHTML;
     metaEl.style.display = metaHTML ? 'flex' : 'none';
 
-    // 消費税率は 10% 固定（プレビュー仕様）
-    const taxRate = getEffectiveTaxRate();
-    const isExportExempt = taxRate === 0;
+    // 消費税率はカテゴリ別に計算（輸出方向でも国内サービス系は 10%）
 
     let html = `<table id="previewTable">
       <thead><tr>
@@ -231,7 +244,8 @@
       const pc      = d.profit > 0 ? 'pv-pos' : d.profit < 0 ? 'pv-neg' : 'pv-zero';
       const nameCls = d.taxed ? 'pv-name pv-taxed' : 'pv-name';
       const sub     = (d.bq || 0) * (d.bp || 0);
-      const taxAmt  = d.taxed ? sub * taxRate : 0;
+      const rowRate = getEffectiveTaxRate(d.cat);
+      const taxAmt  = d.taxed ? sub * rowRate : 0;
       totSub += sub;
       totTax += taxAmt;
       const taxCellText = d.taxed ? fmtRaw(taxAmt) : '';
@@ -246,7 +260,7 @@
         <td class="pv-num">${fmtRaw(d.bp)}</td>
         <td class="pv-num">${fmtRaw(d.mk)}</td>
         <td class="pv-num pv-subtotal">${fmtRaw(sub)}</td>
-        <td class="pv-num pv-tax-cell" data-sub="${sub}" data-taxed="${d.taxed ? 1 : 0}">${taxCellText}</td>
+        <td class="pv-num pv-tax-cell" data-sub="${sub}" data-taxed="${d.taxed ? 1 : 0}" data-taxcat="${d.cat || ''}">${taxCellText}</td>
         <td class="pv-pr ${pc} pv-num">${fmtRaw(d.profit)}</td>
         <td class="pv-name">${escHtml(d.note)}</td>
       </tr>`;
@@ -356,23 +370,24 @@
     }
   }
 
-  // ========== プレビュー消費税計算（10% / 輸出免税 0%）==========
+  // ========== プレビュー消費税計算（カテゴリ別：輸出免税 or 10%）==========
   function updatePreviewTax() {
     const totalSub  = parseFloat(document.getElementById('pvTotalSubtotal')?.dataset.raw || '0');
-    const rate = getEffectiveTaxRate();
-    const isExempt = rate === 0;
-    // 標準ラベル／免税バッジの切替
+    const cond = (typeof getConditions === 'function') ? getConditions() : null;
+    const isExport = !!(cond && cond.direction === 'export');
+    // 標準ラベル／輸出免税バッジの切替（輸出方向なら一部免税バッジを表示）
     const rateLbl = document.getElementById('pvTaxRateLabel');
     const exemptBadge = document.getElementById('pvTaxExemptBadge');
-    if (rateLbl)      rateLbl.style.display = isExempt ? 'none' : '';
-    if (exemptBadge)  exemptBadge.style.display = isExempt ? '' : 'none';
-    // 行ごとの消費税セルを更新（課税行のみ計算）
+    if (rateLbl)      rateLbl.style.display = isExport ? 'none' : '';
+    if (exemptBadge)  exemptBadge.style.display = isExport ? '' : 'none';
+    // 行ごとの消費税セルを更新（カテゴリ別レートを適用）
     let totTax = 0;
     document.querySelectorAll('#previewTable .pv-tax-cell').forEach(td => {
       const sub   = parseFloat(td.dataset.sub) || 0;
       const taxed = td.dataset.taxed === '1';
       if (!taxed) { td.textContent = ''; return; }
-      const amt = sub * rate;
+      const cat = td.dataset.taxcat || '';
+      const amt = sub * getEffectiveTaxRate(cat);
       totTax += amt;
       td.textContent = fmtRaw(amt);
     });
