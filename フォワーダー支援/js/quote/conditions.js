@@ -6,10 +6,12 @@
 
   function clearConditions() {
     if (!confirm('貨物情報・引き合い条件をクリアしますか？')) return;
+    // condFreeText（特記事項）は意図的にクリア対象から除外
     ['cond-pol','cond-pod','cond-origin','cond-dest','cond-cargo',
-     'cond-weight','cond-volume','cond-packing','cond-packing-preset','condFreeText',
+     'cond-weight','cond-volume','cond-packing','cond-packing-preset',
      'condRawInquiry',
-     'cond-origin-country','cond-dest-country','z1Place','z1Country','z3Place','z3Country',
+     'cond-origin-country','cond-dest-country',
+     'z1Place','z1Country','z2Pol','z2Pod','z2Carrier','z3Place','z3Country',
      'cond-container-count']
       .forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
     ['cond-incoterms','cond-mode','cond-container-type','cond-hazmat']
@@ -700,5 +702,60 @@
         `<a class="carrier-link-chip" href="${l.url}" target="_blank" rel="noopener" title="${l.title}">${l.label}</a>`
       ).join('');
     panel.style.display = 'flex';
+  }
+
+  // ========== インコタームズ ヒント表示 ==========
+  function showIncotermsHint(val) {
+    const hints = {
+      'EXW': '売主工場渡し：売主の負担最小。輸出通関・輸送は全て買主手配',
+      'FCA': '運送人渡し：売主が指定地点で運送人に引渡し。輸出通関は売主',
+      'CPT': '輸送費込み：売主が指定地まで輸送費負担。リスク移転は引渡し時',
+      'CIP': '輸送費・保険料込み：CPT+保険料。最低限ICC(A)保険付保義務',
+      'DAP': '仕向地持込渡し：売主が仕向地まで輸送・費用負担。輸入通関は買主',
+      'DPU': '荷卸込み持込渡し：売主が仕向地で荷卸しまで負担',
+      'DDP': '関税込み持込渡し：売主負担最大。輸入通関・関税も売主',
+      'FAS': '船側渡し：売主が船積み港の船側まで搬入。輸出通関は売主（海上専用）',
+      'FOB': '本船渡し：本船積込完了まで売主負担。輸出通関は売主（海上専用）',
+      'CFR': '運賃込み：売主が仕向港までの運賃負担。リスク移転は積込時（海上専用）',
+      'CIF': '運賃・保険料込み：CFR+保険料。最低限ICC(C)保険（海上専用）',
+    };
+    const el = document.getElementById('cond-incoterms-hint');
+    if (!el) return;
+    if (hints[val]) {
+      el.textContent = hints[val];
+      el.style.display = 'block';
+    } else {
+      el.textContent = '';
+      el.style.display = 'none';
+    }
+  }
+
+  // ========== テーブル再構築（loadPreset / importFromFile 共用） ==========
+  /**
+   * data = { fields: {...}, rows: [[...], ...] } を受け取り、
+   * フォームフィールド適用 + テーブル全行再構築を行う。
+   * subtotalCount / remarkCount もリセットする。
+   */
+  function _rebuildTable(data) {
+    if (!data) return;
+    data = (typeof migrateRowCells === 'function') ? migrateRowCells(data) : data;
+    // フォーム復元
+    Object.entries(data.fields || {}).forEach(([id, val]) => {
+      const el = document.getElementById(id);
+      if (!el) return;
+      if (el.type === 'checkbox') el.checked = val;
+      else el.value = val;
+    });
+    // テーブル再構築
+    document.getElementById('tableBody').innerHTML = '';
+    rowCount = 0;
+    subtotalCount = 0;
+    remarkCount = 0;
+    (data.rows || []).forEach(() => addRow());
+    const trs = document.querySelectorAll('#tableBody tr');
+    (data.rows || []).forEach((cells, i) => { if (trs[i]) _applyCells(trs[i], cells); });
+    _afterRestoreRows(trs);
+    if (typeof updateTotals === 'function') updateTotals();
+    if (typeof updateRouteModeIcon === 'function') updateRouteModeIcon();
   }
 

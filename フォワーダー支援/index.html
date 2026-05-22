@@ -2205,7 +2205,7 @@
           <div class="cond-prim-group">
             <span class="cond-prim-label">オプション</span>
             <div class="cond-prim-btns">
-              <button class="wh-toggle-btn" id="insToggleBtn" onclick="toggleInsurance()">🛡️ 保険付保あり</button>
+              <button class="wh-toggle-btn" id="insToggleBtn" onclick="toggleInsurance()" title="ONにすると保険付保を条件として記録（見積行は別途手動で追加）">🛡️ 保険付保あり</button>
             </div>
           </div>
         </div>
@@ -2213,7 +2213,7 @@
         <div class="zone-builder" id="zoneBuilder">
           <div class="zone-card zone-origin zone-off" id="zone1Card">
             <div class="zone-card-header">
-              <button class="zone-toggle-btn" id="zone1Btn" onclick="toggleZone(1)">OFF</button>
+              <button class="zone-toggle-btn" id="zone1Btn" onclick="toggleZone(1)" title="クリックで有効化">OFF</button>
               <div class="zone-card-title">
                 <span class="zone-num">① 出発地側</span>
                 <span class="zone-subcon" id="zone1Subcon">日本協力会社</span>
@@ -2288,7 +2288,7 @@
 
           <div class="zone-card zone-dest zone-off" id="zone3Card">
             <div class="zone-card-header">
-              <button class="zone-toggle-btn" id="zone3Btn" onclick="toggleZone(3)">OFF</button>
+              <button class="zone-toggle-btn" id="zone3Btn" onclick="toggleZone(3)" title="クリックで有効化">OFF</button>
               <div class="zone-card-title">
                 <span class="zone-num">③ 到着地側</span>
                 <span class="zone-subcon" id="zone3Subcon">現地代理店</span>
@@ -2393,7 +2393,7 @@
           </div>
         </div>
         <div class="cond-actions">
-          <button class="btn-cond-clear" onclick="clearConditions()">クリア</button>
+          <button class="btn-cond-clear" onclick="clearConditions()">貨物情報をクリア</button>
           <button class="btn-cargo-reset" onclick="resetCargoFieldOrder()" title="モード別の並び順をデフォルトに戻す">並び順リセット</button>
         </div>
 
@@ -2486,7 +2486,7 @@
                 <th class="hd-bill" style="color:#bde8c8;">② 数量</th>
                 <th class="hd-bill" style="color:#bde8c8;">② 通貨</th>
                 <th class="hd-bill" style="color:#bde8c8;">② 単価</th>
-                <th class="hd-profit">③ 乗せ幅</th>
+                <th class="hd-profit" title="支払い単価に上乗せする金額（同通貨絶対値）例: USD 50 → 単価に USD 50 を加算">③ 乗せ幅</th>
                 <th class="hd-profit">④ 小計</th>
                 <th class="hd-profit">⑤ 利益</th>
                 <th class="hd-profit">備考</th>
@@ -2713,7 +2713,7 @@
           <button class="pv-btn-close" onclick="closePreview()">閉じる</button>
           <span class="pv-copy-msg" id="copyMsg">✅ コピーしました！</span>
         </div>
-        <details class="pv-customize-wrap" id="pvCustomizeWrap">
+        <details class="pv-customize-wrap" id="pvCustomizeWrap" open>
           <summary class="pv-customize-toggle">⚙️ 表示カスタマイズ</summary>
           <div class="pv-customize-body">
             <div class="pv-cust-group">
@@ -2750,6 +2750,7 @@
       <option value="B/L"></option>
       <option value="CNTR"></option>
       <option value="CBM"></option>
+      <option value="CW"></option>
       <option value="R/T"></option>
       <option value="kg"></option>
       <option value="TON"></option>

@@ -503,7 +503,6 @@
     { icon:'👁️', label:'プレビューを開く',            sub:'印刷・コピー用のプレビュー',      action: openPreview },
     { icon:'🗂️', label:'プリセット/一時保存',         sub:'入力パターンの保存・呼び出し・一時退避', action: openPresetMgr },
     { icon:'⬇',  label:'CSV ダウンロード',            sub:'見積もり行をCSVファイルとして保存', action: downloadCSV },
-    { icon:'🔀', label:'カテゴリ順にソート',          sub:'カテゴリ種別でテーブルを並び替え', action: sortByCategory },
     { icon:'🗑️', label:'全行リセット',               sub:'見積もり表の全行を削除してリセット', action: resetAll },
   ];
   let _cmdActiveIdx = -1;
@@ -704,35 +703,8 @@
     const preset  = presets[idx];
     if (!preset) return;
     if (!confirm('「' + preset.name + '」を読み込みますか？\n現在の入力内容は上書きされます。')) return;
-    // 旧形式（sv 末尾）を新形式（sv@2）へ
-    if (typeof migrateRowCells === 'function') preset.data = migrateRowCells(preset.data);
-    // フォーム復元
-    Object.entries(preset.data.fields || {}).forEach(([id, v]) => {
-      const el = document.getElementById(id);
-      if (!el) return;
-      if (el.type === 'checkbox') el.checked = v;
-      else el.value = v;
-    });
-    document.getElementById('tableBody').innerHTML = '';
-    rowCount = 0;
-    (preset.data.rows || []).forEach(() => addRow());
-    const trs = document.querySelectorAll('#tableBody tr');
-    // まず全行に値をセット
-    (preset.data.rows || []).forEach((cells, i) => {
-      if (!trs[i]) return;
-      trs[i].querySelectorAll('input, select, textarea').forEach((el, j) => {
-        if (cells[j] !== undefined) el.value = cells[j];
-      });
-    });
-    // 値セット後にまとめてUI更新（グレーアウト・カテゴリ色・計算）
-    trs.forEach((tr, i) => {
-      if (!(preset.data.rows || [])[i]) return;
-      const rowId = tr.id.replace('row-', '');
-      checkUnfilled(rowId);
-      onCatChange(rowId);
-      onPay(parseInt(rowId));
-    });
-    updateTotals();
+    // _rebuildTable がフィールド適用・行再構築・UI更新を一括処理
+    _rebuildTable(preset.data);
     calcLiveUpdate();
     updateRouteModeIcon();
     closePresetMgr();
@@ -1021,25 +993,8 @@
       // 旧形式（sv 末尾）を新形式（sv@2）へ
       if (typeof migrateRowCells === 'function') data = migrateRowCells(data);
 
-      // ---- フォーム復元 ----
-      Object.entries(data.fields || {}).forEach(([id, val]) => {
-        const el = document.getElementById(id);
-        if (!el) return;
-        if (el.type === 'checkbox') el.checked = val;
-        else el.value = val;
-      });
-
-      // ---- 見積テーブル行復元 ----
-      document.getElementById('tableBody').innerHTML = '';
-      rowCount = 0;
-      (data.rows || []).forEach(() => addRow());
-      const trs = document.querySelectorAll('#tableBody tr');
-      (data.rows || []).forEach((cells, i) => {
-        if (!trs[i]) return;
-        trs[i].querySelectorAll('input, select, textarea').forEach((el, j) => {
-          if (cells[j] !== undefined) el.value = cells[j];
-        });
-      });
+      // ---- フォーム復元 + 見積テーブル行復元（_rebuildTable が一括処理）----
+      _rebuildTable(data);
 
       // ---- doneボタン状態（廃止）：旧 JSON との互換のため doneStates は読み飛ばす ----
 

@@ -633,6 +633,7 @@
         }
         groupBill = 0; groupCost = 0; groupCurrencies = new Set();
       } else {
+        if (tr.dataset.type === 'remark') return;
         const id = tr.id.replace('row-', '');
         const bq = val(`bq-${id}`);
         const bp = val(`bp-${id}`);
@@ -668,6 +669,7 @@
   }
 
   function resetAll() {
+    if (!confirm('全行をリセットしますか？この操作は Undo で元に戻せます。')) return;
     document.getElementById('tableBody').innerHTML = '';
     rowCount = 0;
     updateTotals();

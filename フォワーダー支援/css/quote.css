@@ -85,24 +85,7 @@
 #tab-quote-make .hd-bill   { background: #5a6e42; color: #fff; font-weight: 600; font-size: 12px; }
 #tab-quote-make .hd-profit { background: #9a4a25; color: #fff; font-weight: 600; font-size: 12px; }
 
-/* ドラッグハンドル（行用 — 目立つように強化） */
-#tab-quote-make .drag-handle {
-  cursor: grab;
-  color: #8b6914;
-  font-size: 18px;
-  font-weight: bold;
-  padding: 2px 3px;
-  user-select: none;
-  line-height: 1;
-  border-radius: 4px;
-  transition: background .15s, color .15s;
-  display: inline-block;
-}
-#tab-quote-make .drag-handle:hover {
-  background: #8b6914;
-  color: #fff;
-}
-#tab-quote-make .drag-handle:active { cursor: grabbing; background: #8b6914; color: #fff; }
+
 
 /* 行移動ボタン（↑↓） */
 #tab-quote-make .row-move-btn {
@@ -483,51 +466,6 @@
 }
 /* 通関ノードのバッジ色 */
 /* ========== ゾーンビルダー ========== */
-/* ===== 輸送ルート シンプルフォーム ===== */
-#tab-quote-make .route-simple-form {
-  padding: 10px 16px 14px;
-  background: linear-gradient(135deg, #3d2e1e 0%, #3d2e1e 100%);
-  border-radius: 8px;
-  margin-top: 8px;
-}
-#tab-quote-make .route-simple-grid {
-  display: flex;
-  gap: 16px;
-  flex-wrap: wrap;
-  margin-top: 8px;
-}
-#tab-quote-make .rsf-field {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  flex: 1;
-  min-width: 200px;
-}
-#tab-quote-make .rsf-label {
-  font-size: 10px;
-  font-weight: 700;
-  color: #7d6b56;
-  text-transform: uppercase;
-  letter-spacing: .06em;
-}
-#tab-quote-make .rsf-input {
-  width: 100%;
-  box-sizing: border-box;
-  padding: 6px 9px;
-  border: 1px solid #3d2e1e;
-  border-radius: 5px;
-  background: #3d2e1e;
-  color: #f0e8d8;
-  font-size: 12px;
-  font-family: inherit;
-  outline: none;
-  transition: border-color .15s;
-}
-#tab-quote-make .rsf-input:focus { border-color: #6b5a42; }
-#tab-quote-make .rsf-input::placeholder { color: #7d6b56; font-size: 11px; }
-#tab-quote-make .rsf-country {
-  font-size: 11px;
-}
 #tab-quote-make .zone-builder {
   display: flex;
   gap: 12px;
@@ -825,43 +763,6 @@
   padding-top: 10px;
   border-top: 1px solid rgba(255,255,255,.07);
 }
-/* インコタームズ・輸送モード（作業範囲セクション内横並び） */
-#tab-quote-make .scope-inline-fields {
-  display: flex;
-  gap: 12px;
-  flex-wrap: wrap;
-  margin-top: 10px;
-  padding-top: 10px;
-  border-top: 1px solid rgba(255,255,255,.07);
-}
-#tab-quote-make .scope-inline-field {
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
-  flex: 1;
-  min-width: 160px;
-}
-#tab-quote-make .scope-inline-field label {
-  font-size: 10px;
-  font-weight: 700;
-  color: #7d6b56;
-  letter-spacing: .04em;
-}
-#tab-quote-make .scope-inline-field select {
-  background: rgba(255,255,255,.07);
-  border: 1px solid rgba(255,255,255,.15);
-  border-radius: 6px;
-  color: #d9cfc2;
-  font-size: 12px;
-  font-family: inherit;
-  padding: 6px 10px;
-  outline: none;
-  cursor: pointer;
-  transition: border-color .15s;
-}
-#tab-quote-make .scope-inline-field select:focus { border-color: #6b5a42; }
-#tab-quote-make .scope-inline-field select option { background: #3d2e1e; color: #f0e8d8; }
-#tab-quote-make .scope-inline-field select optgroup { background: #3d2e1e; color: #7d6b56; font-style: normal; }
 #tab-quote-make .wh-toggle-label {
   font-size: 9px;
   font-weight: 700;
@@ -1525,6 +1426,7 @@
   white-space: nowrap;
 }
 #tab-quote-make #autosave-restore-bar.show { display: flex; }
+body:has(#previewOverlay.open) #autosave-restore-bar { display: none !important; }
 #tab-quote-make .autosave-restore-btn {
   background: #5a6e42;
   color: #fff;
@@ -1574,7 +1476,7 @@
   border: none;
   cursor: pointer;
   box-shadow: 0 4px 16px rgba(0,0,0,.22);
-  z-index: 1000;
+  z-index: 900;
   transition: background .15s, transform .1s;
   line-height: 50px;
   text-align: center;
@@ -1944,6 +1846,7 @@
 .toast.success { border-left: 4px solid #5a6e42; }
 .toast.info { border-left: 4px solid #8b6914; }
 .toast.warning { border-left: 4px solid #e67e22; }
+#tab-quote-make .toast.warn { border-left: 4px solid #e67e22; }
 .toast.error { border-left: 4px solid #e74c3c; }
 /* ========== コマンドパレット ========== */
 #tab-quote-make #cmdPalette {
@@ -2248,18 +2151,6 @@
 #tab-quote-make #qf-person { width: 100%; }
 #tab-quote-make .pv-btns { flex-wrap: wrap; }
 }
-/* ========== 一括コピーボタン ========== */
-#tab-quote-make .btn-bulk-copy {
-  background: #9a4a25;
-  color: #fff;
-  border: none;
-  padding: 5px 12px;
-  border-radius: 4px;
-  font-size: 12px;
-  cursor: pointer;
-  font-family: inherit;
-}
-#tab-quote-make .btn-bulk-copy:hover { background: #9a4a25; }
 /* ========== 為替レートパネル ========== */
 #tab-quote-make #fxRatePanel {
   display: block;
@@ -2329,19 +2220,6 @@
 }
 #tab-quote-make tr:hover td.check-cell { background: #f0e8d8; }
 /* ========== ボタングループ ========== */
-#tab-quote-make .table-btn-group {
-  display: flex; flex-direction: column; gap: 6px;
-  margin: 10px 0;
-}
-#tab-quote-make .btn-group-row {
-  display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
-}
-#tab-quote-make .btn-group-label {
-  font-size: 10px; color: #7d6b56; font-weight: 600;
-  text-transform: uppercase; letter-spacing: .04em;
-  padding: 2px 5px; background: #ede5d6; border-radius: 3px;
-  white-space: nowrap;
-}
 /* 選択行削除ボタン */
 #tab-quote-make .btn-bulk-delete {
   background: #e74c3c; color: #fff; border: none;
@@ -3026,7 +2904,6 @@
   body:has(#previewOverlay.open) #pvTaxBox { display: none !important; }
   body:has(#previewOverlay.open) #previewTable {
     width: 100% !important;
-    font-size: 9px !important;
   }
   body:has(#previewOverlay.open) #previewTable th,
   body:has(#previewOverlay.open) #previewTable td {
@@ -3130,7 +3007,10 @@
 #tab-quote-make .pv-num,
 #tab-quote-make .pv-tax-detail b,
 #tab-quote-make #pvTaxAmount,
-#tab-quote-make #pvTaxTotal {
+#tab-quote-make #pvTaxTotal,
+#tab-quote-make #tot-billing,
+#tab-quote-make #tot-markup,
+#tab-quote-make #tot-subtotal {
   font-variant-numeric: tabular-nums;
 }
 
@@ -3144,5 +3024,11 @@
   body:has(#previewOverlay.open) #previewTable td {
     padding: 3px 6px !important;
   }
+}
+
+/* ボタンのキーボードフォーカスリング */
+#tab-quote-make button:focus-visible {
+  outline: 2px solid #8b6914;
+  outline-offset: 2px;
 }
 

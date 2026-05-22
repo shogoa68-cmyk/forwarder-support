@@ -2,6 +2,9 @@
 
   // 消費税率（プレビュー）：基本 10%。ただし輸出取引（cond.direction === 'export'）は
   // 輸出免税扱いで 0% に自動切替（インボイス制度・消費税法第 7 条）。
+  // TODO(Fix10): 輸出免税のカテゴリ別適用。row.cat === 'domestic' または 'customs' の場合は
+  //   輸出方向でも 10% を返すよう row 引数を追加する。
+  //   実装時は openPreview の data-taxcat 属性追加と updatePreviewTax の参照も同時に修正すること。
   const PV_TAX_RATE_DEFAULT = 0.10;
   function getEffectiveTaxRate() {
     const cond = (typeof getConditions === 'function') ? getConditions() : null;
@@ -376,12 +379,11 @@
     // 合計行の消費税セル
     const totTaxEl = document.querySelector('#previewTable .pv-tax-total');
     if (totTaxEl) totTaxEl.textContent = fmtRaw(totTax);
-    // 既存：底部サマリ（消費税額・税込合計）
-    const tax   = totalSub * rate;
-    const total = totalSub + tax;
+    // 底部サマリ（消費税額・税込合計）: totTax（課税行のみ集計済み）を使用
+    const total = totalSub + totTax;
     const taxEl   = document.getElementById('pvTaxAmount');
     const totalEl = document.getElementById('pvTaxTotal');
-    if (taxEl)   taxEl.textContent   = fmt(tax);
+    if (taxEl)   taxEl.textContent   = fmt(totTax);
     if (totalEl) totalEl.textContent = fmt(total);
   }
 
