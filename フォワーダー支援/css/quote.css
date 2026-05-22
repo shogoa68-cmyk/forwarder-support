@@ -2795,6 +2795,47 @@
   font-weight: normal;
 }
 #tab-quote-make .subtotal-del-btn:hover { color: #c00; background: #fee; }
+
+/* ===== リマーク行 ===== */
+#tab-quote-make tr.remark-row { background: #f0f4f8 !important; }
+#tab-quote-make tr.remark-row td {
+  background: #f0f4f8;
+  font-size: 12px;
+  border-top: 1px dashed #9ab0c8 !important;
+  border-bottom: 1px dashed #9ab0c8 !important;
+  padding: 4px 4px;
+}
+#tab-quote-make .remark-drag-cell {
+  text-align: center; cursor: grab; color: #5a7a9a; font-size: 14px;
+  width: 20px; padding: 0 2px !important;
+}
+#tab-quote-make .remark-drag-cell:active { cursor: grabbing; }
+#tab-quote-make .remark-row-cell {
+  text-align: left; padding: 3px 6px !important;
+  display: table-cell; white-space: nowrap;
+}
+#tab-quote-make .remark-row-marker {
+  font-size: 11px; font-weight: 700; color: #3a6a9a;
+  white-space: nowrap; margin-right: 8px;
+}
+#tab-quote-make .remark-row-input {
+  font-size: 12px; font-weight: normal;
+  border: 1px solid #9ab0c8; border-radius: 4px;
+  padding: 2px 6px; background: #fff; width: 480px; max-width: 60vw;
+  color: #1a2a3a; font-family: inherit;
+}
+#tab-quote-make .remark-row-input:focus { outline: none; border-color: #3a6a9a; }
+#tab-quote-make .remark-del-btn {
+  background: none; border: none; color: #5a7a9a; cursor: pointer;
+  font-size: 12px; padding: 2px 4px; border-radius: 3px; line-height: 1;
+}
+#tab-quote-make .remark-del-btn:hover { color: #c00; background: #fee; }
+#tab-quote-make .action-cell .btn-remark-ins {
+  background: #e8f0f8; border: none; color: #3a6a9a;
+  cursor: pointer; font-size: 11px;
+}
+#tab-quote-make .action-cell .btn-remark-ins:hover { background: #cddff0; color: #1a3d6a; }
+
 /* ===== 付箋メモ（Feature 3） ===== */
 #tab-quote-make .sticky-fab {
   position: fixed;

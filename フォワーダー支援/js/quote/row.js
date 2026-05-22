@@ -176,10 +176,11 @@
     const id = rowCount;
     const tr = document.createElement('tr');
     tr.id = `row-${id}`;
-    // 継承元の行からカテゴリ・通貨を取得
+    // 継承元の行からカテゴリ・通貨・サブコンを取得
     const srcCat = document.getElementById(`cat-${afterId}`)?.value || '';
-    const srcCur = document.getElementById(`pc-${afterId}`)?.value || 'JPY';
-    tr.replaceChildren(buildRowHTML(id, srcCat, srcCur));
+    const srcCur = document.getElementById(`pc-${afterId}`)?.value  || 'JPY';
+    const srcSv  = document.getElementById(`sv-${afterId}`)?.value  || '';
+    tr.replaceChildren(buildRowHTML(id, srcCat, srcCur, srcSv));
     tr.classList.add('row-unfilled');
     const refRow = document.getElementById(`row-${afterId}`);
     if (refRow?.nextSibling) refRow.parentNode.insertBefore(tr, refRow.nextSibling);
@@ -194,15 +195,16 @@
   function addRow() {
     rowCount++;
     const id = rowCount;
-    // 末尾行からカテゴリ・通貨を継承
+    // 末尾行からカテゴリ・通貨・サブコンを継承
     const rows = document.querySelectorAll('#tableBody tr');
     const lastRow = rows.length ? rows[rows.length - 1] : null;
     const lastId  = lastRow ? lastRow.id.replace('row-', '') : null;
     const srcCat  = lastId ? (document.getElementById(`cat-${lastId}`)?.value || '') : '';
     const srcCur  = lastId ? (document.getElementById(`pc-${lastId}`)?.value  || 'JPY') : 'JPY';
+    const srcSv   = lastId ? (document.getElementById(`sv-${lastId}`)?.value  || '')    : '';
     const tr = document.createElement('tr');
     tr.id = `row-${id}`;
-    tr.replaceChildren(buildRowHTML(id, srcCat, srcCur));
+    tr.replaceChildren(buildRowHTML(id, srcCat, srcCur, srcSv));
     tr.classList.add('row-unfilled');
     document.getElementById('tableBody').appendChild(tr);
     initDrag(tr);
@@ -293,7 +295,7 @@
 
   function sortByCategory() { sortBy('category'); }
 
-  function buildRowHTML(id, initCat = '', initCur = 'JPY') {
+  function buildRowHTML(id, initCat = '', initCur = 'JPY', initSv = '') {
     const tpl  = document.getElementById('row-tpl');
     const frag = tpl.content.cloneNode(true);
     const q    = f => frag.querySelector(`[data-field="${f}"]`);
@@ -302,23 +304,26 @@
     ['cat','tx','nm','pq','un','pc','pp','cd','bq','bc','bp','mk','st','pr','nt','sv']
       .forEach(f => { q(f).id = `${f}-${id}`; });
 
-    // Select options
+    // Select options & initial values
     q('cat').innerHTML = catOpts(initCat);
     q('pc').innerHTML  = curOpts(initCur);
     q('bc').innerHTML  = curOpts('JPY');
+    if (initSv) q('sv').value = initSv;
 
     // Event handlers
-    q('cat').onchange = () => onCatChange(id);
-    q('tx').onchange  = () => toggleTax(id);
-    q('nm').oninput   = () => checkUnfilled(id);
-    q('pq').oninput   = () => onPay(id);
-    q('pc').onchange  = () => onPay(id);
-    q('pp').oninput   = () => onPay(id);
-    q('mk').oninput   = () => calc(id);
-    q('nt').onkeydown = e  => noteKeydown(e, id);
-    q('del').onclick  = () => delRow(id);
-    q('ins').onclick    = () => addRowAfter(id);
+    q('cat').onchange  = () => onCatChange(id);
+    q('tx').onchange   = () => toggleTax(id);
+    q('tx').onkeydown  = e  => { if (e.key === 'Enter') { e.preventDefault(); e.target.checked = !e.target.checked; toggleTax(id); } };
+    q('nm').oninput    = () => checkUnfilled(id);
+    q('pq').oninput    = () => onPay(id);
+    q('pc').onchange   = () => onPay(id);
+    q('pp').oninput    = () => onPay(id);
+    q('mk').oninput    = () => calc(id);
+    q('nt').onkeydown  = e  => noteKeydown(e, id);
+    q('del').onclick   = () => delRow(id);
+    q('ins').onclick   = () => addRowAfter(id);
     q('subins').onclick = () => insertSubtotalRow(id);
+    q('remins').onclick = () => insertRemarkRow(id);
 
     return frag;
   }
@@ -442,6 +447,7 @@
 
   // ========== 小計行 ==========
   let subtotalCount = 0;
+  let remarkCount   = 0;
 
   // 小計行ドラッグ初期化（通常行の initDrag と同じロジック）
   function initSubtotalDrag(tr) {
@@ -553,6 +559,47 @@
     document.getElementById(`row-${id}`)?.remove();
     updateSubtotalRows();
     updateTotals();
+  }
+
+  // ========== リマーク行 ==========
+  function insertRemarkRow(afterId) {
+    remarkCount++;
+    const id = `remark-${remarkCount}`;
+    const tr = document.createElement('tr');
+    tr.id = `row-${id}`;
+    tr.dataset.type = 'remark';
+    tr.className = 'remark-row';
+    tr.innerHTML = `
+      <td class="action-cell">
+        <button type="button" class="remark-del-btn" onclick="removeRemarkRow('${id}')" title="このリマーク行を削除">✕</button>
+      </td>
+      <td class="remark-drag-cell">
+        <span class="drag-handle" title="ドラッグして並び替え">⠿</span>
+      </td>
+      <td class="handle-cell">
+        <button type="button" class="row-move-btn subtotal-move-up"   tabindex="-1" title="上に移動">▲</button>
+        <button type="button" class="row-move-btn subtotal-move-down" tabindex="-1" title="下に移動">▼</button>
+      </td>
+      <td colspan="16" class="remark-row-cell">
+        <span class="remark-row-marker">💬 リマーク</span>
+        <input type="text" class="remark-row-input" placeholder="テーブル内コメント・注記を入力" />
+      </td>
+    `;
+    const tbody = document.getElementById('tableBody');
+    if (afterId) {
+      const afterRow = document.getElementById(`row-${afterId}`);
+      if (afterRow?.nextSibling) tbody.insertBefore(tr, afterRow.nextSibling);
+      else if (afterRow)         tbody.appendChild(tr);
+      else                       tbody.appendChild(tr);
+    } else {
+      tbody.appendChild(tr);
+    }
+    initSubtotalDrag(tr);
+    tr.querySelector('.remark-row-input')?.focus();
+  }
+
+  function removeRemarkRow(id) {
+    document.getElementById(`row-${id}`)?.remove();
   }
 
   function updateSubtotalRows() {

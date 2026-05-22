@@ -296,7 +296,7 @@
     let matched = 0;
     let totalChkRows = 0;
     document.querySelectorAll('#tableBody tr').forEach(tr => {
-      if (tr.dataset.type === 'subtotal') return;
+      if (tr.dataset.type === 'subtotal' || tr.dataset.type === 'remark') return;
       const chk = tr.querySelector('.row-select-chk');
       if (!chk) return;
       totalChkRows++;
@@ -791,7 +791,7 @@
     const out = [];
     document.querySelectorAll('#tableBody tr .row-select-chk:checked').forEach(chk => {
       const tr = chk.closest('tr');
-      if (!tr || tr.dataset.type === 'subtotal') return;
+      if (!tr || tr.dataset.type === 'subtotal' || tr.dataset.type === 'remark') return;
       const id = tr.id.replace('row-', '');
       const g = sid => document.getElementById(sid + '-' + id);
       out.push({

@@ -199,7 +199,7 @@
     // テーブル行
     const rows = [];
     document.querySelectorAll('#tableBody tr').forEach(tr => {
-      if (tr.dataset.type === 'subtotal') return; // 小計行はスキップ
+      if (tr.dataset.type === 'subtotal' || tr.dataset.type === 'remark') return;
       const cells = [];
       tr.querySelectorAll('input, select, textarea').forEach(el => cells.push(el.value));
       rows.push(cells);
