@@ -19,8 +19,9 @@
 
   function getConditions() {
     const g = id => document.getElementById(id)?.value.trim() || '';
-    const ctype  = g('cond-container-type');
-    const ccount = g('cond-container-count');
+    const _isFcl = _currentTransport !== 'air' && _currentSeaSub !== 'lcl';
+    const ctype  = _isFcl ? g('cond-container-type') : '';
+    const ccount = _isFcl ? g('cond-container-count') : '';
     const container = ctype && ccount ? `${ctype} × ${ccount}` : (ctype || '');
     // ゾーンビルダーから積み地・揚げ地・発地・仕向地を取得
     const pol    = g('z2Pol');
@@ -92,6 +93,31 @@
     _snapshotTimer = setTimeout(snapshotNow, 500);
   }
 
+  // チェックボックスを含む cells 配列を tr に適用するヘルパー
+  function _applyCells(tr, cells) {
+    tr.querySelectorAll('input, select, textarea').forEach((el, j) => {
+      if (cells[j] === undefined) return;
+      if (el.type === 'checkbox') el.checked = cells[j] === true;
+      else el.value = cells[j];
+    });
+  }
+
+  // 行復元後の再計算・スタイル適用ヘルパー
+  function _afterRestoreRows(trs) {
+    trs.forEach(tr => {
+      const nm = tr.querySelector('[data-field="nm"]');
+      if (!nm) return;
+      const rowId = nm.id.replace('nm-', '');
+      checkUnfilled(rowId);
+      onCatChange(rowId);
+      onPay(parseInt(rowId));
+      // taxed クラスを checked 状態から再適用
+      const txEl = tr.querySelector('[data-field="tx"]');
+      if (txEl?.checked) tr.classList.add('taxed');
+      else tr.classList.remove('taxed');
+    });
+  }
+
   // データを画面に適用（restoreAutoSave と同等。トースト・restoreBar 操作なし）
   function _applyQuoteData(data) {
     if (!data) return;
@@ -106,20 +132,8 @@
     rowCount = 0;
     (data.rows || []).forEach(() => addRow());
     const trs = document.querySelectorAll('#tableBody tr');
-    (data.rows || []).forEach((cells, i) => {
-      if (!trs[i]) return;
-      trs[i].querySelectorAll('input, select, textarea').forEach((el, j) => {
-        if (cells[j] !== undefined) el.value = cells[j];
-      });
-    });
-    trs.forEach(tr => {
-      const nm = tr.querySelector('[data-field="nm"]');
-      if (!nm) return;
-      const rowId = nm.id.replace('nm-', '');
-      checkUnfilled(rowId);
-      onCatChange(rowId);
-      onPay(parseInt(rowId));
-    });
+    (data.rows || []).forEach((cells, i) => { if (trs[i]) _applyCells(trs[i], cells); });
+    _afterRestoreRows(trs);
     if (typeof updateTotals === 'function') updateTotals();
     if (typeof updateRouteModeIcon === 'function') updateRouteModeIcon();
   }
@@ -198,9 +212,11 @@
     // テーブル行
     const rows = [];
     document.querySelectorAll('#tableBody tr').forEach(tr => {
-      if (tr.dataset.type === 'subtotal') return; // 小計行はスキップ
+      if (tr.dataset.type === 'subtotal' || tr.dataset.type === 'remark') return;
       const cells = [];
-      tr.querySelectorAll('input, select, textarea').forEach(el => cells.push(el.value));
+      tr.querySelectorAll('input, select, textarea').forEach(el =>
+        cells.push(el.type === 'checkbox' ? el.checked : el.value)
+      );
       rows.push(cells);
     });
     // _rowFormat: v2 = sv をカテゴリ直後（index 2）に配置した新レイアウト
@@ -258,21 +274,8 @@
     rowCount = 0;
     (data.rows || []).forEach(() => addRow());
     const trs = document.querySelectorAll('#tableBody tr');
-    (data.rows || []).forEach((cells, i) => {
-      if (!trs[i]) return;
-      trs[i].querySelectorAll('input, select, textarea').forEach((el, j) => {
-        if (cells[j] !== undefined) el.value = cells[j];
-      });
-    });
-    // グレーアウト・カテゴリ色・計算を全行更新（値セット後に再適用）
-    trs.forEach(tr => {
-      const nm = tr.querySelector('[data-field="nm"]');
-      if (!nm) return;
-      const rowId = nm.id.replace('nm-', '');
-      checkUnfilled(rowId);
-      onCatChange(rowId);
-      onPay(parseInt(rowId));
-    });
+    (data.rows || []).forEach((cells, i) => { if (trs[i]) _applyCells(trs[i], cells); });
+    _afterRestoreRows(trs);
     updateTotals();
     updateRouteModeIcon();
     dismissRestoreBar();
@@ -305,17 +308,8 @@
     rowCount = 0;
     (data.rows || []).forEach(() => addRow());
     const trs = document.querySelectorAll('#tableBody tr');
-    (data.rows || []).forEach((cells, i) => {
-      if (!trs[i]) return;
-      trs[i].querySelectorAll('input, select, textarea').forEach((el, j) => {
-        if (cells[j] !== undefined) el.value = cells[j];
-      });
-    });
-    // グレーアウト状態を更新
-    trs.forEach(tr => {
-      const nm = tr.querySelector('[data-field="nm"]');
-      if (nm) checkUnfilled(nm.id.replace('nm-', ''));
-    });
+    (data.rows || []).forEach((cells, i) => { if (trs[i]) _applyCells(trs[i], cells); });
+    _afterRestoreRows(trs);
     updateTotals();
     updateRouteModeIcon();
     showSaveStatus('📂 読み込みました');
@@ -580,6 +574,16 @@
     applyZoneState();
   }
 
+  /** バンニングシミュレーション（計算タブ）へジャンプ */
+  function openBanningCalc() {
+    const calcTab = document.querySelector('[data-tab="calc"]');
+    if (calcTab) calcTab.click();
+    setTimeout(() => {
+      const el = document.getElementById('van-rows-wrap');
+      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 200);
+  }
+
   /** Sea / Air プライマリトグル */
   function setTransport(transport) {
     _currentTransport = transport;
@@ -594,6 +598,7 @@
     updateRouteModeIcon();
     _applyZoneLabels();
     _refreshCarrierDatalist();
+    if (typeof applyCargoFieldOrder === 'function') applyCargoFieldOrder();
   }
 
   /** FCL / LCL サブトグル（Seaのとき表示） */
@@ -606,6 +611,7 @@
     updateRouteModeIcon();
     _applyZoneLabels();
     _refreshCarrierDatalist();
+    if (typeof applyCargoFieldOrder === 'function') applyCargoFieldOrder();
   }
 
   /** ボタン状態を内部 cond-mode select に同期 */

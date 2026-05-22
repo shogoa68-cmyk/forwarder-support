@@ -296,7 +296,7 @@
     let matched = 0;
     let totalChkRows = 0;
     document.querySelectorAll('#tableBody tr').forEach(tr => {
-      if (tr.dataset.type === 'subtotal') return;
+      if (tr.dataset.type === 'subtotal' || tr.dataset.type === 'remark') return;
       const chk = tr.querySelector('.row-select-chk');
       if (!chk) return;
       totalChkRows++;
@@ -490,6 +490,15 @@
     { icon:'📋', label:'特記事項セクションへ',        sub:'フリーテキスト欄',               action:() => scrollToSection('section-free')  },
     { icon:'📝', label:'条件・リマークセクションへ',  sub:'プリセット文を挿入',             action:() => scrollToSection('section-remark')},
     { icon:'➕', label:'行を追加',                    sub:'見積もり表に新しい行を末尾に追加', action:() => { addRow(); quoteShowToast('✅ 行を追加しました', 'success'); } },
+    { icon:'📋', label:'現在行を複製 (Ctrl+D)',        sub:'フォーカス中の行を直下に複製',     action:() => {
+      const tr = document.activeElement?.closest('#tableBody tr');
+      if (tr && tr.id.startsWith('row-')) {
+        duplicateRow(tr.id.replace('row-', ''));
+        quoteShowToast('✅ 行を複製しました', 'success');
+      } else {
+        quoteShowToast('⚠️ 行にフォーカスを当ててから実行してください', 'warn', 2500);
+      }
+    }},
     { icon:'↕️', label:'カテゴリ順に並び替え',        sub:'カテゴリ種別でソート',            action:() => { sortByCategory(); quoteShowToast('✅ ソートしました', 'success'); } },
     { icon:'👁️', label:'プレビューを開く',            sub:'印刷・コピー用のプレビュー',      action: openPreview },
     { icon:'🗂️', label:'プリセット/一時保存',         sub:'入力パターンの保存・呼び出し・一時退避', action: openPresetMgr },
@@ -782,7 +791,7 @@
     const out = [];
     document.querySelectorAll('#tableBody tr .row-select-chk:checked').forEach(chk => {
       const tr = chk.closest('tr');
-      if (!tr || tr.dataset.type === 'subtotal') return;
+      if (!tr || tr.dataset.type === 'subtotal' || tr.dataset.type === 'remark') return;
       const id = tr.id.replace('row-', '');
       const g = sid => document.getElementById(sid + '-' + id);
       out.push({
@@ -1185,31 +1194,61 @@
   });
 
   // ========== 貨物情報フィールド並び替え ==========
-  const CARGO_FIELD_ORDER_KEY = 'cargoFieldOrder_v1';
+
+  function _cargoModeKey() {
+    if (typeof _currentTransport === 'undefined') return 'fcl';
+    if (_currentTransport === 'air') return 'air';
+    if (_currentSeaSub === 'lcl')    return 'lcl';
+    return 'fcl';
+  }
+
+  function _cargoOrderKey(modeKey) {
+    return `cargoFieldOrder_${modeKey}_v1`;
+  }
 
   function saveCargoFieldOrder() {
     const grid = document.getElementById('cargoCondGrid');
     if (!grid) return;
     const order = Array.from(grid.querySelectorAll('.cond-field[data-field-id]'))
       .map(el => el.dataset.fieldId);
-    localStorage.setItem(CARGO_FIELD_ORDER_KEY, JSON.stringify(order));
+    localStorage.setItem(_cargoOrderKey(_cargoModeKey()), JSON.stringify(order));
+  }
+
+  function applyCargoFieldOrder(modeKey) {
+    const grid = document.getElementById('cargoCondGrid');
+    if (!grid) return;
+    modeKey = modeKey || _cargoModeKey();
+
+    // LCL / Air ではサイズ計算 details を自動展開
+    const calcDetails = document.querySelector('.cbm-calc-details');
+    if (calcDetails && (modeKey === 'lcl' || modeKey === 'air')) {
+      calcDetails.open = true;
+    }
+
+    // モード別カスタム保存 → なければ CARGO_FIELD_ORDER デフォルト
+    let order = [];
+    try { order = JSON.parse(localStorage.getItem(_cargoOrderKey(modeKey)) || '[]'); } catch(e) {}
+    if (!order.length && typeof CARGO_FIELD_ORDER !== 'undefined') {
+      order = (CARGO_FIELD_ORDER[modeKey] || CARGO_FIELD_ORDER.fcl).slice();
+    }
+    if (!order.length) return;
+
+    const fields = {};
+    grid.querySelectorAll('.cond-field[data-field-id]').forEach(el => {
+      fields[el.dataset.fieldId] = el;
+    });
+    order.forEach(id => { if (fields[id]) grid.appendChild(fields[id]); });
+  }
+
+  function resetCargoFieldOrder() {
+    const modeKey = _cargoModeKey();
+    localStorage.removeItem(_cargoOrderKey(modeKey));
+    applyCargoFieldOrder(modeKey);
+    if (typeof quoteShowToast === 'function') quoteShowToast('並び順をリセットしました', 'info', 1800);
   }
 
   function restoreCargoFieldOrder() {
-    try {
-      const saved = JSON.parse(localStorage.getItem(CARGO_FIELD_ORDER_KEY) || '[]');
-      if (!saved.length) return;
-      const grid = document.getElementById('cargoCondGrid');
-      if (!grid) return;
-      const fields = {};
-      grid.querySelectorAll('.cond-field[data-field-id]').forEach(el => {
-        fields[el.dataset.fieldId] = el;
-      });
-      // 保存順で並べ直す（未知のIDはスキップ、残りは末尾へ）
-      saved.forEach(id => {
-        if (fields[id]) grid.appendChild(fields[id]);
-      });
-    } catch(e) {}
+    applyCargoFieldOrder(_cargoModeKey());
   }
 
   function initCargoSort() {
@@ -1220,7 +1259,6 @@
     grid.querySelectorAll('.cond-field[data-field-id]').forEach(field => {
       const handle = field.querySelector('.cond-sort-handle');
 
-      // ハンドル以外からのドラッグを防ぐ
       let _fromHandle = false;
       if (handle) {
         handle.addEventListener('mousedown', () => { _fromHandle = true; });
@@ -1251,7 +1289,6 @@
       field.addEventListener('drop', e => {
         e.preventDefault();
         if (!dragSrc || dragSrc === field) return;
-        // dragSrcをfieldの前に挿入
         const rect = field.getBoundingClientRect();
         const midX = rect.left + rect.width / 2;
         if (e.clientX < midX) {

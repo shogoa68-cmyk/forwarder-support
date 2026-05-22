@@ -2362,6 +2362,7 @@
           <div class="cond-field" data-field-id="container-count" data-scope-key="container" draggable="true">
             <label><span class="cond-sort-handle" title="ドラッグして並び替え">⠿</span><span class="cond-icon">🔢</span> 本数</label>
             <input type="number" id="cond-container-count" min="0" step="1" placeholder="例）1" />
+            <span class="banning-hint">📦 本数が不明な場合は<button type="button" class="banning-hint-link" onclick="openBanningCalc()">バンニングシミュレーション</button>で確認</span>
           </div>
           <div class="cond-field" data-field-id="weight" draggable="true">
             <label><span class="cond-sort-handle" title="ドラッグして並び替え">⠿</span><span class="cond-icon">⚖️</span> 重量（概算）</label>
@@ -2393,6 +2394,7 @@
         </div>
         <div class="cond-actions">
           <button class="btn-cond-clear" onclick="clearConditions()">クリア</button>
+          <button class="btn-cargo-reset" onclick="resetCargoFieldOrder()" title="モード別の並び順をデフォルトに戻す">並び順リセット</button>
         </div>
 
         <!-- サイズ計算（折りたたみ） -->
@@ -2769,6 +2771,7 @@
         <button class="btn-del" data-field="del" tabindex="-1" title="この行を削除">✕</button>
         <button class="btn-ins" data-field="ins" tabindex="-1" title="この行の下に行を追加">＋</button>
         <button class="btn-subtotal-ins" data-field="subins" tabindex="-1" title="この行の下に小計行を挿入">＝</button>
+        <button class="btn-remark-ins" data-field="remins" tabindex="-1" title="この行の下にリマーク行を挿入">💬</button>
       </td>
       <td class="check-cell">
         <input type="checkbox" class="row-select-chk" tabindex="-1" title="この行を選択（コピー・削除用）" style="width:13px;height:13px;cursor:pointer;margin:0;" />
