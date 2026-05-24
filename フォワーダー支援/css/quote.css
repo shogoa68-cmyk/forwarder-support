@@ -70,6 +70,36 @@
 #tab-quote-make #qf-customer { width: 200px; }
 #tab-quote-make #qf-person   { width: 110px; }
 
+/* メモフィールド：flex-wrap の折り返しで単独1行に */
+#tab-quote-make .quote-field-memo {
+  flex-basis: 100%;           /* 残り幅をすべて使い独立行へ */
+  margin-top: 6px;
+}
+#tab-quote-make .qf-memo-note {
+  font-size: 10px; font-weight: 400;
+  color: #a09080; letter-spacing: 0;
+  text-transform: none;
+}
+#tab-quote-make #qf-memo {
+  width: 100%;
+  resize: vertical;
+  min-height: 52px;
+  max-height: 200px;
+  border: 1px solid #d9cfc2;
+  border-radius: 4px;
+  padding: 6px 9px;
+  font-size: 12px;
+  font-family: inherit;
+  line-height: 1.55;
+  outline: none;
+  transition: border-color 0.15s;
+  background: #fdf8f0;        /* 入力フィールドと区別できる薄いクリーム */
+  color: var(--text-dark, #4a3f35);
+  box-sizing: border-box;
+}
+#tab-quote-make #qf-memo:focus { border-color: #8b6914; }
+#tab-quote-make #qf-memo::placeholder { color: #b8a898; font-size: 11px; }
+
 /* ========== テーブル ========== */
 #tab-quote-make table { border-collapse: collapse; width: 100%; min-width: 1300px; }
 #tab-quote-make th,
