@@ -497,6 +497,41 @@ function freetimeLookup() {
 }
 
 // ================================================================
+//  LCL キャリアグリッド
+// ================================================================
+function buildLclCarrierGrid() {
+  const grid = document.getElementById('lcl-carrier-grid');
+  if (!grid || typeof CARRIERS_LCL !== 'object') return;
+
+  const linkDefs = (typeof CARRIER_LINK_DEFS !== 'undefined') ? (CARRIER_LINK_DEFS.lcl || []) : [];
+
+  for (const [name, info] of Object.entries(CARRIERS_LCL)) {
+    const links = linkDefs
+      .map(d => ({ label: d.label, url: typeof info[d.key] === 'function' ? info[d.key]() : (info[d.key] || null) }))
+      .filter(l => l.url);
+
+    const card = document.createElement('div');
+    card.className = 'lcl-card';
+
+    const chipsHtml = links.length
+      ? links.map(l => `<a class="lcl-chip" href="${l.url}" target="_blank" rel="noopener">${l.label}</a>`).join('')
+      : '<span class="lcl-chip-disabled">リンク未登録</span>';
+
+    card.innerHTML = `
+      <div class="lcl-card-head" ${info.top ? `onclick="window.open('${info.top}','_blank')" title="${name} トップページを開く"` : ''}>
+        <span class="lcl-icon">${info.icon || '📦'}</span>
+        <div>
+          <div class="lcl-name">${name}</div>
+          <div class="lcl-domain">${info.domain || ''}</div>
+        </div>
+      </div>
+      <div class="lcl-links">${chipsHtml}</div>`;
+
+    grid.appendChild(card);
+  }
+}
+
+// ================================================================
 //  初期化
 // ================================================================
 ['ql-carrier', 'sched-carrier',
@@ -509,6 +544,7 @@ buildBldoGrids();
 buildIncotermsTab();
 loadRouteArticles();
 buildBlRulesGrid();
+buildLclCarrierGrid();
 
 // ================================================================
 //  追跡番号 履歴スタック

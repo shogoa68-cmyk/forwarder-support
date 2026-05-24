@@ -278,6 +278,31 @@ body:has(#tab-quote-make.active) .app {
   padding: 1px 6px;
 }
 
+/* ===== LCL キャリアグリッド ===== */
+.lcl-carrier-grid { display: flex; flex-direction: column; gap: 8px; }
+.lcl-card {
+  display: flex; align-items: center; gap: 16px;
+  padding: 12px 16px; background: #fff;
+  border: 1px solid var(--border); border-radius: 10px; flex-wrap: wrap;
+}
+.lcl-card-head {
+  display: flex; align-items: center; gap: 10px;
+  min-width: 200px; cursor: pointer; transition: color 0.15s;
+}
+.lcl-card-head:hover .lcl-name { color: var(--accent); }
+.lcl-icon { font-size: 20px; flex-shrink: 0; }
+.lcl-name { font-size: 13px; font-weight: 700; color: var(--text); transition: color 0.15s; }
+.lcl-domain { font-size: 10px; color: var(--text-lt); }
+.lcl-links { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.lcl-chip {
+  display: inline-flex; align-items: center; padding: 4px 11px;
+  font-size: 11px; font-weight: 600; border: 1px solid var(--border);
+  border-radius: 20px; text-decoration: none; color: var(--text);
+  background: var(--bg); transition: all 0.15s; white-space: nowrap;
+}
+.lcl-chip:hover { background: var(--accent-lt); border-color: var(--accent); color: var(--accent); }
+.lcl-chip-disabled { font-size: 11px; color: var(--text-lt); padding: 4px 0; }
+
 /* ===== Portal Grid ===== */
 .portal-grid {
   display: grid;

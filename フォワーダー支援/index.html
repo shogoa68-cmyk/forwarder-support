@@ -50,6 +50,7 @@
     <button class="tab-btn" role="tab" aria-selected="false" onclick="switchTab('vessel',   this)">🚢 スケジュール</button>
     <button class="tab-btn" role="tab" aria-selected="false" onclick="switchTab('cycut',    this)">📅 CY OPEN/CUT</button>
     <button class="tab-btn" role="tab" aria-selected="false" onclick="switchTab('route',    this)">🗺️ サービス航路</button>
+    <button class="tab-btn" role="tab" aria-selected="false" onclick="switchTab('lcl-carrier', this)">📦 LCL キャリア</button>
   </div>
   <div class="tab-nav sub-nav" id="sub-cost" role="tablist" aria-label="cost サブタブ">
     <button class="tab-btn" hidden role="tab" aria-selected="false" onclick="switchTab('surcharge', this)">💴 サーチャージ</button>
@@ -203,6 +204,26 @@
         <div style="color:var(--text-lt);font-size:13px;padding:12px 0;">読み込み中...</div>
       </div>
     </div>  </div><!-- /tab-route -->
+
+  <!-- ===================== LCL キャリア tab ===================== -->
+  <div class="tab-content" id="tab-lcl-carrier">
+
+    <details class="tab-help">
+      <summary>ℹ️ このタブの使い方・機能説明</summary>
+      <div class="tab-help-body">
+        <h4>📦 LCL NVOCC / 大手フォワーダー</h4>
+        <p>LCL（混載）貨物を取り扱うNVOCC・大手フォワーダーのスケジュール・料金照会・追跡・問い合わせページへのリンク集です。会社名エリアをクリックすると各社トップページへ移動します。</p>
+        <div class="help-tip">💡 LCL貨物は船会社に直接ブッキングするのではなく、NVOCCまたはフォワーダー経由でブッキングするのが一般的です。スペース・料金は各社に個別に照会してください。</div>
+      </div>
+    </details>
+
+    <div class="card">
+      <div class="section-title">📦 LCL キャリア / NVOCC リンク集</div>
+      <p style="font-size:12px;color:var(--text-md);margin-bottom:14px;">LCL混載を取り扱うNVOCC・大手フォワーダーのリンク集です。各チップをクリックして直接アクセスできます。会社名をクリックするとトップページへ移動します。</p>
+      <div id="lcl-carrier-grid" class="lcl-carrier-grid"></div>
+    </div>
+
+  </div><!-- /tab-lcl-carrier -->
 
   <!-- ===================== サーチャージ tab ===================== -->
   <div class="tab-content" id="tab-surcharge">
