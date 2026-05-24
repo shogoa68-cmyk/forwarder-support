@@ -1889,7 +1889,7 @@
           <li><strong>自動保存</strong>：チェックすると入力2秒後にブラウザへ自動保存（localStorage、同じブラウザ内のみ有効）。次回開いた時に復元バナーから戻せます</li>
           <li><strong>↶ 戻す / ↷ 進む（Undo / Redo）</strong>：見積タブ全体（行・条件・自由入力・特記事項など）の編集を最大 50 ステップ巻き戻し／やり直し。<kbd>Ctrl+Z</kbd>（macOS は <kbd>⌘+Z</kbd>）で戻す、<kbd>Ctrl+Y</kbd> もしくは <kbd>Ctrl+Shift+Z</kbd> で進む。連続タイピングは 1 ステップにまとめられます</li>
           <li><strong>📤 JSON / 📥 読込</strong>：JSON ファイルで端末間共有・バックアップが可能（CSV/Excel/PDF 出力は 📋 プレビューから）</li>
-          <li><strong>📐 表示サイズ 大 / 中 / 小</strong>：見積タブ全体のレイアウトを 3 段階で拡縮。<strong>大＝デスクトップ向け、中＝タブレット向け（既定）、小＝スマホ向け</strong>。CSS <code>zoom</code> で全体（文字・余白・コントロール）を一括スケールします</li>
+          <li><strong>📐 表示サイズ 大 / 中 / 小</strong>：見積タブ全体のレイアウトを 3 段階で拡縮。<strong>大＝スマホ向け、中＝タブレット向け（既定）、小＝デスクトップ向け</strong>。CSS <code>zoom</code> で全体（文字・余白・コントロール）を一括スケールします</li>
         </ul>
 
         <h4>① 管理番号入力</h4>
@@ -1997,9 +1997,9 @@
       <button class="save-btn save-btn-preview" onclick="openPreview()" title="見積をプレビュー表示・CSV/Excel/PDF出力はここから">📋 プレビュー</button>
       <span class="save-toolbar-sep"></span>
       <span class="save-toolbar-label">📐 表示サイズ</span>
-      <button class="layout-scale-btn" data-scale="lg" onclick="setLayoutScale('lg')" title="大（デスクトップ向け）">大</button>
+      <button class="layout-scale-btn" data-scale="lg" onclick="setLayoutScale('lg')" title="大（スマホ向け）">大</button>
       <button class="layout-scale-btn" data-scale="md" onclick="setLayoutScale('md')" title="中（タブレット向け）">中</button>
-      <button class="layout-scale-btn" data-scale="sm" onclick="setLayoutScale('sm')" title="小（スマホ向け）">小</button>
+      <button class="layout-scale-btn" data-scale="sm" onclick="setLayoutScale('sm')" title="小（デスクトップ向け）">小</button>
     </div>
 
     <!-- ========== 自動保存 復元バナー ========== -->
