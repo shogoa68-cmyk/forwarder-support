@@ -1491,12 +1491,12 @@
 
 
   // ===== レイアウトスケール（大/中/小） =====
-  // 大：デスクトップ向け、中：タブレット向け、小：スマホ向け
+  // 大：スマホ向け（小画面で読みやすい大きめ文字）、中：タブレット向け、小：デスクトップ向け（広画面で多くの情報を表示）
   const LAYOUT_SCALE_KEY = 'quoteLayoutScale_v1';
   const LAYOUT_SCALES = {
-    lg: { font: 15, label: '大（デスクトップ）' },
+    lg: { font: 15, label: '大（スマホ）' },
     md: { font: 13, label: '中（タブレット）' },
-    sm: { font: 11, label: '小（スマホ）' }
+    sm: { font: 11, label: '小（デスクトップ）' }
   };
 
   function getQuoteScopeEl() {
