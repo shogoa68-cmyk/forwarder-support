@@ -8,7 +8,6 @@
     if (!confirm('貨物情報・引き合い条件をクリアしますか？')) return;
     ['cond-pol','cond-pod','cond-origin','cond-dest','cond-cargo',
      'cond-weight','cond-volume','cond-packing','cond-packing-preset','condFreeText',
-     'condRawInquiry',
      'cond-origin-country','cond-dest-country','z1Place','z1Country','z3Place','z3Country',
      'cond-container-count']
       .forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
