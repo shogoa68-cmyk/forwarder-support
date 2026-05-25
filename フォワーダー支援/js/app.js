@@ -504,6 +504,7 @@ function buildLclCarrierGrid() {
   if (!grid || typeof CARRIERS_LCL !== 'object') return;
 
   const linkDefs = (typeof CARRIER_LINK_DEFS !== 'undefined') ? (CARRIER_LINK_DEFS.lcl || []) : [];
+  const esc = s => s.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
 
   for (const [name, info] of Object.entries(CARRIERS_LCL)) {
     const links = linkDefs
@@ -525,11 +526,105 @@ function buildLclCarrierGrid() {
           <div class="lcl-domain">${info.domain || ''}</div>
         </div>
       </div>
-      <div class="lcl-links">${chipsHtml}</div>`;
+      <div class="lcl-links">${chipsHtml}</div>
+      <button class="lcl-fb-card-btn" onclick="openLclFeedback(event,'${esc(name)}')" title="このキャリアのリンクについてフィードバックを送る" aria-label="${name} フィードバック">📝</button>`;
 
     grid.appendChild(card);
   }
 }
+
+// ================================================================
+//  LCL フィードバックモーダル
+// ================================================================
+function openLclFeedback(e, carrierName) {
+  e.stopPropagation();
+  const overlay = document.getElementById('lclFbOverlay');
+  if (!overlay) return;
+  // キャリア名をセット
+  document.getElementById('lclFbCarrierLabel').textContent = '🏢 ' + carrierName;
+  overlay._carrier = carrierName;
+  // フォームリセット
+  overlay.querySelectorAll('[name="lclFbType"]').forEach(r => r.checked = false);
+  const selLink = document.getElementById('lclFbLink');
+  const inpUrl  = document.getElementById('lclFbUrl');
+  const txtNote = document.getElementById('lclFbNote');
+  if (selLink) selLink.value = '';
+  if (inpUrl)  inpUrl.value  = '';
+  if (txtNote) txtNote.value  = '';
+  overlay.removeAttribute('hidden');
+  overlay.querySelector('.lcl-fb-close-btn')?.focus();
+}
+
+function closeLclFeedback(e) {
+  const overlay = document.getElementById('lclFbOverlay');
+  if (!overlay) return;
+  // overlay 背景クリック or 明示呼び出しのみ閉じる
+  if (e && e.target !== overlay) return;
+  overlay.setAttribute('hidden', '');
+}
+
+function _lclFbToast(msg) {
+  const tc = document.getElementById('toast-container');
+  if (!tc) return;
+  const el = document.createElement('div');
+  el.className = 'toast show';
+  el.textContent = msg;
+  tc.appendChild(el);
+  setTimeout(() => { el.classList.remove('show'); setTimeout(() => el.remove(), 400); }, 2600);
+}
+
+function _buildLclFbText(carrier) {
+  const type = document.querySelector('[name="lclFbType"]:checked')?.value;
+  if (!type) { alert('種別を選択してください'); return null; }
+  const link = document.getElementById('lclFbLink')?.value  || '';
+  const url  = document.getElementById('lclFbUrl')?.value   || '';
+  const note = document.getElementById('lclFbNote')?.value  || '';
+  return [
+    '【LCLキャリア リンクフィードバック】',
+    `会社名: ${carrier}`,
+    `種別: ${type}`,
+    link ? `対象リンク: ${link}` : null,
+    url  ? `正しいURL: ${url}`  : null,
+    note ? `詳細: ${note}`      : null,
+  ].filter(Boolean).join('\n');
+}
+
+function initLclFeedback() {
+  const overlay = document.getElementById('lclFbOverlay');
+  if (!overlay) return;
+
+  // Esc で閉じる
+  overlay.addEventListener('keydown', e => {
+    if (e.key === 'Escape') overlay.setAttribute('hidden', '');
+  });
+
+  // 背景クリックで閉じる
+  overlay.addEventListener('click', closeLclFeedback);
+
+  // コピーボタン
+  document.getElementById('lclFbCopyBtn')?.addEventListener('click', () => {
+    const text = _buildLclFbText(overlay._carrier);
+    if (!text) return;
+    navigator.clipboard.writeText(text).then(() => {
+      _lclFbToast('📋 クリップボードにコピーしました');
+    }).catch(() => {
+      prompt('以下をコピーしてください:', text);
+    });
+  });
+
+  // メール送信ボタン
+  document.getElementById('lclFbMailBtn')?.addEventListener('click', () => {
+    const text = _buildLclFbText(overlay._carrier);
+    if (!text) return;
+    const subject = encodeURIComponent(`[LCLキャリア] ${overlay._carrier} リンクフィードバック`);
+    const body    = encodeURIComponent(text);
+    window.open(`mailto:shogo.a68@gmail.com?subject=${subject}&body=${body}`);
+    overlay.setAttribute('hidden', '');
+    _lclFbToast('✉️ メールアプリを開きました');
+  });
+}
+
+document.addEventListener('DOMContentLoaded', initLclFeedback);
 
 // ================================================================
 //  初期化

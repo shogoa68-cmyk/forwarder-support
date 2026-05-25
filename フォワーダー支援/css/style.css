@@ -278,6 +278,67 @@ body:has(#tab-quote-make.active) .app {
   padding: 1px 6px;
 }
 
+/* ===== LCL フィードバック：カード内ボタン ===== */
+.lcl-fb-card-btn {
+  margin-left: auto;
+  flex-shrink: 0;
+  font-size: 12px;
+  padding: 3px 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-lt);
+  cursor: pointer;
+  transition: all 0.15s;
+  opacity: 0;
+  align-self: center;
+}
+.lcl-card:hover .lcl-fb-card-btn,
+.lcl-card:focus-within .lcl-fb-card-btn { opacity: 1; }
+.lcl-fb-card-btn:hover { background: #fffbeb; border-color: #f59e0b; color: #92400e; }
+
+/* ===== LCL フィードバックモーダル ===== */
+#lclFbOverlay {
+  position: fixed; inset: 0; z-index: 10010;
+  background: rgba(0,0,0,.42);
+  display: flex; align-items: center; justify-content: center;
+}
+#lclFbOverlay[hidden] { display: none; }
+#lclFbBox {
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 8px 36px rgba(0,0,0,.20);
+  padding: 22px 26px 18px;
+  width: min(460px, 92vw);
+  max-height: 90vh;
+  overflow-y: auto;
+}
+.lcl-fb-head { display: flex; align-items: center; margin-bottom: 2px; }
+.lcl-fb-head h4 { flex: 1; margin: 0; font-size: 14px; font-weight: 700; color: var(--text); }
+.lcl-fb-close-btn { background: none; border: none; font-size: 18px; line-height: 1; cursor: pointer; color: var(--text-lt); padding: 2px 6px; border-radius: 4px; }
+.lcl-fb-close-btn:hover { background: var(--bg); }
+.lcl-fb-carrier-label { font-size: 13px; font-weight: 700; color: var(--accent); margin: 4px 0 14px; }
+.lcl-fb-field { margin-bottom: 13px; }
+.lcl-fb-label { display: block; font-size: 10px; font-weight: 700; color: var(--text-md); text-transform: uppercase; letter-spacing: .5px; margin-bottom: 5px; }
+.lcl-fb-req { color: #ef4444; font-weight: 400; text-transform: none; letter-spacing: 0; }
+.lcl-fb-radios { display: flex; flex-wrap: wrap; gap: 6px; }
+.lcl-fb-radio { display: inline-flex; align-items: center; gap: 5px; cursor: pointer; font-size: 12px; padding: 5px 11px; border: 1px solid var(--border); border-radius: 20px; transition: all .15s; user-select: none; }
+.lcl-fb-radio:has(input:checked) { background: var(--accent-lt); border-color: var(--accent); font-weight: 700; color: var(--text); }
+.lcl-fb-radio input[type="radio"] { width: 0; height: 0; opacity: 0; position: absolute; }
+.lcl-fb-select, .lcl-fb-input, .lcl-fb-textarea {
+  width: 100%; border: 1px solid var(--border); border-radius: 6px;
+  padding: 7px 10px; font-size: 12px; font-family: inherit;
+  outline: none; transition: border-color .15s; box-sizing: border-box; background: #fff;
+}
+.lcl-fb-select:focus, .lcl-fb-input:focus, .lcl-fb-textarea:focus { border-color: var(--accent); }
+.lcl-fb-textarea { resize: vertical; min-height: 68px; line-height: 1.5; }
+.lcl-fb-foot { display: flex; gap: 8px; justify-content: flex-end; margin-top: 16px; }
+.lcl-fb-btn-sec { padding: 7px 13px; font-size: 12px; border: 1px solid var(--border); border-radius: 6px; background: #fff; cursor: pointer; transition: all .15s; }
+.lcl-fb-btn-sec:hover { background: var(--bg); }
+.lcl-fb-btn-pri { padding: 7px 16px; font-size: 12px; font-weight: 700; border: none; border-radius: 6px; background: var(--accent); color: #fff; cursor: pointer; transition: background .15s; }
+.lcl-fb-btn-pri:hover { filter: brightness(1.1); }
+.lcl-fb-hint { font-size: 10px; color: var(--text-lt); text-align: right; margin: 6px 0 0; }
+
 /* ===== LCL キャリアグリッド ===== */
 .lcl-carrier-grid { display: flex; flex-direction: column; gap: 8px; }
 .lcl-card {

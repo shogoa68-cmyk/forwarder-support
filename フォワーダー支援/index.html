@@ -2851,6 +2851,57 @@
      ハンドラ: js/quote/save.js (openFeedback / closeFeedback / submitFeedback)
               js/quote/ui.js   (quoteShowToast)
      ================================================================ -->
+<!-- ======= LCL キャリア リンクフィードバックモーダル ======= -->
+<div id="lclFbOverlay" hidden role="dialog" aria-modal="true" aria-labelledby="lclFbTitle">
+  <div id="lclFbBox" onclick="event.stopPropagation()">
+    <div class="lcl-fb-head">
+      <h4 id="lclFbTitle">📝 リンクフィードバック</h4>
+      <button class="lcl-fb-close-btn" onclick="document.getElementById('lclFbOverlay').setAttribute('hidden','')" aria-label="閉じる">×</button>
+    </div>
+    <p class="lcl-fb-carrier-label" id="lclFbCarrierLabel"></p>
+
+    <div class="lcl-fb-field">
+      <span class="lcl-fb-label">種別 <span class="lcl-fb-req">必須</span></span>
+      <div class="lcl-fb-radios">
+        <label class="lcl-fb-radio"><input type="radio" name="lclFbType" value="リンク切れ"><span>🔴 リンク切れ</span></label>
+        <label class="lcl-fb-radio"><input type="radio" name="lclFbType" value="リンク誤り"><span>🟡 リンク誤り</span></label>
+        <label class="lcl-fb-radio"><input type="radio" name="lclFbType" value="リンク追加リクエスト"><span>🟢 追加リクエスト</span></label>
+      </div>
+    </div>
+
+    <div class="lcl-fb-field">
+      <label class="lcl-fb-label" for="lclFbLink">対象リンク（任意）</label>
+      <select id="lclFbLink" class="lcl-fb-select">
+        <option value="">— 選択してください —</option>
+        <option value="🗓 スケジュール">🗓 スケジュール</option>
+        <option value="📋 e-Booking">📋 e-Booking</option>
+        <option value="💴 料金照会">💴 料金照会</option>
+        <option value="📦 追跡">📦 追跡</option>
+        <option value="📞 問い合わせ">📞 問い合わせ</option>
+        <option value="🌐 トップページ">🌐 トップページ</option>
+        <option value="その他">その他</option>
+      </select>
+    </div>
+
+    <div class="lcl-fb-field">
+      <label class="lcl-fb-label" for="lclFbUrl">正しいURL（誤り・追加リクエストの場合）</label>
+      <input type="url" id="lclFbUrl" class="lcl-fb-input" placeholder="https://...">
+    </div>
+
+    <div class="lcl-fb-field">
+      <label class="lcl-fb-label" for="lclFbNote">詳細・補足</label>
+      <textarea id="lclFbNote" class="lcl-fb-textarea" rows="3"
+        placeholder="例）ページが移転した / ログインURLが変わった / ○○のリンクも追加してほしい"></textarea>
+    </div>
+
+    <div class="lcl-fb-foot">
+      <button class="lcl-fb-btn-sec" id="lclFbCopyBtn">📋 テキストをコピー</button>
+      <button class="lcl-fb-btn-pri" id="lclFbMailBtn">✉️ メールで送信</button>
+    </div>
+    <p class="lcl-fb-hint">送信先: shogo.a68@gmail.com</p>
+  </div>
+</div>
+
 <div id="fbOverlay" onclick="closeFeedback(event)">
   <div id="fbBox" onclick="event.stopPropagation()">
     <div class="fb-head">
