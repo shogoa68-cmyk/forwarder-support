@@ -535,7 +535,9 @@ function buildLclCarrierGrid() {
 
 // ================================================================
 //  LCL フィードバックモーダル
+//  ▼ Google フォーム URL をここに設定（空文字のままだとコピーのみになります）
 // ================================================================
+const LCL_FB_FORM_URL = '';  // 例: 'https://docs.google.com/forms/d/e/xxxx/viewform'
 function openLclFeedback(e, carrierName) {
   e.stopPropagation();
   const overlay = document.getElementById('lclFbOverlay');
@@ -612,15 +614,30 @@ function initLclFeedback() {
     });
   });
 
-  // メール送信ボタン
-  document.getElementById('lclFbMailBtn')?.addEventListener('click', () => {
+  // Googleフォーム送信ボタン
+  document.getElementById('lclFbFormBtn')?.addEventListener('click', () => {
     const text = _buildLclFbText(overlay._carrier);
     if (!text) return;
-    const subject = encodeURIComponent(`[LCLキャリア] ${overlay._carrier} リンクフィードバック`);
-    const body    = encodeURIComponent(text);
-    window.open(`mailto:shogo.a68@gmail.com?subject=${subject}&body=${body}`);
-    overlay.setAttribute('hidden', '');
-    _lclFbToast('✉️ メールアプリを開きました');
+
+    if (!LCL_FB_FORM_URL) {
+      // フォームURL未設定 → コピーだけ行い案内を表示
+      navigator.clipboard.writeText(text).then(() => {
+        _lclFbToast('📋 コピーしました（Googleフォームは未設定です）');
+      }).catch(() => {
+        prompt('以下をコピーしてください:', text);
+      });
+      return;
+    }
+
+    // フォームURLが設定済み → テキストをコピーしてフォームを開く
+    navigator.clipboard.writeText(text).then(() => {
+      window.open(LCL_FB_FORM_URL, '_blank');
+      overlay.setAttribute('hidden', '');
+      _lclFbToast('📋 テキストをコピーしました。フォームに貼り付けてください');
+    }).catch(() => {
+      window.open(LCL_FB_FORM_URL, '_blank');
+      overlay.setAttribute('hidden', '');
+    });
   });
 }
 
