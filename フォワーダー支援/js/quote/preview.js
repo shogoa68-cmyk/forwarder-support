@@ -1,12 +1,11 @@
 // ========== プレビュー・CSV (app-preview.js) ==========
 
-  // 消費税率（プレビュー）：基本 10%。ただし輸出取引（cond.direction === 'export'）は
-  // 輸出免税扱いで 0% に自動切替（インボイス制度・消費税法第 7 条）。
+  // 消費税率（プレビュー）：基本 10%。
+  // 「輸出免税（0%）を適用」チェックボックス（#pvExemptChk）を手動でオンにした場合のみ 0% に切替。
   const PV_TAX_RATE_DEFAULT = 0.10;
   function getEffectiveTaxRate() {
-    const cond = (typeof getConditions === 'function') ? getConditions() : null;
-    if (cond && cond.direction === 'export') return 0;
-    return PV_TAX_RATE_DEFAULT;
+    const chk = document.getElementById('pvExemptChk');
+    return (chk && chk.checked) ? 0 : PV_TAX_RATE_DEFAULT;
   }
 
   // ========== プレビュー＆エクスポート ==========
@@ -203,9 +202,7 @@
     metaEl.innerHTML = metaHTML;
     metaEl.style.display = metaHTML ? 'flex' : 'none';
 
-    // 消費税率は 10% 固定（プレビュー仕様）
     const taxRate = getEffectiveTaxRate();
-    const isExportExempt = taxRate === 0;
 
     let html = `<table id="previewTable">
       <thead><tr>
@@ -358,6 +355,15 @@
       if (el) el.dataset.pvWasVisible = (el.style.display !== 'none') ? '1' : '0';
     });
     document.getElementById('previewOverlay').classList.add('open');
+    // 輸出免税チェックボックス：常にリセット（デフォルト=オフ）してリスナー登録
+    const exemptChk = document.getElementById('pvExemptChk');
+    if (exemptChk) {
+      exemptChk.checked = false;
+      if (!exemptChk.dataset.listenerSet) {
+        exemptChk.addEventListener('change', updatePreviewTax);
+        exemptChk.dataset.listenerSet = '1';
+      }
+    }
     updatePreviewTax();
     // Apply saved customization
     initPreviewCustomize();
@@ -381,11 +387,9 @@
     const totalSub  = parseFloat(document.getElementById('pvTotalSubtotal')?.dataset.raw || '0');
     const rate = getEffectiveTaxRate();
     const isExempt = rate === 0;
-    // 標準ラベル／免税バッジの切替
+    // ラベルテキストをチェックボックス状態に合わせて更新
     const rateLbl = document.getElementById('pvTaxRateLabel');
-    const exemptBadge = document.getElementById('pvTaxExemptBadge');
-    if (rateLbl)      rateLbl.style.display = isExempt ? 'none' : '';
-    if (exemptBadge)  exemptBadge.style.display = isExempt ? '' : 'none';
+    if (rateLbl) rateLbl.textContent = isExempt ? '0%（輸出免税）' : '10%（標準）';
     // 行ごとの消費税セルを更新（課税行のみ計算）
     let totTax = 0;
     document.querySelectorAll('#previewTable .pv-tax-cell').forEach(td => {

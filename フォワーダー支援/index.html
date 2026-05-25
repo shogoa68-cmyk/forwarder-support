@@ -2720,7 +2720,9 @@
         <div id="pvTaxBox" class="pv-tax-box">
           <label class="pv-tax-label">🧾 消費税：</label>
           <span class="pv-tax-fixed" id="pvTaxRateLabel">10%（標準）</span>
-          <span class="pv-tax-exempt-badge" id="pvTaxExemptBadge" style="display:none;">🌍 輸出免税適用中（0%）</span>
+          <label class="pv-exempt-toggle">
+            <input type="checkbox" id="pvExemptChk"> 輸出免税（0%）を適用
+          </label>
           <input type="hidden" id="pvTaxRate" value="10">
           <span class="pv-tax-detail">消費税額: <b id="pvTaxAmount">—</b>　税込合計: <b id="pvTaxTotal">—</b></span>
           <span id="pvTotalSubtotal" data-raw="0" style="display:none;"></span>

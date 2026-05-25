@@ -2951,17 +2951,18 @@
   font-size: 12px;
   white-space: nowrap;
 }
-#tab-quote-make .pv-tax-exempt-badge {
-  font-weight: 700;
-  color: #155724;
-  background: #d4edda;
-  border: 1px solid #5a8a52;
-  border-radius: 4px;
-  padding: 2px 8px;
+#tab-quote-make .pv-exempt-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
   font-size: 12px;
+  color: var(--text-lt);
+  cursor: pointer;
+  margin-left: 8px;
   white-space: nowrap;
-  margin-left: 4px;
 }
+#tab-quote-make .pv-exempt-toggle input { cursor: pointer; accent-color: #1e6b6b; }
+#tab-quote-make .pv-exempt-toggle:has(input:checked) { color: #155724; font-weight: 600; }
 #tab-quote-make .pv-tax-detail { color: #2d2418; }
 #tab-quote-make .pv-tax-detail b { color: #8b6914; }
 @media (max-width: 700px) {#tab-quote-make .table-btn-group { gap: 4px; }
