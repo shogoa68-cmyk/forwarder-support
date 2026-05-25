@@ -240,7 +240,7 @@
       const pc      = d.profit > 0 ? 'pv-pos' : d.profit < 0 ? 'pv-neg' : 'pv-zero';
       const nameCls = d.taxed ? 'pv-name pv-taxed' : 'pv-name';
       const sub     = (d.bq || 0) * (d.bp || 0);
-      const jpyAmt  = (typeof toJPY === 'function') ? toJPY(sub, d.bc) : sub;
+      const jpyAmt  = (typeof toJPY === 'function') ? Math.ceil(toJPY(sub, d.bc)) : sub;
       const taxAmt  = d.taxed ? sub * taxRate : 0;
       totSub += sub;
       totTax += taxAmt;
@@ -546,7 +546,7 @@
     { hdr: '通貨',     fn: d => d.bc,                  pvGroup: 'bill',   role: 'bc'     },
     { hdr: '単価',     fn: d => fmtRaw(d.bp),          pvGroup: 'bill',   role: 'bp'     },
     { hdr: '乗せ幅',       fn: d => fmtRaw(d.mk),          pvGroup: 'mk',       role: 'mk'     },
-    { hdr: '円換算(JPY)', fn: d => { const s = (d.bq||0)*(d.bp||0); return (d.bc && d.bc !== 'JPY') ? fmtRaw(typeof toJPY === 'function' ? toJPY(s, d.bc) : s) : '—'; }, pvGroup: 'jpy-conv', role: 'jpyConv' },
+    { hdr: '円換算(JPY)', fn: d => { const s = (d.bq||0)*(d.bp||0); return (d.bc && d.bc !== 'JPY') ? fmtRaw(typeof toJPY === 'function' ? Math.ceil(toJPY(s, d.bc)) : s) : '—'; }, pvGroup: 'jpy-conv', role: 'jpyConv' },
     { hdr: '利益',         fn: d => fmtRaw(d.profit),      pvGroup: 'profit',   role: 'profit' },
     { hdr: '備考',         fn: d => d.note,                pvGroup: 'note',     role: 'note'   },
   ];
@@ -627,7 +627,7 @@
     { hdr: '単価(請求)',   fn: d => d.bp,                  pvGroup: 'bill',   role: 'bp'     },
     { hdr: '乗せ幅',       fn: d => d.mk,                  pvGroup: 'mk',     role: 'mk'     },
     { hdr: '小計',         fn: d => (d.bq || 0) * (d.bp || 0), pvGroup: null,      role: 'sub'     },
-    { hdr: '円換算(JPY)', fn: d => { const s = (d.bq||0)*(d.bp||0); return (d.bc && d.bc !== 'JPY') ? (typeof toJPY === 'function' ? toJPY(s, d.bc) : '') : ''; }, pvGroup: 'jpy-conv', role: 'jpyConv' },
+    { hdr: '円換算(JPY)', fn: d => { const s = (d.bq||0)*(d.bp||0); return (d.bc && d.bc !== 'JPY') ? (typeof toJPY === 'function' ? Math.ceil(toJPY(s, d.bc)) : '') : ''; }, pvGroup: 'jpy-conv', role: 'jpyConv' },
     { hdr: '消費税',       fn: d => d.taxed ? (d.bq||0)*(d.bp||0)*getEffectiveTaxRate() : '', pvGroup: 'tax-col', role: 'taxAmt' },
     { hdr: '利益',         fn: d => d.profit,              pvGroup: 'profit', role: 'profit' },
     { hdr: '備考',         fn: d => d.note,                pvGroup: 'note',   role: 'note'   },
@@ -680,7 +680,7 @@
         return;
       }
       const sub    = (d.bq || 0) * (d.bp || 0);
-      const jpy    = (typeof toJPY === 'function') ? toJPY(sub, d.bc) : sub;
+      const jpy    = (typeof toJPY === 'function') ? Math.ceil(toJPY(sub, d.bc)) : sub;
       const taxAmt = d.taxed ? sub * getEffectiveTaxRate() : 0;
       totSub     += sub;
       totJpyConv += jpy;
