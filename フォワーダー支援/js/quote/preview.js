@@ -489,7 +489,7 @@
   // ========== プレビュー表示カスタマイズ → 出力書類への連動 ==========
   // 現在の pv-col-chk 状態をオブジェクトで取得（チェックボックスが無ければ既定値 true）
   function getPreviewVisibility() {
-    const def = { cat: true, pay: true, bill: true, mk: true, profit: true, note: true, sv: true };
+    const def = { cat: true, pay: true, bill: true, mk: true, profit: true, note: true, sv: true, 'tax-col': true };
     document.querySelectorAll('.pv-col-chk').forEach(chk => {
       const k = chk.dataset.col;
       if (k && k in def) def[k] = chk.checked;
@@ -616,6 +616,7 @@
     { hdr: '単価(請求)',   fn: d => d.bp,                  pvGroup: 'bill',   role: 'bp'     },
     { hdr: '乗せ幅',       fn: d => d.mk,                  pvGroup: 'mk',     role: 'mk'     },
     { hdr: '小計',         fn: d => (d.bq || 0) * (d.bp || 0), pvGroup: null, role: 'sub'    },
+    { hdr: '消費税',       fn: d => d.taxed ? (d.bq||0)*(d.bp||0)*getEffectiveTaxRate() : '', pvGroup: 'tax-col', role: 'taxAmt' },
     { hdr: '利益',         fn: d => d.profit,              pvGroup: 'profit', role: 'profit' },
     { hdr: '備考',         fn: d => d.note,                pvGroup: 'note',   role: 'note'   },
   ];
@@ -635,6 +636,7 @@
     const visCols = XLSX_COL_DEFS.filter(c => !c.pvGroup || vis[c.pvGroup]);
     const idxOf = role => visCols.findIndex(c => c.role === role);
     const idxSub    = idxOf('sub');
+    const idxTaxAmt = idxOf('taxAmt');
     const idxProfit = idxOf('profit');
 
     const aoaRows = [];
@@ -646,7 +648,7 @@
     // 列ヘッダ
     aoaRows.push(visCols.map(c => c.hdr));
 
-    let totSub = 0, totProfit = 0;
+    let totSub = 0, totTaxAmt = 0, totProfit = 0;
     allRows.forEach(d => {
       if (d._type === 'subtotal') {
         const row = visCols.map(() => '');
@@ -656,8 +658,10 @@
         aoaRows.push(row);
         return;
       }
-      const sub = (d.bq || 0) * (d.bp || 0);
+      const sub    = (d.bq || 0) * (d.bp || 0);
+      const taxAmt = d.taxed ? sub * getEffectiveTaxRate() : 0;
       totSub    += sub;
+      totTaxAmt += taxAmt;
       totProfit += d.profit;
       aoaRows.push(visCols.map(c => c.fn(d)));
     });
@@ -666,6 +670,7 @@
     const totalRow = visCols.map(() => '');
     totalRow[0] = '合　計';
     if (idxSub    >= 0) totalRow[idxSub]    = totSub;
+    if (idxTaxAmt >= 0) totalRow[idxTaxAmt] = totTaxAmt;
     if (idxProfit >= 0) totalRow[idxProfit] = totProfit;
     aoaRows.push(totalRow);
 
