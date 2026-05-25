@@ -147,6 +147,22 @@ function buildCarrierGrid() {
 //  Tab 2: 本船動静
 // ================================================================
 function buildVesselGrid() {
+  // PORT TO PORT グリッド
+  const p2pGrid = document.getElementById('port-to-port-grid');
+  if (p2pGrid) {
+    for (const [name, info] of Object.entries(CARRIERS)) {
+      const rawUrl = info.schedule;
+      const url = rawUrl ? (typeof rawUrl === 'function' ? rawUrl() : rawUrl) : null;
+      const card = document.createElement('div');
+      const hasUrl = !!url;
+      const badge = hasUrl ? '' : '<div class="disabled-badge">未登録</div>';
+      card.className = 'carrier-card' + (!hasUrl ? ' tracking-disabled' : '');
+      card.innerHTML = `<div class="name">${name}</div><div class="domain">${info.domain}</div>${badge}`;
+      if (hasUrl) card.onclick = () => window.open(url, '_blank', 'noopener');
+      p2pGrid.appendChild(card);
+    }
+  }
+
   // 国内動静ポータル
   const portalGrid = document.getElementById('vessel-portal-grid');
   for (const p of VESSEL_PORTALS) {

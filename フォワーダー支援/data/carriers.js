@@ -28,7 +28,7 @@ const CARRIERS = {
     top:       'https://www.msc.com/ja',
     tracking:  n => `https://www.msc.com/en/track-a-shipment?agencyPath=mwi&searchInfo=${n}`,
     vessel:    () => 'https://www.msc.com/ja/search-a-schedule',
-    schedule:  null,
+    schedule:  () => 'https://www.msc.com/ja/search-a-schedule',
     surchargeImportNote: 'リンク先の下部、「myMSCユーザーガイド/よくあるお問い合わせ」に情報あり',
     surchargeImport: () => 'https://www.msc.com/ja/local-information/asia-pacific/japan#ローカル情報', surchargeExport: null, surchargeOther: null,
     freetime:  null,
