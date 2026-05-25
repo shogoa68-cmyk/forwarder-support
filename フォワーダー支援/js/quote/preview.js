@@ -489,7 +489,7 @@
   // ========== プレビュー表示カスタマイズ → 出力書類への連動 ==========
   // 現在の pv-col-chk 状態をオブジェクトで取得（チェックボックスが無ければ既定値 true）
   function getPreviewVisibility() {
-    const def = { cat: true, pay: true, bill: true, mk: true, profit: true, note: true, sv: true, 'tax-col': true };
+    const def = { cat: true, pay: true, unit: true, bill: true, mk: true, profit: true, note: true, sv: true, 'tax-col': true };
     document.querySelectorAll('.pv-col-chk').forEach(chk => {
       const k = chk.dataset.col;
       if (k && k in def) def[k] = chk.checked;
@@ -530,6 +530,7 @@
     { hdr: 'サブコン', fn: d => d.sv || '',            pvGroup: 'sv',     role: 'sv'     },
     { hdr: '項目名',   fn: d => d.name,                pvGroup: null,     role: 'name'   },
     { hdr: '数量',     fn: d => fmtRaw(d.pq),          pvGroup: 'pay',    role: 'pq'     },
+    { hdr: '単位',     fn: d => d.un || '',            pvGroup: 'unit',   role: 'un'     },
     { hdr: '通貨',     fn: d => d.pc,                  pvGroup: 'pay',    role: 'pc'     },
     { hdr: '単価',     fn: d => fmtRaw(d.pp),          pvGroup: 'pay',    role: 'pp'     },
     { hdr: 'CD',       fn: d => fmtRaw(d.cd),          pvGroup: 'pay',    role: 'cd'     },
@@ -608,6 +609,7 @@
     { hdr: '項目名',       fn: d => d.name,                pvGroup: null,     role: 'name'   },
     { hdr: '課税',         fn: d => d.taxed ? '●' : '',   pvGroup: null,     role: 'tax'    },
     { hdr: '数量(原価)',   fn: d => d.pq,                  pvGroup: 'pay',    role: 'pq'     },
+    { hdr: '単位',         fn: d => d.un || '',            pvGroup: 'unit',   role: 'un'     },
     { hdr: '通貨(原価)',   fn: d => d.pc,                  pvGroup: 'pay',    role: 'pc'     },
     { hdr: '単価(原価)',   fn: d => d.pp,                  pvGroup: 'pay',    role: 'pp'     },
     { hdr: 'CD',           fn: d => d.cd,                  pvGroup: 'pay',    role: 'cd'     },
