@@ -652,6 +652,14 @@
 
     let totSub = 0, totTaxAmt = 0, totProfit = 0;
     allRows.forEach(d => {
+      if (d._type === 'remark') {
+        if (d.text) {
+          const row = visCols.map(() => '');
+          row[0] = `💬 ${d.text}`;
+          aoaRows.push(row);
+        }
+        return;
+      }
       if (d._type === 'subtotal') {
         const row = visCols.map(() => '');
         row[0] = `━━ ${d.label || '小計'}`;
