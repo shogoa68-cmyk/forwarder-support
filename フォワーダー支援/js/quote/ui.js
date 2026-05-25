@@ -704,7 +704,7 @@
     const preset  = presets[idx];
     if (!preset) return;
     if (!confirm('「' + preset.name + '」を読み込みますか？\n現在の入力内容は上書きされます。')) return;
-    // 旧形式（sv 末尾）を新形式（sv@2）へ
+    // 旧形式（v1/v2）を v3-mixed-rows に変換
     if (typeof migrateRowCells === 'function') preset.data = migrateRowCells(preset.data);
     // フォーム復元
     Object.entries(preset.data.fields || {}).forEach(([id, v]) => {
@@ -713,25 +713,10 @@
       if (el.type === 'checkbox') el.checked = v;
       else el.value = v;
     });
-    document.getElementById('tableBody').innerHTML = '';
-    rowCount = 0;
-    (preset.data.rows || []).forEach(() => addRow());
-    const trs = document.querySelectorAll('#tableBody tr');
-    // まず全行に値をセット
-    (preset.data.rows || []).forEach((cells, i) => {
-      if (!trs[i]) return;
-      trs[i].querySelectorAll('input, select, textarea').forEach((el, j) => {
-        if (cells[j] !== undefined) el.value = cells[j];
-      });
-    });
-    // 値セット後にまとめてUI更新（グレーアウト・カテゴリ色・計算）
-    trs.forEach((tr, i) => {
-      if (!(preset.data.rows || [])[i]) return;
-      const rowId = tr.id.replace('row-', '');
-      checkUnfilled(rowId);
-      onCatChange(rowId);
-      onPay(parseInt(rowId));
-    });
+    // テーブル行復元
+    // ※ _rebuildTable を使う（v3形式・subtotal/remark行・checkboxに正しく対応）
+    //   旧実装は rows を配列として扱っていたため v3 オブジェクト形式で全値が undefined になるバグがあった
+    _rebuildTable(preset.data);
     updateTotals();
     calcLiveUpdate();
     updateRouteModeIcon();
@@ -1030,16 +1015,9 @@
       });
 
       // ---- 見積テーブル行復元 ----
-      document.getElementById('tableBody').innerHTML = '';
-      rowCount = 0;
-      (data.rows || []).forEach(() => addRow());
-      const trs = document.querySelectorAll('#tableBody tr');
-      (data.rows || []).forEach((cells, i) => {
-        if (!trs[i]) return;
-        trs[i].querySelectorAll('input, select, textarea').forEach((el, j) => {
-          if (cells[j] !== undefined) el.value = cells[j];
-        });
-      });
+      // ※ _rebuildTable を使う（v3形式・subtotal/remark行・checkboxに正しく対応）
+      if (typeof migrateRowCells === 'function') data = migrateRowCells(data);
+      _rebuildTable(data);
 
       // ---- doneボタン状態（廃止）：旧 JSON との互換のため doneStates は読み飛ばす ----
 
