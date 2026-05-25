@@ -1342,9 +1342,11 @@
   background: #3d2e1e; color: #fff; border: 1px solid #a8947e;
   padding: 6px 10px; font-weight: 600;
 }
-#tab-quote-make #previewTable th.ph-pay { background: #8b6914; }
-#tab-quote-make #previewTable th.ph-bill { background: #5a6e42; }
+#tab-quote-make #previewTable th.ph-pay    { background: #8b6914; }
+#tab-quote-make #previewTable th.ph-bill   { background: #5a6e42; }
 #tab-quote-make #previewTable th.ph-profit { background: #9a4a25; }
+#tab-quote-make #previewTable th.ph-jpy    { background: #1e6b6b; }
+#tab-quote-make #previewTable td.pv-jpy    { text-align: right; background: #e8f7f7; color: #0d5252; font-weight: 600; }
 #tab-quote-make #previewTable td { border: 1px solid #d9cfc2; padding: 5px 10px; text-align: center; }
 #tab-quote-make #previewTable td.pv-name { text-align: left; min-width: 120px; }
 #tab-quote-make #previewTable td.pv-num { text-align: right; }

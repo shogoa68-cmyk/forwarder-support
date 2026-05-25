@@ -213,14 +213,14 @@
         <th class="ph-pay">数量</th><th class="ph-pay">単位</th><th class="ph-pay">通貨</th>
         <th class="ph-pay">単価</th><th class="ph-pay" style="color:#ccc;">CD</th>
         <th class="ph-bill">数量</th><th class="ph-bill">通貨</th><th class="ph-bill">単価</th>
-        <th class="ph-profit">乗せ幅</th><th class="ph-profit">小計</th><th class="ph-profit">消費税</th><th class="ph-profit">利益</th><th class="ph-profit">備考</th>
+        <th class="ph-profit">乗せ幅</th><th class="ph-profit">小計</th><th class="ph-jpy">円換算</th><th class="ph-profit">消費税</th><th class="ph-profit">利益</th><th class="ph-profit">備考</th>
       </tr></thead><tbody>`;
 
-    let totSub = 0, totTax = 0;
+    let totSub = 0, totTax = 0, totJpy = 0;
     allRows.forEach(d => {
       if (d._type === 'remark') {
         html += `<tr class="pv-table-remark-row">
-          <td colspan="16" class="pv-remark-cell">💬 ${escHtml(d.text)}</td>
+          <td colspan="17" class="pv-remark-cell">💬 ${escHtml(d.text)}</td>
         </tr>`;
         return;
       }
@@ -230,6 +230,7 @@
         html += `<tr class="pv-subtotal-sep">
           <td colspan="12" class="pv-subtotal-sep-label">━━ ${escHtml(d.label || '小計')}</td>
           <td class="pv-num pv-subtotal">${escHtml(d.subtotalText)}</td>
+          <td class="pv-jpy"></td>
           <td class="pv-num pv-tax-cell"></td>
           <td class="pv-pr ${sepPc} pv-num">${escHtml(d.profitText)}</td>
           <td></td>
@@ -239,9 +240,12 @@
       const pc      = d.profit > 0 ? 'pv-pos' : d.profit < 0 ? 'pv-neg' : 'pv-zero';
       const nameCls = d.taxed ? 'pv-name pv-taxed' : 'pv-name';
       const sub     = (d.bq || 0) * (d.bp || 0);
+      const jpyAmt  = (typeof toJPY === 'function') ? toJPY(sub, d.bc) : sub;
       const taxAmt  = d.taxed ? sub * taxRate : 0;
       totSub += sub;
       totTax += taxAmt;
+      totJpy += jpyAmt;
+      const jpyCellText = (d.bc && d.bc !== 'JPY') ? fmtRaw(jpyAmt) : '—';
       const taxCellText = d.taxed ? fmtRaw(taxAmt) : '';
       html += `<tr>
         <td class="pv-name" style="font-size:11px;">${escHtml(getCatLabel(d.cat))}</td>
@@ -254,6 +258,7 @@
         <td class="pv-num">${fmtRaw(d.bp)}</td>
         <td class="pv-num">${fmtRaw(d.mk)}</td>
         <td class="pv-num pv-subtotal">${fmtRaw(sub)}</td>
+        <td class="pv-jpy">${jpyCellText}</td>
         <td class="pv-num pv-tax-cell" data-sub="${sub}" data-taxed="${d.taxed ? 1 : 0}">${taxCellText}</td>
         <td class="pv-pr ${pc} pv-num">${fmtRaw(d.profit)}</td>
         <td class="pv-name">${escHtml(d.note)}</td>
@@ -269,6 +274,7 @@
       <td colspan="2">—</td><td class="pv-num">—</td>
       <td class="pv-num">${fmtRaw(totMk)}</td>
       <td class="pv-num pv-subtotal">${fmtRaw(totSub)}</td>
+      <td class="pv-jpy pv-jpy-total">${fmtRaw(totJpy)}</td>
       <td class="pv-num pv-tax-total">${totTaxText}</td>
       <td class="pv-pr ${totPc} pv-num">${fmtRaw(totPr)}</td>
       <td></td>
@@ -410,7 +416,7 @@
     if (!table) return;
 
     // 列表示切り替え。sv（サブコン）を cat 直後に移動した新レイアウト：
-    // index 構成: 0:cat 1:sv 2:name 3:pq 4:un 5:pc 6:pp 7:cd 8:bq 9:bc 10:bp 11:mk 12:sub 13:tax 14:profit 15:note
+    // index 構成: 0:cat 1:sv 2:name 3:pq 4:un 5:pc 6:pp 7:cd 8:bq 9:bc 10:bp 11:mk 12:sub 13:jpy-conv 14:tax 15:profit 16:note
     const colMap = {
       cat:        [0],
       sv:         [1],            // サブコン（カテゴリの直後）
@@ -418,9 +424,10 @@
       unit:       [4],            // un を pay から分離して独立トグル
       bill:       [8, 9, 10],
       mk:         [11],
-      'tax-col':  [13],           // 消費税列
-      profit:     [14],
-      note:       [15],
+      'jpy-conv': [13],           // 円換算列
+      'tax-col':  [14],           // 消費税列
+      profit:     [15],
+      note:       [16],
     };
 
     document.querySelectorAll('.pv-col-chk').forEach(chk => {
@@ -489,7 +496,7 @@
   // ========== プレビュー表示カスタマイズ → 出力書類への連動 ==========
   // 現在の pv-col-chk 状態をオブジェクトで取得（チェックボックスが無ければ既定値 true）
   function getPreviewVisibility() {
-    const def = { cat: true, pay: true, unit: true, bill: true, mk: true, profit: true, note: true, sv: true, 'tax-col': true };
+    const def = { cat: true, pay: true, unit: true, bill: true, mk: true, 'jpy-conv': true, profit: true, note: true, sv: true, 'tax-col': true };
     document.querySelectorAll('.pv-col-chk').forEach(chk => {
       const k = chk.dataset.col;
       if (k && k in def) def[k] = chk.checked;
@@ -498,14 +505,15 @@
   }
   // PV グループ → CSV/TSV/Excel の列キー集合（unit は pay から独立トグル）
   const PV_GROUP_TO_KEYS = {
-    cat:    ['cat'],
-    pay:    ['pq', 'pc', 'pp', 'cd'],
-    unit:   ['un'],
-    bill:   ['bq', 'bc', 'bp'],
-    mk:     ['mk'],
-    profit: ['profit'],
-    note:   ['note'],
-    sv:     ['sv'],
+    cat:       ['cat'],
+    pay:       ['pq', 'pc', 'pp', 'cd'],
+    unit:      ['un'],
+    bill:      ['bq', 'bc', 'bp'],
+    mk:        ['mk'],
+    'jpy-conv':['jpyConv'],
+    profit:    ['profit'],
+    note:      ['note'],
+    sv:        ['sv'],
   };
   function getVisibleKeysFromPreview() {
     const vis = getPreviewVisibility();
@@ -537,9 +545,10 @@
     { hdr: '数量',     fn: d => fmtRaw(d.bq),          pvGroup: 'bill',   role: 'bq'     },
     { hdr: '通貨',     fn: d => d.bc,                  pvGroup: 'bill',   role: 'bc'     },
     { hdr: '単価',     fn: d => fmtRaw(d.bp),          pvGroup: 'bill',   role: 'bp'     },
-    { hdr: '乗せ幅',   fn: d => fmtRaw(d.mk),          pvGroup: 'mk',     role: 'mk'     },
-    { hdr: '利益',     fn: d => fmtRaw(d.profit),      pvGroup: 'profit', role: 'profit' },
-    { hdr: '備考',     fn: d => d.note,                pvGroup: 'note',   role: 'note'   },
+    { hdr: '乗せ幅',       fn: d => fmtRaw(d.mk),          pvGroup: 'mk',       role: 'mk'     },
+    { hdr: '円換算(JPY)', fn: d => { const s = (d.bq||0)*(d.bp||0); return (d.bc && d.bc !== 'JPY') ? fmtRaw(typeof toJPY === 'function' ? toJPY(s, d.bc) : s) : '—'; }, pvGroup: 'jpy-conv', role: 'jpyConv' },
+    { hdr: '利益',         fn: d => fmtRaw(d.profit),      pvGroup: 'profit',   role: 'profit' },
+    { hdr: '備考',         fn: d => d.note,                pvGroup: 'note',     role: 'note'   },
   ];
 
   function copyTSV() {
@@ -617,7 +626,8 @@
     { hdr: '通貨(請求)',   fn: d => d.bc,                  pvGroup: 'bill',   role: 'bc'     },
     { hdr: '単価(請求)',   fn: d => d.bp,                  pvGroup: 'bill',   role: 'bp'     },
     { hdr: '乗せ幅',       fn: d => d.mk,                  pvGroup: 'mk',     role: 'mk'     },
-    { hdr: '小計',         fn: d => (d.bq || 0) * (d.bp || 0), pvGroup: null, role: 'sub'    },
+    { hdr: '小計',         fn: d => (d.bq || 0) * (d.bp || 0), pvGroup: null,      role: 'sub'     },
+    { hdr: '円換算(JPY)', fn: d => { const s = (d.bq||0)*(d.bp||0); return (d.bc && d.bc !== 'JPY') ? (typeof toJPY === 'function' ? toJPY(s, d.bc) : '') : ''; }, pvGroup: 'jpy-conv', role: 'jpyConv' },
     { hdr: '消費税',       fn: d => d.taxed ? (d.bq||0)*(d.bp||0)*getEffectiveTaxRate() : '', pvGroup: 'tax-col', role: 'taxAmt' },
     { hdr: '利益',         fn: d => d.profit,              pvGroup: 'profit', role: 'profit' },
     { hdr: '備考',         fn: d => d.note,                pvGroup: 'note',   role: 'note'   },
@@ -637,9 +647,10 @@
     // プレビュー表示カスタマイズで非表示にしたグループの列を除外
     const visCols = XLSX_COL_DEFS.filter(c => !c.pvGroup || vis[c.pvGroup]);
     const idxOf = role => visCols.findIndex(c => c.role === role);
-    const idxSub    = idxOf('sub');
-    const idxTaxAmt = idxOf('taxAmt');
-    const idxProfit = idxOf('profit');
+    const idxSub     = idxOf('sub');
+    const idxJpyConv = idxOf('jpyConv');
+    const idxTaxAmt  = idxOf('taxAmt');
+    const idxProfit  = idxOf('profit');
 
     const aoaRows = [];
     if (hdr.ref)      aoaRows.push(['仮 REF #', hdr.ref]);
@@ -650,7 +661,7 @@
     // 列ヘッダ
     aoaRows.push(visCols.map(c => c.hdr));
 
-    let totSub = 0, totTaxAmt = 0, totProfit = 0;
+    let totSub = 0, totJpyConv = 0, totTaxAmt = 0, totProfit = 0;
     allRows.forEach(d => {
       if (d._type === 'remark') {
         if (d.text) {
@@ -669,19 +680,22 @@
         return;
       }
       const sub    = (d.bq || 0) * (d.bp || 0);
+      const jpy    = (typeof toJPY === 'function') ? toJPY(sub, d.bc) : sub;
       const taxAmt = d.taxed ? sub * getEffectiveTaxRate() : 0;
-      totSub    += sub;
-      totTaxAmt += taxAmt;
-      totProfit += d.profit;
+      totSub     += sub;
+      totJpyConv += jpy;
+      totTaxAmt  += taxAmt;
+      totProfit  += d.profit;
       aoaRows.push(visCols.map(c => c.fn(d)));
     });
     // 合計行
     aoaRows.push([]);
     const totalRow = visCols.map(() => '');
     totalRow[0] = '合　計';
-    if (idxSub    >= 0) totalRow[idxSub]    = totSub;
-    if (idxTaxAmt >= 0) totalRow[idxTaxAmt] = totTaxAmt;
-    if (idxProfit >= 0) totalRow[idxProfit] = totProfit;
+    if (idxSub     >= 0) totalRow[idxSub]     = totSub;
+    if (idxJpyConv >= 0) totalRow[idxJpyConv] = totJpyConv;
+    if (idxTaxAmt  >= 0) totalRow[idxTaxAmt]  = totTaxAmt;
+    if (idxProfit  >= 0) totalRow[idxProfit]  = totProfit;
     aoaRows.push(totalRow);
 
     // 条件・リマーク
