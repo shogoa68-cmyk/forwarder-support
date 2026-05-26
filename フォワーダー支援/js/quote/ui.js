@@ -1538,6 +1538,54 @@
     setLayoutScale(order[next]);
   }
 
+  // ===== 列グループ折り畳み（案B） =====
+  // pay = 支払い列（数量/単位/通貨/単価）、bill = 請求列（②数量/②通貨/②単価）
+  // デフォルト: 請求列を折り畳んだ状態で開始（支払い入力に集中しやすいよう）
+  window.toggleColGroup = function(group) {
+    const table = document.getElementById('quoteTable');
+    if (!table) return;
+    const collapsed = table.classList.toggle(group + '-collapsed');
+
+    // row1 グループヘッダーの colspan を折り畳み列数に合わせて更新
+    const grpHd = table.querySelector(`thead tr:first-child th[data-grp-hd="${group}"]`);
+    if (grpHd) {
+      const detailCount = table.querySelectorAll(`thead tr:nth-child(2) th[data-grp-col="${group}"]`).length;
+      grpHd.setAttribute('colspan', collapsed ? 1 : detailCount);
+      const btn = grpHd.querySelector('.col-grp-toggle');
+      if (btn) {
+        btn.textContent = collapsed ? '▶' : '▼';
+        const groupName = group === 'pay' ? '支払い' : '請求';
+        btn.title = collapsed ? `${groupName}列を展開` : `${groupName}列を折り畳む`;
+      }
+    }
+    // 状態を localStorage に保存
+    localStorage.setItem(`colGroup_${group}_collapsed`, collapsed ? '1' : '0');
+  };
+
+  function initColGroupState() {
+    ['pay', 'bill'].forEach(group => {
+      const saved = localStorage.getItem(`colGroup_${group}_collapsed`);
+      // デフォルト: bill のみ折り畳み、pay は展開
+      const shouldCollapse = saved !== null ? saved === '1' : group === 'bill';
+      if (shouldCollapse) {
+        const table = document.getElementById('quoteTable');
+        if (!table) return;
+        table.classList.add(group + '-collapsed');
+        const grpHd = table.querySelector(`thead tr:first-child th[data-grp-hd="${group}"]`);
+        if (grpHd) {
+          const detailCount = table.querySelectorAll(`thead tr:nth-child(2) th[data-grp-col="${group}"]`).length;
+          grpHd.setAttribute('colspan', 1);
+          const btn = grpHd.querySelector('.col-grp-toggle');
+          if (btn) {
+            btn.textContent = '▶';
+            const groupName = group === 'pay' ? '支払い' : '請求';
+            btn.title = `${groupName}列を展開`;
+          }
+        }
+      }
+    });
+  }
+
   // Phase 2b：DOMContentLoaded ではなく initQuoteUI() として呼び出すように変更
   function initQuoteUI() {
     restoreCargoFieldOrder();
@@ -1546,6 +1594,7 @@
     renderPackingPreset();
     restoreLayoutScale();      // 大/中/小 スケールを復元
     refreshBulkCatSelect();    // 「選択行 → カテゴリ一括変更」セレクトを初期構築
+    initColGroupState();       // 列グループ折り畳み状態を復元（デフォルト: 請求列折り畳み）
   }
 
   // ===== Phase 2b：見積タブ初回表示時の遅延初期化集約 =====
