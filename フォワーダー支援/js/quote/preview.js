@@ -292,6 +292,7 @@
       { lbl: 'HSコード',        val: cond.hsCode },
       { lbl: '関税率（基本）',   val: cond.hsBasic },
       { lbl: '協定税率',        val: cond.hsPref },
+      { lbl: '協定税率 備考',   val: cond.hsPrefNote },
       { lbl: '重量',            val: cond.weight },
       { lbl: '容積',            val: cond.volume },
       { lbl: '荷姿',            val: cond.packing },

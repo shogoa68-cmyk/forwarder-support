@@ -453,6 +453,17 @@
 #tab-quote-make .hs-rate-field input:focus {
   border-style: solid; border-color: #6b5a42;
 }
+#tab-quote-make .hs-rate-note {
+  font-size: 11px; font-family: inherit;
+  padding: 4px 8px; resize: vertical;
+  border: 1px dashed #d9cfc2; border-radius: 4px;
+  background: #faf7f3; color: #2d2418;
+  outline: none; transition: border-color 0.15s;
+  line-height: 1.5;
+}
+#tab-quote-make .hs-rate-note:focus {
+  border-style: solid; border-color: #6b5a42;
+}
 #tab-quote-make .cond-field input,
 #tab-quote-make .cond-field select,
 #tab-quote-make .cond-field textarea {
