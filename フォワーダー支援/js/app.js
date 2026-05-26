@@ -551,9 +551,9 @@ function buildLclCarrierGrid() {
 
 // ================================================================
 //  LCL フィードバックモーダル
-//  ▼ Google フォーム URL をここに設定（空文字のままだとコピーのみになります）
+//  ▼ Google フォームへの直接 no-cors POST で送信（save.js の FEEDBACK_FORM を参照）
 // ================================================================
-const LCL_FB_FORM_URL = '';  // 例: 'https://docs.google.com/forms/d/e/xxxx/viewform'
+const LCL_FB_FORM_URL = 'https://docs.google.com/forms/d/e/1FAIpQLSfcUVKmty9XKosfI1YZG8IwkjX_NQOtMmz7J4FYbuituRTYKA/viewform';
 function openLclFeedback(e, carrierName) {
   e.stopPropagation();
   const overlay = document.getElementById('lclFbOverlay');
@@ -630,30 +630,53 @@ function initLclFeedback() {
     });
   });
 
-  // Googleフォーム送信ボタン
-  document.getElementById('lclFbFormBtn')?.addEventListener('click', () => {
+  // Googleフォーム送信ボタン（no-cors POST で直接送信 — save.js の FEEDBACK_FORM を参照）
+  document.getElementById('lclFbFormBtn')?.addEventListener('click', async () => {
     const text = _buildLclFbText(overlay._carrier);
     if (!text) return;
 
-    if (!LCL_FB_FORM_URL) {
-      // フォームURL未設定 → コピーだけ行い案内を表示
-      navigator.clipboard.writeText(text).then(() => {
-        _lclFbToast('📋 コピーしました（Googleフォームは未設定です）');
-      }).catch(() => {
-        prompt('以下をコピーしてください:', text);
-      });
-      return;
-    }
+    // LCL 種別 → Google Form カテゴリにマッピング
+    const fbType   = document.querySelector('[name="lclFbType"]:checked')?.value || '';
+    const category = fbType === 'リンク追加リクエスト' ? '改善要望' : 'バグ報告';
 
-    // フォームURLが設定済み → テキストをコピーしてフォームを開く
-    navigator.clipboard.writeText(text).then(() => {
+    const btn = document.getElementById('lclFbFormBtn');
+    const origLabel = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = '送信中…';
+
+    // FEEDBACK_FORM は save.js で定義（DOMContentLoaded 時点では読み込み済み）
+    const fb = (typeof FEEDBACK_FORM !== 'undefined') ? FEEDBACK_FORM : null;
+    if (!fb || !fb.formId) {
+      // フォールバック：コピー＋タブ開く
+      await navigator.clipboard.writeText(text).catch(() => {});
       window.open(LCL_FB_FORM_URL, '_blank');
       overlay.setAttribute('hidden', '');
       _lclFbToast('📋 テキストをコピーしました。フォームに貼り付けてください');
-    }).catch(() => {
-      window.open(LCL_FB_FORM_URL, '_blank');
+      btn.disabled = false;
+      btn.textContent = origLabel;
+      return;
+    }
+
+    const fd = new FormData();
+    fd.append(fb.entries.category, category);
+    fd.append(fb.entries.section,  '全体');
+    fd.append(fb.entries.body,     text);
+
+    try {
+      await fetch(
+        `https://docs.google.com/forms/d/e/${fb.formId}/formResponse`,
+        { method: 'POST', mode: 'no-cors', body: fd }
+      );
+      _lclFbToast('✅ フィードバックを送信しました。ありがとうございます！');
       overlay.setAttribute('hidden', '');
-    });
+    } catch (err) {
+      _lclFbToast('⚠️ 送信できませんでした。テキストをコピーしてフォームに貼り付けてください');
+      await navigator.clipboard.writeText(text).catch(() => {});
+      console.error('LCL FB submit error:', err);
+    } finally {
+      btn.disabled = false;
+      btn.textContent = origLabel;
+    }
   });
 }
 
