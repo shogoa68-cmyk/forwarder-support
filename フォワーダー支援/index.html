@@ -2360,86 +2360,93 @@
       <!-- サブセクション③：貨物情報 -->
       <div class="cond-subsec-label cond-subsec-label--cargo">📦 貨物情報</div>
       <div id="cargoBody">
-        <div class="condition-grid" id="cargoCondGrid">
-          <div class="cond-field" data-field-id="cargo" draggable="true">
-            <label><span class="cond-sort-handle" title="ドラッグして並び替え">⠿</span><span class="cond-icon">🏷️</span> 貨物名</label>
-            <input type="text" id="cond-cargo" placeholder="例）自動車部品" />
-          </div>
-          <div class="cond-field" data-field-id="hs" draggable="true">
-            <label><span class="cond-sort-handle" title="ドラッグして並び替え">⠿</span><span class="cond-icon">🔍</span> HSコード
-              <a class="hs-tariff-link" href="https://www.kanzei.or.jp/statistical/tariff/top/index/j/" target="_blank" rel="noopener" title="WEBタリフで検索（関税協会）">WEBタリフ ↗</a>
-            </label>
-            <input type="text" id="cond-hs" placeholder="例）8544.42" maxlength="20" />
-            <div class="hs-rate-row">
-              <div class="hs-rate-field">
-                <span class="hs-rate-lbl">📊 関税率（基本）</span>
-                <input type="text" id="cond-hs-basic" placeholder="例）3.3%" maxlength="30" />
-              </div>
-              <div class="hs-rate-field">
-                <span class="hs-rate-lbl">🤝 協定税率</span>
-                <input type="text" id="cond-hs-pref" placeholder="例）0%（日 EU EPA）" maxlength="60" />
-                <textarea id="cond-hs-pref-note" class="hs-rate-note" rows="2"
-                  placeholder="例）日EU EPA 適用。Form A 取得済み"></textarea>
+
+        <!-- ▼ 貨物名・品目グループ -->
+        <div class="cond-inner-group">
+          <div class="cond-inner-group-label">🏷️ 貨物名・品目</div>
+          <div class="condition-grid" id="cargoCondGrid">
+            <div class="cond-field" data-field-id="cargo" draggable="true">
+              <label><span class="cond-sort-handle" title="ドラッグして並び替え">⠿</span><span class="cond-icon">🏷️</span> 貨物名</label>
+              <input type="text" id="cond-cargo" placeholder="例）自動車部品" />
+            </div>
+            <div class="cond-field" data-field-id="hs" draggable="true">
+              <label><span class="cond-sort-handle" title="ドラッグして並び替え">⠿</span><span class="cond-icon">🔍</span> HSコード
+                <a class="hs-tariff-link" href="https://www.kanzei.or.jp/statistical/tariff/top/index/j/" target="_blank" rel="noopener" title="WEBタリフで検索（関税協会）">WEBタリフ ↗</a>
+              </label>
+              <input type="text" id="cond-hs" placeholder="例）8544.42" maxlength="20" />
+              <div class="hs-rate-row">
+                <div class="hs-rate-field">
+                  <span class="hs-rate-lbl">📊 関税率（基本）</span>
+                  <input type="text" id="cond-hs-basic" placeholder="例）3.3%" maxlength="30" />
+                </div>
+                <div class="hs-rate-field">
+                  <span class="hs-rate-lbl">🤝 協定税率</span>
+                  <input type="text" id="cond-hs-pref" placeholder="例）0%（日 EU EPA）" maxlength="60" />
+                  <textarea id="cond-hs-pref-note" class="hs-rate-note" rows="2"
+                    placeholder="例）日EU EPA 適用。Form A 取得済み"></textarea>
+                </div>
               </div>
             </div>
-          </div>
-          <div class="cond-field" data-field-id="container-type" data-scope-key="container" draggable="true">
-            <label><span class="cond-sort-handle" title="ドラッグして並び替え">⠿</span><span class="cond-icon">📐</span> コンテナ種類・サイズ</label>
-            <select id="cond-container-type">
-              <option value="">— 選択 —</option>
-              <option title="20ft 一般ドライコンテナ（General Purpose）">20'GP</option>
-              <option title="40ft 一般ドライコンテナ（General Purpose）">40'GP</option>
-              <option title="40ft 背高コンテナ（High Cube／40HQ・40HC）">40'HQ</option>
-              <option title="20ft 冷凍コンテナ（Reefer）">20'RF（冷凍）</option>
-              <option title="40ft 冷凍コンテナ（Reefer）">40'RF（冷凍）</option>
-              <option>20'OT（オープントップ）</option>
-              <option>40'OT（オープントップ）</option>
-              <option>20'FR（フラットラック）</option>
-              <option>40'FR（フラットラック）</option>
-              <option>LCL（混載）</option>
-              <option>未定</option>
-            </select>
-          </div>
-          <div class="cond-field" data-field-id="container-count" data-scope-key="container" draggable="true">
-            <label><span class="cond-sort-handle" title="ドラッグして並び替え">⠿</span><span class="cond-icon">🔢</span> 本数</label>
-            <input type="number" id="cond-container-count" min="0" step="1" placeholder="例）1" />
-            <span class="banning-hint">📦 本数が不明な場合は<button type="button" class="banning-hint-link" onclick="openBanningCalc()">バンニングシミュレーション</button>で確認</span>
-          </div>
-          <div class="cond-field" data-field-id="weight" draggable="true">
-            <label><span class="cond-sort-handle" title="ドラッグして並び替え">⠿</span><span class="cond-icon">⚖️</span> 重量（概算）</label>
-            <input type="text" id="cond-weight" placeholder="例）5,000 kg" />
-          </div>
-          <div class="cond-field" data-field-id="volume" draggable="true">
-            <label><span class="cond-sort-handle" title="ドラッグして並び替え">⠿</span><span class="cond-icon">📏</span> 容積（概算）</label>
-            <input type="text" id="cond-volume" placeholder="例）20 CBM" />
-          </div>
-          <div class="cond-field" data-field-id="packing" draggable="true">
-            <label><span class="cond-sort-handle" title="ドラッグして並び替え">⠿</span><span class="cond-icon">📦</span> 荷姿</label>
-            <div class="packing-field-wrap">
-              <select id="cond-packing-preset" onchange="onPackingPresetChange(this)" title="よく使う荷姿を選択"></select>
-              <input type="text" id="cond-packing" placeholder="例）カートン / パレット" oninput="renderPackingPreset()" />
+            <div class="cond-field" data-field-id="hazmat" draggable="true">
+              <label><span class="cond-sort-handle" title="ドラッグして並び替え">⠿</span><span class="cond-icon">☣️</span> 危険品・特殊貨物</label>
+              <select id="cond-hazmat">
+                <option value="">— 選択 —</option>
+                <option>なし（一般貨物）</option>
+                <option>危険品あり（クラス要確認）</option>
+                <option>温度管理品（冷蔵）</option>
+                <option>温度管理品（冷凍）</option>
+                <option>重量物・大型貨物</option>
+                <option>その他（特記事項参照）</option>
+              </select>
             </div>
           </div>
-          <div class="cond-field" data-field-id="hazmat" draggable="true">
-            <label><span class="cond-sort-handle" title="ドラッグして並び替え">⠿</span><span class="cond-icon">☣️</span> 危険品・特殊貨物</label>
-            <select id="cond-hazmat">
-              <option value="">— 選択 —</option>
-              <option>なし（一般貨物）</option>
-              <option>危険品あり（クラス要確認）</option>
-              <option>温度管理品（冷蔵）</option>
-              <option>温度管理品（冷凍）</option>
-              <option>重量物・大型貨物</option>
-              <option>その他（特記事項参照）</option>
-            </select>
-          </div>
-        </div>
-        <div class="cond-actions">
-          <button class="btn-cond-clear" onclick="clearConditions()">クリア</button>
-          <button class="btn-cargo-reset" onclick="resetCargoFieldOrder()" title="モード別の並び順をデフォルトに戻す">並び順リセット</button>
         </div>
 
-        <!-- サイズ計算（折りたたみ） -->
-        <details class="cbm-calc-details">
+        <!-- ▼ 物量情報グループ -->
+        <div class="cond-inner-group">
+          <div class="cond-inner-group-label">📦 物量情報</div>
+          <div class="condition-grid" id="volumeCondGrid">
+            <div class="cond-field" data-field-id="container-type" data-scope-key="container" draggable="true">
+              <label><span class="cond-sort-handle" title="ドラッグして並び替え">⠿</span><span class="cond-icon">📐</span> コンテナ種類・サイズ</label>
+              <select id="cond-container-type">
+                <option value="">— 選択 —</option>
+                <option title="20ft 一般ドライコンテナ（General Purpose）">20'GP</option>
+                <option title="40ft 一般ドライコンテナ（General Purpose）">40'GP</option>
+                <option title="40ft 背高コンテナ（High Cube／40HQ・40HC）">40'HQ</option>
+                <option title="20ft 冷凍コンテナ（Reefer）">20'RF（冷凍）</option>
+                <option title="40ft 冷凍コンテナ（Reefer）">40'RF（冷凍）</option>
+                <option>20'OT（オープントップ）</option>
+                <option>40'OT（オープントップ）</option>
+                <option>20'FR（フラットラック）</option>
+                <option>40'FR（フラットラック）</option>
+                <option>LCL（混載）</option>
+                <option>未定</option>
+              </select>
+            </div>
+            <div class="cond-field" data-field-id="container-count" data-scope-key="container" draggable="true">
+              <label><span class="cond-sort-handle" title="ドラッグして並び替え">⠿</span><span class="cond-icon">🔢</span> 本数</label>
+              <input type="number" id="cond-container-count" min="0" step="1" placeholder="例）1" />
+              <span class="banning-hint">📦 本数が不明な場合は<button type="button" class="banning-hint-link" onclick="openBanningCalc()">バンニングシミュレーション</button>で確認</span>
+            </div>
+            <div class="cond-field" data-field-id="weight" draggable="true">
+              <label><span class="cond-sort-handle" title="ドラッグして並び替え">⠿</span><span class="cond-icon">⚖️</span> 重量（概算）</label>
+              <input type="text" id="cond-weight" placeholder="例）5,000 kg" />
+            </div>
+            <div class="cond-field" data-field-id="volume" draggable="true">
+              <label><span class="cond-sort-handle" title="ドラッグして並び替え">⠿</span><span class="cond-icon">📏</span> 容積（概算）</label>
+              <input type="text" id="cond-volume" placeholder="例）20 CBM" />
+            </div>
+            <div class="cond-field" data-field-id="packing" draggable="true">
+              <label><span class="cond-sort-handle" title="ドラッグして並び替え">⠿</span><span class="cond-icon">📦</span> 荷姿</label>
+              <div class="packing-field-wrap">
+                <select id="cond-packing-preset" onchange="onPackingPresetChange(this)" title="よく使う荷姿を選択"></select>
+                <input type="text" id="cond-packing" placeholder="例）カートン / パレット" oninput="renderPackingPreset()" />
+              </div>
+            </div>
+          </div>
+
+          <!-- サイズ計算（折りたたみ） -->
+          <details class="cbm-calc-details">
           <summary class="cbm-calc-summary">🧮 サイズ計算（CBM / CW 自動計算）<span class="cbm-calc-hint">寸法から自動計算・見積もり行へ転記</span></summary>
           <div class="cbm-calc-body">
             <div class="calc-wrapper">
@@ -2478,7 +2485,13 @@
             </div>
           </div>
         </details>
-      </div>
+        </div><!-- /cond-inner-group 物量情報 -->
+
+        <div class="cond-actions">
+          <button class="btn-cond-clear" onclick="clearConditions()">クリア</button>
+          <button class="btn-cargo-reset" onclick="resetCargoFieldOrder()" title="モード別の並び順をデフォルトに戻す">並び順リセット</button>
+        </div>
+      </div><!-- /cargoBody -->
 
       <button class="fb-section-btn" onclick="openFeedback('引き合い条件・貨物情報')" title="このセクションへのフィードバック">💬 このセクションへのフィードバック</button>
     </div>

@@ -1849,6 +1849,27 @@
   border-left-color: #7ab0a0;
   color: #3d7068;
 }
+/* 貨物情報内グループ（貨物名・品目 / 物量情報） */
+#tab-quote-make .cond-inner-group {
+  border: 1px solid #e0d8cc;
+  border-radius: 7px;
+  padding: 10px 14px 12px;
+  margin-bottom: 12px;
+  background: #fdfcfa;
+}
+#tab-quote-make .cond-inner-group-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: #8b7355;
+  letter-spacing: 0.05em;
+  margin-bottom: 10px;
+  padding-bottom: 6px;
+  border-bottom: 1px dashed #d9cfc2;
+}
+/* グループ内 condition-grid は margin-bottom を詰める */
+#tab-quote-make .cond-inner-group .condition-grid {
+  margin-bottom: 0;
+}
 /* サイズ計算 折りたたみ */
 #tab-quote-make .cbm-calc-details {
   border: 1px solid #d0dce8;

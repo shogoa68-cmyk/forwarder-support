@@ -222,13 +222,25 @@ Object.assign(QuoteApp.data, {
 });
 
 // ===== 貨物情報フィールド デフォルト順序（モード別） =====
+// CARGO_FIELD_ORDER: グループ（cargo / volume）ごとにデフォルト順序を定義
+// cargo  = 貨物名・品目グループ（#cargoCondGrid）
+// volume = 物量情報グループ（#volumeCondGrid）
 const CARGO_FIELD_ORDER = {
-  // FCL: コンテナ種類・本数を最優先
-  fcl: ['cargo', 'hs', 'container-type', 'container-count', 'packing', 'weight', 'volume', 'hazmat'],
-  // LCL: R/T算出の起点となる重量・容積を最優先。コンテナ関連は末尾（非表示）
-  lcl: ['cargo', 'hs', 'weight', 'volume', 'packing', 'hazmat', 'container-type', 'container-count'],
-  // Air: CW算出の起点となる重量・容積を最優先。コンテナ関連は末尾（非表示）
-  air: ['cargo', 'hs', 'weight', 'volume', 'packing', 'hazmat', 'container-type', 'container-count'],
+  fcl: {
+    cargo:  ['cargo', 'hs', 'hazmat'],
+    // FCL: コンテナ種類・本数を最優先
+    volume: ['container-type', 'container-count', 'packing', 'weight', 'volume'],
+  },
+  lcl: {
+    cargo:  ['cargo', 'hs', 'hazmat'],
+    // LCL: 重量・容積を最優先。コンテナ関連は末尾（通常非表示）
+    volume: ['weight', 'volume', 'packing', 'container-type', 'container-count'],
+  },
+  air: {
+    cargo:  ['cargo', 'hs', 'hazmat'],
+    // Air: 重量・容積を最優先。コンテナ関連は末尾（通常非表示）
+    volume: ['weight', 'volume', 'packing', 'container-type', 'container-count'],
+  },
 };
 
 // 状態変数（let、書き込み可能なので getter/setter ペア）
