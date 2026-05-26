@@ -2370,6 +2370,16 @@
               <a class="hs-tariff-link" href="https://www.kanzei.or.jp/statistical/tariff/top/index/j/" target="_blank" rel="noopener" title="Webたりふで検索（関税協会）">Webたりふ ↗</a>
             </label>
             <input type="text" id="cond-hs" placeholder="例）8544.42" maxlength="20" />
+            <div class="hs-rate-row">
+              <div class="hs-rate-field">
+                <span class="hs-rate-lbl">📊 関税率（基本）</span>
+                <input type="text" id="cond-hs-basic" placeholder="例）3.3%" maxlength="30" />
+              </div>
+              <div class="hs-rate-field">
+                <span class="hs-rate-lbl">🤝 協定税率</span>
+                <input type="text" id="cond-hs-pref" placeholder="例）0%（日 EU EPA）" maxlength="60" />
+              </div>
+            </div>
           </div>
           <div class="cond-field" data-field-id="container-type" data-scope-key="container" draggable="true">
             <label><span class="cond-sort-handle" title="ドラッグして並び替え">⠿</span><span class="cond-icon">📐</span> コンテナ種類・サイズ</label>

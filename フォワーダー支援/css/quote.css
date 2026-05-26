@@ -429,6 +429,30 @@
 #tab-quote-make .hs-tariff-link:hover {
   background: #1a56a0; color: #fff; border-color: #1a56a0;
 }
+/* HSコード サブフィールド（関税率・協定税率） */
+#tab-quote-make .hs-rate-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  margin-top: 2px;
+}
+#tab-quote-make .hs-rate-field {
+  display: flex; flex-direction: column; gap: 3px;
+}
+#tab-quote-make .hs-rate-lbl {
+  font-size: 10px; font-weight: 600; color: #9d8c78;
+  letter-spacing: 0.03em;
+}
+#tab-quote-make .hs-rate-field input {
+  font-size: 12px;
+  padding: 4px 8px;
+  border: 1px dashed #d9cfc2; border-radius: 4px;
+  background: #faf7f3; color: #2d2418;
+  outline: none; transition: border-color 0.15s;
+}
+#tab-quote-make .hs-rate-field input:focus {
+  border-style: solid; border-color: #6b5a42;
+}
 #tab-quote-make .cond-field input,
 #tab-quote-make .cond-field select,
 #tab-quote-make .cond-field textarea {

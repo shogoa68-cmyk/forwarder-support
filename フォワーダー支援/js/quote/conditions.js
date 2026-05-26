@@ -6,7 +6,7 @@
 
   function clearConditions() {
     if (!confirm('貨物情報・引き合い条件をクリアしますか？')) return;
-    ['cond-pol','cond-pod','cond-origin','cond-dest','cond-cargo','cond-hs',
+    ['cond-pol','cond-pod','cond-origin','cond-dest','cond-cargo','cond-hs','cond-hs-basic','cond-hs-pref',
      'cond-weight','cond-volume','cond-packing','cond-packing-preset','condFreeText',
      'cond-origin-country','cond-dest-country','z1Place','z1Country','z3Place','z3Country',
      'cond-container-count']
@@ -32,7 +32,9 @@
     return {
       pol, pod, origin, dest,
       incoterms: g('cond-incoterms'), mode: g('cond-mode'), container,
-      cargo: g('cond-cargo'), hsCode: g('cond-hs'), weight: g('cond-weight'),
+      cargo: g('cond-cargo'), hsCode: g('cond-hs'),
+      hsBasic: g('cond-hs-basic'), hsPref: g('cond-hs-pref'),
+      weight: g('cond-weight'),
       volume: g('cond-volume'), packing: g('cond-packing'), hazmat: g('cond-hazmat'),
       free: g('condFreeText'),
       direction: _currentDirection || '',   // 'export' | 'import' | ''

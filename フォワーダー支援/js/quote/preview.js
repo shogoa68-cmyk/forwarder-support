@@ -290,6 +290,8 @@
       { lbl: 'コンテナ',        val: cond.container },
       { lbl: '貨物名',          val: cond.cargo },
       { lbl: 'HSコード',        val: cond.hsCode },
+      { lbl: '関税率（基本）',   val: cond.hsBasic },
+      { lbl: '協定税率',        val: cond.hsPref },
       { lbl: '重量',            val: cond.weight },
       { lbl: '容積',            val: cond.volume },
       { lbl: '荷姿',            val: cond.packing },
