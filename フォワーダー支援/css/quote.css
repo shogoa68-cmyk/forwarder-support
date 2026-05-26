@@ -2214,7 +2214,7 @@
 #tab-quote-make tr.row-done td { opacity: 0.52; }
 /* ========== レスポンシブ（Notion埋め込み・狭い画面対応） ========== */
 @media (max-width: 680px) {#tab-quote-make { padding: 10px; }
-#tab-quote-make .save-toolbar { padding: 6px 10px; gap: 5px; flex-wrap: wrap; }
+#tab-quote-make .save-toolbar { position: static; padding: 6px 10px; gap: 5px; flex-wrap: wrap; box-shadow: none; }
 #tab-quote-make .save-btn { padding: 4px 9px; font-size: 11px; }
 #tab-quote-make h1 { font-size: 15px; }
 #tab-quote-make .container { padding: 10px; overflow-x: auto; }
