@@ -289,6 +289,7 @@
       { lbl: '輸送モード',      val: cond.mode },
       { lbl: 'コンテナ',        val: cond.container },
       { lbl: '貨物名',          val: cond.cargo },
+      { lbl: 'HSコード',        val: cond.hsCode },
       { lbl: '重量',            val: cond.weight },
       { lbl: '容積',            val: cond.volume },
       { lbl: '荷姿',            val: cond.packing },

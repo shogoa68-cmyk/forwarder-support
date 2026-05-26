@@ -2365,6 +2365,12 @@
             <label><span class="cond-sort-handle" title="ドラッグして並び替え">⠿</span><span class="cond-icon">🏷️</span> 貨物名</label>
             <input type="text" id="cond-cargo" placeholder="例）自動車部品" />
           </div>
+          <div class="cond-field" data-field-id="hs" draggable="true">
+            <label><span class="cond-sort-handle" title="ドラッグして並び替え">⠿</span><span class="cond-icon">🔍</span> HSコード
+              <a class="hs-tariff-link" href="https://www.kanzei.or.jp/statistical/tariff/top/index/j/" target="_blank" rel="noopener" title="Webたりふで検索（関税協会）">Webたりふ ↗</a>
+            </label>
+            <input type="text" id="cond-hs" placeholder="例）8544.42" maxlength="20" />
+          </div>
           <div class="cond-field" data-field-id="container-type" data-scope-key="container" draggable="true">
             <label><span class="cond-sort-handle" title="ドラッグして並び替え">⠿</span><span class="cond-icon">📐</span> コンテナ種類・サイズ</label>
             <select id="cond-container-type">

@@ -416,6 +416,19 @@
   display: flex; align-items: center; gap: 4px;
 }
 #tab-quote-make .cond-field label .cond-icon { font-size: 13px; }
+/* Webたりふリンク（HSコード欄ラベル内） */
+#tab-quote-make .hs-tariff-link {
+  margin-left: auto;
+  font-size: 10px; font-weight: 600;
+  color: #1a56a0; text-decoration: none;
+  border: 1px solid #b8d0ee; border-radius: 3px;
+  padding: 1px 5px;
+  letter-spacing: 0; text-transform: none;
+  white-space: nowrap;
+}
+#tab-quote-make .hs-tariff-link:hover {
+  background: #1a56a0; color: #fff; border-color: #1a56a0;
+}
 #tab-quote-make .cond-field input,
 #tab-quote-make .cond-field select,
 #tab-quote-make .cond-field textarea {
