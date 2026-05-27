@@ -2989,100 +2989,7 @@
 }
 #tab-quote-make .action-cell .btn-remark-ins:hover { background: #cddff0; color: #1a3d6a; }
 
-/* ===== 付箋メモ（Feature 3） ===== */
-#tab-quote-make .sticky-fab {
-  position: fixed;
-  bottom: 88px;   /* fb-fab (bottom:28 + 50height + 10gap) の上 */
-  right: 28px;
-  width: 46px;
-  height: 46px;
-  border-radius: 50%;
-  background: #ffd966;
-  border: none;
-  cursor: pointer;
-  font-size: 22px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow: 0 3px 10px rgba(0,0,0,0.18);
-  z-index: 999;
-  transition: transform 0.15s, box-shadow 0.15s;
-}
-#tab-quote-make .sticky-fab:hover { transform: scale(1.08); box-shadow: 0 5px 14px rgba(0,0,0,0.22); }
-#tab-quote-make #stickyNotePanel {
-  position: fixed;
-  bottom: 144px;
-  right: 28px;
-  width: 280px;
-  background: #fffde7;
-  border: 1px solid #f0d070;
-  border-radius: 10px;
-  box-shadow: 0 6px 24px rgba(0,0,0,0.18);
-  z-index: 1100;
-  display: none;
-  flex-direction: column;
-  overflow: hidden;
-}
-#tab-quote-make #stickyNotePanel.open { display: flex; }
-#tab-quote-make .sticky-note-header {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 7px 10px 6px;
-  background: #ffd966;
-  font-size: 12px;
-  font-weight: 700;
-  color: #554400;
-  cursor: move;
-  user-select: none;
-}
-#tab-quote-make .sticky-note-header span { flex: 1; }
-/* 色選択ピッカー */
-#tab-quote-make .sticky-color-picker {
-  display: flex;
-  gap: 3px;
-  align-items: center;
-}
-#tab-quote-make .sticky-color-btn {
-  width: 14px;
-  height: 14px;
-  border-radius: 50%;
-  border: 1px solid rgba(0,0,0,0.2);
-  cursor: pointer;
-  padding: 0;
-  flex-shrink: 0;
-  transition: transform 0.1s;
-}
-#tab-quote-make .sticky-color-btn:hover { transform: scale(1.25); }
-#tab-quote-make .sticky-note-clear,
-#tab-quote-make .sticky-note-close {
-  background: none;
-  border: none;
-  cursor: pointer;
-  font-size: 13px;
-  padding: 2px 4px;
-  border-radius: 3px;
-  color: #554400;
-  line-height: 1;
-}
-#tab-quote-make .sticky-note-clear:hover,
-#tab-quote-make .sticky-note-close:hover { background: rgba(0,0,0,0.1); }
-#tab-quote-make .sticky-note-area {
-  width: 100%;
-  min-height: 160px;
-  max-height: 300px;
-  border: none;
-  padding: 10px;
-  font-size: 13px;
-  background: #fffde7;
-  color: #2d2418;
-  resize: vertical;
-  box-sizing: border-box;
-  line-height: 1.6;
-  font-family: inherit;
-}
-#tab-quote-make .sticky-note-area:focus { outline: none; }
-/* ===== 荷姿プリセット（Feature 4） ===== */
+/* ===== 荷姿プリセット ===== */
 #tab-quote-make .packing-field-wrap {
   display: flex;
   flex-direction: column;
@@ -3139,8 +3046,6 @@
 #tab-quote-make .pv-tax-detail { color: #2d2418; }
 #tab-quote-make .pv-tax-detail b { color: #8b6914; }
 @media (max-width: 700px) {#tab-quote-make .table-btn-group { gap: 4px; }
-#tab-quote-make #stickyNotePanel { right: 10px; bottom: 100px; width: calc(100vw - 20px); }
-#tab-quote-make .sticky-fab { bottom: 60px; right: 10px; }
 }
 /* ===== 印刷（PDF出力）用スタイル =====
    Phase 2c-Step3: 旧版は #tab-quote-make > * しか隠さず、ポータルヘッダー・

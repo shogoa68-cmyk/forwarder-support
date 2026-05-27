@@ -22,8 +22,6 @@ window.SharedStorage = (function () {
     FX_AUTO_MODE:      'fxAutoMode_v1',       // 為替自動取得モード
     FX_LAST_FETCHED:   'fxLastFetched_v1',    // 為替最終取得時刻
     QUOTE_PRESETS:     'quotePresets_v1',     // 見積プリセット
-    STICKY_NOTES:      'stickyNotes_v1',      // 付箋メモ
-
     // 実務支援
     TRACKING_HISTORY:  'trackingHistory_v1',  // コンテナ追跡履歴
   });

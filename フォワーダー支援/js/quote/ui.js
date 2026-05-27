@@ -1430,151 +1430,6 @@
   }
 
 
-  // ========== 付箋メモ機能 ==========
-  const STICKY_NOTE_KEY  = 'stickyNote_v1';
-  const STICKY_COLOR_KEY = 'stickyColor_v1';
-  const STICKY_POS_KEY   = 'stickyPos_v1';
-
-  const STICKY_COLORS = [
-    { id: 'yellow', header: '#ffd966', bg: '#fffde7', text: '#554400', focus: '#fffbd0' },
-    { id: 'green',  header: '#81c784', bg: '#f1f8f1', text: '#1b4a1e', focus: '#e0f0e0' },
-    { id: 'blue',   header: '#64b5f6', bg: '#e8f4fd', text: '#0d3a6e', focus: '#d5ecfa' },
-    { id: 'pink',   header: '#f48fb1', bg: '#fce4ec', text: '#6a0032', focus: '#f9d4e2' },
-    { id: 'purple', header: '#ce93d8', bg: '#f3e5f5', text: '#4a1060', focus: '#ecdff0' },
-    { id: 'orange', header: '#ffb74d', bg: '#fff3e0', text: '#6a3000', focus: '#ffe0b2' },
-  ];
-
-  function applyStickyNoteColor(colorId) {
-    const panel  = document.getElementById('stickyNotePanel');
-    const header = document.getElementById('stickyNoteHeader');
-    const area   = document.getElementById('stickyNoteArea');
-    if (!panel) return;
-    const c = STICKY_COLORS.find(x => x.id === colorId) || STICKY_COLORS[0];
-    panel.style.background  = c.bg;
-    panel.style.borderColor = c.header;
-    if (header) {
-      header.style.background = c.header;
-      header.style.color      = c.text;
-      header.querySelectorAll('.sticky-note-clear, .sticky-note-close').forEach(btn => {
-        btn.style.color = c.text;
-      });
-      header.querySelectorAll('.sticky-color-btn').forEach(btn => {
-        btn.style.outline = btn.dataset.color === colorId
-          ? '2px solid rgba(0,0,0,0.45)'
-          : 'none';
-      });
-    }
-    if (area) {
-      area.style.background = c.bg;
-      area.dataset.focusBg  = c.focus;
-    }
-    localStorage.setItem(STICKY_COLOR_KEY, colorId);
-  }
-
-  function initStickyNoteDrag() {
-    const panel  = document.getElementById('stickyNotePanel');
-    const header = document.getElementById('stickyNoteHeader');
-    if (!panel || !header) return;
-    let dragging = false, ox = 0, oy = 0;
-
-    function ensureLeftTop() {
-      if (panel.style.left && panel.style.left !== 'auto') return;
-      const r = panel.getBoundingClientRect();
-      panel.style.left   = r.left + 'px';
-      panel.style.top    = r.top  + 'px';
-      panel.style.right  = 'auto';
-      panel.style.bottom = 'auto';
-    }
-
-    header.style.cursor = 'move';
-    header.addEventListener('mousedown', e => {
-      if (e.target.closest('button')) return;
-      ensureLeftTop();
-      dragging = true;
-      ox = e.clientX - panel.getBoundingClientRect().left;
-      oy = e.clientY - panel.getBoundingClientRect().top;
-      e.preventDefault();
-    });
-    document.addEventListener('mousemove', e => {
-      if (!dragging) return;
-      const nl = Math.max(0, Math.min(window.innerWidth  - panel.offsetWidth,  e.clientX - ox));
-      const nt = Math.max(0, Math.min(window.innerHeight - panel.offsetHeight, e.clientY - oy));
-      panel.style.left = nl + 'px';
-      panel.style.top  = nt + 'px';
-    });
-    document.addEventListener('mouseup', () => {
-      if (!dragging) return;
-      dragging = false;
-      if (panel.style.left && panel.style.left !== 'auto') {
-        localStorage.setItem(STICKY_POS_KEY, JSON.stringify({
-          left: panel.style.left,
-          top:  panel.style.top
-        }));
-      }
-    });
-  }
-
-  function initStickyNote() {
-    const area  = document.getElementById('stickyNoteArea');
-    const panel = document.getElementById('stickyNotePanel');
-    if (area) {
-      area.value = localStorage.getItem(STICKY_NOTE_KEY) || '';
-      area.addEventListener('input', () => {
-        localStorage.setItem(STICKY_NOTE_KEY, area.value);
-      });
-      area.addEventListener('focus', () => {
-        area.style.background = area.dataset.focusBg || '#fffbd0';
-      });
-      area.addEventListener('blur', () => {
-        if (panel) area.style.background = panel.style.background || '';
-      });
-    }
-
-    // Restore color
-    const savedColor = localStorage.getItem(STICKY_COLOR_KEY) || 'yellow';
-    applyStickyNoteColor(savedColor);
-
-    // Restore position
-    const savedPos = localStorage.getItem(STICKY_POS_KEY);
-    if (savedPos && panel) {
-      try {
-        const { left, top } = JSON.parse(savedPos);
-        panel.style.left   = left;
-        panel.style.top    = top;
-        panel.style.right  = 'auto';
-        panel.style.bottom = 'auto';
-      } catch (_) { /* ignore */ }
-    }
-
-    // Color picker buttons
-    const header = document.getElementById('stickyNoteHeader');
-    if (header) {
-      header.querySelectorAll('.sticky-color-btn').forEach(btn => {
-        btn.addEventListener('click', () => applyStickyNoteColor(btn.dataset.color));
-      });
-    }
-
-    // Drag support
-    initStickyNoteDrag();
-  }
-
-  function toggleStickyNote() {
-    const panel = document.getElementById('stickyNotePanel');
-    if (!panel) return;
-    panel.classList.toggle('open');
-    if (panel.classList.contains('open')) {
-      document.getElementById('stickyNoteArea')?.focus();
-    }
-  }
-
-  function clearStickyNote() {
-    if (!confirm('付箋メモの内容を消去しますか？')) return;
-    const area = document.getElementById('stickyNoteArea');
-    if (area) area.value = '';
-    localStorage.removeItem(STICKY_NOTE_KEY);
-    quoteShowToast('🗑️ 付箋メモを消去しました', 'info');
-  }
-
   // ========== 荷姿カスタムプリセット ==========
   const PACKING_PRESETS_KEY  = 'customPackings_v1';
   const DEFAULT_PACKINGS = ['カートン','パレット','ドラム缶','袋（バッグ）','木箱','スチール缶','バルク','コイル','ロール'];
@@ -1718,7 +1573,6 @@
   function initQuoteUI() {
     restoreCargoFieldOrder();
     initCargoSort();
-    initStickyNote();
     renderPackingPreset();
     restoreLayoutScale();      // 大/中/小 スケールを復元
     refreshBulkCatSelect();    // 「選択行 → カテゴリ一括変更」セレクトを初期構築
@@ -1732,7 +1586,7 @@
     window.__quoteInitialized = true;
     initQuoteState();            // ui.js：リマーク・初期行・自動保存復元・為替自動取得
     initQuoteKeyNav();           // row.js：↑↓キーで行間移動
-    initQuoteUI();               // ui.js：貨物フィールド並び替え・付箋・フォントサイズ
+    initQuoteUI();               // ui.js：貨物フィールド並び替え・フォントサイズ
     if (typeof initQuoteAutoSaveListeners === 'function') {
       initQuoteAutoSaveListeners();  // save.js：input/change の自動保存
     }

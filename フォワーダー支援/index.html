@@ -1966,7 +1966,6 @@
 
         <h4>🧰 便利機能</h4>
         <ul>
-          <li><strong>📝 付箋メモ</strong>（右下FAB）：6色から選べる作業メモ。自動保存</li>
           <li><strong>Ctrl + K</strong>：コマンドパレットでセクションへ高速ジャンプ</li>
           <li><strong>💬 フィードバック</strong>（FAB／各セクションのボタン）：改善要望・バグ報告を送信</li>
         </ul>
@@ -2039,27 +2038,6 @@
     </div>
 
     <!-- フィードバックモーダル/FAB/トーストコンテナは Phase 2c-Step1 でサイト全体スコープに移動済み（</body> 直前を参照） -->
-
-    <!-- ========== 付箋メモ ========== -->
-    <div id="stickyNotePanel">
-      <div class="sticky-note-header" id="stickyNoteHeader">
-        <span>📝 付箋メモ</span>
-        <div class="sticky-color-picker">
-          <button type="button" class="sticky-color-btn" data-color="yellow" title="黄" style="background:#ffd966;"></button>
-          <button type="button" class="sticky-color-btn" data-color="green"  title="緑" style="background:#81c784;"></button>
-          <button type="button" class="sticky-color-btn" data-color="blue"   title="青" style="background:#64b5f6;"></button>
-          <button type="button" class="sticky-color-btn" data-color="pink"   title="ピンク" style="background:#f48fb1;"></button>
-          <button type="button" class="sticky-color-btn" data-color="purple" title="紫" style="background:#ce93d8;"></button>
-          <button type="button" class="sticky-color-btn" data-color="orange" title="橙" style="background:#ffb74d;"></button>
-        </div>
-        <button type="button" class="sticky-note-clear" onclick="clearStickyNote()" title="メモを消去">🗑️</button>
-        <button type="button" class="sticky-note-close" onclick="toggleStickyNote()" title="閉じる">✕</button>
-      </div>
-      <textarea id="stickyNoteArea" class="sticky-note-area" placeholder="ここに自由にメモを書けます&#10;（自動保存）"></textarea>
-    </div>
-    <button class="sticky-fab" onclick="toggleStickyNote()" title="付箋メモを開く">📝</button>
-
-    <!-- フィードバックFAB／トーストコンテナは Phase 2c-Step1 でサイト全体スコープに移動済み（</body> 直前を参照） -->
 
     <!-- ========== コマンドパレット (Ctrl+K) ========== -->
     <div id="cmdPalette" onclick="if(event.target===this)closeCmdPalette()">
