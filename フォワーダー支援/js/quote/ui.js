@@ -930,6 +930,82 @@
     quoteShowToast(`🗑️ 「${p.name}」を削除しました`, 'info');
   }
 
+  // ===== 行パターン：ファイルへの書き出し =====
+  window.exportRowPatterns = function() {
+    const patterns = getRowPatterns();
+    if (!patterns.length) {
+      quoteShowToast('⚠️ 保存済みの行パターンがありません', 'warn');
+      return;
+    }
+    const payload = {
+      _type:      'rowPatterns',
+      _version:   1,
+      _app:       'フォワーダー支援ツール',
+      exportedAt: new Date().toISOString(),
+      patterns,
+    };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href     = url;
+    const d    = new Date();
+    const pad  = n => String(n).padStart(2, '0');
+    a.download = `行パターン_${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+    quoteShowToast(`📤 ${patterns.length} 件の行パターンを書き出しました`, 'success');
+  };
+
+  // ===== 行パターン：ファイルからの読み込み =====
+  window.importRowPatternsFile = function(event) {
+    const file = event.target.files[0];
+    event.target.value = ''; // 同じファイルの再選択を許可
+    if (!file) return;
+    if (!file.name.endsWith('.json')) {
+      quoteShowToast('⚠️ .json ファイルを選択してください', 'error');
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      let data;
+      try { data = JSON.parse(e.target.result); }
+      catch(err) {
+        quoteShowToast('⚠️ ファイルの解析に失敗しました: ' + err.message, 'error');
+        return;
+      }
+      // ファイル種別チェック
+      if (data._type !== 'rowPatterns' || !Array.isArray(data.patterns)) {
+        quoteShowToast('⚠️ 行パターンのファイルではありません（_type が一致しません）', 'error');
+        return;
+      }
+      const incoming = data.patterns.filter(p => p && p.name && Array.isArray(p.rows));
+      if (!incoming.length) {
+        quoteShowToast('ℹ️ ファイルに有効なパターンが含まれていません', 'info');
+        return;
+      }
+      // 既存パターンとの重複チェック
+      const existing    = getRowPatterns();
+      const duplicates  = incoming.filter(p => existing.some(e => e.name === p.name));
+      const newOnes     = incoming.filter(p => !existing.some(e => e.name === p.name));
+      let msg = `${incoming.length} 件のパターンを読み込みます。\n`;
+      if (duplicates.length) msg += `\n▲ 上書き（同名）: ${duplicates.map(p => '「' + p.name + '」').join('、')}`;
+      if (newOnes.length)    msg += `\n＋ 新規追加: ${newOnes.map(p => '「' + p.name + '」').join('、')}`;
+      if (!confirm(msg + '\n\n続けますか？')) return;
+      // マージ（同名は上書き、新規は先頭へ追加）
+      let merged = [...existing];
+      incoming.forEach(p => {
+        const idx = merged.findIndex(e => e.name === p.name);
+        if (idx >= 0) merged[idx] = p;
+        else           merged.unshift(p);
+      });
+      if (merged.length > ROW_PATTERN_MAX) merged = merged.slice(0, ROW_PATTERN_MAX);
+      setRowPatterns(merged);
+      renderRowPatternList();
+      quoteShowToast(`📥 ${incoming.length} 件の行パターンを読み込みました`, 'success');
+    };
+    reader.readAsText(file, 'utf-8');
+  };
+
   function renderRowPatternList() {
     const patterns = getRowPatterns();
     const wrap = document.getElementById('rowPatternListWrap');

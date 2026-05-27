@@ -2100,6 +2100,14 @@
           <div class="preset-empty">保存済みの行パターンはありません</div>
         </div>
         <div class="preset-mgr-footer">
+          <div class="row-pattern-io-btns">
+            <button class="btn-pattern-export" onclick="exportRowPatterns()" title="保存済みの行パターンを全件 JSON ファイルに書き出します">📤 書き出し</button>
+            <label class="btn-pattern-import" title="書き出した JSON ファイルからパターンを読み込みます（既存と統合）">
+              📥 読み込み
+              <input type="file" id="rowPatternImportFile" accept=".json"
+                     onchange="importRowPatternsFile(event)" style="display:none" />
+            </label>
+          </div>
           <button class="btn-preset-close" onclick="closeRowPatternMgr()">閉じる</button>
         </div>
       </div>

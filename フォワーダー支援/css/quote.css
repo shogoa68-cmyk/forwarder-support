@@ -2246,7 +2246,28 @@
 }
 #tab-quote-make .btn-preset-del:hover { color: #c0392b; }
 #tab-quote-make .preset-empty { padding: 16px; text-align: center; font-size: 13px; color: #7d6b56; }
-#tab-quote-make .preset-mgr-footer { display: flex; justify-content: flex-end; }
+#tab-quote-make .preset-mgr-footer {
+  display: flex; justify-content: space-between; align-items: center;
+  margin-top: 12px; padding-top: 10px; border-top: 1px dashed #d9cfc2;
+}
+/* 書き出し / 読み込みボタングループ */
+#tab-quote-make .row-pattern-io-btns {
+  display: flex; gap: 6px;
+}
+#tab-quote-make .btn-pattern-export,
+#tab-quote-make .btn-pattern-import {
+  display: inline-flex; align-items: center; gap: 4px;
+  background: #f0e8d8; color: #6b5a42;
+  border: 1.5px solid #c4b49a; border-radius: 5px;
+  padding: 5px 13px; font-size: 12px; font-weight: 600;
+  font-family: inherit; cursor: pointer; white-space: nowrap;
+  transition: background .15s, border-color .15s;
+  user-select: none;
+}
+#tab-quote-make .btn-pattern-export:hover,
+#tab-quote-make .btn-pattern-import:hover {
+  background: #d9cfc2; border-color: #9a8472;
+}
 #tab-quote-make .btn-preset-close {
   background: #f0e8d8; color: #7d6b56; border: none; border-radius: 5px;
   padding: 7px 16px; font-size: 13px; cursor: pointer; font-family: inherit;
