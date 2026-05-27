@@ -3176,13 +3176,15 @@
 }
 
 /* ================================================================
-   デスクトップ 2 カラムレイアウト（min-width: 1100px 未満はスクロール）
+   デスクトップ 2 カラムレイアウト
+   テーブルは #tableScrollWrap { overflow-x: auto } で独自スクロール済み。
+   ワークスペース自体に min-width を持たせると page-level 横スクロールが
+   発生し、cat-nav/sub-nav の position:sticky が正常動作しないため除去。
    ================================================================ */
 #tab-quote-make .quote-workspace {
   display: flex;
   align-items: flex-start;
   gap: 16px;
-  min-width: 1100px;
 }
 #tab-quote-make .quote-main {
   flex: 1 1 0;
