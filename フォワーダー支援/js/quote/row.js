@@ -445,6 +445,7 @@
       }
     }
     updateSubtotalRows();
+    window.updateQuoteSummary?.();
   }
 
   // ========== 小計行 ==========

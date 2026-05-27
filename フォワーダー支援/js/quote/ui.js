@@ -1569,6 +1569,70 @@
     });
   }
 
+  // ===== 見積サマリパネル =====
+  window.updateQuoteSummary = function updateQuoteSummary() {
+    const panel = document.getElementById('qspBody');
+    if (!panel) return;
+
+    const rows = document.querySelectorAll('#tableBody tr:not([data-type="subtotal"])');
+    const activeRows = Array.from(rows).filter(tr => {
+      const id = tr.id.replace('row-', '');
+      return document.getElementById(`nm-${id}`)?.value?.trim();
+    });
+
+    if (!activeRows.length) {
+      panel.innerHTML = '<p class="qsp-empty">費用項目を入力すると<br>ここにサマリが表示されます</p>';
+      return;
+    }
+
+    const billByCur = {};
+    let totalBillJPY = 0, totalCostJPY = 0;
+    let hasFx = false;
+
+    activeRows.forEach(tr => {
+      const id = tr.id.replace('row-', '');
+      const pc = document.getElementById(`pc-${id}`)?.value || 'JPY';
+      const bc = document.getElementById(`bc-${id}`)?.value || 'JPY';
+      const pq = parseFloat(document.getElementById(`pq-${id}`)?.value) || 0;
+      const pp = parseFloat(document.getElementById(`pp-${id}`)?.value) || 0;
+      const bq = parseFloat(document.getElementById(`bq-${id}`)?.value) || 0;
+      const bp = parseFloat(document.getElementById(`bp-${id}`)?.value) || 0;
+      const billing = bq * bp;
+      const cost    = pq * pp;
+      billByCur[bc] = (billByCur[bc] || 0) + billing;
+      totalBillJPY += toJPY(billing, bc);
+      totalCostJPY += toJPY(cost, pc);
+      if (bc !== 'JPY' || pc !== 'JPY') hasFx = true;
+    });
+
+    const profit = totalBillJPY - totalCostJPY;
+    const mkPct  = totalCostJPY > 0 ? (profit / totalCostJPY * 100) : 0;
+    const fmtJPY = n => Math.round(n).toLocaleString('ja-JP');
+    const profCls = profit >= 0 ? 'qsp-profit-pos' : 'qsp-profit-neg';
+
+    const curLines = Object.entries(billByCur)
+      .filter(([, v]) => v)
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([cur, amt]) =>
+        `<div class="qsp-currency-row"><span class="qsp-cur">${cur}</span><span class="qsp-amount">${fmt(amt)}</span></div>`
+      ).join('');
+
+    panel.innerHTML = `
+      <div class="qsp-row-count">${activeRows.length} 費用項目</div>
+      <div class="qsp-divider"></div>
+      <div class="qsp-section-label">通貨別請求小計</div>
+      ${curLines}
+      <div class="qsp-divider"></div>
+      <div class="qsp-section-label">合計（JPY 換算）</div>
+      <div class="qsp-total-row"><span>請求合計</span><span>¥${fmtJPY(totalBillJPY)}</span></div>
+      <div class="qsp-total-row"><span>支払い合計</span><span>¥${fmtJPY(totalCostJPY)}</span></div>
+      <div class="qsp-divider"></div>
+      <div class="qsp-profit-row ${profCls}"><span>利益</span><span>¥${fmtJPY(profit)}</span></div>
+      <div class="qsp-markup-row"><span>粗利率</span><span>${mkPct.toFixed(1)}%</span></div>
+      ${hasFx ? '<p class="qsp-fx-note">※ 外貨は現在の参照レートで換算</p>' : ''}
+    `;
+  };
+
   // Phase 2b：DOMContentLoaded ではなく initQuoteUI() として呼び出すように変更
   function initQuoteUI() {
     restoreCargoFieldOrder();
@@ -1577,6 +1641,7 @@
     restoreLayoutScale();      // 大/中/小 スケールを復元
     refreshBulkCatSelect();    // 「選択行 → カテゴリ一括変更」セレクトを初期構築
     initColGroupState();       // 列グループ折り畳み状態を復元（デフォルト: 請求列折り畳み）
+    window.updateQuoteSummary();
   }
 
   // ===== Phase 2b：見積タブ初回表示時の遅延初期化集約 =====

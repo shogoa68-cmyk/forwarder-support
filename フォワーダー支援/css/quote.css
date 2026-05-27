@@ -3206,3 +3206,133 @@
   }
 }
 
+/* ================================================================
+   デスクトップ 2 カラムレイアウト（min-width: 1100px 未満はスクロール）
+   ================================================================ */
+#tab-quote-make .quote-workspace {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  min-width: 1100px;
+}
+#tab-quote-make .quote-main {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+/* ================================================================
+   行カラーコーディング（カテゴリ別背景色）
+   ================================================================ */
+#tab-quote-make #tableBody tr.cat-ocean,
+#tab-quote-make #tableBody tr.cat-air        { background: #ecf2f9; }
+#tab-quote-make #tableBody tr.cat-surcharge  { background: #fdf0e6; }
+#tab-quote-make #tableBody tr.cat-export-local,
+#tab-quote-make #tableBody tr.cat-import-local { background: #f0f8ea; }
+#tab-quote-make #tableBody tr.cat-customs    { background: #f2eef9; }
+#tab-quote-make #tableBody tr.cat-domestic   { background: #faf8e8; }
+#tab-quote-make #tableBody tr.cat-insurance  { background: #eaf6ea; }
+#tab-quote-make #tableBody tr.cat-overseas   { background: #e8f6f8; }
+
+/* ================================================================
+   見積サマリパネル（右カラム・常時表示）
+   ================================================================ */
+#tab-quote-make .quote-summary-panel {
+  width: 260px;
+  flex: 0 0 260px;
+  position: sticky;
+  top: calc(var(--nav-cat-h, 48px) + var(--nav-sub-h, 40px) + 52px);
+  max-height: calc(100vh - var(--nav-cat-h, 48px) - var(--nav-sub-h, 40px) - 80px);
+  overflow-y: auto;
+  background: #fdfaf4;
+  border: 1px solid #d5c8b0;
+  border-radius: 8px;
+  font-size: 13px;
+}
+#tab-quote-make .qsp-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #ede3d2;
+  padding: 8px 12px;
+  border-radius: 7px 7px 0 0;
+  border-bottom: 1px solid #d5c8b0;
+}
+#tab-quote-make .qsp-title {
+  font-weight: 700;
+  font-size: 12px;
+  color: #4a3520;
+  letter-spacing: .04em;
+}
+#tab-quote-make .qsp-body {
+  padding: 10px 12px;
+}
+#tab-quote-make .qsp-empty {
+  color: #a08060;
+  font-size: 12px;
+  text-align: center;
+  line-height: 1.6;
+  padding: 12px 0;
+}
+#tab-quote-make .qsp-divider {
+  height: 1px;
+  background: #e0d4bc;
+  margin: 8px 0;
+}
+#tab-quote-make .qsp-section-label {
+  font-size: 10px;
+  font-weight: 700;
+  color: #8a7560;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  margin-bottom: 4px;
+}
+#tab-quote-make .qsp-row-count {
+  font-size: 11px;
+  color: #7a6550;
+  margin-bottom: 4px;
+}
+#tab-quote-make .qsp-currency-row,
+#tab-quote-make .qsp-total-row,
+#tab-quote-make .qsp-profit-row,
+#tab-quote-make .qsp-markup-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  padding: 2px 0;
+  font-size: 12px;
+  color: #3d2e1e;
+}
+#tab-quote-make .qsp-cur {
+  font-weight: 700;
+  font-size: 11px;
+  color: #6a5540;
+  background: #ede3d2;
+  padding: 0 5px;
+  border-radius: 3px;
+}
+#tab-quote-make .qsp-amount {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+#tab-quote-make .qsp-total-row span:last-child {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+#tab-quote-make .qsp-profit-row {
+  font-weight: 700;
+  font-size: 13px;
+  margin-top: 2px;
+}
+#tab-quote-make .qsp-profit-pos { color: #2a6a3a; }
+#tab-quote-make .qsp-profit-neg { color: #c0392b; }
+#tab-quote-make .qsp-markup-row {
+  color: #6a5540;
+  font-size: 11px;
+}
+#tab-quote-make .qsp-fx-note {
+  font-size: 10px;
+  color: #a09080;
+  margin-top: 6px;
+  line-height: 1.5;
+}
+
