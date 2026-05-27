@@ -263,15 +263,17 @@
     const totPc = totPr > 0 ? 'pv-pos' : totPr < 0 ? 'pv-neg' : 'pv-zero';
     const totTaxText = fmtRaw(totTax);
     // 合計行：cat+sv+name = colspan 3 を「合計」ラベルに割当て
+    // data-ft-col: applyPreviewCustomize() が tfoot を別制御するための識別属性
+    // （tfoot は colspan セルを持つため tr td:nth-child(n) での列制御が不可）
     html += `</tbody><tfoot><tr class="pv-total">
       <td colspan="3" style="text-align:right;">合　計</td>
-      <td colspan="4">—</td><td style="background:#e8e8e8;color:#aaa;">—</td>
-      <td colspan="2">—</td><td class="pv-num">—</td>
-      <td class="pv-num">${fmtRaw(totMk)}</td>
+      <td colspan="4">—</td><td data-ft-col="pay" style="background:#e8e8e8;color:#aaa;">—</td>
+      <td colspan="2" data-ft-col="bill">—</td><td data-ft-col="bill" class="pv-num">—</td>
+      <td data-ft-col="mk" class="pv-num">${fmtRaw(totMk)}</td>
       <td class="pv-num pv-subtotal">${fmtRaw(totSub)}</td>
-      <td class="pv-num pv-tax-total">${totTaxText}</td>
-      <td class="pv-pr ${totPc} pv-num">${fmtRaw(totPr)}</td>
-      <td></td>
+      <td data-ft-col="tax-col" class="pv-num pv-tax-total">${totTaxText}</td>
+      <td data-ft-col="profit" class="pv-pr ${totPc} pv-num">${fmtRaw(totPr)}</td>
+      <td data-ft-col="note"></td>
     </tr></tfoot></table>`;
 
     document.getElementById('previewTableWrap').innerHTML = html;
@@ -426,10 +428,15 @@
     document.querySelectorAll('.pv-col-chk').forEach(chk => {
       const indices = colMap[chk.dataset.col] || [];
       const show = chk.checked;
+      // thead/tbody は nth-child で制御（1セル=1列のため位置が一致）
       indices.forEach(ci => {
-        table.querySelectorAll(`tr th:nth-child(${ci + 1}), tr td:nth-child(${ci + 1})`).forEach(cell => {
+        table.querySelectorAll(`thead tr th:nth-child(${ci + 1}), tbody tr td:nth-child(${ci + 1})`).forEach(cell => {
           cell.style.display = show ? '' : 'none';
         });
+      });
+      // tfoot は colspan セルを持つため nth-child 位置がずれる → data-ft-col で別制御
+      table.querySelectorAll(`tfoot td[data-ft-col="${chk.dataset.col}"]`).forEach(cell => {
+        cell.style.display = show ? '' : 'none';
       });
     });
 
