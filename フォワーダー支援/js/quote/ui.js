@@ -759,15 +759,24 @@
   function getRowPatterns()      { return SharedStorage.getJSON(ROW_PATTERN_KEY, []); }
   function setRowPatterns(arr)   { SharedStorage.setJSON(ROW_PATTERN_KEY, arr); }
 
-  // チェック済み行のデータを抽出（小計行は除外）
+  // チェック済み行のデータを抽出（通常行・リマーク行・小計行を含む）
   function _gatherCheckedRowsData() {
     const out = [];
     document.querySelectorAll('#tableBody tr .row-select-chk:checked').forEach(chk => {
       const tr = chk.closest('tr');
-      if (!tr || tr.dataset.type === 'subtotal' || tr.dataset.type === 'remark') return;
+      if (!tr) return;
+      if (tr.dataset.type === 'remark') {
+        out.push({ _type: 'remark', text: tr.querySelector('.remark-row-input')?.value || '' });
+        return;
+      }
+      if (tr.dataset.type === 'subtotal') {
+        out.push({ _type: 'subtotal', label: tr.querySelector('.subtotal-label')?.value || '' });
+        return;
+      }
       const id = tr.id.replace('row-', '');
       const g = sid => document.getElementById(sid + '-' + id);
       out.push({
+        _type: 'data',
         cat:   g('cat')?.value || '',
         name:  g('nm')?.value || '',
         taxed: g('tx')?.checked || false,
@@ -855,6 +864,30 @@
     if (!confirm(`「${p.name}」の ${p.rows.length} 行を${posLabel}に挿入しますか？`)) return;
 
     p.rows.forEach(rd => {
+      // リマーク行
+      if (rd._type === 'remark') {
+        insertRemarkRow(null, { noFocus: true });
+        const allTrs = document.querySelectorAll('#tableBody tr');
+        const tr = allTrs[allTrs.length - 1];
+        if (!tr) return;
+        if (anchor) tbody.insertBefore(tr, anchor);
+        const inp = tr.querySelector('.remark-row-input');
+        if (inp) inp.value = rd.text || '';
+        return;
+      }
+      // 小計行
+      if (rd._type === 'subtotal') {
+        insertSubtotalRow(null);
+        const allTrs = document.querySelectorAll('#tableBody tr');
+        const tr = allTrs[allTrs.length - 1];
+        if (!tr) return;
+        if (anchor) tbody.insertBefore(tr, anchor);
+        const lbl = tr.querySelector('.subtotal-label');
+        if (lbl) lbl.value = rd.label || '';
+        updateSubtotalRows();
+        return;
+      }
+      // 通常行（_type === 'data' または後方互換で _type なし）
       // 末尾に追加してから anchor の直前に移動（addRow を流用）
       addRow();
       const trs = document.querySelectorAll('#tableBody tr');
@@ -887,6 +920,8 @@
       onCatChange(id);
       onPay(id);
     });
+    // 小計行を含む場合に備えて全体を再計算
+    if (typeof updateSubtotalRows === 'function') updateSubtotalRows();
     updateTotals();
     closeRowPatternMgr();
     quoteShowToast(`📂 「${p.name}」の ${p.rows.length} 行を${posLabel}に挿入しました`, 'success');
