@@ -38,12 +38,15 @@ window.QuoteApp = window.QuoteApp || { state: {}, data: {}, fx: {} };
       { cat: 'other',     name: 'その他国内費用',    note: '' },
     ],
     export: [
-      { cat: 'domestic',  name: '国内集荷・陸送費',  note: '集荷先〜輸出港' },
-      { cat: 'customs',   name: '輸出通関費',        note: '通関手数料・書類作成' },
-      { cat: 'domestic',  name: '港湾諸費用（輸出）', note: 'THC・ドキュメント費等' },
-      { cat: 'ocean',     name: '海上運賃',          note: 'ポート〜ポート' },
-      { cat: 'surcharge', name: 'サーチャージ類',    note: 'BAF/CAF/PSS 等' },
-      { cat: 'overseas',  name: '仕向地費用',        note: 'D/O・目的港荷役等' },
+      { cat: 'domestic',     name: '国内集荷・陸送費',   note: '集荷先〜輸出港' },
+      { cat: 'customs',      name: '輸出通関費',         note: '通関手数料・書類作成' },
+      { cat: 'export-local', name: '港湾諸費用（輸出）', note: 'THC・ドキュメント費等' },
+      { cat: 'export-local', name: 'VGM申告費',          note: 'SOLAS VGM（2016年7月義務化）※FCLのみ。LCLはNVOCC負担のためCFS費用に包含が一般的' },
+      { cat: 'ocean',        name: '海上運賃',            note: 'ポート〜ポート' },
+      { cat: 'surcharge',    name: 'サーチャージ類',      note: 'BAF/CAF/PSS 等' },
+      { cat: 'overseas',     name: '仕向地費用',          note: 'D/O・目的港荷役等' },
+      { cat: 'export-local', name: 'AMS申告費',           note: '米国向け必須（CBP AMS）。出港前に申告義務' },
+      { cat: 'export-local', name: 'ISF申告費',           note: '米国向け必須（ISF 10+2）。Importer Security Filing' },
     ],
     import: [
       { cat: 'ocean',     name: '海上運賃',          note: '積み地港〜仕向港' },
@@ -54,14 +57,15 @@ window.QuoteApp = window.QuoteApp || { state: {}, data: {}, fx: {} };
       { cat: 'insurance', name: '海上保険料',        note: '保険条件に応じて' },
     ],
     dtd: [
-      { cat: 'domestic',  name: '国内集荷・陸送費',  note: '集荷先〜輸出港' },
-      { cat: 'customs',   name: '輸出通関費',        note: '通関手数料・書類作成' },
-      { cat: 'domestic',  name: '港湾諸費用（輸出）', note: 'THC・ドキュメント費等' },
-      { cat: 'ocean',     name: '海上運賃',          note: 'ポート〜ポート' },
-      { cat: 'surcharge', name: 'サーチャージ類',    note: 'BAF/CAF/PSS 等' },
-      { cat: 'overseas',  name: '仕向地費用',        note: 'D/O・目的港荷役等' },
-      { cat: 'customs',   name: '輸入通関費',        note: '通関手数料・書類作成' },
-      { cat: 'domestic',  name: '国内配送費（着地）', note: '港〜最終納入地' },
+      { cat: 'domestic',     name: '国内集荷・陸送費',   note: '集荷先〜輸出港' },
+      { cat: 'customs',      name: '輸出通関費',         note: '通関手数料・書類作成' },
+      { cat: 'export-local', name: '港湾諸費用（輸出）', note: 'THC・ドキュメント費等' },
+      { cat: 'export-local', name: 'VGM申告費',          note: 'SOLAS VGM（2016年7月義務化）※FCLのみ。LCLはNVOCC負担のためCFS費用に包含が一般的' },
+      { cat: 'ocean',        name: '海上運賃',            note: 'ポート〜ポート' },
+      { cat: 'surcharge',    name: 'サーチャージ類',      note: 'BAF/CAF/PSS 等' },
+      { cat: 'overseas',     name: '仕向地費用',          note: 'D/O・目的港荷役等' },
+      { cat: 'customs',      name: '輸入通関費',          note: '通関手数料・書類作成' },
+      { cat: 'domestic',     name: '国内配送費（着地）',  note: '港〜最終納入地' },
     ],
   };
 
@@ -84,7 +88,10 @@ window.QuoteApp = window.QuoteApp || { state: {}, data: {}, fx: {} };
   function toggleInsurance() {
     insuranceOn = !insuranceOn;
     const btn = document.getElementById('insToggleBtn');
-    if (btn) btn.classList.toggle('ins-on', insuranceOn);
+    if (!btn) return;
+    btn.classList.toggle('ins-on', insuranceOn);
+    btn.textContent = insuranceOn ? '🛡️ 保険付保あり（ON）' : '🛡️ 保険付保（OFF）';
+    btn.title = insuranceOn ? 'クリックで保険付保を解除します' : 'クリックで保険付保を有効にします';
   }
 
 
@@ -143,6 +150,7 @@ let autoSaveEnabled = false;
 // ========== 為替レート管理 ==========
 // JPY以外の通貨のJPY換算レート（1単位 = XX JPY）
 // キーはCURRENCIES の値と一致させる
+// 最終手動確認日：2026-05-27（API取得失敗時のフォールバック値。定期的に更新のこと）
 const DEFAULT_FX_RATES = {
   USD: 150, EUR: 165, CNY: 21, KRW: 0.11, SGD: 112,
   HKD: 19, GBP: 192, AUD: 99, TWD: 4.7, THB: 4.2,
@@ -151,7 +159,7 @@ const DEFAULT_FX_RATES = {
 
 // 為替レートパネルで表示・編集する通貨を絞り込む
 // （行ごとの通貨セレクタや fetchAutoFxRates の対象には影響しない）
-const FX_DISPLAY_CURRENCIES = ['USD', 'EUR', 'GBP', 'CNY'];
+const FX_DISPLAY_CURRENCIES = ['USD', 'EUR', 'GBP', 'CNY', 'SGD', 'KRW'];
 
 // ユーザーが上書きしたレート（localStorageから復元）
 let _fxRates = { ...DEFAULT_FX_RATES };

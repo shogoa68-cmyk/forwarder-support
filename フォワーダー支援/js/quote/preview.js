@@ -11,9 +11,11 @@
   // ========== プレビュー＆エクスポート ==========
   function getQuoteHeader() {
     return {
-      ref:      document.getElementById('qf-ref')?.value || '',
-      customer: document.getElementById('qf-customer')?.value || '',
-      person:   document.getElementById('qf-person')?.value || '',
+      ref:        document.getElementById('qf-ref')?.value || '',
+      customer:   document.getElementById('qf-customer')?.value || '',
+      person:     document.getElementById('qf-person')?.value || '',
+      date:       document.getElementById('qf-date')?.value || '',
+      validUntil: document.getElementById('qf-valid-until')?.value || '',
     };
   }
 
@@ -40,7 +42,9 @@
     const hdr   = getQuoteHeader();
     const today = new Date().toISOString().slice(0, 10).replace(/-/g, '');
     const safe  = s => s.replace(/[\/\\:*?"<>|\t\n\r]/g, '_').replace(/_+/g, '_').trim().slice(0, 40);
-    const parts = [hdr.ref, hdr.customer, hdr.person].map(safe).filter(Boolean);
+    const cond = getConditions();
+    const mode = safe(cond.mode || '');
+    const parts = [hdr.ref, hdr.customer, mode, hdr.person].map(safe).filter(Boolean);
     return (parts.length ? parts.join('_') : '見積もり_' + today) + '.' + ext;
   }
 
@@ -117,9 +121,9 @@
 
   // 出力物（PDF/Excel/TSV）のフッターに刻む「為替の出典 / 取得日時」「作成日」メタ情報
   function getFxAuditMeta() {
-    const last = localStorage.getItem('fxLastFetched_v1');
+    const last = localStorage.getItem(SharedStorage.KEYS.FX_LAST_FETCHED);
     const fxLine = last
-      ? `為替出典：open.er-api.com（取得日時 ${new Date(last).toLocaleString('ja-JP', {year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'})}）`
+      ? `為替出典：open.er-api.com 中値（Mid Rate）（取得日時 ${new Date(last).toLocaleString('ja-JP', {year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'})}）※ 実際の決済レート（TTS等）とは異なる参考値`
       : `為替出典：手動設定値（自動取得未実行）`;
     const created = `作成日：${new Date().toLocaleString('ja-JP', {year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'})}`;
     return { fxLine, created, hasFresh: !!last };
@@ -127,7 +131,7 @@
 
   // 為替キャッシュが 24h 超過しているか
   function isFxStale() {
-    const last = localStorage.getItem('fxLastFetched_v1');
+    const last = localStorage.getItem(SharedStorage.KEYS.FX_LAST_FETCHED);
     if (!last) return true;
     const ageMs = Date.now() - new Date(last).getTime();
     return ageMs > 24 * 60 * 60 * 1000;
@@ -273,7 +277,6 @@
       <td colspan="2" data-ft-col="bill">—</td><td data-ft-col="bill" class="pv-num">—</td>
       <td data-ft-col="mk" class="pv-num">${fmtRaw(totMk)}</td>
       <td class="pv-num pv-subtotal">${fmtRaw(totSub)}</td>
-      <td data-ft-col="jpy-conv" class="pv-jpy pv-jpy-total">${fmtRaw(totJpy)}</td>
       <td data-ft-col="tax-col" class="pv-num pv-tax-total">${totTaxText}</td>
       <td data-ft-col="profit" class="pv-pr ${totPc} pv-num">${fmtRaw(totPr)}</td>
       <td data-ft-col="note"></td>
@@ -409,8 +412,9 @@
     // 合計行の消費税セル
     const totTaxEl = document.querySelector('#previewTable .pv-tax-total');
     if (totTaxEl) totTaxEl.textContent = fmtRaw(totTax);
-    // 既存：底部サマリ（消費税額・税込合計）
-    const tax   = totalSub * rate;
+    // 底部サマリ（消費税額・税込合計）
+    // ※ totalSub（全行合計）ではなく、課税行のみを集計した totTax を使う
+    const tax   = totTax;
     const total = totalSub + tax;
     const taxEl   = document.getElementById('pvTaxAmount');
     const totalEl = document.getElementById('pvTaxTotal');
@@ -579,10 +583,12 @@
     const idxOf = role => visCols.findIndex(c => c.role === role);
 
     const lines = [];
-    if (hdr.ref || hdr.customer || hdr.person) {
-      if (hdr.ref)      lines.push(`仮REF#\t${hdr.ref}`);
-      if (hdr.customer) lines.push(`引き合い元\t${hdr.customer}`);
-      if (hdr.person)   lines.push(`担当\t${formatPersonWithHonorific(hdr.person)}`);
+    if (hdr.ref || hdr.customer || hdr.person || hdr.date || hdr.validUntil) {
+      if (hdr.ref)        lines.push(`仮REF#\t${hdr.ref}`);
+      if (hdr.customer)   lines.push(`引き合い元\t${hdr.customer}`);
+      if (hdr.person)     lines.push(`担当\t${formatPersonWithHonorific(hdr.person)}`);
+      if (hdr.date)       lines.push(`発行日\t${hdr.date}`);
+      if (hdr.validUntil) lines.push(`有効期限\t${hdr.validUntil}`);
       lines.push('');
     }
     // ヘッダ行
@@ -668,9 +674,19 @@
     const idxProfit  = idxOf('profit');
 
     const aoaRows = [];
-    if (hdr.ref)      aoaRows.push(['仮 REF #', hdr.ref]);
-    if (hdr.customer) aoaRows.push(['引き合い元', hdr.customer]);
-    if (hdr.person)   aoaRows.push(['担当', formatPersonWithHonorific(hdr.person)]);
+    if (hdr.ref)        aoaRows.push(['仮 REF #', hdr.ref]);
+    if (hdr.customer)   aoaRows.push(['引き合い元', hdr.customer]);
+    if (hdr.person)     aoaRows.push(['担当', formatPersonWithHonorific(hdr.person)]);
+    if (hdr.date)       aoaRows.push(['発行日', hdr.date]);
+    if (hdr.validUntil) aoaRows.push(['有効期限', hdr.validUntil]);
+    // 引き合い条件（POL/POD/インコタームズ/輸送モード/コンテナ/貨物名）
+    const cExcel = getConditions();
+    const condPairs = [
+      ['POL（積み地）', cExcel.pol], ['POD（揚げ地）', cExcel.pod],
+      ['インコタームズ', cExcel.incoterms], ['輸送モード', cExcel.mode],
+      ['コンテナ', cExcel.container], ['貨物名', cExcel.cargo],
+    ].filter(([, v]) => v);
+    if (condPairs.length) condPairs.forEach(([k, v]) => aoaRows.push([k, v]));
     if (aoaRows.length) aoaRows.push([]);
 
     // 列ヘッダ
@@ -727,6 +743,11 @@
     aoaRows.push([xMeta.created]);
 
     const ws   = XLSX.utils.aoa_to_sheet(aoaRows);
+    // 列幅設定（SheetJS CE版対応: wch = 文字数基準の列幅）
+    ws['!cols'] = [
+      {wch:12},{wch:10},{wch:22},{wch:5},{wch:7},{wch:6},{wch:9},{wch:5},
+      {wch:6},{wch:6},{wch:9},{wch:8},{wch:11},{wch:10},{wch:8},{wch:9},{wch:9},{wch:24}
+    ];
     const wb   = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, '見積もり');
     XLSX.writeFile(wb, buildFileName('xlsx'));
@@ -735,7 +756,7 @@
 
   // CSV列定義（key: collectData()の行データキー、hdr: ヘッダ文字列。sv を cat 直後に配置）
   const CSV_COL_DEFS = [
-    { key: 'cat',    hdr: 'カテゴリ(raw)',  fn: d => d.cat },
+    { key: 'cat',    hdr: 'カテゴリ',       fn: d => getCatLabel(d.cat) },
     { key: 'sv',     hdr: 'サブコン',       fn: d => d.sv || '' },
     { key: 'name',   hdr: '項目名',         fn: d => d.name },
     { key: 'pq',     hdr: '数量',           fn: d => fmtRaw(d.pq) },

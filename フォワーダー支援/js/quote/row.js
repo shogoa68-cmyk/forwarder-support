@@ -445,6 +445,7 @@
       }
     }
     updateSubtotalRows();
+    window.updateQuoteSummary?.();
   }
 
   // ========== 小計行 ==========
@@ -693,5 +694,5 @@
     document.getElementById('tableBody').innerHTML = '';
     rowCount = 0;
     updateTotals();
-    quoteShowToast('🗑️ 全行をリセットしました', 'info', 3000);
+    quoteShowToast('🗑️ 全行をリセットしました（Ctrl+Z で元に戻せます）', 'info', 4000);
   }

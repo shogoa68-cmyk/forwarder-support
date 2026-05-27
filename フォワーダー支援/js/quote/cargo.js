@@ -60,6 +60,8 @@
 
   function suggestContainers(cbm, kg) {
     if (cbm === 0 && kg === 0) return '—';
+    // 有効積載容積（梱包・ライニング考慮後の実用値）/ 最大搭載重量（実用値）
+    // ※ 内容積の理論値（20'GP:33.2m³, 40'GP:67.7m³, 40'HQ:76.3m³）とは異なる。サイズ参照タブの数値は理論値。
     const specs = [
       { name: "20'GP", cbm: 25,  kg: 21500 },
       { name: "40'GP", cbm: 57,  kg: 26500 },
@@ -89,9 +91,9 @@
       totalPcs += pcs;
     });
 
-    // RT: max(W/1000, CBM)  / CW: max(実重量, CBM×167)
+    // RT: max(W/1000, CBM)  / CW: max(実重量, CBM×166.67) を0.5kg単位に切り上げ（IATA準拠）
     const rt = Math.max(totalKg / 1000, totalCBM);
-    const cw = Math.max(totalKg, totalCBM * 167);
+    const cw = Math.ceil(Math.max(totalKg, totalCBM * 166.67) * 2) / 2;
 
     // 最新結果を保持
     _lastCalcResult = { totalCBM, totalKg, totalPcs, rt, cw };
@@ -116,11 +118,11 @@
         <span class="calc-r-val">${totalKg.toLocaleString()} kg</span>
       </div>
       <div class="calc-result-item">
-        <span class="calc-r-lbl">RT（海上）</span>
+        <span class="calc-r-lbl" title="Revenue Ton：重量(kg)÷1,000 と CBM の大きい方。LCL 海上運賃の課金単位">RT（海上）</span>
         <span class="calc-r-val hl-blue">${rt.toFixed(4)} R/T</span>
       </div>
       <div class="calc-result-item">
-        <span class="calc-r-lbl">CW（航空）</span>
+        <span class="calc-r-lbl" title="Chargeable Weight：実重量(kg) と CBM×166.67 の大きい方を 0.5kg 単位で切り上げ（IATA 準拠）。航空運賃の課金重量">CW（航空）</span>
         <span class="calc-r-val hl-green">${Math.ceil(cw).toLocaleString()} kg</span>
       </div>
       <div class="calc-result-item">
@@ -141,7 +143,7 @@
       const rowCBM  = (l && w && h) ? pcs * l * w * h / 1_000_000 : 0;
       const rowKg   = kg * pcs;
       const rowRT   = Math.max(rowKg / 1000, rowCBM);
-      const rowCW   = Math.max(rowKg, rowCBM * 167);
+      const rowCW   = Math.ceil(Math.max(rowKg, rowCBM * 166.67) * 2) / 2;
       const dims = (l && w && h) ? `${l}×${w}×${h}` : '—';
       detailRows += `
         <tr>
@@ -210,11 +212,11 @@
     };
 
     document.getElementById('calcReflectRows').innerHTML =
-      mkRow('RT（海上）', rt.toFixed(4),   'R/T', 'rt',  'R/T') +
-      mkRow('CW（航空）', Math.ceil(cw),   'kg',  'cw',  'CW')  +
-      mkRow('CBM',        cbm.toFixed(4),  'CBM', 'cbm', 'CBM') +
-      mkRow('総重量',      Math.round(kg),  'kg',  'kg',  'kg')  +
-      mkRow('個数',        pcs,            'pcs', 'pcs', 'pcs');
+      mkRow('RT（海上）', rt.toFixed(4),            'R/T', 'rt',  'R/T') +
+      mkRow('CW（航空）', Math.ceil(cw * 2) / 2,   'kg',  'cw',  'CW')  +  // IATA 0.5kg 単位維持
+      mkRow('CBM',        cbm.toFixed(4),            'CBM', 'cbm', 'CBM') +
+      mkRow('総重量',      Math.round(kg),            'kg',  'kg',  'kg')  +
+      mkRow('個数',        pcs,                      'pcs', 'pcs', 'pcs');
   }
 
   // 各キーに対応する単位文字列

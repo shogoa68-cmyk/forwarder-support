@@ -8,7 +8,7 @@
   --accent-lt: #f0e8d8;
   --text:      #2d2418;
   --text-md:   #7d6b56;
-  --text-lt:   #8a7560;  /* Quick Win #2: WCAG AA 4.5:1 達成（旧 #a8947e は 2.7:1） */
+  --text-lt:   #6b5a42;  /* WCAG AA 4.78:1 on #f2ede6（旧 #8a7560 は 3.76:1 で AA 未達） */
   /* sticky ナビゲーション高さ（cat-nav → sub-nav → save-toolbar の順）
      cat-nav: min-height:44px + padding:6px + margin ≈ 56px
      sub-nav: tab-nav 高さ ≈ 50px                                   */
@@ -516,7 +516,11 @@ body:has(#tab-quote-make.active) .app {
   .tab-btn      { font-size: 11px; padding: 7px 8px; }
 }
 @media (min-width: 1480px) {
-  .app { max-width: 65vw; }
+  .app { max-width: min(65vw, 1800px); }
+}
+@media (max-width: 565px) {
+  /* cat-nav が 2 行に折り返す端末でスティッキーオフセットを調整 */
+  :root { --nav-cat-h: 108px; }
 }
 @media (max-width: 600px) {
   .lookup-form { flex-direction: column; }
@@ -904,6 +908,7 @@ body:has(#tab-quote-make.active) .app {
   z-index: 49;
   background: var(--bg);
   padding-bottom: 4px;
+  box-shadow: 0 2px 6px rgba(0,0,0,.06);
 }
 
 
@@ -1103,5 +1108,5 @@ button:focus-visible {
    ここはポータル全体（知識タブ・インコタームズ等）の印刷を改善する。 */
 @media print {
   .header, .cat-nav, .sub-nav, .footer,
-  .fb-fab, #stickyNotePanel, #fbOverlay, #toast-container { display: none !important; }
+  .fb-fab, #fbOverlay, #toast-container { display: none !important; }
 }

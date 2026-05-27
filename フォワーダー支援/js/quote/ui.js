@@ -13,7 +13,7 @@
     { label: '☣️ 危険品',         text: '危険品・温度管理貨物・特殊貨物については別途ご相談ください。条件が異なります。' },
     { label: '🔄 条件変更',        text: '貨物の内容・数量・仕向地等に変更が生じた場合は再見積となります。' },
     { label: '📋 書類締切',        text: 'B/L・AWB等の書類提出締め切りは船会社・航空会社の指定期日に従います。遅延の場合は追加費用が発生します。' },
-    { label: '🏦 支払条件',        text: '支払いは請求書発行後30日以内とします。期日を超過した場合、年利○%の遅延損害金が発生します。' },
+    { label: '🏦 支払条件',        text: '支払いは請求書発行後30日以内とします。期日を超過した場合、法定利率（民法所定）による遅延損害金が発生します。（※社内標準条件に書き換えてからご使用ください）' },
   ];
 
 
@@ -158,7 +158,7 @@
     const autoChk = document.getElementById('fxAutoModeChk');
     if (autoChk) autoChk.checked = _fxAutoMode;
     // 最終取得日時を更新
-    const lastFetched = localStorage.getItem('fxLastFetched_v1');
+    const lastFetched = localStorage.getItem(SharedStorage.KEYS.FX_LAST_FETCHED);
     const lastEl = document.getElementById('fxLastFetched');
     if (lastEl) {
       lastEl.textContent = lastFetched
@@ -620,6 +620,20 @@
         quoteShowToast('🧮 ' + text + ' = ' + result.toLocaleString('ja-JP', {maximumFractionDigits:4}), 'info');
       }
     });
+    // blur 時にも数式評価（直打ちした "=1+2" 形式に対応）
+    root.addEventListener('blur', function(e) {
+      const el = e.target;
+      if (el.type !== 'number') return;
+      if (!el.closest('#tableBody, #calcBody')) return;
+      const text = (el.value || '').trim();
+      if (!text.startsWith('=')) return;
+      const result = safeEvalExpr(text.slice(1));
+      if (result !== null) {
+        el.value = parseFloat(result.toFixed(6));
+        el.dispatchEvent(new Event('input', { bubbles: true }));
+        quoteShowToast('🧮 ' + text + ' = ' + result.toLocaleString('ja-JP', {maximumFractionDigits:4}), 'info');
+      }
+    }, true);
   }
 
   // ========== 処理済みマーク（廃止：done-btn を撤去）==========
@@ -703,14 +717,13 @@
     const presets = getPresets();
     const preset  = presets[idx];
     if (!preset) return;
-    if (!confirm('「' + preset.name + '」を読み込みますか？\n現在の入力内容は上書きされます。')) return;
     // _applyQuoteData でフォーム復元・行再構築（v3 mixed-rows 対応）・合計更新を一括処理
-    // 旧形式マイグレーション・小計行/リマーク行の復元も含む
+    // 旧形式マイグレーション・小計行/リマーク行の復元も含む（元に戻すには Ctrl+Z）
     _applyQuoteData(preset.data);
     calcLiveUpdate();
     closePresetMgr();
     setCurrentQuoteName(preset.name);
-    quoteShowToast('📂 「' + preset.name + '」を読み込みました', 'success');
+    quoteShowToast('📂 「' + preset.name + '」を読み込みました（Ctrl+Z で元に戻せます）', 'success');
   }
 
   // 保存ツールバーの「編集中の見積名」表示を更新
@@ -739,11 +752,15 @@
       wrap.innerHTML = '<div class="preset-empty">保存済みのプリセットはありません<br><small style="color:#bbb;">上のフォームから保存できます</small></div>';
       return;
     }
+    // 現在読み込み中のプリセット名（ツールバーの dataset.name から取得）
+    const loadedName = (document.getElementById('currentQuoteName')?.dataset.name || '').trim();
     wrap.innerHTML = presets.map((p, i) => {
       const ts = p.ts
         ? new Date(p.ts).toLocaleString('ja-JP', { month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit' })
         : '';
-      return '<div class="preset-list-item">' +
+      const isLoaded = loadedName && p.name === loadedName;
+      return '<div class="preset-list-item' + (isLoaded ? ' preset-list-item--loaded' : '') + '">' +
+        (isLoaded ? '<span class="preset-loaded-badge">編集中</span>' : '') +
         '<span class="preset-list-name">' + escHtml(p.name) + '</span>' +
         '<span class="preset-list-ts">'   + ts + '</span>' +
         '<button class="btn-preset-load" onclick="loadPreset(' + i + ')">読み込む</button>' +
@@ -861,7 +878,7 @@
       posLabel = '先頭';
     }
 
-    if (!confirm(`「${p.name}」の ${p.rows.length} 行を${posLabel}に挿入しますか？`)) return;
+    // confirm を廃止。Ctrl+Z で元に戻せるため安全。
 
     p.rows.forEach(rd => {
       // リマーク行
@@ -1061,7 +1078,7 @@
 
     const payload = {
       _version: 1,
-      _app: '見積支援ツール',
+      _app: 'フォワーダー支援',
       exportedAt: new Date().toISOString(),
       fields: base.fields,
       rows: base.rows,
@@ -1093,8 +1110,10 @@
       try { data = JSON.parse(e.target.result); }
       catch(err) { alert('ファイルの読み込みに失敗しました。\n' + err.message); return; }
 
-      if (!data._version || data._app !== '見積支援ツール') {
-        if (!confirm('このファイルは見積支援ツール以外から作成された可能性があります。\n続行しますか？')) return;
+      // 既知アプリ名の許可リスト（旧名「見積支援ツール」→現名「フォワーダー支援」の移行に対応）
+      const VALID_APP_NAMES = ['見積支援ツール', 'フォワーダー支援', 'フォワーダー支援ツール'];
+      if (!data._version || !VALID_APP_NAMES.includes(data._app)) {
+        if (!confirm('このファイルは別のアプリから作成された可能性があります。\n続行しますか？')) return;
       }
 
       const exportedAt = data.exportedAt
@@ -1241,14 +1260,26 @@
     // 2) 以下は見積タブ active のときのみ動作
     const quoteTab = document.getElementById('tab-quote-make');
     if (!quoteTab || !quoteTab.classList.contains('active')) return;
+    const ctrl = e.ctrlKey || e.metaKey;
     // Ctrl+K / Cmd+K → コマンドパレット
-    if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+    if (ctrl && e.key === 'k') {
       e.preventDefault();
       const pal = document.getElementById('cmdPalette');
       pal.classList.contains('open') ? closeCmdPalette() : openCmdPalette();
     }
+    // Ctrl+S → プリセット保存（クイック保存）
+    if (ctrl && !e.shiftKey && !e.altKey && e.key === 's') {
+      e.preventDefault();
+      if (typeof savePreset === 'function') savePreset();
+      return;
+    }
+    // Ctrl+P → プレビュー
+    if (ctrl && !e.shiftKey && !e.altKey && e.key === 'p') {
+      e.preventDefault();
+      if (typeof openPreview === 'function') openPreview();
+      return;
+    }
     // Ctrl/Cmd+Z → Undo（Shift で Redo）。Ctrl/Cmd+Y → Redo。
-    const ctrl = e.ctrlKey || e.metaKey;
     if (ctrl && !e.altKey && (e.key === 'z' || e.key === 'Z')) {
       e.preventDefault();
       e.stopPropagation();
@@ -1399,151 +1430,6 @@
   }
 
 
-  // ========== 付箋メモ機能 ==========
-  const STICKY_NOTE_KEY  = 'stickyNote_v1';
-  const STICKY_COLOR_KEY = 'stickyColor_v1';
-  const STICKY_POS_KEY   = 'stickyPos_v1';
-
-  const STICKY_COLORS = [
-    { id: 'yellow', header: '#ffd966', bg: '#fffde7', text: '#554400', focus: '#fffbd0' },
-    { id: 'green',  header: '#81c784', bg: '#f1f8f1', text: '#1b4a1e', focus: '#e0f0e0' },
-    { id: 'blue',   header: '#64b5f6', bg: '#e8f4fd', text: '#0d3a6e', focus: '#d5ecfa' },
-    { id: 'pink',   header: '#f48fb1', bg: '#fce4ec', text: '#6a0032', focus: '#f9d4e2' },
-    { id: 'purple', header: '#ce93d8', bg: '#f3e5f5', text: '#4a1060', focus: '#ecdff0' },
-    { id: 'orange', header: '#ffb74d', bg: '#fff3e0', text: '#6a3000', focus: '#ffe0b2' },
-  ];
-
-  function applyStickyNoteColor(colorId) {
-    const panel  = document.getElementById('stickyNotePanel');
-    const header = document.getElementById('stickyNoteHeader');
-    const area   = document.getElementById('stickyNoteArea');
-    if (!panel) return;
-    const c = STICKY_COLORS.find(x => x.id === colorId) || STICKY_COLORS[0];
-    panel.style.background  = c.bg;
-    panel.style.borderColor = c.header;
-    if (header) {
-      header.style.background = c.header;
-      header.style.color      = c.text;
-      header.querySelectorAll('.sticky-note-clear, .sticky-note-close').forEach(btn => {
-        btn.style.color = c.text;
-      });
-      header.querySelectorAll('.sticky-color-btn').forEach(btn => {
-        btn.style.outline = btn.dataset.color === colorId
-          ? '2px solid rgba(0,0,0,0.45)'
-          : 'none';
-      });
-    }
-    if (area) {
-      area.style.background = c.bg;
-      area.dataset.focusBg  = c.focus;
-    }
-    localStorage.setItem(STICKY_COLOR_KEY, colorId);
-  }
-
-  function initStickyNoteDrag() {
-    const panel  = document.getElementById('stickyNotePanel');
-    const header = document.getElementById('stickyNoteHeader');
-    if (!panel || !header) return;
-    let dragging = false, ox = 0, oy = 0;
-
-    function ensureLeftTop() {
-      if (panel.style.left && panel.style.left !== 'auto') return;
-      const r = panel.getBoundingClientRect();
-      panel.style.left   = r.left + 'px';
-      panel.style.top    = r.top  + 'px';
-      panel.style.right  = 'auto';
-      panel.style.bottom = 'auto';
-    }
-
-    header.style.cursor = 'move';
-    header.addEventListener('mousedown', e => {
-      if (e.target.closest('button')) return;
-      ensureLeftTop();
-      dragging = true;
-      ox = e.clientX - panel.getBoundingClientRect().left;
-      oy = e.clientY - panel.getBoundingClientRect().top;
-      e.preventDefault();
-    });
-    document.addEventListener('mousemove', e => {
-      if (!dragging) return;
-      const nl = Math.max(0, Math.min(window.innerWidth  - panel.offsetWidth,  e.clientX - ox));
-      const nt = Math.max(0, Math.min(window.innerHeight - panel.offsetHeight, e.clientY - oy));
-      panel.style.left = nl + 'px';
-      panel.style.top  = nt + 'px';
-    });
-    document.addEventListener('mouseup', () => {
-      if (!dragging) return;
-      dragging = false;
-      if (panel.style.left && panel.style.left !== 'auto') {
-        localStorage.setItem(STICKY_POS_KEY, JSON.stringify({
-          left: panel.style.left,
-          top:  panel.style.top
-        }));
-      }
-    });
-  }
-
-  function initStickyNote() {
-    const area  = document.getElementById('stickyNoteArea');
-    const panel = document.getElementById('stickyNotePanel');
-    if (area) {
-      area.value = localStorage.getItem(STICKY_NOTE_KEY) || '';
-      area.addEventListener('input', () => {
-        localStorage.setItem(STICKY_NOTE_KEY, area.value);
-      });
-      area.addEventListener('focus', () => {
-        area.style.background = area.dataset.focusBg || '#fffbd0';
-      });
-      area.addEventListener('blur', () => {
-        if (panel) area.style.background = panel.style.background || '';
-      });
-    }
-
-    // Restore color
-    const savedColor = localStorage.getItem(STICKY_COLOR_KEY) || 'yellow';
-    applyStickyNoteColor(savedColor);
-
-    // Restore position
-    const savedPos = localStorage.getItem(STICKY_POS_KEY);
-    if (savedPos && panel) {
-      try {
-        const { left, top } = JSON.parse(savedPos);
-        panel.style.left   = left;
-        panel.style.top    = top;
-        panel.style.right  = 'auto';
-        panel.style.bottom = 'auto';
-      } catch (_) { /* ignore */ }
-    }
-
-    // Color picker buttons
-    const header = document.getElementById('stickyNoteHeader');
-    if (header) {
-      header.querySelectorAll('.sticky-color-btn').forEach(btn => {
-        btn.addEventListener('click', () => applyStickyNoteColor(btn.dataset.color));
-      });
-    }
-
-    // Drag support
-    initStickyNoteDrag();
-  }
-
-  function toggleStickyNote() {
-    const panel = document.getElementById('stickyNotePanel');
-    if (!panel) return;
-    panel.classList.toggle('open');
-    if (panel.classList.contains('open')) {
-      document.getElementById('stickyNoteArea')?.focus();
-    }
-  }
-
-  function clearStickyNote() {
-    if (!confirm('付箋メモの内容を消去しますか？')) return;
-    const area = document.getElementById('stickyNoteArea');
-    if (area) area.value = '';
-    localStorage.removeItem(STICKY_NOTE_KEY);
-    quoteShowToast('🗑️ 付箋メモを消去しました', 'info');
-  }
-
   // ========== 荷姿カスタムプリセット ==========
   const PACKING_PRESETS_KEY  = 'customPackings_v1';
   const DEFAULT_PACKINGS = ['カートン','パレット','ドラム缶','袋（バッグ）','木箱','スチール缶','バルク','コイル','ロール'];
@@ -1683,15 +1569,79 @@
     });
   }
 
+  // ===== 見積サマリパネル =====
+  window.updateQuoteSummary = function updateQuoteSummary() {
+    const panel = document.getElementById('qspBody');
+    if (!panel) return;
+
+    const rows = document.querySelectorAll('#tableBody tr:not([data-type="subtotal"])');
+    const activeRows = Array.from(rows).filter(tr => {
+      const id = tr.id.replace('row-', '');
+      return document.getElementById(`nm-${id}`)?.value?.trim();
+    });
+
+    if (!activeRows.length) {
+      panel.innerHTML = '<p class="qsp-empty">費用項目を入力すると<br>ここにサマリが表示されます</p>';
+      return;
+    }
+
+    const billByCur = {};
+    let totalBillJPY = 0, totalCostJPY = 0;
+    let hasFx = false;
+
+    activeRows.forEach(tr => {
+      const id = tr.id.replace('row-', '');
+      const pc = document.getElementById(`pc-${id}`)?.value || 'JPY';
+      const bc = document.getElementById(`bc-${id}`)?.value || 'JPY';
+      const pq = parseFloat(document.getElementById(`pq-${id}`)?.value) || 0;
+      const pp = parseFloat(document.getElementById(`pp-${id}`)?.value) || 0;
+      const bq = parseFloat(document.getElementById(`bq-${id}`)?.value) || 0;
+      const bp = parseFloat(document.getElementById(`bp-${id}`)?.value) || 0;
+      const billing = bq * bp;
+      const cost    = pq * pp;
+      billByCur[bc] = (billByCur[bc] || 0) + billing;
+      totalBillJPY += toJPY(billing, bc);
+      totalCostJPY += toJPY(cost, pc);
+      if (bc !== 'JPY' || pc !== 'JPY') hasFx = true;
+    });
+
+    const profit = totalBillJPY - totalCostJPY;
+    const mkPct  = totalCostJPY > 0 ? (profit / totalCostJPY * 100) : 0;
+    const fmtJPY = n => Math.round(n).toLocaleString('ja-JP');
+    const profCls = profit >= 0 ? 'qsp-profit-pos' : 'qsp-profit-neg';
+
+    const curLines = Object.entries(billByCur)
+      .filter(([, v]) => v)
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([cur, amt]) =>
+        `<div class="qsp-currency-row"><span class="qsp-cur">${cur}</span><span class="qsp-amount">${fmt(amt)}</span></div>`
+      ).join('');
+
+    panel.innerHTML = `
+      <div class="qsp-row-count">${activeRows.length} 費用項目</div>
+      <div class="qsp-divider"></div>
+      <div class="qsp-section-label">通貨別請求小計</div>
+      ${curLines}
+      <div class="qsp-divider"></div>
+      <div class="qsp-section-label">合計（JPY 換算）</div>
+      <div class="qsp-total-row"><span>請求合計</span><span>¥${fmtJPY(totalBillJPY)}</span></div>
+      <div class="qsp-total-row"><span>支払い合計</span><span>¥${fmtJPY(totalCostJPY)}</span></div>
+      <div class="qsp-divider"></div>
+      <div class="qsp-profit-row ${profCls}"><span>利益</span><span>¥${fmtJPY(profit)}</span></div>
+      <div class="qsp-markup-row"><span>粗利率</span><span>${mkPct.toFixed(1)}%</span></div>
+      ${hasFx ? '<p class="qsp-fx-note">※ 外貨は現在の参照レートで換算</p>' : ''}
+    `;
+  };
+
   // Phase 2b：DOMContentLoaded ではなく initQuoteUI() として呼び出すように変更
   function initQuoteUI() {
     restoreCargoFieldOrder();
     initCargoSort();
-    initStickyNote();
     renderPackingPreset();
     restoreLayoutScale();      // 大/中/小 スケールを復元
     refreshBulkCatSelect();    // 「選択行 → カテゴリ一括変更」セレクトを初期構築
     initColGroupState();       // 列グループ折り畳み状態を復元（デフォルト: 請求列折り畳み）
+    window.updateQuoteSummary();
   }
 
   // ===== Phase 2b：見積タブ初回表示時の遅延初期化集約 =====
@@ -1701,7 +1651,7 @@
     window.__quoteInitialized = true;
     initQuoteState();            // ui.js：リマーク・初期行・自動保存復元・為替自動取得
     initQuoteKeyNav();           // row.js：↑↓キーで行間移動
-    initQuoteUI();               // ui.js：貨物フィールド並び替え・付箋・フォントサイズ
+    initQuoteUI();               // ui.js：貨物フィールド並び替え・フォントサイズ
     if (typeof initQuoteAutoSaveListeners === 'function') {
       initQuoteAutoSaveListeners();  // save.js：input/change の自動保存
     }
