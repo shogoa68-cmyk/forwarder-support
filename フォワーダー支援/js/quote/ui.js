@@ -704,37 +704,10 @@
     const preset  = presets[idx];
     if (!preset) return;
     if (!confirm('「' + preset.name + '」を読み込みますか？\n現在の入力内容は上書きされます。')) return;
-    // 旧形式（sv 末尾）を新形式（sv@2）へ
-    if (typeof migrateRowCells === 'function') preset.data = migrateRowCells(preset.data);
-    // フォーム復元
-    Object.entries(preset.data.fields || {}).forEach(([id, v]) => {
-      const el = document.getElementById(id);
-      if (!el) return;
-      if (el.type === 'checkbox') el.checked = v;
-      else el.value = v;
-    });
-    document.getElementById('tableBody').innerHTML = '';
-    rowCount = 0;
-    (preset.data.rows || []).forEach(() => addRow());
-    const trs = document.querySelectorAll('#tableBody tr');
-    // まず全行に値をセット
-    (preset.data.rows || []).forEach((cells, i) => {
-      if (!trs[i]) return;
-      trs[i].querySelectorAll('input, select, textarea').forEach((el, j) => {
-        if (cells[j] !== undefined) el.value = cells[j];
-      });
-    });
-    // 値セット後にまとめてUI更新（グレーアウト・カテゴリ色・計算）
-    trs.forEach((tr, i) => {
-      if (!(preset.data.rows || [])[i]) return;
-      const rowId = tr.id.replace('row-', '');
-      checkUnfilled(rowId);
-      onCatChange(rowId);
-      onPay(parseInt(rowId));
-    });
-    updateTotals();
+    // _applyQuoteData でフォーム復元・行再構築（v3 mixed-rows 対応）・合計更新を一括処理
+    // 旧形式マイグレーション・小計行/リマーク行の復元も含む
+    _applyQuoteData(preset.data);
     calcLiveUpdate();
-    updateRouteModeIcon();
     closePresetMgr();
     setCurrentQuoteName(preset.name);
     quoteShowToast('📂 「' + preset.name + '」を読み込みました', 'success');
