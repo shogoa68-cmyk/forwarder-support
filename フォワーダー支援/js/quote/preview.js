@@ -273,7 +273,6 @@
       <td colspan="2" data-ft-col="bill">—</td><td data-ft-col="bill" class="pv-num">—</td>
       <td data-ft-col="mk" class="pv-num">${fmtRaw(totMk)}</td>
       <td class="pv-num pv-subtotal">${fmtRaw(totSub)}</td>
-      <td data-ft-col="jpy-conv" class="pv-jpy pv-jpy-total">${fmtRaw(totJpy)}</td>
       <td data-ft-col="tax-col" class="pv-num pv-tax-total">${totTaxText}</td>
       <td data-ft-col="profit" class="pv-pr ${totPc} pv-num">${fmtRaw(totPr)}</td>
       <td data-ft-col="note"></td>
