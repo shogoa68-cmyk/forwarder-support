@@ -606,7 +606,7 @@
     { hdr: 'カテゴリ',     fn: d => getCatLabel(d.cat),    pvGroup: 'cat',    role: 'cat'    },
     { hdr: 'サブコン',     fn: d => d.sv || '',            pvGroup: 'sv',     role: 'sv'     },
     { hdr: '項目名',       fn: d => d.name,                pvGroup: null,     role: 'name'   },
-    { hdr: '課税',         fn: d => d.taxed ? '●' : '',   pvGroup: null,     role: 'tax'    },
+    { hdr: '課税',         fn: d => d.taxed ? '*' : '',   pvGroup: null,     role: 'tax'    },
     { hdr: '数量(原価)',   fn: d => d.pq,                  pvGroup: 'pay',    role: 'pq'     },
     { hdr: '通貨(原価)',   fn: d => d.pc,                  pvGroup: 'pay',    role: 'pc'     },
     { hdr: '単価(原価)',   fn: d => d.pp,                  pvGroup: 'pay',    role: 'pp'     },
