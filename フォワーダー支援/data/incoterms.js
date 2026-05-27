@@ -25,6 +25,6 @@ const INCO_DATA = [
   { code:'CPT', name:'Carriage Paid To',               mode:'all', seller:[1,1,1,1,1,0,0,0,0], note:'運賃込み（CFRの複合輸送版）。保険は買い手。' },
   { code:'CIP', name:'Carriage and Insurance Paid To', mode:'all', seller:[1,1,1,1,1,1,0,0,0], note:'運賃・保険料込み（CIFの複合輸送版）。Incoterms 2020 より売り手の最低付保義務が ICC(A)（全危険担保）に引き上げ。CIF の ICC(C) 最低条件とは異なる点に注意。' },
   { code:'DAP', name:'Delivered at Place',             mode:'all', seller:[1,1,1,1,1,0,1,0,0], note:'仕向地持込渡し。輸入通関・関税は買い手。' },
-  { code:'DPU', name:'Delivered at Place Unloaded',    mode:'all', seller:[1,1,1,1,1,0,1,0,0], note:'仕向地荷卸込渡し（荷卸しも売り手負担）。' },
+  { code:'DPU', name:'Delivered at Place Unloaded',    mode:'all', seller:[1,1,1,1,1,0,1,0,0], note:'仕向地荷卸込渡し。DAPとの違いは荷卸し費用が売り手負担になる点（DAPは荷卸し費が買い手）。輸入通関・関税は買い手。' },
   { code:'DDP', name:'Delivered Duty Paid',            mode:'all', seller:[1,1,1,1,1,0,1,1,1], note:'売り手の負担が最も多い条件。関税・通関も売り手。' },
 ];

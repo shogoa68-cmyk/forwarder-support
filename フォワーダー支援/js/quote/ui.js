@@ -752,11 +752,15 @@
       wrap.innerHTML = '<div class="preset-empty">保存済みのプリセットはありません<br><small style="color:#bbb;">上のフォームから保存できます</small></div>';
       return;
     }
+    // 現在読み込み中のプリセット名（ツールバーの dataset.name から取得）
+    const loadedName = (document.getElementById('currentQuoteName')?.dataset.name || '').trim();
     wrap.innerHTML = presets.map((p, i) => {
       const ts = p.ts
         ? new Date(p.ts).toLocaleString('ja-JP', { month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit' })
         : '';
-      return '<div class="preset-list-item">' +
+      const isLoaded = loadedName && p.name === loadedName;
+      return '<div class="preset-list-item' + (isLoaded ? ' preset-list-item--loaded' : '') + '">' +
+        (isLoaded ? '<span class="preset-loaded-badge">編集中</span>' : '') +
         '<span class="preset-list-name">' + escHtml(p.name) + '</span>' +
         '<span class="preset-list-ts">'   + ts + '</span>' +
         '<button class="btn-preset-load" onclick="loadPreset(' + i + ')">読み込む</button>' +

@@ -516,7 +516,11 @@ body:has(#tab-quote-make.active) .app {
   .tab-btn      { font-size: 11px; padding: 7px 8px; }
 }
 @media (min-width: 1480px) {
-  .app { max-width: 65vw; }
+  .app { max-width: min(65vw, 1800px); }
+}
+@media (max-width: 565px) {
+  /* cat-nav が 2 行に折り返す端末でスティッキーオフセットを調整 */
+  :root { --nav-cat-h: 108px; }
 }
 @media (max-width: 600px) {
   .lookup-form { flex-direction: column; }

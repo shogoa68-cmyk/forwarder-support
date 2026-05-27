@@ -11,9 +11,11 @@
   // ========== プレビュー＆エクスポート ==========
   function getQuoteHeader() {
     return {
-      ref:      document.getElementById('qf-ref')?.value || '',
-      customer: document.getElementById('qf-customer')?.value || '',
-      person:   document.getElementById('qf-person')?.value || '',
+      ref:        document.getElementById('qf-ref')?.value || '',
+      customer:   document.getElementById('qf-customer')?.value || '',
+      person:     document.getElementById('qf-person')?.value || '',
+      date:       document.getElementById('qf-date')?.value || '',
+      validUntil: document.getElementById('qf-valid-until')?.value || '',
     };
   }
 
@@ -410,8 +412,9 @@
     // 合計行の消費税セル
     const totTaxEl = document.querySelector('#previewTable .pv-tax-total');
     if (totTaxEl) totTaxEl.textContent = fmtRaw(totTax);
-    // 既存：底部サマリ（消費税額・税込合計）
-    const tax   = totalSub * rate;
+    // 底部サマリ（消費税額・税込合計）
+    // ※ totalSub（全行合計）ではなく、課税行のみを集計した totTax を使う
+    const tax   = totTax;
     const total = totalSub + tax;
     const taxEl   = document.getElementById('pvTaxAmount');
     const totalEl = document.getElementById('pvTaxTotal');
@@ -669,9 +672,19 @@
     const idxProfit  = idxOf('profit');
 
     const aoaRows = [];
-    if (hdr.ref)      aoaRows.push(['仮 REF #', hdr.ref]);
-    if (hdr.customer) aoaRows.push(['引き合い元', hdr.customer]);
-    if (hdr.person)   aoaRows.push(['担当', formatPersonWithHonorific(hdr.person)]);
+    if (hdr.ref)        aoaRows.push(['仮 REF #', hdr.ref]);
+    if (hdr.customer)   aoaRows.push(['引き合い元', hdr.customer]);
+    if (hdr.person)     aoaRows.push(['担当', formatPersonWithHonorific(hdr.person)]);
+    if (hdr.date)       aoaRows.push(['発行日', hdr.date]);
+    if (hdr.validUntil) aoaRows.push(['有効期限', hdr.validUntil]);
+    // 引き合い条件（POL/POD/インコタームズ/輸送モード/コンテナ/貨物名）
+    const cExcel = getConditions();
+    const condPairs = [
+      ['POL（積み地）', cExcel.pol], ['POD（揚げ地）', cExcel.pod],
+      ['インコタームズ', cExcel.incoterms], ['輸送モード', cExcel.mode],
+      ['コンテナ', cExcel.container], ['貨物名', cExcel.cargo],
+    ].filter(([, v]) => v);
+    if (condPairs.length) condPairs.forEach(([k, v]) => aoaRows.push([k, v]));
     if (aoaRows.length) aoaRows.push([]);
 
     // 列ヘッダ

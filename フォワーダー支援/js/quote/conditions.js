@@ -499,7 +499,11 @@
       const card = document.getElementById('zone1Card');
       const btn  = document.getElementById('zone1Btn');
       card?.classList.toggle('zone-off', !_zone1On);
-      if (btn) { btn.textContent = _zone1On ? 'ON' : 'OFF'; btn.classList.toggle('on', _zone1On); }
+      if (btn) {
+        btn.textContent = _zone1On ? 'ON（有効）' : 'OFF（無効）';
+        btn.title = _zone1On ? 'クリックすると出発地側ゾーンを無効にします' : 'クリックすると出発地側ゾーンを有効にします';
+        btn.classList.toggle('on', _zone1On);
+      }
       if (_zone1On) {
         document.querySelectorAll('#zone1Pieces input[type=checkbox]').forEach(cb => { cb.disabled = false; });
         const dsc1 = document.getElementById('z1DefaultSc');
@@ -514,7 +518,11 @@
       const card = document.getElementById('zone3Card');
       const btn  = document.getElementById('zone3Btn');
       card?.classList.toggle('zone-off', !_zone3On);
-      if (btn) { btn.textContent = _zone3On ? 'ON' : 'OFF'; btn.classList.toggle('on', _zone3On); }
+      if (btn) {
+        btn.textContent = _zone3On ? 'ON（有効）' : 'OFF（無効）';
+        btn.title = _zone3On ? 'クリックすると到着地側ゾーンを無効にします' : 'クリックすると到着地側ゾーンを有効にします';
+        btn.classList.toggle('on', _zone3On);
+      }
       if (_zone3On) {
         document.querySelectorAll('#zone3Pieces input[type=checkbox]').forEach(cb => { cb.disabled = false; });
         const dsc3 = document.getElementById('z3DefaultSc');
@@ -526,6 +534,16 @@
       }
     }
     applyZoneState();
+  }
+
+  /** インコタームズ選択時のヒント表示（index.html の onchange="showIncotermsHint()" から呼ばれる） */
+  function showIncotermsHint(val) {
+    const el = document.getElementById('cond-incoterms-hint');
+    if (!el) return;
+    if (!val) { el.textContent = ''; return; }
+    const code = (val || '').replace(/（.*）$/, '').trim();
+    const entry = (typeof INCO_DATA !== 'undefined') ? INCO_DATA.find(d => d.code === code) : null;
+    el.textContent = entry ? entry.note : '';
   }
 
   /** ゾーンカードのピース状態を読み取り、ルート図に反映 */

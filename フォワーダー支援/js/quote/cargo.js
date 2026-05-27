@@ -60,6 +60,8 @@
 
   function suggestContainers(cbm, kg) {
     if (cbm === 0 && kg === 0) return '—';
+    // 有効積載容積（梱包・ライニング考慮後の実用値）/ 最大搭載重量（実用値）
+    // ※ 内容積の理論値（20'GP:33.2m³, 40'GP:67.7m³, 40'HQ:76.3m³）とは異なる。サイズ参照タブの数値は理論値。
     const specs = [
       { name: "20'GP", cbm: 25,  kg: 21500 },
       { name: "40'GP", cbm: 57,  kg: 26500 },
@@ -141,7 +143,7 @@
       const rowCBM  = (l && w && h) ? pcs * l * w * h / 1_000_000 : 0;
       const rowKg   = kg * pcs;
       const rowRT   = Math.max(rowKg / 1000, rowCBM);
-      const rowCW   = Math.max(rowKg, rowCBM * 167);
+      const rowCW   = Math.ceil(Math.max(rowKg, rowCBM * 166.67) * 2) / 2;
       const dims = (l && w && h) ? `${l}×${w}×${h}` : '—';
       detailRows += `
         <tr>
