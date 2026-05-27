@@ -620,6 +620,20 @@
         quoteShowToast('🧮 ' + text + ' = ' + result.toLocaleString('ja-JP', {maximumFractionDigits:4}), 'info');
       }
     });
+    // blur 時にも数式評価（直打ちした "=1+2" 形式に対応）
+    root.addEventListener('blur', function(e) {
+      const el = e.target;
+      if (el.type !== 'number') return;
+      if (!el.closest('#tableBody, #calcBody')) return;
+      const text = (el.value || '').trim();
+      if (!text.startsWith('=')) return;
+      const result = safeEvalExpr(text.slice(1));
+      if (result !== null) {
+        el.value = parseFloat(result.toFixed(6));
+        el.dispatchEvent(new Event('input', { bubbles: true }));
+        quoteShowToast('🧮 ' + text + ' = ' + result.toLocaleString('ja-JP', {maximumFractionDigits:4}), 'info');
+      }
+    }, true);
   }
 
   // ========== 処理済みマーク（廃止：done-btn を撤去）==========
@@ -703,14 +717,13 @@
     const presets = getPresets();
     const preset  = presets[idx];
     if (!preset) return;
-    if (!confirm('「' + preset.name + '」を読み込みますか？\n現在の入力内容は上書きされます。')) return;
     // _applyQuoteData でフォーム復元・行再構築（v3 mixed-rows 対応）・合計更新を一括処理
-    // 旧形式マイグレーション・小計行/リマーク行の復元も含む
+    // 旧形式マイグレーション・小計行/リマーク行の復元も含む（元に戻すには Ctrl+Z）
     _applyQuoteData(preset.data);
     calcLiveUpdate();
     closePresetMgr();
     setCurrentQuoteName(preset.name);
-    quoteShowToast('📂 「' + preset.name + '」を読み込みました', 'success');
+    quoteShowToast('📂 「' + preset.name + '」を読み込みました（Ctrl+Z で元に戻せます）', 'success');
   }
 
   // 保存ツールバーの「編集中の見積名」表示を更新
@@ -861,7 +874,7 @@
       posLabel = '先頭';
     }
 
-    if (!confirm(`「${p.name}」の ${p.rows.length} 行を${posLabel}に挿入しますか？`)) return;
+    // confirm を廃止。Ctrl+Z で元に戻せるため安全。
 
     p.rows.forEach(rd => {
       // リマーク行
@@ -1061,7 +1074,7 @@
 
     const payload = {
       _version: 1,
-      _app: '見積支援ツール',
+      _app: 'フォワーダー支援',
       exportedAt: new Date().toISOString(),
       fields: base.fields,
       rows: base.rows,
@@ -1241,14 +1254,26 @@
     // 2) 以下は見積タブ active のときのみ動作
     const quoteTab = document.getElementById('tab-quote-make');
     if (!quoteTab || !quoteTab.classList.contains('active')) return;
+    const ctrl = e.ctrlKey || e.metaKey;
     // Ctrl+K / Cmd+K → コマンドパレット
-    if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+    if (ctrl && e.key === 'k') {
       e.preventDefault();
       const pal = document.getElementById('cmdPalette');
       pal.classList.contains('open') ? closeCmdPalette() : openCmdPalette();
     }
+    // Ctrl+S → プリセット保存（クイック保存）
+    if (ctrl && !e.shiftKey && !e.altKey && e.key === 's') {
+      e.preventDefault();
+      if (typeof savePreset === 'function') savePreset();
+      return;
+    }
+    // Ctrl+P → プレビュー
+    if (ctrl && !e.shiftKey && !e.altKey && e.key === 'p') {
+      e.preventDefault();
+      if (typeof openPreview === 'function') openPreview();
+      return;
+    }
     // Ctrl/Cmd+Z → Undo（Shift で Redo）。Ctrl/Cmd+Y → Redo。
-    const ctrl = e.ctrlKey || e.metaKey;
     if (ctrl && !e.altKey && (e.key === 'z' || e.key === 'Z')) {
       e.preventDefault();
       e.stopPropagation();

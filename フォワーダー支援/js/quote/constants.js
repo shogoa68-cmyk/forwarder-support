@@ -143,6 +143,7 @@ let autoSaveEnabled = false;
 // ========== 為替レート管理 ==========
 // JPY以外の通貨のJPY換算レート（1単位 = XX JPY）
 // キーはCURRENCIES の値と一致させる
+// 最終手動確認日：2026-05-27（API取得失敗時のフォールバック値。定期的に更新のこと）
 const DEFAULT_FX_RATES = {
   USD: 150, EUR: 165, CNY: 21, KRW: 0.11, SGD: 112,
   HKD: 19, GBP: 192, AUD: 99, TWD: 4.7, THB: 4.2,
@@ -151,7 +152,7 @@ const DEFAULT_FX_RATES = {
 
 // 為替レートパネルで表示・編集する通貨を絞り込む
 // （行ごとの通貨セレクタや fetchAutoFxRates の対象には影響しない）
-const FX_DISPLAY_CURRENCIES = ['USD', 'EUR', 'GBP', 'CNY'];
+const FX_DISPLAY_CURRENCIES = ['USD', 'EUR', 'GBP', 'CNY', 'SGD', 'KRW'];
 
 // ユーザーが上書きしたレート（localStorageから復元）
 let _fxRates = { ...DEFAULT_FX_RATES };

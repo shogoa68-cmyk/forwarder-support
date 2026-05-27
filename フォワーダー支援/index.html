@@ -1974,8 +1974,8 @@
         <h4>📖 用語集（業務略語）</h4>
         <ul style="line-height:1.9;">
           <li><strong>CD</strong>：Currency Difference（為替差・通貨間調整値、表示専用列）</li>
-          <li><strong>W/M</strong>：Weight or Measurement（重量トンと容積 CBM の<strong>高い方</strong>で運賃計算する LCL の基本ルール）</li>
-          <li><strong>R/T</strong>：Revenue Ton（W/M で確定した課金単位、1 R/T = 1 CBM または 1 ton）</li>
+          <li><strong>W/M</strong>：Weight or Measurement（重量トンと容積 CBM の<strong>高い方</strong>で運賃計算するルール。主に LCL・混載貨物に適用。FCL はコンテナ本数単価が基本）</li>
+          <li><strong>R/T</strong>：Revenue Ton（W/M で確定した課金単位、1 R/T = 1 CBM または 1 ton。LCL・混載の運賃計算単位）</li>
           <li><strong>C/W</strong>：Chargeable Weight（航空運賃の課金重量、容積重量 cm³÷6,000 と実重量の高い方）</li>
           <li><strong>GP / HQ</strong>：General Purpose（一般ドライ）／ High Cube（背高 = 40HC）</li>
           <li><strong>RF / OT / FR</strong>：Reefer（冷凍）／ Open Top（天井開放）／ Flat Rack（フラットラック）</li>
@@ -1999,9 +1999,10 @@
     <!-- ========== 保存/読み込みツールバー ========== -->
     <div class="save-toolbar" id="saveToolbar">
       <span class="current-quote-name" id="currentQuoteName" title="現在編集中のプリセット名（読込・保存時に更新）">📝 新規見積</span>
+      <button class="save-btn save-btn-preview" onclick="openPreview()" title="見積をプレビュー表示・CSV/Excel/PDF出力はここから（Ctrl+P）">📋 プレビュー</button>
       <span class="save-toolbar-sep"></span>
       <button class="save-btn save-btn-preset"
-              onclick="openPresetMgr()" title="入力パターンや一時保存の管理">
+              onclick="openPresetMgr()" title="入力パターンや一時保存の管理（Ctrl+S で上書き保存）">
         🗂️ プリセット/一時保存
       </button>
       <label class="autosave-label" title="入力・変更から2秒後にブラウザへ自動保存します（同じブラウザ内のみ有効）">
@@ -2023,8 +2024,6 @@
       </button>
       <input type="file" id="importFileInput" accept=".json" style="display:none" onchange="importFromFile(event)" />
       <span class="save-status" id="saveStatus"></span>
-      <span class="save-toolbar-sep"></span>
-      <button class="save-btn save-btn-preview" onclick="openPreview()" title="見積をプレビュー表示・CSV/Excel/PDF出力はここから">📋 プレビュー</button>
       <span class="save-toolbar-sep"></span>
       <span class="save-toolbar-label">📐 表示サイズ</span>
       <button class="layout-scale-btn" data-scale="lg" onclick="setLayoutScale('lg')" title="大（スマホ向け）">大</button>
@@ -2535,8 +2534,8 @@
                 <th rowspan="2" class="hd-base" style="width:90px;">サブコン</th>
                 <th rowspan="2" class="hd-base" style="width:44px;" title="ON にすると消費税 10% が自動計算され、項目名先頭に「*」が付きます。輸出免税の行は OFF のままにしてください（輸出方向選択時は自動 0% に切替）。">課税</th>
                 <th rowspan="2" class="hd-base">項目名</th>
-                <th colspan="4" class="hd-pay" data-grp-hd="pay">支払い <button class="col-grp-toggle" onclick="toggleColGroup('pay')" data-grp="pay" title="支払い列を折り畳む">▼</button></th>
-                <th colspan="3" class="hd-bill" data-grp-hd="bill">請求 <button class="col-grp-toggle" onclick="toggleColGroup('bill')" data-grp="bill" title="請求列を折り畳む">▼</button></th>
+                <th colspan="4" class="hd-pay" data-grp-hd="pay" title="支払い（仕入）＝ 船会社・代理店など外注先へ支払う原価">支払い <button class="col-grp-toggle" onclick="toggleColGroup('pay')" data-grp="pay" title="支払い列を折り畳む">▼</button></th>
+                <th colspan="3" class="hd-bill" data-grp-hd="bill" title="請求（売値）＝ 荷主・顧客へ請求する金額">請求 <button class="col-grp-toggle" onclick="toggleColGroup('bill')" data-grp="bill" title="請求列を折り畳む">▼</button></th>
                 <th colspan="4" class="hd-profit">利益計算</th>
               </tr>
               <tr>
@@ -2548,7 +2547,7 @@
                 <th class="hd-bill" data-grp-col="bill" style="color:#bde8c8;">② 数量</th>
                 <th class="hd-bill" data-grp-col="bill" style="color:#bde8c8;">② 通貨</th>
                 <th class="hd-bill" data-grp-col="bill" style="color:#bde8c8;">② 単価</th>
-                <th class="hd-profit">③ 乗せ幅</th>
+                <th class="hd-profit" title="支払い単価に加算する利益幅（例：支払単価 1,000 + 乗せ幅 200 = 請求単価 1,200）。入力後は右隣「② 請求単価」欄に自動反映されます">③ 乗せ幅</th>
                 <th class="hd-profit">④ 小計</th>
                 <th class="hd-profit">⑤ 利益</th>
                 <th class="hd-profit">備考</th>

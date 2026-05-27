@@ -89,9 +89,9 @@
       totalPcs += pcs;
     });
 
-    // RT: max(W/1000, CBM)  / CW: max(実重量, CBM×167)
+    // RT: max(W/1000, CBM)  / CW: max(実重量, CBM×166.67) を0.5kg単位に切り上げ（IATA準拠）
     const rt = Math.max(totalKg / 1000, totalCBM);
-    const cw = Math.max(totalKg, totalCBM * 167);
+    const cw = Math.ceil(Math.max(totalKg, totalCBM * 166.67) * 2) / 2;
 
     // 最新結果を保持
     _lastCalcResult = { totalCBM, totalKg, totalPcs, rt, cw };

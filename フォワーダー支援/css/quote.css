@@ -83,7 +83,7 @@
 #tab-quote-make #qf-memo {
   width: 100%;
   resize: vertical;
-  min-height: 120px;
+  min-height: 56px;
   max-height: 400px;
   border: 1px solid #d9cfc2;
   border-radius: 4px;
@@ -138,9 +138,9 @@
 #tab-quote-make .row-move-btn {
   display: block;
   width: 22px;
-  height: 14px;
-  line-height: 12px;
-  font-size: 9px;
+  height: 20px;
+  line-height: 18px;
+  font-size: 10px;
   background: #f0e8d8;
   border: 1px solid #d9cfc2;
   border-radius: 3px;
@@ -193,7 +193,14 @@
 }
 #tab-quote-make input[type="text"]:focus,
 #tab-quote-make input[type="number"]:focus,
-#tab-quote-make select:focus { border-color: #8b6914; }
+#tab-quote-make select:focus { border-color: #8b6914; border-width: 2px; }
+/* キーボード操作時のみフォーカスリングを表示（マウス操作時は非表示） */
+#tab-quote-make input[type="text"]:focus-visible,
+#tab-quote-make input[type="number"]:focus-visible,
+#tab-quote-make select:focus-visible {
+  outline: 2px solid #8b6914;
+  outline-offset: -1px;
+}
 #tab-quote-make input[type="number"] { text-align: right; }
 
 #tab-quote-make .w-name  { width: 130px; }
@@ -227,6 +234,15 @@
 #tab-quote-make th.hd-cd { display: none; }
 #tab-quote-make td.cat-cell { padding: 2px 3px !important; width: 105px; }
 
+/* 数値列：等幅数字で金額の縦位置を揃える（読み取りエラー率低下） */
+#tab-quote-make td.profit-cell,
+#tab-quote-make tfoot td,
+#tab-quote-make input[type="number"],
+#tab-quote-make #tot-cost,
+#tab-quote-make #tot-billing,
+#tab-quote-make #tot-markup,
+#tab-quote-make #tot-subtotal,
+#tab-quote-make #tot-profit { font-variant-numeric: tabular-nums; }
 #tab-quote-make td.profit-cell { font-weight: bold; text-align: right; padding-right: 10px; min-width: 85px; }
 #tab-quote-make td.profit-pos  { background: #dcebd8; color: #5a6e42; }
 #tab-quote-make td.profit-neg  { background: #fdf2f2; color: #c0392b; }
@@ -1490,10 +1506,10 @@
 #tab-quote-make .save-toolbar {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   flex-wrap: wrap;
   background: #f0e8d8;
-  padding: 8px 20px;
+  padding: 5px 16px;
   position: sticky;
   top: calc(var(--nav-cat-h) + var(--nav-sub-h));
   z-index: 45;
@@ -1508,7 +1524,7 @@
   margin-right: 4px;
 }
 #tab-quote-make .save-btn {
-  padding: 5px 13px;
+  padding: 4px 10px;
   border: 1.5px solid;
   border-radius: 14px;
   font-size: 12px;
@@ -1604,11 +1620,11 @@
   cursor: help;
   line-height: 1;
 }
-/* 自動保存復元バナー */
+/* 自動保存復元バナー（FABと重ならないよう bottom を FAB 高さ分上げる） */
 #tab-quote-make #autosave-restore-bar {
   display: none;
   position: fixed;
-  bottom: 20px;
+  bottom: 80px;
   left: 50%;
   transform: translateX(-50%);
   background: #3d2e1e;
@@ -2324,6 +2340,17 @@
 #tab-quote-make #qf-customer,
 #tab-quote-make #qf-person { width: 100%; }
 #tab-quote-make .pv-btns { flex-wrap: wrap; }
+/* モバイルで凍結パネルを解除（sticky同士の干渉バグ防止） */
+#tab-quote-make td.check-cell,
+#tab-quote-make td.handle-cell,
+#tab-quote-make td.cat-cell,
+#tab-quote-make td.sv-cell,
+#tab-quote-make td.tax-cell,
+#tab-quote-make td.name-cell { position: static !important; }
+/* モバイルでaction-cellボタンのタッチターゲット拡大 */
+#tab-quote-make .action-cell .done-btn,
+#tab-quote-make .action-cell .btn-del,
+#tab-quote-make .action-cell .btn-ins { width: 28px; height: 28px; font-size: 13px; }
 }
 /* ========== 一括コピーボタン ========== */
 #tab-quote-make .btn-bulk-copy {
@@ -3114,6 +3141,8 @@
    body 直下の全要素（ヘッダー/ナビ/他タブ/付箋/FAB/モーダル/トースト等）を非表示にする。
    プレビュー未表示時に Ctrl+P した場合は何も加工せず通常印刷。 */
 @media print {
+  /* A4横・余白10mm を基本設定とする（ブラウザ印刷ダイアログでの手動設定を不要にする） */
+  body:has(#previewOverlay.open) { @page { size: A4 landscape; margin: 10mm; } }
   /* body 直下：.app 以外を全て非表示（フィードバックモーダル/FAB/トースト 等） */
   body:has(#previewOverlay.open) > *:not(.app) { display: none !important; }
   /* .app 内：#tab-quote-make 以外を全て非表示（ヘッダー/カテゴリナビ/サブナビ/他タブ 等） */
@@ -3145,7 +3174,7 @@
   body:has(#previewOverlay.open) #pvTaxBox { display: none !important; }
   body:has(#previewOverlay.open) #previewTable {
     width: 100% !important;
-    font-size: 9px !important;
+    font-size: 10px !important;
   }
   body:has(#previewOverlay.open) #previewTable th,
   body:has(#previewOverlay.open) #previewTable td {

@@ -40,7 +40,9 @@
     const hdr   = getQuoteHeader();
     const today = new Date().toISOString().slice(0, 10).replace(/-/g, '');
     const safe  = s => s.replace(/[\/\\:*?"<>|\t\n\r]/g, '_').replace(/_+/g, '_').trim().slice(0, 40);
-    const parts = [hdr.ref, hdr.customer, hdr.person].map(safe).filter(Boolean);
+    const cond = getConditions();
+    const mode = safe(cond.mode || '');
+    const parts = [hdr.ref, hdr.customer, mode, hdr.person].map(safe).filter(Boolean);
     return (parts.length ? parts.join('_') : '見積もり_' + today) + '.' + ext;
   }
 
@@ -726,6 +728,11 @@
     aoaRows.push([xMeta.created]);
 
     const ws   = XLSX.utils.aoa_to_sheet(aoaRows);
+    // 列幅設定（SheetJS CE版対応: wch = 文字数基準の列幅）
+    ws['!cols'] = [
+      {wch:12},{wch:10},{wch:22},{wch:5},{wch:7},{wch:6},{wch:9},{wch:5},
+      {wch:6},{wch:6},{wch:9},{wch:8},{wch:11},{wch:10},{wch:8},{wch:9},{wch:9},{wch:24}
+    ];
     const wb   = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, '見積もり');
     XLSX.writeFile(wb, buildFileName('xlsx'));
@@ -734,7 +741,7 @@
 
   // CSV列定義（key: collectData()の行データキー、hdr: ヘッダ文字列。sv を cat 直後に配置）
   const CSV_COL_DEFS = [
-    { key: 'cat',    hdr: 'カテゴリ(raw)',  fn: d => d.cat },
+    { key: 'cat',    hdr: 'カテゴリ',       fn: d => getCatLabel(d.cat) },
     { key: 'sv',     hdr: 'サブコン',       fn: d => d.sv || '' },
     { key: 'name',   hdr: '項目名',         fn: d => d.name },
     { key: 'pq',     hdr: '数量',           fn: d => fmtRaw(d.pq) },
