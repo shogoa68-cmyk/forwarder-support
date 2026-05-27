@@ -222,8 +222,9 @@
   appearance: none;
 }
 
-/* CD セル */
-#tab-quote-make td.cd-cell { background: #ede5d6; padding: 3px 5px; min-width: 100px; }
+/* CD セル（予約フィールド・非表示） */
+#tab-quote-make td.cd-cell,
+#tab-quote-make th.hd-cd { display: none; }
 #tab-quote-make td.cat-cell { padding: 2px 3px !important; width: 105px; }
 
 #tab-quote-make td.profit-cell { font-weight: bold; text-align: right; padding-right: 10px; min-width: 85px; }
@@ -435,6 +436,12 @@
   grid-template-columns: 1fr 1fr;
   gap: 6px;
   margin-top: 2px;
+}
+@media (max-width: 600px) {
+  /* HSコード：関税率2列グリッドをモバイルでは1列に折りたたむ */
+  #tab-quote-make .hs-rate-row {
+    grid-template-columns: 1fr;
+  }
 }
 #tab-quote-make .hs-rate-field {
   display: flex; flex-direction: column; gap: 3px;
@@ -2253,7 +2260,28 @@
 }
 #tab-quote-make .btn-preset-del:hover { color: #c0392b; }
 #tab-quote-make .preset-empty { padding: 16px; text-align: center; font-size: 13px; color: #7d6b56; }
-#tab-quote-make .preset-mgr-footer { display: flex; justify-content: flex-end; }
+#tab-quote-make .preset-mgr-footer {
+  display: flex; justify-content: space-between; align-items: center;
+  margin-top: 12px; padding-top: 10px; border-top: 1px dashed #d9cfc2;
+}
+/* 書き出し / 読み込みボタングループ */
+#tab-quote-make .row-pattern-io-btns {
+  display: flex; gap: 6px;
+}
+#tab-quote-make .btn-pattern-export,
+#tab-quote-make .btn-pattern-import {
+  display: inline-flex; align-items: center; gap: 4px;
+  background: #f0e8d8; color: #6b5a42;
+  border: 1.5px solid #c4b49a; border-radius: 5px;
+  padding: 5px 13px; font-size: 12px; font-weight: 600;
+  font-family: inherit; cursor: pointer; white-space: nowrap;
+  transition: background .15s, border-color .15s;
+  user-select: none;
+}
+#tab-quote-make .btn-pattern-export:hover,
+#tab-quote-make .btn-pattern-import:hover {
+  background: #d9cfc2; border-color: #9a8472;
+}
 #tab-quote-make .btn-preset-close {
   background: #f0e8d8; color: #7d6b56; border: none; border-radius: 5px;
   padding: 7px 16px; font-size: 13px; cursor: pointer; font-family: inherit;
@@ -2499,9 +2527,50 @@
 /* ===== テーブルスクロール（Feature 2） ===== */
 #tab-quote-make #tableScrollWrap {
   overflow-x: auto;
+  overflow-y: auto;
   -webkit-overflow-scrolling: touch;
   margin-bottom: 0;
+  max-height: 65vh;
+  min-height: 200px;
 }
+/* tfoot を tableScrollWrap の下端に sticky 固定（常時合計表示） */
+#tab-quote-make #quoteTable tfoot {
+  position: sticky;
+  bottom: 0;
+  z-index: 3;
+}
+
+/* ===== 列グループ折り畳み ===== */
+/* pay = 支払い列（数量/単位/通貨/単価）, bill = 請求列（②数量/②通貨/②単価） */
+#tab-quote-make #quoteTable.pay-collapsed  [data-grp-col="pay"]  { display: none; }
+#tab-quote-make #quoteTable.bill-collapsed [data-grp-col="bill"] { display: none; }
+
+/* 折り畳み時のグループヘッダー（row1）: 最小幅で toggle ボタンだけ見せる */
+#tab-quote-make #quoteTable.pay-collapsed  th[data-grp-hd="pay"],
+#tab-quote-make #quoteTable.bill-collapsed th[data-grp-hd="bill"] {
+  min-width: 36px;
+  max-width: 36px;
+  overflow: hidden;
+  padding: 4px 2px;
+  white-space: nowrap;
+}
+
+/* 列グループ toggle ボタン（グループヘッダー内） */
+#tab-quote-make .col-grp-toggle {
+  background: rgba(255,255,255,.22);
+  border: 1px solid rgba(255,255,255,.5);
+  border-radius: 3px;
+  color: #fff;
+  font-size: 9px;
+  cursor: pointer;
+  padding: 1px 3px;
+  margin-left: 3px;
+  line-height: 1.3;
+  vertical-align: middle;
+  white-space: nowrap;
+  transition: background .12s;
+}
+#tab-quote-make .col-grp-toggle:hover { background: rgba(255,255,255,.4); }
 /* ===== ボタングループ整形（Feature 1） ===== */
 #tab-quote-make .table-btn-group {
   display: flex;

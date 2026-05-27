@@ -704,22 +704,10 @@
     const preset  = presets[idx];
     if (!preset) return;
     if (!confirm('「' + preset.name + '」を読み込みますか？\n現在の入力内容は上書きされます。')) return;
-    // 旧形式（v1/v2）を v3-mixed-rows に変換
-    if (typeof migrateRowCells === 'function') preset.data = migrateRowCells(preset.data);
-    // フォーム復元
-    Object.entries(preset.data.fields || {}).forEach(([id, v]) => {
-      const el = document.getElementById(id);
-      if (!el) return;
-      if (el.type === 'checkbox') el.checked = v;
-      else el.value = v;
-    });
-    // テーブル行復元
-    // ※ _rebuildTable を使う（v3形式・subtotal/remark行・checkboxに正しく対応）
-    //   旧実装は rows を配列として扱っていたため v3 オブジェクト形式で全値が undefined になるバグがあった
-    _rebuildTable(preset.data);
-    updateTotals();
+    // _applyQuoteData でフォーム復元・行再構築（v3 mixed-rows 対応）・合計更新を一括処理
+    // 旧形式マイグレーション・小計行/リマーク行の復元も含む
+    _applyQuoteData(preset.data);
     calcLiveUpdate();
-    updateRouteModeIcon();
     closePresetMgr();
     setCurrentQuoteName(preset.name);
     quoteShowToast('📂 「' + preset.name + '」を読み込みました', 'success');
@@ -771,15 +759,24 @@
   function getRowPatterns()      { return SharedStorage.getJSON(ROW_PATTERN_KEY, []); }
   function setRowPatterns(arr)   { SharedStorage.setJSON(ROW_PATTERN_KEY, arr); }
 
-  // チェック済み行のデータを抽出（小計行は除外）
+  // チェック済み行のデータを抽出（通常行・リマーク行・小計行を含む）
   function _gatherCheckedRowsData() {
     const out = [];
     document.querySelectorAll('#tableBody tr .row-select-chk:checked').forEach(chk => {
       const tr = chk.closest('tr');
-      if (!tr || tr.dataset.type === 'subtotal' || tr.dataset.type === 'remark') return;
+      if (!tr) return;
+      if (tr.dataset.type === 'remark') {
+        out.push({ _type: 'remark', text: tr.querySelector('.remark-row-input')?.value || '' });
+        return;
+      }
+      if (tr.dataset.type === 'subtotal') {
+        out.push({ _type: 'subtotal', label: tr.querySelector('.subtotal-label')?.value || '' });
+        return;
+      }
       const id = tr.id.replace('row-', '');
       const g = sid => document.getElementById(sid + '-' + id);
       out.push({
+        _type: 'data',
         cat:   g('cat')?.value || '',
         name:  g('nm')?.value || '',
         taxed: g('tx')?.checked || false,
@@ -867,6 +864,30 @@
     if (!confirm(`「${p.name}」の ${p.rows.length} 行を${posLabel}に挿入しますか？`)) return;
 
     p.rows.forEach(rd => {
+      // リマーク行
+      if (rd._type === 'remark') {
+        insertRemarkRow(null, { noFocus: true });
+        const allTrs = document.querySelectorAll('#tableBody tr');
+        const tr = allTrs[allTrs.length - 1];
+        if (!tr) return;
+        if (anchor) tbody.insertBefore(tr, anchor);
+        const inp = tr.querySelector('.remark-row-input');
+        if (inp) inp.value = rd.text || '';
+        return;
+      }
+      // 小計行
+      if (rd._type === 'subtotal') {
+        insertSubtotalRow(null);
+        const allTrs = document.querySelectorAll('#tableBody tr');
+        const tr = allTrs[allTrs.length - 1];
+        if (!tr) return;
+        if (anchor) tbody.insertBefore(tr, anchor);
+        const lbl = tr.querySelector('.subtotal-label');
+        if (lbl) lbl.value = rd.label || '';
+        updateSubtotalRows();
+        return;
+      }
+      // 通常行（_type === 'data' または後方互換で _type なし）
       // 末尾に追加してから anchor の直前に移動（addRow を流用）
       addRow();
       const trs = document.querySelectorAll('#tableBody tr');
@@ -899,6 +920,8 @@
       onCatChange(id);
       onPay(id);
     });
+    // 小計行を含む場合に備えて全体を再計算
+    if (typeof updateSubtotalRows === 'function') updateSubtotalRows();
     updateTotals();
     closeRowPatternMgr();
     quoteShowToast(`📂 「${p.name}」の ${p.rows.length} 行を${posLabel}に挿入しました`, 'success');
@@ -914,6 +937,82 @@
     renderRowPatternList();
     quoteShowToast(`🗑️ 「${p.name}」を削除しました`, 'info');
   }
+
+  // ===== 行パターン：ファイルへの書き出し =====
+  window.exportRowPatterns = function() {
+    const patterns = getRowPatterns();
+    if (!patterns.length) {
+      quoteShowToast('⚠️ 保存済みの行パターンがありません', 'warn');
+      return;
+    }
+    const payload = {
+      _type:      'rowPatterns',
+      _version:   1,
+      _app:       'フォワーダー支援ツール',
+      exportedAt: new Date().toISOString(),
+      patterns,
+    };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href     = url;
+    const d    = new Date();
+    const pad  = n => String(n).padStart(2, '0');
+    a.download = `行パターン_${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+    quoteShowToast(`📤 ${patterns.length} 件の行パターンを書き出しました`, 'success');
+  };
+
+  // ===== 行パターン：ファイルからの読み込み =====
+  window.importRowPatternsFile = function(event) {
+    const file = event.target.files[0];
+    event.target.value = ''; // 同じファイルの再選択を許可
+    if (!file) return;
+    if (!file.name.endsWith('.json')) {
+      quoteShowToast('⚠️ .json ファイルを選択してください', 'error');
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      let data;
+      try { data = JSON.parse(e.target.result); }
+      catch(err) {
+        quoteShowToast('⚠️ ファイルの解析に失敗しました: ' + err.message, 'error');
+        return;
+      }
+      // ファイル種別チェック
+      if (data._type !== 'rowPatterns' || !Array.isArray(data.patterns)) {
+        quoteShowToast('⚠️ 行パターンのファイルではありません（_type が一致しません）', 'error');
+        return;
+      }
+      const incoming = data.patterns.filter(p => p && p.name && Array.isArray(p.rows));
+      if (!incoming.length) {
+        quoteShowToast('ℹ️ ファイルに有効なパターンが含まれていません', 'info');
+        return;
+      }
+      // 既存パターンとの重複チェック
+      const existing    = getRowPatterns();
+      const duplicates  = incoming.filter(p => existing.some(e => e.name === p.name));
+      const newOnes     = incoming.filter(p => !existing.some(e => e.name === p.name));
+      let msg = `${incoming.length} 件のパターンを読み込みます。\n`;
+      if (duplicates.length) msg += `\n▲ 上書き（同名）: ${duplicates.map(p => '「' + p.name + '」').join('、')}`;
+      if (newOnes.length)    msg += `\n＋ 新規追加: ${newOnes.map(p => '「' + p.name + '」').join('、')}`;
+      if (!confirm(msg + '\n\n続けますか？')) return;
+      // マージ（同名は上書き、新規は先頭へ追加）
+      let merged = [...existing];
+      incoming.forEach(p => {
+        const idx = merged.findIndex(e => e.name === p.name);
+        if (idx >= 0) merged[idx] = p;
+        else           merged.unshift(p);
+      });
+      if (merged.length > ROW_PATTERN_MAX) merged = merged.slice(0, ROW_PATTERN_MAX);
+      setRowPatterns(merged);
+      renderRowPatternList();
+      quoteShowToast(`📥 ${incoming.length} 件の行パターンを読み込みました`, 'success');
+    };
+    reader.readAsText(file, 'utf-8');
+  };
 
   function renderRowPatternList() {
     const patterns = getRowPatterns();
@@ -1536,6 +1635,54 @@
     setLayoutScale(order[next]);
   }
 
+  // ===== 列グループ折り畳み（案B） =====
+  // pay = 支払い列（数量/単位/通貨/単価）、bill = 請求列（②数量/②通貨/②単価）
+  // デフォルト: 請求列を折り畳んだ状態で開始（支払い入力に集中しやすいよう）
+  window.toggleColGroup = function(group) {
+    const table = document.getElementById('quoteTable');
+    if (!table) return;
+    const collapsed = table.classList.toggle(group + '-collapsed');
+
+    // row1 グループヘッダーの colspan を折り畳み列数に合わせて更新
+    const grpHd = table.querySelector(`thead tr:first-child th[data-grp-hd="${group}"]`);
+    if (grpHd) {
+      const detailCount = table.querySelectorAll(`thead tr:nth-child(2) th[data-grp-col="${group}"]`).length;
+      grpHd.setAttribute('colspan', collapsed ? 1 : detailCount);
+      const btn = grpHd.querySelector('.col-grp-toggle');
+      if (btn) {
+        btn.textContent = collapsed ? '▶' : '▼';
+        const groupName = group === 'pay' ? '支払い' : '請求';
+        btn.title = collapsed ? `${groupName}列を展開` : `${groupName}列を折り畳む`;
+      }
+    }
+    // 状態を localStorage に保存
+    localStorage.setItem(`colGroup_${group}_collapsed`, collapsed ? '1' : '0');
+  };
+
+  function initColGroupState() {
+    ['pay', 'bill'].forEach(group => {
+      const saved = localStorage.getItem(`colGroup_${group}_collapsed`);
+      // デフォルト: bill のみ折り畳み、pay は展開
+      const shouldCollapse = saved !== null ? saved === '1' : group === 'bill';
+      if (shouldCollapse) {
+        const table = document.getElementById('quoteTable');
+        if (!table) return;
+        table.classList.add(group + '-collapsed');
+        const grpHd = table.querySelector(`thead tr:first-child th[data-grp-hd="${group}"]`);
+        if (grpHd) {
+          const detailCount = table.querySelectorAll(`thead tr:nth-child(2) th[data-grp-col="${group}"]`).length;
+          grpHd.setAttribute('colspan', 1);
+          const btn = grpHd.querySelector('.col-grp-toggle');
+          if (btn) {
+            btn.textContent = '▶';
+            const groupName = group === 'pay' ? '支払い' : '請求';
+            btn.title = `${groupName}列を展開`;
+          }
+        }
+      }
+    });
+  }
+
   // Phase 2b：DOMContentLoaded ではなく initQuoteUI() として呼び出すように変更
   function initQuoteUI() {
     restoreCargoFieldOrder();
@@ -1544,6 +1691,7 @@
     renderPackingPreset();
     restoreLayoutScale();      // 大/中/小 スケールを復元
     refreshBulkCatSelect();    // 「選択行 → カテゴリ一括変更」セレクトを初期構築
+    initColGroupState();       // 列グループ折り畳み状態を復元（デフォルト: 請求列折り畳み）
   }
 
   // ===== Phase 2b：見積タブ初回表示時の遅延初期化集約 =====

@@ -2130,6 +2130,14 @@
           <div class="preset-empty">保存済みの行パターンはありません</div>
         </div>
         <div class="preset-mgr-footer">
+          <div class="row-pattern-io-btns">
+            <button class="btn-pattern-export" onclick="exportRowPatterns()" title="保存済みの行パターンを全件 JSON ファイルに書き出します">📤 書き出し</button>
+            <label class="btn-pattern-import" title="書き出した JSON ファイルからパターンを読み込みます（既存と統合）">
+              📥 読み込み
+              <input type="file" id="rowPatternImportFile" accept=".json"
+                     onchange="importRowPatternsFile(event)" style="display:none" />
+            </label>
+          </div>
           <button class="btn-preset-close" onclick="closeRowPatternMgr()">閉じる</button>
         </div>
       </div>
@@ -2527,19 +2535,19 @@
                 <th rowspan="2" class="hd-base" style="width:90px;">サブコン</th>
                 <th rowspan="2" class="hd-base" style="width:44px;" title="ON にすると消費税 10% が自動計算され、項目名先頭に「*」が付きます。輸出免税の行は OFF のままにしてください（輸出方向選択時は自動 0% に切替）。">課税</th>
                 <th rowspan="2" class="hd-base">項目名</th>
-                <th colspan="5" class="hd-pay">支払い</th>
-                <th colspan="3" class="hd-bill">請求</th>
+                <th colspan="4" class="hd-pay" data-grp-hd="pay">支払い <button class="col-grp-toggle" onclick="toggleColGroup('pay')" data-grp="pay" title="支払い列を折り畳む">▼</button></th>
+                <th colspan="3" class="hd-bill" data-grp-hd="bill">請求 <button class="col-grp-toggle" onclick="toggleColGroup('bill')" data-grp="bill" title="請求列を折り畳む">▼</button></th>
                 <th colspan="4" class="hd-profit">利益計算</th>
               </tr>
               <tr>
-                <th class="hd-pay">数量</th>
-                <th class="hd-pay">単位</th>
-                <th class="hd-pay">通貨</th>
-                <th class="hd-pay">単価</th>
-                <th class="hd-pay" style="color:#ccc;" title="Currency Difference（為替差・通貨間調整値）。表示専用列で初期値 9999、現在は計算上未使用の予約フィールド。">① CD</th>
-                <th class="hd-bill" style="color:#bde8c8;">② 数量</th>
-                <th class="hd-bill" style="color:#bde8c8;">② 通貨</th>
-                <th class="hd-bill" style="color:#bde8c8;">② 単価</th>
+                <th class="hd-pay" data-grp-col="pay">数量</th>
+                <th class="hd-pay" data-grp-col="pay">単位</th>
+                <th class="hd-pay" data-grp-col="pay">通貨</th>
+                <th class="hd-pay" data-grp-col="pay">単価</th>
+                <th class="hd-pay hd-cd" title="Currency Difference（為替差・通貨間調整値）。表示専用列で初期値 9999、現在は計算上未使用の予約フィールド。">① CD</th>
+                <th class="hd-bill" data-grp-col="bill" style="color:#bde8c8;">② 数量</th>
+                <th class="hd-bill" data-grp-col="bill" style="color:#bde8c8;">② 通貨</th>
+                <th class="hd-bill" data-grp-col="bill" style="color:#bde8c8;">② 単価</th>
                 <th class="hd-profit">③ 乗せ幅</th>
                 <th class="hd-profit">④ 小計</th>
                 <th class="hd-profit">⑤ 利益</th>
@@ -2553,9 +2561,10 @@
                 <td colspan="4" style="text-align:right; color:#555;">合　計</td>
                 <td>—</td>
                 <td id="tot-cost" style="text-align:right; padding-right:10px; min-width:85px;">—</td>
-                <td style="background:#f0f0f0; color:#aaa; text-align:center;">—</td>
-                <td colspan="2">—</td>
-                <td id="tot-billing" style="text-align:right; padding-right:10px; min-width:85px;">—</td>
+                <td class="cd-cell" style="background:#f0f0f0; color:#aaa; text-align:center;">—</td>
+                <td data-grp-col="bill">—</td>
+                <td data-grp-col="bill">—</td>
+                <td id="tot-billing" data-grp-col="bill" style="text-align:right; padding-right:10px; min-width:85px;">—</td>
                 <td id="tot-markup"  style="text-align:right; padding-right:10px; min-width:85px;">—</td>
                 <td id="tot-subtotal" style="text-align:right; padding-right:10px; min-width:85px; font-weight:bold; background:#eef5fb;">—</td>
                 <td class="profit-cell profit-zero" id="tot-profit">—</td>
@@ -2566,8 +2575,10 @@
                 <td colspan="4" style="text-align:right;">JPY換算合計</td>
                 <td>—</td>
                 <td id="tot-cost-jpy" style="text-align:right; padding-right:10px;">—</td>
-                <td colspan="3">—</td>
-                <td id="tot-billing-jpy" style="text-align:right; padding-right:10px;">—</td>
+                <td class="cd-cell">—</td>
+                <td data-grp-col="bill">—</td>
+                <td data-grp-col="bill">—</td>
+                <td id="tot-billing-jpy" data-grp-col="bill" style="text-align:right; padding-right:10px;">—</td>
                 <td>—</td>
                 <td id="tot-subtotal-jpy" style="text-align:right; padding-right:10px; font-weight:bold;">—</td>
                 <td id="tot-profit-jpy" class="profit-cell profit-zero">—</td>
@@ -2845,14 +2856,14 @@
       <td class="sv-cell"><input type="text" data-field="sv" class="w-subcon" placeholder="サブコン" /></td>
       <td class="tax-cell"><input type="checkbox" data-field="tx" title="ON にすると消費税 10% が自動計算され、項目名先頭に「*」が付きます。輸出免税の行は OFF のままにしてください（輸出方向選択時は自動 0% に切替）。"></td>
       <td class="name-cell"><input type="text" data-field="nm" class="w-name" placeholder="例）海上運賃" data-col="1" /></td>
-      <td><input type="number" data-field="pq" class="w-qty" min="0" value="1" data-col="2" /></td>
-      <td><input type="text" list="unit-list" data-field="un" class="w-unit" data-col="2u" placeholder="単位" /></td>
-      <td><select data-field="pc" class="w-cur" data-col="3"></select></td>
-      <td><input type="number" data-field="pp" class="w-price" min="0" value="0" data-col="4" /></td>
+      <td data-grp-col="pay"><input type="number" data-field="pq" class="w-qty" min="0" value="1" data-col="2" /></td>
+      <td data-grp-col="pay"><input type="text" list="unit-list" data-field="un" class="w-unit" data-col="2u" placeholder="単位" /></td>
+      <td data-grp-col="pay"><select data-field="pc" class="w-cur" data-col="3"></select></td>
+      <td data-grp-col="pay"><input type="number" data-field="pp" class="w-price" min="0" value="0" data-col="4" /></td>
       <td class="cd-cell"><input type="text" data-field="cd" class="w-price display-field" value="" placeholder="—" tabindex="-1" readonly /></td>
-      <td><input type="number" data-field="bq" class="w-qty display-field" value="1" tabindex="-1" readonly /></td>
-      <td><select data-field="bc" class="w-cur display-field" tabindex="-1"></select></td>
-      <td><input type="number" data-field="bp" class="w-price display-field" value="0" tabindex="-1" readonly data-base="0" /></td>
+      <td data-grp-col="bill"><input type="number" data-field="bq" class="w-qty display-field" value="1" tabindex="-1" readonly /></td>
+      <td data-grp-col="bill"><select data-field="bc" class="w-cur display-field" tabindex="-1"></select></td>
+      <td data-grp-col="bill"><input type="number" data-field="bp" class="w-price display-field" value="0" tabindex="-1" readonly data-base="0" /></td>
       <td><input type="number" data-field="mk" class="w-mkup" value="0" data-col="5" /></td>
       <td class="subtotal-cell" data-field="st">—</td>
       <td class="profit-cell profit-zero" data-field="pr">0</td>

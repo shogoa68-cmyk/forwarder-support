@@ -522,6 +522,7 @@
     // 行アクションは左端へ統一（regular row のアクションセル位置に合わせる）。
     tr.innerHTML = `
       <td class="subtotal-del-cell action-cell">
+        <input type="checkbox" class="row-select-chk" tabindex="-1" title="この行を選択（パターン保存用）" style="width:13px;height:13px;cursor:pointer;margin:0 2px 0 0;vertical-align:middle;" />
         <button type="button" class="subtotal-del-btn" onclick="removeSubtotalRow('${id}')" title="この小計行を削除">✕</button>
       </td>
       <td class="subtotal-drag-cell">
@@ -564,7 +565,7 @@
   }
 
   // ========== リマーク行 ==========
-  function insertRemarkRow(afterId) {
+  function insertRemarkRow(afterId, opts) {
     remarkCount++;
     const id = `remark-${remarkCount}`;
     const tr = document.createElement('tr');
@@ -573,6 +574,7 @@
     tr.className = 'remark-row';
     tr.innerHTML = `
       <td class="action-cell">
+        <input type="checkbox" class="row-select-chk" tabindex="-1" title="この行を選択（パターン保存用）" style="width:13px;height:13px;cursor:pointer;margin:0 2px 0 0;vertical-align:middle;" />
         <button type="button" class="remark-del-btn" onclick="removeRemarkRow('${id}')" title="このリマーク行を削除">✕</button>
       </td>
       <td class="remark-drag-cell">
@@ -597,7 +599,7 @@
       tbody.appendChild(tr);
     }
     initSubtotalDrag(tr);
-    tr.querySelector('.remark-row-input')?.focus();
+    if (!opts?.noFocus) tr.querySelector('.remark-row-input')?.focus();
   }
 
   function removeRemarkRow(id) {

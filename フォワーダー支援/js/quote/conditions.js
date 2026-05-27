@@ -239,7 +239,7 @@
     // フォーム値
     const fields = {};
     document.querySelectorAll('input[id], select[id], textarea[id]').forEach(el => {
-      if (['csvFileInput','importFileInput','autoSaveChk','tabAddChk'].includes(el.id)) return;
+      if (['csvFileInput','importFileInput','rowPatternImportFile','autoSaveChk','tabAddChk'].includes(el.id)) return;
       fields[el.id] = el.type === 'checkbox' ? el.checked : el.value;
     });
     // テーブル行（通常行 / 小計行 / リマーク行をすべて保存）
