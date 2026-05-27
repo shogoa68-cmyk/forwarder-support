@@ -83,8 +83,8 @@
 #tab-quote-make #qf-memo {
   width: 100%;
   resize: vertical;
-  min-height: 52px;
-  max-height: 200px;
+  min-height: 120px;
+  max-height: 400px;
   border: 1px solid #d9cfc2;
   border-radius: 4px;
   padding: 6px 9px;
@@ -417,6 +417,60 @@
   display: flex; align-items: center; gap: 4px;
 }
 #tab-quote-make .cond-field label .cond-icon { font-size: 13px; }
+/* Webたりふリンク（HSコード欄ラベル内） */
+#tab-quote-make .hs-tariff-link {
+  margin-left: auto;
+  font-size: 10px; font-weight: 600;
+  color: #1a56a0; text-decoration: none;
+  border: 1px solid #b8d0ee; border-radius: 3px;
+  padding: 1px 5px;
+  letter-spacing: 0; text-transform: none;
+  white-space: nowrap;
+}
+#tab-quote-make .hs-tariff-link:hover {
+  background: #1a56a0; color: #fff; border-color: #1a56a0;
+}
+/* HSコード サブフィールド（関税率・協定税率） */
+#tab-quote-make .hs-rate-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  margin-top: 2px;
+}
+@media (max-width: 600px) {
+  /* HSコード：関税率2列グリッドをモバイルでは1列に折りたたむ */
+  #tab-quote-make .hs-rate-row {
+    grid-template-columns: 1fr;
+  }
+}
+#tab-quote-make .hs-rate-field {
+  display: flex; flex-direction: column; gap: 3px;
+}
+#tab-quote-make .hs-rate-lbl {
+  font-size: 10px; font-weight: 600; color: #9d8c78;
+  letter-spacing: 0.03em;
+}
+#tab-quote-make .hs-rate-field input {
+  font-size: 12px;
+  padding: 4px 8px;
+  border: 1px dashed #d9cfc2; border-radius: 4px;
+  background: #faf7f3; color: #2d2418;
+  outline: none; transition: border-color 0.15s;
+}
+#tab-quote-make .hs-rate-field input:focus {
+  border-style: solid; border-color: #6b5a42;
+}
+#tab-quote-make .hs-rate-note {
+  font-size: 11px; font-family: inherit;
+  padding: 4px 8px; resize: vertical;
+  border: 1px dashed #d9cfc2; border-radius: 4px;
+  background: #faf7f3; color: #2d2418;
+  outline: none; transition: border-color 0.15s;
+  line-height: 1.5;
+}
+#tab-quote-make .hs-rate-note:focus {
+  border-style: solid; border-color: #6b5a42;
+}
 #tab-quote-make .cond-field input,
 #tab-quote-make .cond-field select,
 #tab-quote-make .cond-field textarea {
@@ -1343,9 +1397,11 @@
   background: #3d2e1e; color: #fff; border: 1px solid #a8947e;
   padding: 6px 10px; font-weight: 600;
 }
-#tab-quote-make #previewTable th.ph-pay { background: #8b6914; }
-#tab-quote-make #previewTable th.ph-bill { background: #5a6e42; }
+#tab-quote-make #previewTable th.ph-pay    { background: #8b6914; }
+#tab-quote-make #previewTable th.ph-bill   { background: #5a6e42; }
 #tab-quote-make #previewTable th.ph-profit { background: #9a4a25; }
+#tab-quote-make #previewTable th.ph-jpy    { background: #1e6b6b; }
+#tab-quote-make #previewTable td.pv-jpy    { text-align: right; background: #e8f7f7; color: #0d5252; font-weight: 600; }
 #tab-quote-make #previewTable td { border: 1px solid #d9cfc2; padding: 5px 10px; text-align: center; }
 #tab-quote-make #previewTable td.pv-name { text-align: left; min-width: 120px; }
 #tab-quote-make #previewTable td.pv-num { text-align: right; }
@@ -1785,70 +1841,7 @@
 }
 /* セクション説明 — ポータル他タブの「<p style="font-size:12px;color:#718096;
    margin-bottom:14px;">…」と揃える */
-/* ===== 引き合い条件原文 ===== */
-#tab-quote-make .raw-inquiry-details {
-  border: 1px solid #d9cfc2;
-  border-radius: 6px;
-  margin-bottom: 14px;
-  background: #fff;
-}
-#tab-quote-make .raw-inquiry-summary {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 8px 12px;
-  font-size: 12px;
-  font-weight: 700;
-  color: #7d6b56;
-  cursor: pointer;
-  user-select: none;
-  list-style: none;
-}
-#tab-quote-make .raw-inquiry-summary::-webkit-details-marker { display: none; }
-#tab-quote-make .raw-inquiry-summary::before {
-  content: '▶';
-  font-size: 9px;
-  transition: transform 0.18s;
-  flex-shrink: 0;
-}
-#tab-quote-make .raw-inquiry-details[open] > .raw-inquiry-summary::before {
-  transform: rotate(90deg);
-}
-#tab-quote-make .raw-inquiry-badge {
-  font-size: 10px;
-  font-weight: 400;
-  color: #9a8a78;
-  background: #f0ebe3;
-  border-radius: 10px;
-  padding: 1px 7px;
-  margin-left: auto;
-  flex-shrink: 0;
-}
-#tab-quote-make .raw-inquiry-body {
-  padding: 0 12px 10px;
-}
-#tab-quote-make .raw-inquiry-textarea {
-  width: 100%;
-  box-sizing: border-box;
-  min-height: 5em;
-  max-height: 12em;
-  overflow-y: auto;
-  resize: vertical;
-  font-size: 12px;
-  font-family: 'Courier New', Courier, monospace;
-  white-space: pre-wrap;
-  border: 1px solid #c8bfb0;
-  border-radius: 4px;
-  padding: 8px 10px;
-  background: #fffdf9;
-  color: #3d2e1e;
-  line-height: 1.65;
-}
-#tab-quote-make .raw-inquiry-textarea:focus {
-  outline: none;
-  border-color: #6b5a42;
-  background: #fff;
-}
+
 /* サブセクションラベル（引き合い条件整理 / 貨物情報） */
 #tab-quote-make .cond-subsec-label {
   font-size: 12px;
@@ -1862,6 +1855,27 @@
   margin-top: 18px;
   border-left-color: #7ab0a0;
   color: #3d7068;
+}
+/* 貨物情報内グループ（貨物名・品目 / 物量情報） */
+#tab-quote-make .cond-inner-group {
+  border: 1px solid #e0d8cc;
+  border-radius: 7px;
+  padding: 10px 14px 12px;
+  margin-bottom: 12px;
+  background: #fdfcfa;
+}
+#tab-quote-make .cond-inner-group-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: #8b7355;
+  letter-spacing: 0.05em;
+  margin-bottom: 10px;
+  padding-bottom: 6px;
+  border-bottom: 1px dashed #d9cfc2;
+}
+/* グループ内 condition-grid は margin-bottom を詰める */
+#tab-quote-make .cond-inner-group .condition-grid {
+  margin-bottom: 0;
 }
 /* サイズ計算 折りたたみ */
 #tab-quote-make .cbm-calc-details {
@@ -2297,7 +2311,7 @@
 #tab-quote-make tr.row-done td { opacity: 0.52; }
 /* ========== レスポンシブ（Notion埋め込み・狭い画面対応） ========== */
 @media (max-width: 680px) {#tab-quote-make { padding: 10px; }
-#tab-quote-make .save-toolbar { padding: 6px 10px; gap: 5px; flex-wrap: wrap; }
+#tab-quote-make .save-toolbar { position: static; padding: 6px 10px; gap: 5px; flex-wrap: wrap; box-shadow: none; }
 #tab-quote-make .save-btn { padding: 4px 9px; font-size: 11px; }
 #tab-quote-make h1 { font-size: 15px; }
 #tab-quote-make .container { padding: 10px; overflow-x: auto; }
@@ -3075,17 +3089,18 @@
   font-size: 12px;
   white-space: nowrap;
 }
-#tab-quote-make .pv-tax-exempt-badge {
-  font-weight: 700;
-  color: #155724;
-  background: #d4edda;
-  border: 1px solid #5a8a52;
-  border-radius: 4px;
-  padding: 2px 8px;
+#tab-quote-make .pv-exempt-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
   font-size: 12px;
+  color: var(--text-lt);
+  cursor: pointer;
+  margin-left: 8px;
   white-space: nowrap;
-  margin-left: 4px;
 }
+#tab-quote-make .pv-exempt-toggle input { cursor: pointer; accent-color: #1e6b6b; }
+#tab-quote-make .pv-exempt-toggle:has(input:checked) { color: #155724; font-weight: 600; }
 #tab-quote-make .pv-tax-detail { color: #2d2418; }
 #tab-quote-make .pv-tax-detail b { color: #8b6914; }
 @media (max-width: 700px) {#tab-quote-make .table-btn-group { gap: 4px; }

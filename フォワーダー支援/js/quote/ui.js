@@ -1114,16 +1114,9 @@
       });
 
       // ---- 見積テーブル行復元 ----
-      document.getElementById('tableBody').innerHTML = '';
-      rowCount = 0;
-      (data.rows || []).forEach(() => addRow());
-      const trs = document.querySelectorAll('#tableBody tr');
-      (data.rows || []).forEach((cells, i) => {
-        if (!trs[i]) return;
-        trs[i].querySelectorAll('input, select, textarea').forEach((el, j) => {
-          if (cells[j] !== undefined) el.value = cells[j];
-        });
-      });
+      // ※ _rebuildTable を使う（v3形式・subtotal/remark行・checkboxに正しく対応）
+      if (typeof migrateRowCells === 'function') data = migrateRowCells(data);
+      _rebuildTable(data);
 
       // ---- doneボタン状態（廃止）：旧 JSON との互換のため doneStates は読み飛ばす ----
 
@@ -1286,21 +1279,28 @@
     return 'fcl';
   }
 
-  function _cargoOrderKey(modeKey) {
-    return `cargoFieldOrder_${modeKey}_v1`;
+  // 貨物情報グリッドの定義（group キーが CARGO_FIELD_ORDER のサブキーに対応）
+  const _CARGO_GRIDS = [
+    { id: 'cargoCondGrid',  group: 'cargo'  },
+    { id: 'volumeCondGrid', group: 'volume' },
+  ];
+
+  function _cargoOrderKey(modeKey, group) {
+    return `cargoFieldOrder_${group}_${modeKey}_v1`;
   }
 
   function saveCargoFieldOrder() {
-    const grid = document.getElementById('cargoCondGrid');
-    if (!grid) return;
-    const order = Array.from(grid.querySelectorAll('.cond-field[data-field-id]'))
-      .map(el => el.dataset.fieldId);
-    localStorage.setItem(_cargoOrderKey(_cargoModeKey()), JSON.stringify(order));
+    const modeKey = _cargoModeKey();
+    _CARGO_GRIDS.forEach(({ id, group }) => {
+      const grid = document.getElementById(id);
+      if (!grid) return;
+      const order = Array.from(grid.querySelectorAll('.cond-field[data-field-id]'))
+        .map(el => el.dataset.fieldId);
+      localStorage.setItem(_cargoOrderKey(modeKey, group), JSON.stringify(order));
+    });
   }
 
   function applyCargoFieldOrder(modeKey) {
-    const grid = document.getElementById('cargoCondGrid');
-    if (!grid) return;
     modeKey = modeKey || _cargoModeKey();
 
     // LCL / Air ではサイズ計算 details を自動展開
@@ -1309,24 +1309,32 @@
       calcDetails.open = true;
     }
 
-    // モード別カスタム保存 → なければ CARGO_FIELD_ORDER デフォルト
-    let order = [];
-    try { order = JSON.parse(localStorage.getItem(_cargoOrderKey(modeKey)) || '[]'); } catch(e) {}
-    if (!order.length && typeof CARGO_FIELD_ORDER !== 'undefined') {
-      order = (CARGO_FIELD_ORDER[modeKey] || CARGO_FIELD_ORDER.fcl).slice();
-    }
-    if (!order.length) return;
+    _CARGO_GRIDS.forEach(({ id, group }) => {
+      const grid = document.getElementById(id);
+      if (!grid) return;
 
-    const fields = {};
-    grid.querySelectorAll('.cond-field[data-field-id]').forEach(el => {
-      fields[el.dataset.fieldId] = el;
+      // モード別カスタム保存 → なければ CARGO_FIELD_ORDER デフォルト
+      let order = [];
+      try { order = JSON.parse(localStorage.getItem(_cargoOrderKey(modeKey, group)) || '[]'); } catch(e) {}
+      if (!order.length && typeof CARGO_FIELD_ORDER !== 'undefined') {
+        const modeOrder = CARGO_FIELD_ORDER[modeKey] || CARGO_FIELD_ORDER.fcl;
+        order = (modeOrder[group] || []).slice();
+      }
+      if (!order.length) return;
+
+      const fields = {};
+      grid.querySelectorAll('.cond-field[data-field-id]').forEach(el => {
+        fields[el.dataset.fieldId] = el;
+      });
+      order.forEach(fid => { if (fields[fid]) grid.appendChild(fields[fid]); });
     });
-    order.forEach(id => { if (fields[id]) grid.appendChild(fields[id]); });
   }
 
   function resetCargoFieldOrder() {
     const modeKey = _cargoModeKey();
-    localStorage.removeItem(_cargoOrderKey(modeKey));
+    _CARGO_GRIDS.forEach(({ group }) => {
+      localStorage.removeItem(_cargoOrderKey(modeKey, group));
+    });
     applyCargoFieldOrder(modeKey);
     if (typeof quoteShowToast === 'function') quoteShowToast('並び順をリセットしました', 'info', 1800);
   }
@@ -1335,8 +1343,9 @@
     applyCargoFieldOrder(_cargoModeKey());
   }
 
-  function initCargoSort() {
-    const grid = document.getElementById('cargoCondGrid');
+  // グリッド1つ分のドラッグ並び替えを初期化（内部ヘルパー）
+  function _initGridSort(gridId) {
+    const grid = document.getElementById(gridId);
     if (!grid) return;
     let dragSrc = null;
 
@@ -1383,6 +1392,10 @@
         field.classList.remove('cond-field-over');
       });
     });
+  }
+
+  function initCargoSort() {
+    _CARGO_GRIDS.forEach(({ id }) => _initGridSort(id));
   }
 
 

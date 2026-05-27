@@ -391,7 +391,7 @@
   function updateTotals() {
     const rows = document.querySelectorAll('#tableBody tr');
     if (!rows.length) {
-      ['tot-billing','tot-markup','tot-subtotal','tot-profit'].forEach(id =>
+      ['tot-cost','tot-billing','tot-markup','tot-subtotal','tot-profit'].forEach(id =>
         document.getElementById(id).textContent = '—');
       document.getElementById('tot-profit').className = 'profit-cell profit-zero';
       const jpyRow = document.getElementById('tot-jpy-row');
@@ -424,6 +424,7 @@
     });
     const totPr    = totBill - totCost;
     const totPrJPY = totBillJPY - totCostJPY;
+    document.getElementById('tot-cost').textContent     = fmt(totCost);
     document.getElementById('tot-billing').textContent  = fmt(totBill);
     document.getElementById('tot-markup').textContent   = fmt(totMk);
     document.getElementById('tot-subtotal').textContent = fmt(totSub);
@@ -435,6 +436,7 @@
     if (jpyRow) {
       jpyRow.style.display = hasFx ? '' : 'none';
       if (hasFx) {
+        document.getElementById('tot-cost-jpy').textContent     = '≈ ¥' + fmt(totCostJPY);
         document.getElementById('tot-billing-jpy').textContent  = '≈ ¥' + fmt(totBillJPY);
         document.getElementById('tot-subtotal-jpy').textContent = '≈ ¥' + fmt(totSubJPY);
         const prjEl = document.getElementById('tot-profit-jpy');

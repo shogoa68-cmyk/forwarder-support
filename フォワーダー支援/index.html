@@ -50,6 +50,7 @@
     <button class="tab-btn" role="tab" aria-selected="false" onclick="switchTab('vessel',   this)">🚢 スケジュール</button>
     <button class="tab-btn" role="tab" aria-selected="false" onclick="switchTab('cycut',    this)">📅 CY OPEN/CUT</button>
     <button class="tab-btn" role="tab" aria-selected="false" onclick="switchTab('route',    this)">🗺️ サービス航路</button>
+    <button class="tab-btn" role="tab" aria-selected="false" onclick="switchTab('lcl-carrier', this)">📦 LCL キャリア</button>
   </div>
   <div class="tab-nav sub-nav" id="sub-cost" role="tablist" aria-label="cost サブタブ">
     <button class="tab-btn" hidden role="tab" aria-selected="false" onclick="switchTab('surcharge', this)">💴 サーチャージ</button>
@@ -125,6 +126,8 @@
     <details class="tab-help">
       <summary>ℹ️ このタブの使い方・機能説明</summary>
       <div class="tab-help-body">
+        <h4>🛤️ PORT TO PORT（区間スケジュール検索）</h4>
+        <p>出発港・到着港を指定して最短・最安ルートを探せる各社スケジュール検索ページへのリンク集です。ブッキング前の便選定・所要日数確認に使用します。</p>
         <h4>🌐 国内動静ポータル</h4>
         <p>国内主要港の本船入出港・動静情報を提供する外部ポータル（マリンネット・タイドテーブル等）へのリンク集です。複数港の動静を横断的に確認したい場合に便利です。</p>
         <h4>📍 VSS移行済み船会社</h4>
@@ -134,6 +137,12 @@
         <div class="help-tip">💡 動静は刻々と変動します。実務で確定情報が必要な場合は、船会社カスタマーサービスまたは代理店へ最終確認してください。</div>
       </div>
     </details>
+
+    <div class="card">
+      <div class="section-title">🛤️ PORT TO PORT — 区間スケジュール検索</div>
+      <p style="font-size:12px;color:var(--text-md);margin-bottom:14px;">出発港・到着港を指定してスケジュールを検索できる各社ページへのリンク集です。ブッキング前の便選定・ETD/ETA確認に活用してください。</p>
+      <div class="carrier-grid" id="port-to-port-grid"></div>
+    </div>
 
     <div class="card">
       <div class="section-title">🌐 国内動静ポータル</div>
@@ -203,6 +212,27 @@
         <div style="color:var(--text-lt);font-size:13px;padding:12px 0;">読み込み中...</div>
       </div>
     </div>  </div><!-- /tab-route -->
+
+  <!-- ===================== LCL キャリア tab ===================== -->
+  <div class="tab-content" id="tab-lcl-carrier">
+
+    <details class="tab-help">
+      <summary>ℹ️ このタブの使い方・機能説明</summary>
+      <div class="tab-help-body">
+        <h4>📦 LCL NVOCC / 大手フォワーダー</h4>
+        <p>LCL（混載）貨物を取り扱うNVOCC・大手フォワーダーのスケジュール・料金照会・追跡・問い合わせページへのリンク集です。会社名エリアをクリックすると各社トップページへ移動します。</p>
+        <div class="help-tip">💡 LCL貨物は船会社に直接ブッキングするのではなく、NVOCCまたはフォワーダー経由でブッキングするのが一般的です。スペース・料金は各社に個別に照会してください。</div>
+      </div>
+    </details>
+
+    <div class="card">
+      <div class="section-title">📦 LCL キャリア / NVOCC リンク集</div>
+      <p style="font-size:12px;color:var(--text-md);margin-bottom:14px;">LCL混載を取り扱うNVOCC・大手フォワーダーのリンク集です。各チップをクリックして直接アクセスできます。会社名をクリックするとトップページへ移動します。</p>
+      <div id="lcl-carrier-grid" class="lcl-carrier-grid"></div>
+      <button class="fb-section-btn" onclick="openFeedback('LCL キャリア')" title="このセクションへのフィードバック">💬 このセクションへのフィードバック</button>
+    </div>
+
+  </div><!-- /tab-lcl-carrier -->
 
   <!-- ===================== サーチャージ tab ===================== -->
   <div class="tab-content" id="tab-surcharge">
@@ -2135,7 +2165,7 @@
           </div>
           <div class="quote-field quote-field-memo">
             <label>📝 メモ <span class="qf-memo-note">出力・プレビューには含まれません</span></label>
-            <textarea id="qf-memo" rows="2" placeholder="担当者間の申し送り・注意事項など、案件内部メモを自由に記述できます。顧客向け出力には含まれません。"></textarea>
+            <textarea id="qf-memo" rows="6" placeholder="担当者間の申し送り・注意事項など、案件内部メモを自由に記述できます。顧客向け出力には含まれません。"></textarea>
           </div>
         </div>
         <button class="fb-section-btn" onclick="openFeedback('管理番号入力')" title="このセクションへのフィードバック">💬 このセクションへのフィードバック</button>
@@ -2146,17 +2176,6 @@
     <div class="condition-section" id="section-cond">
       <h2>🚢 引き合い条件・貨物情報</h2>
 
-      <!-- サブセクション①：引き合い条件原文（折りたたみ） -->
-      <details class="raw-inquiry-details" id="rawInquiryDetails">
-        <summary class="raw-inquiry-summary">📩 引き合い条件原文<span class="raw-inquiry-badge">プレビュー出力には含まれません</span></summary>
-        <div class="raw-inquiry-body">
-          <textarea id="condRawInquiry" class="raw-inquiry-textarea"
-                    placeholder="顧客から届いたメール・チャット文面をそのまま貼り付けてください。&#10;&#10;例）お世話になっております。&#10;下記の通りお見積りをお願いします。&#10;品名：〇〇&#10;数量：〇〇"></textarea>
-        </div>
-      </details>
-
-      <!-- サブセクション②：引き合い条件整理 -->
-      <div class="cond-subsec-label">📋 引き合い条件整理</div>
       <div id="condBody">
         <p class="section-desc">まず<b>① インコタームズ</b>を選び、次に<b>② 輸出/輸入</b>と<b>③ 輸送モード</b>を選択し、<b>④ ゾーンカード</b>でサービス範囲をピースごとに組み立ててください。</p>
 
@@ -2349,68 +2368,93 @@
       <!-- サブセクション③：貨物情報 -->
       <div class="cond-subsec-label cond-subsec-label--cargo">📦 貨物情報</div>
       <div id="cargoBody">
-        <div class="condition-grid" id="cargoCondGrid">
-          <div class="cond-field" data-field-id="cargo" draggable="true">
-            <label><span class="cond-sort-handle" title="ドラッグして並び替え">⠿</span><span class="cond-icon">🏷️</span> 貨物名</label>
-            <input type="text" id="cond-cargo" placeholder="例）自動車部品" />
-          </div>
-          <div class="cond-field" data-field-id="container-type" data-scope-key="container" draggable="true">
-            <label><span class="cond-sort-handle" title="ドラッグして並び替え">⠿</span><span class="cond-icon">📐</span> コンテナ種類・サイズ</label>
-            <select id="cond-container-type">
-              <option value="">— 選択 —</option>
-              <option title="20ft 一般ドライコンテナ（General Purpose）">20'GP</option>
-              <option title="40ft 一般ドライコンテナ（General Purpose）">40'GP</option>
-              <option title="40ft 背高コンテナ（High Cube／40HQ・40HC）">40'HQ</option>
-              <option title="20ft 冷凍コンテナ（Reefer）">20'RF（冷凍）</option>
-              <option title="40ft 冷凍コンテナ（Reefer）">40'RF（冷凍）</option>
-              <option>20'OT（オープントップ）</option>
-              <option>40'OT（オープントップ）</option>
-              <option>20'FR（フラットラック）</option>
-              <option>40'FR（フラットラック）</option>
-              <option>LCL（混載）</option>
-              <option>未定</option>
-            </select>
-          </div>
-          <div class="cond-field" data-field-id="container-count" data-scope-key="container" draggable="true">
-            <label><span class="cond-sort-handle" title="ドラッグして並び替え">⠿</span><span class="cond-icon">🔢</span> 本数</label>
-            <input type="number" id="cond-container-count" min="0" step="1" placeholder="例）1" />
-            <span class="banning-hint">📦 本数が不明な場合は<button type="button" class="banning-hint-link" onclick="openBanningCalc()">バンニングシミュレーション</button>で確認</span>
-          </div>
-          <div class="cond-field" data-field-id="weight" draggable="true">
-            <label><span class="cond-sort-handle" title="ドラッグして並び替え">⠿</span><span class="cond-icon">⚖️</span> 重量（概算）</label>
-            <input type="text" id="cond-weight" placeholder="例）5,000 kg" />
-          </div>
-          <div class="cond-field" data-field-id="volume" draggable="true">
-            <label><span class="cond-sort-handle" title="ドラッグして並び替え">⠿</span><span class="cond-icon">📏</span> 容積（概算）</label>
-            <input type="text" id="cond-volume" placeholder="例）20 CBM" />
-          </div>
-          <div class="cond-field" data-field-id="packing" draggable="true">
-            <label><span class="cond-sort-handle" title="ドラッグして並び替え">⠿</span><span class="cond-icon">📦</span> 荷姿</label>
-            <div class="packing-field-wrap">
-              <select id="cond-packing-preset" onchange="onPackingPresetChange(this)" title="よく使う荷姿を選択"></select>
-              <input type="text" id="cond-packing" placeholder="例）カートン / パレット" oninput="renderPackingPreset()" />
+
+        <!-- ▼ 貨物名・品目グループ -->
+        <div class="cond-inner-group">
+          <div class="cond-inner-group-label">🏷️ 貨物名・品目</div>
+          <div class="condition-grid" id="cargoCondGrid">
+            <div class="cond-field" data-field-id="cargo" draggable="true">
+              <label><span class="cond-sort-handle" title="ドラッグして並び替え">⠿</span><span class="cond-icon">🏷️</span> 貨物名</label>
+              <input type="text" id="cond-cargo" placeholder="例）自動車部品" />
+            </div>
+            <div class="cond-field" data-field-id="hs" draggable="true">
+              <label><span class="cond-sort-handle" title="ドラッグして並び替え">⠿</span><span class="cond-icon">🔍</span> HSコード
+                <a class="hs-tariff-link" href="https://www.kanzei.or.jp/statistical/tariff/top/index/j/" target="_blank" rel="noopener" title="WEBタリフで検索（関税協会）">WEBタリフ ↗</a>
+              </label>
+              <input type="text" id="cond-hs" placeholder="例）8544.42" maxlength="20" />
+              <div class="hs-rate-row">
+                <div class="hs-rate-field">
+                  <span class="hs-rate-lbl">📊 関税率（基本）</span>
+                  <input type="text" id="cond-hs-basic" placeholder="例）3.3%" maxlength="30" />
+                </div>
+                <div class="hs-rate-field">
+                  <span class="hs-rate-lbl">🤝 協定税率</span>
+                  <input type="text" id="cond-hs-pref" placeholder="例）0%（日 EU EPA）" maxlength="60" />
+                  <textarea id="cond-hs-pref-note" class="hs-rate-note" rows="2"
+                    placeholder="例）日EU EPA 適用。Form A 取得済み"></textarea>
+                </div>
+              </div>
+            </div>
+            <div class="cond-field" data-field-id="hazmat" draggable="true">
+              <label><span class="cond-sort-handle" title="ドラッグして並び替え">⠿</span><span class="cond-icon">☣️</span> 危険品・特殊貨物</label>
+              <select id="cond-hazmat">
+                <option value="">— 選択 —</option>
+                <option>なし（一般貨物）</option>
+                <option>危険品あり（クラス要確認）</option>
+                <option>温度管理品（冷蔵）</option>
+                <option>温度管理品（冷凍）</option>
+                <option>重量物・大型貨物</option>
+                <option>その他（特記事項参照）</option>
+              </select>
             </div>
           </div>
-          <div class="cond-field" data-field-id="hazmat" draggable="true">
-            <label><span class="cond-sort-handle" title="ドラッグして並び替え">⠿</span><span class="cond-icon">☣️</span> 危険品・特殊貨物</label>
-            <select id="cond-hazmat">
-              <option value="">— 選択 —</option>
-              <option>なし（一般貨物）</option>
-              <option>危険品あり（クラス要確認）</option>
-              <option>温度管理品（冷蔵）</option>
-              <option>温度管理品（冷凍）</option>
-              <option>重量物・大型貨物</option>
-              <option>その他（特記事項参照）</option>
-            </select>
-          </div>
-        </div>
-        <div class="cond-actions">
-          <button class="btn-cond-clear" onclick="clearConditions()">クリア</button>
-          <button class="btn-cargo-reset" onclick="resetCargoFieldOrder()" title="モード別の並び順をデフォルトに戻す">並び順リセット</button>
         </div>
 
-        <!-- サイズ計算（折りたたみ） -->
-        <details class="cbm-calc-details">
+        <!-- ▼ 物量情報グループ -->
+        <div class="cond-inner-group">
+          <div class="cond-inner-group-label">📦 物量情報</div>
+          <div class="condition-grid" id="volumeCondGrid">
+            <div class="cond-field" data-field-id="container-type" data-scope-key="container" draggable="true">
+              <label><span class="cond-sort-handle" title="ドラッグして並び替え">⠿</span><span class="cond-icon">📐</span> コンテナ種類・サイズ</label>
+              <select id="cond-container-type">
+                <option value="">— 選択 —</option>
+                <option title="20ft 一般ドライコンテナ（General Purpose）">20'GP</option>
+                <option title="40ft 一般ドライコンテナ（General Purpose）">40'GP</option>
+                <option title="40ft 背高コンテナ（High Cube／40HQ・40HC）">40'HQ</option>
+                <option title="20ft 冷凍コンテナ（Reefer）">20'RF（冷凍）</option>
+                <option title="40ft 冷凍コンテナ（Reefer）">40'RF（冷凍）</option>
+                <option>20'OT（オープントップ）</option>
+                <option>40'OT（オープントップ）</option>
+                <option>20'FR（フラットラック）</option>
+                <option>40'FR（フラットラック）</option>
+                <option>LCL（混載）</option>
+                <option>未定</option>
+              </select>
+            </div>
+            <div class="cond-field" data-field-id="container-count" data-scope-key="container" draggable="true">
+              <label><span class="cond-sort-handle" title="ドラッグして並び替え">⠿</span><span class="cond-icon">🔢</span> 本数</label>
+              <input type="number" id="cond-container-count" min="0" step="1" placeholder="例）1" />
+              <span class="banning-hint">📦 本数が不明な場合は<button type="button" class="banning-hint-link" onclick="openBanningCalc()">バンニングシミュレーション</button>で確認</span>
+            </div>
+            <div class="cond-field" data-field-id="weight" draggable="true">
+              <label><span class="cond-sort-handle" title="ドラッグして並び替え">⠿</span><span class="cond-icon">⚖️</span> 重量（概算）</label>
+              <input type="text" id="cond-weight" placeholder="例）5,000 kg" />
+            </div>
+            <div class="cond-field" data-field-id="volume" draggable="true">
+              <label><span class="cond-sort-handle" title="ドラッグして並び替え">⠿</span><span class="cond-icon">📏</span> 容積（概算）</label>
+              <input type="text" id="cond-volume" placeholder="例）20 CBM" />
+            </div>
+            <div class="cond-field" data-field-id="packing" draggable="true">
+              <label><span class="cond-sort-handle" title="ドラッグして並び替え">⠿</span><span class="cond-icon">📦</span> 荷姿</label>
+              <div class="packing-field-wrap">
+                <select id="cond-packing-preset" onchange="onPackingPresetChange(this)" title="よく使う荷姿を選択"></select>
+                <input type="text" id="cond-packing" placeholder="例）カートン / パレット" oninput="renderPackingPreset()" />
+              </div>
+            </div>
+          </div>
+
+          <!-- サイズ計算（折りたたみ） -->
+          <details class="cbm-calc-details">
           <summary class="cbm-calc-summary">🧮 サイズ計算（CBM / CW 自動計算）<span class="cbm-calc-hint">寸法から自動計算・見積もり行へ転記</span></summary>
           <div class="cbm-calc-body">
             <div class="calc-wrapper">
@@ -2449,7 +2493,13 @@
             </div>
           </div>
         </details>
-      </div>
+        </div><!-- /cond-inner-group 物量情報 -->
+
+        <div class="cond-actions">
+          <button class="btn-cond-clear" onclick="clearConditions()">クリア</button>
+          <button class="btn-cargo-reset" onclick="resetCargoFieldOrder()" title="モード別の並び順をデフォルトに戻す">並び順リセット</button>
+        </div>
+      </div><!-- /cargoBody -->
 
       <button class="fb-section-btn" onclick="openFeedback('引き合い条件・貨物情報')" title="このセクションへのフィードバック">💬 このセクションへのフィードバック</button>
     </div>
@@ -2715,7 +2765,9 @@
         <div id="pvTaxBox" class="pv-tax-box">
           <label class="pv-tax-label">🧾 消費税：</label>
           <span class="pv-tax-fixed" id="pvTaxRateLabel">10%（標準）</span>
-          <span class="pv-tax-exempt-badge" id="pvTaxExemptBadge" style="display:none;">🌍 輸出免税適用中（0%）</span>
+          <label class="pv-exempt-toggle">
+            <input type="checkbox" id="pvExemptChk"> 輸出免税（0%）を適用
+          </label>
           <input type="hidden" id="pvTaxRate" value="10">
           <span class="pv-tax-detail">消費税額: <b id="pvTaxAmount">—</b>　税込合計: <b id="pvTaxTotal">—</b></span>
           <span id="pvTotalSubtotal" data-raw="0" style="display:none;"></span>
@@ -2739,8 +2791,9 @@
               <label><input type="checkbox" class="pv-col-chk" data-col="pay"     checked> 原価列（数量/通貨/単価/CD）</label>
               <label><input type="checkbox" class="pv-col-chk" data-col="unit"    checked> 単位</label>
               <label><input type="checkbox" class="pv-col-chk" data-col="bill"    checked> 請求列（数量/通貨/単価）</label>
-              <label><input type="checkbox" class="pv-col-chk" data-col="mk"      checked> 乗せ幅</label>
-              <label><input type="checkbox" class="pv-col-chk" data-col="tax-col" checked> 消費税</label>
+              <label><input type="checkbox" class="pv-col-chk" data-col="mk"       checked> 乗せ幅</label>
+              <label><input type="checkbox" class="pv-col-chk" data-col="jpy-conv" checked> 円換算</label>
+              <label><input type="checkbox" class="pv-col-chk" data-col="tax-col"  checked> 消費税</label>
               <label><input type="checkbox" class="pv-col-chk" data-col="profit"  checked> 利益</label>
               <label><input type="checkbox" class="pv-col-chk" data-col="note"    checked> 備考</label>
               <label><input type="checkbox" class="pv-col-chk" data-col="sv"      checked> サブコン</label>
@@ -2854,6 +2907,57 @@
      ハンドラ: js/quote/save.js (openFeedback / closeFeedback / submitFeedback)
               js/quote/ui.js   (quoteShowToast)
      ================================================================ -->
+<!-- ======= LCL キャリア リンクフィードバックモーダル ======= -->
+<div id="lclFbOverlay" hidden role="dialog" aria-modal="true" aria-labelledby="lclFbTitle">
+  <div id="lclFbBox" onclick="event.stopPropagation()">
+    <div class="lcl-fb-head">
+      <h4 id="lclFbTitle">📝 リンクフィードバック</h4>
+      <button class="lcl-fb-close-btn" onclick="document.getElementById('lclFbOverlay').setAttribute('hidden','')" aria-label="閉じる">×</button>
+    </div>
+    <p class="lcl-fb-carrier-label" id="lclFbCarrierLabel"></p>
+
+    <div class="lcl-fb-field">
+      <span class="lcl-fb-label">種別 <span class="lcl-fb-req">必須</span></span>
+      <div class="lcl-fb-radios">
+        <label class="lcl-fb-radio"><input type="radio" name="lclFbType" value="リンク切れ"><span>🔴 リンク切れ</span></label>
+        <label class="lcl-fb-radio"><input type="radio" name="lclFbType" value="リンク誤り"><span>🟡 リンク誤り</span></label>
+        <label class="lcl-fb-radio"><input type="radio" name="lclFbType" value="リンク追加リクエスト"><span>🟢 追加リクエスト</span></label>
+      </div>
+    </div>
+
+    <div class="lcl-fb-field">
+      <label class="lcl-fb-label" for="lclFbLink">対象リンク（任意）</label>
+      <select id="lclFbLink" class="lcl-fb-select">
+        <option value="">— 選択してください —</option>
+        <option value="🗓 スケジュール">🗓 スケジュール</option>
+        <option value="📋 e-Booking">📋 e-Booking</option>
+        <option value="💴 料金照会">💴 料金照会</option>
+        <option value="📦 追跡">📦 追跡</option>
+        <option value="📞 問い合わせ">📞 問い合わせ</option>
+        <option value="🌐 トップページ">🌐 トップページ</option>
+        <option value="その他">その他</option>
+      </select>
+    </div>
+
+    <div class="lcl-fb-field">
+      <label class="lcl-fb-label" for="lclFbUrl">正しいURL（誤り・追加リクエストの場合）</label>
+      <input type="url" id="lclFbUrl" class="lcl-fb-input" placeholder="https://...">
+    </div>
+
+    <div class="lcl-fb-field">
+      <label class="lcl-fb-label" for="lclFbNote">詳細・補足</label>
+      <textarea id="lclFbNote" class="lcl-fb-textarea" rows="3"
+        placeholder="例）ページが移転した / ログインURLが変わった / ○○のリンクも追加してほしい"></textarea>
+    </div>
+
+    <div class="lcl-fb-foot">
+      <button class="lcl-fb-btn-sec" id="lclFbCopyBtn">📋 テキストをコピー</button>
+      <button class="lcl-fb-btn-pri" id="lclFbFormBtn">📨 Googleフォームで送信</button>
+    </div>
+    <p class="lcl-fb-hint">※ 送信ボタンでテキストをコピーしてフォームを開きます</p>
+  </div>
+</div>
+
 <div id="fbOverlay" onclick="closeFeedback(event)">
   <div id="fbBox" onclick="event.stopPropagation()">
     <div class="fb-head">
@@ -2883,6 +2987,7 @@
           <option value="見積もりテーブル">見積もりテーブル</option>
           <option value="特記事項・補足">特記事項・補足</option>
           <option value="全体リマーク">全体リマーク</option>
+          <option value="LCL キャリア">LCL キャリア</option>
         </select>
       </div>
       <div class="fb-field">

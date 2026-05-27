@@ -147,6 +147,22 @@ function buildCarrierGrid() {
 //  Tab 2: 本船動静
 // ================================================================
 function buildVesselGrid() {
+  // PORT TO PORT グリッド
+  const p2pGrid = document.getElementById('port-to-port-grid');
+  if (p2pGrid) {
+    for (const [name, info] of Object.entries(CARRIERS)) {
+      const rawUrl = info.schedule;
+      const url = rawUrl ? (typeof rawUrl === 'function' ? rawUrl() : rawUrl) : null;
+      const card = document.createElement('div');
+      const hasUrl = !!url;
+      const badge = hasUrl ? '' : '<div class="disabled-badge">未登録</div>';
+      card.className = 'carrier-card' + (!hasUrl ? ' tracking-disabled' : '');
+      card.innerHTML = `<div class="name">${name}</div><div class="domain">${info.domain}</div>${badge}`;
+      if (hasUrl) card.onclick = () => window.open(url, '_blank', 'noopener');
+      p2pGrid.appendChild(card);
+    }
+  }
+
   // 国内動静ポータル
   const portalGrid = document.getElementById('vessel-portal-grid');
   for (const p of VESSEL_PORTALS) {
@@ -497,6 +513,176 @@ function freetimeLookup() {
 }
 
 // ================================================================
+//  LCL キャリアグリッド
+// ================================================================
+function buildLclCarrierGrid() {
+  const grid = document.getElementById('lcl-carrier-grid');
+  if (!grid || typeof CARRIERS_LCL !== 'object') return;
+
+  const linkDefs = (typeof CARRIER_LINK_DEFS !== 'undefined') ? (CARRIER_LINK_DEFS.lcl || []) : [];
+  const esc = s => s.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+
+  for (const [name, info] of Object.entries(CARRIERS_LCL)) {
+    const links = linkDefs
+      .map(d => ({ label: d.label, url: typeof info[d.key] === 'function' ? info[d.key]() : (info[d.key] || null) }))
+      .filter(l => l.url);
+
+    const card = document.createElement('div');
+    card.className = 'lcl-card';
+
+    const chipsHtml = links.length
+      ? links.map(l => `<a class="lcl-chip" href="${l.url}" target="_blank" rel="noopener">${l.label}</a>`).join('')
+      : '<span class="lcl-chip-disabled">リンク未登録</span>';
+
+    card.innerHTML = `
+      <div class="lcl-card-head" ${info.top ? `onclick="window.open('${info.top}','_blank')" title="${name} トップページを開く"` : ''}>
+        <span class="lcl-icon">${info.icon || '📦'}</span>
+        <div>
+          <div class="lcl-name">${name}</div>
+          <div class="lcl-domain">${info.domain || ''}</div>
+        </div>
+      </div>
+      <div class="lcl-links">${chipsHtml}</div>
+      <button class="lcl-fb-card-btn" onclick="openLclFeedback(event,'${esc(name)}')" title="このキャリアのリンクについてフィードバックを送る" aria-label="${name} フィードバック">📝</button>`;
+
+    grid.appendChild(card);
+  }
+}
+
+// ================================================================
+//  LCL フィードバックモーダル
+//  ▼ Google フォームへの直接 no-cors POST で送信（save.js の FEEDBACK_FORM を参照）
+// ================================================================
+const LCL_FB_FORM_URL = 'https://docs.google.com/forms/d/e/1FAIpQLSfcUVKmty9XKosfI1YZG8IwkjX_NQOtMmz7J4FYbuituRTYKA/viewform';
+function openLclFeedback(e, carrierName) {
+  e.stopPropagation();
+  const overlay = document.getElementById('lclFbOverlay');
+  if (!overlay) return;
+  // キャリア名をセット
+  document.getElementById('lclFbCarrierLabel').textContent = '🏢 ' + carrierName;
+  overlay._carrier = carrierName;
+  // フォームリセット
+  overlay.querySelectorAll('[name="lclFbType"]').forEach(r => r.checked = false);
+  const selLink = document.getElementById('lclFbLink');
+  const inpUrl  = document.getElementById('lclFbUrl');
+  const txtNote = document.getElementById('lclFbNote');
+  if (selLink) selLink.value = '';
+  if (inpUrl)  inpUrl.value  = '';
+  if (txtNote) txtNote.value  = '';
+  overlay.removeAttribute('hidden');
+  overlay.querySelector('.lcl-fb-close-btn')?.focus();
+}
+
+function closeLclFeedback(e) {
+  const overlay = document.getElementById('lclFbOverlay');
+  if (!overlay) return;
+  // overlay 背景クリック or 明示呼び出しのみ閉じる
+  if (e && e.target !== overlay) return;
+  overlay.setAttribute('hidden', '');
+}
+
+function _lclFbToast(msg) {
+  const tc = document.getElementById('toast-container');
+  if (!tc) return;
+  const el = document.createElement('div');
+  el.className = 'toast show';
+  el.textContent = msg;
+  tc.appendChild(el);
+  setTimeout(() => { el.classList.remove('show'); setTimeout(() => el.remove(), 400); }, 2600);
+}
+
+function _buildLclFbText(carrier) {
+  const type = document.querySelector('[name="lclFbType"]:checked')?.value;
+  if (!type) { alert('種別を選択してください'); return null; }
+  const link = document.getElementById('lclFbLink')?.value  || '';
+  const url  = document.getElementById('lclFbUrl')?.value   || '';
+  const note = document.getElementById('lclFbNote')?.value  || '';
+  return [
+    '【LCLキャリア リンクフィードバック】',
+    `会社名: ${carrier}`,
+    `種別: ${type}`,
+    link ? `対象リンク: ${link}` : null,
+    url  ? `正しいURL: ${url}`  : null,
+    note ? `詳細: ${note}`      : null,
+  ].filter(Boolean).join('\n');
+}
+
+function initLclFeedback() {
+  const overlay = document.getElementById('lclFbOverlay');
+  if (!overlay) return;
+
+  // Esc で閉じる
+  overlay.addEventListener('keydown', e => {
+    if (e.key === 'Escape') overlay.setAttribute('hidden', '');
+  });
+
+  // 背景クリックで閉じる
+  overlay.addEventListener('click', closeLclFeedback);
+
+  // コピーボタン
+  document.getElementById('lclFbCopyBtn')?.addEventListener('click', () => {
+    const text = _buildLclFbText(overlay._carrier);
+    if (!text) return;
+    navigator.clipboard.writeText(text).then(() => {
+      _lclFbToast('📋 クリップボードにコピーしました');
+    }).catch(() => {
+      prompt('以下をコピーしてください:', text);
+    });
+  });
+
+  // Googleフォーム送信ボタン（no-cors POST で直接送信 — save.js の FEEDBACK_FORM を参照）
+  document.getElementById('lclFbFormBtn')?.addEventListener('click', async () => {
+    const text = _buildLclFbText(overlay._carrier);
+    if (!text) return;
+
+    // LCL 種別 → Google Form カテゴリにマッピング
+    const fbType   = document.querySelector('[name="lclFbType"]:checked')?.value || '';
+    const category = fbType === 'リンク追加リクエスト' ? '改善要望' : 'バグ報告';
+
+    const btn = document.getElementById('lclFbFormBtn');
+    const origLabel = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = '送信中…';
+
+    // FEEDBACK_FORM は save.js で定義（DOMContentLoaded 時点では読み込み済み）
+    const fb = (typeof FEEDBACK_FORM !== 'undefined') ? FEEDBACK_FORM : null;
+    if (!fb || !fb.formId) {
+      // フォールバック：コピー＋タブ開く
+      await navigator.clipboard.writeText(text).catch(() => {});
+      window.open(LCL_FB_FORM_URL, '_blank');
+      overlay.setAttribute('hidden', '');
+      _lclFbToast('📋 テキストをコピーしました。フォームに貼り付けてください');
+      btn.disabled = false;
+      btn.textContent = origLabel;
+      return;
+    }
+
+    const fd = new FormData();
+    fd.append(fb.entries.category, category);
+    fd.append(fb.entries.section,  '全体');
+    fd.append(fb.entries.body,     text);
+
+    try {
+      await fetch(
+        `https://docs.google.com/forms/d/e/${fb.formId}/formResponse`,
+        { method: 'POST', mode: 'no-cors', body: fd }
+      );
+      _lclFbToast('✅ フィードバックを送信しました。ありがとうございます！');
+      overlay.setAttribute('hidden', '');
+    } catch (err) {
+      _lclFbToast('⚠️ 送信できませんでした。テキストをコピーしてフォームに貼り付けてください');
+      await navigator.clipboard.writeText(text).catch(() => {});
+      console.error('LCL FB submit error:', err);
+    } finally {
+      btn.disabled = false;
+      btn.textContent = origLabel;
+    }
+  });
+}
+
+document.addEventListener('DOMContentLoaded', initLclFeedback);
+
+// ================================================================
 //  初期化
 // ================================================================
 ['ql-carrier', 'sched-carrier',
@@ -509,6 +695,7 @@ buildBldoGrids();
 buildIncotermsTab();
 loadRouteArticles();
 buildBlRulesGrid();
+buildLclCarrierGrid();
 
 // ================================================================
 //  追跡番号 履歴スタック
