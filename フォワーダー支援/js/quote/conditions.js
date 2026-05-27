@@ -540,10 +540,16 @@
   function showIncotermsHint(val) {
     const el = document.getElementById('cond-incoterms-hint');
     if (!el) return;
-    if (!val) { el.textContent = ''; return; }
+    if (!val) { el.textContent = ''; el.style.display = 'none'; return; }
     const code = (val || '').replace(/（.*）$/, '').trim();
     const entry = (typeof INCO_DATA !== 'undefined') ? INCO_DATA.find(d => d.code === code) : null;
-    el.textContent = entry ? entry.note : '';
+    if (entry) {
+      el.textContent = entry.note;
+      el.style.display = '';  // CSS の display:none を解除して表示
+    } else {
+      el.textContent = '';
+      el.style.display = 'none';
+    }
   }
 
   /** ゾーンカードのピース状態を読み取り、ルート図に反映 */

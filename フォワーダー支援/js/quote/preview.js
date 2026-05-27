@@ -121,9 +121,9 @@
 
   // 出力物（PDF/Excel/TSV）のフッターに刻む「為替の出典 / 取得日時」「作成日」メタ情報
   function getFxAuditMeta() {
-    const last = localStorage.getItem('fxLastFetched_v1');
+    const last = localStorage.getItem(SharedStorage.KEYS.FX_LAST_FETCHED);
     const fxLine = last
-      ? `為替出典：open.er-api.com（取得日時 ${new Date(last).toLocaleString('ja-JP', {year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'})}）`
+      ? `為替出典：open.er-api.com 中値（Mid Rate）（取得日時 ${new Date(last).toLocaleString('ja-JP', {year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'})}）※ 実際の決済レート（TTS等）とは異なる参考値`
       : `為替出典：手動設定値（自動取得未実行）`;
     const created = `作成日：${new Date().toLocaleString('ja-JP', {year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'})}`;
     return { fxLine, created, hasFresh: !!last };
@@ -131,7 +131,7 @@
 
   // 為替キャッシュが 24h 超過しているか
   function isFxStale() {
-    const last = localStorage.getItem('fxLastFetched_v1');
+    const last = localStorage.getItem(SharedStorage.KEYS.FX_LAST_FETCHED);
     if (!last) return true;
     const ageMs = Date.now() - new Date(last).getTime();
     return ageMs > 24 * 60 * 60 * 1000;
@@ -583,10 +583,12 @@
     const idxOf = role => visCols.findIndex(c => c.role === role);
 
     const lines = [];
-    if (hdr.ref || hdr.customer || hdr.person) {
-      if (hdr.ref)      lines.push(`仮REF#\t${hdr.ref}`);
-      if (hdr.customer) lines.push(`引き合い元\t${hdr.customer}`);
-      if (hdr.person)   lines.push(`担当\t${formatPersonWithHonorific(hdr.person)}`);
+    if (hdr.ref || hdr.customer || hdr.person || hdr.date || hdr.validUntil) {
+      if (hdr.ref)        lines.push(`仮REF#\t${hdr.ref}`);
+      if (hdr.customer)   lines.push(`引き合い元\t${hdr.customer}`);
+      if (hdr.person)     lines.push(`担当\t${formatPersonWithHonorific(hdr.person)}`);
+      if (hdr.date)       lines.push(`発行日\t${hdr.date}`);
+      if (hdr.validUntil) lines.push(`有効期限\t${hdr.validUntil}`);
       lines.push('');
     }
     // ヘッダ行

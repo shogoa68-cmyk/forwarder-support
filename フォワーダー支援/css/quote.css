@@ -12,7 +12,7 @@
 /* スコープルート — :root の CSS 変数と body の基本スタイルをここに集約 */
 #tab-quote-make {
   --base-font-size: 13px;
-  font-family: 'Helvetica Neue', Arial, 'Hiragino Kaku Gothic ProN', sans-serif;
+  font-family: inherit;
   background: #f2ede6;
   color: #2d2418;
   font-size: var(--base-font-size);
@@ -962,9 +962,9 @@
 #tab-quote-make .scope-inline-field select option { background: #3d2e1e; color: #f0e8d8; }
 #tab-quote-make .scope-inline-field select optgroup { background: #3d2e1e; color: #7d6b56; font-style: normal; }
 #tab-quote-make .wh-toggle-label {
-  font-size: 9px;
+  font-size: 11px;
   font-weight: 700;
-  color: #7d6b56;
+  color: #d9cfc2;  /* コントラスト比 6.1:1（WCAG AA クリア）on #3d2e1e */
   text-transform: uppercase;
   letter-spacing: .08em;
   white-space: nowrap;
@@ -1564,7 +1564,7 @@
 }
 #tab-quote-make .save-toolbar-label {
   font-size: 10px; font-weight: 700;
-  color: #7d6b56;
+  color: #5a4a35;  /* コントラスト比 5.2:1 on #f0e8d8 → WCAG AA クリア */
   letter-spacing: .04em;
   white-space: nowrap;
 }
@@ -1678,8 +1678,8 @@
 /* ========== フィードバックFAB & モーダル（Googleフォーム） — Phase 2c-Step1 でサイト全体スコープに昇格 ========== */
 .fb-fab {
   position: fixed;
-  bottom: 28px;
-  right: 28px;
+  bottom: max(28px, calc(28px + env(safe-area-inset-bottom)));
+  right: max(28px, calc(28px + env(safe-area-inset-right)));
   width: 50px;
   height: 50px;
   border-radius: 50%;
@@ -2371,7 +2371,7 @@
   cursor: pointer;
   font-family: inherit;
 }
-#tab-quote-make .btn-bulk-copy:hover { background: #9a4a25; }
+#tab-quote-make .btn-bulk-copy:hover { background: #7a3a1d; }
 /* ========== 為替レートパネル ========== */
 #tab-quote-make #fxRatePanel {
   display: block;
@@ -3240,9 +3240,9 @@
   }
 }
 
-/* インコタームズ選択時の 1 行ヘルプ */
+/* インコタームズ選択時の 1 行ヘルプ（showIncotermsHint() で display を制御） */
 #tab-quote-make .cond-incoterms-hint {
-  display: none;
+  display: none;  /* 初期非表示。JS側で el.style.display = '' に変更して表示 */
   margin-left: 8px;
   padding: 4px 10px;
   background: #f4ecd8;

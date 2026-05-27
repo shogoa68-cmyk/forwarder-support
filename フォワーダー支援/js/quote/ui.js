@@ -13,7 +13,7 @@
     { label: '☣️ 危険品',         text: '危険品・温度管理貨物・特殊貨物については別途ご相談ください。条件が異なります。' },
     { label: '🔄 条件変更',        text: '貨物の内容・数量・仕向地等に変更が生じた場合は再見積となります。' },
     { label: '📋 書類締切',        text: 'B/L・AWB等の書類提出締め切りは船会社・航空会社の指定期日に従います。遅延の場合は追加費用が発生します。' },
-    { label: '🏦 支払条件',        text: '支払いは請求書発行後30日以内とします。期日を超過した場合、年利○%の遅延損害金が発生します。' },
+    { label: '🏦 支払条件',        text: '支払いは請求書発行後30日以内とします。期日を超過した場合、法定利率（民法所定）による遅延損害金が発生します。（※社内標準条件に書き換えてからご使用ください）' },
   ];
 
 
@@ -158,7 +158,7 @@
     const autoChk = document.getElementById('fxAutoModeChk');
     if (autoChk) autoChk.checked = _fxAutoMode;
     // 最終取得日時を更新
-    const lastFetched = localStorage.getItem('fxLastFetched_v1');
+    const lastFetched = localStorage.getItem(SharedStorage.KEYS.FX_LAST_FETCHED);
     const lastEl = document.getElementById('fxLastFetched');
     if (lastEl) {
       lastEl.textContent = lastFetched
@@ -1110,8 +1110,10 @@
       try { data = JSON.parse(e.target.result); }
       catch(err) { alert('ファイルの読み込みに失敗しました。\n' + err.message); return; }
 
-      if (!data._version || data._app !== '見積支援ツール') {
-        if (!confirm('このファイルは見積支援ツール以外から作成された可能性があります。\n続行しますか？')) return;
+      // 既知アプリ名の許可リスト（旧名「見積支援ツール」→現名「フォワーダー支援」の移行に対応）
+      const VALID_APP_NAMES = ['見積支援ツール', 'フォワーダー支援', 'フォワーダー支援ツール'];
+      if (!data._version || !VALID_APP_NAMES.includes(data._app)) {
+        if (!confirm('このファイルは別のアプリから作成された可能性があります。\n続行しますか？')) return;
       }
 
       const exportedAt = data.exportedAt
