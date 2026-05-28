@@ -718,8 +718,8 @@
     const preset  = presets[idx];
     if (!preset) return;
     // _applyQuoteData でフォーム復元・行再構築（v3 mixed-rows 対応）・合計更新を一括処理
-    // 旧形式マイグレーション・小計行/リマーク行の復元も含む（元に戻すには Ctrl+Z）
-    _applyQuoteData(preset.data);
+    // keepHeaderIfEmpty=true: 仮REF/顧客名/担当者が空のプリセットでも現在入力値を消さない
+    _applyQuoteData(preset.data, { keepHeaderIfEmpty: true });
     calcLiveUpdate();
     closePresetMgr();
     setCurrentQuoteName(preset.name);

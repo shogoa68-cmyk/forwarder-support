@@ -98,13 +98,13 @@
   function _applyCells(tr, cells) {
     tr.querySelectorAll('input, select, textarea').forEach((el, j) => {
       if (cells[j] === undefined) return;
-      if (el.type === 'checkbox') el.checked = cells[j] === true;
+      // 旧形式では checkbox 値が文字列 "on" で保存されていた。boolean true と "on" 両方を受け入れる
+      if (el.type === 'checkbox') el.checked = cells[j] === true || cells[j] === 'on';
       else el.value = cells[j];
     });
   }
 
   // 行復元後の再計算・スタイル適用ヘルパー
-  // fields: gatherAllData().fields（tx-{id} の boolean が常に正しく入っている）
   function _afterRestoreRows(trs, fields) {
     trs.forEach(tr => {
       const nm = tr.querySelector('[data-field="nm"]');
@@ -113,10 +113,8 @@
       checkUnfilled(rowId);
       onCatChange(rowId);
       onPay(parseInt(rowId));
-      // tx チェックボックスは fields から確実に復元
-      // （rows の cells[3] は旧データで "on" 固定のため fields を優先）
+      // tx は _applyCells で positional に復元済み。fields ID は非連番になり得るため使わない
       const txEl = tr.querySelector('[data-field="tx"]');
-      if (txEl && fields && txEl.id in fields) txEl.checked = !!fields[txEl.id];
       if (txEl?.checked) tr.classList.add('taxed');
       else tr.classList.remove('taxed');
     });
@@ -156,11 +154,16 @@
     _afterRestoreRows(regularTrs, data.fields);
   }
 
+  // プリセット読み込み時に空値で上書きしないヘッダー項目
+  const _HEADER_FIELD_IDS = ['qf-ref','qf-customer','qf-person','qf-date','qf-valid-until','qf-memo'];
+
   // データを画面に適用（restoreAutoSave と同等。トースト・restoreBar 操作なし）
-  function _applyQuoteData(data) {
+  function _applyQuoteData(data, { keepHeaderIfEmpty = false } = {}) {
     if (!data) return;
     data = migrateRowCells(data);
     Object.entries(data.fields || {}).forEach(([id, val]) => {
+      // ヘッダー項目（仮REF/顧客名/担当者等）はプリセット側が空でも現在値を消さない
+      if (keepHeaderIfEmpty && _HEADER_FIELD_IDS.includes(id) && !val) return;
       const el = document.getElementById(id);
       if (!el) return;
       if (el.type === 'checkbox') el.checked = val;
