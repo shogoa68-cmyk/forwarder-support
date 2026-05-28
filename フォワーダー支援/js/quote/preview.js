@@ -196,8 +196,8 @@
     let totCost = 0, totBill = 0, totMk = 0;
     data.forEach(d => { totCost += d.cost; totBill += d.bill; totMk += d.mk; });
     const totPr = totBill - totCost;
-    const bcSet = [...new Set(data.map(d => d.bc).filter(Boolean))];
-    const totalBcLabel = bcSet.length === 0 ? '—' : bcSet.length === 1 ? bcSet[0] : bcSet.join('/');
+    const ccyGroups = {}; // billing 通貨別集計: { JPY: {sub,tax,mk}, USD: {...} }
+    let totCostJpy = 0;
 
     const metaEl = document.getElementById('pvMeta');
     const metaHTML = [
@@ -250,6 +250,12 @@
       totTax += taxAmt;
       totJpy += jpyAmt;
       if (d.bc && d.bc !== 'JPY') hasNonJpyBill = true;
+      const ccy = d.bc || 'JPY';
+      if (!ccyGroups[ccy]) ccyGroups[ccy] = { sub: 0, tax: 0, mk: 0 };
+      ccyGroups[ccy].sub += sub;
+      ccyGroups[ccy].tax += taxAmt;
+      ccyGroups[ccy].mk  += (d.mk || 0);
+      totCostJpy += (typeof toJPY === 'function') ? toJPY(d.cost, d.pc || 'JPY') : ((!d.pc || d.pc === 'JPY') ? d.cost : 0);
       const jpyCellText = (d.bc && d.bc !== 'JPY') ? fmtRaw(jpyAmt) : '—';
       const taxCellText = d.taxed ? fmtRaw(taxAmt) : '';
       html += `<tr>
@@ -271,30 +277,57 @@
     });
 
     const totPc = totPr > 0 ? 'pv-pos' : totPr < 0 ? 'pv-neg' : 'pv-zero';
-    const totTaxText  = fmtRaw(totTax);
-    const totJpyText  = hasNonJpyBill ? fmtRaw(totJpy) : '—';
-    // 合計行：cat+sv+name = colspan 3 を「合計」ラベルに割当て。
-    // pay/unit/bill/jpy-conv 各セルを個別化し data-ft-col を付与することで
-    // applyPreviewCustomize() の列表示切り替えと完全に連動させる。
-    // （旧実装の colspan="4" には data-ft-col がなく非表示化できなかった。
-    //   jpy-conv セルが欠落していたため col 14 以降がズレていた。）
-    html += `</tbody><tfoot><tr class="pv-total">
-      <td colspan="3" style="text-align:right;">合　計</td>
-      <td data-ft-col="pay">—</td>
-      <td data-ft-col="unit">—</td>
-      <td data-ft-col="pay">—</td>
-      <td data-ft-col="pay">—</td>
-      <td data-ft-col="pay" style="background:#e8e8e8;color:#aaa;">—</td>
-      <td data-ft-col="bill">—</td>
-      <td data-ft-col="bill">${escHtml(totalBcLabel)}</td>
-      <td data-ft-col="bill" class="pv-num">—</td>
-      <td data-ft-col="mk" class="pv-num">${fmtRaw(totMk)}</td>
-      <td class="pv-num pv-subtotal">${fmtRaw(totSub)}</td>
-      <td data-ft-col="jpy-conv" class="pv-jpy">${totJpyText}</td>
-      <td data-ft-col="tax-col" class="pv-num pv-tax-total">${totTaxText}</td>
-      <td data-ft-col="profit" class="pv-pr ${totPc} pv-num">${fmtRaw(totPr)}</td>
-      <td data-ft-col="note"></td>
-    </tr></tfoot></table>`;
+    // 通貨別合計行を生成（JPY が先頭、以降アルファベット順）
+    const ccyKeys = Object.keys(ccyGroups).sort((a, b) =>
+      a === 'JPY' ? -1 : b === 'JPY' ? 1 : a.localeCompare(b));
+    const isMultiCcy = ccyKeys.length > 1;
+    const _tfootRow = (ccy, g, extraCls, showMk, prText, prCls) => {
+      const taxText    = g.tax > 0 ? fmtRaw(g.tax) : '—';
+      const jpyConvText = (ccy !== '≈JPY' && ccy !== 'JPY' && typeof toJPY === 'function')
+        ? '≈' + fmtRaw(Math.ceil(toJPY(g.sub, ccy))) : '';
+      return `<tr class="pv-total${extraCls}">
+        <td colspan="3">合計（${escHtml(ccy)}）</td>
+        <td data-ft-col="pay"></td>
+        <td data-ft-col="unit"></td>
+        <td data-ft-col="pay"></td>
+        <td data-ft-col="pay"></td>
+        <td data-ft-col="pay"></td>
+        <td data-ft-col="bill"></td>
+        <td data-ft-col="bill" class="pv-ccy-badge">${escHtml(ccy)}</td>
+        <td data-ft-col="bill"></td>
+        <td data-ft-col="mk" class="pv-num">${showMk ? fmtRaw(totMk) : ''}</td>
+        <td class="pv-num pv-subtotal">${fmtRaw(g.sub)}</td>
+        <td data-ft-col="jpy-conv" class="pv-jpy">${jpyConvText}</td>
+        <td data-ft-col="tax-col" class="pv-num pv-tax-total">${taxText}</td>
+        <td data-ft-col="profit" class="pv-num ${prCls}">${prText}</td>
+        <td data-ft-col="note"></td>
+      </tr>`;
+    };
+    let tfootHtml = '</tbody><tfoot>';
+    ccyKeys.forEach(ccy => {
+      const g      = ccyGroups[ccy];
+      const single = !isMultiCcy;
+      tfootHtml += _tfootRow(
+        ccy, g,
+        isMultiCcy ? ' pv-total-ccy' : '',
+        single,
+        single ? fmtRaw(totPr) : '',
+        single ? `pv-pr ${totPc}` : ''
+      );
+    });
+    if (isMultiCcy) {
+      const grandJpy   = Math.ceil(ccyKeys.reduce((s, c) =>
+        s + (typeof toJPY === 'function' ? toJPY(ccyGroups[c].sub, c) : (c === 'JPY' ? ccyGroups[c].sub : 0)), 0));
+      const grandTax   = ccyGroups['JPY']?.tax || 0;
+      const grandPrJpy = Math.ceil(totJpy - totCostJpy);
+      const grandPcCls = grandPrJpy > 0 ? 'pv-pos' : grandPrJpy < 0 ? 'pv-neg' : 'pv-zero';
+      tfootHtml += _tfootRow(
+        '≈JPY', { sub: grandJpy, tax: grandTax, mk: totMk },
+        ' pv-grand-total', true,
+        fmtRaw(grandPrJpy), `pv-pr ${grandPcCls}`
+      );
+    }
+    html += tfootHtml + '</tfoot></table>';
 
     document.getElementById('previewTableWrap').innerHTML = html;
 

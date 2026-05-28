@@ -1450,8 +1450,25 @@
 #tab-quote-make #previewTable td.pv-neg { background: #fdf2f2; color: #c0392b; }
 #tab-quote-make #previewTable td.pv-zero { background: #ede5d6; color: #7d6b56; }
 #tab-quote-make #previewTable tr.pv-total td { background: #f2ede6; font-weight: bold; }
+#tab-quote-make #previewTable tr.pv-total td[colspan="3"] { text-align: left; padding-left: 10px; }
 #tab-quote-make #previewTable tr.pv-total td.pv-pos { background: #dcebd8; }
 #tab-quote-make #previewTable tr.pv-total td.pv-neg { background: #fadbd8; }
+/* 通貨バッジ（合計行の bc セル） */
+#tab-quote-make #previewTable tfoot td.pv-ccy-badge {
+  font-size: 11px;
+  font-weight: 700;
+  color: #5a4020;
+  text-align: center;
+  letter-spacing: .03em;
+}
+/* 通貨別合計行（多通貨時） */
+#tab-quote-make #previewTable tr.pv-total-ccy td { background: #f8f4ee; font-weight: normal; }
+#tab-quote-make #previewTable tr.pv-total-ccy td[colspan="3"] { font-weight: 600; }
+#tab-quote-make #previewTable tr.pv-total-ccy td.pv-num { font-weight: 600; }
+/* JPY 換算合計行（多通貨の最終行） */
+#tab-quote-make #previewTable tr.pv-grand-total td { background: #ede8e0; border-top: 2px solid #b8a898; font-weight: bold; }
+#tab-quote-make #previewTable tr.pv-grand-total td.pv-pos { background: #dcebd8; }
+#tab-quote-make #previewTable tr.pv-grand-total td.pv-neg { background: #fadbd8; }
 #tab-quote-make #previewTable td.pv-taxed { color: #e74c3c; }
 #tab-quote-make .pv-btns { display: flex; gap: 10px; margin-top: 18px; flex-wrap: wrap; align-items: center; }
 #tab-quote-make .pv-btn-copy {
