@@ -1252,10 +1252,14 @@
   // Ctrl+K（コマンドパレット）と他モーダル（cmdPalette/presetMgrModal/previewOverlay）
   // は見積タブ専用なので従来通りタブガード配下に残置。
   document.addEventListener('keydown', function(e) {
-    // 1) サイト全体 Esc → フィードバックモーダルが開いていたら閉じる（タブ問わず）
+    // 1) サイト全体 Esc → フィードバック/比較モーダルが開いていたら閉じる（タブ問わず）
     if (e.key === 'Escape' && document.getElementById('fbOverlay')?.classList.contains('open')) {
       closeFeedback();
-      return;  // フィードバックが閉じたら他処理に進まない
+      return;
+    }
+    if (e.key === 'Escape' && document.getElementById('compareOverlay')?.classList.contains('open')) {
+      closeCompare();
+      return;
     }
     // 2) 以下は見積タブ active のときのみ動作
     const quoteTab = document.getElementById('tab-quote-make');

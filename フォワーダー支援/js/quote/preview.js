@@ -993,3 +993,137 @@
     el.className = type; el.textContent = text;
     setTimeout(() => { el.className = ''; el.textContent = ''; }, 4000);
   }
+
+  // ========== プリセット比較 ==========
+
+  function _extractPresetStats(presetData) {
+    const data = migrateRowCells(presetData);
+    const rows = (data.rows || []).filter(r => r._type === 'data');
+    let totBillJpy = 0, totCostJpy = 0, totMk = 0, taxedBillJpy = 0;
+    const byCategory = {};
+
+    rows.forEach(r => {
+      const cells = r.cells || [];
+      const cat   = cells[0] || '';
+      const taxed = !!cells[2];
+      const pq    = parseFloat(cells[4]) || 0;
+      const pc    = cells[6] || 'JPY';
+      const pp    = parseFloat(cells[7]) || 0;
+      const bq    = parseFloat(cells[9]) || 0;
+      const bc    = cells[10] || 'JPY';
+      const bp    = parseFloat(cells[11]) || 0;
+      const mk    = parseFloat(cells[12]) || 0;
+
+      const billOrig = bq * bp;
+      const costOrig = pq * pp;
+
+      const conv = (amt, ccy) =>
+        (typeof toJPY === 'function') ? toJPY(amt, ccy) : (ccy === 'JPY' ? amt : 0);
+
+      totBillJpy += conv(billOrig, bc);
+      totCostJpy += conv(costOrig, pc);
+      totMk      += conv(mk, bc);
+      if (taxed) taxedBillJpy += conv(billOrig, bc);
+
+      if (!byCategory[cat]) byCategory[cat] = 0;
+      byCategory[cat] += conv(billOrig, bc);
+    });
+
+    const totProfit  = totBillJpy - totCostJpy;
+    const profitRate = totBillJpy > 0 ? (totProfit / totBillJpy * 100) : 0;
+    return { totBillJpy, totCostJpy, totProfit, totMk, profitRate, taxedBillJpy, byCategory };
+  }
+
+  function openCompare() {
+    const presets = getPresets();
+    const listEl  = document.getElementById('cmpPresetList');
+    const resultEl = document.getElementById('cmpResult');
+    if (!listEl) return;
+
+    if (!presets.length) {
+      listEl.innerHTML = '<p class="cmp-empty-msg">保存済みプリセットがありません。先にプリセットを保存してください。</p>';
+    } else {
+      listEl.innerHTML = presets.map((p, i) =>
+        `<label class="cmp-preset-item" id="cmpItem-${i}">
+          <input type="checkbox" class="cmp-chk" value="${i}" onchange="toggleCmpItem(this)">
+          ${escHtml(p.name || `プリセット ${i+1}`)}
+        </label>`
+      ).join('');
+    }
+    if (resultEl) resultEl.innerHTML = '';
+    const printBtn = document.getElementById('cmpPrintBtn');
+    if (printBtn) printBtn.style.display = 'none';
+    document.getElementById('compareOverlay').classList.add('open');
+  }
+
+  function toggleCmpItem(chk) {
+    const checked = document.querySelectorAll('.cmp-chk:checked');
+    if (checked.length > 4) { chk.checked = false; return; }
+    const label = chk.closest('label');
+    if (label) label.classList.toggle('checked', chk.checked);
+  }
+
+  function closeCompare() {
+    document.getElementById('compareOverlay').classList.remove('open');
+  }
+
+  function runCompare() {
+    const presets  = getPresets();
+    const selected = [...document.querySelectorAll('.cmp-chk:checked')].map(c => parseInt(c.value, 10));
+    if (selected.length < 2) {
+      alert('比較するプリセットを 2 件以上選択してください。');
+      return;
+    }
+
+    const items = selected.map(i => ({
+      name:  presets[i].name || `プリセット ${i+1}`,
+      stats: _extractPresetStats(presets[i].data),
+    }));
+
+    const fmtJpy = n => Math.round(n).toLocaleString('ja-JP');
+    const fmtPct = (n, bill) => bill > 0 ? n.toFixed(1) + '%' : '—';
+    const profitStyle = n => n < 0 ? 'color:#c0392b;font-weight:700;' : 'color:#1a7a1a;font-weight:700;';
+
+    const colCount = items.length;
+
+    const allCats = new Set();
+    items.forEach(it => Object.keys(it.stats.byCategory).forEach(c => allCats.add(c)));
+    const catOrder = CATEGORIES.map(c => c.value).filter(v => v && allCats.has(v));
+    [...allCats].forEach(c => { if (!catOrder.includes(c)) catOrder.push(c); });
+
+    const secRow = label =>
+      `<tr class="cmp-row-section"><td colspan="${colCount+1}">■ ${escHtml(label)}</td></tr>`;
+    const dataRow = (label, vals, cls = '') =>
+      `<tr class="${cls}"><td>${escHtml(label)}</td>${vals.map(v => `<td class="cmp-num">${v}</td>`).join('')}</tr>`;
+
+    let html = `<table class="cmp-table"><thead><tr>
+      <th></th>${items.map(it => `<th>${escHtml(it.name)}</th>`).join('')}
+    </tr></thead><tbody>`;
+
+    html += secRow('集計（全額 JPY 換算）');
+    html += dataRow('売上合計 (JPY)',   items.map(it => fmtJpy(it.stats.totBillJpy)));
+    html += dataRow('原価合計 (JPY)',   items.map(it => fmtJpy(it.stats.totCostJpy)));
+    html += `<tr><td>利益 (JPY)</td>${items.map(it =>
+      `<td class="cmp-num" style="${profitStyle(it.stats.totProfit)}">${fmtJpy(it.stats.totProfit)}</td>`
+    ).join('')}</tr>`;
+    html += `<tr><td>利益率</td>${items.map(it =>
+      `<td class="cmp-num" style="${profitStyle(it.stats.totProfit)}">${fmtPct(it.stats.profitRate, it.stats.totBillJpy)}</td>`
+    ).join('')}</tr>`;
+    html += dataRow('乗せ幅合計 (JPY)', items.map(it => fmtJpy(it.stats.totMk)));
+    html += dataRow('課税売上 (JPY)',   items.map(it => fmtJpy(it.stats.taxedBillJpy)));
+
+    if (catOrder.length) {
+      html += secRow('カテゴリ別売上内訳 (JPY)');
+      catOrder.forEach(cat => {
+        const label = getCatLabel(cat) || cat || '(未設定)';
+        html += dataRow(label, items.map(it => fmtJpy(it.stats.byCategory[cat] || 0)), 'cmp-row-cat');
+      });
+    }
+
+    html += '</tbody></table>';
+
+    const resultEl = document.getElementById('cmpResult');
+    if (resultEl) resultEl.innerHTML = html;
+    const printBtn = document.getElementById('cmpPrintBtn');
+    if (printBtn) printBtn.style.display = '';
+  }

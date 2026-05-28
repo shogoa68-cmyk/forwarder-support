@@ -1999,6 +1999,7 @@
     <div class="save-toolbar" id="saveToolbar">
       <span class="current-quote-name" id="currentQuoteName" title="現在編集中のプリセット名（読込・保存時に更新）">📝 新規見積</span>
       <button class="save-btn save-btn-preview" onclick="openPreview()" title="見積をプレビュー表示・CSV/Excel/PDF出力はここから（Ctrl+P）">📋 プレビュー</button>
+      <button class="save-btn save-btn-compare" onclick="openCompare()" title="保存済みプリセットを横並びで比較（売上・原価・利益）">📊 比較</button>
       <span class="save-toolbar-sep"></span>
       <button class="save-btn save-btn-preset"
               onclick="openPresetMgr()" title="入力パターンや一時保存の管理（Ctrl+S で上書き保存）">
@@ -3008,6 +3009,27 @@
 <button class="fb-fab" onclick="openFeedback('全体')" title="フィードバックを送る">💬</button>
 
 <div id="toast-container"></div>
+
+<!-- ========== プリセット比較オーバーレイ ========== -->
+<div id="compareOverlay" onclick="if(event.target===this)closeCompare()">
+  <div id="comparePanel">
+    <div class="cmp-head">
+      <h3>📊 プリセット比較</h3>
+      <button class="cmp-close-x" onclick="closeCompare()" aria-label="閉じる">×</button>
+    </div>
+    <div class="cmp-select-area">
+      <p class="cmp-hint">比較するプリセットを 2〜4 件選択してください。</p>
+      <div id="cmpPresetList" class="cmp-preset-list"></div>
+    </div>
+    <div class="cmp-actions">
+      <button class="cmp-run-btn" onclick="runCompare()">📊 比較実行</button>
+    </div>
+    <div id="cmpResult" class="cmp-result"></div>
+    <div class="cmp-foot">
+      <button class="cmp-btn-print" id="cmpPrintBtn" onclick="window.print()" style="display:none">🖨️ 印刷</button>
+    </div>
+  </div>
+</div>
 
 </body>
 </html>
