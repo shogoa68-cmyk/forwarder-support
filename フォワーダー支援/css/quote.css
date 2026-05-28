@@ -3158,6 +3158,13 @@
   line-height: 1.7;
 }
 #tab-quote-make .pv-audit-line { font-variant-numeric: tabular-nums; }
+#tab-quote-make .pv-audit-rates {
+  font-weight: 700;
+  color: #2d5a8a;
+  padding-bottom: 3px;
+  border-bottom: 1px dotted #c4b49a;
+  margin-bottom: 3px;
+}
 #tab-quote-make .pv-audit-warn {
   margin-top: 4px;
   padding: 4px 8px;
@@ -3165,6 +3172,15 @@
   border-left: 3px solid #e8c870;
   color: #7a5500;
   font-weight: 600;
+}
+/* 合計行の通貨欄：非JPY通貨のインライン円換算 */
+#tab-quote-make #previewTable tfoot .pv-jpy-inline {
+  display: block;
+  font-size: 10px;
+  font-weight: normal;
+  color: #0d5252;
+  letter-spacing: 0;
+  margin-top: 1px;
 }
 
 /* ===== Cycle 1 UX 改修 ===== */
@@ -3465,3 +3481,50 @@
   font-size: .85rem;
 }
 .cmp-btn-print:hover { background: #f5f5f5; }
+
+/* ===== 行別差分テーブル ===== */
+.cmp-section-head {
+  font-size: .9rem;
+  font-weight: 700;
+  color: #333;
+  margin: 14px 18px 6px;
+  padding: 6px 0;
+  border-bottom: 2px solid #4a7fd4;
+}
+.cmp-detail-table {
+  width: calc(100% - 36px);
+  margin: 0 18px 16px;
+  border-collapse: collapse;
+  font-size: .82rem;
+}
+.cmp-detail-table th,
+.cmp-detail-table td {
+  padding: 4px 8px;
+  border: 1px solid #dde3ee;
+  vertical-align: middle;
+}
+.cmp-detail-table thead th {
+  background: #e8f0fe;
+  font-weight: 700;
+  text-align: center;
+  white-space: nowrap;
+}
+.cmp-detail-table thead th:first-child { text-align: left; }
+.cmp-detail-cat-head td {
+  background: #f4f6fa;
+  font-weight: 700;
+  font-size: .8rem;
+  color: #4a5568;
+  border-top: 2px solid #c8d4e8;
+  padding: 4px 8px;
+}
+.cmp-detail-table tfoot td {
+  background: #e8f0fe;
+  font-weight: 700;
+  border-top: 2px solid #4a7fd4;
+}
+.cmp-row-only-a td { background: #fff0f0; color: #c0392b; }
+.cmp-row-only-b td { background: #f0fff0; color: #1a7a1a; }
+.cmp-row-changed td { background: #fffbe6; }
+.cmp-diff-pos { color: #1a7a1a; font-weight: 700; }
+.cmp-diff-neg { color: #c0392b; font-weight: 700; }

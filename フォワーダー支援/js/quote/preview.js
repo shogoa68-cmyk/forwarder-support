@@ -296,7 +296,7 @@
         <td data-ft-col="bill" class="pv-ccy-badge">${escHtml(ccy)}</td>
         <td data-ft-col="bill"></td>
         <td data-ft-col="mk" class="pv-num">${showMk ? fmtRaw(totMk) : ''}</td>
-        <td class="pv-num pv-subtotal">${fmtRaw(g.sub)}</td>
+        <td class="pv-num pv-subtotal">${fmtRaw(g.sub)}${jpyConvText ? `<span class="pv-jpy-inline">(${jpyConvText})</span>` : ''}</td>
         <td data-ft-col="jpy-conv" class="pv-jpy">${jpyConvText}</td>
         <td data-ft-col="tax-col" class="pv-num pv-tax-total">${taxText}</td>
         <td data-ft-col="profit" class="pv-num ${prCls}">${prText}</td>
@@ -396,7 +396,15 @@
     const pvAudit = document.getElementById('pvAuditMeta');
     if (pvAudit) {
       const m = getFxAuditMeta();
+      // 実際に使用した非JPY通貨のレートを一覧表示
+      const usedNonJpy = ccyKeys.filter(c => c !== 'JPY' && c !== '≈JPY');
+      const ratesLine = usedNonJpy.length
+        ? '換算レート（参考）: ' + usedNonJpy.map(c =>
+            `1 ${c} = ${typeof _fxRates !== 'undefined' ? _fxRates[c] : (typeof toJPY === 'function' ? toJPY(1, c) : '—')} JPY`
+          ).join('　/　')
+        : '';
       pvAudit.innerHTML =
+        (ratesLine ? `<div class="pv-audit-line pv-audit-rates">${escHtml(ratesLine)}</div>` : '') +
         '<div class="pv-audit-line">' + escHtml(m.fxLine) + '</div>' +
         '<div class="pv-audit-line">' + escHtml(m.created) + '</div>' +
         (m.hasFresh ? '' : '<div class="pv-audit-warn">⚠️ 為替を自動取得していません。手動値またはデフォルト値で表示中</div>');
@@ -1034,37 +1042,47 @@
     const rows = (data.rows || []).filter(r => r._type === 'data');
     let totBillJpy = 0, totCostJpy = 0, totMk = 0, taxedBillJpy = 0;
     const byCategory = {};
+    const rowItems = [];
 
     rows.forEach(r => {
       const cells = r.cells || [];
-      const cat   = cells[0] || '';
-      const taxed = !!cells[2];
-      const pq    = parseFloat(cells[4]) || 0;
-      const pc    = cells[6] || 'JPY';
-      const pp    = parseFloat(cells[7]) || 0;
-      const bq    = parseFloat(cells[9]) || 0;
-      const bc    = cells[10] || 'JPY';
-      const bp    = parseFloat(cells[11]) || 0;
-      const mk    = parseFloat(cells[12]) || 0;
+      // DOM 順: [0]=row-select-chk, [1]=cat, [2]=sv, [3]=tx, [4]=nm,
+      //         [5]=pq, [6]=un, [7]=pc, [8]=pp, [9]=cd(ro),
+      //         [10]=bq(ro), [11]=bc, [12]=bp(ro), [13]=mk, [14]=nt
+      const cat   = cells[1] || '';
+      const sv    = cells[2] || '';
+      const taxed = !!cells[3];
+      const name  = cells[4] || '';
+      const pq    = parseFloat(cells[5]) || 0;
+      const pc    = cells[7] || 'JPY';
+      const pp    = parseFloat(cells[8]) || 0;
+      const bq    = parseFloat(cells[10]) || 0;
+      const bc    = cells[11] || 'JPY';
+      const bp    = parseFloat(cells[12]) || 0;
+      const mk    = parseFloat(cells[13]) || 0;
 
       const billOrig = bq * bp;
       const costOrig = pq * pp;
-
       const conv = (amt, ccy) =>
         (typeof toJPY === 'function') ? toJPY(amt, ccy) : (ccy === 'JPY' ? amt : 0);
 
-      totBillJpy += conv(billOrig, bc);
-      totCostJpy += conv(costOrig, pc);
+      const billJpy = conv(billOrig, bc);
+      const costJpy = conv(costOrig, pc);
+
+      totBillJpy += billJpy;
+      totCostJpy += costJpy;
       totMk      += conv(mk, bc);
-      if (taxed) taxedBillJpy += conv(billOrig, bc);
+      if (taxed) taxedBillJpy += billJpy;
 
       if (!byCategory[cat]) byCategory[cat] = 0;
-      byCategory[cat] += conv(billOrig, bc);
+      byCategory[cat] += billJpy;
+
+      rowItems.push({ name, cat, sv, bc, billJpy, costJpy });
     });
 
     const totProfit  = totBillJpy - totCostJpy;
     const profitRate = totBillJpy > 0 ? (totProfit / totBillJpy * 100) : 0;
-    return { totBillJpy, totCostJpy, totProfit, totMk, profitRate, taxedBillJpy, byCategory };
+    return { totBillJpy, totCostJpy, totProfit, totMk, profitRate, taxedBillJpy, byCategory, rowItems };
   }
 
   function openCompare() {
@@ -1116,44 +1134,125 @@
     const fmtJpy = n => Math.round(n).toLocaleString('ja-JP');
     const fmtPct = (n, bill) => bill > 0 ? n.toFixed(1) + '%' : '—';
     const profitStyle = n => n < 0 ? 'color:#c0392b;font-weight:700;' : 'color:#1a7a1a;font-weight:700;';
+    const diffFmt = d => (d > 0 ? '+' : '') + fmtJpy(Math.round(d));
+    const diffStyle = d => d > 0 ? 'color:#c0392b;' : d < 0 ? 'color:#1a7a1a;' : 'color:#aaa;';
 
-    const colCount = items.length;
+    const is2 = items.length === 2;
+    const colCount = items.length + (is2 ? 1 : 0); // +1 for diff column
 
-    const allCats = new Set();
-    items.forEach(it => Object.keys(it.stats.byCategory).forEach(c => allCats.add(c)));
-    const catOrder = CATEGORIES.map(c => c.value).filter(v => v && allCats.has(v));
-    [...allCats].forEach(c => { if (!catOrder.includes(c)) catOrder.push(c); });
+    // サマリーテーブル
+    const summaryHead = `<tr><th></th>${items.map(it => `<th>${escHtml(it.name)}</th>`).join('')}${is2 ? '<th>差分</th>' : ''}</tr>`;
+    const sRow = (label, vals, dVal, cls = '') => {
+      const diffCell = is2 ? `<td class="cmp-num" style="${diffStyle(dVal)}">${dVal !== 0 ? diffFmt(dVal) : '—'}</td>` : '';
+      return `<tr class="${cls}"><td>${escHtml(label)}</td>${vals.map(v => `<td class="cmp-num">${v}</td>`).join('')}${diffCell}</tr>`;
+    };
 
-    const secRow = label =>
-      `<tr class="cmp-row-section"><td colspan="${colCount+1}">■ ${escHtml(label)}</td></tr>`;
-    const dataRow = (label, vals, cls = '') =>
-      `<tr class="${cls}"><td>${escHtml(label)}</td>${vals.map(v => `<td class="cmp-num">${v}</td>`).join('')}</tr>`;
+    const d = is2 ? (v => items[0].stats[v] - items[1].stats[v]) : () => 0;
 
-    let html = `<table class="cmp-table"><thead><tr>
-      <th></th>${items.map(it => `<th>${escHtml(it.name)}</th>`).join('')}
-    </tr></thead><tbody>`;
-
-    html += secRow('集計（全額 JPY 換算）');
-    html += dataRow('売上合計 (JPY)',   items.map(it => fmtJpy(it.stats.totBillJpy)));
-    html += dataRow('原価合計 (JPY)',   items.map(it => fmtJpy(it.stats.totCostJpy)));
+    let html = `<table class="cmp-table"><thead>${summaryHead}</thead><tbody>`;
+    html += `<tr class="cmp-row-section"><td colspan="${colCount+1}">■ 集計（全額 JPY 換算）</td></tr>`;
+    html += sRow('売上合計 (JPY)', items.map(it => fmtJpy(it.stats.totBillJpy)), d('totBillJpy'));
+    html += sRow('原価合計 (JPY)', items.map(it => fmtJpy(it.stats.totCostJpy)), d('totCostJpy'));
     html += `<tr><td>利益 (JPY)</td>${items.map(it =>
       `<td class="cmp-num" style="${profitStyle(it.stats.totProfit)}">${fmtJpy(it.stats.totProfit)}</td>`
-    ).join('')}</tr>`;
+    ).join('')}${is2 ? `<td class="cmp-num" style="${diffStyle(d('totProfit'))}">${d('totProfit') !== 0 ? diffFmt(d('totProfit')) : '—'}</td>` : ''}</tr>`;
     html += `<tr><td>利益率</td>${items.map(it =>
       `<td class="cmp-num" style="${profitStyle(it.stats.totProfit)}">${fmtPct(it.stats.profitRate, it.stats.totBillJpy)}</td>`
-    ).join('')}</tr>`;
-    html += dataRow('乗せ幅合計 (JPY)', items.map(it => fmtJpy(it.stats.totMk)));
-    html += dataRow('課税売上 (JPY)',   items.map(it => fmtJpy(it.stats.taxedBillJpy)));
+    ).join('')}${is2 ? `<td></td>` : ''}</tr>`;
+    html += sRow('乗せ幅合計 (JPY)', items.map(it => fmtJpy(it.stats.totMk)), d('totMk'));
+    html += `</tbody></table>`;
 
-    if (catOrder.length) {
-      html += secRow('カテゴリ別売上内訳 (JPY)');
-      catOrder.forEach(cat => {
-        const label = getCatLabel(cat) || cat || '(未設定)';
-        html += dataRow(label, items.map(it => fmtJpy(it.stats.byCategory[cat] || 0)), 'cmp-row-cat');
+    // 2プリセット選択時: 行別差分テーブル
+    if (is2) {
+      const rowsA = items[0].stats.rowItems;
+      const rowsB = items[1].stats.rowItems;
+      const usedB = new Set();
+      const pairs = [];
+      rowsA.forEach(ra => {
+        const bIdx = rowsB.findIndex((rb, i) => !usedB.has(i) && rb.name === ra.name && rb.cat === ra.cat);
+        if (bIdx >= 0) { pairs.push({ a: ra, b: rowsB[bIdx] }); usedB.add(bIdx); }
+        else pairs.push({ a: ra, b: null });
       });
-    }
+      rowsB.forEach((rb, i) => { if (!usedB.has(i)) pairs.push({ a: null, b: rb }); });
 
-    html += '</tbody></table>';
+      html += `<div class="cmp-section-head">■ 行別比較（売上 JPY換算）</div>
+      <table class="cmp-detail-table">
+        <thead><tr>
+          <th>カテゴリ</th><th>項目名</th>
+          <th>${escHtml(items[0].name)}</th>
+          <th>${escHtml(items[1].name)}</th>
+          <th>差分</th>
+        </tr></thead><tbody>`;
+
+      const allCats = new Set();
+      items.forEach(it => Object.keys(it.stats.byCategory).forEach(c => allCats.add(c)));
+      const catOrder = CATEGORIES.map(c => c.value).filter(v => v && allCats.has(v));
+      [...allCats].forEach(c => { if (!catOrder.includes(c)) catOrder.push(c); });
+
+      catOrder.forEach(cat => {
+        const catPairs = pairs.filter(p => ((p.a || p.b).cat) === cat);
+        if (!catPairs.length) return;
+        html += `<tr class="cmp-detail-cat-head"><td colspan="5">${escHtml(getCatLabel(cat) || cat || '(未設定)')}</td></tr>`;
+        catPairs.forEach(({ a, b }) => {
+          const billA = a ? a.billJpy : null;
+          const billB = b ? b.billJpy : null;
+          const diff  = (billA ?? 0) - (billB ?? 0);
+          const name  = (a || b).name;
+          const onlyA = a && !b;
+          const onlyB = !a && b;
+          const rowCls = onlyA ? 'cmp-row-only-a' : onlyB ? 'cmp-row-only-b' : diff !== 0 ? 'cmp-row-changed' : '';
+          const dText  = onlyA ? '(削除)' : onlyB ? '(追加)' : diff !== 0 ? diffFmt(diff) : '—';
+          html += `<tr class="${rowCls}">
+            <td></td>
+            <td>${escHtml(name)}</td>
+            <td class="cmp-num">${billA !== null ? fmtJpy(billA) : '—'}</td>
+            <td class="cmp-num">${billB !== null ? fmtJpy(billB) : '—'}</td>
+            <td class="cmp-num" style="${onlyA || onlyB ? '' : diffStyle(diff)}">${dText}</td>
+          </tr>`;
+        });
+      });
+      // カテゴリ未設定の行も含める
+      pairs.filter(p => !((p.a || p.b).cat)).forEach(({ a, b }) => {
+        const billA = a ? a.billJpy : null;
+        const billB = b ? b.billJpy : null;
+        const diff  = (billA ?? 0) - (billB ?? 0);
+        const name  = (a || b).name;
+        const onlyA = a && !b;
+        const onlyB = !a && b;
+        const rowCls = onlyA ? 'cmp-row-only-a' : onlyB ? 'cmp-row-only-b' : diff !== 0 ? 'cmp-row-changed' : '';
+        const dText  = onlyA ? '(削除)' : onlyB ? '(追加)' : diff !== 0 ? diffFmt(diff) : '—';
+        html += `<tr class="${rowCls}">
+          <td>—</td>
+          <td>${escHtml(name)}</td>
+          <td class="cmp-num">${billA !== null ? fmtJpy(billA) : '—'}</td>
+          <td class="cmp-num">${billB !== null ? fmtJpy(billB) : '—'}</td>
+          <td class="cmp-num" style="${onlyA || onlyB ? '' : diffStyle(diff)}">${dText}</td>
+        </tr>`;
+      });
+
+      const totDiff = Math.round(items[0].stats.totBillJpy - items[1].stats.totBillJpy);
+      html += `</tbody><tfoot><tr>
+        <td colspan="2" style="text-align:right;font-weight:700;">合計 (JPY)</td>
+        <td class="cmp-num">${fmtJpy(items[0].stats.totBillJpy)}</td>
+        <td class="cmp-num">${fmtJpy(items[1].stats.totBillJpy)}</td>
+        <td class="cmp-num" style="${diffStyle(totDiff)}">${totDiff !== 0 ? diffFmt(totDiff) : '—'}</td>
+      </tr></tfoot></table>`;
+    } else {
+      // 3-4プリセット: カテゴリ別内訳のみ
+      const allCats = new Set();
+      items.forEach(it => Object.keys(it.stats.byCategory).forEach(c => allCats.add(c)));
+      const catOrder = CATEGORIES.map(c => c.value).filter(v => v && allCats.has(v));
+      [...allCats].forEach(c => { if (!catOrder.includes(c)) catOrder.push(c); });
+      if (catOrder.length) {
+        html += `<table class="cmp-table"><thead>${`<tr><th></th>${items.map(it => `<th>${escHtml(it.name)}</th>`).join('')}</tr>`}</thead><tbody>`;
+        html += `<tr class="cmp-row-section"><td colspan="${items.length+1}">■ カテゴリ別売上内訳 (JPY)</td></tr>`;
+        catOrder.forEach(cat => {
+          const label = getCatLabel(cat) || cat || '(未設定)';
+          html += `<tr class="cmp-row-cat"><td>${escHtml(label)}</td>${items.map(it => `<td class="cmp-num">${fmtJpy(it.stats.byCategory[cat] || 0)}</td>`).join('')}</tr>`;
+        });
+        html += '</tbody></table>';
+      }
+    }
 
     const resultEl = document.getElementById('cmpResult');
     if (resultEl) resultEl.innerHTML = html;
