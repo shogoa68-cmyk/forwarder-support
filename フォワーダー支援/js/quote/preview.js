@@ -295,7 +295,7 @@
         <td data-ft-col="bill"></td>
         <td data-ft-col="bill" class="pv-ccy-badge">${escHtml(ccy)}</td>
         <td data-ft-col="bill"></td>
-        <td data-ft-col="mk" class="pv-num">${showMk ? fmtRaw(totMk) : ''}</td>
+        <td data-ft-col="mk" class="pv-num">${showMk ? fmtRaw(g.mk) : ''}</td>
         <td class="pv-num pv-subtotal">${fmtRaw(g.sub)}${jpyConvText ? `<span class="pv-jpy-inline">(${jpyConvText})</span>` : ''}</td>
         <td data-ft-col="jpy-conv" class="pv-jpy">${jpyConvText}</td>
         <td data-ft-col="tax-col" data-ccy="${escHtml(ccy)}" class="pv-num pv-tax-total">${taxText}</td>
@@ -319,10 +319,12 @@
       const grandJpy   = Math.ceil(ccyKeys.reduce((s, c) =>
         s + (typeof toJPY === 'function' ? toJPY(ccyGroups[c].sub, c) : (c === 'JPY' ? ccyGroups[c].sub : 0)), 0));
       const grandTax   = ccyGroups['JPY']?.tax || 0;
+      const grandMkJpy = Math.ceil(ccyKeys.reduce((s, c) =>
+        s + (typeof toJPY === 'function' ? toJPY(ccyGroups[c].mk, c) : (c === 'JPY' ? ccyGroups[c].mk : 0)), 0));
       const grandPrJpy = Math.ceil(totJpy - totCostJpy);
       const grandPcCls = grandPrJpy > 0 ? 'pv-pos' : grandPrJpy < 0 ? 'pv-neg' : 'pv-zero';
       tfootHtml += _tfootRow(
-        '≈JPY', { sub: grandJpy, tax: grandTax, mk: totMk },
+        '≈JPY', { sub: grandJpy, tax: grandTax, mk: grandMkJpy },
         ' pv-grand-total', true,
         fmtRaw(grandPrJpy), `pv-pr ${grandPcCls}`
       );
