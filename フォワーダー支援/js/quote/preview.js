@@ -38,6 +38,13 @@
    * ファイル名生成: REF_引き合い元_担当.<ext>
    * 入力がある項目だけ使用。すべて空なら "見積もり_YYYYMMDD"
    */
+  function isSensitiveOn() {
+    return ['pay', 'mk', 'profit'].some(k => {
+      const chk = document.querySelector(`.pv-col-chk[data-col="${k}"]`);
+      return chk && chk.checked;
+    });
+  }
+
   function buildFileName(ext) {
     const hdr   = getQuoteHeader();
     const today = new Date().toISOString().slice(0, 10).replace(/-/g, '');
@@ -45,7 +52,8 @@
     const cond = getConditions();
     const mode = safe(cond.mode || '');
     const parts = [hdr.ref, hdr.customer, mode, hdr.person].map(safe).filter(Boolean);
-    return (parts.length ? parts.join('_') : '見積もり_' + today) + '.' + ext;
+    const prefix = isSensitiveOn() ? '[社内用]_' : '[客先]_';
+    return prefix + (parts.length ? parts.join('_') : '見積もり_' + today) + '.' + ext;
   }
 
   function collectAllRows() {
@@ -270,7 +278,7 @@
         <td class="pv-num">${fmtRaw(d.mk)}</td>
         <td class="pv-num pv-subtotal">${fmtRaw(sub)}</td>
         <td class="pv-jpy">${jpyCellText}</td>
-        <td class="pv-num pv-tax-cell" data-sub="${sub}" data-taxed="${d.taxed ? 1 : 0}">${taxCellText}</td>
+        <td class="pv-num pv-tax-cell" data-sub="${sub}" data-ccy="${d.bc || 'JPY'}" data-taxed="${d.taxed ? 1 : 0}">${taxCellText}</td>
         <td class="pv-pr ${pc} pv-num">${fmtRaw(d.profit)}</td>
         <td class="pv-name">${escHtml(d.note)}</td>
       </tr>`;
@@ -295,10 +303,10 @@
         <td data-ft-col="bill"></td>
         <td data-ft-col="bill" class="pv-ccy-badge">${escHtml(ccy)}</td>
         <td data-ft-col="bill"></td>
-        <td data-ft-col="mk" class="pv-num">${showMk ? fmtRaw(totMk) : ''}</td>
+        <td data-ft-col="mk" class="pv-num">${showMk ? fmtRaw(g.mk) : ''}</td>
         <td class="pv-num pv-subtotal">${fmtRaw(g.sub)}${jpyConvText ? `<span class="pv-jpy-inline">(${jpyConvText})</span>` : ''}</td>
         <td data-ft-col="jpy-conv" class="pv-jpy">${jpyConvText}</td>
-        <td data-ft-col="tax-col" class="pv-num pv-tax-total">${taxText}</td>
+        <td data-ft-col="tax-col" data-ccy="${escHtml(ccy)}" class="pv-num pv-tax-total">${taxText}</td>
         <td data-ft-col="profit" class="pv-num ${prCls}">${prText}</td>
         <td data-ft-col="note"></td>
       </tr>`;
@@ -319,10 +327,12 @@
       const grandJpy   = Math.ceil(ccyKeys.reduce((s, c) =>
         s + (typeof toJPY === 'function' ? toJPY(ccyGroups[c].sub, c) : (c === 'JPY' ? ccyGroups[c].sub : 0)), 0));
       const grandTax   = ccyGroups['JPY']?.tax || 0;
+      const grandMkJpy = Math.ceil(ccyKeys.reduce((s, c) =>
+        s + (typeof toJPY === 'function' ? toJPY(ccyGroups[c].mk, c) : (c === 'JPY' ? ccyGroups[c].mk : 0)), 0));
       const grandPrJpy = Math.ceil(totJpy - totCostJpy);
       const grandPcCls = grandPrJpy > 0 ? 'pv-pos' : grandPrJpy < 0 ? 'pv-neg' : 'pv-zero';
       tfootHtml += _tfootRow(
-        '≈JPY', { sub: grandJpy, tax: grandTax, mk: totMk },
+        '≈JPY', { sub: grandJpy, tax: grandTax, mk: grandMkJpy },
         ' pv-grand-total', true,
         fmtRaw(grandPrJpy), `pv-pr ${grandPcCls}`
       );
@@ -431,7 +441,7 @@
     updatePreviewTax();
     // Apply saved customization
     initPreviewCustomize();
-    applyPreviewCustomize();
+    applyPreviewCustomize(); // updateModeBanner / has-sensitive はこの中で呼ばれる
     // Hook up change listeners (attach only once via flag)
     if (!document.getElementById('pvCustomizeWrap')?.dataset.listenerSet) {
       document.querySelectorAll('.pv-col-chk, .pv-sec-chk').forEach(chk => {
@@ -455,21 +465,30 @@
     const rateLbl = document.getElementById('pvTaxRateLabel');
     if (rateLbl) rateLbl.textContent = isExempt ? '0%（輸出免税）' : '10%（標準）';
     // 行ごとの消費税セルを更新（課税行のみ計算）
-    let totTax = 0;
+    let totTaxJpy = 0;
+    const perCcyTax = {};
     document.querySelectorAll('#previewTable .pv-tax-cell').forEach(td => {
       const sub   = parseFloat(td.dataset.sub) || 0;
       const taxed = td.dataset.taxed === '1';
+      const ccy   = td.dataset.ccy || 'JPY';
       if (!taxed) { td.textContent = ''; return; }
       const amt = sub * rate;
-      totTax += amt;
+      perCcyTax[ccy] = (perCcyTax[ccy] || 0) + amt;
+      totTaxJpy += (typeof toJPY === 'function') ? toJPY(amt, ccy) : (ccy === 'JPY' ? amt : 0);
       td.textContent = fmtRaw(amt);
     });
-    // 合計行の消費税セル
-    const totTaxEl = document.querySelector('#previewTable .pv-tax-total');
-    if (totTaxEl) totTaxEl.textContent = fmtRaw(totTax);
-    // 底部サマリ（消費税額・税込合計）
-    // ※ totalSub（全行合計）ではなく、課税行のみを集計した totTax を使う
-    const tax   = totTax;
+    // 合計行の消費税セル（通貨別）
+    document.querySelectorAll('#previewTable .pv-tax-total[data-ccy]').forEach(td => {
+      const ccy = td.dataset.ccy;
+      if (ccy === '≈JPY') {
+        td.textContent = totTaxJpy > 0 ? fmtRaw(Math.ceil(totTaxJpy)) : '—';
+      } else {
+        const t = perCcyTax[ccy] || 0;
+        td.textContent = t > 0 ? fmtRaw(t) : '—';
+      }
+    });
+    // 底部サマリ（消費税額・税込合計）JPY換算ベースで集計
+    const tax   = totTaxJpy;
     const total = totalSub + tax;
     const taxEl   = document.getElementById('pvTaxAmount');
     const totalEl = document.getElementById('pvTaxTotal');
@@ -504,7 +523,7 @@
       const show = chk.checked;
       // thead/tbody は nth-child で制御（1セル=1列のため位置が一致）
       indices.forEach(ci => {
-        table.querySelectorAll(`thead tr th:nth-child(${ci + 1}), tbody tr td:nth-child(${ci + 1})`).forEach(cell => {
+        table.querySelectorAll(`thead tr th:nth-child(${ci + 1}), tbody tr:not(.pv-subtotal-sep):not(.pv-table-remark-row) td:nth-child(${ci + 1})`).forEach(cell => {
           cell.style.display = show ? '' : 'none';
         });
       });
@@ -551,6 +570,12 @@
       settings[chk.dataset.col || chk.dataset.sec] = chk.checked;
     });
     localStorage.setItem(PV_CUSTOMIZE_KEY, JSON.stringify(settings));
+
+    // 透かし・モードバナー更新
+    const wrap = document.getElementById('previewTableWrap');
+    const sensitive = isSensitiveOn();
+    wrap?.classList.toggle('has-sensitive', sensitive);
+    updateModeBanner(sensitive);
   }
 
   function initPreviewCustomize() {
@@ -563,6 +588,68 @@
         if (key in settings) chk.checked = settings[key];
       });
     } catch (_) { /* ignore */ }
+  }
+
+  function updateModeBanner(sensitive) {
+    const banner = document.getElementById('pvModeBanner');
+    if (!banner) return;
+    if (sensitive == null) sensitive = isSensitiveOn();
+    if (sensitive) {
+      banner.className = 'pv-mode-banner pv-mode-internal';
+      banner.textContent = '社内用モード（原価・乗せ幅・利益列が含まれています）— 客先への送付には使用しないでください';
+    } else {
+      banner.className = 'pv-mode-banner pv-mode-client';
+      banner.textContent = '客先提示用モード（機密列は非表示）';
+    }
+  }
+
+  function sensitiveColumnsGate(label) {
+    if (!isSensitiveOn()) return true;
+    return confirm(
+      `⚠️ ${label}：原価・乗せ幅・利益列が含まれています。\n\n` +
+      `客先への送付には使用しないでください。\n` +
+      `社内用として出力しますか？`
+    );
+  }
+
+  function _clientNoteGate() {
+    const hasNote = collectData().some(d => d.note && d.note.trim());
+    if (!hasNote) return true;
+    return confirm(
+      '📝 備考欄に内容が入力されています。\n\n' +
+      '原価・社内情報が含まれていないか確認してください。\n\n' +
+      'このまま客先用として出力しますか？'
+    );
+  }
+
+  function _withClientColumns(fn) {
+    const saved = {};
+    document.querySelectorAll('.pv-col-chk').forEach(chk => { saved[chk.dataset.col] = chk.checked; });
+    ['pay', 'mk', 'profit'].forEach(k => {
+      const chk = document.querySelector(`.pv-col-chk[data-col="${k}"]`);
+      if (chk) chk.checked = false;
+    });
+    applyPreviewCustomize();
+    try { fn(); }
+    finally {
+      document.querySelectorAll('.pv-col-chk').forEach(chk => {
+        if (chk.dataset.col in saved) chk.checked = saved[chk.dataset.col];
+      });
+      applyPreviewCustomize();
+    }
+  }
+
+  function exportExcelAsClient() {
+    if (!_clientNoteGate()) return;
+    _withClientColumns(() => exportExcel());
+  }
+
+  function exportPDFAsClient() {
+    if (!_clientNoteGate()) return;
+    _withClientColumns(() => {
+      if (!preOutputValidationGate('客先用 PDF 出力')) return;
+      window.print();
+    });
   }
 
   function closePreview()  { document.getElementById('previewOverlay').classList.remove('open'); }
@@ -630,6 +717,7 @@
     const data = collectData();
     if (!data.length) return;
     if (!preOutputValidationGate('クリップボードコピー')) return;
+    if (!sensitiveColumnsGate('クリップボードコピー')) return;
     const hdr = getQuoteHeader();
     let totCost = 0, totBill = 0, totMk = 0;
     data.forEach(d => { totCost += d.cost; totBill += d.bill; totMk += d.mk; });
@@ -682,6 +770,7 @@
   // ========== PDF 出力 ==========
   function exportPDF() {
     if (!preOutputValidationGate('PDF 出力（印刷）')) return;
+    if (!sensitiveColumnsGate('PDF 出力')) return;
     // @media print CSS がプレビュー以外を非表示にする
     window.print();
   }
@@ -716,6 +805,7 @@
       return;
     }
     if (!preOutputValidationGate('Excel 出力')) return;
+    if (!sensitiveColumnsGate('Excel 出力')) return;
     const allRows = collectAllRows();
     const data = allRows.filter(r => r._type === 'data');
     if (!data.length) { alert('行がありません。'); return; }
