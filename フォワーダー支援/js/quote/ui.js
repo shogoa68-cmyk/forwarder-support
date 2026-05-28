@@ -150,6 +150,34 @@
       .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
   }
 
+  // ========== テーブル上部 為替レートバー ==========
+  // JPY換算に使われている非JPY通貨のレートをコンパクト表示
+  window.renderQuoteFxBar = function() {
+    const bar = document.getElementById('quoteFxBar');
+    if (!bar) return;
+    // テーブル内で使用中の通貨を収集
+    const used = new Set();
+    document.querySelectorAll('#tableBody tr').forEach(tr => {
+      const id = tr.id.replace('row-', '');
+      const pc = document.getElementById(`pc-${id}`)?.value;
+      const bc = document.getElementById(`bc-${id}`)?.value;
+      if (pc && pc !== 'JPY') used.add(pc);
+      if (bc && bc !== 'JPY') used.add(bc);
+    });
+    const order = ['USD','EUR','GBP','CNY'];
+    const list = [...used].sort((a,b)=>order.indexOf(a)-order.indexOf(b));
+    if (!list.length) { bar.style.display = 'none'; bar.innerHTML = ''; return; }
+    bar.style.display = 'flex';
+    const auto = (typeof _fxAutoMode !== 'undefined' && _fxAutoMode);
+    bar.innerHTML = '<span class="fx-bar-icon">💱 換算レート</span>'
+      + list.map(c => {
+          const r = (typeof _fxRates !== 'undefined' && _fxRates[c]) ? _fxRates[c] : null;
+          return `<span class="fx-bar-rate"><b>1 ${c}</b> = ${r ? r.toLocaleString() : '—'} 円</span>`;
+        }).join('')
+      + `<span class="fx-bar-src">${auto ? '🔄 自動取得' : '✎ 手動'}</span>`
+      + `<button type="button" class="fx-bar-edit" onclick="document.getElementById('fxRateDetails').open=true; renderFxPanel(); document.getElementById('fxRateDetails').scrollIntoView({block:'center',behavior:'smooth'});" title="為替レートを編集">設定</button>`;
+  };
+
   // ========== 為替レートパネル ==========
   function renderFxPanel() {
     const grid = document.getElementById('fxRateGrid');
@@ -1139,7 +1167,8 @@
 
       // ---- doneボタン状態（廃止）：旧 JSON との互換のため doneStates は読み飛ばす ----
 
-      // ---- calc行復元 ----
+      // ---- calc行復元（旧サイズ計算パネル。無い環境ではスキップ） ----
+      if (document.getElementById('calcBody')) {
       document.getElementById('calcBody').innerHTML = '';
       calcRowCount = 0;
       (data.calcRows || []).forEach(row => {
@@ -1154,6 +1183,7 @@
         if (row.kg  !== '') tr.querySelector('.calc-kg').value    = row.kg;
         if (row.stack)      tr.querySelector('.calc-stack').value = row.stack;
       });
+      }
 
       // ---- グレーアウト状態更新 ----
       document.querySelectorAll('#tableBody tr').forEach(tr => {
@@ -1430,7 +1460,7 @@
   }
 
   function initCargoSort() {
-    _CARGO_GRIDS.forEach(({ id }) => _initGridSort(id));
+    // 並び替え機能は廃止（ドラッグ無効）。順序は CARGO_FIELD_ORDER の既定値で固定。
   }
 
 
@@ -1444,6 +1474,7 @@
       return [...DEFAULT_PACKINGS, ...saved.filter(p => !DEFAULT_PACKINGS.includes(p))];
     } catch(e) { return DEFAULT_PACKINGS; }
   }
+  window.getPackingList = getPackingList;
 
   function renderPackingPreset() {
     const sel = document.getElementById('cond-packing-preset');
@@ -1596,8 +1627,333 @@
     renderPackingPreset();
     restoreLayoutScale();      // 大/中/小 スケールを復元
     refreshBulkCatSelect();    // 「選択行 → カテゴリ一括変更」セレクトを初期構築
+    initQuoteViewMode();       // STEP A: 客先/社内モード復元
+    initQuoteSectionCollapse(); // 上部セクションの折り畳み状態を復元
+    initSectionHelpTooltips(); // 各セクションの説明文を ? アイコンのツールチップ化
+    initQspCaseInfo();         // 案件情報の右カラム常時表示
+    if (typeof syncHazmatPanel === 'function') syncHazmatPanel(); // 危険品パネルの初期表示
+    if (typeof syncMultiEntryFields === 'function') syncMultiEntryFields(); // コンテナ・荷姿の複数エントリ復元
     window.updateQuoteSummary();
   }
+
+  // ===== 案件情報（管理番号入力）を右サマリパネルに常時表示 =====
+  function fmtJpDate(iso) {
+    if (!iso) return '';
+    const m = String(iso).match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (!m) return iso;
+    return `${m[1]}.${m[2]}.${m[3]}`;
+  }
+  function updateQspCaseInfo() {
+    const get = id => (document.getElementById(id)?.value || '').trim();
+    const ref      = get('qf-ref');
+    const customer = get('qf-customer');
+    const person   = get('qf-person');
+    const date     = get('qf-date');
+    const valid    = get('qf-valid-until');
+
+    const setRow = (rowId, valEl, val, transform) => {
+      const row = document.getElementById(rowId);
+      const v = document.getElementById(valEl);
+      if (!row || !v) return;
+      const isEmpty = !val;
+      row.setAttribute('data-empty', isEmpty ? 'true' : 'false');
+      if (isEmpty) {
+        v.textContent = '—';
+      } else {
+        v.innerHTML = transform ? transform(val) : escapeHtml(val);
+      }
+    };
+
+    // ref / customer はそのまま
+    setRow('qspCaseInfo', 'qspCaseRef', ref);
+    // Actually use sibling rows: simpler to address by inner data-empty container
+    const rowRef      = document.querySelector('#qspCaseRef')?.parentElement;
+    const rowCustomer = document.querySelector('#qspCaseCustomer')?.parentElement;
+    const rowPerson   = document.querySelector('#qspCasePerson')?.parentElement;
+    const rowDate     = document.querySelector('#qspCaseDate')?.parentElement;
+    const rowValid    = document.querySelector('#qspCaseValid')?.parentElement;
+
+    const updateRow = (row, valEl, val, suffix) => {
+      if (!row || !valEl) return;
+      const isEmpty = !val;
+      row.setAttribute('data-empty', isEmpty ? 'true' : 'false');
+      if (isEmpty) {
+        valEl.textContent = '—';
+      } else {
+        valEl.innerHTML = escapeHtml(val) + (suffix ? `<span class="qsp-case-value-suffix">${suffix}</span>` : '');
+      }
+    };
+    updateRow(rowRef,      document.getElementById('qspCaseRef'),      ref);
+    updateRow(rowCustomer, document.getElementById('qspCaseCustomer'), customer);
+    // 出力時に「様」が付くことを示すために suffix を表示
+    updateRow(rowPerson,   document.getElementById('qspCasePerson'),   person, person ? '様' : '');
+    updateRow(rowDate,     document.getElementById('qspCaseDate'),     fmtJpDate(date));
+    updateRow(rowValid,    document.getElementById('qspCaseValid'),    fmtJpDate(valid));
+
+    // 有効期限切れチェック
+    if (rowValid) {
+      rowValid.classList.remove('is-expired');
+      if (valid) {
+        const today = new Date();
+        today.setHours(0,0,0,0);
+        const validDate = new Date(valid + 'T00:00:00');
+        if (validDate < today) rowValid.classList.add('is-expired');
+      }
+    }
+  }
+  function escapeHtml(s) {
+    return String(s)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+  function initQspCaseInfo() {
+    const ids = ['qf-ref', 'qf-customer', 'qf-person', 'qf-date', 'qf-valid-until'];
+    ids.forEach(id => {
+      const el = document.getElementById(id);
+      if (!el || el.dataset.qspBound) return;
+      el.dataset.qspBound = '1';
+      el.addEventListener('input', updateQspCaseInfo);
+      el.addEventListener('change', updateQspCaseInfo);
+    });
+    updateQspCaseInfo();
+  }
+  // 外部から呼ぶ用（プリセット読込・JSONインポート時に必要）
+  window.updateQspCaseInfo = updateQspCaseInfo;
+
+  // ===== 各セクションの説明文を ? ボタンのホバーツールチップに変換 =====
+  function initSectionHelpTooltips() {
+    const sections = document.querySelectorAll('#tab-quote-make .condition-section');
+    sections.forEach(sec => {
+      const h2 = sec.querySelector('h2');
+      const desc = sec.querySelector('.section-desc');
+      if (!h2 || !desc) return;
+      // 既に処理済みならスキップ
+      if (sec.querySelector('.section-help-wrap')) return;
+
+      // ? ボタンとラッパを生成
+      const wrap = document.createElement('span');
+      wrap.className = 'section-help-wrap';
+
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'section-help-btn';
+      btn.textContent = '?';
+      btn.setAttribute('aria-label', 'このセクションの説明');
+      btn.tabIndex = 0;
+      // 折り畳みヘッダー内にある場合、クリックがトグルに伝播しないように
+      btn.addEventListener('click', (e) => e.stopPropagation());
+
+      // ツールチップ用に説明文を移動
+      desc.classList.add('section-desc-tip');
+
+      wrap.appendChild(btn);
+      wrap.appendChild(desc);
+      h2.appendChild(wrap);
+    });
+  }
+
+  // ===== STEP A: 客先モード／社内モード 切替 =====
+  // customer = 客先提示／画面共有用（支払い・乗せ幅・利益・サブコン非表示）
+  // internal = 社内編集用（すべて表示）
+  window.setQuoteViewMode = function(mode) {
+    if (mode !== 'customer' && mode !== 'internal') mode = 'internal';
+    const table = document.getElementById('quoteTable');
+    const tab = document.getElementById('tab-quote-make');
+    if (!table) return;
+    table.classList.toggle('customer-mode', mode === 'customer');
+    if (tab) tab.classList.toggle('qvm-customer', mode === 'customer');
+    document.querySelectorAll('[data-qvm]').forEach(b => {
+      b.classList.toggle('is-on', b.dataset.qvm === mode);
+    });
+    try { localStorage.setItem('quoteViewMode', mode); } catch(e) {}
+    if (typeof quoteShowToast === 'function') {
+      quoteShowToast(
+        mode === 'customer'
+          ? '👤 客先モードに切替 — 仕入・利益・サブコン列を非表示'
+          : '🔓 社内モードに切替 — 全列表示',
+        'info', 2200
+      );
+    }
+  };
+
+  function initQuoteViewMode() {
+    let saved = null;
+    try { saved = localStorage.getItem('quoteViewMode'); } catch(e) {}
+    const mode = (saved === 'customer') ? 'customer' : 'internal';
+    window.setQuoteViewMode(mode);
+  }
+
+  // ===== 見積テーブルより上のセクションの折り畳みトグル =====
+  window.toggleQuoteSection = function(id) {
+    const sec = document.getElementById(id);
+    if (!sec) return;
+    const collapsed = sec.classList.toggle('collapsed');
+    try {
+      const st = JSON.parse(localStorage.getItem('quoteSectionCollapse_v1') || '{}');
+      st[id] = collapsed;
+      localStorage.setItem('quoteSectionCollapse_v1', JSON.stringify(st));
+    } catch(e) {}
+    if (collapsed) updateSectionSummaries();
+  };
+
+  // 折り畳み時のヘッダー要約を更新
+  function updateSectionSummaries() {
+    // 管理番号
+    const g = id => (document.getElementById(id)?.value || '').trim();
+    const refParts = [g('qf-ref'), g('qf-customer'), g('qf-person') && (g('qf-person') + ' 様')].filter(Boolean);
+    const sumRef = document.getElementById('sumRef');
+    if (sumRef) sumRef.textContent = refParts.length ? '— ' + refParts.join(' / ') : '— 未入力';
+
+    // 引き合い条件
+    const condParts = [];
+    const inco = g('cond-incoterms'); if (inco) condParts.push(inco);
+    if (typeof _currentDirection !== 'undefined' && _currentDirection) {
+      condParts.push(_currentDirection === 'export' ? '輸出' : '輸入');
+    }
+    if (typeof _currentTransport !== 'undefined' && _currentTransport) {
+      let m = _currentTransport === 'air' ? 'Air' : 'Sea';
+      if (_currentTransport !== 'air' && typeof _currentSeaSub !== 'undefined' && _currentSeaSub) {
+        m += ' ' + _currentSeaSub.toUpperCase();
+      }
+      condParts.push(m);
+    }
+    const cargo = g('cond-cargo'); if (cargo) condParts.push(cargo);
+    // コンテナ要約（hidden data）
+    try {
+      const cd = JSON.parse(document.getElementById('cond-container-data')?.value || '[]');
+      if (cd.length) condParts.push(cd.map(e => `${e.type}×${e.count}`).join('・'));
+    } catch(e) {}
+    const sumCond = document.getElementById('sumCond');
+    if (sumCond) sumCond.textContent = condParts.length ? '— ' + condParts.join(' / ') : '— 未入力';
+
+    // 貨物情報
+    const cargoParts = [];
+    if (cargo) cargoParts.push(cargo);
+    const hs = g('cond-hs'); if (hs) cargoParts.push('HS ' + hs);
+    const hazmat = g('cond-hazmat'); if (hazmat && hazmat !== 'なし（一般貨物）') cargoParts.push(hazmat);
+    const sumCargo = document.getElementById('sumCargo');
+    if (sumCargo) sumCargo.textContent = cargoParts.length ? '— ' + cargoParts.join(' / ') : '— 未入力';
+
+    // 物量情報
+    const volParts = [];
+    try {
+      const cd = JSON.parse(document.getElementById('cond-container-data')?.value || '[]');
+      if (cd.length) volParts.push(cd.map(e => `${e.type}×${e.count}`).join('・'));
+    } catch(e) {}
+    try {
+      const pk = JSON.parse(document.getElementById('cond-packing-data')?.value || '[]');
+      const named = pk.filter(e => e.pkg);
+      if (named.length) volParts.push(named.map(e => `${e.pkg}×${e.qty||1}`).join('・'));
+    } catch(e) {}
+    const sumVolume = document.getElementById('sumVolume');
+    if (sumVolume) sumVolume.textContent = volParts.length ? '— ' + volParts.join(' / ') : '— 未入力';
+  }
+  window.updateSectionSummaries = updateSectionSummaries;
+
+  // 起動時に保存済みの折り畳み状態を復元
+  function initQuoteSectionCollapse() {
+    let st = {};
+    try { st = JSON.parse(localStorage.getItem('quoteSectionCollapse_v1') || '{}'); } catch(e) {}
+    ['section-ref', 'section-cond', 'section-cargo', 'section-volume'].forEach(id => {
+      const sec = document.getElementById(id);
+      if (sec && st[id]) sec.classList.add('collapsed');
+    });
+    updateSectionSummaries();
+
+    // 入力完了 → 自動折り畳み：見積もりテーブルへ入ったら、内容のある上部セクションを畳む
+    const tableSec = document.getElementById('section-table');
+    if (tableSec && !tableSec.dataset.autoCollapseBound) {
+      tableSec.dataset.autoCollapseBound = '1';
+      tableSec.addEventListener('focusin', () => {
+        ['section-ref', 'section-cond', 'section-cargo', 'section-volume'].forEach(id => {
+          const sec = document.getElementById(id);
+          if (!sec || sec.classList.contains('collapsed')) return;
+          // 何か入力があるときだけ自動で畳む
+          if (_sectionHasContent(id)) {
+            sec.classList.add('collapsed');
+            try {
+              const s = JSON.parse(localStorage.getItem('quoteSectionCollapse_v1') || '{}');
+              s[id] = true;
+              localStorage.setItem('quoteSectionCollapse_v1', JSON.stringify(s));
+            } catch(e) {}
+          }
+        });
+        updateSectionSummaries();
+      });
+    }
+  }
+
+  // セクションに意味のある入力があるか
+  function _sectionHasContent(id) {
+    const g = fid => (document.getElementById(fid)?.value || '').trim();
+    if (id === 'section-ref') {
+      return !!(g('qf-ref') || g('qf-customer') || g('qf-person'));
+    }
+    if (id === 'section-cond') {
+      if (g('cond-incoterms')) return true;
+      if (typeof _currentDirection !== 'undefined' && _currentDirection) return true;
+      if (typeof _currentTransport !== 'undefined' && _currentTransport) return true;
+      return false;
+    }
+    if (id === 'section-cargo') {
+      if (g('cond-cargo') || g('cond-hs')) return true;
+      if (g('cond-hazmat') && g('cond-hazmat') !== 'なし（一般貨物）') return true;
+      return false;
+    }
+    if (id === 'section-volume') {
+      try { if (JSON.parse(document.getElementById('cond-container-data')?.value || '[]').length) return true; } catch(e) {}
+      try { if (JSON.parse(document.getElementById('cond-packing-data')?.value || '[]').length) return true; } catch(e) {}
+      return false;
+    }
+    return false;
+  }
+
+  // ===== ツールバー ドロップダウンメニュー =====
+  window.toggleTbMenu = function(name, ev) {
+    if (ev) ev.stopPropagation();
+    const menus = document.querySelectorAll('#tab-quote-make .tb-menu');
+    menus.forEach(m => {
+      const isTarget = m.dataset.tbMenu === name;
+      const open = isTarget && !m.classList.contains('is-open');
+      m.classList.toggle('is-open', open);
+      const btn = m.querySelector('.save-btn-menu');
+      if (btn) btn.classList.toggle('is-open', open);
+    });
+  };
+
+  window.closeTbMenus = function() {
+    document.querySelectorAll('#tab-quote-make .tb-menu.is-open').forEach(m => {
+      m.classList.remove('is-open');
+      const btn = m.querySelector('.save-btn-menu');
+      if (btn) btn.classList.remove('is-open');
+    });
+  };
+
+  // メニュー外クリックで閉じる
+  document.addEventListener('click', (ev) => {
+    if (!ev.target.closest('#tab-quote-make .tb-menu')) {
+      window.closeTbMenus();
+    }
+  });
+  // Escで閉じる
+  document.addEventListener('keydown', (ev) => {
+    if (ev.key === 'Escape') window.closeTbMenus();
+  });
+
+  // ===== 「このタブの使い方」をメニューから表示 =====
+  window.openQuoteTabHelp = function() {
+    const el = document.getElementById('quoteTabHelp');
+    if (!el) return;
+    el.style.display = '';
+    el.open = true;
+    // スムーズに位置合わせ（スクロール）
+    const rect = el.getBoundingClientRect();
+    const top = window.scrollY + rect.top - 80;
+    window.scrollTo({ top, behavior: 'smooth' });
+  };
 
   // ===== Phase 2b：見積タブ初回表示時の遅延初期化集約 =====
   window.__quoteInitialized = false;

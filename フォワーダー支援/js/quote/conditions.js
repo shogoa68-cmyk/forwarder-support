@@ -6,25 +6,48 @@
 
   function clearConditions() {
     if (!confirm('貨物情報・引き合い条件をクリアしますか？')) return;
-    ['z2Pol','z2Pod','cond-origin','cond-dest','cond-cargo','cond-hs','cond-hs-basic','cond-hs-pref','cond-hs-pref-note',
-     'cond-weight','cond-volume','cond-packing','cond-packing-preset','condFreeText',
+    ['z2Carrier','z2Pol','z2Pod','cond-origin','cond-dest','cond-cargo','cond-hs','cond-hs-basic','cond-hs-pref','cond-hs-pref-note',
+     'cond-packing','cond-packing-preset','condFreeText',
      'cond-origin-country','cond-dest-country','z1Place','z1Country','z3Place','z3Country',
      'cond-container-count']
       .forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
     ['cond-incoterms','cond-mode','cond-container-type','cond-hazmat']
       .forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
-    document.getElementById('calcResultsPanel').style.display = 'none';
+    // コンテナ・荷姿・航路の複数エントリもクリア
+    _containerEntries = [];
+    _packingEntries = [];
+    _routeEntries = [];
+    if (typeof _renderContainerEntries === 'function') _renderContainerEntries();
+    if (typeof _renderPackingEntries === 'function') _renderPackingEntries();
+    if (typeof _renderRouteEntries === 'function') _renderRouteEntries();
+    if (typeof syncHazmatPanel === 'function') syncHazmatPanel();
+    const _crp = document.getElementById('calcResultsPanel');
+    if (_crp) _crp.style.display = 'none';
   }
 
   function getConditions() {
     const g = id => document.getElementById(id)?.value.trim() || '';
     const _isFcl = _currentTransport !== 'air' && _currentSeaSub !== 'lcl';
-    const ctype  = _isFcl ? g('cond-container-type') : '';
-    const ccount = _isFcl ? g('cond-container-count') : '';
-    const container = ctype && ccount ? `${ctype} × ${ccount}` : (ctype || '');
+    // コンテナ：複数エントリ対応（未登録なら単体エディタ値にフォールバック）
+    let container = '';
+    if (_isFcl) {
+      if (_containerEntries.length) {
+        container = _containerEntries.map(e => `${e.type} × ${e.count}`).join('、');
+      } else {
+        const ctype  = g('cond-container-type');
+        const ccount = g('cond-container-count');
+        container = ctype && ccount ? `${ctype} × ${ccount}` : (ctype || '');
+      }
+    }
+    // 荷姿：明細（荷姿×個数）対応。未登録なら空
+    const packing = _packingEntries.length
+      ? _packingEntries.filter(e => e.pkg).map(e => `${e.pkg}×${e.qty||1}`).join('、')
+      : '';
     // ゾーンビルダーから積み地・揚げ地・発地・仕向地を取得
-    const pol    = g('z2Pol');
-    const pod    = g('z2Pod');
+    // 航路：複数登録があれば先頭航路を代表 POL/POD に（無ければ単体入力欄）
+    const _r0 = (_routeEntries && _routeEntries.length) ? _routeEntries[0] : null;
+    const pol    = _r0 ? _r0.pol : g('z2Pol');
+    const pod    = _r0 ? _r0.pod : g('z2Pod');
     const z1p    = g('z1Place');   const z1c = g('z1Country');
     const z3p    = g('z3Place');   const z3c = g('z3Country');
     const origin = [z1p, z1c].filter(Boolean).join(', ');
@@ -34,8 +57,8 @@
       incoterms: g('cond-incoterms'), mode: g('cond-mode'), container,
       cargo: g('cond-cargo'), hsCode: g('cond-hs'),
       hsBasic: g('cond-hs-basic'), hsPref: g('cond-hs-pref'), hsPrefNote: g('cond-hs-pref-note'),
-      weight: g('cond-weight'),
-      volume: g('cond-volume'), packing: g('cond-packing'), hazmat: g('cond-hazmat'),
+      weight: (_lastCargoMetrics.kg > 0 ? `${_lastCargoMetrics.kg.toLocaleString()} kg` : ''),
+      volume: (_lastCargoMetrics.cbm > 0 ? `${_lastCargoMetrics.cbm.toFixed(3)} CBM` : ''), packing: packing, hazmat: g('cond-hazmat'),
       free: g('condFreeText'),
       direction: _currentDirection || '',   // 'export' | 'import' | ''
     };
@@ -172,6 +195,9 @@
     _rebuildTable(data);
     if (typeof updateTotals === 'function') updateTotals();
     if (typeof updateRouteModeIcon === 'function') updateRouteModeIcon();
+    if (typeof syncHazmatPanel === 'function') syncHazmatPanel();
+    if (typeof syncMultiEntryFields === 'function') syncMultiEntryFields();
+    if (typeof window.updateQspCaseInfo === 'function') window.updateQspCaseInfo();
   }
 
   function quoteUndo() {
@@ -393,13 +419,19 @@
       items.push({ cat: 'domestic',    name: '港湾諸費用（輸出）',      note: 'THC・ドキュメント費等', sv: '' });
     }
 
-    // Zone ② 幹線輸送（常に追加）
-    const carrier = document.getElementById('z2Carrier')?.value?.trim() || '';
-    const pol     = document.getElementById('z2Pol')?.value?.trim()     || '';
-    const pod     = document.getElementById('z2Pod')?.value?.trim()     || '';
-    const polpod  = [pol, pod].filter(Boolean).join(' → ') || 'ポート〜ポート';
-    items.push({ cat: 'ocean',     name: '海上運賃',       note: polpod,           sv: carrier });
-    items.push({ cat: 'surcharge', name: 'サーチャージ類', note: 'BAF/CAF/PSS 等', sv: carrier });
+    // Zone ② 幹線輸送（常に追加）。複数航路が登録されていれば各航路ごとに行を生成
+    const routes = (_routeEntries && _routeEntries.length) ? _routeEntries : [{
+      carrier: document.getElementById('z2Carrier')?.value?.trim() || '',
+      pol:     document.getElementById('z2Pol')?.value?.trim()     || '',
+      pod:     document.getElementById('z2Pod')?.value?.trim()     || '',
+    }];
+    const multiRoute = routes.length > 1;
+    routes.forEach((r, idx) => {
+      const polpod = [r.pol, r.pod].filter(Boolean).join(' → ') || 'ポート〜ポート';
+      const tag = multiRoute ? `【${r.carrier || '航路' + (idx + 1)}】 ` : '';
+      items.push({ cat: 'ocean',     name: tag + '海上運賃',       note: polpod,           sv: r.carrier });
+      items.push({ cat: 'surcharge', name: tag + 'サーチャージ類', note: 'BAF/CAF/PSS 等', sv: r.carrier });
+    });
 
     // Zone ③ 到着地側
     if (_zone3On) {
@@ -553,6 +585,259 @@
       el.textContent = '';
       el.style.display = 'none';
     }
+  }
+
+  /** 危険品・特殊貨物 区分選択 → 追加入力パネル出し分け */
+  function onHazmatChange(val) {
+    const detail = document.getElementById('hazmatDetail');
+    if (!detail) return;
+    const panels = detail.querySelectorAll('.hazmat-panel');
+    let matched = null;
+    panels.forEach(p => {
+      const on = (p.dataset.hazmatPanel === val);
+      p.hidden = !on;
+      if (on) matched = p;
+    });
+    // 一般貨物 or 未選択 → パネル全体を隠す
+    detail.hidden = !matched;
+    // パネル種別で配色を切替
+    detail.classList.toggle('is-cold',  val === '温度管理品（冷蔵）' || val === '温度管理品（冷凍）');
+    detail.classList.toggle('is-heavy', val === '重量物・大型貨物');
+    detail.classList.toggle('is-other', val === 'その他（特記事項参照）');
+  }
+
+  /** 起動時・データ復元後に危険品パネルの表示状態を同期 */
+  function syncHazmatPanel() {
+    const sel = document.getElementById('cond-hazmat');
+    if (sel) onHazmatChange(sel.value);
+  }
+
+  // ========== コンテナ／荷姿 複数エントリ管理 ==========
+  // 「入力 → 追加 → 行追加」を繰り返して複数のコンテナ種類・荷姿を登録できる
+  let _containerEntries = [];   // [{ type:"20'GP", count:2 }, ...]
+  let _packingEntries   = [];   // ["カートン", "パレット", ...]
+
+  function _renderContainerEntries() {
+    const list = document.getElementById('containerEntryList');
+    const data = document.getElementById('cond-container-data');
+    if (data) data.value = JSON.stringify(_containerEntries);
+    if (!list) return;
+    if (!_containerEntries.length) {
+      list.innerHTML = '<span class="me-empty">未登録 — 種類と本数を選んで「＋ 追加」（複数サイズ可）</span>';
+      return;
+    }
+    list.innerHTML = _containerEntries.map((e, i) =>
+      `<span class="me-chip"><span class="me-chip-text">${_escMulti(e.type)} <b>× ${e.count}</b></span>`
+      + `<button type="button" class="me-chip-del" onclick="removeContainerEntry(${i})" title="削除">×</button></span>`
+    ).join('');
+  }
+
+  function addContainerEntry() {
+    const tEl = document.getElementById('cond-container-type');
+    const cEl = document.getElementById('cond-container-count');
+    const type = (tEl?.value || '').trim();
+    const count = parseInt(cEl?.value, 10) || 1;
+    if (!type) { if (typeof quoteShowToast==='function') quoteShowToast('⚠️ コンテナ種類を選択してください', 'warn', 1800); tEl?.focus(); return; }
+    const existing = _containerEntries.find(e => e.type === type);
+    if (existing) existing.count += count;
+    else _containerEntries.push({ type, count });
+    _renderContainerEntries();
+    // エディタをリセット（次の入力へ）
+    if (tEl) tEl.value = '';
+    if (cEl) cEl.value = '1';
+    tEl?.focus();
+    if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
+    if (typeof scheduleSnapshot === 'function') scheduleSnapshot();
+  }
+
+  function removeContainerEntry(i) {
+    _containerEntries.splice(i, 1);
+    _renderContainerEntries();
+    if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
+    if (typeof scheduleSnapshot === 'function') scheduleSnapshot();
+  }
+
+  function _renderPackingEntries() {
+    const body = document.getElementById('cargoDetailBody');
+    const data = document.getElementById('cond-packing-data');
+    if (data) data.value = JSON.stringify(_packingEntries);
+    // datalist（荷姿候補）を用意
+    const dl = document.getElementById('packingOptions');
+    if (dl && !dl.dataset.filled) {
+      const list = (typeof window.getPackingList === 'function')
+        ? window.getPackingList()
+        : ['カートン','パレット','ドラム缶','袋（バッグ）','木箱','バルク'];
+      dl.innerHTML = list.map(p => `<option value="${_escMulti(p)}"></option>`).join('');
+      dl.dataset.filled = '1';
+    }
+    if (!body) return;
+    if (!_packingEntries.length) {
+      body.innerHTML = '<tr class="cargo-detail-empty"><td colspan="9">「＋ 荷姿を追加」で明細を登録（荷姿ごとに個数・サイズ・重量・段積みを管理）</td></tr>';
+      _updatePackingTotals();
+      return;
+    }
+    body.innerHTML = _packingEntries.map((e, i) => {
+      const cbm = _rowCbm(e);
+      return `<tr>
+        <td class="cd-pkg"><input type="text" list="packingOptions" value="${_escMulti(e.pkg||'')}" placeholder="カートン等" oninput="updatePackingRow(${i},'pkg',this.value)" /></td>
+        <td class="cd-qty"><input type="number" min="0" step="1" value="${e.qty??1}" oninput="updatePackingRow(${i},'qty',this.value)" /></td>
+        <td class="cd-dim"><input type="number" min="0" step="0.1" value="${e.l||''}" placeholder="0" oninput="updatePackingRow(${i},'l',this.value)" /></td>
+        <td class="cd-dim"><input type="number" min="0" step="0.1" value="${e.w||''}" placeholder="0" oninput="updatePackingRow(${i},'w',this.value)" /></td>
+        <td class="cd-dim"><input type="number" min="0" step="0.1" value="${e.h||''}" placeholder="0" oninput="updatePackingRow(${i},'h',this.value)" /></td>
+        <td class="cd-cbm" id="cdCbm-${i}">${cbm.toFixed(3)}</td>
+        <td class="cd-kg"><input type="number" min="0" step="0.1" value="${e.kg||''}" placeholder="0" oninput="updatePackingRow(${i},'kg',this.value)" /></td>
+        <td class="cd-stack">
+          <select onchange="updatePackingRow(${i},'stack',this.value)">
+            <option value="可"${e.stack==='可'?' selected':''}>可</option>
+            <option value="不可"${e.stack==='不可'?' selected':''}>不可</option>
+          </select>
+        </td>
+        <td class="cd-del"><button type="button" class="me-chip-del" onclick="removePackingRow(${i})" title="この行を削除">×</button></td>
+      </tr>`;
+    }).join('');
+    _updatePackingTotals();
+  }
+
+  function _rowCbm(e) {
+    const l = parseFloat(e.l) || 0, w = parseFloat(e.w) || 0, h = parseFloat(e.h) || 0;
+    const q = parseInt(e.qty, 10) || 0;
+    return (l * w * h / 1000000) * q; // cm³ → m³
+  }
+
+  function _updatePackingTotals() {
+    let totQty = 0, totCbm = 0, totKg = 0, totVolWt = 0;
+    _packingEntries.forEach(e => {
+      totQty += parseInt(e.qty, 10) || 0;
+      totCbm += _rowCbm(e);
+      totKg  += parseFloat(e.kg) || 0;
+      // 容積重量(kg) = 長さ×幅×高さ(cm) ÷ 6000 × 個数（航空 CW 用）
+      const l = parseFloat(e.l) || 0, w = parseFloat(e.w) || 0, h = parseFloat(e.h) || 0;
+      const q = parseInt(e.qty, 10) || 0;
+      totVolWt += (l * w * h / 6000) * q;
+    });
+    // R/T = max(CBM, 重量t)  ／  CW = max(実重量, 容積重量)
+    const rt = Math.max(totCbm, totKg / 1000);
+    const cw = Math.max(totKg, totVolWt);
+
+    const setText = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+    setText('cdTotQty', totQty.toLocaleString());
+    setText('cdTotCbm', totCbm.toFixed(3));
+    setText('cdTotKg',  totKg.toLocaleString());
+    setText('cdTotRt',  rt.toFixed(3));
+    setText('cdTotCw',  Math.round(cw).toLocaleString());
+
+    // 重量・容積（概算）欄は廃止。明細合計を直接保持してプレビュー等で参照
+    // hidden に R/T・CW も保持（プレビュー等で参照可能に）
+    _lastCargoMetrics = { cbm: totCbm, kg: totKg, rt, cw, qty: totQty };
+  }
+  let _lastCargoMetrics = { cbm: 0, kg: 0, rt: 0, cw: 0, qty: 0 };
+
+  function updatePackingRow(i, key, val) {
+    if (!_packingEntries[i]) return;
+    _packingEntries[i][key] = val;
+    if (document.getElementById('cond-packing-data')) {
+      document.getElementById('cond-packing-data').value = JSON.stringify(_packingEntries);
+    }
+    // CBM セルとフッターのみ更新（フォーカスを維持するため全再描画しない）
+    if (['qty','l','w','h'].includes(key)) {
+      const cell = document.getElementById('cdCbm-' + i);
+      if (cell) cell.textContent = _rowCbm(_packingEntries[i]).toFixed(3);
+    }
+    _updatePackingTotals();
+    if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
+    if (typeof scheduleSnapshot === 'function') scheduleSnapshot();
+  }
+
+  function addPackingRow() {
+    _packingEntries.push({ pkg:'', qty:1, l:'', w:'', h:'', kg:'', stack:'可' });
+    _renderPackingEntries();
+    // 追加した行の荷姿入力にフォーカス
+    const body = document.getElementById('cargoDetailBody');
+    const last = body?.querySelector('tr:last-child .cd-pkg input');
+    last?.focus();
+    if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
+    if (typeof scheduleSnapshot === 'function') scheduleSnapshot();
+  }
+
+  function removePackingRow(i) {
+    _packingEntries.splice(i, 1);
+    _renderPackingEntries();
+    if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
+    if (typeof scheduleSnapshot === 'function') scheduleSnapshot();
+  }
+
+  // hidden input（cond-container-data / cond-packing-data）から配列を復元して再描画
+  function syncMultiEntryFields() {
+    const cData = document.getElementById('cond-container-data');
+    try { _containerEntries = (cData && cData.value) ? JSON.parse(cData.value) : []; }
+    catch(e) { _containerEntries = []; }
+    if (!Array.isArray(_containerEntries)) _containerEntries = [];
+    const pData = document.getElementById('cond-packing-data');
+    try { _packingEntries = (pData && pData.value) ? JSON.parse(pData.value) : []; }
+    catch(e) { _packingEntries = []; }
+    if (!Array.isArray(_packingEntries)) _packingEntries = [];
+    // 旧形式（文字列配列）→ 明細オブジェクトへ移行
+    _packingEntries = _packingEntries.map(e =>
+      (typeof e === 'string') ? { pkg: e, qty: 1, l:'', w:'', h:'', kg:'', stack:'可' } : e
+    );
+    _renderContainerEntries();
+    _renderPackingEntries();
+    syncRouteEntries();
+  }
+
+  // ========== 幹線輸送：複数船会社・複数POL/POD 航路 ==========
+  let _routeEntries = [];   // [{ carrier, pol, pod }, ...]
+
+  function _renderRouteEntries() {
+    const data = document.getElementById('z2-routes-data');
+    if (data) data.value = JSON.stringify(_routeEntries);
+    const list = document.getElementById('z2RouteList');
+    if (!list) return;
+    if (!_routeEntries.length) { list.innerHTML = ''; return; }
+    list.innerHTML = _routeEntries.map((r, i) => {
+      const route = [r.pol, r.pod].filter(Boolean).join(' → ') || 'ポート未設定';
+      return `<span class="z2-route-chip">`
+        + `<span class="z2-route-carrier">${_escMulti(r.carrier || '—')}</span>`
+        + `<span class="z2-route-leg">${_escMulti(route)}</span>`
+        + `<button type="button" class="me-chip-del" onclick="removeRouteEntry(${i})" title="削除">×</button></span>`;
+    }).join('');
+  }
+
+  function addRouteEntry() {
+    const carrier = (document.getElementById('z2Carrier')?.value || '').trim();
+    const pol = (document.getElementById('z2Pol')?.value || '').trim();
+    const pod = (document.getElementById('z2Pod')?.value || '').trim();
+    if (!carrier && !pol && !pod) {
+      if (typeof quoteShowToast==='function') quoteShowToast('⚠️ キャリアまたはPOL/PODを入力してください', 'warn', 1800);
+      return;
+    }
+    _routeEntries.push({ carrier, pol, pod });
+    _renderRouteEntries();
+    // エディタをクリアして次の航路入力へ
+    ['z2Carrier','z2Pol','z2Pod'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+    if (typeof onZ2CarrierChange === 'function') onZ2CarrierChange();
+    document.getElementById('z2Carrier')?.focus();
+    if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
+    if (typeof scheduleSnapshot === 'function') scheduleSnapshot();
+  }
+
+  function removeRouteEntry(i) {
+    _routeEntries.splice(i, 1);
+    _renderRouteEntries();
+    if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
+    if (typeof scheduleSnapshot === 'function') scheduleSnapshot();
+  }
+  // 復元用
+  function syncRouteEntries() {
+    const data = document.getElementById('z2-routes-data');
+    try { _routeEntries = (data && data.value) ? JSON.parse(data.value) : []; }
+    catch(e) { _routeEntries = []; }
+    if (!Array.isArray(_routeEntries)) _routeEntries = [];
+    _renderRouteEntries();
+  }
+
+  function _escMulti(s) {
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
   }
 
   /** ゾーンカードのピース状態を読み取り、ルート図に反映 */

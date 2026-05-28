@@ -1907,7 +1907,7 @@
        初期化は js/app.js の switchTab() フックから window.initQuoteTab() を呼ぶ。 -->
   <div class="tab-content active" id="tab-quote-make">
 
-    <details class="tab-help">
+    <details class="tab-help" id="quoteTabHelp" style="display:none;">
       <summary>ℹ️ このタブの使い方・機能説明</summary>
       <div class="tab-help-body">
         <h4>📝 見積もり作成タブの全体像</h4>
@@ -1998,37 +1998,89 @@
     <!-- ========== 保存/読み込みツールバー ========== -->
     <div class="save-toolbar" id="saveToolbar">
       <span class="current-quote-name" id="currentQuoteName" title="現在編集中のプリセット名（読込・保存時に更新）">📝 新規見積</span>
+
+      <!-- 主要アクション：常時表示 -->
       <button class="save-btn save-btn-preview" onclick="openPreview()" title="見積をプレビュー表示・CSV/Excel/PDF出力はここから（Ctrl+P）">📋 プレビュー</button>
       <button class="save-btn save-btn-compare" onclick="openCompare()" title="保存済みプリセットを横並びで比較（売上・原価・利益）">📊 比較</button>
+
       <span class="save-toolbar-sep"></span>
-      <button class="save-btn save-btn-preset"
-              onclick="openPresetMgr()" title="入力パターンや一時保存の管理（Ctrl+S で上書き保存）">
-        🗂️ プリセット/一時保存
-      </button>
-      <label class="autosave-label" title="入力・変更から2秒後にブラウザへ自動保存します（同じブラウザ内のみ有効）">
-        <input type="checkbox" id="autoSaveChk" onchange="toggleAutoSave(this.checked)" />
-        自動保存
-        <span class="autosave-info">ⓘ</span>
-      </label>
+
+      <!-- 表示モード切替（常時表示） -->
+      <button class="save-btn save-btn-mode-internal is-on" data-qvm="internal" onclick="setQuoteViewMode('internal')" title="社内モード：支払い・乗せ幅・利益・サブコンなどすべて表示">🔓 社内</button>
+      <button class="save-btn save-btn-mode-customer" data-qvm="customer" onclick="setQuoteViewMode('customer')" title="客先モード：請求列だけを表示（画面共有・客先提示用）">👤 客先</button>
+
       <span class="save-toolbar-sep"></span>
-      <span class="save-toolbar-label">↺ 履歴</span>
-      <button class="save-btn save-btn-undo" id="btnQuoteUndo" onclick="quoteUndo()" disabled title="元に戻す (Ctrl+Z)">↶ 戻す</button>
-      <button class="save-btn save-btn-redo" id="btnQuoteRedo" onclick="quoteRedo()" disabled title="やり直す (Ctrl+Y / Ctrl+Shift+Z)">↷ 進む</button>
+
+      <!-- 履歴：アイコンのみで表示 -->
+      <button class="save-btn save-btn-icon save-btn-undo" id="btnQuoteUndo" onclick="quoteUndo()" disabled title="元に戻す (Ctrl+Z)">↶</button>
+      <button class="save-btn save-btn-icon save-btn-redo" id="btnQuoteRedo" onclick="quoteRedo()" disabled title="やり直す (Ctrl+Y / Ctrl+Shift+Z)">↷</button>
+
       <span class="save-toolbar-sep"></span>
-      <span class="save-toolbar-label">📁 ファイル</span>
-      <button class="save-btn save-btn-export" onclick="exportToFile()" title="JSONファイルにバックアップ（端末間共有・長期保管用。CSV/Excel/PDFはプレビューから）">
-        📤 JSON
-      </button>
-      <button class="save-btn save-btn-import" onclick="document.getElementById('importFileInput').click()" title="JSONファイルから見積データを読み込む">
-        📥 読込
-      </button>
-      <input type="file" id="importFileInput" accept=".json" style="display:none" onchange="importFromFile(event)" />
+
+      <!-- 保存/読込メニュー -->
+      <div class="tb-menu" data-tb-menu="save">
+        <button class="save-btn save-btn-menu" type="button" onclick="toggleTbMenu('save', event)" title="プリセット管理・JSON入出力・自動保存">
+          🗂️ 保存/読込 <span class="tb-caret">▾</span>
+        </button>
+        <div class="tb-menu-panel" id="tbMenuSave">
+          <button type="button" class="tb-menu-item" onclick="openPresetMgr(); closeTbMenus()">
+            <span class="tb-mi-icon">🗂️</span>
+            <span class="tb-mi-body">
+              <span class="tb-mi-title">プリセット / 一時保存を管理</span>
+              <span class="tb-mi-sub">入力パターン・一時保存の編集（Ctrl+S で上書き保存）</span>
+            </span>
+          </button>
+          <label class="tb-menu-item tb-menu-toggle" title="入力・変更から2秒後にブラウザへ自動保存します（同じブラウザ内のみ有効）">
+            <span class="tb-mi-icon">💾</span>
+            <span class="tb-mi-body">
+              <span class="tb-mi-title">自動保存</span>
+              <span class="tb-mi-sub">2秒後にブラウザへ自動保存（同じブラウザ内のみ有効）</span>
+            </span>
+            <input type="checkbox" id="autoSaveChk" onchange="toggleAutoSave(this.checked)" />
+          </label>
+          <div class="tb-menu-sep"></div>
+          <button type="button" class="tb-menu-item" onclick="exportToFile(); closeTbMenus()">
+            <span class="tb-mi-icon">📤</span>
+            <span class="tb-mi-body">
+              <span class="tb-mi-title">JSON エクスポート</span>
+              <span class="tb-mi-sub">バックアップ・端末間共有・長期保管用</span>
+            </span>
+          </button>
+          <button type="button" class="tb-menu-item" onclick="document.getElementById('importFileInput').click(); closeTbMenus()">
+            <span class="tb-mi-icon">📥</span>
+            <span class="tb-mi-body">
+              <span class="tb-mi-title">JSON 読込</span>
+              <span class="tb-mi-sub">JSONファイルから見積データを取り込む</span>
+            </span>
+          </button>
+          <input type="file" id="importFileInput" accept=".json" style="display:none" onchange="importFromFile(event)" />
+        </div>
+      </div>
+
       <span class="save-status" id="saveStatus"></span>
-      <span class="save-toolbar-sep"></span>
-      <span class="save-toolbar-label">📐 表示サイズ</span>
-      <button class="layout-scale-btn" data-scale="lg" onclick="setLayoutScale('lg')" title="大（スマホ向け）">大</button>
-      <button class="layout-scale-btn" data-scale="md" onclick="setLayoutScale('md')" title="中（タブレット向け）">中</button>
-      <button class="layout-scale-btn" data-scale="sm" onclick="setLayoutScale('sm')" title="小（デスクトップ向け）">小</button>
+
+      <!-- その他メニュー（表示サイズ等） -->
+      <div class="tb-menu tb-menu-right" data-tb-menu="more">
+        <button class="save-btn save-btn-menu save-btn-icon" type="button" onclick="toggleTbMenu('more', event)" title="表示サイズ・その他">
+          ⋯
+        </button>
+        <div class="tb-menu-panel" id="tbMenuMore">
+          <div class="tb-menu-section-label">📐 表示サイズ</div>
+          <div class="tb-menu-segrow">
+            <button type="button" class="tb-seg-btn layout-scale-btn" data-scale="lg" onclick="setLayoutScale('lg')" title="大（スマホ向け）">大</button>
+            <button type="button" class="tb-seg-btn layout-scale-btn" data-scale="md" onclick="setLayoutScale('md')" title="中（タブレット向け）">中</button>
+            <button type="button" class="tb-seg-btn layout-scale-btn" data-scale="sm" onclick="setLayoutScale('sm')" title="小（デスクトップ向け）">小</button>
+          </div>
+          <div class="tb-menu-sep"></div>
+          <button type="button" class="tb-menu-item" onclick="openQuoteTabHelp(); closeTbMenus()">
+            <span class="tb-mi-icon">ℹ️</span>
+            <span class="tb-mi-body">
+              <span class="tb-mi-title">このタブの使い方・機能説明</span>
+              <span class="tb-mi-sub">操作ガイド／用語集／ショートカット一覧</span>
+            </span>
+          </button>
+        </div>
+      </div>
     </div>
 
     <!-- ========== 自動保存 復元バナー ========== -->
@@ -2125,8 +2177,12 @@
       <div class="quote-main">
 
     <!-- ① 管理番号入力 -->
-    <div class="condition-section" id="section-ref">
-      <h2>🗂️ 管理番号入力</h2>
+    <div class="condition-section is-collapsible" id="section-ref">
+      <h2 class="section-toggle-head" onclick="toggleQuoteSection('section-ref')">
+        <span class="section-caret">▼</span>
+        <span class="section-toggle-title">🗂️ 管理番号入力</span>
+        <span class="section-collapsed-summary" id="sumRef"></span>
+      </h2>
       <div id="refBody">
         <p class="section-desc">案件を管理するための識別情報を入力します。<b>仮 REF #</b> は見積もり番号や問い合わせ番号など任意の形式で OK。後でフィルタリングや整理に使えます。<br>
         <span style="font-size:11px;color:var(--text-md);">💡 <b>担当</b>は<strong>敬称略（呼び捨て）</strong>で入力してください。プレビュー・Excel・コピー出力時に自動で「様」が付与されます。</span></p>
@@ -2161,36 +2217,38 @@
     </div>
 
     <!-- ② 引き合い条件・貨物情報（原文・整理・貨物フィールド・サイズ計算を統合） -->
-    <div class="condition-section" id="section-cond">
-      <h2>🚢 引き合い条件・貨物情報</h2>
+    <div class="condition-section is-collapsible" id="section-cond">
+      <h2 class="section-toggle-head" onclick="toggleQuoteSection('section-cond')">
+        <span class="section-caret">▼</span>
+        <span class="section-toggle-title">🚢 貿易条件・輸送モード</span>
+        <span class="section-collapsed-summary" id="sumCond"></span>
+      </h2>
 
       <div id="condBody">
         <p class="section-desc">まず<b>① インコタームズ</b>を選び、次に<b>② 輸出/輸入</b>と<b>③ 輸送モード</b>を選択し、<b>④ ゾーンカード</b>でサービス範囲をピースごとに組み立ててください。</p>
 
-        <div class="cond-inco-bar">
-          <label class="cond-inco-label">🔖 インコタームズ</label>
-          <select id="cond-incoterms" onchange="showIncotermsHint(this.value)">
-            <option value="">— 選択 —</option>
-            <optgroup label="任意の場所">
-              <option>EXW（工場渡し）</option>
-              <option>FCA（運送人渡し）</option>
-              <option>CPT（輸送費込み）</option>
-              <option>CIP（輸送費・保険料込み）</option>
-              <option>DAP（仕向地持込渡し）</option>
-              <option>DPU（荷卸込持込渡し）</option>
-              <option>DDP（関税込持込渡し）</option>
-            </optgroup>
-            <optgroup label="海上・内水路専用" id="inco-sea-group">
-              <option>FAS（船側渡し）</option>
-              <option>FOB（本船渡し）</option>
-              <option>CFR（運賃込み）</option>
-              <option>CIF（運賃・保険料込み）</option>
-            </optgroup>
-          </select>
-          <span id="cond-incoterms-hint" class="cond-incoterms-hint"></span>
-        </div>
-
         <div class="cond-primary-bar">
+          <div class="cond-prim-group cond-prim-group-inco">
+            <span class="cond-prim-label">🔖 インコタームズ</span>
+            <select id="cond-incoterms" class="cond-inco-select" onchange="showIncotermsHint(this.value)">
+              <option value="">— 選択 —</option>
+              <optgroup label="任意の場所">
+                <option>EXW（工場渡し）</option>
+                <option>FCA（運送人渡し）</option>
+                <option>CPT（輸送費込み）</option>
+                <option>CIP（輸送費・保険料込み）</option>
+                <option>DAP（仕向地持込渡し）</option>
+                <option>DPU（荷卸込持込渡し）</option>
+                <option>DDP（関税込持込渡し）</option>
+              </optgroup>
+              <optgroup label="海上・内水路専用" id="inco-sea-group">
+                <option>FAS（船側渡し）</option>
+                <option>FOB（本船渡し）</option>
+                <option>CFR（運賃込み）</option>
+                <option>CIF（運賃・保険料込み）</option>
+              </optgroup>
+            </select>
+          </div>
           <div class="cond-prim-group">
             <span class="cond-prim-label">方向</span>
             <div class="cond-prim-btns" id="dirBtns">
@@ -2228,6 +2286,7 @@
             </div>
           </div>
         </div>
+        <span id="cond-incoterms-hint" class="cond-incoterms-hint"></span>
 
         <div class="zone-builder" id="zoneBuilder">
           <div class="zone-card zone-origin zone-off" id="zone1Card">
@@ -2301,7 +2360,10 @@
                   <input type="text" id="z2Pod" class="z2-input"
                          placeholder="例）Shanghai">
                 </div>
+                <button type="button" class="z2-route-add" onclick="addRouteEntry()" title="このキャリア・POL・PODを航路として追加（複数船会社・複数航路の比較見積に対応）">＋ 航路</button>
               </div>
+              <div class="z2-route-list" id="z2RouteList"></div>
+              <input type="hidden" id="z2-routes-data" />
             </div>
           </div>
 
@@ -2348,25 +2410,39 @@
           </div>
         </div>
 
-        <div class="zone-preset-bar">
-          <button class="btn-zone-preset" onclick="applyZoneBasedPreset()">🔧 この構成でプリセット適用</button>
-        </div>
       </div>
 
-      <!-- サブセクション③：貨物情報 -->
-      <div class="cond-subsec-label cond-subsec-label--cargo">📦 貨物情報</div>
+      <!-- サブセクション：ゾーン構成からプリセット適用（独立セクション） -->
+      <div class="zone-preset-section">
+        <div class="zone-preset-section-head">
+          <span class="zone-preset-section-title">🔧 ゾーン構成から見積もり行を生成</span>
+          <span class="zone-preset-section-sub">上で組んだ ① 出発地 → ② 幹線 → ③ 到着地 の作業ピースをもとに、見積もりテーブルの行を一括作成します。</span>
+        </div>
+        <button class="btn-zone-preset" onclick="applyZoneBasedPreset()">🔧 この構成でプリセット適用</button>
+      </div>
+
+      <button class="fb-section-btn" onclick="openFeedback('貿易条件・輸送モード')" title="このセクションへのフィードバック">💬 このセクションへのフィードバック</button>
+    </div><!-- /section-cond -->
+
+    <!-- ③ 貨物情報（独立セクション） -->
+    <div class="condition-section is-collapsible" id="section-cargo">
+      <h2 class="section-toggle-head" onclick="toggleQuoteSection('section-cargo')">
+        <span class="section-caret">▼</span>
+        <span class="section-toggle-title">📦 貨物情報</span>
+        <span class="section-collapsed-summary" id="sumCargo"></span>
+      </h2>
       <div id="cargoBody">
 
         <!-- ▼ 貨物名・品目グループ -->
         <div class="cond-inner-group">
           <div class="cond-inner-group-label">🏷️ 貨物名・品目</div>
           <div class="condition-grid" id="cargoCondGrid">
-            <div class="cond-field" data-field-id="cargo" draggable="true">
-              <label><span class="cond-sort-handle" title="ドラッグして並び替え">⠿</span><span class="cond-icon">🏷️</span> 貨物名</label>
+            <div class="cond-field" data-field-id="cargo">
+              <label><span class="cond-icon">🏷️</span> 貨物名</label>
               <input type="text" id="cond-cargo" placeholder="例）自動車部品" />
             </div>
-            <div class="cond-field" data-field-id="hs" draggable="true">
-              <label><span class="cond-sort-handle" title="ドラッグして並び替え">⠿</span><span class="cond-icon">🔍</span> HSコード
+            <div class="cond-field" data-field-id="hs">
+              <label><span class="cond-icon">🔍</span> HSコード
                 <a class="hs-tariff-link" href="https://www.kanzei.or.jp/statistical/tariff/top/index/j/" target="_blank" rel="noopener" title="WEBタリフで検索（関税協会）">WEBタリフ ↗</a>
               </label>
               <input type="text" id="cond-hs" placeholder="例）8544.42" maxlength="20" />
@@ -2383,10 +2459,16 @@
                 </div>
               </div>
             </div>
-            <div class="cond-field" data-field-id="hazmat" draggable="true">
-              <label><span class="cond-sort-handle" title="ドラッグして並び替え">⠿</span><span class="cond-icon">☣️</span> 危険品・特殊貨物</label>
-              <select id="cond-hazmat">
-                <option value="">— 選択 —</option>
+          </div>
+        </div>
+
+        <!-- ▼ 危険品・特殊貨物グループ（独立セクション） -->
+        <div class="cond-inner-group cond-inner-group--hazmat">
+          <div class="cond-inner-group-label">☣️ 危険品・特殊貨物</div>
+          <div class="condition-grid">
+            <div class="cond-field" data-field-id="hazmat">
+              <label><span class="cond-icon">☣️</span> 区分</label>
+              <select id="cond-hazmat" onchange="onHazmatChange(this.value)">
                 <option>なし（一般貨物）</option>
                 <option>危険品あり（クラス要確認）</option>
                 <option>温度管理品（冷蔵）</option>
@@ -2396,101 +2478,226 @@
               </select>
             </div>
           </div>
+
+          <!-- 区分に応じた追加入力パネル -->
+          <div class="hazmat-detail" id="hazmatDetail" hidden>
+
+            <!-- 危険品あり -->
+            <div class="hazmat-panel" data-hazmat-panel="危険品あり（クラス要確認）" hidden>
+              <div class="hazmat-panel-note">⚠️ 危険物申告に必要な情報を入力してください（IMDG / IATA・国内消防法）</div>
+              <div class="condition-grid">
+                <div class="cond-field">
+                  <label><span class="cond-icon">🔢</span> UN番号</label>
+                  <input type="text" id="hz-un" placeholder="例）UN1263" maxlength="10" />
+                </div>
+                <div class="cond-field">
+                  <label><span class="cond-icon">⚠️</span> クラス / 等級</label>
+                  <select id="hz-class">
+                    <option value="">— 選択 —</option>
+                    <option>クラス1（火薬類）</option>
+                    <option>クラス2.1（引火性ガス）</option>
+                    <option>クラス2.2（不燃性・非毒性ガス）</option>
+                    <option>クラス2.3（毒性ガス）</option>
+                    <option>クラス3（引火性液体）</option>
+                    <option>クラス4.1（可燃性固体）</option>
+                    <option>クラス4.2（自然発火性物質）</option>
+                    <option>クラス4.3（水反応可燃性物質）</option>
+                    <option>クラス5.1（酸化性物質）</option>
+                    <option>クラス5.2（有機過酸化物）</option>
+                    <option>クラス6.1（毒物）</option>
+                    <option>クラス6.2（病毒を移しやすい物質）</option>
+                    <option>クラス7（放射性物質）</option>
+                    <option>クラス8（腐食性物質）</option>
+                    <option>クラス9（有害性物質）</option>
+                  </select>
+                </div>
+                <div class="cond-field">
+                  <label><span class="cond-icon">📦</span> 容器等級（PG）</label>
+                  <select id="hz-pg">
+                    <option value="">— 選択 —</option>
+                    <option>PG I（大きな危険性）</option>
+                    <option>PG II（中程度の危険性）</option>
+                    <option>PG III（小さな危険性）</option>
+                    <option>該当なし</option>
+                  </select>
+                </div>
+                <div class="cond-field">
+                  <label><span class="cond-icon">🚒</span> 国内消防法（危険物 類別）</label>
+                  <select id="hz-fire-law">
+                    <option value="">— 選択 —</option>
+                    <option>第1類（酸化性固体）</option>
+                    <option>第2類（可燃性固体）</option>
+                    <option>第3類（自然発火性・禁水性物質）</option>
+                    <option>第4類（引火性液体）</option>
+                    <option>第5類（自己反応性物質）</option>
+                    <option>第6類（酸化性液体）</option>
+                    <option>非該当</option>
+                  </select>
+                </div>
+                <div class="cond-field">
+                  <label><span class="cond-icon">🏷️</span> 正式品名（PSN）</label>
+                  <input type="text" id="hz-psn" placeholder="例）PAINT / 塗料" maxlength="80" />
+                </div>
+                <div class="cond-field">
+                  <label><span class="cond-icon">🌡️</span> 引火点 <span class="cond-opt">任意</span></label>
+                  <input type="text" id="hz-flash" placeholder="例）23℃ 未満" maxlength="30" />
+                </div>
+              </div>
+            </div>
+
+            <!-- 温度管理品（冷蔵） -->
+            <div class="hazmat-panel" data-hazmat-panel="温度管理品（冷蔵）" hidden>
+              <div class="condition-grid">
+                <div class="cond-field">
+                  <label><span class="cond-icon">🌡️</span> 設定温度帯</label>
+                  <input type="text" id="hz-temp-chill" placeholder="例）+2℃ 〜 +8℃" maxlength="30" />
+                </div>
+                <div class="cond-field">
+                  <label><span class="cond-icon">🔌</span> リーファー設定 <span class="cond-opt">任意</span></label>
+                  <input type="text" id="hz-reefer-chill" placeholder="例）換気 20㎥/h・湿度 85%" maxlength="60" />
+                </div>
+              </div>
+            </div>
+
+            <!-- 温度管理品（冷凍） -->
+            <div class="hazmat-panel" data-hazmat-panel="温度管理品（冷凍）" hidden>
+              <div class="condition-grid">
+                <div class="cond-field">
+                  <label><span class="cond-icon">❄️</span> 設定温度</label>
+                  <input type="text" id="hz-temp-frozen" placeholder="例）−18℃ 以下" maxlength="30" />
+                </div>
+                <div class="cond-field">
+                  <label><span class="cond-icon">🔌</span> リーファー設定 <span class="cond-opt">任意</span></label>
+                  <input type="text" id="hz-reefer-frozen" placeholder="例）コールドトリート要否など" maxlength="60" />
+                </div>
+              </div>
+            </div>
+
+            <!-- 重量物・大型貨物 -->
+            <div class="hazmat-panel" data-hazmat-panel="重量物・大型貨物" hidden>
+              <div class="condition-grid">
+                <div class="cond-field">
+                  <label><span class="cond-icon">⚖️</span> 単体重量</label>
+                  <input type="text" id="hz-heavy-weight" placeholder="例）8,500 kg / 1基" maxlength="30" />
+                </div>
+                <div class="cond-field">
+                  <label><span class="cond-icon">📐</span> 寸法（L×W×H）</label>
+                  <input type="text" id="hz-heavy-dim" placeholder="例）3.2 × 2.1 × 2.4 m" maxlength="40" />
+                </div>
+                <div class="cond-field">
+                  <label><span class="cond-icon">🏗️</span> 必要機材・荷役 <span class="cond-opt">任意</span></label>
+                  <input type="text" id="hz-heavy-equip" placeholder="例）クレーン25t・フォークリフト" maxlength="60" />
+                </div>
+              </div>
+            </div>
+
+            <!-- その他 -->
+            <div class="hazmat-panel" data-hazmat-panel="その他（特記事項参照）" hidden>
+              <div class="cond-field">
+                <label><span class="cond-icon">📝</span> 特記内容</label>
+                <textarea id="hz-other-note" class="hs-rate-note" rows="2" placeholder="例）精密機器のため防振対策必要。輸出許可（外為法）要確認。"></textarea>
+              </div>
+            </div>
+
+          </div>
         </div>
 
-        <!-- ▼ 物量情報グループ -->
-        <div class="cond-inner-group">
-          <div class="cond-inner-group-label">📦 物量情報</div>
-          <div class="condition-grid" id="volumeCondGrid">
-            <div class="cond-field" data-field-id="container-type" data-scope-key="container" draggable="true">
-              <label><span class="cond-sort-handle" title="ドラッグして並び替え">⠿</span><span class="cond-icon">📐</span> コンテナ種類・サイズ</label>
-              <select id="cond-container-type">
-                <option value="">— 選択 —</option>
-                <option title="20ft 一般ドライコンテナ（General Purpose）">20'GP</option>
-                <option title="40ft 一般ドライコンテナ（General Purpose）">40'GP</option>
-                <option title="40ft 背高コンテナ（High Cube／40HQ・40HC）">40'HQ</option>
-                <option title="20ft 冷凍コンテナ（Reefer）">20'RF（冷凍）</option>
-                <option title="40ft 冷凍コンテナ（Reefer）">40'RF（冷凍）</option>
-                <option>20'OT（オープントップ）</option>
-                <option>40'OT（オープントップ）</option>
-                <option>20'FR（フラットラック）</option>
-                <option>40'FR（フラットラック）</option>
-                <option>LCL（混載）</option>
-                <option>未定</option>
-              </select>
-            </div>
-            <div class="cond-field" data-field-id="container-count" data-scope-key="container" draggable="true">
-              <label><span class="cond-sort-handle" title="ドラッグして並び替え">⠿</span><span class="cond-icon">🔢</span> 本数</label>
-              <input type="number" id="cond-container-count" min="0" step="1" placeholder="例）1" />
-              <span class="banning-hint">📦 本数が不明な場合は<button type="button" class="banning-hint-link" onclick="openBanningCalc()">バンニングシミュレーション</button>で確認</span>
-            </div>
-            <div class="cond-field" data-field-id="weight" draggable="true">
-              <label><span class="cond-sort-handle" title="ドラッグして並び替え">⠿</span><span class="cond-icon">⚖️</span> 重量（概算）</label>
-              <input type="text" id="cond-weight" placeholder="例）5,000 kg" />
-            </div>
-            <div class="cond-field" data-field-id="volume" draggable="true">
-              <label><span class="cond-sort-handle" title="ドラッグして並び替え">⠿</span><span class="cond-icon">📏</span> 容積（概算）</label>
-              <input type="text" id="cond-volume" placeholder="例）20 CBM" />
-            </div>
-            <div class="cond-field" data-field-id="packing" draggable="true">
-              <label><span class="cond-sort-handle" title="ドラッグして並び替え">⠿</span><span class="cond-icon">📦</span> 荷姿</label>
-              <div class="packing-field-wrap">
-                <select id="cond-packing-preset" onchange="onPackingPresetChange(this)" title="よく使う荷姿を選択"></select>
-                <input type="text" id="cond-packing" placeholder="例）カートン / パレット" oninput="renderPackingPreset()" />
-              </div>
-            </div>
-          </div>
-
-          <!-- サイズ計算（折りたたみ） -->
-          <details class="cbm-calc-details">
-          <summary class="cbm-calc-summary">🧮 サイズ計算（CBM / CW 自動計算）<span class="cbm-calc-hint">① 寸法入力 → ② 計算する → ③ 反映ボタンで転記</span></summary>
-          <div class="cbm-calc-body">
-            <div class="calc-wrapper">
-              <table class="calc-mini-table" id="calcTable">
-                <thead>
-                  <tr>
-                    <th>個数</th>
-                    <th>荷姿</th>
-                    <th>長さ(cm)</th>
-                    <th>幅(cm)</th>
-                    <th>高さ(cm)</th>
-                    <th>CBM小計</th>
-                    <th title="1個あたりの重量">単重量<br>(kg/個)</th>
-                    <th title="単重量 × 個数（自動計算）">総重量<br>(kg)</th>
-                    <th title="段積みできるかどうか">段積み</th>
-                    <th></th>
-                  </tr>
-                </thead>
-                <tbody id="calcBody"></tbody>
-              </table>
-              <button class="btn-calc-add" onclick="addCalcRow()">＋ 荷物の種類を追加</button>
-              <button class="btn-calc-run" onclick="runCalc()">📐 計算する</button>
-              <div class="calc-results-panel" id="calcResultsPanel">
-                <div class="calc-results-grid" id="calcResultsGrid"></div>
-                <hr class="calc-divider-line">
-                <div class="calc-reflect-title">📦 上の貨物情報に反映</div>
-                <div id="calcCargoReflect" class="calc-cargo-reflect">
-                  <button type="button" class="btn-calc-cargo-reflect" onclick="reflectToCargoInfo()" title="重量・容積を上の「貨物情報」へ上書き">
-                    📋 貨物情報へ反映（重量・容積を上書き）
-                  </button>
-                </div>
-                <hr class="calc-divider-line">
-                <div class="calc-reflect-title">📋 見積もり行に数量を反映</div>
-                <div id="calcReflectRows"></div>
-              </div>
-            </div>
-          </div>
-        </details>
-        </div><!-- /cond-inner-group 物量情報 -->
+        <!-- ▼ 物量情報グループ → 独立セクションへ移設済み -->
 
         <div class="cond-actions">
           <button class="btn-cond-clear" onclick="clearConditions()">クリア</button>
-          <button class="btn-cargo-reset" onclick="resetCargoFieldOrder()" title="モード別の並び順をデフォルトに戻す">並び順リセット</button>
         </div>
       </div><!-- /cargoBody -->
 
-      <button class="fb-section-btn" onclick="openFeedback('引き合い条件・貨物情報')" title="このセクションへのフィードバック">💬 このセクションへのフィードバック</button>
-    </div>
+      <button class="fb-section-btn" onclick="openFeedback('貨物情報')" title="このセクションへのフィードバック">💬 このセクションへのフィードバック</button>
+    </div><!-- /section-cargo -->
+
+    <!-- ④ 物量情報（独立セクション） -->
+    <div class="condition-section is-collapsible" id="section-volume">
+      <h2 class="section-toggle-head" onclick="toggleQuoteSection('section-volume')">
+        <span class="section-caret">▼</span>
+        <span class="section-toggle-title">📦 物量情報</span>
+        <span class="section-collapsed-summary" id="sumVolume"></span>
+      </h2>
+      <div id="volumeBody">
+        <div class="cond-inner-group">
+          <div class="condition-grid" id="volumeCondGrid">
+            <div class="cond-field cond-field--multi" data-field-id="container-type" data-scope-key="container">
+              <label><span class="cond-icon">📐</span> コンテナ（種類 × 本数）</label>
+              <div class="multi-entry">
+                <div class="multi-entry-editor">
+                  <select id="cond-container-type" class="me-select">
+                    <option value="">— 種類を選択 —</option>
+                    <option title="20ft 一般ドライコンテナ（General Purpose）">20'GP</option>
+                    <option title="40ft 一般ドライコンテナ（General Purpose）">40'GP</option>
+                    <option title="40ft 背高コンテナ（High Cube／40HQ・40HC）">40'HQ</option>
+                    <option title="20ft 冷凍コンテナ（Reefer）">20'RF（冷凍）</option>
+                    <option title="40ft 冷凍コンテナ（Reefer）">40'RF（冷凍）</option>
+                    <option>20'OT（オープントップ）</option>
+                    <option>40'OT（オープントップ）</option>
+                    <option>20'FR（フラットラック）</option>
+                    <option>40'FR（フラットラック）</option>
+                    <option>未定</option>
+                  </select>
+                  <span class="me-mul">×</span>
+                  <input type="number" id="cond-container-count" class="me-count" min="1" step="1" value="1" placeholder="本数" />
+                  <button type="button" class="me-add-btn" onclick="addContainerEntry()">＋ 追加</button>
+                </div>
+                <div class="multi-entry-list" id="containerEntryList"></div>
+                <input type="hidden" id="cond-container-data" />
+              </div>
+            </div>
+            <div class="cond-field cond-field--cargo-detail" data-field-id="packing">
+              <label><span class="cond-icon">📦</span> 荷姿・貨物明細（荷姿 × 個数 × サイズ）</label>
+              <div class="cargo-detail">
+                <div class="cargo-detail-scroll">
+                  <table class="cargo-detail-table" id="cargoDetailTable">
+                    <thead>
+                      <tr>
+                        <th class="cd-pkg">荷姿</th>
+                        <th class="cd-qty">個数</th>
+                        <th class="cd-dim" title="1個あたりの寸法">長さ<span>cm</span></th>
+                        <th class="cd-dim">幅<span>cm</span></th>
+                        <th class="cd-dim">高さ<span>cm</span></th>
+                        <th class="cd-cbm" title="長さ×幅×高さ×個数（自動計算）">容積<span>CBM</span></th>
+                        <th class="cd-kg" title="この荷姿の合計重量">重量<span>kg</span></th>
+                        <th class="cd-stack" title="段積みの可否">段積み</th>
+                        <th class="cd-del"></th>
+                      </tr>
+                    </thead>
+                    <tbody id="cargoDetailBody"></tbody>
+                    <tfoot>
+                      <tr class="cargo-detail-total">
+                        <td>合計</td>
+                        <td class="cd-qty" id="cdTotQty">0</td>
+                        <td colspan="3">—</td>
+                        <td class="cd-cbm" id="cdTotCbm">0.000</td>
+                        <td class="cd-kg" id="cdTotKg">0</td>
+                        <td colspan="2"></td>
+                      </tr>
+                      <tr class="cargo-detail-derived">
+                        <td colspan="9">
+                          <span class="cd-metric cd-metric-rt" title="R/T（レベニュートン）＝ 容積(CBM) と 重量(t) の大きい方。海上LCLの運賃計算根拠">R/T <b id="cdTotRt">0.000</b></span>
+                          <span class="cd-metric cd-metric-cw" title="CW（チャージャブルウェイト）＝ 実重量 と 容積重量(cm³÷6000) の大きい方。航空運賃の計算根拠">CW <b id="cdTotCw">0</b> kg</span>
+                          <span class="cd-derived-note">※ 寸法・重量から自動計算</span>
+                        </td>
+                      </tr>
+                    </tfoot>
+                  </table>
+                </div>
+                <div class="cargo-detail-actions">
+                  <button type="button" class="me-add-btn" onclick="addPackingRow()">＋ 荷姿を追加</button>
+                </div>
+                <input type="hidden" id="cond-packing-data" />
+                <datalist id="packingOptions"></datalist>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div><!-- /volumeBody -->
+
+      <button class="fb-section-btn" onclick="openFeedback('物量情報')" title="このセクションへのフィードバック">💬 このセクションへのフィードバック</button>
+    </div><!-- /section-volume -->
 
     <!-- ⑤ 見積もりテーブル -->
     <div class="condition-section" id="section-table">
@@ -2509,68 +2716,64 @@
         <span style="font-size:11px;color:var(--text-md);">💡 <b>項目名の先頭にある <code style="background:#fff;padding:1px 4px;border-radius:3px;">*</code> は課税項目を示します</b>（課税欄のチェックで自動付与）。プレビュー画面では消費税列に税額（10% 固定）が表示されます。</span><br>
         <span style="font-size:11px;color:var(--text-md);">➕ <b>行を追加するには</b>：行末の「＋」ボタン、Tab キー（最終行で次行を自動追加）、または Ctrl+K から「行を追加」を選択してください。</span></p>
         <div class="container">
+          <div id="quoteFxBar" class="quote-fx-bar" title="JPY換算に使用中の為替レート（為替レート設定で変更可）"></div>
           <div id="tableScrollWrap">
           <table id="quoteTable">
             <thead>
               <tr>
-                <th rowspan="2" class="hd-base hd-action"></th>
-                <th rowspan="2" class="hd-base" style="width:22px; padding:2px; text-align:center;">
+                <th class="hd-base hd-action"></th>
+                <th class="hd-base" style="width:22px; padding:2px; text-align:center;">
                   <input type="checkbox" id="selectAllChk" title="全選択 / 解除"
                          style="width:13px;height:13px;cursor:pointer;margin:0;"
                          onclick="toggleSelectAll(this.checked)" />
                 </th>
-                <th rowspan="2" class="hd-base" style="width:28px;"></th>
-                <th rowspan="2" class="hd-base" style="width:105px;">カテゴリ</th>
-                <th rowspan="2" class="hd-base" style="width:90px;" title="Sub-Contractor（協力会社・下請け業者名）。例：〇〇船社、△△通関。出力物に含まれます">サブコン</th>
-                <th rowspan="2" class="hd-base" style="width:44px;" title="ON にすると消費税 10% が自動計算され、項目名先頭に「*」が付きます。輸出免税の行は OFF のままにしてください（輸出方向選択時は自動 0% に切替）。">課税</th>
-                <th rowspan="2" class="hd-base">項目名</th>
-                <th colspan="4" class="hd-pay" data-grp-hd="pay" title="支払い（仕入）＝ 船会社・代理店など外注先へ支払う原価">支払い</th>
-                <th colspan="3" class="hd-bill" data-grp-hd="bill" title="請求（売値）＝ 荷主・顧客へ請求する金額">請求</th>
-                <th colspan="4" class="hd-profit">利益計算</th>
-              </tr>
-              <tr>
-                <th class="hd-pay" data-grp-col="pay">数量</th>
-                <th class="hd-pay" data-grp-col="pay">単位</th>
-                <th class="hd-pay" data-grp-col="pay">通貨</th>
-                <th class="hd-pay" data-grp-col="pay">単価</th>
-                <th class="hd-pay hd-cd" title="Currency Difference（為替差・通貨間調整値）。支払い通貨と請求通貨が異なる場合の換算調整値。">① CD</th>
-                <th class="hd-bill" data-grp-col="bill" style="color:#bde8c8;">② 数量</th>
-                <th class="hd-bill" data-grp-col="bill" style="color:#bde8c8;">② 通貨</th>
-                <th class="hd-bill" data-grp-col="bill" style="color:#bde8c8;">② 単価</th>
-                <th class="hd-profit" title="支払い単価に加算する利益幅（例：支払単価 1,000 + 乗せ幅 200 = 請求単価 1,200）。入力後は右隣「② 請求単価」欄に自動反映されます。乗せ幅は請求通貨建てで加算されます（支払い通貨と請求通貨が異なる場合は特に注意）">③ 乗せ幅</th>
-                <th class="hd-profit">④ 小計</th>
-                <th class="hd-profit">⑤ 利益</th>
-                <th class="hd-profit">備考</th>
+                <th class="hd-base" style="width:26px;"></th>
+                <th class="hd-base hd-catsv" style="width:104px;" title="上段＝カテゴリ、下段＝サブコン（協力会社・下請け業者名）">カテゴリ<br><small class="hd-sub">／サブコン</small></th>
+                <th class="hd-base" style="width:38px;" title="ON にすると消費税 10% が自動計算され、項目名先頭に「*」が付きます。輸出免税の行は OFF のままにしてください（輸出方向選択時は自動 0% に切替）。">課税</th>
+                <th class="hd-base">項目名</th>
+                <th class="hd-base" style="width:78px;">数量·単位</th>
+                <th class="hd-base hd-stk" style="width:72px;" title="上段＝支払い（仕入）通貨、下段＝請求（売値）通貨">通貨<br><small class="hd-sub"><span class="t-cost">仕</span>／<span class="t-sell">売</span></small></th>
+                <th class="hd-base hd-stk" style="width:96px;" title="上段＝支払い単価（仕入）、下段＝請求単価（売値）。CD は通貨差調整値">単価<br><small class="hd-sub"><span class="t-cost">仕</span>／<span class="t-sell">売</span></small></th>
+                <th class="hd-profit hd-mk" style="width:60px;" title="支払い単価に加算する利益幅（例：支払単価 1,000 + 乗せ幅 200 = 請求単価 1,200）。乗せ幅は請求通貨建てで加算されます">乗せ幅</th>
+                <th class="hd-bill" style="width:92px;">小計<br><small class="hd-sub t-sell">売</small></th>
+                <th class="hd-profit hd-pr" style="width:80px;">利益</th>
+                <th class="hd-base" style="width:88px;">備考</th>
               </tr>
             </thead>
             <tbody id="tableBody"></tbody>
             <tfoot>
-              <tr>
+              <tr class="tot-row">
                 <td></td><td></td><td></td><td></td><td></td>
-                <td colspan="4" style="text-align:right; color:#555;">合　計</td>
-                <td>—</td>
-                <td id="tot-cost" style="text-align:right; padding-right:10px; min-width:85px;">—</td>
-                <td class="cd-cell" style="background:#f0f0f0; color:#aaa; text-align:center;">—</td>
-                <td data-grp-col="bill">—</td>
-                <td data-grp-col="bill">—</td>
-                <td id="tot-billing" data-grp-col="bill" style="text-align:right; padding-right:10px; min-width:85px;">—</td>
-                <td id="tot-markup"  style="text-align:right; padding-right:10px; min-width:85px;">—</td>
-                <td id="tot-subtotal" style="text-align:right; padding-right:10px; min-width:85px; font-weight:bold; background:#eef5fb;">—</td>
-                <td class="profit-cell profit-zero" id="tot-profit">—</td>
+                <td style="text-align:right; color:#555; font-weight:bold;">合　計</td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td id="tot-markup" class="mk-cell" style="text-align:right; padding-right:8px;">—</td>
+                <td class="subtotal-cell tot-amt-cell" style="text-align:right; padding-right:8px; font-weight:bold; background:#eef5fb;">
+                  <div class="stk">
+                    <span class="stk-cost"><span class="t-cost">仕</span> <span id="tot-cost">—</span></span>
+                    <span class="stk-sell"><span class="t-sell">売</span> <span id="tot-subtotal">—</span></span>
+                  </div>
+                  <span id="tot-billing" style="display:none;">—</span>
+                </td>
+                <td class="profit-cell profit-zero pr-cell" id="tot-profit">—</td>
                 <td></td>
               </tr>
               <tr id="tot-jpy-row" style="display:none; font-size:11px; color:#888; background:#fffbe6;">
                 <td></td><td></td><td></td><td></td><td></td>
-                <td colspan="4" style="text-align:right;">JPY換算合計</td>
-                <td>—</td>
-                <td id="tot-cost-jpy" style="text-align:right; padding-right:10px;">—</td>
-                <td class="cd-cell">—</td>
-                <td data-grp-col="bill">—</td>
-                <td data-grp-col="bill">—</td>
-                <td id="tot-billing-jpy" data-grp-col="bill" style="text-align:right; padding-right:10px;">—</td>
-                <td>—</td>
-                <td id="tot-subtotal-jpy" style="text-align:right; padding-right:10px; font-weight:bold;">—</td>
-                <td id="tot-profit-jpy" class="profit-cell profit-zero">—</td>
+                <td style="text-align:right;">JPY換算</td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td class="mk-cell"></td>
+                <td class="tot-amt-cell" style="text-align:right; padding-right:8px; font-weight:bold;">
+                  <div class="stk">
+                    <span class="stk-cost"><span class="t-cost">仕</span> <span id="tot-cost-jpy">—</span></span>
+                    <span class="stk-sell"><span class="t-sell">売</span> <span id="tot-subtotal-jpy">—</span></span>
+                  </div>
+                  <span id="tot-billing-jpy" style="display:none;">—</span>
+                </td>
+                <td id="tot-profit-jpy" class="profit-cell profit-zero pr-cell">—</td>
                 <td></td>
               </tr>
             </tfoot>
@@ -2692,6 +2895,31 @@
       <aside id="quoteSummaryPanel" class="quote-summary-panel">
         <div class="qsp-header">
           <span class="qsp-title">📊 見積サマリ</span>
+        </div>
+        <!-- 管理番号入力のライブ表示（常時表示） -->
+        <div class="qsp-case-info" id="qspCaseInfo">
+          <div class="qsp-case-row" data-empty="true">
+            <span class="qsp-case-label">仮 REF #</span>
+            <span class="qsp-case-value" id="qspCaseRef">—</span>
+          </div>
+          <div class="qsp-case-row" data-empty="true">
+            <span class="qsp-case-label">引き合い元</span>
+            <span class="qsp-case-value" id="qspCaseCustomer">—</span>
+          </div>
+          <div class="qsp-case-row" data-empty="true">
+            <span class="qsp-case-label">担当</span>
+            <span class="qsp-case-value" id="qspCasePerson">—</span>
+          </div>
+          <div class="qsp-case-row qsp-case-dates">
+            <div class="qsp-case-date" data-empty="true">
+              <span class="qsp-case-label">発行日</span>
+              <span class="qsp-case-value" id="qspCaseDate">—</span>
+            </div>
+            <div class="qsp-case-date" data-empty="true">
+              <span class="qsp-case-label">有効期限</span>
+              <span class="qsp-case-value" id="qspCaseValid">—</span>
+            </div>
+          </div>
         </div>
         <div class="qsp-body" id="qspBody">
           <p class="qsp-empty">費用項目を入力すると<br>ここにサマリが表示されます</p>
@@ -2857,22 +3085,38 @@
         <span class="drag-handle" title="ドラッグして並び替え">⠿</span>
         <button type="button" class="row-move-btn row-move-down" data-field="move-down" tabindex="-1" title="下に移動">▼</button>
       </td>
-      <td class="cat-cell"><select class="w-cat" data-field="cat" data-col="0"></select></td>
-      <td class="sv-cell"><input type="text" data-field="sv" class="w-subcon" placeholder="サブコン" /></td>
+      <td class="catsv-cell stk-cell">
+        <div class="stk">
+          <select class="w-cat" data-field="cat" data-col="0"></select>
+          <input type="text" data-field="sv" class="w-subcon" placeholder="サブコン" />
+        </div>
+      </td>
       <td class="tax-cell"><input type="checkbox" data-field="tx" title="ON にすると消費税 10% が自動計算され、項目名先頭に「*」が付きます。輸出免税の行は OFF のままにしてください（輸出方向選択時は自動 0% に切替）。"></td>
       <td class="name-cell"><input type="text" data-field="nm" class="w-name" placeholder="例）海上運賃" data-col="1" /></td>
-      <td data-grp-col="pay"><input type="number" data-field="pq" class="w-qty" min="0" value="1" data-col="2" /></td>
-      <td data-grp-col="pay"><input type="text" list="unit-list" data-field="un" class="w-unit" data-col="2u" placeholder="単位" /></td>
-      <td data-grp-col="pay"><select data-field="pc" class="w-cur" data-col="3"></select></td>
-      <td data-grp-col="pay"><input type="number" data-field="pp" class="w-price" min="0" value="0" data-col="4" /></td>
-      <td class="cd-cell"><input type="text" data-field="cd" class="w-price display-field" value="" placeholder="—" tabindex="-1" readonly /></td>
-      <td data-grp-col="bill"><input type="number" data-field="bq" class="w-qty display-field" value="1" tabindex="-1" readonly /></td>
-      <td data-grp-col="bill"><select data-field="bc" class="w-cur display-field" tabindex="-1"></select></td>
-      <td data-grp-col="bill"><input type="number" data-field="bp" class="w-price display-field" value="0" tabindex="-1" readonly data-base="0" /></td>
-      <td><input type="number" data-field="mk" class="w-mkup" value="0" data-col="5" /></td>
+      <td class="qty-cell">
+        <div class="qty-wrap">
+          <input type="number" data-field="pq" class="w-qty" min="0" value="1" data-col="2" title="数量" />
+          <input type="text" list="unit-list" data-field="un" class="w-unit" data-col="2u" placeholder="単位" />
+        </div>
+        <input type="number" data-field="bq" value="1" tabindex="-1" readonly class="bq-mirror" />
+      </td>
+      <td class="ccy-cell stk-cell">
+        <div class="stk">
+          <span class="stk-cost"><span class="stk-tag t-cost">仕</span><select data-field="pc" class="w-cur" data-col="3"></select></span>
+          <span class="stk-sell"><span class="stk-tag t-sell">売</span><select data-field="bc" class="w-cur display-field" tabindex="-1"></select></span>
+        </div>
+      </td>
+      <td class="price-cell stk-cell">
+        <div class="stk">
+          <span class="stk-cost"><span class="stk-tag t-cost">仕</span><input type="number" data-field="pp" class="w-price" min="0" value="0" data-col="4" /></span>
+          <span class="stk-sell"><span class="stk-tag t-sell">売</span><input type="number" data-field="bp" class="w-price display-field" value="0" tabindex="-1" readonly data-base="0" /></span>
+        </div>
+        <span class="row-cd"><span class="row-cd-lbl" title="Currency Difference（通貨差調整値）">CD</span><input type="text" data-field="cd" class="w-cd display-field" value="" placeholder="—" tabindex="-1" readonly /></span>
+      </td>
+      <td class="mk-cell"><input type="number" data-field="mk" class="w-mkup" value="0" data-col="5" /></td>
       <td class="subtotal-cell" data-field="st">—</td>
-      <td class="profit-cell profit-zero" data-field="pr">0</td>
-      <td><input type="text" data-field="nt" class="w-note" placeholder="備考" data-col="6" /></td>
+      <td class="profit-cell profit-zero pr-cell" data-field="pr">0</td>
+      <td class="note-cell"><input type="text" data-field="nt" class="w-note" placeholder="備考" data-col="6" /></td>
     </template>
 
   </div><!-- /#tab-quote-make -->
@@ -2988,7 +3232,9 @@
         <select id="fbSection" name="fbSection" required>
           <option value="全体">全体</option>
           <option value="管理番号入力">管理番号入力</option>
-          <option value="引き合い条件・貨物情報">引き合い条件・貨物情報</option>
+          <option value="貿易条件・輸送モード">貿易条件・輸送モード</option>
+          <option value="貨物情報">貨物情報</option>
+          <option value="物量情報">物量情報</option>
           <option value="見積もりテーブル">見積もりテーブル</option>
           <option value="特記事項・補足">特記事項・補足</option>
           <option value="全体リマーク">全体リマーク</option>

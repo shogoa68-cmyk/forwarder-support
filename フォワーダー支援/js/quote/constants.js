@@ -236,18 +236,18 @@ Object.assign(QuoteApp.data, {
 const CARGO_FIELD_ORDER = {
   fcl: {
     cargo:  ['cargo', 'hs', 'hazmat'],
-    // FCL: コンテナ種類・本数を最優先
-    volume: ['container-type', 'container-count', 'packing', 'weight', 'volume'],
+    // FCL: コンテナ → 荷姿明細（重量・容積は明細テーブルで自動算出）
+    volume: ['container-type', 'packing'],
   },
   lcl: {
     cargo:  ['cargo', 'hs', 'hazmat'],
-    // LCL: 重量・容積を最優先。コンテナ関連は末尾（通常非表示）
-    volume: ['weight', 'volume', 'packing', 'container-type', 'container-count'],
+    // LCL: 荷姿明細を最優先。コンテナは末尾（通常非表示）
+    volume: ['packing', 'container-type'],
   },
   air: {
     cargo:  ['cargo', 'hs', 'hazmat'],
-    // Air: 重量・容積を最優先。コンテナ関連は末尾（通常非表示）
-    volume: ['weight', 'volume', 'packing', 'container-type', 'container-count'],
+    // Air: 荷姿明細を最優先。コンテナは末尾（通常非表示）
+    volume: ['packing', 'container-type'],
   },
 };
 

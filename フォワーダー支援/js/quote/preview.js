@@ -441,7 +441,7 @@
     updatePreviewTax();
     // Apply saved customization
     initPreviewCustomize();
-    applyPreviewCustomize(); // updateModeBanner / has-sensitive はこの中で呼ばれる
+    applyPreviewCustomize();
     // Hook up change listeners (attach only once via flag)
     if (!document.getElementById('pvCustomizeWrap')?.dataset.listenerSet) {
       document.querySelectorAll('.pv-col-chk, .pv-sec-chk').forEach(chk => {
@@ -464,7 +464,7 @@
     // ラベルテキストをチェックボックス状態に合わせて更新
     const rateLbl = document.getElementById('pvTaxRateLabel');
     if (rateLbl) rateLbl.textContent = isExempt ? '0%（輸出免税）' : '10%（標準）';
-    // 行ごとの消費税セルを更新（課税行のみ計算）
+    // 行ごとの消費税セルを更新（課税行のみ計算・通貨別集計）
     let totTaxJpy = 0;
     const perCcyTax = {};
     document.querySelectorAll('#previewTable .pv-tax-cell').forEach(td => {
@@ -487,7 +487,7 @@
         td.textContent = t > 0 ? fmtRaw(t) : '—';
       }
     });
-    // 底部サマリ（消費税額・税込合計）JPY換算ベースで集計
+    // 底部サマリ（消費税額・税込合計）JPY換算ベース
     const tax   = totTaxJpy;
     const total = totalSub + tax;
     const taxEl   = document.getElementById('pvTaxAmount');
@@ -571,7 +571,7 @@
     });
     localStorage.setItem(PV_CUSTOMIZE_KEY, JSON.stringify(settings));
 
-    // 透かし・モードバナー更新
+    // 社内/客先モードバナー・透かし更新
     const wrap = document.getElementById('previewTableWrap');
     const sensitive = isSensitiveOn();
     wrap?.classList.toggle('has-sensitive', sensitive);
@@ -771,7 +771,6 @@
   function exportPDF() {
     if (!preOutputValidationGate('PDF 出力（印刷）')) return;
     if (!sensitiveColumnsGate('PDF 出力')) return;
-    // @media print CSS がプレビュー以外を非表示にする
     window.print();
   }
 
