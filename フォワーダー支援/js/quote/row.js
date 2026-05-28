@@ -396,6 +396,7 @@
       document.getElementById('tot-profit').className = 'profit-cell profit-zero';
       const jpyRow = document.getElementById('tot-jpy-row');
       if (jpyRow) jpyRow.style.display = 'none';
+      window.renderQuoteFxBar?.();
       return;
     }
     let totCost = 0, totBill = 0, totMk = 0, totSub = 0;
@@ -446,6 +447,7 @@
     }
     updateSubtotalRows();
     window.updateQuoteSummary?.();
+    window.renderQuoteFxBar?.();
   }
 
   // ========== 小計行 ==========
@@ -533,15 +535,11 @@
         <button type="button" class="row-move-btn subtotal-move-up"   tabindex="-1" title="上に移動">▲</button>
         <button type="button" class="row-move-btn subtotal-move-down" tabindex="-1" title="下に移動">▼</button>
       </td>
-      <td></td>
-      <td></td>
-      <td colspan="4" class="subtotal-label-cell">
+      <td colspan="7" class="subtotal-label-cell">
         <span class="subtotal-marker">━━ 小計</span>
         <input type="text" class="subtotal-label" placeholder="グループ名（任意）" oninput="updateSubtotalRows()" />
+        <span class="subtotal-group-billing" style="display:none;">—</span>
       </td>
-      <td colspan="5" class="subtotal-dash">—</td>
-      <td class="subtotal-group-billing">—</td>
-      <td class="subtotal-dash">—</td>
       <td class="subtotal-group-subtotal subtotal-cell">—</td>
       <td class="subtotal-group-profit profit-cell profit-zero">—</td>
       <td></td>
@@ -585,7 +583,7 @@
         <button type="button" class="row-move-btn subtotal-move-up"   tabindex="-1" title="上に移動">▲</button>
         <button type="button" class="row-move-btn subtotal-move-down" tabindex="-1" title="下に移動">▼</button>
       </td>
-      <td colspan="16" class="remark-row-cell">
+      <td colspan="10" class="remark-row-cell">
         <span class="remark-row-marker">💬 リマーク</span>
         <input type="text" class="remark-row-input" placeholder="テーブル内コメント・注記を入力" />
       </td>
