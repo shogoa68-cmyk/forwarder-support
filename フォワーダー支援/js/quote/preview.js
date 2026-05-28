@@ -217,7 +217,7 @@
         <th class="ph-profit">乗せ幅</th><th class="ph-profit">小計</th><th class="ph-jpy">円換算</th><th class="ph-profit">消費税</th><th class="ph-profit">利益</th><th class="ph-profit">備考</th>
       </tr></thead><tbody>`;
 
-    let totSub = 0, totTax = 0, totJpy = 0;
+    let totSub = 0, totTax = 0, totJpy = 0, hasNonJpyBill = false;
     allRows.forEach(d => {
       if (d._type === 'remark') {
         html += `<tr class="pv-table-remark-row">
@@ -246,6 +246,7 @@
       totSub += sub;
       totTax += taxAmt;
       totJpy += jpyAmt;
+      if (d.bc && d.bc !== 'JPY') hasNonJpyBill = true;
       const jpyCellText = (d.bc && d.bc !== 'JPY') ? fmtRaw(jpyAmt) : '—';
       const taxCellText = d.taxed ? fmtRaw(taxAmt) : '';
       html += `<tr>
@@ -267,16 +268,26 @@
     });
 
     const totPc = totPr > 0 ? 'pv-pos' : totPr < 0 ? 'pv-neg' : 'pv-zero';
-    const totTaxText = fmtRaw(totTax);
-    // 合計行：cat+sv+name = colspan 3 を「合計」ラベルに割当て
-    // data-ft-col: applyPreviewCustomize() が tfoot を別制御するための識別属性
-    // （tfoot は colspan セルを持つため tr td:nth-child(n) での列制御が不可）
+    const totTaxText  = fmtRaw(totTax);
+    const totJpyText  = hasNonJpyBill ? fmtRaw(totJpy) : '—';
+    // 合計行：cat+sv+name = colspan 3 を「合計」ラベルに割当て。
+    // pay/unit/bill/jpy-conv 各セルを個別化し data-ft-col を付与することで
+    // applyPreviewCustomize() の列表示切り替えと完全に連動させる。
+    // （旧実装の colspan="4" には data-ft-col がなく非表示化できなかった。
+    //   jpy-conv セルが欠落していたため col 14 以降がズレていた。）
     html += `</tbody><tfoot><tr class="pv-total">
       <td colspan="3" style="text-align:right;">合　計</td>
-      <td colspan="4">—</td><td data-ft-col="pay" style="background:#e8e8e8;color:#aaa;">—</td>
-      <td colspan="2" data-ft-col="bill">—</td><td data-ft-col="bill" class="pv-num">—</td>
+      <td data-ft-col="pay">—</td>
+      <td data-ft-col="unit">—</td>
+      <td data-ft-col="pay">—</td>
+      <td data-ft-col="pay">—</td>
+      <td data-ft-col="pay" style="background:#e8e8e8;color:#aaa;">—</td>
+      <td data-ft-col="bill">—</td>
+      <td data-ft-col="bill">—</td>
+      <td data-ft-col="bill" class="pv-num">—</td>
       <td data-ft-col="mk" class="pv-num">${fmtRaw(totMk)}</td>
       <td class="pv-num pv-subtotal">${fmtRaw(totSub)}</td>
+      <td data-ft-col="jpy-conv" class="pv-jpy">${totJpyText}</td>
       <td data-ft-col="tax-col" class="pv-num pv-tax-total">${totTaxText}</td>
       <td data-ft-col="profit" class="pv-pr ${totPc} pv-num">${fmtRaw(totPr)}</td>
       <td data-ft-col="note"></td>
