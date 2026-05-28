@@ -296,7 +296,7 @@
         <td data-ft-col="bill" class="pv-ccy-badge">${escHtml(ccy)}</td>
         <td data-ft-col="bill"></td>
         <td data-ft-col="mk" class="pv-num">${showMk ? fmtRaw(totMk) : ''}</td>
-        <td class="pv-num pv-subtotal">${fmtRaw(g.sub)}</td>
+        <td class="pv-num pv-subtotal">${fmtRaw(g.sub)}${jpyConvText ? `<span class="pv-jpy-inline">(${jpyConvText})</span>` : ''}</td>
         <td data-ft-col="jpy-conv" class="pv-jpy">${jpyConvText}</td>
         <td data-ft-col="tax-col" class="pv-num pv-tax-total">${taxText}</td>
         <td data-ft-col="profit" class="pv-num ${prCls}">${prText}</td>
@@ -396,7 +396,15 @@
     const pvAudit = document.getElementById('pvAuditMeta');
     if (pvAudit) {
       const m = getFxAuditMeta();
+      // 実際に使用した非JPY通貨のレートを一覧表示
+      const usedNonJpy = ccyKeys.filter(c => c !== 'JPY' && c !== '≈JPY');
+      const ratesLine = usedNonJpy.length
+        ? '換算レート（参考）: ' + usedNonJpy.map(c =>
+            `1 ${c} = ${typeof _fxRates !== 'undefined' ? _fxRates[c] : (typeof toJPY === 'function' ? toJPY(1, c) : '—')} JPY`
+          ).join('　/　')
+        : '';
       pvAudit.innerHTML =
+        (ratesLine ? `<div class="pv-audit-line pv-audit-rates">${escHtml(ratesLine)}</div>` : '') +
         '<div class="pv-audit-line">' + escHtml(m.fxLine) + '</div>' +
         '<div class="pv-audit-line">' + escHtml(m.created) + '</div>' +
         (m.hasFresh ? '' : '<div class="pv-audit-warn">⚠️ 為替を自動取得していません。手動値またはデフォルト値で表示中</div>');

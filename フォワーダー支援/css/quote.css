@@ -3158,6 +3158,13 @@
   line-height: 1.7;
 }
 #tab-quote-make .pv-audit-line { font-variant-numeric: tabular-nums; }
+#tab-quote-make .pv-audit-rates {
+  font-weight: 700;
+  color: #2d5a8a;
+  padding-bottom: 3px;
+  border-bottom: 1px dotted #c4b49a;
+  margin-bottom: 3px;
+}
 #tab-quote-make .pv-audit-warn {
   margin-top: 4px;
   padding: 4px 8px;
@@ -3165,6 +3172,15 @@
   border-left: 3px solid #e8c870;
   color: #7a5500;
   font-weight: 600;
+}
+/* 合計行の通貨欄：非JPY通貨のインライン円換算 */
+#tab-quote-make #previewTable tfoot .pv-jpy-inline {
+  display: block;
+  font-size: 10px;
+  font-weight: normal;
+  color: #0d5252;
+  letter-spacing: 0;
+  margin-top: 1px;
 }
 
 /* ===== Cycle 1 UX 改修 ===== */
