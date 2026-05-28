@@ -196,6 +196,8 @@
     let totCost = 0, totBill = 0, totMk = 0;
     data.forEach(d => { totCost += d.cost; totBill += d.bill; totMk += d.mk; });
     const totPr = totBill - totCost;
+    const bcSet = [...new Set(data.map(d => d.bc).filter(Boolean))];
+    const totalBcLabel = bcSet.length === 0 ? '—' : bcSet.length === 1 ? bcSet[0] : bcSet.join('/');
 
     const metaEl = document.getElementById('pvMeta');
     const metaHTML = [
@@ -227,14 +229,15 @@
       }
       if (d._type === 'subtotal') {
         // 小計セパレーター。先頭ラベルは cat+sv+name+pay(5)+bill(3)+mk = 12 列ぶん
+        // col 13-16 に data-ft-col を付与し、applyPreviewCustomize の列連動に対応
         const sepPc = d.profitText.startsWith('-') ? 'pv-neg' : (d.profitText === '—' || d.profitText === '0') ? 'pv-zero' : 'pv-pos';
         html += `<tr class="pv-subtotal-sep">
           <td colspan="12" class="pv-subtotal-sep-label">━━ ${escHtml(d.label || '小計')}</td>
           <td class="pv-num pv-subtotal">${escHtml(d.subtotalText)}</td>
-          <td class="pv-jpy"></td>
-          <td class="pv-num pv-tax-cell"></td>
-          <td class="pv-pr ${sepPc} pv-num">${escHtml(d.profitText)}</td>
-          <td></td>
+          <td data-ft-col="jpy-conv" class="pv-jpy"></td>
+          <td data-ft-col="tax-col" class="pv-num pv-tax-cell"></td>
+          <td data-ft-col="profit" class="pv-pr ${sepPc} pv-num">${escHtml(d.profitText)}</td>
+          <td data-ft-col="note"></td>
         </tr>`;
         return;
       }
@@ -283,7 +286,7 @@
       <td data-ft-col="pay">—</td>
       <td data-ft-col="pay" style="background:#e8e8e8;color:#aaa;">—</td>
       <td data-ft-col="bill">—</td>
-      <td data-ft-col="bill">—</td>
+      <td data-ft-col="bill">${escHtml(totalBcLabel)}</td>
       <td data-ft-col="bill" class="pv-num">—</td>
       <td data-ft-col="mk" class="pv-num">${fmtRaw(totMk)}</td>
       <td class="pv-num pv-subtotal">${fmtRaw(totSub)}</td>
@@ -464,8 +467,9 @@
           cell.style.display = show ? '' : 'none';
         });
       });
-      // tfoot は colspan セルを持つため nth-child 位置がずれる → data-ft-col で別制御
-      table.querySelectorAll(`tfoot td[data-ft-col="${chk.dataset.col}"]`).forEach(cell => {
+      // tfoot・tbody の colspan 行（合計行・小計セパレーター等）は
+      // nth-child ではなく data-ft-col で制御（colspan で列位置がずれるため）
+      table.querySelectorAll(`tfoot td[data-ft-col="${chk.dataset.col}"], tbody td[data-ft-col="${chk.dataset.col}"]`).forEach(cell => {
         cell.style.display = show ? '' : 'none';
       });
     });
