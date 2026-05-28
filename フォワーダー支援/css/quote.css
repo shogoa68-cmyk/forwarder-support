@@ -1546,6 +1546,8 @@
 #tab-quote-make .save-btn-import:hover { background:#5a6e42; color:#fff; }
 #tab-quote-make .save-btn-preview { border-color:#d4a017; color:#7a5500; background:#fff8e6; font-weight:700; }
 #tab-quote-make .save-btn-preview:hover { background:#d4a017; color:#fff; border-color:#d4a017; }
+#tab-quote-make .save-btn-compare { border-color:#3a6baf; color:#1a4a8f; background:#eef3fc; font-weight:700; }
+#tab-quote-make .save-btn-compare:hover { background:#3a6baf; color:#fff; border-color:#3a6baf; }
 #tab-quote-make .save-btn-undo,
 #tab-quote-make .save-btn-redo { border-color:#7d6b56; color:#3d2e1e; }
 #tab-quote-make .save-btn-undo:hover:not(:disabled),
@@ -3176,13 +3178,15 @@
 }
 
 /* ================================================================
-   デスクトップ 2 カラムレイアウト（min-width: 1100px 未満はスクロール）
+   デスクトップ 2 カラムレイアウト
+   テーブルは #tableScrollWrap { overflow-x: auto } で独自スクロール済み。
+   ワークスペース自体に min-width を持たせると page-level 横スクロールが
+   発生し、cat-nav/sub-nav の position:sticky が正常動作しないため除去。
    ================================================================ */
 #tab-quote-make .quote-workspace {
   display: flex;
   align-items: flex-start;
   gap: 16px;
-  min-width: 1100px;
 }
 #tab-quote-make .quote-main {
   flex: 1 1 0;
@@ -3305,3 +3309,142 @@
   line-height: 1.5;
 }
 
+/* ===== プリセット比較オーバーレイ ===== */
+#compareOverlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,.55);
+  z-index: 1100;
+  align-items: center;
+  justify-content: center;
+}
+#compareOverlay.open { display: flex; }
+#comparePanel {
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 8px 32px rgba(0,0,0,.25);
+  width: min(920px, 95vw);
+  max-height: 90vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+.cmp-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 18px;
+  border-bottom: 1px solid #e0e0e0;
+  background: #f8f9fa;
+  border-radius: 12px 12px 0 0;
+  flex-shrink: 0;
+}
+.cmp-head h3 { margin: 0; font-size: 1.05rem; color: #333; }
+.cmp-close-x {
+  background: none;
+  border: none;
+  font-size: 1.4rem;
+  color: #888;
+  cursor: pointer;
+  line-height: 1;
+  padding: 0 4px;
+}
+.cmp-close-x:hover { color: #333; }
+.cmp-select-area {
+  padding: 14px 18px 8px;
+  border-bottom: 1px solid #e8e8e8;
+  flex-shrink: 0;
+}
+.cmp-hint { margin: 0 0 10px; font-size: .85rem; color: #666; }
+.cmp-preset-list { display: flex; flex-wrap: wrap; gap: 8px; }
+.cmp-preset-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border: 1px solid #d0d0d0;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: .85rem;
+  background: #fff;
+  transition: background .1s, border-color .1s;
+  user-select: none;
+}
+.cmp-preset-item:hover { background: #f0f5ff; border-color: #90a8d0; }
+.cmp-preset-item input[type="checkbox"] { cursor: pointer; }
+.cmp-preset-item.checked { background: #e8f0fe; border-color: #4a7fd4; }
+.cmp-actions { padding: 10px 18px; border-bottom: 1px solid #e8e8e8; flex-shrink: 0; }
+.cmp-run-btn {
+  padding: 7px 20px;
+  background: #4a7fd4;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  font-size: .9rem;
+  cursor: pointer;
+  font-weight: 600;
+}
+.cmp-run-btn:hover { background: #3a6bc4; }
+.cmp-result {
+  flex: 1;
+  overflow: auto;
+  padding: 16px 18px;
+}
+.cmp-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: .85rem;
+}
+.cmp-table th,
+.cmp-table td {
+  border: 1px solid #d0d0d0;
+  padding: 7px 10px;
+  text-align: right;
+  white-space: nowrap;
+}
+.cmp-table td:first-child {
+  text-align: left;
+  background: #f8f9fa;
+  min-width: 150px;
+  font-weight: 600;
+}
+.cmp-table th {
+  background: #3a5f9c;
+  color: #fff;
+  text-align: center;
+  font-weight: 600;
+}
+.cmp-table th:first-child { text-align: left; }
+.cmp-row-section td {
+  background: #eef2f9 !important;
+  font-weight: 700;
+  color: #2a3f6c;
+  font-size: .88rem;
+  border-top: 2px solid #c4cedf;
+}
+.cmp-row-profit-rate td { color: #1a7a1a; font-weight: 700; }
+.cmp-row-profit-neg td { color: #c0392b; font-weight: 700; }
+.cmp-row-cat td:first-child { font-weight: normal; font-size: .82rem; color: #555; }
+.cmp-num { font-family: 'SFMono-Regular', Consolas, monospace; }
+.cmp-empty-msg {
+  padding: 30px;
+  text-align: center;
+  color: #888;
+  font-size: .9rem;
+}
+.cmp-foot {
+  padding: 10px 18px;
+  border-top: 1px solid #e8e8e8;
+  text-align: right;
+  flex-shrink: 0;
+}
+.cmp-btn-print {
+  padding: 6px 16px;
+  background: #fff;
+  border: 1px solid #aaa;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: .85rem;
+}
+.cmp-btn-print:hover { background: #f5f5f5; }

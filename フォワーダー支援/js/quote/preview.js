@@ -196,6 +196,8 @@
     let totCost = 0, totBill = 0, totMk = 0;
     data.forEach(d => { totCost += d.cost; totBill += d.bill; totMk += d.mk; });
     const totPr = totBill - totCost;
+    const bcSet = [...new Set(data.map(d => d.bc).filter(Boolean))];
+    const totalBcLabel = bcSet.length === 0 ? '—' : bcSet.length === 1 ? bcSet[0] : bcSet.join('/');
 
     const metaEl = document.getElementById('pvMeta');
     const metaHTML = [
@@ -217,7 +219,7 @@
         <th class="ph-profit">乗せ幅</th><th class="ph-profit">小計</th><th class="ph-jpy">円換算</th><th class="ph-profit">消費税</th><th class="ph-profit">利益</th><th class="ph-profit">備考</th>
       </tr></thead><tbody>`;
 
-    let totSub = 0, totTax = 0, totJpy = 0;
+    let totSub = 0, totTax = 0, totJpy = 0, hasNonJpyBill = false;
     allRows.forEach(d => {
       if (d._type === 'remark') {
         html += `<tr class="pv-table-remark-row">
@@ -227,14 +229,15 @@
       }
       if (d._type === 'subtotal') {
         // 小計セパレーター。先頭ラベルは cat+sv+name+pay(5)+bill(3)+mk = 12 列ぶん
+        // col 13-16 に data-ft-col を付与し、applyPreviewCustomize の列連動に対応
         const sepPc = d.profitText.startsWith('-') ? 'pv-neg' : (d.profitText === '—' || d.profitText === '0') ? 'pv-zero' : 'pv-pos';
         html += `<tr class="pv-subtotal-sep">
           <td colspan="12" class="pv-subtotal-sep-label">━━ ${escHtml(d.label || '小計')}</td>
           <td class="pv-num pv-subtotal">${escHtml(d.subtotalText)}</td>
-          <td class="pv-jpy"></td>
-          <td class="pv-num pv-tax-cell"></td>
-          <td class="pv-pr ${sepPc} pv-num">${escHtml(d.profitText)}</td>
-          <td></td>
+          <td data-ft-col="jpy-conv" class="pv-jpy"></td>
+          <td data-ft-col="tax-col" class="pv-num pv-tax-cell"></td>
+          <td data-ft-col="profit" class="pv-pr ${sepPc} pv-num">${escHtml(d.profitText)}</td>
+          <td data-ft-col="note"></td>
         </tr>`;
         return;
       }
@@ -246,6 +249,7 @@
       totSub += sub;
       totTax += taxAmt;
       totJpy += jpyAmt;
+      if (d.bc && d.bc !== 'JPY') hasNonJpyBill = true;
       const jpyCellText = (d.bc && d.bc !== 'JPY') ? fmtRaw(jpyAmt) : '—';
       const taxCellText = d.taxed ? fmtRaw(taxAmt) : '';
       html += `<tr>
@@ -267,16 +271,26 @@
     });
 
     const totPc = totPr > 0 ? 'pv-pos' : totPr < 0 ? 'pv-neg' : 'pv-zero';
-    const totTaxText = fmtRaw(totTax);
-    // 合計行：cat+sv+name = colspan 3 を「合計」ラベルに割当て
-    // data-ft-col: applyPreviewCustomize() が tfoot を別制御するための識別属性
-    // （tfoot は colspan セルを持つため tr td:nth-child(n) での列制御が不可）
+    const totTaxText  = fmtRaw(totTax);
+    const totJpyText  = hasNonJpyBill ? fmtRaw(totJpy) : '—';
+    // 合計行：cat+sv+name = colspan 3 を「合計」ラベルに割当て。
+    // pay/unit/bill/jpy-conv 各セルを個別化し data-ft-col を付与することで
+    // applyPreviewCustomize() の列表示切り替えと完全に連動させる。
+    // （旧実装の colspan="4" には data-ft-col がなく非表示化できなかった。
+    //   jpy-conv セルが欠落していたため col 14 以降がズレていた。）
     html += `</tbody><tfoot><tr class="pv-total">
       <td colspan="3" style="text-align:right;">合　計</td>
-      <td colspan="4">—</td><td data-ft-col="pay" style="background:#e8e8e8;color:#aaa;">—</td>
-      <td colspan="2" data-ft-col="bill">—</td><td data-ft-col="bill" class="pv-num">—</td>
+      <td data-ft-col="pay">—</td>
+      <td data-ft-col="unit">—</td>
+      <td data-ft-col="pay">—</td>
+      <td data-ft-col="pay">—</td>
+      <td data-ft-col="pay" style="background:#e8e8e8;color:#aaa;">—</td>
+      <td data-ft-col="bill">—</td>
+      <td data-ft-col="bill">${escHtml(totalBcLabel)}</td>
+      <td data-ft-col="bill" class="pv-num">—</td>
       <td data-ft-col="mk" class="pv-num">${fmtRaw(totMk)}</td>
       <td class="pv-num pv-subtotal">${fmtRaw(totSub)}</td>
+      <td data-ft-col="jpy-conv" class="pv-jpy">${totJpyText}</td>
       <td data-ft-col="tax-col" class="pv-num pv-tax-total">${totTaxText}</td>
       <td data-ft-col="profit" class="pv-pr ${totPc} pv-num">${fmtRaw(totPr)}</td>
       <td data-ft-col="note"></td>
@@ -453,8 +467,9 @@
           cell.style.display = show ? '' : 'none';
         });
       });
-      // tfoot は colspan セルを持つため nth-child 位置がずれる → data-ft-col で別制御
-      table.querySelectorAll(`tfoot td[data-ft-col="${chk.dataset.col}"]`).forEach(cell => {
+      // tfoot・tbody の colspan 行（合計行・小計セパレーター等）は
+      // nth-child ではなく data-ft-col で制御（colspan で列位置がずれるため）
+      table.querySelectorAll(`tfoot td[data-ft-col="${chk.dataset.col}"], tbody td[data-ft-col="${chk.dataset.col}"]`).forEach(cell => {
         cell.style.display = show ? '' : 'none';
       });
     });
@@ -977,4 +992,138 @@
     const el = document.getElementById('csvMsg');
     el.className = type; el.textContent = text;
     setTimeout(() => { el.className = ''; el.textContent = ''; }, 4000);
+  }
+
+  // ========== プリセット比較 ==========
+
+  function _extractPresetStats(presetData) {
+    const data = migrateRowCells(presetData);
+    const rows = (data.rows || []).filter(r => r._type === 'data');
+    let totBillJpy = 0, totCostJpy = 0, totMk = 0, taxedBillJpy = 0;
+    const byCategory = {};
+
+    rows.forEach(r => {
+      const cells = r.cells || [];
+      const cat   = cells[0] || '';
+      const taxed = !!cells[2];
+      const pq    = parseFloat(cells[4]) || 0;
+      const pc    = cells[6] || 'JPY';
+      const pp    = parseFloat(cells[7]) || 0;
+      const bq    = parseFloat(cells[9]) || 0;
+      const bc    = cells[10] || 'JPY';
+      const bp    = parseFloat(cells[11]) || 0;
+      const mk    = parseFloat(cells[12]) || 0;
+
+      const billOrig = bq * bp;
+      const costOrig = pq * pp;
+
+      const conv = (amt, ccy) =>
+        (typeof toJPY === 'function') ? toJPY(amt, ccy) : (ccy === 'JPY' ? amt : 0);
+
+      totBillJpy += conv(billOrig, bc);
+      totCostJpy += conv(costOrig, pc);
+      totMk      += conv(mk, bc);
+      if (taxed) taxedBillJpy += conv(billOrig, bc);
+
+      if (!byCategory[cat]) byCategory[cat] = 0;
+      byCategory[cat] += conv(billOrig, bc);
+    });
+
+    const totProfit  = totBillJpy - totCostJpy;
+    const profitRate = totBillJpy > 0 ? (totProfit / totBillJpy * 100) : 0;
+    return { totBillJpy, totCostJpy, totProfit, totMk, profitRate, taxedBillJpy, byCategory };
+  }
+
+  function openCompare() {
+    const presets = getPresets();
+    const listEl  = document.getElementById('cmpPresetList');
+    const resultEl = document.getElementById('cmpResult');
+    if (!listEl) return;
+
+    if (!presets.length) {
+      listEl.innerHTML = '<p class="cmp-empty-msg">保存済みプリセットがありません。先にプリセットを保存してください。</p>';
+    } else {
+      listEl.innerHTML = presets.map((p, i) =>
+        `<label class="cmp-preset-item" id="cmpItem-${i}">
+          <input type="checkbox" class="cmp-chk" value="${i}" onchange="toggleCmpItem(this)">
+          ${escHtml(p.name || `プリセット ${i+1}`)}
+        </label>`
+      ).join('');
+    }
+    if (resultEl) resultEl.innerHTML = '';
+    const printBtn = document.getElementById('cmpPrintBtn');
+    if (printBtn) printBtn.style.display = 'none';
+    document.getElementById('compareOverlay').classList.add('open');
+  }
+
+  function toggleCmpItem(chk) {
+    const checked = document.querySelectorAll('.cmp-chk:checked');
+    if (checked.length > 4) { chk.checked = false; return; }
+    const label = chk.closest('label');
+    if (label) label.classList.toggle('checked', chk.checked);
+  }
+
+  function closeCompare() {
+    document.getElementById('compareOverlay').classList.remove('open');
+  }
+
+  function runCompare() {
+    const presets  = getPresets();
+    const selected = [...document.querySelectorAll('.cmp-chk:checked')].map(c => parseInt(c.value, 10));
+    if (selected.length < 2) {
+      alert('比較するプリセットを 2 件以上選択してください。');
+      return;
+    }
+
+    const items = selected.map(i => ({
+      name:  presets[i].name || `プリセット ${i+1}`,
+      stats: _extractPresetStats(presets[i].data),
+    }));
+
+    const fmtJpy = n => Math.round(n).toLocaleString('ja-JP');
+    const fmtPct = (n, bill) => bill > 0 ? n.toFixed(1) + '%' : '—';
+    const profitStyle = n => n < 0 ? 'color:#c0392b;font-weight:700;' : 'color:#1a7a1a;font-weight:700;';
+
+    const colCount = items.length;
+
+    const allCats = new Set();
+    items.forEach(it => Object.keys(it.stats.byCategory).forEach(c => allCats.add(c)));
+    const catOrder = CATEGORIES.map(c => c.value).filter(v => v && allCats.has(v));
+    [...allCats].forEach(c => { if (!catOrder.includes(c)) catOrder.push(c); });
+
+    const secRow = label =>
+      `<tr class="cmp-row-section"><td colspan="${colCount+1}">■ ${escHtml(label)}</td></tr>`;
+    const dataRow = (label, vals, cls = '') =>
+      `<tr class="${cls}"><td>${escHtml(label)}</td>${vals.map(v => `<td class="cmp-num">${v}</td>`).join('')}</tr>`;
+
+    let html = `<table class="cmp-table"><thead><tr>
+      <th></th>${items.map(it => `<th>${escHtml(it.name)}</th>`).join('')}
+    </tr></thead><tbody>`;
+
+    html += secRow('集計（全額 JPY 換算）');
+    html += dataRow('売上合計 (JPY)',   items.map(it => fmtJpy(it.stats.totBillJpy)));
+    html += dataRow('原価合計 (JPY)',   items.map(it => fmtJpy(it.stats.totCostJpy)));
+    html += `<tr><td>利益 (JPY)</td>${items.map(it =>
+      `<td class="cmp-num" style="${profitStyle(it.stats.totProfit)}">${fmtJpy(it.stats.totProfit)}</td>`
+    ).join('')}</tr>`;
+    html += `<tr><td>利益率</td>${items.map(it =>
+      `<td class="cmp-num" style="${profitStyle(it.stats.totProfit)}">${fmtPct(it.stats.profitRate, it.stats.totBillJpy)}</td>`
+    ).join('')}</tr>`;
+    html += dataRow('乗せ幅合計 (JPY)', items.map(it => fmtJpy(it.stats.totMk)));
+    html += dataRow('課税売上 (JPY)',   items.map(it => fmtJpy(it.stats.taxedBillJpy)));
+
+    if (catOrder.length) {
+      html += secRow('カテゴリ別売上内訳 (JPY)');
+      catOrder.forEach(cat => {
+        const label = getCatLabel(cat) || cat || '(未設定)';
+        html += dataRow(label, items.map(it => fmtJpy(it.stats.byCategory[cat] || 0)), 'cmp-row-cat');
+      });
+    }
+
+    html += '</tbody></table>';
+
+    const resultEl = document.getElementById('cmpResult');
+    if (resultEl) resultEl.innerHTML = html;
+    const printBtn = document.getElementById('cmpPrintBtn');
+    if (printBtn) printBtn.style.display = '';
   }
