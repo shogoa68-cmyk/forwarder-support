@@ -38,6 +38,13 @@
    * ファイル名生成: REF_引き合い元_担当.<ext>
    * 入力がある項目だけ使用。すべて空なら "見積もり_YYYYMMDD"
    */
+  function isSensitiveOn() {
+    return ['pay', 'mk', 'profit'].some(k => {
+      const chk = document.querySelector(`.pv-col-chk[data-col="${k}"]`);
+      return chk && chk.checked;
+    });
+  }
+
   function buildFileName(ext) {
     const hdr   = getQuoteHeader();
     const today = new Date().toISOString().slice(0, 10).replace(/-/g, '');
@@ -45,7 +52,8 @@
     const cond = getConditions();
     const mode = safe(cond.mode || '');
     const parts = [hdr.ref, hdr.customer, mode, hdr.person].map(safe).filter(Boolean);
-    return (parts.length ? parts.join('_') : '見積もり_' + today) + '.' + ext;
+    const prefix = isSensitiveOn() ? '[社内用]_' : '[客先]_';
+    return prefix + (parts.length ? parts.join('_') : '見積もり_' + today) + '.' + ext;
   }
 
   function collectAllRows() {
@@ -433,7 +441,7 @@
     updatePreviewTax();
     // Apply saved customization
     initPreviewCustomize();
-    applyPreviewCustomize();
+    applyPreviewCustomize(); // updateModeBanner / has-sensitive はこの中で呼ばれる
     // Hook up change listeners (attach only once via flag)
     if (!document.getElementById('pvCustomizeWrap')?.dataset.listenerSet) {
       document.querySelectorAll('.pv-col-chk, .pv-sec-chk').forEach(chk => {
@@ -562,6 +570,12 @@
       settings[chk.dataset.col || chk.dataset.sec] = chk.checked;
     });
     localStorage.setItem(PV_CUSTOMIZE_KEY, JSON.stringify(settings));
+
+    // 透かし・モードバナー更新
+    const wrap = document.getElementById('previewTableWrap');
+    const sensitive = isSensitiveOn();
+    wrap?.classList.toggle('has-sensitive', sensitive);
+    updateModeBanner(sensitive);
   }
 
   function initPreviewCustomize() {
@@ -574,6 +588,68 @@
         if (key in settings) chk.checked = settings[key];
       });
     } catch (_) { /* ignore */ }
+  }
+
+  function updateModeBanner(sensitive) {
+    const banner = document.getElementById('pvModeBanner');
+    if (!banner) return;
+    if (sensitive == null) sensitive = isSensitiveOn();
+    if (sensitive) {
+      banner.className = 'pv-mode-banner pv-mode-internal';
+      banner.textContent = '社内用モード（原価・乗せ幅・利益列が含まれています）— 客先への送付には使用しないでください';
+    } else {
+      banner.className = 'pv-mode-banner pv-mode-client';
+      banner.textContent = '客先提示用モード（機密列は非表示）';
+    }
+  }
+
+  function sensitiveColumnsGate(label) {
+    if (!isSensitiveOn()) return true;
+    return confirm(
+      `⚠️ ${label}：原価・乗せ幅・利益列が含まれています。\n\n` +
+      `客先への送付には使用しないでください。\n` +
+      `社内用として出力しますか？`
+    );
+  }
+
+  function _clientNoteGate() {
+    const hasNote = collectData().some(d => d.note && d.note.trim());
+    if (!hasNote) return true;
+    return confirm(
+      '📝 備考欄に内容が入力されています。\n\n' +
+      '原価・社内情報が含まれていないか確認してください。\n\n' +
+      'このまま客先用として出力しますか？'
+    );
+  }
+
+  function _withClientColumns(fn) {
+    const saved = {};
+    document.querySelectorAll('.pv-col-chk').forEach(chk => { saved[chk.dataset.col] = chk.checked; });
+    ['pay', 'mk', 'profit'].forEach(k => {
+      const chk = document.querySelector(`.pv-col-chk[data-col="${k}"]`);
+      if (chk) chk.checked = false;
+    });
+    applyPreviewCustomize();
+    try { fn(); }
+    finally {
+      document.querySelectorAll('.pv-col-chk').forEach(chk => {
+        if (chk.dataset.col in saved) chk.checked = saved[chk.dataset.col];
+      });
+      applyPreviewCustomize();
+    }
+  }
+
+  function exportExcelAsClient() {
+    if (!_clientNoteGate()) return;
+    _withClientColumns(() => exportExcel());
+  }
+
+  function exportPDFAsClient() {
+    if (!_clientNoteGate()) return;
+    _withClientColumns(() => {
+      if (!preOutputValidationGate('客先用 PDF 出力')) return;
+      window.print();
+    });
   }
 
   function closePreview()  { document.getElementById('previewOverlay').classList.remove('open'); }
@@ -641,6 +717,7 @@
     const data = collectData();
     if (!data.length) return;
     if (!preOutputValidationGate('クリップボードコピー')) return;
+    if (!sensitiveColumnsGate('クリップボードコピー')) return;
     const hdr = getQuoteHeader();
     let totCost = 0, totBill = 0, totMk = 0;
     data.forEach(d => { totCost += d.cost; totBill += d.bill; totMk += d.mk; });
@@ -693,6 +770,7 @@
   // ========== PDF 出力 ==========
   function exportPDF() {
     if (!preOutputValidationGate('PDF 出力（印刷）')) return;
+    if (!sensitiveColumnsGate('PDF 出力')) return;
     // @media print CSS がプレビュー以外を非表示にする
     window.print();
   }
@@ -727,6 +805,7 @@
       return;
     }
     if (!preOutputValidationGate('Excel 出力')) return;
+    if (!sensitiveColumnsGate('Excel 出力')) return;
     const allRows = collectAllRows();
     const data = allRows.filter(r => r._type === 'data');
     if (!data.length) { alert('行がありません。'); return; }

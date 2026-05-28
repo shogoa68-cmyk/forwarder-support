@@ -1514,6 +1514,69 @@
 }
 #tab-quote-make .pv-btn-close:hover { filter: brightness(1.2); }
 #tab-quote-make .pv-btn-close:active { filter: brightness(0.85); transform: scale(0.97); }
+/* 客先用専用出力ボタン */
+#tab-quote-make .pv-btn-client-excel {
+  background: #e8f4fd;
+  border: 2px solid #1565c0;
+  color: #0d47a1;
+  padding: 6px 12px;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 700;
+}
+#tab-quote-make .pv-btn-client-excel:hover { background: #bbdefb; }
+#tab-quote-make .pv-btn-client-pdf {
+  background: #fce4ec;
+  border: 2px solid #c62828;
+  color: #b71c1c;
+  padding: 6px 12px;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 700;
+}
+#tab-quote-make .pv-btn-client-pdf:hover { background: #ffcdd2; }
+/* モードバナー */
+#tab-quote-make .pv-mode-banner {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  padding: 7px 14px;
+  border-radius: 5px;
+  font-size: 12px;
+  font-weight: 700;
+  margin-bottom: 10px;
+  display: none;
+}
+#tab-quote-make .pv-mode-banner.pv-mode-internal {
+  display: block;
+  background: #fff3e0;
+  border: 1.5px solid #e65100;
+  color: #bf360c;
+}
+#tab-quote-make .pv-mode-banner.pv-mode-client {
+  display: block;
+  background: #e8f5e9;
+  border: 1.5px solid #2e7d32;
+  color: #1b5e20;
+}
+/* 社内用透かし */
+#tab-quote-make #previewTableWrap { position: relative; }
+#tab-quote-make #previewTableWrap.has-sensitive::before {
+  content: '社内用 — 客先送付不可';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%) rotate(-30deg);
+  font-size: 52px;
+  font-weight: 900;
+  color: rgba(198, 40, 40, 0.07);
+  pointer-events: none;
+  white-space: nowrap;
+  z-index: 1;
+  letter-spacing: 3px;
+}
 #tab-quote-make .pv-copy-msg { font-size: 12px; color: #5a6e42; opacity: 0; transition: opacity 0.4s; }
 #tab-quote-make .pv-copy-msg.show { opacity: 1; }
 #tab-quote-make .pv-hint { font-size: 11px; color: #7d6b56; margin-top: 10px; }
@@ -3072,6 +3135,7 @@
   }
   body:has(#previewOverlay.open) .pv-btns,
   body:has(#previewOverlay.open) .pv-hint,
+  body:has(#previewOverlay.open) .pv-mode-banner,
   body:has(#previewOverlay.open) #pvTaxBox { display: none !important; }
   body:has(#previewOverlay.open) #previewTable {
     width: 100% !important;

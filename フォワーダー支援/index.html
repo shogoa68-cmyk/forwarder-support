@@ -2760,6 +2760,7 @@
     <div id="previewOverlay" onclick="overlayClick(event)">
       <div id="previewBox">
         <h2>📋 プレビュー（表計算形式）</h2>
+        <div id="pvModeBanner" class="pv-mode-banner"></div>
         <div id="pvMeta" class="pv-meta" style="display:none;"></div>
         <div id="pvCondBox" style="display:none;"><strong>🚢 引き合い条件</strong></div>
         <div id="pvCargoBox" style="display:none;"></div>
@@ -2781,6 +2782,8 @@
           <button class="pv-btn-csv"  onclick="downloadCSV()">⬇ CSV ダウンロード</button>
           <button class="pv-btn-excel" onclick="exportExcel()">📊 Excel 出力</button>
           <button class="pv-btn-pdf"   onclick="exportPDF()">🖨️ PDF 出力（印刷）</button>
+          <button class="pv-btn-client-excel" onclick="exportExcelAsClient()">👥 客先用 Excel</button>
+          <button class="pv-btn-client-pdf"   onclick="exportPDFAsClient()">👥 客先用 PDF</button>
           <button class="pv-btn-close" onclick="closePreview()">閉じる</button>
           <span class="pv-copy-msg" id="copyMsg">✅ コピーしました！</span>
         </div>
