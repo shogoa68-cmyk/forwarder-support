@@ -270,7 +270,7 @@
         <td class="pv-num">${fmtRaw(d.mk)}</td>
         <td class="pv-num pv-subtotal">${fmtRaw(sub)}</td>
         <td class="pv-jpy">${jpyCellText}</td>
-        <td class="pv-num pv-tax-cell" data-sub="${sub}" data-taxed="${d.taxed ? 1 : 0}">${taxCellText}</td>
+        <td class="pv-num pv-tax-cell" data-sub="${sub}" data-ccy="${d.bc || 'JPY'}" data-taxed="${d.taxed ? 1 : 0}">${taxCellText}</td>
         <td class="pv-pr ${pc} pv-num">${fmtRaw(d.profit)}</td>
         <td class="pv-name">${escHtml(d.note)}</td>
       </tr>`;
@@ -298,7 +298,7 @@
         <td data-ft-col="mk" class="pv-num">${showMk ? fmtRaw(totMk) : ''}</td>
         <td class="pv-num pv-subtotal">${fmtRaw(g.sub)}${jpyConvText ? `<span class="pv-jpy-inline">(${jpyConvText})</span>` : ''}</td>
         <td data-ft-col="jpy-conv" class="pv-jpy">${jpyConvText}</td>
-        <td data-ft-col="tax-col" class="pv-num pv-tax-total">${taxText}</td>
+        <td data-ft-col="tax-col" data-ccy="${escHtml(ccy)}" class="pv-num pv-tax-total">${taxText}</td>
         <td data-ft-col="profit" class="pv-num ${prCls}">${prText}</td>
         <td data-ft-col="note"></td>
       </tr>`;
@@ -455,21 +455,30 @@
     const rateLbl = document.getElementById('pvTaxRateLabel');
     if (rateLbl) rateLbl.textContent = isExempt ? '0%（輸出免税）' : '10%（標準）';
     // 行ごとの消費税セルを更新（課税行のみ計算）
-    let totTax = 0;
+    let totTaxJpy = 0;
+    const perCcyTax = {};
     document.querySelectorAll('#previewTable .pv-tax-cell').forEach(td => {
       const sub   = parseFloat(td.dataset.sub) || 0;
       const taxed = td.dataset.taxed === '1';
+      const ccy   = td.dataset.ccy || 'JPY';
       if (!taxed) { td.textContent = ''; return; }
       const amt = sub * rate;
-      totTax += amt;
+      perCcyTax[ccy] = (perCcyTax[ccy] || 0) + amt;
+      totTaxJpy += (typeof toJPY === 'function') ? toJPY(amt, ccy) : (ccy === 'JPY' ? amt : 0);
       td.textContent = fmtRaw(amt);
     });
-    // 合計行の消費税セル
-    const totTaxEl = document.querySelector('#previewTable .pv-tax-total');
-    if (totTaxEl) totTaxEl.textContent = fmtRaw(totTax);
-    // 底部サマリ（消費税額・税込合計）
-    // ※ totalSub（全行合計）ではなく、課税行のみを集計した totTax を使う
-    const tax   = totTax;
+    // 合計行の消費税セル（通貨別）
+    document.querySelectorAll('#previewTable .pv-tax-total[data-ccy]').forEach(td => {
+      const ccy = td.dataset.ccy;
+      if (ccy === '≈JPY') {
+        td.textContent = totTaxJpy > 0 ? fmtRaw(Math.ceil(totTaxJpy)) : '—';
+      } else {
+        const t = perCcyTax[ccy] || 0;
+        td.textContent = t > 0 ? fmtRaw(t) : '—';
+      }
+    });
+    // 底部サマリ（消費税額・税込合計）JPY換算ベースで集計
+    const tax   = totTaxJpy;
     const total = totalSub + tax;
     const taxEl   = document.getElementById('pvTaxAmount');
     const totalEl = document.getElementById('pvTaxTotal');
@@ -504,7 +513,7 @@
       const show = chk.checked;
       // thead/tbody は nth-child で制御（1セル=1列のため位置が一致）
       indices.forEach(ci => {
-        table.querySelectorAll(`thead tr th:nth-child(${ci + 1}), tbody tr td:nth-child(${ci + 1})`).forEach(cell => {
+        table.querySelectorAll(`thead tr th:nth-child(${ci + 1}), tbody tr:not(.pv-subtotal-sep):not(.pv-table-remark-row) td:nth-child(${ci + 1})`).forEach(cell => {
           cell.style.display = show ? '' : 'none';
         });
       });
