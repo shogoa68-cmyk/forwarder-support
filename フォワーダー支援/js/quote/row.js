@@ -448,13 +448,14 @@
     });
     const totPr    = totBill - totCost;
     const totPrJPY = totBillJPY - totCostJPY;
-    document.getElementById('tot-cost').textContent     = fmt(totCost);
-    document.getElementById('tot-billing').textContent  = fmt(totBill);
-    document.getElementById('tot-markup').textContent   = fmt(totMk);
-    document.getElementById('tot-subtotal').textContent = fmt(totSub);
+    // 外貨混在時: 単純加算値は意味がないので「—」にして JPY換算行に一本化
+    document.getElementById('tot-cost').textContent     = hasFx ? '—' : fmt(totCost);
+    document.getElementById('tot-billing').textContent  = hasFx ? '—' : fmt(totBill);
+    document.getElementById('tot-markup').textContent   = hasFx ? '—' : fmt(totMk);
+    document.getElementById('tot-subtotal').textContent = hasFx ? '—' : fmt(totSub);
     const pEl = document.getElementById('tot-profit');
-    pEl.textContent = fmt(totPr);
-    pEl.className   = `profit-cell ${pClass(totPr)}`;
+    pEl.textContent = hasFx ? '—' : fmt(totPr);
+    pEl.className   = hasFx ? 'profit-cell profit-zero' : `profit-cell ${pClass(totPr)}`;
     // JPY換算行（外貨が含まれる場合のみ表示）
     const jpyRow = document.getElementById('tot-jpy-row');
     if (jpyRow) {
