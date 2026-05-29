@@ -882,6 +882,8 @@
     aoaRows.push(visCols.map(c => c.hdr));
 
     let totSub = 0, totJpyConv = 0, totTaxAmt = 0, totProfit = 0;
+    let totTaxAmtJpy = 0, totProfitJpy = 0;
+    let hasFxRows = false;
     allRows.forEach(d => {
       if (d._type === 'remark') {
         if (d.text) {
@@ -899,23 +901,28 @@
         aoaRows.push(row);
         return;
       }
-      const sub    = (d.bq || 0) * (d.bp || 0);
-      const jpy    = (typeof toJPY === 'function') ? Math.ceil(toJPY(sub, d.bc)) : sub;
-      const taxAmt = d.taxed ? sub * getEffectiveTaxRate() : 0;
-      totSub     += sub;
-      totJpyConv += jpy;
-      totTaxAmt  += taxAmt;
-      totProfit  += d.profit;
+      const sub     = (d.bq || 0) * (d.bp || 0);
+      const cost    = (d.pq || 0) * (d.pp || 0);
+      const jpy     = typeof toJPY === 'function' ? Math.ceil(toJPY(sub, d.bc))  : sub;
+      const costJpy = typeof toJPY === 'function' ? Math.ceil(toJPY(cost, d.pc)) : cost;
+      const taxAmt  = d.taxed ? sub * getEffectiveTaxRate() : 0;
+      totSub        += sub;
+      totJpyConv    += jpy;
+      totTaxAmt     += taxAmt;
+      totTaxAmtJpy  += d.taxed ? Math.ceil(jpy * getEffectiveTaxRate()) : 0;
+      totProfit     += d.profit;
+      totProfitJpy  += jpy - costJpy;
+      if (d.bc && d.bc !== 'JPY') hasFxRows = true;
       aoaRows.push(visCols.map(c => c.fn(d)));
     });
-    // 合計行
+    // 合計行（外貨混在時は JPY 換算ベースで集計）
     aoaRows.push([]);
     const totalRow = visCols.map(() => '');
-    totalRow[0] = '合　計';
-    if (idxSub     >= 0) totalRow[idxSub]     = totSub;
-    if (idxJpyConv >= 0) totalRow[idxJpyConv] = totJpyConv;
-    if (idxTaxAmt  >= 0) totalRow[idxTaxAmt]  = totTaxAmt;
-    if (idxProfit  >= 0) totalRow[idxProfit]  = totProfit;
+    totalRow[0] = hasFxRows ? '合　計（≈JPY換算）' : '合　計';
+    if (idxSub     >= 0) totalRow[idxSub]     = hasFxRows ? totJpyConv              : totSub;
+    if (idxJpyConv >= 0) totalRow[idxJpyConv] = hasFxRows ? totJpyConv              : '';
+    if (idxTaxAmt  >= 0) totalRow[idxTaxAmt]  = hasFxRows ? totTaxAmtJpy            : totTaxAmt;
+    if (idxProfit  >= 0) totalRow[idxProfit]  = hasFxRows ? Math.ceil(totProfitJpy) : totProfit;
     aoaRows.push(totalRow);
 
     // 通貨別内訳サマリー
