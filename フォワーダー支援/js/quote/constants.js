@@ -159,7 +159,7 @@ const DEFAULT_FX_RATES = {
 
 // 為替レートパネルで表示・編集する通貨を絞り込む
 // （行ごとの通貨セレクタや fetchAutoFxRates の対象には影響しない）
-const FX_DISPLAY_CURRENCIES = ['USD', 'EUR', 'GBP', 'CNY', 'SGD', 'KRW'];
+const FX_DISPLAY_CURRENCIES = ['USD', 'EUR', 'GBP', 'CNY', 'SGD', 'KRW', 'HKD', 'AUD', 'TWD', 'THB', 'MYR', 'IDR'];
 
 // ユーザーが上書きしたレート（localStorageから復元）
 let _fxRates = { ...DEFAULT_FX_RATES };

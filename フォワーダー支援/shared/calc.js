@@ -79,6 +79,7 @@ window.SharedCalc = (function () {
     { key: '20gp', name: "20'GP", cbm: 25, maxKg: 21500, dims: { l: 589,  w: 235, h: 239 } },
     { key: '40gp', name: "40'GP", cbm: 57, maxKg: 26500, dims: { l: 1203, w: 235, h: 239 } },
     { key: '40hc', name: "40'HQ", cbm: 67, maxKg: 26500, dims: { l: 1203, w: 235, h: 269 } },
+    { key: '45hc', name: "45'HC", cbm: 86, maxKg: 26500, dims: { l: 1354, w: 235, h: 269 } },
   ]);
 
   /** CBM/重量からコンテナ本数の目安を返す */
