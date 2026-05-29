@@ -345,6 +345,10 @@
     });
     // テーブル行復元（通常行・小計行・リマーク行を含む）
     _rebuildTable(data);
+    if (typeof syncHazmatPanel      === 'function') syncHazmatPanel();
+    if (typeof syncMultiEntryFields === 'function') syncMultiEntryFields();
+    _applyZoneOn(1, document.getElementById('cond-z1-on')?.value === '1');
+    _applyZoneOn(3, document.getElementById('cond-z3-on')?.value === '1');
     updateTotals();
     updateRouteModeIcon();
     dismissRestoreBar();
@@ -374,6 +378,10 @@
     });
     // テーブル行復元（通常行・小計行・リマーク行を含む）
     _rebuildTable(data);
+    if (typeof syncHazmatPanel      === 'function') syncHazmatPanel();
+    if (typeof syncMultiEntryFields === 'function') syncMultiEntryFields();
+    _applyZoneOn(1, document.getElementById('cond-z1-on')?.value === '1');
+    _applyZoneOn(3, document.getElementById('cond-z3-on')?.value === '1');
     updateTotals();
     updateRouteModeIcon();
     showSaveStatus('📂 読み込みました');
@@ -528,9 +536,15 @@
     if (dsc) { dsc.value = ''; dsc.disabled = true; }
   }
 
+  function _applyZoneOn(n, on) {
+    if (n === 1 && _zone1On !== on) toggleZone(1);
+    if (n === 3 && _zone3On !== on) toggleZone(3);
+  }
+
   function toggleZone(n) {
     if (n === 1) {
       _zone1On = !_zone1On;
+      const _z1h = document.getElementById('cond-z1-on'); if (_z1h) _z1h.value = _zone1On ? '1' : '0';
       const card = document.getElementById('zone1Card');
       const btn  = document.getElementById('zone1Btn');
       card?.classList.toggle('zone-off', !_zone1On);
@@ -550,6 +564,7 @@
       }
     } else if (n === 3) {
       _zone3On = !_zone3On;
+      const _z3h = document.getElementById('cond-z3-on'); if (_z3h) _z3h.value = _zone3On ? '1' : '0';
       const card = document.getElementById('zone3Card');
       const btn  = document.getElementById('zone3Btn');
       card?.classList.toggle('zone-off', !_zone3On);
