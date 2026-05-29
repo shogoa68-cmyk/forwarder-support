@@ -1,0 +1,114 @@
+/* ========== 御見積書フォーマット（案A）オーバーレイ & 印刷 ========== */
+#quoteDocOverlay {
+  display: none;
+  position: fixed; inset: 0; z-index: 1000;
+  background: rgba(40, 32, 20, 0.55);
+  overflow: auto;
+  padding: 0;
+}
+#quoteDocOverlay.open { display: block; }
+#quoteDocOverlay .qd-shell {
+  max-width: 880px;
+  margin: 0 auto;
+  min-height: 100%;
+}
+#quoteDocOverlay .qd-toolbar {
+  position: sticky; top: 0; z-index: 5;
+  display: flex; align-items: center; gap: 10px;
+  background: #2b2b2b; color: #fff;
+  padding: 10px 18px;
+}
+#quoteDocOverlay .qd-tb-title { font-size: 14px; font-weight: 600; margin-right: auto; }
+#quoteDocOverlay .qd-tb-btn {
+  padding: 7px 14px; border: 1px solid #555; background: #3a3a3a; color: #eee;
+  border-radius: 6px; cursor: pointer; font-size: 13px; font-family: inherit;
+}
+#quoteDocOverlay .qd-tb-btn:hover { background: #4a4a4a; }
+#quoteDocOverlay .qd-tb-print { background: #1a3a6b; border-color: #1a3a6b; color: #fff; font-weight: 700; }
+#quoteDocOverlay .qd-tb-print:hover { background: #234a87; }
+
+#quoteDocOverlay .qd-issuer-wrap { background: #f3efe6; padding: 14px 18px; border-bottom: 1px solid #d8cdb8; }
+#quoteDocOverlay .qd-issuer-ttl { font-size: 13px; font-weight: 700; color: #5a4a35; margin-bottom: 10px; }
+#quoteDocOverlay .qd-fld-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 16px; }
+#quoteDocOverlay .qd-fld { display: flex; flex-direction: column; gap: 3px; font-size: 11px; color: #6b5a42; }
+#quoteDocOverlay .qd-fld-wide { margin-top: 8px; }
+#quoteDocOverlay .qd-fld input, #quoteDocOverlay .qd-fld textarea {
+  border: 1px solid #cdbfa0; border-radius: 4px; padding: 5px 8px; font-size: 13px;
+  font-family: inherit; background: #fff; color: #2d2418; resize: vertical;
+}
+#quoteDocOverlay .qd-fld input:focus, #quoteDocOverlay .qd-fld textarea:focus { outline: none; border-color: #8b6914; }
+
+#quoteDocOverlay .qd-preview { padding: 24px; display: flex; justify-content: center; }
+
+/* ===== A4 御見積書本体 ===== */
+.qd-page {
+  width: 794px; min-height: 1080px; background: #fff; color: #1a1a1a;
+  padding: 40px 42px; font-size: 12px; line-height: 1.5;
+  font-family: "Hiragino Kaku Gothic ProN", "Yu Gothic", sans-serif;
+  box-shadow: 0 4px 24px rgba(0,0,0,.18);
+}
+.qd-page .qd-top { display: flex; justify-content: space-between; font-size: 11px; color: #333; margin-bottom: 6px; }
+.qd-title {
+  text-align: center; font-size: 26px; letter-spacing: 14px; font-weight: 700;
+  margin: 0 0 16px; padding-left: 14px;
+  font-family: "Yu Mincho", "Hiragino Mincho ProN", serif;
+}
+.qd-head { display: flex; justify-content: space-between; gap: 24px; margin-bottom: 14px; }
+.qd-to { flex: 1; }
+.qd-cust {
+  font-size: 17px; font-weight: 700; border-bottom: 2px solid #1a1a1a;
+  padding-bottom: 4px; margin-bottom: 8px; display: inline-block; min-width: 60%;
+}
+.qd-greet { font-size: 11px; color: #333; line-height: 1.7; }
+.qd-from { width: 290px; font-size: 11px; }
+.qd-co { font-size: 14px; font-weight: 700; margin-bottom: 2px; }
+.qd-no { font-size: 11px; color: #444; margin-bottom: 6px; }
+.qd-addr { color: #333; line-height: 1.6; }
+.qd-placeholder { color: #c0392b; font-weight: 400; }
+
+.qd-subj { border: 1.5px solid #1a1a1a; margin-bottom: 14px; }
+.qd-subj-ttl { background: #f0f0f0; border-bottom: 1px solid #bbb; padding: 6px 10px; font-weight: 700; font-size: 13px; }
+.qd-meta { display: grid; grid-template-columns: auto 1fr; gap: 3px 12px; padding: 8px 12px; font-size: 11px; }
+.qd-srow { display: contents; }
+.qd-sk { color: #555; white-space: nowrap; }
+.qd-amt-row { display: flex; justify-content: space-between; align-items: center; border-top: 1px solid #bbb; padding: 8px 12px; background: #fafafa; }
+.qd-valid { font-size: 10px; color: #666; }
+.qd-amt { font-size: 20px; font-weight: 700; color: #8b1a1a; }
+.qd-amt .qd-jpy { font-size: 11px; }
+
+.qd-items { width: 100%; border-collapse: collapse; font-size: 11px; }
+.qd-items th { background: #3a3a3a; color: #fff; padding: 6px 8px; border: 1px solid #333; font-weight: 600; font-size: 10.5px; }
+.qd-items td { border: 1px solid #ccc; padding: 4px 8px; vertical-align: top; }
+.qd-items .qd-item { width: 50%; text-align: left; }
+.qd-items th:not(.qd-item) { width: 12%; }
+.qd-num { text-align: right; font-variant-numeric: tabular-nums; }
+.qd-ctr { text-align: center; }
+.qd-desc, .qd-conv { color: #666; font-size: 10px; }
+.qd-tax { color: #b3530e; font-weight: 700; }
+.qd-items .qd-sub td { background: #f3efe7; font-weight: 700; }
+.qd-items .qd-remark td { background: #fffbe6; color: #555; font-size: 10px; }
+
+.qd-foot { display: flex; gap: 14px; margin-top: 12px; align-items: flex-start; }
+.qd-notes { flex: 1; font-size: 10px; color: #444; line-height: 1.7; }
+.qd-rate { width: 140px; font-size: 10.5px; }
+.qd-rate table { width: 100%; border-collapse: collapse; }
+.qd-rate td { border: 1px solid #ccc; padding: 2px 6px; }
+.qd-rate .qd-rh { background: #f0f0f0; font-weight: 600; }
+.qd-sum { width: 215px; }
+.qd-sum table { width: 100%; border-collapse: collapse; }
+.qd-sum td { border: 1px solid #999; padding: 5px 8px; }
+.qd-sk2 { background: #f0f0f0; font-size: 10.5px; }
+.qd-sum .qd-total td { background: #3a3a3a; color: #fff; font-weight: 700; font-size: 14px; }
+
+/* ===== 印刷時：御見積書だけを出す ===== */
+@media print {
+  body.qd-print-mode > *:not(#quoteDocOverlay) { display: none !important; }
+  body.qd-print-mode #quoteDocOverlay {
+    position: static; background: #fff; overflow: visible; padding: 0; display: block;
+  }
+  body.qd-print-mode #quoteDocOverlay .qd-toolbar,
+  body.qd-print-mode #quoteDocOverlay .qd-issuer-wrap { display: none !important; }
+  body.qd-print-mode #quoteDocOverlay .qd-preview { padding: 0; display: block; }
+  body.qd-print-mode .qd-page { box-shadow: none; width: 100%; min-height: auto; padding: 0; }
+  @page { size: A4 portrait; margin: 14mm; }
+}
