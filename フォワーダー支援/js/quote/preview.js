@@ -806,6 +806,42 @@
     { hdr: '備考',         fn: d => d.note,                pvGroup: 'note',   role: 'note'   },
   ];
 
+  function _buildCcySummaryAoA(allRows, taxRate) {
+    const ccyData = {};
+    allRows.forEach(d => {
+      if (d._type !== 'data') return;
+      const bc  = d.bc || 'JPY';
+      const sub = (d.bq || 0) * (d.bp || 0);
+      if (!ccyData[bc]) ccyData[bc] = { sub: 0, taxedSub: 0, exemptSub: 0 };
+      ccyData[bc].sub += sub;
+      if (d.taxed) ccyData[bc].taxedSub += sub;
+      else         ccyData[bc].exemptSub += sub;
+    });
+    const ccyKeys = Object.keys(ccyData).sort((a, b) => a === 'JPY' ? -1 : b === 'JPY' ? 1 : a.localeCompare(b));
+    const hasMixed = ccyKeys.some(c => ccyData[c].taxedSub > 0 && ccyData[c].exemptSub > 0);
+    if (ccyKeys.length <= 1 && !hasMixed) return [];
+    const rows = [
+      [],
+      ['■ 通貨別内訳'],
+      ['通貨', '小計', 'うち課税', 'うち免税', `消費税額（${Math.round(taxRate * 100)}%）`, '円換算（JPY）'],
+    ];
+    ccyKeys.forEach(ccy => {
+      const g = ccyData[ccy];
+      if (!g.sub) return;
+      const taxAmt = Math.ceil(g.taxedSub * taxRate);
+      const jpySub = (typeof toJPY === 'function' && ccy !== 'JPY') ? Math.ceil(toJPY(g.sub, ccy)) : '';
+      rows.push([
+        ccy,
+        g.sub,
+        g.taxedSub || '',
+        g.exemptSub || '',
+        taxAmt || '',
+        jpySub,
+      ]);
+    });
+    return rows;
+  }
+
   function exportExcel() {
     if (typeof XLSX === 'undefined') {
       alert('SheetJSライブラリが読み込まれていません。ページを再読み込みしてください。');
@@ -881,6 +917,10 @@
     if (idxTaxAmt  >= 0) totalRow[idxTaxAmt]  = totTaxAmt;
     if (idxProfit  >= 0) totalRow[idxProfit]  = totProfit;
     aoaRows.push(totalRow);
+
+    // 通貨別内訳サマリー
+    const ccySummary = _buildCcySummaryAoA(allRows, getEffectiveTaxRate());
+    ccySummary.forEach(r => aoaRows.push(r));
 
     // 条件・リマーク
     const remarkText = getRemarkText?.() || '';
