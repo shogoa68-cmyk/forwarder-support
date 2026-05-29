@@ -489,7 +489,8 @@
     ccyKeys.forEach(ccy => {
       const g = ccyData[ccy];
       if (!g.sub) return;
-      const taxAmt = Math.ceil(g.taxedSub * TAX_RATE);
+      // 外貨建ては輸出免税が原則のため消費税は JPY 行のみ計算
+      const taxAmt = (ccy === 'JPY') ? Math.ceil(g.taxedSub * TAX_RATE) : 0;
       const jpySub = (typeof toJPY === 'function' && ccy !== 'JPY') ? Math.ceil(toJPY(g.sub, ccy)) : null;
       const parts = [];
       if (g.taxedSub > 0 && g.exemptSub > 0) {
