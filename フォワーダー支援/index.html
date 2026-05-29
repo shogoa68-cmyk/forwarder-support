@@ -2290,6 +2290,8 @@
         <span id="cond-incoterms-hint" class="cond-incoterms-hint"></span>
 
         <div class="zone-builder" id="zoneBuilder">
+          <input type="hidden" id="cond-z1-on" value="0" />
+          <input type="hidden" id="cond-z3-on" value="0" />
           <div class="zone-card zone-origin zone-off" id="zone1Card">
             <div class="zone-card-header">
               <button class="zone-toggle-btn" id="zone1Btn" onclick="toggleZone(1)">OFF</button>
@@ -2661,7 +2663,7 @@
                         <th class="cd-dim">幅<span>cm</span></th>
                         <th class="cd-dim">高さ<span>cm</span></th>
                         <th class="cd-cbm" title="長さ×幅×高さ×個数（自動計算）">容積<span>CBM</span></th>
-                        <th class="cd-kg" title="この荷姿の合計重量">重量<span>kg</span></th>
+                        <th class="cd-kg" title="1個あたりの重量。合計は重量×個数で自動計算されます">重量<span>kg／個</span></th>
                         <th class="cd-stack" title="段積みの可否">段積み</th>
                         <th class="cd-del"></th>
                       </tr>

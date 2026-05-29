@@ -345,6 +345,10 @@
     });
     // テーブル行復元（通常行・小計行・リマーク行を含む）
     _rebuildTable(data);
+    if (typeof syncHazmatPanel      === 'function') syncHazmatPanel();
+    if (typeof syncMultiEntryFields === 'function') syncMultiEntryFields();
+    _applyZoneOn(1, document.getElementById('cond-z1-on')?.value === '1');
+    _applyZoneOn(3, document.getElementById('cond-z3-on')?.value === '1');
     updateTotals();
     updateRouteModeIcon();
     dismissRestoreBar();
@@ -374,6 +378,10 @@
     });
     // テーブル行復元（通常行・小計行・リマーク行を含む）
     _rebuildTable(data);
+    if (typeof syncHazmatPanel      === 'function') syncHazmatPanel();
+    if (typeof syncMultiEntryFields === 'function') syncMultiEntryFields();
+    _applyZoneOn(1, document.getElementById('cond-z1-on')?.value === '1');
+    _applyZoneOn(3, document.getElementById('cond-z3-on')?.value === '1');
     updateTotals();
     updateRouteModeIcon();
     showSaveStatus('📂 読み込みました');
@@ -528,9 +536,15 @@
     if (dsc) { dsc.value = ''; dsc.disabled = true; }
   }
 
+  function _applyZoneOn(n, on) {
+    if (n === 1 && _zone1On !== on) toggleZone(1);
+    if (n === 3 && _zone3On !== on) toggleZone(3);
+  }
+
   function toggleZone(n) {
     if (n === 1) {
       _zone1On = !_zone1On;
+      const _z1h = document.getElementById('cond-z1-on'); if (_z1h) _z1h.value = _zone1On ? '1' : '0';
       const card = document.getElementById('zone1Card');
       const btn  = document.getElementById('zone1Btn');
       card?.classList.toggle('zone-off', !_zone1On);
@@ -550,6 +564,7 @@
       }
     } else if (n === 3) {
       _zone3On = !_zone3On;
+      const _z3h = document.getElementById('cond-z3-on'); if (_z3h) _z3h.value = _zone3On ? '1' : '0';
       const card = document.getElementById('zone3Card');
       const btn  = document.getElementById('zone3Btn');
       card?.classList.toggle('zone-off', !_zone3On);
@@ -707,12 +722,12 @@
   function _updatePackingTotals() {
     let totQty = 0, totCbm = 0, totKg = 0, totVolWt = 0;
     _packingEntries.forEach(e => {
-      totQty += parseInt(e.qty, 10) || 0;
+      const q = parseInt(e.qty, 10) || 0;
+      totQty += q;
       totCbm += _rowCbm(e);
-      totKg  += parseFloat(e.kg) || 0;
+      totKg  += (parseFloat(e.kg) || 0) * q;   // 重量は1個あたり × 個数
       // 容積重量(kg) = 長さ×幅×高さ(cm) ÷ 6000 × 個数（航空 CW 用）
       const l = parseFloat(e.l) || 0, w = parseFloat(e.w) || 0, h = parseFloat(e.h) || 0;
-      const q = parseInt(e.qty, 10) || 0;
       totVolWt += (l * w * h / 6000) * q;
     });
     // R/T = max(CBM, 重量t)  ／  CW = max(実重量, 容積重量)
@@ -721,8 +736,8 @@
 
     const setText = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
     setText('cdTotQty', totQty.toLocaleString());
-    setText('cdTotCbm', totCbm.toFixed(3));
-    setText('cdTotKg',  totKg.toLocaleString());
+    setText('cdTotCbm', totCbm > 0 ? totCbm.toFixed(3) + ' CBM' : '0.000');
+    setText('cdTotKg',  totKg  > 0 ? totKg.toLocaleString()  + ' kg'  : '0');
     setText('cdTotRt',  rt.toFixed(3));
     setText('cdTotCw',  Math.round(cw).toLocaleString());
 
