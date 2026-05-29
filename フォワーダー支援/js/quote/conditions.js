@@ -135,7 +135,16 @@
       const rowId = nm.id.replace('nm-', '');
       checkUnfilled(rowId);
       onCatChange(rowId);
+      // onPay() は bc（請求通貨）を pc（仕入通貨）で上書きするため、
+      // _applyCells で復元した bc を退避・復元して pc≠bc の設定を保持する
+      const bcEl = tr.querySelector('[data-field="bc"]');
+      const savedBc = bcEl?.value;
       onPay(parseInt(rowId));
+      if (bcEl && savedBc !== undefined) {
+        bcEl.value = savedBc;
+        // bc 復元後に calc を再実行して小計表示を正しい請求通貨で再計算する
+        if (typeof calc === 'function') calc(parseInt(rowId));
+      }
       // tx は _applyCells で positional に復元済み。fields ID は非連番になり得るため使わない
       const txEl = tr.querySelector('[data-field="tx"]');
       if (txEl?.checked) tr.classList.add('taxed');
@@ -351,6 +360,7 @@
     if (typeof syncMultiEntryFields === 'function') syncMultiEntryFields();
     _applyZoneOn(1, document.getElementById('cond-z1-on')?.value === '1');
     _applyZoneOn(3, document.getElementById('cond-z3-on')?.value === '1');
+    if (typeof window.updateQspCaseInfo === 'function') window.updateQspCaseInfo();
     updateTotals();
     updateRouteModeIcon();
     dismissRestoreBar();
@@ -384,6 +394,7 @@
     if (typeof syncMultiEntryFields === 'function') syncMultiEntryFields();
     _applyZoneOn(1, document.getElementById('cond-z1-on')?.value === '1');
     _applyZoneOn(3, document.getElementById('cond-z3-on')?.value === '1');
+    if (typeof window.updateQspCaseInfo === 'function') window.updateQspCaseInfo();
     updateTotals();
     updateRouteModeIcon();
     showSaveStatus('📂 読み込みました');
