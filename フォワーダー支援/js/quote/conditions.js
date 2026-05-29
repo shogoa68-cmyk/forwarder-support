@@ -722,12 +722,12 @@
   function _updatePackingTotals() {
     let totQty = 0, totCbm = 0, totKg = 0, totVolWt = 0;
     _packingEntries.forEach(e => {
-      totQty += parseInt(e.qty, 10) || 0;
+      const q = parseInt(e.qty, 10) || 0;
+      totQty += q;
       totCbm += _rowCbm(e);
-      totKg  += parseFloat(e.kg) || 0;
+      totKg  += (parseFloat(e.kg) || 0) * q;   // 重量は1個あたり × 個数
       // 容積重量(kg) = 長さ×幅×高さ(cm) ÷ 6000 × 個数（航空 CW 用）
       const l = parseFloat(e.l) || 0, w = parseFloat(e.w) || 0, h = parseFloat(e.h) || 0;
-      const q = parseInt(e.qty, 10) || 0;
       totVolWt += (l * w * h / 6000) * q;
     });
     // R/T = max(CBM, 重量t)  ／  CW = max(実重量, 容積重量)
@@ -736,8 +736,8 @@
 
     const setText = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
     setText('cdTotQty', totQty.toLocaleString());
-    setText('cdTotCbm', totCbm.toFixed(3));
-    setText('cdTotKg',  totKg.toLocaleString());
+    setText('cdTotCbm', totCbm > 0 ? totCbm.toFixed(3) + ' CBM' : '0.000');
+    setText('cdTotKg',  totKg  > 0 ? totKg.toLocaleString()  + ' kg'  : '0');
     setText('cdTotRt',  rt.toFixed(3));
     setText('cdTotCw',  Math.round(cw).toLocaleString());
 

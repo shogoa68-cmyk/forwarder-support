@@ -68,7 +68,47 @@
     return '';
   }
 
-  // 件名ブロックを引き合い条件から組み立てる
+  // 危険品・特殊貨物の詳細を区分に応じて収集
+  function _hazmatDetail(hazmat) {
+    const v = id => (document.getElementById(id)?.value || '').trim();
+    const parts = [];
+    if (hazmat === '危険品あり（クラス要確認）') {
+      if (v('hz-un'))        parts.push('UN' + v('hz-un').replace(/^UN/i, ''));
+      if (v('hz-class'))     parts.push(v('hz-class'));
+      if (v('hz-pg'))        parts.push(v('hz-pg'));
+      if (v('hz-fire-law'))  parts.push('消防法 ' + v('hz-fire-law'));
+      if (v('hz-psn'))       parts.push('PSN: ' + v('hz-psn'));
+      if (v('hz-flash'))     parts.push('引火点 ' + v('hz-flash'));
+    } else if (hazmat === '温度管理品（冷蔵）') {
+      if (v('hz-temp-chill'))   parts.push('設定温度 ' + v('hz-temp-chill'));
+      if (v('hz-reefer-chill')) parts.push(v('hz-reefer-chill'));
+    } else if (hazmat === '温度管理品（冷凍）') {
+      if (v('hz-temp-frozen'))   parts.push('設定温度 ' + v('hz-temp-frozen'));
+      if (v('hz-reefer-frozen')) parts.push(v('hz-reefer-frozen'));
+    } else if (hazmat === '重量物・大型貨物') {
+      if (v('hz-heavy-weight')) parts.push('単体重量 ' + v('hz-heavy-weight'));
+      if (v('hz-heavy-dim'))    parts.push('寸法 ' + v('hz-heavy-dim'));
+      if (v('hz-heavy-equip'))  parts.push('機材 ' + v('hz-heavy-equip'));
+    } else if (hazmat === 'その他（特記事項参照）') {
+      if (v('hz-other-note')) parts.push(v('hz-other-note'));
+    }
+    return parts.join(' / ');
+  }
+
+  // 荷姿明細を読みやすい文字列に（cond-packing-data の JSON から）
+  function _packingDetail() {
+    try {
+      const arr = JSON.parse(document.getElementById('cond-packing-data')?.value || '[]');
+      const named = arr.filter(e => e && e.pkg);
+      if (!named.length) return '';
+      return named.map(e => {
+        const dim = [e.l, e.w, e.h].every(x => x) ? `（${e.l}×${e.w}×${e.h}cm）` : '';
+        return `${e.pkg} × ${e.qty || 1}${dim}`;
+      }).join('、');
+    } catch (e) { return ''; }
+  }
+
+  // 件名ブロックを引き合い条件から組み立てる（貨物・物量情報をすべて反映）
   function buildSubject(cond) {
     if (!cond) return { title: '', meta: [] };
     const dir = cond.direction === 'export' ? '輸出' : cond.direction === 'import' ? '輸入' : '';
@@ -78,13 +118,30 @@
     const title = titleParts.join('　');
 
     const meta = [];
-    if (cond.incoterms) meta.push(['建値（INCOTERMS）', cond.incoterms]);
-    if (cond.container) meta.push(['コンテナ', cond.container]);
-    if (cond.cargo)     meta.push(['貨物', cond.cargo + (cond.hazmat && cond.hazmat !== 'なし（一般貨物）' ? `（${cond.hazmat}）` : '')]);
-    else if (cond.hazmat && cond.hazmat !== 'なし（一般貨物）') meta.push(['貨物', cond.hazmat]);
-    if (cond.weight)    meta.push(['重量', cond.weight]);
-    if (cond.volume)    meta.push(['容積', cond.volume]);
-    if (cond.free)      meta.push(['備考', cond.free]);
+    const push = (k, v) => { if (v) meta.push([k, v]); };
+
+    push('建値（INCOTERMS）', cond.incoterms);
+    push('積み地（POL）', cond.pol);
+    push('揚げ地（POD）', cond.pod);
+    push('原産地', cond.origin);
+    push('仕向地', cond.dest);
+    push('コンテナ', cond.container);
+    push('貨物名', cond.cargo);
+    // HSコード（基本／特恵があれば併記）
+    let hs = cond.hsCode || '';
+    if (cond.hsBasic)  hs += (hs ? ' / ' : '') + '基本' + cond.hsBasic;
+    if (cond.hsPref)   hs += (hs ? ' / ' : '') + '特恵' + cond.hsPref;
+    push('HSコード', hs);
+    if (cond.hsPrefNote) push('特恵備考', cond.hsPrefNote);
+    // 危険品・特殊貨物
+    if (cond.hazmat && cond.hazmat !== 'なし（一般貨物）') {
+      const detail = _hazmatDetail(cond.hazmat);
+      push('特殊貨物区分', cond.hazmat + (detail ? `（${detail}）` : ''));
+    }
+    // 物量情報
+    push('荷姿明細', _packingDetail() || cond.packing);
+    push('総重量', cond.weight);
+    push('総容積', cond.volume);
     return { title, meta };
   }
 
@@ -205,7 +262,6 @@
 
       <div class="qd-foot">
         <div class="qd-notes">
-          ${cond && cond.free ? esc(cond.free).replace(/\n/g, '<br>') + '<br>' : ''}
           <b>見積項目（＊印は課税対象取引です）</b>
         </div>
         <div class="qd-rate">
@@ -223,6 +279,10 @@
           </table>
         </div>
       </div>
+      ${(() => {
+        const rt = (typeof getRemarkText === 'function') ? getRemarkText() : (cond && cond.free) || '';
+        return rt ? `<div class="qd-remark-block"><div class="qd-remark-ttl">📝 条件・免責事項（全体リマーク）</div><div class="qd-remark-body">${esc(rt).replace(/\n/g, '<br>')}</div></div>` : '';
+      })()}
     </div>`;
   }
 
