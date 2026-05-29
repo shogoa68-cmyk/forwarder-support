@@ -828,7 +828,8 @@
     ccyKeys.forEach(ccy => {
       const g = ccyData[ccy];
       if (!g.sub) return;
-      const taxAmt = Math.ceil(g.taxedSub * taxRate);
+      // 外貨建ては輸出免税が原則のため消費税は JPY 行のみ計算
+      const taxAmt = (ccy === 'JPY') ? Math.ceil(g.taxedSub * taxRate) : 0;
       const jpySub = (typeof toJPY === 'function' && ccy !== 'JPY') ? Math.ceil(toJPY(g.sub, ccy)) : '';
       rows.push([
         ccy,
@@ -909,7 +910,8 @@
       totSub        += sub;
       totJpyConv    += jpy;
       totTaxAmt     += taxAmt;
-      totTaxAmtJpy  += d.taxed ? Math.ceil(jpy * getEffectiveTaxRate()) : 0;
+      // 外貨建ては輸出免税が原則のため JPY 行のみ税計算
+      totTaxAmtJpy  += (d.bc === 'JPY' && d.taxed) ? Math.ceil(jpy * getEffectiveTaxRate()) : 0;
       totProfit     += d.profit;
       totProfitJpy  += jpy - costJpy;
       if (d.bc && d.bc !== 'JPY') hasFxRows = true;
