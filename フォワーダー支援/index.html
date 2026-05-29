@@ -2634,6 +2634,7 @@
                     <option title="20ft 一般ドライコンテナ（General Purpose）">20'GP</option>
                     <option title="40ft 一般ドライコンテナ（General Purpose）">40'GP</option>
                     <option title="40ft 背高コンテナ（High Cube／40HQ・40HC）">40'HQ</option>
+                    <option title="45ft 背高コンテナ（High Cube）欧州・北米向けで使用頻度高">45'HC</option>
                     <option title="20ft 冷凍コンテナ（Reefer）">20'RF（冷凍）</option>
                     <option title="40ft 冷凍コンテナ（Reefer）">40'RF（冷凍）</option>
                     <option>20'OT（オープントップ）</option>
@@ -2643,7 +2644,8 @@
                     <option>未定</option>
                   </select>
                   <span class="me-mul">×</span>
-                  <input type="number" id="cond-container-count" class="me-count" min="1" step="1" value="1" placeholder="本数" />
+                  <input type="number" id="cond-container-count" class="me-count" min="1" step="1" value="1" placeholder="本数"
+                         onkeydown="if(event.key==='Enter'){event.preventDefault();addContainerEntry();}" />
                   <button type="button" class="me-add-btn" onclick="addContainerEntry()">＋ 追加</button>
                 </div>
                 <div class="multi-entry-list" id="containerEntryList"></div>

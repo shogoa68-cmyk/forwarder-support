@@ -210,6 +210,10 @@
     const rateRows = ['JPY', ...Object.keys(rates)]
       .map(c => `<tr><td class="qd-ctr">${esc(c)}</td><td class="qd-num">${c === 'JPY' ? '1.00' : (rates[c] != null ? fmtNum(rates[c], 2) : '—')}</td></tr>`)
       .join('');
+    const fxMeta = (typeof getFxAuditMeta === 'function') ? getFxAuditMeta() : null;
+    const fxMetaNote = fxMeta
+      ? `<div style="font-size:9px;color:#666;margin-top:4px;line-height:1.5;">${esc(fxMeta.fxLine)}<br>${esc(fxMeta.created)}</div>`
+      : '';
 
     const dateStr  = _fmtJpDate(hdr.date || _todayIso());
     const validStr = _fmtJpDate(hdr.validUntil);
@@ -269,6 +273,7 @@
             <tr><td class="qd-ctr qd-rh">通貨</td><td class="qd-ctr qd-rh">レート</td></tr>
             ${rateRows}
           </table>
+          ${fxMetaNote}
         </div>
         <div class="qd-sum">
           <table>
@@ -350,6 +355,15 @@
       wrap.style.display = 'block';
       wrap.querySelectorAll('[data-issuer]').forEach(inp => {
         inp.addEventListener('input', () => {
+          // インボイス登録番号は T + 13桁の形式チェック（空は許容）
+          if (inp.dataset.issuer === 'regno' && inp.value) {
+            const valid = /^T\d{13}$/.test(inp.value);
+            inp.style.borderColor = valid ? '' : '#c0392b';
+            inp.title = valid ? '' : '形式が正しくありません（例：T1234567890123）';
+          } else if (inp.dataset.issuer === 'regno') {
+            inp.style.borderColor = '';
+            inp.title = '';
+          }
           const cur = loadIssuer();
           cur[inp.dataset.issuer] = inp.value;
           saveIssuer(cur);

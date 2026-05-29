@@ -142,6 +142,17 @@
       onPay(parseInt(rowId));
       if (bcEl && savedBc !== undefined) {
         bcEl.value = savedBc;
+        // pc≠bc のとき onPay が設定した bpEl.dataset.base（pc 建て pp）を
+        // savedBc 建てに換算し直して bp 表示を正しく再計算する
+        const pc = tr.querySelector('[data-field="pc"]')?.value;
+        if (pc && savedBc && pc !== savedBc && typeof toJPY === 'function') {
+          const bpEl = tr.querySelector('[data-field="bp"]');
+          const ppVal = parseFloat(tr.querySelector('[data-field="pp"]')?.value) || 0;
+          const mkVal = parseFloat(tr.querySelector('[data-field="mk"]')?.value) || 0;
+          const ppJpy  = toJPY(ppVal, pc);
+          const ppInBc = savedBc === 'JPY' ? ppJpy : ppJpy / toJPY(1, savedBc);
+          if (bpEl) { bpEl.dataset.base = ppInBc; bpEl.value = ppInBc + mkVal; }
+        }
         // bc 復元後に calc を再実行して小計表示を正しい請求通貨で再計算する
         if (typeof calc === 'function') calc(parseInt(rowId));
       }
@@ -752,7 +763,8 @@
     setText('cdTotCbm', totCbm > 0 ? totCbm.toFixed(3) + ' CBM' : '0.000');
     setText('cdTotKg',  totKg  > 0 ? totKg.toLocaleString()  + ' kg'  : '0');
     setText('cdTotRt',  rt.toFixed(3));
-    setText('cdTotCw',  Math.round(cw).toLocaleString());
+    // IATA 準拠：0.5 kg 単位切り上げ（cargo.js の CW ロジックと統一）
+    setText('cdTotCw',  (Math.ceil(cw * 2) / 2).toLocaleString() + ' kg');
 
     // 重量・容積（概算）欄は廃止。明細合計を直接保持してプレビュー等で参照
     // hidden に R/T・CW も保持（プレビュー等で参照可能に）
