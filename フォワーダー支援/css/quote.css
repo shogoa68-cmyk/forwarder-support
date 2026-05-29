@@ -4111,6 +4111,15 @@
   letter-spacing: 0;
   margin-top: 1px;
 }
+#tab-quote-make #previewTable tbody .pv-jpy-hint {
+  display: block;
+  font-size: 10px;
+  font-weight: normal;
+  font-style: italic;
+  color: #7d6b56;
+  opacity: 0.8;
+  margin-top: 1px;
+}
 
 /* ===== Cycle 1 UX 改修 ===== */
 /* 数値列の桁揃え（tabular-nums）— 検算ミス・桁ズレ目視を減らす */

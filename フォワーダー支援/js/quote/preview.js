@@ -266,6 +266,14 @@
       totCostJpy += (typeof toJPY === 'function') ? toJPY(d.cost, d.pc || 'JPY') : ((!d.pc || d.pc === 'JPY') ? d.cost : 0);
       const jpyCellText = (d.bc && d.bc !== 'JPY') ? fmtRaw(jpyAmt) : '—';
       const taxCellText = d.taxed ? fmtRaw(taxAmt) : '';
+      const isNonJpyBc = d.bc && d.bc !== 'JPY';
+      const isNonJpyPc = d.pc && d.pc !== 'JPY';
+      const subJpyHint = (isNonJpyBc && sub && typeof toJPY === 'function')
+        ? `<small class="pv-jpy-hint">(≈¥${fmtRaw(jpyAmt)})</small>` : '';
+      const profitJpy = (isNonJpyBc || isNonJpyPc) && typeof toJPY === 'function'
+        ? Math.ceil(toJPY(sub, d.bc || 'JPY') - toJPY(d.cost, d.pc || 'JPY')) : null;
+      const prJpyHint = profitJpy !== null
+        ? `<small class="pv-jpy-hint">(≈¥${fmtRaw(profitJpy)})</small>` : '';
       html += `<tr>
         <td class="pv-name" style="font-size:11px;">${escHtml(getCatLabel(d.cat))}</td>
         <td class="pv-name">${escHtml(d.sv)}</td>
@@ -276,10 +284,10 @@
         <td class="pv-num">${fmtRaw(d.bq)}</td><td>${escHtml(d.bc)}</td>
         <td class="pv-num">${fmtRaw(d.bp)}</td>
         <td class="pv-num">${fmtRaw(d.mk)}</td>
-        <td class="pv-num pv-subtotal">${fmtRaw(sub)}</td>
+        <td class="pv-num pv-subtotal">${fmtRaw(sub)}${subJpyHint}</td>
         <td class="pv-jpy">${jpyCellText}</td>
         <td class="pv-num pv-tax-cell" data-sub="${sub}" data-ccy="${d.bc || 'JPY'}" data-taxed="${d.taxed ? 1 : 0}">${taxCellText}</td>
-        <td class="pv-pr ${pc} pv-num">${fmtRaw(d.profit)}</td>
+        <td class="pv-pr ${pc} pv-num">${fmtRaw(d.profit)}${prJpyHint}</td>
         <td class="pv-name">${escHtml(d.note)}</td>
       </tr>`;
     });
