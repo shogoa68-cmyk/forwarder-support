@@ -936,11 +936,16 @@
     aoaRows.push([xMeta.created]);
 
     const ws   = XLSX.utils.aoa_to_sheet(aoaRows);
-    // 列幅設定（SheetJS CE版対応: wch = 文字数基準の列幅）
-    ws['!cols'] = [
-      {wch:12},{wch:10},{wch:22},{wch:5},{wch:7},{wch:6},{wch:9},{wch:5},
-      {wch:6},{wch:6},{wch:9},{wch:8},{wch:11},{wch:10},{wch:8},{wch:9},{wch:9},{wch:24}
-    ];
+    // 列幅を実際のセル内容から動的計算（最小4・最大60文字）
+    const colWidths = [];
+    aoaRows.forEach(row => {
+      if (!Array.isArray(row)) return;
+      row.forEach((cell, ci) => {
+        const len = cell == null ? 0 : String(cell).length;
+        colWidths[ci] = Math.min(60, Math.max(colWidths[ci] || 4, len));
+      });
+    });
+    ws['!cols'] = colWidths.map(w => ({ wch: w || 4 }));
     const wb   = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, '見積もり');
     XLSX.writeFile(wb, buildFileName('xlsx'));
