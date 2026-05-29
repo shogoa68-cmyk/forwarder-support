@@ -197,6 +197,8 @@
     if (typeof updateRouteModeIcon === 'function') updateRouteModeIcon();
     if (typeof syncHazmatPanel === 'function') syncHazmatPanel();
     if (typeof syncMultiEntryFields === 'function') syncMultiEntryFields();
+    _applyZoneOn(1, document.getElementById('cond-z1-on')?.value === '1');
+    _applyZoneOn(3, document.getElementById('cond-z3-on')?.value === '1');
     if (typeof window.updateQspCaseInfo === 'function') window.updateQspCaseInfo();
   }
 
