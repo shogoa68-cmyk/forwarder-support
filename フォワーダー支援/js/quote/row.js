@@ -365,18 +365,32 @@
     const bpEl = document.getElementById(`bp-${id}`);
     if (bpEl) bpEl.value = (parseFloat(bpEl.dataset.base) || 0) + mk;
     const bp = val(`bp-${id}`);
+    const pc = document.getElementById(`pc-${id}`)?.value || 'JPY';
+    const bc = document.getElementById(`bc-${id}`)?.value || 'JPY';
     const subtotal = bq * bp;             // 行の請求小計（数量 × 単価）
     const profit   = subtotal - pq * pp;  // 行の利益（小計 - 支払い合計）
+    const canFx = typeof toJPY === 'function';
     // 小計セル
     const st = document.getElementById(`st-${id}`);
     if (st) {
-      st.textContent = subtotal ? fmt(subtotal) : '—';
-      st.className   = 'subtotal-cell' + (subtotal ? ' subtotal-has-value' : '');
+      if (bc !== 'JPY' && canFx && subtotal) {
+        const jpySub = Math.ceil(toJPY(subtotal, bc));
+        st.innerHTML = fmt(subtotal) + '<br><small class="jpy-conv-hint">(≈¥' + fmt(jpySub) + ')</small>';
+      } else {
+        st.textContent = subtotal ? fmt(subtotal) : '—';
+      }
+      st.className = 'subtotal-cell' + (subtotal ? ' subtotal-has-value' : '');
     }
     // 利益セル
     const pr = document.getElementById(`pr-${id}`);
-    pr.textContent = fmt(profit);
-    pr.className   = `profit-cell ${pClass(profit)}`;
+    const isFx = canFx && (bc !== 'JPY' || pc !== 'JPY') && (subtotal || profit);
+    if (isFx) {
+      const jpyProfit = Math.ceil(toJPY(subtotal, bc) - toJPY(pq * pp, pc));
+      pr.innerHTML = fmt(profit) + '<br><small class="jpy-conv-hint">(≈¥' + fmt(jpyProfit) + ')</small>';
+    } else {
+      pr.textContent = fmt(profit);
+    }
+    pr.className = `profit-cell ${pClass(profit)}`;
     updateTotals();
   }
 
