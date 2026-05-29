@@ -410,12 +410,15 @@
       document.getElementById('tot-profit').className = 'profit-cell profit-zero';
       const jpyRow = document.getElementById('tot-jpy-row');
       if (jpyRow) jpyRow.style.display = 'none';
+      document.querySelectorAll('#quoteTable tfoot .tot-ccy-row').forEach(r => r.remove());
       window.renderQuoteFxBar?.();
       return;
     }
     let totCost = 0, totBill = 0, totMk = 0, totSub = 0;
     let totCostJPY = 0, totBillJPY = 0, totSubJPY = 0;
     let hasFx = false;
+    // 通貨別集計: { bc: { sub, taxedSub, exemptSub } }
+    const ccyData = {};
     rows.forEach(tr => {
       if (tr.dataset.type === 'subtotal') return; // 小計行をスキップ
       const id  = tr.id.replace('row-', '');
@@ -425,6 +428,7 @@
       const pp  = val(`pp-${id}`);
       const bq  = val(`bq-${id}`);
       const bp  = val(`bp-${id}`);
+      const taxed = document.getElementById(`tx-${id}`)?.checked || false;
       const cost = pq * pp;
       const sub  = bq * bp;
       totCost += cost;
@@ -436,6 +440,11 @@
       totBillJPY += toJPY(sub, bc);
       totSubJPY  += toJPY(sub, bc);
       if (pc !== 'JPY' || bc !== 'JPY') hasFx = true;
+      // 通貨別集計
+      if (!ccyData[bc]) ccyData[bc] = { sub: 0, taxedSub: 0, exemptSub: 0 };
+      ccyData[bc].sub += sub;
+      if (taxed) ccyData[bc].taxedSub += sub;
+      else       ccyData[bc].exemptSub += sub;
     });
     const totPr    = totBill - totCost;
     const totPrJPY = totBillJPY - totCostJPY;
@@ -459,9 +468,48 @@
         prjEl.className   = `profit-cell ${pClass(totPrJPY)}`;
       }
     }
+    // 通貨別内訳行
+    updateCcyBreakdown(ccyData, hasFx);
     updateSubtotalRows();
     window.updateQuoteSummary?.();
     window.renderQuoteFxBar?.();
+  }
+
+  function updateCcyBreakdown(ccyData, hasFx) {
+    const tfoot = document.querySelector('#quoteTable tfoot');
+    if (!tfoot) return;
+    // 既存の通貨内訳行をクリア
+    tfoot.querySelectorAll('.tot-ccy-row').forEach(r => r.remove());
+    const ccyKeys = Object.keys(ccyData).sort((a, b) => a === 'JPY' ? -1 : b === 'JPY' ? 1 : a.localeCompare(b));
+    const hasMixed = ccyKeys.some(c => ccyData[c].taxedSub > 0 && ccyData[c].exemptSub > 0);
+    // 1通貨のみ・課税/免税混在なし・外貨なし → 非表示
+    if (ccyKeys.length <= 1 && !hasMixed && !hasFx) return;
+    const TAX_RATE = (document.getElementById('pvExemptChk')?.checked) ? 0 : 0.10;
+    const insertRef = document.getElementById('tot-jpy-row') || null;
+    ccyKeys.forEach(ccy => {
+      const g = ccyData[ccy];
+      if (!g.sub) return;
+      const taxAmt = Math.ceil(g.taxedSub * TAX_RATE);
+      const jpySub = (typeof toJPY === 'function' && ccy !== 'JPY') ? Math.ceil(toJPY(g.sub, ccy)) : null;
+      const parts = [];
+      if (g.taxedSub > 0 && g.exemptSub > 0) {
+        parts.push(`課税 ${fmt(g.taxedSub)}`);
+        parts.push(`免税 ${fmt(g.exemptSub)}`);
+      }
+      if (taxAmt > 0) parts.push(`消費税 ${fmt(taxAmt)}`);
+      const jpyHtml = jpySub !== null
+        ? `<small class="tot-ccy-jpy">(≈¥${fmt(jpySub)})</small>` : '';
+      const tr = document.createElement('tr');
+      tr.className = 'tot-ccy-row';
+      tr.innerHTML =
+        `<td colspan="5"></td>` +
+        `<td class="tot-ccy-label">${ccy}</td>` +
+        `<td colspan="4" class="tot-ccy-detail">${parts.join(' / ')}</td>` +
+        `<td class="subtotal-cell tot-ccy-sub">${fmt(g.sub)}${jpyHtml}</td>` +
+        `<td></td><td></td>`;
+      if (insertRef) tfoot.insertBefore(tr, insertRef);
+      else           tfoot.appendChild(tr);
+    });
   }
 
   // ========== 小計行 ==========
