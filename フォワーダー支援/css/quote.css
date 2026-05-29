@@ -135,7 +135,7 @@
 
 /* ========== テーブル ========== */
 #tab-quote-make table { border-collapse: collapse; width: 100%; }
-#tab-quote-make #quoteTable { min-width: 880px; table-layout: fixed; }
+#tab-quote-make #quoteTable { min-width: 1052px; table-layout: fixed; }
 #tab-quote-make th,
 #tab-quote-make td {
   border: 1px solid #d9cfc2;
