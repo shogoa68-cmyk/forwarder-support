@@ -165,6 +165,30 @@
   background:#3a6baf; color:#fff; font-weight:700;
 }
 
+/* プレビュー内の表示モード切替行 */
+#previewBox .pv-viewmode-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 0 10px;
+}
+#previewBox .pv-viewmode-label { font-size: 12px; color: #5a4a35; font-weight: 600; }
+#previewBox .save-btn {
+  padding: 4px 12px;
+  border: 1.5px solid;
+  border-radius: 14px;
+  font-size: 12px;
+  font-family: inherit;
+  cursor: pointer;
+  background: transparent;
+}
+#previewBox .save-btn-mode-internal { border-color:#5a4a35; color:#5a4a35; }
+#previewBox .save-btn-mode-internal:hover { background:#5a4a35; color:#fff; }
+#previewBox .save-btn-mode-internal.is-on { background:#5a4a35; color:#fff; font-weight:700; }
+#previewBox .save-btn-mode-customer { border-color:#3a6baf; color:#1a4a8f; }
+#previewBox .save-btn-mode-customer:hover { background:#3a6baf; color:#fff; }
+#previewBox .save-btn-mode-customer.is-on { background:#3a6baf; color:#fff; font-weight:700; }
+
 /* アイコン専用ボタン（戻す/進む、⋯など） */
 #tab-quote-make .save-btn-icon {
   padding: 4px 8px;
@@ -625,6 +649,8 @@
 #tab-quote-make tr.cat-import-local td { background: #fff8e8 !important; }
 #tab-quote-make tr.cat-overseas     td { background: #dcebd8 !important; }
 #tab-quote-make tr.cat-customs      td { background: #ece0d0 !important; }
+#tab-quote-make tr.cat-customs-export td { background: #ece0d0 !important; }
+#tab-quote-make tr.cat-customs-import td { background: #e0e6d0 !important; }
 #tab-quote-make tr.cat-insurance    td { background: #fff0f8 !important; }
 #tab-quote-make tr.cat-other        td { background: #ede5d6 !important; }
 
@@ -1493,6 +1519,37 @@
   font-size: 13px;
   box-shadow: 0 2px 6px rgba(90, 110, 66, 0.3);
 }
+/* ゾーンプリセット説明の ? ツールチップ */
+#tab-quote-make .zps-help-wrap {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  margin-left: 6px;
+  vertical-align: middle;
+}
+#tab-quote-make .zps-help-tip {
+  display: none;
+  position: absolute;
+  left: 0;
+  top: calc(100% + 6px);
+  z-index: 60;
+  width: max-content;
+  max-width: 320px;
+  background: #fffdf7;
+  border: 1px solid #c8b89a;
+  border-radius: 6px;
+  padding: 8px 12px;
+  box-shadow: 0 6px 18px rgba(58, 42, 24, 0.18);
+  font-size: 11.5px;
+  font-weight: 400;
+  color: #5a4a35;
+  line-height: 1.6;
+  white-space: normal;
+}
+#tab-quote-make .zps-help-wrap:hover .zps-help-tip,
+#tab-quote-make .zps-help-wrap .section-help-btn:focus-visible + .zps-help-tip {
+  display: block;
+}
 #tab-quote-make .btn-zone-preset { background: #5a6e42; color: #fff; border: none; padding: 8px 20px; border-radius: 5px; font-size: 12px; font-weight: 600; cursor: pointer; font-family: inherit; transition: background .15s; letter-spacing: .03em; }
 #tab-quote-make .btn-zone-preset:hover { filter: brightness(1.2); }
 
@@ -1786,6 +1843,21 @@
   display: inline-flex;
   align-items: center;
 }
+#tab-quote-make .ins-subcon-input {
+  height: 38px;
+  padding: 0 10px;
+  border: 1.5px solid #d9cfc2;
+  border-radius: 6px;
+  font-family: inherit;
+  font-size: 13px;
+  color: #3d2e1e;
+  background: #fff;
+  outline: none;
+  min-width: 180px;
+  transition: border-color .15s;
+}
+#tab-quote-make .ins-subcon-input:focus { border-color: #f39c12; }
+
 #tab-quote-make .wh-toggle-btn:hover {
   border-color: #f39c12;
   color: #f39c12;
@@ -2359,7 +2431,7 @@
   background: #f0e8d8;
   padding: 4px 16px;
   position: sticky;
-  top: calc(var(--nav-cat-h) + var(--nav-sub-h));
+  top: var(--nav-cat-h);
   z-index: 45;
   border-bottom: 1.5px solid #b8a780;
   box-shadow: 0 4px 14px rgba(58, 42, 24, 0.18), 0 1px 0 rgba(255,255,255,0.4) inset;
@@ -2458,6 +2530,41 @@
   transition: opacity .4s;
 }
 #tab-quote-make .save-status.show { opacity: 1; }
+/* ===== 案件情報 コンパクト表示（追従ツールバー内） ===== */
+#tab-quote-make .tb-case-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-left: auto;
+  margin-right: 8px;
+  padding: 0 4px;
+  min-width: 0;
+}
+#tab-quote-make .tb-ci-item {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 4px;
+  font-size: 11px;
+  white-space: nowrap;
+}
+#tab-quote-make .tb-ci-label {
+  color: #a08060;
+  font-size: 10px;
+  font-weight: 600;
+}
+#tab-quote-make .tb-ci-value {
+  color: #3d2e1e;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+#tab-quote-make .tb-ci-item.is-empty .tb-ci-value {
+  color: #c8b89a;
+  font-weight: 400;
+}
+#tab-quote-make .tb-ci-suffix { font-size: 9px; font-weight: 400; color: #7d6b56; margin-left: 1px; }
+#tab-quote-make .tb-ci-item.is-expired .tb-ci-value { color: #c44a3a; }
+#tab-quote-make .tb-ci-item.is-expired .tb-ci-label::after { content: " ⚠"; }
 #tab-quote-make .autosave-label {
   font-size: 11px;
   color: #7d6b56;
@@ -4241,6 +4348,136 @@
 #tab-quote-make .qsp-body {
   padding: 10px 12px;
 }
+/* ===== 輸送モード対応マイルストーン ===== */
+#tab-quote-make .qsp-milestones {
+  padding: 10px 12px 12px;
+  border-bottom: 1px solid #e0d4bc;
+  background: #f7f9fb;
+}
+#tab-quote-make .qsp-ms-head {
+  display: flex; align-items: baseline; justify-content: space-between;
+  margin-bottom: 10px;
+}
+#tab-quote-make .qsp-ms-mode { font-size: 12px; font-weight: 700; color: #1a4a8f; }
+#tab-quote-make .qsp-ms-cap-row { font-size: 10px; color: #94a3b5; margin: 2px 0 8px; }
+/* モジュール（区間）ブロック：名称付きフィルタUI */
+#tab-quote-make .qsp-ms-mods { display: flex; flex-direction: column; gap: 8px; }
+#tab-quote-make .qsp-mod {
+  border: 1px solid #d6e0ea; border-radius: 8px; overflow: hidden; background: #fbfcfe;
+}
+#tab-quote-make .qsp-mod.is-off { opacity: 0.55; }
+#tab-quote-make .qsp-mod.filter-active { border-color: #3a6baf; box-shadow: 0 0 0 2px rgba(58,107,175,0.2); }
+#tab-quote-make .qsp-mod-head {
+  display: flex; align-items: center; gap: 6px;
+  padding: 5px 8px; cursor: pointer; background: #eef3fa;
+  border-bottom: 1px solid #e2e9f1; transition: background .12s;
+}
+#tab-quote-make .qsp-mod-head:hover { background: #e0e9f5; }
+#tab-quote-make .qsp-mod.filter-active .qsp-mod-head { background: #d6e2f2; }
+#tab-quote-make .qsp-mod-name { font-size: 12px; font-weight: 700; color: #1a4a8f; }
+#tab-quote-make .qsp-mod-off {
+  font-size: 9px; color: #9aa7b3; border: 1px solid #cdd5dd;
+  border-radius: 8px; padding: 0 5px;
+}
+#tab-quote-make .qsp-mod-filter {
+  margin-left: auto; font-size: 10px; color: #3a6baf;
+  border: 1px solid #c5d8ef; border-radius: 10px; padding: 1px 7px; background: #fff;
+  white-space: nowrap;
+}
+#tab-quote-make .qsp-mod.filter-active .qsp-mod-filter { background: #1a4a8f; color: #fff; border-color: #1a4a8f; }
+/* 縦表示タイムライン：ステップを上から下へ並べ、ドットを縦線で連結 */
+#tab-quote-make .qsp-mod-steps {
+  display: flex; flex-direction: column; gap: 0; padding: 7px 10px 5px;
+}
+#tab-quote-make .qsp-ms-step {
+  display: flex; align-items: center; gap: 9px;
+  padding: 3px 0;
+}
+#tab-quote-make .qsp-ms-dot {
+  position: relative;
+  width: 18px; height: 18px; border-radius: 50%;
+  background: #3a6baf; color: #fff;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 10px; font-weight: 700; flex-shrink: 0;
+}
+/* ドット間を結ぶ縦線（最後のステップ以外） */
+#tab-quote-make .qsp-ms-step:not(:last-child) .qsp-ms-dot::after {
+  content: "";
+  position: absolute;
+  top: 18px; left: 50%;
+  transform: translateX(-50%);
+  width: 2px; height: 8px;
+  background: #3a6baf;
+}
+#tab-quote-make .qsp-ms-label { font-size: 11px; color: #34404d; line-height: 1.2; }
+#tab-quote-make .qsp-ms-step.out-scope { opacity: 0.5; }
+#tab-quote-make .qsp-ms-step.out-scope .qsp-ms-dot { background: #b8c2cc; }
+#tab-quote-make .qsp-ms-step.out-scope .qsp-ms-dot::after { background: #cdd5dd; }
+#tab-quote-make .qsp-ms-step.out-scope .qsp-ms-label { color: #9aa7b3; }
+#tab-quote-make .qsp-ms-subcon {
+  font-size: 10.5px; color: #5a6a48; background: #f1f5ea;
+  border-top: 1px solid #e2e9d6; padding: 4px 8px;
+}
+/* 幹線輸送モジュール内のキャリア＆リンクチップ */
+#tab-quote-make .qsp-ms-carrier {
+  border-top: 1px solid #e2e9f1; padding: 6px 8px;
+}
+#tab-quote-make .qsp-ms-carrier + .qsp-ms-carrier { border-top: 1px dashed #e2e9f1; }
+#tab-quote-make .qsp-ms-carrier-name {
+  font-size: 11px; font-weight: 700; color: #1a4a8f; margin-bottom: 4px;
+}
+#tab-quote-make .qsp-ms-cl-chips { display: flex; flex-wrap: wrap; gap: 4px; }
+#tab-quote-make .qsp-ms-cl-chip {
+  font-size: 10px; padding: 2px 8px;
+  border: 1px solid #b8d0ee; border-radius: 12px;
+  background: #eef3fc; color: #1a4a8f;
+  text-decoration: none; white-space: nowrap;
+  transition: background .12s, color .12s;
+}
+#tab-quote-make .qsp-ms-cl-chip:hover { background: #1a4a8f; color: #fff; }
+#tab-quote-make .qsp-ms-filter-hint {
+  margin-top: 8px; font-size: 11px; color: #1a4a8f;
+  background: #eef3fc; border: 1px solid #c5d8ef; border-radius: 6px; padding: 5px 8px;
+}
+#tab-quote-make .qsp-ms-clear {
+  margin-left: 6px; font-size: 10px; padding: 1px 7px;
+  border: 1px solid #c5d8ef; border-radius: 10px; background: #fff;
+  color: #1a4a8f; cursor: pointer;
+}
+#tab-quote-make .qsp-ms-clear:hover { background: #1a4a8f; color: #fff; }
+/* ===== 物量情報（見積サマリ） ===== */
+#tab-quote-make .qsp-cargo-info {
+  padding: 10px 12px;
+  border-bottom: 1px solid #e0d4bc;
+}
+#tab-quote-make .qsp-cargo-row {
+  display: flex; justify-content: space-between; align-items: baseline;
+  font-size: 12px; padding: 2px 0;
+}
+#tab-quote-make .qsp-cargo-k { color: #7d6b56; }
+#tab-quote-make .qsp-cargo-v { font-weight: 600; color: #3d2e1e; font-variant-numeric: tabular-nums; }
+/* ===== 船会社リンク（見積サマリ） ===== */
+#tab-quote-make .qsp-carrier-links {
+  padding: 10px 12px;
+  border-bottom: 1px solid #e0d4bc;
+}
+#tab-quote-make .qsp-cl-block { margin-top: 6px; }
+#tab-quote-make .qsp-cl-block:first-of-type { margin-top: 4px; }
+#tab-quote-make .qsp-cl-name { font-size: 11.5px; font-weight: 700; color: #1a4a8f; margin-bottom: 4px; }
+#tab-quote-make .qsp-cl-chips { display: flex; flex-wrap: wrap; gap: 4px; }
+#tab-quote-make .qsp-cl-chip {
+  display: inline-block;
+  font-size: 10.5px;
+  padding: 2px 8px;
+  border: 1px solid #b8d0ee;
+  border-radius: 12px;
+  background: #eef3fc;
+  color: #1a4a8f;
+  text-decoration: none;
+  white-space: nowrap;
+  transition: background .12s, color .12s;
+}
+#tab-quote-make .qsp-cl-chip:hover { background: #1a4a8f; color: #fff; }
 #tab-quote-make .qsp-empty {
   color: #a08060;
   font-size: 12px;

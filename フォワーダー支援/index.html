@@ -57,10 +57,6 @@
     <button class="tab-btn" hidden role="tab" aria-selected="false" onclick="switchTab('surcharge', this)">💴 サーチャージ</button>
     <button class="tab-btn" hidden role="tab" aria-selected="false" onclick="switchTab('freetime',  this)">⏱️ フリータイム</button>
   </div>
-  <!-- sub-quote: サブタブ1本のため非表示。switchCategory('quote')で quote-make に直接遷移 -->
-  <div class="tab-nav sub-nav active" id="sub-quote" hidden role="tablist" aria-label="quote サブタブ">
-    <button class="tab-btn active" role="tab" aria-selected="true" onclick="switchTab('quote-make', this)">📝 見積もり作成</button>
-  </div>
   <div class="tab-nav sub-nav" id="sub-docs" role="tablist" aria-label="docs サブタブ">
     <button class="tab-btn" role="tab" aria-selected="false" onclick="switchTab('bldo',    this)">📄 書類</button>
     <button class="tab-btn" hidden role="tab" aria-selected="false" onclick="switchTab('blrules', this)">📋 BL記載事項</button>
@@ -2006,12 +2002,6 @@
 
       <span class="save-toolbar-sep"></span>
 
-      <!-- 表示モード切替（常時表示） -->
-      <button class="save-btn save-btn-mode-internal is-on" data-qvm="internal" onclick="setQuoteViewMode('internal')" title="社内モード：支払い・乗せ幅・利益・サブコンなどすべて表示">🔓 社内</button>
-      <button class="save-btn save-btn-mode-customer" data-qvm="customer" onclick="setQuoteViewMode('customer')" title="客先モード：請求列だけを表示（画面共有・客先提示用）">👤 客先</button>
-
-      <span class="save-toolbar-sep"></span>
-
       <!-- 履歴：アイコンのみで表示 -->
       <button class="save-btn save-btn-icon save-btn-undo" id="btnQuoteUndo" onclick="quoteUndo()" disabled title="元に戻す (Ctrl+Z)">↶</button>
       <button class="save-btn save-btn-icon save-btn-redo" id="btnQuoteRedo" onclick="quoteRedo()" disabled title="やり直す (Ctrl+Y / Ctrl+Shift+Z)">↷</button>
@@ -2059,6 +2049,9 @@
       </div>
 
       <span class="save-status" id="saveStatus"></span>
+
+      <!-- 案件情報のコンパクト表示（サマリから移設） -->
+      <div class="tb-case-info" id="tbCaseInfo"></div>
 
       <!-- その他メニュー（表示サイズ等） -->
       <div class="tb-menu tb-menu-right" data-tb-menu="more">
@@ -2193,7 +2186,7 @@
             <input type="text" id="qf-ref" placeholder="例）2024-001" aria-required="true" />
           </div>
           <div class="quote-field">
-            <label>引き合い元名称 <span class="req-mark" aria-hidden="true">*</span></label>
+            <label>引き合い元様名称 <span class="req-mark" aria-hidden="true">*</span></label>
             <input type="text" id="qf-customer" placeholder="例）○○商事" aria-required="true" />
           </div>
           <div class="quote-field">
@@ -2260,12 +2253,9 @@
           <div class="cond-prim-group">
             <span class="cond-prim-label">輸送モード</span>
             <div class="cond-prim-btns" id="seaAirBtns">
-              <button class="cond-prim-btn" data-transport="sea" onclick="setTransport('sea')">🚢 Sea</button>
+              <button class="cond-prim-btn" data-transport="fcl" onclick="setTransport('fcl')" title="Full Container Load：コンテナ1本貸切。1荷主が1コンテナを専用使用">🚢 FCL</button>
+              <button class="cond-prim-btn" data-transport="lcl" onclick="setTransport('lcl')" title="Less than Container Load：混載。複数荷主の貨物を1コンテナに詰め合わせる">🚢 LCL</button>
               <button class="cond-prim-btn" data-transport="air" onclick="setTransport('air')">✈️ Air</button>
-            </div>
-            <div class="cond-sub-btns" id="fclLclBtns" style="display:none;">
-              <button class="cond-sub-btn active" data-sub="fcl" onclick="setSeaSub('fcl')" title="Full Container Load：コンテナ1本貸切。1荷主が1コンテナを専用使用">FCL</button>
-              <button class="cond-sub-btn"        data-sub="lcl" onclick="setSeaSub('lcl')" title="Less than Container Load：混載。複数荷主の貨物を1コンテナに詰め合わせる">LCL</button>
             </div>
             <select id="cond-mode" style="display:none">
               <option value="">— 選択 —</option>
@@ -2276,22 +2266,18 @@
               <option>航空＋陸上</option>
               <option>陸上のみ</option>
             </select>
-            <span id="mode-container-hint" style="display:none;font-size:10px;color:#e67e22;margin-top:4px;">
-              📦 LCL/AIR → コンテナ欄を非表示
-            </span>
           </div>
           <div class="cond-prim-group">
             <span class="cond-prim-label">オプション</span>
             <div class="cond-prim-btns">
               <button class="wh-toggle-btn" id="insToggleBtn" onclick="toggleInsurance()">🛡️ 保険付保あり</button>
+              <input type="text" id="insSubcon" class="ins-subcon-input" placeholder="🏢 保険会社（サブコン）" title="保険手配を依頼する保険会社・代理店名" style="display:none;" />
             </div>
           </div>
         </div>
         <span id="cond-incoterms-hint" class="cond-incoterms-hint"></span>
 
         <div class="zone-builder" id="zoneBuilder">
-          <input type="hidden" id="cond-z1-on" value="0" />
-          <input type="hidden" id="cond-z3-on" value="0" />
           <div class="zone-card zone-origin zone-off" id="zone1Card">
             <div class="zone-card-header">
               <button class="zone-toggle-btn" id="zone1Btn" onclick="toggleZone(1)">OFF</button>
@@ -2418,8 +2404,12 @@
       <!-- サブセクション：ゾーン構成からプリセット適用（独立セクション） -->
       <div class="zone-preset-section">
         <div class="zone-preset-section-head">
-          <span class="zone-preset-section-title">🔧 ゾーン構成から見積もり行を生成</span>
-          <span class="zone-preset-section-sub">上で組んだ ① 出発地 → ② 幹線 → ③ 到着地 の作業ピースをもとに、見積もりテーブルの行を一括作成します。</span>
+          <span class="zone-preset-section-title">🔧 ゾーン構成から見積もり行を生成
+            <span class="zps-help-wrap">
+              <button type="button" class="section-help-btn" aria-label="この機能の説明">?</button>
+              <span class="zps-help-tip">上で組んだ ① 出発地 → ② 幹線 → ③ 到着地 の作業ピースをもとに、見積もりテーブルの行を一括作成します。</span>
+            </span>
+          </span>
         </div>
         <button class="btn-zone-preset" onclick="applyZoneBasedPreset()">🔧 この構成でプリセット適用</button>
       </div>
@@ -2901,31 +2891,9 @@
         <div class="qsp-header">
           <span class="qsp-title">📊 見積サマリ</span>
         </div>
-        <!-- 管理番号入力のライブ表示（常時表示） -->
-        <div class="qsp-case-info" id="qspCaseInfo">
-          <div class="qsp-case-row" data-empty="true">
-            <span class="qsp-case-label">仮 REF #</span>
-            <span class="qsp-case-value" id="qspCaseRef">—</span>
-          </div>
-          <div class="qsp-case-row" data-empty="true">
-            <span class="qsp-case-label">引き合い元</span>
-            <span class="qsp-case-value" id="qspCaseCustomer">—</span>
-          </div>
-          <div class="qsp-case-row" data-empty="true">
-            <span class="qsp-case-label">担当</span>
-            <span class="qsp-case-value" id="qspCasePerson">—</span>
-          </div>
-          <div class="qsp-case-row qsp-case-dates">
-            <div class="qsp-case-date" data-empty="true">
-              <span class="qsp-case-label">発行日</span>
-              <span class="qsp-case-value" id="qspCaseDate">—</span>
-            </div>
-            <div class="qsp-case-date" data-empty="true">
-              <span class="qsp-case-label">有効期限</span>
-              <span class="qsp-case-value" id="qspCaseValid">—</span>
-            </div>
-          </div>
-        </div>
+        <div class="qsp-milestones" id="qspMilestones" style="display:none;"></div>
+        <div class="qsp-carrier-links" id="qspCarrierLinks" style="display:none;"></div>
+        <div class="qsp-cargo-info" id="qspCargoInfo" style="display:none;"></div>
         <div class="qsp-body" id="qspBody">
           <p class="qsp-empty">費用項目を入力すると<br>ここにサマリが表示されます</p>
         </div>
@@ -2993,6 +2961,11 @@
     <div id="previewOverlay" onclick="overlayClick(event)">
       <div id="previewBox">
         <h2>📋 プレビュー（表計算形式）</h2>
+        <div class="pv-viewmode-row">
+          <span class="pv-viewmode-label">👁️ 表示モード：</span>
+          <button class="save-btn save-btn-mode-internal is-on" data-qvm="internal" onclick="setQuoteViewMode('internal')" title="社内モード：支払い・乗せ幅・利益・サブコンなどすべて表示">🔓 社内</button>
+          <button class="save-btn save-btn-mode-customer" data-qvm="customer" onclick="setQuoteViewMode('customer')" title="客先モード：請求列だけを表示（画面共有・客先提示用）">👤 客先</button>
+        </div>
         <div id="pvModeBanner" class="pv-mode-banner"></div>
         <div id="pvMeta" class="pv-meta" style="display:none;"></div>
         <div id="pvCondBox" style="display:none;"><strong>🚢 引き合い条件</strong></div>
@@ -3262,7 +3235,6 @@
   </div>
 </div>
 
-<button class="fb-fab" onclick="openFeedback('全体')" title="フィードバックを送る">💬</button>
 
 <div id="toast-container"></div>
 

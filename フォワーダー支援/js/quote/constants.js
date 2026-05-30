@@ -22,7 +22,8 @@ window.QuoteApp = window.QuoteApp || { state: {}, data: {}, fx: {} };
     { value: 'surcharge',  label: '⚡ サーチャージ',        cls: 'cat-surcharge'  },
     { value: 'import-local', label: '📥 輸入ローカルチャージ', cls: 'cat-import-local' },
     { value: 'overseas',   label: '🌏 海外作業',           cls: 'cat-overseas'   },
-    { value: 'customs',    label: '🛃 通関費',             cls: 'cat-customs'    },
+    { value: 'customs-export', label: '🛃 通関諸費用（輸出）', cls: 'cat-customs-export' },
+    { value: 'customs-import', label: '🛃 通関諸費用（輸入）', cls: 'cat-customs-import' },
     { value: 'insurance',  label: '🛡️ 保険料',            cls: 'cat-insurance'  },
     { value: 'other',      label: '📋 その他',             cls: 'cat-other'      },
   ];
@@ -39,7 +40,7 @@ window.QuoteApp = window.QuoteApp || { state: {}, data: {}, fx: {} };
     ],
     export: [
       { cat: 'domestic',     name: '国内集荷・陸送費',   note: '集荷先〜輸出港' },
-      { cat: 'customs',      name: '輸出通関費',         note: '通関手数料・書類作成' },
+      { cat: 'customs-export', name: '輸出通関費',         note: '通関手数料・書類作成' },
       { cat: 'export-local', name: '港湾諸費用（輸出）', note: 'THC・ドキュメント費等' },
       { cat: 'export-local', name: 'VGM申告費',          note: 'SOLAS VGM（2016年7月義務化）※FCLのみ。LCLはNVOCC負担のためCFS費用に包含が一般的' },
       { cat: 'ocean',        name: '海上運賃',            note: 'ポート〜ポート' },
@@ -52,19 +53,19 @@ window.QuoteApp = window.QuoteApp || { state: {}, data: {}, fx: {} };
       { cat: 'ocean',     name: '海上運賃',          note: '積み地港〜仕向港' },
       { cat: 'surcharge', name: 'サーチャージ類',    note: 'BAF/CAF/PSS 等' },
       { cat: 'overseas',  name: '仕向港費用',        note: 'THC・D/O 等' },
-      { cat: 'customs',   name: '輸入通関費',        note: '通関手数料・書類作成' },
+      { cat: 'customs-import', name: '輸入通関費',        note: '通関手数料・書類作成' },
       { cat: 'domestic',  name: '国内配送費',        note: '港〜納入地' },
       { cat: 'insurance', name: '海上保険料',        note: '保険条件に応じて' },
     ],
     dtd: [
       { cat: 'domestic',     name: '国内集荷・陸送費',   note: '集荷先〜輸出港' },
-      { cat: 'customs',      name: '輸出通関費',         note: '通関手数料・書類作成' },
+      { cat: 'customs-export', name: '輸出通関費',         note: '通関手数料・書類作成' },
       { cat: 'export-local', name: '港湾諸費用（輸出）', note: 'THC・ドキュメント費等' },
       { cat: 'export-local', name: 'VGM申告費',          note: 'SOLAS VGM（2016年7月義務化）※FCLのみ。LCLはNVOCC負担のためCFS費用に包含が一般的' },
       { cat: 'ocean',        name: '海上運賃',            note: 'ポート〜ポート' },
       { cat: 'surcharge',    name: 'サーチャージ類',      note: 'BAF/CAF/PSS 等' },
       { cat: 'overseas',     name: '仕向地費用',          note: 'D/O・目的港荷役等' },
-      { cat: 'customs',      name: '輸入通関費',          note: '通関手数料・書類作成' },
+      { cat: 'customs-import', name: '輸入通関費',          note: '通関手数料・書類作成' },
       { cat: 'domestic',     name: '国内配送費（着地）',  note: '港〜最終納入地' },
     ],
   };
@@ -83,7 +84,6 @@ window.QuoteApp = window.QuoteApp || { state: {}, data: {}, fx: {} };
     const modeHint = document.getElementById('mode-container-hint');
     if (modeHint) modeHint.style.display = noContainer ? '' : 'none';
   }
-
   let insuranceOn = false;
   function toggleInsurance() {
     insuranceOn = !insuranceOn;
@@ -92,6 +92,13 @@ window.QuoteApp = window.QuoteApp || { state: {}, data: {}, fx: {} };
     btn.classList.toggle('ins-on', insuranceOn);
     btn.textContent = insuranceOn ? '🛡️ 保険付保あり（ON）' : '🛡️ 保険付保（OFF）';
     btn.title = insuranceOn ? 'クリックで保険付保を解除します' : 'クリックで保険付保を有効にします';
+    // 保険会社（サブコン）入力欄の表示切替
+    const sub = document.getElementById('insSubcon');
+    if (sub) {
+      sub.style.display = insuranceOn ? '' : 'none';
+      if (insuranceOn) sub.focus();
+      else sub.value = '';
+    }
   }
 
 
