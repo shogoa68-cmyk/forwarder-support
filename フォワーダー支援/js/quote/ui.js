@@ -1802,7 +1802,8 @@
     });
 
     const profit = totalBillJPY - totalCostJPY;
-    const mkPct  = totalCostJPY > 0 ? (profit / totalCostJPY * 100) : 0;
+    // 粗利率は売上ベースに統一（業界標準 / 他画面と一致）。docs/バグ台帳.md B
+    const mkPct  = SharedCalc.grossMarginPct(totalBillJPY, totalCostJPY);
     const fmtJPY = n => Math.round(n).toLocaleString('ja-JP');
     const profCls = profit >= 0 ? 'qsp-profit-pos' : 'qsp-profit-neg';
 

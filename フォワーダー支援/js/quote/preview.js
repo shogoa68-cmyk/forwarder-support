@@ -326,7 +326,7 @@
         infoItems.push({ msg: `支払い通貨と請求通貨が異なる行が ${mixedCcyCount} 件あります（乗せ幅は請求通貨建てで加算）`, focusEl: null });
       }
       if (canConvert && totBillJpy > 0) {
-        const gm = (totBillJpy - totCostJpy) / totBillJpy * 100;
+        const gm = SharedCalc.grossMarginPct(totBillJpy, totCostJpy); // 売上ベース粗利率（B）
         if (gm < 20 || gm > 40) {
           const dir = gm < 20 ? '低め' : '高め';
           infoItems.push({ msg: `粗利率 ${gm.toFixed(1)}% — 目安（20〜40%）より${dir}です`, focusEl: null });
@@ -1386,7 +1386,7 @@
     });
 
     const totProfit  = totBillJpy - totCostJpy;
-    const profitRate = totBillJpy > 0 ? (totProfit / totBillJpy * 100) : 0;
+    const profitRate = SharedCalc.grossMarginPct(totBillJpy, totCostJpy); // 売上ベース粗利率（B）
     return { totBillJpy, totCostJpy, totProfit, totMk, profitRate, taxedBillJpy, byCategory, rowItems };
   }
 

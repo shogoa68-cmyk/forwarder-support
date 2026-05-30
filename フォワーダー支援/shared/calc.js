@@ -11,6 +11,8 @@
 //    SharedCalc.cbmFactor(unit)             : number  // 'cm'|'mm'|'in'|'m' → m 換算係数
 //    SharedCalc.containerSpecs              : 標準コンテナ定義（20'/40'/40HC）
 //    SharedCalc.suggestContainers(cbm, kg)  : Array<{name, count}>
+//    SharedCalc.grossMarginPct(bill, cost)  : number  // 粗利率(%) = (売上-原価)/売上×100
+//    SharedCalc.markupPct(bill, cost)       : number  // マークアップ率(%) = (売上-原価)/原価×100
 //
 //  単位変換:
 //    cm → m: ×0.01    mm → m: ×0.001    in → m: ×0.0254    m → m: ×1
@@ -91,6 +93,25 @@ window.SharedCalc = (function () {
     });
   }
 
+  // ---- 利益指標 ----
+  // 業界標準の「粗利率(Gross Margin)」は売上ベース＝(売上-原価)/売上。
+  // 「マークアップ率(値入率)」は原価ベース＝(売上-原価)/原価。両者は別物。
+  // 見積の3画面で定義が割れていた（docs/バグ台帳.md の B）ため共通化する。
+
+  /** 粗利率(%) = (売上 - 原価) / 売上 × 100。売上が 0 以下なら 0 */
+  function grossMarginPct(billing, cost) {
+    const b = billing || 0;
+    if (b <= 0) return 0;
+    return ((b - (cost || 0)) / b) * 100;
+  }
+
+  /** マークアップ率(値入率)(%) = (売上 - 原価) / 原価 × 100。原価が 0 以下なら 0 */
+  function markupPct(billing, cost) {
+    const c = cost || 0;
+    if (c <= 0) return 0;
+    return (((billing || 0) - c) / c) * 100;
+  }
+
   return {
     cbmFactor,
     cbmFromCm, saiFromCm,
@@ -99,5 +120,6 @@ window.SharedCalc = (function () {
     lclRt,
     containerSpecs,
     suggestContainers,
+    grossMarginPct, markupPct,
   };
 })();
