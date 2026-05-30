@@ -164,16 +164,15 @@
     if (!hdr.person)   document.getElementById('qf-person')?.classList.add('quote-warn-field');
     // インコタームズ
     if (cond && !cond.incoterms) document.getElementById('cond-incoterms')?.classList.add('quote-warn-field');
-    // 行レベル：項目名あり・請求単価ゼロの行
+    // 行レベル：項目名あり・請求単価ゼロの行（bq はデフォルト 1 のため bp のみ判定）
     document.querySelectorAll('#tableBody tr[id^="row-"]').forEach(tr => {
       const nm   = tr.querySelector('[data-field="nm"]');
       const bp   = tr.querySelector('[data-field="bp"]');
-      const bq   = tr.querySelector('[data-field="bq"]');
       const un   = tr.querySelector('[data-field="un"]');
       const name = (nm?.value || '').trim();
       if (!name) return; // 空行は row-unfilled で既にグレーアウト済み
       const isMemo = ['式','note','memo'].includes(un?.value) || /^[#＃]/.test(name);
-      if (!isMemo && (parseFloat(bp?.value) || 0) === 0 && (parseFloat(bq?.value) || 0) === 0) {
+      if (!isMemo && (parseFloat(bp?.value) || 0) === 0) {
         tr.classList.add('row-warn-price');
       }
     });
@@ -214,7 +213,7 @@
         if (!d.name || !d.name.trim()) emptyNameCount++;
         const isMemoRow = (d.un === '式' || d.un === 'note' || d.un === 'memo')
                        || (d.name && /^[#＃].+/.test(d.name.trim()));
-        if (d.name && d.name.trim() && !isMemoRow && (!d.bp || d.bp === 0) && (!d.bq || d.bq === 0)) {
+        if (d.name && d.name.trim() && !isMemoRow && (!d.bp || d.bp === 0)) {
           zeroPriceCount++;
         }
         if (d.pc && d.bc && d.pc !== d.bc) mixedCcyCount++;
