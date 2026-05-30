@@ -1839,6 +1839,7 @@
     initQuoteViewMode();       // STEP A: 客先/社内モード復元
     initQuoteSectionCollapse(); // 上部セクションの折り畳み状態を復元
     initSectionHelpTooltips(); // 各セクションの説明文を ? アイコンのツールチップ化
+    if (typeof initPreviewWarningListeners === 'function') initPreviewWarningListeners();
     if (typeof syncHazmatPanel === 'function') syncHazmatPanel(); // 危険品パネルの初期表示
     if (typeof syncMultiEntryFields === 'function') syncMultiEntryFields(); // コンテナ・荷姿の複数エントリ復元
     if (typeof window.renderQuoteMilestones === 'function') window.renderQuoteMilestones();

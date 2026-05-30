@@ -679,6 +679,28 @@
 /* ========== 未入力行グレーアウト ========== */
 #tab-quote-make tr.row-unfilled td { opacity: 0.38; }
 #tab-quote-make tr.row-unfilled:hover td { opacity: 0.65; }
+
+/* ========== プレビュー前バリデーション ハイライト ========== */
+/* ヘッダー・条件フィールドの未入力警告 */
+#tab-quote-make input.quote-warn-field,
+#tab-quote-make textarea.quote-warn-field {
+  border-color: #e6a817 !important;
+  box-shadow: 0 0 0 2.5px rgba(230, 168, 23, 0.38) !important;
+  background-color: #fffbef !important;
+}
+#tab-quote-make select.quote-warn-field {
+  outline: 2.5px solid #e6a817 !important;
+  outline-offset: 1px;
+  background-color: #fffbef !important;
+}
+/* 行レベル：請求単価ゼロ警告 */
+#tab-quote-make tr.row-warn-price td.price-cell {
+  background: rgba(230, 168, 23, 0.18) !important;
+}
+#tab-quote-make tr.row-warn-price td.price-cell input[data-field="bp"] {
+  color: #b36a00;
+}
+
 /* 非カテゴリ行のホバー */
 #tab-quote-make tbody tr:not([class*="cat-"]):hover td { background-color: rgba(139,105,20,0.04); }
 #tab-quote-make tbody tr:not([class*="cat-"]):hover td.cd-cell { background-color: #e8e8e8; }

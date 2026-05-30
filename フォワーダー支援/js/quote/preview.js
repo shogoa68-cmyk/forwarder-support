@@ -146,6 +146,51 @@
   }
 
   // ========== 出力前バリデーション ==========
+  // 問題のあるフィールドにハイライトを付け、編集時に自動解除するリスナーを設定
+  const _WARN_HEADER_IDS = ['qf-ref', 'qf-customer', 'qf-person', 'cond-incoterms'];
+
+  function _clearPreviewHighlights() {
+    document.querySelectorAll('#tab-quote-make .quote-warn-field')
+      .forEach(el => el.classList.remove('quote-warn-field'));
+    document.querySelectorAll('#tableBody tr.row-warn-price')
+      .forEach(tr => tr.classList.remove('row-warn-price'));
+  }
+
+  function _applyPreviewHighlights(hdr, cond) {
+    _clearPreviewHighlights();
+    // ヘッダーフィールド
+    if (!hdr.ref)      document.getElementById('qf-ref')?.classList.add('quote-warn-field');
+    if (!hdr.customer) document.getElementById('qf-customer')?.classList.add('quote-warn-field');
+    if (!hdr.person)   document.getElementById('qf-person')?.classList.add('quote-warn-field');
+    // インコタームズ
+    if (cond && !cond.incoterms) document.getElementById('cond-incoterms')?.classList.add('quote-warn-field');
+    // 行レベル：項目名あり・請求単価ゼロの行
+    document.querySelectorAll('#tableBody tr[id^="row-"]').forEach(tr => {
+      const nm   = tr.querySelector('[data-field="nm"]');
+      const bp   = tr.querySelector('[data-field="bp"]');
+      const bq   = tr.querySelector('[data-field="bq"]');
+      const un   = tr.querySelector('[data-field="un"]');
+      const name = (nm?.value || '').trim();
+      if (!name) return; // 空行は row-unfilled で既にグレーアウト済み
+      const isMemo = ['式','note','memo'].includes(un?.value) || /^[#＃]/.test(name);
+      if (!isMemo && (parseFloat(bp?.value) || 0) === 0 && (parseFloat(bq?.value) || 0) === 0) {
+        tr.classList.add('row-warn-price');
+      }
+    });
+  }
+
+  // ヘッダーフィールド編集時にハイライトを自動解除（初回のみ登録）
+  function initPreviewWarningListeners() {
+    _WARN_HEADER_IDS.forEach(id => {
+      const el = document.getElementById(id);
+      if (!el || el.dataset.pvWarnBound) return;
+      el.dataset.pvWarnBound = '1';
+      const clear = () => el.classList.remove('quote-warn-field');
+      el.addEventListener('input',  clear);
+      el.addEventListener('change', clear);
+    });
+  }
+
   // 出力（プレビュー／Excel／CSV／PDF）の前に、よくあるミス／忘れを検出して
   // 「3 件警告がありますが出力しますか？」と確認するゲート。
   // 戻り値：true = 続行、false = キャンセル
@@ -164,11 +209,9 @@
     if (!data.length) {
       warnings.push('見積もり行が 1 件もありません');
     } else {
-      // 行レベルチェック
       let zeroPriceCount = 0, mixedCcyCount = 0, emptyNameCount = 0;
       data.forEach(d => {
         if (!d.name || !d.name.trim()) emptyNameCount++;
-        // 名前あり・かつ請求単価ゼロ（ただし「式」「note」単位や明示メモ行は除外）
         const isMemoRow = (d.un === '式' || d.un === 'note' || d.un === 'memo')
                        || (d.name && /^[#＃].+/.test(d.name.trim()));
         if (d.name && d.name.trim() && !isMemoRow && (!d.bp || d.bp === 0) && (!d.bq || d.bq === 0)) {
@@ -179,19 +222,32 @@
       if (emptyNameCount)  warnings.push(`項目名が空の行が ${emptyNameCount} 件あります`);
       if (zeroPriceCount)  warnings.push(`請求単価がゼロの行が ${zeroPriceCount} 件あります`);
       if (mixedCcyCount)   warnings.push(`支払い通貨と請求通貨が異なる行が ${mixedCcyCount} 件あります（乗せ幅は請求通貨建てで加算される点に注意）`);
-      // 為替キャッシュ鮮度チェック（多通貨が絡む案件のみ）
       const hasNonJpy = data.some(d => (d.pc && d.pc !== 'JPY') || (d.bc && d.bc !== 'JPY'));
       if (hasNonJpy && isFxStale()) {
         warnings.push('為替レートが 24 時間以上前の値です。FX パネルから「🔄 今すぐ取得」を推奨');
       }
     }
 
-    if (!warnings.length) return true;
+    if (!warnings.length) {
+      _clearPreviewHighlights();
+      return true;
+    }
+
+    // 警告がある場合：対象フィールドをハイライトしてからダイアログ表示
+    _applyPreviewHighlights(hdr, cond);
 
     const msg = `⚠️ ${label}前に ${warnings.length} 件の確認事項があります：\n\n`
       + warnings.map((w, i) => `${i+1}. ${w}`).join('\n')
       + '\n\nこのまま出力しますか？';
-    return confirm(msg);
+    const proceed = confirm(msg);
+    if (!proceed) {
+      // キャンセル時：最初のハイライト要素へスクロール
+      const first = document.querySelector(
+        '#tab-quote-make .quote-warn-field, #tableBody tr.row-warn-price'
+      );
+      first?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+    return proceed;
   }
 
   function openPreview() {
