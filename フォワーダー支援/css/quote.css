@@ -701,6 +701,111 @@
   color: #b36a00;
 }
 
+/* ===== プレビュー入力ガイドパネル ===== */
+#tab-quote-make .pv-warn-guide {
+  position: fixed;
+  bottom: 80px;
+  right: 20px;
+  width: 292px;
+  background: #fff;
+  border: 1.5px solid #e6a817;
+  border-radius: 10px;
+  box-shadow: 0 6px 28px rgba(0,0,0,0.20);
+  z-index: 1200;
+  font-size: 13px;
+}
+#tab-quote-make .pv-wg-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 12px 8px;
+  border-bottom: 1px solid #f0e0b0;
+  background: #fffbef;
+  border-radius: 10px 10px 0 0;
+}
+#tab-quote-make .pv-wg-icon { font-size: 15px; }
+#tab-quote-make .pv-wg-title {
+  flex: 1;
+  font-weight: 700;
+  color: #7a4f00;
+  font-size: 12px;
+}
+#tab-quote-make .pv-wg-close {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #aaa;
+  font-size: 14px;
+  padding: 2px 4px;
+  line-height: 1;
+  border-radius: 4px;
+}
+#tab-quote-make .pv-wg-close:hover { color: #333; background: #eee; }
+#tab-quote-make .pv-wg-list {
+  margin: 0;
+  padding: 6px 0;
+  list-style: none;
+  max-height: 200px;
+  overflow-y: auto;
+}
+#tab-quote-make .pv-wg-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 12px;
+  cursor: pointer;
+  font-size: 12px;
+  color: #333;
+  border-left: 3px solid transparent;
+  transition: background 0.12s;
+}
+#tab-quote-make .pv-wg-item:hover { background: #fffbef; }
+#tab-quote-make .pv-wg-item.is-current {
+  background: #fff8e0;
+  border-left-color: #e6a817;
+  color: #7a4f00;
+  font-weight: 600;
+}
+#tab-quote-make .pv-wg-item-num {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #e0c060;
+  color: #7a4f00;
+  font-size: 10px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+#tab-quote-make .pv-wg-item.is-current .pv-wg-item-num {
+  background: #e6a817;
+  color: #fff;
+}
+#tab-quote-make .pv-wg-footer {
+  display: flex;
+  gap: 6px;
+  padding: 8px 12px;
+  border-top: 1px solid #f0e0b0;
+  background: #fafafa;
+  border-radius: 0 0 10px 10px;
+}
+#tab-quote-make .pv-wg-btn {
+  flex: 1;
+  padding: 6px 8px;
+  border-radius: 6px;
+  border: none;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.12s;
+}
+#tab-quote-make .pv-wg-btn-next { background: #e6a817; color: #fff; }
+#tab-quote-make .pv-wg-btn-next:hover { background: #c77b00; }
+#tab-quote-make .pv-wg-btn-skip { background: #ece9e4; color: #555; }
+#tab-quote-make .pv-wg-btn-skip:hover { background: #ddd8d0; }
+
 /* 非カテゴリ行のホバー */
 #tab-quote-make tbody tr:not([class*="cat-"]):hover td { background-color: rgba(139,105,20,0.04); }
 #tab-quote-make tbody tr:not([class*="cat-"]):hover td.cd-cell { background-color: #e8e8e8; }

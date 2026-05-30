@@ -146,8 +146,13 @@
   }
 
   // ========== 出力前バリデーション ==========
-  // 問題のあるフィールドにハイライトを付け、編集時に自動解除するリスナーを設定
   const _WARN_HEADER_IDS = ['qf-ref', 'qf-customer', 'qf-person', 'cond-incoterms'];
+
+  // 「このまま出力」でバリデーションをスキップするフラグ
+  let _pvBypassed   = false;
+  let _pvWarnItems  = [];   // { msg, focusEl }
+  let _pvWarnIdx    = 0;
+  let _pvWarnSkipFn = null;
 
   function _clearPreviewHighlights() {
     document.querySelectorAll('#tab-quote-make .quote-warn-field')
@@ -158,25 +163,103 @@
 
   function _applyPreviewHighlights(hdr, cond) {
     _clearPreviewHighlights();
-    // ヘッダーフィールド
     if (!hdr.ref)      document.getElementById('qf-ref')?.classList.add('quote-warn-field');
     if (!hdr.customer) document.getElementById('qf-customer')?.classList.add('quote-warn-field');
     if (!hdr.person)   document.getElementById('qf-person')?.classList.add('quote-warn-field');
-    // インコタームズ
     if (cond && !cond.incoterms) document.getElementById('cond-incoterms')?.classList.add('quote-warn-field');
-    // 行レベル：項目名あり・請求単価ゼロの行
     document.querySelectorAll('#tableBody tr[id^="row-"]').forEach(tr => {
       const nm   = tr.querySelector('[data-field="nm"]');
       const bp   = tr.querySelector('[data-field="bp"]');
-      const bq   = tr.querySelector('[data-field="bq"]');
       const un   = tr.querySelector('[data-field="un"]');
       const name = (nm?.value || '').trim();
-      if (!name) return; // 空行は row-unfilled で既にグレーアウト済み
+      if (!name) return;
       const isMemo = ['式','note','memo'].includes(un?.value) || /^[#＃]/.test(name);
-      if (!isMemo && (parseFloat(bp?.value) || 0) === 0 && (parseFloat(bq?.value) || 0) === 0) {
+      if (!isMemo && (parseFloat(bp?.value) || 0) === 0) {
         tr.classList.add('row-warn-price');
       }
     });
+  }
+
+  // ハイライト済み要素からガイド項目リストを生成
+  function _buildWarnItems() {
+    const items = [];
+    const tryHdr = (id, msg) => {
+      const el = document.getElementById(id);
+      if (el?.classList.contains('quote-warn-field')) items.push({ msg, focusEl: el });
+    };
+    tryHdr('qf-ref',         '仮 REF # を入力してください');
+    tryHdr('qf-customer',    '引き合い元名称を入力してください');
+    tryHdr('qf-person',      '担当者名を入力してください');
+    tryHdr('cond-incoterms', 'インコタームズを選択してください');
+    document.querySelectorAll('#tableBody tr.row-warn-price').forEach(tr => {
+      const nm = tr.querySelector('[data-field="nm"]');
+      const pp = tr.querySelector('[data-field="pp"]'); // pp は編集可能
+      const name = (nm?.value || '').trim() || '（名称なし）';
+      items.push({ msg: `「${name}」の単価を入力してください`, focusEl: pp });
+    });
+    return items;
+  }
+
+  // 現在のガイド項目にスクロール＋フォーカス
+  function _pvWarnGuideFocusCurrent() {
+    const item = _pvWarnItems[_pvWarnIdx];
+    if (!item) return;
+    document.querySelectorAll('#pvWarnGuideList .pv-wg-item').forEach((li, i) =>
+      li.classList.toggle('is-current', i === _pvWarnIdx)
+    );
+    if (item.focusEl) {
+      item.focusEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      setTimeout(() => { item.focusEl.focus(); if (item.focusEl.select) item.focusEl.select(); }, 280);
+    }
+  }
+
+  function pvWarnGuideNext() {
+    if (!_pvWarnItems.length) return;
+    _pvWarnIdx = (_pvWarnIdx + 1) % _pvWarnItems.length;
+    _pvWarnGuideFocusCurrent();
+  }
+
+  function pvWarnGuideSkip() {
+    pvWarnGuideClose();
+    _clearPreviewHighlights();
+    _pvBypassed = true;
+    if (typeof _pvWarnSkipFn === 'function') _pvWarnSkipFn();
+  }
+
+  function pvWarnGuideClose() {
+    const panel = document.getElementById('pvWarnGuide');
+    if (panel) panel.style.display = 'none';
+    _pvWarnItems  = [];
+    _pvWarnSkipFn = null;
+  }
+
+  function _openWarnGuide(skipFn) {
+    _pvWarnItems  = _buildWarnItems();
+    _pvWarnIdx    = 0;
+    _pvWarnSkipFn = skipFn;
+    const panel = document.getElementById('pvWarnGuide');
+    if (!panel) return;
+    const title = document.getElementById('pvWarnGuideTitle');
+    if (title) title.textContent = `${_pvWarnItems.length} 箇所の入力が必要です`;
+    const nextBtn = document.getElementById('pvWarnGuideNextBtn');
+    if (nextBtn) nextBtn.style.display = _pvWarnItems.length > 1 ? '' : 'none';
+    const list = document.getElementById('pvWarnGuideList');
+    if (list) {
+      list.innerHTML = _pvWarnItems.map((item, i) =>
+        `<li class="pv-wg-item" data-idx="${i}">` +
+          `<span class="pv-wg-item-num">${i + 1}</span>` +
+          `<span>${escHtml(item.msg)}</span>` +
+        `</li>`
+      ).join('');
+      list.querySelectorAll('.pv-wg-item').forEach(li =>
+        li.addEventListener('click', () => {
+          _pvWarnIdx = parseInt(li.dataset.idx);
+          _pvWarnGuideFocusCurrent();
+        })
+      );
+    }
+    panel.style.display = '';
+    _pvWarnGuideFocusCurrent();
   }
 
   // ヘッダーフィールド編集時にハイライトを自動解除（初回のみ登録）
@@ -191,10 +274,10 @@
     });
   }
 
-  // 出力（プレビュー／Excel／CSV／PDF）の前に、よくあるミス／忘れを検出して
-  // 「3 件警告がありますが出力しますか？」と確認するゲート。
-  // 戻り値：true = 続行、false = キャンセル
-  function preOutputValidationGate(label) {
+  // 出力（プレビュー／Excel／CSV／PDF）の前に問題箇所を検出するゲート。
+  // 警告があればガイドパネルを表示して false を返す（confirm は廃止）。
+  // skipFn: 「このまま出力」ボタンで再実行する関数。
+  function preOutputValidationGate(label, skipFn) {
     const data = collectData();
     const hdr  = getQuoteHeader();
     const warnings = [];
@@ -214,7 +297,7 @@
         if (!d.name || !d.name.trim()) emptyNameCount++;
         const isMemoRow = (d.un === '式' || d.un === 'note' || d.un === 'memo')
                        || (d.name && /^[#＃].+/.test(d.name.trim()));
-        if (d.name && d.name.trim() && !isMemoRow && (!d.bp || d.bp === 0) && (!d.bq || d.bq === 0)) {
+        if (d.name && d.name.trim() && !isMemoRow && (!d.bp || d.bp === 0)) {
           zeroPriceCount++;
         }
         if (d.pc && d.bc && d.pc !== d.bc) mixedCcyCount++;
@@ -230,24 +313,14 @@
 
     if (!warnings.length) {
       _clearPreviewHighlights();
+      pvWarnGuideClose();
       return true;
     }
 
-    // 警告がある場合：対象フィールドをハイライトしてからダイアログ表示
+    // 警告あり：ハイライト → ガイドパネル表示（ノンブロッキング）
     _applyPreviewHighlights(hdr, cond);
-
-    const msg = `⚠️ ${label}前に ${warnings.length} 件の確認事項があります：\n\n`
-      + warnings.map((w, i) => `${i+1}. ${w}`).join('\n')
-      + '\n\nこのまま出力しますか？';
-    const proceed = confirm(msg);
-    if (!proceed) {
-      // キャンセル時：最初のハイライト要素へスクロール
-      const first = document.querySelector(
-        '#tab-quote-make .quote-warn-field, #tableBody tr.row-warn-price'
-      );
-      first?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    }
-    return proceed;
+    _openWarnGuide(skipFn);
+    return false;
   }
 
   function openPreview() {
@@ -255,7 +328,8 @@
     const allRows = collectAllRows();
     const data = allRows.filter(r => r._type === 'data');
     if (!data.length) { alert('行がありません。'); return; }
-    if (!preOutputValidationGate('プレビュー表示')) return;
+    if (!_pvBypassed && !preOutputValidationGate('プレビュー表示', openPreview)) return;
+    _pvBypassed = false;
     const hdr = getQuoteHeader();
     let totCost = 0, totBill = 0, totMk = 0;
     data.forEach(d => { totCost += d.cost; totBill += d.bill; totMk += d.mk; });
@@ -515,6 +589,7 @@
       if (wrap) wrap.dataset.listenerSet = '1';
     }
     } catch (err) {
+      _pvBypassed = false;
       console.error('[openPreview] エラー:', err);
       alert('プレビュー表示中にエラーが発生しました。\n' + err.message);
     }
@@ -711,7 +786,8 @@
   function exportPDFAsClient() {
     if (!_clientNoteGate()) return;
     _withClientColumns(() => {
-      if (!preOutputValidationGate('客先用 PDF 出力')) return;
+      if (!_pvBypassed && !preOutputValidationGate('客先用 PDF 出力', exportPDFAsClient)) return;
+      _pvBypassed = false;
       window.print();
     });
   }
@@ -780,7 +856,8 @@
   function copyTSV() {
     const data = collectData();
     if (!data.length) return;
-    if (!preOutputValidationGate('クリップボードコピー')) return;
+    if (!_pvBypassed && !preOutputValidationGate('クリップボードコピー', copyTSV)) return;
+    _pvBypassed = false;
     if (!sensitiveColumnsGate('クリップボードコピー')) return;
     const hdr = getQuoteHeader();
     let totCost = 0, totBill = 0, totMk = 0;
@@ -833,7 +910,8 @@
 
   // ========== PDF 出力 ==========
   function exportPDF() {
-    if (!preOutputValidationGate('PDF 出力（印刷）')) return;
+    if (!_pvBypassed && !preOutputValidationGate('PDF 出力（印刷）', exportPDF)) return;
+    _pvBypassed = false;
     if (!sensitiveColumnsGate('PDF 出力')) return;
     window.print();
   }
@@ -904,7 +982,8 @@
       alert('SheetJSライブラリが読み込まれていません。ページを再読み込みしてください。');
       return;
     }
-    if (!preOutputValidationGate('Excel 出力')) return;
+    if (!_pvBypassed && !preOutputValidationGate('Excel 出力', exportExcel)) return;
+    _pvBypassed = false;
     if (!sensitiveColumnsGate('Excel 出力')) return;
     const allRows = collectAllRows();
     const data = allRows.filter(r => r._type === 'data');
@@ -1039,7 +1118,8 @@
   function downloadCSV() {
     const data = collectData();
     if (!data.length) { alert('行がありません。'); return; }
-    if (!preOutputValidationGate('CSV ダウンロード')) return;
+    if (!_pvBypassed && !preOutputValidationGate('CSV ダウンロード', downloadCSV)) return;
+    _pvBypassed = false;
     // プレビューの表示カスタマイズを CSV モーダルへ反映（モーダル内で再編集可）
     syncCsvColsToPreview();
     document.getElementById('csvColModal').classList.add('open');
