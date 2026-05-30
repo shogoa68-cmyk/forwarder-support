@@ -789,9 +789,10 @@
       const l = parseFloat(e.l) || 0, w = parseFloat(e.w) || 0, h = parseFloat(e.h) || 0;
       totVolWt += (l * w * h / 6000) * q;
     });
-    // R/T = max(CBM, 重量t)  ／  CW = max(実重量, 容積重量)
-    const rt = Math.max(totCbm, totKg / 1000);
-    const cw = Math.max(totKg, totVolWt);
+    // R/T・CW は SharedCalc に一本化（docs/バグ台帳.md F）。
+    // CW は 0.5kg 切上（IATA）で全画面統一。以前はこの主入口だけ丸めていなかった。
+    const rt = SharedCalc.lclRt(totCbm, totKg);
+    const cw = SharedCalc.airChargeableWeight(totKg, totVolWt);
 
     const setText = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
     setText('cdTotQty', totQty.toLocaleString());

@@ -6,7 +6,9 @@
 //    SharedCalc.cbmFromCm(l, w, h, qty)     : number  // cm 寸法 → CBM 合計
 //    SharedCalc.saiFromCm(l, w, h, qty)     : number  // cm 寸法 → 才数 合計
 //    SharedCalc.airVolWeight(l, w, h)       : number  // cm → 容積重量 kg (/6000)
-//    SharedCalc.airCw(weightKg, volWeight)  : number  // CW = max(W, V)
+//    SharedCalc.airVolWeightFromCbm(cbm)    : number  // CBM → 容積重量 kg (×1e6/6000)
+//    SharedCalc.airCw(weightKg, volWeight)  : number  // CW = max(W, V)（丸めなし・素材）
+//    SharedCalc.airChargeableWeight(w, v)   : number  // 課金CW = max(W,V) を 0.5kg 切上（IATA）
 //    SharedCalc.lclRt(cbm, weightKg)        : number  // RT = max(CBM, W/1000)
 //    SharedCalc.cbmFactor(unit)             : number  // 'cm'|'mm'|'in'|'m' → m 換算係数
 //    SharedCalc.containerSpecs              : 標準コンテナ定義（20'/40'/40HC）
@@ -62,9 +64,22 @@ window.SharedCalc = (function () {
     return (l * w * h) / 6000;
   }
 
-  /** 航空 CW = max(実重量, 容積重量) */
+  /** CBM から航空容積重量 (kg)。cm³÷6000 と等価（1 CBM = 1e6/6000 ≒ 166.667 kg）。
+   *  従来コードの「CBM × 166.67」リテラルは丸め誤差。こちらを正とする。 */
+  function airVolWeightFromCbm(cbm) {
+    return (cbm || 0) * (1000000 / 6000);
+  }
+
+  /** 航空 CW = max(実重量, 容積重量)（丸めなしの素材値） */
   function airCw(weightKg, volWeightKg) {
     return Math.max(weightKg || 0, volWeightKg || 0);
+  }
+
+  /** 航空 課金重量 = max(実重量, 容積重量) を 0.5kg 単位で切り上げ（IATA 準拠）。
+   *  画面・出力に出す CW はこれに統一する（docs/バグ台帳.md の F）。 */
+  function airChargeableWeight(weightKg, volWeightKg) {
+    const cw = Math.max(weightKg || 0, volWeightKg || 0);
+    return Math.ceil(cw * 2) / 2;
   }
 
   /** 海上 RT = max(CBM, W/1000) */
@@ -116,7 +131,7 @@ window.SharedCalc = (function () {
     cbmFactor,
     cbmFromCm, saiFromCm,
     cbmFromAny, saiFromAny,
-    airVolWeight, airCw,
+    airVolWeight, airVolWeightFromCbm, airCw, airChargeableWeight,
     lclRt,
     containerSpecs,
     suggestContainers,

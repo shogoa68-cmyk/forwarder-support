@@ -49,7 +49,15 @@
     });
   });
 
-  describe('SharedCalc.airCw — 航空課金重量 CW = max(実重量, 容積重量)', () => {
+  describe('SharedCalc.airVolWeightFromCbm — CBM→容積重量', () => {
+    it('1 CBM = 166.667 kg（÷6000 と等価・166.67リテラルではない）', () =>
+      expect(C.airVolWeightFromCbm(1)).toBeCloseTo(1000000 / 6000, 6));
+    it('cm³÷6000 と一致: 60×40×30cm=0.072CBM → 12kg', () =>
+      expect(C.airVolWeightFromCbm(0.072)).toBeCloseTo(12, 6));
+    it('null は 0', () => expect(C.airVolWeightFromCbm(null)).toBe(0));
+  });
+
+  describe('SharedCalc.airCw — CW = max(実重量, 容積重量)（丸めなし素材）', () => {
     it('実重量勝ち', () => expect(C.airCw(200, 166.67)).toBe(200));
     it('容積重量勝ち', () => expect(C.airCw(100, 166.67)).toBe(166.67));
     it('同値', () => expect(C.airCw(150, 150)).toBe(150));
@@ -58,6 +66,15 @@
       expect(C.airCw(80, null)).toBe(80);
       expect(C.airCw(null, null)).toBe(0);
     });
+  });
+
+  describe('SharedCalc.airChargeableWeight — 課金CW（0.5kg切上・IATA）', () => {
+    it('12.3kg → 12.5kg（0.5kg単位に切上）', () => expect(C.airChargeableWeight(12.3, 0)).toBe(12.5));
+    it('12.5kg ちょうどはそのまま', () => expect(C.airChargeableWeight(12.5, 0)).toBe(12.5));
+    it('12.6kg → 13.0kg', () => expect(C.airChargeableWeight(12.6, 0)).toBe(13));
+    it('容積重量が勝つ場合も切上', () => expect(C.airChargeableWeight(10, 166.67)).toBe(167));
+    it('実重量が勝つ場合', () => expect(C.airChargeableWeight(200.1, 166.67)).toBe(200.5));
+    it('0 は 0', () => expect(C.airChargeableWeight(0, 0)).toBe(0));
   });
 
   describe('SharedCalc.lclRt — 海上 RT = max(CBM, 重量t)', () => {

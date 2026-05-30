@@ -540,10 +540,10 @@
     if (_lastCalcResult) {
       const { totalCBM, totalKg, totalPcs, rt, cw } = _lastCalcResult;
       const cargoItems = [
-        { lbl: '総CBM',          val: totalCBM.toFixed(4) + ' CBM' },
+        { lbl: '総CBM',          val: totalCBM.toFixed(3) + ' CBM' },
         { lbl: '総重量',         val: totalKg.toLocaleString('ja-JP') + ' kg' },
         { lbl: '総個数',         val: totalPcs.toLocaleString('ja-JP') + ' pcs' },
-        { lbl: 'RT（海上）',     val: rt.toFixed(4) + ' R/T' },
+        { lbl: 'RT（海上）',     val: rt.toFixed(3) + ' R/T' },
         { lbl: 'CW（航空）',     val: cw.toLocaleString('ja-JP') + ' kg' },
         { lbl: 'コンテナ目安',   val: suggestContainers(totalCBM, totalKg) },
       ].filter(f => f.val && f.val !== '— ');
