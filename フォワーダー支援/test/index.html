@@ -28,10 +28,12 @@
 
   <!-- 被テストコード（本体と同じものを読む） -->
   <script src="../shared/calc.js"></script>
+  <script src="../shared/fx.js"></script>
 
   <!-- テストランナー → テスト本体 → 描画 -->
   <script src="./test-runner.js"></script>
   <script src="./calc.spec.js"></script>
+  <script src="./fx.spec.js"></script>
   <script>
     TestRunner.render(document.getElementById('results'));
     // タイトルに結果を反映（一覧で分かるように）

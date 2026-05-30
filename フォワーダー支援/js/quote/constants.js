@@ -213,11 +213,12 @@ async function fetchAutoFxRates() {
   }
 }
 
-/** 金額を JPY に換算（cur が JPY なら そのまま） */
+/** 金額を JPY に換算（cur が JPY なら そのまま）
+ *  レート未取得の通貨は NaN（換算不可）を返す。かつては rate=1 で暗黙換算し、
+ *  未取得通貨が ¥等倍で合計に混入して桁ずれする事故があったため廃止。
+ *  純粋ロジックは SharedFX.toJPY に集約（docs/バグ台帳.md の A）。*/
 function toJPY(amount, cur) {
-  if (!cur || cur === 'JPY') return amount;
-  const rate = _fxRates[cur] || 1;
-  return amount * rate;
+  return SharedFX.toJPY(amount, cur, _fxRates);
 }
 
 loadFxRates();

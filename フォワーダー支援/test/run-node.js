@@ -21,8 +21,10 @@ function load(rel) {
 }
 
 load('../shared/calc.js'); // → globalThis.SharedCalc
+load('../shared/fx.js');   // → globalThis.SharedFX
 load('./test-runner.js');  // → globalThis.{describe,it,expect,TestRunner}
 load('./calc.spec.js');    // テスト実行（describe/it 即時評価）
+load('./fx.spec.js');
 
 const ok = globalThis.TestRunner.printSummary();
 process.exit(ok ? 0 : 1);

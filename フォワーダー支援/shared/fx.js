@@ -6,7 +6,16 @@
 //    SharedFX.fetchRates(base)           : Promise<{ [cur]: rate }>  // 1 base = rate cur
 //    SharedFX.getCachedRates(base)       : { rates, ts } | null      // メモリキャッシュ取得
 //    SharedFX.getRate(from, to)          : Promise<number>            // 1 from = X to
+//    SharedFX.toJPY(amount, cur, rates)  : number                     // 純粋換算（下記）
 //    SharedFX.invalidateCache()          : void
+//
+//  SharedFX.toJPY(amount, cur, ratesToJpy):
+//    rates は「1 cur = X JPY」のテーブル（見積側 _fxRates と同形）。
+//    - cur が falsy または 'JPY' なら amount をそのまま返す
+//    - rates[cur] が正の数でなければ NaN（＝換算不可）を返す
+//      （かつて rate=1 で暗黙換算していたが、未取得通貨が ¥等倍で混入し
+//       合計が静かに桁ずれする事故になるため廃止。NaN を返して呼び出し側で
+//       「換算不可」を可視化する方針に変更。docs/バグ台帳.md の A 参照）
 //
 //  キャッシュ仕様：
 //    - メモリキャッシュ：base 別、有効期間 1 時間
@@ -48,5 +57,25 @@ window.SharedFX = (function () {
     for (const k of Object.keys(_cache)) delete _cache[k];
   }
 
-  return { fetchRates, getCachedRates, getRate, invalidateCache };
+  /**
+   * 金額を JPY に換算する純粋関数。
+   * @param {number} amount         元の金額
+   * @param {string} cur            通貨コード（'JPY' / falsy はそのまま返す）
+   * @param {Object} ratesToJpy     { [cur]: 1cur=XJPY } 形式のレート表
+   * @returns {number}              JPY 額。レート未取得時は NaN（換算不可）
+   */
+  function toJPY(amount, cur, ratesToJpy) {
+    if (!cur || cur === 'JPY') return amount;
+    const rate = ratesToJpy && ratesToJpy[cur];
+    if (!(typeof rate === 'number' && rate > 0)) {
+      // 暗黙の rate=1 はしない。未取得レートでの等倍換算は桁ずれ事故の元。
+      if (typeof console !== 'undefined') {
+        console.warn(`[FX] レート未取得のため換算不可: ${cur}（amount=${amount}）`);
+      }
+      return NaN;
+    }
+    return amount * rate;
+  }
+
+  return { fetchRates, getCachedRates, getRate, toJPY, invalidateCache };
 })();
