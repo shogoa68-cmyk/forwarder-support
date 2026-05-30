@@ -799,7 +799,7 @@
     setText('cdTotCbm', totCbm > 0 ? totCbm.toFixed(3) + ' CBM' : '0.000');
     setText('cdTotKg',  totKg > 0 ? totKg.toLocaleString() + ' kg' : '0');
     setText('cdTotRt',  rt.toFixed(3));
-    setText('cdTotCw',  Math.round(cw).toLocaleString());
+    setText('cdTotCw',  SharedCalc.fmtCw(cw));  // 0.5kg 精度を保つ（Math.round だと 12.5→13）
 
     // 重量・容積（概算）欄は廃止。明細合計を直接保持してプレビュー等で参照
     // hidden に R/T・CW も保持（プレビュー等で参照可能に）

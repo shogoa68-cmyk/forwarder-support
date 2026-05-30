@@ -9,6 +9,7 @@
 //    SharedCalc.airVolWeightFromCbm(cbm)    : number  // CBM → 容積重量 kg (×1e6/6000)
 //    SharedCalc.airCw(weightKg, volWeight)  : number  // CW = max(W, V)（丸めなし・素材）
 //    SharedCalc.airChargeableWeight(w, v)   : number  // 課金CW = max(W,V) を 0.5kg 切上（IATA）
+//    SharedCalc.fmtCw(kg)                    : string  // CW 表示: 0.5kg 精度を保ち整数部はカンマ区切り
 //    SharedCalc.lclRt(cbm, weightKg)        : number  // RT = max(CBM, W/1000)
 //    SharedCalc.cbmFactor(unit)             : number  // 'cm'|'mm'|'in'|'m' → m 換算係数
 //    SharedCalc.containerSpecs              : 標準コンテナ定義（20'/40'/40HC）
@@ -82,6 +83,13 @@ window.SharedCalc = (function () {
     return Math.ceil(cw * 2) / 2;
   }
 
+  /** CW 表示用フォーマット。0.5kg 精度を保ったまま整数部を 3 桁カンマ区切りで返す。
+   *  Math.round してしまうと 12.5→13 と 0.5kg 精度が潰れるため専用化（docs/バグ台帳.md F 表示）。 */
+  function fmtCw(kg) {
+    const v = kg || 0;
+    return v.toLocaleString('ja-JP', { minimumFractionDigits: 0, maximumFractionDigits: 1 });
+  }
+
   /** 海上 RT = max(CBM, W/1000) */
   function lclRt(cbm, weightKg) {
     return Math.max(cbm || 0, (weightKg || 0) / 1000);
@@ -131,7 +139,7 @@ window.SharedCalc = (function () {
     cbmFactor,
     cbmFromCm, saiFromCm,
     cbmFromAny, saiFromAny,
-    airVolWeight, airVolWeightFromCbm, airCw, airChargeableWeight,
+    airVolWeight, airVolWeightFromCbm, airCw, airChargeableWeight, fmtCw,
     lclRt,
     containerSpecs,
     suggestContainers,

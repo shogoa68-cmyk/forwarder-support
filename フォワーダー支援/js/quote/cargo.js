@@ -122,7 +122,7 @@
       </div>
       <div class="calc-result-item">
         <span class="calc-r-lbl" title="Chargeable Weight：実重量(kg) と 容積重量(CBM÷6000換算≒×166.667) の大きい方を 0.5kg 単位で切り上げ（IATA 準拠）。航空運賃の課金重量">CW（航空）</span>
-        <span class="calc-r-val hl-green">${Math.ceil(cw).toLocaleString()} kg</span>
+        <span class="calc-r-val hl-green">${SharedCalc.fmtCw(cw)} kg</span>
       </div>
       <div class="calc-result-item">
         <span class="calc-r-lbl">コンテナ目安</span>
@@ -153,7 +153,7 @@
           <td>${rowCBM > 0 ? rowCBM.toFixed(3) : '—'}</td>
           <td>${rowKg > 0 ? rowKg.toLocaleString('ja-JP', {maximumFractionDigits:1}) : '—'}</td>
           <td>${rowCBM > 0 || rowKg > 0 ? rowRT.toFixed(3) : '—'}</td>
-          <td>${rowCBM > 0 || rowKg > 0 ? Math.ceil(rowCW).toLocaleString() : '—'}</td>
+          <td>${rowCBM > 0 || rowKg > 0 ? SharedCalc.fmtCw(rowCW) : '—'}</td>
         </tr>`;
     });
 

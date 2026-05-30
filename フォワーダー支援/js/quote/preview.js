@@ -544,7 +544,7 @@
         { lbl: '総重量',         val: totalKg.toLocaleString('ja-JP') + ' kg' },
         { lbl: '総個数',         val: totalPcs.toLocaleString('ja-JP') + ' pcs' },
         { lbl: 'RT（海上）',     val: rt.toFixed(3) + ' R/T' },
-        { lbl: 'CW（航空）',     val: cw.toLocaleString('ja-JP') + ' kg' },
+        { lbl: 'CW（航空）',     val: SharedCalc.fmtCw(cw) + ' kg' },
         { lbl: 'コンテナ目安',   val: suggestContainers(totalCBM, totalKg) },
       ].filter(f => f.val && f.val !== '— ');
       const gridHtml = cargoItems.map(f =>

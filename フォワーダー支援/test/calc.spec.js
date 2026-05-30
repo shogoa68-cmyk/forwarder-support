@@ -68,6 +68,14 @@
     });
   });
 
+  describe('SharedCalc.fmtCw — CW表示（0.5kg精度を保つ）', () => {
+    it('12.5 は 12.5 のまま（Math.round で 13 にしない）', () => expect(C.fmtCw(12.5)).toBe('12.5'));
+    it('12 は 12（整数は小数点なし）', () => expect(C.fmtCw(12)).toBe('12'));
+    it('1234.5 は 1,234.5（整数部カンマ区切り）', () => expect(C.fmtCw(1234.5)).toBe('1,234.5'));
+    it('0 は 0', () => expect(C.fmtCw(0)).toBe('0'));
+    it('null は 0', () => expect(C.fmtCw(null)).toBe('0'));
+  });
+
   describe('SharedCalc.airChargeableWeight — 課金CW（0.5kg切上・IATA）', () => {
     it('12.3kg → 12.5kg（0.5kg単位に切上）', () => expect(C.airChargeableWeight(12.3, 0)).toBe(12.5));
     it('12.5kg ちょうどはそのまま', () => expect(C.airChargeableWeight(12.5, 0)).toBe(12.5));

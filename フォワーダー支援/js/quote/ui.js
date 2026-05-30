@@ -1768,7 +1768,7 @@
     if (m.cbm > 0)   rows.push(['総容積', m.cbm.toFixed(3) + ' CBM']);
     if (m.kg > 0)    rows.push(['総重量', Math.round(m.kg).toLocaleString() + ' kg']);
     if (m.rt > 0)    rows.push(['R/T', m.rt.toFixed(3)]);
-    if (m.cw > 0)    rows.push(['CW', Math.round(m.cw).toLocaleString() + ' kg']);
+    if (m.cw > 0)    rows.push(['CW', SharedCalc.fmtCw(m.cw) + ' kg']);  // 0.5kg 精度を保つ
     if (!rows.length) { el.style.display = 'none'; el.innerHTML = ''; return; }
     el.style.display = 'block';
     el.innerHTML = '<div class="qsp-section-label">📦 物量情報</div>'
