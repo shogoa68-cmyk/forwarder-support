@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>テスト — フォワーダー支援</title>
+  <style>
+    body { font-family: -apple-system, "Hiragino Kaku Gothic ProN", "Meiryo", sans-serif;
+           margin: 0; padding: 24px; background: #f5f6f8; color: #222; line-height: 1.5; }
+    h1 { font-size: 18px; margin: 0 0 4px; }
+    .sub { color: #888; font-size: 13px; margin-bottom: 16px; }
+    #results { max-width: 880px; }
+    .tr-head { font-size: 16px; font-weight: 700; padding: 12px 16px; border-radius: 8px; margin-bottom: 16px; }
+    .tr-good { background: #e6f6ec; color: #1b7a3d; border: 1px solid #b6e2c6; }
+    .tr-bad  { background: #fde8e8; color: #b3261e; border: 1px solid #f3b6b6; }
+    .tr-grp  { font-weight: 700; margin: 18px 0 6px; font-size: 14px; color: #34495e; }
+    .tr-test { padding: 3px 10px; font-size: 13px; border-radius: 4px; }
+    .tr-pass { color: #2c7a3d; }
+    .tr-fail { color: #b3261e; background: #fdecec; padding: 6px 10px; }
+    .tr-err  { color: #8a1c16; font-family: "SFMono-Regular", Menlo, monospace;
+               font-size: 12px; margin: 4px 0 4px 16px; white-space: pre-wrap; }
+  </style>
+</head>
+<body>
+  <h1>フォワーダー支援 — テスト結果</h1>
+  <div class="sub">ビルド不要。このページを開くだけで実行されます（<code>python3 -m http.server</code> 推奨）。</div>
+  <div id="results">読み込み中…</div>
+
+  <!-- 被テストコード（本体と同じものを読む） -->
+  <script src="../shared/calc.js"></script>
+
+  <!-- テストランナー → テスト本体 → 描画 -->
+  <script src="./test-runner.js"></script>
+  <script src="./calc.spec.js"></script>
+  <script>
+    TestRunner.render(document.getElementById('results'));
+    // タイトルに結果を反映（一覧で分かるように）
+    var s = TestRunner.summary();
+    document.title = (s.fail ? '✖ ' : '✔ ') + s.pass + '/' + s.total + ' — テスト';
+  </script>
+</body>
+</html>
