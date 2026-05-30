@@ -144,6 +144,16 @@
     return Number.isInteger(n) ? String(n) : n.toFixed(2);
   }
 
+  // 画面表示用の金額フォーマッタ（3桁カンマ区切り）。docs/バグ台帳.md E
+  //   - 金額セル（小計・利益・単価・JPY換算・税額・乗せ幅・合計）に使う。
+  //   - 数量は対象外（fmtRaw のまま）。
+  //   - CSV/TSV エクスポートには使わない（カンマが区切りと衝突するため fmtRaw を維持）。
+  //   - 空/NaN は fmtRaw と同じく空文字（'—' は呼び出し側の判断に委ねる）。
+  function fmtMoney(n) {
+    if (n === null || n === undefined || isNaN(n)) return '';
+    return Number(n).toLocaleString('ja-JP', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+  }
+
   function escHtml(s) {
     return String(s)
       .replace(/&/g,'&amp;').replace(/</g,'&lt;')
