@@ -130,9 +130,14 @@
   // 出力物（PDF/Excel/TSV）のフッターに刻む「為替の出典 / 取得日時」「作成日」メタ情報
   function getFxAuditMeta() {
     const last = localStorage.getItem(SharedStorage.KEYS.FX_LAST_FETCHED);
-    const fxLine = last
-      ? `為替出典：open.er-api.com 中値（Mid Rate）（取得日時 ${new Date(last).toLocaleString('ja-JP', {year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'})}）※ 実際の決済レート（TTS等）とは異なる参考値`
-      : `為替出典：手動設定値（自動取得未実行）`;
+    let fxLine;
+    if (last) {
+      fxLine = `為替出典：open.er-api.com 中値（Mid Rate）（取得日時 ${new Date(last).toLocaleString('ja-JP', {year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'})}）※ 実際の決済レート（TTS等）とは異なる参考値`;
+    } else {
+      // フォールバック（自動取得未実行）。デフォルト値の確認日を必ず明記し、根拠を追えるようにする（台帳 D）
+      const asof = (typeof QuoteApp !== 'undefined' && QuoteApp.fx && QuoteApp.fx.DEFAULT_RATES_ASOF) || '';
+      fxLine = `為替出典：手動設定値（自動取得未実行${asof ? ` / 基準レート確認日 ${asof}` : ''}）※ 参考値・実際の決済レート（TTS等）とは異なります`;
+    }
     const created = `作成日：${new Date().toLocaleString('ja-JP', {year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'})}`;
     return { fxLine, created, hasFresh: !!last };
   }
@@ -326,7 +331,7 @@
         infoItems.push({ msg: `支払い通貨と請求通貨が異なる行が ${mixedCcyCount} 件あります（乗せ幅は請求通貨建てで加算）`, focusEl: null });
       }
       if (canConvert && totBillJpy > 0) {
-        const gm = (totBillJpy - totCostJpy) / totBillJpy * 100;
+        const gm = SharedCalc.grossMarginPct(totBillJpy, totCostJpy); // 売上ベース粗利率（B）
         if (gm < 20 || gm > 40) {
           const dir = gm < 20 ? '低め' : '高め';
           infoItems.push({ msg: `粗利率 ${gm.toFixed(1)}% — 目安（20〜40%）より${dir}です`, focusEl: null });
@@ -412,30 +417,31 @@
       ccyGroups[ccy].tax += taxAmt;
       ccyGroups[ccy].mk  += (d.mk || 0);
       totCostJpy += (typeof toJPY === 'function') ? toJPY(d.cost, d.pc || 'JPY') : ((!d.pc || d.pc === 'JPY') ? d.cost : 0);
-      const jpyCellText = (d.bc && d.bc !== 'JPY') ? fmtRaw(jpyAmt) : '—';
-      const taxCellText = d.taxed ? fmtRaw(taxAmt) : '';
+      // 金額系セルは fmtMoney（3桁カンマ）、数量は fmtRaw のまま。docs/バグ台帳.md E
+      const jpyCellText = (d.bc && d.bc !== 'JPY') ? fmtMoney(jpyAmt) : '—';
+      const taxCellText = d.taxed ? fmtMoney(taxAmt) : '';
       const isNonJpyBc = d.bc && d.bc !== 'JPY';
       const isNonJpyPc = d.pc && d.pc !== 'JPY';
       const subJpyHint = (isNonJpyBc && sub && typeof toJPY === 'function')
-        ? `<small class="pv-jpy-hint">(≈¥${fmtRaw(jpyAmt)})</small>` : '';
+        ? `<small class="pv-jpy-hint">(≈¥${fmtMoney(jpyAmt)})</small>` : '';
       const profitJpy = (isNonJpyBc || isNonJpyPc) && typeof toJPY === 'function'
         ? Math.ceil(toJPY(sub, d.bc || 'JPY') - toJPY(d.cost, d.pc || 'JPY')) : null;
       const prJpyHint = profitJpy !== null
-        ? `<small class="pv-jpy-hint">(≈¥${fmtRaw(profitJpy)})</small>` : '';
+        ? `<small class="pv-jpy-hint">(≈¥${fmtMoney(profitJpy)})</small>` : '';
       html += `<tr>
         <td class="pv-name" style="font-size:11px;">${escHtml(getCatLabel(d.cat))}</td>
         <td class="pv-name">${escHtml(d.sv)}</td>
         <td class="${nameCls}">${escHtml(d.name)}</td>
         <td class="pv-num">${fmtRaw(d.pq)}</td><td>${escHtml(d.un || '')}</td><td>${escHtml(d.pc)}</td>
-        <td class="pv-num">${fmtRaw(d.pp)}</td>
-        <td class="pv-cd pv-num">${fmtRaw(d.cd)}</td>
+        <td class="pv-num">${fmtMoney(d.pp)}</td>
+        <td class="pv-cd pv-num">${fmtMoney(d.cd)}</td>
         <td class="pv-num">${fmtRaw(d.bq)}</td><td>${escHtml(d.bc)}</td>
-        <td class="pv-num">${fmtRaw(d.bp)}</td>
-        <td class="pv-num">${fmtRaw(d.mk)}</td>
-        <td class="pv-num pv-subtotal">${fmtRaw(sub)}${subJpyHint}</td>
+        <td class="pv-num">${fmtMoney(d.bp)}</td>
+        <td class="pv-num">${fmtMoney(d.mk)}</td>
+        <td class="pv-num pv-subtotal">${fmtMoney(sub)}${subJpyHint}</td>
         <td class="pv-jpy">${jpyCellText}</td>
         <td class="pv-num pv-tax-cell" data-sub="${sub}" data-ccy="${d.bc || 'JPY'}" data-taxed="${d.taxed ? 1 : 0}">${taxCellText}</td>
-        <td class="pv-pr ${pc} pv-num">${fmtRaw(d.profit)}${prJpyHint}</td>
+        <td class="pv-pr ${pc} pv-num">${fmtMoney(d.profit)}${prJpyHint}</td>
         <td class="pv-name">${escHtml(d.note)}</td>
       </tr>`;
     });
@@ -446,9 +452,9 @@
       a === 'JPY' ? -1 : b === 'JPY' ? 1 : a.localeCompare(b));
     const isMultiCcy = ccyKeys.length > 1;
     const _tfootRow = (ccy, g, extraCls, showMk, prText, prCls) => {
-      const taxText    = g.tax > 0 ? fmtRaw(g.tax) : '—';
+      const taxText    = g.tax > 0 ? fmtMoney(g.tax) : '—';
       const jpyConvText = (ccy !== '≈JPY' && ccy !== 'JPY' && typeof toJPY === 'function')
-        ? '≈' + fmtRaw(Math.ceil(toJPY(g.sub, ccy))) : '';
+        ? '≈' + fmtMoney(Math.ceil(toJPY(g.sub, ccy))) : '';
       return `<tr class="pv-total${extraCls}">
         <td colspan="3">合計（${escHtml(ccy)}）</td>
         <td data-ft-col="pay"></td>
@@ -459,8 +465,8 @@
         <td data-ft-col="bill"></td>
         <td data-ft-col="bill" class="pv-ccy-badge">${escHtml(ccy)}</td>
         <td data-ft-col="bill"></td>
-        <td data-ft-col="mk" class="pv-num">${showMk ? fmtRaw(g.mk) : ''}</td>
-        <td class="pv-num pv-subtotal">${fmtRaw(g.sub)}${jpyConvText ? `<span class="pv-jpy-inline">(${jpyConvText})</span>` : ''}</td>
+        <td data-ft-col="mk" class="pv-num">${showMk ? fmtMoney(g.mk) : ''}</td>
+        <td class="pv-num pv-subtotal">${fmtMoney(g.sub)}${jpyConvText ? `<span class="pv-jpy-inline">(${jpyConvText})</span>` : ''}</td>
         <td data-ft-col="jpy-conv" class="pv-jpy">${jpyConvText}</td>
         <td data-ft-col="tax-col" data-ccy="${escHtml(ccy)}" class="pv-num pv-tax-total">${taxText}</td>
         <td data-ft-col="profit" class="pv-num ${prCls}">${prText}</td>
@@ -475,7 +481,7 @@
         ccy, g,
         isMultiCcy ? ' pv-total-ccy' : '',
         single,
-        single ? fmtRaw(totPr) : '',
+        single ? fmtMoney(totPr) : '',
         single ? `pv-pr ${totPc}` : ''
       );
     });
@@ -490,7 +496,7 @@
       tfootHtml += _tfootRow(
         '≈JPY', { sub: grandJpy, tax: grandTax, mk: grandMkJpy },
         ' pv-grand-total', true,
-        fmtRaw(grandPrJpy), `pv-pr ${grandPcCls}`
+        fmtMoney(grandPrJpy), `pv-pr ${grandPcCls}`
       );
     }
     html += tfootHtml + '</tfoot></table>';
@@ -534,11 +540,11 @@
     if (_lastCalcResult) {
       const { totalCBM, totalKg, totalPcs, rt, cw } = _lastCalcResult;
       const cargoItems = [
-        { lbl: '総CBM',          val: totalCBM.toFixed(4) + ' CBM' },
+        { lbl: '総CBM',          val: totalCBM.toFixed(3) + ' CBM' },
         { lbl: '総重量',         val: totalKg.toLocaleString('ja-JP') + ' kg' },
         { lbl: '総個数',         val: totalPcs.toLocaleString('ja-JP') + ' pcs' },
-        { lbl: 'RT（海上）',     val: rt.toFixed(4) + ' R/T' },
-        { lbl: 'CW（航空）',     val: cw.toLocaleString('ja-JP') + ' kg' },
+        { lbl: 'RT（海上）',     val: rt.toFixed(3) + ' R/T' },
+        { lbl: 'CW（航空）',     val: SharedCalc.fmtCw(cw) + ' kg' },
         { lbl: 'コンテナ目安',   val: suggestContainers(totalCBM, totalKg) },
       ].filter(f => f.val && f.val !== '— ');
       const gridHtml = cargoItems.map(f =>
@@ -632,25 +638,25 @@
       const amt = sub * rate;
       perCcyTax[ccy] = (perCcyTax[ccy] || 0) + amt;
       totTaxJpy += (typeof toJPY === 'function') ? toJPY(amt, ccy) : (ccy === 'JPY' ? amt : 0);
-      td.textContent = fmtRaw(amt);
+      td.textContent = fmtMoney(amt);
     });
     // 合計行の消費税セル（通貨別）
     document.querySelectorAll('#previewTable .pv-tax-total[data-ccy]').forEach(td => {
       const ccy = td.dataset.ccy;
       if (ccy === '≈JPY') {
-        td.textContent = totTaxJpy > 0 ? fmtRaw(Math.ceil(totTaxJpy)) : '—';
+        td.textContent = totTaxJpy > 0 ? fmtMoney(Math.ceil(totTaxJpy)) : '—';
       } else {
         const t = perCcyTax[ccy] || 0;
-        td.textContent = t > 0 ? fmtRaw(t) : '—';
+        td.textContent = t > 0 ? fmtMoney(t) : '—';
       }
     });
-    // 底部サマリ（消費税額・税込合計）JPY換算ベース
+    // 底部サマリ（消費税額・税込合計）JPY換算ベース。金額は fmtMoney に統一（E）
     const tax   = totTaxJpy;
     const total = totalSub + tax;
     const taxEl   = document.getElementById('pvTaxAmount');
     const totalEl = document.getElementById('pvTaxTotal');
-    if (taxEl)   taxEl.textContent   = fmt(tax);
-    if (totalEl) totalEl.textContent = fmt(total);
+    if (taxEl)   taxEl.textContent   = fmtMoney(tax);
+    if (totalEl) totalEl.textContent = fmtMoney(total);
   }
 
   // ========== プレビュー 表示カスタマイズ ==========
@@ -1386,7 +1392,7 @@
     });
 
     const totProfit  = totBillJpy - totCostJpy;
-    const profitRate = totBillJpy > 0 ? (totProfit / totBillJpy * 100) : 0;
+    const profitRate = SharedCalc.grossMarginPct(totBillJpy, totCostJpy); // 売上ベース粗利率（B）
     return { totBillJpy, totCostJpy, totProfit, totMk, profitRate, taxedBillJpy, byCategory, rowItems };
   }
 

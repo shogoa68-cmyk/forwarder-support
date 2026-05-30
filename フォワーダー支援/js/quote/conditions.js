@@ -789,16 +789,17 @@
       const l = parseFloat(e.l) || 0, w = parseFloat(e.w) || 0, h = parseFloat(e.h) || 0;
       totVolWt += (l * w * h / 6000) * q;
     });
-    // R/T = max(CBM, 重量t)  ／  CW = max(実重量, 容積重量)
-    const rt = Math.max(totCbm, totKg / 1000);
-    const cw = Math.max(totKg, totVolWt);
+    // R/T・CW は SharedCalc に一本化（docs/バグ台帳.md F）。
+    // CW は 0.5kg 切上（IATA）で全画面統一。以前はこの主入口だけ丸めていなかった。
+    const rt = SharedCalc.lclRt(totCbm, totKg);
+    const cw = SharedCalc.airChargeableWeight(totKg, totVolWt);
 
     const setText = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
     setText('cdTotQty', totQty.toLocaleString());
     setText('cdTotCbm', totCbm > 0 ? totCbm.toFixed(3) + ' CBM' : '0.000');
     setText('cdTotKg',  totKg > 0 ? totKg.toLocaleString() + ' kg' : '0');
     setText('cdTotRt',  rt.toFixed(3));
-    setText('cdTotCw',  Math.round(cw).toLocaleString());
+    setText('cdTotCw',  SharedCalc.fmtCw(cw));  // 0.5kg 精度を保つ（Math.round だと 12.5→13）
 
     // 重量・容積（概算）欄は廃止。明細合計を直接保持してプレビュー等で参照
     // hidden に R/T・CW も保持（プレビュー等で参照可能に）

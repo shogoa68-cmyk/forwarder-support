@@ -144,6 +144,16 @@
     return Number.isInteger(n) ? String(n) : n.toFixed(2);
   }
 
+  // 画面表示用の金額フォーマッタ（3桁カンマ区切り）。docs/バグ台帳.md E
+  //   - 金額セル（小計・利益・単価・JPY換算・税額・乗せ幅・合計）に使う。
+  //   - 数量は対象外（fmtRaw のまま）。
+  //   - CSV/TSV エクスポートには使わない（カンマが区切りと衝突するため fmtRaw を維持）。
+  //   - 空/NaN は fmtRaw と同じく空文字（'—' は呼び出し側の判断に委ねる）。
+  function fmtMoney(n) {
+    if (n === null || n === undefined || isNaN(n)) return '';
+    return Number(n).toLocaleString('ja-JP', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+  }
+
   function escHtml(s) {
     return String(s)
       .replace(/&/g,'&amp;').replace(/</g,'&lt;')
@@ -1758,7 +1768,7 @@
     if (m.cbm > 0)   rows.push(['総容積', m.cbm.toFixed(3) + ' CBM']);
     if (m.kg > 0)    rows.push(['総重量', Math.round(m.kg).toLocaleString() + ' kg']);
     if (m.rt > 0)    rows.push(['R/T', m.rt.toFixed(3)]);
-    if (m.cw > 0)    rows.push(['CW', Math.round(m.cw).toLocaleString() + ' kg']);
+    if (m.cw > 0)    rows.push(['CW', SharedCalc.fmtCw(m.cw) + ' kg']);  // 0.5kg 精度を保つ
     if (!rows.length) { el.style.display = 'none'; el.innerHTML = ''; return; }
     el.style.display = 'block';
     el.innerHTML = '<div class="qsp-section-label">📦 物量情報</div>'
@@ -1802,7 +1812,8 @@
     });
 
     const profit = totalBillJPY - totalCostJPY;
-    const mkPct  = totalCostJPY > 0 ? (profit / totalCostJPY * 100) : 0;
+    // 粗利率は売上ベースに統一（業界標準 / 他画面と一致）。docs/バグ台帳.md B
+    const mkPct  = SharedCalc.grossMarginPct(totalBillJPY, totalCostJPY);
     const fmtJPY = n => Math.round(n).toLocaleString('ja-JP');
     const profCls = profit >= 0 ? 'qsp-profit-pos' : 'qsp-profit-neg';
 

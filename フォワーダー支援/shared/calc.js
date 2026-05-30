@@ -6,11 +6,16 @@
 //    SharedCalc.cbmFromCm(l, w, h, qty)     : number  // cm 寸法 → CBM 合計
 //    SharedCalc.saiFromCm(l, w, h, qty)     : number  // cm 寸法 → 才数 合計
 //    SharedCalc.airVolWeight(l, w, h)       : number  // cm → 容積重量 kg (/6000)
-//    SharedCalc.airCw(weightKg, volWeight)  : number  // CW = max(W, V)
+//    SharedCalc.airVolWeightFromCbm(cbm)    : number  // CBM → 容積重量 kg (×1e6/6000)
+//    SharedCalc.airCw(weightKg, volWeight)  : number  // CW = max(W, V)（丸めなし・素材）
+//    SharedCalc.airChargeableWeight(w, v)   : number  // 課金CW = max(W,V) を 0.5kg 切上（IATA）
+//    SharedCalc.fmtCw(kg)                    : string  // CW 表示: 0.5kg 精度を保ち整数部はカンマ区切り
 //    SharedCalc.lclRt(cbm, weightKg)        : number  // RT = max(CBM, W/1000)
 //    SharedCalc.cbmFactor(unit)             : number  // 'cm'|'mm'|'in'|'m' → m 換算係数
 //    SharedCalc.containerSpecs              : 標準コンテナ定義（20'/40'/40HC）
 //    SharedCalc.suggestContainers(cbm, kg)  : Array<{name, count}>
+//    SharedCalc.grossMarginPct(bill, cost)  : number  // 粗利率(%) = (売上-原価)/売上×100
+//    SharedCalc.markupPct(bill, cost)       : number  // マークアップ率(%) = (売上-原価)/原価×100
 //
 //  単位変換:
 //    cm → m: ×0.01    mm → m: ×0.001    in → m: ×0.0254    m → m: ×1
@@ -60,9 +65,29 @@ window.SharedCalc = (function () {
     return (l * w * h) / 6000;
   }
 
-  /** 航空 CW = max(実重量, 容積重量) */
+  /** CBM から航空容積重量 (kg)。cm³÷6000 と等価（1 CBM = 1e6/6000 ≒ 166.667 kg）。
+   *  従来コードの「CBM × 166.67」リテラルは丸め誤差。こちらを正とする。 */
+  function airVolWeightFromCbm(cbm) {
+    return (cbm || 0) * (1000000 / 6000);
+  }
+
+  /** 航空 CW = max(実重量, 容積重量)（丸めなしの素材値） */
   function airCw(weightKg, volWeightKg) {
     return Math.max(weightKg || 0, volWeightKg || 0);
+  }
+
+  /** 航空 課金重量 = max(実重量, 容積重量) を 0.5kg 単位で切り上げ（IATA 準拠）。
+   *  画面・出力に出す CW はこれに統一する（docs/バグ台帳.md の F）。 */
+  function airChargeableWeight(weightKg, volWeightKg) {
+    const cw = Math.max(weightKg || 0, volWeightKg || 0);
+    return Math.ceil(cw * 2) / 2;
+  }
+
+  /** CW 表示用フォーマット。0.5kg 精度を保ったまま整数部を 3 桁カンマ区切りで返す。
+   *  Math.round してしまうと 12.5→13 と 0.5kg 精度が潰れるため専用化（docs/バグ台帳.md F 表示）。 */
+  function fmtCw(kg) {
+    const v = kg || 0;
+    return v.toLocaleString('ja-JP', { minimumFractionDigits: 0, maximumFractionDigits: 1 });
   }
 
   /** 海上 RT = max(CBM, W/1000) */
@@ -91,13 +116,33 @@ window.SharedCalc = (function () {
     });
   }
 
+  // ---- 利益指標 ----
+  // 業界標準の「粗利率(Gross Margin)」は売上ベース＝(売上-原価)/売上。
+  // 「マークアップ率(値入率)」は原価ベース＝(売上-原価)/原価。両者は別物。
+  // 見積の3画面で定義が割れていた（docs/バグ台帳.md の B）ため共通化する。
+
+  /** 粗利率(%) = (売上 - 原価) / 売上 × 100。売上が 0 以下なら 0 */
+  function grossMarginPct(billing, cost) {
+    const b = billing || 0;
+    if (b <= 0) return 0;
+    return ((b - (cost || 0)) / b) * 100;
+  }
+
+  /** マークアップ率(値入率)(%) = (売上 - 原価) / 原価 × 100。原価が 0 以下なら 0 */
+  function markupPct(billing, cost) {
+    const c = cost || 0;
+    if (c <= 0) return 0;
+    return (((billing || 0) - c) / c) * 100;
+  }
+
   return {
     cbmFactor,
     cbmFromCm, saiFromCm,
     cbmFromAny, saiFromAny,
-    airVolWeight, airCw,
+    airVolWeight, airVolWeightFromCbm, airCw, airChargeableWeight, fmtCw,
     lclRt,
     containerSpecs,
     suggestContainers,
+    grossMarginPct, markupPct,
   };
 })();
