@@ -3100,6 +3100,20 @@
       <td class="note-cell"><input type="text" data-field="nt" class="w-note" placeholder="備考" data-col="6" /></td>
     </template>
 
+    <!-- プレビュー前入力ガイドパネル（警告時にフローティング表示） -->
+    <div id="pvWarnGuide" class="pv-warn-guide" style="display:none" role="dialog" aria-label="入力ガイド">
+      <div class="pv-wg-header">
+        <span class="pv-wg-icon">⚠️</span>
+        <span id="pvWarnGuideTitle" class="pv-wg-title"></span>
+        <button type="button" class="pv-wg-close" onclick="pvWarnGuideClose()" title="閉じる">✕</button>
+      </div>
+      <ul id="pvWarnGuideList" class="pv-wg-list"></ul>
+      <div class="pv-wg-footer">
+        <button type="button" class="pv-wg-btn pv-wg-btn-next" id="pvWarnGuideNextBtn" onclick="pvWarnGuideNext()">次の箇所へ →</button>
+        <button type="button" class="pv-wg-btn pv-wg-btn-skip" onclick="pvWarnGuideSkip()">このまま出力</button>
+      </div>
+    </div>
+
   </div><!-- /#tab-quote-make -->
 
   <!-- Footer -->
