@@ -216,7 +216,6 @@
     if (typeof updateRouteModeIcon === 'function') updateRouteModeIcon();
     if (typeof syncHazmatPanel === 'function') syncHazmatPanel();
     if (typeof syncMultiEntryFields === 'function') syncMultiEntryFields();
-    if (typeof window.updateQspCaseInfo === 'function') window.updateQspCaseInfo();
     if (typeof window.updateSectionSummaries === 'function') window.updateSectionSummaries();
     if (typeof window.renderQuoteMilestones === 'function') window.renderQuoteMilestones();
   }
@@ -370,7 +369,6 @@
     updateRouteModeIcon();
     if (typeof syncHazmatPanel === 'function') syncHazmatPanel();
     if (typeof syncMultiEntryFields === 'function') syncMultiEntryFields();
-    if (typeof window.updateQspCaseInfo === 'function') window.updateQspCaseInfo();
     if (typeof window.updateSectionSummaries === 'function') window.updateSectionSummaries();
     if (typeof window.renderQuoteMilestones === 'function') window.renderQuoteMilestones();
     dismissRestoreBar();

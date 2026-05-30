@@ -2530,41 +2530,6 @@
   transition: opacity .4s;
 }
 #tab-quote-make .save-status.show { opacity: 1; }
-/* ===== 案件情報 コンパクト表示（追従ツールバー内） ===== */
-#tab-quote-make .tb-case-info {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  flex-wrap: wrap;
-  margin-left: auto;
-  margin-right: 8px;
-  padding: 0 4px;
-  min-width: 0;
-}
-#tab-quote-make .tb-ci-item {
-  display: inline-flex;
-  align-items: baseline;
-  gap: 4px;
-  font-size: 11px;
-  white-space: nowrap;
-}
-#tab-quote-make .tb-ci-label {
-  color: #a08060;
-  font-size: 10px;
-  font-weight: 600;
-}
-#tab-quote-make .tb-ci-value {
-  color: #3d2e1e;
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
-}
-#tab-quote-make .tb-ci-item.is-empty .tb-ci-value {
-  color: #c8b89a;
-  font-weight: 400;
-}
-#tab-quote-make .tb-ci-suffix { font-size: 9px; font-weight: 400; color: #7d6b56; margin-left: 1px; }
-#tab-quote-make .tb-ci-item.is-expired .tb-ci-value { color: #c44a3a; }
-#tab-quote-make .tb-ci-item.is-expired .tb-ci-label::after { content: " ⚠"; }
 #tab-quote-make .autosave-label {
   font-size: 11px;
   color: #7d6b56;
