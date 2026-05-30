@@ -87,6 +87,8 @@ window.QuoteApp = window.QuoteApp || { state: {}, data: {}, fx: {} };
   let insuranceOn = false;
   function toggleInsurance() {
     insuranceOn = !insuranceOn;
+    const hidEl = document.getElementById('cond-insurance-on');
+    if (hidEl) hidEl.value = insuranceOn;
     const btn = document.getElementById('insToggleBtn');
     if (!btn) return;
     btn.classList.toggle('ins-on', insuranceOn);

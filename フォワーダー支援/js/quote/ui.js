@@ -1164,6 +1164,7 @@
       // ※ _rebuildTable を使う（v3形式・subtotal/remark行・checkboxに正しく対応）
       if (typeof migrateRowCells === 'function') data = migrateRowCells(data);
       _rebuildTable(data);
+      if (typeof _restoreUiState === 'function') _restoreUiState(data.fields);
 
       // ---- doneボタン状態（廃止）：旧 JSON との互換のため doneStates は読み飛ばす ----
 

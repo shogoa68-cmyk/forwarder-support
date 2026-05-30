@@ -163,6 +163,46 @@
   }
 
   /**
+   * JSON 読み込み後に JS 変数ベースの UI 状態（輸送モード・方向・ゾーン・保険）を
+   * hidden input の値から復元してボタン・カードの表示を同期する。
+   * fields は gatherAllData() で保存した fields オブジェクト。
+   */
+  function _restoreUiState(fields) {
+    if (!fields) return;
+
+    // 輸送モード（cond-mode の値から判定して setTransport を呼ぶ）
+    const modeVal = (document.getElementById('cond-mode')?.value || '').trim();
+    if      (modeVal === '海上（FCL）') setTransport('fcl');
+    else if (modeVal === '海上（LCL）') setTransport('lcl');
+    else if (modeVal.startsWith('航空')) setTransport('air');
+
+    // 輸出/輸入方向
+    const dir = fields['cond-direction'] || '';
+    if (dir === 'export' || dir === 'import') setDirection(dir);
+
+    // Zone 1 ON/OFF（現在値と異なる場合のみトグル）
+    const wantZ1 = fields['cond-zone1-on'] === 'true' || fields['cond-zone1-on'] === true;
+    if (wantZ1 !== _zone1On) toggleZone(1);
+
+    // Zone 3 ON/OFF
+    const wantZ3 = fields['cond-zone3-on'] === 'true' || fields['cond-zone3-on'] === true;
+    if (wantZ3 !== _zone3On) toggleZone(3);
+
+    // 保険付保（insuranceOn は constants.js スコープ変数）
+    const wantIns = fields['cond-insurance-on'] === 'true' || fields['cond-insurance-on'] === true;
+    if (wantIns !== insuranceOn) toggleInsurance();
+
+    // ゾーン ON 後、チェック済みのピース行のサブコン欄を表示
+    [['piece-pickup','sc-pickup'], ['piece-wh-origin','sc-wh-origin'], ['piece-customs-e','sc-customs-e'],
+     ['piece-customs-i','sc-customs-i'], ['piece-wh-dest','sc-wh-dest'], ['piece-deliver','sc-deliver']
+    ].forEach(([cbId, areaId]) => {
+      const cb   = document.getElementById(cbId);
+      const area = document.getElementById(areaId);
+      if (cb && area) area.style.display = cb.checked ? 'flex' : 'none';
+    });
+  }
+
+  /**
    * テーブルを再構築（通常行・小計行・リマーク行を順序通り復元）。
    * v3 形式の rows 配列を受け取り、各行をタイプに応じて挿入する。
    */
@@ -212,6 +252,7 @@
       else el.value = val;
     });
     _rebuildTable(data);
+    _restoreUiState(data.fields);
     if (typeof updateTotals === 'function') updateTotals();
     if (typeof updateRouteModeIcon === 'function') updateRouteModeIcon();
     if (typeof syncHazmatPanel === 'function') syncHazmatPanel();
@@ -365,6 +406,7 @@
     });
     // テーブル行復元（通常行・小計行・リマーク行を含む）
     _rebuildTable(data);
+    _restoreUiState(data.fields);
     updateTotals();
     updateRouteModeIcon();
     if (typeof syncHazmatPanel === 'function') syncHazmatPanel();
@@ -398,6 +440,7 @@
     });
     // テーブル行復元（通常行・小計行・リマーク行を含む）
     _rebuildTable(data);
+    _restoreUiState(data.fields);
     updateTotals();
     updateRouteModeIcon();
     showSaveStatus('📂 読み込みました');
@@ -555,6 +598,8 @@
   function toggleZone(n) {
     if (n === 1) {
       _zone1On = !_zone1On;
+      const z1hidEl = document.getElementById('cond-zone1-on');
+      if (z1hidEl) z1hidEl.value = _zone1On;
       const card = document.getElementById('zone1Card');
       const btn  = document.getElementById('zone1Btn');
       card?.classList.toggle('zone-off', !_zone1On);
@@ -574,6 +619,8 @@
       }
     } else if (n === 3) {
       _zone3On = !_zone3On;
+      const z3hidEl = document.getElementById('cond-zone3-on');
+      if (z3hidEl) z3hidEl.value = _zone3On;
       const card = document.getElementById('zone3Card');
       const btn  = document.getElementById('zone3Btn');
       card?.classList.toggle('zone-off', !_zone3On);
@@ -954,6 +1001,8 @@
   /** 輸出/輸入トグル */
   function setDirection(dir) {
     _currentDirection = dir;
+    const dirEl = document.getElementById('cond-direction');
+    if (dirEl) dirEl.value = dir;
     document.querySelectorAll('#dirBtns .cond-prim-btn').forEach(b =>
       b.classList.toggle('active', b.dataset.dir === dir)
     );
