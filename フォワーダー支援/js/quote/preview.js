@@ -172,7 +172,10 @@
       const bp   = tr.querySelector('[data-field="bp"]');
       const un   = tr.querySelector('[data-field="un"]');
       const name = (nm?.value || '').trim();
-      if (!name) return;
+      if (!name) {
+        nm?.classList.add('quote-warn-field');
+        return;
+      }
       const isMemo = ['式','note','memo'].includes(un?.value) || /^[#＃]/.test(name);
       if (!isMemo && (parseFloat(bp?.value) || 0) === 0) {
         tr.classList.add('row-warn-price');
@@ -196,6 +199,9 @@
       const pp = tr.querySelector('[data-field="pp"]'); // pp は編集可能
       const name = (nm?.value || '').trim() || '（名称なし）';
       items.push({ msg: `「${name}」の単価を入力してください`, focusEl: pp });
+    });
+    document.querySelectorAll('#tableBody tr[id^="row-"] [data-field="nm"].quote-warn-field').forEach((nm, i) => {
+      items.push({ msg: `${i + 1} 行目: 項目名が空です`, focusEl: nm });
     });
     return items;
   }
@@ -233,21 +239,31 @@
     _pvWarnSkipFn = null;
   }
 
-  function _openWarnGuide(skipFn) {
-    _pvWarnItems  = _buildWarnItems();
+  function _openWarnGuide(skipFn, infoItems = []) {
+    _pvWarnItems  = [..._buildWarnItems(), ...infoItems];
     _pvWarnIdx    = 0;
     _pvWarnSkipFn = skipFn;
+    if (_pvWarnItems.length === 0) {
+      _clearPreviewHighlights();
+      pvWarnGuideClose();
+      return true;
+    }
     const panel = document.getElementById('pvWarnGuide');
-    if (!panel) return;
+    if (!panel) return false;
+    const fixableCount = _pvWarnItems.filter(i => i.focusEl).length;
     const title = document.getElementById('pvWarnGuideTitle');
-    if (title) title.textContent = `${_pvWarnItems.length} 箇所の入力が必要です`;
+    if (title) title.textContent = fixableCount
+      ? `${fixableCount} 箇所の入力が必要です`
+      : `${_pvWarnItems.length} 件の確認事項があります`;
     const nextBtn = document.getElementById('pvWarnGuideNextBtn');
     if (nextBtn) nextBtn.style.display = _pvWarnItems.length > 1 ? '' : 'none';
     const list = document.getElementById('pvWarnGuideList');
     if (list) {
       list.innerHTML = _pvWarnItems.map((item, i) =>
-        `<li class="pv-wg-item" data-idx="${i}">` +
-          `<span class="pv-wg-item-num">${i + 1}</span>` +
+        `<li class="pv-wg-item${item.focusEl ? '' : ' pv-wg-item-info'}" data-idx="${i}">` +
+          (item.focusEl
+            ? `<span class="pv-wg-item-num">${i + 1}</span>`
+            : `<span class="pv-wg-item-icon">ℹ</span>`) +
           `<span>${escHtml(item.msg)}</span>` +
         `</li>`
       ).join('');
@@ -260,6 +276,7 @@
     }
     panel.style.display = '';
     _pvWarnGuideFocusCurrent();
+    return false;
   }
 
   // ヘッダーフィールド編集時にハイライトを自動解除（初回のみ登録）
@@ -280,47 +297,48 @@
   function preOutputValidationGate(label, skipFn) {
     const data = collectData();
     const hdr  = getQuoteHeader();
-    const warnings = [];
-
-    if (!hdr.ref)      warnings.push('「仮 REF #」が未入力です');
-    if (!hdr.customer) warnings.push('「引き合い元名称」が未入力です');
-    if (!hdr.person)   warnings.push('「担当」が未入力です');
-
     const cond = (typeof getConditions === 'function') ? getConditions() : null;
-    if (cond && !cond.incoterms) warnings.push('インコタームズが選択されていません');
+
+    // fixable フィールドをハイライト（_buildWarnItems が DOM から収集）
+    _applyPreviewHighlights(hdr, cond);
+
+    // フォーカス不可の情報系警告
+    const infoItems = [];
 
     if (!data.length) {
-      warnings.push('見積もり行が 1 件もありません');
+      infoItems.push({ msg: '見積もり行が 1 件もありません', focusEl: null });
     } else {
-      let zeroPriceCount = 0, mixedCcyCount = 0, emptyNameCount = 0;
+      let mixedCcyCount = 0;
+      let totBillJpy = 0, totCostJpy = 0;
+      const canConvert = typeof toJPY === 'function';
+
       data.forEach(d => {
-        if (!d.name || !d.name.trim()) emptyNameCount++;
+        if (d.pc && d.bc && d.pc !== d.bc) mixedCcyCount++;
         const isMemoRow = (d.un === '式' || d.un === 'note' || d.un === 'memo')
                        || (d.name && /^[#＃].+/.test(d.name.trim()));
-        if (d.name && d.name.trim() && !isMemoRow && (!d.bp || d.bp === 0)) {
-          zeroPriceCount++;
+        if (!isMemoRow && canConvert) {
+          totBillJpy += toJPY(d.bill, d.bc || 'JPY');
+          totCostJpy += toJPY(d.cost, d.pc || 'JPY');
         }
-        if (d.pc && d.bc && d.pc !== d.bc) mixedCcyCount++;
       });
-      if (emptyNameCount)  warnings.push(`項目名が空の行が ${emptyNameCount} 件あります`);
-      if (zeroPriceCount)  warnings.push(`請求単価がゼロの行が ${zeroPriceCount} 件あります`);
-      if (mixedCcyCount)   warnings.push(`支払い通貨と請求通貨が異なる行が ${mixedCcyCount} 件あります（乗せ幅は請求通貨建てで加算される点に注意）`);
+
+      if (mixedCcyCount) {
+        infoItems.push({ msg: `支払い通貨と請求通貨が異なる行が ${mixedCcyCount} 件あります（乗せ幅は請求通貨建てで加算）`, focusEl: null });
+      }
+      if (canConvert && totBillJpy > 0) {
+        const gm = (totBillJpy - totCostJpy) / totBillJpy * 100;
+        if (gm < 20 || gm > 40) {
+          const dir = gm < 20 ? '低め' : '高め';
+          infoItems.push({ msg: `粗利率 ${gm.toFixed(1)}% — 目安（20〜40%）より${dir}です`, focusEl: null });
+        }
+      }
       const hasNonJpy = data.some(d => (d.pc && d.pc !== 'JPY') || (d.bc && d.bc !== 'JPY'));
       if (hasNonJpy && isFxStale()) {
-        warnings.push('為替レートが 24 時間以上前の値です。FX パネルから「🔄 今すぐ取得」を推奨');
+        infoItems.push({ msg: '為替レートが 24 時間以上前の値です。FX パネルから「🔄 今すぐ取得」を推奨', focusEl: null });
       }
     }
 
-    if (!warnings.length) {
-      _clearPreviewHighlights();
-      pvWarnGuideClose();
-      return true;
-    }
-
-    // 警告あり：ハイライト → ガイドパネル表示（ノンブロッキング）
-    _applyPreviewHighlights(hdr, cond);
-    _openWarnGuide(skipFn);
-    return false;
+    return _openWarnGuide(skipFn, infoItems);
   }
 
   function openPreview() {

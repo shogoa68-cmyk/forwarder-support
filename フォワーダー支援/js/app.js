@@ -892,6 +892,19 @@ function initTabARIA() {
 document.addEventListener('DOMContentLoaded', initTabARIA);
 
 // ================================================================
+//  ヘッダー「最終更新」表示（document.lastModified ベース）
+// ================================================================
+document.addEventListener('DOMContentLoaded', function() {
+  const el = document.getElementById('last-updated');
+  if (!el) return;
+  const d = new Date(document.lastModified);
+  el.textContent = d.toLocaleString('ja-JP', {
+    year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit'
+  });
+});
+
+// ================================================================
 //  起動タブの復元（localStorage に前回のカテゴリ/タブが残っていれば復元）
 // ================================================================
 document.addEventListener('DOMContentLoaded', function restoreLastTab() {
