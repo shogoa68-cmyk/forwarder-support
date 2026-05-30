@@ -1,0 +1,93 @@
+{
+  "_version": "3.0",
+  "_app": "フォワーダー支援",
+  "_rowFormat": "v3-mixed-rows",
+  "exportedAt": "2026-05-30T00:00:00.000Z",
+  "ts": "2026-05-30T00:00:00.000Z",
+  "fields": {
+    "qf-ref": "TEST-2026-001",
+    "qf-customer": "テスト商事株式会社",
+    "qf-person": "山田",
+    "qf-date": "2026-05-30",
+    "qf-valid-until": "2026-06-29",
+    "qf-memo": "【テスト用サンプルデータ】\n- 輸出FCL（大阪→ロッテルダム）\n- Incoterms: CIF\n- 複数通貨テスト（USD・EUR 仕入 → JPY 請求）\n- bc≠pc 行を含む（#70 修正の動作確認用）\n- customs-export / customs-import カテゴリ含む",
+    "cond-incoterms": "CIF",
+    "cond-mode": "fcl",
+    "z1Place": "大阪市",
+    "z1Country": "JP",
+    "z1DefaultSc": "ABC物流株式会社",
+    "z2Carrier": "ONE",
+    "z2Pol": "OSAKA/KOBE",
+    "z2Pod": "ROTTERDAM",
+    "z3Place": "Rotterdam",
+    "z3Country": "NL",
+    "z3DefaultSc": "Rotterdam Agent B.V.",
+    "cond-cargo": "自動車部品（エンジン部品）",
+    "cond-hs": "8409.99",
+    "cond-hs-basic": "3.3%",
+    "cond-hs-pref": "0%（日EU EPA）"
+  },
+  "rows": [
+    {
+      "_type": "data",
+      "_note": "domestic: 国内集荷・陸送費（JPY→JPY）",
+      "cells": [false, "domestic", "ABC物流株式会社", false, "国内集荷・陸送費", "1", "BL", "1", "JPY", "JPY", "25000", "30000", "", "5000", "大阪→神戸港"]
+    },
+    {
+      "_type": "data",
+      "_note": "customs-export: 輸出通関費（JPY→JPY）",
+      "cells": [false, "customs-export", "ABC物流株式会社", false, "輸出通関費", "1", "BL", "1", "JPY", "JPY", "15000", "18000", "", "3000", "書類作成・HS分類含む"]
+    },
+    {
+      "_type": "data",
+      "_note": "domestic: THC（JPY→JPY）",
+      "cells": [false, "domestic", "", false, "THC（輸出）", "1", "20'GP", "1", "JPY", "JPY", "20000", "22000", "", "2000", ""]
+    },
+    {
+      "_type": "subtotal",
+      "label": "Zone ① 出発地側合計"
+    },
+    {
+      "_type": "data",
+      "_note": "ocean: 海上運賃（USD仕入→JPY請求）bc≠pc テスト",
+      "cells": [false, "ocean", "ONE", false, "海上運賃", "1", "BL", "1", "USD", "JPY", "1200", "", "", "10000", "OSAKA/KOBE → ROTTERDAM"]
+    },
+    {
+      "_type": "data",
+      "_note": "surcharge: BAF（USD→JPY）",
+      "cells": [false, "surcharge", "ONE", false, "BAF（燃油割増）", "1", "BL", "1", "USD", "JPY", "200", "", "", "0", ""]
+    },
+    {
+      "_type": "data",
+      "_note": "surcharge: EBS（USD→JPY）",
+      "cells": [false, "surcharge", "ONE", false, "EBS（緊急燃油割増）", "1", "BL", "1", "USD", "JPY", "100", "", "", "0", ""]
+    },
+    {
+      "_type": "subtotal",
+      "label": "Zone ② 幹線輸送合計"
+    },
+    {
+      "_type": "data",
+      "_note": "insurance: 輸送保険料（JPY→JPY）",
+      "cells": [false, "insurance", "東京海上日動", false, "輸送保険料", "1", "式", "1", "JPY", "JPY", "8000", "8000", "", "0", "CIF条件・付保率0.3%（INST/CC）"]
+    },
+    {
+      "_type": "remark",
+      "text": "※ 海上運賃・サーチャージは USD 建て仕入・JPY 建て請求です。為替レートにより請求金額が変動します。上記料率は 2026年5月30日 現在の適用レートに基づきます。"
+    },
+    {
+      "_type": "data",
+      "_note": "customs-import: 輸入通関費（EUR仕入→JPY請求）bc≠pc テスト",
+      "cells": [false, "customs-import", "Rotterdam Agent B.V.", false, "輸入通関費", "1", "BL", "1", "EUR", "JPY", "500", "", "", "0", "オランダ通関・関税別途"]
+    },
+    {
+      "_type": "data",
+      "_note": "overseas: 仕向地THC（EUR→JPY）",
+      "cells": [false, "overseas", "Rotterdam Agent B.V.", false, "仕向地THC", "1", "Container", "1", "EUR", "JPY", "250", "", "", "0", ""]
+    },
+    {
+      "_type": "subtotal",
+      "label": "Zone ③ 着地側合計"
+    }
+  ]
+}
