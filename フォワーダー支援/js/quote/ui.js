@@ -1194,6 +1194,11 @@
       updateTotals();
       calcLiveUpdate();
       updateRouteModeIcon();
+      if (typeof syncHazmatPanel === 'function') syncHazmatPanel();
+      if (typeof syncMultiEntryFields === 'function') syncMultiEntryFields();
+      if (typeof window.updateQspCaseInfo === 'function') window.updateQspCaseInfo();
+      if (typeof window.updateSectionSummaries === 'function') window.updateSectionSummaries();
+      if (typeof window.renderQuoteMilestones === 'function') window.renderQuoteMilestones();
       quoteShowToast('📥 ファイルを読み込みました', 'success');
       showSaveStatus('📥 ファイル読込完了');
     };
@@ -1556,6 +1561,210 @@
     setLayoutScale(order[next]);
   }
 
+  // ===== 輸送モード対応マイルストーン表示 =====
+  window.renderQuoteMilestones = function () {
+    const el = document.getElementById('qspMilestones');
+    if (!el) return;
+    const st = (typeof window.getTransportState === 'function') ? window.getTransportState() : null;
+    if (!st || !st.transport) { el.style.display = 'none'; el.innerHTML = ''; return; }
+
+    const isAir = st.transport === 'air';
+    const isImport = st.direction === 'import';
+    const z1On = !!st.zone1On;   // 出発地側
+    const z3On = !!st.zone3On;   // 到着地側
+
+    // フルのドアtoドア物流フロー（各ステップに担当ゾーンを割当）
+    // z1=出発地側 / z2=幹線（常時）/ z3=到着地側
+    let steps, modeLabel;
+    if (isAir) {
+      modeLabel = '✈️ Air' + (isImport ? '（輸入）' : '（輸出）');
+      steps = [
+        { l: '集荷',     z: 'z1' },
+        { l: '搬入',     z: 'z1' },
+        { l: '輸出通関', z: 'z1' },
+        { l: '搭載',     z: 'z2' },
+        { l: '出発空港', z: 'z2' },
+        { l: '到着空港', z: 'z2' },
+        { l: '輸入通関', z: 'z3' },
+        { l: '搬出',     z: 'z3' },
+        { l: '荷渡し',   z: 'z3' },
+      ];
+    } else {
+      const sub = st.seaSub === 'lcl' ? 'LCL' : 'FCL';
+      modeLabel = '🚢 Sea ' + sub + (isImport ? '（輸入）' : '（輸出）');
+      steps = (st.seaSub === 'lcl')
+        ? [
+            { l: '集荷',     z: 'z1' },
+            { l: 'CFS搬入',  z: 'z1' },
+            { l: '輸出通関', z: 'z1' },
+            { l: '船積(POL)', z: 'z2' },
+            { l: '海上輸送', z: 'z2' },
+            { l: '入港(POD)', z: 'z2' },
+            { l: 'デバン',   z: 'z3' },
+            { l: '輸入通関', z: 'z3' },
+            { l: '荷渡し',   z: 'z3' },
+          ]
+        : [
+            { l: '集荷',      z: 'z1' },
+            { l: 'バンニング', z: 'z1' },
+            { l: '輸出通関',  z: 'z1' },
+            { l: '船積(POL)', z: 'z2' },
+            { l: '海上輸送',  z: 'z2' },
+            { l: '入港(POD)', z: 'z2' },
+            { l: '輸入通関',  z: 'z3' },
+            { l: 'ドレー',    z: 'z3' },
+            { l: '荷渡し',    z: 'z3' },
+          ];
+    }
+
+    const inScope = z => z === 'z2' || (z === 'z1' && z1On) || (z === 'z3' && z3On);
+
+    // モジュール定義（名称・担当ゾーン）
+    const MODS = [
+      { z: 'z1', name: '① 出発地側', on: z1On },
+      { z: 'z2', name: '② 幹線輸送', on: true },
+      { z: 'z3', name: '③ 到着地側', on: z3On },
+    ];
+    // サブコン情報を収集
+    const subconOf = (z) => {
+      if (z === 'z1') return (document.getElementById('z1DefaultSc')?.value || '').trim();
+      if (z === 'z3') return (document.getElementById('z3DefaultSc')?.value || '').trim();
+      if (z === 'z2') {
+        // 幹線：登録航路のキャリア、無ければ入力欄
+        try {
+          const routes = JSON.parse(document.getElementById('z2-routes-data')?.value || '[]');
+          const cs = routes.map(r => r.carrier).filter(Boolean);
+          if (cs.length) return [...new Set(cs)].join('、');
+        } catch (e) {}
+        return (document.getElementById('z2Carrier')?.value || '').trim();
+      }
+      return '';
+    };
+
+    let n = 0;
+    const modHTML = MODS.filter(m => m.on).map(m => {
+      const mySteps = steps.filter(s => s.z === m.z);
+      const active = m.on;
+      const stepHTML = mySteps.map(s => {
+        if (active) n++;
+        return `<div class="qsp-ms-step ${active ? 'in-scope' : 'out-scope'}">
+            <span class="qsp-ms-dot">${active ? n : '·'}</span>
+            <span class="qsp-ms-label">${s.l}</span>
+          </div>`;
+      }).join('');
+      const subcon = subconOf(m.z);
+      let subconHTML = subcon
+        ? `<div class="qsp-ms-subcon" title="サブコン">👷 ${escapeHtml(subcon)}</div>` : '';
+      // 幹線輸送（z2）：入力されたキャリアに応じてリンクチップを表示
+      if (m.z === 'z2' && typeof window.getCarrierLinkData === 'function') {
+        const carriers = window.getCarrierLinkData().filter(cd => cd.name);
+        if (carriers.length) {
+          subconHTML = carriers.map(cd => {
+            const chips = cd.links.length
+              ? `<div class="qsp-ms-cl-chips">` + cd.links.map(l =>
+                  `<a class="qsp-ms-cl-chip" href="${l.url}" target="_blank" rel="noopener" title="${escapeHtml(l.title)}">${escapeHtml(l.label)}</a>`
+                ).join('') + `</div>`
+              : '';
+            return `<div class="qsp-ms-carrier">
+                <div class="qsp-ms-carrier-name">${cd.icon || '🚢'} ${escapeHtml(cd.name)}</div>
+                ${chips}
+              </div>`;
+          }).join('');
+        }
+      }
+      const statusBadge = active ? '' : '<span class="qsp-mod-off">対象外</span>';
+      return `<div class="qsp-mod ${active ? '' : 'is-off'}" data-zone="${m.z}">
+          <div class="qsp-mod-head" onclick="filterQuoteByModule('${m.z}')" title="クリックでこのモジュールの費用だけを絞り込み表示（再クリックで解除）">
+            <span class="qsp-mod-name">${m.name}</span>
+            ${statusBadge}
+            <span class="qsp-mod-filter">🔍 絞り込み</span>
+          </div>
+          <div class="qsp-mod-steps">${stepHTML}</div>
+          ${subconHTML}
+        </div>`;
+    }).join('');
+
+    // 作業範囲のキャプション
+    const activeSteps = steps.filter(s => inScope(s.z));
+    const scopeText = activeSteps.length
+      ? `作業範囲：${activeSteps[0].l} 〜 ${activeSteps[activeSteps.length - 1].l}`
+      : '作業範囲：幹線のみ';
+
+    el.style.display = 'block';
+    el.innerHTML = `
+      <div class="qsp-ms-head"><span class="qsp-ms-mode">${modeLabel}</span></div>
+      <div class="qsp-ms-cap-row">${scopeText}</div>
+      <div class="qsp-ms-mods">${modHTML}</div>
+      <div class="qsp-ms-filter-hint" id="qspMsFilterHint" style="display:none;"></div>`;
+    // フィルタ中ならアクティブ表示を復元
+    if (window._activeModuleFilter) applyModuleFilterUI(window._activeModuleFilter);
+  };
+
+  // ===== モジュール（区間）別フィルタ =====
+  // ① 出発地側 / ② 幹線 / ③ 到着地側 に対応するカテゴリ集合
+  const MODULE_CATS = {
+    z1: ['domestic', 'export-local', 'customs-export', 'insurance', 'other'],
+    z2: ['ocean', 'air', 'surcharge'],
+    z3: ['import-local', 'overseas', 'customs-import', 'insurance', 'other'],
+  };
+  const MODULE_LABEL = { z1: '① 出発地側（国内・海外費用）', z2: '② 幹線輸送費用', z3: '③ 到着地側（国内・海外費用）' };
+  window._activeModuleFilter = null;
+
+  window.filterQuoteByModule = function (zone) {
+    // 同じモジュールを再クリック → 解除
+    if (window._activeModuleFilter === zone) { window.clearModuleFilter(); return; }
+    window._activeModuleFilter = zone;
+    const cats = MODULE_CATS[zone] || [];
+    document.querySelectorAll('#tableBody tr').forEach(tr => {
+      const type = tr.dataset.type;
+      if (type === 'subtotal' || tr.classList.contains('remark-row')) {
+        tr.style.display = 'none';   // 絞り込み中は小計・リマーク行を隠す
+        return;
+      }
+      const id = tr.id.replace('row-', '');
+      const cat = document.getElementById(`cat-${id}`)?.value || '';
+      tr.style.display = cats.includes(cat) ? '' : 'none';
+    });
+    applyModuleFilterUI(zone);
+  };
+
+  window.clearModuleFilter = function () {
+    window._activeModuleFilter = null;
+    document.querySelectorAll('#tableBody tr').forEach(tr => { tr.style.display = ''; });
+    document.querySelectorAll('#qspMilestones .qsp-mod').forEach(s => s.classList.remove('filter-active'));
+    const hint = document.getElementById('qspMsFilterHint');
+    if (hint) hint.style.display = 'none';
+  };
+
+  function applyModuleFilterUI(zone) {
+    document.querySelectorAll('#qspMilestones .qsp-mod').forEach(s =>
+      s.classList.toggle('filter-active', s.dataset.zone === zone));
+    const hint = document.getElementById('qspMsFilterHint');
+    if (hint) {
+      hint.style.display = 'block';
+      hint.innerHTML = `🔍 <b>${MODULE_LABEL[zone]}</b> で絞り込み中 <button type="button" class="qsp-ms-clear" onclick="clearModuleFilter()">✕ 解除</button>`;
+    }
+  }
+
+  // ===== 物量情報を見積サマリに表示 =====
+  window.renderQuoteCargoInfo = function () {
+    const el = document.getElementById('qspCargoInfo');
+    if (!el) return;
+    const m = (typeof window.getCargoMetrics === 'function') ? window.getCargoMetrics() : null;
+    if (!m) { el.style.display = 'none'; return; }
+    const rows = [];
+    if (m.container) rows.push(['コンテナ', m.container]);
+    if (m.qty > 0)   rows.push(['総個数', m.qty.toLocaleString() + ' 個']);
+    if (m.cbm > 0)   rows.push(['総容積', m.cbm.toFixed(3) + ' CBM']);
+    if (m.kg > 0)    rows.push(['総重量', Math.round(m.kg).toLocaleString() + ' kg']);
+    if (m.rt > 0)    rows.push(['R/T', m.rt.toFixed(3)]);
+    if (m.cw > 0)    rows.push(['CW', Math.round(m.cw).toLocaleString() + ' kg']);
+    if (!rows.length) { el.style.display = 'none'; el.innerHTML = ''; return; }
+    el.style.display = 'block';
+    el.innerHTML = '<div class="qsp-section-label">📦 物量情報</div>'
+      + rows.map(([k, v]) => `<div class="qsp-cargo-row"><span class="qsp-cargo-k">${k}</span><span class="qsp-cargo-v">${v}</span></div>`).join('');
+  };
+
   // ===== 見積サマリパネル =====
   window.updateQuoteSummary = function updateQuoteSummary() {
     const panel = document.getElementById('qspBody');
@@ -1633,6 +1842,9 @@
     initQspCaseInfo();         // 案件情報の右カラム常時表示
     if (typeof syncHazmatPanel === 'function') syncHazmatPanel(); // 危険品パネルの初期表示
     if (typeof syncMultiEntryFields === 'function') syncMultiEntryFields(); // コンテナ・荷姿の複数エントリ復元
+    if (typeof window.renderQuoteMilestones === 'function') window.renderQuoteMilestones();
+    if (typeof window.renderQuoteCargoInfo === 'function') window.renderQuoteCargoInfo();
+    if (typeof window.renderQuoteCarrierLinks === 'function') window.renderQuoteCarrierLinks();
     window.updateQuoteSummary();
   }
 
@@ -1651,55 +1863,29 @@
     const date     = get('qf-date');
     const valid    = get('qf-valid-until');
 
-    const setRow = (rowId, valEl, val, transform) => {
-      const row = document.getElementById(rowId);
-      const v = document.getElementById(valEl);
-      if (!row || !v) return;
-      const isEmpty = !val;
-      row.setAttribute('data-empty', isEmpty ? 'true' : 'false');
-      if (isEmpty) {
-        v.textContent = '—';
-      } else {
-        v.innerHTML = transform ? transform(val) : escapeHtml(val);
-      }
-    };
+    const bar = document.getElementById('tbCaseInfo');
+    if (!bar) return;
 
-    // ref / customer はそのまま
-    setRow('qspCaseInfo', 'qspCaseRef', ref);
-    // Actually use sibling rows: simpler to address by inner data-empty container
-    const rowRef      = document.querySelector('#qspCaseRef')?.parentElement;
-    const rowCustomer = document.querySelector('#qspCaseCustomer')?.parentElement;
-    const rowPerson   = document.querySelector('#qspCasePerson')?.parentElement;
-    const rowDate     = document.querySelector('#qspCaseDate')?.parentElement;
-    const rowValid    = document.querySelector('#qspCaseValid')?.parentElement;
-
-    const updateRow = (row, valEl, val, suffix) => {
-      if (!row || !valEl) return;
-      const isEmpty = !val;
-      row.setAttribute('data-empty', isEmpty ? 'true' : 'false');
-      if (isEmpty) {
-        valEl.textContent = '—';
-      } else {
-        valEl.innerHTML = escapeHtml(val) + (suffix ? `<span class="qsp-case-value-suffix">${suffix}</span>` : '');
-      }
-    };
-    updateRow(rowRef,      document.getElementById('qspCaseRef'),      ref);
-    updateRow(rowCustomer, document.getElementById('qspCaseCustomer'), customer);
-    // 出力時に「様」が付くことを示すために suffix を表示
-    updateRow(rowPerson,   document.getElementById('qspCasePerson'),   person, person ? '様' : '');
-    updateRow(rowDate,     document.getElementById('qspCaseDate'),     fmtJpDate(date));
-    updateRow(rowValid,    document.getElementById('qspCaseValid'),    fmtJpDate(valid));
-
-    // 有効期限切れチェック
-    if (rowValid) {
-      rowValid.classList.remove('is-expired');
-      if (valid) {
-        const today = new Date();
-        today.setHours(0,0,0,0);
-        const validDate = new Date(valid + 'T00:00:00');
-        if (validDate < today) rowValid.classList.add('is-expired');
-      }
+    // 有効期限切れ判定
+    let expired = false;
+    if (valid) {
+      const today = new Date(); today.setHours(0,0,0,0);
+      if (new Date(valid + 'T00:00:00') < today) expired = true;
     }
+
+    const item = (label, val, opts = {}) => {
+      const empty = !val;
+      const cls = ['tb-ci-item', empty ? 'is-empty' : '', opts.expired ? 'is-expired' : ''].filter(Boolean).join(' ');
+      const valHtml = empty ? '—' : escapeHtml(val) + (opts.suffix ? `<span class="tb-ci-suffix">${opts.suffix}</span>` : '');
+      return `<span class="${cls}"><span class="tb-ci-label">${label}</span><span class="tb-ci-value">${valHtml}</span></span>`;
+    };
+
+    bar.innerHTML =
+      item('REF#', ref) +
+      item('引合元', customer) +
+      item('担当', person, { suffix: person ? '様' : '' }) +
+      item('発行', fmtJpDate(date)) +
+      item('有効', fmtJpDate(valid), { expired });
   }
   function escapeHtml(s) {
     return String(s)

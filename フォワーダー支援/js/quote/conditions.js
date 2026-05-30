@@ -153,7 +153,6 @@
           const ppInBc = savedBc === 'JPY' ? ppJpy : ppJpy / toJPY(1, savedBc);
           if (bpEl) { bpEl.dataset.base = ppInBc; bpEl.value = ppInBc + mkVal; }
         }
-        // bc 復元後に calc を再実行して小計表示を正しい請求通貨で再計算する
         if (typeof calc === 'function') calc(parseInt(rowId));
       }
       // tx は _applyCells で positional に復元済み。fields ID は非連番になり得るため使わない
@@ -217,9 +216,9 @@
     if (typeof updateRouteModeIcon === 'function') updateRouteModeIcon();
     if (typeof syncHazmatPanel === 'function') syncHazmatPanel();
     if (typeof syncMultiEntryFields === 'function') syncMultiEntryFields();
-    _applyZoneOn(1, document.getElementById('cond-z1-on')?.value === '1');
-    _applyZoneOn(3, document.getElementById('cond-z3-on')?.value === '1');
     if (typeof window.updateQspCaseInfo === 'function') window.updateQspCaseInfo();
+    if (typeof window.updateSectionSummaries === 'function') window.updateSectionSummaries();
+    if (typeof window.renderQuoteMilestones === 'function') window.renderQuoteMilestones();
   }
 
   function quoteUndo() {
@@ -367,13 +366,13 @@
     });
     // テーブル行復元（通常行・小計行・リマーク行を含む）
     _rebuildTable(data);
-    if (typeof syncHazmatPanel      === 'function') syncHazmatPanel();
-    if (typeof syncMultiEntryFields === 'function') syncMultiEntryFields();
-    _applyZoneOn(1, document.getElementById('cond-z1-on')?.value === '1');
-    _applyZoneOn(3, document.getElementById('cond-z3-on')?.value === '1');
-    if (typeof window.updateQspCaseInfo === 'function') window.updateQspCaseInfo();
     updateTotals();
     updateRouteModeIcon();
+    if (typeof syncHazmatPanel === 'function') syncHazmatPanel();
+    if (typeof syncMultiEntryFields === 'function') syncMultiEntryFields();
+    if (typeof window.updateQspCaseInfo === 'function') window.updateQspCaseInfo();
+    if (typeof window.updateSectionSummaries === 'function') window.updateSectionSummaries();
+    if (typeof window.renderQuoteMilestones === 'function') window.renderQuoteMilestones();
     dismissRestoreBar();
     const ts = data.ts ? new Date(data.ts).toLocaleString('ja-JP') : '';
     quoteShowToast('↩ 自動保存データを復元しました' + (ts ? '（' + ts + '）' : ''), 'success', 3500);
@@ -401,11 +400,6 @@
     });
     // テーブル行復元（通常行・小計行・リマーク行を含む）
     _rebuildTable(data);
-    if (typeof syncHazmatPanel      === 'function') syncHazmatPanel();
-    if (typeof syncMultiEntryFields === 'function') syncMultiEntryFields();
-    _applyZoneOn(1, document.getElementById('cond-z1-on')?.value === '1');
-    _applyZoneOn(3, document.getElementById('cond-z3-on')?.value === '1');
-    if (typeof window.updateQspCaseInfo === 'function') window.updateQspCaseInfo();
     updateTotals();
     updateRouteModeIcon();
     showSaveStatus('📂 読み込みました');
@@ -446,7 +440,7 @@
         items.push({ cat: 'domestic',  name: '倉庫/梱包/バンニング費',  note: '輸出前作業',           sv: _getFirstScValue('sc-wh-origin')  || def1 });
       }
       if (document.getElementById('piece-customs-e')?.checked) {
-        items.push({ cat: 'customs',   name: '輸出通関費',              note: '通関手数料・書類作成', sv: _getFirstScValue('sc-customs-e')  || def1 });
+        items.push({ cat: 'customs-export',   name: '輸出通関費',              note: '通関手数料・書類作成', sv: _getFirstScValue('sc-customs-e')  || def1 });
       }
       items.push({ cat: 'domestic',    name: '港湾諸費用（輸出）',      note: 'THC・ドキュメント費等', sv: '' });
     }
@@ -470,7 +464,7 @@
       const def3 = document.getElementById('z3DefaultSc')?.value?.trim() || '';
       items.push({ cat: 'overseas',  name: '仕向港費用',              note: 'D/O・THC等',           sv: '' });
       if (document.getElementById('piece-customs-i')?.checked) {
-        items.push({ cat: 'customs',   name: '輸入通関費',              note: '通関手数料・書類作成', sv: _getFirstScValue('sc-customs-i') || def3 });
+        items.push({ cat: 'customs-import',   name: '輸入通関費',              note: '通関手数料・書類作成', sv: _getFirstScValue('sc-customs-i') || def3 });
       }
       if (document.getElementById('piece-wh-dest')?.checked) {
         items.push({ cat: 'overseas',  name: '倉庫/デバン費',           note: '輸入後作業',           sv: _getFirstScValue('sc-wh-dest')   || def3 });
@@ -560,15 +554,9 @@
     if (dsc) { dsc.value = ''; dsc.disabled = true; }
   }
 
-  function _applyZoneOn(n, on) {
-    if (n === 1 && _zone1On !== on) toggleZone(1);
-    if (n === 3 && _zone3On !== on) toggleZone(3);
-  }
-
   function toggleZone(n) {
     if (n === 1) {
       _zone1On = !_zone1On;
-      const _z1h = document.getElementById('cond-z1-on'); if (_z1h) _z1h.value = _zone1On ? '1' : '0';
       const card = document.getElementById('zone1Card');
       const btn  = document.getElementById('zone1Btn');
       card?.classList.toggle('zone-off', !_zone1On);
@@ -588,7 +576,6 @@
       }
     } else if (n === 3) {
       _zone3On = !_zone3On;
-      const _z3h = document.getElementById('cond-z3-on'); if (_z3h) _z3h.value = _zone3On ? '1' : '0';
       const card = document.getElementById('zone3Card');
       const btn  = document.getElementById('zone3Btn');
       card?.classList.toggle('zone-off', !_zone3On);
@@ -608,6 +595,7 @@
       }
     }
     applyZoneState();
+    if (typeof window.renderQuoteMilestones === 'function') window.renderQuoteMilestones();
   }
 
   /** インコタームズ選択時のヒント表示（index.html の onchange="showIncotermsHint()" から呼ばれる） */
@@ -681,6 +669,7 @@
     if (existing) existing.count += count;
     else _containerEntries.push({ type, count });
     _renderContainerEntries();
+    if (typeof window.renderQuoteCargoInfo === 'function') window.renderQuoteCargoInfo();
     // エディタをリセット（次の入力へ）
     if (tEl) tEl.value = '';
     if (cEl) cEl.value = '1';
@@ -692,6 +681,7 @@
   function removeContainerEntry(i) {
     _containerEntries.splice(i, 1);
     _renderContainerEntries();
+    if (typeof window.renderQuoteCargoInfo === 'function') window.renderQuoteCargoInfo();
     if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
     if (typeof scheduleSnapshot === 'function') scheduleSnapshot();
   }
@@ -761,16 +751,25 @@
     const setText = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
     setText('cdTotQty', totQty.toLocaleString());
     setText('cdTotCbm', totCbm > 0 ? totCbm.toFixed(3) + ' CBM' : '0.000');
-    setText('cdTotKg',  totKg  > 0 ? totKg.toLocaleString()  + ' kg'  : '0');
+    setText('cdTotKg',  totKg > 0 ? totKg.toLocaleString() + ' kg' : '0');
     setText('cdTotRt',  rt.toFixed(3));
-    // IATA 準拠：0.5 kg 単位切り上げ（cargo.js の CW ロジックと統一）
-    setText('cdTotCw',  (Math.ceil(cw * 2) / 2).toLocaleString() + ' kg');
+    setText('cdTotCw',  Math.round(cw).toLocaleString());
 
     // 重量・容積（概算）欄は廃止。明細合計を直接保持してプレビュー等で参照
     // hidden に R/T・CW も保持（プレビュー等で参照可能に）
     _lastCargoMetrics = { cbm: totCbm, kg: totKg, rt, cw, qty: totQty };
+    if (typeof window.renderQuoteCargoInfo === 'function') window.renderQuoteCargoInfo();
   }
   let _lastCargoMetrics = { cbm: 0, kg: 0, rt: 0, cw: 0, qty: 0 };
+  // 物量情報を見積サマリ等から参照できるよう公開
+  window.getCargoMetrics = function () {
+    return Object.assign({}, _lastCargoMetrics, {
+      container: (_containerEntries && _containerEntries.length)
+        ? _containerEntries.map(e => `${e.type}×${e.count}`).join('・') : '',
+      packingCount: (_packingEntries && _packingEntries.length)
+        ? _packingEntries.filter(e => e.pkg).length : 0,
+    });
+  };
 
   function updatePackingRow(i, key, val) {
     if (!_packingEntries[i]) return;
@@ -823,6 +822,7 @@
     _renderContainerEntries();
     _renderPackingEntries();
     syncRouteEntries();
+    if (typeof window.renderQuoteCargoInfo === 'function') window.renderQuoteCargoInfo();
   }
 
   // ========== 幹線輸送：複数船会社・複数POL/POD 航路 ==========
@@ -841,6 +841,7 @@
         + `<span class="z2-route-leg">${_escMulti(route)}</span>`
         + `<button type="button" class="me-chip-del" onclick="removeRouteEntry(${i})" title="削除">×</button></span>`;
     }).join('');
+    if (typeof window.renderQuoteCarrierLinks === 'function') window.renderQuoteCarrierLinks();
   }
 
   function addRouteEntry() {
@@ -941,6 +942,7 @@
         inp.dataset.auto = val ? '1' : '';
       }
     });
+    if (typeof window.renderQuoteMilestones === 'function') window.renderQuoteMilestones();
   }
 
   /** 方向・輸送モードに応じてゾーンカードのラベルを更新 */
@@ -959,7 +961,16 @@
     );
     _applyZoneLabels();
     applyZoneState();
+    if (typeof window.renderQuoteMilestones === 'function') window.renderQuoteMilestones();
   }
+
+  // 輸送モード状態を外部へ公開（マイルストーン表示用）
+  window.getTransportState = function () {
+    return {
+      transport: _currentTransport, seaSub: _currentSeaSub, direction: _currentDirection,
+      zone1On: _zone1On, zone3On: _zone3On,
+    };
+  };
 
   /** バンニングシミュレーション（計算タブ）へジャンプ */
   function openBanningCalc() {
@@ -973,32 +984,34 @@
 
   /** Sea / Air プライマリトグル */
   function setTransport(transport) {
-    _currentTransport = transport;
+    // transport: 'fcl' | 'lcl' | 'air'
+    if (transport === 'fcl' || transport === 'lcl') {
+      _currentTransport = 'sea';
+      _currentSeaSub = transport;
+    } else {
+      _currentTransport = 'air';
+    }
     document.querySelectorAll('#seaAirBtns .cond-prim-btn').forEach(b =>
       b.classList.toggle('active', b.dataset.transport === transport)
     );
-    // FCL/LCL サブボタン表示切替
-    const fclLcl = document.getElementById('fclLclBtns');
-    if (fclLcl) fclLcl.style.display = transport === 'sea' ? '' : 'none';
     // cond-mode select を同期して updateRouteModeIcon を呼ぶ
     _syncModeSelect();
     updateRouteModeIcon();
     _applyZoneLabels();
     _refreshCarrierDatalist();
     if (typeof applyCargoFieldOrder === 'function') applyCargoFieldOrder();
+    if (typeof window.renderQuoteMilestones === 'function') window.renderQuoteMilestones();
   }
 
-  /** FCL / LCL サブトグル（Seaのとき表示） */
+  /** FCL / LCL サブトグル（後方互換用：内部状態のみ更新） */
   function setSeaSub(sub) {
     _currentSeaSub = sub;
-    document.querySelectorAll('#fclLclBtns .cond-sub-btn').forEach(b =>
-      b.classList.toggle('active', b.dataset.sub === sub)
-    );
     _syncModeSelect();
     updateRouteModeIcon();
     _applyZoneLabels();
     _refreshCarrierDatalist();
     if (typeof applyCargoFieldOrder === 'function') applyCargoFieldOrder();
+    if (typeof window.renderQuoteMilestones === 'function') window.renderQuoteMilestones();
   }
 
   /** ボタン状態を内部 cond-mode select に同期 */
@@ -1063,12 +1076,16 @@
   /** z2Carrier 入力時：一致するキャリアのリンクパネルを表示 */
   function onZ2CarrierChange() {
     const panel = document.getElementById('z2CarrierLinks');
-    if (!panel) return;
+    const done = () => {
+      if (typeof window.renderQuoteCarrierLinks === 'function') window.renderQuoteCarrierLinks();
+      if (typeof window.renderQuoteMilestones === 'function') window.renderQuoteMilestones();
+    };
+    if (!panel) { done(); return; }
     const val  = (document.getElementById('z2Carrier')?.value || '').trim();
     const map  = _carrierMapForMode();
     const defs = _linkDefsForMode();
     const c    = map[val];
-    if (!c) { panel.style.display = 'none'; panel.innerHTML = ''; return; }
+    if (!c) { panel.style.display = 'none'; panel.innerHTML = ''; done(); return; }
 
     const links = defs
       .map(d => ({
@@ -1078,7 +1095,7 @@
       }))
       .filter(l => l.url);
 
-    if (!links.length) { panel.style.display = 'none'; panel.innerHTML = ''; return; }
+    if (!links.length) { panel.style.display = 'none'; panel.innerHTML = ''; done(); return; }
 
     const icon = c.icon || '';
     panel.innerHTML =
@@ -1087,5 +1104,67 @@
         `<a class="carrier-link-chip" href="${l.url}" target="_blank" rel="noopener" title="${l.title}">${l.label}</a>`
       ).join('');
     panel.style.display = 'flex';
+    done();
   }
+
+  // 幹線輸送（z2）の選択キャリアごとのリンク情報を返す共通ヘルパー
+  // （登録航路＋現在の入力欄のキャリアを対象）。マイルストーン表示などで利用。
+  window.getCarrierLinkData = function () {
+    const map  = _carrierMapForMode();
+    const defs = _linkDefsForMode();
+    const names = [];
+    if (_routeEntries && _routeEntries.length) {
+      _routeEntries.forEach(r => { if (r.carrier && !names.includes(r.carrier)) names.push(r.carrier); });
+    }
+    const cur = (document.getElementById('z2Carrier')?.value || '').trim();
+    if (cur && !names.includes(cur)) names.push(cur);
+    return names.map(name => {
+      const c = map[name];
+      if (!c) return { name, icon: '', links: [] };
+      const links = defs
+        .map(d => ({ label: d.label, url: _resolveCarrierUrl(c[d.key]), title: (d.noteKey && c[d.noteKey]) ? c[d.noteKey] : d.label }))
+        .filter(l => l.url);
+      return { name, icon: c.icon || '', links };
+    });
+  };
+
+  // 選択中の全キャリアのリンクはマイルストーンの「幹線輸送」モジュール内に
+  // 統合表示するようになったため、独立パネルは非表示にする（重複回避）。
+  window.renderQuoteCarrierLinks = function () {
+    const el = document.getElementById('qspCarrierLinks');
+    if (!el) return;
+    el.style.display = 'none';
+    el.innerHTML = '';
+  };
+  window._renderQuoteCarrierLinksLegacy = function () {
+    const el = document.getElementById('qspCarrierLinks');
+    if (!el) return;
+    const map  = _carrierMapForMode();
+    const defs = _linkDefsForMode();
+    // 対象キャリア名を収集（航路登録分を優先、無ければ入力欄）
+    const names = [];
+    if (_routeEntries && _routeEntries.length) {
+      _routeEntries.forEach(r => { if (r.carrier && !names.includes(r.carrier)) names.push(r.carrier); });
+    }
+    const cur = (document.getElementById('z2Carrier')?.value || '').trim();
+    if (cur && !names.includes(cur)) names.push(cur);
+
+    const blocks = names.map(name => {
+      const c = map[name];
+      if (!c) return '';
+      const links = defs
+        .map(d => ({ label: d.label, url: _resolveCarrierUrl(c[d.key]), title: (d.noteKey && c[d.noteKey]) ? c[d.noteKey] : d.label }))
+        .filter(l => l.url);
+      if (!links.length) return '';
+      return `<div class="qsp-cl-block">`
+        + `<div class="qsp-cl-name">${c.icon || '🚢'} ${name}</div>`
+        + `<div class="qsp-cl-chips">`
+        + links.map(l => `<a class="qsp-cl-chip" href="${l.url}" target="_blank" rel="noopener" title="${l.title}">${l.label}</a>`).join('')
+        + `</div></div>`;
+    }).filter(Boolean);
+
+    if (!blocks.length) { el.style.display = 'none'; el.innerHTML = ''; return; }
+    el.style.display = 'block';
+    el.innerHTML = '<div class="qsp-section-label">🚢 船会社リンク</div>' + blocks.join('');
+  };
 
