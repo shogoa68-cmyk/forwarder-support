@@ -1164,6 +1164,7 @@
       // ※ _rebuildTable を使う（v3形式・subtotal/remark行・checkboxに正しく対応）
       if (typeof migrateRowCells === 'function') data = migrateRowCells(data);
       _rebuildTable(data);
+      if (typeof _restoreUiState === 'function') _restoreUiState(data.fields);
 
       // ---- doneボタン状態（廃止）：旧 JSON との互換のため doneStates は読み飛ばす ----
 
@@ -1196,7 +1197,6 @@
       updateRouteModeIcon();
       if (typeof syncHazmatPanel === 'function') syncHazmatPanel();
       if (typeof syncMultiEntryFields === 'function') syncMultiEntryFields();
-      if (typeof window.updateQspCaseInfo === 'function') window.updateQspCaseInfo();
       if (typeof window.updateSectionSummaries === 'function') window.updateSectionSummaries();
       if (typeof window.renderQuoteMilestones === 'function') window.renderQuoteMilestones();
       quoteShowToast('📥 ファイルを読み込みました', 'success');
@@ -1839,7 +1839,6 @@
     initQuoteViewMode();       // STEP A: 客先/社内モード復元
     initQuoteSectionCollapse(); // 上部セクションの折り畳み状態を復元
     initSectionHelpTooltips(); // 各セクションの説明文を ? アイコンのツールチップ化
-    initQspCaseInfo();         // 案件情報の右カラム常時表示
     if (typeof syncHazmatPanel === 'function') syncHazmatPanel(); // 危険品パネルの初期表示
     if (typeof syncMultiEntryFields === 'function') syncMultiEntryFields(); // コンテナ・荷姿の複数エントリ復元
     if (typeof window.renderQuoteMilestones === 'function') window.renderQuoteMilestones();
@@ -1855,38 +1854,6 @@
     if (!m) return iso;
     return `${m[1]}.${m[2]}.${m[3]}`;
   }
-  function updateQspCaseInfo() {
-    const get = id => (document.getElementById(id)?.value || '').trim();
-    const ref      = get('qf-ref');
-    const customer = get('qf-customer');
-    const person   = get('qf-person');
-    const date     = get('qf-date');
-    const valid    = get('qf-valid-until');
-
-    const bar = document.getElementById('tbCaseInfo');
-    if (!bar) return;
-
-    // 有効期限切れ判定
-    let expired = false;
-    if (valid) {
-      const today = new Date(); today.setHours(0,0,0,0);
-      if (new Date(valid + 'T00:00:00') < today) expired = true;
-    }
-
-    const item = (label, val, opts = {}) => {
-      const empty = !val;
-      const cls = ['tb-ci-item', empty ? 'is-empty' : '', opts.expired ? 'is-expired' : ''].filter(Boolean).join(' ');
-      const valHtml = empty ? '—' : escapeHtml(val) + (opts.suffix ? `<span class="tb-ci-suffix">${opts.suffix}</span>` : '');
-      return `<span class="${cls}"><span class="tb-ci-label">${label}</span><span class="tb-ci-value">${valHtml}</span></span>`;
-    };
-
-    bar.innerHTML =
-      item('REF#', ref) +
-      item('引合元', customer) +
-      item('担当', person, { suffix: person ? '様' : '' }) +
-      item('発行', fmtJpDate(date)) +
-      item('有効', fmtJpDate(valid), { expired });
-  }
   function escapeHtml(s) {
     return String(s)
       .replace(/&/g, '&amp;')
@@ -1895,19 +1862,6 @@
       .replace(/"/g, '&quot;')
       .replace(/'/g, '&#39;');
   }
-  function initQspCaseInfo() {
-    const ids = ['qf-ref', 'qf-customer', 'qf-person', 'qf-date', 'qf-valid-until'];
-    ids.forEach(id => {
-      const el = document.getElementById(id);
-      if (!el || el.dataset.qspBound) return;
-      el.dataset.qspBound = '1';
-      el.addEventListener('input', updateQspCaseInfo);
-      el.addEventListener('change', updateQspCaseInfo);
-    });
-    updateQspCaseInfo();
-  }
-  // 外部から呼ぶ用（プリセット読込・JSONインポート時に必要）
-  window.updateQspCaseInfo = updateQspCaseInfo;
 
   // ===== 各セクションの説明文を ? ボタンのホバーツールチップに変換 =====
   function initSectionHelpTooltips() {

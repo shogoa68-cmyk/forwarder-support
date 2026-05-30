@@ -2050,9 +2050,6 @@
 
       <span class="save-status" id="saveStatus"></span>
 
-      <!-- 案件情報のコンパクト表示（サマリから移設） -->
-      <div class="tb-case-info" id="tbCaseInfo"></div>
-
       <!-- その他メニュー（表示サイズ等） -->
       <div class="tb-menu tb-menu-right" data-tb-menu="more">
         <button class="save-btn save-btn-menu save-btn-icon" type="button" onclick="toggleTbMenu('more', event)" title="表示サイズ・その他">
@@ -2257,6 +2254,11 @@
               <button class="cond-prim-btn" data-transport="lcl" onclick="setTransport('lcl')" title="Less than Container Load：混載。複数荷主の貨物を1コンテナに詰め合わせる">🚢 LCL</button>
               <button class="cond-prim-btn" data-transport="air" onclick="setTransport('air')">✈️ Air</button>
             </div>
+            <!-- UI 状態保存用（JSON 読み込み時の復元に使用） -->
+            <input type="hidden" id="cond-direction"    value="" />
+            <input type="hidden" id="cond-zone1-on"     value="false" />
+            <input type="hidden" id="cond-zone3-on"     value="false" />
+            <input type="hidden" id="cond-insurance-on" value="false" />
             <select id="cond-mode" style="display:none">
               <option value="">— 選択 —</option>
               <option>海上（FCL）</option>
