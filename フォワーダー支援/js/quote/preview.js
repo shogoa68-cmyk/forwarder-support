@@ -130,9 +130,14 @@
   // 出力物（PDF/Excel/TSV）のフッターに刻む「為替の出典 / 取得日時」「作成日」メタ情報
   function getFxAuditMeta() {
     const last = localStorage.getItem(SharedStorage.KEYS.FX_LAST_FETCHED);
-    const fxLine = last
-      ? `為替出典：open.er-api.com 中値（Mid Rate）（取得日時 ${new Date(last).toLocaleString('ja-JP', {year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'})}）※ 実際の決済レート（TTS等）とは異なる参考値`
-      : `為替出典：手動設定値（自動取得未実行）`;
+    let fxLine;
+    if (last) {
+      fxLine = `為替出典：open.er-api.com 中値（Mid Rate）（取得日時 ${new Date(last).toLocaleString('ja-JP', {year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'})}）※ 実際の決済レート（TTS等）とは異なる参考値`;
+    } else {
+      // フォールバック（自動取得未実行）。デフォルト値の確認日を必ず明記し、根拠を追えるようにする（台帳 D）
+      const asof = (typeof QuoteApp !== 'undefined' && QuoteApp.fx && QuoteApp.fx.DEFAULT_RATES_ASOF) || '';
+      fxLine = `為替出典：手動設定値（自動取得未実行${asof ? ` / 基準レート確認日 ${asof}` : ''}）※ 参考値・実際の決済レート（TTS等）とは異なります`;
+    }
     const created = `作成日：${new Date().toLocaleString('ja-JP', {year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'})}`;
     return { fxLine, created, hasFresh: !!last };
   }

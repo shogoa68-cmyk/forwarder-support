@@ -159,7 +159,9 @@ let autoSaveEnabled = false;
 // ========== 為替レート管理 ==========
 // JPY以外の通貨のJPY換算レート（1単位 = XX JPY）
 // キーはCURRENCIES の値と一致させる
-// 最終手動確認日：2026-05-27（API取得失敗時のフォールバック値。定期的に更新のこと）
+// API取得失敗時のフォールバック値。定期的に更新のこと。
+// 更新したら必ず DEFAULT_FX_RATES_ASOF も同じ日付に直す（出力物の根拠として刻まれる）。
+const DEFAULT_FX_RATES_ASOF = '2026-05-27'; // フォールバック値の最終手動確認日
 const DEFAULT_FX_RATES = {
   USD: 150, EUR: 165, CNY: 21, KRW: 0.11, SGD: 112,
   HKD: 19, GBP: 192, AUD: 99, TWD: 4.7, THB: 4.2,
@@ -280,4 +282,5 @@ Object.defineProperties(QuoteApp.fx, {
   rates:           { get: () => _fxRates,    set: v => { _fxRates = v; },    enumerable: true },
   autoMode:        { get: () => _fxAutoMode, set: v => { _fxAutoMode = v; }, enumerable: true },
   DEFAULT_RATES:   { value: DEFAULT_FX_RATES, enumerable: true },  // const なので value のみ
+  DEFAULT_RATES_ASOF: { value: DEFAULT_FX_RATES_ASOF, enumerable: true },
 });
