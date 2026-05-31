@@ -1,0 +1,84 @@
+{
+  "_version": "3.0",
+  "_app": "フォワーダー支援",
+  "_rowFormat": "v3-mixed-rows",
+  "exportedAt": "2026-05-31T00:00:00.000Z",
+  "ts": "2026-05-31T00:00:00.000Z",
+  "fields": {
+    "qf-ref": "TEST-2026-014",
+    "qf-customer": "ニッポン精機工業株式会社",
+    "qf-person": "佐藤 健一",
+    "qf-date": "2026-05-31",
+    "qf-valid-until": "2026-06-30",
+    "qf-memo": "【テスト用サンプルデータ②】\n- 輸入 航空（AIR）（上海 PVG → 成田 NRT）\n- Incoterms: FOB\n- 複数通貨テスト（USD・CNY 仕入 → JPY 請求）\n- bc≠pc 行を含む\n- air / surcharge / overseas / customs-import / import-local / domestic / insurance カテゴリ含む\n- 課税行（*）・免税行の混在テスト",
+    "cond-incoterms": "FOB（本船渡し）",
+    "cond-mode": "航空（AIR）",
+    "z1Place": "上海市",
+    "z1Country": "CN",
+    "z1DefaultSc": "Shanghai Air Cargo Co., Ltd.",
+    "z2Carrier": "NCA",
+    "z2Pol": "PVG（上海浦東）",
+    "z2Pod": "NRT（成田）",
+    "z3Place": "横浜市",
+    "z3Country": "JP",
+    "z3DefaultSc": "関東通運株式会社",
+    "cond-cargo": "電子部品（半導体製造装置パーツ）",
+    "cond-hs": "8486.90",
+    "cond-hs-basic": "無税",
+    "cond-hs-pref": "—"
+  },
+  "rows": [
+    {
+      "_type": "data",
+      "_note": "air: 航空運賃（USD仕入→JPY請求）bc≠pc テスト。順序=[sel,cat,sv,tx,nm,pq,un,bq,pc,bc,pp,bp,cd,mk,nt]",
+      "cells": [false, "air", "NCA", false, "航空運賃", "320", "kg", "320", "USD", "JPY", "4.50", "", "", "1200", "PVG → NRT・適用重量 320kg（容積換算込み）"]
+    },
+    {
+      "_type": "data",
+      "_note": "surcharge: FSC 燃油（USD→JPY）",
+      "cells": [false, "surcharge", "NCA", false, "FSC（燃油サーチャージ）", "320", "kg", "320", "USD", "JPY", "0.85", "", "", "150", ""]
+    },
+    {
+      "_type": "data",
+      "_note": "surcharge: SSC 保安（USD→JPY）",
+      "cells": [false, "surcharge", "NCA", false, "SSC（保安料）", "320", "kg", "320", "USD", "JPY", "0.35", "", "", "100", ""]
+    },
+    {
+      "_type": "data",
+      "_note": "overseas: 上海側ハンドリング（CNY→JPY）bc≠pc テスト",
+      "cells": [false, "overseas", "Shanghai Air Cargo Co., Ltd.", false, "出発地ハンドリング（THC）", "1", "件", "1", "CNY", "JPY", "850", "", "", "2000", "上海空港ターミナル取扱"]
+    },
+    {
+      "_type": "subtotal",
+      "label": "Zone ① 幹線輸送（PVG→NRT）合計"
+    },
+    {
+      "_type": "remark",
+      "text": "※ 航空運賃・各サーチャージは USD 建て仕入・JPY 建て請求です。為替レートにより請求金額が変動します。適用レートは 2026年5月31日 現在の中値に基づきます。"
+    },
+    {
+      "_type": "data",
+      "_note": "customs-import: 輸入通関費（JPY→JPY・課税）",
+      "cells": [false, "customs-import", "自社通関部", true, "輸入通関費", "1", "BL", "1", "JPY", "JPY", "12000", "14000", "", "2000", "通関手数料・書類作成（関税・消費税は別途実費）"]
+    },
+    {
+      "_type": "data",
+      "_note": "import-local: 成田ターミナル取扱料（JPY→JPY・課税）",
+      "cells": [false, "import-local", "関東通運株式会社", true, "成田ターミナル取扱料（THC）", "320", "kg", "320", "JPY", "JPY", "25", "30", "", "1600", "ハンドリング・蔵置料含む"]
+    },
+    {
+      "_type": "data",
+      "_note": "domestic: 国内配送費（JPY→JPY・課税）",
+      "cells": [false, "domestic", "関東通運株式会社", true, "国内配送費", "1", "件", "1", "JPY", "JPY", "35000", "42000", "", "7000", "成田空港 → 横浜市倉庫"]
+    },
+    {
+      "_type": "subtotal",
+      "label": "Zone ② 着地側（NRT〜納入地）合計"
+    },
+    {
+      "_type": "data",
+      "_note": "insurance: 貨物保険料（JPY→JPY・免税）",
+      "cells": [false, "insurance", "東京海上日動", false, "貨物保険料（航空）", "1", "式", "1", "JPY", "JPY", "6500", "6500", "", "0", "FOB＋運賃ベース・付保率0.25%（A/R）"]
+    }
+  ]
+}

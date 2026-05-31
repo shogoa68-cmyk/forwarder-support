@@ -189,6 +189,69 @@
 #previewBox .save-btn-mode-customer:hover { background:#3a6baf; color:#fff; }
 #previewBox .save-btn-mode-customer.is-on { background:#3a6baf; color:#fff; font-weight:700; }
 
+/* プレビュー：レイアウト切替（表計算 / 見積書） */
+#previewBox .pv-layout-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 0 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #e2d9c8;
+}
+#previewBox .pv-layout-btn { border-color:#8b6914; color:#8b6914; }
+#previewBox .pv-layout-btn:hover { background:#8b6914; color:#fff; }
+#previewBox .pv-layout-btn.is-on { background:#8b6914; color:#fff; font-weight:700; }
+/* 見積書レイアウト時：表計算向けのUIを隠す */
+#previewDocWrap { display: none; }
+#previewBox.layout-doc #previewDocWrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  background: #e7e2d8;
+  padding: 24px;
+  border-radius: 8px;
+}
+/* A4 ビューポート（1ページ分の窓） */
+#previewDocWrap .qd-viewport {
+  width: 794px;
+  max-width: 100%;
+  height: 1123px;
+  overflow: hidden;
+  background: #fff;
+  box-shadow: 0 6px 28px rgba(0,0,0,0.22);
+}
+#previewDocWrap .qd-doc-scroll { transition: transform .2s ease; }
+/* ビューポートが窓の役割を持つので、ページ自身の影は消す */
+#previewDocWrap .qd-doc-scroll .qd-page { box-shadow: none; margin: 0; }
+/* ページ送り */
+#previewDocWrap .qd-pager {
+  display: flex; align-items: center; gap: 14px;
+}
+#previewDocWrap .qd-pg-btn {
+  border: 1px solid var(--border-md, #c4b49a);
+  background: var(--card-bg, #fff);
+  color: var(--accent-dk, #3d2e1e);
+  border-radius: 8px; padding: 7px 16px; font-size: 13px; font-weight: 700;
+  font-family: inherit; cursor: pointer;
+}
+#previewDocWrap .qd-pg-btn:hover:not(:disabled) { background: var(--accent-lt, #f0e8d8); }
+#previewDocWrap .qd-pg-btn:disabled { opacity: .4; cursor: default; }
+#previewDocWrap .qd-pg-ind {
+  font-size: 14px; font-weight: 700; color: #4a3520;
+  font-variant-numeric: tabular-nums; min-width: 60px; text-align: center;
+}
+#previewBox.layout-doc .pv-viewmode-row,
+#previewBox.layout-doc #pvModeBanner,
+#previewBox.layout-doc #pvMeta,
+#previewBox.layout-doc #pvCondBox,
+#previewBox.layout-doc #pvCargoBox,
+#previewBox.layout-doc #previewTableWrap,
+#previewBox.layout-doc #pvTaxBox,
+#previewBox.layout-doc #pvRemarkBox,
+#previewBox.layout-doc #pvAuditMeta,
+#previewBox.layout-doc #pvCustomizeWrap { display: none !important; }
+
 /* アイコン専用ボタン（戻す/進む、⋯など） */
 #tab-quote-make .save-btn-icon {
   padding: 4px 8px;
@@ -518,6 +581,42 @@
 }
 #tab-quote-make .stk-cost .stk-tag { color: #8a6516; background: #f4e9cf; }
 #tab-quote-make .stk-sell .stk-tag { color: #2d6a4f; background: #d8eede; }
+/* 単価セルを縦4段に: 仕 → ＋乗せ幅(編集) → 売 → CD。
+   flex の order で見た目だけ並べ替え、DOM 順（=保存データの列順）は pp,bp,cd,mk のまま維持する。 */
+#tab-quote-make .stk-price .stk-cost { order: 1; }
+#tab-quote-make .stk-price .stk-mk   { order: 2; }
+#tab-quote-make .stk-price .stk-sell { order: 3; }
+#tab-quote-make .stk-price .row-cd   { order: 4; }
+#tab-quote-make .stk-mk {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+#tab-quote-make .stk-mk-plus {
+  font-size: 10px; font-weight: 700; color: #b0772f;
+  flex-shrink: 0; width: 12px; text-align: center;
+}
+#tab-quote-make .stk-mk .w-mkup {
+  width: 100%; font-size: 11px; padding: 1px 3px; height: 22px;
+  color: #b0772f; border: 1px solid #e2d3b8; border-radius: 3px;
+  background: #fffdf8;
+}
+#tab-quote-make .stk-mk .w-mkup:focus { border-color: #b0772f; outline: none; background: #fff; }
+/* 客先モードでは仕入と乗せ幅を隠し、売値（＋CD）だけ残す */
+#tab-quote-make #quoteTable.customer-mode .stk-mk { display: none; }
+#tab-quote-make .hd-mk-tag { color: #b0772f; }
+/* 数値入力のネイティブ上下スピナー（▲▼）を抑止：単価セルが縦並びで狭く、誤クリックの元になるため。
+   入力・貼り付け・式評価は従来どおり可能。 */
+#tab-quote-make table input[type="number"]::-webkit-inner-spin-button,
+#tab-quote-make table input[type="number"]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  appearance: none;
+  margin: 0;
+}
+#tab-quote-make table input[type="number"] {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
 /* スタック内の入力欄は枠を弱めてコンパクトに */
 #tab-quote-make .stk-cell .w-cur,
 #tab-quote-make .stk-cell .w-price {
@@ -610,34 +709,23 @@
 #tab-quote-make tfoot .profit-zero{ background: #d9cfc2; }
 /* 通貨別内訳行 */
 #tab-quote-make tfoot tr.tot-ccy-row td {
-  background: #faf7f0;
-  font-weight: normal;
-  font-size: 11px;
-  border-top: 1px dashed #d9cfc2;
+  background: #f6f1e8;
+  border-top: 1px dashed #e2d9c8;
+  padding: 2px 0;
 }
+/* 通貨別小計のラベル・値は消費税サマリ（taxline）とフォントを統一 */
 #tab-quote-make tfoot .tot-ccy-label {
-  text-align: right;
-  font-weight: 700;
-  color: #5a6e42;
-  padding-right: 6px;
-}
-#tab-quote-make tfoot .tot-ccy-detail {
-  text-align: right;
-  color: #888;
-  padding-right: 6px;
-  font-size: 11px;
+  text-align: right; padding-right: 12px;
+  font-size: 11.5px; font-weight: 600; color: #5a6e42; white-space: nowrap;
 }
 #tab-quote-make tfoot .tot-ccy-sub {
-  font-weight: 600;
-  font-size: 11px;
+  text-align: right; padding-right: 8px;
+  font-size: 12px; font-weight: 600; color: #3d2e1e;
+  font-variant-numeric: tabular-nums; background: #eef5fb;
 }
 #tab-quote-make tfoot .tot-ccy-jpy {
   display: block;
-  font-size: 10px;
-  font-weight: normal;
-  font-style: italic;
-  color: #7d6b56;
-  opacity: 0.8;
+  font-size: 10px; font-weight: 400; color: #8a7a64;
 }
 
 /* ========== カテゴリー色分け ========== */
@@ -2525,6 +2613,24 @@
   font-weight: 600;
 }
 #tab-quote-make .pv-btn-pdf:hover { background: #ffe0dc; }
+/* メール本文コピー（プレーン／リッチ） */
+#tab-quote-make .pv-btn-email-plain,
+#tab-quote-make .pv-btn-email-rich {
+  background: #eef4ff;
+  border: 1px solid #9db8e0;
+  color: #2a4d80;
+  padding: 6px 12px;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+  font-family: inherit;
+}
+#tab-quote-make .pv-btn-email-rich { background: #e9effb; border-color: #7e9fd6; }
+#tab-quote-make .pv-btn-email-plain:hover,
+#tab-quote-make .pv-btn-email-rich:hover { background: #dde8fa; }
+#tab-quote-make .pv-btn-email-plain:active,
+#tab-quote-make .pv-btn-email-rich:active { filter: brightness(0.95); transform: scale(0.97); }
 #tab-quote-make .pv-btn-close {
   background: #7d6b56; color: white; border: none; border-radius: 5px;
   cursor: pointer; padding: 8px 18px; font-size: 13px; font-family: inherit;
@@ -3680,6 +3786,22 @@
   vertical-align: middle;
 }
 #tab-quote-make tr:hover td.check-cell { background: #f0e8d8; }
+/* ========== 行 選択モード ========== */
+/* いずれかの行が選択されると #tableBody に .selection-mode が付く */
+#tab-quote-make #tableBody.selection-mode tr { cursor: pointer; }
+/* 選択モード中は入力欄を「クリックで選択」に見せる（編集カーソルを抑止） */
+#tab-quote-make #tableBody.selection-mode tr:has(.row-select-chk) input,
+#tab-quote-make #tableBody.selection-mode tr:has(.row-select-chk) select {
+  cursor: pointer;
+}
+/* 選択済みの行をハイライト */
+#tab-quote-make #tableBody tr:has(.row-select-chk:checked) > td {
+  background: #eaf1fb !important;
+}
+#tab-quote-make #tableBody tr:has(.row-select-chk:checked) > td.check-cell {
+  background: #d7e6fa !important;
+  box-shadow: inset 3px 0 0 #3a6baf;
+}
 /* ========== ボタングループ ========== */
 #tab-quote-make .table-btn-group {
   display: flex; flex-direction: column; gap: 6px;
@@ -4045,18 +4167,63 @@
 #tab-quote-make .subtotal-group-profit.profit-pos { background: #dcebd8 !important; }
 #tab-quote-make .subtotal-group-profit.profit-neg { background: #fadbd8 !important; }
 #tab-quote-make .subtotal-group-profit.profit-zero { background: #d9cfc2 !important; }
+/* 消費税サマリ（縦積み：課税合計・免税合計・消費税額 → 税込合計） */
+#tab-quote-make .tax-line td { background: #f6f1e8; padding: 2px 0; }
+#tab-quote-make .tax-line-first td { border-top: 1px solid #d9cfc2; }
+#tab-quote-make .taxline-label {
+  text-align: right; padding-right: 12px;
+  font-size: 11.5px; color: #7d6b56; white-space: nowrap;
+}
+#tab-quote-make .taxline-val {
+  text-align: right; padding-right: 8px;
+  font-size: 12px; font-weight: 600; color: #3d2e1e;
+  font-variant-numeric: tabular-nums; background: #eef5fb;
+}
+#tab-quote-make .taxline-val.tot-tax-amt { color: #c0392b; }
+/* 税込合計 — ボトムライン（強調） */
+#tab-quote-make .tax-line-grand td { border-top: 1.5px solid #cfdcbf; }
+#tab-quote-make .tax-line-grand .taxline-label {
+  font-size: 12px; font-weight: 700; color: #5a6e42;
+}
+#tab-quote-make .tax-line-grand .taxline-val {
+  font-size: 13.5px; font-weight: 700; color: #41502f; background: #eaf1e2;
+}
+#tab-quote-make .taxline-fxnote {
+  margin-left: 8px; font-size: 10px; font-weight: 400; color: #a08a6a;
+}
+/* 合計行の利益セルに添える粗利率 */
+#tab-quote-make .tot-margin {
+  display: block; font-size: 9.5px; font-weight: 600; color: #8a7a64;
+  margin-top: 1px;
+}
+/* JPY換算行（外貨混在時のみ）— サマリブロックとフォント統一 */
+#tab-quote-make tfoot tr.tot-jpy-row td {
+  background: #f6f1e8; border-top: 1px solid #d9cfc2; padding: 3px 0;
+}
+#tab-quote-make tfoot .tot-jpy-label {
+  text-align: right; padding-right: 12px;
+  font-size: 11.5px; font-weight: 700; color: #5a4a32; white-space: nowrap;
+}
+#tab-quote-make tfoot .tot-jpy-note { font-size: 10px; font-weight: 400; color: #a08a6a; }
+#tab-quote-make tfoot tr.tot-jpy-row .tot-amt-cell {
+  font-size: 12px; font-weight: 600; color: #3d2e1e; font-variant-numeric: tabular-nums;
+}
+#tab-quote-make tfoot tr.tot-jpy-row .profit-cell { font-size: 12px; }
 /* 行アクション列（左端）— 横スクロール中も常時表示で固定。左凍結パネルの最左 */
 #tab-quote-make td.action-cell {
+  display: table-cell;
   text-align: center;
-  padding: 1px 3px !important;
-  white-space: nowrap;
+  vertical-align: middle;
+  padding: 2px !important;
+  white-space: nowrap;       /* 小計/リマーク行のチェック＋✕を1行に */
   background: var(--card-bg);
-  min-width: 80px;
-  width: 80px;
+  min-width: 40px;
+  width: 40px;
 }
+#tab-quote-make .action-cell > button { margin: 0 1px !important; }
 #tab-quote-make th.hd-action {
-  min-width: 80px;
-  width: 80px;
+  min-width: 40px;
+  width: 40px;
   background: #f4ecd8;
 }
 #tab-quote-make tbody tr.taxed td.action-cell { background: #fdf1ef; }
@@ -4085,12 +4252,61 @@
   align-items: center;
   justify-content: center;
   border-radius: 3px;
-  margin: 0 1px;
+  margin: 0;
   vertical-align: middle;
   font-weight: 700;
 }
 /* done-btn だけは円形を維持（トグル状態の視覚的区別） */
 #tab-quote-make .action-cell .done-btn { border-radius: 50%; }
+
+/* 行アクション（✕ 削除）はホバー/フォーカス/選択時のみ表示してすっきりさせる。
+   列幅（40px）は確保したままなので、表示切替でレイアウトはずれない。 */
+#tab-quote-make tbody tr .action-cell > button {
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .12s ease;
+}
+#tab-quote-make tbody tr:hover .action-cell > button,
+#tab-quote-make tbody tr:focus-within .action-cell > button,
+#tab-quote-make tbody tr:has(.row-select-chk:checked) .action-cell > button {
+  opacity: 1;
+  pointer-events: auto;
+}
+/* タッチ端末（ホバー不可）では常時表示にフォールバック */
+@media (hover: none) {
+  #tab-quote-make tbody tr .action-cell > button { opacity: 1; pointer-events: auto; }
+}
+
+/* 「⋯ 詳細操作 ▼」トグルと折り畳み行 */
+#tab-quote-make .btn-tooldetail-toggle {
+  margin-left: auto;
+  background: #f0e8d8 !important;
+  color: #5a4a35 !important;
+  border: 1px solid #ddcfb5 !important;
+}
+#tab-quote-make .btn-tooldetail-toggle:hover { background: #e8ddc6 !important; }
+#tab-quote-make .btn-tooldetail-toggle .caret { display: inline-block; transition: transform .15s; font-size: 9px; }
+#tab-quote-make .btn-tooldetail-toggle[aria-expanded="true"] .caret { transform: rotate(180deg); }
+#tab-quote-make .row-tools-detail[hidden] { display: none; }
+
+/* 追加クラスタ（＋行・＝小計・💬リマーク）と挿入位置セレクト */
+#tab-quote-make .btn-ins-row,
+#tab-quote-make .btn-ins-sub,
+#tab-quote-make .btn-ins-rem {
+  background: #eaf0e2 !important;
+  color: #3f5230 !important;
+  border: 1px solid #cdd9bc !important;
+  font-weight: 600;
+}
+#tab-quote-make .btn-ins-row:hover,
+#tab-quote-make .btn-ins-sub:hover,
+#tab-quote-make .btn-ins-rem:hover { background: #dde8cf !important; }
+#tab-quote-make .row-insert-pos {
+  border: 1px solid #cdd9bc;
+  border-radius: 4px;
+  background: #fbfdf8;
+  color: #3f5230;
+}
 
 /* 削除ボタン列 */
 #tab-quote-make .subtotal-del-cell {
@@ -4215,17 +4431,16 @@
    body 直下の全要素（ヘッダー/ナビ/他タブ/付箋/FAB/モーダル/トースト等）を非表示にする。
    プレビュー未表示時に Ctrl+P した場合は何も加工せず通常印刷。 */
 @media print {
-  /* A4横・余白10mm を基本設定とする（ブラウザ印刷ダイアログでの手動設定を不要にする） */
-  body:has(#previewOverlay.open) { @page { size: A4 landscape; margin: 10mm; } }
-  /* body 直下：.app 以外を全て非表示（フィードバックモーダル/FAB/トースト 等） */
+  /* ---- ページ定義（@page は @media 直下＝トップレベルに置く。
+         セレクタ内ネストは不正で無視されるため過去は効いていなかった） ---- */
+  @page { size: A4 portrait; margin: 12mm; }            /* 既定（見積書レイアウト） */
+  @page pvLandscape { size: A4 landscape; margin: 10mm; } /* 表計算レイアウト用 */
+
+  /* ---- プレビューを開いているときだけ、本体以外を全て非表示にする ---- */
   body:has(#previewOverlay.open) > *:not(.app) { display: none !important; }
-  /* .app 内：#tab-quote-make 以外を全て非表示（ヘッダー/カテゴリナビ/サブナビ/他タブ 等） */
   body:has(#previewOverlay.open) .app > *:not(#tab-quote-make) { display: none !important; }
-  /* #tab-quote-make 内：#previewOverlay 以外を全て非表示（ツールバー/フォーム/テーブル/付箋 等） */
   body:has(#previewOverlay.open) #tab-quote-make > *:not(#previewOverlay) { display: none !important; }
-  /* #tab-quote-make 自体は .tab-content の display:none を上書きして表示（プレビューの親階層として必要） */
   body:has(#previewOverlay.open) #tab-quote-make { display: block !important; }
-  /* .app コンテナの max-width/padding を印刷時はリセットして紙幅いっぱいに */
   body:has(#previewOverlay.open) .app { max-width: none !important; padding: 0 !important; margin: 0 !important; }
   body:has(#previewOverlay.open) #previewOverlay {
     position: static !important;
@@ -4239,21 +4454,58 @@
     max-width: 100% !important;
     width: 100% !important;
     margin: 0 !important;
-    padding: 10px !important;
+    padding: 0 !important;
     max-height: none !important;
     overflow: visible !important;
   }
+  /* プレビュー上部UI（操作ボタン類）は常に非表示 */
   body:has(#previewOverlay.open) .pv-btns,
   body:has(#previewOverlay.open) .pv-hint,
   body:has(#previewOverlay.open) .pv-mode-banner,
-  body:has(#previewOverlay.open) #pvTaxBox { display: none !important; }
-  body:has(#previewOverlay.open) #previewTable {
+  body:has(#previewOverlay.open) .pv-layout-row,
+  body:has(#previewOverlay.open) #previewBox > h2 { display: none !important; }
+
+  /* ============ A) 表計算レイアウト（layout-doc でない）の印刷 ============ */
+  body:has(#previewOverlay.open):not(:has(#previewBox.layout-doc)) #previewBox { page: pvLandscape; }
+  body:has(#previewOverlay.open):not(:has(#previewBox.layout-doc)) #pvTaxBox { display: none !important; }
+  body:has(#previewOverlay.open):not(:has(#previewBox.layout-doc)) #previewTable {
     width: 100% !important;
     font-size: 10px !important;
   }
-  body:has(#previewOverlay.open) #previewTable th,
-  body:has(#previewOverlay.open) #previewTable td {
+  body:has(#previewOverlay.open):not(:has(#previewBox.layout-doc)) #previewTable th,
+  body:has(#previewOverlay.open):not(:has(#previewBox.layout-doc)) #previewTable td {
     padding: 2px 4px !important;
+  }
+
+  /* ============ B) 見積書レイアウト（layout-doc）の印刷 ============
+     プレビューは A4 ビューポートを overflow:hidden＋transform で 1 ページずつ
+     「窓」表示している。印刷時は窓を解除してドキュメント全体を流し込み、
+     ブラウザの自動改ページに任せる（A4縦）。 */
+  body:has(#previewBox.layout-doc) #previewDocWrap .qd-pager { display: none !important; }
+  body:has(#previewBox.layout-doc) #previewDocWrap {
+    display: block !important;
+    background: #fff !important;
+    padding: 0 !important;
+    gap: 0 !important;
+  }
+  body:has(#previewBox.layout-doc) #previewDocWrap .qd-viewport {
+    width: 100% !important;
+    max-width: none !important;
+    height: auto !important;
+    overflow: visible !important;
+    box-shadow: none !important;
+    background: #fff !important;
+  }
+  body:has(#previewBox.layout-doc) #previewDocWrap .qd-doc-scroll {
+    transform: none !important;
+    transition: none !important;
+  }
+  body:has(#previewBox.layout-doc) #previewDocWrap .qd-page {
+    width: 100% !important;
+    min-height: auto !important;
+    box-shadow: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
   }
 }
 /* ===== プレビュー 表示カスタマイズパネル ===== */
@@ -4431,13 +4683,16 @@
   position: sticky;
   top: calc(var(--nav-cat-h, 48px) + var(--nav-sub-h, 40px) + 52px);
   max-height: calc(100vh - var(--nav-cat-h, 48px) - var(--nav-sub-h, 40px) - 80px);
-  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
   background: #fdfaf4;
   border: 1px solid #d5c8b0;
   border-radius: 8px;
   font-size: 13px;
 }
 #tab-quote-make .qsp-header {
+  flex: 0 0 auto;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -4455,10 +4710,117 @@
 #tab-quote-make .qsp-body {
   padding: 10px 12px;
 }
-/* ===== 輸送モード対応マイルストーン ===== */
-#tab-quote-make .qsp-milestones {
-  padding: 10px 12px 12px;
+/* ===== 見積サマリ：2セクション構成 ===== */
+/* ===== 見積サマリ：2セクション構成（各セクション常時表示・独立スクロール） ===== */
+#tab-quote-make .qsp-section {
+  flex: 0 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
   border-bottom: 1px solid #e0d4bc;
+}
+#tab-quote-make .qsp-section:last-child { border-bottom: none; }
+#tab-quote-make .qsp-section-head {
+  flex: 0 0 auto;
+  font-size: 11px; font-weight: 700; color: #6b5a42; letter-spacing: .03em;
+  background: #f4ecd8; padding: 6px 12px; border-bottom: 1px solid #e7ddc9;
+}
+/* 各セクションのスクロール領域 */
+#tab-quote-make .qsp-section-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: thin;
+}
+#tab-quote-make .qsp-section-scroll::-webkit-scrollbar { width: 8px; }
+#tab-quote-make .qsp-section-scroll::-webkit-scrollbar-thumb {
+  background: rgba(120,100,70,.28); border-radius: 4px;
+  border: 2px solid transparent; background-clip: content-box;
+}
+#tab-quote-make .qsp-section-scroll::-webkit-scrollbar-thumb:hover { background: rgba(120,100,70,.45); background-clip: content-box; }
+#tab-quote-make .qsp-ref-empty,
+#tab-quote-make .qsp-fin .qsp-empty {
+  margin: 0; padding: 12px; font-size: 11px; color: #9a8a70; text-align: center; line-height: 1.5;
+}
+#tab-quote-make .qsp-fin { padding: 10px 12px; }
+#tab-quote-make .qsp-fin .qsp-row-count {
+  font-size: 11px; font-weight: 700; color: #5a4a32; margin-bottom: 8px;
+}
+#tab-quote-make .qsp-fin .qsp-section-label {
+  font-size: 10px; font-weight: 700; color: #8a7a64; text-transform: none;
+  letter-spacing: .02em; margin: 10px 0 4px; padding-top: 8px; border-top: 1px solid #ece3d2;
+}
+#tab-quote-make .qsp-fin .qsp-row-count + .qsp-section-label { border-top: none; padding-top: 0; margin-top: 0; }
+#tab-quote-make .qsp-fin .qsp-currency-row,
+#tab-quote-make .qsp-fin .qsp-total-row,
+#tab-quote-make .qsp-fin .qsp-profit-row,
+#tab-quote-make .qsp-fin .qsp-markup-row,
+#tab-quote-make .qsp-fin .qsp-tax-row {
+  display: flex; align-items: baseline; justify-content: space-between;
+  gap: 8px; padding: 2px 0; font-size: 12px;
+}
+#tab-quote-make .qsp-fin .qsp-currency-row > span:first-child,
+#tab-quote-make .qsp-fin .qsp-total-row > span:first-child,
+#tab-quote-make .qsp-fin .qsp-profit-row > span:first-child,
+#tab-quote-make .qsp-fin .qsp-markup-row > span:first-child,
+#tab-quote-make .qsp-fin .qsp-tax-row > span:first-child {
+  color: #7d6b56; font-weight: 400;
+}
+#tab-quote-make .qsp-fin .qsp-currency-row > span:last-child,
+#tab-quote-make .qsp-fin .qsp-total-row > span:last-child,
+#tab-quote-make .qsp-fin .qsp-tax-row > span:last-child {
+  font-weight: 700; color: #3d2e1e; font-variant-numeric: tabular-nums;
+}
+#tab-quote-make .qsp-fin .qsp-cur {
+  font-weight: 700; color: #5a6e42; background: #eef5fb;
+  padding: 0 6px; border-radius: 3px;
+}
+#tab-quote-make .qsp-fin .qsp-profit-row { font-weight: 700; margin-top: 2px; }
+#tab-quote-make .qsp-fin .qsp-profit-row > span:last-child { font-weight: 700; font-variant-numeric: tabular-nums; }
+#tab-quote-make .qsp-fin .qsp-profit-pos > span:last-child { color: #41502f; }
+#tab-quote-make .qsp-fin .qsp-profit-neg > span:last-child { color: #c0392b; }
+#tab-quote-make .qsp-fin .qsp-markup-row > span:last-child { font-weight: 700; color: #5a6e42; font-variant-numeric: tabular-nums; }
+#tab-quote-make .qsp-fin .qsp-tax-amt > span:last-child { color: #c0392b; }
+#tab-quote-make .qsp-fin .qsp-fx-note { margin: 8px 0 0; font-size: 10px; color: #a08a6a; line-height: 1.4; }
+/* ===== 見積サマリをテーブル下（フッター）に横並びバーで表示 ===== */
+#tab-quote-make .qsp-footer {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 7px 18px;
+  padding: 9px 14px; margin-top: 8px;
+  background: #faf7f0; border: 1px solid #e2d9c8; border-radius: 8px;
+  font-size: 12px;
+}
+#tab-quote-make .qsp-footer .qsp-empty { color: #999; margin: 0; padding: 1px 0; }
+#tab-quote-make .qsp-footer .qsp-divider {
+  width: 1px; align-self: stretch; min-height: 20px; background: #d9cfc2; margin: 0;
+}
+#tab-quote-make .qsp-footer .qsp-row-count { font-weight: 700; color: #5a4a32; }
+#tab-quote-make .qsp-footer .qsp-section-label {
+  font-size: 10.5px; font-weight: 700; color: #8a7a64; margin: 0; white-space: nowrap;
+}
+#tab-quote-make .qsp-footer .qsp-currency-row,
+#tab-quote-make .qsp-footer .qsp-total-row,
+#tab-quote-make .qsp-footer .qsp-profit-row,
+#tab-quote-make .qsp-footer .qsp-markup-row {
+  display: inline-flex; align-items: baseline; gap: 6px; margin: 0; white-space: nowrap;
+}
+#tab-quote-make .qsp-footer .qsp-currency-row .qsp-cur,
+#tab-quote-make .qsp-footer .qsp-total-row span:first-child,
+#tab-quote-make .qsp-footer .qsp-profit-row span:first-child,
+#tab-quote-make .qsp-footer .qsp-markup-row span:first-child {
+  font-size: 11px; color: #7d6b56; font-weight: 400;
+}
+#tab-quote-make .qsp-footer .qsp-currency-row .qsp-amount,
+#tab-quote-make .qsp-footer .qsp-total-row span:last-child,
+#tab-quote-make .qsp-footer .qsp-profit-row span:last-child,
+#tab-quote-make .qsp-footer .qsp-markup-row span:last-child {
+  font-weight: 700; color: #3d2e1e; font-variant-numeric: tabular-nums;
+}
+#tab-quote-make .qsp-footer .qsp-profit-row.qsp-profit-pos span:last-child { color: #41502f; }
+#tab-quote-make .qsp-footer .qsp-profit-row.qsp-profit-neg span:last-child { color: #c0392b; }
+#tab-quote-make .qsp-footer .qsp-fx-note {
+  width: 100%; margin: 2px 0 0; font-size: 10px; color: #a08a6a;
+}
   background: #f7f9fb;
 }
 #tab-quote-make .qsp-ms-head {

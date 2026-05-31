@@ -1996,11 +1996,7 @@
     <div class="save-toolbar" id="saveToolbar">
       <span class="current-quote-name" id="currentQuoteName" title="現在編集中のプリセット名（読込・保存時に更新）">📝 新規見積</span>
 
-      <!-- 主要アクション：常時表示 -->
-      <button class="save-btn save-btn-preview" onclick="openPreview()" title="見積をプレビュー表示・CSV/Excel/PDF出力はここから（Ctrl+P）">📋 プレビュー</button>
-      <button class="save-btn save-btn-compare" onclick="openCompare()" title="保存済みプリセットを横並びで比較（売上・原価・利益）">📊 比較</button>
-
-      <span class="save-toolbar-sep"></span>
+      <!-- 主要アクション：プレビュー・比較は右下のフローティングドックへ移動 -->
 
       <!-- 履歴：アイコンのみで表示 -->
       <button class="save-btn save-btn-icon save-btn-undo" id="btnQuoteUndo" onclick="quoteUndo()" disabled title="元に戻す (Ctrl+Z)">↶</button>
@@ -2711,14 +2707,13 @@
       <div id="tableWrap">
         <p class="section-desc">費用項目ごとに <b>支払い（仕入）</b> と <b>請求</b> の数量・通貨・単価を入力します。<b>③ 乗せ幅</b> を入力すると請求単価に自動加算、<b>④ 利益</b> 欄で粗利をリアルタイム確認できます。CSV インポートやカテゴリ順並び替えも利用可能です。<br>
         <span style="font-size:11px;color:var(--text-md);">💡 <b>項目名の先頭にある <code style="background:#fff;padding:1px 4px;border-radius:3px;">*</code> は課税項目を示します</b>（課税欄のチェックで自動付与）。プレビュー画面では消費税列に税額（10% 固定）が表示されます。</span><br>
-        <span style="font-size:11px;color:var(--text-md);">➕ <b>行を追加するには</b>：行末の「＋」ボタン、Tab キー（最終行で次行を自動追加）、または Ctrl+K から「行を追加」を選択してください。</span></p>
+        <span style="font-size:11px;color:var(--text-md);">➕ <b>行を追加するには</b>：表の下の「追加」グループ（＋行 ／ ＝小計 ／ 💬リマーク。挿入位置は「末尾／選択行の下」を選択可）、Tab キー（最終行で次行を自動追加）、または Ctrl+K から「行を追加」を選択してください。</span></p>
         <div class="container">
           <div id="quoteFxBar" class="quote-fx-bar" title="JPY換算に使用中の為替レート（為替レート設定で変更可）"></div>
           <div id="tableScrollWrap">
           <table id="quoteTable">
             <thead>
               <tr>
-                <th class="hd-base hd-action"></th>
                 <th class="hd-base" style="width:22px; padding:2px; text-align:center;">
                   <input type="checkbox" id="selectAllChk" title="全選択 / 解除"
                          style="width:13px;height:13px;cursor:pointer;margin:0;"
@@ -2730,8 +2725,7 @@
                 <th class="hd-base" style="width:160px;">項目名</th>
                 <th class="hd-base" style="width:65px;">数量·単位</th>
                 <th class="hd-base hd-stk" style="width:62px;" title="上段＝支払い（仕入）通貨、下段＝請求（売値）通貨">通貨<br><small class="hd-sub"><span class="t-cost">仕</span>／<span class="t-sell">売</span></small></th>
-                <th class="hd-base hd-stk" style="width:110px;" title="上段＝支払い単価（仕入）、下段＝請求単価（売値）。CD は通貨差調整値">単価<br><small class="hd-sub"><span class="t-cost">仕</span>／<span class="t-sell">売</span></small></th>
-                <th class="hd-profit hd-mk" style="width:60px;" title="支払い単価に加算する利益幅（例：支払単価 1,000 + 乗せ幅 200 = 請求単価 1,200）。乗せ幅は請求通貨建てで加算されます">乗せ幅</th>
+                <th class="hd-base hd-stk" style="width:118px;" title="上段＝支払い単価（仕入）、中＝＋乗せ幅、下段＝請求単価（売値）。CD は通貨差調整値">単価<br><small class="hd-sub"><span class="t-cost">仕</span>＋<span class="hd-mk-tag">乗</span>／<span class="t-sell">売</span></small></th>
                 <th class="hd-bill" style="width:92px;">小計<br><small class="hd-sub t-sell">売</small></th>
                 <th class="hd-profit hd-pr" style="width:80px;">利益</th>
                 <th class="hd-base" style="width:110px;">備考</th>
@@ -2740,12 +2734,8 @@
             <tbody id="tableBody"></tbody>
             <tfoot>
               <tr class="tot-row">
-                <td></td><td></td><td></td><td></td><td></td>
-                <td style="text-align:right; color:#555; font-weight:bold;">合　計</td>
-                <td></td>
-                <td></td>
-                <td></td>
-                <td id="tot-markup" class="mk-cell" style="text-align:right; padding-right:8px;">—</td>
+                <td></td><td></td><td></td><td></td><td></td><td></td><td></td>
+                <td id="tot-row-label" style="text-align:right; color:#555; font-weight:bold;">合　計</td>
                 <td class="subtotal-cell tot-amt-cell" style="text-align:right; padding-right:8px; font-weight:bold; background:#eef5fb;">
                   <div class="stk">
                     <span class="stk-cost"><span class="t-cost">仕</span> <span id="tot-cost">—</span></span>
@@ -2756,28 +2746,20 @@
                 <td class="profit-cell profit-zero pr-cell" id="tot-profit">—</td>
                 <td></td>
               </tr>
-              <tr id="tot-jpy-row" style="display:none; font-size:11px; color:#888; background:#fffbe6;">
-                <td></td><td></td><td></td><td></td><td></td>
-                <td style="text-align:right;">JPY換算</td>
-                <td></td>
-                <td></td>
-                <td></td>
-                <td class="mk-cell"></td>
-                <td class="tot-amt-cell" style="text-align:right; padding-right:8px; font-weight:bold;">
-                  <div class="stk">
-                    <span class="stk-cost"><span class="t-cost">仕</span> <span id="tot-cost-jpy">—</span></span>
-                    <span class="stk-sell"><span class="t-sell">売</span> <span id="tot-subtotal-jpy">—</span></span>
-                  </div>
-                  <span id="tot-billing-jpy" style="display:none;">—</span>
-                </td>
-                <td id="tot-profit-jpy" class="profit-cell profit-zero pr-cell">—</td>
-                <td></td>
-              </tr>
             </tfoot>
           </table>
           </div>
           <div class="table-btn-group">
             <div class="btn-group-row">
+              <span class="btn-group-label">追加</span>
+              <button class="btn-ins-row" onclick="toolbarInsertRow()" title="費用行を追加">＋ 行</button>
+              <button class="btn-ins-sub" onclick="toolbarInsertSubtotal()" title="小計行を追加">＝ 小計</button>
+              <button class="btn-ins-rem" onclick="toolbarInsertRemark()" title="リマーク（注記）行を追加">💬 リマーク</button>
+              <select id="rowInsertPos" class="row-insert-pos" title="追加ボタンの挿入位置">
+                <option value="end">末尾に追加</option>
+                <option value="selected">選択行の下に挿入</option>
+              </select>
+              <span class="btn-group-sep" aria-hidden="true">|</span>
               <span class="btn-group-label">行操作</span>
               <select class="sort-type-select" title="並び替え種別を選択すると即実行"
                       onchange="if(this.value){sortBy(this.value);this.value=''}">
@@ -2789,20 +2771,23 @@
                 <option value="subcon">🔗 サブコン毎</option>
               </select>
               <button class="btn-clean-empty" onclick="deleteEmptyRows()" title="未入力（グレーアウト）の行をまとめて削除">🧹 未入力行を削除</button>
-            </div>
-            <div class="btn-group-row">
+              <span class="btn-group-sep" aria-hidden="true">|</span>
               <span class="btn-group-label">選択行</span>
               <button class="btn-bulk-copy"   onclick="copySelectedRows()" title="チェックした行を複製">📋 コピー</button>
               <button class="btn-bulk-delete" onclick="deleteSelectedRows()" title="チェックした行を削除">🗑️ 削除</button>
-              <span class="btn-group-sep" aria-hidden="true">|</span>
+              <button class="btn-tooldetail-toggle" id="rowToolsToggle" type="button"
+                      aria-expanded="false" aria-controls="rowToolsDetail"
+                      onclick="toggleRowToolsDetail(this)"
+                      title="カテゴリ一括変更・行パターン・CSV読み込み・リセット">⋯ 詳細操作 <span class="caret">▼</span></button>
+            </div>
+            <div class="btn-group-row row-tools-detail" id="rowToolsDetail" hidden>
+              <span class="btn-group-label">カテゴリ一括</span>
               <select id="bulkCatSelect" class="bulk-cat-select" title="対象カテゴリ（選択／一括変更で共有）"></select>
               <button class="btn-bulk-cat-pick" onclick="selectByCategory()" title="このカテゴリの行をすべてチェック">✅ 同カテゴリ選択</button>
               <button class="btn-bulk-cat"     onclick="applyBulkCategory()" title="チェックした行のカテゴリをこのカテゴリへ一括変更">🏷️ カテゴリ変更</button>
               <span class="btn-group-sep" aria-hidden="true">|</span>
               <button class="btn-bulk-pattern" onclick="openRowPatternMgr()" title="チェックした行を名前付きで保存・末尾に追加で読込">🗂️ 行パターン</button>
-            </div>
-            <div class="btn-group-row">
-              <span class="btn-group-label">インポート</span>
+              <span class="btn-group-sep" aria-hidden="true">|</span>
               <button class="btn-csv-import" onclick="toggleCsvZone()">📂 CSV読み込み</button>
               <button class="btn-reset"      onclick="resetAll()">リセット</button>
             </div>
@@ -2893,11 +2878,24 @@
         <div class="qsp-header">
           <span class="qsp-title">📊 見積サマリ</span>
         </div>
-        <div class="qsp-milestones" id="qspMilestones" style="display:none;"></div>
-        <div class="qsp-carrier-links" id="qspCarrierLinks" style="display:none;"></div>
-        <div class="qsp-cargo-info" id="qspCargoInfo" style="display:none;"></div>
-        <div class="qsp-body" id="qspBody">
-          <p class="qsp-empty">費用項目を入力すると<br>ここにサマリが表示されます</p>
+        <!-- セクション1：条件・貨物・物量 -->
+        <div class="qsp-section qsp-section-ref">
+          <div class="qsp-section-head">📦 条件・貨物・物量</div>
+          <div class="qsp-section-scroll">
+            <div class="qsp-milestones" id="qspMilestones" style="display:none;"></div>
+            <div class="qsp-carrier-links" id="qspCarrierLinks" style="display:none;"></div>
+            <div class="qsp-cargo-info" id="qspCargoInfo" style="display:none;"></div>
+            <p class="qsp-ref-empty" id="qspRefEmpty">引き合い条件・貨物・物量を入力すると、ここに作業範囲や物量がまとまります</p>
+          </div>
+        </div>
+        <!-- セクション2：見積テーブルのまとめ（常時表示） -->
+        <div class="qsp-section qsp-section-fin">
+          <div class="qsp-section-head">💰 見積テーブルのまとめ</div>
+          <div class="qsp-section-scroll">
+            <div class="qsp-fin" id="qspFin">
+              <p class="qsp-empty">費用項目を入力すると<br>ここにまとめが表示されます</p>
+            </div>
+          </div>
         </div>
       </aside>
 
@@ -2963,16 +2961,16 @@
     <div id="previewOverlay" onclick="overlayClick(event)">
       <div id="previewBox">
         <h2>📋 プレビュー（表計算形式）</h2>
-        <div class="pv-viewmode-row">
-          <span class="pv-viewmode-label">👁️ 表示モード：</span>
-          <button class="save-btn save-btn-mode-internal is-on" data-qvm="internal" onclick="setQuoteViewMode('internal')" title="社内モード：支払い・乗せ幅・利益・サブコンなどすべて表示">🔓 社内</button>
-          <button class="save-btn save-btn-mode-customer" data-qvm="customer" onclick="setQuoteViewMode('customer')" title="客先モード：請求列だけを表示（画面共有・客先提示用）">👤 客先</button>
+        <div class="pv-layout-row">
+          <span class="pv-viewmode-label">🧾 レイアウト：</span>
+          <button class="save-btn pv-layout-btn" data-pvl="table" onclick="setPreviewLayout('table')" title="表計算形式：明細を編集チェック向けの表で表示">📋 表計算</button>
+          <button class="save-btn pv-layout-btn is-on" data-pvl="doc" onclick="setPreviewLayout('doc')" title="御見積書フォーマット：客先提出と同じ体裁で表示">📄 見積書</button>
         </div>
-        <div id="pvModeBanner" class="pv-mode-banner"></div>
         <div id="pvMeta" class="pv-meta" style="display:none;"></div>
         <div id="pvCondBox" style="display:none;"><strong>🚢 引き合い条件</strong></div>
         <div id="pvCargoBox" style="display:none;"></div>
         <div id="previewTableWrap"></div>
+        <div id="previewDocWrap"></div>
         <div id="pvTaxBox" class="pv-tax-box">
           <label class="pv-tax-label">🧾 消費税：</label>
           <span class="pv-tax-fixed" id="pvTaxRateLabel">10%（標準）</span>
@@ -2991,6 +2989,8 @@
           <button class="pv-btn-excel" onclick="exportExcel()">📊 Excel 出力</button>
           <button class="pv-btn-pdf"   onclick="exportPDF()">🖨️ PDF 出力（印刷）</button>
           <button class="pv-btn-pdf" style="background:#1a3a6b;" onclick="openQuoteDoc()">📄 御見積書フォーマット</button>
+          <button class="pv-btn-email-plain" onclick="copyQuoteEmailPlain()" title="見積サマリをメール本文（プレーンテキスト）としてコピー">✉️ メール本文（プレーン）</button>
+          <button class="pv-btn-email-rich" onclick="copyQuoteEmailRich()" title="見積サマリをメール本文（リッチテキスト／表組み）としてコピー">📧 メール本文（リッチ）</button>
           <button class="pv-btn-client-excel" onclick="exportExcelAsClient()">👥 客先用 Excel</button>
           <button class="pv-btn-client-pdf"   onclick="exportPDFAsClient()">👥 客先用 PDF</button>
           <button class="pv-btn-close" onclick="closePreview()">閉じる</button>
@@ -3052,19 +3052,11 @@
     </datalist>
 
     <template id="row-tpl">
-      <td class="action-cell">
-        <button class="btn-del" data-field="del" tabindex="-1" title="この行を削除">✕</button>
-        <button class="btn-ins" data-field="ins" tabindex="-1" title="この行の下に行を追加">＋</button>
-        <button class="btn-subtotal-ins" data-field="subins" tabindex="-1" title="この行の下に小計行を挿入">＝</button>
-        <button class="btn-remark-ins" data-field="remins" tabindex="-1" title="この行の下にリマーク行を挿入">💬</button>
-      </td>
       <td class="check-cell">
         <input type="checkbox" class="row-select-chk" tabindex="-1" title="この行を選択（コピー・削除用）" style="width:13px;height:13px;cursor:pointer;margin:0;" />
       </td>
       <td class="handle-cell">
-        <button type="button" class="row-move-btn row-move-up"  data-field="move-up"   tabindex="-1" title="上に移動">▲</button>
         <span class="drag-handle" title="ドラッグして並び替え">⠿</span>
-        <button type="button" class="row-move-btn row-move-down" data-field="move-down" tabindex="-1" title="下に移動">▼</button>
       </td>
       <td class="catsv-cell stk-cell">
         <div class="stk">
@@ -3088,13 +3080,13 @@
         </div>
       </td>
       <td class="price-cell stk-cell">
-        <div class="stk">
+        <div class="stk stk-price">
           <span class="stk-cost"><span class="stk-tag t-cost">仕</span><input type="number" data-field="pp" class="w-price" min="0" value="0" data-col="4" /></span>
           <span class="stk-sell"><span class="stk-tag t-sell">売</span><input type="number" data-field="bp" class="w-price display-field" value="0" tabindex="-1" readonly data-base="0" /></span>
+          <span class="row-cd"><span class="row-cd-lbl" title="Currency Difference（通貨差調整値）">CD</span><input type="text" data-field="cd" class="w-cd display-field" value="" placeholder="—" tabindex="-1" readonly /></span>
+          <span class="stk-mk"><span class="stk-mk-plus" title="乗せ幅（仕入単価に加算 → 売単価）">＋</span><input type="number" data-field="mk" class="w-mkup" min="0" value="0" data-col="5" title="乗せ幅：仕入単価に加算して売単価になります" /></span>
         </div>
-        <span class="row-cd"><span class="row-cd-lbl" title="Currency Difference（通貨差調整値）">CD</span><input type="text" data-field="cd" class="w-cd display-field" value="" placeholder="—" tabindex="-1" readonly /></span>
       </td>
-      <td class="mk-cell"><input type="number" data-field="mk" class="w-mkup" value="0" data-col="5" /></td>
       <td class="subtotal-cell" data-field="st">—</td>
       <td class="profit-cell profit-zero pr-cell" data-field="pr">0</td>
       <td class="note-cell"><input type="text" data-field="nt" class="w-note" placeholder="備考" data-col="6" /></td>
@@ -3143,6 +3135,9 @@
 <script src="js/quote/save.js"></script>
 <script src="js/quote/ui.js"></script>
 <script src="js/quote/quote-pdf.js"></script>
+<script src="js/quote/quote-email.js"></script>
+<script src="js/quote/select-mode.js"></script>
+<script src="js/tweaks.js"></script>
 
 <!-- =================================================================
      サイト全体スコープのフローティング UI（Phase 2c-Step1 で見積タブから昇格）
@@ -3201,6 +3196,12 @@
     </div>
     <p class="lcl-fb-hint">※ 送信ボタンでテキストをコピーしてフォームを開きます</p>
   </div>
+</div>
+
+<!-- 見積アクションドック（右下フローティング・見積タブのみ表示） -->
+<div id="quoteActionDock">
+  <button class="qad-btn qad-preview" onclick="openPreview()" title="見積をプレビュー表示・CSV/Excel/PDF出力はここから（Ctrl+P）">📋 プレビュー</button>
+  <button class="qad-btn qad-compare" onclick="openCompare()" title="保存済みプリセットを横並びで比較（売上・原価・利益）">📊 比較</button>
 </div>
 
 <div id="fbOverlay" onclick="closeFeedback(event)">

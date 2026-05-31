@@ -1,0 +1,84 @@
+{
+  "_version": "3.0",
+  "_app": "フォワーダー支援",
+  "_rowFormat": "v3-mixed-rows",
+  "exportedAt": "2026-05-31T00:00:00.000Z",
+  "ts": "2026-05-31T00:00:00.000Z",
+  "fields": {
+    "qf-ref": "TEST-2026-021",
+    "qf-customer": "グリーンリーフ貿易株式会社",
+    "qf-person": "鈴木 美咲",
+    "qf-date": "2026-05-31",
+    "qf-valid-until": "2026-06-30",
+    "qf-memo": "【テスト用サンプルデータ③】\n- 海上 LCL 輸入（深圳 SHEKOU → 東京 TYO）\n- Incoterms: CIF\n- 混載・容積建て（CBM/RT 単価）\n- USD仕入→JPY請求の混在、課税/免税混在\n- ocean / surcharge / overseas / customs-import / import-local / domestic / insurance",
+    "cond-incoterms": "CIF（運賃・保険料込み）",
+    "cond-mode": "海上（LCL）",
+    "z1Place": "深圳市",
+    "z1Country": "CN",
+    "z1DefaultSc": "Shenzhen Consol Line Ltd.",
+    "z2Carrier": "ONE",
+    "z2Pol": "SHEKOU（蛇口）",
+    "z2Pod": "TOKYO（東京）",
+    "z3Place": "東京都江東区",
+    "z3Country": "JP",
+    "z3DefaultSc": "東京港運株式会社",
+    "cond-cargo": "家庭用雑貨（インテリア小物）",
+    "cond-hs": "9403.60",
+    "cond-hs-basic": "3.8%",
+    "cond-hs-pref": "0%（日中RCEP）"
+  },
+  "rows": [
+    {
+      "_type": "data",
+      "_note": "ocean: LCL海上運賃 RT建て（USD仕入→JPY請求）8.5RT",
+      "cells": [false, "ocean", "ONE", false, "海上運賃（LCL）", "8.5", "RT", "8.5", "USD", "JPY", "42.00", "", "", "9000", "SHEKOU → TOKYO・容積重量 8.5RT（8.5CBM）"]
+    },
+    {
+      "_type": "data",
+      "_note": "surcharge: CFS チャージ RT建て（USD→JPY）",
+      "cells": [false, "surcharge", "ONE", false, "CFS チャージ", "8.5", "RT", "8.5", "USD", "JPY", "6.50", "", "", "1500", "混載仕分け料"]
+    },
+    {
+      "_type": "data",
+      "_note": "surcharge: DOC FEE（USD→JPY）",
+      "cells": [false, "surcharge", "ONE", false, "ドキュメントフィー", "1", "BL", "1", "USD", "JPY", "35.00", "", "", "800", ""]
+    },
+    {
+      "_type": "data",
+      "_note": "overseas: 深圳CFS搬入料（USD→JPY）",
+      "cells": [false, "overseas", "Shenzhen Consol Line Ltd.", false, "出発地CFS搬入料", "8.5", "RT", "8.5", "USD", "JPY", "8.00", "", "", "1200", "深圳CFS"]
+    },
+    {
+      "_type": "subtotal",
+      "label": "Zone ① 幹線輸送（SHEKOU→TOKYO）合計"
+    },
+    {
+      "_type": "remark",
+      "text": "※ 海上運賃・各サーチャージは USD 建て仕入・JPY 建て請求です。為替レートにより請求金額が変動します。"
+    },
+    {
+      "_type": "data",
+      "_note": "customs-import: 輸入通関費（JPY・課税）",
+      "cells": [false, "customs-import", "東京港運株式会社", true, "輸入通関費", "1", "BL", "1", "JPY", "JPY", "11000", "13000", "", "2000", "通関手数料（関税・消費税は別途実費）"]
+    },
+    {
+      "_type": "data",
+      "_note": "import-local: CFS取卸料 RT建て（JPY・課税）",
+      "cells": [false, "import-local", "東京港運株式会社", true, "東京CFS取卸料", "8.5", "RT", "8.5", "JPY", "JPY", "1800", "2200", "", "3400", "混載貨物取卸・仕分け"]
+    },
+    {
+      "_type": "data",
+      "_note": "domestic: 国内配送費（JPY・課税）",
+      "cells": [false, "domestic", "東京港運株式会社", true, "国内配送費", "1", "件", "1", "JPY", "JPY", "28000", "34000", "", "6000", "東京港 → 江東区倉庫"]
+    },
+    {
+      "_type": "subtotal",
+      "label": "Zone ② 着地側（TOKYO〜納入地）合計"
+    },
+    {
+      "_type": "data",
+      "_note": "insurance: 貨物海上保険料（JPY・免税）",
+      "cells": [false, "insurance", "三井住友海上", false, "貨物海上保険料", "1", "式", "1", "JPY", "JPY", "5200", "5200", "", "0", "CIF・付保率0.3%（ICC-A）"]
+    }
+  ]
+}

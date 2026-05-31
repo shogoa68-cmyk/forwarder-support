@@ -87,6 +87,10 @@
 .qd-tax { color: #b3530e; font-weight: 700; }
 .qd-items .qd-sub td { background: #f3efe7; font-weight: 700; }
 .qd-items .qd-remark td { background: #fffbe6; color: #555; font-size: 10px; }
+/* 印刷時の改ページ制御：行の途中で切れないように＋見出し行を各ページ先頭に繰り返す */
+.qd-items tr { page-break-inside: avoid; break-inside: avoid; }
+.qd-items thead { display: table-header-group; }
+.qd-items tfoot { display: table-footer-group; }
 
 .qd-foot { display: flex; gap: 14px; margin-top: 12px; align-items: flex-start; }
 .qd-notes { flex: 1; font-size: 10px; color: #444; line-height: 1.7; }
