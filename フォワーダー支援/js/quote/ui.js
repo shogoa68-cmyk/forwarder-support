@@ -1950,6 +1950,31 @@
       const w = document.getElementById('calcWidget');
       if (w) w.classList.remove('open');
     };
+    // キーボード入力（電卓が開いていて、入力欄にフォーカスが無いときのみ受け付ける）
+    document.addEventListener('keydown', function(e) {
+      const w = document.getElementById('calcWidget');
+      if (!w || !w.classList.contains('open')) return;
+      if (e.ctrlKey || e.metaKey || e.altKey) return;   // Ctrl+C 等のショートカットは横取りしない
+      const ae = document.activeElement;
+      if (ae && (ae.tagName === 'INPUT' || ae.tagName === 'TEXTAREA' ||
+                 ae.tagName === 'SELECT' || ae.isContentEditable)) return; // 入力中は無効
+      const k = e.key;
+      let mapped = null;
+      if (/^[0-9]$/.test(k))            mapped = k;
+      else if (k === '.')               mapped = '.';
+      else if (k === '+')               mapped = '+';
+      else if (k === '-')               mapped = '−';
+      else if (k === '*')               mapped = '×';
+      else if (k === '/')               mapped = '÷';
+      else if (k === '%')               mapped = '%';
+      else if (k === 'Enter' || k === '=') mapped = '=';
+      else if (k === 'Backspace')       mapped = '←';
+      else if (k === 'Delete' || k === 'c' || k === 'C') mapped = 'C';
+      else if (k === 'Escape')          { e.preventDefault(); window.closeCalcWidget(); return; }
+      if (mapped === null) return;
+      e.preventDefault();
+      window.calcKey(mapped);
+    });
     // ドラッグ設定は DOM 構築完了後（電卓 HTML は </body> 直前のため即実行不可）
     document.addEventListener('DOMContentLoaded', function() {
       const w = document.getElementById('calcWidget');
