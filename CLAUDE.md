@@ -34,11 +34,11 @@ github/202605_コード改修/
 │       ├── storage.js         SharedStorage: KEYS 列挙＋getJSON/setJSON
 │       ├── ui-utils.js        SharedUI: copyToClipboard/showToast
 │       └── calc.js            SharedCalc: CBM/CW/RT/コンテナ目安など純粋関数
-└── 見積支援/                  ← 単体起動用（読み取り専用、保険として残置）
-    ├── README.md              「ポータル側を編集してください」明記
-    ├── index.html             単体起動可。../フォワーダー支援/shared/ を参照
-    ├── app-*.js / style.css   ポータル側 js/quote/ と内容ほぼ同一
-    └── *.bak ...              手動バックアップ群（運用上残置）
+└── _archive/
+    └── 見積支援/              ← 旧単体版スナップショット（2026-05-31 退避・公開対象外・読み取り専用）
+        ├── README.md         アーカイブ経緯と現行コードへの導線
+        ├── index.html        単体起動可。../../フォワーダー支援/shared/ を参照（退避でパス +1 階層）
+        └── app-*.js / style.css   Phase 2b 時点の古いコピー（ポータル側 js/quote/ とは大きく乖離）
 ```
 
 ## 統合の現状
@@ -60,7 +60,7 @@ github/202605_コード改修/
 
 **Phase 2c で残った持ち越し（ユーザー明示依頼まで触らない）**
 - バックアップファイル整理：`*.bak` / `*.bak_phase2c1_*` / `*.bak_phase2c2_*` / `index_bak_*`
-- `見積支援/` の `_archive/` 化（1〜2 ヶ月の運用後）
+- ~~`見積支援/` の `_archive/` 化~~ **完了（2026-05-31）**：`_archive/見積支援/` へ退避。さらに 1〜2 ヶ月問題なければディレクトリごと完全削除可
 - Step5-Phase2：~97 callsite を bare global → `QuoteApp.X` 形式に段階移行し最終的に bare global 削除
 - `shared/{ui-utils,format,calc}.js` の採用 or 削除判断（callers ゼロ、Phase 1 で作成されたが未採用のインフラ）
 - 付箋メモ・Ctrl+K コマンドパレットのサイト全体昇格（コマンドカタログの拡張要）
@@ -68,7 +68,7 @@ github/202605_コード改修/
 ## このプロジェクトを触るときの注意
 
 - **iCloud パス**：すべて `~/Library/Mobile Documents/com~apple~CloudDocs/` 配下。同期遅延でロックされることがあるので、複数端末で同時編集しない
-- **見積支援/ は読み取り専用**：[見積支援/README.md](見積支援/README.md) に運用ルール明記。編集はポータル側 `フォワーダー支援/{index.html, css/quote.css, js/quote/*.js}` を編集すること
+- **`_archive/見積支援/` は退避済み・触らない**：2026-05-31 に `見積支援/` を `_archive/` へ移動（公開対象外・読み取り専用）。経緯は [_archive/見積支援/README.md](_archive/見積支援/README.md)。見積もり機能の編集はポータル側 `フォワーダー支援/{index.html, css/quote.css, js/quote/*.js}` を編集すること
 - **動作確認方法**：ブラウザで開くだけで動く（ビルド不要）。`file://` でも基本動くが、為替 API（fetch）や CDN（SheetJS）は CORS や `file://` の制限で失敗することがあるので、確認時は `python3 -m http.server` で簡易サーバを立てる
   ```sh
   cd "github/202605_コード改修" && python3 -m http.server 18765
