@@ -35,6 +35,17 @@
   const fmtInt = n => Math.round(n).toLocaleString('ja-JP');
   const fmtNum = (n, d) => Number(n).toLocaleString('ja-JP', { minimumFractionDigits: d || 0, maximumFractionDigits: d || 0 });
 
+  // 小計テキストに ¥ を付与（「≈ 1,234」→「≈ ¥1,234」、「1,234」→「¥1,234」）
+  function _yenSub(txt) {
+    const s = String(txt == null ? '' : txt).trim();
+    if (!s) return '';
+    if (!/\d/.test(s)) return esc(s);          // 数値を含まない場合はそのまま
+    const m = s.match(/^([^\d\-]*)(.*)$/);     // 先頭の記号（≈ 等）を分離
+    const prefix = m ? m[1] : '';
+    const rest   = m ? m[2] : s;
+    return esc(prefix) + '¥' + esc(rest);
+  }
+
   function _toJPY(amount, ccy) {
     if (typeof toJPY === 'function') return toJPY(amount, ccy);
     return (!ccy || ccy === 'JPY') ? amount : amount;
@@ -146,13 +157,16 @@
   }
 
   // 通貨別の適用レート一覧（行で使われている非JPY通貨）
+  // レートは実際に JPY 換算で使われている値（_toJPY(1, ccy)）から取得する。
+  // window._fxRates は未投入のことがあり「—」になってしまうため使わない。
   function collectRates(rows) {
     const out = {};
     rows.forEach(d => {
       if (d._type !== 'data') return;
       [d.pc, d.bc].forEach(c => {
         if (c && c !== 'JPY' && !(c in out)) {
-          out[c] = (typeof window._fxRates === 'object' && window._fxRates && window._fxRates[c]) ? window._fxRates[c] : null;
+          const rate = _toJPY(1, c);
+          out[c] = (rate && rate !== 1) ? rate : null;
         }
       });
     });
@@ -178,7 +192,7 @@
         return;
       }
       if (r._type === 'subtotal') {
-        lineHTML.push(`<tr class="qd-sub"><td colspan="4">${esc(r.label || '小計')}</td><td class="qd-num">${esc(r.subtotalText)}</td></tr>`);
+        lineHTML.push(`<tr class="qd-sub"><td colspan="4">${esc(r.label || '小計')}</td><td class="qd-num">${_yenSub(r.subtotalText)}</td></tr>`);
         return;
       }
       // data
@@ -189,17 +203,17 @@
       const unitDisp = isNonJpy
         ? `${fmtNum(r.bp, 2)} ${esc(r.bc)}`
         : `${fmtInt(r.bp)} JPY`;
-      const convNote = isNonJpy ? `<div class="qd-conv">(¥${fmtInt(jpy)})</div>` : '';
+      // 外貨建ての JPY 換算は右端「金額(JPY)」列に出るため、項目列内の重複表記は廃止
       const descNote = r.note ? `<div class="qd-desc">${esc(r.note)}</div>` : '';
       // 数量は金額の根拠（sub = bq×bp）と一致させる。未入力時に「1」を捏造しない（B/台帳 C）
       const qtyDisp = (r.bq && r.bq > 0) ? fmtNum(r.bq, 4) : '—';
       lineHTML.push(
         `<tr>
-          <td class="qd-item">${r.taxed ? '<span class="qd-tax">*</span> ' : ''}${esc(r.name)}${descNote}${convNote}</td>
+          <td class="qd-item">${r.taxed ? '<span class="qd-tax">*</span> ' : ''}${esc(r.name)}${descNote}</td>
           <td class="qd-num">${qtyDisp}</td>
           <td class="qd-ctr">${esc(r.un || '')}</td>
           <td class="qd-num">${unitDisp}</td>
-          <td class="qd-num">${fmtInt(jpy)}</td>
+          <td class="qd-num">¥${fmtInt(jpy)}</td>
         </tr>`
       );
     });
@@ -279,10 +293,10 @@
         </div>
         <div class="qd-sum">
           <table>
-            <tr><td class="qd-sk2">小計（免税分）</td><td class="qd-num">${fmtInt(exemptSub)}</td></tr>
-            <tr><td class="qd-sk2">課税対象小計</td><td class="qd-num">${fmtInt(taxableSub)}</td></tr>
-            <tr><td class="qd-sk2">消費税（${Math.round(taxRate * 100)}%）</td><td class="qd-num">${fmtInt(tax)}</td></tr>
-            <tr class="qd-total"><td>合計見積額</td><td class="qd-num">${fmtInt(total)}</td></tr>
+            <tr><td class="qd-sk2">小計（免税分）</td><td class="qd-num">¥${fmtInt(exemptSub)}</td></tr>
+            <tr><td class="qd-sk2">課税対象小計</td><td class="qd-num">¥${fmtInt(taxableSub)}</td></tr>
+            <tr><td class="qd-sk2">消費税（${Math.round(taxRate * 100)}%）</td><td class="qd-num">¥${fmtInt(tax)}</td></tr>
+            <tr class="qd-total"><td>合計見積額</td><td class="qd-num">¥${fmtInt(total)}</td></tr>
           </table>
         </div>
       </div>

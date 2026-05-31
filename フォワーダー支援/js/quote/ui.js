@@ -1571,6 +1571,18 @@
     setLayoutScale(order[next]);
   }
 
+  // 参照セクション（マイルストーン・物量・船会社リンク）が全て空のとき案内文を表示
+  window.updateQuoteRefEmpty = function () {
+    const empty = document.getElementById('qspRefEmpty');
+    if (!empty) return;
+    const ids = ['qspMilestones', 'qspCargoInfo', 'qspCarrierLinks'];
+    const anyShown = ids.some(id => {
+      const el = document.getElementById(id);
+      return el && el.style.display !== 'none' && el.innerHTML.trim();
+    });
+    empty.style.display = anyShown ? 'none' : '';
+  };
+
   // ===== 輸送モード対応マイルストーン表示 =====
   window.renderQuoteMilestones = function () {
     const el = document.getElementById('qspMilestones');
@@ -1777,7 +1789,7 @@
 
   // ===== 見積サマリパネル =====
   window.updateQuoteSummary = function updateQuoteSummary() {
-    const panel = document.getElementById('qspBody');
+    const panel = document.getElementById('qspFin');
     if (!panel) return;
 
     const rows = document.querySelectorAll('#tableBody tr:not([data-type="subtotal"])');
@@ -1787,13 +1799,16 @@
     });
 
     if (!activeRows.length) {
-      panel.innerHTML = '<p class="qsp-empty">費用項目を入力すると<br>ここにサマリが表示されます</p>';
+      panel.innerHTML = '<p class="qsp-empty">費用項目を入力すると<br>ここにまとめが表示されます</p>';
       return;
     }
 
     const billByCur = {};
     let totalBillJPY = 0, totalCostJPY = 0;
     let hasFx = false;
+    // 消費税集計（外貨建ては輸出免税が原則のため消費税額は JPY のみ）
+    let taxableJPY = 0, exemptJPY = 0, taxAmtJPY = 0;
+    const taxRate = (document.getElementById('pvExemptChk')?.checked) ? 0 : 0.10;
 
     activeRows.forEach(tr => {
       const id = tr.id.replace('row-', '');
@@ -1805,10 +1820,20 @@
       const bp = parseFloat(document.getElementById(`bp-${id}`)?.value) || 0;
       const billing = bq * bp;
       const cost    = pq * pp;
-      billByCur[bc] = (billByCur[bc] || 0) + billing;
-      totalBillJPY += toJPY(billing, bc);
-      totalCostJPY += toJPY(cost, pc);
+      // 通貨別請求小計：JPY は行ごと丸めで積み上げ（売上合計と一致させる）。外貨は native のまま。
+      billByCur[bc] = (billByCur[bc] || 0) + (bc === 'JPY' ? SharedCalc.jpyRound(billing) : billing);
+      // JPY換算は行ごとに SharedCalc.jpyRound で丸めてから合計（4経路統一・docs/バグ台帳）
+      const billingJPY = SharedCalc.jpyRound(toJPY(billing, bc));
+      totalBillJPY += billingJPY;
+      totalCostJPY += SharedCalc.jpyRound(toJPY(cost, pc));
       if (bc !== 'JPY' || pc !== 'JPY') hasFx = true;
+      // 課税/免税判定（行に taxed クラス）
+      if (tr.classList.contains('taxed')) {
+        taxableJPY += billingJPY;
+        if (bc === 'JPY') taxAmtJPY += billing * taxRate;
+      } else {
+        exemptJPY += billingJPY;
+      }
     });
 
     const profit = totalBillJPY - totalCostJPY;
@@ -1821,22 +1846,26 @@
       .filter(([, v]) => v)
       .sort(([a], [b]) => a.localeCompare(b))
       .map(([cur, amt]) =>
-        `<div class="qsp-currency-row"><span class="qsp-cur">${cur}</span><span class="qsp-amount">${fmt(amt)}</span></div>`
+        `<div class="qsp-currency-row"><span class="qsp-cur">${cur}</span><span class="qsp-amount">${cur === 'JPY' ? fmtJPY(amt) : fmt(amt)}</span></div>`
       ).join('');
+
+    const taxAmt = Math.ceil(taxAmtJPY);
+    const taxLabel = taxRate === 0 ? '消費税（免税）' : '消費税（10%）';
 
     panel.innerHTML = `
       <div class="qsp-row-count">${activeRows.length} 費用項目</div>
-      <div class="qsp-divider"></div>
       <div class="qsp-section-label">通貨別請求小計</div>
       ${curLines}
-      <div class="qsp-divider"></div>
       <div class="qsp-section-label">合計（JPY 換算）</div>
-      <div class="qsp-total-row"><span>請求合計</span><span>¥${fmtJPY(totalBillJPY)}</span></div>
-      <div class="qsp-total-row"><span>支払い合計</span><span>¥${fmtJPY(totalCostJPY)}</span></div>
-      <div class="qsp-divider"></div>
+      <div class="qsp-total-row"><span>仕入合計</span><span>¥${fmtJPY(totalCostJPY)}</span></div>
+      <div class="qsp-total-row"><span>売上合計</span><span>¥${fmtJPY(totalBillJPY)}</span></div>
       <div class="qsp-profit-row ${profCls}"><span>利益</span><span>¥${fmtJPY(profit)}</span></div>
       <div class="qsp-markup-row"><span>粗利率</span><span>${mkPct.toFixed(1)}%</span></div>
-      ${hasFx ? '<p class="qsp-fx-note">※ 外貨は現在の参照レートで換算</p>' : ''}
+      <div class="qsp-section-label">消費税</div>
+      <div class="qsp-tax-row"><span>課税合計</span><span>¥${fmtJPY(taxableJPY)}</span></div>
+      <div class="qsp-tax-row"><span>免税合計</span><span>¥${fmtJPY(exemptJPY)}</span></div>
+      <div class="qsp-tax-row qsp-tax-amt"><span>${taxLabel}</span><span>¥${fmtJPY(taxAmt)}</span></div>
+      ${hasFx ? '<p class="qsp-fx-note">※ 外貨は現在の参照レートで換算（概算）</p>' : ''}
     `;
   };
 
@@ -1856,6 +1885,20 @@
     if (typeof window.renderQuoteMilestones === 'function') window.renderQuoteMilestones();
     if (typeof window.renderQuoteCargoInfo === 'function') window.renderQuoteCargoInfo();
     if (typeof window.renderQuoteCarrierLinks === 'function') window.renderQuoteCarrierLinks();
+    // 参照セクションのレンダラをラップし、描画後に必ず空メッセージ判定を走らせる（冪等）
+    ['renderQuoteMilestones', 'renderQuoteCargoInfo', 'renderQuoteCarrierLinks'].forEach(fn => {
+      const orig = window[fn];
+      if (typeof orig === 'function' && !orig.__refEmptyWrapped) {
+        const wrapped = function (...args) {
+          const r = orig.apply(this, args);
+          if (typeof window.updateQuoteRefEmpty === 'function') window.updateQuoteRefEmpty();
+          return r;
+        };
+        wrapped.__refEmptyWrapped = true;
+        window[fn] = wrapped;
+      }
+    });
+    if (typeof window.updateQuoteRefEmpty === 'function') window.updateQuoteRefEmpty();
     window.updateQuoteSummary();
   }
 
@@ -1932,10 +1975,12 @@
   };
 
   function initQuoteViewMode() {
-    let saved = null;
-    try { saved = localStorage.getItem('quoteViewMode'); } catch(e) {}
-    const mode = (saved === 'customer') ? 'customer' : 'internal';
-    window.setQuoteViewMode(mode);
+    // 社内/客先トグルは撤去したため常に社内モード（全列表示）で固定（初期化時はトースト無し）
+    const table = document.getElementById('quoteTable');
+    const tab = document.getElementById('tab-quote-make');
+    if (table) table.classList.remove('customer-mode');
+    if (tab) tab.classList.remove('qvm-customer');
+    try { localStorage.setItem('quoteViewMode', 'internal'); } catch (e) {}
   }
 
   // ===== 見積テーブルより上のセクションの折り畳みトグル =====
@@ -2062,6 +2107,16 @@
     }
     return false;
   }
+
+  // ===== 行操作ツールバー：詳細操作の折り畳みトグル =====
+  window.toggleRowToolsDetail = function(btn) {
+    const panel = document.getElementById('rowToolsDetail');
+    if (!panel) return;
+    const willOpen = panel.hasAttribute('hidden');
+    if (willOpen) panel.removeAttribute('hidden');
+    else          panel.setAttribute('hidden', '');
+    if (btn) btn.setAttribute('aria-expanded', willOpen ? 'true' : 'false');
+  };
 
   // ===== ツールバー ドロップダウンメニュー =====
   window.toggleTbMenu = function(name, ev) {

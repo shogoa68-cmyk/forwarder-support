@@ -498,6 +498,9 @@ body:has(#tab-quote-make.active) .app {
   flex-wrap: wrap;
 }
 .footer-text { font-size: 12px; color: var(--text-md); }
+/* 見積タブでは下部の余白を詰める（フッターを近づける） */
+body:has(#tab-quote-make.active) .footer { margin-top: 6px; padding: 10px 20px; }
+body:has(#tab-quote-make.active) .app { padding-bottom: 8px; }
 .footer-link {
   display: inline-flex; align-items: center; gap: 5px;
   background: var(--accent-dk);
@@ -1108,5 +1111,42 @@ button:focus-visible {
    ここはポータル全体（知識タブ・インコタームズ等）の印刷を改善する。 */
 @media print {
   .header, .cat-nav, .sub-nav, .footer,
-  .fb-fab, #fbOverlay, #toast-container { display: none !important; }
+  .fb-fab, #fbOverlay, #toast-container, #quoteActionDock { display: none !important; }
 }
+
+/* ===== 見積アクションドック（右下フローティング・見積タブのみ） ===== */
+#quoteActionDock {
+  display: none;
+  position: fixed;
+  right: 18px;
+  bottom: 18px;
+  z-index: 1200;
+  gap: 10px;
+}
+body:has(#tab-quote-make.active) #quoteActionDock { display: flex; }
+/* プレビューオーバーレイ・比較オーバーレイ表示中は隠す */
+body:has(#previewOverlay.open) #quoteActionDock,
+body:has(#compareOverlay.open) #quoteActionDock { display: none; }
+#quoteActionDock .qad-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: none;
+  border-radius: 999px;
+  padding: 12px 20px;
+  font-size: 14px;
+  font-weight: 700;
+  font-family: inherit;
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgba(45, 36, 24, 0.28);
+  transition: transform 0.12s, box-shadow 0.12s, background 0.15s;
+}
+#quoteActionDock .qad-btn:hover { transform: translateY(-2px); box-shadow: 0 7px 20px rgba(45, 36, 24, 0.34); }
+#quoteActionDock .qad-btn:active { transform: translateY(0); }
+#quoteActionDock .qad-preview { background: var(--accent); color: #f7f1e6; }
+#quoteActionDock .qad-preview:hover { background: var(--accent-dk); }
+#quoteActionDock .qad-compare {
+  background: var(--card-bg); color: var(--accent-dk);
+  border: 1.5px solid var(--border-md);
+}
+#quoteActionDock .qad-compare:hover { background: var(--accent-lt); }

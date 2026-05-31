@@ -128,6 +128,14 @@ window.SharedCalc = (function () {
     return ((b - (cost || 0)) / b) * 100;
   }
 
+  // ---- JPY 換算の丸め（全経路で統一） ----
+  // 外貨建て金額を JPY 換算するとき、各「行」ごとにこの関数で丸めてから合計する。
+  // 御見積書・メール・Excel の明細列は行ごとに丸めた JPY を表示し、合計はその積み上げと
+  // 一致する必要があるため、丸めは「行ごと」が正準。Math.ceil（切り上げ）で統一。
+  // 画面サマリ／プレビュー総額も必ずこの規約で集計し、4 経路の数値を一致させる。
+  // （以前は経路ごとに round-of-sum / 行ごと ceil / 生の小数表示が混在し ±数円ズレた）
+  function jpyRound(v) { return Math.ceil(v || 0); }
+
   /** マークアップ率(値入率)(%) = (売上 - 原価) / 原価 × 100。原価が 0 以下なら 0 */
   function markupPct(billing, cost) {
     const c = cost || 0;
@@ -144,5 +152,6 @@ window.SharedCalc = (function () {
     containerSpecs,
     suggestContainers,
     grossMarginPct, markupPct,
+    jpyRound,
   };
 })();

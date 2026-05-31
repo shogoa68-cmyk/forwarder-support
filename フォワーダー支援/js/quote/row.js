@@ -320,10 +320,6 @@
     q('pp').oninput    = () => onPay(id);
     q('mk').oninput    = () => calc(id);
     q('nt').onkeydown  = e  => noteKeydown(e, id);
-    q('del').onclick   = () => delRow(id);
-    q('ins').onclick   = () => addRowAfter(id);
-    q('subins').onclick = () => insertSubtotalRow(id);
-    q('remins').onclick = () => insertRemarkRow(id);
 
     return frag;
   }
@@ -340,6 +336,8 @@
       tr.classList.remove('taxed');
       if (nm.value.startsWith('*')) nm.value = nm.value.slice(1);
     }
+    // 消費税サマリ（課税合計・免税合計・消費税額・税込合計）をリアルタイム更新
+    updateTotals();
   }
 
   // ========== 計算 ==========
@@ -405,12 +403,11 @@
   function updateTotals() {
     const rows = document.querySelectorAll('#tableBody tr');
     if (!rows.length) {
-      ['tot-cost','tot-billing','tot-markup','tot-subtotal','tot-profit'].forEach(id =>
+      ['tot-cost','tot-billing','tot-subtotal','tot-profit'].forEach(id =>
         document.getElementById(id).textContent = '—');
       document.getElementById('tot-profit').className = 'profit-cell profit-zero';
-      const jpyRow = document.getElementById('tot-jpy-row');
-      if (jpyRow) jpyRow.style.display = 'none';
-      document.querySelectorAll('#quoteTable tfoot .tot-ccy-row').forEach(r => r.remove());
+      const lbl0 = document.getElementById('tot-row-label');
+      if (lbl0) lbl0.textContent = '合　計';
       window.renderQuoteFxBar?.();
       return;
     }
@@ -435,10 +432,10 @@
       totBill += sub;
       totSub  += sub;
       totMk   += val(`mk-${id}`);
-      // JPY換算
-      totCostJPY += toJPY(cost, pc);
-      totBillJPY += toJPY(sub, bc);
-      totSubJPY  += toJPY(sub, bc);
+      // JPY換算（行ごとに SharedCalc.jpyRound で丸めてから合計・4経路統一）
+      totCostJPY += SharedCalc.jpyRound(toJPY(cost, pc));
+      totBillJPY += SharedCalc.jpyRound(toJPY(sub, bc));
+      totSubJPY  += SharedCalc.jpyRound(toJPY(sub, bc));
       if (pc !== 'JPY' || bc !== 'JPY') hasFx = true;
       // 通貨別集計
       if (!ccyData[bc]) ccyData[bc] = { sub: 0, taxedSub: 0, exemptSub: 0 };
@@ -448,70 +445,28 @@
     });
     const totPr    = totBill - totCost;
     const totPrJPY = totBillJPY - totCostJPY;
-    // 外貨混在時: 単純加算値は意味がないので「—」にして JPY換算行に一本化
-    document.getElementById('tot-cost').textContent     = hasFx ? '—' : fmt(totCost);
-    document.getElementById('tot-billing').textContent  = hasFx ? '—' : fmt(totBill);
-    document.getElementById('tot-markup').textContent   = hasFx ? '—' : fmt(totMk);
-    document.getElementById('tot-subtotal').textContent = hasFx ? '—' : fmt(totSub);
-    const pEl = document.getElementById('tot-profit');
-    pEl.textContent = hasFx ? '—' : fmt(totPr);
-    pEl.className   = hasFx ? 'profit-cell profit-zero' : `profit-cell ${pClass(totPr)}`;
-    // JPY換算行（外貨が含まれる場合のみ表示）
-    const jpyRow = document.getElementById('tot-jpy-row');
-    if (jpyRow) {
-      jpyRow.style.display = hasFx ? '' : 'none';
-      if (hasFx) {
-        document.getElementById('tot-cost-jpy').textContent     = '≈ ¥' + fmt(totCostJPY);
-        document.getElementById('tot-billing-jpy').textContent  = '≈ ¥' + fmt(totBillJPY);
-        document.getElementById('tot-subtotal-jpy').textContent = '≈ ¥' + fmt(totSubJPY);
-        const prjEl = document.getElementById('tot-profit-jpy');
-        prjEl.textContent = '≈ ¥' + fmt(totPrJPY);
-        prjEl.className   = `profit-cell ${pClass(totPrJPY)}`;
-      }
+    const labelEl  = document.getElementById('tot-row-label');
+    const pEl      = document.getElementById('tot-profit');
+    if (hasFx) {
+      // 外貨混在時：単純加算は無意味なので JPY 換算合計を「合計」行に表示
+      if (labelEl) labelEl.innerHTML = '合計<small class="tot-jpy-note">（JPY換算）</small>';
+      document.getElementById('tot-cost').textContent     = '¥' + fmt(Math.round(totCostJPY));
+      document.getElementById('tot-subtotal').textContent = '¥' + fmt(Math.round(totSubJPY));
+      const mkPctJpy = (window.SharedCalc ? SharedCalc.grossMarginPct(totBillJPY, totCostJPY) : 0);
+      pEl.innerHTML = '¥' + fmt(Math.round(totPrJPY)) + `<small class="tot-margin">粗利 ${mkPctJpy.toFixed(1)}%</small>`;
+      pEl.className = `profit-cell ${pClass(totPrJPY)}`;
+    } else {
+      if (labelEl) labelEl.textContent = '合　計';
+      document.getElementById('tot-cost').textContent     = fmt(Math.round(totCost));
+      document.getElementById('tot-billing').textContent  = fmt(Math.round(totBill));
+      document.getElementById('tot-subtotal').textContent = fmt(Math.round(totSub));
+      const mkPct = (window.SharedCalc ? SharedCalc.grossMarginPct(totBill, totCost) : 0);
+      pEl.innerHTML = fmt(Math.round(totPr)) + `<small class="tot-margin">粗利 ${mkPct.toFixed(1)}%</small>`;
+      pEl.className = `profit-cell ${pClass(totPr)}`;
     }
-    // 通貨別内訳行
-    updateCcyBreakdown(ccyData, hasFx);
     updateSubtotalRows();
     window.updateQuoteSummary?.();
     window.renderQuoteFxBar?.();
-  }
-
-  function updateCcyBreakdown(ccyData, hasFx) {
-    const tfoot = document.querySelector('#quoteTable tfoot');
-    if (!tfoot) return;
-    // 既存の通貨内訳行をクリア
-    tfoot.querySelectorAll('.tot-ccy-row').forEach(r => r.remove());
-    const ccyKeys = Object.keys(ccyData).sort((a, b) => a === 'JPY' ? -1 : b === 'JPY' ? 1 : a.localeCompare(b));
-    const hasMixed = ccyKeys.some(c => ccyData[c].taxedSub > 0 && ccyData[c].exemptSub > 0);
-    // 1通貨のみ・課税/免税混在なし・外貨なし → 非表示
-    if (ccyKeys.length <= 1 && !hasMixed && !hasFx) return;
-    const TAX_RATE = (document.getElementById('pvExemptChk')?.checked) ? 0 : 0.10;
-    const insertRef = document.getElementById('tot-jpy-row') || null;
-    ccyKeys.forEach(ccy => {
-      const g = ccyData[ccy];
-      if (!g.sub) return;
-      // 外貨建ては輸出免税が原則のため消費税は JPY 行のみ計算
-      const taxAmt = (ccy === 'JPY') ? Math.ceil(g.taxedSub * TAX_RATE) : 0;
-      const jpySub = (typeof toJPY === 'function' && ccy !== 'JPY') ? Math.ceil(toJPY(g.sub, ccy)) : null;
-      const parts = [];
-      if (g.taxedSub > 0 && g.exemptSub > 0) {
-        parts.push(`課税 ${fmt(g.taxedSub)}`);
-        parts.push(`免税 ${fmt(g.exemptSub)}`);
-      }
-      if (taxAmt > 0) parts.push(`消費税 ${fmt(taxAmt)}`);
-      const jpyHtml = jpySub !== null
-        ? `<small class="tot-ccy-jpy">(≈¥${fmt(jpySub)})</small>` : '';
-      const tr = document.createElement('tr');
-      tr.className = 'tot-ccy-row';
-      tr.innerHTML =
-        `<td colspan="5"></td>` +
-        `<td class="tot-ccy-label">${ccy}</td>` +
-        `<td colspan="4" class="tot-ccy-detail">${parts.join(' / ')}</td>` +
-        `<td class="subtotal-cell tot-ccy-sub">${fmt(g.sub)}${jpyHtml}</td>` +
-        `<td></td><td></td>`;
-      if (insertRef) tfoot.insertBefore(tr, insertRef);
-      else           tfoot.appendChild(tr);
-    });
   }
 
   // ========== 小計行 ==========
@@ -588,18 +543,13 @@
     // 19 列構成（tfoot の合計行と同じ列レイアウト）。
     // 行アクションは左端へ統一（regular row のアクションセル位置に合わせる）。
     tr.innerHTML = `
-      <td class="subtotal-del-cell action-cell">
-        <input type="checkbox" class="row-select-chk" tabindex="-1" title="この行を選択（パターン保存用）" style="width:13px;height:13px;cursor:pointer;margin:0 2px 0 0;vertical-align:middle;" />
-        <button type="button" class="subtotal-del-btn" onclick="removeSubtotalRow('${id}')" title="この小計行を削除">✕</button>
+      <td class="check-cell">
+        <input type="checkbox" class="row-select-chk" tabindex="-1" title="この行を選択（パターン保存・削除用）" style="width:13px;height:13px;cursor:pointer;margin:0;vertical-align:middle;" />
       </td>
       <td class="subtotal-drag-cell">
         <span class="drag-handle" title="ドラッグして並び替え">⠿</span>
       </td>
-      <td class="handle-cell">
-        <button type="button" class="row-move-btn subtotal-move-up"   tabindex="-1" title="上に移動">▲</button>
-        <button type="button" class="row-move-btn subtotal-move-down" tabindex="-1" title="下に移動">▼</button>
-      </td>
-      <td colspan="7" class="subtotal-label-cell">
+      <td colspan="6" class="subtotal-label-cell">
         <span class="subtotal-marker">━━ 小計</span>
         <input type="text" class="subtotal-label" placeholder="グループ名（任意）" oninput="updateSubtotalRows()" />
         <span class="subtotal-group-billing" style="display:none;">—</span>
@@ -636,18 +586,13 @@
     tr.dataset.type = 'remark';
     tr.className = 'remark-row';
     tr.innerHTML = `
-      <td class="action-cell">
-        <input type="checkbox" class="row-select-chk" tabindex="-1" title="この行を選択（パターン保存用）" style="width:13px;height:13px;cursor:pointer;margin:0 2px 0 0;vertical-align:middle;" />
-        <button type="button" class="remark-del-btn" onclick="removeRemarkRow('${id}')" title="このリマーク行を削除">✕</button>
+      <td class="check-cell">
+        <input type="checkbox" class="row-select-chk" tabindex="-1" title="この行を選択（パターン保存・削除用）" style="width:13px;height:13px;cursor:pointer;margin:0;vertical-align:middle;" />
       </td>
       <td class="remark-drag-cell">
         <span class="drag-handle" title="ドラッグして並び替え">⠿</span>
       </td>
-      <td class="handle-cell">
-        <button type="button" class="row-move-btn subtotal-move-up"   tabindex="-1" title="上に移動">▲</button>
-        <button type="button" class="row-move-btn subtotal-move-down" tabindex="-1" title="下に移動">▼</button>
-      </td>
-      <td colspan="10" class="remark-row-cell">
+      <td colspan="9" class="remark-row-cell">
         <span class="remark-row-marker">💬 リマーク</span>
         <input type="text" class="remark-row-input" placeholder="テーブル内コメント・注記を入力" />
       </td>
@@ -687,30 +632,31 @@
         const profitEl   = tr.querySelector('.subtotal-group-profit');
         const mixedBill = groupBillCurrencies.size > 1;
         const mixedCost = groupCostCurrencies.size > 1;
-        const mixed = mixedBill || mixedCost;
-        // 単一請求通貨なら原通貨で表示、混在なら JPY 換算
-        const billCur = (!mixedBill && groupBillCurrencies.size === 1)
-          ? [...groupBillCurrencies][0] : null;
-        const billAmt  = billCur ? groupBillRaw : groupBillJPY;
-        const costAmt  = (!mixedCost && groupCostCurrencies.size === 1)
-          ? groupCostRaw : groupCostJPY;
+        const billCur0 = (!mixedBill && groupBillCurrencies.size === 1) ? [...groupBillCurrencies][0] : null;
+        const costCur0 = (!mixedCost && groupCostCurrencies.size === 1) ? [...groupCostCurrencies][0] : null;
+        // native 表示は「請求・仕入が完全に同一の単一通貨」のときだけ。
+        // それ以外（通貨混在 or 請求通貨≠仕入通貨）は通貨混同を避け全て JPY 換算で表示する。
+        const pureSame = !!(billCur0 && costCur0 && billCur0 === costCur0);
+        const billCur  = pureSame ? billCur0 : null;
+        const billAmt  = pureSame ? groupBillRaw : groupBillJPY;
+        const costAmt  = pureSame ? groupCostRaw : groupCostJPY;
         const profit   = billAmt - costAmt;
-        const prefix   = mixed ? '≈ ' : '';
+        const prefix   = pureSame ? '' : '≈ ';
         const curSuffix = (billCur && billCur !== 'JPY') ? ' ' + billCur : '';
 
         if (billingEl) {
           billingEl.textContent = billAmt ? prefix + fmt(billAmt) + curSuffix : '—';
-          billingEl.title = mixed ? '多通貨を JPY に換算して合計（FX パネルのレート使用）' : '';
+          billingEl.title = pureSame ? '' : '通貨を JPY に換算して合計（FX パネルのレート使用）';
         }
         if (subtotalEl) {
           subtotalEl.textContent = billAmt ? prefix + fmt(billAmt) + curSuffix : '—';
           subtotalEl.className   = 'subtotal-group-subtotal subtotal-cell' + (billAmt ? ' subtotal-has-value' : '');
-          subtotalEl.title = mixed ? '多通貨を JPY に換算して合計（FX パネルのレート使用）' : '';
+          subtotalEl.title = pureSame ? '' : '通貨を JPY に換算して合計（FX パネルのレート使用）';
         }
         if (profitEl) {
           profitEl.textContent = (billAmt || costAmt) ? prefix + fmt(profit) + curSuffix : '—';
           profitEl.className   = `subtotal-group-profit profit-cell ${pClass(profit)}`;
-          profitEl.title = mixed ? '多通貨を JPY に換算して合計（FX パネルのレート使用）' : '';
+          profitEl.title = pureSame ? '' : '通貨を JPY に換算して合計（FX パネルのレート使用）';
         }
         groupBillJPY = 0; groupCostJPY = 0;
         groupBillRaw = 0; groupCostRaw = 0;
@@ -725,10 +671,12 @@
         const pc = document.getElementById(`pc-${id}`)?.value || 'JPY';
         const billRaw = bq * bp;
         const costRaw = pq * pp;
-        groupBillJPY += toJPY(billRaw, bc);
-        groupCostJPY += toJPY(costRaw, pc);
-        groupBillRaw += billRaw;
-        groupCostRaw += costRaw;
+        // JPY 換算は行ごと ceil で積み上げ（小計セパレータの小数表示を排除・合計と整合）
+        groupBillJPY += SharedCalc.jpyRound(toJPY(billRaw, bc));
+        groupCostJPY += SharedCalc.jpyRound(toJPY(costRaw, pc));
+        // 単一通貨グループ表示用。JPY は行ごと ceil で整数化（外貨は native のまま）
+        groupBillRaw += (bc === 'JPY' ? Math.ceil(billRaw) : billRaw);
+        groupCostRaw += (pc === 'JPY' ? Math.ceil(costRaw) : costRaw);
         if (billRaw && bc) groupBillCurrencies.add(bc);
         if (costRaw && pc) groupCostCurrencies.add(pc);
       }
@@ -739,6 +687,31 @@
     document.getElementById(`row-${id}`)?.remove();
     updateTotals();
   }
+
+  // ========== ツールバーからの行挿入（末尾／選択行の下） ==========
+  // 挿入位置セレクト #rowInsertPos の値で afterId を決定。
+  // 'selected' かつチェック行ありなら最後のチェック行の直後、なければ末尾(null)。
+  function _toolbarInsertAfterId() {
+    const sel = document.getElementById('rowInsertPos');
+    if (sel && sel.value === 'selected') {
+      const checked = document.querySelectorAll('#tableBody tr .row-select-chk:checked');
+      if (checked.length) {
+        const lastTr = checked[checked.length - 1].closest('tr');
+        if (lastTr) return lastTr.id.replace('row-', '');
+      } else {
+        quoteShowToast('⚠️ 選択行がありません。末尾に追加します', 'warn', 3000);
+      }
+    }
+    return null; // 末尾
+  }
+  function toolbarInsertRow() {
+    const newId = addRowAfter(_toolbarInsertAfterId());
+    updateTotals();
+    const nm = document.getElementById(`nm-${newId}`);
+    if (nm) nm.focus();
+  }
+  function toolbarInsertSubtotal() { insertSubtotalRow(_toolbarInsertAfterId()); }
+  function toolbarInsertRemark()   { insertRemarkRow(_toolbarInsertAfterId()); }
 
   // 未入力行（row-unfilled）を一括削除
   function deleteEmptyRows() {

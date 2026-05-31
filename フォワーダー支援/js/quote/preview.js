@@ -231,10 +231,12 @@
   }
 
   function pvWarnGuideSkip() {
+    // pvWarnGuideClose() が _pvWarnSkipFn を null にするため、先に控える
+    const skipFn = _pvWarnSkipFn;
     pvWarnGuideClose();
     _clearPreviewHighlights();
     _pvBypassed = true;
-    if (typeof _pvWarnSkipFn === 'function') _pvWarnSkipFn();
+    if (typeof skipFn === 'function') skipFn();
   }
 
   function pvWarnGuideClose() {
@@ -380,7 +382,7 @@
         <th class="ph-profit">乗せ幅</th><th class="ph-profit">小計</th><th class="ph-jpy">円換算</th><th class="ph-profit">消費税</th><th class="ph-profit">利益</th><th class="ph-profit">備考</th>
       </tr></thead><tbody>`;
 
-    let totSub = 0, totTax = 0, totJpy = 0, hasNonJpyBill = false;
+    let totSub = 0, totTax = 0, totJpy = 0, hasNonJpyBill = false, hasNonJpyCost = false;
     allRows.forEach(d => {
       if (d._type === 'remark') {
         html += `<tr class="pv-table-remark-row">
@@ -411,12 +413,14 @@
       totTax += taxAmt;
       totJpy += jpyAmt;
       if (d.bc && d.bc !== 'JPY') hasNonJpyBill = true;
+      if (d.pc && d.pc !== 'JPY') hasNonJpyCost = true;
       const ccy = d.bc || 'JPY';
       if (!ccyGroups[ccy]) ccyGroups[ccy] = { sub: 0, tax: 0, mk: 0 };
-      ccyGroups[ccy].sub += sub;
+      // JPY 建ては行ごと ceil で積み上げ（合計行を税ベース totJpy と一致させ小数を出さない）
+      ccyGroups[ccy].sub += (ccy === 'JPY' ? Math.ceil(sub) : sub);
       ccyGroups[ccy].tax += taxAmt;
       ccyGroups[ccy].mk  += (d.mk || 0);
-      totCostJpy += (typeof toJPY === 'function') ? toJPY(d.cost, d.pc || 'JPY') : ((!d.pc || d.pc === 'JPY') ? d.cost : 0);
+      totCostJpy += (typeof toJPY === 'function') ? SharedCalc.jpyRound(toJPY(d.cost, d.pc || 'JPY')) : ((!d.pc || d.pc === 'JPY') ? d.cost : 0);
       // 金額系セルは fmtMoney（3桁カンマ）、数量は fmtRaw のまま。docs/バグ台帳.md E
       const jpyCellText = (d.bc && d.bc !== 'JPY') ? fmtMoney(jpyAmt) : '—';
       const taxCellText = d.taxed ? fmtMoney(taxAmt) : '';
@@ -451,6 +455,10 @@
     const ccyKeys = Object.keys(ccyGroups).sort((a, b) =>
       a === 'JPY' ? -1 : b === 'JPY' ? 1 : a.localeCompare(b));
     const isMultiCcy = ccyKeys.length > 1;
+    // 請求 or 仕入のどちらかに外貨があれば JPY 換算ベースの集計を権威値とする。
+    // （請求は単一 JPY でも仕入が外貨だと native 利益は未換算原価を引いて誤るため・docs/バグ台帳）
+    const hasAnyFx  = hasNonJpyBill || hasNonJpyCost;
+    const pureNative = !isMultiCcy && !hasAnyFx;
     const _tfootRow = (ccy, g, extraCls, showMk, prText, prCls) => {
       const taxText    = g.tax > 0 ? fmtMoney(g.tax) : '—';
       const jpyConvText = (ccy !== '≈JPY' && ccy !== 'JPY' && typeof toJPY === 'function')
@@ -476,22 +484,24 @@
     let tfootHtml = '</tbody><tfoot>';
     ccyKeys.forEach(ccy => {
       const g      = ccyGroups[ccy];
-      const single = !isMultiCcy;
+      // 純単一通貨（請求・仕入とも同一通貨）のときだけ native 利益/乗せ幅を表示。
+      // FX を含む場合は per-ccy 行では利益を出さず、≈JPY グランド合計行を権威値とする。
       tfootHtml += _tfootRow(
         ccy, g,
         isMultiCcy ? ' pv-total-ccy' : '',
-        single,
-        single ? fmtMoney(totPr) : '',
-        single ? `pv-pr ${totPc}` : ''
+        pureNative,
+        pureNative ? fmtMoney(totPr) : '',
+        pureNative ? `pv-pr ${totPc}` : ''
       );
     });
-    if (isMultiCcy) {
-      const grandJpy   = Math.ceil(ccyKeys.reduce((s, c) =>
-        s + (typeof toJPY === 'function' ? toJPY(ccyGroups[c].sub, c) : (c === 'JPY' ? ccyGroups[c].sub : 0)), 0));
+    if (isMultiCcy || hasAnyFx) {
+      // 行ごとに丸めた JPY 換算の積み上げ（totJpy）をそのまま使用。
+      // 通貨グループ和から再計算すると御見積書（行ごと丸め）と数円ズレるため統一（docs/バグ台帳）。
+      const grandJpy   = totJpy;
       const grandTax   = ccyGroups['JPY']?.tax || 0;
       const grandMkJpy = Math.ceil(ccyKeys.reduce((s, c) =>
         s + (typeof toJPY === 'function' ? toJPY(ccyGroups[c].mk, c) : (c === 'JPY' ? ccyGroups[c].mk : 0)), 0));
-      const grandPrJpy = Math.ceil(totJpy - totCostJpy);
+      const grandPrJpy = totJpy - totCostJpy;
       const grandPcCls = grandPrJpy > 0 ? 'pv-pos' : grandPrJpy < 0 ? 'pv-neg' : 'pv-zero';
       tfootHtml += _tfootRow(
         '≈JPY', { sub: grandJpy, tax: grandTax, mk: grandMkJpy },
@@ -581,9 +591,11 @@
         '<div class="pv-audit-line">' + escHtml(m.created) + '</div>' +
         (m.hasFresh ? '' : '<div class="pv-audit-warn">⚠️ 為替を自動取得していません。手動値またはデフォルト値で表示中</div>');
     }
-    // 税計算用に合計小計をセット
+    // 税計算用に合計小計をセット。行ごと丸めの JPY 積み上げ（totJpy）を常に基準にして
+    // 小数・通貨混在加算を排除し、御見積書・サマリと一致させる（docs/バグ台帳）。
+    // 単一通貨 JPY でも単価が乗せ幅等で小数を持ち得るため、totSub ではなく totJpy を使う。
     const pvTotSub = document.getElementById('pvTotalSubtotal');
-    if (pvTotSub) pvTotSub.dataset.raw = String(totSub);
+    if (pvTotSub) pvTotSub.dataset.raw = String(totJpy);
     // pvWasVisible を各セクション要素に記録する（applyPreviewCustomize の「戻す」判定に使用）
     // ここで表示中（display !== 'none'）のセクションを '1' としてマーク
     ['pvMeta','pvCondBox','pvCargoBox','pvRemarkBox','pvTaxBox'].forEach(id => {
@@ -604,6 +616,8 @@
     // Apply saved customization
     initPreviewCustomize();
     applyPreviewCustomize();
+    // レイアウト（表計算 / 見積書）を適用
+    applyPreviewLayout();
     // Hook up change listeners (attach only once via flag)
     if (!document.getElementById('pvCustomizeWrap')?.dataset.listenerSet) {
       document.querySelectorAll('.pv-col-chk, .pv-sec-chk').forEach(chk => {
@@ -637,7 +651,8 @@
       if (!taxed) { td.textContent = ''; return; }
       const amt = sub * rate;
       perCcyTax[ccy] = (perCcyTax[ccy] || 0) + amt;
-      totTaxJpy += (typeof toJPY === 'function') ? toJPY(amt, ccy) : (ccy === 'JPY' ? amt : 0);
+      // 外貨建ては輸出免税が原則のため、JPY 行のみ税額に積み上げる（行ごと丸め）
+      totTaxJpy += (ccy === 'JPY') ? amt : 0;
       td.textContent = fmtMoney(amt);
     });
     // 合計行の消費税セル（通貨別）
@@ -650,9 +665,9 @@
         td.textContent = t > 0 ? fmtMoney(t) : '—';
       }
     });
-    // 底部サマリ（消費税額・税込合計）JPY換算ベース。金額は fmtMoney に統一（E）
-    const tax   = totTaxJpy;
-    const total = totalSub + tax;
+    // 底部サマリ（消費税額・税込合計）JPY換算ベース。整数で表示（小数円を出さない・docs/バグ台帳）
+    const tax   = Math.ceil(totTaxJpy);
+    const total = Math.round(totalSub) + tax;
     const taxEl   = document.getElementById('pvTaxAmount');
     const totalEl = document.getElementById('pvTaxTotal');
     if (taxEl)   taxEl.textContent   = fmtMoney(tax);
@@ -817,7 +832,78 @@
   }
 
   function closePreview()  { document.getElementById('previewOverlay').classList.remove('open'); }
+
+  // ========== プレビューのレイアウト切替（表計算 / 御見積書フォーマット） ==========
   function overlayClick(e) { if (e.target === document.getElementById('previewOverlay')) closePreview(); }
+  let _pvLayout = (function () {
+    try { return localStorage.getItem('pvLayout_v1') === 'table' ? 'table' : 'doc'; }
+    catch (_) { return 'doc'; }
+  })();
+  // A4 縦（96dpi 換算）: 210×297mm ≈ 794×1123px
+  const A4_W = 794, A4_H = 1123;
+  let _docPage = 0, _docPages = 1;
+
+  function applyPreviewLayout() {
+    const box = document.getElementById('previewBox');
+    if (!box) return;
+    box.classList.toggle('layout-doc', _pvLayout === 'doc');
+    document.querySelectorAll('.pv-layout-btn').forEach(b =>
+      b.classList.toggle('is-on', b.dataset.pvl === _pvLayout));
+    const h2 = box.querySelector('h2');
+    if (h2) h2.textContent = _pvLayout === 'doc' ? '📋 プレビュー（御見積書フォーマット）' : '📋 プレビュー（表計算形式）';
+    if (_pvLayout === 'doc') renderDocPreview();
+  }
+  function setPreviewLayout(mode) {
+    _pvLayout = (mode === 'doc') ? 'doc' : 'table';
+    try { localStorage.setItem('pvLayout_v1', _pvLayout); } catch (_) {}
+    _docPage = 0;
+    applyPreviewLayout();
+  }
+  window.setPreviewLayout = setPreviewLayout;
+
+  // 御見積書を A4 ページに分割してプレビュー（複数ページ時はページ送りを表示）
+  function renderDocPreview() {
+    const wrap = document.getElementById('previewDocWrap');
+    if (!wrap || typeof buildQuoteDocHTML !== 'function') return;
+    wrap.innerHTML =
+      '<div class="qd-pager" id="qdPager" style="display:none;">' +
+        '<button class="qd-pg-btn" id="qdPrevPg" type="button">‹ 前のページ</button>' +
+        '<span class="qd-pg-ind" id="qdPgInd">1 / 1</span>' +
+        '<button class="qd-pg-btn" id="qdNextPg" type="button">次のページ ›</button>' +
+      '</div>' +
+      '<div class="qd-viewport" id="qdViewport">' +
+        '<div class="qd-doc-scroll" id="qdDocScroll">' + buildQuoteDocHTML() + '</div>' +
+      '</div>';
+    const prev = wrap.querySelector('#qdPrevPg');
+    const next = wrap.querySelector('#qdNextPg');
+    if (prev) prev.onclick = () => { _docPage = Math.max(0, _docPage - 1); applyDocPage(); };
+    if (next) next.onclick = () => { _docPage = Math.min(_docPages - 1, _docPage + 1); applyDocPage(); };
+    // レンダリング後に高さを測ってページ数を算出
+    const measure = () => {
+      const page = wrap.querySelector('.qd-page');
+      const h = page ? page.scrollHeight : 0;
+      if (!h) return; // まだレイアウト未確定
+      _docPages = Math.max(1, Math.ceil(h / A4_H));
+      if (_docPage > _docPages - 1) _docPage = _docPages - 1;
+      const pager = wrap.querySelector('#qdPager');
+      if (pager) pager.style.display = _docPages > 1 ? 'flex' : 'none';
+      applyDocPage();
+    };
+    requestAnimationFrame(measure);
+    setTimeout(measure, 80); // rAF が走らない環境向けの保険
+  }
+  function applyDocPage() {
+    const wrap = document.getElementById('previewDocWrap');
+    if (!wrap) return;
+    const scroll = wrap.querySelector('#qdDocScroll');
+    if (scroll) scroll.style.transform = 'translateY(' + (-_docPage * A4_H) + 'px)';
+    const ind = wrap.querySelector('#qdPgInd');
+    if (ind) ind.textContent = (_docPage + 1) + ' / ' + _docPages;
+    const prev = wrap.querySelector('#qdPrevPg');
+    const next = wrap.querySelector('#qdNextPg');
+    if (prev) prev.disabled = _docPage <= 0;
+    if (next) next.disabled = _docPage >= _docPages - 1;
+  }
 
   // ========== プレビュー表示カスタマイズ → 出力書類への連動 ==========
   // 現在の pv-col-chk 状態をオブジェクトで取得（チェックボックスが無ければ既定値 true）
@@ -937,8 +1023,55 @@
     if (!_pvBypassed && !preOutputValidationGate('PDF 出力（印刷）', exportPDF)) return;
     _pvBypassed = false;
     if (!sensitiveColumnsGate('PDF 出力')) return;
+    // 見積書レイアウトは、埋め込みプレビュー環境でも確実に印刷できるよう
+    // 独立した印刷ウィンドウに書き出して印刷する（アプリDOM/競合CSSの影響を排除）。
+    if (_pvLayout === 'doc') { printDocStandalone(); return; }
     window.print();
   }
+
+  // 御見積書を独立ウィンドウに書き出して印刷（環境非依存）。
+  // ポップアップがブロックされた場合は従来の window.print() にフォールバック。
+  function printDocStandalone() {
+    if (typeof buildQuoteDocHTML !== 'function') { window.print(); return; }
+    const docHtml = buildQuoteDocHTML();
+    const w = window.open('', '_blank', 'width=900,height=1100');
+    if (!w) {
+      // ポップアップ不可（サンドボックス等）→ その場印刷にフォールバック
+      if (window.quoteShowToast) quoteShowToast('ポップアップがブロックされました。ブラウザのポップアップを許可するか、印刷ダイアログをそのままお使いください。', 'warn');
+      window.print();
+      return;
+    }
+    // 現在ページの CSS（リンク＋インライン）を引き継ぎ、.qd-* スタイルを適用
+    let head = '';
+    document.querySelectorAll('link[rel="stylesheet"]').forEach(el => {
+      const href = el.href; if (href) head += '<link rel="stylesheet" href="' + href + '">';
+    });
+    document.querySelectorAll('style').forEach(el => { head += '<style>' + el.textContent + '</style>'; });
+    const printCss =
+      '<style>' +
+      '@page{size:A4 portrait;margin:14mm;}' +
+      'html,body{margin:0;padding:0;background:#fff;}' +
+      '.qd-doc-print-host{display:flex;justify-content:center;padding:16px;}' +
+      '.qd-doc-print-host .qd-page{box-shadow:none!important;width:100%!important;max-width:794px;min-height:auto!important;margin:0 auto!important;}' +
+      '@media print{.qd-doc-print-host{padding:0;}.qd-doc-print-host .qd-page{max-width:none;padding:0!important;}}' +
+      '</style>';
+    w.document.open();
+    w.document.write(
+      '<!DOCTYPE html><html lang="ja"><head><meta charset="utf-8"><title>御見積書</title>' +
+      head + printCss +
+      '</head><body><div class="qd-doc-print-host">' + docHtml + '</div></body></html>'
+    );
+    w.document.close();
+    w.focus();
+    // フォント・レイアウト確定後に印刷ダイアログを開く
+    const fire = () => { try { w.focus(); w.print(); } catch (e) {} };
+    if (w.document.fonts && w.document.fonts.ready) {
+      w.document.fonts.ready.then(() => setTimeout(fire, 250));
+    } else {
+      setTimeout(fire, 600);
+    }
+  }
+  window.printDocStandalone = printDocStandalone;
 
   // ========== Excel 出力（SheetJS） ==========
   // 各列定義に pvGroup を付け、プレビュー表示カスタマイズに連動して列を絞り込む
