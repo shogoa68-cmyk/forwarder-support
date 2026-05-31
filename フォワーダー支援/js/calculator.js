@@ -688,36 +688,47 @@ function calcVanning() {
         const q = Math.floor(c.l/dims[p[0]])*Math.floor(c.w/dims[p[1]])*vLayers;
         if (q>maxPer) maxPer=q;
       });
-      const need    = qty>0 ? Math.ceil(qty/maxPer) : null;
-      const used    = Math.min(maxPer, qty||maxPer);
-      const util    = (cCBM*used/contCBM*100).toFixed(1);
-      const totalKg = bkg>0&&qty>0 ? qty*bkg : bkg>0 ? maxPer*bkg : null;
+      // maxPer=0（箱がコンテナ内寸に入らない）は「積載不可」。need/util を Infinity/NaN に
+      // 暴走させず、loadable=false で明示する（docs/バグ台帳.md の H）。
+      const loadable = maxPer > 0;
+      const need    = (loadable && qty>0) ? SharedCalc.containersNeeded(qty, maxPer) : null;
+      const used    = loadable ? Math.min(maxPer, qty||maxPer) : 0;
+      const util    = loadable ? (cCBM*used/contCBM*100).toFixed(1) : '0.0';
+      const totalKg = (loadable && bkg>0&&qty>0) ? qty*bkg : (loadable && bkg>0) ? maxPer*bkg : null;
       const overW   = totalKg && need && totalKg > c.maxPay*need;
-      return {key,c,maxPer,contCBM,need,util,totalKg,overW};
+      return {key,c,maxPer,contCBM,need,util,totalKg,overW,loadable};
     });
 
+    // 推奨はまず「積載可能なコンテナ」だけから選ぶ。全て積載不可なら null。
     let rec;
-    if (qty>0) {
-      const ok = contRows.filter(r=>!r.overW);
-      rec = (ok.length?ok:contRows).reduce((b,r)=>r.need<b.need?r:b);
+    const loadableRows = contRows.filter(r=>r.loadable);
+    if (!loadableRows.length) {
+      rec = null;
+    } else if (qty>0) {
+      const ok = loadableRows.filter(r=>!r.overW);
+      rec = (ok.length?ok:loadableRows).reduce((b,r)=>r.need<b.need?r:b);
     } else {
-      rec = contRows.reduce((b,r)=>parseFloat(r.util)>parseFloat(b.util)?r:b);
+      rec = loadableRows.reduce((b,r)=>parseFloat(r.util)>parseFloat(b.util)?r:b);
     }
 
     const cardsHtml = contRows.map(r => {
-      const isRec = r.key===rec.key;
+      const isRec = rec && r.key===rec.key;
       const badge = isRec ? '<span style="background:#d4edda;color:#155724;font-size:10px;font-weight:700;padding:2px 6px;border-radius:4px;margin-left:6px;">✅ 推奨</span>' : '';
-      const main  = r.need ? `${r.need} 本必要` : `最大 ${r.maxPer.toLocaleString()} 個/本`;
+      // 積載不可（箱がコンテナ内寸を超える）は本数を出さず明示する
+      const main  = !r.loadable
+        ? '<span style="color:#e53e3e;">積載不可（要分解／特殊機材）</span>'
+        : (r.need ? `${r.need} 本必要` : `最大 ${r.maxPer.toLocaleString()} 個/本`);
       const kgLine= r.totalKg ? `概算 ${r.totalKg.toLocaleString()} kg／上限 ${(r.c.maxPay*(r.need||1)).toLocaleString()} kg` : '';
       const warn  = r.overW ? ' <span style="color:#e53e3e;font-size:10px;">⚠️ 重量超過</span>' : '';
+      const utilLine = r.loadable ? `CBM使用率 ${r.util}%　${kgLine}` : '貨物寸法がコンテナ内寸を超えています';
       return `<div class="calc-item ${isRec?'hl':''}">
         <div class="calc-item-label">${r.c.label}${badge}</div>
         <div class="calc-item-value" style="font-size:14px;">${main}${warn}</div>
-        <div style="font-size:11px;color:#718096;margin-top:3px;">CBM使用率 ${r.util}%　${kgLine}</div>
+        <div style="font-size:11px;color:#718096;margin-top:3px;">${utilLine}</div>
       </div>`;
     }).join('');
 
-    const svgHtml = Object.entries(CONT).map(([key,c]) => buildContainerSVG(key, c, [bl,bw,bh], rowNoStack, rec.key)).join('');
+    const svgHtml = Object.entries(CONT).map(([key,c]) => buildContainerSVG(key, c, [bl,bw,bh], rowNoStack, rec ? rec.key : null)).join('');
     const inputLine = formatRowInputSummary([
       `${blInput}×${bwInput}×${bhInput}${unit}`,
       `${bkg}kg`,

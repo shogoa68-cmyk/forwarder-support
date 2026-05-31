@@ -219,13 +219,22 @@
   }
 
   function updateFxRate(cur, val) {
-    const v = parseFloat(val);
+    const trimmed = (val == null ? '' : String(val)).trim();
+    if (trimmed === '') {
+      // 空欄にしたらデフォルトレートへ戻す（表示と計算の食い違いを防ぐ。docs/バグ台帳.md の N）
+      if (DEFAULT_FX_RATES[cur] != null) _fxRates[cur] = DEFAULT_FX_RATES[cur];
+      saveFxRates();
+      updateTotals();
+      if (typeof renderFxPanel === 'function') renderFxPanel(); // 欄にデフォルト値を再表示
+      return;
+    }
+    const v = parseFloat(trimmed);
     if (v > 0) {
       _fxRates[cur] = v;
       saveFxRates();
       updateTotals();
-      // 通知なし（FBにより削除）
     }
+    // 0・負値・非数は無視（不正レートで合計を壊さない）
   }
 
   async function doFetchFxRates() {

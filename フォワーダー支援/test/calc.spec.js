@@ -13,6 +13,28 @@
 (function () {
   const C = (typeof window !== 'undefined' ? window : globalThis).SharedCalc;
 
+  describe('SharedCalc.nonNeg — 入力健全化（負値/NaN→0）【台帳 I】', () => {
+    it('正の数はそのまま', () => expect(C.nonNeg(60)).toBe(60));
+    it('小数もそのまま', () => expect(C.nonNeg(0.5)).toBe(0.5));
+    it('負値は 0', () => expect(C.nonNeg(-60)).toBe(0));
+    it('0 は 0', () => expect(C.nonNeg(0)).toBe(0));
+    it('NaN は 0', () => expect(C.nonNeg(NaN)).toBe(0));
+    it('null/undefined は 0', () => { expect(C.nonNeg(null)).toBe(0); expect(C.nonNeg(undefined)).toBe(0); });
+    it('数値文字列をパース', () => expect(C.nonNeg('45')).toBe(45));
+    it('負の文字列は 0', () => expect(C.nonNeg('-5')).toBe(0));
+    it('非数文字列は 0', () => expect(C.nonNeg('abc')).toBe(0));
+    it('Infinity は 0（暴走値を採用しない）', () => expect(C.nonNeg(Infinity)).toBe(0));
+  });
+
+  describe('SharedCalc.containersNeeded — 必要本数（0除算/Infinity防止）【台帳 H】', () => {
+    it('30個 / 10個積 = 3本', () => expect(C.containersNeeded(30, 10)).toBe(3));
+    it('割り切れなければ切り上げ（31/10=4）', () => expect(C.containersNeeded(31, 10)).toBe(4));
+    it('1本あたり0（積載不可）は null（Infinityにしない）', () => expect(C.containersNeeded(30, 0)).toBe(null));
+    it('数量0は null', () => expect(C.containersNeeded(0, 10)).toBe(null));
+    it('負の数量は null', () => expect(C.containersNeeded(-5, 10)).toBe(null));
+    it('負の積載数は null', () => expect(C.containersNeeded(30, -2)).toBe(null));
+  });
+
   describe('SharedCalc.cbmFactor — 単位→m換算係数', () => {
     it('cm = 0.01', () => expect(C.cbmFactor('cm')).toBe(0.01));
     it('mm = 0.001', () => expect(C.cbmFactor('mm')).toBe(0.001));

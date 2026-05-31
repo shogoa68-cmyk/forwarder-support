@@ -773,20 +773,21 @@
   }
 
   function _rowCbm(e) {
-    const l = parseFloat(e.l) || 0, w = parseFloat(e.w) || 0, h = parseFloat(e.h) || 0;
-    const q = parseInt(e.qty, 10) || 0;
+    // 負値・NaN は 0 に丸める（負の CBM を防ぐ。docs/バグ台帳.md の I）
+    const l = SharedCalc.nonNeg(e.l), w = SharedCalc.nonNeg(e.w), h = SharedCalc.nonNeg(e.h);
+    const q = SharedCalc.nonNeg(parseInt(e.qty, 10));
     return (l * w * h / 1000000) * q; // cm³ → m³
   }
 
   function _updatePackingTotals() {
     let totQty = 0, totCbm = 0, totKg = 0, totVolWt = 0;
     _packingEntries.forEach(e => {
-      const q = parseInt(e.qty, 10) || 0;
+      const q = SharedCalc.nonNeg(parseInt(e.qty, 10));
       totQty += q;
       totCbm += _rowCbm(e);
-      totKg  += (parseFloat(e.kg) || 0) * q;   // 重量は1個あたり × 個数
+      totKg  += SharedCalc.nonNeg(e.kg) * q;   // 重量は1個あたり × 個数
       // 容積重量(kg) = 長さ×幅×高さ(cm) ÷ 6000 × 個数（航空 CW 用）
-      const l = parseFloat(e.l) || 0, w = parseFloat(e.w) || 0, h = parseFloat(e.h) || 0;
+      const l = SharedCalc.nonNeg(e.l), w = SharedCalc.nonNeg(e.w), h = SharedCalc.nonNeg(e.h);
       totVolWt += (l * w * h / 6000) * q;
     });
     // R/T・CW は SharedCalc に一本化（docs/バグ台帳.md F）。

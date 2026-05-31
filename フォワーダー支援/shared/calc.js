@@ -16,6 +16,8 @@
 //    SharedCalc.suggestContainers(cbm, kg)  : Array<{name, count}>
 //    SharedCalc.grossMarginPct(bill, cost)  : number  // 粗利率(%) = (売上-原価)/売上×100
 //    SharedCalc.markupPct(bill, cost)       : number  // マークアップ率(%) = (売上-原価)/原価×100
+//    SharedCalc.nonNeg(v)                   : number  // 負値/NaN/Infinity → 0（入力健全化）
+//    SharedCalc.containersNeeded(qty, per)  : number|null // 必要本数。per=0/qty=0 は null（0除算防止）
 //
 //  単位変換:
 //    cm → m: ×0.01    mm → m: ×0.001    in → m: ×0.0254    m → m: ×1
@@ -31,6 +33,14 @@ window.SharedCalc = (function () {
   // ---- 単位係数 ----
   const TO_M  = { cm: 0.01, mm: 0.001, in: 0.0254, m: 1 };
   const TO_CM = { cm: 1,    mm: 0.1,   in: 2.54,   m: 100 };
+
+  // ---- 入力の健全化（docs/バグ台帳.md の I）----
+  // 寸法・重量・数量は負値を取り得ない。負値・NaN・非数は 0 に丸めて
+  // 負の CBM/CW/運賃が生じるのを防ぐ。各計算の入口で通す。
+  function nonNeg(v) {
+    const n = typeof v === 'number' ? v : parseFloat(v);
+    return (isFinite(n) && n > 0) ? n : 0;
+  }
 
   function cbmFactor(unit) {
     return TO_M[unit] || TO_M.cm;
@@ -95,6 +105,15 @@ window.SharedCalc = (function () {
     return Math.max(cbm || 0, (weightKg || 0) / 1000);
   }
 
+  /** 必要コンテナ本数 = ceil(数量 / 1本あたり積載数)。
+   *  1本あたり 0（＝箱がコンテナに入らない）や数量0なら null（算出不能/積載不可）を返す。
+   *  Math.ceil(qty/0)=Infinity の暴走を防ぐ（docs/バグ台帳.md の H）。 */
+  function containersNeeded(qty, perContainer) {
+    const q = nonNeg(qty), per = nonNeg(perContainer);
+    if (q <= 0 || per <= 0) return null;
+    return Math.ceil(q / per);
+  }
+
   // ---- 標準コンテナ仕様（CBM 容積／最大ペイロード） ----
   // maxKg: 日本国内陸送を含む場合の実務的推奨上限（道路法・軸重制限考慮）。
   // 海上輸送のみ（ISO上限）は 20'GP ≒ 28,230 kg だが国内トラック輸送時は 21,500 kg が安全圏。
@@ -144,11 +163,13 @@ window.SharedCalc = (function () {
   }
 
   return {
+    nonNeg,
     cbmFactor,
     cbmFromCm, saiFromCm,
     cbmFromAny, saiFromAny,
     airVolWeight, airVolWeightFromCbm, airCw, airChargeableWeight, fmtCw,
     lclRt,
+    containersNeeded,
     containerSpecs,
     suggestContainers,
     grossMarginPct, markupPct,
