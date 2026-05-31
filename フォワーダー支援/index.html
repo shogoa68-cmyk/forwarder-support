@@ -2742,6 +2742,7 @@
                         onclick="toggleRowToolsDetail(this)"
                         title="カテゴリ一括変更・行パターン・CSV読み込み・リセット">⋯ 詳細操作 <span class="caret">▼</span></button>
                 <span class="cmdbar-spacer"></span>
+                <button class="cmdbar-calc-btn" onclick="toggleCalcWidget()" title="フローティング電卓">🧮</button>
                 <div id="quoteFxBar" class="quote-fx-bar" title="JPY換算に使用中の為替レート（為替レート設定で変更可）"></div>
                 <details class="cmdbar-gear" id="cmdbarGear">
                   <summary class="cmdbar-gear-summary" onclick="renderFxPanel(); renderUserCatPanel();" title="為替レート・カスタムカテゴリの設定">⚙ 設定</summary>
@@ -3276,5 +3277,35 @@
   </div>
 </div>
 
+<!-- ======= フローティング電卓ウィジェット ======= -->
+<div id="calcWidget">
+  <div class="calc-hd" id="calcHandle">🧮 電卓
+    <button class="calc-x" onclick="closeCalcWidget()" title="閉じる">✕</button>
+  </div>
+  <div class="calc-sub" id="calcSub"></div>
+  <div class="calc-disp" id="calcDisplay">0</div>
+  <div class="calc-grid">
+    <button class="calc-fn" onclick="calcKey('C')">C</button>
+    <button class="calc-fn" onclick="calcKey('±')">±</button>
+    <button class="calc-fn" onclick="calcKey('%')">%</button>
+    <button class="calc-op" onclick="calcKey('÷')">÷</button>
+    <button onclick="calcKey('7')">7</button>
+    <button onclick="calcKey('8')">8</button>
+    <button onclick="calcKey('9')">9</button>
+    <button class="calc-op" onclick="calcKey('×')">×</button>
+    <button onclick="calcKey('4')">4</button>
+    <button onclick="calcKey('5')">5</button>
+    <button onclick="calcKey('6')">6</button>
+    <button class="calc-op" onclick="calcKey('−')">−</button>
+    <button onclick="calcKey('1')">1</button>
+    <button onclick="calcKey('2')">2</button>
+    <button onclick="calcKey('3')">3</button>
+    <button class="calc-op calc-plus-span" onclick="calcKey('+')">+</button>
+    <button class="calc-zero" onclick="calcKey('0')">0</button>
+    <button onclick="calcKey('.')">.</button>
+    <button class="calc-eq" onclick="calcKey('=')">=</button>
+    <button class="calc-fn calc-bs" onclick="calcKey('←')">←</button>
+  </div>
+</div>
 </body>
 </html>

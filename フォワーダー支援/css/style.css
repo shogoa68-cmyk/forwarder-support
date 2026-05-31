@@ -1150,3 +1150,104 @@ body:has(#compareOverlay.open) #quoteActionDock { display: none; }
   border: 1.5px solid var(--border-md);
 }
 #quoteActionDock .qad-compare:hover { background: var(--accent-lt); }
+
+/* ===========================================================
+   フローティング電卓ウィジェット（サイト全体スコープ）
+   =========================================================== */
+#calcWidget {
+  display: none;
+  position: fixed;
+  right: 20px;
+  bottom: 80px;
+  z-index: 10050;
+  width: 220px;
+  background: #1c1c1e;
+  border-radius: 14px;
+  box-shadow: 0 12px 40px rgba(0,0,0,0.55);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  overflow: hidden;
+  user-select: none;
+}
+#calcWidget.open { display: block; }
+.calc-hd {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px 6px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #fffde8;
+  cursor: grab;
+  background: #2c2c2e;
+}
+.calc-hd:active { cursor: grabbing; }
+.calc-x {
+  background: none; border: none; color: #aaa;
+  font-size: 14px; cursor: pointer; padding: 0 2px; line-height: 1;
+}
+.calc-x:hover { color: #fff; }
+.calc-sub {
+  min-height: 16px;
+  text-align: right;
+  padding: 2px 14px 0;
+  font-size: 11px;
+  color: #888;
+  font-variant-numeric: tabular-nums;
+}
+.calc-disp {
+  text-align: right;
+  padding: 4px 14px 10px;
+  font-size: 28px;
+  font-weight: 300;
+  color: #fff;
+  letter-spacing: -0.5px;
+  font-variant-numeric: tabular-nums;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.calc-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1px;
+  background: #3a3a3c;
+  padding: 0 0 1px;
+}
+.calc-grid button {
+  background: #2c2c2e;
+  border: none;
+  color: #fff;
+  font-size: 18px;
+  font-family: inherit;
+  padding: 16px 0;
+  cursor: pointer;
+  transition: background 0.1s;
+  line-height: 1;
+}
+.calc-grid button:hover  { background: #3a3a3c; }
+.calc-grid button:active { background: #636366; }
+.calc-fn { color: #ddd; background: #3a3a3c !important; font-size: 16px !important; }
+.calc-fn:hover { background: #48484a !important; }
+.calc-op, .calc-eq {
+  background: #ff9f0a !important;
+  color: #fff !important;
+  font-weight: 600;
+}
+.calc-op:hover, .calc-eq:hover { background: #ffc34d !important; }
+.calc-op:active, .calc-eq:active { background: #cc7a00 !important; }
+.calc-zero { grid-column: span 2; }
+.calc-bs { font-size: 14px !important; }
+/* コマンドバー内の電卓トグルボタン */
+#tab-quote-make .cmdbar-calc-btn {
+  height: 28px;
+  padding: 0 10px;
+  font-size: 15px;
+  border: 1px solid #d9cfc2;
+  border-radius: 3px;
+  background: #fff;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  box-sizing: border-box;
+}
+#tab-quote-make .cmdbar-calc-btn:hover { background: #f0e8d8; }

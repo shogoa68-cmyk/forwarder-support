@@ -1906,6 +1906,68 @@
     });
   }
 
+  // ========== フローティング電卓 ==========
+  (function initCalcWidget() {
+    const w = document.getElementById('calcWidget');
+    if (!w) return;
+    let expr = '', prevResult = null;
+    const disp = document.getElementById('calcDisplay');
+    const subDisp = document.getElementById('calcSub');
+    const SAFE_RE = /^[0-9+\-*/.() ]+$/;
+    function setDisp(v) { disp.textContent = v; }
+    function setSub(v)  { subDisp.textContent = v; }
+    window.calcKey = function(k) {
+      if (k === 'C')  { expr = ''; prevResult = null; setDisp('0'); setSub(''); return; }
+      if (k === '←') { expr = expr.slice(0, -1); setDisp(expr || '0'); return; }
+      if (k === '=') {
+        try {
+          const safe = expr.replace(/×/g,'*').replace(/÷/g,'/').replace(/−/g,'-');
+          if (!SAFE_RE.test(safe)) { setDisp('エラー'); expr = ''; return; }
+          const r = Function('"use strict"; return (' + safe + ')')();
+          const rounded = parseFloat(r.toFixed(10));
+          setSub(expr + ' =');
+          expr = String(rounded);
+          setDisp(rounded.toLocaleString());
+          prevResult = rounded;
+        } catch { setDisp('エラー'); expr = ''; setSub(''); }
+        return;
+      }
+      if (k === '%') {
+        try {
+          const safe = expr.replace(/×/g,'*').replace(/÷/g,'/').replace(/−/g,'-');
+          if (!SAFE_RE.test(safe)) { setDisp('エラー'); expr = ''; return; }
+          const r = parseFloat((Function('"use strict"; return (' + safe + ')')() / 100).toFixed(10));
+          expr = String(r); setDisp(r.toLocaleString()); prevResult = r;
+        } catch { setDisp('エラー'); expr = ''; }
+        return;
+      }
+      // 演算子入力直後に数字が来たら前の結果から継続
+      if (prevResult !== null && /[0-9.]/.test(k) && /[+\-×÷−]$/.test(expr)) prevResult = null;
+      expr += k;
+      setDisp(expr);
+    };
+    window.toggleCalcWidget = function() { w.classList.toggle('open'); };
+    window.closeCalcWidget  = function() { w.classList.remove('open'); };
+    // ドラッグ（tweaks.js の makeDraggable と同パターン）
+    const handle = document.getElementById('calcHandle');
+    if (handle) {
+      let sx = 0, sy = 0, ox = 0, oy = 0, drag = false;
+      handle.addEventListener('mousedown', e => {
+        if (e.target.classList.contains('calc-x')) return;
+        drag = true; sx = e.clientX; sy = e.clientY;
+        const r = w.getBoundingClientRect(); ox = r.left; oy = r.top;
+        e.preventDefault();
+      });
+      document.addEventListener('mousemove', e => {
+        if (!drag) return;
+        w.style.left = (ox + e.clientX - sx) + 'px';
+        w.style.top  = (oy + e.clientY - sy) + 'px';
+        w.style.right = 'auto'; w.style.bottom = 'auto';
+      });
+      document.addEventListener('mouseup', () => { drag = false; });
+    }
+  })();
+
   // ===== 案件情報（管理番号入力）を右サマリパネルに常時表示 =====
   function fmtJpDate(iso) {
     if (!iso) return '';

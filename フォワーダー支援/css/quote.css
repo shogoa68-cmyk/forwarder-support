@@ -620,6 +620,15 @@
 #tab-quote-make .t-cost { color: #c9a227; }
 #tab-quote-make .t-sell { color: #bde8c8; }
 #tab-quote-make .hd-sub { font-weight: 400; font-size: 9px; opacity: 0.95; }
+/* 課税行 st セル：消費税ヒント */
+#tab-quote-make .tax-hint {
+  display: block;
+  font-size: 9.5px;
+  color: #9b7a00;
+  font-weight: 500;
+  line-height: 1.4;
+  white-space: nowrap;
+}
 
 /* スタックセル本体 */
 #tab-quote-make .stk-cell { padding: 2px 3px !important; }

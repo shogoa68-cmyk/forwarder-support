@@ -336,8 +336,8 @@
       tr.classList.remove('taxed');
       if (nm.value.startsWith('*')) nm.value = nm.value.slice(1);
     }
-    // 消費税サマリ（課税合計・免税合計・消費税額・税込合計）をリアルタイム更新
-    updateTotals();
+    // 消費税サマリ更新 + st セルの消費税表示を再描画（calc が updateTotals を内包）
+    calc(id);
   }
 
   // ========== 計算 ==========
@@ -368,15 +368,20 @@
     const subtotal = bq * bp;             // 行の請求小計（数量 × 単価）
     const profit   = subtotal - pq * pp;  // 行の利益（小計 - 支払い合計）
     const canFx = typeof toJPY === 'function';
+    const taxed = document.getElementById(`tx-${id}`)?.checked;
     // 小計セル
     const st = document.getElementById(`st-${id}`);
     if (st) {
+      let stHTML;
       if (bc !== 'JPY' && canFx && subtotal) {
         const jpySub = Math.ceil(toJPY(subtotal, bc));
-        st.innerHTML = fmt(subtotal) + '<br><small class="jpy-conv-hint">(≈¥' + fmt(jpySub) + ')</small>';
+        stHTML = fmt(subtotal) + '<br><small class="jpy-conv-hint">(≈¥' + fmt(jpySub) + ')</small>';
+        if (taxed) stHTML += '<br><small class="tax-hint">（消費税：≈¥' + fmt(Math.ceil(jpySub * 0.10)) + '）</small>';
       } else {
-        st.textContent = subtotal ? fmt(subtotal) : '—';
+        stHTML = subtotal ? fmt(subtotal) : '—';
+        if (taxed && subtotal) stHTML += '<br><small class="tax-hint">（消費税：' + fmt(Math.ceil(subtotal * 0.10)) + '円）</small>';
       }
+      st.innerHTML = stHTML;
       st.className = 'subtotal-cell' + (subtotal ? ' subtotal-has-value' : '');
     }
     // 利益セル
