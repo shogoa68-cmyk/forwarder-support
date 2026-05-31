@@ -184,8 +184,7 @@
           const r = (typeof _fxRates !== 'undefined' && _fxRates[c]) ? _fxRates[c] : null;
           return `<span class="fx-bar-rate"><b>1 ${c}</b> = ${r ? r.toLocaleString() : '—'} 円</span>`;
         }).join('')
-      + `<span class="fx-bar-src">${auto ? '🔄 自動取得' : '✎ 手動'}</span>`
-      + `<button type="button" class="fx-bar-edit" onclick="document.getElementById('fxRateDetails').open=true; renderFxPanel(); document.getElementById('fxRateDetails').scrollIntoView({block:'center',behavior:'smooth'});" title="為替レートを編集">設定</button>`;
+      + `<span class="fx-bar-src">${auto ? '🔄 自動取得' : '✎ 手動'}</span>`;
   };
 
   // ========== 為替レートパネル ==========
@@ -1900,6 +1899,11 @@
     });
     if (typeof window.updateQuoteRefEmpty === 'function') window.updateQuoteRefEmpty();
     window.updateQuoteSummary();
+    // ⚙設定ドロップダウンは外側クリックで閉じる（ネイティブ <details> は外側クリックで閉じないため）
+    document.addEventListener('click', function (e) {
+      const gear = document.getElementById('cmdbarGear');
+      if (gear && gear.open && !gear.contains(e.target)) gear.open = false;
+    });
   }
 
   // ===== 案件情報（管理番号入力）を右サマリパネルに常時表示 =====
