@@ -2707,9 +2707,92 @@
       <div id="tableWrap">
         <p class="section-desc">費用項目ごとに <b>支払い（仕入）</b> と <b>請求</b> の数量・通貨・単価を入力します。<b>③ 乗せ幅</b> を入力すると請求単価に自動加算、<b>④ 利益</b> 欄で粗利をリアルタイム確認できます。CSV インポートやカテゴリ順並び替えも利用可能です。<br>
         <span style="font-size:11px;color:var(--text-md);">💡 <b>項目名の先頭にある <code style="background:#fff;padding:1px 4px;border-radius:3px;">*</code> は課税項目を示します</b>（課税欄のチェックで自動付与）。プレビュー画面では消費税列に税額（10% 固定）が表示されます。</span><br>
-        <span style="font-size:11px;color:var(--text-md);">➕ <b>行を追加するには</b>：表の下の「追加」グループ（＋行 ／ ＝小計 ／ 💬リマーク。挿入位置は「末尾／選択行の下」を選択可）、Tab キー（最終行で次行を自動追加）、または Ctrl+K から「行を追加」を選択してください。</span></p>
+        <span style="font-size:11px;color:var(--text-md);">➕ <b>行を追加するには</b>：表の上のツールバー「追加」グループ（＋行 ／ ＝小計 ／ 💬リマーク。挿入位置は「末尾／選択行の下」を選択可）、Tab キー（最終行で次行を自動追加）、または Ctrl+K から「行を追加」を選択してください。</span></p>
         <div class="container">
-          <div id="quoteFxBar" class="quote-fx-bar" title="JPY換算に使用中の為替レート（為替レート設定で変更可）"></div>
+          <!-- 統合コマンドバー：行操作・選択行・換算レート表示・⚙設定（為替/カテゴリ）を集約 -->
+          <div class="quote-cmdbar">
+            <div class="table-btn-group">
+              <div class="btn-group-row">
+                <span class="btn-group-label">追加</span>
+                <button class="btn-ins-row" onclick="toolbarInsertRow()" title="費用行を追加">＋ 行</button>
+                <button class="btn-ins-sub" onclick="toolbarInsertSubtotal()" title="小計行を追加">＝ 小計</button>
+                <button class="btn-ins-rem" onclick="toolbarInsertRemark()" title="リマーク（注記）行を追加">💬 リマーク</button>
+                <select id="rowInsertPos" class="row-insert-pos" title="追加ボタンの挿入位置">
+                  <option value="end">末尾に追加</option>
+                  <option value="selected">選択行の下に挿入</option>
+                </select>
+                <span class="btn-group-sep" aria-hidden="true">|</span>
+                <span class="btn-group-label">行操作</span>
+                <select class="sort-type-select" title="並び替え種別を選択すると即実行"
+                        onchange="if(this.value){sortBy(this.value);this.value=''}">
+                  <option value="">🔀 並び替え ▼</option>
+                  <option value="category">🗂️ カテゴリー順</option>
+                  <option value="currency">💱 通貨毎</option>
+                  <option value="unit">📦 単位毎</option>
+                  <option value="tax">✱ 課税順（課税→非課税）</option>
+                  <option value="subcon">🔗 サブコン毎</option>
+                </select>
+                <button class="btn-clean-empty" onclick="deleteEmptyRows()" title="未入力（グレーアウト）の行をまとめて削除">🧹 未入力行を削除</button>
+                <span class="btn-group-sep" aria-hidden="true">|</span>
+                <span class="btn-group-label">選択行</span>
+                <button class="btn-bulk-copy"   onclick="copySelectedRows()" title="チェックした行を複製">📋 コピー</button>
+                <button class="btn-bulk-delete" onclick="deleteSelectedRows()" title="チェックした行を削除">🗑️ 削除</button>
+                <button class="btn-tooldetail-toggle" id="rowToolsToggle" type="button"
+                        aria-expanded="false" aria-controls="rowToolsDetail"
+                        onclick="toggleRowToolsDetail(this)"
+                        title="カテゴリ一括変更・行パターン・CSV読み込み・リセット">⋯ 詳細操作 <span class="caret">▼</span></button>
+                <span class="cmdbar-spacer"></span>
+                <button class="cmdbar-calc-btn" onclick="toggleCalcWidget()" title="フローティング電卓">🧮</button>
+                <div id="quoteFxBar" class="quote-fx-bar" title="JPY換算に使用中の為替レート（為替レート設定で変更可）"></div>
+                <details class="cmdbar-gear" id="cmdbarGear">
+                  <summary class="cmdbar-gear-summary" onclick="renderFxPanel(); renderUserCatPanel();" title="為替レート・カスタムカテゴリの設定">⚙ 設定</summary>
+                  <div class="cmdbar-gear-pop">
+                    <div id="fxRatePanel">
+                      <details id="fxRateDetails" open>
+                        <summary onclick="renderFxPanel()">💱 為替レート設定（JPY換算用：USD / EUR / GBP / CNY）</summary>
+                        <div class="fx-mode-bar">
+                          <label class="fx-mode-label">
+                            <input type="checkbox" id="fxAutoModeChk"
+                                   onchange="onFxAutoModeChange(this.checked)" />
+                            起動時に自動取得
+                          </label>
+                          <button type="button" id="fxFetchBtn" class="fx-fetch-btn" onclick="doFetchFxRates()">🔄 今すぐ取得</button>
+                          <span id="fxLastFetched" class="fx-last-fetched"></span>
+                        </div>
+                        <div id="fxRateGrid"></div>
+                        <div style="margin-top:6px; font-size:11px; color:#888;">※ 合計行にJPY換算額を表示します。自動取得はopen.er-api.comを使用します。</div>
+                      </details>
+                    </div>
+                    <div id="userCatPanel">
+                      <details id="userCatDetails" open>
+                        <summary>🏷️ カスタムカテゴリ管理</summary>
+                        <div id="userCatList" class="user-cat-list"></div>
+                        <div class="user-cat-add-row">
+                          <input type="text" id="newCatInput" class="user-cat-input"
+                                 placeholder="例）🔴 スポット費用"
+                                 maxlength="20"
+                                 onkeydown="if(event.key==='Enter')doAddUserCat()" />
+                          <button type="button" class="user-cat-add-btn" onclick="doAddUserCat()">＋ 追加</button>
+                        </div>
+                        <div style="margin-top:5px; font-size:11px; color:#888;">※ カテゴリ削除後、そのカテゴリが設定された行は「未設定」になります。<br>※ カスタムカテゴリはブラウザの localStorage に保存されます（同じブラウザ内のみ有効）。</div>
+                      </details>
+                    </div>
+                  </div>
+                </details>
+              </div>
+              <div class="btn-group-row row-tools-detail" id="rowToolsDetail" hidden>
+                <span class="btn-group-label">カテゴリ一括</span>
+                <select id="bulkCatSelect" class="bulk-cat-select" title="対象カテゴリ（選択／一括変更で共有）"></select>
+                <button class="btn-bulk-cat-pick" onclick="selectByCategory()" title="このカテゴリの行をすべてチェック">✅ 同カテゴリ選択</button>
+                <button class="btn-bulk-cat"     onclick="applyBulkCategory()" title="チェックした行のカテゴリをこのカテゴリへ一括変更">🏷️ カテゴリ変更</button>
+                <span class="btn-group-sep" aria-hidden="true">|</span>
+                <button class="btn-bulk-pattern" onclick="openRowPatternMgr()" title="チェックした行を名前付きで保存・末尾に追加で読込">🗂️ 行パターン</button>
+                <span class="btn-group-sep" aria-hidden="true">|</span>
+                <button class="btn-csv-import" onclick="toggleCsvZone()">📂 CSV読み込み</button>
+                <button class="btn-reset"      onclick="resetAll()">リセット</button>
+              </div>
+            </div>
+          </div>
           <div id="tableScrollWrap">
           <table id="quoteTable">
             <thead>
@@ -2748,82 +2831,6 @@
               </tr>
             </tfoot>
           </table>
-          </div>
-          <div class="table-btn-group">
-            <div class="btn-group-row">
-              <span class="btn-group-label">追加</span>
-              <button class="btn-ins-row" onclick="toolbarInsertRow()" title="費用行を追加">＋ 行</button>
-              <button class="btn-ins-sub" onclick="toolbarInsertSubtotal()" title="小計行を追加">＝ 小計</button>
-              <button class="btn-ins-rem" onclick="toolbarInsertRemark()" title="リマーク（注記）行を追加">💬 リマーク</button>
-              <select id="rowInsertPos" class="row-insert-pos" title="追加ボタンの挿入位置">
-                <option value="end">末尾に追加</option>
-                <option value="selected">選択行の下に挿入</option>
-              </select>
-              <span class="btn-group-sep" aria-hidden="true">|</span>
-              <span class="btn-group-label">行操作</span>
-              <select class="sort-type-select" title="並び替え種別を選択すると即実行"
-                      onchange="if(this.value){sortBy(this.value);this.value=''}">
-                <option value="">🔀 並び替え ▼</option>
-                <option value="category">🗂️ カテゴリー順</option>
-                <option value="currency">💱 通貨毎</option>
-                <option value="unit">📦 単位毎</option>
-                <option value="tax">✱ 課税順（課税→非課税）</option>
-                <option value="subcon">🔗 サブコン毎</option>
-              </select>
-              <button class="btn-clean-empty" onclick="deleteEmptyRows()" title="未入力（グレーアウト）の行をまとめて削除">🧹 未入力行を削除</button>
-              <span class="btn-group-sep" aria-hidden="true">|</span>
-              <span class="btn-group-label">選択行</span>
-              <button class="btn-bulk-copy"   onclick="copySelectedRows()" title="チェックした行を複製">📋 コピー</button>
-              <button class="btn-bulk-delete" onclick="deleteSelectedRows()" title="チェックした行を削除">🗑️ 削除</button>
-              <button class="btn-tooldetail-toggle" id="rowToolsToggle" type="button"
-                      aria-expanded="false" aria-controls="rowToolsDetail"
-                      onclick="toggleRowToolsDetail(this)"
-                      title="カテゴリ一括変更・行パターン・CSV読み込み・リセット">⋯ 詳細操作 <span class="caret">▼</span></button>
-            </div>
-            <div class="btn-group-row row-tools-detail" id="rowToolsDetail" hidden>
-              <span class="btn-group-label">カテゴリ一括</span>
-              <select id="bulkCatSelect" class="bulk-cat-select" title="対象カテゴリ（選択／一括変更で共有）"></select>
-              <button class="btn-bulk-cat-pick" onclick="selectByCategory()" title="このカテゴリの行をすべてチェック">✅ 同カテゴリ選択</button>
-              <button class="btn-bulk-cat"     onclick="applyBulkCategory()" title="チェックした行のカテゴリをこのカテゴリへ一括変更">🏷️ カテゴリ変更</button>
-              <span class="btn-group-sep" aria-hidden="true">|</span>
-              <button class="btn-bulk-pattern" onclick="openRowPatternMgr()" title="チェックした行を名前付きで保存・末尾に追加で読込">🗂️ 行パターン</button>
-              <span class="btn-group-sep" aria-hidden="true">|</span>
-              <button class="btn-csv-import" onclick="toggleCsvZone()">📂 CSV読み込み</button>
-              <button class="btn-reset"      onclick="resetAll()">リセット</button>
-            </div>
-          </div>
-          <div class="table-settings-row">
-            <span class="btn-group-label">⚙ 設定</span>
-            <div id="fxRatePanel">
-              <details id="fxRateDetails">
-                <summary onclick="renderFxPanel()">💱 為替レート設定（JPY換算用：USD / EUR / GBP / CNY）</summary>
-                <div class="fx-mode-bar">
-                  <label class="fx-mode-label">
-                    <input type="checkbox" id="fxAutoModeChk"
-                           onchange="onFxAutoModeChange(this.checked)" />
-                    起動時に自動取得
-                  </label>
-                  <button type="button" id="fxFetchBtn" class="fx-fetch-btn" onclick="doFetchFxRates()">🔄 今すぐ取得</button>
-                  <span id="fxLastFetched" class="fx-last-fetched"></span>
-                </div>
-                <div id="fxRateGrid"></div>
-                <div style="margin-top:6px; font-size:11px; color:#888;">※ 合計行にJPY換算額を表示します。自動取得はopen.er-api.comを使用します。</div>
-              </details>
-            </div>
-            <div id="userCatPanel">
-              <details id="userCatDetails">
-                <summary>🏷️ カスタムカテゴリ管理</summary>
-                <div id="userCatList" class="user-cat-list"></div>
-                <div class="user-cat-add-row">
-                  <input type="text" id="newCatInput" class="user-cat-input"
-                         placeholder="例）🔴 スポット費用"
-                         maxlength="20"
-                         onkeydown="if(event.key==='Enter')doAddUserCat()" />
-                  <button type="button" class="user-cat-add-btn" onclick="doAddUserCat()">＋ 追加</button>
-                </div>
-                <div style="margin-top:5px; font-size:11px; color:#888;">※ カテゴリ削除後、そのカテゴリが設定された行は「未設定」になります。<br>※ カスタムカテゴリはブラウザの localStorage に保存されます（同じブラウザ内のみ有効）。</div>
-              </details>
-            </div>
           </div>
           <div id="csvDropZone" onclick="document.getElementById('csvFileInput').click()"
                ondragover="onDragOver(event)" ondragleave="onDragLeave(event)" ondrop="onDrop(event)">
@@ -3270,5 +3277,35 @@
   </div>
 </div>
 
+<!-- ======= フローティング電卓ウィジェット ======= -->
+<div id="calcWidget">
+  <div class="calc-hd" id="calcHandle">🧮 電卓
+    <button class="calc-x" onclick="closeCalcWidget()" title="閉じる">✕</button>
+  </div>
+  <div class="calc-sub" id="calcSub"></div>
+  <div class="calc-disp" id="calcDisplay">0</div>
+  <div class="calc-grid">
+    <button class="calc-fn" onclick="calcKey('C')">C</button>
+    <button class="calc-fn" onclick="calcKey('±')">±</button>
+    <button class="calc-fn" onclick="calcKey('%')">%</button>
+    <button class="calc-op" onclick="calcKey('÷')">÷</button>
+    <button onclick="calcKey('7')">7</button>
+    <button onclick="calcKey('8')">8</button>
+    <button onclick="calcKey('9')">9</button>
+    <button class="calc-op" onclick="calcKey('×')">×</button>
+    <button onclick="calcKey('4')">4</button>
+    <button onclick="calcKey('5')">5</button>
+    <button onclick="calcKey('6')">6</button>
+    <button class="calc-op" onclick="calcKey('−')">−</button>
+    <button onclick="calcKey('1')">1</button>
+    <button onclick="calcKey('2')">2</button>
+    <button onclick="calcKey('3')">3</button>
+    <button class="calc-op calc-plus-span" onclick="calcKey('+')">+</button>
+    <button class="calc-zero" onclick="calcKey('0')">0</button>
+    <button onclick="calcKey('.')">.</button>
+    <button class="calc-eq" onclick="calcKey('=')">=</button>
+    <button class="calc-fn calc-bs" onclick="calcKey('←')">←</button>
+  </div>
+</div>
 </body>
 </html>

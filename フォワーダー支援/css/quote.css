@@ -550,6 +550,69 @@
 }
 #tab-quote-make .quote-fx-bar .fx-bar-edit:hover { background: #f0e8d8; }
 
+/* ===========================================================
+   統合コマンドバー（行操作・選択行・換算レート表示・⚙設定 を集約）
+   =========================================================== */
+#tab-quote-make .quote-cmdbar { margin: 8px 0 10px; }
+/* バー内に収めた行操作ツール群（独立配置時の余白・クリップを解除） */
+#tab-quote-make .quote-cmdbar .table-btn-group { margin: 0; overflow: visible; }
+/* バーに収めた換算レート表示は枠なしのインライン表示にする */
+#tab-quote-make .quote-cmdbar .quote-fx-bar {
+  margin: 0;
+  padding: 2px 6px;
+  background: transparent;
+  border: none;
+}
+/* 左の行操作グループと右の換算レート／⚙設定 を押し分ける可変スペーサー */
+#tab-quote-make .cmdbar-spacer { flex: 1 1 12px; min-width: 8px; }
+
+/* ⚙ 設定（為替レート＋カスタムカテゴリをまとめたドロップダウン） */
+#tab-quote-make .cmdbar-gear { position: relative; }
+#tab-quote-make .cmdbar-gear > summary.cmdbar-gear-summary {
+  list-style: none;
+  cursor: pointer;
+  height: 28px;
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0 12px;
+  font-size: 11px;
+  font-weight: 700;
+  color: #5a4a35;
+  background: #f0e8d8;
+  border: 1px solid #d9cfc2;
+  border-radius: 3px;
+  white-space: nowrap;
+  user-select: none;
+}
+#tab-quote-make .cmdbar-gear > summary.cmdbar-gear-summary::-webkit-details-marker { display: none; }
+#tab-quote-make .cmdbar-gear > summary.cmdbar-gear-summary:hover { background: #e8ddc6; }
+#tab-quote-make .cmdbar-gear[open] > summary.cmdbar-gear-summary {
+  background: #e3d6bb; border-color: #c9b98f;
+}
+#tab-quote-make .cmdbar-gear-pop {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 60;
+  width: 600px;
+  max-width: 92vw;
+  max-height: 70vh;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+  background: #fff;
+  border: 1px solid #d9cfc2;
+  border-radius: 8px;
+  box-shadow: 0 10px 30px rgba(60, 48, 30, 0.22);
+}
+@media (max-width: 700px) {
+  #tab-quote-make .cmdbar-gear-pop { width: 92vw; right: auto; left: 0; }
+}
+
 
 /* ===========================================================
    案1：スタックセル（支払い=仕／請求=売 を上下2段に統合）
@@ -557,6 +620,15 @@
 #tab-quote-make .t-cost { color: #c9a227; }
 #tab-quote-make .t-sell { color: #bde8c8; }
 #tab-quote-make .hd-sub { font-weight: 400; font-size: 9px; opacity: 0.95; }
+/* 課税行 st セル：消費税ヒント */
+#tab-quote-make .tax-hint {
+  display: block;
+  font-size: 9.5px;
+  color: #9b7a00;
+  font-weight: 500;
+  line-height: 1.4;
+  white-space: nowrap;
+}
 
 /* スタックセル本体 */
 #tab-quote-make .stk-cell { padding: 2px 3px !important; }
@@ -3683,7 +3755,9 @@
 #tab-quote-make .save-toolbar { position: static; padding: 6px 10px; gap: 5px; flex-wrap: wrap; box-shadow: none; }
 #tab-quote-make .save-btn { padding: 4px 9px; font-size: 11px; }
 #tab-quote-make h1 { font-size: 15px; }
-#tab-quote-make .container { padding: 10px; overflow-x: auto; }
+/* overflow-x:auto は overflow-y も auto に昇格し ⚙設定ドロップダウンを切り取るため visible に。
+   テーブルの横スクロールは #tableScrollWrap が独自に担うので container 側は不要 */
+#tab-quote-make .container { padding: 10px; overflow: visible; }
 #tab-quote-make .condition-grid { grid-template-columns: 1fr; }
 #tab-quote-make .scope-btns { gap: 5px; }
 #tab-quote-make .scope-btn { padding: 5px 10px; font-size: 11px; }

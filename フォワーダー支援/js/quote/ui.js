@@ -184,8 +184,7 @@
           const r = (typeof _fxRates !== 'undefined' && _fxRates[c]) ? _fxRates[c] : null;
           return `<span class="fx-bar-rate"><b>1 ${c}</b> = ${r ? r.toLocaleString() : '—'} 円</span>`;
         }).join('')
-      + `<span class="fx-bar-src">${auto ? '🔄 自動取得' : '✎ 手動'}</span>`
-      + `<button type="button" class="fx-bar-edit" onclick="document.getElementById('fxRateDetails').open=true; renderFxPanel(); document.getElementById('fxRateDetails').scrollIntoView({block:'center',behavior:'smooth'});" title="為替レートを編集">設定</button>`;
+      + `<span class="fx-bar-src">${auto ? '🔄 自動取得' : '✎ 手動'}</span>`;
   };
 
   // ========== 為替レートパネル ==========
@@ -1900,6 +1899,77 @@
     });
     if (typeof window.updateQuoteRefEmpty === 'function') window.updateQuoteRefEmpty();
     window.updateQuoteSummary();
+    // ⚙設定ドロップダウンは外側クリックで閉じる（ネイティブ <details> は外側クリックで閉じないため）
+    document.addEventListener('click', function (e) {
+      const gear = document.getElementById('cmdbarGear');
+      if (gear && gear.open && !gear.contains(e.target)) gear.open = false;
+    });
+  }
+
+  // ========== フローティング電卓 ==========
+  // グローバル関数はスクリプト評価時に定義（HTML の onclick から呼ばれるため）
+  // DOM アクセスは DOMContentLoaded 後に実行（電卓 HTML は </body> 直前のため）
+  {
+    let _calcExpr = '', _calcPrev = null;
+    const SAFE_RE = /^[0-9+\-*/.() ]+$/;
+    function _calcDisp(v)    { const el = document.getElementById('calcDisplay'); if (el) el.textContent = v; }
+    function _calcSub(v)     { const el = document.getElementById('calcSub');     if (el) el.textContent = v; }
+    window.calcKey = function(k) {
+      if (k === 'C')  { _calcExpr = ''; _calcPrev = null; _calcDisp('0'); _calcSub(''); return; }
+      if (k === '←') { _calcExpr = _calcExpr.slice(0, -1); _calcDisp(_calcExpr || '0'); return; }
+      if (k === '=') {
+        try {
+          const safe = _calcExpr.replace(/×/g,'*').replace(/÷/g,'/').replace(/−/g,'-');
+          if (!SAFE_RE.test(safe)) { _calcDisp('エラー'); _calcExpr = ''; return; }
+          const r = parseFloat(Function('"use strict"; return (' + safe + ')')().toFixed(10));
+          _calcSub(_calcExpr + ' =');
+          _calcExpr = String(r);
+          _calcDisp(r.toLocaleString());
+          _calcPrev = r;
+        } catch { _calcDisp('エラー'); _calcExpr = ''; _calcSub(''); }
+        return;
+      }
+      if (k === '%') {
+        try {
+          const safe = _calcExpr.replace(/×/g,'*').replace(/÷/g,'/').replace(/−/g,'-');
+          if (!SAFE_RE.test(safe)) { _calcDisp('エラー'); _calcExpr = ''; return; }
+          const r = parseFloat((Function('"use strict"; return (' + safe + ')')() / 100).toFixed(10));
+          _calcExpr = String(r); _calcDisp(r.toLocaleString()); _calcPrev = r;
+        } catch { _calcDisp('エラー'); _calcExpr = ''; }
+        return;
+      }
+      if (_calcPrev !== null && /[0-9.]/.test(k) && /[+\-×÷−]$/.test(_calcExpr)) _calcPrev = null;
+      _calcExpr += k;
+      _calcDisp(_calcExpr);
+    };
+    window.toggleCalcWidget = function() {
+      const w = document.getElementById('calcWidget');
+      if (w) w.classList.toggle('open');
+    };
+    window.closeCalcWidget = function() {
+      const w = document.getElementById('calcWidget');
+      if (w) w.classList.remove('open');
+    };
+    // ドラッグ設定は DOM 構築完了後（電卓 HTML は </body> 直前のため即実行不可）
+    document.addEventListener('DOMContentLoaded', function() {
+      const w = document.getElementById('calcWidget');
+      const handle = document.getElementById('calcHandle');
+      if (!w || !handle) return;
+      let sx = 0, sy = 0, ox = 0, oy = 0, drag = false;
+      handle.addEventListener('mousedown', e => {
+        if (e.target.classList.contains('calc-x')) return;
+        drag = true; sx = e.clientX; sy = e.clientY;
+        const r = w.getBoundingClientRect(); ox = r.left; oy = r.top;
+        e.preventDefault();
+      });
+      document.addEventListener('mousemove', e => {
+        if (!drag) return;
+        w.style.left = (ox + e.clientX - sx) + 'px';
+        w.style.top  = (oy + e.clientY - sy) + 'px';
+        w.style.right = 'auto'; w.style.bottom = 'auto';
+      });
+      document.addEventListener('mouseup', () => { drag = false; });
+    });
   }
 
   // ===== 案件情報（管理番号入力）を右サマリパネルに常時表示 =====
