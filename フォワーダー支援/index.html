@@ -2984,15 +2984,9 @@
         <div id="pvRemarkBox" style="display:none;"><strong>📝 条件・リマーク</strong></div>
         <div id="pvAuditMeta" class="pv-audit-meta"></div>
         <div class="pv-btns">
-          <button class="pv-btn-copy" onclick="copyTSV()">📑 クリップボードにコピー（Excel 貼り付け用）</button>
-          <button class="pv-btn-csv"  onclick="downloadCSV()">⬇ CSV ダウンロード</button>
-          <button class="pv-btn-excel" onclick="exportExcel()">📊 Excel 出力</button>
-          <button class="pv-btn-pdf"   onclick="exportPDF()">🖨️ PDF 出力（印刷）</button>
-          <button class="pv-btn-pdf" style="background:#1a3a6b;" onclick="openQuoteDoc()">📄 御見積書フォーマット</button>
+          <button class="pv-btn-pdf" style="background:#1a3a6b; color:#fff; border-color:#1a3a6b;" onclick="openQuoteDoc()">📄 御見積書フォーマット</button>
           <button class="pv-btn-email-plain" onclick="copyQuoteEmailPlain()" title="見積サマリをメール本文（プレーンテキスト）としてコピー">✉️ メール本文（プレーン）</button>
           <button class="pv-btn-email-rich" onclick="copyQuoteEmailRich()" title="見積サマリをメール本文（リッチテキスト／表組み）としてコピー">📧 メール本文（リッチ）</button>
-          <button class="pv-btn-client-excel" onclick="exportExcelAsClient()">👥 客先用 Excel</button>
-          <button class="pv-btn-client-pdf"   onclick="exportPDFAsClient()">👥 客先用 PDF</button>
           <button class="pv-btn-close" onclick="closePreview()">閉じる</button>
           <span class="pv-copy-msg" id="copyMsg">✅ コピーしました！</span>
         </div>
