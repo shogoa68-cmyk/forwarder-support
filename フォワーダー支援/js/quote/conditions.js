@@ -387,7 +387,14 @@
         showSaveStatus('✅ 保存しました ' + new Date().toLocaleTimeString('ja-JP', {hour:'2-digit',minute:'2-digit'}));
         quoteShowToast('💾 データを保存しました', 'success');
       }
-    } catch(e) { showSaveStatus('⚠️ 保存失敗: ' + e.message); }
+    } catch(e) {
+      if (e.name === 'QuotaExceededError' || e.name === 'NS_ERROR_DOM_QUOTA_REACHED') {
+        showSaveStatus('⚠️ 保存失敗: ストレージ容量不足');
+        quoteShowToast('⚠️ ストレージ容量が上限に達しました。古いプリセットを削除するか、JSONファイルに書き出してください', 'warn', 7000);
+      } else {
+        showSaveStatus('⚠️ 保存失敗: ' + e.message);
+      }
+    }
   }
 
   /** 自動保存データをページロード時に復元 */

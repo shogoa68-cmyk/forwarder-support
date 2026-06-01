@@ -2,7 +2,7 @@
 
   // ========== サイズ計算（calcRowCountはapp-constants.jsで宣言済み） ==========
 
-  function addCalcRow() {
+  function _legacyAddCalcRow() {
     // 旧・見積タブ内サイズ計算パネルは廃止（荷姿明細テーブルへ統合）。
     // #calcBody が無い環境では何もしない。
     if (!document.getElementById('calcBody')) return;

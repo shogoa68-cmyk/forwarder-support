@@ -1111,7 +1111,8 @@ button:focus-visible {
    ここはポータル全体（知識タブ・インコタームズ等）の印刷を改善する。 */
 @media print {
   .header, .cat-nav, .sub-nav, .footer,
-  .fb-fab, #fbOverlay, #toast-container, #quoteActionDock { display: none !important; }
+  .fb-fab, #fbOverlay, #toast-container, #quoteActionDock,
+  #calcWidget { display: none !important; }
 }
 
 /* ===== 見積アクションドック（右下フローティング・見積タブのみ） ===== */
@@ -1159,7 +1160,7 @@ body:has(#compareOverlay.open) #quoteActionDock { display: none; }
   position: fixed;
   right: 20px;
   bottom: 80px;
-  z-index: 10050;
+  z-index: 8800;
   width: 220px;
   background: #1c1c1e;
   border-radius: 14px;

@@ -135,8 +135,10 @@
 
   function csvEsc(v) {
     const s = String(v == null ? '' : v);
-    return (s.includes(',') || s.includes('"') || s.includes('\n') || s.includes('\r'))
-      ? '"' + s.replace(/"/g, '""') + '"' : s;
+    // 数式インジェクション対策（E-4）: 非数値で = + @ | 始まりの値に ' プレフィックス
+    const safe = /^[=+@|]/.test(s) && isNaN(parseFloat(s)) ? "'" + s : s;
+    return (safe.includes(',') || safe.includes('"') || safe.includes('\n') || safe.includes('\r'))
+      ? '"' + safe.replace(/"/g, '""') + '"' : safe;
   }
 
   function fmtRaw(n) {
@@ -175,7 +177,9 @@
       if (bc && bc !== 'JPY') used.add(bc);
     });
     const order = ['USD','EUR','GBP','CNY'];
-    const list = [...used].sort((a,b)=>order.indexOf(a)-order.indexOf(b));
+    // indexOf が -1 の通貨（order 外）は末尾へ（E-11: -1 の引き算で誤ソートを防ぐ）
+    const pos = c => { const i = order.indexOf(c); return i === -1 ? Infinity : i; };
+    const list = [...used].sort((a, b) => pos(a) - pos(b));
     if (!list.length) { bar.style.display = 'none'; bar.innerHTML = ''; return; }
     bar.style.display = 'flex';
     const auto = (typeof _fxAutoMode !== 'undefined' && _fxAutoMode);
@@ -400,7 +404,12 @@
     }
     const tbody = document.getElementById('tableBody');
     // querySelectorAll は document order を返すので、元の並びを保持
-    const srcRows = Array.from(checkboxes).map(chk => chk.closest('tr')).filter(Boolean);
+    // 小計行・リマーク行はコピー対象外（型混同を防止）（E-7）
+    const srcRows = Array.from(checkboxes).map(chk => chk.closest('tr')).filter(tr => tr && !tr.dataset.type);
+    if (!srcRows.length) {
+      quoteShowToast('⚠️ 小計行・リマーク行はコピーできません。通常行を選択してください', 'warn', 3000);
+      return;
+    }
     // 最後の選択行の直後を起点に、新行を順番に追加していく（anchor を更新して並び順を保持）
     let anchor = srcRows[srcRows.length - 1];
     srcRows.forEach(srcTr => {
@@ -466,7 +475,7 @@
   // Phase 2b：トップレベル即時実行 → initQuoteState() に集約し initQuoteTab() から呼ぶ
   function initQuoteState() {
     initRemarks();
-    addCalcRow();  // サイズ計算：初期行
+    _legacyAddCalcRow();  // 旧サイズ計算行（#calcBody が無ければ何もしない）
     addRow();      // 見積もり：初期行
     initFormulaInputs();    // フォーミュラ評価初期化
     // 自動保存の復元
@@ -1117,6 +1126,7 @@
       _version: 1,
       _app: 'フォワーダー支援',
       exportedAt: new Date().toISOString(),
+      _rowFormat: base._rowFormat,
       fields: base.fields,
       rows: base.rows,
       calcRows
@@ -1182,7 +1192,7 @@
       document.getElementById('calcBody').innerHTML = '';
       calcRowCount = 0;
       (data.calcRows || []).forEach(row => {
-        addCalcRow();
+        _legacyAddCalcRow();
         const tr = document.getElementById('calcBody').lastElementChild;
         if (!tr) return;
         if (row.pcs !== '') tr.querySelector('.calc-pcs').value   = row.pcs;
@@ -1296,14 +1306,12 @@
   // Ctrl+K（コマンドパレット）と他モーダル（cmdPalette/presetMgrModal/previewOverlay）
   // は見積タブ専用なので従来通りタブガード配下に残置。
   document.addEventListener('keydown', function(e) {
-    // 1) サイト全体 Esc → フィードバック/比較モーダルが開いていたら閉じる（タブ問わず）
-    if (e.key === 'Escape' && document.getElementById('fbOverlay')?.classList.contains('open')) {
-      closeFeedback();
-      return;
-    }
-    if (e.key === 'Escape' && document.getElementById('compareOverlay')?.classList.contains('open')) {
-      closeCompare();
-      return;
+    // 1) Esc: 優先度順に1つだけ閉じる（電卓 > fb/compare > 見積内モーダル）
+    if (e.key === 'Escape') {
+      const calcW = document.getElementById('calcWidget');
+      if (calcW?.classList.contains('open')) { closeCalcWidget(); return; }
+      if (document.getElementById('fbOverlay')?.classList.contains('open')) { closeFeedback(); return; }
+      if (document.getElementById('compareOverlay')?.classList.contains('open')) { closeCompare(); return; }
     }
     // 2) 以下は見積タブ active のときのみ動作
     const quoteTab = document.getElementById('tab-quote-make');
@@ -1341,11 +1349,11 @@
       if (typeof quoteRedo === 'function') quoteRedo();
       return;
     }
-    // Escape → 見積タブ内のモーダルをすべて閉じる
+    // Escape → 見積タブ内のモーダルをすべて閉じる（電卓・fb は上の優先度ブロックで処理済み）
     if (e.key === 'Escape') {
-      if (document.getElementById('cmdPalette')?.classList.contains('open'))     closeCmdPalette();
-      if (document.getElementById('presetMgrModal')?.classList.contains('open')) closePresetMgr();
-      if (document.getElementById('previewOverlay')?.classList.contains('open')) closePreview();
+      if (document.getElementById('cmdPalette')?.classList.contains('open'))     { closeCmdPalette(); return; }
+      if (document.getElementById('presetMgrModal')?.classList.contains('open')) { closePresetMgr(); return; }
+      if (document.getElementById('previewOverlay')?.classList.contains('open')) { closePreview(); return; }
     }
   });
 
@@ -1910,23 +1918,31 @@
   // グローバル関数はスクリプト評価時に定義（HTML の onclick から呼ばれるため）
   // DOM アクセスは DOMContentLoaded 後に実行（電卓 HTML は </body> 直前のため）
   {
-    let _calcExpr = '', _calcPrev = null;
+    let _calcExpr = '', _calcPrev = null, _justEvaled = false;
     const SAFE_RE = /^[0-9+\-*/.() ]+$/;
     function _calcDisp(v)    { const el = document.getElementById('calcDisplay'); if (el) el.textContent = v; }
     function _calcSub(v)     { const el = document.getElementById('calcSub');     if (el) el.textContent = v; }
     window.calcKey = function(k) {
-      if (k === 'C')  { _calcExpr = ''; _calcPrev = null; _calcDisp('0'); _calcSub(''); return; }
-      if (k === '←') { _calcExpr = _calcExpr.slice(0, -1); _calcDisp(_calcExpr || '0'); return; }
+      if (k === 'C')  { _calcExpr = ''; _calcPrev = null; _justEvaled = false; _calcDisp('0'); _calcSub(''); return; }
+      if (k === '←') { _justEvaled = false; _calcExpr = _calcExpr.slice(0, -1); _calcDisp(_calcExpr || '0'); return; }
+      if (k === '±') {
+        if (_calcExpr && _calcExpr !== '0') {
+          _calcExpr = _calcExpr.startsWith('-') ? _calcExpr.slice(1) : '-' + _calcExpr;
+          _calcDisp(_calcExpr);
+        }
+        return;
+      }
       if (k === '=') {
         try {
           const safe = _calcExpr.replace(/×/g,'*').replace(/÷/g,'/').replace(/−/g,'-');
-          if (!SAFE_RE.test(safe)) { _calcDisp('エラー'); _calcExpr = ''; return; }
+          if (!SAFE_RE.test(safe)) { _calcDisp('エラー'); _calcExpr = ''; _justEvaled = false; return; }
           const r = parseFloat(Function('"use strict"; return (' + safe + ')')().toFixed(10));
           _calcSub(_calcExpr + ' =');
           _calcExpr = String(r);
           _calcDisp(r.toLocaleString());
           _calcPrev = r;
-        } catch { _calcDisp('エラー'); _calcExpr = ''; _calcSub(''); }
+          _justEvaled = true;
+        } catch { _calcDisp('エラー'); _calcExpr = ''; _calcSub(''); _justEvaled = false; }
         return;
       }
       if (k === '%') {
@@ -1934,10 +1950,16 @@
           const safe = _calcExpr.replace(/×/g,'*').replace(/÷/g,'/').replace(/−/g,'-');
           if (!SAFE_RE.test(safe)) { _calcDisp('エラー'); _calcExpr = ''; return; }
           const r = parseFloat((Function('"use strict"; return (' + safe + ')')() / 100).toFixed(10));
-          _calcExpr = String(r); _calcDisp(r.toLocaleString()); _calcPrev = r;
+          _calcExpr = String(r); _calcDisp(r.toLocaleString()); _calcPrev = r; _justEvaled = false;
         } catch { _calcDisp('エラー'); _calcExpr = ''; }
         return;
       }
+      // E-14: = の直後に数字を押した場合は新規入力として扱う
+      if (_justEvaled && /[0-9.]/.test(k)) {
+        _calcExpr = k; _calcPrev = null; _justEvaled = false; _calcDisp(_calcExpr);
+        return;
+      }
+      _justEvaled = false;
       if (_calcPrev !== null && /[0-9.]/.test(k) && /[+\-×÷−]$/.test(_calcExpr)) _calcPrev = null;
       _calcExpr += k;
       _calcDisp(_calcExpr);
@@ -1950,7 +1972,35 @@
       const w = document.getElementById('calcWidget');
       if (w) w.classList.remove('open');
     };
-    // ドラッグ設定は DOM 構築完了後（電卓 HTML は </body> 直前のため即実行不可）
+    // R-3: 見積タブが非アクティブのときはキー入力を受け付けない（タブ横取り防止）
+    // R-4: Esc は上位の main keydown handler で優先処理するためここでは除外
+    document.addEventListener('keydown', function(e) {
+      const w = document.getElementById('calcWidget');
+      if (!w || !w.classList.contains('open')) return;
+      const quoteTab = document.getElementById('tab-quote-make');
+      if (!quoteTab || !quoteTab.classList.contains('active')) return;
+      if (e.ctrlKey || e.metaKey || e.altKey) return;
+      const ae = document.activeElement;
+      if (ae && (ae.tagName === 'INPUT' || ae.tagName === 'TEXTAREA' ||
+                 ae.tagName === 'SELECT' || ae.isContentEditable)) return;
+      const k = e.key;
+      let mapped = null;
+      if (/^[0-9]$/.test(k))               mapped = k;
+      else if (k === '.')                   mapped = '.';
+      else if (k === '+')                   mapped = '+';
+      else if (k === '-')                   mapped = '−';
+      else if (k === '*')                   mapped = '×';
+      else if (k === '/')                   mapped = '÷';
+      else if (k === '%')                   mapped = '%';
+      else if (k === 'Enter' || k === '=') mapped = '=';
+      else if (k === 'Backspace')           mapped = '←';
+      else if (k === 'Delete' || k === 'c' || k === 'C') mapped = 'C';
+      // Escape は main handler で処理。ここでは何もしない。
+      if (mapped === null) return;
+      e.preventDefault();
+      window.calcKey(mapped);
+    });
+    // R-5: ドラッグ時に画面外に出ないようにクランプ
     document.addEventListener('DOMContentLoaded', function() {
       const w = document.getElementById('calcWidget');
       const handle = document.getElementById('calcHandle');
@@ -1964,8 +2014,12 @@
       });
       document.addEventListener('mousemove', e => {
         if (!drag) return;
-        w.style.left = (ox + e.clientX - sx) + 'px';
-        w.style.top  = (oy + e.clientY - sy) + 'px';
+        const maxL = window.innerWidth  - w.offsetWidth;
+        const maxT = window.innerHeight - w.offsetHeight;
+        const newL = Math.max(0, Math.min(maxL, ox + e.clientX - sx));
+        const newT = Math.max(0, Math.min(maxT, oy + e.clientY - sy));
+        w.style.left = newL + 'px';
+        w.style.top  = newT + 'px';
         w.style.right = 'auto'; w.style.bottom = 'auto';
       });
       document.addEventListener('mouseup', () => { drag = false; });
