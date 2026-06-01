@@ -247,12 +247,15 @@
   // ========== カテゴリー順ソート ==========
   function sortBy(type) {
     const tbody = document.getElementById('tableBody');
-    const rows  = Array.from(tbody.querySelectorAll('tr'));
-    if (rows.length < 2) return;
+    const allRows = Array.from(tbody.querySelectorAll('tr'));
+    if (allRows.length < 2) return;
+    // 小計行・リマーク行はソート対象外（末尾に移動）（E-6）
+    const dataRows  = allRows.filter(tr => !tr.dataset.type);
+    const otherRows = allRows.filter(tr =>  tr.dataset.type);
     const getId = tr => tr.id.replace('row-', '');
     const catOrder = cat => { const i = CAT_VALUES.indexOf(cat); return i === -1 ? 999 : i; };
 
-    rows.sort((a, b) => {
+    dataRows.sort((a, b) => {
       const idA = getId(a), idB = getId(b);
       switch (type) {
         case 'category': {
@@ -289,7 +292,7 @@
         default: return 0;
       }
     });
-    rows.forEach(r => tbody.appendChild(r));
+    [...dataRows, ...otherRows].forEach(r => tbody.appendChild(r));
     updateTotals();
   }
 
@@ -721,7 +724,13 @@
 
   // 未入力行（row-unfilled）を一括削除
   function deleteEmptyRows() {
-    const empties = document.querySelectorAll('#tableBody tr.row-unfilled');
+    // row-unfilled（名前空）かつ単価・請求単価もゼロの行のみ削除（E-8：価格入力済み行の誤削除防止）
+    const empties = [...document.querySelectorAll('#tableBody tr.row-unfilled')].filter(tr => {
+      const id = tr.id.replace('row-', '');
+      const pp = parseFloat(document.getElementById(`pp-${id}`)?.value) || 0;
+      const bp = parseFloat(document.getElementById(`bp-${id}`)?.value) || 0;
+      return pp === 0 && bp === 0;
+    });
     if (!empties.length) {
       quoteShowToast('🧹 未入力行はありません', 'success', 2500);
       return;

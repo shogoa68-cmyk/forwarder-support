@@ -1255,7 +1255,7 @@
 
   // CSV列定義（key: collectData()の行データキー、hdr: ヘッダ文字列。sv を cat 直後に配置）
   const CSV_COL_DEFS = [
-    { key: 'cat',    hdr: 'カテゴリ',       fn: d => getCatLabel(d.cat) },
+    { key: 'cat',    hdr: 'カテゴリ',       fn: d => d.cat },
     { key: 'sv',     hdr: 'サブコン',       fn: d => d.sv || '' },
     { key: 'name',   hdr: '項目名',         fn: d => d.name },
     { key: 'pq',     hdr: '数量',           fn: d => fmtRaw(d.pq) },

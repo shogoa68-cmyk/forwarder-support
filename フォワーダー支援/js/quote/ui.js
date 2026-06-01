@@ -135,8 +135,10 @@
 
   function csvEsc(v) {
     const s = String(v == null ? '' : v);
-    return (s.includes(',') || s.includes('"') || s.includes('\n') || s.includes('\r'))
-      ? '"' + s.replace(/"/g, '""') + '"' : s;
+    // 数式インジェクション対策（E-4）: 非数値で = + @ | 始まりの値に ' プレフィックス
+    const safe = /^[=+@|]/.test(s) && isNaN(parseFloat(s)) ? "'" + s : s;
+    return (safe.includes(',') || safe.includes('"') || safe.includes('\n') || safe.includes('\r'))
+      ? '"' + safe.replace(/"/g, '""') + '"' : safe;
   }
 
   function fmtRaw(n) {
@@ -400,7 +402,12 @@
     }
     const tbody = document.getElementById('tableBody');
     // querySelectorAll は document order を返すので、元の並びを保持
-    const srcRows = Array.from(checkboxes).map(chk => chk.closest('tr')).filter(Boolean);
+    // 小計行・リマーク行はコピー対象外（型混同を防止）（E-7）
+    const srcRows = Array.from(checkboxes).map(chk => chk.closest('tr')).filter(tr => tr && !tr.dataset.type);
+    if (!srcRows.length) {
+      quoteShowToast('⚠️ 小計行・リマーク行はコピーできません。通常行を選択してください', 'warn', 3000);
+      return;
+    }
     // 最後の選択行の直後を起点に、新行を順番に追加していく（anchor を更新して並び順を保持）
     let anchor = srcRows[srcRows.length - 1];
     srcRows.forEach(srcTr => {
@@ -1117,6 +1124,7 @@
       _version: 1,
       _app: 'フォワーダー支援',
       exportedAt: new Date().toISOString(),
+      _rowFormat: base._rowFormat,
       fields: base.fields,
       rows: base.rows,
       calcRows
