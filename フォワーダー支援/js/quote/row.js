@@ -369,6 +369,7 @@
     const profit   = subtotal - pq * pp;  // 行の利益（小計 - 支払い合計）
     const canFx = typeof toJPY === 'function';
     const taxed = document.getElementById(`tx-${id}`)?.checked;
+    const taxRate = (typeof getEffectiveTaxRate === 'function') ? getEffectiveTaxRate() : 0.10;
     // 小計セル
     const st = document.getElementById(`st-${id}`);
     if (st) {
@@ -376,10 +377,10 @@
       if (bc !== 'JPY' && canFx && subtotal) {
         const jpySub = Math.ceil(toJPY(subtotal, bc));
         stHTML = fmt(subtotal) + '<br><small class="jpy-conv-hint">(≈¥' + fmt(jpySub) + ')</small>';
-        if (taxed) stHTML += '<br><small class="tax-hint">（消費税：≈¥' + fmt(Math.ceil(jpySub * 0.10)) + '）</small>';
+        if (taxed) stHTML += '<br><small class="tax-hint">（消費税：≈¥' + fmt(Math.ceil(jpySub * taxRate)) + '）</small>';
       } else {
         stHTML = subtotal ? fmt(subtotal) : '—';
-        if (taxed && subtotal) stHTML += '<br><small class="tax-hint">（消費税：' + fmt(Math.ceil(subtotal * 0.10)) + '円）</small>';
+        if (taxed && subtotal) stHTML += '<br><small class="tax-hint">（消費税：' + fmt(Math.ceil(subtotal * taxRate)) + '円）</small>';
       }
       st.innerHTML = stHTML;
       st.className = 'subtotal-cell' + (subtotal ? ' subtotal-has-value' : '');

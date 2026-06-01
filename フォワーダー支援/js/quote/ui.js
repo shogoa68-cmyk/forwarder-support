@@ -466,7 +466,7 @@
   // Phase 2b：トップレベル即時実行 → initQuoteState() に集約し initQuoteTab() から呼ぶ
   function initQuoteState() {
     initRemarks();
-    addCalcRow();  // サイズ計算：初期行
+    _legacyAddCalcRow();  // 旧サイズ計算行（#calcBody が無ければ何もしない）
     addRow();      // 見積もり：初期行
     initFormulaInputs();    // フォーミュラ評価初期化
     // 自動保存の復元
@@ -1182,7 +1182,7 @@
       document.getElementById('calcBody').innerHTML = '';
       calcRowCount = 0;
       (data.calcRows || []).forEach(row => {
-        addCalcRow();
+        _legacyAddCalcRow();
         const tr = document.getElementById('calcBody').lastElementChild;
         if (!tr) return;
         if (row.pcs !== '') tr.querySelector('.calc-pcs').value   = row.pcs;
@@ -1917,6 +1917,13 @@
     window.calcKey = function(k) {
       if (k === 'C')  { _calcExpr = ''; _calcPrev = null; _calcDisp('0'); _calcSub(''); return; }
       if (k === '←') { _calcExpr = _calcExpr.slice(0, -1); _calcDisp(_calcExpr || '0'); return; }
+      if (k === '±') {
+        if (_calcExpr && _calcExpr !== '0') {
+          _calcExpr = _calcExpr.startsWith('-') ? _calcExpr.slice(1) : '-' + _calcExpr;
+          _calcDisp(_calcExpr);
+        }
+        return;
+      }
       if (k === '=') {
         try {
           const safe = _calcExpr.replace(/×/g,'*').replace(/÷/g,'/').replace(/−/g,'-');

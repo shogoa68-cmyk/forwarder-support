@@ -203,13 +203,12 @@
       const unitDisp = isNonJpy
         ? `${fmtNum(r.bp, 2)} ${esc(r.bc)}`
         : `${fmtInt(r.bp)} JPY`;
-      // 外貨建ての JPY 換算は右端「金額(JPY)」列に出るため、項目列内の重複表記は廃止
-      const descNote = r.note ? `<div class="qd-desc">${esc(r.note)}</div>` : '';
+      // 御見積書は客先向け公式文書のため、社内メモ(r.note)は出力しない（E-1 備考漏洩対策）
       // 数量は金額の根拠（sub = bq×bp）と一致させる。未入力時に「1」を捏造しない（B/台帳 C）
       const qtyDisp = (r.bq && r.bq > 0) ? fmtNum(r.bq, 4) : '—';
       lineHTML.push(
         `<tr>
-          <td class="qd-item">${r.taxed ? '<span class="qd-tax">*</span> ' : ''}${esc(r.name)}${descNote}</td>
+          <td class="qd-item">${r.taxed ? '<span class="qd-tax">*</span> ' : ''}${esc(r.name)}</td>
           <td class="qd-num">${qtyDisp}</td>
           <td class="qd-ctr">${esc(r.un || '')}</td>
           <td class="qd-num">${unitDisp}</td>
