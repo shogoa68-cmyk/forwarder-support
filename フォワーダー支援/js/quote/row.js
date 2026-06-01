@@ -137,17 +137,19 @@
       const col = el.dataset.col;
       if (col === undefined) return;
       e.preventDefault();
-      const tr    = el.closest('tr');
-      const rows  = Array.from(document.querySelectorAll('#tableBody tr'));
-      const idx   = rows.indexOf(tr);
-      const next  = e.key === 'ArrowUp' ? idx - 1 : idx + 1;
-      if (next >= 0 && next < rows.length) {
-        const nextEl = rows[next].querySelector(`[data-col="${col}"]`);
+      const tr = el.closest('tr');
+      // 小計行・リマーク行をスキップして data-col を持つ行のみでナビゲーション（E-12）
+      const navRows = Array.from(document.querySelectorAll('#tableBody tr'))
+                       .filter(r => r.querySelector(`[data-col="${col}"]`));
+      const navIdx  = navRows.indexOf(tr);
+      const navNext = e.key === 'ArrowUp' ? navIdx - 1 : navIdx + 1;
+      if (navNext >= 0 && navNext < navRows.length) {
+        const nextEl = navRows[navNext].querySelector(`[data-col="${col}"]`);
         if (nextEl) {
           nextEl.focus();
           if (nextEl.type === 'text' || nextEl.type === 'number') nextEl.select();
         }
-      } else if (e.key === 'ArrowDown' && next === rows.length) {
+      } else if (e.key === 'ArrowDown' && navNext === navRows.length) {
         const newId = addRowAfter(tr.id.replace('row-', ''));
         setTimeout(() => {
           document.querySelector(`#row-${newId} [data-col="${col}"]`)?.focus();

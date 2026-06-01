@@ -177,7 +177,9 @@
       if (bc && bc !== 'JPY') used.add(bc);
     });
     const order = ['USD','EUR','GBP','CNY'];
-    const list = [...used].sort((a,b)=>order.indexOf(a)-order.indexOf(b));
+    // indexOf が -1 の通貨（order 外）は末尾へ（E-11: -1 の引き算で誤ソートを防ぐ）
+    const pos = c => { const i = order.indexOf(c); return i === -1 ? Infinity : i; };
+    const list = [...used].sort((a, b) => pos(a) - pos(b));
     if (!list.length) { bar.style.display = 'none'; bar.innerHTML = ''; return; }
     bar.style.display = 'flex';
     const auto = (typeof _fxAutoMode !== 'undefined' && _fxAutoMode);

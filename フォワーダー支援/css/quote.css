@@ -624,7 +624,7 @@
 #tab-quote-make .tax-hint {
   display: block;
   font-size: 9.5px;
-  color: #9b7a00;
+  color: #7a5c00; /* E-16: #9b7a00(3.7:1)→#7a5c00(5.7:1) WCAG AA 達成 */
   font-weight: 500;
   line-height: 1.4;
   white-space: nowrap;
@@ -4509,6 +4509,8 @@
          セレクタ内ネストは不正で無視されるため過去は効いていなかった） ---- */
   @page { size: A4 portrait; margin: 12mm; }            /* 既定（見積書レイアウト） */
   @page pvLandscape { size: A4 landscape; margin: 10mm; } /* 表計算レイアウト用 */
+  /* E-10: 背景色・背景画像を印刷に出力（ブラウザ既定では抑制される） */
+  * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
 
   /* ---- プレビューを開いているときだけ、本体以外を全て非表示にする ---- */
   body:has(#previewOverlay.open) > *:not(.app) { display: none !important; }

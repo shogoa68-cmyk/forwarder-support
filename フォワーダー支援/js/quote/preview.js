@@ -603,10 +603,11 @@
       if (el) el.dataset.pvWasVisible = (el.style.display !== 'none') ? '1' : '0';
     });
     document.getElementById('previewOverlay').classList.add('open');
-    // 輸出免税チェックボックス：常にリセット（デフォルト=オフ）してリスナー登録
+    // 輸出免税チェックボックス（E-2）: 輸出方向のとき自動オン、それ以外はリセット
     const exemptChk = document.getElementById('pvExemptChk');
     if (exemptChk) {
-      exemptChk.checked = false;
+      const isExportDir = (typeof getConditions === 'function') && getConditions().direction === 'export';
+      exemptChk.checked = isExportDir;
       if (!exemptChk.dataset.listenerSet) {
         exemptChk.addEventListener('change', updatePreviewTax);
         exemptChk.dataset.listenerSet = '1';
@@ -649,9 +650,9 @@
       const taxed = td.dataset.taxed === '1';
       const ccy   = td.dataset.ccy || 'JPY';
       if (!taxed) { td.textContent = ''; return; }
-      const amt = sub * rate;
+      // 行単位で切り上げ（E-5: JPY行は ceil、外貨行はそのまま）
+      const amt = (ccy === 'JPY') ? Math.ceil(sub * rate) : sub * rate;
       perCcyTax[ccy] = (perCcyTax[ccy] || 0) + amt;
-      // 外貨建ては輸出免税が原則のため、JPY 行のみ税額に積み上げる（行ごと丸め）
       totTaxJpy += (ccy === 'JPY') ? amt : 0;
       td.textContent = fmtMoney(amt);
     });
@@ -665,8 +666,8 @@
         td.textContent = t > 0 ? fmtMoney(t) : '—';
       }
     });
-    // 底部サマリ（消費税額・税込合計）JPY換算ベース。整数で表示（小数円を出さない・docs/バグ台帳）
-    const tax   = Math.ceil(totTaxJpy);
+    // 底部サマリ（消費税額・税込合計）JPY換算ベース。行単位ceil済みのため再丸め不要（E-5）
+    const tax   = totTaxJpy;
     const total = Math.round(totalSub) + tax;
     const taxEl   = document.getElementById('pvTaxAmount');
     const totalEl = document.getElementById('pvTaxTotal');
