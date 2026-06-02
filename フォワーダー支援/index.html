@@ -9,6 +9,8 @@
 <link rel="stylesheet" href="css/quote-pdf.css">
 <!-- 見積タブで CSV/Excel/PDF 出力に使用（SheetJS） -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" defer></script>
+<!-- ☁️ チーム共有（Supabase クラウド連携）に使用 -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" defer></script>
 </head>
 <body>
 <!-- #clipboard-toast は Phase 2c-Step2 で削除（callers ゼロ、quoteShowToast に統一） -->
@@ -2114,6 +2116,33 @@
         <div class="preset-list-wrap" id="presetListWrap">
           <div class="preset-empty">保存済みのプリセットはありません</div>
         </div>
+
+        <!-- ☁️ チーム共有（クラウド／Supabase） -->
+        <div class="cloud-share-section" id="cloudShareSection">
+          <div class="cloud-share-head">
+            <span class="cloud-share-title">☁️ チーム共有</span>
+            <span class="cloud-auth-state" id="cloudAuthState">…</span>
+          </div>
+          <div class="cloud-share-desc">
+            ログインすると、保存したプリセットを<strong>チームのメンバー全員で共有・編集</strong>できます（端末をまたいで利用可）。
+          </div>
+          <div class="cloud-auth-actions" id="cloudAuthActions">
+            <button class="btn-cloud-login"  id="btnCloudLogin"  type="button" onclick="cloudLogin()">🔑 Google でログイン</button>
+            <button class="btn-cloud-logout" id="btnCloudLogout" type="button" onclick="cloudLogout()" style="display:none">ログアウト</button>
+          </div>
+          <div class="cloud-share-body" id="cloudShareBody" style="display:none">
+            <div class="cloud-save-row">
+              <input type="text" class="preset-name-input" id="cloudPresetNameInput"
+                     placeholder="共有プリセット名（例：東南アジア向け標準）" maxlength="40"
+                     onkeydown="if(event.key==='Enter')cloudSaveCurrent()" />
+              <button class="btn-cloud-save" type="button" onclick="cloudSaveCurrent()">☁️ 共有に保存</button>
+            </div>
+            <div class="preset-list-wrap" id="cloudPresetListWrap">
+              <div class="preset-empty">読み込み中…</div>
+            </div>
+          </div>
+        </div>
+
         <div class="preset-mgr-footer">
           <button class="btn-preset-close" onclick="closePresetMgr()">閉じる</button>
         </div>
@@ -3138,6 +3167,8 @@
 <script src="js/quote/quote-pdf.js"></script>
 <script src="js/quote/quote-email.js"></script>
 <script src="js/quote/select-mode.js"></script>
+<script src="js/quote/cloud-config.js"></script>
+<script src="js/quote/cloud.js"></script>
 <script src="js/tweaks.js"></script>
 
 <!-- =================================================================

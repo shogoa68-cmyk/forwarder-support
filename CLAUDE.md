@@ -27,7 +27,9 @@ github/202605_コード改修/
 │   │       ├── cargo.js       貨物情報・CBM/CW 計算
 │   │       ├── conditions.js  引き合い条件・ゾーンビルダー・自動保存
 │   │       ├── save.js        プリセット保存・読込・フィードバックモーダル
-│   │       └── ui.js          UI・付箋・Ctrl+K・FX パネル・initQuoteTab()
+│   │       ├── ui.js          UI・付箋・Ctrl+K・FX パネル・initQuoteTab()
+│   │       ├── cloud-config.js ☁️ クラウド共有 接続設定（Supabase URL / publishable key・公開可）
+│   │       └── cloud.js        ☁️ チーム共有（Google ログイン＋プリセットのクラウド保存/読込/削除）
 │   └── shared/                両アプリで共有する 5 モジュール（IIFE で window 名前空間）
 │       ├── fx.js              SharedFX: open.er-api.com 為替・1h メモリキャッシュ
 │       ├── format.js          SharedFmt: num/escapeHtml/escapeCsv
@@ -40,6 +42,20 @@ github/202605_コード改修/
     ├── app-*.js / style.css   ポータル側 js/quote/ と内容ほぼ同一
     └── *.bak ...              手動バックアップ群（運用上残置）
 ```
+
+## ☁️ クラウド共有（チーム間でのプリセット共有）
+
+見積プリセットを複数ユーザーで共有する機能。プリセット管理モーダル内「☁️ チーム共有」セクションで操作。
+
+- **バックエンド**：Supabase（静的サイト構成は維持。`supabase-js` を `<head>` で defer 読み込み）
+- **認証**：Google ログイン（Supabase Auth / OAuth）。`cloud.js` の `cloudLogin/cloudLogout`
+- **保護**：RLS（Row Level Security）。`allowed_emails` テーブルに登録されたメンバーのみ読み書き可（判定は `security definer` 関数 `is_team_member()` 経由）。Google でログインできても許可リスト外はデータに触れない
+- **編集権限**：許可メンバーは全員が編集・削除可（`for all` ポリシー）
+- **テーブル**：`quote_presets { id, name, data(jsonb), owner_email, updated_at }`。`data` はローカル `quotePresets_v1` と同形式（`gatherAllData()` / `_applyQuoteData()` 互換）
+- **キー**：`cloud-config.js` の `publishableKey`（`sb_publishable_...`）はブラウザ公開前提・RLS で保護されるためコミット可。**`sb_secret_...`（service_role）は絶対にコミットしない**
+- **ローカル保存（localStorage）は併存**：従来の「最大50件・このブラウザのみ」のプリセットはそのまま
+- **未設定でも安全に no-op**：`cloud-config.js` がプレースホルダのままなら `cloudIsConfigured()` が false を返し「未設定」表示で停止
+- **OAuth リダイレクト**：`signInWithOAuth` の `redirectTo` は現在URL。Supabase の Authentication → URL Configuration の Redirect URLs に公開URL/ローカルURL（`http://localhost:PORT/**`）を登録しておくこと
 
 ## 統合の現状
 

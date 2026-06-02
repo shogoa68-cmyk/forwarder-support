@@ -694,6 +694,8 @@
   function openPresetMgr() {
     renderPresetList();
     document.getElementById('presetMgrModal').classList.add('open');
+    // ☁️ チーム共有セクションの認証状態・一覧を反映（cloud.js）
+    if (typeof cloudOnPresetMgrOpen === 'function') cloudOnPresetMgrOpen();
     // 名前欄を管理番号入力欄から常に自動生成（管理番号の入力情報を優先反映）
     const input = document.getElementById('presetNameInput');
     if (input) {
