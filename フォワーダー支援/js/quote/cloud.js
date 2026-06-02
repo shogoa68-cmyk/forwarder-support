@@ -204,10 +204,35 @@
     if (_cloudUser) cloudListPresets();
   }
 
+  // OAuth リダイレクトで戻ってきた際の認証エラーを拾って画面に出す。
+  // Supabase は失敗時に ?error=... と #error=... の両方を付けて戻すことがある。
+  function _surfaceOAuthError() {
+    const parse = str => {
+      const out = {};
+      (str || '').replace(/^[?#]/, '').split('&').forEach(kv => {
+        const [k, v] = kv.split('=');
+        if (k) out[decodeURIComponent(k)] = decodeURIComponent((v || '').replace(/\+/g, ' '));
+      });
+      return out;
+    };
+    const q = parse(window.location.search);
+    const h = parse(window.location.hash);
+    const err  = q.error || h.error;
+    if (!err) return;
+    const desc = q.error_description || h.error_description || err;
+    quoteShowToast('⚠️ ログインに失敗しました：' + desc, 'warn', 8000);
+    console.error('[cloud] OAuth error:', q, h);
+    // URL からエラーを掃除（履歴を汚さない・リロードで再表示しない）
+    if (window.history && window.history.replaceState) {
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+  }
+
   // ---------- 初期化 ----------
   function _initCloud() {
     if (_cloudInited) return;
     _cloudInited = true;
+    _surfaceOAuthError();
     const c = _getClient();
     if (!c) { _renderCloudAuth(); return; }
 
