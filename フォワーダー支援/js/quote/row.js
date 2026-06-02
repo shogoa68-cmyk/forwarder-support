@@ -138,6 +138,34 @@
       if (col === undefined) return;
       e.preventDefault();
       const tr = el.closest('tr');
+
+      // ===== 単価セル内の縦スタック移動（仕入(pp/col=4) ↕ 乗せ幅(mk/col=5)）=====
+      // 視覚順は 仕→＋乗せ幅→売(自動) の縦並び。編集可能な 仕↔＋ を ↑↓ で行き来し、
+      // 端では隣の行の対応フィールドへ連続接続（↓連打で 仕→＋→次行の仕→＋… と縦に流れる）。
+      if (col === '4' || col === '5') {
+        const id = tr.id.replace('row-', '');
+        const dataRows = Array.from(document.querySelectorAll('#tableBody tr'))
+                          .filter(r => r.querySelector('[data-field="pp"]'));
+        const di = dataRows.indexOf(tr);
+        const focusField = (rowEl, field) => {
+          const t = rowEl && rowEl.querySelector(`[data-field="${field}"]`);
+          if (t) { t.focus(); if (t.select) t.select(); }
+          return !!t;
+        };
+        if (col === '4') {                 // 仕入れ単価
+          if (e.key === 'ArrowDown') focusField(tr, 'mk');           // ↓ → ＋乗せ幅
+          else if (di > 0)           focusField(dataRows[di - 1], 'mk'); // ↑ → 前行の＋乗せ幅
+        } else {                            // 乗せ幅（＋）
+          if (e.key === 'ArrowUp')   focusField(tr, 'pp');           // ↑ → 仕入れ単価
+          else if (di < dataRows.length - 1) focusField(dataRows[di + 1], 'pp'); // ↓ → 次行の仕入れ
+          else {                            // 末尾なら新規行を追加して仕入れへ
+            const newId = addRowAfter(id);
+            setTimeout(() => focusField(document.getElementById(`row-${newId}`), 'pp'), 0);
+          }
+        }
+        return;
+      }
+
       // 小計行・リマーク行をスキップして data-col を持つ行のみでナビゲーション（E-12）
       const navRows = Array.from(document.querySelectorAll('#tableBody tr'))
                        .filter(r => r.querySelector(`[data-col="${col}"]`));
