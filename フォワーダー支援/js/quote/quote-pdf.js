@@ -415,9 +415,19 @@
   }
 
   function printQuoteDoc() {
+    // 御見積書はプレビュー(#previewOverlay)上から開かれるため、印刷時に
+    // quote.css の `body:has(#previewOverlay.open) > *:not(.app){display:none!important}`
+    // が body 直下の #quoteDocOverlay まで隠してしまい、何も印字されない競合が起きる。
+    // 印刷中だけプレビューの .open を外してこの印刷ルールを無効化し、後で復元する。
+    const pv = document.getElementById('previewOverlay');
+    const wasPreviewOpen = !!(pv && pv.classList.contains('open'));
+    if (wasPreviewOpen) pv.classList.remove('open');
     document.body.classList.add('qd-print-mode');
     window.print();
-    setTimeout(() => document.body.classList.remove('qd-print-mode'), 300);
+    setTimeout(() => {
+      document.body.classList.remove('qd-print-mode');
+      if (wasPreviewOpen) pv.classList.add('open');
+    }, 300);
   }
 
   // export
