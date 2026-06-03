@@ -28,6 +28,15 @@
     try { localStorage.setItem(ISSUER_KEY, JSON.stringify(obj)); } catch (e) {}
   }
 
+  // 合計・税サマリ非表示オプション（パターン比較用途）。御見積書出力のみに作用。
+  const HIDE_TOTAL_KEY = 'quoteDocHideTotal_v1';
+  function loadHideTotal() {
+    try { return localStorage.getItem(HIDE_TOTAL_KEY) === '1'; } catch (e) { return false; }
+  }
+  function saveHideTotal(on) {
+    try { localStorage.setItem(HIDE_TOTAL_KEY, on ? '1' : '0'); } catch (e) {}
+  }
+
   const esc = s => String(s == null ? '' : s)
     .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;');
@@ -180,6 +189,7 @@
     const cond = (typeof getConditions === 'function') ? getConditions() : null;
     const taxRate = (typeof getEffectiveTaxRate === 'function') ? getEffectiveTaxRate() : 0.10;
     const issuer = loadIssuer();
+    const hideTotal = loadHideTotal();   // 合計・税サマリを隠す（パターン比較用途）
 
     const data = rows.filter(r => r._type === 'data');
 
@@ -203,13 +213,12 @@
       const unitDisp = isNonJpy
         ? `${fmtNum(r.bp, 2)} ${esc(r.bc)}`
         : `${fmtInt(r.bp)} JPY`;
-      // 外貨建ての JPY 換算は右端「金額(JPY)」列に出るため、項目列内の重複表記は廃止
-      const descNote = r.note ? `<div class="qd-desc">${esc(r.note)}</div>` : '';
+      // 御見積書は客先向け公式文書のため、社内メモ(r.note)は出力しない（E-1 備考漏洩対策）
       // 数量は金額の根拠（sub = bq×bp）と一致させる。未入力時に「1」を捏造しない（B/台帳 C）
       const qtyDisp = (r.bq && r.bq > 0) ? fmtNum(r.bq, 4) : '—';
       lineHTML.push(
         `<tr>
-          <td class="qd-item">${r.taxed ? '<span class="qd-tax">*</span> ' : ''}${esc(r.name)}${descNote}</td>
+          <td class="qd-item">${r.taxed ? '<span class="qd-tax">*</span> ' : ''}${esc(r.name)}</td>
           <td class="qd-num">${qtyDisp}</td>
           <td class="qd-ctr">${esc(r.un || '')}</td>
           <td class="qd-num">${unitDisp}</td>
@@ -267,10 +276,10 @@
       <div class="qd-subj">
         ${subj.title ? `<div class="qd-subj-ttl">${esc(subj.title)}</div>` : ''}
         ${metaRows ? `<div class="qd-meta">${metaRows}</div>` : ''}
-        <div class="qd-amt-row">
-          <span>御見積額${validStr ? `　<span class="qd-valid">本見積書有効期限：${esc(validStr)}</span>` : ''}</span>
-          <span class="qd-amt">¥ ${fmtInt(total)} <span class="qd-jpy">(JPY)</span></span>
-        </div>
+        ${(!hideTotal || validStr) ? `<div class="qd-amt-row">
+          <span>${hideTotal ? '' : '御見積額'}${validStr ? `　<span class="qd-valid">本見積書有効期限：${esc(validStr)}</span>` : ''}</span>
+          ${hideTotal ? '' : `<span class="qd-amt">¥ ${fmtInt(total)} <span class="qd-jpy">(JPY)</span></span>`}
+        </div>` : ''}
       </div>
 
       <table class="qd-items">
@@ -291,14 +300,14 @@
           </table>
           ${fxMetaNote}
         </div>
-        <div class="qd-sum">
+        ${hideTotal ? '' : `<div class="qd-sum">
           <table>
             <tr><td class="qd-sk2">小計（免税分）</td><td class="qd-num">¥${fmtInt(exemptSub)}</td></tr>
             <tr><td class="qd-sk2">課税対象小計</td><td class="qd-num">¥${fmtInt(taxableSub)}</td></tr>
             <tr><td class="qd-sk2">消費税（${Math.round(taxRate * 100)}%）</td><td class="qd-num">¥${fmtInt(tax)}</td></tr>
             <tr class="qd-total"><td>合計見積額</td><td class="qd-num">¥${fmtInt(total)}</td></tr>
           </table>
-        </div>
+        </div>`}
       </div>
       ${(() => {
         const rt = (typeof getRemarkText === 'function') ? getRemarkText() : (cond && cond.free) || '';
@@ -340,6 +349,7 @@
         <div class="qd-shell">
           <div class="qd-toolbar">
             <span class="qd-tb-title">📄 御見積書フォーマット（PDF出力）</span>
+            <label class="qd-tb-opt" title="ONにすると上部の御見積額・下部の合計／税サマリ（小計・課税対象小計・消費税・合計見積額）を非表示にします。小計行でパターンA/B比較を行う用途向け。"><input type="checkbox" id="qdHideTotal"> 合計を非表示（比較用）</label>
             <button class="qd-tb-btn" id="qdEditIssuer">📇 発行元設定</button>
             <button class="qd-tb-btn qd-tb-print" id="qdPrint">🖨️ PDF出力（印刷）</button>
             <button class="qd-tb-btn" id="qdClose">閉じる</button>
@@ -352,7 +362,14 @@
       overlay.querySelector('#qdClose').addEventListener('click', closeQuoteDoc);
       overlay.querySelector('#qdPrint').addEventListener('click', printQuoteDoc);
       overlay.querySelector('#qdEditIssuer').addEventListener('click', toggleIssuerForm);
+      const hideChk = overlay.querySelector('#qdHideTotal');
+      if (hideChk) {
+        hideChk.addEventListener('change', () => { saveHideTotal(hideChk.checked); refreshQuoteDoc(); });
+      }
     }
+    // チェック状態を保存値に同期（オーバーレイ再利用時も整合）
+    const hideChk = overlay.querySelector('#qdHideTotal');
+    if (hideChk) hideChk.checked = loadHideTotal();
     refreshQuoteDoc();
     overlay.classList.add('open');
     document.body.classList.add('qd-printing-ready');
@@ -398,9 +415,19 @@
   }
 
   function printQuoteDoc() {
+    // 御見積書はプレビュー(#previewOverlay)上から開かれるため、印刷時に
+    // quote.css の `body:has(#previewOverlay.open) > *:not(.app){display:none!important}`
+    // が body 直下の #quoteDocOverlay まで隠してしまい、何も印字されない競合が起きる。
+    // 印刷中だけプレビューの .open を外してこの印刷ルールを無効化し、後で復元する。
+    const pv = document.getElementById('previewOverlay');
+    const wasPreviewOpen = !!(pv && pv.classList.contains('open'));
+    if (wasPreviewOpen) pv.classList.remove('open');
     document.body.classList.add('qd-print-mode');
     window.print();
-    setTimeout(() => document.body.classList.remove('qd-print-mode'), 300);
+    setTimeout(() => {
+      document.body.classList.remove('qd-print-mode');
+      if (wasPreviewOpen) pv.classList.add('open');
+    }, 300);
   }
 
   // export

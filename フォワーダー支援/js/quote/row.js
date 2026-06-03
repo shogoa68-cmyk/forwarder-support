@@ -137,17 +137,47 @@
       const col = el.dataset.col;
       if (col === undefined) return;
       e.preventDefault();
-      const tr    = el.closest('tr');
-      const rows  = Array.from(document.querySelectorAll('#tableBody tr'));
-      const idx   = rows.indexOf(tr);
-      const next  = e.key === 'ArrowUp' ? idx - 1 : idx + 1;
-      if (next >= 0 && next < rows.length) {
-        const nextEl = rows[next].querySelector(`[data-col="${col}"]`);
+      const tr = el.closest('tr');
+
+      // ===== 単価セル内の縦スタック移動（仕入(pp/col=4) ↕ 乗せ幅(mk/col=5)）=====
+      // 視覚順は 仕→＋乗せ幅→売(自動) の縦並び。編集可能な 仕↔＋ を ↑↓ で行き来し、
+      // 端では隣の行の対応フィールドへ連続接続（↓連打で 仕→＋→次行の仕→＋… と縦に流れる）。
+      if (col === '4' || col === '5') {
+        const id = tr.id.replace('row-', '');
+        const dataRows = Array.from(document.querySelectorAll('#tableBody tr'))
+                          .filter(r => r.querySelector('[data-field="pp"]'));
+        const di = dataRows.indexOf(tr);
+        const focusField = (rowEl, field) => {
+          const t = rowEl && rowEl.querySelector(`[data-field="${field}"]`);
+          if (t) { t.focus(); if (t.select) t.select(); }
+          return !!t;
+        };
+        if (col === '4') {                 // 仕入れ単価
+          if (e.key === 'ArrowDown') focusField(tr, 'mk');           // ↓ → ＋乗せ幅
+          else if (di > 0)           focusField(dataRows[di - 1], 'mk'); // ↑ → 前行の＋乗せ幅
+        } else {                            // 乗せ幅（＋）
+          if (e.key === 'ArrowUp')   focusField(tr, 'pp');           // ↑ → 仕入れ単価
+          else if (di < dataRows.length - 1) focusField(dataRows[di + 1], 'pp'); // ↓ → 次行の仕入れ
+          else {                            // 末尾なら新規行を追加して仕入れへ
+            const newId = addRowAfter(id);
+            setTimeout(() => focusField(document.getElementById(`row-${newId}`), 'pp'), 0);
+          }
+        }
+        return;
+      }
+
+      // 小計行・リマーク行をスキップして data-col を持つ行のみでナビゲーション（E-12）
+      const navRows = Array.from(document.querySelectorAll('#tableBody tr'))
+                       .filter(r => r.querySelector(`[data-col="${col}"]`));
+      const navIdx  = navRows.indexOf(tr);
+      const navNext = e.key === 'ArrowUp' ? navIdx - 1 : navIdx + 1;
+      if (navNext >= 0 && navNext < navRows.length) {
+        const nextEl = navRows[navNext].querySelector(`[data-col="${col}"]`);
         if (nextEl) {
           nextEl.focus();
           if (nextEl.type === 'text' || nextEl.type === 'number') nextEl.select();
         }
-      } else if (e.key === 'ArrowDown' && next === rows.length) {
+      } else if (e.key === 'ArrowDown' && navNext === navRows.length) {
         const newId = addRowAfter(tr.id.replace('row-', ''));
         setTimeout(() => {
           document.querySelector(`#row-${newId} [data-col="${col}"]`)?.focus();
@@ -247,12 +277,15 @@
   // ========== カテゴリー順ソート ==========
   function sortBy(type) {
     const tbody = document.getElementById('tableBody');
-    const rows  = Array.from(tbody.querySelectorAll('tr'));
-    if (rows.length < 2) return;
+    const allRows = Array.from(tbody.querySelectorAll('tr'));
+    if (allRows.length < 2) return;
+    // 小計行・リマーク行はソート対象外（末尾に移動）（E-6）
+    const dataRows  = allRows.filter(tr => !tr.dataset.type);
+    const otherRows = allRows.filter(tr =>  tr.dataset.type);
     const getId = tr => tr.id.replace('row-', '');
     const catOrder = cat => { const i = CAT_VALUES.indexOf(cat); return i === -1 ? 999 : i; };
 
-    rows.sort((a, b) => {
+    dataRows.sort((a, b) => {
       const idA = getId(a), idB = getId(b);
       switch (type) {
         case 'category': {
@@ -289,7 +322,7 @@
         default: return 0;
       }
     });
-    rows.forEach(r => tbody.appendChild(r));
+    [...dataRows, ...otherRows].forEach(r => tbody.appendChild(r));
     updateTotals();
   }
 
@@ -369,6 +402,7 @@
     const profit   = subtotal - pq * pp;  // 行の利益（小計 - 支払い合計）
     const canFx = typeof toJPY === 'function';
     const taxed = document.getElementById(`tx-${id}`)?.checked;
+    const taxRate = (typeof getEffectiveTaxRate === 'function') ? getEffectiveTaxRate() : 0.10;
     // 小計セル
     const st = document.getElementById(`st-${id}`);
     if (st) {
@@ -376,10 +410,10 @@
       if (bc !== 'JPY' && canFx && subtotal) {
         const jpySub = Math.ceil(toJPY(subtotal, bc));
         stHTML = fmt(subtotal) + '<br><small class="jpy-conv-hint">(≈¥' + fmt(jpySub) + ')</small>';
-        if (taxed) stHTML += '<br><small class="tax-hint">（消費税：≈¥' + fmt(Math.ceil(jpySub * 0.10)) + '）</small>';
+        if (taxed) stHTML += '<br><small class="tax-hint">（消費税：≈¥' + fmt(Math.ceil(jpySub * taxRate)) + '）</small>';
       } else {
         stHTML = subtotal ? fmt(subtotal) : '—';
-        if (taxed && subtotal) stHTML += '<br><small class="tax-hint">（消費税：' + fmt(Math.ceil(subtotal * 0.10)) + '円）</small>';
+        if (taxed && subtotal) stHTML += '<br><small class="tax-hint">（消費税：' + fmt(Math.ceil(subtotal * taxRate)) + '円）</small>';
       }
       st.innerHTML = stHTML;
       st.className = 'subtotal-cell' + (subtotal ? ' subtotal-has-value' : '');
@@ -720,7 +754,13 @@
 
   // 未入力行（row-unfilled）を一括削除
   function deleteEmptyRows() {
-    const empties = document.querySelectorAll('#tableBody tr.row-unfilled');
+    // row-unfilled（名前空）かつ単価・請求単価もゼロの行のみ削除（E-8：価格入力済み行の誤削除防止）
+    const empties = [...document.querySelectorAll('#tableBody tr.row-unfilled')].filter(tr => {
+      const id = tr.id.replace('row-', '');
+      const pp = parseFloat(document.getElementById(`pp-${id}`)?.value) || 0;
+      const bp = parseFloat(document.getElementById(`bp-${id}`)?.value) || 0;
+      return pp === 0 && bp === 0;
+    });
     if (!empties.length) {
       quoteShowToast('🧹 未入力行はありません', 'success', 2500);
       return;

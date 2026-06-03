@@ -26,6 +26,13 @@
 #quoteDocOverlay .qd-tb-btn:hover { background: #4a4a4a; }
 #quoteDocOverlay .qd-tb-print { background: #1a3a6b; border-color: #1a3a6b; color: #fff; font-weight: 700; }
 #quoteDocOverlay .qd-tb-print:hover { background: #234a87; }
+#quoteDocOverlay .qd-tb-opt {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-size: 12px; color: #eee; cursor: pointer; white-space: nowrap;
+  padding: 6px 8px; border-radius: 6px; border: 1px solid #555; background: #3a3a3a;
+}
+#quoteDocOverlay .qd-tb-opt input { cursor: pointer; accent-color: #d8b24a; }
+#quoteDocOverlay .qd-tb-opt:has(input:checked) { background: #4a3f1f; border-color: #d8b24a; color: #fff; font-weight: 600; }
 
 #quoteDocOverlay .qd-issuer-wrap { background: #f3efe6; padding: 14px 18px; border-bottom: 1px solid #d8cdb8; }
 #quoteDocOverlay .qd-issuer-ttl { font-size: 13px; font-weight: 700; color: #5a4a35; margin-bottom: 10px; }
