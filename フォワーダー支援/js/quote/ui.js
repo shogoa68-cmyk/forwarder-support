@@ -1815,7 +1815,7 @@
     let hasFx = false;
     // 消費税集計（外貨建ては輸出免税が原則のため消費税額は JPY のみ）
     let taxableJPY = 0, exemptJPY = 0, taxAmtJPY = 0;
-    const taxRate = (document.getElementById('pvExemptChk')?.checked) ? 0 : 0.10;
+    const taxRate = 0.10; // 標準10%固定。課否は行ごとの「課税」チェックで制御
 
     activeRows.forEach(tr => {
       const id = tr.id.replace('row-', '');
@@ -1857,7 +1857,7 @@
       ).join('');
 
     const taxAmt = Math.ceil(taxAmtJPY);
-    const taxLabel = taxRate === 0 ? '消費税（免税）' : '消費税（10%）';
+    const taxLabel = '消費税（10%）';
 
     panel.innerHTML = `
       <div class="qsp-row-count">${activeRows.length} 費用項目</div>
