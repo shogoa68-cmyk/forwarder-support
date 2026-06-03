@@ -3728,6 +3728,144 @@
   padding: 7px 16px; font-size: 13px; cursor: pointer; font-family: inherit;
 }
 #tab-quote-make .btn-preset-close:hover { background: #d9cfc2; }
+
+/* ☁️ チーム共有（クラウド）セクション */
+#tab-quote-make .cloud-share-section {
+  margin: 4px 0 14px;
+  padding: 12px 14px;
+  background: #eef4f8;
+  border: 1px solid #cfe0ea;
+  border-radius: 7px;
+}
+#tab-quote-make .cloud-share-head {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 6px;
+}
+#tab-quote-make .cloud-share-title { font-size: 13px; font-weight: 700; color: #1c4a66; }
+#tab-quote-make .cloud-auth-state { font-size: 11.5px; color: #7d6b56; }
+#tab-quote-make .cloud-auth-state.is-on { color: #1a5c45; font-weight: 600; }
+#tab-quote-make .cloud-auth-actions { margin-bottom: 2px; }
+#tab-quote-make .btn-cloud-login {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: #fff; color: #3c4043;
+  border: 1.5px solid #cfd8dc; border-radius: 6px;
+  padding: 8px 16px; font-size: 13px; font-weight: 600;
+  font-family: inherit; cursor: pointer; transition: background .15s, box-shadow .15s;
+}
+#tab-quote-make .btn-cloud-login:hover { background: #f5f9fb; box-shadow: 0 1px 4px rgba(0,0,0,.12); }
+#tab-quote-make .btn-cloud-logout {
+  background: none; color: #6b7a85; border: 1px solid #cfd8dc;
+  border-radius: 5px; padding: 4px 12px; font-size: 11.5px;
+  cursor: pointer; font-family: inherit;
+}
+#tab-quote-make .btn-cloud-logout:hover { background: #e3edf3; }
+#tab-quote-make .cloud-save-row {
+  display: flex; gap: 8px; margin: 10px 0; align-items: center;
+}
+
+/* ? ヘルプアイコン＋ホバー表示ツールチップ */
+#tab-quote-make .help-tip {
+  position: relative; display: inline-flex; align-items: center; justify-content: center;
+  width: 16px; height: 16px; margin-left: 6px;
+  font-size: 11px; font-weight: 700; line-height: 1;
+  color: #5a7184; background: #dceaf2;
+  border: 1px solid #b9d2e0; border-radius: 50%;
+  cursor: help; user-select: none; vertical-align: middle;
+}
+#tab-quote-make .help-tip:hover,
+#tab-quote-make .help-tip:focus { background: #c4ddec; outline: none; }
+#tab-quote-make .help-tip-text {
+  position: absolute; top: calc(100% + 7px); left: 0;
+  width: max-content; max-width: 240px;
+  background: #2c3e4a; color: #fff;
+  font-size: 11.5px; font-weight: 400; line-height: 1.55; text-align: left;
+  padding: 8px 11px; border-radius: 6px;
+  box-shadow: 0 4px 14px rgba(0,0,0,.22);
+  opacity: 0; visibility: hidden; transform: translateY(-3px);
+  transition: opacity .14s, transform .14s; z-index: 6100; pointer-events: none;
+  white-space: normal;
+}
+#tab-quote-make .help-tip-text strong { color: #ffe08a; font-weight: 700; }
+#tab-quote-make .help-tip-text::before {
+  content: ''; position: absolute; bottom: 100%; left: 6px;
+  border: 5px solid transparent; border-bottom-color: #2c3e4a;
+}
+#tab-quote-make .help-tip:hover .help-tip-text,
+#tab-quote-make .help-tip:focus .help-tip-text {
+  opacity: 1; visibility: visible; transform: translateY(0);
+}
+#tab-quote-make .btn-cloud-save {
+  background: #2b7bb0; color: #fff; border: none; border-radius: 5px;
+  padding: 7px 14px; font-size: 12px; cursor: pointer; font-family: inherit;
+  white-space: nowrap; transition: background .15s;
+}
+#tab-quote-make .btn-cloud-save:hover { background: #1c5d87; }
+#tab-quote-make .cloud-list-owner {
+  font-size: 10.5px; color: #5a7184; background: #dceaf2;
+  border-radius: 3px; padding: 1px 6px; white-space: nowrap;
+}
+
+/* 検索ボックス */
+#tab-quote-make .cloud-search-row { margin: 4px 0 8px; }
+#tab-quote-make .cloud-search-input {
+  width: 100%;
+  border: 1px solid #cfd8dc; border-radius: 6px;
+  padding: 7px 11px; font-size: 13px; font-family: inherit;
+  outline: none; box-sizing: border-box; background: #fff;
+}
+#tab-quote-make .cloud-search-input:focus { border-color: #2b7bb0; }
+
+/* ステータス絞り込みチップ */
+#tab-quote-make .cloud-status-chips {
+  display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px;
+}
+#tab-quote-make .cloud-chip {
+  display: inline-flex; align-items: center; gap: 5px;
+  background: #fff; color: #5a6e7a;
+  border: 1px solid #cfd8dc; border-radius: 999px;
+  padding: 3px 11px; font-size: 11.5px; font-family: inherit;
+  cursor: pointer; transition: background .12s, border-color .12s;
+}
+#tab-quote-make .cloud-chip:hover { background: #f0f6fa; }
+#tab-quote-make .cloud-chip.is-active { background: #2b7bb0; color: #fff; border-color: #2b7bb0; }
+#tab-quote-make .cloud-chip-n {
+  font-size: 10px; font-weight: 700;
+  background: rgba(0,0,0,.08); border-radius: 999px;
+  padding: 0 6px; min-width: 16px; text-align: center;
+}
+#tab-quote-make .cloud-chip.is-active .cloud-chip-n { background: rgba(255,255,255,.28); }
+
+/* 案件カード（2段組） */
+#tab-quote-make .cloud-card {
+  padding: 8px 10px; border-bottom: 1px solid #eef2f5; background: #fff;
+}
+#tab-quote-make .cloud-card:last-child { border-bottom: none; }
+#tab-quote-make .cloud-card-row1 { display: flex; align-items: center; gap: 8px; }
+#tab-quote-make .cloud-card-name {
+  flex: 1; font-size: 13px; font-weight: 600; color: #2c3e4a;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+#tab-quote-make .cloud-card-row2 {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 8px; margin-top: 4px; padding-left: 2px;
+}
+#tab-quote-make .cloud-card-meta { font-size: 11px; color: #5a6e7a; }
+#tab-quote-make .cloud-card-who { font-size: 10.5px; color: #94a3ad; white-space: nowrap; }
+
+/* ステータス変更セレクト（値で色分け） */
+#tab-quote-make .cloud-status-sel {
+  font-size: 11px; font-weight: 700; font-family: inherit;
+  border: 1px solid transparent; border-radius: 4px;
+  padding: 2px 4px; cursor: pointer; white-space: nowrap;
+}
+#tab-quote-make .cloud-status--draft { background: #eceff1; color: #607d8b; }
+#tab-quote-make .cloud-status--sent  { background: #e3f0fa; color: #1c6fa6; }
+#tab-quote-make .cloud-status--won   { background: #e6f4ea; color: #1e7e44; }
+#tab-quote-make .cloud-status--lost  { background: #fdeaea; color: #c0392b; }
+#tab-quote-make .cloud-chip--draft.is-active { background: #607d8b; border-color: #607d8b; }
+#tab-quote-make .cloud-chip--sent.is-active  { background: #1c6fa6; border-color: #1c6fa6; }
+#tab-quote-make .cloud-chip--won.is-active   { background: #1e7e44; border-color: #1e7e44; }
+#tab-quote-make .cloud-chip--lost.is-active  { background: #c0392b; border-color: #c0392b; }
 /* ========== 処理済みマーク ========== */
 #tab-quote-make .done-btn {
   background: none;
