@@ -436,6 +436,14 @@
       checkUnfilled(newId);
       onCatChange(newId);
       onPay(newId);
+      // 課税チェックの状態をコピー（checkbox は .value では複製されないため明示的に）。
+      // toggleTax で「*」付与・taxed クラス・消費税再計算の副作用も再適用する。
+      const srcTx = document.getElementById(`tx-${srcId}`);
+      const dstTx = document.getElementById(`tx-${newId}`);
+      if (srcTx && dstTx) {
+        dstTx.checked = srcTx.checked;
+        if (dstTx.checked) toggleTax(newId);
+      }
       // チェックを外す
       const chk = newTr.querySelector('.row-select-chk');
       if (chk) chk.checked = false;
