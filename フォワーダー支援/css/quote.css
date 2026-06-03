@@ -3744,9 +3744,6 @@
 #tab-quote-make .cloud-share-title { font-size: 13px; font-weight: 700; color: #1c4a66; }
 #tab-quote-make .cloud-auth-state { font-size: 11.5px; color: #7d6b56; }
 #tab-quote-make .cloud-auth-state.is-on { color: #1a5c45; font-weight: 600; }
-#tab-quote-make .cloud-share-desc {
-  font-size: 11.5px; color: #4a6275; line-height: 1.6; margin-bottom: 10px;
-}
 #tab-quote-make .cloud-auth-actions { margin-bottom: 2px; }
 #tab-quote-make .btn-cloud-login {
   display: inline-flex; align-items: center; gap: 6px;
@@ -3763,10 +3760,40 @@
 }
 #tab-quote-make .btn-cloud-logout:hover { background: #e3edf3; }
 #tab-quote-make .cloud-save-row {
-  display: flex; gap: 8px; margin: 10px 0; align-items: center; justify-content: space-between;
+  display: flex; gap: 8px; margin: 10px 0; align-items: center;
 }
-#tab-quote-make .cloud-save-hint { font-size: 11px; color: #5a6e7a; line-height: 1.4; }
-#tab-quote-make .cloud-save-hint strong { color: #1c4a66; }
+
+/* ? ヘルプアイコン＋ホバー表示ツールチップ */
+#tab-quote-make .help-tip {
+  position: relative; display: inline-flex; align-items: center; justify-content: center;
+  width: 16px; height: 16px; margin-left: 6px;
+  font-size: 11px; font-weight: 700; line-height: 1;
+  color: #5a7184; background: #dceaf2;
+  border: 1px solid #b9d2e0; border-radius: 50%;
+  cursor: help; user-select: none; vertical-align: middle;
+}
+#tab-quote-make .help-tip:hover,
+#tab-quote-make .help-tip:focus { background: #c4ddec; outline: none; }
+#tab-quote-make .help-tip-text {
+  position: absolute; top: calc(100% + 7px); left: 0;
+  width: max-content; max-width: 240px;
+  background: #2c3e4a; color: #fff;
+  font-size: 11.5px; font-weight: 400; line-height: 1.55; text-align: left;
+  padding: 8px 11px; border-radius: 6px;
+  box-shadow: 0 4px 14px rgba(0,0,0,.22);
+  opacity: 0; visibility: hidden; transform: translateY(-3px);
+  transition: opacity .14s, transform .14s; z-index: 6100; pointer-events: none;
+  white-space: normal;
+}
+#tab-quote-make .help-tip-text strong { color: #ffe08a; font-weight: 700; }
+#tab-quote-make .help-tip-text::before {
+  content: ''; position: absolute; bottom: 100%; left: 6px;
+  border: 5px solid transparent; border-bottom-color: #2c3e4a;
+}
+#tab-quote-make .help-tip:hover .help-tip-text,
+#tab-quote-make .help-tip:focus .help-tip-text {
+  opacity: 1; visibility: visible; transform: translateY(0);
+}
 #tab-quote-make .btn-cloud-save {
   background: #2b7bb0; color: #fff; border: none; border-radius: 5px;
   padding: 7px 14px; font-size: 12px; cursor: pointer; font-family: inherit;

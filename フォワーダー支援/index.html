@@ -2120,11 +2120,8 @@
         <!-- ☁️ チーム共有（クラウド／Supabase） -->
         <div class="cloud-share-section" id="cloudShareSection">
           <div class="cloud-share-head">
-            <span class="cloud-share-title">☁️ チーム共有</span>
+            <span class="cloud-share-title">☁️ チーム共有<span class="help-tip" tabindex="0" role="button" aria-label="チーム共有の説明">?<span class="help-tip-text">ログインすると、保存したプリセットをチームのメンバー全員で共有・編集できます（端末をまたいで利用可）。</span></span></span>
             <span class="cloud-auth-state" id="cloudAuthState">…</span>
-          </div>
-          <div class="cloud-share-desc">
-            ログインすると、保存したプリセットを<strong>チームのメンバー全員で共有・編集</strong>できます（端末をまたいで利用可）。
           </div>
           <div class="cloud-auth-actions" id="cloudAuthActions">
             <button class="btn-cloud-login"  id="btnCloudLogin"  type="button" onclick="cloudLogin()">🔑 Google でログイン</button>
@@ -2132,8 +2129,8 @@
           </div>
           <div class="cloud-share-body" id="cloudShareBody" style="display:none">
             <div class="cloud-save-row">
-              <span class="cloud-save-hint">保存名は<strong>管理番号</strong>から自動生成されます（ローカル一時保存と同じ）</span>
               <button class="btn-cloud-save" type="button" onclick="cloudSaveCurrent()">☁️ 現在の内容を共有に保存</button>
+              <span class="help-tip" tabindex="0" role="button" aria-label="保存名についての説明">?<span class="help-tip-text">保存名は<strong>管理番号（＋顧客名・担当者）</strong>から自動生成されます。ローカルの一時保存と同じ命名です。同じ管理番号で再保存すると上書きされます。</span></span>
             </div>
             <div class="cloud-search-row">
               <input type="text" class="cloud-search-input" id="cloudSearchInput"
