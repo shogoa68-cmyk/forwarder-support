@@ -2096,17 +2096,7 @@
     <div class="preset-mgr-modal" id="presetMgrModal"
          onclick="if(event.target===this)closePresetMgr()">
       <div class="preset-mgr-box">
-        <h3>🗂️ プリセット/一時保存</h3>
-        <p class="preset-mgr-desc">
-          現在の入力状態を名前付きで保存・呼び出しできます（<strong>最大 50 件・このブラウザのみ</strong>）。<br>
-          「輸入案件用」「国内配送用」などテンプレートとして使うほか、<br>
-          「一時保存」のような名前で作業途中のデータを退避させることもできます。
-        </p>
-        <div class="preset-mgr-warn">
-          💡 <strong>長期保管・他端末との共有・チームでの引き継ぎ</strong>には、ツールバーの
-          「<strong>📤 JSON</strong>」ボタンから <strong>JSON ファイル</strong>としてバックアップすることを推奨します。
-          JSON ファイルは「📥 読込」で同じ状態を完全復元できます（クラウドフォルダ共有も可）。
-        </div>
+        <h3>🗂️ プリセット/一時保存<span class="help-tip" tabindex="0" role="button" aria-label="プリセット/一時保存の説明">?<span class="help-tip-text">現在の入力状態を名前付きで保存・呼び出し（<strong>最大50件・このブラウザのみ</strong>）。「輸入案件用」などのテンプレートや、作業途中の退避に使えます。<br>長期保管・他端末バックアップは、ツールバーの<strong>📤 JSON</strong>書き出しも利用できます（チーム共有は下の「☁️ チーム共有」へ）。</span></span></h3>
         <div class="preset-save-row">
           <input type="text" class="preset-name-input" id="presetNameInput"
                  placeholder="例）輸入案件用・国内配送用" maxlength="30"
