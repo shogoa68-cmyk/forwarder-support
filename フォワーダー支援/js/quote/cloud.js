@@ -17,6 +17,15 @@
   let _cloudUser  = null;   // ログイン中ユーザー（null = 未ログイン）
   let _cloudInited = false;
 
+  // 案件ステータス定義（順序＝表示順、key は DB 保存値）
+  const CLOUD_STATUSES = ['下書き中', '提示済み', '受注', '失注'];
+  const CLOUD_STATUS_DEFAULT = '下書き中';
+
+  // 一覧キャッシュ＋絞り込み状態（フェーズ1：クライアント側フィルタ）
+  let _cloudRows = [];          // 取得した全件
+  let _cloudSearch = '';        // 検索語（名前・顧客・担当）
+  let _cloudStatusFilter = '';  // '' = すべて
+
   // 設定が実値で埋まっているか（プレースホルダのままなら false）
   function cloudIsConfigured() {
     const c = window.CLOUD_CONFIG;
@@ -101,7 +110,7 @@
     if (wrap) wrap.innerHTML = '<div class="preset-empty">読み込み中…</div>';
     const { data, error } = await c
       .from(_table())
-      .select('id,name,owner_email,updated_at')
+      .select('id,name,status,customer,person,owner_email,created_by,updated_at')
       .order('updated_at', { ascending: false });
     if (error) {
       if (wrap) wrap.innerHTML =
@@ -109,15 +118,53 @@
         '<br><small>許可リスト（allowed_emails）に登録されていない可能性があります</small></div>';
       return;
     }
-    _renderCloudList(data || []);
+    _cloudRows = data || [];
+    _renderStatusChips();
+    _applyCloudFilter();
+  }
+
+  // 検索語・ステータスで _cloudRows を絞り込んで描画
+  function _applyCloudFilter() {
+    const q = _cloudSearch.trim().toLowerCase();
+    const rows = _cloudRows.filter(r => {
+      if (_cloudStatusFilter && (r.status || CLOUD_STATUS_DEFAULT) !== _cloudStatusFilter) return false;
+      if (!q) return true;
+      const hay = [r.name, r.customer, r.person, r.owner_email].filter(Boolean).join(' ').toLowerCase();
+      return hay.includes(q);
+    });
+    _renderCloudList(rows);
+  }
+
+  // ステータス絞り込みチップ（件数バッジ付き）
+  function _renderStatusChips() {
+    const box = document.getElementById('cloudStatusChips');
+    if (!box) return;
+    const count = st => _cloudRows.filter(r => (r.status || CLOUD_STATUS_DEFAULT) === st).length;
+    const chip = (val, label, n) =>
+      '<button type="button" class="cloud-chip' + (_cloudStatusFilter === val ? ' is-active' : '') +
+      (val ? ' cloud-chip--' + _statusClass(val) : '') +
+      '" onclick="cloudFilterStatus(\'' + val + '\')">' + escHtml(label) +
+      '<span class="cloud-chip-n">' + n + '</span></button>';
+    let html = chip('', 'すべて', _cloudRows.length);
+    html += CLOUD_STATUSES.map(st => chip(st, st, count(st))).join('');
+    box.innerHTML = html;
+  }
+
+  function _statusClass(st) {
+    return { '下書き中':'draft', '提示済み':'sent', '受注':'won', '失注':'lost' }[st] || 'draft';
   }
 
   function _renderCloudList(rows) {
     const wrap = document.getElementById('cloudPresetListWrap');
     if (!wrap) return;
-    if (!rows.length) {
+    if (!_cloudRows.length) {
       wrap.innerHTML = '<div class="preset-empty">共有プリセットはまだありません<br>'
         + '<small style="color:#9bb;">下のフォームから保存できます</small></div>';
+      return;
+    }
+    if (!rows.length) {
+      wrap.innerHTML = '<div class="preset-empty">条件に合う案件がありません<br>'
+        + '<small style="color:#9bb;">検索語・ステータスを変えてください</small></div>';
       return;
     }
     wrap.innerHTML = rows.map(r => {
@@ -125,16 +172,61 @@
         ? new Date(r.updated_at).toLocaleString('ja-JP',
             { month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit' })
         : '';
-      const who = r.owner_email ? r.owner_email.split('@')[0] : '';
+      const status = r.status || CLOUD_STATUS_DEFAULT;
+      const updWho = r.owner_email ? r.owner_email.split('@')[0] : '';
+      const crtWho = r.created_by  ? r.created_by.split('@')[0]  : '';
       const idAttr = encodeURIComponent(r.id);
-      return '<div class="preset-list-item">' +
-        '<span class="preset-list-name">' + escHtml(r.name) + '</span>' +
-        (who ? '<span class="cloud-list-owner" title="' + escHtml(r.owner_email) + '">' + escHtml(who) + '</span>' : '') +
-        '<span class="preset-list-ts">' + ts + '</span>' +
-        '<button class="btn-preset-load" onclick="cloudLoadPreset(\'' + idAttr + '\')">読込</button>' +
-        '<button class="btn-preset-del"  onclick="cloudDeletePreset(\'' + idAttr + '\')" title="削除（全員から消えます）">✕</button>' +
+      const meta = [];
+      if (r.customer) meta.push('👤 ' + escHtml(r.customer));
+      if (r.person)   meta.push('🧑‍💼 ' + escHtml(r.person));
+      const opts = CLOUD_STATUSES.map(st =>
+        '<option value="' + st + '"' + (st === status ? ' selected' : '') + '>' + st + '</option>').join('');
+      return '' +
+        '<div class="cloud-card">' +
+          '<div class="cloud-card-row1">' +
+            '<select class="cloud-status-sel cloud-status--' + _statusClass(status) + '" ' +
+                    'title="ステータスを変更" onchange="cloudSetStatus(\'' + idAttr + '\', this.value)">' + opts + '</select>' +
+            '<span class="cloud-card-name" title="' + escHtml(r.name) + '">' + escHtml(r.name) + '</span>' +
+            '<button class="btn-preset-load" onclick="cloudLoadPreset(\'' + idAttr + '\')">読込</button>' +
+            '<button class="btn-preset-del"  onclick="cloudDeletePreset(\'' + idAttr + '\')" title="削除（全員から消えます）">✕</button>' +
+          '</div>' +
+          '<div class="cloud-card-row2">' +
+            (meta.length ? '<span class="cloud-card-meta">' + meta.join('　') + '</span>' : '') +
+            '<span class="cloud-card-who" title="作成：' + escHtml(crtWho || '—') + ' / 最終更新：' + escHtml(updWho || '—') + '">' +
+              '✏️ ' + escHtml(updWho || '—') + '・' + ts + '</span>' +
+          '</div>' +
         '</div>';
     }).join('');
+  }
+
+  // 検索ボックス入力
+  function cloudSearchInput(val) {
+    _cloudSearch = val || '';
+    _applyCloudFilter();
+  }
+
+  // ステータス絞り込み切替
+  function cloudFilterStatus(val) {
+    _cloudStatusFilter = (val === _cloudStatusFilter) ? '' : val;  // 同じものを再クリックで解除
+    _renderStatusChips();
+    _applyCloudFilter();
+  }
+
+  // 行のステータス変更
+  async function cloudSetStatus(rawId, status) {
+    const c = _getClient();
+    if (!c) return;
+    const id = decodeURIComponent(rawId);
+    const { error } = await c.from(_table())
+      .update({ status, owner_email: _cloudUser.email, updated_at: new Date().toISOString() })
+      .eq('id', id);
+    if (error) { quoteShowToast('⚠️ ステータス更新に失敗：' + error.message, 'warn'); return; }
+    // ローカルキャッシュも更新して即時反映
+    const row = _cloudRows.find(r => r.id === id);
+    if (row) { row.status = status; row.owner_email = _cloudUser.email; row.updated_at = new Date().toISOString(); }
+    _renderStatusChips();
+    _applyCloudFilter();
+    quoteShowToast('🔖 ステータスを「' + status + '」に変更しました', 'success');
   }
 
   // ---------- 保存（同名は上書き） ----------
@@ -146,6 +238,10 @@
     if (!name) { quoteShowToast('⚠️ 共有プリセット名を入力してください', 'warn'); if (inp) inp.focus(); return; }
 
     const data = gatherAllData();
+    // 検索・一覧用の主要項目を data から昇格（顧客名・担当者）
+    const f = (data && data.fields) || {};
+    const customer = (f['qf-customer'] || '').trim() || null;
+    const person   = (f['qf-person']   || '').trim() || null;
 
     // 同名チェック → 上書き or 新規
     const { data: existing, error: selErr } = await c
@@ -155,12 +251,18 @@
     let resp;
     if (existing && existing.length) {
       if (!confirm('共有プリセット「' + name + '」が既にあります。上書きしますか？')) return;
+      // 上書き時はステータス・作成者は維持（中身と顧客/担当・最終更新者のみ更新）
       resp = await c.from(_table())
-        .update({ data, owner_email: _cloudUser.email, updated_at: new Date().toISOString() })
+        .update({ data, customer, person, owner_email: _cloudUser.email, updated_at: new Date().toISOString() })
         .eq('id', existing[0].id);
     } else {
       resp = await c.from(_table())
-        .insert({ name, data, owner_email: _cloudUser.email });
+        .insert({
+          name, data, customer, person,
+          status: CLOUD_STATUS_DEFAULT,
+          owner_email: _cloudUser.email,
+          created_by:  _cloudUser.email,
+        });
     }
     if (resp.error) { quoteShowToast('⚠️ 保存に失敗：' + resp.error.message, 'warn', 5000); return; }
 
@@ -259,6 +361,9 @@
   window.cloudDeletePreset   = cloudDeletePreset;
   window.cloudListPresets    = cloudListPresets;
   window.cloudOnPresetMgrOpen = cloudOnPresetMgrOpen;
+  window.cloudSearchInput    = cloudSearchInput;
+  window.cloudFilterStatus   = cloudFilterStatus;
+  window.cloudSetStatus      = cloudSetStatus;
 
   // supabase-js は <head> で defer 読み込みのため DOMContentLoaded を待つ
   if (document.readyState === 'loading') {

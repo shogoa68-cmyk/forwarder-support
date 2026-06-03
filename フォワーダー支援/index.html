@@ -2137,6 +2137,12 @@
                      onkeydown="if(event.key==='Enter')cloudSaveCurrent()" />
               <button class="btn-cloud-save" type="button" onclick="cloudSaveCurrent()">☁️ 共有に保存</button>
             </div>
+            <div class="cloud-search-row">
+              <input type="text" class="cloud-search-input" id="cloudSearchInput"
+                     placeholder="🔍 検索（案件名・顧客名・担当者）"
+                     oninput="cloudSearchInput(this.value)" />
+            </div>
+            <div class="cloud-status-chips" id="cloudStatusChips"></div>
             <div class="preset-list-wrap" id="cloudPresetListWrap">
               <div class="preset-empty">読み込み中…</div>
             </div>

@@ -51,7 +51,9 @@ github/202605_コード改修/
 - **認証**：Google ログイン（Supabase Auth / OAuth）。`cloud.js` の `cloudLogin/cloudLogout`
 - **保護**：RLS（Row Level Security）。`allowed_emails` テーブルに登録されたメンバーのみ読み書き可（判定は `security definer` 関数 `is_team_member()` 経由）。Google でログインできても許可リスト外はデータに触れない
 - **編集権限**：許可メンバーは全員が編集・削除可（`for all` ポリシー）
-- **テーブル**：`quote_presets { id, name, data(jsonb), owner_email, updated_at }`。`data` はローカル `quotePresets_v1` と同形式（`gatherAllData()` / `_applyQuoteData()` 互換）
+- **テーブル**：`quote_presets { id, name, data(jsonb), status, customer, person, owner_email, created_by, updated_at }`。`data` はローカル `quotePresets_v1` と同形式（`gatherAllData()` / `_applyQuoteData()` 互換）
+- **案件ステータス／検索**：`status`（下書き中/提示済み/受注/失注）を行ごとにプルダウン変更・色分けバッジ・チップで絞り込み。検索ボックスは名前・顧客名・担当者でクライアント側フィルタ（フェーズ1）。`customer`/`person` は保存時に `data.fields['qf-customer'/'qf-person']` から列へ昇格。`created_by`＝作成者、`owner_email`＝最終更新者
+- **件数**：クラウド側は実質ほぼ無制限（無料枠 500MB ÷ 約4KB/件 ≒ 約12万件）。ローカル localStorage のみ最大50件
 - **キー**：`cloud-config.js` の `publishableKey`（`sb_publishable_...`）はブラウザ公開前提・RLS で保護されるためコミット可。**`sb_secret_...`（service_role）は絶対にコミットしない**
 - **ローカル保存（localStorage）は併存**：従来の「最大50件・このブラウザのみ」のプリセットはそのまま
 - **未設定でも安全に no-op**：`cloud-config.js` がプレースホルダのままなら `cloudIsConfigured()` が false を返し「未設定」表示で停止
