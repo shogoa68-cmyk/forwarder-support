@@ -1,11 +1,11 @@
 // ========== プレビュー・CSV (app-preview.js) ==========
 
-  // 消費税率（プレビュー）：基本 10%。
-  // 「輸出免税（0%）を適用」チェックボックス（#pvExemptChk）を手動でオンにした場合のみ 0% に切替。
+  // 消費税率（プレビュー）：標準 10% 固定。
+  // 課否は行ごとの「課税」チェック（data-taxed）で制御するモデル。
+  // （旧「輸出免税（0%）を適用」全体チェックは廃止。行単位の課税/非課税で表現する）
   const PV_TAX_RATE_DEFAULT = 0.10;
   function getEffectiveTaxRate() {
-    const chk = document.getElementById('pvExemptChk');
-    return (chk && chk.checked) ? 0 : PV_TAX_RATE_DEFAULT;
+    return PV_TAX_RATE_DEFAULT;
   }
 
   // ========== プレビュー＆エクスポート ==========
@@ -603,20 +603,7 @@
       if (el) el.dataset.pvWasVisible = (el.style.display !== 'none') ? '1' : '0';
     });
     document.getElementById('previewOverlay').classList.add('open');
-    // 輸出免税（0%）チェックボックス：常に既定オフ（手動オプション）。
-    // ※消費税の課否は行ごとの「課税」チェック（data-taxed）で制御するモデル。
-    //   輸出案件でも国内区間（集荷・国内陸送・書類作成費 等）は課税10%、国際区間は免税と
-    //   行単位で振り分かれるため、全体に0%を自動適用すると課税行まで0%になってしまう。
-    //   このチェックは「見積全体が完全免税」の場合のみ手動でオンにする。
-    //   （旧 E-2 の輸出方向での自動オンは課税モデルと矛盾するため撤回）
-    const exemptChk = document.getElementById('pvExemptChk');
-    if (exemptChk) {
-      exemptChk.checked = false;
-      if (!exemptChk.dataset.listenerSet) {
-        exemptChk.addEventListener('change', updatePreviewTax);
-        exemptChk.dataset.listenerSet = '1';
-      }
-    }
+    // 消費税は標準 10% 固定・課否は行ごとの「課税」チェックで制御（全体の輸出免税0%は廃止）
     updatePreviewTax();
     // Apply saved customization
     initPreviewCustomize();
@@ -638,14 +625,10 @@
     }
   }
 
-  // ========== プレビュー消費税計算（10% / 輸出免税 0%）==========
+  // ========== プレビュー消費税計算（標準10%・課否は行ごと）==========
   function updatePreviewTax() {
     const totalSub  = parseFloat(document.getElementById('pvTotalSubtotal')?.dataset.raw || '0');
     const rate = getEffectiveTaxRate();
-    const isExempt = rate === 0;
-    // ラベルテキストをチェックボックス状態に合わせて更新
-    const rateLbl = document.getElementById('pvTaxRateLabel');
-    if (rateLbl) rateLbl.textContent = isExempt ? '0%（輸出免税）' : '10%（標準）';
     // 行ごとの消費税セルを更新（課税行のみ計算・通貨別集計）
     let totTaxJpy = 0;
     const perCcyTax = {};

@@ -2804,7 +2804,7 @@
                 </th>
                 <th class="hd-base" style="width:26px;"></th>
                 <th class="hd-base hd-catsv" style="width:104px;" title="上段＝カテゴリ、下段＝サブコン（協力会社・下請け業者名）">カテゴリ<br><small class="hd-sub">／サブコン</small></th>
-                <th class="hd-base" style="width:38px;" title="ON にすると消費税 10% が自動計算され、項目名先頭に「*」が付きます。輸出免税の行は OFF のままにしてください（輸出方向選択時は自動 0% に切替）。">課税</th>
+                <th class="hd-base" style="width:38px;" title="ON にすると消費税 10% が自動計算され、項目名先頭に「*」が付きます。免税（非課税）の行は OFF のままにしてください。">課税</th>
                 <th class="hd-base" style="width:160px;">項目名</th>
                 <th class="hd-base" style="width:65px;">数量·単位</th>
                 <th class="hd-base hd-stk" style="width:62px;" title="上段＝支払い（仕入）通貨、下段＝請求（売値）通貨">通貨<br><small class="hd-sub"><span class="t-cost">仕</span>／<span class="t-sell">売</span></small></th>
@@ -2981,9 +2981,6 @@
         <div id="pvTaxBox" class="pv-tax-box">
           <label class="pv-tax-label">🧾 消費税：</label>
           <span class="pv-tax-fixed" id="pvTaxRateLabel">10%（標準）</span>
-          <label class="pv-exempt-toggle">
-            <input type="checkbox" id="pvExemptChk"> 輸出免税（0%）を適用
-          </label>
           <input type="hidden" id="pvTaxRate" value="10">
           <span class="pv-tax-detail">消費税額: <b id="pvTaxAmount">—</b>　税込合計: <b id="pvTaxTotal">—</b></span>
           <span id="pvTotalSubtotal" data-raw="0" style="display:none;"></span>
@@ -3067,7 +3064,7 @@
           <input type="text" data-field="sv" class="w-subcon" placeholder="サブコン" />
         </div>
       </td>
-      <td class="tax-cell"><input type="checkbox" data-field="tx" title="ON にすると消費税 10% が自動計算され、項目名先頭に「*」が付きます。輸出免税の行は OFF のままにしてください（輸出方向選択時は自動 0% に切替）。"></td>
+      <td class="tax-cell"><input type="checkbox" data-field="tx" title="ON にすると消費税 10% が自動計算され、項目名先頭に「*」が付きます。免税（非課税）の行は OFF のままにしてください。"></td>
       <td class="name-cell"><input type="text" data-field="nm" class="w-name" placeholder="例）海上運賃" data-col="1" /></td>
       <td class="qty-cell">
         <div class="qty-wrap">
