@@ -2132,10 +2132,8 @@
           </div>
           <div class="cloud-share-body" id="cloudShareBody" style="display:none">
             <div class="cloud-save-row">
-              <input type="text" class="preset-name-input" id="cloudPresetNameInput"
-                     placeholder="共有プリセット名（例：東南アジア向け標準）" maxlength="40"
-                     onkeydown="if(event.key==='Enter')cloudSaveCurrent()" />
-              <button class="btn-cloud-save" type="button" onclick="cloudSaveCurrent()">☁️ 共有に保存</button>
+              <span class="cloud-save-hint">保存名は<strong>管理番号</strong>から自動生成されます（ローカル一時保存と同じ）</span>
+              <button class="btn-cloud-save" type="button" onclick="cloudSaveCurrent()">☁️ 現在の内容を共有に保存</button>
             </div>
             <div class="cloud-search-row">
               <input type="text" class="cloud-search-input" id="cloudSearchInput"

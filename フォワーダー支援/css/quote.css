@@ -3762,7 +3762,11 @@
   cursor: pointer; font-family: inherit;
 }
 #tab-quote-make .btn-cloud-logout:hover { background: #e3edf3; }
-#tab-quote-make .cloud-save-row { display: flex; gap: 8px; margin: 10px 0; }
+#tab-quote-make .cloud-save-row {
+  display: flex; gap: 8px; margin: 10px 0; align-items: center; justify-content: space-between;
+}
+#tab-quote-make .cloud-save-hint { font-size: 11px; color: #5a6e7a; line-height: 1.4; }
+#tab-quote-make .cloud-save-hint strong { color: #1c4a66; }
 #tab-quote-make .btn-cloud-save {
   background: #2b7bb0; color: #fff; border: none; border-radius: 5px;
   padding: 7px 14px; font-size: 12px; cursor: pointer; font-family: inherit;

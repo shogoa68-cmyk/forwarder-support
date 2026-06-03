@@ -233,9 +233,10 @@
   async function cloudSaveCurrent() {
     const c = _getClient();
     if (!c || !_cloudUser) { quoteShowToast('⚠️ 先に Google でログインしてください', 'warn'); return; }
-    const inp = document.getElementById('cloudPresetNameInput');
-    const name = (inp && inp.value || '').trim();
-    if (!name) { quoteShowToast('⚠️ 共有プリセット名を入力してください', 'warn'); if (inp) inp.focus(); return; }
+    // 保存名は管理番号(＋顧客名・担当者)から自動生成（ローカル一時保存と同じ _buildDefaultPresetName）
+    const name = (typeof _buildDefaultPresetName === 'function')
+      ? _buildDefaultPresetName()
+      : ('一時保存_' + new Date().toISOString().slice(0, 10).replace(/-/g, ''));
 
     const data = gatherAllData();
     // 検索・一覧用の主要項目を data から昇格（顧客名・担当者）
@@ -266,7 +267,6 @@
     }
     if (resp.error) { quoteShowToast('⚠️ 保存に失敗：' + resp.error.message, 'warn', 5000); return; }
 
-    if (inp) inp.value = '';
     quoteShowToast('☁️ 「' + name + '」をチーム共有に保存しました', 'success');
     cloudListPresets();
   }
