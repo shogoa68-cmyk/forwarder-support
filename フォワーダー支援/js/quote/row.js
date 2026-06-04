@@ -653,6 +653,40 @@
     document.getElementById(`row-${id}`)?.remove();
   }
 
+  // ========== 社内メモ行（出力対象外）==========
+  let internalCount = 0;
+  function insertInternalRow(afterId, opts) {
+    internalCount++;
+    const id = `internal-${internalCount}`;
+    const tr = document.createElement('tr');
+    tr.id = `row-${id}`;
+    tr.dataset.type = 'internal';
+    tr.className = 'internal-row';
+    tr.innerHTML = `
+      <td class="check-cell">
+        <input type="checkbox" class="row-select-chk" tabindex="-1" title="この行を選択（パターン保存・削除用）" style="width:13px;height:13px;cursor:pointer;margin:0;vertical-align:middle;" />
+      </td>
+      <td class="remark-drag-cell">
+        <span class="drag-handle" title="ドラッグして並び替え">⠿</span>
+      </td>
+      <td colspan="9" class="internal-row-cell">
+        <span class="internal-row-marker">🔒 社内メモ</span>
+        <input type="text" class="internal-row-input" placeholder="社内用メモ（プレビュー・PDF・CSV・Excel には出力されません）" />
+      </td>
+    `;
+    const tbody = document.getElementById('tableBody');
+    if (afterId) {
+      const afterRow = document.getElementById(`row-${afterId}`);
+      if (afterRow?.nextSibling) tbody.insertBefore(tr, afterRow.nextSibling);
+      else if (afterRow)         tbody.appendChild(tr);
+      else                       tbody.appendChild(tr);
+    } else {
+      tbody.appendChild(tr);
+    }
+    initSubtotalDrag(tr);
+    if (!opts?.noFocus) tr.querySelector('.internal-row-input')?.focus();
+  }
+
   function updateSubtotalRows() {
     const tbody = document.getElementById('tableBody');
     const allRows = Array.from(tbody.querySelectorAll('tr'));
@@ -751,6 +785,7 @@
   }
   function toolbarInsertSubtotal() { insertSubtotalRow(_toolbarInsertAfterId()); }
   function toolbarInsertRemark()   { insertRemarkRow(_toolbarInsertAfterId()); }
+  function toolbarInsertInternal() { insertInternalRow(_toolbarInsertAfterId()); }
 
   // 未入力行（row-unfilled）を一括削除
   function deleteEmptyRows() {

@@ -226,6 +226,13 @@
         if (inp) inp.value = row.text || '';
         return;
       }
+      if (row && row._type === 'internal') {
+        insertInternalRow(null, { noFocus: true });
+        const tr = tbody.lastElementChild;
+        const inp = tr?.querySelector('.internal-row-input');
+        if (inp) inp.value = row.text || '';
+        return;
+      }
       // 通常行（v3 オブジェクト or 旧配列）
       const cells = Array.isArray(row) ? row : (row?.cells || []);
       addRow();
@@ -342,6 +349,10 @@
       }
       if (tr.dataset.type === 'remark') {
         rows.push({ _type: 'remark', text: tr.querySelector('.remark-row-input')?.value || '' });
+        return;
+      }
+      if (tr.dataset.type === 'internal') {
+        rows.push({ _type: 'internal', text: tr.querySelector('.internal-row-input')?.value || '' });
         return;
       }
       const cells = [];

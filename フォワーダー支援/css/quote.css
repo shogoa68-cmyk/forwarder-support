@@ -4440,6 +4440,63 @@
 }
 #tab-quote-make .action-cell .btn-remark-ins:hover { background: #cddff0; color: #1a3d6a; }
 
+/* ===== 社内メモ行（出力対象外）===== */
+#tab-quote-make tr.internal-row { background: #fff8f0 !important; }
+#tab-quote-make tr.internal-row td {
+  background: #fff8f0;
+  font-size: 12px;
+  border-top: 1px dashed #e0a060 !important;
+  border-bottom: 1px dashed #e0a060 !important;
+  padding: 4px 4px;
+}
+#tab-quote-make .internal-row-cell {
+  text-align: left; padding: 3px 6px !important;
+  display: table-cell; white-space: nowrap;
+}
+#tab-quote-make .internal-row-marker {
+  font-size: 11px; font-weight: 700; color: #b06020;
+  white-space: nowrap; margin-right: 8px;
+}
+#tab-quote-make .internal-row-input {
+  font-size: 12px; font-weight: normal;
+  border: 1px solid #e0a060; border-radius: 4px;
+  padding: 2px 6px; background: #fff; width: 480px; max-width: 60vw;
+  color: #5a3010; font-family: inherit;
+}
+#tab-quote-make .internal-row-input:focus { outline: none; border-color: #c06820; }
+
+/* ===== 列の表示/非表示トグル ===== */
+#quoteTable.hide-catsv th.hd-catsv,
+#quoteTable.hide-catsv td.catsv-cell { display: none; }
+
+#quoteTable.hide-profit th.hd-profit,
+#quoteTable.hide-profit td.profit-cell { display: none; }
+
+#quoteTable.hide-note th.hd-note,
+#quoteTable.hide-note td.note-cell { display: none; }
+
+/* 列トグルUI */
+#tab-quote-make .cmdbar-col-vis { position: relative; display: inline-block; }
+#tab-quote-make .cmdbar-col-vis-summary {
+  list-style: none; cursor: pointer;
+  font-size: 12px; padding: 3px 8px; border-radius: 4px;
+  background: #eef2f7; border: 1px solid #c0ccda; color: #3a5070;
+  white-space: nowrap; user-select: none;
+}
+#tab-quote-make .cmdbar-col-vis-summary:hover { background: #dde6f2; }
+#tab-quote-make .cmdbar-col-vis[open] .cmdbar-col-vis-summary { background: #dde6f2; }
+#tab-quote-make .cmdbar-col-vis-pop {
+  position: absolute; top: calc(100% + 4px); right: 0; z-index: 200;
+  background: #fff; border: 1px solid #c0ccda; border-radius: 6px;
+  padding: 8px 12px; box-shadow: 0 4px 12px rgba(0,0,0,.12);
+  display: flex; flex-direction: column; gap: 6px; min-width: 160px;
+}
+#tab-quote-make .col-vis-item {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 12px; cursor: pointer; white-space: nowrap; color: #2a3a50;
+}
+#tab-quote-make .col-vis-item input[type="checkbox"] { cursor: pointer; }
+
 /* ===== 荷姿プリセット ===== */
 #tab-quote-make .packing-field-wrap {
   display: flex;

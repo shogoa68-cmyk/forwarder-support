@@ -72,6 +72,7 @@
         rows.push({ _type: 'remark', text });
         return;
       }
+      if (tr.dataset.type === 'internal') return; // 社内メモ行は全出力対象外
       const id     = tr.id.replace('row-', '');
       const taxed  = document.getElementById(`tx-${id}`)?.checked || false;
       const cat    = document.getElementById(`cat-${id}`)?.value || '';

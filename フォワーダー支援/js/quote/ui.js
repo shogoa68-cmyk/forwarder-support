@@ -1885,10 +1885,40 @@
   };
 
   // Phase 2b：DOMContentLoaded ではなく initQuoteUI() として呼び出すように変更
+  // ===== 列の表示/非表示トグル =====
+  const COL_VIS_KEY = 'quoteColVis_v1';
+  const COL_NAMES = ['catsv', 'profit', 'note'];
+
+  function toggleColVis(col, visible) {
+    const table = document.getElementById('quoteTable');
+    if (!table) return;
+    table.classList.toggle(`hide-${col}`, !visible);
+    const saved = _loadColVis();
+    saved[col] = visible;
+    localStorage.setItem(COL_VIS_KEY, JSON.stringify(saved));
+  }
+
+  function _loadColVis() {
+    try { return JSON.parse(localStorage.getItem(COL_VIS_KEY) || '{}'); }
+    catch (e) { return {}; }
+  }
+
+  function initColVis() {
+    const saved = _loadColVis();
+    COL_NAMES.forEach(col => {
+      const visible = saved[col] !== false; // デフォルト表示
+      const chk = document.getElementById(`colVisChk${col.charAt(0).toUpperCase() + col.slice(1)}`);
+      if (chk) chk.checked = visible;
+      if (!visible) toggleColVis(col, false);
+    });
+  }
+  window.toggleColVis = toggleColVis;
+
   function initQuoteUI() {
     restoreCargoFieldOrder();
     initCargoSort();
     renderPackingPreset();
+    initColVis();
     restoreLayoutScale();      // 大/中/小 スケールを復元
     refreshBulkCatSelect();    // 「選択行 → カテゴリ一括変更」セレクトを初期構築
     initQuoteViewMode();       // STEP A: 客先/社内モード復元

@@ -2717,6 +2717,7 @@
                 <button class="btn-ins-row" onclick="toolbarInsertRow()" title="費用行を追加">＋ 行</button>
                 <button class="btn-ins-sub" onclick="toolbarInsertSubtotal()" title="小計行を追加">＝ 小計</button>
                 <button class="btn-ins-rem" onclick="toolbarInsertRemark()" title="リマーク（注記）行を追加">💬 リマーク</button>
+                <button class="btn-ins-int" onclick="toolbarInsertInternal()" title="社内メモ行を追加（プレビュー・PDF・CSV・Excel に出力されません）">🔒 社内メモ</button>
                 <select id="rowInsertPos" class="row-insert-pos" title="追加ボタンの挿入位置">
                   <option value="end">末尾に追加</option>
                   <option value="selected">選択行の下に挿入</option>
@@ -2744,6 +2745,14 @@
                 <span class="cmdbar-spacer"></span>
                 <button class="cmdbar-calc-btn" onclick="toggleCalcWidget()" title="フローティング電卓">🧮</button>
                 <div id="quoteFxBar" class="quote-fx-bar" title="JPY換算に使用中の為替レート（為替レート設定で変更可）"></div>
+                <details class="cmdbar-col-vis" id="cmdbarColVis">
+                  <summary class="cmdbar-col-vis-summary" title="列の表示・非表示">列 ▼</summary>
+                  <div class="cmdbar-col-vis-pop">
+                    <label class="col-vis-item"><input type="checkbox" id="colVisChkCatsv" onchange="toggleColVis('catsv',this.checked)" checked> カテゴリ / サブコン</label>
+                    <label class="col-vis-item"><input type="checkbox" id="colVisChkProfit" onchange="toggleColVis('profit',this.checked)" checked> 利益</label>
+                    <label class="col-vis-item"><input type="checkbox" id="colVisChkNote" onchange="toggleColVis('note',this.checked)" checked> 備考</label>
+                  </div>
+                </details>
                 <details class="cmdbar-gear" id="cmdbarGear">
                   <summary class="cmdbar-gear-summary" onclick="renderFxPanel(); renderUserCatPanel();" title="為替レート・カスタムカテゴリの設定">⚙ 設定</summary>
                   <div class="cmdbar-gear-pop">
@@ -2811,7 +2820,7 @@
                 <th class="hd-base hd-stk" style="width:118px;" title="上段＝支払い単価（仕入）、中＝＋乗せ幅、下段＝請求単価（売値）。CD は通貨差調整値">単価<br><small class="hd-sub"><span class="t-cost">仕</span>＋<span class="hd-mk-tag">乗</span>／<span class="t-sell">売</span></small></th>
                 <th class="hd-bill" style="width:92px;">小計<br><small class="hd-sub t-sell">売</small></th>
                 <th class="hd-profit hd-pr" style="width:80px;">利益</th>
-                <th class="hd-base" style="width:110px;">備考</th>
+                <th class="hd-base hd-note" style="width:110px;">備考</th>
               </tr>
             </thead>
             <tbody id="tableBody"></tbody>
@@ -2827,7 +2836,7 @@
                   <span id="tot-billing" style="display:none;">—</span>
                 </td>
                 <td class="profit-cell profit-zero pr-cell" id="tot-profit">—</td>
-                <td></td>
+                <td class="note-cell"></td>
               </tr>
             </tfoot>
           </table>
