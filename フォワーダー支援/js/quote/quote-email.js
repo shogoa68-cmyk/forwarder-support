@@ -124,12 +124,23 @@
     const cleanRemarks = remarks
       .map(t => String(t || '').replace(/^[\s　]*※[\s　]*/, '').trim())
       .filter(Boolean);
-    const remarkMentionsFx = cleanRemarks.some(t => /為替|外貨|USD|EUR|GBP|CNY|サーチャージ/.test(t));
+
+    // 条件・リマーク欄（下部テキストエリア）を行単位で追加
+    const globalRemarkRaw = (typeof getRemarkText === 'function') ? getRemarkText()
+      : (document.getElementById('remarkTextarea')?.value || '');
+    const globalRemarkLines = globalRemarkRaw
+      .split('\n')
+      .map(t => String(t).replace(/^[\s　]*※[\s　]*/, '').trim())
+      .filter(Boolean);
+
+    const remarkMentionsFx = [...cleanRemarks, ...globalRemarkLines]
+      .some(t => /為替|外貨|USD|EUR|GBP|CNY|サーチャージ/.test(t));
     const notes = [];
     if (hasFx && !remarkMentionsFx) {
       notes.push('海上運賃・サーチャージは外貨建て仕入・JPY建て請求のため、為替レートにより請求金額が変動します。');
     }
     cleanRemarks.forEach(t => notes.push(t));
+    globalRemarkLines.forEach(t => notes.push(t));
 
     // 件名（方向 / 輸送モード / POL→POD）
     const dirMap = { export: '輸出', import: '輸入' };
