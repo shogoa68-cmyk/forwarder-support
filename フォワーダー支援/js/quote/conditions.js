@@ -259,6 +259,7 @@
     if (typeof syncMultiEntryFields === 'function') syncMultiEntryFields();
     if (typeof window.updateSectionSummaries === 'function') window.updateSectionSummaries();
     if (typeof window.renderQuoteMilestones === 'function') window.renderQuoteMilestones();
+    if (typeof window.updateRemarkChar === 'function') window.updateRemarkChar();
   }
 
   function quoteUndo() {

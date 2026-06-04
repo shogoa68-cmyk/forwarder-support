@@ -127,7 +127,7 @@
     document.getElementById('remarkChar').textContent =
       `${document.getElementById('remarkTextarea').value.length}文字`;
   }
-
+  window.updateRemarkChar = updateRemarkChar;
 
   function getRemarkText() {
     return document.getElementById('remarkTextarea')?.value.trim() || '';
