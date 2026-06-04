@@ -674,20 +674,9 @@
         quoteShowToast('🧮 ' + text + ' = ' + result.toLocaleString('ja-JP', {maximumFractionDigits:4}), 'info');
       }
     });
-    // blur 時にも数式評価（直打ちした "=1+2" 形式に対応）
-    root.addEventListener('blur', function(e) {
-      const el = e.target;
-      if (el.type !== 'number') return;
-      if (!el.closest('#tableBody, #calcBody')) return;
-      const text = (el.value || '').trim();
-      if (!text.startsWith('=')) return;
-      const result = safeEvalExpr(text.slice(1));
-      if (result !== null) {
-        el.value = parseFloat(result.toFixed(6));
-        el.dispatchEvent(new Event('input', { bubbles: true }));
-        quoteShowToast('🧮 ' + text + ' = ' + result.toLocaleString('ja-JP', {maximumFractionDigits:4}), 'info');
-      }
-    }, true);
+    // 注: 直打ちの "=1+2" は <input type="number"> が "=" を受け付けず value が空に
+    // なるため評価できない。数式入力は上の paste ハンドラ（コピペ）経由でのみ対応する。
+    // （以前ここに blur ハンドラがあったが number 入力では発火条件を満たさず常に no-op だった）
   }
 
   // ========== 処理済みマーク（廃止：done-btn を撤去）==========

@@ -8,6 +8,13 @@
     return PV_TAX_RATE_DEFAULT;
   }
 
+  // 発行日の当日補完（御見積書 _todayIso と同じローカル日付）。
+  // 御見積書・Excel・TSV で発行日の扱いを統一するために使用。
+  function _pvTodayIso() {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  }
+
   // ========== プレビュー＆エクスポート ==========
   function getQuoteHeader() {
     return {
@@ -970,7 +977,7 @@
       if (hdr.ref)        lines.push(`仮REF#\t${hdr.ref}`);
       if (hdr.customer)   lines.push(`引き合い元\t${hdr.customer}`);
       if (hdr.person)     lines.push(`担当\t${formatPersonWithHonorific(hdr.person)}`);
-      if (hdr.date)       lines.push(`発行日\t${hdr.date}`);
+      lines.push(`発行日\t${hdr.date || _pvTodayIso()}`);
       if (hdr.validUntil) lines.push(`有効期限\t${hdr.validUntil}`);
       lines.push('');
     }
@@ -1147,7 +1154,7 @@
     if (hdr.ref)        aoaRows.push(['仮 REF #', hdr.ref]);
     if (hdr.customer)   aoaRows.push(['引き合い元', hdr.customer]);
     if (hdr.person)     aoaRows.push(['担当', formatPersonWithHonorific(hdr.person)]);
-    if (hdr.date)       aoaRows.push(['発行日', hdr.date]);
+    aoaRows.push(['発行日', hdr.date || _pvTodayIso()]);
     if (hdr.validUntil) aoaRows.push(['有効期限', hdr.validUntil]);
     // 引き合い条件（POL/POD/インコタームズ/輸送モード/コンテナ/貨物名）
     const cExcel = getConditions();

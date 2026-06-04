@@ -364,10 +364,15 @@
     const checked = document.getElementById(`tx-${id}`)?.checked;
     if (checked) {
       tr.classList.add('taxed');
-      if (!nm.value.startsWith('*')) nm.value = '*' + nm.value;
+      // 課税マーク * は「自動付与した場合」だけ後で外す。ユーザーが品名先頭に自分で
+      // 打った * を税OFF時に消してデータを壊さないよう、付与有無を data 属性で記録する。
+      if (!nm.value.startsWith('*')) { nm.value = '*' + nm.value; tr.dataset.taxAuto = '1'; }
+      else { tr.dataset.taxAuto = '0'; }
     } else {
       tr.classList.remove('taxed');
-      if (nm.value.startsWith('*')) nm.value = nm.value.slice(1);
+      // 自動付与した * のみ除去（taxAuto 未設定＝リロード後の旧データは従来通り先頭1文字除去）
+      if (nm.value.startsWith('*') && tr.dataset.taxAuto !== '0') nm.value = nm.value.slice(1);
+      delete tr.dataset.taxAuto;
     }
     // 消費税サマリ更新 + st セルの消費税表示を再描画（calc が updateTotals を内包）
     calc(id);
@@ -436,7 +441,11 @@
   }
 
   function val(id) {
-    return parseFloat(document.getElementById(id)?.value) || 0;
+    let v = document.getElementById(id)?.value;
+    if (v == null || v === '') return 0;
+    // 全角数字・小数点・マイナスを半角化（IME 確定ミスやコピペでの 0 欠落を防ぐ）
+    v = String(v).replace(/[０-９．－]/g, ch => String.fromCharCode(ch.charCodeAt(0) - 0xFEE0));
+    return parseFloat(v) || 0;
   }
 
   function updateTotals() {
