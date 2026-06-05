@@ -722,7 +722,18 @@
   height: 22px;
   box-sizing: border-box;
 }
-#tab-quote-make .qty-wrap .w-unit { color: #7d6b56; }
+#tab-quote-make .qty-wrap .w-unit {
+  color: #2d2418;
+  background: #fff;
+}
+#tab-quote-make .qty-wrap .w-unit::placeholder {
+  color: #c4b49a;
+  font-style: italic;
+}
+#tab-quote-make .qty-wrap .w-unit:placeholder-shown {
+  background: #f9f7f4;
+  color: #c4b49a;
+}
 /* 請求数量ミラー（非表示） */
 #tab-quote-make .bq-mirror { display: none; }
 
@@ -4534,16 +4545,19 @@
 #tab-quote-make .subtotal-del-btn:hover { color: #c00; background: #fee; }
 
 /* ===== リマーク行 ===== */
-#tab-quote-make tr.remark-row { background: #f0f4f8 !important; }
+#tab-quote-make tr.remark-row { background: #d8eaf8 !important; }
 #tab-quote-make tr.remark-row td {
-  background: #f0f4f8;
-  font-size: 12px;
-  border-top: 1px dashed #9ab0c8 !important;
-  border-bottom: 1px dashed #9ab0c8 !important;
-  padding: 4px 4px;
+  background: #d8eaf8;
+  font-size: 13px;
+  border-top: 2px solid #5a8ab4 !important;
+  border-bottom: 2px solid #5a8ab4 !important;
+  padding: 5px 4px;
+}
+#tab-quote-make tr.remark-row td:first-child {
+  border-left: 4px solid #3a6a9a !important;
 }
 #tab-quote-make .remark-drag-cell {
-  text-align: center; cursor: grab; color: #5a7a9a; font-size: 14px;
+  text-align: center; cursor: grab; color: #3a6a9a; font-size: 14px;
   width: 20px; padding: 0 2px !important;
 }
 #tab-quote-make .remark-drag-cell:active { cursor: grabbing; }
@@ -4552,8 +4566,8 @@
   display: table-cell; white-space: nowrap;
 }
 #tab-quote-make .remark-row-marker {
-  font-size: 11px; font-weight: 700; color: #3a6a9a;
-  white-space: nowrap; margin-right: 8px;
+  font-size: 12px; font-weight: 700; color: #1a3d6a;
+  white-space: nowrap; margin-right: 8px; letter-spacing: 0.04em;
 }
 #tab-quote-make .remark-row-input {
   font-size: 12px; font-weight: normal;
