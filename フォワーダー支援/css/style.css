@@ -41,11 +41,43 @@ body:has(#tab-quote-make.active) .app {
   background: var(--accent-dk);
   color: #f5ede0;
   border-radius: 12px;
-  padding: 20px 24px;
+  padding: 16px 24px;
   margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
 }
+.header-main { flex: 1; min-width: 0; }
 .header h1 { font-size: 18px; font-weight: 700; letter-spacing: 0.02em; }
 .header .subtitle { font-size: 12px; color: rgba(245,237,224,0.78); margin-top: 4px; }
+
+/* 認証エリア */
+.header-auth {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+.auth-user-info {
+  font-size: 12px;
+  color: rgba(245,237,224,0.85);
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.auth-btn {
+  padding: 5px 12px;
+  font-size: 12px;
+  border: 1px solid rgba(245,237,224,0.5);
+  border-radius: 6px;
+  background: transparent;
+  color: #f5ede0;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s;
+}
+.auth-btn:hover { background: rgba(245,237,224,0.15); }
 
 /* ===== Tab Navigation ===== */
 .tab-nav {

@@ -9,6 +9,8 @@
 <link rel="stylesheet" href="css/quote-pdf.css">
 <!-- 見積タブで CSV/Excel/PDF 出力に使用（SheetJS） -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" defer></script>
+<!-- Supabase JS v2 -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 </head>
 <body>
 <!-- #clipboard-toast は Phase 2c-Step2 で削除（callers ゼロ、quoteShowToast に統一） -->
@@ -24,8 +26,14 @@
 
   <!-- Header（バナー差し替え後はこのブロックを削除またはコメントアウト） -->
   <div class="header">
-    <h1>🛠️ フォワーダー支援</h1>
-    <div class="subtitle">ブックマーク・知識・計算機・見積もりをひとまとめに &nbsp;｜&nbsp; 最終更新: <span id="last-updated">-</span></div>
+    <div class="header-main">
+      <h1>🛠️ フォワーダー支援</h1>
+      <div class="subtitle">ブックマーク・知識・計算機・見積もりをひとまとめに &nbsp;｜&nbsp; 最終更新: <span id="last-updated">-</span></div>
+    </div>
+    <div class="header-auth">
+      <span id="authUserInfo" class="auth-user-info"></span>
+      <button id="authBtn" class="auth-btn">GitHub でログイン</button>
+    </div>
   </div>
 
   <!-- Tab Navigation -->
@@ -3125,6 +3133,8 @@
 </div><!-- /app -->
 
 
+<!-- Supabase 初期化・認証ヘルパー -->
+<script src="shared/supabase.js"></script>
 <!-- 共通モジュール（見積支援と共有） -->
 <script src="shared/fx.js"></script>
 <script src="shared/format.js"></script>
@@ -3219,10 +3229,6 @@
       <h3 id="fbHeadTitle">💬 フィードバック</h3>
       <button class="fb-close-x" onclick="closeFeedback()" aria-label="閉じる">×</button>
     </div>
-    <div id="fbNoUrlMsg" class="fb-no-url-msg">
-      ⚠️ Googleフォームの entry ID がまだ設定されていません。<br>
-      HTML 内の <code>__ENTRY_*__</code> プレースホルダを置き換えてください。
-    </div>
     <form id="fbForm" onsubmit="submitFeedback(event)" autocomplete="off">
       <div class="fb-field">
         <label class="fb-label">カテゴリ <span class="fb-required">必須</span></label>
@@ -3253,7 +3259,6 @@
           placeholder="例）〇〇のとき動作がおかしい / 〇〇機能を追加してほしい など"></textarea>
       </div>
       <div class="fb-foot">
-        <a id="fbOpenTab" class="fb-foot-link" href="#" target="_blank" rel="noopener">Googleフォームで開く ↗</a>
         <button type="button" class="fb-btn-close" onclick="closeFeedback()">キャンセル</button>
         <button type="submit" class="fb-btn-send" id="fbSubmitBtn">送信</button>
       </div>
