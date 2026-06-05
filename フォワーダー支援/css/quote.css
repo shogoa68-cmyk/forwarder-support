@@ -769,11 +769,11 @@
   text-align: right;
   padding-right: 10px;
   min-width: 85px;
-  background: #f0e8d8;
-  color: #8b6914;
-  font-weight: 600;
+  background: #d4b76a;
+  color: #3d2200;
+  font-weight: 700;
 }
-#tab-quote-make td.subtotal-has-value { background: #f0e8d8; }
+#tab-quote-make td.subtotal-has-value { background: #d4b76a; }
 
 #tab-quote-make tfoot td { background: #f2ede6; font-weight: bold; font-size: 12px; }
 #tab-quote-make tfoot .profit-pos { background: #dcebd8; }
@@ -4297,15 +4297,18 @@
 /* ===== 小計行（Feature 5） ===== */
 /* ===== 小計行（合計行スタイルに合わせた新デザイン） ===== */
 #tab-quote-make tr.subtotal-row {
-  background: #f2ede6 !important;
+  background: #e8d9b8 !important;
 }
 #tab-quote-make tr.subtotal-row td {
-  background: #f2ede6;
+  background: #e8d9b8;
   font-weight: bold;
-  font-size: 12px;
-  border-top: 2px solid #c4b49a !important;
-  border-bottom: 2px solid #c4b49a !important;
-  padding: 4px 4px;
+  font-size: 13px;
+  border-top: 3px solid #a0855a !important;
+  border-bottom: 3px solid #a0855a !important;
+  padding: 5px 4px;
+}
+#tab-quote-make tr.subtotal-row td:first-child {
+  border-left: 4px solid #8b6914 !important;
 }
 /* ドラッグハンドル列 */
 #tab-quote-make .subtotal-drag-cell {
@@ -4324,11 +4327,12 @@
   padding: 3px 6px !important;
 }
 #tab-quote-make .subtotal-marker {
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 700;
-  color: #8b6914;
+  color: #5a3e0a;
   white-space: nowrap;
   margin-right: 6px;
+  letter-spacing: 0.04em;
 }
 #tab-quote-make .subtotal-label {
   font-size: 12px;
@@ -4360,15 +4364,16 @@
   padding-right: 10px !important;
   min-width: 85px;
   font-weight: bold;
-  background: #f0e8d8 !important;
+  background: #d4b76a !important;
+  color: #3d2200;
 }
 /* 利益列（tot-profit に対応） */
 #tab-quote-make .subtotal-group-profit {
   font-weight: bold;
 }
-#tab-quote-make .subtotal-group-profit.profit-pos { background: #dcebd8 !important; }
-#tab-quote-make .subtotal-group-profit.profit-neg { background: #fadbd8 !important; }
-#tab-quote-make .subtotal-group-profit.profit-zero { background: #d9cfc2 !important; }
+#tab-quote-make .subtotal-group-profit.profit-pos { background: #b2d9aa !important; color: #1a4d12; }
+#tab-quote-make .subtotal-group-profit.profit-neg { background: #f5b0aa !important; color: #7a0a0a; }
+#tab-quote-make .subtotal-group-profit.profit-zero { background: #c4b48a !important; color: #3d2200; }
 /* 消費税サマリ（縦積み：課税合計・免税合計・消費税額 → 税込合計） */
 #tab-quote-make .tax-line td { background: #f6f1e8; padding: 2px 0; }
 #tab-quote-make .tax-line-first td { border-top: 1px solid #d9cfc2; }
