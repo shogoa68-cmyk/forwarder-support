@@ -722,7 +722,18 @@
   height: 22px;
   box-sizing: border-box;
 }
-#tab-quote-make .qty-wrap .w-unit { color: #7d6b56; }
+#tab-quote-make .qty-wrap .w-unit {
+  color: #2d2418;
+  background: #fff;
+}
+#tab-quote-make .qty-wrap .w-unit::placeholder {
+  color: #c4b49a;
+  font-style: italic;
+}
+#tab-quote-make .qty-wrap .w-unit:placeholder-shown {
+  background: #f9f7f4;
+  color: #c4b49a;
+}
 /* 請求数量ミラー（非表示） */
 #tab-quote-make .bq-mirror { display: none; }
 
