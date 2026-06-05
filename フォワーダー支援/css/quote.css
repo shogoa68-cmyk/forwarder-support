@@ -4582,11 +4582,11 @@
 }
 /* 選択済みの行をハイライト */
 #tab-quote-make #tableBody tr:has(.row-select-chk:checked) > td {
-  background: #eaf1fb !important;
+  background: #ede8fb !important;
 }
 #tab-quote-make #tableBody tr:has(.row-select-chk:checked) > td.check-cell {
-  background: #d7e6fa !important;
-  box-shadow: inset 3px 0 0 #3a6baf;
+  background: #ddd0f8 !important;
+  box-shadow: inset 3px 0 0 #6a3abf;
 }
 /* ========== ボタングループ ========== */
 #tab-quote-make .table-btn-group {
