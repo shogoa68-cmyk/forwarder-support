@@ -71,7 +71,7 @@ function _bmRenderTypeChips() {
   ];
   el.innerHTML = types.map(t =>
     `<button class="bm-chip${_bmTypeFilter === t.key ? ' is-active' : ''}"
-             onclick="bmSetType(${JSON.stringify(t.key)})">${t.label}</button>`
+             onclick='bmSetType(${JSON.stringify(t.key)})'>${t.label}</button>`
   ).join('');
 }
 
@@ -89,10 +89,10 @@ function _bmRenderCarrierChips() {
   if (!carriers.length) { if (row) row.hidden = true; return; }
   if (row) row.hidden = false;
   el.innerHTML =
-    `<button class="bm-chip${!_bmCarrierFilter ? ' is-active' : ''}" onclick="bmSetCarrier('')">すべて</button>` +
+    `<button class="bm-chip${!_bmCarrierFilter ? ' is-active' : ''}" onclick='bmSetCarrier("")'>すべて</button>` +
     carriers.map(c =>
       `<button class="bm-chip${_bmCarrierFilter === c ? ' is-active' : ''}"
-               onclick="bmSetCarrier(${JSON.stringify(c)})">${escHtml(c)}</button>`
+               onclick='bmSetCarrier(${JSON.stringify(c)})'>${escHtml(c)}</button>`
     ).join('');
 }
 
@@ -101,10 +101,10 @@ function _bmRenderFnChips() {
   if (!el) return;
   const fns = [...new Set(_bmRows.map(r => r.function).filter(Boolean))].sort();
   el.innerHTML =
-    `<button class="bm-chip${!_bmFnFilter ? ' is-active' : ''}" onclick="bmSetFn('')">すべての機能</button>` +
+    `<button class="bm-chip${!_bmFnFilter ? ' is-active' : ''}" onclick='bmSetFn("")'>すべての機能</button>` +
     fns.map(f =>
       `<button class="bm-chip bm-chip-fn${_bmFnFilter === f ? ' is-active' : ''}"
-               onclick="bmSetFn(${JSON.stringify(f)})">${escHtml(f)}</button>`
+               onclick='bmSetFn(${JSON.stringify(f)})'>${escHtml(f)}</button>`
     ).join('');
 }
 
