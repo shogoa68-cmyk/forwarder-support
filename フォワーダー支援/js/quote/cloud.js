@@ -72,33 +72,59 @@
   }
 
   // ---------- 認証 UI 反映 ----------
+  function _cloudDisplayName(u) {
+    if (!u) return '';
+    const m = u.user_metadata || {};
+    return m.full_name || m.name || m.user_name || u.email || 'ログイン中';
+  }
   function _renderCloudAuth() {
     const stateEl   = document.getElementById('cloudAuthState');
-    const loginBtn  = document.getElementById('btnCloudLogin');
-    const logoutBtn = document.getElementById('btnCloudLogout');
+    const hint      = document.getElementById('cloudLoginHint');
     const body      = document.getElementById('cloudShareBody');
+    // ヘッダー右上ウィジェット
+    const hdrWrap   = document.getElementById('cloudHeaderAuth');
+    const hdrLogin  = document.getElementById('hdrCloudLogin');
+    const hdrUser   = document.getElementById('hdrCloudUser');
+    const hdrName   = document.getElementById('hdrCloudName');
+    const hdrAvatar = document.getElementById('hdrCloudAvatar');
+
+    const configured = cloudIsConfigured();
+    // 未設定ならヘッダーウィジェットごと隠す
+    if (hdrWrap) hdrWrap.hidden = !configured;
+
     if (!stateEl) return;
 
-    if (!cloudIsConfigured()) {
+    if (!configured) {
       stateEl.textContent = '未設定';
       stateEl.classList.remove('is-on');
-      if (loginBtn)  loginBtn.style.display  = 'none';
-      if (logoutBtn) logoutBtn.style.display = 'none';
-      if (body)      body.style.display      = 'none';
+      if (hint) hint.style.display = 'none';
+      if (body) body.style.display = 'none';
       return;
     }
     if (_cloudUser) {
+      const name = _cloudDisplayName(_cloudUser);
       stateEl.textContent = '✅ ' + (_cloudUser.email || 'ログイン中');
       stateEl.classList.add('is-on');
-      if (loginBtn)  loginBtn.style.display  = 'none';
-      if (logoutBtn) logoutBtn.style.display = '';
-      if (body)      body.style.display      = '';
+      if (hint) hint.style.display = 'none';
+      if (body) body.style.display = '';
+      // ヘッダー：ユーザー名表示
+      if (hdrLogin) hdrLogin.style.display = 'none';
+      if (hdrUser)  hdrUser.style.display  = '';
+      if (hdrName)  hdrName.textContent = name;
+      if (hdrAvatar) {
+        const initial = (name || '?').trim().charAt(0).toUpperCase();
+        const av = (_cloudUser.user_metadata || {}).avatar_url;
+        if (av) { hdrAvatar.style.backgroundImage = `url("${av}")`; hdrAvatar.textContent = ''; hdrAvatar.classList.add('has-img'); }
+        else    { hdrAvatar.style.backgroundImage = ''; hdrAvatar.textContent = initial; hdrAvatar.classList.remove('has-img'); }
+      }
     } else {
       stateEl.textContent = '未ログイン';
       stateEl.classList.remove('is-on');
-      if (loginBtn)  loginBtn.style.display  = '';
-      if (logoutBtn) logoutBtn.style.display = 'none';
-      if (body)      body.style.display      = 'none';
+      if (hint) hint.style.display = '';
+      if (body) body.style.display = 'none';
+      // ヘッダー：ログインボタン表示
+      if (hdrLogin) hdrLogin.style.display = '';
+      if (hdrUser)  hdrUser.style.display  = 'none';
     }
   }
 

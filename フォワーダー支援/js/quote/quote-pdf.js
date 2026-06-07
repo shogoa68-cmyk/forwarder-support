@@ -208,6 +208,7 @@
     const lineHTML = [];
     rows.forEach(r => {
       if (r._type === 'remark') {
+        if (r.internal) return; // 社内メモは PDF に出力しない
         lineHTML.push(`<tr class="qd-remark"><td colspan="5">※ ${esc(r.text)}</td></tr>`);
         return;
       }

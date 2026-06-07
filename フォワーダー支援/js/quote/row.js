@@ -604,7 +604,6 @@
       </td>
       <td class="subtotal-group-subtotal subtotal-cell">—</td>
       <td class="subtotal-group-profit profit-cell profit-zero">—</td>
-      <td></td>
     `;
     const tbody = document.getElementById('tableBody');
     if (afterId) {
@@ -640,11 +639,14 @@
       <td class="remark-drag-cell">
         <span class="drag-handle" title="ドラッグして並び替え">⠿</span>
       </td>
-      <td colspan="9" class="remark-row-cell">
+      <td colspan="8" class="remark-row-cell">
         <span class="remark-row-marker">💬 リマーク</span>
         <input type="text" class="remark-row-input" placeholder="テーブル内コメント・注記を入力" />
+        <button type="button" class="remark-scope-btn" onclick="toggleRemarkInternal(this)"
+                title="クリックで「社内メモ（見積書には出力しない）」に切替">📄 見積書に表示</button>
       </td>
     `;
+    if (opts?.internal) applyRemarkInternalState(tr, true);
     const tbody = document.getElementById('tableBody');
     if (afterId) {
       const afterRow = document.getElementById(`row-${afterId}`);
@@ -661,6 +663,30 @@
   function removeRemarkRow(id) {
     document.getElementById(`row-${id}`)?.remove();
   }
+
+  // リマーク行：見積書に表示 ⇔ 社内メモ（見積書・PDF・メールに出力しない）の切替
+  function applyRemarkInternalState(tr, internal) {
+    if (!tr) return;
+    tr.dataset.internal = internal ? '1' : '0';
+    tr.classList.toggle('remark-internal', internal);
+    const marker = tr.querySelector('.remark-row-marker');
+    const btn = tr.querySelector('.remark-scope-btn');
+    const inp = tr.querySelector('.remark-row-input');
+    if (marker) marker.textContent = internal ? '🔒 社内メモ' : '💬 リマーク';
+    if (inp) inp.placeholder = internal ? '社内向けメモ（見積書には出力されません）' : 'テーブル内コメント・注記を入力';
+    if (btn) {
+      btn.textContent = internal ? '🔒 社内メモ' : '📄 見積書に表示';
+      btn.title = internal
+        ? 'クリックで「見積書に表示」に切替（現在：見積書・PDF・メールには出力されない社内メモ）'
+        : 'クリックで「社内メモ（見積書には出力しない）」に切替';
+    }
+  }
+  window.applyRemarkInternalState = applyRemarkInternalState;
+  window.toggleRemarkInternal = function (btn) {
+    const tr = btn.closest('tr');
+    applyRemarkInternalState(tr, tr.dataset.internal !== '1');
+    if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
+  };
 
   function updateSubtotalRows() {
     const tbody = document.getElementById('tableBody');

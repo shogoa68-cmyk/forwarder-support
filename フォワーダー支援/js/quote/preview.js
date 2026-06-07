@@ -76,7 +76,7 @@
       }
       if (tr.dataset.type === 'remark') {
         const text = tr.querySelector('.remark-row-input')?.value || '';
-        rows.push({ _type: 'remark', text });
+        rows.push({ _type: 'remark', text, internal: tr.dataset.internal === '1' });
         return;
       }
       const id     = tr.id.replace('row-', '');
@@ -392,6 +392,7 @@
     let totSub = 0, totTax = 0, totJpy = 0, hasNonJpyBill = false, hasNonJpyCost = false;
     allRows.forEach(d => {
       if (d._type === 'remark') {
+        if (d.internal) return; // 社内メモは見積書プレビューに出力しない
         html += `<tr class="pv-table-remark-row">
           <td colspan="17" class="pv-remark-cell">💬 ${escHtml(d.text)}</td>
         </tr>`;
