@@ -19,6 +19,11 @@ create table if not exists public.feedbacks (
 -- RLS 有効化
 alter table public.feedbacks enable row level security;
 
+-- テーブルへのアクセス権付与（SQL Editor で作成した場合は手動 GRANT が必要）
+grant usage on schema public to anon, authenticated;
+grant insert on public.feedbacks to anon, authenticated;
+grant select, update on public.feedbacks to authenticated;
+
 -- 誰でも INSERT 可（anon / authenticated どちらも）
 -- user_id は認証済みのときのみ設定される
 create policy "anyone can insert feedbacks"
