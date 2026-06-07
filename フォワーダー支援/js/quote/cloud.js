@@ -288,17 +288,24 @@
       const updWho = r.owner_email ? r.owner_email.split('@')[0] : '';
       const crtWho = r.created_by  ? r.created_by.split('@')[0]  : '';
       const idAttr = encodeURIComponent(r.id);
-      const meta = [];
-      if (r.customer) meta.push('👤 ' + escHtml(r.customer));
-      if (r.person)   meta.push('🧑‍💼 ' + escHtml(r.person));
-      const tags = [];
-      if (r.transport_mode) tags.push(escHtml(r.transport_mode));
-      if (r.incoterms)      tags.push(escHtml(r.incoterms));
-      if (r.pol)            tags.push('📦 ' + escHtml(r.pol));
-      if (r.pod)            tags.push('🏁 ' + escHtml(r.pod));
-      if (r.carrier)        tags.push('🚢 ' + escHtml(r.carrier));
       const opts = CLOUD_STATUSES.map(st =>
         '<option value="' + st + '"' + (st === status ? ' selected' : '') + '>' + st + '</option>').join('');
+
+      // 貿易・輸送条件チップ
+      const condChips = [];
+      if (r.incoterms)      condChips.push('<span class="cloud-tag cloud-tag-inco">' + escHtml(r.incoterms.split('（')[0]) + '</span>');
+      if (r.transport_mode) condChips.push('<span class="cloud-tag cloud-tag-mode">' + escHtml(r.transport_mode) + '</span>');
+      if (r.pol || r.pod) {
+        const route = [r.pol, r.pod].filter(Boolean).map(escHtml).join(' → ');
+        condChips.push('<span class="cloud-tag cloud-tag-route">📍 ' + route + '</span>');
+      }
+      if (r.carrier) condChips.push('<span class="cloud-tag cloud-tag-carrier">🚢 ' + escHtml(r.carrier) + '</span>');
+
+      // 顧客・担当者
+      const custParts = [];
+      if (r.customer) custParts.push('<span class="cloud-cust">👤 ' + escHtml(r.customer) + '</span>');
+      if (r.person)   custParts.push('<span class="cloud-person">🧑‍💼 ' + escHtml(r.person) + '</span>');
+
       return '' +
         '<div class="cloud-card">' +
           '<div class="cloud-card-row1">' +
@@ -309,12 +316,14 @@
             '<button class="btn-preset-load" onclick="cloudLoadPreset(\'' + idAttr + '\')">読込</button>' +
             '<button class="btn-preset-del"  onclick="cloudDeletePreset(\'' + idAttr + '\')" title="削除（全員から消えます）">✕</button>' +
           '</div>' +
+          (condChips.length
+            ? '<div class="cloud-card-cond">' + condChips.join('') + '</div>'
+            : '') +
           '<div class="cloud-card-row2">' +
-            (meta.length ? '<span class="cloud-card-meta">' + meta.join('　') + '</span>' : '') +
+            (custParts.length ? '<span class="cloud-card-meta">' + custParts.join('') + '</span>' : '') +
             '<span class="cloud-card-who" title="作成：' + escHtml(crtWho || '—') + ' / 最終更新：' + escHtml(updWho || '—') + '">' +
               '✏️ ' + escHtml(updWho || '—') + '・' + ts + '</span>' +
           '</div>' +
-          (tags.length ? '<div class="cloud-card-tags">' + tags.map(t => '<span class="cloud-tag">' + t + '</span>').join('') + '</div>' : '') +
         '</div>';
     }).join('');
   }

@@ -4324,20 +4324,26 @@
 #tab-quote-make .cloud-adv-input:focus,
 #tab-quote-make .cloud-adv-sel:focus { border-color: #2b7bb0; outline: none; }
 /* カードへの 輸送モード・POL/POD バッジ */
-#tab-quote-make .cloud-card-tags {
+#tab-quote-make .cloud-card-cond {
   display: flex;
   flex-wrap: wrap;
   gap: 4px;
-  margin-top: 4px;
+  margin: 4px 0 2px;
 }
 #tab-quote-make .cloud-tag {
+  display: inline-block;
   font-size: 10px;
-  padding: 1px 6px;
-  border-radius: 4px;
-  background: #e8f0f8;
-  color: #2c5470;
+  padding: 2px 7px;
+  border-radius: 10px;
   white-space: nowrap;
+  font-weight: 600;
 }
+#tab-quote-make .cloud-tag-inco    { background: #e0edff; color: #1a4d9e; }
+#tab-quote-make .cloud-tag-mode    { background: #d1fae5; color: #065f46; }
+#tab-quote-make .cloud-tag-route   { background: #fff3cd; color: #7c5310; }
+#tab-quote-make .cloud-tag-carrier { background: #f3e8ff; color: #5b2d8e; }
+#tab-quote-make .cloud-cust   { font-size: 11px; color: #3a5068; margin-right: 8px; }
+#tab-quote-make .cloud-person { font-size: 11px; color: #3a5068; margin-right: 8px; }
 /* 検索ボックス */
 #tab-quote-make .cloud-search-row { margin: 8px 0 6px; flex-shrink: 0; }
 #tab-quote-make .cloud-search-input {
