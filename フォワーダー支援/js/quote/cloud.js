@@ -408,6 +408,76 @@
 
   // ---------- 読込 ----------
   // ---------- 簡易プレビュー ----------
+
+  function _cpKV(k, v) {
+    return `<div class="cp-kv"><span class="cp-kv-k">${escHtml(k)}</span><span class="cp-kv-v">${escHtml(String(v || ''))}</span></div>`;
+  }
+
+  function _cpRenderCondInfo(fields) {
+    if (!fields || !Object.keys(fields).length) {
+      return '<div class="cp-cond-empty">引き合い条件情報なし</div>';
+    }
+    const f = fields;
+    const condRows = [];
+
+    const dir = f['cond-direction'];
+    if (dir) condRows.push(_cpKV('方向', dir === 'export' ? '輸出' : dir === 'import' ? '輸入' : dir));
+    if (f['cond-incoterms']) condRows.push(_cpKV('インコタームズ', f['cond-incoterms']));
+    if (f['cond-mode'])      condRows.push(_cpKV('輸送モード', f['cond-mode']));
+    const ins = f['cond-insurance-on'] === 'true' || f['cond-insurance-on'] === true;
+    if (ins) condRows.push(_cpKV('保険', '付保あり'));
+
+    const z1On = f['cond-zone1-on'] === 'true' || f['cond-zone1-on'] === true;
+    if (z1On) {
+      const z1 = [f['z1Place'], f['z1Country']].filter(Boolean).join(', ');
+      if (z1) condRows.push(_cpKV('出発地', z1));
+    }
+    if (f['z2Pol'] || f['z2Pod']) {
+      condRows.push(_cpKV('POL → POD', [f['z2Pol'] || '—', f['z2Pod'] || '—'].join(' → ')));
+    }
+    if (f['z2Carrier']) condRows.push(_cpKV('キャリア', f['z2Carrier']));
+    const z3On = f['cond-zone3-on'] === 'true' || f['cond-zone3-on'] === true;
+    if (z3On) {
+      const z3 = [f['z3Place'], f['z3Country']].filter(Boolean).join(', ');
+      if (z3) condRows.push(_cpKV('到着地', z3));
+    }
+
+    const cargoRows = [];
+    if (f['cond-cargo']) cargoRows.push(_cpKV('品名', f['cond-cargo']));
+    if (f['cond-hs'])    cargoRows.push(_cpKV('HSコード', f['cond-hs']));
+    const basicRate = f['cond-hs-basic'];
+    const prefRate  = f['cond-hs-pref'];
+    if (basicRate || prefRate) {
+      const rates = [basicRate ? '基本 ' + basicRate : '', prefRate ? '特恵 ' + prefRate : ''].filter(Boolean).join(' / ');
+      cargoRows.push(_cpKV('関税率', rates));
+    }
+    if (f['cond-hazmat']) cargoRows.push(_cpKV('危険品', f['cond-hazmat']));
+
+    const volRows = [];
+    try {
+      const containers = JSON.parse(f['cond-container-data'] || '[]');
+      if (Array.isArray(containers) && containers.length) {
+        volRows.push(_cpKV('コンテナ', containers.map(c => `${c.type} × ${c.count}`).join(', ')));
+      }
+    } catch(e) {}
+    try {
+      const packings = JSON.parse(f['cond-packing-data'] || '[]');
+      if (Array.isArray(packings) && packings.length) {
+        const lines = packings.map(p => {
+          const dims = [p.l, p.w, p.h].filter(Boolean).join('×');
+          return [p.pkg, p.qty ? p.qty + '個' : '', dims ? dims + 'cm' : '', p.kg ? p.kg + 'kg' : ''].filter(Boolean).join(' ');
+        }).filter(Boolean);
+        if (lines.length) volRows.push(_cpKV('梱包', lines.join(' / ')));
+      }
+    } catch(e) {}
+
+    let html = '';
+    if (condRows.length) html += `<div class="cp-cond-section"><div class="cp-cond-section-title">貿易条件・輸送</div><div class="cp-cond-rows">${condRows.join('')}</div></div>`;
+    if (cargoRows.length) html += `<div class="cp-cond-section"><div class="cp-cond-section-title">貨物情報</div><div class="cp-cond-rows">${cargoRows.join('')}</div></div>`;
+    if (volRows.length)   html += `<div class="cp-cond-section"><div class="cp-cond-section-title">物量</div><div class="cp-cond-rows">${volRows.join('')}</div></div>`;
+    return html || '<div class="cp-cond-empty">引き合い条件情報なし</div>';
+  }
+
   const _CAT_LABEL = (() => {
     const cats = (window.QuoteApp?.data?.CATEGORIES) || [];
     const m = {};
@@ -436,17 +506,22 @@
     }).filter(Boolean);
     _cpRows = rows;
 
-    // メタ情報
+    // メタ情報（ステータス・顧客・担当・更新日）
     const metaParts = [];
-    if (data.incoterms)      metaParts.push(`<span class="cp-tag">${escHtml(data.incoterms.split('（')[0])}</span>`);
-    if (data.transport_mode) metaParts.push(`<span class="cp-tag">${escHtml(data.transport_mode)}</span>`);
-    if (data.pol && data.pod) metaParts.push(`${escHtml(data.pol)} → ${escHtml(data.pod)}`);
-    if (data.carrier)        metaParts.push(`🚢 ${escHtml(data.carrier)}`);
-    if (data.customer)       metaParts.push(`👤 ${escHtml(data.customer)}`);
-    if (data.status)         metaParts.push(`[${escHtml(data.status)}]`);
+    if (data.status) metaParts.push(`<span class="cp-status-badge cp-status--${_statusClass(data.status)}">${escHtml(data.status)}</span>`);
+    if (data.customer) metaParts.push(`👤 ${escHtml(data.customer)}`);
+    if (data.person)   metaParts.push(`🧑‍💼 ${escHtml(data.person)}`);
+    if (data.updated_at) {
+      const dt = new Date(data.updated_at).toLocaleString('ja-JP', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
+      metaParts.push(`更新: ${dt}`);
+    }
 
     document.getElementById('cpTitle').textContent = _cpFullName;
     document.getElementById('cpMeta').innerHTML = metaParts.join(' · ');
+
+    // 引き合い条件セクション
+    const condEl = document.getElementById('cpCondInfo');
+    if (condEl) condEl.innerHTML = _cpRenderCondInfo(rawData?.fields || {});
 
     _cpRenderTable(rows);
     _cpUpdateSelCount();
