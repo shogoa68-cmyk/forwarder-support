@@ -211,11 +211,11 @@
       out.push('');
       out.push('《' + g.label + '》');
       g.items.forEach(it => {
-        const taxMark  = it.taxed ? ' ［課税］' : '';
-        const qtyUnit  = fmtQty(it.qty) + (it.unit ? ' ' + it.unit : '');
-        out.push('  ・' + it.name + taxMark);
-        out.push('      ' + qtyUnit + ' × ' + fmtAmt(it.price, it.ccy) + ' ＝ ' + fmtAmt(it.amount, it.ccy));
-        if (it.note) out.push('      ※ ' + it.note);
+        const taxMark = it.taxed ? '［課税］' : '';
+        const qtyUnit = fmtQty(it.qty) + (it.unit ? ' ' + it.unit : '');
+        const pricing = qtyUnit + ' × ' + fmtAmt(it.price, it.ccy) + ' ＝ ' + fmtAmt(it.amount, it.ccy);
+        const notePart = it.note ? '※' + it.note : '';
+        out.push('  ・' + [it.name, taxMark, pricing, notePart].filter(Boolean).join('  '));
       });
     });
     return out;
