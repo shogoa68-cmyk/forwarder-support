@@ -160,17 +160,44 @@ function bmSetFn(fn) {
 }
 
 // ---------- 追加モーダル ----------
-function openAddBmModal() {
+function _inferBmFunction(chipLabel) {
+  const t = (chipLabel || '').replace(/\p{Emoji_Presentation}|\p{Emoji}️/gu, '').trim();
+  if (t.includes('スケジュール') || t.includes('フライト')) return 'スケジュール';
+  if (t.includes('追跡')) return 'コンテナ追跡';
+  if (t.includes('CY')) return 'CY OPEN/CUT';
+  if (t.includes('輸入')) return '輸入サーチャージ';
+  if (t.includes('輸出')) return '輸出サーチャージ';
+  if (t.includes('航路')) return '航路';
+  if (t.includes('Booking') || t.includes('ブッキング')) return 'ブッキング';
+  if (t.includes('料金') || t.includes('レート')) return 'レート';
+  if (t.includes('AWB') || t.includes('書類')) return '書類';
+  return '';
+}
+
+function _inferBmType() {
+  const m = document.getElementById('cond-mode')?.value || '';
+  if (m.includes('LCL')) return 'LCL';
+  if (m.includes('FCL')) return 'FCL';
+  if (m.includes('AIR')) return 'general';
+  return 'FCL';
+}
+
+function openAddBmModal(presetData) {
   const modal = document.getElementById('bmAddModal');
   if (!modal) return;
-  ['bmFormLabel', 'bmFormUrl', 'bmFormCarrier', 'bmFormNote'].forEach(id => {
-    const el = document.getElementById(id);
-    if (el) el.value = '';
-  });
-  const typeEl = document.getElementById('bmFormType');
-  const fnEl   = document.getElementById('bmFormFunction');
-  if (typeEl) typeEl.value = 'FCL';
-  if (fnEl)   fnEl.value   = '';
+  const p = presetData || {};
+  const labelEl   = document.getElementById('bmFormLabel');
+  const urlEl     = document.getElementById('bmFormUrl');
+  const carrierEl = document.getElementById('bmFormCarrier');
+  const noteEl    = document.getElementById('bmFormNote');
+  const typeEl    = document.getElementById('bmFormType');
+  const fnEl      = document.getElementById('bmFormFunction');
+  if (labelEl)   labelEl.value   = p.label   || '';
+  if (urlEl)     urlEl.value     = p.url     || '';
+  if (carrierEl) carrierEl.value = p.carrier || '';
+  if (noteEl)    noteEl.value    = p.note    || '';
+  if (typeEl)    typeEl.value    = p.type    || (p.label ? _inferBmType() : 'FCL');
+  if (fnEl)      fnEl.value      = p.fn      ? (_inferBmFunction(p.fn) || '') : '';
   // datalist を既存データから補完
   const dl = document.getElementById('bmCarrierDatalist');
   if (dl) {
@@ -178,7 +205,7 @@ function openAddBmModal() {
     dl.innerHTML = carriers.map(c => `<option value="${escHtml(c)}">`).join('');
   }
   modal.classList.add('open');
-  document.getElementById('bmFormLabel')?.focus();
+  labelEl?.focus();
 }
 
 function closeAddBmModal(e) {

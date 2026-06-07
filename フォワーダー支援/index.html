@@ -2883,8 +2883,9 @@
                       </tr>
                       <tr class="cargo-detail-derived">
                         <td colspan="9">
-                          <span class="cd-metric cd-metric-rt" title="R/T（レベニュートン）＝ 容積(CBM) と 重量(t) の大きい方。海上LCLの運賃計算根拠">R/T <b id="cdTotRt">0.000</b></span>
-                          <span class="cd-metric cd-metric-cw" title="CW（チャージャブルウェイト）＝ 実重量 と 容積重量(cm³÷6000) の大きい方。航空運賃の計算根拠">CW <b id="cdTotCw">0</b> kg</span>
+                          <span class="cd-metric cd-metric-rt" title="R/T（レベニュートン）＝ 容積(CBM) と 重量(t) の大きい方。海上LCLの運賃計算根拠">R/T <b id="cdTotRt">0.000</b><button class="cd-reflect-btn" onclick="reflectToQuote('rt')" title="単位 RT の行に数量を反映">→見積</button></span>
+                          <span class="cd-metric cd-metric-cw" title="CW（チャージャブルウェイト）＝ 実重量 と 容積重量(cm³÷6000) の大きい方。航空運賃の計算根拠">CW <b id="cdTotCw">0</b> kg<button class="cd-reflect-btn" onclick="reflectToQuote('cw')" title="単位 KG/CW の行に数量を反映">→見積</button></span>
+                          <span class="cd-metric cd-metric-cbm" title="CBM 合計（立方メートル）">CBM <b id="cdTotCbmReflect"></b><button class="cd-reflect-btn" onclick="reflectToQuote('cbm')" title="単位 M3/CBM の行に数量を反映">→見積</button></span>
                           <span class="cd-derived-note">※ 寸法・重量から自動計算</span>
                         </td>
                       </tr>

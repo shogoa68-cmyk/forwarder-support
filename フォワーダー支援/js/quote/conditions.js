@@ -975,6 +975,7 @@
     setText('cdTotKg',  totKg > 0 ? totKg.toLocaleString() + ' kg' : '0');
     setText('cdTotRt',  rt.toFixed(3));
     setText('cdTotCw',  SharedCalc.fmtCw(cw));  // 0.5kg 精度を保つ（Math.round だと 12.5→13）
+    setText('cdTotCbmReflect', totCbm > 0 ? totCbm.toFixed(3) : '0.000');
 
     // 重量・容積（概算）欄は廃止。明細合計を直接保持してプレビュー等で参照
     // hidden に R/T・CW も保持（プレビュー等で参照可能に）
@@ -1434,4 +1435,50 @@ window.appendQuoteRows = function(rowObjects) {
   _afterRestoreRows(regularTrs, {});
   if (typeof calcLiveUpdate === 'function') calcLiveUpdate();
   return data.rows.length;
+};
+
+// ---------- 物量計算結果を見積テーブルに反映 ----------
+// key: 'rt' → 単位 RT の行、'cw' → 単位 KG の行、'cbm' → 単位 M3/CBM の行
+window.reflectToQuote = function(key) {
+  const m = _lastCargoMetrics;
+  if (!m || (m.rt === 0 && m.cw === 0 && m.cbm === 0)) {
+    if (typeof quoteShowToast === 'function') quoteShowToast('先に物量情報を入力してください', 'warn');
+    return;
+  }
+  const round3 = v => String(Math.round(v * 1000) / 1000);
+  const config = {
+    rt:  { value: m.rt,  label: 'R/T',  fmt: round3,  units: ['RT', 'R/T'] },
+    cw:  { value: m.cw,  label: 'CW',   fmt: String,   units: ['KG', 'CW'] },
+    cbm: { value: m.cbm, label: 'CBM',  fmt: round3,  units: ['M3', 'CBM', 'M³'] },
+  };
+  const cfg = config[key];
+  if (!cfg || !cfg.value) {
+    if (typeof quoteShowToast === 'function') quoteShowToast('反映する値がありません', 'warn');
+    return;
+  }
+  const displayVal  = cfg.fmt(cfg.value);
+  const targetsUpper = cfg.units.map(u => u.toUpperCase());
+  let count = 0;
+  document.querySelectorAll('#tableBody tr[id^="row-"]').forEach(tr => {
+    const id = tr.id.replace('row-', '');
+    const unEl = document.getElementById('un-' + id);
+    if (!unEl || !targetsUpper.includes((unEl.value || '').trim().toUpperCase())) return;
+    const pqEl = document.getElementById('pq-' + id);
+    if (pqEl) {
+      pqEl.value = displayVal;
+      if (typeof onPay === 'function') onPay(parseInt(id, 10));
+    } else {
+      const bqEl = document.getElementById('bq-' + id);
+      if (bqEl) bqEl.value = displayVal;
+    }
+    count++;
+  });
+  if (typeof quoteShowToast === 'function') {
+    if (count === 0)
+      quoteShowToast('単位「' + cfg.units.join(' / ') + '」の行が見つかりませんでした', 'warn', 3000);
+    else {
+      if (typeof calcLiveUpdate === 'function') calcLiveUpdate();
+      quoteShowToast(cfg.label + ' (' + displayVal + ') を ' + count + ' 行に反映しました', 'success', 3000);
+    }
+  }
 };
