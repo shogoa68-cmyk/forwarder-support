@@ -79,19 +79,29 @@ function _sqStatusBadge(status) {
 }
 
 // ---------- プレビューモーダル ----------
-async function sqOpenPreview(id) {
+// cloudPreviewPreset（行選択・インポート対応）に委譲する。
+// 未ロード時は sqPreviewOverlay フォールバックを使用。
+function sqOpenPreview(id) {
+  if (typeof window.cloudPreviewPreset === 'function') {
+    window.cloudPreviewPreset(encodeURIComponent(id));
+    return;
+  }
+  // フォールバック（クラウド未設定環境）
+  _sqFallbackPreview(id);
+}
+
+async function _sqFallbackPreview(id) {
   const db = window.SupabaseClient;
   if (!db) return;
   const { data, error } = await db
     .from('quote_presets')
-    .select('id,name,status,customer,person,incoterms,transport_mode,pol,pod,carrier,created_by,updated_at,data')
+    .select('id,name,status,customer,person,incoterms,transport_mode,pol,pod,carrier,created_by,updated_at')
     .eq('id', id).single();
   if (error || !data) { quoteShowToast('⚠️ 取得失敗', 'warn'); return; }
 
   _sqPreviewId = data.id;
   document.getElementById('sqPreviewTitle').textContent = data.name || '（無題）';
 
-  const f = data.data?.fields || {};
   const rows = [
     ['インコタームズ', data.incoterms],
     ['輸送モード',     data.transport_mode],
