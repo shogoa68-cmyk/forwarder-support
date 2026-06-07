@@ -75,7 +75,8 @@
   function _cloudDisplayName(u) {
     if (!u) return '';
     const m = u.user_metadata || {};
-    return m.full_name || m.name || m.user_name || u.email || 'ログイン中';
+    // display_name（登録済みカスタム名）を優先、なければ Google の表示名
+    return m.display_name || m.full_name || m.name || m.user_name || u.email || 'ログイン中';
   }
   function _renderCloudAuth() {
     const stateEl   = document.getElementById('cloudAuthState');
@@ -117,6 +118,12 @@
         if (av) { hdrAvatar.style.backgroundImage = `url("${av}")`; hdrAvatar.textContent = ''; hdrAvatar.classList.add('has-img'); }
         else    { hdrAvatar.style.backgroundImage = ''; hdrAvatar.textContent = initial; hdrAvatar.classList.remove('has-img'); }
       }
+      // 作業者フィールドが空なら自動入力
+      const assigneeEl = document.getElementById('qf-assignee');
+      if (assigneeEl && !assigneeEl.value.trim()) assigneeEl.value = name;
+      // 登録ボタンを表示（ログイン中のみ）
+      const saveBtn = document.getElementById('qfAssigneeSave');
+      if (saveBtn) saveBtn.hidden = false;
     } else {
       stateEl.textContent = '未ログイン';
       stateEl.classList.remove('is-on');
@@ -125,6 +132,9 @@
       // ヘッダー：ログインボタン表示
       if (hdrLogin) hdrLogin.style.display = '';
       if (hdrUser)  hdrUser.style.display  = 'none';
+      // 登録ボタンを隠す
+      const saveBtn = document.getElementById('qfAssigneeSave');
+      if (saveBtn) saveBtn.hidden = true;
     }
   }
 
@@ -379,7 +389,27 @@
     });
   }
 
+  // ---------- 作業者名の登録 ----------
+  async function saveAssigneeName() {
+    const name = (document.getElementById('qf-assignee')?.value || '').trim();
+    if (!name) { quoteShowToast('⚠️ 作業者名を入力してください', 'warn'); return; }
+    const c = _getClient();
+    if (!c || !_cloudUser) { quoteShowToast('⚠️ ログインが必要です', 'warn'); return; }
+    const btn = document.getElementById('qfAssigneeSave');
+    if (btn) { btn.disabled = true; btn.textContent = '登録中…'; }
+    const { error } = await c.auth.updateUser({ data: { display_name: name } });
+    if (btn) { btn.disabled = false; btn.textContent = '登録'; }
+    if (error) {
+      quoteShowToast('⚠️ 登録に失敗しました：' + error.message, 'warn', 5000);
+    } else {
+      // ローカルのユーザーオブジェクトも更新
+      if (_cloudUser.user_metadata) _cloudUser.user_metadata.display_name = name;
+      quoteShowToast('✅ 作業者名「' + name + '」を登録しました', 'success', 3000);
+    }
+  }
+
   // ---------- window 公開（onclick 用） ----------
+  window.saveAssigneeName    = saveAssigneeName;
   window.cloudLogin          = cloudLogin;
   window.cloudLogout         = cloudLogout;
   window.cloudSaveCurrent    = cloudSaveCurrent;

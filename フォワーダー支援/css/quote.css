@@ -133,6 +133,32 @@
 #tab-quote-make #qf-memo:focus { border-color: #8b6914; }
 #tab-quote-make #qf-memo::placeholder { color: #998070; font-size: 11px; }
 
+/* 作業者入力行（テキスト＋登録ボタン） */
+#tab-quote-make .qf-assignee-row {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+}
+#tab-quote-make .qf-assignee-row #qf-assignee {
+  flex: 1 1 0;
+  min-width: 0;
+}
+#tab-quote-make .qf-assignee-save-btn {
+  flex-shrink: 0;
+  padding: 2px 8px;
+  font-size: 11px;
+  font-weight: 600;
+  border: 1px solid #a08060;
+  border-radius: 4px;
+  background: #f5f0e8;
+  color: #6a4e30;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s;
+}
+#tab-quote-make .qf-assignee-save-btn:hover:not(:disabled) { background: #ece4d8; }
+#tab-quote-make .qf-assignee-save-btn:disabled { opacity: 0.6; cursor: default; }
+
 /* ステータスボタングループ */
 #tab-quote-make .qf-status-btns {
   display: flex;

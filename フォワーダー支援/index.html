@@ -2198,7 +2198,10 @@
           </div>
           <div class="quote-field">
             <label>作業者</label>
-            <input type="text" id="qf-assignee" placeholder="担当者名（GitHub ログイン時に自動入力）" />
+            <div class="qf-assignee-row">
+              <input type="text" id="qf-assignee" placeholder="担当者名（ログイン時に自動入力）" />
+              <button type="button" id="qfAssigneeSave" class="qf-assignee-save-btn" onclick="saveAssigneeName()" hidden title="この名前をアカウントに登録">登録</button>
+            </div>
           </div>
           <div class="quote-field quote-field-status">
             <label>ステータス</label>
