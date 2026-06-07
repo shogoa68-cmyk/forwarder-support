@@ -1393,3 +1393,45 @@
     el.innerHTML = '<div class="qsp-section-label">🚢 船会社リンク</div>' + blocks.join('');
   };
 
+
+
+// 選択した行オブジェクト配列を現在のテーブル末尾に追加する
+window.appendQuoteRows = function(rowObjects) {
+  if (!rowObjects || !rowObjects.length) return 0;
+  const data = migrateRowCells({ rows: rowObjects, _rowFormat: 'v3-mixed-rows' });
+  const tbody = document.getElementById('tableBody');
+  if (!tbody) return 0;
+  const regularTrs = [];
+  data.rows.forEach(row => {
+    if (!row) return;
+    if (row._type === 'subtotal') {
+      insertSubtotalRow(null);
+      const tr = tbody.lastElementChild;
+      const lbl = tr?.querySelector('.subtotal-label');
+      if (lbl) lbl.value = row.label || '';
+      return;
+    }
+    if (row._type === 'remark') {
+      insertRemarkRow(null, { internal: row.internal });
+      const tr = tbody.lastElementChild;
+      const inp = tr?.querySelector('.remark-row-input');
+      if (inp) inp.value = row.text || '';
+      return;
+    }
+    if (row._type === 'internal') {
+      insertInternalRow(null, { noFocus: true });
+      const tr = tbody.lastElementChild;
+      const inp = tr?.querySelector('.internal-row-input');
+      if (inp) inp.value = row.text || '';
+      return;
+    }
+    const cells = row.cells || [];
+    addRow();
+    const tr = tbody.lastElementChild;
+    _applyCells(tr, cells);
+    regularTrs.push(tr);
+  });
+  _afterRestoreRows(regularTrs, {});
+  if (typeof calcLiveUpdate === 'function') calcLiveUpdate();
+  return data.rows.length;
+};

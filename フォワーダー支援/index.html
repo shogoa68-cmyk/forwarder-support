@@ -2148,6 +2148,39 @@
       </div>
     </div>
 
+    <!-- ========== クラウドプリセット 簡易プレビューモーダル ========== -->
+    <div class="cloud-preview-modal" id="cloudPreviewModal" style="display:none"
+         onclick="closeCloudPreview(event)">
+      <div class="cloud-preview-box">
+        <div class="cloud-preview-head">
+          <span id="cpTitle" class="cp-title"></span>
+          <button class="cp-close-btn" onclick="closeCloudPreview()">×</button>
+        </div>
+        <div id="cpMeta" class="cp-meta"></div>
+        <div class="cloud-preview-body">
+          <table class="cp-table">
+            <thead>
+              <tr>
+                <th><input type="checkbox" id="cpSelectAll" checked onchange="cpToggleAll(this)" title="全選択/解除"></th>
+                <th>カテゴリ</th>
+                <th>項目名</th>
+                <th>数量/単位</th>
+                <th>請求単価</th>
+                <th>備考</th>
+              </tr>
+            </thead>
+            <tbody id="cpTableBody"></tbody>
+          </table>
+        </div>
+        <div class="cloud-preview-foot">
+          <span id="cpSelCount" class="cp-sel-count"></span>
+          <button class="cp-btn-import" onclick="cloudImportSelectedRows()">✅ 選択した行を追加</button>
+          <button class="cp-btn-load"   onclick="cloudPreviewLoadFull()">📂 全体を読み込む</button>
+          <button class="cp-btn-cancel" onclick="closeCloudPreview()">閉じる</button>
+        </div>
+      </div>
+    </div>
+
     <!-- ========== 行パターン管理モーダル（チェック行のみ保存） ========== -->
     <div class="preset-mgr-modal" id="rowPatternModal"
          onclick="if(event.target===this)closeRowPatternMgr()">

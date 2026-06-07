@@ -32,6 +32,10 @@
   let _cloudFilterPod     = '';
   let _cloudFilterCarrier = '';
   let _cloudAdvOpen       = false;
+  // プレビュー
+  let _cpId        = null;   // プレビュー中のプリセット ID
+  let _cpRows      = [];     // プレビュー中の行データ（v3形式）
+  let _cpFullName  = '';     // プレビュー中のプリセット名
 
   // 設定が実値で埋まっているか（プレースホルダのままなら false）
   function cloudIsConfigured() {
@@ -301,6 +305,7 @@
             '<select class="cloud-status-sel cloud-status--' + _statusClass(status) + '" ' +
                     'title="ステータスを変更" onchange="cloudSetStatus(\'' + idAttr + '\', this.value)">' + opts + '</select>' +
             '<span class="cloud-card-name" title="' + escHtml(r.name) + '">' + escHtml(r.name) + '</span>' +
+            '<button class="btn-preset-preview" onclick="cloudPreviewPreset(\'' + idAttr + '\')" title="内容をプレビュー">👁</button>' +
             '<button class="btn-preset-load" onclick="cloudLoadPreset(\'' + idAttr + '\')">読込</button>' +
             '<button class="btn-preset-del"  onclick="cloudDeletePreset(\'' + idAttr + '\')" title="削除（全員から消えます）">✕</button>' +
           '</div>' +
@@ -393,6 +398,123 @@
   }
 
   // ---------- 読込 ----------
+  // ---------- 簡易プレビュー ----------
+  const _CAT_LABEL = (() => {
+    const cats = (window.QuoteApp?.data?.CATEGORIES) || [];
+    const m = {};
+    cats.forEach(c => { m[c.value] = c.label; });
+    return m;
+  });
+
+  async function cloudPreviewPreset(rawId) {
+    const c = _getClient();
+    if (!c) return;
+    const id = decodeURIComponent(rawId);
+    const { data, error } = await c
+      .from(_table())
+      .select('id,name,data,incoterms,transport_mode,pol,pod,carrier,customer,person,status,updated_at')
+      .eq('id', id).single();
+    if (error || !data) { quoteShowToast('⚠️ 取得失敗', 'warn'); return; }
+
+    _cpId = id;
+    _cpFullName = data.name || '（無題）';
+    const rawData = data.data;
+    // マイグレーション（グローバル関数として公開されていないため簡易版を行う）
+    const rows = (rawData?.rows || []).map(r => {
+      if (!r) return null;
+      if (r._type) return r;
+      return { _type: 'data', cells: Array.isArray(r) ? r : [] };
+    }).filter(Boolean);
+    _cpRows = rows;
+
+    // メタ情報
+    const metaParts = [];
+    if (data.incoterms)      metaParts.push(`<span class="cp-tag">${escHtml(data.incoterms.split('（')[0])}</span>`);
+    if (data.transport_mode) metaParts.push(`<span class="cp-tag">${escHtml(data.transport_mode)}</span>`);
+    if (data.pol && data.pod) metaParts.push(`${escHtml(data.pol)} → ${escHtml(data.pod)}`);
+    if (data.carrier)        metaParts.push(`🚢 ${escHtml(data.carrier)}`);
+    if (data.customer)       metaParts.push(`👤 ${escHtml(data.customer)}`);
+    if (data.status)         metaParts.push(`[${escHtml(data.status)}]`);
+
+    document.getElementById('cpTitle').textContent = _cpFullName;
+    document.getElementById('cpMeta').innerHTML = metaParts.join(' · ');
+
+    _cpRenderTable(rows);
+    _cpUpdateSelCount();
+    document.getElementById('cloudPreviewModal').style.display = 'flex';
+  }
+
+  function _cpRenderTable(rows) {
+    const catLabel = _CAT_LABEL();
+    const tbody = document.getElementById('cpTableBody');
+    if (!tbody) return;
+    const dataRows = rows.filter(r => r._type === 'data' && r.cells?.length);
+    if (!dataRows.length) {
+      tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#9bb;padding:16px;">行データがありません</td></tr>';
+      return;
+    }
+    tbody.innerHTML = dataRows.map((r, i) => {
+      const cells = r.cells;
+      const cat  = cells[1] || '';
+      const nm   = cells[4] || '';
+      const bq   = cells[7] || '';
+      const un   = cells[6] || '';
+      const pp   = cells[10] || '';
+      const bp   = cells[11] || '';
+      const nt   = cells[14] || '';
+      const catLbl = catLabel[cat] || cat;
+      const price = (pp && bp) ? `${pp} ${escHtml(bp)}` : (pp || '—');
+      const qty   = (bq && un) ? `${bq} ${escHtml(un)}` : (bq || un || '—');
+      return `<tr class="cp-row" data-idx="${i}">
+        <td><input type="checkbox" class="cp-chk" checked onchange="cpUpdateSelCount()"></td>
+        <td class="cp-cat">${escHtml(catLbl)}</td>
+        <td class="cp-nm">${escHtml(nm)}</td>
+        <td class="cp-qty">${qty}</td>
+        <td class="cp-price">${price}</td>
+        <td class="cp-nt">${escHtml(nt)}</td>
+      </tr>`;
+    }).join('');
+  }
+
+  function cpToggleAll(chk) {
+    document.querySelectorAll('#cpTableBody .cp-chk').forEach(c => { c.checked = chk.checked; });
+    _cpUpdateSelCount();
+  }
+
+  function _cpUpdateSelCount() {
+    const total = document.querySelectorAll('#cpTableBody .cp-chk').length;
+    const sel   = document.querySelectorAll('#cpTableBody .cp-chk:checked').length;
+    const el = document.getElementById('cpSelCount');
+    if (el) el.textContent = `${sel} / ${total} 行選択中`;
+    const allChk = document.getElementById('cpSelectAll');
+    if (allChk) allChk.checked = sel > 0 && sel === total;
+  }
+
+  function closeCloudPreview(e) {
+    if (e && e.target.id !== 'cloudPreviewModal') return;
+    document.getElementById('cloudPreviewModal').style.display = 'none';
+    _cpId = null; _cpRows = [];
+  }
+
+  function cloudImportSelectedRows() {
+    const dataRows = _cpRows.filter(r => r._type === 'data' && r.cells?.length);
+    const chks = [...document.querySelectorAll('#cpTableBody .cp-chk')];
+    const selected = dataRows.filter((_, i) => chks[i]?.checked);
+    if (!selected.length) { quoteShowToast('⚠️ 行を選択してください', 'warn'); return; }
+    if (typeof window.appendQuoteRows !== 'function') {
+      quoteShowToast('⚠️ 行追加関数が未ロードです', 'warn'); return;
+    }
+    const n = window.appendQuoteRows(selected);
+    document.getElementById('cloudPreviewModal').style.display = 'none';
+    quoteShowToast(`✅ ${n} 行を見積テーブルに追加しました`, 'success', 3500);
+  }
+
+  function cloudPreviewLoadFull() {
+    if (!_cpId) return;
+    document.getElementById('cloudPreviewModal').style.display = 'none';
+    cloudLoadPreset(_cpId);
+  }
+
   async function cloudLoadPreset(rawId) {
     const c = _getClient();
     if (!c) return;
@@ -508,6 +630,12 @@
   window.toggleCloudAdvSearch  = toggleCloudAdvSearch;
   window.cloudFilterAdvanced   = cloudFilterAdvanced;
   window.clearCloudAdvSearch   = clearCloudAdvSearch;
+  window.cloudPreviewPreset    = cloudPreviewPreset;
+  window.closeCloudPreview     = closeCloudPreview;
+  window.cloudImportSelectedRows = cloudImportSelectedRows;
+  window.cloudPreviewLoadFull  = cloudPreviewLoadFull;
+  window.cpToggleAll           = cpToggleAll;
+  window.cpUpdateSelCount      = _cpUpdateSelCount;
 
   // supabase-js は <head> で defer 読み込みのため DOMContentLoaded を待つ
   if (document.readyState === 'loading') {

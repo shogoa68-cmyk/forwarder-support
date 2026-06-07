@@ -4046,6 +4046,73 @@
   cursor: pointer; padding: 0 4px; line-height: 1;
 }
 #tab-quote-make .btn-preset-del:hover { color: #c0392b; }
+#tab-quote-make .btn-preset-preview {
+  background: none; border: none; font-size: 14px; cursor: pointer; padding: 0 4px; opacity: .7;
+}
+#tab-quote-make .btn-preset-preview:hover { opacity: 1; }
+/* ---- クラウドプリセット 簡易プレビューモーダル ---- */
+#tab-quote-make .cloud-preview-modal {
+  position: fixed; inset: 0; background: rgba(0,0,0,.5);
+  display: flex; align-items: center; justify-content: center; z-index: 3100;
+}
+#tab-quote-make .cloud-preview-box {
+  background: #fdfaf4; border: 1px solid #c8b898; border-radius: 10px;
+  width: 800px; max-width: 96vw; max-height: 85vh;
+  display: flex; flex-direction: column; box-shadow: 0 8px 36px rgba(0,0,0,.25);
+}
+#tab-quote-make .cloud-preview-head {
+  display: flex; align-items: center; gap: 10px; padding: 11px 16px;
+  background: #ede3d2; border-radius: 9px 9px 0 0; border-bottom: 1px solid #d5c8b0;
+  flex-shrink: 0;
+}
+#tab-quote-make .cp-title { font-weight: 700; font-size: 14px; color: #3a2a10; flex: 1; }
+#tab-quote-make .cp-close-btn {
+  background: none; border: none; font-size: 20px; cursor: pointer; color: #7a6040; padding: 0 4px;
+}
+#tab-quote-make .cp-meta {
+  padding: 7px 16px; font-size: 12px; color: #5a4628; background: #f8f3eb;
+  border-bottom: 1px solid #e8d8c0; flex-shrink: 0;
+}
+#tab-quote-make .cp-tag {
+  display: inline-block; background: #e0edff; color: #1a4d9e; padding: 1px 7px;
+  border-radius: 10px; font-size: 11px; font-weight: 600; margin-right: 4px;
+}
+#tab-quote-make .cloud-preview-body { flex: 1; overflow-y: auto; padding: 0; }
+#tab-quote-make .cp-table {
+  width: 100%; border-collapse: collapse; font-size: 12px;
+}
+#tab-quote-make .cp-table thead th {
+  position: sticky; top: 0; background: #f0ebe0; color: #5a4628; font-weight: 700;
+  padding: 7px 8px; border-bottom: 2px solid #d5c8b0; text-align: left; white-space: nowrap;
+}
+#tab-quote-make .cp-table tbody tr { border-bottom: 1px solid #ede3d0; }
+#tab-quote-make .cp-table tbody tr:hover { background: #f5f0e8; }
+#tab-quote-make .cp-table td { padding: 6px 8px; vertical-align: top; }
+#tab-quote-make .cp-table td:first-child { width: 28px; text-align: center; }
+#tab-quote-make .cp-cat  { font-size: 11px; color: #7a6040; white-space: nowrap; }
+#tab-quote-make .cp-nm   { font-weight: 600; color: #2a1a08; }
+#tab-quote-make .cp-qty, #tab-quote-make .cp-price { white-space: nowrap; }
+#tab-quote-make .cp-nt   { color: #7a6040; font-size: 11px; }
+#tab-quote-make .cloud-preview-foot {
+  display: flex; align-items: center; gap: 8px; padding: 10px 16px;
+  border-top: 1px solid #d5c8b0; background: #fdfaf4; flex-shrink: 0;
+}
+#tab-quote-make .cp-sel-count { font-size: 12px; color: #7a6040; flex: 1; }
+#tab-quote-make .cp-btn-import {
+  padding: 7px 14px; background: #2d6a4f; color: #fff; border: none;
+  border-radius: 6px; font-size: 13px; font-weight: 700; cursor: pointer;
+}
+#tab-quote-make .cp-btn-import:hover { background: #1b4332; }
+#tab-quote-make .cp-btn-load {
+  padding: 7px 14px; background: #1a3a6b; color: #fff; border: none;
+  border-radius: 6px; font-size: 13px; font-weight: 600; cursor: pointer;
+}
+#tab-quote-make .cp-btn-load:hover { background: #0f2347; }
+#tab-quote-make .cp-btn-cancel {
+  padding: 7px 12px; background: none; border: 1px solid #c8b898;
+  border-radius: 6px; font-size: 13px; cursor: pointer; color: #5a4628;
+}
+#tab-quote-make .cp-btn-cancel:hover { background: #ede3d2; }
 #tab-quote-make .preset-empty { padding: 16px; text-align: center; font-size: 13px; color: #7d6b56; }
 #tab-quote-make .preset-mgr-footer {
   display: flex; justify-content: space-between; align-items: center;
