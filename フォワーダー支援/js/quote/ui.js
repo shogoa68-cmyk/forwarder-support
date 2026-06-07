@@ -1944,6 +1944,20 @@
       }
     });
     if (typeof window.updateQuoteRefEmpty === 'function') window.updateQuoteRefEmpty();
+    updateQuoteStatusUI();
+    // ログイン済みかつ作業者フィールドが空なら Supabase ユーザー名を自動入力
+    if (window.SupabaseClient) {
+      window.SupabaseClient.auth.getSession().then(({ data }) => {
+        const session = data?.session;
+        if (!session) return;
+        const el = document.getElementById('qf-assignee');
+        if (el && !el.value.trim()) {
+          const name = session.user.user_metadata?.full_name
+            || session.user.user_metadata?.user_name || '';
+          if (name) el.value = name;
+        }
+      });
+    }
     window.updateQuoteSummary();
     // ⚙設定ドロップダウンは外側クリックで閉じる（ネイティブ <details> は外側クリックで閉じないため）
     document.addEventListener('click', function (e) {
@@ -2164,7 +2178,8 @@
     const g = id => (document.getElementById(id)?.value || '').trim();
     const refParts = [g('qf-ref'), g('qf-customer'), g('qf-person') && (g('qf-person') + ' 様')].filter(Boolean);
     const sumRef = document.getElementById('sumRef');
-    if (sumRef) sumRef.textContent = refParts.length ? '— ' + refParts.join(' / ') : '— 未入力';
+    const statusLabel = g('qf-status') || '下書き';
+    if (sumRef) sumRef.textContent = (refParts.length ? '— ' + refParts.join(' / ') : '— 未入力') + '　[' + statusLabel + ']';
 
     // 引き合い条件
     const condParts = [];
@@ -2323,6 +2338,26 @@
     const top = window.scrollY + rect.top - 80;
     window.scrollTo({ top, behavior: 'smooth' });
   };
+
+  // ===== ステータスボタン =====
+  function setQuoteStatus(status) {
+    const hidden = document.getElementById('qf-status');
+    if (hidden) {
+      hidden.value = status;
+      // change イベントをバブリングさせて auto-save をトリガー
+      hidden.dispatchEvent(new Event('change', { bubbles: true }));
+    }
+    updateQuoteStatusUI();
+    if (typeof window.updateSectionSummaries === 'function') window.updateSectionSummaries();
+  }
+  function updateQuoteStatusUI() {
+    const status = document.getElementById('qf-status')?.value || '下書き';
+    document.querySelectorAll('#qf-status-btns .qf-status-btn').forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.status === status);
+    });
+  }
+  window.setQuoteStatus = setQuoteStatus;
+  window.updateQuoteStatusUI = updateQuoteStatusUI;
 
   // ===== Phase 2b：見積タブ初回表示時の遅延初期化集約 =====
   window.__quoteInitialized = false;

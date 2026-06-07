@@ -95,10 +95,10 @@
   width: 100%;
 }
 
-/* メモフィールド：2カラム配置で右側を5行分占有 */
+/* メモフィールド：2カラム配置で右側を7行分占有（作業者・ステータス追加で5→7） */
 #tab-quote-make .quote-field-memo {
   grid-column: 2;
-  grid-row: 1 / span 5;
+  grid-row: 1 / span 7;
   margin-top: 0;
   height: 100%;
   display: flex;
@@ -132,6 +132,33 @@
 }
 #tab-quote-make #qf-memo:focus { border-color: #8b6914; }
 #tab-quote-make #qf-memo::placeholder { color: #998070; font-size: 11px; }
+
+/* ステータスボタングループ */
+#tab-quote-make .qf-status-btns {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  align-items: center;
+}
+#tab-quote-make .qf-status-btn {
+  padding: 3px 10px;
+  font-size: 11px;
+  font-weight: 600;
+  border: 1px solid #d9cfc2;
+  border-radius: 10px;
+  background: #f5f0e8;
+  color: #9a8878;
+  cursor: pointer;
+  transition: all 0.15s;
+  white-space: nowrap;
+  line-height: 1.6;
+}
+#tab-quote-make .qf-status-btn:hover { border-color: #a08060; background: #ece4d8; }
+#tab-quote-make .qf-status-btn.active[data-status="下書き"]  { background: #e8e4de; color: #5a4e3e; border-color: #b8a898; }
+#tab-quote-make .qf-status-btn.active[data-status="提出済み"] { background: #dceef8; color: #1a5c8a; border-color: #7db5d4; }
+#tab-quote-make .qf-status-btn.active[data-status="受注"]   { background: #d4edda; color: #1a6a35; border-color: #6cb88a; }
+#tab-quote-make .qf-status-btn.active[data-status="失注"]   { background: #fdecea; color: #c0392b; border-color: #f5b7b1; }
+#tab-quote-make .qf-status-btn.active[data-status="保留"]   { background: #fff4e0; color: #b45309; border-color: #f59e0b; }
 
 /* ========== テーブル ========== */
 #tab-quote-make table { border-collapse: collapse; width: 100%; }

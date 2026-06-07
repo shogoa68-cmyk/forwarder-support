@@ -2202,6 +2202,21 @@
             <label>有効期限</label>
             <input type="date" id="qf-valid-until" title="見積もりの有効期限。出力・Excelに含まれます" />
           </div>
+          <div class="quote-field">
+            <label>作業者</label>
+            <input type="text" id="qf-assignee" placeholder="担当者名（GitHub ログイン時に自動入力）" />
+          </div>
+          <div class="quote-field quote-field-status">
+            <label>ステータス</label>
+            <div class="qf-status-btns" id="qf-status-btns">
+              <button type="button" class="qf-status-btn active" data-status="下書き"  onclick="setQuoteStatus('下書き')">下書き</button>
+              <button type="button" class="qf-status-btn"        data-status="提出済み" onclick="setQuoteStatus('提出済み')">提出済み</button>
+              <button type="button" class="qf-status-btn"        data-status="受注"    onclick="setQuoteStatus('受注')">受注</button>
+              <button type="button" class="qf-status-btn"        data-status="失注"    onclick="setQuoteStatus('失注')">失注</button>
+              <button type="button" class="qf-status-btn"        data-status="保留"    onclick="setQuoteStatus('保留')">保留</button>
+            </div>
+            <input type="hidden" id="qf-status" value="下書き" />
+          </div>
           <div class="quote-field quote-field-memo">
             <label>📝 メモ <span class="qf-memo-note">出力・プレビューには含まれません</span></label>
             <textarea id="qf-memo" rows="6" placeholder="担当者間の申し送り・注意事項など、案件内部メモを自由に記述できます。顧客向け出力には含まれません。"></textarea>

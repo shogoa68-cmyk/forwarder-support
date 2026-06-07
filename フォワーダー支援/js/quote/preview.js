@@ -16,6 +16,8 @@
       person:     document.getElementById('qf-person')?.value || '',
       date:       document.getElementById('qf-date')?.value || '',
       validUntil: document.getElementById('qf-valid-until')?.value || '',
+      assignee:   document.getElementById('qf-assignee')?.value || '',
+      status:     document.getElementById('qf-status')?.value || '下書き',
     };
   }
 

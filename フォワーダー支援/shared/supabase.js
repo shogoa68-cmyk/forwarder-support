@@ -65,6 +65,13 @@
       if (info) info.textContent = name;
       btn.textContent = 'ログアウト';
       btn.onclick = () => window.SupabaseAuth.logout();
+      // 作業者フィールドが空なら GitHub ユーザー名を自動入力
+      const assigneeEl = document.getElementById('qf-assignee');
+      if (assigneeEl && !assigneeEl.value.trim()) {
+        const displayName = session.user.user_metadata?.full_name
+          || session.user.user_metadata?.user_name || '';
+        if (displayName) assigneeEl.value = displayName;
+      }
     } else {
       if (info) info.textContent = '';
       btn.textContent = 'GitHub でログイン';
