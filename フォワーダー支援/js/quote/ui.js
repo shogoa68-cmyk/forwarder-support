@@ -1700,18 +1700,12 @@
         const carriers = window.getCarrierLinkData().filter(cd => cd.name);
         if (carriers.length) {
           subconHTML = carriers.map(cd => {
+            const addChip = `<button class="qsp-bm-new-chip" data-bm-carrier="${escapeHtml(cd.name)}" onclick="openAddBmModal({carrier:this.dataset.bmCarrier})" title="${escapeHtml(cd.name)} のブックマークを追加">＋</button>`;
             const chips = cd.links.length
-              ? `<div class="qsp-ms-cl-chips">` + cd.links.map(l => {
-                  const bmLabel = `${escapeHtml(cd.name)} ${escapeHtml(l.label)}`;
-                  const bmUrl   = escapeHtml(l.url);
-                  const bmCarrier = escapeHtml(cd.name);
-                  const bmFn    = escapeHtml(l.label);
-                  return `<span class="qsp-ms-cl-chip-wrap">`
-                    + `<a class="qsp-ms-cl-chip" href="${l.url}" target="_blank" rel="noopener" title="${escapeHtml(l.title)}">${escapeHtml(l.label)}</a>`
-                    + `<button class="qsp-bm-add-btn" data-bm-label="${bmLabel}" data-bm-url="${bmUrl}" data-bm-carrier="${bmCarrier}" data-bm-fn="${bmFn}" onclick="openAddBmModal({label:this.dataset.bmLabel,url:this.dataset.bmUrl,carrier:this.dataset.bmCarrier,fn:this.dataset.bmFn})" title="このリンクをブックマークに追加">＋</button>`
-                    + `</span>`;
-                }).join('') + `</div>`
-              : '';
+              ? `<div class="qsp-ms-cl-chips">` + cd.links.map(l =>
+                  `<a class="qsp-ms-cl-chip" href="${l.url}" target="_blank" rel="noopener" title="${escapeHtml(l.title)}">${escapeHtml(l.label)}</a>`
+                ).join('') + addChip + `</div>`
+              : `<div class="qsp-ms-cl-chips">${addChip}</div>`;
             return `<div class="qsp-ms-carrier">
                 <div class="qsp-ms-carrier-name">${cd.icon || '🚢'} ${escapeHtml(cd.name)}</div>
                 ${chips}
