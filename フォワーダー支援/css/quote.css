@@ -5907,24 +5907,26 @@
 #tab-quote-make .qsp-ms-carrier-name {
   font-size: 11px; font-weight: 700; color: #1a4a8f; margin-bottom: 4px;
 }
-#tab-quote-make .qsp-ms-cl-chips { display: flex; flex-wrap: wrap; gap: 4px; }
-#tab-quote-make .qsp-ms-cl-chip-wrap { display: inline-flex; align-items: center; }
+#tab-quote-make .qsp-ms-cl-chips { display: flex; flex-wrap: wrap; gap: 4px; padding-bottom: 6px; }
+#tab-quote-make .qsp-ms-cl-chip-wrap { display: inline-block; position: relative; margin-bottom: 4px; }
 #tab-quote-make .qsp-ms-cl-chip {
-  font-size: 10px; padding: 2px 8px;
-  border: 1px solid #b8d0ee; border-radius: 12px 0 0 12px;
+  display: inline-block; font-size: 10px; padding: 2px 8px;
+  border: 1px solid #b8d0ee; border-radius: 12px;
   background: #eef3fc; color: #1a4a8f;
   text-decoration: none; white-space: nowrap;
   transition: background .12s, color .12s;
 }
 #tab-quote-make .qsp-ms-cl-chip:hover { background: #1a4a8f; color: #fff; }
 #tab-quote-make .qsp-bm-add-btn {
-  font-size: 10px; padding: 2px 5px;
-  border: 1px solid #b8d0ee; border-left: none; border-radius: 0 12px 12px 0;
-  background: #eef3fc; color: #1a4a8f;
-  cursor: pointer; line-height: 1; white-space: nowrap;
-  transition: background .12s, color .12s;
+  position: absolute; bottom: -5px; right: -5px;
+  width: 14px; height: 14px; padding: 0;
+  font-size: 9px; font-weight: 700; line-height: 13px; text-align: center;
+  background: #4a9c59; color: #fff;
+  border: 1.5px solid #fff; border-radius: 50%;
+  cursor: pointer;
+  transition: background .12s, transform .12s;
 }
-#tab-quote-make .qsp-bm-add-btn:hover { background: #4a9c59; color: #fff; border-color: #4a9c59; }
+#tab-quote-make .qsp-bm-add-btn:hover { background: #2d7a3e; transform: scale(1.15); }
 #tab-quote-make .qsp-ms-filter-hint {
   margin-top: 8px; font-size: 11px; color: #1a4a8f;
   background: #eef3fc; border: 1px solid #c5d8ef; border-radius: 6px; padding: 5px 8px;
