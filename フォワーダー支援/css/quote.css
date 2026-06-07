@@ -5952,7 +5952,15 @@
   font-size: 12px; padding: 2px 0;
 }
 #tab-quote-make .qsp-cargo-k { color: #7d6b56; }
-#tab-quote-make .qsp-cargo-v { font-weight: 600; color: #3d2e1e; font-variant-numeric: tabular-nums; }
+#tab-quote-make .qsp-cargo-v { font-weight: 600; color: #3d2e1e; font-variant-numeric: tabular-nums; display: flex; align-items: center; gap: 4px; }
+#tab-quote-make .qsp-reflect-btn {
+  font-size: 9px; padding: 1px 4px;
+  background: #e8f0e4; color: #3a6030;
+  border: 1px solid #b0c8a0; border-radius: 3px;
+  cursor: pointer; font-weight: 600; white-space: nowrap;
+  transition: background .12s, color .12s;
+}
+#tab-quote-make .qsp-reflect-btn:hover { background: #3a6030; color: #fff; border-color: #3a6030; }
 /* ===== 船会社リンク（見積サマリ） ===== */
 #tab-quote-make .qsp-carrier-links {
   padding: 10px 12px;
