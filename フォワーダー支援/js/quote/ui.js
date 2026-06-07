@@ -2442,4 +2442,5 @@
     if (typeof initQuoteAutoSaveListeners === 'function') {
       initQuoteAutoSaveListeners();  // save.js：input/change の自動保存
     }
+    if (typeof initSimilarQuotes === 'function') initSimilarQuotes();
   };

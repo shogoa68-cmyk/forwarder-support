@@ -1249,6 +1249,7 @@
     } else {
       sel.value = '';
     }
+    sel.dispatchEvent(new Event('change'));
   }
 
   /** 現在の輸送モードに対応するキャリアマップを返す */

@@ -3058,6 +3058,7 @@
 
       </div><!-- /.quote-main -->
 
+      <div class="quote-right-col">
       <aside id="quoteSummaryPanel" class="quote-summary-panel">
         <div class="qsp-header">
           <span class="qsp-title">📊 見積サマリ</span>
@@ -3093,6 +3094,10 @@
         </div>
       </aside>
 
+      <!-- 類似見積サジェストパネル -->
+      <div id="sqPanel" class="sq-panel" hidden></div>
+
+      </div><!-- /.quote-right-col -->
     </div><!-- /.quote-workspace -->
 
     <!-- ========== スコーププリセットダイアログ ========== -->
@@ -3359,6 +3364,7 @@
 <script src="js/quote/cloud.js"></script>
 <script src="js/tweaks.js"></script>
 <script src="js/bookmarks.js"></script>
+<script src="js/similar-quotes.js"></script>
 
 <!-- =================================================================
      サイト全体スコープのフローティング UI（Phase 2c-Step1 で見積タブから昇格）
@@ -3423,6 +3429,21 @@
 <div id="quoteActionDock">
   <button class="qad-btn qad-preview" onclick="openPreview()" title="見積をプレビュー表示・CSV/Excel/PDF出力はここから（Ctrl+P）">📋 プレビュー</button>
   <button class="qad-btn qad-compare" onclick="openCompare()" title="保存済みプリセットを横並びで比較（売上・原価・利益）">📊 比較</button>
+</div>
+
+<!-- 類似見積プレビューモーダル -->
+<div id="sqPreviewOverlay" class="sq-preview-overlay" hidden onclick="sqClosePreview(event)">
+  <div class="sq-preview-box" onclick="event.stopPropagation()">
+    <div class="sq-preview-head">
+      <span id="sqPreviewTitle" class="sq-preview-title"></span>
+      <button class="sq-preview-close" onclick="sqClosePreview()">×</button>
+    </div>
+    <div id="sqPreviewBody" class="sq-preview-body"></div>
+    <div class="sq-preview-foot">
+      <button class="sq-btn-load" id="sqLoadBtn" onclick="sqLoadConfirm()">📂 この見積を読み込む</button>
+      <button class="sq-btn-cancel" onclick="sqClosePreview()">閉じる</button>
+    </div>
+  </div>
 </div>
 
 <div id="fbOverlay" onclick="closeFeedback(event)">

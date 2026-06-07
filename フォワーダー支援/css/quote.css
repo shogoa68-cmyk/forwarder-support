@@ -5504,6 +5504,18 @@
   flex: 1 1 0;
   min-width: 0;
 }
+#tab-quote-make .quote-right-col {
+  width: 260px;
+  flex: 0 0 260px;
+  position: sticky;
+  top: calc(var(--nav-cat-h, 48px) + var(--nav-sub-h, 40px) + 52px);
+  max-height: calc(100vh - var(--nav-cat-h, 48px) - var(--nav-sub-h, 40px) - 80px);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
 
 /* ================================================================
    行カラーコーディング（カテゴリ別背景色）
@@ -5522,11 +5534,9 @@
    見積サマリパネル（右カラム・常時表示）
    ================================================================ */
 #tab-quote-make .quote-summary-panel {
-  width: 260px;
-  flex: 0 0 260px;
-  position: sticky;
-  top: calc(var(--nav-cat-h, 48px) + var(--nav-sub-h, 40px) + 52px);
-  max-height: calc(100vh - var(--nav-cat-h, 48px) - var(--nav-sub-h, 40px) - 80px);
+  width: 100%;
+  flex: 1 1 auto;
+  min-height: 0;
   display: flex;
   flex-direction: column;
   overflow: hidden;
