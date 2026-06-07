@@ -38,17 +38,20 @@ async function _sqFetch() {
   q = parts.length === 1 ? q.or(parts[0]) : q.or(parts.join(','));
 
   const { data, error } = await q;
-  if (error || !data?.length) { panel.hidden = true; return; }
+  if (error) { panel.hidden = true; return; }
 
-  _sqRender(data, panel, inco, mode);
+  _sqRender(data || [], panel, inco, mode);
 }
 
 function _sqRender(rows, panel, inco, mode) {
   const matchLabel = [inco ? `<b>${escHtml(inco.split('（')[0])}</b>` : '', mode ? `<b>${escHtml(mode)}</b>` : ''].filter(Boolean).join(' / ');
+  const body = rows.length
+    ? rows.map(r => _sqCardHtml(r)).join('')
+    : '<div class="sq-empty-msg">該当する過去見積はありません</div>';
   panel.hidden = false;
   panel.innerHTML =
     `<div class="sq-head">📎 類似の過去見積 <span class="sq-match-label">${matchLabel}</span><span class="sq-count">${rows.length}件</span></div>` +
-    `<div class="sq-list">${rows.map(r => _sqCardHtml(r)).join('')}</div>`;
+    `<div class="sq-list">${body}</div>`;
 }
 
 function _sqCardHtml(r) {

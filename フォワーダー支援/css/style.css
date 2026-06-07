@@ -1755,3 +1755,9 @@ body:has(#compareOverlay.open) #quoteActionDock { display: none; }
   color: #5a4628;
 }
 .sq-btn-cancel:hover { background: #ede3d2; }
+.sq-empty-msg {
+  padding: 12px 10px;
+  color: #b0a08a;
+  font-size: 11px;
+  text-align: center;
+}
