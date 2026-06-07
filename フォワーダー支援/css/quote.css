@@ -5907,8 +5907,7 @@
 #tab-quote-make .qsp-ms-carrier-name {
   font-size: 11px; font-weight: 700; color: #1a4a8f; margin-bottom: 4px;
 }
-#tab-quote-make .qsp-ms-cl-chips { display: flex; flex-wrap: wrap; gap: 4px; padding-bottom: 6px; }
-#tab-quote-make .qsp-ms-cl-chip-wrap { display: inline-block; position: relative; margin-bottom: 4px; }
+#tab-quote-make .qsp-ms-cl-chips { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
 #tab-quote-make .qsp-ms-cl-chip {
   display: inline-block; font-size: 10px; padding: 2px 8px;
   border: 1px solid #b8d0ee; border-radius: 12px;
@@ -5917,16 +5916,14 @@
   transition: background .12s, color .12s;
 }
 #tab-quote-make .qsp-ms-cl-chip:hover { background: #1a4a8f; color: #fff; }
-#tab-quote-make .qsp-bm-add-btn {
-  position: absolute; bottom: -5px; right: -5px;
-  width: 14px; height: 14px; padding: 0;
-  font-size: 9px; font-weight: 700; line-height: 13px; text-align: center;
-  background: #4a9c59; color: #fff;
-  border: 1.5px solid #fff; border-radius: 50%;
-  cursor: pointer;
-  transition: background .12s, transform .12s;
+#tab-quote-make .qsp-bm-new-chip {
+  font-size: 10px; padding: 2px 8px;
+  border: 1px dashed #8ab88a; border-radius: 12px;
+  background: transparent; color: #4a9c59;
+  cursor: pointer; white-space: nowrap; font-weight: 700;
+  transition: background .12s, color .12s, border-color .12s;
 }
-#tab-quote-make .qsp-bm-add-btn:hover { background: #2d7a3e; transform: scale(1.15); }
+#tab-quote-make .qsp-bm-new-chip:hover { background: #4a9c59; color: #fff; border-color: #4a9c59; border-style: solid; }
 #tab-quote-make .qsp-ms-filter-hint {
   margin-top: 8px; font-size: 11px; color: #1a4a8f;
   background: #eef3fc; border: 1px solid #c5d8ef; border-radius: 6px; padding: 5px 8px;
