@@ -119,3 +119,31 @@ create policy "team members can delete bookmarks"
 --   created_at    timestamptz default now(),
 --   updated_at    timestamptz default now()
 -- );
+
+-- ============================================================
+-- 5. user_profiles テーブル（メール → 表示名マッピング）
+-- ============================================================
+-- チームメンバーが自分の表示名を登録し、プリセット一覧等で
+-- メールアドレスの代わりに表示名を使えるようにする。
+-- 登録は「作業者名」フィールドの「登録」ボタンから行う。
+-- ============================================================
+create table if not exists public.user_profiles (
+  email        text primary key,
+  display_name text not null,
+  updated_at   timestamptz not null default now()
+);
+
+alter table public.user_profiles enable row level security;
+
+grant select, insert, update on public.user_profiles to authenticated;
+
+-- チームメンバーは全員の表示名を読み取り可
+create policy "team members can read profiles"
+  on public.user_profiles for select
+  using (is_team_member());
+
+-- 自分自身の行のみ作成・更新可
+create policy "own profile upsert"
+  on public.user_profiles for all
+  using (auth.email() = email)
+  with check (auth.email() = email);

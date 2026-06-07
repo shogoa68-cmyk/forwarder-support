@@ -36,6 +36,8 @@
   let _cpId        = null;   // プレビュー中のプリセット ID
   let _cpRows      = [];     // プレビュー中の行データ（v3形式）
   let _cpFullName  = '';     // プレビュー中のプリセット名
+  // メンバープロフィール（email → display_name）
+  let _profileMap  = {};     // { 'email': 'name', ... }
 
   // 設定が実値で埋まっているか（プレースホルダのままなら false）
   function cloudIsConfigured() {
@@ -153,12 +155,26 @@
     }
   }
 
+  // ---------- プロフィール（email → 表示名）----------
+  async function _loadProfiles() {
+    const c = _getClient();
+    if (!c) return;
+    const { data } = await c.from('user_profiles').select('email,display_name');
+    if (data) data.forEach(r => { if (r.email && r.display_name) _profileMap[r.email] = r.display_name; });
+  }
+
+  function _nameFor(email) {
+    if (!email) return '—';
+    return _profileMap[email] || email.split('@')[0];
+  }
+
   // ---------- 一覧 ----------
   async function cloudListPresets() {
     const c = _getClient();
     const wrap = document.getElementById('cloudPresetListWrap');
     if (!c || !_cloudUser) return;
     if (wrap) wrap.innerHTML = '<div class="preset-empty">読み込み中…</div>';
+    await _loadProfiles();
     const { data, error } = await c
       .from(_table())
       .select('id,name,status,customer,person,owner_email,created_by,updated_at,incoterms,transport_mode,pol,pod,carrier')
@@ -285,8 +301,8 @@
             { month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit' })
         : '';
       const status = r.status || CLOUD_STATUS_DEFAULT;
-      const updWho = r.owner_email ? r.owner_email.split('@')[0] : '';
-      const crtWho = r.created_by  ? r.created_by.split('@')[0]  : '';
+      const updWho = _nameFor(r.owner_email);
+      const crtWho = _nameFor(r.created_by);
       const idAttr = encodeURIComponent(r.id);
       const opts = CLOUD_STATUSES.map(st =>
         '<option value="' + st + '"' + (st === status ? ' selected' : '') + '>' + st + '</option>').join('');
@@ -756,6 +772,12 @@
     } else {
       // ローカルのユーザーオブジェクトも更新
       if (_cloudUser.user_metadata) _cloudUser.user_metadata.display_name = name;
+      // user_profiles テーブルにも反映（チーム全員の一覧表示に使用）
+      _profileMap[_cloudUser.email] = name;
+      await c.from('user_profiles').upsert(
+        { email: _cloudUser.email, display_name: name, updated_at: new Date().toISOString() },
+        { onConflict: 'email' }
+      );
       quoteShowToast('✅ 作業者名「' + name + '」を登録しました', 'success', 3000);
     }
   }
