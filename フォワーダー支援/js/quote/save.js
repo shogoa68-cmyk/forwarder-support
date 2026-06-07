@@ -87,7 +87,8 @@
       _fbClearForm();
       document.getElementById('fbOverlay').classList.remove('open');
     } catch (err) {
-      quoteShowToast('⚠️ 送信に失敗しました。時間をおいて再度お試しください', 'warn', 6000);
+      const msg = err?.message || err?.error_description || JSON.stringify(err);
+      quoteShowToast('⚠️ 送信エラー：' + msg, 'warn', 8000);
       console.error('Feedback submit error:', err);
     } finally {
       submitBtn.disabled = false;
