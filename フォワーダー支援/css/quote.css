@@ -5908,6 +5908,7 @@
   font-size: 11px; font-weight: 700; color: #1a4a8f; margin-bottom: 4px;
 }
 #tab-quote-make .qsp-ms-cl-chips { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
+#tab-quote-make .qsp-ms-cl-chip-wrap { display: inline-flex; align-items: center; }
 #tab-quote-make .qsp-ms-cl-chip {
   display: inline-block; font-size: 10px; padding: 2px 8px;
   border: 1px solid #b8d0ee; border-radius: 12px;
@@ -5916,6 +5917,13 @@
   transition: background .12s, color .12s;
 }
 #tab-quote-make .qsp-ms-cl-chip:hover { background: #1a4a8f; color: #fff; }
+#tab-quote-make .qsp-chip-edit-btn {
+  font-size: 11px; padding: 0 2px; margin-left: 1px;
+  background: none; color: #b0c4d8; border: none;
+  cursor: pointer; line-height: 1; vertical-align: middle;
+  transition: color .12s;
+}
+#tab-quote-make .qsp-chip-edit-btn:hover { color: #1a4a8f; }
 #tab-quote-make .qsp-bm-new-chip {
   font-size: 10px; padding: 2px 8px;
   border: 1px dashed #8ab88a; border-radius: 12px;
