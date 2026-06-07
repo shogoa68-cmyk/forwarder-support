@@ -4047,13 +4047,14 @@
 }
 #tab-quote-make .btn-preset-del:hover { color: #c0392b; }
 #tab-quote-make .btn-preset-preview {
-  background: none; border: none; font-size: 14px; cursor: pointer; padding: 0 4px; opacity: .7;
+  background: #e8f0fe; color: #1a56db; border: 1px solid #bfcfe8;
+  border-radius: 4px; font-size: 11px; font-weight: 600; cursor: pointer; padding: 2px 8px;
 }
-#tab-quote-make .btn-preset-preview:hover { opacity: 1; }
+#tab-quote-make .btn-preset-preview:hover { background: #c7d9fc; }
 /* ---- クラウドプリセット 簡易プレビューモーダル ---- */
 #tab-quote-make .cloud-preview-modal {
   position: fixed; inset: 0; background: rgba(0,0,0,.5);
-  display: flex; align-items: center; justify-content: center; z-index: 3100;
+  display: flex; align-items: center; justify-content: center; z-index: 7000;
 }
 #tab-quote-make .cloud-preview-box {
   background: #fdfaf4; border: 1px solid #c8b898; border-radius: 10px;
@@ -4093,6 +4094,11 @@
 #tab-quote-make .cp-nm   { font-weight: 600; color: #2a1a08; }
 #tab-quote-make .cp-qty, #tab-quote-make .cp-price { white-space: nowrap; }
 #tab-quote-make .cp-nt   { color: #7a6040; font-size: 11px; }
+#tab-quote-make .cp-group-head { background: #f0ebe0; }
+#tab-quote-make .cp-group-head td { padding: 5px 8px; }
+#tab-quote-make .cp-group-label { font-weight: 700; font-size: 12px; color: #4a3520; }
+#tab-quote-make .cp-group-cnt { font-weight: 400; color: #9a8070; font-size: 11px; margin-left: 6px; }
+#tab-quote-make .cp-row-in-group td:first-child { padding-left: 20px; }
 #tab-quote-make .cloud-preview-foot {
   display: flex; align-items: center; gap: 8px; padding: 10px 16px;
   border-top: 1px solid #d5c8b0; background: #fdfaf4; flex-shrink: 0;

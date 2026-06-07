@@ -305,7 +305,7 @@
             '<select class="cloud-status-sel cloud-status--' + _statusClass(status) + '" ' +
                     'title="ステータスを変更" onchange="cloudSetStatus(\'' + idAttr + '\', this.value)">' + opts + '</select>' +
             '<span class="cloud-card-name" title="' + escHtml(r.name) + '">' + escHtml(r.name) + '</span>' +
-            '<button class="btn-preset-preview" onclick="cloudPreviewPreset(\'' + idAttr + '\')" title="内容をプレビュー">👁</button>' +
+            '<button class="btn-preset-preview" onclick="cloudPreviewPreset(\'' + idAttr + '\')" title="内容をプレビュー">プレビュー</button>' +
             '<button class="btn-preset-load" onclick="cloudLoadPreset(\'' + idAttr + '\')">読込</button>' +
             '<button class="btn-preset-del"  onclick="cloudDeletePreset(\'' + idAttr + '\')" title="削除（全員から消えます）">✕</button>' +
           '</div>' +
@@ -453,31 +453,59 @@
       tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#9bb;padding:16px;">行データがありません</td></tr>';
       return;
     }
-    tbody.innerHTML = dataRows.map((r, i) => {
-      const cells = r.cells;
-      const cat  = cells[1] || '';
-      const nm   = cells[4] || '';
-      const bq   = cells[7] || '';
-      const un   = cells[6] || '';
-      const pp   = cells[10] || '';
-      const bp   = cells[11] || '';
-      const nt   = cells[14] || '';
-      const catLbl = catLabel[cat] || cat;
-      const price = (pp && bp) ? `${pp} ${escHtml(bp)}` : (pp || '—');
-      const qty   = (bq && un) ? `${bq} ${escHtml(un)}` : (bq || un || '—');
-      return `<tr class="cp-row" data-idx="${i}">
-        <td><input type="checkbox" class="cp-chk" checked onchange="cpUpdateSelCount()"></td>
-        <td class="cp-cat">${escHtml(catLbl)}</td>
-        <td class="cp-nm">${escHtml(nm)}</td>
-        <td class="cp-qty">${qty}</td>
-        <td class="cp-price">${price}</td>
-        <td class="cp-nt">${escHtml(nt)}</td>
+    // サブコン単位でグループ化（順序維持）
+    const groups = [];
+    const groupMap = {};
+    dataRows.forEach((r, i) => {
+      const sv = (r.cells[2] || '').trim() || '（サブコン未設定）';
+      if (!groupMap[sv]) {
+        groupMap[sv] = { sv, rows: [] };
+        groups.push(groupMap[sv]);
+      }
+      groupMap[sv].rows.push({ row: r, idx: i });
+    });
+
+    tbody.innerHTML = groups.map(g => {
+      const svEsc = escHtml(g.sv);
+      const gId = 'cpg-' + g.sv.replace(/[^a-z0-9]/gi, '_');
+      const header = `<tr class="cp-group-head">
+        <td><input type="checkbox" class="cp-group-chk" data-group="${escHtml(g.sv)}" checked onchange="cpToggleGroup(this,'${escHtml(g.sv)}')" title="このサブコンを一括選択"></td>
+        <td colspan="5" class="cp-group-label">🏢 ${svEsc} <span class="cp-group-cnt">${g.rows.length}行</span></td>
       </tr>`;
+      const rowHtml = g.rows.map(({ row, idx }) => {
+        const cells = row.cells;
+        const cat = cells[1] || '';
+        const nm  = cells[4] || '';
+        const bq  = cells[7] || '';
+        const un  = cells[6] || '';
+        const pp  = cells[10] || '';
+        const bp  = cells[11] || '';
+        const nt  = cells[14] || '';
+        const catLbl = catLabel[cat] || cat;
+        const price = (pp && bp) ? `${pp} ${escHtml(bp)}` : (pp || '—');
+        const qty   = (bq && un) ? `${bq} ${escHtml(un)}` : (bq || un || '—');
+        return `<tr class="cp-row cp-row-in-group" data-sv="${escHtml(g.sv)}" data-idx="${idx}">
+          <td><input type="checkbox" class="cp-chk" checked onchange="cpUpdateSelCount()"></td>
+          <td class="cp-cat">${escHtml(catLbl)}</td>
+          <td class="cp-nm">${escHtml(nm)}</td>
+          <td class="cp-qty">${qty}</td>
+          <td class="cp-price">${price}</td>
+          <td class="cp-nt">${escHtml(nt)}</td>
+        </tr>`;
+      }).join('');
+      return header + rowHtml;
     }).join('');
   }
 
+  function cpToggleGroup(chk, sv) {
+    document.querySelectorAll(`#cpTableBody .cp-row[data-sv="${sv.replace(/"/g, '\\"')}"] .cp-chk`).forEach(c => {
+      c.checked = chk.checked;
+    });
+    _cpUpdateSelCount();
+  }
+
   function cpToggleAll(chk) {
-    document.querySelectorAll('#cpTableBody .cp-chk').forEach(c => { c.checked = chk.checked; });
+    document.querySelectorAll('#cpTableBody .cp-chk, #cpTableBody .cp-group-chk').forEach(c => { c.checked = chk.checked; });
     _cpUpdateSelCount();
   }
 
@@ -488,6 +516,14 @@
     if (el) el.textContent = `${sel} / ${total} 行選択中`;
     const allChk = document.getElementById('cpSelectAll');
     if (allChk) allChk.checked = sel > 0 && sel === total;
+    // グループチェックボックスの indeterminate 更新
+    document.querySelectorAll('#cpTableBody .cp-group-chk').forEach(gChk => {
+      const sv = gChk.dataset.group;
+      const rows = document.querySelectorAll(`#cpTableBody .cp-row[data-sv="${sv.replace(/"/g, '\\"')}"] .cp-chk`);
+      const chked = [...rows].filter(c => c.checked).length;
+      gChk.indeterminate = chked > 0 && chked < rows.length;
+      if (!gChk.indeterminate) gChk.checked = chked === rows.length;
+    });
   }
 
   function closeCloudPreview(e) {
@@ -498,7 +534,7 @@
 
   function cloudImportSelectedRows() {
     const dataRows = _cpRows.filter(r => r._type === 'data' && r.cells?.length);
-    const chks = [...document.querySelectorAll('#cpTableBody .cp-chk')];
+    const chks = [...document.querySelectorAll('#cpTableBody .cp-row .cp-chk')];
     const selected = dataRows.filter((_, i) => chks[i]?.checked);
     if (!selected.length) { quoteShowToast('⚠️ 行を選択してください', 'warn'); return; }
     if (typeof window.appendQuoteRows !== 'function') {
@@ -635,6 +671,7 @@
   window.cloudImportSelectedRows = cloudImportSelectedRows;
   window.cloudPreviewLoadFull  = cloudPreviewLoadFull;
   window.cpToggleAll           = cpToggleAll;
+  window.cpToggleGroup         = cpToggleGroup;
   window.cpUpdateSelCount      = _cpUpdateSelCount;
 
   // supabase-js は <head> で defer 読み込みのため DOMContentLoaded を待つ
