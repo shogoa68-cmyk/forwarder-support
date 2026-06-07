@@ -66,7 +66,44 @@ alter table public.quote_presets
   add column if not exists carrier        text default '';
 
 -- ============================================================
--- 3. 将来用テーブル（準備のみ・未使用）
+-- 3. bookmarks テーブル（チーム共有ブックマーク）
+-- ============================================================
+create table if not exists public.bookmarks (
+  id           uuid primary key default gen_random_uuid(),
+  label        text not null,           -- リンク名
+  url          text,                    -- URL（省略可・メモのみ登録を許可）
+  carrier_type text not null default 'general',  -- 'FCL' | 'LCL' | 'general'
+  carrier      text,                    -- 会社名（null = 汎用）
+  "function"   text not null,           -- 'スケジュール' | '航路' | '輸入サーチャージ' | ...
+  note         text,                    -- アクセス方法・注意点
+  created_by   text,                    -- email
+  created_at   timestamptz not null default now()
+);
+
+alter table public.bookmarks enable row level security;
+
+grant select, insert, update, delete on public.bookmarks to authenticated;
+
+-- チームメンバーのみ SELECT
+create policy "team members can select bookmarks"
+  on public.bookmarks for select
+  to authenticated
+  using (is_team_member());
+
+-- チームメンバーのみ INSERT
+create policy "team members can insert bookmarks"
+  on public.bookmarks for insert
+  to authenticated
+  with check (is_team_member());
+
+-- チームメンバー全員が DELETE 可
+create policy "team members can delete bookmarks"
+  on public.bookmarks for delete
+  to authenticated
+  using (is_team_member());
+
+-- ============================================================
+-- 4. 将来用テーブル（準備のみ・未使用）
 -- ============================================================
 
 -- quotes テーブル（見積データ保存 — Supabase連携フェーズ2で使用）

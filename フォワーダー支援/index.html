@@ -51,6 +51,7 @@
     <button class="cat-btn"        role="tab" aria-selected="false" onclick="switchCategory('docs',   this)">📄 書類・通関</button>
     <button class="cat-btn"        role="tab" aria-selected="false" onclick="switchCategory('calc',   this)">🧮 計算</button>
     <button class="cat-btn"        role="tab" aria-selected="false" onclick="switchCategory('ref',    this)">📚 知識・参考</button>
+    <button class="cat-btn" role="tab" aria-selected="false" onclick="switchCategory('bookmark', this)">🔖 BOOKMARK</button>
     <!-- 💴 料金・費用：サブタブが全て未実装のため非表示（コンテンツ追加後に表示予定） -->
     <button class="cat-btn" hidden role="tab" aria-selected="false" onclick="switchCategory('cost',   this)">💴 料金・費用</button>
   </div>
@@ -81,6 +82,9 @@
     <button class="tab-btn" role="tab" aria-selected="false" onclick="switchTab('sizes',      this)">📏 種類・サイズ</button>
     <button class="tab-btn" role="tab" aria-selected="false" onclick="switchTab('insurance',  this)">🛡️ 海上貨物保険</button>
     <button class="tab-btn" role="tab" aria-selected="false" onclick="switchTab('blclause',   this)">📜 BL約款</button>
+  </div>
+  <div class="tab-nav sub-nav" id="sub-bookmark" role="tablist" aria-label="bookmark サブタブ">
+    <!-- サブタブなし：switchCategory で直接 tab-bookmark を表示 -->
   </div>
   <div class="tab-nav sub-nav" id="sub-booking" role="tablist" aria-label="booking サブタブ">
     <button class="tab-btn" role="tab" aria-selected="false" onclick="switchTab('booking-tab', this)">🛳️ Booking</button>
@@ -3293,6 +3297,33 @@
 
   </div><!-- /#tab-quote-make -->
 
+  <!-- ===================== Tab: BOOKMARK ===================== -->
+  <div class="tab-content" id="tab-bookmark">
+    <div class="bm-page-head">
+      <h2 class="bm-page-title">🔖 チームブックマーク</h2>
+      <button class="bm-add-btn" id="bmAddBtn" onclick="openAddBmModal()" hidden>＋ 追加</button>
+    </div>
+
+    <div class="bm-filters">
+      <div class="bm-filter-row">
+        <span class="bm-filter-label">種別</span>
+        <div class="bm-chips" id="bmTypeChips"></div>
+      </div>
+      <div class="bm-filter-row" id="bmCarrierRow" hidden>
+        <span class="bm-filter-label">会社</span>
+        <div class="bm-chips" id="bmCarrierChips"></div>
+      </div>
+      <div class="bm-filter-row">
+        <span class="bm-filter-label">機能</span>
+        <div class="bm-chips" id="bmFnChips"></div>
+      </div>
+    </div>
+
+    <div class="bm-list" id="bmListWrap">
+      <div class="bm-empty">読み込み中…</div>
+    </div>
+  </div>
+
   <!-- Footer -->
   <div class="footer">
     <span class="footer-text">フォワーダー実務支援ツール</span>
@@ -3327,6 +3358,7 @@
 <script src="js/quote/cloud-config.js"></script>
 <script src="js/quote/cloud.js"></script>
 <script src="js/tweaks.js"></script>
+<script src="js/bookmarks.js"></script>
 
 <!-- =================================================================
      サイト全体スコープのフローティング UI（Phase 2c-Step1 で見積タブから昇格）
@@ -3457,6 +3489,66 @@
 
 
 <div id="toast-container"></div>
+
+<!-- ======= ブックマーク追加モーダル ======= -->
+<div id="bmAddModal" class="bm-modal-overlay" onclick="closeAddBmModal(event)">
+  <div class="bm-modal-box">
+    <div class="bm-modal-head">
+      <h3>🔖 ブックマークを追加</h3>
+      <button class="bm-modal-close" onclick="document.getElementById('bmAddModal').classList.remove('open')" aria-label="閉じる">✕</button>
+    </div>
+    <form class="bm-form" onsubmit="saveBm();return false;">
+      <div class="bm-form-row">
+        <label class="bm-form-label" for="bmFormLabel">ラベル <span class="bm-required">必須</span></label>
+        <input type="text" id="bmFormLabel" class="bm-form-input" placeholder="例：ONE スケジュール照会" maxlength="100">
+      </div>
+      <div class="bm-form-row">
+        <label class="bm-form-label" for="bmFormUrl">URL <span class="bm-optional">省略可 — メモのみでも登録できます</span></label>
+        <input type="url" id="bmFormUrl" class="bm-form-input" placeholder="https://...">
+      </div>
+      <div class="bm-form-row bm-form-row-2col">
+        <div>
+          <label class="bm-form-label" for="bmFormType">種別</label>
+          <select id="bmFormType" class="bm-form-sel">
+            <option value="FCL">FCL 船会社</option>
+            <option value="LCL">LCL キャリア</option>
+            <option value="general">汎用</option>
+          </select>
+        </div>
+        <div>
+          <label class="bm-form-label" for="bmFormFunction">機能 <span class="bm-required">必須</span></label>
+          <select id="bmFormFunction" class="bm-form-sel">
+            <option value="">— 選択 —</option>
+            <option>スケジュール</option>
+            <option>航路</option>
+            <option>輸入サーチャージ</option>
+            <option>輸出サーチャージ</option>
+            <option>ブッキング</option>
+            <option>書類</option>
+            <option>コンテナ追跡</option>
+            <option>CY OPEN/CUT</option>
+            <option>レート</option>
+            <option>その他</option>
+          </select>
+        </div>
+      </div>
+      <div class="bm-form-row">
+        <label class="bm-form-label" for="bmFormCarrier">会社名 <span class="bm-optional">省略可</span></label>
+        <input type="text" id="bmFormCarrier" class="bm-form-input" placeholder="例：Maersk" list="bmCarrierDatalist">
+        <datalist id="bmCarrierDatalist"></datalist>
+      </div>
+      <div class="bm-form-row">
+        <label class="bm-form-label" for="bmFormNote">メモ <span class="bm-optional">アクセス方法・注意点など</span></label>
+        <textarea id="bmFormNote" class="bm-form-textarea" rows="3"
+          placeholder="例：ログイン後、左メニュー「スケジュール」→「本船スケジュール」から辿る"></textarea>
+      </div>
+      <div class="bm-modal-foot">
+        <button type="button" class="bm-btn-cancel" onclick="document.getElementById('bmAddModal').classList.remove('open')">キャンセル</button>
+        <button type="submit" class="bm-btn-save" id="bmSaveBtn">保存</button>
+      </div>
+    </form>
+  </div>
+</div>
 
 <!-- ========== プリセット比較オーバーレイ ========== -->
 <div id="compareOverlay" onclick="if(event.target===this)closeCompare()">
