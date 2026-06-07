@@ -3941,13 +3941,38 @@
 #tab-quote-make .preset-mgr-box {
   background: #fff;
   border-radius: 10px;
-  padding: 24px 26px 20px;
-  width: min(500px, 94vw);
-  box-shadow: 0 8px 32px rgba(0,0,0,.22);
+  width: min(1120px, 97vw);
+  height: min(840px, 94vh);
+  box-shadow: 0 8px 32px rgba(0,0,0,.28);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
-#tab-quote-make .preset-mgr-box h3 { font-size: 15px; color: #3d2e1e; margin-bottom: 6px; }
+/* 二列レイアウト：左＝ブラウザ保存、右＝チーム共有 */
+#tab-quote-make .preset-mgr-inner {
+  display: flex;
+  flex: 1 1 0;
+  min-height: 0;
+  overflow: hidden;
+}
+#tab-quote-make .preset-mgr-browser-col {
+  width: 240px;
+  flex-shrink: 0;
+  padding: 20px 18px;
+  border-right: 1px solid #e8e0d4;
+  overflow-y: auto;
+  background: #faf8f4;
+}
+#tab-quote-make .preset-mgr-cloud-col {
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+#tab-quote-make .preset-mgr-box h3 { font-size: 14px; color: #3d2e1e; margin-bottom: 6px; }
 #tab-quote-make .preset-mgr-desc { font-size: 12px; color: #7d6b56; margin-bottom: 8px; line-height: 1.6; }
-#tab-quote-make .preset-save-row { display: flex; gap: 8px; margin-bottom: 16px; }
+#tab-quote-make .preset-save-row { display: flex; gap: 8px; margin-bottom: 12px; }
 #tab-quote-make .row-pattern-pos-row {
   display: flex;
   align-items: center;
@@ -3984,8 +4009,9 @@
   transition: background .15s; white-space: nowrap;
 }
 #tab-quote-make .btn-preset-save-new:hover { background: #3d2e1e; }
-#tab-quote-make .preset-list-wrap {
-  max-height: 240px;
+/* ブラウザ保存列のリスト */
+#tab-quote-make .preset-mgr-browser-col .preset-list-wrap {
+  max-height: 100%;
   overflow-y: auto;
   border: 1px solid #d9cfc2;
   border-radius: 5px;
@@ -4023,7 +4049,8 @@
 #tab-quote-make .preset-empty { padding: 16px; text-align: center; font-size: 13px; color: #7d6b56; }
 #tab-quote-make .preset-mgr-footer {
   display: flex; justify-content: space-between; align-items: center;
-  margin-top: 12px; padding-top: 10px; border-top: 1px dashed #d9cfc2;
+  padding: 10px 20px; border-top: 1px solid #e8e0d4;
+  background: #faf8f4; flex-shrink: 0;
 }
 /* 書き出し / 読み込みボタングループ */
 #tab-quote-make .row-pattern-io-btns {
@@ -4049,22 +4076,39 @@
 }
 #tab-quote-make .btn-preset-close:hover { background: #d9cfc2; }
 
-/* ☁️ チーム共有（クラウド）セクション */
+/* ☁️ チーム共有（クラウド）セクション ― 右列として使用 */
 #tab-quote-make .cloud-share-section {
-  margin: 4px 0 14px;
-  padding: 12px 14px;
-  background: #eef4f8;
-  border: 1px solid #cfe0ea;
-  border-radius: 7px;
+  margin: 0;
+  padding: 0;
+  background: #fff;
+  border: none;
+  border-radius: 0;
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 0;
+  min-height: 0;
+  overflow: hidden;
 }
 #tab-quote-make .cloud-share-head {
   display: flex; align-items: center; justify-content: space-between;
-  margin-bottom: 6px;
+  padding: 14px 20px 8px;
+  border-bottom: 1px solid #e8e0d4;
+  background: #eef4f8;
+  flex-shrink: 0;
 }
 #tab-quote-make .cloud-share-title { font-size: 13px; font-weight: 700; color: #1c4a66; }
 #tab-quote-make .cloud-auth-state { font-size: 11.5px; color: #7d6b56; }
 #tab-quote-make .cloud-auth-state.is-on { color: #1a5c45; font-weight: 600; }
-#tab-quote-make .cloud-auth-actions { margin-bottom: 2px; }
+#tab-quote-make .cloud-auth-actions { margin-bottom: 2px; padding: 0 20px; }
+/* cloud-share-body: スクロール可能なメインエリア */
+#tab-quote-make .cloud-share-body {
+  flex: 1 1 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding: 0 20px 12px;
+}
 #tab-quote-make .btn-cloud-login {
   display: inline-flex; align-items: center; gap: 6px;
   background: #fff; color: #3c4043;
@@ -4125,8 +4169,104 @@
   border-radius: 3px; padding: 1px 6px; white-space: nowrap;
 }
 
+/* 案件グリッド（チーム共有の右列では grid 表示） */
+#tab-quote-make .cloud-preset-grid {
+  flex: 1 1 0;
+  min-height: 0;
+  overflow-y: auto;
+  border: 1px solid #d9cfc2;
+  border-radius: 6px;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 0;
+  align-content: start;
+}
+#tab-quote-make .cloud-preset-grid .cloud-card {
+  border-bottom: 1px solid #eef2f5;
+  border-right: 1px solid #eef2f5;
+}
+/* 詳細検索 */
+#tab-quote-make .cloud-adv-wrap {
+  margin-bottom: 6px;
+  flex-shrink: 0;
+}
+#tab-quote-make .cloud-adv-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+#tab-quote-make .cloud-adv-toggle-btn {
+  background: none;
+  border: none;
+  font-size: 12px;
+  color: #2b7bb0;
+  cursor: pointer;
+  padding: 2px 0;
+  font-family: inherit;
+  font-weight: 600;
+}
+#tab-quote-make .cloud-adv-toggle-btn:hover { text-decoration: underline; }
+#tab-quote-make .cloud-adv-clear-btn {
+  background: none;
+  border: 1px solid #e28080;
+  color: #c0392b;
+  border-radius: 4px;
+  font-size: 11px;
+  padding: 2px 8px;
+  cursor: pointer;
+  font-family: inherit;
+}
+#tab-quote-make .cloud-adv-clear-btn:hover { background: #fdeaea; }
+#tab-quote-make .cloud-adv-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 8px 10px;
+  background: #f0f6fa;
+  border: 1px solid #cfe0ea;
+  border-radius: 6px;
+}
+#tab-quote-make .cloud-adv-sel {
+  font-size: 12px;
+  padding: 4px 8px;
+  border: 1px solid #cfd8dc;
+  border-radius: 5px;
+  background: #fff;
+  color: #2c3e4a;
+  cursor: pointer;
+  min-width: 160px;
+}
+#tab-quote-make .cloud-adv-input {
+  font-size: 12px;
+  padding: 4px 8px;
+  border: 1px solid #cfd8dc;
+  border-radius: 5px;
+  background: #fff;
+  color: #2c3e4a;
+  font-family: inherit;
+  width: 160px;
+  box-sizing: border-box;
+}
+#tab-quote-make .cloud-adv-input:focus,
+#tab-quote-make .cloud-adv-sel:focus { border-color: #2b7bb0; outline: none; }
+/* カードへの 輸送モード・POL/POD バッジ */
+#tab-quote-make .cloud-card-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 4px;
+}
+#tab-quote-make .cloud-tag {
+  font-size: 10px;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: #e8f0f8;
+  color: #2c5470;
+  white-space: nowrap;
+}
 /* 検索ボックス */
-#tab-quote-make .cloud-search-row { margin: 4px 0 8px; }
+#tab-quote-make .cloud-search-row { margin: 8px 0 6px; flex-shrink: 0; }
 #tab-quote-make .cloud-search-input {
   width: 100%;
   border: 1px solid #cfd8dc; border-radius: 6px;

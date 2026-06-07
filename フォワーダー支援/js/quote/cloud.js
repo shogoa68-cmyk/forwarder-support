@@ -25,6 +25,13 @@
   let _cloudRows = [];          // 取得した全件
   let _cloudSearch = '';        // 検索語（名前・顧客・担当）
   let _cloudStatusFilter = '';  // '' = すべて
+  // 詳細検索フィルター
+  let _cloudFilterMode    = '';
+  let _cloudFilterInco    = '';
+  let _cloudFilterPol     = '';
+  let _cloudFilterPod     = '';
+  let _cloudFilterCarrier = '';
+  let _cloudAdvOpen       = false;
 
   // 設定が実値で埋まっているか（プレースホルダのままなら false）
   function cloudIsConfigured() {
@@ -150,7 +157,7 @@
     if (wrap) wrap.innerHTML = '<div class="preset-empty">読み込み中…</div>';
     const { data, error } = await c
       .from(_table())
-      .select('id,name,status,customer,person,owner_email,created_by,updated_at')
+      .select('id,name,status,customer,person,owner_email,created_by,updated_at,incoterms,transport_mode,pol,pod,carrier')
       .order('updated_at', { ascending: false });
     if (error) {
       if (wrap) wrap.innerHTML =
@@ -160,19 +167,80 @@
     }
     _cloudRows = data || [];
     _renderStatusChips();
+    _renderAdvancedFilters();
     _applyCloudFilter();
   }
 
-  // 検索語・ステータスで _cloudRows を絞り込んで描画
+  // 検索語・ステータス・詳細フィルターで絞り込んで描画
   function _applyCloudFilter() {
-    const q = _cloudSearch.trim().toLowerCase();
+    const q   = _cloudSearch.trim().toLowerCase();
+    const pol = _cloudFilterPol.trim().toLowerCase();
+    const pod = _cloudFilterPod.trim().toLowerCase();
+    const car = _cloudFilterCarrier.trim().toLowerCase();
     const rows = _cloudRows.filter(r => {
       if (_cloudStatusFilter && (r.status || CLOUD_STATUS_DEFAULT) !== _cloudStatusFilter) return false;
+      if (_cloudFilterMode    && r.transport_mode !== _cloudFilterMode)  return false;
+      if (_cloudFilterInco    && r.incoterms       !== _cloudFilterInco) return false;
+      if (pol && !(r.pol     || '').toLowerCase().includes(pol)) return false;
+      if (pod && !(r.pod     || '').toLowerCase().includes(pod)) return false;
+      if (car && !(r.carrier || '').toLowerCase().includes(car)) return false;
       if (!q) return true;
       const hay = [r.name, r.customer, r.person, r.owner_email].filter(Boolean).join(' ').toLowerCase();
       return hay.includes(q);
     });
     _renderCloudList(rows);
+  }
+
+  // 詳細検索ドロップダウンをロード済みデータから生成
+  function _renderAdvancedFilters() {
+    const unique = (key) => [...new Set(_cloudRows.map(r => r[key]).filter(Boolean))].sort();
+    const modes  = unique('transport_mode');
+    const incos  = unique('incoterms');
+    const modeEl = document.getElementById('cloudFilterMode');
+    const incoEl = document.getElementById('cloudFilterInco');
+    if (modeEl) {
+      modeEl.innerHTML = '<option value="">輸送モード：すべて</option>' +
+        modes.map(v => '<option value="' + escHtml(v) + '"' + (_cloudFilterMode === v ? ' selected' : '') + '>' + escHtml(v) + '</option>').join('');
+    }
+    if (incoEl) {
+      incoEl.innerHTML = '<option value="">インコタームズ：すべて</option>' +
+        incos.map(v => '<option value="' + escHtml(v) + '"' + (_cloudFilterInco === v ? ' selected' : '') + '>' + escHtml(v) + '</option>').join('');
+    }
+    // クリアボタン表示制御
+    const hasAdv = _cloudFilterMode || _cloudFilterInco || _cloudFilterPol || _cloudFilterPod || _cloudFilterCarrier;
+    const clearBtn = document.getElementById('cloudAdvClearBtn');
+    if (clearBtn) clearBtn.hidden = !hasAdv;
+  }
+
+  function toggleCloudAdvSearch() {
+    _cloudAdvOpen = !_cloudAdvOpen;
+    const body    = document.getElementById('cloudAdvBody');
+    const chevron = document.getElementById('cloudAdvChevron');
+    if (body)    body.hidden = !_cloudAdvOpen;
+    if (chevron) chevron.textContent = _cloudAdvOpen ? '▼' : '▶';
+  }
+
+  function cloudFilterAdvanced() {
+    _cloudFilterMode    = document.getElementById('cloudFilterMode')?.value    || '';
+    _cloudFilterInco    = document.getElementById('cloudFilterInco')?.value    || '';
+    _cloudFilterPol     = document.getElementById('cloudFilterPol')?.value     || '';
+    _cloudFilterPod     = document.getElementById('cloudFilterPod')?.value     || '';
+    _cloudFilterCarrier = document.getElementById('cloudFilterCarrier')?.value || '';
+    const hasAdv = _cloudFilterMode || _cloudFilterInco || _cloudFilterPol || _cloudFilterPod || _cloudFilterCarrier;
+    const clearBtn = document.getElementById('cloudAdvClearBtn');
+    if (clearBtn) clearBtn.hidden = !hasAdv;
+    _applyCloudFilter();
+  }
+
+  function clearCloudAdvSearch() {
+    _cloudFilterMode = _cloudFilterInco = _cloudFilterPol = _cloudFilterPod = _cloudFilterCarrier = '';
+    ['cloudFilterMode','cloudFilterInco','cloudFilterPol','cloudFilterPod','cloudFilterCarrier'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.value = '';
+    });
+    const clearBtn = document.getElementById('cloudAdvClearBtn');
+    if (clearBtn) clearBtn.hidden = true;
+    _applyCloudFilter();
   }
 
   // ステータス絞り込みチップ（件数バッジ付き）
@@ -219,6 +287,12 @@
       const meta = [];
       if (r.customer) meta.push('👤 ' + escHtml(r.customer));
       if (r.person)   meta.push('🧑‍💼 ' + escHtml(r.person));
+      const tags = [];
+      if (r.transport_mode) tags.push(escHtml(r.transport_mode));
+      if (r.incoterms)      tags.push(escHtml(r.incoterms));
+      if (r.pol)            tags.push('📦 ' + escHtml(r.pol));
+      if (r.pod)            tags.push('🏁 ' + escHtml(r.pod));
+      if (r.carrier)        tags.push('🚢 ' + escHtml(r.carrier));
       const opts = CLOUD_STATUSES.map(st =>
         '<option value="' + st + '"' + (st === status ? ' selected' : '') + '>' + st + '</option>').join('');
       return '' +
@@ -235,6 +309,7 @@
             '<span class="cloud-card-who" title="作成：' + escHtml(crtWho || '—') + ' / 最終更新：' + escHtml(updWho || '—') + '">' +
               '✏️ ' + escHtml(updWho || '—') + '・' + ts + '</span>' +
           '</div>' +
+          (tags.length ? '<div class="cloud-card-tags">' + tags.map(t => '<span class="cloud-tag">' + t + '</span>').join('') + '</div>' : '') +
         '</div>';
     }).join('');
   }
@@ -281,8 +356,13 @@
     const data = gatherAllData();
     // 検索・一覧用の主要項目を data から昇格（顧客名・担当者）
     const f = (data && data.fields) || {};
-    const customer = (f['qf-customer'] || '').trim() || null;
-    const person   = (f['qf-person']   || '').trim() || null;
+    const customer       = (f['qf-customer']    || '').trim() || null;
+    const person         = (f['qf-person']      || '').trim() || null;
+    const incoterms      = (f['cond-incoterms'] || '').trim() || null;
+    const transport_mode = (f['cond-mode']       || '').trim() || null;
+    const pol            = (f['z2Pol']           || '').trim() || null;
+    const pod            = (f['z2Pod']           || '').trim() || null;
+    const carrier        = (f['z2Carrier']       || '').trim() || null;
 
     // 同名チェック → 上書き or 新規
     const { data: existing, error: selErr } = await c
@@ -294,12 +374,13 @@
       if (!confirm('共有プリセット「' + name + '」が既にあります。上書きしますか？')) return;
       // 上書き時はステータス・作成者は維持（中身と顧客/担当・最終更新者のみ更新）
       resp = await c.from(_table())
-        .update({ data, customer, person, owner_email: _cloudUser.email, updated_at: new Date().toISOString() })
+        .update({ data, customer, person, incoterms, transport_mode, pol, pod, carrier,
+                  owner_email: _cloudUser.email, updated_at: new Date().toISOString() })
         .eq('id', existing[0].id);
     } else {
       resp = await c.from(_table())
         .insert({
-          name, data, customer, person,
+          name, data, customer, person, incoterms, transport_mode, pol, pod, carrier,
           status: CLOUD_STATUS_DEFAULT,
           owner_email: _cloudUser.email,
           created_by:  _cloudUser.email,
@@ -421,9 +502,12 @@
   window.cloudDeletePreset   = cloudDeletePreset;
   window.cloudListPresets    = cloudListPresets;
   window.cloudOnPresetMgrOpen = cloudOnPresetMgrOpen;
-  window.cloudSearchInput    = cloudSearchInput;
-  window.cloudFilterStatus   = cloudFilterStatus;
-  window.cloudSetStatus      = cloudSetStatus;
+  window.cloudSearchInput      = cloudSearchInput;
+  window.cloudFilterStatus     = cloudFilterStatus;
+  window.cloudSetStatus        = cloudSetStatus;
+  window.toggleCloudAdvSearch  = toggleCloudAdvSearch;
+  window.cloudFilterAdvanced   = cloudFilterAdvanced;
+  window.clearCloudAdvSearch   = clearCloudAdvSearch;
 
   // supabase-js は <head> で defer 読み込みのため DOMContentLoaded を待つ
   if (document.readyState === 'loading') {
