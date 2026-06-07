@@ -1800,17 +1800,23 @@
     if (!el) return;
     const m = (typeof window.getCargoMetrics === 'function') ? window.getCargoMetrics() : null;
     if (!m) { el.style.display = 'none'; return; }
+    // [ラベル, 値, reflectKey(省略可)]
     const rows = [];
     if (m.container) rows.push(['コンテナ', m.container]);
     if (m.qty > 0)   rows.push(['総個数', m.qty.toLocaleString() + ' 個']);
-    if (m.cbm > 0)   rows.push(['総容積', m.cbm.toFixed(3) + ' CBM']);
+    if (m.cbm > 0)   rows.push(['総容積', m.cbm.toFixed(3) + ' CBM', 'cbm']);
     if (m.kg > 0)    rows.push(['総重量', Math.round(m.kg).toLocaleString() + ' kg']);
-    if (m.rt > 0)    rows.push(['R/T', m.rt.toFixed(3)]);
-    if (m.cw > 0)    rows.push(['CW', SharedCalc.fmtCw(m.cw) + ' kg']);  // 0.5kg 精度を保つ
+    if (m.rt > 0)    rows.push(['R/T', m.rt.toFixed(3), 'rt']);
+    if (m.cw > 0)    rows.push(['CW', SharedCalc.fmtCw(m.cw) + ' kg', 'cw']);
     if (!rows.length) { el.style.display = 'none'; el.innerHTML = ''; return; }
     el.style.display = 'block';
     el.innerHTML = '<div class="qsp-section-label">📦 物量情報</div>'
-      + rows.map(([k, v]) => `<div class="qsp-cargo-row"><span class="qsp-cargo-k">${k}</span><span class="qsp-cargo-v">${v}</span></div>`).join('');
+      + rows.map(([k, v, rk]) => {
+          const btn = rk
+            ? `<button class="qsp-reflect-btn" onclick="reflectToQuote('${rk}')" title="${rk.toUpperCase()} 単位の行に数量を反映">→見積</button>`
+            : '';
+          return `<div class="qsp-cargo-row"><span class="qsp-cargo-k">${k}</span><span class="qsp-cargo-v">${v}${btn}</span></div>`;
+        }).join('');
   };
 
   // ===== 見積サマリパネル =====
