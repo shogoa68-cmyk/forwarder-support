@@ -374,9 +374,20 @@
     const person         = (f['qf-person']      || '').trim() || null;
     const incoterms      = (f['cond-incoterms'] || '').trim() || null;
     const transport_mode = (f['cond-mode']       || '').trim() || null;
-    const pol            = (f['z2Pol']           || '').trim() || null;
-    const pod            = (f['z2Pod']           || '').trim() || null;
-    const carrier        = (f['z2Carrier']       || '').trim() || null;
+    // 複数航路（z2-routes-data）対応：単一フィールドが空なら航路配列から収集
+    let pol     = (f['z2Pol']     || '').trim() || null;
+    let pod     = (f['z2Pod']     || '').trim() || null;
+    let carrier = (f['z2Carrier'] || '').trim() || null;
+    if (!pol && !pod && !carrier) {
+      try {
+        const rts = JSON.parse(f['z2-routes-data'] || '[]');
+        if (Array.isArray(rts) && rts.length) {
+          pol     = rts.map(r => r.pol).filter(Boolean).join(', ')     || null;
+          pod     = rts.map(r => r.pod).filter(Boolean).join(', ')     || null;
+          carrier = rts.map(r => r.carrier).filter(Boolean).join(', ') || null;
+        }
+      } catch(e) {}
+    }
 
     // 同名チェック → 上書き or 新規
     const { data: existing, error: selErr } = await c
@@ -432,10 +443,24 @@
       const z1 = [f['z1Place'], f['z1Country']].filter(Boolean).join(', ');
       if (z1) condRows.push(_cpKV('出発地', z1));
     }
-    if (f['z2Pol'] || f['z2Pod']) {
-      condRows.push(_cpKV('POL → POD', [f['z2Pol'] || '—', f['z2Pod'] || '—'].join(' → ')));
+    // 複数航路（z2-routes-data）対応。なければ単一フィールドにフォールバック
+    const routeEntries = [];
+    try {
+      const rts = JSON.parse(f['z2-routes-data'] || '[]');
+      if (Array.isArray(rts) && rts.length) rts.forEach(r => routeEntries.push(r));
+    } catch(e) {}
+    if (routeEntries.length) {
+      routeEntries.forEach((r, i) => {
+        const leg  = [r.pol, r.pod].filter(Boolean).join(' → ');
+        const line = [r.carrier, leg].filter(Boolean).join('  ');
+        if (line) condRows.push(_cpKV(i === 0 ? '航路' : '　', line));
+      });
+    } else {
+      if (f['z2Pol'] || f['z2Pod']) {
+        condRows.push(_cpKV('POL → POD', [f['z2Pol'] || '—', f['z2Pod'] || '—'].join(' → ')));
+      }
+      if (f['z2Carrier']) condRows.push(_cpKV('キャリア', f['z2Carrier']));
     }
-    if (f['z2Carrier']) condRows.push(_cpKV('キャリア', f['z2Carrier']));
     const z3On = f['cond-zone3-on'] === 'true' || f['cond-zone3-on'] === true;
     if (z3On) {
       const z3 = [f['z3Place'], f['z3Country']].filter(Boolean).join(', ');
