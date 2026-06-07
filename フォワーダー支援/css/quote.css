@@ -3308,16 +3308,18 @@
 }
 .fb-tab:hover { color: #6b5a42; }
 .fb-tab.active { color: #3d2e1e; border-bottom-color: #6b5a42; }
-/* 受信一覧表示時はモーダルを広げる */
+/* 受信一覧表示時はモーダルを広げ・縦幅も確保 */
 #fbBox:has(#fbListPane:not([hidden])) {
   width: min(760px, 96vw);
+  height: min(680px, 88vh);
 }
-/* 受信一覧ペイン */
+/* 受信一覧ペイン：残り高さをすべて使う */
 #fbListPane {
+  flex: 1 1 0;
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  max-height: 75vh;
+  min-height: 0;
 }
 .fb-list-toolbar {
   display: flex;
