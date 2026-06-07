@@ -1546,7 +1546,15 @@
 }
 #tab-quote-make .cd-metric-rt b { color: #4a6035; }
 #tab-quote-make .cd-metric-cw b { color: #1a4a8f; }
+#tab-quote-make .cd-metric-cbm b { color: #6a4a1a; }
 #tab-quote-make .cd-derived-note { font-size: 10px; color: #a08060; font-weight: 400; }
+#tab-quote-make .cd-reflect-btn {
+  font-size: 10px; padding: 1px 6px; margin-left: 2px;
+  background: #e8f0e4; color: #3a6030; border: 1px solid #b0c8a0;
+  border-radius: 3px; cursor: pointer; font-weight: 600; line-height: 1.4;
+  vertical-align: middle;
+}
+#tab-quote-make .cd-reflect-btn:hover { background: #c8e0c0; }
 #tab-quote-make .cargo-detail-actions {
   display: flex;
   gap: 8px;
