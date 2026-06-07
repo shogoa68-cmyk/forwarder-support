@@ -124,6 +124,8 @@
       // 登録ボタンを表示（ログイン中のみ）
       const saveBtn = document.getElementById('qfAssigneeSave');
       if (saveBtn) saveBtn.hidden = false;
+      // FB受信一覧タブを表示
+      if (typeof refreshFbAdminTab === 'function') refreshFbAdminTab(_cloudUser);
     } else {
       stateEl.textContent = '未ログイン';
       stateEl.classList.remove('is-on');
@@ -135,6 +137,8 @@
       // 登録ボタンを隠す
       const saveBtn = document.getElementById('qfAssigneeSave');
       if (saveBtn) saveBtn.hidden = true;
+      // FB受信一覧タブを隠す
+      if (typeof refreshFbAdminTab === 'function') refreshFbAdminTab(null);
     }
   }
 

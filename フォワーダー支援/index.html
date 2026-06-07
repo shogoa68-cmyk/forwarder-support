@@ -3377,39 +3377,59 @@
       <h3 id="fbHeadTitle">💬 フィードバック</h3>
       <button class="fb-close-x" onclick="closeFeedback()" aria-label="閉じる">×</button>
     </div>
-    <form id="fbForm" onsubmit="submitFeedback(event)" autocomplete="off">
-      <div class="fb-field">
-        <label class="fb-label">カテゴリ <span class="fb-required">必須</span></label>
-        <div class="fb-radios" id="fbCategoryRadios">
-          <label class="fb-radio"><input type="radio" name="fbCategory" value="バグ報告" required><span>🐛 バグ報告</span></label>
-          <label class="fb-radio"><input type="radio" name="fbCategory" value="改善要望"><span>💡 改善要望</span></label>
-          <label class="fb-radio"><input type="radio" name="fbCategory" value="質問"><span>❓ 質問</span></label>
-          <label class="fb-radio"><input type="radio" name="fbCategory" value="その他"><span>📌 その他</span></label>
+    <div class="fb-tab-bar" id="fbTabBar">
+      <button class="fb-tab active" id="fbTabSend" onclick="switchFbTab('send')">📤 送信</button>
+      <button class="fb-tab" id="fbTabList" onclick="switchFbTab('list')" hidden>📥 受信一覧</button>
+    </div>
+    <div id="fbSendPane">
+      <form id="fbForm" onsubmit="submitFeedback(event)" autocomplete="off">
+        <div class="fb-field">
+          <label class="fb-label">カテゴリ <span class="fb-required">必須</span></label>
+          <div class="fb-radios" id="fbCategoryRadios">
+            <label class="fb-radio"><input type="radio" name="fbCategory" value="バグ報告" required><span>🐛 バグ報告</span></label>
+            <label class="fb-radio"><input type="radio" name="fbCategory" value="改善要望"><span>💡 改善要望</span></label>
+            <label class="fb-radio"><input type="radio" name="fbCategory" value="質問"><span>❓ 質問</span></label>
+            <label class="fb-radio"><input type="radio" name="fbCategory" value="その他"><span>📌 その他</span></label>
+          </div>
         </div>
-      </div>
-      <div class="fb-field">
-        <label class="fb-label" for="fbSection">該当セクション <span class="fb-required">必須</span></label>
-        <select id="fbSection" name="fbSection" required>
-          <option value="全体">全体</option>
-          <option value="管理番号入力">管理番号入力</option>
-          <option value="貿易条件・輸送モード">貿易条件・輸送モード</option>
-          <option value="貨物情報">貨物情報</option>
-          <option value="物量情報">物量情報</option>
-          <option value="見積もりテーブル">見積もりテーブル</option>
-          <option value="全体リマーク">全体リマーク</option>
-          <option value="LCL キャリア">LCL キャリア</option>
+        <div class="fb-field">
+          <label class="fb-label" for="fbSection">該当セクション <span class="fb-required">必須</span></label>
+          <select id="fbSection" name="fbSection" required>
+            <option value="全体">全体</option>
+            <option value="管理番号入力">管理番号入力</option>
+            <option value="貿易条件・輸送モード">貿易条件・輸送モード</option>
+            <option value="貨物情報">貨物情報</option>
+            <option value="物量情報">物量情報</option>
+            <option value="見積もりテーブル">見積もりテーブル</option>
+            <option value="全体リマーク">全体リマーク</option>
+            <option value="LCL キャリア">LCL キャリア</option>
+          </select>
+        </div>
+        <div class="fb-field">
+          <label class="fb-label" for="fbBody">内容 <span class="fb-required">必須</span></label>
+          <textarea id="fbBody" name="fbBody" rows="5" required
+            placeholder="例）〇〇のとき動作がおかしい / 〇〇機能を追加してほしい など"></textarea>
+        </div>
+        <div class="fb-foot">
+          <button type="button" class="fb-btn-close" onclick="closeFeedback()">キャンセル</button>
+          <button type="submit" class="fb-btn-send" id="fbSubmitBtn">送信</button>
+        </div>
+      </form>
+    </div>
+    <div id="fbListPane" hidden>
+      <div id="fbListToolbar" class="fb-list-toolbar">
+        <select id="fbListFilter" class="fb-list-filter" onchange="filterFbList()" title="ステータスで絞り込み">
+          <option value="">すべて</option>
+          <option value="open">未対応</option>
+          <option value="resolved">解決済み</option>
+          <option value="wontfix">対応しない</option>
         </select>
+        <button class="fb-list-reload" onclick="loadFbList()" title="再読み込み">↺</button>
       </div>
-      <div class="fb-field">
-        <label class="fb-label" for="fbBody">内容 <span class="fb-required">必須</span></label>
-        <textarea id="fbBody" name="fbBody" rows="5" required
-          placeholder="例）〇〇のとき動作がおかしい / 〇〇機能を追加してほしい など"></textarea>
+      <div id="fbListContent" class="fb-list-content">
+        <p class="fb-list-empty">読み込み中…</p>
       </div>
-      <div class="fb-foot">
-        <button type="button" class="fb-btn-close" onclick="closeFeedback()">キャンセル</button>
-        <button type="submit" class="fb-btn-send" id="fbSubmitBtn">送信</button>
-      </div>
-    </form>
+    </div>
   </div>
 </div>
 

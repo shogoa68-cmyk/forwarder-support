@@ -3286,6 +3286,125 @@
   align-self: center;
 }
 .fb-foot-link:hover { color: #6b5a42; }
+/* フィードバックモーダル タブバー */
+.fb-tab-bar {
+  display: flex;
+  border-bottom: 1px solid #e8e0d4;
+  background: #faf7f2;
+  flex-shrink: 0;
+}
+.fb-tab {
+  padding: 8px 18px;
+  font-size: 12px;
+  font-weight: 600;
+  border: none;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  color: #9a8878;
+  cursor: pointer;
+  margin-bottom: -1px;
+  transition: color 0.15s, border-color 0.15s;
+}
+.fb-tab:hover { color: #6b5a42; }
+.fb-tab.active { color: #3d2e1e; border-bottom-color: #6b5a42; }
+/* 受信一覧ペイン */
+#fbListPane {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  max-height: 72vh;
+}
+.fb-list-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  border-bottom: 1px solid #e8e0d4;
+  background: #faf7f2;
+  flex-shrink: 0;
+}
+.fb-list-filter {
+  font-size: 12px;
+  padding: 3px 8px;
+  border: 1px solid #d9cfc2;
+  border-radius: 5px;
+  background: #fff;
+  color: #4a3f35;
+  cursor: pointer;
+}
+.fb-list-reload {
+  font-size: 14px;
+  padding: 2px 8px;
+  border: 1px solid #d9cfc2;
+  border-radius: 5px;
+  background: #fff;
+  color: #6b5a42;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.fb-list-reload:hover { background: #f0e8d8; }
+.fb-list-content {
+  overflow-y: auto;
+  flex: 1 1 0;
+  padding: 10px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.fb-list-loading, .fb-list-empty {
+  text-align: center;
+  color: #9a8878;
+  padding: 28px 0;
+  font-size: 13px;
+  margin: 0;
+}
+.fb-list-item {
+  border: 1px solid #e8e0d4;
+  border-radius: 8px;
+  padding: 10px 12px;
+  background: #fff;
+}
+.fb-list-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  margin-bottom: 6px;
+  font-size: 11px;
+}
+.fb-list-cat { font-weight: 700; color: #4a3f35; }
+.fb-list-sec { color: #6b5a42; }
+.fb-list-dt  { color: #9a8878; margin-left: auto; }
+.fb-status-badge {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 1px 8px;
+  border-radius: 8px;
+}
+.fb-status-open     { background: #dceef8; color: #1a5c8a; }
+.fb-status-resolved { background: #d4edda; color: #1a6a35; }
+.fb-status-wontfix  { background: #e8e0d4; color: #7a6a5a; }
+.fb-list-body {
+  font-size: 12px;
+  color: #4a3f35;
+  line-height: 1.65;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.fb-list-actions {
+  margin-top: 8px;
+  display: flex;
+  justify-content: flex-end;
+}
+.fb-status-select {
+  font-size: 11px;
+  padding: 2px 6px;
+  border: 1px solid #d9cfc2;
+  border-radius: 4px;
+  background: #faf8f4;
+  color: #4a3f35;
+  cursor: pointer;
+}
 /* 設定未完了メッセージ */
 .fb-no-url-msg {
   display: none;

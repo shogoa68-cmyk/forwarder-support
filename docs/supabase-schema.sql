@@ -34,6 +34,20 @@ create policy "users can view own feedbacks"
 
 -- 管理者用: service_role からは全件 SELECT 可（Supabase Dashboard での確認用）
 
+-- チームメンバーは全フィードバックを閲覧可（受信一覧UI用）
+-- ※ allowed_emails に登録されているメンバーのみ（is_team_member() は security definer 関数）
+create policy "team members can view all feedbacks"
+  on public.feedbacks for select
+  to authenticated
+  using (public.is_team_member());
+
+-- チームメンバーはステータスを更新可
+create policy "team members can update feedback status"
+  on public.feedbacks for update
+  to authenticated
+  using (public.is_team_member())
+  with check (public.is_team_member());
+
 -- ============================================================
 -- 2. 将来用テーブル（準備のみ・未使用）
 -- ============================================================
