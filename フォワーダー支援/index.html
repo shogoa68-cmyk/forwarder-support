@@ -9,7 +9,7 @@
 <link rel="stylesheet" href="css/quote-pdf.css">
 <!-- 見積タブで CSV/Excel/PDF 出力に使用（SheetJS） -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" defer></script>
-<!-- Supabase JS v2 -->
+<!-- Supabase JS v2（UMDビルド・defer なし：body スクリプトより先に評価が必要） -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 </head>
 <body>
@@ -30,9 +30,15 @@
       <h1>🛠️ フォワーダー支援</h1>
       <div class="subtitle">ブックマーク・知識・計算機・見積もりをひとまとめに &nbsp;｜&nbsp; 最終更新: <span id="last-updated">-</span></div>
     </div>
-    <div class="header-auth">
-      <span id="authUserInfo" class="auth-user-info"></span>
-      <button id="authBtn" class="auth-btn">GitHub でログイン</button>
+    <div class="header-auth" id="cloudHeaderAuth" hidden>
+      <button class="hdr-cloud-login" id="hdrCloudLogin" type="button" onclick="cloudLogin()" title="チーム共有にサインイン">
+        <span class="hdr-g">G</span> Google でログイン
+      </button>
+      <span class="hdr-cloud-user" id="hdrCloudUser" style="display:none">
+        <span class="hdr-cloud-avatar" id="hdrCloudAvatar" aria-hidden="true"></span>
+        <span class="hdr-cloud-name" id="hdrCloudName" title="ログイン中のアカウント"></span>
+        <button class="hdr-cloud-logout" id="hdrCloudLogout" type="button" onclick="cloudLogout()" title="ログアウト">ログアウト</button>
+      </span>
     </div>
   </div>
 
@@ -2002,7 +2008,7 @@
 
     <!-- ========== 保存/読み込みツールバー ========== -->
     <div class="save-toolbar" id="saveToolbar">
-      <span class="current-quote-name" id="currentQuoteName" title="現在編集中のプリセット名（読込・保存時に更新）">📝 新規見積</span>
+      <span class="current-quote-name" id="currentQuoteName" hidden title="現在編集中のプリセット名（読込・保存時に更新）">📝 新規見積</span>
 
       <!-- 主要アクション：プレビュー・比較は右下のフローティングドックへ移動 -->
 
@@ -2012,45 +2018,14 @@
 
       <span class="save-toolbar-sep"></span>
 
-      <!-- 保存/読込メニュー -->
-      <div class="tb-menu" data-tb-menu="save">
-        <button class="save-btn save-btn-menu" type="button" onclick="toggleTbMenu('save', event)" title="プリセット管理・JSON入出力・自動保存">
-          🗂️ 保存/読込 <span class="tb-caret">▾</span>
-        </button>
-        <div class="tb-menu-panel" id="tbMenuSave">
-          <button type="button" class="tb-menu-item" onclick="openPresetMgr(); closeTbMenus()">
-            <span class="tb-mi-icon">🗂️</span>
-            <span class="tb-mi-body">
-              <span class="tb-mi-title">プリセット / 一時保存を管理</span>
-              <span class="tb-mi-sub">入力パターン・一時保存の編集（Ctrl+S で上書き保存）</span>
-            </span>
-          </button>
-          <label class="tb-menu-item tb-menu-toggle" title="入力・変更から2秒後にブラウザへ自動保存します（同じブラウザ内のみ有効）">
-            <span class="tb-mi-icon">💾</span>
-            <span class="tb-mi-body">
-              <span class="tb-mi-title">自動保存</span>
-              <span class="tb-mi-sub">2秒後にブラウザへ自動保存（同じブラウザ内のみ有効）</span>
-            </span>
-            <input type="checkbox" id="autoSaveChk" onchange="toggleAutoSave(this.checked)" />
-          </label>
-          <div class="tb-menu-sep"></div>
-          <button type="button" class="tb-menu-item" onclick="exportToFile(); closeTbMenus()">
-            <span class="tb-mi-icon">📤</span>
-            <span class="tb-mi-body">
-              <span class="tb-mi-title">JSON エクスポート</span>
-              <span class="tb-mi-sub">バックアップ・端末間共有・長期保管用</span>
-            </span>
-          </button>
-          <button type="button" class="tb-menu-item" onclick="document.getElementById('importFileInput').click(); closeTbMenus()">
-            <span class="tb-mi-icon">📥</span>
-            <span class="tb-mi-body">
-              <span class="tb-mi-title">JSON 読込</span>
-              <span class="tb-mi-sub">JSONファイルから見積データを取り込む</span>
-            </span>
-          </button>
-          <input type="file" id="importFileInput" accept=".json" style="display:none" onchange="importFromFile(event)" />
-        </div>
-      </div>
+      <!-- 保存/読込：ブラウザ保存とチーム共有の独立ボタン -->
+      <span class="save-toolbar-label">保存</span>
+      <button type="button" class="save-btn save-btn-preset" onclick="openPresetMgr('browser')" title="このブラウザに名前付きで保存・呼び出し（最大50件・同じブラウザのみ）">💾 ブラウザ保存</button>
+      <button type="button" class="save-btn save-btn-cloud" onclick="openPresetMgr('cloud')" title="ログインしてチームのメンバーと共有・編集（端末をまたいで利用可）">☁️ チーム共有</button>
+      <label class="save-btn save-toolbar-autosave" title="入力・変更から2秒後にブラウザへ自動保存します（同じブラウザ内のみ有効）">
+        <input type="checkbox" id="autoSaveChk" onchange="toggleAutoSave(this.checked)" />
+        <span>💾 自動保存</span>
+      </label>
 
       <span class="save-status" id="saveStatus"></span>
 
@@ -2102,17 +2077,8 @@
     <div class="preset-mgr-modal" id="presetMgrModal"
          onclick="if(event.target===this)closePresetMgr()">
       <div class="preset-mgr-box">
-        <h3>🗂️ プリセット/一時保存</h3>
-        <p class="preset-mgr-desc">
-          現在の入力状態を名前付きで保存・呼び出しできます（<strong>最大 50 件・このブラウザのみ</strong>）。<br>
-          「輸入案件用」「国内配送用」などテンプレートとして使うほか、<br>
-          「一時保存」のような名前で作業途中のデータを退避させることもできます。
-        </p>
-        <div class="preset-mgr-warn">
-          💡 <strong>長期保管・他端末との共有・チームでの引き継ぎ</strong>には、ツールバーの
-          「<strong>📤 JSON</strong>」ボタンから <strong>JSON ファイル</strong>としてバックアップすることを推奨します。
-          JSON ファイルは「📥 読込」で同じ状態を完全復元できます（クラウドフォルダ共有も可）。
-        </div>
+        <div id="presetBrowserSection">
+        <h3>💾 ブラウザ保存（プリセット/一時保存）<span class="help-tip" tabindex="0" role="button" aria-label="プリセット/一時保存の説明">?<span class="help-tip-text">現在の入力状態を名前付きで保存・呼び出し（<strong>最大50件・このブラウザのみ</strong>）。「輸入案件用」などのテンプレートや、作業途中の退避に使えます。<br>チーム全員での共有は「☁️ チーム共有」ボタンから。</span></span></h3>
         <div class="preset-save-row">
           <input type="text" class="preset-name-input" id="presetNameInput"
                  placeholder="例）輸入案件用・国内配送用" maxlength="30"
@@ -2122,6 +2088,34 @@
         <div class="preset-list-wrap" id="presetListWrap">
           <div class="preset-empty">保存済みのプリセットはありません</div>
         </div>
+        </div><!-- /#presetBrowserSection -->
+
+        <!-- ☁️ チーム共有（クラウド／Supabase） -->
+        <div class="cloud-share-section" id="cloudShareSection">
+          <div class="cloud-share-head">
+            <span class="cloud-share-title">☁️ チーム共有<span class="help-tip" tabindex="0" role="button" aria-label="チーム共有の説明">?<span class="help-tip-text">ログインすると、保存したプリセットをチームのメンバー全員で共有・編集できます（端末をまたいで利用可）。</span></span></span>
+            <span class="cloud-auth-state" id="cloudAuthState">…</span>
+          </div>
+          <div class="cloud-auth-actions" id="cloudAuthActions">
+            <span class="cloud-login-hint" id="cloudLoginHint" style="display:none">右上の「<b>G Google でログイン</b>」からサインインすると、チームでプリセットを共有・編集できます。</span>
+          </div>
+          <div class="cloud-share-body" id="cloudShareBody" style="display:none">
+            <div class="cloud-save-row">
+              <button class="btn-cloud-save" type="button" onclick="cloudSaveCurrent()">☁️ 現在の内容を共有に保存</button>
+              <span class="help-tip" tabindex="0" role="button" aria-label="保存名についての説明">?<span class="help-tip-text">保存名は<strong>管理番号（＋顧客名・担当者）</strong>から自動生成されます。ローカルの一時保存と同じ命名です。同じ管理番号で再保存すると上書きされます。</span></span>
+            </div>
+            <div class="cloud-search-row">
+              <input type="text" class="cloud-search-input" id="cloudSearchInput"
+                     placeholder="🔍 検索（案件名・顧客名・担当者）"
+                     oninput="cloudSearchInput(this.value)" />
+            </div>
+            <div class="cloud-status-chips" id="cloudStatusChips"></div>
+            <div class="preset-list-wrap" id="cloudPresetListWrap">
+              <div class="preset-empty">読み込み中…</div>
+            </div>
+          </div>
+        </div>
+
         <div class="preset-mgr-footer">
           <button class="btn-preset-close" onclick="closePresetMgr()">閉じる</button>
         </div>
@@ -2639,28 +2633,161 @@
             <div class="cond-field cond-field--multi" data-field-id="container-type" data-scope-key="container">
               <label><span class="cond-icon">📐</span> コンテナ（種類 × 本数）</label>
               <div class="multi-entry">
-                <div class="multi-entry-editor">
-                  <select id="cond-container-type" class="me-select">
-                    <option value="">— 種類を選択 —</option>
-                    <option title="20ft 一般ドライコンテナ（General Purpose）">20'GP</option>
-                    <option title="40ft 一般ドライコンテナ（General Purpose）">40'GP</option>
-                    <option title="40ft 背高コンテナ（High Cube／40HQ・40HC）">40'HQ</option>
-                    <option title="45ft 背高コンテナ（High Cube）欧州・北米向けで使用頻度高">45'HC</option>
-                    <option title="20ft 冷凍コンテナ（Reefer）">20'RF（冷凍）</option>
-                    <option title="40ft 冷凍コンテナ（Reefer）">40'RF（冷凍）</option>
-                    <option>20'OT（オープントップ）</option>
-                    <option>40'OT（オープントップ）</option>
-                    <option>20'FR（フラットラック）</option>
-                    <option>40'FR（フラットラック）</option>
-                    <option>未定</option>
-                  </select>
-                  <span class="me-mul">×</span>
-                  <input type="number" id="cond-container-count" class="me-count" min="1" step="1" value="1" placeholder="本数"
-                         onkeydown="if(event.key==='Enter'){event.preventDefault();addContainerEntry();}" />
-                  <button type="button" class="me-add-btn" onclick="addContainerEntry()">＋ 追加</button>
+                <!-- カテゴリ切替：ドライ／特殊 -->
+                <div class="cc-cat-tabs" role="tablist">
+                  <button type="button" class="cc-cat-tab is-on" data-cat="dry" onclick="setContainerCat('dry')">📦 ドライコンテナ</button>
+                  <button type="button" class="cc-cat-tab" data-cat="special" onclick="setContainerCat('special')">❄️ 特殊コンテナ</button>
                 </div>
-                <div class="multi-entry-list" id="containerEntryList"></div>
+
+                <!-- ドライ -->
+                <div class="cc-cat-pane" id="ccPaneDry">
+                  <div class="container-chip-grid" id="containerChipGrid">
+                    <div class="cc-chip" data-ctype="20'GP" title="20ft 一般ドライ（General Purpose）">
+                      <span class="cc-label"><b>20'GP</b><small>ドライ</small></span>
+                      <div class="cc-stepper">
+                        <button type="button" class="cc-step cc-minus" onclick="bumpContainerChip(this,-1)" aria-label="減らす">−</button>
+                        <input type="number" class="cc-count" min="0" step="1" value="0" inputmode="numeric" placeholder="0" oninput="setContainerChip(this.closest('.cc-chip').dataset.ctype, this.value)" />
+                        <button type="button" class="cc-step cc-plus" onclick="bumpContainerChip(this,1)" aria-label="増やす">＋</button>
+                      </div>
+                    </div>
+                    <div class="cc-chip" data-ctype="40'GP" title="40ft 一般ドライ（General Purpose）">
+                      <span class="cc-label"><b>40'GP</b><small>ドライ</small></span>
+                      <div class="cc-stepper">
+                        <button type="button" class="cc-step cc-minus" onclick="bumpContainerChip(this,-1)" aria-label="減らす">−</button>
+                        <input type="number" class="cc-count" min="0" step="1" value="0" inputmode="numeric" placeholder="0" oninput="setContainerChip(this.closest('.cc-chip').dataset.ctype, this.value)" />
+                        <button type="button" class="cc-step cc-plus" onclick="bumpContainerChip(this,1)" aria-label="増やす">＋</button>
+                      </div>
+                    </div>
+                    <div class="cc-chip" data-ctype="40'HQ" title="40ft 背高（High Cube／40HC）">
+                      <span class="cc-label"><b>40'HQ</b><small>背高</small></span>
+                      <div class="cc-stepper">
+                        <button type="button" class="cc-step cc-minus" onclick="bumpContainerChip(this,-1)" aria-label="減らす">−</button>
+                        <input type="number" class="cc-count" min="0" step="1" value="0" inputmode="numeric" placeholder="0" oninput="setContainerChip(this.closest('.cc-chip').dataset.ctype, this.value)" />
+                        <button type="button" class="cc-step cc-plus" onclick="bumpContainerChip(this,1)" aria-label="増やす">＋</button>
+                      </div>
+                    </div>
+                    <div class="cc-chip" data-ctype="45'HC" title="45ft 背高（High Cube）欧州・北米向け">
+                      <span class="cc-label"><b>45'HC</b><small>背高</small></span>
+                      <div class="cc-stepper">
+                        <button type="button" class="cc-step cc-minus" onclick="bumpContainerChip(this,-1)" aria-label="減らす">−</button>
+                        <input type="number" class="cc-count" min="0" step="1" value="0" inputmode="numeric" placeholder="0" oninput="setContainerChip(this.closest('.cc-chip').dataset.ctype, this.value)" />
+                        <button type="button" class="cc-step cc-plus" onclick="bumpContainerChip(this,1)" aria-label="増やす">＋</button>
+                      </div>
+                    </div>
+                    <div class="cc-chip cc-chip--tbd" data-ctype="未定" title="種類未定">
+                      <span class="cc-label"><b>未定</b><small>未確定</small></span>
+                      <div class="cc-stepper">
+                        <button type="button" class="cc-step cc-minus" onclick="bumpContainerChip(this,-1)" aria-label="減らす">−</button>
+                        <input type="number" class="cc-count" min="0" step="1" value="0" inputmode="numeric" placeholder="0" oninput="setContainerChip(this.closest('.cc-chip').dataset.ctype, this.value)" />
+                        <button type="button" class="cc-step cc-plus" onclick="bumpContainerChip(this,1)" aria-label="増やす">＋</button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- 特殊 -->
+                <div class="cc-cat-pane" id="ccPaneSpecial" hidden>
+                  <div class="cc-sub-tabs" role="tablist">
+                    <button type="button" class="cc-sub-tab is-on" data-sub="rf" onclick="setContainerSub('rf')">❄️ RF（冷凍・冷蔵）</button>
+                    <button type="button" class="cc-sub-tab" data-sub="otfr" onclick="setContainerSub('otfr')">🔲 OT / FR（オープン・フラット）</button>
+                  </div>
+
+                  <!-- RF -->
+                  <div class="cc-sub-pane" id="ccPaneRf">
+                    <div class="container-chip-grid">
+                      <div class="cc-chip" data-ctype="20'RF（冷凍）" title="20ft 冷凍・冷蔵（Reefer）">
+                        <span class="cc-label"><b>20'RF</b><small>冷凍・冷蔵</small></span>
+                        <div class="cc-stepper">
+                          <button type="button" class="cc-step cc-minus" onclick="bumpContainerChip(this,-1)" aria-label="減らす">−</button>
+                          <input type="number" class="cc-count" min="0" step="1" value="0" inputmode="numeric" placeholder="0" oninput="setContainerChip(this.closest('.cc-chip').dataset.ctype, this.value)" />
+                          <button type="button" class="cc-step cc-plus" onclick="bumpContainerChip(this,1)" aria-label="増やす">＋</button>
+                        </div>
+                      </div>
+                      <div class="cc-chip" data-ctype="40'RF（冷凍）" title="40ft 冷凍・冷蔵（Reefer）">
+                        <span class="cc-label"><b>40'RF</b><small>冷凍・冷蔵</small></span>
+                        <div class="cc-stepper">
+                          <button type="button" class="cc-step cc-minus" onclick="bumpContainerChip(this,-1)" aria-label="減らす">−</button>
+                          <input type="number" class="cc-count" min="0" step="1" value="0" inputmode="numeric" placeholder="0" oninput="setContainerChip(this.closest('.cc-chip').dataset.ctype, this.value)" />
+                          <button type="button" class="cc-step cc-plus" onclick="bumpContainerChip(this,1)" aria-label="増やす">＋</button>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="cc-spec">
+                      <div class="cc-spec-field">
+                        <label>🌡 適用温度帯</label>
+                        <input type="text" id="cc-rf-temp" class="cc-spec-input" placeholder="例）−18℃ ／ +2〜+8℃" oninput="updateContainerSpec()" />
+                      </div>
+                      <div class="cc-spec-field">
+                        <label>💨 ベンチレーション（換気）</label>
+                        <div class="cc-seg" id="cc-rf-vent" role="radiogroup">
+                          <button type="button" class="cc-seg-btn is-on" data-val="無" onclick="setRfVent('無')">無（密閉）</button>
+                          <button type="button" class="cc-seg-btn" data-val="有" onclick="setRfVent('有')">有（換気）</button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- OT / FR -->
+                  <div class="cc-sub-pane" id="ccPaneOtfr" hidden>
+                    <div class="container-chip-grid">
+                      <div class="cc-chip" data-ctype="20'OT（オープントップ）" title="20ft オープントップ">
+                        <span class="cc-label"><b>20'OT</b><small>オープン</small></span>
+                        <div class="cc-stepper">
+                          <button type="button" class="cc-step cc-minus" onclick="bumpContainerChip(this,-1)" aria-label="減らす">−</button>
+                          <input type="number" class="cc-count" min="0" step="1" value="0" inputmode="numeric" placeholder="0" oninput="setContainerChip(this.closest('.cc-chip').dataset.ctype, this.value)" />
+                          <button type="button" class="cc-step cc-plus" onclick="bumpContainerChip(this,1)" aria-label="増やす">＋</button>
+                        </div>
+                      </div>
+                      <div class="cc-chip" data-ctype="40'OT（オープントップ）" title="40ft オープントップ">
+                        <span class="cc-label"><b>40'OT</b><small>オープン</small></span>
+                        <div class="cc-stepper">
+                          <button type="button" class="cc-step cc-minus" onclick="bumpContainerChip(this,-1)" aria-label="減らす">−</button>
+                          <input type="number" class="cc-count" min="0" step="1" value="0" inputmode="numeric" placeholder="0" oninput="setContainerChip(this.closest('.cc-chip').dataset.ctype, this.value)" />
+                          <button type="button" class="cc-step cc-plus" onclick="bumpContainerChip(this,1)" aria-label="増やす">＋</button>
+                        </div>
+                      </div>
+                      <div class="cc-chip" data-ctype="20'FR（フラットラック）" title="20ft フラットラック">
+                        <span class="cc-label"><b>20'FR</b><small>フラット</small></span>
+                        <div class="cc-stepper">
+                          <button type="button" class="cc-step cc-minus" onclick="bumpContainerChip(this,-1)" aria-label="減らす">−</button>
+                          <input type="number" class="cc-count" min="0" step="1" value="0" inputmode="numeric" placeholder="0" oninput="setContainerChip(this.closest('.cc-chip').dataset.ctype, this.value)" />
+                          <button type="button" class="cc-step cc-plus" onclick="bumpContainerChip(this,1)" aria-label="増やす">＋</button>
+                        </div>
+                      </div>
+                      <div class="cc-chip" data-ctype="40'FR（フラットラック）" title="40ft フラットラック">
+                        <span class="cc-label"><b>40'FR</b><small>フラット</small></span>
+                        <div class="cc-stepper">
+                          <button type="button" class="cc-step cc-minus" onclick="bumpContainerChip(this,-1)" aria-label="減らす">−</button>
+                          <input type="number" class="cc-count" min="0" step="1" value="0" inputmode="numeric" placeholder="0" oninput="setContainerChip(this.closest('.cc-chip').dataset.ctype, this.value)" />
+                          <button type="button" class="cc-step cc-plus" onclick="bumpContainerChip(this,1)" aria-label="増やす">＋</button>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="cc-spec">
+                      <div class="cc-spec-field cc-spec-field--dims">
+                        <label>📦 貨物の実寸（長さ×幅×高さ）</label>
+                        <div class="cc-dims">
+                          <input type="number" id="cc-cargo-l" class="cc-dim" min="0" step="1" placeholder="長さ" inputmode="numeric" oninput="recalcOverGauge()" /><span class="cc-dim-x">×</span>
+                          <input type="number" id="cc-cargo-w" class="cc-dim" min="0" step="1" placeholder="幅" inputmode="numeric" oninput="recalcOverGauge()" /><span class="cc-dim-x">×</span>
+                          <input type="number" id="cc-cargo-h" class="cc-dim" min="0" step="1" placeholder="高さ" inputmode="numeric" oninput="recalcOverGauge()" /><span class="cc-dim-unit">cm</span>
+                        </div>
+                      </div>
+                      <div class="cc-spec-field">
+                        <label>📐 基準コンテナ（内寸）</label>
+                        <select id="cc-og-ref" class="cc-spec-input" onchange="recalcOverGauge()">
+                          <option value="20'OT（オープントップ）">20'OT 内寸 589×235×230</option>
+                          <option value="40'OT（オープントップ）">40'OT 内寸 1203×235×230</option>
+                          <option value="20'FR（フラットラック）">20'FR 床面 585×244（高さ制限なし）</option>
+                          <option value="40'FR（フラットラック）">40'FR 床面 1203×244（高さ制限なし）</option>
+                        </select>
+                      </div>
+                      <div class="cc-og-result" id="ccOgResult" data-state="empty">📦 貨物の実寸を入力すると、はみ出し寸法を自動計算します</div>
+                    </div>
+                  </div>
+                </div>
+
                 <input type="hidden" id="cond-container-data" />
+                <input type="hidden" id="cond-container-spec" />
               </div>
             </div>
             <div class="cond-field cond-field--cargo-detail" data-field-id="packing">
@@ -2715,18 +2842,32 @@
       <button class="fb-section-btn" onclick="openFeedback('物量情報')" title="このセクションへのフィードバック">💬 このセクションへのフィードバック</button>
     </div><!-- /section-volume -->
 
-    <!-- ⑤ 見積もりテーブル -->
-    <div class="condition-section" id="section-table">
-      <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px; margin-bottom:4px;">
-        <h2 style="margin:0;">📋 見積もりテーブル</h2>
-        <label style="display:flex; align-items:center; gap:6px; font-size:12px; color:#555; cursor:pointer;"
-               title="OFFにすると、備考欄でTabを押しても新しい行が追加されません（次の入力欄へ移動するだけ）">
-          <input type="checkbox" id="tabAddChk" checked onchange="toggleTabAdd(this.checked)"
-                 style="width:14px; height:14px; cursor:pointer; accent-color:#3498db;" />
-          <span>Tabキーで行追加</span>
-          <span style="color:#aaa; font-size:11px;">ⓘ</span>
-        </label>
+    <!-- ⑤ 全体リマーク -->
+    <div class="condition-section remark-section is-collapsible" id="section-remark">
+      <h2 class="section-toggle-head" onclick="toggleQuoteBottomAccordion('section-remark')">
+        <span class="section-caret">▼</span>
+        <span class="section-toggle-title">📝 全体リマーク（条件・免責事項）</span>
+        <span class="section-collapsed-summary" id="sumRemark"></span>
+      </h2>
+      <div id="remarkBody" class="remark-body">
+        <p class="section-desc">見積もり全体に共通して適用する条件・免責事項を入力します。<b>プリセットボタン</b>（有効期限・運賃変動条項・フリータイムなど）をクリックすると定型文を追加できます。提出前に必ず内容を確認してください。</p>
+        <div class="remark-presets" id="presetBtns"></div>
+        <textarea id="remarkTextarea" placeholder="見積もり全体に適用する条件・免責事項を入力してください。上のボタンでプリセットを追加できます。"></textarea>
+        <div class="remark-actions">
+          <button class="btn-remark-clear" onclick="clearRemark()">クリア</button>
+          <span class="remark-char" id="remarkChar">0文字</span>
+        </div>
+        <button class="fb-section-btn" onclick="openFeedback('全体リマーク')" title="このセクションへのフィードバック">💬 このセクションへのフィードバック</button>
       </div>
+    </div>
+
+    <!-- ⑥ 見積もりテーブル -->
+    <div class="condition-section is-collapsible" id="section-table">
+      <h2 class="section-toggle-head" onclick="toggleQuoteBottomAccordion('section-table')">
+        <span class="section-caret">▼</span>
+        <span class="section-toggle-title">📋 見積もりテーブル</span>
+        <span class="section-collapsed-summary" id="sumTable"></span>
+      </h2>
       <div id="tableWrap">
         <p class="section-desc">費用項目ごとに <b>支払い（仕入）</b> と <b>請求</b> の数量・通貨・単価を入力します。<b>③ 乗せ幅</b> を入力すると請求単価に自動加算、<b>④ 利益</b> 欄で粗利をリアルタイム確認できます。CSV インポートやカテゴリ順並び替えも利用可能です。<br>
         <span style="font-size:11px;color:var(--text-md);">💡 <b>項目名の先頭にある <code style="background:#fff;padding:1px 4px;border-radius:3px;">*</code> は課税項目を示します</b>（課税欄のチェックで自動付与）。プレビュー画面では消費税列に税額（10% 固定）が表示されます。</span><br>
@@ -2734,50 +2875,57 @@
         <div class="container">
           <!-- 統合コマンドバー：行操作・選択行・換算レート表示・⚙設定（為替/カテゴリ）を集約 -->
           <div class="quote-cmdbar">
-            <div class="table-btn-group">
-              <div class="btn-group-row">
-                <span class="btn-group-label">追加</span>
-                <button class="btn-ins-row" onclick="toolbarInsertRow()" title="費用行を追加">＋ 行</button>
-                <button class="btn-ins-sub" onclick="toolbarInsertSubtotal()" title="小計行を追加">＝ 小計</button>
-                <button class="btn-ins-rem" onclick="toolbarInsertRemark()" title="リマーク（注記）行を追加">💬 リマーク</button>
-                <button class="btn-ins-int" onclick="toolbarInsertInternal()" title="社内メモ行を追加（プレビュー・PDF・CSV・Excel に出力されません）">🔒 社内メモ</button>
-                <select id="rowInsertPos" class="row-insert-pos" title="追加ボタンの挿入位置">
-                  <option value="end">末尾に追加</option>
-                  <option value="selected">選択行の下に挿入</option>
-                </select>
-                <span class="btn-group-sep" aria-hidden="true">|</span>
-                <span class="btn-group-label">行操作</span>
-                <select class="sort-type-select" title="並び替え種別を選択すると即実行"
-                        onchange="if(this.value){sortBy(this.value);this.value=''}">
-                  <option value="">🔀 並び替え ▼</option>
-                  <option value="category">🗂️ カテゴリー順</option>
-                  <option value="currency">💱 通貨毎</option>
-                  <option value="unit">📦 単位毎</option>
-                  <option value="tax">✱ 課税順（課税→非課税）</option>
-                  <option value="subcon">🔗 サブコン毎</option>
-                </select>
-                <button class="btn-clean-empty" onclick="deleteEmptyRows()" title="未入力（グレーアウト）の行をまとめて削除">🧹 未入力行を削除</button>
-                <span class="btn-group-sep" aria-hidden="true">|</span>
-                <span class="btn-group-label">選択行</span>
-                <button class="btn-bulk-copy"   onclick="copySelectedRows()" title="チェックした行を複製">📋 コピー</button>
-                <button class="btn-bulk-delete" onclick="deleteSelectedRows()" title="チェックした行を削除">🗑️ 削除</button>
-                <button class="btn-tooldetail-toggle" id="rowToolsToggle" type="button"
-                        aria-expanded="false" aria-controls="rowToolsDetail"
-                        onclick="toggleRowToolsDetail(this)"
-                        title="カテゴリ一括変更・行パターン・CSV読み込み・リセット">⋯ 詳細操作 <span class="caret">▼</span></button>
-                <span class="cmdbar-spacer"></span>
-                <button class="cmdbar-calc-btn" onclick="toggleCalcWidget()" title="フローティング電卓">🧮</button>
-                <div id="quoteFxBar" class="quote-fx-bar" title="JPY換算に使用中の為替レート（為替レート設定で変更可）"></div>
-                <details class="cmdbar-col-vis" id="cmdbarColVis">
-                  <summary class="cmdbar-col-vis-summary" title="列の表示・非表示">列 ▼</summary>
-                  <div class="cmdbar-col-vis-pop">
-                    <label class="col-vis-item"><input type="checkbox" id="colVisChkCatsv" onchange="toggleColVis('catsv',this.checked)" checked> カテゴリ / サブコン</label>
+            <div class="cmdbar-main">
+              <span class="btn-group-label">行追加</span>
+              <button class="btn-ins-row cmdbar-icon-btn" onclick="toolbarInsertRow()" title="費用行を追加（明細）">＋</button>
+              <button class="btn-ins-sub cmdbar-icon-btn" onclick="toolbarInsertSubtotal()" title="小計行を追加">＝</button>
+              <button class="btn-ins-rem cmdbar-icon-btn" onclick="toolbarInsertRemark()" title="リマーク（注記）行を追加">💬</button>
+              <button class="btn-ins-int cmdbar-icon-btn" onclick="toolbarInsertInternal()" title="社内メモ行を追加（出力対象外）">🔒</button>
+              <span class="btn-group-label">挿入位置</span>
+              <select id="rowInsertPos" class="row-insert-pos" title="追加ボタンの挿入位置">
+                <option value="end">末尾に追加</option>
+                <option value="selected">選択行の下に挿入</option>
+              </select>
+              <label class="cmdbar-tabadd" title="OFFにすると、備考欄でTabを押しても新しい行が追加されません（次の入力欄へ移動するだけ）">
+                <input type="checkbox" id="tabAddChk" checked onchange="toggleTabAdd(this.checked)" />
+                <span>Tabで行追加</span>
+              </label>
+              <span class="cmdbar-spacer"></span>
+              <details class="cmdbar-more" id="cmdbarMore">
+                <summary class="cmdbar-more-summary" title="その他の操作（配置は検討中）">⋯</summary>
+                <div class="cmdbar-more-pop">
+                  <div class="more-grp">
+                    <span class="more-grp-label">整理</span>
+                    <select class="sort-type-select" title="並び替え種別を選択すると即実行"
+                            onchange="if(this.value){sortBy(this.value);this.value=''}">
+                      <option value="">🔀 並び替え…</option>
+                      <option value="category">🗂️ カテゴリー順</option>
+                      <option value="currency">💱 通貨毎</option>
+                      <option value="unit">📦 単位毎</option>
+                      <option value="tax">✱ 課税順（課税→非課税）</option>
+                      <option value="subcon">🔗 サブコン毎</option>
+                    </select>
+                    <button class="btn-clean-empty" onclick="deleteEmptyRows()" title="未入力（グレーアウト）の行をまとめて削除">🧹 未入力行を削除</button>
+                  </div>
+                  <div class="more-grp">
+                    <span class="more-grp-label">データ・道具</span>
+                    <button class="btn-csv-import" onclick="toggleCsvZone()">📂 CSV読み込み</button>
+                    <button class="cmdbar-calc-btn" onclick="toggleCalcWidget()" title="フローティング電卓">🧮 電卓</button>
+                    <button class="btn-reset" onclick="resetAll()">リセット</button>
+                  </div>
+                  <div class="more-grp">
+                    <span class="more-grp-label">列表示</span>
+                    <label class="col-vis-item"><input type="checkbox" id="colVisChkCatsv" onchange="toggleColVis('catsv',this.checked)" checked> カテゴリ/サブコン</label>
                     <label class="col-vis-item"><input type="checkbox" id="colVisChkProfit" onchange="toggleColVis('profit',this.checked)" checked> 利益</label>
                     <label class="col-vis-item"><input type="checkbox" id="colVisChkNote" onchange="toggleColVis('note',this.checked)" checked> 備考</label>
                   </div>
-                </details>
+                  <p class="cmdbar-more-note">※ 配置検討中の一時置き場（並び替え・未入力行削除・CSV・電卓・リセット）</p>
+                </div>
+              </details>
+              <div class="quote-fx-wrap">
+                <div id="quoteFxBar" class="quote-fx-bar" title="JPY換算に使用中の為替レート（⚙設定で変更可）"></div>
                 <details class="cmdbar-gear" id="cmdbarGear">
-                  <summary class="cmdbar-gear-summary" onclick="renderFxPanel(); renderUserCatPanel();" title="為替レート・カスタムカテゴリの設定">⚙ 設定</summary>
+                  <summary class="cmdbar-gear-summary" onclick="renderFxPanel(); renderUserCatPanel();" title="為替レート・カスタムカテゴリの設定">⚙</summary>
                   <div class="cmdbar-gear-pop">
                     <div id="fxRatePanel">
                       <details id="fxRateDetails" open>
@@ -2811,18 +2959,22 @@
                     </div>
                   </div>
                 </details>
-              </div>
-              <div class="btn-group-row row-tools-detail" id="rowToolsDetail" hidden>
-                <span class="btn-group-label">カテゴリ一括</span>
-                <select id="bulkCatSelect" class="bulk-cat-select" title="対象カテゴリ（選択／一括変更で共有）"></select>
-                <button class="btn-bulk-cat-pick" onclick="selectByCategory()" title="このカテゴリの行をすべてチェック">✅ 同カテゴリ選択</button>
-                <button class="btn-bulk-cat"     onclick="applyBulkCategory()" title="チェックした行のカテゴリをこのカテゴリへ一括変更">🏷️ カテゴリ変更</button>
-                <span class="btn-group-sep" aria-hidden="true">|</span>
-                <button class="btn-bulk-pattern" onclick="openRowPatternMgr()" title="チェックした行を名前付きで保存・末尾に追加で読込">🗂️ 行パターン</button>
-                <span class="btn-group-sep" aria-hidden="true">|</span>
-                <button class="btn-csv-import" onclick="toggleCsvZone()">📂 CSV読み込み</button>
-                <button class="btn-reset"      onclick="resetAll()">リセット</button>
-              </div>
+              </div><!-- /quote-fx-wrap -->
+            </div><!-- /cmdbar-main -->
+
+            <!-- 文脈バー：行を選択中のみ表示（案C） -->
+            <div class="cmdbar-context" id="cmdbarContext" hidden>
+              <span class="ctx-count" id="ctxSelCount">選択中</span>
+              <button class="btn-bulk-copy"   onclick="copySelectedRows()" title="チェックした行を複製">📋 コピー</button>
+              <button class="btn-bulk-delete" onclick="deleteSelectedRows()" title="チェックした行を削除">🗑️ 削除</button>
+              <span class="ctx-sep" aria-hidden="true">|</span>
+              <select id="bulkCatSelect" class="bulk-cat-select" title="対象カテゴリ（選択／一括変更で共有）"></select>
+              <button class="btn-bulk-cat-pick" onclick="selectByCategory()" title="このカテゴリの行をすべてチェック">✅ 同カテゴリ選択</button>
+              <button class="btn-bulk-cat"     onclick="applyBulkCategory()" title="チェックした行のカテゴリをこのカテゴリへ一括変更">🏷️ カテゴリ変更</button>
+              <span class="ctx-sep" aria-hidden="true">|</span>
+              <button class="btn-bulk-pattern" onclick="openRowPatternMgr()" title="チェックした行を名前付きで保存・末尾に追加で読込">🗂️ 行パターンに保存</button>
+              <span class="cmdbar-spacer"></span>
+              <button class="ctx-clear" onclick="clearRowSelection()" title="選択を解除">✕ 選択解除</button>
             </div>
           </div>
           <div id="tableScrollWrap">
@@ -2836,21 +2988,21 @@
                 </th>
                 <th class="hd-base" style="width:26px;"></th>
                 <th class="hd-base hd-catsv" style="width:104px;" title="上段＝カテゴリ、下段＝サブコン（協力会社・下請け業者名）">カテゴリ<br><small class="hd-sub">／サブコン</small></th>
-                <th class="hd-base" style="width:38px;" title="ON にすると消費税 10% が自動計算され、項目名先頭に「*」が付きます。免税（非課税）の行は OFF のままにしてください。">課税</th>
-                <th class="hd-base" style="width:160px;">項目名</th>
+                <th class="hd-base" style="width:188px;">項目名<br><small class="hd-sub">／備考</small></th>
                 <th class="hd-base" style="width:65px;">数量·単位</th>
                 <th class="hd-base hd-stk" style="width:62px;" title="上段＝支払い（仕入）通貨、下段＝請求（売値）通貨">通貨<br><small class="hd-sub"><span class="t-cost">仕</span>／<span class="t-sell">売</span></small></th>
                 <th class="hd-base hd-stk" style="width:118px;" title="上段＝支払い単価（仕入）、中＝＋乗せ幅、下段＝請求単価（売値）。CD は通貨差調整値">単価<br><small class="hd-sub"><span class="t-cost">仕</span>＋<span class="hd-mk-tag">乗</span>／<span class="t-sell">売</span></small></th>
+                <th class="hd-base" style="width:38px;" title="ON にすると消費税 10% が自動計算され、項目名先頭に「*」が付きます。免税（非課税）の行は OFF のままにしてください。">課税</th>
                 <th class="hd-bill" style="width:92px;">小計<br><small class="hd-sub t-sell">売</small></th>
                 <th class="hd-profit hd-pr" style="width:80px;">利益</th>
-                <th class="hd-base hd-note" style="width:110px;">備考</th>
               </tr>
             </thead>
             <tbody id="tableBody"></tbody>
             <tfoot>
               <tr class="tot-row">
-                <td></td><td></td><td></td><td></td><td></td><td></td><td></td>
+                <td></td><td></td><td></td><td></td><td></td><td></td>
                 <td id="tot-row-label" style="text-align:right; color:#555; font-weight:bold;">合　計</td>
+                <td></td>
                 <td class="subtotal-cell tot-amt-cell" style="text-align:right; padding-right:8px; font-weight:bold; background:#eef5fb;">
                   <div class="stk">
                     <span class="stk-cost"><span class="t-cost">仕</span> <span id="tot-cost">—</span></span>
@@ -2859,7 +3011,6 @@
                   <span id="tot-billing" style="display:none;">—</span>
                 </td>
                 <td class="profit-cell profit-zero pr-cell" id="tot-profit">—</td>
-                <td class="note-cell"></td>
               </tr>
             </tfoot>
           </table>
@@ -2871,43 +3022,8 @@
             <input type="file" id="csvFileInput" accept=".csv" style="display:none" onchange="loadCSV(event)" />
           </div>
           <div id="csvMsg"></div>
-          <p class="tip">
-            <b class="blue" style="font-size:14px;background:#aed6f1;color:#1b4f72;padding:2px 6px;border-radius:4px;">⠿</b>：<b>左端のこのハンドルを掴んで上下にドラッグ</b>すると行を並び替えできます　／
-            <b>＋</b>：その行の直下に行を挿入　／
-            <b class="red">課税</b>：チェックで * を項目名先頭に追記<br>
-            <b class="gray">CD・②列</b>：表示専用（編集・Tab 不可）　／
-            ③ 乗せ幅 → ②単価へ加算　／　④ 小計 ＝ 請求 数量 × 単価　／　⑤ 利益 ＝ 請求合計 － 支払い合計<br>
-            <b class="purple">↑↓キー</b>：同じ列で行間移動
-          </p>
         </div>
         <button class="fb-section-btn" onclick="openFeedback('見積もりテーブル')" title="このセクションへのフィードバック">💬 このセクションへのフィードバック</button>
-      </div>
-    </div>
-
-    <!-- ⑥ 特記事項 -->
-    <div class="condition-section" id="section-free">
-      <h2>📝 特記事項・補足（自由入力）</h2>
-      <div id="freeBody">
-        <p class="section-desc">荷主からの特別な要望や制約事項を自由に記入します。指定船会社・B/L 条件・バン詰め場所・その他の注意点など、<b>見積もりには含まれないが把握しておくべき情報</b>を残す欄として活用してください。</p>
-        <div class="cond-free">
-          <textarea id="condFreeText" placeholder="例）&#10;・荷主の工場でのバン詰め（FC Stuff）希望&#10;・特定船会社指定あり（ONE / MSC）&#10;・B/L条件：Shipper's Order B/L希望&#10;・その他ご要望・注意事項をご記入ください"></textarea>
-        </div>
-        <button class="fb-section-btn" onclick="openFeedback('特記事項・補足')" title="このセクションへのフィードバック">💬 このセクションへのフィードバック</button>
-      </div>
-    </div>
-
-    <!-- ⑦ 全体リマーク -->
-    <div class="condition-section remark-section" id="section-remark">
-      <h2>📝 全体リマーク（条件・免責事項）</h2>
-      <div id="remarkBody" class="remark-body">
-        <p class="section-desc">見積もり全体に共通して適用する条件・免責事項を入力します。<b>プリセットボタン</b>（有効期限・運賃変動条項・フリータイムなど）をクリックすると定型文を追加できます。提出前に必ず内容を確認してください。</p>
-        <div class="remark-presets" id="presetBtns"></div>
-        <textarea id="remarkTextarea" placeholder="見積もり全体に適用する条件・免責事項を入力してください。上のボタンでプリセットを追加できます。"></textarea>
-        <div class="remark-actions">
-          <button class="btn-remark-clear" onclick="clearRemark()">クリア</button>
-          <span class="remark-char" id="remarkChar">0文字</span>
-        </div>
-        <button class="fb-section-btn" onclick="openFeedback('全体リマーク')" title="このセクションへのフィードバック">💬 このセクションへのフィードバック</button>
       </div>
     </div>
 
@@ -2917,9 +3033,20 @@
         <div class="qsp-header">
           <span class="qsp-title">📊 見積サマリ</span>
         </div>
-        <!-- セクション1：条件・貨物・物量 -->
-        <div class="qsp-section qsp-section-ref">
-          <div class="qsp-section-head">📦 条件・貨物・物量</div>
+        <!-- タブ切替：要約／輸送／金額 -->
+        <div class="qsp-tabs" role="tablist">
+          <button class="qsp-tab" id="qspTabBtn-digest" role="tab" onclick="qspSetTab('digest')">🧭 要約</button>
+          <button class="qsp-tab" id="qspTabBtn-flow"   role="tab" onclick="qspSetTab('flow')">🚚 輸送</button>
+          <button class="qsp-tab" id="qspTabBtn-fin"    role="tab" onclick="qspSetTab('fin')">💰 金額</button>
+        </div>
+        <!-- 要約タブ：各入力セクションのダイジェスト -->
+        <div class="qsp-pane" id="qspPane-digest">
+          <div class="qsp-section-scroll">
+            <div id="qspSectionDigest" class="qsp-digest"></div>
+          </div>
+        </div>
+        <!-- 輸送タブ：輸送フロー（積み地→幹線→揚げ地）・キャリア・貨物/物量 -->
+        <div class="qsp-pane" id="qspPane-flow">
           <div class="qsp-section-scroll">
             <div class="qsp-milestones" id="qspMilestones" style="display:none;"></div>
             <div class="qsp-carrier-links" id="qspCarrierLinks" style="display:none;"></div>
@@ -2927,9 +3054,8 @@
             <p class="qsp-ref-empty" id="qspRefEmpty">引き合い条件・貨物・物量を入力すると、ここに作業範囲や物量がまとまります</p>
           </div>
         </div>
-        <!-- セクション2：見積テーブルのまとめ（常時表示） -->
-        <div class="qsp-section qsp-section-fin">
-          <div class="qsp-section-head">💰 見積テーブルのまとめ</div>
+        <!-- 金額タブ：見積テーブルのまとめ -->
+        <div class="qsp-pane" id="qspPane-fin">
           <div class="qsp-section-scroll">
             <div class="qsp-fin" id="qspFin">
               <p class="qsp-empty">費用項目を入力すると<br>ここにまとめが表示されます</p>
@@ -3096,8 +3222,10 @@
           <input type="text" data-field="sv" class="w-subcon" placeholder="サブコン" />
         </div>
       </td>
-      <td class="tax-cell"><input type="checkbox" data-field="tx" title="ON にすると消費税 10% が自動計算され、項目名先頭に「*」が付きます。免税（非課税）の行は OFF のままにしてください。"></td>
-      <td class="name-cell"><input type="text" data-field="nm" class="w-name" placeholder="例）海上運賃" data-col="1" /></td>
+      <td class="name-cell">
+        <input type="text" data-field="nm" class="w-name" placeholder="例）海上運賃" data-col="1" />
+        <input type="text" data-field="nt" class="w-note" placeholder="備考（任意）" data-col="6" />
+      </td>
       <td class="qty-cell">
         <div class="qty-wrap">
           <input type="number" data-field="pq" class="w-qty" min="0" value="1" data-col="2" title="数量" />
@@ -3119,9 +3247,9 @@
           <span class="stk-mk"><span class="stk-mk-plus" title="乗せ幅（仕入単価に加算 → 売単価）">＋</span><input type="number" data-field="mk" class="w-mkup" min="0" value="0" data-col="5" title="乗せ幅：仕入単価に加算して売単価になります" /></span>
         </div>
       </td>
+      <td class="tax-cell"><input type="checkbox" data-field="tx" title="ON にすると消費税 10% が自動計算され、項目名先頭に「*」が付きます。免税（非課税）の行は OFF のままにしてください。"></td>
       <td class="subtotal-cell" data-field="st">—</td>
       <td class="profit-cell profit-zero pr-cell" data-field="pr">0</td>
-      <td class="note-cell"><input type="text" data-field="nt" class="w-note" placeholder="備考" data-col="6" /></td>
     </template>
 
     <!-- プレビュー前入力ガイドパネル（警告時にフローティング表示） -->
@@ -3171,6 +3299,8 @@
 <script src="js/quote/quote-pdf.js"></script>
 <script src="js/quote/quote-email.js"></script>
 <script src="js/quote/select-mode.js"></script>
+<script src="js/quote/cloud-config.js"></script>
+<script src="js/quote/cloud.js"></script>
 <script src="js/tweaks.js"></script>
 
 <!-- =================================================================
@@ -3263,7 +3393,6 @@
           <option value="貨物情報">貨物情報</option>
           <option value="物量情報">物量情報</option>
           <option value="見積もりテーブル">見積もりテーブル</option>
-          <option value="特記事項・補足">特記事項・補足</option>
           <option value="全体リマーク">全体リマーク</option>
           <option value="LCL キャリア">LCL キャリア</option>
         </select>

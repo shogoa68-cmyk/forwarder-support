@@ -76,7 +76,7 @@
     };
 
     rows.forEach(r => {
-      if (r._type === 'remark') { if (r.text) remarks.push(r.text); return; }
+      if (r._type === 'remark') { if (r.text && !r.internal) remarks.push(r.text); return; }
       if (r._type === 'subtotal') {
         zones.push({ label: r.label || '小計', jpy: zoneSum });
         zoneSum = 0;

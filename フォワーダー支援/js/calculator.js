@@ -139,7 +139,7 @@ function appendCalcResult(id, html, summary) {
       <span class="calc-history-num">#${n}</span>
       <span class="calc-history-summary">${summary||''}</span>
       <button class="btn-copy-result" onclick="copyCalcResult(this)" title="整形テキストをコピー">📋 コピー</button>
-      <button class="btn-send-to-quote" onclick="sendCalcResultToQuote(this)" title="見積もりタブの「特記事項・補足（自由入力）」へ追記">📝 見積もりへ</button>
+      <button class="btn-send-to-quote" onclick="sendCalcResultToQuote(this)" title="見積もりタブの「全体リマーク（条件・免責事項）」へ追記">📝 見積もりへ</button>
       <button class="calc-history-close" onclick="const e=this.closest('.calc-history-entry'),c=e.parentElement;e.remove();if(!c.querySelector('.calc-history-entry'))c.style.display='none'">×</button>
     </div>${html}`;
   container.insertBefore(entry, container.firstChild);
@@ -222,7 +222,7 @@ function copyCalcResult(btn) {
   });
 }
 
-// 計算結果を見積もりタブの「特記事項・補足（自由入力）」へ追記し、タブ切替してスクロール
+// 計算結果を見積もりタブの「全体リマーク（条件・免責事項）」へ追記し、タブ切替してスクロール
 function sendCalcResultToQuote(btn) {
   const entry = btn.closest('.calc-history-entry');
   const text  = formatCalcResultAsText(entry);
@@ -234,10 +234,10 @@ function sendCalcResultToQuote(btn) {
   }
 
   // textarea へ追記（既存内容を残し、空行区切りで末尾追加）
-  const ta = document.getElementById('condFreeText');
+  const ta = document.getElementById('remarkTextarea');
   if (!ta) {
     // フォールバック：見積もりタブが描画されていない極稀ケース
-    quoteShowToast('⚠️ 自由入力欄が見つかりません', 'warning');
+    quoteShowToast('⚠️ 全体リマーク欄が見つかりません', 'warning');
     return;
   }
   const sep = ta.value.trim() ? '\n\n' : '';
@@ -246,8 +246,8 @@ function sendCalcResultToQuote(btn) {
   ta.dispatchEvent(new Event('input', { bubbles: true }));
   ta.dispatchEvent(new Event('change', { bubbles: true }));
 
-  // 自由入力欄へスクロール＋ハイライト
-  const section = document.getElementById('section-free') || ta;
+  // リマーク欄へスクロール＋ハイライト
+  const section = document.getElementById('section-remark') || ta;
   section.scrollIntoView({ behavior: 'smooth', block: 'start' });
   ta.classList.add('flash-reflect');
   setTimeout(() => ta.classList.remove('flash-reflect'), 1200);
@@ -258,7 +258,7 @@ function sendCalcResultToQuote(btn) {
   btn.style.cssText += 'border-color:#5a8a52;color:#3a5c36;';
   setTimeout(() => { btn.textContent = orig; btn.style.borderColor = ''; btn.style.color = ''; }, 1800);
   if (typeof quoteShowToast === 'function') {
-    quoteShowToast('📝 自由入力欄へ計算結果を追記しました', 'success');
+    quoteShowToast('📝 全体リマーク欄へ計算結果を追記しました', 'success');
   }
 }
 

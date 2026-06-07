@@ -359,6 +359,7 @@
     } else {
       quoteShowToast(`✅ 「${catLabel}」の ${matched} 行を選択しました`, 'success');
     }
+    window.refreshRowSelectionMode?.();
   }
 
   // チェック済み行のカテゴリを一括変更
@@ -393,6 +394,7 @@
     sel.value = '__none__';
     const catLabel = getAllCategories().find(c => c.value === newCat)?.label || '— カテゴリ —';
     quoteShowToast(`🏷️ ${count}行のカテゴリを「${catLabel}」に変更しました`, 'success');
+    window.refreshRowSelectionMode?.();
   }
 
   // ========== 一括コピー機能 ==========
@@ -455,6 +457,7 @@
     if (allChk) allChk.checked = false;
     updateTotals();
     quoteShowToast(`📋 ${srcRows.length}行をコピーしました`, 'success');
+    window.refreshRowSelectionMode?.();
   }
 
   // ========== 選択行削除 ==========
@@ -470,6 +473,7 @@
     if (allChk) allChk.checked = false;
     updateTotals();
     quoteShowToast(`🗑️ ${rows.length}行を削除しました`, 'info');
+    window.refreshRowSelectionMode?.();
   }
 
   // ========== 全選択トグル ==========
@@ -541,7 +545,6 @@
     { icon:'🗂️', label:'管理番号入力セクションへ',  sub:'REF # / 引き合い元 / 担当',     action:() => scrollToSection('section-ref')   },
     { icon:'🚢', label:'引き合い条件・貨物情報セクションへ', sub:'ルート・貨物名・CBM・CW 自動計算', action:() => scrollToSection('section-cond') },
     { icon:'💴', label:'見積もり表セクションへ',      sub:'費用行の入力・集計',              action:() => scrollToSection('section-table') },
-    { icon:'📋', label:'特記事項セクションへ',        sub:'フリーテキスト欄',               action:() => scrollToSection('section-free')  },
     { icon:'📝', label:'条件・リマークセクションへ',  sub:'プリセット文を挿入',             action:() => scrollToSection('section-remark')},
     { icon:'➕', label:'行を追加',                    sub:'見積もり表に新しい行を末尾に追加', action:() => { addRow(); quoteShowToast('✅ 行を追加しました', 'success'); } },
     { icon:'📋', label:'現在行を複製 (Ctrl+D)',        sub:'フォーカス中の行を直下に複製',     action:() => {
@@ -674,20 +677,9 @@
         quoteShowToast('🧮 ' + text + ' = ' + result.toLocaleString('ja-JP', {maximumFractionDigits:4}), 'info');
       }
     });
-    // blur 時にも数式評価（直打ちした "=1+2" 形式に対応）
-    root.addEventListener('blur', function(e) {
-      const el = e.target;
-      if (el.type !== 'number') return;
-      if (!el.closest('#tableBody, #calcBody')) return;
-      const text = (el.value || '').trim();
-      if (!text.startsWith('=')) return;
-      const result = safeEvalExpr(text.slice(1));
-      if (result !== null) {
-        el.value = parseFloat(result.toFixed(6));
-        el.dispatchEvent(new Event('input', { bubbles: true }));
-        quoteShowToast('🧮 ' + text + ' = ' + result.toLocaleString('ja-JP', {maximumFractionDigits:4}), 'info');
-      }
-    }, true);
+    // 注: 直打ちの "=1+2" は <input type="number"> が "=" を受け付けず value が空に
+    // なるため評価できない。数式入力は上の paste ハンドラ（コピペ）経由でのみ対応する。
+    // （以前ここに blur ハンドラがあったが number 入力では発火条件を満たさず常に no-op だった）
   }
 
   // ========== 処理済みマーク（廃止：done-btn を撤去）==========
@@ -708,15 +700,26 @@
     return '一時保存_' + new Date().toISOString().slice(0,10).replace(/-/g, '');
   }
 
-  function openPresetMgr() {
+  function openPresetMgr(mode) {
+    // mode: 'browser'（ブラウザ保存）／'cloud'（チーム共有）。既定は browser。
+    if (mode !== 'cloud') mode = 'browser';
     renderPresetList();
-    document.getElementById('presetMgrModal').classList.add('open');
+    const modal = document.getElementById('presetMgrModal');
+    modal.classList.add('open');
+    modal.dataset.mode = mode;
+    // セクションの表示切替（独立した2画面として見せる）
+    const browserSec = document.getElementById('presetBrowserSection');
+    const cloudSec   = document.getElementById('cloudShareSection');
+    if (browserSec) browserSec.style.display = (mode === 'cloud') ? 'none' : '';
+    if (cloudSec)   cloudSec.style.display   = (mode === 'cloud') ? '' : 'none';
+    // ☁️ チーム共有セクションの認証状態・一覧を反映（cloud.js）
+    if (mode === 'cloud' && typeof cloudOnPresetMgrOpen === 'function') cloudOnPresetMgrOpen();
     // 名前欄を管理番号入力欄から常に自動生成（管理番号の入力情報を優先反映）
     const input = document.getElementById('presetNameInput');
     if (input) {
       input.value = _buildDefaultPresetName();
     }
-    setTimeout(() => { input?.focus(); input?.select(); }, 50);
+    if (mode === 'browser') setTimeout(() => { input?.focus(); input?.select(); }, 50);
   }
 
   function closePresetMgr() {
@@ -754,7 +757,7 @@
     }
     if (presets.length >= 50) {
       quoteShowToast(
-        '⚠️ プリセットは最大 50 件です。同名上書きするか、ツールバー「📤 出力」で JSON ファイルとして書き出してください（長期保管・チーム共有向け）',
+        '⚠️ ブラウザ保存は最大 50 件です。不要なものを削除するか同名で上書きしてください。チーム全員で残すなら「☁️ チーム共有」もご利用ください',
         'warning', 6000
       );
       return;
@@ -837,7 +840,7 @@
       const tr = chk.closest('tr');
       if (!tr) return;
       if (tr.dataset.type === 'remark') {
-        out.push({ _type: 'remark', text: tr.querySelector('.remark-row-input')?.value || '' });
+        out.push({ _type: 'remark', text: tr.querySelector('.remark-row-input')?.value || '', internal: tr.dataset.internal === '1' });
         return;
       }
       if (tr.dataset.type === 'subtotal') {
@@ -937,7 +940,7 @@
     p.rows.forEach(rd => {
       // リマーク行
       if (rd._type === 'remark') {
-        insertRemarkRow(null, { noFocus: true });
+        insertRemarkRow(null, { noFocus: true, internal: rd.internal });
         const allTrs = document.querySelectorAll('#tableBody tr');
         const tr = allTrs[allTrs.length - 1];
         if (!tr) return;
@@ -1882,6 +1885,7 @@
       <div class="qsp-tax-row qsp-tax-amt"><span>${taxLabel}</span><span>¥${fmtJPY(taxAmt)}</span></div>
       ${hasFx ? '<p class="qsp-fx-note">※ 外貨は現在の参照レートで換算（概算）</p>' : ''}
     `;
+    if (typeof window.renderQuoteSectionDigest === 'function') window.renderQuoteSectionDigest();
   };
 
   // Phase 2b：DOMContentLoaded ではなく initQuoteUI() として呼び出すように変更
@@ -1923,6 +1927,10 @@
     refreshBulkCatSelect();    // 「選択行 → カテゴリ一括変更」セレクトを初期構築
     initQuoteViewMode();       // STEP A: 客先/社内モード復元
     initQuoteSectionCollapse(); // 上部セクションの折り畳み状態を復元
+    // 見積サマリ：保存済みタブを復元（既定は要約）
+    let _savedTab = 'digest';
+    try { _savedTab = localStorage.getItem('quoteSummaryTab_v1') || 'digest'; } catch(e) {}
+    if (typeof window.qspSetTab === 'function') window.qspSetTab(_savedTab);
     initSectionHelpTooltips(); // 各セクションの説明文を ? アイコンのツールチップ化
     if (typeof initPreviewWarningListeners === 'function') initPreviewWarningListeners();
     if (typeof syncHazmatPanel === 'function') syncHazmatPanel(); // 危険品パネルの初期表示
@@ -2159,18 +2167,18 @@
     try { localStorage.setItem('quoteViewMode', 'internal'); } catch (e) {}
   }
 
-  // ===== 見積テーブルより上のセクションの折り畳みトグル =====
+  // ===== セクション折りたたみは廃止（見積サマリのジャンプ機能で代替） =====
+  // 全セクションを常時展開。ヘッダークリック／ダイジェストからの呼び出しは
+  // 「そのセクションへスクロール」のみ行う（畳まない）。
+  window.QUOTE_ALL_SECTIONS = ['section-ref', 'section-cond', 'section-cargo', 'section-volume', 'section-remark', 'section-table'];
   window.toggleQuoteSection = function(id) {
     const sec = document.getElementById(id);
     if (!sec) return;
-    const collapsed = sec.classList.toggle('collapsed');
-    try {
-      const st = JSON.parse(localStorage.getItem('quoteSectionCollapse_v1') || '{}');
-      st[id] = collapsed;
-      localStorage.setItem('quoteSectionCollapse_v1', JSON.stringify(st));
-    } catch(e) {}
-    if (collapsed) updateSectionSummaries();
+    sec.classList.remove('collapsed');   // 念のため常に展開
+    sec.scrollIntoView({ block: 'start' });
   };
+  // 旧名のエイリアス（下部3セクションの onclick 互換）
+  window.toggleQuoteBottomAccordion = window.toggleQuoteSection;
 
   // 折り畳み時のヘッダー要約を更新
   function updateSectionSummaries() {
@@ -2195,11 +2203,7 @@
       condParts.push(m);
     }
     const cargo = g('cond-cargo'); if (cargo) condParts.push(cargo);
-    // コンテナ要約（hidden data）
-    try {
-      const cd = JSON.parse(document.getElementById('cond-container-data')?.value || '[]');
-      if (cd.length) condParts.push(cd.map(e => `${e.type}×${e.count}`).join('・'));
-    } catch(e) {}
+    // ※ コンテナ要約は「物量情報」側にのみ表示（貿易条件には出さない）
     const sumCond = document.getElementById('sumCond');
     if (sumCond) sumCond.textContent = condParts.length ? '— ' + condParts.join(' / ') : '— 未入力';
 
@@ -2211,7 +2215,7 @@
     const sumCargo = document.getElementById('sumCargo');
     if (sumCargo) sumCargo.textContent = cargoParts.length ? '— ' + cargoParts.join(' / ') : '— 未入力';
 
-    // 物量情報
+    // 物量情報（サイズ・GW・CBM・R/T・CW）
     const volParts = [];
     try {
       const cd = JSON.parse(document.getElementById('cond-container-data')?.value || '[]');
@@ -2222,42 +2226,110 @@
       const named = pk.filter(e => e.pkg);
       if (named.length) volParts.push(named.map(e => `${e.pkg}×${e.qty||1}`).join('・'));
     } catch(e) {}
+    // 自動計算メトリクス（GW・CBM・R/T・CW）
+    const _m = (typeof window.getCargoMetrics === 'function') ? window.getCargoMetrics() : null;
+    const metParts = [];
+    if (_m) {
+      if (_m.cbm > 0) metParts.push('CBM ' + _m.cbm.toFixed(3));
+      if (_m.kg  > 0) metParts.push('GW ' + Math.round(_m.kg).toLocaleString() + 'kg');
+      if (_m.rt  > 0) metParts.push('R/T ' + _m.rt.toFixed(3));
+      if (_m.cw  > 0 && typeof SharedCalc !== 'undefined') metParts.push('CW ' + SharedCalc.fmtCw(_m.cw) + 'kg');
+    }
     const sumVolume = document.getElementById('sumVolume');
     if (sumVolume) sumVolume.textContent = volParts.length ? '— ' + volParts.join(' / ') : '— 未入力';
+    // ダイジェスト用：サイズ行＋メトリクス行を改行で（renderQuoteSectionDigest が参照）
+    window._volDigest = {
+      size: volParts.join(' / '),
+      metrics: metParts.join(' / '),
+    };
+    if (typeof window.renderQuoteSectionDigest === 'function') window.renderQuoteSectionDigest();
   }
   window.updateSectionSummaries = updateSectionSummaries;
 
+  // ===== 見積サマリ：各入力セクションのダイジェスト =====
+  // アコーディオンで各セクションが畳まれていても、右パネルで全体を一望できるようにする。
+  // クリックでそのセクションを展開（アコーディオン）してスクロール。
+  window.renderQuoteSectionDigest = function() {
+    // 下部3セクションの要約を計算（ヘッダー要約スパンにも反映）
+    const rowsCount = document.querySelectorAll('#tableBody tr [data-field="nm"]').length;
+    const totSell = (document.getElementById('tot-subtotal')?.textContent || '').trim();
+    const tableSum = rowsCount ? (rowsCount + '項目' + (totSell && totSell !== '—' ? ' / 売 ' + totSell : '')) : '';
+    const remarkRaw = ((typeof getRemarkText === 'function' ? getRemarkText() : '') || '').trim();
+    // 先頭3行までをプレビュー表示（残りは … で省略）
+    const preview3 = (txt) => {
+      if (!txt) return '';
+      const lines = txt.split(/\r?\n/).map(s => s.trim()).filter(s => s.length);
+      const head = lines.slice(0, 3).join('\n');
+      return lines.length > 3 ? head + '\n…' : head;
+    };
+    const remarkSum = preview3(remarkRaw);
+    const setSum = (id, t) => { const e = document.getElementById(id); if (e) e.textContent = t ? '— ' + t : '— 未入力'; };
+    setSum('sumTable', tableSum); setSum('sumRemark', remarkSum);
+    if (typeof window.updateQspTabBadges === 'function') window.updateQspTabBadges();
+
+    const el = document.getElementById('qspSectionDigest');
+    if (!el) return;
+    const getSpan = id => (document.getElementById(id)?.textContent || '').replace(/^—\s*/, '').trim();
+    // 物量情報：サイズ行＋メトリクス行（GW・CBM・R/T・CW）を改行で
+    const vd = window._volDigest || {};
+    const volText = [vd.size, vd.metrics].filter(Boolean).join('\n');
+    const rows = [
+      ['section-ref',    '🗂️', '管理番号',     getSpan('sumRef')],
+      ['section-cond',   '🚢', '貿易条件',     getSpan('sumCond')],
+      ['section-cargo',  '📦', '貨物情報',     getSpan('sumCargo')],
+      ['section-volume', '📊', '物量情報',     volText],
+      ['section-remark', '📑', '全体リマーク', remarkSum],
+      ['section-table',  '📋', '費用テーブル', tableSum],
+    ];
+    el.innerHTML = rows.map(function(r) {
+      const id = r[0], icon = r[1], label = r[2];
+      const empty = !r[3] || r[3] === '未入力';
+      const txt = empty ? '未入力' : r[3];
+      const open = !document.getElementById(id)?.classList.contains('collapsed');
+      return '<button type="button" class="qsp-dig-row' + (open ? ' is-open' : '') + (empty ? ' is-empty' : '') +
+        '" onclick="window.openQuoteSectionFromDigest(\'' + id + '\')">' +
+        '<span class="qsp-dig-name">' + icon + ' ' + label + '</span>' +
+        '<span class="qsp-dig-sum">' + escapeHtml(txt).replace(/\n/g, '<br>') + '</span></button>';
+    }).join('');
+  };
+  window.openQuoteSectionFromDigest = function(id) {
+    const sec = document.getElementById(id);
+    if (!sec) return;
+    if (sec.classList.contains('collapsed') && typeof toggleQuoteSection === 'function') toggleQuoteSection(id);
+    sec.scrollIntoView({ block: 'start' });
+  };
+
+  // ===== 見積サマリ：タブ切替（要約／輸送／金額） =====
+  window.QSP_TABS = ['digest', 'flow', 'fin'];
+  window.qspSetTab = function(tab) {
+    if (!window.QSP_TABS.includes(tab)) tab = 'digest';
+    window.QSP_TABS.forEach(t => {
+      const pane = document.getElementById('qspPane-' + t);
+      const btn  = document.getElementById('qspTabBtn-' + t);
+      const on = (t === tab);
+      if (pane) pane.classList.toggle('is-active', on);
+      if (btn)  { btn.classList.toggle('is-active', on); btn.setAttribute('aria-selected', on ? 'true' : 'false'); }
+    });
+    try { localStorage.setItem('quoteSummaryTab_v1', tab); } catch(e) {}
+  };
+  window.updateQspTabBadges = function() {
+    // 金額タブ：費用項目数
+    const rows = document.querySelectorAll('#tableBody tr [data-field="nm"]').length;
+    const finBtn = document.getElementById('qspTabBtn-fin');
+    if (finBtn) finBtn.innerHTML = '💰 金額' + (rows ? ' <span class="qsp-tab-badge">' + rows + '</span>' : '');
+    // 輸送タブ：作業範囲が出ていれば●
+    const hasFlow = document.getElementById('qspMilestones') && document.getElementById('qspMilestones').style.display !== 'none';
+    const flowBtn = document.getElementById('qspTabBtn-flow');
+    if (flowBtn) flowBtn.innerHTML = '🚚 輸送' + (hasFlow ? ' <span class="qsp-tab-dot"></span>' : '');
+  };
+
   // 起動時に保存済みの折り畳み状態を復元
   function initQuoteSectionCollapse() {
-    let st = {};
-    try { st = JSON.parse(localStorage.getItem('quoteSectionCollapse_v1') || '{}'); } catch(e) {}
-    ['section-ref', 'section-cond', 'section-cargo', 'section-volume'].forEach(id => {
-      const sec = document.getElementById(id);
-      if (sec && st[id]) sec.classList.add('collapsed');
-    });
+    // 折りたたみは廃止：全セクションを常時展開（見積サマリのジャンプ機能で代替）
+    const _all = window.QUOTE_ALL_SECTIONS || ['section-ref','section-cond','section-cargo','section-volume','section-table','section-remark'];
+    _all.forEach(id => document.getElementById(id)?.classList.remove('collapsed'));
+    try { localStorage.removeItem('quoteSectionCollapse_v1'); } catch(e) {}
     updateSectionSummaries();
-
-    // 入力完了 → 自動折り畳み：見積もりテーブルへ入ったら、内容のある上部セクションを畳む
-    const tableSec = document.getElementById('section-table');
-    if (tableSec && !tableSec.dataset.autoCollapseBound) {
-      tableSec.dataset.autoCollapseBound = '1';
-      tableSec.addEventListener('focusin', () => {
-        ['section-ref', 'section-cond', 'section-cargo', 'section-volume'].forEach(id => {
-          const sec = document.getElementById(id);
-          if (!sec || sec.classList.contains('collapsed')) return;
-          // 何か入力があるときだけ自動で畳む
-          if (_sectionHasContent(id)) {
-            sec.classList.add('collapsed');
-            try {
-              const s = JSON.parse(localStorage.getItem('quoteSectionCollapse_v1') || '{}');
-              s[id] = true;
-              localStorage.setItem('quoteSectionCollapse_v1', JSON.stringify(s));
-            } catch(e) {}
-          }
-        });
-        updateSectionSummaries();
-      });
-    }
   }
 
   // セクションに意味のある入力があるか

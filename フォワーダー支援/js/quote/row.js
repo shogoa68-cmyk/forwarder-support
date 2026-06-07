@@ -364,10 +364,15 @@
     const checked = document.getElementById(`tx-${id}`)?.checked;
     if (checked) {
       tr.classList.add('taxed');
-      if (!nm.value.startsWith('*')) nm.value = '*' + nm.value;
+      // 課税マーク * は「自動付与した場合」だけ後で外す。ユーザーが品名先頭に自分で
+      // 打った * を税OFF時に消してデータを壊さないよう、付与有無を data 属性で記録する。
+      if (!nm.value.startsWith('*')) { nm.value = '*' + nm.value; tr.dataset.taxAuto = '1'; }
+      else { tr.dataset.taxAuto = '0'; }
     } else {
       tr.classList.remove('taxed');
-      if (nm.value.startsWith('*')) nm.value = nm.value.slice(1);
+      // 自動付与した * のみ除去（taxAuto 未設定＝リロード後の旧データは従来通り先頭1文字除去）
+      if (nm.value.startsWith('*') && tr.dataset.taxAuto !== '0') nm.value = nm.value.slice(1);
+      delete tr.dataset.taxAuto;
     }
     // 消費税サマリ更新 + st セルの消費税表示を再描画（calc が updateTotals を内包）
     calc(id);
@@ -436,7 +441,11 @@
   }
 
   function val(id) {
-    return parseFloat(document.getElementById(id)?.value) || 0;
+    let v = document.getElementById(id)?.value;
+    if (v == null || v === '') return 0;
+    // 全角数字・小数点・マイナスを半角化（IME 確定ミスやコピペでの 0 欠落を防ぐ）
+    v = String(v).replace(/[０-９．－]/g, ch => String.fromCharCode(ch.charCodeAt(0) - 0xFEE0));
+    return parseFloat(v) || 0;
   }
 
   function updateTotals() {
@@ -595,7 +604,6 @@
       </td>
       <td class="subtotal-group-subtotal subtotal-cell">—</td>
       <td class="subtotal-group-profit profit-cell profit-zero">—</td>
-      <td></td>
     `;
     const tbody = document.getElementById('tableBody');
     if (afterId) {
@@ -631,11 +639,14 @@
       <td class="remark-drag-cell">
         <span class="drag-handle" title="ドラッグして並び替え">⠿</span>
       </td>
-      <td colspan="9" class="remark-row-cell">
+      <td colspan="8" class="remark-row-cell">
         <span class="remark-row-marker">💬 リマーク</span>
         <input type="text" class="remark-row-input" placeholder="テーブル内コメント・注記を入力" />
+        <button type="button" class="remark-scope-btn" onclick="toggleRemarkInternal(this)"
+                title="クリックで「社内メモ（見積書には出力しない）」に切替">📄 見積書に表示</button>
       </td>
     `;
+    if (opts?.internal) applyRemarkInternalState(tr, true);
     const tbody = document.getElementById('tableBody');
     if (afterId) {
       const afterRow = document.getElementById(`row-${afterId}`);
@@ -653,7 +664,7 @@
     document.getElementById(`row-${id}`)?.remove();
   }
 
-  // ========== 社内メモ行（出力対象外）==========
+  // ========== 社内メモ行（出力対象外・独立行タイプ）==========
   let internalCount = 0;
   function insertInternalRow(afterId, opts) {
     internalCount++;
@@ -686,6 +697,30 @@
     initSubtotalDrag(tr);
     if (!opts?.noFocus) tr.querySelector('.internal-row-input')?.focus();
   }
+
+  // リマーク行：見積書に表示 ⇔ 社内メモ（見積書・PDF・メールに出力しない）の切替
+  function applyRemarkInternalState(tr, internal) {
+    if (!tr) return;
+    tr.dataset.internal = internal ? '1' : '0';
+    tr.classList.toggle('remark-internal', internal);
+    const marker = tr.querySelector('.remark-row-marker');
+    const btn = tr.querySelector('.remark-scope-btn');
+    const inp = tr.querySelector('.remark-row-input');
+    if (marker) marker.textContent = internal ? '🔒 社内メモ' : '💬 リマーク';
+    if (inp) inp.placeholder = internal ? '社内向けメモ（見積書には出力されません）' : 'テーブル内コメント・注記を入力';
+    if (btn) {
+      btn.textContent = internal ? '🔒 社内メモ' : '📄 見積書に表示';
+      btn.title = internal
+        ? 'クリックで「見積書に表示」に切替（現在：見積書・PDF・メールには出力されない社内メモ）'
+        : 'クリックで「社内メモ（見積書には出力しない）」に切替';
+    }
+  }
+  window.applyRemarkInternalState = applyRemarkInternalState;
+  window.toggleRemarkInternal = function (btn) {
+    const tr = btn.closest('tr');
+    applyRemarkInternalState(tr, tr.dataset.internal !== '1');
+    if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
+  };
 
   function updateSubtotalRows() {
     const tbody = document.getElementById('tableBody');

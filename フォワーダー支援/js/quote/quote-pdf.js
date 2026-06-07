@@ -49,10 +49,20 @@
     const s = String(txt == null ? '' : txt).trim();
     if (!s) return '';
     if (!/\d/.test(s)) return esc(s);          // 数値を含まない場合はそのまま
+    // 末尾に通貨コードが付く外貨建て小計（例 "1,234 USD"）は ¥ を付けない（通貨二重表記防止）
+    if (/\s[A-Za-z]{2,4}$/.test(s)) return esc(s);
     const m = s.match(/^([^\d\-]*)(.*)$/);     // 先頭の記号（≈ 等）を分離
     const prefix = m ? m[1] : '';
     const rest   = m ? m[2] : s;
     return esc(prefix) + '¥' + esc(rest);
+  }
+
+  // 課税行の品名から先頭の課税マーク * を1つ除去（表示直前）。
+  // * は row.js が課税ON時に品名へ付与する内部マーカー。御見積書では別途
+  // qd-tax スパンで * を描画するため、二重 * を避けてここで取り除く。
+  function _taxName(name, taxed) {
+    const s = String(name == null ? '' : name);
+    return taxed ? s.replace(/^\*\s?/, '') : s;
   }
 
   function _toJPY(amount, ccy) {
@@ -194,10 +204,11 @@
     const data = rows.filter(r => r._type === 'data');
 
     // 集計
-    let taxableSub = 0, exemptSub = 0;
+    let taxableSub = 0, exemptSub = 0, taxSum = 0;
     const lineHTML = [];
     rows.forEach(r => {
       if (r._type === 'remark') {
+        if (r.internal) return; // 社内メモは PDF に出力しない
         lineHTML.push(`<tr class="qd-remark"><td colspan="5">※ ${esc(r.text)}</td></tr>`);
         return;
       }
@@ -208,17 +219,25 @@
       // data
       const sub = (r.bq || 0) * (r.bp || 0);                  // 請求通貨建ての金額
       const jpy = Math.ceil(_toJPY(sub, r.bc || 'JPY'));      // JPY換算
-      if (r.taxed) taxableSub += jpy; else exemptSub += jpy;
+      // 外貨建ては輸出免税が原則（Excel/プレビューと同一ポリシー）。課税は JPY 建て行のみ。
+      // 消費税は行ごとに切り上げて積み上げ、各出力経路（御見積書/プレビュー/Excel）で一致させる。
+      if (r.taxed && (r.bc || 'JPY') === 'JPY') {
+        taxableSub += jpy;
+        taxSum += Math.ceil(jpy * taxRate);
+      } else {
+        exemptSub += jpy;
+      }
       const isNonJpy = r.bc && r.bc !== 'JPY';
+      // JPY 単価は端数があるときだけ小数表示（単価×数量＝金額の検算が崩れないように）
       const unitDisp = isNonJpy
         ? `${fmtNum(r.bp, 2)} ${esc(r.bc)}`
-        : `${fmtInt(r.bp)} JPY`;
+        : `${Number.isInteger(r.bp) ? fmtInt(r.bp) : fmtNum(r.bp, 2)} JPY`;
       // 御見積書は客先向け公式文書のため、社内メモ(r.note)は出力しない（E-1 備考漏洩対策）
       // 数量は金額の根拠（sub = bq×bp）と一致させる。未入力時に「1」を捏造しない（B/台帳 C）
       const qtyDisp = (r.bq && r.bq > 0) ? fmtNum(r.bq, 4) : '—';
       lineHTML.push(
         `<tr>
-          <td class="qd-item">${r.taxed ? '<span class="qd-tax">*</span> ' : ''}${esc(r.name)}</td>
+          <td class="qd-item">${r.taxed ? '<span class="qd-tax">*</span> ' : ''}${esc(_taxName(r.name, r.taxed))}</td>
           <td class="qd-num">${qtyDisp}</td>
           <td class="qd-ctr">${esc(r.un || '')}</td>
           <td class="qd-num">${unitDisp}</td>
@@ -227,13 +246,13 @@
       );
     });
 
-    const tax   = Math.floor(taxableSub * taxRate);
+    const tax   = taxSum;   // 行ごと切り上げの合計（Math.floor 一括計算からの修正）
     const total = taxableSub + exemptSub + tax;
 
     const subj = buildSubject(cond);
     const rates = collectRates(rows);
     const rateRows = ['JPY', ...Object.keys(rates)]
-      .map(c => `<tr><td class="qd-ctr">${esc(c)}</td><td class="qd-num">${c === 'JPY' ? '1.00' : (rates[c] != null ? fmtNum(rates[c], 2) : '—')}</td></tr>`)
+      .map(c => `<tr><td class="qd-ctr">${esc(c)}</td><td class="qd-num">${c === 'JPY' ? '1.00' : (rates[c] != null ? fmtNum(rates[c], rates[c] < 0.1 ? 4 : 2) : '—')}</td></tr>`)
       .join('');
     const fxMeta = (typeof getFxAuditMeta === 'function') ? getFxAuditMeta() : null;
     const fxMetaNote = fxMeta

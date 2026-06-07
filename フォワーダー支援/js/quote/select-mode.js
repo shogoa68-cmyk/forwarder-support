@@ -19,8 +19,25 @@
   function refresh() {
     const tb = tbody();
     if (!tb) return;
-    tb.classList.toggle('selection-mode', isActive());
+    const n = tb.querySelectorAll('.row-select-chk:checked').length;
+    tb.classList.toggle('selection-mode', n > 0);
+    // 案C：選択中のみ文脈バーを表示
+    const ctx = document.getElementById('cmdbarContext');
+    if (ctx) {
+      ctx.hidden = n === 0;
+      const cnt = document.getElementById('ctxSelCount');
+      if (cnt) cnt.textContent = n + '行を選択中';
+    }
   }
+
+  // 選択をすべて解除（文脈バーの「✕ 選択解除」から）
+  window.clearRowSelection = function () {
+    const tb = tbody();
+    if (tb) tb.querySelectorAll('.row-select-chk:checked').forEach(c => { c.checked = false; });
+    const all = document.getElementById('selectAllChk');
+    if (all) all.checked = false;
+    refresh();
+  };
 
   // クリック対象が「選択トグルの対象外」(操作ボタン・ドラッグハンドル・チェック自身)か
   function isExempt(target) {
@@ -63,6 +80,27 @@
   // 全選択チェックは .checked を JS 代入する経路があり change が飛ばないことがあるため click でも更新
   document.addEventListener('click', function (e) {
     if (e.target && e.target.id === 'selectAllChk') setTimeout(refresh, 0);
+  });
+
+  // Delete / Backspace キーで選択行を削除（選択モード中のみ）
+  // 文字入力中（テキスト欄・テキストエリア・select・contenteditable）は誤爆させない。
+  // ※ 選択モード中はチェックボックスにフォーカスが当たるが、それは削除を許可する。
+  document.addEventListener('keydown', function (e) {
+    if (e.key !== 'Delete' && e.key !== 'Backspace') return;
+    if (!isActive()) return;
+    // 見積タブがアクティブな時のみ
+    const tab = document.getElementById('tab-quote-make');
+    if (tab && !tab.classList.contains('active')) return;
+    // テキスト編集中は文字削除を優先（行削除しない）
+    const ae = document.activeElement;
+    if (ae) {
+      if (ae.isContentEditable) return;
+      const tag = ae.tagName;
+      if (tag === 'TEXTAREA' || tag === 'SELECT') return;
+      if (tag === 'INPUT' && ae.type !== 'checkbox') return;
+    }
+    e.preventDefault();
+    if (typeof window.deleteSelectedRows === 'function') window.deleteSelectedRows();
   });
 
   window.refreshRowSelectionMode = refresh;
