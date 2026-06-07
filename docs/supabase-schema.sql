@@ -35,7 +35,19 @@ create policy "users can view own feedbacks"
 -- 管理者用: service_role からは全件 SELECT 可（Supabase Dashboard での確認用）
 
 -- ============================================================
--- 2. 将来用テーブル（準備のみ・未使用）
+-- 2. quote_presets — 詳細検索用カラム追加（マイグレーション）
+-- ============================================================
+-- quote_presetsテーブルに詳細検索用カラムを追加
+-- （テーブル自体は cloud.js / Supabase Dashboard で作成済み前提）
+alter table public.quote_presets
+  add column if not exists incoterms      text default '',
+  add column if not exists transport_mode text default '',
+  add column if not exists pol            text default '',
+  add column if not exists pod            text default '',
+  add column if not exists carrier        text default '';
+
+-- ============================================================
+-- 3. 将来用テーブル（準備のみ・未使用）
 -- ============================================================
 
 -- quotes テーブル（見積データ保存 — Supabase連携フェーズ2で使用）

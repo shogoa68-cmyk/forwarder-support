@@ -2102,17 +2102,11 @@
     <div class="preset-mgr-modal" id="presetMgrModal"
          onclick="if(event.target===this)closePresetMgr()">
       <div class="preset-mgr-box">
-        <h3>🗂️ プリセット/一時保存</h3>
-        <p class="preset-mgr-desc">
-          現在の入力状態を名前付きで保存・呼び出しできます（<strong>最大 50 件・このブラウザのみ</strong>）。<br>
-          「輸入案件用」「国内配送用」などテンプレートとして使うほか、<br>
-          「一時保存」のような名前で作業途中のデータを退避させることもできます。
-        </p>
-        <div class="preset-mgr-warn">
-          💡 <strong>長期保管・他端末との共有・チームでの引き継ぎ</strong>には、ツールバーの
-          「<strong>📤 JSON</strong>」ボタンから <strong>JSON ファイル</strong>としてバックアップすることを推奨します。
-          JSON ファイルは「📥 読込」で同じ状態を完全復元できます（クラウドフォルダ共有も可）。
-        </div>
+        <div class="preset-mgr-inner">
+
+        <!-- 左列：ブラウザ保存 -->
+        <div class="preset-mgr-browser-col" id="presetBrowserSection">
+        <h3>💾 ブラウザ保存（プリセット/一時保存）<span class="help-tip" tabindex="0" role="button" aria-label="プリセット/一時保存の説明">?<span class="help-tip-text">現在の入力状態を名前付きで保存・呼び出し（<strong>最大50件・このブラウザのみ</strong>）。「輸入案件用」などのテンプレートや、作業途中の退避に使えます。<br>チーム全員での共有は「☁️ チーム共有」ボタンから。</span></span></h3>
         <div class="preset-save-row">
           <input type="text" class="preset-name-input" id="presetNameInput"
                  placeholder="例）輸入案件用・国内配送用" maxlength="30"
@@ -2122,6 +2116,53 @@
         <div class="preset-list-wrap" id="presetListWrap">
           <div class="preset-empty">保存済みのプリセットはありません</div>
         </div>
+        </div><!-- /#presetBrowserSection -->
+
+        <!-- 右列：☁️ チーム共有（クラウド／Supabase） -->
+        <div class="preset-mgr-cloud-col cloud-share-section" id="cloudShareSection">
+          <div class="cloud-share-head">
+            <span class="cloud-share-title">☁️ チーム共有<span class="help-tip" tabindex="0" role="button" aria-label="チーム共有の説明">?<span class="help-tip-text">ログインすると、保存したプリセットをチームのメンバー全員で共有・編集できます（端末をまたいで利用可）。</span></span></span>
+            <span class="cloud-auth-state" id="cloudAuthState">…</span>
+          </div>
+          <div class="cloud-auth-actions" id="cloudAuthActions">
+            <span class="cloud-login-hint" id="cloudLoginHint" style="display:none">右上の「<b>G Google でログイン</b>」からサインインすると、チームでプリセットを共有・編集できます。</span>
+          </div>
+          <div class="cloud-share-body" id="cloudShareBody" style="display:none">
+            <div class="cloud-save-row">
+              <button class="btn-cloud-save" type="button" onclick="cloudSaveCurrent()">☁️ 現在の内容を共有に保存</button>
+              <span class="help-tip" tabindex="0" role="button" aria-label="保存名についての説明">?<span class="help-tip-text">保存名は<strong>管理番号（＋顧客名・担当者）</strong>から自動生成されます。ローカルの一時保存と同じ命名です。同じ管理番号で再保存すると上書きされます。</span></span>
+            </div>
+            <div class="cloud-search-row">
+              <input type="text" class="cloud-search-input" id="cloudSearchInput"
+                     placeholder="🔍 検索（案件名・顧客名・担当者）"
+                     oninput="cloudSearchInput(this.value)" />
+            </div>
+            <div class="cloud-status-chips" id="cloudStatusChips"></div>
+            <!-- 詳細検索 -->
+            <div class="cloud-adv-wrap" id="cloudAdvWrap">
+              <div class="cloud-adv-header">
+                <button class="cloud-adv-toggle-btn" type="button" onclick="toggleCloudAdvSearch()">
+                  🔍 詳細検索 <span id="cloudAdvChevron">▶</span>
+                </button>
+                <button class="cloud-adv-clear-btn" id="cloudAdvClearBtn" type="button" onclick="clearCloudAdvSearch()" hidden>✕ クリア</button>
+              </div>
+              <div class="cloud-adv-body" id="cloudAdvBody" hidden>
+                <div class="cloud-adv-filters">
+                  <select id="cloudFilterMode" class="cloud-adv-sel" onchange="cloudFilterAdvanced()"><option value="">輸送モード：すべて</option></select>
+                  <select id="cloudFilterInco" class="cloud-adv-sel" onchange="cloudFilterAdvanced()"><option value="">インコタームズ：すべて</option></select>
+                  <input type="text" id="cloudFilterPol" class="cloud-adv-input" placeholder="積み地（POL）" oninput="cloudFilterAdvanced()" />
+                  <input type="text" id="cloudFilterPod" class="cloud-adv-input" placeholder="揚げ地（POD）" oninput="cloudFilterAdvanced()" />
+                  <input type="text" id="cloudFilterCarrier" class="cloud-adv-input" placeholder="船会社・NVOCC・航空会社" oninput="cloudFilterAdvanced()" />
+                </div>
+              </div>
+            </div>
+            <div class="preset-list-wrap cloud-preset-grid" id="cloudPresetListWrap">
+              <div class="preset-empty">読み込み中…</div>
+            </div>
+          </div>
+        </div><!-- /#cloudShareSection -->
+
+        </div><!-- /.preset-mgr-inner -->
         <div class="preset-mgr-footer">
           <button class="btn-preset-close" onclick="closePresetMgr()">閉じる</button>
         </div>
