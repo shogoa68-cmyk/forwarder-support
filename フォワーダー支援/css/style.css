@@ -951,6 +951,22 @@ body:has(#tab-quote-make.active) .app { padding-bottom: 8px; }
   color: #fff8ec;
   border-color: #92400e;
 }
+/* BOOKMARKタブ専用（ティール系）*/
+.cat-btn-bookmark {
+  background: linear-gradient(135deg, #e0f7f4 0%, #b2ebf2 100%);
+  color: #0e7490;
+  border-color: #22d3ee;
+}
+.cat-btn-bookmark:hover {
+  background: linear-gradient(135deg, #b2ebf2 0%, #67e8f9 100%);
+  color: #0c5f75;
+  border-color: #06b6d4;
+}
+.cat-btn-bookmark.active {
+  background: linear-gradient(135deg, #0891b2 0%, #0e7490 100%);
+  color: #ecfeff;
+  border-color: #0e6683;
+}
 /* サブタブナビ（2段タブ下段）*/
 .sub-nav { display: none !important; margin-bottom: 14px; }
 .sub-nav.active {
