@@ -1705,6 +1705,12 @@
             const addChip = `<button class="qsp-bm-new-chip" data-bm-carrier="${escapeHtml(cd.name)}" onclick="openAddBmModal({carrier:this.dataset.bmCarrier})" title="${escapeHtml(cd.name)} のブックマークを追加">＋</button>`;
             const chips = cd.links.length
               ? `<div class="qsp-ms-cl-chips">` + cd.links.map(l => {
+                  if (l.isUserBm) {
+                    // ユーザー追加ブックマーク：編集ボタンなし（Bookmark タブで管理）
+                    return `<span class="qsp-ms-cl-chip-wrap">`
+                      + `<a class="qsp-ms-cl-chip qsp-ms-cl-chip--user" href="${escapeHtml(l.url)}" target="_blank" rel="noopener" title="${escapeHtml(l.title)}">${escapeHtml(l.label)}</a>`
+                      + `</span>`;
+                  }
                   const bmLabel   = escapeHtml(`${cd.name} ${l.label}`);
                   const bmUrl     = escapeHtml(l.url);
                   const bmCarrier = escapeHtml(cd.name);
