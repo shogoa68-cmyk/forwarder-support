@@ -817,11 +817,13 @@
         : '';
       const isLoaded = loadedName && p.name === loadedName;
       return '<div class="preset-list-item' + (isLoaded ? ' preset-list-item--loaded' : '') + '">' +
-        (isLoaded ? '<span class="preset-loaded-badge">編集中</span>' : '') +
-        '<span class="preset-list-name">' + escHtml(p.name) + '</span>' +
-        '<span class="preset-list-ts">'   + ts + '</span>' +
-        '<button class="btn-preset-load" onclick="loadPreset(' + i + ')">読み込む</button>' +
-        '<button class="btn-preset-del"  onclick="deletePreset(' + i + ')" title="削除">✕</button>' +
+        '<div class="preset-card-row1">' +
+          (isLoaded ? '<span class="preset-loaded-badge">編集中</span>' : '') +
+          '<span class="preset-list-name">' + escHtml(p.name) + '</span>' +
+          '<button class="btn-preset-load" onclick="loadPreset(' + i + ')">読み込む</button>' +
+          '<button class="btn-preset-del"  onclick="deletePreset(' + i + ')" title="削除">✕</button>' +
+        '</div>' +
+        (ts ? '<div class="preset-card-row2"><span class="preset-list-ts">💾 ' + ts + '</span></div>' : '') +
         '</div>';
     }).join('');
   }
