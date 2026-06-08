@@ -4404,6 +4404,12 @@
 #tab-quote-make .cloud-tag-carrier { background: #f3e8ff; color: #5b2d8e; }
 #tab-quote-make .cloud-cust   { font-size: 11px; color: #3a5068; margin-right: 8px; }
 #tab-quote-make .cloud-person { font-size: 11px; color: #3a5068; margin-right: 8px; }
+/* クラウドリスト内の preset-list-wrap：高さを抑え、ボーダーを青系で統一 */
+#tab-quote-make .cloud-share-section .preset-list-wrap {
+  max-height: 160px;
+  border-color: #cfe0ea;
+  margin-bottom: 4px;
+}
 /* 検索ボックス */
 #tab-quote-make .cloud-search-row { margin: 8px 0 6px; flex-shrink: 0; }
 #tab-quote-make .cloud-search-input {
