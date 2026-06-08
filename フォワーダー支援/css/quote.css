@@ -3960,6 +3960,11 @@
   flex-direction: column;
   overflow: hidden;
 }
+/* クラウド未ログイン時はモーダル幅を縮小して不自然な余白を防ぐ */
+#tab-quote-make .preset-mgr-box:has(#cloudShareBody[style*="display: none"]),
+#tab-quote-make .preset-mgr-box:has(#cloudShareBody:not([style])) {
+  width: min(560px, 97vw);
+}
 /* 二列レイアウト：左＝ブラウザ保存、右＝チーム共有 */
 #tab-quote-make .preset-mgr-inner {
   display: flex;
