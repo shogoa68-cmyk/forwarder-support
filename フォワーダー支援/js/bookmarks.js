@@ -5,6 +5,10 @@ let _bmTypeFilter    = '';
 let _bmCarrierFilter = '';
 let _bmFnFilter      = '';
 
+// QSP 幹線輸送チップ用キャリアブックマークキャッシュ
+window._qspBmCache = {};
+let _qspBmLastKey  = '';  // 重複フェッチ防止キー
+
 function initBookmarkTab() {
   _bmRenderTypeChips();
   _bmRenderFnChips();
@@ -247,6 +251,14 @@ async function saveBm() {
   }
   quoteShowToast('✅ ブックマークを追加しました', 'success', 3000);
   document.getElementById('bmAddModal')?.classList.remove('open');
+  // QSP チップを即時更新（A-1: キャリアが z2 に登録済みなら再フェッチ）
+  if (carrier && typeof window.fetchCarrierBmsForQSP === 'function') {
+    _qspBmLastKey = '';  // キーをリセットして強制再フェッチ
+    const targets = Object.keys(window._qspBmCache).length
+      ? Object.keys(window._qspBmCache)
+      : [carrier];
+    window.fetchCarrierBmsForQSP(targets);
+  }
   _bmLoad();
 }
 
@@ -260,6 +272,36 @@ async function bmDelete(id) {
   _bmRows = _bmRows.filter(r => r.id !== id);
   _bmApply();
 }
+
+// ---------- QSP 用キャリアブックマームフェッチ ----------
+window.fetchCarrierBmsForQSP = async function (carrierNames) {
+  if (!carrierNames || !carrierNames.length) return;
+  const key = [...carrierNames].sort().join('\0');
+  if (key === _qspBmLastKey) return;
+  _qspBmLastKey = key;
+
+  const db = window.SupabaseClient;
+  if (!db) return;
+  const { data: sd } = await db.auth.getSession();
+  if (!sd?.session) return;
+
+  const { data, error } = await db
+    .from('bookmarks')
+    .select('id, label, url, carrier, function, note')
+    .in('carrier', carrierNames)
+    .not('url', 'is', null);
+  if (error) return;
+
+  const cache = {};
+  carrierNames.forEach(n => { cache[n] = []; });
+  (data || []).forEach(bm => {
+    if (bm.carrier && Object.prototype.hasOwnProperty.call(cache, bm.carrier)) {
+      cache[bm.carrier].push(bm);
+    }
+  });
+  window._qspBmCache = cache;
+  if (typeof window.renderQuoteMilestones === 'function') window.renderQuoteMilestones();
+};
 
 // ---------- window 公開 ----------
 window.initBookmarkTab = initBookmarkTab;

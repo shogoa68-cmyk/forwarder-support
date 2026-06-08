@@ -277,6 +277,7 @@
     if (typeof syncHazmatPanel === 'function') syncHazmatPanel();
     if (typeof syncMultiEntryFields === 'function') syncMultiEntryFields();
     if (typeof window.updateSectionSummaries === 'function') window.updateSectionSummaries();
+    _triggerCarrierBmFetch();
     if (typeof window.renderQuoteMilestones === 'function') window.renderQuoteMilestones();
     if (typeof window.updateRemarkChar === 'function') window.updateRemarkChar();
     if (typeof window.updateQuoteStatusUI === 'function') window.updateQuoteStatusUI();
@@ -1084,6 +1085,7 @@
     document.getElementById('z2Carrier')?.focus();
     if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
     if (typeof scheduleSnapshot === 'function') scheduleSnapshot();
+    _triggerCarrierBmFetch();
   }
 
   function removeRouteEntry(i) {
@@ -1091,6 +1093,7 @@
     _renderRouteEntries();
     if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
     if (typeof scheduleSnapshot === 'function') scheduleSnapshot();
+    _triggerCarrierBmFetch();
   }
   // 復元用
   function syncRouteEntries() {
@@ -1301,9 +1304,22 @@
   }
 
   /** z2Carrier 入力時：一致するキャリアのリンクパネルを表示 */
+  // A-1: z2 キャリア名を収集して QSP 用ブックマームを非同期フェッチ
+  function _triggerCarrierBmFetch() {
+    if (typeof window.fetchCarrierBmsForQSP !== 'function') return;
+    const names = [];
+    if (_routeEntries && _routeEntries.length) {
+      _routeEntries.forEach(r => { if (r.carrier && !names.includes(r.carrier)) names.push(r.carrier); });
+    }
+    const cur = (document.getElementById('z2Carrier')?.value || '').trim();
+    if (cur && !names.includes(cur)) names.push(cur);
+    if (names.length) window.fetchCarrierBmsForQSP(names);
+  }
+
   function onZ2CarrierChange() {
     const panel = document.getElementById('z2CarrierLinks');
     const done = () => {
+      _triggerCarrierBmFetch();
       if (typeof window.renderQuoteCarrierLinks === 'function') window.renderQuoteCarrierLinks();
       if (typeof window.renderQuoteMilestones === 'function') window.renderQuoteMilestones();
     };
@@ -1345,13 +1361,16 @@
     }
     const cur = (document.getElementById('z2Carrier')?.value || '').trim();
     if (cur && !names.includes(cur)) names.push(cur);
+    const bmCache = window._qspBmCache || {};
     return names.map(name => {
       const c = map[name];
-      if (!c) return { name, icon: '', links: [] };
-      const links = defs
+      const staticLinks = c ? defs
         .map(d => ({ label: d.label, url: _resolveCarrierUrl(c[d.key]), title: (d.noteKey && c[d.noteKey]) ? c[d.noteKey] : d.label }))
-        .filter(l => l.url);
-      return { name, icon: c.icon || '', links };
+        .filter(l => l.url) : [];
+      const userLinks = (bmCache[name] || []).map(bm => ({
+        label: bm.label, url: bm.url, title: bm.note || bm.label, isUserBm: true, bmId: bm.id,
+      }));
+      return { name, icon: c?.icon || '', links: [...staticLinks, ...userLinks] };
     });
   };
 
