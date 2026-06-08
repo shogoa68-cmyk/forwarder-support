@@ -983,6 +983,7 @@
     if (typeof window.renderQuoteCargoInfo === 'function') window.renderQuoteCargoInfo();
   }
   let _lastCargoMetrics = { cbm: 0, kg: 0, rt: 0, cw: 0, qty: 0 };
+
   // 物量情報を見積サマリ等から参照できるよう公開
   window.getCargoMetrics = function () {
     return Object.assign({}, _lastCargoMetrics, {
