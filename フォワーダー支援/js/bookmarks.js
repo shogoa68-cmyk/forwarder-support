@@ -261,7 +261,16 @@ async function saveBm() {
   }
   quoteShowToast('✅ ブックマークを追加しました', 'success', 3000);
   document.getElementById('bmAddModal')?.classList.remove('open');
-  // QSP チップを即時更新（A-1: キャリアが z2 に登録済みなら再フェッチ）
+
+  // A-2: ローカルキャッシュに即時追記して QSP チップを同期的に再描画
+  if (carrier && url) {
+    if (!Array.isArray(window._qspBmCache[carrier])) window._qspBmCache[carrier] = [];
+    const dup = window._qspBmCache[carrier].some(b => b.url === url && b.label === label);
+    if (!dup) window._qspBmCache[carrier].push({ id: '_local_' + Date.now(), label, url, carrier, note });
+    if (typeof window.renderQuoteMilestones === 'function') window.renderQuoteMilestones();
+  }
+
+  // A-1: バックグラウンドで Supabase から正確なデータを再同期
   if (carrier && typeof window.fetchCarrierBmsForQSP === 'function') {
     _qspBmLastKey = '';  // キーをリセットして強制再フェッチ
     const targets = Object.keys(window._qspBmCache).length
