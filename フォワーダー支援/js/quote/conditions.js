@@ -1367,7 +1367,7 @@
       const staticLinks = c ? defs
         .map(d => ({ label: d.label, url: _resolveCarrierUrl(c[d.key]), title: (d.noteKey && c[d.noteKey]) ? c[d.noteKey] : d.label }))
         .filter(l => l.url) : [];
-      const userLinks = (bmCache[name] || []).map(bm => ({
+      const userLinks = (bmCache[name] || []).filter(bm => bm.url).map(bm => ({
         label: bm.label, url: bm.url, title: bm.note || bm.label, isUserBm: true, bmId: bm.id,
       }));
       return { name, icon: c?.icon || '', links: [...staticLinks, ...userLinks] };
