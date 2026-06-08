@@ -1559,6 +1559,21 @@ body:has(#compareOverlay.open) #quoteActionDock { display: none; }
   font-weight: 400;
   margin-left: 4px;
 }
+/* QSP から開いた場合の会社名フィールドロック状態 */
+.bm-carrier-locked #bmFormCarrier {
+  background: #f5f0e8;
+  color: #5a4020;
+  font-weight: 600;
+  cursor: default;
+  border-color: #c8b090;
+}
+.bm-carrier-hint {
+  display: block;
+  font-size: 11px;
+  color: #5a7a4a;
+  margin-top: 4px;
+  line-height: 1.5;
+}
 .bm-form-input, .bm-form-sel, .bm-form-textarea {
   border: 1px solid #cfd8dc;
   border-radius: 5px;
