@@ -3588,10 +3588,11 @@
           </select>
         </div>
       </div>
-      <div class="bm-form-row">
+      <div class="bm-form-row" id="bmCarrierRow">
         <label class="bm-form-label" for="bmFormCarrier">会社名 <span class="bm-optional">省略可</span></label>
         <input type="text" id="bmFormCarrier" class="bm-form-input" placeholder="例：Maersk" list="bmCarrierDatalist">
         <datalist id="bmCarrierDatalist"></datalist>
+        <span class="bm-carrier-hint" id="bmCarrierNote" style="display:none">📌 見積タブの幹線輸送に登録されたキャリア名と一致させることで、QSP チップに自動表示されます</span>
       </div>
       <div class="bm-form-row">
         <label class="bm-form-label" for="bmFormNote">メモ <span class="bm-optional">アクセス方法・注意点など</span></label>

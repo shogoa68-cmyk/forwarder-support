@@ -198,15 +198,25 @@ function openAddBmModal(presetData) {
   const fnEl      = document.getElementById('bmFormFunction');
   if (labelEl)   labelEl.value   = p.label   || '';
   if (urlEl)     urlEl.value     = p.url     || '';
-  if (carrierEl) carrierEl.value = p.carrier || '';
   if (noteEl)    noteEl.value    = p.note    || '';
   if (typeEl)    typeEl.value    = p.type    || (p.label ? _inferBmType() : 'FCL');
   if (fnEl)      fnEl.value      = p.fn      ? (_inferBmFunction(p.fn) || '') : '';
-  // datalist を既存データから補完
-  const dl = document.getElementById('bmCarrierDatalist');
-  if (dl) {
-    const carriers = [...new Set(_bmRows.map(r => r.carrier).filter(Boolean))].sort();
-    dl.innerHTML = carriers.map(c => `<option value="${escHtml(c)}">`).join('');
+  // QSP から呼ばれた場合（carrier 指定あり）は会社名を固定して消せないようにする
+  if (carrierEl) {
+    carrierEl.value    = p.carrier || '';
+    carrierEl.readOnly = !!p.carrier;
+  }
+  const carrierRow = document.getElementById('bmCarrierRow');
+  const carrierNote = document.getElementById('bmCarrierNote');
+  if (carrierRow)  carrierRow.classList.toggle('bm-carrier-locked', !!p.carrier);
+  if (carrierNote) carrierNote.style.display = p.carrier ? '' : 'none';
+  // datalist を既存データから補完（編集可能時のみ）
+  if (!p.carrier) {
+    const dl = document.getElementById('bmCarrierDatalist');
+    if (dl) {
+      const carriers = [...new Set(_bmRows.map(r => r.carrier).filter(Boolean))].sort();
+      dl.innerHTML = carriers.map(c => `<option value="${escHtml(c)}">`).join('');
+    }
   }
   modal.classList.add('open');
   labelEl?.focus();
