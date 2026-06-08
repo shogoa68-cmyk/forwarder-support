@@ -1697,6 +1697,18 @@
       const subcon = subconOf(m.z);
       let subconHTML = subcon
         ? `<div class="qsp-ms-subcon" title="サブコン">👷 ${escapeHtml(subcon)}</div>` : '';
+      // 出発地側・到着地側（z1/z3）：デフォルトサブコンのブックマークチップを表示
+      if ((m.z === 'z1' || m.z === 'z3') && subcon) {
+        const bmCache = window._qspBmCache || {};
+        const bms = (bmCache[subcon] || []).filter(b => b.url);
+        const addChip = `<button class="qsp-bm-new-chip" data-bm-carrier="${escapeHtml(subcon)}" onclick="openAddBmModal({carrier:this.dataset.bmCarrier})" title="${escapeHtml(subcon)} のブックマークを追加">＋</button>`;
+        const chips = bms.length
+          ? `<div class="qsp-ms-cl-chips">` + bms.map(bm =>
+              `<span class="qsp-ms-cl-chip-wrap"><a class="qsp-ms-cl-chip qsp-ms-cl-chip--user" href="${escapeHtml(bm.url)}" target="_blank" rel="noopener" title="${escapeHtml(bm.note || bm.label)}">${escapeHtml(bm.label)}</a></span>`
+            ).join('') + addChip + `</div>`
+          : `<div class="qsp-ms-cl-chips">${addChip}</div>`;
+        subconHTML = `<div class="qsp-ms-carrier"><div class="qsp-ms-carrier-name">👷 ${escapeHtml(subcon)}</div>${chips}</div>`;
+      }
       // 幹線輸送（z2）：入力されたキャリアに応じてリンクチップを表示
       if (m.z === 'z2' && typeof window.getCarrierLinkData === 'function') {
         const carriers = window.getCarrierLinkData().filter(cd => cd.name);

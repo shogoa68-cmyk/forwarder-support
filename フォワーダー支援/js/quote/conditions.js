@@ -1169,6 +1169,7 @@
         inp.dataset.auto = val ? '1' : '';
       }
     });
+    _triggerCarrierBmFetch();
     if (typeof window.renderQuoteMilestones === 'function') window.renderQuoteMilestones();
   }
 
@@ -1308,11 +1309,17 @@
   function _triggerCarrierBmFetch() {
     if (typeof window.fetchCarrierBmsForQSP !== 'function') return;
     const names = [];
+    // z2: 幹線キャリア
     if (_routeEntries && _routeEntries.length) {
       _routeEntries.forEach(r => { if (r.carrier && !names.includes(r.carrier)) names.push(r.carrier); });
     }
     const cur = (document.getElementById('z2Carrier')?.value || '').trim();
     if (cur && !names.includes(cur)) names.push(cur);
+    // z1/z3: デフォルトサブコン
+    const sc1 = (document.getElementById('z1DefaultSc')?.value || '').trim();
+    if (sc1 && !names.includes(sc1)) names.push(sc1);
+    const sc3 = (document.getElementById('z3DefaultSc')?.value || '').trim();
+    if (sc3 && !names.includes(sc3)) names.push(sc3);
     if (names.length) window.fetchCarrierBmsForQSP(names);
   }
 
