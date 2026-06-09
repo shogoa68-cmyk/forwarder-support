@@ -542,7 +542,7 @@
 
   // ========== コマンドパレット ==========
   const CMD_LIST = [
-    { icon:'🗂️', label:'管理番号入力セクションへ',  sub:'REF # / 引き合い元 / 担当',     action:() => scrollToSection('section-ref')   },
+    { icon:'🗂️', label:'管理番号入力セクションへ',  sub:'見積番号 / お客様 / 担当',     action:() => scrollToSection('section-ref')   },
     { icon:'🚢', label:'引き合い条件・貨物情報セクションへ', sub:'ルート・貨物名・CBM・CW 自動計算', action:() => scrollToSection('section-cond') },
     { icon:'💴', label:'見積もり表セクションへ',      sub:'費用行の入力・集計',              action:() => scrollToSection('section-table') },
     { icon:'📝', label:'条件・リマークセクションへ',  sub:'プリセット文を挿入',             action:() => scrollToSection('section-remark')},
@@ -745,9 +745,9 @@
       quoteShowToast('⚠️ 発番IDが未取得です。ログイン、または管理者にメンバー登録（採番）を依頼してください', 'warn', 5500);
       return;
     }
-    if (el.value.trim() && !confirm('現在の仮REF#「' + el.value.trim() + '」を自動採番で上書きしますか？')) return;
+    if (el.value.trim() && !confirm('現在の見積もり番号「' + el.value.trim() + '」を自動採番で上書きしますか？')) return;
     const v = generateQuoteRefValue();
-    if (v) { _setRefValue(v); quoteShowToast('🔢 仮REF# ' + v + ' を採番しました', 'success'); }
+    if (v) { _setRefValue(v); quoteShowToast('🔢 見積もり番号 ' + v + ' を採番しました', 'success'); }
   }
   // 新規（REFが空）のときだけ自動採番。発番ID未取得時は何もしない（取得時に再試行される）
   function maybeAutoFillRef() {

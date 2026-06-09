@@ -206,8 +206,8 @@
       const el = document.getElementById(id);
       if (el?.classList.contains('quote-warn-field')) items.push({ msg, focusEl: el });
     };
-    tryHdr('qf-ref',         '仮 REF # を入力してください');
-    tryHdr('qf-customer',    '引き合い元名称を入力してください');
+    tryHdr('qf-ref',         '見積もり番号を入力してください');
+    tryHdr('qf-customer',    'お客様名称を入力してください');
     tryHdr('qf-person',      '担当者名を入力してください');
     tryHdr('cond-incoterms', 'インコタームズを選択してください');
     document.querySelectorAll('#tableBody tr.row-warn-price').forEach(tr => {
@@ -375,8 +375,8 @@
 
     const metaEl = document.getElementById('pvMeta');
     const metaHTML = [
-      hdr.ref      ? `<div class="pv-meta-item"><span class="lbl">仮 REF #</span><span class="val">${escHtml(hdr.ref)}</span></div>` : '',
-      hdr.customer ? `<div class="pv-meta-item"><span class="lbl">引き合い元</span><span class="val">${escHtml(hdr.customer)}</span></div>` : '',
+      hdr.ref      ? `<div class="pv-meta-item"><span class="lbl">見積もり番号</span><span class="val">${escHtml(hdr.ref)}</span></div>` : '',
+      hdr.customer ? `<div class="pv-meta-item"><span class="lbl">お客様</span><span class="val">${escHtml(hdr.customer)}</span></div>` : '',
       hdr.person   ? `<div class="pv-meta-item"><span class="lbl">担当</span><span class="val">${escHtml(formatPersonWithHonorific(hdr.person))}</span></div>` : '',
     ].join('');
     metaEl.innerHTML = metaHTML;
@@ -988,8 +988,8 @@
 
     const lines = [];
     if (hdr.ref || hdr.customer || hdr.person || hdr.date || hdr.validUntil) {
-      if (hdr.ref)        lines.push(`仮REF#\t${hdr.ref}`);
-      if (hdr.customer)   lines.push(`引き合い元\t${hdr.customer}`);
+      if (hdr.ref)        lines.push(`見積もり番号\t${hdr.ref}`);
+      if (hdr.customer)   lines.push(`お客様\t${hdr.customer}`);
       if (hdr.person)     lines.push(`担当\t${formatPersonWithHonorific(hdr.person)}`);
       lines.push(`発行日\t${hdr.date || _pvTodayIso()}`);
       if (hdr.validUntil) lines.push(`有効期限\t${hdr.validUntil}`);
@@ -1165,8 +1165,8 @@
     const idxProfit  = idxOf('profit');
 
     const aoaRows = [];
-    if (hdr.ref)        aoaRows.push(['仮 REF #', hdr.ref]);
-    if (hdr.customer)   aoaRows.push(['引き合い元', hdr.customer]);
+    if (hdr.ref)        aoaRows.push(['見積もり番号', hdr.ref]);
+    if (hdr.customer)   aoaRows.push(['お客様', hdr.customer]);
     if (hdr.person)     aoaRows.push(['担当', formatPersonWithHonorific(hdr.person)]);
     aoaRows.push(['発行日', hdr.date || _pvTodayIso()]);
     if (hdr.validUntil) aoaRows.push(['有効期限', hdr.validUntil]);
