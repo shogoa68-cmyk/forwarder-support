@@ -35,8 +35,10 @@
         <span class="hdr-g">G</span> Google でログイン
       </button>
       <span class="hdr-cloud-user" id="hdrCloudUser" style="display:none">
-        <span class="hdr-cloud-avatar" id="hdrCloudAvatar" aria-hidden="true"></span>
-        <span class="hdr-cloud-name" id="hdrCloudName" title="ログイン中のアカウント"></span>
+        <button class="hdr-cloud-prof" type="button" onclick="openProfileEdit()" title="プロフィールを編集（名前・アバター）">
+          <span class="hdr-cloud-avatar" id="hdrCloudAvatar" aria-hidden="true"></span>
+          <span class="hdr-cloud-name" id="hdrCloudName"></span>
+        </button>
         <button class="hdr-cloud-mgr" id="hdrUserMgrBtn" type="button" onclick="openUserMgr()" title="チーム管理（メンバー・ロール）" hidden>🧑‍💼 チーム管理</button>
         <button class="hdr-cloud-logout" id="hdrCloudLogout" type="button" onclick="cloudLogout()" title="ログアウト">ログアウト</button>
       </span>
@@ -3584,6 +3586,32 @@
         </table>
         <p class="um-perm-foot">権限は Supabase の <code>get_my_role()</code> ＋ RLS で制御されます。UI上の表示制御だけでなく、サーバー側でも各操作が保護されます。</p>
       </div>
+    </div>
+  </div>
+</div>
+
+<div id="profOverlay" onclick="closeProfileEdit(event)">
+  <div id="profModal" class="prof-modal" onclick="event.stopPropagation()">
+    <div class="prof-head">
+      <span class="prof-head-title">👤 プロフィール編集</span>
+      <button class="prof-head-x" onclick="closeProfileEdit()" aria-label="閉じる">✕</button>
+    </div>
+    <div class="prof-body">
+      <div class="prof-preview">
+        <span class="prof-av" id="profPreviewAv"></span>
+        <span class="prof-preview-name" id="profPreviewName"></span>
+      </div>
+      <label class="prof-label" for="profNameInput">表示名</label>
+      <input id="profNameInput" class="prof-input" maxlength="20" placeholder="例）青木" oninput="profUpdatePreview()" />
+      <label class="prof-label">アバターの色</label>
+      <div class="prof-colors" id="profColors"></div>
+      <label class="prof-label">アイコン（任意・空欄なら頭文字）</label>
+      <div class="prof-emojis" id="profEmojis"></div>
+      <input id="profEmojiInput" class="prof-input prof-emoji-input" maxlength="2" placeholder="絵文字を直接入力も可" oninput="profUpdatePreview()" />
+    </div>
+    <div class="prof-foot">
+      <button class="prof-cancel" onclick="closeProfileEdit()">キャンセル</button>
+      <button class="prof-save" onclick="saveProfile()">保存</button>
     </div>
   </div>
 </div>

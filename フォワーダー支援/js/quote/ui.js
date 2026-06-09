@@ -827,6 +827,8 @@
       subcons:   (window.quoteExtractSubcons ? window.quoteExtractSubcons(p.data) : []),
     };
   }
+  // チーム共有カードでも同じ表示にするため公開
+  window.quotePresetMeta = _presetMeta;
 
   function renderPresetList() {
     const presets = getPresets();

@@ -36,8 +36,28 @@
   let _cpId        = null;   // プレビュー中のプリセット ID
   let _cpRows      = [];     // プレビュー中の行データ（v3形式）
   let _cpFullName  = '';     // プレビュー中のプリセット名
-  // メンバープロフィール（email → display_name）
-  let _profileMap  = {};     // { 'email': 'name', ... }
+  // メンバープロフィール（email → display_name / avatar）
+  let _profileMap  = {};     // { 'email': 'name', ... }（後方互換）
+  let _profileAv   = {};     // { 'email': { color, emoji }, ... }
+  // 同時編集（フェーズ1：保存競合検知）用にロード中の案件を追跡
+  let _loadedCloudId = null;
+  let _loadedCloudTs = null;
+  // プロフィール編集（アバター）の選択肢
+  const PROFILE_COLORS = ['#8a6d3b','#2b7bb0','#1e7e44','#9a7bbf','#b07d5a','#c0856a','#5a8a8a','#a8632e','#c0392b','#b8860b'];
+  const PROFILE_EMOJIS = ['','🚚','🚢','✈️','📦','🛃','🌏','💼','📋','🧑‍💼','⭐','🔥','🍀','🐱','🐶','🌸','🎯','😀'];
+  function _avatarHashColor(email) {
+    let h = 0; const s = email || '';
+    for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
+    return PROFILE_COLORS[h % PROFILE_COLORS.length];
+  }
+  // アバター描画情報（プロフィール優先・無ければハッシュ色＋頭文字）
+  function _avatarFor(email, name) {
+    const p = _profileAv[email] || {};
+    const color = p.color || _avatarHashColor(email || '');
+    const initial = (name || email || '?').trim().charAt(0).toUpperCase();
+    return { color, label: p.emoji || initial, emoji: p.emoji || '' };
+  }
+  window.quoteAvatarFor = _avatarFor;
 
   // 設定が実値で埋まっているか（プレースホルダのままなら false）
   function cloudIsConfigured() {
@@ -126,10 +146,20 @@
       if (hdrUser)  hdrUser.style.display  = '';
       if (hdrName)  hdrName.textContent = name;
       if (hdrAvatar) {
-        const initial = (name || '?').trim().charAt(0).toUpperCase();
+        const prof = _profileAv[_cloudUser.email] || {};
         const av = (_cloudUser.user_metadata || {}).avatar_url;
-        if (av) { hdrAvatar.style.backgroundImage = `url("${av}")`; hdrAvatar.textContent = ''; hdrAvatar.classList.add('has-img'); }
-        else    { hdrAvatar.style.backgroundImage = ''; hdrAvatar.textContent = initial; hdrAvatar.classList.remove('has-img'); }
+        if (prof.color || prof.emoji) {           // 本人が設定したアバターを最優先
+          const a = _avatarFor(_cloudUser.email, name);
+          hdrAvatar.style.backgroundImage = ''; hdrAvatar.style.backgroundColor = a.color;
+          hdrAvatar.textContent = a.label; hdrAvatar.classList.remove('has-img');
+        } else if (av) {
+          hdrAvatar.style.backgroundImage = `url("${av}")`; hdrAvatar.style.backgroundColor = '';
+          hdrAvatar.textContent = ''; hdrAvatar.classList.add('has-img');
+        } else {
+          const a = _avatarFor(_cloudUser.email, name);
+          hdrAvatar.style.backgroundImage = ''; hdrAvatar.style.backgroundColor = a.color;
+          hdrAvatar.textContent = a.label; hdrAvatar.classList.remove('has-img');
+        }
       }
       // 作業者フィールドが空なら自動入力
       const assigneeEl = document.getElementById('qf-assignee');
@@ -163,8 +193,13 @@
   async function _loadProfiles() {
     const c = _getClient();
     if (!c) return;
-    const { data } = await c.from('user_profiles').select('email,display_name');
-    if (data) data.forEach(r => { if (r.email && r.display_name) _profileMap[r.email] = r.display_name; });
+    let { data, error } = await c.from('user_profiles').select('email,display_name,avatar_color,avatar_emoji');
+    if (error) { ({ data } = await c.from('user_profiles').select('email,display_name')); }  // avatar列が未作成でも名前は読む
+    if (data) data.forEach(r => {
+      if (!r.email) return;
+      if (r.display_name) _profileMap[r.email] = r.display_name;
+      _profileAv[r.email] = { color: r.avatar_color || '', emoji: r.avatar_emoji || '' };
+    });
   }
 
   function _nameFor(email) {
@@ -181,7 +216,7 @@
     await _loadProfiles();
     const { data, error } = await c
       .from(_table())
-      .select('id,name,status,customer,person,owner_email,created_by,updated_at,incoterms,transport_mode,pol,pod,carrier,subcons')
+      .select('id,name,status,customer,person,owner_email,created_by,updated_at,incoterms,transport_mode,pol,pod,carrier,data')
       .order('updated_at', { ascending: false });
     if (error) {
       if (wrap) wrap.innerHTML =
@@ -331,20 +366,27 @@
       const updWho = _nameFor(r.owner_email);
       const crtWho = _nameFor(r.created_by);
       const idAttr = encodeURIComponent(r.id);
-      const opts = CLOUD_STATUSES.map(st =>
-        '<option value="' + st + '"' + (st === status ? ' selected' : '') + '>' + st + '</option>').join('');
 
-      // 貿易・輸送条件（B①：ルート / 条件 / 幹線 / サブコン / 顧客・担当）
-      const route = (r.pol || r.pod)
-        ? [r.pol, r.pod].filter(Boolean).map(escHtml).join(' <span class="cloud-kv-arrow">→</span> ')
+      // 表示はブラウザ保存（renderPresetList）と同じく案件 data から算出する
+      const m = (window.quotePresetMeta && r.data) ? window.quotePresetMeta({ data: r.data }) : null;
+      const pol     = m ? m.pol       : r.pol;
+      const pod     = m ? m.pod       : r.pod;
+      const carrier = m ? m.carrier   : r.carrier;
+      const inco    = m ? m.incoterms : r.incoterms;
+      const mode    = m ? m.mode      : r.transport_mode;
+      const customer = m ? m.customer : r.customer;
+      const person   = m ? m.person   : r.person;
+      const subcons  = (m && Array.isArray(m.subcons)) ? m.subcons : (Array.isArray(r.subcons) ? r.subcons : []);
+
+      const route = (pol || pod)
+        ? [pol, pod].filter(Boolean).map(escHtml).join(' <span class="cloud-kv-arrow">→</span> ')
         : '';
       const condHtml =
-        (r.incoterms      ? '<span class="cloud-tag cloud-tag-inco">' + escHtml(r.incoterms.split('（')[0]) + '</span>' : '') +
-        (r.transport_mode ? '<span class="cloud-tag cloud-tag-mode">' + escHtml(r.transport_mode) + '</span>' : '');
-      const custDd = [r.customer && escHtml(r.customer), r.person && escHtml(r.person)].filter(Boolean).join('・');
+        (inco ? '<span class="cloud-tag cloud-tag-inco">' + escHtml(String(inco).split('（')[0]) + '</span>' : '') +
+        (mode ? '<span class="cloud-tag cloud-tag-mode">' + escHtml(mode) + '</span>' : '');
+      const custDd = [customer && escHtml(customer), person && escHtml(person)].filter(Boolean).join('・');
 
       // サブコン（役割ラベル付き・5件目以降は +N）
-      const subcons  = Array.isArray(r.subcons) ? r.subcons : [];
       const subShown = subcons.slice(0, 4);
       const subMore  = subcons.length - subShown.length;
       const subHtml = subShown.map(s =>
@@ -353,17 +395,27 @@
           '<span class="cloud-sc-name">' + escHtml(s.name) + '</span>' +
         '</span>').join('') + (subMore > 0 ? '<span class="cloud-sc-more">+' + subMore + '</span>' : '');
 
+      // ステータスは静的バッジ（ブラウザ保存と同じく編集不可）
+      const statusBadge = '<span class="cloud-status-badge cloud-status--' + _statusClass(status) + '">' + escHtml(status) + '</span>';
+
+      // 同時編集（Presence）：他メンバーが開いていれば表示
+      const others = _presenceOthers(r.id);
+      const editBadge = others.length
+        ? '<div class="cloud-card-editing"><span class="cloud-editing-dot"></span>' +
+            escHtml(others.join('、')) + ' さんが編集中</div>'
+        : '';
+
       return '' +
-        '<div class="cloud-card cloud-card-labeled">' +
+        '<div class="cloud-card cloud-card-labeled' + (others.length ? ' is-editing' : '') + '">' +
           '<div class="cloud-card-row1">' +
-            '<select class="cloud-status-sel cloud-status--' + _statusClass(status) + '" ' +
-                    'title="ステータスを変更" onchange="cloudSetStatus(\'' + idAttr + '\', this.value)">' + opts + '</select>' +
+            statusBadge +
             '<span class="cloud-card-name" title="' + escHtml(r.name) + '">' + escHtml(r.name) + '</span>' +
           '</div>' +
+          editBadge +
           '<dl class="cloud-kv">' +
             (route    ? '<dt>ルート</dt><dd>' + route + '</dd>' : '') +
             (condHtml ? '<dt>条件</dt><dd class="cloud-kv-tags">' + condHtml + '</dd>' : '') +
-            (r.carrier ? '<dt>幹線</dt><dd>🚢 ' + escHtml(r.carrier) + '</dd>' : '') +
+            (carrier  ? '<dt>幹線</dt><dd>🚢 ' + escHtml(carrier) + '</dd>' : '') +
             (subHtml  ? '<dt>サブコン</dt><dd class="cloud-kv-sub">' + subHtml + '</dd>' : '') +
             (custDd   ? '<dt>顧客 / 担当</dt><dd>' + custDd + '</dd>' : '') +
           '</dl>' +
@@ -378,6 +430,55 @@
           '</div>' +
         '</div>';
     }).join('');
+  }
+
+  // ---------- Presence（同時編集の可視化／フェーズ2） ----------
+  let _presenceCh  = null;
+  let _presence    = {};     // presetId -> [{ email, name }]
+  let _myEditingId = null;
+
+  function _presenceOthers(presetId) {
+    const arr = _presence[presetId] || [];
+    const me = _cloudUser && _cloudUser.email;
+    return arr.filter(u => u.email !== me).map(u => u.name);
+  }
+  function _rebuildPresence() {
+    _presence = {};
+    if (!_presenceCh) return;
+    let state = {};
+    try { state = _presenceCh.presenceState() || {}; } catch (e) { return; }
+    Object.values(state).forEach(metas => (metas || []).forEach(mt => {
+      if (!mt || !mt.presetId) return;
+      (_presence[mt.presetId] = _presence[mt.presetId] || []).push({ email: mt.email, name: mt.name });
+    }));
+    const modal = document.getElementById('presetMgrModal');
+    if (modal && modal.classList.contains('open')) _applyCloudFilter();
+  }
+  function _trackEditing() {
+    if (!_presenceCh || !_cloudUser) return;
+    try {
+      _presenceCh.track({
+        email: _cloudUser.email,
+        name: _cloudDisplayName(_cloudUser),
+        presetId: _myEditingId || null,
+        at: Date.now(),
+      });
+    } catch (e) {}
+  }
+  function _setEditing(presetId) { _myEditingId = presetId || null; _trackEditing(); }
+  function _initPresence() {
+    const c = _getClient();
+    if (!c || !_cloudUser || _presenceCh) return;
+    try {
+      _presenceCh = c.channel('quote-presence', { config: { presence: { key: _cloudUser.email } } });
+      _presenceCh
+        .on('presence', { event: 'sync' }, _rebuildPresence)
+        .subscribe(st => { if (st === 'SUBSCRIBED') _trackEditing(); });
+    } catch (e) { _presenceCh = null; }
+  }
+  function _teardownPresence() {
+    if (_presenceCh) { try { _presenceCh.untrack(); _getClient() && _getClient().removeChannel(_presenceCh); } catch (e) {} }
+    _presenceCh = null; _presence = {}; _myEditingId = null;
   }
 
   // 検索ボックス入力
@@ -449,12 +550,29 @@
 
     let resp;
     if (existing && existing.length) {
-      if (!confirm('共有プリセット「' + name + '」が既にあります。上書きしますか？')) return;
+      const exId = existing[0].id;
+      // フェーズ1：競合検知 — 自分がロードした後に他者が更新していないか
+      let confirmed = false;
+      if (exId === _loadedCloudId && _loadedCloudTs) {
+        const { data: cur } = await c.from(_table())
+          .select('updated_at,owner_email').eq('id', exId).single();
+        if (cur && cur.updated_at && cur.updated_at !== _loadedCloudTs) {
+          const who  = _nameFor(cur.owner_email);
+          const when = new Date(cur.updated_at).toLocaleString('ja-JP',
+            { month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit' });
+          if (!confirm('⚠️ あなたが読み込んだ後に ' + who + ' さんが ' + when +
+                       ' に更新しています。\nこのまま保存すると相手の変更を上書きします。続けますか？')) return;
+          confirmed = true;   // 競合確認＝上書き合意とみなす
+        }
+      }
+      if (!confirmed && !confirm('共有プリセット「' + name + '」が既にあります。上書きしますか？')) return;
+      const nowIso = new Date().toISOString();
       // 上書き時はステータス・作成者は維持（中身と顧客/担当・最終更新者のみ更新）
       resp = await c.from(_table())
         .update({ data, subcons, customer, person, incoterms, transport_mode, pol, pod, carrier,
-                  owner_email: _cloudUser.email, updated_at: new Date().toISOString() })
-        .eq('id', existing[0].id);
+                  owner_email: _cloudUser.email, updated_at: nowIso })
+        .eq('id', exId);
+      if (!resp.error) { _loadedCloudId = exId; _loadedCloudTs = nowIso; }  // 自分の保存を基準時刻に更新
     } else {
       resp = await c.from(_table())
         .insert({
@@ -751,15 +869,24 @@
     const c = _getClient();
     if (!c) return;
     const id = decodeURIComponent(rawId);
+    // 同時編集の警告（Presence）
+    const others = _presenceOthers(id);
+    if (others.length && !confirm('⚠️ ' + others.join('、') +
+        ' さんがこの案件を編集中です。\n同時に編集すると、後から保存した方で上書きされます。開きますか？')) return;
     const { data, error } = await c
-      .from(_table()).select('name,data').eq('id', id).single();
+      .from(_table()).select('name,data,updated_at').eq('id', id).single();
     if (error || !data) { quoteShowToast('⚠️ 読み込みに失敗しました', 'warn'); return; }
+
+    // フェーズ1：競合検知の基準として、ロードした案件 id と更新時刻を記録
+    _loadedCloudId = id;
+    _loadedCloudTs = data.updated_at || null;
 
     // ローカルの loadPreset と同じ復元処理
     _applyQuoteData(data.data, { keepHeaderIfEmpty: true });
     if (typeof calcLiveUpdate === 'function') calcLiveUpdate();
     if (typeof setCurrentQuoteName === 'function') setCurrentQuoteName(data.name);
     if (typeof closePresetMgr === 'function') closePresetMgr();
+    _setEditing(id);   // Presence：この案件を編集中に
     quoteShowToast('📂 共有「' + data.name + '」を読み込みました（Ctrl+Z で戻せます）', 'success');
   }
 
@@ -817,14 +944,21 @@
     c.auth.getSession().then(({ data }) => {
       _cloudUser = (data && data.session && data.session.user) || null;
       _renderCloudAuth();
+      if (_cloudUser) { _loadProfiles().then(_renderCloudAuth); _initPresence(); }
     });
 
     // ログイン状態変化を監視
     c.auth.onAuthStateChange((_event, session) => {
       _cloudUser = (session && session.user) || null;
       _renderCloudAuth();
-      const modal = document.getElementById('presetMgrModal');
-      if (_cloudUser && modal && modal.classList.contains('open')) cloudListPresets();
+      if (_cloudUser) {
+        _loadProfiles().then(_renderCloudAuth);   // 自分のアバター/名前を反映
+        _initPresence();
+        const modal = document.getElementById('presetMgrModal');
+        if (modal && modal.classList.contains('open')) cloudListPresets();
+      } else {
+        _teardownPresence();
+      }
     });
   }
 
@@ -853,7 +987,98 @@
     }
   }
 
+  // ---------- プロフィール編集（表示名＋アバター） ----------
+  let _profEditColor = '';
+  let _profEditEmoji = '';
+  function openProfileEdit() {
+    if (!_cloudUser) { quoteShowToast('⚠️ ログインが必要です', 'warn'); return; }
+    const email = _cloudUser.email;
+    const cur = _profileAv[email] || {};
+    _profEditColor = cur.color || _avatarHashColor(email);
+    _profEditEmoji = cur.emoji || '';
+    const nameInp = document.getElementById('profNameInput');
+    if (nameInp) nameInp.value = _cloudDisplayName(_cloudUser);
+    const emojiInp = document.getElementById('profEmojiInput');
+    if (emojiInp) emojiInp.value = _profEditEmoji;
+    const colWrap = document.getElementById('profColors');
+    if (colWrap) colWrap.innerHTML = PROFILE_COLORS.map(c =>
+      '<button type="button" class="prof-color' + (c === _profEditColor ? ' is-sel' : '') +
+      '" style="background:' + c + '" data-c="' + c + '" onclick="profPickColor(\'' + c + '\')"></button>').join('');
+    const emWrap = document.getElementById('profEmojis');
+    if (emWrap) emWrap.innerHTML = PROFILE_EMOJIS.map(e =>
+      '<button type="button" class="prof-emoji' + (e === _profEditEmoji ? ' is-sel' : '') +
+      '" data-e="' + e + '" onclick="profPickEmoji(\'' + e + '\')">' + (e || '頭文字') + '</button>').join('');
+    profUpdatePreview();
+    document.getElementById('profOverlay').classList.add('open');
+  }
+  function closeProfileEdit(ev) {
+    if (ev && ev.target && ev.target.id !== 'profOverlay' && ev.type === 'click') return;
+    document.getElementById('profOverlay') && document.getElementById('profOverlay').classList.remove('open');
+  }
+  function profPickColor(c) {
+    _profEditColor = c;
+    document.querySelectorAll('#profColors .prof-color').forEach(b => b.classList.toggle('is-sel', b.dataset.c === c));
+    profUpdatePreview();
+  }
+  function profPickEmoji(e) {
+    _profEditEmoji = e;
+    const inp = document.getElementById('profEmojiInput'); if (inp) inp.value = e;
+    document.querySelectorAll('#profEmojis .prof-emoji').forEach(b => b.classList.toggle('is-sel', b.dataset.e === e));
+    profUpdatePreview();
+  }
+  function profUpdatePreview() {
+    const name = (document.getElementById('profNameInput') || {}).value || '';
+    const emojiInp = ((document.getElementById('profEmojiInput') || {}).value || '').trim();
+    const emoji = emojiInp || _profEditEmoji;
+    const initial = (name.trim() || (_cloudUser && _cloudUser.email) || '?').trim().charAt(0).toUpperCase();
+    const av = document.getElementById('profPreviewAv');
+    const nm = document.getElementById('profPreviewName');
+    if (av) { av.style.background = _profEditColor; av.textContent = emoji || initial; }
+    if (nm) nm.textContent = name.trim() || '（名前未設定）';
+  }
+  async function saveProfile() {
+    if (!_cloudUser) return;
+    const c = _getClient(); if (!c) return;
+    const name = ((document.getElementById('profNameInput') || {}).value || '').trim();
+    if (!name) { quoteShowToast('⚠️ 表示名を入力してください', 'warn'); return; }
+    const emojiInp = ((document.getElementById('profEmojiInput') || {}).value || '').trim();
+    const emoji = emojiInp || _profEditEmoji || '';
+    const color = _profEditColor || _avatarHashColor(_cloudUser.email);
+    const saveBtn = document.querySelector('#profModal .prof-save');
+    if (saveBtn) { saveBtn.disabled = true; saveBtn.textContent = '保存中…'; }
+    // 表示名は auth にも反映（既存仕様）
+    await c.auth.updateUser({ data: { display_name: name } });
+    if (_cloudUser.user_metadata) _cloudUser.user_metadata.display_name = name;
+    const { error } = await c.from('user_profiles').upsert(
+      { email: _cloudUser.email, display_name: name, avatar_color: color, avatar_emoji: emoji,
+        updated_at: new Date().toISOString() }, { onConflict: 'email' });
+    if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = '保存'; }
+    if (error) {
+      // avatar 列が未作成のときは表示名だけ保存（フォールバック）
+      await c.from('user_profiles').upsert(
+        { email: _cloudUser.email, display_name: name, updated_at: new Date().toISOString() },
+        { onConflict: 'email' });
+      quoteShowToast('✅ 表示名を保存しました（アバター列が未作成のため色/絵文字は未保存）', 'warn', 6000);
+    } else {
+      quoteShowToast('✅ プロフィールを保存しました', 'success');
+    }
+    _profileMap[_cloudUser.email] = name;
+    _profileAv[_cloudUser.email] = { color, emoji };
+    _renderCloudAuth();
+    _trackEditing();   // Presence の表示名も更新
+    const modal = document.getElementById('presetMgrModal');
+    if (modal && modal.classList.contains('open')) _applyCloudFilter();
+    if (typeof window.umRefreshIfOpen === 'function') window.umRefreshIfOpen();
+    closeProfileEdit();
+  }
+
   // ---------- window 公開（onclick 用） ----------
+  window.openProfileEdit     = openProfileEdit;
+  window.closeProfileEdit    = closeProfileEdit;
+  window.profPickColor       = profPickColor;
+  window.profPickEmoji       = profPickEmoji;
+  window.profUpdatePreview   = profUpdatePreview;
+  window.saveProfile         = saveProfile;
   window.saveAssigneeName    = saveAssigneeName;
   window.cloudLogin          = cloudLogin;
   window.cloudLogout         = cloudLogout;

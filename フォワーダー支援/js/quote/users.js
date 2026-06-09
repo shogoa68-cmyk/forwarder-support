@@ -60,11 +60,12 @@
   async function _loadMembers() {
     const db = _db();
     if (!db) return { error: { message: 'DB接続が未初期化です' } };
-    const [{ data: rows, error }, { data: profs }] = await Promise.all([
-      db.from('allowed_emails').select('*'),
-      db.from('user_profiles').select('email,display_name,updated_at'),
-    ]);
+    const { data: rows, error } = await db.from('allowed_emails').select('*');
     if (error) return { error };
+    // アバター列も取得（未マイグレーションでも名前は読めるようフォールバック）
+    let { data: profs, error: pErr } = await db.from('user_profiles')
+      .select('email,display_name,updated_at,avatar_color,avatar_emoji');
+    if (pErr) { ({ data: profs } = await db.from('user_profiles').select('email,display_name,updated_at')); }
     _profiles = {};
     (profs || []).forEach(p => { if (p.email) _profiles[p.email] = p; });
     _members = (rows || []).map(r => ({
@@ -87,7 +88,9 @@
     const admin   = _myRole === 'admin';
     const name    = _displayName(m.email);
     const initial = (name || '?').trim().charAt(0).toUpperCase();
-    const color   = _avatarColor(m.email);
+    // プロフィールで設定したアバター（色・絵文字）を優先、無ければハッシュ色＋頭文字
+    const color   = (prof && prof.avatar_color) || _avatarColor(m.email);
+    const avLabel = (prof && prof.avatar_emoji) || initial;
     const added   = m.created_at
       ? new Date(m.created_at).toLocaleDateString('ja-JP', { year: 'numeric', month: '2-digit', day: '2-digit' })
       : '—';
@@ -111,7 +114,7 @@
       : '';
 
     return '<div class="um-card' + (isSelf ? ' is-self' : '') + (active ? '' : ' is-pending') + '">' +
-      '<div class="um-avatar" style="background:' + color + '">' + _esc(initial) + '</div>' +
+      '<div class="um-avatar" style="background:' + color + '">' + _esc(avLabel) + '</div>' +
       '<div class="um-id">' +
         '<div class="um-name-row"><span class="um-name">' + _esc(name) + '</span>' +
           (isSelf ? '<span class="um-you">あなた</span>' : '') + '</div>' +
@@ -241,10 +244,18 @@
     document.getElementById('umOverlay')?.classList.remove('open');
   }
 
+  // プロフィール保存後などに、開いていればメンバー一覧を再取得して再描画
+  async function umRefreshIfOpen() {
+    const ov = document.getElementById('umOverlay');
+    if (!ov || !ov.classList.contains('open')) return;
+    await _loadMembers();
+    _applyFilters();
+  }
+
   // グローバル公開
   Object.assign(window, {
     umOnAuth, openUserMgr, closeUserMgr, switchUmTab,
     umChangeRole, umDeleteMember, umInvite, umToggleInvite,
-    umFilter: _applyFilters,
+    umFilter: _applyFilters, umRefreshIfOpen,
   });
 })();
