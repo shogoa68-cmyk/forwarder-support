@@ -143,7 +143,11 @@
     if (!cond) return { title: '', meta: [] };
     const dir = cond.direction === 'export' ? '輸出' : cond.direction === 'import' ? '輸入' : '';
     const titleParts = [dir + (cond.mode ? ' ' + cond.mode : '')].filter(Boolean);
-    const route = [cond.pol, cond.pod].filter(Boolean).join(' to ');
+    const _multiRoute = cond.routes && cond.routes.length > 1;
+    // 件名の航路：複数時は先頭航路＋「他N航路」で簡潔に
+    const route = _multiRoute
+      ? ([cond.pol, cond.pod].filter(Boolean).join(' to ') + ` 他${cond.routes.length - 1}航路`)
+      : [cond.pol, cond.pod].filter(Boolean).join(' to ');
     if (route) titleParts.push(route);
     const title = titleParts.join('　');
 
@@ -151,8 +155,16 @@
     const push = (k, v) => { if (v) meta.push([k, v]); };
 
     push('建値（INCOTERMS）', cond.incoterms);
-    push('積み地（POL）', cond.pol);
-    push('揚げ地（POD）', cond.pod);
+    // 航路：複数登録時は航路ごとに全件併記、単一なら従来通り POL/POD を分けて表示
+    if (_multiRoute) {
+      cond.routes.forEach((r, i) => {
+        const rt = [r.pol, r.pod].filter(Boolean).join(' to ');
+        if (rt) push(`航路${i + 1}`, rt + (r.carrier ? `（${r.carrier}）` : ''));
+      });
+    } else {
+      push('積み地（POL）', cond.pol);
+      push('揚げ地（POD）', cond.pod);
+    }
     push('原産地', cond.origin);
     push('仕向地', cond.dest);
     push('コンテナ', cond.container);
