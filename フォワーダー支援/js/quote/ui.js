@@ -867,15 +867,23 @@
   function _presetMeta(p) {
     const f = (p.data && p.data.fields) || {};
     let pol = (f['z2Pol'] || '').trim(), pod = (f['z2Pod'] || '').trim(), carrier = (f['z2Carrier'] || '').trim();
-    if (!pol && !pod && !carrier) {
-      try {
-        const rts = JSON.parse(f['z2-routes-data'] || '[]');
-        if (Array.isArray(rts) && rts.length) {
-          pol     = rts.map(r => r.pol).filter(Boolean).join(', ');
-          pod     = rts.map(r => r.pod).filter(Boolean).join(', ');
-          carrier = rts.map(r => r.carrier).filter(Boolean).join(', ');
-        }
-      } catch (e) {}
+    // 複数航路（z2-routes-data）を POL/POD ペアの配列として保持
+    let routes = [];
+    try {
+      const rts = JSON.parse(f['z2-routes-data'] || '[]');
+      if (Array.isArray(rts)) {
+        routes = rts.map(r => ({
+          pol:     (r.pol     || '').trim(),
+          pod:     (r.pod     || '').trim(),
+          carrier: (r.carrier || '').trim(),
+        })).filter(r => r.pol || r.pod);
+      }
+    } catch (e) {}
+    // 単一フィールドが未設定なら航路配列からフラット文字列を補完（DB列・検索用に従来通り維持）
+    if (!pol && !pod && !carrier && routes.length) {
+      pol     = routes.map(r => r.pol).filter(Boolean).join(', ');
+      pod     = routes.map(r => r.pod).filter(Boolean).join(', ');
+      carrier = routes.map(r => r.carrier).filter(Boolean).join(', ');
     }
     return {
       ref:       (f['qf-ref']         || '').trim(),
@@ -883,13 +891,47 @@
       person:    (f['qf-person']      || '').trim(),
       incoterms: (f['cond-incoterms'] || '').trim(),
       mode:      (f['cond-mode']      || '').trim(),
-      pol, pod, carrier,
+      pol, pod, carrier, routes,
       status:    (f['qf-status']      || '').trim(),
       subcons:   (window.quoteExtractSubcons ? window.quoteExtractSubcons(p.data) : []),
     };
   }
   // チーム共有カードでも同じ表示にするため公開
   window.quotePresetMeta = _presetMeta;
+
+  // 航路表示の整形：複数航路は POL ごとにまとめて「POL → POD / POD …」を行単位で表示。
+  // 1本・未設定はフラットな pol/pod にフォールバック。両モーダル（ブラウザ保存／チーム共有）で共用。
+  function _routeGroups(meta) {
+    const legs = (meta && Array.isArray(meta.routes)) ? meta.routes : [];
+    if (legs.length > 1) {
+      const groups = [], idx = {};
+      legs.forEach(lg => {
+        const pol = (lg.pol || '').trim(), pod = (lg.pod || '').trim();
+        if (!pol && !pod) return;
+        if (!(pol in idx)) { idx[pol] = groups.length; groups.push({ pol, pods: [] }); }
+        if (pod && groups[idx[pol]].pods.indexOf(pod) === -1) groups[idx[pol]].pods.push(pod);
+      });
+      if (groups.length) return groups;
+    }
+    const pol = ((meta && meta.pol) || '').trim(), pod = ((meta && meta.pod) || '').trim();
+    if (!pol && !pod) return [];
+    return [{ pol, pods: pod ? [pod] : [] }];
+  }
+  function quoteRouteHtml(meta, arrowClass) {
+    const groups = _routeGroups(meta);
+    if (!groups.length) return '';
+    const arrow = '<span class="' + (arrowClass || 'preset-kv-arrow') + '">→</span>';
+    const MAXP = 6;   // 1 グループあたりの POD 表示上限（超過は +N）
+    return groups.map(g => {
+      const shown = g.pods.slice(0, MAXP), more = g.pods.length - shown.length;
+      const pods = shown.map(escHtml).join(' <span class="route-sep">/</span> ')
+                 + (more > 0 ? ' <span class="route-more">他' + more + '</span>' : '');
+      const polH = g.pol ? escHtml(g.pol) : '';
+      const body = (polH && pods) ? (polH + ' ' + arrow + ' ' + pods) : (polH || pods);
+      return '<div class="route-line">' + body + '</div>';
+    }).join('');
+  }
+  window.quoteRouteHtml = quoteRouteHtml;
 
   function renderPresetList() {
     const presets = getPresets();
@@ -908,9 +950,7 @@
       const isLoaded = loadedName && p.name === loadedName;
       const m = _presetMeta(p);
 
-      const route = (m.pol || m.pod)
-        ? [m.pol, m.pod].filter(Boolean).map(escHtml).join(' <span class="preset-kv-arrow">→</span> ')
-        : '';
+      const route = quoteRouteHtml(m, 'preset-kv-arrow');
       const condHtml =
         (m.incoterms ? '<span class="preset-tag preset-tag-inco">' + escHtml(m.incoterms.split('（')[0]) + '</span>' : '') +
         (m.mode      ? '<span class="preset-tag preset-tag-mode">' + escHtml(m.mode) + '</span>' : '');

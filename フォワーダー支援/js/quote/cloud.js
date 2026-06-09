@@ -369,9 +369,10 @@
       const person   = m ? m.person   : r.person;
       const subcons  = (m && Array.isArray(m.subcons)) ? m.subcons : (Array.isArray(r.subcons) ? r.subcons : []);
 
-      const route = (pol || pod)
-        ? [pol, pod].filter(Boolean).map(escHtml).join(' <span class="cloud-kv-arrow">→</span> ')
-        : '';
+      const routeMeta = m || { pol, pod, routes: [] };
+      const route = (window.quoteRouteHtml)
+        ? window.quoteRouteHtml(routeMeta, 'cloud-kv-arrow')
+        : ((pol || pod) ? [pol, pod].filter(Boolean).map(escHtml).join(' <span class="cloud-kv-arrow">→</span> ') : '');
       const condHtml =
         (inco ? '<span class="cloud-tag cloud-tag-inco">' + escHtml(String(inco).split('（')[0]) + '</span>' : '') +
         (mode ? '<span class="cloud-tag cloud-tag-mode">' + escHtml(mode) + '</span>' : '');

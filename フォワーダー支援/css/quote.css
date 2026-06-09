@@ -4497,6 +4497,11 @@
 #tab-quote-make .preset-rich-kv dt { font-size: 10.5px; color: #a89a86; font-weight: 600; padding-top: 1px; }
 #tab-quote-make .preset-rich-kv dd { font-size: 11.5px; color: #3d2e1e; margin: 0; }
 #tab-quote-make .preset-kv-arrow { color: #a89a86; }
+/* 複数航路の行表示（ブラウザ保存／チーム共有 共通） */
+#tab-quote-make .route-line { line-height: 1.45; }
+#tab-quote-make .route-line + .route-line { margin-top: 2px; }
+#tab-quote-make .route-sep  { color: #b7a98e; margin: 0 1px; }
+#tab-quote-make .route-more { font-size: 10.5px; color: #8a99a3; }
 #tab-quote-make .preset-rich-tags { display: flex; flex-wrap: wrap; gap: 4px; }
 #tab-quote-make .preset-rich-sub { display: flex; flex-wrap: wrap; gap: 4px 8px; }
 #tab-quote-make .preset-tag { display: inline-block; font-size: 10px; font-weight: 600; padding: 2px 7px; border-radius: 10px; white-space: nowrap; }
