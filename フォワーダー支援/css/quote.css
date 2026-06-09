@@ -6419,3 +6419,16 @@
   padding: 4px 6px;
   font-style: italic;
 }
+
+/* ===== ストレージ使用量バッジ ===== */
+#tab-quote-make .cloud-storage-info {
+  margin-left: auto;
+  font-size: .74rem;
+  color: #888;
+  white-space: nowrap;
+  padding: 2px 6px;
+  background: #f0f3fa;
+  border-radius: 4px;
+  border: 1px solid #dde3ee;
+  line-height: 1.5;
+}

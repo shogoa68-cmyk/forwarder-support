@@ -121,6 +121,7 @@
       stateEl.classList.add('is-on');
       if (hint) hint.style.display = 'none';
       if (body) body.style.display = '';
+      _refreshStorageInfo();
       // ヘッダー：ユーザー名表示
       if (hdrLogin) hdrLogin.style.display = 'none';
       if (hdrUser)  hdrUser.style.display  = '';
@@ -788,6 +789,23 @@
   }
 
   // ================================================================
+  // ========== 📦 ストレージ使用量表示 ==========
+  // ================================================================
+
+  async function _refreshStorageInfo() {
+    const el = document.getElementById('cloudStorageInfo');
+    if (!el) return;
+    const c = _getClient();
+    if (!c || !_cloudUser) { el.textContent = ''; return; }
+    const { data } = await c.from('quote_attachments').select('file_size');
+    const totalBytes = (data || []).reduce((s, r) => s + (r.file_size || 0), 0);
+    const fmt = totalBytes < 1024 * 1024
+      ? (totalBytes / 1024).toFixed(0) + ' KB'
+      : (totalBytes / (1024 * 1024)).toFixed(1) + ' MB';
+    el.textContent = `📦 添付合計 ${fmt}`;
+  }
+
+  // ================================================================
   // ========== 📎 添付ファイル管理 ==========
   // ================================================================
 
@@ -880,6 +898,7 @@
       if (dbErr) throw dbErr;
       quoteShowToast('📎 添付しました', 'success', 2500);
       _loadAttachments(_cpId);
+      _refreshStorageInfo();
     } catch(e) {
       quoteShowToast('⚠️ アップロード失敗：' + (e.message || e), 'warn', 5000);
     } finally {
@@ -913,6 +932,7 @@
     if (dbErr) { quoteShowToast('⚠️ DB 削除失敗：' + dbErr.message, 'warn'); return; }
     quoteShowToast('✅ 削除しました', 'success', 2000);
     _loadAttachments(_cpId);
+    _refreshStorageInfo();
   }
 
   // ---------- window 公開（onclick 用） ----------
