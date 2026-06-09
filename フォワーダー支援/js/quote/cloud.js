@@ -410,7 +410,7 @@
             (condHtml ? '<dt>条件</dt><dd class="cloud-kv-tags">' + condHtml + '</dd>' : '') +
             (carrier  ? '<dt>幹線</dt><dd>🚢 ' + escHtml(carrier) + '</dd>' : '') +
             (subHtml  ? '<dt>サブコン</dt><dd class="cloud-kv-sub">' + subHtml + '</dd>' : '') +
-            (custDd   ? '<dt>顧客 / 担当</dt><dd>' + custDd + '</dd>' : '') +
+            (custDd   ? '<dt>お客様 / 担当</dt><dd>' + custDd + '</dd>' : '') +
           '</dl>' +
           '<div class="cloud-card-foot">' +
             '<span class="cloud-card-who" title="作成：' + escHtml(crtWho || '—') + ' / 最終更新：' + escHtml(updWho || '—') + '">' +

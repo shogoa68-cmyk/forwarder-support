@@ -942,7 +942,7 @@
           (condHtml ? '<dt>条件</dt><dd class="preset-rich-tags">' + condHtml + '</dd>' : '') +
           (m.carrier ? '<dt>幹線</dt><dd>🚢 ' + escHtml(m.carrier) + '</dd>' : '') +
           (subHtml  ? '<dt>サブコン</dt><dd class="preset-rich-sub">' + subHtml + '</dd>' : '') +
-          (custDd   ? '<dt>顧客 / 担当</dt><dd>' + custDd + '</dd>' : '') +
+          (custDd   ? '<dt>お客様 / 担当</dt><dd>' + custDd + '</dd>' : '') +
         '</dl>' +
         '<div class="preset-rich-foot">' +
           '<span class="preset-list-ts">' + (ts ? '💾 ' + ts : '') + '</span>' +
