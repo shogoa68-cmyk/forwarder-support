@@ -161,12 +161,6 @@
           hdrAvatar.textContent = a.label; hdrAvatar.classList.remove('has-img');
         }
       }
-      // 作業者フィールドが空なら自動入力
-      const assigneeEl = document.getElementById('qf-assignee');
-      if (assigneeEl && !assigneeEl.value.trim()) assigneeEl.value = name;
-      // 登録ボタンを表示（ログイン中のみ）
-      const saveBtn = document.getElementById('qfAssigneeSave');
-      if (saveBtn) saveBtn.hidden = false;
       // FB受信一覧タブを表示
       if (typeof refreshFbAdminTab === 'function') refreshFbAdminTab(_cloudUser);
       // チーム管理：ロール取得＆入口の出し分け
@@ -179,9 +173,6 @@
       // ヘッダー：ログインボタン表示
       if (hdrLogin) hdrLogin.style.display = '';
       if (hdrUser)  hdrUser.style.display  = 'none';
-      // 登録ボタンを隠す
-      const saveBtn = document.getElementById('qfAssigneeSave');
-      if (saveBtn) saveBtn.hidden = true;
       // FB受信一覧タブを隠す
       if (typeof refreshFbAdminTab === 'function') refreshFbAdminTab(null);
       // チーム管理：入口を隠す
@@ -962,31 +953,6 @@
     });
   }
 
-  // ---------- 作業者名の登録 ----------
-  async function saveAssigneeName() {
-    const name = (document.getElementById('qf-assignee')?.value || '').trim();
-    if (!name) { quoteShowToast('⚠️ 作業者名を入力してください', 'warn'); return; }
-    const c = _getClient();
-    if (!c || !_cloudUser) { quoteShowToast('⚠️ ログインが必要です', 'warn'); return; }
-    const btn = document.getElementById('qfAssigneeSave');
-    if (btn) { btn.disabled = true; btn.textContent = '登録中…'; }
-    const { error } = await c.auth.updateUser({ data: { display_name: name } });
-    if (btn) { btn.disabled = false; btn.textContent = '登録'; }
-    if (error) {
-      quoteShowToast('⚠️ 登録に失敗しました：' + error.message, 'warn', 5000);
-    } else {
-      // ローカルのユーザーオブジェクトも更新
-      if (_cloudUser.user_metadata) _cloudUser.user_metadata.display_name = name;
-      // user_profiles テーブルにも反映（チーム全員の一覧表示に使用）
-      _profileMap[_cloudUser.email] = name;
-      await c.from('user_profiles').upsert(
-        { email: _cloudUser.email, display_name: name, updated_at: new Date().toISOString() },
-        { onConflict: 'email' }
-      );
-      quoteShowToast('✅ 作業者名「' + name + '」を登録しました', 'success', 3000);
-    }
-  }
-
   // ---------- プロフィール編集（表示名＋アバター） ----------
   let _profEditColor = '';
   let _profEditEmoji = '';
@@ -1079,7 +1045,6 @@
   window.profPickEmoji       = profPickEmoji;
   window.profUpdatePreview   = profUpdatePreview;
   window.saveProfile         = saveProfile;
-  window.saveAssigneeName    = saveAssigneeName;
   window.cloudLogin          = cloudLogin;
   window.cloudLogout         = cloudLogout;
   window.cloudSaveCurrent    = cloudSaveCurrent;

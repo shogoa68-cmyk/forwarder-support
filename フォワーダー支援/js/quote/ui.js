@@ -2078,19 +2078,6 @@
     });
     if (typeof window.updateQuoteRefEmpty === 'function') window.updateQuoteRefEmpty();
     updateQuoteStatusUI();
-    // ログイン済みかつ作業者フィールドが空なら Supabase ユーザー名を自動入力
-    if (window.SupabaseClient) {
-      window.SupabaseClient.auth.getSession().then(({ data }) => {
-        const session = data?.session;
-        if (!session) return;
-        const el = document.getElementById('qf-assignee');
-        if (el && !el.value.trim()) {
-          const name = session.user.user_metadata?.full_name
-            || session.user.user_metadata?.user_name || '';
-          if (name) el.value = name;
-        }
-      });
-    }
     window.updateQuoteSummary();
     // ⚙設定ドロップダウンは外側クリックで閉じる（ネイティブ <details> は外側クリックで閉じないため）
     document.addEventListener('click', function (e) {
