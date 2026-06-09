@@ -818,6 +818,7 @@
       } catch (e) {}
     }
     return {
+      ref:       (f['qf-ref']         || '').trim(),
       customer:  (f['qf-customer']    || '').trim(),
       person:    (f['qf-person']      || '').trim(),
       incoterms: (f['cond-incoterms'] || '').trim(),
@@ -853,7 +854,9 @@
       const condHtml =
         (m.incoterms ? '<span class="preset-tag preset-tag-inco">' + escHtml(m.incoterms.split('（')[0]) + '</span>' : '') +
         (m.mode      ? '<span class="preset-tag preset-tag-mode">' + escHtml(m.mode) + '</span>' : '');
-      const custDd = [m.customer && escHtml(m.customer), m.person && escHtml(m.person)].filter(Boolean).join('・');
+      const personH = m.person && (window.formatPersonWithHonorific ? window.formatPersonWithHonorific(m.person) : m.person);
+      const custDd = [m.customer && escHtml(m.customer), personH && escHtml(personH)].filter(Boolean).join('・');
+      const titleText = m.ref || p.name;   // カード見出しは仮REF#のみ（顧客/担当は下に別掲）
 
       const subShown = m.subcons.slice(0, 4);
       const subMore  = m.subcons.length - subShown.length;
@@ -871,7 +874,7 @@
       return '<div class="preset-list-item preset-item-rich' + (isLoaded ? ' preset-list-item--loaded' : '') + '">' +
         '<div class="preset-rich-row1">' +
           statusHtml +
-          '<span class="preset-list-name">' + escHtml(p.name) + '</span>' +
+          '<span class="preset-list-name" title="' + escHtml(p.name) + '">' + escHtml(titleText) + '</span>' +
           (isLoaded ? '<span class="preset-loaded-badge">編集中</span>' : '') +
         '</div>' +
         '<dl class="preset-rich-kv">' +

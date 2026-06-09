@@ -375,7 +375,9 @@
       const condHtml =
         (inco ? '<span class="cloud-tag cloud-tag-inco">' + escHtml(String(inco).split('（')[0]) + '</span>' : '') +
         (mode ? '<span class="cloud-tag cloud-tag-mode">' + escHtml(mode) + '</span>' : '');
-      const custDd = [customer && escHtml(customer), person && escHtml(person)].filter(Boolean).join('・');
+      const personH = person && (window.formatPersonWithHonorific ? window.formatPersonWithHonorific(person) : person);
+      const custDd = [customer && escHtml(customer), personH && escHtml(personH)].filter(Boolean).join('・');
+      const titleText = (m && m.ref) ? m.ref : r.name;   // 見出しは仮REF#のみ（顧客/担当は下に別掲）
 
       // サブコン（役割ラベル付き・5件目以降は +N）
       const subShown = subcons.slice(0, 4);
@@ -400,7 +402,7 @@
         '<div class="cloud-card cloud-card-labeled' + (others.length ? ' is-editing' : '') + '">' +
           '<div class="cloud-card-row1">' +
             statusBadge +
-            '<span class="cloud-card-name" title="' + escHtml(r.name) + '">' + escHtml(r.name) + '</span>' +
+            '<span class="cloud-card-name" title="' + escHtml(r.name) + '">' + escHtml(titleText) + '</span>' +
           '</div>' +
           editBadge +
           '<dl class="cloud-kv">' +

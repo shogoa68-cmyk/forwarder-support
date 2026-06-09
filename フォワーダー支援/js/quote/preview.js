@@ -41,6 +41,8 @@
     }
     return n + ' 様';
   }
+  // プリセットカード（ブラウザ保存／チーム共有）でも敬称表示に使うため公開
+  window.formatPersonWithHonorific = formatPersonWithHonorific;
 
   /**
    * ファイル名生成: REF_引き合い元_担当.<ext>
