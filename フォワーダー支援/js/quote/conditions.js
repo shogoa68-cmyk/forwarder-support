@@ -179,6 +179,26 @@
    * hidden input の値から復元してボタン・カードの表示を同期する。
    * fields は gatherAllData() で保存した fields オブジェクト。
    */
+  function _checkValidUntil() {
+    const el = document.getElementById('qf-valid-until');
+    if (!el || !el.value) { el?.classList.remove('qf-expired'); return; }
+    const expired = new Date(el.value) < new Date(new Date().toDateString());
+    el.classList.toggle('qf-expired', expired);
+  }
+
+  function _addDaysToValidUntil(n) {
+    const el = document.getElementById('qf-valid-until');
+    if (!el) return;
+    const base = el.value ? new Date(el.value + 'T00:00:00') : new Date();
+    base.setDate(base.getDate() + n);
+    el.value = base.toISOString().slice(0, 10);
+    _checkValidUntil();
+    if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
+  }
+
+  window.checkValidUntilWarning = _checkValidUntil;
+  window.addDaysToValidUntil    = _addDaysToValidUntil;
+
   function _restoreUiState(fields) {
     if (!fields) return;
 
@@ -212,6 +232,7 @@
       const area = document.getElementById(areaId);
       if (cb && area) area.style.display = cb.checked ? 'flex' : 'none';
     });
+    _checkValidUntil();
   }
 
   /**
@@ -272,6 +293,12 @@
     });
     _rebuildTable(data);
     _restoreUiState(data.fields);
+    // 保存時の為替レートを復元（スナップショット）
+    if (data.fxSnapshot?.rates && Object.keys(data.fxSnapshot.rates).length) {
+      _fxRates = { ...DEFAULT_FX_RATES, ...data.fxSnapshot.rates };
+      saveFxRates();
+      if (data.fxSnapshot.ts) localStorage.setItem(SharedStorage.KEYS.FX_LAST_FETCHED, data.fxSnapshot.ts);
+    }
     if (typeof updateTotals === 'function') updateTotals();
     if (typeof updateRouteModeIcon === 'function') updateRouteModeIcon();
     if (typeof syncHazmatPanel === 'function') syncHazmatPanel();
@@ -376,7 +403,8 @@
       rows.push({ _type: 'data', cells });
     });
     // _rowFormat: v3 = 小計行・リマーク行を含む型付きオブジェクト配列
-    return { fields, rows, ts: new Date().toISOString(), _rowFormat: 'v3-mixed-rows' };
+    return { fields, rows, ts: new Date().toISOString(), _rowFormat: 'v3-mixed-rows',
+             fxSnapshot: { rates: { ..._fxRates }, ts: localStorage.getItem(SharedStorage.KEYS.FX_LAST_FETCHED) || null } };
   }
 
   /**

@@ -134,6 +134,34 @@
 #tab-quote-make #qf-memo::placeholder { color: #998070; font-size: 11px; }
 
 /* 作業者入力行（テキスト＋登録ボタン） */
+#tab-quote-make .qf-valid-until-row {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+}
+#tab-quote-make .qf-valid-until-row #qf-valid-until {
+  flex: 1 1 0;
+  min-width: 0;
+}
+#tab-quote-make #qf-valid-until.qf-expired {
+  border-color: #e05555;
+  background: #fff5f5;
+  color: #c03030;
+}
+#tab-quote-make .qf-days-btn {
+  flex-shrink: 0;
+  padding: 2px 6px;
+  font-size: 11px;
+  border: 1px solid #9bb;
+  border-radius: 4px;
+  background: #f0f4f8;
+  color: #456;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s;
+}
+#tab-quote-make .qf-days-btn:hover { background: #dde8f0; }
+
 #tab-quote-make .qf-assignee-row {
   display: flex;
   gap: 4px;
@@ -4086,6 +4114,11 @@
 #tab-quote-make .cp-status--sent  { background: #dbeafe; color: #1a56db; }
 #tab-quote-make .cp-status--won   { background: #d1fae5; color: #065f46; }
 #tab-quote-make .cp-status--lost  { background: #fee2e2; color: #991b1b; }
+#tab-quote-make .cp-expired-warn  {
+  display: inline-block; padding: 1px 8px; border-radius: 9px;
+  font-size: 11px; font-weight: 700; vertical-align: middle;
+  background: #fee2e2; color: #b91c1c;
+}
 #tab-quote-make .cp-meta {
   padding: 7px 16px; font-size: 12px; color: #5a4628; background: #f8f3eb;
   border-bottom: 1px solid #e8d8c0; flex-shrink: 0;

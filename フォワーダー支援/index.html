@@ -2254,7 +2254,11 @@
           </div>
           <div class="quote-field">
             <label>有効期限</label>
-            <input type="date" id="qf-valid-until" title="見積もりの有効期限。出力・Excelに含まれます" />
+            <div class="qf-valid-until-row">
+              <input type="date" id="qf-valid-until" title="見積もりの有効期限。出力・Excelに含まれます" onchange="checkValidUntilWarning()" />
+              <button type="button" class="qf-days-btn" onclick="addDaysToValidUntil(7)"  title="今日から7日後">+7日</button>
+              <button type="button" class="qf-days-btn" onclick="addDaysToValidUntil(30)" title="今日から30日後">+30日</button>
+            </div>
           </div>
           <div class="quote-field">
             <label>作業者</label>

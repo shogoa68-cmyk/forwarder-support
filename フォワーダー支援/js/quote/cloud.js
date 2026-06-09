@@ -549,6 +549,10 @@
 
     // メタ情報（ステータス・顧客・担当・更新日）
     const metaParts = [];
+    const validUntil = rawData?.fields?.['qf-valid-until'];
+    if (validUntil && new Date(validUntil) < new Date(new Date().toDateString())) {
+      metaParts.push(`<span class="cp-expired-warn">⚠️ 有効期限切れ（${escHtml(validUntil)}）</span>`);
+    }
     if (data.status) metaParts.push(`<span class="cp-status-badge cp-status--${_statusClass(data.status)}">${escHtml(data.status)}</span>`);
     if (data.customer) metaParts.push(`👤 ${escHtml(data.customer)}`);
     if (data.person)   metaParts.push(`🧑‍💼 ${escHtml(data.person)}`);
