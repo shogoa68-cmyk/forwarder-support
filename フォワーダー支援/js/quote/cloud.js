@@ -606,13 +606,38 @@
     document.getElementById('cloudPreviewModal').style.display = 'flex';
   }
 
+  // 数値パース／通貨つき金額表示（JPYは¥、非JPYは通貨コード併記）
+  function _cpNum(v) { const n = parseFloat(String(v == null ? '' : v).replace(/[, ]/g, '')); return isFinite(n) ? n : null; }
+  function _cpMoney(v, ccy) {
+    const n = _cpNum(v);
+    if (n == null) return '—';
+    const cur = (ccy || 'JPY').trim() || 'JPY';
+    return cur === 'JPY' ? '¥' + Math.round(n).toLocaleString('ja-JP')
+                         : cur + ' ' + n.toLocaleString('ja-JP', { maximumFractionDigits: 2 });
+  }
+  // 行の粗利率（売上ベース）。通貨が異なる場合は JPY 換算（為替未取得なら null）
+  function _cpMarginPct(pp, pc, pq, bp, bc, bq) {
+    const ppN = _cpNum(pp), bpN = _cpNum(bp);
+    if (ppN == null || bpN == null) return null;
+    const pqN = (_cpNum(pq) > 0) ? _cpNum(pq) : 1;
+    const bqN = (_cpNum(bq) > 0) ? _cpNum(bq) : 1;
+    let cost = ppN * pqN, bill = bpN * bqN;
+    if ((pc || 'JPY') !== (bc || 'JPY')) {
+      if (typeof toJPY !== 'function') return null;
+      cost = toJPY(cost, pc || 'JPY'); bill = toJPY(bill, bc || 'JPY');
+      if (!isFinite(cost) || !isFinite(bill)) return null;
+    }
+    if (!window.SharedCalc || bill <= 0) return null;
+    return SharedCalc.grossMarginPct(bill, cost);
+  }
+
   function _cpRenderTable(rows) {
     const catLabel = _CAT_LABEL();
     const tbody = document.getElementById('cpTableBody');
     if (!tbody) return;
     const dataRows = rows.filter(r => r._type === 'data' && r.cells?.length);
     if (!dataRows.length) {
-      tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#9bb;padding:16px;">行データがありません</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:#9bb;padding:16px;">行データがありません</td></tr>';
       return;
     }
     // サブコン単位でグループ化（順序維持）
@@ -632,26 +657,35 @@
       const gId = 'cpg-' + g.sv.replace(/[^a-z0-9]/gi, '_');
       const header = `<tr class="cp-group-head">
         <td><input type="checkbox" class="cp-group-chk" data-group="${escHtml(g.sv)}" checked onchange="cpToggleGroup(this,'${escHtml(g.sv)}')" title="このサブコンを一括選択"></td>
-        <td colspan="5" class="cp-group-label">🏢 ${svEsc} <span class="cp-group-cnt">${g.rows.length}行</span></td>
+        <td colspan="8" class="cp-group-label">🏢 ${svEsc} <span class="cp-group-cnt">${g.rows.length}行</span></td>
       </tr>`;
       const rowHtml = g.rows.map(({ row, idx }) => {
         const cells = row.cells;
         const cat = cells[1] || '';
         const nm  = cells[4] || '';
-        const bq  = cells[7] || '';
+        const pq  = cells[5] || '';
         const un  = cells[6] || '';
-        const pp  = cells[10] || '';
-        const bp  = cells[11] || '';
+        const bq  = cells[7] || '';
+        const pc  = cells[8] || 'JPY';
+        const bc  = cells[9] || 'JPY';
+        const pp  = cells[10] || '';   // 仕入単価
+        const bp  = cells[11] || '';   // 売単価（= 仕入 + 載せ幅）
+        const mk  = cells[13] || '';   // 載せ幅
         const nt  = cells[14] || '';
         const catLbl = catLabel[cat] || cat;
-        const price = (pp && bp) ? `${pp} ${escHtml(bp)}` : (pp || '—');
-        const qty   = (bq && un) ? `${bq} ${escHtml(un)}` : (bq || un || '—');
+        const qty    = (bq && un) ? `${escHtml(bq)} ${escHtml(un)}` : escHtml(bq || un || '—');
+        const mPct   = _cpMarginPct(pp, pc, pq, bp, bc, bq);
+        const mCls   = mPct == null ? '' : (mPct > 0 ? 'cp-margin-pos' : mPct < 0 ? 'cp-margin-neg' : '');
+        const mCell  = mPct == null ? '—' : mPct.toFixed(1) + '%';
         return `<tr class="cp-row cp-row-in-group" data-sv="${escHtml(g.sv)}" data-idx="${idx}">
           <td><input type="checkbox" class="cp-chk" checked onchange="cpUpdateSelCount()"></td>
           <td class="cp-cat">${escHtml(catLbl)}</td>
           <td class="cp-nm">${escHtml(nm)}</td>
           <td class="cp-qty">${qty}</td>
-          <td class="cp-price">${price}</td>
+          <td class="cp-price cp-pp">${_cpMoney(pp, pc)}</td>
+          <td class="cp-price cp-mk">${_cpNum(mk) ? _cpMoney(mk, bc) : '—'}</td>
+          <td class="cp-price cp-bp">${_cpMoney(bp, bc)}</td>
+          <td class="cp-price cp-margin ${mCls}">${mCell}</td>
           <td class="cp-nt">${escHtml(nt)}</td>
         </tr>`;
       }).join('');
