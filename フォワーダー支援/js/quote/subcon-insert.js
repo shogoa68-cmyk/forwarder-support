@@ -37,13 +37,39 @@
       : cur + ' ' + n.toLocaleString('ja-JP', { maximumFractionDigits: 2 });
   }
 
+  // 案件メタ（参照元サマリー用）。pol/pod は列優先・無ければ data.fields から補完
+  function _presetMetaOf(p) {
+    const f = (p.data && p.data.fields) || {};
+    let pol = (p.pol || '').trim() || (f['z2Pol'] || '').trim();
+    let pod = (p.pod || '').trim() || (f['z2Pod'] || '').trim();
+    if (!pol && !pod) {
+      try {
+        const rts = JSON.parse(f['z2-routes-data'] || '[]');
+        if (Array.isArray(rts) && rts.length) {
+          pol = rts.map(r => r.pol).filter(Boolean).join(', ');
+          pod = rts.map(r => r.pod).filter(Boolean).join(', ');
+        }
+      } catch (e) {}
+    }
+    return {
+      id:       p.id,
+      name:     (p.name || '（無題）'),
+      customer: (p.customer || '').trim() || (f['qf-customer'] || '').trim(),
+      person:   (p.person   || '').trim() || (f['qf-person']   || '').trim(),
+      status:   (p.status   || '').trim() || (f['qf-status']   || '').trim(),
+      mode:     (p.transport_mode || '').trim() || (f['cond-mode'] || '').trim(),
+      route:    [pol, pod].filter(Boolean).join(' → '),
+      ts:       p.updated_at ? new Date(p.updated_at).getTime() : 0,
+    };
+  }
+
   // ---------- 集計 ----------
   function _aggregate(presets) {
-    const scMap = {};   // name -> { name, lastUsed, presetIds:Set, items: { key -> {...} } }
+    const scMap = {};   // name -> { name, lastUsed, sources:{id->meta+count}, items:{key->{...}} }
     presets.forEach(p => {
       const rows = (p.data && p.data.rows) || [];
       const ts = p.updated_at ? new Date(p.updated_at).getTime() : 0;
-      const seenInThisPreset = {};   // サブコン単位で使用案件数をカウント
+      const meta = _presetMetaOf(p);
       rows.forEach(r => {
         if (!r || r._type !== 'data' || !Array.isArray(r.cells)) return;
         const sv = (r.cells[CI.sv] || '').trim();
@@ -51,10 +77,12 @@
         const cat = (r.cells[CI.cat] || '').trim();
         const nm  = (r.cells[CI.nm] || '').trim();
         if (!nm) return;
-        if (!scMap[sv]) scMap[sv] = { name: sv, lastUsed: 0, presetIds: {}, items: {} };
+        if (!scMap[sv]) scMap[sv] = { name: sv, lastUsed: 0, sources: {}, items: {} };
         const sc = scMap[sv];
         sc.lastUsed = Math.max(sc.lastUsed, ts);
-        sc.presetIds[p.id] = true;
+        // 参照元案件（このサブコンの費用行を持つ案件）＋寄与項目数を記録
+        if (!sc.sources[p.id]) sc.sources[p.id] = Object.assign({ count: 0 }, meta);
+        sc.sources[p.id].count++;
         // 通貨もキーに含める（同一項目でも JPY/USD 等が混ざると平均が壊れるため分離）
         const pcKey = (r.cells[CI.pc] || 'JPY').trim() || 'JPY';
         const key = cat + '||' + nm + '||' + pcKey;
@@ -78,7 +106,8 @@
     return Object.values(scMap).map(sc => ({
       name: sc.name,
       lastUsed: sc.lastUsed,
-      uses: Object.keys(sc.presetIds).length,
+      uses: Object.keys(sc.sources).length,
+      sources: Object.values(sc.sources).sort((a, b) => b.ts - a.ts),
       items: Object.values(sc.items)
         .map(it => ({
           cat: it.cat, name: it.name, role: it.role, un: it.un, pc: it.pc, bc: it.bc,
@@ -99,7 +128,8 @@
       return;
     }
     if (wrap) wrap.innerHTML = '<div class="preset-empty">読み込み中…</div>';
-    const { data, error } = await db.from('quote_presets').select('id,data,updated_at');
+    const { data, error } = await db.from('quote_presets')
+      .select('id,name,customer,person,status,transport_mode,pol,pod,data,updated_at');
     if (error) { if (wrap) wrap.innerHTML = '<div class="preset-empty">⚠️ 読み込みエラー：' + _esc(error.message) + '</div>'; return; }
     _subcons = _aggregate(data || []);
     renderSubconList();
@@ -146,15 +176,36 @@
             '<span class="rp-sc-price">' + priceMain + unit + avg + '</span>' +
           '</label>';
       }).join('');
+      // 参照元案件サマリー（クリックで該当案件をプレビュー＝上に重なって開く）
+      const srcList = (sc.sources || []).map(s => {
+        const bits = [
+          s.status ? '<span class="rp-src-status">' + _esc(s.status) + '</span>' : '',
+          s.customer ? '👤 ' + _esc(s.customer) : '',
+          s.mode ? _esc(s.mode) : '',
+          s.route ? '📍 ' + _esc(s.route) : '',
+          '🕒 ' + _fmtDate(s.ts),
+          s.count + '項目',
+        ].filter(Boolean).join('・');
+        return '<button type="button" class="rp-src-item" title="この案件をプレビュー" ' +
+            'onclick="cloudPreviewPreset(\'' + _esc(s.id) + '\')">' +
+            '<span class="rp-src-name">' + _esc(s.name) + '</span>' +
+            '<span class="rp-src-meta">' + bits + '</span>' +
+          '</button>';
+      }).join('');
+      const srcSection = srcList
+        ? '<details class="rp-sc-src"><summary>📋 参照元 ' + (sc.sources.length) +
+            '案件（クリックで案件を開く）</summary><div class="rp-src-list">' + srcList + '</div></details>'
+        : '';
       return '<div class="rp-sc-card" data-si="' + si + '">' +
         '<div class="rp-sc-head">' +
           '<span class="rp-sc-av">' + _icon(sc) + '</span>' +
           '<div class="rp-sc-main"><div class="rp-sc-name">' + _esc(sc.name) + '</div>' +
-            '<div class="rp-sc-meta"><span>🕒 最終 ' + _fmtDate(sc.lastUsed) + '</span><span>使用 ' + sc.uses + '回</span><span>' + sc.items.length + '項目</span></div>' +
+            '<div class="rp-sc-meta"><span>🕒 最終 ' + _fmtDate(sc.lastUsed) + '</span><span>使用 ' + sc.uses + '案件</span><span>' + sc.items.length + '項目</span></div>' +
           '</div>' +
           '<span class="rp-sc-auto">自動生成</span>' +
         '</div>' +
         '<div class="rp-sc-body">' + rows + '</div>' +
+        srcSection +
         '<div class="rp-sc-foot">' +
           '<button class="btn-preset-load" onclick="subconInsert(' + si + ')">＋ 選択行を挿入</button>' +
           '<span class="rp-sc-selnote" id="subconSelNote-' + si + '"></span>' +

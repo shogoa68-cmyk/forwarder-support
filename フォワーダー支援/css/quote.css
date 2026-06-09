@@ -6535,6 +6535,21 @@
 #tab-quote-make .rp-sc-avg { display:block; font-size:9.5px; color:#b0a18d; }
 #tab-quote-make .rp-sc-foot { display:flex; align-items:center; gap:10px; padding:8px 12px; }
 #tab-quote-make .rp-sc-selnote { font-size:10.5px; color:#9a8878; }
+
+/* 参照元案件サマリー（折りたたみ） */
+#tab-quote-make .rp-sc-src { border-top:1px solid #f1ebe0; background:#fcfaf6; }
+#tab-quote-make .rp-sc-src > summary { list-style:none; cursor:pointer; padding:7px 12px; font-size:11px; font-weight:700; color:#6b5a42; user-select:none; }
+#tab-quote-make .rp-sc-src > summary::-webkit-details-marker { display:none; }
+#tab-quote-make .rp-sc-src > summary::before { content:'▸ '; color:#b0a18d; }
+#tab-quote-make .rp-sc-src[open] > summary::before { content:'▾ '; }
+#tab-quote-make .rp-sc-src > summary:hover { color:#3d2e1e; }
+#tab-quote-make .rp-src-list { display:flex; flex-direction:column; gap:5px; padding:2px 10px 10px; }
+#tab-quote-make .rp-src-item { display:flex; flex-direction:column; gap:2px; align-items:flex-start; text-align:left;
+  width:100%; border:1px solid #e8e0d4; border-radius:8px; background:#fff; padding:7px 10px; cursor:pointer; font-family:inherit; }
+#tab-quote-make .rp-src-item:hover { background:#fbf6ea; border-color:#e2d3b6; }
+#tab-quote-make .rp-src-name { font-size:12px; font-weight:700; color:#3d2e1e; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100%; }
+#tab-quote-make .rp-src-meta { font-size:10.5px; color:#9a8878; line-height:1.5; }
+#tab-quote-make .rp-src-status { font-size:9.5px; font-weight:700; color:#5c4a32; background:#f1ece2; border:1px solid #e3d8c4; border-radius:4px; padding:0 5px; margin-right:2px; }
 #tab-quote-make .rp-cat { font-size:10px; font-weight:600; padding:1px 7px; border-radius:10px; white-space:nowrap; justify-self:start; }
 /* サブコン別タブのカテゴリ淡色（モーダル内ローカル） */
 #tab-quote-make .rp-cat.cat-domestic{background:#e8f0e0;color:#4f6230}
