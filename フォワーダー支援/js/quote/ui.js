@@ -717,13 +717,18 @@
     try { localStorage.setItem(REF_SEQ_KEY, JSON.stringify(st)); } catch (e) {}
     return st.seq;
   }
+  // 11桁（ID2＋YYMMDD＋連番3）を区切り表示に整形：05-2606100-02
+  function _formatRef(raw) {
+    if (!raw || raw.length < 11) return raw;
+    return raw.slice(0, 2) + '-' + raw.slice(2, 9) + '-' + raw.slice(9);
+  }
   function generateQuoteRefValue() {
     const no = window._myMemberNo;
     if (no == null) return null;                       // 発番ID未取得（未ログイン or 未登録）
     const id2 = String(no).padStart(2, '0');
     const ymd = _refTodayYmd();
     const seq = String(_nextRefSeq(ymd)).padStart(3, '0');
-    return id2 + ymd + seq;
+    return _formatRef(id2 + ymd + seq);                // 例：05-2606100-02
   }
   function _setRefValue(val) {
     const el = document.getElementById('qf-ref');

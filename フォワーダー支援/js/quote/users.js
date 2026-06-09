@@ -122,11 +122,22 @@
           ' onclick="umDeleteMember(\'' + _esc(m.email) + '\')">✕</button>'
       : '';
 
+    // 発番IDバッジ：管理者はクリックで任意の番号に変更可。未割当なら「＋採番」。
+    const memberNoCtl = (m.member_no != null)
+      ? (admin
+          ? '<button class="um-memberno um-memberno--edit" title="発番ID（仮REF#の先頭2桁）をクリックで変更" ' +
+              'onclick="umEditMemberNo(\'' + _esc(m.email) + '\')">#' + String(m.member_no).padStart(2, '0') + ' ✎</button>'
+          : '<span class="um-memberno" title="発番ID（仮REF#の先頭2桁）">#' + String(m.member_no).padStart(2, '0') + '</span>')
+      : (admin
+          ? '<button class="um-memberno um-memberno--empty" title="発番IDを割り当て" ' +
+              'onclick="umEditMemberNo(\'' + _esc(m.email) + '\')">＋採番</button>'
+          : '');
+
     return '<div class="um-card' + (isSelf ? ' is-self' : '') + (active ? '' : ' is-pending') + '">' +
       '<div class="um-avatar" style="background:' + color + '">' + _esc(avLabel) + '</div>' +
       '<div class="um-id">' +
         '<div class="um-name-row"><span class="um-name">' + _esc(name) + '</span>' +
-          (m.member_no != null ? '<span class="um-memberno" title="発番ID（仮REF#の先頭2桁）">#' + String(m.member_no).padStart(2, '0') + '</span>' : '') +
+          memberNoCtl +
           (isSelf ? '<span class="um-you">あなた</span>' : '') + '</div>' +
         '<div class="um-email">' + _esc(m.email) + '</div>' +
         '<div class="um-meta"><span>🕒 ' + _esc(last) + '</span><span>追加 ' + added + '</span></div>' +
@@ -169,6 +180,32 @@
     const m = _members.find(x => x.email === email);
     if (m) m.role = role;
     _toast('✅ ' + _displayName(email) + ' を「' + (ROLE_LABEL[role] || role) + '」に変更しました', 'success', 2200);
+    _applyFilters();
+  }
+
+  // 発番ID（member_no）を管理者が任意の番号へ変更（1〜99・チーム内で重複不可）
+  async function umEditMemberNo(email) {
+    if (_myRole !== 'admin') return;
+    const m = _members.find(x => x.email === email);
+    const cur = (m && m.member_no != null) ? String(m.member_no) : '';
+    const input = prompt(
+      '「' + _displayName(email) + '」の発番ID（仮REF#の先頭2桁）を入力\n' +
+      '1〜99の数値。チーム内で重複できません。', cur);
+    if (input == null) return;                          // キャンセル
+    const v = input.trim();
+    if (!/^\d{1,2}$/.test(v)) { _toast('⚠️ 1〜99の数値で入力してください', 'warn'); return; }
+    const no = parseInt(v, 10);
+    if (no < 1 || no > 99) { _toast('⚠️ 1〜99の範囲で入力してください', 'warn'); return; }
+    if (_members.some(x => x.email !== email && x.member_no === no)) {
+      _toast('⚠️ 発番ID #' + String(no).padStart(2, '0') + ' は既に他のメンバーが使用中です', 'warn'); return;
+    }
+    const db = _db();
+    if (!db) return;
+    const { error } = await db.from('allowed_emails').update({ member_no: no }).eq('email', email);
+    if (error) { _toast('⚠️ 発番IDの変更に失敗：' + error.message, 'warn'); return; }
+    if (m) m.member_no = no;
+    if (email === _myEmail) window._myMemberNo = no;     // 自分の番号なら即時反映
+    _toast('🔢 ' + _displayName(email) + ' の発番IDを #' + String(no).padStart(2, '0') + ' に変更しました', 'success', 2400);
     _applyFilters();
   }
 
@@ -271,7 +308,7 @@
   // グローバル公開
   Object.assign(window, {
     umOnAuth, openUserMgr, closeUserMgr, switchUmTab,
-    umChangeRole, umDeleteMember, umInvite, umToggleInvite,
+    umChangeRole, umEditMemberNo, umDeleteMember, umInvite, umToggleInvite,
     umFilter: _applyFilters, umRefreshIfOpen,
   });
 })();
