@@ -6494,6 +6494,22 @@
 #tab-quote-make .rp-note-lbl { font-size:10px; font-weight:700; color:#6b5a42; white-space:nowrap; flex-shrink:0; }
 #tab-quote-make .rp-meta { padding:6px 12px; font-size:10.5px; color:#b0a18d; border-top:1px solid #f1ebe0; }
 
+/* 行を挿入モーダル：アクティブタブを伸縮させ、リスト部分だけ内部スクロールさせる。
+   （:not([hidden]) で非表示タブの display:none を維持。リストの overflow 未指定で
+   親の固定高さにクリップされ「サブコン別が下までスクロールできない」問題を解消） */
+#tab-quote-make #rowPatternModal #rpPanePattern:not([hidden]),
+#tab-quote-make #rowPatternModal #rpPaneSubcon:not([hidden]) {
+  flex: 1 1 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+#tab-quote-make #rowPatternModal .preset-list-wrap {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+}
+
 /* 行を挿入モーダル：タブ */
 #tab-quote-make .rp-tabs { display:flex; gap:4px; border-bottom:1px solid #e8e0d4; margin:6px 0 10px; }
 #tab-quote-make .rp-tab { padding:8px 16px; font-size:13px; font-weight:600; border:none; border-bottom:2px solid transparent; background:transparent; color:#9a8878; cursor:pointer; margin-bottom:-1px; font-family:inherit; }
