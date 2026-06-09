@@ -1,0 +1,250 @@
+// ========== 🧑‍💼 チーム管理（ユーザー＆ロール管理） ==========
+//
+// allowed_emails テーブルでメンバーとロール（admin / member / viewer）を管理する。
+//   - 入口：ヘッダーのユーザーエリアの「🧑‍💼 チーム管理」（管理者のみ表示）
+//   - 認証：cloud.js の _renderCloudAuth から window.umOnAuth(user) で連携
+//   - 保護：RLS ＋ get_my_role() でサーバー側でも制御（UIの出し分けは補助）
+//
+(function () {
+  'use strict';
+
+  const ROLE_LABEL = { admin: '管理者', member: 'メンバー', viewer: '閲覧のみ' };
+  const ROLE_ORDER = { admin: 0, member: 1, viewer: 2 };
+  const AVATAR_PALETTE = ['#8a6d3b', '#2b7bb0', '#1e7e44', '#9a7bbf', '#b07d5a', '#c0856a', '#5a8a8a', '#a8632e'];
+
+  let _myRole   = null;   // 自分のロール（'admin' | 'member' | 'viewer' | null）
+  let _myEmail  = null;
+  let _members  = [];     // キャッシュ
+  let _profiles = {};     // email -> { display_name, updated_at }
+  let _curTab   = 'members';
+
+  function _db() { return window.SupabaseClient || null; }
+  function _esc(s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, c =>
+      ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
+  }
+  function _toast(msg, type, ms) {
+    if (typeof quoteShowToast === 'function') quoteShowToast(msg, type, ms);
+  }
+  function _avatarColor(email) {
+    let h = 0;
+    for (let i = 0; i < (email || '').length; i++) h = (h * 31 + email.charCodeAt(i)) >>> 0;
+    return AVATAR_PALETTE[h % AVATAR_PALETTE.length];
+  }
+  function _displayName(email) {
+    const p = _profiles[email];
+    return (p && p.display_name) || (email ? email.split('@')[0] : '—');
+  }
+
+  // ---------- 認証連携（cloud.js から呼ばれる） ----------
+  async function umOnAuth(user) {
+    _myEmail = user ? (user.email || null) : null;
+    const btn = document.getElementById('hdrUserMgrBtn');
+    if (!user) {
+      _myRole = null;
+      if (btn) btn.hidden = true;
+      return;
+    }
+    const db = _db();
+    if (!db) return;
+    try {
+      const { data, error } = await db.rpc('get_my_role');
+      _myRole = error ? null : (data || 'member');
+    } catch (e) { _myRole = null; }
+    window._myRole = _myRole;
+    // 入口は管理者のみ
+    if (btn) btn.hidden = (_myRole !== 'admin');
+  }
+
+  // ---------- データ取得 ----------
+  async function _loadMembers() {
+    const db = _db();
+    if (!db) return { error: { message: 'DB接続が未初期化です' } };
+    const [{ data: rows, error }, { data: profs }] = await Promise.all([
+      db.from('allowed_emails').select('*'),
+      db.from('user_profiles').select('email,display_name,updated_at'),
+    ]);
+    if (error) return { error };
+    _profiles = {};
+    (profs || []).forEach(p => { if (p.email) _profiles[p.email] = p; });
+    _members = (rows || []).map(r => ({
+      email: r.email,
+      role: r.role || 'member',
+      created_at: r.created_at || null,
+    })).sort((a, b) => {
+      const ra = ROLE_ORDER[a.role] ?? 9, rb = ROLE_ORDER[b.role] ?? 9;
+      if (ra !== rb) return ra - rb;
+      return _displayName(a.email).localeCompare(_displayName(b.email), 'ja');
+    });
+    return { ok: true };
+  }
+
+  // ---------- 描画 ----------
+  function _memberCard(m) {
+    const isSelf  = m.email === _myEmail;
+    const prof    = _profiles[m.email];
+    const active  = !!(prof && prof.display_name);   // 表示名登録＝ログイン実績あり
+    const admin   = _myRole === 'admin';
+    const name    = _displayName(m.email);
+    const initial = (name || '?').trim().charAt(0).toUpperCase();
+    const color   = _avatarColor(m.email);
+    const added   = m.created_at
+      ? new Date(m.created_at).toLocaleDateString('ja-JP', { year: 'numeric', month: '2-digit', day: '2-digit' })
+      : '—';
+    const last    = active && prof.updated_at
+      ? new Date(prof.updated_at).toLocaleDateString('ja-JP', { month: 'numeric', day: 'numeric' })
+      : '未ログイン';
+
+    const roleCtl = admin
+      ? '<select class="um-role um-role--' + m.role + '" ' +
+          (isSelf ? 'disabled title="自分のロールは変更できません" ' : 'title="ロールを変更" ') +
+          'onchange="umChangeRole(\'' + _esc(m.email) + '\', this.value)">' +
+          ['admin', 'member', 'viewer'].map(r =>
+            '<option value="' + r + '"' + (r === m.role ? ' selected' : '') + '>' + ROLE_LABEL[r] + '</option>').join('') +
+        '</select>'
+      : '<span class="um-role-static um-role--' + m.role + '">' +
+          '<span class="um-role-dot" style="background:' + color + '"></span>' + ROLE_LABEL[m.role] + '</span>';
+
+    const delBtn = admin
+      ? '<button class="um-del" ' + (isSelf ? 'disabled title="自分は削除できません"' : 'title="削除"') +
+          ' onclick="umDeleteMember(\'' + _esc(m.email) + '\')">✕</button>'
+      : '';
+
+    return '<div class="um-card' + (isSelf ? ' is-self' : '') + (active ? '' : ' is-pending') + '">' +
+      '<div class="um-avatar" style="background:' + color + '">' + _esc(initial) + '</div>' +
+      '<div class="um-id">' +
+        '<div class="um-name-row"><span class="um-name">' + _esc(name) + '</span>' +
+          (isSelf ? '<span class="um-you">あなた</span>' : '') + '</div>' +
+        '<div class="um-email">' + _esc(m.email) + '</div>' +
+        '<div class="um-meta"><span>🕒 ' + _esc(last) + '</span><span>追加 ' + added + '</span></div>' +
+      '</div>' +
+      '<div class="um-actions">' +
+        '<span class="um-status um-status--' + (active ? 'active' : 'pending') + '">' +
+          '<span class="um-status-dot"></span>' + (active ? '有効' : '招待中') + '</span>' +
+        roleCtl + delBtn +
+      '</div>' +
+    '</div>';
+  }
+
+  function _renderMembers(filterText, filterRole) {
+    const list = document.getElementById('umMemberList');
+    if (!list) return;
+    const admin = _myRole === 'admin';
+    let rows = _members;
+    if (filterText) {
+      const q = filterText.toLowerCase();
+      rows = rows.filter(m => m.email.toLowerCase().includes(q) || _displayName(m.email).toLowerCase().includes(q));
+    }
+    if (filterRole) rows = rows.filter(m => m.role === filterRole);
+
+    const invitePanel = document.getElementById('umInvitePanel');
+    if (invitePanel && !admin) invitePanel.hidden = true;
+
+    const head = '<div class="um-count">' + _members.length + '人のメンバー' +
+      (admin ? '' : ' ・ あなたは<b style="color:#1a5c8a">' + (ROLE_LABEL[_myRole] || 'メンバー') + '</b>です') + '</div>';
+    list.innerHTML = head + (rows.length
+      ? rows.map(_memberCard).join('')
+      : '<div class="um-empty">該当するメンバーがいません</div>');
+  }
+
+  // ---------- 操作 ----------
+  async function umChangeRole(email, role) {
+    const db = _db();
+    if (!db) return;
+    const { error } = await db.from('allowed_emails').update({ role }).eq('email', email);
+    if (error) { _toast('⚠️ ロール変更に失敗：' + error.message, 'warn'); return; }
+    const m = _members.find(x => x.email === email);
+    if (m) m.role = role;
+    _toast('✅ ' + _displayName(email) + ' を「' + (ROLE_LABEL[role] || role) + '」に変更しました', 'success', 2200);
+    _applyFilters();
+  }
+
+  async function umDeleteMember(email) {
+    if (email === _myEmail) return;
+    if (!confirm(_displayName(email) + '（' + email + '）をチームから削除しますか？\nこのユーザーは以降データにアクセスできなくなります。')) return;
+    const db = _db();
+    if (!db) return;
+    const { error } = await db.from('allowed_emails').delete().eq('email', email);
+    if (error) { _toast('⚠️ 削除に失敗：' + error.message, 'warn'); return; }
+    _members = _members.filter(x => x.email !== email);
+    _toast('🗑 ' + _displayName(email) + ' を削除しました', 'success', 2200);
+    _applyFilters();
+  }
+
+  async function umInvite() {
+    const input = document.getElementById('umInviteEmail');
+    const roleSel = document.getElementById('umInviteRole');
+    const email = (input?.value || '').trim().toLowerCase();
+    const role = roleSel?.value || 'member';
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) { _toast('⚠️ メールアドレスの形式が正しくありません', 'warn'); return; }
+    if (_members.some(m => m.email.toLowerCase() === email)) { _toast('⚠️ すでに登録済みのメンバーです', 'warn'); return; }
+    const db = _db();
+    if (!db) return;
+    const { error } = await db.from('allowed_emails').insert({ email, role });
+    if (error) { _toast('⚠️ 招待に失敗：' + error.message, 'warn'); return; }
+    if (input) input.value = '';
+    _toast('✉️ ' + email + ' を招待しました（' + (ROLE_LABEL[role] || role) + '）', 'success', 2600);
+    await _loadMembers();
+    _applyFilters();
+  }
+
+  function umToggleInvite() {
+    const p = document.getElementById('umInvitePanel');
+    if (!p) return;
+    p.hidden = !p.hidden;
+    if (!p.hidden) document.getElementById('umInviteEmail')?.focus();
+  }
+
+  function _applyFilters() {
+    const t = (document.getElementById('umSearch')?.value || '').trim();
+    const r = document.getElementById('umRoleFilter')?.value || '';
+    _renderMembers(t, r);
+  }
+
+  function switchUmTab(tab) {
+    _curTab = tab;
+    document.getElementById('umTabMembers')?.classList.toggle('is-active', tab === 'members');
+    document.getElementById('umTabPerms')?.classList.toggle('is-active', tab === 'perms');
+    const mp = document.getElementById('umMembersPane');
+    const pp = document.getElementById('umPermsPane');
+    if (mp) mp.hidden = tab !== 'members';
+    if (pp) pp.hidden = tab !== 'perms';
+  }
+
+  // ---------- モーダル開閉 ----------
+  async function openUserMgr() {
+    const ov = document.getElementById('umOverlay');
+    if (!ov) return;
+    ov.classList.add('open');
+    document.getElementById('umModal')?.setAttribute('data-role', _myRole || 'guest');
+    // 管理者用UIの出し分け
+    const admin = _myRole === 'admin';
+    const inviteBtn = document.getElementById('umInviteBtn');
+    if (inviteBtn) inviteBtn.style.display = admin ? '' : 'none';
+    const sub = document.getElementById('umHeadSub');
+    if (sub) sub.textContent = admin ? 'メンバーとロールの管理（管理者）' : 'チームメンバー一覧（閲覧のみ）';
+    switchUmTab('members');
+    const list = document.getElementById('umMemberList');
+    if (list) list.innerHTML = '<div class="um-empty">読み込み中…</div>';
+    const invitePanel = document.getElementById('umInvitePanel');
+    if (invitePanel) invitePanel.hidden = true;
+    const res = await _loadMembers();
+    if (res && res.error) {
+      if (list) list.innerHTML = '<div class="um-empty">⚠️ 読み込みエラー：' + _esc(res.error.message) + '</div>';
+      return;
+    }
+    _applyFilters();
+  }
+
+  function closeUserMgr(ev) {
+    if (ev && ev.target && ev.target.id !== 'umOverlay' && ev.type === 'click') return;
+    document.getElementById('umOverlay')?.classList.remove('open');
+  }
+
+  // グローバル公開
+  Object.assign(window, {
+    umOnAuth, openUserMgr, closeUserMgr, switchUmTab,
+    umChangeRole, umDeleteMember, umInvite, umToggleInvite,
+    umFilter: _applyFilters,
+  });
+})();

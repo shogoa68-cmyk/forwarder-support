@@ -37,6 +37,7 @@
       <span class="hdr-cloud-user" id="hdrCloudUser" style="display:none">
         <span class="hdr-cloud-avatar" id="hdrCloudAvatar" aria-hidden="true"></span>
         <span class="hdr-cloud-name" id="hdrCloudName" title="ログイン中のアカウント"></span>
+        <button class="hdr-cloud-mgr" id="hdrUserMgrBtn" type="button" onclick="openUserMgr()" title="チーム管理（メンバー・ロール）" hidden>🧑‍💼 チーム管理</button>
         <button class="hdr-cloud-logout" id="hdrCloudLogout" type="button" onclick="cloudLogout()" title="ログアウト">ログアウト</button>
       </span>
     </div>
@@ -2186,29 +2187,40 @@
     <div class="preset-mgr-modal" id="rowPatternModal"
          onclick="if(event.target===this)closeRowPatternMgr()">
       <div class="preset-mgr-box">
-        <h3>🗂️ 行パターン（チェック行の一時保存）</h3>
-        <p class="preset-mgr-desc">
-          <b>チェックを入れた行</b>を名前付きで保存し、後でまとめて挿入できます（最大 20 件・このブラウザのみ）。<br>
-          「輸出ローカル一式」「通関費セット」など、よく使う費用項目セットの<strong>使い回し</strong>に便利です。
-        </p>
-        <div class="preset-save-row">
-          <input type="text" class="preset-name-input" id="rowPatternNameInput"
-                 placeholder="例）輸出ローカル一式" maxlength="30"
-                 onkeydown="if(event.key==='Enter')saveRowPatternFromChecked()" />
-          <button class="btn-preset-save-new" onclick="saveRowPatternFromChecked()">💾 チェック行を保存</button>
+        <h3>🗂️ 行を挿入</h3>
+        <div class="rp-tabs">
+          <button type="button" class="rp-tab is-active" id="rpTabPattern" onclick="switchRowInsertTab('pattern')">📦 保存パターン</button>
+          <button type="button" class="rp-tab" id="rpTabSubcon" onclick="switchRowInsertTab('subcon')">👷 サブコン別</button>
         </div>
         <div class="row-pattern-pos-row">
-          <label class="row-pattern-pos-lbl">📍 読込時の挿入位置：</label>
-          <select id="rowPatternInsertPos" class="row-pattern-pos-sel" title="「読込」ボタンを押した時の挿入位置">
+          <label class="row-pattern-pos-lbl">📍 挿入位置：</label>
+          <select id="rowPatternInsertPos" class="row-pattern-pos-sel" title="挿入ボタンを押した時の挿入位置">
             <option value="end" selected>末尾に追加</option>
             <option value="selected">選択行の下に挿入</option>
             <option value="top">先頭に挿入</option>
           </select>
         </div>
-        <div class="preset-list-wrap" id="rowPatternListWrap">
-          <div class="preset-empty">保存済みの行パターンはありません</div>
-        </div>
-        <div class="preset-mgr-footer">
+
+        <!-- ===== タブ1：保存パターン ===== -->
+        <div id="rpPanePattern">
+          <p class="preset-mgr-desc">
+            <b>チェックを入れた行</b>を名前付きで保存し、後でまとめて挿入できます（<strong>☁️ チームで共有</strong>・ログインが必要）。<br>
+            「輸出ローカル一式」「通関費セット」など、よく使う費用項目セットの<strong>使い回し</strong>に便利です。
+          </p>
+          <div class="preset-save-row">
+            <input type="text" class="preset-name-input" id="rowPatternNameInput"
+                   placeholder="例）輸出ローカル一式" maxlength="30"
+                   onkeydown="if(event.key==='Enter')document.getElementById('rowPatternNoteInput').focus()" />
+            <button class="btn-preset-save-new" onclick="saveRowPatternFromChecked()">💾 チェック行を保存</button>
+          </div>
+          <div class="preset-save-row">
+            <input type="text" class="preset-name-input" id="rowPatternNoteInput"
+                   placeholder="メモ（任意・チームに共有されます）" maxlength="120"
+                   onkeydown="if(event.key==='Enter')saveRowPatternFromChecked()" />
+          </div>
+          <div class="preset-list-wrap" id="rowPatternListWrap">
+            <div class="preset-empty">保存済みの行パターンはありません</div>
+          </div>
           <div class="row-pattern-io-btns">
             <button class="btn-pattern-export" onclick="exportRowPatterns()" title="保存済みの行パターンを全件 JSON ファイルに書き出します">📤 書き出し</button>
             <label class="btn-pattern-import" title="書き出した JSON ファイルからパターンを読み込みます（既存と統合）">
@@ -2217,6 +2229,24 @@
                      onchange="importRowPatternsFile(event)" style="display:none" />
             </label>
           </div>
+        </div>
+
+        <!-- ===== タブ2：サブコン別（案件蓄積から自動生成） ===== -->
+        <div id="rpPaneSubcon" hidden>
+          <p class="preset-mgr-desc">
+            チーム共有された案件から、<b>サブコン（協力会社）ごと</b>の費用行を自動でまとめます（保存不要・直近案件が自動で最新）。<br>
+            使いたい行に<strong>チェック</strong>を入れて挿入してください。単価は<strong>直近案件の値</strong>を反映します。
+          </p>
+          <div class="rp-sc-toolbar">
+            <input type="text" class="preset-name-input" id="subconSearchInput"
+                   placeholder="🔍 サブコン名・項目名で検索" oninput="subconFilter()" />
+          </div>
+          <div class="preset-list-wrap" id="subconListWrap">
+            <div class="preset-empty">読み込み中…</div>
+          </div>
+        </div>
+
+        <div class="preset-mgr-footer">
           <button class="btn-preset-close" onclick="closeRowPatternMgr()">閉じる</button>
         </div>
       </div>
@@ -3397,6 +3427,8 @@
 <script src="js/quote/select-mode.js"></script>
 <script src="js/quote/cloud-config.js"></script>
 <script src="js/quote/cloud.js"></script>
+<script src="js/quote/users.js"></script>
+<script src="js/quote/subcon-insert.js"></script>
 <script src="js/tweaks.js"></script>
 <script src="js/bookmarks.js"></script>
 <script src="js/similar-quotes.js"></script>
@@ -3477,6 +3509,78 @@
     <div class="sq-preview-foot">
       <button class="sq-btn-load" id="sqLoadBtn" onclick="sqLoadConfirm()">📂 この見積を読み込む</button>
       <button class="sq-btn-cancel" onclick="sqClosePreview()">閉じる</button>
+    </div>
+  </div>
+</div>
+
+<div id="umOverlay" onclick="closeUserMgr(event)">
+  <div id="umModal" class="um-modal" onclick="event.stopPropagation()">
+    <div class="um-head">
+      <span class="um-head-ic">🧑‍💼</span>
+      <div class="um-head-titles">
+        <span class="um-head-title">チーム管理</span>
+        <span class="um-head-sub" id="umHeadSub">メンバーとロールの管理（管理者）</span>
+      </div>
+      <button class="um-head-x" onclick="closeUserMgr()" aria-label="閉じる">✕</button>
+    </div>
+    <div class="um-tabs">
+      <button class="um-tab is-active" id="umTabMembers" onclick="switchUmTab('members')">メンバー</button>
+      <button class="um-tab" id="umTabPerms" onclick="switchUmTab('perms')">ロールと権限</button>
+    </div>
+
+    <div id="umMembersPane" class="um-pane">
+      <div class="um-toolbar">
+        <input class="um-search" id="umSearch" placeholder="🔍 名前・メールで検索" oninput="umFilter()" />
+        <select class="um-filter" id="umRoleFilter" onchange="umFilter()">
+          <option value="">すべてのロール</option>
+          <option value="admin">管理者</option>
+          <option value="member">メンバー</option>
+          <option value="viewer">閲覧のみ</option>
+        </select>
+        <button class="um-invite-btn" id="umInviteBtn" onclick="umToggleInvite()">＋ 招待</button>
+      </div>
+      <div class="um-list" id="umListWrap">
+        <div class="um-invite-panel" id="umInvitePanel" hidden>
+          <p class="um-invite-title">＋ メンバーを招待</p>
+          <p class="um-invite-desc">招待したい相手の Google アカウントのメールアドレスを入力してください。相手が一度ログインすると、メンバーとしてデータの閲覧・編集ができるようになります。</p>
+          <div class="um-invite-form">
+            <input class="um-invite-input" id="umInviteEmail" type="email" placeholder="例）yamada@forwarder.co.jp" />
+            <select class="um-invite-role" id="umInviteRole">
+              <option value="admin">管理者</option>
+              <option value="member" selected>メンバー</option>
+              <option value="viewer">閲覧のみ</option>
+            </select>
+            <button class="um-invite-send" onclick="umInvite()">招待する</button>
+          </div>
+          <p class="um-invite-note">※ 招待は許可リスト（allowed_emails）への登録です。相手が初回ログインするまで「招待中」と表示されます。</p>
+        </div>
+        <div id="umMemberList"></div>
+      </div>
+    </div>
+
+    <div id="umPermsPane" class="um-pane" hidden>
+      <div class="um-perm-wrap">
+        <p class="um-perm-intro">ロールごとにできる操作の一覧です。<b>管理者</b>のみメンバー管理・削除・設定変更ができます。通常の業務担当は<b>メンバー</b>、参照だけの相手には<b>閲覧のみ</b>を割り当てます。</p>
+        <table class="um-perm-table">
+          <thead>
+            <tr>
+              <th class="um-cap">操作</th>
+              <th><span class="um-role-static um-role--admin"><span class="um-role-dot" style="background:#b8860b"></span>管理者</span></th>
+              <th><span class="um-role-static um-role--member"><span class="um-role-dot" style="background:#2b7bb0"></span>メンバー</span></th>
+              <th><span class="um-role-static um-role--viewer"><span class="um-role-dot" style="background:#9a8878"></span>閲覧のみ</span></th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td class="um-cap">見積・マスター・ブックマークの閲覧</td><td class="um-yes">✓</td><td class="um-yes">✓</td><td class="um-yes">✓</td></tr>
+            <tr><td class="um-cap">見積・マスターの作成 / 編集</td><td class="um-yes">✓</td><td class="um-yes">✓</td><td class="um-no">—</td></tr>
+            <tr><td class="um-cap">データの削除（自分以外の案件含む）</td><td class="um-yes">✓</td><td class="um-no">—</td><td class="um-no">—</td></tr>
+            <tr><td class="um-cap">メンバーの招待 / 削除</td><td class="um-yes">✓</td><td class="um-no">—</td><td class="um-no">—</td></tr>
+            <tr><td class="um-cap">ロールの変更</td><td class="um-yes">✓</td><td class="um-no">—</td><td class="um-no">—</td></tr>
+            <tr><td class="um-cap">チーム設定の変更</td><td class="um-yes">✓</td><td class="um-no">—</td><td class="um-no">—</td></tr>
+          </tbody>
+        </table>
+        <p class="um-perm-foot">権限は Supabase の <code>get_my_role()</code> ＋ RLS で制御されます。UI上の表示制御だけでなく、サーバー側でも各操作が保護されます。</p>
+      </div>
     </div>
   </div>
 </div>

@@ -139,6 +139,8 @@
       if (saveBtn) saveBtn.hidden = false;
       // FB受信一覧タブを表示
       if (typeof refreshFbAdminTab === 'function') refreshFbAdminTab(_cloudUser);
+      // チーム管理：ロール取得＆入口の出し分け
+      if (typeof window.umOnAuth === 'function') window.umOnAuth(_cloudUser);
     } else {
       stateEl.textContent = '未ログイン';
       stateEl.classList.remove('is-on');
@@ -152,6 +154,8 @@
       if (saveBtn) saveBtn.hidden = true;
       // FB受信一覧タブを隠す
       if (typeof refreshFbAdminTab === 'function') refreshFbAdminTab(null);
+      // チーム管理：入口を隠す
+      if (typeof window.umOnAuth === 'function') window.umOnAuth(null);
     }
   }
 
@@ -177,7 +181,7 @@
     await _loadProfiles();
     const { data, error } = await c
       .from(_table())
-      .select('id,name,status,customer,person,owner_email,created_by,updated_at,incoterms,transport_mode,pol,pod,carrier')
+      .select('id,name,status,customer,person,owner_email,created_by,updated_at,incoterms,transport_mode,pol,pod,carrier,subcons')
       .order('updated_at', { ascending: false });
     if (error) {
       if (wrap) wrap.innerHTML =
@@ -282,6 +286,29 @@
     return { '下書き中':'draft', '提示済み':'sent', '受注':'won', '失注':'lost' }[st] || 'draft';
   }
 
+  // 役割ラベル＝費用行のカテゴリ（CATEGORIES の value → 短縮ラベル）
+  const _SUBCON_ROLE = {
+    'domestic':'国内作業', 'export-local':'輸出ローカル', 'ocean':'海上', 'air':'航空',
+    'surcharge':'サーチャージ', 'import-local':'輸入ローカル', 'overseas':'海外作業',
+    'customs-export':'通関(輸出)', 'customs-import':'通関(輸入)', 'insurance':'保険', 'other':'その他',
+  };
+  // 見積データ（gatherAllData 形式）の費用行から、サブコン名ごとに役割（カテゴリ）を1つ割り当てて配列化
+  function _extractSubcons(data) {
+    const rows = (data && data.rows) || [];
+    const order = [], map = {};
+    rows.forEach(r => {
+      if (!r || r._type !== 'data' || !Array.isArray(r.cells)) return;
+      const cat = (r.cells[1] || '').trim();   // ROW_CELL_FIELDS[0] = 'cat'
+      const sv  = (r.cells[2] || '').trim();   // ROW_CELL_FIELDS[1] = 'sv'（サブコン）
+      if (!sv) return;
+      if (!map[sv]) { map[sv] = { name: sv, role: _SUBCON_ROLE[cat] || '' }; order.push(sv); }
+      else if (!map[sv].role && _SUBCON_ROLE[cat]) map[sv].role = _SUBCON_ROLE[cat];
+    });
+    return order.map(k => map[k]);
+  }
+  // ブラウザ保存（ui.js renderPresetList）からも共通利用する
+  window.quoteExtractSubcons = _extractSubcons;
+
   function _renderCloudList(rows) {
     const wrap = document.getElementById('cloudPresetListWrap');
     if (!wrap) return;
@@ -307,38 +334,47 @@
       const opts = CLOUD_STATUSES.map(st =>
         '<option value="' + st + '"' + (st === status ? ' selected' : '') + '>' + st + '</option>').join('');
 
-      // 貿易・輸送条件チップ
-      const condChips = [];
-      if (r.incoterms)      condChips.push('<span class="cloud-tag cloud-tag-inco">' + escHtml(r.incoterms.split('（')[0]) + '</span>');
-      if (r.transport_mode) condChips.push('<span class="cloud-tag cloud-tag-mode">' + escHtml(r.transport_mode) + '</span>');
-      if (r.pol || r.pod) {
-        const route = [r.pol, r.pod].filter(Boolean).map(escHtml).join(' → ');
-        condChips.push('<span class="cloud-tag cloud-tag-route">📍 ' + route + '</span>');
-      }
-      if (r.carrier) condChips.push('<span class="cloud-tag cloud-tag-carrier">🚢 ' + escHtml(r.carrier) + '</span>');
+      // 貿易・輸送条件（B①：ルート / 条件 / 幹線 / サブコン / 顧客・担当）
+      const route = (r.pol || r.pod)
+        ? [r.pol, r.pod].filter(Boolean).map(escHtml).join(' <span class="cloud-kv-arrow">→</span> ')
+        : '';
+      const condHtml =
+        (r.incoterms      ? '<span class="cloud-tag cloud-tag-inco">' + escHtml(r.incoterms.split('（')[0]) + '</span>' : '') +
+        (r.transport_mode ? '<span class="cloud-tag cloud-tag-mode">' + escHtml(r.transport_mode) + '</span>' : '');
+      const custDd = [r.customer && escHtml(r.customer), r.person && escHtml(r.person)].filter(Boolean).join('・');
 
-      // 顧客・担当者
-      const custParts = [];
-      if (r.customer) custParts.push('<span class="cloud-cust">👤 ' + escHtml(r.customer) + '</span>');
-      if (r.person)   custParts.push('<span class="cloud-person">🧑‍💼 ' + escHtml(r.person) + '</span>');
+      // サブコン（役割ラベル付き・5件目以降は +N）
+      const subcons  = Array.isArray(r.subcons) ? r.subcons : [];
+      const subShown = subcons.slice(0, 4);
+      const subMore  = subcons.length - subShown.length;
+      const subHtml = subShown.map(s =>
+        '<span class="cloud-sc-item">' +
+          (s.role ? '<span class="cloud-sc-role">' + escHtml(s.role) + '</span>' : '') +
+          '<span class="cloud-sc-name">' + escHtml(s.name) + '</span>' +
+        '</span>').join('') + (subMore > 0 ? '<span class="cloud-sc-more">+' + subMore + '</span>' : '');
 
       return '' +
-        '<div class="cloud-card">' +
+        '<div class="cloud-card cloud-card-labeled">' +
           '<div class="cloud-card-row1">' +
             '<select class="cloud-status-sel cloud-status--' + _statusClass(status) + '" ' +
                     'title="ステータスを変更" onchange="cloudSetStatus(\'' + idAttr + '\', this.value)">' + opts + '</select>' +
             '<span class="cloud-card-name" title="' + escHtml(r.name) + '">' + escHtml(r.name) + '</span>' +
-            '<button class="btn-preset-preview" onclick="cloudPreviewPreset(\'' + idAttr + '\')" title="内容をプレビュー">プレビュー</button>' +
-            '<button class="btn-preset-load" onclick="cloudLoadPreset(\'' + idAttr + '\')">読込</button>' +
-            '<button class="btn-preset-del"  onclick="cloudDeletePreset(\'' + idAttr + '\')" title="削除（全員から消えます）">✕</button>' +
           '</div>' +
-          (condChips.length
-            ? '<div class="cloud-card-cond">' + condChips.join('') + '</div>'
-            : '') +
-          '<div class="cloud-card-row2">' +
-            (custParts.length ? '<span class="cloud-card-meta">' + custParts.join('') + '</span>' : '') +
+          '<dl class="cloud-kv">' +
+            (route    ? '<dt>ルート</dt><dd>' + route + '</dd>' : '') +
+            (condHtml ? '<dt>条件</dt><dd class="cloud-kv-tags">' + condHtml + '</dd>' : '') +
+            (r.carrier ? '<dt>幹線</dt><dd>🚢 ' + escHtml(r.carrier) + '</dd>' : '') +
+            (subHtml  ? '<dt>サブコン</dt><dd class="cloud-kv-sub">' + subHtml + '</dd>' : '') +
+            (custDd   ? '<dt>顧客 / 担当</dt><dd>' + custDd + '</dd>' : '') +
+          '</dl>' +
+          '<div class="cloud-card-foot">' +
             '<span class="cloud-card-who" title="作成：' + escHtml(crtWho || '—') + ' / 最終更新：' + escHtml(updWho || '—') + '">' +
               '✏️ ' + escHtml(updWho || '—') + '・' + ts + '</span>' +
+            '<div class="cloud-card-acts">' +
+              '<button class="btn-preset-preview" onclick="cloudPreviewPreset(\'' + idAttr + '\')" title="内容をプレビュー">プレビュー</button>' +
+              '<button class="btn-preset-load" onclick="cloudLoadPreset(\'' + idAttr + '\')">読込</button>' +
+              '<button class="btn-preset-del"  onclick="cloudDeletePreset(\'' + idAttr + '\')" title="削除（全員から消えます）">✕</button>' +
+            '</div>' +
           '</div>' +
         '</div>';
     }).join('');
@@ -384,6 +420,7 @@
       : ('一時保存_' + new Date().toISOString().slice(0, 10).replace(/-/g, ''));
 
     const data = gatherAllData();
+    const subcons = _extractSubcons(data);
     // 検索・一覧用の主要項目を data から昇格（顧客名・担当者）
     const f = (data && data.fields) || {};
     const customer       = (f['qf-customer']    || '').trim() || null;
@@ -415,13 +452,13 @@
       if (!confirm('共有プリセット「' + name + '」が既にあります。上書きしますか？')) return;
       // 上書き時はステータス・作成者は維持（中身と顧客/担当・最終更新者のみ更新）
       resp = await c.from(_table())
-        .update({ data, customer, person, incoterms, transport_mode, pol, pod, carrier,
+        .update({ data, subcons, customer, person, incoterms, transport_mode, pol, pod, carrier,
                   owner_email: _cloudUser.email, updated_at: new Date().toISOString() })
         .eq('id', existing[0].id);
     } else {
       resp = await c.from(_table())
         .insert({
-          name, data, customer, person, incoterms, transport_mode, pol, pod, carrier,
+          name, data, subcons, customer, person, incoterms, transport_mode, pol, pod, carrier,
           status: CLOUD_STATUS_DEFAULT,
           owner_email: _cloudUser.email,
           created_by:  _cloudUser.email,
@@ -804,6 +841,12 @@
   window.cpToggleAll           = cpToggleAll;
   window.cpToggleGroup         = cpToggleGroup;
   window.cpUpdateSelCount      = _cpUpdateSelCount;
+
+  // ---------- 他モジュール（行パターン等）からのログイン情報参照用 ----------
+  window.quoteCloudUser   = function () { return _cloudUser; };
+  window.quoteCloudClient = function () { return _getClient(); };
+  window.quoteDisplayName = function (email) { return (email && _profileMap[email]) || email || '—'; };
+  window.quoteLoadProfiles = _loadProfiles;
 
   // supabase-js は <head> で defer 読み込みのため DOMContentLoaded を待つ
   if (document.readyState === 'loading') {
