@@ -2173,6 +2173,16 @@
             <tbody id="cpTableBody"></tbody>
           </table>
         </div>
+        <div class="cp-attach-section">
+          <div class="cp-attach-header">
+            <span class="cp-attach-title">📎 添付ファイル</span>
+            <label class="cp-attach-upload-btn">
+              ＋ 添付
+              <input type="file" accept="image/*,application/pdf" style="display:none" onchange="cpUploadAttachment(this)">
+            </label>
+          </div>
+          <div id="cpAttachList" class="cp-attach-list"></div>
+        </div>
         <div class="cloud-preview-foot">
           <span id="cpSelCount" class="cp-sel-count"></span>
           <button class="cp-btn-import" onclick="cloudImportSelectedRows()">✅ 選択した行を追加</button>

@@ -6328,3 +6328,94 @@
 .cmp-row-changed td { background: #fffbe6; }
 .cmp-diff-pos { color: #1a7a1a; font-weight: 700; }
 .cmp-diff-neg { color: #c0392b; font-weight: 700; }
+
+/* ===== 添付ファイルセクション（クラウドプレビュー内） ===== */
+#tab-quote-make .cp-attach-section {
+  border-top: 1px solid #dde3ee;
+  padding: 10px 16px 12px;
+  background: #fafbfd;
+}
+#tab-quote-make .cp-attach-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+#tab-quote-make .cp-attach-title {
+  font-size: .85rem;
+  font-weight: 700;
+  color: #4a5568;
+}
+#tab-quote-make .cp-attach-upload-btn {
+  font-size: .78rem;
+  padding: 3px 10px;
+  border-radius: 4px;
+  border: 1px solid #a0b4d8;
+  background: #fff;
+  color: #2563eb;
+  cursor: pointer;
+  white-space: nowrap;
+}
+#tab-quote-make .cp-attach-upload-btn:hover {
+  background: #eff6ff;
+}
+#tab-quote-make .cp-attach-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  min-height: 28px;
+}
+#tab-quote-make .cp-attach-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: #fff;
+  border: 1px solid #d1ddf0;
+  border-radius: 6px;
+  padding: 4px 8px;
+  font-size: .8rem;
+  color: #333;
+  max-width: 260px;
+}
+#tab-quote-make .cp-attach-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 160px;
+}
+#tab-quote-make .cp-attach-size {
+  color: #888;
+  white-space: nowrap;
+  font-size: .74rem;
+}
+#tab-quote-make .cp-attach-dl {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: .9rem;
+  padding: 0 2px;
+  color: #2563eb;
+  line-height: 1;
+}
+#tab-quote-make .cp-attach-dl:hover { color: #1d4ed8; }
+#tab-quote-make .cp-attach-del {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: .85rem;
+  padding: 0 2px;
+  color: #bbb;
+  line-height: 1;
+}
+#tab-quote-make .cp-attach-del:hover { color: #e53e3e; }
+#tab-quote-make .cp-attach-empty {
+  font-size: .78rem;
+  color: #aaa;
+  padding: 4px 0;
+}
+#tab-quote-make .cp-attach-uploading {
+  font-size: .78rem;
+  color: #666;
+  padding: 4px 6px;
+  font-style: italic;
+}

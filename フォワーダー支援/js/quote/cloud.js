@@ -571,6 +571,7 @@
     _cpRenderTable(rows);
     _cpUpdateSelCount();
     document.getElementById('cloudPreviewModal').style.display = 'flex';
+    _loadAttachments(_cpId);
   }
 
   function _cpRenderTable(rows) {
@@ -786,6 +787,134 @@
     }
   }
 
+  // ================================================================
+  // ========== 📎 添付ファイル管理 ==========
+  // ================================================================
+
+  const _ATTACH_BUCKET = () => window.CLOUD_CONFIG?.attachmentBucket || 'quote-attachments';
+  const _ATTACH_MAX_W  = 1920;   // 画像リサイズ上限（px）
+  const _ATTACH_QUALITY = 0.82;  // JPEG 圧縮品質
+
+  // 画像をクライアント側で圧縮（非画像はそのまま返す）
+  function _compressImage(file) {
+    return new Promise(resolve => {
+      if (!file.type.startsWith('image/')) { resolve(file); return; }
+      const img = new Image();
+      const url = URL.createObjectURL(file);
+      img.onload = () => {
+        URL.revokeObjectURL(url);
+        const scale = Math.min(1, _ATTACH_MAX_W / img.width);
+        const canvas = document.createElement('canvas');
+        canvas.width  = Math.round(img.width  * scale);
+        canvas.height = Math.round(img.height * scale);
+        canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+        canvas.toBlob(
+          blob => resolve(new File([blob], file.name.replace(/\.[^.]+$/, '.jpg'), { type: 'image/jpeg' })),
+          'image/jpeg', _ATTACH_QUALITY
+        );
+      };
+      img.onerror = () => { URL.revokeObjectURL(url); resolve(file); };
+      img.src = url;
+    });
+  }
+
+  // 添付ファイル一覧を取得してレンダリング
+  async function _loadAttachments(presetId) {
+    const c = _getClient();
+    if (!c || !presetId) return;
+    const wrap = document.getElementById('cpAttachList');
+    if (!wrap) return;
+    wrap.innerHTML = '<span class="cp-attach-loading">読み込み中…</span>';
+    const { data, error } = await c
+      .from('quote_attachments')
+      .select('id,file_name,file_size,mime_type,storage_path,uploaded_by,created_at')
+      .eq('preset_id', presetId)
+      .order('created_at', { ascending: false });
+    if (error) { wrap.innerHTML = '<span class="cp-attach-err">⚠️ 取得失敗</span>'; return; }
+    _renderAttachments(data || []);
+  }
+
+  function _renderAttachments(rows) {
+    const wrap = document.getElementById('cpAttachList');
+    if (!wrap) return;
+    if (!rows.length) { wrap.innerHTML = '<span class="cp-attach-empty">添付ファイルなし</span>'; return; }
+    wrap.innerHTML = rows.map(r => {
+      const kb   = r.file_size ? (r.file_size / 1024).toFixed(0) + ' KB' : '';
+      const icon = (r.mime_type || '').startsWith('image/') ? '🖼' : '📄';
+      const idEnc = encodeURIComponent(r.id);
+      const pathEnc = encodeURIComponent(r.storage_path);
+      return `<div class="cp-attach-item">
+        <span class="cp-attach-icon">${icon}</span>
+        <span class="cp-attach-name" title="${escHtml(r.file_name)}">${escHtml(r.file_name)}</span>
+        <span class="cp-attach-size">${escHtml(kb)}</span>
+        <button class="cp-attach-dl"  onclick="cpDownloadAttachment('${pathEnc}')" title="ダウンロード">⬇</button>
+        <button class="cp-attach-del" onclick="cpDeleteAttachment('${idEnc}','${pathEnc}')" title="削除">✕</button>
+      </div>`;
+    }).join('');
+  }
+
+  // ファイル選択後にアップロード
+  async function cpUploadAttachment(input) {
+    const c = _getClient();
+    if (!c || !_cloudUser) { quoteShowToast('⚠️ ログインが必要です', 'warn'); return; }
+    if (!_cpId) { quoteShowToast('⚠️ 先にプレビューで案件を開いてください', 'warn'); return; }
+    const file = input.files?.[0];
+    if (!file) return;
+    input.value = '';
+
+    const btn = document.getElementById('cpAttachUploadBtn');
+    if (btn) { btn.disabled = true; btn.textContent = '圧縮・送信中…'; }
+    try {
+      const compressed = await _compressImage(file);
+      const path = `${_cpId}/${Date.now()}_${compressed.name.replace(/[^\w.\-]/g, '_')}`;
+      const { error: upErr } = await c.storage.from(_ATTACH_BUCKET()).upload(path, compressed, { upsert: false });
+      if (upErr) throw upErr;
+      const { error: dbErr } = await c.from('quote_attachments').insert({
+        preset_id:    _cpId,
+        storage_path: path,
+        file_name:    file.name,
+        file_size:    compressed.size,
+        mime_type:    compressed.type,
+        uploaded_by:  _cloudUser.email,
+      });
+      if (dbErr) throw dbErr;
+      quoteShowToast('📎 添付しました', 'success', 2500);
+      _loadAttachments(_cpId);
+    } catch(e) {
+      quoteShowToast('⚠️ アップロード失敗：' + (e.message || e), 'warn', 5000);
+    } finally {
+      if (btn) { btn.disabled = false; btn.textContent = '📎 ファイルを添付'; }
+    }
+  }
+
+  // ダウンロード（署名付き URL を 60 秒発行）
+  async function cpDownloadAttachment(rawPath) {
+    const c = _getClient();
+    if (!c) return;
+    const path = decodeURIComponent(rawPath);
+    const { data, error } = await c.storage.from(_ATTACH_BUCKET()).createSignedUrl(path, 60);
+    if (error || !data?.signedUrl) { quoteShowToast('⚠️ URL 取得失敗', 'warn'); return; }
+    const a = document.createElement('a');
+    a.href = data.signedUrl;
+    a.download = path.split('/').pop();
+    a.click();
+  }
+
+  // 削除
+  async function cpDeleteAttachment(rawId, rawPath) {
+    if (!confirm('この添付ファイルを削除しますか？')) return;
+    const c = _getClient();
+    if (!c) return;
+    const id   = decodeURIComponent(rawId);
+    const path = decodeURIComponent(rawPath);
+    const { error: stErr } = await c.storage.from(_ATTACH_BUCKET()).remove([path]);
+    if (stErr) { quoteShowToast('⚠️ Storage 削除失敗：' + stErr.message, 'warn'); return; }
+    const { error: dbErr } = await c.from('quote_attachments').delete().eq('id', id);
+    if (dbErr) { quoteShowToast('⚠️ DB 削除失敗：' + dbErr.message, 'warn'); return; }
+    quoteShowToast('✅ 削除しました', 'success', 2000);
+    _loadAttachments(_cpId);
+  }
+
   // ---------- window 公開（onclick 用） ----------
   window.saveAssigneeName    = saveAssigneeName;
   window.cloudLogin          = cloudLogin;
@@ -808,6 +937,9 @@
   window.cpToggleAll           = cpToggleAll;
   window.cpToggleGroup         = cpToggleGroup;
   window.cpUpdateSelCount      = _cpUpdateSelCount;
+  window.cpUploadAttachment    = cpUploadAttachment;
+  window.cpDownloadAttachment  = cpDownloadAttachment;
+  window.cpDeleteAttachment    = cpDeleteAttachment;
 
   // supabase-js は <head> で defer 読み込みのため DOMContentLoaded を待つ
   if (document.readyState === 'loading') {
