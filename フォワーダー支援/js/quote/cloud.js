@@ -966,6 +966,8 @@
     _profEditEmoji = cur.emoji || '';
     const nameInp = document.getElementById('profNameInput');
     if (nameInp) nameInp.value = _cloudDisplayName(_cloudUser);
+    const idEl = document.getElementById('profMemberNo');
+    if (idEl) idEl.textContent = (window._myMemberNo != null) ? String(window._myMemberNo).padStart(2, '0') : '未割当';
     const emojiInp = document.getElementById('profEmojiInput');
     if (emojiInp) emojiInp.value = _profEditEmoji;
     const colWrap = document.getElementById('profColors');

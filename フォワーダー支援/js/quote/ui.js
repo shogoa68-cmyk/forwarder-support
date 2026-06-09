@@ -700,6 +700,61 @@
     return '一時保存_' + new Date().toISOString().slice(0,10).replace(/-/g, '');
   }
 
+  // ========== 仮REF# 自動採番（発番ID2桁 ＋ YYMMDD ＋ 連番3桁） ==========
+  // 連番は端末ローカル（localStorage）で日次リセット。発番IDはチーム内で一意のためチーム全体で重複しない。
+  const REF_SEQ_KEY = 'refSeq_v1';
+  function _refTodayYmd() {
+    const d = new Date();
+    return String(d.getFullYear()).slice(2)
+         + String(d.getMonth() + 1).padStart(2, '0')
+         + String(d.getDate()).padStart(2, '0');
+  }
+  function _nextRefSeq(ymd) {
+    let st = {};
+    try { st = JSON.parse(localStorage.getItem(REF_SEQ_KEY) || '{}'); } catch (e) {}
+    if (st.date !== ymd) st = { date: ymd, seq: 0 };   // 日付が変わったらリセット
+    st.seq = (st.seq || 0) + 1;
+    try { localStorage.setItem(REF_SEQ_KEY, JSON.stringify(st)); } catch (e) {}
+    return st.seq;
+  }
+  function generateQuoteRefValue() {
+    const no = window._myMemberNo;
+    if (no == null) return null;                       // 発番ID未取得（未ログイン or 未登録）
+    const id2 = String(no).padStart(2, '0');
+    const ymd = _refTodayYmd();
+    const seq = String(_nextRefSeq(ymd)).padStart(3, '0');
+    return id2 + ymd + seq;
+  }
+  function _setRefValue(val) {
+    const el = document.getElementById('qf-ref');
+    if (!el) return;
+    el.value = val;
+    el.dispatchEvent(new Event('input', { bubbles: true }));   // 自動保存・サマリ更新を発火
+    if (typeof window.updateQuoteRefEmpty === 'function') window.updateQuoteRefEmpty();
+  }
+  // ボタン：明示採番（既存値があれば上書き確認）
+  function fillQuoteRef() {
+    const el = document.getElementById('qf-ref');
+    if (!el) return;
+    if (window._myMemberNo == null) {
+      quoteShowToast('⚠️ 発番IDが未取得です。ログイン、または管理者にメンバー登録（採番）を依頼してください', 'warn', 5500);
+      return;
+    }
+    if (el.value.trim() && !confirm('現在の仮REF#「' + el.value.trim() + '」を自動採番で上書きしますか？')) return;
+    const v = generateQuoteRefValue();
+    if (v) { _setRefValue(v); quoteShowToast('🔢 仮REF# ' + v + ' を採番しました', 'success'); }
+  }
+  // 新規（REFが空）のときだけ自動採番。発番ID未取得時は何もしない（取得時に再試行される）
+  function maybeAutoFillRef() {
+    const el = document.getElementById('qf-ref');
+    if (!el || el.value.trim()) return;
+    if (window._myMemberNo == null) return;
+    const v = generateQuoteRefValue();
+    if (v) _setRefValue(v);
+  }
+  window.fillQuoteRef     = fillQuoteRef;
+  window.maybeAutoFillRef = maybeAutoFillRef;
+
   function openPresetMgr(mode) {
     // mode: 'browser'（ブラウザ保存）／'cloud'（チーム共有）。既定は browser。
     if (mode !== 'cloud') mode = 'browser';
@@ -2558,4 +2613,5 @@
       initQuoteAutoSaveListeners();  // save.js：input/change の自動保存
     }
     if (typeof initSimilarQuotes === 'function') initSimilarQuotes();
+    maybeAutoFillRef();          // 新規（REF空）なら仮REF#を自動採番
   };

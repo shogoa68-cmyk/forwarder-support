@@ -42,6 +42,7 @@
     const btn = document.getElementById('hdrUserMgrBtn');
     if (!user) {
       _myRole = null;
+      window._myMemberNo = null;
       if (btn) btn.hidden = true;
       return;
     }
@@ -52,6 +53,13 @@
       _myRole = error ? null : (data || 'member');
     } catch (e) { _myRole = null; }
     window._myRole = _myRole;
+    // 発番ID（仮REF#の先頭2桁）を取得。RLSに依存せず本人のみ取得する RPC。
+    try {
+      const { data: mn } = await db.rpc('get_my_member_no');
+      window._myMemberNo = (mn == null ? null : Number(mn));
+    } catch (e) { window._myMemberNo = null; }
+    // 発番ID取得後、見積タブが新規（REF空）なら自動採番を再試行
+    if (typeof window.maybeAutoFillRef === 'function') window.maybeAutoFillRef();
     // 入口は管理者のみ
     if (btn) btn.hidden = (_myRole !== 'admin');
   }
@@ -72,6 +80,7 @@
       email: r.email,
       role: r.role || 'member',
       created_at: r.created_at || null,
+      member_no: (r.member_no == null ? null : Number(r.member_no)),
     })).sort((a, b) => {
       const ra = ROLE_ORDER[a.role] ?? 9, rb = ROLE_ORDER[b.role] ?? 9;
       if (ra !== rb) return ra - rb;
@@ -117,6 +126,7 @@
       '<div class="um-avatar" style="background:' + color + '">' + _esc(avLabel) + '</div>' +
       '<div class="um-id">' +
         '<div class="um-name-row"><span class="um-name">' + _esc(name) + '</span>' +
+          (m.member_no != null ? '<span class="um-memberno" title="発番ID（仮REF#の先頭2桁）">#' + String(m.member_no).padStart(2, '0') + '</span>' : '') +
           (isSelf ? '<span class="um-you">あなた</span>' : '') + '</div>' +
         '<div class="um-email">' + _esc(m.email) + '</div>' +
         '<div class="um-meta"><span>🕒 ' + _esc(last) + '</span><span>追加 ' + added + '</span></div>' +
@@ -183,7 +193,13 @@
     if (_members.some(m => m.email.toLowerCase() === email)) { _toast('⚠️ すでに登録済みのメンバーです', 'warn'); return; }
     const db = _db();
     if (!db) return;
-    const { error } = await db.from('allowed_emails').insert({ email, role });
+    // 発番ID（member_no）を登録時に固定付与：既存の最大値＋1（一度振ったら不変・削除でズレない）
+    const used = _members.map(m => m.member_no).filter(n => typeof n === 'number');
+    const nextNo = (used.length ? Math.max(...used) : 0) + 1;
+    let { error } = await db.from('allowed_emails').insert({ email, role, member_no: nextNo });
+    if (error && /member_no/.test(error.message || '')) {   // 列未作成でも招待は通す
+      ({ error } = await db.from('allowed_emails').insert({ email, role }));
+    }
     if (error) { _toast('⚠️ 招待に失敗：' + error.message, 'warn'); return; }
     if (input) input.value = '';
     _toast('✉️ ' + email + ' を招待しました（' + (ROLE_LABEL[role] || role) + '）', 'success', 2600);

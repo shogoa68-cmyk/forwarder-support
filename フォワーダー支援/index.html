@@ -2274,7 +2274,10 @@
         <div class="quote-header">
           <div class="quote-field">
             <label>仮 REF # <span class="req-mark" aria-hidden="true">*</span></label>
-            <input type="text" id="qf-ref" placeholder="例）2024-001" aria-required="true" />
+            <div class="qf-ref-row">
+              <input type="text" id="qf-ref" placeholder="例）2024-001（🔢で自動採番）" aria-required="true" />
+              <button type="button" id="qfRefAuto" class="qf-ref-auto-btn" onclick="fillQuoteRef()" title="発番ID（2桁）＋年月日＋連番で自動採番">🔢 自動採番</button>
+            </div>
           </div>
           <div class="quote-field">
             <label>引き合い元様名称 <span class="req-mark" aria-hidden="true">*</span></label>
@@ -3595,6 +3598,8 @@
         <span class="prof-av" id="profPreviewAv"></span>
         <span class="prof-preview-name" id="profPreviewName"></span>
       </div>
+      <div class="prof-idrow">発番ID <span class="prof-id" id="profMemberNo">—</span>
+        <span class="prof-id-note">仮REF#の先頭2桁・登録順に自動割当（変更不可）</span></div>
       <label class="prof-label" for="profNameInput">表示名</label>
       <input id="profNameInput" class="prof-input" maxlength="20" placeholder="例）青木" oninput="profUpdatePreview()" />
       <label class="prof-label">アバターの色</label>

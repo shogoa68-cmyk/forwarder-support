@@ -133,6 +133,31 @@
 #tab-quote-make #qf-memo:focus { border-color: #8b6914; }
 #tab-quote-make #qf-memo::placeholder { color: #998070; font-size: 11px; }
 
+/* 仮REF# 自動採番ボタン行 */
+#tab-quote-make .qf-ref-row {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+}
+#tab-quote-make .qf-ref-row #qf-ref {
+  flex: 1 1 0;
+  min-width: 0;
+}
+#tab-quote-make .qf-ref-auto-btn {
+  flex-shrink: 0;
+  padding: 5px 10px;
+  font-size: 11px;
+  font-weight: 700;
+  border: 1px solid #a08060;
+  border-radius: 4px;
+  background: #f5f0e8;
+  color: #6a4e30;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s;
+}
+#tab-quote-make .qf-ref-auto-btn:hover { background: #ece4d8; }
+
 /* ステータスボタングループ */
 #tab-quote-make .qf-status-btns {
   display: flex;
@@ -6449,6 +6474,14 @@
 .prof-save { background: #6b5a42; color: #fff; border: none; border-radius: 7px; padding: 8px 20px; font-size: 13px; font-weight: 700; font-family: inherit; cursor: pointer; }
 .prof-save:hover { background: #54452f; }
 .prof-save:disabled { opacity: .6; cursor: not-allowed; }
+/* プロフィールの発番ID表示 */
+.prof-idrow { margin: 2px 0 4px; font-size: 12px; color: #6b5a42; }
+.prof-id { display: inline-block; font-weight: 800; font-size: 14px; color: #3d2e1e;
+  background: #f0e8d8; border: 1px solid #e2d3b6; border-radius: 6px; padding: 1px 9px; margin: 0 4px; }
+.prof-id-note { font-size: 11px; color: #9a8878; }
+/* チーム管理：発番IDバッジ */
+.um-memberno { font-size: 11px; font-weight: 800; color: #6a4e30;
+  background: #f0e8d8; border: 1px solid #e2d3b6; border-radius: 999px; padding: 0 7px; margin-left: 6px; }
 
 #umOverlay {
   position: fixed; inset: 0; background: rgba(48,38,26,.42); z-index: 4000;
