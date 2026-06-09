@@ -28,7 +28,14 @@
   function _user() { const u = window.quoteCloudUser && window.quoteCloudUser(); return u ? (u.email||null) : null; }
   function _esc(s) { return String(s==null?'':s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
   function _num(v) { const n = parseFloat(String(v==null?'':v).replace(/[, ]/g,'')); return isFinite(n) ? n : null; }
-  function _yen(n) { return '¥' + Math.round(n).toLocaleString('ja-JP'); }
+  // 金額表示：行の実通貨を反映（JPY は ¥・整数、非JPY は通貨コード併記＋小数2桁まで）
+  function _money(n, ccy) {
+    if (n == null) return '—';
+    const cur = (ccy || 'JPY').trim() || 'JPY';
+    return cur === 'JPY'
+      ? '¥' + Math.round(n).toLocaleString('ja-JP')
+      : cur + ' ' + n.toLocaleString('ja-JP', { maximumFractionDigits: 2 });
+  }
 
   // ---------- 集計 ----------
   function _aggregate(presets) {
@@ -48,7 +55,9 @@
         const sc = scMap[sv];
         sc.lastUsed = Math.max(sc.lastUsed, ts);
         sc.presetIds[p.id] = true;
-        const key = cat + '||' + nm;
+        // 通貨もキーに含める（同一項目でも JPY/USD 等が混ざると平均が壊れるため分離）
+        const pcKey = (r.cells[CI.pc] || 'JPY').trim() || 'JPY';
+        const key = cat + '||' + nm + '||' + pcKey;
         const pp = _num(r.cells[CI.pp]);
         if (!sc.items[key]) {
           sc.items[key] = {
@@ -126,10 +135,10 @@
     }
     wrap.innerHTML = list.map((sc, si) => {
       const rows = sc.items.map((it, ii) => {
-        const priceMain = it.pp != null ? _yen(it.pp) : '—';
+        const priceMain = it.pp != null ? _money(it.pp, it.pc) : '—';
         const unit = it.un ? '<small class="rp-sc-unit"> /' + _esc(it.un) + '</small>' : '';
         const avg = (it.avgPp != null && it.ppCount !== 1)
-          ? '<span class="rp-sc-avg">平均 ' + _yen(it.avgPp) + '</span>' : '';
+          ? '<span class="rp-sc-avg">平均 ' + _money(it.avgPp, it.pc) + '</span>' : '';
         return '<label class="rp-sc-item">' +
             '<input type="checkbox" class="rp-sc-chk" data-si="' + si + '" data-ii="' + ii + '" checked>' +
             '<span class="rp-cat ' + (CAT_CLASS[it.cat]||'cat-other') + '">' + _esc(ROLE[it.cat]||it.cat||'—') + '</span>' +
