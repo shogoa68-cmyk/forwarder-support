@@ -1290,6 +1290,51 @@
     reader.readAsText(file, 'utf-8');
   };
 
+  // 行パターン内の1行を一覧用ラベルに整形（種別アイコン＋カテゴリ＋名称＋単価）
+  function _rpRowLabel(rd) {
+    if (!rd) return '';
+    if (rd._type === 'remark')
+      return '<span class="rp-row-ic">📝</span><span class="rp-row-nm">' +
+        (escHtml(rd.text) || '<i class="rp-row-empty">（空のリマーク）</i>') + '</span>';
+    if (rd._type === 'subtotal')
+      return '<span class="rp-row-ic">Σ</span><span class="rp-row-nm">' +
+        (escHtml(rd.label) || '小計') + '</span>';
+    const cats = (typeof getAllCategories === 'function') ? getAllCategories() : [];
+    const catLbl = (cats.find(c => c.value === rd.cat) || {}).label || '';
+    const catH = catLbl ? '<span class="rp-row-cat">' + escHtml(catLbl) + '</span>' : '';
+    const nmH  = '<span class="rp-row-nm">' +
+      (escHtml(rd.name) || '<i class="rp-row-empty">（名称なし）</i>') + '</span>';
+    const price = rd.bp || rd.pp;
+    const cur   = rd.bp ? (rd.bc || '') : (rd.pc || '');
+    const prH   = price ? '<span class="rp-row-price">' + escHtml(cur) + ' ' + escHtml(price) + '</span>' : '';
+    return catH + nmH + prH;
+  }
+
+  // 全選択トグル（同じカード内の明細チェックを一括）
+  function rpToggleAllRows(allChk) {
+    const card = allChk.closest('.rp-card');
+    if (!card) return;
+    card.querySelectorAll('.rp-row-chk').forEach(c => { c.checked = allChk.checked; });
+  }
+  window.rpToggleAllRows = rpToggleAllRows;
+
+  // 選択した明細だけを挿入（挿入位置セレクトを尊重）
+  function insertSelectedPatternRows(id) {
+    const p = _rowPatterns.find(x => x.id === id);
+    if (!p) return;
+    const sel  = (window.CSS && CSS.escape) ? CSS.escape(id) : id;
+    const card = document.querySelector('.rp-card[data-pid="' + sel + '"]');
+    if (!card) return;
+    const idxs = Array.from(card.querySelectorAll('.rp-row-chk:checked'))
+      .map(c => parseInt(c.dataset.idx, 10));
+    if (!idxs.length) { quoteShowToast('⚠️ 挿入する明細を1つ以上選択してください', 'warn', 3000); return; }
+    const subset = idxs.map(i => p.rows[i]).filter(Boolean);
+    const posLabel = _insertPatternRows(subset);
+    closeRowPatternMgr();
+    quoteShowToast(`📂 「${p.name}」から ${subset.length} 行を${posLabel}に挿入しました`, 'success');
+  }
+  window.insertSelectedPatternRows = insertSelectedPatternRows;
+
   function renderRowPatternList() {
     const wrap = document.getElementById('rowPatternListWrap');
     if (!wrap) return;
@@ -1306,14 +1351,30 @@
       const noteHtml = p.note
         ? '<div class="rp-note"><span class="rp-note-lbl">📝 メモ</span>' + escHtml(p.note) + '</div>'
         : '';
-      return '<div class="rp-card">' +
+      const rowsHtml = (p.rows || []).map((rd, i) =>
+        '<label class="rp-row-item">' +
+          '<input type="checkbox" class="rp-row-chk" data-idx="' + i + '" checked>' +
+          _rpRowLabel(rd) +
+        '</label>').join('');
+      const detailHtml = n
+        ? '<details class="rp-detail">' +
+            '<summary class="rp-detail-sum">📋 明細を選んで挿入</summary>' +
+            '<div class="rp-detail-tools">' +
+              '<label class="rp-allsel"><input type="checkbox" class="rp-row-allchk" checked onchange="rpToggleAllRows(this)"> すべて</label>' +
+              '<button class="btn-preset-load rp-ins-sel" onclick="insertSelectedPatternRows(\'' + p.id + '\')">選択行を挿入</button>' +
+            '</div>' +
+            '<div class="rp-row-list">' + rowsHtml + '</div>' +
+          '</details>'
+        : '';
+      return '<div class="rp-card" data-pid="' + escHtml(p.id) + '">' +
         '<div class="rp-head">' +
           '<span class="rp-name" title="' + escHtml(p.name) + '">' + escHtml(p.name) + '</span>' +
           '<span class="rp-rowcount">' + n + '行</span>' +
-          '<button class="btn-preset-load" onclick="loadRowPattern(\'' + p.id + '\')">＋ 挿入</button>' +
+          '<button class="btn-preset-load" onclick="loadRowPattern(\'' + p.id + '\')" title="全' + n + '行を挿入">＋ 全挿入</button>' +
           '<button class="btn-preset-del"  onclick="deleteRowPattern(\'' + p.id + '\')" title="削除（チーム全員から消えます）">✕</button>' +
         '</div>' +
         noteHtml +
+        detailHtml +
         '<div class="rp-meta">✏️ ' + escHtml(who) + '・最終更新 ' + ts + '</div>' +
       '</div>';
     }).join('');

@@ -6600,6 +6600,26 @@ button.um-memberno--empty:hover { background: #f4ead4; border-color: #cdb98e; }
 #tab-quote-make .rp-note { display:flex; gap:8px; padding:7px 12px; font-size:11.5px; color:#4a3f35; background:#fbf6ea; border-top:1px solid #f1ebe0; line-height:1.6; }
 #tab-quote-make .rp-note-lbl { font-size:10px; font-weight:700; color:#6b5a42; white-space:nowrap; flex-shrink:0; }
 #tab-quote-make .rp-meta { padding:6px 12px; font-size:10.5px; color:#b0a18d; border-top:1px solid #f1ebe0; }
+/* 行パターン：明細を選んで挿入（展開） */
+#tab-quote-make .rp-detail { border-top:1px solid #f1ebe0; }
+#tab-quote-make .rp-detail-sum { list-style:none; cursor:pointer; padding:7px 12px; font-size:11.5px; font-weight:600; color:#6b5a42; background:#fbf8f1; user-select:none; }
+#tab-quote-make .rp-detail-sum::-webkit-details-marker { display:none; }
+#tab-quote-make .rp-detail-sum::before { content:'▸ '; color:#a89a86; }
+#tab-quote-make .rp-detail[open] > .rp-detail-sum::before { content:'▾ '; }
+#tab-quote-make .rp-detail[open] > .rp-detail-sum { background:#f3ecdd; }
+#tab-quote-make .rp-detail-tools { display:flex; align-items:center; justify-content:space-between; gap:8px; padding:6px 12px; background:#fdfaf4; border-top:1px solid #f1ebe0; }
+#tab-quote-make .rp-allsel { font-size:11.5px; color:#5d4e3a; display:flex; align-items:center; gap:5px; cursor:pointer; }
+#tab-quote-make .rp-ins-sel { white-space:nowrap; }
+#tab-quote-make .rp-row-list { max-height:240px; overflow-y:auto; padding:4px 0; }
+#tab-quote-make .rp-row-item { display:flex; align-items:center; gap:8px; padding:5px 12px; font-size:11.5px; color:#3d2e1e; border-top:1px solid #f6f1e7; cursor:pointer; }
+#tab-quote-make .rp-row-item:first-child { border-top:none; }
+#tab-quote-make .rp-row-item:hover { background:#f9f5ec; }
+#tab-quote-make .rp-row-chk { width:14px; height:14px; flex-shrink:0; cursor:pointer; }
+#tab-quote-make .rp-row-ic { flex-shrink:0; color:#8a7a60; }
+#tab-quote-make .rp-row-cat { flex-shrink:0; font-size:10px; font-weight:700; color:#6b5a42; background:#f0e8d8; border-radius:4px; padding:0 6px; }
+#tab-quote-make .rp-row-nm { flex:1; min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+#tab-quote-make .rp-row-empty { color:#b0a18d; font-style:italic; }
+#tab-quote-make .rp-row-price { flex-shrink:0; font-size:10.5px; color:#7a6a52; font-variant-numeric:tabular-nums; }
 
 /* 行を挿入モーダル：アクティブタブを伸縮させ、リスト部分だけ内部スクロールさせる。
    （:not([hidden]) で非表示タブの display:none を維持。リストの overflow 未指定で
