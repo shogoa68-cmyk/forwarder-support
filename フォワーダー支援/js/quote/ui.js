@@ -27,15 +27,76 @@
     localStorage.setItem(USER_REMARK_PRESETS_KEY, JSON.stringify(arr));
   }
 
-  // 全プリセット = 固定 + ユーザー定義
+  // ----- 共有プリセット（Supabase） -----
+  let _sharedRemarkPresets = []; // { id, label, text, use_count, created_by, created_at }
+
+  async function loadSharedRemarkPresets() {
+    const c = window.quoteCloudClient && window.quoteCloudClient();
+    if (!c) return;
+    const { data, error } = await c
+      .from('remark_presets')
+      .select('id, label, text, use_count, created_by, created_at')
+      .order('use_count', { ascending: false });
+    if (!error && data) {
+      _sharedRemarkPresets = data;
+      renderRemarkPresets();
+    }
+  }
+
+  async function addSharedRemarkPreset() {
+    const c = window.quoteCloudClient && window.quoteCloudClient();
+    const user = window.quoteCloudUser && window.quoteCloudUser();
+    if (!c || !user) { quoteShowToast('⚠️ ログインが必要です', 'warn'); return; }
+    const label = prompt('共有プリセットのラベル名を入力してください（例：📄 特別条件）');
+    if (!label || !label.trim()) return;
+    const text = prompt('共有プリセットの本文を入力してください');
+    if (!text || !text.trim()) return;
+    const { data, error } = await c
+      .from('remark_presets')
+      .insert({ label: label.trim(), text: text.trim(), use_count: 0, created_by: user.email })
+      .select().single();
+    if (error) { quoteShowToast('⚠️ 追加に失敗しました：' + error.message, 'warn'); return; }
+    _sharedRemarkPresets.push(data);
+    renderRemarkPresets();
+    quoteShowToast(`✅ 「${label.trim()}」を共有プリセットに追加しました`, 'success');
+  }
+
+  async function deleteSharedRemarkPreset(id, label) {
+    if (!confirm(`「${label}」を削除しますか？`)) return;
+    const c = window.quoteCloudClient && window.quoteCloudClient();
+    if (!c) return;
+    const { error } = await c.from('remark_presets').delete().eq('id', id);
+    if (error) { quoteShowToast('⚠️ 削除に失敗しました：' + error.message, 'warn'); return; }
+    _sharedRemarkPresets = _sharedRemarkPresets.filter(p => p.id !== id);
+    renderRemarkPresets();
+    quoteShowToast(`🗑️ 「${label}」を削除しました`, 'info');
+  }
+
+  async function _incrementSharedRemarkUseCount(id) {
+    const c = window.quoteCloudClient && window.quoteCloudClient();
+    if (!c) return;
+    const p = _sharedRemarkPresets.find(x => x.id === id);
+    if (!p) return;
+    const newCount = (p.use_count || 0) + 1;
+    const { error } = await c.from('remark_presets').update({ use_count: newCount }).eq('id', id);
+    if (!error) {
+      p.use_count = newCount;
+      if (newCount >= 5) renderRemarkPresets(); // 昇格時に再描画
+    }
+  }
+
+  // 全プリセット = 固定 + チーム人気（use_count>=5）+ チーム共有 + 個人定義
   function getAllRemarkPresets() {
-    return [...PRESETS, ...getUserRemarkPresets().map(p => ({ ...p, _user: true }))];
+    const promoted = _sharedRemarkPresets.filter(p => p.use_count >= 5).map(p => ({ ...p, _promoted: true, _shared: true }));
+    const shared   = _sharedRemarkPresets.filter(p => p.use_count < 5).map(p => ({ ...p, _shared: true }));
+    return [...PRESETS, ...promoted, ...shared, ...getUserRemarkPresets().map(p => ({ ...p, _user: true }))];
   }
 
   function initRemarks() {
     renderRemarkPresets();
     document.getElementById('remarkTextarea').addEventListener('input', updateRemarkChar);
     updateRemarkChar();
+    loadSharedRemarkPresets();
   }
 
   function renderRemarkPresets() {
@@ -43,35 +104,79 @@
     if (!wrap) return;
     wrap.innerHTML = '';
     const all = getAllRemarkPresets();
-    all.forEach((p, i) => {
+    const isLoggedIn = !!(window.quoteCloudUser && window.quoteCloudUser());
+
+    function addTierLabel(text) {
+      const d = document.createElement('div');
+      d.className = 'preset-tier-label';
+      d.textContent = text;
+      wrap.appendChild(d);
+    }
+
+    function makeBtn(p, idx) {
       const btn = document.createElement('button');
-      btn.className = 'preset-btn' + (p._user ? ' preset-btn-user' : '');
-      btn.dataset.index = i;
+      let cls = 'preset-btn';
+      if (p._promoted) cls += ' preset-btn-promoted';
+      else if (p._shared) cls += ' preset-btn-shared';
+      else if (p._user) cls += ' preset-btn-user';
+      btn.className = cls;
+      btn.dataset.index = idx;
       btn.title = p.text;
       const lbl = document.createElement('span');
       lbl.textContent = p.label;
       btn.appendChild(lbl);
-      // ユーザー定義は削除ボタン付き
       if (p._user) {
-        const xBtn = document.createElement('span');
-        xBtn.className = 'preset-btn-del';
-        xBtn.textContent = '✕';
-        xBtn.title = 'このプリセットを削除';
-        xBtn.onclick = (e) => {
-          e.stopPropagation();
-          deleteUserRemarkPreset(p.label);
-        };
-        btn.appendChild(xBtn);
+        const x = document.createElement('span');
+        x.className = 'preset-btn-del'; x.textContent = '✕';
+        x.title = 'このプリセットを削除';
+        x.onclick = (e) => { e.stopPropagation(); deleteUserRemarkPreset(p.label); };
+        btn.appendChild(x);
+      } else if (p._shared) {
+        const x = document.createElement('span');
+        x.className = 'preset-btn-del'; x.textContent = '✕';
+        x.title = 'このプリセットを削除';
+        const pid = p.id, plabel = p.label;
+        x.onclick = (e) => { e.stopPropagation(); deleteSharedRemarkPreset(pid, plabel); };
+        btn.appendChild(x);
       }
-      btn.onclick = () => togglePreset(i, btn);
-      wrap.appendChild(btn);
-    });
-    // 「＋ プリセットを追加」ボタン
-    const addBtn = document.createElement('button');
-    addBtn.className = 'preset-btn preset-btn-add';
-    addBtn.textContent = '＋ プリセットを追加';
-    addBtn.onclick = () => addUserRemarkPreset();
-    wrap.appendChild(addBtn);
+      btn.onclick = () => togglePreset(idx, btn);
+      return btn;
+    }
+
+    let idx = 0;
+
+    // ① 標準
+    for (const p of PRESETS) wrap.appendChild(makeBtn(p, idx++));
+
+    // ② チーム人気 ⭐
+    const promotedItems = _sharedRemarkPresets.filter(p => p.use_count >= 5);
+    if (promotedItems.length) {
+      addTierLabel('チーム人気 ⭐');
+      for (const p of promotedItems) wrap.appendChild(makeBtn({ ...p, _promoted: true, _shared: true }, idx++));
+    }
+
+    // ③ チーム共有 ☁️
+    const sharedItems = _sharedRemarkPresets.filter(p => p.use_count < 5);
+    if (sharedItems.length || isLoggedIn) {
+      addTierLabel('チーム共有 ☁️');
+      for (const p of sharedItems) wrap.appendChild(makeBtn({ ...p, _shared: true }, idx++));
+      if (isLoggedIn) {
+        const ab = document.createElement('button');
+        ab.className = 'preset-btn preset-btn-add';
+        ab.textContent = '☁️ 共有に追加';
+        ab.onclick = () => addSharedRemarkPreset();
+        wrap.appendChild(ab);
+      }
+    }
+
+    // ④ 個人
+    addTierLabel('個人');
+    for (const p of getUserRemarkPresets()) wrap.appendChild(makeBtn({ ...p, _user: true }, idx++));
+    const pb = document.createElement('button');
+    pb.className = 'preset-btn preset-btn-add';
+    pb.textContent = '＋ 個人に追加';
+    pb.onclick = () => addUserRemarkPreset();
+    wrap.appendChild(pb);
   }
 
   function addUserRemarkPreset() {
@@ -101,7 +206,8 @@
   function togglePreset(i, btn) {
     const ta = document.getElementById('remarkTextarea');
     const all = getAllRemarkPresets();
-    const text = all[i]?.text;
+    const preset = all[i];
+    const text = preset?.text;
     if (!text) return;
     if (btn.classList.contains('active')) {
       ta.value = ta.value.split('\n').filter(l => l.trim() !== text.trim()).join('\n').replace(/^\n+|\n+$/g, '');
@@ -110,6 +216,7 @@
       const cur = ta.value.trim();
       ta.value = cur ? cur + '\n' + text : text;
       btn.classList.add('active');
+      if (preset._shared && preset.id) _incrementSharedRemarkUseCount(preset.id);
     }
     updateRemarkChar();
   }
@@ -128,6 +235,7 @@
       `${document.getElementById('remarkTextarea').value.length}文字`;
   }
   window.updateRemarkChar = updateRemarkChar;
+  window.loadSharedRemarkPresets = loadSharedRemarkPresets;
 
   function getRemarkText() {
     return document.getElementById('remarkTextarea')?.value.trim() || '';
