@@ -30,13 +30,17 @@
       <h1>🛠️ フォワーダー支援</h1>
       <div class="subtitle">ブックマーク・知識・計算機・見積もりをひとまとめに &nbsp;｜&nbsp; 最終更新: <span id="last-updated">-</span></div>
     </div>
+    <a class="hdr-roadmap" href="roadmap.html" title="改修予定・アイデア（ロードマップ）">📣 改修予定・アイデア</a>
     <div class="header-auth" id="cloudHeaderAuth" hidden>
       <button class="hdr-cloud-login" id="hdrCloudLogin" type="button" onclick="cloudLogin()" title="チーム共有にサインイン">
         <span class="hdr-g">G</span> Google でログイン
       </button>
       <span class="hdr-cloud-user" id="hdrCloudUser" style="display:none">
-        <span class="hdr-cloud-avatar" id="hdrCloudAvatar" aria-hidden="true"></span>
-        <span class="hdr-cloud-name" id="hdrCloudName" title="ログイン中のアカウント"></span>
+        <button class="hdr-cloud-prof" type="button" onclick="openProfileEdit()" title="プロフィールを編集（名前・アバター）">
+          <span class="hdr-cloud-avatar" id="hdrCloudAvatar" aria-hidden="true"></span>
+          <span class="hdr-cloud-name" id="hdrCloudName"></span>
+        </button>
+        <button class="hdr-cloud-mgr" id="hdrUserMgrBtn" type="button" onclick="openUserMgr()" title="チーム管理（メンバー・ロール）" hidden>🧑‍💼 チーム管理</button>
         <button class="hdr-cloud-logout" id="hdrCloudLogout" type="button" onclick="cloudLogout()" title="ログアウト">ログアウト</button>
       </span>
     </div>
@@ -1938,7 +1942,7 @@
         </ul>
 
         <h4>① 管理番号入力</h4>
-        <p>仮 REF#・引き合い元名称・担当者を入力。後でフィルタや整理に使う識別情報です。<br>📝 <b>メモ</b>欄に申し送り・注意事項などを自由記述できます（顧客向け出力には含まれません）。</p>
+        <p>見積もり番号・お客様名称・担当者を入力。後でフィルタや整理に使う識別情報です。<br>📝 <b>メモ</b>欄に申し送り・注意事項などを自由記述できます（お客様向け出力には含まれません）。</p>
 
         <h4>② 引き合い条件</h4>
         <ul>
@@ -2109,11 +2113,11 @@
           <div class="cloud-share-body" id="cloudShareBody" style="display:none">
             <div class="cloud-save-row">
               <button class="btn-cloud-save" type="button" onclick="cloudSaveCurrent()">☁️ 現在の内容を共有に保存</button>
-              <span class="help-tip" tabindex="0" role="button" aria-label="保存名についての説明">?<span class="help-tip-text">保存名は<strong>管理番号（＋顧客名・担当者）</strong>から自動生成されます。ローカルの一時保存と同じ命名です。同じ管理番号で再保存すると上書きされます。</span></span>
+              <span class="help-tip" tabindex="0" role="button" aria-label="保存名についての説明">?<span class="help-tip-text">保存名は<strong>管理番号（＋お客様名・担当者）</strong>から自動生成されます。ローカルの一時保存と同じ命名です。同じ管理番号で再保存すると上書きされます。</span></span>
             </div>
             <div class="cloud-search-row">
               <input type="text" class="cloud-search-input" id="cloudSearchInput"
-                     placeholder="🔍 検索（案件名・顧客名・担当者）"
+                     placeholder="🔍 検索（案件名・お客様名・担当者）"
                      oninput="cloudSearchInput(this.value)" />
             </div>
             <div class="cloud-status-chips" id="cloudStatusChips"></div>
@@ -2165,8 +2169,11 @@
                 <th><input type="checkbox" id="cpSelectAll" checked onchange="cpToggleAll(this)" title="全選択/解除"></th>
                 <th>カテゴリ</th>
                 <th>項目名</th>
-                <th>数量/単位</th>
-                <th>請求単価</th>
+                <th>数量</th>
+                <th class="cp-th-num">仕入単価</th>
+                <th class="cp-th-num">載せ幅</th>
+                <th class="cp-th-num">売単価</th>
+                <th class="cp-th-num">粗利率</th>
                 <th>備考</th>
               </tr>
             </thead>
@@ -2186,29 +2193,40 @@
     <div class="preset-mgr-modal" id="rowPatternModal"
          onclick="if(event.target===this)closeRowPatternMgr()">
       <div class="preset-mgr-box">
-        <h3>🗂️ 行パターン（チェック行の一時保存）</h3>
-        <p class="preset-mgr-desc">
-          <b>チェックを入れた行</b>を名前付きで保存し、後でまとめて挿入できます（最大 20 件・このブラウザのみ）。<br>
-          「輸出ローカル一式」「通関費セット」など、よく使う費用項目セットの<strong>使い回し</strong>に便利です。
-        </p>
-        <div class="preset-save-row">
-          <input type="text" class="preset-name-input" id="rowPatternNameInput"
-                 placeholder="例）輸出ローカル一式" maxlength="30"
-                 onkeydown="if(event.key==='Enter')saveRowPatternFromChecked()" />
-          <button class="btn-preset-save-new" onclick="saveRowPatternFromChecked()">💾 チェック行を保存</button>
+        <h3>🗂️ 行を挿入</h3>
+        <div class="rp-tabs">
+          <button type="button" class="rp-tab is-active" id="rpTabPattern" onclick="switchRowInsertTab('pattern')">📦 保存パターン</button>
+          <button type="button" class="rp-tab" id="rpTabSubcon" onclick="switchRowInsertTab('subcon')">👷 サブコン別</button>
         </div>
         <div class="row-pattern-pos-row">
-          <label class="row-pattern-pos-lbl">📍 読込時の挿入位置：</label>
-          <select id="rowPatternInsertPos" class="row-pattern-pos-sel" title="「読込」ボタンを押した時の挿入位置">
+          <label class="row-pattern-pos-lbl">📍 挿入位置：</label>
+          <select id="rowPatternInsertPos" class="row-pattern-pos-sel" title="挿入ボタンを押した時の挿入位置">
             <option value="end" selected>末尾に追加</option>
             <option value="selected">選択行の下に挿入</option>
             <option value="top">先頭に挿入</option>
           </select>
         </div>
-        <div class="preset-list-wrap" id="rowPatternListWrap">
-          <div class="preset-empty">保存済みの行パターンはありません</div>
-        </div>
-        <div class="preset-mgr-footer">
+
+        <!-- ===== タブ1：保存パターン ===== -->
+        <div id="rpPanePattern">
+          <p class="preset-mgr-desc">
+            <b>チェックを入れた行</b>を名前付きで保存し、後でまとめて挿入できます（<strong>☁️ チームで共有</strong>・ログインが必要）。<br>
+            「輸出ローカル一式」「通関費セット」など、よく使う費用項目セットの<strong>使い回し</strong>に便利です。
+          </p>
+          <div class="preset-save-row">
+            <input type="text" class="preset-name-input" id="rowPatternNameInput"
+                   placeholder="例）輸出ローカル一式" maxlength="30"
+                   onkeydown="if(event.key==='Enter')document.getElementById('rowPatternNoteInput').focus()" />
+            <button class="btn-preset-save-new" onclick="saveRowPatternFromChecked()">💾 チェック行を保存</button>
+          </div>
+          <div class="preset-save-row">
+            <input type="text" class="preset-name-input" id="rowPatternNoteInput"
+                   placeholder="メモ（任意・チームに共有されます）" maxlength="120"
+                   onkeydown="if(event.key==='Enter')saveRowPatternFromChecked()" />
+          </div>
+          <div class="preset-list-wrap" id="rowPatternListWrap">
+            <div class="preset-empty">保存済みの行パターンはありません</div>
+          </div>
           <div class="row-pattern-io-btns">
             <button class="btn-pattern-export" onclick="exportRowPatterns()" title="保存済みの行パターンを全件 JSON ファイルに書き出します">📤 書き出し</button>
             <label class="btn-pattern-import" title="書き出した JSON ファイルからパターンを読み込みます（既存と統合）">
@@ -2217,6 +2235,24 @@
                      onchange="importRowPatternsFile(event)" style="display:none" />
             </label>
           </div>
+        </div>
+
+        <!-- ===== タブ2：サブコン別（案件蓄積から自動生成） ===== -->
+        <div id="rpPaneSubcon" hidden>
+          <p class="preset-mgr-desc">
+            チーム共有された案件から、<b>サブコン（協力会社）ごと</b>の費用行を自動でまとめます（保存不要・直近案件が自動で最新）。<br>
+            使いたい行に<strong>チェック</strong>を入れて挿入してください。単価は<strong>直近案件の値</strong>を反映します。
+          </p>
+          <div class="rp-sc-toolbar">
+            <input type="text" class="preset-name-input" id="subconSearchInput"
+                   placeholder="🔍 サブコン名・項目名で検索" oninput="subconFilter()" />
+          </div>
+          <div class="preset-list-wrap" id="subconListWrap">
+            <div class="preset-empty">読み込み中…</div>
+          </div>
+        </div>
+
+        <div class="preset-mgr-footer">
           <button class="btn-preset-close" onclick="closeRowPatternMgr()">閉じる</button>
         </div>
       </div>
@@ -2233,15 +2269,18 @@
         <span class="section-collapsed-summary" id="sumRef"></span>
       </h2>
       <div id="refBody">
-        <p class="section-desc">案件を管理するための識別情報を入力します。<b>仮 REF #</b> は見積もり番号や問い合わせ番号など任意の形式で OK。後でフィルタリングや整理に使えます。<br>
+        <p class="section-desc">案件を管理するための識別情報を入力します。<b>見積もり番号</b> は問い合わせ番号など任意の形式で OK。後でフィルタリングや整理に使えます。<br>
         <span style="font-size:11px;color:var(--text-md);">💡 <b>担当</b>は<strong>敬称略（呼び捨て）</strong>で入力してください。プレビュー・Excel・コピー出力時に自動で「様」が付与されます。</span></p>
         <div class="quote-header">
           <div class="quote-field">
-            <label>仮 REF # <span class="req-mark" aria-hidden="true">*</span></label>
-            <input type="text" id="qf-ref" placeholder="例）2024-001" aria-required="true" />
+            <label>見積もり番号 <span class="req-mark" aria-hidden="true">*</span></label>
+            <div class="qf-ref-row">
+              <input type="text" id="qf-ref" placeholder="例）2024-001（🔢で自動採番）" aria-required="true" />
+              <button type="button" id="qfRefAuto" class="qf-ref-auto-btn" onclick="fillQuoteRef()" title="発番ID（2桁）＋年月日＋連番で自動採番">🔢 自動採番</button>
+            </div>
           </div>
           <div class="quote-field">
-            <label>引き合い元様名称 <span class="req-mark" aria-hidden="true">*</span></label>
+            <label>お客様名称 <span class="req-mark" aria-hidden="true">*</span></label>
             <input type="text" id="qf-customer" placeholder="例）○○商事" aria-required="true" />
           </div>
           <div class="quote-field">
@@ -2256,13 +2295,6 @@
             <label>有効期限</label>
             <input type="date" id="qf-valid-until" title="見積もりの有効期限。出力・Excelに含まれます" />
           </div>
-          <div class="quote-field">
-            <label>作業者</label>
-            <div class="qf-assignee-row">
-              <input type="text" id="qf-assignee" placeholder="担当者名（ログイン時に自動入力）" />
-              <button type="button" id="qfAssigneeSave" class="qf-assignee-save-btn" onclick="saveAssigneeName()" hidden title="この名前をアカウントに登録">登録</button>
-            </div>
-          </div>
           <div class="quote-field quote-field-status">
             <label>ステータス</label>
             <div class="qf-status-btns" id="qf-status-btns">
@@ -2276,7 +2308,7 @@
           </div>
           <div class="quote-field quote-field-memo">
             <label>📝 メモ <span class="qf-memo-note">出力・プレビューには含まれません</span></label>
-            <textarea id="qf-memo" rows="6" placeholder="担当者間の申し送り・注意事項など、案件内部メモを自由に記述できます。顧客向け出力には含まれません。"></textarea>
+            <textarea id="qf-memo" rows="6" placeholder="担当者間の申し送り・注意事項など、案件内部メモを自由に記述できます。お客様向け出力には含まれません。"></textarea>
           </div>
         </div>
         <button class="fb-section-btn" onclick="openFeedback('管理番号入力')" title="このセクションへのフィードバック">💬 このセクションへのフィードバック</button>
@@ -3241,7 +3273,7 @@
             </div>
             <div class="pv-cust-group">
               <span class="pv-cust-label">セクション：</span>
-              <label><input type="checkbox" class="pv-sec-chk" data-sec="meta"         checked> REF/引き合い元/担当</label>
+              <label><input type="checkbox" class="pv-sec-chk" data-sec="meta"         checked> 見積番号/お客様/担当</label>
               <label><input type="checkbox" class="pv-sec-chk" data-sec="cond"         checked> 引き合い条件</label>
               <label><input type="checkbox" class="pv-sec-chk" data-sec="cargo"        checked> 貨物ボリューム情報</label>
               <label><input type="checkbox" class="pv-sec-chk" data-sec="remark"       checked> 条件・リマーク</label>
@@ -3397,6 +3429,8 @@
 <script src="js/quote/select-mode.js"></script>
 <script src="js/quote/cloud-config.js"></script>
 <script src="js/quote/cloud.js"></script>
+<script src="js/quote/users.js"></script>
+<script src="js/quote/subcon-insert.js"></script>
 <script src="js/tweaks.js"></script>
 <script src="js/bookmarks.js"></script>
 <script src="js/similar-quotes.js"></script>
@@ -3477,6 +3511,106 @@
     <div class="sq-preview-foot">
       <button class="sq-btn-load" id="sqLoadBtn" onclick="sqLoadConfirm()">📂 この見積を読み込む</button>
       <button class="sq-btn-cancel" onclick="sqClosePreview()">閉じる</button>
+    </div>
+  </div>
+</div>
+
+<div id="umOverlay" onclick="closeUserMgr(event)">
+  <div id="umModal" class="um-modal" onclick="event.stopPropagation()">
+    <div class="um-head">
+      <span class="um-head-ic">🧑‍💼</span>
+      <div class="um-head-titles">
+        <span class="um-head-title">チーム管理</span>
+        <span class="um-head-sub" id="umHeadSub">メンバーとロールの管理（管理者）</span>
+      </div>
+      <button class="um-head-x" onclick="closeUserMgr()" aria-label="閉じる">✕</button>
+    </div>
+    <div class="um-tabs">
+      <button class="um-tab is-active" id="umTabMembers" onclick="switchUmTab('members')">メンバー</button>
+      <button class="um-tab" id="umTabPerms" onclick="switchUmTab('perms')">ロールと権限</button>
+    </div>
+
+    <div id="umMembersPane" class="um-pane">
+      <div class="um-toolbar">
+        <input class="um-search" id="umSearch" placeholder="🔍 名前・メールで検索" oninput="umFilter()" />
+        <select class="um-filter" id="umRoleFilter" onchange="umFilter()">
+          <option value="">すべてのロール</option>
+          <option value="admin">管理者</option>
+          <option value="member">メンバー</option>
+          <option value="viewer">閲覧のみ</option>
+        </select>
+        <button class="um-invite-btn" id="umInviteBtn" onclick="umToggleInvite()">＋ 招待</button>
+      </div>
+      <div class="um-list" id="umListWrap">
+        <div class="um-invite-panel" id="umInvitePanel" hidden>
+          <p class="um-invite-title">＋ メンバーを招待</p>
+          <p class="um-invite-desc">招待したい相手の Google アカウントのメールアドレスを入力してください。相手が一度ログインすると、メンバーとしてデータの閲覧・編集ができるようになります。</p>
+          <div class="um-invite-form">
+            <input class="um-invite-input" id="umInviteEmail" type="email" placeholder="例）yamada@forwarder.co.jp" />
+            <select class="um-invite-role" id="umInviteRole">
+              <option value="admin">管理者</option>
+              <option value="member" selected>メンバー</option>
+              <option value="viewer">閲覧のみ</option>
+            </select>
+            <button class="um-invite-send" onclick="umInvite()">招待する</button>
+          </div>
+          <p class="um-invite-note">※ 招待は許可リスト（allowed_emails）への登録です。相手が初回ログインするまで「招待中」と表示されます。</p>
+        </div>
+        <div id="umMemberList"></div>
+      </div>
+    </div>
+
+    <div id="umPermsPane" class="um-pane" hidden>
+      <div class="um-perm-wrap">
+        <p class="um-perm-intro">ロールごとにできる操作の一覧です。<b>管理者</b>のみメンバー管理・削除・設定変更ができます。通常の業務担当は<b>メンバー</b>、参照だけの相手には<b>閲覧のみ</b>を割り当てます。</p>
+        <table class="um-perm-table">
+          <thead>
+            <tr>
+              <th class="um-cap">操作</th>
+              <th><span class="um-role-static um-role--admin"><span class="um-role-dot" style="background:#b8860b"></span>管理者</span></th>
+              <th><span class="um-role-static um-role--member"><span class="um-role-dot" style="background:#2b7bb0"></span>メンバー</span></th>
+              <th><span class="um-role-static um-role--viewer"><span class="um-role-dot" style="background:#9a8878"></span>閲覧のみ</span></th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td class="um-cap">見積・マスター・ブックマークの閲覧</td><td class="um-yes">✓</td><td class="um-yes">✓</td><td class="um-yes">✓</td></tr>
+            <tr><td class="um-cap">見積・マスターの作成 / 編集</td><td class="um-yes">✓</td><td class="um-yes">✓</td><td class="um-no">—</td></tr>
+            <tr><td class="um-cap">データの削除（自分以外の案件含む）</td><td class="um-yes">✓</td><td class="um-no">—</td><td class="um-no">—</td></tr>
+            <tr><td class="um-cap">メンバーの招待 / 削除</td><td class="um-yes">✓</td><td class="um-no">—</td><td class="um-no">—</td></tr>
+            <tr><td class="um-cap">ロールの変更</td><td class="um-yes">✓</td><td class="um-no">—</td><td class="um-no">—</td></tr>
+            <tr><td class="um-cap">チーム設定の変更</td><td class="um-yes">✓</td><td class="um-no">—</td><td class="um-no">—</td></tr>
+          </tbody>
+        </table>
+        <p class="um-perm-foot">権限は Supabase の <code>get_my_role()</code> ＋ RLS で制御されます。UI上の表示制御だけでなく、サーバー側でも各操作が保護されます。</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="profOverlay" onclick="closeProfileEdit(event)">
+  <div id="profModal" class="prof-modal" onclick="event.stopPropagation()">
+    <div class="prof-head">
+      <span class="prof-head-title">👤 プロフィール編集</span>
+      <button class="prof-head-x" onclick="closeProfileEdit()" aria-label="閉じる">✕</button>
+    </div>
+    <div class="prof-body">
+      <div class="prof-preview">
+        <span class="prof-av" id="profPreviewAv"></span>
+        <span class="prof-preview-name" id="profPreviewName"></span>
+      </div>
+      <div class="prof-idrow">発番ID <span class="prof-id" id="profMemberNo">—</span>
+        <span class="prof-id-note">見積もり番号の先頭2桁・登録順に自動割当（管理者が変更可）</span></div>
+      <label class="prof-label" for="profNameInput">表示名</label>
+      <input id="profNameInput" class="prof-input" maxlength="20" placeholder="例）青木" oninput="profUpdatePreview()" />
+      <label class="prof-label">アバターの色</label>
+      <div class="prof-colors" id="profColors"></div>
+      <label class="prof-label">アイコン（任意・空欄なら頭文字）</label>
+      <div class="prof-emojis" id="profEmojis"></div>
+      <input id="profEmojiInput" class="prof-input prof-emoji-input" maxlength="2" placeholder="絵文字を直接入力も可" oninput="profUpdatePreview()" />
+    </div>
+    <div class="prof-foot">
+      <button class="prof-cancel" onclick="closeProfileEdit()">キャンセル</button>
+      <button class="prof-save" onclick="saveProfile()">保存</button>
     </div>
   </div>
 </div>

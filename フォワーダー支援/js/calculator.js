@@ -336,7 +336,8 @@ function calcAirCW() {
     const divisor = parseInt(document.getElementById('air-divisor')?.value, 10) || 6000;
     const l = lInput * factor, w = wInput * factor, h = hInput * factor;
     const volW1 = (l*w*h) / divisor;
-    const cw1   = Math.max(volW1, weight);
+    // CW は IATA 準拠で 0.5kg 単位に切り上げ（cargo.js / shared/calc.js と統一・docs/バグ台帳.md F）
+    const cw1   = SharedCalc.airChargeableWeight(weight, volW1);
     results.push({ l, w, h, lInput, wInput, hInput, weight, qty, volW1, cw1, cwTot: cw1*qty, tag: weight>=volW1?'W':'V', ...meta });
   }
   if (results.length === 0) { quoteShowToast('⚠️ すべての値を入力してください', 'warning'); return; }
@@ -356,8 +357,8 @@ function calcAirCW() {
       `<div class="calc-row">
       <div class="calc-item"><div class="calc-item-label">容積重量 (1個)</div><div class="calc-item-value">${r.volW1.toFixed(2)} kg</div></div>
       <div class="calc-item"><div class="calc-item-label">実重量 (1個)</div><div class="calc-item-value">${r.weight.toFixed(2)} kg</div></div>
-      <div class="calc-item hl"><div class="calc-item-label">CW (1個) ／ ${tag}</div><div class="calc-item-value">${r.cw1.toFixed(2)} kg</div></div>
-      ${r.qty>1?`<div class="calc-item hl"><div class="calc-item-label">CW 合計 (×${r.qty}個)</div><div class="calc-item-value">${r.cwTot.toFixed(2)} kg</div></div>`:''}
+      <div class="calc-item hl"><div class="calc-item-label">CW (1個) ／ ${tag}</div><div class="calc-item-value">${SharedCalc.fmtCw(r.cw1)} kg</div></div>
+      ${r.qty>1?`<div class="calc-item hl"><div class="calc-item-label">CW 合計 (×${r.qty}個)</div><div class="calc-item-value">${SharedCalc.fmtCw(r.cwTot)} kg</div></div>`:''}
     </div>`,
       inputLine);
   } else {
@@ -371,17 +372,17 @@ function calcAirCW() {
       <div style="margin-bottom:8px;">
         <div class="calc-row-label">行${i+1}　${lbl}</div>
         <div class="calc-row">
-          <div class="calc-item"><div class="calc-item-label">CW (1個)</div><div class="calc-item-value">${r.cw1.toFixed(2)} kg <span class="calc-note">(${r.tag})</span></div></div>
-          <div class="calc-item hl"><div class="calc-item-label">CW 小計</div><div class="calc-item-value">${r.cwTot.toFixed(2)} kg</div></div>
+          <div class="calc-item"><div class="calc-item-label">CW (1個)</div><div class="calc-item-value">${SharedCalc.fmtCw(r.cw1)} kg <span class="calc-note">(${r.tag})</span></div></div>
+          <div class="calc-item hl"><div class="calc-item-label">CW 小計</div><div class="calc-item-value">${SharedCalc.fmtCw(r.cwTot)} kg</div></div>
         </div>
       </div>`;
     }).join('');
     appendCalcResult('air-result',
       rowsHtml + `<div style="margin-top:10px;padding-top:10px;border-top:2px solid var(--accent);">
         <div class="calc-row">
-          <div class="calc-item hl" style="flex:1;"><div class="calc-item-label">CW 合計（全${totalQty}個 / ${results.length}品目）</div><div class="calc-item-value">${totalCW.toFixed(2)} kg</div></div>
+          <div class="calc-item hl" style="flex:1;"><div class="calc-item-label">CW 合計（全${totalQty}個 / ${results.length}品目）</div><div class="calc-item-value">${SharedCalc.fmtCw(totalCW)} kg</div></div>
         </div></div>`,
-      `${results.length}品目 / CW合計 ${totalCW.toFixed(2)} kg`);
+      `${results.length}品目 / CW合計 ${SharedCalc.fmtCw(totalCW)} kg`);
   }
 }
 

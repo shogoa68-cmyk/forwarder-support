@@ -552,7 +552,7 @@
 
   // ========== コマンドパレット ==========
   const CMD_LIST = [
-    { icon:'🗂️', label:'管理番号入力セクションへ',  sub:'REF # / 引き合い元 / 担当',     action:() => scrollToSection('section-ref')   },
+    { icon:'🗂️', label:'管理番号入力セクションへ',  sub:'見積番号 / お客様 / 担当',     action:() => scrollToSection('section-ref')   },
     { icon:'🚢', label:'引き合い条件・貨物情報セクションへ', sub:'ルート・貨物名・CBM・CW 自動計算', action:() => scrollToSection('section-cond') },
     { icon:'💴', label:'見積もり表セクションへ',      sub:'費用行の入力・集計',              action:() => scrollToSection('section-table') },
     { icon:'📝', label:'条件・リマークセクションへ',  sub:'プリセット文を挿入',             action:() => scrollToSection('section-remark')},
@@ -713,6 +713,66 @@
     return '一時保存_' + new Date().toISOString().slice(0,10).replace(/-/g, '');
   }
 
+  // ========== 仮REF# 自動採番（発番ID2桁 ＋ YYMMDD ＋ 連番3桁） ==========
+  // 連番は端末ローカル（localStorage）で日次リセット。発番IDはチーム内で一意のためチーム全体で重複しない。
+  const REF_SEQ_KEY = 'refSeq_v1';
+  function _refTodayYmd() {
+    const d = new Date();
+    return String(d.getFullYear()).slice(2)
+         + String(d.getMonth() + 1).padStart(2, '0')
+         + String(d.getDate()).padStart(2, '0');
+  }
+  function _nextRefSeq(ymd) {
+    let st = {};
+    try { st = JSON.parse(localStorage.getItem(REF_SEQ_KEY) || '{}'); } catch (e) {}
+    if (st.date !== ymd) st = { date: ymd, seq: 0 };   // 日付が変わったらリセット
+    st.seq = (st.seq || 0) + 1;
+    try { localStorage.setItem(REF_SEQ_KEY, JSON.stringify(st)); } catch (e) {}
+    return st.seq;
+  }
+  // 11桁（ID2＋YYMMDD＋連番3）を区切り表示に整形：05-2606100-02
+  function _formatRef(raw) {
+    if (!raw || raw.length < 11) return raw;
+    return raw.slice(0, 2) + '-' + raw.slice(2, 9) + '-' + raw.slice(9);
+  }
+  function generateQuoteRefValue() {
+    const no = window._myMemberNo;
+    if (no == null) return null;                       // 発番ID未取得（未ログイン or 未登録）
+    const id2 = String(no).padStart(2, '0');
+    const ymd = _refTodayYmd();
+    const seq = String(_nextRefSeq(ymd)).padStart(3, '0');
+    return _formatRef(id2 + ymd + seq);                // 例：05-2606100-02
+  }
+  function _setRefValue(val) {
+    const el = document.getElementById('qf-ref');
+    if (!el) return;
+    el.value = val;
+    el.dispatchEvent(new Event('input', { bubbles: true }));   // 自動保存・サマリ更新を発火
+    if (typeof window.updateQuoteRefEmpty === 'function') window.updateQuoteRefEmpty();
+  }
+  // ボタン：明示採番（既存値があれば上書き確認）
+  function fillQuoteRef() {
+    const el = document.getElementById('qf-ref');
+    if (!el) return;
+    if (window._myMemberNo == null) {
+      quoteShowToast('⚠️ 発番IDが未取得です。ログイン、または管理者にメンバー登録（採番）を依頼してください', 'warn', 5500);
+      return;
+    }
+    if (el.value.trim() && !confirm('現在の見積もり番号「' + el.value.trim() + '」を自動採番で上書きしますか？')) return;
+    const v = generateQuoteRefValue();
+    if (v) { _setRefValue(v); quoteShowToast('🔢 見積もり番号 ' + v + ' を採番しました', 'success'); }
+  }
+  // 新規（REFが空）のときだけ自動採番。発番ID未取得時は何もしない（取得時に再試行される）
+  function maybeAutoFillRef() {
+    const el = document.getElementById('qf-ref');
+    if (!el || el.value.trim()) return;
+    if (window._myMemberNo == null) return;
+    const v = generateQuoteRefValue();
+    if (v) _setRefValue(v);
+  }
+  window.fillQuoteRef     = fillQuoteRef;
+  window.maybeAutoFillRef = maybeAutoFillRef;
+
   function openPresetMgr(mode) {
     // mode: 'browser'（ブラウザ保存）／'cloud'（チーム共有）。既定は browser。
     if (mode !== 'cloud') mode = 'browser';
@@ -814,6 +874,78 @@
     quoteShowToast('🗑️ 「' + name + '」を削除しました', 'info');
   }
 
+  // 案件ステータス（qf-status）→ ドット色
+  const _PRESET_STATUS_DOT = { '下書き':'#9c8e78', '提出済み':'#3f6a8c', '受注':'#1e7e44', '失注':'#c0392b', '保留':'#b8860b' };
+  // プリセットの data.fields から一覧表示用メタを派生
+  function _presetMeta(p) {
+    const f = (p.data && p.data.fields) || {};
+    let pol = (f['z2Pol'] || '').trim(), pod = (f['z2Pod'] || '').trim(), carrier = (f['z2Carrier'] || '').trim();
+    // 複数航路（z2-routes-data）を POL/POD ペアの配列として保持
+    let routes = [];
+    try {
+      const rts = JSON.parse(f['z2-routes-data'] || '[]');
+      if (Array.isArray(rts)) {
+        routes = rts.map(r => ({
+          pol:     (r.pol     || '').trim(),
+          pod:     (r.pod     || '').trim(),
+          carrier: (r.carrier || '').trim(),
+        })).filter(r => r.pol || r.pod);
+      }
+    } catch (e) {}
+    // 単一フィールドが未設定なら航路配列からフラット文字列を補完（DB列・検索用に従来通り維持）
+    if (!pol && !pod && !carrier && routes.length) {
+      pol     = routes.map(r => r.pol).filter(Boolean).join(', ');
+      pod     = routes.map(r => r.pod).filter(Boolean).join(', ');
+      carrier = routes.map(r => r.carrier).filter(Boolean).join(', ');
+    }
+    return {
+      ref:       (f['qf-ref']         || '').trim(),
+      customer:  (f['qf-customer']    || '').trim(),
+      person:    (f['qf-person']      || '').trim(),
+      incoterms: (f['cond-incoterms'] || '').trim(),
+      mode:      (f['cond-mode']      || '').trim(),
+      pol, pod, carrier, routes,
+      status:    (f['qf-status']      || '').trim(),
+      subcons:   (window.quoteExtractSubcons ? window.quoteExtractSubcons(p.data) : []),
+    };
+  }
+  // チーム共有カードでも同じ表示にするため公開
+  window.quotePresetMeta = _presetMeta;
+
+  // 航路表示の整形：複数航路は POL ごとにまとめて「POL → POD / POD …」を行単位で表示。
+  // 1本・未設定はフラットな pol/pod にフォールバック。両モーダル（ブラウザ保存／チーム共有）で共用。
+  function _routeGroups(meta) {
+    const legs = (meta && Array.isArray(meta.routes)) ? meta.routes : [];
+    if (legs.length > 1) {
+      const groups = [], idx = {};
+      legs.forEach(lg => {
+        const pol = (lg.pol || '').trim(), pod = (lg.pod || '').trim();
+        if (!pol && !pod) return;
+        if (!(pol in idx)) { idx[pol] = groups.length; groups.push({ pol, pods: [] }); }
+        if (pod && groups[idx[pol]].pods.indexOf(pod) === -1) groups[idx[pol]].pods.push(pod);
+      });
+      if (groups.length) return groups;
+    }
+    const pol = ((meta && meta.pol) || '').trim(), pod = ((meta && meta.pod) || '').trim();
+    if (!pol && !pod) return [];
+    return [{ pol, pods: pod ? [pod] : [] }];
+  }
+  function quoteRouteHtml(meta, arrowClass) {
+    const groups = _routeGroups(meta);
+    if (!groups.length) return '';
+    const arrow = '<span class="' + (arrowClass || 'preset-kv-arrow') + '">→</span>';
+    const MAXP = 6;   // 1 グループあたりの POD 表示上限（超過は +N）
+    return groups.map(g => {
+      const shown = g.pods.slice(0, MAXP), more = g.pods.length - shown.length;
+      const pods = shown.map(escHtml).join(' <span class="route-sep">/</span> ')
+                 + (more > 0 ? ' <span class="route-more">他' + more + '</span>' : '');
+      const polH = g.pol ? escHtml(g.pol) : '';
+      const body = (polH && pods) ? (polH + ' ' + arrow + ' ' + pods) : (polH || pods);
+      return '<div class="route-line">' + body + '</div>';
+    }).join('');
+  }
+  window.quoteRouteHtml = quoteRouteHtml;
+
   function renderPresetList() {
     const presets = getPresets();
     const wrap    = document.getElementById('presetListWrap');
@@ -829,24 +961,83 @@
         ? new Date(p.ts).toLocaleString('ja-JP', { month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit' })
         : '';
       const isLoaded = loadedName && p.name === loadedName;
-      return '<div class="preset-list-item' + (isLoaded ? ' preset-list-item--loaded' : '') + '">' +
-        '<div class="preset-card-row1">' +
+      const m = _presetMeta(p);
+
+      const route = quoteRouteHtml(m, 'preset-kv-arrow');
+      const condHtml =
+        (m.incoterms ? '<span class="preset-tag preset-tag-inco">' + escHtml(m.incoterms.split('（')[0]) + '</span>' : '') +
+        (m.mode      ? '<span class="preset-tag preset-tag-mode">' + escHtml(m.mode) + '</span>' : '');
+      const personH = m.person && (window.formatPersonWithHonorific ? window.formatPersonWithHonorific(m.person) : m.person);
+      const custDd = [m.customer && escHtml(m.customer), personH && escHtml(personH)].filter(Boolean).join('・');
+      const titleText = m.ref || p.name;   // カード見出しは仮REF#のみ（顧客/担当は下に別掲）
+
+      const subShown = m.subcons.slice(0, 4);
+      const subMore  = m.subcons.length - subShown.length;
+      const subHtml = subShown.map(s =>
+        '<span class="preset-sc-item">' +
+          (s.role ? '<span class="preset-sc-role">' + escHtml(s.role) + '</span>' : '') +
+          '<span class="preset-sc-name">' + escHtml(s.name) + '</span>' +
+        '</span>').join('') + (subMore > 0 ? '<span class="preset-sc-more">+' + subMore + '</span>' : '');
+
+      const statusHtml = m.status
+        ? '<span class="preset-status"><span class="preset-status-dot" style="background:' +
+            (_PRESET_STATUS_DOT[m.status] || '#9c8e78') + '"></span>' + escHtml(m.status) + '</span>'
+        : '';
+
+      return '<div class="preset-list-item preset-item-rich' + (isLoaded ? ' preset-list-item--loaded' : '') + '">' +
+        '<div class="preset-rich-row1">' +
+          statusHtml +
+          '<span class="preset-list-name" title="' + escHtml(p.name) + '">' + escHtml(titleText) + '</span>' +
           (isLoaded ? '<span class="preset-loaded-badge">編集中</span>' : '') +
-          '<span class="preset-list-name">' + escHtml(p.name) + '</span>' +
-          '<button class="btn-preset-load" onclick="loadPreset(' + i + ')">読み込む</button>' +
-          '<button class="btn-preset-del"  onclick="deletePreset(' + i + ')" title="削除">✕</button>' +
         '</div>' +
-        (ts ? '<div class="preset-card-row2"><span class="preset-list-ts">💾 ' + ts + '</span></div>' : '') +
-        '</div>';
+        '<dl class="preset-rich-kv">' +
+          (route    ? '<dt>ルート</dt><dd>' + route + '</dd>' : '') +
+          (condHtml ? '<dt>条件</dt><dd class="preset-rich-tags">' + condHtml + '</dd>' : '') +
+          (m.carrier ? '<dt>幹線</dt><dd>🚢 ' + escHtml(m.carrier) + '</dd>' : '') +
+          (subHtml  ? '<dt>サブコン</dt><dd class="preset-rich-sub">' + subHtml + '</dd>' : '') +
+          (custDd   ? '<dt>お客様 / 担当</dt><dd>' + custDd + '</dd>' : '') +
+        '</dl>' +
+        '<div class="preset-rich-foot">' +
+          '<span class="preset-list-ts">' + (ts ? '💾 ' + ts : '') + '</span>' +
+          '<div class="preset-rich-acts">' +
+            '<button class="btn-preset-load" onclick="loadPreset(' + i + ')">読み込む</button>' +
+            '<button class="btn-preset-del"  onclick="deletePreset(' + i + ')" title="削除">✕</button>' +
+          '</div>' +
+        '</div>' +
+      '</div>';
     }).join('');
   }
 
-  // ========== 行パターン（チェック行を一時保存・読込） ==========
-  const ROW_PATTERN_KEY = 'quoteRowPatterns_v1';
-  const ROW_PATTERN_MAX = 20;
+  // ========== 行パターン（チェック行を保存・読込／Supabase チーム共有） ==========
+  const ROW_PATTERN_KEY = 'quoteRowPatterns_v1';   // ← 旧localStorage（移行取り込み用に参照のみ）
+  let _rowPatterns = [];                            // クラウドキャッシュ（id 付き）
 
-  function getRowPatterns()      { return SharedStorage.getJSON(ROW_PATTERN_KEY, []); }
-  function setRowPatterns(arr)   { SharedStorage.setJSON(ROW_PATTERN_KEY, arr); }
+  function _rpClient() { return (window.quoteCloudClient && window.quoteCloudClient()) || window.SupabaseClient || null; }
+  function _rpUserEmail() {
+    const u = window.quoteCloudUser && window.quoteCloudUser();
+    return u ? (u.email || null) : null;
+  }
+  function _rpName(email) { return window.quoteDisplayName ? window.quoteDisplayName(email) : (email || '—'); }
+
+  // クラウドから行パターンを取得してキャッシュ＋再描画
+  async function loadRowPatternsFromCloud() {
+    const wrap = document.getElementById('rowPatternListWrap');
+    const db = _rpClient();
+    if (!db || !_rpUserEmail()) {
+      _rowPatterns = [];
+      if (wrap) wrap.innerHTML = '<div class="preset-empty">☁️ ログインするとチームの保存パターンを利用できます<br><small style="color:#bbb;">ツールバーの「☁️ チーム共有」からログイン</small></div>';
+      return;
+    }
+    if (wrap) wrap.innerHTML = '<div class="preset-empty">読み込み中…</div>';
+    if (window.quoteLoadProfiles) { try { await window.quoteLoadProfiles(); } catch (e) {} }
+    const { data, error } = await db.from('row_patterns').select('*').order('updated_at', { ascending: false });
+    if (error) {
+      if (wrap) wrap.innerHTML = '<div class="preset-empty">⚠️ 読み込みエラー：' + escHtml(error.message) + '</div>';
+      return;
+    }
+    _rowPatterns = data || [];
+    renderRowPatternList();
+  }
 
   // チェック済み行のデータを抽出（通常行・リマーク行・小計行を含む）
   function _gatherCheckedRowsData() {
@@ -885,7 +1076,6 @@
   }
 
   function openRowPatternMgr() {
-    renderRowPatternList();
     const inp = document.getElementById('rowPatternNameInput');
     if (inp && !inp.value) {
       const d = new Date();
@@ -893,48 +1083,54 @@
       inp.value = `パターン_${pad(d.getMonth()+1)}${pad(d.getDate())}_${pad(d.getHours())}${pad(d.getMinutes())}`;
     }
     document.getElementById('rowPatternModal').classList.add('open');
+    loadRowPatternsFromCloud();
     setTimeout(() => inp?.focus(), 50);
   }
   function closeRowPatternMgr() { document.getElementById('rowPatternModal').classList.remove('open'); }
 
-  function saveRowPatternFromChecked() {
+  async function saveRowPatternFromChecked() {
     const rows = _gatherCheckedRowsData();
     if (!rows.length) {
       quoteShowToast('⚠️ 保存する行のチェックボックスを選択してください', 'warn', 3000);
       return;
     }
     const nameInp = document.getElementById('rowPatternNameInput');
+    const noteInp = document.getElementById('rowPatternNoteInput');
     const name = (nameInp?.value || '').trim();
     if (!name) {
       quoteShowToast('⚠️ パターン名を入力してください', 'warn');
       nameInp?.focus();
       return;
     }
-    const patterns = getRowPatterns();
-    const entry = { name, ts: new Date().toISOString(), rows };
-    const idx = patterns.findIndex(p => p.name === name);
-    if (idx >= 0) {
-      if (!confirm(`「${name}」を上書きしますか？`)) return;
-      patterns[idx] = entry;
+    const note = (noteInp?.value || '').trim();
+    const db = _rpClient();
+    const email = _rpUserEmail();
+    if (!db || !email) { quoteShowToast('⚠️ チーム共有にはログインが必要です', 'warn', 3500); return; }
+
+    // 同名は上書き、無ければ新規（チーム全員で共有）
+    const exist = _rowPatterns.find(p => p.name === name);
+    let res;
+    if (exist) {
+      if (!confirm(`「${name}」を上書きしますか？（チーム全員に反映されます）`)) return;
+      res = await db.from('row_patterns')
+        .update({ rows, note, updated_by: email, updated_at: new Date().toISOString() })
+        .eq('id', exist.id);
     } else {
-      patterns.unshift(entry);
-      if (patterns.length > ROW_PATTERN_MAX) patterns.length = ROW_PATTERN_MAX;
+      res = await db.from('row_patterns')
+        .insert({ name, rows, note, created_by: email, updated_by: email });
     }
-    setRowPatterns(patterns);
+    if (res.error) { quoteShowToast('⚠️ 保存に失敗：' + res.error.message, 'warn', 6000); return; }
     if (nameInp) nameInp.value = '';
-    renderRowPatternList();
-    quoteShowToast(`💾 行パターン「${name}」を保存（${rows.length}行）`, 'success');
+    if (noteInp) noteInp.value = '';
+    await loadRowPatternsFromCloud();
+    quoteShowToast(`💾 行パターン「${name}」を保存（${rows.length}行・チーム共有）`, 'success');
   }
 
-  function loadRowPattern(idx) {
-    const patterns = getRowPatterns();
-    const p = patterns[idx];
-    if (!p) return;
-
-    // 挿入位置を決定（モーダルの select 値を読む）
+  // 行データ配列を現在のテーブルに挿入（挿入位置セレクトを尊重）。posLabel を返す。
+  function _insertPatternRows(patternRows) {
     const pos = document.getElementById('rowPatternInsertPos')?.value || 'end';
     const tbody = document.getElementById('tableBody');
-    let anchor = null;       // null = 末尾 append。それ以外なら anchor の直前に挿入
+    let anchor = null;
     let posLabel = '末尾';
     if (pos === 'selected') {
       const checked = document.querySelectorAll('#tableBody tr .row-select-chk:checked');
@@ -942,18 +1138,15 @@
         quoteShowToast('⚠️ 挿入位置「選択行の下」が選ばれていますがチェック行がありません。末尾に追加します', 'warn', 3500);
       } else {
         const lastTr = checked[checked.length - 1].closest('tr');
-        anchor = lastTr?.nextSibling || null;  // null なら結果的に末尾追加と同じ
+        anchor = lastTr?.nextSibling || null;
         posLabel = '選択行の下';
       }
     } else if (pos === 'top') {
-      anchor = tbody.querySelector('tr') || null;  // 先頭行の直前へ
+      anchor = tbody.querySelector('tr') || null;
       posLabel = '先頭';
     }
 
-    // confirm を廃止。Ctrl+Z で元に戻せるため安全。
-
-    p.rows.forEach(rd => {
-      // リマーク行
+    (patternRows || []).forEach(rd => {
       if (rd._type === 'remark') {
         insertRemarkRow(null, { noFocus: true, internal: rd.internal });
         const allTrs = document.querySelectorAll('#tableBody tr');
@@ -964,7 +1157,6 @@
         if (inp) inp.value = rd.text || '';
         return;
       }
-      // 小計行
       if (rd._type === 'subtotal') {
         insertSubtotalRow(null);
         const allTrs = document.querySelectorAll('#tableBody tr');
@@ -976,14 +1168,11 @@
         updateSubtotalRows();
         return;
       }
-      // 通常行（_type === 'data' または後方互換で _type なし）
-      // 末尾に追加してから anchor の直前に移動（addRow を流用）
       addRow();
       const trs = document.querySelectorAll('#tableBody tr');
       const tr = trs[trs.length - 1];
       if (!tr) return;
       if (anchor) tbody.insertBefore(tr, anchor);
-      // anchor は元 DOM ノードを保持し続けるので、次回も同じ前に挿入 → 元順序保持
       const id = tr.id.replace('row-', '');
       const set = (sid, val, kind) => {
         const el = document.getElementById(sid + '-' + id);
@@ -1009,37 +1198,44 @@
       onCatChange(id);
       onPay(id);
     });
-    // 小計行を含む場合に備えて全体を再計算
     if (typeof updateSubtotalRows === 'function') updateSubtotalRows();
     updateTotals();
+    return posLabel;
+  }
+
+  function loadRowPattern(id) {
+    const p = _rowPatterns.find(x => x.id === id);
+    if (!p) return;
+    const posLabel = _insertPatternRows(p.rows);
     closeRowPatternMgr();
     quoteShowToast(`📂 「${p.name}」の ${p.rows.length} 行を${posLabel}に挿入しました`, 'success');
   }
 
-  function deleteRowPattern(idx) {
-    const patterns = getRowPatterns();
-    const p = patterns[idx];
+  async function deleteRowPattern(id) {
+    const p = _rowPatterns.find(x => x.id === id);
     if (!p) return;
-    if (!confirm(`行パターン「${p.name}」を削除しますか？`)) return;
-    patterns.splice(idx, 1);
-    setRowPatterns(patterns);
-    renderRowPatternList();
+    if (!confirm(`行パターン「${p.name}」を削除しますか？（チーム全員から削除されます）`)) return;
+    const db = _rpClient();
+    if (!db) return;
+    const { error } = await db.from('row_patterns').delete().eq('id', p.id);
+    if (error) { quoteShowToast('⚠️ 削除に失敗：' + error.message, 'warn', 6000); return; }
+    await loadRowPatternsFromCloud();
     quoteShowToast(`🗑️ 「${p.name}」を削除しました`, 'info');
   }
 
-  // ===== 行パターン：ファイルへの書き出し =====
+  // ===== 行パターン：ファイルへの書き出し（クラウドキャッシュから） =====
   window.exportRowPatterns = function() {
-    const patterns = getRowPatterns();
+    const patterns = _rowPatterns;
     if (!patterns.length) {
       quoteShowToast('⚠️ 保存済みの行パターンがありません', 'warn');
       return;
     }
     const payload = {
       _type:      'rowPatterns',
-      _version:   1,
+      _version:   2,
       _app:       'フォワーダー支援ツール',
       exportedAt: new Date().toISOString(),
-      patterns,
+      patterns:   patterns.map(p => ({ name: p.name, note: p.note || '', rows: p.rows || [] })),
     };
     const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
     const url  = URL.createObjectURL(blob);
@@ -1053,75 +1249,73 @@
     quoteShowToast(`📤 ${patterns.length} 件の行パターンを書き出しました`, 'success');
   };
 
-  // ===== 行パターン：ファイルからの読み込み =====
+  // ===== 行パターン：ファイルからの読み込み（クラウドへ取り込み） =====
   window.importRowPatternsFile = function(event) {
     const file = event.target.files[0];
-    event.target.value = ''; // 同じファイルの再選択を許可
+    event.target.value = '';
     if (!file) return;
     if (!file.name.endsWith('.json')) {
       quoteShowToast('⚠️ .json ファイルを選択してください', 'error');
       return;
     }
+    const db = _rpClient();
+    const email = _rpUserEmail();
+    if (!db || !email) { quoteShowToast('⚠️ 取り込みにはログインが必要です', 'warn', 3500); return; }
     const reader = new FileReader();
-    reader.onload = function(e) {
+    reader.onload = async function(e) {
       let data;
       try { data = JSON.parse(e.target.result); }
-      catch(err) {
-        quoteShowToast('⚠️ ファイルの解析に失敗しました: ' + err.message, 'error');
-        return;
-      }
-      // ファイル種別チェック
+      catch(err) { quoteShowToast('⚠️ ファイルの解析に失敗しました: ' + err.message, 'error'); return; }
       if (data._type !== 'rowPatterns' || !Array.isArray(data.patterns)) {
-        quoteShowToast('⚠️ 行パターンのファイルではありません（_type が一致しません）', 'error');
+        quoteShowToast('⚠️ 行パターンのファイルではありません', 'error');
         return;
       }
       const incoming = data.patterns.filter(p => p && p.name && Array.isArray(p.rows));
-      if (!incoming.length) {
-        quoteShowToast('ℹ️ ファイルに有効なパターンが含まれていません', 'info');
-        return;
+      if (!incoming.length) { quoteShowToast('ℹ️ 有効なパターンが含まれていません', 'info'); return; }
+      const existNames = new Set(_rowPatterns.map(p => p.name));
+      const dup = incoming.filter(p => existNames.has(p.name));
+      if (!confirm(`${incoming.length} 件をチーム共有に取り込みます。` +
+          (dup.length ? `\n▲ 同名 ${dup.length} 件は上書きされます。` : '') + '\n\n続けますか？')) return;
+      let ok = 0;
+      for (const p of incoming) {
+        const exist = _rowPatterns.find(x => x.name === p.name);
+        const res = exist
+          ? await db.from('row_patterns').update({ rows: p.rows, note: p.note || '', updated_by: email, updated_at: new Date().toISOString() }).eq('id', exist.id)
+          : await db.from('row_patterns').insert({ name: p.name, rows: p.rows, note: p.note || '', created_by: email, updated_by: email });
+        if (!res.error) ok++;
       }
-      // 既存パターンとの重複チェック
-      const existing    = getRowPatterns();
-      const duplicates  = incoming.filter(p => existing.some(e => e.name === p.name));
-      const newOnes     = incoming.filter(p => !existing.some(e => e.name === p.name));
-      let msg = `${incoming.length} 件のパターンを読み込みます。\n`;
-      if (duplicates.length) msg += `\n▲ 上書き（同名）: ${duplicates.map(p => '「' + p.name + '」').join('、')}`;
-      if (newOnes.length)    msg += `\n＋ 新規追加: ${newOnes.map(p => '「' + p.name + '」').join('、')}`;
-      if (!confirm(msg + '\n\n続けますか？')) return;
-      // マージ（同名は上書き、新規は先頭へ追加）
-      let merged = [...existing];
-      incoming.forEach(p => {
-        const idx = merged.findIndex(e => e.name === p.name);
-        if (idx >= 0) merged[idx] = p;
-        else           merged.unshift(p);
-      });
-      if (merged.length > ROW_PATTERN_MAX) merged = merged.slice(0, ROW_PATTERN_MAX);
-      setRowPatterns(merged);
-      renderRowPatternList();
-      quoteShowToast(`📥 ${incoming.length} 件の行パターンを読み込みました`, 'success');
+      await loadRowPatternsFromCloud();
+      quoteShowToast(`📥 ${ok} 件の行パターンを取り込みました`, 'success');
     };
     reader.readAsText(file, 'utf-8');
   };
 
   function renderRowPatternList() {
-    const patterns = getRowPatterns();
     const wrap = document.getElementById('rowPatternListWrap');
     if (!wrap) return;
-    if (!patterns.length) {
+    if (!_rowPatterns.length) {
       wrap.innerHTML = '<div class="preset-empty">保存済みの行パターンはありません<br><small style="color:#bbb;">行をチェックして上のフォームから保存できます</small></div>';
       return;
     }
-    wrap.innerHTML = patterns.map((p, i) => {
-      const ts = p.ts
-        ? new Date(p.ts).toLocaleString('ja-JP', { month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit' })
+    wrap.innerHTML = _rowPatterns.map(p => {
+      const ts = p.updated_at
+        ? new Date(p.updated_at).toLocaleString('ja-JP', { month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit' })
         : '';
-      return '<div class="preset-list-item">' +
-        '<span class="preset-list-name">' + escHtml(p.name) +
-          ' <small style="color:#999;">(' + p.rows.length + '行)</small></span>' +
-        '<span class="preset-list-ts">'   + ts + '</span>' +
-        '<button class="btn-preset-load" onclick="loadRowPattern(' + i + ')">読込</button>' +
-        '<button class="btn-preset-del"  onclick="deleteRowPattern(' + i + ')" title="削除">✕</button>' +
-        '</div>';
+      const who = _rpName(p.updated_by || p.created_by);
+      const n = (p.rows && p.rows.length) || 0;
+      const noteHtml = p.note
+        ? '<div class="rp-note"><span class="rp-note-lbl">📝 メモ</span>' + escHtml(p.note) + '</div>'
+        : '';
+      return '<div class="rp-card">' +
+        '<div class="rp-head">' +
+          '<span class="rp-name" title="' + escHtml(p.name) + '">' + escHtml(p.name) + '</span>' +
+          '<span class="rp-rowcount">' + n + '行</span>' +
+          '<button class="btn-preset-load" onclick="loadRowPattern(\'' + p.id + '\')">＋ 挿入</button>' +
+          '<button class="btn-preset-del"  onclick="deleteRowPattern(\'' + p.id + '\')" title="削除（チーム全員から消えます）">✕</button>' +
+        '</div>' +
+        noteHtml +
+        '<div class="rp-meta">✏️ ' + escHtml(who) + '・最終更新 ' + ts + '</div>' +
+      '</div>';
     }).join('');
   }
 
@@ -2020,19 +2214,6 @@
     });
     if (typeof window.updateQuoteRefEmpty === 'function') window.updateQuoteRefEmpty();
     updateQuoteStatusUI();
-    // ログイン済みかつ作業者フィールドが空なら Supabase ユーザー名を自動入力
-    if (window.SupabaseClient) {
-      window.SupabaseClient.auth.getSession().then(({ data }) => {
-        const session = data?.session;
-        if (!session) return;
-        const el = document.getElementById('qf-assignee');
-        if (el && !el.value.trim()) {
-          const name = session.user.user_metadata?.full_name
-            || session.user.user_metadata?.user_name || '';
-          if (name) el.value = name;
-        }
-      });
-    }
     window.updateQuoteSummary();
     // ⚙設定ドロップダウンは外側クリックで閉じる（ネイティブ <details> は外側クリックで閉じないため）
     document.addEventListener('click', function (e) {
@@ -2510,4 +2691,5 @@
       initQuoteAutoSaveListeners();  // save.js：input/change の自動保存
     }
     if (typeof initSimilarQuotes === 'function') initSimilarQuotes();
+    maybeAutoFillRef();          // 新規（REF空）なら仮REF#を自動採番
   };

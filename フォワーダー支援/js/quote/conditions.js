@@ -52,8 +52,10 @@
     const z3p    = g('z3Place');   const z3c = g('z3Country');
     const origin = [z1p, z1c].filter(Boolean).join(', ');
     const dest   = [z3p, z3c].filter(Boolean).join(', ');
+    // 複数航路の全件（出力面で全航路を併記するため）。先頭航路は上の pol/pod が代表値
+    const routes = (_routeEntries && _routeEntries.length) ? _routeEntries.slice() : [];
     return {
-      pol, pod, origin, dest,
+      pol, pod, origin, dest, routes,
       incoterms: g('cond-incoterms'), mode: g('cond-mode'), container,
       cargo: g('cond-cargo'), hsCode: g('cond-hs'),
       hsBasic: g('cond-hs-basic'), hsPref: g('cond-hs-pref'), hsPrefNote: g('cond-hs-pref-note'),
@@ -256,7 +258,7 @@
   }
 
   // プリセット読み込み時に空値で上書きしないヘッダー項目
-  const _HEADER_FIELD_IDS = ['qf-ref','qf-customer','qf-person','qf-date','qf-valid-until','qf-memo','qf-assignee','qf-status'];
+  const _HEADER_FIELD_IDS = ['qf-ref','qf-customer','qf-person','qf-date','qf-valid-until','qf-memo','qf-status'];
 
   // データを画面に適用（restoreAutoSave と同等。トースト・restoreBar 操作なし）
   function _applyQuoteData(data, { keepHeaderIfEmpty = false } = {}) {

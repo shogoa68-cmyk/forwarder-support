@@ -4,6 +4,7 @@
 
 > **作業前に読むこと**：製品方針 [PRODUCT_VISION.md](PRODUCT_VISION.md) / デザイン方針 [DESIGN_VISION.md](DESIGN_VISION.md)（リポジトリ直下）。不具合・改修の棚卸しは [docs/バグ台帳.md](docs/バグ台帳.md)。機能アイデア・改修要望は [docs/アイデア台帳.md](docs/アイデア台帳.md)。
 > ※ VISION 文書は公開対象（GitHub Pages = `フォワーダー支援/`）に含めないため、リポジトリ直下に置く。
+> ※ ユーザー公開ロードマップ：`docs/アイデア台帳.md` から `node scripts/build-roadmap.js` で `フォワーダー支援/roadmap.html` を生成（ヘッダー「📣 改修予定・アイデア」からリンク）。**台帳を編集したら再生成すること**。事業化・売却方針や内部技術詳細は生成時に自動除外。
 
 ## 構成（2026-05-17 / Phase 2c 全 Step 完了時点）
 
@@ -75,6 +76,15 @@ github/202605_コード改修/
 - Phase 2c-Step4（2026-05-17）：**Esc ハンドラのサイト全体化**。`js/quote/ui.js:884` の keydown ハンドラを 2 層化。第1層で `#fbOverlay` の Esc クローズをタブガード外に出し、第2層は従来通り見積タブ内モーダルを処理。付箋メモ・Ctrl+K 自体の globalize はコマンド一覧が見積タブ固有なため未実施
 - Phase 2c-Step5（2026-05-17、phase 1 のみ）：**window.QuoteApp 名前空間ファサード**。`js/quote/constants.js` 末尾に `Object.defineProperties(QuoteApp.state, ...)` で 9 state + 5 data + 3 fx を二方向バインディング公開。既存 bare global は残置（callsite 移行は将来段階作業）
 - Phase 3：旧「実務支援」を「フォワーダー支援」にリネーム
+- Phase 4（2026-06-07、PR #93〜101）：**クラウド機能拡張・キャリアチップ・物量転記**
+  - クラウドプレビューに貿易条件・輸送モード・貨物/物量情報を追加表示（`_cpRenderCondInfo()`）
+  - 複数航路（`z2-routes-data`）のプレビュー・DB列昇格対応
+  - 類似見積プレビューを `cloudPreviewPreset` に委譲（行インポート対応）
+  - `user_profiles` テーブルによるメール→表示名マッピング（`_profileMap` / `_nameFor()`）
+  - メール本文の明細を1行表示に修正（`buildPlainDetailLines()`）
+  - キャリアリンクチップに `✎` 編集アイコン ＋ 末尾「＋」新規追加チップを実装
+  - `openAddBmModal(presetData)` を引数対応に拡張（`_inferBmFunction` / `_inferBmType`）
+  - 見積サマリ物量情報（CBM/RT/CW）行に「→見積」転記ボタンを追加（`renderQuoteCargoInfo()` 拡張）
 
 **Phase 2c で残った持ち越し（ユーザー明示依頼まで触らない）**
 - バックアップファイル整理：`*.bak` / `*.bak_phase2c1_*` / `*.bak_phase2c2_*` / `index_bak_*`
