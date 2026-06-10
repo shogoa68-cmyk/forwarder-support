@@ -1926,6 +1926,37 @@
        初期化は js/app.js の switchTab() フックから window.initQuoteTab() を呼ぶ。 -->
   <div class="tab-content active" id="tab-quote-make">
 
+    <!-- ========== ページ1：ダッシュボード（qp-dash 時に表示） ========== -->
+    <div id="qpDashboard">
+      <div class="qpd-head">
+        <h2 class="qpd-title">📊 見積ダッシュボード</h2>
+        <div class="qpd-head-actions">
+          <button type="button" class="qpd-new" onclick="qpNewQuote()">🆕 新規見積を作成</button>
+          <button type="button" class="qpd-resume" onclick="qpShowEditor()" title="編集中の見積画面に戻る">▶ 編集画面へ</button>
+        </div>
+      </div>
+
+      <!-- 未ログイン：ログイン案内 -->
+      <div class="qpd-login" id="qpdLogin" hidden>
+        <div class="qpd-login-card">
+          <div class="qpd-login-emoji">☁️</div>
+          <h3>ログインすると見積もり機能が広がります</h3>
+          <p>チーム共有・案件一覧・同時編集ロックなどのクラウド機能はログインが必要です。<br>ログインせずに、このブラウザ内だけで見積もりを作成することもできます。</p>
+          <button type="button" class="qpd-login-btn" onclick="cloudLogin()">☁️ Google でログイン</button>
+          <button type="button" class="qpd-local-link" onclick="qpNewQuote()">ログインせず新規作成（このブラウザ内のみ）</button>
+        </div>
+      </div>
+
+      <!-- ログイン後：統計＋検索＋案件一覧 -->
+      <div class="qpd-main" id="qpdMain" hidden>
+        <div class="qpd-stats" id="qpdStats"></div>
+        <div class="qpd-list-tools">
+          <input type="text" id="qpdSearch" class="qpd-search" placeholder="🔍 案件名・お客様名・担当者で検索" oninput="cloudSearchInput(this.value)" />
+        </div>
+        <div class="qpd-list preset-list-wrap" id="qpdListWrap"></div>
+      </div>
+    </div>
+
     <details class="tab-help" id="quoteTabHelp" style="display:none;">
       <summary>ℹ️ このタブの使い方・機能説明</summary>
       <div class="tab-help-body">
@@ -2020,6 +2051,7 @@
 
       <!-- 共有案件の作業モード：開く=閲覧／編集でロック取得（作業中）／保存=作業終了で解放→閲覧 -->
       <div class="qm-group" id="qmGroup">
+        <button type="button" class="save-btn qm-btn qm-dash"  id="qmDash"  onclick="qpShowDashboard()"   title="ダッシュボード（案件一覧・統計）へ戻る">📊 ダッシュボード</button>
         <button type="button" class="save-btn qm-btn qm-new"   id="qmNew"   onclick="quoteModeNew()"      title="入力を空にして新規案件を作成（保持中の編集ロックは解放）">🆕 新規作成</button>
         <button type="button" class="save-btn qm-btn qm-edit"  id="qmEdit"  onclick="quoteModeEdit()"     disabled title="この共有案件の編集を開始（ロック取得＝あなたが作業中）">✏️ 編集</button>
         <button type="button" class="save-btn qm-btn qm-save"  id="qmSave"  onclick="quoteModeSaveDone()" title="クラウドに保存して作業終了（ロック解放→閲覧モード）">💾 保存（作業終了）</button>

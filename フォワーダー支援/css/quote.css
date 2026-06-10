@@ -3049,6 +3049,46 @@
 #tab-quote-make .qm-banner-edit { background: #e8f0e0; border: 1px solid #b6cf99; color: #3f6a2a; }
 /* 閲覧モード：フォームを淡くして読み取り専用を視覚化（操作無効化は inert が担う） */
 #tab-quote-make.qmode-view .quote-main { opacity: .72; }
+
+/* ===== 2ページ構成：ダッシュボード／エディタ 切替 ===== */
+#tab-quote-make #qpDashboard { display: none; }
+#tab-quote-make.qp-dash #qpDashboard { display: block; }
+#tab-quote-make.qp-dash > .save-toolbar,
+#tab-quote-make.qp-dash > .quote-workspace,
+#tab-quote-make.qp-dash > #quoteTabHelp { display: none !important; }
+body.qp-dash-active #quoteActionDock { display: none !important; }
+
+#qpDashboard { max-width: 1100px; margin: 0 auto; padding: 6px 4px 40px; }
+#qpDashboard .qpd-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin: 6px 0 16px; }
+#qpDashboard .qpd-title { font-size: 18px; font-weight: 800; color: #4a3520; margin: 0; }
+#qpDashboard .qpd-head-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+#qpDashboard .qpd-new { background: #1e7e44; color: #fff; border: none; border-radius: 8px; padding: 8px 16px; font-size: 13px; font-weight: 700; cursor: pointer; }
+#qpDashboard .qpd-new:hover { background: #18683a; }
+#qpDashboard .qpd-resume { background: #f3ecdd; color: #6b5a42; border: 1px solid #d8ccb6; border-radius: 8px; padding: 8px 14px; font-size: 12.5px; font-weight: 700; cursor: pointer; }
+#qpDashboard .qpd-resume:hover { background: #e9ddc4; }
+/* 未ログイン：ログイン案内 */
+#qpDashboard .qpd-login { display: flex; justify-content: center; padding: 40px 12px; }
+#qpDashboard .qpd-login-card { max-width: 460px; text-align: center; background: #fff; border: 1px solid #e2d8c4; border-radius: 14px; padding: 30px 26px; box-shadow: 0 8px 28px rgba(60,46,30,.10); }
+#qpDashboard .qpd-login-emoji { font-size: 44px; }
+#qpDashboard .qpd-login-card h3 { font-size: 16px; color: #4a3520; margin: 8px 0 10px; }
+#qpDashboard .qpd-login-card p { font-size: 12.5px; color: #7d6b56; line-height: 1.7; margin: 0 0 18px; }
+#qpDashboard .qpd-login-btn { background: #1a73e8; color: #fff; border: none; border-radius: 8px; padding: 10px 20px; font-size: 13.5px; font-weight: 700; cursor: pointer; }
+#qpDashboard .qpd-login-btn:hover { background: #1666d0; }
+#qpDashboard .qpd-local-link { display: block; margin: 14px auto 0; background: none; border: none; color: #1a5c8a; font-size: 12px; text-decoration: underline; cursor: pointer; }
+/* 統計カード */
+#qpDashboard .qpd-stats { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 16px; }
+#qpDashboard .qpd-stat { flex: 1 1 110px; min-width: 100px; display: flex; flex-direction: column; align-items: flex-start; gap: 2px; background: #fff; border: 1px solid #e2d8c4; border-radius: 10px; padding: 11px 14px; cursor: pointer; transition: border-color .12s, box-shadow .12s; }
+#qpDashboard .qpd-stat:hover { border-color: #c7b486; }
+#qpDashboard .qpd-stat.is-active { border-color: #1a5c8a; box-shadow: 0 0 0 2px #1a5c8a33 inset; }
+#qpDashboard .qpd-stat-n { font-size: 22px; font-weight: 800; color: #3d2e1e; line-height: 1; }
+#qpDashboard .qpd-stat-l { font-size: 11px; font-weight: 700; color: #7d6b56; }
+#qpDashboard .qpd-stat--won  .qpd-stat-n { color: #1e7e44; }
+#qpDashboard .qpd-stat--lost .qpd-stat-n { color: #c0392b; }
+#qpDashboard .qpd-stat--sent .qpd-stat-n { color: #1c6fa6; }
+/* 検索＋一覧 */
+#qpDashboard .qpd-list-tools { margin-bottom: 12px; }
+#qpDashboard .qpd-search { width: 100%; box-sizing: border-box; font-size: 13px; padding: 9px 12px; border: 1px solid #d9cfc2; border-radius: 8px; }
+#qpDashboard .qpd-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 10px; }
 /* ========== 保存ツールバー ========== */
 #tab-quote-make .save-toolbar {
   display: flex;

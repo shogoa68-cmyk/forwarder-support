@@ -112,6 +112,7 @@
     return m.display_name || m.full_name || m.name || m.user_name || u.email || 'ログイン中';
   }
   function _renderCloudAuth() {
+    if (typeof _renderQpdAuth === 'function') _renderQpdAuth();   // ダッシュボードのログイン出し分けも同期
     const stateEl   = document.getElementById('cloudAuthState');
     const hint      = document.getElementById('cloudLoginHint');
     const body      = document.getElementById('cloudShareBody');
@@ -226,6 +227,7 @@
     }
     _cloudRows = data || [];
     _renderStatusChips();
+    _renderQpdStats();
     _renderAdvancedFilters();
     _applyCloudFilter();
   }
@@ -345,19 +347,23 @@
   window.quoteExtractSubcons = _extractSubcons;
 
   function _renderCloudList(rows) {
-    const wrap = document.getElementById('cloudPresetListWrap');
-    if (!wrap) return;
+    // チーム共有モーダルの一覧と、ダッシュボードの一覧の両方へ描画
+    const wraps = [document.getElementById('cloudPresetListWrap'), document.getElementById('qpdListWrap')].filter(Boolean);
+    if (!wraps.length) return;
+    let html;
     if (!_cloudRows.length) {
-      wrap.innerHTML = '<div class="preset-empty">共有プリセットはまだありません<br>'
-        + '<small style="color:#9bb;">下のフォームから保存できます</small></div>';
+      html = '<div class="preset-empty">共有案件はまだありません<br>'
+        + '<small style="color:#9bb;">「🆕 新規見積を作成」から保存できます</small></div>';
+      wraps.forEach(w => w.innerHTML = html);
       return;
     }
     if (!rows.length) {
-      wrap.innerHTML = '<div class="preset-empty">条件に合う案件がありません<br>'
+      html = '<div class="preset-empty">条件に合う案件がありません<br>'
         + '<small style="color:#9bb;">検索語・ステータスを変えてください</small></div>';
+      wraps.forEach(w => w.innerHTML = html);
       return;
     }
-    wrap.innerHTML = rows.map(r => {
+    html = rows.map(r => {
       const ts = r.updated_at
         ? new Date(r.updated_at).toLocaleString('ja-JP',
             { month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit' })
@@ -440,6 +446,21 @@
           '</div>' +
         '</div>';
     }).join('');
+    wraps.forEach(w => w.innerHTML = html);
+  }
+
+  // ダッシュボードの統計カード（ステータス別件数・クリックで絞り込み）
+  function _renderQpdStats() {
+    const box = document.getElementById('qpdStats');
+    if (!box) return;
+    const count = st => _cloudRows.filter(r => (r.status || CLOUD_STATUS_DEFAULT) === st).length;
+    const card = (val, label, n, cls) =>
+      '<button type="button" class="qpd-stat' + (_cloudStatusFilter === val ? ' is-active' : '') +
+        (cls ? ' qpd-stat--' + cls : '') + '" onclick="cloudFilterStatus(\'' + val + '\')">' +
+        '<span class="qpd-stat-n">' + n + '</span><span class="qpd-stat-l">' + escHtml(label) + '</span></button>';
+    let html = card('', '全体', _cloudRows.length, 'all');
+    html += CLOUD_STATUSES.map(st => card(st, st, count(st), _statusClass(st))).join('');
+    box.innerHTML = html;
   }
 
   // ---------- Presence（同時編集の可視化／フェーズ2） ----------
@@ -643,6 +664,35 @@
     if (typeof addRow === 'function') addRow();   // 空の入力行を1行用意
   }
 
+  // ========== ページ切替（ダッシュボード／エディタ） ==========
+  function qpShowDashboard() {
+    document.getElementById('tab-quote-make')?.classList.add('qp-dash');
+    document.body.classList.add('qp-dash-active');
+    _renderQpdAuth();
+    if (_cloudUser) cloudListPresets(true);   // 一覧・統計を最新化（silent）
+  }
+  function qpShowEditor() {
+    document.getElementById('tab-quote-make')?.classList.remove('qp-dash');
+    document.body.classList.remove('qp-dash-active');
+  }
+  // ダッシュボードのログイン有無で表示を出し分け
+  function _renderQpdAuth() {
+    const login = document.getElementById('qpdLogin');
+    const main  = document.getElementById('qpdMain');
+    if (login) login.hidden = !!_cloudUser;
+    if (main)  main.hidden  = !_cloudUser;
+  }
+  // 新規見積（ダッシュボード or 未ログインの「ログインせず作成」から）→ エディタへ
+  function qpNewQuote() {
+    _exitShareEditing();
+    _clearQuoteForm();
+    _loadedCloudId = null; _loadedCloudTs = null;
+    if (typeof setCurrentQuoteName === 'function') setCurrentQuoteName('');
+    _applyShareMode('edit');
+    qpShowEditor();
+    quoteShowToast('🆕 新規見積を作成します', 'success', 2500);
+  }
+
   // 検索ボックス入力
   function cloudSearchInput(val) {
     _cloudSearch = val || '';
@@ -653,6 +703,7 @@
   function cloudFilterStatus(val) {
     _cloudStatusFilter = (val === _cloudStatusFilter) ? '' : val;  // 同じものを再クリックで解除
     _renderStatusChips();
+    _renderQpdStats();
     _applyCloudFilter();
   }
 
@@ -763,8 +814,14 @@
     _exitShareEditing();          // Presence untrack + ロック解放
     _applyShareMode('view');      // 閲覧モードへ（他メンバーが編集可能に）
 
-    quoteShowToast('💾 「' + name + '」を保存して作業終了しました（閲覧モード）', 'success', 4000);
+    quoteShowToast('💾 「' + name + '」を保存して作業終了しました', 'success', 3500);
     cloudListPresets();
+    // 保存後の遷移はユーザーに選ばせる（OK＝ダッシュボードへ／キャンセル＝この見積に留まる）
+    setTimeout(() => {
+      if (confirm('💾 保存しました。\n📊 ダッシュボードに戻りますか？\n（キャンセル＝この見積を表示したまま）')) {
+        qpShowDashboard();
+      }
+    }, 150);
   }
 
   // ---------- 読込 ----------
@@ -1065,6 +1122,7 @@
     if (typeof setCurrentQuoteName === 'function') setCurrentQuoteName(data.name);
     if (typeof closePresetMgr === 'function') closePresetMgr();
     _applyShareMode('view');   // 読み取り専用。編集するには「✏️ 編集」
+    qpShowEditor();            // ダッシュボードからエディタ画面へ
     const lk = _cloudRows.find(r => r.id === id);
     const by = lk ? _lockedByOther(lk) : null;
     if (by) {
@@ -1149,7 +1207,10 @@
     c.auth.getSession().then(({ data }) => {
       _cloudUser = (data && data.session && data.session.user) || null;
       _renderCloudAuth();
-      if (_cloudUser) { _loadProfiles().then(_renderCloudAuth); _initPresence(); }
+      if (_cloudUser) {
+        _loadProfiles().then(_renderCloudAuth); _initPresence();
+        if (document.body.classList.contains('qp-dash-active')) cloudListPresets(true);
+      }
     });
 
     // ログイン状態変化を監視
@@ -1161,6 +1222,7 @@
         _initPresence();
         const modal = document.getElementById('presetMgrModal');
         if (modal && modal.classList.contains('open')) cloudListPresets();
+        if (document.body.classList.contains('qp-dash-active')) cloudListPresets(true);
       } else {
         _teardownPresence();
       }
@@ -1286,6 +1348,10 @@
   window.quoteModeSaveDone = quoteModeSaveDone;
   window.quoteModeNew      = quoteModeNew;
   window.quoteModeClear    = quoteModeClear;
+  // ページ切替（ダッシュボード／エディタ）
+  window.qpShowDashboard   = qpShowDashboard;
+  window.qpShowEditor      = qpShowEditor;
+  window.qpNewQuote        = qpNewQuote;
 
   // ---------- 他モジュール（行パターン等）からのログイン情報参照用 ----------
   window.quoteCloudUser   = function () { return _cloudUser; };
