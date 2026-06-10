@@ -1235,7 +1235,7 @@
       _version:   2,
       _app:       'フォワーダー支援ツール',
       exportedAt: new Date().toISOString(),
-      patterns:   patterns.map(p => ({ name: p.name, note: p.note || '', rows: p.rows || [] })),
+      patterns:   patterns.map(p => ({ name: p.name, note: p.note || '', rows: p.rows || [], links: p.links || [] })),
     };
     const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
     const url  = URL.createObjectURL(blob);
@@ -1335,6 +1335,110 @@
   }
   window.insertSelectedPatternRows = insertSelectedPatternRows;
 
+  // ===== 行パターン：編集（名前・メモ・参照URL・明細） =====
+  let _rpEdit = null;   // 編集中の作業オブジェクト { id, name, note, links:[{label,url}], rows:[] }
+
+  function _rpLinkHost(url) {
+    try { return new URL(url).hostname.replace(/^www\./, ''); } catch (e) { return url; }
+  }
+
+  function openRowPatternEdit(id) {
+    const p = _rowPatterns.find(x => x.id === id);
+    if (!p) return;
+    _rpEdit = {
+      id:    p.id,
+      name:  p.name || '',
+      note:  p.note || '',
+      links: Array.isArray(p.links) ? p.links.map(l => ({ label: l.label || '', url: l.url || '' })) : [],
+      rows:  Array.isArray(p.rows)  ? p.rows.map(r => Object.assign({}, r)) : [],
+    };
+    const nm = document.getElementById('rpEditName'); if (nm) nm.value = _rpEdit.name;
+    const nt = document.getElementById('rpEditNote'); if (nt) nt.value = _rpEdit.note;
+    _rpEditRenderLinks();
+    _rpEditRenderRows();
+    document.getElementById('rpEditOverlay')?.classList.add('open');
+  }
+  function closeRowPatternEdit() {
+    document.getElementById('rpEditOverlay')?.classList.remove('open');
+    _rpEdit = null;
+  }
+
+  function rpEditAddLink()      { if (_rpEdit) { _rpEdit.links.push({ label: '', url: '' }); _rpEditRenderLinks(); } }
+  function rpEditRemoveLink(i)  { if (_rpEdit) { _rpEdit.links.splice(i, 1); _rpEditRenderLinks(); } }
+  function rpEditSetLink(i, key, val) { if (_rpEdit && _rpEdit.links[i]) _rpEdit.links[i][key] = val; }
+  function _rpEditRenderLinks() {
+    const box = document.getElementById('rpEditLinks');
+    if (!box || !_rpEdit) return;
+    if (!_rpEdit.links.length) {
+      box.innerHTML = '<div class="rp-edit-empty">URL未登録。「＋ URLを追加」で参照元を登録できます</div>';
+      return;
+    }
+    box.innerHTML = _rpEdit.links.map((l, i) =>
+      '<div class="rp-edit-link-row">' +
+        '<input type="text" class="rp-edit-link-label" placeholder="ラベル（例：料率表）" value="' + escHtml(l.label) + '" oninput="rpEditSetLink(' + i + ',\'label\',this.value)">' +
+        '<input type="url" class="rp-edit-link-url" placeholder="https://…" value="' + escHtml(l.url) + '" oninput="rpEditSetLink(' + i + ',\'url\',this.value)">' +
+        '<button type="button" class="btn-preset-del" onclick="rpEditRemoveLink(' + i + ')" title="このURLを削除">✕</button>' +
+      '</div>').join('');
+  }
+
+  function rpEditDeleteRow(i) { if (_rpEdit) { _rpEdit.rows.splice(i, 1); _rpEditRenderRows(); } }
+  function rpEditMoveRow(i, dir) {
+    if (!_rpEdit) return;
+    const j = i + dir;
+    if (j < 0 || j >= _rpEdit.rows.length) return;
+    const t = _rpEdit.rows[i]; _rpEdit.rows[i] = _rpEdit.rows[j]; _rpEdit.rows[j] = t;
+    _rpEditRenderRows();
+  }
+  function _rpEditRenderRows() {
+    const box = document.getElementById('rpEditRows');
+    const cnt = document.getElementById('rpEditRowCount');
+    if (!box || !_rpEdit) return;
+    if (cnt) cnt.textContent = _rpEdit.rows.length + '行';
+    if (!_rpEdit.rows.length) {
+      box.innerHTML = '<div class="rp-edit-empty">明細がありません（最低1行は必要です）</div>';
+      return;
+    }
+    const last = _rpEdit.rows.length - 1;
+    box.innerHTML = _rpEdit.rows.map((rd, i) =>
+      '<div class="rp-edit-row">' +
+        '<span class="rp-edit-row-label">' + _rpRowLabel(rd) + '</span>' +
+        '<span class="rp-edit-row-acts">' +
+          '<button type="button" onclick="rpEditMoveRow(' + i + ',-1)" title="上へ"' + (i === 0 ? ' disabled' : '') + '>▲</button>' +
+          '<button type="button" onclick="rpEditMoveRow(' + i + ',1)" title="下へ"' + (i === last ? ' disabled' : '') + '>▼</button>' +
+          '<button type="button" class="btn-preset-del" onclick="rpEditDeleteRow(' + i + ')" title="この明細を削除">✕</button>' +
+        '</span>' +
+      '</div>').join('');
+  }
+
+  async function saveRowPatternEdit() {
+    if (!_rpEdit) return;
+    const name = (document.getElementById('rpEditName')?.value || '').trim();
+    const note = (document.getElementById('rpEditNote')?.value || '').trim();
+    if (!name) { quoteShowToast('⚠️ パターン名を入力してください', 'warn'); return; }
+    if (!_rpEdit.rows.length) { quoteShowToast('⚠️ 明細が0行です。最低1行は残してください', 'warn', 3500); return; }
+    if (_rowPatterns.find(p => p.name === name && p.id !== _rpEdit.id)) {
+      quoteShowToast('⚠️ 同名のパターンが既にあります。別名にしてください', 'warn', 3500); return;
+    }
+    // URL整理：URL空は除外、危険スキームは除外、スキーム無しは https:// 補完
+    const links = _rpEdit.links
+      .map(l => ({ label: (l.label || '').trim(), url: (l.url || '').trim() }))
+      .filter(l => l.url && !/^\s*(javascript|data|vbscript):/i.test(l.url))
+      .map(l => ({ label: l.label, url: /^https?:\/\//i.test(l.url) ? l.url : 'https://' + l.url }));
+    const db = _rpClient();
+    const email = _rpUserEmail();
+    if (!db || !email) { quoteShowToast('⚠️ チーム共有にはログインが必要です', 'warn', 3500); return; }
+    const base = { name, note, rows: _rpEdit.rows, updated_by: email, updated_at: new Date().toISOString() };
+    let { error } = await db.from('row_patterns').update(Object.assign({ links }, base)).eq('id', _rpEdit.id);
+    if (error && /links/.test(error.message || '')) {   // links 列が未マイグレーションでも保存は通す
+      ({ error } = await db.from('row_patterns').update(base).eq('id', _rpEdit.id));
+      if (!error) quoteShowToast('💾 保存しました（URLは links 列の追加SQL適用後に保存できます）', 'warn', 5500);
+    }
+    if (error) { quoteShowToast('⚠️ 保存に失敗：' + error.message, 'warn', 6000); return; }
+    closeRowPatternEdit();
+    await loadRowPatternsFromCloud();
+    quoteShowToast(`✅ 「${name}」を更新しました（チームに反映）`, 'success');
+  }
+
   function renderRowPatternList() {
     const wrap = document.getElementById('rowPatternListWrap');
     if (!wrap) return;
@@ -1366,14 +1470,22 @@
             '<div class="rp-row-list">' + rowsHtml + '</div>' +
           '</details>'
         : '';
+      const links = Array.isArray(p.links) ? p.links.filter(l => l && l.url && /^https?:\/\//i.test(l.url)) : [];
+      const linksHtml = links.length
+        ? '<div class="rp-links">' + links.map(l =>
+            '<a class="rp-link-chip" href="' + escHtml(l.url) + '" target="_blank" rel="noopener noreferrer" title="' + escHtml(l.url) + '">🔗 ' +
+              escHtml(l.label || _rpLinkHost(l.url)) + '</a>').join('') + '</div>'
+        : '';
       return '<div class="rp-card" data-pid="' + escHtml(p.id) + '">' +
         '<div class="rp-head">' +
           '<span class="rp-name" title="' + escHtml(p.name) + '">' + escHtml(p.name) + '</span>' +
           '<span class="rp-rowcount">' + n + '行</span>' +
           '<button class="btn-preset-load" onclick="loadRowPattern(\'' + p.id + '\')" title="全' + n + '行を挿入">＋ 全挿入</button>' +
+          '<button class="btn-preset-edit" onclick="openRowPatternEdit(\'' + p.id + '\')" title="編集（名前・メモ・URL・明細）">✎</button>' +
           '<button class="btn-preset-del"  onclick="deleteRowPattern(\'' + p.id + '\')" title="削除（チーム全員から消えます）">✕</button>' +
         '</div>' +
         noteHtml +
+        linksHtml +
         detailHtml +
         '<div class="rp-meta">✏️ ' + escHtml(who) + '・最終更新 ' + ts + '</div>' +
       '</div>';
@@ -1653,6 +1765,8 @@
     // Escape → 見積タブ内のモーダルをすべて閉じる（電卓・fb は上の優先度ブロックで処理済み）
     if (e.key === 'Escape') {
       if (document.getElementById('cmdPalette')?.classList.contains('open'))     { closeCmdPalette(); return; }
+      if (document.getElementById('rpEditOverlay')?.classList.contains('open'))   { closeRowPatternEdit(); return; }
+      if (document.getElementById('rowPatternModal')?.classList.contains('open')) { closeRowPatternMgr(); return; }
       if (document.getElementById('presetMgrModal')?.classList.contains('open')) { closePresetMgr(); return; }
       if (document.getElementById('previewOverlay')?.classList.contains('open')) { closePreview(); return; }
     }

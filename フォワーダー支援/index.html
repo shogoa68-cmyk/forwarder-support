@@ -2258,6 +2258,37 @@
       </div>
     </div>
 
+    <!-- ========== 行パターン 編集モーダル（名前・メモ・参照URL・明細） ========== -->
+    <div class="preset-mgr-modal" id="rpEditOverlay"
+         onclick="if(event.target===this)closeRowPatternEdit()">
+      <div class="preset-mgr-box">
+        <h3>✎ 行パターンを編集</h3>
+        <div class="rp-edit-body">
+          <label class="rp-edit-lbl">パターン名</label>
+          <input type="text" class="preset-name-input" id="rpEditName" maxlength="30" placeholder="パターン名" />
+
+          <label class="rp-edit-lbl">メモ（任意・チーム共有）</label>
+          <input type="text" class="preset-name-input" id="rpEditNote" maxlength="120" placeholder="メモ" />
+
+          <div class="rp-edit-sec-head">
+            <span class="rp-edit-lbl">🔗 参照URL（情報の参照元・チーム共有）</span>
+            <button type="button" class="btn-preset-load rp-edit-addlink" onclick="rpEditAddLink()">＋ URLを追加</button>
+          </div>
+          <div id="rpEditLinks" class="rp-edit-links"></div>
+
+          <div class="rp-edit-sec-head">
+            <span class="rp-edit-lbl">📋 含まれる明細</span>
+            <span class="rp-edit-rowcount" id="rpEditRowCount"></span>
+          </div>
+          <div id="rpEditRows" class="rp-edit-rows"></div>
+        </div>
+        <div class="preset-mgr-footer rp-edit-footer">
+          <button class="btn-preset-close" onclick="closeRowPatternEdit()">キャンセル</button>
+          <button class="btn-preset-save-new" onclick="saveRowPatternEdit()">💾 保存（チームに反映）</button>
+        </div>
+      </div>
+    </div>
+
     <div class="quote-workspace">
       <div class="quote-main">
 

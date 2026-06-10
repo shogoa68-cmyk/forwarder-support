@@ -6620,6 +6620,34 @@ button.um-memberno--empty:hover { background: #f4ead4; border-color: #cdb98e; }
 #tab-quote-make .rp-row-nm { flex:1; min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 #tab-quote-make .rp-row-empty { color:#b0a18d; font-style:italic; }
 #tab-quote-make .rp-row-price { flex-shrink:0; font-size:10.5px; color:#7a6a52; font-variant-numeric:tabular-nums; }
+/* 行パターン：編集ボタン・参照URLチップ */
+#tab-quote-make .btn-preset-edit { flex-shrink:0; border:1px solid #cdbfa6; background:#f3ecdd; color:#6b5a42; border-radius:6px; padding:2px 8px; font-size:12px; cursor:pointer; }
+#tab-quote-make .btn-preset-edit:hover { background:#e9ddc4; }
+#tab-quote-make .rp-links { display:flex; flex-wrap:wrap; gap:5px; padding:7px 12px; border-top:1px solid #f1ebe0; }
+#tab-quote-make .rp-link-chip { display:inline-flex; align-items:center; gap:3px; max-width:100%; font-size:11px; color:#1a5c8a; text-decoration:none; background:#eef4fa; border:1px solid #cfe0ef; border-radius:999px; padding:1px 9px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+#tab-quote-make .rp-link-chip:hover { background:#e1edf8; text-decoration:underline; }
+/* 行パターン：編集モーダル */
+#tab-quote-make #rpEditOverlay .preset-mgr-box { max-width:560px; }
+#tab-quote-make .rp-edit-body { display:flex; flex-direction:column; gap:6px; max-height:62vh; overflow-y:auto; padding:2px; }
+#tab-quote-make .rp-edit-lbl { font-size:11.5px; font-weight:700; color:#5d4e3a; }
+#tab-quote-make .rp-edit-sec-head { display:flex; align-items:center; justify-content:space-between; gap:8px; margin-top:8px; padding-top:8px; border-top:1px dashed #e2d8c5; }
+#tab-quote-make .rp-edit-rowcount { font-size:10.5px; font-weight:700; color:#6b5a42; background:#f0e8d8; border-radius:999px; padding:1px 9px; }
+#tab-quote-make .rp-edit-addlink { font-size:11px; padding:2px 9px; }
+#tab-quote-make .rp-edit-links { display:flex; flex-direction:column; gap:5px; }
+#tab-quote-make .rp-edit-link-row { display:flex; gap:6px; align-items:center; }
+#tab-quote-make .rp-edit-link-label { flex:0 0 34%; min-width:0; }
+#tab-quote-make .rp-edit-link-url { flex:1 1 auto; min-width:0; }
+#tab-quote-make .rp-edit-link-row input { font-size:12px; padding:5px 8px; border:1px solid #d9ccb4; border-radius:6px; }
+#tab-quote-make .rp-edit-empty { font-size:11px; color:#b0a18d; padding:4px 2px; }
+#tab-quote-make .rp-edit-rows { display:flex; flex-direction:column; border:1px solid #ece3d2; border-radius:8px; overflow:hidden; }
+#tab-quote-make .rp-edit-row { display:flex; align-items:center; gap:8px; padding:5px 10px; font-size:11.5px; border-top:1px solid #f6f1e7; }
+#tab-quote-make .rp-edit-row:first-child { border-top:none; }
+#tab-quote-make .rp-edit-row-label { flex:1; min-width:0; display:flex; align-items:center; gap:6px; overflow:hidden; }
+#tab-quote-make .rp-edit-row-acts { flex-shrink:0; display:flex; gap:3px; }
+#tab-quote-make .rp-edit-row-acts button { width:24px; height:24px; border:1px solid #d9ccb4; background:#fbf8f1; border-radius:5px; cursor:pointer; font-size:11px; color:#6b5a42; }
+#tab-quote-make .rp-edit-row-acts button:hover:not(:disabled) { background:#efe6d4; }
+#tab-quote-make .rp-edit-row-acts button:disabled { opacity:.35; cursor:default; }
+#tab-quote-make .rp-edit-footer { display:flex; gap:8px; justify-content:flex-end; }
 
 /* 行を挿入モーダル：アクティブタブを伸縮させ、リスト部分だけ内部スクロールさせる。
    （:not([hidden]) で非表示タブの display:none を維持。リストの overflow 未指定で
