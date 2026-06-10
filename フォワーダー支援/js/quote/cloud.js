@@ -898,8 +898,17 @@
   async function cloudDeletePreset(rawId) {
     const c = _getClient();
     if (!c) return;
-    if (!confirm('この共有プリセットを削除しますか？\n（チーム全員から消えます）')) return;
     const id = decodeURIComponent(rawId);
+    const row = _cloudRows.find(r => r.id === id);
+    const label = row && row.name ? '「' + row.name + '」' : '';
+    // 同時編集の警告（Presence）：編集中なら強めの確認に切替
+    const others = _presenceOthers(id);
+    if (others.length) {
+      if (!confirm('🚫 ' + others.join('、') + ' さんがこの案件' + label +
+          'を編集中です。\n削除するとその作業が失われます。本当に削除しますか？')) return;
+    } else {
+      if (!confirm('この共有プリセット' + label + 'を削除しますか？\n（チーム全員から消えます）')) return;
+    }
     const { error } = await c.from(_table()).delete().eq('id', id);
     if (error) { quoteShowToast('⚠️ 削除に失敗：' + error.message, 'warn'); return; }
     quoteShowToast('🗑️ 共有プリセットを削除しました', 'info');
