@@ -51,7 +51,9 @@ function labelAllowed(label) {
 }
 
 // ---- 解析 ------------------------------------------------------------------
-const md = fs.readFileSync(SRC, 'utf8');
+const rawMd = fs.readFileSync(SRC, 'utf8');
+// HTML コメントブロック（<!-- ... -->）を除去してから解析
+const md = rawMd.replace(/<!--[\s\S]*?-->/g, '');
 const lines = md.split(/\r?\n/);
 
 // 台帳の最終更新日
