@@ -69,6 +69,7 @@
   function collectAllRows() {
     const rows = [];
     document.querySelectorAll('#tableBody tr').forEach(tr => {
+      if (tr.dataset.virtual) return; // サブコングループヘッダー（仮想行）はスキップ
       if (tr.dataset.type === 'subtotal') {
         const label       = tr.querySelector('.subtotal-label')?.value || '';
         const billingText = tr.querySelector('.subtotal-group-billing')?.textContent?.trim() || '—';
@@ -110,6 +111,7 @@
     const rows = document.querySelectorAll('#tableBody tr');
     const data = [];
     rows.forEach(tr => {
+      if (tr.dataset.virtual) return; // サブコングループヘッダー（仮想行）はスキップ
       if (tr.dataset.type === 'subtotal') return; // 小計行スキップ
       const id     = tr.id.replace('row-', '');
       const taxed  = document.getElementById(`tx-${id}`)?.checked || false;

@@ -6856,3 +6856,43 @@ button.um-memberno--empty:hover { background: #f4ead4; border-color: #cdb98e; }
 #tab-quote-make .haz-chip[data-tone="other"].is-on .haz-dot { background: #7d6b56; }
 /* モバイルは既存 .condition-grid と同様に1カラムへ（提案の2カラムはデスクトップのみ） */
 @media (max-width: 560px) { #tab-quote-make .cargo-name-grid { grid-template-columns: 1fr; } }
+
+/* ========== サブコン別グループヘッダー ========== */
+#tab-quote-make .subcon-group-header { pointer-events:none; }
+#tab-quote-make .subcon-group-header-cell {
+  background:linear-gradient(90deg,#f5ede0 0,#faf6ef 100%);
+  border-top:2px solid #e2ceb2;
+  border-bottom:1px solid #e8dccf;
+  padding:5px 10px;
+  display:flex;
+  align-items:center;
+  gap:8px;
+  user-select:none;
+}
+#tab-quote-make .subcon-group-label {
+  font-size:11.5px;
+  font-weight:800;
+  color:#5a3e28;
+  letter-spacing:.02em;
+}
+#tab-quote-make .subcon-group-count {
+  font-size:10.5px;
+  color:#9a8070;
+  background:#ece4d8;
+  border-radius:999px;
+  padding:1px 8px;
+}
+#tab-quote-make .subcon-group-add-btn {
+  pointer-events:all;
+  margin-left:auto;
+  font-size:13px;
+  font-weight:700;
+  color:#6b5a42;
+  background:#fff;
+  border:1px solid #d4c0a4;
+  border-radius:6px;
+  padding:2px 10px;
+  cursor:pointer;
+  line-height:1.5;
+}
+#tab-quote-make .subcon-group-add-btn:hover { background:#f5ede0; }

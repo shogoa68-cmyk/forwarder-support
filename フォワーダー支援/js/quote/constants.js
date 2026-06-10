@@ -149,6 +149,7 @@ window.QuoteApp = window.QuoteApp || { state: {}, data: {}, fx: {} };
 let rowCount      = 0;
 let dragSrcRow    = null;
 let dragSrcRows   = null;  // 多選択ドラッグ時に実際に移動する行群（単一なら [dragSrcRow]）
+let _inGroupRender = false; // renderSubconGroups 実行中フラグ（MutationObserver 抑制用）
 let tabAddEnabled = true;
 let calcRowCount  = 0;
 let _lastCalcResult = null;
