@@ -35,6 +35,17 @@ jobs:
       - name: Setup Pages
         uses: actions/configure-pages@v5
 
+      # キャッシュ無効化：公開フォルダ直下の HTML が読み込むローカル CSS/JS に
+      # コミットSHAの ?v= を付与。デプロイのたびにアセットURLが変わり、
+      # ブラウザ/CDN の旧キャッシュで古い見た目が残るのを防ぐ（CDNの https:// 参照は対象外）。
+      - name: Cache-bust local CSS/JS (?v=<sha>)
+        run: |
+          V="${GITHUB_SHA::8}"
+          for f in $(find フォワーダー支援 -maxdepth 1 -name '*.html'); do
+            sed -i -E "s#href=\"(css/[^\"?]+)\"#href=\"\1?v=${V}\"#g; s#src=\"((js|shared|data)/[^\"?]+)\"#src=\"\1?v=${V}\"#g" "$f"
+          done
+          echo "Stamped local assets with ?v=${V}"
+
       - name: Upload artifact (フォワーダー支援/)
         uses: actions/upload-pages-artifact@v3
         with:
