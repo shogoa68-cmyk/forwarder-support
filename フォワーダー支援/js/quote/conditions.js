@@ -538,48 +538,40 @@
   function _buildZonePresetItems() {
     const items = [];
 
-    // Zone ① 出発地側
+    // Zone ① 出発地側 — サブコン単位で空行1行
     if (_zone1On) {
       const def1 = document.getElementById('z1DefaultSc')?.value?.trim() || '';
-      if (document.getElementById('piece-pickup')?.checked) {
-        items.push({ cat: 'domestic',  name: '国内集荷・陸送費',        note: '集荷先〜輸出港',       sv: _getFirstScValue('sc-pickup')    || def1 });
-      }
-      if (document.getElementById('piece-wh-origin')?.checked) {
-        items.push({ cat: 'domestic',  name: '倉庫/梱包/バンニング費',  note: '輸出前作業',           sv: _getFirstScValue('sc-wh-origin')  || def1 });
-      }
-      if (document.getElementById('piece-customs-e')?.checked) {
-        items.push({ cat: 'customs-export',   name: '輸出通関費',              note: '通関手数料・書類作成', sv: _getFirstScValue('sc-customs-e')  || def1 });
-      }
-      items.push({ cat: 'domestic',    name: '港湾諸費用（輸出）',      note: 'THC・ドキュメント費等', sv: '' });
+      const seen1 = new Set();
+      const addZ1 = (sv) => {
+        if (!seen1.has(sv)) { seen1.add(sv); items.push({ cat: 'domestic', name: '', note: '', sv }); }
+      };
+      if (document.getElementById('piece-pickup')?.checked)    addZ1(_getFirstScValue('sc-pickup')    || def1);
+      if (document.getElementById('piece-wh-origin')?.checked) addZ1(_getFirstScValue('sc-wh-origin')  || def1);
+      if (document.getElementById('piece-customs-e')?.checked) addZ1(_getFirstScValue('sc-customs-e')  || def1);
+      addZ1(def1); // 港湾諸費用（常時）を def1 グループに含める
     }
 
-    // Zone ② 幹線輸送（常に追加）。複数航路が登録されていれば各航路ごとに行を生成
+    // Zone ② 幹線輸送 — 航路（carrier）単位で空行1行
     const routes = (_routeEntries && _routeEntries.length) ? _routeEntries : [{
       carrier: document.getElementById('z2Carrier')?.value?.trim() || '',
       pol:     document.getElementById('z2Pol')?.value?.trim()     || '',
       pod:     document.getElementById('z2Pod')?.value?.trim()     || '',
     }];
-    const multiRoute = routes.length > 1;
-    routes.forEach((r, idx) => {
-      const polpod = [r.pol, r.pod].filter(Boolean).join(' → ') || 'ポート〜ポート';
-      const tag = multiRoute ? `【${r.carrier || '航路' + (idx + 1)}】 ` : '';
-      items.push({ cat: 'ocean',     name: tag + '海上運賃',       note: polpod,           sv: r.carrier });
-      items.push({ cat: 'surcharge', name: tag + 'サーチャージ類', note: 'BAF/CAF/PSS 等', sv: r.carrier });
+    routes.forEach(r => {
+      items.push({ cat: 'ocean', name: '', note: '', sv: r.carrier });
     });
 
-    // Zone ③ 到着地側
+    // Zone ③ 到着地側 — サブコン単位で空行1行
     if (_zone3On) {
       const def3 = document.getElementById('z3DefaultSc')?.value?.trim() || '';
-      items.push({ cat: 'overseas',  name: '仕向港費用',              note: 'D/O・THC等',           sv: '' });
-      if (document.getElementById('piece-customs-i')?.checked) {
-        items.push({ cat: 'customs-import',   name: '輸入通関費',              note: '通関手数料・書類作成', sv: _getFirstScValue('sc-customs-i') || def3 });
-      }
-      if (document.getElementById('piece-wh-dest')?.checked) {
-        items.push({ cat: 'overseas',  name: '倉庫/デバン費',           note: '輸入後作業',           sv: _getFirstScValue('sc-wh-dest')   || def3 });
-      }
-      if (document.getElementById('piece-deliver')?.checked) {
-        items.push({ cat: 'domestic',  name: '国内配送費（着地）',      note: '港〜最終納入地',       sv: _getFirstScValue('sc-deliver')   || def3 });
-      }
+      const seen3 = new Set();
+      const addZ3 = (sv) => {
+        if (!seen3.has(sv)) { seen3.add(sv); items.push({ cat: 'overseas', name: '', note: '', sv }); }
+      };
+      addZ3(def3); // 仕向港費用（常時）を def3 グループに含める
+      if (document.getElementById('piece-customs-i')?.checked) addZ3(_getFirstScValue('sc-customs-i') || def3);
+      if (document.getElementById('piece-wh-dest')?.checked)   addZ3(_getFirstScValue('sc-wh-dest')   || def3);
+      if (document.getElementById('piece-deliver')?.checked)   addZ3(_getFirstScValue('sc-deliver')   || def3);
     }
 
     return items;
@@ -594,7 +586,7 @@
 
     const existing = document.querySelectorAll('#tableBody tr').length;
     if (existing > 0) {
-      if (!confirm(`テーブルに ${existing} 行あります。末尾に ${items.length} 行を追記しますか？\n（置換したい場合は一旦リセットしてから再実行してください）`)) return;
+      if (!confirm(`テーブルに ${existing} 行あります。末尾にサブコン/航路別の空行 ${items.length} 行を追記しますか？\n（置換したい場合は一旦リセットしてから再実行してください）`)) return;
     }
 
     let lastCur = 'JPY';
@@ -618,7 +610,7 @@
     });
 
     updateTotals();
-    quoteShowToast('✅ ゾーン構成プリセット適用完了（' + items.length + '行）', 'success');
+    quoteShowToast('✅ ゾーン構成プリセット適用完了（サブコン/航路別 ' + items.length + '行）', 'success');
   }
 
   // ========== 方向・輸送モード プライマリセレクター ==========
