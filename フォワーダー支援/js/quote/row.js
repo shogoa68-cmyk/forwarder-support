@@ -246,8 +246,8 @@
   function duplicateRow(srcId) {
     const newId = addRowAfter(srcId);
 
-    // テキスト・数値フィールドをコピー
-    ['nm','pq','un','pp','mk','nt','sv'].forEach(f => {
+    // テキスト・数値フィールドをコピー（zc = 0円確認済みフラグを含む）
+    ['nm','pq','un','pp','mk','nt','sv','zc'].forEach(f => {
       const srcEl = document.getElementById(`${f}-${srcId}`);
       const dstEl = document.getElementById(`${f}-${newId}`);
       if (srcEl && dstEl) dstEl.value = srcEl.value;
@@ -334,8 +334,10 @@
     const q    = f => frag.querySelector(`[data-field="${f}"]`);
 
     // IDs
-    ['cat','tx','nm','pq','un','pc','pp','cd','bq','bc','bp','mk','st','pr','nt','sv']
+    ['cat','tx','nm','pq','un','pc','pp','cd','bq','bc','bp','mk','st','pr','nt','sv','zc']
       .forEach(f => { q(f).id = `${f}-${id}`; });
+    const zcBtn = frag.querySelector('.zero-confirm-btn');
+    if (zcBtn) zcBtn.onclick = () => toggleZeroConfirmed(id);;
 
     // Select options & initial values
     q('cat').innerHTML = catOpts(initCat);
@@ -412,16 +414,26 @@
     const st = document.getElementById(`st-${id}`);
     if (st) {
       let stHTML;
+      const isZeroConfirmed = document.getElementById(`zc-${id}`)?.value === '1';
       if (bc !== 'JPY' && canFx && subtotal) {
         const jpySub = Math.ceil(toJPY(subtotal, bc));
         stHTML = fmt(subtotal) + '<br><small class="jpy-conv-hint">(≈¥' + fmt(jpySub) + ')</small>';
         if (taxed) stHTML += '<br><small class="tax-hint">（消費税：≈¥' + fmt(Math.ceil(jpySub * taxRate)) + '）</small>';
       } else {
-        stHTML = subtotal ? fmt(subtotal) : '—';
-        if (taxed && subtotal) stHTML += '<br><small class="tax-hint">（消費税：' + fmt(Math.ceil(subtotal * taxRate)) + '円）</small>';
+        if (subtotal) {
+          stHTML = fmt(subtotal);
+          if (taxed) stHTML += '<br><small class="tax-hint">（消費税：' + fmt(Math.ceil(subtotal * taxRate)) + '円）</small>';
+        } else if (isZeroConfirmed) {
+          stHTML = '<span class="zero-confirmed-badge">¥0 ✓</span>';
+        } else {
+          stHTML = '—';
+        }
       }
       st.innerHTML = stHTML;
       st.className = 'subtotal-cell' + (subtotal ? ' subtotal-has-value' : '');
+      // ¥0✓ボタンの表示状態を同期
+      const zcBtn = document.getElementById(`row-${id}`)?.querySelector('.zero-confirm-btn');
+      if (zcBtn) zcBtn.classList.toggle('is-on', isZeroConfirmed);
     }
     // 利益セル
     const pr = document.getElementById(`pr-${id}`);
@@ -438,6 +450,14 @@
 
   function pClass(p) {
     return p > 0 ? 'profit-pos' : p < 0 ? 'profit-neg' : 'profit-zero';
+  }
+
+  // ========== 0円確認済みトグル ==========
+  function toggleZeroConfirmed(id) {
+    const zcEl = document.getElementById(`zc-${id}`);
+    if (!zcEl) return;
+    zcEl.value = zcEl.value === '1' ? '' : '1';
+    calc(id);
   }
 
   function val(id) {

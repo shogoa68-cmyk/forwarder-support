@@ -124,7 +124,7 @@
   // cells[0] = 選択チェック（.row-select-chk）、cells[1..] = 下記の順。
   // 既存の保存データ（localStorage / JSON / クラウド）との互換のため、この順序は変更しないこと。
   // ※ 列の見た目の並び替えは row-tpl / thead 側だけで行い、ここは触らない。
-  const ROW_CELL_FIELDS = ['cat','sv','tx','nm','pq','un','bq','pc','bc','pp','bp','cd','mk','nt'];
+  const ROW_CELL_FIELDS = ['cat','sv','tx','nm','pq','un','bq','pc','bc','pp','bp','cd','mk','nt','zc'];
 
   function _applyCells(tr, cells) {
     // cells[0] = 選択チェック、cells[1..] = ROW_CELL_FIELDS 順（DOM 列順に依存しない）

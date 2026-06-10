@@ -937,6 +937,45 @@
   color: #b36a00;
 }
 
+/* ===== 0円確認済みボタン ===== */
+#tab-quote-make .zero-confirm-btn {
+  display: block;
+  margin-top: 3px;
+  padding: 1px 6px;
+  font-size: 10px;
+  line-height: 1.5;
+  border: 1px solid #c4b49a;
+  border-radius: 3px;
+  background: transparent;
+  color: #c4b49a;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+#tab-quote-make .zero-confirm-btn:hover {
+  border-color: #5a8a42;
+  color: #5a8a42;
+  opacity: 1;
+}
+#tab-quote-make .zero-confirm-btn.is-on {
+  background: #e8f5e9;
+  border-color: #5a8a42;
+  color: #2e7d32;
+  font-weight: 600;
+}
+/* 小計セル内の 0円確認バッジ */
+#tab-quote-make .zero-confirmed-badge {
+  display: inline-block;
+  padding: 1px 7px;
+  background: #e8f5e9;
+  border: 1px solid #81c784;
+  border-radius: 10px;
+  color: #2e7d32;
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+}
 /* ===== プレビュー入力ガイドパネル ===== */
 #tab-quote-make .pv-warn-guide {
   position: fixed;
