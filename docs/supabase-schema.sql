@@ -129,9 +129,18 @@ create policy "team members can delete bookmarks"
 -- ============================================================
 create table if not exists public.user_profiles (
   email        text primary key,
-  display_name text not null,
+  display_name text,                                  -- null 可（ログインのみで表示名未設定の状態を許容）
+  avatar_color text,                                  -- プロフィールのアバター色
+  avatar_emoji text,                                  -- プロフィールのアバター絵文字
+  last_seen_at timestamptz,                           -- 最終ログイン（在席）時刻＝アクティビティ判定
   updated_at   timestamptz not null default now()
 );
+
+-- 既存DB向けマイグレーション（再実行しても安全）
+alter table public.user_profiles alter column display_name drop not null;
+alter table public.user_profiles add column if not exists avatar_color text;
+alter table public.user_profiles add column if not exists avatar_emoji text;
+alter table public.user_profiles add column if not exists last_seen_at timestamptz;
 
 alter table public.user_profiles enable row level security;
 
