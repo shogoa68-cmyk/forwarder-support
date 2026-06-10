@@ -2963,6 +2963,20 @@
 #tab-quote-make .pv-copy-msg { font-size: 12px; color: #5a6e42; opacity: 0; transition: opacity 0.4s; }
 #tab-quote-make .pv-copy-msg.show { opacity: 1; }
 #tab-quote-make .pv-hint { font-size: 11px; color: #7d6b56; margin-top: 10px; }
+
+/* ===== 作業モード（閲覧／編集）ボタン群＋バナー ===== */
+#tab-quote-make .qm-group { display: inline-flex; align-items: center; gap: 4px; }
+#tab-quote-make .qm-btn { font-weight: 700; }
+#tab-quote-make .qm-edit  { background: #e8f0e0; border-color: #b6cf99; color: #3f6a2a; }
+#tab-quote-make .qm-save  { background: #fff4e0; border-color: #e8c870; color: #7a5500; }
+#tab-quote-make .qm-new,
+#tab-quote-make .qm-clear { background: #f0ece4; border-color: #d8ccb6; color: #6b5a42; }
+#tab-quote-make .qm-btn:disabled { opacity: .42; cursor: default; }
+#tab-quote-make .qm-banner { font-size: 11.5px; font-weight: 700; padding: 3px 11px; border-radius: 999px; white-space: nowrap; }
+#tab-quote-make .qm-banner-view { background: #fcf1e0; border: 1px solid #e7c79a; color: #8a5a16; }
+#tab-quote-make .qm-banner-edit { background: #e8f0e0; border: 1px solid #b6cf99; color: #3f6a2a; }
+/* 閲覧モード：フォームを淡くして読み取り専用を視覚化（操作無効化は inert が担う） */
+#tab-quote-make.qmode-view .quote-main { opacity: .72; }
 /* ========== 保存ツールバー ========== */
 #tab-quote-make .save-toolbar {
   display: flex;

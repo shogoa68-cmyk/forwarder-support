@@ -2018,6 +2018,16 @@
     <div class="save-toolbar" id="saveToolbar">
       <span class="current-quote-name" id="currentQuoteName" hidden title="現在編集中のプリセット名（読込・保存時に更新）">📝 新規見積</span>
 
+      <!-- 共有案件の作業モード：開く=閲覧／編集でロック取得（作業中）／保存=作業終了で解放→閲覧 -->
+      <div class="qm-group" id="qmGroup">
+        <button type="button" class="save-btn qm-btn qm-new"   id="qmNew"   onclick="quoteModeNew()"      title="入力を空にして新規案件を作成（保持中の編集ロックは解放）">🆕 新規作成</button>
+        <button type="button" class="save-btn qm-btn qm-edit"  id="qmEdit"  onclick="quoteModeEdit()"     disabled title="この共有案件の編集を開始（ロック取得＝あなたが作業中）">✏️ 編集</button>
+        <button type="button" class="save-btn qm-btn qm-save"  id="qmSave"  onclick="quoteModeSaveDone()" title="クラウドに保存して作業終了（ロック解放→閲覧モード）">💾 保存（作業終了）</button>
+        <button type="button" class="save-btn qm-btn qm-clear" id="qmClear" onclick="quoteModeClear()"    title="入力中の内容をクリア（保持中の編集ロックは解放）">🧹 クリア</button>
+      </div>
+      <span class="qm-banner" id="qmBanner" hidden></span>
+      <span class="save-toolbar-sep"></span>
+
       <!-- 主要アクション：プレビュー・比較は右下のフローティングドックへ移動 -->
 
       <!-- 履歴：アイコンのみで表示 -->

@@ -199,11 +199,11 @@
   }
 
   // ---------- 一覧 ----------
-  async function cloudListPresets() {
+  async function cloudListPresets(silent) {
     const c = _getClient();
     const wrap = document.getElementById('cloudPresetListWrap');
     if (!c || !_cloudUser) return;
-    if (wrap) wrap.innerHTML = '<div class="preset-empty">読み込み中…</div>';
+    if (wrap && !silent) wrap.innerHTML = '<div class="preset-empty">読み込み中…</div>';
     await _loadProfiles();
     // locked_by/locked_at（編集ロック）も取得。列が未マイグレーションなら従来列にフォールバック。
     let { data, error } = await c
@@ -458,7 +458,22 @@
       (_presence[mt.presetId] = _presence[mt.presetId] || []).push({ email: mt.email, name: mt.name });
     }));
     const modal = document.getElementById('presetMgrModal');
-    if (modal && modal.classList.contains('open')) _applyCloudFilter();
+    if (modal && modal.classList.contains('open')) {
+      _applyCloudFilter();                 // Presence ラベルを即時反映（キャッシュ描画）
+      _scheduleLockRefresh();              // ロック列(locked_by/at)を裏で再取得し🔒を最新化
+    }
+  }
+  // 誰かが編集開始/終了したら、共有一覧のロック状態を静かに再取得して反映（デバウンス）
+  let _lockRefreshT = null;
+  function _scheduleLockRefresh() {
+    if (_lockRefreshT) return;
+    _lockRefreshT = setTimeout(() => {
+      _lockRefreshT = null;
+      const m = document.getElementById('presetMgrModal');
+      if (m && m.classList.contains('open') && document.visibilityState !== 'hidden') {
+        cloudListPresets(true);   // silent（「読み込み中」を出さず差し替え）
+      }
+    }, 1000);
   }
   function _trackEditing() {
     if (!_presenceCh || !_cloudUser) return;
@@ -489,8 +504,8 @@
   }
 
   // ---------- 編集ロック（サーバ側 RLS で削除＋上書きを拒否） ----------
-  const LOCK_STALE_MS     = 3 * 60 * 1000;   // RLS と一致：3分でフリー化
-  const LOCK_HEARTBEAT_MS = 60 * 1000;       // 保持中は1分ごとに更新
+  const LOCK_STALE_MS     = 90 * 1000;       // RLS と一致：90秒でフリー化（閉じ忘れ対策）
+  const LOCK_HEARTBEAT_MS = 30 * 1000;       // 保持中は30秒ごとに更新
   let _lockHeldId = null;                     // 自分がロック保持中の案件id
   let _lockTimer  = null;
 
@@ -525,12 +540,103 @@
     _stopLockHeartbeat();
     if (_lockHeldId) { const id = _lockHeldId; _lockHeldId = null; _releaseLock(id); }
   }
-  // 案件行が「他メンバーにロックされている（3分以内）」か
+  // 案件行が「他メンバーにロックされている（90秒以内）」か
   function _lockedByOther(row) {
     if (!row || !row.locked_by || !row.locked_at) return null;
     const fresh = (Date.now() - new Date(row.locked_at).getTime()) < LOCK_STALE_MS;
     const me = _cloudUser && _cloudUser.email;
     return (fresh && row.locked_by !== me) ? row.locked_by : null;
+  }
+
+  // ========== 作業モード（閲覧／編集）：開く=閲覧、編集でロック取得、保存=作業終了で解放 ==========
+  let _shareMode = 'edit';   // 'edit'（新規・自分が編集中）| 'view'（共有案件を閲覧中・読み取り専用）
+
+  function _applyShareMode(mode) {
+    _shareMode = mode;
+    const main = document.querySelector('#tab-quote-make .quote-main');
+    if (main) main.inert = (mode === 'view');   // 閲覧中はフォーム全体を操作不可（マウス・キーボード）
+    const tab = document.getElementById('tab-quote-make');
+    if (tab) tab.classList.toggle('qmode-view', mode === 'view');
+    const banner = document.getElementById('qmBanner');
+    if (banner) {
+      if (mode === 'view') {
+        banner.hidden = false;
+        banner.className = 'qm-banner qm-banner-view';
+        banner.textContent = '🔒 閲覧モード — 編集するには「✏️ 編集」';
+      } else if (_lockHeldId) {
+        banner.hidden = false;
+        banner.className = 'qm-banner qm-banner-edit';
+        banner.textContent = '✏️ 編集中（あなたが作業中）';
+      } else {
+        banner.hidden = true;
+      }
+    }
+    _updateModeButtons();
+  }
+  function _updateModeButtons() {
+    const view = _shareMode === 'view';
+    const set = (id, dis) => { const b = document.getElementById(id); if (b) b.disabled = dis; };
+    set('qmEdit', !view);   // 編集：閲覧中のみ有効
+    set('qmSave', view);    // 保存（作業終了）：編集中のみ有効
+    // 新規作成・クリアは常時有効
+  }
+
+  // 共有案件を閲覧で開いた状態から「編集」開始＝ロック取得＋作業中（Presence）
+  async function quoteModeEdit() {
+    if (!_loadedCloudId) { quoteShowToast('ℹ️ 先にチーム共有から案件を開いてください', 'info', 3000); return; }
+    const lock = await _takeLock(_loadedCloudId);
+    if (!lock.ok) {
+      quoteShowToast('🔒 ' + _nameFor(lock.by) + ' さんが作業中のため編集できません', 'warn', 6000);
+      return;
+    }
+    _setEditing(_loadedCloudId);     // Presence：あなたが作業中
+    _applyShareMode('edit');
+    quoteShowToast('✏️ 編集を開始しました（あなたが作業中・他メンバーは削除/上書き不可）', 'success', 3500);
+  }
+
+  // 保存して作業終了：クラウド保存 → ロック解放 → 閲覧モードへ（cloudSaveCurrent 内で解放）
+  async function quoteModeSaveDone() {
+    if (_shareMode === 'view') return;
+    await cloudSaveCurrent();
+  }
+
+  // 入力を空にして新規案件（保持ロックは解放）
+  function quoteModeNew() {
+    if (!confirm('入力中の内容を破棄して新規案件を作成しますか？\n（未保存の変更は失われます）')) return;
+    _exitShareEditing();
+    _clearQuoteForm();
+    _loadedCloudId = null; _loadedCloudTs = null;
+    if (typeof setCurrentQuoteName === 'function') setCurrentQuoteName('');
+    _applyShareMode('edit');
+    quoteShowToast('🆕 新規案件を作成しました', 'success');
+  }
+  // 入力中の内容をクリア（保持ロックは解放）
+  function quoteModeClear() {
+    if (!confirm('入力中の内容をクリアしますか？')) return;
+    _exitShareEditing();
+    _clearQuoteForm();
+    _loadedCloudId = null; _loadedCloudTs = null;
+    if (typeof setCurrentQuoteName === 'function') setCurrentQuoteName('');
+    _applyShareMode('edit');
+    quoteShowToast('🧹 入力をクリアしました', 'info');
+  }
+  // 作業中状態の解除（Presence untrack 相当 + ロック解放）
+  function _exitShareEditing() {
+    _setEditing(null);   // Presence：どの案件も作業中でない
+    _dropLock();
+  }
+  // フォーム全消去：既存の復元経路に「空データ」を流して安全にクリア（多重エントリ状態も同期）
+  function _clearQuoteForm() {
+    if (typeof _applyQuoteData !== 'function') return;
+    const SKIP = ['rowInsertPos','rowPatternInsertPos','bulkCatSet','bulkSubconSet','selectAllChk'];
+    const emptyFields = {};
+    // フォーム本体（.quote-main）配下のみ対象。ツールバー/コマンドバーは除外
+    document.querySelectorAll('#tab-quote-make .quote-main input[id], #tab-quote-make .quote-main select[id], #tab-quote-make .quote-main textarea[id]').forEach(el => {
+      if (SKIP.includes(el.id) || el.closest('.quote-cmdbar')) return;
+      emptyFields[el.id] = (el.type === 'checkbox') ? false : '';
+    });
+    _applyQuoteData({ fields: emptyFields, rows: [], _rowFormat: 'v3-mixed-rows' });
+    if (typeof addRow === 'function') addRow();   // 空の入力行を1行用意
   }
 
   // 検索ボックス入力
@@ -647,12 +753,13 @@
     }
     if (resp.error) { quoteShowToast('⚠️ 保存に失敗：' + resp.error.message, 'warn', 5000); return; }
 
-    // 保存した案件を「編集中」として Presence に反映（作成者も編集中として可視化され、
-    // 他メンバーが開くと警告が出るようにする）
+    // 保存＝作業終了：ロックと Presence（作業中）を解放し、閲覧モードへ移行
     const savedId = (existing && existing.length) ? existing[0].id : (resp.data && resp.data.id);
-    if (savedId) { _setEditing(savedId); _takeLock(savedId); }   // 保存者がロックを取得/更新
+    if (savedId) { _loadedCloudId = savedId; }
+    _exitShareEditing();          // Presence untrack + ロック解放
+    _applyShareMode('view');      // 閲覧モードへ（他メンバーが編集可能に）
 
-    quoteShowToast('☁️ 「' + name + '」をチーム共有に保存しました', 'success');
+    quoteShowToast('💾 「' + name + '」を保存して作業終了しました（閲覧モード）', 'success', 4000);
     cloudListPresets();
   }
 
@@ -937,32 +1044,29 @@
     const c = _getClient();
     if (!c) return;
     const id = decodeURIComponent(rawId);
-    // 同時編集の警告（Presence）
-    const others = _presenceOthers(id);
-    if (others.length && !confirm('⚠️ ' + others.join('、') +
-        ' さんがこの案件を編集中です。\n同時に編集すると、後から保存した方で上書きされます。開きますか？')) return;
     const { data, error } = await c
       .from(_table()).select('name,data,updated_at').eq('id', id).single();
     if (error || !data) { quoteShowToast('⚠️ 読み込みに失敗しました', 'warn'); return; }
 
-    // フェーズ1：競合検知の基準として、ロードした案件 id と更新時刻を記録
+    // 直前に自分が別案件を編集中だったら解放してから開く
+    _exitShareEditing();
+
+    // 競合検知の基準として、ロードした案件 id と更新時刻を記録
     _loadedCloudId = id;
     _loadedCloudTs = data.updated_at || null;
 
-    // ローカルの loadPreset と同じ復元処理
-    // 編集ロックを取得（他者保持中でも読込自体は許可。保存・削除はサーバ側で拒否される）
-    const lock = await _takeLock(id);
-
-    // ローカルの loadPreset と同じ復元処理
+    // 復元処理（開く＝閲覧モード：ロックも Presence も取得しない）
     _applyQuoteData(data.data, { keepHeaderIfEmpty: true });
     if (typeof calcLiveUpdate === 'function') calcLiveUpdate();
     if (typeof setCurrentQuoteName === 'function') setCurrentQuoteName(data.name);
     if (typeof closePresetMgr === 'function') closePresetMgr();
-    _setEditing(id);   // Presence：この案件を編集中に
-    if (!lock.ok) {
-      quoteShowToast('🔒 ' + _nameFor(lock.by) + ' さんが編集中です。閲覧・参考のみ可（保存・削除はできません）', 'warn', 6500);
+    _applyShareMode('view');   // 読み取り専用。編集するには「✏️ 編集」
+    const lk = _cloudRows.find(r => r.id === id);
+    const by = lk ? _lockedByOther(lk) : null;
+    if (by) {
+      quoteShowToast('📂 共有「' + data.name + '」を開きました（閲覧）。🔒 ' + _nameFor(by) + ' さんが作業中です', 'warn', 6000);
     } else {
-      quoteShowToast('📂 共有「' + data.name + '」を読み込みました（Ctrl+Z で戻せます）', 'success');
+      quoteShowToast('📂 共有「' + data.name + '」を開きました（閲覧モード）。編集するには「✏️ 編集」', 'success', 4500);
     }
   }
 
@@ -1029,6 +1133,11 @@
     if (_cloudInited) return;
     _cloudInited = true;
     _surfaceOAuthError();
+    // 初期モード（新規＝編集可）。ボタン状態を整える
+    _applyShareMode('edit');
+    // タブを閉じる/離れる時はロックを即時解放（best-effort。失敗しても90秒で自動失効）
+    window.addEventListener('pagehide', () => { if (_lockHeldId) _dropLock(); });
+    window.addEventListener('beforeunload', () => { if (_lockHeldId) _dropLock(); });
     const c = _getClient();
     if (!c) { _renderCloudAuth(); return; }
 
@@ -1168,6 +1277,11 @@
   window.cpToggleAll           = cpToggleAll;
   window.cpToggleGroup         = cpToggleGroup;
   window.cpUpdateSelCount      = _cpUpdateSelCount;
+  // 作業モード（閲覧／編集）操作
+  window.quoteModeEdit     = quoteModeEdit;
+  window.quoteModeSaveDone = quoteModeSaveDone;
+  window.quoteModeNew      = quoteModeNew;
+  window.quoteModeClear    = quoteModeClear;
 
   // ---------- 他モジュール（行パターン等）からのログイン情報参照用 ----------
   window.quoteCloudUser   = function () { return _cloudUser; };

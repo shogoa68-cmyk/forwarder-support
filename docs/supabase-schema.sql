@@ -169,10 +169,10 @@ create policy "own profile upsert"
 -- ============================================================
 -- 6. quote_presets — 編集ロック（同時編集の強制ガード）
 -- ============================================================
--- 他メンバーが編集中(=ロック保持中・3分以内)の案件は、保持者以外の
+-- 他メンバーが編集中(=ロック保持中・90秒以内)の案件は、保持者以外の
 -- 「削除」「上書き保存(update)」をサーバ側(RLS)で拒否する。
 -- 読込・プレビューは可（scope: 削除＋上書き拒否）。
--- ロックの取得/更新/解放は security definer 関数で行い、3分で自動失効。
+-- ロックの取得/更新/解放は security definer 関数で行い、90秒で自動失効。
 -- ============================================================
 
 -- ロック列
@@ -193,7 +193,7 @@ begin
   select locked_by, locked_at into cur_by, cur_at
     from public.quote_presets where id::text = p_id for update;
   if not found then return 'NOTFOUND'; end if;
-  if cur_by is null or cur_by = auth.email() or cur_at < now() - interval '3 minutes' then
+  if cur_by is null or cur_by = auth.email() or cur_at < now() - interval '90 seconds' then
     update public.quote_presets set locked_by = auth.email(), locked_at = now()
       where id::text = p_id;
     return 'OK';
@@ -223,9 +223,9 @@ grant execute on function public.quote_release_lock(text) to authenticated;
 drop policy if exists "lock_guard_delete" on public.quote_presets;
 create policy "lock_guard_delete" on public.quote_presets
   as restrictive for delete to authenticated
-  using (locked_by is null or locked_by = auth.email() or locked_at < now() - interval '3 minutes');
+  using (locked_by is null or locked_by = auth.email() or locked_at < now() - interval '90 seconds');
 
 drop policy if exists "lock_guard_update" on public.quote_presets;
 create policy "lock_guard_update" on public.quote_presets
   as restrictive for update to authenticated
-  using (locked_by is null or locked_by = auth.email() or locked_at < now() - interval '3 minutes');
+  using (locked_by is null or locked_by = auth.email() or locked_at < now() - interval '90 seconds');
