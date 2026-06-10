@@ -1389,25 +1389,76 @@
     const t = _rpEdit.rows[i]; _rpEdit.rows[i] = _rpEdit.rows[j]; _rpEdit.rows[j] = t;
     _rpEditRenderRows();
   }
+  // セル値の更新（再描画しない＝入力フォーカスを保持）
+  function rpEditSetCell(i, key, val) { if (_rpEdit && _rpEdit.rows[i]) _rpEdit.rows[i][key] = val; }
+  // 明細を新規追加（費用行／リマーク／小計）
+  function rpEditAddRow(type) {
+    if (!_rpEdit) return;
+    let row;
+    if (type === 'remark')        row = { _type: 'remark', text: '', internal: false };
+    else if (type === 'subtotal') row = { _type: 'subtotal', label: '' };
+    else row = { _type: 'data', cat: '', name: '', taxed: false, pq: '', un: '',
+                 pc: 'JPY', pp: '', bq: '', bc: 'JPY', bp: '', mk: '', note: '', sv: '' };
+    _rpEdit.rows.push(row);
+    _rpEditRenderRows();
+    const box = document.getElementById('rpEditRows');
+    box?.querySelector('.rp-edit-row:last-child .rp-er-name')?.focus();
+  }
+
+  // 1明細ぶんのインライン編集UI
+  function _rpEditRowEditor(rd, i, last) {
+    const acts =
+      '<span class="rp-er-acts">' +
+        '<button type="button" onclick="rpEditMoveRow(' + i + ',-1)" title="上へ"' + (i === 0 ? ' disabled' : '') + '>▲</button>' +
+        '<button type="button" onclick="rpEditMoveRow(' + i + ',1)" title="下へ"' + (i === last ? ' disabled' : '') + '>▼</button>' +
+        '<button type="button" class="btn-preset-del" onclick="rpEditDeleteRow(' + i + ')" title="この明細を削除">✕</button>' +
+      '</span>';
+    if (rd._type === 'remark') {
+      return '<div class="rp-edit-row rp-er--remark">' +
+        '<span class="rp-er-ic">📝</span>' +
+        '<input type="text" class="rp-er-name" placeholder="リマーク文" value="' + escHtml(rd.text || '') + '" oninput="rpEditSetCell(' + i + ',\'text\',this.value)">' +
+        '<label class="rp-er-chk" title="社内用（客先出力に含めない）"><input type="checkbox"' + (rd.internal ? ' checked' : '') + ' onchange="rpEditSetCell(' + i + ',\'internal\',this.checked)">社内</label>' +
+        acts +
+      '</div>';
+    }
+    if (rd._type === 'subtotal') {
+      return '<div class="rp-edit-row rp-er--subtotal">' +
+        '<span class="rp-er-ic">Σ</span>' +
+        '<input type="text" class="rp-er-name" placeholder="小計ラベル" value="' + escHtml(rd.label || '') + '" oninput="rpEditSetCell(' + i + ',\'label\',this.value)">' +
+        acts +
+      '</div>';
+    }
+    // data 行：カテゴリ・品目名・単位・課税／仕入(単価・通貨)・売上(単価・通貨)・備考
+    return '<div class="rp-edit-row rp-er--data">' +
+      '<div class="rp-er-l1">' +
+        '<select class="rp-er-cat" onchange="rpEditSetCell(' + i + ',\'cat\',this.value)">' + catOpts(rd.cat || '') + '</select>' +
+        '<input type="text" class="rp-er-name" placeholder="品目名" value="' + escHtml(rd.name || '') + '" oninput="rpEditSetCell(' + i + ',\'name\',this.value)">' +
+        '<select class="rp-er-unit" title="単位" onchange="rpEditSetCell(' + i + ',\'un\',this.value)">' + unitOpts(rd.un || '') + '</select>' +
+        '<label class="rp-er-chk" title="課税対象"><input type="checkbox"' + (rd.taxed ? ' checked' : '') + ' onchange="rpEditSetCell(' + i + ',\'taxed\',this.checked)">税</label>' +
+        acts +
+      '</div>' +
+      '<div class="rp-er-l2">' +
+        '<span class="rp-er-grp rp-er-grp--cost">仕</span>' +
+        '<input type="text" inputmode="decimal" class="rp-er-num" placeholder="単価" value="' + escHtml(rd.pp || '') + '" oninput="rpEditSetCell(' + i + ',\'pp\',this.value)">' +
+        '<select class="rp-er-cur" onchange="rpEditSetCell(' + i + ',\'pc\',this.value)">' + curOpts(rd.pc || 'JPY') + '</select>' +
+        '<span class="rp-er-grp rp-er-grp--sell">売</span>' +
+        '<input type="text" inputmode="decimal" class="rp-er-num" placeholder="単価" value="' + escHtml(rd.bp || '') + '" oninput="rpEditSetCell(' + i + ',\'bp\',this.value)">' +
+        '<select class="rp-er-cur" onchange="rpEditSetCell(' + i + ',\'bc\',this.value)">' + curOpts(rd.bc || 'JPY') + '</select>' +
+        '<input type="text" class="rp-er-note" placeholder="備考" value="' + escHtml(rd.note || '') + '" oninput="rpEditSetCell(' + i + ',\'note\',this.value)">' +
+      '</div>' +
+    '</div>';
+  }
   function _rpEditRenderRows() {
     const box = document.getElementById('rpEditRows');
     const cnt = document.getElementById('rpEditRowCount');
     if (!box || !_rpEdit) return;
     if (cnt) cnt.textContent = _rpEdit.rows.length + '行';
     if (!_rpEdit.rows.length) {
-      box.innerHTML = '<div class="rp-edit-empty">明細がありません（最低1行は必要です）</div>';
+      box.innerHTML = '<div class="rp-edit-empty">明細がありません。下のボタンで追加してください（保存には最低1行必要）</div>';
       return;
     }
     const last = _rpEdit.rows.length - 1;
-    box.innerHTML = _rpEdit.rows.map((rd, i) =>
-      '<div class="rp-edit-row">' +
-        '<span class="rp-edit-row-label">' + _rpRowLabel(rd) + '</span>' +
-        '<span class="rp-edit-row-acts">' +
-          '<button type="button" onclick="rpEditMoveRow(' + i + ',-1)" title="上へ"' + (i === 0 ? ' disabled' : '') + '>▲</button>' +
-          '<button type="button" onclick="rpEditMoveRow(' + i + ',1)" title="下へ"' + (i === last ? ' disabled' : '') + '>▼</button>' +
-          '<button type="button" class="btn-preset-del" onclick="rpEditDeleteRow(' + i + ')" title="この明細を削除">✕</button>' +
-        '</span>' +
-      '</div>').join('');
+    box.innerHTML = _rpEdit.rows.map((rd, i) => _rpEditRowEditor(rd, i, last)).join('');
   }
 
   async function saveRowPatternEdit() {

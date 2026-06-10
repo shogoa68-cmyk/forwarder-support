@@ -6640,13 +6640,32 @@ button.um-memberno--empty:hover { background: #f4ead4; border-color: #cdb98e; }
 #tab-quote-make .rp-edit-link-row input { font-size:12px; padding:5px 8px; border:1px solid #d9ccb4; border-radius:6px; }
 #tab-quote-make .rp-edit-empty { font-size:11px; color:#b0a18d; padding:4px 2px; }
 #tab-quote-make .rp-edit-rows { display:flex; flex-direction:column; border:1px solid #ece3d2; border-radius:8px; overflow:hidden; }
-#tab-quote-make .rp-edit-row { display:flex; align-items:center; gap:8px; padding:5px 10px; font-size:11.5px; border-top:1px solid #f6f1e7; }
+#tab-quote-make .rp-edit-row { padding:7px 10px; font-size:11.5px; border-top:1px solid #f6f1e7; }
 #tab-quote-make .rp-edit-row:first-child { border-top:none; }
-#tab-quote-make .rp-edit-row-label { flex:1; min-width:0; display:flex; align-items:center; gap:6px; overflow:hidden; }
-#tab-quote-make .rp-edit-row-acts { flex-shrink:0; display:flex; gap:3px; }
-#tab-quote-make .rp-edit-row-acts button { width:24px; height:24px; border:1px solid #d9ccb4; background:#fbf8f1; border-radius:5px; cursor:pointer; font-size:11px; color:#6b5a42; }
-#tab-quote-make .rp-edit-row-acts button:hover:not(:disabled) { background:#efe6d4; }
-#tab-quote-make .rp-edit-row-acts button:disabled { opacity:.35; cursor:default; }
+#tab-quote-make .rp-er--data { display:flex; flex-direction:column; gap:5px; }
+#tab-quote-make .rp-er--remark, #tab-quote-make .rp-er--subtotal { display:flex; align-items:center; gap:6px; }
+#tab-quote-make .rp-er-l1 { display:flex; align-items:center; gap:6px; }
+#tab-quote-make .rp-er-l2 { display:flex; align-items:center; gap:5px; flex-wrap:wrap; }
+#tab-quote-make .rp-edit-row input[type="text"],
+#tab-quote-make .rp-edit-row select { font-size:11.5px; padding:4px 6px; border:1px solid #d9ccb4; border-radius:5px; background:#fff; min-width:0; }
+#tab-quote-make .rp-er-cat  { flex:0 0 auto; max-width:118px; }
+#tab-quote-make .rp-er-name { flex:1; min-width:80px; }
+#tab-quote-make .rp-er-unit { flex:0 0 auto; width:78px; }
+#tab-quote-make .rp-er-num  { width:80px; text-align:right; }
+#tab-quote-make .rp-er-cur  { width:70px; }
+#tab-quote-make .rp-er-note { flex:1; min-width:90px; }
+#tab-quote-make .rp-er-chk  { flex:0 0 auto; display:flex; align-items:center; gap:3px; font-size:10.5px; color:#6b5a42; white-space:nowrap; cursor:pointer; }
+#tab-quote-make .rp-er-ic   { flex:0 0 auto; color:#8a7a60; }
+#tab-quote-make .rp-er-grp  { flex:0 0 auto; font-size:10px; font-weight:800; color:#fff; border-radius:4px; padding:1px 5px; }
+#tab-quote-make .rp-er-grp--cost { background:#9a8463; }
+#tab-quote-make .rp-er-grp--sell { background:#3f6a8c; }
+#tab-quote-make .rp-er-acts { flex-shrink:0; display:flex; gap:3px; margin-left:auto; }
+#tab-quote-make .rp-er-acts button { width:24px; height:24px; border:1px solid #d9ccb4; background:#fbf8f1; border-radius:5px; cursor:pointer; font-size:11px; color:#6b5a42; }
+#tab-quote-make .rp-er-acts button:hover:not(:disabled) { background:#efe6d4; }
+#tab-quote-make .rp-er-acts button:disabled { opacity:.35; cursor:default; }
+#tab-quote-make .rp-edit-addrow { display:flex; gap:6px; margin-top:7px; flex-wrap:wrap; }
+#tab-quote-make .rp-edit-addrow button { font-size:11px; padding:5px 11px; border:1px dashed #cdbfa6; background:#fbf8f1; color:#6b5a42; border-radius:7px; cursor:pointer; }
+#tab-quote-make .rp-edit-addrow button:hover { background:#f1e8d6; border-style:solid; }
 #tab-quote-make .rp-edit-footer { display:flex; gap:8px; justify-content:flex-end; }
 
 /* 行を挿入モーダル：アクティブタブを伸縮させ、リスト部分だけ内部スクロールさせる。
