@@ -305,81 +305,35 @@
     refreshBulkCatSelect();
   }
 
-  // 「選択行 → カテゴリ一括変更」用セレクトを最新カテゴリで再構築
+  // 「カテゴリ一括設定」セレクトを最新カテゴリで再構築（先頭はプレースホルダ）
   function refreshBulkCatSelect() {
-    const sel = document.getElementById('bulkCatSelect');
+    const sel = document.getElementById('bulkCatSet');
     if (!sel) return;
-    const curVal = sel.value;
     const userCats = getUserCategories();
-    let html = '<option value="__none__">— カテゴリを選択 —</option>';
-    // 既定カテゴリ（先頭の「— カテゴリ —」= 未設定 を含む）
-    html += CATEGORIES.map(c =>
-      `<option value="${c.value}"${c.value === curVal ? ' selected' : ''}>${c.label}</option>`
-    ).join('');
+    let html = '<option value="__none__">🏷️ カテゴリ一括設定…</option>';
+    html += CATEGORIES.map(c => `<option value="${c.value}">${c.label}</option>`).join('');
     if (userCats.length) {
       html += '<option value="" disabled>──────────</option>';
-      html += userCats.map(c =>
-        `<option value="${c.value}"${c.value === curVal ? ' selected' : ''}>${c.label}</option>`
-      ).join('');
+      html += userCats.map(c => `<option value="${c.value}">${c.label}</option>`).join('');
     }
     sel.innerHTML = html;
+    sel.value = '__none__';
   }
 
-  // bulkCatSelect で選んだカテゴリの行をすべてチェック（小計行を除く）
-  function selectByCategory() {
-    const sel = document.getElementById('bulkCatSelect');
-    if (!sel) return;
-    if (sel.value === '__none__') {
-      quoteShowToast('⚠️ 対象カテゴリを選んでください', 'warn', 3000);
-      return;
-    }
-    const target = sel.value;
-    let matched = 0;
-    let totalChkRows = 0;
-    document.querySelectorAll('#tableBody tr').forEach(tr => {
-      if (tr.dataset.type === 'subtotal' || tr.dataset.type === 'remark') return;
-      const chk = tr.querySelector('.row-select-chk');
-      if (!chk) return;
-      totalChkRows++;
-      const id = tr.id.replace('row-', '');
-      const cat = document.getElementById(`cat-${id}`)?.value || '';
-      if (cat === target) {
-        chk.checked = true;
-        matched++;
-      } else {
-        chk.checked = false;
-      }
-    });
-    // ヘッダー全選択チェックは「すべての対象行が一致したとき」のみ ON
-    const allChk = document.getElementById('selectAllChk');
-    if (allChk) allChk.checked = matched > 0 && matched === totalChkRows;
-    const catLabel = getAllCategories().find(c => c.value === target)?.label || '— カテゴリ —';
-    if (matched === 0) {
-      quoteShowToast(`ℹ️ 「${catLabel}」の行はありません`, 'info', 3000);
-    } else {
-      quoteShowToast(`✅ 「${catLabel}」の ${matched} 行を選択しました`, 'success');
-    }
-    window.refreshRowSelectionMode?.();
-  }
-
-  // チェック済み行のカテゴリを一括変更
-  function applyBulkCategory() {
-    const sel = document.getElementById('bulkCatSelect');
-    if (!sel) return;
-    if (sel.value === '__none__') {
-      quoteShowToast('⚠️ 適用するカテゴリを選んでください', 'warn', 3000);
-      return;
-    }
+  // 選択（チェック）行のカテゴリを一括設定。選択は維持し、続けてサブコン設定も可能にする
+  function applyBulkCategorySet(sel) {
+    if (!sel || sel.value === '__none__') return;
     const checkboxes = document.querySelectorAll('.row-select-chk:checked');
     if (!checkboxes.length) {
-      quoteShowToast('⚠️ カテゴリを変更したい行のチェックボックスにチェックを入れてください', 'warn', 3000);
+      quoteShowToast('⚠️ 設定したい行のチェックボックスにチェックを入れてください', 'warn', 3000);
+      sel.value = '__none__';
       return;
     }
     const newCat = sel.value;
     let count = 0;
     checkboxes.forEach(chk => {
       const tr = chk.closest('tr');
-      if (!tr) return;
+      if (!tr || tr.dataset.type === 'subtotal' || tr.dataset.type === 'remark') return;
       const id = tr.id.replace('row-', '');
       const catSel = document.getElementById(`cat-${id}`);
       if (!catSel) return;
@@ -387,14 +341,34 @@
       if (typeof onCatChange === 'function') onCatChange(id);
       count++;
     });
-    // 元行のチェックを外し、全選択もリセット、セレクトもプレースホルダへ戻す
-    checkboxes.forEach(chk => { chk.checked = false; });
-    const allChk = document.getElementById('selectAllChk');
-    if (allChk) allChk.checked = false;
-    sel.value = '__none__';
+    sel.value = '__none__';   // プレースホルダへ戻す（選択行は維持）
     const catLabel = getAllCategories().find(c => c.value === newCat)?.label || '— カテゴリ —';
-    quoteShowToast(`🏷️ ${count}行のカテゴリを「${catLabel}」に変更しました`, 'success');
-    window.refreshRowSelectionMode?.();
+    quoteShowToast(`🏷️ ${count}行のカテゴリを「${catLabel}」に設定しました`, 'success');
+  }
+
+  // 選択（チェック）行のサブコンを一括設定（空欄ならクリア）。選択は維持
+  function applyBulkSubcon() {
+    const inp = document.getElementById('bulkSubconSet');
+    if (!inp) return;
+    const val = inp.value.trim();
+    const checkboxes = document.querySelectorAll('.row-select-chk:checked');
+    if (!checkboxes.length) {
+      quoteShowToast('⚠️ 設定したい行のチェックボックスにチェックを入れてください', 'warn', 3000);
+      return;
+    }
+    let count = 0;
+    checkboxes.forEach(chk => {
+      const tr = chk.closest('tr');
+      if (!tr || tr.dataset.type === 'subtotal' || tr.dataset.type === 'remark') return;
+      const id = tr.id.replace('row-', '');
+      const svInp = document.getElementById(`sv-${id}`);
+      if (!svInp) return;
+      svInp.value = val;
+      svInp.dispatchEvent(new Event('input', { bubbles: true }));   // 自動保存・サマリ更新を発火
+      count++;
+    });
+    inp.value = '';
+    quoteShowToast(`👷 ${count}行のサブコンを${val ? '「' + val + '」に' : 'クリアに'}設定しました`, 'success');
   }
 
   // ========== 一括コピー機能 ==========

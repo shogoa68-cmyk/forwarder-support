@@ -4990,6 +4990,21 @@
   font-size: 11px;
   margin: 0 2px;
 }
+/* 選択行ツールバー：サブコン一括設定 */
+#tab-quote-make .bulk-subcon-input {
+  font-size: 11px; padding: 4px 6px; border: 1px solid #d9cfc2;
+  border-radius: 3px; background: #fff; color: #2d2418; width: 150px; max-width: 32vw;
+}
+#tab-quote-make .btn-bulk-subcon {
+  font-size: 11px; padding: 5px 10px; border: 1px solid #cdbfa6;
+  background: #f3ecdd; color: #6b5a42; border-radius: 3px; cursor: pointer; line-height: 1;
+}
+#tab-quote-make .btn-bulk-subcon:hover { filter: brightness(0.96); }
+/* 行追加ツールバー内の「行パターン」ボタン（常時表示） */
+#tab-quote-make .cmdbar-pattern-btn {
+  margin-left: 4px; white-space: nowrap; height: 28px;
+  display: inline-flex; align-items: center; gap: 3px;
+}
 /* ツールバー行内の全ボタンを共通の高さ・形に揃える */
 #tab-quote-make .btn-group-row button,
 #tab-quote-make .btn-group-row .sort-type-select,
