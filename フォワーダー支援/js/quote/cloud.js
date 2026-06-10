@@ -400,11 +400,13 @@
       // ステータスは静的バッジ（ブラウザ保存と同じく編集不可）
       const statusBadge = '<span class="cloud-status-badge cloud-status--' + _statusClass(status) + '">' + escHtml(status) + '</span>';
 
-      // 同時編集（Presence）：他メンバーが開いていれば表示
+      // 同時編集（Presence）：他メンバーが開いていれば「作業中」を名前入りで表示
       const others = _presenceOthers(r.id);
       const editBadge = others.length
-        ? '<div class="cloud-card-editing"><span class="cloud-editing-dot"></span>' +
-            escHtml(others.join('、')) + ' さんが編集中</div>'
+        ? '<div class="cloud-card-editing" title="他のメンバーがこの案件を開いています">' +
+            '<span class="cloud-editing-dot"></span>' +
+            '<span class="cloud-editing-text">🔒 <b>' + escHtml(others.join('、')) + '</b> さんが作業中です</span>' +
+          '</div>'
         : '';
 
       return '' +
@@ -428,7 +430,7 @@
               '<button class="btn-preset-preview" onclick="cloudPreviewPreset(\'' + idAttr + '\')" title="内容をプレビュー">プレビュー</button>' +
               '<button class="btn-preset-load" onclick="cloudLoadPreset(\'' + idAttr + '\')">読込</button>' +
               (lockedBy
-                ? '<button class="btn-preset-del" disabled title="🔒 ' + escHtml(_nameFor(lockedBy)) + ' さんが編集中のため削除できません">🔒</button>'
+                ? '<button class="btn-preset-del is-locked" disabled title="' + escHtml(_nameFor(lockedBy)) + ' さんが作業中のため削除できません">🔒</button>'
                 : '<button class="btn-preset-del"  onclick="cloudDeletePreset(\'' + idAttr + '\')" title="削除（全員から消えます）">✕</button>') +
             '</div>' +
           '</div>' +
