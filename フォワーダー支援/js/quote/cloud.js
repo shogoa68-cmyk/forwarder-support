@@ -574,9 +574,19 @@
           status: CLOUD_STATUS_DEFAULT,
           owner_email: _cloudUser.email,
           created_by:  _cloudUser.email,
-        });
+        })
+        .select('id,updated_at').single();
+      if (!resp.error && resp.data) {   // 新規作成：競合検知の基準にも採用
+        _loadedCloudId = resp.data.id;
+        _loadedCloudTs = resp.data.updated_at || new Date().toISOString();
+      }
     }
     if (resp.error) { quoteShowToast('⚠️ 保存に失敗：' + resp.error.message, 'warn', 5000); return; }
+
+    // 保存した案件を「編集中」として Presence に反映（作成者も編集中として可視化され、
+    // 他メンバーが開くと警告が出るようにする）
+    const savedId = (existing && existing.length) ? existing[0].id : (resp.data && resp.data.id);
+    if (savedId) _setEditing(savedId);
 
     quoteShowToast('☁️ 「' + name + '」をチーム共有に保存しました', 'success');
     cloudListPresets();
