@@ -398,7 +398,9 @@
   }
 
   // ========== 一括コピー機能 ==========
-  function copySelectedRows() {
+  // position: 'below'（末尾選択行の直後）| 'above'（先頭選択行の直前）
+  function copySelectedRows(position) {
+    const pos = position || 'below';
     const checkboxes = document.querySelectorAll('.row-select-chk:checked');
     if (!checkboxes.length) {
       quoteShowToast('⚠️ コピーしたい行のチェックボックスにチェックを入れてください', 'warn', 3000);
@@ -412,8 +414,19 @@
       quoteShowToast('⚠️ 小計行・リマーク行はコピーできません。通常行を選択してください', 'warn', 3000);
       return;
     }
-    // 最後の選択行の直後を起点に、新行を順番に追加していく（anchor を更新して並び順を保持）
-    let anchor = srcRows[srcRows.length - 1];
+    // above: 先頭選択行の直前に固定挿入（順序保持）
+    // below: 末尾選択行の直後に anchor を更新しながら順番に追加
+    let anchor = pos === 'above' ? srcRows[0] : srcRows[srcRows.length - 1];
+    const insertRow = (newTr) => {
+      if (pos === 'above') {
+        tbody.insertBefore(newTr, anchor);
+        anchor = newTr.nextSibling; // 次も同じ位置（元先頭行）の直前へ
+      } else {
+        if (anchor.nextSibling) tbody.insertBefore(newTr, anchor.nextSibling);
+        else tbody.appendChild(newTr);
+        anchor = newTr;
+      }
+    };
     srcRows.forEach(srcTr => {
       rowCount++;
       const newId = rowCount;
@@ -423,13 +436,10 @@
       const cells = Array.from(srcInputs).map(el => el.value);
       const newTr = document.createElement('tr');
       newTr.id = `row-${newId}`;
-      const srcCat = document.getElementById(`cat-${srcId}`)?.value || '';
-      const srcCur = document.getElementById(`pc-${srcId}`)?.value  || 'JPY';
-      newTr.replaceChildren(buildRowHTML(newId, srcCat, srcCur));
-      // anchor の直後に挿入し、anchor を新行に更新（次の新行はさらにその後ろ）
-      if (anchor.nextSibling) tbody.insertBefore(newTr, anchor.nextSibling);
-      else tbody.appendChild(newTr);
-      anchor = newTr;
+      newTr.replaceChildren(buildRowHTML(newId,
+        document.getElementById(`cat-${srcId}`)?.value || '',
+        document.getElementById(`pc-${srcId}`)?.value  || 'JPY'));
+      insertRow(newTr);
       // 値を復元
       newTr.querySelectorAll('input, select, textarea').forEach((el, j) => {
         if (cells[j] !== undefined) el.value = cells[j];
@@ -456,7 +466,7 @@
     const allChk = document.getElementById('selectAllChk');
     if (allChk) allChk.checked = false;
     updateTotals();
-    quoteShowToast(`📋 ${srcRows.length}行をコピーしました`, 'success');
+    quoteShowToast(`📋 ${srcRows.length}行を選択行の${pos === 'above' ? '上' : '下'}にコピーしました`, 'success');
     window.refreshRowSelectionMode?.();
   }
 
@@ -547,15 +557,18 @@
     { icon:'💴', label:'見積もり表セクションへ',      sub:'費用行の入力・集計',              action:() => scrollToSection('section-table') },
     { icon:'📝', label:'条件・リマークセクションへ',  sub:'プリセット文を挿入',             action:() => scrollToSection('section-remark')},
     { icon:'➕', label:'行を追加',                    sub:'見積もり表に新しい行を末尾に追加', action:() => { addRow(); quoteShowToast('✅ 行を追加しました', 'success'); } },
-    { icon:'📋', label:'現在行を複製 (Ctrl+D)',        sub:'フォーカス中の行を直下に複製',     action:() => {
+    { icon:'📋', label:'選択行を下にコピー (Ctrl+D)',    sub:'チェック行を選択行の直後にコピー。未選択時はフォーカス行を複製', action:() => {
+      const checked = document.querySelectorAll('.row-select-chk:checked');
+      if (checked.length) { copySelectedRows('below'); return; }
       const tr = document.activeElement?.closest('#tableBody tr');
       if (tr && tr.id.startsWith('row-')) {
         duplicateRow(tr.id.replace('row-', ''));
-        quoteShowToast('✅ 行を複製しました', 'success');
+        quoteShowToast('📋 行を複製しました', 'success');
       } else {
-        quoteShowToast('⚠️ 行にフォーカスを当ててから実行してください', 'warn', 2500);
+        quoteShowToast('⚠️ 行にフォーカスを当てるかチェックを入れてから実行してください', 'warn', 2500);
       }
     }},
+    { icon:'📋', label:'選択行を上にコピー (Ctrl+Shift+D)', sub:'チェック行を選択行の直前にコピー', action:() => copySelectedRows('above') },
     { icon:'↕️', label:'カテゴリ順に並び替え',        sub:'カテゴリ種別でソート',            action:() => { sortByCategory(); quoteShowToast('✅ ソートしました', 'success'); } },
     { icon:'👁️', label:'プレビューを開く',            sub:'印刷・コピー用のプレビュー',      action: openPreview },
     { icon:'🗂️', label:'プリセット/一時保存',         sub:'入力パターンの保存・呼び出し・一時退避', action: openPresetMgr },
@@ -1346,6 +1359,26 @@
     if (ctrl && !e.shiftKey && !e.altKey && e.key === 'p') {
       e.preventDefault();
       if (typeof openPreview === 'function') openPreview();
+      return;
+    }
+    // Ctrl+D → 選択行を下にコピー / 未選択はフォーカス行を複製
+    // Ctrl+Shift+D → 選択行を上にコピー
+    if (ctrl && !e.altKey && (e.key === 'd' || e.key === 'D')) {
+      e.preventDefault();
+      if (e.shiftKey) {
+        copySelectedRows('above');
+      } else {
+        const checked = document.querySelectorAll('.row-select-chk:checked');
+        if (checked.length) {
+          copySelectedRows('below');
+        } else {
+          const tr = document.activeElement?.closest('#tableBody tr');
+          if (tr && tr.id.startsWith('row-')) {
+            duplicateRow(tr.id.replace('row-', ''));
+            quoteShowToast('📋 行を複製しました', 'success');
+          }
+        }
+      }
       return;
     }
     // Ctrl/Cmd+Z → Undo（Shift で Redo）。Ctrl/Cmd+Y → Redo。
