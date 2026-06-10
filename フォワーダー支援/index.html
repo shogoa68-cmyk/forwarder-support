@@ -2075,11 +2075,8 @@
 
       <!-- 共有案件の作業モード：開く=閲覧／編集でロック取得（作業中）／保存=作業終了で解放→閲覧 -->
       <div class="qm-group" id="qmGroup">
-        <button type="button" class="save-btn qm-btn qm-dash"  id="qmDash"  onclick="qpShowDashboard()"   title="ダッシュボード（案件一覧・統計）へ戻る">📊 ダッシュボード</button>
-        <button type="button" class="save-btn qm-btn qm-new"   id="qmNew"   onclick="quoteModeNew()"      title="入力を空にして新規案件を作成（保持中の編集ロックは解放）">🆕 新規作成</button>
-        <button type="button" class="save-btn qm-btn qm-edit"  id="qmEdit"  onclick="quoteModeEdit()"     disabled title="この共有案件の編集を開始（ロック取得＝あなたが作業中）">✏️ 編集</button>
-        <button type="button" class="save-btn qm-btn qm-save"  id="qmSave"  onclick="quoteModeSaveDone()" title="クラウドに保存して作業終了（ロック解放→閲覧モード）">💾 保存（作業終了）</button>
-        <button type="button" class="save-btn qm-btn qm-clear" id="qmClear" onclick="quoteModeClear()"    title="入力中の内容をクリア（保持中の編集ロックは解放）">🧹 クリア</button>
+        <button type="button" class="save-btn qm-btn qm-dash"  id="qmDash"  onclick="qpShowDashboard()" title="ダッシュボード（案件一覧・統計）へ戻る">📊 ダッシュボードに戻る</button>
+        <button type="button" class="save-btn qm-btn qm-edit"  id="qmEdit"  onclick="quoteModeEdit()" disabled title="この共有案件の編集を開始（ロック取得＝あなたが作業中）">✏️ 編集</button>
       </div>
       <span class="qm-banner" id="qmBanner" hidden></span>
       <span class="save-toolbar-sep"></span>
@@ -2095,7 +2092,6 @@
       <!-- 保存/読込：ブラウザ保存とチーム共有の独立ボタン -->
       <span class="save-toolbar-label">保存</span>
       <button type="button" class="save-btn save-btn-preset" onclick="openPresetMgr('browser')" title="このブラウザに名前付きで保存・呼び出し（最大50件・同じブラウザのみ）">💾 ブラウザ保存</button>
-      <button type="button" class="save-btn save-btn-cloud" onclick="openPresetMgr('cloud')" title="ログインしてチームのメンバーと共有・編集（端末をまたいで利用可）">☁️ チーム共有</button>
       <label class="save-btn save-toolbar-autosave" title="入力・変更から2秒後にブラウザへ自動保存します（同じブラウザ内のみ有効）">
         <input type="checkbox" id="autoSaveChk" onchange="toggleAutoSave(this.checked)" />
         <span>💾 自動保存</span>
@@ -3609,7 +3605,7 @@
 <!-- 見積アクションドック（右下フローティング・見積タブのみ表示） -->
 <div id="quoteActionDock">
   <button class="qad-btn qad-preview" onclick="openPreview()" title="見積をプレビュー表示・CSV/Excel/PDF出力はここから（Ctrl+P）">📋 プレビュー</button>
-  <button class="qad-btn qad-compare" onclick="openCompare()" title="保存済みプリセットを横並びで比較（売上・原価・利益）">📊 比較</button>
+  <button class="qad-btn qad-save" id="qadSave" onclick="quoteModeSaveDone()" title="クラウドに保存して作業終了（ロック解放→閲覧）">💾 保存</button>
 </div>
 
 <!-- 類似見積プレビューモーダル -->

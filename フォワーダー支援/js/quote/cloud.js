@@ -658,9 +658,8 @@
   function _updateModeButtons() {
     const view = _shareMode === 'view';
     const set = (id, dis) => { const b = document.getElementById(id); if (b) b.disabled = dis; };
-    set('qmEdit', !view);   // 編集：閲覧中のみ有効
-    set('qmSave', view);    // 保存（作業終了）：編集中のみ有効
-    // 新規作成・クリアは常時有効
+    set('qmEdit', !view);    // 上部「編集」：閲覧中のみ有効
+    set('qadSave', view);    // 右下「保存」：編集中のみ有効（閲覧中は不可）
   }
 
   // 共有案件を閲覧で開いた状態から「編集」開始＝ロック取得＋作業中（Presence）
@@ -678,7 +677,10 @@
 
   // 保存して作業終了：クラウド保存 → ロック解放 → 閲覧モードへ（cloudSaveCurrent 内で解放）
   async function quoteModeSaveDone() {
-    if (_shareMode === 'view') return;
+    if (_shareMode === 'view') {
+      quoteShowToast('🔒 閲覧中です。編集するには「✏️ 編集」を押してください', 'warn', 4000);
+      return;
+    }
     await cloudSaveCurrent();
   }
 
