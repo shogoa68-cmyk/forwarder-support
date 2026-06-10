@@ -2898,8 +2898,8 @@
     sec.scrollIntoView({ block: 'start' });
   };
 
-  // ===== 見積サマリ：タブ切替（要約／輸送／金額） =====
-  window.QSP_TABS = ['digest', 'flow', 'fin'];
+  // ===== 見積サマリ：タブ切替（要約／輸送／金額／チャット） =====
+  window.QSP_TABS = ['digest', 'flow', 'fin', 'chat'];
   window.qspSetTab = function(tab) {
     if (!window.QSP_TABS.includes(tab)) tab = 'digest';
     window.QSP_TABS.forEach(t => {
@@ -2909,6 +2909,7 @@
       if (pane) pane.classList.toggle('is-active', on);
       if (btn)  { btn.classList.toggle('is-active', on); btn.setAttribute('aria-selected', on ? 'true' : 'false'); }
     });
+    if (tab === 'chat' && typeof window.qspLoadChat === 'function') window.qspLoadChat();
     try { localStorage.setItem('quoteSummaryTab_v1', tab); } catch(e) {}
   };
   window.updateQspTabBadges = function() {

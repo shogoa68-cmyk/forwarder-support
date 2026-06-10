@@ -3287,6 +3287,7 @@
           <button class="qsp-tab" id="qspTabBtn-digest" role="tab" onclick="qspSetTab('digest')">🧭 要約</button>
           <button class="qsp-tab" id="qspTabBtn-flow"   role="tab" onclick="qspSetTab('flow')">🚚 輸送</button>
           <button class="qsp-tab" id="qspTabBtn-fin"    role="tab" onclick="qspSetTab('fin')">💰 金額</button>
+          <button class="qsp-tab" id="qspTabBtn-chat"   role="tab" onclick="qspSetTab('chat')">💬 チャット</button>
         </div>
         <!-- 要約タブ：各入力セクションのダイジェスト -->
         <div class="qsp-pane" id="qspPane-digest">
@@ -3308,6 +3309,19 @@
           <div class="qsp-section-scroll">
             <div class="qsp-fin" id="qspFin">
               <p class="qsp-empty">費用項目を入力すると<br>ここにまとめが表示されます</p>
+            </div>
+          </div>
+        </div>
+        <!-- チャットタブ：チーム申し送りメモ -->
+        <div class="qsp-pane" id="qspPane-chat">
+          <div class="qsp-chat-wrap">
+            <div id="qspChatList" class="cp-chat-list qsp-chat-list"></div>
+            <div class="cp-chat-input-row qsp-chat-input-row">
+              <textarea id="qspChatInput" class="cp-chat-input"
+                        placeholder="申し送りメモ… (Ctrl+Enter で送信)"
+                        rows="2"
+                        onkeydown="if(event.ctrlKey&&event.key==='Enter'){qspPostComment();event.preventDefault();}"></textarea>
+              <button class="cp-chat-send" onclick="qspPostComment()">送信</button>
             </div>
           </div>
         </div>

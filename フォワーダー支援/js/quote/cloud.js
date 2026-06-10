@@ -1212,6 +1212,11 @@
     _loadedCloudId = id;
     _loadedCloudTs = data.updated_at || null;
 
+    // チャットタブが開いていれば即時更新
+    if (document.getElementById('qspPane-chat')?.classList.contains('is-active')) {
+      _loadQspComments();
+    }
+
     // 復元処理（開く＝閲覧モード：ロックも Presence も取得しない）
     _applyQuoteData(data.data, { keepHeaderIfEmpty: true });
     if (typeof calcLiveUpdate === 'function') calcLiveUpdate();
@@ -1410,6 +1415,73 @@
     if (modal && modal.classList.contains('open')) _applyCloudFilter();
     if (typeof window.umRefreshIfOpen === 'function') window.umRefreshIfOpen();
     closeProfileEdit();
+  }
+
+  // ================================================================
+  // ========== 💬 見積サマリパネル チャット ==========
+  // ================================================================
+
+  async function _loadQspComments() {
+    const wrap = document.getElementById('qspChatList');
+    if (!wrap) return;
+    const c = _getClient();
+    if (!c || !_cloudUser) {
+      wrap.innerHTML = '<span class="cp-chat-login">ログインするとコメントを表示できます</span>';
+      return;
+    }
+    if (!_loadedCloudId) {
+      wrap.innerHTML = '<span class="cp-chat-login">チーム共有から案件を開くとチャットが表示されます</span>';
+      return;
+    }
+    wrap.innerHTML = '<span class="cp-chat-loading">読み込み中…</span>';
+    const { data, error } = await c
+      .from('quote_comments')
+      .select('id,body,created_by,created_at')
+      .eq('preset_id', _loadedCloudId)
+      .order('created_at', { ascending: true });
+    if (error) { wrap.innerHTML = '<span class="cp-chat-err">⚠️ 取得失敗</span>'; return; }
+    _renderQspComments(data || []);
+    wrap.scrollTop = wrap.scrollHeight;
+  }
+
+  function _renderQspComments(rows) {
+    const wrap = document.getElementById('qspChatList');
+    if (!wrap) return;
+    if (!rows.length) { wrap.innerHTML = '<span class="cp-chat-empty">まだコメントはありません</span>'; return; }
+    wrap.innerHTML = rows.map(r => {
+      const isMine = _cloudUser && r.created_by === _cloudUser.email;
+      const name = escHtml(_nameFor(r.created_by));
+      const dt   = new Date(r.created_at).toLocaleString('ja-JP', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
+      return `<div class="cp-chat-item${isMine ? ' cp-chat-item--mine' : ''}">
+        <div class="cp-chat-meta">${name} · ${dt}</div>
+        <div class="cp-chat-body">${escHtml(r.body)}</div>
+      </div>`;
+    }).join('');
+  }
+
+  async function qspPostComment() {
+    const c = _getClient();
+    if (!c || !_cloudUser) { quoteShowToast('⚠️ ログインが必要です', 'warn'); return; }
+    if (!_loadedCloudId) { quoteShowToast('⚠️ チーム共有から案件を開いてください', 'warn'); return; }
+    const input = document.getElementById('qspChatInput');
+    const body  = input?.value.trim();
+    if (!body) return;
+    const btn = document.querySelector('#qspPane-chat .cp-chat-send');
+    if (btn) btn.disabled = true;
+    try {
+      const { error } = await c.from('quote_comments').insert({
+        preset_id:  _loadedCloudId,
+        body,
+        created_by: _cloudUser.email,
+      });
+      if (error) throw error;
+      if (input) input.value = '';
+      await _loadQspComments();
+    } catch(e) {
+      quoteShowToast('⚠️ 送信失敗：' + (e.message || e), 'warn', 5000);
+    } finally {
+      if (btn) btn.disabled = false;
+    }
   }
 
   // ================================================================
@@ -1668,6 +1740,8 @@
   window.cpDeleteAttachment    = cpDeleteAttachment;
   window.cpSwitchRightPane     = cpSwitchRightPane;
   window.cpPostComment         = cpPostComment;
+  window.qspPostComment        = qspPostComment;
+  window.qspLoadChat           = _loadQspComments;
   // 作業モード（閲覧／編集）操作
   window.quoteModeEdit     = quoteModeEdit;
   window.quoteModeSaveDone = quoteModeSaveDone;
