@@ -1009,27 +1009,63 @@
     var hasRoute = Boolean((f['z2Pol'] || '').trim() || (f['z2Pod'] || '').trim());
     if (!hasRoute) { try { hasRoute = JSON.parse(f['z2-routes-data'] || '[]').length > 0; } catch(e) {} }
     var s2 = Boolean(cargo || hasRoute);
-    // Step3: サブコン仕入れ値（sv非空 かつ pp>0 の行が1行以上）
-    var s3 = dr.some(function(r) { return (r.cells[2]||'').trim() && parseFloat(r.cells[10]) > 0; });
+    // Step3: 仕入＝サブコン別の埋まり具合（サブ進捗）。sv ごとに pp>0 があれば「入力済み」
+    var subs = {};
+    dr.forEach(function(r) {
+      var sv = (r.cells[2] || '').trim();
+      if (!sv) return;
+      if (!(sv in subs)) subs[sv] = false;
+      if (parseFloat(r.cells[10]) > 0) subs[sv] = true;
+    });
+    var names = Object.keys(subs);
+    var total = names.length;
+    var filled = names.filter(function(n) { return subs[n]; }).length;
+    var anyPp = dr.some(function(r) { return parseFloat(r.cells[10]) > 0; });
+    var frac = total > 0 ? (filled / total) : (anyPp ? 1 : 0);   // 仕入のサブ進捗（0〜1）
+    var s3 = total > 0 ? (filled === total) : anyPp;
     // Step4: のせ幅（mk>0 の行が1行以上）
     var s4 = dr.some(function(r) { return parseFloat(r.cells[13]) > 0; });
     // Step5: 出力済み（ステータス）
     var st = (f['qf-status'] || '').trim();
     var s5 = st === '提出済み' || st === '受注';
-    return [s1, s2, s3, s4, s5];
+    return { steps: [s1, s2, s3, s4, s5], purchase: { total: total, filled: filled, frac: frac, names: names, subs: subs } };
   }
 
   var _QP_LABELS = ['条件', '貨物', '仕入', '利益', '出力'];
   var _QP_TITLES = ['貿易条件・輸送モード設定', '貨物情報入力', 'サブコン仕入れ値入力', 'のせ幅・売値設定', '見積書出力済み'];
 
+  // 仕入ステップ：サブコンがあれば社数ぶんのセル＋「2/3」を表示（多いほど工数大が一目で分かる）
+  function _purchaseStepHtml(pu) {
+    if (!pu.total) {
+      var ok = pu.frac >= 1;
+      return '<span class="qp-step' + (ok ? ' qp-done' : '') + '" title="サブコン仕入れ値入力">仕入</span>';
+    }
+    var MAX = 6;
+    var shown = pu.names.slice(0, MAX);
+    var cells = shown.map(function(n) {
+      var done = pu.subs[n];
+      return '<span class="qp-sub' + (done ? ' is-done' : '') + '" title="' + escHtml(n) + '：' + (done ? '入力済み' : '未入力') + '"></span>';
+    }).join('');
+    var more = pu.names.length - shown.length;
+    var allDone = pu.filled === pu.total;
+    return '<span class="qp-step qp-step--sub' + (allDone ? ' qp-done' : '') +
+        '" title="仕入：' + pu.filled + '/' + pu.total + ' 社入力済み（サブコン数が多いほど工数大）">' +
+      '<span class="qp-sub-label">仕入 ' + pu.filled + '/' + pu.total + '</span>' +
+      '<span class="qp-sub-cells">' + cells + (more > 0 ? '<span class="qp-sub-more">+' + more + '</span>' : '') + '</span>' +
+    '</span>';
+  }
+
   function _progressBarHtml(data) {
-    var steps = _calcQuoteProgress(data);
-    var done  = steps.filter(Boolean).length;
-    var pct   = Math.round(done / 5 * 100);
-    var dots  = steps.map(function(ok, i) {
+    var pr = _calcQuoteProgress(data);
+    var steps = pr.steps, pu = pr.purchase;
+    var doneFloat = (steps[0] ? 1 : 0) + (steps[1] ? 1 : 0) + pu.frac + (steps[3] ? 1 : 0) + (steps[4] ? 1 : 0);
+    var pct  = Math.round(doneFloat / 5 * 100);
+    var doneN = steps.filter(Boolean).length;
+    var dots = steps.map(function(ok, i) {
+      if (i === 2) return _purchaseStepHtml(pu);
       return '<span class="qp-step' + (ok ? ' qp-done' : '') + '" title="' + _QP_TITLES[i] + '">' + _QP_LABELS[i] + '</span>';
     }).join('');
-    return '<div class="quote-progress" title="進捗 ' + done + '/5 (' + pct + '%)">' +
+    return '<div class="quote-progress" title="進捗 ' + doneN + '/5 (' + pct + '%)">' +
       '<div class="qp-bar"><div class="qp-fill" style="width:' + pct + '%"></div></div>' +
       '<div class="qp-steps">' + dots + '</div>' +
     '</div>';

@@ -442,6 +442,12 @@
 #tab-quote-make .tb-seg-btn {
   flex: 1;
 }
+/* 上部バーに常時表示する表示サイズ・セグメント */
+#tab-quote-make .tb-scale-label { margin-left: 4px; }
+#tab-quote-make .tb-segrow-inline { display: inline-flex; border: 1px solid #d8c9ad; border-radius: 6px; overflow: hidden; }
+#tab-quote-make .tb-segrow-inline .tb-seg-btn { flex: 0 0 auto; border: none; background: #fff; color: #6b5a42; font-size: 11px; font-weight: 700; padding: 4px 11px; cursor: pointer; line-height: 1.6; }
+#tab-quote-make .tb-segrow-inline .tb-seg-btn + .tb-seg-btn { border-left: 1px solid #e2d8c4; }
+#tab-quote-make .tb-segrow-inline .tb-seg-btn.active { background: #8a6d2f; color: #fff; }
 
 /* 客先モード時に非表示にする列 */
 /* 客先モード：仕入（支払い）・乗せ幅・利益・サブコンを隠す */
@@ -7358,37 +7364,50 @@ button.um-memberno--empty:hover { background: #f4ead4; border-color: #cdb98e; }
 }
 #tab-quote-make .qp-bar {
   height:4px;
-  background:#2a2a2a;
+  background:#ece4d8;
   border-radius:2px;
   overflow:hidden;
 }
 #tab-quote-make .qp-fill {
   height:100%;
-  background:linear-gradient(90deg,#3b82f6,#10b981);
+  background:linear-gradient(90deg,#c8a44e,#6b8e3f);
   border-radius:2px;
   transition:width .3s ease;
 }
 #tab-quote-make .qp-steps {
   display:flex;
-  gap:2px;
+  gap:3px;
+  align-items:stretch;
 }
 #tab-quote-make .qp-step {
   flex:1;
+  display:flex;
+  align-items:center;
+  justify-content:center;
   font-size:10px;
-  text-align:center;
-  padding:2px 0;
-  border-radius:3px;
-  background:#2a2a2a;
-  color:#555;
+  font-weight:600;
+  padding:3px 2px;
+  border-radius:4px;
+  background:#efe7d6;
+  border:1px solid #e4d8c2;
+  color:#a99877;
   cursor:default;
   white-space:nowrap;
   overflow:hidden;
   text-overflow:ellipsis;
 }
 #tab-quote-make .qp-step.qp-done {
-  background:#1a3a2a;
-  color:#4ade80;
+  background:#e6efd9;
+  border-color:#c6d9a8;
+  color:#3f6a2a;
 }
+/* 仕入：サブコン別セル（社数＝工数、塗り＝入力済み） */
+#tab-quote-make .qp-step--sub { gap:4px; }
+#tab-quote-make .qp-sub-label { font-size:9.5px; font-weight:700; white-space:nowrap; }
+#tab-quote-make .qp-sub-cells { display:inline-flex; gap:2px; align-items:center; }
+#tab-quote-make .qp-sub { width:6px; height:6px; border-radius:1.5px; background:#cdbfa6; }
+#tab-quote-make .qp-sub.is-done { background:#6b8e3f; }
+#tab-quote-make .qp-sub-more { font-size:8px; color:#8a7a60; }
 
 /* ===== 見積サマリ チャットタブ ===== */
 #tab-quote-make #qspPane-chat.is-active {

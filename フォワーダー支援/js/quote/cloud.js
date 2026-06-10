@@ -658,9 +658,18 @@
   }
   function _updateModeButtons() {
     const view = _shareMode === 'view';
-    const set = (id, dis) => { const b = document.getElementById(id); if (b) b.disabled = dis; };
-    set('qmEdit', !view);    // 上部「編集」：閲覧中のみ有効
-    set('qadSave', view);    // 右下「保存」：編集中のみ有効（閲覧中は不可）
+    // 右下ドックの1ボタンをモード連動で切替（閲覧＝編集／編集＝保存）
+    const dock = document.getElementById('qadMode');
+    if (dock) {
+      dock.disabled = false;
+      if (view) { dock.textContent = '✏️ 編集'; dock.classList.remove('qad-save'); dock.classList.add('qad-edit'); }
+      else      { dock.textContent = '💾 保存'; dock.classList.remove('qad-edit'); dock.classList.add('qad-save'); }
+    }
+  }
+  // 右下ドックのアクション：閲覧中→編集開始（ロック取得）／編集中→保存して作業終了
+  function qpDockAction() {
+    if (_shareMode === 'view') quoteModeEdit();
+    else quoteModeSaveDone();
   }
 
   // 共有案件を閲覧で開いた状態から「編集」開始＝ロック取得＋作業中（Presence）
@@ -1751,6 +1760,7 @@
   window.qpShowDashboard   = qpShowDashboard;
   window.qpShowEditor      = qpShowEditor;
   window.qpNewQuote        = qpNewQuote;
+  window.qpDockAction      = qpDockAction;
   // ダッシュボード：詳細検索・並び替え・表示切替
   window.qpdToggleAdv = qpdToggleAdv;
   window.qpdApplyAdv  = qpdApplyAdv;

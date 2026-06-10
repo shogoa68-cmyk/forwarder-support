@@ -2076,7 +2076,6 @@
       <!-- 共有案件の作業モード：開く=閲覧／編集でロック取得（作業中）／保存=作業終了で解放→閲覧 -->
       <div class="qm-group" id="qmGroup">
         <button type="button" class="save-btn qm-btn qm-dash"  id="qmDash"  onclick="qpShowDashboard()" title="ダッシュボード（案件一覧・統計）へ戻る">📊 ダッシュボードに戻る</button>
-        <button type="button" class="save-btn qm-btn qm-edit"  id="qmEdit"  onclick="quoteModeEdit()" disabled title="この共有案件の編集を開始（ロック取得＝あなたが作業中）">✏️ 編集</button>
       </div>
       <span class="qm-banner" id="qmBanner" hidden></span>
       <span class="save-toolbar-sep"></span>
@@ -2099,19 +2098,21 @@
 
       <span class="save-status" id="saveStatus"></span>
 
-      <!-- その他メニュー（表示サイズ等） -->
+      <!-- 表示サイズ（上部バーに常時表示） -->
+      <span class="save-toolbar-label tb-scale-label">📐</span>
+      <div class="tb-segrow tb-segrow-inline" role="group" aria-label="表示サイズ">
+        <button type="button" class="tb-seg-btn layout-scale-btn" data-scale="lg" onclick="setLayoutScale('lg')" title="大（スマホ向け）">大</button>
+        <button type="button" class="tb-seg-btn layout-scale-btn" data-scale="md" onclick="setLayoutScale('md')" title="中（タブレット向け）">中</button>
+        <button type="button" class="tb-seg-btn layout-scale-btn" data-scale="sm" onclick="setLayoutScale('sm')" title="小（デスクトップ向け）">小</button>
+      </div>
+
+      <!-- その他メニュー -->
+
       <div class="tb-menu tb-menu-right" data-tb-menu="more">
         <button class="save-btn save-btn-menu save-btn-icon" type="button" onclick="toggleTbMenu('more', event)" title="表示サイズ・その他">
           ⋯
         </button>
         <div class="tb-menu-panel" id="tbMenuMore">
-          <div class="tb-menu-section-label">📐 表示サイズ</div>
-          <div class="tb-menu-segrow">
-            <button type="button" class="tb-seg-btn layout-scale-btn" data-scale="lg" onclick="setLayoutScale('lg')" title="大（スマホ向け）">大</button>
-            <button type="button" class="tb-seg-btn layout-scale-btn" data-scale="md" onclick="setLayoutScale('md')" title="中（タブレット向け）">中</button>
-            <button type="button" class="tb-seg-btn layout-scale-btn" data-scale="sm" onclick="setLayoutScale('sm')" title="小（デスクトップ向け）">小</button>
-          </div>
-          <div class="tb-menu-sep"></div>
           <button type="button" class="tb-menu-item" onclick="openQuoteTabHelp(); closeTbMenus()">
             <span class="tb-mi-icon">ℹ️</span>
             <span class="tb-mi-body">
@@ -3665,7 +3666,7 @@
 <!-- 見積アクションドック（右下フローティング・見積タブのみ表示） -->
 <div id="quoteActionDock">
   <button class="qad-btn qad-preview" onclick="openPreview()" title="見積をプレビュー表示・CSV/Excel/PDF出力はここから（Ctrl+P）">📋 プレビュー</button>
-  <button class="qad-btn qad-save" id="qadSave" onclick="quoteModeSaveDone()" title="クラウドに保存して作業終了（ロック解放→閲覧）">💾 保存</button>
+  <button class="qad-btn qad-save" id="qadMode" onclick="qpDockAction()" title="閲覧中は編集を開始／編集中は保存して作業終了">💾 保存</button>
 </div>
 
 <!-- 類似見積プレビューモーダル -->
