@@ -2157,33 +2157,64 @@
           <span id="cpTitle" class="cp-title"></span>
           <button class="cp-close-btn" onclick="closeCloudPreview()">×</button>
         </div>
-        <div id="cpMeta" class="cp-meta"></div>
-        <div id="cpCondInfo" class="cp-cond-info"></div>
-        <div class="cloud-preview-body">
-          <table class="cp-table">
-            <thead>
-              <tr>
-                <th><input type="checkbox" id="cpSelectAll" checked onchange="cpToggleAll(this)" title="全選択/解除"></th>
-                <th>カテゴリ</th>
-                <th>項目名</th>
-                <th>数量/単位</th>
-                <th>請求単価</th>
-                <th>備考</th>
-              </tr>
-            </thead>
-            <tbody id="cpTableBody"></tbody>
-          </table>
-        </div>
-        <div class="cp-attach-section">
-          <div class="cp-attach-header">
-            <span class="cp-attach-title">📎 添付ファイル</span>
-            <label class="cp-attach-upload-btn">
-              ＋ 添付
-              <input type="file" accept="image/*,application/pdf" style="display:none" onchange="cpUploadAttachment(this)">
-            </label>
+        <!-- 2カラム本体 -->
+        <div class="cp-columns">
+          <!-- 左カラム：明細テーブル + 添付 -->
+          <div class="cp-col-left">
+            <div class="cloud-preview-body">
+              <table class="cp-table">
+                <thead>
+                  <tr>
+                    <th><input type="checkbox" id="cpSelectAll" checked onchange="cpToggleAll(this)" title="全選択/解除"></th>
+                    <th>カテゴリ</th>
+                    <th>項目名</th>
+                    <th>数量/単位</th>
+                    <th>請求単価</th>
+                    <th>備考</th>
+                  </tr>
+                </thead>
+                <tbody id="cpTableBody"></tbody>
+              </table>
+            </div>
+            <div class="cp-attach-section">
+              <div class="cp-attach-header">
+                <span class="cp-attach-title">📎 添付ファイル</span>
+                <label class="cp-attach-upload-btn">
+                  ＋ 添付
+                  <input type="file" accept="image/*,application/pdf" style="display:none" onchange="cpUploadAttachment(this)">
+                </label>
+              </div>
+              <div id="cpAttachList" class="cp-attach-list"></div>
+            </div>
           </div>
-          <div id="cpAttachList" class="cp-attach-list"></div>
-        </div>
+          <!-- 右カラム：サマリ / チャット タブ -->
+          <div class="cp-col-right">
+            <div class="cp-right-tabs">
+              <button class="cp-rtab cp-rtab--active" id="cpRTab_summary"
+                      onclick="cpSwitchRightPane('summary')">📊 サマリ</button>
+              <button class="cp-rtab" id="cpRTab_chat"
+                      onclick="cpSwitchRightPane('chat')">💬 チャット</button>
+            </div>
+            <div class="cp-right-body">
+              <!-- サマリペイン -->
+              <div id="cpPane_summary" class="cp-right-pane">
+                <div id="cpMeta" class="cp-meta"></div>
+                <div id="cpCondInfo" class="cp-cond-info"></div>
+              </div>
+              <!-- チャットペイン -->
+              <div id="cpPane_chat" class="cp-right-pane" style="display:none">
+                <div id="cpChatList" class="cp-chat-list"></div>
+                <div class="cp-chat-input-row">
+                  <textarea id="cpChatInput" class="cp-chat-input"
+                            placeholder="申し送りメモを入力… (Ctrl+Enter で送信)"
+                            rows="2"
+                            onkeydown="if(event.ctrlKey&&event.key==='Enter'){cpPostComment();event.preventDefault();}"></textarea>
+                  <button class="cp-chat-send" onclick="cpPostComment()">送信</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div><!-- /.cp-columns -->
         <div class="cloud-preview-foot">
           <span id="cpSelCount" class="cp-sel-count"></span>
           <button class="cp-btn-import" onclick="cloudImportSelectedRows()">✅ 選択した行を追加</button>

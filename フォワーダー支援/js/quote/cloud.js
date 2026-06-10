@@ -572,6 +572,7 @@
     _cpRenderTable(rows);
     _cpUpdateSelCount();
     document.getElementById('cloudPreviewModal').style.display = 'flex';
+    cpSwitchRightPane('summary');
     _loadAttachments(_cpId);
   }
 
@@ -806,6 +807,83 @@
   }
 
   // ================================================================
+  // ========== 💬 案件チャット ==========
+  // ================================================================
+
+  function cpSwitchRightPane(name) {
+    ['summary', 'chat'].forEach(n => {
+      const tab  = document.getElementById('cpRTab_' + n);
+      const pane = document.getElementById('cpPane_' + n);
+      const active = n === name;
+      if (tab)  tab.classList.toggle('cp-rtab--active', active);
+      if (pane) pane.style.display = active ? '' : 'none';
+    });
+    if (name === 'chat') _loadComments(_cpId);
+  }
+
+  async function _loadComments(presetId) {
+    const c    = _getClient();
+    const wrap = document.getElementById('cpChatList');
+    if (!wrap) return;
+    if (!c || !_cloudUser) {
+      wrap.innerHTML = '<span class="cp-chat-login">ログインするとコメントを表示できます</span>';
+      return;
+    }
+    wrap.innerHTML = '<span class="cp-chat-loading">読み込み中…</span>';
+    const { data, error } = await c
+      .from('quote_comments')
+      .select('id,body,created_by,created_at')
+      .eq('preset_id', presetId)
+      .order('created_at', { ascending: true });
+    if (error) { wrap.innerHTML = '<span class="cp-chat-err">⚠️ 取得失敗</span>'; return; }
+    _renderComments(data || []);
+    wrap.scrollTop = wrap.scrollHeight;
+  }
+
+  function _renderComments(rows) {
+    const wrap = document.getElementById('cpChatList');
+    if (!wrap) return;
+    if (!rows.length) {
+      wrap.innerHTML = '<span class="cp-chat-empty">まだコメントはありません</span>';
+      return;
+    }
+    wrap.innerHTML = rows.map(r => {
+      const isMine = _cloudUser && r.created_by === _cloudUser.email;
+      const name = escHtml(_nameFor(r.created_by));
+      const dt   = new Date(r.created_at).toLocaleString('ja-JP', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
+      return `<div class="cp-chat-item${isMine ? ' cp-chat-item--mine' : ''}">
+        <div class="cp-chat-meta">${name} · ${dt}</div>
+        <div class="cp-chat-body">${escHtml(r.body)}</div>
+      </div>`;
+    }).join('');
+  }
+
+  async function cpPostComment() {
+    const c = _getClient();
+    if (!c || !_cloudUser) { quoteShowToast('⚠️ ログインが必要です', 'warn'); return; }
+    if (!_cpId) return;
+    const input = document.getElementById('cpChatInput');
+    const body  = input?.value.trim();
+    if (!body) return;
+    const btn = document.querySelector('.cp-chat-send');
+    if (btn) btn.disabled = true;
+    try {
+      const { error } = await c.from('quote_comments').insert({
+        preset_id:  _cpId,
+        body,
+        created_by: _cloudUser.email,
+      });
+      if (error) throw error;
+      if (input) input.value = '';
+      await _loadComments(_cpId);
+    } catch(e) {
+      quoteShowToast('⚠️ 送信失敗：' + (e.message || e), 'warn', 5000);
+    } finally {
+      if (btn) btn.disabled = false;
+    }
+  }
+
+  // ================================================================
   // ========== 📎 添付ファイル管理 ==========
   // ================================================================
 
@@ -960,6 +1038,8 @@
   window.cpUploadAttachment    = cpUploadAttachment;
   window.cpDownloadAttachment  = cpDownloadAttachment;
   window.cpDeleteAttachment    = cpDeleteAttachment;
+  window.cpSwitchRightPane     = cpSwitchRightPane;
+  window.cpPostComment         = cpPostComment;
 
   // supabase-js は <head> で defer 読み込みのため DOMContentLoaded を待つ
   if (document.readyState === 'loading') {
