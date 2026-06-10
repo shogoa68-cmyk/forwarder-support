@@ -26,12 +26,14 @@ grant select, update on public.feedbacks to authenticated;
 
 -- 誰でも INSERT 可（anon / authenticated どちらも）
 -- user_id は認証済みのときのみ設定される
+drop policy if exists "anyone can insert feedbacks" on public.feedbacks;
 create policy "anyone can insert feedbacks"
   on public.feedbacks for insert
   to anon, authenticated
   with check (true);
 
 -- 認証済みユーザーは自分のフィードバックを SELECT 可
+drop policy if exists "users can view own feedbacks" on public.feedbacks;
 create policy "users can view own feedbacks"
   on public.feedbacks for select
   to authenticated
@@ -41,12 +43,14 @@ create policy "users can view own feedbacks"
 
 -- team members can read all feedbacks (for inbox UI)
 -- requires: is_team_member() security definer function + allowed_emails table
+drop policy if exists "team members can view all feedbacks" on public.feedbacks;
 create policy "team members can view all feedbacks"
   on public.feedbacks for select
   to authenticated
   using (is_team_member());
 
 -- team members can update feedback status
+drop policy if exists "team members can update feedback status" on public.feedbacks;
 create policy "team members can update feedback status"
   on public.feedbacks for update
   to authenticated
@@ -85,18 +89,21 @@ alter table public.bookmarks enable row level security;
 grant select, insert, update, delete on public.bookmarks to authenticated;
 
 -- チームメンバーのみ SELECT
+drop policy if exists "team members can select bookmarks" on public.bookmarks;
 create policy "team members can select bookmarks"
   on public.bookmarks for select
   to authenticated
   using (is_team_member());
 
 -- チームメンバーのみ INSERT
+drop policy if exists "team members can insert bookmarks" on public.bookmarks;
 create policy "team members can insert bookmarks"
   on public.bookmarks for insert
   to authenticated
   with check (is_team_member());
 
 -- チームメンバー全員が DELETE 可
+drop policy if exists "team members can delete bookmarks" on public.bookmarks;
 create policy "team members can delete bookmarks"
   on public.bookmarks for delete
   to authenticated
@@ -147,11 +154,13 @@ alter table public.user_profiles enable row level security;
 grant select, insert, update on public.user_profiles to authenticated;
 
 -- チームメンバーは全員の表示名を読み取り可
+drop policy if exists "team members can read profiles" on public.user_profiles;
 create policy "team members can read profiles"
   on public.user_profiles for select
   using (is_team_member());
 
 -- 自分自身の行のみ作成・更新可
+drop policy if exists "own profile upsert" on public.user_profiles;
 create policy "own profile upsert"
   on public.user_profiles for all
   using (auth.email() = email)
