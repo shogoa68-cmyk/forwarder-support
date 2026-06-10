@@ -156,3 +156,67 @@ create policy "own profile upsert"
   on public.user_profiles for all
   using (auth.email() = email)
   with check (auth.email() = email);
+
+-- ============================================================
+-- 6. quote_presets — 編集ロック（同時編集の強制ガード）
+-- ============================================================
+-- 他メンバーが編集中(=ロック保持中・3分以内)の案件は、保持者以外の
+-- 「削除」「上書き保存(update)」をサーバ側(RLS)で拒否する。
+-- 読込・プレビューは可（scope: 削除＋上書き拒否）。
+-- ロックの取得/更新/解放は security definer 関数で行い、3分で自動失効。
+-- ============================================================
+
+-- ロック列
+alter table public.quote_presets
+  add column if not exists locked_by text,
+  add column if not exists locked_at timestamptz;
+
+-- ロック取得/更新（本人のみ・null/自分/3分超過のときだけ取得可。for update で原子的）
+create or replace function public.quote_acquire_lock(p_id text)
+returns text
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare cur_by text; cur_at timestamptz;
+begin
+  if not is_team_member() then return 'DENIED'; end if;
+  select locked_by, locked_at into cur_by, cur_at
+    from public.quote_presets where id::text = p_id for update;
+  if not found then return 'NOTFOUND'; end if;
+  if cur_by is null or cur_by = auth.email() or cur_at < now() - interval '3 minutes' then
+    update public.quote_presets set locked_by = auth.email(), locked_at = now()
+      where id::text = p_id;
+    return 'OK';
+  else
+    return cur_by;   -- 他者が保持中（フレッシュ）
+  end if;
+end; $$;
+
+-- ロック解放（本人のみ）
+create or replace function public.quote_release_lock(p_id text)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  update public.quote_presets set locked_by = null, locked_at = null
+    where id::text = p_id and locked_by = auth.email();
+end; $$;
+
+grant execute on function public.quote_acquire_lock(text) to authenticated;
+grant execute on function public.quote_release_lock(text) to authenticated;
+
+-- RESTRICTIVE ポリシー：他者がロック中(3分以内)なら delete/update を拒否
+-- （既存の permissive ポリシーは触らず AND で重ねる。ロック列の更新は
+--   上記 security definer 関数が RLS を迂回して行うため影響しない）
+drop policy if exists "lock_guard_delete" on public.quote_presets;
+create policy "lock_guard_delete" on public.quote_presets
+  as restrictive for delete to authenticated
+  using (locked_by is null or locked_by = auth.email() or locked_at < now() - interval '3 minutes');
+
+drop policy if exists "lock_guard_update" on public.quote_presets;
+create policy "lock_guard_update" on public.quote_presets
+  as restrictive for update to authenticated
+  using (locked_by is null or locked_by = auth.email() or locked_at < now() - interval '3 minutes');

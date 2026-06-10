@@ -205,10 +205,17 @@
     if (!c || !_cloudUser) return;
     if (wrap) wrap.innerHTML = '<div class="preset-empty">読み込み中…</div>';
     await _loadProfiles();
-    const { data, error } = await c
+    // locked_by/locked_at（編集ロック）も取得。列が未マイグレーションなら従来列にフォールバック。
+    let { data, error } = await c
       .from(_table())
-      .select('id,name,status,customer,person,owner_email,created_by,updated_at,incoterms,transport_mode,pol,pod,carrier,data')
+      .select('id,name,status,customer,person,owner_email,created_by,updated_at,incoterms,transport_mode,pol,pod,carrier,data,locked_by,locked_at')
       .order('updated_at', { ascending: false });
+    if (error) {
+      ({ data, error } = await c
+        .from(_table())
+        .select('id,name,status,customer,person,owner_email,created_by,updated_at,incoterms,transport_mode,pol,pod,carrier,data')
+        .order('updated_at', { ascending: false }));
+    }
     if (error) {
       if (wrap) wrap.innerHTML =
         '<div class="preset-empty">⚠️ 取得に失敗：' + escHtml(error.message) +
@@ -357,6 +364,7 @@
       const updWho = _nameFor(r.owner_email);
       const crtWho = _nameFor(r.created_by);
       const idAttr = encodeURIComponent(r.id);
+      const lockedBy = _lockedByOther(r);   // 他メンバーが編集ロック中なら そのemail
 
       // 表示はブラウザ保存（renderPresetList）と同じく案件 data から算出する
       const m = (window.quotePresetMeta && r.data) ? window.quotePresetMeta({ data: r.data }) : null;
@@ -419,7 +427,9 @@
             '<div class="cloud-card-acts">' +
               '<button class="btn-preset-preview" onclick="cloudPreviewPreset(\'' + idAttr + '\')" title="内容をプレビュー">プレビュー</button>' +
               '<button class="btn-preset-load" onclick="cloudLoadPreset(\'' + idAttr + '\')">読込</button>' +
-              '<button class="btn-preset-del"  onclick="cloudDeletePreset(\'' + idAttr + '\')" title="削除（全員から消えます）">✕</button>' +
+              (lockedBy
+                ? '<button class="btn-preset-del" disabled title="🔒 ' + escHtml(_nameFor(lockedBy)) + ' さんが編集中のため削除できません">🔒</button>'
+                : '<button class="btn-preset-del"  onclick="cloudDeletePreset(\'' + idAttr + '\')" title="削除（全員から消えます）">✕</button>') +
             '</div>' +
           '</div>' +
         '</div>';
@@ -473,6 +483,52 @@
   function _teardownPresence() {
     if (_presenceCh) { try { _presenceCh.untrack(); _getClient() && _getClient().removeChannel(_presenceCh); } catch (e) {} }
     _presenceCh = null; _presence = {}; _myEditingId = null;
+    _dropLock();
+  }
+
+  // ---------- 編集ロック（サーバ側 RLS で削除＋上書きを拒否） ----------
+  const LOCK_STALE_MS     = 3 * 60 * 1000;   // RLS と一致：3分でフリー化
+  const LOCK_HEARTBEAT_MS = 60 * 1000;       // 保持中は1分ごとに更新
+  let _lockHeldId = null;                     // 自分がロック保持中の案件id
+  let _lockTimer  = null;
+
+  async function _acquireLock(id) {
+    const c = _getClient();
+    if (!c || !id) return null;
+    try {
+      const { data, error } = await c.rpc('quote_acquire_lock', { p_id: String(id) });
+      return error ? null : data;   // null=RPC未適用（ロック機能オフ＝従来挙動）／'OK'／他者email／'DENIED'/'NOTFOUND'
+    } catch (e) { return null; }
+  }
+  async function _releaseLock(id) {
+    const c = _getClient();
+    if (!c || !id) return;
+    try { await c.rpc('quote_release_lock', { p_id: String(id) }); } catch (e) {}
+  }
+  function _stopLockHeartbeat() { if (_lockTimer) { clearInterval(_lockTimer); _lockTimer = null; } }
+  function _startLockHeartbeat(id) {
+    _stopLockHeartbeat();
+    _lockTimer = setInterval(() => { if (_lockHeldId === id) _acquireLock(id); }, LOCK_HEARTBEAT_MS);
+  }
+  // 案件のロックを取得。{ok:true}=取得 ／ {ok:true,unmanaged:true}=ロック未適用 ／ {ok:false,by:email}=他者保持中
+  async function _takeLock(id) {
+    if (_lockHeldId && _lockHeldId !== id) { await _releaseLock(_lockHeldId); _lockHeldId = null; _stopLockHeartbeat(); }
+    const r = await _acquireLock(id);
+    if (r === 'OK')               { _lockHeldId = id; _startLockHeartbeat(id); return { ok: true }; }
+    if (r === null || r === 'NOTFOUND' || r === 'DENIED') { _lockHeldId = null; _stopLockHeartbeat(); return { ok: true, unmanaged: true }; }
+    _lockHeldId = null; _stopLockHeartbeat();
+    return { ok: false, by: r };
+  }
+  function _dropLock() {
+    _stopLockHeartbeat();
+    if (_lockHeldId) { const id = _lockHeldId; _lockHeldId = null; _releaseLock(id); }
+  }
+  // 案件行が「他メンバーにロックされている（3分以内）」か
+  function _lockedByOther(row) {
+    if (!row || !row.locked_by || !row.locked_at) return null;
+    const fresh = (Date.now() - new Date(row.locked_at).getTime()) < LOCK_STALE_MS;
+    const me = _cloudUser && _cloudUser.email;
+    return (fresh && row.locked_by !== me) ? row.locked_by : null;
   }
 
   // 検索ボックス入力
@@ -565,7 +621,13 @@
       resp = await c.from(_table())
         .update({ data, subcons, customer, person, incoterms, transport_mode, pol, pod, carrier,
                   owner_email: _cloudUser.email, updated_at: nowIso })
-        .eq('id', exId);
+        .eq('id', exId)
+        .select('id');
+      // 編集ロックで拒否されると エラー無しで 0 行（RLS）。他メンバー編集中＝上書き不可。
+      if (!resp.error && (!resp.data || !resp.data.length)) {
+        quoteShowToast('🔒 他メンバーが編集中のため上書き保存できません（読込し直すと最新になります）', 'warn', 6500);
+        return;
+      }
       if (!resp.error) { _loadedCloudId = exId; _loadedCloudTs = nowIso; }  // 自分の保存を基準時刻に更新
     } else {
       resp = await c.from(_table())
@@ -586,7 +648,7 @@
     // 保存した案件を「編集中」として Presence に反映（作成者も編集中として可視化され、
     // 他メンバーが開くと警告が出るようにする）
     const savedId = (existing && existing.length) ? existing[0].id : (resp.data && resp.data.id);
-    if (savedId) _setEditing(savedId);
+    if (savedId) { _setEditing(savedId); _takeLock(savedId); }   // 保存者がロックを取得/更新
 
     quoteShowToast('☁️ 「' + name + '」をチーム共有に保存しました', 'success');
     cloudListPresets();
@@ -886,12 +948,20 @@
     _loadedCloudTs = data.updated_at || null;
 
     // ローカルの loadPreset と同じ復元処理
+    // 編集ロックを取得（他者保持中でも読込自体は許可。保存・削除はサーバ側で拒否される）
+    const lock = await _takeLock(id);
+
+    // ローカルの loadPreset と同じ復元処理
     _applyQuoteData(data.data, { keepHeaderIfEmpty: true });
     if (typeof calcLiveUpdate === 'function') calcLiveUpdate();
     if (typeof setCurrentQuoteName === 'function') setCurrentQuoteName(data.name);
     if (typeof closePresetMgr === 'function') closePresetMgr();
     _setEditing(id);   // Presence：この案件を編集中に
-    quoteShowToast('📂 共有「' + data.name + '」を読み込みました（Ctrl+Z で戻せます）', 'success');
+    if (!lock.ok) {
+      quoteShowToast('🔒 ' + _nameFor(lock.by) + ' さんが編集中です。閲覧・参考のみ可（保存・削除はできません）', 'warn', 6500);
+    } else {
+      quoteShowToast('📂 共有「' + data.name + '」を読み込みました（Ctrl+Z で戻せます）', 'success');
+    }
   }
 
   // ---------- 削除 ----------
@@ -909,8 +979,15 @@
     } else {
       if (!confirm('この共有プリセット' + label + 'を削除しますか？\n（チーム全員から消えます）')) return;
     }
-    const { error } = await c.from(_table()).delete().eq('id', id);
+    const { data: del, error } = await c.from(_table()).delete().eq('id', id).select('id');
     if (error) { quoteShowToast('⚠️ 削除に失敗：' + error.message, 'warn'); return; }
+    // 編集ロックで拒否されると エラー無しで 0 行（RLS）
+    if (!del || !del.length) {
+      quoteShowToast('🔒 他メンバーが編集中のため削除できません（ロック解除後に再試行してください）', 'warn', 6500);
+      cloudListPresets();
+      return;
+    }
+    if (_lockHeldId === id) _dropLock();
     quoteShowToast('🗑️ 共有プリセットを削除しました', 'info');
     cloudListPresets();
   }
