@@ -255,6 +255,7 @@
       regularTrs.push(tr);
     });
     _afterRestoreRows(regularTrs, data.fields);
+    if (typeof renderSubconGroups === 'function') renderSubconGroups();
   }
 
   // プリセット読み込み時に空値で上書きしないヘッダー項目
@@ -345,7 +346,8 @@
     // テーブル行の追加・削除・ドラッグ並び替え・ソートを検出
     const tbody = document.getElementById('tableBody');
     if (tbody && typeof MutationObserver !== 'undefined') {
-      new MutationObserver(scheduleSnapshot).observe(tbody, { childList: true });
+      new MutationObserver(() => { if (!_inGroupRender) scheduleSnapshot(); })
+        .observe(tbody, { childList: true });
     }
   }
 
@@ -359,6 +361,7 @@
     // テーブル行（通常行 / 小計行 / リマーク行をすべて保存）
     const rows = [];
     document.querySelectorAll('#tableBody tr').forEach(tr => {
+      if (tr.dataset.virtual) return; // サブコングループヘッダー（仮想行）はスキップ
       if (tr.dataset.type === 'subtotal') {
         rows.push({ _type: 'subtotal', label: tr.querySelector('.subtotal-label')?.value || '' });
         return;
