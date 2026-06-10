@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex">
+<title>改修予定・アイデア — フォワーダー支援</title>
+<style>
+  :root { --ink:#4a3f35; --muted:#8a7a66; --line:#e7ddcd; --bg:#f7f3ec; --card:#fff; --accent:#6b5a42; }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink);
+    font-family:"Noto Sans JP", system-ui, -apple-system, sans-serif; line-height:1.7; }
+  .rm-wrap { max-width: 920px; margin: 0 auto; padding: 0 18px 64px; }
+  .rm-top { display:flex; align-items:center; gap:12px; padding:18px 0 10px; }
+  .rm-back { text-decoration:none; color:var(--accent); font-weight:700; font-size:13px;
+    border:1px solid var(--line); background:#fff; padding:7px 13px; border-radius:8px; white-space:nowrap; }
+  .rm-back:hover { background:#f0e8d8; }
+  .rm-title { font-size:22px; font-weight:800; color:#3d2e1e; margin:0; }
+  .rm-intro { background:#fbf7ef; border:1px solid var(--line); border-radius:12px;
+    padding:14px 16px; font-size:13.5px; color:var(--muted); margin:6px 0 26px; }
+  .rm-intro strong { color:var(--ink); }
+  .rm-section { margin-bottom: 34px; }
+  .rm-h2 { font-size:16px; font-weight:800; color:#3d2e1e; border-bottom:2px solid var(--line);
+    padding-bottom:8px; margin:0 0 16px; display:flex; align-items:center; gap:8px; }
+  .rm-count { font-size:12px; font-weight:700; color:#fff; background:var(--accent);
+    border-radius:999px; padding:1px 9px; }
+  .rm-cards { display:grid; gap:13px; }
+  .rm-card { background:var(--card); border:1px solid var(--line); border-radius:12px;
+    padding:15px 17px; box-shadow:0 2px 8px rgba(80,60,30,.05); }
+  .rm-card-head { display:flex; align-items:center; gap:10px; margin-bottom:8px; flex-wrap:wrap; }
+  .rm-card-title { font-size:15px; font-weight:700; color:#3d2e1e; margin:0; }
+  .rm-badge { font-size:11px; font-weight:800; border-radius:999px; padding:2px 10px; white-space:nowrap; }
+  .rm-badge--high { background:#fdeaea; color:#c0392b; }
+  .rm-badge--mid  { background:#fef3e0; color:#b9711c; }
+  .rm-badge--low  { background:#fffbe6; color:#9a7d12; }
+  .rm-badge--idea { background:#eef3fb; color:#3a6aa6; }
+  .rm-desc { margin:6px 0 0; padding-left:20px; font-size:13.5px; color:#5a4f43; }
+  .rm-desc > li { margin:3px 0; }
+  .rm-sub { margin:3px 0 6px; padding-left:18px; color:var(--muted); font-size:13px; }
+  .rm-desc code { background:#f3ece0; border-radius:4px; padding:0 5px; font-size:12px; }
+  .rm-done-list { list-style:none; margin:0; padding:0; display:flex; flex-wrap:wrap; gap:8px; }
+  .rm-done-list li { background:#e9f5ec; color:#1e7e44; border:1px solid #bfe3cb;
+    border-radius:999px; padding:5px 13px; font-size:12.5px; font-weight:600; }
+  .rm-done-list code { background:rgba(0,0,0,.05); border-radius:4px; padding:0 4px; font-size:11px; }
+  .rm-foot { margin-top:40px; padding-top:16px; border-top:1px solid var(--line);
+    font-size:12px; color:var(--muted); text-align:center; }
+  @media (max-width:560px){ .rm-title{ font-size:19px; } }
+</style>
+</head>
+<body>
+  <div class="rm-wrap">
+    <div class="rm-top">
+      <a class="rm-back" href="index.html">← アプリに戻る</a>
+      <h1 class="rm-title">📣 改修予定・アイデア</h1>
+    </div>
+    <p class="rm-intro">
+      このページは <strong>フォワーダー支援アプリの開発ロードマップ</strong>です。
+      現在対応中・検討中の改善や、今後追加したい機能を一覧にしています。<br>
+      「こんな機能がほしい」「ここが使いにくい」などのご要望は、アプリ右下の
+      <strong>💬 フィードバックボタン</strong>からお寄せください。優先度の参考にします。
+    </p>
+<section class="rm-section"><h2 class="rm-h2">🔴 優先度：高（早急に対応したい改修） <span class="rm-count">2</span></h2><div class="rm-cards"><article class="rm-card"><div class="rm-card-head"><span class="rm-badge rm-badge--high">高</span><h3 class="rm-card-title">航空CW計算（計算タブ）に IATA 0.5kg 切り上げが効かず、2系統のCWが不一致</h3></div><ul class="rm-desc"><li>期待する動作: <code>calcAirCW()</code> も <code>SharedCalc.airChargeableWeight()</code> を経由させ、全経路で0.5kg切り上げに統一</li></ul></article>
+<article class="rm-card"><div class="rm-card-head"><span class="rm-badge rm-badge--high">高</span><h3 class="rm-card-title">複数航路（_routeEntries）登録時、件名・条件サマリが先頭航路しか出ない</h3></div><ul class="rm-desc"><li>期待する動作: 複数航路時は件名/条件サマリに全航路併記（または「複数航路（明細参照）」）。仕向地も複数許容</li></ul></article></div></section><section class="rm-section"><h2 class="rm-h2">🟠 優先度：中（あると便利・品質向上） <span class="rm-count">17</span></h2><div class="rm-cards"><article class="rm-card"><div class="rm-card-head"><span class="rm-badge rm-badge--mid">中</span><h3 class="rm-card-title">見積テーブルの操作性向上（入力・編集の快適化）</h3></div><ul class="rm-desc"><li>背景: 見積テーブルは費用明細を多数入力する中核機能。日々の入力・編集の操作性をさらに高めたい（キーボードでのセル移動、コピー／フィルダウン、行の追加・複製・並び替え、選択範囲操作、貼り付け挙動など）</li><li>期待する動作: Excel に近い快適な編集体験。具体策は今後洗い出して順次反映（既存アイデア「フィルダウン（Ctrl+Shift+↓）」「Ctrl+K に頻出アクション追加」などと統合して検討）</li></ul></article>
+<article class="rm-card"><div class="rm-card-head"><span class="rm-badge rm-badge--mid">中</span><h3 class="rm-card-title">Excel / CSV との双方向連携</h3></div><ul class="rm-desc"><li>背景: サーチャージ案内・顧客リスト等のデータは Excel で管理・配布されることが多く、アプリへの取り込みや逆方向の出力ニーズがある</li><li>想定する連携場面:<ul class="rm-sub"><li>サーチャージ一括登録（船会社から届く Excel 添付をそのまま取り込む）</li><li>顧客マスター一括登録</li><li>案件一覧のエクスポート（案件管理を Excel で並行管理したい場合）</li></ul></li></ul></article>
+<article class="rm-card"><div class="rm-card-head"><span class="rm-badge rm-badge--mid">中</span><h3 class="rm-card-title">案件のコピーから新規案件を作成する機能</h3></div><ul class="rm-desc"><li>背景: 類似した条件の案件を繰り返し作成するケースが多く、毎回ゼロから入力するのは非効率</li><li>期待する動作:<ul class="rm-sub"><li>クラウド案件一覧（またはプレビューモーダル）から「コピーして新規作成」ボタンを押すと、その案件の全データ（条件・明細・備考等）をコピーした新規案件が開く</li><li>コピー元の案件名に「(コピー)」等のサフィックスを付けて区別</li><li>コピー後はクラウド未保存の状態で編集可能（保存ボタンで別案件として登録）</li></ul></li></ul></article>
+<article class="rm-card"><div class="rm-card-head"><span class="rm-badge rm-badge--mid">中</span><h3 class="rm-card-title">見積テーブルの「仕／＋乗せ／売」3段スタックを初心者向けに可視化するガイド</h3></div><ul class="rm-desc"><li>背景: 単価セルが「仕（仕入）＋乗せ幅／売（売値）」の縦3段になっており、初級者は入力欄と自動計算欄の区別がつかず売値欄に原価を打ち込む不安がある。説明はヘッダーtitleのホバー頼み</li></ul></article>
+<article class="rm-card"><div class="rm-card-head"><span class="rm-badge rm-badge--mid">中</span><h3 class="rm-card-title">計算ツールの「一部だけ未入力」を行レベルで指摘するインライン警告</h3></div><ul class="rm-desc"><li>期待する動作: 欠けた行の入力欄を赤枠ハイライト＋「この行は未入力のため除外」と明示、結果カードに「○行中△行を計算（×行スキップ）」サマリ</li></ul></article>
+<article class="rm-card"><div class="rm-card-head"><span class="rm-badge rm-badge--mid">中</span><h3 class="rm-card-title">インコタームズ選択時に「自分（売り手側）が手配する範囲」を視覚ハイライト</h3></div><ul class="rm-desc"><li>背景: インコタームズ選択時の注記が上級者向けで初級者には難しすぎる。本当に知りたいのは「集荷・通関・運賃のどこまで見積もるか」</li></ul></article>
+<article class="rm-card"><div class="rm-card-head"><span class="rm-badge rm-badge--mid">中</span><h3 class="rm-card-title">専門用語ツールチップの一貫化（クリックでも開く用語辞書ポップオーバー）</h3></div><ul class="rm-desc"><li>背景: 用語解説の出方がバラバラ（help内用語集・title属性ホバー・本文中は説明なし）。タッチ端末ではホバーが出ない。CD・W/M・R/T・THC・DEM/DET 等が画面上で分からない</li><li>期待する動作: 略語に点線下線＋クリック/タップで短い説明ポップオーバーを出す共通コンポーネント。説明本文はhelp内用語集を単一ソース化</li></ul></article>
+<article class="rm-card"><div class="rm-card-head"><span class="rm-badge rm-badge--mid">中</span><h3 class="rm-card-title">コンテナ本数 → 見積行の数量への自動連動（FCL）</h3></div><ul class="rm-desc"><li>期待する動作: 単位CNTRの行にコンテナ総本数を流し込むボタン/自動補完。サイズ別課金に備え「20'/40'/総本数」を選択可。条件側変更で連動追従（解除も可）</li></ul></article>
+<article class="rm-card"><div class="rm-card-head"><span class="rm-badge rm-badge--mid">中</span><h3 class="rm-card-title">「前行から数量・通貨をコピー」のセル単位フィルダウン（Ctrl+Shift+↓）</h3></div><ul class="rm-desc"><li>背景: 既存行の途中で「数量だけ全行揃える」「通貨をまとめてJPY→USD」等のExcel的フィルダウンができず行ごと手作業</li><li>期待する動作: フォーカス中セルでCtrl+Shift+↓→直下〜末尾の同カラムへ一括コピー。通貨セレクタでも有効化</li></ul></article>
+<article class="rm-card"><div class="rm-card-head"><span class="rm-badge rm-badge--mid">中</span><h3 class="rm-card-title">有効期限切れの出力前ブロック／警告（preOutputValidationGate への追加）</h3></div><ul class="rm-desc"><li>期待する動作: 出力ゲートに「有効期限が本日より前です」を追加・該当欄へフォーカス誘導。発行日＞有効期限の矛盾も検出</li></ul></article>
+<article class="rm-card"><div class="rm-card-head"><span class="rm-badge rm-badge--mid">中</span><h3 class="rm-card-title">コマンドパレット（Ctrl+K）に頻出アクションを追加・実行可能化</h3></div></article>
+<article class="rm-card"><div class="rm-card-head"><span class="rm-badge rm-badge--mid">中</span><h3 class="rm-card-title">危険品が「1案件1危険品」前提で、複数危険品・隔離区分・限定数量の判定がない</h3></div><ul class="rm-desc"><li>期待する動作: 短期＝危険品の複数行登録。中期＝Class組合せからIMDG隔離区分の注意フラグ、Limited/Excepted Quantity欄</li></ul></article>
+<article class="rm-card"><div class="rm-card-head"><span class="rm-badge rm-badge--mid">中</span><h3 class="rm-card-title">関税計算が「消費税10%固定」で、軽減税率品・個別消費税案件で誤差</h3></div><ul class="rm-desc"><li>期待する動作: 消費税率10%/8%切替。個別消費税の任意入力欄を追加し消費税課税標準（関税＋個別消費税＋CIF）に含める</li></ul></article>
+<article class="rm-card"><div class="rm-card-head"><span class="rm-badge rm-badge--mid">中</span><h3 class="rm-card-title">保険価額の上乗せ率（110%）がハードコードで契約条件に追従できない</h3></div><ul class="rm-desc"><li>期待する動作: 上乗せ率（既定10%）を入力欄化。CIF直接入力モードとFOB+運賃モードの切替も検討</li></ul></article>
+<article class="rm-card"><div class="rm-card-head"><span class="rm-badge rm-badge--mid">中</span><h3 class="rm-card-title">見積テーブル入力欄を16px化して iOS のフォーカスズームを抑止</h3></div></article>
+<article class="rm-card"><div class="rm-card-head"><span class="rm-badge rm-badge--mid">中</span><h3 class="rm-card-title">船会社カード（carrier-card）をキーボード操作・スクリーンリーダー対応にする</h3></div><ul class="rm-desc"><li>期待する動作: 描画時に <code>role="link"</code>＋<code>tabindex="0"</code>＋Enter/Spaceハンドラ（または a/button化）。<code>:focus-visible</code>枠線も明示。WCAG 2.1.1</li></ul></article>
+<article class="rm-card"><div class="rm-card-head"><span class="rm-badge rm-badge--mid">中</span><h3 class="rm-card-title">2段スティッキーナビ（cat-nav＋sub-nav）のモバイル縦専有を圧縮</h3></div><ul class="rm-desc"><li>背景: 狭幅で cat-nav が <code>--nav-cat-h:108px</code> に跳ね上がり、sub-nav と合わせ固定ナビだけで上部150px前後を恒常専有</li><li>期待する動作: スマホ帯は cat-nav を横スクロール1行（<code>overflow-x:auto; flex-wrap:nowrap</code>）、またはスクロール時に自動収納。固定ナビを56px程度に</li></ul></article></div></section><section class="rm-section"><h2 class="rm-h2">🟡 将来的に対応を検討 <span class="rm-count">14</span></h2><div class="rm-cards"><article class="rm-card"><div class="rm-card-head"><span class="rm-badge rm-badge--low">将来</span><h3 class="rm-card-title">見積タブの3ページ構成リデザイン</h3></div><ul class="rm-desc"><li>背景: 現状は条件・明細・統計が1画面に詰まっており、特にスプリットビューで窮屈</li><li>構成案（合意済み）:<ul class="rm-sub"><li><strong>1ページ目（ダッシュボード）</strong>: 簡易統計（粗利率・合計金額推移など）、進捗管理（受注/失注/保留）、見積検索・一覧、新規見積作成ボタン</li><li><strong>2ページ目（条件入力）</strong>: 輸送モード・引き合い条件・貨物・物量情報・マイルストーン</li><li><strong>3ページ目（明細入力）</strong>: 現在の見積テーブル（費用明細・プレビュー・出力）</li></ul></li><li>メリット:<ul class="rm-sub"><li>各ページが1つの役割に集中できる</li><li>1ページ目は Supabase 連携後に統計・検索が自然に載る器になる</li><li>2→3ページへの遷移で「条件確定 → 明細入力」のフローが明確になる</li></ul></li></ul></article>
+<article class="rm-card"><div class="rm-card-head"><span class="rm-badge rm-badge--low">将来</span><h3 class="rm-card-title">輸出+輸入セット対応（方向・マイルストーン）</h3></div><ul class="rm-desc"><li>背景: 輸出→輸入・輸入→輸出をワンセットで扱う案件が多数ある</li><li>検証結果（合意済み）:<ul class="rm-sub"><li>輸送モード（FCL/LCL/Air）自体は方向に依存しないため変更不要</li><li>費用カテゴリも既に輸出・輸入の両方が選択可能</li><li><strong>対応が必要な箇所は3箇所のみ</strong>:</li><li><strong>マイルストーンは A案（2段表示）を推奨</strong>: 輸出バーと輸入バーを縦に並べる。<code>renderQuoteMilestones</code> を export / import で2回呼ぶ設計。6ゾーン1本より業務実態に合う。</li></ul></li></ul></article>
+<article class="rm-card"><div class="rm-card-head"><span class="rm-badge rm-badge--low">将来</span><h3 class="rm-card-title">見積タブの初回オンボーディング（番号順ガイド付きツアー）</h3></div><ul class="rm-desc"><li>背景: セクションは①管理番号→②貿易条件→③貨物情報…と番号付きだが、初回に「どこから手を付けるか」を能動的に教える導線がない</li></ul></article>
+<article class="rm-card"><div class="rm-card-head"><span class="rm-badge rm-badge--low">将来</span><h3 class="rm-card-title">保険・関税計算のデフォルト値と前提に「これで合ってる？」を解消する補足注記</h3></div><ul class="rm-desc"><li>背景: 保険料率0.3%初期値、消費税10%固定・地方消費税22/78が裏で自動適用。初心者は根拠を毎回確認しに行く</li><li>期待する動作: デフォルト値の横に「※一般的な目安」注記、関税結果に「標準税率10%で計算（軽減税率対象は別途）」と適用税率・端数処理を併記</li></ul></article>
+<article class="rm-card"><div class="rm-card-head"><span class="rm-badge rm-badge--low">将来</span><h3 class="rm-card-title">必須項目の「最初に埋める順」を画面上で示す進捗インジケータ</h3></div><ul class="rm-desc"><li>背景: 必須マークは付くが、プレビュー押下まで未入力に気付けない。入力欄が多いと残数が分からず手が止まる</li></ul></article>
+<article class="rm-card"><div class="rm-card-head"><span class="rm-badge rm-badge--low">将来</span><h3 class="rm-card-title">荷姿明細への per-CNTR/total 重量バリデーション・VGM注記連動</h3></div><ul class="rm-desc"><li>期待する動作: 「1本あたり推定重量」を出し目安超過時に黄色注記、VGM/重量物割増の確認リマークを自動サジェスト</li></ul></article>
+<article class="rm-card"><div class="rm-card-head"><span class="rm-badge rm-badge--low">将来</span><h3 class="rm-card-title">行パターン挿入時に通貨・数量を「挿入時オーバーライド」できるダイアログ</h3></div><ul class="rm-desc"><li>期待する動作: 挿入位置セレクトの隣に「通貨を一括指定」「数量を一括指定（空欄なら保存値）」を追加し挿入時に適用</li></ul></article>
+<article class="rm-card"><div class="rm-card-head"><span class="rm-badge rm-badge--low">将来</span><h3 class="rm-card-title">プレビュー「社内用/客先用」モードのワンクリック切替トグル（列セット保存）</h3></div><ul class="rm-desc"><li>背景: 機密列の表示状態（<code>isSensitiveOn</code>）でファイル名・透かしが変わるが、画面上で今どちらかをワンクリック切替する明示トグルが無く、列チェックを個別操作している</li><li>期待する動作: プレビュー上部に「🔒社内用/📤客先用」セグメントトグル。客先モード中は機密列を物理的にロックし誤送付を構造的に防止</li></ul></article>
+<article class="rm-card"><div class="rm-card-head"><span class="rm-badge rm-badge--low">将来</span><h3 class="rm-card-title">出力物に「見積有効期限」「レート変動時の再見積条項」を標準化</h3></div><ul class="rm-desc"><li>背景: FX出典・取得日時はフッターに刻まれるが、見積自体の有効期限（Validity）と「為替・サーチャージ改定時は再見積」免責が定型化されておらず手書き運用</li><li>期待する動作: 引き合い条件に「見積有効期限」欄（日付 or 「発行日より◯日」）を新設し出力ヘッダー/フッターに自動表示。再見積免責を定型リマークに追加</li></ul></article>
+<article class="rm-card"><div class="rm-card-head"><span class="rm-badge rm-badge--low">将来</span><h3 class="rm-card-title">コンテナ重量上限の二重定義（28,000kg vs 21,500kg）でVGM/軸重超過を見落とす</h3></div><ul class="rm-desc"><li>期待する動作: バンニング計算に「国内陸送あり/なし」トグル、ありなら陸送上限で重量判定。警告にどの基準か（海上ISO/国内陸送）を明示</li></ul></article>
+<article class="rm-card"><div class="rm-card-head"><span class="rm-badge rm-badge--low">将来</span><h3 class="rm-card-title">ローディング表示の統一（スピナー/スケルトン化）</h3></div><ul class="rm-desc"><li>背景: 非同期待機表示が文字依存でバラバラ（ブックマーク「読み込み中…」等）。共通スピナー/スケルトンが無く「固まったのか読込中か」判別しづらい</li><li>期待する動作: 共通 <code>.app-spinner</code>／テーブル用スケルトン行を1セット用意し各非同期セクションで使い回す</li></ul></article>
+<article class="rm-card"><div class="rm-card-head"><span class="rm-badge rm-badge--low">将来</span><h3 class="rm-card-title">空状態（empty state）の情報量を底上げ（次アクション導線つき）</h3></div><ul class="rm-desc"><li>背景: 空表示が素のテキスト（「該当するブックマークはありません」等）。初回利用者は次に何をすべきか分からない</li><li>期待する動作: アイコン＋説明＋次アクションボタン（「＋追加する」「Googleでログイン」等）を持つ共通empty-stateコンポーネント化</li></ul></article>
+<article class="rm-card"><div class="rm-card-head"><span class="rm-badge rm-badge--low">将来</span><h3 class="rm-card-title">タブ説明 details（tab-help）の常時70個並存を整理</h3></div><ul class="rm-desc"><li>背景: 各タブ冒頭に同じ重さの「ℹ️このタブの使い方」が70箇所。熟練者には毎回ノイズで見出しまで視線が一段下がる</li></ul></article>
+<article class="rm-card"><div class="rm-card-head"><span class="rm-badge rm-badge--low">将来</span><h3 class="rm-card-title">ポータル他タブ（知識・参考/カード系）の印刷レイアウト最適化</h3></div><ul class="rm-desc"><li>背景: 全体印刷はヘッダー/ナビ/FAB非表示の最低限のみ。インコタームズ表・サイズ表等をそのまま印刷するとカードの影・余白・折返しが紙面で崩れる</li><li>期待する動作: ポータル <code>@media print</code> に <code>box-shadow:none</code>・border簡素化・grid列数固定・<code>break-inside:avoid</code> を追加しA4で読める体裁に</li></ul></article></div></section><section class="rm-section"><h2 class="rm-h2">💡 構想・検討中のアイデア <span class="rm-count">10</span></h2><div class="rm-cards"><article class="rm-card"><div class="rm-card-head"><span class="rm-badge rm-badge--idea">構想</span><h3 class="rm-card-title">行パターンを「通常の見積テーブル以外」で作成・管理する専用ビルダー</h3></div><ul class="rm-desc"><li>背景: 現状の行パターン保存は、通常案件の見積テーブルでチェック→保存する方式。テンプレ専用に行を起こしたい／案件入力と混ざるのを避けたい、というニーズ（ユーザー提起 2026-06-10・検討段階）</li></ul></article>
+<article class="rm-card"><div class="rm-card-head"><span class="rm-badge rm-badge--idea">構想</span><h3 class="rm-card-title">Supabase連携：案件蓄積によるマスター自動生成＋受注/失注分析</h3></div><ul class="rm-desc"><li>背景: 案件を貯めるだけで顧客・サブコン・費用項目の「マスター」が自然と出来上がる設計にしたい</li><li>活用例:<ul class="rm-sub"><li>品目入力時のオートコンプリート＋前回単価の自動補完</li><li>モジュール挿入のサブコン検索元（別アイデアと連携）</li><li>顧客別・サブコン別のコスト傾向分析</li></ul></li></ul></article>
+<article class="rm-card"><div class="rm-card-head"><span class="rm-badge rm-badge--idea">構想</span><h3 class="rm-card-title">Supabase連携：受注/失注率の分析</h3></div><ul class="rm-desc"><li>背景: 見積の結果（受注・失注・保留）を記録することで勝率・傾向を把握したい</li><li>想定する分析軸:<ul class="rm-sub"><li>顧客別・担当者別・ルート別・輸送モード別の受注率</li><li>粗利率帯別の受注率（安い見積が取れているか）</li><li>失注理由の傾向（価格・リードタイム・サービス等）</li><li>月次・四半期の受注金額推移</li></ul></li></ul></article>
+<article class="rm-card"><div class="rm-card-head"><span class="rm-badge rm-badge--idea">構想</span><h3 class="rm-card-title">AIエージェントによるブッキング自動化</h3></div><ul class="rm-desc"><li>背景: フォームでブッキング依頼を受け付け、AIエージェントが各船会社ポータルでブッキングを完了させる</li></ul></article>
+<article class="rm-card"><div class="rm-card-head"><span class="rm-badge rm-badge--idea">構想</span><h3 class="rm-card-title">将来構想：実務メニューと見積メニューの入り口分離</h3></div><ul class="rm-desc"><li>背景: 役割が異なるユーザー（オペレーション vs 営業/価格担当）が同じポータルを使うなら入り口を分けた方が使いやすい</li><li>メリット:<ul class="rm-sub"><li>実務側は軽快に・モバイル対応優先</li><li>見積側は情報量を確保</li><li>両側で同じマスターデータを参照できる</li></ul></li></ul></article>
+<article class="rm-card"><div class="rm-card-head"><span class="rm-badge rm-badge--idea">構想</span><h3 class="rm-card-title">顧客マスターの新設</h3></div><ul class="rm-desc"><li>背景: 現在の見積フォームには「会社名」「担当者名」しかなく、メールアドレス・部署・電話番号等が管理できていない。サーチャージ通知の宛先管理や見積フォームとの連動を考えると情報が不足している</li><li>管理項目（確定）:<ul class="rm-sub"><li><code>customer_code</code>: アプリ内独自の管理番号（例: <code>C-001</code>）。社内基幹システムにすでにコードが存在する場合はそちらに合わせる形も可</li><li><code>company_name</code>: 会社名（既存 <code>qf-customer</code> と連動）</li><li><code>department</code>: 部署名（宛名出力に使用）</li><li><code>person_name</code>: 担当者名（既存 <code>qf-person</code> と連動）</li><li><code>email</code>: 担当者メールアドレス（通知宛先の自動セット）</li><li><code>phone</code>: 電話番号</li><li><code>note</code>: 備考（自由記述）</li></ul></li></ul></article>
+<article class="rm-card"><div class="rm-card-head"><span class="rm-badge rm-badge--idea">構想</span><h3 class="rm-card-title">料金改定・サーチャージ通知の管理・簡素化</h3></div><ul class="rm-desc"><li>背景: 客先への料金改定やサーチャージ導入の案内を定期的に行っているが、宛先の選定・文面作成・案内履歴の管理がすべて手作業で工数がかかる。抜け漏れや二重案内も発生しやすい</li><li>UX の流れ（想定）:</li></ul></article>
+<article class="rm-card"><div class="rm-card-head"><span class="rm-badge rm-badge--idea">構想</span><h3 class="rm-card-title">マスタータブの新設（繰り返し登場する要素の一元管理）</h3></div><ul class="rm-desc"><li>背景: 案件が蓄積されると顧客・費用項目・サブコン・サーチャージなど繰り返し登場する要素が増える。現状はメール・社内サーバー・個人PC等に散在しており管理方法が統一されていない</li></ul></article>
+<article class="rm-card"><div class="rm-card-head"><span class="rm-badge rm-badge--idea">構想</span><h3 class="rm-card-title">案件チャット（申し送りメモ）</h3></div><ul class="rm-desc"><li>背景: 複数人で1つの見積を作成する場合、途中経緯・担当者間の申し送りを残す手段がない。メール・チャットツールに散らばりがちで案件と紐付かない</li><li>期待する動作:<ul class="rm-sub"><li>クラウドプリセット（案件）単位でチャットスレッドを持つ</li><li>メンバーが発言を投稿・閲覧できる（投稿者名・日時付き）</li><li>案件プレビューモーダル内または専用スレッドビューで表示</li><li>既読管理や通知は将来拡張（まずは投稿・閲覧のみ）</li></ul></li></ul></article>
+<article class="rm-card"><div class="rm-card-head"><span class="rm-badge rm-badge--idea">構想</span><h3 class="rm-card-title">Supabase連携：基本設計</h3></div><ul class="rm-desc"><li>何を貯めるか（見積データ・プリセット・フィードバック・為替履歴）</li><li>認証方法（メール認証 / Google ログイン / Magic Link）</li><li>チーム構成・読み書き権限の範囲</li></ul></article></div></section>
+<section class="rm-section rm-done"><h2 class="rm-h2">✅ 実装済み <span class="rm-count">15</span></h2><ul class="rm-done-list"><li>見積タブのモバイル/タブレット帯で右サマリ列が縮退しない（2カラム強制崩れ）</li><li>Supabase連携：行挿入パネル（行パターン＋サブコン別モジュールの統合UI）</li><li>行パターンから任意の明細だけを選んで挿入（部分挿入）</li><li>行パターンに参照元URLを複数持たせてチーム共有＋保存パターンの編集機能</li><li>お気に入り共有機能（船会社メニューのブックマーク）</li><li>案件の共同編集対応（Presence + フィールドロック）</li><li>ユーザーロール管理（admin / member / viewer）</li><li>アプリ内ユーザー管理 UI</li><li>チーム共有カードの表示をブラウザ保存と統一</li><li>同じ案件の同時編集対策（保存競合検知＋編集中表示）</li><li>ログインユーザーのプロフィール編集（表示名・アバター）</li><li>フィードバック受付を Supabase に移行</li><li>社内メモ行（出力に出ない内部コメント行）</li><li>見積テーブルのスプリットビュー対応（列表示トグル）</li><li>メール本文出力に条件・リマーク欄を追加</li></ul></section>
+    <div class="rm-foot">
+      台帳 最終更新：2026-06-10 ／ このページは docs/アイデア台帳.md から自動生成しています
+    </div>
+  </div>
+</body>
+</html>

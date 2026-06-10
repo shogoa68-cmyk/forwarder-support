@@ -23,7 +23,6 @@
       person:     document.getElementById('qf-person')?.value || '',
       date:       document.getElementById('qf-date')?.value || '',
       validUntil: document.getElementById('qf-valid-until')?.value || '',
-      assignee:   document.getElementById('qf-assignee')?.value || '',
       status:     document.getElementById('qf-status')?.value || '下書き',
     };
   }
@@ -42,6 +41,8 @@
     }
     return n + ' 様';
   }
+  // プリセットカード（ブラウザ保存／チーム共有）でも敬称表示に使うため公開
+  window.formatPersonWithHonorific = formatPersonWithHonorific;
 
   /**
    * ファイル名生成: REF_引き合い元_担当.<ext>
@@ -68,6 +69,7 @@
   function collectAllRows() {
     const rows = [];
     document.querySelectorAll('#tableBody tr').forEach(tr => {
+      if (tr.dataset.virtual) return; // サブコングループヘッダー（仮想行）はスキップ
       if (tr.dataset.type === 'subtotal') {
         const label       = tr.querySelector('.subtotal-label')?.value || '';
         const billingText = tr.querySelector('.subtotal-group-billing')?.textContent?.trim() || '—';
@@ -109,6 +111,7 @@
     const rows = document.querySelectorAll('#tableBody tr');
     const data = [];
     rows.forEach(tr => {
+      if (tr.dataset.virtual) return; // サブコングループヘッダー（仮想行）はスキップ
       if (tr.dataset.type === 'subtotal') return; // 小計行スキップ
       const id     = tr.id.replace('row-', '');
       const taxed  = document.getElementById(`tx-${id}`)?.checked || false;
@@ -205,8 +208,8 @@
       const el = document.getElementById(id);
       if (el?.classList.contains('quote-warn-field')) items.push({ msg, focusEl: el });
     };
-    tryHdr('qf-ref',         '仮 REF # を入力してください');
-    tryHdr('qf-customer',    '引き合い元名称を入力してください');
+    tryHdr('qf-ref',         '見積もり番号を入力してください');
+    tryHdr('qf-customer',    'お客様名称を入力してください');
     tryHdr('qf-person',      '担当者名を入力してください');
     tryHdr('cond-incoterms', 'インコタームズを選択してください');
     document.querySelectorAll('#tableBody tr.row-warn-price').forEach(tr => {
@@ -374,8 +377,8 @@
 
     const metaEl = document.getElementById('pvMeta');
     const metaHTML = [
-      hdr.ref      ? `<div class="pv-meta-item"><span class="lbl">仮 REF #</span><span class="val">${escHtml(hdr.ref)}</span></div>` : '',
-      hdr.customer ? `<div class="pv-meta-item"><span class="lbl">引き合い元</span><span class="val">${escHtml(hdr.customer)}</span></div>` : '',
+      hdr.ref      ? `<div class="pv-meta-item"><span class="lbl">見積もり番号</span><span class="val">${escHtml(hdr.ref)}</span></div>` : '',
+      hdr.customer ? `<div class="pv-meta-item"><span class="lbl">お客様</span><span class="val">${escHtml(hdr.customer)}</span></div>` : '',
       hdr.person   ? `<div class="pv-meta-item"><span class="lbl">担当</span><span class="val">${escHtml(formatPersonWithHonorific(hdr.person))}</span></div>` : '',
     ].join('');
     metaEl.innerHTML = metaHTML;
@@ -525,9 +528,18 @@
     document.getElementById('previewTableWrap').innerHTML = html;
 
     const cond = getConditions();
+    // 航路：複数登録時は航路ごとに併記、単一なら従来通り POL/POD を分けて表示
+    const routeFields = (cond.routes && cond.routes.length > 1)
+      ? cond.routes.map((r, i) => ({
+          lbl: `航路${i + 1}`,
+          val: [[r.pol, r.pod].filter(Boolean).join(' → '), r.carrier].filter(Boolean).join('　'),
+        }))
+      : [
+          { lbl: '積み地（POL）',   val: cond.pol },
+          { lbl: '揚げ地（POD）',   val: cond.pod },
+        ];
     const condFields = [
-      { lbl: '積み地（POL）',   val: cond.pol },
-      { lbl: '揚げ地（POD）',   val: cond.pod },
+      ...routeFields,
       { lbl: '発地',            val: cond.origin },
       { lbl: '仕向地',          val: cond.dest },
       { lbl: 'インコタームズ',  val: cond.incoterms },
@@ -978,8 +990,8 @@
 
     const lines = [];
     if (hdr.ref || hdr.customer || hdr.person || hdr.date || hdr.validUntil) {
-      if (hdr.ref)        lines.push(`仮REF#\t${hdr.ref}`);
-      if (hdr.customer)   lines.push(`引き合い元\t${hdr.customer}`);
+      if (hdr.ref)        lines.push(`見積もり番号\t${hdr.ref}`);
+      if (hdr.customer)   lines.push(`お客様\t${hdr.customer}`);
       if (hdr.person)     lines.push(`担当\t${formatPersonWithHonorific(hdr.person)}`);
       lines.push(`発行日\t${hdr.date || _pvTodayIso()}`);
       if (hdr.validUntil) lines.push(`有効期限\t${hdr.validUntil}`);
@@ -1030,13 +1042,40 @@
 
   // 御見積書を独立ウィンドウに書き出して印刷（環境非依存）。
   // ポップアップがブロックされた場合は従来の window.print() にフォールバック。
+  function _docViewportUnlock() {
+    // qd-doc-scroll の translateY と qd-viewport の overflow を一時解除して全ページを可視化
+    const scroll = document.getElementById('qdDocScroll');
+    const vp     = document.getElementById('qdViewport');
+    const saved  = { transform: scroll?.style.transform, height: vp?.style.height, overflow: vp?.style.overflow };
+    if (scroll) scroll.style.transform = 'none';
+    if (vp) { vp.style.height = 'auto'; vp.style.overflow = 'visible'; }
+    return saved;
+  }
+  function _docViewportRestore(saved) {
+    const scroll = document.getElementById('qdDocScroll');
+    const vp     = document.getElementById('qdViewport');
+    if (scroll) scroll.style.transform = saved.transform ?? '';
+    if (vp) { vp.style.height = saved.height ?? ''; vp.style.overflow = saved.overflow ?? ''; }
+  }
+
+  // beforeprint/afterprint で doc-layout 印刷時に viewport 制約を JS レベルで解除
+  // （CSS :has() が効かない環境やポップアップブロック時のフォールバック対策）
+  let _beforePrintSaved = null;
+  window.addEventListener('beforeprint', function () {
+    if (_pvLayout !== 'doc') return;
+    _beforePrintSaved = _docViewportUnlock();
+  });
+  window.addEventListener('afterprint', function () {
+    if (_beforePrintSaved) { _docViewportRestore(_beforePrintSaved); _beforePrintSaved = null; }
+  });
+
   function printDocStandalone() {
     if (typeof buildQuoteDocHTML !== 'function') { window.print(); return; }
     const docHtml = buildQuoteDocHTML();
     const w = window.open('', '_blank', 'width=900,height=1100');
     if (!w) {
-      // ポップアップ不可（サンドボックス等）→ その場印刷にフォールバック
-      if (window.quoteShowToast) quoteShowToast('ポップアップがブロックされました。ブラウザのポップアップを許可するか、印刷ダイアログをそのままお使いください。', 'warn');
+      // ポップアップ不可（サンドボックス等）→ ビューポート制約をJSで解除してその場印刷
+      if (window.quoteShowToast) quoteShowToast('ポップアップがブロックされました。印刷ダイアログをそのままお使いください。備考など全ページが出力されます。', 'warn');
       window.print();
       return;
     }
@@ -1155,15 +1194,21 @@
     const idxProfit  = idxOf('profit');
 
     const aoaRows = [];
-    if (hdr.ref)        aoaRows.push(['仮 REF #', hdr.ref]);
-    if (hdr.customer)   aoaRows.push(['引き合い元', hdr.customer]);
+    if (hdr.ref)        aoaRows.push(['見積もり番号', hdr.ref]);
+    if (hdr.customer)   aoaRows.push(['お客様', hdr.customer]);
     if (hdr.person)     aoaRows.push(['担当', formatPersonWithHonorific(hdr.person)]);
     aoaRows.push(['発行日', hdr.date || _pvTodayIso()]);
     if (hdr.validUntil) aoaRows.push(['有効期限', hdr.validUntil]);
     // 引き合い条件（POL/POD/インコタームズ/輸送モード/コンテナ/貨物名）
     const cExcel = getConditions();
+    const routePairs = (cExcel.routes && cExcel.routes.length > 1)
+      ? cExcel.routes.map((r, i) => [
+          `航路${i + 1}`,
+          [[r.pol, r.pod].filter(Boolean).join(' → '), r.carrier].filter(Boolean).join('　'),
+        ])
+      : [['POL（積み地）', cExcel.pol], ['POD（揚げ地）', cExcel.pod]];
     const condPairs = [
-      ['POL（積み地）', cExcel.pol], ['POD（揚げ地）', cExcel.pod],
+      ...routePairs,
       ['インコタームズ', cExcel.incoterms], ['輸送モード', cExcel.mode],
       ['コンテナ', cExcel.container], ['貨物名', cExcel.cargo],
     ].filter(([, v]) => v);

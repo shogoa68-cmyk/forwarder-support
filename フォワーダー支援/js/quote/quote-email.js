@@ -145,7 +145,9 @@
     // 件名（方向 / 輸送モード / POL→POD）
     const dirMap = { export: '輸出', import: '輸入' };
     const dir = dirMap[cond.direction] || '';
-    const route = [cond.pol, cond.pod].filter(Boolean).join(' → ');
+    const route = (cond.routes && cond.routes.length > 1)
+      ? [cond.pol, cond.pod].filter(Boolean).join(' → ') + ` 他${cond.routes.length - 1}航路`
+      : [cond.pol, cond.pod].filter(Boolean).join(' → ');
     const subjectParts = [];
     if (dir || cond.mode) subjectParts.push([dir, cond.mode].filter(Boolean).join(' '));
     if (route) subjectParts.push(route);

@@ -52,8 +52,10 @@
     const z3p    = g('z3Place');   const z3c = g('z3Country');
     const origin = [z1p, z1c].filter(Boolean).join(', ');
     const dest   = [z3p, z3c].filter(Boolean).join(', ');
+    // 複数航路の全件（出力面で全航路を併記するため）。先頭航路は上の pol/pod が代表値
+    const routes = (_routeEntries && _routeEntries.length) ? _routeEntries.slice() : [];
     return {
-      pol, pod, origin, dest,
+      pol, pod, origin, dest, routes,
       incoterms: g('cond-incoterms'), mode: g('cond-mode'), container,
       cargo: g('cond-cargo'), hsCode: g('cond-hs'),
       hsBasic: g('cond-hs-basic'), hsPref: g('cond-hs-pref'), hsPrefNote: g('cond-hs-pref-note'),
@@ -122,7 +124,7 @@
   // cells[0] = 選択チェック（.row-select-chk）、cells[1..] = 下記の順。
   // 既存の保存データ（localStorage / JSON / クラウド）との互換のため、この順序は変更しないこと。
   // ※ 列の見た目の並び替えは row-tpl / thead 側だけで行い、ここは触らない。
-  const ROW_CELL_FIELDS = ['cat','sv','tx','nm','pq','un','bq','pc','bc','pp','bp','cd','mk','nt'];
+  const ROW_CELL_FIELDS = ['cat','sv','tx','nm','pq','un','bq','pc','bc','pp','bp','cd','mk','nt','zc'];
 
   function _applyCells(tr, cells) {
     // cells[0] = 選択チェック、cells[1..] = ROW_CELL_FIELDS 順（DOM 列順に依存しない）
@@ -274,10 +276,11 @@
       regularTrs.push(tr);
     });
     _afterRestoreRows(regularTrs, data.fields);
+    if (typeof renderSubconGroups === 'function') renderSubconGroups();
   }
 
   // プリセット読み込み時に空値で上書きしないヘッダー項目
-  const _HEADER_FIELD_IDS = ['qf-ref','qf-customer','qf-person','qf-date','qf-valid-until','qf-memo','qf-assignee','qf-status'];
+  const _HEADER_FIELD_IDS = ['qf-ref','qf-customer','qf-person','qf-date','qf-valid-until','qf-memo','qf-status'];
 
   // データを画面に適用（restoreAutoSave と同等。トースト・restoreBar 操作なし）
   function _applyQuoteData(data, { keepHeaderIfEmpty = false } = {}) {
@@ -304,6 +307,7 @@
     if (typeof syncHazmatPanel === 'function') syncHazmatPanel();
     if (typeof syncMultiEntryFields === 'function') syncMultiEntryFields();
     if (typeof window.updateSectionSummaries === 'function') window.updateSectionSummaries();
+    _triggerCarrierBmFetch();
     if (typeof window.renderQuoteMilestones === 'function') window.renderQuoteMilestones();
     if (typeof window.updateRemarkChar === 'function') window.updateRemarkChar();
     if (typeof window.updateQuoteStatusUI === 'function') window.updateQuoteStatusUI();
@@ -369,7 +373,8 @@
     // テーブル行の追加・削除・ドラッグ並び替え・ソートを検出
     const tbody = document.getElementById('tableBody');
     if (tbody && typeof MutationObserver !== 'undefined') {
-      new MutationObserver(scheduleSnapshot).observe(tbody, { childList: true });
+      new MutationObserver(() => { if (!_inGroupRender) scheduleSnapshot(); })
+        .observe(tbody, { childList: true });
     }
   }
 
@@ -383,6 +388,7 @@
     // テーブル行（通常行 / 小計行 / リマーク行をすべて保存）
     const rows = [];
     document.querySelectorAll('#tableBody tr').forEach(tr => {
+      if (tr.dataset.virtual) return; // サブコングループヘッダー（仮想行）はスキップ
       if (tr.dataset.type === 'subtotal') {
         rows.push({ _type: 'subtotal', label: tr.querySelector('.subtotal-label')?.value || '' });
         return;
@@ -737,7 +743,24 @@
     detail.classList.toggle('is-cold',  val === '温度管理品（冷蔵）' || val === '温度管理品（冷凍）');
     detail.classList.toggle('is-heavy', val === '重量物・大型貨物');
     detail.classList.toggle('is-other', val === 'その他（特記事項参照）');
+    // 区分チップUIの点灯状態を同期（チップは #cond-hazmat を駆動するファサード。
+    //   ユーザー操作・データ復元の両方が onHazmatChange を通るため、ここで一元管理する）
+    document.querySelectorAll('#hazChips .haz-chip').forEach(chip => {
+      const on = chip.dataset.hazValue === val;
+      chip.classList.toggle('is-on', on);
+      chip.setAttribute('aria-checked', on ? 'true' : 'false');
+    });
   }
+
+  /** 区分チップ → #cond-hazmat セレクトを駆動（保存/復元・プレビュー・PDF は従来どおりセレクト値を読む） */
+  window.setHazmatChip = function (val) {
+    const sel = document.getElementById('cond-hazmat');
+    if (!sel) return;
+    sel.value = val;
+    // change を発火：inline onchange の onHazmatChange（パネル＋チップ同期）と
+    //   見積タブの自動保存リスナーを両方通す
+    sel.dispatchEvent(new Event('change', { bubbles: true }));
+  };
 
   /** 起動時・データ復元後に危険品パネルの表示状態を同期 */
   function syncHazmatPanel() {
@@ -1011,6 +1034,7 @@
     if (typeof window.renderQuoteCargoInfo === 'function') window.renderQuoteCargoInfo();
   }
   let _lastCargoMetrics = { cbm: 0, kg: 0, rt: 0, cw: 0, qty: 0 };
+
   // 物量情報を見積サマリ等から参照できるよう公開
   window.getCargoMetrics = function () {
     return Object.assign({}, _lastCargoMetrics, {
@@ -1111,6 +1135,7 @@
     document.getElementById('z2Carrier')?.focus();
     if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
     if (typeof scheduleSnapshot === 'function') scheduleSnapshot();
+    _triggerCarrierBmFetch();
   }
 
   function removeRouteEntry(i) {
@@ -1118,6 +1143,7 @@
     _renderRouteEntries();
     if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
     if (typeof scheduleSnapshot === 'function') scheduleSnapshot();
+    _triggerCarrierBmFetch();
   }
   // 復元用
   function syncRouteEntries() {
@@ -1193,6 +1219,7 @@
         inp.dataset.auto = val ? '1' : '';
       }
     });
+    _triggerCarrierBmFetch();
     if (typeof window.renderQuoteMilestones === 'function') window.renderQuoteMilestones();
   }
 
@@ -1328,9 +1355,28 @@
   }
 
   /** z2Carrier 入力時：一致するキャリアのリンクパネルを表示 */
+  // A-1: z2 キャリア名を収集して QSP 用ブックマームを非同期フェッチ
+  function _triggerCarrierBmFetch() {
+    if (typeof window.fetchCarrierBmsForQSP !== 'function') return;
+    const names = [];
+    // z2: 幹線キャリア
+    if (_routeEntries && _routeEntries.length) {
+      _routeEntries.forEach(r => { if (r.carrier && !names.includes(r.carrier)) names.push(r.carrier); });
+    }
+    const cur = (document.getElementById('z2Carrier')?.value || '').trim();
+    if (cur && !names.includes(cur)) names.push(cur);
+    // z1/z3: デフォルトサブコン
+    const sc1 = (document.getElementById('z1DefaultSc')?.value || '').trim();
+    if (sc1 && !names.includes(sc1)) names.push(sc1);
+    const sc3 = (document.getElementById('z3DefaultSc')?.value || '').trim();
+    if (sc3 && !names.includes(sc3)) names.push(sc3);
+    if (names.length) window.fetchCarrierBmsForQSP(names);
+  }
+
   function onZ2CarrierChange() {
     const panel = document.getElementById('z2CarrierLinks');
     const done = () => {
+      _triggerCarrierBmFetch();
       if (typeof window.renderQuoteCarrierLinks === 'function') window.renderQuoteCarrierLinks();
       if (typeof window.renderQuoteMilestones === 'function') window.renderQuoteMilestones();
     };
@@ -1372,13 +1418,16 @@
     }
     const cur = (document.getElementById('z2Carrier')?.value || '').trim();
     if (cur && !names.includes(cur)) names.push(cur);
+    const bmCache = window._qspBmCache || {};
     return names.map(name => {
       const c = map[name];
-      if (!c) return { name, icon: '', links: [] };
-      const links = defs
+      const staticLinks = c ? defs
         .map(d => ({ label: d.label, url: _resolveCarrierUrl(c[d.key]), title: (d.noteKey && c[d.noteKey]) ? c[d.noteKey] : d.label }))
-        .filter(l => l.url);
-      return { name, icon: c.icon || '', links };
+        .filter(l => l.url) : [];
+      const userLinks = (bmCache[name] || []).filter(bm => bm.url).map(bm => ({
+        label: bm.label, url: bm.url, title: bm.note || bm.label, isUserBm: true, bmId: bm.id,
+      }));
+      return { name, icon: c?.icon || '', links: [...staticLinks, ...userLinks] };
     });
   };
 

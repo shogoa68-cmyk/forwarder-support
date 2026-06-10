@@ -69,9 +69,14 @@
       if (!dragSrcRows || !dragSrcRows.length) return;
       e.preventDefault();
       e.stopPropagation();
-      e.dataTransfer.dropEffect = 'move';
       // ドラッグ中の行群の上には挿入インジケータを出さない
       if (dragSrcRows.includes(tr)) return;
+      // 異なるサブコングループへのドロップは不可
+      if (_rowSubcon(dragSrcRows[0]) !== _rowSubcon(tr)) {
+        e.dataTransfer.dropEffect = 'none';
+        return;
+      }
+      e.dataTransfer.dropEffect = 'move';
       const mid = tr.getBoundingClientRect().top + tr.getBoundingClientRect().height / 2;
       document.querySelectorAll('#tableBody tr').forEach(r =>
         r.classList.remove('drag-over-top', 'drag-over-bottom'));
@@ -83,9 +88,13 @@
       e.preventDefault();
       e.stopPropagation();
       if (!dragSrcRows || !dragSrcRows.length || dragSrcRows.includes(tr)) return;
+      // 異なるサブコングループへのドロップは不可
+      if (_rowSubcon(dragSrcRows[0]) !== _rowSubcon(tr)) return;
       const mid = tr.getBoundingClientRect().top + tr.getBoundingClientRect().height / 2;
       const tbody = document.getElementById('tableBody');
-      const insertBefore = e.clientY < mid ? tr : tr.nextSibling;
+      // 仮想グループヘッダーをスキップして実行行の隣に挿入
+      let insertBefore = e.clientY < mid ? tr : tr.nextSibling;
+      while (insertBefore?.dataset?.virtual) insertBefore = insertBefore.nextSibling;
       // document 順で挿入することで元の並びを保持
       dragSrcRows.forEach(srcTr => {
         tbody.insertBefore(srcTr, insertBefore);
@@ -103,13 +112,16 @@
   function moveRow(tr, dir) {
     const tbody = document.getElementById('tableBody');
     if (dir < 0) {
-      const prev = tr.previousElementSibling;
+      let prev = tr.previousElementSibling;
+      while (prev?.dataset?.virtual) prev = prev.previousElementSibling;
       if (prev) tbody.insertBefore(tr, prev);
     } else {
-      const next = tr.nextElementSibling;
+      let next = tr.nextElementSibling;
+      while (next?.dataset?.virtual) next = next.nextElementSibling;
       if (next) tbody.insertBefore(next, tr);
     }
     updateTotals();
+    renderSubconGroups();
   }
 
   // ========== 十字キー（↑↓）移動 ==========
@@ -225,8 +237,8 @@
   function addRow() {
     rowCount++;
     const id = rowCount;
-    // 末尾行からカテゴリ・通貨・サブコンを継承
-    const rows = document.querySelectorAll('#tableBody tr');
+    // 末尾行からカテゴリ・通貨・サブコンを継承（仮想グループヘッダーはスキップ）
+    const rows = Array.from(document.querySelectorAll('#tableBody tr')).filter(r => !r.dataset.virtual);
     const lastRow = rows.length ? rows[rows.length - 1] : null;
     const lastId  = lastRow ? lastRow.id.replace('row-', '') : null;
     const srcCat  = lastId ? (document.getElementById(`cat-${lastId}`)?.value || '') : '';
@@ -246,8 +258,8 @@
   function duplicateRow(srcId) {
     const newId = addRowAfter(srcId);
 
-    // テキスト・数値フィールドをコピー
-    ['nm','pq','un','pp','mk','nt','sv'].forEach(f => {
+    // テキスト・数値フィールドをコピー（zc = 0円確認済みフラグを含む）
+    ['nm','pq','un','pp','mk','nt','sv','zc'].forEach(f => {
       const srcEl = document.getElementById(`${f}-${srcId}`);
       const dstEl = document.getElementById(`${f}-${newId}`);
       if (srcEl && dstEl) dstEl.value = srcEl.value;
@@ -277,7 +289,7 @@
   // ========== カテゴリー順ソート ==========
   function sortBy(type) {
     const tbody = document.getElementById('tableBody');
-    const allRows = Array.from(tbody.querySelectorAll('tr'));
+    const allRows = Array.from(tbody.querySelectorAll('tr:not([data-virtual])'));
     if (allRows.length < 2) return;
     // 小計行・リマーク行はソート対象外（末尾に移動）（E-6）
     const dataRows  = allRows.filter(tr => !tr.dataset.type);
@@ -324,6 +336,7 @@
     });
     [...dataRows, ...otherRows].forEach(r => tbody.appendChild(r));
     updateTotals();
+    renderSubconGroups();
   }
 
   function sortByCategory() { sortBy('category'); }
@@ -334,8 +347,10 @@
     const q    = f => frag.querySelector(`[data-field="${f}"]`);
 
     // IDs
-    ['cat','tx','nm','pq','un','pc','pp','cd','bq','bc','bp','mk','st','pr','nt','sv']
+    ['cat','tx','nm','pq','un','pc','pp','cd','bq','bc','bp','mk','st','pr','nt','sv','zc']
       .forEach(f => { q(f).id = `${f}-${id}`; });
+    const zcBtn = frag.querySelector('.zero-confirm-btn');
+    if (zcBtn) zcBtn.onclick = () => toggleZeroConfirmed(id);;
 
     // Select options & initial values
     q('cat').innerHTML = catOpts(initCat);
@@ -353,6 +368,7 @@
     q('pp').oninput    = () => onPay(id);
     q('mk').oninput    = () => calc(id);
     q('nt').onkeydown  = e  => noteKeydown(e, id);
+    q('sv').onchange   = () => renderSubconGroups();
 
     return frag;
   }
@@ -412,16 +428,26 @@
     const st = document.getElementById(`st-${id}`);
     if (st) {
       let stHTML;
+      const isZeroConfirmed = document.getElementById(`zc-${id}`)?.value === '1';
       if (bc !== 'JPY' && canFx && subtotal) {
         const jpySub = Math.ceil(toJPY(subtotal, bc));
         stHTML = fmt(subtotal) + '<br><small class="jpy-conv-hint">(≈¥' + fmt(jpySub) + ')</small>';
         if (taxed) stHTML += '<br><small class="tax-hint">（消費税：≈¥' + fmt(Math.ceil(jpySub * taxRate)) + '）</small>';
       } else {
-        stHTML = subtotal ? fmt(subtotal) : '—';
-        if (taxed && subtotal) stHTML += '<br><small class="tax-hint">（消費税：' + fmt(Math.ceil(subtotal * taxRate)) + '円）</small>';
+        if (subtotal) {
+          stHTML = fmt(subtotal);
+          if (taxed) stHTML += '<br><small class="tax-hint">（消費税：' + fmt(Math.ceil(subtotal * taxRate)) + '円）</small>';
+        } else if (isZeroConfirmed) {
+          stHTML = '<span class="zero-confirmed-badge">¥0 ✓</span>';
+        } else {
+          stHTML = '—';
+        }
       }
       st.innerHTML = stHTML;
       st.className = 'subtotal-cell' + (subtotal ? ' subtotal-has-value' : '');
+      // ¥0✓ボタンの表示状態を同期
+      const zcBtn = document.getElementById(`row-${id}`)?.querySelector('.zero-confirm-btn');
+      if (zcBtn) zcBtn.classList.toggle('is-on', isZeroConfirmed);
     }
     // 利益セル
     const pr = document.getElementById(`pr-${id}`);
@@ -438,6 +464,14 @@
 
   function pClass(p) {
     return p > 0 ? 'profit-pos' : p < 0 ? 'profit-neg' : 'profit-zero';
+  }
+
+  // ========== 0円確認済みトグル ==========
+  function toggleZeroConfirmed(id) {
+    const zcEl = document.getElementById(`zc-${id}`);
+    if (!zcEl) return;
+    zcEl.value = zcEl.value === '1' ? '' : '1';
+    calc(id);
   }
 
   function val(id) {
@@ -846,3 +880,104 @@
     updateTotals();
     quoteShowToast('🗑️ 全行をリセットしました（Ctrl+Z で元に戻せます）', 'info', 4000);
   }
+
+  // ========== サブコン別グループ表示 ==========
+
+  // 行のサブコン値を返す（仮想行・非データ行は null）
+  function _rowSubcon(tr) {
+    if (!tr || tr.dataset.virtual) return null;
+    const id = tr.id?.replace('row-', '');
+    if (!id || tr.dataset.type) return null;
+    return document.getElementById(`sv-${id}`)?.value.trim() ?? '';
+  }
+
+  // サブコン別グループヘッダーを再描画する
+  // - 仮想 TR（data-virtual）を全削除してから再挿入
+  // - グループ順：出現順。未設定グループは末尾
+  // - グループが 1 つ以下のとき（全行同サブコン or 全行未設定）はヘッダー不要
+  function renderSubconGroups() {
+    const tbody = document.getElementById('tableBody');
+    if (!tbody) return;
+    _inGroupRender = true;
+    try {
+      // 既存の仮想ヘッダーを削除
+      tbody.querySelectorAll('[data-virtual]').forEach(r => r.remove());
+
+      // 実データ行を DOM 順に収集してサブコンごとにグルーピング
+      const realRows = Array.from(tbody.querySelectorAll('tr:not([data-virtual])'))
+        .filter(tr => !tr.dataset.type); // 小計・リマーク・社内メモは対象外
+      if (!realRows.length) return;
+
+      const UNSET_KEY = '￿'; // 未設定グループは末尾（￿ はソートで末尾）
+      const groupOrder = [];
+      const groups = Object.create(null);
+      realRows.forEach(tr => {
+        const sv = _rowSubcon(tr) ?? '';
+        const key = sv || UNSET_KEY;
+        if (!groups[key]) { groups[key] = []; groupOrder.push(key); }
+        groups[key].push(tr);
+      });
+
+      // グループが 1 つだけなら表示不要
+      if (groupOrder.length < 2) return;
+
+      // グループヘッダー TR を各グループの先頭行の直前に挿入
+      groupOrder.forEach(key => {
+        const label = key === UNSET_KEY ? '（サブコン未設定）' : key;
+        const firstRow = groups[key][0];
+        const count = groups[key].length;
+        const hdr = document.createElement('tr');
+        hdr.dataset.virtual = '1';
+        hdr.className = 'subcon-group-header';
+        hdr.innerHTML =
+          `<td colspan="14" class="subcon-group-header-cell">` +
+            `<span class="subcon-group-label">📦 ${_escHdr(label)}</span>` +
+            `<span class="subcon-group-count">${count} 行</span>` +
+            `<button type="button" class="subcon-group-add-btn" ` +
+              `data-sv="${_escAttr(key === UNSET_KEY ? '' : key)}" ` +
+              `title="${_escAttr(label)} に行を追加">＋</button>` +
+          `</td>`;
+        hdr.querySelector('.subcon-group-add-btn').addEventListener('click', () => {
+          addRowToSubconGroup(key === UNSET_KEY ? '' : key);
+        });
+        tbody.insertBefore(hdr, firstRow);
+      });
+    } finally {
+      _inGroupRender = false;
+    }
+  }
+
+  function _escHdr(s) {
+    return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+  function _escAttr(s) {
+    return s.replace(/&/g,'&amp;').replace(/"/g,'&quot;');
+  }
+
+  // 指定サブコングループの末尾に行を追加
+  function addRowToSubconGroup(sv) {
+    const tbody = document.getElementById('tableBody');
+    const realRows = Array.from(tbody.querySelectorAll('tr:not([data-virtual])'))
+      .filter(tr => !tr.dataset.type);
+    // グループの末尾行を探す
+    let lastInGroup = null;
+    realRows.forEach(tr => {
+      const rowSv = _rowSubcon(tr) ?? '';
+      if (rowSv === sv) lastInGroup = tr;
+    });
+    let newId;
+    if (lastInGroup) {
+      newId = addRowAfter(lastInGroup.id.replace('row-', ''));
+    } else {
+      addRow();
+      const all = Array.from(tbody.querySelectorAll('tr:not([data-virtual])')).filter(tr => !tr.dataset.type);
+      newId = all.length ? all[all.length - 1].id.replace('row-', '') : null;
+    }
+    if (newId && sv) {
+      const svEl = document.getElementById(`sv-${newId}`);
+      if (svEl) svEl.value = sv;
+    }
+    renderSubconGroups();
+    setTimeout(() => document.getElementById(`nm-${newId}`)?.focus(), 40);
+  }
+  window.addRowToSubconGroup = addRowToSubconGroup;

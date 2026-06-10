@@ -27,15 +27,76 @@
     localStorage.setItem(USER_REMARK_PRESETS_KEY, JSON.stringify(arr));
   }
 
-  // 全プリセット = 固定 + ユーザー定義
+  // ----- 共有プリセット（Supabase） -----
+  let _sharedRemarkPresets = []; // { id, label, text, use_count, created_by, created_at }
+
+  async function loadSharedRemarkPresets() {
+    const c = window.quoteCloudClient && window.quoteCloudClient();
+    if (!c) return;
+    const { data, error } = await c
+      .from('remark_presets')
+      .select('id, label, text, use_count, created_by, created_at')
+      .order('use_count', { ascending: false });
+    if (!error && data) {
+      _sharedRemarkPresets = data;
+      renderRemarkPresets();
+    }
+  }
+
+  async function addSharedRemarkPreset() {
+    const c = window.quoteCloudClient && window.quoteCloudClient();
+    const user = window.quoteCloudUser && window.quoteCloudUser();
+    if (!c || !user) { quoteShowToast('⚠️ ログインが必要です', 'warn'); return; }
+    const label = prompt('共有プリセットのラベル名を入力してください（例：📄 特別条件）');
+    if (!label || !label.trim()) return;
+    const text = prompt('共有プリセットの本文を入力してください');
+    if (!text || !text.trim()) return;
+    const { data, error } = await c
+      .from('remark_presets')
+      .insert({ label: label.trim(), text: text.trim(), use_count: 0, created_by: user.email })
+      .select().single();
+    if (error) { quoteShowToast('⚠️ 追加に失敗しました：' + error.message, 'warn'); return; }
+    _sharedRemarkPresets.push(data);
+    renderRemarkPresets();
+    quoteShowToast(`✅ 「${label.trim()}」を共有プリセットに追加しました`, 'success');
+  }
+
+  async function deleteSharedRemarkPreset(id, label) {
+    if (!confirm(`「${label}」を削除しますか？`)) return;
+    const c = window.quoteCloudClient && window.quoteCloudClient();
+    if (!c) return;
+    const { error } = await c.from('remark_presets').delete().eq('id', id);
+    if (error) { quoteShowToast('⚠️ 削除に失敗しました：' + error.message, 'warn'); return; }
+    _sharedRemarkPresets = _sharedRemarkPresets.filter(p => p.id !== id);
+    renderRemarkPresets();
+    quoteShowToast(`🗑️ 「${label}」を削除しました`, 'info');
+  }
+
+  async function _incrementSharedRemarkUseCount(id) {
+    const c = window.quoteCloudClient && window.quoteCloudClient();
+    if (!c) return;
+    const p = _sharedRemarkPresets.find(x => x.id === id);
+    if (!p) return;
+    const newCount = (p.use_count || 0) + 1;
+    const { error } = await c.from('remark_presets').update({ use_count: newCount }).eq('id', id);
+    if (!error) {
+      p.use_count = newCount;
+      if (newCount >= 5) renderRemarkPresets(); // 昇格時に再描画
+    }
+  }
+
+  // 全プリセット = 固定 + チーム人気（use_count>=5）+ チーム共有 + 個人定義
   function getAllRemarkPresets() {
-    return [...PRESETS, ...getUserRemarkPresets().map(p => ({ ...p, _user: true }))];
+    const promoted = _sharedRemarkPresets.filter(p => p.use_count >= 5).map(p => ({ ...p, _promoted: true, _shared: true }));
+    const shared   = _sharedRemarkPresets.filter(p => p.use_count < 5).map(p => ({ ...p, _shared: true }));
+    return [...PRESETS, ...promoted, ...shared, ...getUserRemarkPresets().map(p => ({ ...p, _user: true }))];
   }
 
   function initRemarks() {
     renderRemarkPresets();
     document.getElementById('remarkTextarea').addEventListener('input', updateRemarkChar);
     updateRemarkChar();
+    loadSharedRemarkPresets();
   }
 
   function renderRemarkPresets() {
@@ -43,35 +104,79 @@
     if (!wrap) return;
     wrap.innerHTML = '';
     const all = getAllRemarkPresets();
-    all.forEach((p, i) => {
+    const isLoggedIn = !!(window.quoteCloudUser && window.quoteCloudUser());
+
+    function addTierLabel(text) {
+      const d = document.createElement('div');
+      d.className = 'preset-tier-label';
+      d.textContent = text;
+      wrap.appendChild(d);
+    }
+
+    function makeBtn(p, idx) {
       const btn = document.createElement('button');
-      btn.className = 'preset-btn' + (p._user ? ' preset-btn-user' : '');
-      btn.dataset.index = i;
+      let cls = 'preset-btn';
+      if (p._promoted) cls += ' preset-btn-promoted';
+      else if (p._shared) cls += ' preset-btn-shared';
+      else if (p._user) cls += ' preset-btn-user';
+      btn.className = cls;
+      btn.dataset.index = idx;
       btn.title = p.text;
       const lbl = document.createElement('span');
       lbl.textContent = p.label;
       btn.appendChild(lbl);
-      // ユーザー定義は削除ボタン付き
       if (p._user) {
-        const xBtn = document.createElement('span');
-        xBtn.className = 'preset-btn-del';
-        xBtn.textContent = '✕';
-        xBtn.title = 'このプリセットを削除';
-        xBtn.onclick = (e) => {
-          e.stopPropagation();
-          deleteUserRemarkPreset(p.label);
-        };
-        btn.appendChild(xBtn);
+        const x = document.createElement('span');
+        x.className = 'preset-btn-del'; x.textContent = '✕';
+        x.title = 'このプリセットを削除';
+        x.onclick = (e) => { e.stopPropagation(); deleteUserRemarkPreset(p.label); };
+        btn.appendChild(x);
+      } else if (p._shared) {
+        const x = document.createElement('span');
+        x.className = 'preset-btn-del'; x.textContent = '✕';
+        x.title = 'このプリセットを削除';
+        const pid = p.id, plabel = p.label;
+        x.onclick = (e) => { e.stopPropagation(); deleteSharedRemarkPreset(pid, plabel); };
+        btn.appendChild(x);
       }
-      btn.onclick = () => togglePreset(i, btn);
-      wrap.appendChild(btn);
-    });
-    // 「＋ プリセットを追加」ボタン
-    const addBtn = document.createElement('button');
-    addBtn.className = 'preset-btn preset-btn-add';
-    addBtn.textContent = '＋ プリセットを追加';
-    addBtn.onclick = () => addUserRemarkPreset();
-    wrap.appendChild(addBtn);
+      btn.onclick = () => togglePreset(idx, btn);
+      return btn;
+    }
+
+    let idx = 0;
+
+    // ① 標準
+    for (const p of PRESETS) wrap.appendChild(makeBtn(p, idx++));
+
+    // ② チーム人気 ⭐
+    const promotedItems = _sharedRemarkPresets.filter(p => p.use_count >= 5);
+    if (promotedItems.length) {
+      addTierLabel('チーム人気 ⭐');
+      for (const p of promotedItems) wrap.appendChild(makeBtn({ ...p, _promoted: true, _shared: true }, idx++));
+    }
+
+    // ③ チーム共有 ☁️
+    const sharedItems = _sharedRemarkPresets.filter(p => p.use_count < 5);
+    if (sharedItems.length || isLoggedIn) {
+      addTierLabel('チーム共有 ☁️');
+      for (const p of sharedItems) wrap.appendChild(makeBtn({ ...p, _shared: true }, idx++));
+      if (isLoggedIn) {
+        const ab = document.createElement('button');
+        ab.className = 'preset-btn preset-btn-add';
+        ab.textContent = '☁️ 共有に追加';
+        ab.onclick = () => addSharedRemarkPreset();
+        wrap.appendChild(ab);
+      }
+    }
+
+    // ④ 個人
+    addTierLabel('個人');
+    for (const p of getUserRemarkPresets()) wrap.appendChild(makeBtn({ ...p, _user: true }, idx++));
+    const pb = document.createElement('button');
+    pb.className = 'preset-btn preset-btn-add';
+    pb.textContent = '＋ 個人に追加';
+    pb.onclick = () => addUserRemarkPreset();
+    wrap.appendChild(pb);
   }
 
   function addUserRemarkPreset() {
@@ -101,7 +206,8 @@
   function togglePreset(i, btn) {
     const ta = document.getElementById('remarkTextarea');
     const all = getAllRemarkPresets();
-    const text = all[i]?.text;
+    const preset = all[i];
+    const text = preset?.text;
     if (!text) return;
     if (btn.classList.contains('active')) {
       ta.value = ta.value.split('\n').filter(l => l.trim() !== text.trim()).join('\n').replace(/^\n+|\n+$/g, '');
@@ -110,6 +216,7 @@
       const cur = ta.value.trim();
       ta.value = cur ? cur + '\n' + text : text;
       btn.classList.add('active');
+      if (preset._shared && preset.id) _incrementSharedRemarkUseCount(preset.id);
     }
     updateRemarkChar();
   }
@@ -128,6 +235,7 @@
       `${document.getElementById('remarkTextarea').value.length}文字`;
   }
   window.updateRemarkChar = updateRemarkChar;
+  window.loadSharedRemarkPresets = loadSharedRemarkPresets;
 
   function getRemarkText() {
     return document.getElementById('remarkTextarea')?.value.trim() || '';
@@ -305,81 +413,35 @@
     refreshBulkCatSelect();
   }
 
-  // 「選択行 → カテゴリ一括変更」用セレクトを最新カテゴリで再構築
+  // 「カテゴリ一括設定」セレクトを最新カテゴリで再構築（先頭はプレースホルダ）
   function refreshBulkCatSelect() {
-    const sel = document.getElementById('bulkCatSelect');
+    const sel = document.getElementById('bulkCatSet');
     if (!sel) return;
-    const curVal = sel.value;
     const userCats = getUserCategories();
-    let html = '<option value="__none__">— カテゴリを選択 —</option>';
-    // 既定カテゴリ（先頭の「— カテゴリ —」= 未設定 を含む）
-    html += CATEGORIES.map(c =>
-      `<option value="${c.value}"${c.value === curVal ? ' selected' : ''}>${c.label}</option>`
-    ).join('');
+    let html = '<option value="__none__">🏷️ カテゴリ一括設定…</option>';
+    html += CATEGORIES.map(c => `<option value="${c.value}">${c.label}</option>`).join('');
     if (userCats.length) {
       html += '<option value="" disabled>──────────</option>';
-      html += userCats.map(c =>
-        `<option value="${c.value}"${c.value === curVal ? ' selected' : ''}>${c.label}</option>`
-      ).join('');
+      html += userCats.map(c => `<option value="${c.value}">${c.label}</option>`).join('');
     }
     sel.innerHTML = html;
+    sel.value = '__none__';
   }
 
-  // bulkCatSelect で選んだカテゴリの行をすべてチェック（小計行を除く）
-  function selectByCategory() {
-    const sel = document.getElementById('bulkCatSelect');
-    if (!sel) return;
-    if (sel.value === '__none__') {
-      quoteShowToast('⚠️ 対象カテゴリを選んでください', 'warn', 3000);
-      return;
-    }
-    const target = sel.value;
-    let matched = 0;
-    let totalChkRows = 0;
-    document.querySelectorAll('#tableBody tr').forEach(tr => {
-      if (tr.dataset.type === 'subtotal' || tr.dataset.type === 'remark') return;
-      const chk = tr.querySelector('.row-select-chk');
-      if (!chk) return;
-      totalChkRows++;
-      const id = tr.id.replace('row-', '');
-      const cat = document.getElementById(`cat-${id}`)?.value || '';
-      if (cat === target) {
-        chk.checked = true;
-        matched++;
-      } else {
-        chk.checked = false;
-      }
-    });
-    // ヘッダー全選択チェックは「すべての対象行が一致したとき」のみ ON
-    const allChk = document.getElementById('selectAllChk');
-    if (allChk) allChk.checked = matched > 0 && matched === totalChkRows;
-    const catLabel = getAllCategories().find(c => c.value === target)?.label || '— カテゴリ —';
-    if (matched === 0) {
-      quoteShowToast(`ℹ️ 「${catLabel}」の行はありません`, 'info', 3000);
-    } else {
-      quoteShowToast(`✅ 「${catLabel}」の ${matched} 行を選択しました`, 'success');
-    }
-    window.refreshRowSelectionMode?.();
-  }
-
-  // チェック済み行のカテゴリを一括変更
-  function applyBulkCategory() {
-    const sel = document.getElementById('bulkCatSelect');
-    if (!sel) return;
-    if (sel.value === '__none__') {
-      quoteShowToast('⚠️ 適用するカテゴリを選んでください', 'warn', 3000);
-      return;
-    }
+  // 選択（チェック）行のカテゴリを一括設定。選択は維持し、続けてサブコン設定も可能にする
+  function applyBulkCategorySet(sel) {
+    if (!sel || sel.value === '__none__') return;
     const checkboxes = document.querySelectorAll('.row-select-chk:checked');
     if (!checkboxes.length) {
-      quoteShowToast('⚠️ カテゴリを変更したい行のチェックボックスにチェックを入れてください', 'warn', 3000);
+      quoteShowToast('⚠️ 設定したい行のチェックボックスにチェックを入れてください', 'warn', 3000);
+      sel.value = '__none__';
       return;
     }
     const newCat = sel.value;
     let count = 0;
     checkboxes.forEach(chk => {
       const tr = chk.closest('tr');
-      if (!tr) return;
+      if (!tr || tr.dataset.type === 'subtotal' || tr.dataset.type === 'remark') return;
       const id = tr.id.replace('row-', '');
       const catSel = document.getElementById(`cat-${id}`);
       if (!catSel) return;
@@ -387,18 +449,40 @@
       if (typeof onCatChange === 'function') onCatChange(id);
       count++;
     });
-    // 元行のチェックを外し、全選択もリセット、セレクトもプレースホルダへ戻す
-    checkboxes.forEach(chk => { chk.checked = false; });
-    const allChk = document.getElementById('selectAllChk');
-    if (allChk) allChk.checked = false;
-    sel.value = '__none__';
+    sel.value = '__none__';   // プレースホルダへ戻す（選択行は維持）
     const catLabel = getAllCategories().find(c => c.value === newCat)?.label || '— カテゴリ —';
-    quoteShowToast(`🏷️ ${count}行のカテゴリを「${catLabel}」に変更しました`, 'success');
-    window.refreshRowSelectionMode?.();
+    quoteShowToast(`🏷️ ${count}行のカテゴリを「${catLabel}」に設定しました`, 'success');
+  }
+
+  // 選択（チェック）行のサブコンを一括設定（空欄ならクリア）。選択は維持
+  function applyBulkSubcon() {
+    const inp = document.getElementById('bulkSubconSet');
+    if (!inp) return;
+    const val = inp.value.trim();
+    const checkboxes = document.querySelectorAll('.row-select-chk:checked');
+    if (!checkboxes.length) {
+      quoteShowToast('⚠️ 設定したい行のチェックボックスにチェックを入れてください', 'warn', 3000);
+      return;
+    }
+    let count = 0;
+    checkboxes.forEach(chk => {
+      const tr = chk.closest('tr');
+      if (!tr || tr.dataset.type === 'subtotal' || tr.dataset.type === 'remark') return;
+      const id = tr.id.replace('row-', '');
+      const svInp = document.getElementById(`sv-${id}`);
+      if (!svInp) return;
+      svInp.value = val;
+      svInp.dispatchEvent(new Event('input', { bubbles: true }));   // 自動保存・サマリ更新を発火
+      count++;
+    });
+    inp.value = '';
+    quoteShowToast(`👷 ${count}行のサブコンを${val ? '「' + val + '」に' : 'クリアに'}設定しました`, 'success');
   }
 
   // ========== 一括コピー機能 ==========
-  function copySelectedRows() {
+  // position: 'below'（末尾選択行の直後）| 'above'（先頭選択行の直前）
+  function copySelectedRows(position) {
+    const pos = position || 'below';
     const checkboxes = document.querySelectorAll('.row-select-chk:checked');
     if (!checkboxes.length) {
       quoteShowToast('⚠️ コピーしたい行のチェックボックスにチェックを入れてください', 'warn', 3000);
@@ -412,8 +496,19 @@
       quoteShowToast('⚠️ 小計行・リマーク行はコピーできません。通常行を選択してください', 'warn', 3000);
       return;
     }
-    // 最後の選択行の直後を起点に、新行を順番に追加していく（anchor を更新して並び順を保持）
-    let anchor = srcRows[srcRows.length - 1];
+    // above: 先頭選択行の直前に固定挿入（順序保持）
+    // below: 末尾選択行の直後に anchor を更新しながら順番に追加
+    let anchor = pos === 'above' ? srcRows[0] : srcRows[srcRows.length - 1];
+    const insertRow = (newTr) => {
+      if (pos === 'above') {
+        tbody.insertBefore(newTr, anchor);
+        anchor = newTr.nextSibling; // 次も同じ位置（元先頭行）の直前へ
+      } else {
+        if (anchor.nextSibling) tbody.insertBefore(newTr, anchor.nextSibling);
+        else tbody.appendChild(newTr);
+        anchor = newTr;
+      }
+    };
     srcRows.forEach(srcTr => {
       rowCount++;
       const newId = rowCount;
@@ -423,13 +518,10 @@
       const cells = Array.from(srcInputs).map(el => el.value);
       const newTr = document.createElement('tr');
       newTr.id = `row-${newId}`;
-      const srcCat = document.getElementById(`cat-${srcId}`)?.value || '';
-      const srcCur = document.getElementById(`pc-${srcId}`)?.value  || 'JPY';
-      newTr.replaceChildren(buildRowHTML(newId, srcCat, srcCur));
-      // anchor の直後に挿入し、anchor を新行に更新（次の新行はさらにその後ろ）
-      if (anchor.nextSibling) tbody.insertBefore(newTr, anchor.nextSibling);
-      else tbody.appendChild(newTr);
-      anchor = newTr;
+      newTr.replaceChildren(buildRowHTML(newId,
+        document.getElementById(`cat-${srcId}`)?.value || '',
+        document.getElementById(`pc-${srcId}`)?.value  || 'JPY'));
+      insertRow(newTr);
       // 値を復元
       newTr.querySelectorAll('input, select, textarea').forEach((el, j) => {
         if (cells[j] !== undefined) el.value = cells[j];
@@ -456,7 +548,7 @@
     const allChk = document.getElementById('selectAllChk');
     if (allChk) allChk.checked = false;
     updateTotals();
-    quoteShowToast(`📋 ${srcRows.length}行をコピーしました`, 'success');
+    quoteShowToast(`📋 ${srcRows.length}行を選択行の${pos === 'above' ? '上' : '下'}にコピーしました`, 'success');
     window.refreshRowSelectionMode?.();
   }
 
@@ -542,20 +634,23 @@
 
   // ========== コマンドパレット ==========
   const CMD_LIST = [
-    { icon:'🗂️', label:'管理番号入力セクションへ',  sub:'REF # / 引き合い元 / 担当',     action:() => scrollToSection('section-ref')   },
+    { icon:'🗂️', label:'管理番号入力セクションへ',  sub:'見積番号 / お客様 / 担当',     action:() => scrollToSection('section-ref')   },
     { icon:'🚢', label:'引き合い条件・貨物情報セクションへ', sub:'ルート・貨物名・CBM・CW 自動計算', action:() => scrollToSection('section-cond') },
     { icon:'💴', label:'見積もり表セクションへ',      sub:'費用行の入力・集計',              action:() => scrollToSection('section-table') },
     { icon:'📝', label:'条件・リマークセクションへ',  sub:'プリセット文を挿入',             action:() => scrollToSection('section-remark')},
     { icon:'➕', label:'行を追加',                    sub:'見積もり表に新しい行を末尾に追加', action:() => { addRow(); quoteShowToast('✅ 行を追加しました', 'success'); } },
-    { icon:'📋', label:'現在行を複製 (Ctrl+D)',        sub:'フォーカス中の行を直下に複製',     action:() => {
+    { icon:'📋', label:'選択行を下にコピー (Ctrl+D)',    sub:'チェック行を選択行の直後にコピー。未選択時はフォーカス行を複製', action:() => {
+      const checked = document.querySelectorAll('.row-select-chk:checked');
+      if (checked.length) { copySelectedRows('below'); return; }
       const tr = document.activeElement?.closest('#tableBody tr');
       if (tr && tr.id.startsWith('row-')) {
         duplicateRow(tr.id.replace('row-', ''));
-        quoteShowToast('✅ 行を複製しました', 'success');
+        quoteShowToast('📋 行を複製しました', 'success');
       } else {
-        quoteShowToast('⚠️ 行にフォーカスを当ててから実行してください', 'warn', 2500);
+        quoteShowToast('⚠️ 行にフォーカスを当てるかチェックを入れてから実行してください', 'warn', 2500);
       }
     }},
+    { icon:'📋', label:'選択行を上にコピー (Ctrl+Shift+D)', sub:'チェック行を選択行の直前にコピー', action:() => copySelectedRows('above') },
     { icon:'↕️', label:'カテゴリ順に並び替え',        sub:'カテゴリ種別でソート',            action:() => { sortByCategory(); quoteShowToast('✅ ソートしました', 'success'); } },
     { icon:'👁️', label:'プレビューを開く',            sub:'印刷・コピー用のプレビュー',      action: openPreview },
     { icon:'🗂️', label:'プリセット/一時保存',         sub:'入力パターンの保存・呼び出し・一時退避', action: openPresetMgr },
@@ -700,6 +795,66 @@
     return '一時保存_' + new Date().toISOString().slice(0,10).replace(/-/g, '');
   }
 
+  // ========== 仮REF# 自動採番（発番ID2桁 ＋ YYMMDD ＋ 連番3桁） ==========
+  // 連番は端末ローカル（localStorage）で日次リセット。発番IDはチーム内で一意のためチーム全体で重複しない。
+  const REF_SEQ_KEY = 'refSeq_v1';
+  function _refTodayYmd() {
+    const d = new Date();
+    return String(d.getFullYear()).slice(2)
+         + String(d.getMonth() + 1).padStart(2, '0')
+         + String(d.getDate()).padStart(2, '0');
+  }
+  function _nextRefSeq(ymd) {
+    let st = {};
+    try { st = JSON.parse(localStorage.getItem(REF_SEQ_KEY) || '{}'); } catch (e) {}
+    if (st.date !== ymd) st = { date: ymd, seq: 0 };   // 日付が変わったらリセット
+    st.seq = (st.seq || 0) + 1;
+    try { localStorage.setItem(REF_SEQ_KEY, JSON.stringify(st)); } catch (e) {}
+    return st.seq;
+  }
+  // 11桁（ID2＋YYMMDD＋連番3）を区切り表示に整形：05-2606100-02
+  function _formatRef(raw) {
+    if (!raw || raw.length < 11) return raw;
+    return raw.slice(0, 2) + '-' + raw.slice(2, 9) + '-' + raw.slice(9);
+  }
+  function generateQuoteRefValue() {
+    const no = window._myMemberNo;
+    if (no == null) return null;                       // 発番ID未取得（未ログイン or 未登録）
+    const id2 = String(no).padStart(2, '0');
+    const ymd = _refTodayYmd();
+    const seq = String(_nextRefSeq(ymd)).padStart(3, '0');
+    return _formatRef(id2 + ymd + seq);                // 例：05-2606100-02
+  }
+  function _setRefValue(val) {
+    const el = document.getElementById('qf-ref');
+    if (!el) return;
+    el.value = val;
+    el.dispatchEvent(new Event('input', { bubbles: true }));   // 自動保存・サマリ更新を発火
+    if (typeof window.updateQuoteRefEmpty === 'function') window.updateQuoteRefEmpty();
+  }
+  // ボタン：明示採番（既存値があれば上書き確認）
+  function fillQuoteRef() {
+    const el = document.getElementById('qf-ref');
+    if (!el) return;
+    if (window._myMemberNo == null) {
+      quoteShowToast('⚠️ 発番IDが未取得です。ログイン、または管理者にメンバー登録（採番）を依頼してください', 'warn', 5500);
+      return;
+    }
+    if (el.value.trim() && !confirm('現在の見積もり番号「' + el.value.trim() + '」を自動採番で上書きしますか？')) return;
+    const v = generateQuoteRefValue();
+    if (v) { _setRefValue(v); quoteShowToast('🔢 見積もり番号 ' + v + ' を採番しました', 'success'); }
+  }
+  // 新規（REFが空）のときだけ自動採番。発番ID未取得時は何もしない（取得時に再試行される）
+  function maybeAutoFillRef() {
+    const el = document.getElementById('qf-ref');
+    if (!el || el.value.trim()) return;
+    if (window._myMemberNo == null) return;
+    const v = generateQuoteRefValue();
+    if (v) _setRefValue(v);
+  }
+  window.fillQuoteRef     = fillQuoteRef;
+  window.maybeAutoFillRef = maybeAutoFillRef;
+
   function openPresetMgr(mode) {
     // mode: 'browser'（ブラウザ保存）／'cloud'（チーム共有）。既定は browser。
     if (mode !== 'cloud') mode = 'browser';
@@ -801,6 +956,120 @@
     quoteShowToast('🗑️ 「' + name + '」を削除しました', 'info');
   }
 
+  // 案件ステータス（qf-status）→ ドット色
+  const _PRESET_STATUS_DOT = { '下書き':'#9c8e78', '提出済み':'#3f6a8c', '受注':'#1e7e44', '失注':'#c0392b', '保留':'#b8860b' };
+  // プリセットの data.fields から一覧表示用メタを派生
+  function _presetMeta(p) {
+    const f = (p.data && p.data.fields) || {};
+    let pol = (f['z2Pol'] || '').trim(), pod = (f['z2Pod'] || '').trim(), carrier = (f['z2Carrier'] || '').trim();
+    // 複数航路（z2-routes-data）を POL/POD ペアの配列として保持
+    let routes = [];
+    try {
+      const rts = JSON.parse(f['z2-routes-data'] || '[]');
+      if (Array.isArray(rts)) {
+        routes = rts.map(r => ({
+          pol:     (r.pol     || '').trim(),
+          pod:     (r.pod     || '').trim(),
+          carrier: (r.carrier || '').trim(),
+        })).filter(r => r.pol || r.pod);
+      }
+    } catch (e) {}
+    // 単一フィールドが未設定なら航路配列からフラット文字列を補完（DB列・検索用に従来通り維持）
+    if (!pol && !pod && !carrier && routes.length) {
+      pol     = routes.map(r => r.pol).filter(Boolean).join(', ');
+      pod     = routes.map(r => r.pod).filter(Boolean).join(', ');
+      carrier = routes.map(r => r.carrier).filter(Boolean).join(', ');
+    }
+    return {
+      ref:       (f['qf-ref']         || '').trim(),
+      customer:  (f['qf-customer']    || '').trim(),
+      person:    (f['qf-person']      || '').trim(),
+      incoterms: (f['cond-incoterms'] || '').trim(),
+      mode:      (f['cond-mode']      || '').trim(),
+      pol, pod, carrier, routes,
+      status:    (f['qf-status']      || '').trim(),
+      subcons:   (window.quoteExtractSubcons ? window.quoteExtractSubcons(p.data) : []),
+    };
+  }
+  // チーム共有カードでも同じ表示にするため公開
+  window.quotePresetMeta = _presetMeta;
+
+  // ===== 進捗バー（プリセット管理モーダル） =====
+  // ROW_CELL_FIELDS: ['cat','sv','tx','nm','pq','un','bq','pc','bc','pp','bp','cd','mk','nt']
+  // cells[0]=checkbox, cells[2]=sv, cells[10]=pp, cells[13]=mk
+  function _calcQuoteProgress(data) {
+    var f  = (data && data.fields) || {};
+    var dr = (data && Array.isArray(data.rows))
+      ? data.rows.filter(function(r) { return r && r._type === 'data' && Array.isArray(r.cells); })
+      : [];
+    // Step1: 貿易条件＋輸送モード
+    var s1 = Boolean((f['cond-incoterms'] || '').trim() && (f['cond-mode'] || '').trim());
+    // Step2: 貨物情報（品名 or ルート）
+    var cargo = (f['cond-cargo'] || '').trim();
+    var hasRoute = Boolean((f['z2Pol'] || '').trim() || (f['z2Pod'] || '').trim());
+    if (!hasRoute) { try { hasRoute = JSON.parse(f['z2-routes-data'] || '[]').length > 0; } catch(e) {} }
+    var s2 = Boolean(cargo || hasRoute);
+    // Step3: サブコン仕入れ値（sv非空 かつ pp>0 の行が1行以上）
+    var s3 = dr.some(function(r) { return (r.cells[2]||'').trim() && parseFloat(r.cells[10]) > 0; });
+    // Step4: のせ幅（mk>0 の行が1行以上）
+    var s4 = dr.some(function(r) { return parseFloat(r.cells[13]) > 0; });
+    // Step5: 出力済み（ステータス）
+    var st = (f['qf-status'] || '').trim();
+    var s5 = st === '提出済み' || st === '受注';
+    return [s1, s2, s3, s4, s5];
+  }
+
+  var _QP_LABELS = ['条件', '貨物', '仕入', '利益', '出力'];
+  var _QP_TITLES = ['貿易条件・輸送モード設定', '貨物情報入力', 'サブコン仕入れ値入力', 'のせ幅・売値設定', '見積書出力済み'];
+
+  function _progressBarHtml(data) {
+    var steps = _calcQuoteProgress(data);
+    var done  = steps.filter(Boolean).length;
+    var pct   = Math.round(done / 5 * 100);
+    var dots  = steps.map(function(ok, i) {
+      return '<span class="qp-step' + (ok ? ' qp-done' : '') + '" title="' + _QP_TITLES[i] + '">' + _QP_LABELS[i] + '</span>';
+    }).join('');
+    return '<div class="quote-progress" title="進捗 ' + done + '/5 (' + pct + '%)">' +
+      '<div class="qp-bar"><div class="qp-fill" style="width:' + pct + '%"></div></div>' +
+      '<div class="qp-steps">' + dots + '</div>' +
+    '</div>';
+  }
+  window.quoteProgressBarHtml = _progressBarHtml;
+
+  // 航路表示の整形：複数航路は POL ごとにまとめて「POL → POD / POD …」を行単位で表示。
+  // 1本・未設定はフラットな pol/pod にフォールバック。両モーダル（ブラウザ保存／チーム共有）で共用。
+  function _routeGroups(meta) {
+    const legs = (meta && Array.isArray(meta.routes)) ? meta.routes : [];
+    if (legs.length > 1) {
+      const groups = [], idx = {};
+      legs.forEach(lg => {
+        const pol = (lg.pol || '').trim(), pod = (lg.pod || '').trim();
+        if (!pol && !pod) return;
+        if (!(pol in idx)) { idx[pol] = groups.length; groups.push({ pol, pods: [] }); }
+        if (pod && groups[idx[pol]].pods.indexOf(pod) === -1) groups[idx[pol]].pods.push(pod);
+      });
+      if (groups.length) return groups;
+    }
+    const pol = ((meta && meta.pol) || '').trim(), pod = ((meta && meta.pod) || '').trim();
+    if (!pol && !pod) return [];
+    return [{ pol, pods: pod ? [pod] : [] }];
+  }
+  function quoteRouteHtml(meta, arrowClass) {
+    const groups = _routeGroups(meta);
+    if (!groups.length) return '';
+    const arrow = '<span class="' + (arrowClass || 'preset-kv-arrow') + '">→</span>';
+    const MAXP = 6;   // 1 グループあたりの POD 表示上限（超過は +N）
+    return groups.map(g => {
+      const shown = g.pods.slice(0, MAXP), more = g.pods.length - shown.length;
+      const pods = shown.map(escHtml).join(' <span class="route-sep">/</span> ')
+                 + (more > 0 ? ' <span class="route-more">他' + more + '</span>' : '');
+      const polH = g.pol ? escHtml(g.pol) : '';
+      const body = (polH && pods) ? (polH + ' ' + arrow + ' ' + pods) : (polH || pods);
+      return '<div class="route-line">' + body + '</div>';
+    }).join('');
+  }
+  window.quoteRouteHtml = quoteRouteHtml;
+
   function renderPresetList() {
     const presets = getPresets();
     const wrap    = document.getElementById('presetListWrap');
@@ -816,22 +1085,84 @@
         ? new Date(p.ts).toLocaleString('ja-JP', { month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit' })
         : '';
       const isLoaded = loadedName && p.name === loadedName;
-      return '<div class="preset-list-item' + (isLoaded ? ' preset-list-item--loaded' : '') + '">' +
-        (isLoaded ? '<span class="preset-loaded-badge">編集中</span>' : '') +
-        '<span class="preset-list-name">' + escHtml(p.name) + '</span>' +
-        '<span class="preset-list-ts">'   + ts + '</span>' +
-        '<button class="btn-preset-load" onclick="loadPreset(' + i + ')">読み込む</button>' +
-        '<button class="btn-preset-del"  onclick="deletePreset(' + i + ')" title="削除">✕</button>' +
-        '</div>';
+      const m = _presetMeta(p);
+
+      const route = quoteRouteHtml(m, 'preset-kv-arrow');
+      const condHtml =
+        (m.incoterms ? '<span class="preset-tag preset-tag-inco">' + escHtml(m.incoterms.split('（')[0]) + '</span>' : '') +
+        (m.mode      ? '<span class="preset-tag preset-tag-mode">' + escHtml(m.mode) + '</span>' : '');
+      const personH = m.person && (window.formatPersonWithHonorific ? window.formatPersonWithHonorific(m.person) : m.person);
+      const custDd = [m.customer && escHtml(m.customer), personH && escHtml(personH)].filter(Boolean).join('・');
+      const titleText = m.ref || p.name;   // カード見出しは仮REF#のみ（顧客/担当は下に別掲）
+
+      const subShown = m.subcons.slice(0, 4);
+      const subMore  = m.subcons.length - subShown.length;
+      const subHtml = subShown.map(s =>
+        '<span class="preset-sc-item">' +
+          (s.role ? '<span class="preset-sc-role">' + escHtml(s.role) + '</span>' : '') +
+          '<span class="preset-sc-name">' + escHtml(s.name) + '</span>' +
+        '</span>').join('') + (subMore > 0 ? '<span class="preset-sc-more">+' + subMore + '</span>' : '');
+
+      const statusHtml = m.status
+        ? '<span class="preset-status"><span class="preset-status-dot" style="background:' +
+            (_PRESET_STATUS_DOT[m.status] || '#9c8e78') + '"></span>' + escHtml(m.status) + '</span>'
+        : '';
+
+      return '<div class="preset-list-item preset-item-rich' + (isLoaded ? ' preset-list-item--loaded' : '') + '">' +
+        '<div class="preset-rich-row1">' +
+          statusHtml +
+          '<span class="preset-list-name" title="' + escHtml(p.name) + '">' + escHtml(titleText) + '</span>' +
+          (isLoaded ? '<span class="preset-loaded-badge">編集中</span>' : '') +
+        '</div>' +
+        _progressBarHtml(p.data) +
+        '<dl class="preset-rich-kv">' +
+          (route    ? '<dt>ルート</dt><dd>' + route + '</dd>' : '') +
+          (condHtml ? '<dt>条件</dt><dd class="preset-rich-tags">' + condHtml + '</dd>' : '') +
+          (m.carrier ? '<dt>幹線</dt><dd>🚢 ' + escHtml(m.carrier) + '</dd>' : '') +
+          (subHtml  ? '<dt>サブコン</dt><dd class="preset-rich-sub">' + subHtml + '</dd>' : '') +
+          (custDd   ? '<dt>お客様 / 担当</dt><dd>' + custDd + '</dd>' : '') +
+        '</dl>' +
+        '<div class="preset-rich-foot">' +
+          '<span class="preset-list-ts">' + (ts ? '💾 ' + ts : '') + '</span>' +
+          '<div class="preset-rich-acts">' +
+            '<button class="btn-preset-load" onclick="loadPreset(' + i + ')">読み込む</button>' +
+            '<button class="btn-preset-del"  onclick="deletePreset(' + i + ')" title="削除">✕</button>' +
+          '</div>' +
+        '</div>' +
+      '</div>';
     }).join('');
   }
 
-  // ========== 行パターン（チェック行を一時保存・読込） ==========
-  const ROW_PATTERN_KEY = 'quoteRowPatterns_v1';
-  const ROW_PATTERN_MAX = 20;
+  // ========== 行パターン（チェック行を保存・読込／Supabase チーム共有） ==========
+  const ROW_PATTERN_KEY = 'quoteRowPatterns_v1';   // ← 旧localStorage（移行取り込み用に参照のみ）
+  let _rowPatterns = [];                            // クラウドキャッシュ（id 付き）
 
-  function getRowPatterns()      { return SharedStorage.getJSON(ROW_PATTERN_KEY, []); }
-  function setRowPatterns(arr)   { SharedStorage.setJSON(ROW_PATTERN_KEY, arr); }
+  function _rpClient() { return (window.quoteCloudClient && window.quoteCloudClient()) || window.SupabaseClient || null; }
+  function _rpUserEmail() {
+    const u = window.quoteCloudUser && window.quoteCloudUser();
+    return u ? (u.email || null) : null;
+  }
+  function _rpName(email) { return window.quoteDisplayName ? window.quoteDisplayName(email) : (email || '—'); }
+
+  // クラウドから行パターンを取得してキャッシュ＋再描画
+  async function loadRowPatternsFromCloud() {
+    const wrap = document.getElementById('rowPatternListWrap');
+    const db = _rpClient();
+    if (!db || !_rpUserEmail()) {
+      _rowPatterns = [];
+      if (wrap) wrap.innerHTML = '<div class="preset-empty">☁️ ログインするとチームの保存パターンを利用できます<br><small style="color:#bbb;">ツールバーの「☁️ チーム共有」からログイン</small></div>';
+      return;
+    }
+    if (wrap) wrap.innerHTML = '<div class="preset-empty">読み込み中…</div>';
+    if (window.quoteLoadProfiles) { try { await window.quoteLoadProfiles(); } catch (e) {} }
+    const { data, error } = await db.from('row_patterns').select('*').order('updated_at', { ascending: false });
+    if (error) {
+      if (wrap) wrap.innerHTML = '<div class="preset-empty">⚠️ 読み込みエラー：' + escHtml(error.message) + '</div>';
+      return;
+    }
+    _rowPatterns = data || [];
+    renderRowPatternList();
+  }
 
   // チェック済み行のデータを抽出（通常行・リマーク行・小計行を含む）
   function _gatherCheckedRowsData() {
@@ -870,7 +1201,6 @@
   }
 
   function openRowPatternMgr() {
-    renderRowPatternList();
     const inp = document.getElementById('rowPatternNameInput');
     if (inp && !inp.value) {
       const d = new Date();
@@ -878,48 +1208,54 @@
       inp.value = `パターン_${pad(d.getMonth()+1)}${pad(d.getDate())}_${pad(d.getHours())}${pad(d.getMinutes())}`;
     }
     document.getElementById('rowPatternModal').classList.add('open');
+    loadRowPatternsFromCloud();
     setTimeout(() => inp?.focus(), 50);
   }
   function closeRowPatternMgr() { document.getElementById('rowPatternModal').classList.remove('open'); }
 
-  function saveRowPatternFromChecked() {
+  async function saveRowPatternFromChecked() {
     const rows = _gatherCheckedRowsData();
     if (!rows.length) {
       quoteShowToast('⚠️ 保存する行のチェックボックスを選択してください', 'warn', 3000);
       return;
     }
     const nameInp = document.getElementById('rowPatternNameInput');
+    const noteInp = document.getElementById('rowPatternNoteInput');
     const name = (nameInp?.value || '').trim();
     if (!name) {
       quoteShowToast('⚠️ パターン名を入力してください', 'warn');
       nameInp?.focus();
       return;
     }
-    const patterns = getRowPatterns();
-    const entry = { name, ts: new Date().toISOString(), rows };
-    const idx = patterns.findIndex(p => p.name === name);
-    if (idx >= 0) {
-      if (!confirm(`「${name}」を上書きしますか？`)) return;
-      patterns[idx] = entry;
+    const note = (noteInp?.value || '').trim();
+    const db = _rpClient();
+    const email = _rpUserEmail();
+    if (!db || !email) { quoteShowToast('⚠️ チーム共有にはログインが必要です', 'warn', 3500); return; }
+
+    // 同名は上書き、無ければ新規（チーム全員で共有）
+    const exist = _rowPatterns.find(p => p.name === name);
+    let res;
+    if (exist) {
+      if (!confirm(`「${name}」を上書きしますか？（チーム全員に反映されます）`)) return;
+      res = await db.from('row_patterns')
+        .update({ rows, note, updated_by: email, updated_at: new Date().toISOString() })
+        .eq('id', exist.id);
     } else {
-      patterns.unshift(entry);
-      if (patterns.length > ROW_PATTERN_MAX) patterns.length = ROW_PATTERN_MAX;
+      res = await db.from('row_patterns')
+        .insert({ name, rows, note, created_by: email, updated_by: email });
     }
-    setRowPatterns(patterns);
+    if (res.error) { quoteShowToast('⚠️ 保存に失敗：' + res.error.message, 'warn', 6000); return; }
     if (nameInp) nameInp.value = '';
-    renderRowPatternList();
-    quoteShowToast(`💾 行パターン「${name}」を保存（${rows.length}行）`, 'success');
+    if (noteInp) noteInp.value = '';
+    await loadRowPatternsFromCloud();
+    quoteShowToast(`💾 行パターン「${name}」を保存（${rows.length}行・チーム共有）`, 'success');
   }
 
-  function loadRowPattern(idx) {
-    const patterns = getRowPatterns();
-    const p = patterns[idx];
-    if (!p) return;
-
-    // 挿入位置を決定（モーダルの select 値を読む）
+  // 行データ配列を現在のテーブルに挿入（挿入位置セレクトを尊重）。posLabel を返す。
+  function _insertPatternRows(patternRows) {
     const pos = document.getElementById('rowPatternInsertPos')?.value || 'end';
     const tbody = document.getElementById('tableBody');
-    let anchor = null;       // null = 末尾 append。それ以外なら anchor の直前に挿入
+    let anchor = null;
     let posLabel = '末尾';
     if (pos === 'selected') {
       const checked = document.querySelectorAll('#tableBody tr .row-select-chk:checked');
@@ -927,18 +1263,15 @@
         quoteShowToast('⚠️ 挿入位置「選択行の下」が選ばれていますがチェック行がありません。末尾に追加します', 'warn', 3500);
       } else {
         const lastTr = checked[checked.length - 1].closest('tr');
-        anchor = lastTr?.nextSibling || null;  // null なら結果的に末尾追加と同じ
+        anchor = lastTr?.nextSibling || null;
         posLabel = '選択行の下';
       }
     } else if (pos === 'top') {
-      anchor = tbody.querySelector('tr') || null;  // 先頭行の直前へ
+      anchor = tbody.querySelector('tr') || null;
       posLabel = '先頭';
     }
 
-    // confirm を廃止。Ctrl+Z で元に戻せるため安全。
-
-    p.rows.forEach(rd => {
-      // リマーク行
+    (patternRows || []).forEach(rd => {
       if (rd._type === 'remark') {
         insertRemarkRow(null, { noFocus: true, internal: rd.internal });
         const allTrs = document.querySelectorAll('#tableBody tr');
@@ -949,7 +1282,6 @@
         if (inp) inp.value = rd.text || '';
         return;
       }
-      // 小計行
       if (rd._type === 'subtotal') {
         insertSubtotalRow(null);
         const allTrs = document.querySelectorAll('#tableBody tr');
@@ -961,14 +1293,11 @@
         updateSubtotalRows();
         return;
       }
-      // 通常行（_type === 'data' または後方互換で _type なし）
-      // 末尾に追加してから anchor の直前に移動（addRow を流用）
       addRow();
       const trs = document.querySelectorAll('#tableBody tr');
       const tr = trs[trs.length - 1];
       if (!tr) return;
       if (anchor) tbody.insertBefore(tr, anchor);
-      // anchor は元 DOM ノードを保持し続けるので、次回も同じ前に挿入 → 元順序保持
       const id = tr.id.replace('row-', '');
       const set = (sid, val, kind) => {
         const el = document.getElementById(sid + '-' + id);
@@ -994,37 +1323,44 @@
       onCatChange(id);
       onPay(id);
     });
-    // 小計行を含む場合に備えて全体を再計算
     if (typeof updateSubtotalRows === 'function') updateSubtotalRows();
     updateTotals();
+    return posLabel;
+  }
+
+  function loadRowPattern(id) {
+    const p = _rowPatterns.find(x => x.id === id);
+    if (!p) return;
+    const posLabel = _insertPatternRows(p.rows);
     closeRowPatternMgr();
     quoteShowToast(`📂 「${p.name}」の ${p.rows.length} 行を${posLabel}に挿入しました`, 'success');
   }
 
-  function deleteRowPattern(idx) {
-    const patterns = getRowPatterns();
-    const p = patterns[idx];
+  async function deleteRowPattern(id) {
+    const p = _rowPatterns.find(x => x.id === id);
     if (!p) return;
-    if (!confirm(`行パターン「${p.name}」を削除しますか？`)) return;
-    patterns.splice(idx, 1);
-    setRowPatterns(patterns);
-    renderRowPatternList();
+    if (!confirm(`行パターン「${p.name}」を削除しますか？（チーム全員から削除されます）`)) return;
+    const db = _rpClient();
+    if (!db) return;
+    const { error } = await db.from('row_patterns').delete().eq('id', p.id);
+    if (error) { quoteShowToast('⚠️ 削除に失敗：' + error.message, 'warn', 6000); return; }
+    await loadRowPatternsFromCloud();
     quoteShowToast(`🗑️ 「${p.name}」を削除しました`, 'info');
   }
 
-  // ===== 行パターン：ファイルへの書き出し =====
+  // ===== 行パターン：ファイルへの書き出し（クラウドキャッシュから） =====
   window.exportRowPatterns = function() {
-    const patterns = getRowPatterns();
+    const patterns = _rowPatterns;
     if (!patterns.length) {
       quoteShowToast('⚠️ 保存済みの行パターンがありません', 'warn');
       return;
     }
     const payload = {
       _type:      'rowPatterns',
-      _version:   1,
+      _version:   2,
       _app:       'フォワーダー支援ツール',
       exportedAt: new Date().toISOString(),
-      patterns,
+      patterns:   patterns.map(p => ({ name: p.name, note: p.note || '', rows: p.rows || [], links: p.links || [] })),
     };
     const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
     const url  = URL.createObjectURL(blob);
@@ -1038,75 +1374,297 @@
     quoteShowToast(`📤 ${patterns.length} 件の行パターンを書き出しました`, 'success');
   };
 
-  // ===== 行パターン：ファイルからの読み込み =====
+  // ===== 行パターン：ファイルからの読み込み（クラウドへ取り込み） =====
   window.importRowPatternsFile = function(event) {
     const file = event.target.files[0];
-    event.target.value = ''; // 同じファイルの再選択を許可
+    event.target.value = '';
     if (!file) return;
     if (!file.name.endsWith('.json')) {
       quoteShowToast('⚠️ .json ファイルを選択してください', 'error');
       return;
     }
+    const db = _rpClient();
+    const email = _rpUserEmail();
+    if (!db || !email) { quoteShowToast('⚠️ 取り込みにはログインが必要です', 'warn', 3500); return; }
     const reader = new FileReader();
-    reader.onload = function(e) {
+    reader.onload = async function(e) {
       let data;
       try { data = JSON.parse(e.target.result); }
-      catch(err) {
-        quoteShowToast('⚠️ ファイルの解析に失敗しました: ' + err.message, 'error');
-        return;
-      }
-      // ファイル種別チェック
+      catch(err) { quoteShowToast('⚠️ ファイルの解析に失敗しました: ' + err.message, 'error'); return; }
       if (data._type !== 'rowPatterns' || !Array.isArray(data.patterns)) {
-        quoteShowToast('⚠️ 行パターンのファイルではありません（_type が一致しません）', 'error');
+        quoteShowToast('⚠️ 行パターンのファイルではありません', 'error');
         return;
       }
       const incoming = data.patterns.filter(p => p && p.name && Array.isArray(p.rows));
-      if (!incoming.length) {
-        quoteShowToast('ℹ️ ファイルに有効なパターンが含まれていません', 'info');
-        return;
+      if (!incoming.length) { quoteShowToast('ℹ️ 有効なパターンが含まれていません', 'info'); return; }
+      const existNames = new Set(_rowPatterns.map(p => p.name));
+      const dup = incoming.filter(p => existNames.has(p.name));
+      if (!confirm(`${incoming.length} 件をチーム共有に取り込みます。` +
+          (dup.length ? `\n▲ 同名 ${dup.length} 件は上書きされます。` : '') + '\n\n続けますか？')) return;
+      let ok = 0;
+      for (const p of incoming) {
+        const exist = _rowPatterns.find(x => x.name === p.name);
+        const res = exist
+          ? await db.from('row_patterns').update({ rows: p.rows, note: p.note || '', updated_by: email, updated_at: new Date().toISOString() }).eq('id', exist.id)
+          : await db.from('row_patterns').insert({ name: p.name, rows: p.rows, note: p.note || '', created_by: email, updated_by: email });
+        if (!res.error) ok++;
       }
-      // 既存パターンとの重複チェック
-      const existing    = getRowPatterns();
-      const duplicates  = incoming.filter(p => existing.some(e => e.name === p.name));
-      const newOnes     = incoming.filter(p => !existing.some(e => e.name === p.name));
-      let msg = `${incoming.length} 件のパターンを読み込みます。\n`;
-      if (duplicates.length) msg += `\n▲ 上書き（同名）: ${duplicates.map(p => '「' + p.name + '」').join('、')}`;
-      if (newOnes.length)    msg += `\n＋ 新規追加: ${newOnes.map(p => '「' + p.name + '」').join('、')}`;
-      if (!confirm(msg + '\n\n続けますか？')) return;
-      // マージ（同名は上書き、新規は先頭へ追加）
-      let merged = [...existing];
-      incoming.forEach(p => {
-        const idx = merged.findIndex(e => e.name === p.name);
-        if (idx >= 0) merged[idx] = p;
-        else           merged.unshift(p);
-      });
-      if (merged.length > ROW_PATTERN_MAX) merged = merged.slice(0, ROW_PATTERN_MAX);
-      setRowPatterns(merged);
-      renderRowPatternList();
-      quoteShowToast(`📥 ${incoming.length} 件の行パターンを読み込みました`, 'success');
+      await loadRowPatternsFromCloud();
+      quoteShowToast(`📥 ${ok} 件の行パターンを取り込みました`, 'success');
     };
     reader.readAsText(file, 'utf-8');
   };
 
+  // 行パターン内の1行を一覧用ラベルに整形（種別アイコン＋カテゴリ＋名称＋単価）
+  function _rpRowLabel(rd) {
+    if (!rd) return '';
+    if (rd._type === 'remark')
+      return '<span class="rp-row-ic">📝</span><span class="rp-row-nm">' +
+        (escHtml(rd.text) || '<i class="rp-row-empty">（空のリマーク）</i>') + '</span>';
+    if (rd._type === 'subtotal')
+      return '<span class="rp-row-ic">Σ</span><span class="rp-row-nm">' +
+        (escHtml(rd.label) || '小計') + '</span>';
+    const cats = (typeof getAllCategories === 'function') ? getAllCategories() : [];
+    const catLbl = (cats.find(c => c.value === rd.cat) || {}).label || '';
+    const catH = catLbl ? '<span class="rp-row-cat">' + escHtml(catLbl) + '</span>' : '';
+    const nmH  = '<span class="rp-row-nm">' +
+      (escHtml(rd.name) || '<i class="rp-row-empty">（名称なし）</i>') + '</span>';
+    const price = rd.bp || rd.pp;
+    const cur   = rd.bp ? (rd.bc || '') : (rd.pc || '');
+    const prH   = price ? '<span class="rp-row-price">' + escHtml(cur) + ' ' + escHtml(price) + '</span>' : '';
+    return catH + nmH + prH;
+  }
+
+  // 全選択トグル（同じカード内の明細チェックを一括）
+  function rpToggleAllRows(allChk) {
+    const card = allChk.closest('.rp-card');
+    if (!card) return;
+    card.querySelectorAll('.rp-row-chk').forEach(c => { c.checked = allChk.checked; });
+  }
+  window.rpToggleAllRows = rpToggleAllRows;
+
+  // 選択した明細だけを挿入（挿入位置セレクトを尊重）
+  function insertSelectedPatternRows(id) {
+    const p = _rowPatterns.find(x => x.id === id);
+    if (!p) return;
+    const sel  = (window.CSS && CSS.escape) ? CSS.escape(id) : id;
+    const card = document.querySelector('.rp-card[data-pid="' + sel + '"]');
+    if (!card) return;
+    const idxs = Array.from(card.querySelectorAll('.rp-row-chk:checked'))
+      .map(c => parseInt(c.dataset.idx, 10));
+    if (!idxs.length) { quoteShowToast('⚠️ 挿入する明細を1つ以上選択してください', 'warn', 3000); return; }
+    const subset = idxs.map(i => p.rows[i]).filter(Boolean);
+    const posLabel = _insertPatternRows(subset);
+    closeRowPatternMgr();
+    quoteShowToast(`📂 「${p.name}」から ${subset.length} 行を${posLabel}に挿入しました`, 'success');
+  }
+  window.insertSelectedPatternRows = insertSelectedPatternRows;
+
+  // ===== 行パターン：編集（名前・メモ・参照URL・明細） =====
+  let _rpEdit = null;   // 編集中の作業オブジェクト { id, name, note, links:[{label,url}], rows:[] }
+
+  function _rpLinkHost(url) {
+    try { return new URL(url).hostname.replace(/^www\./, ''); } catch (e) { return url; }
+  }
+
+  function openRowPatternEdit(id) {
+    const p = _rowPatterns.find(x => x.id === id);
+    if (!p) return;
+    _rpEdit = {
+      id:    p.id,
+      name:  p.name || '',
+      note:  p.note || '',
+      links: Array.isArray(p.links) ? p.links.map(l => ({ label: l.label || '', url: l.url || '' })) : [],
+      rows:  Array.isArray(p.rows)  ? p.rows.map(r => Object.assign({}, r)) : [],
+    };
+    const nm = document.getElementById('rpEditName'); if (nm) nm.value = _rpEdit.name;
+    const nt = document.getElementById('rpEditNote'); if (nt) nt.value = _rpEdit.note;
+    _rpEditRenderLinks();
+    _rpEditRenderRows();
+    document.getElementById('rpEditOverlay')?.classList.add('open');
+  }
+  function closeRowPatternEdit() {
+    document.getElementById('rpEditOverlay')?.classList.remove('open');
+    _rpEdit = null;
+  }
+
+  function rpEditAddLink()      { if (_rpEdit) { _rpEdit.links.push({ label: '', url: '' }); _rpEditRenderLinks(); } }
+  function rpEditRemoveLink(i)  { if (_rpEdit) { _rpEdit.links.splice(i, 1); _rpEditRenderLinks(); } }
+  function rpEditSetLink(i, key, val) { if (_rpEdit && _rpEdit.links[i]) _rpEdit.links[i][key] = val; }
+  function _rpEditRenderLinks() {
+    const box = document.getElementById('rpEditLinks');
+    if (!box || !_rpEdit) return;
+    if (!_rpEdit.links.length) {
+      box.innerHTML = '<div class="rp-edit-empty">URL未登録。「＋ URLを追加」で参照元を登録できます</div>';
+      return;
+    }
+    box.innerHTML = _rpEdit.links.map((l, i) =>
+      '<div class="rp-edit-link-row">' +
+        '<input type="text" class="rp-edit-link-label" placeholder="ラベル（例：料率表）" value="' + escHtml(l.label) + '" oninput="rpEditSetLink(' + i + ',\'label\',this.value)">' +
+        '<input type="url" class="rp-edit-link-url" placeholder="https://…" value="' + escHtml(l.url) + '" oninput="rpEditSetLink(' + i + ',\'url\',this.value)">' +
+        '<button type="button" class="btn-preset-del" onclick="rpEditRemoveLink(' + i + ')" title="このURLを削除">✕</button>' +
+      '</div>').join('');
+  }
+
+  function rpEditDeleteRow(i) { if (_rpEdit) { _rpEdit.rows.splice(i, 1); _rpEditRenderRows(); } }
+  function rpEditMoveRow(i, dir) {
+    if (!_rpEdit) return;
+    const j = i + dir;
+    if (j < 0 || j >= _rpEdit.rows.length) return;
+    const t = _rpEdit.rows[i]; _rpEdit.rows[i] = _rpEdit.rows[j]; _rpEdit.rows[j] = t;
+    _rpEditRenderRows();
+  }
+  // セル値の更新（再描画しない＝入力フォーカスを保持）
+  function rpEditSetCell(i, key, val) { if (_rpEdit && _rpEdit.rows[i]) _rpEdit.rows[i][key] = val; }
+  // 明細を新規追加（費用行／リマーク／小計）
+  function rpEditAddRow(type) {
+    if (!_rpEdit) return;
+    let row;
+    if (type === 'remark')        row = { _type: 'remark', text: '', internal: false };
+    else if (type === 'subtotal') row = { _type: 'subtotal', label: '' };
+    else row = { _type: 'data', cat: '', name: '', taxed: false, pq: '', un: '',
+                 pc: 'JPY', pp: '', bq: '', bc: 'JPY', bp: '', mk: '', note: '', sv: '' };
+    _rpEdit.rows.push(row);
+    _rpEditRenderRows();
+    const box = document.getElementById('rpEditRows');
+    box?.querySelector('.rp-edit-row:last-child .rp-er-name')?.focus();
+  }
+
+  // 1明細ぶんのインライン編集UI
+  function _rpEditRowEditor(rd, i, last) {
+    const acts =
+      '<span class="rp-er-acts">' +
+        '<button type="button" onclick="rpEditMoveRow(' + i + ',-1)" title="上へ"' + (i === 0 ? ' disabled' : '') + '>▲</button>' +
+        '<button type="button" onclick="rpEditMoveRow(' + i + ',1)" title="下へ"' + (i === last ? ' disabled' : '') + '>▼</button>' +
+        '<button type="button" class="btn-preset-del" onclick="rpEditDeleteRow(' + i + ')" title="この明細を削除">✕</button>' +
+      '</span>';
+    if (rd._type === 'remark') {
+      return '<div class="rp-edit-row rp-er--remark">' +
+        '<span class="rp-er-ic">📝</span>' +
+        '<input type="text" class="rp-er-name" placeholder="リマーク文" value="' + escHtml(rd.text || '') + '" oninput="rpEditSetCell(' + i + ',\'text\',this.value)">' +
+        '<label class="rp-er-chk" title="社内用（客先出力に含めない）"><input type="checkbox"' + (rd.internal ? ' checked' : '') + ' onchange="rpEditSetCell(' + i + ',\'internal\',this.checked)">社内</label>' +
+        acts +
+      '</div>';
+    }
+    if (rd._type === 'subtotal') {
+      return '<div class="rp-edit-row rp-er--subtotal">' +
+        '<span class="rp-er-ic">Σ</span>' +
+        '<input type="text" class="rp-er-name" placeholder="小計ラベル" value="' + escHtml(rd.label || '') + '" oninput="rpEditSetCell(' + i + ',\'label\',this.value)">' +
+        acts +
+      '</div>';
+    }
+    // data 行：カテゴリ・品目名・単位・課税／仕入(単価・通貨)・売上(単価・通貨)・備考
+    return '<div class="rp-edit-row rp-er--data">' +
+      '<div class="rp-er-l1">' +
+        '<select class="rp-er-cat" onchange="rpEditSetCell(' + i + ',\'cat\',this.value)">' + catOpts(rd.cat || '') + '</select>' +
+        '<input type="text" class="rp-er-name" placeholder="品目名" value="' + escHtml(rd.name || '') + '" oninput="rpEditSetCell(' + i + ',\'name\',this.value)">' +
+        '<select class="rp-er-unit" title="単位" onchange="rpEditSetCell(' + i + ',\'un\',this.value)">' + unitOpts(rd.un || '') + '</select>' +
+        '<label class="rp-er-chk" title="課税対象"><input type="checkbox"' + (rd.taxed ? ' checked' : '') + ' onchange="rpEditSetCell(' + i + ',\'taxed\',this.checked)">税</label>' +
+        acts +
+      '</div>' +
+      '<div class="rp-er-l2">' +
+        '<span class="rp-er-grp rp-er-grp--cost">仕</span>' +
+        '<input type="text" inputmode="decimal" class="rp-er-num" placeholder="単価" value="' + escHtml(rd.pp || '') + '" oninput="rpEditSetCell(' + i + ',\'pp\',this.value)">' +
+        '<select class="rp-er-cur" onchange="rpEditSetCell(' + i + ',\'pc\',this.value)">' + curOpts(rd.pc || 'JPY') + '</select>' +
+        '<span class="rp-er-grp rp-er-grp--sell">売</span>' +
+        '<input type="text" inputmode="decimal" class="rp-er-num" placeholder="単価" value="' + escHtml(rd.bp || '') + '" oninput="rpEditSetCell(' + i + ',\'bp\',this.value)">' +
+        '<select class="rp-er-cur" onchange="rpEditSetCell(' + i + ',\'bc\',this.value)">' + curOpts(rd.bc || 'JPY') + '</select>' +
+        '<input type="text" class="rp-er-note" placeholder="備考" value="' + escHtml(rd.note || '') + '" oninput="rpEditSetCell(' + i + ',\'note\',this.value)">' +
+      '</div>' +
+    '</div>';
+  }
+  function _rpEditRenderRows() {
+    const box = document.getElementById('rpEditRows');
+    const cnt = document.getElementById('rpEditRowCount');
+    if (!box || !_rpEdit) return;
+    if (cnt) cnt.textContent = _rpEdit.rows.length + '行';
+    if (!_rpEdit.rows.length) {
+      box.innerHTML = '<div class="rp-edit-empty">明細がありません。下のボタンで追加してください（保存には最低1行必要）</div>';
+      return;
+    }
+    const last = _rpEdit.rows.length - 1;
+    box.innerHTML = _rpEdit.rows.map((rd, i) => _rpEditRowEditor(rd, i, last)).join('');
+  }
+
+  async function saveRowPatternEdit() {
+    if (!_rpEdit) return;
+    const name = (document.getElementById('rpEditName')?.value || '').trim();
+    const note = (document.getElementById('rpEditNote')?.value || '').trim();
+    if (!name) { quoteShowToast('⚠️ パターン名を入力してください', 'warn'); return; }
+    if (!_rpEdit.rows.length) { quoteShowToast('⚠️ 明細が0行です。最低1行は残してください', 'warn', 3500); return; }
+    if (_rowPatterns.find(p => p.name === name && p.id !== _rpEdit.id)) {
+      quoteShowToast('⚠️ 同名のパターンが既にあります。別名にしてください', 'warn', 3500); return;
+    }
+    // URL整理：URL空は除外、危険スキームは除外、スキーム無しは https:// 補完
+    const links = _rpEdit.links
+      .map(l => ({ label: (l.label || '').trim(), url: (l.url || '').trim() }))
+      .filter(l => l.url && !/^\s*(javascript|data|vbscript):/i.test(l.url))
+      .map(l => ({ label: l.label, url: /^https?:\/\//i.test(l.url) ? l.url : 'https://' + l.url }));
+    const db = _rpClient();
+    const email = _rpUserEmail();
+    if (!db || !email) { quoteShowToast('⚠️ チーム共有にはログインが必要です', 'warn', 3500); return; }
+    const base = { name, note, rows: _rpEdit.rows, updated_by: email, updated_at: new Date().toISOString() };
+    let { error } = await db.from('row_patterns').update(Object.assign({ links }, base)).eq('id', _rpEdit.id);
+    if (error && /links/.test(error.message || '')) {   // links 列が未マイグレーションでも保存は通す
+      ({ error } = await db.from('row_patterns').update(base).eq('id', _rpEdit.id));
+      if (!error) quoteShowToast('💾 保存しました（URLは links 列の追加SQL適用後に保存できます）', 'warn', 5500);
+    }
+    if (error) { quoteShowToast('⚠️ 保存に失敗：' + error.message, 'warn', 6000); return; }
+    closeRowPatternEdit();
+    await loadRowPatternsFromCloud();
+    quoteShowToast(`✅ 「${name}」を更新しました（チームに反映）`, 'success');
+  }
+
   function renderRowPatternList() {
-    const patterns = getRowPatterns();
     const wrap = document.getElementById('rowPatternListWrap');
     if (!wrap) return;
-    if (!patterns.length) {
+    if (!_rowPatterns.length) {
       wrap.innerHTML = '<div class="preset-empty">保存済みの行パターンはありません<br><small style="color:#bbb;">行をチェックして上のフォームから保存できます</small></div>';
       return;
     }
-    wrap.innerHTML = patterns.map((p, i) => {
-      const ts = p.ts
-        ? new Date(p.ts).toLocaleString('ja-JP', { month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit' })
+    wrap.innerHTML = _rowPatterns.map(p => {
+      const ts = p.updated_at
+        ? new Date(p.updated_at).toLocaleString('ja-JP', { month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit' })
         : '';
-      return '<div class="preset-list-item">' +
-        '<span class="preset-list-name">' + escHtml(p.name) +
-          ' <small style="color:#999;">(' + p.rows.length + '行)</small></span>' +
-        '<span class="preset-list-ts">'   + ts + '</span>' +
-        '<button class="btn-preset-load" onclick="loadRowPattern(' + i + ')">読込</button>' +
-        '<button class="btn-preset-del"  onclick="deleteRowPattern(' + i + ')" title="削除">✕</button>' +
-        '</div>';
+      const who = _rpName(p.updated_by || p.created_by);
+      const n = (p.rows && p.rows.length) || 0;
+      const noteHtml = p.note
+        ? '<div class="rp-note"><span class="rp-note-lbl">📝 メモ</span>' + escHtml(p.note) + '</div>'
+        : '';
+      const rowsHtml = (p.rows || []).map((rd, i) =>
+        '<label class="rp-row-item">' +
+          '<input type="checkbox" class="rp-row-chk" data-idx="' + i + '" checked>' +
+          _rpRowLabel(rd) +
+        '</label>').join('');
+      const detailHtml = n
+        ? '<details class="rp-detail">' +
+            '<summary class="rp-detail-sum">📋 明細を選んで挿入</summary>' +
+            '<div class="rp-detail-tools">' +
+              '<label class="rp-allsel"><input type="checkbox" class="rp-row-allchk" checked onchange="rpToggleAllRows(this)"> すべて</label>' +
+              '<button class="btn-preset-load rp-ins-sel" onclick="insertSelectedPatternRows(\'' + p.id + '\')">選択行を挿入</button>' +
+            '</div>' +
+            '<div class="rp-row-list">' + rowsHtml + '</div>' +
+          '</details>'
+        : '';
+      const links = Array.isArray(p.links) ? p.links.filter(l => l && l.url && /^https?:\/\//i.test(l.url)) : [];
+      const linksHtml = links.length
+        ? '<div class="rp-links">' + links.map(l =>
+            '<a class="rp-link-chip" href="' + escHtml(l.url) + '" target="_blank" rel="noopener noreferrer" title="' + escHtml(l.url) + '">🔗 ' +
+              escHtml(l.label || _rpLinkHost(l.url)) + '</a>').join('') + '</div>'
+        : '';
+      return '<div class="rp-card" data-pid="' + escHtml(p.id) + '">' +
+        '<div class="rp-head">' +
+          '<span class="rp-name" title="' + escHtml(p.name) + '">' + escHtml(p.name) + '</span>' +
+          '<span class="rp-rowcount">' + n + '行</span>' +
+          '<button class="btn-preset-load" onclick="loadRowPattern(\'' + p.id + '\')" title="全' + n + '行を挿入">＋ 全挿入</button>' +
+          '<button class="btn-preset-edit" onclick="openRowPatternEdit(\'' + p.id + '\')" title="編集（名前・メモ・URL・明細）">✎</button>' +
+          '<button class="btn-preset-del"  onclick="deleteRowPattern(\'' + p.id + '\')" title="削除（チーム全員から消えます）">✕</button>' +
+        '</div>' +
+        noteHtml +
+        linksHtml +
+        detailHtml +
+        '<div class="rp-meta">✏️ ' + escHtml(who) + '・最終更新 ' + ts + '</div>' +
+      '</div>';
     }).join('');
   }
 
@@ -1346,6 +1904,26 @@
       if (typeof openPreview === 'function') openPreview();
       return;
     }
+    // Ctrl+D → 選択行を下にコピー / 未選択はフォーカス行を複製
+    // Ctrl+Shift+D → 選択行を上にコピー
+    if (ctrl && !e.altKey && (e.key === 'd' || e.key === 'D')) {
+      e.preventDefault();
+      if (e.shiftKey) {
+        copySelectedRows('above');
+      } else {
+        const checked = document.querySelectorAll('.row-select-chk:checked');
+        if (checked.length) {
+          copySelectedRows('below');
+        } else {
+          const tr = document.activeElement?.closest('#tableBody tr');
+          if (tr && tr.id.startsWith('row-')) {
+            duplicateRow(tr.id.replace('row-', ''));
+            quoteShowToast('📋 行を複製しました', 'success');
+          }
+        }
+      }
+      return;
+    }
     // Ctrl/Cmd+Z → Undo（Shift で Redo）。Ctrl/Cmd+Y → Redo。
     if (ctrl && !e.altKey && (e.key === 'z' || e.key === 'Z')) {
       e.preventDefault();
@@ -1363,6 +1941,8 @@
     // Escape → 見積タブ内のモーダルをすべて閉じる（電卓・fb は上の優先度ブロックで処理済み）
     if (e.key === 'Escape') {
       if (document.getElementById('cmdPalette')?.classList.contains('open'))     { closeCmdPalette(); return; }
+      if (document.getElementById('rpEditOverlay')?.classList.contains('open'))   { closeRowPatternEdit(); return; }
+      if (document.getElementById('rowPatternModal')?.classList.contains('open')) { closeRowPatternMgr(); return; }
       if (document.getElementById('presetMgrModal')?.classList.contains('open')) { closePresetMgr(); return; }
       if (document.getElementById('previewOverlay')?.classList.contains('open')) { closePreview(); return; }
     }
@@ -1695,6 +2275,18 @@
       const subcon = subconOf(m.z);
       let subconHTML = subcon
         ? `<div class="qsp-ms-subcon" title="サブコン">👷 ${escapeHtml(subcon)}</div>` : '';
+      // 出発地側・到着地側（z1/z3）：デフォルトサブコンのブックマークチップを表示
+      if ((m.z === 'z1' || m.z === 'z3') && subcon) {
+        const bmCache = window._qspBmCache || {};
+        const bms = (bmCache[subcon] || []).filter(b => b.url);
+        const addChip = `<button class="qsp-bm-new-chip" data-bm-carrier="${escapeHtml(subcon)}" onclick="openAddBmModal({carrier:this.dataset.bmCarrier})" title="${escapeHtml(subcon)} のブックマークを追加">＋</button>`;
+        const chips = bms.length
+          ? `<div class="qsp-ms-cl-chips">` + bms.map(bm =>
+              `<span class="qsp-ms-cl-chip-wrap"><a class="qsp-ms-cl-chip qsp-ms-cl-chip--user" href="${escapeHtml(bm.url)}" target="_blank" rel="noopener" title="${escapeHtml(bm.note || bm.label)}">${escapeHtml(bm.label)}</a></span>`
+            ).join('') + addChip + `</div>`
+          : `<div class="qsp-ms-cl-chips">${addChip}</div>`;
+        subconHTML = `<div class="qsp-ms-carrier"><div class="qsp-ms-carrier-name">👷 ${escapeHtml(subcon)}</div>${chips}</div>`;
+      }
       // 幹線輸送（z2）：入力されたキャリアに応じてリンクチップを表示
       if (m.z === 'z2' && typeof window.getCarrierLinkData === 'function') {
         const carriers = window.getCarrierLinkData().filter(cd => cd.name);
@@ -1703,6 +2295,12 @@
             const addChip = `<button class="qsp-bm-new-chip" data-bm-carrier="${escapeHtml(cd.name)}" onclick="openAddBmModal({carrier:this.dataset.bmCarrier})" title="${escapeHtml(cd.name)} のブックマークを追加">＋</button>`;
             const chips = cd.links.length
               ? `<div class="qsp-ms-cl-chips">` + cd.links.map(l => {
+                  if (l.isUserBm) {
+                    // ユーザー追加ブックマーク：編集ボタンなし（Bookmark タブで管理）
+                    return `<span class="qsp-ms-cl-chip-wrap">`
+                      + `<a class="qsp-ms-cl-chip qsp-ms-cl-chip--user" href="${escapeHtml(l.url)}" target="_blank" rel="noopener" title="${escapeHtml(l.title)}">${escapeHtml(l.label)}</a>`
+                      + `</span>`;
+                  }
                   const bmLabel   = escapeHtml(`${cd.name} ${l.label}`);
                   const bmUrl     = escapeHtml(l.url);
                   const bmCarrier = escapeHtml(cd.name);
@@ -1967,19 +2565,6 @@
     });
     if (typeof window.updateQuoteRefEmpty === 'function') window.updateQuoteRefEmpty();
     updateQuoteStatusUI();
-    // ログイン済みかつ作業者フィールドが空なら Supabase ユーザー名を自動入力
-    if (window.SupabaseClient) {
-      window.SupabaseClient.auth.getSession().then(({ data }) => {
-        const session = data?.session;
-        if (!session) return;
-        const el = document.getElementById('qf-assignee');
-        if (el && !el.value.trim()) {
-          const name = session.user.user_metadata?.full_name
-            || session.user.user_metadata?.user_name || '';
-          if (name) el.value = name;
-        }
-      });
-    }
     window.updateQuoteSummary();
     // ⚙設定ドロップダウンは外側クリックで閉じる（ネイティブ <details> は外側クリックで閉じないため）
     document.addEventListener('click', function (e) {
@@ -2457,4 +3042,7 @@
       initQuoteAutoSaveListeners();  // save.js：input/change の自動保存
     }
     if (typeof initSimilarQuotes === 'function') initSimilarQuotes();
+    maybeAutoFillRef();          // 新規（REF空）なら仮REF#を自動採番
+    // 初回はダッシュボード（ページ1）を表示。以降のタブ切替では現在ページを維持
+    if (typeof window.qpShowDashboard === 'function') window.qpShowDashboard();
   };

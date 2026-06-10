@@ -91,9 +91,42 @@ body:has(#tab-quote-make.active) .app {
   white-space: nowrap; transition: background .15s;
 }
 .hdr-cloud-logout:hover { background: rgba(245,237,224,.24); }
+/* ヘッダーの「改修予定・アイデア」リンク（ダーク背景に映える明色ピル） */
+.hdr-roadmap {
+  flex: 0 0 auto; text-decoration: none; white-space: nowrap;
+  background: rgba(245,237,224,.14); color: #f5ede0;
+  border: 1px solid rgba(245,237,224,.38); border-radius: 999px;
+  padding: 6px 14px; font-size: 13px; font-weight: 700;
+  transition: background .15s, border-color .15s;
+}
+.hdr-roadmap:hover { background: rgba(245,237,224,.28); border-color: rgba(245,237,224,.65); }
+.hdr-roadmap:visited { color: #f5ede0; }
 @media (max-width: 720px) {
   .hdr-cloud-name { max-width: 96px; }
   .hdr-cloud-login { padding: 6px 10px; font-size: 12px; }
+}
+
+/* ===== スマホ：ヘッダーをコンパクト化 ===== */
+@media (max-width: 600px) {
+  .header {
+    padding: 10px 14px;
+    gap: 8px;
+    align-items: center;
+  }
+  /* サブタイトルは横幅が足りず複数行になるので非表示 */
+  .header .subtitle { display: none; }
+  .header h1 { font-size: 16px; }
+  .hdr-roadmap { font-size: 11px; padding: 4px 9px; }
+  .hdr-cloud-name { max-width: 72px; }
+  .hdr-cloud-login { padding: 5px 8px; font-size: 11px; }
+  .hdr-cloud-logout { padding: 4px 8px; font-size: 11px; }
+  .hdr-cloud-mgr { display: none; }   /* チーム管理ボタンは省スペース */
+}
+
+@media (max-width: 400px) {
+  /* 極小画面：ロードマップはアイコンのみ */
+  .hdr-roadmap { font-size: 0; padding: 5px 8px; }
+  .hdr-roadmap::before { content: "📣"; font-size: 16px; }
 }
 
 /* ===== Tab Navigation ===== */
@@ -1216,6 +1249,9 @@ body:has(#compareOverlay.open) #quoteActionDock { display: none; }
   border: 1.5px solid var(--border-md);
 }
 #quoteActionDock .qad-compare:hover { background: var(--accent-lt); }
+#quoteActionDock .qad-save { background: #1e7e44; color: #fff; }
+#quoteActionDock .qad-save:hover { background: #18683a; }
+#quoteActionDock .qad-save:disabled { background: #cdbfa6; color: #fff; opacity: .75; cursor: not-allowed; transform: none; box-shadow: 0 4px 14px rgba(45,36,24,0.18); }
 
 /* ===========================================================
    フローティング電卓ウィジェット（サイト全体スコープ）
@@ -1449,6 +1485,19 @@ body:has(#compareOverlay.open) #quoteActionDock { display: none; }
 }
 .bm-card-name:hover { text-decoration: underline; }
 .bm-no-url { color: #3d2e1e; cursor: default; }
+.bm-edit-btn {
+  background: none;
+  border: none;
+  font-size: 14px;
+  cursor: pointer;
+  opacity: .35;
+  padding: 0 2px;
+  line-height: 1;
+  flex-shrink: 0;
+  transition: opacity .12s;
+  color: #1c4a66;
+}
+.bm-edit-btn:hover { opacity: 1; }
 .bm-del-btn {
   background: none;
   border: none;
@@ -1558,6 +1607,21 @@ body:has(#compareOverlay.open) #quoteActionDock { display: none; }
   font-size: 10.5px;
   font-weight: 400;
   margin-left: 4px;
+}
+/* QSP から開いた場合の会社名フィールドロック状態 */
+.bm-carrier-locked #bmFormCarrier {
+  background: #f5f0e8;
+  color: #5a4020;
+  font-weight: 600;
+  cursor: default;
+  border-color: #c8b090;
+}
+.bm-carrier-hint {
+  display: block;
+  font-size: 11px;
+  color: #5a7a4a;
+  margin-top: 4px;
+  line-height: 1.5;
 }
 .bm-form-input, .bm-form-sel, .bm-form-textarea {
   border: 1px solid #cfd8dc;
