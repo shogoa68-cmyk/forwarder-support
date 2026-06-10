@@ -886,6 +886,48 @@
   // チーム共有カードでも同じ表示にするため公開
   window.quotePresetMeta = _presetMeta;
 
+  // ===== 進捗バー（プリセット管理モーダル） =====
+  // ROW_CELL_FIELDS: ['cat','sv','tx','nm','pq','un','bq','pc','bc','pp','bp','cd','mk','nt']
+  // cells[0]=checkbox, cells[2]=sv, cells[10]=pp, cells[13]=mk
+  function _calcQuoteProgress(data) {
+    var f  = (data && data.fields) || {};
+    var dr = (data && Array.isArray(data.rows))
+      ? data.rows.filter(function(r) { return r && r._type === 'data' && Array.isArray(r.cells); })
+      : [];
+    // Step1: 貿易条件＋輸送モード
+    var s1 = Boolean((f['cond-incoterms'] || '').trim() && (f['cond-mode'] || '').trim());
+    // Step2: 貨物情報（品名 or ルート）
+    var cargo = (f['cond-cargo'] || '').trim();
+    var hasRoute = Boolean((f['z2Pol'] || '').trim() || (f['z2Pod'] || '').trim());
+    if (!hasRoute) { try { hasRoute = JSON.parse(f['z2-routes-data'] || '[]').length > 0; } catch(e) {} }
+    var s2 = Boolean(cargo || hasRoute);
+    // Step3: サブコン仕入れ値（sv非空 かつ pp>0 の行が1行以上）
+    var s3 = dr.some(function(r) { return (r.cells[2]||'').trim() && parseFloat(r.cells[10]) > 0; });
+    // Step4: のせ幅（mk>0 の行が1行以上）
+    var s4 = dr.some(function(r) { return parseFloat(r.cells[13]) > 0; });
+    // Step5: 出力済み（ステータス）
+    var st = (f['qf-status'] || '').trim();
+    var s5 = st === '提出済み' || st === '受注';
+    return [s1, s2, s3, s4, s5];
+  }
+
+  var _QP_LABELS = ['条件', '貨物', '仕入', '利益', '出力'];
+  var _QP_TITLES = ['貿易条件・輸送モード設定', '貨物情報入力', 'サブコン仕入れ値入力', 'のせ幅・売値設定', '見積書出力済み'];
+
+  function _progressBarHtml(data) {
+    var steps = _calcQuoteProgress(data);
+    var done  = steps.filter(Boolean).length;
+    var pct   = Math.round(done / 5 * 100);
+    var dots  = steps.map(function(ok, i) {
+      return '<span class="qp-step' + (ok ? ' qp-done' : '') + '" title="' + _QP_TITLES[i] + '">' + _QP_LABELS[i] + '</span>';
+    }).join('');
+    return '<div class="quote-progress" title="進捗 ' + done + '/5 (' + pct + '%)">' +
+      '<div class="qp-bar"><div class="qp-fill" style="width:' + pct + '%"></div></div>' +
+      '<div class="qp-steps">' + dots + '</div>' +
+    '</div>';
+  }
+  window.quoteProgressBarHtml = _progressBarHtml;
+
   // 航路表示の整形：複数航路は POL ごとにまとめて「POL → POD / POD …」を行単位で表示。
   // 1本・未設定はフラットな pol/pod にフォールバック。両モーダル（ブラウザ保存／チーム共有）で共用。
   function _routeGroups(meta) {
@@ -964,6 +1006,7 @@
           '<span class="preset-list-name" title="' + escHtml(p.name) + '">' + escHtml(titleText) + '</span>' +
           (isLoaded ? '<span class="preset-loaded-badge">編集中</span>' : '') +
         '</div>' +
+        _progressBarHtml(p.data) +
         '<dl class="preset-rich-kv">' +
           (route    ? '<dt>ルート</dt><dd>' + route + '</dd>' : '') +
           (condHtml ? '<dt>条件</dt><dd class="preset-rich-tags">' + condHtml + '</dd>' : '') +
