@@ -618,7 +618,24 @@
 /* ===========================================================
    統合コマンドバー（行操作・選択行・換算レート表示・⚙設定 を集約）
    =========================================================== */
-#tab-quote-make .quote-cmdbar { margin: 8px 0 10px; }
+#tab-quote-make .quote-cmdbar {
+  margin: 8px 0 10px;
+  /* 行追加ツールバーを常時表示：保存ツールバー(top:--nav-cat-h)の下に固定。
+     .condition-section の scroll-margin-top:100px もこの高さ前提 */
+  position: sticky;
+  top: calc(var(--nav-cat-h, 56px) + 44px);
+  z-index: 40;                 /* save-toolbar(45) の下・テーブル本体より上 */
+  background: #f3ecdd;
+  border: 1px solid #e3d8c0;
+  border-radius: 8px;
+  padding: 6px 10px;
+  overflow: visible;           /* ⋯/⚙ のポップアップを切り取らない */
+  box-shadow: 0 3px 10px rgba(58, 42, 24, 0.10);
+}
+/* モバイルは保存ツールバーが static になる(4590〜)ため、ナビ直下に固定 */
+@media (max-width: 680px) {
+  #tab-quote-make .quote-cmdbar { top: var(--nav-cat-h, 108px); }
+}
 /* バー内に収めた行操作ツール群（独立配置時の余白・クリップを解除） */
 #tab-quote-make .quote-cmdbar .table-btn-group { margin: 0; overflow: visible; }
 /* バーに収めた換算レート表示は枠なしのインライン表示にする */
