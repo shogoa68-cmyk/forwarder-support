@@ -106,6 +106,29 @@ body:has(#tab-quote-make.active) .app {
   .hdr-cloud-login { padding: 6px 10px; font-size: 12px; }
 }
 
+/* ===== スマホ：ヘッダーをコンパクト化 ===== */
+@media (max-width: 600px) {
+  .header {
+    padding: 10px 14px;
+    gap: 8px;
+    align-items: center;
+  }
+  /* サブタイトルは横幅が足りず複数行になるので非表示 */
+  .header .subtitle { display: none; }
+  .header h1 { font-size: 16px; }
+  .hdr-roadmap { font-size: 11px; padding: 4px 9px; }
+  .hdr-cloud-name { max-width: 72px; }
+  .hdr-cloud-login { padding: 5px 8px; font-size: 11px; }
+  .hdr-cloud-logout { padding: 4px 8px; font-size: 11px; }
+  .hdr-cloud-mgr { display: none; }   /* チーム管理ボタンは省スペース */
+}
+
+@media (max-width: 400px) {
+  /* 極小画面：ロードマップはアイコンのみ */
+  .hdr-roadmap { font-size: 0; padding: 5px 8px; }
+  .hdr-roadmap::before { content: "📣"; font-size: 16px; }
+}
+
 /* ===== Tab Navigation ===== */
 .tab-nav {
   display: flex;
