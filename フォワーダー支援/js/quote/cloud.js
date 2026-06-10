@@ -32,6 +32,9 @@
   let _cloudFilterPod     = '';
   let _cloudFilterCarrier = '';
   let _cloudAdvOpen       = false;
+  // ダッシュボード：並び替え・表示形式
+  let _cloudSort = 'updated';   // updated|status|who|person|customer
+  let _cloudView = 'card';      // card|list
   // プレビュー
   let _cpId        = null;   // プレビュー中のプリセット ID
   let _cpRows      = [];     // プレビュー中の行データ（v3形式）
@@ -249,24 +252,41 @@
       const hay = [r.name, r.customer, r.person, r.owner_email].filter(Boolean).join(' ').toLowerCase();
       return hay.includes(q);
     });
-    _renderCloudList(rows);
+    _renderCloudList(_sortCloudRows(rows));
   }
 
-  // 詳細検索ドロップダウンをロード済みデータから生成
+  // ダッシュボードの並び替え
+  const _STATUS_ORDER = { '下書き中': 0, '提示済み': 1, '受注': 2, '失注': 3 };
+  function _sortCloudRows(rows) {
+    const s = _cloudSort || 'updated';
+    const upd = e => e.updated_at || '';
+    const who = e => _nameFor(e.owner_email) || '';
+    const r = rows.slice();
+    if (s === 'status')        r.sort((a, b) => (_STATUS_ORDER[a.status] ?? 9) - (_STATUS_ORDER[b.status] ?? 9) || upd(b).localeCompare(upd(a)));
+    else if (s === 'who')      r.sort((a, b) => who(a).localeCompare(who(b), 'ja') || upd(b).localeCompare(upd(a)));
+    else if (s === 'person')   r.sort((a, b) => (a.person   || '').localeCompare(b.person   || '', 'ja') || upd(b).localeCompare(upd(a)));
+    else if (s === 'customer') r.sort((a, b) => (a.customer || '').localeCompare(b.customer || '', 'ja') || upd(b).localeCompare(upd(a)));
+    else                       r.sort((a, b) => upd(b).localeCompare(upd(a)));   // updated（既定）
+    return r;
+  }
+
+  // 詳細検索ドロップダウンをロード済みデータから生成（モーダル＋ダッシュボード両方）
   function _renderAdvancedFilters() {
     const unique = (key) => [...new Set(_cloudRows.map(r => r[key]).filter(Boolean))].sort();
     const modes  = unique('transport_mode');
     const incos  = unique('incoterms');
-    const modeEl = document.getElementById('cloudFilterMode');
-    const incoEl = document.getElementById('cloudFilterInco');
-    if (modeEl) {
-      modeEl.innerHTML = '<option value="">輸送モード：すべて</option>' +
-        modes.map(v => '<option value="' + escHtml(v) + '"' + (_cloudFilterMode === v ? ' selected' : '') + '>' + escHtml(v) + '</option>').join('');
-    }
-    if (incoEl) {
-      incoEl.innerHTML = '<option value="">インコタームズ：すべて</option>' +
-        incos.map(v => '<option value="' + escHtml(v) + '"' + (_cloudFilterInco === v ? ' selected' : '') + '>' + escHtml(v) + '</option>').join('');
-    }
+    const fill = (el, head, list, cur) => {
+      if (!el) return;
+      el.innerHTML = '<option value="">' + head + '</option>' +
+        list.map(v => '<option value="' + escHtml(v) + '"' + (cur === v ? ' selected' : '') + '>' + escHtml(v) + '</option>').join('');
+    };
+    fill(document.getElementById('cloudFilterMode'), '輸送モード：すべて', modes, _cloudFilterMode);
+    fill(document.getElementById('cloudFilterInco'), 'インコタームズ：すべて', incos, _cloudFilterInco);
+    fill(document.getElementById('qpdFilterMode'),   '輸送モード：すべて', modes, _cloudFilterMode);
+    fill(document.getElementById('qpdFilterInco'),   'インコタームズ：すべて', incos, _cloudFilterInco);
+    // ダッシュボード側のテキスト系も現在値へ同期
+    const setv = (id, v) => { const e = document.getElementById(id); if (e && e.value !== v) e.value = v; };
+    setv('qpdFilterPol', _cloudFilterPol); setv('qpdFilterPod', _cloudFilterPod); setv('qpdFilterCarrier', _cloudFilterCarrier);
     // クリアボタン表示制御
     const hasAdv = _cloudFilterMode || _cloudFilterInco || _cloudFilterPol || _cloudFilterPod || _cloudFilterCarrier;
     const clearBtn = document.getElementById('cloudAdvClearBtn');
@@ -363,7 +383,7 @@
       wraps.forEach(w => w.innerHTML = html);
       return;
     }
-    html = rows.map(r => {
+    const cardsHtml = rows.map(r => {
       const ts = r.updated_at
         ? new Date(r.updated_at).toLocaleString('ja-JP',
             { month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit' })
@@ -446,7 +466,44 @@
           '</div>' +
         '</div>';
     }).join('');
-    wraps.forEach(w => w.innerHTML = html);
+    // モーダルは常にカード、ダッシュボードはカード/リスト切替
+    const modalWrap = document.getElementById('cloudPresetListWrap');
+    const dashWrap  = document.getElementById('qpdListWrap');
+    if (modalWrap) modalWrap.innerHTML = cardsHtml;
+    if (dashWrap) {
+      const listMode = _cloudView === 'list';
+      dashWrap.classList.toggle('qpd-list--rows', listMode);
+      dashWrap.innerHTML = listMode
+        ? ('<div class="qpd-rows-head"><span>状態</span><span>見積番号</span><span>お客様 / 担当</span><span>作業者</span><span>更新</span><span></span></div>'
+            + rows.map(_cloudListRow).join(''))
+        : cardsHtml;
+    }
+  }
+
+  // ダッシュボード：リスト（行）表示の1行
+  function _cloudListRow(r) {
+    const m = (window.quotePresetMeta && r.data) ? window.quotePresetMeta({ data: r.data }) : null;
+    const title  = (m && m.ref) ? m.ref : r.name;
+    const status = r.status || CLOUD_STATUS_DEFAULT;
+    const cust   = (m ? m.customer : r.customer) || '';
+    const person = (m ? m.person : r.person) || '';
+    const who    = _nameFor(r.owner_email) || '—';
+    const ts     = r.updated_at ? new Date(r.updated_at).toLocaleString('ja-JP', { month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit' }) : '';
+    const idAttr = encodeURIComponent(r.id);
+    const lockedBy = _lockedByOther(r);
+    return '<div class="qpd-row" onclick="cloudLoadPreset(\'' + idAttr + '\')" title="クリックで開く">' +
+      '<span class="qpd-row-status cloud-status-badge cloud-status--' + _statusClass(status) + '">' + escHtml(status) + '</span>' +
+      '<span class="qpd-row-title">' + escHtml(title) + '</span>' +
+      '<span class="qpd-row-cust">' + escHtml(cust) + (person ? ' <small>/ ' + escHtml(person) + '</small>' : '') + '</span>' +
+      '<span class="qpd-row-who">' + escHtml(who) + '</span>' +
+      '<span class="qpd-row-ts">' + ts + '</span>' +
+      '<span class="qpd-row-acts" onclick="event.stopPropagation()">' +
+        '<button class="qpd-row-btn" onclick="cloudPreviewPreset(\'' + idAttr + '\')" title="プレビュー">👁</button>' +
+        (lockedBy
+          ? '<button class="qpd-row-btn is-locked" disabled title="' + escHtml(_nameFor(lockedBy)) + ' さんが作業中">🔒</button>'
+          : '<button class="qpd-row-btn" onclick="cloudDeletePreset(\'' + idAttr + '\')" title="削除">✕</button>') +
+      '</span>' +
+    '</div>';
   }
 
   // ダッシュボードの統計カード（ステータス別件数・クリックで絞り込み）
@@ -691,6 +748,36 @@
     _applyShareMode('edit');
     qpShowEditor();
     quoteShowToast('🆕 新規見積を作成します', 'success', 2500);
+  }
+
+  // ---------- ダッシュボード：詳細検索・並び替え・表示切替 ----------
+  function qpdToggleAdv() {
+    const body = document.getElementById('qpdAdv');
+    const tgl  = document.getElementById('qpdAdvToggle');
+    if (!body) return;
+    body.hidden = !body.hidden;
+    if (tgl) tgl.textContent = body.hidden ? '🔎 詳細検索 ▶' : '🔎 詳細検索 ▼';
+  }
+  function qpdApplyAdv() {
+    _cloudFilterMode    = document.getElementById('qpdFilterMode')?.value    || '';
+    _cloudFilterInco    = document.getElementById('qpdFilterInco')?.value    || '';
+    _cloudFilterPol     = document.getElementById('qpdFilterPol')?.value     || '';
+    _cloudFilterPod     = document.getElementById('qpdFilterPod')?.value     || '';
+    _cloudFilterCarrier = document.getElementById('qpdFilterCarrier')?.value || '';
+    _applyCloudFilter();
+  }
+  function qpdClearAdv() {
+    _cloudFilterMode = _cloudFilterInco = _cloudFilterPol = _cloudFilterPod = _cloudFilterCarrier = '';
+    ['qpdFilterMode','qpdFilterInco','qpdFilterPol','qpdFilterPod','qpdFilterCarrier'].forEach(id => { const e = document.getElementById(id); if (e) e.value = ''; });
+    _applyCloudFilter();
+  }
+  function qpdSetSort(v) { _cloudSort = v || 'updated'; _applyCloudFilter(); }
+  function qpdSetView(v) {
+    _cloudView = (v === 'list') ? 'list' : 'card';
+    const c = document.getElementById('qpdViewCard'), l = document.getElementById('qpdViewList');
+    if (c) c.classList.toggle('is-active', _cloudView === 'card');
+    if (l) l.classList.toggle('is-active', _cloudView === 'list');
+    _applyCloudFilter();
   }
 
   // 検索ボックス入力
@@ -1352,6 +1439,12 @@
   window.qpShowDashboard   = qpShowDashboard;
   window.qpShowEditor      = qpShowEditor;
   window.qpNewQuote        = qpNewQuote;
+  // ダッシュボード：詳細検索・並び替え・表示切替
+  window.qpdToggleAdv = qpdToggleAdv;
+  window.qpdApplyAdv  = qpdApplyAdv;
+  window.qpdClearAdv  = qpdClearAdv;
+  window.qpdSetSort   = qpdSetSort;
+  window.qpdSetView   = qpdSetView;
 
   // ---------- 他モジュール（行パターン等）からのログイン情報参照用 ----------
   window.quoteCloudUser   = function () { return _cloudUser; };
