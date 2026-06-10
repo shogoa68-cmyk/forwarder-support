@@ -409,6 +409,7 @@
           '</div>'
         : '';
 
+      var progressHtml = (window.quoteProgressBarHtml && r.data) ? window.quoteProgressBarHtml(r.data) : '';
       return '' +
         '<div class="cloud-card cloud-card-labeled' + (others.length ? ' is-editing' : '') + '">' +
           '<div class="cloud-card-row1">' +
@@ -416,6 +417,7 @@
             '<span class="cloud-card-name" title="' + escHtml(r.name) + '">' + escHtml(titleText) + '</span>' +
           '</div>' +
           editBadge +
+          progressHtml +
           '<dl class="cloud-kv">' +
             (route    ? '<dt>ルート</dt><dd>' + route + '</dd>' : '') +
             (condHtml ? '<dt>条件</dt><dd class="cloud-kv-tags">' + condHtml + '</dd>' : '') +
