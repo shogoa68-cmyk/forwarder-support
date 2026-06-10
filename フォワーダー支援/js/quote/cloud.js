@@ -141,6 +141,8 @@
       stateEl.classList.add('is-on');
       if (hint) hint.style.display = 'none';
       if (body) body.style.display = '';
+      // ログイン後に共有リマークプリセットをロード
+      if (typeof window.loadSharedRemarkPresets === 'function') window.loadSharedRemarkPresets();
       // ヘッダー：ユーザー名表示
       if (hdrLogin) hdrLogin.style.display = 'none';
       if (hdrUser)  hdrUser.style.display  = '';

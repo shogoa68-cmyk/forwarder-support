@@ -1042,13 +1042,40 @@
 
   // 御見積書を独立ウィンドウに書き出して印刷（環境非依存）。
   // ポップアップがブロックされた場合は従来の window.print() にフォールバック。
+  function _docViewportUnlock() {
+    // qd-doc-scroll の translateY と qd-viewport の overflow を一時解除して全ページを可視化
+    const scroll = document.getElementById('qdDocScroll');
+    const vp     = document.getElementById('qdViewport');
+    const saved  = { transform: scroll?.style.transform, height: vp?.style.height, overflow: vp?.style.overflow };
+    if (scroll) scroll.style.transform = 'none';
+    if (vp) { vp.style.height = 'auto'; vp.style.overflow = 'visible'; }
+    return saved;
+  }
+  function _docViewportRestore(saved) {
+    const scroll = document.getElementById('qdDocScroll');
+    const vp     = document.getElementById('qdViewport');
+    if (scroll) scroll.style.transform = saved.transform ?? '';
+    if (vp) { vp.style.height = saved.height ?? ''; vp.style.overflow = saved.overflow ?? ''; }
+  }
+
+  // beforeprint/afterprint で doc-layout 印刷時に viewport 制約を JS レベルで解除
+  // （CSS :has() が効かない環境やポップアップブロック時のフォールバック対策）
+  let _beforePrintSaved = null;
+  window.addEventListener('beforeprint', function () {
+    if (_pvLayout !== 'doc') return;
+    _beforePrintSaved = _docViewportUnlock();
+  });
+  window.addEventListener('afterprint', function () {
+    if (_beforePrintSaved) { _docViewportRestore(_beforePrintSaved); _beforePrintSaved = null; }
+  });
+
   function printDocStandalone() {
     if (typeof buildQuoteDocHTML !== 'function') { window.print(); return; }
     const docHtml = buildQuoteDocHTML();
     const w = window.open('', '_blank', 'width=900,height=1100');
     if (!w) {
-      // ポップアップ不可（サンドボックス等）→ その場印刷にフォールバック
-      if (window.quoteShowToast) quoteShowToast('ポップアップがブロックされました。ブラウザのポップアップを許可するか、印刷ダイアログをそのままお使いください。', 'warn');
+      // ポップアップ不可（サンドボックス等）→ ビューポート制約をJSで解除してその場印刷
+      if (window.quoteShowToast) quoteShowToast('ポップアップがブロックされました。印刷ダイアログをそのままお使いください。備考など全ページが出力されます。', 'warn');
       window.print();
       return;
     }

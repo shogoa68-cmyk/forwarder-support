@@ -954,6 +954,45 @@
   color: #b36a00;
 }
 
+/* ===== 0円確認済みボタン ===== */
+#tab-quote-make .zero-confirm-btn {
+  display: block;
+  margin-top: 3px;
+  padding: 1px 6px;
+  font-size: 10px;
+  line-height: 1.5;
+  border: 1px solid #c4b49a;
+  border-radius: 3px;
+  background: transparent;
+  color: #c4b49a;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+#tab-quote-make .zero-confirm-btn:hover {
+  border-color: #5a8a42;
+  color: #5a8a42;
+  opacity: 1;
+}
+#tab-quote-make .zero-confirm-btn.is-on {
+  background: #e8f5e9;
+  border-color: #5a8a42;
+  color: #2e7d32;
+  font-weight: 600;
+}
+/* 小計セル内の 0円確認バッジ */
+#tab-quote-make .zero-confirmed-badge {
+  display: inline-block;
+  padding: 1px 7px;
+  background: #e8f5e9;
+  border: 1px solid #81c784;
+  border-radius: 10px;
+  color: #2e7d32;
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+}
 /* ===== プレビュー入力ガイドパネル ===== */
 #tab-quote-make .pv-warn-guide {
   position: fixed;
@@ -2727,6 +2766,39 @@
   color: #7d6b56;
 }
 #tab-quote-make .preset-btn-add:hover { background: #f0e8d8; border-style: solid; border-color: #6b5a42; color: #6b5a42; }
+/* プリセット段階ラベル（標準／チーム人気⭐／チーム共有☁️／個人） */
+#tab-quote-make .preset-tier-label {
+  flex-basis: 100%;
+  font-size: 11px;
+  font-weight: 600;
+  color: #7d6b56;
+  letter-spacing: 0.05em;
+  margin: 6px 0 1px;
+  padding-bottom: 3px;
+  border-bottom: 1px solid #e0d8cc;
+}
+/* チーム人気（use_count >= 5） */
+#tab-quote-make .preset-btn-promoted { background: #fff8e1; border-color: #f5c518; color: #856404; }
+#tab-quote-make .preset-btn-promoted:hover { background: #ffeeba; border-color: #d4a017; }
+#tab-quote-make .preset-btn-promoted.active { background: #ffe082; border-color: #c8a000; color: #3d2e1e; font-weight: 600; }
+/* チーム共有（use_count < 5） */
+#tab-quote-make .preset-btn-shared { background: #e8f4fd; border-color: #90caf9; color: #1565c0; }
+#tab-quote-make .preset-btn-shared:hover { background: #bbdefb; border-color: #42a5f5; }
+#tab-quote-make .preset-btn-shared.active { background: #90caf9; border-color: #1976d2; color: #0d47a1; font-weight: 600; }
+/* 共有・人気プリセットの削除ボタン */
+#tab-quote-make .preset-btn-shared .preset-btn-del,
+#tab-quote-make .preset-btn-promoted .preset-btn-del {
+  display: inline-block;
+  margin-left: 6px;
+  font-size: 10px;
+  padding: 0 3px;
+  border-radius: 3px;
+  color: #5a8ab5;
+  cursor: pointer;
+  transition: background .15s;
+}
+#tab-quote-make .preset-btn-shared .preset-btn-del:hover,
+#tab-quote-make .preset-btn-promoted .preset-btn-del:hover { background: #c0392b; color: #fff; }
 #tab-quote-make .remark-body { display: flex; flex-direction: column; gap: 10px; }
 #tab-quote-make #remarkTextarea {
   width: 100%;
