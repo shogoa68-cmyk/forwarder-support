@@ -137,6 +137,7 @@ function _bmRenderList(rows) {
     return `<div class="bm-card">
       <div class="bm-card-row1">
         ${nameEl}
+        <button class="bm-edit-btn" onclick="bmEdit('${escHtml(r.id)}')" title="編集">✎</button>
         <button class="bm-del-btn" onclick="bmDelete('${escHtml(r.id)}')" title="削除">🗑</button>
       </div>
       <div class="bm-card-tags">${tags}</div>
@@ -190,28 +191,36 @@ function openAddBmModal(presetData) {
   const modal = document.getElementById('bmAddModal');
   if (!modal) return;
   const p = presetData || {};
+  const isEdit = !!p.id;
   const labelEl   = document.getElementById('bmFormLabel');
   const urlEl     = document.getElementById('bmFormUrl');
   const carrierEl = document.getElementById('bmFormCarrier');
   const noteEl    = document.getElementById('bmFormNote');
   const typeEl    = document.getElementById('bmFormType');
   const fnEl      = document.getElementById('bmFormFunction');
+  const idEl      = document.getElementById('bmFormId');
+  if (idEl)      idEl.value      = p.id      || '';
   if (labelEl)   labelEl.value   = p.label   || '';
   if (urlEl)     urlEl.value     = p.url     || '';
   if (noteEl)    noteEl.value    = p.note    || '';
   if (typeEl)    typeEl.value    = p.type    || (p.label ? _inferBmType() : 'FCL');
-  if (fnEl)      fnEl.value      = p.fn      ? (_inferBmFunction(p.fn) || '') : '';
-  // QSP から呼ばれた場合（carrier 指定あり）は会社名を固定して消せないようにする
+  // 編集モードは既存の function 値をそのまま使用、追加モードはチップラベルから推測
+  if (fnEl)      fnEl.value      = isEdit ? (p.fn || '') : (p.fn ? (_inferBmFunction(p.fn) || '') : '');
+  // QSP 経由の新規追加時のみ会社名フィールドをロック。編集時は常に編集可能
+  const lockCarrier = !isEdit && !!p.carrier;
   if (carrierEl) {
     carrierEl.value    = p.carrier || '';
-    carrierEl.readOnly = !!p.carrier;
+    carrierEl.readOnly = lockCarrier;
   }
   const carrierRow = document.getElementById('bmCarrierRow');
   const carrierNote = document.getElementById('bmCarrierNote');
-  if (carrierRow)  carrierRow.classList.toggle('bm-carrier-locked', !!p.carrier);
-  if (carrierNote) carrierNote.style.display = p.carrier ? '' : 'none';
+  if (carrierRow)  carrierRow.classList.toggle('bm-carrier-locked', lockCarrier);
+  if (carrierNote) carrierNote.style.display = lockCarrier ? '' : 'none';
+  // モーダルタイトルを切り替え
+  const titleEl = document.getElementById('bmModalTitle');
+  if (titleEl) titleEl.textContent = isEdit ? '🔖 ブックマークを編集' : '🔖 ブックマークを追加';
   // datalist を既存データから補完（編集可能時のみ）
-  if (!p.carrier) {
+  if (!lockCarrier) {
     const dl = document.getElementById('bmCarrierDatalist');
     if (dl) {
       const carriers = [...new Set(_bmRows.map(r => r.carrier).filter(Boolean))].sort();
@@ -230,6 +239,7 @@ function closeAddBmModal(e) {
 async function saveBm() {
   const db = window.SupabaseClient;
   if (!db) return;
+  const id      = document.getElementById('bmFormId')?.value              || null;
   const label   = document.getElementById('bmFormLabel')?.value.trim();
   const url     = document.getElementById('bmFormUrl')?.value.trim()    || null;
   const type    = document.getElementById('bmFormType')?.value           || 'general';
@@ -244,14 +254,19 @@ async function saveBm() {
   if (btn) { btn.disabled = true; btn.textContent = '保存中…'; }
 
   const { data: sd } = await db.auth.getSession();
-  const { error } = await db.from('bookmarks').insert({
-    label, url,
-    carrier_type: type,
-    carrier,
-    function: fn,
-    note,
-    created_by: sd?.session?.user?.email || null,
-  });
+  let error;
+  if (id) {
+    // 編集（UPDATE）
+    ({ error } = await db.from('bookmarks').update({
+      label, url, carrier_type: type, carrier, function: fn, note,
+    }).eq('id', id));
+  } else {
+    // 新規（INSERT）
+    ({ error } = await db.from('bookmarks').insert({
+      label, url, carrier_type: type, carrier, function: fn, note,
+      created_by: sd?.session?.user?.email || null,
+    }));
+  }
 
   if (btn) { btn.disabled = false; btn.textContent = '保存'; }
 
@@ -259,20 +274,28 @@ async function saveBm() {
     quoteShowToast('⚠️ 保存エラー：' + error.message, 'warn', 6000);
     return;
   }
-  quoteShowToast('✅ ブックマークを追加しました', 'success', 3000);
+  quoteShowToast(id ? '✅ 更新しました' : '✅ ブックマークを追加しました', 'success', 3000);
   document.getElementById('bmAddModal')?.classList.remove('open');
 
-  // A-2: ローカルキャッシュに即時追記して QSP チップを同期的に再描画
-  if (carrier && url) {
+  // A-2: ローカルキャッシュを即時更新して QSP チップを同期的に再描画
+  if (id) {
+    // 編集: キャッシュ内の同 ID エントリを新データで置換
+    Object.keys(window._qspBmCache).forEach(name => {
+      window._qspBmCache[name] = window._qspBmCache[name].map(b =>
+        b.id === id ? { ...b, label, url, carrier, note } : b
+      );
+    });
+  } else if (carrier && url) {
+    // 追加: キャリアのキャッシュに即時追記
     if (!Array.isArray(window._qspBmCache[carrier])) window._qspBmCache[carrier] = [];
     const dup = window._qspBmCache[carrier].some(b => b.url === url && b.label === label);
     if (!dup) window._qspBmCache[carrier].push({ id: '_local_' + Date.now(), label, url, carrier, note });
-    if (typeof window.renderQuoteMilestones === 'function') window.renderQuoteMilestones();
   }
+  if (typeof window.renderQuoteMilestones === 'function') window.renderQuoteMilestones();
 
   // A-1: バックグラウンドで Supabase から正確なデータを再同期
   if (carrier && typeof window.fetchCarrierBmsForQSP === 'function') {
-    _qspBmLastKey = '';  // キーをリセットして強制再フェッチ
+    _qspBmLastKey = '';
     const targets = Object.keys(window._qspBmCache).length
       ? Object.keys(window._qspBmCache)
       : [carrier];
@@ -290,6 +313,20 @@ async function bmDelete(id) {
   quoteShowToast('✅ 削除しました', 'success', 2000);
   _bmRows = _bmRows.filter(r => r.id !== id);
   _bmApply();
+}
+
+function bmEdit(id) {
+  const r = _bmRows.find(row => row.id === id);
+  if (!r) return;
+  openAddBmModal({
+    id:      r.id,
+    label:   r.label,
+    url:     r.url     || '',
+    type:    r.carrier_type || 'FCL',
+    carrier: r.carrier  || '',
+    fn:      r.function || '',
+    note:    r.note     || '',
+  });
 }
 
 // ---------- QSP 用キャリアブックマームフェッチ ----------
@@ -331,3 +368,4 @@ window.openAddBmModal  = openAddBmModal;
 window.closeAddBmModal = closeAddBmModal;
 window.saveBm          = saveBm;
 window.bmDelete        = bmDelete;
+window.bmEdit          = bmEdit;

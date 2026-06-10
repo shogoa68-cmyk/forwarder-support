@@ -3684,10 +3684,11 @@
 <div id="bmAddModal" class="bm-modal-overlay" onclick="closeAddBmModal(event)">
   <div class="bm-modal-box">
     <div class="bm-modal-head">
-      <h3>🔖 ブックマークを追加</h3>
+      <h3 id="bmModalTitle">🔖 ブックマークを追加</h3>
       <button class="bm-modal-close" onclick="document.getElementById('bmAddModal').classList.remove('open')" aria-label="閉じる">✕</button>
     </div>
     <form class="bm-form" onsubmit="saveBm();return false;">
+      <input type="hidden" id="bmFormId">
       <div class="bm-form-row">
         <label class="bm-form-label" for="bmFormLabel">ラベル <span class="bm-required">必須</span></label>
         <input type="text" id="bmFormLabel" class="bm-form-input" placeholder="例：ONE スケジュール照会" maxlength="100">
