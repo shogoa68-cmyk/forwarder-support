@@ -2572,51 +2572,59 @@
       </h2>
       <div id="cargoBody">
 
-        <!-- ▼ 貨物名・品目グループ -->
-        <div class="cond-inner-group">
-          <div class="cond-inner-group-label">🏷️ 貨物名・品目</div>
-          <div class="condition-grid" id="cargoCondGrid">
+        <!-- ▼ 貨物名・品目グループ（脱・入れ子 ＋ 関税率サブカード） -->
+        <div class="cond-sub">
+          <div class="cond-sub-label">貨物名・品目</div>
+          <div class="condition-grid cargo-name-grid" id="cargoCondGrid">
             <div class="cond-field" data-field-id="cargo">
-              <label><span class="cond-icon">🏷️</span> 貨物名</label>
+              <label>貨物名</label>
               <input type="text" id="cond-cargo" placeholder="例）自動車部品" />
             </div>
             <div class="cond-field" data-field-id="hs">
-              <label><span class="cond-icon">🔍</span> HSコード
+              <label>HSコード
                 <a class="hs-tariff-link" href="https://www.kanzei.or.jp/statistical/tariff/top/index/j/" target="_blank" rel="noopener" title="WEBタリフで検索（関税協会）">WEBタリフ ↗</a>
               </label>
               <input type="text" id="cond-hs" placeholder="例）8544.42" maxlength="20" />
-              <div class="hs-rate-row">
-                <div class="hs-rate-field">
-                  <span class="hs-rate-lbl">📊 関税率（基本）</span>
-                  <input type="text" id="cond-hs-basic" placeholder="例）3.3%" maxlength="30" />
-                </div>
-                <div class="hs-rate-field">
-                  <span class="hs-rate-lbl">🤝 協定税率</span>
-                  <input type="text" id="cond-hs-pref" placeholder="例）0%（日 EU EPA）" maxlength="60" />
-                  <textarea id="cond-hs-pref-note" class="hs-rate-note" rows="2"
-                    placeholder="例）日EU EPA 適用。Form A 取得済み"></textarea>
-                </div>
+            </div>
+          </div>
+          <div class="cond-rate-card">
+            <div class="cond-rate-card-head">関税率</div>
+            <div class="hs-rate-row">
+              <div class="hs-rate-field">
+                <span class="hs-rate-lbl">基本税率</span>
+                <input type="text" id="cond-hs-basic" placeholder="例）3.3%" maxlength="30" />
+              </div>
+              <div class="hs-rate-field">
+                <span class="hs-rate-lbl">協定税率</span>
+                <input type="text" id="cond-hs-pref" placeholder="例）0%（日 EU EPA）" maxlength="60" />
+                <textarea id="cond-hs-pref-note" class="hs-rate-note" rows="2"
+                  placeholder="例）日EU EPA 適用。Form A 取得済み"></textarea>
               </div>
             </div>
           </div>
         </div>
 
-        <!-- ▼ 危険品・特殊貨物グループ（独立セクション） -->
-        <div class="cond-inner-group cond-inner-group--hazmat">
-          <div class="cond-inner-group-label">☣️ 危険品・特殊貨物</div>
-          <div class="condition-grid">
-            <div class="cond-field" data-field-id="hazmat">
-              <label><span class="cond-icon">☣️</span> 区分</label>
-              <select id="cond-hazmat" onchange="onHazmatChange(this.value)">
-                <option>なし（一般貨物）</option>
-                <option>危険品あり（クラス要確認）</option>
-                <option>温度管理品（冷蔵）</option>
-                <option>温度管理品（冷凍）</option>
-                <option>重量物・大型貨物</option>
-                <option>その他（特記事項参照）</option>
-              </select>
-            </div>
+        <!-- ▼ 危険品・特殊貨物グループ（区分チップ） -->
+        <div class="cond-sub">
+          <div class="cond-sub-label">☣️ 危険品・特殊貨物 <span class="cond-sub-note">該当する区分を選択</span></div>
+
+          <!-- 区分チップ：#cond-hazmat セレクトを駆動する。セレクトは保存/復元・プレビュー・PDF が値を読むため残置し、視覚的にのみ非表示にする -->
+          <div class="haz-chips" id="hazChips" role="radiogroup" aria-label="危険品・特殊貨物 区分">
+            <button type="button" class="haz-chip" data-tone="general" data-haz-value="なし（一般貨物）" onclick="setHazmatChip(this.dataset.hazValue)"><span class="haz-dot"></span>一般貨物</button>
+            <button type="button" class="haz-chip" data-tone="danger" data-haz-value="危険品あり（クラス要確認）" onclick="setHazmatChip(this.dataset.hazValue)"><span class="haz-dot"></span>危険品</button>
+            <button type="button" class="haz-chip" data-tone="cold" data-haz-value="温度管理品（冷蔵）" onclick="setHazmatChip(this.dataset.hazValue)"><span class="haz-dot"></span>冷蔵</button>
+            <button type="button" class="haz-chip" data-tone="cold" data-haz-value="温度管理品（冷凍）" onclick="setHazmatChip(this.dataset.hazValue)"><span class="haz-dot"></span>冷凍</button>
+            <button type="button" class="haz-chip" data-tone="heavy" data-haz-value="重量物・大型貨物" onclick="setHazmatChip(this.dataset.hazValue)"><span class="haz-dot"></span>重量物</button>
+            <button type="button" class="haz-chip" data-tone="other" data-haz-value="その他（特記事項参照）" onclick="setHazmatChip(this.dataset.hazValue)"><span class="haz-dot"></span>その他</button>
           </div>
+          <select id="cond-hazmat" class="haz-select-hidden" onchange="onHazmatChange(this.value)" aria-hidden="true" tabindex="-1">
+            <option>なし（一般貨物）</option>
+            <option>危険品あり（クラス要確認）</option>
+            <option>温度管理品（冷蔵）</option>
+            <option>温度管理品（冷凍）</option>
+            <option>重量物・大型貨物</option>
+            <option>その他（特記事項参照）</option>
+          </select>
 
           <!-- 区分に応じた追加入力パネル -->
           <div class="hazmat-detail" id="hazmatDetail" hidden>

@@ -712,7 +712,24 @@
     detail.classList.toggle('is-cold',  val === '温度管理品（冷蔵）' || val === '温度管理品（冷凍）');
     detail.classList.toggle('is-heavy', val === '重量物・大型貨物');
     detail.classList.toggle('is-other', val === 'その他（特記事項参照）');
+    // 区分チップUIの点灯状態を同期（チップは #cond-hazmat を駆動するファサード。
+    //   ユーザー操作・データ復元の両方が onHazmatChange を通るため、ここで一元管理する）
+    document.querySelectorAll('#hazChips .haz-chip').forEach(chip => {
+      const on = chip.dataset.hazValue === val;
+      chip.classList.toggle('is-on', on);
+      chip.setAttribute('aria-checked', on ? 'true' : 'false');
+    });
   }
+
+  /** 区分チップ → #cond-hazmat セレクトを駆動（保存/復元・プレビュー・PDF は従来どおりセレクト値を読む） */
+  window.setHazmatChip = function (val) {
+    const sel = document.getElementById('cond-hazmat');
+    if (!sel) return;
+    sel.value = val;
+    // change を発火：inline onchange の onHazmatChange（パネル＋チップ同期）と
+    //   見積タブの自動保存リスナーを両方通す
+    sel.dispatchEvent(new Event('change', { bubbles: true }));
+  };
 
   /** 起動時・データ復元後に危険品パネルの表示状態を同期 */
   function syncHazmatPanel() {

@@ -6737,3 +6737,69 @@ button.um-memberno--empty:hover { background: #f4ead4; border-color: #cdb98e; }
 #tab-quote-make .rp-cat.cat-customs-import{background:#fce4ec;color:#a8326a}
 #tab-quote-make .rp-cat.cat-insurance{background:#e0f0f5;color:#1a6a8a}
 #tab-quote-make .rp-cat.cat-other{background:#ece8e1;color:#6b5a42}
+
+/* ============================================================
+   貨物情報セクション 改良案（A + B）
+   ・貨物名・品目：A案＝脱・入れ子（ヘアライン区切り）＋ 関税率サブカード
+   ・危険品・特殊貨物：B案＝区分チップ（#cond-hazmat セレクトを駆動）
+   ============================================================ */
+/* 入れ子カードをやめ、ヘアラインで区切るサブグループ */
+#tab-quote-make #cargoBody .cond-sub {
+  padding: 14px 0;
+  border-top: 1px solid #ece4d8;
+}
+#tab-quote-make #cargoBody > .cond-sub:first-of-type { border-top: none; padding-top: 2px; }
+#tab-quote-make .cond-sub-label {
+  display: flex; align-items: center; gap: 7px;
+  font-size: 12px; font-weight: 700; color: #6b5a42;
+  margin-bottom: 12px;
+}
+#tab-quote-make .cond-sub-label::before {
+  content: ""; width: 3px; height: 13px; border-radius: 2px; background: #b89b4e;
+  flex: 0 0 auto;
+}
+#tab-quote-make .cond-sub-note {
+  margin-left: auto; font-weight: 500; color: #ab9a82; font-size: 11px;
+}
+/* 貨物名・HS は 2 カラムで詰める */
+#tab-quote-make .cargo-name-grid { grid-template-columns: repeat(2, 1fr); margin-bottom: 0; }
+/* 関税率サブカード */
+#tab-quote-make .cond-rate-card {
+  margin-top: 10px; background: #f6f1e7; border: 1px solid #e7ddc9;
+  border-radius: 6px; padding: 11px 13px;
+}
+#tab-quote-make .cond-rate-card-head {
+  font-size: 11px; font-weight: 700; color: #8b7355; margin-bottom: 9px;
+}
+
+/* 危険品・特殊貨物 区分チップ */
+#tab-quote-make .haz-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+/* セレクトは状態保持のため DOM に残すが視覚的に隠す（スクリーンリーダーからも除外） */
+#tab-quote-make .haz-select-hidden {
+  position: absolute !important; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+}
+#tab-quote-make .haz-chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  border: 1px solid #d9cfc2; background: #fff; color: #6b5a42;
+  border-radius: 20px; padding: 7px 14px; font-size: 12.5px; font-weight: 600;
+  cursor: pointer; transition: background .12s, border-color .12s, color .12s;
+  font-family: inherit; line-height: 1.2;
+}
+#tab-quote-make .haz-chip:hover { border-color: #b8a98f; }
+#tab-quote-make .haz-chip:focus-visible { outline: 2px solid #8b6914; outline-offset: 2px; }
+#tab-quote-make .haz-chip .haz-dot {
+  width: 8px; height: 8px; border-radius: 50%; background: #cbbfad; flex: 0 0 auto;
+}
+#tab-quote-make .haz-chip[data-tone="general"].is-on { background: #f0ead9; border-color: #c7b486; color: #6b5a42; }
+#tab-quote-make .haz-chip[data-tone="general"].is-on .haz-dot { background: #8b6914; }
+#tab-quote-make .haz-chip[data-tone="danger"].is-on  { background: #fbeee9; border-color: #d99a82; color: #a8442a; }
+#tab-quote-make .haz-chip[data-tone="danger"].is-on .haz-dot { background: #c0492b; }
+#tab-quote-make .haz-chip[data-tone="cold"].is-on    { background: #eef4f8; border-color: #9cc0db; color: #2f658c; }
+#tab-quote-make .haz-chip[data-tone="cold"].is-on .haz-dot { background: #4a82b0; }
+#tab-quote-make .haz-chip[data-tone="heavy"].is-on   { background: #f5f1e8; border-color: #cdb98a; color: #8a6c31; }
+#tab-quote-make .haz-chip[data-tone="heavy"].is-on .haz-dot { background: #9a7a3a; }
+#tab-quote-make .haz-chip[data-tone="other"].is-on   { background: #f1ece5; border-color: #c5b6a4; color: #6b5a42; }
+#tab-quote-make .haz-chip[data-tone="other"].is-on .haz-dot { background: #7d6b56; }
+/* モバイルは既存 .condition-grid と同様に1カラムへ（提案の2カラムはデスクトップのみ） */
+@media (max-width: 560px) { #tab-quote-make .cargo-name-grid { grid-template-columns: 1fr; } }
