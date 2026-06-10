@@ -5755,6 +5755,20 @@
   overflow-x: hidden;
 }
 
+/* モバイル/タブレット帯：右サマリ列を本体の下へ縦積み（260px 固定の 2 カラム崩れを解消） */
+@media (max-width: 900px) {
+  #tab-quote-make .quote-workspace { flex-direction: column; gap: 12px; }
+  #tab-quote-make .quote-main { width: 100%; flex: 1 1 auto; }
+  #tab-quote-make .quote-right-col {
+    width: 100%;
+    flex: 1 1 auto;
+    position: static;
+    top: auto;
+    max-height: none;
+    overflow: visible;
+  }
+}
+
 /* ================================================================
    行カラーコーディング（カテゴリ別背景色）
    ================================================================ */
