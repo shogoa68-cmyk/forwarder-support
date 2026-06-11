@@ -7457,8 +7457,13 @@ button.um-memberno--empty:hover { background: #f4ead4; border-color: #cdb98e; }
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 8px;
+  margin-bottom: 0;
+  padding-bottom: 8px;
+  user-select: none;
 }
+#tab-quote-make .sc-panel--collapsed .sc-head { padding-bottom: 0; }
+#tab-quote-make .sc-panel--collapsed .sc-body { display: none; }
+#tab-quote-make .sc-collapse-arrow { font-size: 9px; color: #7a9abf; }
 #tab-quote-make .sc-head-title {
   font-weight: bold;
   color: #2a4a72;
@@ -7471,6 +7476,7 @@ button.um-memberno--empty:hover { background: #f4ead4; border-color: #cdb98e; }
   cursor: pointer;
   font-size: 12px;
   color: #555;
+  margin-bottom: 8px;
 }
 #tab-quote-make .sc-body--off {
   opacity: 0.45;

@@ -1685,13 +1685,18 @@ body:has(#compareOverlay.open) #quoteActionDock { display: none; }
 .sq-head {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 6px;
   padding: 8px 10px 6px;
   font-weight: 700;
   font-size: 11px;
   color: #5a4628;
   border-bottom: 1px solid #e0d4bf;
+  user-select: none;
 }
+.sq-collapse-arrow { font-size: 9px; color: #a09070; flex-shrink: 0; }
+.sq-panel--collapsed .sq-head { border-bottom: none; }
+.sq-panel--collapsed .sq-list { display: none; }
 .sq-match-label { font-weight: 400; color: #7a6040; flex: 1; font-size: 10px; }
 .sq-count { font-size: 10px; color: #999; }
 .sq-list { display: flex; flex-direction: column; gap: 1px; padding: 4px 0; }
