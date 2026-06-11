@@ -900,6 +900,7 @@
     const person         = (f['qf-person']      || '').trim() || null;
     const incoterms      = (f['cond-incoterms'] || '').trim() || null;
     const transport_mode = (f['cond-mode']       || '').trim() || null;
+    const status         = (f['qf-status']      || '').trim() || CLOUD_STATUS_DEFAULT;
     // 複数航路（z2-routes-data）対応：単一フィールドが空なら航路配列から収集
     let pol     = (f['z2Pol']     || '').trim() || null;
     let pod     = (f['z2Pod']     || '').trim() || null;
@@ -939,9 +940,9 @@
       }
       if (!confirmed && !confirm('共有プリセット「' + name + '」が既にあります。上書きしますか？')) return;
       const nowIso = new Date().toISOString();
-      // 上書き時はステータス・作成者は維持（中身と顧客/担当・最終更新者のみ更新）
+      // 上書き時は作成者は維持（ステータスはフォームの qf-status 値で更新）
       resp = await c.from(_table())
-        .update({ data, subcons, customer, person, incoterms, transport_mode, pol, pod, carrier,
+        .update({ data, subcons, status, customer, person, incoterms, transport_mode, pol, pod, carrier,
                   owner_email: _cloudUser.email, updated_at: nowIso })
         .eq('id', exId)
         .select('id');
@@ -954,8 +955,7 @@
     } else {
       resp = await c.from(_table())
         .insert({
-          name, data, subcons, customer, person, incoterms, transport_mode, pol, pod, carrier,
-          status: CLOUD_STATUS_DEFAULT,
+          name, data, subcons, status, customer, person, incoterms, transport_mode, pol, pod, carrier,
           owner_email: _cloudUser.email,
           created_by:  _cloudUser.email,
         })
