@@ -454,6 +454,40 @@
     quoteShowToast(`🏷️ ${count}行のカテゴリを「${catLabel}」に設定しました`, 'success');
   }
 
+  // 「通貨一括設定」セレクトを CURRENCIES で構築
+  function _refreshBulkCurrencySelect() {
+    const sel = document.getElementById('bulkCurrencySet');
+    if (!sel) return;
+    sel.innerHTML = '<option value="__none__">💱 通貨一括設定…</option>'
+      + CURRENCIES.map(c => `<option value="${c}">${c}</option>`).join('');
+    sel.value = '__none__';
+  }
+
+  // 選択（チェック）行の請求通貨（bc）を一括設定。選択は維持
+  function applyBulkCurrencySet(sel) {
+    if (!sel || sel.value === '__none__') return;
+    const checkboxes = document.querySelectorAll('.row-select-chk:checked');
+    if (!checkboxes.length) {
+      quoteShowToast('⚠️ 設定したい行のチェックボックスにチェックを入れてください', 'warn', 3000);
+      sel.value = '__none__';
+      return;
+    }
+    const newCurrency = sel.value;
+    let count = 0;
+    checkboxes.forEach(chk => {
+      const tr = chk.closest('tr');
+      if (!tr || tr.dataset.type === 'subtotal' || tr.dataset.type === 'remark') return;
+      const id = tr.id.replace('row-', '');
+      const bcEl = document.getElementById(`bc-${id}`);
+      if (!bcEl) return;
+      bcEl.value = newCurrency;
+      bcEl.dispatchEvent(new Event('change', { bubbles: true }));
+      count++;
+    });
+    sel.value = '__none__';
+    quoteShowToast(`💱 ${count}行の通貨を「${newCurrency}」に設定しました`, 'success');
+  }
+
   // 選択（チェック）行のサブコンを一括設定（空欄ならクリア）。選択は維持
   function applyBulkSubcon() {
     const inp = document.getElementById('bulkSubconSet');
@@ -2572,6 +2606,7 @@
     initColVis();
     restoreLayoutScale();      // 大/中/小 スケールを復元
     refreshBulkCatSelect();    // 「選択行 → カテゴリ一括変更」セレクトを初期構築
+    _refreshBulkCurrencySelect(); // 「選択行 → 通貨一括変更」セレクトを初期構築
     initQuoteViewMode();       // STEP A: 客先/社内モード復元
     initQuoteSectionCollapse(); // 上部セクションの折り畳み状態を復元
     // 見積サマリ：保存済みタブを復元（既定は要約）

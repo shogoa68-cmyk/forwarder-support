@@ -3219,6 +3219,9 @@
               <button class="btn-bulk-delete" onclick="deleteSelectedRows()" title="チェックした行を削除">🗑️ 削除</button>
               <span class="ctx-sep" aria-hidden="true">|</span>
               <select id="bulkCatSet" class="bulk-cat-select" onchange="applyBulkCategorySet(this)" title="チェックした行のカテゴリを一括設定"></select>
+              <select id="bulkCurrencySet" class="bulk-cat-select" onchange="applyBulkCurrencySet(this)" title="チェックした行の通貨を一括設定">
+                <option value="__none__">💱 通貨一括設定…</option>
+              </select>
               <input type="text" id="bulkSubconSet" class="bulk-subcon-input" placeholder="サブコン一括設定…" maxlength="40"
                      onkeydown="if(event.key==='Enter'){applyBulkSubcon();}" title="チェックした行のサブコンを一括設定" />
               <button class="btn-bulk-subcon" onclick="applyBulkSubcon()" title="チェックした行のサブコンに左の値を一括設定">設定</button>
