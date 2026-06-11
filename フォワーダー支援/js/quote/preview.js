@@ -8,11 +8,10 @@
     return PV_TAX_RATE_DEFAULT;
   }
 
-  // 発行日の当日補完（御見積書 _todayIso と同じローカル日付）。
+  // 発行日の当日補完（御見積書 _todayIso と同じ JST 日付）。
   // 御見積書・Excel・TSV で発行日の扱いを統一するために使用。
   function _pvTodayIso() {
-    const d = new Date();
-    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+    return new Date().toLocaleDateString('sv', { timeZone: 'Asia/Tokyo' }); // "YYYY-MM-DD" JST
   }
 
   // ========== プレビュー＆エクスポート ==========
@@ -57,7 +56,7 @@
 
   function buildFileName(ext) {
     const hdr   = getQuoteHeader();
-    const today = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+    const today = new Date().toLocaleDateString('sv', { timeZone: 'Asia/Tokyo' }).replace(/-/g, '');
     const safe  = s => s.replace(/[\/\\:*?"<>|\t\n\r]/g, '_').replace(/_+/g, '_').trim().slice(0, 40);
     const cond = getConditions();
     const mode = safe(cond.mode || '');

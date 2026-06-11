@@ -193,7 +193,7 @@
     if (!el) return;
     const base = el.value ? new Date(el.value + 'T00:00:00') : new Date();
     base.setDate(base.getDate() + n);
-    el.value = base.toISOString().slice(0, 10);
+    el.value = base.toLocaleDateString('sv', { timeZone: 'Asia/Tokyo' }); // "YYYY-MM-DD" JST
     _checkValidUntil();
     if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
   }

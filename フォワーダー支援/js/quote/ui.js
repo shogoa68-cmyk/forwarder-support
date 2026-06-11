@@ -792,17 +792,15 @@
     const parts = [ref, customer, person].filter(Boolean);
     if (parts.length) return parts.join('_');
     // 全部空なら日付ベース
-    return '一時保存_' + new Date().toISOString().slice(0,10).replace(/-/g, '');
+    return '一時保存_' + new Date().toLocaleDateString('sv', { timeZone: 'Asia/Tokyo' }).replace(/-/g, '');
   }
 
   // ========== 仮REF# 自動採番（発番ID2桁 ＋ YYMMDD ＋ 連番3桁） ==========
   // 連番は端末ローカル（localStorage）で日次リセット。発番IDはチーム内で一意のためチーム全体で重複しない。
   const REF_SEQ_KEY = 'refSeq_v1';
   function _refTodayYmd() {
-    const d = new Date();
-    return String(d.getFullYear()).slice(2)
-         + String(d.getMonth() + 1).padStart(2, '0')
-         + String(d.getDate()).padStart(2, '0');
+    const iso = new Date().toLocaleDateString('sv', { timeZone: 'Asia/Tokyo' }); // "YYYY-MM-DD" JST
+    return iso.slice(2).replace(/-/g, ''); // "YYMMDD"
   }
   function _nextRefSeq(ymd) {
     let st = {};
