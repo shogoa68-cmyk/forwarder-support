@@ -1,23 +1,49 @@
-// 統計タブ: 見積プリセット行データを集計・マスター管理
+// 統計タブ: 見積プリセット行データを集計・マスター管理（ローカル＋クラウド投票）
 (function () {
   'use strict';
 
   // cells 配列のインデックス（v3 format: [0]=selected [1]=cat [2]=sv [3]=tx [4]=nm [5]=pq [6]=un ...)
   const CI = { cat: 1, sv: 2, nm: 4, un: 6 };
   const CARRIER_CATS = new Set(['ocean', 'surcharge']);
-  const MASTER_KEY   = 'masterCandidates_v1';
+  const LOCAL_KEY    = 'masterCandidates_v1';
+  const VOTES_TABLE  = 'master_votes';
 
-  let _data = null;
+  let _data    = null;
+  let _cvMap   = null;  // Map<`field:::value`, { total, isMine }> — クラウド投票キャッシュ
+
+  // === Supabase ヘルパー ===
+
+  function _c()    { return typeof window.cloudGetClient   === 'function' ? window.cloudGetClient()   : null; }
+  function _me()   { const u = typeof window.cloudCurrentUser === 'function' ? window.cloudCurrentUser() : null; return u ? (u.email || '') : ''; }
+  function _cloud(){ return !!_c() && !!_me(); }
+
+  async function _loadCloudVotes() {
+    const c = _c();
+    if (!c) { _cvMap = null; return; }
+    const { data, error } = await c.from(VOTES_TABLE).select('field,value,voter_email');
+    if (error) { _cvMap = null; return; }
+    _cvMap = new Map();
+    const me = _me();
+    (data || []).forEach(r => {
+      const key = r.field + ':::' + r.value;
+      if (!_cvMap.has(key)) _cvMap.set(key, { total: 0, isMine: false });
+      const v = _cvMap.get(key);
+      v.total++;
+      if (r.voter_email === me) v.isMine = true;
+    });
+  }
+
+  function _voteInfo(field, value) {
+    if (_cloud() && _cvMap !== null) return _cvMap.get(field + ':::' + value) || { total: 0, isMine: false };
+    const m = _getMasters().find(c => c.field === field && c.value === value);
+    return { total: m ? m.votes : 0, isMine: !!m };
+  }
 
   // === データ取得 ===
 
   function _getLocalPresets() {
     try { return JSON.parse(localStorage.getItem('quotePresets_v1') || '[]'); }
     catch (e) { return []; }
-  }
-
-  function _getCloudPresets() {
-    return typeof window.cloudGetAllRows === 'function' ? window.cloudGetAllRows() : [];
   }
 
   function _extractRows(preset) {
@@ -39,33 +65,28 @@
 
   function _build(source) {
     const presets = [];
-
     if (source !== 'cloud') {
       _getLocalPresets().forEach(p => {
         const rows = _extractRows(p);
         if (rows.length) presets.push({ name: p.name || '（名称なし）', rows, src: 'local' });
       });
     }
-
     if (source !== 'local') {
-      _getCloudPresets().forEach(p => {
+      const cloud = typeof window.cloudGetAllRows === 'function' ? window.cloudGetAllRows() : [];
+      cloud.forEach(p => {
         const rows = _extractRows(p);
         if (rows.length) presets.push({ name: p.name || '（名称なし）', rows, src: 'cloud' });
       });
     }
-
     const allRows     = presets.flatMap(p => p.rows);
     const svRows      = allRows.filter(r => r.sv && !CARRIER_CATS.has(r.cat));
     const carrierRows = allRows.filter(r => r.sv &&  CARRIER_CATS.has(r.cat));
-
     return {
-      presets,
-      totalPresets:  presets.length,
-      totalRows:     allRows.length,
-      svFreq:        _freq(svRows.map(r => r.sv)),
-      carrierFreq:   _freq(carrierRows.map(r => r.sv)),
-      nmGroups:      _groupSimilar(allRows.map(r => r.nm).filter(Boolean)),
-      unFreq:        _freq(allRows.map(r => r.un).filter(Boolean)),
+      presets, totalPresets: presets.length, totalRows: allRows.length,
+      svFreq:      _freq(svRows.map(r => r.sv)),
+      carrierFreq: _freq(carrierRows.map(r => r.sv)),
+      nmGroups:    _groupSimilar(allRows.map(r => r.nm).filter(Boolean)),
+      unFreq:      _freq(allRows.map(r => r.un).filter(Boolean)),
     };
   }
 
@@ -75,7 +96,6 @@
     return [...m.entries()].sort((a, b) => b[1] - a[1]).map(([value, count]) => ({ value, count }));
   }
 
-  // 品名ゆらぎ: 括弧・区切り・大小文字・カタカナを正規化してグループ化
   function _normalize(s) {
     return s
       .replace(/[（(][^）)]*[）)]/g, '')
@@ -102,49 +122,58 @@
     });
   }
 
-  // === マスター候補管理 ===
+  // === ローカルマスター候補（クラウド未使用時のフォールバック） ===
 
   function _getMasters() {
-    try { return JSON.parse(localStorage.getItem(MASTER_KEY) || '[]'); }
+    try { return JSON.parse(localStorage.getItem(LOCAL_KEY) || '[]'); }
     catch (e) { return []; }
   }
-  function _saveMasters(arr) { localStorage.setItem(MASTER_KEY, JSON.stringify(arr)); }
+  function _saveMasters(arr) { localStorage.setItem(LOCAL_KEY, JSON.stringify(arr)); }
 
-  function _getVotes(field, value) {
-    return (_getMasters().find(c => c.field === field && c.value === value) || {}).votes || 0;
+  // === 投票 ===
+
+  async function _promote(field, value) {
+    if (_cloud()) {
+      const c = _c(), me = _me();
+      await c.from(VOTES_TABLE).upsert({ field, value, voter_email: me }, { onConflict: 'field,value,voter_email' });
+      await _loadCloudVotes();
+    } else {
+      const arr = _getMasters();
+      const idx = arr.findIndex(c => c.field === field && c.value === value);
+      if (idx >= 0) arr[idx].votes = (arr[idx].votes || 0) + 1;
+      else arr.push({ field, value, votes: 1, ts: Date.now() });
+      _saveMasters(arr);
+    }
   }
 
-  function _promote(field, value) {
-    const arr = _getMasters();
-    const idx = arr.findIndex(c => c.field === field && c.value === value);
-    if (idx >= 0) arr[idx].votes = (arr[idx].votes || 0) + 1;
-    else arr.push({ field, value, votes: 1, ts: Date.now() });
-    _saveMasters(arr);
-  }
-
-  function _demote(field, value) {
-    const arr = _getMasters();
-    const idx = arr.findIndex(c => c.field === field && c.value === value);
-    if (idx < 0) return;
-    arr[idx].votes = Math.max(0, arr[idx].votes - 1);
-    if (arr[idx].votes === 0) arr.splice(idx, 1);
-    _saveMasters(arr);
+  async function _demote(field, value) {
+    if (_cloud()) {
+      const c = _c(), me = _me();
+      await c.from(VOTES_TABLE).delete().match({ field, value, voter_email: me });
+      await _loadCloudVotes();
+    } else {
+      const arr = _getMasters();
+      const idx = arr.findIndex(c => c.field === field && c.value === value);
+      if (idx < 0) return;
+      arr[idx].votes = Math.max(0, arr[idx].votes - 1);
+      if (arr[idx].votes === 0) arr.splice(idx, 1);
+      _saveMasters(arr);
+    }
   }
 
   // === レンダリングヘルパー ===
 
-  function _esc(s) {
-    return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-  }
-  function _ea(s) {
-    return String(s || '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
-  }
+  function _esc(s)  { return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+  function _ea(s)   { return String(s || '').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
 
   function _voteBtn(field, value) {
-    const v = _getVotes(field, value);
-    return `<button class="stats-vote-btn${v > 0 ? ' stats-voted' : ''}" ` +
-           `onclick="statsPromote('${_ea(field)}','${_ea(value)}')" title="マスターに昇格">` +
-           (v > 0 ? `⭐ ${v}` : '☆ 昇格') + '</button>';
+    const v  = _voteInfo(field, value);
+    const on = v.isMine;
+    return `<button class="stats-vote-btn${on ? ' stats-voted' : ''}" ` +
+           `onclick="statsToggleVote('${_ea(field)}','${_ea(value)}')" ` +
+           `title="${on ? '投票を取り消す' : 'マスターに昇格する'}">` +
+           (v.total > 0 ? `${on ? '⭐' : '☆'} ${v.total}` : '☆ 昇格') +
+           '</button>';
   }
 
   function _freqTable(freq, field, colLabel) {
@@ -194,28 +223,53 @@
   function _renderMaster() {
     const e = document.getElementById('statsPane-master');
     if (!e) return;
-    const arr = _getMasters();
-    if (!arr.length) {
-      e.innerHTML = '<p class="stats-empty">マスター候補はまだありません。<br>各集計の ☆ 昇格 ボタンで登録できます。<br><small>票数 2 以上で「✅ マスター」に昇格します。</small></p>';
+
+    const cloudOn = _cloud() && _cvMap !== null;
+    // クラウドからマスター候補を生成（票数1以上）
+    let entries = [];
+    if (cloudOn) {
+      _cvMap.forEach(({ total, isMine }, key) => {
+        if (total < 1) return;
+        const [field, value] = key.split(':::');
+        entries.push({ field, value, votes: total, isMine, promoted: total >= 2 });
+      });
+    } else {
+      entries = _getMasters().map(m => ({ ...m, isMine: true }));
+    }
+
+    if (!entries.length) {
+      e.innerHTML = '<p class="stats-empty">マスター候補はまだありません。<br>各集計の ☆ 昇格 ボタンで登録できます。<br>' +
+                   `<small>票数 2 以上で「✅ マスター」に昇格します。${cloudOn ? '（チーム全員の票数）' : '（ローカル保存）'}</small></p>`;
       return;
     }
     const labels = { sv: 'サブコン', nm: '品名', un: '単位' };
+    const sorted = entries.sort((a, b) => b.votes - a.votes);
     let h = '<table class="stats-table"><thead><tr>' +
             '<th>種別</th><th>値</th><th class="stats-num-col">票</th><th>状態</th><th></th>' +
             '</tr></thead><tbody>';
-    [...arr].sort((a, b) => b.votes - a.votes).forEach(m => {
+    sorted.forEach(m => {
       h += `<tr>` +
            `<td>${labels[m.field] || m.field}</td>` +
            `<td class="stats-val">${_esc(m.value)}</td>` +
            `<td class="stats-num-col">${m.votes}</td>` +
-           `<td>${m.votes >= 2 ? '<span class="stats-master-badge">✅ マスター</span>' : '<span class="stats-cand-badge">候補</span>'}</td>` +
-           `<td><button class="stats-demote-btn" onclick="statsDemote('${_ea(m.field)}','${_ea(m.value)}')">取消</button></td>` +
+           `<td>${m.promoted ? '<span class="stats-master-badge">✅ マスター</span>' : '<span class="stats-cand-badge">候補</span>'}</td>` +
+           `<td>${m.isMine ? `<button class="stats-demote-btn" onclick="statsToggleVote('${_ea(m.field)}','${_ea(m.value)}')">取消</button>` : ''}</td>` +
            `</tr>`;
     });
     e.innerHTML = h + '</tbody></table>';
   }
 
-  // === サマリカード更新 ===
+  function _renderCloud() {
+    const e = document.getElementById('statsCloudStatus');
+    if (!e) return;
+    if (_cloud()) {
+      e.textContent = `☁️ クラウド投票: ${_me()} でログイン中`;
+      e.className = 'stats-cloud-on';
+    } else {
+      e.textContent = '💾 ローカル投票（ログインするとチーム共有）';
+      e.className = 'stats-cloud-off';
+    }
+  }
 
   function _updateSummary() {
     if (!_data) return;
@@ -226,6 +280,17 @@
     set('statsNmGroups', _data.nmGroups.length);
   }
 
+  function _renderActivePane() {
+    const active = document.querySelector('#tab-stats .stats-pane.is-active');
+    if (!active) return;
+    const id = active.id.replace('statsPane-', '');
+    if      (id === 'sv')      _renderSv();
+    else if (id === 'carrier') _renderCarrier();
+    else if (id === 'nm')      _renderNm();
+    else if (id === 'un')      _renderUn();
+    else if (id === 'master')  _renderMaster();
+  }
+
   // === サブタブ切替 ===
 
   function statsSetPane(paneId) {
@@ -233,9 +298,7 @@
     document.querySelectorAll('#tab-stats .stats-pane').forEach(p => p.classList.remove('is-active'));
     document.getElementById('statsTabBtn-' + paneId)?.classList.add('is-active');
     document.getElementById('statsPane-'   + paneId)?.classList.add('is-active');
-
     if (!_data) { _data = _build(document.getElementById('statsSource')?.value || 'both'); _updateSummary(); }
-
     if      (paneId === 'sv')      _renderSv();
     else if (paneId === 'carrier') _renderCarrier();
     else if (paneId === 'nm')      _renderNm();
@@ -245,34 +308,47 @@
 
   // === パブリック API ===
 
-  window.initStatsTab = function () {
-    _data = null;
-    _data = _build(document.getElementById('statsSource')?.value || 'both');
+  window.initStatsTab = async function () {
+    _data  = null;
+    _cvMap = null;
+    _data  = _build(document.getElementById('statsSource')?.value || 'both');
     _updateSummary();
+    _renderCloud();
     statsSetPane('sv');
+    // クラウド投票を非同期ロードして再描画
+    if (_cloud()) {
+      await _loadCloudVotes();
+      _renderCloud();
+      _renderActivePane();
+    }
   };
 
   window.statsSetPane = statsSetPane;
 
-  window.statsRefresh = function () {
-    _data = null;
-    _data = _build(document.getElementById('statsSource')?.value || 'both');
+  window.statsRefresh = async function () {
+    _data  = null;
+    _cvMap = null;
+    _data  = _build(document.getElementById('statsSource')?.value || 'both');
     _updateSummary();
-    const active = document.querySelector('#tab-stats .stats-pane.is-active');
-    const id = active ? active.id.replace('statsPane-', '') : 'sv';
-    statsSetPane(id);
+    _renderCloud();
+    if (_cloud()) await _loadCloudVotes();
+    _renderCloud();
+    _renderActivePane();
   };
 
-  window.statsPromote = function (field, value) {
-    _promote(field, value);
-    const active = document.querySelector('#tab-stats .stats-pane.is-active');
-    const id = active ? active.id.replace('statsPane-', '') : 'sv';
-    statsSetPane(id);
+  window.statsToggleVote = async function (field, value) {
+    const v = _voteInfo(field, value);
+    if (v.isMine) await _demote(field, value);
+    else          await _promote(field, value);
+    _renderActivePane();
+    // マスタータブが別ペインにいるときも更新
+    const master = document.getElementById('statsPane-master');
+    if (master && master.classList.contains('is-active')) _renderMaster();
+    else _renderMaster(); // 常に更新（表示中かは関係なく次回表示に備える）
   };
 
-  window.statsDemote = function (field, value) {
-    _demote(field, value);
-    _renderMaster();
-  };
+  // 後方互換
+  window.statsPromote = async function (f, v) { await _promote(f, v); _renderActivePane(); };
+  window.statsDemote  = async function (f, v) { await _demote(f, v);  _renderMaster(); };
 
 })();

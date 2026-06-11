@@ -2055,3 +2055,22 @@ body:has(#compareOverlay.open) #quoteActionDock { display: none; }
   padding: 16px 4px;
   line-height: 1.8;
 }
+
+/* 統計タブ追記: クラウドステータス */
+.stats-cloud-on {
+  font-size: 11px;
+  color: #1a5c3a;
+  background: #d4f0e0;
+  border: 1px solid #7dd3b0;
+  border-radius: 10px;
+  padding: 3px 10px;
+  font-weight: 600;
+}
+.stats-cloud-off {
+  font-size: 11px;
+  color: #7a6040;
+  background: #f0e8d8;
+  border: 1px solid #c8b898;
+  border-radius: 10px;
+  padding: 3px 10px;
+}
