@@ -7446,28 +7446,34 @@ button.um-memberno--empty:hover { background: #f4ead4; border-color: #cdb98e; }
 
 /* --- パネル（右サイドバー） --- */
 #tab-quote-make .sc-panel {
-  background: #fff;
-  border: 1px solid #d8e3ef;
-  border-radius: 6px;
-  padding: 10px 12px;
+  background: #f8f5f0;
+  border: 1px solid #d5c8b0;
+  border-radius: 8px;
   margin-top: 8px;
-  font-size: 13px;
+  font-size: 12px;
 }
 #tab-quote-make .sc-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 0;
-  padding-bottom: 8px;
+  gap: 6px;
+  padding: 9px 12px;
+  font-weight: 700;
+  font-size: 12px;
+  color: #4a3820;
+  border-bottom: 1px solid #e0d4bf;
   user-select: none;
 }
-#tab-quote-make .sc-panel--collapsed .sc-head { padding-bottom: 0; }
+#tab-quote-make .sc-panel--collapsed .sc-head { border-bottom: none; }
 #tab-quote-make .sc-panel--collapsed .sc-body { display: none; }
-#tab-quote-make .sc-collapse-arrow { font-size: 9px; color: #7a9abf; }
+#tab-quote-make .sc-collapse-arrow { font-size: 9px; color: #a09070; flex-shrink: 0; }
 #tab-quote-make .sc-head-title {
-  font-weight: bold;
-  color: #2a4a72;
-  font-size: 13px;
+  font-weight: 700;
+  color: #4a3820;
+  font-size: 12px;
+}
+#tab-quote-make .sc-body {
+  padding: 10px 12px;
 }
 #tab-quote-make .sc-toggle {
   display: flex;
@@ -7475,7 +7481,7 @@ button.um-memberno--empty:hover { background: #f4ead4; border-color: #cdb98e; }
   gap: 4px;
   cursor: pointer;
   font-size: 12px;
-  color: #555;
+  color: #5a4628;
   margin-bottom: 8px;
 }
 #tab-quote-make .sc-body--off {
@@ -7484,7 +7490,7 @@ button.um-memberno--empty:hover { background: #f4ead4; border-color: #cdb98e; }
 }
 #tab-quote-make .sc-hint {
   font-size: 11px;
-  color: #888;
+  color: #7a6040;
   margin: 0 0 8px 0;
   line-height: 1.5;
 }
@@ -7504,7 +7510,7 @@ button.um-memberno--empty:hover { background: #f4ead4; border-color: #cdb98e; }
   min-width: 0;
   font-size: 12px;
   padding: 3px 5px;
-  border: 1px solid #c8d6e5;
+  border: 1px solid #d5c8b0;
   border-radius: 3px;
 }
 #tab-quote-make .sc-times { color: #999; font-size: 12px; }
@@ -7512,7 +7518,7 @@ button.um-memberno--empty:hover { background: #f4ead4; border-color: #cdb98e; }
   width: 52px;
   font-size: 12px;
   padding: 3px 5px;
-  border: 1px solid #c8d6e5;
+  border: 1px solid #d5c8b0;
   border-radius: 3px;
   text-align: right;
 }
@@ -7530,8 +7536,8 @@ button.um-memberno--empty:hover { background: #f4ead4; border-color: #cdb98e; }
   display: block;
   width: 100%;
   background: none;
-  border: 1px dashed #9ab;
-  color: #3a7abf;
+  border: 1px dashed #c8b89a;
+  color: #7a6040;
   font-size: 12px;
   border-radius: 3px;
   padding: 4px 8px;
@@ -7539,22 +7545,22 @@ button.um-memberno--empty:hover { background: #f4ead4; border-color: #cdb98e; }
   margin-bottom: 6px;
   text-align: center;
 }
-#tab-quote-make .sc-add:hover { background: #f0f6ff; }
+#tab-quote-make .sc-add:hover { background: #f0ebe2; }
 #tab-quote-make .sc-open-btn {
   display: block;
   width: 100%;
-  background: #2a5a9a;
+  background: #7a5c30;
   color: #fff;
   border: none;
   border-radius: 4px;
   padding: 7px 10px;
-  font-size: 13px;
+  font-size: 12px;
   cursor: pointer;
   font-weight: bold;
   text-align: center;
 }
-#tab-quote-make .sc-open-btn:hover { background: #1e4a7e; }
-#tab-quote-make .sc-open-btn:disabled { background: #ccc; cursor: not-allowed; }
+#tab-quote-make .sc-open-btn:hover { background: #5a4020; }
+#tab-quote-make .sc-open-btn:disabled { background: #c8b89a; cursor: not-allowed; }
 
 /* --- 行の固定費トグルボタン --- */
 #tab-quote-make .sc-fixed-btn {
