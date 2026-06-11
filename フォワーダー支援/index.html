@@ -2443,13 +2443,14 @@
           <div class="quote-field quote-field-status">
             <label>ステータス</label>
             <div class="qf-status-btns" id="qf-status-btns">
-              <button type="button" class="qf-status-btn active" data-status="下書き"  onclick="setQuoteStatus('下書き')">下書き</button>
+              <button type="button" class="qf-status-btn active" data-status="下書き中"  onclick="setQuoteStatus('下書き中')">下書き中</button>
               <button type="button" class="qf-status-btn"        data-status="提出済み" onclick="setQuoteStatus('提出済み')">提出済み</button>
               <button type="button" class="qf-status-btn"        data-status="受注"    onclick="setQuoteStatus('受注')">受注</button>
               <button type="button" class="qf-status-btn"        data-status="失注"    onclick="setQuoteStatus('失注')">失注</button>
+              <button type="button" class="qf-status-btn"        data-status="辞退"    onclick="setQuoteStatus('辞退')">辞退</button>
               <button type="button" class="qf-status-btn"        data-status="保留"    onclick="setQuoteStatus('保留')">保留</button>
             </div>
-            <input type="hidden" id="qf-status" value="下書き" />
+            <input type="hidden" id="qf-status" value="下書き中" />
           </div>
           <div class="quote-field quote-field-memo">
             <label>📝 メモ <span class="qf-memo-note">出力・プレビューには含まれません</span></label>
@@ -3219,6 +3220,12 @@
               <button class="btn-bulk-delete" onclick="deleteSelectedRows()" title="チェックした行を削除">🗑️ 削除</button>
               <span class="ctx-sep" aria-hidden="true">|</span>
               <select id="bulkCatSet" class="bulk-cat-select" onchange="applyBulkCategorySet(this)" title="チェックした行のカテゴリを一括設定"></select>
+              <select id="bulkCurrencySet" class="bulk-cat-select" onchange="applyBulkCurrencySet(this)" title="チェックした行の通貨を一括設定">
+                <option value="__none__">💱 通貨一括設定…</option>
+              </select>
+              <select id="bulkUnitSet" class="bulk-cat-select" onchange="applyBulkUnitSet(this)" title="チェックした行の単位を一括設定">
+                <option value="__none__">📐 単位一括設定…</option>
+              </select>
               <input type="text" id="bulkSubconSet" class="bulk-subcon-input" placeholder="サブコン一括設定…" maxlength="40"
                      onkeydown="if(event.key==='Enter'){applyBulkSubcon();}" title="チェックした行のサブコンを一括設定" />
               <button class="btn-bulk-subcon" onclick="applyBulkSubcon()" title="チェックした行のサブコンに左の値を一括設定">設定</button>

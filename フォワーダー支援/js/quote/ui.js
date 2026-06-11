@@ -454,6 +454,74 @@
     quoteShowToast(`🏷️ ${count}行のカテゴリを「${catLabel}」に設定しました`, 'success');
   }
 
+  // 「通貨一括設定」セレクトを CURRENCIES で構築
+  function _refreshBulkCurrencySelect() {
+    const sel = document.getElementById('bulkCurrencySet');
+    if (!sel) return;
+    sel.innerHTML = '<option value="__none__">💱 通貨一括設定…</option>'
+      + CURRENCIES.map(c => `<option value="${c}">${c}</option>`).join('');
+    sel.value = '__none__';
+  }
+
+  // 選択（チェック）行の請求通貨（bc）を一括設定。選択は維持
+  function applyBulkCurrencySet(sel) {
+    if (!sel || sel.value === '__none__') return;
+    const checkboxes = document.querySelectorAll('.row-select-chk:checked');
+    if (!checkboxes.length) {
+      quoteShowToast('⚠️ 設定したい行のチェックボックスにチェックを入れてください', 'warn', 3000);
+      sel.value = '__none__';
+      return;
+    }
+    const newCurrency = sel.value;
+    let count = 0;
+    checkboxes.forEach(chk => {
+      const tr = chk.closest('tr');
+      if (!tr || tr.dataset.type === 'subtotal' || tr.dataset.type === 'remark') return;
+      const id = tr.id.replace('row-', '');
+      const bcEl = document.getElementById(`bc-${id}`);
+      if (!bcEl) return;
+      bcEl.value = newCurrency;
+      bcEl.dispatchEvent(new Event('change', { bubbles: true }));
+      count++;
+    });
+    sel.value = '__none__';
+    quoteShowToast(`💱 ${count}行の通貨を「${newCurrency}」に設定しました`, 'success');
+  }
+
+  // 「単位一括設定」セレクトを UNITS で構築
+  function _refreshBulkUnitSelect() {
+    const sel = document.getElementById('bulkUnitSet');
+    if (!sel) return;
+    sel.innerHTML = '<option value="__none__">📐 単位一括設定…</option>'
+      + UNITS.filter(u => u).map(u => `<option value="${u}">${u}</option>`).join('');
+    sel.value = '__none__';
+  }
+
+  // 選択（チェック）行の単位（un）を一括設定。選択は維持
+  function applyBulkUnitSet(sel) {
+    if (!sel || sel.value === '__none__') return;
+    const checkboxes = document.querySelectorAll('.row-select-chk:checked');
+    if (!checkboxes.length) {
+      quoteShowToast('⚠️ 設定したい行のチェックボックスにチェックを入れてください', 'warn', 3000);
+      sel.value = '__none__';
+      return;
+    }
+    const newUnit = sel.value;
+    let count = 0;
+    checkboxes.forEach(chk => {
+      const tr = chk.closest('tr');
+      if (!tr || tr.dataset.type === 'subtotal' || tr.dataset.type === 'remark') return;
+      const id = tr.id.replace('row-', '');
+      const unEl = document.getElementById(`un-${id}`);
+      if (!unEl) return;
+      unEl.value = newUnit;
+      unEl.dispatchEvent(new Event('change', { bubbles: true }));
+      count++;
+    });
+    sel.value = '__none__';
+    quoteShowToast(`📐 ${count}行の単位を「${newUnit}」に設定しました`, 'success');
+  }
+
   // 選択（チェック）行のサブコンを一括設定（空欄ならクリア）。選択は維持
   function applyBulkSubcon() {
     const inp = document.getElementById('bulkSubconSet');
@@ -792,17 +860,15 @@
     const parts = [ref, customer, person].filter(Boolean);
     if (parts.length) return parts.join('_');
     // 全部空なら日付ベース
-    return '一時保存_' + new Date().toISOString().slice(0,10).replace(/-/g, '');
+    return '一時保存_' + new Date().toLocaleDateString('sv', { timeZone: 'Asia/Tokyo' }).replace(/-/g, '');
   }
 
   // ========== 仮REF# 自動採番（発番ID2桁 ＋ YYMMDD ＋ 連番3桁） ==========
   // 連番は端末ローカル（localStorage）で日次リセット。発番IDはチーム内で一意のためチーム全体で重複しない。
   const REF_SEQ_KEY = 'refSeq_v1';
   function _refTodayYmd() {
-    const d = new Date();
-    return String(d.getFullYear()).slice(2)
-         + String(d.getMonth() + 1).padStart(2, '0')
-         + String(d.getDate()).padStart(2, '0');
+    const iso = new Date().toLocaleDateString('sv', { timeZone: 'Asia/Tokyo' }); // "YYYY-MM-DD" JST
+    return iso.slice(2).replace(/-/g, ''); // "YYMMDD"
   }
   function _nextRefSeq(ymd) {
     let st = {};
@@ -957,7 +1023,7 @@
   }
 
   // 案件ステータス（qf-status）→ ドット色
-  const _PRESET_STATUS_DOT = { '下書き':'#9c8e78', '提出済み':'#3f6a8c', '受注':'#1e7e44', '失注':'#c0392b', '保留':'#b8860b' };
+  const _PRESET_STATUS_DOT = { '下書き中':'#9c8e78', '提出済み':'#3f6a8c', '受注':'#1e7e44', '失注':'#c0392b', '保留':'#b8860b', '辞退':'#6b21a8' };
   // プリセットの data.fields から一覧表示用メタを派生
   function _presetMeta(p) {
     const f = (p.data && p.data.fields) || {};
@@ -2574,6 +2640,8 @@
     initColVis();
     restoreLayoutScale();      // 大/中/小 スケールを復元
     refreshBulkCatSelect();    // 「選択行 → カテゴリ一括変更」セレクトを初期構築
+    _refreshBulkCurrencySelect(); // 「選択行 → 通貨一括変更」セレクトを初期構築
+    _refreshBulkUnitSelect();     // 「選択行 → 単位一括変更」セレクトを初期構築
     initQuoteViewMode();       // STEP A: 客先/社内モード復元
     initQuoteSectionCollapse(); // 上部セクションの折り畳み状態を復元
     // 見積サマリ：保存済みタブを復元（既定は要約）
@@ -2822,7 +2890,7 @@
     const g = id => (document.getElementById(id)?.value || '').trim();
     const refParts = [g('qf-ref'), g('qf-customer'), g('qf-person') && (g('qf-person') + ' 様')].filter(Boolean);
     const sumRef = document.getElementById('sumRef');
-    const statusLabel = g('qf-status') || '下書き';
+    const statusLabel = g('qf-status') || '下書き中';
     if (sumRef) sumRef.textContent = (refParts.length ? '— ' + refParts.join(' / ') : '— 未入力') + '　[' + statusLabel + ']';
 
     // 引き合い条件
@@ -3060,7 +3128,7 @@
     if (typeof window.updateSectionSummaries === 'function') window.updateSectionSummaries();
   }
   function updateQuoteStatusUI() {
-    const status = document.getElementById('qf-status')?.value || '下書き';
+    const status = document.getElementById('qf-status')?.value || '下書き中';
     document.querySelectorAll('#qf-status-btns .qf-status-btn').forEach(btn => {
       btn.classList.toggle('active', btn.dataset.status === status);
     });
