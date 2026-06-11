@@ -2,6 +2,7 @@
 
 let _sqTimer    = null;
 let _sqPreviewId = null;
+let _sqCollapsed = false;
 
 function initSimilarQuotes() {
   document.getElementById('cond-incoterms')?.addEventListener('change', _sqSchedule);
@@ -43,16 +44,30 @@ async function _sqFetch() {
   _sqRender(data || [], panel, inco, mode);
 }
 
+function sqToggleCollapse() {
+  _sqCollapsed = !_sqCollapsed;
+  const panel = document.getElementById('sqPanel');
+  if (!panel) return;
+  panel.classList.toggle('sq-panel--collapsed', _sqCollapsed);
+  const arrow = panel.querySelector('.sq-collapse-arrow');
+  if (arrow) arrow.textContent = _sqCollapsed ? '▶' : '▼';
+}
+
 function _sqRender(rows, panel, inco, mode) {
   const matchLabel = [inco ? `<b>${escHtml(inco.split('（')[0])}</b>` : '', mode ? `<b>${escHtml(mode)}</b>` : ''].filter(Boolean).join(' / ');
   const body = rows.length
     ? rows.map(r => _sqCardHtml(r)).join('')
     : '<div class="sq-empty-msg">該当する過去見積はありません</div>';
   panel.hidden = false;
+  panel.classList.toggle('sq-panel--collapsed', _sqCollapsed);
   panel.innerHTML =
-    `<div class="sq-head">📎 類似の過去見積 <span class="sq-match-label">${matchLabel}</span><span class="sq-count">${rows.length}件</span></div>` +
+    `<div class="sq-head" onclick="sqToggleCollapse()" style="cursor:pointer;">
+       <span>📎 類似の過去見積 <span class="sq-match-label">${matchLabel}</span><span class="sq-count">${rows.length}件</span></span>
+       <span class="sq-collapse-arrow">${_sqCollapsed ? '▶' : '▼'}</span>
+     </div>` +
     `<div class="sq-list">${body}</div>`;
 }
+
 
 function _sqCardHtml(r) {
   const badge = _sqStatusBadge(r.status);
@@ -136,7 +151,8 @@ function sqLoadConfirm() {
 }
 
 // ---------- window 公開 ----------
-window.initSimilarQuotes = initSimilarQuotes;
-window.sqOpenPreview     = sqOpenPreview;
-window.sqClosePreview    = sqClosePreview;
-window.sqLoadConfirm     = sqLoadConfirm;
+window.initSimilarQuotes  = initSimilarQuotes;
+window.sqOpenPreview      = sqOpenPreview;
+window.sqClosePreview     = sqClosePreview;
+window.sqLoadConfirm      = sqLoadConfirm;
+window.sqToggleCollapse   = sqToggleCollapse;

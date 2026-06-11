@@ -7,6 +7,7 @@
   const _SC_MAX = 4;
 
   let _scEnabled   = false;
+  let _scCollapsed = true;   // 初期状態：折りたたみ
   let _scScenarios = [];  // [{ id, label, scale }]
 
   // ---------- 永続化 ----------
@@ -53,16 +54,18 @@
        </div>`
     ).join('');
 
+    panel.classList.toggle('sc-panel--collapsed', _scCollapsed);
     panel.innerHTML =
-      `<div class="sc-head">
+      `<div class="sc-head" onclick="scToggleCollapse()" style="cursor:pointer;">
          <span class="sc-head-title">📊 シナリオ比較</span>
-         <label class="sc-toggle">
+         <span class="sc-collapse-arrow">${_scCollapsed ? '▶' : '▼'}</span>
+       </div>
+       <div class="sc-body${_scEnabled ? '' : ' sc-body--off'}">
+         <label class="sc-toggle" onclick="event.stopPropagation()">
            <input type="checkbox" id="scEnabledChk" ${_scEnabled ? 'checked' : ''}
                   onchange="scSetEnabled(this.checked)" />
            <span>有効</span>
          </label>
-       </div>
-       <div class="sc-body${_scEnabled ? '' : ' sc-body--off'}">
          <p class="sc-hint">倍率を変えた複数パターンの合計を比較します。<br>各行の 🔒 で固定費（倍率対象外）を指定できます。</p>
          <div class="sc-list">${listHtml}</div>
          ${_scScenarios.length < _SC_MAX
@@ -76,6 +79,11 @@
   }
 
   // ---------- 公開 API ----------
+
+  function scToggleCollapse() {
+    _scCollapsed = !_scCollapsed;
+    _scRenderPanel();
+  }
 
   function scSetEnabled(v) {
     _scEnabled = v;
@@ -250,6 +258,7 @@
   // ---------- window 公開 ----------
   window.initScenarios        = initScenarios;
   window.scSetEnabled         = scSetEnabled;
+  window.scToggleCollapse     = scToggleCollapse;
   window.scUpdateScenario     = scUpdateScenario;
   window.scAddScenario        = scAddScenario;
   window.scRemoveScenario     = scRemoveScenario;
