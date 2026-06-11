@@ -3148,6 +3148,7 @@
       initQuoteAutoSaveListeners();  // save.js：input/change の自動保存
     }
     if (typeof initSimilarQuotes === 'function') initSimilarQuotes();
+    if (typeof initScenarios    === 'function') initScenarios();
     maybeAutoFillRef();          // 新規（REF空）なら仮REF#を自動採番
     // 初回はダッシュボード（ページ1）を表示。以降のタブ切替では現在ページを維持
     if (typeof window.qpShowDashboard === 'function') window.qpShowDashboard();
