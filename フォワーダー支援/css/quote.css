@@ -7441,3 +7441,250 @@ button.um-memberno--empty:hover { background: #f4ead4; border-color: #cdb98e; }
 #tab-quote-make .qsp-chat-input-row {
   flex-shrink: 0;
 }
+
+/* ========== シナリオ比較 ========== */
+
+/* --- パネル（右サイドバー） --- */
+#tab-quote-make .sc-panel {
+  background: #fff;
+  border: 1px solid #d8e3ef;
+  border-radius: 6px;
+  padding: 10px 12px;
+  margin-top: 8px;
+  font-size: 13px;
+}
+#tab-quote-make .sc-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+#tab-quote-make .sc-head-title {
+  font-weight: bold;
+  color: #2a4a72;
+  font-size: 13px;
+}
+#tab-quote-make .sc-toggle {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+  font-size: 12px;
+  color: #555;
+}
+#tab-quote-make .sc-body--off {
+  opacity: 0.45;
+  pointer-events: none;
+}
+#tab-quote-make .sc-hint {
+  font-size: 11px;
+  color: #888;
+  margin: 0 0 8px 0;
+  line-height: 1.5;
+}
+#tab-quote-make .sc-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 8px;
+}
+#tab-quote-make .sc-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+#tab-quote-make .sc-label-in {
+  flex: 1;
+  min-width: 0;
+  font-size: 12px;
+  padding: 3px 5px;
+  border: 1px solid #c8d6e5;
+  border-radius: 3px;
+}
+#tab-quote-make .sc-times { color: #999; font-size: 12px; }
+#tab-quote-make .sc-scale-in {
+  width: 52px;
+  font-size: 12px;
+  padding: 3px 5px;
+  border: 1px solid #c8d6e5;
+  border-radius: 3px;
+  text-align: right;
+}
+#tab-quote-make .sc-del {
+  background: none;
+  border: none;
+  color: #bbb;
+  cursor: pointer;
+  font-size: 11px;
+  padding: 2px 3px;
+  line-height: 1;
+}
+#tab-quote-make .sc-del:hover { color: #c0392b; }
+#tab-quote-make .sc-add {
+  display: block;
+  width: 100%;
+  background: none;
+  border: 1px dashed #9ab;
+  color: #3a7abf;
+  font-size: 12px;
+  border-radius: 3px;
+  padding: 4px 8px;
+  cursor: pointer;
+  margin-bottom: 6px;
+  text-align: center;
+}
+#tab-quote-make .sc-add:hover { background: #f0f6ff; }
+#tab-quote-make .sc-open-btn {
+  display: block;
+  width: 100%;
+  background: #2a5a9a;
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  padding: 7px 10px;
+  font-size: 13px;
+  cursor: pointer;
+  font-weight: bold;
+  text-align: center;
+}
+#tab-quote-make .sc-open-btn:hover { background: #1e4a7e; }
+#tab-quote-make .sc-open-btn:disabled { background: #ccc; cursor: not-allowed; }
+
+/* --- 行の固定費トグルボタン --- */
+#tab-quote-make .sc-fixed-btn {
+  display: block;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 11px;
+  padding: 0;
+  margin-top: 2px;
+  opacity: 0.45;
+  line-height: 1;
+}
+#tab-quote-make .sc-fixed-btn:hover { opacity: 1; }
+#tab-quote-make .sc-fixed-btn.is-fixed { opacity: 1; }
+
+/* --- 比較プレビューオーバーレイ --- */
+#scPreviewOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.55);
+  z-index: 3000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+#scPreviewOverlay[hidden] { display: none; }
+.sc-pv-box {
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+  width: 90vw;
+  max-width: 960px;
+  max-height: 88vh;
+  display: flex;
+  flex-direction: column;
+}
+.sc-pv-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  border-bottom: 1px solid #e0e8f0;
+  background: #f5f8fb;
+  border-radius: 8px 8px 0 0;
+  flex-shrink: 0;
+}
+.sc-pv-title { font-weight: bold; font-size: 15px; color: #2a4a72; }
+.sc-pv-close {
+  background: none;
+  border: none;
+  font-size: 20px;
+  cursor: pointer;
+  color: #888;
+  line-height: 1;
+  padding: 0;
+}
+.sc-pv-close:hover { color: #333; }
+.sc-pv-body {
+  overflow: auto;
+  padding: 16px;
+  flex: 1;
+}
+.sc-pv-meta {
+  font-size: 12px;
+  color: #666;
+  margin-bottom: 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #eee;
+}
+.sc-pv-scroll { overflow-x: auto; }
+.sc-pv-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  white-space: nowrap;
+}
+.sc-pv-table th,
+.sc-pv-table td {
+  border: 1px solid #d0dce8;
+  padding: 6px 10px;
+}
+.sc-pv-table thead tr { background: #eef3fa; }
+.sc-pv-th-name { text-align: left; min-width: 150px; white-space: normal; }
+.sc-pv-th { text-align: right; min-width: 110px; }
+.sc-pv-th .sc-pv-scale { font-weight: normal; color: #888; }
+.sc-pv-name { text-align: left; white-space: normal; }
+.sc-pv-amt { text-align: right; }
+.sc-pv-jpy { display: block; font-size: 10px; color: #999; }
+.sc-pv-fixed { font-size: 11px; }
+.sc-pv-total-label { text-align: right; font-weight: bold; background: #eef3fa; }
+.sc-pv-total { text-align: right; font-weight: bold; background: #eef3fa; white-space: nowrap; }
+.sc-empty { color: #888; font-size: 13px; padding: 20px; text-align: center; }
+.sc-pv-foot {
+  padding: 10px 16px;
+  border-top: 1px solid #e0e8f0;
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  flex-shrink: 0;
+}
+.sc-pv-foot button {
+  padding: 6px 14px;
+  border-radius: 4px;
+  font-size: 13px;
+  cursor: pointer;
+  border: 1px solid #c0ccdc;
+  background: #fff;
+}
+.sc-pv-foot .sc-pv-print-btn {
+  background: #2a5a9a;
+  color: #fff;
+  border-color: #2a5a9a;
+}
+.sc-pv-foot .sc-pv-print-btn:hover { background: #1e4a7e; }
+
+/* --- 印刷（シナリオ比較プレビュー） --- */
+@media print {
+  body:has(#scPreviewOverlay:not([hidden])) > *:not(#scPreviewOverlay) { display: none !important; }
+  body:has(#scPreviewOverlay:not([hidden])) #scPreviewOverlay {
+    position: static !important;
+    background: transparent !important;
+    display: block !important;
+  }
+  body:has(#scPreviewOverlay:not([hidden])) .sc-pv-box {
+    box-shadow: none !important;
+    max-height: none !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    border-radius: 0 !important;
+  }
+  body:has(#scPreviewOverlay:not([hidden])) .sc-pv-head,
+  body:has(#scPreviewOverlay:not([hidden])) .sc-pv-foot { display: none !important; }
+  body:has(#scPreviewOverlay:not([hidden])) .sc-pv-body {
+    overflow: visible !important;
+    padding: 0 !important;
+  }
+  body:has(#scPreviewOverlay:not([hidden])) .sc-pv-scroll { overflow: visible !important; }
+}
