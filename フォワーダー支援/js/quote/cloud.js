@@ -18,7 +18,7 @@
   let _cloudInited = false;
 
   // 案件ステータス定義（順序＝表示順、key は DB 保存値）
-  const CLOUD_STATUSES = ['下書き中', '提示済み', '受注', '失注'];
+  const CLOUD_STATUSES = ['下書き中', '提示済み', '受注', '失注', '辞退'];
   const CLOUD_STATUS_DEFAULT = '下書き中';
 
   // 一覧キャッシュ＋絞り込み状態（フェーズ1：クライアント側フィルタ）
@@ -257,7 +257,7 @@
   }
 
   // ダッシュボードの並び替え
-  const _STATUS_ORDER = { '下書き中': 0, '提示済み': 1, '受注': 2, '失注': 3 };
+  const _STATUS_ORDER = { '下書き中': 0, '提示済み': 1, '受注': 2, '失注': 3, '辞退': 4 };
   function _sortCloudRows(rows) {
     const s = _cloudSort || 'updated';
     const upd = e => e.updated_at || '';
@@ -341,7 +341,7 @@
   }
 
   function _statusClass(st) {
-    return { '下書き中':'draft', '提示済み':'sent', '受注':'won', '失注':'lost' }[st] || 'draft';
+    return { '下書き中':'draft', '提示済み':'sent', '受注':'won', '失注':'lost', '辞退':'declined' }[st] || 'draft';
   }
 
   // 役割ラベル＝費用行のカテゴリ（CATEGORIES の value → 短縮ラベル）

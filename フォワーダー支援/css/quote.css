@@ -4321,10 +4321,11 @@ body.qp-dash-active #quoteActionDock { display: none !important; }
   display: inline-block; padding: 1px 7px; border-radius: 9px;
   font-size: 10px; font-weight: 700; vertical-align: middle;
 }
-#tab-quote-make .cp-status--draft { background: #e0e7ef; color: #3a5270; }
-#tab-quote-make .cp-status--sent  { background: #dbeafe; color: #1a56db; }
-#tab-quote-make .cp-status--won   { background: #d1fae5; color: #065f46; }
-#tab-quote-make .cp-status--lost  { background: #fee2e2; color: #991b1b; }
+#tab-quote-make .cp-status--draft    { background: #e0e7ef; color: #3a5270; }
+#tab-quote-make .cp-status--sent     { background: #dbeafe; color: #1a56db; }
+#tab-quote-make .cp-status--won      { background: #d1fae5; color: #065f46; }
+#tab-quote-make .cp-status--lost     { background: #fee2e2; color: #991b1b; }
+#tab-quote-make .cp-status--declined { background: #f3e8ff; color: #6b21a8; }
 #tab-quote-make .cp-expired-warn  {
   display: inline-block; padding: 1px 8px; border-radius: 9px;
   font-size: 11px; font-weight: 700; vertical-align: middle;
@@ -4759,10 +4760,11 @@ body.qp-dash-active #quoteActionDock { display: none !important; }
   border: 1px solid transparent; border-radius: 4px;
   padding: 2px 4px; cursor: pointer; white-space: nowrap;
 }
-#tab-quote-make .cloud-status--draft { background: #eceff1; color: #607d8b; }
-#tab-quote-make .cloud-status--sent  { background: #e3f0fa; color: #1c6fa6; }
-#tab-quote-make .cloud-status--won   { background: #e6f4ea; color: #1e7e44; }
-#tab-quote-make .cloud-status--lost  { background: #fdeaea; color: #c0392b; }
+#tab-quote-make .cloud-status--draft    { background: #eceff1; color: #607d8b; }
+#tab-quote-make .cloud-status--sent     { background: #e3f0fa; color: #1c6fa6; }
+#tab-quote-make .cloud-status--won      { background: #e6f4ea; color: #1e7e44; }
+#tab-quote-make .cloud-status--lost     { background: #fdeaea; color: #c0392b; }
+#tab-quote-make .cloud-status--declined { background: #f3e8ff; color: #6b21a8; }
 /* 静的ステータスバッジ（編集セレクト廃止後・ブラウザ保存と同じ見た目） */
 #tab-quote-make .cloud-status-badge {
   display: inline-flex; align-items: center; flex-shrink: 0;
