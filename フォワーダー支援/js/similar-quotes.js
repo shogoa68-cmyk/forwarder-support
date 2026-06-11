@@ -73,7 +73,7 @@ function _sqCardHtml(r) {
 }
 
 function _sqStatusBadge(status) {
-  const map = { '下書き': 'draft', '提示済み': 'sent', '受注': 'won', '失注': 'lost', '保留': 'hold' };
+  const map = { '下書き中': 'draft', '下書き': 'draft', '提示済み': 'sent', '受注': 'won', '失注': 'lost', '保留': 'hold', '辞退': 'declined' };
   const cls = map[status] || 'draft';
   return status ? `<span class="sq-badge sq-badge-${cls}">${escHtml(status)}</span>` : '';
 }

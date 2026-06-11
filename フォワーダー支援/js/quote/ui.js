@@ -1023,7 +1023,7 @@
   }
 
   // 案件ステータス（qf-status）→ ドット色
-  const _PRESET_STATUS_DOT = { '下書き':'#9c8e78', '提出済み':'#3f6a8c', '受注':'#1e7e44', '失注':'#c0392b', '保留':'#b8860b' };
+  const _PRESET_STATUS_DOT = { '下書き中':'#9c8e78', '提出済み':'#3f6a8c', '受注':'#1e7e44', '失注':'#c0392b', '保留':'#b8860b', '辞退':'#6b21a8' };
   // プリセットの data.fields から一覧表示用メタを派生
   function _presetMeta(p) {
     const f = (p.data && p.data.fields) || {};
@@ -2890,7 +2890,7 @@
     const g = id => (document.getElementById(id)?.value || '').trim();
     const refParts = [g('qf-ref'), g('qf-customer'), g('qf-person') && (g('qf-person') + ' 様')].filter(Boolean);
     const sumRef = document.getElementById('sumRef');
-    const statusLabel = g('qf-status') || '下書き';
+    const statusLabel = g('qf-status') || '下書き中';
     if (sumRef) sumRef.textContent = (refParts.length ? '— ' + refParts.join(' / ') : '— 未入力') + '　[' + statusLabel + ']';
 
     // 引き合い条件
@@ -3128,7 +3128,7 @@
     if (typeof window.updateSectionSummaries === 'function') window.updateSectionSummaries();
   }
   function updateQuoteStatusUI() {
-    const status = document.getElementById('qf-status')?.value || '下書き';
+    const status = document.getElementById('qf-status')?.value || '下書き中';
     document.querySelectorAll('#qf-status-btns .qf-status-btn').forEach(btn => {
       btn.classList.toggle('active', btn.dataset.status === status);
     });
