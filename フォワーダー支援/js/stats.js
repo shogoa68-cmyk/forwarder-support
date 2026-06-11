@@ -2,7 +2,7 @@
 (function () {
   'use strict';
 
-  // cells 配列のインデックス（v3 format: [0]=selected [1]=cat [2]=sv [3]=tx [4]=nm [5]=pq [6]=un ...)
+  // cells 配列のインデックス（v3 format: [0]=selected [1]=cat [2]=sv [3]=tx [4]=nm [5]=pq [6]=un ...）
   const CI = { cat: 1, sv: 2, nm: 4, un: 6 };
   const CARRIER_CATS = new Set(['ocean', 'surcharge']);
   const LOCAL_KEY    = 'masterCandidates_v1';
@@ -83,10 +83,10 @@
     const carrierRows = allRows.filter(r => r.sv &&  CARRIER_CATS.has(r.cat));
     return {
       presets, totalPresets: presets.length, totalRows: allRows.length,
-      svFreq:      _freq(svRows.map(r => r.sv)),
-      carrierFreq: _freq(carrierRows.map(r => r.sv)),
-      nmGroups:    _groupSimilar(allRows.map(r => r.nm).filter(Boolean)),
-      unFreq:      _freq(allRows.map(r => r.un).filter(Boolean)),
+      svGroups:      _groupSimilar(svRows.map(r => r.sv)),
+      carrierGroups: _groupSimilar(carrierRows.map(r => r.sv)),
+      nmGroups:      _groupSimilar(allRows.map(r => r.nm).filter(Boolean)),
+      unGroups:      _groupSimilar(allRows.map(r => r.un).filter(Boolean)),
     };
   }
 
@@ -176,33 +176,15 @@
            '</button>';
   }
 
-  function _freqTable(freq, field, colLabel) {
-    if (!freq.length) return '<p class="stats-empty">データなし</p>';
-    let h = `<table class="stats-table"><thead><tr>` +
-            `<th>${colLabel}</th><th class="stats-num-col">回数</th><th></th>` +
-            `</tr></thead><tbody>`;
-    freq.forEach(({ value, count }) => {
-      h += `<tr><td class="stats-val">${_esc(value)}</td>` +
-           `<td class="stats-num-col">${count}</td>` +
-           `<td>${_voteBtn(field, value)}</td></tr>`;
-    });
-    return h + '</tbody></table>';
-  }
-
-  // === ペイン描画 ===
-
-  function _renderSv()      { const e = document.getElementById('statsPane-sv');      if (e && _data) e.innerHTML = _freqTable(_data.svFreq,      'sv', 'サブコン名'); }
-  function _renderCarrier() { const e = document.getElementById('statsPane-carrier'); if (e && _data) e.innerHTML = _freqTable(_data.carrierFreq, 'sv', 'キャリア名'); }
-  function _renderUn()      { const e = document.getElementById('statsPane-un');      if (e && _data) e.innerHTML = _freqTable(_data.unFreq,      'un', '単位'); }
-
-  function _renderNm() {
-    const e = document.getElementById('statsPane-nm');
+  // ゆらぎグループ表示（nm/sv/carrier/un 共通）
+  function _renderGrouped(groups, field, colLabel, paneId) {
+    const e = document.getElementById(paneId);
     if (!e || !_data) return;
-    if (!_data.nmGroups.length) { e.innerHTML = '<p class="stats-empty">データなし</p>'; return; }
-    let h = '<table class="stats-table stats-nm-table"><thead><tr>' +
-            '<th>品名</th><th class="stats-num-col">合計</th><th>バリアント</th>' +
-            '</tr></thead><tbody>';
-    _data.nmGroups.forEach(g => {
+    if (!groups.length) { e.innerHTML = '<p class="stats-empty">データなし</p>'; return; }
+    let h = `<table class="stats-table stats-nm-table"><thead><tr>` +
+            `<th>${colLabel}</th><th class="stats-num-col">合計</th><th>バリアント / 投票</th>` +
+            `</tr></thead><tbody>`;
+    groups.forEach(g => {
       const hasV = g.variants.length > 1;
       h += `<tr${hasV ? ' class="stats-has-variant"' : ''}>`;
       h += `<td class="stats-val">${_esc(g.variants[0].value)}`;
@@ -212,7 +194,7 @@
         h += `<span class="stats-chip">` +
              `<span class="stats-chip-text">${_esc(v.value)}</span>` +
              `<span class="stats-chip-cnt">×${v.count}</span>` +
-             _voteBtn('nm', v.value) +
+             _voteBtn(field, v.value) +
              `</span>`;
       });
       h += '</td></tr>';
@@ -220,12 +202,18 @@
     e.innerHTML = h + '</tbody></table>';
   }
 
+  // === ペイン描画 ===
+
+  function _renderSv()      { _renderGrouped(_data?.svGroups      || [], 'sv', 'サブコン名', 'statsPane-sv'); }
+  function _renderCarrier() { _renderGrouped(_data?.carrierGroups || [], 'sv', 'キャリア名', 'statsPane-carrier'); }
+  function _renderNm()      { _renderGrouped(_data?.nmGroups      || [], 'nm', '品名',       'statsPane-nm'); }
+  function _renderUn()      { _renderGrouped(_data?.unGroups      || [], 'un', '単位',       'statsPane-un'); }
+
   function _renderMaster() {
     const e = document.getElementById('statsPane-master');
     if (!e) return;
 
     const cloudOn = _cloud() && _cvMap !== null;
-    // クラウドからマスター候補を生成（票数1以上）
     let entries = [];
     if (cloudOn) {
       _cvMap.forEach(({ total, isMine }, key) => {
@@ -259,6 +247,11 @@
     e.innerHTML = h + '</tbody></table>';
   }
 
+  function _renderAlias() {
+    if (typeof window.arRenderPane === 'function') window.arRenderPane();
+    else document.getElementById('statsPane-alias')?.innerHTML = '<p class="stats-empty">alias-rules.js が読み込まれていません。</p>';
+  }
+
   function _renderCloud() {
     const e = document.getElementById('statsCloudStatus');
     if (!e) return;
@@ -276,7 +269,7 @@
     const set = (id, val) => { const e = document.getElementById(id); if (e) e.textContent = val; };
     set('statsTotal',    _data.totalPresets);
     set('statsRows',     _data.totalRows);
-    set('statsSvCount',  _data.svFreq.length + _data.carrierFreq.length);
+    set('statsSvCount',  _data.svGroups.length + _data.carrierGroups.length);
     set('statsNmGroups', _data.nmGroups.length);
   }
 
@@ -289,6 +282,7 @@
     else if (id === 'nm')      _renderNm();
     else if (id === 'un')      _renderUn();
     else if (id === 'master')  _renderMaster();
+    else if (id === 'alias')   _renderAlias();
   }
 
   // === サブタブ切替 ===
@@ -304,6 +298,7 @@
     else if (paneId === 'nm')      _renderNm();
     else if (paneId === 'un')      _renderUn();
     else if (paneId === 'master')  _renderMaster();
+    else if (paneId === 'alias')   _renderAlias();
   }
 
   // === パブリック API ===
@@ -315,7 +310,7 @@
     _updateSummary();
     _renderCloud();
     statsSetPane('sv');
-    // クラウド投票を非同期ロードして再描画
+    if (typeof window.arRefreshDatalist === 'function') window.arRefreshDatalist();
     if (_cloud()) {
       await _loadCloudVotes();
       _renderCloud();
@@ -334,6 +329,7 @@
     if (_cloud()) await _loadCloudVotes();
     _renderCloud();
     _renderActivePane();
+    if (typeof window.arRefreshDatalist === 'function') window.arRefreshDatalist();
   };
 
   window.statsToggleVote = async function (field, value) {
@@ -341,10 +337,8 @@
     if (v.isMine) await _demote(field, value);
     else          await _promote(field, value);
     _renderActivePane();
-    // マスタータブが別ペインにいるときも更新
-    const master = document.getElementById('statsPane-master');
-    if (master && master.classList.contains('is-active')) _renderMaster();
-    else _renderMaster(); // 常に更新（表示中かは関係なく次回表示に備える）
+    _renderMaster();
+    if (typeof window.arRefreshDatalist === 'function') window.arRefreshDatalist();
   };
 
   // 後方互換

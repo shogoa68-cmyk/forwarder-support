@@ -2075,6 +2075,88 @@ body:has(#compareOverlay.open) #quoteActionDock { display: none; }
   padding: 3px 10px;
 }
 
+/* ===================== エイリアスルールペイン ===================== */
+.ar-pane { padding: 4px 0 24px; }
+
+.ar-section-title {
+  font-size: 13px; font-weight: 700; color: #5a3e1b;
+  margin: 0 0 10px; padding-bottom: 6px;
+  border-bottom: 1px solid #e8d8c0;
+}
+
+.ar-add-section { margin-bottom: 24px; }
+
+.ar-add-form {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+}
+.ar-select {
+  border: 1px solid #c8b898; border-radius: 6px;
+  padding: 5px 8px; font-size: 12px; background: #fff;
+  height: 32px;
+}
+.ar-input {
+  border: 1px solid #c8b898; border-radius: 6px;
+  padding: 5px 10px; font-size: 12px; background: #fff;
+  height: 32px; min-width: 160px; flex: 1;
+}
+.ar-input:focus, .ar-select:focus {
+  outline: none; border-color: #c08040; box-shadow: 0 0 0 2px rgba(192,128,64,.15);
+}
+.ar-arrow-label { font-size: 16px; color: #a08060; font-weight: 700; }
+
+.ar-add-btn {
+  background: #c97d2a; color: #fff; border: none; border-radius: 6px;
+  padding: 6px 16px; font-size: 12px; font-weight: 600; cursor: pointer;
+  height: 32px; white-space: nowrap;
+}
+.ar-add-btn:hover { background: #a56520; }
+
+.ar-group { margin-bottom: 20px; }
+.ar-group-title {
+  font-size: 12px; font-weight: 700; color: #7a5c30;
+  background: #f8ede0; border-radius: 6px; padding: 4px 10px;
+  margin-bottom: 8px; display: inline-block;
+}
+.ar-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.ar-table thead th {
+  text-align: left; font-size: 11px; font-weight: 600;
+  color: #8a7060; background: #faf6ef;
+  padding: 5px 10px; border-bottom: 1px solid #e8d8c0;
+}
+.ar-table tbody tr:hover { background: #faf6ef; }
+.ar-table td { padding: 6px 10px; border-bottom: 1px solid #f0e4d0; }
+.ar-from { color: #c84030; font-weight: 500; }
+.ar-to   { color: #1a5c3a; font-weight: 600; }
+.ar-arrow-cell { color: #a08060; font-weight: 700; font-size: 14px; }
+.ar-del-btn {
+  background: none; border: 1px solid #e0b0a0; color: #c84030;
+  border-radius: 4px; padding: 2px 8px; font-size: 11px; cursor: pointer;
+}
+.ar-del-btn:hover { background: #fde8e0; }
+
+.ar-empty {
+  color: #a08060; font-size: 12px; line-height: 1.7;
+  background: #faf6ef; border: 1px dashed #d8c8a8;
+  border-radius: 8px; padding: 14px 18px; margin: 8px 0 20px;
+}
+
+.ar-bulk-section { margin-top: 28px; padding-top: 18px; border-top: 1px solid #e8d8c0; }
+.ar-bulk-desc {
+  font-size: 12px; color: #7a6040; margin-bottom: 12px; line-height: 1.6;
+}
+.ar-bulk-btns { display: flex; gap: 10px; flex-wrap: wrap; }
+.ar-bulk-btn {
+  border: none; border-radius: 6px; padding: 7px 16px;
+  font-size: 12px; font-weight: 600; cursor: pointer;
+}
+.ar-bulk-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.ar-bulk-local  { background: #e8f0e8; color: #1a5c3a; }
+.ar-bulk-cloud  { background: #e0e8f8; color: #1a3c6a; }
+.ar-bulk-both   { background: #f0e8d8; color: #5a3e1b; }
+.ar-bulk-local:not(:disabled):hover  { background: #c8e0c8; }
+.ar-bulk-cloud:not(:disabled):hover  { background: #c0d0f0; }
+.ar-bulk-both:not(:disabled):hover   { background: #e0d0b8; }
+
 /* ===================== ローカルチャージタブ ===================== */
 .lc-page { padding: 14px 18px 32px; max-width: 1100px; }
 

@@ -3503,6 +3503,8 @@
     </div>
 
     <!-- ===== 行テンプレート ===== -->
+    <datalist id="svSuggestions"></datalist>
+
     <datalist id="unit-list">
       <option value="B/L"></option>
       <option value="CNTR"></option>
@@ -3533,7 +3535,7 @@
       <td class="catsv-cell stk-cell">
         <div class="stk">
           <select class="w-cat" data-field="cat" data-col="0"></select>
-          <input type="text" data-field="sv" class="w-subcon" placeholder="サブコン" />
+          <input type="text" data-field="sv" class="w-subcon" placeholder="サブコン" list="svSuggestions" />
         </div>
       </td>
       <td class="name-cell">
@@ -3621,6 +3623,7 @@
       <button class="stats-tab-btn"           id="statsTabBtn-nm"      onclick="statsSetPane('nm')">📝 品名ゆらぎ</button>
       <button class="stats-tab-btn"           id="statsTabBtn-un"      onclick="statsSetPane('un')">📐 単位</button>
       <button class="stats-tab-btn"           id="statsTabBtn-master"  onclick="statsSetPane('master')">⭐ マスター管理</button>
+      <button class="stats-tab-btn"           id="statsTabBtn-alias"   onclick="statsSetPane('alias')">🔀 エイリアス是正</button>
     </div>
 
     <div id="statsPane-sv"      class="stats-pane is-active"></div>
@@ -3628,6 +3631,7 @@
     <div id="statsPane-nm"      class="stats-pane"></div>
     <div id="statsPane-un"      class="stats-pane"></div>
     <div id="statsPane-master"  class="stats-pane"></div>
+    <div id="statsPane-alias"   class="stats-pane"></div>
   </div>
 
   <!-- ===================== Tab: BOOKMARK ===================== -->
@@ -3697,6 +3701,7 @@
 <script src="js/similar-quotes.js"></script>
 <script src="js/quote/scenario.js"></script>
 <script src="js/stats.js"></script>
+<script src="js/alias-rules.js"></script>
 <script src="js/local-charges.js"></script>
 
 <!-- =================================================================
