@@ -553,6 +553,7 @@
       pEl.className = `profit-cell ${pClass(totPr)}`;
     }
     updateSubtotalRows();
+    _updateGroupSums();
     window.updateQuoteSummary?.();
     window.renderQuoteFxBar?.();
   }
@@ -1015,6 +1016,7 @@
             `<button type="button" class="subcon-group-toggle" title="折りたたみ/展開">${collapsed ? '▶' : '▼'}</button>` +
             `<span class="subcon-group-label">📦 ${_escHdr(label)}</span>` +
             `<span class="subcon-group-count">${count} 行</span>` +
+            `<span class="subcon-group-sum"></span>` +
             `<button type="button" class="subcon-group-excl${excluded ? ' is-excluded' : ''}" ` +
               `title="見積もりへの含める/除外を切り替え">${excluded ? '含む' : '除外'}</button>` +
             `<button type="button" class="subcon-group-add-btn" ` +
@@ -1030,9 +1032,43 @@
       });
       // 全行の折りたたみ・除外状態を適用（小計・リマーク行を含む）
       _applyGroupStates();
+      _updateGroupSums();
     } finally {
       _inGroupRender = false;
     }
+  }
+
+  // 各サブコングループヘッダーに、その配下データ行の請求小計合計（¥）を表示する。
+  // DOM 順に走査し、仮想ヘッダーごとに直後のデータ行の billing 小計（bq×bp）を集計。
+  // 非 JPY 行は toJPY があれば換算して合算（無ければ素の値）。
+  function _updateGroupSums() {
+    const tbody = document.getElementById('tableBody');
+    if (!tbody) return;
+    let curSumEl = null, curSum = 0, curMixed = false;
+    const flush = () => {
+      if (!curSumEl) return;
+      const v = Math.round(curSum);
+      curSumEl.textContent = v ? ('¥' + fmt(v) + (curMixed ? '※' : '')) : '';
+      curSumEl.title = curMixed ? '複数通貨を JPY 換算して合算（FX パネルのレート使用）' : '';
+    };
+    Array.from(tbody.querySelectorAll('tr')).forEach(tr => {
+      if (tr.dataset.virtual) {            // グループヘッダー
+        flush();
+        curSumEl = tr.querySelector('.subcon-group-sum');
+        curSum = 0; curMixed = false;
+        return;
+      }
+      if (tr.dataset.type) return;         // 小計・リマーク・社内メモ行は除外
+      const id = tr.id?.replace('row-', '');
+      if (!id || !curSumEl) return;
+      const bq = val(`bq-${id}`) || val(`pq-${id}`) || 0;
+      const bp = val(`bp-${id}`) || 0;
+      let amt = bq * bp;
+      const bc = document.getElementById(`bc-${id}`)?.value || 'JPY';
+      if (bc !== 'JPY') { curMixed = true; if (typeof toJPY === 'function') amt = toJPY(amt, bc); }
+      curSum += amt;
+    });
+    flush();
   }
 
   function _escHdr(s) {

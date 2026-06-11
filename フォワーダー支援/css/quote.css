@@ -7363,6 +7363,14 @@ button.um-memberno--empty:hover { background: #f4ead4; border-color: #cdb98e; }
   border-radius:999px;
   padding:1px 8px;
 }
+#tab-quote-make .subcon-group-sum {
+  font-size:11.5px;
+  font-weight:700;
+  color:#5a3e28;
+  margin-left:2px;
+  white-space:nowrap;
+}
+#tab-quote-make .subcon-group-sum:empty { display:none; }
 #tab-quote-make .subcon-group-add-btn {
   pointer-events:all;
   margin-left:auto;
@@ -7742,4 +7750,127 @@ button.um-memberno--empty:hover { background: #f4ead4; border-color: #cdb98e; }
     padding: 0 !important;
   }
   body:has(#scPreviewOverlay:not([hidden])) .sc-pv-scroll { overflow: visible !important; }
+}
+
+
+/* ============================================================
+   右カラム案C：アイコンレール基軸 — quote.css への追記分
+   既存の以下ブロックを置き換え／追記する：
+     #tab-quote-make .quote-right-col { width:260px; flex:0 0 260px; ... }
+   ============================================================ */
+
+/* レールモード時は右カラム自体は“中身に合わせて”縮む（260px 固定を解除） */
+#tab-quote-make .quote-right-col--rail {
+  width: auto;
+  flex: 0 0 auto;
+  display: flex;
+  /* 既存 .quote-right-col は flex-direction:column を持つため横並びへ上書き必須。
+     position:sticky / max-height（＝drawer 本文の内部スクロール基準）は base のまま活かす。 */
+  flex-direction: row;
+  align-items: stretch;
+  overflow: visible;   /* 左境界の幅ドラッググリップ（left:-6px）を base の overflow:hidden で切らない */
+  gap: 10px;
+  background: none;       /* 既存の枠/背景があれば解除 */
+  border: none;
+  padding: 0;
+}
+
+/* ---- ポップアウト drawer ---- */
+#tab-quote-make .qrc-drawer {
+  position: relative;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  width: 300px;                 /* JS が保存値で上書き */
+  background: #fdfaf4;
+  border: 1px solid #d5c8b0;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 6px 22px rgba(70,50,20,.14);   /* 浮遊感（未ピン時） */
+}
+#tab-quote-make .qrc-drawer.is-pinned {
+  box-shadow: 0 1px 3px rgba(80,60,30,.08);    /* 固定時は控えめ */
+}
+
+/* 幅ドラッグハンドル（左境界） */
+#tab-quote-make .qrc-resize {
+  position: absolute; left: -6px; top: 0; bottom: 0; width: 12px;
+  cursor: ew-resize; z-index: 6;
+  display: flex; align-items: center; justify-content: center;
+}
+#tab-quote-make .qrc-resize-grip {
+  width: 4px; height: 46px; border-radius: 3px; background: #cdbfa3;
+  transition: background .15s, height .15s;
+}
+#tab-quote-make .qrc-resize:hover .qrc-resize-grip { background: #6b8a3d; height: 70px; }
+
+/* drawer ヘッダー */
+#tab-quote-make .qrc-drawer-head {
+  flex: 0 0 auto; display: flex; align-items: center; gap: 8px;
+  padding: 10px 12px; background: #f4ecd8; border-bottom: 1px solid #e7ddc9;
+}
+#tab-quote-make .qrc-drawer-title {
+  flex: 1; min-width: 0; font-size: 12.5px; font-weight: 800; color: #4a3520;
+  letter-spacing: .03em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+#tab-quote-make .qrc-pin,
+#tab-quote-make .qrc-close {
+  flex: 0 0 auto; font-family: inherit; background: #fff; border: 1px solid #ddceb2;
+  border-radius: 6px; width: 27px; height: 25px; cursor: pointer; transition: all .12s;
+}
+#tab-quote-make .qrc-pin   { font-size: 13px; color: #b0a087; }
+#tab-quote-make .qrc-pin.is-on { color: #4a6a26; background: #f1f5e8; border-color: #b9cf94; }
+#tab-quote-make .qrc-pin:hover { border-color: #b89a5e; }
+#tab-quote-make .qrc-close { font-size: 15px; color: #8a7558; }
+#tab-quote-make .qrc-close:hover { color: #3d2e1e; border-color: #b89a5e; background: #fbf6ec; }
+
+/* drawer 本文（既存 3 パネルがそのまま入る） */
+#tab-quote-make .qrc-drawer-body {
+  flex: 1 1 auto; min-height: 0; overflow-y: auto;
+  display: flex; flex-direction: column;
+}
+/* 内側に来る既存パネルは“枠なし・全高”に馴染ませる */
+#tab-quote-make .qrc-drawer-body > .quote-summary-panel,
+#tab-quote-make .qrc-drawer-body > .sq-panel,
+#tab-quote-make .qrc-drawer-body > .sc-panel {
+  width: 100%; flex: 1 1 auto; border: none; border-radius: 0; box-shadow: none;
+}
+
+/* ---- アイコンレール（常時表示） ---- */
+#tab-quote-make .qrc-rail {
+  flex: 0 0 auto; align-self: flex-start;
+  width: 60px; display: flex; flex-direction: column; align-items: center; gap: 7px;
+  background: #f4ecd8; border: 1px solid #d5c8b0; border-radius: 8px; padding: 9px 0;
+}
+#tab-quote-make .qrc-rail-btn {
+  position: relative; width: 48px; display: flex; flex-direction: column;
+  align-items: center; gap: 3px; font-family: inherit;
+  background: #fff; border: 1px solid #e6dcc8; border-radius: 9px;
+  padding: 8px 2px; cursor: pointer; transition: all .12s;
+}
+#tab-quote-make .qrc-rail-ico { font-size: 17px; line-height: 1; }
+#tab-quote-make .qrc-rail-btn em { font-size: 8.5px; font-style: normal; font-weight: 700; color: #8a7558; }
+#tab-quote-make .qrc-rail-btn:hover { border-color: #b89a5e; background: #fbf6ec; }
+#tab-quote-make .qrc-rail-btn.is-on { border-color: #6b8a3d; background: #f1f5e8; }
+#tab-quote-make .qrc-rail-btn.is-on em { color: #4a6a26; }
+#tab-quote-make .qrc-rail-badge {
+  position: absolute; top: 3px; right: 4px; font-size: 8.5px; font-weight: 800;
+  color: #fff; background: #6b8a3d; border-radius: 8px; min-width: 14px;
+  text-align: center; padding: 0 3px; line-height: 14px;
+}
+#tab-quote-make .qrc-rail-dot {
+  position: absolute; top: 5px; right: 7px; width: 7px; height: 7px;
+  border-radius: 50%; background: #c77f2e;
+}
+
+/* ---- 本体最大化：レールのみ（未展開）時 ---- */
+/* drawer 非表示は JS が display:none を付与。レール幅 60px ＋ gap だけ残る。 */
+
+/* ---- モバイル/タブレット（既存 900px ブレークに合わせる） ---- */
+@media (max-width: 900px) {
+  #tab-quote-make .quote-right-col--rail { width: 100%; flex: 1 1 auto; flex-direction: column; }
+  #tab-quote-make .qrc-rail { flex-direction: row; width: 100%; justify-content: space-around; }
+  #tab-quote-make .qrc-rail-btn { flex-direction: row; width: auto; gap: 6px; padding: 7px 12px; }
+  #tab-quote-make .qrc-drawer { width: 100% !important; }
 }
