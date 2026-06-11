@@ -1508,7 +1508,11 @@
       .select('id,body,created_by,created_at')
       .eq('preset_id', _loadedCloudId)
       .order('created_at', { ascending: true });
-    if (error) { wrap.innerHTML = '<span class="cp-chat-err">⚠️ 取得失敗</span>'; return; }
+    if (error) {
+      console.error('[cloud] quote_comments fetch error:', error);
+      wrap.innerHTML = '<span class="cp-chat-err">⚠️ 取得失敗：' + escHtml(error.message || String(error)) + '</span>';
+      return;
+    }
     _renderQspComments(data || []);
     wrap.scrollTop = wrap.scrollHeight;
   }
@@ -1599,7 +1603,11 @@
       .select('id,body,created_by,created_at')
       .eq('preset_id', presetId)
       .order('created_at', { ascending: true });
-    if (error) { wrap.innerHTML = '<span class="cp-chat-err">⚠️ 取得失敗</span>'; return; }
+    if (error) {
+      console.error('[cloud] quote_comments fetch error:', error);
+      wrap.innerHTML = '<span class="cp-chat-err">⚠️ 取得失敗：' + escHtml(error.message || String(error)) + '</span>';
+      return;
+    }
     _renderComments(data || []);
     wrap.scrollTop = wrap.scrollHeight;
   }
