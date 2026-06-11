@@ -1015,6 +1015,7 @@
       pol, pod, carrier, routes,
       status:    (f['qf-status']      || '').trim(),
       subcons:   (window.quoteExtractSubcons ? window.quoteExtractSubcons(p.data) : []),
+      memo:      (f['qf-memo']        || '').trim().split('\n')[0].trim(),
     };
   }
   // チーム共有カードでも同じ表示にするため公開
