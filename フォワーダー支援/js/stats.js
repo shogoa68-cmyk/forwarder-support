@@ -249,7 +249,7 @@
 
   function _renderAlias() {
     if (typeof window.arRenderPane === 'function') window.arRenderPane();
-    else document.getElementById('statsPane-alias')?.innerHTML = '<p class="stats-empty">alias-rules.js が読み込まれていません。</p>';
+    else { const el = document.getElementById('statsPane-alias'); if (el) el.innerHTML = '<p class="stats-empty">alias-rules.js が読み込まれていません。</p>'; }
   }
 
   function _renderCloud() {
