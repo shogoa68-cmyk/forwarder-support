@@ -82,6 +82,15 @@
   }
 
   const _HONORIFIC_RE = /(様|さま|サマ|さん|御中|殿|先生|Mr\.|Ms\.|Mrs\.|Dear)\s*$/i;
+
+  function _defaultPdfTitle() {
+    const hdr = typeof getQuoteHeader === 'function' ? getQuoteHeader() : {};
+    const safe = s => String(s || '').replace(/[\/\\:*?"<>|\t\n\r]/g, '_').replace(/_+/g, '_').trim().slice(0, 40);
+    const parts = [hdr.ref, hdr.customer, hdr.person].map(safe).filter(Boolean);
+    if (parts.length) return parts.join('_');
+    const today = new Date().toLocaleDateString('sv', { timeZone: 'Asia/Tokyo' }).replace(/-/g, '');
+    return '御見積書_' + today;
+  }
   // 宛先の敬称を自動付与：
   //  - 担当者名あり → 「会社名　氏名 様」（個人宛は「様」）
   //  - 会社名のみ   → 「会社名 御中」（法人宛は「御中」）
@@ -381,6 +390,7 @@
             <span class="qd-tb-title">📄 御見積書フォーマット（PDF出力）</span>
             <label class="qd-tb-opt" title="ONにすると上部の御見積額・下部の合計／税サマリ（小計・課税対象小計・消費税・合計見積額）を非表示にします。小計行でパターンA/B比較を行う用途向け。"><input type="checkbox" id="qdHideTotal"> 合計を非表示（比較用）</label>
             <button class="qd-tb-btn" id="qdEditIssuer">📇 発行元設定</button>
+            <input type="text" id="qdPdfTitle" class="qd-tb-title-in" placeholder="ファイル名（拡張子不要）" title="PDF保存時のファイル名（ブラウザの印刷ダイアログに反映）">
             <button class="qd-tb-btn qd-tb-print" id="qdPrint">🖨️ PDF出力（印刷）</button>
             <button class="qd-tb-btn" id="qdClose">閉じる</button>
           </div>
@@ -397,9 +407,11 @@
         hideChk.addEventListener('change', () => { saveHideTotal(hideChk.checked); refreshQuoteDoc(); });
       }
     }
-    // チェック状態を保存値に同期（オーバーレイ再利用時も整合）
+    // チェック状態・ファイル名を保存値に同期（オーバーレイ再利用時も整合）
     const hideChk = overlay.querySelector('#qdHideTotal');
     if (hideChk) hideChk.checked = loadHideTotal();
+    const titleIn = overlay.querySelector('#qdPdfTitle');
+    if (titleIn) titleIn.value = _defaultPdfTitle();
     refreshQuoteDoc();
     overlay.classList.add('open');
     document.body.classList.add('qd-printing-ready');
@@ -452,8 +464,16 @@
     const pv = document.getElementById('previewOverlay');
     const wasPreviewOpen = !!(pv && pv.classList.contains('open'));
     if (wasPreviewOpen) pv.classList.remove('open');
+
+    // ファイル名入力値を document.title に一時設定（ブラウザの PDF 保存名に使われる）
+    const titleIn = document.getElementById('qdPdfTitle');
+    const customTitle = titleIn ? titleIn.value.trim() : '';
+    const prevTitle = document.title;
+    if (customTitle) document.title = customTitle;
+
     document.body.classList.add('qd-print-mode');
-    window.print();
+    window.print(); // 同期的：ダイアログを閉じるまでここでブロック
+    document.title = prevTitle;
     setTimeout(() => {
       document.body.classList.remove('qd-print-mode');
       if (wasPreviewOpen) pv.classList.add('open');
