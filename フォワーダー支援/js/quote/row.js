@@ -127,6 +127,11 @@
   // ========== 十字キー（↑↓）移動 ==========
   // Phase 2b：DOMContentLoaded ではなく initQuoteKeyNav() として呼び出すように変更
   function initQuoteKeyNav() {
+    // ホイールスクロールで input[type=number] の値が変わるブラウザ標準動作を抑制
+    document.getElementById('tableBody').addEventListener('wheel', e => {
+      if (e.target && e.target.type === 'number') e.preventDefault();
+    }, { passive: false });
+
     document.getElementById('tableBody').addEventListener('keydown', e => {
       // Ctrl+D: 現在行を複製して直下に挿入
       if (e.ctrlKey && e.key === 'd') {
