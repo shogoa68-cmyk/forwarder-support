@@ -7378,6 +7378,35 @@ button.um-memberno--empty:hover { background: #f4ead4; border-color: #cdb98e; }
 }
 #tab-quote-make .subcon-group-add-btn:hover { background:#f5ede0; }
 
+/* 除外ボタン */
+#tab-quote-make .subcon-group-excl {
+  pointer-events: all;
+  margin-left: 8px;
+  padding: 2px 8px;
+  font-size: 11px;
+  border: 1px solid #c8a87a;
+  border-radius: 3px;
+  background: #fff;
+  color: #7a5a30;
+  cursor: pointer;
+  line-height: 1.5;
+}
+#tab-quote-make .subcon-group-excl:hover { background: #f5ede0; }
+#tab-quote-make .subcon-group-excl.is-excluded {
+  background: #e07050;
+  border-color: #c05030;
+  color: #fff;
+}
+#tab-quote-make .subcon-group-excl.is-excluded:hover { background: #c05030; }
+#tab-quote-make .subcon-group-header.is-excluded .subcon-group-label {
+  opacity: 0.45;
+  text-decoration: line-through;
+}
+#tab-quote-make .subcon-group-header.is-excluded .subcon-group-header-cell {
+  background: linear-gradient(90deg,#f0e0d8 0,#f8f0ec 100%);
+}
+#tab-quote-make tr.row-excluded td { opacity: 0.35; }
+
 /* ===== 進捗バー（プリセット管理モーダル / ブラウザ保存・チーム共有） ===== */
 #tab-quote-make .quote-progress {
   display:flex;

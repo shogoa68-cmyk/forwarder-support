@@ -505,6 +505,7 @@
     const ccyData = {};
     rows.forEach(tr => {
       if (tr.dataset.type === 'subtotal') return; // 小計行をスキップ
+      if (tr.dataset.excluded === '1') return;    // 除外グループはスキップ
       const id  = tr.id.replace('row-', '');
       const pc  = document.getElementById(`pc-${id}`)?.value || 'JPY';
       const bc  = document.getElementById(`bc-${id}`)?.value || 'JPY';
@@ -897,36 +898,56 @@
   }
 
   // サブコン別グループヘッダーを再描画する
-  // ---- 折りたたみ状態（セッション中保持・再描画後も維持） ----
+  // ---- 折りたたみ・除外状態（セッション中保持・再描画後も維持） ----
   const _UNSET_KEY       = '￿';
   const _collapsedGroups = new Set();
+  const _excludedGroups  = new Set();
 
   function toggleSubconGroup(key) {
-    if (_collapsedGroups.has(key)) {
-      _collapsedGroups.delete(key);
-    } else {
-      _collapsedGroups.add(key);
-    }
-    _applyGroupCollapse();
+    if (_collapsedGroups.has(key)) _collapsedGroups.delete(key);
+    else                            _collapsedGroups.add(key);
+    _applyGroupStates();
   }
 
-  function _applyGroupCollapse() {
+  function toggleSubconExclude(key) {
+    if (_excludedGroups.has(key)) {
+      _excludedGroups.delete(key);
+    } else {
+      _excludedGroups.add(key);
+      _collapsedGroups.add(key); // 除外時は自動折りたたみ
+    }
+    _applyGroupStates();
+    if (typeof updateTotals === 'function') updateTotals();
+    if (typeof window.updateSectionSummaries === 'function') window.updateSectionSummaries();
+  }
+
+  function _applyGroupStates() {
     const tbody = document.getElementById('tableBody');
     if (!tbody) return;
-    // データ行の表示/非表示を更新
     Array.from(tbody.querySelectorAll('tr:not([data-virtual])')).filter(tr => !tr.dataset.type)
       .forEach(tr => {
-        const sv  = _rowSubcon(tr) ?? '';
-        const key = sv || _UNSET_KEY;
-        tr.style.display = _collapsedGroups.has(key) ? 'none' : '';
+        const sv       = _rowSubcon(tr) ?? '';
+        const key      = sv || _UNSET_KEY;
+        const collapsed = _collapsedGroups.has(key);
+        const excluded  = _excludedGroups.has(key);
+        tr.style.display        = collapsed ? 'none' : '';
+        tr.dataset.excluded     = excluded ? '1' : '';
+        tr.classList.toggle('row-excluded', excluded);
       });
-    // 仮想ヘッダーのトグルボタン表示を更新
     tbody.querySelectorAll('[data-virtual]').forEach(hdr => {
       const key = hdr.dataset.svKey;
       if (!key) return;
-      const btn = hdr.querySelector('.subcon-group-toggle');
-      if (btn) btn.textContent = _collapsedGroups.has(key) ? '▶' : '▼';
-      hdr.classList.toggle('is-collapsed', _collapsedGroups.has(key));
+      const collapsed = _collapsedGroups.has(key);
+      const excluded  = _excludedGroups.has(key);
+      const toggleBtn = hdr.querySelector('.subcon-group-toggle');
+      const exclBtn   = hdr.querySelector('.subcon-group-excl');
+      if (toggleBtn) toggleBtn.textContent = collapsed ? '▶' : '▼';
+      if (exclBtn) {
+        exclBtn.textContent = excluded ? '含む' : '除外';
+        exclBtn.classList.toggle('is-excluded', excluded);
+      }
+      hdr.classList.toggle('is-collapsed', collapsed);
+      hdr.classList.toggle('is-excluded',  excluded);
     });
   }
   // - 仮想 TR（data-virtual）を全削除してから再挿入
@@ -971,18 +992,20 @@
         hdr.dataset.virtual = '1';
         hdr.dataset.svKey   = key;
         hdr.className = 'subcon-group-header' + (collapsed ? ' is-collapsed' : '');
+        const excluded = _excludedGroups.has(key);
         hdr.innerHTML =
           `<td colspan="14" class="subcon-group-header-cell">` +
             `<button type="button" class="subcon-group-toggle" title="折りたたみ/展開">${collapsed ? '▶' : '▼'}</button>` +
             `<span class="subcon-group-label">📦 ${_escHdr(label)}</span>` +
             `<span class="subcon-group-count">${count} 行</span>` +
+            `<button type="button" class="subcon-group-excl${excluded ? ' is-excluded' : ''}" ` +
+              `title="見積もりへの含める/除外を切り替え">${excluded ? '含む' : '除外'}</button>` +
             `<button type="button" class="subcon-group-add-btn" ` +
               `data-sv="${_escAttr(key === _UNSET_KEY ? '' : key)}" ` +
               `title="${_escAttr(label)} に行を追加">＋</button>` +
           `</td>`;
-        hdr.querySelector('.subcon-group-toggle').addEventListener('click', () => {
-          toggleSubconGroup(key);
-        });
+        hdr.querySelector('.subcon-group-toggle').addEventListener('click', () => toggleSubconGroup(key));
+        hdr.querySelector('.subcon-group-excl').addEventListener('click', () => toggleSubconExclude(key));
         hdr.querySelector('.subcon-group-add-btn').addEventListener('click', () => {
           addRowToSubconGroup(key === _UNSET_KEY ? '' : key);
         });
@@ -1030,3 +1053,4 @@
   }
   window.addRowToSubconGroup  = addRowToSubconGroup;
   window.toggleSubconGroup    = toggleSubconGroup;
+  window.toggleSubconExclude  = toggleSubconExclude;
