@@ -209,7 +209,7 @@
 }
 #tab-quote-make .qf-status-btn:hover { border-color: #a08060; background: #ece4d8; }
 #tab-quote-make .qf-status-btn.active[data-status="下書き中"] { background: #e8e4de; color: #5a4e3e; border-color: #b8a898; }
-#tab-quote-make .qf-status-btn.active[data-status="提出済み"] { background: #dceef8; color: #1a5c8a; border-color: #7db5d4; }
+#tab-quote-make .qf-status-btn.active[data-status="提示済み"] { background: #dceef8; color: #1a5c8a; border-color: #7db5d4; }
 #tab-quote-make .qf-status-btn.active[data-status="受注"]   { background: #d4edda; color: #1a6a35; border-color: #6cb88a; }
 #tab-quote-make .qf-status-btn.active[data-status="失注"]   { background: #fdecea; color: #c0392b; border-color: #f5b7b1; }
 #tab-quote-make .qf-status-btn.active[data-status="辞退"]   { background: #f3e8ff; color: #6b21a8; border-color: #c084fc; }
@@ -4327,6 +4327,7 @@ body.qp-dash-active #quoteActionDock { display: none !important; }
 #tab-quote-make .cp-status--won      { background: #d1fae5; color: #065f46; }
 #tab-quote-make .cp-status--lost     { background: #fee2e2; color: #991b1b; }
 #tab-quote-make .cp-status--declined { background: #f3e8ff; color: #6b21a8; }
+#tab-quote-make .cp-status--hold     { background: #fff4e0; color: #b45309; }
 #tab-quote-make .cp-expired-warn  {
   display: inline-block; padding: 1px 8px; border-radius: 9px;
   font-size: 11px; font-weight: 700; vertical-align: middle;
@@ -4766,6 +4767,7 @@ body.qp-dash-active #quoteActionDock { display: none !important; }
 #tab-quote-make .cloud-status--won      { background: #e6f4ea; color: #1e7e44; }
 #tab-quote-make .cloud-status--lost     { background: #fdeaea; color: #c0392b; }
 #tab-quote-make .cloud-status--declined { background: #f3e8ff; color: #6b21a8; }
+#tab-quote-make .cloud-status--hold     { background: #fff4e0; color: #b45309; }
 /* 静的ステータスバッジ（編集セレクト廃止後・ブラウザ保存と同じ見た目） */
 #tab-quote-make .cloud-status-badge {
   display: inline-flex; align-items: center; flex-shrink: 0;
