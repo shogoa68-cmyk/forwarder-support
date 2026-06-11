@@ -4,6 +4,7 @@
   'use strict';
 
   const LOCAL_KEY     = 'aliasRules_v1';
+  const EXCL_KEY      = 'statsExclusions_v1';
   const TABLE         = 'alias_rules';
   const PRESETS_TABLE = 'quote_presets';
 
@@ -17,6 +18,12 @@
     catch (e) { return []; }
   }
   function _saveLocal(arr) { localStorage.setItem(LOCAL_KEY, JSON.stringify(arr)); }
+
+  function _loadExclusions() {
+    try { return JSON.parse(localStorage.getItem(EXCL_KEY) || '[]'); }
+    catch (e) { return []; }
+  }
+  function _saveExclusions(arr) { localStorage.setItem(EXCL_KEY, JSON.stringify(arr)); }
 
   // === Supabase ヘルパー ===
 
@@ -120,6 +127,30 @@
     return count;
   };
 
+  // === 除外リスト管理 ===
+
+  window.arGetExclusions = function (field) {
+    const all = _loadExclusions();
+    return field ? all.filter(e => e.field === field) : all;
+  };
+
+  window.arAddExclusion = async function (field, value) {
+    if (!field || !value) return;
+    const arr = _loadExclusions();
+    if (!arr.find(e => e.field === field && e.value === value)) {
+      arr.unshift({ field, value, created_at: new Date().toISOString() });
+      _saveExclusions(arr);
+    }
+    await _afterChange();
+    if (typeof window.statsRefresh === 'function') await window.statsRefresh();
+  };
+
+  window.arRemoveExclusion = async function (field, value) {
+    _saveExclusions(_loadExclusions().filter(e => !(e.field === field && e.value === value)));
+    await _afterChange();
+    if (typeof window.statsRefresh === 'function') await window.statsRefresh();
+  };
+
   // === 入力補完用 ===
 
   window.arGetCanonicals = function (field) {
@@ -152,6 +183,21 @@
     const { field, canonical } = _quickFill;
     await window.arSaveRule(field, from, canonical);
     _quickFill.nonCanonical.splice(idx, 1);
+    await window.arRenderPane();
+  };
+
+  window.arExcludeVariant = async function (idx) {
+    if (!_quickFill || idx >= _quickFill.nonCanonical.length) return;
+    const from = _quickFill.nonCanonical[idx];
+    const { field } = _quickFill;
+    const arr = _loadExclusions();
+    if (!arr.find(e => e.field === field && e.value === from)) {
+      arr.unshift({ field, value: from, created_at: new Date().toISOString() });
+      _saveExclusions(arr);
+    }
+    _quickFill.nonCanonical.splice(idx, 1);
+    await _afterChange();
+    if (typeof window.statsRefresh === 'function') await window.statsRefresh();
     await window.arRenderPane();
   };
 
@@ -193,6 +239,7 @@
     <span class="ar-arrow-label">→</span>
     <span class="ar-to">${_esc(_quickFill.canonical)}</span>
     <button class="ar-quick-reg-btn" onclick="arQuickRegister(${idx})">＋ 登録</button>
+    <button class="ar-quick-excl-btn" onclick="arExcludeVariant(${idx})" title="別物として扱い、ゆらぎ判定から外す">除外</button>
   </div>`;
       });
       h += `  </div>
@@ -257,6 +304,24 @@
     ${cloudOn ? `<button class="ar-bulk-btn ar-bulk-both"  onclick="arApplyWithConfirm('both')"${!hasAny?' disabled':''}>🔄 両方に適用</button>` : ''}
   </div>
 </div>`;
+
+    // 除外リスト
+    const excl = _loadExclusions();
+    if (excl.length > 0) {
+      const fl = { sv: 'サブコン', nm: '品名', un: '単位' };
+      h += `<div class="ar-excl-section">
+  <h4 class="ar-section-title">🚫 ゆらぎ判定 除外リスト（${excl.length}件）</h4>
+  <p class="ar-excl-desc">以下の表記はゆらぎ判定から外れています（別物として扱います）。</p>
+  <table class="ar-table ar-excl-table"><thead><tr><th>種別</th><th>除外値</th><th></th></tr></thead><tbody>`;
+      excl.forEach(e => {
+        h += `<tr>
+    <td>${_esc(fl[e.field] || e.field)}</td>
+    <td class="ar-from">${_esc(e.value)}</td>
+    <td><button class="ar-del-btn" onclick="arRemoveExclusion('${_ea(e.field)}','${_ea(e.value)}')">解除</button></td>
+  </tr>`;
+      });
+      h += '</tbody></table></div>';
+    }
 
     h += '</div>';
     pane.innerHTML = h;

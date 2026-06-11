@@ -82,12 +82,16 @@
     const allRows     = presets.flatMap(p => p.rows);
     const svRows      = allRows.filter(r => r.sv && !CARRIER_CATS.has(r.cat));
     const carrierRows = allRows.filter(r => r.sv &&  CARRIER_CATS.has(r.cat));
+    const excl = typeof window.arGetExclusions === 'function' ? window.arGetExclusions() : [];
+    const svExcl = new Set(excl.filter(e => e.field === 'sv').map(e => e.value));
+    const nmExcl = new Set(excl.filter(e => e.field === 'nm').map(e => e.value));
+    const unExcl = new Set(excl.filter(e => e.field === 'un').map(e => e.value));
     return {
       presets, totalPresets: presets.length, totalRows: allRows.length,
-      svGroups:      _groupSimilar(svRows.map(r => r.sv)),
-      carrierGroups: _groupSimilar(carrierRows.map(r => r.sv)),
-      nmGroups:      _groupSimilar(allRows.map(r => r.nm).filter(Boolean)),
-      unGroups:      _groupSimilar(allRows.map(r => r.un).filter(Boolean)),
+      svGroups:      _groupSimilar(svRows.map(r => r.sv), svExcl),
+      carrierGroups: _groupSimilar(carrierRows.map(r => r.sv), svExcl),
+      nmGroups:      _groupSimilar(allRows.map(r => r.nm).filter(Boolean), nmExcl),
+      unGroups:      _groupSimilar(allRows.map(r => r.un).filter(Boolean), unExcl),
     };
   }
 
@@ -106,11 +110,12 @@
       .replace(/[ァ-ン]/g, c => String.fromCharCode(c.charCodeAt(0) - 0x60));
   }
 
-  function _groupSimilar(names) {
+  function _groupSimilar(names, excl) {
     const freq   = _freq(names);
     const groups = new Map();
     freq.forEach(({ value, count }) => {
-      const key = _normalize(value);
+      // 除外リストに含まれる値は正規化キーを上書きして単独グループ化
+      const key = (excl && excl.has(value)) ? '\x01' + value : _normalize(value);
       if (!key) return;
       if (!groups.has(key)) groups.set(key, { variants: [], total: 0 });
       const g = groups.get(key);
@@ -200,12 +205,18 @@
              `<span class="stats-chip-text">${_esc(v.value)}</span>` +
              `<span class="stats-chip-cnt">×${v.count}</span>` +
              _voteBtn(field, v.value) +
+             (hasV ? `<button class="stats-excl-chip-btn" onclick="statsExcludeVariant('${_ea(aliasField)}','${_ea(v.value)}')" title="ゆらぎ判定から除外（別物として扱う）">≠</button>` : '') +
              `</span>`;
       });
       h += '</td></tr>';
     });
     e.innerHTML = h + '</tbody></table>';
   }
+
+  window.statsExcludeVariant = async function (field, value) {
+    if (typeof window.arAddExclusion === 'function') await window.arAddExclusion(field, value);
+    // arAddExclusion calls statsRefresh internally
+  };
 
   window.statsJumpToAlias = function (groupId) {
     const group = _renderedGroups[groupId];

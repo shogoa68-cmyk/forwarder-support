@@ -2029,6 +2029,12 @@ body:has(#compareOverlay.open) #quoteActionDock { display: none; }
   font-size: 11px;
   color: #8a7a60;
 }
+.stats-excl-chip-btn {
+  background: none; border: 1px solid #ccc; border-radius: 3px;
+  color: #aaa; cursor: pointer; font-size: 11px; padding: 1px 5px;
+  margin-left: 2px; line-height: 1.4;
+}
+.stats-excl-chip-btn:hover { background: #fee2e2; color: #c00; border-color: #e88; }
 
 /* マスター管理 */
 .stats-master-badge {
@@ -2124,6 +2130,12 @@ body:has(#compareOverlay.open) #quoteActionDock { display: none; }
   white-space: nowrap;
 }
 .ar-quick-reg-btn:hover { background: #a56520; }
+.ar-quick-excl-btn {
+  background: #f5f5f0; border: 1px solid #ccc; border-radius: 5px;
+  color: #777; cursor: pointer; font-size: 12px; padding: 4px 10px;
+  white-space: nowrap;
+}
+.ar-quick-excl-btn:hover { background: #fee2e2; color: #c00; border-color: #e88; }
 
 .ar-pane { padding: 4px 0 24px; }
 
@@ -2206,6 +2218,9 @@ body:has(#compareOverlay.open) #quoteActionDock { display: none; }
 .ar-bulk-local:not(:disabled):hover  { background: #c8e0c8; }
 .ar-bulk-cloud:not(:disabled):hover  { background: #c0d0f0; }
 .ar-bulk-both:not(:disabled):hover   { background: #e0d0b8; }
+.ar-excl-section { margin-top: 24px; border-top: 1px solid #e8d8c0; padding-top: 14px; }
+.ar-excl-desc { color: #7a6040; font-size: 12px; margin: 4px 0 10px; }
+.ar-excl-table td:first-child { color: #8a7060; font-size: 12px; }
 
 /* ===================== ローカルチャージタブ ===================== */
 .lc-page { padding: 14px 18px 32px; max-width: 1100px; }
