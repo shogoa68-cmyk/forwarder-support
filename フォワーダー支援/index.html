@@ -87,6 +87,10 @@
     <button class="tab-btn" role="tab" aria-selected="false" onclick="switchTab('insurance',  this)">🛡️ 海上貨物保険</button>
     <button class="tab-btn" role="tab" aria-selected="false" onclick="switchTab('blclause',   this)">📜 BL約款</button>
   </div>
+  <div class="tab-nav sub-nav active" id="sub-quote" role="tablist" aria-label="quote サブタブ">
+    <button class="tab-btn active" role="tab" aria-selected="true"  onclick="switchTab('quote-make', this)">💼 見積作成</button>
+    <button class="tab-btn"        role="tab" aria-selected="false" onclick="switchTab('stats',      this)">📊 統計</button>
+  </div>
   <div class="tab-nav sub-nav" id="sub-bookmark" role="tablist" aria-label="bookmark サブタブ">
     <!-- サブタブなし：switchCategory で直接 tab-bookmark を表示 -->
   </div>
@@ -3548,6 +3552,52 @@
 
   </div><!-- /#tab-quote-make -->
 
+  <!-- ===================== Tab: 統計 ===================== -->
+  <div class="tab-content" id="tab-stats">
+    <div class="stats-toolbar">
+      <select id="statsSource" onchange="statsRefresh()">
+        <option value="both">ローカル＋クラウド</option>
+        <option value="local">ローカルのみ</option>
+        <option value="cloud">クラウドのみ</option>
+      </select>
+      <button class="stats-refresh-btn" onclick="statsRefresh()">🔄 集計</button>
+      <span class="stats-toolbar-note">見積プリセットの明細行を集計します</span>
+    </div>
+
+    <div class="stats-summary-cards">
+      <div class="stats-card">
+        <div class="stats-card-value" id="statsTotal">—</div>
+        <div class="stats-card-label">プリセット数</div>
+      </div>
+      <div class="stats-card">
+        <div class="stats-card-value" id="statsRows">—</div>
+        <div class="stats-card-label">明細行数</div>
+      </div>
+      <div class="stats-card">
+        <div class="stats-card-value" id="statsSvCount">—</div>
+        <div class="stats-card-label">SV/キャリア種類</div>
+      </div>
+      <div class="stats-card">
+        <div class="stats-card-value" id="statsNmGroups">—</div>
+        <div class="stats-card-label">品名グループ数</div>
+      </div>
+    </div>
+
+    <div class="stats-tabs">
+      <button class="stats-tab-btn is-active" id="statsTabBtn-sv"      onclick="statsSetPane('sv')">🏢 サブコン</button>
+      <button class="stats-tab-btn"           id="statsTabBtn-carrier" onclick="statsSetPane('carrier')">🚢 キャリア</button>
+      <button class="stats-tab-btn"           id="statsTabBtn-nm"      onclick="statsSetPane('nm')">📝 品名ゆらぎ</button>
+      <button class="stats-tab-btn"           id="statsTabBtn-un"      onclick="statsSetPane('un')">📐 単位</button>
+      <button class="stats-tab-btn"           id="statsTabBtn-master"  onclick="statsSetPane('master')">⭐ マスター管理</button>
+    </div>
+
+    <div id="statsPane-sv"      class="stats-pane is-active"></div>
+    <div id="statsPane-carrier" class="stats-pane"></div>
+    <div id="statsPane-nm"      class="stats-pane"></div>
+    <div id="statsPane-un"      class="stats-pane"></div>
+    <div id="statsPane-master"  class="stats-pane"></div>
+  </div>
+
   <!-- ===================== Tab: BOOKMARK ===================== -->
   <div class="tab-content" id="tab-bookmark">
     <div class="bm-page-head">
@@ -3614,6 +3664,7 @@
 <script src="js/bookmarks.js"></script>
 <script src="js/similar-quotes.js"></script>
 <script src="js/quote/scenario.js"></script>
+<script src="js/stats.js"></script>
 
 <!-- =================================================================
      サイト全体スコープのフローティング UI（Phase 2c-Step1 で見積タブから昇格）

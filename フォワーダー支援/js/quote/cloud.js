@@ -1802,6 +1802,7 @@
   window.cloudLoadPreset     = cloudLoadPreset;
   window.cloudDeletePreset   = cloudDeletePreset;
   window.cloudListPresets    = cloudListPresets;
+  window.cloudGetAllRows     = () => (_cloudRows || []).slice();
   window.cloudOnPresetMgrOpen = cloudOnPresetMgrOpen;
   window.cloudSearchInput      = cloudSearchInput;
   window.cloudFilterStatus     = cloudFilterStatus;

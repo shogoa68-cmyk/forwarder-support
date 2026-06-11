@@ -1832,3 +1832,226 @@ body:has(#compareOverlay.open) #quoteActionDock { display: none; }
   font-size: 11px;
   text-align: center;
 }
+
+/* ===================== 統計タブ ===================== */
+#tab-stats {
+  padding: 16px 18px 32px;
+  max-width: 1000px;
+}
+
+/* ツールバー */
+.stats-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+.stats-toolbar select {
+  padding: 6px 10px;
+  border: 1px solid #c8b898;
+  border-radius: 6px;
+  font-size: 13px;
+  background: #fff;
+  cursor: pointer;
+}
+.stats-refresh-btn {
+  padding: 6px 14px;
+  background: #2d6a4f;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  font-size: 13px;
+  cursor: pointer;
+  font-weight: 600;
+}
+.stats-refresh-btn:hover { background: #1b4332; }
+.stats-toolbar-note {
+  font-size: 11px;
+  color: #8a7a6a;
+}
+
+/* サマリカード */
+.stats-summary-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 10px;
+  margin-bottom: 18px;
+}
+.stats-card {
+  background: #f9f6f0;
+  border: 1px solid #e0d4bc;
+  border-radius: 8px;
+  padding: 12px 14px 10px;
+  text-align: center;
+}
+.stats-card-value {
+  font-size: 26px;
+  font-weight: 700;
+  color: #2d6a4f;
+  line-height: 1.1;
+}
+.stats-card-label {
+  font-size: 11px;
+  color: #7a6a5a;
+  margin-top: 4px;
+}
+
+/* サブタブ */
+.stats-tabs {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+  border-bottom: 2px solid #e0d4bc;
+  margin-bottom: 14px;
+}
+.stats-tab-btn {
+  padding: 7px 14px;
+  font-size: 12px;
+  font-weight: 600;
+  background: none;
+  border: 1px solid transparent;
+  border-bottom: none;
+  border-radius: 6px 6px 0 0;
+  cursor: pointer;
+  color: #5a4a38;
+  transition: background 0.15s;
+  position: relative;
+  bottom: -2px;
+}
+.stats-tab-btn:hover { background: #f0e8d8; }
+.stats-tab-btn.is-active {
+  background: #fff;
+  border-color: #e0d4bc;
+  border-bottom-color: #fff;
+  color: #1a3a28;
+}
+
+/* ペイン */
+.stats-pane {
+  display: none;
+  animation: statsFadeIn 0.15s ease;
+}
+.stats-pane.is-active { display: block; }
+@keyframes statsFadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; } }
+
+/* テーブル共通 */
+.stats-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+.stats-table thead tr {
+  background: #f0e8d8;
+  border-bottom: 2px solid #d0c0a0;
+}
+.stats-table th {
+  padding: 8px 10px;
+  text-align: left;
+  font-weight: 700;
+  color: #3a2c1e;
+  font-size: 12px;
+}
+.stats-table td {
+  padding: 7px 10px;
+  border-bottom: 1px solid #ede3d2;
+  vertical-align: top;
+}
+.stats-table tbody tr:hover { background: #faf6ef; }
+.stats-num-col {
+  text-align: right;
+  width: 70px;
+  font-variant-numeric: tabular-nums;
+  color: #2d6a4f;
+  font-weight: 600;
+}
+.stats-val {
+  font-weight: 500;
+}
+
+/* 昇格ボタン */
+.stats-vote-btn {
+  padding: 3px 9px;
+  font-size: 11px;
+  background: #f0f7f4;
+  border: 1px solid #b2d8c8;
+  border-radius: 10px;
+  cursor: pointer;
+  color: #1a5c3a;
+  white-space: nowrap;
+  transition: background 0.12s;
+}
+.stats-vote-btn:hover { background: #d4eddf; }
+.stats-vote-btn.stats-voted {
+  background: #fff7d6;
+  border-color: #e8c84a;
+  color: #7a5f00;
+}
+
+/* 品名ゆらぎ */
+.stats-nm-table .stats-chips-cell { white-space: normal; }
+.stats-has-variant td:first-child { background: #fff9ed; }
+.stats-variant-badge {
+  display: inline-block;
+  font-size: 10px;
+  padding: 1px 6px;
+  background: #fff0cc;
+  border: 1px solid #e8c870;
+  border-radius: 8px;
+  color: #7a5c00;
+  font-weight: 600;
+  vertical-align: middle;
+}
+.stats-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: #f5f0e8;
+  border: 1px solid #ddd0bb;
+  border-radius: 12px;
+  padding: 3px 8px 3px 10px;
+  margin: 2px 3px 2px 0;
+  font-size: 12px;
+}
+.stats-chip-cnt {
+  font-size: 11px;
+  color: #8a7a60;
+}
+
+/* マスター管理 */
+.stats-master-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  background: #d4eddf;
+  border: 1px solid #2d6a4f;
+  border-radius: 8px;
+  font-size: 11px;
+  color: #1a4a2e;
+  font-weight: 600;
+}
+.stats-cand-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  background: #f0e8d8;
+  border: 1px solid #c8b898;
+  border-radius: 8px;
+  font-size: 11px;
+  color: #5a4a38;
+}
+.stats-demote-btn {
+  padding: 3px 9px;
+  font-size: 11px;
+  background: none;
+  border: 1px solid #c8b898;
+  border-radius: 10px;
+  cursor: pointer;
+  color: #8a7060;
+}
+.stats-demote-btn:hover { background: #f5ece0; }
+
+.stats-empty {
+  color: #9a8a78;
+  font-size: 13px;
+  padding: 16px 4px;
+  line-height: 1.8;
+}
