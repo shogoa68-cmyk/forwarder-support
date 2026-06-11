@@ -163,6 +163,7 @@
     // 見積もり行データを収集
     const rows = [];
     document.querySelectorAll('#tableBody tr[id^="row-"]').forEach(tr => {
+      if (tr.dataset.excluded === '1') return; // 除外グループはスキップ
       const id   = tr.id.replace('row-', '');
       const name = (document.getElementById(`nm-${id}`)?.value || '').trim();
       if (!name) return;
