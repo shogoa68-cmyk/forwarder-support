@@ -488,6 +488,40 @@
     quoteShowToast(`💱 ${count}行の通貨を「${newCurrency}」に設定しました`, 'success');
   }
 
+  // 「単位一括設定」セレクトを UNITS で構築
+  function _refreshBulkUnitSelect() {
+    const sel = document.getElementById('bulkUnitSet');
+    if (!sel) return;
+    sel.innerHTML = '<option value="__none__">📐 単位一括設定…</option>'
+      + UNITS.filter(u => u).map(u => `<option value="${u}">${u}</option>`).join('');
+    sel.value = '__none__';
+  }
+
+  // 選択（チェック）行の単位（un）を一括設定。選択は維持
+  function applyBulkUnitSet(sel) {
+    if (!sel || sel.value === '__none__') return;
+    const checkboxes = document.querySelectorAll('.row-select-chk:checked');
+    if (!checkboxes.length) {
+      quoteShowToast('⚠️ 設定したい行のチェックボックスにチェックを入れてください', 'warn', 3000);
+      sel.value = '__none__';
+      return;
+    }
+    const newUnit = sel.value;
+    let count = 0;
+    checkboxes.forEach(chk => {
+      const tr = chk.closest('tr');
+      if (!tr || tr.dataset.type === 'subtotal' || tr.dataset.type === 'remark') return;
+      const id = tr.id.replace('row-', '');
+      const unEl = document.getElementById(`un-${id}`);
+      if (!unEl) return;
+      unEl.value = newUnit;
+      unEl.dispatchEvent(new Event('change', { bubbles: true }));
+      count++;
+    });
+    sel.value = '__none__';
+    quoteShowToast(`📐 ${count}行の単位を「${newUnit}」に設定しました`, 'success');
+  }
+
   // 選択（チェック）行のサブコンを一括設定（空欄ならクリア）。選択は維持
   function applyBulkSubcon() {
     const inp = document.getElementById('bulkSubconSet');
@@ -2607,6 +2641,7 @@
     restoreLayoutScale();      // 大/中/小 スケールを復元
     refreshBulkCatSelect();    // 「選択行 → カテゴリ一括変更」セレクトを初期構築
     _refreshBulkCurrencySelect(); // 「選択行 → 通貨一括変更」セレクトを初期構築
+    _refreshBulkUnitSelect();     // 「選択行 → 単位一括変更」セレクトを初期構築
     initQuoteViewMode();       // STEP A: 客先/社内モード復元
     initQuoteSectionCollapse(); // 上部セクションの折り畳み状態を復元
     // 見積サマリ：保存済みタブを復元（既定は要約）
