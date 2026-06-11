@@ -4689,6 +4689,10 @@ body.qp-dash-active #quoteActionDock { display: none !important; }
 #tab-quote-make .cloud-preset-grid { grid-template-columns: repeat(auto-fill, minmax(380px, 1fr)); }
 #tab-quote-make .cloud-card-labeled { padding: 10px 12px; }
 #tab-quote-make .cloud-card-labeled .cloud-card-name { flex: 1; white-space: normal; }
+#tab-quote-make .cloud-card-memo {
+  font-size: 12px; font-weight: 600; color: #1a3a5c;
+  margin: 4px 0 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
 #tab-quote-make .cloud-kv { display: grid; grid-template-columns: 68px 1fr; gap: 3px 8px; margin: 8px 0; }
 #tab-quote-make .cloud-kv dt { font-size: 10.5px; color: #94a3ad; font-weight: 600; padding-top: 1px; }
 #tab-quote-make .cloud-kv dd { font-size: 11.5px; color: #2c3e4a; margin: 0; }

@@ -416,6 +416,7 @@
       const personH = person && (window.formatPersonWithHonorific ? window.formatPersonWithHonorific(person) : person);
       const custDd = [customer && escHtml(customer), personH && escHtml(personH)].filter(Boolean).join('・');
       const titleText = (m && m.ref) ? m.ref : r.name;   // 見出しは仮REF#のみ（顧客/担当は下に別掲）
+      const memoLine  = (m && m.memo) ? m.memo : '';
 
       // サブコン（役割ラベル付き・5件目以降は +N）
       const subShown = subcons.slice(0, 4);
@@ -445,6 +446,7 @@
             statusBadge +
             '<span class="cloud-card-name" title="' + escHtml(r.name) + '">' + escHtml(titleText) + '</span>' +
           '</div>' +
+          (memoLine ? '<div class="cloud-card-memo" title="' + escHtml(memoLine) + '">' + escHtml(memoLine) + '</div>' : '') +
           editBadge +
           progressHtml +
           '<dl class="cloud-kv">' +
@@ -526,6 +528,58 @@
   let _presence    = {};     // presetId -> [{ email, name }]
   let _myEditingId = null;
 
+  // ---------- 非アクティブ自動解放 ----------
+  const INACTIVITY_TIMEOUT_MS = 5 * 60 * 1000; // 5分
+  const INACTIVITY_RECOVERY_KEY = 'cloudEditRecovery_v1';
+  let _inactivityTimer = null;
+
+  function _releaseOnInactivity() {
+    if (!_myEditingId) return;
+    // 入力中データをブラウザに保存
+    try {
+      if (typeof gatherAllData === 'function') {
+        const snapshot = gatherAllData();
+        localStorage.setItem(INACTIVITY_RECOVERY_KEY, JSON.stringify({
+          data: snapshot,
+          savedAt: Date.now(),
+          presetId: _myEditingId,
+        }));
+      }
+    } catch (e) {}
+    _setEditing(null);
+    quoteShowToast(
+      '⏱️ 未操作状態が続いたため閲覧モードに戻りました。入力データはブラウザに保存済みです（プリセット保存ボタンで復元できます）。',
+      'warn', 8000
+    );
+  }
+
+  function _resetInactivityTimer() {
+    if (!_myEditingId) return;
+    clearTimeout(_inactivityTimer);
+    _inactivityTimer = setTimeout(_releaseOnInactivity, INACTIVITY_TIMEOUT_MS);
+  }
+
+  function _startInactivityWatch() {
+    clearTimeout(_inactivityTimer);
+    _inactivityTimer = setTimeout(_releaseOnInactivity, INACTIVITY_TIMEOUT_MS);
+    ['mousemove', 'keydown', 'mousedown', 'touchstart', 'scroll', 'input', 'change'].forEach(evt =>
+      document.addEventListener(evt, _onUserActivity, { passive: true })
+    );
+  }
+
+  function _stopInactivityWatch() {
+    clearTimeout(_inactivityTimer);
+    _inactivityTimer = null;
+    ['mousemove', 'keydown', 'mousedown', 'touchstart', 'scroll', 'input', 'change'].forEach(evt =>
+      document.removeEventListener(evt, _onUserActivity)
+    );
+  }
+
+  function _onUserActivity() {
+    if (_myEditingId) _resetInactivityTimer();
+    else _stopInactivityWatch();
+  }
+
   function _presenceOthers(presetId) {
     const arr = _presence[presetId] || [];
     const me = _cloudUser && _cloudUser.email;
@@ -569,7 +623,12 @@
       });
     } catch (e) {}
   }
-  function _setEditing(presetId) { _myEditingId = presetId || null; _trackEditing(); }
+  function _setEditing(presetId) {
+    _myEditingId = presetId || null;
+    _trackEditing();
+    if (_myEditingId) _startInactivityWatch();
+    else _stopInactivityWatch();
+  }
   function _initPresence() {
     const c = _getClient();
     if (!c || !_cloudUser || _presenceCh) return;
@@ -581,6 +640,7 @@
     } catch (e) { _presenceCh = null; }
   }
   function _teardownPresence() {
+    _stopInactivityWatch();
     if (_presenceCh) { try { _presenceCh.untrack(); _getClient() && _getClient().removeChannel(_presenceCh); } catch (e) {} }
     _presenceCh = null; _presence = {}; _myEditingId = null;
     _dropLock();
