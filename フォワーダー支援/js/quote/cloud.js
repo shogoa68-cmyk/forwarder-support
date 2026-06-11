@@ -18,7 +18,7 @@
   let _cloudInited = false;
 
   // 案件ステータス定義（順序＝表示順、key は DB 保存値）
-  const CLOUD_STATUSES = ['下書き中', '提示済み', '受注', '失注', '辞退', '保留'];
+  const CLOUD_STATUSES = ['下書き中', '提出済み', '受注', '失注', '辞退', '保留'];
   const CLOUD_STATUS_DEFAULT = '下書き中';
 
   // 一覧キャッシュ＋絞り込み状態（フェーズ1：クライアント側フィルタ）
@@ -243,7 +243,7 @@
     const pod = _cloudFilterPod.trim().toLowerCase();
     const car = _cloudFilterCarrier.trim().toLowerCase();
     const rows = _cloudRows.filter(r => {
-      if (_cloudStatusFilter && (r.status || CLOUD_STATUS_DEFAULT) !== _cloudStatusFilter) return false;
+      if (_cloudStatusFilter && (_normalizeStatus(r.status) || CLOUD_STATUS_DEFAULT) !== _normalizeStatus(_cloudStatusFilter)) return false;
       if (_cloudFilterMode    && r.transport_mode !== _cloudFilterMode)  return false;
       if (_cloudFilterInco    && r.incoterms       !== _cloudFilterInco) return false;
       if (pol && !(r.pol     || '').toLowerCase().includes(pol)) return false;
@@ -257,7 +257,7 @@
   }
 
   // ダッシュボードの並び替え
-  const _STATUS_ORDER = { '下書き中': 0, '提示済み': 1, '受注': 2, '失注': 3, '辞退': 4, '保留': 5 };
+  const _STATUS_ORDER = { '下書き中': 0, '提出済み': 1, '受注': 2, '失注': 3, '辞退': 4, '保留': 5 };
   function _sortCloudRows(rows) {
     const s = _cloudSort || 'updated';
     const upd = e => e.updated_at || '';
@@ -329,7 +329,7 @@
   function _renderStatusChips() {
     const box = document.getElementById('cloudStatusChips');
     if (!box) return;
-    const count = st => _cloudRows.filter(r => (r.status || CLOUD_STATUS_DEFAULT) === st).length;
+    const count = st => _cloudRows.filter(r => _normalizeStatus(r.status || CLOUD_STATUS_DEFAULT) === _normalizeStatus(st)).length;
     const chip = (val, label, n) =>
       '<button type="button" class="cloud-chip' + (_cloudStatusFilter === val ? ' is-active' : '') +
       (val ? ' cloud-chip--' + _statusClass(val) : '') +
@@ -340,8 +340,12 @@
     box.innerHTML = html;
   }
 
+  // 旧値「提示済み」→「提出済み」に正規化（DB 移行前の既存データ対応）
+  function _normalizeStatus(st) {
+    return st === '提示済み' ? '提出済み' : (st || '');
+  }
   function _statusClass(st) {
-    return { '下書き中':'draft', '提示済み':'sent', '受注':'won', '失注':'lost', '辞退':'declined', '保留':'hold' }[st] || 'draft';
+    return { '下書き中':'draft', '提出済み':'sent', '提示済み':'sent', '受注':'won', '失注':'lost', '辞退':'declined', '保留':'hold' }[st] || 'draft';
   }
 
   // 役割ラベル＝費用行のカテゴリ（CATEGORIES の value → 短縮ラベル）
@@ -513,7 +517,7 @@
   function _renderQpdStats() {
     const box = document.getElementById('qpdStats');
     if (!box) return;
-    const count = st => _cloudRows.filter(r => (r.status || CLOUD_STATUS_DEFAULT) === st).length;
+    const count = st => _cloudRows.filter(r => _normalizeStatus(r.status || CLOUD_STATUS_DEFAULT) === _normalizeStatus(st)).length;
     const card = (val, label, n, cls) =>
       '<button type="button" class="qpd-stat' + (_cloudStatusFilter === val ? ' is-active' : '') +
         (cls ? ' qpd-stat--' + cls : '') + '" onclick="cloudFilterStatus(\'' + val + '\')">' +

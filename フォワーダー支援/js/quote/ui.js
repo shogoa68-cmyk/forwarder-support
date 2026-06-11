@@ -1023,7 +1023,7 @@
   }
 
   // 案件ステータス（qf-status）→ ドット色
-  const _PRESET_STATUS_DOT = { '下書き中':'#9c8e78', '提示済み':'#3f6a8c', '提出済み':'#3f6a8c', '受注':'#1e7e44', '失注':'#c0392b', '保留':'#b8860b', '辞退':'#6b21a8' };
+  const _PRESET_STATUS_DOT = { '下書き中':'#9c8e78', '提出済み':'#3f6a8c', '提示済み':'#3f6a8c', '受注':'#1e7e44', '失注':'#c0392b', '保留':'#b8860b', '辞退':'#6b21a8' };
   // プリセットの data.fields から一覧表示用メタを派生
   function _presetMeta(p) {
     const f = (p.data && p.data.fields) || {};
