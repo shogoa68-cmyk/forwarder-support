@@ -324,7 +324,11 @@
   window.initStatsTab = async function () {
     _data  = null;
     _cvMap = null;
-    _data  = _build(document.getElementById('statsSource')?.value || 'both');
+    const source = document.getElementById('statsSource')?.value || 'both';
+    if (source !== 'local' && _cloud() && typeof window.cloudListPresets === 'function') {
+      await window.cloudListPresets(true);
+    }
+    _data  = _build(source);
     _updateSummary();
     _renderCloud();
     statsSetPane('sv');
@@ -341,7 +345,11 @@
   window.statsRefresh = async function () {
     _data  = null;
     _cvMap = null;
-    _data  = _build(document.getElementById('statsSource')?.value || 'both');
+    const source = document.getElementById('statsSource')?.value || 'both';
+    if (source !== 'local' && _cloud() && typeof window.cloudListPresets === 'function') {
+      await window.cloudListPresets(true);
+    }
+    _data  = _build(source);
     _updateSummary();
     _renderCloud();
     if (_cloud()) await _loadCloudVotes();
