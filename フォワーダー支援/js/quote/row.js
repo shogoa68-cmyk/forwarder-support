@@ -897,6 +897,38 @@
   }
 
   // サブコン別グループヘッダーを再描画する
+  // ---- 折りたたみ状態（セッション中保持・再描画後も維持） ----
+  const _UNSET_KEY       = '￿';
+  const _collapsedGroups = new Set();
+
+  function toggleSubconGroup(key) {
+    if (_collapsedGroups.has(key)) {
+      _collapsedGroups.delete(key);
+    } else {
+      _collapsedGroups.add(key);
+    }
+    _applyGroupCollapse();
+  }
+
+  function _applyGroupCollapse() {
+    const tbody = document.getElementById('tableBody');
+    if (!tbody) return;
+    // データ行の表示/非表示を更新
+    Array.from(tbody.querySelectorAll('tr:not([data-virtual])')).filter(tr => !tr.dataset.type)
+      .forEach(tr => {
+        const sv  = _rowSubcon(tr) ?? '';
+        const key = sv || _UNSET_KEY;
+        tr.style.display = _collapsedGroups.has(key) ? 'none' : '';
+      });
+    // 仮想ヘッダーのトグルボタン表示を更新
+    tbody.querySelectorAll('[data-virtual]').forEach(hdr => {
+      const key = hdr.dataset.svKey;
+      if (!key) return;
+      const btn = hdr.querySelector('.subcon-group-toggle');
+      if (btn) btn.textContent = _collapsedGroups.has(key) ? '▶' : '▼';
+      hdr.classList.toggle('is-collapsed', _collapsedGroups.has(key));
+    });
+  }
   // - 仮想 TR（data-virtual）を全削除してから再挿入
   // - グループ順：出現順。未設定グループは末尾
   // - グループが 1 つ以下のとき（全行同サブコン or 全行未設定）はヘッダー不要
@@ -913,39 +945,50 @@
         .filter(tr => !tr.dataset.type); // 小計・リマーク・社内メモは対象外
       if (!realRows.length) return;
 
-      const UNSET_KEY = '￿'; // 未設定グループは末尾（￿ はソートで末尾）
       const groupOrder = [];
       const groups = Object.create(null);
       realRows.forEach(tr => {
         const sv = _rowSubcon(tr) ?? '';
-        const key = sv || UNSET_KEY;
+        const key = sv || _UNSET_KEY;
         if (!groups[key]) { groups[key] = []; groupOrder.push(key); }
         groups[key].push(tr);
       });
 
-      // グループが 1 つだけなら表示不要
-      if (groupOrder.length < 2) return;
+      // グループが 1 つだけなら表示不要（折りたたみ状態はリセット）
+      if (groupOrder.length < 2) {
+        _collapsedGroups.clear();
+        realRows.forEach(tr => { tr.style.display = ''; });
+        return;
+      }
 
       // グループヘッダー TR を各グループの先頭行の直前に挿入
       groupOrder.forEach(key => {
-        const label = key === UNSET_KEY ? '（サブコン未設定）' : key;
-        const firstRow = groups[key][0];
-        const count = groups[key].length;
+        const label     = key === _UNSET_KEY ? '（サブコン未設定）' : key;
+        const firstRow  = groups[key][0];
+        const count     = groups[key].length;
+        const collapsed = _collapsedGroups.has(key);
         const hdr = document.createElement('tr');
         hdr.dataset.virtual = '1';
-        hdr.className = 'subcon-group-header';
+        hdr.dataset.svKey   = key;
+        hdr.className = 'subcon-group-header' + (collapsed ? ' is-collapsed' : '');
         hdr.innerHTML =
           `<td colspan="14" class="subcon-group-header-cell">` +
+            `<button type="button" class="subcon-group-toggle" title="折りたたみ/展開">${collapsed ? '▶' : '▼'}</button>` +
             `<span class="subcon-group-label">📦 ${_escHdr(label)}</span>` +
             `<span class="subcon-group-count">${count} 行</span>` +
             `<button type="button" class="subcon-group-add-btn" ` +
-              `data-sv="${_escAttr(key === UNSET_KEY ? '' : key)}" ` +
+              `data-sv="${_escAttr(key === _UNSET_KEY ? '' : key)}" ` +
               `title="${_escAttr(label)} に行を追加">＋</button>` +
           `</td>`;
+        hdr.querySelector('.subcon-group-toggle').addEventListener('click', () => {
+          toggleSubconGroup(key);
+        });
         hdr.querySelector('.subcon-group-add-btn').addEventListener('click', () => {
-          addRowToSubconGroup(key === UNSET_KEY ? '' : key);
+          addRowToSubconGroup(key === _UNSET_KEY ? '' : key);
         });
         tbody.insertBefore(hdr, firstRow);
+        // 折りたたみ状態を即時適用
+        groups[key].forEach(tr => { tr.style.display = collapsed ? 'none' : ''; });
       });
     } finally {
       _inGroupRender = false;
@@ -985,4 +1028,5 @@
     renderSubconGroups();
     setTimeout(() => document.getElementById(`nm-${newId}`)?.focus(), 40);
   }
-  window.addRowToSubconGroup = addRowToSubconGroup;
+  window.addRowToSubconGroup  = addRowToSubconGroup;
+  window.toggleSubconGroup    = toggleSubconGroup;
