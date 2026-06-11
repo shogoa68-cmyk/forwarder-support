@@ -136,6 +136,28 @@
   }
   window.arRefreshDatalist = _refreshDatalist;
 
+  // === クイック登録ステート ===
+
+  let _quickFill = null; // { field, canonical, nonCanonical: string[] }
+
+  window.arSetQuickFill = function (field, canonical, nonCanonical) {
+    _quickFill = { field, canonical, nonCanonical: (nonCanonical || []).slice() };
+  };
+
+  window.arQuickRegister = async function (idx) {
+    if (!_quickFill || idx >= _quickFill.nonCanonical.length) return;
+    const from = _quickFill.nonCanonical[idx];
+    const { field, canonical } = _quickFill;
+    await window.arSaveRule(field, from, canonical);
+    _quickFill.nonCanonical.splice(idx, 1);
+    await window.arRenderPane();
+  };
+
+  window.arClearQuickFill = async function () {
+    _quickFill = null;
+    await window.arRenderPane();
+  };
+
   // === レンダリング ===
 
   function _esc(s) { return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
@@ -153,18 +175,48 @@
 
     let h = '<div class="ar-pane">';
 
+    // === クイック登録セクション（バッジクリック時） ===
+    if (_quickFill && _quickFill.nonCanonical.length > 0) {
+      const fl = fieldLabel[_quickFill.field] || _quickFill.field;
+      h += `<div class="ar-quick-section">
+  <div class="ar-quick-header">
+    <span class="ar-quick-title">⚡ ゆらぎ是正ショートカット — <strong>${_esc(_quickFill.canonical)}</strong>（${fl}）</span>
+    <button class="ar-quick-clear" onclick="arClearQuickFill()" title="クリア">✕</button>
+  </div>
+  <p class="ar-quick-desc">以下の表記を <strong>"${_esc(_quickFill.canonical)}"</strong> に統一するルールをワンクリックで登録できます:</p>
+  <div class="ar-quick-items">`;
+      _quickFill.nonCanonical.forEach((from, idx) => {
+        h += `<div class="ar-quick-item">
+    <span class="ar-from">${_esc(from)}</span>
+    <span class="ar-arrow-label">→</span>
+    <span class="ar-to">${_esc(_quickFill.canonical)}</span>
+    <button class="ar-quick-reg-btn" onclick="arQuickRegister(${idx})">＋ 登録</button>
+  </div>`;
+      });
+      h += `  </div>
+</div>`;
+    } else if (_quickFill && _quickFill.nonCanonical.length === 0) {
+      // 全バリアント登録済み
+      h += `<div class="ar-quick-section ar-quick-done">
+  <span class="ar-quick-title">✅ <strong>${_esc(_quickFill.canonical)}</strong> グループの全ゆらぎを登録しました</span>
+  <button class="ar-quick-clear" onclick="arClearQuickFill()">✕</button>
+</div>`;
+    }
+
     // 追加フォーム
+    const preField = _quickFill ? _quickFill.field : 'sv';
+    const preTo    = _quickFill ? _quickFill.canonical : '';
     h += `<div class="ar-add-section">
   <h4 class="ar-section-title">＋ ルール追加</h4>
   <div class="ar-add-form">
     <select id="arField" class="ar-select">
-      <option value="sv">サブコン</option>
-      <option value="nm">品名</option>
-      <option value="un">単位</option>
+      <option value="sv"${preField==='sv'?' selected':''}>サブコン</option>
+      <option value="nm"${preField==='nm'?' selected':''}>品名</option>
+      <option value="un"${preField==='un'?' selected':''}>単位</option>
     </select>
     <input id="arFrom" class="ar-input" type="text" placeholder="元の表記（ゆらぎ）">
     <span class="ar-arrow-label">→</span>
-    <input id="arTo"   class="ar-input" type="text" placeholder="正規形（統一後）">
+    <input id="arTo"   class="ar-input" type="text" placeholder="正規形（統一後）" value="${_ea(preTo)}">
     <button class="ar-add-btn" onclick="arSubmitForm()">登録</button>
   </div>
 </div>`;

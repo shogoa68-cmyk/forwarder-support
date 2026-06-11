@@ -10,6 +10,7 @@
 
   let _data    = null;
   let _cvMap   = null;  // Map<`field:::value`, { total, isMine }> — クラウド投票キャッシュ
+  const _renderedGroups = {};  // { groupId → { aliasField, variants[] } } — バッジクリック用
 
   // === Supabase ヘルパー ===
 
@@ -181,14 +182,18 @@
     const e = document.getElementById(paneId);
     if (!e || !_data) return;
     if (!groups.length) { e.innerHTML = '<p class="stats-empty">データなし</p>'; return; }
+    // carrier も alias rule では 'sv' フィールドを使う
+    const aliasField = (field === 'sv') ? 'sv' : field;
     let h = `<table class="stats-table stats-nm-table"><thead><tr>` +
             `<th>${colLabel}</th><th class="stats-num-col">合計</th><th>バリアント / 投票</th>` +
             `</tr></thead><tbody>`;
-    groups.forEach(g => {
+    groups.forEach((g, gIdx) => {
       const hasV = g.variants.length > 1;
+      const gId  = paneId + '-' + gIdx;
+      _renderedGroups[gId] = { aliasField, variants: g.variants };
       h += `<tr${hasV ? ' class="stats-has-variant"' : ''}>`;
       h += `<td class="stats-val">${_esc(g.variants[0].value)}`;
-      if (hasV) h += ` <span class="stats-variant-badge">ゆらぎ ${g.variants.length}種</span>`;
+      if (hasV) h += ` <button class="stats-variant-badge stats-variant-badge--link" onclick="statsJumpToAlias('${gId}')" title="エイリアス是正タブで一括登録">ゆらぎ ${g.variants.length}種</button>`;
       h += `</td><td class="stats-num-col">${g.total}</td><td class="stats-chips-cell">`;
       g.variants.forEach(v => {
         h += `<span class="stats-chip">` +
@@ -201,6 +206,19 @@
     });
     e.innerHTML = h + '</tbody></table>';
   }
+
+  window.statsJumpToAlias = function (groupId) {
+    const group = _renderedGroups[groupId];
+    if (!group) return;
+    if (typeof window.arSetQuickFill === 'function') {
+      window.arSetQuickFill(
+        group.aliasField,
+        group.variants[0].value,
+        group.variants.slice(1).map(function (v) { return v.value; })
+      );
+    }
+    statsSetPane('alias');
+  };
 
   // === ペイン描画 ===
 
