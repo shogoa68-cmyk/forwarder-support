@@ -44,18 +44,19 @@
 
   window.arSaveRule = async function (field, from_value, to_value) {
     if (!field || !from_value || !to_value) return;
+    // 常にローカルにも保存（クラウド失敗時のフォールバック兼オフライン対応）
+    const arr = _loadLocal();
+    const idx = arr.findIndex(r => r.field === field && r.from_value === from_value);
+    const rec = { id: Date.now() + '_' + Math.random().toString(36).slice(2), field, from_value, to_value, created_at: new Date().toISOString() };
+    if (idx >= 0) arr[idx] = { ...arr[idx], ...rec }; else arr.unshift(rec);
+    _saveLocal(arr);
+    // クラウドにも同期（失敗しても続行）
     if (_cloud()) {
       const c = _c(), me = _me();
       await c.from(TABLE).upsert(
         { field, from_value, to_value, created_by: me },
         { onConflict: 'field,from_value' }
       );
-    } else {
-      const arr = _loadLocal();
-      const idx = arr.findIndex(r => r.field === field && r.from_value === from_value);
-      const rec = { id: Date.now() + '_' + Math.random().toString(36).slice(2), field, from_value, to_value, created_at: new Date().toISOString() };
-      if (idx >= 0) arr[idx] = { ...arr[idx], ...rec }; else arr.unshift(rec);
-      _saveLocal(arr);
     }
     await _afterChange();
   };
@@ -63,10 +64,11 @@
   // === ルール削除 ===
 
   window.arDeleteRule = async function (id) {
+    // ローカルから削除
+    _saveLocal(_loadLocal().filter(r => String(r.id) !== String(id)));
+    // クラウドからも削除（エラーは無視）
     if (_cloud()) {
       await _c().from(TABLE).delete().eq('id', id);
-    } else {
-      _saveLocal(_loadLocal().filter(r => String(r.id) !== String(id)));
     }
     await _afterChange();
   };
@@ -224,6 +226,7 @@
     // ルール一覧
     const hasAny = rules.length > 0;
     if (hasAny) {
+      h += `<h4 class="ar-section-title ar-rules-title">📋 登録済みルール（${rules.length}件）</h4>`;
       fields.forEach(field => {
         if (!grouped[field].length) return;
         h += `<div class="ar-group">

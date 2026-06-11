@@ -2133,6 +2133,7 @@ body:has(#compareOverlay.open) #quoteActionDock { display: none; }
   border-bottom: 1px solid #e8d8c0;
 }
 
+.ar-rules-title { margin-top: 24px; border-top: 1px solid #e8d8c0; padding-top: 14px; }
 .ar-add-section { margin-bottom: 24px; }
 
 .ar-add-form {
