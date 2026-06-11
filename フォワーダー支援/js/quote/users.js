@@ -60,6 +60,13 @@
     } catch (e) { window._myMemberNo = null; }
     // 発番ID取得後、見積タブが新規（REF空）なら自動採番を再試行
     if (typeof window.maybeAutoFillRef === 'function') window.maybeAutoFillRef();
+    // ログイン実績を記録：表示名未設定でも last_seen_at を打刻（「未ログイン」誤表示の解消）。
+    // last_seen_at 列が未マイグレーションなら静かに no-op。
+    try {
+      await db.from('user_profiles').upsert(
+        { email: _myEmail, last_seen_at: new Date().toISOString() },
+        { onConflict: 'email' });
+    } catch (e) {}
     // 入口は管理者のみ
     if (btn) btn.hidden = (_myRole !== 'admin');
   }
@@ -72,7 +79,7 @@
     if (error) return { error };
     // アバター列も取得（未マイグレーションでも名前は読めるようフォールバック）
     let { data: profs, error: pErr } = await db.from('user_profiles')
-      .select('email,display_name,updated_at,avatar_color,avatar_emoji');
+      .select('email,display_name,updated_at,avatar_color,avatar_emoji,last_seen_at');
     if (pErr) { ({ data: profs } = await db.from('user_profiles').select('email,display_name,updated_at')); }
     _profiles = {};
     (profs || []).forEach(p => { if (p.email) _profiles[p.email] = p; });
@@ -93,7 +100,8 @@
   function _memberCard(m) {
     const isSelf  = m.email === _myEmail;
     const prof    = _profiles[m.email];
-    const active  = !!(prof && prof.display_name);   // 表示名登録＝ログイン実績あり
+    // ログイン実績＝last_seen_at（ログイン時に打刻）または表示名登録のいずれか
+    const active  = !!(prof && (prof.last_seen_at || prof.display_name));
     const admin   = _myRole === 'admin';
     const name    = _displayName(m.email);
     const initial = (name || '?').trim().charAt(0).toUpperCase();
@@ -103,8 +111,9 @@
     const added   = m.created_at
       ? new Date(m.created_at).toLocaleDateString('ja-JP', { year: 'numeric', month: '2-digit', day: '2-digit' })
       : '—';
-    const last    = active && prof.updated_at
-      ? new Date(prof.updated_at).toLocaleDateString('ja-JP', { month: 'numeric', day: 'numeric' })
+    const lastTs  = prof && (prof.last_seen_at || prof.updated_at);
+    const last    = active && lastTs
+      ? new Date(lastTs).toLocaleDateString('ja-JP', { month: 'numeric', day: 'numeric' })
       : '未ログイン';
 
     const roleCtl = admin

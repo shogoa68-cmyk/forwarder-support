@@ -181,6 +181,26 @@
    * hidden input の値から復元してボタン・カードの表示を同期する。
    * fields は gatherAllData() で保存した fields オブジェクト。
    */
+  function _checkValidUntil() {
+    const el = document.getElementById('qf-valid-until');
+    if (!el || !el.value) { el?.classList.remove('qf-expired'); return; }
+    const expired = new Date(el.value) < new Date(new Date().toDateString());
+    el.classList.toggle('qf-expired', expired);
+  }
+
+  function _addDaysToValidUntil(n) {
+    const el = document.getElementById('qf-valid-until');
+    if (!el) return;
+    const base = el.value ? new Date(el.value + 'T00:00:00') : new Date();
+    base.setDate(base.getDate() + n);
+    el.value = base.toISOString().slice(0, 10);
+    _checkValidUntil();
+    if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
+  }
+
+  window.checkValidUntilWarning = _checkValidUntil;
+  window.addDaysToValidUntil    = _addDaysToValidUntil;
+
   function _restoreUiState(fields) {
     if (!fields) return;
 
@@ -214,6 +234,7 @@
       const area = document.getElementById(areaId);
       if (cb && area) area.style.display = cb.checked ? 'flex' : 'none';
     });
+    _checkValidUntil();
   }
 
   /**
@@ -255,6 +276,7 @@
       regularTrs.push(tr);
     });
     _afterRestoreRows(regularTrs, data.fields);
+    if (typeof renderSubconGroups === 'function') renderSubconGroups();
   }
 
   // プリセット読み込み時に空値で上書きしないヘッダー項目
@@ -274,6 +296,12 @@
     });
     _rebuildTable(data);
     _restoreUiState(data.fields);
+    // 保存時の為替レートを復元（スナップショット）
+    if (data.fxSnapshot?.rates && Object.keys(data.fxSnapshot.rates).length) {
+      _fxRates = { ...DEFAULT_FX_RATES, ...data.fxSnapshot.rates };
+      saveFxRates();
+      if (data.fxSnapshot.ts) localStorage.setItem(SharedStorage.KEYS.FX_LAST_FETCHED, data.fxSnapshot.ts);
+    }
     if (typeof updateTotals === 'function') updateTotals();
     if (typeof updateRouteModeIcon === 'function') updateRouteModeIcon();
     if (typeof syncHazmatPanel === 'function') syncHazmatPanel();
@@ -345,7 +373,8 @@
     // テーブル行の追加・削除・ドラッグ並び替え・ソートを検出
     const tbody = document.getElementById('tableBody');
     if (tbody && typeof MutationObserver !== 'undefined') {
-      new MutationObserver(scheduleSnapshot).observe(tbody, { childList: true });
+      new MutationObserver(() => { if (!_inGroupRender) scheduleSnapshot(); })
+        .observe(tbody, { childList: true });
     }
   }
 
@@ -359,6 +388,7 @@
     // テーブル行（通常行 / 小計行 / リマーク行をすべて保存）
     const rows = [];
     document.querySelectorAll('#tableBody tr').forEach(tr => {
+      if (tr.dataset.virtual) return; // サブコングループヘッダー（仮想行）はスキップ
       if (tr.dataset.type === 'subtotal') {
         rows.push({ _type: 'subtotal', label: tr.querySelector('.subtotal-label')?.value || '' });
         return;
@@ -379,7 +409,8 @@
       rows.push({ _type: 'data', cells });
     });
     // _rowFormat: v3 = 小計行・リマーク行を含む型付きオブジェクト配列
-    return { fields, rows, ts: new Date().toISOString(), _rowFormat: 'v3-mixed-rows' };
+    return { fields, rows, ts: new Date().toISOString(), _rowFormat: 'v3-mixed-rows',
+             fxSnapshot: { rates: { ..._fxRates }, ts: localStorage.getItem(SharedStorage.KEYS.FX_LAST_FETCHED) || null } };
   }
 
   /**
@@ -507,48 +538,40 @@
   function _buildZonePresetItems() {
     const items = [];
 
-    // Zone ① 出発地側
+    // Zone ① 出発地側 — サブコン単位で空行1行
     if (_zone1On) {
       const def1 = document.getElementById('z1DefaultSc')?.value?.trim() || '';
-      if (document.getElementById('piece-pickup')?.checked) {
-        items.push({ cat: 'domestic',  name: '国内集荷・陸送費',        note: '集荷先〜輸出港',       sv: _getFirstScValue('sc-pickup')    || def1 });
-      }
-      if (document.getElementById('piece-wh-origin')?.checked) {
-        items.push({ cat: 'domestic',  name: '倉庫/梱包/バンニング費',  note: '輸出前作業',           sv: _getFirstScValue('sc-wh-origin')  || def1 });
-      }
-      if (document.getElementById('piece-customs-e')?.checked) {
-        items.push({ cat: 'customs-export',   name: '輸出通関費',              note: '通関手数料・書類作成', sv: _getFirstScValue('sc-customs-e')  || def1 });
-      }
-      items.push({ cat: 'domestic',    name: '港湾諸費用（輸出）',      note: 'THC・ドキュメント費等', sv: '' });
+      const seen1 = new Set();
+      const addZ1 = (sv) => {
+        if (!seen1.has(sv)) { seen1.add(sv); items.push({ cat: 'domestic', name: '', note: '', sv }); }
+      };
+      if (document.getElementById('piece-pickup')?.checked)    addZ1(_getFirstScValue('sc-pickup')    || def1);
+      if (document.getElementById('piece-wh-origin')?.checked) addZ1(_getFirstScValue('sc-wh-origin')  || def1);
+      if (document.getElementById('piece-customs-e')?.checked) addZ1(_getFirstScValue('sc-customs-e')  || def1);
+      addZ1(def1); // 港湾諸費用（常時）を def1 グループに含める
     }
 
-    // Zone ② 幹線輸送（常に追加）。複数航路が登録されていれば各航路ごとに行を生成
+    // Zone ② 幹線輸送 — 航路（carrier）単位で空行1行
     const routes = (_routeEntries && _routeEntries.length) ? _routeEntries : [{
       carrier: document.getElementById('z2Carrier')?.value?.trim() || '',
       pol:     document.getElementById('z2Pol')?.value?.trim()     || '',
       pod:     document.getElementById('z2Pod')?.value?.trim()     || '',
     }];
-    const multiRoute = routes.length > 1;
-    routes.forEach((r, idx) => {
-      const polpod = [r.pol, r.pod].filter(Boolean).join(' → ') || 'ポート〜ポート';
-      const tag = multiRoute ? `【${r.carrier || '航路' + (idx + 1)}】 ` : '';
-      items.push({ cat: 'ocean',     name: tag + '海上運賃',       note: polpod,           sv: r.carrier });
-      items.push({ cat: 'surcharge', name: tag + 'サーチャージ類', note: 'BAF/CAF/PSS 等', sv: r.carrier });
+    routes.forEach(r => {
+      items.push({ cat: 'ocean', name: '', note: '', sv: r.carrier });
     });
 
-    // Zone ③ 到着地側
+    // Zone ③ 到着地側 — サブコン単位で空行1行
     if (_zone3On) {
       const def3 = document.getElementById('z3DefaultSc')?.value?.trim() || '';
-      items.push({ cat: 'overseas',  name: '仕向港費用',              note: 'D/O・THC等',           sv: '' });
-      if (document.getElementById('piece-customs-i')?.checked) {
-        items.push({ cat: 'customs-import',   name: '輸入通関費',              note: '通関手数料・書類作成', sv: _getFirstScValue('sc-customs-i') || def3 });
-      }
-      if (document.getElementById('piece-wh-dest')?.checked) {
-        items.push({ cat: 'overseas',  name: '倉庫/デバン費',           note: '輸入後作業',           sv: _getFirstScValue('sc-wh-dest')   || def3 });
-      }
-      if (document.getElementById('piece-deliver')?.checked) {
-        items.push({ cat: 'domestic',  name: '国内配送費（着地）',      note: '港〜最終納入地',       sv: _getFirstScValue('sc-deliver')   || def3 });
-      }
+      const seen3 = new Set();
+      const addZ3 = (sv) => {
+        if (!seen3.has(sv)) { seen3.add(sv); items.push({ cat: 'overseas', name: '', note: '', sv }); }
+      };
+      addZ3(def3); // 仕向港費用（常時）を def3 グループに含める
+      if (document.getElementById('piece-customs-i')?.checked) addZ3(_getFirstScValue('sc-customs-i') || def3);
+      if (document.getElementById('piece-wh-dest')?.checked)   addZ3(_getFirstScValue('sc-wh-dest')   || def3);
+      if (document.getElementById('piece-deliver')?.checked)   addZ3(_getFirstScValue('sc-deliver')   || def3);
     }
 
     return items;
@@ -563,7 +586,7 @@
 
     const existing = document.querySelectorAll('#tableBody tr').length;
     if (existing > 0) {
-      if (!confirm(`テーブルに ${existing} 行あります。末尾に ${items.length} 行を追記しますか？\n（置換したい場合は一旦リセットしてから再実行してください）`)) return;
+      if (!confirm(`テーブルに ${existing} 行あります。末尾にサブコン/航路別の空行 ${items.length} 行を追記しますか？\n（置換したい場合は一旦リセットしてから再実行してください）`)) return;
     }
 
     let lastCur = 'JPY';
@@ -587,7 +610,7 @@
     });
 
     updateTotals();
-    quoteShowToast('✅ ゾーン構成プリセット適用完了（' + items.length + '行）', 'success');
+    quoteShowToast('✅ ゾーン構成プリセット適用完了（サブコン/航路別 ' + items.length + '行）', 'success');
   }
 
   // ========== 方向・輸送モード プライマリセレクター ==========
@@ -712,7 +735,24 @@
     detail.classList.toggle('is-cold',  val === '温度管理品（冷蔵）' || val === '温度管理品（冷凍）');
     detail.classList.toggle('is-heavy', val === '重量物・大型貨物');
     detail.classList.toggle('is-other', val === 'その他（特記事項参照）');
+    // 区分チップUIの点灯状態を同期（チップは #cond-hazmat を駆動するファサード。
+    //   ユーザー操作・データ復元の両方が onHazmatChange を通るため、ここで一元管理する）
+    document.querySelectorAll('#hazChips .haz-chip').forEach(chip => {
+      const on = chip.dataset.hazValue === val;
+      chip.classList.toggle('is-on', on);
+      chip.setAttribute('aria-checked', on ? 'true' : 'false');
+    });
   }
+
+  /** 区分チップ → #cond-hazmat セレクトを駆動（保存/復元・プレビュー・PDF は従来どおりセレクト値を読む） */
+  window.setHazmatChip = function (val) {
+    const sel = document.getElementById('cond-hazmat');
+    if (!sel) return;
+    sel.value = val;
+    // change を発火：inline onchange の onHazmatChange（パネル＋チップ同期）と
+    //   見積タブの自動保存リスナーを両方通す
+    sel.dispatchEvent(new Event('change', { bubbles: true }));
+  };
 
   /** 起動時・データ復元後に危険品パネルの表示状態を同期 */
   function syncHazmatPanel() {

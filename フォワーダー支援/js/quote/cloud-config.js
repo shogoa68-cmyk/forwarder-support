@@ -12,4 +12,5 @@ window.CLOUD_CONFIG = {
   url:            'https://uqofdnsolmrzxckmtpzv.supabase.co',
   publishableKey: 'sb_publishable_lZE95xEK5bHMI_CWPTg8-g_L6lLeAi7',
   table:          'quote_presets',
+  attachmentBucket: 'quote-attachments',
 };

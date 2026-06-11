@@ -26,12 +26,14 @@ grant select, update on public.feedbacks to authenticated;
 
 -- 誰でも INSERT 可（anon / authenticated どちらも）
 -- user_id は認証済みのときのみ設定される
+drop policy if exists "anyone can insert feedbacks" on public.feedbacks;
 create policy "anyone can insert feedbacks"
   on public.feedbacks for insert
   to anon, authenticated
   with check (true);
 
 -- 認証済みユーザーは自分のフィードバックを SELECT 可
+drop policy if exists "users can view own feedbacks" on public.feedbacks;
 create policy "users can view own feedbacks"
   on public.feedbacks for select
   to authenticated
@@ -41,12 +43,14 @@ create policy "users can view own feedbacks"
 
 -- team members can read all feedbacks (for inbox UI)
 -- requires: is_team_member() security definer function + allowed_emails table
+drop policy if exists "team members can view all feedbacks" on public.feedbacks;
 create policy "team members can view all feedbacks"
   on public.feedbacks for select
   to authenticated
   using (is_team_member());
 
 -- team members can update feedback status
+drop policy if exists "team members can update feedback status" on public.feedbacks;
 create policy "team members can update feedback status"
   on public.feedbacks for update
   to authenticated
@@ -85,18 +89,21 @@ alter table public.bookmarks enable row level security;
 grant select, insert, update, delete on public.bookmarks to authenticated;
 
 -- チームメンバーのみ SELECT
+drop policy if exists "team members can select bookmarks" on public.bookmarks;
 create policy "team members can select bookmarks"
   on public.bookmarks for select
   to authenticated
   using (is_team_member());
 
 -- チームメンバーのみ INSERT
+drop policy if exists "team members can insert bookmarks" on public.bookmarks;
 create policy "team members can insert bookmarks"
   on public.bookmarks for insert
   to authenticated
   with check (is_team_member());
 
 -- チームメンバー全員が DELETE 可
+drop policy if exists "team members can delete bookmarks" on public.bookmarks;
 create policy "team members can delete bookmarks"
   on public.bookmarks for delete
   to authenticated
@@ -129,21 +136,96 @@ create policy "team members can delete bookmarks"
 -- ============================================================
 create table if not exists public.user_profiles (
   email        text primary key,
-  display_name text not null,
+  display_name text,                                  -- null 可（ログインのみで表示名未設定の状態を許容）
+  avatar_color text,                                  -- プロフィールのアバター色
+  avatar_emoji text,                                  -- プロフィールのアバター絵文字
+  last_seen_at timestamptz,                           -- 最終ログイン（在席）時刻＝アクティビティ判定
   updated_at   timestamptz not null default now()
 );
+
+-- 既存DB向けマイグレーション（再実行しても安全）
+alter table public.user_profiles alter column display_name drop not null;
+alter table public.user_profiles add column if not exists avatar_color text;
+alter table public.user_profiles add column if not exists avatar_emoji text;
+alter table public.user_profiles add column if not exists last_seen_at timestamptz;
 
 alter table public.user_profiles enable row level security;
 
 grant select, insert, update on public.user_profiles to authenticated;
 
 -- チームメンバーは全員の表示名を読み取り可
+drop policy if exists "team members can read profiles" on public.user_profiles;
 create policy "team members can read profiles"
   on public.user_profiles for select
   using (is_team_member());
 
 -- 自分自身の行のみ作成・更新可
+drop policy if exists "own profile upsert" on public.user_profiles;
 create policy "own profile upsert"
   on public.user_profiles for all
   using (auth.email() = email)
   with check (auth.email() = email);
+
+-- ============================================================
+-- 6. quote_presets — 編集ロック（同時編集の強制ガード）
+-- ============================================================
+-- 他メンバーが編集中(=ロック保持中・90秒以内)の案件は、保持者以外の
+-- 「削除」「上書き保存(update)」をサーバ側(RLS)で拒否する。
+-- 読込・プレビューは可（scope: 削除＋上書き拒否）。
+-- ロックの取得/更新/解放は security definer 関数で行い、90秒で自動失効。
+-- ============================================================
+
+-- ロック列
+alter table public.quote_presets
+  add column if not exists locked_by text,
+  add column if not exists locked_at timestamptz;
+
+-- ロック取得/更新（本人のみ・null/自分/3分超過のときだけ取得可。for update で原子的）
+create or replace function public.quote_acquire_lock(p_id text)
+returns text
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare cur_by text; cur_at timestamptz;
+begin
+  if not is_team_member() then return 'DENIED'; end if;
+  select locked_by, locked_at into cur_by, cur_at
+    from public.quote_presets where id::text = p_id for update;
+  if not found then return 'NOTFOUND'; end if;
+  if cur_by is null or cur_by = auth.email() or cur_at < now() - interval '90 seconds' then
+    update public.quote_presets set locked_by = auth.email(), locked_at = now()
+      where id::text = p_id;
+    return 'OK';
+  else
+    return cur_by;   -- 他者が保持中（フレッシュ）
+  end if;
+end; $$;
+
+-- ロック解放（本人のみ）
+create or replace function public.quote_release_lock(p_id text)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  update public.quote_presets set locked_by = null, locked_at = null
+    where id::text = p_id and locked_by = auth.email();
+end; $$;
+
+grant execute on function public.quote_acquire_lock(text) to authenticated;
+grant execute on function public.quote_release_lock(text) to authenticated;
+
+-- RESTRICTIVE ポリシー：他者がロック中(3分以内)なら delete/update を拒否
+-- （既存の permissive ポリシーは触らず AND で重ねる。ロック列の更新は
+--   上記 security definer 関数が RLS を迂回して行うため影響しない）
+drop policy if exists "lock_guard_delete" on public.quote_presets;
+create policy "lock_guard_delete" on public.quote_presets
+  as restrictive for delete to authenticated
+  using (locked_by is null or locked_by = auth.email() or locked_at < now() - interval '90 seconds');
+
+drop policy if exists "lock_guard_update" on public.quote_presets;
+create policy "lock_guard_update" on public.quote_presets
+  as restrictive for update to authenticated
+  using (locked_by is null or locked_by = auth.email() or locked_at < now() - interval '90 seconds');

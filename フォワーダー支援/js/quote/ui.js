@@ -413,81 +413,35 @@
     refreshBulkCatSelect();
   }
 
-  // 「選択行 → カテゴリ一括変更」用セレクトを最新カテゴリで再構築
+  // 「カテゴリ一括設定」セレクトを最新カテゴリで再構築（先頭はプレースホルダ）
   function refreshBulkCatSelect() {
-    const sel = document.getElementById('bulkCatSelect');
+    const sel = document.getElementById('bulkCatSet');
     if (!sel) return;
-    const curVal = sel.value;
     const userCats = getUserCategories();
-    let html = '<option value="__none__">— カテゴリを選択 —</option>';
-    // 既定カテゴリ（先頭の「— カテゴリ —」= 未設定 を含む）
-    html += CATEGORIES.map(c =>
-      `<option value="${c.value}"${c.value === curVal ? ' selected' : ''}>${c.label}</option>`
-    ).join('');
+    let html = '<option value="__none__">🏷️ カテゴリ一括設定…</option>';
+    html += CATEGORIES.map(c => `<option value="${c.value}">${c.label}</option>`).join('');
     if (userCats.length) {
       html += '<option value="" disabled>──────────</option>';
-      html += userCats.map(c =>
-        `<option value="${c.value}"${c.value === curVal ? ' selected' : ''}>${c.label}</option>`
-      ).join('');
+      html += userCats.map(c => `<option value="${c.value}">${c.label}</option>`).join('');
     }
     sel.innerHTML = html;
+    sel.value = '__none__';
   }
 
-  // bulkCatSelect で選んだカテゴリの行をすべてチェック（小計行を除く）
-  function selectByCategory() {
-    const sel = document.getElementById('bulkCatSelect');
-    if (!sel) return;
-    if (sel.value === '__none__') {
-      quoteShowToast('⚠️ 対象カテゴリを選んでください', 'warn', 3000);
-      return;
-    }
-    const target = sel.value;
-    let matched = 0;
-    let totalChkRows = 0;
-    document.querySelectorAll('#tableBody tr').forEach(tr => {
-      if (tr.dataset.type === 'subtotal' || tr.dataset.type === 'remark') return;
-      const chk = tr.querySelector('.row-select-chk');
-      if (!chk) return;
-      totalChkRows++;
-      const id = tr.id.replace('row-', '');
-      const cat = document.getElementById(`cat-${id}`)?.value || '';
-      if (cat === target) {
-        chk.checked = true;
-        matched++;
-      } else {
-        chk.checked = false;
-      }
-    });
-    // ヘッダー全選択チェックは「すべての対象行が一致したとき」のみ ON
-    const allChk = document.getElementById('selectAllChk');
-    if (allChk) allChk.checked = matched > 0 && matched === totalChkRows;
-    const catLabel = getAllCategories().find(c => c.value === target)?.label || '— カテゴリ —';
-    if (matched === 0) {
-      quoteShowToast(`ℹ️ 「${catLabel}」の行はありません`, 'info', 3000);
-    } else {
-      quoteShowToast(`✅ 「${catLabel}」の ${matched} 行を選択しました`, 'success');
-    }
-    window.refreshRowSelectionMode?.();
-  }
-
-  // チェック済み行のカテゴリを一括変更
-  function applyBulkCategory() {
-    const sel = document.getElementById('bulkCatSelect');
-    if (!sel) return;
-    if (sel.value === '__none__') {
-      quoteShowToast('⚠️ 適用するカテゴリを選んでください', 'warn', 3000);
-      return;
-    }
+  // 選択（チェック）行のカテゴリを一括設定。選択は維持し、続けてサブコン設定も可能にする
+  function applyBulkCategorySet(sel) {
+    if (!sel || sel.value === '__none__') return;
     const checkboxes = document.querySelectorAll('.row-select-chk:checked');
     if (!checkboxes.length) {
-      quoteShowToast('⚠️ カテゴリを変更したい行のチェックボックスにチェックを入れてください', 'warn', 3000);
+      quoteShowToast('⚠️ 設定したい行のチェックボックスにチェックを入れてください', 'warn', 3000);
+      sel.value = '__none__';
       return;
     }
     const newCat = sel.value;
     let count = 0;
     checkboxes.forEach(chk => {
       const tr = chk.closest('tr');
-      if (!tr) return;
+      if (!tr || tr.dataset.type === 'subtotal' || tr.dataset.type === 'remark') return;
       const id = tr.id.replace('row-', '');
       const catSel = document.getElementById(`cat-${id}`);
       if (!catSel) return;
@@ -495,14 +449,34 @@
       if (typeof onCatChange === 'function') onCatChange(id);
       count++;
     });
-    // 元行のチェックを外し、全選択もリセット、セレクトもプレースホルダへ戻す
-    checkboxes.forEach(chk => { chk.checked = false; });
-    const allChk = document.getElementById('selectAllChk');
-    if (allChk) allChk.checked = false;
-    sel.value = '__none__';
+    sel.value = '__none__';   // プレースホルダへ戻す（選択行は維持）
     const catLabel = getAllCategories().find(c => c.value === newCat)?.label || '— カテゴリ —';
-    quoteShowToast(`🏷️ ${count}行のカテゴリを「${catLabel}」に変更しました`, 'success');
-    window.refreshRowSelectionMode?.();
+    quoteShowToast(`🏷️ ${count}行のカテゴリを「${catLabel}」に設定しました`, 'success');
+  }
+
+  // 選択（チェック）行のサブコンを一括設定（空欄ならクリア）。選択は維持
+  function applyBulkSubcon() {
+    const inp = document.getElementById('bulkSubconSet');
+    if (!inp) return;
+    const val = inp.value.trim();
+    const checkboxes = document.querySelectorAll('.row-select-chk:checked');
+    if (!checkboxes.length) {
+      quoteShowToast('⚠️ 設定したい行のチェックボックスにチェックを入れてください', 'warn', 3000);
+      return;
+    }
+    let count = 0;
+    checkboxes.forEach(chk => {
+      const tr = chk.closest('tr');
+      if (!tr || tr.dataset.type === 'subtotal' || tr.dataset.type === 'remark') return;
+      const id = tr.id.replace('row-', '');
+      const svInp = document.getElementById(`sv-${id}`);
+      if (!svInp) return;
+      svInp.value = val;
+      svInp.dispatchEvent(new Event('input', { bubbles: true }));   // 自動保存・サマリ更新を発火
+      count++;
+    });
+    inp.value = '';
+    quoteShowToast(`👷 ${count}行のサブコンを${val ? '「' + val + '」に' : 'クリアに'}設定しました`, 'success');
   }
 
   // ========== 一括コピー機能 ==========
@@ -1021,6 +995,84 @@
   // チーム共有カードでも同じ表示にするため公開
   window.quotePresetMeta = _presetMeta;
 
+  // ===== 進捗バー（プリセット管理モーダル） =====
+  // ROW_CELL_FIELDS: ['cat','sv','tx','nm','pq','un','bq','pc','bc','pp','bp','cd','mk','nt']
+  // cells[0]=checkbox, cells[2]=sv, cells[10]=pp, cells[13]=mk
+  function _calcQuoteProgress(data) {
+    var f  = (data && data.fields) || {};
+    var dr = (data && Array.isArray(data.rows))
+      ? data.rows.filter(function(r) { return r && r._type === 'data' && Array.isArray(r.cells); })
+      : [];
+    // Step1: 貿易条件＋輸送モード
+    var s1 = Boolean((f['cond-incoterms'] || '').trim() && (f['cond-mode'] || '').trim());
+    // Step2: 貨物情報（品名 or ルート）
+    var cargo = (f['cond-cargo'] || '').trim();
+    var hasRoute = Boolean((f['z2Pol'] || '').trim() || (f['z2Pod'] || '').trim());
+    if (!hasRoute) { try { hasRoute = JSON.parse(f['z2-routes-data'] || '[]').length > 0; } catch(e) {} }
+    var s2 = Boolean(cargo || hasRoute);
+    // Step3: 仕入＝サブコン別の埋まり具合（サブ進捗）。sv ごとに pp>0 があれば「入力済み」
+    var subs = {};
+    dr.forEach(function(r) {
+      var sv = (r.cells[2] || '').trim();
+      if (!sv) return;
+      if (!(sv in subs)) subs[sv] = false;
+      if (parseFloat(r.cells[10]) > 0) subs[sv] = true;
+    });
+    var names = Object.keys(subs);
+    var total = names.length;
+    var filled = names.filter(function(n) { return subs[n]; }).length;
+    var anyPp = dr.some(function(r) { return parseFloat(r.cells[10]) > 0; });
+    var frac = total > 0 ? (filled / total) : (anyPp ? 1 : 0);   // 仕入のサブ進捗（0〜1）
+    var s3 = total > 0 ? (filled === total) : anyPp;
+    // Step4: のせ幅（mk>0 の行が1行以上）
+    var s4 = dr.some(function(r) { return parseFloat(r.cells[13]) > 0; });
+    // Step5: 出力済み（ステータス）
+    var st = (f['qf-status'] || '').trim();
+    var s5 = st === '提出済み' || st === '受注';
+    return { steps: [s1, s2, s3, s4, s5], purchase: { total: total, filled: filled, frac: frac, names: names, subs: subs } };
+  }
+
+  var _QP_LABELS = ['条件', '貨物', '仕入', '利益', '出力'];
+  var _QP_TITLES = ['貿易条件・輸送モード設定', '貨物情報入力', 'サブコン仕入れ値入力', 'のせ幅・売値設定', '見積書出力済み'];
+
+  // 仕入ステップ：サブコンがあれば社数ぶんのセル＋「2/3」を表示（多いほど工数大が一目で分かる）
+  function _purchaseStepHtml(pu) {
+    if (!pu.total) {
+      var ok = pu.frac >= 1;
+      return '<span class="qp-step' + (ok ? ' qp-done' : '') + '" title="サブコン仕入れ値入力">仕入</span>';
+    }
+    var MAX = 6;
+    var shown = pu.names.slice(0, MAX);
+    var cells = shown.map(function(n) {
+      var done = pu.subs[n];
+      return '<span class="qp-sub' + (done ? ' is-done' : '') + '" title="' + escHtml(n) + '：' + (done ? '入力済み' : '未入力') + '"></span>';
+    }).join('');
+    var more = pu.names.length - shown.length;
+    var allDone = pu.filled === pu.total;
+    return '<span class="qp-step qp-step--sub' + (allDone ? ' qp-done' : '') +
+        '" title="仕入：' + pu.filled + '/' + pu.total + ' 社入力済み（サブコン数が多いほど工数大）">' +
+      '<span class="qp-sub-label">仕入 ' + pu.filled + '/' + pu.total + '</span>' +
+      '<span class="qp-sub-cells">' + cells + (more > 0 ? '<span class="qp-sub-more">+' + more + '</span>' : '') + '</span>' +
+    '</span>';
+  }
+
+  function _progressBarHtml(data) {
+    var pr = _calcQuoteProgress(data);
+    var steps = pr.steps, pu = pr.purchase;
+    var doneFloat = (steps[0] ? 1 : 0) + (steps[1] ? 1 : 0) + pu.frac + (steps[3] ? 1 : 0) + (steps[4] ? 1 : 0);
+    var pct  = Math.round(doneFloat / 5 * 100);
+    var doneN = steps.filter(Boolean).length;
+    var dots = steps.map(function(ok, i) {
+      if (i === 2) return _purchaseStepHtml(pu);
+      return '<span class="qp-step' + (ok ? ' qp-done' : '') + '" title="' + _QP_TITLES[i] + '">' + _QP_LABELS[i] + '</span>';
+    }).join('');
+    return '<div class="quote-progress" title="進捗 ' + doneN + '/5 (' + pct + '%)">' +
+      '<div class="qp-bar"><div class="qp-fill" style="width:' + pct + '%"></div></div>' +
+      '<div class="qp-steps">' + dots + '</div>' +
+    '</div>';
+  }
+  window.quoteProgressBarHtml = _progressBarHtml;
+
   // 航路表示の整形：複数航路は POL ごとにまとめて「POL → POD / POD …」を行単位で表示。
   // 1本・未設定はフラットな pol/pod にフォールバック。両モーダル（ブラウザ保存／チーム共有）で共用。
   function _routeGroups(meta) {
@@ -1099,6 +1151,7 @@
           '<span class="preset-list-name" title="' + escHtml(p.name) + '">' + escHtml(titleText) + '</span>' +
           (isLoaded ? '<span class="preset-loaded-badge">編集中</span>' : '') +
         '</div>' +
+        _progressBarHtml(p.data) +
         '<dl class="preset-rich-kv">' +
           (route    ? '<dt>ルート</dt><dd>' + route + '</dd>' : '') +
           (condHtml ? '<dt>条件</dt><dd class="preset-rich-tags">' + condHtml + '</dd>' : '') +
@@ -1344,7 +1397,7 @@
       _version:   2,
       _app:       'フォワーダー支援ツール',
       exportedAt: new Date().toISOString(),
-      patterns:   patterns.map(p => ({ name: p.name, note: p.note || '', rows: p.rows || [] })),
+      patterns:   patterns.map(p => ({ name: p.name, note: p.note || '', rows: p.rows || [], links: p.links || [] })),
     };
     const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
     const url  = URL.createObjectURL(blob);
@@ -1399,6 +1452,206 @@
     reader.readAsText(file, 'utf-8');
   };
 
+  // 行パターン内の1行を一覧用ラベルに整形（種別アイコン＋カテゴリ＋名称＋単価）
+  function _rpRowLabel(rd) {
+    if (!rd) return '';
+    if (rd._type === 'remark')
+      return '<span class="rp-row-ic">📝</span><span class="rp-row-nm">' +
+        (escHtml(rd.text) || '<i class="rp-row-empty">（空のリマーク）</i>') + '</span>';
+    if (rd._type === 'subtotal')
+      return '<span class="rp-row-ic">Σ</span><span class="rp-row-nm">' +
+        (escHtml(rd.label) || '小計') + '</span>';
+    const cats = (typeof getAllCategories === 'function') ? getAllCategories() : [];
+    const catLbl = (cats.find(c => c.value === rd.cat) || {}).label || '';
+    const catH = catLbl ? '<span class="rp-row-cat">' + escHtml(catLbl) + '</span>' : '';
+    const nmH  = '<span class="rp-row-nm">' +
+      (escHtml(rd.name) || '<i class="rp-row-empty">（名称なし）</i>') + '</span>';
+    const price = rd.bp || rd.pp;
+    const cur   = rd.bp ? (rd.bc || '') : (rd.pc || '');
+    const prH   = price ? '<span class="rp-row-price">' + escHtml(cur) + ' ' + escHtml(price) + '</span>' : '';
+    return catH + nmH + prH;
+  }
+
+  // 全選択トグル（同じカード内の明細チェックを一括）
+  function rpToggleAllRows(allChk) {
+    const card = allChk.closest('.rp-card');
+    if (!card) return;
+    card.querySelectorAll('.rp-row-chk').forEach(c => { c.checked = allChk.checked; });
+  }
+  window.rpToggleAllRows = rpToggleAllRows;
+
+  // 選択した明細だけを挿入（挿入位置セレクトを尊重）
+  function insertSelectedPatternRows(id) {
+    const p = _rowPatterns.find(x => x.id === id);
+    if (!p) return;
+    const sel  = (window.CSS && CSS.escape) ? CSS.escape(id) : id;
+    const card = document.querySelector('.rp-card[data-pid="' + sel + '"]');
+    if (!card) return;
+    const idxs = Array.from(card.querySelectorAll('.rp-row-chk:checked'))
+      .map(c => parseInt(c.dataset.idx, 10));
+    if (!idxs.length) { quoteShowToast('⚠️ 挿入する明細を1つ以上選択してください', 'warn', 3000); return; }
+    const subset = idxs.map(i => p.rows[i]).filter(Boolean);
+    const posLabel = _insertPatternRows(subset);
+    closeRowPatternMgr();
+    quoteShowToast(`📂 「${p.name}」から ${subset.length} 行を${posLabel}に挿入しました`, 'success');
+  }
+  window.insertSelectedPatternRows = insertSelectedPatternRows;
+
+  // ===== 行パターン：編集（名前・メモ・参照URL・明細） =====
+  let _rpEdit = null;   // 編集中の作業オブジェクト { id, name, note, links:[{label,url}], rows:[] }
+
+  function _rpLinkHost(url) {
+    try { return new URL(url).hostname.replace(/^www\./, ''); } catch (e) { return url; }
+  }
+
+  function openRowPatternEdit(id) {
+    const p = _rowPatterns.find(x => x.id === id);
+    if (!p) return;
+    _rpEdit = {
+      id:    p.id,
+      name:  p.name || '',
+      note:  p.note || '',
+      links: Array.isArray(p.links) ? p.links.map(l => ({ label: l.label || '', url: l.url || '' })) : [],
+      rows:  Array.isArray(p.rows)  ? p.rows.map(r => Object.assign({}, r)) : [],
+    };
+    const nm = document.getElementById('rpEditName'); if (nm) nm.value = _rpEdit.name;
+    const nt = document.getElementById('rpEditNote'); if (nt) nt.value = _rpEdit.note;
+    _rpEditRenderLinks();
+    _rpEditRenderRows();
+    document.getElementById('rpEditOverlay')?.classList.add('open');
+  }
+  function closeRowPatternEdit() {
+    document.getElementById('rpEditOverlay')?.classList.remove('open');
+    _rpEdit = null;
+  }
+
+  function rpEditAddLink()      { if (_rpEdit) { _rpEdit.links.push({ label: '', url: '' }); _rpEditRenderLinks(); } }
+  function rpEditRemoveLink(i)  { if (_rpEdit) { _rpEdit.links.splice(i, 1); _rpEditRenderLinks(); } }
+  function rpEditSetLink(i, key, val) { if (_rpEdit && _rpEdit.links[i]) _rpEdit.links[i][key] = val; }
+  function _rpEditRenderLinks() {
+    const box = document.getElementById('rpEditLinks');
+    if (!box || !_rpEdit) return;
+    if (!_rpEdit.links.length) {
+      box.innerHTML = '<div class="rp-edit-empty">URL未登録。「＋ URLを追加」で参照元を登録できます</div>';
+      return;
+    }
+    box.innerHTML = _rpEdit.links.map((l, i) =>
+      '<div class="rp-edit-link-row">' +
+        '<input type="text" class="rp-edit-link-label" placeholder="ラベル（例：料率表）" value="' + escHtml(l.label) + '" oninput="rpEditSetLink(' + i + ',\'label\',this.value)">' +
+        '<input type="url" class="rp-edit-link-url" placeholder="https://…" value="' + escHtml(l.url) + '" oninput="rpEditSetLink(' + i + ',\'url\',this.value)">' +
+        '<button type="button" class="btn-preset-del" onclick="rpEditRemoveLink(' + i + ')" title="このURLを削除">✕</button>' +
+      '</div>').join('');
+  }
+
+  function rpEditDeleteRow(i) { if (_rpEdit) { _rpEdit.rows.splice(i, 1); _rpEditRenderRows(); } }
+  function rpEditMoveRow(i, dir) {
+    if (!_rpEdit) return;
+    const j = i + dir;
+    if (j < 0 || j >= _rpEdit.rows.length) return;
+    const t = _rpEdit.rows[i]; _rpEdit.rows[i] = _rpEdit.rows[j]; _rpEdit.rows[j] = t;
+    _rpEditRenderRows();
+  }
+  // セル値の更新（再描画しない＝入力フォーカスを保持）
+  function rpEditSetCell(i, key, val) { if (_rpEdit && _rpEdit.rows[i]) _rpEdit.rows[i][key] = val; }
+  // 明細を新規追加（費用行／リマーク／小計）
+  function rpEditAddRow(type) {
+    if (!_rpEdit) return;
+    let row;
+    if (type === 'remark')        row = { _type: 'remark', text: '', internal: false };
+    else if (type === 'subtotal') row = { _type: 'subtotal', label: '' };
+    else row = { _type: 'data', cat: '', name: '', taxed: false, pq: '', un: '',
+                 pc: 'JPY', pp: '', bq: '', bc: 'JPY', bp: '', mk: '', note: '', sv: '' };
+    _rpEdit.rows.push(row);
+    _rpEditRenderRows();
+    const box = document.getElementById('rpEditRows');
+    box?.querySelector('.rp-edit-row:last-child .rp-er-name')?.focus();
+  }
+
+  // 1明細ぶんのインライン編集UI
+  function _rpEditRowEditor(rd, i, last) {
+    const acts =
+      '<span class="rp-er-acts">' +
+        '<button type="button" onclick="rpEditMoveRow(' + i + ',-1)" title="上へ"' + (i === 0 ? ' disabled' : '') + '>▲</button>' +
+        '<button type="button" onclick="rpEditMoveRow(' + i + ',1)" title="下へ"' + (i === last ? ' disabled' : '') + '>▼</button>' +
+        '<button type="button" class="btn-preset-del" onclick="rpEditDeleteRow(' + i + ')" title="この明細を削除">✕</button>' +
+      '</span>';
+    if (rd._type === 'remark') {
+      return '<div class="rp-edit-row rp-er--remark">' +
+        '<span class="rp-er-ic">📝</span>' +
+        '<input type="text" class="rp-er-name" placeholder="リマーク文" value="' + escHtml(rd.text || '') + '" oninput="rpEditSetCell(' + i + ',\'text\',this.value)">' +
+        '<label class="rp-er-chk" title="社内用（客先出力に含めない）"><input type="checkbox"' + (rd.internal ? ' checked' : '') + ' onchange="rpEditSetCell(' + i + ',\'internal\',this.checked)">社内</label>' +
+        acts +
+      '</div>';
+    }
+    if (rd._type === 'subtotal') {
+      return '<div class="rp-edit-row rp-er--subtotal">' +
+        '<span class="rp-er-ic">Σ</span>' +
+        '<input type="text" class="rp-er-name" placeholder="小計ラベル" value="' + escHtml(rd.label || '') + '" oninput="rpEditSetCell(' + i + ',\'label\',this.value)">' +
+        acts +
+      '</div>';
+    }
+    // data 行：カテゴリ・品目名・単位・課税／仕入(単価・通貨)・売上(単価・通貨)・備考
+    return '<div class="rp-edit-row rp-er--data">' +
+      '<div class="rp-er-l1">' +
+        '<select class="rp-er-cat" onchange="rpEditSetCell(' + i + ',\'cat\',this.value)">' + catOpts(rd.cat || '') + '</select>' +
+        '<input type="text" class="rp-er-name" placeholder="品目名" value="' + escHtml(rd.name || '') + '" oninput="rpEditSetCell(' + i + ',\'name\',this.value)">' +
+        '<select class="rp-er-unit" title="単位" onchange="rpEditSetCell(' + i + ',\'un\',this.value)">' + unitOpts(rd.un || '') + '</select>' +
+        '<label class="rp-er-chk" title="課税対象"><input type="checkbox"' + (rd.taxed ? ' checked' : '') + ' onchange="rpEditSetCell(' + i + ',\'taxed\',this.checked)">税</label>' +
+        acts +
+      '</div>' +
+      '<div class="rp-er-l2">' +
+        '<span class="rp-er-grp rp-er-grp--cost">仕</span>' +
+        '<input type="text" inputmode="decimal" class="rp-er-num" placeholder="単価" value="' + escHtml(rd.pp || '') + '" oninput="rpEditSetCell(' + i + ',\'pp\',this.value)">' +
+        '<select class="rp-er-cur" onchange="rpEditSetCell(' + i + ',\'pc\',this.value)">' + curOpts(rd.pc || 'JPY') + '</select>' +
+        '<span class="rp-er-grp rp-er-grp--sell">売</span>' +
+        '<input type="text" inputmode="decimal" class="rp-er-num" placeholder="単価" value="' + escHtml(rd.bp || '') + '" oninput="rpEditSetCell(' + i + ',\'bp\',this.value)">' +
+        '<select class="rp-er-cur" onchange="rpEditSetCell(' + i + ',\'bc\',this.value)">' + curOpts(rd.bc || 'JPY') + '</select>' +
+        '<input type="text" class="rp-er-note" placeholder="備考" value="' + escHtml(rd.note || '') + '" oninput="rpEditSetCell(' + i + ',\'note\',this.value)">' +
+      '</div>' +
+    '</div>';
+  }
+  function _rpEditRenderRows() {
+    const box = document.getElementById('rpEditRows');
+    const cnt = document.getElementById('rpEditRowCount');
+    if (!box || !_rpEdit) return;
+    if (cnt) cnt.textContent = _rpEdit.rows.length + '行';
+    if (!_rpEdit.rows.length) {
+      box.innerHTML = '<div class="rp-edit-empty">明細がありません。下のボタンで追加してください（保存には最低1行必要）</div>';
+      return;
+    }
+    const last = _rpEdit.rows.length - 1;
+    box.innerHTML = _rpEdit.rows.map((rd, i) => _rpEditRowEditor(rd, i, last)).join('');
+  }
+
+  async function saveRowPatternEdit() {
+    if (!_rpEdit) return;
+    const name = (document.getElementById('rpEditName')?.value || '').trim();
+    const note = (document.getElementById('rpEditNote')?.value || '').trim();
+    if (!name) { quoteShowToast('⚠️ パターン名を入力してください', 'warn'); return; }
+    if (!_rpEdit.rows.length) { quoteShowToast('⚠️ 明細が0行です。最低1行は残してください', 'warn', 3500); return; }
+    if (_rowPatterns.find(p => p.name === name && p.id !== _rpEdit.id)) {
+      quoteShowToast('⚠️ 同名のパターンが既にあります。別名にしてください', 'warn', 3500); return;
+    }
+    // URL整理：URL空は除外、危険スキームは除外、スキーム無しは https:// 補完
+    const links = _rpEdit.links
+      .map(l => ({ label: (l.label || '').trim(), url: (l.url || '').trim() }))
+      .filter(l => l.url && !/^\s*(javascript|data|vbscript):/i.test(l.url))
+      .map(l => ({ label: l.label, url: /^https?:\/\//i.test(l.url) ? l.url : 'https://' + l.url }));
+    const db = _rpClient();
+    const email = _rpUserEmail();
+    if (!db || !email) { quoteShowToast('⚠️ チーム共有にはログインが必要です', 'warn', 3500); return; }
+    const base = { name, note, rows: _rpEdit.rows, updated_by: email, updated_at: new Date().toISOString() };
+    let { error } = await db.from('row_patterns').update(Object.assign({ links }, base)).eq('id', _rpEdit.id);
+    if (error && /links/.test(error.message || '')) {   // links 列が未マイグレーションでも保存は通す
+      ({ error } = await db.from('row_patterns').update(base).eq('id', _rpEdit.id));
+      if (!error) quoteShowToast('💾 保存しました（URLは links 列の追加SQL適用後に保存できます）', 'warn', 5500);
+    }
+    if (error) { quoteShowToast('⚠️ 保存に失敗：' + error.message, 'warn', 6000); return; }
+    closeRowPatternEdit();
+    await loadRowPatternsFromCloud();
+    quoteShowToast(`✅ 「${name}」を更新しました（チームに反映）`, 'success');
+  }
+
   function renderRowPatternList() {
     const wrap = document.getElementById('rowPatternListWrap');
     if (!wrap) return;
@@ -1415,14 +1668,38 @@
       const noteHtml = p.note
         ? '<div class="rp-note"><span class="rp-note-lbl">📝 メモ</span>' + escHtml(p.note) + '</div>'
         : '';
-      return '<div class="rp-card">' +
+      const rowsHtml = (p.rows || []).map((rd, i) =>
+        '<label class="rp-row-item">' +
+          '<input type="checkbox" class="rp-row-chk" data-idx="' + i + '" checked>' +
+          _rpRowLabel(rd) +
+        '</label>').join('');
+      const detailHtml = n
+        ? '<details class="rp-detail">' +
+            '<summary class="rp-detail-sum">📋 明細を選んで挿入</summary>' +
+            '<div class="rp-detail-tools">' +
+              '<label class="rp-allsel"><input type="checkbox" class="rp-row-allchk" checked onchange="rpToggleAllRows(this)"> すべて</label>' +
+              '<button class="btn-preset-load rp-ins-sel" onclick="insertSelectedPatternRows(\'' + p.id + '\')">選択行を挿入</button>' +
+            '</div>' +
+            '<div class="rp-row-list">' + rowsHtml + '</div>' +
+          '</details>'
+        : '';
+      const links = Array.isArray(p.links) ? p.links.filter(l => l && l.url && /^https?:\/\//i.test(l.url)) : [];
+      const linksHtml = links.length
+        ? '<div class="rp-links">' + links.map(l =>
+            '<a class="rp-link-chip" href="' + escHtml(l.url) + '" target="_blank" rel="noopener noreferrer" title="' + escHtml(l.url) + '">🔗 ' +
+              escHtml(l.label || _rpLinkHost(l.url)) + '</a>').join('') + '</div>'
+        : '';
+      return '<div class="rp-card" data-pid="' + escHtml(p.id) + '">' +
         '<div class="rp-head">' +
           '<span class="rp-name" title="' + escHtml(p.name) + '">' + escHtml(p.name) + '</span>' +
           '<span class="rp-rowcount">' + n + '行</span>' +
-          '<button class="btn-preset-load" onclick="loadRowPattern(\'' + p.id + '\')">＋ 挿入</button>' +
+          '<button class="btn-preset-load" onclick="loadRowPattern(\'' + p.id + '\')" title="全' + n + '行を挿入">＋ 全挿入</button>' +
+          '<button class="btn-preset-edit" onclick="openRowPatternEdit(\'' + p.id + '\')" title="編集（名前・メモ・URL・明細）">✎</button>' +
           '<button class="btn-preset-del"  onclick="deleteRowPattern(\'' + p.id + '\')" title="削除（チーム全員から消えます）">✕</button>' +
         '</div>' +
         noteHtml +
+        linksHtml +
+        detailHtml +
         '<div class="rp-meta">✏️ ' + escHtml(who) + '・最終更新 ' + ts + '</div>' +
       '</div>';
     }).join('');
@@ -1701,6 +1978,8 @@
     // Escape → 見積タブ内のモーダルをすべて閉じる（電卓・fb は上の優先度ブロックで処理済み）
     if (e.key === 'Escape') {
       if (document.getElementById('cmdPalette')?.classList.contains('open'))     { closeCmdPalette(); return; }
+      if (document.getElementById('rpEditOverlay')?.classList.contains('open'))   { closeRowPatternEdit(); return; }
+      if (document.getElementById('rowPatternModal')?.classList.contains('open')) { closeRowPatternMgr(); return; }
       if (document.getElementById('presetMgrModal')?.classList.contains('open')) { closePresetMgr(); return; }
       if (document.getElementById('previewOverlay')?.classList.contains('open')) { closePreview(); return; }
     }
@@ -2656,8 +2935,8 @@
     sec.scrollIntoView({ block: 'start' });
   };
 
-  // ===== 見積サマリ：タブ切替（要約／輸送／金額） =====
-  window.QSP_TABS = ['digest', 'flow', 'fin'];
+  // ===== 見積サマリ：タブ切替（要約／輸送／金額／チャット） =====
+  window.QSP_TABS = ['digest', 'flow', 'fin', 'chat'];
   window.qspSetTab = function(tab) {
     if (!window.QSP_TABS.includes(tab)) tab = 'digest';
     window.QSP_TABS.forEach(t => {
@@ -2667,6 +2946,7 @@
       if (pane) pane.classList.toggle('is-active', on);
       if (btn)  { btn.classList.toggle('is-active', on); btn.setAttribute('aria-selected', on ? 'true' : 'false'); }
     });
+    if (tab === 'chat' && typeof window.qspLoadChat === 'function') window.qspLoadChat();
     try { localStorage.setItem('quoteSummaryTab_v1', tab); } catch(e) {}
   };
   window.updateQspTabBadges = function() {
@@ -2801,4 +3081,6 @@
     }
     if (typeof initSimilarQuotes === 'function') initSimilarQuotes();
     maybeAutoFillRef();          // 新規（REF空）なら仮REF#を自動採番
+    // 初回はダッシュボード（ページ1）を表示。以降のタブ切替では現在ページを維持
+    if (typeof window.qpShowDashboard === 'function') window.qpShowDashboard();
   };

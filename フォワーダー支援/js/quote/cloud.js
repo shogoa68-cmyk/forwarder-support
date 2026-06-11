@@ -32,6 +32,9 @@
   let _cloudFilterPod     = '';
   let _cloudFilterCarrier = '';
   let _cloudAdvOpen       = false;
+  // ダッシュボード：並び替え・表示形式
+  let _cloudSort = 'updated';   // updated|status|who|person|customer
+  let _cloudView = 'card';      // card|list
   // プレビュー
   let _cpId        = null;   // プレビュー中のプリセット ID
   let _cpRows      = [];     // プレビュー中の行データ（v3形式）
@@ -112,6 +115,7 @@
     return m.display_name || m.full_name || m.name || m.user_name || u.email || 'ログイン中';
   }
   function _renderCloudAuth() {
+    if (typeof _renderQpdAuth === 'function') _renderQpdAuth();   // ダッシュボードのログイン出し分けも同期
     const stateEl   = document.getElementById('cloudAuthState');
     const hint      = document.getElementById('cloudLoginHint');
     const body      = document.getElementById('cloudShareBody');
@@ -141,6 +145,7 @@
       stateEl.classList.add('is-on');
       if (hint) hint.style.display = 'none';
       if (body) body.style.display = '';
+      _refreshStorageInfo();
       // ログイン後に共有リマークプリセットをロード
       if (typeof window.loadSharedRemarkPresets === 'function') window.loadSharedRemarkPresets();
       // ヘッダー：ユーザー名表示
@@ -201,16 +206,23 @@
   }
 
   // ---------- 一覧 ----------
-  async function cloudListPresets() {
+  async function cloudListPresets(silent) {
     const c = _getClient();
     const wrap = document.getElementById('cloudPresetListWrap');
     if (!c || !_cloudUser) return;
-    if (wrap) wrap.innerHTML = '<div class="preset-empty">読み込み中…</div>';
+    if (wrap && !silent) wrap.innerHTML = '<div class="preset-empty">読み込み中…</div>';
     await _loadProfiles();
-    const { data, error } = await c
+    // locked_by/locked_at（編集ロック）も取得。列が未マイグレーションなら従来列にフォールバック。
+    let { data, error } = await c
       .from(_table())
-      .select('id,name,status,customer,person,owner_email,created_by,updated_at,incoterms,transport_mode,pol,pod,carrier,data')
+      .select('id,name,status,customer,person,owner_email,created_by,updated_at,incoterms,transport_mode,pol,pod,carrier,data,locked_by,locked_at')
       .order('updated_at', { ascending: false });
+    if (error) {
+      ({ data, error } = await c
+        .from(_table())
+        .select('id,name,status,customer,person,owner_email,created_by,updated_at,incoterms,transport_mode,pol,pod,carrier,data')
+        .order('updated_at', { ascending: false }));
+    }
     if (error) {
       if (wrap) wrap.innerHTML =
         '<div class="preset-empty">⚠️ 取得に失敗：' + escHtml(error.message) +
@@ -219,6 +231,7 @@
     }
     _cloudRows = data || [];
     _renderStatusChips();
+    _renderQpdStats();
     _renderAdvancedFilters();
     _applyCloudFilter();
   }
@@ -240,24 +253,41 @@
       const hay = [r.name, r.customer, r.person, r.owner_email].filter(Boolean).join(' ').toLowerCase();
       return hay.includes(q);
     });
-    _renderCloudList(rows);
+    _renderCloudList(_sortCloudRows(rows));
   }
 
-  // 詳細検索ドロップダウンをロード済みデータから生成
+  // ダッシュボードの並び替え
+  const _STATUS_ORDER = { '下書き中': 0, '提示済み': 1, '受注': 2, '失注': 3 };
+  function _sortCloudRows(rows) {
+    const s = _cloudSort || 'updated';
+    const upd = e => e.updated_at || '';
+    const who = e => _nameFor(e.owner_email) || '';
+    const r = rows.slice();
+    if (s === 'status')        r.sort((a, b) => (_STATUS_ORDER[a.status] ?? 9) - (_STATUS_ORDER[b.status] ?? 9) || upd(b).localeCompare(upd(a)));
+    else if (s === 'who')      r.sort((a, b) => who(a).localeCompare(who(b), 'ja') || upd(b).localeCompare(upd(a)));
+    else if (s === 'person')   r.sort((a, b) => (a.person   || '').localeCompare(b.person   || '', 'ja') || upd(b).localeCompare(upd(a)));
+    else if (s === 'customer') r.sort((a, b) => (a.customer || '').localeCompare(b.customer || '', 'ja') || upd(b).localeCompare(upd(a)));
+    else                       r.sort((a, b) => upd(b).localeCompare(upd(a)));   // updated（既定）
+    return r;
+  }
+
+  // 詳細検索ドロップダウンをロード済みデータから生成（モーダル＋ダッシュボード両方）
   function _renderAdvancedFilters() {
     const unique = (key) => [...new Set(_cloudRows.map(r => r[key]).filter(Boolean))].sort();
     const modes  = unique('transport_mode');
     const incos  = unique('incoterms');
-    const modeEl = document.getElementById('cloudFilterMode');
-    const incoEl = document.getElementById('cloudFilterInco');
-    if (modeEl) {
-      modeEl.innerHTML = '<option value="">輸送モード：すべて</option>' +
-        modes.map(v => '<option value="' + escHtml(v) + '"' + (_cloudFilterMode === v ? ' selected' : '') + '>' + escHtml(v) + '</option>').join('');
-    }
-    if (incoEl) {
-      incoEl.innerHTML = '<option value="">インコタームズ：すべて</option>' +
-        incos.map(v => '<option value="' + escHtml(v) + '"' + (_cloudFilterInco === v ? ' selected' : '') + '>' + escHtml(v) + '</option>').join('');
-    }
+    const fill = (el, head, list, cur) => {
+      if (!el) return;
+      el.innerHTML = '<option value="">' + head + '</option>' +
+        list.map(v => '<option value="' + escHtml(v) + '"' + (cur === v ? ' selected' : '') + '>' + escHtml(v) + '</option>').join('');
+    };
+    fill(document.getElementById('cloudFilterMode'), '輸送モード：すべて', modes, _cloudFilterMode);
+    fill(document.getElementById('cloudFilterInco'), 'インコタームズ：すべて', incos, _cloudFilterInco);
+    fill(document.getElementById('qpdFilterMode'),   '輸送モード：すべて', modes, _cloudFilterMode);
+    fill(document.getElementById('qpdFilterInco'),   'インコタームズ：すべて', incos, _cloudFilterInco);
+    // ダッシュボード側のテキスト系も現在値へ同期
+    const setv = (id, v) => { const e = document.getElementById(id); if (e && e.value !== v) e.value = v; };
+    setv('qpdFilterPol', _cloudFilterPol); setv('qpdFilterPod', _cloudFilterPod); setv('qpdFilterCarrier', _cloudFilterCarrier);
     // クリアボタン表示制御
     const hasAdv = _cloudFilterMode || _cloudFilterInco || _cloudFilterPol || _cloudFilterPod || _cloudFilterCarrier;
     const clearBtn = document.getElementById('cloudAdvClearBtn');
@@ -338,19 +368,23 @@
   window.quoteExtractSubcons = _extractSubcons;
 
   function _renderCloudList(rows) {
-    const wrap = document.getElementById('cloudPresetListWrap');
-    if (!wrap) return;
+    // チーム共有モーダルの一覧と、ダッシュボードの一覧の両方へ描画
+    const wraps = [document.getElementById('cloudPresetListWrap'), document.getElementById('qpdListWrap')].filter(Boolean);
+    if (!wraps.length) return;
+    let html;
     if (!_cloudRows.length) {
-      wrap.innerHTML = '<div class="preset-empty">共有プリセットはまだありません<br>'
-        + '<small style="color:#9bb;">下のフォームから保存できます</small></div>';
+      html = '<div class="preset-empty">共有案件はまだありません<br>'
+        + '<small style="color:#9bb;">「🆕 新規見積を作成」から保存できます</small></div>';
+      wraps.forEach(w => w.innerHTML = html);
       return;
     }
     if (!rows.length) {
-      wrap.innerHTML = '<div class="preset-empty">条件に合う案件がありません<br>'
+      html = '<div class="preset-empty">条件に合う案件がありません<br>'
         + '<small style="color:#9bb;">検索語・ステータスを変えてください</small></div>';
+      wraps.forEach(w => w.innerHTML = html);
       return;
     }
-    wrap.innerHTML = rows.map(r => {
+    const cardsHtml = rows.map(r => {
       const ts = r.updated_at
         ? new Date(r.updated_at).toLocaleString('ja-JP',
             { month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit' })
@@ -359,6 +393,7 @@
       const updWho = _nameFor(r.owner_email);
       const crtWho = _nameFor(r.created_by);
       const idAttr = encodeURIComponent(r.id);
+      const lockedBy = _lockedByOther(r);   // 他メンバーが編集ロック中なら そのemail
 
       // 表示はブラウザ保存（renderPresetList）と同じく案件 data から算出する
       const m = (window.quotePresetMeta && r.data) ? window.quotePresetMeta({ data: r.data }) : null;
@@ -395,13 +430,16 @@
       // ステータスは静的バッジ（ブラウザ保存と同じく編集不可）
       const statusBadge = '<span class="cloud-status-badge cloud-status--' + _statusClass(status) + '">' + escHtml(status) + '</span>';
 
-      // 同時編集（Presence）：他メンバーが開いていれば表示
+      // 同時編集（Presence）：他メンバーが開いていれば「作業中」を名前入りで表示
       const others = _presenceOthers(r.id);
       const editBadge = others.length
-        ? '<div class="cloud-card-editing"><span class="cloud-editing-dot"></span>' +
-            escHtml(others.join('、')) + ' さんが編集中</div>'
+        ? '<div class="cloud-card-editing" title="他のメンバーがこの案件を開いています">' +
+            '<span class="cloud-editing-dot"></span>' +
+            '<span class="cloud-editing-text">🔒 <b>' + escHtml(others.join('、')) + '</b> さんが作業中です</span>' +
+          '</div>'
         : '';
 
+      var progressHtml = (window.quoteProgressBarHtml && r.data) ? window.quoteProgressBarHtml(r.data) : '';
       return '' +
         '<div class="cloud-card cloud-card-labeled' + (others.length ? ' is-editing' : '') + '">' +
           '<div class="cloud-card-row1">' +
@@ -410,6 +448,7 @@
           '</div>' +
           (memoLine ? '<div class="cloud-card-memo" title="' + escHtml(memoLine) + '">' + escHtml(memoLine) + '</div>' : '') +
           editBadge +
+          progressHtml +
           '<dl class="cloud-kv">' +
             (route    ? '<dt>ルート</dt><dd>' + route + '</dd>' : '') +
             (condHtml ? '<dt>条件</dt><dd class="cloud-kv-tags">' + condHtml + '</dd>' : '') +
@@ -423,11 +462,65 @@
             '<div class="cloud-card-acts">' +
               '<button class="btn-preset-preview" onclick="cloudPreviewPreset(\'' + idAttr + '\')" title="内容をプレビュー">プレビュー</button>' +
               '<button class="btn-preset-load" onclick="cloudLoadPreset(\'' + idAttr + '\')">読込</button>' +
-              '<button class="btn-preset-del"  onclick="cloudDeletePreset(\'' + idAttr + '\')" title="削除（全員から消えます）">✕</button>' +
+              (lockedBy
+                ? '<button class="btn-preset-del is-locked" disabled title="' + escHtml(_nameFor(lockedBy)) + ' さんが作業中のため削除できません">🔒</button>'
+                : '<button class="btn-preset-del"  onclick="cloudDeletePreset(\'' + idAttr + '\')" title="削除（全員から消えます）">✕</button>') +
             '</div>' +
           '</div>' +
         '</div>';
     }).join('');
+    // モーダルは常にカード、ダッシュボードはカード/リスト切替
+    const modalWrap = document.getElementById('cloudPresetListWrap');
+    const dashWrap  = document.getElementById('qpdListWrap');
+    if (modalWrap) modalWrap.innerHTML = cardsHtml;
+    if (dashWrap) {
+      const listMode = _cloudView === 'list';
+      dashWrap.classList.toggle('qpd-list--rows', listMode);
+      dashWrap.innerHTML = listMode
+        ? ('<div class="qpd-rows-head"><span>状態</span><span>見積番号</span><span>お客様 / 担当</span><span>作業者</span><span>更新</span><span></span></div>'
+            + rows.map(_cloudListRow).join(''))
+        : cardsHtml;
+    }
+  }
+
+  // ダッシュボード：リスト（行）表示の1行
+  function _cloudListRow(r) {
+    const m = (window.quotePresetMeta && r.data) ? window.quotePresetMeta({ data: r.data }) : null;
+    const title  = (m && m.ref) ? m.ref : r.name;
+    const status = r.status || CLOUD_STATUS_DEFAULT;
+    const cust   = (m ? m.customer : r.customer) || '';
+    const person = (m ? m.person : r.person) || '';
+    const who    = _nameFor(r.owner_email) || '—';
+    const ts     = r.updated_at ? new Date(r.updated_at).toLocaleString('ja-JP', { month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit' }) : '';
+    const idAttr = encodeURIComponent(r.id);
+    const lockedBy = _lockedByOther(r);
+    return '<div class="qpd-row" onclick="cloudLoadPreset(\'' + idAttr + '\')" title="クリックで開く">' +
+      '<span class="qpd-row-status cloud-status-badge cloud-status--' + _statusClass(status) + '">' + escHtml(status) + '</span>' +
+      '<span class="qpd-row-title">' + escHtml(title) + '</span>' +
+      '<span class="qpd-row-cust">' + escHtml(cust) + (person ? ' <small>/ ' + escHtml(person) + '</small>' : '') + '</span>' +
+      '<span class="qpd-row-who">' + escHtml(who) + '</span>' +
+      '<span class="qpd-row-ts">' + ts + '</span>' +
+      '<span class="qpd-row-acts" onclick="event.stopPropagation()">' +
+        '<button class="qpd-row-btn" onclick="cloudPreviewPreset(\'' + idAttr + '\')" title="プレビュー">👁</button>' +
+        (lockedBy
+          ? '<button class="qpd-row-btn is-locked" disabled title="' + escHtml(_nameFor(lockedBy)) + ' さんが作業中">🔒</button>'
+          : '<button class="qpd-row-btn" onclick="cloudDeletePreset(\'' + idAttr + '\')" title="削除">✕</button>') +
+      '</span>' +
+    '</div>';
+  }
+
+  // ダッシュボードの統計カード（ステータス別件数・クリックで絞り込み）
+  function _renderQpdStats() {
+    const box = document.getElementById('qpdStats');
+    if (!box) return;
+    const count = st => _cloudRows.filter(r => (r.status || CLOUD_STATUS_DEFAULT) === st).length;
+    const card = (val, label, n, cls) =>
+      '<button type="button" class="qpd-stat' + (_cloudStatusFilter === val ? ' is-active' : '') +
+        (cls ? ' qpd-stat--' + cls : '') + '" onclick="cloudFilterStatus(\'' + val + '\')">' +
+        '<span class="qpd-stat-n">' + n + '</span><span class="qpd-stat-l">' + escHtml(label) + '</span></button>';
+    let html = card('', '全体', _cloudRows.length, 'all');
+    html += CLOUD_STATUSES.map(st => card(st, st, count(st), _statusClass(st))).join('');
+    box.innerHTML = html;
   }
 
   // ---------- Presence（同時編集の可視化／フェーズ2） ----------
@@ -502,7 +595,22 @@
       (_presence[mt.presetId] = _presence[mt.presetId] || []).push({ email: mt.email, name: mt.name });
     }));
     const modal = document.getElementById('presetMgrModal');
-    if (modal && modal.classList.contains('open')) _applyCloudFilter();
+    if (modal && modal.classList.contains('open')) {
+      _applyCloudFilter();                 // Presence ラベルを即時反映（キャッシュ描画）
+      _scheduleLockRefresh();              // ロック列(locked_by/at)を裏で再取得し🔒を最新化
+    }
+  }
+  // 誰かが編集開始/終了したら、共有一覧のロック状態を静かに再取得して反映（デバウンス）
+  let _lockRefreshT = null;
+  function _scheduleLockRefresh() {
+    if (_lockRefreshT) return;
+    _lockRefreshT = setTimeout(() => {
+      _lockRefreshT = null;
+      const m = document.getElementById('presetMgrModal');
+      if (m && m.classList.contains('open') && document.visibilityState !== 'hidden') {
+        cloudListPresets(true);   // silent（「読み込み中」を出さず差し替え）
+      }
+    }, 1000);
   }
   function _trackEditing() {
     if (!_presenceCh || !_cloudUser) return;
@@ -535,6 +643,213 @@
     _stopInactivityWatch();
     if (_presenceCh) { try { _presenceCh.untrack(); _getClient() && _getClient().removeChannel(_presenceCh); } catch (e) {} }
     _presenceCh = null; _presence = {}; _myEditingId = null;
+    _dropLock();
+  }
+
+  // ---------- 編集ロック（サーバ側 RLS で削除＋上書きを拒否） ----------
+  const LOCK_STALE_MS     = 90 * 1000;       // RLS と一致：90秒でフリー化（閉じ忘れ対策）
+  const LOCK_HEARTBEAT_MS = 30 * 1000;       // 保持中は30秒ごとに更新
+  let _lockHeldId = null;                     // 自分がロック保持中の案件id
+  let _lockTimer  = null;
+
+  async function _acquireLock(id) {
+    const c = _getClient();
+    if (!c || !id) return null;
+    try {
+      const { data, error } = await c.rpc('quote_acquire_lock', { p_id: String(id) });
+      return error ? null : data;   // null=RPC未適用（ロック機能オフ＝従来挙動）／'OK'／他者email／'DENIED'/'NOTFOUND'
+    } catch (e) { return null; }
+  }
+  async function _releaseLock(id) {
+    const c = _getClient();
+    if (!c || !id) return;
+    try { await c.rpc('quote_release_lock', { p_id: String(id) }); } catch (e) {}
+  }
+  function _stopLockHeartbeat() { if (_lockTimer) { clearInterval(_lockTimer); _lockTimer = null; } }
+  function _startLockHeartbeat(id) {
+    _stopLockHeartbeat();
+    _lockTimer = setInterval(() => { if (_lockHeldId === id) _acquireLock(id); }, LOCK_HEARTBEAT_MS);
+  }
+  // 案件のロックを取得。{ok:true}=取得 ／ {ok:true,unmanaged:true}=ロック未適用 ／ {ok:false,by:email}=他者保持中
+  async function _takeLock(id) {
+    if (_lockHeldId && _lockHeldId !== id) { await _releaseLock(_lockHeldId); _lockHeldId = null; _stopLockHeartbeat(); }
+    const r = await _acquireLock(id);
+    if (r === 'OK')               { _lockHeldId = id; _startLockHeartbeat(id); return { ok: true }; }
+    if (r === null || r === 'NOTFOUND' || r === 'DENIED') { _lockHeldId = null; _stopLockHeartbeat(); return { ok: true, unmanaged: true }; }
+    _lockHeldId = null; _stopLockHeartbeat();
+    return { ok: false, by: r };
+  }
+  function _dropLock() {
+    _stopLockHeartbeat();
+    if (_lockHeldId) { const id = _lockHeldId; _lockHeldId = null; _releaseLock(id); }
+  }
+  // 案件行が「他メンバーにロックされている（90秒以内）」か
+  function _lockedByOther(row) {
+    if (!row || !row.locked_by || !row.locked_at) return null;
+    const fresh = (Date.now() - new Date(row.locked_at).getTime()) < LOCK_STALE_MS;
+    const me = _cloudUser && _cloudUser.email;
+    return (fresh && row.locked_by !== me) ? row.locked_by : null;
+  }
+
+  // ========== 作業モード（閲覧／編集）：開く=閲覧、編集でロック取得、保存=作業終了で解放 ==========
+  let _shareMode = 'edit';   // 'edit'（新規・自分が編集中）| 'view'（共有案件を閲覧中・読み取り専用）
+
+  function _applyShareMode(mode) {
+    _shareMode = mode;
+    const main = document.querySelector('#tab-quote-make .quote-main');
+    if (main) main.inert = (mode === 'view');   // 閲覧中はフォーム全体を操作不可（マウス・キーボード）
+    const tab = document.getElementById('tab-quote-make');
+    if (tab) tab.classList.toggle('qmode-view', mode === 'view');
+    const banner = document.getElementById('qmBanner');
+    if (banner) {
+      if (mode === 'view') {
+        banner.hidden = false;
+        banner.className = 'qm-banner qm-banner-view';
+        banner.textContent = '🔒 閲覧モード — 編集するには「✏️ 編集」';
+      } else if (_lockHeldId) {
+        banner.hidden = false;
+        banner.className = 'qm-banner qm-banner-edit';
+        banner.textContent = '✏️ 編集中（あなたが作業中）';
+      } else {
+        banner.hidden = true;
+      }
+    }
+    _updateModeButtons();
+  }
+  function _updateModeButtons() {
+    const view = _shareMode === 'view';
+    // 右下ドックの1ボタンをモード連動で切替（閲覧＝編集／編集＝保存）
+    const dock = document.getElementById('qadMode');
+    if (dock) {
+      dock.disabled = false;
+      if (view) { dock.textContent = '✏️ 編集'; dock.classList.remove('qad-save'); dock.classList.add('qad-edit'); }
+      else      { dock.textContent = '💾 保存'; dock.classList.remove('qad-edit'); dock.classList.add('qad-save'); }
+    }
+  }
+  // 右下ドックのアクション：閲覧中→編集開始（ロック取得）／編集中→保存して作業終了
+  function qpDockAction() {
+    if (_shareMode === 'view') quoteModeEdit();
+    else quoteModeSaveDone();
+  }
+
+  // 共有案件を閲覧で開いた状態から「編集」開始＝ロック取得＋作業中（Presence）
+  async function quoteModeEdit() {
+    if (!_loadedCloudId) { quoteShowToast('ℹ️ 先にチーム共有から案件を開いてください', 'info', 3000); return; }
+    const lock = await _takeLock(_loadedCloudId);
+    if (!lock.ok) {
+      quoteShowToast('🔒 ' + _nameFor(lock.by) + ' さんが作業中のため編集できません', 'warn', 6000);
+      return;
+    }
+    _setEditing(_loadedCloudId);     // Presence：あなたが作業中
+    _applyShareMode('edit');
+    quoteShowToast('✏️ 編集を開始しました（あなたが作業中・他メンバーは削除/上書き不可）', 'success', 3500);
+  }
+
+  // 保存して作業終了：クラウド保存 → ロック解放 → 閲覧モードへ（cloudSaveCurrent 内で解放）
+  async function quoteModeSaveDone() {
+    if (_shareMode === 'view') {
+      quoteShowToast('🔒 閲覧中です。編集するには「✏️ 編集」を押してください', 'warn', 4000);
+      return;
+    }
+    await cloudSaveCurrent();
+  }
+
+  // 入力を空にして新規案件（保持ロックは解放）
+  function quoteModeNew() {
+    if (!confirm('入力中の内容を破棄して新規案件を作成しますか？\n（未保存の変更は失われます）')) return;
+    _exitShareEditing();
+    _clearQuoteForm();
+    _loadedCloudId = null; _loadedCloudTs = null;
+    if (typeof setCurrentQuoteName === 'function') setCurrentQuoteName('');
+    _applyShareMode('edit');
+    quoteShowToast('🆕 新規案件を作成しました', 'success');
+  }
+  // 入力中の内容をクリア（保持ロックは解放）
+  function quoteModeClear() {
+    if (!confirm('入力中の内容をクリアしますか？')) return;
+    _exitShareEditing();
+    _clearQuoteForm();
+    _loadedCloudId = null; _loadedCloudTs = null;
+    if (typeof setCurrentQuoteName === 'function') setCurrentQuoteName('');
+    _applyShareMode('edit');
+    quoteShowToast('🧹 入力をクリアしました', 'info');
+  }
+  // 作業中状態の解除（Presence untrack 相当 + ロック解放）
+  function _exitShareEditing() {
+    _setEditing(null);   // Presence：どの案件も作業中でない
+    _dropLock();
+  }
+  // フォーム全消去：既存の復元経路に「空データ」を流して安全にクリア（多重エントリ状態も同期）
+  function _clearQuoteForm() {
+    if (typeof _applyQuoteData !== 'function') return;
+    const SKIP = ['rowInsertPos','rowPatternInsertPos','bulkCatSet','bulkSubconSet','selectAllChk'];
+    const emptyFields = {};
+    // フォーム本体（.quote-main）配下のみ対象。ツールバー/コマンドバーは除外
+    document.querySelectorAll('#tab-quote-make .quote-main input[id], #tab-quote-make .quote-main select[id], #tab-quote-make .quote-main textarea[id]').forEach(el => {
+      if (SKIP.includes(el.id) || el.closest('.quote-cmdbar')) return;
+      emptyFields[el.id] = (el.type === 'checkbox') ? false : '';
+    });
+    _applyQuoteData({ fields: emptyFields, rows: [], _rowFormat: 'v3-mixed-rows' });
+    if (typeof addRow === 'function') addRow();   // 空の入力行を1行用意
+  }
+
+  // ========== ページ切替（ダッシュボード／エディタ） ==========
+  function qpShowDashboard() {
+    document.getElementById('tab-quote-make')?.classList.add('qp-dash');
+    document.body.classList.add('qp-dash-active');
+    _renderQpdAuth();
+    if (_cloudUser) cloudListPresets(true);   // 一覧・統計を最新化（silent）
+  }
+  function qpShowEditor() {
+    document.getElementById('tab-quote-make')?.classList.remove('qp-dash');
+    document.body.classList.remove('qp-dash-active');
+  }
+  // ダッシュボードのログイン有無で表示を出し分け
+  function _renderQpdAuth() {
+    const login = document.getElementById('qpdLogin');
+    const main  = document.getElementById('qpdMain');
+    if (login) login.hidden = !!_cloudUser;
+    if (main)  main.hidden  = !_cloudUser;
+  }
+  // 新規見積（ダッシュボード or 未ログインの「ログインせず作成」から）→ エディタへ
+  function qpNewQuote() {
+    _exitShareEditing();
+    _clearQuoteForm();
+    _loadedCloudId = null; _loadedCloudTs = null;
+    if (typeof setCurrentQuoteName === 'function') setCurrentQuoteName('');
+    _applyShareMode('edit');
+    qpShowEditor();
+    quoteShowToast('🆕 新規見積を作成します', 'success', 2500);
+  }
+
+  // ---------- ダッシュボード：詳細検索・並び替え・表示切替 ----------
+  function qpdToggleAdv() {
+    const body = document.getElementById('qpdAdv');
+    const tgl  = document.getElementById('qpdAdvToggle');
+    if (!body) return;
+    body.hidden = !body.hidden;
+    if (tgl) tgl.textContent = body.hidden ? '🔎 詳細検索 ▶' : '🔎 詳細検索 ▼';
+  }
+  function qpdApplyAdv() {
+    _cloudFilterMode    = document.getElementById('qpdFilterMode')?.value    || '';
+    _cloudFilterInco    = document.getElementById('qpdFilterInco')?.value    || '';
+    _cloudFilterPol     = document.getElementById('qpdFilterPol')?.value     || '';
+    _cloudFilterPod     = document.getElementById('qpdFilterPod')?.value     || '';
+    _cloudFilterCarrier = document.getElementById('qpdFilterCarrier')?.value || '';
+    _applyCloudFilter();
+  }
+  function qpdClearAdv() {
+    _cloudFilterMode = _cloudFilterInco = _cloudFilterPol = _cloudFilterPod = _cloudFilterCarrier = '';
+    ['qpdFilterMode','qpdFilterInco','qpdFilterPol','qpdFilterPod','qpdFilterCarrier'].forEach(id => { const e = document.getElementById(id); if (e) e.value = ''; });
+    _applyCloudFilter();
+  }
+  function qpdSetSort(v) { _cloudSort = v || 'updated'; _applyCloudFilter(); }
+  function qpdSetView(v) {
+    _cloudView = (v === 'list') ? 'list' : 'card';
+    const c = document.getElementById('qpdViewCard'), l = document.getElementById('qpdViewList');
+    if (c) c.classList.toggle('is-active', _cloudView === 'card');
+    if (l) l.classList.toggle('is-active', _cloudView === 'list');
+    _applyCloudFilter();
   }
 
   // 検索ボックス入力
@@ -547,6 +862,7 @@
   function cloudFilterStatus(val) {
     _cloudStatusFilter = (val === _cloudStatusFilter) ? '' : val;  // 同じものを再クリックで解除
     _renderStatusChips();
+    _renderQpdStats();
     _applyCloudFilter();
   }
 
@@ -627,7 +943,13 @@
       resp = await c.from(_table())
         .update({ data, subcons, customer, person, incoterms, transport_mode, pol, pod, carrier,
                   owner_email: _cloudUser.email, updated_at: nowIso })
-        .eq('id', exId);
+        .eq('id', exId)
+        .select('id');
+      // 編集ロックで拒否されると エラー無しで 0 行（RLS）。他メンバー編集中＝上書き不可。
+      if (!resp.error && (!resp.data || !resp.data.length)) {
+        quoteShowToast('🔒 他メンバーが編集中のため上書き保存できません（読込し直すと最新になります）', 'warn', 6500);
+        return;
+      }
       if (!resp.error) { _loadedCloudId = exId; _loadedCloudTs = nowIso; }  // 自分の保存を基準時刻に更新
     } else {
       resp = await c.from(_table())
@@ -636,12 +958,29 @@
           status: CLOUD_STATUS_DEFAULT,
           owner_email: _cloudUser.email,
           created_by:  _cloudUser.email,
-        });
+        })
+        .select('id,updated_at').single();
+      if (!resp.error && resp.data) {   // 新規作成：競合検知の基準にも採用
+        _loadedCloudId = resp.data.id;
+        _loadedCloudTs = resp.data.updated_at || new Date().toISOString();
+      }
     }
     if (resp.error) { quoteShowToast('⚠️ 保存に失敗：' + resp.error.message, 'warn', 5000); return; }
 
-    quoteShowToast('☁️ 「' + name + '」をチーム共有に保存しました', 'success');
+    // 保存＝作業終了：ロックと Presence（作業中）を解放し、閲覧モードへ移行
+    const savedId = (existing && existing.length) ? existing[0].id : (resp.data && resp.data.id);
+    if (savedId) { _loadedCloudId = savedId; }
+    _exitShareEditing();          // Presence untrack + ロック解放
+    _applyShareMode('view');      // 閲覧モードへ（他メンバーが編集可能に）
+
+    quoteShowToast('💾 「' + name + '」を保存して作業終了しました', 'success', 3500);
     cloudListPresets();
+    // 保存後の遷移はユーザーに選ばせる（OK＝ダッシュボードへ／キャンセル＝この見積に留まる）
+    setTimeout(() => {
+      if (confirm('💾 保存しました。\n📊 ダッシュボードに戻りますか？\n（キャンセル＝この見積を表示したまま）')) {
+        qpShowDashboard();
+      }
+    }, 150);
   }
 
   // ---------- 読込 ----------
@@ -760,6 +1099,10 @@
 
     // メタ情報（ステータス・顧客・担当・更新日）
     const metaParts = [];
+    const validUntil = rawData?.fields?.['qf-valid-until'];
+    if (validUntil && new Date(validUntil) < new Date(new Date().toDateString())) {
+      metaParts.push(`<span class="cp-expired-warn">⚠️ 有効期限切れ（${escHtml(validUntil)}）</span>`);
+    }
     if (data.status) metaParts.push(`<span class="cp-status-badge cp-status--${_statusClass(data.status)}">${escHtml(data.status)}</span>`);
     if (data.customer) metaParts.push(`👤 ${escHtml(data.customer)}`);
     if (data.person)   metaParts.push(`🧑‍💼 ${escHtml(data.person)}`);
@@ -778,6 +1121,8 @@
     _cpRenderTable(rows);
     _cpUpdateSelCount();
     document.getElementById('cloudPreviewModal').style.display = 'flex';
+    cpSwitchRightPane('summary');
+    _loadAttachments(_cpId);
   }
 
   // 数値パース／通貨つき金額表示（JPYは¥、非JPYは通貨コード併記）
@@ -925,35 +1270,62 @@
     const c = _getClient();
     if (!c) return;
     const id = decodeURIComponent(rawId);
-    // 同時編集の警告（Presence）
-    const others = _presenceOthers(id);
-    if (others.length && !confirm('⚠️ ' + others.join('、') +
-        ' さんがこの案件を編集中です。\n同時に編集すると、後から保存した方で上書きされます。開きますか？')) return;
     const { data, error } = await c
       .from(_table()).select('name,data,updated_at').eq('id', id).single();
     if (error || !data) { quoteShowToast('⚠️ 読み込みに失敗しました', 'warn'); return; }
 
-    // フェーズ1：競合検知の基準として、ロードした案件 id と更新時刻を記録
+    // 直前に自分が別案件を編集中だったら解放してから開く
+    _exitShareEditing();
+
+    // 競合検知の基準として、ロードした案件 id と更新時刻を記録
     _loadedCloudId = id;
     _loadedCloudTs = data.updated_at || null;
 
-    // ローカルの loadPreset と同じ復元処理
+    // チャットタブが開いていれば即時更新
+    if (document.getElementById('qspPane-chat')?.classList.contains('is-active')) {
+      _loadQspComments();
+    }
+
+    // 復元処理（開く＝閲覧モード：ロックも Presence も取得しない）
     _applyQuoteData(data.data, { keepHeaderIfEmpty: true });
     if (typeof calcLiveUpdate === 'function') calcLiveUpdate();
     if (typeof setCurrentQuoteName === 'function') setCurrentQuoteName(data.name);
     if (typeof closePresetMgr === 'function') closePresetMgr();
-    _setEditing(id);   // Presence：この案件を編集中に
-    quoteShowToast('📂 共有「' + data.name + '」を読み込みました（Ctrl+Z で戻せます）', 'success');
+    _applyShareMode('view');   // 読み取り専用。編集するには「✏️ 編集」
+    qpShowEditor();            // ダッシュボードからエディタ画面へ
+    const lk = _cloudRows.find(r => r.id === id);
+    const by = lk ? _lockedByOther(lk) : null;
+    if (by) {
+      quoteShowToast('📂 共有「' + data.name + '」を開きました（閲覧）。🔒 ' + _nameFor(by) + ' さんが作業中です', 'warn', 6000);
+    } else {
+      quoteShowToast('📂 共有「' + data.name + '」を開きました（閲覧モード）。編集するには「✏️ 編集」', 'success', 4500);
+    }
   }
 
   // ---------- 削除 ----------
   async function cloudDeletePreset(rawId) {
     const c = _getClient();
     if (!c) return;
-    if (!confirm('この共有プリセットを削除しますか？\n（チーム全員から消えます）')) return;
     const id = decodeURIComponent(rawId);
-    const { error } = await c.from(_table()).delete().eq('id', id);
+    const row = _cloudRows.find(r => r.id === id);
+    const label = row && row.name ? '「' + row.name + '」' : '';
+    // 同時編集の警告（Presence）：編集中なら強めの確認に切替
+    const others = _presenceOthers(id);
+    if (others.length) {
+      if (!confirm('🚫 ' + others.join('、') + ' さんがこの案件' + label +
+          'を編集中です。\n削除するとその作業が失われます。本当に削除しますか？')) return;
+    } else {
+      if (!confirm('この共有プリセット' + label + 'を削除しますか？\n（チーム全員から消えます）')) return;
+    }
+    const { data: del, error } = await c.from(_table()).delete().eq('id', id).select('id');
     if (error) { quoteShowToast('⚠️ 削除に失敗：' + error.message, 'warn'); return; }
+    // 編集ロックで拒否されると エラー無しで 0 行（RLS）
+    if (!del || !del.length) {
+      quoteShowToast('🔒 他メンバーが編集中のため削除できません（ロック解除後に再試行してください）', 'warn', 6500);
+      cloudListPresets();
+      return;
+    }
+    if (_lockHeldId === id) _dropLock();
     quoteShowToast('🗑️ 共有プリセットを削除しました', 'info');
     cloudListPresets();
   }
@@ -993,6 +1365,11 @@
     if (_cloudInited) return;
     _cloudInited = true;
     _surfaceOAuthError();
+    // 初期モード（新規＝編集可）。ボタン状態を整える
+    _applyShareMode('edit');
+    // タブを閉じる/離れる時はロックを即時解放（best-effort。失敗しても90秒で自動失効）
+    window.addEventListener('pagehide', () => { if (_lockHeldId) _dropLock(); });
+    window.addEventListener('beforeunload', () => { if (_lockHeldId) _dropLock(); });
     const c = _getClient();
     if (!c) { _renderCloudAuth(); return; }
 
@@ -1000,7 +1377,10 @@
     c.auth.getSession().then(({ data }) => {
       _cloudUser = (data && data.session && data.session.user) || null;
       _renderCloudAuth();
-      if (_cloudUser) { _loadProfiles().then(_renderCloudAuth); _initPresence(); }
+      if (_cloudUser) {
+        _loadProfiles().then(_renderCloudAuth); _initPresence();
+        if (document.body.classList.contains('qp-dash-active')) cloudListPresets(true);
+      }
     });
 
     // ログイン状態変化を監視
@@ -1012,6 +1392,7 @@
         _initPresence();
         const modal = document.getElementById('presetMgrModal');
         if (modal && modal.classList.contains('open')) cloudListPresets();
+        if (document.body.classList.contains('qp-dash-active')) cloudListPresets(true);
       } else {
         _teardownPresence();
       }
@@ -1105,6 +1486,297 @@
     closeProfileEdit();
   }
 
+  // ================================================================
+  // ========== 💬 見積サマリパネル チャット ==========
+  // ================================================================
+
+  async function _loadQspComments() {
+    const wrap = document.getElementById('qspChatList');
+    if (!wrap) return;
+    const c = _getClient();
+    if (!c || !_cloudUser) {
+      wrap.innerHTML = '<span class="cp-chat-login">ログインするとコメントを表示できます</span>';
+      return;
+    }
+    if (!_loadedCloudId) {
+      wrap.innerHTML = '<span class="cp-chat-login">チーム共有から案件を開くとチャットが表示されます</span>';
+      return;
+    }
+    wrap.innerHTML = '<span class="cp-chat-loading">読み込み中…</span>';
+    const { data, error } = await c
+      .from('quote_comments')
+      .select('id,body,created_by,created_at')
+      .eq('preset_id', _loadedCloudId)
+      .order('created_at', { ascending: true });
+    if (error) { wrap.innerHTML = '<span class="cp-chat-err">⚠️ 取得失敗</span>'; return; }
+    _renderQspComments(data || []);
+    wrap.scrollTop = wrap.scrollHeight;
+  }
+
+  function _renderQspComments(rows) {
+    const wrap = document.getElementById('qspChatList');
+    if (!wrap) return;
+    if (!rows.length) { wrap.innerHTML = '<span class="cp-chat-empty">まだコメントはありません</span>'; return; }
+    wrap.innerHTML = rows.map(r => {
+      const isMine = _cloudUser && r.created_by === _cloudUser.email;
+      const name = escHtml(_nameFor(r.created_by));
+      const dt   = new Date(r.created_at).toLocaleString('ja-JP', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
+      return `<div class="cp-chat-item${isMine ? ' cp-chat-item--mine' : ''}">
+        <div class="cp-chat-meta">${name} · ${dt}</div>
+        <div class="cp-chat-body">${escHtml(r.body)}</div>
+      </div>`;
+    }).join('');
+  }
+
+  async function qspPostComment() {
+    const c = _getClient();
+    if (!c || !_cloudUser) { quoteShowToast('⚠️ ログインが必要です', 'warn'); return; }
+    if (!_loadedCloudId) { quoteShowToast('⚠️ チーム共有から案件を開いてください', 'warn'); return; }
+    const input = document.getElementById('qspChatInput');
+    const body  = input?.value.trim();
+    if (!body) return;
+    const btn = document.querySelector('#qspPane-chat .cp-chat-send');
+    if (btn) btn.disabled = true;
+    try {
+      const { error } = await c.from('quote_comments').insert({
+        preset_id:  _loadedCloudId,
+        body,
+        created_by: _cloudUser.email,
+      });
+      if (error) throw error;
+      if (input) input.value = '';
+      await _loadQspComments();
+    } catch(e) {
+      quoteShowToast('⚠️ 送信失敗：' + (e.message || e), 'warn', 5000);
+    } finally {
+      if (btn) btn.disabled = false;
+    }
+  }
+
+  // ================================================================
+  // ========== 📦 ストレージ使用量表示 ==========
+  // ================================================================
+
+  async function _refreshStorageInfo() {
+    const el = document.getElementById('cloudStorageInfo');
+    if (!el) return;
+    const c = _getClient();
+    if (!c || !_cloudUser) { el.textContent = ''; return; }
+    const { data } = await c.from('quote_attachments').select('file_size');
+    const totalBytes = (data || []).reduce((s, r) => s + (r.file_size || 0), 0);
+    const fmt = totalBytes < 1024 * 1024
+      ? (totalBytes / 1024).toFixed(0) + ' KB'
+      : (totalBytes / (1024 * 1024)).toFixed(1) + ' MB';
+    el.textContent = `📦 添付合計 ${fmt}`;
+  }
+
+  // ================================================================
+  // ========== 💬 案件チャット ==========
+  // ================================================================
+
+  function cpSwitchRightPane(name) {
+    ['summary', 'chat'].forEach(n => {
+      const tab  = document.getElementById('cpRTab_' + n);
+      const pane = document.getElementById('cpPane_' + n);
+      const active = n === name;
+      if (tab)  tab.classList.toggle('cp-rtab--active', active);
+      if (pane) pane.style.display = active ? '' : 'none';
+    });
+    if (name === 'chat') _loadComments(_cpId);
+  }
+
+  async function _loadComments(presetId) {
+    const c    = _getClient();
+    const wrap = document.getElementById('cpChatList');
+    if (!wrap) return;
+    if (!c || !_cloudUser) {
+      wrap.innerHTML = '<span class="cp-chat-login">ログインするとコメントを表示できます</span>';
+      return;
+    }
+    wrap.innerHTML = '<span class="cp-chat-loading">読み込み中…</span>';
+    const { data, error } = await c
+      .from('quote_comments')
+      .select('id,body,created_by,created_at')
+      .eq('preset_id', presetId)
+      .order('created_at', { ascending: true });
+    if (error) { wrap.innerHTML = '<span class="cp-chat-err">⚠️ 取得失敗</span>'; return; }
+    _renderComments(data || []);
+    wrap.scrollTop = wrap.scrollHeight;
+  }
+
+  function _renderComments(rows) {
+    const wrap = document.getElementById('cpChatList');
+    if (!wrap) return;
+    if (!rows.length) {
+      wrap.innerHTML = '<span class="cp-chat-empty">まだコメントはありません</span>';
+      return;
+    }
+    wrap.innerHTML = rows.map(r => {
+      const isMine = _cloudUser && r.created_by === _cloudUser.email;
+      const name = escHtml(_nameFor(r.created_by));
+      const dt   = new Date(r.created_at).toLocaleString('ja-JP', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
+      return `<div class="cp-chat-item${isMine ? ' cp-chat-item--mine' : ''}">
+        <div class="cp-chat-meta">${name} · ${dt}</div>
+        <div class="cp-chat-body">${escHtml(r.body)}</div>
+      </div>`;
+    }).join('');
+  }
+
+  async function cpPostComment() {
+    const c = _getClient();
+    if (!c || !_cloudUser) { quoteShowToast('⚠️ ログインが必要です', 'warn'); return; }
+    if (!_cpId) return;
+    const input = document.getElementById('cpChatInput');
+    const body  = input?.value.trim();
+    if (!body) return;
+    const btn = document.querySelector('.cp-chat-send');
+    if (btn) btn.disabled = true;
+    try {
+      const { error } = await c.from('quote_comments').insert({
+        preset_id:  _cpId,
+        body,
+        created_by: _cloudUser.email,
+      });
+      if (error) throw error;
+      if (input) input.value = '';
+      await _loadComments(_cpId);
+    } catch(e) {
+      quoteShowToast('⚠️ 送信失敗：' + (e.message || e), 'warn', 5000);
+    } finally {
+      if (btn) btn.disabled = false;
+    }
+  }
+
+  // ================================================================
+  // ========== 📎 添付ファイル管理 ==========
+  // ================================================================
+
+  const _ATTACH_BUCKET = () => window.CLOUD_CONFIG?.attachmentBucket || 'quote-attachments';
+  const _ATTACH_MAX_W  = 1920;   // 画像リサイズ上限（px）
+  const _ATTACH_QUALITY = 0.82;  // JPEG 圧縮品質
+
+  // 画像をクライアント側で圧縮（非画像はそのまま返す）
+  function _compressImage(file) {
+    return new Promise(resolve => {
+      if (!file.type.startsWith('image/')) { resolve(file); return; }
+      const img = new Image();
+      const url = URL.createObjectURL(file);
+      img.onload = () => {
+        URL.revokeObjectURL(url);
+        const scale = Math.min(1, _ATTACH_MAX_W / img.width);
+        const canvas = document.createElement('canvas');
+        canvas.width  = Math.round(img.width  * scale);
+        canvas.height = Math.round(img.height * scale);
+        canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+        canvas.toBlob(
+          blob => resolve(new File([blob], file.name.replace(/\.[^.]+$/, '.jpg'), { type: 'image/jpeg' })),
+          'image/jpeg', _ATTACH_QUALITY
+        );
+      };
+      img.onerror = () => { URL.revokeObjectURL(url); resolve(file); };
+      img.src = url;
+    });
+  }
+
+  // 添付ファイル一覧を取得してレンダリング
+  async function _loadAttachments(presetId) {
+    const c = _getClient();
+    if (!c || !presetId) return;
+    const wrap = document.getElementById('cpAttachList');
+    if (!wrap) return;
+    wrap.innerHTML = '<span class="cp-attach-loading">読み込み中…</span>';
+    const { data, error } = await c
+      .from('quote_attachments')
+      .select('id,file_name,file_size,mime_type,storage_path,uploaded_by,created_at')
+      .eq('preset_id', presetId)
+      .order('created_at', { ascending: false });
+    if (error) { wrap.innerHTML = '<span class="cp-attach-err">⚠️ 取得失敗</span>'; return; }
+    _renderAttachments(data || []);
+  }
+
+  function _renderAttachments(rows) {
+    const wrap = document.getElementById('cpAttachList');
+    if (!wrap) return;
+    if (!rows.length) { wrap.innerHTML = '<span class="cp-attach-empty">添付ファイルなし</span>'; return; }
+    wrap.innerHTML = rows.map(r => {
+      const kb   = r.file_size ? (r.file_size / 1024).toFixed(0) + ' KB' : '';
+      const icon = (r.mime_type || '').startsWith('image/') ? '🖼' : '📄';
+      const idEnc = encodeURIComponent(r.id);
+      const pathEnc = encodeURIComponent(r.storage_path);
+      return `<div class="cp-attach-item">
+        <span class="cp-attach-icon">${icon}</span>
+        <span class="cp-attach-name" title="${escHtml(r.file_name)}">${escHtml(r.file_name)}</span>
+        <span class="cp-attach-size">${escHtml(kb)}</span>
+        <button class="cp-attach-dl"  onclick="cpDownloadAttachment('${pathEnc}')" title="ダウンロード">⬇</button>
+        <button class="cp-attach-del" onclick="cpDeleteAttachment('${idEnc}','${pathEnc}')" title="削除">✕</button>
+      </div>`;
+    }).join('');
+  }
+
+  // ファイル選択後にアップロード
+  async function cpUploadAttachment(input) {
+    const c = _getClient();
+    if (!c || !_cloudUser) { quoteShowToast('⚠️ ログインが必要です', 'warn'); return; }
+    if (!_cpId) { quoteShowToast('⚠️ 先にプレビューで案件を開いてください', 'warn'); return; }
+    const file = input.files?.[0];
+    if (!file) return;
+    input.value = '';
+
+    const btn = document.getElementById('cpAttachUploadBtn');
+    if (btn) { btn.disabled = true; btn.textContent = '圧縮・送信中…'; }
+    try {
+      const compressed = await _compressImage(file);
+      const path = `${_cpId}/${Date.now()}_${compressed.name.replace(/[^\w.\-]/g, '_')}`;
+      const { error: upErr } = await c.storage.from(_ATTACH_BUCKET()).upload(path, compressed, { upsert: false });
+      if (upErr) throw upErr;
+      const { error: dbErr } = await c.from('quote_attachments').insert({
+        preset_id:    _cpId,
+        storage_path: path,
+        file_name:    file.name,
+        file_size:    compressed.size,
+        mime_type:    compressed.type,
+        uploaded_by:  _cloudUser.email,
+      });
+      if (dbErr) throw dbErr;
+      quoteShowToast('📎 添付しました', 'success', 2500);
+      _loadAttachments(_cpId);
+      _refreshStorageInfo();
+    } catch(e) {
+      quoteShowToast('⚠️ アップロード失敗：' + (e.message || e), 'warn', 5000);
+    } finally {
+      if (btn) { btn.disabled = false; btn.textContent = '📎 ファイルを添付'; }
+    }
+  }
+
+  // ダウンロード（署名付き URL を 60 秒発行）
+  async function cpDownloadAttachment(rawPath) {
+    const c = _getClient();
+    if (!c) return;
+    const path = decodeURIComponent(rawPath);
+    const { data, error } = await c.storage.from(_ATTACH_BUCKET()).createSignedUrl(path, 60);
+    if (error || !data?.signedUrl) { quoteShowToast('⚠️ URL 取得失敗', 'warn'); return; }
+    const a = document.createElement('a');
+    a.href = data.signedUrl;
+    a.download = path.split('/').pop();
+    a.click();
+  }
+
+  // 削除
+  async function cpDeleteAttachment(rawId, rawPath) {
+    if (!confirm('この添付ファイルを削除しますか？')) return;
+    const c = _getClient();
+    if (!c) return;
+    const id   = decodeURIComponent(rawId);
+    const path = decodeURIComponent(rawPath);
+    const { error: stErr } = await c.storage.from(_ATTACH_BUCKET()).remove([path]);
+    if (stErr) { quoteShowToast('⚠️ Storage 削除失敗：' + stErr.message, 'warn'); return; }
+    const { error: dbErr } = await c.from('quote_attachments').delete().eq('id', id);
+    if (dbErr) { quoteShowToast('⚠️ DB 削除失敗：' + dbErr.message, 'warn'); return; }
+    quoteShowToast('✅ 削除しました', 'success', 2000);
+    _loadAttachments(_cpId);
+    _refreshStorageInfo();
+  }
+
   // ---------- window 公開（onclick 用） ----------
   window.openProfileEdit     = openProfileEdit;
   window.closeProfileEdit    = closeProfileEdit;
@@ -1132,6 +1804,29 @@
   window.cpToggleAll           = cpToggleAll;
   window.cpToggleGroup         = cpToggleGroup;
   window.cpUpdateSelCount      = _cpUpdateSelCount;
+  window.cpUploadAttachment    = cpUploadAttachment;
+  window.cpDownloadAttachment  = cpDownloadAttachment;
+  window.cpDeleteAttachment    = cpDeleteAttachment;
+  window.cpSwitchRightPane     = cpSwitchRightPane;
+  window.cpPostComment         = cpPostComment;
+  window.qspPostComment        = qspPostComment;
+  window.qspLoadChat           = _loadQspComments;
+  // 作業モード（閲覧／編集）操作
+  window.quoteModeEdit     = quoteModeEdit;
+  window.quoteModeSaveDone = quoteModeSaveDone;
+  window.quoteModeNew      = quoteModeNew;
+  window.quoteModeClear    = quoteModeClear;
+  // ページ切替（ダッシュボード／エディタ）
+  window.qpShowDashboard   = qpShowDashboard;
+  window.qpShowEditor      = qpShowEditor;
+  window.qpNewQuote        = qpNewQuote;
+  window.qpDockAction      = qpDockAction;
+  // ダッシュボード：詳細検索・並び替え・表示切替
+  window.qpdToggleAdv = qpdToggleAdv;
+  window.qpdApplyAdv  = qpdApplyAdv;
+  window.qpdClearAdv  = qpdClearAdv;
+  window.qpdSetSort   = qpdSetSort;
+  window.qpdSetView   = qpdSetView;
 
   // ---------- 他モジュール（行パターン等）からのログイン情報参照用 ----------
   window.quoteCloudUser   = function () { return _cloudUser; };

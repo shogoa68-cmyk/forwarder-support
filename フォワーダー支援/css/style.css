@@ -1249,6 +1249,11 @@ body:has(#compareOverlay.open) #quoteActionDock { display: none; }
   border: 1.5px solid var(--border-md);
 }
 #quoteActionDock .qad-compare:hover { background: var(--accent-lt); }
+#quoteActionDock .qad-save { background: #1e7e44; color: #fff; }
+#quoteActionDock .qad-save:hover { background: #18683a; }
+#quoteActionDock .qad-edit { background: #1c6fa6; color: #fff; }
+#quoteActionDock .qad-edit:hover { background: #155b8a; }
+#quoteActionDock .qad-save:disabled { background: #cdbfa6; color: #fff; opacity: .75; cursor: not-allowed; transform: none; box-shadow: 0 4px 14px rgba(45,36,24,0.18); }
 
 /* ===========================================================
    フローティング電卓ウィジェット（サイト全体スコープ）
