@@ -1071,3 +1071,35 @@
   window.addRowToSubconGroup  = addRowToSubconGroup;
   window.toggleSubconGroup    = toggleSubconGroup;
   window.toggleSubconExclude  = toggleSubconExclude;
+
+  // ローカルチャージから見積行を一括追加（local-charges.js から呼ぶ）
+  window.addChargeRows = function (charges) {
+    if (!charges || !charges.length) return;
+    const tbody = document.getElementById('tableBody');
+    if (!tbody) return;
+    const lastPc = document.querySelector('#tableBody tr:last-child [id^="pc-"]');
+    const lastCur = lastPc?.value || 'JPY';
+    charges.forEach(ch => {
+      rowCount++;
+      const id = rowCount;
+      const tr = document.createElement('tr');
+      tr.id = 'row-' + id;
+      tr.replaceChildren(buildRowHTML(id, ch.cat || '', ch.currency || lastCur, ch.sv || ''));
+      tbody.appendChild(tr);
+      const set = (prefix, val) => { const e = document.getElementById(prefix + id); if (e) e.value = val ?? ''; };
+      set('nm-', ch.name  || '');
+      set('nt-', ch.note  || '');
+      set('un-', ch.unit  || '');
+      set('pp-', ch.amount != null ? ch.amount : '');
+      set('bp-', ch.amount != null ? ch.amount : '');
+      // 通貨を両欄に適用
+      const pcEl = document.getElementById('pc-' + id);
+      if (pcEl) pcEl.value = ch.currency || lastCur;
+      initDrag(tr);
+      onCatChange(id);
+      onPay(id);
+    });
+    updateTotals();
+    if (typeof quoteShowToast === 'function')
+      quoteShowToast('✅ ローカルチャージ ' + charges.length + '件を追加しました', 'success');
+  };
