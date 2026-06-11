@@ -924,30 +924,47 @@
   function _applyGroupStates() {
     const tbody = document.getElementById('tableBody');
     if (!tbody) return;
-    Array.from(tbody.querySelectorAll('tr:not([data-virtual])')).filter(tr => !tr.dataset.type)
-      .forEach(tr => {
-        const sv       = _rowSubcon(tr) ?? '';
-        const key      = sv || _UNSET_KEY;
+    // DOM 順に全行を走査し、直前の仮想ヘッダーのグループキーを引き継ぐ
+    // → 小計・リマーク行は「直前のサブコングループ」に属するとして扱う
+    let currentKey = null;
+    Array.from(tbody.querySelectorAll('tr')).forEach(tr => {
+      if (tr.dataset.virtual) {
+        currentKey = tr.dataset.svKey || null;
+        if (!currentKey) return;
+        const collapsed = _collapsedGroups.has(currentKey);
+        const excluded  = _excludedGroups.has(currentKey);
+        const toggleBtn = tr.querySelector('.subcon-group-toggle');
+        const exclBtn   = tr.querySelector('.subcon-group-excl');
+        if (toggleBtn) toggleBtn.textContent = collapsed ? '▶' : '▼';
+        if (exclBtn) {
+          exclBtn.textContent = excluded ? '含む' : '除外';
+          exclBtn.classList.toggle('is-excluded', excluded);
+        }
+        tr.classList.toggle('is-collapsed', collapsed);
+        tr.classList.toggle('is-excluded',  excluded);
+        return;
+      }
+      if (!tr.dataset.type) {
+        // データ行：sv 値でグループ判定
+        const sv        = _rowSubcon(tr) ?? '';
+        const key       = sv || _UNSET_KEY;
         const collapsed = _collapsedGroups.has(key);
         const excluded  = _excludedGroups.has(key);
-        tr.style.display        = collapsed ? 'none' : '';
-        tr.dataset.excluded     = excluded ? '1' : '';
+        tr.style.display    = collapsed ? 'none' : '';
+        tr.dataset.excluded = excluded ? '1' : '';
         tr.classList.toggle('row-excluded', excluded);
-      });
-    tbody.querySelectorAll('[data-virtual]').forEach(hdr => {
-      const key = hdr.dataset.svKey;
-      if (!key) return;
-      const collapsed = _collapsedGroups.has(key);
-      const excluded  = _excludedGroups.has(key);
-      const toggleBtn = hdr.querySelector('.subcon-group-toggle');
-      const exclBtn   = hdr.querySelector('.subcon-group-excl');
-      if (toggleBtn) toggleBtn.textContent = collapsed ? '▶' : '▼';
-      if (exclBtn) {
-        exclBtn.textContent = excluded ? '含む' : '除外';
-        exclBtn.classList.toggle('is-excluded', excluded);
+      } else if (tr.dataset.type === 'subtotal' || tr.dataset.type === 'remark') {
+        // 小計・リマーク行：DOM 上の位置で直前のグループに属する
+        if (currentKey !== null) {
+          const collapsed = _collapsedGroups.has(currentKey);
+          const excluded  = _excludedGroups.has(currentKey);
+          tr.style.display    = collapsed ? 'none' : '';
+          tr.dataset.excluded = excluded ? '1' : '';
+        } else {
+          tr.style.display    = '';
+          tr.dataset.excluded = '';
+        }
       }
-      hdr.classList.toggle('is-collapsed', collapsed);
-      hdr.classList.toggle('is-excluded',  excluded);
     });
   }
   // - 仮想 TR（data-virtual）を全削除してから再挿入
@@ -1010,9 +1027,9 @@
           addRowToSubconGroup(key === _UNSET_KEY ? '' : key);
         });
         tbody.insertBefore(hdr, firstRow);
-        // 折りたたみ状態を即時適用
-        groups[key].forEach(tr => { tr.style.display = collapsed ? 'none' : ''; });
       });
+      // 全行の折りたたみ・除外状態を適用（小計・リマーク行を含む）
+      _applyGroupStates();
     } finally {
       _inGroupRender = false;
     }
