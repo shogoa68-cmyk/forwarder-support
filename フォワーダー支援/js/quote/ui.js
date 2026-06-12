@@ -2039,6 +2039,10 @@
       if (document.getElementById('rowPatternModal')?.classList.contains('open')) { closeRowPatternMgr(); return; }
       if (document.getElementById('presetMgrModal')?.classList.contains('open')) { closePresetMgr(); return; }
       if (document.getElementById('previewOverlay')?.classList.contains('open')) { closePreview(); return; }
+      // 行選択モード中なら全選択解除
+      if (document.querySelector('#tableBody .row-select-chk:checked')) {
+        window.clearRowSelection?.(); return;
+      }
     }
   });
 
