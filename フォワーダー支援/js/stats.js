@@ -446,4 +446,10 @@
   window.statsPromote = async function (f, v) { await _promote(f, v); _renderActivePane(); };
   window.statsDemote  = async function (f, v) { await _demote(f, v);  _renderMaster(); };
 
+  window.statsToggleHelp = function () {
+    const p = document.getElementById('statsHelpPanel');
+    if (!p) return;
+    p.hidden = !p.hidden;
+  };
+
 })();
