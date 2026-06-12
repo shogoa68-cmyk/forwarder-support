@@ -123,7 +123,7 @@
 
     const filtered = _charges.filter(c => {
       if (q  && !(c.name||'').toLowerCase().includes(q)  && !(c.note||'').toLowerCase().includes(q))  return false;
-      if (pt && !(c.port||'').toLowerCase().includes(pt))    return false;
+      if (pt && !(c.pol||c.port||'').toLowerCase().includes(pt) && !(c.pod||'').toLowerCase().includes(pt)) return false;
       if (cr && !(c.carrier||'').toLowerCase().includes(cr)) return false;
       return true;
     });
@@ -136,16 +136,20 @@
     const catMap = Object.fromEntries(LC_CATS.map(c => [c.value, c.label]));
 
     let h = '<table class="lc-table"><thead><tr>' +
-            '<th>名称</th><th>カテゴリ</th><th>港/ターミナル</th><th>船会社</th>' +
+            '<th>名称</th><th>カテゴリ</th><th>積み港</th><th>揚げ港</th><th>船会社</th>' +
             '<th class="lc-num-col">金額</th><th>単位</th><th>適用開始</th><th>更新</th><th></th>' +
             '</tr></thead><tbody>';
     filtered.forEach(c => {
       const today = new Date().toISOString().slice(0, 10);
       const expired = c.valid_from && c.valid_from > today;
+      // 旧レコードは port フィールドを POL として表示（フォールバック）
+      const pol = c.pol || c.port || '—';
+      const pod = c.pod || '—';
       h += `<tr class="${expired ? 'lc-future' : ''}">` +
            `<td class="lc-name">${_esc(c.name)}</td>` +
            `<td class="lc-cat"><span class="lc-cat-badge lc-cat-${c.cat || 'other'}">${_esc(catMap[c.cat] || c.cat || '—')}</span></td>` +
-           `<td>${_esc(c.port || '—')}</td>` +
+           `<td>${_esc(pol)}</td>` +
+           `<td>${_esc(pod)}</td>` +
            `<td>${_esc(c.carrier || '—')}</td>` +
            `<td class="lc-num-col">${_fmtAmt(c.amount, c.currency)}</td>` +
            `<td>${_esc(c.unit || '—')}</td>` +
@@ -175,7 +179,8 @@
     set('lc_amount',     charge?.amount     ?? '');
     set('lc_currency',   charge?.currency   || 'JPY');
     set('lc_unit',       charge?.unit       || '');
-    set('lc_port',       charge?.port       || '');
+    set('lc_pol',        charge?.pol  || charge?.port || '');
+    set('lc_pod',        charge?.pod        || '');
     set('lc_carrier',    charge?.carrier    || '');
     set('lc_valid_from', charge?.valid_from ? _fmtDate(charge.valid_from) : '');
     set('lc_note',       charge?.note       || '');
@@ -202,7 +207,8 @@
       amount:     document.getElementById('lc_amount')?.value !== '' ? Number(document.getElementById('lc_amount').value) : null,
       currency:   g('lc_currency') || 'JPY',
       unit:       g('lc_unit'),
-      port:       g('lc_port'),
+      pol:        g('lc_pol'),
+      pod:        g('lc_pod'),
       carrier:    g('lc_carrier'),
       valid_from: g('lc_valid_from') || null,
       note:       g('lc_note'),
@@ -285,7 +291,7 @@
 
     const filtered = _pickerCharges.filter(c => {
       if (q  && !(c.name||'').toLowerCase().includes(q)  && !(c.note||'').toLowerCase().includes(q))  return false;
-      if (pt && !(c.port||'').toLowerCase().includes(pt))    return false;
+      if (pt && !(c.pol||c.port||'').toLowerCase().includes(pt) && !(c.pod||'').toLowerCase().includes(pt)) return false;
       if (cr && !(c.carrier||'').toLowerCase().includes(cr)) return false;
       return true;
     });
@@ -298,7 +304,7 @@
       h += `<label class="lc-pick-row${_selected.has(c.id) ? ' selected' : ''}">` +
            `<input type="checkbox" class="lc-pick-chk" value="${c.id}" ${chk} onchange="lcPickToggle('${c.id}')">` +
            `<span class="lc-pick-name">${_esc(c.name)}</span>` +
-           `<span class="lc-pick-meta">${_esc([c.port, c.carrier].filter(Boolean).join(' / ') || '')}</span>` +
+           `<span class="lc-pick-meta">${_esc([(c.pol||c.port), c.pod, c.carrier].filter(Boolean).join(' / ') || '')}</span>` +
            `<span class="lc-pick-amt">${_fmtAmt(c.amount, c.currency)}${c.unit ? ' / ' + _esc(c.unit) : ''}</span>` +
            `</label>`;
     });

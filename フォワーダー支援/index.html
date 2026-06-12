@@ -277,7 +277,7 @@
 
       <div class="lc-filters">
         <input id="lcFilterText"    class="lc-filter-input" type="text" placeholder="🔍 名称・備考で検索"  oninput="lcRender()">
-        <input id="lcFilterPort"    class="lc-filter-input" type="text" placeholder="🏯 港・ターミナル"   oninput="lcRender()">
+        <input id="lcFilterPort"    class="lc-filter-input" type="text" placeholder="🏯 積み港/揚げ港"   oninput="lcRender()">
         <input id="lcFilterCarrier" class="lc-filter-input" type="text" placeholder="🚢 船会社"          oninput="lcRender()">
       </div>
 
@@ -3997,8 +3997,12 @@
         <select id="lc_unit"     class="lc-form-select lc-form-select--unit"></select>
       </div>
       <div class="lc-form-row">
-        <label class="lc-form-label">港・ターミナル</label>
-        <input id="lc_port" class="lc-form-input" type="text" placeholder="例: 東京港、横浜港、TPICT">
+        <label class="lc-form-label">積み港（POL）</label>
+        <input id="lc_pol" class="lc-form-input" type="text" placeholder="例: 東京港、横浜港、TPICT">
+      </div>
+      <div class="lc-form-row">
+        <label class="lc-form-label">揚げ港（POD）</label>
+        <input id="lc_pod" class="lc-form-input" type="text" placeholder="例: USLAX、Shanghai、Hamburg">
       </div>
       <div class="lc-form-row">
         <label class="lc-form-label">船会社</label>
@@ -4034,7 +4038,7 @@
       </div>
       <div class="lc-picker-filters">
         <input id="lcPickText"    class="lc-filter-input" type="text" placeholder="🔍 検索"     oninput="lcPickerRender()">
-        <input id="lcPickPort"    class="lc-filter-input" type="text" placeholder="🏯 港"       oninput="lcPickerRender()">
+        <input id="lcPickPort"    class="lc-filter-input" type="text" placeholder="🏯 積み港/揚げ港" oninput="lcPickerRender()">
         <input id="lcPickCarrier" class="lc-filter-input" type="text" placeholder="🚢 船会社"   oninput="lcPickerRender()">
       </div>
     </div>
