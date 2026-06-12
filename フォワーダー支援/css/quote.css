@@ -5130,6 +5130,8 @@ body.qp-dash-active #quoteActionDock { display: none !important; }
 #tab-quote-make .btn-sort-cat,
 #tab-quote-make .btn-clean-empty,
 #tab-quote-make .btn-bulk-copy,
+#tab-quote-make .btn-bulk-clip,
+#tab-quote-make .btn-bulk-paste,
 #tab-quote-make .btn-bulk-delete,
 #tab-quote-make .btn-preview,
 #tab-quote-make .btn-csv-import,
@@ -5165,8 +5167,23 @@ body.qp-dash-active #quoteActionDock { display: none !important; }
 #tab-quote-make .btn-sort-cat { background: #f0f0ff; border-color: #d9cfc2; color: #7d6b56; }
 #tab-quote-make .btn-clean-empty { background: #fff8e6; border-color: #f0d080; color: #7a6000; }
 #tab-quote-make .btn-subtotal { background: #efffef; border-color: #9dcf9d; color: #5a6e42; }
-#tab-quote-make .btn-bulk-copy { background: #faf7f2; border-color: #d9cfc2; color: #2d2418; }
+#tab-quote-make .btn-bulk-copy  { background: #faf7f2; border-color: #d9cfc2; color: #2d2418; }
+#tab-quote-make .btn-bulk-clip  { background: #e8f4e8; border-color: #9cca9c; color: #3a6030; }
+#tab-quote-make .btn-bulk-clip:hover  { background: #d4eccc; }
+#tab-quote-make .btn-bulk-paste { background: #e8eeff; border-color: #99aadd; color: #334499; }
+#tab-quote-make .btn-bulk-paste:hover:not(:disabled) { background: #d0daff; }
+#tab-quote-make .btn-bulk-paste:disabled { opacity: 0.4; cursor: not-allowed; }
 #tab-quote-make .btn-bulk-delete { background: #fff0f0; border-color: #f0b0b0; color: #c00; }
+/* クリップボードインジケーター（cmdbar-main 右端、保持中のみ表示） */
+#tab-quote-make .cmdbar-clipboard-indicator {
+  display: inline-flex; align-items: center; gap: 3px;
+  background: #fff3cc; border: 1px solid #e8c84a; color: #6b5000;
+  border-radius: 12px; padding: 3px 10px; font-size: 11px; font-weight: 600;
+  cursor: pointer; white-space: nowrap; line-height: 1;
+  transition: background 0.15s;
+}
+#tab-quote-make .cmdbar-clipboard-indicator:hover { background: #ffe8a0; }
+#tab-quote-make .cmdbar-clipboard-indicator[hidden] { display: none; }
 #tab-quote-make .btn-bulk-cat,
 #tab-quote-make .btn-bulk-cat-pick {
   border: 1px solid #a8947e;
@@ -5243,6 +5260,8 @@ body.qp-dash-active #quoteActionDock { display: none !important; }
 #tab-quote-make .btn-clean-empty:hover,
 #tab-quote-make .btn-subtotal:hover,
 #tab-quote-make .btn-bulk-copy:hover,
+#tab-quote-make .btn-bulk-clip:hover,
+#tab-quote-make .btn-bulk-paste:hover:not(:disabled),
 #tab-quote-make .btn-bulk-delete:hover,
 #tab-quote-make .btn-preview:hover,
 #tab-quote-make .btn-csv-import:hover,
