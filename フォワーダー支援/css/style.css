@@ -2429,6 +2429,7 @@ body:has(#compareOverlay.open) #quoteActionDock { display: none; }
 .lc-table td { padding: 8px 10px; border-bottom: 1px solid #ede3d2; vertical-align: middle; }
 .lc-table tbody tr:hover { background: #faf6ef; }
 .lc-name  { font-weight: 600; }
+.lc-name-sub { font-size: 11px; font-weight: 400; color: #8a7a6a; margin-top: 2px; }
 .lc-num-col { text-align: right; font-variant-numeric: tabular-nums; color: #1a5c3a; font-weight: 600; }
 .lc-date  { font-size: 11px; color: #7a6a5a; white-space: nowrap; }
 .lc-ops   { white-space: nowrap; }
@@ -2514,6 +2515,12 @@ body:has(#compareOverlay.open) #quoteActionDock { display: none; }
 }
 .lc-form-select--cur  { width: 80px; }
 .lc-form-select--unit { width: 90px; }
+.lc-form-textarea {
+  resize: vertical;
+  min-height: 64px;
+  line-height: 1.5;
+  font-size: 13px;
+}
 
 /* ピッカーモーダル */
 .lc-picker-box {
@@ -2538,8 +2545,10 @@ body:has(#compareOverlay.open) #quoteActionDock { display: none; }
 .lc-pick-row:hover  { background: #faf6ef; }
 .lc-pick-row.selected { background: #fef3c7; border-color: #f59e0b; }
 .lc-pick-chk { flex-shrink: 0; width: 16px; height: 16px; cursor: pointer; accent-color: #d97706; }
-.lc-pick-name { flex: 1; font-weight: 600; font-size: 13px; color: #2a1e10; }
-.lc-pick-meta { font-size: 11px; color: #7a6a5a; white-space: nowrap; }
+.lc-pick-name { flex: 1; font-weight: 600; font-size: 13px; color: #2a1e10; display: flex; flex-direction: column; gap: 1px; }
+.lc-pick-fullname { font-size: 11px; font-weight: 400; color: #6a5a4a; }
+.lc-pick-meta { font-size: 11px; color: #7a6a5a; display: flex; flex-direction: column; gap: 1px; align-items: flex-end; text-align: right; }
+.lc-pick-desc { font-size: 10px; color: #9a8a7a; font-weight: 400; white-space: normal; max-width: 200px; text-align: right; }
 .lc-pick-amt  { font-size: 12px; color: #1a5c3a; font-weight: 600; white-space: nowrap; }
 .lc-picker-footer {
   display: flex; align-items: center; gap: 10px; padding: 12px 16px;

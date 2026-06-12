@@ -122,7 +122,8 @@
     const cr  = (document.getElementById('lcFilterCarrier')?.value|| '').toLowerCase();
 
     const filtered = _charges.filter(c => {
-      if (q  && !(c.name||'').toLowerCase().includes(q)  && !(c.note||'').toLowerCase().includes(q))  return false;
+      if (q  && !(c.name||'').toLowerCase().includes(q) && !(c.note||'').toLowerCase().includes(q)
+             && !(c.full_name||'').toLowerCase().includes(q) && !(c.description||'').toLowerCase().includes(q)) return false;
       if (pt && !(c.pol||c.port||'').toLowerCase().includes(pt) && !(c.pod||'').toLowerCase().includes(pt)) return false;
       if (cr && !(c.carrier||'').toLowerCase().includes(cr)) return false;
       return true;
@@ -145,8 +146,11 @@
       // 旧レコードは port フィールドを POL として表示（フォールバック）
       const pol = c.pol || c.port || '—';
       const pod = c.pod || '—';
+      const descTitle = c.description ? ` title="${String(c.description).replace(/"/g,'&quot;')}"` : '';
       h += `<tr class="${expired ? 'lc-future' : ''}">` +
-           `<td class="lc-name">${_esc(c.name)}</td>` +
+           `<td class="lc-name"${descTitle}>${_esc(c.name)}` +
+           (c.full_name ? `<div class="lc-name-sub">${_esc(c.full_name)}</div>` : '') +
+           `</td>` +
            `<td class="lc-cat"><span class="lc-cat-badge lc-cat-${c.cat || 'other'}">${_esc(catMap[c.cat] || c.cat || '—')}</span></td>` +
            `<td>${_esc(pol)}</td>` +
            `<td>${_esc(pod)}</td>` +
@@ -174,7 +178,11 @@
     document.getElementById('lcFormTitle').textContent = charge ? 'チャージを編集' : '新規チャージ登録';
 
     const set = (elId, val) => { const e = document.getElementById(elId); if (e) e.value = val || ''; };
-    set('lc_name',       charge?.name       || '');
+    set('lc_name',        charge?.name        || '');
+    set('lc_full_name',   charge?.full_name   || '');
+    // textarea は value setter を使う
+    const descEl = document.getElementById('lc_description');
+    if (descEl) descEl.value = charge?.description || '';
     set('lc_cat',        charge?.cat        || (_dir === 'export' ? 'export-local' : 'import-local'));
     set('lc_amount',     charge?.amount     ?? '');
     set('lc_currency',   charge?.currency   || 'JPY');
@@ -200,10 +208,12 @@
     if (!name) { alert('名称は必須です'); return; }
 
     const row = {
-      id:         _editId || undefined,
-      direction:  _dir,
+      id:          _editId || undefined,
+      direction:   _dir,
       name,
-      cat:        g('lc_cat'),
+      full_name:   g('lc_full_name'),
+      description: (document.getElementById('lc_description')?.value || '').trim(),
+      cat:         g('lc_cat'),
       amount:     document.getElementById('lc_amount')?.value !== '' ? Number(document.getElementById('lc_amount').value) : null,
       currency:   g('lc_currency') || 'JPY',
       unit:       g('lc_unit'),
@@ -290,7 +300,8 @@
     const cr = (document.getElementById('lcPickCarrier')?.value|| '').toLowerCase();
 
     const filtered = _pickerCharges.filter(c => {
-      if (q  && !(c.name||'').toLowerCase().includes(q)  && !(c.note||'').toLowerCase().includes(q))  return false;
+      if (q  && !(c.name||'').toLowerCase().includes(q) && !(c.note||'').toLowerCase().includes(q)
+             && !(c.full_name||'').toLowerCase().includes(q) && !(c.description||'').toLowerCase().includes(q)) return false;
       if (pt && !(c.pol||c.port||'').toLowerCase().includes(pt) && !(c.pod||'').toLowerCase().includes(pt)) return false;
       if (cr && !(c.carrier||'').toLowerCase().includes(cr)) return false;
       return true;
@@ -303,8 +314,8 @@
       const chk = _selected.has(c.id) ? 'checked' : '';
       h += `<label class="lc-pick-row${_selected.has(c.id) ? ' selected' : ''}">` +
            `<input type="checkbox" class="lc-pick-chk" value="${c.id}" ${chk} onchange="lcPickToggle('${c.id}')">` +
-           `<span class="lc-pick-name">${_esc(c.name)}</span>` +
-           `<span class="lc-pick-meta">${_esc([(c.pol||c.port), c.pod, c.carrier].filter(Boolean).join(' / ') || '')}</span>` +
+           `<span class="lc-pick-name">${_esc(c.name)}${c.full_name ? `<span class="lc-pick-fullname">${_esc(c.full_name)}</span>` : ''}</span>` +
+           `<span class="lc-pick-meta">${_esc([(c.pol||c.port), c.pod, c.carrier].filter(Boolean).join(' / ') || '')}${c.description ? `<span class="lc-pick-desc">${_esc(c.description.slice(0, 60))}${c.description.length > 60 ? '…' : ''}</span>` : ''}</span>` +
            `<span class="lc-pick-amt">${_fmtAmt(c.amount, c.currency)}${c.unit ? ' / ' + _esc(c.unit) : ''}</span>` +
            `</label>`;
     });
