@@ -474,6 +474,12 @@
     // テーブル行復元（通常行・小計行・リマーク行を含む）
     _rebuildTable(data);
     _restoreUiState(data.fields);
+    // 保存時の為替レートを復元（スナップショット）
+    if (data.fxSnapshot?.rates && Object.keys(data.fxSnapshot.rates).length) {
+      _fxRates = { ...DEFAULT_FX_RATES, ...data.fxSnapshot.rates };
+      saveFxRates();
+      if (data.fxSnapshot.ts) localStorage.setItem(SharedStorage.KEYS.FX_LAST_FETCHED, data.fxSnapshot.ts);
+    }
     updateTotals();
     updateRouteModeIcon();
     if (typeof syncHazmatPanel === 'function') syncHazmatPanel();
@@ -508,6 +514,12 @@
     // テーブル行復元（通常行・小計行・リマーク行を含む）
     _rebuildTable(data);
     _restoreUiState(data.fields);
+    // 保存時の為替レートを復元（スナップショット）
+    if (data.fxSnapshot?.rates && Object.keys(data.fxSnapshot.rates).length) {
+      _fxRates = { ...DEFAULT_FX_RATES, ...data.fxSnapshot.rates };
+      saveFxRates();
+      if (data.fxSnapshot.ts) localStorage.setItem(SharedStorage.KEYS.FX_LAST_FETCHED, data.fxSnapshot.ts);
+    }
     updateTotals();
     updateRouteModeIcon();
     showSaveStatus('📂 読み込みました');
