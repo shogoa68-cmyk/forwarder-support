@@ -51,13 +51,13 @@
   <div class="cat-nav" role="tablist" aria-label="カテゴリ">
     <button class="cat-btn cat-btn-featured active" role="tab" aria-selected="true"  onclick="switchCategory('quote',  this)">💼 見積</button>
     <button class="cat-btn cat-btn-featured"        role="tab" aria-selected="false" onclick="switchCategory('stats',   this)">📊 統計</button>
+    <button class="cat-btn"        role="tab" aria-selected="false" onclick="switchCategory('cost', this)">💴 ローカルチャージ</button>
     <button class="cat-btn cat-btn-bookmark" role="tab" aria-selected="false" onclick="switchCategory('bookmark', this)">🔖 BOOKMARK</button>
     <button class="cat-btn"        role="tab" aria-selected="false" onclick="switchCategory('vessel', this)">🚢 本船・航路</button>
     <button class="cat-btn"        role="tab" aria-selected="false" title="Booking（船腹予約）と S/I（Shipping Instruction：船積指図書）の手続き" onclick="switchCategory('booking', this)">📋 Booking/SI</button>
     <button class="cat-btn"        role="tab" aria-selected="false" onclick="switchCategory('docs',   this)">📄 書類・通関</button>
     <button class="cat-btn"        role="tab" aria-selected="false" onclick="switchCategory('calc',   this)">🧮 計算</button>
     <button class="cat-btn"        role="tab" aria-selected="false" onclick="switchCategory('ref',    this)">📚 知識・参考</button>
-    <button class="cat-btn" role="tab" aria-selected="false" onclick="switchCategory('cost', this)">💴 ローカルチャージ</button>
   </div>
 
   <!-- ===== サブタブナビ（下段・カテゴリー別） ===== -->
@@ -88,8 +88,8 @@
     <button class="tab-btn" role="tab" aria-selected="false" onclick="switchTab('insurance',  this)">🛡️ 海上貨物保険</button>
     <button class="tab-btn" role="tab" aria-selected="false" onclick="switchTab('blclause',   this)">📜 BL約款</button>
   </div>
-  <div class="tab-nav sub-nav active" id="sub-quote" role="tablist" aria-label="quote サブタブ">
-    <button class="tab-btn active" role="tab" aria-selected="true" onclick="switchTab('quote-make', this)">💼 見積作成</button>
+  <div class="tab-nav sub-nav" id="sub-quote" role="tablist" aria-label="quote サブタブ">
+    <!-- サブタブなし：switchCategory で直接 tab-quote-make を表示 -->
   </div>
   <div class="tab-nav sub-nav" id="sub-stats" role="tablist" aria-label="stats サブタブ">
     <!-- サブタブなし：switchCategory で直接 tab-stats を表示 -->
@@ -1986,7 +1986,10 @@
       <div class="qpd-main" id="qpdMain" hidden>
         <div class="qpd-stats" id="qpdStats"></div>
         <div class="qpd-tools">
-          <input type="text" id="qpdSearch" class="qpd-search" placeholder="🔍 案件名・お客様名・担当者で検索" oninput="cloudSearchInput(this.value)" />
+          <div class="qpd-search-wrap">
+            <input type="text" id="qpdSearch" class="qpd-search" placeholder="🔍 案件名・お客様名・担当者で検索" oninput="cloudSearchInput(this.value)" />
+            <button type="button" class="qpd-search-clear" id="qpdSearchClear" hidden onclick="qpdClearSearch()" title="検索をクリア">✕</button>
+          </div>
           <div class="qpd-tools-row">
             <button type="button" class="qpd-adv-toggle" id="qpdAdvToggle" onclick="qpdToggleAdv()">🔎 詳細検索 ▶</button>
             <label class="qpd-sort">並び替え
@@ -3178,6 +3181,7 @@
                 <span>Tabで行追加</span>
               </label>
               <span class="cmdbar-spacer"></span>
+              <button id="clipboardIndicator" class="cmdbar-clipboard-indicator" hidden onclick="clearRowClipboard()" title="クリップボードをクリア">📋 <span id="clipIndicatorCount">0</span>行 ✕</button>
               <details class="cmdbar-more" id="cmdbarMore">
                 <summary class="cmdbar-more-summary" title="その他の操作（配置は検討中）">⋯</summary>
                 <div class="cmdbar-more-pop">
@@ -3252,7 +3256,9 @@
             <!-- 文脈バー：行を選択中のみ表示（案C） -->
             <div class="cmdbar-context" id="cmdbarContext" hidden>
               <span class="ctx-count" id="ctxSelCount">選択中</span>
-              <button class="btn-bulk-copy"   onclick="copySelectedRows()" title="チェックした行を複製">📋 コピー</button>
+              <button class="btn-bulk-copy"   onclick="copySelectedRows()" title="チェックした行を選択行の直下に複製">📋 コピー</button>
+              <button class="btn-bulk-clip"   onclick="copyRowsToClipboard()" title="チェックした行をクリップボードに保持（後から任意の位置に貼り付け）">📋 保持</button>
+              <button class="btn-bulk-paste"  id="btnPasteClipboard" onclick="pasteClipboardRows()" title="クリップボードの行を選択行の前に挿入（未選択時は末尾に追加）" disabled>📌 貼付</button>
               <button class="btn-bulk-delete" onclick="deleteSelectedRows()" title="チェックした行を削除">🗑️ 削除</button>
               <span class="ctx-sep" aria-hidden="true">|</span>
               <select id="bulkCatSet" class="bulk-cat-select" onchange="applyBulkCategorySet(this)" title="チェックした行のカテゴリを一括設定"></select>

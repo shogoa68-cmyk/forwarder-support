@@ -1108,6 +1108,100 @@
   window.toggleSubconGroup    = toggleSubconGroup;
   window.toggleSubconExclude  = toggleSubconExclude;
 
+  // ========== 行クリップボード（任意位置貼り付け） ==========
+  let _rowClipboard = [];
+
+  function _gatherRowData(id) {
+    const data = {};
+    ['nm','pq','un','pp','mk','nt','sv','zc','cat','pc','bc'].forEach(f => {
+      const el = document.getElementById(`${f}-${id}`);
+      if (el) data[f] = el.value;
+    });
+    data.tx = !!document.getElementById(`tx-${id}`)?.checked;
+    return data;
+  }
+
+  function _pasteOneRow(data, insertBefore) {
+    rowCount++;
+    const newId = rowCount;
+    const newTr = document.createElement('tr');
+    newTr.id = `row-${newId}`;
+    newTr.replaceChildren(buildRowHTML(newId, data.cat || '', data.pc || 'JPY', data.sv || ''));
+    const tbody = document.getElementById('tableBody');
+    if (insertBefore?.parentNode === tbody) {
+      tbody.insertBefore(newTr, insertBefore);
+    } else {
+      tbody.appendChild(newTr);
+    }
+    ['nm','pq','un','pp','mk','nt','zc'].forEach(f => {
+      const el = document.getElementById(`${f}-${newId}`);
+      if (el && data[f] !== undefined) el.value = data[f];
+    });
+    ['cat','pc','bc'].forEach(f => {
+      const el = document.getElementById(`${f}-${newId}`);
+      if (el && data[f] !== undefined) el.value = data[f];
+    });
+    initDrag(newTr);
+    onCatChange(newId);
+    if (data.tx) toggleTax(newId);
+    checkUnfilled(newId);
+    onPay(newId);
+    return newId;
+  }
+
+  function _syncClipboardUI() {
+    const count = _rowClipboard.length;
+    const ind = document.getElementById('clipboardIndicator');
+    if (ind) {
+      ind.hidden = count === 0;
+      const cnt = document.getElementById('clipIndicatorCount');
+      if (cnt) cnt.textContent = count;
+    }
+    const pasteBtn = document.getElementById('btnPasteClipboard');
+    if (pasteBtn) pasteBtn.disabled = count === 0;
+  }
+
+  window.copyRowsToClipboard = function () {
+    const checkboxes = document.querySelectorAll('.row-select-chk:checked');
+    if (!checkboxes.length) {
+      quoteShowToast('⚠️ コピーしたい行のチェックボックスにチェックを入れてください', 'warn', 3000);
+      return;
+    }
+    const srcRows = Array.from(checkboxes)
+      .map(chk => chk.closest('tr'))
+      .filter(tr => tr && !tr.dataset.type);
+    if (!srcRows.length) {
+      quoteShowToast('⚠️ 小計行・リマーク行はコピーできません。通常行を選択してください', 'warn', 3000);
+      return;
+    }
+    _rowClipboard = srcRows.map(tr => _gatherRowData(tr.id.replace('row-', ''))).filter(Boolean);
+    _syncClipboardUI();
+    quoteShowToast(`📋 ${_rowClipboard.length}行を保持しました。挿入したい行を選択して「📌 貼付」を押してください`, 'success', 4000);
+  };
+
+  window.pasteClipboardRows = function () {
+    if (!_rowClipboard.length) {
+      quoteShowToast('⚠️ クリップボードが空です。先に行を選択して「📋 保持」してください', 'warn', 3000);
+      return;
+    }
+    const checkboxes = document.querySelectorAll('.row-select-chk:checked');
+    const insertBefore = checkboxes.length ? checkboxes[0].closest('tr') : null;
+    _rowClipboard.forEach(data => _pasteOneRow(data, insertBefore));
+    updateTotals();
+    quoteShowToast(`📌 ${_rowClipboard.length}行を貼り付けました`, 'success');
+    _rowClipboard = [];
+    _syncClipboardUI();
+    window.refreshRowSelectionMode?.();
+  };
+
+  window.clearRowClipboard = function () {
+    _rowClipboard = [];
+    _syncClipboardUI();
+    quoteShowToast('クリップボードをクリアしました', 'info', 2000);
+  };
+
+  window.syncClipboardUI = _syncClipboardUI;
+
   // ローカルチャージから見積行を一括追加（local-charges.js から呼ぶ）
   window.addChargeRows = function (charges) {
     if (!charges || !charges.length) return;
