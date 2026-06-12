@@ -878,10 +878,10 @@
     try { localStorage.setItem(REF_SEQ_KEY, JSON.stringify(st)); } catch (e) {}
     return st.seq;
   }
-  // 11桁（ID2＋YYMMDD＋連番3）を区切り表示に整形：05-2606100-02
+  // 11桁（ID2＋YYMMDD＋連番3）を区切り表示に整形：05-260612-001
   function _formatRef(raw) {
     if (!raw || raw.length < 11) return raw;
-    return raw.slice(0, 2) + '-' + raw.slice(2, 9) + '-' + raw.slice(9);
+    return raw.slice(0, 2) + '-' + raw.slice(2, 8) + '-' + raw.slice(8);
   }
   function generateQuoteRefValue() {
     const no = window._myMemberNo;
