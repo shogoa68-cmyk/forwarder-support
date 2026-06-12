@@ -826,6 +826,7 @@
     if (typeof window.renderQuoteCargoInfo === 'function') window.renderQuoteCargoInfo();
     if (typeof window.updateSectionSummaries === 'function') window.updateSectionSummaries();
     _syncContainerLinkedRows();
+    _refreshContainerUnitSuggestions();
     if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
   };
   window.bumpContainerChip = function (btn, delta) {
@@ -845,12 +846,33 @@
     document.querySelectorAll('#tableBody tr[data-cnt-link="1"]').forEach(tr => {
       const id = tr.id.replace('row-', '');
       const pqEl = document.getElementById(`pq-${id}`);
-      if (!pqEl || pqEl.value == total) return;
-      pqEl.value = total;
+      if (!pqEl) return;
+      // 単位がコンテナタイプと一致すればそのタイプの本数、それ以外は合計本数
+      const unit = document.getElementById(`un-${id}`)?.value?.trim() || '';
+      const matched = _containerEntries.find(e => e.type === unit);
+      const qty = matched ? matched.count : total;
+      if (pqEl.value == qty) return;
+      pqEl.value = qty;
       pqEl.dispatchEvent(new Event('input', { bubbles: true }));
       updated++;
     });
     if (updated && typeof scheduleAutoSave === 'function') scheduleAutoSave();
+  }
+
+  // unit-list datalist にアクティブなコンテナタイプ名を追加
+  function _refreshContainerUnitSuggestions() {
+    const dl = document.getElementById('unit-list');
+    if (!dl) return;
+    // 既存のコンテナ由来 option を削除
+    dl.querySelectorAll('option[data-cnt-type]').forEach(o => o.remove());
+    // 本数が設定されているタイプを追加
+    _containerEntries.forEach(e => {
+      if (!e.type || !e.count) return;
+      const opt = document.createElement('option');
+      opt.value = e.type;
+      opt.dataset.cntType = '1';
+      dl.appendChild(opt);
+    });
   }
 
   window.toggleCntLink = function (btn) {
