@@ -522,10 +522,29 @@
 #tab-quote-make .row-move-btn:hover { background: #8b6914; color: #fff; border-color: #8b6914; }
 #tab-quote-make .row-move-btn:active { background: #8b6914; }
 #tab-quote-make td.handle-cell {
-  width: 32px;
+  width: 44px;
   background: #eaf2f8;
   padding: 3px 2px;
   text-align: center;
+}
+/* コンテナ連動ボタン */
+#tab-quote-make .cnt-link-btn {
+  display: none;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 12px;
+  padding: 1px 2px;
+  border-radius: 3px;
+  color: #bbb;
+  line-height: 1;
+  vertical-align: middle;
+}
+#tab-quote-make tr:hover .cnt-link-btn { display: inline-block; }
+#tab-quote-make tr[data-cnt-link="1"] .cnt-link-btn { display: inline-block; color: #e67e22; }
+#tab-quote-make tr[data-cnt-link="1"] [data-field="pq"] {
+  border-color: #e67e22;
+  background: #fffbf0;
 }
 #tab-quote-make tr:hover td.handle-cell { background: #f0e8d8; }
 /* 行ホバー時にハンドルがチカっと光る */

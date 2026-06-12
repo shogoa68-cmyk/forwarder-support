@@ -3284,7 +3284,7 @@
                          style="width:13px;height:13px;cursor:pointer;margin:0;"
                          onclick="toggleSelectAll(this.checked)" />
                 </th>
-                <th class="hd-base" style="width:26px;"></th>
+                <th class="hd-base" style="width:44px;"></th>
                 <th class="hd-base hd-catsv" style="width:104px;" title="上段＝カテゴリ、下段＝サブコン（協力会社・下請け業者名）">カテゴリ<br><small class="hd-sub">／サブコン</small></th>
                 <th class="hd-base" style="width:188px;">項目名<br><small class="hd-sub">／備考</small></th>
                 <th class="hd-base" style="width:65px;">数量·単位</th>
@@ -3537,6 +3537,7 @@
       </td>
       <td class="handle-cell">
         <span class="drag-handle" title="ドラッグして並び替え">⠿</span>
+        <button class="cnt-link-btn" onclick="window.toggleCntLink?.(this)" title="コンテナ本数に数量を連動（FCL）" tabindex="-1">⛓</button>
       </td>
       <td class="catsv-cell stk-cell">
         <div class="stk">
@@ -3602,6 +3603,7 @@
       </select>
       <button class="stats-refresh-btn" onclick="statsRefresh()">🔄 集計</button>
       <span id="statsCloudStatus" class="stats-cloud-off">💾 ローカル投票</span>
+      <button class="stats-help-toggle" onclick="statsToggleHelp()">? 使い方</button>
     </div>
 
     <div class="stats-summary-cards">
@@ -3623,21 +3625,87 @@
       </div>
     </div>
 
-    <div class="stats-tabs">
-      <button class="stats-tab-btn is-active" id="statsTabBtn-sv"      onclick="statsSetPane('sv')">🏢 サブコン</button>
-      <button class="stats-tab-btn"           id="statsTabBtn-carrier" onclick="statsSetPane('carrier')">🚢 キャリア</button>
-      <button class="stats-tab-btn"           id="statsTabBtn-nm"      onclick="statsSetPane('nm')">📝 品名ゆらぎ</button>
-      <button class="stats-tab-btn"           id="statsTabBtn-un"      onclick="statsSetPane('un')">📐 単位</button>
-      <button class="stats-tab-btn"           id="statsTabBtn-master"  onclick="statsSetPane('master')">⭐ マスター管理</button>
-      <button class="stats-tab-btn"           id="statsTabBtn-alias"   onclick="statsSetPane('alias')">🔀 エイリアス是正</button>
+    <!-- ヘルプパネル -->
+    <div id="statsHelpPanel" class="stats-help-panel" hidden>
+      <div class="stats-help-header">
+        <span class="stats-help-title">📖 統計・マスター管理の使い方</span>
+        <button class="stats-help-close" onclick="statsToggleHelp()" title="閉じる">✕</button>
+      </div>
+      <div class="stats-help-steps">
+
+        <div class="stats-help-step">
+          <div class="stats-help-step-head">
+            <span class="stats-help-step-num">1</span>
+            <span class="stats-help-step-title">ゆらぎを確認する</span>
+          </div>
+          <p>🏢 サブコン・📝 品名ゆらぎ・📐 単位 の各タブで、表記を「読み方が同じもの」でグループ化して表示します。同じ意味なのに入力者によって表記が違うものがあれば <span class="sh-badge">ゆらぎ N種</span> バッジが付きます。</p>
+          <ul>
+            <li>バッジをクリック → エイリアス是正タブへジャンプ</li>
+            <li>チップの <strong>≠</strong> ボタン → 「別物として扱う」（ゆらぎ判定から除外）</li>
+          </ul>
+        </div>
+
+        <div class="stats-help-divider">›</div>
+
+        <div class="stats-help-step">
+          <div class="stats-help-step-head">
+            <span class="stats-help-step-num">2</span>
+            <span class="stats-help-step-title">正式表記をマスターに昇格</span>
+          </div>
+          <p>チップ右の <span class="sh-badge-green">☆ 昇格</span> ボタンで「この表記が正しい」と推薦できます。2票以上で <span class="sh-badge-gold">✅ マスター</span> に昇格します。</p>
+          <ul>
+            <li>クラウドログイン時はチーム全員の票数が合算される</li>
+            <li>⭐ マスター管理タブで一覧・投票取消ができる</li>
+            <li>マスター表記は見積入力時のサブコン補完候補に自動追加される</li>
+          </ul>
+        </div>
+
+        <div class="stats-help-divider">›</div>
+
+        <div class="stats-help-step">
+          <div class="stats-help-step-head">
+            <span class="stats-help-step-num">3</span>
+            <span class="stats-help-step-title">エイリアスルールで一括是正</span>
+          </div>
+          <p><span class="sh-badge">ゆらぎ N種</span> バッジをクリックすると「エイリアス是正」タブへジャンプし、⚡ショートカットが開きます。「＋ 登録」で <em>古い表記 → 正規形</em> のルールを保存し、「💾 ローカルに適用」または「☁️ クラウドに適用」を押すと既存プリセットを一括置換できます。</p>
+          <ul>
+            <li>ルールはローカル保存、クラウドログイン時は自動同期</li>
+            <li class="sh-warn">⚠️ 一括置換は元に戻せません。適用前に CSV/Excel でエクスポートを推奨します。</li>
+          </ul>
+        </div>
+
+      </div>
+      <div class="stats-help-flow">
+        <span class="sh-flow-label">流れ：</span>
+        <span class="sh-flow-item">ゆらぎ発見</span>
+        <span class="sh-flow-arrow">→</span>
+        <span class="sh-flow-item">☆ 投票 でマスター昇格</span>
+        <span class="sh-flow-arrow">→</span>
+        <span class="sh-flow-item">ゆらぎバッジ → ルール登録</span>
+        <span class="sh-flow-arrow">→</span>
+        <span class="sh-flow-item">一括置換 で過去データも是正</span>
+        <span class="sh-flow-arrow">→</span>
+        <span class="sh-flow-item">入力補完に反映</span>
+      </div>
     </div>
 
-    <div id="statsPane-sv"      class="stats-pane is-active"></div>
-    <div id="statsPane-carrier" class="stats-pane"></div>
-    <div id="statsPane-nm"      class="stats-pane"></div>
-    <div id="statsPane-un"      class="stats-pane"></div>
-    <div id="statsPane-master"  class="stats-pane"></div>
-    <div id="statsPane-alias"   class="stats-pane"></div>
+    <div class="stats-tabs">
+      <button class="stats-tab-btn is-active" id="statsTabBtn-sv"       onclick="statsSetPane('sv')">🏢 サブコン</button>
+      <button class="stats-tab-btn"           id="statsTabBtn-carrier"  onclick="statsSetPane('carrier')">🚢 キャリア</button>
+      <button class="stats-tab-btn"           id="statsTabBtn-customer" onclick="statsSetPane('customer')">👤 お客様</button>
+      <button class="stats-tab-btn"           id="statsTabBtn-nm"       onclick="statsSetPane('nm')">📝 品名ゆらぎ</button>
+      <button class="stats-tab-btn"           id="statsTabBtn-un"       onclick="statsSetPane('un')">📐 単位</button>
+      <button class="stats-tab-btn"           id="statsTabBtn-master"   onclick="statsSetPane('master')">⭐ マスター管理</button>
+      <button class="stats-tab-btn"           id="statsTabBtn-alias"    onclick="statsSetPane('alias')">🔀 エイリアス是正</button>
+    </div>
+
+    <div id="statsPane-sv"       class="stats-pane is-active"></div>
+    <div id="statsPane-carrier"  class="stats-pane"></div>
+    <div id="statsPane-customer" class="stats-pane"></div>
+    <div id="statsPane-nm"       class="stats-pane"></div>
+    <div id="statsPane-un"       class="stats-pane"></div>
+    <div id="statsPane-master"   class="stats-pane"></div>
+    <div id="statsPane-alias"    class="stats-pane"></div>
   </div>
 
   <!-- ===================== Tab: BOOKMARK ===================== -->

@@ -2067,6 +2067,24 @@ body:has(#compareOverlay.open) #quoteActionDock { display: none; }
 }
 .stats-demote-btn:hover { background: #f5ece0; }
 
+/* お客様タブ：ステータスチップ */
+.stats-st-chip {
+  display: inline-block;
+  border-radius: 10px;
+  padding: 2px 8px;
+  font-size: 11px;
+  font-weight: 600;
+  margin: 2px 3px 2px 0;
+  white-space: nowrap;
+}
+.stats-st--draft    { background: #eceff1; color: #607d8b; }
+.stats-st--sent     { background: #e3f0fa; color: #1c6fa6; }
+.stats-st--won      { background: #e6f4ea; color: #1e7e44; }
+.stats-st--lost     { background: #fdeaea; color: #c0392b; }
+.stats-st--declined { background: #f3e8ff; color: #6b21a8; }
+.stats-st--hold     { background: #fff4e0; color: #b45309; }
+.stats-empty-cell   { color: #bbb; font-style: italic; }
+
 .stats-empty {
   color: #9a8a78;
   font-size: 13px;
@@ -2221,6 +2239,142 @@ body:has(#compareOverlay.open) #quoteActionDock { display: none; }
 .ar-excl-section { margin-top: 24px; border-top: 1px solid #e8d8c0; padding-top: 14px; }
 .ar-excl-desc { color: #7a6040; font-size: 12px; margin: 4px 0 10px; }
 .ar-excl-table td:first-child { color: #8a7060; font-size: 12px; }
+
+/* ===================== 統計ヘルプパネル ===================== */
+.stats-help-toggle {
+  background: #f0e8d8;
+  border: 1px solid #c8b898;
+  border-radius: 14px;
+  color: #5a3e1b;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 4px 12px;
+  margin-left: auto;
+}
+.stats-help-toggle:hover { background: #e8d8c0; }
+
+.stats-help-panel {
+  background: #fdfaf5;
+  border: 1px solid #d8c898;
+  border-radius: 10px;
+  margin: 12px 0 8px;
+  padding: 16px 20px 18px;
+}
+.stats-help-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+.stats-help-title { font-size: 13px; font-weight: 700; color: #4a3800; }
+.stats-help-close {
+  background: none; border: none; cursor: pointer;
+  font-size: 14px; color: #a08040; padding: 0 4px; line-height: 1;
+}
+.stats-help-close:hover { color: #c84030; }
+
+.stats-help-steps {
+  display: flex;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+.stats-help-step {
+  flex: 1;
+  min-width: 200px;
+  background: #fff;
+  border: 1px solid #e8d8c0;
+  border-radius: 8px;
+  padding: 12px 14px;
+  font-size: 12px;
+  line-height: 1.65;
+}
+.stats-help-step-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.stats-help-step-num {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px; height: 22px;
+  border-radius: 50%;
+  background: #c97d2a;
+  color: #fff;
+  font-size: 12px; font-weight: 700;
+  flex-shrink: 0;
+}
+.stats-help-step-title { font-size: 13px; font-weight: 700; color: #3a2800; }
+.stats-help-step p { margin: 0 0 6px; color: #4a3800; }
+.stats-help-step ul { margin: 4px 0 0; padding-left: 16px; color: #5a4020; }
+.stats-help-step li { margin-bottom: 3px; }
+.stats-help-divider {
+  align-self: center;
+  font-size: 20px; font-weight: 700;
+  color: #c8b090;
+  padding: 0 4px;
+  flex-shrink: 0;
+}
+.sh-warn { color: #b45309 !important; font-weight: 500; }
+
+.sh-badge {
+  display: inline-block;
+  background: #fff3cd; color: #856404;
+  border: 1px solid #e8c84a;
+  border-radius: 10px;
+  padding: 0px 7px;
+  font-size: 11px; font-weight: 600;
+  vertical-align: middle;
+  white-space: nowrap;
+}
+.sh-badge-green {
+  display: inline-block;
+  background: #e8f5e9; color: #2e7d32;
+  border: 1px solid #a5d6a7;
+  border-radius: 10px;
+  padding: 0px 7px;
+  font-size: 11px; font-weight: 600;
+  vertical-align: middle;
+  white-space: nowrap;
+}
+.sh-badge-gold {
+  display: inline-block;
+  background: #fffde7; color: #c97d2a;
+  border: 1px solid #f9e04a;
+  border-radius: 10px;
+  padding: 0px 7px;
+  font-size: 11px; font-weight: 600;
+  vertical-align: middle;
+  white-space: nowrap;
+}
+
+.stats-help-flow {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 10px 14px;
+  background: #f8f0e0;
+  border-radius: 8px;
+}
+.sh-flow-label {
+  font-size: 11px; font-weight: 600; color: #7a5c30;
+  margin-right: 4px;
+  white-space: nowrap;
+}
+.sh-flow-item {
+  background: #fff;
+  border: 1px solid #d8c8a8;
+  border-radius: 20px;
+  padding: 4px 12px;
+  font-size: 11px; color: #4a3800; font-weight: 500;
+  white-space: nowrap;
+}
+.sh-flow-arrow { color: #c8a060; font-weight: 700; font-size: 14px; }
 
 /* ===================== ローカルチャージタブ ===================== */
 .lc-page { padding: 14px 18px 32px; max-width: 1100px; }
