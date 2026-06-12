@@ -86,7 +86,9 @@
   function _defaultPdfTitle() {
     const hdr = typeof getQuoteHeader === 'function' ? getQuoteHeader() : {};
     const safe = s => String(s || '').replace(/[\/\\:*?"<>|\t\n\r]/g, '_').replace(/_+/g, '_').trim().slice(0, 40);
-    const parts = [hdr.ref, hdr.customer, hdr.person].map(safe).filter(Boolean);
+    const personH = hdr.person && window.formatPersonWithHonorific
+      ? window.formatPersonWithHonorific(hdr.person) : (hdr.person || '');
+    const parts = [hdr.ref, hdr.customer, personH].map(safe).filter(Boolean);
     if (parts.length) return parts.join('_');
     const today = new Date().toLocaleDateString('sv', { timeZone: 'Asia/Tokyo' }).replace(/-/g, '');
     return '御見積書_' + today;
