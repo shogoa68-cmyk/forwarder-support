@@ -273,6 +273,12 @@
       addRow();
       const tr = tbody.lastElementChild;
       _applyCells(tr, cells);
+      // コンテナ連動フラグを復元
+      if (row.cntLink) {
+        tr.dataset.cntLink = '1';
+        const btn = tr.querySelector('.cnt-link-btn');
+        if (btn) { btn.classList.add('is-linked'); btn.title = '連動中（クリックで解除）'; }
+      }
       regularTrs.push(tr);
     });
     _afterRestoreRows(regularTrs, data.fields);
@@ -406,7 +412,9 @@
         const el = tr.querySelector(`[data-field="${f}"]`);
         cells.push(el ? (el.type === 'checkbox' ? el.checked : el.value) : '');
       });
-      rows.push({ _type: 'data', cells });
+      const rowObj = { _type: 'data', cells };
+      if (tr.dataset.cntLink === '1') rowObj.cntLink = true;
+      rows.push(rowObj);
     });
     // _rowFormat: v3 = 小計行・リマーク行を含む型付きオブジェクト配列
     return { fields, rows, ts: new Date().toISOString(), _rowFormat: 'v3-mixed-rows',
@@ -817,6 +825,7 @@
     });
     if (typeof window.renderQuoteCargoInfo === 'function') window.renderQuoteCargoInfo();
     if (typeof window.updateSectionSummaries === 'function') window.updateSectionSummaries();
+    _syncContainerLinkedRows();
     if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
   };
   window.bumpContainerChip = function (btn, delta) {
@@ -825,6 +834,40 @@
     const n = Math.max(0, (parseInt(input.value, 10) || 0) + delta);
     input.value = n > 0 ? n : '';
     window.setContainerChip(chip.dataset.ctype, n);
+  };
+
+  // ========== コンテナ本数 → 見積行数量 連動（FCL） ==========
+  function _syncContainerLinkedRows() {
+    if (_currentSeaSub !== 'fcl') return;
+    const total = _containerEntries.reduce((s, e) => s + (e.count || 0), 0);
+    if (!total) return;
+    let updated = 0;
+    document.querySelectorAll('#tableBody tr[data-cnt-link="1"]').forEach(tr => {
+      const id = tr.id.replace('row-', '');
+      const pqEl = document.getElementById(`pq-${id}`);
+      if (!pqEl || pqEl.value == total) return;
+      pqEl.value = total;
+      pqEl.dispatchEvent(new Event('input', { bubbles: true }));
+      updated++;
+    });
+    if (updated && typeof scheduleAutoSave === 'function') scheduleAutoSave();
+  }
+
+  window.toggleCntLink = function (btn) {
+    const tr = btn.closest('tr');
+    if (!tr) return;
+    const linked = tr.dataset.cntLink === '1';
+    if (linked) {
+      delete tr.dataset.cntLink;
+      btn.classList.remove('is-linked');
+      btn.title = 'コンテナ本数に数量を連動（FCL）';
+    } else {
+      tr.dataset.cntLink = '1';
+      btn.classList.add('is-linked');
+      btn.title = '連動中（クリックで解除）';
+      _syncContainerLinkedRows();
+    }
+    if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
   };
 
   // ===== コンテナ カテゴリ（ドライ／特殊）・サブ（RF／OT・FR）・追加仕様 =====
