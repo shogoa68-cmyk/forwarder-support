@@ -238,6 +238,68 @@
   function _renderNm()      { _renderGrouped(_data?.nmGroups      || [], 'nm', '品名',       'statsPane-nm'); }
   function _renderUn()      { _renderGrouped(_data?.unGroups      || [], 'un', '単位',       'statsPane-un'); }
 
+  // ===== お客様タブ =====
+  const _stCls = st => ({ '下書き中':'draft','提出済み':'sent','提示済み':'sent','受注':'won','失注':'lost','辞退':'declined','保留':'hold' }[st] || 'draft');
+
+  function _renderCustomer() {
+    const e = document.getElementById('statsPane-customer');
+    if (!e) return;
+    const source = document.getElementById('statsSource')?.value || 'both';
+    const metas = [];
+    if (source !== 'cloud') {
+      _getLocalPresets().forEach(p => {
+        const f = (p.data || {}).fields || {};
+        metas.push({
+          customer: (f['qf-customer'] || '').trim(),
+          person:   (f['qf-person']   || '').trim(),
+          status:   (f['qf-status']   || '').trim(),
+        });
+      });
+    }
+    if (source !== 'local') {
+      const cloud = typeof window.cloudGetAllRows === 'function' ? window.cloudGetAllRows() : [];
+      cloud.forEach(p => {
+        metas.push({
+          customer: (p.customer || '').trim(),
+          person:   (p.person   || '').trim(),
+          status:   (p.status   || '').trim(),
+        });
+      });
+    }
+    if (!metas.length) { e.innerHTML = '<p class="stats-empty">データなし</p>'; return; }
+
+    const map = new Map();
+    metas.forEach(m => {
+      const key = m.customer || '';
+      if (!map.has(key)) map.set(key, { customer: key, count: 0, persons: new Set(), statuses: [] });
+      const g = map.get(key);
+      g.count++;
+      if (m.person) g.persons.add(m.person);
+      if (m.status) g.statuses.push(m.status);
+    });
+    const groups = [...map.values()].sort((a, b) => b.count - a.count);
+
+    let h = '<table class="stats-table"><thead><tr>' +
+            '<th>お客様名</th><th class="stats-num-col">件数</th><th>担当者</th><th>ステータス</th>' +
+            '</tr></thead><tbody>';
+    groups.forEach(g => {
+      const persons = [...g.persons].join('、') || '—';
+      const stMap = {};
+      g.statuses.forEach(s => { stMap[s] = (stMap[s] || 0) + 1; });
+      const stHtml = Object.entries(stMap).length
+        ? Object.entries(stMap).sort((a, b) => b[1] - a[1])
+            .map(([s, n]) => `<span class="stats-st-chip stats-st--${_stCls(s)}">${_esc(s)} ${n}</span>`).join('')
+        : '—';
+      h += `<tr>` +
+           `<td class="stats-val">${_esc(g.customer) || '<span class="stats-empty-cell">（未入力）</span>'}</td>` +
+           `<td class="stats-num-col">${g.count}</td>` +
+           `<td>${_esc(persons)}</td>` +
+           `<td>${stHtml}</td>` +
+           `</tr>`;
+    });
+    e.innerHTML = h + '</tbody></table>';
+  }
+
   function _renderMaster() {
     const e = document.getElementById('statsPane-master');
     if (!e) return;
@@ -306,12 +368,13 @@
     const active = document.querySelector('#tab-stats .stats-pane.is-active');
     if (!active) return;
     const id = active.id.replace('statsPane-', '');
-    if      (id === 'sv')      _renderSv();
-    else if (id === 'carrier') _renderCarrier();
-    else if (id === 'nm')      _renderNm();
-    else if (id === 'un')      _renderUn();
-    else if (id === 'master')  _renderMaster();
-    else if (id === 'alias')   _renderAlias();
+    if      (id === 'sv')       _renderSv();
+    else if (id === 'carrier')  _renderCarrier();
+    else if (id === 'customer') _renderCustomer();
+    else if (id === 'nm')       _renderNm();
+    else if (id === 'un')       _renderUn();
+    else if (id === 'master')   _renderMaster();
+    else if (id === 'alias')    _renderAlias();
   }
 
   // === サブタブ切替 ===
@@ -322,12 +385,13 @@
     document.getElementById('statsTabBtn-' + paneId)?.classList.add('is-active');
     document.getElementById('statsPane-'   + paneId)?.classList.add('is-active');
     if (!_data) { _data = _build(document.getElementById('statsSource')?.value || 'both'); _updateSummary(); }
-    if      (paneId === 'sv')      _renderSv();
-    else if (paneId === 'carrier') _renderCarrier();
-    else if (paneId === 'nm')      _renderNm();
-    else if (paneId === 'un')      _renderUn();
-    else if (paneId === 'master')  _renderMaster();
-    else if (paneId === 'alias')   _renderAlias();
+    if      (paneId === 'sv')       _renderSv();
+    else if (paneId === 'carrier')  _renderCarrier();
+    else if (paneId === 'customer') _renderCustomer();
+    else if (paneId === 'nm')       _renderNm();
+    else if (paneId === 'un')       _renderUn();
+    else if (paneId === 'master')   _renderMaster();
+    else if (paneId === 'alias')    _renderAlias();
   }
 
   // === パブリック API ===

@@ -2067,6 +2067,24 @@ body:has(#compareOverlay.open) #quoteActionDock { display: none; }
 }
 .stats-demote-btn:hover { background: #f5ece0; }
 
+/* お客様タブ：ステータスチップ */
+.stats-st-chip {
+  display: inline-block;
+  border-radius: 10px;
+  padding: 2px 8px;
+  font-size: 11px;
+  font-weight: 600;
+  margin: 2px 3px 2px 0;
+  white-space: nowrap;
+}
+.stats-st--draft    { background: #eceff1; color: #607d8b; }
+.stats-st--sent     { background: #e3f0fa; color: #1c6fa6; }
+.stats-st--won      { background: #e6f4ea; color: #1e7e44; }
+.stats-st--lost     { background: #fdeaea; color: #c0392b; }
+.stats-st--declined { background: #f3e8ff; color: #6b21a8; }
+.stats-st--hold     { background: #fff4e0; color: #b45309; }
+.stats-empty-cell   { color: #bbb; font-style: italic; }
+
 .stats-empty {
   color: #9a8a78;
   font-size: 13px;
