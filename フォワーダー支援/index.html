@@ -1986,7 +1986,10 @@
       <div class="qpd-main" id="qpdMain" hidden>
         <div class="qpd-stats" id="qpdStats"></div>
         <div class="qpd-tools">
-          <input type="text" id="qpdSearch" class="qpd-search" placeholder="🔍 案件名・お客様名・担当者で検索" oninput="cloudSearchInput(this.value)" />
+          <div class="qpd-search-wrap">
+            <input type="text" id="qpdSearch" class="qpd-search" placeholder="🔍 案件名・お客様名・担当者で検索" oninput="cloudSearchInput(this.value)" />
+            <button type="button" class="qpd-search-clear" id="qpdSearchClear" hidden onclick="qpdClearSearch()" title="検索をクリア">✕</button>
+          </div>
           <div class="qpd-tools-row">
             <button type="button" class="qpd-adv-toggle" id="qpdAdvToggle" onclick="qpdToggleAdv()">🔎 詳細検索 ▶</button>
             <label class="qpd-sort">並び替え

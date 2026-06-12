@@ -3125,7 +3125,11 @@ body.qp-dash-active #quoteActionDock { display: none !important; }
 #qpDashboard [hidden] { display: none !important; }
 /* 検索＋ツール */
 #qpDashboard .qpd-tools { margin-bottom: 12px; display: flex; flex-direction: column; gap: 8px; }
-#qpDashboard .qpd-search { width: 100%; box-sizing: border-box; font-size: 13px; padding: 9px 12px; border: 1px solid #d9cfc2; border-radius: 8px; }
+#qpDashboard .qpd-search-wrap { position: relative; display: flex; align-items: center; }
+#qpDashboard .qpd-search { width: 100%; box-sizing: border-box; font-size: 13px; padding: 9px 36px 9px 12px; border: 1px solid #d9cfc2; border-radius: 8px; }
+#qpDashboard .qpd-search-clear { position: absolute; right: 8px; background: none; border: none; color: #aaa; font-size: 13px; cursor: pointer; padding: 4px 6px; border-radius: 4px; line-height: 1; }
+#qpDashboard .qpd-search-clear:hover { background: #f0e8d8; color: #5a4a35; }
+#qpDashboard .qpd-search-clear[hidden] { display: none; }
 #qpDashboard .qpd-tools-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 #qpDashboard .qpd-adv-toggle { background: #f3ecdd; border: 1px solid #d8ccb6; color: #6b5a42; border-radius: 7px; padding: 6px 12px; font-size: 12px; font-weight: 700; cursor: pointer; }
 #qpDashboard .qpd-adv-toggle:hover { background: #e9ddc4; }

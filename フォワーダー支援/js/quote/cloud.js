@@ -859,6 +859,17 @@
   // 検索ボックス入力
   function cloudSearchInput(val) {
     _cloudSearch = val || '';
+    const clr = document.getElementById('qpdSearchClear');
+    if (clr) clr.hidden = !_cloudSearch;
+    _applyCloudFilter();
+  }
+
+  function qpdClearSearch() {
+    _cloudSearch = '';
+    const inp = document.getElementById('qpdSearch');
+    if (inp) inp.value = '';
+    const clr = document.getElementById('qpdSearchClear');
+    if (clr) clr.hidden = true;
     _applyCloudFilter();
   }
 
@@ -1837,11 +1848,12 @@
   window.qpNewQuote        = qpNewQuote;
   window.qpDockAction      = qpDockAction;
   // ダッシュボード：詳細検索・並び替え・表示切替
-  window.qpdToggleAdv = qpdToggleAdv;
-  window.qpdApplyAdv  = qpdApplyAdv;
-  window.qpdClearAdv  = qpdClearAdv;
-  window.qpdSetSort   = qpdSetSort;
-  window.qpdSetView   = qpdSetView;
+  window.qpdToggleAdv   = qpdToggleAdv;
+  window.qpdApplyAdv    = qpdApplyAdv;
+  window.qpdClearAdv    = qpdClearAdv;
+  window.qpdClearSearch = qpdClearSearch;
+  window.qpdSetSort     = qpdSetSort;
+  window.qpdSetView     = qpdSetView;
 
   // ---------- 他モジュール（行パターン等）からのログイン情報参照用 ----------
   window.quoteCloudUser   = function () { return _cloudUser; };
