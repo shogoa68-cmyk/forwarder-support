@@ -1,11 +1,10 @@
-// ローカルチャージ管理・見積引用モジュール
+// 諸チャージ管理・見積引用モジュール
 (function () {
   'use strict';
 
   const TABLE    = 'local_charges';
-  const LOC_KEY  = 'localCharges_v1'; // localStorage fallback
+  const LOC_KEY  = 'localCharges_v1';
 
-  // quote カテゴリのうちローカルチャージに関連するもの
   const LC_CATS = [
     { value: '',               label: '— カテゴリ —' },
     { value: 'export-local',   label: '📤 輸出ローカルチャージ' },
@@ -21,10 +20,10 @@
   const LC_CURRENCIES = ['JPY', 'USD', 'EUR', 'CNY', 'SGD', 'HKD', 'GBP', 'AUD'];
   const LC_UNITS      = ['', '式', 'B/L', 'CNTR', '20ft', '40ft', 'R/T', 'CBM', 'kg', 'TON', 'pcs', 'shipment', 'DAY'];
 
-  let _dir     = 'export';  // 現在の方向タブ
-  let _charges = [];        // 読み込み済みチャージ一覧
-  let _editId  = null;      // 編集中レコードの id（null=新規）
-  let _pickDir = 'export';  // ピッカーの方向タブ
+  let _dir     = 'export';
+  let _charges = [];
+  let _editId  = null;
+  let _pickDir = 'export';
 
   // === Supabase / localStorage ===
 
@@ -63,7 +62,6 @@
       if (error) throw error;
       return data;
     }
-    // localStorage
     const all = JSON.parse(localStorage.getItem(LOC_KEY) || '[]');
     if (row.id) {
       const idx = all.findIndex(r => r.id === row.id);
@@ -82,9 +80,10 @@
     _saveLocal(all.filter(r => r.id !== id));
   }
 
-  // === ローカルチャージタブ ===
+  // === ヘルパー ===
 
-  function _esc(s) { return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+  function _esc(s)     { return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+  function _ea(s)      { return String(s || '').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
   function _fmtDate(d) { return d ? String(d).slice(0,10) : ''; }
   function _fmtAmt(a, cur) {
     if (a == null || a === '') return '—';
@@ -92,6 +91,26 @@
     if (isNaN(n)) return '—';
     return (cur === 'JPY' ? '¥' : (cur + ' ')) + n.toLocaleString('ja-JP');
   }
+
+  // ゆらぎ検出用正規化
+  function _lcNormalize(s) {
+    return String(s || '')
+      .replace(/[（(][^）)]*[）)]/g, '')
+      .replace(/[\s　・ー―\-\/\\\.]+/g, '')
+      .toLowerCase()
+      .replace(/[ａ-ｚＡ-Ｚ０-９]/g, c => String.fromCharCode(c.charCodeAt(0) - 0xFEE0))
+      .replace(/[ァ-ン]/g, c => String.fromCharCode(c.charCodeAt(0) - 0x60));
+  }
+
+  // 名称 datalist を現在ロード済みチャージ名で更新
+  function _lcRefreshNameList() {
+    const dl = document.getElementById('lcNameList');
+    if (!dl) return;
+    const names = [...new Set(_charges.map(c => c.name).filter(Boolean))].sort();
+    dl.innerHTML = names.map(n => `<option value="${_esc(n)}"></option>`).join('');
+  }
+
+  // === クラウド状態表示 ===
 
   function _updateCloudStatus() {
     const e = document.getElementById('lcCloudStatus');
@@ -105,13 +124,18 @@
     }
   }
 
+  // === タブ ===
+
   async function lcSetDir(dir) {
     _dir = dir;
     document.querySelectorAll('.lc-dir-btn').forEach(b => b.classList.remove('is-active'));
     document.getElementById('lcDirBtn-' + dir)?.classList.add('is-active');
     await _load(dir);
     lcRender();
+    lcRenderVariants();
   }
+
+  // === 一覧レンダリング ===
 
   function lcRender() {
     const list = document.getElementById('lcList');
@@ -129,6 +153,8 @@
       return true;
     });
 
+    _lcRefreshNameList();
+
     if (!filtered.length) {
       list.innerHTML = '<p class="lc-empty">該当するチャージがありません。<br><button class="lc-add-btn-inline" onclick="lcOpenForm(null)">＋ 新規登録</button></p>';
       return;
@@ -138,17 +164,26 @@
 
     let h = '<table class="lc-table"><thead><tr>' +
             '<th>名称</th><th>カテゴリ</th><th>積み港</th><th>揚げ港</th><th>船会社</th>' +
-            '<th class="lc-num-col">金額</th><th>単位</th><th>適用開始</th><th>更新</th><th></th>' +
+            '<th class="lc-num-col">金額</th><th>単位</th><th>適用開始</th><th>更新 / 作業者</th><th></th>' +
             '</tr></thead><tbody>';
+
     filtered.forEach(c => {
-      const today = new Date().toISOString().slice(0, 10);
+      const today   = new Date().toISOString().slice(0, 10);
       const expired = c.valid_from && c.valid_from > today;
-      // 旧レコードは port フィールドを POL として表示（フォールバック）
       const pol = c.pol || c.port || '—';
       const pod = c.pod || '—';
       const descTitle = c.description ? ` title="${String(c.description).replace(/"/g,'&quot;')}"` : '';
+      const actor = (c.updated_by || c.created_by || '').split('@')[0];
+
+      // 参照元アイコン（URLは外部リンク、それ以外はツールチップ）
+      const srcHtml = c.source
+        ? (c.source.startsWith('http')
+            ? ` <a class="lc-source-icon" href="${_ea(c.source)}" target="_blank" rel="noopener" title="${_ea(c.source)}">🔗</a>`
+            : ` <span class="lc-source-icon" title="${_ea(c.source)}">📄</span>`)
+        : '';
+
       h += `<tr class="${expired ? 'lc-future' : ''}">` +
-           `<td class="lc-name"${descTitle}>${_esc(c.name)}` +
+           `<td class="lc-name"${descTitle}>${_esc(c.name)}${srcHtml}` +
            (c.full_name ? `<div class="lc-name-sub">${_esc(c.full_name)}</div>` : '') +
            `</td>` +
            `<td class="lc-cat"><span class="lc-cat-badge lc-cat-${c.cat || 'other'}">${_esc(catMap[c.cat] || c.cat || '—')}</span></td>` +
@@ -158,7 +193,9 @@
            `<td class="lc-num-col">${_fmtAmt(c.amount, c.currency)}</td>` +
            `<td>${_esc(c.unit || '—')}</td>` +
            `<td class="lc-date">${c.valid_from ? _fmtDate(c.valid_from) : '—'}</td>` +
-           `<td class="lc-date">${c.updated_at ? _fmtDate(c.updated_at) : '—'}</td>` +
+           `<td class="lc-date">${c.updated_at ? _fmtDate(c.updated_at) : '—'}` +
+           (actor ? `<div class="lc-updated-by">${_esc(actor)}</div>` : '') +
+           `</td>` +
            `<td class="lc-ops">` +
            `<button class="lc-edit-btn" onclick="lcOpenForm('${c.id}')" title="編集">✏️</button>` +
            `<button class="lc-del-btn"  onclick="lcDeleteCharge('${c.id}')" title="削除">🗑️</button>` +
@@ -167,7 +204,7 @@
     list.innerHTML = h + '</tbody></table>';
   }
 
-  // === 登録フォームモーダル ===
+  // === 登録フォーム ===
 
   function lcOpenForm(id) {
     _editId = id || null;
@@ -180,7 +217,6 @@
     const set = (elId, val) => { const e = document.getElementById(elId); if (e) e.value = val || ''; };
     set('lc_name',        charge?.name        || '');
     set('lc_full_name',   charge?.full_name   || '');
-    // textarea は value setter を使う
     const descEl = document.getElementById('lc_description');
     if (descEl) descEl.value = charge?.description || '';
     set('lc_cat',        charge?.cat        || (_dir === 'export' ? 'export-local' : 'import-local'));
@@ -191,6 +227,7 @@
     set('lc_pod',        charge?.pod        || '');
     set('lc_carrier',    charge?.carrier    || '');
     set('lc_valid_from', charge?.valid_from ? _fmtDate(charge.valid_from) : '');
+    set('lc_source',     charge?.source     || '');
     set('lc_note',       charge?.note       || '');
 
     modal.classList.add('open');
@@ -214,14 +251,15 @@
       full_name:   g('lc_full_name'),
       description: (document.getElementById('lc_description')?.value || '').trim(),
       cat:         g('lc_cat'),
-      amount:     document.getElementById('lc_amount')?.value !== '' ? Number(document.getElementById('lc_amount').value) : null,
-      currency:   g('lc_currency') || 'JPY',
-      unit:       g('lc_unit'),
-      pol:        g('lc_pol'),
-      pod:        g('lc_pod'),
-      carrier:    g('lc_carrier'),
-      valid_from: g('lc_valid_from') || null,
-      note:       g('lc_note'),
+      amount:      document.getElementById('lc_amount')?.value !== '' ? Number(document.getElementById('lc_amount').value) : null,
+      currency:    g('lc_currency') || 'JPY',
+      unit:        g('lc_unit'),
+      pol:         g('lc_pol'),
+      pod:         g('lc_pod'),
+      carrier:     g('lc_carrier'),
+      valid_from:  g('lc_valid_from') || null,
+      source:      g('lc_source'),
+      note:        g('lc_note'),
     };
     if (!row.id) delete row.id;
 
@@ -232,6 +270,7 @@
       lcCloseForm();
       await _load(_dir);
       lcRender();
+      lcRenderVariants();
     } catch (e) {
       alert('保存に失敗しました: ' + e.message);
     } finally {
@@ -245,15 +284,95 @@
     await _del(id);
     await _load(_dir);
     lcRender();
+    lcRenderVariants();
   }
 
-  // === 見積ピッカーモーダル ===
+  // === ゆらぎ是正 ===
 
-  let _pickerCharges = []; // ピッカー用キャッシュ
+  window.lcToggleVariants = function () {
+    const p = document.getElementById('lcVariantPanel');
+    if (!p) return;
+    p.hidden = !p.hidden;
+    if (!p.hidden) lcRenderVariants();
+  };
+
+  function lcRenderVariants() {
+    const panel = document.getElementById('lcVariantPanel');
+    if (!panel || panel.hidden) return;
+
+    // 名称を頻度集計してから正規化キーでグループ化
+    const freq = new Map();
+    _charges.forEach(c => {
+      if (!c.name) return;
+      freq.set(c.name, (freq.get(c.name) || 0) + 1);
+    });
+    const normGroups = new Map();
+    freq.forEach((cnt, name) => {
+      const k = _lcNormalize(name);
+      if (!k) return;
+      if (!normGroups.has(k)) normGroups.set(k, []);
+      normGroups.get(k).push({ name, cnt });
+    });
+    const groups = [...normGroups.values()]
+      .filter(arr => arr.length > 1)
+      .map(arr => arr.sort((a, b) => b.cnt - a.cnt))
+      .sort((a, b) => b.length - a.length);
+
+    if (!groups.length) {
+      panel.innerHTML = '<p class="lc-var-empty">ゆらぎは検出されませんでした。</p>';
+      return;
+    }
+
+    let h = `<div class="lc-var-header">
+      <span class="lc-var-title">🔀 ゆらぎ検出 — ${groups.length} グループ</span>
+      <span class="lc-var-hint">出現数が最多の表記を代表として「→ 統一」で一括リネームできます。不可逆操作です。</span>
+    </div>`;
+
+    groups.forEach(arr => {
+      const canon = arr[0].name; // 最多件数が代表
+      h += `<div class="lc-var-group">`;
+      arr.forEach(({ name, cnt }, i) => {
+        if (i === 0) {
+          h += `<span class="lc-var-chip lc-var-chip--canon">${_esc(name)} <span class="lc-var-chip-cnt">×${cnt}</span> 代表</span>`;
+        } else {
+          h += `<span class="lc-var-chip">` +
+               `${_esc(name)} <span class="lc-var-chip-cnt">×${cnt}</span>` +
+               `<button class="lc-var-unify-btn" onclick="lcRenameVariant(${JSON.stringify(name)},${JSON.stringify(canon)})">→ 統一</button>` +
+               `</span>`;
+        }
+      });
+      h += `</div>`;
+    });
+
+    panel.innerHTML = h;
+  }
+
+  window.lcRenameVariant = async function (fromName, toName) {
+    if (!confirm(`「${fromName}」を「${toName}」に統一しますか？\nこの操作は元に戻せません。`)) return;
+    const c = _c();
+    if (c) {
+      const { error } = await c.from(TABLE)
+        .update({ name: toName })
+        .eq('name', fromName)
+        .eq('direction', _dir);
+      if (error) { alert('更新に失敗しました: ' + error.message); return; }
+    } else {
+      const all = JSON.parse(localStorage.getItem(LOC_KEY) || '[]');
+      all.forEach(r => { if (r.name === fromName && r.direction === _dir) r.name = toName; });
+      _saveLocal(all);
+    }
+    await _load(_dir);
+    lcRender();
+    lcRenderVariants();
+    if (typeof window.quoteShowToast === 'function') window.quoteShowToast(`✅ 「${fromName}」→「${toName}」に統一しました`, 'success');
+  };
+
+  // === 見積ピッカー ===
+
+  let _pickerCharges = [];
   let _selected      = new Set();
 
   async function lcOpenPicker() {
-    // 現在の引き合い方向を自動選択（輸出/輸入）
     const qDir = typeof window._currentDirection !== 'undefined'
       ? (window._currentDirection === 'import' ? 'import' : 'export')
       : 'export';
@@ -264,7 +383,6 @@
     if (!modal) return;
     modal.classList.add('open');
 
-    // ピッカー方向ボタンの初期化
     document.querySelectorAll('.lc-pick-dir-btn').forEach(b => b.classList.remove('is-active'));
     document.getElementById('lcPickDir-' + _pickDir)?.classList.add('is-active');
 
@@ -325,7 +443,6 @@
 
   function lcPickToggle(id) {
     _selected.has(id) ? _selected.delete(id) : _selected.add(id);
-    // チェック状態に合わせて selected クラスをトグル
     const chk = document.querySelector(`.lc-pick-chk[value="${id}"]`);
     chk?.closest('.lc-pick-row')?.classList.toggle('selected', _selected.has(id));
     _updatePickCount();
@@ -374,6 +491,7 @@
   window.lcCloseForm      = lcCloseForm;
   window.lcSaveCharge     = lcSaveCharge;
   window.lcDeleteCharge   = lcDeleteCharge;
+  window.lcRenderVariants = lcRenderVariants;
   window.lcOpenPicker     = lcOpenPicker;
   window.lcPickerDir      = lcPickerDir;
   window.lcPickerRender   = lcPickerRender;
@@ -381,7 +499,6 @@
   window.lcInsertSelected = lcInsertSelected;
   window.lcClosePicker    = lcClosePicker;
 
-  // HTML 要素用: カテゴリ・通貨・単位の <option> を構築して注入
   window.lcInitFormSelects = function () {
     const catSel = document.getElementById('lc_cat');
     if (catSel && !catSel.children.length) {
