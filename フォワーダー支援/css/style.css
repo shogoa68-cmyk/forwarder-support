@@ -2872,3 +2872,46 @@ a.lc-source-icon:hover { opacity: 0.75; }
 }
 .lc-pick-insert-btn:hover    { background: #b45309; }
 .lc-pick-insert-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+
+/* ===== 諸チャージ: 有効期限バッジ ===== */
+.lc-exp-badge {
+  display: inline-block; font-size: 10px; padding: 1px 5px; border-radius: 3px;
+  margin-left: 4px; font-weight: 600; vertical-align: middle; white-space: nowrap;
+}
+.lc-exp-badge--red   { background: #fee2e2; color: #b91c1c; }
+.lc-exp-badge--amber { background: #fef3c7; color: #b45309; }
+
+/* 諸チャージ一覧: 行の状態 */
+.lc-table tr.lc-expired  { opacity: 0.5; }
+.lc-table tr.lc-expiring { background: #fffbeb !important; }
+
+/* ===== サーチャージ変更通知モーダル ===== */
+.lc-notice-box {
+  background: #fff; border-radius: 10px;
+  width: min(680px, 96vw); max-height: 90vh;
+  display: flex; flex-direction: column; overflow: hidden;
+  box-shadow: 0 8px 40px rgba(0,0,0,.22);
+}
+.lc-notice-body {
+  padding: 14px 16px; flex: 1; overflow: auto;
+  display: flex; flex-direction: column; gap: 10px;
+}
+.lc-notice-subject-row {
+  display: flex; align-items: center; gap: 6px;
+}
+.lc-notice-subject-label { white-space: nowrap; font-size: 13px; color: #555; }
+.lc-notice-subject-input {
+  flex: 1; border: 1px solid #ccc; border-radius: 4px;
+  padding: 5px 8px; font-size: 13px;
+}
+.lc-notice-copy-btn {
+  background: #f0f0f0; border: 1px solid #ccc; border-radius: 4px;
+  padding: 4px 8px; cursor: pointer; font-size: 14px;
+}
+.lc-notice-copy-btn:hover { background: #e0e0e0; }
+.lc-notice-textarea {
+  flex: 1; min-height: 280px;
+  border: 1px solid #ccc; border-radius: 6px; padding: 12px;
+  font-family: 'Hiragino Kaku Gothic Pro', 'Meiryo', monospace;
+  font-size: 13px; line-height: 1.85; resize: vertical;
+}

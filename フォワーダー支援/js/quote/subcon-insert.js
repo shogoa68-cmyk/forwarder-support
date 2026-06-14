@@ -94,13 +94,14 @@
             un: (r.cells[CI.un]||''), pc: (r.cells[CI.pc]||'JPY'), bc: (r.cells[CI.bc]||'JPY'),
             ppSum: 0, ppCount: 0, lastPp: null, lastBp: (r.cells[CI.bp]||''),
             lastUsed: 0,
-            // 挿入用に直近行の素データを保持
             latest: r.cells,
+            history: [],
           };
         }
         const it = sc.items[key];
         if (pp != null) { it.ppSum += pp; it.ppCount++; }
         if (ts >= it.lastUsed) { it.lastUsed = ts; it.lastPp = pp; it.lastBp = (r.cells[CI.bp]||''); it.latest = r.cells; }
+        it.history.push({ ts, pp, bp: _num(r.cells[CI.bp]) });
       });
     });
     // 配列化
@@ -115,6 +116,7 @@
           pp: it.lastPp, bp: it.lastBp || '',
           avgPp: it.ppCount ? (it.ppSum / it.ppCount) : null,
           lastUsed: it.lastUsed, cells: it.latest,
+          history: it.history.sort((a, b) => a.ts - b.ts),
         }))
         .sort((a, b) => b.lastUsed - a.lastUsed),
     })).sort((a, b) => b.lastUsed - a.lastUsed);

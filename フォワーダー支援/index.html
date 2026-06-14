@@ -3395,6 +3395,27 @@
         <div id="siListWrap" class="si-list-wrap"></div>
       </div>
 
+      <!-- 諸チャージパネル（右カラム） -->
+      <div id="lcRailPanel" class="lc-rail-panel">
+        <div class="lc-rail-topbar">
+          <div class="lc-rail-dir-tabs">
+            <button class="lc-rail-dir-btn is-active" id="lcRailDirBtn-export" onclick="lcRailDir('export')">📤 輸出</button>
+            <button class="lc-rail-dir-btn" id="lcRailDirBtn-import" onclick="lcRailDir('import')">📥 輸入</button>
+          </div>
+          <button class="lc-rail-notify-btn" onclick="lcOpenNotice()" title="サーチャージ変更通知を作成">📢 通知</button>
+        </div>
+        <div class="lc-rail-search-bar">
+          <input type="search" id="lcRailSearch" class="lc-rail-search-input"
+                 placeholder="🔍 名称・船会社" oninput="lcRailFilter()">
+        </div>
+        <div id="lcRailListWrap" class="lc-rail-list-wrap"></div>
+        <div class="lc-rail-footer">
+          <span id="lcRailSelCount" class="lc-rail-sel-count">未選択</span>
+          <button id="lcRailInsertBtn" class="lc-rail-insert-btn"
+                  onclick="lcRailInsert()" disabled>見積に追加</button>
+        </div>
+      </div>
+
       </div><!-- /.quote-right-col -->
     </div><!-- /.quote-workspace -->
 
@@ -4036,6 +4057,10 @@
         <label class="lc-form-label">適用開始日</label>
         <input id="lc_valid_from" class="lc-form-input" type="date">
       </div>
+      <div class="lc-form-row">
+        <label class="lc-form-label">適用終了日</label>
+        <input id="lc_valid_to" class="lc-form-input" type="date">
+      </div>
       <div class="lc-form-row lc-form-row--full">
         <label class="lc-form-label">参照元</label>
         <input id="lc_source" class="lc-form-input" type="text" placeholder="URLまたは出典（例: https://... / MSC タリフ 2026-06版）">
@@ -4077,6 +4102,28 @@
       <span id="lcPickCountMsg" class="lc-pick-count">未選択</span>
       <button id="lcPickInsertBtn" class="lc-pick-insert-btn" onclick="lcInsertSelected()" disabled>見積に追加</button>
       <button class="lc-cancel-btn" onclick="lcClosePicker()">閉じる</button>
+    </div>
+  </div>
+</div>
+
+<!-- ====== 諸チャージ: サーチャージ変更通知モーダル ====== -->
+<div id="lcNoticeModal" class="lc-modal-overlay" onclick="if(event.target===this)lcCloseNotice()">
+  <div class="lc-notice-box" onclick="event.stopPropagation()">
+    <div class="lc-modal-header">
+      <h3 class="lc-modal-title">📢 サーチャージ変更通知</h3>
+      <button class="lc-modal-close" onclick="lcCloseNotice()">✕</button>
+    </div>
+    <div class="lc-notice-body">
+      <div class="lc-notice-subject-row">
+        <label class="lc-notice-subject-label">件名</label>
+        <input id="lcNoticeSubject" class="lc-notice-subject-input" type="text">
+        <button class="lc-notice-copy-btn" onclick="lcCopyNoticeSubject()" title="件名をコピー">📋</button>
+      </div>
+      <textarea id="lcNoticeBody" class="lc-notice-textarea" rows="18" spellcheck="false"></textarea>
+    </div>
+    <div class="lc-modal-footer">
+      <button class="lc-save-btn" onclick="lcCopyNotice()">📋 本文をコピー</button>
+      <button class="lc-cancel-btn" onclick="lcCloseNotice()">閉じる</button>
     </div>
   </div>
 </div>
