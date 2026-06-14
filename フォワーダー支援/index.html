@@ -4020,6 +4020,10 @@
     </div>
     <div class="lc-form-body">
       <div class="lc-form-row lc-form-row--full">
+        <label class="lc-form-label">船会社 <span class="lc-required">必須</span></label>
+        <input id="lc_carrier" class="lc-form-input" type="text" placeholder="例: MSC、ONE、Evergreen">
+      </div>
+      <div class="lc-form-row lc-form-row--full">
         <label class="lc-form-label">略称・名称 <span class="lc-required">必須</span></label>
         <input id="lc_name" class="lc-form-input" type="text" placeholder="例: THC、B/L Fee、輸出通関費" list="lcNameList" autocomplete="off">
       </div>
@@ -4050,10 +4054,6 @@
         <input id="lc_pod" class="lc-form-input" type="text" placeholder="例: USLAX、Shanghai、Hamburg">
       </div>
       <div class="lc-form-row">
-        <label class="lc-form-label">船会社 <span class="lc-required">必須</span></label>
-        <input id="lc_carrier" class="lc-form-input" type="text" placeholder="例: MSC、ONE、Evergreen">
-      </div>
-      <div class="lc-form-row">
         <label class="lc-form-label">適用開始日</label>
         <input id="lc_valid_from" class="lc-form-input" type="date">
       </div>
@@ -4070,19 +4070,9 @@
         <input id="lc_note" class="lc-form-input" type="text" placeholder="補足情報">
       </div>
       <div class="lc-form-row lc-form-row--full">
-        <label class="lc-form-label">添付ファイル <span class="lc-form-hint">PDF・画像（5MB以下）</span></label>
-        <div class="lc-attach-zone" id="lcAttachZone">
-          <input type="file" id="lc_file" class="lc-file-input" accept="application/pdf,image/*"
-                 onchange="lcHandleFileChange(this)">
-          <div id="lcAttachEmpty" class="lc-attach-empty">
-            <label for="lc_file" class="lc-file-label-btn">📎 ファイルを選択</label>
-            <span class="lc-attach-hint">またはここにドロップ</span>
-          </div>
-          <div id="lcAttachSelected" class="lc-attach-selected" style="display:none">
-            <span class="lc-attach-icon-text">📎</span>
-            <a id="lcAttachFileName" class="lc-attach-name" href="#" target="_blank"></a>
-            <button type="button" class="lc-attach-remove" onclick="lcClearAttach()">✕ 削除</button>
-          </div>
+        <label class="lc-form-label">添付ファイル</label>
+        <div class="lc-attach-wip">
+          🚧 準備中 — アナウンス PDF などの添付は近日対応予定です。
         </div>
       </div>
     </div>
