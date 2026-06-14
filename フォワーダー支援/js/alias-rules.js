@@ -5,6 +5,7 @@
 
   const LOCAL_KEY     = 'aliasRules_v1';
   const EXCL_KEY      = 'statsExclusions_v1';
+  const ABBREV_KEY    = 'abbrevPairs_v1';
   const TABLE         = 'alias_rules';
   const PRESETS_TABLE = 'quote_presets';
 
@@ -24,6 +25,12 @@
     catch (e) { return []; }
   }
   function _saveExclusions(arr) { localStorage.setItem(EXCL_KEY, JSON.stringify(arr)); }
+
+  function _loadAbbrevPairs() {
+    try { return JSON.parse(localStorage.getItem(ABBREV_KEY) || '[]'); }
+    catch (e) { return []; }
+  }
+  function _saveAbbrevPairs(arr) { localStorage.setItem(ABBREV_KEY, JSON.stringify(arr)); }
 
   // === Supabase ヘルパー ===
 
@@ -151,6 +158,41 @@
     if (typeof window.statsRefresh === 'function') await window.statsRefresh();
   };
 
+  // === 略称辞書管理 ===
+
+  window.arGetAbbrevPairs = function (field) {
+    const all = _loadAbbrevPairs();
+    return field ? all.filter(p => p.field === field) : all;
+  };
+
+  window.arAddAbbrevPair = async function (field, abbrev, full) {
+    if (!field || !abbrev || !full || abbrev === full) return;
+    const arr = _loadAbbrevPairs();
+    if (arr.find(p => p.field === field && p.abbrev === abbrev && p.full === full)) return;
+    arr.unshift({ id: Date.now() + '_' + Math.random().toString(36).slice(2), field, abbrev, full, created_at: new Date().toISOString() });
+    _saveAbbrevPairs(arr);
+    await _afterChange();
+    if (typeof window.statsRefresh === 'function') await window.statsRefresh();
+  };
+
+  window.arDeleteAbbrevPair = async function (id) {
+    _saveAbbrevPairs(_loadAbbrevPairs().filter(p => String(p.id) !== String(id)));
+    await _afterChange();
+    if (typeof window.statsRefresh === 'function') await window.statsRefresh();
+  };
+
+  window.arSubmitAbbrevForm = async function () {
+    const field  = document.getElementById('arAbbrevField')?.value;
+    const abbrev = (document.getElementById('arAbbrevShort')?.value || '').trim();
+    const full   = (document.getElementById('arAbbrevFull')?.value  || '').trim();
+    if (!abbrev || !full)   { alert('略称と正式名称の両方を入力してください。'); return; }
+    if (abbrev === full)    { alert('略称と正式名称が同じです。'); return; }
+    await window.arAddAbbrevPair(field, abbrev, full);
+    const s = document.getElementById('arAbbrevShort'); if (s) s.value = '';
+    const f = document.getElementById('arAbbrevFull');  if (f) f.value = '';
+    if (typeof window.quoteShowToast === 'function') window.quoteShowToast('✅ 略称を登録しました', 'success');
+  };
+
   // === 入力補完用 ===
 
   window.arGetCanonicals = function (field) {
@@ -230,7 +272,10 @@
   // === レンダリング ===
 
   function _esc(s) { return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
-  function _ea(s)  { return String(s || '').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
+  // onclick の JS 文字列リテラル用
+  function _ea(s)  { return String(s || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'"); }
+  // HTML value="" 属性用（&#39; が正しい）
+  function _eav(s) { return String(s || '').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
 
   window.arRenderPane = async function () {
     const pane = document.getElementById('statsPane-alias');
@@ -286,7 +331,7 @@
     </select>
     <input id="arFrom" class="ar-input" type="text" placeholder="元の表記（ゆらぎ）">
     <span class="ar-arrow-label">→</span>
-    <input id="arTo"   class="ar-input" type="text" placeholder="正規形（統一後）" value="${_ea(preTo)}">
+    <input id="arTo"   class="ar-input" type="text" placeholder="正規形（統一後）" value="${_eav(preTo)}">
     <button class="ar-add-btn" onclick="arSubmitForm()">登録</button>
   </div>
 </div>`;
@@ -325,6 +370,39 @@
     ${cloudOn ? `<button class="ar-bulk-btn ar-bulk-both"  onclick="arApplyWithConfirm('both')"${!hasAny?' disabled':''}>🔄 両方に適用</button>` : ''}
   </div>
 </div>`;
+
+    // 略称辞書セクション
+    const abbrevPairs = _loadAbbrevPairs();
+    const abbrevFieldLabel = { sv: 'サブコン', nm: '品名', un: '単位', customer: 'お客様' };
+    h += `<div class="ar-abbrev-section">
+  <h4 class="ar-section-title">📖 略称辞書${abbrevPairs.length ? `（${abbrevPairs.length}件）` : ''}</h4>
+  <p class="ar-abbrev-desc">略称と正式名称を関連付けます。統計タブで同一グループとして表示されます（例：NTL ＝ NAIGAI TRANS LINE）。</p>
+  <div class="ar-add-form">
+    <select id="arAbbrevField" class="ar-select">
+      <option value="sv">サブコン</option>
+      <option value="nm">品名</option>
+      <option value="un">単位</option>
+      <option value="customer">お客様</option>
+    </select>
+    <input id="arAbbrevShort" class="ar-input" type="text" placeholder="略称（例: NTL）">
+    <span class="ar-arrow-label">=</span>
+    <input id="arAbbrevFull" class="ar-input" type="text" placeholder="正式名称（例: NAIGAI TRANS LINE）">
+    <button class="ar-add-btn" onclick="arSubmitAbbrevForm()">登録</button>
+  </div>`;
+    if (abbrevPairs.length) {
+      h += `<table class="ar-table ar-abbrev-table"><thead><tr><th>種別</th><th>略称</th><th></th><th>正式名称</th><th></th></tr></thead><tbody>`;
+      abbrevPairs.forEach(p => {
+        h += `<tr>
+  <td>${_esc(abbrevFieldLabel[p.field] || p.field)}</td>
+  <td class="ar-from">${_esc(p.abbrev)}</td>
+  <td class="ar-arrow-cell">=</td>
+  <td class="ar-to">${_esc(p.full)}</td>
+  <td><button class="ar-del-btn" onclick="arDeleteAbbrevPair('${_ea(String(p.id))}')">削除</button></td>
+</tr>`;
+      });
+      h += '</tbody></table>';
+    }
+    h += '</div>';
 
     // 除外リスト
     const excl = _loadExclusions();
