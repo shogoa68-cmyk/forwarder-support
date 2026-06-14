@@ -22,7 +22,8 @@
     'customs-export':'cat-customs-export', 'customs-import':'cat-customs-import', 'insurance':'cat-insurance', 'other':'cat-other',
   };
 
-  let _subcons = [];   // 集計済み [{ name, lastUsed, uses, items:[{cat,name,pc,pp,avgPp,un,bq,bc,bp,tx,mk,nt,lastUsed}] }]
+  let _subcons   = [];   // モーダル用（全件集計）
+  let _siSubcons = [];   // 右カラムパネル用（現案件条件でフィルタ済み）
 
   function _db()   { return (window.quoteCloudClient && window.quoteCloudClient()) || window.SupabaseClient || null; }
   function _user() { const u = window.quoteCloudUser && window.quoteCloudUser(); return u ? (u.email||null) : null; }
@@ -111,7 +112,8 @@
       items: Object.values(sc.items)
         .map(it => ({
           cat: it.cat, name: it.name, role: it.role, un: it.un, pc: it.pc, bc: it.bc,
-          pp: it.lastPp, avgPp: it.ppCount ? (it.ppSum / it.ppCount) : null,
+          pp: it.lastPp, bp: it.lastBp || '',
+          avgPp: it.ppCount ? (it.ppSum / it.ppCount) : null,
           lastUsed: it.lastUsed, cells: it.latest,
         }))
         .sort((a, b) => b.lastUsed - a.lastUsed),
@@ -298,7 +300,7 @@
   function renderSubconSidePanel(filter) {
     const wrap = document.getElementById('siListWrap');
     if (!wrap) return;
-    let list = _subcons;
+    let list = _siSubcons;
     const q = (filter || '').trim().toLowerCase();
     if (q) list = list.filter(sc => sc.name.toLowerCase().includes(q) || sc.items.some(it => it.name.toLowerCase().includes(q)));
     if (!list.length) {
@@ -309,15 +311,18 @@
     }
     wrap.innerHTML = list.map((sc, si) => {
       const rows = sc.items.map((it, ii) => {
-        const priceMain = it.pp != null ? _money(it.pp, it.pc) : '—';
+        const ppStr = it.pp != null ? _money(it.pp, it.pc) : '—';
+        const bpNum = it.bp ? parseFloat(it.bp) : null;
+        const bpStr = bpNum != null && isFinite(bpNum) ? _money(bpNum, it.bc || it.pc) : null;
+        const priceCell = bpStr
+          ? ppStr + '<span class="si-arrow">→</span>' + bpStr
+          : ppStr;
         const unit = it.un ? '<small class="rp-sc-unit"> /' + _esc(it.un) + '</small>' : '';
-        const avg = (it.avgPp != null && it.ppCount !== 1)
-          ? '<span class="rp-sc-avg">' + _money(it.avgPp, it.pc) + '</span>' : '';
         return '<label class="rp-sc-item">' +
             '<input type="checkbox" class="rp-sc-chk si-chk" data-si="' + si + '" data-ii="' + ii + '" checked>' +
             '<span class="rp-cat ' + (CAT_CLASS[it.cat]||'cat-other') + '">' + _esc(ROLE[it.cat]||it.cat||'—') + '</span>' +
             '<span class="rp-sc-itemname">' + _esc(it.name) + '</span>' +
-            '<span class="rp-sc-price">' + priceMain + unit + avg + '</span>' +
+            '<span class="rp-sc-price">' + priceCell + unit + '</span>' +
           '</label>';
       }).join('');
       return '<div class="rp-sc-card" data-si="' + si + '">' +
@@ -351,7 +356,7 @@
 
   function subconInsertFromPanel(si) {
     const q = (document.getElementById('siSubconSearch')?.value || '').trim().toLowerCase();
-    let list = _subcons;
+    let list = _siSubcons;
     if (q) list = list.filter(sc => sc.name.toLowerCase().includes(q) || sc.items.some(it => it.name.toLowerCase().includes(q)));
     const sc = list[si];
     if (!sc) return;
@@ -369,13 +374,68 @@
     if (window.quoteShowToast) quoteShowToast('📂 「' + _esc(sc.name) + '」から ' + rows.length + ' 行を' + posLabel + 'に挿入しました', 'success');
   }
 
+  // 現在の見積に登録済みのサブコン名セットを返す（小文字・重複除去）
+  function _currentSvSet() {
+    const rows = typeof window.collectAllRows === 'function' ? window.collectAllRows() : [];
+    return new Set(
+      rows.filter(r => r._type === 'data' && (r.sv || '').trim())
+          .map(r => r.sv.trim().toLowerCase())
+    );
+  }
+
+  // 現在の見積条件（登録サブコン → フォールバック: 方向・POL/POD）でプリセットをフィルタして集計
+  function _buildSiSubcons(allPresets) {
+    const svSet = _currentSvSet();
+
+    // ① 登録サブコンがある → そのサブコン名に合致する集計のみ返す
+    if (svSet.size > 0) {
+      const all = _aggregate(allPresets);
+      return all.filter(sc => svSet.has(sc.name.toLowerCase()));
+    }
+
+    // ② 登録サブコンが0件 → 方向・POL/POD フィルタにフォールバック
+    const cond = typeof window.getConditions === 'function' ? window.getConditions() : {};
+    const dir    = (cond.direction || '').trim();
+    const routes = Array.isArray(cond.routes) ? cond.routes : [];
+    const polSet = routes.map(r => (r.pol || '').trim().toLowerCase()).filter(Boolean);
+    const podSet = routes.map(r => (r.pod || '').trim().toLowerCase()).filter(Boolean);
+
+    let filtered = allPresets;
+    if (dir) {
+      filtered = filtered.filter(p => {
+        const pDir = ((p.data && p.data.fields && p.data.fields['cond-direction']) || '').trim();
+        return !pDir || pDir === dir;
+      });
+    }
+    if (polSet.length || podSet.length) {
+      filtered = filtered.filter(p => {
+        const pPol = (p.pol || '').trim().toLowerCase();
+        const pPod = (p.pod || '').trim().toLowerCase();
+        if (!pPol && !pPod) return true;
+        const polMatch = polSet.some(q => pPol && (pPol.includes(q) || q.includes(pPol)));
+        const podMatch = podSet.some(q => pPod && (pPod.includes(q) || q.includes(pPod)));
+        return polMatch || podMatch;
+      });
+    }
+    return _aggregate(filtered);
+  }
+
   async function loadSubconPanel() {
     const wrap = document.getElementById('siListWrap');
     if (!wrap) return;
-    if (!_subcons.length) {
-      wrap.innerHTML = '<div class="preset-empty">読み込み中…</div>';
-      await loadSubconModules();
+    const db = _db();
+    if (!db || !_user()) {
+      wrap.innerHTML = '<div class="preset-empty">☁️ ログインするとチームの案件からサブコン別の費用行を利用できます</div>';
+      return;
     }
+    wrap.innerHTML = '<div class="preset-empty">読み込み中…</div>';
+    const { data, error } = await db.from('quote_presets')
+      .select('id,name,customer,person,status,transport_mode,pol,pod,data,updated_at');
+    if (error) {
+      wrap.innerHTML = '<div class="preset-empty">⚠️ 読み込みエラー：' + _esc(error.message) + '</div>';
+      return;
+    }
+    _siSubcons = _buildSiSubcons(data || []);
     renderSubconSidePanel(document.getElementById('siSubconSearch')?.value || '');
   }
 
