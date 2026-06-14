@@ -7934,6 +7934,9 @@ button.um-memberno--empty:hover { background: #f4ead4; border-color: #cdb98e; }
 #tab-quote-make .si-list-wrap .rp-sc-selnote {
   font-size: 10px;
 }
+#tab-quote-make .si-arrow {
+  color: #a09070; font-size: 9px; margin: 0 2px;
+}
 
 /* --- 入れ子解消：drawer ヘッダーを“唯一の見出し”にする ---
    各パネルが自前で持つ見出しバー（qsp-header / sq-head / sc-head）は
