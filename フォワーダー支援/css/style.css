@@ -2916,6 +2916,39 @@ a.lc-source-icon:hover { opacity: 0.75; }
   font-size: 13px; line-height: 1.85; resize: vertical;
 }
 
+/* ── LC Attachment UI ────────────────────────────────────────────────── */
+.lc-form-hint { font-size: 11px; color: #999; font-weight: 400; margin-left: 4px; }
+.lc-attach-zone {
+  border: 2px dashed #ccc; border-radius: 6px;
+  padding: 10px 14px; background: #fafafa;
+  transition: border-color .15s, background .15s;
+  min-height: 44px; display: flex; align-items: center; gap: 10px;
+}
+.lc-attach-zone.lc-dragover { border-color: #1976d2; background: #e3f2fd; }
+.lc-file-input { display: none; }
+.lc-attach-empty { display: flex; align-items: center; gap: 8px; width: 100%; }
+.lc-file-label-btn {
+  display: inline-block; cursor: pointer;
+  background: #f0f0f0; border: 1px solid #bbb; border-radius: 4px;
+  padding: 4px 10px; font-size: 13px; white-space: nowrap;
+}
+.lc-file-label-btn:hover { background: #e0e0e0; }
+.lc-attach-hint { font-size: 12px; color: #aaa; }
+.lc-attach-selected { display: flex; align-items: center; gap: 8px; width: 100%; }
+.lc-attach-icon-text { font-size: 16px; }
+.lc-attach-name { font-size: 13px; color: #1565c0; text-decoration: underline; word-break: break-all; flex: 1; }
+.lc-attach-remove {
+  font-size: 12px; background: #fce4ec; color: #c62828;
+  border: 1px solid #ef9a9a; border-radius: 4px;
+  padding: 2px 7px; cursor: pointer; white-space: nowrap; flex-shrink: 0;
+}
+.lc-attach-remove:hover { background: #ffcdd2; }
+.lc-attach-tbl-btn {
+  font-size: 14px; text-decoration: none; vertical-align: middle;
+  margin-right: 4px; opacity: .75;
+}
+.lc-attach-tbl-btn:hover { opacity: 1; }
+
 /* ── Unit Alias Group UI ─────────────────────────────────────────────── */
 .ua-group-row td { background: #f9f9ff; }
 .ua-group-row td:first-child { font-weight: 600; }
