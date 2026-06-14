@@ -403,12 +403,16 @@
     const podSet = routes.map(r => (r.pod || '').trim().toLowerCase()).filter(Boolean);
 
     let filtered = allPresets;
+
+    // 方向フィルタ（設定済みのときのみ適用）
     if (dir) {
       filtered = filtered.filter(p => {
         const pDir = ((p.data && p.data.fields && p.data.fields['cond-direction']) || '').trim();
         return !pDir || pDir === dir;
       });
     }
+
+    // POL/POD フィルタ（設定済みのときのみ適用、部分一致）
     if (polSet.length || podSet.length) {
       filtered = filtered.filter(p => {
         const pPol = (p.pol || '').trim().toLowerCase();
@@ -419,6 +423,7 @@
         return polMatch || podMatch;
       });
     }
+
     return _aggregate(filtered);
   }
 
