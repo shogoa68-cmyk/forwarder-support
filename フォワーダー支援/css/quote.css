@@ -8021,3 +8021,108 @@ button.um-memberno--empty:hover { background: #f4ead4; border-color: #cdb98e; }
 #tab-quote-make .qrc-drawer-body > .quote-summary-panel > .qsp-pane {
   border-top: none;
 }
+
+/* ===== 右カラム 諸チャージパネル ===== */
+#tab-quote-make .lc-rail-panel {
+  display: flex; flex-direction: column; height: 100%; overflow: hidden;
+}
+#tab-quote-make .lc-rail-topbar {
+  display: flex; align-items: center; gap: 6px;
+  padding: 6px 10px; border-bottom: 1px solid #e8e0d4;
+  background: #f9f6f0; flex-shrink: 0;
+}
+#tab-quote-make .lc-rail-dir-tabs { display: flex; gap: 4px; }
+#tab-quote-make .lc-rail-dir-btn {
+  border: 1px solid #d0c8bc; background: #f0ece4; border-radius: 4px;
+  padding: 3px 8px; font-size: 12px; cursor: pointer; color: #6b5b45;
+}
+#tab-quote-make .lc-rail-dir-btn.is-active {
+  background: #8b6914; color: #fff; border-color: #8b6914;
+}
+#tab-quote-make .lc-rail-notify-btn {
+  margin-left: auto; background: #fffbeb; border: 1px solid #d0c8bc;
+  border-radius: 4px; padding: 3px 8px; font-size: 12px; cursor: pointer; color: #7a5c00;
+  white-space: nowrap;
+}
+#tab-quote-make .lc-rail-notify-btn:hover { background: #fef3c7; }
+#tab-quote-make .lc-rail-search-bar {
+  padding: 6px 8px; border-bottom: 1px solid #e8e0d4; flex-shrink: 0;
+}
+#tab-quote-make .lc-rail-search-input {
+  width: 100%; border: 1px solid #d0c8bc; border-radius: 6px;
+  padding: 5px 10px; font-size: 12px; background: #fff; box-sizing: border-box;
+}
+#tab-quote-make .lc-rail-list-wrap {
+  flex: 1; overflow-y: auto; padding: 4px 6px;
+}
+#tab-quote-make .lc-rail-empty {
+  padding: 20px; text-align: center; color: #9b8b78; font-size: 12px;
+}
+#tab-quote-make .lc-rail-card {
+  display: flex; align-items: flex-start; gap: 6px;
+  padding: 6px 8px; border-radius: 6px; cursor: pointer;
+  border: 1px solid transparent; transition: background 0.12s;
+}
+#tab-quote-make .lc-rail-card:hover  { background: #f5f0e8; }
+#tab-quote-make .lc-rail-card--sel   { background: #fef9f0; border-color: #d4a017; }
+#tab-quote-make .lc-rail-card.lc-rail-expired  { opacity: 0.5; }
+#tab-quote-make .lc-rail-card.lc-rail-expiring { background: #fffbeb; }
+#tab-quote-make .lc-rail-chk {
+  flex-shrink: 0; margin-top: 3px; accent-color: #8b6914; cursor: pointer;
+}
+#tab-quote-make .lc-rail-info { flex: 1; min-width: 0; }
+#tab-quote-make .lc-rail-name {
+  font-size: 12px; font-weight: 600; color: #3d2b1a;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+#tab-quote-make .lc-rail-meta {
+  font-size: 11px; color: #9b8b78;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+#tab-quote-make .lc-rail-amt {
+  flex-shrink: 0; font-size: 11px; font-weight: 600;
+  color: #6b4c1e; text-align: right; min-width: 60px;
+}
+#tab-quote-make .lc-rail-period { font-size: 10px; color: #9b8b78; font-weight: 400; }
+#tab-quote-make .lc-rail-footer {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 10px; border-top: 1px solid #e8e0d4;
+  background: #f9f6f0; flex-shrink: 0;
+}
+#tab-quote-make .lc-rail-sel-count { font-size: 12px; color: #6b5b45; flex: 1; }
+#tab-quote-make .lc-rail-insert-btn {
+  background: #8b6914; color: #fff; border: none; border-radius: 5px;
+  padding: 5px 12px; font-size: 12px; cursor: pointer; font-weight: 600;
+}
+#tab-quote-make .lc-rail-insert-btn:disabled { background: #ccc; cursor: not-allowed; }
+
+/* ===== 統計チャージペイン: 推移タイムライン ===== */
+.stats-sv-detail--surge { border-left: 3px solid #f59e0b; }
+.stats-sv-surge-badge {
+  display: inline-block; font-size: 10px; background: #fef3c7;
+  color: #b45309; border-radius: 3px; padding: 1px 5px;
+  margin: 0 6px; font-weight: 600; vertical-align: middle;
+}
+.stats-hist-avg {
+  font-size: 10px; color: #888; margin-top: 2px;
+}
+.stats-hist-details {
+  margin-top: 4px;
+}
+.stats-hist-details > summary {
+  font-size: 11px; color: #8b6914; cursor: pointer; user-select: none;
+  display: inline-flex; align-items: center; gap: 4px;
+}
+.stats-hist-details > summary:hover { color: #5a3d00; }
+.stats-hist-trail {
+  display: flex; flex-wrap: wrap; align-items: center;
+  gap: 4px; padding: 6px 0;
+}
+.stats-hist-pt {
+  display: inline-flex; flex-direction: column; align-items: center;
+  font-size: 10px; background: #f8f4ee; border-radius: 4px; padding: 2px 6px;
+  color: #888;
+}
+.stats-hist-pt b   { font-size: 11px; color: #3d2b1a; font-weight: 700; }
+.stats-hist-date   { font-size: 10px; color: #aaa; }
+.stats-hist-arr    { color: #ccc; font-size: 12px; }

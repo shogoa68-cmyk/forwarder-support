@@ -164,16 +164,27 @@
 
     let h = '<table class="lc-table"><thead><tr>' +
             '<th>名称</th><th>カテゴリ</th><th>積み港</th><th>揚げ港</th><th>船会社</th>' +
-            '<th class="lc-num-col">金額</th><th>単位</th><th>適用開始</th><th>更新 / 作業者</th><th></th>' +
+            '<th class="lc-num-col">金額</th><th>単位</th><th>適用期間</th><th>更新 / 作業者</th><th></th>' +
             '</tr></thead><tbody>';
 
     filtered.forEach(c => {
-      const today   = new Date().toISOString().slice(0, 10);
-      const expired = c.valid_from && c.valid_from > today;
+      const today    = new Date().toISOString().slice(0, 10);
+      const warnDate = new Date(); warnDate.setDate(warnDate.getDate() + 30);
+      const warnStr  = warnDate.toISOString().slice(0, 10);
+      const isNotYet  = c.valid_from && c.valid_from > today;
+      const isExpired = c.valid_to && c.valid_to < today;
+      const isExpiring = !isExpired && c.valid_to && c.valid_to <= warnStr;
+      const rowCls = isExpired ? 'lc-expired' : isExpiring ? 'lc-expiring' : isNotYet ? 'lc-future' : '';
       const pol = c.pol || c.port || '—';
       const pod = c.pod || '—';
       const descTitle = c.description ? ` title="${String(c.description).replace(/"/g,'&quot;')}"` : '';
       const actor = (c.updated_by || c.created_by || '').split('@')[0];
+
+      const expiryBadge = isExpired
+        ? '<span class="lc-exp-badge lc-exp-badge--red">期限切れ</span>'
+        : isExpiring
+          ? `<span class="lc-exp-badge lc-exp-badge--amber">～${c.valid_to}</span>`
+          : '';
 
       // 参照元アイコン（URLは外部リンク、それ以外はツールチップ）
       const srcHtml = c.source
@@ -182,8 +193,11 @@
             : ` <span class="lc-source-icon" title="${_ea(c.source)}">📄</span>`)
         : '';
 
-      h += `<tr class="${expired ? 'lc-future' : ''}">` +
-           `<td class="lc-name"${descTitle}>${_esc(c.name)}${srcHtml}` +
+      const periodStr = c.valid_from || c.valid_to
+        ? (c.valid_from ? _fmtDate(c.valid_from) : '—') + ' ～ ' + (c.valid_to ? _fmtDate(c.valid_to) : '')
+        : '—';
+      h += `<tr class="${rowCls}">` +
+           `<td class="lc-name"${descTitle}>${_esc(c.name)}${srcHtml}${expiryBadge}` +
            (c.full_name ? `<div class="lc-name-sub">${_esc(c.full_name)}</div>` : '') +
            `</td>` +
            `<td class="lc-cat"><span class="lc-cat-badge lc-cat-${c.cat || 'other'}">${_esc(catMap[c.cat] || c.cat || '—')}</span></td>` +
@@ -192,7 +206,7 @@
            `<td>${_esc(c.carrier || '—')}</td>` +
            `<td class="lc-num-col">${_fmtAmt(c.amount, c.currency)}</td>` +
            `<td>${_esc(c.unit || '—')}</td>` +
-           `<td class="lc-date">${c.valid_from ? _fmtDate(c.valid_from) : '—'}</td>` +
+           `<td class="lc-date">${periodStr}</td>` +
            `<td class="lc-date">${c.updated_at ? _fmtDate(c.updated_at) : '—'}` +
            (actor ? `<div class="lc-updated-by">${_esc(actor)}</div>` : '') +
            `</td>` +
@@ -227,6 +241,7 @@
     set('lc_pod',        charge?.pod        || '');
     set('lc_carrier',    charge?.carrier    || '');
     set('lc_valid_from', charge?.valid_from ? _fmtDate(charge.valid_from) : '');
+    set('lc_valid_to',   charge?.valid_to   ? _fmtDate(charge.valid_to)   : '');
     set('lc_source',     charge?.source     || '');
     set('lc_note',       charge?.note       || '');
 
@@ -258,6 +273,7 @@
       pod:         g('lc_pod'),
       carrier:     g('lc_carrier'),
       valid_from:  g('lc_valid_from') || null,
+      valid_to:    g('lc_valid_to')   || null,
       source:      g('lc_source'),
       note:        g('lc_note'),
     };
@@ -477,6 +493,179 @@
     _selected = new Set();
   }
 
+  // === 右カラム 諸チャージパネル ===
+
+  let _railCharges = [];
+  let _railSelIds  = new Set();
+  let _railDir     = 'export';
+
+  async function loadChargesRail() {
+    const wrap = document.getElementById('lcRailListWrap');
+    if (!wrap) return;
+    const cond = typeof window.getConditions === 'function' ? window.getConditions() : {};
+    _railDir = (cond.direction === 'import') ? 'import' : 'export';
+    document.getElementById('lcRailDirBtn-export')?.classList.toggle('is-active', _railDir === 'export');
+    document.getElementById('lcRailDirBtn-import')?.classList.toggle('is-active', _railDir === 'import');
+    wrap.innerHTML = '<div class="lc-rail-empty">読み込み中…</div>';
+    const c = _c();
+    if (c) {
+      const { data, error } = await c.from(TABLE).select('*').eq('direction', _railDir).order('cat,name');
+      _railCharges = error ? [] : (data || []);
+    } else {
+      _railCharges = _getLocal(_railDir);
+    }
+    _railSelIds = new Set();
+    lcRailFilter();
+  }
+
+  function lcRailFilter() {
+    const q = (document.getElementById('lcRailSearch')?.value || '').toLowerCase();
+    const filtered = !q ? _railCharges : _railCharges.filter(c =>
+      (c.name||'').toLowerCase().includes(q) ||
+      (c.full_name||'').toLowerCase().includes(q) ||
+      (c.carrier||'').toLowerCase().includes(q) ||
+      (c.note||'').toLowerCase().includes(q)
+    );
+    _renderRailList(filtered);
+  }
+
+  function _renderRailList(list) {
+    const wrap = document.getElementById('lcRailListWrap');
+    if (!wrap) return;
+    if (!list.length) {
+      wrap.innerHTML = '<div class="lc-rail-empty">' +
+        (document.getElementById('lcRailSearch')?.value ? '該当なし' : 'チャージが登録されていません') +
+        '</div>';
+      _updateRailCount();
+      return;
+    }
+    const today = new Date().toISOString().slice(0, 10);
+    const warnDate = new Date(); warnDate.setDate(warnDate.getDate() + 30);
+    const warnStr = warnDate.toISOString().slice(0, 10);
+    wrap.innerHTML = list.map(c => {
+      const isExpired  = c.valid_to && c.valid_to < today;
+      const isExpiring = !isExpired && c.valid_to && c.valid_to <= warnStr;
+      const cls = isExpired ? ' lc-rail-expired' : isExpiring ? ' lc-rail-expiring' : '';
+      const selCls = _railSelIds.has(c.id) ? ' lc-rail-card--sel' : '';
+      const badge = isExpired
+        ? '<span class="lc-exp-badge lc-exp-badge--red">期限切れ</span>'
+        : isExpiring
+          ? `<span class="lc-exp-badge lc-exp-badge--amber">～${c.valid_to}</span>`
+          : '';
+      const chk = _railSelIds.has(c.id) ? 'checked' : '';
+      const meta = [c.carrier, c.pol||c.port, c.pod].filter(Boolean).join(' / ');
+      const descTitle = c.description ? ` title="${String(c.description).replace(/"/g,'&quot;')}"` : '';
+      const periodLabel = c.valid_from ? (c.valid_from + (c.valid_to ? '～'+c.valid_to : '～')) : '';
+      return `<label class="lc-rail-card${cls}${selCls}"${descTitle}>` +
+             `<input type="checkbox" class="lc-rail-chk" value="${_ea(c.id)}" ${chk} onchange="lcRailToggle('${_ea(c.id)}')">` +
+             `<div class="lc-rail-info">` +
+             `<div class="lc-rail-name">${_esc(c.name)}${badge}</div>` +
+             (meta ? `<div class="lc-rail-meta">${_esc(meta)}</div>` : '') +
+             `</div>` +
+             `<div class="lc-rail-amt">${_fmtAmt(c.amount, c.currency)}${c.unit ? ' /'+_esc(c.unit) : ''}` +
+             (periodLabel ? `<div class="lc-rail-period">${_esc(periodLabel)}</div>` : '') +
+             `</div>` +
+             `</label>`;
+    }).join('');
+    _updateRailCount();
+  }
+
+  function _updateRailCount() {
+    const el  = document.getElementById('lcRailSelCount');
+    if (el) el.textContent = _railSelIds.size ? _railSelIds.size + '件選択中' : '未選択';
+    const btn = document.getElementById('lcRailInsertBtn');
+    if (btn) btn.disabled = !_railSelIds.size;
+  }
+
+  function lcRailDir(dir) {
+    _railDir = dir;
+    loadChargesRail();
+  }
+
+  function lcRailToggle(id) {
+    _railSelIds.has(id) ? _railSelIds.delete(id) : _railSelIds.add(id);
+    const chk = document.querySelector(`.lc-rail-chk[value="${id}"]`);
+    chk?.closest('.lc-rail-card')?.classList.toggle('lc-rail-card--sel', _railSelIds.has(id));
+    _updateRailCount();
+  }
+
+  function lcRailInsert() {
+    if (!_railSelIds.size) return;
+    const toInsert = _railCharges.filter(c => _railSelIds.has(c.id));
+    if (typeof window.addChargeRows === 'function') {
+      window.addChargeRows(toInsert.map(c => ({
+        name: c.name, cat: c.cat,
+        amount: c.amount, currency: c.currency, unit: c.unit,
+        sv: c.carrier || '', note: c.note,
+      })));
+      _railSelIds = new Set();
+      lcRailFilter();
+      if (typeof window.quoteShowToast === 'function') quoteShowToast(`✅ ${toInsert.length}件を見積に挿入しました`, 'success');
+    }
+  }
+
+  // === サーチャージ変更通知 ===
+
+  function lcOpenNotice() {
+    const modal = document.getElementById('lcNoticeModal');
+    if (!modal) return;
+    // 選択中があれば選択分、なければサーチャージカテゴリのみ
+    const items = (_railSelIds.size > 0
+      ? _railCharges.filter(c => _railSelIds.has(c.id))
+      : _railCharges.filter(c => c.cat === 'surcharge')
+    ).filter(c => c.name);
+
+    const dirLabel = _railDir === 'import' ? '輸入' : '輸出';
+    const vFroms = items.filter(c => c.valid_from).map(c => c.valid_from).sort();
+    const effectiveDate = vFroms[0]
+      ? new Date(vFroms[0]).toLocaleDateString('ja-JP', { year: 'numeric', month: 'long', day: 'numeric' })
+      : '○年○月○日';
+
+    document.getElementById('lcNoticeSubject').value =
+      `【${dirLabel}】サーチャージ改定のご案内（${effectiveDate}適用）`;
+
+    const lines = items.length
+      ? items.map(c => {
+          const amt = c.amount != null
+            ? _fmtAmt(c.amount, c.currency) + (c.unit ? '／' + c.unit : '')
+            : '改定後料率別途ご案内';
+          const period = c.valid_from ? `  （${c.valid_from}${c.valid_to ? '～'+c.valid_to : '～'}）` : '';
+          return `　• ${c.name}：${amt}${period}`;
+        }).join('\n')
+      : '　（右カラムでチャージを選択してください）';
+
+    document.getElementById('lcNoticeBody').value =
+      `拝啓　時下益々のご清栄のこととお慶び申し上げます。\n` +
+      `平素より格別のご高配を賜り、厚く御礼申し上げます。\n\n` +
+      `さて、下記の通りサーチャージ改定のご案内を申し上げます。\n\n` +
+      `■ 改定内容\n${lines}\n\n` +
+      `■ 適用日　${effectiveDate}\n\n` +
+      `※ 詳細につきましては、別途担当者よりご案内いたします。\n` +
+      `今後とも何卒よろしくお願い申し上げます。\n\n` +
+      `　　　　　　　　　　　　　　　　　　　　　　　　敬具`;
+
+    modal.classList.add('open');
+  }
+
+  function lcCloseNotice() {
+    document.getElementById('lcNoticeModal')?.classList.remove('open');
+  }
+
+  async function lcCopyNotice() {
+    const text = document.getElementById('lcNoticeBody')?.value || '';
+    try { await navigator.clipboard.writeText(text); }
+    catch (e) { document.getElementById('lcNoticeBody')?.select(); document.execCommand('copy'); }
+    if (typeof window.quoteShowToast === 'function') quoteShowToast('📋 本文をコピーしました', 'success');
+    lcCloseNotice();
+  }
+
+  async function lcCopyNoticeSubject() {
+    const text = document.getElementById('lcNoticeSubject')?.value || '';
+    try { await navigator.clipboard.writeText(text); }
+    catch (e) {}
+    if (typeof window.quoteShowToast === 'function') quoteShowToast('📋 件名をコピーしました', 'success');
+  }
+
   // === initLocalChargesTab ===
 
   window.initLocalChargesTab = async function () {
@@ -498,6 +687,16 @@
   window.lcPickToggle     = lcPickToggle;
   window.lcInsertSelected = lcInsertSelected;
   window.lcClosePicker    = lcClosePicker;
+
+  window.loadChargesRail    = loadChargesRail;
+  window.lcRailFilter       = lcRailFilter;
+  window.lcRailDir          = lcRailDir;
+  window.lcRailToggle       = lcRailToggle;
+  window.lcRailInsert       = lcRailInsert;
+  window.lcOpenNotice       = lcOpenNotice;
+  window.lcCloseNotice      = lcCloseNotice;
+  window.lcCopyNotice       = lcCopyNotice;
+  window.lcCopyNoticeSubject = lcCopyNoticeSubject;
 
   window.lcInitFormSelects = function () {
     const catSel = document.getElementById('lc_cat');

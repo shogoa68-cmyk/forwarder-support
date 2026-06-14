@@ -51,6 +51,7 @@
     { id: 'similar',  icon: '🔍', label: '類似',    title: '類似見積',     panel: 'sqPanel' },
     { id: 'scenario', icon: '🪜', label: 'シナリオ', title: 'シナリオ比較', panel: 'scPanel' },
     { id: 'subcon',   icon: '👷', label: 'サブコン', title: 'サブコン別',   panel: 'siPanel' },
+    { id: 'charges',  icon: '📦', label: 'チャージ', title: '諸チャージ',   panel: 'lcRailPanel' },
   ];
 
   // 旧 'summary' モジュールは廃止。保存済み active のマイグレーション用。
@@ -78,6 +79,7 @@
       sqPanel:           document.getElementById('sqPanel'),
       scPanel:           document.getElementById('scPanel'),
       siPanel:           document.getElementById('siPanel'),
+      lcRailPanel:       document.getElementById('lcRailPanel'),
     };
 
     // シェル骨格
@@ -163,6 +165,10 @@
     if (mod === 'subcon' && typeof window.loadSubconPanel === 'function') {
       window.loadSubconPanel();
     }
+    // 諸チャージパネル：アクティブ化時にデータロード
+    if (mod === 'charges' && typeof window.loadChargesRail === 'function') {
+      window.loadChargesRail();
+    }
   }
 
   function render() {
@@ -184,7 +190,7 @@
 
     // パネル出し分け（active のモジュールの panel だけ表示）
     const showPanel = def ? def.panel : null;
-    ['quoteSummaryPanel', 'sqPanel', 'scPanel', 'siPanel'].forEach(function (id) {
+    ['quoteSummaryPanel', 'sqPanel', 'scPanel', 'siPanel', 'lcRailPanel'].forEach(function (id) {
       const el = document.getElementById(id);
       if (!el) return;
       // sqPanel は内部で hidden 属性を自前制御するため、表示は wrapper 側で行う
@@ -219,6 +225,12 @@
     if (siBtn) {
       const n = document.querySelectorAll('#siPanel .rp-sc-card').length;
       _setBadge(siBtn, n > 0 ? String(n) : '');
+    }
+    // 諸チャージ：期限切れ・期限間近にドット
+    const lcBtn = col.querySelector('.qrc-rail-btn[data-mod="charges"]');
+    if (lcBtn) {
+      const hasAlert = !!document.querySelector('#lcRailPanel .lc-rail-expired, #lcRailPanel .lc-rail-expiring');
+      _setDot(lcBtn, hasAlert);
     }
   }
   function _setBadge(btn, txt) {

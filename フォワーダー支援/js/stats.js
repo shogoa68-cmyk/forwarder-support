@@ -301,20 +301,48 @@
 
     let h = '';
     subcons.forEach(sc => {
-      const rows = sc.items.map(it => {
+      // サーチャージを先頭に、以降は直近使用順
+      const sortedItems = [...sc.items].sort((a, b) => {
+        if (a.cat === 'surcharge' && b.cat !== 'surcharge') return -1;
+        if (a.cat !== 'surcharge' && b.cat === 'surcharge') return 1;
+        return b.lastUsed - a.lastUsed;
+      });
+      const rows = sortedItems.map(it => {
         const ppStr = it.pp != null ? _m(it.pp, it.pc) : '—';
         const bpNum = it.bp ? parseFloat(it.bp) : null;
         const bpStr = bpNum != null && isFinite(bpNum) ? _m(bpNum, it.bc || it.pc) : null;
+        const avgStr = it.avgPp != null ? _m(it.avgPp, it.pc) : null;
         const priceCell = bpStr ? ppStr + ' → ' + bpStr : ppStr;
         const unit = it.un ? ' /' + _esc(it.un) : '';
+
+        // 推移ミニタイムライン（前回と価格が変わったポイントのみ残す）
+        let histHtml = '';
+        if (it.history && it.history.length > 1) {
+          const deduped = it.history.filter((h, i, arr) =>
+            i === 0 || h.pp !== arr[i - 1].pp || h.bp !== arr[i - 1].bp
+          ).slice(-6);
+          if (deduped.length > 1) {
+            const pts = deduped.map(h => {
+              const d = h.ts ? new Date(h.ts).toLocaleDateString('ja-JP', { year: '2-digit', month: '2-digit' }) : '?';
+              const p = h.pp != null ? _m(h.pp, it.pc) : '—';
+              return `<span class="stats-hist-pt"><span class="stats-hist-date">${_esc(d)}</span><b>${_esc(p)}</b></span>`;
+            }).join('<span class="stats-hist-arr">›</span>');
+            histHtml = `<details class="stats-hist-details"><summary>📈 推移 (${deduped.length})</summary><div class="stats-hist-trail">${pts}</div></details>`;
+          }
+        }
+        const avgHtml = avgStr ? `<div class="stats-hist-avg">平均 ${_esc(avgStr)}</div>` : '';
+
         return `<tr>` +
                `<td><span class="rp-cat ${CAT_CLASS[it.cat]||'cat-other'}">${_esc(ROLE[it.cat]||it.cat||'—')}</span></td>` +
                `<td class="stats-val">${_esc(it.name)}</td>` +
-               `<td class="stats-sv-price">${_esc(priceCell)}${_esc(unit)}</td>` +
+               `<td class="stats-sv-price">${_esc(priceCell)}${_esc(unit)}${avgHtml}${histHtml}</td>` +
                `</tr>`;
       }).join('');
-      h += `<details class="stats-sv-detail">` +
-           `<summary><b>${_esc(sc.name)}</b><span class="stats-sv-detail-meta">使用 ${sc.uses}案件 · ${sc.items.length}項目</span></summary>` +
+      const hasSurcharge = sc.items.some(it => it.cat === 'surcharge');
+      h += `<details class="stats-sv-detail${hasSurcharge ? ' stats-sv-detail--surge' : ''}" ${hasSurcharge ? 'open' : ''}>` +
+           `<summary><b>${_esc(sc.name)}</b>` +
+           (hasSurcharge ? '<span class="stats-sv-surge-badge">⚡ サーチャージあり</span>' : '') +
+           `<span class="stats-sv-detail-meta">使用 ${sc.uses}案件 · ${sc.items.length}項目</span></summary>` +
            `<table class="stats-table stats-sv-charge-table"><thead><tr>` +
            `<th>カテゴリ</th><th>品名</th><th>単価（仕入 → 売上）</th>` +
            `</tr></thead><tbody>${rows}</tbody></table>` +
