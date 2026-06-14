@@ -2463,7 +2463,7 @@
           </div>
           <div class="quote-field">
             <label>お客様名称 <span class="req-mark" aria-hidden="true">*</span></label>
-            <input type="text" id="qf-customer" placeholder="例）○○商事" aria-required="true" />
+            <input type="text" id="qf-customer" placeholder="例）○○商事" aria-required="true" list="custSuggestions" autocomplete="off" />
           </div>
           <div class="quote-field">
             <label>担当（敬称略） <span class="req-mark" aria-hidden="true">*</span></label>
@@ -3513,6 +3513,8 @@
 
     <!-- ===== 行テンプレート ===== -->
     <datalist id="svSuggestions"></datalist>
+    <datalist id="nmSuggestions"></datalist>
+    <datalist id="custSuggestions"></datalist>
 
     <datalist id="unit-list">
       <option value="B/L"></option>
@@ -3549,7 +3551,7 @@
         </div>
       </td>
       <td class="name-cell">
-        <input type="text" data-field="nm" class="w-name" placeholder="例）海上運賃" data-col="1" />
+        <input type="text" data-field="nm" class="w-name" placeholder="例）海上運賃" data-col="1" list="nmSuggestions" />
         <input type="text" data-field="nt" class="w-note" placeholder="備考（任意）" data-col="6" />
       </td>
       <td class="qty-cell">
@@ -3659,7 +3661,7 @@
           <ul>
             <li>クラウドログイン時はチーム全員の票数が合算される</li>
             <li>⭐ マスター管理タブで一覧・投票取消ができる</li>
-            <li>マスター表記は見積入力時のサブコン補完候補に自動追加される</li>
+            <li><b>サブコン</b>・<b>品名</b>・<b>単位</b>・<b>お客様名</b>のマスター表記は、見積入力時の補完候補に自動追加される</li>
           </ul>
         </div>
 

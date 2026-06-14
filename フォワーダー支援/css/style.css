@@ -2197,6 +2197,32 @@ body:has(#compareOverlay.open) #quoteActionDock { display: none; }
 }
 .stats-demote-btn:hover { background: #f5ece0; }
 
+/* マスター管理タブ：活用説明インフォ */
+.stats-master-info {
+  background: #f0ede5;
+  border: 1px solid #d8cebc;
+  border-radius: 8px;
+  padding: 12px 16px;
+  margin-bottom: 14px;
+  font-size: 12px;
+  color: #4a3820;
+}
+.stats-master-info-title {
+  font-weight: 700;
+  font-size: 13px;
+  margin: 0 0 8px;
+}
+.stats-master-usage-list {
+  margin: 0 0 8px 16px;
+  padding: 0;
+  line-height: 1.8;
+}
+.stats-master-info-note {
+  margin: 0;
+  color: #7a6040;
+  font-size: 11px;
+}
+
 /* お客様タブ：ステータスチップ */
 .stats-st-chip {
   display: inline-block;

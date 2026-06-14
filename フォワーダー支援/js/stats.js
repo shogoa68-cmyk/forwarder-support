@@ -353,8 +353,23 @@
       return;
     }
     const labels = { sv: 'サブコン', nm: '品名', un: '単位', customer: 'お客様' };
+    const usageDesc = {
+      sv:       '見積行のサブコン欄で入力補完候補に表示されます。',
+      nm:       '見積行の品名欄で入力補完候補に表示されます。',
+      un:       '見積行の単位欄で入力補完候補に表示されます。',
+      customer: 'お客様名欄で入力補完候補に表示されます。',
+    };
     const sorted = entries.sort((a, b) => b.votes - a.votes);
-    let h = '<table class="stats-table"><thead><tr>' +
+    let h = '<div class="stats-master-info">' +
+            '<p class="stats-master-info-title">✅ マスターに昇格した表記の活用方法</p>' +
+            '<ul class="stats-master-usage-list">' +
+            Object.entries(usageDesc).map(([f, desc]) =>
+              `<li><b>${labels[f] || f}</b>：${desc}</li>`).join('') +
+            '<li><b>エイリアス是正</b>：表記ゆれを一括置換する際の「正規形」の候補として参照できます。</li>' +
+            '</ul>' +
+            `<p class="stats-master-info-note">※ ✅ マスターは票数 2 以上の項目です。${cloudOn ? 'チーム全員の票数が合算されます。' : 'ログインするとチームで票数を共有できます。'}</p>` +
+            '</div>' +
+            '<table class="stats-table"><thead><tr>' +
             '<th>種別</th><th>値</th><th class="stats-num-col">票</th><th>状態</th><th></th>' +
             '</tr></thead><tbody>';
     sorted.forEach(m => {
@@ -447,6 +462,22 @@
   };
 
   window.statsSetPane = statsSetPane;
+
+  // 昇格済みマスターを全フィールド分まとめて返す（alias-rules.js の datalist 補完用）
+  window.statsGetMasters = function () {
+    const cloudOn = _cloud() && _cvMap !== null;
+    if (cloudOn) {
+      const res = [];
+      _cvMap.forEach(({ total }, key) => {
+        if (total >= 2) {
+          const [field, value] = key.split(':::');
+          res.push({ field, value });
+        }
+      });
+      return res;
+    }
+    return _getMasters().filter(m => (m.votes || 0) >= 1).map(m => ({ field: m.field, value: m.value }));
+  };
 
   window.statsRefresh = async function () {
     _data  = null;
