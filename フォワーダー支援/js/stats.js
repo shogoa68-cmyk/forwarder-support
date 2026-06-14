@@ -88,10 +88,10 @@
     const unExcl = new Set(excl.filter(e => e.field === 'un').map(e => e.value));
     return {
       presets, totalPresets: presets.length, totalRows: allRows.length,
-      svGroups:      _groupSimilar(svRows.map(r => r.sv), svExcl),
-      carrierGroups: _groupSimilar(carrierRows.map(r => r.sv), svExcl),
-      nmGroups:      _groupSimilar(allRows.map(r => r.nm).filter(Boolean), nmExcl),
-      unGroups:      _groupSimilar(allRows.map(r => r.un).filter(Boolean), unExcl),
+      svGroups:      _groupSimilar(svRows.map(r => r.sv), svExcl, 'sv'),
+      carrierGroups: _groupSimilar(carrierRows.map(r => r.sv), svExcl, 'sv'),
+      nmGroups:      _groupSimilar(allRows.map(r => r.nm).filter(Boolean), nmExcl, 'nm'),
+      unGroups:      _groupSimilar(allRows.map(r => r.un).filter(Boolean), unExcl, 'un'),
     };
   }
 
@@ -111,17 +111,36 @@
       .replace(/[ァ-ン]/g, c => String.fromCharCode(c.charCodeAt(0) - 0x60));
   }
 
-  function _groupSimilar(names, excl) {
+  function _groupSimilar(names, excl, field) {
     const freq   = _freq(names);
     const groups = new Map();
+    const abbrevPairs = (field && typeof window.arGetAbbrevPairs === 'function')
+      ? window.arGetAbbrevPairs(field) : [];
     freq.forEach(({ value, count }) => {
-      // 除外リストに含まれる値は正規化キーを上書きして単独グループ化
-      const key = (excl && excl.has(value)) ? '\x01' + value : _normalize(value);
+      let key, isAbbrevGroup = false, canonical = null;
+      if (excl && excl.has(value)) {
+        key = '\x01' + value;
+      } else {
+        const pair = abbrevPairs.find(p => p.abbrev === value || p.full === value);
+        if (pair) {
+          key = '\x02' + pair.full;
+          isAbbrevGroup = true;
+          canonical = pair.full;
+        } else {
+          key = _normalize(value);
+        }
+      }
       if (!key) return;
-      if (!groups.has(key)) groups.set(key, { variants: [], total: 0 });
+      if (!groups.has(key)) groups.set(key, { variants: [], total: 0, isAbbrevGroup, canonical });
       const g = groups.get(key);
       g.variants.push({ value, count });
       g.total += count;
+    });
+    // 略称グループは正式名称を先頭に
+    groups.forEach(g => {
+      if (g.isAbbrevGroup && g.canonical) {
+        g.variants.sort((a, b) => (a.value === g.canonical ? -1 : b.value === g.canonical ? 1 : b.count - a.count));
+      }
     });
     return [...groups.values()].sort((a, b) => {
       const vd = (b.variants.length > 1 ? 1 : 0) - (a.variants.length > 1 ? 1 : 0);
@@ -202,7 +221,13 @@
       _renderedGroups[gId] = { aliasField, variants: g.variants };
       h += `<tr${hasV ? ' class="stats-has-variant"' : ''}>`;
       h += `<td class="stats-val">${_esc(g.variants[0].value)}`;
-      if (hasV) h += ` <button class="stats-variant-badge stats-variant-badge--link" onclick="statsJumpToAlias('${gId}')" title="エイリアス是正タブで一括登録">ゆらぎ ${g.variants.length}種</button>`;
+      if (hasV) {
+        if (g.isAbbrevGroup) {
+          h += ` <span class="stats-variant-badge stats-variant-badge--abbrev" title="略称辞書で関連付けられた表記">略称 ${g.variants.length}種</span>`;
+        } else {
+          h += ` <button class="stats-variant-badge stats-variant-badge--link" onclick="statsJumpToAlias('${gId}')" title="エイリアス是正タブで一括登録">ゆらぎ ${g.variants.length}種</button>`;
+        }
+      }
       h += `</td><td class="stats-num-col">${g.total}</td><td class="stats-chips-cell">`;
       g.variants.forEach(v => {
         h += `<span class="stats-chip">` +
@@ -289,7 +314,7 @@
         .filter(e => e.field === 'customer').map(e => e.value)
     );
     const custNames = groups.map(g => g.customer).filter(Boolean);
-    const custGroups = _groupSimilar(custNames, custExcl);
+    const custGroups = _groupSimilar(custNames, custExcl, 'customer');
     // 正規化キー → グループ先頭名のマップ（ゆらぎバッジ用）
     const normToCanon = new Map();
     custGroups.forEach(cg => {
@@ -317,7 +342,9 @@
         const gId = 'statsPane-customer-' + gIdx;
         _renderedCustGroups[gId] = { aliasField: 'customer', variants: cg.variants };
         _renderedGroups[gId] = { aliasField: 'customer', variants: cg.variants };
-        variantBadge = ` <button class="stats-variant-badge stats-variant-badge--link" onclick="statsJumpToAlias('${gId}')" title="エイリアス是正タブで一括登録">ゆらぎ ${cg.variants.length}種</button>`;
+        variantBadge = cg.isAbbrevGroup
+          ? ` <span class="stats-variant-badge stats-variant-badge--abbrev" title="略称辞書で関連付けられた表記">略称 ${cg.variants.length}種</span>`
+          : ` <button class="stats-variant-badge stats-variant-badge--link" onclick="statsJumpToAlias('${gId}')" title="エイリアス是正タブで一括登録">ゆらぎ ${cg.variants.length}種</button>`;
         gIdx++;
       }
 

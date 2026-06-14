@@ -2133,6 +2133,15 @@ body:has(#compareOverlay.open) #quoteActionDock { display: none; }
   color: #3a2a00;
   border-radius: 4px;
 }
+.stats-variant-badge--abbrev {
+  background: #dbeafe;
+  border: 1px solid #93c5fd;
+  border-radius: 10px;
+  color: #1d4ed8;
+  font-size: 11px;
+  padding: 1px 7px;
+  white-space: nowrap;
+}
 .stats-variant-badge {
   display: inline-block;
   font-size: 10px;
