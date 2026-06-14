@@ -7872,12 +7872,67 @@ button.um-memberno--empty:hover { background: #f4ead4; border-color: #cdb98e; }
   flex: 1 1 auto; min-height: 0; overflow-y: auto;
   display: flex; flex-direction: column;
 }
-/* 内側に来る既存パネルは“枠なし・全高”に馴染ませる */
+/* 内側に来る既存パネルは”枠なし・全高”に馴染ませる */
 #tab-quote-make .qrc-drawer-body > .quote-summary-panel,
 #tab-quote-make .qrc-drawer-body > .sq-panel,
-#tab-quote-make .qrc-drawer-body > .sc-panel {
+#tab-quote-make .qrc-drawer-body > .sc-panel,
+#tab-quote-make .qrc-drawer-body > .si-panel {
   width: 100%; flex: 1 1 auto; border: none; border-radius: 0; box-shadow: none;
-  background: transparent; margin: 0;
+  background: transparent; margin: 0; display: flex; flex-direction: column; overflow: hidden;
+}
+
+/* ========== サブコン別サイドパネル ========== */
+#tab-quote-make .si-panel {
+  display: flex; flex-direction: column; height: 100%; overflow: hidden;
+}
+#tab-quote-make .si-search-bar {
+  padding: 8px 10px 6px;
+  border-bottom: 1px solid #e8ddd0;
+  flex-shrink: 0;
+}
+#tab-quote-make .si-search-input {
+  width: 100%; box-sizing: border-box;
+  padding: 5px 8px; font-size: 12px;
+  border: 1px solid #d0c4b0; border-radius: 14px;
+  background: #faf8f5; color: #4a3c28;
+  outline: none;
+}
+#tab-quote-make .si-search-input:focus { border-color: #b0996c; }
+#tab-quote-make .si-list-wrap {
+  flex: 1 1 auto; overflow-y: auto; padding: 6px 8px 12px;
+}
+/* コンパクト化：サイドパネル内のカードを小さく */
+#tab-quote-make .si-list-wrap .rp-sc-card {
+  padding: 8px 10px; margin-bottom: 8px; font-size: 12px;
+}
+#tab-quote-make .si-list-wrap .rp-sc-head {
+  padding-bottom: 5px; margin-bottom: 4px;
+}
+#tab-quote-make .si-list-wrap .rp-sc-av {
+  font-size: 16px; width: 22px; height: 22px; line-height: 22px;
+}
+#tab-quote-make .si-list-wrap .rp-sc-name { font-size: 12px; }
+#tab-quote-make .si-list-wrap .rp-sc-meta { font-size: 10px; }
+#tab-quote-make .si-list-wrap .rp-sc-item {
+  padding: 3px 0; gap: 4px; font-size: 11px;
+}
+#tab-quote-make .si-list-wrap .rp-cat {
+  font-size: 9px; padding: 1px 4px;
+}
+#tab-quote-make .si-list-wrap .rp-sc-price {
+  font-size: 11px; flex-shrink: 0;
+}
+#tab-quote-make .si-list-wrap .rp-sc-avg {
+  font-size: 9px; margin-left: 3px;
+}
+#tab-quote-make .si-list-wrap .rp-sc-foot {
+  padding-top: 5px; margin-top: 4px;
+}
+#tab-quote-make .si-list-wrap .btn-preset-load {
+  font-size: 11px; padding: 3px 10px;
+}
+#tab-quote-make .si-list-wrap .rp-sc-selnote {
+  font-size: 10px;
 }
 
 /* --- 入れ子解消：drawer ヘッダーを“唯一の見出し”にする ---
