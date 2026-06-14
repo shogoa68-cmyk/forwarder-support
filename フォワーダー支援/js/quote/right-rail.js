@@ -40,16 +40,26 @@
   }
 
   // ---- モジュール定義 --------------------------------------------------
-  // panel: 実在パネルの id。summary は内部タブ（要約/輸送/金額/チャット）を持つ。
-  // chat は summary パネルを開いた上で qspSetTab('chat') を呼ぶショートカット。
+  // panel: 実在パネルの id。要約/輸送/金額/申し送りは同じ #quoteSummaryPanel を
+  // 共有し、tab（digest/flow/fin/chat）で内部ペインを出し分ける。レール側で
+  // それぞれ独立アイコンとして並べ、押下時に qspSetTab(tab) で切替える。
   const MODS = [
-    { id: 'summary',  icon: '📊', label: 'サマリ',  title: '見積サマリ',   panel: 'quoteSummaryPanel' },
-    { id: 'chat',     icon: '💬', label: '申し送り', title: '申し送り',     panel: 'quoteSummaryPanel', tab: 'chat' },
+    { id: 'digest',   icon: '🧭', label: '要約',    title: '要約',         panel: 'quoteSummaryPanel', tab: 'digest' },
+    { id: 'flow',     icon: '🚚', label: '輸送',    title: '輸送',         panel: 'quoteSummaryPanel', tab: 'flow'   },
+    { id: 'fin',      icon: '💰', label: '金額',    title: '金額',         panel: 'quoteSummaryPanel', tab: 'fin'    },
+    { id: 'chat',     icon: '💬', label: '申し送り', title: '申し送り',     panel: 'quoteSummaryPanel', tab: 'chat'   },
     { id: 'similar',  icon: '🔍', label: '類似',    title: '類似見積',     panel: 'sqPanel' },
     { id: 'scenario', icon: '🪜', label: 'シナリオ', title: 'シナリオ比較', panel: 'scPanel' },
   ];
 
-  let state = { active: 'summary', pinned: true, width: 300 };
+  // 旧 'summary' モジュールは廃止。保存済み active のマイグレーション用。
+  function _migrateActive(a) {
+    if (a === 'summary') return 'digest';
+    if (a === null) return null;
+    return MODS.some(function (m) { return m.id === a; }) ? a : 'digest';
+  }
+
+  let state = { active: 'digest', pinned: true, width: 300 };
 
   // ---- DOM 構築（既存 .quote-right-col を包み替え） ---------------------
   function build() {
@@ -57,7 +67,7 @@
     if (!col || col.dataset.qrcReady) return;
 
     const saved = _load();
-    state.active = ('active' in saved) ? saved.active : 'summary';
+    state.active = ('active' in saved) ? _migrateActive(saved.active) : 'digest';
     state.pinned = ('pinned' in saved) ? saved.pinned : true;
     state.width  = saved.width || 300;
 
@@ -110,6 +120,12 @@
 
     col.dataset.qrcReady = '1';
     render();
+
+    // 初期表示のサマリ内部ペインをレールの active と一致させる
+    const initDef = MODS.find(function (m) { return m.id === state.active; });
+    if (initDef && initDef.tab && typeof window.qspSetTab === 'function') {
+      window.qspSetTab(initDef.tab);
+    }
   }
 
   // ---- 幅ドラッグ ------------------------------------------------------
