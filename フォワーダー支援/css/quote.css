@@ -8126,3 +8126,4 @@ button.um-memberno--empty:hover { background: #f4ead4; border-color: #cdb98e; }
 .stats-hist-pt b   { font-size: 11px; color: #3d2b1a; font-weight: 700; }
 .stats-hist-date   { font-size: 10px; color: #aaa; }
 .stats-hist-arr    { color: #ccc; font-size: 12px; }
+.stats-hist-route { font-size: 10px; color: #aaa; font-weight: 400; }

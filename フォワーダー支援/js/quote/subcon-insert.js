@@ -84,10 +84,12 @@
         // 参照元案件（このサブコンの費用行を持つ案件）＋寄与項目数を記録
         if (!sc.sources[p.id]) sc.sources[p.id] = Object.assign({ count: 0 }, meta);
         sc.sources[p.id].count++;
-        // 通貨もキーに含める（同一項目でも JPY/USD 等が混ざると平均が壊れるため分離）
+        // 通貨・単位もキーに含める（同一品名でも異なる航路/単位を分離）
         const pcKey = (r.cells[CI.pc] || 'JPY').trim() || 'JPY';
-        const key = cat + '||' + nm + '||' + pcKey;
+        const unKey = (r.cells[CI.un] || '').trim();
+        const key = cat + '||' + nm + '||' + pcKey + '||' + unKey;
         const pp = _num(r.cells[CI.pp]);
+        const route = [p.pol || '', p.pod || ''].filter(Boolean).join('→');
         if (!sc.items[key]) {
           sc.items[key] = {
             cat, name: nm, role: ROLE[cat] || '',
@@ -101,7 +103,7 @@
         const it = sc.items[key];
         if (pp != null) { it.ppSum += pp; it.ppCount++; }
         if (ts >= it.lastUsed) { it.lastUsed = ts; it.lastPp = pp; it.lastBp = (r.cells[CI.bp]||''); it.latest = r.cells; }
-        it.history.push({ ts, pp, bp: _num(r.cells[CI.bp]) });
+        it.history.push({ ts, pp, bp: _num(r.cells[CI.bp]), route });
       });
     });
     // 配列化
