@@ -286,14 +286,114 @@
     if (!isPat) loadSubconModules();
   }
 
+  // モーダル側チェック変更
+  document.addEventListener('change', function (e) {
+    if (e.target && e.target.classList && e.target.classList.contains('rp-sc-chk') && !e.target.classList.contains('si-chk')) {
+      _updateSelNote(parseInt(e.target.dataset.si, 10));
+    }
+  });
+
+  // ========== 右カラム（コンパクト）レンダー ==========
+
+  function renderSubconSidePanel(filter) {
+    const wrap = document.getElementById('siListWrap');
+    if (!wrap) return;
+    let list = _subcons;
+    const q = (filter || '').trim().toLowerCase();
+    if (q) list = list.filter(sc => sc.name.toLowerCase().includes(q) || sc.items.some(it => it.name.toLowerCase().includes(q)));
+    if (!list.length) {
+      wrap.innerHTML = '<div class="preset-empty">' + (q ? '該当するサブコンがありません' :
+        'サブコン情報のある案件がまだありません<br><small style="color:#bbb;">明細の「サブコン」欄に会社名を入れて案件を保存すると自動で集約されます</small>') + '</div>';
+      if (typeof window.qrcRefresh === 'function') window.qrcRefresh();
+      return;
+    }
+    wrap.innerHTML = list.map((sc, si) => {
+      const rows = sc.items.map((it, ii) => {
+        const priceMain = it.pp != null ? _money(it.pp, it.pc) : '—';
+        const unit = it.un ? '<small class="rp-sc-unit"> /' + _esc(it.un) + '</small>' : '';
+        const avg = (it.avgPp != null && it.ppCount !== 1)
+          ? '<span class="rp-sc-avg">' + _money(it.avgPp, it.pc) + '</span>' : '';
+        return '<label class="rp-sc-item">' +
+            '<input type="checkbox" class="rp-sc-chk si-chk" data-si="' + si + '" data-ii="' + ii + '" checked>' +
+            '<span class="rp-cat ' + (CAT_CLASS[it.cat]||'cat-other') + '">' + _esc(ROLE[it.cat]||it.cat||'—') + '</span>' +
+            '<span class="rp-sc-itemname">' + _esc(it.name) + '</span>' +
+            '<span class="rp-sc-price">' + priceMain + unit + avg + '</span>' +
+          '</label>';
+      }).join('');
+      return '<div class="rp-sc-card" data-si="' + si + '">' +
+        '<div class="rp-sc-head">' +
+          '<span class="rp-sc-av">' + _icon(sc) + '</span>' +
+          '<div class="rp-sc-main">' +
+            '<div class="rp-sc-name">' + _esc(sc.name) + '</div>' +
+            '<div class="rp-sc-meta"><span>使用 ' + sc.uses + '案件</span><span>' + sc.items.length + '項目</span></div>' +
+          '</div>' +
+        '</div>' +
+        '<div class="rp-sc-body">' + rows + '</div>' +
+        '<div class="rp-sc-foot">' +
+          '<button class="btn-preset-load" onclick="subconInsertFromPanel(' + si + ')">＋ 挿入</button>' +
+          '<span class="rp-sc-selnote" id="siSelNote-' + si + '"></span>' +
+        '</div>' +
+      '</div>';
+    }).join('');
+    list.forEach((_, si) => _updateSiSelNote(si));
+    if (typeof window.qrcRefresh === 'function') window.qrcRefresh();
+  }
+
+  function _updateSiSelNote(si) {
+    const note = document.getElementById('siSelNote-' + si);
+    if (!note) return;
+    const wrap = document.getElementById('siListWrap');
+    if (!wrap) return;
+    const total = wrap.querySelectorAll('.rp-sc-chk[data-si="' + si + '"]').length;
+    const sel   = wrap.querySelectorAll('.rp-sc-chk[data-si="' + si + '"]:checked').length;
+    note.textContent = sel + '/' + total + '行選択中';
+  }
+
+  function subconInsertFromPanel(si) {
+    const q = (document.getElementById('siSubconSearch')?.value || '').trim().toLowerCase();
+    let list = _subcons;
+    if (q) list = list.filter(sc => sc.name.toLowerCase().includes(q) || sc.items.some(it => it.name.toLowerCase().includes(q)));
+    const sc = list[si];
+    if (!sc) return;
+    const wrap = document.getElementById('siListWrap');
+    if (!wrap) return;
+    const rows = [];
+    wrap.querySelectorAll('.rp-sc-chk[data-si="' + si + '"]:checked').forEach(chk => {
+      const ii = parseInt(chk.dataset.ii, 10);
+      const it = sc.items[ii];
+      if (it && it.cells) rows.push(_cellsToRow(it.cells));
+    });
+    if (!rows.length) return;
+    let posLabel = '末尾';
+    if (typeof window._insertPatternRows === 'function') posLabel = window._insertPatternRows(rows) || posLabel;
+    if (window.quoteShowToast) quoteShowToast('📂 「' + _esc(sc.name) + '」から ' + rows.length + ' 行を' + posLabel + 'に挿入しました', 'success');
+  }
+
+  async function loadSubconPanel() {
+    const wrap = document.getElementById('siListWrap');
+    if (!wrap) return;
+    if (!_subcons.length) {
+      wrap.innerHTML = '<div class="preset-empty">読み込み中…</div>';
+      await loadSubconModules();
+    }
+    renderSubconSidePanel(document.getElementById('siSubconSearch')?.value || '');
+  }
+
+  function subconSidePanelFilter() {
+    renderSubconSidePanel(document.getElementById('siSubconSearch')?.value || '');
+  }
+
   // チェック変更で選択数を更新
   document.addEventListener('change', function (e) {
     if (e.target && e.target.classList && e.target.classList.contains('rp-sc-chk')) {
-      _updateSelNote(parseInt(e.target.dataset.si, 10));
+      const si = parseInt(e.target.dataset.si, 10);
+      if (e.target.classList.contains('si-chk')) _updateSiSelNote(si);
+      else _updateSelNote(si);
     }
   });
 
   Object.assign(window, {
     loadSubconModules, renderSubconList, subconInsert, subconFilter, switchRowInsertTab,
+    renderSubconSidePanel, subconInsertFromPanel, loadSubconPanel, subconSidePanelFilter,
   });
 })();

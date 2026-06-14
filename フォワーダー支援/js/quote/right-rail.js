@@ -50,6 +50,7 @@
     { id: 'chat',     icon: '💬', label: '申し送り', title: '申し送り',     panel: 'quoteSummaryPanel', tab: 'chat'   },
     { id: 'similar',  icon: '🔍', label: '類似',    title: '類似見積',     panel: 'sqPanel' },
     { id: 'scenario', icon: '🪜', label: 'シナリオ', title: 'シナリオ比較', panel: 'scPanel' },
+    { id: 'subcon',   icon: '👷', label: 'サブコン', title: 'サブコン別',   panel: 'siPanel' },
   ];
 
   // 旧 'summary' モジュールは廃止。保存済み active のマイグレーション用。
@@ -76,6 +77,7 @@
       quoteSummaryPanel: document.getElementById('quoteSummaryPanel'),
       sqPanel:           document.getElementById('sqPanel'),
       scPanel:           document.getElementById('scPanel'),
+      siPanel:           document.getElementById('siPanel'),
     };
 
     // シェル骨格
@@ -157,6 +159,10 @@
     if (def && def.tab && typeof window.qspSetTab === 'function') {
       window.qspSetTab(def.tab);
     }
+    // サブコン別パネル：アクティブ化時にデータロード
+    if (mod === 'subcon' && typeof window.loadSubconPanel === 'function') {
+      window.loadSubconPanel();
+    }
   }
 
   function render() {
@@ -178,7 +184,7 @@
 
     // パネル出し分け（active のモジュールの panel だけ表示）
     const showPanel = def ? def.panel : null;
-    ['quoteSummaryPanel', 'sqPanel', 'scPanel'].forEach(function (id) {
+    ['quoteSummaryPanel', 'sqPanel', 'scPanel', 'siPanel'].forEach(function (id) {
       const el = document.getElementById(id);
       if (!el) return;
       // sqPanel は内部で hidden 属性を自前制御するため、表示は wrapper 側で行う
@@ -207,6 +213,12 @@
     if (chatBtn) {
       const has = !!document.querySelector('#qspChatList .cp-chat-item');
       _setDot(chatBtn, has);
+    }
+    // サブコン別：カード数バッジ
+    const siBtn = col.querySelector('.qrc-rail-btn[data-mod="subcon"]');
+    if (siBtn) {
+      const n = document.querySelectorAll('#siPanel .rp-sc-card').length;
+      _setBadge(siBtn, n > 0 ? String(n) : '');
     }
   }
   function _setBadge(btn, txt) {

@@ -3386,6 +3386,15 @@
       <!-- シナリオ比較パネル -->
       <div id="scPanel" class="sc-panel"></div>
 
+      <!-- サブコン別パネル（右カラム コンパクト表示） -->
+      <div id="siPanel" class="si-panel">
+        <div class="si-search-bar">
+          <input type="search" id="siSubconSearch" class="si-search-input"
+                 placeholder="🔍 サブコン名・品名" oninput="subconSidePanelFilter()">
+        </div>
+        <div id="siListWrap" class="si-list-wrap"></div>
+      </div>
+
       </div><!-- /.quote-right-col -->
     </div><!-- /.quote-workspace -->
 
