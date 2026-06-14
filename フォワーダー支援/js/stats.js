@@ -262,7 +262,59 @@
 
   // === ペイン描画 ===
 
-  function _renderSv()      { _renderGrouped(_data?.svGroups      || [], 'sv', 'サブコン名', 'statsPane-sv'); }
+  async function _renderSv() {
+    _renderGrouped(_data?.svGroups || [], 'sv', 'サブコン名', 'statsPane-sv');
+    const e = document.getElementById('statsPane-sv');
+    if (!e) return;
+
+    // チャージ詳細セクションを追加（非同期ロード）
+    const placeholder = document.createElement('div');
+    placeholder.className = 'stats-sv-charges-wrap';
+    placeholder.innerHTML = '<p class="stats-empty" style="margin-top:12px">💰 チャージ詳細を読み込み中…</p>';
+    e.appendChild(placeholder);
+
+    const subcons = typeof window.loadSubconData === 'function'
+      ? await window.loadSubconData()
+      : (typeof window.getSubconData === 'function' ? window.getSubconData() : []);
+
+    if (!subcons.length) {
+      placeholder.innerHTML = '<p class="stats-empty" style="margin-top:12px">💰 チャージ詳細：案件が保存されると自動で集計されます</p>';
+      return;
+    }
+
+    const _m = (n, cur) => {
+      if (n == null) return '—';
+      const c = (cur || 'JPY').trim() || 'JPY';
+      return c === 'JPY' ? '¥' + Math.round(n).toLocaleString('ja-JP') : c + ' ' + n.toLocaleString('ja-JP', { maximumFractionDigits: 2 });
+    };
+    const ROLE = { 'domestic':'国内作業','export-local':'輸出ローカル','ocean':'海上','air':'航空','surcharge':'サーチャージ','import-local':'輸入ローカル','overseas':'海外作業','customs-export':'通関(輸出)','customs-import':'通関(輸入)','insurance':'保険','other':'その他' };
+    const CAT_CLASS = { 'domestic':'cat-domestic','export-local':'cat-export-local','ocean':'cat-ocean','air':'cat-air','surcharge':'cat-surcharge','import-local':'cat-import-local','overseas':'cat-overseas','customs-export':'cat-customs-export','customs-import':'cat-customs-import','insurance':'cat-insurance','other':'cat-other' };
+
+    let h = '<div class="stats-sv-charges-wrap">' +
+            '<p class="stats-sv-charges-title">💰 チャージ詳細（サブコン別・直近案件の単価）</p>';
+    subcons.forEach(sc => {
+      const rows = sc.items.map(it => {
+        const ppStr = it.pp != null ? _m(it.pp, it.pc) : '—';
+        const bpNum = it.bp ? parseFloat(it.bp) : null;
+        const bpStr = bpNum != null && isFinite(bpNum) ? _m(bpNum, it.bc || it.pc) : null;
+        const priceCell = bpStr ? ppStr + ' → ' + bpStr : ppStr;
+        const unit = it.un ? ' /' + _esc(it.un) : '';
+        return `<tr>` +
+               `<td><span class="rp-cat ${CAT_CLASS[it.cat]||'cat-other'}">${_esc(ROLE[it.cat]||it.cat||'—')}</span></td>` +
+               `<td class="stats-val">${_esc(it.name)}</td>` +
+               `<td class="stats-sv-price">${_esc(priceCell)}${_esc(unit)}</td>` +
+               `</tr>`;
+      }).join('');
+      h += `<details class="stats-sv-detail">` +
+           `<summary><b>${_esc(sc.name)}</b><span class="stats-sv-detail-meta">使用 ${sc.uses}案件 · ${sc.items.length}項目</span></summary>` +
+           `<table class="stats-table stats-sv-charge-table"><thead><tr>` +
+           `<th>カテゴリ</th><th>品名</th><th>単価（仕入 → 売上）</th>` +
+           `</tr></thead><tbody>${rows}</tbody></table>` +
+           `</details>`;
+    });
+    h += '</div>';
+    placeholder.outerHTML = h;
+  }
   function _renderCarrier() { _renderGrouped(_data?.carrierGroups || [], 'sv', 'キャリア名', 'statsPane-carrier'); }
   function _renderNm()      { _renderGrouped(_data?.nmGroups      || [], 'nm', '品名',       'statsPane-nm'); }
   function _renderUn()      { _renderGrouped(_data?.unGroups      || [], 'un', '単位',       'statsPane-un'); }

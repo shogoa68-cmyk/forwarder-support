@@ -2284,6 +2284,36 @@ body:has(#compareOverlay.open) #quoteActionDock { display: none; }
 .stats-st--hold     { background: #fff4e0; color: #b45309; }
 .stats-empty-cell   { color: #bbb; font-style: italic; }
 
+/* サブコンペイン：チャージ詳細 */
+.stats-sv-charges-wrap { margin-top: 16px; }
+.stats-sv-charges-title {
+  font-size: 12px; font-weight: 700; color: #6a5030;
+  margin: 0 0 8px; padding: 6px 10px;
+  background: #f5f0e8; border-radius: 6px 6px 0 0;
+  border-bottom: 1px solid #e0d4bf;
+}
+.stats-sv-detail {
+  border: 1px solid #e0d4bf; border-top: none;
+  border-radius: 0;
+}
+.stats-sv-detail:first-of-type { border-top: 1px solid #e0d4bf; }
+.stats-sv-detail:last-of-type  { border-radius: 0 0 6px 6px; }
+.stats-sv-detail > summary {
+  padding: 7px 12px; cursor: pointer; font-size: 12px;
+  background: #faf8f4; list-style: none; display: flex;
+  align-items: center; gap: 8px; user-select: none;
+}
+.stats-sv-detail > summary::-webkit-details-marker { display: none; }
+.stats-sv-detail > summary::before {
+  content: '▶'; font-size: 9px; color: #b0986a; flex-shrink: 0;
+  transition: transform 0.15s;
+}
+.stats-sv-detail[open] > summary::before { transform: rotate(90deg); }
+.stats-sv-detail-meta { font-size: 11px; color: #a08060; margin-left: auto; }
+.stats-sv-charge-table { margin: 0; border-top: 1px solid #e8ddd0; }
+.stats-sv-charge-table td { padding: 4px 8px; font-size: 12px; }
+.stats-sv-price { color: #4a3820; white-space: nowrap; }
+
 .stats-empty {
   color: #9a8a78;
   font-size: 13px;
