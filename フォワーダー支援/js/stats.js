@@ -178,8 +178,8 @@
     const on = v.isMine;
     return `<button class="stats-vote-btn${on ? ' stats-voted' : ''}" ` +
            `onclick="statsToggleVote('${_ea(field)}','${_ea(value)}')" ` +
-           `title="${on ? '投票を取り消す' : 'マスターに昇格する'}">` +
-           (v.total > 0 ? `${on ? '⭐' : '☆'} ${v.total}` : '☆ 昇格') +
+           `title="${on ? 'マスターを解除' : 'マスターに登録'}">` +
+           (on ? '⭐ 登録済' : '☆ 登録') +
            '</button>';
   }
 
@@ -342,15 +342,14 @@
       _cvMap.forEach(({ total, isMine }, key) => {
         if (total < 1) return;
         const [field, value] = key.split(':::');
-        entries.push({ field, value, votes: total, isMine, promoted: total >= 2 });
+        entries.push({ field, value, votes: total, isMine, promoted: true });
       });
     } else {
-      entries = _getMasters().map(m => ({ ...m, isMine: true }));
+      entries = _getMasters().map(m => ({ ...m, isMine: true, promoted: true }));
     }
 
     if (!entries.length) {
-      e.innerHTML = '<p class="stats-empty">マスター候補はまだありません。<br>各集計の ☆ 昇格 ボタンで登録できます。<br>' +
-                   `<small>票数 2 以上で「✅ マスター」に昇格します。${cloudOn ? '（チーム全員の票数）' : '（ローカル保存）'}</small></p>`;
+      e.innerHTML = '<p class="stats-empty">マスター登録はまだありません。<br>各集計の ☆ 登録 ボタンで追加できます。</p>';
       return;
     }
     const labels = { sv: 'サブコン', nm: '品名', un: '単位', customer: 'お客様' };
@@ -360,26 +359,24 @@
       un:       '見積行の単位欄で入力補完候補に表示されます。',
       customer: 'お客様名欄で入力補完候補に表示されます。',
     };
-    const sorted = entries.sort((a, b) => b.votes - a.votes);
+    const sorted = entries.sort((a, b) => (labels[a.field] || a.field).localeCompare(labels[b.field] || b.field) || a.value.localeCompare(b.value));
     let h = '<div class="stats-master-info">' +
-            '<p class="stats-master-info-title">✅ マスターに昇格した表記の活用方法</p>' +
+            '<p class="stats-master-info-title">✅ マスター登録した表記の活用方法</p>' +
             '<ul class="stats-master-usage-list">' +
             Object.entries(usageDesc).map(([f, desc]) =>
               `<li><b>${labels[f] || f}</b>：${desc}</li>`).join('') +
             '<li><b>エイリアス是正</b>：表記ゆれを一括置換する際の「正規形」の候補として参照できます。</li>' +
             '</ul>' +
-            `<p class="stats-master-info-note">※ ✅ マスターは票数 2 以上の項目です。${cloudOn ? 'チーム全員の票数が合算されます。' : 'ログインするとチームで票数を共有できます。'}</p>` +
+            `<p class="stats-master-info-note">☆ 登録 ボタンで即時マスターに追加。再クリックで解除できます。${cloudOn ? '（チーム全員で共有）' : '（このブラウザにローカル保存）'}</p>` +
             '</div>' +
             '<table class="stats-table"><thead><tr>' +
-            '<th>種別</th><th>値</th><th class="stats-num-col">票</th><th>状態</th><th></th>' +
+            '<th>種別</th><th>値</th><th></th>' +
             '</tr></thead><tbody>';
     sorted.forEach(m => {
       h += `<tr>` +
            `<td>${labels[m.field] || m.field}</td>` +
            `<td class="stats-val">${_esc(m.value)}</td>` +
-           `<td class="stats-num-col">${m.votes}</td>` +
-           `<td>${m.promoted ? '<span class="stats-master-badge">✅ マスター</span>' : '<span class="stats-cand-badge">候補</span>'}</td>` +
-           `<td>${m.isMine ? `<button class="stats-demote-btn" onclick="statsToggleVote('${_ea(m.field)}','${_ea(m.value)}')">取消</button>` : ''}</td>` +
+           `<td><button class="stats-demote-btn" onclick="statsToggleVote('${_ea(m.field)}','${_ea(m.value)}')">解除</button></td>` +
            `</tr>`;
     });
     e.innerHTML = h + '</tbody></table>';
@@ -470,7 +467,7 @@
     if (cloudOn) {
       const res = [];
       _cvMap.forEach(({ total }, key) => {
-        if (total >= 2) {
+        if (total >= 1) {
           const [field, value] = key.split(':::');
           res.push({ field, value });
         }
