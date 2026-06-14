@@ -214,7 +214,9 @@
       if (!dl) return;
       const fromRules  = rules.filter(r => r.field === field).map(r => r.to_value);
       const fromMaster = masters.filter(m => m.field === field).map(m => m.value);
-      const all = [...new Set([...fromRules, ...fromMaster])];
+      const abbrevPairs = typeof window.arGetAbbrevPairs === 'function' ? window.arGetAbbrevPairs(field) : [];
+      const fromAbbrev = abbrevPairs.flatMap(p => [p.abbrev, p.full]);
+      const all = [...new Set([...fromRules, ...fromMaster, ...fromAbbrev])];
       // datalist 内の動的 option（data-master）だけを入れ替える
       dl.querySelectorAll('option[data-master]').forEach(o => o.remove());
       all.forEach(v => {
