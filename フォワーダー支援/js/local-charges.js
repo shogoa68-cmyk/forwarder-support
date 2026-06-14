@@ -2,8 +2,9 @@
 (function () {
   'use strict';
 
-  const TABLE    = 'local_charges';
-  const LOC_KEY  = 'localCharges_v1';
+  const TABLE      = 'local_charges';
+  const LOC_KEY    = 'localCharges_v1';
+  const ATTACH_KEY = 'lcAttachments_v1';
 
   const LC_CATS = [
     { value: '',               label: '— カテゴリ —' },
@@ -20,10 +21,14 @@
   const LC_CURRENCIES = ['JPY', 'USD', 'EUR', 'CNY', 'SGD', 'HKD', 'GBP', 'AUD'];
   const LC_UNITS      = ['', '式', 'B/L', 'CNTR', '20ft', '40ft', 'R/T', 'CBM', 'kg', 'TON', 'pcs', 'shipment', 'DAY'];
 
-  let _dir     = 'export';
-  let _charges = [];
-  let _editId  = null;
-  let _pickDir = 'export';
+  let _dir         = 'export';
+  let _charges     = [];
+  let _editId      = null;
+  let _pickDir     = 'export';
+  // 添付ファイル状態: null=変更なし, false=削除, {name,type,dataUrl}=新規
+  let _pendingAttach  = null;
+  // フォームを開いたときの既存添付（表示用）
+  let _currentAttach  = null;
 
   // === Supabase / localStorage ===
 
@@ -38,6 +43,56 @@
     } catch (e) { return []; }
   }
   function _saveLocal(all) { localStorage.setItem(LOC_KEY, JSON.stringify(all)); }
+
+  // === 添付ファイル（lcAttachments_v1） ===
+
+  function _loadAttachStore()        { try { return JSON.parse(localStorage.getItem(ATTACH_KEY) || '{}'); } catch(e) { return {}; } }
+  function _getAttach(id)            { return id ? (_loadAttachStore()[id] || null) : null; }
+  function _persistAttach(id, obj)   {
+    const a = _loadAttachStore();
+    if (obj) a[id] = obj; else delete a[id];
+    localStorage.setItem(ATTACH_KEY, JSON.stringify(a));
+  }
+
+  function _readFile(file, cb) {
+    const MAX = 5 * 1024 * 1024;
+    if (file.size > MAX) {
+      alert('ファイルサイズが5MBを超えています（' + (file.size / 1024 / 1024).toFixed(1) + 'MB）。\n5MB以下のファイルを選択してください。');
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = ev => cb({ name: file.name, type: file.type, dataUrl: ev.target.result });
+    reader.readAsDataURL(file);
+  }
+
+  function _lcUpdateAttachUI() {
+    // 表示すべき添付を決定
+    const disp = (_pendingAttach !== null)
+      ? (_pendingAttach || null)   // false → null
+      : _currentAttach;
+
+    const emptyEl  = document.getElementById('lcAttachEmpty');
+    const selEl    = document.getElementById('lcAttachSelected');
+    const nameEl   = document.getElementById('lcAttachFileName');
+
+    if (!emptyEl || !selEl) return;
+
+    if (disp) {
+      emptyEl.style.display = 'none';
+      selEl.style.display   = '';
+      if (nameEl) {
+        nameEl.textContent = disp.name;
+        nameEl.href        = disp.dataUrl;
+        nameEl.download    = disp.name;
+      }
+    } else {
+      emptyEl.style.display = '';
+      selEl.style.display   = 'none';
+      // ファイル input をリセット
+      const fi = document.getElementById('lc_file');
+      if (fi) fi.value = '';
+    }
+  }
 
   async function _load(dir) {
     const c = _c();
@@ -211,6 +266,7 @@
            (actor ? `<div class="lc-updated-by">${_esc(actor)}</div>` : '') +
            `</td>` +
            `<td class="lc-ops">` +
+           (_getAttach(c.id) ? `<a class="lc-attach-tbl-btn" href="${_getAttach(c.id).dataUrl}" download="${_ea(_getAttach(c.id).name)}" target="_blank" title="添付: ${_ea(_getAttach(c.id).name)}">📎</a>` : '') +
            `<button class="lc-edit-btn" onclick="lcOpenForm('${c.id}')" title="編集">✏️</button>` +
            `<button class="lc-del-btn"  onclick="lcDeleteCharge('${c.id}')" title="削除">🗑️</button>` +
            `</td></tr>`;
@@ -245,19 +301,41 @@
     set('lc_source',     charge?.source     || '');
     set('lc_note',       charge?.note       || '');
 
+    // 添付ファイル状態を初期化
+    _pendingAttach = null;
+    _currentAttach = _getAttach(charge?.id || null);
+    _lcUpdateAttachUI();
+
+    // ドラッグ&ドロップ・ペーストを添付エリアに設定（1回だけ）
+    const zone = document.getElementById('lcAttachZone');
+    if (zone && !zone.dataset.lcDndReady) {
+      zone.addEventListener('dragover',  e => { e.preventDefault(); zone.classList.add('lc-dragover'); });
+      zone.addEventListener('dragleave', () => zone.classList.remove('lc-dragover'));
+      zone.addEventListener('drop', e => {
+        e.preventDefault(); zone.classList.remove('lc-dragover');
+        const f = e.dataTransfer.files[0];
+        if (f) _readFile(f, obj => { _pendingAttach = obj; _lcUpdateAttachUI(); });
+      });
+      zone.dataset.lcDndReady = '1';
+    }
+
     modal.classList.add('open');
     document.getElementById('lc_name')?.focus();
   }
 
   function lcCloseForm() {
     document.getElementById('lcFormModal')?.classList.remove('open');
-    _editId = null;
+    _editId        = null;
+    _pendingAttach = null;
+    _currentAttach = null;
   }
 
   async function lcSaveCharge() {
     const g = id => document.getElementById(id)?.value?.trim() || '';
-    const name = g('lc_name');
-    if (!name) { alert('名称は必須です'); return; }
+    const name    = g('lc_name');
+    const carrier = g('lc_carrier');
+    if (!name)    { alert('名称は必須です'); return; }
+    if (!carrier) { alert('船会社（キャリアー）は必須です'); document.getElementById('lc_carrier')?.focus(); return; }
 
     const row = {
       id:          _editId || undefined,
@@ -282,7 +360,12 @@
     const btn = document.querySelector('#lcFormModal .lc-save-btn');
     if (btn) btn.disabled = true;
     try {
-      await _upsert(row);
+      const saved   = await _upsert(row);
+      const savedId = saved?.id || row.id || _editId;
+      // 添付ファイルを保存・削除（null=変更なし、false=削除、object=新規）
+      if (_pendingAttach !== null && savedId) {
+        _persistAttach(savedId, _pendingAttach || null);
+      }
       lcCloseForm();
       await _load(_dir);
       lcRender();
@@ -671,6 +754,19 @@
   window.initLocalChargesTab = async function () {
     _updateCloudStatus();
     lcSetDir('export');
+  };
+
+  // === 添付ファイル操作（グローバル関数） ===
+
+  window.lcHandleFileChange = function(input) {
+    const f = input?.files?.[0];
+    if (!f) return;
+    _readFile(f, obj => { _pendingAttach = obj; _lcUpdateAttachUI(); });
+  };
+
+  window.lcClearAttach = function() {
+    _pendingAttach = false;
+    _lcUpdateAttachUI();
   };
 
   // === 公開 API ===
