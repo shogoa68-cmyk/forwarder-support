@@ -549,7 +549,7 @@
       `<td colspan="4" class="ua-picker-cell">` +
       `<span class="ua-picker-label">「${unit.replace(/&/g,'&amp;').replace(/</g,'&lt;')}」を統合する代表：</span>` +
       `<select class="ua-picker-sel" id="${selId}">` +
-      groups.map(g => `<option value="${_ej(g.canonical)}">${g.canonical.replace(/&/g,'&amp;')}</option>`).join('') +
+      groups.map(g => `<option value="${_eav(g.canonical)}">${_esc(g.canonical)}</option>`).join('') +
       `</select>` +
       `<button class="ua-picker-ok" onclick="uaConfirmMerge('${_ej(unit)}','${selId}')">統合する</button>` +
       `<button class="ua-picker-cancel" onclick="document.querySelectorAll('.ua-inline-picker').forEach(function(e){e.remove()})">✕</button>` +
