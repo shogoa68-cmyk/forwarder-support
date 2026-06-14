@@ -2915,3 +2915,49 @@ a.lc-source-icon:hover { opacity: 0.75; }
   font-family: 'Hiragino Kaku Gothic Pro', 'Meiryo', monospace;
   font-size: 13px; line-height: 1.85; resize: vertical;
 }
+
+/* ── Unit Alias Group UI ─────────────────────────────────────────────── */
+.ua-group-row td { background: #f9f9ff; }
+.ua-group-row td:first-child { font-weight: 600; }
+.ua-alias-chips { display: inline-flex; flex-wrap: wrap; gap: 4px; margin-left: 6px; }
+.ua-alias-chip {
+  display: inline-flex; align-items: center; gap: 2px;
+  background: #e8eaf6; border-radius: 10px;
+  padding: 1px 6px 1px 8px; font-size: 12px; color: #3949ab;
+}
+.ua-alias-chip .ua-chip-rm {
+  cursor: pointer; color: #999; font-size: 11px; line-height: 1;
+  border: none; background: none; padding: 0 1px; margin-left: 2px;
+}
+.ua-alias-chip .ua-chip-rm:hover { color: #c62828; }
+.ua-ungroup-btn {
+  font-size: 11px; color: #888; background: none; border: 1px solid #ccc;
+  border-radius: 4px; padding: 1px 5px; cursor: pointer; margin-left: 6px;
+}
+.ua-ungroup-btn:hover { background: #fce4ec; color: #c62828; border-color: #c62828; }
+.ua-set-canonical-btn {
+  font-size: 11px; background: none; border: 1px solid #bbb;
+  border-radius: 4px; padding: 1px 5px; cursor: pointer; color: #555;
+}
+.ua-set-canonical-btn:hover { background: #fff9c4; border-color: #f9a825; }
+.ua-merge-btn {
+  font-size: 11px; background: #e3f2fd; border: 1px solid #90caf9;
+  border-radius: 4px; padding: 1px 6px; cursor: pointer; color: #1565c0;
+}
+.ua-merge-btn:hover { background: #bbdefb; }
+.ua-inline-picker td {
+  background: #f1f8e9; padding: 4px 8px;
+}
+.ua-inline-picker select {
+  font-size: 13px; border: 1px solid #a5d6a7; border-radius: 4px;
+  padding: 2px 4px; margin-right: 6px;
+}
+.ua-inline-confirm-btn {
+  font-size: 12px; background: #4caf50; color: #fff;
+  border: none; border-radius: 4px; padding: 2px 8px; cursor: pointer;
+}
+.ua-inline-confirm-btn:hover { background: #388e3c; }
+.ua-inline-cancel-btn {
+  font-size: 12px; background: #eee; color: #555;
+  border: 1px solid #ccc; border-radius: 4px; padding: 2px 6px; cursor: pointer; margin-left: 4px;
+}
