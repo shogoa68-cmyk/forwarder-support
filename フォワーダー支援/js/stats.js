@@ -279,8 +279,23 @@
     });
     const groups = [...map.values()].sort((a, b) => b.count - a.count);
 
+    // ゆらぎグループ化（表記ゆれを検出）
+    const custExcl = new Set(
+      (typeof window.arGetExclusions === 'function' ? window.arGetExclusions() : [])
+        .filter(e => e.field === 'customer').map(e => e.value)
+    );
+    const custNames = groups.map(g => g.customer).filter(Boolean);
+    const custGroups = _groupSimilar(custNames, custExcl);
+    // 正規化キー → グループ先頭名のマップ（ゆらぎバッジ用）
+    const normToCanon = new Map();
+    custGroups.forEach(cg => {
+      if (cg.variants.length > 1) normToCanon.set(_normalize(cg.variants[0].value), cg);
+    });
+
+    const _renderedCustGroups = {};
+    let gIdx = 0;
     let h = '<table class="stats-table"><thead><tr>' +
-            '<th>お客様名</th><th class="stats-num-col">件数</th><th>担当者</th><th>ステータス</th>' +
+            '<th>お客様名</th><th class="stats-num-col">件数</th><th>担当者</th><th>ステータス</th><th></th>' +
             '</tr></thead><tbody>';
     groups.forEach(g => {
       const persons = [...g.persons].join('、') || '—';
@@ -290,11 +305,27 @@
         ? Object.entries(stMap).sort((a, b) => b[1] - a[1])
             .map(([s, n]) => `<span class="stats-st-chip stats-st--${_stCls(s)}">${_esc(s)} ${n}</span>`).join('')
         : '—';
+
+      // ゆらぎバッジ（同じ正規化キーに複数表記がある場合）
+      const cg = g.customer ? normToCanon.get(_normalize(g.customer)) : null;
+      let variantBadge = '';
+      if (cg && cg.variants.length > 1 && cg.variants[0].value === g.customer) {
+        const gId = 'statsPane-customer-' + gIdx;
+        _renderedCustGroups[gId] = { aliasField: 'customer', variants: cg.variants };
+        _renderedGroups[gId] = { aliasField: 'customer', variants: cg.variants };
+        variantBadge = ` <button class="stats-variant-badge stats-variant-badge--link" onclick="statsJumpToAlias('${gId}')" title="エイリアス是正タブで一括登録">ゆらぎ ${cg.variants.length}種</button>`;
+        gIdx++;
+      }
+
+      const nameCell = g.customer
+        ? `${_esc(g.customer)}${variantBadge}`
+        : '<span class="stats-empty-cell">（未入力）</span>';
       h += `<tr>` +
-           `<td class="stats-val">${_esc(g.customer) || '<span class="stats-empty-cell">（未入力）</span>'}</td>` +
+           `<td class="stats-val">${nameCell}</td>` +
            `<td class="stats-num-col">${g.count}</td>` +
            `<td>${_esc(persons)}</td>` +
            `<td>${stHtml}</td>` +
+           `<td>${g.customer ? _voteBtn('customer', g.customer) : ''}</td>` +
            `</tr>`;
     });
     e.innerHTML = h + '</tbody></table>';
@@ -321,7 +352,7 @@
                    `<small>票数 2 以上で「✅ マスター」に昇格します。${cloudOn ? '（チーム全員の票数）' : '（ローカル保存）'}</small></p>`;
       return;
     }
-    const labels = { sv: 'サブコン', nm: '品名', un: '単位' };
+    const labels = { sv: 'サブコン', nm: '品名', un: '単位', customer: 'お客様' };
     const sorted = entries.sort((a, b) => b.votes - a.votes);
     let h = '<table class="stats-table"><thead><tr>' +
             '<th>種別</th><th>値</th><th class="stats-num-col">票</th><th>状態</th><th></th>' +
