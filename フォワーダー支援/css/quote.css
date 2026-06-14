@@ -7877,6 +7877,30 @@ button.um-memberno--empty:hover { background: #f4ead4; border-color: #cdb98e; }
 #tab-quote-make .qrc-drawer-body > .sq-panel,
 #tab-quote-make .qrc-drawer-body > .sc-panel {
   width: 100%; flex: 1 1 auto; border: none; border-radius: 0; box-shadow: none;
+  background: transparent; margin: 0;
+}
+
+/* --- 入れ子解消：drawer ヘッダーを“唯一の見出し”にする ---
+   各パネルが自前で持つ見出しバー（qsp-header / sq-head / sc-head）は
+   drawer ヘッダー（qrc-drawer-head）と二重になり“箱の中に箱”に見える。
+   drawer 内ではパネル側見出しを畳み、本文だけをヘッダー直下に流す。
+   さらに 要約/輸送/金額/申し送り はレールの独立アイコンに昇格したため、
+   サマリ内部のタブバー（qsp-tabs）も冗長 → 非表示。 */
+#tab-quote-make .qrc-drawer-body > .quote-summary-panel > .qsp-header,
+#tab-quote-make .qrc-drawer-body > .quote-summary-panel > .qsp-tabs,
+#tab-quote-make .qrc-drawer-body > .sq-panel > .sq-head,
+#tab-quote-make .qrc-drawer-body > .sc-panel > .sc-head {
+  display: none;
+}
+/* 折りたたみ制御は drawer 側（レール）が担うので本文は常に展開 */
+#tab-quote-make .qrc-drawer-body > .sq-panel.sq-panel--collapsed > .sq-list {
+  display: flex;
+}
+#tab-quote-make .qrc-drawer-body > .sc-panel.sc-panel--collapsed > .sc-body {
+  display: block;
+}
+#tab-quote-make .qrc-drawer-body > .quote-summary-panel > .qsp-pane {
+  border-top: none;
 }
 
 /* ---- アイコンレール（常時表示） ---- */

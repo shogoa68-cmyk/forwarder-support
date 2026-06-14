@@ -51,7 +51,7 @@
   <div class="cat-nav" role="tablist" aria-label="カテゴリ">
     <button class="cat-btn cat-btn-featured active" role="tab" aria-selected="true"  onclick="switchCategory('quote',  this)">💼 見積</button>
     <button class="cat-btn cat-btn-featured"        role="tab" aria-selected="false" onclick="switchCategory('stats',   this)">📊 統計</button>
-    <button class="cat-btn"        role="tab" aria-selected="false" onclick="switchCategory('cost', this)">💴 ローカルチャージ</button>
+    <button class="cat-btn"        role="tab" aria-selected="false" onclick="switchCategory('cost', this)">💴 諸チャージ</button>
     <button class="cat-btn cat-btn-bookmark" role="tab" aria-selected="false" onclick="switchCategory('bookmark', this)">🔖 BOOKMARK</button>
     <button class="cat-btn"        role="tab" aria-selected="false" onclick="switchCategory('vessel', this)">🚢 本船・航路</button>
     <button class="cat-btn"        role="tab" aria-selected="false" title="Booking（船腹予約）と S/I（Shipping Instruction：船積指図書）の手続き" onclick="switchCategory('booking', this)">📋 Booking/SI</button>
@@ -73,7 +73,7 @@
     <button class="tab-btn" role="tab" aria-selected="false" onclick="switchTab('lcl-carrier', this)">📦 LCL キャリア</button>
   </div>
   <div class="tab-nav sub-nav" id="sub-cost" role="tablist" aria-label="cost サブタブ">
-    <button class="tab-btn" role="tab" aria-selected="false" onclick="switchTab('local-charges', this)">📦 ローカルチャージ</button>
+    <button class="tab-btn" role="tab" aria-selected="false" onclick="switchTab('local-charges', this)">📦 諸チャージ</button>
     <button class="tab-btn" hidden role="tab" aria-selected="false" onclick="switchTab('surcharge', this)">💴 サーチャージ</button>
     <button class="tab-btn" hidden role="tab" aria-selected="false" onclick="switchTab('freetime',  this)">⏱️ フリータイム</button>
   </div>
@@ -260,7 +260,7 @@
 
   </div><!-- /tab-lcl-carrier -->
 
-  <!-- ===================== ローカルチャージ tab ===================== -->
+  <!-- ===================== 諸チャージ tab ===================== -->
   <div class="tab-content" id="tab-local-charges">
     <div class="lc-page">
 
@@ -271,6 +271,7 @@
         </div>
         <div class="lc-topbar-right">
           <span id="lcCloudStatus" class="lc-cloud-off">💾 ローカル</span>
+          <button class="lc-variant-btn" onclick="lcToggleVariants()">🔀 ゆらぎ</button>
           <button class="lc-add-btn" onclick="lcOpenForm(null)">＋ 新規登録</button>
         </div>
       </div>
@@ -280,6 +281,8 @@
         <input id="lcFilterPort"    class="lc-filter-input" type="text" placeholder="🏯 積み港/揚げ港"   oninput="lcRender()">
         <input id="lcFilterCarrier" class="lc-filter-input" type="text" placeholder="🚢 船会社"          oninput="lcRender()">
       </div>
+
+      <div id="lcVariantPanel" class="lc-variant-panel" hidden></div>
 
       <div id="lcList" class="lc-list">
         <p class="lc-empty">読み込み中…</p>
@@ -3170,7 +3173,7 @@
               <button class="btn-ins-rem cmdbar-icon-btn" onclick="toolbarInsertRemark()" title="リマーク（注記）行を追加">💬</button>
               <button class="btn-ins-int cmdbar-icon-btn" onclick="toolbarInsertInternal()" title="社内メモ行を追加（出力対象外）">🔒</button>
               <button class="btn-bulk-pattern cmdbar-pattern-btn" onclick="openRowPatternMgr()" title="行パターン：チェックした行を保存／保存パターンを挿入">🗂️ 行パターン</button>
-              <button class="cmdbar-lc-btn" onclick="lcOpenPicker()" title="ローカルチャージマスターから行を追加">📦 チャージ</button>
+              <button class="cmdbar-lc-btn" onclick="lcOpenPicker()" title="諸チャージマスターから行を追加">📦 チャージ</button>
               <span class="btn-group-label">挿入位置</span>
               <select id="rowInsertPos" class="row-insert-pos" title="追加ボタンの挿入位置">
                 <option value="end">末尾に追加</option>
@@ -3974,7 +3977,7 @@
   </div>
 </div>
 
-<!-- ====== ローカルチャージ: 登録フォームモーダル ====== -->
+<!-- ====== 諸チャージ: 登録フォームモーダル ====== -->
 <div id="lcFormModal" class="lc-modal-overlay" onclick="if(event.target===this)lcCloseForm()">
   <div class="lc-form-box" onclick="event.stopPropagation()">
     <div class="lc-modal-header">
@@ -3984,7 +3987,7 @@
     <div class="lc-form-body">
       <div class="lc-form-row lc-form-row--full">
         <label class="lc-form-label">略称・名称 <span class="lc-required">必須</span></label>
-        <input  id="lc_name" class="lc-form-input" type="text" placeholder="例: THC、B/L Fee、輸出通関費">
+        <input id="lc_name" class="lc-form-input" type="text" placeholder="例: THC、B/L Fee、輸出通関費" list="lcNameList" autocomplete="off">
       </div>
       <div class="lc-form-row lc-form-row--full">
         <label class="lc-form-label">正式名称</label>
@@ -4021,6 +4024,10 @@
         <input id="lc_valid_from" class="lc-form-input" type="date">
       </div>
       <div class="lc-form-row lc-form-row--full">
+        <label class="lc-form-label">参照元</label>
+        <input id="lc_source" class="lc-form-input" type="text" placeholder="URLまたは出典（例: https://... / MSC タリフ 2026-06版）">
+      </div>
+      <div class="lc-form-row lc-form-row--full">
         <label class="lc-form-label">備考</label>
         <input id="lc_note" class="lc-form-input" type="text" placeholder="補足情報">
       </div>
@@ -4032,11 +4039,13 @@
   </div>
 </div>
 
-<!-- ====== ローカルチャージ: 見積ピッカーモーダル ====== -->
+<datalist id="lcNameList"></datalist>
+
+<!-- ====== 諸チャージ: 見積ピッカーモーダル ====== -->
 <div id="lcPickerModal" class="lc-modal-overlay" onclick="if(event.target===this)lcClosePicker()">
   <div class="lc-picker-box" onclick="event.stopPropagation()">
     <div class="lc-modal-header">
-      <h3 class="lc-modal-title">📦 ローカルチャージから追加</h3>
+      <h3 class="lc-modal-title">📦 諸チャージから追加</h3>
       <button class="lc-modal-close" onclick="lcClosePicker()">✕</button>
     </div>
     <div class="lc-picker-topbar">
