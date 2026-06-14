@@ -262,23 +262,24 @@
 
   // === ペイン描画 ===
 
-  async function _renderSv() {
-    _renderGrouped(_data?.svGroups || [], 'sv', 'サブコン名', 'statsPane-sv');
-    const e = document.getElementById('statsPane-sv');
-    if (!e) return;
+  function _renderSv() { _renderGrouped(_data?.svGroups || [], 'sv', 'サブコン名', 'statsPane-sv'); }
+  function _renderCarrier() { _renderGrouped(_data?.carrierGroups || [], 'sv', 'キャリア名', 'statsPane-carrier'); }
+  function _renderNm()      { _renderGrouped(_data?.nmGroups      || [], 'nm', '品名',       'statsPane-nm'); }
+  function _renderUn()      { _renderGrouped(_data?.unGroups      || [], 'un', '単位',       'statsPane-un'); }
 
-    // チャージ詳細セクションを追加（非同期ロード）
-    const placeholder = document.createElement('div');
-    placeholder.className = 'stats-sv-charges-wrap';
-    placeholder.innerHTML = '<p class="stats-empty" style="margin-top:12px">💰 チャージ詳細を読み込み中…</p>';
-    e.appendChild(placeholder);
+  // ===== チャージ詳細タブ =====
+
+  async function _renderCharges() {
+    const e = document.getElementById('statsPane-charges');
+    if (!e) return;
+    e.innerHTML = '<p class="stats-empty">💰 チャージ詳細を読み込み中…</p>';
 
     const subcons = typeof window.loadSubconData === 'function'
       ? await window.loadSubconData()
       : (typeof window.getSubconData === 'function' ? window.getSubconData() : []);
 
     if (!subcons.length) {
-      placeholder.innerHTML = '<p class="stats-empty" style="margin-top:12px">💰 チャージ詳細：案件が保存されると自動で集計されます</p>';
+      e.innerHTML = '<p class="stats-empty">案件が保存されると自動で集計されます。<br><small>明細の「サブコン」欄に会社名を入れて案件を保存してください。</small></p>';
       return;
     }
 
@@ -290,8 +291,7 @@
     const ROLE = { 'domestic':'国内作業','export-local':'輸出ローカル','ocean':'海上','air':'航空','surcharge':'サーチャージ','import-local':'輸入ローカル','overseas':'海外作業','customs-export':'通関(輸出)','customs-import':'通関(輸入)','insurance':'保険','other':'その他' };
     const CAT_CLASS = { 'domestic':'cat-domestic','export-local':'cat-export-local','ocean':'cat-ocean','air':'cat-air','surcharge':'cat-surcharge','import-local':'cat-import-local','overseas':'cat-overseas','customs-export':'cat-customs-export','customs-import':'cat-customs-import','insurance':'cat-insurance','other':'cat-other' };
 
-    let h = '<div class="stats-sv-charges-wrap">' +
-            '<p class="stats-sv-charges-title">💰 チャージ詳細（サブコン別・直近案件の単価）</p>';
+    let h = '';
     subcons.forEach(sc => {
       const rows = sc.items.map(it => {
         const ppStr = it.pp != null ? _m(it.pp, it.pc) : '—';
@@ -312,12 +312,8 @@
            `</tr></thead><tbody>${rows}</tbody></table>` +
            `</details>`;
     });
-    h += '</div>';
-    placeholder.outerHTML = h;
+    e.innerHTML = '<div class="stats-sv-charges-wrap">' + h + '</div>';
   }
-  function _renderCarrier() { _renderGrouped(_data?.carrierGroups || [], 'sv', 'キャリア名', 'statsPane-carrier'); }
-  function _renderNm()      { _renderGrouped(_data?.nmGroups      || [], 'nm', '品名',       'statsPane-nm'); }
-  function _renderUn()      { _renderGrouped(_data?.unGroups      || [], 'un', '単位',       'statsPane-un'); }
 
   // ===== お客様タブ =====
   const _stCls = st => ({ '下書き中':'draft','提出済み':'sent','提示済み':'sent','受注':'won','失注':'lost','辞退':'declined','保留':'hold' }[st] || 'draft');
@@ -510,6 +506,7 @@
     else if (id === 'customer') _renderCustomer();
     else if (id === 'nm')       _renderNm();
     else if (id === 'un')       _renderUn();
+    else if (id === 'charges')  _renderCharges();
     else if (id === 'master')   _renderMaster();
     else if (id === 'alias')    _renderAlias();
   }
@@ -527,6 +524,7 @@
     else if (paneId === 'customer') _renderCustomer();
     else if (paneId === 'nm')       _renderNm();
     else if (paneId === 'un')       _renderUn();
+    else if (paneId === 'charges')  _renderCharges();
     else if (paneId === 'master')   _renderMaster();
     else if (paneId === 'alias')    _renderAlias();
   }
