@@ -455,5 +455,7 @@
   Object.assign(window, {
     loadSubconModules, renderSubconList, subconInsert, subconFilter, switchRowInsertTab,
     renderSubconSidePanel, subconInsertFromPanel, loadSubconPanel, subconSidePanelFilter,
+    getSubconData: () => _subcons,
+    loadSubconData: async () => { if (!_subcons.length) await loadSubconModules(); return _subcons; },
   });
 })();
