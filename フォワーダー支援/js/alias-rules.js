@@ -231,6 +231,19 @@
     _fill('nmSuggestions', 'nm');
     _fill('unit-list',     'un');
     _fill('custSuggestions', 'customer');
+
+    // ユニット同義語グループをunitdatalistに追加
+    const unDl = document.getElementById('unit-list');
+    if (unDl) {
+      const uaGroups = typeof window.uaGetGroups === 'function' ? window.uaGetGroups() : [];
+      const fromUA = uaGroups.flatMap(g => [g.canonical, ...(g.aliases || [])]);
+      fromUA.forEach(v => {
+        if (!unDl.querySelector(`option[value="${v.replace(/"/g,'&quot;')}"]`)) {
+          const o = document.createElement('option'); o.value = v; o.dataset.master = '1';
+          unDl.appendChild(o);
+        }
+      });
+    }
   }
   window.arRefreshDatalist = _refreshDatalist;
 
@@ -464,4 +477,91 @@
   }
 
   document.addEventListener('DOMContentLoaded', _refreshDatalist);
+
+  // === ユニット同義語グループ ===
+
+  const UA_KEY = 'unitAlias_v1';
+  function _loadUA()  { try { return JSON.parse(localStorage.getItem(UA_KEY) || '[]'); } catch(e) { return []; } }
+  function _saveUA(a) { localStorage.setItem(UA_KEY, JSON.stringify(a)); }
+  function _notifyUA() {
+    _refreshDatalist();
+    if (typeof window.statsRefreshUnPane === 'function') window.statsRefreshUnPane();
+  }
+
+  window.uaGetGroups = function() { return _loadUA(); };
+
+  window.uaGetNormalizeMap = function() {
+    const map = {};
+    _loadUA().forEach(g => { (g.aliases || []).forEach(a => { map[a] = g.canonical; }); });
+    return map;
+  };
+
+  window.uaSetCanonical = function(unit) {
+    if (!unit) return;
+    const groups = _loadUA();
+    groups.forEach(g => { g.aliases = (g.aliases || []).filter(a => a !== unit); });
+    if (!groups.find(g => g.canonical === unit))
+      groups.push({ id: Date.now() + '_' + Math.random().toString(36).slice(2), canonical: unit, aliases: [] });
+    _saveUA(groups);
+    _notifyUA();
+    if (typeof window.quoteShowToast === 'function') window.quoteShowToast('⭐ 「' + unit + '」を代表単位に設定しました', 'success');
+  };
+
+  window.uaAddAlias = function(alias, canonical) {
+    if (!alias || !canonical || alias === canonical) return;
+    const groups = _loadUA();
+    groups.forEach(g => { g.aliases = (g.aliases || []).filter(a => a !== alias); });
+    let g = groups.find(g => g.canonical === canonical);
+    if (!g) { g = { id: Date.now() + '_' + Math.random().toString(36).slice(2), canonical, aliases: [] }; groups.push(g); }
+    if (!g.aliases.includes(alias)) g.aliases.push(alias);
+    _saveUA(groups);
+    _notifyUA();
+    if (typeof window.quoteShowToast === 'function') window.quoteShowToast('✅ 「' + alias + '」→「' + canonical + '」に統合しました', 'success');
+  };
+
+  window.uaRemoveAlias = function(alias, canonical) {
+    const groups = _loadUA();
+    const g = groups.find(g => g.canonical === canonical);
+    if (g) g.aliases = (g.aliases || []).filter(a => a !== alias);
+    _saveUA(groups);
+    _notifyUA();
+  };
+
+  window.uaRemoveGroup = function(canonical) {
+    _saveUA(_loadUA().filter(g => g.canonical !== canonical));
+    _notifyUA();
+  };
+
+  window.uaShowMergePicker = function(unit, btn) {
+    document.querySelectorAll('.ua-inline-picker').forEach(el => el.remove());
+    const groups = _loadUA();
+    if (!groups.length) {
+      if (typeof window.quoteShowToast === 'function') window.quoteShowToast('⭐ 先に代表単位を設定してください', 'warn');
+      return;
+    }
+    const row = btn.closest('tr');
+    if (!row) return;
+    const selId = 'uaPS_' + Math.random().toString(36).slice(2);
+    const _ej = s => String(s||'').replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+    const tr = document.createElement('tr');
+    tr.className = 'ua-inline-picker';
+    tr.innerHTML =
+      `<td colspan="4" class="ua-picker-cell">` +
+      `<span class="ua-picker-label">「${unit.replace(/&/g,'&amp;').replace(/</g,'&lt;')}」を統合する代表：</span>` +
+      `<select class="ua-picker-sel" id="${selId}">` +
+      groups.map(g => `<option value="${_ej(g.canonical)}">${g.canonical.replace(/&/g,'&amp;')}</option>`).join('') +
+      `</select>` +
+      `<button class="ua-picker-ok" onclick="uaConfirmMerge('${_ej(unit)}','${selId}')">統合する</button>` +
+      `<button class="ua-picker-cancel" onclick="document.querySelectorAll('.ua-inline-picker').forEach(function(e){e.remove()})">✕</button>` +
+      `</td>`;
+    row.after(tr);
+  };
+
+  window.uaConfirmMerge = function(unit, selId) {
+    const sel = document.getElementById(selId);
+    if (!sel) return;
+    window.uaAddAlias(unit, sel.value);
+    document.querySelectorAll('.ua-inline-picker').forEach(el => el.remove());
+  };
+
 })();

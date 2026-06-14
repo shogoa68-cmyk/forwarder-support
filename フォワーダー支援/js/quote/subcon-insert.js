@@ -87,7 +87,9 @@
         // 通貨・単位もキーに含める（同一品名でも異なる航路/単位を分離）
         const pcKey = (r.cells[CI.pc] || 'JPY').trim() || 'JPY';
         const unKey = (r.cells[CI.un] || '').trim();
-        const key = cat + '||' + nm + '||' + pcKey + '||' + unKey;
+        const normMap = typeof window.uaGetNormalizeMap === 'function' ? window.uaGetNormalizeMap() : {};
+        const normalizedUn = normMap[unKey] || unKey;
+        const key = cat + '||' + nm + '||' + pcKey + '||' + normalizedUn;
         const pp = _num(r.cells[CI.pp]);
         const route = [p.pol || '', p.pod || ''].filter(Boolean).join('→');
         if (!sc.items[key]) {

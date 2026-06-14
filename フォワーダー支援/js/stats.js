@@ -265,7 +265,75 @@
   function _renderSv() { _renderGrouped(_data?.svGroups || [], 'sv', 'サブコン名', 'statsPane-sv'); }
   function _renderCarrier() { _renderGrouped(_data?.carrierGroups || [], 'sv', 'キャリア名', 'statsPane-carrier'); }
   function _renderNm()      { _renderGrouped(_data?.nmGroups      || [], 'nm', '品名',       'statsPane-nm'); }
-  function _renderUn()      { _renderGrouped(_data?.unGroups      || [], 'un', '単位',       'statsPane-un'); }
+  function _renderUn() {
+    const e = document.getElementById('statsPane-un');
+    if (!e || !_data) return;
+    const rawGroups = _data.unGroups || [];
+    if (!rawGroups.length) { e.innerHTML = '<p class="stats-empty">データなし</p>'; return; }
+
+    const uaGroups    = typeof window.uaGetGroups === 'function' ? window.uaGetGroups() : [];
+    const canonicalSet = new Set(uaGroups.map(g => g.canonical));
+    const aliasToCanon = {};
+    const canonToAliases = {};
+    uaGroups.forEach(g => {
+      canonToAliases[g.canonical] = g.aliases || [];
+      (g.aliases || []).forEach(a => { aliasToCanon[a] = g.canonical; });
+    });
+
+    // 各単位の件数マップ
+    const countMap = {};
+    rawGroups.forEach(g => { countMap[g.variants[0].value] = g.total; });
+
+    // 表示リスト構築
+    const displayList = [];
+    uaGroups.forEach(g => {
+      const ownCount   = countMap[g.canonical] || 0;
+      const aliasCount = (g.aliases || []).reduce((s, a) => s + (countMap[a] || 0), 0);
+      displayList.push({ type: 'canonical', canonical: g.canonical, ownCount, aliasCount, total: ownCount + aliasCount, aliases: g.aliases || [] });
+    });
+    rawGroups.forEach(g => {
+      const v = g.variants[0].value;
+      if (!canonicalSet.has(v) && !aliasToCanon[v]) displayList.push({ type: 'ungrouped', value: v, total: g.total });
+    });
+    displayList.sort((a, b) => {
+      if (a.type === 'canonical' && b.type !== 'canonical') return -1;
+      if (a.type !== 'canonical' && b.type === 'canonical') return 1;
+      return b.total - a.total;
+    });
+
+    let h = '<div class="ua-pane-hint">⭐ 代表に設定 → グループの基準単位として登録　　→ 統合 → 代表に紐付け（件数が合算されます）</div>' +
+      '<table class="stats-table stats-un-table"><thead><tr>' +
+      '<th>単位</th><th class="stats-num-col">件数</th><th>同義グループ</th><th>操作</th>' +
+      '</tr></thead><tbody>';
+
+    displayList.forEach(item => {
+      if (item.type === 'canonical') {
+        const chips = item.aliases.map(a =>
+          `<span class="ua-alias-chip">${_esc(a)}<span class="ua-chip-cnt"> ×${countMap[a] || 0}</span>` +
+          `<button class="ua-chip-del" onclick="uaRemoveAlias('${_ea(a)}','${_ea(item.canonical)}')" title="統合解除">✕</button></span>`
+        ).join('');
+        h += `<tr class="ua-canonical-row">` +
+             `<td class="stats-val"><span class="ua-star">⭐</span>${_esc(item.canonical)}</td>` +
+             `<td class="stats-num-col">${item.total}` +
+             (item.aliasCount ? `<span class="ua-cnt-detail"> (${item.ownCount}+${item.aliasCount})</span>` : '') +
+             `</td><td>${chips || '<span class="ua-no-alias">—</span>'}</td>` +
+             `<td><button class="ua-remove-canon" onclick="uaRemoveGroup('${_ea(item.canonical)}')" title="グループを解除">解除</button></td>` +
+             `</tr>`;
+      } else {
+        h += `<tr class="ua-ungrouped-row">` +
+             `<td class="stats-val">${_esc(item.value)}</td>` +
+             `<td class="stats-num-col">${item.total}</td>` +
+             `<td></td>` +
+             `<td class="ua-ops">` +
+             `<button class="ua-set-canon" onclick="uaSetCanonical('${_ea(item.value)}')" title="この単位を代表として登録">⭐ 代表に</button>` +
+             `<button class="ua-merge-btn" onclick="uaShowMergePicker('${_ea(item.value)}',this)" title="既存代表に統合">→ 統合</button>` +
+             `</td></tr>`;
+      }
+    });
+
+    e.innerHTML = h + '</tbody></table>';
+  }
+  window.statsRefreshUnPane = _renderUn;
 
   // ===== チャージ詳細タブ =====
 
