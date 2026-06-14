@@ -396,6 +396,15 @@
     // ② 登録サブコンが0件 → 方向・POL/POD フィルタにフォールバック
   // 現在の見積条件（方向・POL/POD）でプリセットをフィルタして集計
   function _buildSiSubcons(allPresets) {
+    const svSet = _currentSvSet();
+
+    // ① 登録サブコンがある → そのサブコン名に合致する集計のみ返す
+    if (svSet.size > 0) {
+      const all = _aggregate(allPresets);
+      return all.filter(sc => svSet.has(sc.name.toLowerCase()));
+    }
+
+    // ② 登録サブコンが0件 → 方向・POL/POD フィルタにフォールバック
     const cond = typeof window.getConditions === 'function' ? window.getConditions() : {};
     const dir    = (cond.direction || '').trim();
     const routes = Array.isArray(cond.routes) ? cond.routes : [];
@@ -403,16 +412,12 @@
     const podSet = routes.map(r => (r.pod || '').trim().toLowerCase()).filter(Boolean);
 
     let filtered = allPresets;
-
-    // 方向フィルタ（設定済みのときのみ適用）
     if (dir) {
       filtered = filtered.filter(p => {
         const pDir = ((p.data && p.data.fields && p.data.fields['cond-direction']) || '').trim();
         return !pDir || pDir === dir;
       });
     }
-
-    // POL/POD フィルタ（設定済みのときのみ適用、部分一致）
     if (polSet.length || podSet.length) {
       filtered = filtered.filter(p => {
         const pPol = (p.pol || '').trim().toLowerCase();
@@ -424,7 +429,6 @@
         return polMatch || podMatch;
       });
     }
-
     return _aggregate(filtered);
   }
 
