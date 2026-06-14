@@ -158,14 +158,35 @@
   };
 
   function _refreshDatalist() {
-    const dl = document.getElementById('svSuggestions');
-    if (!dl) return;
-    const fromRules  = _loadLocal().filter(r => r.field === 'sv').map(r => r.to_value);
+    const rules   = _loadLocal();
+    // マスター一覧（statsGetMasters があればクラウド投票も含む、なければ localStorage フォールバック）
     let masters = [];
-    try { masters = JSON.parse(localStorage.getItem('masterCandidates_v1') || '[]'); } catch { masters = []; }
-    const fromMaster = masters.filter(m => m.field === 'sv').map(m => m.value);
-    const all = [...new Set([...fromRules, ...fromMaster])];
-    dl.innerHTML = all.map(v => `<option value="${_ea(v)}"></option>`).join('');
+    if (typeof window.statsGetMasters === 'function') {
+      masters = window.statsGetMasters();
+    } else {
+      try { masters = JSON.parse(localStorage.getItem('masterCandidates_v1') || '[]'); } catch { masters = []; }
+    }
+
+    const _fill = (dlId, field) => {
+      const dl = document.getElementById(dlId);
+      if (!dl) return;
+      const fromRules  = rules.filter(r => r.field === field).map(r => r.to_value);
+      const fromMaster = masters.filter(m => m.field === field).map(m => m.value);
+      const all = [...new Set([...fromRules, ...fromMaster])];
+      // datalist 内の動的 option（data-master）だけを入れ替える
+      dl.querySelectorAll('option[data-master]').forEach(o => o.remove());
+      all.forEach(v => {
+        const o = document.createElement('option');
+        o.value = v;
+        o.dataset.master = '1';
+        dl.appendChild(o);
+      });
+    };
+
+    _fill('svSuggestions', 'sv');
+    _fill('nmSuggestions', 'nm');
+    _fill('unit-list',     'un');
+    _fill('custSuggestions', 'customer');
   }
   window.arRefreshDatalist = _refreshDatalist;
 
