@@ -469,5 +469,6 @@
     renderSubconSidePanel, subconInsertFromPanel, loadSubconPanel, subconSidePanelFilter,
     getSubconData: () => _subcons,
     loadSubconData: async () => { if (!_subcons.length) await loadSubconModules(); return _subcons; },
+    buildSubconData: (presets) => _aggregate(presets),
   });
 })();

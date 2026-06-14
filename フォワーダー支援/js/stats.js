@@ -274,9 +274,17 @@
     if (!e) return;
     e.innerHTML = '<p class="stats-empty">💰 チャージ詳細を読み込み中…</p>';
 
-    const subcons = typeof window.loadSubconData === 'function'
-      ? await window.loadSubconData()
-      : (typeof window.getSubconData === 'function' ? window.getSubconData() : []);
+    // _c() は stats.js 内の cloudGetClient フォールバック済みクライアントを使う
+    // （subcon-insert の _user() に依存せず、ログイン状態を問わず取得可能）
+    let subcons = [];
+    const db = _c();
+    if (db && typeof window.buildSubconData === 'function') {
+      const { data } = await db.from('quote_presets')
+        .select('id,name,customer,person,status,transport_mode,pol,pod,data,updated_at');
+      subcons = window.buildSubconData(data || []);
+    } else if (typeof window.getSubconData === 'function') {
+      subcons = window.getSubconData();
+    }
 
     if (!subcons.length) {
       e.innerHTML = '<p class="stats-empty">案件が保存されると自動で集計されます。<br><small>明細の「サブコン」欄に会社名を入れて案件を保存してください。</small></p>';
