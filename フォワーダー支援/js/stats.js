@@ -57,7 +57,7 @@
         return {
           cat: (c[CI.cat] || '').trim(),
           sv:  (c[CI.sv]  || '').trim(),
-          nm:  (c[CI.nm]  || '').trim(),
+          nm:  (c[CI.nm]  || '').replace(/^\*+/, '').trim(),
           un:  (c[CI.un]  || '').trim(),
         };
       })
@@ -103,6 +103,7 @@
 
   function _normalize(s) {
     return s
+      .replace(/^\*+/, '')                   // 課税マーク（品名先頭の *）を除去
       .replace(/[（(][^）)]*[）)]/g, '')
       .replace(/【[^】]*】/g, '')
       .replace(/[\s　・ー―\-\/\\]+/g, '')
