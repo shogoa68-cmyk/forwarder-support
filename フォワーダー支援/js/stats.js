@@ -171,7 +171,10 @@
   // === レンダリングヘルパー ===
 
   function _esc(s)  { return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
-  function _ea(s)   { return String(s || '').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
+  // onclick 属性内のシングルクォート文字列リテラル用エスケープ。
+  // HTML エンティティ（&#39;）はブラウザが JS 実行前に ' に戻してしまい構文エラーになるため、
+  // JS の \' エスケープを使う（HTML は \ をデコードしない）。
+  function _ea(s)   { return String(s || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'"); }
 
   function _voteBtn(field, value) {
     const v  = _voteInfo(field, value);
@@ -359,7 +362,7 @@
       un:       '見積行の単位欄で入力補完候補に表示されます。',
       customer: 'お客様名欄で入力補完候補に表示されます。',
     };
-    const sorted = entries.sort((a, b) => (labels[a.field] || a.field).localeCompare(labels[b.field] || b.field) || a.value.localeCompare(b.value));
+    const sorted = entries.sort((a, b) => (labels[a.field] || a.field).localeCompare(labels[b.field] || b.field) || (a.value || '').localeCompare(b.value || ''));
     let h = '<div class="stats-master-info">' +
             '<p class="stats-master-info-title">✅ マスター登録した表記の活用方法</p>' +
             '<ul class="stats-master-usage-list">' +
@@ -376,7 +379,7 @@
       h += `<tr>` +
            `<td>${labels[m.field] || m.field}</td>` +
            `<td class="stats-val">${_esc(m.value)}</td>` +
-           `<td><button class="stats-demote-btn" onclick="statsToggleVote('${_ea(m.field)}','${_ea(m.value)}')">解除</button></td>` +
+           `<td>${m.isMine ? `<button class="stats-demote-btn" onclick="statsToggleVote('${_ea(m.field)}','${_ea(m.value)}')">解除</button>` : '<span class="stats-empty-cell">他メンバー</span>'}</td>` +
            `</tr>`;
     });
     e.innerHTML = h + '</tbody></table>';
@@ -494,12 +497,22 @@
   };
 
   window.statsToggleVote = async function (field, value) {
-    const v = _voteInfo(field, value);
-    if (v.isMine) await _demote(field, value);
-    else          await _promote(field, value);
-    _renderActivePane();
-    _renderMaster();
-    if (typeof window.arRefreshDatalist === 'function') window.arRefreshDatalist();
+    try {
+      const v = _voteInfo(field, value);
+      if (v.isMine) await _demote(field, value);
+      else          await _promote(field, value);
+    } catch (err) {
+      console.error('[statsToggleVote] promote/demote failed:', err);
+      if (typeof window.quoteShowToast === 'function') window.quoteShowToast('マスター登録に失敗しました: ' + err.message);
+      return;
+    }
+    try {
+      _renderActivePane();
+      _renderMaster();
+      if (typeof window.arRefreshDatalist === 'function') window.arRefreshDatalist();
+    } catch (err) {
+      console.error('[statsToggleVote] render failed:', err);
+    }
   };
 
   // 後方互換
