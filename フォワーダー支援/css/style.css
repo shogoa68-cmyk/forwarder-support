@@ -2206,6 +2206,40 @@ body:has(#compareOverlay.open) #quoteActionDock { display: none; }
 }
 .stats-demote-btn:hover { background: #f5ece0; }
 
+/* マスター管理タブ：略称セル */
+.stats-master-abbrev-cell { white-space: nowrap; }
+.stats-master-abbrev-chip {
+  display: inline-block;
+  background: #dbeafe;
+  border: 1px solid #93c5fd;
+  border-radius: 10px;
+  color: #1d4ed8;
+  font-size: 11px;
+  padding: 1px 7px;
+  margin-right: 4px;
+  vertical-align: middle;
+}
+.stats-master-abbrev-del {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #93c5fd;
+  font-size: 11px;
+  padding: 0 2px;
+  vertical-align: middle;
+}
+.stats-master-abbrev-del:hover { color: #1d4ed8; }
+.stats-master-abbrev-add {
+  background: none;
+  border: 1px dashed #c8b898;
+  border-radius: 10px;
+  color: #a08060;
+  cursor: pointer;
+  font-size: 11px;
+  padding: 1px 8px;
+}
+.stats-master-abbrev-add:hover { background: #f5ece0; border-color: #8a7060; color: #5a4030; }
+
 /* マスター管理タブ：活用説明インフォ */
 .stats-master-info {
   background: #f0ede5;

@@ -390,6 +390,7 @@
       customer: 'お客様名欄で入力補完候補に表示されます。',
     };
     const sorted = entries.sort((a, b) => (labels[a.field] || a.field).localeCompare(labels[b.field] || b.field) || (a.value || '').localeCompare(b.value || ''));
+    const abbrevPairs = (typeof window.arGetAbbrevPairs === 'function') ? window.arGetAbbrevPairs() : [];
     let h = '<div class="stats-master-info">' +
             '<p class="stats-master-info-title">✅ マスター登録した表記の活用方法</p>' +
             '<ul class="stats-master-usage-list">' +
@@ -400,12 +401,22 @@
             `<p class="stats-master-info-note">☆ 登録 ボタンで即時マスターに追加。再クリックで解除できます。${cloudOn ? '（チーム全員で共有）' : '（このブラウザにローカル保存）'}</p>` +
             '</div>' +
             '<table class="stats-table"><thead><tr>' +
-            '<th>種別</th><th>値</th><th></th>' +
+            '<th>種別</th><th>名称</th><th>略称</th><th></th>' +
             '</tr></thead><tbody>';
     sorted.forEach(m => {
+      const pair = abbrevPairs.find(p => p.field === m.field && (p.full === m.value || p.abbrev === m.value));
+      let abbrevCell;
+      if (pair) {
+        const abbrevDisplay = pair.full === m.value ? pair.abbrev : pair.full;
+        abbrevCell = `<span class="stats-master-abbrev-chip">${_esc(abbrevDisplay)}</span>` +
+                     `<button class="stats-master-abbrev-del" title="略称を削除" onclick="arDeleteAbbrevPair('${_ea(String(pair.id))}')">✕</button>`;
+      } else {
+        abbrevCell = `<button class="stats-master-abbrev-add" onclick="statsMasterAddAbbrev('${_ea(m.field)}','${_ea(m.value)}')">＋ 略称</button>`;
+      }
       h += `<tr>` +
            `<td>${labels[m.field] || m.field}</td>` +
            `<td class="stats-val">${_esc(m.value)}</td>` +
+           `<td class="stats-master-abbrev-cell">${abbrevCell}</td>` +
            `<td>${m.isMine ? `<button class="stats-demote-btn" onclick="statsToggleVote('${_ea(m.field)}','${_ea(m.value)}')">解除</button>` : '<span class="stats-empty-cell">他メンバー</span>'}</td>` +
            `</tr>`;
     });
@@ -545,6 +556,15 @@
   // 後方互換
   window.statsPromote = async function (f, v) { await _promote(f, v); _renderActivePane(); };
   window.statsDemote  = async function (f, v) { await _demote(f, v);  _renderMaster(); };
+
+  window.statsMasterAddAbbrev = async function (field, value) {
+    const labels = { sv: 'サブコン', nm: '品名', un: '単位', customer: 'お客様' };
+    const abbrev = window.prompt(`「${value}」の略称を入力してください（${labels[field] || field}）：`);
+    if (!abbrev || !abbrev.trim()) return;
+    if (typeof window.arAddAbbrevPair === 'function') {
+      await window.arAddAbbrevPair(field, abbrev.trim(), value);
+    }
+  };
 
   window.statsToggleHelp = function () {
     const p = document.getElementById('statsHelpPanel');
