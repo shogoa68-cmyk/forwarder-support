@@ -319,13 +319,14 @@
         let histHtml = '';
         if (it.history && it.history.length > 1) {
           const deduped = it.history.filter((h, i, arr) =>
-            i === 0 || h.pp !== arr[i - 1].pp || h.bp !== arr[i - 1].bp
-          ).slice(-6);
+            i === 0 || h.pp !== arr[i - 1].pp || h.bp !== arr[i - 1].bp || h.route !== arr[i - 1].route
+          ).slice(-8);
           if (deduped.length > 1) {
             const pts = deduped.map(h => {
               const d = h.ts ? new Date(h.ts).toLocaleDateString('ja-JP', { year: '2-digit', month: '2-digit' }) : '?';
               const p = h.pp != null ? _m(h.pp, it.pc) : '—';
-              return `<span class="stats-hist-pt"><span class="stats-hist-date">${_esc(d)}</span><b>${_esc(p)}</b></span>`;
+              const routeHtml = h.route ? `<span class="stats-hist-route">${_esc(h.route)}</span>` : '';
+              return `<span class="stats-hist-pt"><span class="stats-hist-date">${_esc(d)}</span><b>${_esc(p)}</b>${routeHtml}</span>`;
             }).join('<span class="stats-hist-arr">›</span>');
             histHtml = `<details class="stats-hist-details"><summary>📈 推移 (${deduped.length})</summary><div class="stats-hist-trail">${pts}</div></details>`;
           }
