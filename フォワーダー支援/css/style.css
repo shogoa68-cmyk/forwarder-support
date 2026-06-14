@@ -1679,7 +1679,7 @@ body:has(#compareOverlay.open) #quoteActionDock { display: none; }
   background: #f8f5f0;
   border: 1px solid #d5c8b0;
   border-radius: 8px;
-  font-size: 12px;
+  font-size: 13px;
   flex: 0 0 auto;
 }
 .sq-head {
@@ -1687,30 +1687,33 @@ body:has(#compareOverlay.open) #quoteActionDock { display: none; }
   align-items: center;
   justify-content: space-between;
   gap: 6px;
-  padding: 9px 12px;
+  padding: 10px 14px;
   font-weight: 700;
-  font-size: 12px;
+  font-size: 13px;
   color: #4a3820;
   border-bottom: 1px solid #e0d4bf;
   user-select: none;
 }
-.sq-collapse-arrow { font-size: 9px; color: #a09070; flex-shrink: 0; }
+.sq-collapse-arrow { font-size: 10px; color: #a09070; flex-shrink: 0; }
 .sq-panel--collapsed .sq-head { border-bottom: none; }
 .sq-panel--collapsed .sq-list { display: none; }
-.sq-match-label { font-weight: 400; color: #7a6040; flex: 1; font-size: 10px; }
-.sq-count { font-size: 10px; color: #999; }
-.sq-list { display: flex; flex-direction: column; gap: 1px; padding: 4px 0; }
+.sq-match-label { font-weight: 400; color: #7a6040; flex: 1; font-size: 11px; }
+.sq-count { font-size: 11px; color: #999; }
+.sq-list { display: flex; flex-direction: column; padding: 4px 0; }
 .sq-card {
-  padding: 7px 10px;
+  padding: 11px 14px;
   cursor: pointer;
   border-bottom: 1px solid #ede3d0;
-  transition: background .12s;
+  border-left: 3px solid transparent;
+  transition: background .12s, border-left-color .12s;
 }
 .sq-card:last-child { border-bottom: none; }
 .sq-card:hover { background: #ede8df; }
-.sq-card-top { display: flex; align-items: center; gap: 5px; margin-bottom: 2px; }
+.sq-card--hi  { border-left-color: #16a34a; }
+.sq-card--mid { border-left-color: #d97706; }
+.sq-card-top { display: flex; align-items: center; gap: 6px; margin-bottom: 5px; }
 .sq-card-name {
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 600;
   color: #3a2a10;
   flex: 1;
@@ -1718,25 +1721,44 @@ body:has(#compareOverlay.open) #quoteActionDock { display: none; }
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.sq-badge { font-size: 9px; padding: 1px 5px; border-radius: 4px; font-weight: 600; white-space: nowrap; }
+.sq-badge { font-size: 10px; padding: 2px 6px; border-radius: 4px; font-weight: 600; white-space: nowrap; }
 .sq-badge-draft  { background: #e5e7eb; color: #374151; }
 .sq-badge-sent   { background: #dbeafe; color: #1d4ed8; }
 .sq-badge-won    { background: #d1fae5; color: #065f46; }
 .sq-badge-lost   { background: #fee2e2; color: #991b1b; }
 .sq-badge-hold   { background: #fef3c7; color: #92400e; }
-.sq-card-sub { display: flex; gap: 6px; font-size: 10px; color: #7a6040; margin-bottom: 3px; }
-.sq-cust { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 80px; }
-.sq-route { white-space: nowrap; }
-.sq-card-tags { display: flex; gap: 4px; flex-wrap: wrap; }
+.sq-card-sub {
+  display: flex;
+  gap: 8px;
+  font-size: 11px;
+  color: #7a6040;
+  margin-bottom: 6px;
+  align-items: baseline;
+}
+.sq-cust {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 110px;
+  flex-shrink: 0;
+}
+.sq-route {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+  min-width: 0;
+}
+.sq-card-tags { display: flex; gap: 5px; flex-wrap: wrap; margin-top: 1px; }
 .sq-tag {
-  font-size: 9px;
-  padding: 1px 5px;
+  font-size: 10px;
+  padding: 2px 7px;
   border-radius: 10px;
   font-weight: 600;
 }
 .sq-tag-inco { background: #e0edff; color: #1a4d9e; }
 .sq-tag-mode { background: #e6f7f0; color: #0e6645; }
-.sq-card-date { font-size: 10px; color: #b0a08a; text-align: right; margin-top: 2px; }
+.sq-card-date { font-size: 11px; color: #b0a08a; text-align: right; margin-top: 5px; }
 
 /* ================================================================
    類似見積プレビューモーダル
@@ -1839,16 +1861,16 @@ body:has(#compareOverlay.open) #quoteActionDock { display: none; }
   flex: 1;
   display: flex;
   align-items: center;
-  gap: 5px;
-  padding: 9px 10px 9px 12px;
+  gap: 6px;
+  padding: 10px 10px 10px 14px;
   cursor: pointer;
   min-width: 0;
 }
 .sq-head-title { font-weight: 700; white-space: nowrap; }
 .sq-search-toggle {
   flex-shrink: 0;
-  padding: 6px 8px;
-  font-size: 13px;
+  padding: 0 12px;
+  font-size: 14px;
   background: none;
   border: none;
   border-left: 1px solid #e0d4bf;
@@ -1864,36 +1886,36 @@ body:has(#compareOverlay.open) #quoteActionDock { display: none; }
 
 /* インライン検索バー */
 .sq-search-bar {
-  padding: 8px 10px;
+  padding: 10px 12px;
   background: #f3ede2;
   border-bottom: 1px solid #ddd0b8;
   display: flex;
   flex-direction: column;
-  gap: 5px;
+  gap: 7px;
 }
-.sq-search-row { display: flex; gap: 5px; }
+.sq-search-row { display: flex; gap: 6px; }
 .sq-search-row-2col .sq-search-input { flex: 1; }
 .sq-search-input {
   flex: 1;
-  padding: 4px 7px;
-  font-size: 11px;
+  padding: 6px 9px;
+  font-size: 12px;
   border: 1px solid #ccc0a8;
-  border-radius: 4px;
+  border-radius: 5px;
   background: #fff;
   color: #3a2a10;
   outline: none;
 }
 .sq-search-input:focus { border-color: #8a6d40; }
 .sq-search-label {
-  font-size: 10px;
+  font-size: 11px;
   color: #7a6040;
   white-space: nowrap;
   align-self: center;
 }
-.sq-status-row { flex-wrap: wrap; align-items: center; gap: 4px; }
+.sq-status-row { flex-wrap: wrap; align-items: center; gap: 5px; }
 .sq-status-chip {
-  padding: 2px 7px;
-  font-size: 10px;
+  padding: 3px 9px;
+  font-size: 11px;
   border: 1px solid #ccc0a8;
   border-radius: 10px;
   background: #fff;
@@ -1906,7 +1928,7 @@ body:has(#compareOverlay.open) #quoteActionDock { display: none; }
 
 /* スコアドット */
 .sq-score-dots {
-  font-size: 8px;
+  font-size: 9px;
   letter-spacing: -1px;
   flex-shrink: 0;
   margin-left: 2px;
@@ -1917,10 +1939,10 @@ body:has(#compareOverlay.open) #quoteActionDock { display: none; }
 
 /* パラメータラベル（ポート・顧客） */
 .sq-param-port, .sq-param-cust {
-  font-size: 9px;
+  font-size: 10px;
   color: #8a6d40;
   background: #f0e8d8;
-  padding: 1px 4px;
+  padding: 1px 5px;
   border-radius: 3px;
   white-space: nowrap;
 }
@@ -1929,8 +1951,8 @@ body:has(#compareOverlay.open) #quoteActionDock { display: none; }
 .sq-more-btn {
   display: block;
   width: 100%;
-  padding: 7px 10px;
-  font-size: 11px;
+  padding: 10px 14px;
+  font-size: 12px;
   text-align: center;
   background: #f3ede2;
   border: none;

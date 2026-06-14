@@ -221,11 +221,16 @@ function _sqCardHtml(r) {
   const badge  = _sqStatusBadge(r.status);
   const inco   = r.incoterms      ? `<span class="sq-tag sq-tag-inco">${escHtml(r.incoterms.split('（')[0])}</span>` : '';
   const mode   = r.transport_mode ? `<span class="sq-tag sq-tag-mode">${escHtml(r.transport_mode)}</span>`           : '';
-  const route  = (r.pol || r.pod) ? `<span class="sq-route">${escHtml([r.pol, r.pod].filter(Boolean).join(' → '))}</span>` : '';
+  // POL/POD は最初の1港ずつに絞る（複数港が comma 区切りで入っている場合に対応）
+  const polShort = (r.pol || '').split(/[,、]/)[0].trim();
+  const podShort = (r.pod || '').split(/[,、]/)[0].trim();
+  const route  = (polShort || podShort) ? `<span class="sq-route">${escHtml([polShort, podShort].filter(Boolean).join(' → '))}</span>` : '';
   const cust   = r.customer ? `<span class="sq-cust">${escHtml(r.customer)}</span>` : '';
   const date   = r.updated_at ? new Date(r.updated_at).toLocaleDateString('ja-JP', { month: 'numeric', day: 'numeric' }) : '';
   const score  = r._score != null ? _sqScoreDots(r._score) : '';
-  return `<div class="sq-card" onclick="sqOpenPreview('${escHtml(r.id)}')">
+  const level  = r._score != null ? (r._score >= _SQ_MAX * 0.6 ? 3 : r._score >= _SQ_MAX * 0.27 ? 2 : 1) : 0;
+  const borderCls = level === 3 ? 'sq-card--hi' : level === 2 ? 'sq-card--mid' : '';
+  return `<div class="sq-card ${borderCls}" onclick="sqOpenPreview('${escHtml(r.id)}')">
     <div class="sq-card-top">
       <span class="sq-card-name">${escHtml(r.name || '（無題）')}</span>
       ${badge}${score}
