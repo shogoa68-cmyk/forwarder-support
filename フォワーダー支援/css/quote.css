@@ -536,8 +536,11 @@
 
 /* ドラッグ中の行スタイル */
 #tab-quote-make tr.dragging {
-  opacity: 0.4;
+  opacity: 0.6;
   background: #f0e8d8 !important;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, .20);
+  transform: rotate(0.4deg);
+  outline: 2px dashed #8b6914;
 }
 #tab-quote-make tr.drag-over-top td {
   border-top: 3px solid #8b6914 !important;
