@@ -167,6 +167,11 @@ function bmSetFn(fn) {
 // ---------- 追加モーダル ----------
 function _inferBmFunction(chipLabel) {
   const t = (chipLabel || '').replace(/\p{Emoji_Presentation}|\p{Emoji}️/gu, '').trim();
+  if (t.includes('ローカルチャージ') || t.includes('Local Charge') || t.includes('ローカル')) {
+    if (t.includes('輸入') || t.includes('import')) return 'ローカルチャージ（輸入）';
+    return 'ローカルチャージ（輸出）';
+  }
+  if (t.includes('お知らせ') || t.includes('アナウンス') || t.includes('通知')) return 'お知らせ';
   if (t.includes('スケジュール') || t.includes('フライト')) return 'スケジュール';
   if (t.includes('追跡')) return 'コンテナ追跡';
   if (t.includes('CY')) return 'CY OPEN/CUT';
@@ -292,6 +297,7 @@ async function saveBm() {
     if (!dup) window._qspBmCache[carrier].push({ id: '_local_' + Date.now(), label, url, carrier, note });
   }
   if (typeof window.renderQuoteMilestones === 'function') window.renderQuoteMilestones();
+  if (typeof window.lcRefreshBmChips      === 'function') window.lcRefreshBmChips();
 
   // A-1: バックグラウンドで Supabase から正確なデータを再同期
   if (carrier && typeof window.fetchCarrierBmsForQSP === 'function') {
@@ -313,6 +319,7 @@ async function bmDelete(id) {
   quoteShowToast('✅ 削除しました', 'success', 2000);
   _bmRows = _bmRows.filter(r => r.id !== id);
   _bmApply();
+  if (typeof window.lcRefreshBmChips === 'function') window.lcRefreshBmChips();
 }
 
 function bmEdit(id) {
