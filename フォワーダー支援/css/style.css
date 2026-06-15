@@ -2916,6 +2916,43 @@ a.lc-source-icon:hover { opacity: 0.75; }
   font-size: 13px; line-height: 1.85; resize: vertical;
 }
 
+/* ── LC Carrier Bookmark Chips ───────────────────────────────────────── */
+.lc-bm-section {
+  margin: 8px 0 4px;
+  display: flex; flex-direction: column; gap: 4px;
+}
+.lc-bm-carrier-row {
+  display: flex; align-items: center; flex-wrap: wrap; gap: 6px;
+  padding: 5px 10px; background: #f8f9fb;
+  border: 1px solid #e8eaed; border-radius: 6px;
+}
+.lc-bm-carrier-name {
+  font-size: 12px; font-weight: 700; color: #37474f;
+  min-width: 72px; flex-shrink: 0;
+}
+.lc-bm-chips { display: flex; flex-wrap: wrap; gap: 5px; align-items: center; }
+.lc-bm-chip {
+  display: inline-flex; align-items: center;
+  font-size: 12px; padding: 2px 8px;
+  border-radius: 10px; text-decoration: none;
+  background: #eceff1; color: #37474f;
+  border: 1px solid #cfd8dc;
+  transition: background .12s;
+}
+.lc-bm-chip:hover { background: #cfd8dc; color: #1a237e; }
+.lc-bm-chip--export  { background: #e8f5e9; color: #2e7d32; border-color: #a5d6a7; }
+.lc-bm-chip--export:hover  { background: #c8e6c9; }
+.lc-bm-chip--import  { background: #e3f2fd; color: #1565c0; border-color: #90caf9; }
+.lc-bm-chip--import:hover  { background: #bbdefb; }
+.lc-bm-chip--notice  { background: #fff8e1; color: #e65100; border-color: #ffe082; }
+.lc-bm-chip--notice:hover  { background: #ffecb3; }
+.lc-bm-add-chip {
+  font-size: 13px; line-height: 1; padding: 1px 6px;
+  background: none; border: 1px dashed #bbb; border-radius: 10px;
+  color: #90a4ae; cursor: pointer;
+}
+.lc-bm-add-chip:hover { border-color: #1976d2; color: #1976d2; background: #e3f2fd; }
+
 /* ── LC Attachment UI ────────────────────────────────────────────────── */
 .lc-form-hint { font-size: 11px; color: #999; font-weight: 400; margin-left: 4px; }
 .lc-attach-wip {
