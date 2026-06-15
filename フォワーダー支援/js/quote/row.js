@@ -553,6 +553,7 @@
       pEl.className = `profit-cell ${pClass(totPr)}`;
     }
     updateSubtotalRows();
+    _updateGroupSums();
     window.updateQuoteSummary?.();
     window.renderQuoteFxBar?.();
   }
@@ -1015,6 +1016,7 @@
             `<button type="button" class="subcon-group-toggle" title="折りたたみ/展開">${collapsed ? '▶' : '▼'}</button>` +
             `<span class="subcon-group-label">📦 ${_escHdr(label)}</span>` +
             `<span class="subcon-group-count">${count} 行</span>` +
+            `<span class="subcon-group-sum"></span>` +
             `<button type="button" class="subcon-group-excl${excluded ? ' is-excluded' : ''}" ` +
               `title="見積もりへの含める/除外を切り替え">${excluded ? '含む' : '除外'}</button>` +
             `<button type="button" class="subcon-group-add-btn" ` +
@@ -1030,9 +1032,43 @@
       });
       // 全行の折りたたみ・除外状態を適用（小計・リマーク行を含む）
       _applyGroupStates();
+      _updateGroupSums();
     } finally {
       _inGroupRender = false;
     }
+  }
+
+  // 各サブコングループヘッダーに、その配下データ行の請求小計合計（¥）を表示する。
+  // DOM 順に走査し、仮想ヘッダーごとに直後のデータ行の billing 小計（bq×bp）を集計。
+  // 非 JPY 行は toJPY があれば換算して合算（無ければ素の値）。
+  function _updateGroupSums() {
+    const tbody = document.getElementById('tableBody');
+    if (!tbody) return;
+    let curSumEl = null, curSum = 0, curMixed = false;
+    const flush = () => {
+      if (!curSumEl) return;
+      const v = Math.round(curSum);
+      curSumEl.textContent = v ? ('¥' + fmt(v) + (curMixed ? '※' : '')) : '';
+      curSumEl.title = curMixed ? '複数通貨を JPY 換算して合算（FX パネルのレート使用）' : '';
+    };
+    Array.from(tbody.querySelectorAll('tr')).forEach(tr => {
+      if (tr.dataset.virtual) {            // グループヘッダー
+        flush();
+        curSumEl = tr.querySelector('.subcon-group-sum');
+        curSum = 0; curMixed = false;
+        return;
+      }
+      if (tr.dataset.type) return;         // 小計・リマーク・社内メモ行は除外
+      const id = tr.id?.replace('row-', '');
+      if (!id || !curSumEl) return;
+      const bq = val(`bq-${id}`) || val(`pq-${id}`) || 0;
+      const bp = val(`bp-${id}`) || 0;
+      let amt = bq * bp;
+      const bc = document.getElementById(`bc-${id}`)?.value || 'JPY';
+      if (bc !== 'JPY') { curMixed = true; if (typeof toJPY === 'function') amt = toJPY(amt, bc); }
+      curSum += amt;
+    });
+    flush();
   }
 
   function _escHdr(s) {
@@ -1071,3 +1107,129 @@
   window.addRowToSubconGroup  = addRowToSubconGroup;
   window.toggleSubconGroup    = toggleSubconGroup;
   window.toggleSubconExclude  = toggleSubconExclude;
+
+  // ========== 行クリップボード（任意位置貼り付け） ==========
+  let _rowClipboard = [];
+
+  function _gatherRowData(id) {
+    const data = {};
+    ['nm','pq','un','pp','mk','nt','sv','zc','cat','pc','bc'].forEach(f => {
+      const el = document.getElementById(`${f}-${id}`);
+      if (el) data[f] = el.value;
+    });
+    data.tx = !!document.getElementById(`tx-${id}`)?.checked;
+    return data;
+  }
+
+  function _pasteOneRow(data, insertBefore) {
+    rowCount++;
+    const newId = rowCount;
+    const newTr = document.createElement('tr');
+    newTr.id = `row-${newId}`;
+    newTr.replaceChildren(buildRowHTML(newId, data.cat || '', data.pc || 'JPY', data.sv || ''));
+    const tbody = document.getElementById('tableBody');
+    if (insertBefore?.parentNode === tbody) {
+      tbody.insertBefore(newTr, insertBefore);
+    } else {
+      tbody.appendChild(newTr);
+    }
+    ['nm','pq','un','pp','mk','nt','zc'].forEach(f => {
+      const el = document.getElementById(`${f}-${newId}`);
+      if (el && data[f] !== undefined) el.value = data[f];
+    });
+    ['cat','pc','bc'].forEach(f => {
+      const el = document.getElementById(`${f}-${newId}`);
+      if (el && data[f] !== undefined) el.value = data[f];
+    });
+    initDrag(newTr);
+    onCatChange(newId);
+    if (data.tx) toggleTax(newId);
+    checkUnfilled(newId);
+    onPay(newId);
+    return newId;
+  }
+
+  function _syncClipboardUI() {
+    const count = _rowClipboard.length;
+    const ind = document.getElementById('clipboardIndicator');
+    if (ind) {
+      ind.hidden = count === 0;
+      const cnt = document.getElementById('clipIndicatorCount');
+      if (cnt) cnt.textContent = count;
+    }
+    const pasteBtn = document.getElementById('btnPasteClipboard');
+    if (pasteBtn) pasteBtn.disabled = count === 0;
+  }
+
+  window.copyRowsToClipboard = function () {
+    const checkboxes = document.querySelectorAll('.row-select-chk:checked');
+    if (!checkboxes.length) {
+      quoteShowToast('⚠️ コピーしたい行のチェックボックスにチェックを入れてください', 'warn', 3000);
+      return;
+    }
+    const srcRows = Array.from(checkboxes)
+      .map(chk => chk.closest('tr'))
+      .filter(tr => tr && !tr.dataset.type);
+    if (!srcRows.length) {
+      quoteShowToast('⚠️ 小計行・リマーク行はコピーできません。通常行を選択してください', 'warn', 3000);
+      return;
+    }
+    _rowClipboard = srcRows.map(tr => _gatherRowData(tr.id.replace('row-', ''))).filter(Boolean);
+    _syncClipboardUI();
+    quoteShowToast(`📋 ${_rowClipboard.length}行を保持しました。挿入したい行を選択して「📌 貼付」を押してください`, 'success', 4000);
+  };
+
+  window.pasteClipboardRows = function () {
+    if (!_rowClipboard.length) {
+      quoteShowToast('⚠️ クリップボードが空です。先に行を選択して「📋 保持」してください', 'warn', 3000);
+      return;
+    }
+    const checkboxes = document.querySelectorAll('.row-select-chk:checked');
+    const insertBefore = checkboxes.length ? checkboxes[0].closest('tr') : null;
+    _rowClipboard.forEach(data => _pasteOneRow(data, insertBefore));
+    updateTotals();
+    quoteShowToast(`📌 ${_rowClipboard.length}行を貼り付けました`, 'success');
+    _rowClipboard = [];
+    _syncClipboardUI();
+    window.refreshRowSelectionMode?.();
+  };
+
+  window.clearRowClipboard = function () {
+    _rowClipboard = [];
+    _syncClipboardUI();
+    quoteShowToast('クリップボードをクリアしました', 'info', 2000);
+  };
+
+  window.syncClipboardUI = _syncClipboardUI;
+
+  // ローカルチャージから見積行を一括追加（local-charges.js から呼ぶ）
+  window.addChargeRows = function (charges) {
+    if (!charges || !charges.length) return;
+    const tbody = document.getElementById('tableBody');
+    if (!tbody) return;
+    const lastPc = document.querySelector('#tableBody tr:last-child [id^="pc-"]');
+    const lastCur = lastPc?.value || 'JPY';
+    charges.forEach(ch => {
+      rowCount++;
+      const id = rowCount;
+      const tr = document.createElement('tr');
+      tr.id = 'row-' + id;
+      tr.replaceChildren(buildRowHTML(id, ch.cat || '', ch.currency || lastCur, ch.sv || ''));
+      tbody.appendChild(tr);
+      const set = (prefix, val) => { const e = document.getElementById(prefix + id); if (e) e.value = val ?? ''; };
+      set('nm-', ch.name  || '');
+      set('nt-', ch.note  || '');
+      set('un-', ch.unit  || '');
+      set('pp-', ch.amount != null ? ch.amount : '');
+      set('bp-', ch.amount != null ? ch.amount : '');
+      // 通貨を両欄に適用
+      const pcEl = document.getElementById('pc-' + id);
+      if (pcEl) pcEl.value = ch.currency || lastCur;
+      initDrag(tr);
+      onCatChange(id);
+      onPay(id);
+    });
+    updateTotals();
+    if (typeof quoteShowToast === 'function')
+      quoteShowToast('✅ ローカルチャージ ' + charges.length + '件を追加しました', 'success');
+  };

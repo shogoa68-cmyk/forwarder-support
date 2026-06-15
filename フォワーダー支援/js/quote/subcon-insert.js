@@ -22,7 +22,8 @@
     'customs-export':'cat-customs-export', 'customs-import':'cat-customs-import', 'insurance':'cat-insurance', 'other':'cat-other',
   };
 
-  let _subcons = [];   // 集計済み [{ name, lastUsed, uses, items:[{cat,name,pc,pp,avgPp,un,bq,bc,bp,tx,mk,nt,lastUsed}] }]
+  let _subcons   = [];   // モーダル用（全件集計）
+  let _siSubcons = [];   // 右カラムパネル用（現案件条件でフィルタ済み）
 
   function _db()   { return (window.quoteCloudClient && window.quoteCloudClient()) || window.SupabaseClient || null; }
   function _user() { const u = window.quoteCloudUser && window.quoteCloudUser(); return u ? (u.email||null) : null; }
@@ -83,23 +84,28 @@
         // 参照元案件（このサブコンの費用行を持つ案件）＋寄与項目数を記録
         if (!sc.sources[p.id]) sc.sources[p.id] = Object.assign({ count: 0 }, meta);
         sc.sources[p.id].count++;
-        // 通貨もキーに含める（同一項目でも JPY/USD 等が混ざると平均が壊れるため分離）
+        // 通貨・単位もキーに含める（同一品名でも異なる航路/単位を分離）
         const pcKey = (r.cells[CI.pc] || 'JPY').trim() || 'JPY';
-        const key = cat + '||' + nm + '||' + pcKey;
+        const unKey = (r.cells[CI.un] || '').trim();
+        const normMap = typeof window.uaGetNormalizeMap === 'function' ? window.uaGetNormalizeMap() : {};
+        const normalizedUn = normMap[unKey] || unKey;
+        const key = cat + '||' + nm + '||' + pcKey + '||' + normalizedUn;
         const pp = _num(r.cells[CI.pp]);
+        const route = [p.pol || '', p.pod || ''].filter(Boolean).join('→');
         if (!sc.items[key]) {
           sc.items[key] = {
             cat, name: nm, role: ROLE[cat] || '',
             un: (r.cells[CI.un]||''), pc: (r.cells[CI.pc]||'JPY'), bc: (r.cells[CI.bc]||'JPY'),
             ppSum: 0, ppCount: 0, lastPp: null, lastBp: (r.cells[CI.bp]||''),
             lastUsed: 0,
-            // 挿入用に直近行の素データを保持
             latest: r.cells,
+            history: [],
           };
         }
         const it = sc.items[key];
         if (pp != null) { it.ppSum += pp; it.ppCount++; }
         if (ts >= it.lastUsed) { it.lastUsed = ts; it.lastPp = pp; it.lastBp = (r.cells[CI.bp]||''); it.latest = r.cells; }
+        it.history.push({ ts, pp, bp: _num(r.cells[CI.bp]), route });
       });
     });
     // 配列化
@@ -111,8 +117,10 @@
       items: Object.values(sc.items)
         .map(it => ({
           cat: it.cat, name: it.name, role: it.role, un: it.un, pc: it.pc, bc: it.bc,
-          pp: it.lastPp, avgPp: it.ppCount ? (it.ppSum / it.ppCount) : null,
+          pp: it.lastPp, bp: it.lastBp || '',
+          avgPp: it.ppCount ? (it.ppSum / it.ppCount) : null,
           lastUsed: it.lastUsed, cells: it.latest,
+          history: it.history.sort((a, b) => a.ts - b.ts),
         }))
         .sort((a, b) => b.lastUsed - a.lastUsed),
     })).sort((a, b) => b.lastUsed - a.lastUsed);
@@ -286,14 +294,175 @@
     if (!isPat) loadSubconModules();
   }
 
+  // モーダル側チェック変更
+  document.addEventListener('change', function (e) {
+    if (e.target && e.target.classList && e.target.classList.contains('rp-sc-chk') && !e.target.classList.contains('si-chk')) {
+      _updateSelNote(parseInt(e.target.dataset.si, 10));
+    }
+  });
+
+  // ========== 右カラム（コンパクト）レンダー ==========
+
+  function renderSubconSidePanel(filter) {
+    const wrap = document.getElementById('siListWrap');
+    if (!wrap) return;
+    let list = _siSubcons;
+    const q = (filter || '').trim().toLowerCase();
+    if (q) list = list.filter(sc => sc.name.toLowerCase().includes(q) || sc.items.some(it => it.name.toLowerCase().includes(q)));
+    if (!list.length) {
+      wrap.innerHTML = '<div class="preset-empty">' + (q ? '該当するサブコンがありません' :
+        'サブコン情報のある案件がまだありません<br><small style="color:#bbb;">明細の「サブコン」欄に会社名を入れて案件を保存すると自動で集約されます</small>') + '</div>';
+      if (typeof window.qrcRefresh === 'function') window.qrcRefresh();
+      return;
+    }
+    wrap.innerHTML = list.map((sc, si) => {
+      const rows = sc.items.map((it, ii) => {
+        const ppStr = it.pp != null ? _money(it.pp, it.pc) : '—';
+        const bpNum = it.bp ? parseFloat(it.bp) : null;
+        const bpStr = bpNum != null && isFinite(bpNum) ? _money(bpNum, it.bc || it.pc) : null;
+        const priceCell = bpStr
+          ? ppStr + '<span class="si-arrow">→</span>' + bpStr
+          : ppStr;
+        const unit = it.un ? '<small class="rp-sc-unit"> /' + _esc(it.un) + '</small>' : '';
+        return '<label class="rp-sc-item">' +
+            '<input type="checkbox" class="rp-sc-chk si-chk" data-si="' + si + '" data-ii="' + ii + '" checked>' +
+            '<span class="rp-cat ' + (CAT_CLASS[it.cat]||'cat-other') + '">' + _esc(ROLE[it.cat]||it.cat||'—') + '</span>' +
+            '<span class="rp-sc-itemname">' + _esc(it.name) + '</span>' +
+            '<span class="rp-sc-price">' + priceCell + unit + '</span>' +
+          '</label>';
+      }).join('');
+      return '<div class="rp-sc-card" data-si="' + si + '">' +
+        '<div class="rp-sc-head">' +
+          '<span class="rp-sc-av">' + _icon(sc) + '</span>' +
+          '<div class="rp-sc-main">' +
+            '<div class="rp-sc-name">' + _esc(sc.name) + '</div>' +
+            '<div class="rp-sc-meta"><span>使用 ' + sc.uses + '案件</span><span>' + sc.items.length + '項目</span></div>' +
+          '</div>' +
+        '</div>' +
+        '<div class="rp-sc-body">' + rows + '</div>' +
+        '<div class="rp-sc-foot">' +
+          '<button class="btn-preset-load" onclick="subconInsertFromPanel(' + si + ')">＋ 挿入</button>' +
+          '<span class="rp-sc-selnote" id="siSelNote-' + si + '"></span>' +
+        '</div>' +
+      '</div>';
+    }).join('');
+    list.forEach((_, si) => _updateSiSelNote(si));
+    if (typeof window.qrcRefresh === 'function') window.qrcRefresh();
+  }
+
+  function _updateSiSelNote(si) {
+    const note = document.getElementById('siSelNote-' + si);
+    if (!note) return;
+    const wrap = document.getElementById('siListWrap');
+    if (!wrap) return;
+    const total = wrap.querySelectorAll('.rp-sc-chk[data-si="' + si + '"]').length;
+    const sel   = wrap.querySelectorAll('.rp-sc-chk[data-si="' + si + '"]:checked').length;
+    note.textContent = sel + '/' + total + '行選択中';
+  }
+
+  function subconInsertFromPanel(si) {
+    const q = (document.getElementById('siSubconSearch')?.value || '').trim().toLowerCase();
+    let list = _siSubcons;
+    if (q) list = list.filter(sc => sc.name.toLowerCase().includes(q) || sc.items.some(it => it.name.toLowerCase().includes(q)));
+    const sc = list[si];
+    if (!sc) return;
+    const wrap = document.getElementById('siListWrap');
+    if (!wrap) return;
+    const rows = [];
+    wrap.querySelectorAll('.rp-sc-chk[data-si="' + si + '"]:checked').forEach(chk => {
+      const ii = parseInt(chk.dataset.ii, 10);
+      const it = sc.items[ii];
+      if (it && it.cells) rows.push(_cellsToRow(it.cells));
+    });
+    if (!rows.length) return;
+    let posLabel = '末尾';
+    if (typeof window._insertPatternRows === 'function') posLabel = window._insertPatternRows(rows) || posLabel;
+    if (window.quoteShowToast) quoteShowToast('📂 「' + _esc(sc.name) + '」から ' + rows.length + ' 行を' + posLabel + 'に挿入しました', 'success');
+  }
+
+  // 現在の見積に登録済みのサブコン名セットを返す（小文字・重複除去）
+  function _currentSvSet() {
+    const rows = typeof window.collectAllRows === 'function' ? window.collectAllRows() : [];
+    return new Set(
+      rows.filter(r => r._type === 'data' && (r.sv || '').trim())
+          .map(r => r.sv.trim().toLowerCase())
+    );
+  }
+
+  // 現在の見積条件（登録サブコン優先 → フォールバック: 方向・POL/POD）でプリセットをフィルタして集計
+  function _buildSiSubcons(allPresets) {
+    const svSet = _currentSvSet();
+
+    // ① 登録サブコンがある → そのサブコン名に合致する集計のみ返す
+    if (svSet.size > 0) {
+      const all = _aggregate(allPresets);
+      return all.filter(sc => svSet.has(sc.name.toLowerCase()));
+    }
+
+    // ② 登録サブコンが0件 → 方向・POL/POD フィルタにフォールバック
+    const cond = typeof window.getConditions === 'function' ? window.getConditions() : {};
+    const dir    = (cond.direction || '').trim();
+    const routes = Array.isArray(cond.routes) ? cond.routes : [];
+    const polSet = routes.map(r => (r.pol || '').trim().toLowerCase()).filter(Boolean);
+    const podSet = routes.map(r => (r.pod || '').trim().toLowerCase()).filter(Boolean);
+
+    let filtered = allPresets;
+    if (dir) {
+      filtered = filtered.filter(p => {
+        const pDir = ((p.data && p.data.fields && p.data.fields['cond-direction']) || '').trim();
+        return !pDir || pDir === dir;
+      });
+    }
+    if (polSet.length || podSet.length) {
+      filtered = filtered.filter(p => {
+        const pPol = (p.pol || '').trim().toLowerCase();
+        const pPod = (p.pod || '').trim().toLowerCase();
+        if (!pPol && !pPod) return true;
+        const polMatch = polSet.some(q => pPol && (pPol.includes(q) || q.includes(pPol)));
+        const podMatch = podSet.some(q => pPod && (pPod.includes(q) || q.includes(pPod)));
+        return polMatch || podMatch;
+      });
+    }
+    return _aggregate(filtered);
+  }
+
+  async function loadSubconPanel() {
+    const wrap = document.getElementById('siListWrap');
+    if (!wrap) return;
+    const db = _db();
+    if (!db || !_user()) {
+      wrap.innerHTML = '<div class="preset-empty">☁️ ログインするとチームの案件からサブコン別の費用行を利用できます</div>';
+      return;
+    }
+    wrap.innerHTML = '<div class="preset-empty">読み込み中…</div>';
+    const { data, error } = await db.from('quote_presets')
+      .select('id,name,customer,person,status,transport_mode,pol,pod,data,updated_at');
+    if (error) {
+      wrap.innerHTML = '<div class="preset-empty">⚠️ 読み込みエラー：' + _esc(error.message) + '</div>';
+      return;
+    }
+    _siSubcons = _buildSiSubcons(data || []);
+    renderSubconSidePanel(document.getElementById('siSubconSearch')?.value || '');
+  }
+
+  function subconSidePanelFilter() {
+    renderSubconSidePanel(document.getElementById('siSubconSearch')?.value || '');
+  }
+
   // チェック変更で選択数を更新
   document.addEventListener('change', function (e) {
     if (e.target && e.target.classList && e.target.classList.contains('rp-sc-chk')) {
-      _updateSelNote(parseInt(e.target.dataset.si, 10));
+      const si = parseInt(e.target.dataset.si, 10);
+      if (e.target.classList.contains('si-chk')) _updateSiSelNote(si);
+      else _updateSelNote(si);
     }
   });
 
   Object.assign(window, {
     loadSubconModules, renderSubconList, subconInsert, subconFilter, switchRowInsertTab,
+    renderSubconSidePanel, subconInsertFromPanel, loadSubconPanel, subconSidePanelFilter,
+    getSubconData: () => _subcons,
+    loadSubconData: async () => { if (!_subcons.length) await loadSubconModules(); return _subcons; },
+    buildSubconData: (presets) => _aggregate(presets),
   });
 })();

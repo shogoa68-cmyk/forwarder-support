@@ -50,14 +50,14 @@
   <!-- ===== カテゴリーナビ（上段） ===== -->
   <div class="cat-nav" role="tablist" aria-label="カテゴリ">
     <button class="cat-btn cat-btn-featured active" role="tab" aria-selected="true"  onclick="switchCategory('quote',  this)">💼 見積</button>
+    <button class="cat-btn cat-btn-featured"        role="tab" aria-selected="false" onclick="switchCategory('stats',   this)">📊 統計</button>
+    <button class="cat-btn"        role="tab" aria-selected="false" onclick="switchCategory('cost', this)">💴 諸チャージ</button>
     <button class="cat-btn cat-btn-bookmark" role="tab" aria-selected="false" onclick="switchCategory('bookmark', this)">🔖 BOOKMARK</button>
     <button class="cat-btn"        role="tab" aria-selected="false" onclick="switchCategory('vessel', this)">🚢 本船・航路</button>
     <button class="cat-btn"        role="tab" aria-selected="false" title="Booking（船腹予約）と S/I（Shipping Instruction：船積指図書）の手続き" onclick="switchCategory('booking', this)">📋 Booking/SI</button>
     <button class="cat-btn"        role="tab" aria-selected="false" onclick="switchCategory('docs',   this)">📄 書類・通関</button>
     <button class="cat-btn"        role="tab" aria-selected="false" onclick="switchCategory('calc',   this)">🧮 計算</button>
     <button class="cat-btn"        role="tab" aria-selected="false" onclick="switchCategory('ref',    this)">📚 知識・参考</button>
-    <!-- 💴 料金・費用：サブタブが全て未実装のため非表示（コンテンツ追加後に表示予定） -->
-    <button class="cat-btn" hidden role="tab" aria-selected="false" onclick="switchCategory('cost',   this)">💴 料金・費用</button>
   </div>
 
   <!-- ===== サブタブナビ（下段・カテゴリー別） ===== -->
@@ -73,6 +73,7 @@
     <button class="tab-btn" role="tab" aria-selected="false" onclick="switchTab('lcl-carrier', this)">📦 LCL キャリア</button>
   </div>
   <div class="tab-nav sub-nav" id="sub-cost" role="tablist" aria-label="cost サブタブ">
+    <button class="tab-btn" role="tab" aria-selected="false" onclick="switchTab('local-charges', this)">📦 諸チャージ</button>
     <button class="tab-btn" hidden role="tab" aria-selected="false" onclick="switchTab('surcharge', this)">💴 サーチャージ</button>
     <button class="tab-btn" hidden role="tab" aria-selected="false" onclick="switchTab('freetime',  this)">⏱️ フリータイム</button>
   </div>
@@ -86,6 +87,12 @@
     <button class="tab-btn" role="tab" aria-selected="false" onclick="switchTab('sizes',      this)">📏 種類・サイズ</button>
     <button class="tab-btn" role="tab" aria-selected="false" onclick="switchTab('insurance',  this)">🛡️ 海上貨物保険</button>
     <button class="tab-btn" role="tab" aria-selected="false" onclick="switchTab('blclause',   this)">📜 BL約款</button>
+  </div>
+  <div class="tab-nav sub-nav" id="sub-quote" role="tablist" aria-label="quote サブタブ">
+    <!-- サブタブなし：switchCategory で直接 tab-quote-make を表示 -->
+  </div>
+  <div class="tab-nav sub-nav" id="sub-stats" role="tablist" aria-label="stats サブタブ">
+    <!-- サブタブなし：switchCategory で直接 tab-stats を表示 -->
   </div>
   <div class="tab-nav sub-nav" id="sub-bookmark" role="tablist" aria-label="bookmark サブタブ">
     <!-- サブタブなし：switchCategory で直接 tab-bookmark を表示 -->
@@ -252,6 +259,37 @@
     </div>
 
   </div><!-- /tab-lcl-carrier -->
+
+  <!-- ===================== 諸チャージ tab ===================== -->
+  <div class="tab-content" id="tab-local-charges">
+    <div class="lc-page">
+
+      <div class="lc-topbar">
+        <div class="lc-dir-tabs">
+          <button class="lc-dir-btn is-active" id="lcDirBtn-export" onclick="lcSetDir('export')">📤 輸出</button>
+          <button class="lc-dir-btn"           id="lcDirBtn-import" onclick="lcSetDir('import')">📥 輸入</button>
+        </div>
+        <div class="lc-topbar-right">
+          <span id="lcCloudStatus" class="lc-cloud-off">💾 ローカル</span>
+          <button class="lc-variant-btn" onclick="lcToggleVariants()">🔀 ゆらぎ</button>
+          <button class="lc-add-btn" onclick="lcOpenForm(null)">＋ 新規登録</button>
+        </div>
+      </div>
+
+      <div class="lc-filters">
+        <input id="lcFilterText"    class="lc-filter-input" type="text" placeholder="🔍 名称・備考で検索"  oninput="lcRender()">
+        <input id="lcFilterPort"    class="lc-filter-input" type="text" placeholder="🏯 積み港/揚げ港"   oninput="lcRender()">
+        <input id="lcFilterCarrier" class="lc-filter-input" type="text" placeholder="🚢 船会社"          oninput="lcRender()">
+      </div>
+
+      <div id="lcVariantPanel" class="lc-variant-panel" hidden></div>
+
+      <div id="lcList" class="lc-list">
+        <p class="lc-empty">読み込み中…</p>
+      </div>
+
+    </div>
+  </div><!-- /tab-local-charges -->
 
   <!-- ===================== サーチャージ tab ===================== -->
   <div class="tab-content" role="tabpanel" id="tab-surcharge">
@@ -1951,7 +1989,10 @@
       <div class="qpd-main" id="qpdMain" hidden>
         <div class="qpd-stats" id="qpdStats"></div>
         <div class="qpd-tools">
-          <input type="text" id="qpdSearch" class="qpd-search" placeholder="🔍 案件名・お客様名・担当者で検索" oninput="cloudSearchInput(this.value)" />
+          <div class="qpd-search-wrap">
+            <input type="text" id="qpdSearch" class="qpd-search" placeholder="🔍 案件名・お客様名・担当者で検索" oninput="cloudSearchInput(this.value)" />
+            <button type="button" class="qpd-search-clear" id="qpdSearchClear" hidden onclick="qpdClearSearch()" title="検索をクリア">✕</button>
+          </div>
           <div class="qpd-tools-row">
             <button type="button" class="qpd-adv-toggle" id="qpdAdvToggle" onclick="qpdToggleAdv()">🔎 詳細検索 ▶</button>
             <label class="qpd-sort">並び替え
@@ -2422,7 +2463,7 @@
           </div>
           <div class="quote-field">
             <label>お客様名称 <span class="req-mark" aria-hidden="true">*</span></label>
-            <input type="text" id="qf-customer" placeholder="例）○○商事" aria-required="true" />
+            <input type="text" id="qf-customer" placeholder="例）○○商事" aria-required="true" list="custSuggestions" autocomplete="off" />
           </div>
           <div class="quote-field">
             <label>担当（敬称略） <span class="req-mark" aria-hidden="true">*</span></label>
@@ -3132,6 +3173,7 @@
               <button class="btn-ins-rem cmdbar-icon-btn" onclick="toolbarInsertRemark()" title="リマーク（注記）行を追加">💬</button>
               <button class="btn-ins-int cmdbar-icon-btn" onclick="toolbarInsertInternal()" title="社内メモ行を追加（出力対象外）">🔒</button>
               <button class="btn-bulk-pattern cmdbar-pattern-btn" onclick="openRowPatternMgr()" title="行パターン：チェックした行を保存／保存パターンを挿入">🗂️ 行パターン</button>
+              <button class="cmdbar-lc-btn" onclick="lcOpenPicker()" title="諸チャージマスターから行を追加">📦 チャージ</button>
               <span class="btn-group-label">挿入位置</span>
               <select id="rowInsertPos" class="row-insert-pos" title="追加ボタンの挿入位置">
                 <option value="end">末尾に追加</option>
@@ -3142,6 +3184,7 @@
                 <span>Tabで行追加</span>
               </label>
               <span class="cmdbar-spacer"></span>
+              <button id="clipboardIndicator" class="cmdbar-clipboard-indicator" hidden onclick="clearRowClipboard()" title="クリップボードをクリア">📋 <span id="clipIndicatorCount">0</span>行 ✕</button>
               <details class="cmdbar-more" id="cmdbarMore">
                 <summary class="cmdbar-more-summary" title="その他の操作（配置は検討中）">⋯</summary>
                 <div class="cmdbar-more-pop">
@@ -3216,16 +3259,18 @@
             <!-- 文脈バー：行を選択中のみ表示（案C） -->
             <div class="cmdbar-context" id="cmdbarContext" hidden>
               <span class="ctx-count" id="ctxSelCount">選択中</span>
-              <button class="btn-bulk-copy"   onclick="copySelectedRows()" title="チェックした行を複製">📋 コピー</button>
+              <button class="btn-bulk-copy"   onclick="copySelectedRows()" title="チェックした行を選択行の直下に複製">📋 コピー</button>
+              <button class="btn-bulk-clip"   onclick="copyRowsToClipboard()" title="チェックした行をクリップボードに保持（後から任意の位置に貼り付け）">📋 保持</button>
+              <button class="btn-bulk-paste"  id="btnPasteClipboard" onclick="pasteClipboardRows()" title="クリップボードの行を選択行の前に挿入（未選択時は末尾に追加）" disabled>📌 貼付</button>
               <button class="btn-bulk-delete" onclick="deleteSelectedRows()" title="チェックした行を削除">🗑️ 削除</button>
               <span class="ctx-sep" aria-hidden="true">|</span>
               <select id="bulkCatSet" class="bulk-cat-select" onchange="applyBulkCategorySet(this)" title="チェックした行のカテゴリを一括設定"></select>
               <select id="bulkCurrencySet" class="bulk-cat-select" onchange="applyBulkCurrencySet(this)" title="チェックした行の通貨を一括設定">
                 <option value="__none__">💱 通貨一括設定…</option>
               </select>
-              <select id="bulkUnitSet" class="bulk-cat-select" onchange="applyBulkUnitSet(this)" title="チェックした行の単位を一括設定">
-                <option value="__none__">📐 単位一括設定…</option>
-              </select>
+              <input type="text" id="bulkUnitSet" class="bulk-subcon-input" placeholder="📐 単位一括設定…" list="unit-list" maxlength="20"
+                     onkeydown="if(event.key==='Enter'){applyBulkUnitSet();}" title="チェックした行の単位を一括設定" />
+              <button class="btn-bulk-subcon" onclick="applyBulkUnitSet()" title="チェックした行の単位に左の値を一括設定">設定</button>
               <input type="text" id="bulkSubconSet" class="bulk-subcon-input" placeholder="サブコン一括設定…" maxlength="40"
                      onkeydown="if(event.key==='Enter'){applyBulkSubcon();}" title="チェックした行のサブコンを一括設定" />
               <button class="btn-bulk-subcon" onclick="applyBulkSubcon()" title="チェックした行のサブコンに左の値を一括設定">設定</button>
@@ -3242,7 +3287,7 @@
                          style="width:13px;height:13px;cursor:pointer;margin:0;"
                          onclick="toggleSelectAll(this.checked)" />
                 </th>
-                <th class="hd-base" style="width:26px;"></th>
+                <th class="hd-base" style="width:44px;"></th>
                 <th class="hd-base hd-catsv" style="width:104px;" title="上段＝カテゴリ、下段＝サブコン（協力会社・下請け業者名）">カテゴリ<br><small class="hd-sub">／サブコン</small></th>
                 <th class="hd-base" style="width:188px;">項目名<br><small class="hd-sub">／備考</small></th>
                 <th class="hd-base" style="width:65px;">数量·単位</th>
@@ -3340,6 +3385,36 @@
 
       <!-- シナリオ比較パネル -->
       <div id="scPanel" class="sc-panel"></div>
+
+      <!-- サブコン別パネル（右カラム コンパクト表示） -->
+      <div id="siPanel" class="si-panel">
+        <div class="si-search-bar">
+          <input type="search" id="siSubconSearch" class="si-search-input"
+                 placeholder="🔍 サブコン名・品名" oninput="subconSidePanelFilter()">
+        </div>
+        <div id="siListWrap" class="si-list-wrap"></div>
+      </div>
+
+      <!-- 諸チャージパネル（右カラム） -->
+      <div id="lcRailPanel" class="lc-rail-panel">
+        <div class="lc-rail-topbar">
+          <div class="lc-rail-dir-tabs">
+            <button class="lc-rail-dir-btn is-active" id="lcRailDirBtn-export" onclick="lcRailDir('export')">📤 輸出</button>
+            <button class="lc-rail-dir-btn" id="lcRailDirBtn-import" onclick="lcRailDir('import')">📥 輸入</button>
+          </div>
+          <button class="lc-rail-notify-btn" onclick="lcOpenNotice()" title="サーチャージ変更通知を作成">📢 通知</button>
+        </div>
+        <div class="lc-rail-search-bar">
+          <input type="search" id="lcRailSearch" class="lc-rail-search-input"
+                 placeholder="🔍 名称・船会社" oninput="lcRailFilter()">
+        </div>
+        <div id="lcRailListWrap" class="lc-rail-list-wrap"></div>
+        <div class="lc-rail-footer">
+          <span id="lcRailSelCount" class="lc-rail-sel-count">未選択</span>
+          <button id="lcRailInsertBtn" class="lc-rail-insert-btn"
+                  onclick="lcRailInsert()" disabled>見積に追加</button>
+        </div>
+      </div>
 
       </div><!-- /.quote-right-col -->
     </div><!-- /.quote-workspace -->
@@ -3467,6 +3542,10 @@
     </div>
 
     <!-- ===== 行テンプレート ===== -->
+    <datalist id="svSuggestions"></datalist>
+    <datalist id="nmSuggestions"></datalist>
+    <datalist id="custSuggestions"></datalist>
+
     <datalist id="unit-list">
       <option value="B/L"></option>
       <option value="CNTR"></option>
@@ -3493,15 +3572,16 @@
       </td>
       <td class="handle-cell">
         <span class="drag-handle" title="ドラッグして並び替え">⠿</span>
+        <button class="cnt-link-btn" onclick="window.toggleCntLink?.(this)" title="コンテナ本数に数量を連動（FCL）" tabindex="-1">⛓</button>
       </td>
       <td class="catsv-cell stk-cell">
         <div class="stk">
           <select class="w-cat" data-field="cat" data-col="0"></select>
-          <input type="text" data-field="sv" class="w-subcon" placeholder="サブコン" />
+          <input type="text" data-field="sv" class="w-subcon" placeholder="サブコン" list="svSuggestions" />
         </div>
       </td>
       <td class="name-cell">
-        <input type="text" data-field="nm" class="w-name" placeholder="例）海上運賃" data-col="1" />
+        <input type="text" data-field="nm" class="w-name" placeholder="例）海上運賃" data-col="1" list="nmSuggestions" />
         <input type="text" data-field="nt" class="w-note" placeholder="備考（任意）" data-col="6" />
       </td>
       <td class="qty-cell">
@@ -3547,6 +3627,123 @@
     </div>
 
   </div><!-- /#tab-quote-make -->
+
+  <!-- ===================== Tab: 統計 ===================== -->
+  <div class="tab-content" id="tab-stats">
+    <div class="stats-toolbar">
+      <select id="statsSource" onchange="statsRefresh()">
+        <option value="both">ローカル＋クラウド</option>
+        <option value="local">ローカルのみ</option>
+        <option value="cloud">クラウドのみ</option>
+      </select>
+      <button class="stats-refresh-btn" onclick="statsRefresh()">🔄 集計</button>
+      <span id="statsCloudStatus" class="stats-cloud-off">💾 ローカル投票</span>
+      <button class="stats-help-toggle" onclick="statsToggleHelp()">? 使い方</button>
+    </div>
+
+    <div class="stats-summary-cards">
+      <div class="stats-card">
+        <div class="stats-card-value" id="statsTotal">—</div>
+        <div class="stats-card-label">プリセット数</div>
+      </div>
+      <div class="stats-card">
+        <div class="stats-card-value" id="statsRows">—</div>
+        <div class="stats-card-label">明細行数</div>
+      </div>
+      <div class="stats-card">
+        <div class="stats-card-value" id="statsSvCount">—</div>
+        <div class="stats-card-label">SV/キャリア種類</div>
+      </div>
+      <div class="stats-card">
+        <div class="stats-card-value" id="statsNmGroups">—</div>
+        <div class="stats-card-label">品名グループ数</div>
+      </div>
+    </div>
+
+    <!-- ヘルプパネル -->
+    <div id="statsHelpPanel" class="stats-help-panel" hidden>
+      <div class="stats-help-header">
+        <span class="stats-help-title">📖 統計・マスター管理の使い方</span>
+        <button class="stats-help-close" onclick="statsToggleHelp()" title="閉じる">✕</button>
+      </div>
+      <div class="stats-help-steps">
+
+        <div class="stats-help-step">
+          <div class="stats-help-step-head">
+            <span class="stats-help-step-num">1</span>
+            <span class="stats-help-step-title">ゆらぎを確認する</span>
+          </div>
+          <p>🏢 サブコン・📝 品名・📐 単位 の各タブで、表記を「読み方が同じもの」でグループ化して表示します。同じ意味なのに入力者によって表記が違うものがあれば <span class="sh-badge">ゆらぎ N種</span> バッジが付きます。</p>
+          <ul>
+            <li>バッジをクリック → エイリアス是正タブへジャンプ</li>
+            <li>チップの <strong>≠</strong> ボタン → 「別物として扱う」（ゆらぎ判定から除外）</li>
+          </ul>
+        </div>
+
+        <div class="stats-help-divider">›</div>
+
+        <div class="stats-help-step">
+          <div class="stats-help-step-head">
+            <span class="stats-help-step-num">2</span>
+            <span class="stats-help-step-title">正式表記をマスターに昇格</span>
+          </div>
+          <p>チップ右の <span class="sh-badge-green">☆ 登録</span> ボタンを押すと即座に <span class="sh-badge-gold">✅ マスター</span> に登録されます。再クリックで解除できます。</p>
+          <ul>
+            <li>クラウドログイン時はチームで共有される</li>
+            <li>⭐ マスター管理タブで一覧・解除ができる</li>
+            <li><b>サブコン</b>・<b>品名</b>・<b>単位</b>・<b>お客様名</b>のマスター表記は、見積入力時の補完候補に自動追加される</li>
+          </ul>
+        </div>
+
+        <div class="stats-help-divider">›</div>
+
+        <div class="stats-help-step">
+          <div class="stats-help-step-head">
+            <span class="stats-help-step-num">3</span>
+            <span class="stats-help-step-title">エイリアスルールで一括是正</span>
+          </div>
+          <p><span class="sh-badge">ゆらぎ N種</span> バッジをクリックすると「エイリアス是正」タブへジャンプし、⚡ショートカットが開きます。「＋ 登録」で <em>古い表記 → 正規形</em> のルールを保存し、「💾 ローカルに適用」または「☁️ クラウドに適用」を押すと既存プリセットを一括置換できます。</p>
+          <ul>
+            <li>ルールはローカル保存、クラウドログイン時は自動同期</li>
+            <li class="sh-warn">⚠️ 一括置換は元に戻せません。適用前に CSV/Excel でエクスポートを推奨します。</li>
+          </ul>
+        </div>
+
+      </div>
+      <div class="stats-help-flow">
+        <span class="sh-flow-label">流れ：</span>
+        <span class="sh-flow-item">ゆらぎ発見</span>
+        <span class="sh-flow-arrow">→</span>
+        <span class="sh-flow-item">☆ 投票 でマスター昇格</span>
+        <span class="sh-flow-arrow">→</span>
+        <span class="sh-flow-item">ゆらぎバッジ → ルール登録</span>
+        <span class="sh-flow-arrow">→</span>
+        <span class="sh-flow-item">一括置換 で過去データも是正</span>
+        <span class="sh-flow-arrow">→</span>
+        <span class="sh-flow-item">入力補完に反映</span>
+      </div>
+    </div>
+
+    <div class="stats-tabs">
+      <button class="stats-tab-btn is-active" id="statsTabBtn-sv"       onclick="statsSetPane('sv')">🏢 サブコン</button>
+      <button class="stats-tab-btn"           id="statsTabBtn-carrier"  onclick="statsSetPane('carrier')">🚢 キャリア</button>
+      <button class="stats-tab-btn"           id="statsTabBtn-customer" onclick="statsSetPane('customer')">👤 お客様</button>
+      <button class="stats-tab-btn"           id="statsTabBtn-nm"       onclick="statsSetPane('nm')">📝 品名</button>
+      <button class="stats-tab-btn"           id="statsTabBtn-un"       onclick="statsSetPane('un')">📐 単位</button>
+      <button class="stats-tab-btn"           id="statsTabBtn-charges"  onclick="statsSetPane('charges')">💰 チャージ</button>
+      <button class="stats-tab-btn"           id="statsTabBtn-master"   onclick="statsSetPane('master')">⭐ マスター管理</button>
+      <button class="stats-tab-btn"           id="statsTabBtn-alias"    onclick="statsSetPane('alias')">🔀 エイリアス是正</button>
+    </div>
+
+    <div id="statsPane-sv"       class="stats-pane is-active"></div>
+    <div id="statsPane-carrier"  class="stats-pane"></div>
+    <div id="statsPane-customer" class="stats-pane"></div>
+    <div id="statsPane-nm"       class="stats-pane"></div>
+    <div id="statsPane-un"       class="stats-pane"></div>
+    <div id="statsPane-charges"  class="stats-pane"></div>
+    <div id="statsPane-master"   class="stats-pane"></div>
+    <div id="statsPane-alias"    class="stats-pane"></div>
+  </div>
 
   <!-- ===================== Tab: BOOKMARK ===================== -->
   <div class="tab-content" id="tab-bookmark">
@@ -3614,6 +3811,10 @@
 <script src="js/bookmarks.js"></script>
 <script src="js/similar-quotes.js"></script>
 <script src="js/quote/scenario.js"></script>
+<script src="js/quote/right-rail.js"></script>
+<script src="js/stats.js"></script>
+<script src="js/alias-rules.js"></script>
+<script src="js/local-charges.js"></script>
 
 <!-- =================================================================
      サイト全体スコープのフローティング UI（Phase 2c-Step1 で見積タブから昇格）
@@ -3806,6 +4007,129 @@
     <div class="prof-foot">
       <button class="prof-cancel" onclick="closeProfileEdit()">キャンセル</button>
       <button class="prof-save" onclick="saveProfile()">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- ====== 諸チャージ: 登録フォームモーダル ====== -->
+<div id="lcFormModal" class="lc-modal-overlay" onclick="if(event.target===this)lcCloseForm()">
+  <div class="lc-form-box" onclick="event.stopPropagation()">
+    <div class="lc-modal-header">
+      <h3 class="lc-modal-title" id="lcFormTitle">新規チャージ登録</h3>
+      <button class="lc-modal-close" onclick="lcCloseForm()">✕</button>
+    </div>
+    <div class="lc-form-body">
+      <div class="lc-form-row lc-form-row--full">
+        <label class="lc-form-label">船会社 <span class="lc-required">必須</span></label>
+        <input id="lc_carrier" class="lc-form-input" type="text" placeholder="例: MSC、ONE、Evergreen">
+      </div>
+      <div class="lc-form-row lc-form-row--full">
+        <label class="lc-form-label">略称・名称 <span class="lc-required">必須</span></label>
+        <input id="lc_name" class="lc-form-input" type="text" placeholder="例: THC、B/L Fee、輸出通関費" list="lcNameList" autocomplete="off">
+      </div>
+      <div class="lc-form-row lc-form-row--full">
+        <label class="lc-form-label">正式名称</label>
+        <input id="lc_full_name" class="lc-form-input" type="text" placeholder="例: Terminal Handling Charge、Bill of Lading Fee">
+      </div>
+      <div class="lc-form-row lc-form-row--full">
+        <label class="lc-form-label">解説</label>
+        <textarea id="lc_description" class="lc-form-input lc-form-textarea" rows="3" placeholder="費用の内容・発生条件・注意点など"></textarea>
+      </div>
+      <div class="lc-form-row">
+        <label class="lc-form-label">カテゴリ</label>
+        <select id="lc_cat" class="lc-form-select"></select>
+      </div>
+      <div class="lc-form-row lc-form-row--amt">
+        <label class="lc-form-label">金額目安</label>
+        <input id="lc_amount" class="lc-form-input lc-form-input--num" type="number" min="0" placeholder="0">
+        <select id="lc_currency" class="lc-form-select lc-form-select--cur"></select>
+        <select id="lc_unit"     class="lc-form-select lc-form-select--unit"></select>
+      </div>
+      <div class="lc-form-row">
+        <label class="lc-form-label">積み港（POL）</label>
+        <input id="lc_pol" class="lc-form-input" type="text" placeholder="例: 東京港、横浜港、TPICT">
+      </div>
+      <div class="lc-form-row">
+        <label class="lc-form-label">揚げ港（POD）</label>
+        <input id="lc_pod" class="lc-form-input" type="text" placeholder="例: USLAX、Shanghai、Hamburg">
+      </div>
+      <div class="lc-form-row">
+        <label class="lc-form-label">適用開始日</label>
+        <input id="lc_valid_from" class="lc-form-input" type="date">
+      </div>
+      <div class="lc-form-row">
+        <label class="lc-form-label">適用終了日</label>
+        <input id="lc_valid_to" class="lc-form-input" type="date">
+      </div>
+      <div class="lc-form-row lc-form-row--full">
+        <label class="lc-form-label">参照元</label>
+        <input id="lc_source" class="lc-form-input" type="text" placeholder="URLまたは出典（例: https://... / MSC タリフ 2026-06版）">
+      </div>
+      <div class="lc-form-row lc-form-row--full">
+        <label class="lc-form-label">備考</label>
+        <input id="lc_note" class="lc-form-input" type="text" placeholder="補足情報">
+      </div>
+      <div class="lc-form-row lc-form-row--full">
+        <label class="lc-form-label">添付ファイル</label>
+        <div class="lc-attach-wip">
+          🚧 準備中 — アナウンス PDF などの添付は近日対応予定です。
+        </div>
+      </div>
+    </div>
+    <div class="lc-modal-footer">
+      <button class="lc-save-btn" onclick="lcSaveCharge()">💾 保存</button>
+      <button class="lc-cancel-btn" onclick="lcCloseForm()">キャンセル</button>
+    </div>
+  </div>
+</div>
+
+<datalist id="lcNameList"></datalist>
+
+<!-- ====== 諸チャージ: 見積ピッカーモーダル ====== -->
+<div id="lcPickerModal" class="lc-modal-overlay" onclick="if(event.target===this)lcClosePicker()">
+  <div class="lc-picker-box" onclick="event.stopPropagation()">
+    <div class="lc-modal-header">
+      <h3 class="lc-modal-title">📦 諸チャージから追加</h3>
+      <button class="lc-modal-close" onclick="lcClosePicker()">✕</button>
+    </div>
+    <div class="lc-picker-topbar">
+      <div class="lc-dir-tabs">
+        <button class="lc-dir-btn is-active" id="lcPickDir-export" onclick="lcPickerDir('export')">📤 輸出</button>
+        <button class="lc-dir-btn"           id="lcPickDir-import" onclick="lcPickerDir('import')">📥 輸入</button>
+      </div>
+      <div class="lc-picker-filters">
+        <input id="lcPickText"    class="lc-filter-input" type="text" placeholder="🔍 検索"     oninput="lcPickerRender()">
+        <input id="lcPickPort"    class="lc-filter-input" type="text" placeholder="🏯 積み港/揚げ港" oninput="lcPickerRender()">
+        <input id="lcPickCarrier" class="lc-filter-input" type="text" placeholder="🚢 船会社"   oninput="lcPickerRender()">
+      </div>
+    </div>
+    <div id="lcPickerList" class="lc-picker-list"></div>
+    <div class="lc-picker-footer">
+      <span id="lcPickCountMsg" class="lc-pick-count">未選択</span>
+      <button id="lcPickInsertBtn" class="lc-pick-insert-btn" onclick="lcInsertSelected()" disabled>見積に追加</button>
+      <button class="lc-cancel-btn" onclick="lcClosePicker()">閉じる</button>
+    </div>
+  </div>
+</div>
+
+<!-- ====== 諸チャージ: サーチャージ変更通知モーダル ====== -->
+<div id="lcNoticeModal" class="lc-modal-overlay" onclick="if(event.target===this)lcCloseNotice()">
+  <div class="lc-notice-box" onclick="event.stopPropagation()">
+    <div class="lc-modal-header">
+      <h3 class="lc-modal-title">📢 サーチャージ変更通知</h3>
+      <button class="lc-modal-close" onclick="lcCloseNotice()">✕</button>
+    </div>
+    <div class="lc-notice-body">
+      <div class="lc-notice-subject-row">
+        <label class="lc-notice-subject-label">件名</label>
+        <input id="lcNoticeSubject" class="lc-notice-subject-input" type="text">
+        <button class="lc-notice-copy-btn" onclick="lcCopyNoticeSubject()" title="件名をコピー">📋</button>
+      </div>
+      <textarea id="lcNoticeBody" class="lc-notice-textarea" rows="18" spellcheck="false"></textarea>
+    </div>
+    <div class="lc-modal-footer">
+      <button class="lc-save-btn" onclick="lcCopyNotice()">📋 本文をコピー</button>
+      <button class="lc-cancel-btn" onclick="lcCloseNotice()">閉じる</button>
     </div>
   </div>
 </div>
