@@ -43,6 +43,15 @@
   // プリセットカード（ブラウザ保存／チーム共有）でも敬称表示に使うため公開
   window.formatPersonWithHonorific = formatPersonWithHonorific;
 
+  // プレビュー上の発行日／有効期限編集 → フォーム(qf-date / qf-valid-until)へ同期
+  window.pvSyncDate = function (which, val) {
+    var id = which === 'valid' ? 'qf-valid-until' : 'qf-date';
+    var el = document.getElementById(id);
+    if (!el) return;
+    el.value = val;
+    el.dispatchEvent(new Event('change', { bubbles: true }));   // 自動保存・有効期限警告などを発火
+  };
+
   /**
    * ファイル名生成: REF_引き合い元_担当.<ext>
    * 入力がある項目だけ使用。すべて空なら "見積もり_YYYYMMDD"
@@ -381,6 +390,8 @@
       hdr.ref      ? `<div class="pv-meta-item"><span class="lbl">見積もり番号</span><span class="val">${escHtml(hdr.ref)}</span></div>` : '',
       hdr.customer ? `<div class="pv-meta-item"><span class="lbl">お客様</span><span class="val">${escHtml(hdr.customer)}</span></div>` : '',
       hdr.person   ? `<div class="pv-meta-item"><span class="lbl">担当</span><span class="val">${escHtml(formatPersonWithHonorific(hdr.person))}</span></div>` : '',
+      `<div class="pv-meta-item pv-meta-edit"><span class="lbl">発行日</span><input type="date" class="pv-meta-date" value="${escHtml(hdr.date)}" onchange="pvSyncDate('date', this.value)" title="フォームの発行日と同期します" /></div>`,
+      `<div class="pv-meta-item pv-meta-edit"><span class="lbl">有効期限</span><input type="date" class="pv-meta-date" value="${escHtml(hdr.validUntil)}" onchange="pvSyncDate('valid', this.value)" title="フォームの有効期限と同期します" /></div>`,
     ].join('');
     metaEl.innerHTML = metaHTML;
     metaEl.style.display = metaHTML ? 'flex' : 'none';

@@ -98,12 +98,14 @@
 /* メモフィールド：2カラム配置で右側を左カラム6行分（REF#〜有効期限＋ステータス）占有 */
 #tab-quote-make .quote-field-memo {
   grid-column: 2;
-  grid-row: 1 / span 6;
+  grid-row: 1 / span 8;   /* 左カラム：番号/客/担当/受信日/期限/発行日/有効期限/ステータス の8行に合わせる */
   margin-top: 0;
   height: 100%;
   display: flex;
   flex-direction: column;
 }
+/* 添付ファイルは常に全幅で下段に */
+#tab-quote-make .quote-field-attach { grid-column: 1 / -1; }
 #tab-quote-make .quote-field-memo #qf-memo {
   flex: 1;
   min-height: 100%;
@@ -2968,6 +2970,8 @@
 #tab-quote-make .pv-meta-item { display: flex; gap: 6px; align-items: center; }
 #tab-quote-make .pv-meta-item .lbl { color: #7d6b56; font-weight: 600; }
 #tab-quote-make .pv-meta-item .val { color: #3d2e1e; font-weight: 500; }
+#tab-quote-make .pv-meta-date { font-size: 12px; padding: 3px 6px; border: 1px solid #d9cfc2; border-radius: 5px; background: #fff; color: #3d2e1e; }
+@media print { #tab-quote-make .pv-meta-date { border: none; background: none; padding: 0; } }
 #tab-quote-make #previewTableWrap { overflow-x: auto; }
 #tab-quote-make #previewTable {
   border-collapse: collapse; width: 100%; min-width: 880px;
