@@ -263,7 +263,12 @@
     const upd = e => e.updated_at || '';
     const who = e => _nameFor(e.owner_email) || '';
     const r = rows.slice();
-    if (s === 'status')        r.sort((a, b) => (_STATUS_ORDER[a.status] ?? 9) - (_STATUS_ORDER[b.status] ?? 9) || upd(b).localeCompare(upd(a)));
+    if (s === 'due') {
+      const dueOf = e => { const mm = (window.quotePresetMeta && e.data) ? window.quotePresetMeta({ data: e.data }) : null; return (mm && mm.due) || '9999-12-31'; };
+      r.forEach(e => { e.__due = dueOf(e); });
+      r.sort((a, b) => a.__due.localeCompare(b.__due) || upd(b).localeCompare(upd(a)));   // 期限が近い順（未設定は最後）
+    }
+    else if (s === 'status')   r.sort((a, b) => (_STATUS_ORDER[a.status] ?? 9) - (_STATUS_ORDER[b.status] ?? 9) || upd(b).localeCompare(upd(a)));
     else if (s === 'who')      r.sort((a, b) => who(a).localeCompare(who(b), 'ja') || upd(b).localeCompare(upd(a)));
     else if (s === 'person')   r.sort((a, b) => (a.person   || '').localeCompare(b.person   || '', 'ja') || upd(b).localeCompare(upd(a)));
     else if (s === 'customer') r.sort((a, b) => (a.customer || '').localeCompare(b.customer || '', 'ja') || upd(b).localeCompare(upd(a)));
@@ -348,6 +353,27 @@
     return { '下書き中':'draft', '提出済み':'sent', '提示済み':'sent', '受注':'won', '失注':'lost', '辞退':'declined', '保留':'hold' }[st] || 'draft';
   }
 
+  // 依頼受信日・提出期限から経過日／残り日数バッジを生成（ダッシュボード優先度表示）
+  function _todayStart() { var n = new Date(); return new Date(n.getFullYear(), n.getMonth(), n.getDate()).getTime(); }
+  function _dueBadge(dueStr) {
+    if (!dueStr) return '';
+    var d = new Date(dueStr); if (isNaN(d.getTime())) return '';
+    var days = Math.round((d.getTime() - _todayStart()) / 86400000);
+    var lvl, txt;
+    if (days < 0)       { lvl = 'over';  txt = '締切超過 ' + (-days) + '日'; }
+    else if (days === 0){ lvl = 'today'; txt = '締切 本日'; }
+    else if (days <= 2) { lvl = 'soon';  txt = '締切まで ' + days + '日'; }
+    else                { lvl = 'ok';    txt = '締切まで ' + days + '日'; }
+    return '<span class="cloud-due cloud-due--' + lvl + '" title="提出期限：' + escHtml(dueStr) + '">⏰ ' + txt + '</span>';
+  }
+  function _receivedBadge(recvStr) {
+    if (!recvStr) return '';
+    var d = new Date(recvStr); if (isNaN(d.getTime())) return '';
+    var days = Math.floor((_todayStart() - d.getTime()) / 86400000);
+    if (days < 0) return '';
+    return '<span class="cloud-recv" title="依頼受信日：' + escHtml(recvStr) + '">📥 受信から ' + days + '日</span>';
+  }
+
   // 役割ラベル＝費用行のカテゴリ（CATEGORIES の value → 短縮ラベル）
   const _SUBCON_ROLE = {
     'domestic':'国内作業', 'export-local':'輸出ローカル', 'ocean':'海上', 'air':'航空',
@@ -421,6 +447,9 @@
       const custDd = [customer && escHtml(customer), personH && escHtml(personH)].filter(Boolean).join('・');
       const titleText = (m && m.ref) ? m.ref : r.name;   // 見出しは仮REF#のみ（顧客/担当は下に別掲）
       const memoLine  = (m && m.memo) ? m.memo : '';
+      const dueBadge  = _dueBadge(m && m.due);
+      const recvBadge = _receivedBadge(m && m.received);
+      const prioRow   = (dueBadge || recvBadge) ? '<div class="cloud-card-prio">' + dueBadge + recvBadge + '</div>' : '';
 
       // サブコン（役割ラベル付き・5件目以降は +N）
       const subShown = subcons.slice(0, 4);
@@ -450,6 +479,7 @@
             statusBadge +
             '<span class="cloud-card-name" title="' + escHtml(r.name) + '">' + escHtml(titleText) + '</span>' +
           '</div>' +
+          prioRow +
           (memoLine ? '<div class="cloud-card-memo" title="' + escHtml(memoLine) + '">' + escHtml(memoLine) + '</div>' : '') +
           editBadge +
           progressHtml +

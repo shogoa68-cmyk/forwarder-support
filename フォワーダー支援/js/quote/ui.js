@@ -1046,6 +1046,8 @@
       mode:      (f['cond-mode']      || '').trim(),
       pol, pod, carrier, routes,
       status:    (f['qf-status']      || '').trim(),
+      received:  (f['qf-received']    || '').trim(),
+      due:       (f['qf-due']         || '').trim(),
       subcons:   (window.quoteExtractSubcons ? window.quoteExtractSubcons(p.data) : []),
       memo:      (f['qf-memo']        || '').trim().split('\n')[0].trim(),
     };
