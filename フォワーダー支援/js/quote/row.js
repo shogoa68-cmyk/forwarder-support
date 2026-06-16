@@ -12,6 +12,22 @@
     }
   }
 
+  // サーチャージ有効期限：開始日だけ入れたとき、終了日が未入力ならその月の月末を自動セットする
+  function autoFillValidTo(id) {
+    const vf = document.getElementById(`vf-${id}`);
+    const vt = document.getElementById(`vt-${id}`);
+    if (!vf || !vt) return;
+    if (vf.value && !vt.value) {
+      const d = new Date(vf.value + 'T00:00:00');
+      if (!isNaN(d)) {
+        const last = new Date(d.getFullYear(), d.getMonth() + 1, 0); // 翼月 0 日 = 当月末日
+        const z = n => String(n).padStart(2, '0');
+        vt.value = `${last.getFullYear()}-${z(last.getMonth() + 1)}-${z(last.getDate())}`;
+      }
+    }
+    if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
+  }
+
   // ========== 未入力グレーアウト ==========
   function checkUnfilled(id) {
     const tr = document.getElementById(`row-${id}`);
@@ -352,7 +368,7 @@
     const q    = f => frag.querySelector(`[data-field="${f}"]`);
 
     // IDs
-    ['cat','tx','nm','pq','un','pc','pp','cd','bq','bc','bp','mk','st','pr','nt','sv','zc']
+    ['cat','tx','nm','pq','un','pc','pp','cd','bq','bc','bp','mk','st','pr','nt','sv','zc','vf','vt']
       .forEach(f => { q(f).id = `${f}-${id}`; });
     const zcBtn = frag.querySelector('.zero-confirm-btn');
     if (zcBtn) zcBtn.onclick = () => toggleZeroConfirmed(id);;
@@ -374,6 +390,8 @@
     q('mk').oninput    = () => calc(id);
     q('nt').onkeydown  = e  => noteKeydown(e, id);
     q('sv').onchange   = () => renderSubconGroups();
+    // サーチャージ有効期限：開始日を入れたら終了日を月末で自動補完（「通常はひと月」）
+    q('vf').onchange   = () => autoFillValidTo(id);
 
     return frag;
   }
@@ -903,6 +921,8 @@
   const _UNSET_KEY       = '￿';
   const _collapsedGroups = new Set();
   const _excludedGroups  = new Set();
+  // サブコン別小計の「客先用表示名」（sv キー → 置換テキスト）。客先向け出力でサブコン名を隠すために使う。
+  const _subconAlias     = Object.create(null);
 
   function toggleSubconGroup(key) {
     if (_collapsedGroups.has(key)) _collapsedGroups.delete(key);
@@ -929,6 +949,16 @@
     // → 小計・リマーク行は「直前のサブコングループ」に属するとして扱う
     let currentKey = null;
     Array.from(tbody.querySelectorAll('tr')).forEach(tr => {
+      if (tr.dataset.subSum) {
+        // グループ小計行：自分の svKey の折りたたみ・除外状態に追従
+        const key = tr.dataset.svKey || null;
+        const collapsed = key && _collapsedGroups.has(key);
+        const excluded  = key && _excludedGroups.has(key);
+        tr.style.display = collapsed ? 'none' : '';
+        tr.classList.toggle('is-collapsed', !!collapsed);
+        tr.classList.toggle('is-excluded',  !!excluded);
+        return;
+      }
       if (tr.dataset.virtual) {
         currentKey = tr.dataset.svKey || null;
         if (!currentKey) return;
@@ -996,9 +1026,12 @@
       // グループが 1 つだけなら表示不要（折りたたみ状態はリセット）
       if (groupOrder.length < 2) {
         _collapsedGroups.clear();
-        realRows.forEach(tr => { tr.style.display = ''; });
+        realRows.forEach(tr => { tr.style.display = ''; tr.classList.remove('subcon-child'); });
         return;
       }
+
+      // グループ表示中：配下の各データ行をツリー風インデント（subcon-child）にする
+      realRows.forEach(tr => tr.classList.add('subcon-child'));
 
       // グループヘッダー TR を各グループの先頭行の直前に挿入
       groupOrder.forEach(key => {
@@ -1012,7 +1045,7 @@
         hdr.className = 'subcon-group-header' + (collapsed ? ' is-collapsed' : '');
         const excluded = _excludedGroups.has(key);
         hdr.innerHTML =
-          `<td colspan="14" class="subcon-group-header-cell">` +
+          `<td colspan="10" class="subcon-group-header-cell">` +
             `<button type="button" class="subcon-group-toggle" title="折りたたみ/展開">${collapsed ? '▶' : '▼'}</button>` +
             `<span class="subcon-group-label">📦 ${_escHdr(label)}</span>` +
             `<span class="subcon-group-count">${count} 行</span>` +
@@ -1030,6 +1063,43 @@
         });
         tbody.insertBefore(hdr, firstRow);
       });
+
+      // 各グループの末尾行の直後に、グループ小計の仮想行（data-virtual）を挿入。
+      // 金額は _updateGroupSums で同期。保存・CSV/Excel/PDF 出力には含まれない。
+      groupOrder.forEach(key => {
+        const label    = key === _UNSET_KEY ? '（サブコン未設定）' : key;
+        const lastRow  = groups[key][groups[key].length - 1];
+        const sub = document.createElement('tr');
+        sub.dataset.virtual = '1';
+        sub.dataset.svKey   = key;
+        sub.dataset.subSum  = '1';
+        sub.className = 'subcon-group-subtotal';
+        sub.innerHTML =
+          `<td colspan="10" class="subcon-group-subtotal-cell">` +
+            `<div class="subcon-subtotal-inner">` +
+              `<span class="subcon-subtotal-label">↳ ${_escHdr(label)} 小計</span>` +
+              `<span class="st-metric st-cost"><i>仕入合計</i><b class="subcon-subtotal-cost">¥0</b></span>` +
+              `<span class="st-metric st-sell"><i>売値合計</i><b class="subcon-subtotal-sum">¥0</b></span>` +
+              `<span class="st-metric st-margin"><i>粗利率</i><b class="subcon-subtotal-margin">—</b></span>` +
+              `<span class="st-alias" title="客先向け出力（プレビュー・御見積書PDF）で、この小計の「${_escAttr(label)}」をここに入力した名前へ置換します。空欄ならサブコン名のまま。">` +
+                `<i>客先表示名</i>` +
+                `<input type="text" class="subcon-alias-input" placeholder="例）国内諸費用 一式（任意）" value="${_escAttr(_subconAlias[key] || '')}" />` +
+              `</span>` +
+            `</div>` +
+          `</td>`;
+        // 末尾行の次（既存の小計・リマーク行があればその手前）に挿入
+        const aliasInp = sub.querySelector('.subcon-alias-input');
+        if (aliasInp) {
+          aliasInp.addEventListener('input', () => {
+            const v = aliasInp.value.trim();
+            if (v) _subconAlias[key] = v; else delete _subconAlias[key];
+            if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
+          });
+          // 入力欄クリックで折りたたみ等の親ハンドラに伝播しないように
+          aliasInp.addEventListener('click', e => e.stopPropagation());
+        }
+        tbody.insertBefore(sub, lastRow.nextSibling);
+      });
       // 全行の折りたたみ・除外状態を適用（小計・リマーク行を含む）
       _applyGroupStates();
       _updateGroupSums();
@@ -1044,29 +1114,59 @@
   function _updateGroupSums() {
     const tbody = document.getElementById('tableBody');
     if (!tbody) return;
-    let curSumEl = null, curSum = 0, curMixed = false;
+    let curSumEl = null, curSubRow = null, curSell = 0, curCost = 0, curMixed = false;
     const flush = () => {
-      if (!curSumEl) return;
-      const v = Math.round(curSum);
-      curSumEl.textContent = v ? ('¥' + fmt(v) + (curMixed ? '※' : '')) : '';
-      curSumEl.title = curMixed ? '複数通貨を JPY 換算して合算（FX パネルのレート使用）' : '';
+      const sell = Math.round(curSell);
+      const cost = Math.round(curCost);
+      const mark = curMixed ? '※' : '';
+      const sellTxt = '¥' + fmt(sell) + mark;
+      const costTxt = '¥' + fmt(cost) + mark;
+      const ttl = curMixed ? '複数通貨を JPY 換算して合算（FX パネルのレート使用）' : '';
+      // グループヘッダーの集計（売値ベース）
+      if (curSumEl) { curSumEl.textContent = sell ? sellTxt : ''; curSumEl.title = ttl; }
+      // 小計行：仕入合計・売値合計・粗利率
+      if (curSubRow) {
+        const cEl = curSubRow.querySelector('.subcon-subtotal-cost');
+        const sEl = curSubRow.querySelector('.subcon-subtotal-sum');
+        const mEl = curSubRow.querySelector('.subcon-subtotal-margin');
+        if (cEl) { cEl.textContent = costTxt; cEl.title = ttl; }
+        if (sEl) { sEl.textContent = sellTxt; sEl.title = ttl; }
+        if (mEl) {
+          if (sell > 0) {
+            const m = (sell - cost) / sell * 100;
+            mEl.textContent = m.toFixed(1) + '%';
+            mEl.classList.toggle('is-neg', m < 0);
+          } else {
+            mEl.textContent = '—';
+            mEl.classList.remove('is-neg');
+          }
+        }
+      }
     };
     Array.from(tbody.querySelectorAll('tr')).forEach(tr => {
+      if (tr.dataset.subSum) {              // グループ小計行：現時点の累計を書き込む
+        curSubRow = tr;
+        flush();
+        return;
+      }
       if (tr.dataset.virtual) {            // グループヘッダー
         flush();
         curSumEl = tr.querySelector('.subcon-group-sum');
-        curSum = 0; curMixed = false;
+        curSubRow = null; curSell = 0; curCost = 0; curMixed = false;
         return;
       }
       if (tr.dataset.type) return;         // 小計・リマーク・社内メモ行は除外
       const id = tr.id?.replace('row-', '');
       if (!id || !curSumEl) return;
       const bq = val(`bq-${id}`) || val(`pq-${id}`) || 0;
-      const bp = val(`bp-${id}`) || 0;
-      let amt = bq * bp;
+      const bp = val(`bp-${id}`) || 0;   // 売単価
+      const pp = val(`pp-${id}`) || 0;   // 仕単価
+      let sell = bq * bp, cost = bq * pp;
       const bc = document.getElementById(`bc-${id}`)?.value || 'JPY';
-      if (bc !== 'JPY') { curMixed = true; if (typeof toJPY === 'function') amt = toJPY(amt, bc); }
-      curSum += amt;
+      const pc = document.getElementById(`pc-${id}`)?.value || 'JPY';
+      if (bc !== 'JPY') { curMixed = true; if (typeof toJPY === 'function') sell = toJPY(sell, bc); }
+      if (pc !== 'JPY') { curMixed = true; if (typeof toJPY === 'function') cost = toJPY(cost, pc); }
+      curSell += sell; curCost += cost;
     });
     flush();
   }
@@ -1107,6 +1207,12 @@
   window.addRowToSubconGroup  = addRowToSubconGroup;
   window.toggleSubconGroup    = toggleSubconGroup;
   window.toggleSubconExclude  = toggleSubconExclude;
+  // サブコン別小計の「客先用表示名」マップ（保存・復元・客先出力で参照）
+  window.getSubconAliases = () => Object.assign({}, _subconAlias);
+  window.setSubconAliases = (obj) => {
+    Object.keys(_subconAlias).forEach(k => delete _subconAlias[k]);
+    if (obj && typeof obj === 'object') Object.assign(_subconAlias, obj);
+  };
 
   // ========== 行クリップボード（任意位置貼り付け） ==========
   let _rowClipboard = [];

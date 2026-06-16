@@ -124,7 +124,9 @@
   // cells[0] = 選択チェック（.row-select-chk）、cells[1..] = 下記の順。
   // 既存の保存データ（localStorage / JSON / クラウド）との互換のため、この順序は変更しないこと。
   // ※ 列の見た目の並び替えは row-tpl / thead 側だけで行い、ここは触らない。
-  const ROW_CELL_FIELDS = ['cat','sv','tx','nm','pq','un','bq','pc','bc','pp','bp','cd','mk','nt','zc'];
+  // 末尾の vf/vt（サーチャージ有効期限：開始/終了）は後方追加。既存保存データには無いが
+  // _applyCells が undefined セルをスキップするため互換。順序は末尾以外変更しないこと。
+  const ROW_CELL_FIELDS = ['cat','sv','tx','nm','pq','un','bq','pc','bc','pp','bp','cd','mk','nt','zc','vf','vt'];
 
   function _applyCells(tr, cells) {
     // cells[0] = 選択チェック、cells[1..] = ROW_CELL_FIELDS 順（DOM 列順に依存しない）
@@ -292,6 +294,8 @@
   function _applyQuoteData(data, { keepHeaderIfEmpty = false } = {}) {
     if (!data) return;
     data = migrateRowCells(data);
+    // サブコン別小計の客先用表示名を復元（_rebuildTable → renderSubconGroups より前にセット）
+    if (typeof setSubconAliases === 'function') setSubconAliases(data.subconAliases || {});
     Object.entries(data.fields || {}).forEach(([id, val]) => {
       // ヘッダー項目（仮REF/顧客名/担当者等）はプリセット側が空でも現在値を消さない
       if (keepHeaderIfEmpty && _HEADER_FIELD_IDS.includes(id) && !val) return;
@@ -418,6 +422,7 @@
     });
     // _rowFormat: v3 = 小計行・リマーク行を含む型付きオブジェクト配列
     return { fields, rows, ts: new Date().toISOString(), _rowFormat: 'v3-mixed-rows',
+             subconAliases: (typeof getSubconAliases === 'function' ? getSubconAliases() : {}),
              fxSnapshot: { rates: { ..._fxRates }, ts: localStorage.getItem(SharedStorage.KEYS.FX_LAST_FETCHED) || null } };
   }
 

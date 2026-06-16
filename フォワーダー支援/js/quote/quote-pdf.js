@@ -228,6 +228,17 @@
     // 集計
     let taxableSub = 0, exemptSub = 0, taxSum = 0;
     const lineHTML = [];
+    // サブコン別グループが有効（2+ サブコン）なら、グループ境界に売値小計を挿入（顧客向けのため金額のみ）
+    const _scKeyOf = d => ((d.sv || '').trim() || '（サブコン未設定）');
+    const _scActive = (new Set(data.map(_scKeyOf)).size >= 2);
+    let _scKey = null, _scJpy = 0, _scHas = false;
+    const _scPush = () => {
+      if (_scActive && _scHas) {
+        const _al = (typeof getSubconAliases === 'function' ? getSubconAliases()[_scKey] : '') || '';
+        const _lbl = _al || _scKey;
+        lineHTML.push(`<tr class="qd-subcon-sub"><td colspan="4">↳ ${esc(_lbl)} 小計</td><td class="qd-num">¥${fmtInt(_scJpy)}</td></tr>`);
+      }
+    };
     rows.forEach(r => {
       if (r._type === 'remark') {
         if (r.internal) return; // 社内メモは PDF に出力しない
@@ -257,6 +268,12 @@
       // 御見積書は客先向け公式文書のため、社内メモ(r.note)は出力しない（E-1 備考漏洩対策）
       // 数量は金額の根拠（sub = bq×bp）と一致させる。未入力時に「1」を捏造しない（B/台帳 C）
       const qtyDisp = (r.bq && r.bq > 0) ? fmtNum(r.bq, 4) : '—';
+      // サブコン境界：キーが変わったら直前グループの売値小計を挿入
+      if (_scActive) {
+        const k = _scKeyOf(r);
+        if (_scHas && k !== _scKey) { _scPush(); _scJpy = 0; _scHas = false; }
+        _scKey = k; _scJpy += jpy; _scHas = true;
+      }
       lineHTML.push(
         `<tr>
           <td class="qd-item">${r.taxed ? '<span class="qd-tax">*</span> ' : ''}${esc(_taxName(r.name, r.taxed))}</td>
@@ -267,6 +284,7 @@
         </tr>`
       );
     });
+    _scPush();   // 末尾グループの売値小計
 
     const tax   = taxSum;   // 行ごと切り上げの合計（Math.floor 一括計算からの修正）
     const total = taxableSub + exemptSub + tax;
