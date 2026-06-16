@@ -823,6 +823,7 @@
     if (typeof setCurrentQuoteName === 'function') setCurrentQuoteName('');
     _applyShareMode('edit');
     qpShowEditor();
+    qfRenderAttachments();
     quoteShowToast('🆕 新規見積を作成します', 'success', 2500);
   }
 
@@ -854,6 +855,98 @@
     if (c) c.classList.toggle('is-active', _cloudView === 'card');
     if (l) l.classList.toggle('is-active', _cloudView === 'list');
     _applyCloudFilter();
+  }
+
+  // ========== 添付ファイル（案件＝読込中のクラウド案件に紐づけ・Supabase Storage） ==========
+  var ATT_BUCKET   = 'quote-attachments';
+  var ATT_TTL_DAYS = 14;      // 14日で自動削除（実削除はSQLのpg_cron。UIは残日数を表示）
+  var ATT_QUOTA_MB = 1024;    // ストレージ目安（無料枠1GB。プランに応じて調整）
+  async function qfAttachUpload(files) {
+    files = Array.prototype.slice.call(files || []);
+    if (!files.length) return;
+    var c = _getClient();
+    if (!c || !_cloudUser) { quoteShowToast('⚠️ 添付にはログインが必要です', 'warn', 4000); return; }
+    if (!_loadedCloudId)   { quoteShowToast('⚠️ 先に案件を保存してから添付してください（💾 保存）', 'warn', 5500); return; }
+    var id = _loadedCloudId, okN = 0;
+    for (var i = 0; i < files.length; i++) {
+      var file = files[i];
+      if (file.size > 25 * 1024 * 1024) { quoteShowToast('⚠️ ' + file.name + ' は25MB超のため添付不可', 'warn', 5000); continue; }
+      var safe = (file.name || 'file').replace(/[^\w.\-()（）　-鿿]+/g, '_');
+      var path = id + '/' + Date.now() + '_' + Math.random().toString(36).slice(2, 8) + '_' + safe;
+      var up = await c.storage.from(ATT_BUCKET).upload(path, file, { contentType: file.type || undefined, upsert: false });
+      if (up.error) { quoteShowToast('⚠️ アップロード失敗：' + up.error.message, 'warn', 6000); continue; }
+      var ins = await c.from('quote_attachments').insert({ preset_id: id, path: path, name: file.name, mime: file.type || null, size: file.size, uploaded_by: _cloudUser.email });
+      if (ins.error) { quoteShowToast('⚠️ 記録失敗：' + ins.error.message, 'warn', 6000); try { await c.storage.from(ATT_BUCKET).remove([path]); } catch (e) {} continue; }
+      okN++;
+    }
+    if (okN) quoteShowToast('📎 ' + okN + ' 件を添付しました', 'success', 2500);
+    qfRenderAttachments();
+  }
+  async function qfRenderAttachments() {
+    var wrap = document.getElementById('qfAttachList');
+    if (!wrap) return;
+    var c = _getClient();
+    if (!c || !_cloudUser) { wrap.innerHTML = '<div class="qf-attach-empty">ログインすると添付の保存・閲覧ができます</div>'; return; }
+    if (!_loadedCloudId)   { wrap.innerHTML = '<div class="qf-attach-empty">案件を保存すると添付できます（💾 保存）</div>'; return; }
+    var res = await c.from('quote_attachments').select('*').eq('preset_id', _loadedCloudId).order('created_at', { ascending: false });
+    if (res.error) { wrap.innerHTML = '<div class="qf-attach-empty">⚠️ 取得失敗：' + escHtml(res.error.message) + '</div>'; return; }
+    // 期限切れ（14日超）は表示しない（実削除はサーバ側 pg_cron）
+    var now = Date.now();
+    var data = (res.data || []).filter(function (a) {
+      return !a.created_at || (now - new Date(a.created_at).getTime()) < ATT_TTL_DAYS * 86400000;
+    });
+    qfRenderStorageMeter();
+    if (!data.length) { wrap.innerHTML = '<div class="qf-attach-empty">添付はまだありません</div>'; return; }
+    wrap.innerHTML = data.map(function (a) {
+      var who = _nameFor(a.uploaded_by);
+      var ts = a.created_at ? new Date(a.created_at).toLocaleDateString('ja-JP', { month: '2-digit', day: '2-digit' }) : '';
+      var sz = a.size ? (a.size > 1048576 ? (a.size / 1048576).toFixed(1) + 'MB' : Math.max(1, Math.round(a.size / 1024)) + 'KB') : '';
+      var icon = /pdf/i.test(a.mime || '') ? '📄' : (/image/i.test(a.mime || '') ? '🖼️' : '📎');
+      var left = a.created_at ? Math.max(0, Math.ceil(ATT_TTL_DAYS - (now - new Date(a.created_at).getTime()) / 86400000)) : ATT_TTL_DAYS;
+      var dayCls = left <= 3 ? ' is-soon' : '';
+      return '<div class="qf-attach-item">' +
+        '<button type="button" class="qf-att-open" onclick="qfAttachOpen(\'' + escHtml(a.path) + '\')" title="開く／ダウンロード">' + icon + ' ' + escHtml(a.name) + '</button>' +
+        '<span class="qf-att-meta">' + (sz ? sz + ' · ' : '') + escHtml(who) + ' · ' + ts + '</span>' +
+        '<span class="qf-att-ttl' + dayCls + '" title="アップロードから14日で自動削除">あと' + left + '日</span>' +
+        '<button type="button" class="qf-att-del" onclick="qfAttachDelete(\'' + a.id + '\',\'' + escHtml(a.path) + '\')" title="削除">✕</button>' +
+      '</div>';
+    }).join('');
+  }
+  // ストレージ残量インジケーター（チーム全体の添付合計 ÷ 目安容量）
+  async function qfRenderStorageMeter() {
+    var box = document.getElementById('qfAttachMeter');
+    if (!box) return;
+    var c = _getClient();
+    if (!c || !_cloudUser) { box.innerHTML = ''; return; }
+    var now = Date.now();
+    var res = await c.from('quote_attachments').select('size,created_at');
+    if (res.error) { box.innerHTML = ''; return; }
+    var usedBytes = (res.data || []).reduce(function (s, a) {
+      if (a.created_at && (now - new Date(a.created_at).getTime()) >= ATT_TTL_DAYS * 86400000) return s;  // 期限切れは除外
+      return s + (a.size || 0);
+    }, 0);
+    var usedMb = usedBytes / 1048576;
+    var pct = Math.min(100, Math.round(usedMb / ATT_QUOTA_MB * 1000) / 10);
+    var lvl = pct >= 90 ? ' is-full' : (pct >= 70 ? ' is-warn' : '');
+    box.innerHTML =
+      '<div class="qf-meter-row"><span>📦 ストレージ</span>' +
+        '<span class="qf-meter-num">' + (usedMb < 10 ? usedMb.toFixed(1) : Math.round(usedMb)) + ' / ' + ATT_QUOTA_MB + ' MB（' + pct + '%）</span></div>' +
+      '<div class="qf-meter-bar"><div class="qf-meter-fill' + lvl + '" style="width:' + pct + '%"></div></div>';
+  }
+  async function qfAttachOpen(path) {
+    var c = _getClient(); if (!c) return;
+    var res = await c.storage.from(ATT_BUCKET).createSignedUrl(path, 120);
+    if (res.error || !res.data) { quoteShowToast('⚠️ リンク作成に失敗しました', 'warn'); return; }
+    window.open(res.data.signedUrl, '_blank', 'noopener');
+  }
+  async function qfAttachDelete(attId, path) {
+    if (!confirm('この添付ファイルを削除しますか？（チーム全員から消えます）')) return;
+    var c = _getClient(); if (!c) return;
+    var del = await c.from('quote_attachments').delete().eq('id', attId);
+    if (del.error) { quoteShowToast('⚠️ 削除に失敗：' + del.error.message, 'warn', 6000); return; }
+    try { await c.storage.from(ATT_BUCKET).remove([path]); } catch (e) {}
+    quoteShowToast('🗑️ 添付を削除しました', 'info', 2200);
+    qfRenderAttachments();
   }
 
   // 検索ボックス入力
@@ -987,6 +1080,7 @@
     if (savedId) { _loadedCloudId = savedId; }
     _exitShareEditing();          // Presence untrack + ロック解放
     _applyShareMode('view');      // 閲覧モードへ（他メンバーが編集可能に）
+    qfRenderAttachments();        // 保存後は添付フィールドが使える（preset_id 確定）
 
     quoteShowToast('💾 「' + name + '」を保存して作業終了しました', 'success', 3500);
     cloudListPresets();
@@ -1308,6 +1402,7 @@
     if (typeof closePresetMgr === 'function') closePresetMgr();
     _applyShareMode('view');   // 読み取り専用。編集するには「✏️ 編集」
     qpShowEditor();            // ダッシュボードからエディタ画面へ
+    qfRenderAttachments();     // この案件の添付一覧を表示
     const lk = _cloudRows.find(r => r.id === id);
     const by = lk ? _lockedByOther(lk) : null;
     if (by) {
@@ -1854,6 +1949,11 @@
   window.qpdClearSearch = qpdClearSearch;
   window.qpdSetSort     = qpdSetSort;
   window.qpdSetView     = qpdSetView;
+  // 添付ファイル
+  window.qfAttachUpload     = qfAttachUpload;
+  window.qfAttachOpen       = qfAttachOpen;
+  window.qfAttachDelete     = qfAttachDelete;
+  window.qfRenderAttachments = qfRenderAttachments;
 
   // ---------- 他モジュール（行パターン等）からのログイン情報参照用 ----------
   window.quoteCloudUser   = function () { return _cloudUser; };

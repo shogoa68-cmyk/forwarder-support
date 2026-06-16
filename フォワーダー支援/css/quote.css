@@ -113,6 +113,36 @@
   color: #857060; letter-spacing: 0;
   text-transform: none;
 }
+/* ===== 添付ファイル ===== */
+#tab-quote-make .quote-field-attach { margin-top: 6px; }
+#tab-quote-make .qf-attach-drop {
+  display: flex; align-items: center; justify-content: center; text-align: center;
+  border: 1.5px dashed #cdbfa6; border-radius: 8px; background: #fbf8f1;
+  padding: 12px; cursor: pointer; transition: background .12s, border-color .12s;
+}
+#tab-quote-make .qf-attach-drop:hover { background: #f4ecdb; border-color: #b8a98f; }
+#tab-quote-make .qf-attach-drop.is-drag { background: #eef4e6; border-color: #6b8e3f; }
+#tab-quote-make .qf-attach-hint { font-size: 11.5px; color: #7d6b56; line-height: 1.5; }
+#tab-quote-make .qf-attach-hint small { color: #a3937c; }
+/* ストレージ残量メーター */
+#tab-quote-make .qf-attach-meter { margin: 8px 0 4px; }
+#tab-quote-make .qf-meter-row { display: flex; justify-content: space-between; font-size: 10.5px; color: #7d6b56; margin-bottom: 3px; }
+#tab-quote-make .qf-meter-num { font-variant-numeric: tabular-nums; }
+#tab-quote-make .qf-meter-bar { height: 5px; background: #ece4d8; border-radius: 3px; overflow: hidden; }
+#tab-quote-make .qf-meter-fill { height: 100%; background: #6b8e3f; border-radius: 3px; transition: width .3s ease; }
+#tab-quote-make .qf-meter-fill.is-warn { background: #c8a44e; }
+#tab-quote-make .qf-meter-fill.is-full { background: #c0492b; }
+/* 添付リスト */
+#tab-quote-make .qf-attach-list { display: flex; flex-direction: column; gap: 5px; margin-top: 4px; }
+#tab-quote-make .qf-attach-empty { font-size: 11px; color: #a3937c; padding: 4px 2px; }
+#tab-quote-make .qf-attach-item { display: flex; align-items: center; gap: 8px; padding: 5px 9px; background: #fff; border: 1px solid #e7ddc9; border-radius: 7px; }
+#tab-quote-make .qf-att-open { flex: 1; min-width: 0; text-align: left; background: none; border: none; color: #1a5c8a; font-size: 12px; cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding: 0; }
+#tab-quote-make .qf-att-open:hover { text-decoration: underline; }
+#tab-quote-make .qf-att-meta { flex-shrink: 0; font-size: 10px; color: #9a8878; white-space: nowrap; }
+#tab-quote-make .qf-att-ttl { flex-shrink: 0; font-size: 10px; font-weight: 700; color: #6b8e3f; background: #eef4e6; border-radius: 999px; padding: 1px 7px; white-space: nowrap; }
+#tab-quote-make .qf-att-ttl.is-soon { color: #c0492b; background: #fbeee9; }
+#tab-quote-make .qf-att-del { flex-shrink: 0; width: 22px; height: 22px; border: 1px solid #e2d8c4; background: #fbf8f1; border-radius: 5px; cursor: pointer; font-size: 11px; color: #8a6d4a; }
+#tab-quote-make .qf-att-del:hover { background: #f3e3e0; color: #c0492b; }
 #tab-quote-make #qf-memo {
   width: 100%;
   resize: vertical;
