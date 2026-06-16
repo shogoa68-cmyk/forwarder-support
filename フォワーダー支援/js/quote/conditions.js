@@ -1198,8 +1198,9 @@
     }
     _routeEntries.push({ carrier, pol, pod });
     _renderRouteEntries();
-    // エディタをクリアして次の航路入力へ
-    ['z2Carrier','z2Pol','z2Pod'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+    // キャリアだけクリアして次の入力へ（POL/POD は同じ航路に別キャリアを追加できるよう保持）
+    const carrierEl = document.getElementById('z2Carrier');
+    if (carrierEl) { carrierEl.value = ''; }
     if (typeof onZ2CarrierChange === 'function') onZ2CarrierChange();
     document.getElementById('z2Carrier')?.focus();
     if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
