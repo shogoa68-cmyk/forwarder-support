@@ -1422,6 +1422,66 @@
     return posLabel;
   }
 
+  // 行データ配列を指定 <tr> の直前に挿入（ドラッグ＆ドロップ用）。anchorTr=null で末尾。
+  function _insertPatternRowsAt(patternRows, anchorTr) {
+    const tbody = document.getElementById('tableBody');
+    if (!tbody) return;
+    (patternRows || []).forEach(rd => {
+      if (rd._type === 'remark') {
+        insertRemarkRow(null, { noFocus: true, internal: rd.internal });
+        const allTrs = document.querySelectorAll('#tableBody tr');
+        const tr = allTrs[allTrs.length - 1];
+        if (!tr) return;
+        if (anchorTr) tbody.insertBefore(tr, anchorTr);
+        const inp = tr.querySelector('.remark-row-input');
+        if (inp) inp.value = rd.text || '';
+        return;
+      }
+      if (rd._type === 'subtotal') {
+        insertSubtotalRow(null);
+        const allTrs = document.querySelectorAll('#tableBody tr');
+        const tr = allTrs[allTrs.length - 1];
+        if (!tr) return;
+        if (anchorTr) tbody.insertBefore(tr, anchorTr);
+        const lbl = tr.querySelector('.subtotal-label');
+        if (lbl) lbl.value = rd.label || '';
+        updateSubtotalRows();
+        return;
+      }
+      addRow();
+      const trs = document.querySelectorAll('#tableBody tr');
+      const tr = trs[trs.length - 1];
+      if (!tr) return;
+      if (anchorTr) tbody.insertBefore(tr, anchorTr);
+      const id = tr.id.replace('row-', '');
+      const set = (sid, val, kind) => {
+        const el = document.getElementById(sid + '-' + id);
+        if (!el) return;
+        if (kind === 'check') el.checked = !!val;
+        else el.value = val ?? '';
+      };
+      set('cat', rd.cat);
+      set('nm',  rd.name);
+      set('tx',  rd.taxed, 'check');
+      set('pq',  rd.pq);
+      set('un',  rd.un);
+      set('pc',  rd.pc);
+      set('pp',  rd.pp);
+      set('bq',  rd.bq);
+      set('bc',  rd.bc);
+      set('bp',  rd.bp);
+      set('mk',  rd.mk);
+      set('nt',  rd.note);
+      set('sv',  rd.sv);
+      if (typeof toggleTax === 'function') toggleTax(id);
+      checkUnfilled(id);
+      onCatChange(id);
+      onPay(id);
+    });
+    if (typeof updateSubtotalRows === 'function') updateSubtotalRows();
+    updateTotals();
+  }
+
   function loadRowPattern(id) {
     const p = _rowPatterns.find(x => x.id === id);
     if (!p) return;

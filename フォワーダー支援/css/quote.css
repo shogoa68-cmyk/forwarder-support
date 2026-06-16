@@ -567,6 +567,11 @@
 #tab-quote-make tr.drag-over-bottom td {
   border-bottom: 3px solid #8b6914 !important;
 }
+/* サイドパネル → テーブル D&D */
+#tab-quote-make .rp-sc-item[draggable] { cursor: grab; }
+#tab-quote-make .rp-sc-item.si-item-dragging { opacity: 0.45; cursor: grabbing; }
+#tab-quote-make tr.si-drop-top td { border-top: 3px solid #4a7fc1 !important; }
+#tab-quote-make tr.si-drop-bottom td { border-bottom: 3px solid #4a7fc1 !important; }
 
 /* 課税 */
 #tab-quote-make td.tax-cell { width: 44px; }
