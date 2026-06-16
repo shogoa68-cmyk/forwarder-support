@@ -567,6 +567,11 @@
 #tab-quote-make tr.drag-over-bottom td {
   border-bottom: 3px solid #8b6914 !important;
 }
+/* サイドパネル → テーブル D&D */
+#tab-quote-make .rp-sc-item[draggable] { cursor: grab; }
+#tab-quote-make .rp-sc-item.si-item-dragging { opacity: 0.45; cursor: grabbing; }
+#tab-quote-make tr.si-drop-top td { border-top: 3px solid #4a7fc1 !important; }
+#tab-quote-make tr.si-drop-bottom td { border-bottom: 3px solid #4a7fc1 !important; }
 
 /* 課税 */
 #tab-quote-make td.tax-cell { width: 44px; }
@@ -2225,7 +2230,9 @@
 #tab-quote-make .z2-label { font-size: 14px; flex-shrink: 0; }
 #tab-quote-make .z2-pol-pod-row { display: flex; align-items: flex-end; gap: 4px; }
 #tab-quote-make .z2-port { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; }
+#tab-quote-make .z2-via-port { flex: 0.75; }
 #tab-quote-make .z2-port-label { font-size: 9px; font-weight: 700; color: #6b5a42; letter-spacing: .04em; }
+#tab-quote-make .z2-route-via { font-size: 10px; color: #8a7a68; font-style: italic; }
 #tab-quote-make .z2-input {
   font-size: 11px; padding: 4px 7px;
   border: 1px solid #bbf0c4; border-radius: 4px;

@@ -1179,10 +1179,14 @@
     if (!list) return;
     if (!_routeEntries.length) { list.innerHTML = ''; return; }
     list.innerHTML = _routeEntries.map((r, i) => {
-      const route = [r.pol, r.pod].filter(Boolean).join(' → ') || 'ポート未設定';
+      const parts = [];
+      if (r.pol) parts.push(_escMulti(r.pol));
+      if (r.via) parts.push('<span class="z2-route-via">via:' + _escMulti(r.via) + '</span>');
+      if (r.pod) parts.push(_escMulti(r.pod));
+      const route = parts.length ? parts.join(' → ') : 'ポート未設定';
       return `<span class="z2-route-chip">`
         + `<span class="z2-route-carrier">${_escMulti(r.carrier || '—')}</span>`
-        + `<span class="z2-route-leg">${_escMulti(route)}</span>`
+        + `<span class="z2-route-leg">${route}</span>`
         + `<button type="button" class="me-chip-del" onclick="removeRouteEntry(${i})" title="削除">×</button></span>`;
     }).join('');
     if (typeof window.renderQuoteCarrierLinks === 'function') window.renderQuoteCarrierLinks();
@@ -1191,12 +1195,13 @@
   function addRouteEntry() {
     const carrier = (document.getElementById('z2Carrier')?.value || '').trim();
     const pol = (document.getElementById('z2Pol')?.value || '').trim();
+    const via = (document.getElementById('z2Via')?.value || '').trim();
     const pod = (document.getElementById('z2Pod')?.value || '').trim();
     if (!carrier && !pol && !pod) {
       if (typeof quoteShowToast==='function') quoteShowToast('⚠️ キャリアまたはPOL/PODを入力してください', 'warn', 1800);
       return;
     }
-    _routeEntries.push({ carrier, pol, pod });
+    _routeEntries.push({ carrier, pol, via, pod });
     _renderRouteEntries();
     // キャリアだけクリアして次の入力へ（POL/POD は同じ航路に別キャリアを追加できるよう保持）
     const carrierEl = document.getElementById('z2Carrier');
