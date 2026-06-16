@@ -746,6 +746,7 @@
     }
     _setEditing(_loadedCloudId);     // Presence：あなたが作業中
     _applyShareMode('edit');
+    _resetQuoteDirty();              // 編集開始直後は未保存なし
     quoteShowToast('✏️ 編集を開始しました（あなたが作業中・他メンバーは削除/上書き不可）', 'success', 3500);
   }
 
@@ -776,6 +777,7 @@
     _loadedCloudId = null; _loadedCloudTs = null;
     if (typeof setCurrentQuoteName === 'function') setCurrentQuoteName('');
     _applyShareMode('edit');
+    _resetQuoteDirty();
     quoteShowToast('🧹 入力をクリアしました', 'info');
   }
   // 作業中状態の解除（Presence untrack 相当 + ロック解放）
@@ -798,6 +800,17 @@
   }
 
   // ========== ページ切替（ダッシュボード／エディタ） ==========
+  // 未保存検知：編集モード中のユーザー入力で dirty=true、保存/読込/新規でクリア
+  var _quoteDirty = false;
+  function _markQuoteDirty() { if (_shareMode === 'edit') _quoteDirty = true; }
+  function _resetQuoteDirty() { setTimeout(function () { _quoteDirty = false; }, 0); }
+  // 「ダッシュボードに戻る」：未保存があれば確認
+  function qpBackToDashboard() {
+    if (_quoteDirty && _shareMode === 'edit') {
+      if (!confirm('⚠️ 保存していない変更があります。\nダッシュボードに戻りますか？\n\n（保存する場合はキャンセルして「💾 保存」を押してください。未保存のまま別の案件を開くと失われます）')) return;
+    }
+    qpShowDashboard();
+  }
   function qpShowDashboard() {
     document.getElementById('tab-quote-make')?.classList.add('qp-dash');
     document.body.classList.add('qp-dash-active');
@@ -824,6 +837,7 @@
     _applyShareMode('edit');
     qpShowEditor();
     qfRenderAttachments();
+    _resetQuoteDirty();
     quoteShowToast('🆕 新規見積を作成します', 'success', 2500);
   }
 
@@ -1086,6 +1100,7 @@
     _exitShareEditing();          // Presence untrack + ロック解放
     _applyShareMode('view');      // 閲覧モードへ（他メンバーが編集可能に）
     qfRenderAttachments();        // 保存後は添付フィールドが使える（preset_id 確定）
+    _resetQuoteDirty();           // 保存済み＝未保存なし
 
     quoteShowToast('💾 「' + name + '」を保存して作業終了しました', 'success', 3500);
     cloudListPresets();
@@ -1408,6 +1423,7 @@
     _applyShareMode('view');   // 読み取り専用。編集するには「✏️ 編集」
     qpShowEditor();            // ダッシュボードからエディタ画面へ
     qfRenderAttachments();     // この案件の添付一覧を表示
+    _resetQuoteDirty();        // 読込直後は未保存なし
     const lk = _cloudRows.find(r => r.id === id);
     const by = lk ? _lockedByOther(lk) : null;
     if (by) {
@@ -1482,6 +1498,9 @@
     _surfaceOAuthError();
     // 初期モード（新規＝編集可）。ボタン状態を整える
     _applyShareMode('edit');
+    // 未保存検知：編集中のユーザー入力で dirty フラグを立てる
+    var _qtab = document.getElementById('tab-quote-make');
+    if (_qtab) { _qtab.addEventListener('input', _markQuoteDirty); _qtab.addEventListener('change', _markQuoteDirty); }
     // タブを閉じる/離れる時はロックを即時解放（best-effort。失敗しても90秒で自動失効）
     window.addEventListener('pagehide', () => { if (_lockHeldId) _dropLock(); });
     window.addEventListener('beforeunload', () => { if (_lockHeldId) _dropLock(); });
@@ -1944,6 +1963,7 @@
   window.quoteModeClear    = quoteModeClear;
   // ページ切替（ダッシュボード／エディタ）
   window.qpShowDashboard   = qpShowDashboard;
+  window.qpBackToDashboard = qpBackToDashboard;
   window.qpShowEditor      = qpShowEditor;
   window.qpNewQuote        = qpNewQuote;
   window.qpDockAction      = qpDockAction;
