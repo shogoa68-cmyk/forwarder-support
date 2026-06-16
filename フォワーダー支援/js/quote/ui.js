@@ -1158,7 +1158,8 @@
     return groups.map(g => {
       const shown = g.pods.slice(0, MAXP), more = g.pods.length - shown.length;
       const pods = shown.map(p =>
-        escHtml(p.pod) + (p.via ? ' <span class="route-via" title="経由地（トランシップ等）">⚓' + escHtml(p.via) + '</span>' : '')
+        (p.via ? '<span class="route-via" title="経由地（トランシップ等）">⚓経由 ' + escHtml(p.via) + '</span> ' + arrow + ' ' : '')
+        + escHtml(p.pod)
       ).join(' <span class="route-sep">/</span> ')
                  + (more > 0 ? ' <span class="route-more">他' + more + '</span>' : '');
       const polH = g.pol ? escHtml(g.pol) : '';
