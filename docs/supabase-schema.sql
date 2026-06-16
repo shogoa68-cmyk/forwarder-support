@@ -255,6 +255,15 @@ create table if not exists public.quote_attachments (
   created_at  timestamptz not null default now()
 );
 create index if not exists quote_attachments_preset_idx on public.quote_attachments(preset_id);
+-- 既存テーブルに列が無い場合の移行（再実行しても安全）＋PostgRESTキャッシュ再読込
+alter table public.quote_attachments
+  add column if not exists mime        text,
+  add column if not exists size        bigint,
+  add column if not exists uploaded_by text,
+  add column if not exists path        text,
+  add column if not exists name        text,
+  add column if not exists created_at  timestamptz not null default now();
+notify pgrst, 'reload schema';
 alter table public.quote_attachments enable row level security;
 grant select, insert, delete on public.quote_attachments to authenticated;
 
