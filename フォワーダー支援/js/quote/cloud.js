@@ -871,7 +871,12 @@
     for (var i = 0; i < files.length; i++) {
       var file = files[i];
       if (file.size > 25 * 1024 * 1024) { quoteShowToast('⚠️ ' + file.name + ' は25MB超のため添付不可', 'warn', 5000); continue; }
-      var safe = (file.name || 'file').replace(/[^\w.\-()（）　-鿿]+/g, '_');
+      // Storage キーは ASCII 安全な文字のみ（日本語・全角記号は Invalid key になる）。表示名は name 列に原文保持
+      var nm = file.name || 'file';
+      var dot = nm.lastIndexOf('.');
+      var ext = dot >= 0 ? nm.slice(dot).replace(/[^A-Za-z0-9.]/g, '') : '';
+      var base = (dot >= 0 ? nm.slice(0, dot) : nm).replace(/[^A-Za-z0-9._-]+/g, '_').replace(/_{2,}/g, '_').replace(/^_+|_+$/g, '').slice(0, 40) || 'file';
+      var safe = base + ext;
       var path = id + '/' + Date.now() + '_' + Math.random().toString(36).slice(2, 8) + '_' + safe;
       var up = await c.storage.from(ATT_BUCKET).upload(path, file, { contentType: file.type || undefined, upsert: false });
       if (up.error) { quoteShowToast('⚠️ アップロード失敗：' + up.error.message, 'warn', 6000); continue; }
