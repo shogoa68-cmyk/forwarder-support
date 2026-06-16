@@ -857,9 +857,10 @@
     _applyCloudFilter();
   }
 
-  // ========== 添付ファイル（案件＝読込中のクラウド案件に紐づけ・Supabase Storage） ==========
-  var ATT_BUCKET   = 'quote-attachments';
-  var ATT_TTL_DAYS = 14;      // 14日で自動削除（実削除はSQLのpg_cron。UIは残日数を表示）
+  // ========== 添付ファイル：管理番号入力セクションの📎フィールド ==========
+  // 既存の添付テーブル(quote_attachments: storage_path/file_name/file_size/mime_type)と
+  // バケット(_ATTACH_BUCKET)・画像圧縮(_compressImage)を共用する。
+  var ATT_TTL_DAYS = 14;      // 14日で自動削除（実削除は pg_cron）。UIは残日数を表示
   var ATT_QUOTA_MB = 1024;    // ストレージ目安（無料枠1GB。プランに応じて調整）
   async function qfAttachUpload(files) {
     files = Array.prototype.slice.call(files || []);
@@ -871,17 +872,17 @@
     for (var i = 0; i < files.length; i++) {
       var file = files[i];
       if (file.size > 25 * 1024 * 1024) { quoteShowToast('⚠️ ' + file.name + ' は25MB超のため添付不可', 'warn', 5000); continue; }
-      // Storage キーは ASCII 安全な文字のみ（日本語・全角記号は Invalid key になる）。表示名は name 列に原文保持
-      var nm = file.name || 'file';
+      var src = await _compressImage(file);   // 画像は圧縮、その他はそのまま
+      // Storage キーは ASCII 安全のみ（日本語/全角は Invalid key）。表示名は file_name に原文保持
+      var nm = src.name || 'file';
       var dot = nm.lastIndexOf('.');
       var ext = dot >= 0 ? nm.slice(dot).replace(/[^A-Za-z0-9.]/g, '') : '';
       var base = (dot >= 0 ? nm.slice(0, dot) : nm).replace(/[^A-Za-z0-9._-]+/g, '_').replace(/_{2,}/g, '_').replace(/^_+|_+$/g, '').slice(0, 40) || 'file';
-      var safe = base + ext;
-      var path = id + '/' + Date.now() + '_' + Math.random().toString(36).slice(2, 8) + '_' + safe;
-      var up = await c.storage.from(ATT_BUCKET).upload(path, file, { contentType: file.type || undefined, upsert: false });
+      var path = id + '/' + Date.now() + '_' + Math.random().toString(36).slice(2, 8) + '_' + base + ext;
+      var up = await c.storage.from(_ATTACH_BUCKET()).upload(path, src, { contentType: src.type || undefined, upsert: false });
       if (up.error) { quoteShowToast('⚠️ アップロード失敗：' + up.error.message, 'warn', 6000); continue; }
-      var ins = await c.from('quote_attachments').insert({ preset_id: id, path: path, name: file.name, mime: file.type || null, size: file.size, uploaded_by: _cloudUser.email });
-      if (ins.error) { quoteShowToast('⚠️ 記録失敗：' + ins.error.message, 'warn', 6000); try { await c.storage.from(ATT_BUCKET).remove([path]); } catch (e) {} continue; }
+      var ins = await c.from('quote_attachments').insert({ preset_id: id, storage_path: path, file_name: file.name, file_size: src.size, mime_type: src.type || null, uploaded_by: _cloudUser.email });
+      if (ins.error) { quoteShowToast('⚠️ 記録失敗：' + ins.error.message, 'warn', 6000); try { await c.storage.from(_ATTACH_BUCKET()).remove([path]); } catch (e) {} continue; }
       okN++;
     }
     if (okN) quoteShowToast('📎 ' + okN + ' 件を添付しました', 'success', 2500);
@@ -893,9 +894,8 @@
     var c = _getClient();
     if (!c || !_cloudUser) { wrap.innerHTML = '<div class="qf-attach-empty">ログインすると添付の保存・閲覧ができます</div>'; return; }
     if (!_loadedCloudId)   { wrap.innerHTML = '<div class="qf-attach-empty">案件を保存すると添付できます（💾 保存）</div>'; return; }
-    var res = await c.from('quote_attachments').select('*').eq('preset_id', _loadedCloudId).order('created_at', { ascending: false });
+    var res = await c.from('quote_attachments').select('id,file_name,file_size,mime_type,storage_path,uploaded_by,created_at').eq('preset_id', _loadedCloudId).order('created_at', { ascending: false });
     if (res.error) { wrap.innerHTML = '<div class="qf-attach-empty">⚠️ 取得失敗：' + escHtml(res.error.message) + '</div>'; return; }
-    // 期限切れ（14日超）は表示しない（実削除はサーバ側 pg_cron）
     var now = Date.now();
     var data = (res.data || []).filter(function (a) {
       return !a.created_at || (now - new Date(a.created_at).getTime()) < ATT_TTL_DAYS * 86400000;
@@ -905,15 +905,15 @@
     wrap.innerHTML = data.map(function (a) {
       var who = _nameFor(a.uploaded_by);
       var ts = a.created_at ? new Date(a.created_at).toLocaleDateString('ja-JP', { month: '2-digit', day: '2-digit' }) : '';
-      var sz = a.size ? (a.size > 1048576 ? (a.size / 1048576).toFixed(1) + 'MB' : Math.max(1, Math.round(a.size / 1024)) + 'KB') : '';
-      var icon = /pdf/i.test(a.mime || '') ? '📄' : (/image/i.test(a.mime || '') ? '🖼️' : '📎');
+      var sz = a.file_size ? (a.file_size > 1048576 ? (a.file_size / 1048576).toFixed(1) + 'MB' : Math.max(1, Math.round(a.file_size / 1024)) + 'KB') : '';
+      var icon = /pdf/i.test(a.mime_type || '') ? '📄' : (/image/i.test(a.mime_type || '') ? '🖼️' : '📎');
       var left = a.created_at ? Math.max(0, Math.ceil(ATT_TTL_DAYS - (now - new Date(a.created_at).getTime()) / 86400000)) : ATT_TTL_DAYS;
       var dayCls = left <= 3 ? ' is-soon' : '';
       return '<div class="qf-attach-item">' +
-        '<button type="button" class="qf-att-open" onclick="qfAttachOpen(\'' + escHtml(a.path) + '\')" title="開く／ダウンロード">' + icon + ' ' + escHtml(a.name) + '</button>' +
+        '<button type="button" class="qf-att-open" onclick="qfAttachOpen(\'' + encodeURIComponent(a.storage_path) + '\')" title="開く／ダウンロード">' + icon + ' ' + escHtml(a.file_name) + '</button>' +
         '<span class="qf-att-meta">' + (sz ? sz + ' · ' : '') + escHtml(who) + ' · ' + ts + '</span>' +
         '<span class="qf-att-ttl' + dayCls + '" title="アップロードから14日で自動削除">あと' + left + '日</span>' +
-        '<button type="button" class="qf-att-del" onclick="qfAttachDelete(\'' + a.id + '\',\'' + escHtml(a.path) + '\')" title="削除">✕</button>' +
+        '<button type="button" class="qf-att-del" onclick="qfAttachDelete(\'' + a.id + '\',\'' + encodeURIComponent(a.storage_path) + '\')" title="削除">✕</button>' +
       '</div>';
     }).join('');
   }
@@ -924,11 +924,11 @@
     var c = _getClient();
     if (!c || !_cloudUser) { box.innerHTML = ''; return; }
     var now = Date.now();
-    var res = await c.from('quote_attachments').select('size,created_at');
+    var res = await c.from('quote_attachments').select('file_size,created_at');
     if (res.error) { box.innerHTML = ''; return; }
     var usedBytes = (res.data || []).reduce(function (s, a) {
       if (a.created_at && (now - new Date(a.created_at).getTime()) >= ATT_TTL_DAYS * 86400000) return s;  // 期限切れは除外
-      return s + (a.size || 0);
+      return s + (a.file_size || 0);
     }, 0);
     var usedMb = usedBytes / 1048576;
     var pct = Math.min(100, Math.round(usedMb / ATT_QUOTA_MB * 1000) / 10);
@@ -938,18 +938,18 @@
         '<span class="qf-meter-num">' + (usedMb < 10 ? usedMb.toFixed(1) : Math.round(usedMb)) + ' / ' + ATT_QUOTA_MB + ' MB（' + pct + '%）</span></div>' +
       '<div class="qf-meter-bar"><div class="qf-meter-fill' + lvl + '" style="width:' + pct + '%"></div></div>';
   }
-  async function qfAttachOpen(path) {
+  async function qfAttachOpen(rawPath) {
     var c = _getClient(); if (!c) return;
-    var res = await c.storage.from(ATT_BUCKET).createSignedUrl(path, 120);
+    var res = await c.storage.from(_ATTACH_BUCKET()).createSignedUrl(decodeURIComponent(rawPath), 120);
     if (res.error || !res.data) { quoteShowToast('⚠️ リンク作成に失敗しました', 'warn'); return; }
     window.open(res.data.signedUrl, '_blank', 'noopener');
   }
-  async function qfAttachDelete(attId, path) {
+  async function qfAttachDelete(attId, rawPath) {
     if (!confirm('この添付ファイルを削除しますか？（チーム全員から消えます）')) return;
     var c = _getClient(); if (!c) return;
     var del = await c.from('quote_attachments').delete().eq('id', attId);
     if (del.error) { quoteShowToast('⚠️ 削除に失敗：' + del.error.message, 'warn', 6000); return; }
-    try { await c.storage.from(ATT_BUCKET).remove([path]); } catch (e) {}
+    try { await c.storage.from(_ATTACH_BUCKET()).remove([decodeURIComponent(rawPath)]); } catch (e) {}
     quoteShowToast('🗑️ 添付を削除しました', 'info', 2200);
     qfRenderAttachments();
   }
