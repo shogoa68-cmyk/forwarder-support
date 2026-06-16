@@ -1027,6 +1027,7 @@
         routes = rts.map(r => ({
           pol:     (r.pol     || '').trim(),
           pod:     (r.pod     || '').trim(),
+          via:     (r.via     || '').trim(),
           carrier: (r.carrier || '').trim(),
         })).filter(r => r.pol || r.pod);
       }
@@ -1134,19 +1135,20 @@
   // 1本・未設定はフラットな pol/pod にフォールバック。両モーダル（ブラウザ保存／チーム共有）で共用。
   function _routeGroups(meta) {
     const legs = (meta && Array.isArray(meta.routes)) ? meta.routes : [];
-    if (legs.length > 1) {
+    if (legs.length >= 1) {
       const groups = [], idx = {};
       legs.forEach(lg => {
-        const pol = (lg.pol || '').trim(), pod = (lg.pod || '').trim();
+        const pol = (lg.pol || '').trim(), pod = (lg.pod || '').trim(), via = (lg.via || '').trim();
         if (!pol && !pod) return;
         if (!(pol in idx)) { idx[pol] = groups.length; groups.push({ pol, pods: [] }); }
-        if (pod && groups[idx[pol]].pods.indexOf(pod) === -1) groups[idx[pol]].pods.push(pod);
+        const key = pod + '|' + via;
+        if (pod && !groups[idx[pol]].pods.some(p => (p.pod + '|' + p.via) === key)) groups[idx[pol]].pods.push({ pod, via });
       });
       if (groups.length) return groups;
     }
     const pol = ((meta && meta.pol) || '').trim(), pod = ((meta && meta.pod) || '').trim();
     if (!pol && !pod) return [];
-    return [{ pol, pods: pod ? [pod] : [] }];
+    return [{ pol, pods: pod ? [{ pod, via: '' }] : [] }];
   }
   function quoteRouteHtml(meta, arrowClass) {
     const groups = _routeGroups(meta);
@@ -1155,7 +1157,9 @@
     const MAXP = 6;   // 1 グループあたりの POD 表示上限（超過は +N）
     return groups.map(g => {
       const shown = g.pods.slice(0, MAXP), more = g.pods.length - shown.length;
-      const pods = shown.map(escHtml).join(' <span class="route-sep">/</span> ')
+      const pods = shown.map(p =>
+        escHtml(p.pod) + (p.via ? ' <span class="route-via" title="経由地（トランシップ等）">⚓' + escHtml(p.via) + '</span>' : '')
+      ).join(' <span class="route-sep">/</span> ')
                  + (more > 0 ? ' <span class="route-more">他' + more + '</span>' : '');
       const polH = g.pol ? escHtml(g.pol) : '';
       const body = (polH && pods) ? (polH + ' ' + arrow + ' ' + pods) : (polH || pods);

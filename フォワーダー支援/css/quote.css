@@ -4792,6 +4792,7 @@ body.qp-dash-active #quoteActionDock { display: none !important; }
 #tab-quote-make .route-line + .route-line { margin-top: 2px; }
 #tab-quote-make .route-sep  { color: #b7a98e; margin: 0 1px; }
 #tab-quote-make .route-more { font-size: 10.5px; color: #8a99a3; }
+#tab-quote-make .route-via  { font-size: 10px; color: #2f658c; background: #eef4f8; border: 1px solid #cfe0ef; border-radius: 999px; padding: 0 5px; margin-left: 2px; white-space: nowrap; }
 #tab-quote-make .preset-rich-tags { display: flex; flex-wrap: wrap; gap: 4px; }
 #tab-quote-make .preset-rich-sub { display: flex; flex-wrap: wrap; gap: 4px 8px; }
 #tab-quote-make .preset-tag { display: inline-block; font-size: 10px; font-weight: 600; padding: 2px 7px; border-radius: 10px; white-space: nowrap; }
