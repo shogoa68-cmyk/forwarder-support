@@ -645,6 +645,29 @@
 }
 #tab-quote-make .name-cell .w-note::placeholder { color: #b3a892; font-size: 10.5px; }
 #tab-quote-make .name-cell .w-note:focus { border-style: solid; border-color: #8b6914; background: #fff; }
+/* サーチャージ有効期限：通常は非表示。カテゴリ＝サーチャージの行でのみ表示（onCatChange が tr.cat-surcharge を付与） */
+#tab-quote-make .name-cell .w-valid { display: none; }
+#tab-quote-make tr.cat-surcharge .name-cell .w-valid {
+  display: flex; align-items: center; gap: 3px;
+  margin-top: 3px;
+}
+#tab-quote-make .name-cell .w-valid-lbl {
+  font-size: 9.5px; font-weight: 700; color: #b06a00; flex: none;
+  background: #fff3df; border: 1px solid #f0d9b0; border-radius: 3px; padding: 1px 4px;
+}
+#tab-quote-make .name-cell .w-valid-sep { font-size: 10px; color: #b06a00; flex: none; }
+#tab-quote-make .name-cell .w-valid-date {
+  font-size: 10.5px; color: #6f6a60; min-width: 0; flex: 1;
+  border: 1px solid #e2c79a; background: #fffdf8; border-radius: 3px; padding: 1px 3px;
+}
+#tab-quote-make .name-cell .w-valid-date:focus { border-color: #8b6914; background: #fff; outline: none; }
+/* サブコン配下行：C1 角丸エルボー（各行に小さな └ だけ。列境の全高トランクは置かない） */
+#tab-quote-make tr.subcon-child .catsv-cell { position: relative; padding-left: 15px; }
+#tab-quote-make tr.subcon-child .catsv-cell::before {
+  content: ""; position: absolute; left: 6px; top: 12px; width: 8px; height: 14px;
+  border-left: 1.5px solid #cdab6f; border-bottom: 1.5px solid #cdab6f;
+  border-bottom-left-radius: 6px; pointer-events: none;
+}
 #tab-quote-make .w-qty   { width: 58px; }
 #tab-quote-make .w-cur   { width: 62px; }
 #tab-quote-make .w-unit  { width: 70px; text-align: center; }
@@ -3005,6 +3028,29 @@
   text-align: left !important;
   color: #8b6914;
 }
+/* サブコン別 小計セパレーター（プレビュー） */
+#tab-quote-make #previewTable tr.pv-subcon-subtotal td {
+  background: #f5ede0;
+  border-top: 2px solid #cdab6f;
+  border-bottom: 2px solid #cdab6f;
+  font-weight: bold;
+  font-size: 12px;
+  padding: 5px 8px;
+}
+#tab-quote-make #previewTable .pv-scs-label {
+  text-align: left !important;
+  color: #5a3e28;
+}
+#tab-quote-make #previewTable .pv-scs-label .pv-scs-cost,
+#tab-quote-make #previewTable .pv-scs-label .pv-scs-margin {
+  display: inline-block;
+  margin-left: 14px;
+  font-size: 11px;
+  font-weight: 700;
+  color: #8a6a40;
+}
+#tab-quote-make #previewTable .pv-scs-label .pv-scs-margin { color: #2d6a4f; }
+#tab-quote-make #previewTable .pv-scs-label .pv-scs-margin.pv-neg { color: #c0392b; }
 #tab-quote-make #previewTable tr.pv-table-remark-row td {
   background: #eef3f8;
   border-top: 1px dashed #9ab0c8 !important;
@@ -7511,6 +7557,53 @@ button.um-memberno--empty:hover { background: #f4ead4; border-color: #cdb98e; }
   background: linear-gradient(90deg,#f0e0d8 0,#f8f0ec 100%);
 }
 #tab-quote-make tr.row-excluded td { opacity: 0.35; }
+
+/* ===== サブコン別グループ小計行（仮想行・出力には含まれない） ===== */
+#tab-quote-make .subcon-group-subtotal { pointer-events: none; }
+/* バグ修正：display:flex を td から内側 div へ移し、colspan が潰れないようにする */
+#tab-quote-make .subcon-group-subtotal-cell { padding: 0; }
+#tab-quote-make .subcon-subtotal-inner {
+  background: #3a2c1c; padding: 8px 18px;
+  display: flex; align-items: center; gap: 10px 20px; flex-wrap: wrap;
+}
+#tab-quote-make .subcon-subtotal-label {
+  font-size: 12.5px; font-weight: 800; color: #e7d3a8; letter-spacing: .02em;
+  margin-right: 4px;
+}
+#tab-quote-make .subcon-subtotal-inner .st-metric {
+  display: inline-flex; align-items: baseline; gap: 6px;
+}
+#tab-quote-make .subcon-subtotal-inner .st-metric i {
+  font-style: normal; font-size: 10.5px; font-weight: 700; color: #b89e74;
+}
+#tab-quote-make .subcon-subtotal-inner .st-metric b {
+  font-size: 15px; font-weight: 800; color: #fff; font-variant-numeric: tabular-nums;
+}
+#tab-quote-make .subcon-subtotal-inner .st-cost b { color: #ecd6b3; }
+#tab-quote-make .subcon-subtotal-inner .st-sell b { color: #fff; }
+#tab-quote-make .subcon-subtotal-inner .st-margin b { color: #7ee0a6; }
+#tab-quote-make .subcon-subtotal-inner .st-margin b.is-neg { color: #ff9b8a; }
+/* 客先用表示名の入力欄（小計バー内・右寄せ） */
+#tab-quote-make .subcon-subtotal-inner .st-alias {
+  display: inline-flex; align-items: center; gap: 6px; margin-left: auto;
+}
+#tab-quote-make .subcon-subtotal-inner .st-alias i {
+  font-style: normal; font-size: 10px; font-weight: 700; color: #b89e74; white-space: nowrap;
+}
+#tab-quote-make .subcon-subtotal-inner .st-alias .subcon-alias-input {
+  pointer-events: auto;
+  font-size: 12px; color: #2c2418; background: #f3e8d2;
+  border: 1px solid #6b5636; border-radius: 4px; padding: 3px 8px;
+  width: 190px; max-width: 40vw;
+}
+#tab-quote-make .subcon-subtotal-inner .st-alias .subcon-alias-input::placeholder { color: #9c8a6a; }
+#tab-quote-make .subcon-subtotal-inner .st-alias .subcon-alias-input:focus {
+  outline: none; background: #fff; border-color: #c9a55f; box-shadow: 0 0 0 2px rgba(201,165,95,.35);
+}
+#tab-quote-make .subcon-group-subtotal.is-collapsed { display: none; }
+#tab-quote-make .subcon-group-subtotal.is-excluded .subcon-subtotal-inner {
+  opacity: 0.4; text-decoration: line-through;
+}
 
 /* ===== 進捗バー（プリセット管理モーダル / ブラウザ保存・チーム共有） ===== */
 #tab-quote-make .quote-progress {

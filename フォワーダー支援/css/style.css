@@ -1966,7 +1966,7 @@ body:has(#compareOverlay.open) #quoteActionDock { display: none; }
 /* ===================== 統計タブ ===================== */
 #tab-stats {
   padding: 16px 18px 32px;
-  max-width: 1000px;
+  /* 横幅は他タブと揃える（.app の幅に従う）。独自の max-width は設けない */
 }
 
 /* ツールバー */
@@ -2606,7 +2606,7 @@ body:has(#compareOverlay.open) #quoteActionDock { display: none; }
 .sh-flow-arrow { color: #c8a060; font-weight: 700; font-size: 14px; }
 
 /* ===================== ローカルチャージタブ ===================== */
-.lc-page { padding: 14px 18px 32px; max-width: 1100px; }
+.lc-page { padding: 14px 18px 32px; /* 横幅は他タブと揃える（.app の幅に従う） */ }
 
 /* トップバー */
 .lc-topbar {

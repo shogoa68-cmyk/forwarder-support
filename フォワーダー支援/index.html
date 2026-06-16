@@ -3201,8 +3201,6 @@
               <button class="btn-ins-sub cmdbar-icon-btn" onclick="toolbarInsertSubtotal()" title="小計行を追加">＝</button>
               <button class="btn-ins-rem cmdbar-icon-btn" onclick="toolbarInsertRemark()" title="リマーク（注記）行を追加">💬</button>
               <button class="btn-ins-int cmdbar-icon-btn" onclick="toolbarInsertInternal()" title="社内メモ行を追加（出力対象外）">🔒</button>
-              <button class="btn-bulk-pattern cmdbar-pattern-btn" onclick="openRowPatternMgr()" title="行パターン：チェックした行を保存／保存パターンを挿入">🗂️ 行パターン</button>
-              <button class="cmdbar-lc-btn" onclick="lcOpenPicker()" title="諸チャージマスターから行を追加">📦 チャージ</button>
               <span class="btn-group-label">挿入位置</span>
               <select id="rowInsertPos" class="row-insert-pos" title="追加ボタンの挿入位置">
                 <option value="end">末尾に追加</option>
@@ -3612,6 +3610,12 @@
       <td class="name-cell">
         <input type="text" data-field="nm" class="w-name" placeholder="例）海上運賃" data-col="1" list="nmSuggestions" />
         <input type="text" data-field="nt" class="w-note" placeholder="備考（任意）" data-col="6" />
+        <div class="w-valid" title="サーチャージの有効期限（通常はひと月。例：6/1〜6/30）">
+          <span class="w-valid-lbl">有効</span>
+          <input type="date" data-field="vf" class="w-valid-date" title="有効期限（開始）" />
+          <span class="w-valid-sep">〜</span>
+          <input type="date" data-field="vt" class="w-valid-date" title="有効期限（終了）" />
+        </div>
       </td>
       <td class="qty-cell">
         <div class="qty-wrap">
