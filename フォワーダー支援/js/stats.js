@@ -217,6 +217,31 @@
   // HTML エンティティ（&#39;）はブラウザが JS 実行前に ' に戻してしまい構文エラーになるため、
   // JS の \' エスケープを使う（HTML は \ をデコードしない）。
   function _ea(s)   { return String(s || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'"); }
+  // HTML value="" 属性用
+  function _eav(s)  { return String(s || '').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
+
+  // 同義グループ操作ボタン（⭐代表 / ⤵統合 / →代表ピル）。field は sv/nm/customer/port。
+  function _synBtns(field, value, canons, aliasOf, cntMap) {
+    const isCanon = canons.has(value);
+    const canon   = aliasOf[value];
+    let h = `<button class="stats-syn-star${isCanon ? ' on' : ''}" ` +
+            `onclick="statsToggleSynCanonical('${_ea(field)}','${_ea(value)}')" ` +
+            `title="${isCanon ? '代表を解除' : '同義グループの代表に設定'}">${isCanon ? '⭐代表' : '☆代表'}</button>`;
+    if (isCanon) {
+      const g = (typeof window.synGetGroups === 'function' ? window.synGetGroups(field) : []).find(x => x.canonical === value);
+      const aliases = (g && g.aliases) || [];
+      if (aliases.length) {
+        const total = (cntMap[value] || 0) + aliases.reduce((s, a) => s + (cntMap[a] || 0), 0);
+        h += `<span class="stats-syn-total" title="統合した表記の合計件数（${aliases.length}件統合）">計${total}</span>`;
+      }
+    } else if (canon) {
+      h += `<span class="stats-syn-into" title="「${_eav(canon)}」に統合済み">→${_esc(canon)}</span>` +
+           `<button class="stats-syn-unmerge" onclick="statsSynUnmerge('${_ea(field)}','${_ea(value)}')" title="統合を解除">✕</button>`;
+    } else if (canons.size) {
+      h += `<button class="stats-syn-merge" onclick="statsSynMergePicker('${_ea(field)}','${_ea(value)}',this)" title="既存の代表に統合">⤵統合</button>`;
+    }
+    return h;
+  }
 
   function _voteBtn(field, value) {
     const v  = _voteInfo(field, value);
@@ -233,10 +258,18 @@
     const e = document.getElementById(paneId);
     if (!e || !_data) return;
     if (!groups.length) { e.innerHTML = '<p class="stats-empty">データなし</p>'; return; }
-    // carrier も alias rule では 'sv' フィールドを使う
+    // carrier も alias rule / 同義グループでは 'sv' フィールドを使う
     const aliasField = (field === 'sv') ? 'sv' : field;
-    let h = `<table class="stats-table stats-nm-table"><thead><tr>` +
-            `<th>${colLabel}</th><th class="stats-num-col">合計</th><th>バリアント / 投票</th>` +
+    // 同義グループ状態（手動・⭐代表／統合）と件数マップ
+    const synGroups  = typeof window.synGetGroups === 'function' ? window.synGetGroups(aliasField) : [];
+    const synCanons  = new Set(synGroups.map(g => g.canonical));
+    const synAliasOf = {};
+    synGroups.forEach(g => (g.aliases || []).forEach(a => { synAliasOf[a] = g.canonical; }));
+    const cntMap = {};
+    groups.forEach(g => g.variants.forEach(v => { cntMap[v.value] = (cntMap[v.value] || 0) + v.count; }));
+    let h = '<p class="stats-syn-hint">☆代表 で同義グループの基準を決め、他の表記を ⤵統合 でまとめられます（非破壊・件数合算）。表記ゆれの一括置換は「ゆらぎ N種」バッジから。</p>' +
+            `<table class="stats-table stats-nm-table"><thead><tr>` +
+            `<th>${colLabel}</th><th class="stats-num-col">合計</th><th>バリアント / 操作</th>` +
             `</tr></thead><tbody>`;
     groups.forEach((g, gIdx) => {
       const hasV = g.variants.length > 1;
@@ -253,11 +286,12 @@
       }
       h += `</td><td class="stats-num-col">${g.total}</td><td class="stats-chips-cell">`;
       g.variants.forEach(v => {
-        h += `<span class="stats-chip">` +
+        h += `<span class="stats-chip${synCanons.has(v.value) ? ' stats-chip--canon' : ''}">` +
              `<span class="stats-chip-text">${_esc(v.value)}</span>` +
              `<span class="stats-chip-cnt">×${v.count}</span>` +
              _voteBtn(field, v.value) +
              (hasV ? `<button class="stats-excl-chip-btn" onclick="statsExcludeVariant('${_ea(aliasField)}','${_ea(v.value)}')" title="ゆらぎ判定から除外（別物として扱う）">≠</button>` : '') +
+             _synBtns(aliasField, v.value, synCanons, synAliasOf, cntMap) +
              `</span>`;
       });
       h += '</td></tr>';
@@ -268,6 +302,51 @@
   window.statsExcludeVariant = async function (field, value) {
     if (typeof window.arAddExclusion === 'function') await window.arAddExclusion(field, value);
     // arAddExclusion calls statsRefresh internally
+  };
+
+  // === 同義グループ操作（⭐代表 / ⤵統合 / 解除）===
+  window.statsToggleSynCanonical = async function (field, value) {
+    const groups = typeof window.synGetGroups === 'function' ? window.synGetGroups(field) : [];
+    const g = groups.find(x => x.canonical === value);
+    if (g) {
+      if ((g.aliases || []).length && !confirm(`「${value}」を代表から解除します。統合済み ${g.aliases.length} 件もグループ解除されます。よろしいですか？`)) return;
+      await window.synRemoveGroup(field, value);
+    } else if (typeof window.synSetCanonical === 'function') {
+      await window.synSetCanonical(field, value);
+    }
+  };
+  window.statsSynUnmerge = async function (field, value) {
+    const map = typeof window.synGetNormalizeMap === 'function' ? window.synGetNormalizeMap(field) : {};
+    const canon = map[value];
+    if (canon && typeof window.synRemoveAlias === 'function') await window.synRemoveAlias(field, value, canon);
+  };
+  window.statsSynMergePicker = function (field, value, btn) {
+    document.querySelectorAll('.stats-syn-picker').forEach(el => el.remove());
+    const groups = (typeof window.synGetGroups === 'function' ? window.synGetGroups(field) : [])
+      .filter(g => g.canonical !== value);
+    if (!groups.length) {
+      if (typeof window.quoteShowToast === 'function') window.quoteShowToast('⭐ 先に統合先の代表を設定してください', 'warn');
+      return;
+    }
+    const wrap = document.createElement('span');
+    wrap.className = 'stats-syn-picker';
+    wrap.innerHTML =
+      `<select class="stats-syn-sel">` +
+      groups.map(g => `<option value="${_eav(g.canonical)}">${_esc(g.canonical)}</option>`).join('') +
+      `</select>` +
+      `<button class="stats-syn-pick-ok" onclick="statsSynConfirmMerge('${_ea(field)}','${_ea(value)}',this)">統合</button>` +
+      `<button class="stats-syn-pick-cancel" onclick="this.closest('.stats-syn-picker').remove()">✕</button>`;
+    btn.after(wrap);
+  };
+  window.statsSynConfirmMerge = async function (field, value, btn) {
+    const sel = btn.closest('.stats-syn-picker')?.querySelector('select');
+    if (!sel) return;
+    if (typeof window.synAddAlias === 'function') await window.synAddAlias(field, value, sel.value);
+  };
+
+  // 軽量再描画（クラウドプリセット/投票の再取得を伴わない。同義グループ更新時に使用）
+  window.statsRerenderActive = function () {
+    try { _renderActivePane(); _renderMaster(); } catch (e) { console.error('[statsRerenderActive]', e); }
   };
 
   window.statsJumpToAlias = function (groupId) {
@@ -728,10 +807,19 @@
       if (cg.variants.length > 1) normToCanon.set(_normalize(cg.variants[0].value), cg);
     });
 
+    // 同義グループ状態（手動・⭐代表／統合）
+    const synGroups  = typeof window.synGetGroups === 'function' ? window.synGetGroups('customer') : [];
+    const synCanons  = new Set(synGroups.map(g => g.canonical));
+    const synAliasOf = {};
+    synGroups.forEach(g => (g.aliases || []).forEach(a => { synAliasOf[a] = g.canonical; }));
+    const synCntMap = {};
+    groups.forEach(g => { if (g.customer) synCntMap[g.customer] = g.count; });
+
     const _renderedCustGroups = {};
     let gIdx = 0;
-    let h = '<table class="stats-table"><thead><tr>' +
-            '<th>お客様名</th><th class="stats-num-col">件数</th><th>担当者</th><th>ステータス</th><th></th>' +
+    let h = '<p class="stats-syn-hint">☆代表 で同義グループの基準を決め、他の表記を ⤵統合 でまとめられます（非破壊・件数合算）。</p>' +
+            '<table class="stats-table"><thead><tr>' +
+            '<th>お客様名</th><th class="stats-num-col">件数</th><th>担当者</th><th>ステータス</th><th>操作</th>' +
             '</tr></thead><tbody>';
     groups.forEach(g => {
       const persons = [...g.persons].join('、') || '—';
@@ -758,12 +846,15 @@
       const nameCell = g.customer
         ? `${_esc(g.customer)}${variantBadge}`
         : '<span class="stats-empty-cell">（未入力）</span>';
-      h += `<tr>` +
+      const opCell = g.customer
+        ? _voteBtn('customer', g.customer) + _synBtns('customer', g.customer, synCanons, synAliasOf, synCntMap)
+        : '';
+      h += `<tr${synCanons.has(g.customer) ? ' class="stats-row--canon"' : ''}>` +
            `<td class="stats-val">${nameCell}</td>` +
            `<td class="stats-num-col">${g.count}</td>` +
            `<td>${_esc(persons)}</td>` +
            `<td>${stHtml}</td>` +
-           `<td>${g.customer ? _voteBtn('customer', g.customer) : ''}</td>` +
+           `<td class="stats-chips-cell">${opCell}</td>` +
            `</tr>`;
     });
     e.innerHTML = h + '</tbody></table>';
@@ -784,12 +875,43 @@
     } else {
       entries = _getMasters().map(m => ({ ...m, isMine: true, promoted: true }));
     }
+    const labels = { sv: 'サブコン', nm: '品名', un: '単位', customer: 'お客様', port: '港' };
+
+    // --- 同義グループ一覧（sv/nm/customer/port は syn*、un は ua* から集約）---
+    const synGroups = (typeof window.synGetGroups === 'function' ? window.synGetGroups() : []).slice();
+    const unitGroups = (typeof window.uaGetGroups === 'function' ? window.uaGetGroups() : [])
+      .map(g => ({ field: 'un', canonical: g.canonical, aliases: g.aliases || [] }));
+    const allSyn = [...synGroups, ...unitGroups]
+      .sort((a, b) => (labels[a.field] || a.field).localeCompare(labels[b.field] || b.field) || (a.canonical || '').localeCompare(b.canonical || ''));
+    let synH = '';
+    if (allSyn.length) {
+      synH = '<div class="stats-syn-section"><p class="stats-master-info-title">⭐ 同義グループ（代表 → 統合）</p>' +
+        `<p class="stats-master-info-note">集計タブの ☆代表 / ⤵統合 で作成。件数は合算され、入力補完にも反映されます。${cloudOn ? '（チーム共有）' : '（このブラウザに保存）'}</p>` +
+        '<table class="stats-table"><thead><tr><th>種別</th><th>代表</th><th>統合された表記</th><th>操作</th></tr></thead><tbody>';
+      allSyn.forEach(g => {
+        const isUnit  = g.field === 'un';
+        const aliases = g.aliases || [];
+        const delAlias = (a) => isUnit
+          ? `statsUnitRemoveAlias('${_ea(a)}','${_ea(g.canonical)}')`
+          : `synRemoveAlias('${_ea(g.field)}','${_ea(a)}','${_ea(g.canonical)}')`;
+        const delGroup = isUnit
+          ? `statsUnitRemoveGroup('${_ea(g.canonical)}')`
+          : `synRemoveGroup('${_ea(g.field)}','${_ea(g.canonical)}')`;
+        const chips = aliases.length
+          ? aliases.map(a => `<span class="stats-syn-member">${_esc(a)}<button class="ua-chip-del" title="統合解除" onclick="${delAlias(a)}">✕</button></span>`).join('')
+          : '<span class="stats-empty-cell">—</span>';
+        synH += `<tr><td>${labels[g.field] || g.field}</td>` +
+                `<td class="stats-val"><span class="ua-star">⭐</span>${_esc(g.canonical)}</td>` +
+                `<td>${chips}</td>` +
+                `<td><button class="ua-remove-canon" title="グループを解除" onclick="${delGroup}">解除</button></td></tr>`;
+      });
+      synH += '</tbody></table></div>';
+    }
 
     if (!entries.length) {
-      e.innerHTML = '<p class="stats-empty">マスター登録はまだありません。<br>各集計の ☆ 登録 ボタンで追加できます。</p>';
+      e.innerHTML = '<p class="stats-empty">マスター登録はまだありません。<br>各集計の ☆ 登録 ボタンで追加できます。</p>' + synH;
       return;
     }
-    const labels = { sv: 'サブコン', nm: '品名', un: '単位', customer: 'お客様', port: '港' };
     const usageDesc = {
       sv:       '見積行のサブコン欄で入力補完候補に表示されます。',
       nm:       '見積行の品名欄で入力補完候補に表示されます。',
@@ -828,8 +950,18 @@
            `<td>${m.isMine ? `<button class="stats-demote-btn" onclick="statsToggleVote('${_ea(m.field)}','${_ea(m.value)}')">解除</button>` : '<span class="stats-empty-cell">他メンバー</span>'}</td>` +
            `</tr>`;
     });
-    e.innerHTML = h + '</tbody></table>';
+    e.innerHTML = h + '</tbody></table>' + synH;
   }
+
+  // マスタータブから単位同義グループを操作した際、マスター画面も再描画する薄いラッパ
+  window.statsUnitRemoveGroup = function (canonical) {
+    if (typeof window.uaRemoveGroup === 'function') window.uaRemoveGroup(canonical);
+    if (typeof window.statsRerenderActive === 'function') window.statsRerenderActive();
+  };
+  window.statsUnitRemoveAlias = function (alias, canonical) {
+    if (typeof window.uaRemoveAlias === 'function') window.uaRemoveAlias(alias, canonical);
+    if (typeof window.statsRerenderActive === 'function') window.statsRerenderActive();
+  };
 
   function _renderAlias() {
     if (typeof window.arRenderPane === 'function') window.arRenderPane();
@@ -909,6 +1041,7 @@
     if (typeof window.arRefreshDatalist === 'function') window.arRefreshDatalist();
     if (_cloud()) {
       await _loadCloudVotes();
+      if (typeof window.synLoadCloud === 'function') await window.synLoadCloud();
       _renderCloud();
       _renderActivePane();
     }
@@ -942,7 +1075,7 @@
     _data  = _build(source);
     _updateSummary();
     _renderCloud();
-    if (_cloud()) await _loadCloudVotes();
+    if (_cloud()) { await _loadCloudVotes(); if (typeof window.synLoadCloud === 'function') await window.synLoadCloud(); }
     _renderCloud();
     _renderActivePane();
     if (typeof window.arRefreshDatalist === 'function') window.arRefreshDatalist();
