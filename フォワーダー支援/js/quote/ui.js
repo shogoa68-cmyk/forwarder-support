@@ -1018,8 +1018,12 @@
     const src = presets[idx];
     if (!src) return;
     const newData = JSON.parse(JSON.stringify(src.data || {}));
-    if (newData.fields) newData.fields['qf-ref'] = '';
-    newData.copiedFrom = { name: src.name };
+    if (!newData.fields) newData.fields = {};
+    const srcRef = (newData.fields['qf-ref'] || '').trim();
+    newData.copiedFrom = { name: src.name, ref: srcRef };
+    // 発番ID取得済みなら新REF#をコピー時点で採番（未取得の場合はコピー元番号を保持）
+    const newRef = typeof generateQuoteRefValue === 'function' ? generateQuoteRefValue() : null;
+    if (newRef) newData.fields['qf-ref'] = newRef;
     let baseName = src.name + ' のコピー';
     let copyName = baseName;
     let n = 2;
@@ -1227,8 +1231,9 @@
         : '';
 
       const cf = p.data && p.data.copiedFrom;
+      const cfLabel = cf ? escHtml(cf.name || '不明') + (cf.ref ? ' <span class="preset-cf-ref">(' + escHtml(cf.ref) + ')</span>' : '') : '';
       const copiedFromHtml = cf
-        ? '<div class="preset-copied-from">📋 コピー元：<span class="preset-cf-name">' + escHtml(cf.name || '不明') + '</span></div>'
+        ? '<div class="preset-copied-from">📋 コピー元：<span class="preset-cf-name">' + cfLabel + '</span></div>'
         : '';
 
       return '<div class="preset-list-item preset-item-rich' + (isLoaded ? ' preset-list-item--loaded' : '') + '">' +
@@ -1250,7 +1255,7 @@
           '<span class="preset-list-ts">' + (ts ? '💾 ' + ts : '') + '</span>' +
           '<div class="preset-rich-acts">' +
             '<button class="btn-preset-load" onclick="loadPreset(' + i + ')">読み込む</button>' +
-            '<button class="btn-preset-copy" onclick="duplicateLocalPreset(' + i + ')" title="コピーして新規案件を作成">📋</button>' +
+            '<button class="btn-preset-copy" onclick="duplicateLocalPreset(' + i + ')" title="コピーして新規案件を作成">📋 コピー</button>' +
             '<button class="btn-preset-del"  onclick="deletePreset(' + i + ')" title="削除">✕</button>' +
           '</div>' +
         '</div>' +
@@ -1511,7 +1516,10 @@
     });
     if (typeof updateSubtotalRows === 'function') updateSubtotalRows();
     updateTotals();
+    if (typeof renderSubconGroups === 'function') renderSubconGroups();
   }
+  window._insertPatternRows   = _insertPatternRows;
+  window._insertPatternRowsAt = _insertPatternRowsAt;
 
   function loadRowPattern(id) {
     const p = _rowPatterns.find(x => x.id === id);
