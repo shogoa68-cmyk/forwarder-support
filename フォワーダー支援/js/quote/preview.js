@@ -113,7 +113,8 @@
       const sv     = document.getElementById(`sv-${id}`)?.value || '';
       const vf     = document.getElementById(`vf-${id}`)?.value || '';
       const vt     = document.getElementById(`vt-${id}`)?.value || '';
-      rows.push({ _type: 'data', taxed, cat, name, pq, un, pc, pp, cd, bq, bc, bp, mk, cost, bill, profit, note, sv, vf, vt });
+      const zc     = document.getElementById(`zc-${id}`)?.value === '1';
+      rows.push({ _type: 'data', taxed, cat, name, pq, un, pc, pp, cd, bq, bc, bp, mk, cost, bill, profit, note, sv, vf, vt, zc });
     });
     return rows;
   }
@@ -385,7 +386,7 @@
 
   function openPreview() {
     try {
-    const allRows = collectAllRows();
+    const allRows = collectAllRows().filter(r => r._type !== 'data' || !r.zc); // 0円確認済み行を除外
     const data = allRows.filter(r => r._type === 'data');
     if (!data.length) { alert('行がありません。'); return; }
     if (!_pvBypassed && !preOutputValidationGate('プレビュー表示', openPreview)) return;

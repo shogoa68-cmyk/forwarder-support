@@ -1191,7 +1191,7 @@
     const routeEntries = [];
     try {
       const rts = JSON.parse(f['z2-routes-data'] || '[]');
-      if (Array.isArray(rts) && rts.length) rts.forEach(r => routeEntries.push(r));
+      if (Array.isArray(rts) && rts.length) rts.filter(r => r.enabled !== false).forEach(r => routeEntries.push(r));
     } catch(e) {}
     if (routeEntries.length) {
       routeEntries.forEach((r, i) => {
