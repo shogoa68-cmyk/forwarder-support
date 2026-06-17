@@ -444,6 +444,14 @@
         : '';
 
       var progressHtml = (window.quoteProgressBarHtml && r.data) ? window.quoteProgressBarHtml(r.data) : '';
+      const cf = r.data && r.data.copiedFrom;
+      const origId = cf && cf.id;
+      const origExists = origId && _cloudRows.some(row => row.id === origId);
+      const copiedFromHtml = cf
+        ? '<div class="cloud-copied-from">📋 コピー元：<span class="cloud-cf-name">' + escHtml(cf.name || '不明') + '</span>' +
+          (origExists ? ' <button class="btn-cf-preview" onclick="cloudPreviewPreset(\'' + encodeURIComponent(origId) + '\')" title="コピー元をプレビュー">プレビュー</button>' : '') +
+          '</div>'
+        : '';
       return '' +
         '<div class="cloud-card cloud-card-labeled' + (others.length ? ' is-editing' : '') + '">' +
           '<div class="cloud-card-row1">' +
@@ -460,12 +468,14 @@
             (subHtml  ? '<dt>サブコン</dt><dd class="cloud-kv-sub">' + subHtml + '</dd>' : '') +
             (custDd   ? '<dt>お客様 / 担当</dt><dd>' + custDd + '</dd>' : '') +
           '</dl>' +
+          copiedFromHtml +
           '<div class="cloud-card-foot">' +
             '<span class="cloud-card-who" title="作成：' + escHtml(crtWho || '—') + ' / 最終更新：' + escHtml(updWho || '—') + '">' +
               '✏️ ' + escHtml(updWho || '—') + '・' + ts + '</span>' +
             '<div class="cloud-card-acts">' +
               '<button class="btn-preset-preview" onclick="cloudPreviewPreset(\'' + idAttr + '\')" title="内容をプレビュー">プレビュー</button>' +
               '<button class="btn-preset-load" onclick="cloudLoadPreset(\'' + idAttr + '\')">読込</button>' +
+              '<button class="btn-preset-copy" onclick="cloudDuplicatePreset(\'' + idAttr + '\')" title="コピーして新規案件を作成">📋</button>' +
               (lockedBy
                 ? '<button class="btn-preset-del is-locked" disabled title="' + escHtml(_nameFor(lockedBy)) + ' さんが作業中のため削除できません">🔒</button>'
                 : '<button class="btn-preset-del"  onclick="cloudDeletePreset(\'' + idAttr + '\')" title="削除（全員から消えます）">✕</button>') +
@@ -506,6 +516,7 @@
       '<span class="qpd-row-ts">' + ts + '</span>' +
       '<span class="qpd-row-acts" onclick="event.stopPropagation()">' +
         '<button class="qpd-row-btn" onclick="cloudPreviewPreset(\'' + idAttr + '\')" title="プレビュー">👁</button>' +
+        '<button class="qpd-row-btn" onclick="cloudDuplicatePreset(\'' + idAttr + '\')" title="コピーして新規案件を作成">📋</button>' +
         (lockedBy
           ? '<button class="qpd-row-btn is-locked" disabled title="' + escHtml(_nameFor(lockedBy)) + ' さんが作業中">🔒</button>'
           : '<button class="qpd-row-btn" onclick="cloudDeletePreset(\'' + idAttr + '\')" title="削除">✕</button>') +
@@ -1345,6 +1356,48 @@
     cloudListPresets();
   }
 
+  // ---------- コピー ----------
+  async function cloudDuplicatePreset(rawId) {
+    const c = _getClient();
+    if (!c || !_cloudUser) { quoteShowToast('⚠️ ログインが必要です', 'warn'); return; }
+    const id = decodeURIComponent(rawId);
+    const src = _cloudRows.find(r => r.id === id);
+    if (!src || !src.data) { quoteShowToast('⚠️ コピー元が見つかりません', 'warn'); return; }
+    const newData = JSON.parse(JSON.stringify(src.data));
+    if (newData.fields) newData.fields['qf-ref'] = '';
+    newData.copiedFrom = { id: src.id, name: src.name };
+    const existingNames = _cloudRows.map(r => r.name);
+    let baseName = src.name + ' のコピー';
+    let copyName = baseName;
+    let n = 2;
+    while (existingNames.includes(copyName)) copyName = baseName + '_' + (n++);
+    const f = newData.fields || {};
+    const customer       = (f['qf-customer']    || '').trim() || null;
+    const person         = (f['qf-person']      || '').trim() || null;
+    const incoterms      = (f['cond-incoterms'] || '').trim() || null;
+    const transport_mode = (f['cond-mode']       || '').trim() || null;
+    let pol = (f['z2Pol'] || '').trim() || null;
+    let pod = (f['z2Pod'] || '').trim() || null;
+    let carrier = (f['z2Carrier'] || '').trim() || null;
+    try {
+      const rts = JSON.parse(f['z2-routes-data'] || '[]');
+      if (Array.isArray(rts) && rts.length) {
+        if (!pol) pol = rts.map(r => r.pol).filter(Boolean).join(', ') || null;
+        if (!pod) pod = rts.map(r => r.pod).filter(Boolean).join(', ') || null;
+        if (!carrier) carrier = rts.map(r => r.carrier).filter(Boolean).join(', ') || null;
+      }
+    } catch(e) {}
+    const subcons = _extractSubcons(newData);
+    const { error } = await c.from(_table()).insert({
+      name: copyName, data: newData, subcons, status: CLOUD_STATUS_DEFAULT,
+      customer, person, incoterms, transport_mode, pol, pod, carrier,
+      owner_email: _cloudUser.email, created_by: _cloudUser.email,
+    });
+    if (error) { quoteShowToast('⚠️ コピーに失敗：' + error.message, 'warn', 5000); return; }
+    quoteShowToast('📋 「' + src.name + '」をコピーしました → 「' + copyName + '」', 'success', 3500);
+    cloudListPresets();
+  }
+
   // プリセット管理モーダルが開かれたとき ui.js の openPresetMgr から呼ばれる
   function cloudOnPresetMgrOpen() {
     _renderCloudAuth();
@@ -1810,8 +1863,9 @@
   window.cloudLogin          = cloudLogin;
   window.cloudLogout         = cloudLogout;
   window.cloudSaveCurrent    = cloudSaveCurrent;
-  window.cloudLoadPreset     = cloudLoadPreset;
-  window.cloudDeletePreset   = cloudDeletePreset;
+  window.cloudLoadPreset      = cloudLoadPreset;
+  window.cloudDeletePreset    = cloudDeletePreset;
+  window.cloudDuplicatePreset = cloudDuplicatePreset;
   window.cloudListPresets    = cloudListPresets;
   window.cloudGetAllRows     = () => (_cloudRows || []).slice();
   window.cloudGetClient      = _getClient;
