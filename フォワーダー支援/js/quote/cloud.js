@@ -1364,7 +1364,6 @@
     const src = _cloudRows.find(r => r.id === id);
     if (!src || !src.data) { quoteShowToast('⚠️ コピー元が見つかりません', 'warn'); return; }
     const newData = JSON.parse(JSON.stringify(src.data));
-    if (newData.fields) newData.fields['qf-ref'] = '';
     newData.copiedFrom = { id: src.id, name: src.name };
     const existingNames = _cloudRows.map(r => r.name);
     let baseName = src.name + ' のコピー';

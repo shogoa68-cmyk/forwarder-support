@@ -1018,7 +1018,6 @@
     const src = presets[idx];
     if (!src) return;
     const newData = JSON.parse(JSON.stringify(src.data || {}));
-    if (newData.fields) newData.fields['qf-ref'] = '';
     newData.copiedFrom = { name: src.name };
     let baseName = src.name + ' のコピー';
     let copyName = baseName;
