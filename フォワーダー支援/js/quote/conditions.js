@@ -43,17 +43,17 @@
     const packing = _packingEntries.length
       ? _packingEntries.filter(e => e.pkg).map(e => `${e.pkg}×${e.qty||1}`).join('、')
       : '';
-    // ゾーンビルダーから積み地・揚げ地・発地・仕向地を取得
-    // 航路：複数登録があれば先頭航路を代表 POL/POD に（無ければ単体入力欄）
-    const _r0 = (_routeEntries && _routeEntries.length) ? _routeEntries[0] : null;
+    // 航路：複数登録があれば先頭の有効航路を代表 POL/POD に（無ければ単体入力欄）
+    const _activeRoutes = _routeEntries.filter(r => r.enabled !== false);
+    const _r0 = _activeRoutes.length ? _activeRoutes[0] : (_routeEntries.length ? _routeEntries[0] : null);
     const pol    = _r0 ? _r0.pol : g('z2Pol');
     const pod    = _r0 ? _r0.pod : g('z2Pod');
     const z1p    = g('z1Place');   const z1c = g('z1Country');
     const z3p    = g('z3Place');   const z3c = g('z3Country');
     const origin = [z1p, z1c].filter(Boolean).join(', ');
     const dest   = [z3p, z3c].filter(Boolean).join(', ');
-    // 複数航路の全件（出力面で全航路を併記するため）。先頭航路は上の pol/pod が代表値
-    const routes = (_routeEntries && _routeEntries.length) ? _routeEntries.slice() : [];
+    // 複数航路：有効（enabled）航路のみ返す
+    const routes = _activeRoutes.slice();
     return {
       pol, pod, origin, dest, routes,
       incoterms: g('cond-incoterms'), mode: g('cond-mode'), container,
@@ -576,8 +576,9 @@
       addZ1(def1); // 港湾諸費用（常時）を def1 グループに含める
     }
 
-    // Zone ② 幹線輸送 — 航路（carrier）単位で空行1行
-    const routes = (_routeEntries && _routeEntries.length) ? _routeEntries : [{
+    // Zone ② 幹線輸送 — 有効（enabled）航路のみ carrier 単位で空行1行
+    const _z2Active = _routeEntries.filter(r => r.enabled !== false);
+    const routes = _z2Active.length ? _z2Active : _routeEntries.length ? [] : [{
       carrier: document.getElementById('z2Carrier')?.value?.trim() || '',
       pol:     document.getElementById('z2Pol')?.value?.trim()     || '',
       pod:     document.getElementById('z2Pod')?.value?.trim()     || '',
@@ -1184,12 +1185,14 @@
     if (!list) return;
     if (!_routeEntries.length) { list.innerHTML = ''; return; }
     list.innerHTML = _routeEntries.map((r, i) => {
+      const on = r.enabled !== false;
       const parts = [];
       if (r.pol) parts.push(_escMulti(r.pol));
       if (r.via) parts.push('<span class="z2-route-via">via:' + _escMulti(r.via) + '</span>');
       if (r.pod) parts.push(_escMulti(r.pod));
       const route = parts.length ? parts.join(' → ') : 'ポート未設定';
-      return `<span class="z2-route-chip">`
+      return `<span class="z2-route-chip${on ? '' : ' z2-route-chip--off'}">`
+        + `<button type="button" class="z2-route-toggle" onclick="toggleRouteEntry(${i})" title="${on ? '無効にする（一時停止）' : '有効にする'}">${on ? '✓' : '—'}</button>`
         + `<span class="z2-route-carrier">${_escMulti(r.carrier || '—')}</span>`
         + `<span class="z2-route-leg">${route}</span>`
         + `<button type="button" class="me-chip-del" onclick="removeRouteEntry(${i})" title="削除">×</button></span>`;
@@ -1206,7 +1209,7 @@
       if (typeof quoteShowToast==='function') quoteShowToast('⚠️ キャリアまたはPOL/PODを入力してください', 'warn', 1800);
       return;
     }
-    _routeEntries.push({ carrier, pol, via, pod });
+    _routeEntries.push({ carrier, pol, via, pod, enabled: true });
     _renderRouteEntries();
     // キャリアだけクリアして次の入力へ（POL/POD は同じ航路に別キャリアを追加できるよう保持）
     const carrierEl = document.getElementById('z2Carrier');
@@ -1225,6 +1228,14 @@
     if (typeof scheduleSnapshot === 'function') scheduleSnapshot();
     _triggerCarrierBmFetch();
   }
+  function toggleRouteEntry(i) {
+    if (!_routeEntries[i]) return;
+    _routeEntries[i] = Object.assign({}, _routeEntries[i], { enabled: _routeEntries[i].enabled === false });
+    _renderRouteEntries();
+    if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
+    if (typeof scheduleSnapshot === 'function') scheduleSnapshot();
+  }
+  window.toggleRouteEntry = toggleRouteEntry;
   // 復元用
   function syncRouteEntries() {
     const data = document.getElementById('z2-routes-data');
@@ -1439,9 +1450,9 @@
   function _triggerCarrierBmFetch() {
     if (typeof window.fetchCarrierBmsForQSP !== 'function') return;
     const names = [];
-    // z2: 幹線キャリア
+    // z2: 幹線キャリア（有効航路のみ）
     if (_routeEntries && _routeEntries.length) {
-      _routeEntries.forEach(r => { if (r.carrier && !names.includes(r.carrier)) names.push(r.carrier); });
+      _routeEntries.filter(r => r.enabled !== false).forEach(r => { if (r.carrier && !names.includes(r.carrier)) names.push(r.carrier); });
     }
     const cur = (document.getElementById('z2Carrier')?.value || '').trim();
     if (cur && !names.includes(cur)) names.push(cur);
@@ -1494,7 +1505,7 @@
     const defs = _linkDefsForMode();
     const names = [];
     if (_routeEntries && _routeEntries.length) {
-      _routeEntries.forEach(r => { if (r.carrier && !names.includes(r.carrier)) names.push(r.carrier); });
+      _routeEntries.filter(r => r.enabled !== false).forEach(r => { if (r.carrier && !names.includes(r.carrier)) names.push(r.carrier); });
     }
     const cur = (document.getElementById('z2Carrier')?.value || '').trim();
     if (cur && !names.includes(cur)) names.push(cur);
@@ -1524,10 +1535,10 @@
     if (!el) return;
     const map  = _carrierMapForMode();
     const defs = _linkDefsForMode();
-    // 対象キャリア名を収集（航路登録分を優先、無ければ入力欄）
+    // 対象キャリア名を収集（有効航路のみ）
     const names = [];
     if (_routeEntries && _routeEntries.length) {
-      _routeEntries.forEach(r => { if (r.carrier && !names.includes(r.carrier)) names.push(r.carrier); });
+      _routeEntries.filter(r => r.enabled !== false).forEach(r => { if (r.carrier && !names.includes(r.carrier)) names.push(r.carrier); });
     }
     const cur = (document.getElementById('z2Carrier')?.value || '').trim();
     if (cur && !names.includes(cur)) names.push(cur);

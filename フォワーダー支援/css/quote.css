@@ -2334,6 +2334,27 @@
   color: #4a6035;
 }
 #tab-quote-make .z2-route-leg { color: #6b5a42; }
+/* 幹線輸送 トグルボタン（✓/—） */
+#tab-quote-make .z2-route-toggle {
+  width: 17px; height: 17px; flex-shrink: 0;
+  border: 1.5px solid #6a9c45; border-radius: 3px;
+  background: #6a9c45; color: #fff;
+  font-size: 10px; font-weight: 700; line-height: 1;
+  cursor: pointer; padding: 0;
+  display: inline-flex; align-items: center; justify-content: center;
+}
+#tab-quote-make .z2-route-chip--off .z2-route-toggle {
+  background: #b0a090; border-color: #b0a090;
+}
+/* 無効チップ */
+#tab-quote-make .z2-route-chip--off {
+  opacity: 0.55;
+  background: #f0ede8; border-color: #c8c0b4;
+}
+#tab-quote-make .z2-route-chip--off .z2-route-carrier,
+#tab-quote-make .z2-route-chip--off .z2-route-leg {
+  text-decoration: line-through; color: #999;
+}
 #tab-quote-make .carrier-links-panel {
   display: flex; flex-wrap: wrap; align-items: center;
   gap: 6px; padding: 6px 4px 4px; margin-top: 2px;
