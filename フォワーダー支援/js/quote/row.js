@@ -1021,16 +1021,21 @@
         tr.style.display    = collapsed ? 'none' : '';
         tr.dataset.excluded = excluded ? '1' : '';
         tr.classList.toggle('row-excluded', excluded);
-      } else if (tr.dataset.type === 'subtotal' || tr.dataset.type === 'remark') {
-        // 小計・リマーク行：DOM 上の位置で直前のグループに属する
+      } else if (tr.dataset.type === 'subtotal' || tr.dataset.type === 'remark' || tr.dataset.type === 'internal') {
+        // 小計・リマーク・社内メモ行：DOM 上の位置で直前のグループに属する
         if (currentKey !== null) {
           const collapsed = _collapsedGroups.has(currentKey);
           const excluded  = _excludedGroups.has(currentKey);
           tr.style.display    = collapsed ? 'none' : '';
           tr.dataset.excluded = excluded ? '1' : '';
+          // ツリー帰属：レール表示用。リマーク・社内メモは明細の1段下（nested）
+          tr.classList.add('subcon-grp-member');
+          tr.classList.toggle('subcon-grp-nested',
+            tr.dataset.type === 'remark' || tr.dataset.type === 'internal');
         } else {
           tr.style.display    = '';
           tr.dataset.excluded = '';
+          tr.classList.remove('subcon-grp-member', 'subcon-grp-nested');
         }
       }
     });
@@ -1065,6 +1070,9 @@
       if (groupOrder.length < 2) {
         _collapsedGroups.clear();
         realRows.forEach(tr => { tr.style.display = ''; tr.classList.remove('subcon-child'); });
+        // ツリー帰属クラス（リマーク・社内メモ・小計行）も解除
+        tbody.querySelectorAll('.subcon-grp-member, .subcon-grp-nested')
+          .forEach(tr => tr.classList.remove('subcon-grp-member', 'subcon-grp-nested'));
         return;
       }
 
