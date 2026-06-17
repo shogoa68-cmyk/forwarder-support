@@ -384,9 +384,20 @@
     return ` <span class="pv-validity">${escHtml(range)}</span>`;
   }
 
+  // 発行日がサーチャージ有効期限範囲外かを判定（vf/vt 両方空 or 発行日未設定 → 除外しない）
+  function _isOutOfValidity(row, issueDate) {
+    if (!issueDate || (!row.vf && !row.vt)) return false;
+    if (row.vf && issueDate < row.vf) return true; // 発行日が開始前
+    if (row.vt && issueDate > row.vt) return true; // 発行日が終了後
+    return false;
+  }
+
   function openPreview() {
     try {
-    const allRows = collectAllRows().filter(r => r._type !== 'data' || !r.zc); // 0円確認済み行を除外
+    const issueDate = document.getElementById('qf-date')?.value || '';
+    const allRows = collectAllRows()
+      .filter(r => r._type !== 'data' || !r.zc)                          // 0円確認済み行を除外
+      .filter(r => r._type !== 'data' || !_isOutOfValidity(r, issueDate)); // 有効期限範囲外行を除外
     const data = allRows.filter(r => r._type === 'data');
     if (!data.length) { alert('行がありません。'); return; }
     if (!_pvBypassed && !preOutputValidationGate('プレビュー表示', openPreview)) return;

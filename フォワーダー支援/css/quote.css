@@ -6077,6 +6077,19 @@ body.qp-dash-active #quoteActionDock { display: none !important; }
     margin: 0 !important;
     padding: 0 !important;
   }
+
+  /* 条件・免責事項ボックス：1ページ以内なら分断しない。1ページ超の場合は orphans/widows で行を制御 */
+  body:has(#previewOverlay.open) #pvRemarkBox {
+    break-inside: avoid;
+    page-break-inside: avoid;
+    orphans: 4;
+    widows: 4;
+  }
+  body:has(#previewOverlay.open) #pvCondBox,
+  body:has(#previewOverlay.open) #pvCargoBox {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
 }
 /* ===== プレビュー 表示カスタマイズパネル ===== */
 #tab-quote-make .pv-customize-wrap {

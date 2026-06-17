@@ -121,12 +121,13 @@
 .qd-sk2 { background: #f0f0f0; font-size: 10.5px; }
 .qd-sum .qd-total td { background: #3a3a3a; color: #fff; font-weight: 700; font-size: 14px; }
 
-/* 備考・特記事項（全幅・ページ送り可） */
+/* 備考・特記事項（全幅・1ページに収まるなら分断しない） */
 .qd-remark-block {
   margin-top: 14px;
   border: 1px solid #bbb;
   border-radius: 4px;
-  page-break-inside: auto;
+  break-inside: avoid;
+  page-break-inside: avoid;
 }
 .qd-remark-ttl {
   background: #f0f0f0;
@@ -142,6 +143,8 @@
   color: #333;
   white-space: normal;
   word-break: break-word;
+  orphans: 4;
+  widows: 4;
 }
 
 /* ===== 印刷時：御見積書だけを出す ===== */
