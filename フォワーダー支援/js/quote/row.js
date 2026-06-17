@@ -370,7 +370,7 @@
     const q    = f => frag.querySelector(`[data-field="${f}"]`);
 
     // IDs
-    ['cat','tx','nm','pq','un','pc','pp','cd','bq','bc','bp','mk','st','pr','nt','sv','zc','vf','vt','remtxt']
+    ['cat','tx','nm','pq','un','pc','pp','cd','bq','bc','bp','mk','st','pr','nt','sv','zc','vf','vt']
       .forEach(f => { q(f).id = `${f}-${id}`; });
     const zcBtn = frag.querySelector('.zero-confirm-btn');
     if (zcBtn) zcBtn.onclick = () => toggleZeroConfirmed(id);;
@@ -378,11 +378,6 @@
     const intBtn = frag.querySelector('.btn-row-int');
     if (remBtn) remBtn.onclick = () => rowInsertRemarkBelow(id);
     if (intBtn) intBtn.onclick = () => rowInsertInternalBelow(id);
-    // Enter → 備考行、Shift+Enter → 社内メモ
-    const remTxt = q('remtxt');
-    if (remTxt) remTxt.onkeydown = e => {
-      if (e.key === 'Enter') { e.preventDefault(); e.shiftKey ? rowInsertInternalBelow(id) : rowInsertRemarkBelow(id); }
-    };
 
     // Select options & initial values
     q('cat').innerHTML = catOpts(initCat);
@@ -895,24 +890,20 @@
   }
   function toolbarInsertSubtotal() { insertSubtotalRow(_toolbarInsertAfterId()); }
   function toolbarInsertRemark() {
-    const bar = document.getElementById('remarkInputBar');
-    const text = bar ? bar.value.trim() : '';
-    insertRemarkRow(_toolbarInsertAfterId(), text ? { text } : undefined);
-    if (text && bar) { bar.value = ''; bar.focus(); }
+    insertRemarkRow(_toolbarInsertAfterId());
     if (typeof updateTotals === 'function') updateTotals();
     if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
   }
   function toolbarInsertInternal() {
-    const bar = document.getElementById('remarkInputBar');
-    const text = bar ? bar.value.trim() : '';
-    insertInternalRow(_toolbarInsertAfterId(), text ? { text } : undefined);
-    if (text && bar) { bar.value = ''; bar.focus(); }
+    insertInternalRow(_toolbarInsertAfterId());
     if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
   }
 
   // ========== 行直下への備考行・社内メモ挿入（各行の row-ins-bar から） ==========
+  // 「備考（任意）」(nt) のテキストを使って直下に行を挿入し、挿入後は備考欄をクリアする
+  // （備考列と備考行への二重表示を防ぐ）
   function rowInsertRemarkBelow(id) {
-    const txt = document.getElementById(`remtxt-${id}`);
+    const txt = document.getElementById(`nt-${id}`);
     const text = txt ? txt.value.trim() : '';
     insertRemarkRow(id, text ? { text } : undefined);
     if (txt) { txt.value = ''; }
@@ -920,7 +911,7 @@
     if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
   }
   function rowInsertInternalBelow(id) {
-    const txt = document.getElementById(`remtxt-${id}`);
+    const txt = document.getElementById(`nt-${id}`);
     const text = txt ? txt.value.trim() : '';
     insertInternalRow(id, text ? { text } : undefined);
     if (txt) { txt.value = ''; }
