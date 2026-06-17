@@ -1013,6 +1013,23 @@
     quoteShowToast('🗑️ 「' + name + '」を削除しました', 'info');
   }
 
+  function duplicateLocalPreset(idx) {
+    const presets = getPresets();
+    const src = presets[idx];
+    if (!src) return;
+    const newData = JSON.parse(JSON.stringify(src.data || {}));
+    if (newData.fields) newData.fields['qf-ref'] = '';
+    newData.copiedFrom = { name: src.name };
+    let baseName = src.name + ' のコピー';
+    let copyName = baseName;
+    let n = 2;
+    while (presets.some(p => p.name === copyName)) copyName = baseName + '_' + (n++);
+    presets.unshift({ name: copyName, ts: new Date().toISOString(), data: newData });
+    savePresetsToStorage(presets);
+    renderPresetList();
+    quoteShowToast('📋 「' + src.name + '」をコピーしました → 「' + copyName + '」', 'success', 3500);
+  }
+
   // 案件ステータス（qf-status）→ ドット色
   const _PRESET_STATUS_DOT = { '下書き中':'#9c8e78', '提出済み':'#3f6a8c', '提示済み':'#3f6a8c', '受注':'#1e7e44', '失注':'#c0392b', '保留':'#b8860b', '辞退':'#6b21a8' };
   // プリセットの data.fields から一覧表示用メタを派生
@@ -1209,6 +1226,11 @@
             (_PRESET_STATUS_DOT[m.status] || '#9c8e78') + '"></span>' + escHtml(m.status) + '</span>'
         : '';
 
+      const cf = p.data && p.data.copiedFrom;
+      const copiedFromHtml = cf
+        ? '<div class="preset-copied-from">📋 コピー元：<span class="preset-cf-name">' + escHtml(cf.name || '不明') + '</span></div>'
+        : '';
+
       return '<div class="preset-list-item preset-item-rich' + (isLoaded ? ' preset-list-item--loaded' : '') + '">' +
         '<div class="preset-rich-row1">' +
           statusHtml +
@@ -1223,10 +1245,12 @@
           (subHtml  ? '<dt>サブコン</dt><dd class="preset-rich-sub">' + subHtml + '</dd>' : '') +
           (custDd   ? '<dt>お客様 / 担当</dt><dd>' + custDd + '</dd>' : '') +
         '</dl>' +
+        copiedFromHtml +
         '<div class="preset-rich-foot">' +
           '<span class="preset-list-ts">' + (ts ? '💾 ' + ts : '') + '</span>' +
           '<div class="preset-rich-acts">' +
             '<button class="btn-preset-load" onclick="loadPreset(' + i + ')">読み込む</button>' +
+            '<button class="btn-preset-copy" onclick="duplicateLocalPreset(' + i + ')" title="コピーして新規案件を作成">📋</button>' +
             '<button class="btn-preset-del"  onclick="deletePreset(' + i + ')" title="削除">✕</button>' +
           '</div>' +
         '</div>' +

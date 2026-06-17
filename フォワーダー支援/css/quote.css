@@ -4407,6 +4407,24 @@ body.qp-dash-active #quoteActionDock { display: none !important; }
   cursor: pointer; padding: 0 4px; line-height: 1;
 }
 #tab-quote-make .btn-preset-del:hover { color: #c0392b; }
+#tab-quote-make .btn-preset-copy {
+  background: none; color: #5a7a4a; border: none; font-size: 14px;
+  cursor: pointer; padding: 0 4px; line-height: 1; opacity: .75;
+}
+#tab-quote-make .btn-preset-copy:hover { opacity: 1; }
+#tab-quote-make .preset-copied-from,
+#tab-quote-make .cloud-copied-from {
+  font-size: 10.5px; color: #8a7a68; padding: 3px 0 2px;
+  border-top: 1px dashed #e8e0d5; margin-top: 4px;
+  display: flex; align-items: center; gap: 4px; flex-wrap: wrap;
+}
+#tab-quote-make .preset-cf-name,
+#tab-quote-make .cloud-cf-name { font-style: italic; }
+#tab-quote-make .btn-cf-preview {
+  background: #f0eae0; color: #6b5a42; border: 1px solid #d5c8b5;
+  border-radius: 3px; font-size: 10px; cursor: pointer; padding: 1px 6px;
+}
+#tab-quote-make .btn-cf-preview:hover { background: #e8dfd2; }
 #tab-quote-make .btn-preset-preview {
   background: #e8f0fe; color: #1a56db; border: 1px solid #bfcfe8;
   border-radius: 4px; font-size: 11px; font-weight: 600; cursor: pointer; padding: 2px 8px;
