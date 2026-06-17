@@ -3768,6 +3768,7 @@
     </div>
 
     <div class="stats-tabs">
+      <span class="stats-tab-group-label" title="案件データを集計して傾向を把握する">📊 分析</span>
       <button class="stats-tab-btn is-active" id="statsTabBtn-dashboard" onclick="statsSetPane('dashboard')">📈 ダッシュボード</button>
       <button class="stats-tab-btn"           id="statsTabBtn-sv"       onclick="statsSetPane('sv')">🏢 サブコン</button>
       <button class="stats-tab-btn"           id="statsTabBtn-carrier"  onclick="statsSetPane('carrier')">🚢 キャリア</button>
@@ -3776,6 +3777,8 @@
       <button class="stats-tab-btn"           id="statsTabBtn-nm"       onclick="statsSetPane('nm')">📝 品名</button>
       <button class="stats-tab-btn"           id="statsTabBtn-un"       onclick="statsSetPane('un')">📐 単位</button>
       <button class="stats-tab-btn"           id="statsTabBtn-charges"  onclick="statsSetPane('charges')">💰 チャージ</button>
+      <span class="stats-tab-divider" aria-hidden="true"></span>
+      <span class="stats-tab-group-label stats-tab-group-label--manage" title="表記ゆれの是正・マスターの整備">🛠 管理</span>
       <button class="stats-tab-btn"           id="statsTabBtn-master"   onclick="statsSetPane('master')">⭐ マスター管理</button>
       <button class="stats-tab-btn"           id="statsTabBtn-alias"    onclick="statsSetPane('alias')">🔀 エイリアス是正</button>
     </div>

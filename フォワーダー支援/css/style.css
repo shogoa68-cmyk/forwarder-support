@@ -2056,6 +2056,30 @@ body:has(#compareOverlay.open) #quoteActionDock { display: none; }
   border-bottom-color: #fff;
   color: #1a3a28;
 }
+/* サブタブのグループ見出し（分析／管理） */
+.stats-tab-group-label {
+  align-self: center;
+  font-size: 11px;
+  font-weight: 700;
+  color: #8a7656;
+  letter-spacing: .04em;
+  padding: 0 6px 0 2px;
+  white-space: nowrap;
+  user-select: none;
+}
+.stats-tab-group-label--manage { color: #9a6a4a; }
+/* 分析／管理 の区切り */
+.stats-tab-divider {
+  width: 1px;
+  align-self: stretch;
+  margin: 4px 6px 0;
+  background: #e0d4bc;
+}
+@media (max-width: 640px) {
+  /* 折り返し時は区切り線を非表示にして見出しで判別 */
+  .stats-tab-divider { display: none; }
+  .stats-tab-group-label { flex-basis: 100%; padding-top: 4px; }
+}
 
 /* ペイン */
 .stats-pane {
