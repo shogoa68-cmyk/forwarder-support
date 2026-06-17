@@ -2081,6 +2081,88 @@ body:has(#compareOverlay.open) #quoteActionDock { display: none; }
   .stats-tab-group-label { flex-basis: 100%; padding-top: 4px; }
 }
 
+/* ===== 同義グループ（⭐代表 / ⤵統合）===== */
+.stats-syn-hint {
+  font-size: 11px;
+  color: #8a7656;
+  background: #f7f1e6;
+  border: 1px solid #ece0c8;
+  border-radius: 6px;
+  padding: 6px 10px;
+  margin: 0 0 10px;
+  line-height: 1.6;
+}
+.stats-syn-star,
+.stats-syn-merge,
+.stats-syn-unmerge {
+  font-size: 10px;
+  border: 1px solid #d8c8a8;
+  background: #fffdf8;
+  color: #7a6648;
+  border-radius: 4px;
+  padding: 1px 5px;
+  cursor: pointer;
+  margin-left: 3px;
+  white-space: nowrap;
+}
+.stats-syn-star:hover,
+.stats-syn-merge:hover { background: #f0e8d8; }
+.stats-syn-star.on {
+  background: #fdf2d0;
+  border-color: #e0b84a;
+  color: #8a6a18;
+  font-weight: 700;
+}
+.stats-syn-unmerge {
+  border-color: #e0bcbc;
+  color: #b0584a;
+  padding: 1px 4px;
+}
+.stats-syn-into {
+  font-size: 10px;
+  color: #1c6fa6;
+  margin-left: 3px;
+  white-space: nowrap;
+}
+.stats-syn-total {
+  font-size: 10px;
+  font-weight: 700;
+  color: #1e7e44;
+  background: #e6f4ea;
+  border-radius: 4px;
+  padding: 1px 5px;
+  margin-left: 3px;
+}
+.stats-chip--canon {
+  outline: 1.5px solid #e0b84a;
+  outline-offset: -1px;
+}
+.stats-row--canon > .stats-val { font-weight: 700; }
+/* インライン統合先ピッカー */
+.stats-syn-picker {
+  display: inline-flex;
+  gap: 3px;
+  align-items: center;
+  margin-left: 4px;
+  background: #fffdf8;
+  border: 1px solid #d8c8a8;
+  border-radius: 5px;
+  padding: 2px 4px;
+}
+.stats-syn-picker select { font-size: 11px; max-width: 160px; }
+.stats-syn-picker button {
+  font-size: 10px; border: 1px solid #cdbb97; border-radius: 4px;
+  background: #f0e8d8; cursor: pointer; padding: 1px 6px;
+}
+.stats-syn-pick-ok { background: #4caf7d !important; color: #fff; border-color: #3a9268 !important; }
+/* マスタータブの同義グループ一覧 */
+.stats-syn-section { margin-top: 22px; }
+.stats-syn-member {
+  display: inline-flex; align-items: center; gap: 2px;
+  font-size: 12px; background: #f0e8d8; border-radius: 4px;
+  padding: 1px 4px 1px 7px; margin: 0 4px 3px 0;
+}
+
 /* ペイン */
 .stats-pane {
   display: none;

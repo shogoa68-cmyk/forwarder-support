@@ -261,7 +261,9 @@
       const fromMaster = masters.filter(m => m.field === field).map(m => m.value);
       const abbrevPairs = typeof window.arGetAbbrevPairs === 'function' ? window.arGetAbbrevPairs(field) : [];
       const fromAbbrev = abbrevPairs.flatMap(p => [p.abbrev, p.full]);
-      const all = [...new Set([...fromRules, ...fromMaster, ...fromAbbrev])];
+      const fromSyn = (typeof window.synGetGroups === 'function' ? window.synGetGroups(field) : [])
+        .flatMap(g => [g.canonical, ...(g.aliases || [])]);
+      const all = [...new Set([...fromRules, ...fromMaster, ...fromAbbrev, ...fromSyn])];
       // datalist 内の動的 option（data-master）だけを入れ替える
       dl.querySelectorAll('option[data-master]').forEach(o => o.remove());
       all.forEach(v => {
@@ -611,5 +613,114 @@
     window.uaAddAlias(unit, sel.value);
     document.querySelectorAll('.ua-inline-picker').forEach(el => el.remove());
   };
+
+  // === フィールド対応 同義グループ（⭐代表→統合・非破壊・クラウド共有 + ローカルフォールバック） ===
+  //   対象フィールド: sv / nm / customer / port（単位 un は上記 ua* の専用機構を継続使用）
+  //   保存: cloud = synonym_groups テーブル（チーム共有）、ローカル = synonymGroups_v1
+  //   形式: [{ id, field, canonical, aliases: [] }]
+  const SYN_KEY   = 'synonymGroups_v1';
+  const SYN_TABLE = 'synonym_groups';
+  let _synCloud = null;          // cloud キャッシュ（未ロード時 null）
+  let _synTableMissing = false;  // テーブル未作成を検知したら以後ローカルにフォールバック
+
+  function _synLoadLocal() {
+    try { return JSON.parse(localStorage.getItem(SYN_KEY) || '[]'); } catch (e) { return []; }
+  }
+  function _synSaveLocal(arr) { localStorage.setItem(SYN_KEY, JSON.stringify(arr)); }
+  // 有効なソース（ログイン中でキャッシュ済みなら cloud、なければ local）
+  function _synAll() {
+    return (_cloud() && _synCloud !== null) ? _synCloud : _synLoadLocal();
+  }
+  function _synMissingErr(error) {
+    return error && /relation|does not exist|schema cache|not find/i.test(error.message || '');
+  }
+
+  window.synLoadCloud = async function () {
+    if (!_cloud() || _synTableMissing) { _synCloud = null; return false; }
+    const { data, error } = await _c().from(SYN_TABLE).select('id,field,canonical,aliases');
+    if (error) { if (_synMissingErr(error)) _synTableMissing = true; _synCloud = null; return false; }
+    _synCloud = (data || []).map(r => ({
+      id: r.id, field: r.field, canonical: r.canonical,
+      aliases: Array.isArray(r.aliases) ? r.aliases : [],
+    }));
+    return true;
+  };
+
+  window.synGetGroups = function (field) {
+    const all = _synAll();
+    return field ? all.filter(g => g.field === field) : all.slice();
+  };
+  window.synGetNormalizeMap = function (field) {
+    const map = {};
+    _synAll().filter(g => !field || g.field === field)
+      .forEach(g => (g.aliases || []).forEach(a => { map[a] = g.canonical; }));
+    return map;
+  };
+
+  async function _synUpsert(field, canonical, aliases) {
+    const arr = _synLoadLocal();
+    const idx = arr.findIndex(g => g.field === field && g.canonical === canonical);
+    if (idx >= 0) arr[idx].aliases = aliases;
+    else arr.unshift({ id: Date.now() + '_' + Math.random().toString(36).slice(2), field, canonical, aliases });
+    _synSaveLocal(arr);
+    if (_cloud() && !_synTableMissing) {
+      const { error } = await _c().from(SYN_TABLE).upsert(
+        { field, canonical, aliases, updated_by: _me(), updated_at: new Date().toISOString() },
+        { onConflict: 'field,canonical' }
+      );
+      if (_synMissingErr(error)) _synTableMissing = true;
+    }
+  }
+  async function _synDelete(field, canonical) {
+    _synSaveLocal(_synLoadLocal().filter(g => !(g.field === field && g.canonical === canonical)));
+    if (_cloud() && !_synTableMissing) await _c().from(SYN_TABLE).delete().match({ field, canonical });
+  }
+
+  window.synSetCanonical = async function (field, value) {
+    if (!field || !value) return;
+    // value が他グループの alias なら外す
+    for (const g of _synAll()) {
+      if (g.field === field && (g.aliases || []).includes(value))
+        await _synUpsert(field, g.canonical, g.aliases.filter(a => a !== value));
+    }
+    if (!_synAll().find(g => g.field === field && g.canonical === value))
+      await _synUpsert(field, value, []);
+    await _synAfter('⭐「' + value + '」を代表に設定しました');
+  };
+
+  window.synAddAlias = async function (field, alias, canonical) {
+    if (!field || !alias || !canonical || alias === canonical) return;
+    // alias を他グループの alias リストから外す
+    for (const g of _synAll()) {
+      if (g.field === field && g.canonical !== canonical && (g.aliases || []).includes(alias))
+        await _synUpsert(field, g.canonical, g.aliases.filter(a => a !== alias));
+    }
+    // alias 自体が別グループの代表なら、その配下を吸収して解体（チェーン化を防ぐ）
+    let absorbed = [];
+    const aliasGroup = _synAll().find(g => g.field === field && g.canonical === alias);
+    if (aliasGroup) { absorbed = aliasGroup.aliases || []; await _synDelete(field, alias); }
+    const g = _synAll().find(x => x.field === field && x.canonical === canonical);
+    const aliases = [...new Set([...((g && g.aliases) || []), alias, ...absorbed])];
+    await _synUpsert(field, canonical, aliases);
+    await _synAfter('✅「' + alias + '」→「' + canonical + '」に統合しました');
+  };
+
+  window.synRemoveAlias = async function (field, alias, canonical) {
+    const g = _synAll().find(x => x.field === field && x.canonical === canonical);
+    if (g) await _synUpsert(field, canonical, (g.aliases || []).filter(a => a !== alias));
+    await _synAfter();
+  };
+  window.synRemoveGroup = async function (field, canonical) {
+    await _synDelete(field, canonical);
+    await _synAfter();
+  };
+
+  async function _synAfter(toast) {
+    await window.synLoadCloud();
+    _refreshDatalist();
+    if (typeof window.statsRerenderActive === 'function') window.statsRerenderActive();
+    else if (typeof window.statsRefresh === 'function') await window.statsRefresh();
+    if (toast && typeof window.quoteShowToast === 'function') window.quoteShowToast(toast, 'success');
+  }
 
 })();
