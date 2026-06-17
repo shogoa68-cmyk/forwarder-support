@@ -87,8 +87,8 @@
       e.stopPropagation();
       // ドラッグ中の行群の上には挿入インジケータを出さない
       if (dragSrcRows.includes(tr)) return;
-      // 異なるサブコングループへのドロップは不可
-      if (_rowSubcon(dragSrcRows[0]) !== _rowSubcon(tr)) {
+      // 異なるサブコングループへのドロップは不可（揺らぎ吸収：正規化キーで判定）
+      if (subconNormKey(_rowSubcon(dragSrcRows[0])) !== subconNormKey(_rowSubcon(tr))) {
         e.dataTransfer.dropEffect = 'none';
         return;
       }
@@ -106,8 +106,8 @@
       e.preventDefault();
       e.stopPropagation();
       if (!dragSrcRows || !dragSrcRows.length || dragSrcRows.includes(tr)) return;
-      // 異なるサブコングループへのドロップは不可
-      if (_rowSubcon(dragSrcRows[0]) !== _rowSubcon(tr)) return;
+      // 異なるサブコングループへのドロップは不可（揺らぎ吸収：正規化キーで判定）
+      if (subconNormKey(_rowSubcon(dragSrcRows[0])) !== subconNormKey(_rowSubcon(tr))) return;
       const mid = tr.getBoundingClientRect().top + tr.getBoundingClientRect().height / 2;
       const tbody = document.getElementById('tableBody');
       // 仮想グループヘッダーをスキップして実行行の隣に挿入
@@ -370,7 +370,7 @@
     const q    = f => frag.querySelector(`[data-field="${f}"]`);
 
     // IDs
-    ['cat','tx','nm','pq','un','pc','pp','cd','bq','bc','bp','mk','st','pr','nt','sv','zc','vf','vt','remtxt']
+    ['cat','tx','nm','pq','un','pc','pp','cd','bq','bc','bp','mk','st','pr','nt','sv','zc','vf','vt']
       .forEach(f => { q(f).id = `${f}-${id}`; });
     const zcBtn = frag.querySelector('.zero-confirm-btn');
     if (zcBtn) zcBtn.onclick = () => toggleZeroConfirmed(id);;
@@ -378,11 +378,6 @@
     const intBtn = frag.querySelector('.btn-row-int');
     if (remBtn) remBtn.onclick = () => rowInsertRemarkBelow(id);
     if (intBtn) intBtn.onclick = () => rowInsertInternalBelow(id);
-    // Enter → 備考行、Shift+Enter → 社内メモ
-    const remTxt = q('remtxt');
-    if (remTxt) remTxt.onkeydown = e => {
-      if (e.key === 'Enter') { e.preventDefault(); e.shiftKey ? rowInsertInternalBelow(id) : rowInsertRemarkBelow(id); }
-    };
 
     // Select options & initial values
     q('cat').innerHTML = catOpts(initCat);
@@ -895,24 +890,20 @@
   }
   function toolbarInsertSubtotal() { insertSubtotalRow(_toolbarInsertAfterId()); }
   function toolbarInsertRemark() {
-    const bar = document.getElementById('remarkInputBar');
-    const text = bar ? bar.value.trim() : '';
-    insertRemarkRow(_toolbarInsertAfterId(), text ? { text } : undefined);
-    if (text && bar) { bar.value = ''; bar.focus(); }
+    insertRemarkRow(_toolbarInsertAfterId());
     if (typeof updateTotals === 'function') updateTotals();
     if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
   }
   function toolbarInsertInternal() {
-    const bar = document.getElementById('remarkInputBar');
-    const text = bar ? bar.value.trim() : '';
-    insertInternalRow(_toolbarInsertAfterId(), text ? { text } : undefined);
-    if (text && bar) { bar.value = ''; bar.focus(); }
+    insertInternalRow(_toolbarInsertAfterId());
     if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
   }
 
   // ========== 行直下への備考行・社内メモ挿入（各行の row-ins-bar から） ==========
+  // 「備考（任意）」(nt) のテキストを使って直下に行を挿入し、挿入後は備考欄をクリアする
+  // （備考列と備考行への二重表示を防ぐ）
   function rowInsertRemarkBelow(id) {
-    const txt = document.getElementById(`remtxt-${id}`);
+    const txt = document.getElementById(`nt-${id}`);
     const text = txt ? txt.value.trim() : '';
     insertRemarkRow(id, text ? { text } : undefined);
     if (txt) { txt.value = ''; }
@@ -920,7 +911,7 @@
     if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
   }
   function rowInsertInternalBelow(id) {
-    const txt = document.getElementById(`remtxt-${id}`);
+    const txt = document.getElementById(`nt-${id}`);
     const text = txt ? txt.value.trim() : '';
     insertInternalRow(id, text ? { text } : undefined);
     if (txt) { txt.value = ''; }
@@ -1022,9 +1013,9 @@
         return;
       }
       if (!tr.dataset.type) {
-        // データ行：sv 値でグループ判定
+        // データ行：sv 値でグループ判定（揺らぎ吸収：正規化キー）
         const sv        = _rowSubcon(tr) ?? '';
-        const key       = sv || _UNSET_KEY;
+        const key       = subconNormKey(sv) || _UNSET_KEY;
         const collapsed = _collapsedGroups.has(key);
         const excluded  = _excludedGroups.has(key);
         tr.style.display    = collapsed ? 'none' : '';
@@ -1062,10 +1053,11 @@
 
       const groupOrder = [];
       const groups = Object.create(null);
+      const groupLabel = Object.create(null);  // 正規化キー → 表示名（最初に出現した綴り）
       realRows.forEach(tr => {
-        const sv = _rowSubcon(tr) ?? '';
-        const key = sv || _UNSET_KEY;
-        if (!groups[key]) { groups[key] = []; groupOrder.push(key); }
+        const svRaw = _rowSubcon(tr) ?? '';
+        const key = subconNormKey(svRaw) || _UNSET_KEY;  // 揺らぎ吸収：正規化キーで判定
+        if (!groups[key]) { groups[key] = []; groupOrder.push(key); groupLabel[key] = svRaw.trim(); }
         groups[key].push(tr);
       });
 
@@ -1081,7 +1073,7 @@
 
       // グループヘッダー TR を各グループの先頭行の直前に挿入
       groupOrder.forEach(key => {
-        const label     = key === _UNSET_KEY ? '（サブコン未設定）' : key;
+        const label     = key === _UNSET_KEY ? '（サブコン未設定）' : (groupLabel[key] || '');
         const firstRow  = groups[key][0];
         const count     = groups[key].length;
         const collapsed = _collapsedGroups.has(key);
@@ -1099,13 +1091,13 @@
             `<button type="button" class="subcon-group-excl${excluded ? ' is-excluded' : ''}" ` +
               `title="見積もりへの含める/除外を切り替え">${excluded ? '含む' : '除外'}</button>` +
             `<button type="button" class="subcon-group-add-btn" ` +
-              `data-sv="${_escAttr(key === _UNSET_KEY ? '' : key)}" ` +
+              `data-sv="${_escAttr(key === _UNSET_KEY ? '' : label)}" ` +
               `title="${_escAttr(label)} に行を追加">＋</button>` +
           `</td>`;
         hdr.querySelector('.subcon-group-toggle').addEventListener('click', () => toggleSubconGroup(key));
         hdr.querySelector('.subcon-group-excl').addEventListener('click', () => toggleSubconExclude(key));
         hdr.querySelector('.subcon-group-add-btn').addEventListener('click', () => {
-          addRowToSubconGroup(key === _UNSET_KEY ? '' : key);
+          addRowToSubconGroup(key === _UNSET_KEY ? '' : label);
         });
         tbody.insertBefore(hdr, firstRow);
       });
@@ -1113,7 +1105,7 @@
       // 各グループの末尾行の直後に、グループ小計の仮想行（data-virtual）を挿入。
       // 金額は _updateGroupSums で同期。保存・CSV/Excel/PDF 出力には含まれない。
       groupOrder.forEach(key => {
-        const label    = key === _UNSET_KEY ? '（サブコン未設定）' : key;
+        const label    = key === _UNSET_KEY ? '（サブコン未設定）' : (groupLabel[key] || '');
         const lastRow  = groups[key][groups[key].length - 1];
         const sub = document.createElement('tr');
         sub.dataset.virtual = '1';
@@ -1229,11 +1221,12 @@
     const tbody = document.getElementById('tableBody');
     const realRows = Array.from(tbody.querySelectorAll('tr:not([data-virtual])'))
       .filter(tr => !tr.dataset.type);
-    // グループの末尾行を探す
+    // グループの末尾行を探す（揺らぎ吸収：正規化キーで一致判定）
+    const targetKey = subconNormKey(sv);
     let lastInGroup = null;
     realRows.forEach(tr => {
       const rowSv = _rowSubcon(tr) ?? '';
-      if (rowSv === sv) lastInGroup = tr;
+      if (subconNormKey(rowSv) === targetKey) lastInGroup = tr;
     });
     let newId;
     if (lastInGroup) {
@@ -1257,7 +1250,14 @@
   window.getSubconAliases = () => Object.assign({}, _subconAlias);
   window.setSubconAliases = (obj) => {
     Object.keys(_subconAlias).forEach(k => delete _subconAlias[k]);
-    if (obj && typeof obj === 'object') Object.assign(_subconAlias, obj);
+    if (obj && typeof obj === 'object') {
+      // 旧プリセットは生の綴りでキー化されている場合があるため正規化キーへ寄せる（idempotent）
+      Object.keys(obj).forEach(k => {
+        if (!obj[k]) return;
+        const nk = subconNormKey(k) || k;
+        _subconAlias[nk] = obj[k];
+      });
+    }
   };
 
   // ========== 行クリップボード（任意位置貼り付け） ==========

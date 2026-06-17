@@ -3200,11 +3200,7 @@
               <span class="btn-group-label">行追加</span>
               <button class="btn-ins-row cmdbar-icon-btn" onclick="toolbarInsertRow()" title="費用行を追加（明細）">＋</button>
               <button class="btn-ins-sub cmdbar-icon-btn" onclick="toolbarInsertSubtotal()" title="小計行を追加">＝</button>
-              <input type="text" id="remarkInputBar" class="remark-input-bar"
-                     placeholder="備考テキスト（省略可）"
-                     title="備考・社内メモのテキストを入力してから右のボタンで行追加。空のままでも追加可（行内で直接入力）"
-                     onkeydown="if(event.key==='Enter'){toolbarInsertRemark();event.preventDefault();}" />
-              <button class="btn-ins-rem cmdbar-text-btn" onclick="toolbarInsertRemark()" title="リマーク（注記）行を追加">💬 備考行</button>
+              <button class="btn-ins-rem cmdbar-text-btn" onclick="toolbarInsertRemark()" title="空の備考（リマーク）行を追加（行内で直接入力）">💬 備考行</button>
               <button class="btn-ins-int cmdbar-text-btn" onclick="toolbarInsertInternal()" title="社内メモ行を追加（出力対象外）">🔒 社内メモ</button>
               <span class="btn-group-label">挿入位置</span>
               <select id="rowInsertPos" class="row-insert-pos" title="追加ボタンの挿入位置">
@@ -3622,9 +3618,8 @@
           <input type="date" data-field="vt" class="w-valid-date" title="適用終了日（省略可）" />
         </div>
         <div class="row-ins-bar">
-          <input type="text" data-field="remtxt" class="row-rem-txt" placeholder="備考テキスト（省略可）" tabindex="-1" />
-          <button type="button" class="btn-row-rem" tabindex="-1" title="この行の直下に備考行を挿入">💬</button>
-          <button type="button" class="btn-row-int" tabindex="-1" title="この行の直下に社内メモを挿入（出力対象外）">🔒</button>
+          <button type="button" class="btn-row-rem" tabindex="-1" title="上の「備考（任意）」の内容でこの行の直下に備考行を挿入（挿入後、備考欄はクリアされます）">💬 備考行</button>
+          <button type="button" class="btn-row-int" tabindex="-1" title="上の「備考（任意）」の内容でこの行の直下に社内メモを挿入（出力対象外・挿入後、備考欄はクリアされます）">🔒 社内メモ</button>
         </div>
       </td>
       <td class="qty-cell">

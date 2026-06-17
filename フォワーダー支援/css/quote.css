@@ -5689,17 +5689,6 @@ body.qp-dash-active #quoteActionDock { display: none !important; }
 }
 #tab-quote-make .cmdbar-main .btn-group-label:first-child { margin-left: 0; }
 
-/* 備考テキスト入力欄（ツールバー） */
-#tab-quote-make .remark-input-bar {
-  height: 28px; width: 160px; box-sizing: border-box;
-  padding: 0 8px; border: 1px solid #c8bfb0;
-  border-radius: 4px; background: #fff; font-size: 12px;
-  color: #3d2e1e;
-}
-#tab-quote-make .remark-input-bar:focus {
-  outline: none; border-color: #8b6914; background: #fffcf5;
-}
-#tab-quote-make .remark-input-bar::placeholder { color: #b0a090; }
 /* 備考行・社内メモ ラベル付きボタン */
 #tab-quote-make .cmdbar-text-btn {
   width: auto !important; padding: 0 9px !important;
@@ -5716,16 +5705,6 @@ body.qp-dash-active #quoteActionDock { display: none !important; }
 #tab-quote-make tr:focus-within .row-ins-bar {
   display: flex;
 }
-#tab-quote-make .row-rem-txt {
-  height: 22px; width: 130px; box-sizing: border-box;
-  padding: 0 6px; border: 1px solid #c8bfb0;
-  border-radius: 4px; background: #fff; font-size: 11px;
-  color: #3d2e1e;
-}
-#tab-quote-make .row-rem-txt:focus {
-  outline: none; border-color: #8b6914; background: #fffcf5;
-}
-#tab-quote-make .row-rem-txt::placeholder { color: #b0a090; }
 #tab-quote-make .btn-row-rem,
 #tab-quote-make .btn-row-int {
   height: 22px; padding: 0 6px;
