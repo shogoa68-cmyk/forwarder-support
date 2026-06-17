@@ -1243,7 +1243,7 @@
           '<span class="preset-list-ts">' + (ts ? '💾 ' + ts : '') + '</span>' +
           '<div class="preset-rich-acts">' +
             '<button class="btn-preset-load" onclick="loadPreset(' + i + ')">読み込む</button>' +
-            '<button class="btn-preset-copy" onclick="duplicateLocalPreset(' + i + ')" title="コピーして新規案件を作成">📋</button>' +
+            '<button class="btn-preset-copy" onclick="duplicateLocalPreset(' + i + ')" title="コピーして新規案件を作成">📋 コピー</button>' +
             '<button class="btn-preset-del"  onclick="deletePreset(' + i + ')" title="削除">✕</button>' +
           '</div>' +
         '</div>' +
