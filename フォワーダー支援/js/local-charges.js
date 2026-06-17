@@ -318,6 +318,14 @@
         const f = e.dataTransfer.files[0];
         if (f) _readFile(f, obj => { _pendingAttach = obj; _lcUpdateAttachUI(); });
       });
+      // フォーム表示中のペースト（スクショ・ファイル）を添付として取り込む
+      document.addEventListener('paste', e => {
+        if (!document.getElementById('lcFormModal')?.classList.contains('open')) return;
+        const f = [...(e.clipboardData?.items || [])]
+          .map(it => it.kind === 'file' ? it.getAsFile() : null)
+          .find(Boolean);
+        if (f) { e.preventDefault(); _readFile(f, obj => { _pendingAttach = obj; _lcUpdateAttachUI(); }); }
+      });
       zone.dataset.lcDndReady = '1';
     }
 

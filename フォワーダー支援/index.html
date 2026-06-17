@@ -4112,9 +4112,18 @@
         <input id="lc_note" class="lc-form-input" type="text" placeholder="補足情報">
       </div>
       <div class="lc-form-row lc-form-row--full">
-        <label class="lc-form-label">添付ファイル</label>
-        <div class="lc-attach-wip">
-          🚧 準備中 — アナウンス PDF などの添付は近日対応予定です。
+        <label class="lc-form-label">添付ファイル <span class="lc-form-hint">アナウンス PDF・タリフ等（5MBまで）</span></label>
+        <div id="lcAttachZone" class="lc-attach-zone">
+          <div id="lcAttachEmpty" class="lc-attach-empty">
+            <label class="lc-file-label-btn" for="lc_file">📎 ファイルを選択</label>
+            <input id="lc_file" class="lc-file-input" type="file" onchange="lcHandleFileChange(this)">
+            <span class="lc-attach-hint">ここにドラッグ＆ドロップ・貼り付けも可</span>
+          </div>
+          <div id="lcAttachSelected" class="lc-attach-selected" style="display:none">
+            <span class="lc-attach-icon-text">📄</span>
+            <a id="lcAttachFileName" class="lc-attach-name" target="_blank" rel="noopener">ファイル名</a>
+            <button type="button" class="lc-attach-remove" onclick="lcClearAttach()">削除</button>
+          </div>
         </div>
       </div>
     </div>
