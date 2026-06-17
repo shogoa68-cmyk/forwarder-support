@@ -3610,11 +3610,11 @@
       <td class="name-cell">
         <input type="text" data-field="nm" class="w-name" placeholder="例）海上運賃" data-col="1" list="nmSuggestions" />
         <input type="text" data-field="nt" class="w-note" placeholder="備考（任意）" data-col="6" />
-        <div class="w-valid" title="サーチャージの有効期限（通常はひと月。例：6/1〜6/30）">
+        <div class="w-valid" title="有効期限。開始日のみ入力も可（例：7/1〜 → 7/1 のみ）。終了日のみも可。">
           <span class="w-valid-lbl">有効</span>
-          <input type="date" data-field="vf" class="w-valid-date" title="有効期限（開始）" />
+          <input type="date" data-field="vf" class="w-valid-date" title="適用開始日（終了日なしでも保存・表示されます）" />
           <span class="w-valid-sep">〜</span>
-          <input type="date" data-field="vt" class="w-valid-date" title="有効期限（終了）" />
+          <input type="date" data-field="vt" class="w-valid-date" title="適用終了日（省略可）" />
         </div>
       </td>
       <td class="qty-cell">
