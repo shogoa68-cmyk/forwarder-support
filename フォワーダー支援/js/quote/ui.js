@@ -926,10 +926,11 @@
     if (cloudSec)   cloudSec.style.display   = (mode === 'cloud') ? '' : 'none';
     // ☁️ チーム共有セクションの認証状態・一覧を反映（cloud.js）
     if (mode === 'cloud' && typeof cloudOnPresetMgrOpen === 'function') cloudOnPresetMgrOpen();
-    // 名前欄を管理番号入力欄から常に自動生成（管理番号の入力情報を優先反映）
+    // 名前欄：読込中のプリセット名を優先（コピー元の上書きを防ぐ）。未読込なら自動生成
     const input = document.getElementById('presetNameInput');
     if (input) {
-      input.value = _buildDefaultPresetName();
+      const loadedName = (document.getElementById('currentQuoteName')?.dataset.name || '').trim();
+      input.value = loadedName || _buildDefaultPresetName();
     }
     if (mode === 'browser') setTimeout(() => { input?.focus(); input?.select(); }, 50);
   }

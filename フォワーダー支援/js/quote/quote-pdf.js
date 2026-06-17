@@ -274,9 +274,17 @@
         if (_scHas && k !== _scKey) { _scPush(); _scJpy = 0; _scHas = false; }
         _scKey = k; _scJpy += jpy; _scHas = true;
       }
+      const validBadge = (() => {
+        if (!r.vf && !r.vt) return '';
+        const fmt = d => d ? d.replace(/-/g, '/') : '';
+        const range = (r.vf && r.vt) ? fmt(r.vf) + '〜' + fmt(r.vt)
+                    : r.vf            ? fmt(r.vf) + '〜'
+                    :                   '〜' + fmt(r.vt);
+        return ` <span class="qd-validity">${esc(range)}</span>`;
+      })();
       lineHTML.push(
         `<tr>
-          <td class="qd-item">${r.taxed ? '<span class="qd-tax">*</span> ' : ''}${esc(_taxName(r.name, r.taxed))}</td>
+          <td class="qd-item">${r.taxed ? '<span class="qd-tax">*</span> ' : ''}${esc(_taxName(r.name, r.taxed))}${validBadge}</td>
           <td class="qd-num">${qtyDisp}</td>
           <td class="qd-ctr">${esc(r.un || '')}</td>
           <td class="qd-num">${unitDisp}</td>

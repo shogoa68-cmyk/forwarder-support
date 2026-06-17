@@ -252,6 +252,17 @@
     };
   }
 
+  // it（_aggregate済みアイテム）から行データを生成。cells より it の確定プロパティを優先し
+  // cells のみで補完する。単位などが cells に入っていない場合のフォールバック。
+  function _rowFromItem(it, svName) {
+    const row = _cellsToRow(it.cells || []);
+    if (!row.un  && it.un)  row.un  = it.un;
+    if (!row.cat && it.cat) row.cat = it.cat;
+    if (!row.name && it.name) row.name = it.name;
+    if (svName) row.sv = svName;
+    return row;
+  }
+
   function subconInsert(si) {
     const sc = _filteredAt(si);
     if (!sc) return;
@@ -390,7 +401,7 @@
     wrap.querySelectorAll('.rp-sc-chk[data-si="' + si + '"]:checked').forEach(chk => {
       const ii = parseInt(chk.dataset.ii, 10);
       const it = sc.items[ii];
-      if (it && it.cells) rows.push(_cellsToRow(it.cells));
+      if (it) rows.push(_rowFromItem(it, sc.name));
     });
     if (!rows.length) return;
     // 同一サブコングループの末尾に挿入
@@ -495,8 +506,8 @@
     const sc = list[si];
     if (!sc) return;
     const it = sc.items[ii];
-    if (!it || !it.cells) return;
-    e.dataTransfer.setData('application/x-si-item', JSON.stringify(_cellsToRow(it.cells)));
+    if (!it) return;
+    e.dataTransfer.setData('application/x-si-item', JSON.stringify(_rowFromItem(it, sc.name)));
     e.dataTransfer.effectAllowed = 'copy';
     label.classList.add('si-item-dragging');
   });
