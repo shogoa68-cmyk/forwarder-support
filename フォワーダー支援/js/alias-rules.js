@@ -90,17 +90,58 @@
   // === 一括置換 ===
 
   function _applyToData(data, rules) {
-    if (!data || !Array.isArray(data.rows)) return data;
+    if (!data || typeof data !== 'object') return data;
     const out = JSON.parse(JSON.stringify(data));
-    out.rows.forEach(row => {
-      if (row._type !== 'data' || !Array.isArray(row.cells)) return;
-      rules.forEach(r => {
-        const ci = CI[r.field];
-        if (ci == null) return;
-        if ((row.cells[ci] || '').trim() === r.from_value.trim()) row.cells[ci] = r.to_value;
+    // sv / nm / un は明細行セルに格納
+    const rowRules = rules.filter(r => CI[r.field] != null);
+    if (rowRules.length && Array.isArray(out.rows)) {
+      out.rows.forEach(row => {
+        if (row._type !== 'data' || !Array.isArray(row.cells)) return;
+        rowRules.forEach(r => {
+          const ci = CI[r.field];
+          if ((row.cells[ci] || '').trim() === r.from_value.trim()) row.cells[ci] = r.to_value;
+        });
       });
-    });
+    }
+    // port は引き合い条件フィールド（z2Pol/z2Pod/z2Via）と複数航路（z2-routes-data）に格納
+    const portRules = rules.filter(r => r.field === 'port');
+    if (portRules.length && out.fields && typeof out.fields === 'object') {
+      const f = out.fields;
+      const _rep = cur => {
+        const t = (cur || '').trim();
+        const hit = portRules.find(r => r.from_value.trim() === t);
+        return hit ? hit.to_value : cur;
+      };
+      ['z2Pol', 'z2Pod', 'z2Via'].forEach(k => { if (f[k] != null) f[k] = _rep(f[k]); });
+      if (f['z2-routes-data']) {
+        try {
+          const rts = JSON.parse(f['z2-routes-data']);
+          if (Array.isArray(rts)) {
+            rts.forEach(rt => ['pol', 'pod', 'via'].forEach(k => { if (rt[k] != null) rt[k] = _rep(rt[k]); }));
+            f['z2-routes-data'] = JSON.stringify(rts);
+          }
+        } catch (e) {}
+      }
+    }
     return out;
+  }
+
+  // data.fields から pol/pod 列値を再導出（cloud.js の列昇格ロジックと同形）。
+  // 港の一括置換後にクラウド側の pol/pod 列を整合させるために使う。
+  function _derivePortCols(data) {
+    const f = (data && data.fields) || {};
+    let pol = (f['z2Pol'] || '').trim() || null;
+    let pod = (f['z2Pod'] || '').trim() || null;
+    if (!pol && !pod) {
+      try {
+        const rts = JSON.parse(f['z2-routes-data'] || '[]');
+        if (Array.isArray(rts) && rts.length) {
+          pol = rts.map(r => r.pol).filter(Boolean).join(', ') || null;
+          pod = rts.map(r => r.pod).filter(Boolean).join(', ') || null;
+        }
+      } catch (e) {}
+    }
+    return { pol, pod };
   }
 
   window.arApplyLocal = async function (rules) {
@@ -120,6 +161,7 @@
   window.arApplyCloud = async function (rules) {
     const c = _c();
     if (!c || !rules || !rules.length) return 0;
+    const hasPort = rules.some(r => r.field === 'port');
     const { data: presets } = await c.from(PRESETS_TABLE).select('id,data');
     if (!presets) return 0;
     let count = 0;
@@ -127,7 +169,10 @@
       const before = JSON.stringify(p.data);
       const after  = _applyToData(p.data, rules);
       if (JSON.stringify(after) !== before) {
-        await c.from(PRESETS_TABLE).update({ data: after }).eq('id', p.id);
+        const upd = { data: after };
+        // 港の置換時は pol/pod 列も再導出して整合（クラウド一覧の航路フィルタ用）
+        if (hasPort) { const { pol, pod } = _derivePortCols(after); upd.pol = pol; upd.pod = pod; }
+        await c.from(PRESETS_TABLE).update(upd).eq('id', p.id);
         count++;
       }
     }
@@ -231,6 +276,7 @@
     _fill('nmSuggestions', 'nm');
     _fill('unit-list',     'un');
     _fill('custSuggestions', 'customer');
+    _fill('portSuggestions', 'port');
 
     // ユニット同義語グループをunitdatalistに追加
     const unDl = document.getElementById('unit-list');
@@ -297,8 +343,8 @@
     if (!pane) return;
 
     const rules = await window.arGetRules();
-    const fields = ['sv', 'nm', 'un'];
-    const fieldLabel = { sv: 'サブコン', nm: '品名', un: '単位' };
+    const fields = ['sv', 'nm', 'un', 'port'];
+    const fieldLabel = { sv: 'サブコン', nm: '品名', un: '単位', port: '港', customer: 'お客様' };
     const grouped = {};
     fields.forEach(f => { grouped[f] = rules.filter(r => r.field === f); });
 
@@ -343,6 +389,7 @@
       <option value="sv"${preField==='sv'?' selected':''}>サブコン</option>
       <option value="nm"${preField==='nm'?' selected':''}>品名</option>
       <option value="un"${preField==='un'?' selected':''}>単位</option>
+      <option value="port"${preField==='port'?' selected':''}>港</option>
     </select>
     <input id="arFrom" class="ar-input" type="text" placeholder="元の表記（ゆらぎ）">
     <span class="ar-arrow-label">→</span>
@@ -388,7 +435,7 @@
 
     // 略称辞書セクション
     const abbrevPairs = _loadAbbrevPairs();
-    const abbrevFieldLabel = { sv: 'サブコン', nm: '品名', un: '単位', customer: 'お客様' };
+    const abbrevFieldLabel = { sv: 'サブコン', nm: '品名', un: '単位', customer: 'お客様', port: '港' };
     h += `<div class="ar-abbrev-section">
   <h4 class="ar-section-title">📖 略称辞書${abbrevPairs.length ? `（${abbrevPairs.length}件）` : ''}</h4>
   <p class="ar-abbrev-desc">略称と正式名称を関連付けます。統計タブで同一グループとして表示されます（例：NTL ＝ NAIGAI TRANS LINE）。</p>
@@ -398,6 +445,7 @@
       <option value="nm">品名</option>
       <option value="un">単位</option>
       <option value="customer">お客様</option>
+      <option value="port">港</option>
     </select>
     <input id="arAbbrevShort" class="ar-input" type="text" placeholder="略称（例: NTL）">
     <span class="ar-arrow-label">=</span>
@@ -422,7 +470,7 @@
     // 除外リスト
     const excl = _loadExclusions();
     if (excl.length > 0) {
-      const fl = { sv: 'サブコン', nm: '品名', un: '単位' };
+      const fl = { sv: 'サブコン', nm: '品名', un: '単位', port: '港', customer: 'お客様' };
       h += `<div class="ar-excl-section">
   <h4 class="ar-section-title">🚫 ゆらぎ判定 除外リスト（${excl.length}件）</h4>
   <p class="ar-excl-desc">以下の表記はゆらぎ判定から外れています（別物として扱います）。</p>

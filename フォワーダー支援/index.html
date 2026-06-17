@@ -2660,25 +2660,26 @@
               <div class="z2-pol-pod-row">
                 <div class="z2-port">
                   <span class="z2-port-label" title="Port of Loading（積み地港）：輸出港・出港地">📦 POL</span>
-                  <input type="text" id="z2Pol" class="z2-input"
+                  <input type="text" id="z2Pol" class="z2-input" list="portSuggestions"
                          placeholder="例）Yokohama">
                 </div>
                 <span class="z2-arrow">→</span>
                 <div class="z2-port z2-via-port">
                   <span class="z2-port-label" title="経由地（トランシップ港など）。省略可">⚓ Via</span>
-                  <input type="text" id="z2Via" class="z2-input"
+                  <input type="text" id="z2Via" class="z2-input" list="portSuggestions"
                          placeholder="経由地（任意）">
                 </div>
                 <span class="z2-arrow">→</span>
                 <div class="z2-port">
                   <span class="z2-port-label" title="Port of Discharge（揚げ地港）：輸入港・入港地">🏁 POD</span>
-                  <input type="text" id="z2Pod" class="z2-input"
+                  <input type="text" id="z2Pod" class="z2-input" list="portSuggestions"
                          placeholder="例）Shanghai">
                 </div>
                 <button type="button" class="z2-route-add" onclick="addRouteEntry()" title="このキャリア・POL・Via・PODを航路として追加（複数船会社・複数航路の比較見積に対応）">＋ 航路</button>
               </div>
               <div class="z2-route-list" id="z2RouteList"></div>
               <input type="hidden" id="z2-routes-data" />
+              <datalist id="portSuggestions"></datalist>
             </div>
           </div>
 
@@ -3770,6 +3771,7 @@
       <button class="stats-tab-btn is-active" id="statsTabBtn-dashboard" onclick="statsSetPane('dashboard')">📈 ダッシュボード</button>
       <button class="stats-tab-btn"           id="statsTabBtn-sv"       onclick="statsSetPane('sv')">🏢 サブコン</button>
       <button class="stats-tab-btn"           id="statsTabBtn-carrier"  onclick="statsSetPane('carrier')">🚢 キャリア</button>
+      <button class="stats-tab-btn"           id="statsTabBtn-port"     onclick="statsSetPane('port')">🛳 港</button>
       <button class="stats-tab-btn"           id="statsTabBtn-customer" onclick="statsSetPane('customer')">👤 お客様</button>
       <button class="stats-tab-btn"           id="statsTabBtn-nm"       onclick="statsSetPane('nm')">📝 品名</button>
       <button class="stats-tab-btn"           id="statsTabBtn-un"       onclick="statsSetPane('un')">📐 単位</button>
@@ -3781,6 +3783,7 @@
     <div id="statsPane-dashboard" class="stats-pane is-active"></div>
     <div id="statsPane-sv"       class="stats-pane"></div>
     <div id="statsPane-carrier"  class="stats-pane"></div>
+    <div id="statsPane-port"     class="stats-pane"></div>
     <div id="statsPane-customer" class="stats-pane"></div>
     <div id="statsPane-nm"       class="stats-pane"></div>
     <div id="statsPane-un"       class="stats-pane"></div>

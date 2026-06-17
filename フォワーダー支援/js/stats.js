@@ -86,13 +86,36 @@
     const svExcl = new Set(excl.filter(e => e.field === 'sv').map(e => e.value));
     const nmExcl = new Set(excl.filter(e => e.field === 'nm').map(e => e.value));
     const unExcl = new Set(excl.filter(e => e.field === 'un').map(e => e.value));
+    const portExcl = new Set(excl.filter(e => e.field === 'port').map(e => e.value));
     return {
       presets, totalPresets: presets.length, totalRows: allRows.length,
       svGroups:      _groupSimilar(svRows.map(r => r.sv), svExcl, 'sv'),
       carrierGroups: _groupSimilar(carrierRows.map(r => r.sv), svExcl, 'sv'),
       nmGroups:      _groupSimilar(allRows.map(r => r.nm).filter(Boolean), nmExcl, 'nm'),
       unGroups:      _groupSimilar(allRows.map(r => r.un).filter(Boolean), unExcl, 'un'),
+      portGroups:    _groupSimilar(_gatherPorts(source), portExcl, 'port'),
     };
+  }
+
+  // 港名（POL/POD/Via）を全プリセットの条件フィールドから収集。
+  // 複数航路（z2-routes-data）がある場合はそちらを優先（cloud.js の列昇格ロジックと同じ）。
+  function _portValsFromFields(f) {
+    let rts = [];
+    try { rts = JSON.parse(f['z2-routes-data'] || '[]'); } catch (e) {}
+    const out = [];
+    if (Array.isArray(rts) && rts.length) {
+      rts.forEach(r => ['pol', 'pod', 'via'].forEach(k => { const v = (r[k] || '').trim(); if (v) out.push(v); }));
+    } else {
+      ['z2Pol', 'z2Pod', 'z2Via'].forEach(k => { const v = (f[k] || '').trim(); if (v) out.push(v); });
+    }
+    return out;
+  }
+  function _gatherPorts(source) {
+    const ports = [];
+    const add = p => { ports.push(..._portValsFromFields((p.data || {}).fields || {})); };
+    if (source !== 'cloud') _getLocalPresets().forEach(add);
+    if (source !== 'local') (typeof window.cloudGetAllRows === 'function' ? window.cloudGetAllRows() : []).forEach(add);
+    return ports;
   }
 
   function _freq(arr) {
@@ -264,6 +287,7 @@
 
   function _renderSv() { _renderGrouped(_data?.svGroups || [], 'sv', 'サブコン名', 'statsPane-sv'); }
   function _renderCarrier() { _renderGrouped(_data?.carrierGroups || [], 'sv', 'キャリア名', 'statsPane-carrier'); }
+  function _renderPort() { _renderGrouped(_data?.portGroups || [], 'port', '港名', 'statsPane-port'); }
   function _renderNm()      { _renderGrouped(_data?.nmGroups      || [], 'nm', '品名',       'statsPane-nm'); }
   function _renderUn() {
     const e = document.getElementById('statsPane-un');
@@ -765,12 +789,13 @@
       e.innerHTML = '<p class="stats-empty">マスター登録はまだありません。<br>各集計の ☆ 登録 ボタンで追加できます。</p>';
       return;
     }
-    const labels = { sv: 'サブコン', nm: '品名', un: '単位', customer: 'お客様' };
+    const labels = { sv: 'サブコン', nm: '品名', un: '単位', customer: 'お客様', port: '港' };
     const usageDesc = {
       sv:       '見積行のサブコン欄で入力補完候補に表示されます。',
       nm:       '見積行の品名欄で入力補完候補に表示されます。',
       un:       '見積行の単位欄で入力補完候補に表示されます。',
       customer: 'お客様名欄で入力補完候補に表示されます。',
+      port:     'POL / POD / Via 港欄で入力補完候補に表示されます。',
     };
     const sorted = entries.sort((a, b) => (labels[a.field] || a.field).localeCompare(labels[b.field] || b.field) || (a.value || '').localeCompare(b.value || ''));
     const abbrevPairs = (typeof window.arGetAbbrevPairs === 'function') ? window.arGetAbbrevPairs() : [];
@@ -839,6 +864,7 @@
     if      (id === 'dashboard') _renderDashboard();
     else if (id === 'sv')       _renderSv();
     else if (id === 'carrier')  _renderCarrier();
+    else if (id === 'port')     _renderPort();
     else if (id === 'customer') _renderCustomer();
     else if (id === 'nm')       _renderNm();
     else if (id === 'un')       _renderUn();
@@ -858,6 +884,7 @@
     if      (paneId === 'dashboard') _renderDashboard();
     else if (paneId === 'sv')       _renderSv();
     else if (paneId === 'carrier')  _renderCarrier();
+    else if (paneId === 'port')     _renderPort();
     else if (paneId === 'customer') _renderCustomer();
     else if (paneId === 'nm')       _renderNm();
     else if (paneId === 'un')       _renderUn();
@@ -945,7 +972,7 @@
   window.statsDemote  = async function (f, v) { await _demote(f, v);  _renderMaster(); };
 
   window.statsMasterAddAbbrev = async function (field, value) {
-    const labels = { sv: 'サブコン', nm: '品名', un: '単位', customer: 'お客様' };
+    const labels = { sv: 'サブコン', nm: '品名', un: '単位', customer: 'お客様', port: '港' };
     const abbrev = window.prompt(`「${value}」の略称を入力してください（${labels[field] || field}）：`);
     if (!abbrev || !abbrev.trim()) return;
     if (typeof window.arAddAbbrevPair === 'function') {
