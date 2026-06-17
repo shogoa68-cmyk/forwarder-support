@@ -423,6 +423,236 @@
   // ===== お客様タブ =====
   const _stCls = st => ({ '下書き中':'draft','提出済み':'sent','提示済み':'sent','受注':'won','失注':'lost','辞退':'declined','保留':'hold' }[st] || 'draft');
 
+  // ===== 📈 ダッシュボード（案件分析） =====
+
+  // 案件（プリセット）1件を分析用に正規化。ローカル／クラウド両対応。
+  function _num(v) { const n = parseFloat(String(v == null ? '' : v).replace(/[, ]/g, '')); return isFinite(n) ? n : null; }
+  function _jpy(n)  { return '¥' + Math.round(n).toLocaleString('ja-JP'); }
+  function _toJ(amount, cur) {
+    const c = (cur || 'JPY').trim() || 'JPY';
+    if (c === 'JPY') return amount;
+    if (typeof toJPY !== 'function') return null;
+    const v = toJPY(amount, c);
+    return isFinite(v) ? v : null;
+  }
+
+  // 行配列（data.rows）から案件全体の仕入合計・売上合計（JPY換算）を算出。換算不能行は除外。
+  function _caseFinancials(rows) {
+    if (!Array.isArray(rows)) return null;
+    let cost = 0, bill = 0, ok = false;
+    rows.forEach(r => {
+      if (!r || r._type !== 'data') return;
+      const c  = Array.isArray(r.cells) ? r.cells : [];
+      const pp = _num(c[10]), bp = _num(c[11]);
+      const pq = _num(c[5]) > 0 ? _num(c[5]) : 1;
+      const bq = _num(c[7]) > 0 ? _num(c[7]) : 1;
+      const pc = c[8] || 'JPY', bc = c[9] || 'JPY';
+      if (pp != null) { const cc = _toJ(pp * pq, pc); if (cc != null) { cost += cc; ok = true; } }
+      if (bp != null) { const bb = _toJ(bp * bq, bc); if (bb != null) { bill += bb; ok = true; } }
+    });
+    return ok ? { cost, bill } : null;
+  }
+
+  // ローカル fields からの航路フォールバック（z2-routes-data）
+  function _routeFromFields(f, key /* 'pol'|'pod'|'carrier' */) {
+    const single = (f['z2Pol'] && key === 'pol') ? f['z2Pol']
+                 : (f['z2Pod'] && key === 'pod') ? f['z2Pod']
+                 : (f['z2Carrier'] && key === 'carrier') ? f['z2Carrier'] : '';
+    if (single) return single.trim();
+    try {
+      const rts = JSON.parse(f['z2-routes-data'] || '[]');
+      if (Array.isArray(rts) && rts.length) {
+        return rts.map(r => r[key]).filter(Boolean).join(', ');
+      }
+    } catch (e) {}
+    return '';
+  }
+
+  // 分析用の案件リストを構築（source: 'both'|'local'|'cloud'）
+  function _caseList(source) {
+    const cases = [];
+    if (source !== 'cloud') {
+      _getLocalPresets().forEach(p => {
+        const f = (p.data || {}).fields || {};
+        cases.push({
+          name: p.name || '（名称なし）', src: 'local',
+          status:   (f['qf-status']   || '').trim(),
+          customer: (f['qf-customer'] || '').trim(),
+          mode:     (f['cond-mode']   || '').trim(),
+          pol:      _routeFromFields(f, 'pol'),
+          pod:      _routeFromFields(f, 'pod'),
+          carrier:  _routeFromFields(f, 'carrier'),
+          ts:       p.ts || null,
+          fin:      _caseFinancials((p.data || {}).rows),
+        });
+      });
+    }
+    if (source !== 'local') {
+      const cloud = typeof window.cloudGetAllRows === 'function' ? window.cloudGetAllRows() : [];
+      cloud.forEach(p => {
+        cases.push({
+          name: p.name || '（名称なし）', src: 'cloud',
+          status:   (p.status         || '').trim(),
+          customer: (p.customer       || '').trim(),
+          mode:     (p.transport_mode || '').trim(),
+          pol:      (p.pol            || '').trim(),
+          pod:      (p.pod            || '').trim(),
+          carrier:  (p.carrier        || '').trim(),
+          ts:       p.updated_at || null,
+          fin:      _caseFinancials((p.data || {}).rows),
+        });
+      });
+    }
+    return cases;
+  }
+
+  const _MODE_LABEL = { 'sea-fcl':'海上 FCL', 'sea-lcl':'海上 LCL', 'fcl':'FCL', 'lcl':'LCL', 'air':'航空', 'sea':'海上', 'rail':'鉄道', 'truck':'トラック' };
+  const _STATUS_ORDER = ['下書き中', '提出済み', '提示済み', '受注', '失注', '辞退', '保留'];
+
+  // 横棒ランキング HTML（[{label,count}] と最大値から生成）
+  function _barRows(items, max, opt) {
+    opt = opt || {};
+    if (!items.length) return '<p class="stats-empty">データなし</p>';
+    return '<div class="sd-bars">' + items.map(it => {
+      const pct = max > 0 ? Math.max(2, Math.round(it.count / max * 100)) : 0;
+      const cls = it.cls ? ' ' + it.cls : '';
+      return `<div class="sd-bar-row">` +
+             `<span class="sd-bar-label" title="${_esc(it.label)}">${_esc(it.label)}</span>` +
+             `<span class="sd-bar-track"><span class="sd-bar-fill${cls}" style="width:${pct}%"></span></span>` +
+             `<span class="sd-bar-val">${_esc(it.valText != null ? it.valText : String(it.count))}</span>` +
+             `</div>`;
+    }).join('') + '</div>';
+  }
+
+  function _kpi(value, label, cls) {
+    return `<div class="sd-kpi${cls ? ' ' + cls : ''}"><div class="sd-kpi-val">${_esc(value)}</div><div class="sd-kpi-label">${_esc(label)}</div></div>`;
+  }
+
+  function _renderDashboard() {
+    const e = document.getElementById('statsPane-dashboard');
+    if (!e) return;
+    const source = document.getElementById('statsSource')?.value || 'both';
+    const cases  = _caseList(source);
+    if (!cases.length) {
+      e.innerHTML = '<p class="stats-empty">案件がありません。<br><small>見積を保存すると、ここに受注率・粗利・航路傾向が集計されます。</small></p>';
+      return;
+    }
+
+    // --- A. 受注ステータス ---
+    const stCount = {};
+    cases.forEach(c => { const s = c.status || '（未設定）'; stCount[s] = (stCount[s] || 0) + 1; });
+    const won  = stCount['受注'] || 0;
+    const lost = stCount['失注'] || 0;
+    const decided  = won + lost;
+    const winRate  = decided > 0 ? Math.round(won / decided * 100) : null;
+    const stItems = Object.keys(stCount)
+      .sort((a, b) => {
+        const ia = _STATUS_ORDER.indexOf(a), ib = _STATUS_ORDER.indexOf(b);
+        return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib);
+      })
+      .map(s => ({ label: s, count: stCount[s], cls: 'sd-bar--st-' + _stCls(s) }));
+    const stMax = Math.max(...stItems.map(i => i.count));
+    const sectionA =
+      '<section class="sd-section"><h3 class="sd-h">📊 受注ステータス</h3>' +
+      '<div class="sd-kpis">' +
+        _kpi(cases.length, '総案件') +
+        _kpi(won,  '受注', 'sd-kpi--won') +
+        _kpi(lost, '失注', 'sd-kpi--lost') +
+        _kpi(winRate == null ? '—' : winRate + '%', '受注率（決着ベース）', 'sd-kpi--rate') +
+      '</div>' + _barRows(stItems, stMax) + '</section>';
+
+    // --- B. 金額・粗利 ---
+    const finCases = cases.filter(c => c.fin);
+    let totBill = 0, totCost = 0;
+    finCases.forEach(c => { totBill += c.fin.bill; totCost += c.fin.cost; });
+    const totMargin = (window.SharedCalc && totBill > 0) ? SharedCalc.grossMarginPct(totBill, totCost) : null;
+    // お客様別集計
+    const custMap = new Map();
+    finCases.forEach(c => {
+      const k = c.customer || '（未入力）';
+      if (!custMap.has(k)) custMap.set(k, { customer: k, count: 0, bill: 0, cost: 0 });
+      const g = custMap.get(k); g.count++; g.bill += c.fin.bill; g.cost += c.fin.cost;
+    });
+    const custRows = [...custMap.values()].sort((a, b) => b.bill - a.bill).slice(0, 15);
+    let custTable;
+    if (!finCases.length) {
+      custTable = '<p class="stats-empty">単価が入力された案件がありません。<br><small>明細に仕入・売単価を入れて保存すると粗利が集計されます。</small></p>';
+    } else {
+      custTable = '<table class="stats-table sd-money-table"><thead><tr>' +
+        '<th>お客様</th><th class="stats-num-col">件数</th><th class="stats-num-col">売上合計</th><th class="stats-num-col">粗利率</th>' +
+        '</tr></thead><tbody>' +
+        custRows.map(g => {
+          const m = (window.SharedCalc && g.bill > 0) ? SharedCalc.grossMarginPct(g.bill, g.cost) : null;
+          const mCls = m == null ? '' : (m >= 0 ? 'sd-margin-pos' : 'sd-margin-neg');
+          return `<tr><td class="stats-val">${_esc(g.customer)}</td>` +
+                 `<td class="stats-num-col">${g.count}</td>` +
+                 `<td class="stats-num-col">${_jpy(g.bill)}</td>` +
+                 `<td class="stats-num-col ${mCls}">${m == null ? '—' : m.toFixed(1) + '%'}</td></tr>`;
+        }).join('') + '</tbody></table>';
+    }
+    const mTotCls = totMargin == null ? '' : (totMargin >= 0 ? 'sd-kpi--won' : 'sd-kpi--lost');
+    const sectionB =
+      '<section class="sd-section"><h3 class="sd-h">💴 金額・粗利 <small class="sd-note">JPY換算・単価入力ありの案件のみ</small></h3>' +
+      '<div class="sd-kpis">' +
+        _kpi(_jpy(totBill), '総売上') +
+        _kpi(_jpy(totCost), '総仕入') +
+        _kpi(totMargin == null ? '—' : totMargin.toFixed(1) + '%', '平均粗利率', mTotCls) +
+      '</div>' + custTable + '</section>';
+
+    // --- C. 月次推移 ---
+    const monMap = new Map();
+    cases.forEach(c => {
+      if (!c.ts) return;
+      const m = String(c.ts).slice(0, 7);   // YYYY-MM
+      if (!/^\d{4}-\d{2}$/.test(m)) return;
+      if (!monMap.has(m)) monMap.set(m, { month: m, total: 0, won: 0 });
+      const g = monMap.get(m); g.total++; if (c.status === '受注') g.won++;
+    });
+    const months = [...monMap.values()].sort((a, b) => a.month.localeCompare(b.month)).slice(-12);
+    const monMax = months.length ? Math.max(...months.map(m => m.total)) : 0;
+    let monHtml;
+    if (!months.length) {
+      monHtml = '<p class="stats-empty">日付情報のある案件がありません。</p>';
+    } else {
+      monHtml = '<div class="sd-bars sd-bars--month">' + months.map(m => {
+        const pct = monMax > 0 ? Math.max(2, Math.round(m.total / monMax * 100)) : 0;
+        const wpct = m.total > 0 ? Math.round(m.won / m.total * 100) : 0;
+        const label = m.month.slice(2).replace('-', '/');   // YY/MM
+        return `<div class="sd-bar-row">` +
+               `<span class="sd-bar-label">${_esc(label)}</span>` +
+               `<span class="sd-bar-track"><span class="sd-bar-fill sd-bar--month" style="width:${pct}%">` +
+               `<span class="sd-bar-won" style="width:${wpct}%"></span></span></span>` +
+               `<span class="sd-bar-val">${m.total}件${m.won ? ' / 受注' + m.won : ''}</span>` +
+               `</div>`;
+      }).join('') + '</div>';
+    }
+    const sectionC =
+      '<section class="sd-section"><h3 class="sd-h">📅 月次推移 <small class="sd-note">直近12ヶ月・濃色＝受注</small></h3>' + monHtml + '</section>';
+
+    // --- D. 貨物・航路傾向 ---
+    const freq = (arr) => {
+      const m = new Map();
+      arr.filter(Boolean).forEach(v => m.set(v, (m.get(v) || 0) + 1));
+      return [...m.entries()].sort((a, b) => b[1] - a[1]).map(([value, count]) => ({ value, count }));
+    };
+    const modeItems = freq(cases.map(c => c.mode))
+      .map(i => ({ label: _MODE_LABEL[i.value] || i.value, count: i.count }));
+    const routeItems = freq(cases.map(c => (c.pol || c.pod) ? `${c.pol || '?'} → ${c.pod || '?'}` : ''))
+      .slice(0, 8).map(i => ({ label: i.value, count: i.count }));
+    const carrierItems = freq(cases.map(c => c.carrier)).slice(0, 8)
+      .map(i => ({ label: i.value, count: i.count }));
+    const sectionD =
+      '<section class="sd-section"><h3 class="sd-h">🚢 貨物・航路傾向</h3>' +
+      '<div class="sd-trend-grid">' +
+        `<div class="sd-trend-col"><h4 class="sd-h4">輸送モード</h4>${_barRows(modeItems, Math.max(...modeItems.map(i => i.count), 0))}</div>` +
+        `<div class="sd-trend-col"><h4 class="sd-h4">航路 (POL→POD) 上位8</h4>${_barRows(routeItems, Math.max(...routeItems.map(i => i.count), 0))}</div>` +
+        `<div class="sd-trend-col"><h4 class="sd-h4">キャリア 上位8</h4>${_barRows(carrierItems, Math.max(...carrierItems.map(i => i.count), 0))}</div>` +
+      '</div></section>';
+
+    e.innerHTML = '<div class="sd-wrap">' + sectionA + sectionB + sectionC + sectionD + '</div>';
+  }
+  window.statsRefreshDashboard = _renderDashboard;
+
   function _renderCustomer() {
     const e = document.getElementById('statsPane-customer');
     if (!e) return;
@@ -606,7 +836,8 @@
     const active = document.querySelector('#tab-stats .stats-pane.is-active');
     if (!active) return;
     const id = active.id.replace('statsPane-', '');
-    if      (id === 'sv')       _renderSv();
+    if      (id === 'dashboard') _renderDashboard();
+    else if (id === 'sv')       _renderSv();
     else if (id === 'carrier')  _renderCarrier();
     else if (id === 'customer') _renderCustomer();
     else if (id === 'nm')       _renderNm();
@@ -624,7 +855,8 @@
     document.getElementById('statsTabBtn-' + paneId)?.classList.add('is-active');
     document.getElementById('statsPane-'   + paneId)?.classList.add('is-active');
     if (!_data) { _data = _build(document.getElementById('statsSource')?.value || 'both'); _updateSummary(); }
-    if      (paneId === 'sv')       _renderSv();
+    if      (paneId === 'dashboard') _renderDashboard();
+    else if (paneId === 'sv')       _renderSv();
     else if (paneId === 'carrier')  _renderCarrier();
     else if (paneId === 'customer') _renderCustomer();
     else if (paneId === 'nm')       _renderNm();
@@ -646,7 +878,7 @@
     _data  = _build(source);
     _updateSummary();
     _renderCloud();
-    statsSetPane('sv');
+    statsSetPane('dashboard');
     if (typeof window.arRefreshDatalist === 'function') window.arRefreshDatalist();
     if (_cloud()) {
       await _loadCloudVotes();

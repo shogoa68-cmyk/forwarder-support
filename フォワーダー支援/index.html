@@ -3767,7 +3767,8 @@
     </div>
 
     <div class="stats-tabs">
-      <button class="stats-tab-btn is-active" id="statsTabBtn-sv"       onclick="statsSetPane('sv')">🏢 サブコン</button>
+      <button class="stats-tab-btn is-active" id="statsTabBtn-dashboard" onclick="statsSetPane('dashboard')">📈 ダッシュボード</button>
+      <button class="stats-tab-btn"           id="statsTabBtn-sv"       onclick="statsSetPane('sv')">🏢 サブコン</button>
       <button class="stats-tab-btn"           id="statsTabBtn-carrier"  onclick="statsSetPane('carrier')">🚢 キャリア</button>
       <button class="stats-tab-btn"           id="statsTabBtn-customer" onclick="statsSetPane('customer')">👤 お客様</button>
       <button class="stats-tab-btn"           id="statsTabBtn-nm"       onclick="statsSetPane('nm')">📝 品名</button>
@@ -3777,7 +3778,8 @@
       <button class="stats-tab-btn"           id="statsTabBtn-alias"    onclick="statsSetPane('alias')">🔀 エイリアス是正</button>
     </div>
 
-    <div id="statsPane-sv"       class="stats-pane is-active"></div>
+    <div id="statsPane-dashboard" class="stats-pane is-active"></div>
+    <div id="statsPane-sv"       class="stats-pane"></div>
     <div id="statsPane-carrier"  class="stats-pane"></div>
     <div id="statsPane-customer" class="stats-pane"></div>
     <div id="statsPane-nm"       class="stats-pane"></div>
