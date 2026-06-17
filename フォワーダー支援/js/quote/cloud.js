@@ -447,8 +447,9 @@
       const cf = r.data && r.data.copiedFrom;
       const origId = cf && cf.id;
       const origExists = origId && _cloudRows.some(row => row.id === origId);
+      const cfRefBadge = (cf && cf.ref) ? ' <span class="preset-cf-ref">(' + escHtml(cf.ref) + ')</span>' : '';
       const copiedFromHtml = cf
-        ? '<div class="cloud-copied-from">📋 コピー元：<span class="cloud-cf-name">' + escHtml(cf.name || '不明') + '</span>' +
+        ? '<div class="cloud-copied-from">📋 コピー元：<span class="cloud-cf-name">' + escHtml(cf.name || '不明') + cfRefBadge + '</span>' +
           (origExists ? ' <button class="btn-cf-preview" onclick="cloudPreviewPreset(\'' + encodeURIComponent(origId) + '\')" title="コピー元をプレビュー">プレビュー</button>' : '') +
           '</div>'
         : '';
@@ -1364,7 +1365,12 @@
     const src = _cloudRows.find(r => r.id === id);
     if (!src || !src.data) { quoteShowToast('⚠️ コピー元が見つかりません', 'warn'); return; }
     const newData = JSON.parse(JSON.stringify(src.data));
-    newData.copiedFrom = { id: src.id, name: src.name };
+    if (!newData.fields) newData.fields = {};
+    const srcRef = (newData.fields['qf-ref'] || '').trim();
+    newData.copiedFrom = { id: src.id, name: src.name, ref: srcRef };
+    // 発番ID取得済みなら新REF#をコピー時点で採番（未取得の場合はコピー元番号を保持）
+    const newRef = typeof generateQuoteRefValue === 'function' ? generateQuoteRefValue() : null;
+    if (newRef) newData.fields['qf-ref'] = newRef;
     const existingNames = _cloudRows.map(r => r.name);
     let baseName = src.name + ' のコピー';
     let copyName = baseName;
