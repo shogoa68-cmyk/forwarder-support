@@ -85,6 +85,8 @@
     tr.addEventListener('dragleave', () =>
       tr.classList.remove('drag-over-top', 'drag-over-bottom'));
     tr.addEventListener('drop', e => {
+      // サイドパネルからのドラッグはドキュメントレベルのハンドラに委ねる
+      if (e.dataTransfer.types.includes('application/x-si-item')) return;
       e.preventDefault();
       e.stopPropagation();
       if (!dragSrcRows || !dragSrcRows.length || dragSrcRows.includes(tr)) return;

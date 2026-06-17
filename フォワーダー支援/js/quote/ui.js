@@ -1503,7 +1503,10 @@
     });
     if (typeof updateSubtotalRows === 'function') updateSubtotalRows();
     updateTotals();
+    if (typeof renderSubconGroups === 'function') renderSubconGroups();
   }
+  window._insertPatternRows   = _insertPatternRows;
+  window._insertPatternRowsAt = _insertPatternRowsAt;
 
   function loadRowPattern(id) {
     const p = _rowPatterns.find(x => x.id === id);

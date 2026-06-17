@@ -360,6 +360,24 @@
     note.textContent = sel + '/' + total + '行選択中';
   }
 
+  // サブコングループの末尾行の次の行（非仮想）を返す。グループが存在しなければ null（末尾挿入）
+  function _svGroupAnchor(svName) {
+    const tbody = document.getElementById('tableBody');
+    if (!tbody) return null;
+    let lastInGroup = null;
+    Array.from(tbody.querySelectorAll('tr:not([data-virtual])')).forEach(tr => {
+      if (tr.dataset.type) return;
+      const id = (tr.id || '').replace('row-', '');
+      if (!id) return;
+      const sv = (document.getElementById('sv-' + id)?.value || '').trim();
+      if (sv === svName) lastInGroup = tr;
+    });
+    if (!lastInGroup) return null;
+    let next = lastInGroup.nextSibling;
+    while (next && next.dataset && next.dataset.virtual) next = next.nextSibling;
+    return next || null;
+  }
+
   function subconInsertFromPanel(si) {
     const q = (document.getElementById('siSubconSearch')?.value || '').trim().toLowerCase();
     let list = _siSubcons;
@@ -375,9 +393,16 @@
       if (it && it.cells) rows.push(_cellsToRow(it.cells));
     });
     if (!rows.length) return;
-    let posLabel = '末尾';
-    if (typeof window._insertPatternRows === 'function') posLabel = window._insertPatternRows(rows) || posLabel;
-    if (window.quoteShowToast) quoteShowToast('📂 「' + _esc(sc.name) + '」から ' + rows.length + ' 行を' + posLabel + 'に挿入しました', 'success');
+    // 同一サブコングループの末尾に挿入
+    if (typeof window._insertPatternRowsAt === 'function') {
+      const anchor = _svGroupAnchor(sc.name);
+      window._insertPatternRowsAt(rows, anchor);
+      if (window.quoteShowToast) quoteShowToast('📂 「' + _esc(sc.name) + '」から ' + rows.length + ' 行をサブコングループに挿入しました', 'success');
+    } else {
+      let posLabel = '末尾';
+      if (typeof window._insertPatternRows === 'function') posLabel = window._insertPatternRows(rows) || posLabel;
+      if (window.quoteShowToast) quoteShowToast('📂 「' + _esc(sc.name) + '」から ' + rows.length + ' 行を' + posLabel + 'に挿入しました', 'success');
+    }
   }
 
   // 現在の見積に登録済みのサブコン名セットを返す（小文字・重複除去）
