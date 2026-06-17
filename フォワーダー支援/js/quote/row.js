@@ -370,7 +370,7 @@
     const q    = f => frag.querySelector(`[data-field="${f}"]`);
 
     // IDs
-    ['cat','tx','nm','pq','un','pc','pp','cd','bq','bc','bp','mk','st','pr','nt','sv','zc','vf','vt','remtxt']
+    ['cat','tx','nm','pq','un','pc','pp','cd','bq','bc','bp','mk','st','pr','nt','sv','zc','vf','vt']
       .forEach(f => { q(f).id = `${f}-${id}`; });
     const zcBtn = frag.querySelector('.zero-confirm-btn');
     if (zcBtn) zcBtn.onclick = () => toggleZeroConfirmed(id);;
@@ -378,11 +378,6 @@
     const intBtn = frag.querySelector('.btn-row-int');
     if (remBtn) remBtn.onclick = () => rowInsertRemarkBelow(id);
     if (intBtn) intBtn.onclick = () => rowInsertInternalBelow(id);
-    // Enter → 備考行、Shift+Enter → 社内メモ
-    const remTxt = q('remtxt');
-    if (remTxt) remTxt.onkeydown = e => {
-      if (e.key === 'Enter') { e.preventDefault(); e.shiftKey ? rowInsertInternalBelow(id) : rowInsertRemarkBelow(id); }
-    };
 
     // Select options & initial values
     q('cat').innerHTML = catOpts(initCat);
@@ -910,20 +905,20 @@
     if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
   }
 
-  // ========== 行直下への備考行・社内メモ挿入（各行の row-ins-bar から） ==========
+  // ========== 行直下への備考行・社内メモ挿入（w-note フィールドのテキストを引用） ==========
   function rowInsertRemarkBelow(id) {
-    const txt = document.getElementById(`remtxt-${id}`);
-    const text = txt ? txt.value.trim() : '';
+    const nt = document.getElementById(`nt-${id}`);
+    const text = nt ? nt.value.trim() : '';
     insertRemarkRow(id, text ? { text } : undefined);
-    if (txt) { txt.value = ''; }
+    if (nt) { nt.value = ''; checkUnfilled(id); }
     if (typeof updateTotals === 'function') updateTotals();
     if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
   }
   function rowInsertInternalBelow(id) {
-    const txt = document.getElementById(`remtxt-${id}`);
-    const text = txt ? txt.value.trim() : '';
+    const nt = document.getElementById(`nt-${id}`);
+    const text = nt ? nt.value.trim() : '';
     insertInternalRow(id, text ? { text } : undefined);
-    if (txt) { txt.value = ''; }
+    if (nt) { nt.value = ''; checkUnfilled(id); }
     if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
   }
 

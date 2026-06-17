@@ -3613,17 +3613,16 @@
       </td>
       <td class="name-cell">
         <input type="text" data-field="nm" class="w-name" placeholder="例）海上運賃" data-col="1" list="nmSuggestions" />
-        <input type="text" data-field="nt" class="w-note" placeholder="備考（任意）" data-col="6" />
+        <div class="w-note-row">
+          <input type="text" data-field="nt" class="w-note" placeholder="備考（任意）" data-col="6" />
+          <button type="button" class="btn-row-rem" tabindex="-1" title="備考欄のテキストを引用して直下に備考行を挿入（空でも可）">💬</button>
+          <button type="button" class="btn-row-int" tabindex="-1" title="備考欄のテキストを引用して直下に社内メモを挿入（空でも可）">🔒</button>
+        </div>
         <div class="w-valid" title="有効期限。開始日のみ入力も可（例：7/1〜 → 7/1 のみ）。終了日のみも可。">
           <span class="w-valid-lbl">有効</span>
           <input type="date" data-field="vf" class="w-valid-date" title="適用開始日（終了日なしでも保存・表示されます）" />
           <span class="w-valid-sep">〜</span>
           <input type="date" data-field="vt" class="w-valid-date" title="適用終了日（省略可）" />
-        </div>
-        <div class="row-ins-bar">
-          <input type="text" data-field="remtxt" class="row-rem-txt" placeholder="備考テキスト（省略可）" tabindex="-1" />
-          <button type="button" class="btn-row-rem" tabindex="-1" title="この行の直下に備考行を挿入">💬</button>
-          <button type="button" class="btn-row-int" tabindex="-1" title="この行の直下に社内メモを挿入（出力対象外）">🔒</button>
         </div>
       </td>
       <td class="qty-cell">

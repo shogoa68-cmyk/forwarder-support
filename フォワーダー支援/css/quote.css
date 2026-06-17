@@ -635,10 +635,17 @@
 /* 項目名セル：項目名（上）＋備考（下）を縦積み */
 #tab-quote-make .name-cell { vertical-align: top; white-space: normal; }
 #tab-quote-make .name-cell .w-name { display: block; }
-#tab-quote-make .name-cell .w-note {
-  display: block;
-  width: 100%; box-sizing: border-box;
+/* 備考欄 + 行挿入ボタンのフレックス行 */
+#tab-quote-make .name-cell .w-note-row {
+  display: flex;
+  align-items: center;
+  gap: 3px;
   margin-top: 3px;
+}
+#tab-quote-make .name-cell .w-note {
+  flex: 1;
+  min-width: 0;
+  box-sizing: border-box;
   font-size: 11px; color: #6f6a60;
   border: 1px dashed #d6cdbd; background: #fbf9f4;
   padding: 2px 5px;
@@ -5706,34 +5713,21 @@ body.qp-dash-active #quoteActionDock { display: none !important; }
   font-size: 12px !important; font-weight: 600; letter-spacing: 0;
 }
 
-/* ========== 行直下 備考挿入バー ========== */
-#tab-quote-make .row-ins-bar {
-  display: none;
-  align-items: center; gap: 4px;
-  margin-top: 3px;
-}
-#tab-quote-make tr:hover .row-ins-bar,
-#tab-quote-make tr:focus-within .row-ins-bar {
-  display: flex;
-}
-#tab-quote-make .row-rem-txt {
-  height: 22px; width: 130px; box-sizing: border-box;
-  padding: 0 6px; border: 1px solid #c8bfb0;
-  border-radius: 4px; background: #fff; font-size: 11px;
-  color: #3d2e1e;
-}
-#tab-quote-make .row-rem-txt:focus {
-  outline: none; border-color: #8b6914; background: #fffcf5;
-}
-#tab-quote-make .row-rem-txt::placeholder { color: #b0a090; }
+/* ========== w-note-row 内の行挿入ボタン ========== */
+/* ボタンはホバー/フォーカス時のみ表示（通常は非表示でノート欄を広く使う） */
 #tab-quote-make .btn-row-rem,
 #tab-quote-make .btn-row-int {
-  height: 22px; padding: 0 6px;
-  font-size: 11px; font-weight: 600; white-space: nowrap;
+  display: none;
+  height: 22px; padding: 0 5px;
+  font-size: 12px; white-space: nowrap;
   border: 1px solid #c8bfb0; border-radius: 4px;
   background: #f7f4ee; color: #5c4a2a; cursor: pointer;
-  line-height: 1;
+  flex-shrink: 0; line-height: 1;
 }
+#tab-quote-make tr:hover .btn-row-rem,
+#tab-quote-make tr:hover .btn-row-int,
+#tab-quote-make tr:focus-within .btn-row-rem,
+#tab-quote-make tr:focus-within .btn-row-int { display: inline-flex; align-items: center; }
 #tab-quote-make .btn-row-rem:hover { background: #e8f5e0; border-color: #7aaf40; }
 #tab-quote-make .btn-row-int:hover { background: #f0ecff; border-color: #8070c0; }
 
