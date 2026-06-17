@@ -1056,10 +1056,12 @@
   async function cloudSaveCurrent() {
     const c = _getClient();
     if (!c || !_cloudUser) { quoteShowToast('⚠️ 先に Google でログインしてください', 'warn'); return; }
-    // 保存名は管理番号(＋顧客名・担当者)から自動生成（ローカル一時保存と同じ _buildDefaultPresetName）
-    const name = (typeof _buildDefaultPresetName === 'function')
-      ? _buildDefaultPresetName()
-      : ('一時保存_' + new Date().toISOString().slice(0, 10).replace(/-/g, ''));
+    // 保存名：読込中の案件名を優先（コピー元と名前が被っても混同しない）。未ロードなら自動生成
+    const _loadedDisplayName = (document.getElementById('currentQuoteName')?.dataset.name || '').trim();
+    const name = _loadedDisplayName
+      || ((typeof _buildDefaultPresetName === 'function')
+          ? _buildDefaultPresetName()
+          : ('一時保存_' + new Date().toISOString().slice(0, 10).replace(/-/g, '')));
 
     const data = gatherAllData();
     const subcons = _extractSubcons(data);
@@ -1085,14 +1087,18 @@
       } catch(e) {}
     }
 
-    // 同名チェック → 上書き or 新規
-    const { data: existing, error: selErr } = await c
-      .from(_table()).select('id').eq('name', name).limit(1);
-    if (selErr) { quoteShowToast('⚠️ 確認に失敗：' + selErr.message, 'warn', 5000); return; }
+    // ロード済みIDがある場合はID直接更新（コピー元と名前が被っても安全）。なければ同名チェック
+    let existingId = _loadedCloudId || null;
+    if (!existingId) {
+      const { data: byName, error: selErr } = await c
+        .from(_table()).select('id').eq('name', name).limit(1);
+      if (selErr) { quoteShowToast('⚠️ 確認に失敗：' + selErr.message, 'warn', 5000); return; }
+      if (byName && byName.length) existingId = byName[0].id;
+    }
 
     let resp;
-    if (existing && existing.length) {
-      const exId = existing[0].id;
+    if (existingId) {
+      const exId = existingId;
       // フェーズ1：競合検知 — 自分がロードした後に他者が更新していないか
       let confirmed = false;
       if (exId === _loadedCloudId && _loadedCloudTs) {
@@ -1107,7 +1113,8 @@
           confirmed = true;   // 競合確認＝上書き合意とみなす
         }
       }
-      if (!confirmed && !confirm('共有プリセット「' + name + '」が既にあります。上書きしますか？')) return;
+      // ロードしていない同名レコード（既存別案件）を上書きする場合のみ確認
+      if (!confirmed && exId !== _loadedCloudId && !confirm('共有プリセット「' + name + '」が既にあります。上書きしますか？')) return;
       const nowIso = new Date().toISOString();
       // 上書き時は作成者は維持（ステータスはフォームの qf-status 値で更新）
       resp = await c.from(_table())
@@ -1137,7 +1144,7 @@
     if (resp.error) { quoteShowToast('⚠️ 保存に失敗：' + resp.error.message, 'warn', 5000); return; }
 
     // 保存＝作業終了：ロックと Presence（作業中）を解放し、閲覧モードへ移行
-    const savedId = (existing && existing.length) ? existing[0].id : (resp.data && resp.data.id);
+    const savedId = existingId || (resp.data && resp.data.id);
     if (savedId) { _loadedCloudId = savedId; }
     _exitShareEditing();          // Presence untrack + ロック解放
     _applyShareMode('view');      // 閲覧モードへ（他メンバーが編集可能に）
