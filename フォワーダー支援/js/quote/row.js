@@ -718,7 +718,10 @@
       tbody.appendChild(tr);
     }
     initSubtotalDrag(tr);
-    if (!opts?.noFocus) tr.querySelector('.remark-row-input')?.focus();
+    const inp = tr.querySelector('.remark-row-input');
+    if (opts?.text) inp.value = opts.text;
+    // テキスト付き挿入（ツールバー入力欄から）はフォーカスしない（入力欄に戻るため）
+    if (!opts?.noFocus && !opts?.text) inp?.focus();
   }
 
   function removeRemarkRow(id) {
@@ -756,7 +759,9 @@
       tbody.appendChild(tr);
     }
     initSubtotalDrag(tr);
-    if (!opts?.noFocus) tr.querySelector('.internal-row-input')?.focus();
+    const inpI = tr.querySelector('.internal-row-input');
+    if (opts?.text) inpI.value = opts.text;
+    if (!opts?.noFocus && !opts?.text) inpI?.focus();
   }
 
   // リマーク行：見積書に表示 ⇔ 社内メモ（見積書・PDF・メールに出力しない）の切替
@@ -880,8 +885,21 @@
     if (nm) nm.focus();
   }
   function toolbarInsertSubtotal() { insertSubtotalRow(_toolbarInsertAfterId()); }
-  function toolbarInsertRemark()   { insertRemarkRow(_toolbarInsertAfterId()); }
-  function toolbarInsertInternal() { insertInternalRow(_toolbarInsertAfterId()); }
+  function toolbarInsertRemark() {
+    const bar = document.getElementById('remarkInputBar');
+    const text = bar ? bar.value.trim() : '';
+    insertRemarkRow(_toolbarInsertAfterId(), text ? { text } : undefined);
+    if (text && bar) { bar.value = ''; bar.focus(); }
+    if (typeof updateTotals === 'function') updateTotals();
+    if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
+  }
+  function toolbarInsertInternal() {
+    const bar = document.getElementById('remarkInputBar');
+    const text = bar ? bar.value.trim() : '';
+    insertInternalRow(_toolbarInsertAfterId(), text ? { text } : undefined);
+    if (text && bar) { bar.value = ''; bar.focus(); }
+    if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
+  }
 
   // 未入力行（row-unfilled）を一括削除
   function deleteEmptyRows() {

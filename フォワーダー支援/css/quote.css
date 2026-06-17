@@ -2334,6 +2334,27 @@
   color: #4a6035;
 }
 #tab-quote-make .z2-route-leg { color: #6b5a42; }
+/* 幹線輸送 トグルボタン（✓/—） */
+#tab-quote-make .z2-route-toggle {
+  width: 17px; height: 17px; flex-shrink: 0;
+  border: 1.5px solid #6a9c45; border-radius: 3px;
+  background: #6a9c45; color: #fff;
+  font-size: 10px; font-weight: 700; line-height: 1;
+  cursor: pointer; padding: 0;
+  display: inline-flex; align-items: center; justify-content: center;
+}
+#tab-quote-make .z2-route-chip--off .z2-route-toggle {
+  background: #b0a090; border-color: #b0a090;
+}
+/* 無効チップ */
+#tab-quote-make .z2-route-chip--off {
+  opacity: 0.55;
+  background: #f0ede8; border-color: #c8c0b4;
+}
+#tab-quote-make .z2-route-chip--off .z2-route-carrier,
+#tab-quote-make .z2-route-chip--off .z2-route-leg {
+  text-decoration: line-through; color: #999;
+}
 #tab-quote-make .carrier-links-panel {
   display: flex; flex-wrap: wrap; align-items: center;
   gap: 6px; padding: 6px 4px 4px; margin-top: 2px;
@@ -4431,6 +4452,7 @@ body.qp-dash-active #quoteActionDock { display: none !important; }
 #tab-quote-make .btn-preset-preview {
   background: #e8f0fe; color: #1a56db; border: 1px solid #bfcfe8;
   border-radius: 4px; font-size: 11px; font-weight: 600; cursor: pointer; padding: 2px 8px;
+  white-space: nowrap;
 }
 #tab-quote-make .btn-preset-preview:hover { background: #c7d9fc; }
 /* ---- クラウドプリセット 簡易プレビューモーダル ---- */
@@ -4852,9 +4874,11 @@ body.qp-dash-active #quoteActionDock { display: none !important; }
 #tab-quote-make .cloud-sc-name { font-size: 11.5px; color: #2c3e4a; }
 #tab-quote-make .cloud-sc-more { font-size: 10.5px; font-weight: 700; color: #5a6e7a; background: #eef1f3;
   border-radius: 4px; padding: 1px 6px; }
+/* カード幅が狭いときでもボタン群が潰れないよう flex-wrap + flex-shrink:0 で保護 */
 #tab-quote-make .cloud-card-foot { display: flex; align-items: center; justify-content: space-between;
-  gap: 8px; margin-top: 8px; padding-top: 6px; border-top: 1px dashed #e8e0d4; }
-#tab-quote-make .cloud-card-acts { display: flex; gap: 5px; }
+  flex-wrap: wrap; gap: 6px; margin-top: 8px; padding-top: 6px; border-top: 1px dashed #e8e0d4; }
+#tab-quote-make .cloud-card-acts { display: flex; gap: 5px; flex-shrink: 0; flex-wrap: nowrap; }
+#tab-quote-make .cloud-card-who  { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 /* === ブラウザ保存 リッチカード（茶系・チーム共有と同じ情報量／色で区別） === */
 #tab-quote-make .preset-item-rich { padding: 10px 12px; }
@@ -4886,8 +4910,9 @@ body.qp-dash-active #quoteActionDock { display: none !important; }
 #tab-quote-make .preset-sc-more { font-size: 10.5px; font-weight: 700; color: #7d6b56; background: #f0ebe1;
   border-radius: 4px; padding: 1px 6px; }
 #tab-quote-make .preset-rich-foot { display: flex; align-items: center; justify-content: space-between;
-  gap: 8px; margin-top: 8px; padding-top: 6px; border-top: 1px dashed #e8e0d4; }
-#tab-quote-make .preset-rich-acts { display: flex; gap: 5px; }
+  flex-wrap: wrap; gap: 6px; margin-top: 8px; padding-top: 6px; border-top: 1px dashed #e8e0d4; }
+#tab-quote-make .preset-rich-acts { display: flex; gap: 5px; flex-shrink: 0; flex-wrap: nowrap; }
+#tab-quote-make .preset-list-ts   { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 /* ブラウザ保存モード：左列を主役化（クラウド列は display:none 済み）。
    箱は内容高さに合わせ、下部の余白を解消。リッチカードが入る幅を確保。 */
@@ -5663,6 +5688,23 @@ body.qp-dash-active #quoteActionDock { display: none !important; }
   margin: 0 1px 0 4px; font-size: 10.5px; color: #7d6b56;
 }
 #tab-quote-make .cmdbar-main .btn-group-label:first-child { margin-left: 0; }
+
+/* 備考テキスト入力欄（ツールバー） */
+#tab-quote-make .remark-input-bar {
+  height: 28px; width: 160px; box-sizing: border-box;
+  padding: 0 8px; border: 1px solid #c8bfb0;
+  border-radius: 4px; background: #fff; font-size: 12px;
+  color: #3d2e1e;
+}
+#tab-quote-make .remark-input-bar:focus {
+  outline: none; border-color: #8b6914; background: #fffcf5;
+}
+#tab-quote-make .remark-input-bar::placeholder { color: #b0a090; }
+/* 備考行・社内メモ ラベル付きボタン */
+#tab-quote-make .cmdbar-text-btn {
+  width: auto !important; padding: 0 9px !important;
+  font-size: 12px !important; font-weight: 600; letter-spacing: 0;
+}
 
 /* Tabで行追加 トグル（メニューバーへ統合） */
 #tab-quote-make .cmdbar-tabadd {

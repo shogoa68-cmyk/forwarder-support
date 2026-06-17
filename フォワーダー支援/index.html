@@ -3199,8 +3199,12 @@
               <span class="btn-group-label">行追加</span>
               <button class="btn-ins-row cmdbar-icon-btn" onclick="toolbarInsertRow()" title="費用行を追加（明細）">＋</button>
               <button class="btn-ins-sub cmdbar-icon-btn" onclick="toolbarInsertSubtotal()" title="小計行を追加">＝</button>
-              <button class="btn-ins-rem cmdbar-icon-btn" onclick="toolbarInsertRemark()" title="リマーク（注記）行を追加">💬</button>
-              <button class="btn-ins-int cmdbar-icon-btn" onclick="toolbarInsertInternal()" title="社内メモ行を追加（出力対象外）">🔒</button>
+              <input type="text" id="remarkInputBar" class="remark-input-bar"
+                     placeholder="備考テキスト（省略可）"
+                     title="備考・社内メモのテキストを入力してから右のボタンで行追加。空のままでも追加可（行内で直接入力）"
+                     onkeydown="if(event.key==='Enter'){toolbarInsertRemark();event.preventDefault();}" />
+              <button class="btn-ins-rem cmdbar-text-btn" onclick="toolbarInsertRemark()" title="リマーク（注記）行を追加">💬 備考行</button>
+              <button class="btn-ins-int cmdbar-text-btn" onclick="toolbarInsertInternal()" title="社内メモ行を追加（出力対象外）">🔒 社内メモ</button>
               <span class="btn-group-label">挿入位置</span>
               <select id="rowInsertPos" class="row-insert-pos" title="追加ボタンの挿入位置">
                 <option value="end">末尾に追加</option>
@@ -3610,11 +3614,11 @@
       <td class="name-cell">
         <input type="text" data-field="nm" class="w-name" placeholder="例）海上運賃" data-col="1" list="nmSuggestions" />
         <input type="text" data-field="nt" class="w-note" placeholder="備考（任意）" data-col="6" />
-        <div class="w-valid" title="サーチャージの有効期限（通常はひと月。例：6/1〜6/30）">
+        <div class="w-valid" title="有効期限。開始日のみ入力も可（例：7/1〜 → 7/1 のみ）。終了日のみも可。">
           <span class="w-valid-lbl">有効</span>
-          <input type="date" data-field="vf" class="w-valid-date" title="有効期限（開始）" />
+          <input type="date" data-field="vf" class="w-valid-date" title="適用開始日（終了日なしでも保存・表示されます）" />
           <span class="w-valid-sep">〜</span>
-          <input type="date" data-field="vt" class="w-valid-date" title="有効期限（終了）" />
+          <input type="date" data-field="vt" class="w-valid-date" title="適用終了日（省略可）" />
         </div>
       </td>
       <td class="qty-cell">

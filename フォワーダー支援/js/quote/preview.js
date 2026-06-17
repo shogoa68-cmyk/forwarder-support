@@ -378,7 +378,7 @@
     if (!vf && !vt) return '';
     const fmt = d => d ? d.replace(/-/g, '/') : '';
     const range = (vf && vt) ? fmt(vf) + '〜' + fmt(vt)
-                : vf          ? fmt(vf) + '〜'
+                : vf          ? fmt(vf)          // 開始日のみ：末尾「〜」なし
                 :               '〜' + fmt(vt);
     return ` <span class="pv-validity">${escHtml(range)}</span>`;
   }
