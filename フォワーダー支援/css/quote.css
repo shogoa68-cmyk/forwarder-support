@@ -5706,6 +5706,37 @@ body.qp-dash-active #quoteActionDock { display: none !important; }
   font-size: 12px !important; font-weight: 600; letter-spacing: 0;
 }
 
+/* ========== 行直下 備考挿入バー ========== */
+#tab-quote-make .row-ins-bar {
+  display: none;
+  align-items: center; gap: 4px;
+  margin-top: 3px;
+}
+#tab-quote-make tr:hover .row-ins-bar,
+#tab-quote-make tr:focus-within .row-ins-bar {
+  display: flex;
+}
+#tab-quote-make .row-rem-txt {
+  height: 22px; width: 130px; box-sizing: border-box;
+  padding: 0 6px; border: 1px solid #c8bfb0;
+  border-radius: 4px; background: #fff; font-size: 11px;
+  color: #3d2e1e;
+}
+#tab-quote-make .row-rem-txt:focus {
+  outline: none; border-color: #8b6914; background: #fffcf5;
+}
+#tab-quote-make .row-rem-txt::placeholder { color: #b0a090; }
+#tab-quote-make .btn-row-rem,
+#tab-quote-make .btn-row-int {
+  height: 22px; padding: 0 6px;
+  font-size: 11px; font-weight: 600; white-space: nowrap;
+  border: 1px solid #c8bfb0; border-radius: 4px;
+  background: #f7f4ee; color: #5c4a2a; cursor: pointer;
+  line-height: 1;
+}
+#tab-quote-make .btn-row-rem:hover { background: #e8f5e0; border-color: #7aaf40; }
+#tab-quote-make .btn-row-int:hover { background: #f0ecff; border-color: #8070c0; }
+
 /* Tabで行追加 トグル（メニューバーへ統合） */
 #tab-quote-make .cmdbar-tabadd {
   display: inline-flex; align-items: center; gap: 5px;
