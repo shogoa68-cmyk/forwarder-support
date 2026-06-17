@@ -263,7 +263,12 @@
     const upd = e => e.updated_at || '';
     const who = e => _nameFor(e.owner_email) || '';
     const r = rows.slice();
-    if (s === 'status')        r.sort((a, b) => (_STATUS_ORDER[a.status] ?? 9) - (_STATUS_ORDER[b.status] ?? 9) || upd(b).localeCompare(upd(a)));
+    if (s === 'due') {
+      const dueOf = e => { const mm = (window.quotePresetMeta && e.data) ? window.quotePresetMeta({ data: e.data }) : null; return (mm && mm.due) || '9999-12-31'; };
+      r.forEach(e => { e.__due = dueOf(e); });
+      r.sort((a, b) => a.__due.localeCompare(b.__due) || upd(b).localeCompare(upd(a)));   // 期限が近い順（未設定は最後）
+    }
+    else if (s === 'status')   r.sort((a, b) => (_STATUS_ORDER[a.status] ?? 9) - (_STATUS_ORDER[b.status] ?? 9) || upd(b).localeCompare(upd(a)));
     else if (s === 'who')      r.sort((a, b) => who(a).localeCompare(who(b), 'ja') || upd(b).localeCompare(upd(a)));
     else if (s === 'person')   r.sort((a, b) => (a.person   || '').localeCompare(b.person   || '', 'ja') || upd(b).localeCompare(upd(a)));
     else if (s === 'customer') r.sort((a, b) => (a.customer || '').localeCompare(b.customer || '', 'ja') || upd(b).localeCompare(upd(a)));
@@ -348,6 +353,27 @@
     return { '下書き中':'draft', '提出済み':'sent', '提示済み':'sent', '受注':'won', '失注':'lost', '辞退':'declined', '保留':'hold' }[st] || 'draft';
   }
 
+  // 依頼受信日・提出期限から経過日／残り日数バッジを生成（ダッシュボード優先度表示）
+  function _todayStart() { var n = new Date(); return new Date(n.getFullYear(), n.getMonth(), n.getDate()).getTime(); }
+  function _dueBadge(dueStr) {
+    if (!dueStr) return '';
+    var d = new Date(dueStr); if (isNaN(d.getTime())) return '';
+    var days = Math.round((d.getTime() - _todayStart()) / 86400000);
+    var lvl, txt;
+    if (days < 0)       { lvl = 'over';  txt = '締切超過 ' + (-days) + '日'; }
+    else if (days === 0){ lvl = 'today'; txt = '締切 本日'; }
+    else if (days <= 2) { lvl = 'soon';  txt = '締切まで ' + days + '日'; }
+    else                { lvl = 'ok';    txt = '締切まで ' + days + '日'; }
+    return '<span class="cloud-due cloud-due--' + lvl + '" title="提出期限：' + escHtml(dueStr) + '">⏰ ' + txt + '</span>';
+  }
+  function _receivedBadge(recvStr) {
+    if (!recvStr) return '';
+    var d = new Date(recvStr); if (isNaN(d.getTime())) return '';
+    var days = Math.floor((_todayStart() - d.getTime()) / 86400000);
+    if (days < 0) return '';
+    return '<span class="cloud-recv" title="依頼受信日：' + escHtml(recvStr) + '">📥 受信から ' + days + '日</span>';
+  }
+
   // 役割ラベル＝費用行のカテゴリ（CATEGORIES の value → 短縮ラベル）
   const _SUBCON_ROLE = {
     'domestic':'国内作業', 'export-local':'輸出ローカル', 'ocean':'海上', 'air':'航空',
@@ -421,6 +447,9 @@
       const custDd = [customer && escHtml(customer), personH && escHtml(personH)].filter(Boolean).join('・');
       const titleText = (m && m.ref) ? m.ref : r.name;   // 見出しは仮REF#のみ（顧客/担当は下に別掲）
       const memoLine  = (m && m.memo) ? m.memo : '';
+      const dueBadge  = _dueBadge(m && m.due);
+      const recvBadge = _receivedBadge(m && m.received);
+      const prioRow   = (dueBadge || recvBadge) ? '<div class="cloud-card-prio">' + dueBadge + recvBadge + '</div>' : '';
 
       // サブコン（役割ラベル付き・5件目以降は +N）
       const subShown = subcons.slice(0, 4);
@@ -459,6 +488,7 @@
             statusBadge +
             '<span class="cloud-card-name" title="' + escHtml(r.name) + '">' + escHtml(titleText) + '</span>' +
           '</div>' +
+          prioRow +
           (memoLine ? '<div class="cloud-card-memo" title="' + escHtml(memoLine) + '">' + escHtml(memoLine) + '</div>' : '') +
           editBadge +
           progressHtml +
@@ -758,6 +788,7 @@
     }
     _setEditing(_loadedCloudId);     // Presence：あなたが作業中
     _applyShareMode('edit');
+    _resetQuoteDirty();              // 編集開始直後は未保存なし
     quoteShowToast('✏️ 編集を開始しました（あなたが作業中・他メンバーは削除/上書き不可）', 'success', 3500);
   }
 
@@ -788,6 +819,7 @@
     _loadedCloudId = null; _loadedCloudTs = null;
     if (typeof setCurrentQuoteName === 'function') setCurrentQuoteName('');
     _applyShareMode('edit');
+    _resetQuoteDirty();
     quoteShowToast('🧹 入力をクリアしました', 'info');
   }
   // 作業中状態の解除（Presence untrack 相当 + ロック解放）
@@ -810,6 +842,17 @@
   }
 
   // ========== ページ切替（ダッシュボード／エディタ） ==========
+  // 未保存検知：編集モード中のユーザー入力で dirty=true、保存/読込/新規でクリア
+  var _quoteDirty = false;
+  function _markQuoteDirty() { if (_shareMode === 'edit') _quoteDirty = true; }
+  function _resetQuoteDirty() { setTimeout(function () { _quoteDirty = false; }, 0); }
+  // 「ダッシュボードに戻る」：未保存があれば確認
+  function qpBackToDashboard() {
+    if (_quoteDirty && _shareMode === 'edit') {
+      if (!confirm('⚠️ 保存していない変更があります。\nダッシュボードに戻りますか？\n\n（保存する場合はキャンセルして「💾 保存」を押してください。未保存のまま別の案件を開くと失われます）')) return;
+    }
+    qpShowDashboard();
+  }
   function qpShowDashboard() {
     document.getElementById('tab-quote-make')?.classList.add('qp-dash');
     document.body.classList.add('qp-dash-active');
@@ -835,6 +878,8 @@
     if (typeof setCurrentQuoteName === 'function') setCurrentQuoteName('');
     _applyShareMode('edit');
     qpShowEditor();
+    qfRenderAttachments();
+    _resetQuoteDirty();
     quoteShowToast('🆕 新規見積を作成します', 'success', 2500);
   }
 
@@ -866,6 +911,103 @@
     if (c) c.classList.toggle('is-active', _cloudView === 'card');
     if (l) l.classList.toggle('is-active', _cloudView === 'list');
     _applyCloudFilter();
+  }
+
+  // ========== 添付ファイル：管理番号入力セクションの📎フィールド ==========
+  // 既存の添付テーブル(quote_attachments: storage_path/file_name/file_size/mime_type)と
+  // バケット(_ATTACH_BUCKET)・画像圧縮(_compressImage)を共用する。
+  var ATT_TTL_DAYS = 14;      // 14日で自動削除（実削除は pg_cron）。UIは残日数を表示
+  var ATT_QUOTA_MB = 1024;    // ストレージ目安（無料枠1GB。プランに応じて調整）
+  async function qfAttachUpload(files) {
+    files = Array.prototype.slice.call(files || []);
+    if (!files.length) return;
+    var c = _getClient();
+    if (!c || !_cloudUser) { quoteShowToast('⚠️ 添付にはログインが必要です', 'warn', 4000); return; }
+    if (!_loadedCloudId)   { quoteShowToast('⚠️ 先に案件を保存してから添付してください（💾 保存）', 'warn', 5500); return; }
+    var id = _loadedCloudId, okN = 0;
+    for (var i = 0; i < files.length; i++) {
+      var file = files[i];
+      if (file.size > 25 * 1024 * 1024) { quoteShowToast('⚠️ ' + file.name + ' は25MB超のため添付不可', 'warn', 5000); continue; }
+      var src = await _compressImage(file);   // 画像は圧縮、その他はそのまま
+      // Storage キーは ASCII 安全のみ（日本語/全角は Invalid key）。表示名は file_name に原文保持
+      var nm = src.name || 'file';
+      var dot = nm.lastIndexOf('.');
+      var ext = dot >= 0 ? nm.slice(dot).replace(/[^A-Za-z0-9.]/g, '') : '';
+      var base = (dot >= 0 ? nm.slice(0, dot) : nm).replace(/[^A-Za-z0-9._-]+/g, '_').replace(/_{2,}/g, '_').replace(/^_+|_+$/g, '').slice(0, 40) || 'file';
+      var path = id + '/' + Date.now() + '_' + Math.random().toString(36).slice(2, 8) + '_' + base + ext;
+      var up = await c.storage.from(_ATTACH_BUCKET()).upload(path, src, { contentType: src.type || undefined, upsert: false });
+      if (up.error) { quoteShowToast('⚠️ アップロード失敗：' + up.error.message, 'warn', 6000); continue; }
+      var ins = await c.from('quote_attachments').insert({ preset_id: id, storage_path: path, file_name: file.name, file_size: src.size, mime_type: src.type || null, uploaded_by: _cloudUser.email });
+      if (ins.error) { quoteShowToast('⚠️ 記録失敗：' + ins.error.message, 'warn', 6000); try { await c.storage.from(_ATTACH_BUCKET()).remove([path]); } catch (e) {} continue; }
+      okN++;
+    }
+    if (okN) quoteShowToast('📎 ' + okN + ' 件を添付しました', 'success', 2500);
+    qfRenderAttachments();
+  }
+  async function qfRenderAttachments() {
+    var wrap = document.getElementById('qfAttachList');
+    if (!wrap) return;
+    var c = _getClient();
+    if (!c || !_cloudUser) { wrap.innerHTML = '<div class="qf-attach-empty">ログインすると添付の保存・閲覧ができます</div>'; return; }
+    if (!_loadedCloudId)   { wrap.innerHTML = '<div class="qf-attach-empty">案件を保存すると添付できます（💾 保存）</div>'; return; }
+    var res = await c.from('quote_attachments').select('id,file_name,file_size,mime_type,storage_path,uploaded_by,created_at').eq('preset_id', _loadedCloudId).order('created_at', { ascending: false });
+    if (res.error) { wrap.innerHTML = '<div class="qf-attach-empty">⚠️ 取得失敗：' + escHtml(res.error.message) + '</div>'; return; }
+    var now = Date.now();
+    var data = (res.data || []).filter(function (a) {
+      return !a.created_at || (now - new Date(a.created_at).getTime()) < ATT_TTL_DAYS * 86400000;
+    });
+    qfRenderStorageMeter();
+    if (!data.length) { wrap.innerHTML = '<div class="qf-attach-empty">添付はまだありません</div>'; return; }
+    wrap.innerHTML = data.map(function (a) {
+      var who = _nameFor(a.uploaded_by);
+      var ts = a.created_at ? new Date(a.created_at).toLocaleDateString('ja-JP', { month: '2-digit', day: '2-digit' }) : '';
+      var sz = a.file_size ? (a.file_size > 1048576 ? (a.file_size / 1048576).toFixed(1) + 'MB' : Math.max(1, Math.round(a.file_size / 1024)) + 'KB') : '';
+      var icon = /pdf/i.test(a.mime_type || '') ? '📄' : (/image/i.test(a.mime_type || '') ? '🖼️' : '📎');
+      var left = a.created_at ? Math.max(0, Math.ceil(ATT_TTL_DAYS - (now - new Date(a.created_at).getTime()) / 86400000)) : ATT_TTL_DAYS;
+      var dayCls = left <= 3 ? ' is-soon' : '';
+      return '<div class="qf-attach-item">' +
+        '<button type="button" class="qf-att-open" onclick="qfAttachOpen(\'' + encodeURIComponent(a.storage_path) + '\')" title="開く／ダウンロード">' + icon + ' ' + escHtml(a.file_name) + '</button>' +
+        '<span class="qf-att-meta">' + (sz ? sz + ' · ' : '') + escHtml(who) + ' · ' + ts + '</span>' +
+        '<span class="qf-att-ttl' + dayCls + '" title="アップロードから14日で自動削除">あと' + left + '日</span>' +
+        '<button type="button" class="qf-att-del" onclick="qfAttachDelete(\'' + a.id + '\',\'' + encodeURIComponent(a.storage_path) + '\')" title="削除">✕</button>' +
+      '</div>';
+    }).join('');
+  }
+  // ストレージ残量インジケーター（チーム全体の添付合計 ÷ 目安容量）
+  async function qfRenderStorageMeter() {
+    var box = document.getElementById('qfAttachMeter');
+    if (!box) return;
+    var c = _getClient();
+    if (!c || !_cloudUser) { box.innerHTML = ''; return; }
+    var now = Date.now();
+    var res = await c.from('quote_attachments').select('file_size,created_at');
+    if (res.error) { box.innerHTML = ''; return; }
+    var usedBytes = (res.data || []).reduce(function (s, a) {
+      if (a.created_at && (now - new Date(a.created_at).getTime()) >= ATT_TTL_DAYS * 86400000) return s;  // 期限切れは除外
+      return s + (a.file_size || 0);
+    }, 0);
+    var usedMb = usedBytes / 1048576;
+    var pct = Math.min(100, Math.round(usedMb / ATT_QUOTA_MB * 1000) / 10);
+    var lvl = pct >= 90 ? ' is-full' : (pct >= 70 ? ' is-warn' : '');
+    box.innerHTML =
+      '<div class="qf-meter-row"><span>📦 ストレージ</span>' +
+        '<span class="qf-meter-num">' + (usedMb < 10 ? usedMb.toFixed(1) : Math.round(usedMb)) + ' / ' + ATT_QUOTA_MB + ' MB（' + pct + '%）</span></div>' +
+      '<div class="qf-meter-bar"><div class="qf-meter-fill' + lvl + '" style="width:' + pct + '%"></div></div>';
+  }
+  async function qfAttachOpen(rawPath) {
+    var c = _getClient(); if (!c) return;
+    var res = await c.storage.from(_ATTACH_BUCKET()).createSignedUrl(decodeURIComponent(rawPath), 120);
+    if (res.error || !res.data) { quoteShowToast('⚠️ リンク作成に失敗しました', 'warn'); return; }
+    window.open(res.data.signedUrl, '_blank', 'noopener');
+  }
+  async function qfAttachDelete(attId, rawPath) {
+    if (!confirm('この添付ファイルを削除しますか？（チーム全員から消えます）')) return;
+    var c = _getClient(); if (!c) return;
+    var del = await c.from('quote_attachments').delete().eq('id', attId);
+    if (del.error) { quoteShowToast('⚠️ 削除に失敗：' + del.error.message, 'warn', 6000); return; }
+    try { await c.storage.from(_ATTACH_BUCKET()).remove([decodeURIComponent(rawPath)]); } catch (e) {}
+    quoteShowToast('🗑️ 添付を削除しました', 'info', 2200);
+    qfRenderAttachments();
   }
 
   // 検索ボックス入力
@@ -999,6 +1141,8 @@
     if (savedId) { _loadedCloudId = savedId; }
     _exitShareEditing();          // Presence untrack + ロック解放
     _applyShareMode('view');      // 閲覧モードへ（他メンバーが編集可能に）
+    qfRenderAttachments();        // 保存後は添付フィールドが使える（preset_id 確定）
+    _resetQuoteDirty();           // 保存済み＝未保存なし
 
     quoteShowToast('💾 「' + name + '」を保存して作業終了しました', 'success', 3500);
     cloudListPresets();
@@ -1320,6 +1464,8 @@
     if (typeof closePresetMgr === 'function') closePresetMgr();
     _applyShareMode('view');   // 読み取り専用。編集するには「✏️ 編集」
     qpShowEditor();            // ダッシュボードからエディタ画面へ
+    qfRenderAttachments();     // この案件の添付一覧を表示
+    _resetQuoteDirty();        // 読込直後は未保存なし
     const lk = _cloudRows.find(r => r.id === id);
     const by = lk ? _lockedByOther(lk) : null;
     if (by) {
@@ -1440,6 +1586,9 @@
     _surfaceOAuthError();
     // 初期モード（新規＝編集可）。ボタン状態を整える
     _applyShareMode('edit');
+    // 未保存検知：編集中のユーザー入力で dirty フラグを立てる
+    var _qtab = document.getElementById('tab-quote-make');
+    if (_qtab) { _qtab.addEventListener('input', _markQuoteDirty); _qtab.addEventListener('change', _markQuoteDirty); }
     // タブを閉じる/離れる時はロックを即時解放（best-effort。失敗しても90秒で自動失効）
     window.addEventListener('pagehide', () => { if (_lockHeldId) _dropLock(); });
     window.addEventListener('beforeunload', () => { if (_lockHeldId) _dropLock(); });
@@ -1903,6 +2052,7 @@
   window.quoteModeClear    = quoteModeClear;
   // ページ切替（ダッシュボード／エディタ）
   window.qpShowDashboard   = qpShowDashboard;
+  window.qpBackToDashboard = qpBackToDashboard;
   window.qpShowEditor      = qpShowEditor;
   window.qpNewQuote        = qpNewQuote;
   window.qpDockAction      = qpDockAction;
@@ -1913,6 +2063,11 @@
   window.qpdClearSearch = qpdClearSearch;
   window.qpdSetSort     = qpdSetSort;
   window.qpdSetView     = qpdSetView;
+  // 添付ファイル
+  window.qfAttachUpload     = qfAttachUpload;
+  window.qfAttachOpen       = qfAttachOpen;
+  window.qfAttachDelete     = qfAttachDelete;
+  window.qfRenderAttachments = qfRenderAttachments;
 
   // ---------- 他モジュール（行パターン等）からのログイン情報参照用 ----------
   window.quoteCloudUser   = function () { return _cloudUser; };

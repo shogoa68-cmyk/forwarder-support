@@ -43,6 +43,15 @@
   // プリセットカード（ブラウザ保存／チーム共有）でも敬称表示に使うため公開
   window.formatPersonWithHonorific = formatPersonWithHonorific;
 
+  // プレビュー上の発行日／有効期限編集 → フォーム(qf-date / qf-valid-until)へ同期
+  window.pvSyncDate = function (which, val) {
+    var id = which === 'valid' ? 'qf-valid-until' : 'qf-date';
+    var el = document.getElementById(id);
+    if (!el) return;
+    el.value = val;
+    el.dispatchEvent(new Event('change', { bubbles: true }));   // 自動保存・有効期限警告などを発火
+  };
+
   /**
    * ファイル名生成: REF_引き合い元_担当.<ext>
    * 入力がある項目だけ使用。すべて空なら "見積もり_YYYYMMDD"
@@ -381,6 +390,8 @@
       hdr.ref      ? `<div class="pv-meta-item"><span class="lbl">見積もり番号</span><span class="val">${escHtml(hdr.ref)}</span></div>` : '',
       hdr.customer ? `<div class="pv-meta-item"><span class="lbl">お客様</span><span class="val">${escHtml(hdr.customer)}</span></div>` : '',
       hdr.person   ? `<div class="pv-meta-item"><span class="lbl">担当</span><span class="val">${escHtml(formatPersonWithHonorific(hdr.person))}</span></div>` : '',
+      `<div class="pv-meta-item pv-meta-edit"><span class="lbl">発行日</span><input type="date" class="pv-meta-date" value="${escHtml(hdr.date)}" onchange="pvSyncDate('date', this.value)" title="フォームの発行日と同期します" /></div>`,
+      `<div class="pv-meta-item pv-meta-edit"><span class="lbl">有効期限</span><input type="date" class="pv-meta-date" value="${escHtml(hdr.validUntil)}" onchange="pvSyncDate('valid', this.value)" title="フォームの有効期限と同期します" /></div>`,
     ].join('');
     metaEl.innerHTML = metaHTML;
     metaEl.style.display = metaHTML ? 'flex' : 'none';
@@ -397,11 +408,64 @@
       </tr></thead><tbody>`;
 
     let totSub = 0, totTax = 0, totJpy = 0, hasNonJpyBill = false, hasNonJpyCost = false;
-    allRows.forEach(d => {
+
+    // ===== サブコン別グループが有効（2+ サブコン）なら、グループ境界に小計セパレーターを挿入 =====
+    const _scKey = d => ((d.sv || '').trim() || '（サブコン未設定）');
+    const _scActive = (() => { const ks = new Set(data.map(_scKey)); return ks.size >= 2; })();
+    // 仕入合計・粗利率は内部指標。利益列が表示されているとき（＝社内モード）のみラベルに併記
+    const _scShowInternal = (typeof getPreviewVisibility === 'function') ? (getPreviewVisibility().profit !== false) : true;
+    const _seq = [];
+    if (_scActive) {
+      let ck = null, cc = 0, cb = 0, cm = false, has = false;
+      const toJ = (a, c) => (c && c !== 'JPY' && typeof toJPY === 'function') ? toJPY(a, c) : a;
+      const pushSub = () => { if (has) _seq.push({ _type: 'subcon-subtotal', label: ck, cost: cc, bill: cb, mixed: cm }); };
+      allRows.forEach(d => {
+        if (d._type === 'data') {
+          const k = _scKey(d);
+          if (has && k !== ck) { pushSub(); cc = 0; cb = 0; cm = false; has = false; }
+          ck = k;
+          cc += toJ(d.cost, d.pc || 'JPY');
+          cb += toJ(d.bill, d.bc || 'JPY');
+          if ((d.pc && d.pc !== 'JPY') || (d.bc && d.bc !== 'JPY')) cm = true;
+          has = true;
+        }
+        _seq.push(d);
+      });
+      pushSub();
+    } else {
+      _seq.push(...allRows);
+    }
+
+    _seq.forEach(d => {
       if (d._type === 'remark') {
         if (d.internal) return; // 社内メモは見積書プレビューに出力しない
         html += `<tr class="pv-table-remark-row">
           <td colspan="17" class="pv-remark-cell">💬 ${escHtml(d.text)}</td>
+        </tr>`;
+        return;
+      }
+      if (d._type === 'subcon-subtotal') {
+        const m = d.bill > 0 ? ((d.bill - d.cost) / d.bill * 100) : null;
+        const mark = d.mixed ? '※' : '';
+        const sellTxt = '¥' + fmtMoney(Math.round(d.bill)) + mark;
+        const costTxt = '¥' + fmtMoney(Math.round(d.cost)) + mark;
+        const prAmt   = Math.round(d.bill - d.cost);
+        const prCls   = prAmt > 0 ? 'pv-pos' : prAmt < 0 ? 'pv-neg' : 'pv-zero';
+        const marginTxt = m === null ? '—' : (m.toFixed(1) + '%');
+        const internalBits = _scShowInternal
+          ? `<span class="pv-scs-cost">仕入合計 ${costTxt}</span>` +
+            `<span class="pv-scs-margin${(m !== null && m < 0) ? ' pv-neg' : ''}">粗利率 ${marginTxt}</span>`
+          : '';
+        // 客先用表示名があれば置換（サブコン名を客先に出さない）
+        const _alias = (typeof getSubconAliases === 'function' ? getSubconAliases()[d.label] : '') || '';
+        const _dispLabel = _alias || d.label;
+        html += `<tr class="pv-subcon-subtotal">
+          <td colspan="12" class="pv-scs-label">↳ ${escHtml(_dispLabel)} 小計${internalBits}</td>
+          <td class="pv-num pv-subtotal">${sellTxt}</td>
+          <td data-ft-col="jpy-conv" class="pv-jpy"></td>
+          <td data-ft-col="tax-col"></td>
+          <td data-ft-col="profit" class="pv-num ${prCls}">¥${fmtMoney(prAmt)}</td>
+          <td data-ft-col="note"></td>
         </tr>`;
         return;
       }
@@ -713,7 +777,7 @@
       const show = chk.checked;
       // thead/tbody は nth-child で制御（1セル=1列のため位置が一致）
       indices.forEach(ci => {
-        table.querySelectorAll(`thead tr th:nth-child(${ci + 1}), tbody tr:not(.pv-subtotal-sep):not(.pv-table-remark-row) td:nth-child(${ci + 1})`).forEach(cell => {
+        table.querySelectorAll(`thead tr th:nth-child(${ci + 1}), tbody tr:not(.pv-subtotal-sep):not(.pv-subcon-subtotal):not(.pv-table-remark-row) td:nth-child(${ci + 1})`).forEach(cell => {
           cell.style.display = show ? '' : 'none';
         });
       });
@@ -722,6 +786,12 @@
       table.querySelectorAll(`tfoot td[data-ft-col="${chk.dataset.col}"], tbody td[data-ft-col="${chk.dataset.col}"]`).forEach(cell => {
         cell.style.display = show ? '' : 'none';
       });
+      // サブコン小計ラベル内の内部指標（仕入合計・粗利率）は利益列に連動して表示/非表示
+      if (chk.dataset.col === 'profit') {
+        table.querySelectorAll('.pv-scs-cost, .pv-scs-margin').forEach(el => {
+          el.style.display = show ? '' : 'none';
+        });
+      }
     });
 
     // セクション表示切り替え

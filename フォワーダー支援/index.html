@@ -2000,6 +2000,7 @@
             <label class="qpd-sort">並び替え
               <select id="qpdSort" onchange="qpdSetSort(this.value)">
                 <option value="updated">更新日（新しい順）</option>
+                <option value="due">提出期限（近い順）</option>
                 <option value="status">ステータス順</option>
                 <option value="who">作業者（最終更新者）</option>
                 <option value="person">担当者</option>
@@ -2118,7 +2119,7 @@
 
       <!-- 共有案件の作業モード：開く=閲覧／編集でロック取得（作業中）／保存=作業終了で解放→閲覧 -->
       <div class="qm-group" id="qmGroup">
-        <button type="button" class="save-btn qm-btn qm-dash"  id="qmDash"  onclick="qpShowDashboard()" title="ダッシュボード（案件一覧・統計）へ戻る">📊 ダッシュボードに戻る</button>
+        <button type="button" class="save-btn qm-btn qm-dash"  id="qmDash"  onclick="qpBackToDashboard()" title="ダッシュボード（案件一覧・統計）へ戻る">📊 ダッシュボードに戻る</button>
       </div>
       <span class="qm-banner" id="qmBanner" hidden></span>
       <span class="save-toolbar-sep"></span>
@@ -2472,6 +2473,14 @@
             <input type="text" id="qf-person" placeholder="例）山田　※氏名のみ。出力時に自動で「様」付与" title="姓のみ／フルネームのみで入力（会社名は含めない）。出力時に自動で「様」が付きます" aria-required="true" />
           </div>
           <div class="quote-field">
+            <label>📥 依頼受信日 <span class="qf-memo-note">引き合いを受けた日（経過日数を表示）</span></label>
+            <input type="date" id="qf-received" title="依頼を受信した日。ダッシュボードに経過日数を表示します" />
+          </div>
+          <div class="quote-field">
+            <label>⏰ 提出期限 <span class="qf-memo-note">回答の締切（残り日数で優先度表示）</span></label>
+            <input type="date" id="qf-due" title="見積提出の期限。ダッシュボードに残り日数を表示します" />
+          </div>
+          <div class="quote-field">
             <label>発行日</label>
             <input type="date" id="qf-date" title="見積書の発行日。出力・Excelに含まれます" />
           </div>
@@ -2498,6 +2507,18 @@
           <div class="quote-field quote-field-memo">
             <label>📝 メモ <span class="qf-memo-note">出力・プレビューには含まれません</span></label>
             <textarea id="qf-memo" rows="6" placeholder="担当者間の申し送り・注意事項など、案件内部メモを自由に記述できます。お客様向け出力には含まれません。"></textarea>
+          </div>
+          <div class="quote-field quote-field-attach">
+            <label>📎 添付ファイル <span class="qf-memo-note">この案件に保存・チーム共有（ログイン必須）</span></label>
+            <label class="qf-attach-drop" id="qfAttachDrop"
+                   ondragover="event.preventDefault(); this.classList.add('is-drag');"
+                   ondragleave="this.classList.remove('is-drag');"
+                   ondrop="event.preventDefault(); this.classList.remove('is-drag'); qfAttachUpload(event.dataTransfer.files);">
+              <input type="file" id="qfAttachInput" multiple style="display:none" onchange="qfAttachUpload(this.files); this.value='';" />
+              <span class="qf-attach-hint">📥 ここにドラッグ＆ドロップ、またはクリックして選択<br><small>※ 添付は14日間で自動削除されます</small></span>
+            </label>
+            <div id="qfAttachMeter" class="qf-attach-meter"></div>
+            <div id="qfAttachList" class="qf-attach-list"></div>
           </div>
         </div>
         <button class="fb-section-btn" onclick="openFeedback('管理番号入力')" title="このセクションへのフィードバック">💬 このセクションへのフィードバック</button>
@@ -3180,8 +3201,6 @@
               <button class="btn-ins-sub cmdbar-icon-btn" onclick="toolbarInsertSubtotal()" title="小計行を追加">＝</button>
               <button class="btn-ins-rem cmdbar-icon-btn" onclick="toolbarInsertRemark()" title="リマーク（注記）行を追加">💬</button>
               <button class="btn-ins-int cmdbar-icon-btn" onclick="toolbarInsertInternal()" title="社内メモ行を追加（出力対象外）">🔒</button>
-              <button class="btn-bulk-pattern cmdbar-pattern-btn" onclick="openRowPatternMgr()" title="行パターン：チェックした行を保存／保存パターンを挿入">🗂️ 行パターン</button>
-              <button class="cmdbar-lc-btn" onclick="lcOpenPicker()" title="諸チャージマスターから行を追加">📦 チャージ</button>
               <span class="btn-group-label">挿入位置</span>
               <select id="rowInsertPos" class="row-insert-pos" title="追加ボタンの挿入位置">
                 <option value="end">末尾に追加</option>
@@ -3591,6 +3610,12 @@
       <td class="name-cell">
         <input type="text" data-field="nm" class="w-name" placeholder="例）海上運賃" data-col="1" list="nmSuggestions" />
         <input type="text" data-field="nt" class="w-note" placeholder="備考（任意）" data-col="6" />
+        <div class="w-valid" title="サーチャージの有効期限（通常はひと月。例：6/1〜6/30）">
+          <span class="w-valid-lbl">有効</span>
+          <input type="date" data-field="vf" class="w-valid-date" title="有効期限（開始）" />
+          <span class="w-valid-sep">〜</span>
+          <input type="date" data-field="vt" class="w-valid-date" title="有効期限（終了）" />
+        </div>
       </td>
       <td class="qty-cell">
         <div class="qty-wrap">

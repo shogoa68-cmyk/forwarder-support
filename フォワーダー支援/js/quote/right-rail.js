@@ -52,6 +52,7 @@
     { id: 'scenario', icon: '🪜', label: 'シナリオ', title: 'シナリオ比較', panel: 'scPanel' },
     { id: 'subcon',   icon: '👷', label: 'サブコン', title: 'サブコン別',   panel: 'siPanel' },
     { id: 'charges',  icon: '📦', label: 'チャージ', title: '諸チャージ',   panel: 'lcRailPanel' },
+    { id: 'pattern',  icon: '🗜️', label: '行パタ', title: '行パターン',   action: 'openRowPatternMgr' },
   ];
 
   // 旧 'summary' モジュールは廃止。保存済み active のマイグレーション用。
@@ -153,6 +154,13 @@
 
   // ---- 状態反映 --------------------------------------------------------
   function setActive(mod) {
+    // アクション型モジュール（パネルを持たず、押下で関数を呼ぶ）：
+    // ドロワーは開かず、レールの active 状態も変えない
+    const actDef = MODS.find(function (m) { return m.id === mod; });
+    if (actDef && actDef.action) {
+      if (typeof window[actDef.action] === 'function') window[actDef.action]();
+      return;
+    }
     state.active = mod;
     _save({ active: mod });
     render();
