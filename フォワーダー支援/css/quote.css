@@ -3011,6 +3011,7 @@
 #tab-quote-make #previewTable td.pv-jpy    { text-align: right; background: #e8f7f7; color: #0d5252; font-weight: 600; }
 #tab-quote-make #previewTable td { border: 1px solid #d9cfc2; padding: 5px 10px; text-align: center; }
 #tab-quote-make #previewTable td.pv-name { text-align: left; min-width: 120px; }
+#tab-quote-make #previewTable td.pv-name .pv-validity { font-size: 10px; color: #999; margin-left: 5px; white-space: nowrap; }
 #tab-quote-make #previewTable td.pv-num { text-align: right; }
 #tab-quote-make #previewTable td.pv-cd { text-align: right; background: #ede5d6; color: #7d6b56; }
 #tab-quote-make #previewTable td.pv-pr { text-align: right; font-weight: bold; }

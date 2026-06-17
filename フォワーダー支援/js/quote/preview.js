@@ -111,7 +111,9 @@
       const profit = bill - cost;
       const note   = document.getElementById(`nt-${id}`)?.value || '';
       const sv     = document.getElementById(`sv-${id}`)?.value || '';
-      rows.push({ _type: 'data', taxed, cat, name, pq, un, pc, pp, cd, bq, bc, bp, mk, cost, bill, profit, note, sv });
+      const vf     = document.getElementById(`vf-${id}`)?.value || '';
+      const vt     = document.getElementById(`vt-${id}`)?.value || '';
+      rows.push({ _type: 'data', taxed, cat, name, pq, un, pc, pp, cd, bq, bc, bp, mk, cost, bill, profit, note, sv, vf, vt });
     });
     return rows;
   }
@@ -371,6 +373,16 @@
     return _openWarnGuide(skipFn, infoItems);
   }
 
+  // サーチャージ有効期限バッジ（vf/vt → 小さいバッジ HTML、両方空なら ''）
+  function _pvValidityBadge(vf, vt) {
+    if (!vf && !vt) return '';
+    const fmt = d => d ? d.replace(/-/g, '/') : '';
+    const range = (vf && vt) ? fmt(vf) + '〜' + fmt(vt)
+                : vf          ? fmt(vf) + '〜'
+                :               '〜' + fmt(vt);
+    return ` <span class="pv-validity">${escHtml(range)}</span>`;
+  }
+
   function openPreview() {
     try {
     const allRows = collectAllRows();
@@ -514,7 +526,7 @@
       html += `<tr>
         <td class="pv-name" style="font-size:11px;">${escHtml(getCatLabel(d.cat))}</td>
         <td class="pv-name">${escHtml(d.sv)}</td>
-        <td class="${nameCls}">${escHtml(d.name)}</td>
+        <td class="${nameCls}">${escHtml(d.name)}${_pvValidityBadge(d.vf, d.vt)}</td>
         <td class="pv-num">${fmtRaw(d.pq)}</td><td>${escHtml(d.un || '')}</td><td>${escHtml(d.pc)}</td>
         <td class="pv-num">${fmtMoney(d.pp)}</td>
         <td class="pv-cd pv-num">${fmtMoney(d.cd)}</td>
