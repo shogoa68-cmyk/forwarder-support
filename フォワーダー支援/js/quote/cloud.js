@@ -487,6 +487,7 @@
           '<div class="cloud-card-row1">' +
             statusBadge +
             '<span class="cloud-card-name" title="' + escHtml(r.name) + '">' + escHtml(titleText) + '</span>' +
+            '<button class="btn-ref-copy" onclick="copyRefNumber(' + JSON.stringify(titleText) + ',this)" title="管理番号をコピー（&quot;番号&quot;形式）">📋</button>' +
           '</div>' +
           prioRow +
           (memoLine ? '<div class="cloud-card-memo" title="' + escHtml(memoLine) + '">' + escHtml(memoLine) + '</div>' : '') +

@@ -4855,6 +4855,16 @@ body.qp-dash-active #quoteActionDock { display: none !important; }
 #tab-quote-make .cloud-preset-grid { grid-template-columns: repeat(auto-fill, minmax(380px, 1fr)); }
 #tab-quote-make .cloud-card-labeled { padding: 10px 12px; }
 #tab-quote-make .cloud-card-labeled .cloud-card-name { flex: 1; white-space: normal; }
+/* 管理番号コピーボタン（クラウド・ローカル両カード共通） */
+#tab-quote-make .btn-ref-copy {
+  flex-shrink: 0;
+  padding: 1px 5px; height: 20px;
+  font-size: 11px; line-height: 1;
+  border: 1px solid #c8bfb0; border-radius: 4px;
+  background: #f5f2eb; color: #7a6a50;
+  cursor: pointer; white-space: nowrap;
+}
+#tab-quote-make .btn-ref-copy:hover { background: #e8f5e0; border-color: #7aaf40; color: #3a6a10; }
 #tab-quote-make .cloud-card-memo {
   font-size: 12px; font-weight: 600; color: #1a3a5c;
   margin: 4px 0 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
