@@ -1173,7 +1173,14 @@
           // 入力欄クリックで折りたたみ等の親ハンドラに伝播しないように
           aliasInp.addEventListener('click', e => e.stopPropagation());
         }
-        tbody.insertBefore(sub, lastRow.nextSibling);
+        // lastRow の直後に付随する typed 行（社内メモ・備考等）をスキップして小計を挿入
+        let lastGroupRow = lastRow;
+        let nextSib = lastGroupRow.nextSibling;
+        while (nextSib && !nextSib.dataset.virtual && nextSib.dataset.type) {
+          lastGroupRow = nextSib;
+          nextSib = lastGroupRow.nextSibling;
+        }
+        tbody.insertBefore(sub, lastGroupRow.nextSibling);
       });
       // 全行の折りたたみ・除外状態を適用（小計・リマーク行を含む）
       _applyGroupStates();
