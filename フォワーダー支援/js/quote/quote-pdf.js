@@ -153,11 +153,17 @@
     if (!cond) return { title: '', meta: [] };
     const dir = cond.direction === 'export' ? '輸出' : cond.direction === 'import' ? '輸入' : '';
     const titleParts = [dir + (cond.mode ? ' ' + cond.mode : '')].filter(Boolean);
+    const _hasRoutes = cond.routes && cond.routes.length >= 1;
     const _multiRoute = cond.routes && cond.routes.length > 1;
-    // 件名の航路：複数時は先頭航路＋「他N航路」で簡潔に
-    const route = _multiRoute
-      ? ([cond.pol, cond.pod].filter(Boolean).join(' to ') + ` 他${cond.routes.length - 1}航路`)
-      : [cond.pol, cond.pod].filter(Boolean).join(' to ');
+    // 件名の航路：ルート情報から via を含めて組み立て
+    let route = '';
+    if (_hasRoutes) {
+      const r0 = cond.routes[0];
+      const r0leg = [r0.pol, r0.via, r0.pod].filter(Boolean).join(' → ');
+      route = _multiRoute ? (r0leg + ` 他${cond.routes.length - 1}航路`) : r0leg;
+    } else {
+      route = [cond.pol, cond.pod].filter(Boolean).join(' → ');
+    }
     if (route) titleParts.push(route);
     const title = titleParts.join('　');
 
@@ -165,11 +171,13 @@
     const push = (k, v) => { if (v) meta.push([k, v]); };
 
     push('建値（INCOTERMS）', cond.incoterms);
-    // 航路：複数登録時は航路ごとに全件併記、単一なら従来通り POL/POD を分けて表示
-    if (_multiRoute) {
+    // 航路：1件以上の登録があれば航路ごとに via・キャリア・サービス名を含めて全件併記
+    if (_hasRoutes) {
       cond.routes.forEach((r, i) => {
-        const rt = [r.pol, r.pod].filter(Boolean).join(' to ');
-        if (rt) push(`航路${i + 1}`, rt + (r.carrier ? `（${r.carrier}）` : ''));
+        const rt = [r.pol, r.via, r.pod].filter(Boolean).join(' → ');
+        const carrier = [r.carrier, r.service ? `(${r.service})` : ''].filter(Boolean).join(' ');
+        const label = cond.routes.length === 1 ? '航路' : `航路${i + 1}`;
+        if (rt || carrier) push(label, [rt, carrier].filter(Boolean).join('　'));
       });
     } else {
       push('積み地（POL）', cond.pol);
