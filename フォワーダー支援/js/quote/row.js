@@ -306,8 +306,10 @@
     checkUnfilled(newId);
     onPay(newId);
 
-    // subcon-child クラス等のグループ連結を即時反映
+    // subcon-child クラス等のグループ連結を即時反映（DOM並替でスクロール位置が変わらないよう保持）
+    const savedScrollY = window.scrollY;
     renderSubconGroups();
+    window.scrollTo({ top: savedScrollY, behavior: 'instant' });
     if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
 
     return newId;
