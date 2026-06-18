@@ -434,20 +434,22 @@
     let totSub = 0, totTax = 0, totJpy = 0, hasNonJpyBill = false, hasNonJpyCost = false;
 
     // ===== サブコン別グループが有効（2+ サブコン）なら、グループ境界に小計セパレーターを挿入 =====
-    const _scKey = d => ((d.sv || '').trim() || '（サブコン未設定）');
-    const _scActive = (() => { const ks = new Set(data.map(_scKey)); return ks.size >= 2; })();
+    // 揺らぎ吸収：境界判定・小計集約・エイリアス参照は正規化キーで、表示は元の綴りで行う
+    const _scNorm  = d => (subconNormKey(d.sv) || '（サブコン未設定）');
+    const _scLabel = d => ((d.sv || '').trim() || '（サブコン未設定）');
+    const _scActive = (() => { const ks = new Set(data.map(_scNorm)); return ks.size >= 2; })();
     // 仕入合計・粗利率は内部指標。利益列が表示されているとき（＝社内モード）のみラベルに併記
     const _scShowInternal = (typeof getPreviewVisibility === 'function') ? (getPreviewVisibility().profit !== false) : true;
     const _seq = [];
     if (_scActive) {
-      let ck = null, cc = 0, cb = 0, cm = false, has = false;
+      let ck = null, clabel = null, cc = 0, cb = 0, cm = false, has = false;
       const toJ = (a, c) => (c && c !== 'JPY' && typeof toJPY === 'function') ? toJPY(a, c) : a;
-      const pushSub = () => { if (has) _seq.push({ _type: 'subcon-subtotal', label: ck, cost: cc, bill: cb, mixed: cm }); };
+      const pushSub = () => { if (has) _seq.push({ _type: 'subcon-subtotal', label: clabel, normKey: ck, cost: cc, bill: cb, mixed: cm }); };
       allRows.forEach(d => {
         if (d._type === 'data') {
-          const k = _scKey(d);
+          const k = _scNorm(d);
           if (has && k !== ck) { pushSub(); cc = 0; cb = 0; cm = false; has = false; }
-          ck = k;
+          if (!has) { ck = k; clabel = _scLabel(d); }  // グループ先頭の綴りを表示名に採用
           cc += toJ(d.cost, d.pc || 'JPY');
           cb += toJ(d.bill, d.bc || 'JPY');
           if ((d.pc && d.pc !== 'JPY') || (d.bc && d.bc !== 'JPY')) cm = true;
@@ -480,8 +482,8 @@
           ? `<span class="pv-scs-cost">仕入合計 ${costTxt}</span>` +
             `<span class="pv-scs-margin${(m !== null && m < 0) ? ' pv-neg' : ''}">粗利率 ${marginTxt}</span>`
           : '';
-        // 客先用表示名があれば置換（サブコン名を客先に出さない）
-        const _alias = (typeof getSubconAliases === 'function' ? getSubconAliases()[d.label] : '') || '';
+        // 客先用表示名があれば置換（サブコン名を客先に出さない）。エイリアスは正規化キーで参照
+        const _alias = (typeof getSubconAliases === 'function' ? getSubconAliases()[d.normKey] : '') || '';
         const _dispLabel = _alias || d.label;
         html += `<tr class="pv-subcon-subtotal">
           <td colspan="12" class="pv-scs-label">↳ ${escHtml(_dispLabel)} 小計${internalBits}</td>

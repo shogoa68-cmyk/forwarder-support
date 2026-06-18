@@ -51,7 +51,7 @@
   <div class="cat-nav" role="tablist" aria-label="カテゴリ">
     <button class="cat-btn cat-btn-featured active" role="tab" aria-selected="true"  onclick="switchCategory('quote',  this)">💼 見積</button>
     <button class="cat-btn cat-btn-featured"        role="tab" aria-selected="false" onclick="switchCategory('stats',   this)">📊 統計</button>
-    <button class="cat-btn"        role="tab" aria-selected="false" onclick="switchCategory('cost', this)">💴 諸チャージ</button>
+    <button class="cat-btn cat-btn-featured" role="tab" aria-selected="false" onclick="switchCategory('cost', this)">💴 諸チャージ</button>
     <button class="cat-btn cat-btn-bookmark" role="tab" aria-selected="false" onclick="switchCategory('bookmark', this)">🔖 BOOKMARK</button>
     <button class="cat-btn"        role="tab" aria-selected="false" onclick="switchCategory('vessel', this)">🚢 本船・航路</button>
     <button class="cat-btn"        role="tab" aria-selected="false" title="Booking（船腹予約）と S/I（Shipping Instruction：船積指図書）の手続き" onclick="switchCategory('booking', this)">📋 Booking/SI</button>
@@ -2660,25 +2660,26 @@
               <div class="z2-pol-pod-row">
                 <div class="z2-port">
                   <span class="z2-port-label" title="Port of Loading（積み地港）：輸出港・出港地">📦 POL</span>
-                  <input type="text" id="z2Pol" class="z2-input"
+                  <input type="text" id="z2Pol" class="z2-input" list="portSuggestions"
                          placeholder="例）Yokohama">
                 </div>
                 <span class="z2-arrow">→</span>
                 <div class="z2-port z2-via-port">
                   <span class="z2-port-label" title="経由地（トランシップ港など）。省略可">⚓ Via</span>
-                  <input type="text" id="z2Via" class="z2-input"
+                  <input type="text" id="z2Via" class="z2-input" list="portSuggestions"
                          placeholder="経由地（任意）">
                 </div>
                 <span class="z2-arrow">→</span>
                 <div class="z2-port">
                   <span class="z2-port-label" title="Port of Discharge（揚げ地港）：輸入港・入港地">🏁 POD</span>
-                  <input type="text" id="z2Pod" class="z2-input"
+                  <input type="text" id="z2Pod" class="z2-input" list="portSuggestions"
                          placeholder="例）Shanghai">
                 </div>
                 <button type="button" class="z2-route-add" onclick="addRouteEntry()" title="このキャリア・POL・Via・PODを航路として追加（複数船会社・複数航路の比較見積に対応）">＋ 航路</button>
               </div>
               <div class="z2-route-list" id="z2RouteList"></div>
               <input type="hidden" id="z2-routes-data" />
+              <datalist id="portSuggestions"></datalist>
             </div>
           </div>
 
@@ -3199,11 +3200,7 @@
               <span class="btn-group-label">行追加</span>
               <button class="btn-ins-row cmdbar-icon-btn" onclick="toolbarInsertRow()" title="費用行を追加（明細）">＋</button>
               <button class="btn-ins-sub cmdbar-icon-btn" onclick="toolbarInsertSubtotal()" title="小計行を追加">＝</button>
-              <input type="text" id="remarkInputBar" class="remark-input-bar"
-                     placeholder="備考テキスト（省略可）"
-                     title="備考・社内メモのテキストを入力してから右のボタンで行追加。空のままでも追加可（行内で直接入力）"
-                     onkeydown="if(event.key==='Enter'){toolbarInsertRemark();event.preventDefault();}" />
-              <button class="btn-ins-rem cmdbar-text-btn" onclick="toolbarInsertRemark()" title="リマーク（注記）行を追加">💬 備考行</button>
+              <button class="btn-ins-rem cmdbar-text-btn" onclick="toolbarInsertRemark()" title="空の備考（リマーク）行を追加（行内で直接入力）">💬 備考行</button>
               <button class="btn-ins-int cmdbar-text-btn" onclick="toolbarInsertInternal()" title="社内メモ行を追加（出力対象外）">🔒 社内メモ</button>
               <span class="btn-group-label">挿入位置</span>
               <select id="rowInsertPos" class="row-insert-pos" title="追加ボタンの挿入位置">
@@ -3766,18 +3763,25 @@
     </div>
 
     <div class="stats-tabs">
-      <button class="stats-tab-btn is-active" id="statsTabBtn-sv"       onclick="statsSetPane('sv')">🏢 サブコン</button>
+      <span class="stats-tab-group-label" title="案件データを集計して傾向を把握する">📊 分析</span>
+      <button class="stats-tab-btn is-active" id="statsTabBtn-dashboard" onclick="statsSetPane('dashboard')">📈 ダッシュボード</button>
+      <button class="stats-tab-btn"           id="statsTabBtn-sv"       onclick="statsSetPane('sv')">🏢 サブコン</button>
       <button class="stats-tab-btn"           id="statsTabBtn-carrier"  onclick="statsSetPane('carrier')">🚢 キャリア</button>
+      <button class="stats-tab-btn"           id="statsTabBtn-port"     onclick="statsSetPane('port')">🛳 港</button>
       <button class="stats-tab-btn"           id="statsTabBtn-customer" onclick="statsSetPane('customer')">👤 お客様</button>
       <button class="stats-tab-btn"           id="statsTabBtn-nm"       onclick="statsSetPane('nm')">📝 品名</button>
       <button class="stats-tab-btn"           id="statsTabBtn-un"       onclick="statsSetPane('un')">📐 単位</button>
       <button class="stats-tab-btn"           id="statsTabBtn-charges"  onclick="statsSetPane('charges')">💰 チャージ</button>
+      <span class="stats-tab-divider" aria-hidden="true"></span>
+      <span class="stats-tab-group-label stats-tab-group-label--manage" title="表記ゆれの是正・マスターの整備">🛠 管理</span>
       <button class="stats-tab-btn"           id="statsTabBtn-master"   onclick="statsSetPane('master')">⭐ マスター管理</button>
       <button class="stats-tab-btn"           id="statsTabBtn-alias"    onclick="statsSetPane('alias')">🔀 エイリアス是正</button>
     </div>
 
-    <div id="statsPane-sv"       class="stats-pane is-active"></div>
+    <div id="statsPane-dashboard" class="stats-pane is-active"></div>
+    <div id="statsPane-sv"       class="stats-pane"></div>
     <div id="statsPane-carrier"  class="stats-pane"></div>
+    <div id="statsPane-port"     class="stats-pane"></div>
     <div id="statsPane-customer" class="stats-pane"></div>
     <div id="statsPane-nm"       class="stats-pane"></div>
     <div id="statsPane-un"       class="stats-pane"></div>
@@ -4111,9 +4115,18 @@
         <input id="lc_note" class="lc-form-input" type="text" placeholder="補足情報">
       </div>
       <div class="lc-form-row lc-form-row--full">
-        <label class="lc-form-label">添付ファイル</label>
-        <div class="lc-attach-wip">
-          🚧 準備中 — アナウンス PDF などの添付は近日対応予定です。
+        <label class="lc-form-label">添付ファイル <span class="lc-form-hint">アナウンス PDF・タリフ等（5MBまで）</span></label>
+        <div id="lcAttachZone" class="lc-attach-zone">
+          <div id="lcAttachEmpty" class="lc-attach-empty">
+            <label class="lc-file-label-btn" for="lc_file">📎 ファイルを選択</label>
+            <input id="lc_file" class="lc-file-input" type="file" onchange="lcHandleFileChange(this)">
+            <span class="lc-attach-hint">ここにドラッグ＆ドロップ・貼り付けも可</span>
+          </div>
+          <div id="lcAttachSelected" class="lc-attach-selected" style="display:none">
+            <span class="lc-attach-icon-text">📄</span>
+            <a id="lcAttachFileName" class="lc-attach-name" target="_blank" rel="noopener">ファイル名</a>
+            <button type="button" class="lc-attach-remove" onclick="lcClearAttach()">削除</button>
+          </div>
         </div>
       </div>
     </div>

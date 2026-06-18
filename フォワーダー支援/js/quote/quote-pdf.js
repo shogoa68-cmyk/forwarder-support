@@ -229,13 +229,15 @@
     let taxableSub = 0, exemptSub = 0, taxSum = 0;
     const lineHTML = [];
     // サブコン別グループが有効（2+ サブコン）なら、グループ境界に売値小計を挿入（顧客向けのため金額のみ）
-    const _scKeyOf = d => ((d.sv || '').trim() || '（サブコン未設定）');
-    const _scActive = (new Set(data.map(_scKeyOf)).size >= 2);
-    let _scKey = null, _scJpy = 0, _scHas = false;
+    // 揺らぎ吸収：境界判定・エイリアス参照は正規化キーで、表示は元の綴りで行う
+    const _scNorm    = d => (subconNormKey(d.sv) || '（サブコン未設定）');
+    const _scLabelOf = d => ((d.sv || '').trim() || '（サブコン未設定）');
+    const _scActive = (new Set(data.map(_scNorm)).size >= 2);
+    let _scKey = null, _scLabel = null, _scJpy = 0, _scHas = false;
     const _scPush = () => {
       if (_scActive && _scHas) {
         const _al = (typeof getSubconAliases === 'function' ? getSubconAliases()[_scKey] : '') || '';
-        const _lbl = _al || _scKey;
+        const _lbl = _al || _scLabel;
         lineHTML.push(`<tr class="qd-subcon-sub"><td colspan="4">↳ ${esc(_lbl)} 小計</td><td class="qd-num">¥${fmtInt(_scJpy)}</td></tr>`);
       }
     };
@@ -270,9 +272,10 @@
       const qtyDisp = (r.bq && r.bq > 0) ? fmtNum(r.bq, 4) : '—';
       // サブコン境界：キーが変わったら直前グループの売値小計を挿入
       if (_scActive) {
-        const k = _scKeyOf(r);
+        const k = _scNorm(r);
         if (_scHas && k !== _scKey) { _scPush(); _scJpy = 0; _scHas = false; }
-        _scKey = k; _scJpy += jpy; _scHas = true;
+        if (!_scHas) { _scKey = k; _scLabel = _scLabelOf(r); }  // グループ先頭の綴りを表示名に採用
+        _scJpy += jpy; _scHas = true;
       }
       const validBadge = (() => {
         if (!r.vf && !r.vt) return '';
