@@ -1077,6 +1077,37 @@
       // グループ表示中：配下の各データ行をツリー風インデント（subcon-child）にする
       realRows.forEach(tr => tr.classList.add('subcon-child'));
 
+      // 物理的にグループを連続化：同名サブコン行を1つのグループへ集約する。
+      // （テーブル末尾に追加した同名サブコン行が、既存グループへ自動で移動する）
+      // 各データ行に「直後の付随行（リマーク/社内メモ/手動小計）」を束ねたブロック単位で並べ替え、
+      // グループの出現順・グループ内の並びを保持したまま DOM を再配置する。
+      (function reorderToGroups() {
+        const blocks  = [];   // { key, rows: [dataTr, ...付随行] }
+        const leading = [];   // 先頭データ行より前の非データ行（通常なし）
+        let cur = null;
+        // この時点で仮想行は削除済み。tbody 直下の行のみを走査
+        Array.from(tbody.children).forEach(tr => {
+          if (!tr.dataset.type) {                 // データ行
+            const key = subconNormKey(_rowSubcon(tr) ?? '') || _UNSET_KEY;
+            cur = { key, rows: [tr] };
+            blocks.push(cur);
+          } else if (cur) {                       // 直前データ行の付随行
+            cur.rows.push(tr);
+          } else {                                // 先頭データ行より前の行
+            leading.push(tr);
+          }
+        });
+        const byKey = Object.create(null);
+        blocks.forEach(b => { (byKey[b.key] || (byKey[b.key] = [])).push(b); });
+        const frag = document.createDocumentFragment();
+        leading.forEach(tr => frag.appendChild(tr));
+        // groupOrder（出現順）に従ってブロックを再配置
+        groupOrder.forEach(k => {
+          (byKey[k] || []).forEach(b => b.rows.forEach(tr => frag.appendChild(tr)));
+        });
+        tbody.appendChild(frag);
+      })();
+
       // グループヘッダー TR を各グループの先頭行の直前に挿入
       groupOrder.forEach(key => {
         const label     = key === _UNSET_KEY ? '（サブコン未設定）' : (groupLabel[key] || '');
