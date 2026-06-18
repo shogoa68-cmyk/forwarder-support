@@ -3636,6 +3636,12 @@
         <option value="local">ローカルのみ</option>
         <option value="cloud">クラウドのみ</option>
       </select>
+      <select id="statsPeriod" class="stats-period-select" onchange="statsRefresh()">
+        <option value="all">全期間</option>
+        <option value="year">今年度</option>
+        <option value="q3">直近3ヶ月</option>
+        <option value="month">今月</option>
+      </select>
       <button class="stats-refresh-btn" onclick="statsRefresh()">🔄 集計</button>
       <span id="statsCloudStatus" class="stats-cloud-off">💾 ローカル投票</span>
       <button class="stats-help-toggle" onclick="statsToggleHelp()">? 使い方</button>
@@ -3657,6 +3663,14 @@
       <div class="stats-card">
         <div class="stats-card-value" id="statsNmGroups">—</div>
         <div class="stats-card-label">品名グループ数</div>
+      </div>
+      <div class="stats-card">
+        <div class="stats-card-value" id="statsBlurCount">—</div>
+        <div class="stats-card-label">ゆらぎグループ</div>
+      </div>
+      <div class="stats-card">
+        <div class="stats-card-value" id="statsMasterCount">—</div>
+        <div class="stats-card-label">マスター候補数</div>
       </div>
     </div>
 
@@ -3724,25 +3738,40 @@
       </div>
     </div>
 
-    <div class="stats-tabs">
-      <button class="stats-tab-btn is-active" id="statsTabBtn-sv"       onclick="statsSetPane('sv')">🏢 サブコン</button>
-      <button class="stats-tab-btn"           id="statsTabBtn-carrier"  onclick="statsSetPane('carrier')">🚢 キャリア</button>
-      <button class="stats-tab-btn"           id="statsTabBtn-customer" onclick="statsSetPane('customer')">👤 お客様</button>
-      <button class="stats-tab-btn"           id="statsTabBtn-nm"       onclick="statsSetPane('nm')">📝 品名</button>
-      <button class="stats-tab-btn"           id="statsTabBtn-un"       onclick="statsSetPane('un')">📐 単位</button>
-      <button class="stats-tab-btn"           id="statsTabBtn-charges"  onclick="statsSetPane('charges')">💰 チャージ</button>
-      <button class="stats-tab-btn"           id="statsTabBtn-master"   onclick="statsSetPane('master')">⭐ マスター管理</button>
-      <button class="stats-tab-btn"           id="statsTabBtn-alias"    onclick="statsSetPane('alias')">🔀 エイリアス是正</button>
+    <div class="stats-tabs" role="tablist" aria-label="統計サブタブ">
+      <span class="stats-tab-group-label">集計・分析</span>
+      <button class="stats-tab-btn is-active" role="tab" aria-selected="true"  aria-controls="statsPane-sv"       id="statsTabBtn-sv"       onclick="statsSetPane('sv')">🏢 サブコン</button>
+      <button class="stats-tab-btn"           role="tab" aria-selected="false" aria-controls="statsPane-carrier"  id="statsTabBtn-carrier"  onclick="statsSetPane('carrier')">🚢 キャリア</button>
+      <button class="stats-tab-btn"           role="tab" aria-selected="false" aria-controls="statsPane-customer" id="statsTabBtn-customer" onclick="statsSetPane('customer')">👤 お客様</button>
+      <button class="stats-tab-btn"           role="tab" aria-selected="false" aria-controls="statsPane-nm"       id="statsTabBtn-nm"       onclick="statsSetPane('nm')">📝 品名</button>
+      <button class="stats-tab-btn"           role="tab" aria-selected="false" aria-controls="statsPane-un"       id="statsTabBtn-un"       onclick="statsSetPane('un')">📐 単位</button>
+      <button class="stats-tab-btn"           role="tab" aria-selected="false" aria-controls="statsPane-charges"  id="statsTabBtn-charges"  onclick="statsSetPane('charges')">💰 チャージ</button>
+      <button class="stats-tab-btn"           role="tab" aria-selected="false" aria-controls="statsPane-kpi"      id="statsTabBtn-kpi"      onclick="statsSetPane('kpi')">📈 KPI</button>
+      <div class="stats-tab-group-sep"></div>
+      <span class="stats-tab-group-label">マスター管理・是正</span>
+      <button class="stats-tab-btn"           role="tab" aria-selected="false" aria-controls="statsPane-master"   id="statsTabBtn-master"   onclick="statsSetPane('master')">⭐ マスター管理</button>
+      <button class="stats-tab-btn"           role="tab" aria-selected="false" aria-controls="statsPane-alias"    id="statsTabBtn-alias"    onclick="statsSetPane('alias')">🔀 エイリアス是正</button>
     </div>
 
-    <div id="statsPane-sv"       class="stats-pane is-active"></div>
-    <div id="statsPane-carrier"  class="stats-pane"></div>
-    <div id="statsPane-customer" class="stats-pane"></div>
-    <div id="statsPane-nm"       class="stats-pane"></div>
-    <div id="statsPane-un"       class="stats-pane"></div>
-    <div id="statsPane-charges"  class="stats-pane"></div>
-    <div id="statsPane-master"   class="stats-pane"></div>
-    <div id="statsPane-alias"    class="stats-pane"></div>
+    <div id="statsPane-sv"       class="stats-pane is-active" role="tabpanel" aria-labelledby="statsTabBtn-sv">
+      <div class="stats-pane-toolbar"><button class="stats-export-btn" onclick="statsExportCsv('sv')">📥 CSV</button></div>
+    </div>
+    <div id="statsPane-carrier"  class="stats-pane" role="tabpanel" aria-labelledby="statsTabBtn-carrier">
+      <div class="stats-pane-toolbar"><button class="stats-export-btn" onclick="statsExportCsv('carrier')">📥 CSV</button></div>
+    </div>
+    <div id="statsPane-customer" class="stats-pane" role="tabpanel" aria-labelledby="statsTabBtn-customer">
+      <div class="stats-pane-toolbar"><button class="stats-export-btn" onclick="statsExportCsv('customer')">📥 CSV</button></div>
+    </div>
+    <div id="statsPane-nm"       class="stats-pane" role="tabpanel" aria-labelledby="statsTabBtn-nm">
+      <div class="stats-pane-toolbar"><button class="stats-export-btn" onclick="statsExportCsv('nm')">📥 CSV</button></div>
+    </div>
+    <div id="statsPane-un"       class="stats-pane" role="tabpanel" aria-labelledby="statsTabBtn-un">
+      <div class="stats-pane-toolbar"><button class="stats-export-btn" onclick="statsExportCsv('un')">📥 CSV</button></div>
+    </div>
+    <div id="statsPane-charges"  class="stats-pane" role="tabpanel" aria-labelledby="statsTabBtn-charges"></div>
+    <div id="statsPane-kpi"      class="stats-pane" role="tabpanel" aria-labelledby="statsTabBtn-kpi"></div>
+    <div id="statsPane-master"   class="stats-pane" role="tabpanel" aria-labelledby="statsTabBtn-master"></div>
+    <div id="statsPane-alias"    class="stats-pane" role="tabpanel" aria-labelledby="statsTabBtn-alias"></div>
   </div>
 
   <!-- ===================== Tab: BOOKMARK ===================== -->
