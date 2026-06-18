@@ -7691,6 +7691,42 @@ button.um-memberno--empty:hover { background: #f4ead4; border-color: #cdb98e; }
   opacity: 0.4; text-decoration: line-through;
 }
 
+/* ===== サブコン別グループ ツリー表示（視覚のみ・データ非依存） =====
+   トグル行（ヘッダー）
+   ├ 明細行（subcon-child）
+   │  └ リマーク / 社内メモ（subcon-grp-nested：1段深く）
+   └ 集計行（小計バー）
+   左端に連続レール（幹）を引き、グループを束ねる。 */
+#tab-quote-make tr.subcon-group-header  > td:first-child,
+#tab-quote-make tr.subcon-child         > td:first-child,
+#tab-quote-make tr.subcon-grp-member    > td:first-child {
+  box-shadow: inset 4px 0 0 #d4ba8e;
+}
+/* グループ内のリマーク行は既存の青い左帯を消し、幹レール（box-shadow）に一本化 */
+#tab-quote-make tr.subcon-grp-member.remark-row > td:first-child {
+  border-left-color: transparent !important;
+}
+/* 集計行（小計バー）の左端も幹色で閉じる（td は不透明 div に覆われるため inner に付与） */
+#tab-quote-make tr.subcon-group-subtotal .subcon-subtotal-inner {
+  border-left: 4px solid #d4ba8e;
+}
+
+/* リマーク・社内メモ行：明細（catsv 列）より1段深くインデント＋エルボー（└）。
+   ※リマーク行は先頭セルが check(22px)+drag(20px) のため、明細の catsv 列開始位置
+   （≒66px）より確実に右へ来るよう padding を取る。 */
+#tab-quote-make tr.subcon-grp-nested .remark-row-cell,
+#tab-quote-make tr.subcon-grp-nested .internal-row-cell {
+  position: relative;
+  padding-left: 56px !important;
+}
+#tab-quote-make tr.subcon-grp-nested .remark-row-cell::before,
+#tab-quote-make tr.subcon-grp-nested .internal-row-cell::before {
+  content: ""; position: absolute; left: 36px; top: 6px;
+  width: 10px; height: 13px;
+  border-left: 1.5px solid #9b8254; border-bottom: 1.5px solid #9b8254;
+  border-bottom-left-radius: 5px; pointer-events: none;
+}
+
 /* ===== 進捗バー（プリセット管理モーダル / ブラウザ保存・チーム共有） ===== */
 #tab-quote-make .quote-progress {
   display:flex;
