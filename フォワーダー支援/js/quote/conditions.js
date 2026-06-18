@@ -1195,6 +1195,7 @@
         + `<button type="button" class="z2-route-toggle" onclick="toggleRouteEntry(${i})" title="${on ? '無効にする（一時停止）' : '有効にする'}">${on ? '✓' : '—'}</button>`
         + `<span class="z2-route-carrier">${_escMulti(r.carrier || '—')}</span>`
         + `<span class="z2-route-leg">${route}</span>`
+        + `<button type="button" class="z2-route-edit" onclick="editRouteEntry(${i})" title="編集（フォームに書き戻す）">✎</button>`
         + `<button type="button" class="me-chip-del" onclick="removeRouteEntry(${i})" title="削除">×</button></span>`;
     }).join('');
     if (typeof window.renderQuoteCarrierLinks === 'function') window.renderQuoteCarrierLinks();
@@ -1235,7 +1236,25 @@
     if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
     if (typeof scheduleSnapshot === 'function') scheduleSnapshot();
   }
+  function editRouteEntry(i) {
+    const r = _routeEntries[i];
+    if (!r) return;
+    // フォームへ書き戻し
+    const set = (id, val) => { const el = document.getElementById(id); if (el) el.value = val || ''; };
+    set('z2Carrier', r.carrier);
+    set('z2Pol', r.pol);
+    set('z2Via', r.via);
+    set('z2Pod', r.pod);
+    // エントリを削除して再描画
+    _routeEntries.splice(i, 1);
+    _renderRouteEntries();
+    if (typeof onZ2CarrierChange === 'function') onZ2CarrierChange();
+    document.getElementById('z2Carrier')?.focus();
+    if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
+    if (typeof scheduleSnapshot === 'function') scheduleSnapshot();
+  }
   window.toggleRouteEntry = toggleRouteEntry;
+  window.editRouteEntry   = editRouteEntry;
   // 復元用
   function syncRouteEntries() {
     const data = document.getElementById('z2-routes-data');
