@@ -229,3 +229,74 @@ drop policy if exists "lock_guard_update" on public.quote_presets;
 create policy "lock_guard_update" on public.quote_presets
   as restrictive for update to authenticated
   using (locked_by is null or locked_by = auth.email() or locked_at < now() - interval '90 seconds');
+
+-- ============================================================
+-- 7. 添付ファイル（案件への参考書類・14日で自動削除）
+-- ============================================================
+-- 案件(quote_presets)に PDF/画像等を添付してチームで保存・閲覧する。
+-- 保存先: Storage バケット quote-attachments（非公開・署名URLで閲覧）。
+-- メタは quote_attachments テーブル。14日で自動削除（pg_cron）。
+-- ============================================================
+
+-- Storage バケット（非公開）
+insert into storage.buckets (id, name, public)
+  values ('quote-attachments', 'quote-attachments', false)
+  on conflict (id) do nothing;
+
+-- メタテーブル
+create table if not exists public.quote_attachments (
+  id          uuid primary key default gen_random_uuid(),
+  preset_id   text not null,           -- quote_presets.id（テキストで保持）
+  path        text not null,           -- storage オブジェクトのパス
+  name        text not null,           -- 元ファイル名
+  mime        text,
+  size        bigint,
+  uploaded_by text,
+  created_at  timestamptz not null default now()
+);
+create index if not exists quote_attachments_preset_idx on public.quote_attachments(preset_id);
+-- 既存テーブルに列が無い場合の移行（再実行しても安全）＋PostgRESTキャッシュ再読込
+alter table public.quote_attachments
+  add column if not exists mime        text,
+  add column if not exists size        bigint,
+  add column if not exists uploaded_by text,
+  add column if not exists path        text,
+  add column if not exists name        text,
+  add column if not exists created_at  timestamptz not null default now();
+notify pgrst, 'reload schema';
+alter table public.quote_attachments enable row level security;
+grant select, insert, delete on public.quote_attachments to authenticated;
+
+drop policy if exists "att select" on public.quote_attachments;
+create policy "att select" on public.quote_attachments for select to authenticated using (is_team_member());
+drop policy if exists "att insert" on public.quote_attachments;
+create policy "att insert" on public.quote_attachments for insert to authenticated with check (is_team_member() and uploaded_by = auth.email());
+drop policy if exists "att delete" on public.quote_attachments;
+create policy "att delete" on public.quote_attachments for delete to authenticated using (is_team_member());
+
+-- Storage オブジェクトのRLS（quote-attachments バケットはチームメンバーのみ）
+drop policy if exists "att obj select" on storage.objects;
+create policy "att obj select" on storage.objects for select to authenticated
+  using (bucket_id = 'quote-attachments' and is_team_member());
+drop policy if exists "att obj insert" on storage.objects;
+create policy "att obj insert" on storage.objects for insert to authenticated
+  with check (bucket_id = 'quote-attachments' and is_team_member());
+drop policy if exists "att obj delete" on storage.objects;
+create policy "att obj delete" on storage.objects for delete to authenticated
+  using (bucket_id = 'quote-attachments' and is_team_member());
+
+-- 14日で自動削除（pg_cron）。pg_cron はダッシュボード Database → Extensions でも有効化可
+create extension if not exists pg_cron;
+create or replace function public.purge_expired_attachments()
+returns void language plpgsql security definer set search_path = public, storage as $$
+begin
+  delete from storage.objects
+    where bucket_id = 'quote-attachments' and created_at < now() - interval '14 days';
+  delete from public.quote_attachments
+    where created_at < now() - interval '14 days';
+end; $$;
+-- 毎日 18:00 UTC（≒翌03:00 JST）に実行（同名ジョブは入れ直し）
+do $$ begin
+  perform cron.unschedule(jobid) from cron.job where jobname = 'purge-quote-attachments';
+exception when others then null; end $$;
+select cron.schedule('purge-quote-attachments', '0 18 * * *', $$select public.purge_expired_attachments();$$);

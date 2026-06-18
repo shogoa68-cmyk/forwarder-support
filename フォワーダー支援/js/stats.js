@@ -93,13 +93,36 @@
     const svExcl = new Set(excl.filter(e => e.field === 'sv').map(e => e.value));
     const nmExcl = new Set(excl.filter(e => e.field === 'nm').map(e => e.value));
     const unExcl = new Set(excl.filter(e => e.field === 'un').map(e => e.value));
+    const portExcl = new Set(excl.filter(e => e.field === 'port').map(e => e.value));
     return {
       presets, totalPresets: presets.length, totalRows: allRows.length,
       svGroups:      _groupSimilar(svRows.map(r => r.sv), svExcl, 'sv'),
       carrierGroups: _groupSimilar(carrierRows.map(r => r.sv), svExcl, 'sv'),
       nmGroups:      _groupSimilar(allRows.map(r => r.nm).filter(Boolean), nmExcl, 'nm'),
       unGroups:      _groupSimilar(allRows.map(r => r.un).filter(Boolean), unExcl, 'un'),
+      portGroups:    _groupSimilar(_gatherPorts(source), portExcl, 'port'),
     };
+  }
+
+  // 港名（POL/POD/Via）を全プリセットの条件フィールドから収集。
+  // 複数航路（z2-routes-data）がある場合はそちらを優先（cloud.js の列昇格ロジックと同じ）。
+  function _portValsFromFields(f) {
+    let rts = [];
+    try { rts = JSON.parse(f['z2-routes-data'] || '[]'); } catch (e) {}
+    const out = [];
+    if (Array.isArray(rts) && rts.length) {
+      rts.forEach(r => ['pol', 'pod', 'via'].forEach(k => { const v = (r[k] || '').trim(); if (v) out.push(v); }));
+    } else {
+      ['z2Pol', 'z2Pod', 'z2Via'].forEach(k => { const v = (f[k] || '').trim(); if (v) out.push(v); });
+    }
+    return out;
+  }
+  function _gatherPorts(source) {
+    const ports = [];
+    const add = p => { ports.push(..._portValsFromFields((p.data || {}).fields || {})); };
+    if (source !== 'cloud') _getLocalPresets().forEach(add);
+    if (source !== 'local') (typeof window.cloudGetAllRows === 'function' ? window.cloudGetAllRows() : []).forEach(add);
+    return ports;
   }
 
   function _freq(arr) {
@@ -200,6 +223,31 @@
   // HTML エンティティ（&#39;）はブラウザが JS 実行前に ' に戻してしまい構文エラーになるため、
   // JS の \' エスケープを使う（HTML は \ をデコードしない）。
   function _ea(s)   { return String(s || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'"); }
+  // HTML value="" 属性用
+  function _eav(s)  { return String(s || '').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
+
+  // 同義グループ操作ボタン（⭐代表 / ⤵統合 / →代表ピル）。field は sv/nm/customer/port。
+  function _synBtns(field, value, canons, aliasOf, cntMap) {
+    const isCanon = canons.has(value);
+    const canon   = aliasOf[value];
+    let h = `<button class="stats-syn-star${isCanon ? ' on' : ''}" ` +
+            `onclick="statsToggleSynCanonical('${_ea(field)}','${_ea(value)}')" ` +
+            `title="${isCanon ? '代表を解除' : '同義グループの代表に設定'}">${isCanon ? '⭐代表' : '☆代表'}</button>`;
+    if (isCanon) {
+      const g = (typeof window.synGetGroups === 'function' ? window.synGetGroups(field) : []).find(x => x.canonical === value);
+      const aliases = (g && g.aliases) || [];
+      if (aliases.length) {
+        const total = (cntMap[value] || 0) + aliases.reduce((s, a) => s + (cntMap[a] || 0), 0);
+        h += `<span class="stats-syn-total" title="統合した表記の合計件数（${aliases.length}件統合）">計${total}</span>`;
+      }
+    } else if (canon) {
+      h += `<span class="stats-syn-into" title="「${_eav(canon)}」に統合済み">→${_esc(canon)}</span>` +
+           `<button class="stats-syn-unmerge" onclick="statsSynUnmerge('${_ea(field)}','${_ea(value)}')" title="統合を解除">✕</button>`;
+    } else if (canons.size) {
+      h += `<button class="stats-syn-merge" onclick="statsSynMergePicker('${_ea(field)}','${_ea(value)}',this)" title="既存の代表に統合">⤵統合</button>`;
+    }
+    return h;
+  }
 
   function _voteBtn(field, value) {
     const v  = _voteInfo(field, value);
@@ -216,12 +264,20 @@
     const e = document.getElementById(paneId);
     if (!e || !_data) return;
     if (!groups.length) { e.innerHTML = '<p class="stats-empty">データなし</p>'; return; }
-    // carrier も alias rule では 'sv' フィールドを使う
+    // carrier も alias rule / 同義グループでは 'sv' フィールドを使う
     const aliasField = (field === 'sv') ? 'sv' : field;
+    // 同義グループ状態（手動・⭐代表／統合）と件数マップ
+    const synGroups  = typeof window.synGetGroups === 'function' ? window.synGetGroups(aliasField) : [];
+    const synCanons  = new Set(synGroups.map(g => g.canonical));
+    const synAliasOf = {};
+    synGroups.forEach(g => (g.aliases || []).forEach(a => { synAliasOf[a] = g.canonical; }));
+    const cntMap = {};
+    groups.forEach(g => g.variants.forEach(v => { cntMap[v.value] = (cntMap[v.value] || 0) + v.count; }));
     // groups の total 最大値
     const maxTotal = groups.length ? Math.max(...groups.map(g => g.total)) : 1;
-    let h = `<table class="stats-table stats-nm-table"><thead><tr>` +
-            `<th>${colLabel}</th><th class="stats-num-col">合計</th><th>バリアント / 投票</th>` +
+    let h = '<p class="stats-syn-hint">☆代表 で同義グループの基準を決め、他の表記を ⤵統合 でまとめられます（非破壊・件数合算）。表記ゆれの一括置換は「ゆらぎ N種」バッジから。</p>' +
+            `<table class="stats-table stats-nm-table"><thead><tr>` +
+            `<th>${colLabel}</th><th class="stats-num-col">合計</th><th>バリアント / 操作</th>` +
             `</tr></thead><tbody>`;
     groups.forEach((g, gIdx) => {
       const hasV = g.variants.length > 1;
@@ -243,11 +299,12 @@
            `</td>`;
       h += `<td class="stats-chips-cell">`;
       g.variants.forEach(v => {
-        h += `<span class="stats-chip">` +
+        h += `<span class="stats-chip${synCanons.has(v.value) ? ' stats-chip--canon' : ''}">` +
              `<span class="stats-chip-text">${_esc(v.value)}</span>` +
              `<span class="stats-chip-cnt">×${v.count}</span>` +
              _voteBtn(field, v.value) +
              (hasV ? `<button class="stats-excl-chip-btn" onclick="statsExcludeVariant('${_ea(aliasField)}','${_ea(v.value)}')" title="ゆらぎ判定から除外（別物として扱う）">≠</button>` : '') +
+             _synBtns(aliasField, v.value, synCanons, synAliasOf, cntMap) +
              `</span>`;
       });
       h += '</td></tr>';
@@ -258,6 +315,51 @@
   window.statsExcludeVariant = async function (field, value) {
     if (typeof window.arAddExclusion === 'function') await window.arAddExclusion(field, value);
     // arAddExclusion calls statsRefresh internally
+  };
+
+  // === 同義グループ操作（⭐代表 / ⤵統合 / 解除）===
+  window.statsToggleSynCanonical = async function (field, value) {
+    const groups = typeof window.synGetGroups === 'function' ? window.synGetGroups(field) : [];
+    const g = groups.find(x => x.canonical === value);
+    if (g) {
+      if ((g.aliases || []).length && !confirm(`「${value}」を代表から解除します。統合済み ${g.aliases.length} 件もグループ解除されます。よろしいですか？`)) return;
+      await window.synRemoveGroup(field, value);
+    } else if (typeof window.synSetCanonical === 'function') {
+      await window.synSetCanonical(field, value);
+    }
+  };
+  window.statsSynUnmerge = async function (field, value) {
+    const map = typeof window.synGetNormalizeMap === 'function' ? window.synGetNormalizeMap(field) : {};
+    const canon = map[value];
+    if (canon && typeof window.synRemoveAlias === 'function') await window.synRemoveAlias(field, value, canon);
+  };
+  window.statsSynMergePicker = function (field, value, btn) {
+    document.querySelectorAll('.stats-syn-picker').forEach(el => el.remove());
+    const groups = (typeof window.synGetGroups === 'function' ? window.synGetGroups(field) : [])
+      .filter(g => g.canonical !== value);
+    if (!groups.length) {
+      if (typeof window.quoteShowToast === 'function') window.quoteShowToast('⭐ 先に統合先の代表を設定してください', 'warn');
+      return;
+    }
+    const wrap = document.createElement('span');
+    wrap.className = 'stats-syn-picker';
+    wrap.innerHTML =
+      `<select class="stats-syn-sel">` +
+      groups.map(g => `<option value="${_eav(g.canonical)}">${_esc(g.canonical)}</option>`).join('') +
+      `</select>` +
+      `<button class="stats-syn-pick-ok" onclick="statsSynConfirmMerge('${_ea(field)}','${_ea(value)}',this)">統合</button>` +
+      `<button class="stats-syn-pick-cancel" onclick="this.closest('.stats-syn-picker').remove()">✕</button>`;
+    btn.after(wrap);
+  };
+  window.statsSynConfirmMerge = async function (field, value, btn) {
+    const sel = btn.closest('.stats-syn-picker')?.querySelector('select');
+    if (!sel) return;
+    if (typeof window.synAddAlias === 'function') await window.synAddAlias(field, value, sel.value);
+  };
+
+  // 軽量再描画（クラウドプリセット/投票の再取得を伴わない。同義グループ更新時に使用）
+  window.statsRerenderActive = function () {
+    try { _renderActivePane(); _renderMaster(); } catch (e) { console.error('[statsRerenderActive]', e); }
   };
 
   window.statsJumpToAlias = function (groupId) {
@@ -277,6 +379,7 @@
 
   function _renderSv() { _renderGrouped(_data?.svGroups || [], 'sv', 'サブコン名', 'statsPane-sv'); }
   function _renderCarrier() { _renderGrouped(_data?.carrierGroups || [], 'sv', 'キャリア名', 'statsPane-carrier'); }
+  function _renderPort() { _renderGrouped(_data?.portGroups || [], 'port', '港名', 'statsPane-port'); }
   function _renderNm()      { _renderGrouped(_data?.nmGroups      || [], 'nm', '品名',       'statsPane-nm'); }
   function _renderUn() {
     const e = document.getElementById('statsPane-un');
@@ -441,6 +544,236 @@
   // ===== お客様タブ =====
   const _stCls = st => ({ '下書き中':'draft','提出済み':'sent','提示済み':'sent','受注':'won','失注':'lost','辞退':'declined','保留':'hold' }[st] || 'draft');
 
+  // ===== 📈 ダッシュボード（案件分析） =====
+
+  // 案件（プリセット）1件を分析用に正規化。ローカル／クラウド両対応。
+  function _num(v) { const n = parseFloat(String(v == null ? '' : v).replace(/[, ]/g, '')); return isFinite(n) ? n : null; }
+  function _jpy(n)  { return '¥' + Math.round(n).toLocaleString('ja-JP'); }
+  function _toJ(amount, cur) {
+    const c = (cur || 'JPY').trim() || 'JPY';
+    if (c === 'JPY') return amount;
+    if (typeof toJPY !== 'function') return null;
+    const v = toJPY(amount, c);
+    return isFinite(v) ? v : null;
+  }
+
+  // 行配列（data.rows）から案件全体の仕入合計・売上合計（JPY換算）を算出。換算不能行は除外。
+  function _caseFinancials(rows) {
+    if (!Array.isArray(rows)) return null;
+    let cost = 0, bill = 0, ok = false;
+    rows.forEach(r => {
+      if (!r || r._type !== 'data') return;
+      const c  = Array.isArray(r.cells) ? r.cells : [];
+      const pp = _num(c[10]), bp = _num(c[11]);
+      const pq = _num(c[5]) > 0 ? _num(c[5]) : 1;
+      const bq = _num(c[7]) > 0 ? _num(c[7]) : 1;
+      const pc = c[8] || 'JPY', bc = c[9] || 'JPY';
+      if (pp != null) { const cc = _toJ(pp * pq, pc); if (cc != null) { cost += cc; ok = true; } }
+      if (bp != null) { const bb = _toJ(bp * bq, bc); if (bb != null) { bill += bb; ok = true; } }
+    });
+    return ok ? { cost, bill } : null;
+  }
+
+  // ローカル fields からの航路フォールバック（z2-routes-data）
+  function _routeFromFields(f, key /* 'pol'|'pod'|'carrier' */) {
+    const single = (f['z2Pol'] && key === 'pol') ? f['z2Pol']
+                 : (f['z2Pod'] && key === 'pod') ? f['z2Pod']
+                 : (f['z2Carrier'] && key === 'carrier') ? f['z2Carrier'] : '';
+    if (single) return single.trim();
+    try {
+      const rts = JSON.parse(f['z2-routes-data'] || '[]');
+      if (Array.isArray(rts) && rts.length) {
+        return rts.map(r => r[key]).filter(Boolean).join(', ');
+      }
+    } catch (e) {}
+    return '';
+  }
+
+  // 分析用の案件リストを構築（source: 'both'|'local'|'cloud'）
+  function _caseList(source) {
+    const cases = [];
+    if (source !== 'cloud') {
+      _getLocalPresets().forEach(p => {
+        const f = (p.data || {}).fields || {};
+        cases.push({
+          name: p.name || '（名称なし）', src: 'local',
+          status:   (f['qf-status']   || '').trim(),
+          customer: (f['qf-customer'] || '').trim(),
+          mode:     (f['cond-mode']   || '').trim(),
+          pol:      _routeFromFields(f, 'pol'),
+          pod:      _routeFromFields(f, 'pod'),
+          carrier:  _routeFromFields(f, 'carrier'),
+          ts:       p.ts || null,
+          fin:      _caseFinancials((p.data || {}).rows),
+        });
+      });
+    }
+    if (source !== 'local') {
+      const cloud = typeof window.cloudGetAllRows === 'function' ? window.cloudGetAllRows() : [];
+      cloud.forEach(p => {
+        cases.push({
+          name: p.name || '（名称なし）', src: 'cloud',
+          status:   (p.status         || '').trim(),
+          customer: (p.customer       || '').trim(),
+          mode:     (p.transport_mode || '').trim(),
+          pol:      (p.pol            || '').trim(),
+          pod:      (p.pod            || '').trim(),
+          carrier:  (p.carrier        || '').trim(),
+          ts:       p.updated_at || null,
+          fin:      _caseFinancials((p.data || {}).rows),
+        });
+      });
+    }
+    return cases;
+  }
+
+  const _MODE_LABEL = { 'sea-fcl':'海上 FCL', 'sea-lcl':'海上 LCL', 'fcl':'FCL', 'lcl':'LCL', 'air':'航空', 'sea':'海上', 'rail':'鉄道', 'truck':'トラック' };
+  const _STATUS_ORDER = ['下書き中', '提出済み', '提示済み', '受注', '失注', '辞退', '保留'];
+
+  // 横棒ランキング HTML（[{label,count}] と最大値から生成）
+  function _barRows(items, max, opt) {
+    opt = opt || {};
+    if (!items.length) return '<p class="stats-empty">データなし</p>';
+    return '<div class="sd-bars">' + items.map(it => {
+      const pct = max > 0 ? Math.max(2, Math.round(it.count / max * 100)) : 0;
+      const cls = it.cls ? ' ' + it.cls : '';
+      return `<div class="sd-bar-row">` +
+             `<span class="sd-bar-label" title="${_esc(it.label)}">${_esc(it.label)}</span>` +
+             `<span class="sd-bar-track"><span class="sd-bar-fill${cls}" style="width:${pct}%"></span></span>` +
+             `<span class="sd-bar-val">${_esc(it.valText != null ? it.valText : String(it.count))}</span>` +
+             `</div>`;
+    }).join('') + '</div>';
+  }
+
+  function _kpi(value, label, cls) {
+    return `<div class="sd-kpi${cls ? ' ' + cls : ''}"><div class="sd-kpi-val">${_esc(value)}</div><div class="sd-kpi-label">${_esc(label)}</div></div>`;
+  }
+
+  function _renderDashboard() {
+    const e = document.getElementById('statsPane-dashboard');
+    if (!e) return;
+    const source = document.getElementById('statsSource')?.value || 'both';
+    const cases  = _caseList(source);
+    if (!cases.length) {
+      e.innerHTML = '<p class="stats-empty">案件がありません。<br><small>見積を保存すると、ここに受注率・粗利・航路傾向が集計されます。</small></p>';
+      return;
+    }
+
+    // --- A. 受注ステータス ---
+    const stCount = {};
+    cases.forEach(c => { const s = c.status || '（未設定）'; stCount[s] = (stCount[s] || 0) + 1; });
+    const won  = stCount['受注'] || 0;
+    const lost = stCount['失注'] || 0;
+    const decided  = won + lost;
+    const winRate  = decided > 0 ? Math.round(won / decided * 100) : null;
+    const stItems = Object.keys(stCount)
+      .sort((a, b) => {
+        const ia = _STATUS_ORDER.indexOf(a), ib = _STATUS_ORDER.indexOf(b);
+        return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib);
+      })
+      .map(s => ({ label: s, count: stCount[s], cls: 'sd-bar--st-' + _stCls(s) }));
+    const stMax = Math.max(...stItems.map(i => i.count));
+    const sectionA =
+      '<section class="sd-section"><h3 class="sd-h">📊 受注ステータス</h3>' +
+      '<div class="sd-kpis">' +
+        _kpi(cases.length, '総案件') +
+        _kpi(won,  '受注', 'sd-kpi--won') +
+        _kpi(lost, '失注', 'sd-kpi--lost') +
+        _kpi(winRate == null ? '—' : winRate + '%', '受注率（決着ベース）', 'sd-kpi--rate') +
+      '</div>' + _barRows(stItems, stMax) + '</section>';
+
+    // --- B. 金額・粗利 ---
+    const finCases = cases.filter(c => c.fin);
+    let totBill = 0, totCost = 0;
+    finCases.forEach(c => { totBill += c.fin.bill; totCost += c.fin.cost; });
+    const totMargin = (window.SharedCalc && totBill > 0) ? SharedCalc.grossMarginPct(totBill, totCost) : null;
+    // お客様別集計
+    const custMap = new Map();
+    finCases.forEach(c => {
+      const k = c.customer || '（未入力）';
+      if (!custMap.has(k)) custMap.set(k, { customer: k, count: 0, bill: 0, cost: 0 });
+      const g = custMap.get(k); g.count++; g.bill += c.fin.bill; g.cost += c.fin.cost;
+    });
+    const custRows = [...custMap.values()].sort((a, b) => b.bill - a.bill).slice(0, 15);
+    let custTable;
+    if (!finCases.length) {
+      custTable = '<p class="stats-empty">単価が入力された案件がありません。<br><small>明細に仕入・売単価を入れて保存すると粗利が集計されます。</small></p>';
+    } else {
+      custTable = '<table class="stats-table sd-money-table"><thead><tr>' +
+        '<th>お客様</th><th class="stats-num-col">件数</th><th class="stats-num-col">売上合計</th><th class="stats-num-col">粗利率</th>' +
+        '</tr></thead><tbody>' +
+        custRows.map(g => {
+          const m = (window.SharedCalc && g.bill > 0) ? SharedCalc.grossMarginPct(g.bill, g.cost) : null;
+          const mCls = m == null ? '' : (m >= 0 ? 'sd-margin-pos' : 'sd-margin-neg');
+          return `<tr><td class="stats-val">${_esc(g.customer)}</td>` +
+                 `<td class="stats-num-col">${g.count}</td>` +
+                 `<td class="stats-num-col">${_jpy(g.bill)}</td>` +
+                 `<td class="stats-num-col ${mCls}">${m == null ? '—' : m.toFixed(1) + '%'}</td></tr>`;
+        }).join('') + '</tbody></table>';
+    }
+    const mTotCls = totMargin == null ? '' : (totMargin >= 0 ? 'sd-kpi--won' : 'sd-kpi--lost');
+    const sectionB =
+      '<section class="sd-section"><h3 class="sd-h">💴 金額・粗利 <small class="sd-note">JPY換算・単価入力ありの案件のみ</small></h3>' +
+      '<div class="sd-kpis">' +
+        _kpi(_jpy(totBill), '総売上') +
+        _kpi(_jpy(totCost), '総仕入') +
+        _kpi(totMargin == null ? '—' : totMargin.toFixed(1) + '%', '平均粗利率', mTotCls) +
+      '</div>' + custTable + '</section>';
+
+    // --- C. 月次推移 ---
+    const monMap = new Map();
+    cases.forEach(c => {
+      if (!c.ts) return;
+      const m = String(c.ts).slice(0, 7);   // YYYY-MM
+      if (!/^\d{4}-\d{2}$/.test(m)) return;
+      if (!monMap.has(m)) monMap.set(m, { month: m, total: 0, won: 0 });
+      const g = monMap.get(m); g.total++; if (c.status === '受注') g.won++;
+    });
+    const months = [...monMap.values()].sort((a, b) => a.month.localeCompare(b.month)).slice(-12);
+    const monMax = months.length ? Math.max(...months.map(m => m.total)) : 0;
+    let monHtml;
+    if (!months.length) {
+      monHtml = '<p class="stats-empty">日付情報のある案件がありません。</p>';
+    } else {
+      monHtml = '<div class="sd-bars sd-bars--month">' + months.map(m => {
+        const pct = monMax > 0 ? Math.max(2, Math.round(m.total / monMax * 100)) : 0;
+        const wpct = m.total > 0 ? Math.round(m.won / m.total * 100) : 0;
+        const label = m.month.slice(2).replace('-', '/');   // YY/MM
+        return `<div class="sd-bar-row">` +
+               `<span class="sd-bar-label">${_esc(label)}</span>` +
+               `<span class="sd-bar-track"><span class="sd-bar-fill sd-bar--month" style="width:${pct}%">` +
+               `<span class="sd-bar-won" style="width:${wpct}%"></span></span></span>` +
+               `<span class="sd-bar-val">${m.total}件${m.won ? ' / 受注' + m.won : ''}</span>` +
+               `</div>`;
+      }).join('') + '</div>';
+    }
+    const sectionC =
+      '<section class="sd-section"><h3 class="sd-h">📅 月次推移 <small class="sd-note">直近12ヶ月・濃色＝受注</small></h3>' + monHtml + '</section>';
+
+    // --- D. 貨物・航路傾向 ---
+    const freq = (arr) => {
+      const m = new Map();
+      arr.filter(Boolean).forEach(v => m.set(v, (m.get(v) || 0) + 1));
+      return [...m.entries()].sort((a, b) => b[1] - a[1]).map(([value, count]) => ({ value, count }));
+    };
+    const modeItems = freq(cases.map(c => c.mode))
+      .map(i => ({ label: _MODE_LABEL[i.value] || i.value, count: i.count }));
+    const routeItems = freq(cases.map(c => (c.pol || c.pod) ? `${c.pol || '?'} → ${c.pod || '?'}` : ''))
+      .slice(0, 8).map(i => ({ label: i.value, count: i.count }));
+    const carrierItems = freq(cases.map(c => c.carrier)).slice(0, 8)
+      .map(i => ({ label: i.value, count: i.count }));
+    const sectionD =
+      '<section class="sd-section"><h3 class="sd-h">🚢 貨物・航路傾向</h3>' +
+      '<div class="sd-trend-grid">' +
+        `<div class="sd-trend-col"><h4 class="sd-h4">輸送モード</h4>${_barRows(modeItems, Math.max(...modeItems.map(i => i.count), 0))}</div>` +
+        `<div class="sd-trend-col"><h4 class="sd-h4">航路 (POL→POD) 上位8</h4>${_barRows(routeItems, Math.max(...routeItems.map(i => i.count), 0))}</div>` +
+        `<div class="sd-trend-col"><h4 class="sd-h4">キャリア 上位8</h4>${_barRows(carrierItems, Math.max(...carrierItems.map(i => i.count), 0))}</div>` +
+      '</div></section>';
+
+    e.innerHTML = '<div class="sd-wrap">' + sectionA + sectionB + sectionC + sectionD + '</div>';
+  }
+  window.statsRefreshDashboard = _renderDashboard;
+
   function _renderCustomer() {
     const e = document.getElementById('statsPane-customer');
     if (!e) return;
@@ -492,10 +825,19 @@
       if (cg.variants.length > 1) normToCanon.set(_normalize(cg.variants[0].value), cg);
     });
 
+    // 同義グループ状態（手動・⭐代表／統合）
+    const synGroups  = typeof window.synGetGroups === 'function' ? window.synGetGroups('customer') : [];
+    const synCanons  = new Set(synGroups.map(g => g.canonical));
+    const synAliasOf = {};
+    synGroups.forEach(g => (g.aliases || []).forEach(a => { synAliasOf[a] = g.canonical; }));
+    const synCntMap = {};
+    groups.forEach(g => { if (g.customer) synCntMap[g.customer] = g.count; });
+
     const _renderedCustGroups = {};
     let gIdx = 0;
-    let h = '<table class="stats-table"><thead><tr>' +
-            '<th>お客様名</th><th class="stats-num-col">件数</th><th>担当者</th><th>ステータス</th><th></th>' +
+    let h = '<p class="stats-syn-hint">☆代表 で同義グループの基準を決め、他の表記を ⤵統合 でまとめられます（非破壊・件数合算）。</p>' +
+            '<table class="stats-table"><thead><tr>' +
+            '<th>お客様名</th><th class="stats-num-col">件数</th><th>担当者</th><th>ステータス</th><th>操作</th>' +
             '</tr></thead><tbody>';
     groups.forEach(g => {
       const persons = [...g.persons].join('、') || '—';
@@ -522,12 +864,15 @@
       const nameCell = g.customer
         ? `${_esc(g.customer)}${variantBadge}`
         : '<span class="stats-empty-cell">（未入力）</span>';
-      h += `<tr>` +
+      const opCell = g.customer
+        ? _voteBtn('customer', g.customer) + _synBtns('customer', g.customer, synCanons, synAliasOf, synCntMap)
+        : '';
+      h += `<tr${synCanons.has(g.customer) ? ' class="stats-row--canon"' : ''}>` +
            `<td class="stats-val">${nameCell}</td>` +
            `<td class="stats-num-col">${g.count}</td>` +
            `<td>${_esc(persons)}</td>` +
            `<td>${stHtml}</td>` +
-           `<td>${g.customer ? _voteBtn('customer', g.customer) : ''}</td>` +
+           `<td class="stats-chips-cell">${opCell}</td>` +
            `</tr>`;
     });
     e.innerHTML = h + '</tbody></table>';
@@ -550,17 +895,49 @@
     } else {
       entries = _getMasters().map(m => ({ ...m, isMine: true, promoted: true }));
     }
+    const labels = { sv: 'サブコン', nm: '品名', un: '単位', customer: 'お客様', port: '港' };
+
+    // --- 同義グループ一覧（sv/nm/customer/port は syn*、un は ua* から集約）---
+    const synGroups = (typeof window.synGetGroups === 'function' ? window.synGetGroups() : []).slice();
+    const unitGroups = (typeof window.uaGetGroups === 'function' ? window.uaGetGroups() : [])
+      .map(g => ({ field: 'un', canonical: g.canonical, aliases: g.aliases || [] }));
+    const allSyn = [...synGroups, ...unitGroups]
+      .sort((a, b) => (labels[a.field] || a.field).localeCompare(labels[b.field] || b.field) || (a.canonical || '').localeCompare(b.canonical || ''));
+    let synH = '';
+    if (allSyn.length) {
+      synH = '<div class="stats-syn-section"><p class="stats-master-info-title">⭐ 同義グループ（代表 → 統合）</p>' +
+        `<p class="stats-master-info-note">集計タブの ☆代表 / ⤵統合 で作成。件数は合算され、入力補完にも反映されます。${cloudOn ? '（チーム共有）' : '（このブラウザに保存）'}</p>` +
+        '<table class="stats-table"><thead><tr><th>種別</th><th>代表</th><th>統合された表記</th><th>操作</th></tr></thead><tbody>';
+      allSyn.forEach(g => {
+        const isUnit  = g.field === 'un';
+        const aliases = g.aliases || [];
+        const delAlias = (a) => isUnit
+          ? `statsUnitRemoveAlias('${_ea(a)}','${_ea(g.canonical)}')`
+          : `synRemoveAlias('${_ea(g.field)}','${_ea(a)}','${_ea(g.canonical)}')`;
+        const delGroup = isUnit
+          ? `statsUnitRemoveGroup('${_ea(g.canonical)}')`
+          : `synRemoveGroup('${_ea(g.field)}','${_ea(g.canonical)}')`;
+        const chips = aliases.length
+          ? aliases.map(a => `<span class="stats-syn-member">${_esc(a)}<button class="ua-chip-del" title="統合解除" onclick="${delAlias(a)}">✕</button></span>`).join('')
+          : '<span class="stats-empty-cell">—</span>';
+        synH += `<tr><td>${labels[g.field] || g.field}</td>` +
+                `<td class="stats-val"><span class="ua-star">⭐</span>${_esc(g.canonical)}</td>` +
+                `<td>${chips}</td>` +
+                `<td><button class="ua-remove-canon" title="グループを解除" onclick="${delGroup}">解除</button></td></tr>`;
+      });
+      synH += '</tbody></table></div>';
+    }
 
     if (!entries.length) {
-      e.innerHTML = '<p class="stats-empty">マスター登録はまだありません。<br>各集計の ☆ 登録 ボタンで追加できます。</p>';
+      e.innerHTML = '<p class="stats-empty">マスター登録はまだありません。<br>各集計の ☆ 登録 ボタンで追加できます。</p>' + synH;
       return;
     }
-    const labels = { sv: 'サブコン', nm: '品名', un: '単位', customer: 'お客様' };
     const usageDesc = {
       sv:       '見積行のサブコン欄で入力補完候補に表示されます。',
       nm:       '見積行の品名欄で入力補完候補に表示されます。',
       un:       '見積行の単位欄で入力補完候補に表示されます。',
       customer: 'お客様名欄で入力補完候補に表示されます。',
+      port:     'POL / POD / Via 港欄で入力補完候補に表示されます。',
     };
     const sorted = entries.sort((a, b) => (labels[a.field] || a.field).localeCompare(labels[b.field] || b.field) || (a.value || '').localeCompare(b.value || ''));
     const abbrevPairs = (typeof window.arGetAbbrevPairs === 'function') ? window.arGetAbbrevPairs() : [];
@@ -593,8 +970,18 @@
            `<td>${m.isMine ? `<button class="stats-demote-btn" onclick="statsToggleVote('${_ea(m.field)}','${_ea(m.value)}')">解除</button>` : '<span class="stats-empty-cell">他メンバー</span>'}</td>` +
            `</tr>`;
     });
-    e.innerHTML = h + '</tbody></table>';
+    e.innerHTML = h + '</tbody></table>' + synH;
   }
+
+  // マスタータブから単位同義グループを操作した際、マスター画面も再描画する薄いラッパ
+  window.statsUnitRemoveGroup = function (canonical) {
+    if (typeof window.uaRemoveGroup === 'function') window.uaRemoveGroup(canonical);
+    if (typeof window.statsRerenderActive === 'function') window.statsRerenderActive();
+  };
+  window.statsUnitRemoveAlias = function (alias, canonical) {
+    if (typeof window.uaRemoveAlias === 'function') window.uaRemoveAlias(alias, canonical);
+    if (typeof window.statsRerenderActive === 'function') window.statsRerenderActive();
+  };
 
   function _renderAlias() {
     if (typeof window.arRenderPane === 'function') window.arRenderPane();
@@ -731,8 +1118,10 @@
     const active = document.querySelector('#tab-stats .stats-pane.is-active');
     if (!active) return;
     const id = active.id.replace('statsPane-', '');
-    if      (id === 'sv')       _renderSv();
+    if      (id === 'dashboard') _renderDashboard();
+    else if (id === 'sv')       _renderSv();
     else if (id === 'carrier')  _renderCarrier();
+    else if (id === 'port')     _renderPort();
     else if (id === 'customer') _renderCustomer();
     else if (id === 'nm')       _renderNm();
     else if (id === 'un')       _renderUn();
@@ -754,8 +1143,10 @@
     if (activeBtn) { activeBtn.classList.add('is-active'); activeBtn.setAttribute('aria-selected', 'true'); }
     document.getElementById('statsPane-'   + paneId)?.classList.add('is-active');
     if (!_data) { _data = _build(document.getElementById('statsSource')?.value || 'both'); _updateSummary(); }
-    if      (paneId === 'sv')       _renderSv();
+    if      (paneId === 'dashboard') _renderDashboard();
+    else if (paneId === 'sv')       _renderSv();
     else if (paneId === 'carrier')  _renderCarrier();
+    else if (paneId === 'port')     _renderPort();
     else if (paneId === 'customer') _renderCustomer();
     else if (paneId === 'nm')       _renderNm();
     else if (paneId === 'un')       _renderUn();
@@ -777,10 +1168,11 @@
     _data  = _build(source);
     _updateSummary();
     _renderCloud();
-    statsSetPane('sv');
+    statsSetPane('dashboard');
     if (typeof window.arRefreshDatalist === 'function') window.arRefreshDatalist();
     if (_cloud()) {
       await _loadCloudVotes();
+      if (typeof window.synLoadCloud === 'function') await window.synLoadCloud();
       _renderCloud();
       _renderActivePane();
     }
@@ -819,7 +1211,7 @@
       _data  = _build(source);
       _updateSummary();
       _renderCloud();
-      if (_cloud()) await _loadCloudVotes();
+      if (_cloud()) { await _loadCloudVotes(); if (typeof window.synLoadCloud === 'function') await window.synLoadCloud(); }
       _renderCloud();
       _renderActivePane();
       if (typeof window.arRefreshDatalist === 'function') window.arRefreshDatalist();
@@ -855,13 +1247,14 @@
   window.statsDemote  = async function (f, v) { await _demote(f, v);  _renderMaster(); };
 
   window.statsMasterAddAbbrev = function (field, value) {
+    const labels = { sv: 'サブコン', nm: '品名', un: '単位', customer: 'お客様', port: '港' };
     const safeId = 'abbrev-inline-' + Math.random().toString(36).slice(2, 7);
     // 既存の「＋ 略称」ボタンを入力フォームに置換
     const btn = document.querySelector(`.stats-master-abbrev-add[onclick*="${_ea(value)}"]`);
     if (!btn) return;
     const cell = btn.parentElement;
     cell.innerHTML = `<span class="stats-abbrev-inline-form">` +
-      `<input id="${safeId}" class="stats-abbrev-input" type="text" placeholder="略称を入力" maxlength="30" autofocus>` +
+      `<input id="${safeId}" class="stats-abbrev-input" type="text" placeholder="略称を入力（${labels[field] || field}）" maxlength="30" autofocus>` +
       `<button class="stats-abbrev-ok" onclick="statsMasterAddAbbrevCommit('${_ea(field)}','${_ea(value)}','${safeId}')">追加</button>` +
       `<button class="stats-abbrev-cancel" onclick="_renderMaster()">取消</button>` +
       `</span>`;

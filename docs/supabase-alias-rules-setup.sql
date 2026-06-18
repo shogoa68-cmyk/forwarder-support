@@ -3,7 +3,7 @@
 
 CREATE TABLE IF NOT EXISTS alias_rules (
   id           uuid        PRIMARY KEY DEFAULT gen_random_uuid(),
-  field        text        NOT NULL CHECK (field IN ('sv', 'nm', 'un')),
+  field        text        NOT NULL CHECK (field IN ('sv', 'nm', 'un', 'port')),
   from_value   text        NOT NULL,
   to_value     text        NOT NULL,
   created_by   text,

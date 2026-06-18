@@ -252,6 +252,17 @@
     };
   }
 
+  // it（_aggregate済みアイテム）から行データを生成。cells より it の確定プロパティを優先し
+  // cells のみで補完する。単位などが cells に入っていない場合のフォールバック。
+  function _rowFromItem(it, svName) {
+    const row = _cellsToRow(it.cells || []);
+    if (!row.un  && it.un)  row.un  = it.un;
+    if (!row.cat && it.cat) row.cat = it.cat;
+    if (!row.name && it.name) row.name = it.name;
+    if (svName) row.sv = svName;
+    return row;
+  }
+
   function subconInsert(si) {
     const sc = _filteredAt(si);
     if (!sc) return;
@@ -324,7 +335,7 @@
           ? ppStr + '<span class="si-arrow">→</span>' + bpStr
           : ppStr;
         const unit = it.un ? '<small class="rp-sc-unit"> /' + _esc(it.un) + '</small>' : '';
-        return '<label class="rp-sc-item">' +
+        return '<label class="rp-sc-item" draggable="true" data-si="' + si + '" data-ii="' + ii + '">' +
             '<input type="checkbox" class="rp-sc-chk si-chk" data-si="' + si + '" data-ii="' + ii + '" checked>' +
             '<span class="rp-cat ' + (CAT_CLASS[it.cat]||'cat-other') + '">' + _esc(ROLE[it.cat]||it.cat||'—') + '</span>' +
             '<span class="rp-sc-itemname">' + _esc(it.name) + '</span>' +
@@ -360,6 +371,24 @@
     note.textContent = sel + '/' + total + '行選択中';
   }
 
+  // サブコングループの末尾行の次の行（非仮想）を返す。グループが存在しなければ null（末尾挿入）
+  function _svGroupAnchor(svName) {
+    const tbody = document.getElementById('tableBody');
+    if (!tbody) return null;
+    let lastInGroup = null;
+    Array.from(tbody.querySelectorAll('tr:not([data-virtual])')).forEach(tr => {
+      if (tr.dataset.type) return;
+      const id = (tr.id || '').replace('row-', '');
+      if (!id) return;
+      const sv = (document.getElementById('sv-' + id)?.value || '').trim();
+      if (sv === svName) lastInGroup = tr;
+    });
+    if (!lastInGroup) return null;
+    let next = lastInGroup.nextSibling;
+    while (next && next.dataset && next.dataset.virtual) next = next.nextSibling;
+    return next || null;
+  }
+
   function subconInsertFromPanel(si) {
     const q = (document.getElementById('siSubconSearch')?.value || '').trim().toLowerCase();
     let list = _siSubcons;
@@ -372,12 +401,19 @@
     wrap.querySelectorAll('.rp-sc-chk[data-si="' + si + '"]:checked').forEach(chk => {
       const ii = parseInt(chk.dataset.ii, 10);
       const it = sc.items[ii];
-      if (it && it.cells) rows.push(_cellsToRow(it.cells));
+      if (it) rows.push(_rowFromItem(it, sc.name));
     });
     if (!rows.length) return;
-    let posLabel = '末尾';
-    if (typeof window._insertPatternRows === 'function') posLabel = window._insertPatternRows(rows) || posLabel;
-    if (window.quoteShowToast) quoteShowToast('📂 「' + _esc(sc.name) + '」から ' + rows.length + ' 行を' + posLabel + 'に挿入しました', 'success');
+    // 同一サブコングループの末尾に挿入
+    if (typeof window._insertPatternRowsAt === 'function') {
+      const anchor = _svGroupAnchor(sc.name);
+      window._insertPatternRowsAt(rows, anchor);
+      if (window.quoteShowToast) quoteShowToast('📂 「' + _esc(sc.name) + '」から ' + rows.length + ' 行をサブコングループに挿入しました', 'success');
+    } else {
+      let posLabel = '末尾';
+      if (typeof window._insertPatternRows === 'function') posLabel = window._insertPatternRows(rows) || posLabel;
+      if (window.quoteShowToast) quoteShowToast('📂 「' + _esc(sc.name) + '」から ' + rows.length + ' 行を' + posLabel + 'に挿入しました', 'success');
+    }
   }
 
   // 現在の見積に登録済みのサブコン名セットを返す（小文字・重複除去）
@@ -456,6 +492,78 @@
       if (e.target.classList.contains('si-chk')) _updateSiSelNote(si);
       else _updateSelNote(si);
     }
+  });
+
+  // ===== ドラッグ＆ドロップ（サイドパネル → 見積テーブル） =====
+  document.addEventListener('dragstart', function(e) {
+    const label = e.target.closest('#siListWrap .rp-sc-item[draggable]');
+    if (!label) return;
+    const si = parseInt(label.dataset.si, 10);
+    const ii = parseInt(label.dataset.ii, 10);
+    const q = (document.getElementById('siSubconSearch')?.value || '').trim().toLowerCase();
+    let list = _siSubcons;
+    if (q) list = list.filter(sc => sc.name.toLowerCase().includes(q) || sc.items.some(it => it.name.toLowerCase().includes(q)));
+    const sc = list[si];
+    if (!sc) return;
+    const it = sc.items[ii];
+    if (!it) return;
+    e.dataTransfer.setData('application/x-si-item', JSON.stringify(_rowFromItem(it, sc.name)));
+    e.dataTransfer.effectAllowed = 'copy';
+    label.classList.add('si-item-dragging');
+  });
+
+  document.addEventListener('dragend', function(e) {
+    if (!e.target.closest('#siListWrap .rp-sc-item[draggable]')) return;
+    document.querySelectorAll('.rp-sc-item.si-item-dragging').forEach(el => el.classList.remove('si-item-dragging'));
+    document.querySelectorAll('#tableBody tr.si-drop-top, #tableBody tr.si-drop-bottom').forEach(r => {
+      r.classList.remove('si-drop-top', 'si-drop-bottom');
+    });
+  });
+
+  document.addEventListener('dragover', function(e) {
+    if (!e.dataTransfer.types.includes('application/x-si-item')) return;
+    const tbody = document.getElementById('tableBody');
+    if (!tbody || !tbody.contains(e.target)) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'copy';
+    const tr = e.target.closest('#tableBody tr:not([data-virtual])');
+    document.querySelectorAll('#tableBody tr.si-drop-top, #tableBody tr.si-drop-bottom').forEach(r => {
+      r.classList.remove('si-drop-top', 'si-drop-bottom');
+    });
+    if (!tr) return;
+    const rect = tr.getBoundingClientRect();
+    tr.classList.add(e.clientY < rect.top + rect.height / 2 ? 'si-drop-top' : 'si-drop-bottom');
+  });
+
+  document.addEventListener('dragleave', function(e) {
+    const tbody = document.getElementById('tableBody');
+    if (!tbody) return;
+    if (tbody.contains(e.target) && !tbody.contains(e.relatedTarget)) {
+      document.querySelectorAll('#tableBody tr.si-drop-top, #tableBody tr.si-drop-bottom').forEach(r => {
+        r.classList.remove('si-drop-top', 'si-drop-bottom');
+      });
+    }
+  });
+
+  document.addEventListener('drop', function(e) {
+    const tbody = document.getElementById('tableBody');
+    if (!tbody || !tbody.contains(e.target)) return;
+    const raw = e.dataTransfer.getData('application/x-si-item');
+    if (!raw) return;
+    e.preventDefault();
+    document.querySelectorAll('#tableBody tr.si-drop-top, #tableBody tr.si-drop-bottom').forEach(r => {
+      r.classList.remove('si-drop-top', 'si-drop-bottom');
+    });
+    let row;
+    try { row = JSON.parse(raw); } catch(err) { return; }
+    const tr = e.target.closest('#tableBody tr:not([data-virtual])');
+    let anchorTr = null;
+    if (tr) {
+      const rect = tr.getBoundingClientRect();
+      anchorTr = e.clientY < rect.top + rect.height / 2 ? tr : (tr.nextSibling || null);
+    }
+    if (typeof window._insertPatternRowsAt === 'function') window._insertPatternRowsAt([row], anchorTr);
+    if (window.quoteShowToast) quoteShowToast('📂 「' + _esc(row.name || '費用行') + '」を挿入しました', 'success');
   });
 
   Object.assign(window, {

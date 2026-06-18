@@ -29,6 +29,18 @@ window.QuoteApp = window.QuoteApp || { state: {}, data: {}, fx: {} };
   ];
   const CAT_VALUES = CATEGORIES.map(c => c.value);
 
+  // ---- サブコン名の「揺らぎ」吸収（Phase A：軽い正規化） ----
+  // グルーピング・小計の同一判定に使う「正規化キー」を返す。表示名そのものは変えない。
+  // NFKC で全角/半角・互換文字を統一 → 小文字化 → 空白（全角含む）を除去。
+  //   例) "ＯＮＥ" / "one" / " O N E " / "ｵﾝ" ↔ "オン" などを同一グループに寄せる。
+  // 編集テーブル(row.js)・プレビュー(preview.js)・御見積書PDF(quote-pdf.js)で共通利用。
+  window.subconNormKey = function (sv) {
+    return String(sv == null ? '' : sv)
+      .normalize('NFKC')
+      .toLowerCase()
+      .replace(/\s+/g, '');
+  };
+
   // ---- 各スコープに対応する見積プリセット行 ----
   // cat: CATEGORIES の value と一致させること
   const SCOPE_PRESETS = {

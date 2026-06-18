@@ -926,10 +926,11 @@
     if (cloudSec)   cloudSec.style.display   = (mode === 'cloud') ? '' : 'none';
     // ☁️ チーム共有セクションの認証状態・一覧を反映（cloud.js）
     if (mode === 'cloud' && typeof cloudOnPresetMgrOpen === 'function') cloudOnPresetMgrOpen();
-    // 名前欄を管理番号入力欄から常に自動生成（管理番号の入力情報を優先反映）
+    // 名前欄：読込中のプリセット名を優先（コピー元の上書きを防ぐ）。未読込なら自動生成
     const input = document.getElementById('presetNameInput');
     if (input) {
-      input.value = _buildDefaultPresetName();
+      const loadedName = (document.getElementById('currentQuoteName')?.dataset.name || '').trim();
+      input.value = loadedName || _buildDefaultPresetName();
     }
     if (mode === 'browser') setTimeout(() => { input?.focus(); input?.select(); }, 50);
   }
@@ -1013,6 +1014,27 @@
     quoteShowToast('🗑️ 「' + name + '」を削除しました', 'info');
   }
 
+  function duplicateLocalPreset(idx) {
+    const presets = getPresets();
+    const src = presets[idx];
+    if (!src) return;
+    const newData = JSON.parse(JSON.stringify(src.data || {}));
+    if (!newData.fields) newData.fields = {};
+    const srcRef = (newData.fields['qf-ref'] || '').trim();
+    newData.copiedFrom = { name: src.name, ref: srcRef };
+    // 発番ID取得済みなら新REF#をコピー時点で採番（未取得の場合はコピー元番号を保持）
+    const newRef = typeof generateQuoteRefValue === 'function' ? generateQuoteRefValue() : null;
+    if (newRef) newData.fields['qf-ref'] = newRef;
+    let baseName = src.name + ' のコピー';
+    let copyName = baseName;
+    let n = 2;
+    while (presets.some(p => p.name === copyName)) copyName = baseName + '_' + (n++);
+    presets.unshift({ name: copyName, ts: new Date().toISOString(), data: newData });
+    savePresetsToStorage(presets);
+    renderPresetList();
+    quoteShowToast('📋 「' + src.name + '」をコピーしました → 「' + copyName + '」', 'success', 3500);
+  }
+
   // 案件ステータス（qf-status）→ ドット色
   const _PRESET_STATUS_DOT = { '下書き中':'#9c8e78', '提出済み':'#3f6a8c', '提示済み':'#3f6a8c', '受注':'#1e7e44', '失注':'#c0392b', '保留':'#b8860b', '辞退':'#6b21a8' };
   // プリセットの data.fields から一覧表示用メタを派生
@@ -1027,6 +1049,7 @@
         routes = rts.map(r => ({
           pol:     (r.pol     || '').trim(),
           pod:     (r.pod     || '').trim(),
+          via:     (r.via     || '').trim(),
           carrier: (r.carrier || '').trim(),
         })).filter(r => r.pol || r.pod);
       }
@@ -1045,6 +1068,8 @@
       mode:      (f['cond-mode']      || '').trim(),
       pol, pod, carrier, routes,
       status:    (f['qf-status']      || '').trim(),
+      received:  (f['qf-received']    || '').trim(),
+      due:       (f['qf-due']         || '').trim(),
       subcons:   (window.quoteExtractSubcons ? window.quoteExtractSubcons(p.data) : []),
       memo:      (f['qf-memo']        || '').trim().split('\n')[0].trim(),
     };
@@ -1134,19 +1159,20 @@
   // 1本・未設定はフラットな pol/pod にフォールバック。両モーダル（ブラウザ保存／チーム共有）で共用。
   function _routeGroups(meta) {
     const legs = (meta && Array.isArray(meta.routes)) ? meta.routes : [];
-    if (legs.length > 1) {
+    if (legs.length >= 1) {
       const groups = [], idx = {};
       legs.forEach(lg => {
-        const pol = (lg.pol || '').trim(), pod = (lg.pod || '').trim();
+        const pol = (lg.pol || '').trim(), pod = (lg.pod || '').trim(), via = (lg.via || '').trim();
         if (!pol && !pod) return;
         if (!(pol in idx)) { idx[pol] = groups.length; groups.push({ pol, pods: [] }); }
-        if (pod && groups[idx[pol]].pods.indexOf(pod) === -1) groups[idx[pol]].pods.push(pod);
+        const key = pod + '|' + via;
+        if (pod && !groups[idx[pol]].pods.some(p => (p.pod + '|' + p.via) === key)) groups[idx[pol]].pods.push({ pod, via });
       });
       if (groups.length) return groups;
     }
     const pol = ((meta && meta.pol) || '').trim(), pod = ((meta && meta.pod) || '').trim();
     if (!pol && !pod) return [];
-    return [{ pol, pods: pod ? [pod] : [] }];
+    return [{ pol, pods: pod ? [{ pod, via: '' }] : [] }];
   }
   function quoteRouteHtml(meta, arrowClass) {
     const groups = _routeGroups(meta);
@@ -1155,7 +1181,10 @@
     const MAXP = 6;   // 1 グループあたりの POD 表示上限（超過は +N）
     return groups.map(g => {
       const shown = g.pods.slice(0, MAXP), more = g.pods.length - shown.length;
-      const pods = shown.map(escHtml).join(' <span class="route-sep">/</span> ')
+      const pods = shown.map(p =>
+        (p.via ? '<span class="route-via" title="経由地（トランシップ等）">⚓経由 ' + escHtml(p.via) + '</span> ' + arrow + ' ' : '')
+        + escHtml(p.pod)
+      ).join(' <span class="route-sep">/</span> ')
                  + (more > 0 ? ' <span class="route-more">他' + more + '</span>' : '');
       const polH = g.pol ? escHtml(g.pol) : '';
       const body = (polH && pods) ? (polH + ' ' + arrow + ' ' + pods) : (polH || pods);
@@ -1202,10 +1231,17 @@
             (_PRESET_STATUS_DOT[m.status] || '#9c8e78') + '"></span>' + escHtml(m.status) + '</span>'
         : '';
 
+      const cf = p.data && p.data.copiedFrom;
+      const cfLabel = cf ? escHtml(cf.name || '不明') + (cf.ref ? ' <span class="preset-cf-ref">(' + escHtml(cf.ref) + ')</span>' : '') : '';
+      const copiedFromHtml = cf
+        ? '<div class="preset-copied-from">📋 コピー元：<span class="preset-cf-name">' + cfLabel + '</span></div>'
+        : '';
+
       return '<div class="preset-list-item preset-item-rich' + (isLoaded ? ' preset-list-item--loaded' : '') + '">' +
         '<div class="preset-rich-row1">' +
           statusHtml +
           '<span class="preset-list-name" title="' + escHtml(p.name) + '">' + escHtml(titleText) + '</span>' +
+          '<button class="btn-ref-copy" data-ref="' + escHtml(titleText) + '" onclick="copyRefNumber(this.dataset.ref,this)" title="管理番号をコピー（&quot;番号&quot;形式）"><svg class="icon-copy" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="1" width="9" height="9" rx="1.5"/><rect x="1" y="4" width="9" height="9" rx="1.5"/></svg></button>' +
           (isLoaded ? '<span class="preset-loaded-badge">編集中</span>' : '') +
         '</div>' +
         _progressBarHtml(p.data) +
@@ -1216,10 +1252,12 @@
           (subHtml  ? '<dt>サブコン</dt><dd class="preset-rich-sub">' + subHtml + '</dd>' : '') +
           (custDd   ? '<dt>お客様 / 担当</dt><dd>' + custDd + '</dd>' : '') +
         '</dl>' +
+        copiedFromHtml +
         '<div class="preset-rich-foot">' +
           '<span class="preset-list-ts">' + (ts ? '💾 ' + ts : '') + '</span>' +
           '<div class="preset-rich-acts">' +
             '<button class="btn-preset-load" onclick="loadPreset(' + i + ')">読み込む</button>' +
+            '<button class="btn-preset-copy" onclick="duplicateLocalPreset(' + i + ')" title="コピーして新規案件を作成">📋 コピー</button>' +
             '<button class="btn-preset-del"  onclick="deletePreset(' + i + ')" title="削除">✕</button>' +
           '</div>' +
         '</div>' +
@@ -1421,6 +1459,69 @@
     updateTotals();
     return posLabel;
   }
+
+  // 行データ配列を指定 <tr> の直前に挿入（ドラッグ＆ドロップ用）。anchorTr=null で末尾。
+  function _insertPatternRowsAt(patternRows, anchorTr) {
+    const tbody = document.getElementById('tableBody');
+    if (!tbody) return;
+    (patternRows || []).forEach(rd => {
+      if (rd._type === 'remark') {
+        insertRemarkRow(null, { noFocus: true, internal: rd.internal });
+        const allTrs = document.querySelectorAll('#tableBody tr');
+        const tr = allTrs[allTrs.length - 1];
+        if (!tr) return;
+        if (anchorTr) tbody.insertBefore(tr, anchorTr);
+        const inp = tr.querySelector('.remark-row-input');
+        if (inp) inp.value = rd.text || '';
+        return;
+      }
+      if (rd._type === 'subtotal') {
+        insertSubtotalRow(null);
+        const allTrs = document.querySelectorAll('#tableBody tr');
+        const tr = allTrs[allTrs.length - 1];
+        if (!tr) return;
+        if (anchorTr) tbody.insertBefore(tr, anchorTr);
+        const lbl = tr.querySelector('.subtotal-label');
+        if (lbl) lbl.value = rd.label || '';
+        updateSubtotalRows();
+        return;
+      }
+      addRow();
+      const trs = document.querySelectorAll('#tableBody tr');
+      const tr = trs[trs.length - 1];
+      if (!tr) return;
+      if (anchorTr) tbody.insertBefore(tr, anchorTr);
+      const id = tr.id.replace('row-', '');
+      const set = (sid, val, kind) => {
+        const el = document.getElementById(sid + '-' + id);
+        if (!el) return;
+        if (kind === 'check') el.checked = !!val;
+        else el.value = val ?? '';
+      };
+      set('cat', rd.cat);
+      set('nm',  rd.name);
+      set('tx',  rd.taxed, 'check');
+      set('pq',  rd.pq);
+      set('un',  rd.un);
+      set('pc',  rd.pc);
+      set('pp',  rd.pp);
+      set('bq',  rd.bq);
+      set('bc',  rd.bc);
+      set('bp',  rd.bp);
+      set('mk',  rd.mk);
+      set('nt',  rd.note);
+      set('sv',  rd.sv);
+      if (typeof toggleTax === 'function') toggleTax(id);
+      checkUnfilled(id);
+      onCatChange(id);
+      onPay(id);
+    });
+    if (typeof updateSubtotalRows === 'function') updateSubtotalRows();
+    updateTotals();
+    if (typeof renderSubconGroups === 'function') renderSubconGroups();
+  }
+  window._insertPatternRows   = _insertPatternRows;
+  window._insertPatternRowsAt = _insertPatternRowsAt;
 
   function loadRowPattern(id) {
     const p = _rowPatterns.find(x => x.id === id);
@@ -3147,4 +3248,20 @@
     maybeAutoFillRef();          // 新規（REF空）なら仮REF#を自動採番
     // 初回はダッシュボード（ページ1）を表示。以降のタブ切替では現在ページを維持
     if (typeof window.qpShowDashboard === 'function') window.qpShowDashboard();
+  };
+
+  // 管理番号を "番号" 形式でクリップボードにコピー
+  window.copyRefNumber = function(ref, btn) {
+    const text = '”' + ref + '”'; // “番号”（二重引用符）
+    navigator.clipboard.writeText(text).then(() => {
+      if (btn) {
+        const origHtml = btn.innerHTML;
+        btn.innerHTML = '✅';
+        btn.classList.add('copied');
+        setTimeout(() => { btn.innerHTML = origHtml; btn.classList.remove('copied'); }, 1500);
+      }
+      if (typeof quoteShowToast === 'function') quoteShowToast('コピーしました：' + text, 'success', 2000);
+    }).catch(() => {
+      if (typeof quoteShowToast === 'function') quoteShowToast('⚠️ コピーに失敗しました', 'warn', 2000);
+    });
   };

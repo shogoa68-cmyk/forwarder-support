@@ -188,6 +188,7 @@
     await _load(dir);
     lcRender();
     lcRenderVariants();
+    _lcFetchCarrierBms();
   }
 
   // === 一覧レンダリング ===
@@ -272,6 +273,7 @@
            `</td></tr>`;
     });
     list.innerHTML = h + '</tbody></table>';
+    _lcRenderCarrierBmSection();
   }
 
   // === 登録フォーム ===
@@ -315,6 +317,14 @@
         e.preventDefault(); zone.classList.remove('lc-dragover');
         const f = e.dataTransfer.files[0];
         if (f) _readFile(f, obj => { _pendingAttach = obj; _lcUpdateAttachUI(); });
+      });
+      // フォーム表示中のペースト（スクショ・ファイル）を添付として取り込む
+      document.addEventListener('paste', e => {
+        if (!document.getElementById('lcFormModal')?.classList.contains('open')) return;
+        const f = [...(e.clipboardData?.items || [])]
+          .map(it => it.kind === 'file' ? it.getAsFile() : null)
+          .find(Boolean);
+        if (f) { e.preventDefault(); _readFile(f, obj => { _pendingAttach = obj; _lcUpdateAttachUI(); }); }
       });
       zone.dataset.lcDndReady = '1';
     }
@@ -370,6 +380,7 @@
       await _load(_dir);
       lcRender();
       lcRenderVariants();
+      _lcFetchCarrierBms();
     } catch (e) {
       alert('保存に失敗しました: ' + e.message);
     } finally {
@@ -384,6 +395,7 @@
     await _load(_dir);
     lcRender();
     lcRenderVariants();
+    _lcFetchCarrierBms();
   }
 
   // === ゆらぎ是正 ===
@@ -754,6 +766,91 @@
   window.initLocalChargesTab = async function () {
     _updateCloudStatus();
     lcSetDir('export');
+  };
+
+  // === ブックマーク連携（carrier link chips） ===
+
+  let _lcBmCache   = {};   // { carrier: [{id, label, url, function, note}] }
+  let _lcBmLastKey = '';   // 重複フェッチ防止
+
+  async function _lcFetchCarrierBms() {
+    const carriers = [...new Set(_charges.map(c => c.carrier).filter(Boolean))].sort();
+    const key = carriers.join('\0');
+    if (key === _lcBmLastKey) { _lcRenderCarrierBmSection(); return; }
+
+    if (!carriers.length) {
+      _lcBmCache = {};
+      _lcBmLastKey = key;
+      _lcRenderCarrierBmSection();
+      return;
+    }
+
+    const db = window.SupabaseClient;
+    if (db) {
+      const { data: sd } = await db.auth.getSession().catch(() => ({ data: {} }));
+      if (sd?.session) {
+        const { data } = await db
+          .from('bookmarks')
+          .select('id, label, url, carrier, function, note')
+          .in('carrier', carriers)
+          .not('url', 'is', null);
+        const cache = {};
+        carriers.forEach(c => { cache[c] = []; });
+        (data || []).forEach(bm => { if (cache[bm.carrier]) cache[bm.carrier].push(bm); });
+        _lcBmCache = cache;
+      }
+    } else {
+      const cache = {};
+      carriers.forEach(c => { cache[c] = []; });
+      _lcBmCache = cache;
+    }
+    _lcBmLastKey = key;
+    _lcRenderCarrierBmSection();
+  }
+
+  function _lcBmChipClass(fn) {
+    if (!fn) return '';
+    if (fn.includes('輸出')) return 'lc-bm-chip--export';
+    if (fn.includes('輸入')) return 'lc-bm-chip--import';
+    if (fn.includes('お知らせ')) return 'lc-bm-chip--notice';
+    return '';
+  }
+
+  function _lcRenderCarrierBmSection() {
+    const el = document.getElementById('lcCarrierBmSection');
+    if (!el) return;
+
+    const carriers = [...new Set(_charges.map(c => c.carrier).filter(Boolean))].sort();
+    if (!carriers.length) { el.hidden = true; return; }
+
+    const hasDb = !!(window.SupabaseClient);
+    let h = '';
+
+    carriers.forEach(carrier => {
+      const bms = _lcBmCache[carrier] || [];
+      h += `<div class="lc-bm-carrier-row">` +
+           `<span class="lc-bm-carrier-name">${_esc(carrier)}</span>` +
+           `<span class="lc-bm-chips">`;
+      bms.forEach(bm => {
+        const cls   = _lcBmChipClass(bm.function);
+        const title = _ea([bm.function, bm.note].filter(Boolean).join(' — '));
+        h += `<a class="lc-bm-chip${cls ? ' ' + cls : ''}" href="${_ea(bm.url)}" target="_blank" rel="noopener" title="${title}">${_esc(bm.label)}</a>`;
+      });
+      if (hasDb) {
+        h += `<button class="lc-bm-add-chip" data-lc-carrier="${_ea(carrier)}"` +
+             ` onclick="openAddBmModal({carrier:this.dataset.lcCarrier,type:'FCL'})"` +
+             ` title="${_ea(carrier)}のブックマークを追加">＋</button>`;
+      }
+      h += `</span></div>`;
+    });
+
+    el.innerHTML = h;
+    el.hidden = false;
+  }
+
+  window.lcRefreshBmChips = function () {
+    _lcBmLastKey = '';
+    _lcFetchCarrierBms();
   };
 
   // === 添付ファイル操作（グローバル関数） ===

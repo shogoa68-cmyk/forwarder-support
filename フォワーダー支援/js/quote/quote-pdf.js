@@ -153,11 +153,17 @@
     if (!cond) return { title: '', meta: [] };
     const dir = cond.direction === 'export' ? '輸出' : cond.direction === 'import' ? '輸入' : '';
     const titleParts = [dir + (cond.mode ? ' ' + cond.mode : '')].filter(Boolean);
+    const _hasRoutes = cond.routes && cond.routes.length >= 1;
     const _multiRoute = cond.routes && cond.routes.length > 1;
-    // 件名の航路：複数時は先頭航路＋「他N航路」で簡潔に
-    const route = _multiRoute
-      ? ([cond.pol, cond.pod].filter(Boolean).join(' to ') + ` 他${cond.routes.length - 1}航路`)
-      : [cond.pol, cond.pod].filter(Boolean).join(' to ');
+    // 件名の航路：ルート情報から via を含めて組み立て
+    let route = '';
+    if (_hasRoutes) {
+      const r0 = cond.routes[0];
+      const r0leg = [r0.pol, r0.via, r0.pod].filter(Boolean).join(' → ');
+      route = _multiRoute ? (r0leg + ` 他${cond.routes.length - 1}航路`) : r0leg;
+    } else {
+      route = [cond.pol, cond.pod].filter(Boolean).join(' → ');
+    }
     if (route) titleParts.push(route);
     const title = titleParts.join('　');
 
@@ -165,11 +171,13 @@
     const push = (k, v) => { if (v) meta.push([k, v]); };
 
     push('建値（INCOTERMS）', cond.incoterms);
-    // 航路：複数登録時は航路ごとに全件併記、単一なら従来通り POL/POD を分けて表示
-    if (_multiRoute) {
+    // 航路：1件以上の登録があれば航路ごとに via・キャリア・サービス名を含めて全件併記
+    if (_hasRoutes) {
       cond.routes.forEach((r, i) => {
-        const rt = [r.pol, r.pod].filter(Boolean).join(' to ');
-        if (rt) push(`航路${i + 1}`, rt + (r.carrier ? `（${r.carrier}）` : ''));
+        const rt = [r.pol, r.via, r.pod].filter(Boolean).join(' → ');
+        const carrier = [r.carrier, r.service ? `(${r.service})` : ''].filter(Boolean).join(' ');
+        const label = cond.routes.length === 1 ? '航路' : `航路${i + 1}`;
+        if (rt || carrier) push(label, [rt, carrier].filter(Boolean).join('　'));
       });
     } else {
       push('積み地（POL）', cond.pol);
@@ -228,6 +236,19 @@
     // 集計
     let taxableSub = 0, exemptSub = 0, taxSum = 0;
     const lineHTML = [];
+    // サブコン別グループが有効（2+ サブコン）なら、グループ境界に売値小計を挿入（顧客向けのため金額のみ）
+    // 揺らぎ吸収：境界判定・エイリアス参照は正規化キーで、表示は元の綴りで行う
+    const _scNorm    = d => (subconNormKey(d.sv) || '（サブコン未設定）');
+    const _scLabelOf = d => ((d.sv || '').trim() || '（サブコン未設定）');
+    const _scActive = (new Set(data.map(_scNorm)).size >= 2);
+    let _scKey = null, _scLabel = null, _scJpy = 0, _scHas = false;
+    const _scPush = () => {
+      if (_scActive && _scHas) {
+        const _al = (typeof getSubconAliases === 'function' ? getSubconAliases()[_scKey] : '') || '';
+        const _lbl = _al || _scLabel;
+        lineHTML.push(`<tr class="qd-subcon-sub"><td colspan="4">↳ ${esc(_lbl)} 小計</td><td class="qd-num">¥${fmtInt(_scJpy)}</td></tr>`);
+      }
+    };
     rows.forEach(r => {
       if (r._type === 'remark') {
         if (r.internal) return; // 社内メモは PDF に出力しない
@@ -257,9 +278,24 @@
       // 御見積書は客先向け公式文書のため、社内メモ(r.note)は出力しない（E-1 備考漏洩対策）
       // 数量は金額の根拠（sub = bq×bp）と一致させる。未入力時に「1」を捏造しない（B/台帳 C）
       const qtyDisp = (r.bq && r.bq > 0) ? fmtNum(r.bq, 4) : '—';
+      // サブコン境界：キーが変わったら直前グループの売値小計を挿入
+      if (_scActive) {
+        const k = _scNorm(r);
+        if (_scHas && k !== _scKey) { _scPush(); _scJpy = 0; _scHas = false; }
+        if (!_scHas) { _scKey = k; _scLabel = _scLabelOf(r); }  // グループ先頭の綴りを表示名に採用
+        _scJpy += jpy; _scHas = true;
+      }
+      const validBadge = (() => {
+        if (!r.vf && !r.vt) return '';
+        const fmt = d => d ? d.replace(/-/g, '/') : '';
+        const range = (r.vf && r.vt) ? fmt(r.vf) + '〜' + fmt(r.vt)
+                    : r.vf            ? fmt(r.vf)          // 開始日のみ：末尾「〜」なし
+                    :                   '〜' + fmt(r.vt);
+        return ` <span class="qd-validity">${esc(range)}</span>`;
+      })();
       lineHTML.push(
         `<tr>
-          <td class="qd-item">${r.taxed ? '<span class="qd-tax">*</span> ' : ''}${esc(_taxName(r.name, r.taxed))}</td>
+          <td class="qd-item">${r.taxed ? '<span class="qd-tax">*</span> ' : ''}${esc(_taxName(r.name, r.taxed))}${validBadge}</td>
           <td class="qd-num">${qtyDisp}</td>
           <td class="qd-ctr">${esc(r.un || '')}</td>
           <td class="qd-num">${unitDisp}</td>
@@ -267,6 +303,7 @@
         </tr>`
       );
     });
+    _scPush();   // 末尾グループの売値小計
 
     const tax   = taxSum;   // 行ごと切り上げの合計（Math.floor 一括計算からの修正）
     const total = taxableSub + exemptSub + tax;

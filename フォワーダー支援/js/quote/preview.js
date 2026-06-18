@@ -43,6 +43,15 @@
   // プリセットカード（ブラウザ保存／チーム共有）でも敬称表示に使うため公開
   window.formatPersonWithHonorific = formatPersonWithHonorific;
 
+  // プレビュー上の発行日／有効期限編集 → フォーム(qf-date / qf-valid-until)へ同期
+  window.pvSyncDate = function (which, val) {
+    var id = which === 'valid' ? 'qf-valid-until' : 'qf-date';
+    var el = document.getElementById(id);
+    if (!el) return;
+    el.value = val;
+    el.dispatchEvent(new Event('change', { bubbles: true }));   // 自動保存・有効期限警告などを発火
+  };
+
   /**
    * ファイル名生成: REF_引き合い元_担当.<ext>
    * 入力がある項目だけ使用。すべて空なら "見積もり_YYYYMMDD"
@@ -102,7 +111,10 @@
       const profit = bill - cost;
       const note   = document.getElementById(`nt-${id}`)?.value || '';
       const sv     = document.getElementById(`sv-${id}`)?.value || '';
-      rows.push({ _type: 'data', taxed, cat, name, pq, un, pc, pp, cd, bq, bc, bp, mk, cost, bill, profit, note, sv });
+      const vf     = document.getElementById(`vf-${id}`)?.value || '';
+      const vt     = document.getElementById(`vt-${id}`)?.value || '';
+      const zc     = document.getElementById(`zc-${id}`)?.value === '1';
+      rows.push({ _type: 'data', taxed, cat, name, pq, un, pc, pp, cd, bq, bc, bp, mk, cost, bill, profit, note, sv, vf, vt, zc });
     });
     return rows;
   }
@@ -362,9 +374,30 @@
     return _openWarnGuide(skipFn, infoItems);
   }
 
+  // サーチャージ有効期限バッジ（vf/vt → 小さいバッジ HTML、両方空なら ''）
+  function _pvValidityBadge(vf, vt) {
+    if (!vf && !vt) return '';
+    const fmt = d => d ? d.replace(/-/g, '/') : '';
+    const range = (vf && vt) ? fmt(vf) + '〜' + fmt(vt)
+                : vf          ? fmt(vf)          // 開始日のみ：末尾「〜」なし
+                :               '〜' + fmt(vt);
+    return ` <span class="pv-validity">${escHtml(range)}</span>`;
+  }
+
+  // 発行日がサーチャージ有効期限範囲外かを判定（vf/vt 両方空 or 発行日未設定 → 除外しない）
+  function _isOutOfValidity(row, issueDate) {
+    if (!issueDate || (!row.vf && !row.vt)) return false;
+    if (row.vf && issueDate < row.vf) return true; // 発行日が開始前
+    if (row.vt && issueDate > row.vt) return true; // 発行日が終了後
+    return false;
+  }
+
   function openPreview() {
     try {
-    const allRows = collectAllRows();
+    const issueDate = document.getElementById('qf-date')?.value || '';
+    const allRows = collectAllRows()
+      .filter(r => r._type !== 'data' || !r.zc)                          // 0円確認済み行を除外
+      .filter(r => r._type !== 'data' || !_isOutOfValidity(r, issueDate)); // 有効期限範囲外行を除外
     const data = allRows.filter(r => r._type === 'data');
     if (!data.length) { alert('行がありません。'); return; }
     if (!_pvBypassed && !preOutputValidationGate('プレビュー表示', openPreview)) return;
@@ -381,6 +414,8 @@
       hdr.ref      ? `<div class="pv-meta-item"><span class="lbl">見積もり番号</span><span class="val">${escHtml(hdr.ref)}</span></div>` : '',
       hdr.customer ? `<div class="pv-meta-item"><span class="lbl">お客様</span><span class="val">${escHtml(hdr.customer)}</span></div>` : '',
       hdr.person   ? `<div class="pv-meta-item"><span class="lbl">担当</span><span class="val">${escHtml(formatPersonWithHonorific(hdr.person))}</span></div>` : '',
+      `<div class="pv-meta-item pv-meta-edit"><span class="lbl">発行日</span><input type="date" class="pv-meta-date" value="${escHtml(hdr.date)}" onchange="pvSyncDate('date', this.value)" title="フォームの発行日と同期します" /></div>`,
+      `<div class="pv-meta-item pv-meta-edit"><span class="lbl">有効期限</span><input type="date" class="pv-meta-date" value="${escHtml(hdr.validUntil)}" onchange="pvSyncDate('valid', this.value)" title="フォームの有効期限と同期します" /></div>`,
     ].join('');
     metaEl.innerHTML = metaHTML;
     metaEl.style.display = metaHTML ? 'flex' : 'none';
@@ -397,11 +432,66 @@
       </tr></thead><tbody>`;
 
     let totSub = 0, totTax = 0, totJpy = 0, hasNonJpyBill = false, hasNonJpyCost = false;
-    allRows.forEach(d => {
+
+    // ===== サブコン別グループが有効（2+ サブコン）なら、グループ境界に小計セパレーターを挿入 =====
+    // 揺らぎ吸収：境界判定・小計集約・エイリアス参照は正規化キーで、表示は元の綴りで行う
+    const _scNorm  = d => (subconNormKey(d.sv) || '（サブコン未設定）');
+    const _scLabel = d => ((d.sv || '').trim() || '（サブコン未設定）');
+    const _scActive = (() => { const ks = new Set(data.map(_scNorm)); return ks.size >= 2; })();
+    // 仕入合計・粗利率は内部指標。利益列が表示されているとき（＝社内モード）のみラベルに併記
+    const _scShowInternal = (typeof getPreviewVisibility === 'function') ? (getPreviewVisibility().profit !== false) : true;
+    const _seq = [];
+    if (_scActive) {
+      let ck = null, clabel = null, cc = 0, cb = 0, cm = false, has = false;
+      const toJ = (a, c) => (c && c !== 'JPY' && typeof toJPY === 'function') ? toJPY(a, c) : a;
+      const pushSub = () => { if (has) _seq.push({ _type: 'subcon-subtotal', label: clabel, normKey: ck, cost: cc, bill: cb, mixed: cm }); };
+      allRows.forEach(d => {
+        if (d._type === 'data') {
+          const k = _scNorm(d);
+          if (has && k !== ck) { pushSub(); cc = 0; cb = 0; cm = false; has = false; }
+          if (!has) { ck = k; clabel = _scLabel(d); }  // グループ先頭の綴りを表示名に採用
+          cc += toJ(d.cost, d.pc || 'JPY');
+          cb += toJ(d.bill, d.bc || 'JPY');
+          if ((d.pc && d.pc !== 'JPY') || (d.bc && d.bc !== 'JPY')) cm = true;
+          has = true;
+        }
+        _seq.push(d);
+      });
+      pushSub();
+    } else {
+      _seq.push(...allRows);
+    }
+
+    _seq.forEach(d => {
       if (d._type === 'remark') {
         if (d.internal) return; // 社内メモは見積書プレビューに出力しない
         html += `<tr class="pv-table-remark-row">
           <td colspan="17" class="pv-remark-cell">💬 ${escHtml(d.text)}</td>
+        </tr>`;
+        return;
+      }
+      if (d._type === 'subcon-subtotal') {
+        const m = d.bill > 0 ? ((d.bill - d.cost) / d.bill * 100) : null;
+        const mark = d.mixed ? '※' : '';
+        const sellTxt = '¥' + fmtMoney(Math.round(d.bill)) + mark;
+        const costTxt = '¥' + fmtMoney(Math.round(d.cost)) + mark;
+        const prAmt   = Math.round(d.bill - d.cost);
+        const prCls   = prAmt > 0 ? 'pv-pos' : prAmt < 0 ? 'pv-neg' : 'pv-zero';
+        const marginTxt = m === null ? '—' : (m.toFixed(1) + '%');
+        const internalBits = _scShowInternal
+          ? `<span class="pv-scs-cost">仕入合計 ${costTxt}</span>` +
+            `<span class="pv-scs-margin${(m !== null && m < 0) ? ' pv-neg' : ''}">粗利率 ${marginTxt}</span>`
+          : '';
+        // 客先用表示名があれば置換（サブコン名を客先に出さない）。エイリアスは正規化キーで参照
+        const _alias = (typeof getSubconAliases === 'function' ? getSubconAliases()[d.normKey] : '') || '';
+        const _dispLabel = _alias || d.label;
+        html += `<tr class="pv-subcon-subtotal">
+          <td colspan="12" class="pv-scs-label">↳ ${escHtml(_dispLabel)} 小計${internalBits}</td>
+          <td class="pv-num pv-subtotal">${sellTxt}</td>
+          <td data-ft-col="jpy-conv" class="pv-jpy"></td>
+          <td data-ft-col="tax-col"></td>
+          <td data-ft-col="profit" class="pv-num ${prCls}">¥${fmtMoney(prAmt)}</td>
+          <td data-ft-col="note"></td>
         </tr>`;
         return;
       }
@@ -450,7 +540,7 @@
       html += `<tr>
         <td class="pv-name" style="font-size:11px;">${escHtml(getCatLabel(d.cat))}</td>
         <td class="pv-name">${escHtml(d.sv)}</td>
-        <td class="${nameCls}">${escHtml(d.name)}</td>
+        <td class="${nameCls}">${escHtml(d.name)}${_pvValidityBadge(d.vf, d.vt)}</td>
         <td class="pv-num">${fmtRaw(d.pq)}</td><td>${escHtml(d.un || '')}</td><td>${escHtml(d.pc)}</td>
         <td class="pv-num">${fmtMoney(d.pp)}</td>
         <td class="pv-cd pv-num">${fmtMoney(d.cd)}</td>
@@ -529,11 +619,13 @@
     document.getElementById('previewTableWrap').innerHTML = html;
 
     const cond = getConditions();
-    // 航路：複数登録時は航路ごとに併記、単一なら従来通り POL/POD を分けて表示
-    const routeFields = (cond.routes && cond.routes.length > 1)
+    // 航路：1件以上の登録があれば航路ごとに via・キャリア・サービス名を含めて表示、なければ従来通り POL/POD を分けて表示
+    const routeFields = (cond.routes && cond.routes.length >= 1)
       ? cond.routes.map((r, i) => ({
-          lbl: `航路${i + 1}`,
-          val: [[r.pol, r.pod].filter(Boolean).join(' → '), r.carrier].filter(Boolean).join('　'),
+          lbl: cond.routes.length === 1 ? '航路' : `航路${i + 1}`,
+          val: [[r.pol, r.via, r.pod].filter(Boolean).join(' → '),
+                [r.carrier, r.service ? `(${r.service})` : ''].filter(Boolean).join(' ')
+               ].filter(Boolean).join('　'),
         }))
       : [
           { lbl: '積み地（POL）',   val: cond.pol },
@@ -713,7 +805,7 @@
       const show = chk.checked;
       // thead/tbody は nth-child で制御（1セル=1列のため位置が一致）
       indices.forEach(ci => {
-        table.querySelectorAll(`thead tr th:nth-child(${ci + 1}), tbody tr:not(.pv-subtotal-sep):not(.pv-table-remark-row) td:nth-child(${ci + 1})`).forEach(cell => {
+        table.querySelectorAll(`thead tr th:nth-child(${ci + 1}), tbody tr:not(.pv-subtotal-sep):not(.pv-subcon-subtotal):not(.pv-table-remark-row) td:nth-child(${ci + 1})`).forEach(cell => {
           cell.style.display = show ? '' : 'none';
         });
       });
@@ -722,6 +814,12 @@
       table.querySelectorAll(`tfoot td[data-ft-col="${chk.dataset.col}"], tbody td[data-ft-col="${chk.dataset.col}"]`).forEach(cell => {
         cell.style.display = show ? '' : 'none';
       });
+      // サブコン小計ラベル内の内部指標（仕入合計・粗利率）は利益列に連動して表示/非表示
+      if (chk.dataset.col === 'profit') {
+        table.querySelectorAll('.pv-scs-cost, .pv-scs-margin').forEach(el => {
+          el.style.display = show ? '' : 'none';
+        });
+      }
     });
 
     // セクション表示切り替え
@@ -1202,10 +1300,12 @@
     if (hdr.validUntil) aoaRows.push(['有効期限', hdr.validUntil]);
     // 引き合い条件（POL/POD/インコタームズ/輸送モード/コンテナ/貨物名）
     const cExcel = getConditions();
-    const routePairs = (cExcel.routes && cExcel.routes.length > 1)
+    const routePairs = (cExcel.routes && cExcel.routes.length >= 1)
       ? cExcel.routes.map((r, i) => [
-          `航路${i + 1}`,
-          [[r.pol, r.pod].filter(Boolean).join(' → '), r.carrier].filter(Boolean).join('　'),
+          cExcel.routes.length === 1 ? '航路' : `航路${i + 1}`,
+          [[r.pol, r.via, r.pod].filter(Boolean).join(' → '),
+           [r.carrier, r.service ? `(${r.service})` : ''].filter(Boolean).join(' ')
+          ].filter(Boolean).join('　'),
         ])
       : [['POL（積み地）', cExcel.pol], ['POD（揚げ地）', cExcel.pod]];
     const condPairs = [

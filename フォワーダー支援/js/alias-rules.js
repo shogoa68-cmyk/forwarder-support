@@ -90,17 +90,58 @@
   // === 一括置換 ===
 
   function _applyToData(data, rules) {
-    if (!data || !Array.isArray(data.rows)) return data;
+    if (!data || typeof data !== 'object') return data;
     const out = JSON.parse(JSON.stringify(data));
-    out.rows.forEach(row => {
-      if (row._type !== 'data' || !Array.isArray(row.cells)) return;
-      rules.forEach(r => {
-        const ci = CI[r.field];
-        if (ci == null) return;
-        if ((row.cells[ci] || '').trim() === r.from_value.trim()) row.cells[ci] = r.to_value;
+    // sv / nm / un は明細行セルに格納
+    const rowRules = rules.filter(r => CI[r.field] != null);
+    if (rowRules.length && Array.isArray(out.rows)) {
+      out.rows.forEach(row => {
+        if (row._type !== 'data' || !Array.isArray(row.cells)) return;
+        rowRules.forEach(r => {
+          const ci = CI[r.field];
+          if ((row.cells[ci] || '').trim() === r.from_value.trim()) row.cells[ci] = r.to_value;
+        });
       });
-    });
+    }
+    // port は引き合い条件フィールド（z2Pol/z2Pod/z2Via）と複数航路（z2-routes-data）に格納
+    const portRules = rules.filter(r => r.field === 'port');
+    if (portRules.length && out.fields && typeof out.fields === 'object') {
+      const f = out.fields;
+      const _rep = cur => {
+        const t = (cur || '').trim();
+        const hit = portRules.find(r => r.from_value.trim() === t);
+        return hit ? hit.to_value : cur;
+      };
+      ['z2Pol', 'z2Pod', 'z2Via'].forEach(k => { if (f[k] != null) f[k] = _rep(f[k]); });
+      if (f['z2-routes-data']) {
+        try {
+          const rts = JSON.parse(f['z2-routes-data']);
+          if (Array.isArray(rts)) {
+            rts.forEach(rt => ['pol', 'pod', 'via'].forEach(k => { if (rt[k] != null) rt[k] = _rep(rt[k]); }));
+            f['z2-routes-data'] = JSON.stringify(rts);
+          }
+        } catch (e) {}
+      }
+    }
     return out;
+  }
+
+  // data.fields から pol/pod 列値を再導出（cloud.js の列昇格ロジックと同形）。
+  // 港の一括置換後にクラウド側の pol/pod 列を整合させるために使う。
+  function _derivePortCols(data) {
+    const f = (data && data.fields) || {};
+    let pol = (f['z2Pol'] || '').trim() || null;
+    let pod = (f['z2Pod'] || '').trim() || null;
+    if (!pol && !pod) {
+      try {
+        const rts = JSON.parse(f['z2-routes-data'] || '[]');
+        if (Array.isArray(rts) && rts.length) {
+          pol = rts.map(r => r.pol).filter(Boolean).join(', ') || null;
+          pod = rts.map(r => r.pod).filter(Boolean).join(', ') || null;
+        }
+      } catch (e) {}
+    }
+    return { pol, pod };
   }
 
   window.arApplyLocal = async function (rules) {
@@ -120,6 +161,7 @@
   window.arApplyCloud = async function (rules) {
     const c = _c();
     if (!c || !rules || !rules.length) return 0;
+    const hasPort = rules.some(r => r.field === 'port');
     const { data: presets } = await c.from(PRESETS_TABLE).select('id,data');
     if (!presets) return 0;
     let count = 0;
@@ -127,7 +169,10 @@
       const before = JSON.stringify(p.data);
       const after  = _applyToData(p.data, rules);
       if (JSON.stringify(after) !== before) {
-        await c.from(PRESETS_TABLE).update({ data: after }).eq('id', p.id);
+        const upd = { data: after };
+        // 港の置換時は pol/pod 列も再導出して整合（クラウド一覧の航路フィルタ用）
+        if (hasPort) { const { pol, pod } = _derivePortCols(after); upd.pol = pol; upd.pod = pod; }
+        await c.from(PRESETS_TABLE).update(upd).eq('id', p.id);
         count++;
       }
     }
@@ -216,7 +261,9 @@
       const fromMaster = masters.filter(m => m.field === field).map(m => m.value);
       const abbrevPairs = typeof window.arGetAbbrevPairs === 'function' ? window.arGetAbbrevPairs(field) : [];
       const fromAbbrev = abbrevPairs.flatMap(p => [p.abbrev, p.full]);
-      const all = [...new Set([...fromRules, ...fromMaster, ...fromAbbrev])];
+      const fromSyn = (typeof window.synGetGroups === 'function' ? window.synGetGroups(field) : [])
+        .flatMap(g => [g.canonical, ...(g.aliases || [])]);
+      const all = [...new Set([...fromRules, ...fromMaster, ...fromAbbrev, ...fromSyn])];
       // datalist 内の動的 option（data-master）だけを入れ替える
       dl.querySelectorAll('option[data-master]').forEach(o => o.remove());
       all.forEach(v => {
@@ -231,6 +278,7 @@
     _fill('nmSuggestions', 'nm');
     _fill('unit-list',     'un');
     _fill('custSuggestions', 'customer');
+    _fill('portSuggestions', 'port');
 
     // ユニット同義語グループをunitdatalistに追加
     const unDl = document.getElementById('unit-list');
@@ -297,8 +345,8 @@
     if (!pane) return;
 
     const rules = await window.arGetRules();
-    const fields = ['sv', 'nm', 'un'];
-    const fieldLabel = { sv: 'サブコン', nm: '品名', un: '単位' };
+    const fields = ['sv', 'nm', 'un', 'port'];
+    const fieldLabel = { sv: 'サブコン', nm: '品名', un: '単位', port: '港', customer: 'お客様' };
     const grouped = {};
     fields.forEach(f => { grouped[f] = rules.filter(r => r.field === f); });
 
@@ -343,6 +391,7 @@
       <option value="sv"${preField==='sv'?' selected':''}>サブコン</option>
       <option value="nm"${preField==='nm'?' selected':''}>品名</option>
       <option value="un"${preField==='un'?' selected':''}>単位</option>
+      <option value="port"${preField==='port'?' selected':''}>港</option>
     </select>
     <input id="arFrom" class="ar-input" type="text" placeholder="元の表記（ゆらぎ）">
     <span class="ar-arrow-label">→</span>
@@ -388,7 +437,7 @@
 
     // 略称辞書セクション
     const abbrevPairs = _loadAbbrevPairs();
-    const abbrevFieldLabel = { sv: 'サブコン', nm: '品名', un: '単位', customer: 'お客様' };
+    const abbrevFieldLabel = { sv: 'サブコン', nm: '品名', un: '単位', customer: 'お客様', port: '港' };
     h += `<div class="ar-abbrev-section">
   <h4 class="ar-section-title">📖 略称辞書${abbrevPairs.length ? `（${abbrevPairs.length}件）` : ''}</h4>
   <p class="ar-abbrev-desc">略称と正式名称を関連付けます。統計タブで同一グループとして表示されます（例：NTL ＝ NAIGAI TRANS LINE）。</p>
@@ -398,6 +447,7 @@
       <option value="nm">品名</option>
       <option value="un">単位</option>
       <option value="customer">お客様</option>
+      <option value="port">港</option>
     </select>
     <input id="arAbbrevShort" class="ar-input" type="text" placeholder="略称（例: NTL）">
     <span class="ar-arrow-label">=</span>
@@ -422,7 +472,7 @@
     // 除外リスト
     const excl = _loadExclusions();
     if (excl.length > 0) {
-      const fl = { sv: 'サブコン', nm: '品名', un: '単位' };
+      const fl = { sv: 'サブコン', nm: '品名', un: '単位', port: '港', customer: 'お客様' };
       h += `<div class="ar-excl-section">
   <h4 class="ar-section-title">🚫 ゆらぎ判定 除外リスト（${excl.length}件）</h4>
   <p class="ar-excl-desc">以下の表記はゆらぎ判定から外れています（別物として扱います）。</p>
@@ -563,5 +613,114 @@
     window.uaAddAlias(unit, sel.value);
     document.querySelectorAll('.ua-inline-picker').forEach(el => el.remove());
   };
+
+  // === フィールド対応 同義グループ（⭐代表→統合・非破壊・クラウド共有 + ローカルフォールバック） ===
+  //   対象フィールド: sv / nm / customer / port（単位 un は上記 ua* の専用機構を継続使用）
+  //   保存: cloud = synonym_groups テーブル（チーム共有）、ローカル = synonymGroups_v1
+  //   形式: [{ id, field, canonical, aliases: [] }]
+  const SYN_KEY   = 'synonymGroups_v1';
+  const SYN_TABLE = 'synonym_groups';
+  let _synCloud = null;          // cloud キャッシュ（未ロード時 null）
+  let _synTableMissing = false;  // テーブル未作成を検知したら以後ローカルにフォールバック
+
+  function _synLoadLocal() {
+    try { return JSON.parse(localStorage.getItem(SYN_KEY) || '[]'); } catch (e) { return []; }
+  }
+  function _synSaveLocal(arr) { localStorage.setItem(SYN_KEY, JSON.stringify(arr)); }
+  // 有効なソース（ログイン中でキャッシュ済みなら cloud、なければ local）
+  function _synAll() {
+    return (_cloud() && _synCloud !== null) ? _synCloud : _synLoadLocal();
+  }
+  function _synMissingErr(error) {
+    return error && /relation|does not exist|schema cache|not find/i.test(error.message || '');
+  }
+
+  window.synLoadCloud = async function () {
+    if (!_cloud() || _synTableMissing) { _synCloud = null; return false; }
+    const { data, error } = await _c().from(SYN_TABLE).select('id,field,canonical,aliases');
+    if (error) { if (_synMissingErr(error)) _synTableMissing = true; _synCloud = null; return false; }
+    _synCloud = (data || []).map(r => ({
+      id: r.id, field: r.field, canonical: r.canonical,
+      aliases: Array.isArray(r.aliases) ? r.aliases : [],
+    }));
+    return true;
+  };
+
+  window.synGetGroups = function (field) {
+    const all = _synAll();
+    return field ? all.filter(g => g.field === field) : all.slice();
+  };
+  window.synGetNormalizeMap = function (field) {
+    const map = {};
+    _synAll().filter(g => !field || g.field === field)
+      .forEach(g => (g.aliases || []).forEach(a => { map[a] = g.canonical; }));
+    return map;
+  };
+
+  async function _synUpsert(field, canonical, aliases) {
+    const arr = _synLoadLocal();
+    const idx = arr.findIndex(g => g.field === field && g.canonical === canonical);
+    if (idx >= 0) arr[idx].aliases = aliases;
+    else arr.unshift({ id: Date.now() + '_' + Math.random().toString(36).slice(2), field, canonical, aliases });
+    _synSaveLocal(arr);
+    if (_cloud() && !_synTableMissing) {
+      const { error } = await _c().from(SYN_TABLE).upsert(
+        { field, canonical, aliases, updated_by: _me(), updated_at: new Date().toISOString() },
+        { onConflict: 'field,canonical' }
+      );
+      if (_synMissingErr(error)) _synTableMissing = true;
+    }
+  }
+  async function _synDelete(field, canonical) {
+    _synSaveLocal(_synLoadLocal().filter(g => !(g.field === field && g.canonical === canonical)));
+    if (_cloud() && !_synTableMissing) await _c().from(SYN_TABLE).delete().match({ field, canonical });
+  }
+
+  window.synSetCanonical = async function (field, value) {
+    if (!field || !value) return;
+    // value が他グループの alias なら外す
+    for (const g of _synAll()) {
+      if (g.field === field && (g.aliases || []).includes(value))
+        await _synUpsert(field, g.canonical, g.aliases.filter(a => a !== value));
+    }
+    if (!_synAll().find(g => g.field === field && g.canonical === value))
+      await _synUpsert(field, value, []);
+    await _synAfter('⭐「' + value + '」を代表に設定しました');
+  };
+
+  window.synAddAlias = async function (field, alias, canonical) {
+    if (!field || !alias || !canonical || alias === canonical) return;
+    // alias を他グループの alias リストから外す
+    for (const g of _synAll()) {
+      if (g.field === field && g.canonical !== canonical && (g.aliases || []).includes(alias))
+        await _synUpsert(field, g.canonical, g.aliases.filter(a => a !== alias));
+    }
+    // alias 自体が別グループの代表なら、その配下を吸収して解体（チェーン化を防ぐ）
+    let absorbed = [];
+    const aliasGroup = _synAll().find(g => g.field === field && g.canonical === alias);
+    if (aliasGroup) { absorbed = aliasGroup.aliases || []; await _synDelete(field, alias); }
+    const g = _synAll().find(x => x.field === field && x.canonical === canonical);
+    const aliases = [...new Set([...((g && g.aliases) || []), alias, ...absorbed])];
+    await _synUpsert(field, canonical, aliases);
+    await _synAfter('✅「' + alias + '」→「' + canonical + '」に統合しました');
+  };
+
+  window.synRemoveAlias = async function (field, alias, canonical) {
+    const g = _synAll().find(x => x.field === field && x.canonical === canonical);
+    if (g) await _synUpsert(field, canonical, (g.aliases || []).filter(a => a !== alias));
+    await _synAfter();
+  };
+  window.synRemoveGroup = async function (field, canonical) {
+    await _synDelete(field, canonical);
+    await _synAfter();
+  };
+
+  async function _synAfter(toast) {
+    await window.synLoadCloud();
+    _refreshDatalist();
+    if (typeof window.statsRerenderActive === 'function') window.statsRerenderActive();
+    else if (typeof window.statsRefresh === 'function') await window.statsRefresh();
+    if (toast && typeof window.quoteShowToast === 'function') window.quoteShowToast(toast, 'success');
+  }
 
 })();

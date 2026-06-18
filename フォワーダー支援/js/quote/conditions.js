@@ -6,7 +6,7 @@
 
   function clearConditions() {
     if (!confirm('貨物情報・引き合い条件をクリアしますか？')) return;
-    ['z2Carrier','z2Pol','z2Pod','cond-origin','cond-dest','cond-cargo','cond-hs','cond-hs-basic','cond-hs-pref','cond-hs-pref-note',
+    ['z2Carrier','z2Service','z2Pol','z2Pod','cond-origin','cond-dest','cond-cargo','cond-hs','cond-hs-basic','cond-hs-pref','cond-hs-pref-note',
      'cond-packing','cond-packing-preset','condFreeText',
      'cond-origin-country','cond-dest-country','z1Place','z1Country','z3Place','z3Country',
      'cond-container-count']
@@ -43,17 +43,17 @@
     const packing = _packingEntries.length
       ? _packingEntries.filter(e => e.pkg).map(e => `${e.pkg}×${e.qty||1}`).join('、')
       : '';
-    // ゾーンビルダーから積み地・揚げ地・発地・仕向地を取得
-    // 航路：複数登録があれば先頭航路を代表 POL/POD に（無ければ単体入力欄）
-    const _r0 = (_routeEntries && _routeEntries.length) ? _routeEntries[0] : null;
+    // 航路：複数登録があれば先頭の有効航路を代表 POL/POD に（無ければ単体入力欄）
+    const _activeRoutes = _routeEntries.filter(r => r.enabled !== false);
+    const _r0 = _activeRoutes.length ? _activeRoutes[0] : (_routeEntries.length ? _routeEntries[0] : null);
     const pol    = _r0 ? _r0.pol : g('z2Pol');
     const pod    = _r0 ? _r0.pod : g('z2Pod');
     const z1p    = g('z1Place');   const z1c = g('z1Country');
     const z3p    = g('z3Place');   const z3c = g('z3Country');
     const origin = [z1p, z1c].filter(Boolean).join(', ');
     const dest   = [z3p, z3c].filter(Boolean).join(', ');
-    // 複数航路の全件（出力面で全航路を併記するため）。先頭航路は上の pol/pod が代表値
-    const routes = (_routeEntries && _routeEntries.length) ? _routeEntries.slice() : [];
+    // 複数航路：有効（enabled）航路のみ返す
+    const routes = _activeRoutes.slice();
     return {
       pol, pod, origin, dest, routes,
       incoterms: g('cond-incoterms'), mode: g('cond-mode'), container,
@@ -124,7 +124,9 @@
   // cells[0] = 選択チェック（.row-select-chk）、cells[1..] = 下記の順。
   // 既存の保存データ（localStorage / JSON / クラウド）との互換のため、この順序は変更しないこと。
   // ※ 列の見た目の並び替えは row-tpl / thead 側だけで行い、ここは触らない。
-  const ROW_CELL_FIELDS = ['cat','sv','tx','nm','pq','un','bq','pc','bc','pp','bp','cd','mk','nt','zc'];
+  // 末尾の vf/vt（サーチャージ有効期限：開始/終了）は後方追加。既存保存データには無いが
+  // _applyCells が undefined セルをスキップするため互換。順序は末尾以外変更しないこと。
+  const ROW_CELL_FIELDS = ['cat','sv','tx','nm','pq','un','bq','pc','bc','pp','bp','cd','mk','nt','zc','vf','vt'];
 
   function _applyCells(tr, cells) {
     // cells[0] = 選択チェック、cells[1..] = ROW_CELL_FIELDS 順（DOM 列順に依存しない）
@@ -292,6 +294,8 @@
   function _applyQuoteData(data, { keepHeaderIfEmpty = false } = {}) {
     if (!data) return;
     data = migrateRowCells(data);
+    // サブコン別小計の客先用表示名を復元（_rebuildTable → renderSubconGroups より前にセット）
+    if (typeof setSubconAliases === 'function') setSubconAliases(data.subconAliases || {});
     Object.entries(data.fields || {}).forEach(([id, val]) => {
       // ヘッダー項目（仮REF/顧客名/担当者等）はプリセット側が空でも現在値を消さない
       if (keepHeaderIfEmpty && _HEADER_FIELD_IDS.includes(id) && !val) return;
@@ -418,6 +422,7 @@
     });
     // _rowFormat: v3 = 小計行・リマーク行を含む型付きオブジェクト配列
     return { fields, rows, ts: new Date().toISOString(), _rowFormat: 'v3-mixed-rows',
+             subconAliases: (typeof getSubconAliases === 'function' ? getSubconAliases() : {}),
              fxSnapshot: { rates: { ..._fxRates }, ts: localStorage.getItem(SharedStorage.KEYS.FX_LAST_FETCHED) || null } };
   }
 
@@ -571,8 +576,9 @@
       addZ1(def1); // 港湾諸費用（常時）を def1 グループに含める
     }
 
-    // Zone ② 幹線輸送 — 航路（carrier）単位で空行1行
-    const routes = (_routeEntries && _routeEntries.length) ? _routeEntries : [{
+    // Zone ② 幹線輸送 — 有効（enabled）航路のみ carrier 単位で空行1行
+    const _z2Active = _routeEntries.filter(r => r.enabled !== false);
+    const routes = _z2Active.length ? _z2Active : _routeEntries.length ? [] : [{
       carrier: document.getElementById('z2Carrier')?.value?.trim() || '',
       pol:     document.getElementById('z2Pol')?.value?.trim()     || '',
       pod:     document.getElementById('z2Pod')?.value?.trim()     || '',
@@ -1179,10 +1185,18 @@
     if (!list) return;
     if (!_routeEntries.length) { list.innerHTML = ''; return; }
     list.innerHTML = _routeEntries.map((r, i) => {
-      const route = [r.pol, r.pod].filter(Boolean).join(' → ') || 'ポート未設定';
-      return `<span class="z2-route-chip">`
+      const on = r.enabled !== false;
+      const parts = [];
+      if (r.pol) parts.push(_escMulti(r.pol));
+      if (r.via) parts.push('<span class="z2-route-via">via:' + _escMulti(r.via) + '</span>');
+      if (r.pod) parts.push(_escMulti(r.pod));
+      const route = parts.length ? parts.join(' → ') : 'ポート未設定';
+      return `<span class="z2-route-chip${on ? '' : ' z2-route-chip--off'}">`
+        + `<button type="button" class="z2-route-toggle" onclick="toggleRouteEntry(${i})" title="${on ? '無効にする（一時停止）' : '有効にする'}">${on ? '✓' : '—'}</button>`
         + `<span class="z2-route-carrier">${_escMulti(r.carrier || '—')}</span>`
-        + `<span class="z2-route-leg">${_escMulti(route)}</span>`
+        + (r.service ? `<span class="z2-route-service">${_escMulti(r.service)}</span>` : '')
+        + `<span class="z2-route-leg">${route}</span>`
+        + `<button type="button" class="z2-route-edit" onclick="editRouteEntry(${i})" title="編集（フォームに書き戻す）">✎</button>`
         + `<button type="button" class="me-chip-del" onclick="removeRouteEntry(${i})" title="削除">×</button></span>`;
     }).join('');
     if (typeof window.renderQuoteCarrierLinks === 'function') window.renderQuoteCarrierLinks();
@@ -1190,16 +1204,21 @@
 
   function addRouteEntry() {
     const carrier = (document.getElementById('z2Carrier')?.value || '').trim();
+    const service = (document.getElementById('z2Service')?.value || '').trim();
     const pol = (document.getElementById('z2Pol')?.value || '').trim();
+    const via = (document.getElementById('z2Via')?.value || '').trim();
     const pod = (document.getElementById('z2Pod')?.value || '').trim();
     if (!carrier && !pol && !pod) {
       if (typeof quoteShowToast==='function') quoteShowToast('⚠️ キャリアまたはPOL/PODを入力してください', 'warn', 1800);
       return;
     }
-    _routeEntries.push({ carrier, pol, pod });
+    _routeEntries.push({ carrier, service, pol, via, pod, enabled: true });
     _renderRouteEntries();
-    // エディタをクリアして次の航路入力へ
-    ['z2Carrier','z2Pol','z2Pod'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+    // キャリア・サービス名をクリアして次の入力へ（POL/POD は同じ航路に別キャリアを追加できるよう保持）
+    const carrierEl = document.getElementById('z2Carrier');
+    if (carrierEl) { carrierEl.value = ''; }
+    const serviceEl = document.getElementById('z2Service');
+    if (serviceEl) { serviceEl.value = ''; }
     if (typeof onZ2CarrierChange === 'function') onZ2CarrierChange();
     document.getElementById('z2Carrier')?.focus();
     if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
@@ -1214,6 +1233,33 @@
     if (typeof scheduleSnapshot === 'function') scheduleSnapshot();
     _triggerCarrierBmFetch();
   }
+  function toggleRouteEntry(i) {
+    if (!_routeEntries[i]) return;
+    _routeEntries[i] = Object.assign({}, _routeEntries[i], { enabled: _routeEntries[i].enabled === false });
+    _renderRouteEntries();
+    if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
+    if (typeof scheduleSnapshot === 'function') scheduleSnapshot();
+  }
+  function editRouteEntry(i) {
+    const r = _routeEntries[i];
+    if (!r) return;
+    // フォームへ書き戻し
+    const set = (id, val) => { const el = document.getElementById(id); if (el) el.value = val || ''; };
+    set('z2Carrier', r.carrier);
+    set('z2Service', r.service);
+    set('z2Pol', r.pol);
+    set('z2Via', r.via);
+    set('z2Pod', r.pod);
+    // エントリを削除して再描画
+    _routeEntries.splice(i, 1);
+    _renderRouteEntries();
+    if (typeof onZ2CarrierChange === 'function') onZ2CarrierChange();
+    document.getElementById('z2Carrier')?.focus();
+    if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
+    if (typeof scheduleSnapshot === 'function') scheduleSnapshot();
+  }
+  window.toggleRouteEntry = toggleRouteEntry;
+  window.editRouteEntry   = editRouteEntry;
   // 復元用
   function syncRouteEntries() {
     const data = document.getElementById('z2-routes-data');
@@ -1428,9 +1474,9 @@
   function _triggerCarrierBmFetch() {
     if (typeof window.fetchCarrierBmsForQSP !== 'function') return;
     const names = [];
-    // z2: 幹線キャリア
+    // z2: 幹線キャリア（有効航路のみ）
     if (_routeEntries && _routeEntries.length) {
-      _routeEntries.forEach(r => { if (r.carrier && !names.includes(r.carrier)) names.push(r.carrier); });
+      _routeEntries.filter(r => r.enabled !== false).forEach(r => { if (r.carrier && !names.includes(r.carrier)) names.push(r.carrier); });
     }
     const cur = (document.getElementById('z2Carrier')?.value || '').trim();
     if (cur && !names.includes(cur)) names.push(cur);
@@ -1483,7 +1529,7 @@
     const defs = _linkDefsForMode();
     const names = [];
     if (_routeEntries && _routeEntries.length) {
-      _routeEntries.forEach(r => { if (r.carrier && !names.includes(r.carrier)) names.push(r.carrier); });
+      _routeEntries.filter(r => r.enabled !== false).forEach(r => { if (r.carrier && !names.includes(r.carrier)) names.push(r.carrier); });
     }
     const cur = (document.getElementById('z2Carrier')?.value || '').trim();
     if (cur && !names.includes(cur)) names.push(cur);
@@ -1513,10 +1559,10 @@
     if (!el) return;
     const map  = _carrierMapForMode();
     const defs = _linkDefsForMode();
-    // 対象キャリア名を収集（航路登録分を優先、無ければ入力欄）
+    // 対象キャリア名を収集（有効航路のみ）
     const names = [];
     if (_routeEntries && _routeEntries.length) {
-      _routeEntries.forEach(r => { if (r.carrier && !names.includes(r.carrier)) names.push(r.carrier); });
+      _routeEntries.filter(r => r.enabled !== false).forEach(r => { if (r.carrier && !names.includes(r.carrier)) names.push(r.carrier); });
     }
     const cur = (document.getElementById('z2Carrier')?.value || '').trim();
     if (cur && !names.includes(cur)) names.push(cur);

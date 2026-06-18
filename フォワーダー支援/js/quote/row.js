@@ -12,6 +12,22 @@
     }
   }
 
+  // サーチャージ有効期限：開始日だけ入れたとき、終了日が未入力ならその月の月末を自動セットする
+  function autoFillValidTo(id) {
+    const vf = document.getElementById(`vf-${id}`);
+    const vt = document.getElementById(`vt-${id}`);
+    if (!vf || !vt) return;
+    if (vf.value && !vt.value) {
+      const d = new Date(vf.value + 'T00:00:00');
+      if (!isNaN(d)) {
+        const last = new Date(d.getFullYear(), d.getMonth() + 1, 0); // 翼月 0 日 = 当月末日
+        const z = n => String(n).padStart(2, '0');
+        vt.value = `${last.getFullYear()}-${z(last.getMonth() + 1)}-${z(last.getDate())}`;
+      }
+    }
+    if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
+  }
+
   // ========== 未入力グレーアウト ==========
   function checkUnfilled(id) {
     const tr = document.getElementById(`row-${id}`);
@@ -71,8 +87,8 @@
       e.stopPropagation();
       // ドラッグ中の行群の上には挿入インジケータを出さない
       if (dragSrcRows.includes(tr)) return;
-      // 異なるサブコングループへのドロップは不可
-      if (_rowSubcon(dragSrcRows[0]) !== _rowSubcon(tr)) {
+      // 異なるサブコングループへのドロップは不可（揺らぎ吸収：正規化キーで判定）
+      if (subconNormKey(_rowSubcon(dragSrcRows[0])) !== subconNormKey(_rowSubcon(tr))) {
         e.dataTransfer.dropEffect = 'none';
         return;
       }
@@ -85,11 +101,13 @@
     tr.addEventListener('dragleave', () =>
       tr.classList.remove('drag-over-top', 'drag-over-bottom'));
     tr.addEventListener('drop', e => {
+      // サイドパネルからのドラッグはドキュメントレベルのハンドラに委ねる
+      if (e.dataTransfer.types.includes('application/x-si-item')) return;
       e.preventDefault();
       e.stopPropagation();
       if (!dragSrcRows || !dragSrcRows.length || dragSrcRows.includes(tr)) return;
-      // 異なるサブコングループへのドロップは不可
-      if (_rowSubcon(dragSrcRows[0]) !== _rowSubcon(tr)) return;
+      // 異なるサブコングループへのドロップは不可（揺らぎ吸収：正規化キーで判定）
+      if (subconNormKey(_rowSubcon(dragSrcRows[0])) !== subconNormKey(_rowSubcon(tr))) return;
       const mid = tr.getBoundingClientRect().top + tr.getBoundingClientRect().height / 2;
       const tbody = document.getElementById('tableBody');
       // 仮想グループヘッダーをスキップして実行行の隣に挿入
@@ -288,6 +306,12 @@
     checkUnfilled(newId);
     onPay(newId);
 
+    // subcon-child クラス等のグループ連結を即時反映（DOM並替でスクロール位置が変わらないよう保持）
+    const savedScrollY = window.scrollY;
+    renderSubconGroups();
+    window.scrollTo({ top: savedScrollY, behavior: 'instant' });
+    if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
+
     return newId;
   }
 
@@ -352,10 +376,14 @@
     const q    = f => frag.querySelector(`[data-field="${f}"]`);
 
     // IDs
-    ['cat','tx','nm','pq','un','pc','pp','cd','bq','bc','bp','mk','st','pr','nt','sv','zc']
+    ['cat','tx','nm','pq','un','pc','pp','cd','bq','bc','bp','mk','st','pr','nt','sv','zc','vf','vt']
       .forEach(f => { q(f).id = `${f}-${id}`; });
     const zcBtn = frag.querySelector('.zero-confirm-btn');
     if (zcBtn) zcBtn.onclick = () => toggleZeroConfirmed(id);;
+    const remBtn = frag.querySelector('.btn-row-rem');
+    const intBtn = frag.querySelector('.btn-row-int');
+    if (remBtn) remBtn.onclick = () => rowInsertRemarkBelow(id);
+    if (intBtn) intBtn.onclick = () => rowInsertInternalBelow(id);
 
     // Select options & initial values
     q('cat').innerHTML = catOpts(initCat);
@@ -374,6 +402,8 @@
     q('mk').oninput    = () => calc(id);
     q('nt').onkeydown  = e  => noteKeydown(e, id);
     q('sv').onchange   = () => renderSubconGroups();
+    // サーチャージ有効期限：開始日を入れたら終了日を月末で自動補完（「通常はひと月」）
+    q('vf').onchange   = () => autoFillValidTo(id);
 
     return frag;
   }
@@ -698,7 +728,10 @@
       tbody.appendChild(tr);
     }
     initSubtotalDrag(tr);
-    if (!opts?.noFocus) tr.querySelector('.remark-row-input')?.focus();
+    const inp = tr.querySelector('.remark-row-input');
+    if (opts?.text) inp.value = opts.text;
+    // テキスト付き挿入（ツールバー入力欄から）はフォーカスしない（入力欄に戻るため）
+    if (!opts?.noFocus && !opts?.text) inp?.focus();
   }
 
   function removeRemarkRow(id) {
@@ -736,7 +769,9 @@
       tbody.appendChild(tr);
     }
     initSubtotalDrag(tr);
-    if (!opts?.noFocus) tr.querySelector('.internal-row-input')?.focus();
+    const inpI = tr.querySelector('.internal-row-input');
+    if (opts?.text) inpI.value = opts.text;
+    if (!opts?.noFocus && !opts?.text) inpI?.focus();
   }
 
   // リマーク行：見積書に表示 ⇔ 社内メモ（見積書・PDF・メールに出力しない）の切替
@@ -860,8 +895,32 @@
     if (nm) nm.focus();
   }
   function toolbarInsertSubtotal() { insertSubtotalRow(_toolbarInsertAfterId()); }
-  function toolbarInsertRemark()   { insertRemarkRow(_toolbarInsertAfterId()); }
-  function toolbarInsertInternal() { insertInternalRow(_toolbarInsertAfterId()); }
+  function toolbarInsertRemark() {
+    insertRemarkRow(_toolbarInsertAfterId());
+    if (typeof updateTotals === 'function') updateTotals();
+    if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
+  }
+  function toolbarInsertInternal() {
+    insertInternalRow(_toolbarInsertAfterId());
+    if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
+  }
+
+  // ========== 行直下への備考行・社内メモ挿入（w-note フィールドのテキストを引用） ==========
+  function rowInsertRemarkBelow(id) {
+    const nt = document.getElementById(`nt-${id}`);
+    const text = nt ? nt.value.trim() : '';
+    insertRemarkRow(id, text ? { text } : undefined);
+    if (nt) { nt.value = ''; checkUnfilled(id); }
+    if (typeof updateTotals === 'function') updateTotals();
+    if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
+  }
+  function rowInsertInternalBelow(id) {
+    const nt = document.getElementById(`nt-${id}`);
+    const text = nt ? nt.value.trim() : '';
+    insertInternalRow(id, text ? { text } : undefined);
+    if (nt) { nt.value = ''; checkUnfilled(id); }
+    if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
+  }
 
   // 未入力行（row-unfilled）を一括削除
   function deleteEmptyRows() {
@@ -903,6 +962,8 @@
   const _UNSET_KEY       = '￿';
   const _collapsedGroups = new Set();
   const _excludedGroups  = new Set();
+  // サブコン別小計の「客先用表示名」（sv キー → 置換テキスト）。客先向け出力でサブコン名を隠すために使う。
+  const _subconAlias     = Object.create(null);
 
   function toggleSubconGroup(key) {
     if (_collapsedGroups.has(key)) _collapsedGroups.delete(key);
@@ -929,6 +990,16 @@
     // → 小計・リマーク行は「直前のサブコングループ」に属するとして扱う
     let currentKey = null;
     Array.from(tbody.querySelectorAll('tr')).forEach(tr => {
+      if (tr.dataset.subSum) {
+        // グループ小計行：自分の svKey の折りたたみ・除外状態に追従
+        const key = tr.dataset.svKey || null;
+        const collapsed = key && _collapsedGroups.has(key);
+        const excluded  = key && _excludedGroups.has(key);
+        tr.style.display = collapsed ? 'none' : '';
+        tr.classList.toggle('is-collapsed', !!collapsed);
+        tr.classList.toggle('is-excluded',  !!excluded);
+        return;
+      }
       if (tr.dataset.virtual) {
         currentKey = tr.dataset.svKey || null;
         if (!currentKey) return;
@@ -946,24 +1017,29 @@
         return;
       }
       if (!tr.dataset.type) {
-        // データ行：sv 値でグループ判定
+        // データ行：sv 値でグループ判定（揺らぎ吸収：正規化キー）
         const sv        = _rowSubcon(tr) ?? '';
-        const key       = sv || _UNSET_KEY;
+        const key       = subconNormKey(sv) || _UNSET_KEY;
         const collapsed = _collapsedGroups.has(key);
         const excluded  = _excludedGroups.has(key);
         tr.style.display    = collapsed ? 'none' : '';
         tr.dataset.excluded = excluded ? '1' : '';
         tr.classList.toggle('row-excluded', excluded);
-      } else if (tr.dataset.type === 'subtotal' || tr.dataset.type === 'remark') {
-        // 小計・リマーク行：DOM 上の位置で直前のグループに属する
+      } else if (tr.dataset.type === 'subtotal' || tr.dataset.type === 'remark' || tr.dataset.type === 'internal') {
+        // 小計・リマーク・社内メモ行：DOM 上の位置で直前のグループに属する
         if (currentKey !== null) {
           const collapsed = _collapsedGroups.has(currentKey);
           const excluded  = _excludedGroups.has(currentKey);
           tr.style.display    = collapsed ? 'none' : '';
           tr.dataset.excluded = excluded ? '1' : '';
+          // ツリー帰属：レール表示用。リマーク・社内メモは明細の1段下（nested）
+          tr.classList.add('subcon-grp-member');
+          tr.classList.toggle('subcon-grp-nested',
+            tr.dataset.type === 'remark' || tr.dataset.type === 'internal');
         } else {
           tr.style.display    = '';
           tr.dataset.excluded = '';
+          tr.classList.remove('subcon-grp-member', 'subcon-grp-nested');
         }
       }
     });
@@ -986,23 +1062,61 @@
 
       const groupOrder = [];
       const groups = Object.create(null);
+      const groupLabel = Object.create(null);  // 正規化キー → 表示名（最初に出現した綴り）
       realRows.forEach(tr => {
-        const sv = _rowSubcon(tr) ?? '';
-        const key = sv || _UNSET_KEY;
-        if (!groups[key]) { groups[key] = []; groupOrder.push(key); }
+        const svRaw = _rowSubcon(tr) ?? '';
+        const key = subconNormKey(svRaw) || _UNSET_KEY;  // 揺らぎ吸収：正規化キーで判定
+        if (!groups[key]) { groups[key] = []; groupOrder.push(key); groupLabel[key] = svRaw.trim(); }
         groups[key].push(tr);
       });
 
       // グループが 1 つだけなら表示不要（折りたたみ状態はリセット）
       if (groupOrder.length < 2) {
         _collapsedGroups.clear();
-        realRows.forEach(tr => { tr.style.display = ''; });
+        realRows.forEach(tr => { tr.style.display = ''; tr.classList.remove('subcon-child'); });
+        // ツリー帰属クラス（リマーク・社内メモ・小計行）も解除
+        tbody.querySelectorAll('.subcon-grp-member, .subcon-grp-nested')
+          .forEach(tr => tr.classList.remove('subcon-grp-member', 'subcon-grp-nested'));
         return;
       }
 
+      // グループ表示中：配下の各データ行をツリー風インデント（subcon-child）にする
+      realRows.forEach(tr => tr.classList.add('subcon-child'));
+
+      // 物理的にグループを連続化：同名サブコン行を1つのグループへ集約する。
+      // （テーブル末尾に追加した同名サブコン行が、既存グループへ自動で移動する）
+      // 各データ行に「直後の付随行（リマーク/社内メモ/手動小計）」を束ねたブロック単位で並べ替え、
+      // グループの出現順・グループ内の並びを保持したまま DOM を再配置する。
+      (function reorderToGroups() {
+        const blocks  = [];   // { key, rows: [dataTr, ...付随行] }
+        const leading = [];   // 先頭データ行より前の非データ行（通常なし）
+        let cur = null;
+        // この時点で仮想行は削除済み。tbody 直下の行のみを走査
+        Array.from(tbody.children).forEach(tr => {
+          if (!tr.dataset.type) {                 // データ行
+            const key = subconNormKey(_rowSubcon(tr) ?? '') || _UNSET_KEY;
+            cur = { key, rows: [tr] };
+            blocks.push(cur);
+          } else if (cur) {                       // 直前データ行の付随行
+            cur.rows.push(tr);
+          } else {                                // 先頭データ行より前の行
+            leading.push(tr);
+          }
+        });
+        const byKey = Object.create(null);
+        blocks.forEach(b => { (byKey[b.key] || (byKey[b.key] = [])).push(b); });
+        const frag = document.createDocumentFragment();
+        leading.forEach(tr => frag.appendChild(tr));
+        // groupOrder（出現順）に従ってブロックを再配置
+        groupOrder.forEach(k => {
+          (byKey[k] || []).forEach(b => b.rows.forEach(tr => frag.appendChild(tr)));
+        });
+        tbody.appendChild(frag);
+      })();
+
       // グループヘッダー TR を各グループの先頭行の直前に挿入
       groupOrder.forEach(key => {
-        const label     = key === _UNSET_KEY ? '（サブコン未設定）' : key;
+        const label     = key === _UNSET_KEY ? '（サブコン未設定）' : (groupLabel[key] || '');
         const firstRow  = groups[key][0];
         const count     = groups[key].length;
         const collapsed = _collapsedGroups.has(key);
@@ -1012,7 +1126,7 @@
         hdr.className = 'subcon-group-header' + (collapsed ? ' is-collapsed' : '');
         const excluded = _excludedGroups.has(key);
         hdr.innerHTML =
-          `<td colspan="14" class="subcon-group-header-cell">` +
+          `<td colspan="10" class="subcon-group-header-cell">` +
             `<button type="button" class="subcon-group-toggle" title="折りたたみ/展開">${collapsed ? '▶' : '▼'}</button>` +
             `<span class="subcon-group-label">📦 ${_escHdr(label)}</span>` +
             `<span class="subcon-group-count">${count} 行</span>` +
@@ -1020,15 +1134,59 @@
             `<button type="button" class="subcon-group-excl${excluded ? ' is-excluded' : ''}" ` +
               `title="見積もりへの含める/除外を切り替え">${excluded ? '含む' : '除外'}</button>` +
             `<button type="button" class="subcon-group-add-btn" ` +
-              `data-sv="${_escAttr(key === _UNSET_KEY ? '' : key)}" ` +
+              `data-sv="${_escAttr(key === _UNSET_KEY ? '' : label)}" ` +
               `title="${_escAttr(label)} に行を追加">＋</button>` +
           `</td>`;
         hdr.querySelector('.subcon-group-toggle').addEventListener('click', () => toggleSubconGroup(key));
         hdr.querySelector('.subcon-group-excl').addEventListener('click', () => toggleSubconExclude(key));
         hdr.querySelector('.subcon-group-add-btn').addEventListener('click', () => {
-          addRowToSubconGroup(key === _UNSET_KEY ? '' : key);
+          addRowToSubconGroup(key === _UNSET_KEY ? '' : label);
         });
         tbody.insertBefore(hdr, firstRow);
+      });
+
+      // 各グループの末尾行の直後に、グループ小計の仮想行（data-virtual）を挿入。
+      // 金額は _updateGroupSums で同期。保存・CSV/Excel/PDF 出力には含まれない。
+      groupOrder.forEach(key => {
+        const label    = key === _UNSET_KEY ? '（サブコン未設定）' : (groupLabel[key] || '');
+        const lastRow  = groups[key][groups[key].length - 1];
+        const sub = document.createElement('tr');
+        sub.dataset.virtual = '1';
+        sub.dataset.svKey   = key;
+        sub.dataset.subSum  = '1';
+        sub.className = 'subcon-group-subtotal';
+        sub.innerHTML =
+          `<td colspan="10" class="subcon-group-subtotal-cell">` +
+            `<div class="subcon-subtotal-inner">` +
+              `<span class="subcon-subtotal-label">↳ ${_escHdr(label)} 小計</span>` +
+              `<span class="st-metric st-cost"><i>仕入合計</i><b class="subcon-subtotal-cost">¥0</b></span>` +
+              `<span class="st-metric st-sell"><i>売値合計</i><b class="subcon-subtotal-sum">¥0</b></span>` +
+              `<span class="st-metric st-margin"><i>粗利率</i><b class="subcon-subtotal-margin">—</b></span>` +
+              `<span class="st-alias" title="客先向け出力（プレビュー・御見積書PDF）で、この小計の「${_escAttr(label)}」をここに入力した名前へ置換します。空欄ならサブコン名のまま。">` +
+                `<i>客先表示名</i>` +
+                `<input type="text" class="subcon-alias-input" placeholder="例）国内諸費用 一式（任意）" value="${_escAttr(_subconAlias[key] || '')}" />` +
+              `</span>` +
+            `</div>` +
+          `</td>`;
+        // 末尾行の次（既存の小計・リマーク行があればその手前）に挿入
+        const aliasInp = sub.querySelector('.subcon-alias-input');
+        if (aliasInp) {
+          aliasInp.addEventListener('input', () => {
+            const v = aliasInp.value.trim();
+            if (v) _subconAlias[key] = v; else delete _subconAlias[key];
+            if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
+          });
+          // 入力欄クリックで折りたたみ等の親ハンドラに伝播しないように
+          aliasInp.addEventListener('click', e => e.stopPropagation());
+        }
+        // lastRow の直後に付随する typed 行（社内メモ・備考等）をスキップして小計を挿入
+        let lastGroupRow = lastRow;
+        let nextSib = lastGroupRow.nextSibling;
+        while (nextSib && !nextSib.dataset.virtual && nextSib.dataset.type) {
+          lastGroupRow = nextSib;
+          nextSib = lastGroupRow.nextSibling;
+        }
+        tbody.insertBefore(sub, lastGroupRow.nextSibling);
       });
       // 全行の折りたたみ・除外状態を適用（小計・リマーク行を含む）
       _applyGroupStates();
@@ -1044,29 +1202,59 @@
   function _updateGroupSums() {
     const tbody = document.getElementById('tableBody');
     if (!tbody) return;
-    let curSumEl = null, curSum = 0, curMixed = false;
+    let curSumEl = null, curSubRow = null, curSell = 0, curCost = 0, curMixed = false;
     const flush = () => {
-      if (!curSumEl) return;
-      const v = Math.round(curSum);
-      curSumEl.textContent = v ? ('¥' + fmt(v) + (curMixed ? '※' : '')) : '';
-      curSumEl.title = curMixed ? '複数通貨を JPY 換算して合算（FX パネルのレート使用）' : '';
+      const sell = Math.round(curSell);
+      const cost = Math.round(curCost);
+      const mark = curMixed ? '※' : '';
+      const sellTxt = '¥' + fmt(sell) + mark;
+      const costTxt = '¥' + fmt(cost) + mark;
+      const ttl = curMixed ? '複数通貨を JPY 換算して合算（FX パネルのレート使用）' : '';
+      // グループヘッダーの集計（売値ベース）
+      if (curSumEl) { curSumEl.textContent = sell ? sellTxt : ''; curSumEl.title = ttl; }
+      // 小計行：仕入合計・売値合計・粗利率
+      if (curSubRow) {
+        const cEl = curSubRow.querySelector('.subcon-subtotal-cost');
+        const sEl = curSubRow.querySelector('.subcon-subtotal-sum');
+        const mEl = curSubRow.querySelector('.subcon-subtotal-margin');
+        if (cEl) { cEl.textContent = costTxt; cEl.title = ttl; }
+        if (sEl) { sEl.textContent = sellTxt; sEl.title = ttl; }
+        if (mEl) {
+          if (sell > 0) {
+            const m = (sell - cost) / sell * 100;
+            mEl.textContent = m.toFixed(1) + '%';
+            mEl.classList.toggle('is-neg', m < 0);
+          } else {
+            mEl.textContent = '—';
+            mEl.classList.remove('is-neg');
+          }
+        }
+      }
     };
     Array.from(tbody.querySelectorAll('tr')).forEach(tr => {
+      if (tr.dataset.subSum) {              // グループ小計行：現時点の累計を書き込む
+        curSubRow = tr;
+        flush();
+        return;
+      }
       if (tr.dataset.virtual) {            // グループヘッダー
         flush();
         curSumEl = tr.querySelector('.subcon-group-sum');
-        curSum = 0; curMixed = false;
+        curSubRow = null; curSell = 0; curCost = 0; curMixed = false;
         return;
       }
       if (tr.dataset.type) return;         // 小計・リマーク・社内メモ行は除外
       const id = tr.id?.replace('row-', '');
       if (!id || !curSumEl) return;
       const bq = val(`bq-${id}`) || val(`pq-${id}`) || 0;
-      const bp = val(`bp-${id}`) || 0;
-      let amt = bq * bp;
+      const bp = val(`bp-${id}`) || 0;   // 売単価
+      const pp = val(`pp-${id}`) || 0;   // 仕単価
+      let sell = bq * bp, cost = bq * pp;
       const bc = document.getElementById(`bc-${id}`)?.value || 'JPY';
-      if (bc !== 'JPY') { curMixed = true; if (typeof toJPY === 'function') amt = toJPY(amt, bc); }
-      curSum += amt;
+      const pc = document.getElementById(`pc-${id}`)?.value || 'JPY';
+      if (bc !== 'JPY') { curMixed = true; if (typeof toJPY === 'function') sell = toJPY(sell, bc); }
+      if (pc !== 'JPY') { curMixed = true; if (typeof toJPY === 'function') cost = toJPY(cost, pc); }
+      curSell += sell; curCost += cost;
     });
     flush();
   }
@@ -1083,11 +1271,12 @@
     const tbody = document.getElementById('tableBody');
     const realRows = Array.from(tbody.querySelectorAll('tr:not([data-virtual])'))
       .filter(tr => !tr.dataset.type);
-    // グループの末尾行を探す
+    // グループの末尾行を探す（揺らぎ吸収：正規化キーで一致判定）
+    const targetKey = subconNormKey(sv);
     let lastInGroup = null;
     realRows.forEach(tr => {
       const rowSv = _rowSubcon(tr) ?? '';
-      if (rowSv === sv) lastInGroup = tr;
+      if (subconNormKey(rowSv) === targetKey) lastInGroup = tr;
     });
     let newId;
     if (lastInGroup) {
@@ -1107,6 +1296,19 @@
   window.addRowToSubconGroup  = addRowToSubconGroup;
   window.toggleSubconGroup    = toggleSubconGroup;
   window.toggleSubconExclude  = toggleSubconExclude;
+  // サブコン別小計の「客先用表示名」マップ（保存・復元・客先出力で参照）
+  window.getSubconAliases = () => Object.assign({}, _subconAlias);
+  window.setSubconAliases = (obj) => {
+    Object.keys(_subconAlias).forEach(k => delete _subconAlias[k]);
+    if (obj && typeof obj === 'object') {
+      // 旧プリセットは生の綴りでキー化されている場合があるため正規化キーへ寄せる（idempotent）
+      Object.keys(obj).forEach(k => {
+        if (!obj[k]) return;
+        const nk = subconNormKey(k) || k;
+        _subconAlias[nk] = obj[k];
+      });
+    }
+  };
 
   // ========== 行クリップボード（任意位置貼り付け） ==========
   let _rowClipboard = [];
