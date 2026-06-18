@@ -1197,8 +1197,8 @@
     } catch(e) {}
     if (routeEntries.length) {
       routeEntries.forEach((r, i) => {
-        const leg  = [r.pol, r.pod].filter(Boolean).join(' → ');
-        const line = [r.carrier, leg].filter(Boolean).join('  ');
+        const leg  = [r.pol, r.via, r.pod].filter(Boolean).join(' → ');
+        const line = [[r.carrier, r.service ? `(${r.service})` : ''].filter(Boolean).join(' '), leg].filter(Boolean).join('  ');
         if (line) condRows.push(_cpKV(i === 0 ? '航路' : '　', line));
       });
     } else {

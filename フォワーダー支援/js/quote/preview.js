@@ -619,11 +619,13 @@
     document.getElementById('previewTableWrap').innerHTML = html;
 
     const cond = getConditions();
-    // 航路：複数登録時は航路ごとに併記、単一なら従来通り POL/POD を分けて表示
-    const routeFields = (cond.routes && cond.routes.length > 1)
+    // 航路：1件以上の登録があれば航路ごとに via・キャリア・サービス名を含めて表示、なければ従来通り POL/POD を分けて表示
+    const routeFields = (cond.routes && cond.routes.length >= 1)
       ? cond.routes.map((r, i) => ({
-          lbl: `航路${i + 1}`,
-          val: [[r.pol, r.pod].filter(Boolean).join(' → '), r.carrier].filter(Boolean).join('　'),
+          lbl: cond.routes.length === 1 ? '航路' : `航路${i + 1}`,
+          val: [[r.pol, r.via, r.pod].filter(Boolean).join(' → '),
+                [r.carrier, r.service ? `(${r.service})` : ''].filter(Boolean).join(' ')
+               ].filter(Boolean).join('　'),
         }))
       : [
           { lbl: '積み地（POL）',   val: cond.pol },
@@ -1298,10 +1300,12 @@
     if (hdr.validUntil) aoaRows.push(['有効期限', hdr.validUntil]);
     // 引き合い条件（POL/POD/インコタームズ/輸送モード/コンテナ/貨物名）
     const cExcel = getConditions();
-    const routePairs = (cExcel.routes && cExcel.routes.length > 1)
+    const routePairs = (cExcel.routes && cExcel.routes.length >= 1)
       ? cExcel.routes.map((r, i) => [
-          `航路${i + 1}`,
-          [[r.pol, r.pod].filter(Boolean).join(' → '), r.carrier].filter(Boolean).join('　'),
+          cExcel.routes.length === 1 ? '航路' : `航路${i + 1}`,
+          [[r.pol, r.via, r.pod].filter(Boolean).join(' → '),
+           [r.carrier, r.service ? `(${r.service})` : ''].filter(Boolean).join(' ')
+          ].filter(Boolean).join('　'),
         ])
       : [['POL（積み地）', cExcel.pol], ['POD（揚げ地）', cExcel.pod]];
     const condPairs = [
