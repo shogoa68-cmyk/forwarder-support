@@ -2446,6 +2446,286 @@ body:has(#compareOverlay.open) #quoteActionDock { display: none; }
   padding: 3px 10px;
 }
 
+/* ===== 統計タブ: 不足クラス補完 ===== */
+
+/* カテゴリバッジ（rp-cat）: quote.css の #tab-quote-make スコープ外でも使用 */
+.rp-cat {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 600;
+  padding: 1px 7px;
+  border-radius: 10px;
+  white-space: nowrap;
+}
+.rp-cat.cat-domestic      { background: #e8f0e0; color: #4f6230; }
+.rp-cat.cat-export-local  { background: #e0edff; color: #1a4d9e; }
+.rp-cat.cat-ocean         { background: #dde9f5; color: #1c5a8a; }
+.rp-cat.cat-air           { background: #e7e0f5; color: #5b3d9e; }
+.rp-cat.cat-surcharge     { background: #fdf0d8; color: #8a6a18; }
+.rp-cat.cat-import-local  { background: #e0f5ee; color: #0f6e54; }
+.rp-cat.cat-overseas      { background: #e6f2e0; color: #3f6e2e; }
+.rp-cat.cat-customs-export{ background: #fde8e0; color: #a8522e; }
+.rp-cat.cat-customs-import{ background: #fce4ec; color: #a8326a; }
+.rp-cat.cat-insurance     { background: #e0f0f5; color: #1a6a8a; }
+.rp-cat.cat-other         { background: #ece8e1; color: #6b5a42; }
+
+/* チャージ履歴推移タイムライン */
+.stats-sv-surge-badge {
+  font-size: 10px;
+  background: #fff0cc;
+  border: 1px solid #e8c850;
+  border-radius: 8px;
+  color: #8a6a18;
+  padding: 1px 7px;
+  font-weight: 600;
+}
+.stats-sv-detail--surge > summary { background: #fffbe8; }
+.stats-hist-avg {
+  font-size: 11px;
+  color: #7a6040;
+  margin-top: 2px;
+}
+.stats-hist-details {
+  margin-top: 4px;
+  font-size: 11px;
+}
+.stats-hist-details > summary {
+  cursor: pointer;
+  color: #7a5a00;
+  display: inline-block;
+  padding: 1px 4px;
+  border-radius: 4px;
+}
+.stats-hist-details > summary:hover { color: #5a3d00; background: #fff3cc; }
+.stats-hist-trail {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 2px;
+  margin-top: 6px;
+  padding: 6px 8px;
+  background: #faf8f4;
+  border-radius: 6px;
+  border: 1px solid #e8ddd0;
+}
+.stats-hist-pt {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  font-size: 11px;
+  gap: 1px;
+}
+.stats-hist-pt b   { font-size: 11px; color: #3d2b1a; font-weight: 700; }
+.stats-hist-date   { font-size: 10px; color: #7a6040; }
+.stats-hist-arr    { color: #ccc; font-size: 12px; align-self: center; }
+.stats-hist-route  { font-size: 10px; color: #7a6040; font-weight: 400; }
+
+/* 単位エイリアスペイン（ua-*） */
+.ua-pane-hint {
+  font-size: 11px;
+  color: #7a6a5a;
+  background: #faf6ef;
+  border: 1px solid #e0d4bc;
+  border-radius: 6px;
+  padding: 6px 12px;
+  margin-bottom: 10px;
+}
+.ua-canonical-row { background: #f6fbf8; }
+.ua-canonical-row:hover { background: #edf6f1 !important; }
+.ua-ungrouped-row {}
+.ua-star { font-size: 13px; margin-right: 4px; }
+.ua-alias-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  background: #dbeafe;
+  border: 1px solid #93c5fd;
+  border-radius: 10px;
+  color: #1d4ed8;
+  font-size: 11px;
+  padding: 1px 6px;
+  margin: 2px 3px 2px 0;
+}
+.ua-chip-cnt { font-size: 10px; color: #5a7abe; margin-left: 2px; }
+.ua-chip-del {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #93c5fd;
+  font-size: 10px;
+  padding: 0 2px;
+  line-height: 1;
+}
+.ua-chip-del:hover { color: #1d4ed8; }
+.ua-no-alias { color: #bbb; font-style: italic; font-size: 11px; }
+.ua-remove-canon {
+  padding: 2px 8px;
+  font-size: 11px;
+  background: none;
+  border: 1px solid #d0c0a0;
+  border-radius: 8px;
+  cursor: pointer;
+  color: #8a7060;
+}
+.ua-remove-canon:hover { background: #f5ece0; }
+.ua-ops { white-space: nowrap; }
+.ua-set-canon {
+  padding: 2px 8px;
+  font-size: 11px;
+  background: #fff9e0;
+  border: 1px solid #e8c84a;
+  border-radius: 8px;
+  cursor: pointer;
+  color: #7a5a00;
+  font-weight: 600;
+  margin-right: 4px;
+}
+.ua-set-canon:hover { background: #fff0b3; }
+.ua-merge-btn {
+  padding: 2px 8px;
+  font-size: 11px;
+  background: none;
+  border: 1px solid #93c5fd;
+  border-radius: 8px;
+  cursor: pointer;
+  color: #1d4ed8;
+}
+.ua-merge-btn:hover { background: #dbeafe; }
+.ua-cnt-detail { font-size: 10px; color: #7a6040; }
+
+/* ===== 統計タブ: 横棒グラフ ===== */
+.stats-bar-wrap {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.stats-bar {
+  height: 4px;
+  background: #8b6914;
+  border-radius: 2px;
+  min-width: 2px;
+  transition: width 0.3s ease;
+}
+.stats-bar-label {
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+/* stats-num-col 内で使う場合は色を維持 */
+.stats-num-col .stats-bar-label { color: #2d6a4f; font-weight: 600; }
+
+/* ===== 統計タブ: KPI ペイン ===== */
+.stats-kpi-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+  gap: 10px;
+  margin-bottom: 20px;
+}
+.stats-kpi-card {
+  background: #f9f6f0;
+  border: 1px solid #e0d4bc;
+  border-radius: 8px;
+  padding: 12px 14px 10px;
+  text-align: center;
+}
+.stats-kpi-value {
+  font-size: 28px;
+  font-weight: 700;
+  color: #2d6a4f;
+  line-height: 1.1;
+}
+.stats-kpi-label {
+  font-size: 11px;
+  color: #7a6a5a;
+  margin-top: 4px;
+}
+.stats-kpi-section-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: #3a2c1e;
+  margin: 0 0 10px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid #e0d4bc;
+}
+
+/* ===== 統計タブ: タブグループラベル ===== */
+.stats-tab-group-label {
+  font-size: 9px;
+  font-weight: 600;
+  color: #a08060;
+  letter-spacing: 0.04em;
+  padding: 0 6px;
+  align-self: flex-end;
+  padding-bottom: 6px;
+  white-space: nowrap;
+  pointer-events: none;
+  user-select: none;
+}
+.stats-tab-group-sep {
+  width: 1px;
+  background: #d0c0a0;
+  align-self: stretch;
+  margin: 4px 2px;
+}
+
+/* ===== 統計タブ: 期間フィルタセレクト ===== */
+.stats-period-select {
+  padding: 6px 10px;
+  border: 1px solid #c8b898;
+  border-radius: 6px;
+  font-size: 13px;
+  background: #fff;
+  cursor: pointer;
+}
+
+/* ===== 統計タブ: インライン略称入力フォーム ===== */
+.stats-abbrev-inline-form {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.stats-abbrev-input {
+  width: 120px;
+  padding: 3px 6px;
+  font-size: 12px;
+  border: 1px solid #93c5fd;
+  border-radius: 4px;
+  outline: none;
+}
+.stats-abbrev-input:focus { border-color: #1d4ed8; box-shadow: 0 0 0 2px rgba(29,78,216,0.15); }
+.stats-abbrev-ok {
+  padding: 3px 10px;
+  font-size: 11px;
+  background: #1d4ed8;
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: 600;
+}
+.stats-abbrev-ok:hover { background: #1e3a8a; }
+.stats-abbrev-cancel {
+  padding: 3px 8px;
+  font-size: 11px;
+  background: none;
+  border: 1px solid #d0c0a0;
+  border-radius: 4px;
+  cursor: pointer;
+  color: #8a7060;
+}
+.stats-abbrev-cancel:hover { background: #f5ece0; }
+
+/* ===== 統計タブ: 更新ボタン disabled 状態 ===== */
+.stats-refresh-btn:disabled {
+  background: #8a9a8a;
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+/* ===== 統計タブ: focus-visible（アクセシビリティ） ===== */
+.stats-tab-btn:focus-visible {
+  outline: 2px solid #2d6a4f;
+  outline-offset: 2px;
+}
+
 /* ===================== エイリアスルールペイン ===================== */
 /* クイック登録セクション */
 .ar-quick-section {
