@@ -1241,6 +1241,7 @@
         '<div class="preset-rich-row1">' +
           statusHtml +
           '<span class="preset-list-name" title="' + escHtml(p.name) + '">' + escHtml(titleText) + '</span>' +
+          '<button class="btn-ref-copy" onclick="copyRefNumber(' + JSON.stringify(titleText) + ',this)" title="管理番号をコピー（&quot;番号&quot;形式）">📋</button>' +
           (isLoaded ? '<span class="preset-loaded-badge">編集中</span>' : '') +
         '</div>' +
         _progressBarHtml(p.data) +
@@ -3247,4 +3248,15 @@
     maybeAutoFillRef();          // 新規（REF空）なら仮REF#を自動採番
     // 初回はダッシュボード（ページ1）を表示。以降のタブ切替では現在ページを維持
     if (typeof window.qpShowDashboard === 'function') window.qpShowDashboard();
+  };
+
+  // 管理番号を "番号" 形式でクリップボードにコピー
+  window.copyRefNumber = function(ref, btn) {
+    const text = '“' + ref + '”'; // "番号"（二重引用符）
+    navigator.clipboard.writeText(text).then(() => {
+      if (btn) { const orig = btn.textContent; btn.textContent = '✅'; setTimeout(() => { btn.textContent = orig; }, 1500); }
+      if (typeof quoteShowToast === 'function') quoteShowToast('📋 管理番号をコピーしました：' + text, 'success', 2000);
+    }).catch(() => {
+      if (typeof quoteShowToast === 'function') quoteShowToast('⚠️ コピーに失敗しました', 'warn', 2000);
+    });
   };

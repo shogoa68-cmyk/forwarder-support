@@ -899,22 +899,20 @@
     if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
   }
 
-  // ========== 行直下への備考行・社内メモ挿入（各行の row-ins-bar から） ==========
-  // 「備考（任意）」(nt) のテキストを使って直下に行を挿入し、挿入後は備考欄をクリアする
-  // （備考列と備考行への二重表示を防ぐ）
+  // ========== 行直下への備考行・社内メモ挿入（w-note フィールドのテキストを引用） ==========
   function rowInsertRemarkBelow(id) {
-    const txt = document.getElementById(`nt-${id}`);
-    const text = txt ? txt.value.trim() : '';
+    const nt = document.getElementById(`nt-${id}`);
+    const text = nt ? nt.value.trim() : '';
     insertRemarkRow(id, text ? { text } : undefined);
-    if (txt) { txt.value = ''; }
+    if (nt) { nt.value = ''; checkUnfilled(id); }
     if (typeof updateTotals === 'function') updateTotals();
     if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
   }
   function rowInsertInternalBelow(id) {
-    const txt = document.getElementById(`nt-${id}`);
-    const text = txt ? txt.value.trim() : '';
+    const nt = document.getElementById(`nt-${id}`);
+    const text = nt ? nt.value.trim() : '';
     insertInternalRow(id, text ? { text } : undefined);
-    if (txt) { txt.value = ''; }
+    if (nt) { nt.value = ''; checkUnfilled(id); }
     if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
   }
 

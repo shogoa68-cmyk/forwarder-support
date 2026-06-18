@@ -635,10 +635,17 @@
 /* 項目名セル：項目名（上）＋備考（下）を縦積み */
 #tab-quote-make .name-cell { vertical-align: top; white-space: normal; }
 #tab-quote-make .name-cell .w-name { display: block; }
-#tab-quote-make .name-cell .w-note {
-  display: block;
-  width: 100%; box-sizing: border-box;
+/* 備考欄 + 行挿入ボタンのフレックス行 */
+#tab-quote-make .name-cell .w-note-row {
+  display: flex;
+  align-items: center;
+  gap: 3px;
   margin-top: 3px;
+}
+#tab-quote-make .name-cell .w-note {
+  flex: 1;
+  min-width: 0;
+  box-sizing: border-box;
   font-size: 11px; color: #6f6a60;
   border: 1px dashed #d6cdbd; background: #fbf9f4;
   padding: 2px 5px;
@@ -4848,6 +4855,16 @@ body.qp-dash-active #quoteActionDock { display: none !important; }
 #tab-quote-make .cloud-preset-grid { grid-template-columns: repeat(auto-fill, minmax(380px, 1fr)); }
 #tab-quote-make .cloud-card-labeled { padding: 10px 12px; }
 #tab-quote-make .cloud-card-labeled .cloud-card-name { flex: 1; white-space: normal; }
+/* 管理番号コピーボタン（クラウド・ローカル両カード共通） */
+#tab-quote-make .btn-ref-copy {
+  flex-shrink: 0;
+  padding: 1px 5px; height: 20px;
+  font-size: 11px; line-height: 1;
+  border: 1px solid #c8bfb0; border-radius: 4px;
+  background: #f5f2eb; color: #7a6a50;
+  cursor: pointer; white-space: nowrap;
+}
+#tab-quote-make .btn-ref-copy:hover { background: #e8f5e0; border-color: #7aaf40; color: #3a6a10; }
 #tab-quote-make .cloud-card-memo {
   font-size: 12px; font-weight: 600; color: #1a3a5c;
   margin: 4px 0 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
@@ -5695,24 +5712,21 @@ body.qp-dash-active #quoteActionDock { display: none !important; }
   font-size: 12px !important; font-weight: 600; letter-spacing: 0;
 }
 
-/* ========== 行直下 備考挿入バー ========== */
-#tab-quote-make .row-ins-bar {
-  display: none;
-  align-items: center; gap: 4px;
-  margin-top: 3px;
-}
-#tab-quote-make tr:hover .row-ins-bar,
-#tab-quote-make tr:focus-within .row-ins-bar {
-  display: flex;
-}
+/* ========== w-note-row 内の行挿入ボタン ========== */
+/* ボタンはホバー/フォーカス時のみ表示（通常は非表示でノート欄を広く使う） */
 #tab-quote-make .btn-row-rem,
 #tab-quote-make .btn-row-int {
-  height: 22px; padding: 0 6px;
-  font-size: 11px; font-weight: 600; white-space: nowrap;
+  display: none;
+  height: 22px; padding: 0 5px;
+  font-size: 12px; white-space: nowrap;
   border: 1px solid #c8bfb0; border-radius: 4px;
   background: #f7f4ee; color: #5c4a2a; cursor: pointer;
-  line-height: 1;
+  flex-shrink: 0; line-height: 1;
 }
+#tab-quote-make tr:hover .btn-row-rem,
+#tab-quote-make tr:hover .btn-row-int,
+#tab-quote-make tr:focus-within .btn-row-rem,
+#tab-quote-make tr:focus-within .btn-row-int { display: inline-flex; align-items: center; }
 #tab-quote-make .btn-row-rem:hover { background: #e8f5e0; border-color: #7aaf40; }
 #tab-quote-make .btn-row-int:hover { background: #f0ecff; border-color: #8070c0; }
 
