@@ -1241,7 +1241,7 @@
         '<div class="preset-rich-row1">' +
           statusHtml +
           '<span class="preset-list-name" title="' + escHtml(p.name) + '">' + escHtml(titleText) + '</span>' +
-          '<button class="btn-ref-copy" onclick="copyRefNumber(' + JSON.stringify(titleText) + ',this)" title="管理番号をコピー（&quot;番号&quot;形式）">📋</button>' +
+          '<button class="btn-ref-copy" data-ref="' + escHtml(titleText) + '" onclick="copyRefNumber(this.dataset.ref,this)" title="管理番号をコピー（&quot;番号&quot;形式）"><svg class="icon-copy" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="1" width="9" height="9" rx="1.5"/><rect x="1" y="4" width="9" height="9" rx="1.5"/></svg></button>' +
           (isLoaded ? '<span class="preset-loaded-badge">編集中</span>' : '') +
         '</div>' +
         _progressBarHtml(p.data) +
@@ -3252,10 +3252,15 @@
 
   // 管理番号を "番号" 形式でクリップボードにコピー
   window.copyRefNumber = function(ref, btn) {
-    const text = '“' + ref + '”'; // "番号"（二重引用符）
+    const text = '”' + ref + '”'; // “番号”（二重引用符）
     navigator.clipboard.writeText(text).then(() => {
-      if (btn) { const orig = btn.textContent; btn.textContent = '✅'; setTimeout(() => { btn.textContent = orig; }, 1500); }
-      if (typeof quoteShowToast === 'function') quoteShowToast('📋 管理番号をコピーしました：' + text, 'success', 2000);
+      if (btn) {
+        const origHtml = btn.innerHTML;
+        btn.innerHTML = '✅';
+        btn.classList.add('copied');
+        setTimeout(() => { btn.innerHTML = origHtml; btn.classList.remove('copied'); }, 1500);
+      }
+      if (typeof quoteShowToast === 'function') quoteShowToast('コピーしました：' + text, 'success', 2000);
     }).catch(() => {
       if (typeof quoteShowToast === 'function') quoteShowToast('⚠️ コピーに失敗しました', 'warn', 2000);
     });
