@@ -306,6 +306,10 @@
     checkUnfilled(newId);
     onPay(newId);
 
+    // subcon-child クラス等のグループ連結を即時反映
+    renderSubconGroups();
+    if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
+
     return newId;
   }
 
