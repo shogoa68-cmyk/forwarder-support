@@ -859,6 +859,7 @@
     document.body.classList.add('qp-dash-active');
     _renderQpdAuth();
     if (_cloudUser) cloudListPresets(true);   // 一覧・統計を最新化（silent）
+    window.scrollTo({ top: 0, behavior: 'instant' });
   }
   function qpShowEditor() {
     document.getElementById('tab-quote-make')?.classList.remove('qp-dash');
