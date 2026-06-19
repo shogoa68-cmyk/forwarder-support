@@ -51,7 +51,7 @@
   <div class="cat-nav" role="tablist" aria-label="カテゴリ">
     <button class="cat-btn cat-btn-featured active" role="tab" aria-selected="true"  onclick="switchCategory('quote',  this)">💼 見積</button>
     <button class="cat-btn cat-btn-featured"        role="tab" aria-selected="false" onclick="switchCategory('stats',   this)">📊 統計</button>
-    <button class="cat-btn cat-btn-featured" role="tab" aria-selected="false" onclick="switchCategory('cost', this)">💴 諸チャージ</button>
+    <button class="cat-btn"        role="tab" aria-selected="false" onclick="switchCategory('cost', this)">💴 諸チャージ</button>
     <button class="cat-btn cat-btn-bookmark" role="tab" aria-selected="false" onclick="switchCategory('bookmark', this)">🔖 BOOKMARK</button>
     <button class="cat-btn"        role="tab" aria-selected="false" onclick="switchCategory('vessel', this)">🚢 本船・航路</button>
     <button class="cat-btn"        role="tab" aria-selected="false" title="Booking（船腹予約）と S/I（Shipping Instruction：船積指図書）の手続き" onclick="switchCategory('booking', this)">📋 Booking/SI</button>
@@ -283,8 +283,6 @@
       </div>
 
       <div id="lcVariantPanel" class="lc-variant-panel" hidden></div>
-
-      <div id="lcCarrierBmSection" class="lc-bm-section" hidden></div>
 
       <div id="lcList" class="lc-list">
         <p class="lc-empty">読み込み中…</p>
@@ -2000,7 +1998,6 @@
             <label class="qpd-sort">並び替え
               <select id="qpdSort" onchange="qpdSetSort(this.value)">
                 <option value="updated">更新日（新しい順）</option>
-                <option value="due">提出期限（近い順）</option>
                 <option value="status">ステータス順</option>
                 <option value="who">作業者（最終更新者）</option>
                 <option value="person">担当者</option>
@@ -2119,7 +2116,7 @@
 
       <!-- 共有案件の作業モード：開く=閲覧／編集でロック取得（作業中）／保存=作業終了で解放→閲覧 -->
       <div class="qm-group" id="qmGroup">
-        <button type="button" class="save-btn qm-btn qm-dash"  id="qmDash"  onclick="qpBackToDashboard()" title="ダッシュボード（案件一覧・統計）へ戻る">📊 ダッシュボードに戻る</button>
+        <button type="button" class="save-btn qm-btn qm-dash"  id="qmDash"  onclick="qpShowDashboard()" title="ダッシュボード（案件一覧・統計）へ戻る">📊 ダッシュボードに戻る</button>
       </div>
       <span class="qm-banner" id="qmBanner" hidden></span>
       <span class="save-toolbar-sep"></span>
@@ -2473,14 +2470,6 @@
             <input type="text" id="qf-person" placeholder="例）山田　※氏名のみ。出力時に自動で「様」付与" title="姓のみ／フルネームのみで入力（会社名は含めない）。出力時に自動で「様」が付きます" aria-required="true" />
           </div>
           <div class="quote-field">
-            <label>📥 依頼受信日 <span class="qf-memo-note">引き合いを受けた日（経過日数を表示）</span></label>
-            <input type="date" id="qf-received" title="依頼を受信した日。ダッシュボードに経過日数を表示します" />
-          </div>
-          <div class="quote-field">
-            <label>⏰ 提出期限 <span class="qf-memo-note">回答の締切（残り日数で優先度表示）</span></label>
-            <input type="date" id="qf-due" title="見積提出の期限。ダッシュボードに残り日数を表示します" />
-          </div>
-          <div class="quote-field">
             <label>発行日</label>
             <input type="date" id="qf-date" title="見積書の発行日。出力・Excelに含まれます" />
           </div>
@@ -2507,18 +2496,6 @@
           <div class="quote-field quote-field-memo">
             <label>📝 メモ <span class="qf-memo-note">出力・プレビューには含まれません</span></label>
             <textarea id="qf-memo" rows="6" placeholder="担当者間の申し送り・注意事項など、案件内部メモを自由に記述できます。お客様向け出力には含まれません。"></textarea>
-          </div>
-          <div class="quote-field quote-field-attach">
-            <label>📎 添付ファイル <span class="qf-memo-note">この案件に保存・チーム共有（ログイン必須）</span></label>
-            <label class="qf-attach-drop" id="qfAttachDrop"
-                   ondragover="event.preventDefault(); this.classList.add('is-drag');"
-                   ondragleave="this.classList.remove('is-drag');"
-                   ondrop="event.preventDefault(); this.classList.remove('is-drag'); qfAttachUpload(event.dataTransfer.files);">
-              <input type="file" id="qfAttachInput" multiple style="display:none" onchange="qfAttachUpload(this.files); this.value='';" />
-              <span class="qf-attach-hint">📥 ここにドラッグ＆ドロップ、またはクリックして選択<br><small>※ 添付は14日間で自動削除されます</small></span>
-            </label>
-            <div id="qfAttachMeter" class="qf-attach-meter"></div>
-            <div id="qfAttachList" class="qf-attach-list"></div>
           </div>
         </div>
         <button class="fb-section-btn" onclick="openFeedback('管理番号入力')" title="このセクションへのフィードバック">💬 このセクションへのフィードバック</button>
@@ -2658,7 +2635,6 @@
               </div>
               <div class="z2-row z2-service-row">
                 <span class="z2-label" style="visibility:hidden">🚢</span>
-
                 <input type="text" id="z2Service" class="z2-input z2-service-input"
                        placeholder="サービス名（任意）例）FAL1、NEX1">
               </div>
@@ -3206,8 +3182,10 @@
               <span class="btn-group-label">行追加</span>
               <button class="btn-ins-row cmdbar-icon-btn" onclick="toolbarInsertRow()" title="費用行を追加（明細）">＋</button>
               <button class="btn-ins-sub cmdbar-icon-btn" onclick="toolbarInsertSubtotal()" title="小計行を追加">＝</button>
-              <button class="btn-ins-rem cmdbar-text-btn" onclick="toolbarInsertRemark()" title="空の備考（リマーク）行を追加（行内で直接入力）">💬 備考行</button>
-              <button class="btn-ins-int cmdbar-text-btn" onclick="toolbarInsertInternal()" title="社内メモ行を追加（出力対象外）">🔒 社内メモ</button>
+              <button class="btn-ins-rem cmdbar-icon-btn" onclick="toolbarInsertRemark()" title="リマーク（注記）行を追加">💬</button>
+              <button class="btn-ins-int cmdbar-icon-btn" onclick="toolbarInsertInternal()" title="社内メモ行を追加（出力対象外）">🔒</button>
+              <button class="btn-bulk-pattern cmdbar-pattern-btn" onclick="openRowPatternMgr()" title="行パターン：チェックした行を保存／保存パターンを挿入">🗂️ 行パターン</button>
+              <button class="cmdbar-lc-btn" onclick="lcOpenPicker()" title="諸チャージマスターから行を追加">📦 チャージ</button>
               <span class="btn-group-label">挿入位置</span>
               <select id="rowInsertPos" class="row-insert-pos" title="追加ボタンの挿入位置">
                 <option value="end">末尾に追加</option>
@@ -3680,6 +3658,12 @@
         <option value="local">ローカルのみ</option>
         <option value="cloud">クラウドのみ</option>
       </select>
+      <select id="statsPeriod" class="stats-period-select" onchange="statsRefresh()">
+        <option value="all">全期間</option>
+        <option value="year">今年度</option>
+        <option value="q3">直近3ヶ月</option>
+        <option value="month">今月</option>
+      </select>
       <button class="stats-refresh-btn" onclick="statsRefresh()">🔄 集計</button>
       <span id="statsCloudStatus" class="stats-cloud-off">💾 ローカル投票</span>
       <button class="stats-help-toggle" onclick="statsToggleHelp()">? 使い方</button>
@@ -3701,6 +3685,14 @@
       <div class="stats-card">
         <div class="stats-card-value" id="statsNmGroups">—</div>
         <div class="stats-card-label">品名グループ数</div>
+      </div>
+      <div class="stats-card">
+        <div class="stats-card-value" id="statsBlurCount">—</div>
+        <div class="stats-card-label">ゆらぎグループ</div>
+      </div>
+      <div class="stats-card">
+        <div class="stats-card-value" id="statsMasterCount">—</div>
+        <div class="stats-card-label">マスター候補数</div>
       </div>
     </div>
 
@@ -3768,32 +3760,40 @@
       </div>
     </div>
 
-    <div class="stats-tabs">
-      <span class="stats-tab-group-label" title="案件データを集計して傾向を把握する">📊 分析</span>
-      <button class="stats-tab-btn is-active" id="statsTabBtn-dashboard" onclick="statsSetPane('dashboard')">📈 ダッシュボード</button>
-      <button class="stats-tab-btn"           id="statsTabBtn-sv"       onclick="statsSetPane('sv')">🏢 サブコン</button>
-      <button class="stats-tab-btn"           id="statsTabBtn-carrier"  onclick="statsSetPane('carrier')">🚢 キャリア</button>
-      <button class="stats-tab-btn"           id="statsTabBtn-port"     onclick="statsSetPane('port')">🛳 港</button>
-      <button class="stats-tab-btn"           id="statsTabBtn-customer" onclick="statsSetPane('customer')">👤 お客様</button>
-      <button class="stats-tab-btn"           id="statsTabBtn-nm"       onclick="statsSetPane('nm')">📝 品名</button>
-      <button class="stats-tab-btn"           id="statsTabBtn-un"       onclick="statsSetPane('un')">📐 単位</button>
-      <button class="stats-tab-btn"           id="statsTabBtn-charges"  onclick="statsSetPane('charges')">💰 チャージ</button>
-      <span class="stats-tab-divider" aria-hidden="true"></span>
-      <span class="stats-tab-group-label stats-tab-group-label--manage" title="表記ゆれの是正・マスターの整備">🛠 管理</span>
-      <button class="stats-tab-btn"           id="statsTabBtn-master"   onclick="statsSetPane('master')">⭐ マスター管理</button>
-      <button class="stats-tab-btn"           id="statsTabBtn-alias"    onclick="statsSetPane('alias')">🔀 エイリアス是正</button>
+    <div class="stats-tabs" role="tablist" aria-label="統計サブタブ">
+      <span class="stats-tab-group-label">集計・分析</span>
+      <button class="stats-tab-btn is-active" role="tab" aria-selected="true"  aria-controls="statsPane-sv"       id="statsTabBtn-sv"       onclick="statsSetPane('sv')">🏢 サブコン</button>
+      <button class="stats-tab-btn"           role="tab" aria-selected="false" aria-controls="statsPane-carrier"  id="statsTabBtn-carrier"  onclick="statsSetPane('carrier')">🚢 キャリア</button>
+      <button class="stats-tab-btn"           role="tab" aria-selected="false" aria-controls="statsPane-customer" id="statsTabBtn-customer" onclick="statsSetPane('customer')">👤 お客様</button>
+      <button class="stats-tab-btn"           role="tab" aria-selected="false" aria-controls="statsPane-nm"       id="statsTabBtn-nm"       onclick="statsSetPane('nm')">📝 品名</button>
+      <button class="stats-tab-btn"           role="tab" aria-selected="false" aria-controls="statsPane-un"       id="statsTabBtn-un"       onclick="statsSetPane('un')">📐 単位</button>
+      <button class="stats-tab-btn"           role="tab" aria-selected="false" aria-controls="statsPane-charges"  id="statsTabBtn-charges"  onclick="statsSetPane('charges')">💰 チャージ</button>
+      <button class="stats-tab-btn"           role="tab" aria-selected="false" aria-controls="statsPane-kpi"      id="statsTabBtn-kpi"      onclick="statsSetPane('kpi')">📈 KPI</button>
+      <div class="stats-tab-group-sep"></div>
+      <span class="stats-tab-group-label">マスター管理・是正</span>
+      <button class="stats-tab-btn"           role="tab" aria-selected="false" aria-controls="statsPane-master"   id="statsTabBtn-master"   onclick="statsSetPane('master')">⭐ マスター管理</button>
+      <button class="stats-tab-btn"           role="tab" aria-selected="false" aria-controls="statsPane-alias"    id="statsTabBtn-alias"    onclick="statsSetPane('alias')">🔀 エイリアス是正</button>
     </div>
 
-    <div id="statsPane-dashboard" class="stats-pane is-active"></div>
-    <div id="statsPane-sv"       class="stats-pane"></div>
-    <div id="statsPane-carrier"  class="stats-pane"></div>
-    <div id="statsPane-port"     class="stats-pane"></div>
-    <div id="statsPane-customer" class="stats-pane"></div>
-    <div id="statsPane-nm"       class="stats-pane"></div>
-    <div id="statsPane-un"       class="stats-pane"></div>
-    <div id="statsPane-charges"  class="stats-pane"></div>
-    <div id="statsPane-master"   class="stats-pane"></div>
-    <div id="statsPane-alias"    class="stats-pane"></div>
+    <div id="statsPane-sv"       class="stats-pane is-active" role="tabpanel" aria-labelledby="statsTabBtn-sv">
+      <div class="stats-pane-toolbar"><button class="stats-export-btn" onclick="statsExportCsv('sv')">📥 CSV</button></div>
+    </div>
+    <div id="statsPane-carrier"  class="stats-pane" role="tabpanel" aria-labelledby="statsTabBtn-carrier">
+      <div class="stats-pane-toolbar"><button class="stats-export-btn" onclick="statsExportCsv('carrier')">📥 CSV</button></div>
+    </div>
+    <div id="statsPane-customer" class="stats-pane" role="tabpanel" aria-labelledby="statsTabBtn-customer">
+      <div class="stats-pane-toolbar"><button class="stats-export-btn" onclick="statsExportCsv('customer')">📥 CSV</button></div>
+    </div>
+    <div id="statsPane-nm"       class="stats-pane" role="tabpanel" aria-labelledby="statsTabBtn-nm">
+      <div class="stats-pane-toolbar"><button class="stats-export-btn" onclick="statsExportCsv('nm')">📥 CSV</button></div>
+    </div>
+    <div id="statsPane-un"       class="stats-pane" role="tabpanel" aria-labelledby="statsTabBtn-un">
+      <div class="stats-pane-toolbar"><button class="stats-export-btn" onclick="statsExportCsv('un')">📥 CSV</button></div>
+    </div>
+    <div id="statsPane-charges"  class="stats-pane" role="tabpanel" aria-labelledby="statsTabBtn-charges"></div>
+    <div id="statsPane-kpi"      class="stats-pane" role="tabpanel" aria-labelledby="statsTabBtn-kpi"></div>
+    <div id="statsPane-master"   class="stats-pane" role="tabpanel" aria-labelledby="statsTabBtn-master"></div>
+    <div id="statsPane-alias"    class="stats-pane" role="tabpanel" aria-labelledby="statsTabBtn-alias"></div>
   </div>
 
   <!-- ===================== Tab: BOOKMARK ===================== -->
@@ -4121,18 +4121,9 @@
         <input id="lc_note" class="lc-form-input" type="text" placeholder="補足情報">
       </div>
       <div class="lc-form-row lc-form-row--full">
-        <label class="lc-form-label">添付ファイル <span class="lc-form-hint">アナウンス PDF・タリフ等（5MBまで）</span></label>
-        <div id="lcAttachZone" class="lc-attach-zone">
-          <div id="lcAttachEmpty" class="lc-attach-empty">
-            <label class="lc-file-label-btn" for="lc_file">📎 ファイルを選択</label>
-            <input id="lc_file" class="lc-file-input" type="file" onchange="lcHandleFileChange(this)">
-            <span class="lc-attach-hint">ここにドラッグ＆ドロップ・貼り付けも可</span>
-          </div>
-          <div id="lcAttachSelected" class="lc-attach-selected" style="display:none">
-            <span class="lc-attach-icon-text">📄</span>
-            <a id="lcAttachFileName" class="lc-attach-name" target="_blank" rel="noopener">ファイル名</a>
-            <button type="button" class="lc-attach-remove" onclick="lcClearAttach()">削除</button>
-          </div>
+        <label class="lc-form-label">添付ファイル</label>
+        <div class="lc-attach-wip">
+          🚧 準備中 — アナウンス PDF などの添付は近日対応予定です。
         </div>
       </div>
     </div>
@@ -4289,9 +4280,6 @@
           <label class="bm-form-label" for="bmFormFunction">機能 <span class="bm-required">必須</span></label>
           <select id="bmFormFunction" class="bm-form-sel">
             <option value="">— 選択 —</option>
-            <option>ローカルチャージ（輸出）</option>
-            <option>ローカルチャージ（輸入）</option>
-            <option>お知らせ</option>
             <option>スケジュール</option>
             <option>航路</option>
             <option>輸入サーチャージ</option>

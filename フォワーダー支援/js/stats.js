@@ -3,13 +3,13 @@
   'use strict';
 
   // cells 配列のインデックス（v3 format: [0]=selected [1]=cat [2]=sv [3]=tx [4]=nm [5]=pq [6]=un ...）
-  const CI = { cat: 1, sv: 2, nm: 4, un: 6 };
-  const CARRIER_CATS = new Set(['ocean', 'surcharge']);
+  const CI = { cat: 1, sv: 2, nm: 4, un: 6, pc: 8, bc: 9, pp: 10, bp: 11 };
+  const CARRIER_CATS = new Set(['ocean', 'surcharge', 'air']);
   const LOCAL_KEY    = 'masterCandidates_v1';
   const VOTES_TABLE  = 'master_votes';
 
   let _data    = null;
-  let _cvMap   = null;  // Map<`field:::value`, { total, isMine }> — クラウド投票キャッシュ
+  let _cvMap   = null;  // Map<`field\x00value`, { total, isMine }> — クラウド投票キャッシュ
   const _renderedGroups = {};  // { groupId → { aliasField, variants[] } } — バッジクリック用
 
   // === Supabase ヘルパー ===
@@ -26,7 +26,7 @@
     _cvMap = new Map();
     const me = _me();
     (data || []).forEach(r => {
-      const key = r.field + ':::' + r.value;
+      const key = r.field + '\x00' + r.value;
       if (!_cvMap.has(key)) _cvMap.set(key, { total: 0, isMine: false });
       const v = _cvMap.get(key);
       v.total++;
@@ -35,7 +35,7 @@
   }
 
   function _voteInfo(field, value) {
-    if (_cloud() && _cvMap !== null) return _cvMap.get(field + ':::' + value) || { total: 0, isMine: false };
+    if (_cloud() && _cvMap !== null) return _cvMap.get(field + '\x00' + value) || { total: 0, isMine: false };
     const m = _getMasters().find(c => c.field === field && c.value === value);
     return { total: m ? m.votes : 0, isMine: !!m };
   }
@@ -65,9 +65,15 @@
   }
 
   function _build(source) {
+    const period = document.getElementById('statsPeriod')?.value || 'all';
+    const now = Date.now();
+    const CUTOFF = { all: 0, month: now - 30*86400000, q3: now - 91*86400000, year: now - 365*86400000 };
+    const cutoff = CUTOFF[period] || 0;
+
     const presets = [];
     if (source !== 'cloud') {
       _getLocalPresets().forEach(p => {
+        if (cutoff && p.updatedAt && new Date(p.updatedAt).getTime() < cutoff) return;
         const rows = _extractRows(p);
         if (rows.length) presets.push({ name: p.name || '（名称なし）', rows, src: 'local' });
       });
@@ -75,6 +81,7 @@
     if (source !== 'local') {
       const cloud = typeof window.cloudGetAllRows === 'function' ? window.cloudGetAllRows() : [];
       cloud.forEach(p => {
+        if (cutoff && p.updated_at && new Date(p.updated_at).getTime() < cutoff) return;
         const rows = _extractRows(p);
         if (rows.length) presets.push({ name: p.name || '（名称なし）', rows, src: 'cloud' });
       });
@@ -127,7 +134,6 @@
   function _normalize(s) {
     return s
       .replace(/^\*+/, '')                   // 課税マーク（品名先頭の *）を除去
-      .replace(/[（(][^）)]*[）)]/g, '')
       .replace(/【[^】]*】/g, '')
       .replace(/[\s　・ー―\-\/\\]+/g, '')
       .toLowerCase()
@@ -267,6 +273,8 @@
     synGroups.forEach(g => (g.aliases || []).forEach(a => { synAliasOf[a] = g.canonical; }));
     const cntMap = {};
     groups.forEach(g => g.variants.forEach(v => { cntMap[v.value] = (cntMap[v.value] || 0) + v.count; }));
+    // groups の total 最大値
+    const maxTotal = groups.length ? Math.max(...groups.map(g => g.total)) : 1;
     let h = '<p class="stats-syn-hint">☆代表 で同義グループの基準を決め、他の表記を ⤵統合 でまとめられます（非破壊・件数合算）。表記ゆれの一括置換は「ゆらぎ N種」バッジから。</p>' +
             `<table class="stats-table stats-nm-table"><thead><tr>` +
             `<th>${colLabel}</th><th class="stats-num-col">合計</th><th>バリアント / 操作</th>` +
@@ -284,7 +292,12 @@
           h += ` <button class="stats-variant-badge stats-variant-badge--link" onclick="statsJumpToAlias('${gId}')" title="エイリアス是正タブで一括登録">ゆらぎ ${g.variants.length}種</button>`;
         }
       }
-      h += `</td><td class="stats-num-col">${g.total}</td><td class="stats-chips-cell">`;
+      h += `</td>`;
+      h += `<td class="stats-num-col">` +
+           `<div class="stats-bar-wrap"><div class="stats-bar" style="width:${Math.round(g.total/maxTotal*100)}%"></div>` +
+           `<span class="stats-bar-label">${g.total}</span></div>` +
+           `</td>`;
+      h += `<td class="stats-chips-cell">`;
       g.variants.forEach(v => {
         h += `<span class="stats-chip${synCanons.has(v.value) ? ' stats-chip--canon' : ''}">` +
              `<span class="stats-chip-text">${_esc(v.value)}</span>` +
@@ -455,6 +468,11 @@
       subcons = window.buildSubconData(data || []);
     } else if (typeof window.getSubconData === 'function') {
       subcons = window.getSubconData();
+    }
+    // getSubconData が空 (モーダル未開封) の場合、ローカルプリセットから直接集計
+    if (!subcons.length && typeof window.buildSubconData === 'function') {
+      const localPresets = _getLocalPresets();
+      if (localPresets.length) subcons = window.buildSubconData(localPresets);
     }
 
     if (!subcons.length) {
@@ -869,7 +887,9 @@
     if (cloudOn) {
       _cvMap.forEach(({ total, isMine }, key) => {
         if (total < 1) return;
-        const [field, value] = key.split(':::');
+        const sep = key.indexOf('\x00');
+        const field = key.substring(0, sep);
+        const value = key.substring(sep + 1);
         entries.push({ field, value, votes: total, isMine, promoted: true });
       });
     } else {
@@ -987,6 +1007,111 @@
     set('statsRows',     _data.totalRows);
     set('statsSvCount',  _data.svGroups.length + _data.carrierGroups.length);
     set('statsNmGroups', _data.nmGroups.length);
+    // ゆらぎ件数 = バリアントが2種以上のグループ数の合計
+    const blur = [..._data.svGroups, ..._data.carrierGroups, ..._data.nmGroups, ..._data.unGroups]
+      .filter(g => g.variants.length > 1).length;
+    set('statsBlurCount', blur);
+    // マスター候補数
+    const masterCount = _cloud() && _cvMap ? _cvMap.size : _getMasters().length;
+    set('statsMasterCount', masterCount);
+  }
+
+  // ===== KPI ペイン =====
+
+  function _extractRowsWithPrice(preset) {
+    const d = preset.data || {};
+    if (!Array.isArray(d.rows)) return [];
+    return d.rows
+      .filter(r => r && r._type === 'data')
+      .map(r => {
+        const c = Array.isArray(r.cells) ? r.cells : [];
+        return {
+          cat: (c[CI.cat] || '').trim(),
+          sv:  (c[CI.sv]  || '').trim(),
+          nm:  (c[CI.nm]  || '').replace(/^\*+/, '').trim(),
+          un:  (c[CI.un]  || '').trim(),
+          pp:  parseFloat(c[CI.pp]) || null,
+          bp:  parseFloat(c[CI.bp]) || null,
+          pc:  (c[CI.pc]  || 'JPY').trim(),
+        };
+      })
+      .filter(r => r.sv || r.nm);
+  }
+
+  function _renderKpi() {
+    const e = document.getElementById('statsPane-kpi');
+    if (!e) return;
+
+    const metas = [];
+    const source = document.getElementById('statsSource')?.value || 'both';
+    if (source !== 'cloud') {
+      _getLocalPresets().forEach(p => {
+        const f = (p.data || {}).fields || {};
+        metas.push({
+          person:  (f['qf-person']   || '').trim(),
+          status:  (f['qf-status']   || '').trim(),
+          rows:    _extractRowsWithPrice(p),
+        });
+      });
+    }
+    if (source !== 'local') {
+      const cloud = typeof window.cloudGetAllRows === 'function' ? window.cloudGetAllRows() : [];
+      cloud.forEach(p => {
+        metas.push({
+          person:  (p.person   || '').trim(),
+          status:  (p.status   || '').trim(),
+          rows:    _extractRowsWithPrice(p),
+        });
+      });
+    }
+
+    if (!metas.length) { e.innerHTML = '<p class="stats-empty">案件データがありません。</p>'; return; }
+
+    // 全体KPI
+    const won    = metas.filter(m => m.status === '受注').length;
+    const lost   = metas.filter(m => m.status === '失注').length;
+    const sent   = metas.filter(m => ['提示済み','提出済み','受注','失注'].includes(m.status)).length;
+    const winRate = sent ? Math.round(won / sent * 100) : null;
+
+    // 担当者別KPI
+    const personMap = {};
+    metas.forEach(m => {
+      const k = m.person || '（未入力）';
+      if (!personMap[k]) personMap[k] = { total: 0, won: 0, lost: 0, sent: 0 };
+      personMap[k].total++;
+      if (['提示済み','提出済み','受注','失注'].includes(m.status)) personMap[k].sent++;
+      if (m.status === '受注') personMap[k].won++;
+      if (m.status === '失注') personMap[k].lost++;
+    });
+    const persons = Object.entries(personMap).sort((a, b) => b[1].total - a[1].total);
+
+    const kpiCards = [
+      { label: '総案件数',     value: metas.length },
+      { label: '受注数',       value: won },
+      { label: '失注数',       value: lost },
+      { label: '受注率',       value: winRate !== null ? winRate + '%' : '—' },
+    ];
+
+    let h = '<div class="stats-kpi-cards">' +
+      kpiCards.map(k => `<div class="stats-kpi-card"><div class="stats-kpi-value">${_esc(String(k.value))}</div><div class="stats-kpi-label">${_esc(k.label)}</div></div>`).join('') +
+      '</div>';
+
+    h += '<h3 class="stats-kpi-section-title">担当者別成績</h3>';
+    h += '<table class="stats-table"><thead><tr><th>担当者</th><th class="stats-num-col">総件数</th><th class="stats-num-col">提示済</th><th class="stats-num-col">受注</th><th class="stats-num-col">失注</th><th class="stats-num-col">受注率</th></tr></thead><tbody>';
+    persons.forEach(([person, d]) => {
+      const wr = d.sent ? Math.round(d.won / d.sent * 100) + '%' : '—';
+      const barW = d.sent ? Math.round(d.won / d.sent * 100) : 0;
+      h += `<tr>` +
+        `<td class="stats-val">${_esc(person)}</td>` +
+        `<td class="stats-num-col">${d.total}</td>` +
+        `<td class="stats-num-col">${d.sent}</td>` +
+        `<td class="stats-num-col">${d.won}</td>` +
+        `<td class="stats-num-col">${d.lost}</td>` +
+        `<td class="stats-num-col"><div class="stats-bar-wrap"><div class="stats-bar" style="width:${barW}%"></div><span class="stats-bar-label">${_esc(wr)}</span></div></td>` +
+        `</tr>`;
+    });
+    h += '</tbody></table>';
+    e.innerHTML = h;
   }
 
   function _renderActivePane() {
@@ -1003,14 +1128,19 @@
     else if (id === 'charges')  _renderCharges();
     else if (id === 'master')   _renderMaster();
     else if (id === 'alias')    _renderAlias();
+    else if (id === 'kpi')      _renderKpi();
   }
 
   // === サブタブ切替 ===
 
   function statsSetPane(paneId) {
-    document.querySelectorAll('#tab-stats .stats-tab-btn').forEach(b => b.classList.remove('is-active'));
+    document.querySelectorAll('#tab-stats .stats-tab-btn').forEach(b => {
+      b.classList.remove('is-active');
+      b.setAttribute('aria-selected', 'false');
+    });
     document.querySelectorAll('#tab-stats .stats-pane').forEach(p => p.classList.remove('is-active'));
-    document.getElementById('statsTabBtn-' + paneId)?.classList.add('is-active');
+    const activeBtn = document.getElementById('statsTabBtn-' + paneId);
+    if (activeBtn) { activeBtn.classList.add('is-active'); activeBtn.setAttribute('aria-selected', 'true'); }
     document.getElementById('statsPane-'   + paneId)?.classList.add('is-active');
     if (!_data) { _data = _build(document.getElementById('statsSource')?.value || 'both'); _updateSummary(); }
     if      (paneId === 'dashboard') _renderDashboard();
@@ -1023,6 +1153,7 @@
     else if (paneId === 'charges')  _renderCharges();
     else if (paneId === 'master')   _renderMaster();
     else if (paneId === 'alias')    _renderAlias();
+    else if (paneId === 'kpi')      _renderKpi();
   }
 
   // === パブリック API ===
@@ -1056,7 +1187,9 @@
       const res = [];
       _cvMap.forEach(({ total }, key) => {
         if (total >= 1) {
-          const [field, value] = key.split(':::');
+          const sep = key.indexOf('\x00');
+          const field = key.substring(0, sep);
+          const value = key.substring(sep + 1);
           res.push({ field, value });
         }
       });
@@ -1066,25 +1199,31 @@
   };
 
   window.statsRefresh = async function () {
-    _data  = null;
-    _cvMap = null;
-    const source = document.getElementById('statsSource')?.value || 'both';
-    if (source !== 'local' && _cloud() && typeof window.cloudListPresets === 'function') {
-      await window.cloudListPresets(true);
+    const btn = document.querySelector('.stats-refresh-btn');
+    if (btn) { btn.disabled = true; btn.textContent = '⌛ 更新中…'; }
+    try {
+      _data  = null;
+      _cvMap = null;
+      const source = document.getElementById('statsSource')?.value || 'both';
+      if (source !== 'local' && _cloud() && typeof window.cloudListPresets === 'function') {
+        await window.cloudListPresets(true);
+      }
+      _data  = _build(source);
+      _updateSummary();
+      _renderCloud();
+      if (_cloud()) { await _loadCloudVotes(); if (typeof window.synLoadCloud === 'function') await window.synLoadCloud(); }
+      _renderCloud();
+      _renderActivePane();
+      if (typeof window.arRefreshDatalist === 'function') window.arRefreshDatalist();
+    } finally {
+      if (btn) { btn.disabled = false; btn.textContent = '🔄 集計'; }
     }
-    _data  = _build(source);
-    _updateSummary();
-    _renderCloud();
-    if (_cloud()) { await _loadCloudVotes(); if (typeof window.synLoadCloud === 'function') await window.synLoadCloud(); }
-    _renderCloud();
-    _renderActivePane();
-    if (typeof window.arRefreshDatalist === 'function') window.arRefreshDatalist();
   };
 
   window.statsToggleVote = async function (field, value) {
+    const wasVoted = _voteInfo(field, value).isMine;
     try {
-      const v = _voteInfo(field, value);
-      if (v.isMine) await _demote(field, value);
+      if (wasVoted) await _demote(field, value);
       else          await _promote(field, value);
     } catch (err) {
       console.error('[statsToggleVote] promote/demote failed:', err);
@@ -1098,25 +1237,74 @@
     } catch (err) {
       console.error('[statsToggleVote] render failed:', err);
     }
+    const isCloud = _cloud();
+    const actionMsg = wasVoted ? '⭐ マスター登録を解除しました' : `⭐ マスターに登録しました（${isCloud ? 'クラウド' : 'ローカル'}）`;
+    if (typeof window.quoteShowToast === 'function') window.quoteShowToast(actionMsg);
   };
 
   // 後方互換
   window.statsPromote = async function (f, v) { await _promote(f, v); _renderActivePane(); };
   window.statsDemote  = async function (f, v) { await _demote(f, v);  _renderMaster(); };
 
-  window.statsMasterAddAbbrev = async function (field, value) {
+  window.statsMasterAddAbbrev = function (field, value) {
     const labels = { sv: 'サブコン', nm: '品名', un: '単位', customer: 'お客様', port: '港' };
-    const abbrev = window.prompt(`「${value}」の略称を入力してください（${labels[field] || field}）：`);
-    if (!abbrev || !abbrev.trim()) return;
+    const safeId = 'abbrev-inline-' + Math.random().toString(36).slice(2, 7);
+    // 既存の「＋ 略称」ボタンを入力フォームに置換
+    const btn = document.querySelector(`.stats-master-abbrev-add[onclick*="${_ea(value)}"]`);
+    if (!btn) return;
+    const cell = btn.parentElement;
+    cell.innerHTML = `<span class="stats-abbrev-inline-form">` +
+      `<input id="${safeId}" class="stats-abbrev-input" type="text" placeholder="略称を入力（${labels[field] || field}）" maxlength="30" autofocus>` +
+      `<button class="stats-abbrev-ok" onclick="statsMasterAddAbbrevCommit('${_ea(field)}','${_ea(value)}','${safeId}')">追加</button>` +
+      `<button class="stats-abbrev-cancel" onclick="_renderMaster()">取消</button>` +
+      `</span>`;
+    document.getElementById(safeId)?.focus();
+    document.getElementById(safeId)?.addEventListener('keydown', e => {
+      if (e.key === 'Enter') window.statsMasterAddAbbrevCommit(field, value, safeId);
+      if (e.key === 'Escape') _renderMaster();
+    });
+  };
+
+  window.statsMasterAddAbbrevCommit = async function (field, value, inputId) {
+    const input = document.getElementById(inputId);
+    const abbrev = input ? input.value.trim() : '';
+    if (!abbrev) { _renderMaster(); return; }
     if (typeof window.arAddAbbrevPair === 'function') {
-      await window.arAddAbbrevPair(field, abbrev.trim(), value);
+      await window.arAddAbbrevPair(field, abbrev, value);
     }
+    _renderMaster();
   };
 
   window.statsToggleHelp = function () {
     const p = document.getElementById('statsHelpPanel');
     if (!p) return;
     p.hidden = !p.hidden;
+  };
+
+  // === CSV エクスポート ===
+
+  window.statsExportCsv = function (paneId) {
+    if (!_data) return;
+    let csv = '';
+    const esc = v => '"' + String(v||'').replace(/"/g, '""') + '"';
+    if (paneId === 'sv' || paneId === 'carrier') {
+      const groups = paneId === 'sv' ? _data.svGroups : _data.carrierGroups;
+      csv = 'サブコン/キャリア名,件数,バリアント数\n' +
+        groups.map(g => [esc(g.variants[0].value), g.total, g.variants.length].join(',')).join('\n');
+    } else if (paneId === 'nm') {
+      csv = '品名,件数,バリアント数\n' +
+        _data.nmGroups.map(g => [esc(g.variants[0].value), g.total, g.variants.length].join(',')).join('\n');
+    } else if (paneId === 'un') {
+      csv = '単位,件数\n' +
+        _data.unGroups.map(g => [esc(g.variants[0].value), g.total].join(',')).join('\n');
+    }
+    if (!csv) return;
+    const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'stats-' + paneId + '-' + new Date().toISOString().slice(0,10) + '.csv';
+    a.click();
+    URL.revokeObjectURL(a.href);
   };
 
 })();
