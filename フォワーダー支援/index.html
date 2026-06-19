@@ -2633,23 +2633,35 @@
                        oninput="onZ2CarrierChange()">
                 <datalist id="carriers-dl"></datalist>
               </div>
+              <div class="z2-row z2-service-row">
+                <span class="z2-label" style="visibility:hidden">🚢</span>
+                <input type="text" id="z2Service" class="z2-input z2-service-input"
+                       placeholder="サービス名（任意）例）FAL1、NEX1">
+              </div>
               <div id="z2CarrierLinks" class="carrier-links-panel" style="display:none"></div>
               <div class="z2-pol-pod-row">
                 <div class="z2-port">
                   <span class="z2-port-label" title="Port of Loading（積み地港）：輸出港・出港地">📦 POL</span>
-                  <input type="text" id="z2Pol" class="z2-input"
+                  <input type="text" id="z2Pol" class="z2-input" list="portSuggestions"
                          placeholder="例）Yokohama">
+                </div>
+                <span class="z2-arrow">→</span>
+                <div class="z2-port z2-via-port">
+                  <span class="z2-port-label" title="経由地（トランシップ港など）。省略可">⚓ Via</span>
+                  <input type="text" id="z2Via" class="z2-input" list="portSuggestions"
+                         placeholder="経由地（任意）">
                 </div>
                 <span class="z2-arrow">→</span>
                 <div class="z2-port">
                   <span class="z2-port-label" title="Port of Discharge（揚げ地港）：輸入港・入港地">🏁 POD</span>
-                  <input type="text" id="z2Pod" class="z2-input"
+                  <input type="text" id="z2Pod" class="z2-input" list="portSuggestions"
                          placeholder="例）Shanghai">
                 </div>
-                <button type="button" class="z2-route-add" onclick="addRouteEntry()" title="このキャリア・POL・PODを航路として追加（複数船会社・複数航路の比較見積に対応）">＋ 航路</button>
+                <button type="button" class="z2-route-add" onclick="addRouteEntry()" title="このキャリア・POL・Via・PODを航路として追加（複数船会社・複数航路の比較見積に対応）">＋ 航路</button>
               </div>
               <div class="z2-route-list" id="z2RouteList"></div>
               <input type="hidden" id="z2-routes-data" />
+              <datalist id="portSuggestions"></datalist>
             </div>
           </div>
 
