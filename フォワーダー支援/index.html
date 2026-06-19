@@ -2497,6 +2497,18 @@
             <label>📝 メモ <span class="qf-memo-note">出力・プレビューには含まれません</span></label>
             <textarea id="qf-memo" rows="6" placeholder="担当者間の申し送り・注意事項など、案件内部メモを自由に記述できます。お客様向け出力には含まれません。"></textarea>
           </div>
+          <div class="quote-field quote-field-attach">
+            <label>📎 添付ファイル <span class="qf-memo-note">この案件に保存・チーム共有（ログイン必須）</span></label>
+            <label class="qf-attach-drop" id="qfAttachDrop"
+                   ondragover="event.preventDefault(); this.classList.add('is-drag');"
+                   ondragleave="this.classList.remove('is-drag');"
+                   ondrop="event.preventDefault(); this.classList.remove('is-drag'); qfAttachUpload(event.dataTransfer.files);">
+              <input type="file" id="qfAttachInput" multiple style="display:none" onchange="qfAttachUpload(this.files); this.value='';" />
+              <span class="qf-attach-hint">📥 ここにドラッグ＆ドロップ、またはクリックして選択<br><small>※ 添付は14日間で自動削除されます</small></span>
+            </label>
+            <div id="qfAttachMeter" class="qf-attach-meter"></div>
+            <div id="qfAttachList" class="qf-attach-list"></div>
+          </div>
         </div>
         <button class="fb-section-btn" onclick="openFeedback('管理番号入力')" title="このセクションへのフィードバック">💬 このセクションへのフィードバック</button>
       </div>
