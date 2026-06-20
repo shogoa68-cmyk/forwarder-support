@@ -3,10 +3,11 @@
 ._*
 
 # ========== Claude 関連（worktree や一時データ） ==========
-.claude/
-# ただしプロジェクト共有用のサブエージェント定義は追跡する
+.claude/*
+# ただしプロジェクト共有用は追跡する（直下のみ列挙。worktree や一時データ・settings.local.json は除外のまま）
 !.claude/agents/
-!.claude/agents/*
+!.claude/settings.json
+!.claude/hooks/
 
 # ========== バックアップファイル群 ==========
 # Phase 2b / 2c で量産したもの + ユーザー手動バックアップ
