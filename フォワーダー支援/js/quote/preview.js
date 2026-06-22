@@ -495,11 +495,9 @@
           ? `<span class="pv-scs-cost">仕入合計 ${costTxt}</span>` +
             `<span class="pv-scs-margin${(m !== null && m < 0) ? ' pv-neg' : ''}">粗利率 ${marginTxt}</span>`
           : '';
-        // 客先用表示名があれば置換（サブコン名を客先に出さない）。エイリアスは正規化キーで参照
-        const _alias = (typeof getSubconAliases === 'function' ? getSubconAliases()[d.normKey] : '') || '';
-        const _dispLabel = _alias || d.label;
+        // サブコン名は見出し行に表示済みのため、小計行では繰り返さず「小計」のみ
         html += `<tr class="pv-subcon-subtotal pv-grp-c${(d.gi ?? 0) % 4}">
-          <td colspan="12" class="pv-scs-label">↳ ${escHtml(_dispLabel)} 小計${internalBits}</td>
+          <td colspan="12" class="pv-scs-label">↳ 小計${internalBits}</td>
           <td class="pv-num pv-subtotal">${sellTxt}</td>
           <td data-ft-col="jpy-conv" class="pv-jpy"></td>
           <td data-ft-col="tax-col"></td>
