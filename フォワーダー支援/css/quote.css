@@ -3072,9 +3072,9 @@
 }
 /* サブコン別 小計セパレーター（プレビュー）：他の行と明確に区別できる色 */
 #tab-quote-make #previewTable tr.pv-subcon-subtotal td {
-  background: #ecdcb3;
-  border-top: 2px solid #c9a85f;
-  border-bottom: 2px solid #c9a85f;
+  background: #ead29a;
+  border-top: 2px solid #c69a44;
+  border-bottom: 2px solid #c69a44;
   font-weight: bold;
   font-size: 12px;
   padding: 5px 8px;
