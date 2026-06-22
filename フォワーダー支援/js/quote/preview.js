@@ -114,7 +114,8 @@
       const vf     = document.getElementById(`vf-${id}`)?.value || '';
       const vt     = document.getElementById(`vt-${id}`)?.value || '';
       const zc     = document.getElementById(`zc-${id}`)?.value === '1';
-      rows.push({ _type: 'data', taxed, cat, name, pq, un, pc, pp, cd, bq, bc, bp, mk, cost, bill, profit, note, sv, vf, vt, zc });
+      const _hideQuote = tr.dataset.hideQuote === '1';   // 見積書非表示フラグ（消費側で判定）
+      rows.push({ _type: 'data', taxed, cat, name, pq, un, pc, pp, cd, bq, bc, bp, mk, cost, bill, profit, note, sv, vf, vt, zc, _hideQuote });
     });
     return rows;
   }
@@ -125,6 +126,7 @@
     rows.forEach(tr => {
       if (tr.dataset.virtual) return;          // サブコングループヘッダー（仮想行）はスキップ
       if (tr.dataset.excluded === '1') return;  // 除外グループはスキップ
+      if (tr.dataset.hideQuote === '1') return; // 見積書非表示の行はスキップ（合計・CSV から除外）
       if (tr.dataset.type === 'subtotal') return; // 小計行スキップ
       const id     = tr.id.replace('row-', '');
       const taxed  = document.getElementById(`tx-${id}`)?.checked || false;
@@ -454,9 +456,11 @@
             _seq.push({ _type: 'subcon-header', label: clabel, normKey: ck, gi });
           }
           d._gi = gi;                                            // 行にグループ番号（地色分け用）
-          cc += toJ(d.cost, d.pc || 'JPY');
-          cb += toJ(d.bill, d.bc || 'JPY');
-          if ((d.pc && d.pc !== 'JPY') || (d.bc && d.bc !== 'JPY')) cm = true;
+          if (!d._hideQuote) {                                   // 見積書非表示の行は小計に含めない
+            cc += toJ(d.cost, d.pc || 'JPY');
+            cb += toJ(d.bill, d.bc || 'JPY');
+            if ((d.pc && d.pc !== 'JPY') || (d.bc && d.bc !== 'JPY')) cm = true;
+          }
           has = true;
         }
         _seq.push(d);
@@ -527,18 +531,21 @@
       const sub     = (d.bq || 0) * (d.bp || 0);
       const jpyAmt  = (typeof toJPY === 'function') ? Math.ceil(toJPY(sub, d.bc)) : sub;
       const taxAmt  = d.taxed ? sub * taxRate : 0;
-      totSub += sub;
-      totTax += taxAmt;
-      totJpy += jpyAmt;
-      if (d.bc && d.bc !== 'JPY') hasNonJpyBill = true;
-      if (d.pc && d.pc !== 'JPY') hasNonJpyCost = true;
-      const ccy = d.bc || 'JPY';
-      if (!ccyGroups[ccy]) ccyGroups[ccy] = { sub: 0, tax: 0, mk: 0 };
-      // JPY 建ては行ごと ceil で積み上げ（合計行を税ベース totJpy と一致させ小数を出さない）
-      ccyGroups[ccy].sub += (ccy === 'JPY' ? Math.ceil(sub) : sub);
-      ccyGroups[ccy].tax += taxAmt;
-      ccyGroups[ccy].mk  += (d.mk || 0);
-      totCostJpy += (typeof toJPY === 'function') ? SharedCalc.jpyRound(toJPY(d.cost, d.pc || 'JPY')) : ((!d.pc || d.pc === 'JPY') ? d.cost : 0);
+      // 見積書非表示の行は合計に一切含めない（行は社内モードのみグレー表示）
+      if (!d._hideQuote) {
+        totSub += sub;
+        totTax += taxAmt;
+        totJpy += jpyAmt;
+        if (d.bc && d.bc !== 'JPY') hasNonJpyBill = true;
+        if (d.pc && d.pc !== 'JPY') hasNonJpyCost = true;
+        const ccy = d.bc || 'JPY';
+        if (!ccyGroups[ccy]) ccyGroups[ccy] = { sub: 0, tax: 0, mk: 0 };
+        // JPY 建ては行ごと ceil で積み上げ（合計行を税ベース totJpy と一致させ小数を出さない）
+        ccyGroups[ccy].sub += (ccy === 'JPY' ? Math.ceil(sub) : sub);
+        ccyGroups[ccy].tax += taxAmt;
+        ccyGroups[ccy].mk  += (d.mk || 0);
+        totCostJpy += (typeof toJPY === 'function') ? SharedCalc.jpyRound(toJPY(d.cost, d.pc || 'JPY')) : ((!d.pc || d.pc === 'JPY') ? d.cost : 0);
+      }
       // 金額系セルは fmtMoney（3桁カンマ）、数量は fmtRaw のまま。docs/バグ台帳.md E
       const jpyCellText = (d.bc && d.bc !== 'JPY') ? fmtMoney(jpyAmt) : '—';
       const taxCellText = d.taxed ? fmtMoney(taxAmt) : '';
@@ -550,10 +557,12 @@
         ? Math.ceil(toJPY(sub, d.bc || 'JPY') - toJPY(d.cost, d.pc || 'JPY')) : null;
       const prJpyHint = profitJpy !== null
         ? `<small class="pv-jpy-hint">(≈¥${fmtMoney(profitJpy)})</small>` : '';
-      html += `<tr class="${d._gi != null ? 'pv-grp-row pv-grp-c' + (d._gi % 4) : ''}">
+      const _hqCls = d._hideQuote ? ' pv-row-hidden-quote' : '';
+      const _hqBadge = d._hideQuote ? '<span class="pv-hq-badge" title="この行は見積書（PDF・Excel・CSV・客先プレビュー）に出力されません">🚫見積書非表示</span> ' : '';
+      html += `<tr class="${(d._gi != null ? 'pv-grp-row pv-grp-c' + (d._gi % 4) : '')}${_hqCls}">
         <td class="pv-name" style="font-size:11px;">${escHtml(getCatLabel(d.cat))}</td>
         <td class="pv-name">${escHtml(d.sv)}</td>
-        <td class="${nameCls}">${escHtml(d.name)}${_pvValidityBadge(d.vf, d.vt)}</td>
+        <td class="${nameCls}">${_hqBadge}${escHtml(d.name)}${_pvValidityBadge(d.vf, d.vt)}</td>
         <td class="pv-num">${fmtRaw(d.pq)}</td><td>${escHtml(d.un || '')}</td><td>${escHtml(d.pc)}</td>
         <td class="pv-num">${fmtMoney(d.pp)}</td>
         <td class="pv-cd pv-num">${fmtMoney(d.cd)}</td>
@@ -1292,7 +1301,7 @@
     if (!_pvBypassed && !preOutputValidationGate('Excel 出力', exportExcel)) return;
     _pvBypassed = false;
     if (!sensitiveColumnsGate('Excel 出力')) return;
-    const allRows = collectAllRows();
+    const allRows = collectAllRows().filter(r => !r._hideQuote);  // 見積書非表示の行は出力しない
     const data = allRows.filter(r => r._type === 'data');
     if (!data.length) { alert('行がありません。'); return; }
     const hdr = getQuoteHeader();
