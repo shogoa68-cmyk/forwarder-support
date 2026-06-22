@@ -496,13 +496,15 @@
             `<span class="pv-scs-margin${(m !== null && m < 0) ? ' pv-neg' : ''}">粗利率 ${marginTxt}</span>`
           : '';
         // サブコン名は見出し行に表示済みのため、小計行では繰り返さず「小計」のみ
+        // 色・右揃えは quote.css のキャッシュに依存しないよう、描画側でインライン指定（最優先）
+        const _scStyle = 'background:#ead29a;border-top:2px solid #c69a44;border-bottom:2px solid #c69a44;';
         html += `<tr class="pv-subcon-subtotal pv-grp-c${(d.gi ?? 0) % 4}">
-          <td colspan="12" class="pv-scs-label">↳ 小計${internalBits}</td>
-          <td class="pv-num pv-subtotal">${sellTxt}</td>
-          <td data-ft-col="jpy-conv" class="pv-jpy"></td>
-          <td data-ft-col="tax-col"></td>
-          <td data-ft-col="profit" class="pv-num ${prCls}">¥${fmtMoney(prAmt)}</td>
-          <td data-ft-col="note"></td>
+          <td colspan="12" class="pv-scs-label" style="${_scStyle}text-align:right !important;">↳ 小計${internalBits}</td>
+          <td class="pv-num pv-subtotal" style="${_scStyle}">${sellTxt}</td>
+          <td data-ft-col="jpy-conv" class="pv-jpy" style="${_scStyle}"></td>
+          <td data-ft-col="tax-col" style="${_scStyle}"></td>
+          <td data-ft-col="profit" class="pv-num ${prCls}" style="${_scStyle}">¥${fmtMoney(prAmt)}</td>
+          <td data-ft-col="note" style="${_scStyle}"></td>
         </tr>`;
         return;
       }
