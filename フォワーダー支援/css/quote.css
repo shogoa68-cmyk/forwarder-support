@@ -689,6 +689,23 @@
   border-left: 1.5px solid #cdab6f; border-bottom: 1.5px solid #cdab6f;
   border-bottom-left-radius: 6px; pointer-events: none;
 }
+/* 港ペア（子グループ）配下行：サブコン配下よりさらに一段深くインデント */
+#tab-quote-make tr.subcon-subchild .catsv-cell { padding-left: 28px; }
+#tab-quote-make tr.subcon-subchild .catsv-cell::before { left: 19px; }
+/* 港ペア（子グループ）サブヘッダー */
+#tab-quote-make .subcon-subgroup-header { pointer-events: none; }
+#tab-quote-make .subcon-subgroup-cell {
+  background: #f3f6f1;
+  border-top: 1px dashed #cdd9c4;
+  border-bottom: 1px solid #e4ece0;
+  padding: 3px 10px 3px 26px;
+}
+#tab-quote-make .subcon-subgroup-leg {
+  font-size: 10.5px;
+  font-weight: 700;
+  color: #46603a;
+  letter-spacing: .02em;
+}
 #tab-quote-make .w-qty   { width: 58px; }
 #tab-quote-make .w-cur   { width: 62px; }
 #tab-quote-make .w-unit  { width: 70px; text-align: center; }

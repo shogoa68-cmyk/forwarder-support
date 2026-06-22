@@ -1033,6 +1033,14 @@
         tr.classList.toggle('is-excluded',  !!excluded);
         return;
       }
+      if (tr.dataset.subGroup) {
+        // 港ペア サブヘッダー：所属サブコングループの折りたたみに追従（currentKey は維持）
+        const key = tr.dataset.svKey || null;
+        const collapsed = key && _collapsedGroups.has(key);
+        tr.style.display = collapsed ? 'none' : '';
+        tr.classList.toggle('is-collapsed', !!collapsed);
+        return;
+      }
       if (tr.dataset.virtual) {
         currentKey = tr.dataset.svKey || null;
         if (!currentKey) return;
@@ -1103,10 +1111,13 @@
         groups[key].push(tr);
       });
 
-      // グループが 1 つだけなら表示不要（折りたたみ状態はリセット）
-      if (groupOrder.length < 2) {
+      // 港ペア（子グループ）の有無：サブコンが1つでも、港ペアが2つ以上あればグループ表示する
+      const distinctPP = new Set(realRows.map(tr => (tr.dataset.portPair || '').trim()).filter(Boolean));
+
+      // サブコンが1つ以下かつ港ペアも1つ以下なら表示不要（折りたたみ状態はリセット）
+      if (groupOrder.length < 2 && distinctPP.size < 2) {
         _collapsedGroups.clear();
-        realRows.forEach(tr => { tr.style.display = ''; tr.classList.remove('subcon-child'); });
+        realRows.forEach(tr => { tr.style.display = ''; tr.classList.remove('subcon-child', 'subcon-subchild'); });
         // ツリー帰属クラス（リマーク・社内メモ・小計行）も解除
         tbody.querySelectorAll('.subcon-grp-member, .subcon-grp-nested')
           .forEach(tr => tr.classList.remove('subcon-grp-member', 'subcon-grp-nested'));
@@ -1121,14 +1132,14 @@
       // 各データ行に「直後の付随行（リマーク/社内メモ/手動小計）」を束ねたブロック単位で並べ替え、
       // グループの出現順・グループ内の並びを保持したまま DOM を再配置する。
       (function reorderToGroups() {
-        const blocks  = [];   // { key, rows: [dataTr, ...付随行] }
+        const blocks  = [];   // { key, pp, rows: [dataTr, ...付随行] }
         const leading = [];   // 先頭データ行より前の非データ行（通常なし）
         let cur = null;
         // この時点で仮想行は削除済み。tbody 直下の行のみを走査
         Array.from(tbody.children).forEach(tr => {
           if (!tr.dataset.type) {                 // データ行
             const key = subconNormKey(_rowSubcon(tr) ?? '') || _UNSET_KEY;
-            cur = { key, rows: [tr] };
+            cur = { key, pp: (tr.dataset.portPair || '').trim(), rows: [tr] };
             blocks.push(cur);
           } else if (cur) {                       // 直前データ行の付随行
             cur.rows.push(tr);
@@ -1138,6 +1149,12 @@
         });
         const byKey = Object.create(null);
         blocks.forEach(b => { (byKey[b.key] || (byKey[b.key] = [])).push(b); });
+        // サブコン内では港ペアの出現順でブロックを安定ソートし、同じ港ペアの行を連続させる
+        Object.keys(byKey).forEach(k => {
+          const ppOrder = [];
+          byKey[k].forEach(b => { if (!ppOrder.includes(b.pp)) ppOrder.push(b.pp); });
+          byKey[k].sort((a, b) => ppOrder.indexOf(a.pp) - ppOrder.indexOf(b.pp));
+        });
         const frag = document.createDocumentFragment();
         leading.forEach(tr => frag.appendChild(tr));
         // groupOrder（出現順）に従ってブロックを再配置
@@ -1146,6 +1163,15 @@
         });
         tbody.appendChild(frag);
       })();
+
+      // reorder 後の DOM 順で groups を再構築（港ペア並べ替えで先頭/末尾行がずれるため、
+      // ヘッダー/小計の挿入位置を DOM 順に正す）
+      groupOrder.forEach(k => { groups[k] = []; });
+      Array.from(tbody.children).forEach(tr => {
+        if (tr.dataset.type || tr.dataset.virtual) return;
+        const key = subconNormKey(_rowSubcon(tr) ?? '') || _UNSET_KEY;
+        if (groups[key]) groups[key].push(tr);
+      });
 
       // グループヘッダー TR を各グループの先頭行の直前に挿入
       groupOrder.forEach(key => {
@@ -1223,6 +1249,41 @@
         }
         tbody.insertBefore(sub, lastGroupRow.nextSibling);
       });
+      // 港ペア（子グループ）サブヘッダーを挿入：サブコングループ配下で、港ペアが
+      // 切り替わる箇所（非空）に区切り見出しを入れ、その配下行を深インデント化する。
+      (function insertPortPairHeaders() {
+        let curSvKey = null, curPP = null;
+        Array.from(tbody.children).forEach(tr => {
+          if (tr.dataset.subSum) return;            // グループ小計行：港ペア状態は維持
+          if (tr.dataset.virtual) {                 // サブコングループ見出し → 新グループ開始
+            curSvKey = tr.dataset.svKey || _UNSET_KEY;
+            curPP = null;
+            return;
+          }
+          if (tr.dataset.type) return;              // 付随行（リマーク等）は直前の港ペアに属する
+          const pp = (tr.dataset.portPair || '').trim();
+          if (pp) {
+            tr.classList.add('subcon-subchild');
+            if (pp !== curPP) {                     // 港ペアの境界：サブヘッダーを挿入
+              const sh = document.createElement('tr');
+              sh.dataset.virtual  = '1';
+              sh.dataset.subGroup = '1';
+              sh.dataset.svKey    = curSvKey || _UNSET_KEY;
+              sh.className = 'subcon-subgroup-header';
+              sh.innerHTML =
+                `<td colspan="10" class="subcon-subgroup-cell">` +
+                  `<span class="subcon-subgroup-leg">🛳 ${_escHdr(pp)}</span>` +
+                `</td>`;
+              tbody.insertBefore(sh, tr);
+              curPP = pp;
+            }
+          } else {
+            tr.classList.remove('subcon-subchild');
+            curPP = null;                            // 港ペア未設定行が来たら見出し連続をリセット
+          }
+        });
+      })();
+
       // 全行の折りたたみ・除外状態を適用（小計・リマーク行を含む）
       _applyGroupStates();
       _updateGroupSums();
@@ -1366,6 +1427,7 @@
       }
     };
     Array.from(tbody.querySelectorAll('tr')).forEach(tr => {
+      if (tr.dataset.subGroup) return;     // 港ペア サブヘッダー：集計には影響させない（透過）
       if (tr.dataset.subSum) {              // グループ小計行：現時点の累計を書き込む
         curSubRow = tr;
         flush();
