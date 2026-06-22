@@ -5433,6 +5433,8 @@ body.qp-dash-active #quoteActionDock { display: none !important; }
   font-size: 11px; padding: 4px 6px; border: 1px solid #d9cfc2;
   border-radius: 3px; background: #fff; color: #2d2418; width: 150px; max-width: 32vw;
 }
+/* 乗せ幅一括設定の数値入力は少し狭めに */
+#tab-quote-make .bulk-markup-input { width: 110px; }
 #tab-quote-make .btn-bulk-subcon {
   font-size: 11px; padding: 5px 10px; border: 1px solid #cdbfa6;
   background: #f3ecdd; color: #6b5a42; border-radius: 3px; cursor: pointer; line-height: 1;

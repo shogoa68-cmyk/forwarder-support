@@ -3298,6 +3298,9 @@
               <input type="text" id="bulkSubconSet" class="bulk-subcon-input" placeholder="サブコン一括設定…" maxlength="40"
                      onkeydown="if(event.key==='Enter'){applyBulkSubcon();}" title="チェックした行のサブコンを一括設定" />
               <button class="btn-bulk-subcon" onclick="applyBulkSubcon()" title="チェックした行のサブコンに左の値を一括設定">設定</button>
+              <input type="number" id="bulkMarkupSet" class="bulk-subcon-input bulk-markup-input" placeholder="＋ 乗せ幅一括…" min="0" step="any"
+                     onkeydown="if(event.key==='Enter'){applyBulkMarkupSet();}" title="チェックした行の乗せ幅（仕入単価に加算）を一括設定" />
+              <button class="btn-bulk-subcon" onclick="applyBulkMarkupSet()" title="チェックした行の乗せ幅に左の値を一括設定">設定</button>
               <span class="cmdbar-spacer"></span>
               <button class="ctx-clear" onclick="clearRowSelection()" title="選択を解除">✕ 選択解除</button>
             </div>

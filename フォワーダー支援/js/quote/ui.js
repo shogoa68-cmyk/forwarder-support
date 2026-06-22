@@ -538,6 +538,37 @@
     quoteShowToast(`👷 ${count}行のサブコンを${val ? '「' + val + '」に' : 'クリアに'}設定しました`, 'success');
   }
 
+  // 選択（チェック）行の乗せ幅（mk）を一括設定。選択は維持
+  function applyBulkMarkupSet() {
+    const inp = document.getElementById('bulkMarkupSet');
+    const raw = inp ? inp.value.trim() : '';
+    if (raw === '') return;
+    const num = Number(raw);
+    if (!isFinite(num) || num < 0) {
+      quoteShowToast('⚠️ 乗せ幅は 0 以上の数値で入力してください', 'warn', 3000);
+      return;
+    }
+    const checkboxes = document.querySelectorAll('.row-select-chk:checked');
+    if (!checkboxes.length) {
+      quoteShowToast('⚠️ 設定したい行のチェックボックスにチェックを入れてください', 'warn', 3000);
+      return;
+    }
+    let count = 0;
+    checkboxes.forEach(chk => {
+      const tr = chk.closest('tr');
+      if (!tr || tr.dataset.type) return;   // データ行のみ（小計・リマーク・社内メモは除外）
+      const id = tr.id.replace('row-', '');
+      const mkEl = document.getElementById(`mk-${id}`);
+      if (!mkEl) return;
+      mkEl.value = num;
+      mkEl.dispatchEvent(new Event('input', { bubbles: true }));  // calc(id) 再計算＋自動保存を発火
+      count++;
+    });
+    if (inp) inp.value = '';
+    if (typeof updateTotals === 'function') updateTotals();
+    quoteShowToast(`＋ ${count}行の乗せ幅を「${num}」に設定しました`, 'success');
+  }
+
   // ========== 一括コピー機能 ==========
   // position: 'below'（末尾選択行の直後）| 'above'（先頭選択行の直前）
   function copySelectedRows(position) {
