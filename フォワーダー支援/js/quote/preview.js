@@ -756,6 +756,12 @@
       const wrap = document.getElementById('pvCustomizeWrap');
       if (wrap) wrap.dataset.listenerSet = '1';
     }
+    // 1画面フィット：レンダリング確定後に縮小調整＋リサイズ追従（初回のみバインド）
+    scheduleFitPreview();
+    if (!window.__pvFitResizeBound) {
+      window.addEventListener('resize', fitPreviewToScreen);
+      window.__pvFitResizeBound = true;
+    }
     } catch (err) {
       _pvBypassed = false;
       console.error('[openPreview] エラー:', err);
@@ -886,6 +892,9 @@
     const sensitive = isSensitiveOn();
     wrap?.classList.toggle('has-sensitive', sensitive);
     updateModeBanner(sensitive);
+
+    // 列・セクションの表示切替で高さが変わるため、1画面フィットを再計算
+    if (typeof fitPreviewToScreen === 'function') scheduleFitPreview();
   }
 
   function initPreviewCustomize() {
@@ -963,7 +972,43 @@
     });
   }
 
-  function closePreview()  { document.getElementById('previewOverlay').classList.remove('open'); }
+  function closePreview()  {
+    const box = document.getElementById('previewBox');
+    if (box) box.style.zoom = '';           // 縮小フィットをリセット（次回開く時に再計算）
+    document.getElementById('previewOverlay').classList.remove('open');
+  }
+
+  // ========== プレビューを1画面に収める（縮小フィット） ==========
+  // 縦スクロールせずに #previewBox 全体がビューポート内へ収まるよう zoom を自動調整する。
+  // ユーザー要望「画面スクロールせず1画面に表示・縮小可」に対応。
+  // 既に収まっている場合は等倍。極端に小さく潰れないよう下限を設け、それ未満の超巨大
+  // テーブル等はオーバーレイ側の overflow-y:auto にフォールバック（実質スクロール可）。
+  const PV_FIT_MIN_ZOOM = 0.4;
+  function fitPreviewToScreen() {
+    const overlay = document.getElementById('previewOverlay');
+    const box = document.getElementById('previewBox');
+    if (!overlay || !box || !overlay.classList.contains('open')) return;
+    // いったん等倍へ戻し、自然な高さを測る（zoom 適用中の測定誤差を避ける）
+    box.style.zoom = '';
+    const natural = box.offsetHeight; // 同期 reflow して自然高さを取得（ローカル CSS px）
+    if (!natural) return;
+    // 親 #tab-quote-make に zoom（大/中/小スケール）が掛かっていても、overlay と box は
+    // 同じ座標系（同じ zoom 配下）にあるため、overlay.clientHeight との比で正しく算出できる。
+    // overlay は position:fixed inset:0 なので clientHeight＝可視ビューポート高さ（ローカル CSS px）。
+    const pad = 60; // overlay の上下パディング合計（CSS: padding 30px 20px）
+    const avail = overlay.clientHeight - pad;
+    if (avail <= 0) return;
+    let z = avail / natural;
+    if (z >= 1) { box.style.zoom = ''; return; } // 既に収まっている → 等倍
+    z = Math.max(PV_FIT_MIN_ZOOM, z);
+    box.style.zoom = String(z);
+  }
+  window.fitPreviewToScreen = fitPreviewToScreen;
+  // レイアウト/カスタマイズ/ページ送り後に高さが変わるため、複数タイミングで再フィット
+  function scheduleFitPreview() {
+    requestAnimationFrame(fitPreviewToScreen);
+    setTimeout(fitPreviewToScreen, 130); // 御見積書(doc)の非同期レンダリング後の保険
+  }
 
   // ========== プレビューのレイアウト切替（表計算 / 御見積書フォーマット） ==========
   function overlayClick(e) { if (e.target === document.getElementById('previewOverlay')) closePreview(); }
@@ -990,6 +1035,7 @@
     try { localStorage.setItem('pvLayout_v1', _pvLayout); } catch (_) {}
     _docPage = 0;
     applyPreviewLayout();
+    scheduleFitPreview(); // レイアウト切替で高さが変わるため再フィット
   }
   window.setPreviewLayout = setPreviewLayout;
 
@@ -1020,6 +1066,7 @@
       const pager = wrap.querySelector('#qdPager');
       if (pager) pager.style.display = _docPages > 1 ? 'flex' : 'none';
       applyDocPage();
+      fitPreviewToScreen(); // ページ数・ページャ確定後に1画面へフィット
     };
     requestAnimationFrame(measure);
     setTimeout(measure, 80); // rAF が走らない環境向けの保険
