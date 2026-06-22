@@ -7715,6 +7715,26 @@ button.um-memberno--empty:hover { background: #f4ead4; border-color: #cdb98e; }
 }
 #tab-quote-make tr.row-excluded td { opacity: 0.35; }
 
+/* ===== 行ごと「見積書で非表示」 ===== */
+/* 行アクションのトグルボタン（⛓ の隣） */
+#tab-quote-make .row-hidequote-btn {
+  background: none; border: none; cursor: pointer; padding: 0 2px;
+  font-size: 11px; line-height: 1; opacity: 0.45; vertical-align: middle;
+}
+#tab-quote-make .row-hidequote-btn:hover { opacity: 0.9; }
+#tab-quote-make .row-hidequote-btn.is-on { opacity: 1; filter: none; }
+/* 作業テーブル：非表示指定の行はグレー＋点線で区別（行は残す） */
+#tab-quote-make tr.row-hidden-quote > td { opacity: 0.5; background: #f6f1e8; }
+#tab-quote-make tr.row-hidden-quote .w-name { text-decoration: line-through; text-decoration-color: #b08a6a; }
+
+/* プレビュー：社内モードではグレーで表示、客先モード（has-sensitive なし）では非表示 */
+#tab-quote-make #previewTable tr.pv-row-hidden-quote > td { opacity: 0.5; background: #f7f3ec; }
+#tab-quote-make #previewTableWrap:not(.has-sensitive) #previewTable tr.pv-row-hidden-quote { display: none; }
+#tab-quote-make #previewTable .pv-hq-badge {
+  display: inline-block; font-size: 10px; font-weight: 700; color: #b3530e;
+  background: #fdeede; border: 1px solid #e8b48f; border-radius: 4px; padding: 0 5px; margin-right: 4px;
+}
+
 /* グループ（サブコンブロック）ドラッグ並べ替え */
 /* ヘッダー自体は pointer-events:none だが、セルを drop 対象にするため再有効化 */
 #tab-quote-make .subcon-group-header-cell { pointer-events: auto; }

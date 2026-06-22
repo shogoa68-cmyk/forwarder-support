@@ -282,6 +282,13 @@
         const btn = tr.querySelector('.cnt-link-btn');
         if (btn) { btn.classList.add('is-linked'); btn.title = '連動中（クリックで解除）'; }
       }
+      // 見積書非表示フラグを復元
+      if (row.hideQuote) {
+        tr.dataset.hideQuote = '1';
+        tr.classList.add('row-hidden-quote');
+        const hb = tr.querySelector('.row-hidequote-btn');
+        if (hb) { hb.classList.add('is-on'); hb.textContent = '🚫'; hb.title = '見積書で非表示中（クリックで出力に戻す）'; }
+      }
       regularTrs.push(tr);
     });
     _afterRestoreRows(regularTrs, data.fields);
@@ -419,6 +426,7 @@
       });
       const rowObj = { _type: 'data', cells };
       if (tr.dataset.cntLink === '1') rowObj.cntLink = true;
+      if (tr.dataset.hideQuote === '1') rowObj.hideQuote = true;
       rows.push(rowObj);
     });
     // _rowFormat: v3 = 小計行・リマーク行を含む型付きオブジェクト配列

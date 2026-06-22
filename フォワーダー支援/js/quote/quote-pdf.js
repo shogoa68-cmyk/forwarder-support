@@ -225,7 +225,7 @@
   // ====== メイン：御見積書HTMLを生成 ======
   function buildQuoteDocHTML() {
     const hdr  = (typeof getQuoteHeader === 'function') ? getQuoteHeader() : {};
-    const rows = (typeof collectAllRows === 'function') ? collectAllRows() : [];
+    const rows = (typeof collectAllRows === 'function') ? collectAllRows().filter(r => !r._hideQuote) : [];  // 見積書非表示の行は出力しない
     const cond = (typeof getConditions === 'function') ? getConditions() : null;
     const taxRate = (typeof getEffectiveTaxRate === 'function') ? getEffectiveTaxRate() : 0.10;
     const issuer = loadIssuer();
@@ -420,7 +420,7 @@
 
   // ====== オーバーレイ表示 ======
   function openQuoteDoc() {
-    const data = (typeof collectAllRows === 'function') ? collectAllRows().filter(r => r._type === 'data') : [];
+    const data = (typeof collectAllRows === 'function') ? collectAllRows().filter(r => r._type === 'data' && !r._hideQuote) : [];
     if (!data.length) { alert('見積もり行がありません。'); return; }
 
     let overlay = document.getElementById('quoteDocOverlay');

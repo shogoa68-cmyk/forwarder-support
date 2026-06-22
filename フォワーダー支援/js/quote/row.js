@@ -131,6 +131,31 @@
     if (downBtn) downBtn.addEventListener('click', () => moveRow(tr, +1));
   }
 
+  // 行を「見積書（客先出力）に出さない」状態に切り替える。
+  // 作業テーブル・社内プレビューには目印付きで残り、合計・PDF・Excel・CSV・客先プレビューからは除外。
+  function toggleRowHideQuote(btn) {
+    const tr = btn?.closest('tr');
+    if (!tr) return;
+    const hidden = tr.dataset.hideQuote === '1';
+    if (hidden) {
+      delete tr.dataset.hideQuote;
+      tr.classList.remove('row-hidden-quote');
+      btn.classList.remove('is-on');
+      btn.textContent = '👁';
+      btn.title = 'この行を見積書（プレビュー客先表示・PDF・Excel・CSV）に出力しない';
+    } else {
+      tr.dataset.hideQuote = '1';
+      tr.classList.add('row-hidden-quote');
+      btn.classList.add('is-on');
+      btn.textContent = '🚫';
+      btn.title = '見積書で非表示中（クリックで出力に戻す）';
+    }
+    updateTotals();
+    renderSubconGroups();
+    if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
+  }
+  window.toggleRowHideQuote = toggleRowHideQuote;
+
   function moveRow(tr, dir) {
     const tbody = document.getElementById('tableBody');
     if (dir < 0) {
@@ -540,6 +565,7 @@
     rows.forEach(tr => {
       if (tr.dataset.type === 'subtotal') return; // 小計行をスキップ
       if (tr.dataset.excluded === '1') return;    // 除外グループはスキップ
+      if (tr.dataset.hideQuote === '1') return;   // 見積書非表示の行は合計から除外
       const id  = tr.id.replace('row-', '');
       const pc  = document.getElementById(`pc-${id}`)?.value || 'JPY';
       const bc  = document.getElementById(`bc-${id}`)?.value || 'JPY';
@@ -1352,6 +1378,7 @@
         return;
       }
       if (tr.dataset.type) return;         // 小計・リマーク・社内メモ行は除外
+      if (tr.dataset.hideQuote === '1') return;  // 見積書非表示の行はグループ小計から除外
       const id = tr.id?.replace('row-', '');
       if (!id || !curSumEl) return;
       const bq = val(`bq-${id}`) || val(`pq-${id}`) || 0;
