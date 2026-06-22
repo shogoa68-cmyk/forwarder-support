@@ -3093,6 +3093,29 @@
 }
 #tab-quote-make #previewTable .pv-scs-label .pv-scs-margin { color: #2d6a4f; }
 #tab-quote-make #previewTable .pv-scs-label .pv-scs-margin.pv-neg { color: #c0392b; }
+
+/* ===== サブコン別 グループ見出し帯＋ブロック左アクセント（プレビュー） ===== */
+/* 各サブコンブロックの先頭に見出しを置き、左の縦バーで明細→小計までを1ブロックに見せる */
+#tab-quote-make #previewTable tr.pv-subcon-header td {
+  background: #f3ece0;
+  border-top: 3px solid #d8c5a4;
+  padding: 6px 8px;
+}
+#tab-quote-make #previewTable .pv-sch-cell {
+  text-align: left !important;
+  font-weight: 800;
+  font-size: 12.5px;
+  color: #5a3e28;
+  letter-spacing: .02em;
+}
+/* グループ別アクセント色（最大4色で循環）。左バーで隣接ブロックの切り替わりを明確化 */
+#tab-quote-make #previewTable .pv-grp-c0 { --pv-ga: #3b82c4; }
+#tab-quote-make #previewTable .pv-grp-c1 { --pv-ga: #c98a3b; }
+#tab-quote-make #previewTable .pv-grp-c2 { --pv-ga: #3f9e6f; }
+#tab-quote-make #previewTable .pv-grp-c3 { --pv-ga: #9b6bbf; }
+#tab-quote-make #previewTable tr.pv-subcon-header .pv-sch-cell { border-left: 5px solid var(--pv-ga); }
+#tab-quote-make #previewTable tr.pv-grp-row > td:first-child { border-left: 5px solid var(--pv-ga); }
+#tab-quote-make #previewTable tr.pv-subcon-subtotal > td:first-child { border-left: 5px solid var(--pv-ga); }
 #tab-quote-make #previewTable tr.pv-table-remark-row td {
   background: #eef3f8;
   border-top: 1px dashed #9ab0c8 !important;

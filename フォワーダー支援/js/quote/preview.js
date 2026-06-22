@@ -442,14 +442,18 @@
     const _scShowInternal = (typeof getPreviewVisibility === 'function') ? (getPreviewVisibility().profit !== false) : true;
     const _seq = [];
     if (_scActive) {
-      let ck = null, clabel = null, cc = 0, cb = 0, cm = false, has = false;
+      let ck = null, clabel = null, cc = 0, cb = 0, cm = false, has = false, gi = -1;
       const toJ = (a, c) => (c && c !== 'JPY' && typeof toJPY === 'function') ? toJPY(a, c) : a;
-      const pushSub = () => { if (has) _seq.push({ _type: 'subcon-subtotal', label: clabel, normKey: ck, cost: cc, bill: cb, mixed: cm }); };
+      const pushSub = () => { if (has) _seq.push({ _type: 'subcon-subtotal', label: clabel, normKey: ck, cost: cc, bill: cb, mixed: cm, gi }); };
       allRows.forEach(d => {
         if (d._type === 'data') {
           const k = _scNorm(d);
           if (has && k !== ck) { pushSub(); cc = 0; cb = 0; cm = false; has = false; }
-          if (!has) { ck = k; clabel = _scLabel(d); }  // グループ先頭の綴りを表示名に採用
+          if (!has) {
+            ck = k; clabel = _scLabel(d); gi++;                 // 新グループ開始
+            _seq.push({ _type: 'subcon-header', label: clabel, normKey: ck, gi });
+          }
+          d._gi = gi;                                            // 行にグループ番号（地色分け用）
           cc += toJ(d.cost, d.pc || 'JPY');
           cb += toJ(d.bill, d.bc || 'JPY');
           if ((d.pc && d.pc !== 'JPY') || (d.bc && d.bc !== 'JPY')) cm = true;
@@ -470,6 +474,15 @@
         </tr>`;
         return;
       }
+      if (d._type === 'subcon-header') {
+        // 各サブコンブロックの先頭に見出し帯を出し、どのサブコンの明細かを明示する
+        const _aliasH = (typeof getSubconAliases === 'function' ? getSubconAliases()[d.normKey] : '') || '';
+        const _dispH  = _aliasH || d.label;
+        html += `<tr class="pv-subcon-header pv-grp-c${d.gi % 4}">
+          <td colspan="17" class="pv-sch-cell">${escHtml(_dispH)}</td>
+        </tr>`;
+        return;
+      }
       if (d._type === 'subcon-subtotal') {
         const m = d.bill > 0 ? ((d.bill - d.cost) / d.bill * 100) : null;
         const mark = d.mixed ? '※' : '';
@@ -485,7 +498,7 @@
         // 客先用表示名があれば置換（サブコン名を客先に出さない）。エイリアスは正規化キーで参照
         const _alias = (typeof getSubconAliases === 'function' ? getSubconAliases()[d.normKey] : '') || '';
         const _dispLabel = _alias || d.label;
-        html += `<tr class="pv-subcon-subtotal">
+        html += `<tr class="pv-subcon-subtotal pv-grp-c${(d.gi ?? 0) % 4}">
           <td colspan="12" class="pv-scs-label">↳ ${escHtml(_dispLabel)} 小計${internalBits}</td>
           <td class="pv-num pv-subtotal">${sellTxt}</td>
           <td data-ft-col="jpy-conv" class="pv-jpy"></td>
@@ -537,7 +550,7 @@
         ? Math.ceil(toJPY(sub, d.bc || 'JPY') - toJPY(d.cost, d.pc || 'JPY')) : null;
       const prJpyHint = profitJpy !== null
         ? `<small class="pv-jpy-hint">(≈¥${fmtMoney(profitJpy)})</small>` : '';
-      html += `<tr>
+      html += `<tr class="${d._gi != null ? 'pv-grp-row pv-grp-c' + (d._gi % 4) : ''}">
         <td class="pv-name" style="font-size:11px;">${escHtml(getCatLabel(d.cat))}</td>
         <td class="pv-name">${escHtml(d.sv)}</td>
         <td class="${nameCls}">${escHtml(d.name)}${_pvValidityBadge(d.vf, d.vt)}</td>
@@ -805,7 +818,7 @@
       const show = chk.checked;
       // thead/tbody は nth-child で制御（1セル=1列のため位置が一致）
       indices.forEach(ci => {
-        table.querySelectorAll(`thead tr th:nth-child(${ci + 1}), tbody tr:not(.pv-subtotal-sep):not(.pv-subcon-subtotal):not(.pv-table-remark-row) td:nth-child(${ci + 1})`).forEach(cell => {
+        table.querySelectorAll(`thead tr th:nth-child(${ci + 1}), tbody tr:not(.pv-subtotal-sep):not(.pv-subcon-subtotal):not(.pv-subcon-header):not(.pv-table-remark-row) td:nth-child(${ci + 1})`).forEach(cell => {
           cell.style.display = show ? '' : 'none';
         });
       });
