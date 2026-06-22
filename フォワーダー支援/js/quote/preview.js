@@ -972,11 +972,19 @@
     });
   }
 
+  // 表計算レイアウトで内部スクロール化しうるセクション（テーブル＋補助セクション）
+  function _pvScrollableEls() {
+    return ['previewTableWrap', 'pvRemarkBox', 'pvCargoBox']
+      .map(id => document.getElementById(id)).filter(Boolean);
+  }
+  function _pvResetScrollAreas() {
+    _pvScrollableEls().forEach(el => { el.style.maxHeight = ''; el.style.overflowY = ''; });
+  }
+
   function closePreview()  {
     const box = document.getElementById('previewBox');
     if (box) box.style.zoom = '';           // 縮小フィットをリセット（次回開く時に再計算）
-    const tw = document.getElementById('previewTableWrap');
-    if (tw) { tw.style.maxHeight = ''; tw.style.overflowY = ''; } // 内部スクロール設定もリセット
+    _pvResetScrollAreas();                  // 内部スクロール設定もリセット
     document.getElementById('previewOverlay').classList.remove('open');
   }
 
@@ -984,19 +992,20 @@
   // モーダル(#previewBox)が縦スクロールせず1画面に収まるよう自動調整する。
   // レイアウトごとに収め方を変える（ユーザー要望）:
   //   ・御見積書(doc): A4ページ全体を box ごと zoom で縮小（1画面に1ページ）。
-  //   ・表計算(table): モーダルは原寸のまま、情報量が多い時は #previewTableWrap だけを
-  //                    内部スクロール（max-height + overflow-y:auto）。横幅も原寸を維持。
+  //   ・表計算(table): モーダルは原寸（横幅含む）のまま、情報量が多い時は内部スクロール。
+  //        テーブルを主役とし、まずリマーク・貨物ボックスを内部スクロール化して余白を
+  //        確保（テーブル領域がリマーク量で圧迫されないように）、それでも溢れる分だけ
+  //        最後にテーブル自身を内部スクロールさせる。
   // どちらも収まらない極端なケースは overlay 側の overflow-y:auto にフォールバック。
   const PV_FIT_MIN_ZOOM = 0.4;
-  const PV_FIT_MIN_TABLE_H = 180; // 表計算: テーブルスクロール領域の最小高さ(px)
+  const PV_FIT_MIN_TABLE_H = 220; // 表計算: テーブルスクロール領域の最小高さ(px)
   function fitPreviewToScreen() {
     const overlay = document.getElementById('previewOverlay');
     const box = document.getElementById('previewBox');
     if (!overlay || !box || !overlay.classList.contains('open')) return;
-    const tableWrap = document.getElementById('previewTableWrap');
     // いったん全リセットして自然サイズを測る（zoom / 内部スクロール適用中の測定誤差を避ける）
     box.style.zoom = '';
-    if (tableWrap) { tableWrap.style.maxHeight = ''; tableWrap.style.overflowY = ''; }
+    _pvResetScrollAreas();
     // 親 #tab-quote-make に zoom（大/中/小スケール）が掛かっていても、overlay と box は
     // 同じ座標系（同じ zoom 配下）にあるため、overlay.clientHeight との比で正しく算出できる。
     // overlay は position:fixed inset:0 なので clientHeight＝可視ビューポート高さ（ローカル CSS px）。
@@ -1014,15 +1023,36 @@
       return;
     }
 
-    // 表計算: テーブル部分だけを内部スクロールさせ、モーダルは1画面のまま原寸維持
+    // 表計算: テーブルを主役に内部スクロール化（モーダルは1画面・原寸を維持）
+    const tableWrap = document.getElementById('previewTableWrap');
     if (!tableWrap) return;
-    const boxNatural = box.offsetHeight;
-    if (boxNatural <= avail) return; // すでに収まっている → そのまま
-    const nonTable = boxNatural - tableWrap.offsetHeight; // テーブル以外（見出し・条件・ボタン等）の高さ
-    let target = avail - nonTable;
-    if (target < PV_FIT_MIN_TABLE_H) target = PV_FIT_MIN_TABLE_H; // 最小確保（不足分は overlay スクロール）
-    tableWrap.style.maxHeight = target + 'px';
-    tableWrap.style.overflowY = 'auto';
+    let overflow = box.offsetHeight - avail;
+    if (overflow <= 0) return; // すでに収まっている → そのまま
+
+    // (1) 補助セクション（リマーク→貨物）を先に縮めて余白を確保（各々の最小高さまで）
+    const flexSecs = [
+      { el: document.getElementById('pvRemarkBox'), min: 120 },
+      { el: document.getElementById('pvCargoBox'),  min: 100 },
+    ];
+    for (const s of flexSecs) {
+      if (overflow <= 0) break;
+      if (!s.el || s.el.style.display === 'none') continue;
+      const h = s.el.offsetHeight;
+      const reducible = Math.max(0, h - s.min);
+      if (reducible <= 0) continue;
+      const cut = Math.min(overflow, reducible);
+      s.el.style.maxHeight = (h - cut) + 'px';
+      s.el.style.overflowY = 'auto';
+      overflow -= cut;
+    }
+
+    // (2) まだ溢れる分だけテーブル自身を内部スクロール（最小高さは確保）
+    if (overflow > 0) {
+      const tH = tableWrap.offsetHeight;
+      const target = Math.max(PV_FIT_MIN_TABLE_H, tH - overflow);
+      tableWrap.style.maxHeight = target + 'px';
+      tableWrap.style.overflowY = 'auto';
+    }
   }
   window.fitPreviewToScreen = fitPreviewToScreen;
   // レイアウト/カスタマイズ/ページ送り後に高さが変わるため、複数タイミングで再フィット
