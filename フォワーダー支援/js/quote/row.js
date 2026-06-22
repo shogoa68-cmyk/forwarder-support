@@ -969,6 +969,8 @@
   const _excludedGroups  = new Set();
   // サブコン別小計の「客先用表示名」（sv キー → 置換テキスト）。客先向け出力でサブコン名を隠すために使う。
   const _subconAlias     = Object.create(null);
+  // グループ（サブコンブロック）ドラッグ並べ替え中の掴んでいるグループキー
+  let _draggingGroupKey  = null;
 
   function toggleSubconGroup(key) {
     if (_collapsedGroups.has(key)) _collapsedGroups.delete(key);
@@ -1132,6 +1134,7 @@
         const excluded = _excludedGroups.has(key);
         hdr.innerHTML =
           `<td colspan="10" class="subcon-group-header-cell">` +
+            `<span class="subcon-group-grip" title="ドラッグでグループ（ブロック）を並び替え">⠿</span>` +
             `<button type="button" class="subcon-group-toggle" title="折りたたみ/展開">${collapsed ? '▶' : '▼'}</button>` +
             `<span class="subcon-group-label">📦 ${_escHdr(label)}</span>` +
             `<span class="subcon-group-count">${count} 行</span>` +
@@ -1147,6 +1150,7 @@
         hdr.querySelector('.subcon-group-add-btn').addEventListener('click', () => {
           addRowToSubconGroup(key === _UNSET_KEY ? '' : label);
         });
+        initGroupHeaderDrag(hdr, key);
         tbody.insertBefore(hdr, firstRow);
       });
 
@@ -1199,6 +1203,105 @@
     } finally {
       _inGroupRender = false;
     }
+  }
+
+  // ---- グループ（サブコンブロック）のドラッグ並べ替え ----
+  // グループヘッダーのグリップを掴んでドラッグし、別グループのヘッダー上にドロップすると、
+  // 掴んだグループの配下行（データ行＋付随する社内メモ/備考/小計行）をブロックごと移動する。
+  function initGroupHeaderDrag(hdr, key) {
+    hdr.setAttribute('draggable', 'true');
+    const grip = hdr.querySelector('.subcon-group-grip');
+    let _fromGrip = false;
+    if (grip) {
+      grip.addEventListener('mousedown', () => { _fromGrip = true; });
+      document.addEventListener('mouseup', () => { _fromGrip = false; }, { capture: true });
+    }
+    const clearMarks = () => document.querySelectorAll('#tableBody .subcon-group-header')
+      .forEach(h => h.classList.remove('grp-drop-before', 'grp-drop-after'));
+
+    hdr.addEventListener('dragstart', e => {
+      if (!grip || !_fromGrip) { e.preventDefault(); return; }
+      _fromGrip = false;
+      _draggingGroupKey = key;
+      hdr.classList.add('grp-dragging');
+      e.dataTransfer.effectAllowed = 'move';
+      try { e.dataTransfer.setData('text/plain', 'grp:' + key); } catch (_) {}
+    });
+    hdr.addEventListener('dragend', () => {
+      _draggingGroupKey = null;
+      hdr.classList.remove('grp-dragging');
+      clearMarks();
+    });
+    hdr.addEventListener('dragover', e => {
+      if (_draggingGroupKey == null || _draggingGroupKey === key) return;
+      e.preventDefault();
+      e.stopPropagation();
+      e.dataTransfer.dropEffect = 'move';
+      const r = hdr.getBoundingClientRect();
+      const after = e.clientY > r.top + r.height / 2;
+      clearMarks();
+      hdr.classList.add(after ? 'grp-drop-after' : 'grp-drop-before');
+    });
+    hdr.addEventListener('dragleave', () =>
+      hdr.classList.remove('grp-drop-before', 'grp-drop-after'));
+    hdr.addEventListener('drop', e => {
+      if (_draggingGroupKey == null || _draggingGroupKey === key) return;
+      e.preventDefault();
+      e.stopPropagation();
+      const r = hdr.getBoundingClientRect();
+      const after = e.clientY > r.top + r.height / 2;
+      const src = _draggingGroupKey;
+      clearMarks();
+      moveSubconGroupBlock(src, key, after);
+    });
+  }
+
+  // srcKey のグループブロックを targetKey の前／後ろへ移動して再描画する
+  function moveSubconGroupBlock(srcKey, targetKey, placeAfter) {
+    const tbody = document.getElementById('tableBody');
+    if (!tbody || srcKey === targetKey) return;
+    _inGroupRender = true;
+    try {
+      // 仮想行（ヘッダー・小計）を一旦除去して実行行ブロックのみで並べ替える
+      tbody.querySelectorAll('[data-virtual]').forEach(r => r.remove());
+
+      // ブロック化：データ行＋直後の付随行（社内メモ/備考/手動小計）を1単位に
+      const blocks = [];
+      const leading = [];
+      let cur = null;
+      Array.from(tbody.children).forEach(tr => {
+        if (!tr.dataset.type) {
+          const k = subconNormKey(_rowSubcon(tr) ?? '') || _UNSET_KEY;
+          cur = { key: k, rows: [tr] };
+          blocks.push(cur);
+        } else if (cur) {
+          cur.rows.push(tr);
+        } else {
+          leading.push(tr);
+        }
+      });
+
+      // 現在のグループ出現順
+      const keyOrder = [];
+      blocks.forEach(b => { if (!keyOrder.includes(b.key)) keyOrder.push(b.key); });
+      const without = keyOrder.filter(k => k !== srcKey);
+      const ti = without.indexOf(targetKey);
+      if (ti < 0) { return; }   // 対象が見つからなければ何もしない（finally で復帰）
+      without.splice(placeAfter ? ti + 1 : ti, 0, srcKey);
+
+      // 新しい順でブロックを再配置
+      const byKey = Object.create(null);
+      blocks.forEach(b => { (byKey[b.key] || (byKey[b.key] = [])).push(b); });
+      const frag = document.createDocumentFragment();
+      leading.forEach(tr => frag.appendChild(tr));
+      without.forEach(k => (byKey[k] || []).forEach(b => b.rows.forEach(tr => frag.appendChild(tr))));
+      tbody.appendChild(frag);
+    } finally {
+      _inGroupRender = false;
+    }
+    renderSubconGroups();   // ヘッダー・小計を新しい順で再生成
+    if (typeof updateTotals === 'function') updateTotals();
+    if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
   }
 
   // 各サブコングループヘッダーに、その配下データ行の請求小計合計（¥）を表示する。
