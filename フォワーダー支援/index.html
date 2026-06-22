@@ -2570,6 +2570,7 @@
               <button class="cond-prim-btn" data-transport="fcl" onclick="setTransport('fcl')" title="Full Container Load：コンテナ1本貸切。1荷主が1コンテナを専用使用">🚢 FCL</button>
               <button class="cond-prim-btn" data-transport="lcl" onclick="setTransport('lcl')" title="Less than Container Load：混載。複数荷主の貨物を1コンテナに詰め合わせる">🚢 LCL</button>
               <button class="cond-prim-btn" data-transport="air" onclick="setTransport('air')">✈️ Air</button>
+              <button class="cond-prim-btn" data-transport="domestic" onclick="setTransport('domestic')" title="国内手配のみ（国際輸送なし）。国内トラック・倉庫・通関など国内作業の手配">🚚 国内手配のみ</button>
             </div>
             <!-- UI 状態保存用（JSON 読み込み時の復元に使用） -->
             <input type="hidden" id="cond-direction"    value="" />
@@ -2584,6 +2585,7 @@
               <option>海上＋陸上</option>
               <option>航空＋陸上</option>
               <option>陸上のみ</option>
+              <option>国内手配のみ</option>
             </select>
           </div>
           <div class="cond-prim-group">

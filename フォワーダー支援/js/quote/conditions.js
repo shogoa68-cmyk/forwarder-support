@@ -211,6 +211,7 @@
     if      (modeVal === '海上（FCL）') setTransport('fcl');
     else if (modeVal === '海上（LCL）') setTransport('lcl');
     else if (modeVal.startsWith('航空')) setTransport('air');
+    else if (modeVal === '国内手配のみ') setTransport('domestic');
 
     // 輸出/輸入方向
     const dir = fields['cond-direction'] || '';
@@ -1379,10 +1380,12 @@
 
   /** Sea / Air プライマリトグル */
   function setTransport(transport) {
-    // transport: 'fcl' | 'lcl' | 'air'
+    // transport: 'fcl' | 'lcl' | 'air' | 'domestic'
     if (transport === 'fcl' || transport === 'lcl') {
       _currentTransport = 'sea';
       _currentSeaSub = transport;
+    } else if (transport === 'domestic') {
+      _currentTransport = 'domestic';   // 国内手配のみ（国際輸送なし・記録用）
     } else {
       _currentTransport = 'air';
     }
@@ -1417,6 +1420,8 @@
       sel.value = _currentSeaSub === 'lcl' ? '海上（LCL）' : '海上（FCL）';
     } else if (_currentTransport === 'air') {
       sel.value = '航空（AIR）';
+    } else if (_currentTransport === 'domestic') {
+      sel.value = '国内手配のみ';
     } else {
       sel.value = '';
     }
@@ -1425,6 +1430,7 @@
 
   /** 現在の輸送モードに対応するキャリアマップを返す */
   function _carrierMapForMode() {
+    if (_currentTransport === 'domestic') return {};   // 国内手配のみは船社/航空会社なし
     if (_currentTransport === 'air') return (typeof CARRIERS_AIR !== 'undefined') ? CARRIERS_AIR : {};
     if (_currentSeaSub === 'lcl')    return (typeof CARRIERS_LCL !== 'undefined') ? CARRIERS_LCL : {};
     return (typeof CARRIERS !== 'undefined') ? CARRIERS : {};
@@ -1433,6 +1439,7 @@
   /** 現在の輸送モードに対応するリンク定義を返す */
   function _linkDefsForMode() {
     const defs = (typeof CARRIER_LINK_DEFS !== 'undefined') ? CARRIER_LINK_DEFS : {};
+    if (_currentTransport === 'domestic') return [];   // 国内手配のみはキャリアリンクなし
     if (_currentTransport === 'air') return defs.air || [];
     if (_currentSeaSub === 'lcl')    return defs.lcl || [];
     return defs.fcl || [];
