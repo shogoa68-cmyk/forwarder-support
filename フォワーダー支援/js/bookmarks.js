@@ -30,6 +30,8 @@ async function _bmLoad() {
   if (addBtn) addBtn.hidden = !user;
   const seedBtn = document.getElementById('bmSeedBtn');
   if (seedBtn) seedBtn.hidden = !user;
+  const histBtn = document.getElementById('bmHistBtn');
+  if (histBtn) histBtn.hidden = !user;
 
   if (!user) {
     if (wrap) wrap.innerHTML =
@@ -428,6 +430,105 @@ async function seedCarrierBookmarks() {
   _bmLoad();
 }
 
+// ---------- 変更履歴ビュー（フェーズ4） ----------
+// bookmark_history（フェーズ1の自動記録トリガー）を新しい順に表示。
+const _BM_HIST_FIELDS = [
+  { k: 'label',        n: 'ラベル' },
+  { k: 'url',          n: 'URL' },
+  { k: 'carrier',      n: '会社名' },
+  { k: 'carrier_type', n: '種別' },
+  { k: 'function',     n: '機能' },
+  { k: 'note',         n: 'メモ' },
+];
+
+function _bmFmtTime(ts) {
+  if (!ts) return '';
+  const d = new Date(ts);
+  if (isNaN(d)) return escHtml(String(ts));
+  return d.toLocaleString('ja-JP', {
+    year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit',
+  });
+}
+
+function _bmHistDiff(oldData, newData) {
+  const o = oldData || {}, n = newData || {};
+  const parts = [];
+  _BM_HIST_FIELDS.forEach(({ k, n: name }) => {
+    const ov = o[k] == null ? '' : String(o[k]);
+    const nv = n[k] == null ? '' : String(n[k]);
+    if (ov === nv) return;
+    parts.push(
+      `<div class="bm-hist-field"><span class="bm-hist-fname">${name}</span>` +
+      `<span class="bm-hist-old">${ov ? escHtml(ov) : '（空）'}</span>` +
+      `<span class="bm-hist-arrow">→</span>` +
+      `<span class="bm-hist-new">${nv ? escHtml(nv) : '（空）'}</span></div>`
+    );
+  });
+  return parts.join('');
+}
+
+async function openBmHistory() {
+  const modal = document.getElementById('bmHistModal');
+  const list  = document.getElementById('bmHistList');
+  if (!modal || !list) return;
+  modal.classList.add('open');
+  list.innerHTML = '<div class="bm-empty">読み込み中…</div>';
+
+  const db = window.SupabaseClient;
+  if (!db) { list.innerHTML = '<div class="bm-empty">⚠️ DB接続が未初期化です</div>'; return; }
+  const { data, error } = await db
+    .from('bookmark_history')
+    .select('*')
+    .order('changed_at', { ascending: false })
+    .limit(200);
+  if (error) {
+    list.innerHTML = '<div class="bm-empty">⚠️ 取得エラー：' + escHtml(error.message) +
+      '<br><small>（履歴テーブル未作成の場合は docs/sql/bookmarks-migration.sql を実行してください）</small></div>';
+    return;
+  }
+  if (!data || !data.length) {
+    list.innerHTML = '<div class="bm-empty">変更履歴はまだありません</div>';
+    return;
+  }
+
+  const ACT = {
+    INSERT: { cls: 'ins', label: '追加' },
+    UPDATE: { cls: 'upd', label: '更新' },
+    DELETE: { cls: 'del', label: '削除' },
+  };
+  list.innerHTML = data.map((h) => {
+    const a = ACT[h.action] || { cls: '', label: h.action || '' };
+    const snap = h.new_data || h.old_data || {};
+    const title = snap.label || '(無題)';
+    const meta = [snap.carrier, snap.function].filter(Boolean).join('・');
+    let body = '';
+    if (h.action === 'UPDATE') {
+      body = _bmHistDiff(h.old_data, h.new_data) || '<div class="bm-hist-field bm-hist-nodiff">（表示対象の変更なし）</div>';
+    } else if (h.action === 'INSERT') {
+      body = snap.url ? `<div class="bm-hist-field"><span class="bm-hist-new">${escHtml(snap.url)}</span></div>` : '';
+    } else if (h.action === 'DELETE') {
+      body = snap.url ? `<div class="bm-hist-field"><span class="bm-hist-old">${escHtml(snap.url)}</span></div>` : '';
+    }
+    return `<div class="bm-hist-item">
+      <div class="bm-hist-row1">
+        <span class="bm-hist-act bm-hist-act-${a.cls}">${a.label}</span>
+        <span class="bm-hist-title">${escHtml(title)}</span>
+        ${meta ? `<span class="bm-hist-meta">${escHtml(meta)}</span>` : ''}
+      </div>
+      <div class="bm-hist-row2">
+        <span class="bm-hist-who">${escHtml(h.changed_by || '不明')}</span>
+        <span class="bm-hist-when">${_bmFmtTime(h.changed_at)}</span>
+      </div>
+      ${body ? `<div class="bm-hist-body">${body}</div>` : ''}
+    </div>`;
+  }).join('');
+}
+
+function closeBmHistory(e) {
+  if (e && e.target.id !== 'bmHistModal') return;
+  document.getElementById('bmHistModal')?.classList.remove('open');
+}
+
 // ---------- QSP 用キャリアブックマームフェッチ ----------
 window.fetchCarrierBmsForQSP = async function (carrierNames) {
   if (!carrierNames || !carrierNames.length) return;
@@ -469,3 +570,5 @@ window.saveBm          = saveBm;
 window.bmDelete        = bmDelete;
 window.bmEdit          = bmEdit;
 window.seedCarrierBookmarks = seedCarrierBookmarks;
+window.openBmHistory   = openBmHistory;
+window.closeBmHistory  = closeBmHistory;

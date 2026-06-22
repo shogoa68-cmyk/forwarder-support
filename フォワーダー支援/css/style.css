@@ -1560,6 +1560,27 @@ body:has(#compareOverlay.open) #quoteActionDock { display: none; }
   display: flex;
   flex-direction: column;
 }
+/* ブックマーク変更履歴モーダル */
+.bm-hist-box { width: min(640px, 96vw); }
+.bm-hist-list { padding: 6px 16px 16px; overflow-y: auto; }
+.bm-hist-item { padding: 10px 2px; border-bottom: 1px solid #efe8dc; }
+.bm-hist-row1 { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.bm-hist-act { font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 999px; color: #fff; flex-shrink: 0; }
+.bm-hist-act-ins { background: #4a9c59; }
+.bm-hist-act-upd { background: #2b7bb0; }
+.bm-hist-act-del { background: #c0564a; }
+.bm-hist-title { font-weight: 700; color: #3d2e1e; font-size: 13px; }
+.bm-hist-meta { font-size: 11px; color: #8a7a64; }
+.bm-hist-row2 { display: flex; gap: 12px; font-size: 11px; color: #8a7a64; margin-top: 3px; }
+.bm-hist-who { font-weight: 600; color: #6b5a42; }
+.bm-hist-body { margin-top: 6px; display: flex; flex-direction: column; gap: 3px; padding-left: 4px; border-left: 2px solid #ece4d8; }
+.bm-hist-field { font-size: 11.5px; display: flex; gap: 6px; align-items: baseline; flex-wrap: wrap; padding-left: 6px; }
+.bm-hist-fname { color: #8a7a64; min-width: 48px; }
+.bm-hist-old { color: #c0564a; text-decoration: line-through; word-break: break-all; }
+.bm-hist-new { color: #2e7d46; word-break: break-all; }
+.bm-hist-arrow { color: #aaa; }
+.bm-hist-nodiff { color: #aaa; }
+
 .bm-modal-head {
   display: flex;
   align-items: center;

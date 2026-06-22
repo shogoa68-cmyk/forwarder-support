@@ -65,6 +65,16 @@ github/202605_コード改修/
 - **未設定でも安全に no-op**：`cloud-config.js` がプレースホルダのままなら `cloudIsConfigured()` が false を返し「未設定」表示で停止
 - **OAuth リダイレクト**：`signInWithOAuth` の `redirectTo` は現在URL。Supabase の Authentication → URL Configuration の Redirect URLs に公開URL/ローカルURL（`http://localhost:PORT/**`）を登録しておくこと
 
+## 🔖 チームブックマーク（全面クラウド移行・編集履歴）
+
+船会社／サブコンのリンクを `bookmarks` テーブルで一元管理（`js/bookmarks.js`・`#tab-bookmark`）。見積タブ右カラムの「🔖 ブックマーク」タブ（`renderQuoteBookmarkRail` / `#bmRailPanel`）に案件連動で表示。
+
+- **全面クラウド移行**：旧「内蔵船会社DB（`data/carriers.js`）の静的リンク（青）＋ユーザーBM（緑）」の2系統を廃し、**クラウドの `bookmarks` 1系統に統合**。`getCarrierLinkData()` は内蔵静的リンクを返さず `_qspBmCache`（クラウド）のみを真実とする。**ログイン必須**（未ログイン時はチップ空）
+- **シード**：`seedCarrierBookmarks()`（BOOKMARK タブ「🌱 内蔵リンク取込」）で `data/carriers.js` の内蔵DB（FCL/LCL/AIR）＋`CARRIER_LINK_DEFS` を `_buildCarrierSeedRows()` 経由で `bookmarks` へ一括投入。`carrier`+`url` 重複はスキップ＝冪等。初回デプロイ後に1回実行する運用
+- **全チップ編集可**：rail/一覧の各チップは ✎ で `openAddBmModal({id,...})`（編集モード）→ `bookmarks` を UPDATE。`fetchCarrierBmsForQSP()` は `carrier_type` も取得し編集時の種別を保持
+- **編集履歴**：Supabase の `bookmark_history` テーブル＋`log_bookmark_change()` トリガー（INSERT/UPDATE/DELETE の前後 jsonb スナップショット・実行者 `auth.jwt()->>'email'`）。BOOKMARK タブ「🕘 履歴」（`openBmHistory()`）で新しい順に表示。**スキーマは `docs/sql/bookmarks-migration.sql` を Supabase で実行する前提**（`is_team_member()` に依存）
+- **TODO**：チップの色分けを「出自」から「用途別」へ（現状は全チップ共通スタイル＝緑系に統一）
+
 ## 統合の現状
 
 **完了**
