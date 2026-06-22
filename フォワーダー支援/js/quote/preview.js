@@ -50,6 +50,15 @@
     if (!el) return;
     el.value = val;
     el.dispatchEvent(new Event('change', { bubbles: true }));   // 自動保存・有効期限警告などを発火
+    // 表計算・御見積書の両入力欄を同期（どちらから編集しても揃える）
+    var docId = which === 'valid' ? 'pvDocValid' : 'pvDocDate';
+    var docEl = document.getElementById(docId);
+    if (docEl && docEl.value !== val) docEl.value = val;
+    // 御見積書レイアウト表示中なら、発行日／有効期限の変更を即反映するため再描画
+    var box = document.getElementById('previewBox');
+    if (box && box.classList.contains('layout-doc') && typeof renderDocPreview === 'function') {
+      renderDocPreview();
+    }
   };
 
   /**
@@ -1079,7 +1088,15 @@
       b.classList.toggle('is-on', b.dataset.pvl === _pvLayout));
     const h2 = box.querySelector('h2');
     if (h2) h2.textContent = _pvLayout === 'doc' ? '📋 プレビュー（御見積書フォーマット）' : '📋 プレビュー（表計算形式）';
-    if (_pvLayout === 'doc') renderDocPreview();
+    if (_pvLayout === 'doc') {
+      // 御見積書用 発行日／有効期限 入力欄を現在のフォーム値で同期
+      const hdr = getQuoteHeader();
+      const dEl = document.getElementById('pvDocDate');
+      const vEl = document.getElementById('pvDocValid');
+      if (dEl) dEl.value = hdr.date || '';
+      if (vEl) vEl.value = hdr.validUntil || '';
+      renderDocPreview();
+    }
   }
   function setPreviewLayout(mode) {
     _pvLayout = (mode === 'doc') ? 'doc' : 'table';

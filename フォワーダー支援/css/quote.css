@@ -366,6 +366,20 @@
 #previewBox.layout-doc #pvAuditMeta,
 #previewBox.layout-doc #pvCustomizeWrap { display: none !important; }
 
+/* 発行日／有効期限 編集バー：御見積書(doc)レイアウトでのみ表示（表計算は pvMeta 内に同等入力あり） */
+#previewBox #pvDateEdit { display: none; }
+#previewBox.layout-doc #pvDateEdit {
+  display: flex; gap: 20px; align-items: center; flex-wrap: wrap;
+  margin: 0 0 14px; padding: 10px 14px;
+  background: #f0e8d8; border: 1px solid #d9cfc2; border-radius: 5px;
+}
+#pvDateEdit .pv-de-item { display: flex; gap: 6px; align-items: center; font-size: 12px; color: #7d6b56; font-weight: 600; }
+#pvDateEdit input[type="date"] {
+  font-size: 12px; padding: 3px 6px; border: 1px solid #d9cfc2; border-radius: 5px;
+  background: #fff; color: #3d2e1e; font-family: inherit;
+}
+@media print { #previewBox.layout-doc #pvDateEdit { display: none !important; } }
+
 /* アイコン専用ボタン（戻す/進む、⋯など） */
 #tab-quote-make .save-btn-icon {
   padding: 4px 8px;
