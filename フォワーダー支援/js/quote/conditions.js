@@ -289,6 +289,8 @@
         const hb = tr.querySelector('.row-hidequote-btn');
         if (hb) { hb.classList.add('is-on'); hb.textContent = '🚫'; hb.title = '見積書で非表示中（クリックで出力に戻す）'; }
       }
+      // 港ペア（子グループキー）を復元
+      if (row.portPair) tr.dataset.portPair = row.portPair;
       regularTrs.push(tr);
     });
     _afterRestoreRows(regularTrs, data.fields);
@@ -427,6 +429,7 @@
       const rowObj = { _type: 'data', cells };
       if (tr.dataset.cntLink === '1') rowObj.cntLink = true;
       if (tr.dataset.hideQuote === '1') rowObj.hideQuote = true;
+      if (tr.dataset.portPair) rowObj.portPair = tr.dataset.portPair; // 港ペア（子グループ）
       rows.push(rowObj);
     });
     // _rowFormat: v3 = 小計行・リマーク行を含む型付きオブジェクト配列
@@ -593,7 +596,9 @@
       pod:     document.getElementById('z2Pod')?.value?.trim()     || '',
     }];
     routes.forEach(r => {
-      items.push({ cat: 'ocean', name: '', note: '', sv: r.carrier });
+      // 港ペア（POL → (Via) → POD）を行に付与し、サブコン(キャリア)配下で子グループ化する
+      const pp = [r.pol, r.via, r.pod].map(s => (s || '').trim()).filter(Boolean).join(' → ');
+      items.push({ cat: 'ocean', name: '', note: '', sv: r.carrier, pp });
     });
 
     // Zone ③ 到着地側 — サブコン単位で空行1行
@@ -635,6 +640,7 @@
       const tr = document.createElement('tr');
       tr.id = 'row-' + id;
       tr.replaceChildren(buildRowHTML(id, item.cat, lastCur));
+      if (item.pp) tr.dataset.portPair = item.pp;   // 港ペア（子グループキー）
       tbody.appendChild(tr);
       const nmEl = document.getElementById('nm-'  + id); if (nmEl) nmEl.value = item.name;
       const ntEl = document.getElementById('nt-'  + id); if (ntEl) ntEl.value = item.note || '';
