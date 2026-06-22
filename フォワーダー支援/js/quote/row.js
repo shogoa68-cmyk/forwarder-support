@@ -285,8 +285,8 @@
   function duplicateRow(srcId) {
     const newId = addRowAfter(srcId);
 
-    // テキスト・数値フィールドをコピー（zc = 0円確認済みフラグを含む）
-    ['nm','pq','un','pp','mk','nt','sv','zc'].forEach(f => {
+    // テキスト・数値・日付フィールドをコピー（zc = 0円確認済みフラグ／vf・vt = 有効期限を含む）
+    ['nm','pq','un','pp','mk','nt','sv','zc','vf','vt'].forEach(f => {
       const srcEl = document.getElementById(`${f}-${srcId}`);
       const dstEl = document.getElementById(`${f}-${newId}`);
       if (srcEl && dstEl) dstEl.value = srcEl.value;
@@ -1320,7 +1320,7 @@
 
   function _gatherRowData(id) {
     const data = {};
-    ['nm','pq','un','pp','mk','nt','sv','zc','cat','pc','bc'].forEach(f => {
+    ['nm','pq','un','pp','mk','nt','sv','zc','vf','vt','cat','pc','bc'].forEach(f => {
       const el = document.getElementById(`${f}-${id}`);
       if (el) data[f] = el.value;
     });
@@ -1340,7 +1340,7 @@
     } else {
       tbody.appendChild(newTr);
     }
-    ['nm','pq','un','pp','mk','nt','zc'].forEach(f => {
+    ['nm','pq','un','pp','mk','nt','zc','vf','vt'].forEach(f => {
       const el = document.getElementById(`${f}-${newId}`);
       if (el && data[f] !== undefined) el.value = data[f];
     });
