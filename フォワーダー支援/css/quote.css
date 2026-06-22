@@ -6060,6 +6060,7 @@ body.qp-dash-active #quoteActionDock { display: none !important; }
     padding: 0 !important;
     max-height: none !important;
     overflow: visible !important;
+    zoom: 1 !important;            /* 画面用の1画面フィット縮小を印刷では解除（実寸で出力） */
   }
   /* プレビュー上部UI（操作ボタン類）は常に非表示 */
   body:has(#previewOverlay.open) .pv-btns,
