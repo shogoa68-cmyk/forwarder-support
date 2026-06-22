@@ -1,11 +1,12 @@
 #!/bin/bash
-# SessionStart hook: 作業ブランチを origin の既定ブランチ(main)へ安全に自動同期する。
+# SessionStart hook: 作業ブランチが origin の既定ブランチ(main)から遅れていないか確認し、
+# 遅れていれば「警告のみ」を出す（自動マージはしない）。
 # 目的: 古いブランチのまま改修を進めて「巨大マージのコンフリクト解消でコードが欠落」する
 #       事故（例: 添付フィールド消失）を防ぐ。
-# 方針(ハイブリッド):
-#   - クリーンにマージできる場合のみ自動同期
-#   - コンフリクトする場合は自動マージを中止し、警告のみ（手動解消を促す）
-#   - 未コミットの変更がある場合も自動マージしない
+# 方針: 自動マージは行わない。
+#   - 自動マージはマージコミット＋main側のGitHub squashコミット(noreply@github.com)を
+#     未pushコミットとして持ち込み、コミット署名/著者検証ポリシーと衝突するため。
+#   - 代わりに「何コミット遅れているか」を明示し、作業前の手動同期を促す。
 # リモート(Claude Code on the web)セッションでのみ動作。ローカル(Mac/iCloud)では何もしない。
 set -uo pipefail
 
@@ -40,22 +41,13 @@ if [ "${BEHIND:-0}" -eq 0 ] 2>/dev/null; then
   exit 0
 fi
 
-# 未コミットの変更があれば自動マージしない
-if [ -n "$(git status --porcelain 2>/dev/null)" ]; then
-  echo "⚠️ '$CUR_BRANCH' は origin/$DEFAULT_BRANCH より $BEHIND コミット遅れていますが、未コミットの変更があるため自動同期を見送りました。"
-  echo "   → コミット/退避後に 'git merge origin/$DEFAULT_BRANCH' を実行してください。"
-  exit 0
-fi
-
-# クリーンにマージできるか試す。コンフリクト時は中止して警告のみ。
-if git merge --no-edit --no-ff origin/"$DEFAULT_BRANCH" --quiet 2>/dev/null; then
-  echo "🔄 '$CUR_BRANCH' を origin/$DEFAULT_BRANCH に自動同期しました（$BEHIND コミット取り込み・コンフリクトなし）。"
-  echo "   ※ このマージはローカルのみ。push は通常の作業時にまとめて行ってください。"
-else
-  git merge --abort 2>/dev/null || true
-  echo "‼️ '$CUR_BRANCH' は origin/$DEFAULT_BRANCH より $BEHIND コミット遅れており、自動マージするとコンフリクトします。自動マージは中止しました。"
-  echo "‼️ 作業を始める前に手動で 'git merge origin/$DEFAULT_BRANCH' を実行し、コンフリクトを慎重に解消してください。"
-  echo "   特に index.html / css/quote.css / js/quote/*.js のブロックが意図せず欠落していないか、マージ後の差分を必ず目視確認してください。"
-fi
+# 遅れている → 警告のみ（自動マージはしない）
+echo "‼️ 注意：ブランチ '$CUR_BRANCH' は origin/$DEFAULT_BRANCH より $BEHIND コミット遅れています。"
+echo "   改修を始める前に、最新 main へ同期してください："
+echo "       git merge origin/$DEFAULT_BRANCH      （または git rebase origin/$DEFAULT_BRANCH）"
+echo "   ※ 同期後はマージ差分を必ず目視確認し、index.html / css/quote.css / js/quote/*.js の"
+echo "     ブロックが意図せず欠落していないか確認してください（巨大マージでの欠落事故防止）。"
+echo "   ※ 古いブランチのまま大きく改修すると、後で巨大マージのコンフリクト解消でコードを"
+echo "     失う恐れがあります。"
 
 exit 0
