@@ -2310,8 +2310,12 @@
 #tab-quote-make .z2-port-label { font-size: 9px; font-weight: 700; color: #6b5a42; letter-spacing: .04em; }
 #tab-quote-make .z2-route-via { font-size: 10px; color: #8a7a68; font-style: italic; }
 #tab-quote-make .z2-route-service { font-size: 10px; color: #4a6035; background: #e6efd8; border-radius: 8px; padding: 1px 5px; }
+#tab-quote-make .z2-route-tt { font-size: 10px; color: #6b4a2a; background: #f1e4d2; border-radius: 8px; padding: 1px 5px; white-space: nowrap; }
 #tab-quote-make .z2-service-row { margin-top: -4px; margin-bottom: 7px; }
 #tab-quote-make .z2-service-input { flex: 1; min-width: 0; }
+#tab-quote-make .z2-tt-row { margin-top: -2px; margin-bottom: 7px; align-items: center; }
+#tab-quote-make .z2-tt-prefix { font-size: 11px; color: #6b5a42; font-weight: 600; white-space: nowrap; }
+#tab-quote-make .z2-tt-input { flex: 1; min-width: 0; }
 #tab-quote-make .z2-input {
   font-size: 11px; padding: 4px 7px;
   border: 1px solid #bbf0c4; border-radius: 4px;

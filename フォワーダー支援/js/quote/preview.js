@@ -655,7 +655,8 @@
       ? cond.routes.map((r, i) => ({
           lbl: cond.routes.length === 1 ? '航路' : `航路${i + 1}`,
           val: [[r.pol, r.via, r.pod].filter(Boolean).join(' → '),
-                [r.carrier, r.service ? `(${r.service})` : ''].filter(Boolean).join(' ')
+                [r.carrier, r.service ? `(${r.service})` : ''].filter(Boolean).join(' '),
+                r.tt ? `T/T: ${r.tt}` : ''
                ].filter(Boolean).join('　'),
         }))
       : [
@@ -1441,7 +1442,8 @@
       ? cExcel.routes.map((r, i) => [
           cExcel.routes.length === 1 ? '航路' : `航路${i + 1}`,
           [[r.pol, r.via, r.pod].filter(Boolean).join(' → '),
-           [r.carrier, r.service ? `(${r.service})` : ''].filter(Boolean).join(' ')
+           [r.carrier, r.service ? `(${r.service})` : ''].filter(Boolean).join(' '),
+           r.tt ? `T/T: ${r.tt}` : ''
           ].filter(Boolean).join('　'),
         ])
       : [['POL（積み地）', cExcel.pol], ['POD（揚げ地）', cExcel.pod]];

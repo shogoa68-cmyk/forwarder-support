@@ -2683,6 +2683,13 @@
                 </div>
                 <button type="button" class="z2-route-add" onclick="addRouteEntry()" title="このキャリア・POL・Via・PODを航路として追加（複数船会社・複数航路の比較見積に対応）">＋ 航路</button>
               </div>
+              <div class="z2-row z2-tt-row">
+                <span class="z2-label" style="visibility:hidden">🚢</span>
+                <span class="z2-tt-prefix" title="Transit Time（積地→揚地のおおよその所要日数）">⏱️ T/T</span>
+                <input type="text" id="z2Tt" class="z2-input z2-tt-input"
+                       placeholder="輸送日数（任意）例）14日・約2週間・14 days"
+                       title="この航路のおおよその所要日数。「＋ 航路」で航路ごとに保持されます">
+              </div>
               <div class="z2-route-list" id="z2RouteList"></div>
               <input type="hidden" id="z2-routes-data" />
               <datalist id="portSuggestions"></datalist>
