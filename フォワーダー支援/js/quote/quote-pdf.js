@@ -282,7 +282,12 @@
       if (_scActive) {
         const k = _scNorm(r);
         if (_scHas && k !== _scKey) { _scPush(); _scJpy = 0; _scHas = false; }
-        if (!_scHas) { _scKey = k; _scLabel = _scLabelOf(r); }  // グループ先頭の綴りを表示名に採用
+        if (!_scHas) {
+          _scKey = k; _scLabel = _scLabelOf(r);  // グループ先頭の綴りを表示名に採用
+          // 各サブコンブロックの先頭に見出しを置き、どのサブコンの明細かを明示する
+          const _alH = (typeof getSubconAliases === 'function' ? getSubconAliases()[_scKey] : '') || '';
+          lineHTML.push(`<tr class="qd-subcon-head"><td colspan="5">${esc(_alH || _scLabel)}</td></tr>`);
+        }
         _scJpy += jpy; _scHas = true;
       }
       const validBadge = (() => {
