@@ -80,6 +80,7 @@
       dragSrcRow = null;
       dragSrcRows = null;
       updateTotals();
+      renderSubconGroups();   // 移動後にグループ見出し・小計・ツリー帰属を再評価
     });
     tr.addEventListener('dragover', e => {
       if (!dragSrcRows || !dragSrcRows.length) return;
@@ -87,8 +88,10 @@
       e.stopPropagation();
       // ドラッグ中の行群の上には挿入インジケータを出さない
       if (dragSrcRows.includes(tr)) return;
-      // 異なるサブコングループへのドロップは不可（揺らぎ吸収：正規化キーで判定）
-      if (subconNormKey(_rowSubcon(dragSrcRows[0])) !== subconNormKey(_rowSubcon(tr))) {
+      // データ行同士のときだけ、異なるサブコングループへのドロップを禁止（揺らぎ吸収：正規化キーで判定）。
+      // リマーク・社内メモ・小計行（dataset.type 付き＝_rowSubcon が null）は自由に移動可。
+      const _srcSv = _rowSubcon(dragSrcRows[0]);
+      if (_srcSv !== null && subconNormKey(_srcSv) !== subconNormKey(_rowSubcon(tr))) {
         e.dataTransfer.dropEffect = 'none';
         return;
       }
@@ -106,8 +109,9 @@
       e.preventDefault();
       e.stopPropagation();
       if (!dragSrcRows || !dragSrcRows.length || dragSrcRows.includes(tr)) return;
-      // 異なるサブコングループへのドロップは不可（揺らぎ吸収：正規化キーで判定）
-      if (subconNormKey(_rowSubcon(dragSrcRows[0])) !== subconNormKey(_rowSubcon(tr))) return;
+      // データ行同士のときだけグループ跨ぎ禁止（リマーク・社内メモ・小計行は自由移動可）
+      const _srcSv = _rowSubcon(dragSrcRows[0]);
+      if (_srcSv !== null && subconNormKey(_srcSv) !== subconNormKey(_rowSubcon(tr))) return;
       const mid = tr.getBoundingClientRect().top + tr.getBoundingClientRect().height / 2;
       const tbody = document.getElementById('tableBody');
       // 仮想グループヘッダーをスキップして実行行の隣に挿入
@@ -618,6 +622,7 @@
       dragSrcRow = null;
       dragSrcRows = null;
       updateTotals();
+      renderSubconGroups();   // 移動後にグループ見出し・小計・ツリー帰属を再評価
     });
     tr.addEventListener('dragover', e => {
       if (!dragSrcRows || !dragSrcRows.length) return;
