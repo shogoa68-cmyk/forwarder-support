@@ -2470,6 +2470,14 @@
             <input type="text" id="qf-person" placeholder="例）山田　※氏名のみ。出力時に自動で「様」付与" title="姓のみ／フルネームのみで入力（会社名は含めない）。出力時に自動で「様」が付きます" aria-required="true" />
           </div>
           <div class="quote-field">
+            <label>📥 依頼受信日 <span class="qf-memo-note">引き合いを受けた日（経過日数を表示）</span></label>
+            <input type="date" id="qf-received" title="依頼を受信した日。ダッシュボードに経過日数を表示します" />
+          </div>
+          <div class="quote-field">
+            <label>⏰ 提出期限 <span class="qf-memo-note">回答の締切（残り日数で優先度表示）</span></label>
+            <input type="date" id="qf-due" title="見積提出の期限。ダッシュボードに残り日数を表示します" />
+          </div>
+          <div class="quote-field">
             <label>発行日</label>
             <input type="date" id="qf-date" title="見積書の発行日。出力・Excelに含まれます" />
           </div>
