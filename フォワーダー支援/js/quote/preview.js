@@ -975,33 +975,54 @@
   function closePreview()  {
     const box = document.getElementById('previewBox');
     if (box) box.style.zoom = '';           // 縮小フィットをリセット（次回開く時に再計算）
+    const tw = document.getElementById('previewTableWrap');
+    if (tw) { tw.style.maxHeight = ''; tw.style.overflowY = ''; } // 内部スクロール設定もリセット
     document.getElementById('previewOverlay').classList.remove('open');
   }
 
-  // ========== プレビューを1画面に収める（縮小フィット） ==========
-  // 縦スクロールせずに #previewBox 全体がビューポート内へ収まるよう zoom を自動調整する。
-  // ユーザー要望「画面スクロールせず1画面に表示・縮小可」に対応。
-  // 既に収まっている場合は等倍。極端に小さく潰れないよう下限を設け、それ未満の超巨大
-  // テーブル等はオーバーレイ側の overflow-y:auto にフォールバック（実質スクロール可）。
+  // ========== プレビューを1画面に収める ==========
+  // モーダル(#previewBox)が縦スクロールせず1画面に収まるよう自動調整する。
+  // レイアウトごとに収め方を変える（ユーザー要望）:
+  //   ・御見積書(doc): A4ページ全体を box ごと zoom で縮小（1画面に1ページ）。
+  //   ・表計算(table): モーダルは原寸のまま、情報量が多い時は #previewTableWrap だけを
+  //                    内部スクロール（max-height + overflow-y:auto）。横幅も原寸を維持。
+  // どちらも収まらない極端なケースは overlay 側の overflow-y:auto にフォールバック。
   const PV_FIT_MIN_ZOOM = 0.4;
+  const PV_FIT_MIN_TABLE_H = 180; // 表計算: テーブルスクロール領域の最小高さ(px)
   function fitPreviewToScreen() {
     const overlay = document.getElementById('previewOverlay');
     const box = document.getElementById('previewBox');
     if (!overlay || !box || !overlay.classList.contains('open')) return;
-    // いったん等倍へ戻し、自然な高さを測る（zoom 適用中の測定誤差を避ける）
+    const tableWrap = document.getElementById('previewTableWrap');
+    // いったん全リセットして自然サイズを測る（zoom / 内部スクロール適用中の測定誤差を避ける）
     box.style.zoom = '';
-    const natural = box.offsetHeight; // 同期 reflow して自然高さを取得（ローカル CSS px）
-    if (!natural) return;
+    if (tableWrap) { tableWrap.style.maxHeight = ''; tableWrap.style.overflowY = ''; }
     // 親 #tab-quote-make に zoom（大/中/小スケール）が掛かっていても、overlay と box は
     // 同じ座標系（同じ zoom 配下）にあるため、overlay.clientHeight との比で正しく算出できる。
     // overlay は position:fixed inset:0 なので clientHeight＝可視ビューポート高さ（ローカル CSS px）。
     const pad = 60; // overlay の上下パディング合計（CSS: padding 30px 20px）
     const avail = overlay.clientHeight - pad;
     if (avail <= 0) return;
-    let z = avail / natural;
-    if (z >= 1) { box.style.zoom = ''; return; } // 既に収まっている → 等倍
-    z = Math.max(PV_FIT_MIN_ZOOM, z);
-    box.style.zoom = String(z);
+
+    if (box.classList.contains('layout-doc')) {
+      // 御見積書: box 全体を縮小して1画面に収める
+      const natural = box.offsetHeight;
+      if (!natural) return;
+      let z = avail / natural;
+      if (z >= 1) { box.style.zoom = ''; return; } // 既に収まっている → 等倍
+      box.style.zoom = String(Math.max(PV_FIT_MIN_ZOOM, z));
+      return;
+    }
+
+    // 表計算: テーブル部分だけを内部スクロールさせ、モーダルは1画面のまま原寸維持
+    if (!tableWrap) return;
+    const boxNatural = box.offsetHeight;
+    if (boxNatural <= avail) return; // すでに収まっている → そのまま
+    const nonTable = boxNatural - tableWrap.offsetHeight; // テーブル以外（見出し・条件・ボタン等）の高さ
+    let target = avail - nonTable;
+    if (target < PV_FIT_MIN_TABLE_H) target = PV_FIT_MIN_TABLE_H; // 最小確保（不足分は overlay スクロール）
+    tableWrap.style.maxHeight = target + 'px';
+    tableWrap.style.overflowY = 'auto';
   }
   window.fitPreviewToScreen = fitPreviewToScreen;
   // レイアウト/カスタマイズ/ページ送り後に高さが変わるため、複数タイミングで再フィット
