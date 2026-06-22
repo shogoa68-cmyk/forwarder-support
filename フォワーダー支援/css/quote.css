@@ -7692,6 +7692,25 @@ button.um-memberno--empty:hover { background: #f4ead4; border-color: #cdb98e; }
 }
 #tab-quote-make tr.row-excluded td { opacity: 0.35; }
 
+/* グループ（サブコンブロック）ドラッグ並べ替え */
+/* ヘッダー自体は pointer-events:none だが、セルを drop 対象にするため再有効化 */
+#tab-quote-make .subcon-group-header-cell { pointer-events: auto; }
+#tab-quote-make .subcon-group-grip {
+  pointer-events: all;
+  cursor: grab;
+  color: #b09a7c;
+  font-size: 12px;
+  line-height: 1;
+  padding: 2px 1px;
+  flex-shrink: 0;
+  user-select: none;
+}
+#tab-quote-make .subcon-group-grip:hover { color: #7a5c36; }
+#tab-quote-make .subcon-group-grip:active { cursor: grabbing; }
+#tab-quote-make .subcon-group-header.grp-dragging { opacity: 0.45; }
+#tab-quote-make .subcon-group-header.grp-drop-before .subcon-group-header-cell { box-shadow: inset 0 3px 0 0 #3b82c4; }
+#tab-quote-make .subcon-group-header.grp-drop-after  .subcon-group-header-cell { box-shadow: inset 0 -3px 0 0 #3b82c4; }
+
 /* ===== サブコン別グループ小計行（仮想行・出力には含まれない） ===== */
 #tab-quote-make .subcon-group-subtotal { pointer-events: none; }
 /* バグ修正：display:flex を td から内側 div へ移し、colspan が潰れないようにする */
