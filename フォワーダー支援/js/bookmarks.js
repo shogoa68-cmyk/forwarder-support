@@ -28,6 +28,8 @@ async function _bmLoad() {
   const user = sd?.session?.user || null;
   const addBtn = document.getElementById('bmAddBtn');
   if (addBtn) addBtn.hidden = !user;
+  const seedBtn = document.getElementById('bmSeedBtn');
+  if (seedBtn) seedBtn.hidden = !user;
 
   if (!user) {
     if (wrap) wrap.innerHTML =
@@ -71,6 +73,7 @@ function _bmRenderTypeChips() {
     { key: '',        label: 'すべて' },
     { key: 'FCL',     label: 'FCL 船会社' },
     { key: 'LCL',     label: 'LCL キャリア' },
+    { key: 'AIR',     label: 'AIR 航空' },
     { key: 'general', label: '汎用' },
   ];
   el.innerHTML = types.map(t =>
@@ -336,6 +339,95 @@ function bmEdit(id) {
   });
 }
 
+// ---------- 内蔵船会社リンクのシード（全面クラウド移行・フェーズ2） ----------
+// data/carriers.js の内蔵DB（FCL/LCL/AIR）＋ CARRIER_LINK_DEFS を、
+// 見積タブのチップと同じ変換（getCarrierLinkData 相当）で bookmarks 行へ展開する。
+// 既存行（同 carrier + url）はスキップするので、重複投入しても安全（冪等）。
+function _buildCarrierSeedRows() {
+  const rows = [];
+  // ラベル先頭の絵文字・記号を除去（'🗓 スケジュール' → 'スケジュール'）
+  const clean = (s) => String(s || '').replace(/^[^\p{L}\p{N}]+/u, '').trim();
+  // 文字列 or 関数 or null を URL に解決（conditions.js の _resolveCarrierUrl と同等）
+  const resolve = (v) => {
+    if (!v) return null;
+    try { return typeof v === 'function' ? v() : v; } catch (e) { return null; }
+  };
+  const defs = (typeof CARRIER_LINK_DEFS !== 'undefined') ? CARRIER_LINK_DEFS : {};
+  const sets = [
+    { type: 'FCL', db: (typeof CARRIERS     !== 'undefined') ? CARRIERS     : null, defs: defs.fcl || [] },
+    { type: 'LCL', db: (typeof CARRIERS_LCL !== 'undefined') ? CARRIERS_LCL : null, defs: defs.lcl || [] },
+    { type: 'AIR', db: (typeof CARRIERS_AIR !== 'undefined') ? CARRIERS_AIR : null, defs: defs.air || [] },
+  ];
+  sets.forEach(({ type, db, defs }) => {
+    if (!db) return;
+    Object.keys(db).forEach((name) => {
+      const c = db[name];
+      defs.forEach((d) => {
+        const url = resolve(c[d.key]);
+        if (!url || typeof url !== 'string' || !/^https?:/i.test(url)) return;
+        const cl = clean(d.label);
+        // 機能カテゴリは編集モーダルの <select> 固定値に合わせる。推測できないものは「その他」
+        const fn = _inferBmFunction(d.label) || 'その他';
+        const note = (d.noteKey && c[d.noteKey]) ? c[d.noteKey] : null;
+        rows.push({ label: `${name} ${cl}`.trim(), url, carrier_type: type, carrier: name, function: fn, note });
+      });
+    });
+  });
+  return rows;
+}
+
+async function seedCarrierBookmarks() {
+  const db = window.SupabaseClient;
+  if (!db) { quoteShowToast('⚠️ DB接続が未初期化です', 'warn'); return; }
+  const { data: sd } = await db.auth.getSession();
+  const email = sd?.session?.user?.email;
+  if (!email) { quoteShowToast('⚠️ 取り込みにはログインが必要です', 'warn'); return; }
+
+  const btn = document.getElementById('bmSeedBtn');
+  if (btn) { btn.disabled = true; btn.textContent = '取り込み中…'; }
+  const restore = () => { if (btn) { btn.disabled = false; btn.textContent = '🌱 内蔵リンク取込'; } };
+
+  // 最新の既存行で重複判定（carrier + url）
+  const { data: existing, error: e0 } = await db.from('bookmarks').select('carrier,url');
+  if (e0) { quoteShowToast('⚠️ 既存取得エラー：' + e0.message, 'warn', 6000); restore(); return; }
+  const seen = new Set((existing || []).map((r) => (r.carrier || '') + ' ' + (r.url || '')));
+
+  const all = _buildCarrierSeedRows();
+  const within = new Set();
+  const fresh = [];
+  all.forEach((r) => {
+    const k = (r.carrier || '') + ' ' + (r.url || '');
+    if (seen.has(k) || within.has(k)) return;
+    within.add(k);
+    fresh.push(r);
+  });
+
+  if (!fresh.length) {
+    quoteShowToast('✅ すべて取り込み済みです（新規リンクなし）', 'info', 4000);
+    restore();
+    return;
+  }
+  const ok = confirm(
+    `内蔵の船会社リンク ${all.length} 件のうち、未登録の ${fresh.length} 件をチーム共有ブックマークに取り込みます。\n` +
+    `（既存と重複する ${all.length - fresh.length} 件はスキップ）\n\n取り込みますか？`
+  );
+  if (!ok) { restore(); return; }
+
+  const payload = fresh.map((r) => ({ ...r, created_by: email }));
+  let inserted = 0, failed = 0;
+  for (let i = 0; i < payload.length; i += 100) {
+    const chunk = payload.slice(i, i + 100);
+    const { error } = await db.from('bookmarks').insert(chunk);
+    if (error) { failed += chunk.length; } else { inserted += chunk.length; }
+  }
+  restore();
+  quoteShowToast(
+    `🌱 取り込み完了：${inserted} 件を追加${failed ? `（失敗 ${failed} 件）` : ''}`,
+    failed ? 'warn' : 'success', 6000
+  );
+  _bmLoad();
+}
+
 // ---------- QSP 用キャリアブックマームフェッチ ----------
 window.fetchCarrierBmsForQSP = async function (carrierNames) {
   if (!carrierNames || !carrierNames.length) return;
@@ -350,7 +442,7 @@ window.fetchCarrierBmsForQSP = async function (carrierNames) {
 
   const { data, error } = await db
     .from('bookmarks')
-    .select('id, label, url, carrier, function, note')
+    .select('id, label, url, carrier, carrier_type, function, note')
     .in('carrier', carrierNames)
     .not('url', 'is', null);
   if (error) return;
@@ -376,3 +468,4 @@ window.closeAddBmModal = closeAddBmModal;
 window.saveBm          = saveBm;
 window.bmDelete        = bmDelete;
 window.bmEdit          = bmEdit;
+window.seedCarrierBookmarks = seedCarrierBookmarks;
