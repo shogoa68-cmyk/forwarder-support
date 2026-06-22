@@ -428,6 +428,80 @@
   function _renderCarrier() { _renderGrouped(_data?.carrierGroups || [], 'sv', 'キャリア名', 'statsPane-carrier'); }
   function _renderPort() { _renderGrouped(_data?.portGroups || [], 'port', '港名', 'statsPane-port'); }
   function _renderNm()      { _renderGrouped(_data?.nmGroups      || [], 'nm', '品名',       'statsPane-nm'); }
+
+  // ===== 🔗 サブコン×港ペア =====
+  // サブコンは明細行（cells[2]）、港は引き合い条件（z2Pol/z2Pod/z2Via・複数航路）にあるため、
+  // 「案件単位で使われたサブコン × その案件の港」の共起を集計する。
+  // 同義グループの代表に正規化してから数える（件数＝両方を含む案件数）。
+  let _svPortBy = 'sv';   // 'sv' | 'port'
+  function _buildSvPortPairs(source) {
+    const svMap   = typeof window.synGetNormalizeMap === 'function' ? window.synGetNormalizeMap('sv')   : {};
+    const portMap = typeof window.synGetNormalizeMap === 'function' ? window.synGetNormalizeMap('port') : {};
+    const norm = (v, m) => (m && m[v]) || v;
+    const pairs = new Map();   // `${sv} ${port}` → { sv, port, count }
+    const add = p => {
+      const d = p.data || {};
+      const rows = Array.isArray(d.rows) ? d.rows : [];
+      const subs = new Set();
+      rows.forEach(r => {
+        if (!r || r._type !== 'data') return;
+        const sv = ((Array.isArray(r.cells) ? r.cells : [])[2] || '').trim();
+        if (sv) subs.add(norm(sv, svMap));
+      });
+      const ports = new Set(_portValsFromFields(d.fields || {}).map(pt => norm(pt, portMap)));
+      if (!subs.size || !ports.size) return;
+      subs.forEach(sv => ports.forEach(pt => {
+        const k = sv + ' ' + pt;
+        if (!pairs.has(k)) pairs.set(k, { sv, port: pt, count: 0 });
+        pairs.get(k).count++;
+      }));
+    };
+    if (source !== 'cloud') _getLocalPresets().forEach(add);
+    if (source !== 'local') (typeof window.cloudGetAllRows === 'function' ? window.cloudGetAllRows() : []).forEach(add);
+    return [...pairs.values()].sort((a, b) => b.count - a.count);
+  }
+
+  function _renderSvPort() {
+    const e = document.getElementById('statsPane-svport');
+    if (!e) return;
+    const source = document.getElementById('statsSource')?.value || 'both';
+    const pairs  = _buildSvPortPairs(source);
+    if (!pairs.length) {
+      e.innerHTML = '<p class="stats-empty">サブコンと港の組み合わせがありません。<br>' +
+        '<small>明細の「サブコン」欄と、引き合い条件の POL / POD / Via を入力して案件を保存してください。</small></p>';
+      return;
+    }
+    const by = _svPortBy;
+    const keyField   = by === 'sv' ? 'sv'   : 'port';
+    const otherField = by === 'sv' ? 'port' : 'sv';
+    const keyLabel   = by === 'sv' ? 'サブコン' : '港';
+    const otherLabel = by === 'sv' ? '港' : 'サブコン';
+    const groups = new Map();
+    pairs.forEach(p => {
+      const k = p[keyField], o = p[otherField];
+      if (!groups.has(k)) groups.set(k, { key: k, total: 0, items: [] });
+      const g = groups.get(k); g.total += p.count; g.items.push({ other: o, count: p.count });
+    });
+    const list = [...groups.values()].sort((a, b) => b.total - a.total);
+    list.forEach(g => g.items.sort((a, b) => b.count - a.count));
+    const maxTotal = Math.max(1, ...list.map(g => g.total));
+
+    let h = '<div class="svp-toolbar"><span class="svp-by-label">グループ基準</span>' +
+            `<button class="svp-by-btn${by === 'sv' ? ' is-active' : ''}" onclick="statsSvPortBy('sv')">🏢 サブコン別</button>` +
+            `<button class="svp-by-btn${by === 'port' ? ' is-active' : ''}" onclick="statsSvPortBy('port')">🛳 港別</button></div>` +
+            '<p class="stats-syn-hint">案件単位で「使われたサブコン × その案件の港」を共起集計します。同義グループの代表に正規化し、件数＝両方を含む案件数です。</p>' +
+            `<table class="stats-table"><thead><tr><th>${keyLabel}</th><th class="stats-num-col">件数</th><th>${otherLabel}（×件数）</th></tr></thead><tbody>`;
+    list.forEach(g => {
+      const chips = g.items.map(it =>
+        `<span class="stats-chip"><span class="stats-chip-text">${_esc(it.other)}</span><span class="stats-chip-cnt">×${it.count}</span></span>`
+      ).join('');
+      h += `<tr><td class="stats-val">${_esc(g.key)}</td>` +
+           `<td class="stats-num-col"><div class="stats-bar-wrap"><div class="stats-bar" style="width:${Math.round(g.total / maxTotal * 100)}%"></div><span class="stats-bar-label">${g.total}</span></div></td>` +
+           `<td class="stats-chips-cell">${chips}</td></tr>`;
+    });
+    e.innerHTML = h + '</tbody></table>';
+  }
+  window.statsSvPortBy = function (by) { _svPortBy = (by === 'port') ? 'port' : 'sv'; _renderSvPort(); };
   function _renderUn() {
     const e = document.getElementById('statsPane-un');
     if (!e || !_data) return;
@@ -1215,6 +1289,7 @@
     else if (id === 'customer') _renderCustomer();
     else if (id === 'nm')       _renderNm();
     else if (id === 'un')       _renderUn();
+    else if (id === 'svport')   _renderSvPort();
     else if (id === 'charges')  _renderCharges();
     else if (id === 'master')   _renderMaster();
     else if (id === 'alias')    _renderAlias();
@@ -1240,6 +1315,7 @@
     else if (paneId === 'customer') _renderCustomer();
     else if (paneId === 'nm')       _renderNm();
     else if (paneId === 'un')       _renderUn();
+    else if (paneId === 'svport')   _renderSvPort();
     else if (paneId === 'charges')  _renderCharges();
     else if (paneId === 'master')   _renderMaster();
     else if (paneId === 'alias')    _renderAlias();

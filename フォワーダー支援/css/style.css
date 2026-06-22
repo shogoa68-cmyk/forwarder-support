@@ -2199,6 +2199,21 @@ body:has(#compareOverlay.open) #quoteActionDock { display: none; }
 }
 .stats-syn-dissolve:hover { background: #fdeaea; }
 
+/* サブコン×港ペア タブ */
+.svp-toolbar {
+  display: flex; align-items: center; gap: 8px;
+  margin: 0 0 10px;
+}
+.svp-by-label { font-size: 12px; color: #8a7656; font-weight: 700; }
+.svp-by-btn {
+  font-size: 12px; border: 1px solid #d8c8a8; background: #fffdf8;
+  color: #5a4a38; border-radius: 6px; padding: 4px 12px; cursor: pointer;
+}
+.svp-by-btn:hover { background: #f0e8d8; }
+.svp-by-btn.is-active {
+  background: #f7eccb; border-color: #e0b84a; color: #6b4f10; font-weight: 700;
+}
+
 /* ペイン */
 .stats-pane {
   display: none;
