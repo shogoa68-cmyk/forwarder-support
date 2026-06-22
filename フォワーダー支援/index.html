@@ -3532,6 +3532,11 @@
           <button class="save-btn pv-layout-btn" data-pvl="table" onclick="setPreviewLayout('table')" title="表計算形式：明細を編集チェック向けの表で表示">📋 表計算</button>
           <button class="save-btn pv-layout-btn is-on" data-pvl="doc" onclick="setPreviewLayout('doc')" title="御見積書フォーマット：客先提出と同じ体裁で表示">📄 見積書</button>
         </div>
+        <!-- 御見積書(doc)レイアウト用の発行日／有効期限 編集バー（表計算は pvMeta 内に同等入力あり） -->
+        <div id="pvDateEdit" class="pv-date-edit">
+          <label class="pv-de-item"><span>発行日</span><input type="date" id="pvDocDate" onchange="pvSyncDate('date', this.value)" title="フォームの発行日と同期します（御見積書に反映）" /></label>
+          <label class="pv-de-item"><span>有効期限</span><input type="date" id="pvDocValid" onchange="pvSyncDate('valid', this.value)" title="フォームの有効期限と同期します（御見積書に反映）" /></label>
+        </div>
         <div id="pvMeta" class="pv-meta" style="display:none;"></div>
         <div id="pvCondBox" style="display:none;"><strong>🚢 引き合い条件</strong></div>
         <div id="pvCargoBox" style="display:none;"></div>
