@@ -3070,17 +3070,17 @@
   text-align: left !important;
   color: #8b6914;
 }
-/* サブコン別 小計セパレーター（プレビュー） */
+/* サブコン別 小計セパレーター（プレビュー）：他の行と明確に区別できる色 */
 #tab-quote-make #previewTable tr.pv-subcon-subtotal td {
-  background: #f5ede0;
-  border-top: 2px solid #cdab6f;
-  border-bottom: 2px solid #cdab6f;
+  background: #ecdcb3;
+  border-top: 2px solid #c9a85f;
+  border-bottom: 2px solid #c9a85f;
   font-weight: bold;
   font-size: 12px;
   padding: 5px 8px;
 }
 #tab-quote-make #previewTable .pv-scs-label {
-  text-align: left !important;
+  text-align: right !important;
   color: #5a3e28;
 }
 #tab-quote-make #previewTable .pv-scs-label .pv-scs-cost,
