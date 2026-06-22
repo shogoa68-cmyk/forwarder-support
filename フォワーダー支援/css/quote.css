@@ -3044,7 +3044,10 @@
 #tab-quote-make #previewTable th {
   background: #3d2e1e; color: #fff; border: 1px solid #a8947e;
   padding: 6px 10px; font-weight: 600;
+  /* テーブル部分を内部スクロール（max-height）させた際、列ヘッダーを上端に固定 */
+  position: sticky; top: 0; z-index: 3;
 }
+@media print { #tab-quote-make #previewTable th { position: static; } }
 #tab-quote-make #previewTable th.ph-pay    { background: #8b6914; }
 #tab-quote-make #previewTable th.ph-bill   { background: #5a6e42; }
 #tab-quote-make #previewTable th.ph-profit { background: #9a4a25; }
