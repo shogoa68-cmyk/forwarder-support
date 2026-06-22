@@ -46,6 +46,7 @@
   const MODS = [
     { id: 'digest',   icon: '🧭', label: '要約',    title: '要約',         panel: 'quoteSummaryPanel', tab: 'digest' },
     { id: 'flow',     icon: '🚚', label: '輸送',    title: '輸送',         panel: 'quoteSummaryPanel', tab: 'flow'   },
+    { id: 'bookmark', icon: '🔖', label: 'ブク',    title: 'ブックマーク',  panel: 'bmRailPanel' },
     { id: 'fin',      icon: '💰', label: '金額',    title: '金額',         panel: 'quoteSummaryPanel', tab: 'fin'    },
     { id: 'chat',     icon: '💬', label: '申し送り', title: '申し送り',     panel: 'quoteSummaryPanel', tab: 'chat'   },
     { id: 'similar',  icon: '🔍', label: '類似',    title: '類似見積',     panel: 'sqPanel' },
@@ -81,6 +82,7 @@
       scPanel:           document.getElementById('scPanel'),
       siPanel:           document.getElementById('siPanel'),
       lcRailPanel:       document.getElementById('lcRailPanel'),
+      bmRailPanel:       document.getElementById('bmRailPanel'),
     };
 
     // シェル骨格
@@ -177,6 +179,10 @@
     if (mod === 'charges' && typeof window.loadChargesRail === 'function') {
       window.loadChargesRail();
     }
+    // ブックマークパネル：アクティブ化時に案件連動チップを描画
+    if (mod === 'bookmark' && typeof window.renderQuoteBookmarkRail === 'function') {
+      window.renderQuoteBookmarkRail();
+    }
   }
 
   function render() {
@@ -198,7 +204,7 @@
 
     // パネル出し分け（active のモジュールの panel だけ表示）
     const showPanel = def ? def.panel : null;
-    ['quoteSummaryPanel', 'sqPanel', 'scPanel', 'siPanel', 'lcRailPanel'].forEach(function (id) {
+    ['quoteSummaryPanel', 'sqPanel', 'scPanel', 'siPanel', 'lcRailPanel', 'bmRailPanel'].forEach(function (id) {
       const el = document.getElementById(id);
       if (!el) return;
       // sqPanel は内部で hidden 属性を自前制御するため、表示は wrapper 側で行う

@@ -6583,6 +6583,23 @@ body.qp-dash-active #quoteActionDock { display: none !important; }
   transition: background .12s, color .12s, border-color .12s;
 }
 #tab-quote-make .qsp-bm-new-chip:hover { background: #4a9c59; color: #fff; border-color: #4a9c59; border-style: solid; }
+
+/* ===== 右カラム「🔖 ブックマーク」パネル（案件連動リンクチップ） ===== */
+#tab-quote-make .bm-rail-panel { display: flex; flex-direction: column; gap: 8px; padding: 4px 2px; }
+#tab-quote-make .bm-rail-head {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 8px; padding: 2px 2px 6px; border-bottom: 1px solid #ece4d8;
+}
+#tab-quote-make .bm-rail-title { font-size: 12.5px; font-weight: 800; color: #5a3e28; letter-spacing: .02em; }
+#tab-quote-make .bm-rail-manage {
+  font-size: 11px; padding: 3px 9px; border: 1px solid #d4c0a4; border-radius: 6px;
+  background: #fff; color: #6b5a42; cursor: pointer; white-space: nowrap;
+}
+#tab-quote-make .bm-rail-manage:hover { background: #f5ede0; }
+#tab-quote-make .bm-rail-chips { display: flex; flex-direction: column; gap: 10px; }
+#tab-quote-make .bm-rail-chips .qsp-ms-carrier { display: flex; flex-direction: column; gap: 5px; }
+#tab-quote-make .bm-rail-chips .qsp-ms-carrier-name { font-size: 11.5px; font-weight: 700; color: #3d2e1e; }
+#tab-quote-make .bm-rail-empty { font-size: 11.5px; color: #8a7a64; line-height: 1.7; padding: 8px 4px; }
 #tab-quote-make .qsp-ms-filter-hint {
   margin-top: 8px; font-size: 11px; color: #1a4a8f;
   background: #eef3fc; border: 1px solid #c5d8ef; border-radius: 6px; padding: 5px 8px;
