@@ -244,9 +244,8 @@
     let _scKey = null, _scLabel = null, _scJpy = 0, _scHas = false;
     const _scPush = () => {
       if (_scActive && _scHas) {
-        const _al = (typeof getSubconAliases === 'function' ? getSubconAliases()[_scKey] : '') || '';
-        const _lbl = _al || _scLabel;
-        lineHTML.push(`<tr class="qd-subcon-sub"><td colspan="4">↳ ${esc(_lbl)} 小計</td><td class="qd-num">¥${fmtInt(_scJpy)}</td></tr>`);
+        // サブコン名は見出し行に表示済みのため、小計行では繰り返さず「小計」のみ
+        lineHTML.push(`<tr class="qd-subcon-sub"><td colspan="4">↳ 小計</td><td class="qd-num">¥${fmtInt(_scJpy)}</td></tr>`);
       }
     };
     rows.forEach(r => {
