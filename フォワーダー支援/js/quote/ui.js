@@ -2503,51 +2503,9 @@
           </div>`;
       }).join('');
       const subcon = subconOf(m.z);
-      let subconHTML = subcon
+      const subconHTML = subcon
         ? `<div class="qsp-ms-subcon" title="サブコン">👷 ${escapeHtml(subcon)}</div>` : '';
-      // 出発地側・到着地側（z1/z3）：デフォルトサブコンのブックマークチップを表示
-      if ((m.z === 'z1' || m.z === 'z3') && subcon) {
-        const bmCache = window._qspBmCache || {};
-        const bms = (bmCache[subcon] || []).filter(b => b.url);
-        const addChip = `<button class="qsp-bm-new-chip" data-bm-carrier="${escapeHtml(subcon)}" onclick="openAddBmModal({carrier:this.dataset.bmCarrier})" title="${escapeHtml(subcon)} のブックマークを追加">＋</button>`;
-        const chips = bms.length
-          ? `<div class="qsp-ms-cl-chips">` + bms.map(bm =>
-              `<span class="qsp-ms-cl-chip-wrap"><a class="qsp-ms-cl-chip qsp-ms-cl-chip--user" href="${escapeHtml(bm.url)}" target="_blank" rel="noopener" title="${escapeHtml(bm.note || bm.label)}">${escapeHtml(bm.label)}</a></span>`
-            ).join('') + addChip + `</div>`
-          : `<div class="qsp-ms-cl-chips">${addChip}</div>`;
-        subconHTML = `<div class="qsp-ms-carrier"><div class="qsp-ms-carrier-name">👷 ${escapeHtml(subcon)}</div>${chips}</div>`;
-      }
-      // 幹線輸送（z2）：入力されたキャリアに応じてリンクチップを表示
-      if (m.z === 'z2' && typeof window.getCarrierLinkData === 'function') {
-        const carriers = window.getCarrierLinkData().filter(cd => cd.name);
-        if (carriers.length) {
-          subconHTML = carriers.map(cd => {
-            const addChip = `<button class="qsp-bm-new-chip" data-bm-carrier="${escapeHtml(cd.name)}" onclick="openAddBmModal({carrier:this.dataset.bmCarrier})" title="${escapeHtml(cd.name)} のブックマークを追加">＋</button>`;
-            const chips = cd.links.length
-              ? `<div class="qsp-ms-cl-chips">` + cd.links.map(l => {
-                  if (l.isUserBm) {
-                    // ユーザー追加ブックマーク：編集ボタンなし（Bookmark タブで管理）
-                    return `<span class="qsp-ms-cl-chip-wrap">`
-                      + `<a class="qsp-ms-cl-chip qsp-ms-cl-chip--user" href="${escapeHtml(l.url)}" target="_blank" rel="noopener" title="${escapeHtml(l.title)}">${escapeHtml(l.label)}</a>`
-                      + `</span>`;
-                  }
-                  const bmLabel   = escapeHtml(`${cd.name} ${l.label}`);
-                  const bmUrl     = escapeHtml(l.url);
-                  const bmCarrier = escapeHtml(cd.name);
-                  const bmFn      = escapeHtml(l.label);
-                  return `<span class="qsp-ms-cl-chip-wrap">`
-                    + `<a class="qsp-ms-cl-chip" href="${l.url}" target="_blank" rel="noopener" title="${escapeHtml(l.title)}">${escapeHtml(l.label)}</a>`
-                    + `<button class="qsp-chip-edit-btn" data-bm-label="${bmLabel}" data-bm-url="${bmUrl}" data-bm-carrier="${bmCarrier}" data-bm-fn="${bmFn}" onclick="openAddBmModal({label:this.dataset.bmLabel,url:this.dataset.bmUrl,carrier:this.dataset.bmCarrier,fn:this.dataset.bmFn})" title="このリンクを修正してブックマークに保存">✎</button>`
-                    + `</span>`;
-                }).join('') + addChip + `</div>`
-              : `<div class="qsp-ms-cl-chips">${addChip}</div>`;
-            return `<div class="qsp-ms-carrier">
-                <div class="qsp-ms-carrier-name">${cd.icon || '🚢'} ${escapeHtml(cd.name)}</div>
-                ${chips}
-              </div>`;
-          }).join('');
-        }
-      }
+      // ※ キャリア／サブコンのリンクチップは右カラム「🔖 ブックマーク」タブへ分離（renderQuoteBookmarkRail）
       const statusBadge = active ? '' : '<span class="qsp-mod-off">対象外</span>';
       return `<div class="qsp-mod ${active ? '' : 'is-off'}" data-zone="${m.z}">
           <div class="qsp-mod-head" onclick="filterQuoteByModule('${m.z}')" title="クリックでこのモジュールの費用だけを絞り込み表示（再クリックで解除）">
@@ -2574,6 +2532,69 @@
       <div class="qsp-ms-filter-hint" id="qspMsFilterHint" style="display:none;"></div>`;
     // フィルタ中ならアクティブ表示を復元
     if (window._activeModuleFilter) applyModuleFilterUI(window._activeModuleFilter);
+    // キャリア／サブコンのリンクチップは右カラム「🔖 ブックマーク」タブに分離表示
+    if (typeof window.renderQuoteBookmarkRail === 'function') window.renderQuoteBookmarkRail();
+  };
+
+  // ===== 案件連動ブックマーク（右カラム「🔖 ブックマーク」タブ）=====
+  // 輸送タブのマイルストーンから分離。現在の案件に関係するキャリア（z2 幹線）と
+  // 出発地側/到着地側のデフォルトサブコン（z1/z3）のリンクチップを集約表示する。
+  // 青チップ＝内蔵キャリアDBの公式リンク（隣の ✎ で自分用BMへ複製）、
+  // 緑チップ＝ユーザー登録ブックマーク、緑破線＋＝新規追加。
+  window.renderQuoteBookmarkRail = function () {
+    const wrap = document.getElementById('bmRailChips');
+    if (!wrap) return;
+    const st = (typeof window.getTransportState === 'function') ? window.getTransportState() : null;
+    const bmCache = window._qspBmCache || {};
+    const blocks = [];
+
+    // z1/z3 サブコン：ユーザーブックマークのみ（＋追加）
+    const subconBlock = (subcon) => {
+      if (!subcon) return '';
+      const bms = (bmCache[subcon] || []).filter(b => b.url);
+      const addChip = `<button class="qsp-bm-new-chip" data-bm-carrier="${escapeHtml(subcon)}" onclick="openAddBmModal({carrier:this.dataset.bmCarrier})" title="${escapeHtml(subcon)} のブックマークを追加">＋</button>`;
+      const chips = bms.map(bm =>
+        `<span class="qsp-ms-cl-chip-wrap"><a class="qsp-ms-cl-chip qsp-ms-cl-chip--user" href="${escapeHtml(bm.url)}" target="_blank" rel="noopener" title="${escapeHtml(bm.note || bm.label)}">${escapeHtml(bm.label)}</a></span>`
+      ).join('') + addChip;
+      return `<div class="qsp-ms-carrier"><div class="qsp-ms-carrier-name">👷 ${escapeHtml(subcon)}</div><div class="qsp-ms-cl-chips">${chips}</div></div>`;
+    };
+
+    // ① 出発地側サブコン
+    if (st && st.zone1On) {
+      const sc1 = (document.getElementById('z1DefaultSc')?.value || '').trim();
+      if (sc1) blocks.push(subconBlock(sc1));
+    }
+    // ② 幹線輸送キャリア（内蔵リンク＋ユーザーBM）
+    if (typeof window.getCarrierLinkData === 'function') {
+      window.getCarrierLinkData().filter(cd => cd.name).forEach(cd => {
+        const addChip = `<button class="qsp-bm-new-chip" data-bm-carrier="${escapeHtml(cd.name)}" onclick="openAddBmModal({carrier:this.dataset.bmCarrier})" title="${escapeHtml(cd.name)} のブックマークを追加">＋</button>`;
+        const chips = cd.links.map(l => {
+          if (l.isUserBm) {
+            return `<span class="qsp-ms-cl-chip-wrap"><a class="qsp-ms-cl-chip qsp-ms-cl-chip--user" href="${escapeHtml(l.url)}" target="_blank" rel="noopener" title="${escapeHtml(l.title)}">${escapeHtml(l.label)}</a></span>`;
+          }
+          const bmLabel = escapeHtml(`${cd.name} ${l.label}`);
+          const bmUrl = escapeHtml(l.url);
+          const bmCarrier = escapeHtml(cd.name);
+          const bmFn = escapeHtml(l.label);
+          return `<span class="qsp-ms-cl-chip-wrap">`
+            + `<a class="qsp-ms-cl-chip" href="${l.url}" target="_blank" rel="noopener" title="${escapeHtml(l.title)}">${escapeHtml(l.label)}</a>`
+            + `<button class="qsp-chip-edit-btn" data-bm-label="${bmLabel}" data-bm-url="${bmUrl}" data-bm-carrier="${bmCarrier}" data-bm-fn="${bmFn}" onclick="openAddBmModal({label:this.dataset.bmLabel,url:this.dataset.bmUrl,carrier:this.dataset.bmCarrier,fn:this.dataset.bmFn})" title="このリンクを修正してブックマークに保存">✎</button>`
+            + `</span>`;
+        }).join('') + addChip;
+        blocks.push(`<div class="qsp-ms-carrier"><div class="qsp-ms-carrier-name">${cd.icon || '🚢'} ${escapeHtml(cd.name)}</div><div class="qsp-ms-cl-chips">${chips}</div></div>`);
+      });
+    }
+    // ③ 到着地側サブコン
+    if (st && st.zone3On) {
+      const sc3 = (document.getElementById('z3DefaultSc')?.value || '').trim();
+      if (sc3) blocks.push(subconBlock(sc3));
+    }
+
+    if (!blocks.length) {
+      wrap.innerHTML = '<div class="bm-rail-empty">「貿易条件・輸送モード」で輸送モードとキャリア／サブコンを設定すると、関連するリンクチップがここに表示されます。<br><br>青＝内蔵リンク（隣の ✎ で自分用に保存）、緑＝チーム共有ブックマーク、＋＝新規追加。</div>';
+      return;
+    }
+    wrap.innerHTML = blocks.join('');
   };
 
   // ===== モジュール（区間）別フィルタ =====
