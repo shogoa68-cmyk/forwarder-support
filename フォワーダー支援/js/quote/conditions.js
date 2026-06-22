@@ -6,7 +6,7 @@
 
   function clearConditions() {
     if (!confirm('貨物情報・引き合い条件をクリアしますか？')) return;
-    ['z2Carrier','z2Service','z2Pol','z2Pod','cond-origin','cond-dest','cond-cargo','cond-hs','cond-hs-basic','cond-hs-pref','cond-hs-pref-note',
+    ['z2Carrier','z2Service','z2Pol','z2Via','z2Pod','z2Tt','cond-origin','cond-dest','cond-cargo','cond-hs','cond-hs-basic','cond-hs-pref','cond-hs-pref-note',
      'cond-packing','cond-packing-preset','condFreeText',
      'cond-origin-country','cond-dest-country','z1Place','z1Country','z3Place','z3Country',
      'cond-container-count']
@@ -1205,6 +1205,7 @@
         + `<span class="z2-route-carrier">${_escMulti(r.carrier || '—')}</span>`
         + (r.service ? `<span class="z2-route-service">${_escMulti(r.service)}</span>` : '')
         + `<span class="z2-route-leg">${route}</span>`
+        + (r.tt ? `<span class="z2-route-tt" title="Transit Time（所要日数）">⏱️ ${_escMulti(r.tt)}</span>` : '')
         + `<button type="button" class="z2-route-edit" onclick="editRouteEntry(${i})" title="編集（フォームに書き戻す）">✎</button>`
         + `<button type="button" class="me-chip-del" onclick="removeRouteEntry(${i})" title="削除">×</button></span>`;
     }).join('');
@@ -1217,17 +1218,20 @@
     const pol = (document.getElementById('z2Pol')?.value || '').trim();
     const via = (document.getElementById('z2Via')?.value || '').trim();
     const pod = (document.getElementById('z2Pod')?.value || '').trim();
+    const tt  = (document.getElementById('z2Tt')?.value || '').trim();
     if (!carrier && !pol && !pod) {
       if (typeof quoteShowToast==='function') quoteShowToast('⚠️ キャリアまたはPOL/PODを入力してください', 'warn', 1800);
       return;
     }
-    _routeEntries.push({ carrier, service, pol, via, pod, enabled: true });
+    _routeEntries.push({ carrier, service, pol, via, pod, tt, enabled: true });
     _renderRouteEntries();
-    // キャリア・サービス名をクリアして次の入力へ（POL/POD は同じ航路に別キャリアを追加できるよう保持）
+    // キャリア・サービス名・T/T をクリアして次の入力へ（POL/POD は同じ航路に別キャリアを追加できるよう保持）
     const carrierEl = document.getElementById('z2Carrier');
     if (carrierEl) { carrierEl.value = ''; }
     const serviceEl = document.getElementById('z2Service');
     if (serviceEl) { serviceEl.value = ''; }
+    const ttEl = document.getElementById('z2Tt');
+    if (ttEl) { ttEl.value = ''; }
     if (typeof onZ2CarrierChange === 'function') onZ2CarrierChange();
     document.getElementById('z2Carrier')?.focus();
     if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
@@ -1259,6 +1263,7 @@
     set('z2Pol', r.pol);
     set('z2Via', r.via);
     set('z2Pod', r.pod);
+    set('z2Tt', r.tt);
     // エントリを削除して再描画
     _routeEntries.splice(i, 1);
     _renderRouteEntries();
