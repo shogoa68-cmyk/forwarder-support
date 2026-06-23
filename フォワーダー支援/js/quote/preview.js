@@ -671,7 +671,7 @@
         ];
     const condFields = [
       ...routeFields,
-      { lbl: '発地',            val: cond.origin },
+      { lbl: cond.direction === 'export' ? '集荷地' : '発地', val: cond.origin },
       { lbl: '仕向地',          val: cond.dest },
       { lbl: 'インコタームズ',  val: cond.incoterms },
       { lbl: '輸送モード',      val: cond.mode },

@@ -184,7 +184,8 @@
       push('積み地（POL）', cond.pol);
       push('揚げ地（POD）', cond.pod);
     }
-    push('原産地', cond.origin);
+    // 出発地側ラベル：輸出は「集荷地」（原産地＝customs の原産地と混同しないため）。輸入・未設定は中立的に「発地」
+    push(cond.direction === 'export' ? '集荷地' : '発地', cond.origin);
     push('仕向地', cond.dest);
     push('コンテナ', cond.container);
     push('貨物名', cond.cargo);
