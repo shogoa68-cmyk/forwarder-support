@@ -749,7 +749,9 @@
     }
     if (!_synAll().find(g => g.field === field && g.canonical === value))
       await _synUpsert(field, value, []);
-    await _synAfter('⭐「' + value + '」を代表に設定しました');
+    // 統合（A案）: 代表は自動的にマスター登録
+    if (typeof window.statsEnsureMaster === 'function') await window.statsEnsureMaster(field, value);
+    await _synAfter('⭐「' + value + '」を代表（マスター）に設定しました');
   };
 
   window.synAddAlias = async function (field, alias, canonical) {
@@ -766,6 +768,12 @@
     const g = _synAll().find(x => x.field === field && x.canonical === canonical);
     const aliases = [...new Set([...((g && g.aliases) || []), alias, ...absorbed])];
     await _synUpsert(field, canonical, aliases);
+    // 統合（A案）: 代表は自動マスター化、統合した別名（および吸収した旧代表）はマスターから外す
+    if (typeof window.statsEnsureMaster === 'function') await window.statsEnsureMaster(field, canonical);
+    if (typeof window.statsEnsureNotMaster === 'function') {
+      await window.statsEnsureNotMaster(field, alias);
+      for (const a of absorbed) await window.statsEnsureNotMaster(field, a);
+    }
     await _synAfter('✅「' + alias + '」→「' + canonical + '」に統合しました');
   };
 

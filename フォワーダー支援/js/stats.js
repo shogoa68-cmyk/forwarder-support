@@ -1067,11 +1067,15 @@
       .map(g => ({ field: 'un', canonical: g.canonical, aliases: g.aliases || [] }));
     const allSyn = [...synGroups, ...unitGroups]
       .sort((a, b) => (labels[a.field] || a.field).localeCompare(labels[b.field] || b.field) || (a.canonical || '').localeCompare(b.canonical || ''));
+    // 統合（A案）: 代表(canonical)は自動的にマスター扱い。個別マスター表からは除外し、
+    // 下の「同義グループ（代表＝マスター）」欄に集約表示する（二重表示を避ける）。
+    const synCanonSet = new Set(allSyn.map(g => g.field + '\x00' + g.canonical));
+    entries = entries.filter(m => !synCanonSet.has(m.field + '\x00' + m.value));
     let synH = '';
     if (allSyn.length) {
-      synH = '<div class="stats-syn-section"><p class="stats-master-info-title">⭐ 同義グループ（代表 → 統合）</p>' +
-        `<p class="stats-master-info-note">集計タブの ☆代表 / ⤵統合 で作成。件数は合算され、入力補完にも反映されます。${cloudOn ? '（チーム共有）' : '（このブラウザに保存）'}</p>` +
-        '<table class="stats-table"><thead><tr><th>種別</th><th>代表</th><th>統合された表記</th><th>操作</th></tr></thead><tbody>';
+      synH = '<div class="stats-syn-section"><p class="stats-master-info-title">⭐ 同義グループ（代表＝マスター）</p>' +
+        `<p class="stats-master-info-note">⭐代表は自動的にマスター登録され、統合した別名はマスターから外れます。集計タブの ☆代表 / ⤵統合 で作成。件数は合算され入力補完にも反映されます。${cloudOn ? '（チーム共有）' : '（このブラウザに保存）'}</p>` +
+        '<table class="stats-table"><thead><tr><th>種別</th><th>代表（マスター）</th><th>統合された表記</th><th>操作</th></tr></thead><tbody>';
       allSyn.forEach(g => {
         const isUnit  = g.field === 'un';
         const aliases = g.aliases || [];
@@ -1093,7 +1097,10 @@
     }
 
     if (!entries.length) {
-      e.innerHTML = '<p class="stats-empty">マスター登録はまだありません。<br>各集計の ☆ 登録 ボタンで追加できます。</p>' + synH;
+      const note = allSyn.length
+        ? '<p class="stats-empty">個別マスターはありません（同義グループの代表が下に「マスター」として表示されています）。</p>'
+        : '<p class="stats-empty">マスター登録はまだありません。<br>各集計の ☆登録（個別）または ⭐代表（同義グループ）で追加できます。</p>';
+      e.innerHTML = note + synH;
       return;
     }
     const usageDesc = {
@@ -1106,7 +1113,7 @@
     const sorted = entries.sort((a, b) => (labels[a.field] || a.field).localeCompare(labels[b.field] || b.field) || (a.value || '').localeCompare(b.value || ''));
     const abbrevPairs = (typeof window.arGetAbbrevPairs === 'function') ? window.arGetAbbrevPairs() : [];
     let h = '<div class="stats-master-info">' +
-            '<p class="stats-master-info-title">✅ マスター登録した表記の活用方法</p>' +
+            '<p class="stats-master-info-title">✅ 個別マスター（同義グループに属さない表記）の活用方法</p>' +
             '<ul class="stats-master-usage-list">' +
             Object.entries(usageDesc).map(([f, desc]) =>
               `<li><b>${labels[f] || f}</b>：${desc}</li>`).join('') +
@@ -1411,6 +1418,17 @@
   // 後方互換
   window.statsPromote = async function (f, v) { await _promote(f, v); _renderActivePane(); };
   window.statsDemote  = async function (f, v) { await _demote(f, v);  _renderMaster(); };
+
+  // 統合（A案）: 同義グループの代表設定/統合から呼ぶ冪等ヘルパー。
+  // 代表は自動マスター化、別名はマスター解除（自分の票のみ操作）。
+  window.statsEnsureMaster = async function (field, value) {
+    try { if (!_voteInfo(field, value).isMine) await _promote(field, value); }
+    catch (err) { console.error('[statsEnsureMaster]', err); }
+  };
+  window.statsEnsureNotMaster = async function (field, value) {
+    try { if (_voteInfo(field, value).isMine) await _demote(field, value); }
+    catch (err) { console.error('[statsEnsureNotMaster]', err); }
+  };
 
   window.statsMasterAddAbbrev = function (field, value) {
     const labels = { sv: 'サブコン', nm: '品名', un: '単位', customer: 'お客様', port: '港' };
