@@ -120,8 +120,10 @@
       const profit = bill - cost;
       const note   = document.getElementById(`nt-${id}`)?.value || '';
       const sv     = document.getElementById(`sv-${id}`)?.value || '';
-      const vf     = document.getElementById(`vf-${id}`)?.value || '';
-      const vt     = document.getElementById(`vt-${id}`)?.value || '';
+      // 有効期限（vf/vt）はサーチャージ専用。他カテゴリは値が残っていても無視する
+      const _isSur = cat === 'surcharge';
+      const vf     = _isSur ? (document.getElementById(`vf-${id}`)?.value || '') : '';
+      const vt     = _isSur ? (document.getElementById(`vt-${id}`)?.value || '') : '';
       const zc     = document.getElementById(`zc-${id}`)?.value === '1';
       const _hideManual = tr.dataset.hideQuote === '1';   // 手動の見積書非表示
       const _outRange   = tr.dataset.outRange === '1';     // 適用期間外（自動・客先非表示＋合計除外）

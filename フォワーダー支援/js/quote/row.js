@@ -10,6 +10,16 @@
       const catObj = getAllCategories().find(c => c.value === cat);
       if (catObj?.cls) tr.classList.add(catObj.cls);
     }
+    // 有効期限（vf/vt）はサーチャージ専用。サーチャージ以外に変更したら値を消す
+    // （CSS で欄は隠れるが、値が残るとプレビューのバッジ・期間外判定に漏れるため）。
+    // 復元時は _applyCells で値をセットした後にここが呼ばれるので、旧データの掃除も兼ねる。
+    if (cat !== 'surcharge') {
+      const vf = document.getElementById(`vf-${id}`);
+      const vt = document.getElementById(`vt-${id}`);
+      if (vf && vf.value) vf.value = '';
+      if (vt && vt.value) vt.value = '';
+      if (tr) { delete tr.dataset.outRange; tr.classList.remove('row-out-of-range'); }
+    }
   }
 
   // サーチャージ有効期限：開始日だけ入れたとき、終了日が未入力ならその月の月末を自動セットする
@@ -44,6 +54,8 @@
   function isRowOutOfRange(tr) {
     if (!tr || !tr.id || !tr.id.startsWith('row-')) return false;
     const id = tr.id.replace('row-', '');
+    // 有効期限はサーチャージ専用。他カテゴリの行は（値が残っていても）対象外
+    if ((document.getElementById(`cat-${id}`)?.value || '') !== 'surcharge') return false;
     const vf = document.getElementById(`vf-${id}`)?.value || '';
     const vt = document.getElementById(`vt-${id}`)?.value || '';
     if (!vf && !vt) return false;        // 適用期間の指定がない行は対象外
@@ -510,7 +522,7 @@
     if (initSv) q('sv').value = initSv;
 
     // Event handlers
-    q('cat').onchange  = () => onCatChange(id);
+    q('cat').onchange  = () => { onCatChange(id); updateTotals(); };  // 期間外判定・合計を即反映
     q('tx').onchange   = () => toggleTax(id);
     q('tx').onkeydown  = e  => { if (e.key === 'Enter') { e.preventDefault(); e.target.checked = !e.target.checked; toggleTax(id); } };
     q('nm').oninput    = () => checkUnfilled(id);
