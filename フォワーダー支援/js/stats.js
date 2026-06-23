@@ -1089,6 +1089,17 @@
     }
     const labels = { sv: 'サブコン', nm: '品名', un: '単位', customer: 'お客様', port: '港' };
 
+    // --- 代表を新規登録するフォーム（実データに無い名称も登録可）---
+    const fieldOpts = [['sv', 'サブコン'], ['nm', '品名'], ['customer', 'お客様'], ['port', '港'], ['un', '単位']]
+      .map(([v, l]) => `<option value="${v}">${l}</option>`).join('');
+    const formH = '<div class="master-new-form">' +
+      '<span class="master-new-label">➕ 代表を新規登録</span>' +
+      `<select id="masterNewField" class="ar-select">${fieldOpts}</select>` +
+      '<input id="masterNewValue" class="ar-input" type="text" placeholder="代表名称（例: ABC Corporation Ltd.）" onkeydown="if(event.key===\'Enter\')statsMasterAddCanonical()" />' +
+      '<button class="master-new-btn" onclick="statsMasterAddCanonical()">登録</button>' +
+      '<span class="master-new-hint">実際の入力値に無い名称でも登録できます。登録後、集計タブの ⤵統合 で表記を束ねられます。</span>' +
+      '</div>';
+
     // --- 同義グループ一覧（sv/nm/customer/port は syn*、un は ua* から集約）---
     const synGroups = (typeof window.synGetGroups === 'function' ? window.synGetGroups() : []).slice();
     const unitGroups = (typeof window.uaGetGroups === 'function' ? window.uaGetGroups() : [])
@@ -1119,7 +1130,8 @@
         synH += `<tr><td>${labels[g.field] || g.field}</td>` +
                 `<td class="stats-val"><span class="ua-star">⭐</span>${_esc(g.canonical)}</td>` +
                 `<td>${chips}</td>` +
-                `<td><button class="ua-remove-canon" title="グループを解除" onclick="${delGroup}">解除</button></td></tr>`;
+                `<td><button class="stats-master-rename" title="代表名を変更（旧名称は別名として残ります）" onclick="statsMasterRename('${_ea(g.field)}','${_ea(g.canonical)}')">✏️ 名称変更</button>` +
+                `<button class="ua-remove-canon" title="グループを解除" onclick="${delGroup}">解除</button></td></tr>`;
       });
       synH += '</tbody></table></div>';
     }
@@ -1128,7 +1140,7 @@
       const note = allSyn.length
         ? '<p class="stats-empty">個別マスターはありません（同義グループの代表が下に「マスター」として表示されています）。</p>'
         : '<p class="stats-empty">マスター登録はまだありません。<br>各集計の ☆登録（個別）または ⭐代表（同義グループ）で追加できます。</p>';
-      e.innerHTML = note + synH;
+      e.innerHTML = formH + note + synH;
       return;
     }
     const usageDesc = {
@@ -1169,7 +1181,7 @@
            `<td>${m.isMine ? `<button class="stats-demote-btn" onclick="statsToggleVote('${_ea(m.field)}','${_ea(m.value)}')">解除</button>` : '<span class="stats-empty-cell">他メンバー</span>'}</td>` +
            `</tr>`;
     });
-    e.innerHTML = h + '</tbody></table>' + synH;
+    e.innerHTML = formH + h + '</tbody></table>' + synH;
   }
 
   // マスタータブから単位同義グループを操作した際、マスター画面も再描画する薄いラッパ
@@ -1179,6 +1191,36 @@
   };
   window.statsUnitRemoveAlias = function (alias, canonical) {
     if (typeof window.uaRemoveAlias === 'function') window.uaRemoveAlias(alias, canonical);
+    if (typeof window.statsRerenderActive === 'function') window.statsRerenderActive();
+  };
+
+  // マスター管理: 代表を新規登録（実データに無い名称も可）
+  window.statsMasterAddCanonical = async function () {
+    const fSel = document.getElementById('masterNewField');
+    const inp  = document.getElementById('masterNewValue');
+    if (!fSel || !inp) return;
+    const field = fSel.value;
+    const value = (inp.value || '').trim();
+    if (!value) { if (typeof window.quoteShowToast === 'function') window.quoteShowToast('代表名称を入力してください', 'warn'); return; }
+    if (field === 'un') {
+      if (typeof window.uaSetCanonical === 'function') window.uaSetCanonical(value);
+    } else if (typeof window.synSetCanonical === 'function') {
+      await window.synSetCanonical(field, value);
+    }
+    inp.value = '';
+    if (typeof window.statsRerenderActive === 'function') window.statsRerenderActive();
+  };
+  // マスター管理: 代表名を編集（リネーム）。旧名称は別名として残る
+  window.statsMasterRename = async function (field, canonical) {
+    const nv = window.prompt('新しい代表名を入力してください。\n（旧名称「' + canonical + '」は別名としてグループに残ります）', canonical);
+    if (nv == null) return;
+    const v = nv.trim();
+    if (!v || v === canonical) return;
+    if (field === 'un') {
+      if (typeof window.uaRenameCanonical === 'function') window.uaRenameCanonical(canonical, v);
+    } else if (typeof window.synRenameCanonical === 'function') {
+      await window.synRenameCanonical(field, canonical, v);
+    }
     if (typeof window.statsRerenderActive === 'function') window.statsRerenderActive();
   };
 
