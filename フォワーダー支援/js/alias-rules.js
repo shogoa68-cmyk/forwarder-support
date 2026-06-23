@@ -528,7 +528,71 @@
 
   document.addEventListener('DOMContentLoaded', _refreshDatalist);
 
-  // === ユニット同義語グループ ===
+  // === 入力支援：統合表記を入力したら代表表記への置換を提案（インライン） ===
+  // 入力欄の list 属性 → フィールド種別。これらの datalist は見積タブ内にしか存在しない。
+  const _LIST_FIELD = {
+    svSuggestions: 'sv', nmSuggestions: 'nm', 'unit-list': 'un',
+    custSuggestions: 'customer', portSuggestions: 'port',
+  };
+  // 入力値が「ある同義グループの統合表記（別名）」なら代表名を返す。代表名そのもの・未登録なら null。
+  function _canonicalFor(field, value) {
+    const v = (value || '').trim();
+    if (!v) return null;
+    const map = (field === 'un')
+      ? (typeof window.uaGetNormalizeMap === 'function' ? window.uaGetNormalizeMap() : {})
+      : (typeof window.synGetNormalizeMap === 'function' ? window.synGetNormalizeMap(field) : {});
+    const canon = map[v];
+    return (canon && canon !== v) ? canon : null;
+  }
+
+  let _suggestEl = null, _suggestTimer = null;
+  function _dismissSuggest() {
+    if (_suggestTimer) { clearTimeout(_suggestTimer); _suggestTimer = null; }
+    if (_suggestEl) { _suggestEl.remove(); _suggestEl = null; }
+    document.removeEventListener('scroll', _dismissSuggest, true);
+    window.removeEventListener('resize', _dismissSuggest);
+  }
+  function _showSynSuggest(input, canonical) {
+    _dismissSuggest();
+    const r = input.getBoundingClientRect();
+    const el = document.createElement('div');
+    el.className = 'syn-suggest';
+    el.innerHTML =
+      `<span class="syn-suggest-msg">💡 代表表記 <b>${_esc(canonical)}</b> に揃える？</span>` +
+      `<button type="button" class="syn-suggest-apply">置換</button>` +
+      `<button type="button" class="syn-suggest-dismiss" title="閉じる">✕</button>`;
+    el.style.position = 'fixed';
+    el.style.left = Math.round(r.left) + 'px';
+    el.style.top  = Math.round(r.bottom + 4) + 'px';
+    document.body.appendChild(el);
+    // はみ出し補正
+    const er = el.getBoundingClientRect();
+    if (er.right > window.innerWidth - 8) el.style.left = Math.max(8, window.innerWidth - er.width - 8) + 'px';
+    el.querySelector('.syn-suggest-apply').addEventListener('click', () => {
+      input.value = canonical;
+      input.dispatchEvent(new Event('input',  { bubbles: true }));
+      input.dispatchEvent(new Event('change', { bubbles: true }));
+      _dismissSuggest();
+      try { input.focus(); } catch (e) {}
+    });
+    el.querySelector('.syn-suggest-dismiss').addEventListener('click', _dismissSuggest);
+    document.addEventListener('scroll', _dismissSuggest, true);
+    window.addEventListener('resize', _dismissSuggest);
+    _suggestTimer = setTimeout(_dismissSuggest, 9000);
+    _suggestEl = el;
+  }
+  // 入力確定（change＝blur時など）で別名一致を判定して提案
+  document.addEventListener('change', function (e) {
+    const t = e.target;
+    if (!t || t.tagName !== 'INPUT') return;
+    const field = _LIST_FIELD[t.getAttribute('list')];
+    if (!field) return;
+    if (!t.closest || !t.closest('#tab-quote-make')) return;   // 見積タブ内のみ
+    const canon = _canonicalFor(field, t.value);
+    if (canon) _showSynSuggest(t, canon);
+    else _dismissSuggest();
+  });
+
 
   const UA_KEY = 'unitAlias_v1';
   function _loadUA()  { try { return JSON.parse(localStorage.getItem(UA_KEY) || '[]'); } catch(e) { return []; } }
@@ -555,6 +619,26 @@
     _saveUA(groups);
     _notifyUA();
     if (typeof window.quoteShowToast === 'function') window.quoteShowToast('⭐ 「' + unit + '」を代表単位に設定しました', 'success');
+  };
+
+  // 代表単位の新規入力・編集（リネーム）。旧名称は別名として残す。
+  window.uaRenameCanonical = function(oldCanon, newCanon) {
+    oldCanon = (oldCanon || '').trim(); newCanon = (newCanon || '').trim();
+    if (!oldCanon || !newCanon || oldCanon === newCanon) return;
+    const groups = _loadUA();
+    const old    = groups.find(g => g.canonical === oldCanon);
+    const target = groups.find(g => g.canonical === newCanon);
+    const merged = new Set([
+      ...(target ? (target.aliases || []) : []),
+      ...(old ? (old.aliases || []) : []),
+      oldCanon,
+    ]);
+    merged.delete(newCanon);
+    const out = groups.filter(g => g.canonical !== oldCanon && g.canonical !== newCanon);
+    out.push({ id: (old && old.id) || (Date.now() + '_' + Math.random().toString(36).slice(2)), canonical: newCanon, aliases: [...merged] });
+    _saveUA(out);
+    _notifyUA();
+    if (typeof window.quoteShowToast === 'function') window.quoteShowToast('✏️ 代表単位を「' + newCanon + '」に変更しました', 'success');
   };
 
   window.uaAddAlias = function(alias, canonical) {
@@ -685,7 +769,9 @@
     }
     if (!_synAll().find(g => g.field === field && g.canonical === value))
       await _synUpsert(field, value, []);
-    await _synAfter('⭐「' + value + '」を代表に設定しました');
+    // 統合（A案）: 代表は自動的にマスター登録
+    if (typeof window.statsEnsureMaster === 'function') await window.statsEnsureMaster(field, value);
+    await _synAfter('⭐「' + value + '」を代表（マスター）に設定しました');
   };
 
   window.synAddAlias = async function (field, alias, canonical) {
@@ -702,6 +788,12 @@
     const g = _synAll().find(x => x.field === field && x.canonical === canonical);
     const aliases = [...new Set([...((g && g.aliases) || []), alias, ...absorbed])];
     await _synUpsert(field, canonical, aliases);
+    // 統合（A案）: 代表は自動マスター化、統合した別名（および吸収した旧代表）はマスターから外す
+    if (typeof window.statsEnsureMaster === 'function') await window.statsEnsureMaster(field, canonical);
+    if (typeof window.statsEnsureNotMaster === 'function') {
+      await window.statsEnsureNotMaster(field, alias);
+      for (const a of absorbed) await window.statsEnsureNotMaster(field, a);
+    }
     await _synAfter('✅「' + alias + '」→「' + canonical + '」に統合しました');
   };
 
@@ -713,6 +805,30 @@
   window.synRemoveGroup = async function (field, canonical) {
     await _synDelete(field, canonical);
     await _synAfter();
+  };
+
+  // 代表名の新規入力・編集（リネーム）。旧名称は別名として残す（実データの紐付けを維持）。
+  // newCanon が既存の別代表なら、その配下も取り込んで統合する。
+  window.synRenameCanonical = async function (field, oldCanon, newCanon) {
+    oldCanon = (oldCanon || '').trim(); newCanon = (newCanon || '').trim();
+    if (!field || !oldCanon || !newCanon || oldCanon === newCanon) return;
+    const all = _synAll().filter(g => g.field === field);
+    const old    = all.find(g => g.canonical === oldCanon);
+    const target = all.find(g => g.canonical === newCanon);
+    const merged = new Set([
+      ...(target ? (target.aliases || []) : []),
+      ...(old ? (old.aliases || []) : []),
+      oldCanon,
+    ]);
+    merged.delete(newCanon);
+    if (old) await _synDelete(field, oldCanon);
+    await _synUpsert(field, newCanon, [...merged]);
+    // 統合（A案）: 新代表をマスター化、旧代表・別名はマスターから外す
+    if (typeof window.statsEnsureMaster === 'function') await window.statsEnsureMaster(field, newCanon);
+    if (typeof window.statsEnsureNotMaster === 'function') {
+      for (const a of merged) await window.statsEnsureNotMaster(field, a);
+    }
+    await _synAfter('✏️ 代表名を「' + newCanon + '」に変更しました');
   };
 
   async function _synAfter(toast) {

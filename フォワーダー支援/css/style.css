@@ -2183,6 +2183,95 @@ body:has(#compareOverlay.open) #quoteActionDock { display: none; }
   font-size: 12px; background: #f0e8d8; border-radius: 4px;
   padding: 1px 4px 1px 7px; margin: 0 4px 3px 0;
 }
+/* 集計タブの同義グループ統合行 */
+.stats-syn-row { background: #fffdf5; }
+.stats-syn-row > .stats-val { font-weight: 700; }
+.stats-syn-grp-badge {
+  font-size: 10px; font-weight: 700; color: #8a6a18;
+  background: #fdf2d0; border: 1px solid #e0b84a;
+  border-radius: 9px; padding: 1px 7px; margin-left: 4px;
+  white-space: nowrap;
+}
+.stats-syn-dissolve {
+  font-size: 10px; border: 1px solid #e0bcbc; color: #b0584a;
+  background: #fffdf8; border-radius: 4px; padding: 1px 7px;
+  cursor: pointer; margin-left: 6px; white-space: nowrap;
+}
+.stats-syn-dissolve:hover { background: #fdeaea; }
+
+/* サブコン×港ペア タブ */
+.svp-toolbar {
+  display: flex; align-items: center; gap: 8px;
+  margin: 0 0 10px;
+}
+.svp-by-label { font-size: 12px; color: #8a7656; font-weight: 700; }
+.svp-by-btn {
+  font-size: 12px; border: 1px solid #d8c8a8; background: #fffdf8;
+  color: #5a4a38; border-radius: 6px; padding: 4px 12px; cursor: pointer;
+}
+.svp-by-btn:hover { background: #f0e8d8; }
+.svp-by-btn.is-active {
+  background: #f7eccb; border-color: #e0b84a; color: #6b4f10; font-weight: 700;
+}
+
+/* マスター管理: 代表 新規登録フォーム */
+.master-new-form {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 8px;
+  background: #fffbe9; border: 1px solid #e6dcc8; border-radius: 8px;
+  padding: 10px 12px; margin: 0 0 14px;
+}
+.master-new-label { font-size: 13px; font-weight: 700; color: #6b5840; }
+.master-new-form .ar-select,
+.master-new-form .ar-input {
+  font-size: 13px; padding: 4px 8px; border: 1px solid #d8c8a8; border-radius: 6px;
+}
+.master-new-form .ar-input { min-width: 240px; flex: 1 1 240px; }
+.master-new-btn {
+  font-size: 13px; font-weight: 700; border: 1px solid #3a9268;
+  background: #4caf7d; color: #fff; border-radius: 6px; padding: 4px 14px; cursor: pointer;
+}
+.master-new-btn:hover { background: #3d9d6c; }
+.master-new-hint { font-size: 11px; color: #a8956f; flex-basis: 100%; }
+.stats-master-rename {
+  font-size: 11px; border: 1px solid #cdbb97; background: #fffdf8; color: #6b5840;
+  border-radius: 4px; padding: 2px 8px; cursor: pointer; margin-right: 4px;
+}
+.stats-master-rename:hover { background: #f0e8d8; }
+
+/* 並び替えトグル（件数順／名前順）— 各集計タブ共通 */
+.stats-sort-toolbar {
+  display: flex; align-items: center; gap: 6px;
+  margin: 0 0 8px;
+}
+.stats-sort-label { font-size: 12px; color: #8a7656; font-weight: 700; }
+.stats-sort-btn {
+  font-size: 12px; border: 1px solid #d8c8a8; background: #fffdf8;
+  color: #5a4a38; border-radius: 6px; padding: 3px 11px; cursor: pointer;
+}
+.stats-sort-btn:hover { background: #f0e8d8; }
+.stats-sort-btn.is-active {
+  background: #f7eccb; border-color: #e0b84a; color: #6b4f10; font-weight: 700;
+}
+
+/* 入力支援：代表表記への置換サジェスト（body 直下に fixed 配置） */
+.syn-suggest {
+  display: inline-flex; align-items: center; gap: 8px;
+  background: #fffbe9; border: 1px solid #e0b84a; border-radius: 8px;
+  padding: 5px 8px 5px 11px; font-size: 12px; color: #5a4a2a;
+  box-shadow: 0 4px 14px rgba(0,0,0,.18); max-width: 360px;
+}
+.syn-suggest-msg b { color: #8a6a18; }
+.syn-suggest-apply {
+  font-size: 12px; font-weight: 700; border: 1px solid #3a9268;
+  background: #4caf7d; color: #fff; border-radius: 5px; padding: 2px 10px; cursor: pointer;
+  white-space: nowrap;
+}
+.syn-suggest-apply:hover { background: #3d9d6c; }
+.syn-suggest-dismiss {
+  font-size: 12px; border: 1px solid #ddd; background: #fff; color: #888;
+  border-radius: 5px; padding: 2px 6px; cursor: pointer;
+}
+.syn-suggest-dismiss:hover { background: #f3f3f3; }
 
 /* ペイン */
 .stats-pane {
@@ -2541,76 +2630,78 @@ body:has(#compareOverlay.open) #quoteActionDock { display: none; }
 .stats-hist-route  { font-size: 10px; color: #7a6040; font-weight: 400; }
 
 /* 単位エイリアスペイン（ua-*） */
+/* 単位タブの体裁をお客様タブ基準（暖色）に統一 */
 .ua-pane-hint {
   font-size: 11px;
-  color: #7a6a5a;
-  background: #faf6ef;
-  border: 1px solid #e0d4bc;
+  color: #8a7656;
+  background: #f7f1e6;
+  border: 1px solid #ece0c8;
   border-radius: 6px;
-  padding: 6px 12px;
-  margin-bottom: 10px;
+  padding: 6px 10px;
+  margin: 0 0 10px;
+  line-height: 1.6;
 }
-.ua-canonical-row { background: #f6fbf8; }
-.ua-canonical-row:hover { background: #edf6f1 !important; }
+.ua-canonical-row { background: #fffdf5; }
+.ua-canonical-row:hover { background: #faf6ef !important; }
 .ua-ungrouped-row {}
 .ua-star { font-size: 13px; margin-right: 4px; }
 .ua-alias-chip {
   display: inline-flex;
   align-items: center;
   gap: 3px;
-  background: #dbeafe;
-  border: 1px solid #93c5fd;
+  background: #f0e8d8;
+  border: 1px solid #e0d4bc;
   border-radius: 10px;
-  color: #1d4ed8;
+  color: #5a4a38;
   font-size: 11px;
   padding: 1px 6px;
   margin: 2px 3px 2px 0;
 }
-.ua-chip-cnt { font-size: 10px; color: #5a7abe; margin-left: 2px; }
+.ua-chip-cnt { font-size: 10px; color: #8a7a60; margin-left: 2px; }
 .ua-chip-del {
   background: none;
   border: none;
   cursor: pointer;
-  color: #93c5fd;
+  color: #b39a82;
   font-size: 10px;
   padding: 0 2px;
   line-height: 1;
 }
-.ua-chip-del:hover { color: #1d4ed8; }
+.ua-chip-del:hover { color: #b0584a; }
 .ua-no-alias { color: #bbb; font-style: italic; font-size: 11px; }
 .ua-remove-canon {
   padding: 2px 8px;
   font-size: 11px;
-  background: none;
-  border: 1px solid #d0c0a0;
+  background: #fffdf8;
+  border: 1px solid #e0bcbc;
   border-radius: 8px;
   cursor: pointer;
-  color: #8a7060;
+  color: #b0584a;
 }
-.ua-remove-canon:hover { background: #f5ece0; }
+.ua-remove-canon:hover { background: #fdeaea; }
 .ua-ops { white-space: nowrap; }
 .ua-set-canon {
   padding: 2px 8px;
   font-size: 11px;
-  background: #fff9e0;
-  border: 1px solid #e8c84a;
+  background: #fdf2d0;
+  border: 1px solid #e0b84a;
   border-radius: 8px;
   cursor: pointer;
-  color: #7a5a00;
-  font-weight: 600;
+  color: #8a6a18;
+  font-weight: 700;
   margin-right: 4px;
 }
-.ua-set-canon:hover { background: #fff0b3; }
+.ua-set-canon:hover { background: #fbe8b0; }
 .ua-merge-btn {
   padding: 2px 8px;
   font-size: 11px;
-  background: none;
-  border: 1px solid #93c5fd;
+  background: #fffdf8;
+  border: 1px solid #d8c8a8;
   border-radius: 8px;
   cursor: pointer;
-  color: #1d4ed8;
+  color: #7a6648;
 }
-.ua-merge-btn:hover { background: #dbeafe; }
+.ua-merge-btn:hover { background: #f0e8d8; }
 .ua-cnt-detail { font-size: 10px; color: #7a6040; }
 
 /* ===== 統計タブ: 横棒グラフ ===== */
@@ -3411,45 +3502,59 @@ button.lc-attach-tbl-btn { background: none; border: none; padding: 0; cursor: p
 .ua-alias-chips { display: inline-flex; flex-wrap: wrap; gap: 4px; margin-left: 6px; }
 .ua-alias-chip {
   display: inline-flex; align-items: center; gap: 2px;
-  background: #e8eaf6; border-radius: 10px;
-  padding: 1px 6px 1px 8px; font-size: 12px; color: #3949ab;
+  background: #f0e8d8; border: 1px solid #e0d4bc; border-radius: 10px;
+  padding: 1px 6px 1px 8px; font-size: 12px; color: #5a4a38;
 }
 .ua-alias-chip .ua-chip-rm {
-  cursor: pointer; color: #999; font-size: 11px; line-height: 1;
+  cursor: pointer; color: #b39a82; font-size: 11px; line-height: 1;
   border: none; background: none; padding: 0 1px; margin-left: 2px;
 }
-.ua-alias-chip .ua-chip-rm:hover { color: #c62828; }
+.ua-alias-chip .ua-chip-rm:hover { color: #b0584a; }
 .ua-ungroup-btn {
-  font-size: 11px; color: #888; background: none; border: 1px solid #ccc;
+  font-size: 11px; color: #b0584a; background: #fffdf8; border: 1px solid #e0bcbc;
   border-radius: 4px; padding: 1px 5px; cursor: pointer; margin-left: 6px;
 }
-.ua-ungroup-btn:hover { background: #fce4ec; color: #c62828; border-color: #c62828; }
+.ua-ungroup-btn:hover { background: #fdeaea; }
 .ua-set-canonical-btn {
-  font-size: 11px; background: none; border: 1px solid #bbb;
-  border-radius: 4px; padding: 1px 5px; cursor: pointer; color: #555;
+  font-size: 11px; background: #fdf2d0; border: 1px solid #e0b84a;
+  border-radius: 4px; padding: 1px 5px; cursor: pointer; color: #8a6a18; font-weight: 700;
 }
-.ua-set-canonical-btn:hover { background: #fff9c4; border-color: #f9a825; }
+.ua-set-canonical-btn:hover { background: #fbe8b0; }
 .ua-merge-btn {
-  font-size: 11px; background: #e3f2fd; border: 1px solid #90caf9;
-  border-radius: 4px; padding: 1px 6px; cursor: pointer; color: #1565c0;
+  font-size: 11px; background: #fffdf8; border: 1px solid #d8c8a8;
+  border-radius: 4px; padding: 1px 6px; cursor: pointer; color: #7a6648;
 }
-.ua-merge-btn:hover { background: #bbdefb; }
+.ua-merge-btn:hover { background: #f0e8d8; }
 .ua-inline-picker td {
-  background: #f1f8e9; padding: 4px 8px;
+  background: #fffbe9; padding: 4px 8px;
 }
 .ua-inline-picker select {
-  font-size: 13px; border: 1px solid #a5d6a7; border-radius: 4px;
+  font-size: 13px; border: 1px solid #d8c8a8; border-radius: 4px;
   padding: 2px 4px; margin-right: 6px;
 }
 .ua-inline-confirm-btn {
-  font-size: 12px; background: #4caf50; color: #fff;
+  font-size: 12px; background: #4caf7d; color: #fff;
   border: none; border-radius: 4px; padding: 2px 8px; cursor: pointer;
 }
-.ua-inline-confirm-btn:hover { background: #388e3c; }
+.ua-inline-confirm-btn:hover { background: #3d9d6c; }
 .ua-inline-cancel-btn {
   font-size: 12px; background: #eee; color: #555;
   border: 1px solid #ccc; border-radius: 4px; padding: 2px 6px; cursor: pointer; margin-left: 4px;
 }
+/* 単位 統合先ピッカー（お客様/サブコンのピッカーと体裁を統一） */
+.ua-picker-cell { background: #fffbe9; padding: 4px 8px; }
+.ua-picker-label { font-size: 12px; color: #6b5840; }
+.ua-picker-sel { font-size: 13px; border: 1px solid #d8c8a8; border-radius: 4px; padding: 2px 4px; margin: 0 6px; }
+.ua-picker-ok {
+  font-size: 12px; font-weight: 700; background: #4caf7d; color: #fff;
+  border: 1px solid #3a9268; border-radius: 4px; padding: 2px 10px; cursor: pointer;
+}
+.ua-picker-ok:hover { background: #3d9d6c; }
+.ua-picker-cancel {
+  font-size: 12px; background: #fff; color: #888;
+  border: 1px solid #ddd; border-radius: 4px; padding: 2px 6px; cursor: pointer; margin-left: 4px;
+}
+.ua-picker-cancel:hover { background: #f3f3f3; }
 
 /* ===== 📈 ダッシュボード（案件分析） ===== */
 .sd-wrap { display: flex; flex-direction: column; gap: 18px; }
