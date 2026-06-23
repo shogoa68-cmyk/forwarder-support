@@ -2715,6 +2715,12 @@ body:has(#compareOverlay.open) #quoteActionDock { display: none; }
 }
 .lc-save-btn:hover { background: #1b4332; }
 .lc-save-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.lc-save-cont-btn {
+  padding: 8px 16px; background: #fff; color: #2d6a4f;
+  border: 1px solid #2d6a4f; border-radius: 6px; font-size: 13px; font-weight: 700; cursor: pointer;
+}
+.lc-save-cont-btn:hover { background: #eaf3ee; }
+.lc-save-cont-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 .lc-cancel-btn {
   padding: 8px 16px; background: none; border: 1px solid #c8b898;
   border-radius: 6px; font-size: 13px; cursor: pointer; color: #5a4a38;

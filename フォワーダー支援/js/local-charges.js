@@ -340,12 +340,13 @@
     _currentAttach = null;
   }
 
-  async function lcSaveCharge() {
+  // フォーム入力を1レコード分の row に組み立て（必須チェック込み・不正なら null）
+  function _lcCollectRow() {
     const g = id => document.getElementById(id)?.value?.trim() || '';
     const name    = g('lc_name');
     const carrier = g('lc_carrier');
-    if (!name)    { alert('名称は必須です'); return; }
-    if (!carrier) { alert('船会社（キャリアー）は必須です'); document.getElementById('lc_carrier')?.focus(); return; }
+    if (!carrier) { alert('船会社（キャリアー）は必須です'); document.getElementById('lc_carrier')?.focus(); return null; }
+    if (!name)    { alert('名称は必須です'); document.getElementById('lc_name')?.focus(); return null; }
 
     const row = {
       id:          _editId || undefined,
@@ -366,25 +367,66 @@
       note:        g('lc_note'),
     };
     if (!row.id) delete row.id;
+    return row;
+  }
 
-    const btn = document.querySelector('#lcFormModal .lc-save-btn');
-    if (btn) btn.disabled = true;
+  // row を保存（クラウド/ローカル）＋添付反映＋一覧再描画。savedId を返す
+  async function _lcPersistRow(row) {
+    const saved   = await _upsert(row);
+    const savedId = saved?.id || row.id || _editId;
+    // 添付ファイルを保存・削除（null=変更なし、false=削除、object=新規）
+    if (_pendingAttach !== null && savedId) {
+      try { _persistAttach(savedId, _pendingAttach || null); }
+      catch (e) { alert('チャージは保存しましたが、添付ファイルの保存に失敗しました（ブラウザ保存の容量超過の可能性）。\n' + (e?.message || e)); }
+    }
+    await _load(_dir);
+    lcRender();
+    lcRenderVariants();
+    _lcFetchCarrierBms();
+    return savedId;
+  }
+
+  function _lcFooterBtns() {
+    return document.querySelectorAll('#lcFormModal .lc-modal-footer button');
+  }
+
+  async function lcSaveCharge() {
+    const row = _lcCollectRow();
+    if (!row) return;
+    const btns = _lcFooterBtns();
+    btns.forEach(b => b.disabled = true);
     try {
-      const saved   = await _upsert(row);
-      const savedId = saved?.id || row.id || _editId;
-      // 添付ファイルを保存・削除（null=変更なし、false=削除、object=新規）
-      if (_pendingAttach !== null && savedId) {
-        _persistAttach(savedId, _pendingAttach || null);
-      }
+      await _lcPersistRow(row);
       lcCloseForm();
-      await _load(_dir);
-      lcRender();
-      lcRenderVariants();
-      _lcFetchCarrierBms();
     } catch (e) {
       alert('保存に失敗しました: ' + e.message);
     } finally {
-      if (btn) btn.disabled = false;
+      btns.forEach(b => b.disabled = false);
+    }
+  }
+
+  // 保存後にモーダルを閉じず、共通項目を残して続けて入力できるようにする
+  async function lcSaveAndContinue() {
+    const row = _lcCollectRow();
+    if (!row) return;
+    const btns = _lcFooterBtns();
+    btns.forEach(b => b.disabled = true);
+    try {
+      await _lcPersistRow(row);
+      // 続けて新規入力: 入力済みの値はテンプレとして残し、新規レコード扱いにする
+      _editId = null;
+      const titleEl = document.getElementById('lcFormTitle');
+      if (titleEl) titleEl.textContent = '新規チャージ登録（続けて入力）';
+      if (typeof window.quoteShowToast === 'function') {
+        quoteShowToast(`✅ 「${row.name}」を保存。続けて入力できます`, 'success');
+      }
+      // 行ごとに変わりやすい「金額」へフォーカスして選択（名称等はテンプレとして残す）
+      const amtEl = document.getElementById('lc_amount');
+      if (amtEl) { amtEl.focus(); amtEl.select?.(); }
+    } catch (e) {
+      alert('保存に失敗しました: ' + e.message);
+    } finally {
+      btns.forEach(b => b.disabled = false);
     }
   }
 
@@ -872,6 +914,7 @@
   window.lcOpenForm       = lcOpenForm;
   window.lcCloseForm      = lcCloseForm;
   window.lcSaveCharge     = lcSaveCharge;
+  window.lcSaveAndContinue = lcSaveAndContinue;
   window.lcDeleteCharge   = lcDeleteCharge;
   window.lcRenderVariants = lcRenderVariants;
   window.lcOpenPicker     = lcOpenPicker;
