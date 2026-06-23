@@ -3237,6 +3237,7 @@
               <span class="cmdbar-spacer"></span>
               <button id="clipboardIndicator" class="cmdbar-clipboard-indicator" hidden onclick="clearRowClipboard()" title="クリップボードをクリア">📋 <span id="clipIndicatorCount">0</span>行 ✕</button>
               <button id="pendingIndicator" class="cmdbar-pending-indicator" hidden onclick="jumpToFirstPending()" title="要調査（後で記入）の行へ移動。クリックで順に巡回します。">🔍 要調査 <span id="pendingCount">0</span>件</button>
+              <button id="doneIndicator" class="cmdbar-done-indicator" hidden onclick="jumpToNextUnfinished()" title="入力完了の進捗。クリックで未完了の最初の行（続きから作業する行）へ移動します。">✅ 完了 <span id="doneCount">0</span>/<span id="doneTotal">0</span></button>
               <details class="cmdbar-more" id="cmdbarMore">
                 <summary class="cmdbar-more-summary" title="その他の操作（配置は検討中）">⋯</summary>
                 <div class="cmdbar-more-pop">
@@ -3646,6 +3647,7 @@
         <button class="cnt-link-btn" onclick="window.toggleCntLink?.(this)" title="コンテナ本数に数量を連動（FCL）" tabindex="-1">⛓</button> -->
         <button class="row-hidequote-btn" onclick="window.toggleRowHideQuote?.(this)" title="この行を見積書（プレビュー客先表示・PDF・Excel・CSV）に出力しない" tabindex="-1">👁</button>
         <button class="row-pending-btn" onclick="window.toggleRowPending?.(this)" title="後で調べて記入（要調査マーク）。サーチャージ等、最新情報を調べてから埋める項目に。" tabindex="-1">🔍</button>
+        <button class="row-done-btn" onclick="window.toggleRowDone?.(this)" title="入力完了の目印。作成を再開したとき、どこまで終わったか分かります（もう一度クリックで解除）。" tabindex="-1">✓</button>
       </td>
       <td class="catsv-cell stk-cell">
         <div class="stk">

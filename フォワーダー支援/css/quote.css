@@ -5483,6 +5483,16 @@ body.qp-dash-active #quoteActionDock { display: none !important; }
 }
 #tab-quote-make .cmdbar-pending-indicator:hover { background: #ffe2c4; }
 #tab-quote-make .cmdbar-pending-indicator[hidden] { display: none; }
+/* 入力完了の進捗バッジ（緑系） */
+#tab-quote-make .cmdbar-done-indicator {
+  display: inline-flex; align-items: center; gap: 3px;
+  background: #e7f5ec; border: 1px solid #8fcea8; color: #1f7a44;
+  border-radius: 12px; padding: 3px 10px; font-size: 11px; font-weight: 600;
+  cursor: pointer; white-space: nowrap; line-height: 1;
+  transition: background 0.15s;
+}
+#tab-quote-make .cmdbar-done-indicator:hover { background: #d6efe0; }
+#tab-quote-make .cmdbar-done-indicator[hidden] { display: none; }
 #tab-quote-make .btn-bulk-cat,
 #tab-quote-make .btn-bulk-cat-pick {
   border: 1px solid #a8947e;
@@ -7812,6 +7822,19 @@ button.um-memberno--empty:hover { background: #f4ead4; border-color: #cdb98e; }
 }
 #tab-quote-make tr.row-pending .w-name {
   border-color: #f0a868; background: #fffaf2;
+}
+/* 入力完了トグル（✓） */
+#tab-quote-make .row-done-btn {
+  background: none; border: none; cursor: pointer; padding: 0 2px;
+  font-size: 12px; font-weight: 700; line-height: 1; color: #9aa3ab;
+  opacity: 0.5; vertical-align: middle;
+}
+#tab-quote-make .row-done-btn:hover { opacity: 0.9; }
+#tab-quote-make .row-done-btn.is-on { opacity: 1; color: #1f9d57; }
+/* 完了の行：緑の左アクセント＋淡い背景で「入力済み」を強調 */
+#tab-quote-make tr.row-input-done > td { background: #f1faf4; }
+#tab-quote-make tr.row-input-done > td.handle-cell {
+  box-shadow: inset 3px 0 0 #2eb866; background: #e3f4ea;
 }
 /* 作業テーブル：非表示指定の行はグレー＋点線で区別（行は残す） */
 #tab-quote-make tr.row-hidden-quote > td { opacity: 0.5; background: #f6f1e8; }
