@@ -57,7 +57,9 @@
 
   // ====== 見積サマリの集計モデルを構築 ======
   function buildModel() {
-    const rows = (typeof collectAllRows === 'function') ? collectAllRows() : [];
+    // 見積書非表示・適用期間外（いずれも _hideQuote）の明細は客先向けメール本文・合計から除外
+    const rows = ((typeof collectAllRows === 'function') ? collectAllRows() : [])
+      .filter(r => r._type !== 'data' || !r._hideQuote);
     const hdr  = (typeof getQuoteHeader === 'function') ? getQuoteHeader() : {};
     const cond = (typeof getConditions === 'function') ? getConditions() : {};
     const taxRate = (typeof getEffectiveTaxRate === 'function') ? getEffectiveTaxRate() : 0.10;

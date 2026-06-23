@@ -7824,6 +7824,23 @@ button.um-memberno--empty:hover { background: #f4ead4; border-color: #cdb98e; }
   display: inline-block; font-size: 10px; font-weight: 700; color: #b3530e;
   background: #fdeede; border: 1px solid #e8b48f; border-radius: 4px; padding: 0 5px; margin-right: 4px;
 }
+/* プレビュー：適用期間外バッジ（青系で「自動・期間判定」を区別） */
+#tab-quote-make #previewTable .pv-oor-badge {
+  color: #2c5d8f; background: #e7f0fb; border-color: #a9c7e8;
+}
+
+/* 作業テーブル：適用期間外の行（自動・客先非表示＋合計除外）。手動非表示とは別の青系で区別 */
+#tab-quote-make tr.row-out-of-range > td { opacity: 0.62; background: #eef2f7; }
+#tab-quote-make tr.row-out-of-range > td.handle-cell {
+  box-shadow: inset 3px 0 0 #5d7fae; background: #e2ebf6; opacity: 1;
+}
+#tab-quote-make tr.row-out-of-range .w-name {
+  text-decoration: line-through; text-decoration-color: #8aa0bf;
+}
+#tab-quote-make tr.row-out-of-range .w-valid { background: #ffe3e3; border-radius: 4px; }
+#tab-quote-make tr.row-out-of-range .w-valid-lbl::after {
+  content: ' 期間外'; color: #c0392b; font-weight: 700;
+}
 
 /* グループ（サブコンブロック）ドラッグ並べ替え */
 /* ヘッダー自体は pointer-events:none だが、セルを drop 対象にするため再有効化 */
