@@ -2507,6 +2507,14 @@
             <label>📝 メモ <span class="qf-memo-note">出力・プレビューには含まれません</span></label>
             <textarea id="qf-memo" rows="6" placeholder="担当者間の申し送り・注意事項など、案件内部メモを自由に記述できます。お客様向け出力には含まれません。"></textarea>
           </div>
+          <div class="quote-field quote-field-refurl">
+            <label>🔗 参照URL <span class="qf-memo-note">レート表・船社サイト等の参照リンク（複数可・改行区切り）。出力には含まれません</span></label>
+            <textarea id="qf-refurl" rows="2" placeholder="URL を貼り付け（複数可・改行区切り）。フォーカスを外すとクリックできるリンクになります" onblur="renderRefUrlLinks()"></textarea>
+            <div id="qf-refurl-view" class="qf-refurl-view" hidden>
+              <span class="qf-refurl-links"></span>
+              <button type="button" class="qf-refurl-edit" onclick="editRefUrl()" title="リンクを編集">✎ 編集</button>
+            </div>
+          </div>
           <div class="quote-field quote-field-attach">
             <label>📎 添付ファイル <span class="qf-memo-note">この案件に保存・チーム共有（ログイン必須）</span></label>
             <label class="qf-attach-drop" id="qfAttachDrop"

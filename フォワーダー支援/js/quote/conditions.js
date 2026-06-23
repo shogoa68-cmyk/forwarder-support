@@ -238,6 +238,7 @@
       if (cb && area) area.style.display = cb.checked ? 'flex' : 'none';
     });
     _checkValidUntil();
+    if (typeof renderRefUrlLinks === 'function') renderRefUrlLinks(); // 参照URLをリンク表示へ
   }
 
   /**
@@ -397,6 +398,55 @@
         .observe(tbody, { childList: true });
     }
   }
+
+  // ===== 参照URL：貼り付けたURLを自動リンク化（複数可・改行/空白区切り） =====
+  const _ruEsc = s => String(s)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  function _ruExtract(text) {
+    if (!text) return [];
+    const out = [], seen = new Set();
+    const re = /https?:\/\/[^\s<>"'）)】」]+/g;
+    let m;
+    while ((m = re.exec(text)) !== null) {
+      const u = m[0].replace(/[.,;:!?！？）)、。]+$/, ''); // 末尾の句読点・閉じ括弧は除外
+      if (u && !seen.has(u)) { seen.add(u); out.push(u); }
+    }
+    return out;
+  }
+  function _ruShort(u) {
+    try {
+      const p = new URL(u);
+      let s = p.hostname.replace(/^www\./, '') + (p.pathname && p.pathname !== '/' ? p.pathname : '');
+      return s.length > 48 ? s.slice(0, 47) + '…' : s;
+    } catch (_) { return u.length > 48 ? u.slice(0, 47) + '…' : u; }
+  }
+  // テキストエリアの内容から URL を抽出し、リンク表示（view）へ切り替える。
+  // URL が無ければ編集用テキストエリアのまま。
+  window.renderRefUrlLinks = function () {
+    const ta = document.getElementById('qf-refurl');
+    const view = document.getElementById('qf-refurl-view');
+    if (!ta || !view) return;
+    const links = _ruExtract(ta.value);
+    const wrap = view.querySelector('.qf-refurl-links');
+    if (!links.length) { view.hidden = true; ta.hidden = false; return; }
+    if (wrap) {
+      wrap.innerHTML = links.map(u =>
+        '<a class="qf-refurl-link" href="' + _ruEsc(u) + '" target="_blank" rel="noopener noreferrer" title="' +
+        _ruEsc(u) + '">🔗 ' + _ruEsc(_ruShort(u)) + '</a>'
+      ).join('');
+    }
+    ta.hidden = true;
+    view.hidden = false;
+  };
+  // リンク表示から編集モード（テキストエリア）へ戻す
+  window.editRefUrl = function () {
+    const ta = document.getElementById('qf-refurl');
+    const view = document.getElementById('qf-refurl-view');
+    if (!ta || !view) return;
+    view.hidden = true;
+    ta.hidden = false;
+    ta.focus();
+  };
 
   function gatherAllData() {
     // フォーム値
