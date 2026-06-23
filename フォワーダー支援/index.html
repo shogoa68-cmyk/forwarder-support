@@ -2481,12 +2481,12 @@
           </div>
           <div class="quote-field">
             <label>発行日</label>
-            <input type="date" id="qf-date" title="見積書の発行日。出力・Excelに含まれます" />
+            <input type="date" id="qf-date" title="見積書の発行日。出力・Excelに含まれます" onchange="window.updateTotals && window.updateTotals()" />
           </div>
           <div class="quote-field">
             <label>有効期限</label>
             <div class="qf-valid-until-row">
-              <input type="date" id="qf-valid-until" title="見積もりの有効期限。出力・Excelに含まれます" onchange="checkValidUntilWarning()" />
+              <input type="date" id="qf-valid-until" title="見積もりの有効期限。出力・Excelに含まれます。サーチャージの適用期間外判定の基準日になります" onchange="checkValidUntilWarning(); window.updateTotals && window.updateTotals()" />
               <button type="button" class="qf-days-btn" onclick="addDaysToValidUntil(7)"  title="今日から7日後">+7日</button>
               <button type="button" class="qf-days-btn" onclick="addDaysToValidUntil(30)" title="今日から30日後">+30日</button>
             </div>
@@ -3660,7 +3660,7 @@
           <button type="button" class="btn-row-rem" tabindex="-1" title="備考欄のテキストを引用して直下に備考行を挿入（空でも可）">💬</button>
           <button type="button" class="btn-row-int" tabindex="-1" title="備考欄のテキストを引用して直下に社内メモを挿入（空でも可）">🔒</button>
         </div>
-        <div class="w-valid" title="有効期限。開始日のみ入力も可（例：7/1〜 → 7/1 のみ）。終了日のみも可。">
+        <div class="w-valid" title="サーチャージ適用期間。開始日のみ／終了日のみも可。見積もり提示日（＝見積全体の有効期限。未設定なら発行日→今日）がこの期間を外れると、その行は客先見積もり・PDF・Excel・CSV・合計から自動的に除外されます（社内モードではグレー表示）。">
           <span class="w-valid-lbl">有効</span>
           <input type="date" data-field="vf" class="w-valid-date" title="適用開始日（終了日なしでも保存・表示されます）" />
           <span class="w-valid-sep">〜</span>

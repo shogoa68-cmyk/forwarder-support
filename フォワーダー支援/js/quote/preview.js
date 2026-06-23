@@ -123,8 +123,11 @@
       const vf     = document.getElementById(`vf-${id}`)?.value || '';
       const vt     = document.getElementById(`vt-${id}`)?.value || '';
       const zc     = document.getElementById(`zc-${id}`)?.value === '1';
-      const _hideQuote = tr.dataset.hideQuote === '1';   // 見積書非表示フラグ（消費側で判定）
-      rows.push({ _type: 'data', taxed, cat, name, pq, un, pc, pp, cd, bq, bc, bp, mk, cost, bill, profit, note, sv, vf, vt, zc, _hideQuote });
+      const _hideManual = tr.dataset.hideQuote === '1';   // 手動の見積書非表示
+      const _outRange   = tr.dataset.outRange === '1';     // 適用期間外（自動・客先非表示＋合計除外）
+      // 客先出力・小計・PDF/Excel/CSV の除外は _hideQuote 一本で判定する（両者を合算）
+      const _hideQuote  = _hideManual || _outRange;
+      rows.push({ _type: 'data', taxed, cat, name, pq, un, pc, pp, cd, bq, bc, bp, mk, cost, bill, profit, note, sv, vf, vt, zc, _hideQuote, _hideManual, _outRange });
     });
     return rows;
   }
@@ -136,6 +139,7 @@
       if (tr.dataset.virtual) return;          // サブコングループヘッダー（仮想行）はスキップ
       if (tr.dataset.excluded === '1') return;  // 除外グループはスキップ
       if (tr.dataset.hideQuote === '1') return; // 見積書非表示の行はスキップ（合計・CSV から除外）
+      if (tr.dataset.outRange === '1') return;  // 適用期間外のサーチャージはスキップ（客先合計・CSV から除外）
       if (tr.dataset.type === 'subtotal') return; // 小計行スキップ
       const id     = tr.id.replace('row-', '');
       const taxed  = document.getElementById(`tx-${id}`)?.checked || false;
@@ -401,27 +405,19 @@
     return ` <span class="pv-validity">${escHtml(range)}</span>`;
   }
 
-  // 発行日がサーチャージ有効期限範囲外かを判定（vf/vt 両方空 or 発行日未設定 → 除外しない）
-  function _isOutOfValidity(row, issueDate) {
-    if (!issueDate || (!row.vf && !row.vt)) return false;
-    if (row.vf && issueDate < row.vf) return true; // 発行日が開始前
-    if (row.vt && issueDate > row.vt) return true; // 発行日が終了後
-    return false;
-  }
-
   function openPreview() {
     try {
-    const issueDate = document.getElementById('qf-date')?.value || '';
     const allRows = collectAllRows()
-      .filter(r => r._type !== 'data' || !r.zc)                          // 0円確認済み行を除外
-      .filter(r => r._type !== 'data' || !_isOutOfValidity(r, issueDate)); // 有効期限範囲外行を除外
+      .filter(r => r._type !== 'data' || !r.zc);                          // 0円確認済み行を除外
+    // 適用期間外の行は除外せず残し、_hideQuote 経由で「社内モード＝グレー表示／客先モード＝非表示・合計除外」に統一
     const data = allRows.filter(r => r._type === 'data');
     if (!data.length) { alert('行がありません。'); return; }
     if (!_pvBypassed && !preOutputValidationGate('プレビュー表示', openPreview)) return;
     _pvBypassed = false;
     const hdr = getQuoteHeader();
     let totCost = 0, totBill = 0, totMk = 0;
-    data.forEach(d => { totCost += d.cost; totBill += d.bill; totMk += d.mk; });
+    // 見積書非表示・適用期間外（いずれも _hideQuote）の行は合計に含めない
+    data.forEach(d => { if (d._hideQuote) return; totCost += d.cost; totBill += d.bill; totMk += d.mk; });
     const totPr = totBill - totCost;
     const ccyGroups = {}; // billing 通貨別集計: { JPY: {sub,tax,mk}, USD: {...} }
     let totCostJpy = 0;
@@ -573,7 +569,9 @@
       const prJpyHint = profitJpy !== null
         ? `<small class="pv-jpy-hint">(≈¥${fmtMoney(profitJpy)})</small>` : '';
       const _hqCls = d._hideQuote ? ' pv-row-hidden-quote' : '';
-      const _hqBadge = d._hideQuote ? '<span class="pv-hq-badge" title="この行は見積書（PDF・Excel・CSV・客先プレビュー）に出力されません">🚫見積書非表示</span> ' : '';
+      const _hqBadge = d._outRange
+        ? '<span class="pv-hq-badge pv-oor-badge" title="サーチャージの適用期間が見積もり提示日（有効期限）の範囲外のため、客先見積もり・PDF・Excel・CSV・合計から自動的に除外されます">📅 適用期間外</span> '
+        : (d._hideManual ? '<span class="pv-hq-badge" title="この行は見積書（PDF・Excel・CSV・客先プレビュー）に出力されません">🚫見積書非表示</span> ' : '');
       html += `<tr class="${(d._gi != null ? 'pv-grp-row pv-grp-c' + (d._gi % 4) : '')}${_hqCls}">
         <td class="pv-name" style="font-size:11px;">${escHtml(getCatLabel(d.cat))}</td>
         <td class="pv-name">${escHtml(d.sv)}</td>

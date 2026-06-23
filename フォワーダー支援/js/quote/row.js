@@ -25,8 +25,51 @@
         vt.value = `${last.getFullYear()}-${z(last.getMonth() + 1)}-${z(last.getDate())}`;
       }
     }
+    updateTotals();   // 適用期間の再判定（客先非表示・合計除外）を反映
     if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
   }
+
+  // ===== サーチャージ適用期間（vf〜vt）の判定 =====
+  // 基準日（＝見積もり提示日）：見積全体の有効期限(qf-valid-until) → 発行日(qf-date) → 今日
+  function _quoteRefDate() {
+    const v = (document.getElementById('qf-valid-until')?.value || '').trim()
+           || (document.getElementById('qf-date')?.value || '').trim();
+    if (v) return v;
+    const d = new Date();
+    const z = n => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${z(d.getMonth() + 1)}-${z(d.getDate())}`;
+  }
+  // 行の適用期間が基準日を外れていれば true（期間未設定の行は常に有効＝false）。
+  // 日付は ISO(YYYY-MM-DD) なので文字列比較で大小判定できる。
+  function isRowOutOfRange(tr) {
+    if (!tr || !tr.id || !tr.id.startsWith('row-')) return false;
+    const id = tr.id.replace('row-', '');
+    const vf = document.getElementById(`vf-${id}`)?.value || '';
+    const vt = document.getElementById(`vt-${id}`)?.value || '';
+    if (!vf && !vt) return false;        // 適用期間の指定がない行は対象外
+    const ref = _quoteRefDate();
+    if (vf && ref < vf) return true;     // 提示日が適用開始より前
+    if (vt && ref > vt) return true;     // 提示日が適用終了より後
+    return false;
+  }
+  window.isRowOutOfRange = isRowOutOfRange;
+
+  // 全データ行の適用期間状態を再計算し dataset.outRange とクラスを更新。期間外の件数を返す。
+  function recomputeRowValidity() {
+    let n = 0;
+    document.querySelectorAll('#tableBody tr[id^="row-"]').forEach(tr => {
+      if (isRowOutOfRange(tr)) {
+        tr.dataset.outRange = '1';
+        tr.classList.add('row-out-of-range');
+        n++;
+      } else {
+        delete tr.dataset.outRange;
+        tr.classList.remove('row-out-of-range');
+      }
+    });
+    return n;
+  }
+  window.recomputeRowValidity = recomputeRowValidity;
 
   // ========== 未入力グレーアウト ==========
   function checkUnfilled(id) {
@@ -479,6 +522,7 @@
     q('sv').onchange   = () => renderSubconGroups();
     // サーチャージ有効期限：開始日を入れたら終了日を月末で自動補完（「通常はひと月」）
     q('vf').onchange   = () => autoFillValidTo(id);
+    q('vt').onchange   = () => updateTotals();   // 終了日変更で適用期間の再判定
 
     return frag;
   }
@@ -594,6 +638,7 @@
 
   function updateTotals() {
     updatePendingCounter();
+    recomputeRowValidity();   // 適用期間外の行を判定（客先非表示・合計除外）
     const rows = document.querySelectorAll('#tableBody tr');
     if (!rows.length) {
       ['tot-cost','tot-billing','tot-subtotal','tot-profit'].forEach(id =>
@@ -613,6 +658,7 @@
       if (tr.dataset.type === 'subtotal') return; // 小計行をスキップ
       if (tr.dataset.excluded === '1') return;    // 除外グループはスキップ
       if (tr.dataset.hideQuote === '1') return;   // 見積書非表示の行は合計から除外
+      if (tr.dataset.outRange === '1') return;    // 適用期間外のサーチャージは合計から除外
       const id  = tr.id.replace('row-', '');
       const pc  = document.getElementById(`pc-${id}`)?.value || 'JPY';
       const bc  = document.getElementById(`bc-${id}`)?.value || 'JPY';
@@ -924,6 +970,8 @@
         groupBillRaw = 0; groupCostRaw = 0;
         groupBillCurrencies = new Set(); groupCostCurrencies = new Set();
       } else {
+        // 見積書非表示・適用期間外の行は小計セパレータの集計に含めない
+        if (tr.dataset.hideQuote === '1' || tr.dataset.outRange === '1') return;
         const id = tr.id.replace('row-', '');
         const bq = val(`bq-${id}`);
         const bp = val(`bp-${id}`);
@@ -1489,6 +1537,7 @@
       }
       if (tr.dataset.type) return;         // 小計・リマーク・社内メモ行は除外
       if (tr.dataset.hideQuote === '1') return;  // 見積書非表示の行はグループ小計から除外
+      if (tr.dataset.outRange === '1') return;   // 適用期間外のサーチャージはグループ小計から除外
       const id = tr.id?.replace('row-', '');
       if (!id || !curSumEl) return;
       const bq = val(`bq-${id}`) || val(`pq-${id}`) || 0;
