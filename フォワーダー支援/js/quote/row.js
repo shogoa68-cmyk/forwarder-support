@@ -205,8 +205,9 @@
       btn.textContent = '🚫';
       btn.title = '見積書で非表示中（クリックで出力に戻す）';
     }
-    updateTotals();
-    renderSubconGroups();
+    updateTotals();   // グループ小計（_updateGroupSums）も内部で更新される
+    // ※ renderSubconGroups() は呼ばない：行の並べ替え（同名サブコンの集約）が走り、
+    //   下方の行が上のグループへ移動してしまうため。非表示は並び順を変える操作ではない。
     if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
   }
   window.toggleRowHideQuote = toggleRowHideQuote;
