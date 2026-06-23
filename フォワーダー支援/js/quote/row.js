@@ -156,6 +156,52 @@
   }
   window.toggleRowHideQuote = toggleRowHideQuote;
 
+  // 行を「要調査（後で記入）」状態に切り替える。
+  // サーチャージ等、最新情報を調べてから埋める項目を見失わないための目印。
+  // 合計・出力には通常どおり含まれるが、視覚的に強調し、出力前ゲートで警告される。
+  function toggleRowPending(btn) {
+    const tr = btn?.closest('tr');
+    if (!tr) return;
+    const on = tr.dataset.pending === '1';
+    if (on) {
+      delete tr.dataset.pending;
+      tr.classList.remove('row-pending');
+      btn.classList.remove('is-on');
+      btn.title = '後で調べて記入（要調査マーク）。サーチャージ等、最新情報を調べてから埋める項目に。';
+    } else {
+      tr.dataset.pending = '1';
+      tr.classList.add('row-pending');
+      btn.classList.add('is-on');
+      btn.title = '要調査（後で記入）中。最新情報を調べたらクリックで解除。';
+    }
+    updatePendingCounter();
+    if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
+  }
+  window.toggleRowPending = toggleRowPending;
+
+  // 要調査（後で記入）行の件数バッジを更新。0 件なら非表示。
+  function updatePendingCounter() {
+    const n = document.querySelectorAll('#tableBody tr[data-pending="1"]').length;
+    const ind = document.getElementById('pendingIndicator');
+    if (ind) ind.hidden = (n === 0);
+    const cnt = document.getElementById('pendingCount');
+    if (cnt) cnt.textContent = n;
+  }
+  window.updatePendingCounter = updatePendingCounter;
+
+  // 要調査行を順に巡回スクロール（クリックのたびに次の要調査行へ）。
+  function jumpToFirstPending() {
+    const rows = Array.from(document.querySelectorAll('#tableBody tr[data-pending="1"]'));
+    if (!rows.length) return;
+    const cur = window.__pendingJumpIdx || 0;
+    const tr  = rows[cur % rows.length];
+    window.__pendingJumpIdx = (cur + 1) % rows.length;
+    tr.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    const nm = tr.querySelector('[data-field="nm"]');
+    if (nm) { nm.focus(); if (nm.select) nm.select(); }
+  }
+  window.jumpToFirstPending = jumpToFirstPending;
+
   function moveRow(tr, dir) {
     const tbody = document.getElementById('tableBody');
     if (dir < 0) {
@@ -547,6 +593,7 @@
   }
 
   function updateTotals() {
+    updatePendingCounter();
     const rows = document.querySelectorAll('#tableBody tr');
     if (!rows.length) {
       ['tot-cost','tot-billing','tot-subtotal','tot-profit'].forEach(id =>
@@ -957,6 +1004,7 @@
   function deleteEmptyRows() {
     // row-unfilled（名前空）かつ単価・請求単価もゼロの行のみ削除（E-8：価格入力済み行の誤削除防止）
     const empties = [...document.querySelectorAll('#tableBody tr.row-unfilled')].filter(tr => {
+      if (tr.dataset.pending === '1') return false; // 要調査マーク行は誤削除しない
       const id = tr.id.replace('row-', '');
       const pp = parseFloat(document.getElementById(`pp-${id}`)?.value) || 0;
       const bp = parseFloat(document.getElementById(`bp-${id}`)?.value) || 0;

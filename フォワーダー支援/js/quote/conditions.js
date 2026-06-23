@@ -290,12 +290,20 @@
         const hb = tr.querySelector('.row-hidequote-btn');
         if (hb) { hb.classList.add('is-on'); hb.textContent = '🚫'; hb.title = '見積書で非表示中（クリックで出力に戻す）'; }
       }
+      // 要調査（後で記入）フラグを復元
+      if (row.pending) {
+        tr.dataset.pending = '1';
+        tr.classList.add('row-pending');
+        const pb = tr.querySelector('.row-pending-btn');
+        if (pb) { pb.classList.add('is-on'); pb.title = '要調査（後で記入）中。最新情報を調べたらクリックで解除。'; }
+      }
       // 港ペア（子グループキー）を復元
       if (row.portPair) tr.dataset.portPair = row.portPair;
       regularTrs.push(tr);
     });
     _afterRestoreRows(regularTrs, data.fields);
     if (typeof renderSubconGroups === 'function') renderSubconGroups();
+    if (typeof updatePendingCounter === 'function') updatePendingCounter();
   }
 
   // プリセット読み込み時に空値で上書きしないヘッダー項目
@@ -479,6 +487,7 @@
       const rowObj = { _type: 'data', cells };
       if (tr.dataset.cntLink === '1') rowObj.cntLink = true;
       if (tr.dataset.hideQuote === '1') rowObj.hideQuote = true;
+      if (tr.dataset.pending === '1') rowObj.pending = true;          // 要調査（後で記入）
       if (tr.dataset.portPair) rowObj.portPair = tr.dataset.portPair; // 港ペア（子グループ）
       rows.push(rowObj);
     });

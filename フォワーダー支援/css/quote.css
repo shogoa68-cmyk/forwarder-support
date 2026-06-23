@@ -5473,6 +5473,16 @@ body.qp-dash-active #quoteActionDock { display: none !important; }
 }
 #tab-quote-make .cmdbar-clipboard-indicator:hover { background: #ffe8a0; }
 #tab-quote-make .cmdbar-clipboard-indicator[hidden] { display: none; }
+/* 要調査（後で記入）件数バッジ */
+#tab-quote-make .cmdbar-pending-indicator {
+  display: inline-flex; align-items: center; gap: 3px;
+  background: #fff0e0; border: 1px solid #f0a868; color: #9a4d00;
+  border-radius: 12px; padding: 3px 10px; font-size: 11px; font-weight: 600;
+  cursor: pointer; white-space: nowrap; line-height: 1;
+  transition: background 0.15s;
+}
+#tab-quote-make .cmdbar-pending-indicator:hover { background: #ffe2c4; }
+#tab-quote-make .cmdbar-pending-indicator[hidden] { display: none; }
 #tab-quote-make .btn-bulk-cat,
 #tab-quote-make .btn-bulk-cat-pick {
   border: 1px solid #a8947e;
@@ -7788,6 +7798,21 @@ button.um-memberno--empty:hover { background: #f4ead4; border-color: #cdb98e; }
 }
 #tab-quote-make .row-hidequote-btn:hover { opacity: 0.9; }
 #tab-quote-make .row-hidequote-btn.is-on { opacity: 1; filter: none; }
+/* 要調査（後で記入）トグル */
+#tab-quote-make .row-pending-btn {
+  background: none; border: none; cursor: pointer; padding: 0 2px;
+  font-size: 11px; line-height: 1; opacity: 0.4; vertical-align: middle;
+}
+#tab-quote-make .row-pending-btn:hover { opacity: 0.85; }
+#tab-quote-make .row-pending-btn.is-on { opacity: 1; filter: none; }
+/* 要調査の行：琥珀色の左アクセント＋淡い背景で「未確定・後で調べる」を強調 */
+#tab-quote-make tr.row-pending > td { background: #fff7ec; }
+#tab-quote-make tr.row-pending > td.handle-cell {
+  box-shadow: inset 3px 0 0 #f0900f; background: #ffeccf;
+}
+#tab-quote-make tr.row-pending .w-name {
+  border-color: #f0a868; background: #fffaf2;
+}
 /* 作業テーブル：非表示指定の行はグレー＋点線で区別（行は残す） */
 #tab-quote-make tr.row-hidden-quote > td { opacity: 0.5; background: #f6f1e8; }
 #tab-quote-make tr.row-hidden-quote .w-name { text-decoration: line-through; text-decoration-color: #b08a6a; }
