@@ -5,6 +5,7 @@
   const TABLE      = 'local_charges';
   const LOC_KEY    = 'localCharges_v1';
   const ATTACH_KEY = 'lcAttachments_v1';
+  const LC_BUCKET  = 'local-charge-files';   // Supabase Storage バケット（チーム共有添付）
 
   const LC_CATS = [
     { value: '',               label: '— カテゴリ —' },
@@ -65,6 +66,52 @@
     reader.readAsDataURL(file);
   }
 
+  // === 添付ファイル（Supabase Storage：チーム共有） ===
+
+  // チャージの添付情報を返す（クラウド優先→ローカル）。{name, path}=クラウド / {name, dataUrl}=ローカル / null
+  function _lcAttachInfo(ch) {
+    if (ch && ch.attachment_path) return { name: ch.attachment_name || 'ファイル', path: ch.attachment_path };
+    const loc = _getAttach(ch && ch.id);
+    if (loc) return { name: loc.name, dataUrl: loc.dataUrl };
+    return null;
+  }
+
+  async function _lcSignedUrl(path) {
+    const c = _c();
+    if (!c || !path) return null;
+    const { data, error } = await c.storage.from(LC_BUCKET).createSignedUrl(path, 60 * 60);
+    if (error) { alert('ファイルの取得に失敗しました: ' + error.message); return null; }
+    return data?.signedUrl || null;
+  }
+
+  async function _lcOpenSignedPath(path) {
+    const url = await _lcSignedUrl(path);
+    if (url) window.open(url, '_blank', 'noopener');
+  }
+
+  // dataUrl から Blob を生成して Storage にアップロードし、保存パスを返す
+  async function _lcUploadAttach(chargeId, fileObj) {
+    const c = _c();
+    const blob = await (await fetch(fileObj.dataUrl)).blob();
+    const safe = String(fileObj.name || 'file').replace(/[^\w.\-]+/g, '_');
+    const path = `${chargeId}/${Date.now()}_${safe}`;
+    const { error } = await c.storage.from(LC_BUCKET)
+      .upload(path, blob, { contentType: fileObj.type || 'application/octet-stream', upsert: true });
+    if (error) throw error;
+    return path;
+  }
+
+  async function _lcRemoveStorage(path) {
+    const c = _c();
+    if (c && path) { try { await c.storage.from(LC_BUCKET).remove([path]); } catch (e) {} }
+  }
+
+  // 一覧の 📎 ボタン（クラウド添付）クリック → 署名URLで開く
+  window.lcDownloadAttach = function (el) {
+    const path = el?.dataset?.lcPath;
+    if (path) _lcOpenSignedPath(path);
+  };
+
   function _lcUpdateAttachUI() {
     // 表示すべき添付を決定
     const disp = (_pendingAttach !== null)
@@ -82,8 +129,17 @@
       selEl.style.display   = '';
       if (nameEl) {
         nameEl.textContent = disp.name;
-        nameEl.href        = disp.dataUrl;
-        nameEl.download    = disp.name;
+        if (disp.dataUrl) {
+          // 新規選択 or ローカル保存済み → 直接ダウンロード
+          nameEl.href     = disp.dataUrl;
+          nameEl.download  = disp.name;
+          nameEl.onclick   = null;
+        } else if (disp.path) {
+          // クラウド保存済み → クリックで署名URLを発行して開く
+          nameEl.href = '#';
+          nameEl.removeAttribute('download');
+          nameEl.onclick = ev => { ev.preventDefault(); _lcOpenSignedPath(disp.path); };
+        }
       }
     } else {
       emptyEl.style.display = '';
@@ -252,6 +308,14 @@
       const periodStr = c.valid_from || c.valid_to
         ? (c.valid_from ? _fmtDate(c.valid_from) : '—') + ' ～ ' + (c.valid_to ? _fmtDate(c.valid_to) : '')
         : '—';
+
+      const att = _lcAttachInfo(c);
+      const attHtml = att
+        ? (att.dataUrl
+            ? `<a class="lc-attach-tbl-btn" href="${att.dataUrl}" download="${_ea(att.name)}" target="_blank" title="添付: ${_ea(att.name)}">📎</a>`
+            : `<button class="lc-attach-tbl-btn" data-lc-path="${_ea(att.path)}" onclick="lcDownloadAttach(this)" title="添付: ${_ea(att.name)}">📎</button>`)
+        : '';
+
       h += `<tr class="${rowCls}">` +
            `<td class="lc-name"${descTitle}>${_esc(c.name)}${srcHtml}${expiryBadge}` +
            (c.full_name ? `<div class="lc-name-sub">${_esc(c.full_name)}</div>` : '') +
@@ -267,7 +331,7 @@
            (actor ? `<div class="lc-updated-by">${_esc(actor)}</div>` : '') +
            `</td>` +
            `<td class="lc-ops">` +
-           (_getAttach(c.id) ? `<a class="lc-attach-tbl-btn" href="${_getAttach(c.id).dataUrl}" download="${_ea(_getAttach(c.id).name)}" target="_blank" title="添付: ${_ea(_getAttach(c.id).name)}">📎</a>` : '') +
+           attHtml +
            `<button class="lc-edit-btn" onclick="lcOpenForm('${c.id}')" title="編集">✏️</button>` +
            `<button class="lc-del-btn"  onclick="lcDeleteCharge('${c.id}')" title="削除">🗑️</button>` +
            `</td></tr>`;
@@ -303,9 +367,9 @@
     set('lc_source',     charge?.source     || '');
     set('lc_note',       charge?.note       || '');
 
-    // 添付ファイル状態を初期化
+    // 添付ファイル状態を初期化（クラウド添付優先→ローカル）
     _pendingAttach = null;
-    _currentAttach = _getAttach(charge?.id || null);
+    _currentAttach = _lcAttachInfo(charge);
     _lcUpdateAttachUI();
 
     // ドラッグ&ドロップ・ペーストを添付エリアに設定（1回だけ）
@@ -340,12 +404,13 @@
     _currentAttach = null;
   }
 
-  async function lcSaveCharge() {
+  // フォーム入力を1レコード分の row に組み立て（必須チェック込み・不正なら null）
+  function _lcCollectRow() {
     const g = id => document.getElementById(id)?.value?.trim() || '';
     const name    = g('lc_name');
     const carrier = g('lc_carrier');
-    if (!name)    { alert('名称は必須です'); return; }
-    if (!carrier) { alert('船会社（キャリアー）は必須です'); document.getElementById('lc_carrier')?.focus(); return; }
+    if (!carrier) { alert('船会社（キャリアー）は必須です'); document.getElementById('lc_carrier')?.focus(); return null; }
+    if (!name)    { alert('名称は必須です'); document.getElementById('lc_name')?.focus(); return null; }
 
     const row = {
       id:          _editId || undefined,
@@ -366,31 +431,98 @@
       note:        g('lc_note'),
     };
     if (!row.id) delete row.id;
+    return row;
+  }
 
-    const btn = document.querySelector('#lcFormModal .lc-save-btn');
-    if (btn) btn.disabled = true;
-    try {
-      const saved   = await _upsert(row);
-      const savedId = saved?.id || row.id || _editId;
-      // 添付ファイルを保存・削除（null=変更なし、false=削除、object=新規）
-      if (_pendingAttach !== null && savedId) {
-        _persistAttach(savedId, _pendingAttach || null);
+  // row を保存（クラウド/ローカル）＋添付反映＋一覧再描画。savedId を返す
+  async function _lcPersistRow(row) {
+    const c       = _c();
+    const saved   = await _upsert(row);
+    const savedId = saved?.id || row.id || _editId;
+
+    // 添付ファイル（_pendingAttach: null=変更なし / false=削除 / object=新規）
+    if (_pendingAttach !== null && savedId) {
+      if (c && _me()) {
+        // クラウド: Supabase Storage に保存し、行の attachment_path/_name を更新
+        const oldPath = saved?.attachment_path || row.attachment_path || null;
+        try {
+          if (_pendingAttach === false) {
+            await _lcRemoveStorage(oldPath);
+            await c.from(TABLE).update({ attachment_path: null, attachment_name: null }).eq('id', savedId);
+          } else {
+            const path = await _lcUploadAttach(savedId, _pendingAttach);
+            await c.from(TABLE).update({ attachment_path: path, attachment_name: _pendingAttach.name }).eq('id', savedId);
+            if (oldPath && oldPath !== path) await _lcRemoveStorage(oldPath);
+          }
+        } catch (e) {
+          alert('チャージは保存しましたが、添付ファイルのアップロードに失敗しました。\n'
+            + (e?.message || e)
+            + '\n（Storage バケット未作成の可能性。docs/supabase-local-charges-storage.sql を実行してください）');
+        }
+      } else {
+        // ローカル: localStorage（このブラウザのみ）
+        try { _persistAttach(savedId, _pendingAttach || null); }
+        catch (e) { alert('チャージは保存しましたが、添付ファイルの保存に失敗しました（ブラウザ保存の容量超過の可能性）。\n' + (e?.message || e)); }
       }
+    }
+
+    await _load(_dir);
+    lcRender();
+    lcRenderVariants();
+    _lcFetchCarrierBms();
+    return savedId;
+  }
+
+  function _lcFooterBtns() {
+    return document.querySelectorAll('#lcFormModal .lc-modal-footer button');
+  }
+
+  async function lcSaveCharge() {
+    const row = _lcCollectRow();
+    if (!row) return;
+    const btns = _lcFooterBtns();
+    btns.forEach(b => b.disabled = true);
+    try {
+      await _lcPersistRow(row);
       lcCloseForm();
-      await _load(_dir);
-      lcRender();
-      lcRenderVariants();
-      _lcFetchCarrierBms();
     } catch (e) {
       alert('保存に失敗しました: ' + e.message);
     } finally {
-      if (btn) btn.disabled = false;
+      btns.forEach(b => b.disabled = false);
+    }
+  }
+
+  // 保存後にモーダルを閉じず、共通項目を残して続けて入力できるようにする
+  async function lcSaveAndContinue() {
+    const row = _lcCollectRow();
+    if (!row) return;
+    const btns = _lcFooterBtns();
+    btns.forEach(b => b.disabled = true);
+    try {
+      await _lcPersistRow(row);
+      // 続けて新規入力: 入力済みの値はテンプレとして残し、新規レコード扱いにする
+      _editId = null;
+      const titleEl = document.getElementById('lcFormTitle');
+      if (titleEl) titleEl.textContent = '新規チャージ登録（続けて入力）';
+      if (typeof window.quoteShowToast === 'function') {
+        quoteShowToast(`✅ 「${row.name}」を保存。続けて入力できます`, 'success');
+      }
+      // 行ごとに変わりやすい「金額」へフォーカスして選択（名称等はテンプレとして残す）
+      const amtEl = document.getElementById('lc_amount');
+      if (amtEl) { amtEl.focus(); amtEl.select?.(); }
+    } catch (e) {
+      alert('保存に失敗しました: ' + e.message);
+    } finally {
+      btns.forEach(b => b.disabled = false);
     }
   }
 
   async function lcDeleteCharge(id) {
     const charge = _charges.find(c => c.id === id);
     if (!confirm(`「${charge?.name || id}」を削除しますか？`)) return;
+    // 添付ファイルも後始末（クラウド Storage / ローカル localStorage）
+    if (charge?.attachment_path) await _lcRemoveStorage(charge.attachment_path);
+    if (_getAttach(id)) { try { _persistAttach(id, null); } catch (e) {} }
     await _del(id);
     await _load(_dir);
     lcRender();
@@ -872,6 +1004,7 @@
   window.lcOpenForm       = lcOpenForm;
   window.lcCloseForm      = lcCloseForm;
   window.lcSaveCharge     = lcSaveCharge;
+  window.lcSaveAndContinue = lcSaveAndContinue;
   window.lcDeleteCharge   = lcDeleteCharge;
   window.lcRenderVariants = lcRenderVariants;
   window.lcOpenPicker     = lcOpenPicker;
