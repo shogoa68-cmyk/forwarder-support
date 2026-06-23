@@ -621,6 +621,26 @@
     if (typeof window.quoteShowToast === 'function') window.quoteShowToast('⭐ 「' + unit + '」を代表単位に設定しました', 'success');
   };
 
+  // 代表単位の新規入力・編集（リネーム）。旧名称は別名として残す。
+  window.uaRenameCanonical = function(oldCanon, newCanon) {
+    oldCanon = (oldCanon || '').trim(); newCanon = (newCanon || '').trim();
+    if (!oldCanon || !newCanon || oldCanon === newCanon) return;
+    const groups = _loadUA();
+    const old    = groups.find(g => g.canonical === oldCanon);
+    const target = groups.find(g => g.canonical === newCanon);
+    const merged = new Set([
+      ...(target ? (target.aliases || []) : []),
+      ...(old ? (old.aliases || []) : []),
+      oldCanon,
+    ]);
+    merged.delete(newCanon);
+    const out = groups.filter(g => g.canonical !== oldCanon && g.canonical !== newCanon);
+    out.push({ id: (old && old.id) || (Date.now() + '_' + Math.random().toString(36).slice(2)), canonical: newCanon, aliases: [...merged] });
+    _saveUA(out);
+    _notifyUA();
+    if (typeof window.quoteShowToast === 'function') window.quoteShowToast('✏️ 代表単位を「' + newCanon + '」に変更しました', 'success');
+  };
+
   window.uaAddAlias = function(alias, canonical) {
     if (!alias || !canonical || alias === canonical) return;
     const groups = _loadUA();
@@ -785,6 +805,30 @@
   window.synRemoveGroup = async function (field, canonical) {
     await _synDelete(field, canonical);
     await _synAfter();
+  };
+
+  // 代表名の新規入力・編集（リネーム）。旧名称は別名として残す（実データの紐付けを維持）。
+  // newCanon が既存の別代表なら、その配下も取り込んで統合する。
+  window.synRenameCanonical = async function (field, oldCanon, newCanon) {
+    oldCanon = (oldCanon || '').trim(); newCanon = (newCanon || '').trim();
+    if (!field || !oldCanon || !newCanon || oldCanon === newCanon) return;
+    const all = _synAll().filter(g => g.field === field);
+    const old    = all.find(g => g.canonical === oldCanon);
+    const target = all.find(g => g.canonical === newCanon);
+    const merged = new Set([
+      ...(target ? (target.aliases || []) : []),
+      ...(old ? (old.aliases || []) : []),
+      oldCanon,
+    ]);
+    merged.delete(newCanon);
+    if (old) await _synDelete(field, oldCanon);
+    await _synUpsert(field, newCanon, [...merged]);
+    // 統合（A案）: 新代表をマスター化、旧代表・別名はマスターから外す
+    if (typeof window.statsEnsureMaster === 'function') await window.statsEnsureMaster(field, newCanon);
+    if (typeof window.statsEnsureNotMaster === 'function') {
+      for (const a of merged) await window.statsEnsureNotMaster(field, a);
+    }
+    await _synAfter('✏️ 代表名を「' + newCanon + '」に変更しました');
   };
 
   async function _synAfter(toast) {

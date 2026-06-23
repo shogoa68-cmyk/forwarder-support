@@ -262,6 +262,21 @@
   // ゆらぎグループ表示（nm/sv/carrier/port 共通）。
   // 手動の同義グループ（⭐代表→統合）は単位タブと同様に1行へ統合表示し、
   // それ以外は従来どおり自動ゆらぎ検出グループとして表示（併存）。
+  // === 並べ替え（件数順／名前順）===
+  // 名前順にすると似た表記が隣接し、代表登録（⭐代表→統合）作業がしやすくなる。
+  let _statsSort = 'count';   // 'count' | 'name'
+  window.statsSetSort = function (mode) {
+    _statsSort = (mode === 'name') ? 'name' : 'count';
+    _renderActivePane();
+  };
+  function _cmpName(a, b) { return String(a || '').localeCompare(String(b || ''), 'ja'); }
+  function _sortToolbar() {
+    const by = _statsSort;
+    return '<div class="stats-sort-toolbar"><span class="stats-sort-label">並び替え</span>' +
+           `<button class="stats-sort-btn${by === 'count' ? ' is-active' : ''}" onclick="statsSetSort('count')">件数順</button>` +
+           `<button class="stats-sort-btn${by === 'name' ? ' is-active' : ''}" onclick="statsSetSort('name')">名前順（あ→ん）</button></div>`;
+  }
+
   function _renderGrouped(groups, field, colLabel, paneId) {
     const e = document.getElementById(paneId);
     if (!e || !_data) return;
@@ -282,7 +297,8 @@
       const own = cntMap[g.canonical] || 0;
       const aliasCnt = (g.aliases || []).reduce((s, a) => s + (cntMap[a] || 0), 0);
       return { g, own, aliasCnt, total: own + aliasCnt };
-    }).sort((a, b) => b.total - a.total);
+    });
+    synRows.sort((a, b) => _statsSort === 'name' ? _cmpName(a.g.canonical, b.g.canonical) : b.total - a.total);
     // 残りの自動ゆらぎグループ（同義グループに取り込まれた値を除外）
     const restGroups = [];
     groups.forEach((g, gIdx) => {
@@ -290,13 +306,15 @@
       if (!variants.length) return;
       restGroups.push({ variants, total: variants.reduce((s, v) => s + v.count, 0), isAbbrevGroup: g.isAbbrevGroup, origIdx: gIdx });
     });
+    if (_statsSort === 'name') restGroups.sort((a, b) => _cmpName(a.variants[0].value, b.variants[0].value));
 
     if (!synRows.length && !restGroups.length) { e.innerHTML = '<p class="stats-empty">データなし</p>'; return; }
 
     // 件数バーのスケール（表示行の最大 total）
     const maxTotal = Math.max(1, ...synRows.map(r => r.total), ...restGroups.map(g => g.total));
 
-    let h = '<p class="stats-syn-hint">☆代表 で同義グループの基準を決め、他の表記を ⤵統合 でまとめると、⭐行に集約され件数が合算されます（非破壊）。表記ゆれの一括置換は「ゆらぎ N種」バッジから。</p>' +
+    let h = _sortToolbar() +
+            '<p class="stats-syn-hint">☆代表 で同義グループの基準を決め、他の表記を ⤵統合 でまとめると、⭐行に集約され件数が合算されます（非破壊）。表記ゆれの一括置換は「ゆらぎ N種」バッジから。</p>' +
             `<table class="stats-table stats-nm-table"><thead><tr>` +
             `<th>${colLabel}</th><th class="stats-num-col">合計</th><th>同義グループ / バリアント</th>` +
             `</tr></thead><tbody>`;
@@ -482,13 +500,15 @@
       if (!groups.has(k)) groups.set(k, { key: k, total: 0, items: [] });
       const g = groups.get(k); g.total += p.count; g.items.push({ other: o, count: p.count });
     });
-    const list = [...groups.values()].sort((a, b) => b.total - a.total);
+    const list = [...groups.values()];
+    list.sort((a, b) => _statsSort === 'name' ? _cmpName(a.key, b.key) : b.total - a.total);
     list.forEach(g => g.items.sort((a, b) => b.count - a.count));
     const maxTotal = Math.max(1, ...list.map(g => g.total));
 
     let h = '<div class="svp-toolbar"><span class="svp-by-label">グループ基準</span>' +
             `<button class="svp-by-btn${by === 'sv' ? ' is-active' : ''}" onclick="statsSvPortBy('sv')">🏢 サブコン別</button>` +
             `<button class="svp-by-btn${by === 'port' ? ' is-active' : ''}" onclick="statsSvPortBy('port')">🛳 港別</button></div>` +
+            _sortToolbar() +
             '<p class="stats-syn-hint">案件単位で「使われたサブコン × その案件の港」を共起集計します。同義グループの代表に正規化し、件数＝両方を含む案件数です。</p>' +
             `<table class="stats-table"><thead><tr><th>${keyLabel}</th><th class="stats-num-col">件数</th><th>${otherLabel}（×件数）</th></tr></thead><tbody>`;
     list.forEach(g => {
@@ -532,13 +552,16 @@
       const v = g.variants[0].value;
       if (!canonicalSet.has(v) && !aliasToCanon[v]) displayList.push({ type: 'ungrouped', value: v, total: g.total });
     });
+    const _unName = it => it.type === 'canonical' ? it.canonical : it.value;
     displayList.sort((a, b) => {
+      if (_statsSort === 'name') return _cmpName(_unName(a), _unName(b));
       if (a.type === 'canonical' && b.type !== 'canonical') return -1;
       if (a.type !== 'canonical' && b.type === 'canonical') return 1;
       return b.total - a.total;
     });
 
-    let h = '<div class="ua-pane-hint">⭐ 代表に設定 → グループの基準単位として登録　　→ 統合 → 代表に紐付け（件数が合算されます）</div>' +
+    let h = _sortToolbar() +
+      '<div class="ua-pane-hint">⭐ 代表に設定 → グループの基準単位として登録　　→ 統合 → 代表に紐付け（件数が合算されます）</div>' +
       '<table class="stats-table stats-un-table"><thead><tr>' +
       '<th>単位</th><th class="stats-num-col">件数</th><th>同義グループ</th><th>操作</th>' +
       '</tr></thead><tbody>';
@@ -970,7 +993,8 @@
 
     const _renderedCustGroups = {};
     let gIdx = 0;
-    let h = '<p class="stats-syn-hint">☆代表 で同義グループの基準を決め、他の表記を ⤵統合 でまとめると、⭐行に集約され件数・担当者・ステータスが合算されます（非破壊）。</p>' +
+    let h = _sortToolbar() +
+            '<p class="stats-syn-hint">☆代表 で同義グループの基準を決め、他の表記を ⤵統合 でまとめると、⭐行に集約され件数・担当者・ステータスが合算されます（非破壊）。</p>' +
             '<table class="stats-table"><thead><tr>' +
             '<th>お客様名</th><th class="stats-num-col">件数</th><th>担当者</th><th>ステータス</th><th>操作</th>' +
             '</tr></thead><tbody>';
@@ -985,7 +1009,8 @@
         if (mg) { count += mg.count; mg.persons.forEach(p => persons.add(p)); statuses.push(...mg.statuses); }
       });
       return { g, members, count, persons, statuses, memberCounts };
-    }).sort((a, b) => b.count - a.count);
+    });
+    synRows.sort((a, b) => _statsSort === 'name' ? _cmpName(a.g.canonical, b.g.canonical) : b.count - a.count);
 
     synRows.forEach(sr => {
       const memberChips = sr.members.map((m, i) =>
@@ -1007,7 +1032,10 @@
     });
 
     // --- 残りのお客様（自動ゆらぎ検出は従来表示）---
-    groups.forEach(g => {
+    const restCust = _statsSort === 'name'
+      ? [...groups].sort((a, b) => _cmpName(a.customer, b.customer))
+      : groups;
+    restCust.forEach(g => {
       if (g.customer && consumed.has(g.customer)) return;   // 同義グループに集約済み
       const persons = [...g.persons].join('、') || '—';
       const stHtml = _stHtml(g.statuses);
@@ -1061,6 +1089,17 @@
     }
     const labels = { sv: 'サブコン', nm: '品名', un: '単位', customer: 'お客様', port: '港' };
 
+    // --- 代表を新規登録するフォーム（実データに無い名称も登録可）---
+    const fieldOpts = [['sv', 'サブコン'], ['nm', '品名'], ['customer', 'お客様'], ['port', '港'], ['un', '単位']]
+      .map(([v, l]) => `<option value="${v}">${l}</option>`).join('');
+    const formH = '<div class="master-new-form">' +
+      '<span class="master-new-label">➕ 代表を新規登録</span>' +
+      `<select id="masterNewField" class="ar-select">${fieldOpts}</select>` +
+      '<input id="masterNewValue" class="ar-input" type="text" placeholder="代表名称（例: ABC Corporation Ltd.）" onkeydown="if(event.key===\'Enter\')statsMasterAddCanonical()" />' +
+      '<button class="master-new-btn" onclick="statsMasterAddCanonical()">登録</button>' +
+      '<span class="master-new-hint">実際の入力値に無い名称でも登録できます。登録後、集計タブの ⤵統合 で表記を束ねられます。</span>' +
+      '</div>';
+
     // --- 同義グループ一覧（sv/nm/customer/port は syn*、un は ua* から集約）---
     const synGroups = (typeof window.synGetGroups === 'function' ? window.synGetGroups() : []).slice();
     const unitGroups = (typeof window.uaGetGroups === 'function' ? window.uaGetGroups() : [])
@@ -1091,7 +1130,8 @@
         synH += `<tr><td>${labels[g.field] || g.field}</td>` +
                 `<td class="stats-val"><span class="ua-star">⭐</span>${_esc(g.canonical)}</td>` +
                 `<td>${chips}</td>` +
-                `<td><button class="ua-remove-canon" title="グループを解除" onclick="${delGroup}">解除</button></td></tr>`;
+                `<td><button class="stats-master-rename" title="代表名を変更（旧名称は別名として残ります）" onclick="statsMasterRename('${_ea(g.field)}','${_ea(g.canonical)}')">✏️ 名称変更</button>` +
+                `<button class="ua-remove-canon" title="グループを解除" onclick="${delGroup}">解除</button></td></tr>`;
       });
       synH += '</tbody></table></div>';
     }
@@ -1100,7 +1140,7 @@
       const note = allSyn.length
         ? '<p class="stats-empty">個別マスターはありません（同義グループの代表が下に「マスター」として表示されています）。</p>'
         : '<p class="stats-empty">マスター登録はまだありません。<br>各集計の ☆登録（個別）または ⭐代表（同義グループ）で追加できます。</p>';
-      e.innerHTML = note + synH;
+      e.innerHTML = formH + note + synH;
       return;
     }
     const usageDesc = {
@@ -1141,7 +1181,7 @@
            `<td>${m.isMine ? `<button class="stats-demote-btn" onclick="statsToggleVote('${_ea(m.field)}','${_ea(m.value)}')">解除</button>` : '<span class="stats-empty-cell">他メンバー</span>'}</td>` +
            `</tr>`;
     });
-    e.innerHTML = h + '</tbody></table>' + synH;
+    e.innerHTML = formH + h + '</tbody></table>' + synH;
   }
 
   // マスタータブから単位同義グループを操作した際、マスター画面も再描画する薄いラッパ
@@ -1151,6 +1191,36 @@
   };
   window.statsUnitRemoveAlias = function (alias, canonical) {
     if (typeof window.uaRemoveAlias === 'function') window.uaRemoveAlias(alias, canonical);
+    if (typeof window.statsRerenderActive === 'function') window.statsRerenderActive();
+  };
+
+  // マスター管理: 代表を新規登録（実データに無い名称も可）
+  window.statsMasterAddCanonical = async function () {
+    const fSel = document.getElementById('masterNewField');
+    const inp  = document.getElementById('masterNewValue');
+    if (!fSel || !inp) return;
+    const field = fSel.value;
+    const value = (inp.value || '').trim();
+    if (!value) { if (typeof window.quoteShowToast === 'function') window.quoteShowToast('代表名称を入力してください', 'warn'); return; }
+    if (field === 'un') {
+      if (typeof window.uaSetCanonical === 'function') window.uaSetCanonical(value);
+    } else if (typeof window.synSetCanonical === 'function') {
+      await window.synSetCanonical(field, value);
+    }
+    inp.value = '';
+    if (typeof window.statsRerenderActive === 'function') window.statsRerenderActive();
+  };
+  // マスター管理: 代表名を編集（リネーム）。旧名称は別名として残る
+  window.statsMasterRename = async function (field, canonical) {
+    const nv = window.prompt('新しい代表名を入力してください。\n（旧名称「' + canonical + '」は別名としてグループに残ります）', canonical);
+    if (nv == null) return;
+    const v = nv.trim();
+    if (!v || v === canonical) return;
+    if (field === 'un') {
+      if (typeof window.uaRenameCanonical === 'function') window.uaRenameCanonical(canonical, v);
+    } else if (typeof window.synRenameCanonical === 'function') {
+      await window.synRenameCanonical(field, canonical, v);
+    }
     if (typeof window.statsRerenderActive === 'function') window.statsRerenderActive();
   };
 

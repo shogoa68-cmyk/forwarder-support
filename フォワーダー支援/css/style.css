@@ -2214,6 +2214,45 @@ body:has(#compareOverlay.open) #quoteActionDock { display: none; }
   background: #f7eccb; border-color: #e0b84a; color: #6b4f10; font-weight: 700;
 }
 
+/* マスター管理: 代表 新規登録フォーム */
+.master-new-form {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 8px;
+  background: #fffbe9; border: 1px solid #e6dcc8; border-radius: 8px;
+  padding: 10px 12px; margin: 0 0 14px;
+}
+.master-new-label { font-size: 13px; font-weight: 700; color: #6b5840; }
+.master-new-form .ar-select,
+.master-new-form .ar-input {
+  font-size: 13px; padding: 4px 8px; border: 1px solid #d8c8a8; border-radius: 6px;
+}
+.master-new-form .ar-input { min-width: 240px; flex: 1 1 240px; }
+.master-new-btn {
+  font-size: 13px; font-weight: 700; border: 1px solid #3a9268;
+  background: #4caf7d; color: #fff; border-radius: 6px; padding: 4px 14px; cursor: pointer;
+}
+.master-new-btn:hover { background: #3d9d6c; }
+.master-new-hint { font-size: 11px; color: #a8956f; flex-basis: 100%; }
+.stats-master-rename {
+  font-size: 11px; border: 1px solid #cdbb97; background: #fffdf8; color: #6b5840;
+  border-radius: 4px; padding: 2px 8px; cursor: pointer; margin-right: 4px;
+}
+.stats-master-rename:hover { background: #f0e8d8; }
+
+/* 並び替えトグル（件数順／名前順）— 各集計タブ共通 */
+.stats-sort-toolbar {
+  display: flex; align-items: center; gap: 6px;
+  margin: 0 0 8px;
+}
+.stats-sort-label { font-size: 12px; color: #8a7656; font-weight: 700; }
+.stats-sort-btn {
+  font-size: 12px; border: 1px solid #d8c8a8; background: #fffdf8;
+  color: #5a4a38; border-radius: 6px; padding: 3px 11px; cursor: pointer;
+}
+.stats-sort-btn:hover { background: #f0e8d8; }
+.stats-sort-btn.is-active {
+  background: #f7eccb; border-color: #e0b84a; color: #6b4f10; font-weight: 700;
+}
+
 /* 入力支援：代表表記への置換サジェスト（body 直下に fixed 配置） */
 .syn-suggest {
   display: inline-flex; align-items: center; gap: 8px;
