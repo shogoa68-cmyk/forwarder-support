@@ -245,6 +245,12 @@
     document.querySelectorAll('#tableBody tr[id^="row-"] [data-field="nm"].quote-warn-field').forEach((nm, i) => {
       items.push({ msg: `${i + 1} 行目: 項目名が空です`, focusEl: nm });
     });
+    // 要調査（後で記入）の行が残っていれば出力前に警告
+    document.querySelectorAll('#tableBody tr[data-pending="1"]').forEach(tr => {
+      const nm = tr.querySelector('[data-field="nm"]');
+      const name = (nm?.value || '').trim() || '（名称なし）';
+      items.push({ msg: `🔍 「${name}」は要調査（後で記入）のままです`, focusEl: nm });
+    });
     return items;
   }
 
