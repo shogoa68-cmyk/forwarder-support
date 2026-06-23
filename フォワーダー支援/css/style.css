@@ -2995,6 +2995,7 @@ a.lc-source-icon:hover { opacity: 0.75; }
   font-size: 14px; text-decoration: none; vertical-align: middle;
   margin-right: 4px; opacity: .75;
 }
+button.lc-attach-tbl-btn { background: none; border: none; padding: 0; cursor: pointer; }
 .lc-attach-tbl-btn:hover { opacity: 1; }
 
 /* ── Unit Alias Group UI ─────────────────────────────────────────────── */

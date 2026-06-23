@@ -19,6 +19,8 @@ CREATE TABLE IF NOT EXISTS local_charges (
   note         text,       -- 備考
   valid_from   date,       -- 適用開始日
   valid_to     date,       -- 適用終了日
+  attachment_path text,    -- 添付ファイルの Storage パス（チーム共有）
+  attachment_name text,    -- 添付ファイルの元ファイル名
   created_by   text,
   updated_by   text,
   created_at   timestamptz DEFAULT now(),
@@ -26,6 +28,7 @@ CREATE TABLE IF NOT EXISTS local_charges (
 );
 
 -- 既存テーブルがある場合の列追加は docs/supabase-local-charges-migration.sql を参照
+-- 添付ファイルのチーム共有（Storage）は docs/supabase-local-charges-storage.sql を参照
 
 ALTER TABLE local_charges ENABLE ROW LEVEL SECURITY;
 
