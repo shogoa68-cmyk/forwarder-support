@@ -92,8 +92,11 @@
         const label       = tr.querySelector('.subtotal-label')?.value || '';
         const billingText = tr.querySelector('.subtotal-group-billing')?.textContent?.trim() || '—';
         const subtotalText= tr.querySelector('.subtotal-group-subtotal')?.textContent?.trim() || '—';
-        const profitText  = tr.querySelector('.subtotal-group-profit')?.textContent?.trim() || '—';
-        rows.push({ _type: 'subtotal', label, billingText, subtotalText, profitText });
+        // 利益額は .stp-amt から読む（粗利率の small を含めない）。粗利率は dataset から
+        const profitText  = (tr.querySelector('.subtotal-group-profit .stp-amt')
+                           || tr.querySelector('.subtotal-group-profit'))?.textContent?.trim() || '—';
+        const marginPct   = tr.dataset.marginPct || '';
+        rows.push({ _type: 'subtotal', label, billingText, subtotalText, profitText, marginPct });
         return;
       }
       if (tr.dataset.type === 'remark') {
@@ -529,12 +532,14 @@
         // 小計セパレーター。先頭ラベルは cat+sv+name+pay(5)+bill(3)+mk = 12 列ぶん
         // col 13-16 に data-ft-col を付与し、applyPreviewCustomize の列連動に対応
         const sepPc = d.profitText.startsWith('-') ? 'pv-neg' : (d.profitText === '—' || d.profitText === '0') ? 'pv-zero' : 'pv-pos';
+        // 粗利率は利益列に併記（内部指標。利益列が非表示の客先モードでは列ごと隠れる）
+        const sepMargin = d.marginPct ? `<small class="tot-margin${parseFloat(d.marginPct) < 0 ? ' pv-neg' : ''}">粗利 ${escHtml(d.marginPct)}%</small>` : '';
         html += `<tr class="pv-subtotal-sep">
           <td colspan="12" class="pv-subtotal-sep-label">━━ ${escHtml(d.label || '小計')}</td>
           <td class="pv-num pv-subtotal">${escHtml(d.subtotalText)}</td>
           <td data-ft-col="jpy-conv" class="pv-jpy"></td>
           <td data-ft-col="tax-col" class="pv-num pv-tax-cell"></td>
-          <td data-ft-col="profit" class="pv-pr ${sepPc} pv-num">${escHtml(d.profitText)}</td>
+          <td data-ft-col="profit" class="pv-pr ${sepPc} pv-num">${escHtml(d.profitText)}${sepMargin}</td>
           <td data-ft-col="note"></td>
         </tr>`;
         return;

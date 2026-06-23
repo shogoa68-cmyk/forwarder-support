@@ -810,7 +810,7 @@
         <span class="subtotal-group-billing" style="display:none;">—</span>
       </td>
       <td class="subtotal-group-subtotal subtotal-cell">—</td>
-      <td class="subtotal-group-profit profit-cell profit-zero">—</td>
+      <td class="subtotal-group-profit profit-cell profit-zero"><span class="stp-amt">—</span></td>
     `;
     const tbody = document.getElementById('tableBody');
     if (afterId) {
@@ -974,8 +974,21 @@
           subtotalEl.title = pureSame ? '' : '通貨を JPY に換算して合計（FX パネルのレート使用）';
         }
         if (profitEl) {
-          profitEl.textContent = (billAmt || costAmt) ? prefix + fmt(profit) + curSuffix : '—';
-          profitEl.className   = `subtotal-group-profit profit-cell ${pClass(profit)}`;
+          const amtEl = profitEl.querySelector('.stp-amt') || profitEl;
+          amtEl.textContent = (billAmt || costAmt) ? prefix + fmt(profit) + curSuffix : '—';
+          // 粗利率（売上ベース）を総合計と同じ書式で併記。プレビューは dataset から読む
+          const mPct = (billAmt && window.SharedCalc) ? SharedCalc.grossMarginPct(billAmt, costAmt) : null;
+          let mEl = profitEl.querySelector('.tot-margin');
+          if (mPct !== null) {
+            if (!mEl) { mEl = document.createElement('small'); mEl.className = 'tot-margin'; profitEl.appendChild(mEl); }
+            mEl.textContent = `粗利 ${mPct.toFixed(1)}%`;
+            mEl.classList.toggle('pv-neg', mPct < 0);
+            tr.dataset.marginPct = mPct.toFixed(1);
+          } else {
+            if (mEl) mEl.remove();
+            delete tr.dataset.marginPct;
+          }
+          profitEl.className = `subtotal-group-profit profit-cell ${pClass(profit)}`;
           profitEl.title = pureSame ? '' : '通貨を JPY に換算して合計（FX パネルのレート使用）';
         }
         groupBillJPY = 0; groupCostJPY = 0;
