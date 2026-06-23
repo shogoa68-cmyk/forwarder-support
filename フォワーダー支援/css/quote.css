@@ -115,6 +115,32 @@
   color: #857060; letter-spacing: 0;
   text-transform: none;
 }
+/* ===== 参照URL（自動リンク化） ===== */
+#tab-quote-make .quote-field-refurl { grid-column: 1 / -1; margin-top: 6px; }
+#tab-quote-make #qf-refurl {
+  width: 100%; resize: vertical; font-family: inherit; font-size: 12px;
+  padding: 6px 8px; border: 1px solid var(--border-md, #c4b49a); border-radius: 6px;
+  background: #fff; color: #3d2e1e; box-sizing: border-box;
+}
+#tab-quote-make #qf-refurl:focus { border-color: #8b6914; outline: none; }
+#tab-quote-make #qf-refurl::placeholder { color: #998070; font-size: 11px; }
+#tab-quote-make .qf-refurl-view {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 8px;
+  padding: 7px 9px; border: 1px solid #d9cfc2; border-radius: 6px; background: #faf6ef;
+}
+#tab-quote-make .qf-refurl-links { display: flex; flex-wrap: wrap; gap: 6px; flex: 1; min-width: 0; }
+#tab-quote-make .qf-refurl-link {
+  display: inline-flex; align-items: center; gap: 2px; max-width: 100%;
+  font-size: 12px; color: #1a4a8f; text-decoration: none;
+  background: #eaf1fb; border: 1px solid #cfdcf0; border-radius: 999px; padding: 2px 9px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+#tab-quote-make .qf-refurl-link:hover { background: #dde9f8; text-decoration: underline; }
+#tab-quote-make .qf-refurl-edit {
+  font-size: 11px; font-family: inherit; cursor: pointer; white-space: nowrap;
+  color: #6b5a42; background: #fff; border: 1px solid #c4b49a; border-radius: 6px; padding: 3px 9px;
+}
+#tab-quote-make .qf-refurl-edit:hover { background: #f0e8d8; }
 /* ===== 添付ファイル ===== */
 #tab-quote-make .quote-field-attach { margin-top: 6px; }
 #tab-quote-make .qf-attach-drop {
