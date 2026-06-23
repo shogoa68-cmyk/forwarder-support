@@ -229,11 +229,73 @@
       tr.classList.add('row-pending');
       btn.classList.add('is-on');
       btn.title = '要調査（後で記入）中。最新情報を調べたらクリックで解除。';
+      // 完了と要調査は排他：要調査にしたら完了マークを外す
+      if (tr.dataset.done === '1') {
+        delete tr.dataset.done;
+        tr.classList.remove('row-input-done');
+        const db = tr.querySelector('.row-done-btn');
+        if (db) { db.classList.remove('is-on'); db.title = '入力完了の目印。作成を再開したとき、どこまで終わったか分かります（もう一度クリックで解除）。'; }
+        if (typeof updateDoneCounter === 'function') updateDoneCounter();
+      }
     }
     updatePendingCounter();
     if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
   }
   window.toggleRowPending = toggleRowPending;
+
+  // 行を「入力完了」状態に切り替える。作成再開時にどこまで終わったかの目印。
+  // 合計・出力には通常どおり含まれる（純粋な作業マーカー）。要調査とは排他。
+  function toggleRowDone(btn) {
+    const tr = btn?.closest('tr');
+    if (!tr) return;
+    const on = tr.dataset.done === '1';
+    if (on) {
+      delete tr.dataset.done;
+      tr.classList.remove('row-input-done');
+      btn.classList.remove('is-on');
+      btn.title = '入力完了の目印。作成を再開したとき、どこまで終わったか分かります（もう一度クリックで解除）。';
+    } else {
+      tr.dataset.done = '1';
+      tr.classList.add('row-input-done');
+      btn.classList.add('is-on');
+      btn.title = '入力完了（クリックで解除）';
+      // 完了と要調査は排他：完了にしたら要調査マークを外す
+      if (tr.dataset.pending === '1') {
+        delete tr.dataset.pending;
+        tr.classList.remove('row-pending');
+        const pb = tr.querySelector('.row-pending-btn');
+        if (pb) { pb.classList.remove('is-on'); pb.title = '後で調べて記入（要調査マーク）。サーチャージ等、最新情報を調べてから埋める項目に。'; }
+        updatePendingCounter();
+      }
+    }
+    updateDoneCounter();
+    if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
+  }
+  window.toggleRowDone = toggleRowDone;
+
+  // 入力完了の進捗バッジ（完了件数 / データ行総数）を更新。0 行なら非表示。
+  function updateDoneCounter() {
+    const dataRows = document.querySelectorAll('#tableBody tr[id^="row-"]:not([data-type]):not([data-virtual])');
+    const total = dataRows.length;
+    let done = 0;
+    dataRows.forEach(tr => { if (tr.dataset.done === '1') done++; });
+    const ind = document.getElementById('doneIndicator');
+    if (ind) ind.hidden = (done === 0);
+    const dc = document.getElementById('doneCount');  if (dc) dc.textContent = done;
+    const dt = document.getElementById('doneTotal');  if (dt) dt.textContent = total;
+  }
+  window.updateDoneCounter = updateDoneCounter;
+
+  // 未完了（＝続きから作業する）行へ移動。完了マークの無い最初のデータ行へスクロール。
+  function jumpToNextUnfinished() {
+    const rows = Array.from(document.querySelectorAll('#tableBody tr[id^="row-"]:not([data-type]):not([data-virtual])'));
+    const target = rows.find(tr => tr.dataset.done !== '1');
+    if (!target) { if (window.quoteShowToast) quoteShowToast('すべての行が入力完了です 🎉', 'success'); return; }
+    target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    const nm = target.querySelector('[data-field="nm"]');
+    if (nm) { nm.focus(); if (nm.select) nm.select(); }
+  }
+  window.jumpToNextUnfinished = jumpToNextUnfinished;
 
   // 要調査（後で記入）行の件数バッジを更新。0 件なら非表示。
   function updatePendingCounter() {
@@ -651,6 +713,7 @@
 
   function updateTotals() {
     updatePendingCounter();
+    updateDoneCounter();      // 入力完了の進捗バッジを更新
     recomputeRowValidity();   // 適用期間外の行を判定（客先非表示・合計除外）
     const rows = document.querySelectorAll('#tableBody tr');
     if (!rows.length) {

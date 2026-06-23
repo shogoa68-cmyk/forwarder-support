@@ -297,6 +297,13 @@
         const pb = tr.querySelector('.row-pending-btn');
         if (pb) { pb.classList.add('is-on'); pb.title = '要調査（後で記入）中。最新情報を調べたらクリックで解除。'; }
       }
+      // 入力完了マークを復元
+      if (row.done) {
+        tr.dataset.done = '1';
+        tr.classList.add('row-input-done');
+        const db = tr.querySelector('.row-done-btn');
+        if (db) { db.classList.add('is-on'); db.title = '入力完了（クリックで解除）'; }
+      }
       // 港ペア（子グループキー）を復元
       if (row.portPair) tr.dataset.portPair = row.portPair;
       regularTrs.push(tr);
@@ -488,6 +495,7 @@
       if (tr.dataset.cntLink === '1') rowObj.cntLink = true;
       if (tr.dataset.hideQuote === '1') rowObj.hideQuote = true;
       if (tr.dataset.pending === '1') rowObj.pending = true;          // 要調査（後で記入）
+      if (tr.dataset.done === '1') rowObj.done = true;                // 入力完了マーク
       if (tr.dataset.portPair) rowObj.portPair = tr.dataset.portPair; // 港ペア（子グループ）
       rows.push(rowObj);
     });
