@@ -2214,6 +2214,26 @@ body:has(#compareOverlay.open) #quoteActionDock { display: none; }
   background: #f7eccb; border-color: #e0b84a; color: #6b4f10; font-weight: 700;
 }
 
+/* 入力支援：代表表記への置換サジェスト（body 直下に fixed 配置） */
+.syn-suggest {
+  display: inline-flex; align-items: center; gap: 8px;
+  background: #fffbe9; border: 1px solid #e0b84a; border-radius: 8px;
+  padding: 5px 8px 5px 11px; font-size: 12px; color: #5a4a2a;
+  box-shadow: 0 4px 14px rgba(0,0,0,.18); max-width: 360px;
+}
+.syn-suggest-msg b { color: #8a6a18; }
+.syn-suggest-apply {
+  font-size: 12px; font-weight: 700; border: 1px solid #3a9268;
+  background: #4caf7d; color: #fff; border-radius: 5px; padding: 2px 10px; cursor: pointer;
+  white-space: nowrap;
+}
+.syn-suggest-apply:hover { background: #3d9d6c; }
+.syn-suggest-dismiss {
+  font-size: 12px; border: 1px solid #ddd; background: #fff; color: #888;
+  border-radius: 5px; padding: 2px 6px; cursor: pointer;
+}
+.syn-suggest-dismiss:hover { background: #f3f3f3; }
+
 /* ペイン */
 .stats-pane {
   display: none;
