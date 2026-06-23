@@ -228,7 +228,9 @@
         return;
       }
       const isMemo = ['式','note','memo'].includes(un?.value) || /^[#＃]/.test(name);
-      if (!isMemo && (parseFloat(bp?.value) || 0) === 0) {
+      // 0円確認済み（¥0✓）の行は意図的な 0 円。プレビューからも除外されるため警告対象外
+      const zc = tr.querySelector('[data-field="zc"]')?.value === '1';
+      if (!isMemo && !zc && (parseFloat(bp?.value) || 0) === 0) {
         tr.classList.add('row-warn-price');
       }
     });
