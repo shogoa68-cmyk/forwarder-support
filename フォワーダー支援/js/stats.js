@@ -259,29 +259,76 @@
            '</button>';
   }
 
-  // ゆらぎグループ表示（nm/sv/carrier/un 共通）
+  // ゆらぎグループ表示（nm/sv/carrier/port 共通）。
+  // 手動の同義グループ（⭐代表→統合）は単位タブと同様に1行へ統合表示し、
+  // それ以外は従来どおり自動ゆらぎ検出グループとして表示（併存）。
   function _renderGrouped(groups, field, colLabel, paneId) {
     const e = document.getElementById(paneId);
     if (!e || !_data) return;
-    if (!groups.length) { e.innerHTML = '<p class="stats-empty">データなし</p>'; return; }
     // carrier も alias rule / 同義グループでは 'sv' フィールドを使う
     const aliasField = (field === 'sv') ? 'sv' : field;
-    // 同義グループ状態（手動・⭐代表／統合）と件数マップ
     const synGroups  = typeof window.synGetGroups === 'function' ? window.synGetGroups(aliasField) : [];
     const synCanons  = new Set(synGroups.map(g => g.canonical));
     const synAliasOf = {};
     synGroups.forEach(g => (g.aliases || []).forEach(a => { synAliasOf[a] = g.canonical; }));
+    // 件数マップ（全バリアント横断）
     const cntMap = {};
     groups.forEach(g => g.variants.forEach(v => { cntMap[v.value] = (cntMap[v.value] || 0) + v.count; }));
-    // groups の total 最大値
-    const maxTotal = groups.length ? Math.max(...groups.map(g => g.total)) : 1;
-    let h = '<p class="stats-syn-hint">☆代表 で同義グループの基準を決め、他の表記を ⤵統合 でまとめられます（非破壊・件数合算）。表記ゆれの一括置換は「ゆらぎ N種」バッジから。</p>' +
-            `<table class="stats-table stats-nm-table"><thead><tr>` +
-            `<th>${colLabel}</th><th class="stats-num-col">合計</th><th>バリアント / 操作</th>` +
-            `</tr></thead><tbody>`;
+    // 同義グループが消費する値（代表＋統合先すべて）
+    const consumed = new Set();
+    synGroups.forEach(g => { consumed.add(g.canonical); (g.aliases || []).forEach(a => consumed.add(a)); });
+    // 同義グループ統合行（合計降順）
+    const synRows = synGroups.map(g => {
+      const own = cntMap[g.canonical] || 0;
+      const aliasCnt = (g.aliases || []).reduce((s, a) => s + (cntMap[a] || 0), 0);
+      return { g, own, aliasCnt, total: own + aliasCnt };
+    }).sort((a, b) => b.total - a.total);
+    // 残りの自動ゆらぎグループ（同義グループに取り込まれた値を除外）
+    const restGroups = [];
     groups.forEach((g, gIdx) => {
+      const variants = g.variants.filter(v => !consumed.has(v.value));
+      if (!variants.length) return;
+      restGroups.push({ variants, total: variants.reduce((s, v) => s + v.count, 0), isAbbrevGroup: g.isAbbrevGroup, origIdx: gIdx });
+    });
+
+    if (!synRows.length && !restGroups.length) { e.innerHTML = '<p class="stats-empty">データなし</p>'; return; }
+
+    // 件数バーのスケール（表示行の最大 total）
+    const maxTotal = Math.max(1, ...synRows.map(r => r.total), ...restGroups.map(g => g.total));
+
+    let h = '<p class="stats-syn-hint">☆代表 で同義グループの基準を決め、他の表記を ⤵統合 でまとめると、⭐行に集約され件数が合算されます（非破壊）。表記ゆれの一括置換は「ゆらぎ N種」バッジから。</p>' +
+            `<table class="stats-table stats-nm-table"><thead><tr>` +
+            `<th>${colLabel}</th><th class="stats-num-col">合計</th><th>同義グループ / バリアント</th>` +
+            `</tr></thead><tbody>`;
+
+    // --- 同義グループ（統合表示）---
+    synRows.forEach(sr => {
+      const g = sr.g;
+      const members = (g.aliases || []).length + 1;
+      let chips = `<span class="stats-chip stats-chip--canon">` +
+                  `<span class="stats-chip-text">⭐ ${_esc(g.canonical)}</span>` +
+                  `<span class="stats-chip-cnt">×${sr.own}</span>` +
+                  _voteBtn(field, g.canonical) +
+                  `</span>`;
+      (g.aliases || []).forEach(a => {
+        chips += `<span class="stats-chip">` +
+                 `<span class="stats-chip-text">${_esc(a)}</span>` +
+                 `<span class="stats-chip-cnt">×${cntMap[a] || 0}</span>` +
+                 `<button class="stats-syn-unmerge" onclick="statsSynUnmerge('${_ea(aliasField)}','${_ea(a)}')" title="統合を解除">✕</button>` +
+                 `</span>`;
+      });
+      h += `<tr class="stats-syn-row">` +
+           `<td class="stats-val"><span class="ua-star">⭐</span>${_esc(g.canonical)} <span class="stats-syn-grp-badge" title="同義グループ（${members}種を集約）">同義 ${members}種</span></td>` +
+           `<td class="stats-num-col"><div class="stats-bar-wrap"><div class="stats-bar" style="width:${Math.round(sr.total / maxTotal * 100)}%"></div><span class="stats-bar-label">${sr.total}</span></div>${sr.aliasCnt ? `<span class="ua-cnt-detail"> (${sr.own}+${sr.aliasCnt})</span>` : ''}</td>` +
+           `<td class="stats-chips-cell">${chips}` +
+             `<button class="stats-syn-dissolve" onclick="statsToggleSynCanonical('${_ea(aliasField)}','${_ea(g.canonical)}')" title="同義グループを解除">グループ解除</button>` +
+           `</td></tr>`;
+    });
+
+    // --- 残りの自動ゆらぎグループ ---
+    restGroups.forEach(g => {
       const hasV = g.variants.length > 1;
-      const gId  = paneId + '-' + gIdx;
+      const gId  = paneId + '-' + g.origIdx;
       _renderedGroups[gId] = { aliasField, variants: g.variants };
       h += `<tr${hasV ? ' class="stats-has-variant"' : ''}>`;
       h += `<td class="stats-val">${_esc(g.variants[0].value)}`;
@@ -299,7 +346,7 @@
            `</td>`;
       h += `<td class="stats-chips-cell">`;
       g.variants.forEach(v => {
-        h += `<span class="stats-chip${synCanons.has(v.value) ? ' stats-chip--canon' : ''}">` +
+        h += `<span class="stats-chip">` +
              `<span class="stats-chip-text">${_esc(v.value)}</span>` +
              `<span class="stats-chip-cnt">×${v.count}</span>` +
              _voteBtn(field, v.value) +
@@ -381,6 +428,80 @@
   function _renderCarrier() { _renderGrouped(_data?.carrierGroups || [], 'sv', 'キャリア名', 'statsPane-carrier'); }
   function _renderPort() { _renderGrouped(_data?.portGroups || [], 'port', '港名', 'statsPane-port'); }
   function _renderNm()      { _renderGrouped(_data?.nmGroups      || [], 'nm', '品名',       'statsPane-nm'); }
+
+  // ===== 🔗 サブコン×港ペア =====
+  // サブコンは明細行（cells[2]）、港は引き合い条件（z2Pol/z2Pod/z2Via・複数航路）にあるため、
+  // 「案件単位で使われたサブコン × その案件の港」の共起を集計する。
+  // 同義グループの代表に正規化してから数える（件数＝両方を含む案件数）。
+  let _svPortBy = 'sv';   // 'sv' | 'port'
+  function _buildSvPortPairs(source) {
+    const svMap   = typeof window.synGetNormalizeMap === 'function' ? window.synGetNormalizeMap('sv')   : {};
+    const portMap = typeof window.synGetNormalizeMap === 'function' ? window.synGetNormalizeMap('port') : {};
+    const norm = (v, m) => (m && m[v]) || v;
+    const pairs = new Map();   // `${sv} ${port}` → { sv, port, count }
+    const add = p => {
+      const d = p.data || {};
+      const rows = Array.isArray(d.rows) ? d.rows : [];
+      const subs = new Set();
+      rows.forEach(r => {
+        if (!r || r._type !== 'data') return;
+        const sv = ((Array.isArray(r.cells) ? r.cells : [])[2] || '').trim();
+        if (sv) subs.add(norm(sv, svMap));
+      });
+      const ports = new Set(_portValsFromFields(d.fields || {}).map(pt => norm(pt, portMap)));
+      if (!subs.size || !ports.size) return;
+      subs.forEach(sv => ports.forEach(pt => {
+        const k = sv + ' ' + pt;
+        if (!pairs.has(k)) pairs.set(k, { sv, port: pt, count: 0 });
+        pairs.get(k).count++;
+      }));
+    };
+    if (source !== 'cloud') _getLocalPresets().forEach(add);
+    if (source !== 'local') (typeof window.cloudGetAllRows === 'function' ? window.cloudGetAllRows() : []).forEach(add);
+    return [...pairs.values()].sort((a, b) => b.count - a.count);
+  }
+
+  function _renderSvPort() {
+    const e = document.getElementById('statsPane-svport');
+    if (!e) return;
+    const source = document.getElementById('statsSource')?.value || 'both';
+    const pairs  = _buildSvPortPairs(source);
+    if (!pairs.length) {
+      e.innerHTML = '<p class="stats-empty">サブコンと港の組み合わせがありません。<br>' +
+        '<small>明細の「サブコン」欄と、引き合い条件の POL / POD / Via を入力して案件を保存してください。</small></p>';
+      return;
+    }
+    const by = _svPortBy;
+    const keyField   = by === 'sv' ? 'sv'   : 'port';
+    const otherField = by === 'sv' ? 'port' : 'sv';
+    const keyLabel   = by === 'sv' ? 'サブコン' : '港';
+    const otherLabel = by === 'sv' ? '港' : 'サブコン';
+    const groups = new Map();
+    pairs.forEach(p => {
+      const k = p[keyField], o = p[otherField];
+      if (!groups.has(k)) groups.set(k, { key: k, total: 0, items: [] });
+      const g = groups.get(k); g.total += p.count; g.items.push({ other: o, count: p.count });
+    });
+    const list = [...groups.values()].sort((a, b) => b.total - a.total);
+    list.forEach(g => g.items.sort((a, b) => b.count - a.count));
+    const maxTotal = Math.max(1, ...list.map(g => g.total));
+
+    let h = '<div class="svp-toolbar"><span class="svp-by-label">グループ基準</span>' +
+            `<button class="svp-by-btn${by === 'sv' ? ' is-active' : ''}" onclick="statsSvPortBy('sv')">🏢 サブコン別</button>` +
+            `<button class="svp-by-btn${by === 'port' ? ' is-active' : ''}" onclick="statsSvPortBy('port')">🛳 港別</button></div>` +
+            '<p class="stats-syn-hint">案件単位で「使われたサブコン × その案件の港」を共起集計します。同義グループの代表に正規化し、件数＝両方を含む案件数です。</p>' +
+            `<table class="stats-table"><thead><tr><th>${keyLabel}</th><th class="stats-num-col">件数</th><th>${otherLabel}（×件数）</th></tr></thead><tbody>`;
+    list.forEach(g => {
+      const chips = g.items.map(it =>
+        `<span class="stats-chip"><span class="stats-chip-text">${_esc(it.other)}</span><span class="stats-chip-cnt">×${it.count}</span></span>`
+      ).join('');
+      h += `<tr><td class="stats-val">${_esc(g.key)}</td>` +
+           `<td class="stats-num-col"><div class="stats-bar-wrap"><div class="stats-bar" style="width:${Math.round(g.total / maxTotal * 100)}%"></div><span class="stats-bar-label">${g.total}</span></div></td>` +
+           `<td class="stats-chips-cell">${chips}</td></tr>`;
+    });
+    e.innerHTML = h + '</tbody></table>';
+  }
+  window.statsSvPortBy = function (by) { _svPortBy = (by === 'port') ? 'port' : 'sv'; _renderSvPort(); };
   function _renderUn() {
     const e = document.getElementById('statsPane-un');
     if (!e || !_data) return;
@@ -833,20 +954,63 @@
     const synCntMap = {};
     groups.forEach(g => { if (g.customer) synCntMap[g.customer] = g.count; });
 
-    const _renderedCustGroups = {};
-    let gIdx = 0;
-    let h = '<p class="stats-syn-hint">☆代表 で同義グループの基準を決め、他の表記を ⤵統合 でまとめられます（非破壊・件数合算）。</p>' +
-            '<table class="stats-table"><thead><tr>' +
-            '<th>お客様名</th><th class="stats-num-col">件数</th><th>担当者</th><th>ステータス</th><th>操作</th>' +
-            '</tr></thead><tbody>';
-    groups.forEach(g => {
-      const persons = [...g.persons].join('、') || '—';
+    // 同義グループに取り込まれた顧客名・顧客名→集計のルックアップ
+    const custByName = new Map();
+    groups.forEach(g => { if (g.customer) custByName.set(g.customer, g); });
+    const consumed = new Set();
+    synGroups.forEach(g => { consumed.add(g.canonical); (g.aliases || []).forEach(a => consumed.add(a)); });
+    const _stHtml = (statuses) => {
       const stMap = {};
-      g.statuses.forEach(s => { stMap[s] = (stMap[s] || 0) + 1; });
-      const stHtml = Object.entries(stMap).length
+      statuses.forEach(s => { stMap[s] = (stMap[s] || 0) + 1; });
+      return Object.entries(stMap).length
         ? Object.entries(stMap).sort((a, b) => b[1] - a[1])
             .map(([s, n]) => `<span class="stats-st-chip stats-st--${_stCls(s)}">${_esc(s)} ${n}</span>`).join('')
         : '—';
+    };
+
+    const _renderedCustGroups = {};
+    let gIdx = 0;
+    let h = '<p class="stats-syn-hint">☆代表 で同義グループの基準を決め、他の表記を ⤵統合 でまとめると、⭐行に集約され件数・担当者・ステータスが合算されます（非破壊）。</p>' +
+            '<table class="stats-table"><thead><tr>' +
+            '<th>お客様名</th><th class="stats-num-col">件数</th><th>担当者</th><th>ステータス</th><th>操作</th>' +
+            '</tr></thead><tbody>';
+
+    // --- 同義グループ（統合表示・合計件数降順）---
+    const synRows = synGroups.map(g => {
+      const members = [g.canonical, ...(g.aliases || [])];
+      let count = 0; const persons = new Set(); const statuses = []; const memberCounts = {};
+      members.forEach(m => {
+        const mg = custByName.get(m);
+        memberCounts[m] = mg ? mg.count : 0;
+        if (mg) { count += mg.count; mg.persons.forEach(p => persons.add(p)); statuses.push(...mg.statuses); }
+      });
+      return { g, members, count, persons, statuses, memberCounts };
+    }).sort((a, b) => b.count - a.count);
+
+    synRows.forEach(sr => {
+      const memberChips = sr.members.map((m, i) =>
+        `<span class="stats-chip${i === 0 ? ' stats-chip--canon' : ''}">` +
+        `<span class="stats-chip-text">${i === 0 ? '⭐ ' : ''}${_esc(m)}</span>` +
+        `<span class="stats-chip-cnt">×${sr.memberCounts[m] || 0}</span>` +
+        (i === 0 ? _voteBtn('customer', m)
+                 : `<button class="stats-syn-unmerge" onclick="statsSynUnmerge('customer','${_ea(m)}')" title="統合を解除">✕</button>`) +
+        `</span>`
+      ).join('');
+      h += `<tr class="stats-syn-row">` +
+           `<td class="stats-val"><span class="ua-star">⭐</span>${_esc(sr.g.canonical)} <span class="stats-syn-grp-badge" title="同義グループ（${sr.members.length}種を集約）">同義 ${sr.members.length}種</span></td>` +
+           `<td class="stats-num-col">${sr.count}</td>` +
+           `<td>${[...sr.persons].join('、') || '—'}</td>` +
+           `<td>${_stHtml(sr.statuses)}</td>` +
+           `<td class="stats-chips-cell">${memberChips}` +
+             `<button class="stats-syn-dissolve" onclick="statsToggleSynCanonical('customer','${_ea(sr.g.canonical)}')" title="同義グループを解除">グループ解除</button></td>` +
+           `</tr>`;
+    });
+
+    // --- 残りのお客様（自動ゆらぎ検出は従来表示）---
+    groups.forEach(g => {
+      if (g.customer && consumed.has(g.customer)) return;   // 同義グループに集約済み
+      const persons = [...g.persons].join('、') || '—';
+      const stHtml = _stHtml(g.statuses);
 
       // ゆらぎバッジ（同じ正規化キーに複数表記がある場合）
       const cg = g.customer ? normToCanon.get(_normalize(g.customer)) : null;
@@ -867,7 +1031,7 @@
       const opCell = g.customer
         ? _voteBtn('customer', g.customer) + _synBtns('customer', g.customer, synCanons, synAliasOf, synCntMap)
         : '';
-      h += `<tr${synCanons.has(g.customer) ? ' class="stats-row--canon"' : ''}>` +
+      h += `<tr>` +
            `<td class="stats-val">${nameCell}</td>` +
            `<td class="stats-num-col">${g.count}</td>` +
            `<td>${_esc(persons)}</td>` +
@@ -1125,6 +1289,7 @@
     else if (id === 'customer') _renderCustomer();
     else if (id === 'nm')       _renderNm();
     else if (id === 'un')       _renderUn();
+    else if (id === 'svport')   _renderSvPort();
     else if (id === 'charges')  _renderCharges();
     else if (id === 'master')   _renderMaster();
     else if (id === 'alias')    _renderAlias();
@@ -1150,6 +1315,7 @@
     else if (paneId === 'customer') _renderCustomer();
     else if (paneId === 'nm')       _renderNm();
     else if (paneId === 'un')       _renderUn();
+    else if (paneId === 'svport')   _renderSvPort();
     else if (paneId === 'charges')  _renderCharges();
     else if (paneId === 'master')   _renderMaster();
     else if (paneId === 'alias')    _renderAlias();
