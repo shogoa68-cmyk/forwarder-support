@@ -18,7 +18,7 @@
   let _cloudInited = false;
 
   // 案件ステータス定義（順序＝表示順、key は DB 保存値）
-  const CLOUD_STATUSES = ['下書き中', '提出済み', '受注', '失注', '辞退', '保留'];
+  const CLOUD_STATUSES = ['下書き中', '提出済み', 'ヨコヨコ提示', '受注', '失注', '辞退', '保留'];
   const CLOUD_STATUS_DEFAULT = '下書き中';
 
   // 一覧キャッシュ＋絞り込み状態（フェーズ1：クライアント側フィルタ）
@@ -257,7 +257,7 @@
   }
 
   // ダッシュボードの並び替え
-  const _STATUS_ORDER = { '下書き中': 0, '提出済み': 1, '受注': 2, '失注': 3, '辞退': 4, '保留': 5 };
+  const _STATUS_ORDER = { '下書き中': 0, '提出済み': 1, 'ヨコヨコ提示': 2, '受注': 3, '失注': 4, '辞退': 5, '保留': 6 };
   function _sortCloudRows(rows) {
     const s = _cloudSort || 'updated';
     const upd = e => e.updated_at || '';
@@ -350,7 +350,7 @@
     return st === '提示済み' ? '提出済み' : (st || '');
   }
   function _statusClass(st) {
-    return { '下書き中':'draft', '提出済み':'sent', '提示済み':'sent', '受注':'won', '失注':'lost', '辞退':'declined', '保留':'hold' }[st] || 'draft';
+    return { '下書き中':'draft', '提出済み':'sent', '提示済み':'sent', 'ヨコヨコ提示':'yoko', '受注':'won', '失注':'lost', '辞退':'declined', '保留':'hold' }[st] || 'draft';
   }
 
   // 依頼受信日・提出期限から経過日／残り日数バッジを生成（ダッシュボード優先度表示）
