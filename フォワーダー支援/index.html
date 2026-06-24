@@ -3706,7 +3706,10 @@
           <span class="stk-mk"><span class="stk-mk-plus" title="乗せ幅（仕入単価に加算 → 売単価）">＋</span><input type="number" data-field="mk" class="w-mkup" min="0" value="0" data-col="5" title="乗せ幅：仕入単価に加算して売単価になります" /></span>
         </div>
         <input type="hidden" data-field="zc" value="">
+        <input type="hidden" data-field="ac" value="">
         <button type="button" class="zero-confirm-btn" tabindex="-1" title="0円確認済みにする（もう一度クリックで解除）">¥0✓</button>
+        <button type="button" class="actual-cost-btn" tabindex="-1" title="実費（金額未確定・別途精算）。単価・金額に「実費」と表示し、合計から除外します（もう一度クリックで解除）。">実費</button>
+        <span class="actual-cost-badge" aria-hidden="true">実費</span>
       </td>
       <td class="tax-cell"><input type="checkbox" data-field="tx" title="ON にすると消費税 10% が自動計算され、項目名先頭に「*」が付きます。免税（非課税）の行は OFF のままにしてください。"></td>
       <td class="subtotal-cell" data-field="st">—</td>

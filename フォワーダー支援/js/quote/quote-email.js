@@ -86,17 +86,21 @@
         return;
       }
       if (r._type !== 'data') return;
+      const isActual = r._actual;   // 実費（金額未確定・合計除外・「実費」表示）
       const qty = r.bq || 0, price = r.bp || 0;
       const sub = qty * price;
-      const jpy = Math.ceil(toJPYx(sub, r.bc || 'JPY'));
-      if (r.bc && r.bc !== 'JPY') hasFx = true;
-      if (r.taxed) taxableSub += jpy; else exemptSub += jpy;
-      zoneSum += jpy;
-      // 明細行（名前か金額があるものだけ）
-      if (r.name || sub) {
+      const jpy = isActual ? 0 : Math.ceil(toJPYx(sub, r.bc || 'JPY'));
+      if (!isActual) {
+        if (r.bc && r.bc !== 'JPY') hasFx = true;
+        if (r.taxed) taxableSub += jpy; else exemptSub += jpy;
+        zoneSum += jpy;
+      }
+      // 明細行（名前か金額があるもの、または実費行）
+      if (r.name || sub || isActual) {
         curItems.push({
           name: r.name || '', qty, unit: r.un || '', ccy: r.bc || 'JPY',
           price, amount: sub, note: r.note || '', taxed: !!r.taxed, cat: r.cat || '',
+          actual: isActual,
         });
       }
     });
@@ -217,7 +221,7 @@
       g.items.forEach(it => {
         const taxMark = it.taxed ? '［課税］' : '';
         const qtyUnit = fmtQty(it.qty) + (it.unit ? ' ' + it.unit : '');
-        const pricing = qtyUnit + ' × ' + fmtAmt(it.price, it.ccy) + ' ＝ ' + fmtAmt(it.amount, it.ccy);
+        const pricing = it.actual ? '実費' : (qtyUnit + ' × ' + fmtAmt(it.price, it.ccy) + ' ＝ ' + fmtAmt(it.amount, it.ccy));
         const notePart = it.note ? '※' + it.note : '';
         out.push('  ・' + [it.name, taxMark, pricing, notePart].filter(Boolean).join('  '));
       });
@@ -307,8 +311,8 @@ ${inner}
           + `<td style="${cell}${lblC}">${it.taxed ? '<span style="color:#b03030;">*</span> ' : ''}${escH(it.name)}</td>`
           + `<td style="${cell}${numC}">${fmtQty(it.qty)}</td>`
           + `<td style="${cell}${ctrC}">${escH(it.unit)}</td>`
-          + `<td style="${cell}${numC}">${fmtAmt(it.price, it.ccy)}</td>`
-          + `<td style="${cell}${numC}">${fmtAmt(it.amount, it.ccy)}</td>`
+          + `<td style="${cell}${numC}">${it.actual ? '実費' : fmtAmt(it.price, it.ccy)}</td>`
+          + `<td style="${cell}${numC}">${it.actual ? '実費' : fmtAmt(it.amount, it.ccy)}</td>`
           + (hasNote ? `<td style="${cell}${lblC}font-size:12px;color:#666;">${escH(it.note)}</td>` : '')
           + `</tr>`);
       });
