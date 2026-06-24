@@ -111,10 +111,10 @@
 .qd-items .qd-subcon-sub td:first-child { text-align: left; color: #5a3e28; border-left: 4px solid #8b6f47; }
 .qd-items .qd-remark td { background: #fffbe6; color: #555; font-size: 10px; padding-left: 34px; }
 /* ===== ツリー階層：サブコン › カテゴリー › 明細 ===== */
-/* 第2階層：カテゴリー見出し（インデント＋淡い背景） */
+/* 第2階層：カテゴリー見出し（薄グレー・細字で階層を主張しすぎない） */
 .qd-items .qd-cat-head td {
-  background: #fafbfc; color: #1a1a1a; font-weight: 700; font-size: 11px;
-  padding: 5px 8px 5px 22px;
+  background: #f0f0f0; color: #888; font-weight: 600; font-size: 10.5px;
+  padding: 3px 8px 3px 22px; border-color: #e0e0e0;
 }
 /* 第3階層：明細項目名（カテゴリー配下へインデント） */
 .qd-items td.qd-l3 { padding-left: 30px; }
