@@ -1444,6 +1444,16 @@
         + `<button type="button" class="me-chip-del" onclick="removeRouteEntry(${i})" title="削除">×</button></span>`;
     }).join('');
     if (typeof window.renderQuoteCarrierLinks === 'function') window.renderQuoteCarrierLinks();
+    // パターン入力の候補（ptSuggestions）に航路（POL→via→POD）を供給：表記揺れ防止
+    const dl = document.getElementById('ptSuggestions');
+    if (dl) {
+      const seen = new Set(), opts = [];
+      _routeEntries.forEach(r => {
+        const s = [r.pol, r.via, r.pod].map(x => (x || '').trim()).filter(Boolean).join(' → ');
+        if (s && !seen.has(s)) { seen.add(s); opts.push(s); }
+      });
+      dl.innerHTML = opts.map(s => `<option value="${_escMulti(s)}"></option>`).join('');
+    }
   }
 
   function addRouteEntry() {
