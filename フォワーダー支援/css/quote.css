@@ -184,6 +184,16 @@
   color: #6b5a42; background: #fff; border: 1px solid #c4b49a; border-radius: 6px; padding: 3px 9px;
 }
 #tab-quote-make .qf-refurl-edit:hover { background: #f0e8d8; }
+/* ===== 作業範囲（自由入力） ===== */
+#tab-quote-make .scope-body { padding: 4px 2px 2px; }
+#tab-quote-make #qf-scope {
+  width: 100%; min-height: 96px; resize: vertical; box-sizing: border-box;
+  font-family: inherit; font-size: 13px; line-height: 1.6;
+  padding: 8px 10px; border: 1px solid var(--border-md, #c4b49a); border-radius: 6px;
+  background: #fff; color: #3d2e1e;
+}
+#tab-quote-make #qf-scope:focus { border-color: #8b6914; outline: none; }
+#tab-quote-make #qf-scope::placeholder { color: #998070; font-size: 12px; }
 /* ===== 添付ファイル ===== */
 #tab-quote-make .quote-field-attach { margin-top: 6px; }
 #tab-quote-make .qf-attach-drop {

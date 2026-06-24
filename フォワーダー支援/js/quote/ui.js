@@ -3031,7 +3031,7 @@
   // ===== セクション折りたたみは廃止（見積サマリのジャンプ機能で代替） =====
   // 全セクションを常時展開。ヘッダークリック／ダイジェストからの呼び出しは
   // 「そのセクションへスクロール」のみ行う（畳まない）。
-  window.QUOTE_ALL_SECTIONS = ['section-ref', 'section-cond', 'section-cargo', 'section-volume', 'section-remark', 'section-table'];
+  window.QUOTE_ALL_SECTIONS = ['section-ref', 'section-cond', 'section-cargo', 'section-volume', 'section-scope', 'section-remark', 'section-table'];
   window.toggleQuoteSection = function(id) {
     const sec = document.getElementById(id);
     if (!sec) return;

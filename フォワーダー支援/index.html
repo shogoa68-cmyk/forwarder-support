@@ -3198,6 +3198,20 @@
       <button class="fb-section-btn" onclick="openFeedback('物量情報')" title="このセクションへのフィードバック">💬 このセクションへのフィードバック</button>
     </div><!-- /section-volume -->
 
+    <!-- 作業範囲（当面は自由入力） -->
+    <div class="condition-section is-collapsible" id="section-scope">
+      <h2 class="section-toggle-head" onclick="toggleQuoteBottomAccordion('section-scope')">
+        <span class="section-caret">▼</span>
+        <span class="section-toggle-title">🛠️ 作業範囲</span>
+        <span class="section-collapsed-summary" id="sumScope"></span>
+      </h2>
+      <div class="scope-body">
+        <p class="section-desc">この見積もりで当社が担当する作業範囲（業務の範囲）を記述します。当面は自由入力です。お客様への出力反映は今後対応予定。</p>
+        <textarea id="qf-scope" class="qf-scope-area" placeholder="例）輸出通関手配、保税搬入、海上スペースブッキング、船積書類（B/L・I/V・P/L）作成、本船手配。&#10;※ 国内集荷・梱包・現地配送は含みません 等"></textarea>
+        <button class="fb-section-btn" onclick="openFeedback('作業範囲')" title="このセクションへのフィードバック">💬 このセクションへのフィードバック</button>
+      </div>
+    </div><!-- /section-scope -->
+
     <!-- ⑤ 全体リマーク -->
     <div class="condition-section remark-section is-collapsible" id="section-remark">
       <h2 class="section-toggle-head" onclick="toggleQuoteBottomAccordion('section-remark')">
@@ -4310,6 +4324,7 @@
             <option value="貿易条件・輸送モード">貿易条件・輸送モード</option>
             <option value="貨物情報">貨物情報</option>
             <option value="物量情報">物量情報</option>
+            <option value="作業範囲">作業範囲</option>
             <option value="見積もりテーブル">見積もりテーブル</option>
             <option value="全体リマーク">全体リマーク</option>
             <option value="LCL キャリア">LCL キャリア</option>
