@@ -1745,6 +1745,7 @@ body:has(#compareOverlay.open) #quoteActionDock { display: none; }
 .sq-badge { font-size: 10px; padding: 2px 6px; border-radius: 4px; font-weight: 600; white-space: nowrap; }
 .sq-badge-draft  { background: #e5e7eb; color: #374151; }
 .sq-badge-sent   { background: #dbeafe; color: #1d4ed8; }
+.sq-badge-yoko   { background: #ccfbf1; color: #0f766e; }
 .sq-badge-won    { background: #d1fae5; color: #065f46; }
 .sq-badge-lost   { background: #fee2e2; color: #991b1b; }
 .sq-badge-hold   { background: #fef3c7; color: #92400e; }
@@ -2494,6 +2495,7 @@ body:has(#compareOverlay.open) #quoteActionDock { display: none; }
 }
 .stats-st--draft    { background: #eceff1; color: #607d8b; }
 .stats-st--sent     { background: #e3f0fa; color: #1c6fa6; }
+.stats-st--yoko     { background: #dff2f0; color: #0f766e; }
 .stats-st--won      { background: #e6f4ea; color: #1e7e44; }
 .stats-st--lost     { background: #fdeaea; color: #c0392b; }
 .stats-st--declined { background: #f3e8ff; color: #6b21a8; }
@@ -3652,6 +3654,7 @@ button.lc-attach-tbl-btn { background: none; border: none; padding: 0; cursor: p
 /* ステータス別の色 */
 .sd-bar--st-draft    { background: #b0bec5; }
 .sd-bar--st-sent     { background: #6aa9d6; }
+.sd-bar--st-yoko     { background: #4db6ac; }
 .sd-bar--st-won      { background: #4caf7d; }
 .sd-bar--st-lost     { background: #e07a6a; }
 .sd-bar--st-declined { background: #b07ad6; }
