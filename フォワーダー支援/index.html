@@ -2504,8 +2504,21 @@
             <input type="hidden" id="qf-status" value="下書き中" />
           </div>
           <div class="quote-field quote-field-memo">
-            <label>📝 メモ <span class="qf-memo-note">出力・プレビューには含まれません</span></label>
+            <label>📝 メモ <span class="qf-memo-note">出力・プレビューには含まれません</span>
+              <button type="button" class="qf-memo-expand-btn" onclick="openMemoPopout()" title="メモを拡大表示（全画面・サイズ可変）">⤢ 拡大</button>
+            </label>
             <textarea id="qf-memo" rows="6" placeholder="担当者間の申し送り・注意事項など、案件内部メモを自由に記述できます。お客様向け出力には含まれません。"></textarea>
+          </div>
+          <!-- 📝 メモ ポップアウト（全画面・サイズ可変）。#qf-memo と双方向同期 -->
+          <div id="qfMemoPopout" class="qf-memo-popout-overlay" hidden onclick="if(event.target===this)closeMemoPopout()">
+            <div class="qf-memo-popout-box" role="dialog" aria-label="メモ 拡大表示">
+              <div class="qf-memo-popout-head">
+                <span class="qf-memo-popout-title">📝 メモ</span>
+                <span class="qf-memo-popout-note">出力・プレビューには含まれません（#qf-memo と同じ内容）</span>
+                <button type="button" class="qf-memo-popout-close" onclick="closeMemoPopout()" title="閉じる（Esc）">✕ 閉じる</button>
+              </div>
+              <textarea id="qf-memo-pop" class="qf-memo-popout-area" placeholder="担当者間の申し送り・注意事項など、案件内部メモを自由に記述できます。お客様向け出力には含まれません。"></textarea>
+            </div>
           </div>
           <div class="quote-field quote-field-refurl">
             <label>🔗 参照URL <span class="qf-memo-note">レート表・船社サイト等の参照リンク（複数可・改行区切り）。出力には含まれません</span></label>

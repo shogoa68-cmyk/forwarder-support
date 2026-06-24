@@ -115,6 +115,49 @@
   color: #857060; letter-spacing: 0;
   text-transform: none;
 }
+/* 📝 メモ 拡大ボタン */
+#tab-quote-make .qf-memo-expand-btn {
+  float: right; font-size: 10.5px; font-weight: 600; line-height: 1;
+  color: #6a4c1f; background: #f5ecda; border: 1px solid #d8c39a;
+  border-radius: 5px; padding: 2px 7px; cursor: pointer;
+  text-transform: none; letter-spacing: 0;
+}
+#tab-quote-make .qf-memo-expand-btn:hover { background: #efe2c8; border-color: #c9ab73; }
+/* 📝 メモ ポップアウト（全画面・サイズ可変） */
+.qf-memo-popout-overlay {
+  position: fixed; inset: 0; z-index: 10050;
+  background: rgba(40, 30, 15, 0.42);
+  display: flex; align-items: center; justify-content: center;
+  padding: 24px; box-sizing: border-box;
+}
+.qf-memo-popout-overlay[hidden] { display: none; }
+.qf-memo-popout-box {
+  display: flex; flex-direction: column;
+  width: min(1000px, 92vw); height: 82vh;
+  min-width: 320px; min-height: 220px; max-width: 98vw; max-height: 94vh;
+  background: #fffdf7; border: 1px solid #c9ab73; border-radius: 10px;
+  box-shadow: 0 18px 50px rgba(0,0,0,0.35);
+  resize: both; overflow: hidden;   /* ← サイズ可変（右下ドラッグ） */
+}
+.qf-memo-popout-head {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 14px; border-bottom: 1px solid #e6d8bd;
+  background: #f7efdd; border-radius: 10px 10px 0 0; flex: none;
+}
+.qf-memo-popout-title { font-size: 14px; font-weight: 700; color: #5a4226; }
+.qf-memo-popout-note  { font-size: 11px; color: #8a7556; }
+.qf-memo-popout-close {
+  margin-left: auto; font-size: 12px; font-weight: 600; cursor: pointer;
+  color: #6a4c1f; background: #fff; border: 1px solid #d8c39a;
+  border-radius: 6px; padding: 4px 10px;
+}
+.qf-memo-popout-close:hover { background: #f0e6d2; }
+.qf-memo-popout-area {
+  flex: 1 1 auto; width: 100%; box-sizing: border-box;
+  border: none; outline: none; resize: none;   /* リサイズはボックス側で */
+  padding: 14px 16px; font-family: inherit; font-size: 14px; line-height: 1.6;
+  color: #3d2e1e; background: #fffdf7; border-radius: 0 0 10px 10px;
+}
 /* ===== 参照URL（自動リンク化） ===== */
 #tab-quote-make .quote-field-refurl { grid-column: 1 / -1; margin-top: 6px; }
 #tab-quote-make #qf-refurl {
