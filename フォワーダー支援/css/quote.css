@@ -589,6 +589,7 @@
 #tab-quote-make #quoteTable.customer-mode .stk-cost { display: none; }
 /* 統合カテゴリ／サブコンセル：客先モードではサブコン入力を隠す */
 #tab-quote-make #quoteTable.customer-mode .catsv-cell .w-subcon { display: none; }
+#tab-quote-make #quoteTable.customer-mode .catsv-cell .w-pattern { display: none; }
 #tab-quote-make #quoteTable.customer-mode .hd-stk .t-cost,
 #tab-quote-make #quoteTable.customer-mode .hd-sub .t-cost { display: none; }
 #tab-quote-make #quoteTable.customer-mode .hd-stk .hd-sub { font-size: 0; }
@@ -805,6 +806,11 @@
   color: #46603a;
   letter-spacing: .02em;
 }
+/* パターンの内側グループ見出し（港ペア＝緑系と区別して青系） */
+#tab-quote-make .subcon-subgroup-header.is-pattern .subcon-subgroup-cell {
+  background: #eef3fb; border-top: 1px dashed #c2d3ec; border-bottom: 1px solid #dde7f5;
+}
+#tab-quote-make .subcon-subgroup-header.is-pattern .subcon-subgroup-leg { color: #2a4a72; }
 #tab-quote-make .w-qty   { width: 58px; }
 #tab-quote-make .w-cur   { width: 62px; }
 #tab-quote-make .w-unit  { width: 70px; text-align: center; }
@@ -1088,6 +1094,11 @@
 #tab-quote-make td.catsv-cell { width: 104px; padding: 2px 3px !important; }
 #tab-quote-make .catsv-cell .w-cat { width: 100%; box-sizing: border-box; }
 #tab-quote-make .catsv-cell .w-subcon { width: 100%; box-sizing: border-box; font-size: 11px; }
+#tab-quote-make .catsv-cell .w-pattern {
+  width: 100%; box-sizing: border-box; font-size: 10.5px; margin-top: 2px;
+  background: #f4f7fc; border: 1px dashed #bcd0e8; border-radius: 4px; color: #2a4a72;
+}
+#tab-quote-make .catsv-cell .w-pattern::placeholder { color: #93a7c4; }
 
 /* 数値列：等幅数字で金額の縦位置を揃える（読み取りエラー率低下） */
 #tab-quote-make td.profit-cell,
@@ -8093,6 +8104,15 @@ button.um-memberno--empty:hover { background: #f4ead4; border-color: #cdb98e; }
 #tab-quote-make .subcon-subtotal-inner .st-metric b {
   font-size: 15px; font-weight: 800; color: #fff; font-variant-numeric: tabular-nums;
 }
+/* パターン小計（内側）：サブコン小計より淡い濃紺＋左インデントで入れ子を表現 */
+#tab-quote-make .subcon-pattern-subtotal { pointer-events: none; }
+#tab-quote-make .subcon-pattern-subtotal-cell { padding: 0; }
+#tab-quote-make .subcon-subtotal-inner--pt {
+  background: #4a5a72; padding: 6px 18px 6px 32px;
+}
+#tab-quote-make .subcon-subtotal-inner--pt .subcon-subtotal-label { color: #d7e2f2; font-size: 11.5px; }
+#tab-quote-make .subcon-subtotal-inner--pt .st-metric i { color: #aebfd6; }
+#tab-quote-make .subcon-subtotal-inner--pt .st-metric b { font-size: 13.5px; }
 #tab-quote-make .subcon-subtotal-inner .st-cost b { color: #ecd6b3; }
 #tab-quote-make .subcon-subtotal-inner .st-sell b { color: #fff; }
 #tab-quote-make .subcon-subtotal-inner .st-margin b { color: #7ee0a6; }

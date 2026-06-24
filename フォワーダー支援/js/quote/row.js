@@ -475,7 +475,7 @@
     const newId = addRowAfter(srcId);
 
     // テキスト・数値・日付フィールドをコピー（zc = 0円確認済みフラグ／vf・vt = 有効期限を含む）
-    ['nm','pq','un','pp','mk','nt','sv','zc','ac','vf','vt'].forEach(f => {
+    ['nm','pq','un','pp','mk','nt','sv','pt','zc','ac','vf','vt'].forEach(f => {
       const srcEl = document.getElementById(`${f}-${srcId}`);
       const dstEl = document.getElementById(`${f}-${newId}`);
       if (srcEl && dstEl) dstEl.value = srcEl.value;
@@ -569,7 +569,7 @@
     const q    = f => frag.querySelector(`[data-field="${f}"]`);
 
     // IDs
-    ['cat','tx','nm','pq','un','pc','pp','cd','bq','bc','bp','mk','st','pr','nt','sv','zc','ac','vf','vt']
+    ['cat','tx','nm','pq','un','pc','pp','cd','bq','bc','bp','mk','st','pr','nt','sv','pt','zc','ac','vf','vt']
       .forEach(f => { const el = q(f); if (el) el.id = `${f}-${id}`; });
     const zcBtn = frag.querySelector('.zero-confirm-btn');
     if (zcBtn) zcBtn.onclick = () => toggleZeroConfirmed(id);;
@@ -597,6 +597,7 @@
     q('mk').oninput    = () => calc(id);
     q('nt').onkeydown  = e  => noteKeydown(e, id);
     q('sv').onchange   = () => renderSubconGroups();
+    { const ptEl = q('pt'); if (ptEl) ptEl.onchange = () => renderSubconGroups(); }  // パターン変更でグループ再描画
     // サーチャージ有効期限：開始日を入れたら終了日を月末で自動補完（「通常はひと月」）
     q('vf').onchange   = () => autoFillValidTo(id);
     q('vt').onchange   = () => updateTotals();   // 終了日変更で適用期間の再判定
@@ -1216,6 +1217,20 @@
     if (!id || tr.dataset.type) return null;
     return document.getElementById(`sv-${id}`)?.value.trim() ?? '';
   }
+  // 行のパターン名（サブコン内の入れ子キー）。無ければ空
+  function _rowPattern(tr) {
+    if (!tr || tr.dataset.virtual || tr.dataset.type) return '';
+    const id = tr.id?.replace('row-', '');
+    return (document.getElementById(`pt-${id}`)?.value || '').trim();
+  }
+  // サブコン内の内側グループキー：パターン優先、無ければ港ペア（航路）
+  function _rowInnerKey(tr) {
+    return _rowPattern(tr) || (tr.dataset.portPair || '').trim();
+  }
+  function _rowInnerKind(tr) {
+    if (_rowPattern(tr)) return 'pattern';
+    return (tr.dataset.portPair || '').trim() ? 'pp' : '';
+  }
 
   // サブコン別グループヘッダーを再描画する
   // ---- 折りたたみ・除外状態（セッション中保持・再描画後も維持） ----
@@ -1252,6 +1267,14 @@
     // → 小計・リマーク行は「直前のサブコングループ」に属するとして扱う
     let currentKey = null;
     Array.from(tbody.querySelectorAll('tr')).forEach(tr => {
+      if (tr.dataset.ptSum) {
+        // パターン小計行（内側）：所属サブコンの折りたたみに追従（currentKey は維持）
+        const key = tr.dataset.svKey || null;
+        const collapsed = key && _collapsedGroups.has(key);
+        tr.style.display = collapsed ? 'none' : '';
+        tr.classList.toggle('is-collapsed', !!collapsed);
+        return;
+      }
       if (tr.dataset.subSum) {
         // グループ小計行：自分の svKey の折りたたみ・除外状態に追従
         const key = tr.dataset.svKey || null;
@@ -1341,7 +1364,7 @@
       });
 
       // 港ペア（子グループ）の有無：サブコンが1つでも、港ペアが2つ以上あればグループ表示する
-      const distinctPP = new Set(realRows.map(tr => (tr.dataset.portPair || '').trim()).filter(Boolean));
+      const distinctPP = new Set(realRows.map(tr => _rowInnerKey(tr)).filter(Boolean));
 
       // サブコンが1つ以下かつ港ペアも1つ以下なら表示不要（折りたたみ状態はリセット）
       if (groupOrder.length < 2 && distinctPP.size < 2) {
@@ -1368,7 +1391,7 @@
         Array.from(tbody.children).forEach(tr => {
           if (!tr.dataset.type) {                 // データ行
             const key = subconNormKey(_rowSubcon(tr) ?? '') || _UNSET_KEY;
-            cur = { key, pp: (tr.dataset.portPair || '').trim(), rows: [tr] };
+            cur = { key, pp: _rowInnerKey(tr), rows: [tr] };
             blocks.push(cur);
           } else if (cur) {                       // 直前データ行の付随行
             cur.rows.push(tr);
@@ -1478,39 +1501,64 @@
         }
         tbody.insertBefore(sub, lastGroupRow.nextSibling);
       });
-      // 港ペア（子グループ）サブヘッダーを挿入：サブコングループ配下で、港ペアが
-      // 切り替わる箇所（非空）に区切り見出しを入れ、その配下行を深インデント化する。
-      (function insertPortPairHeaders() {
-        let curSvKey = null, curPP = null;
+      // 内側グループ（サブコン配下のパターン／港ペア）を挿入：
+      //   ・境界に区切り見出し（🔖 パターン ／ 🛳 港ペア）を入れ、配下行を深インデント化。
+      //   ・パターンの内側グループには末尾に小計行（data-ptSum）も挿入し、入れ子テーブル化する。
+      (function insertInnerGroups() {
+        let curSvKey = null, curKey = null, curKind = null, runOpen = false;
+        const closeRun = (beforeNode) => {
+          if (runOpen && curKind === 'pattern' && curKey) {
+            const sub = document.createElement('tr');
+            sub.dataset.virtual = '1';
+            sub.dataset.ptSum   = '1';
+            sub.dataset.svKey   = curSvKey || _UNSET_KEY;
+            sub.className = 'subcon-pattern-subtotal';
+            sub.innerHTML =
+              `<td colspan="10" class="subcon-pattern-subtotal-cell">` +
+                `<div class="subcon-subtotal-inner subcon-subtotal-inner--pt">` +
+                  `<span class="subcon-subtotal-label">↳ 🔖 ${_escHdr(curKey)} 小計</span>` +
+                  `<span class="st-metric st-cost"><i>仕入合計</i><b class="subcon-subtotal-cost">¥0</b></span>` +
+                  `<span class="st-metric st-sell"><i>売値合計</i><b class="subcon-subtotal-sum">¥0</b></span>` +
+                  `<span class="st-metric st-margin"><i>粗利率</i><b class="subcon-subtotal-margin">—</b></span>` +
+                `</div>` +
+              `</td>`;
+            tbody.insertBefore(sub, beforeNode);
+          }
+          runOpen = false; curKey = null; curKind = null;
+        };
         Array.from(tbody.children).forEach(tr => {
-          if (tr.dataset.subSum) return;            // グループ小計行：港ペア状態は維持
-          if (tr.dataset.virtual) {                 // サブコングループ見出し → 新グループ開始
-            curSvKey = tr.dataset.svKey || _UNSET_KEY;
-            curPP = null;
+          if (tr.dataset.ptSum) return;             // 既存のパターン小計（再描画では作り直し済み）
+          if (tr.dataset.subSum) { closeRun(tr); return; }  // サブコン小計の直前で内側を締める
+          if (tr.dataset.virtual) {                 // サブコングループ見出し → 新サブコン
+            closeRun(tr);
+            if (tr.classList.contains('subcon-group-header')) curSvKey = tr.dataset.svKey || _UNSET_KEY;
             return;
           }
-          if (tr.dataset.type) return;              // 付随行（リマーク等）は直前の港ペアに属する
-          const pp = (tr.dataset.portPair || '').trim();
-          if (pp) {
+          if (tr.dataset.type) return;              // 付随行（リマーク等）は直前の内側グループに属する
+          const key = _rowInnerKey(tr), kind = _rowInnerKind(tr);
+          if (key) {
             tr.classList.add('subcon-subchild');
-            if (pp !== curPP) {                     // 港ペアの境界：サブヘッダーを挿入
+            if (!runOpen || key !== curKey) {
+              closeRun(tr);                          // 直前の内側グループを締める（小計を tr の前に挿入）
               const sh = document.createElement('tr');
               sh.dataset.virtual  = '1';
               sh.dataset.subGroup = '1';
               sh.dataset.svKey    = curSvKey || _UNSET_KEY;
-              sh.className = 'subcon-subgroup-header';
+              sh.className = 'subcon-subgroup-header' + (kind === 'pattern' ? ' is-pattern' : '');
+              const icon = kind === 'pattern' ? '🔖' : '🛳';
               sh.innerHTML =
                 `<td colspan="10" class="subcon-subgroup-cell">` +
-                  `<span class="subcon-subgroup-leg">🛳 ${_escHdr(pp)}</span>` +
+                  `<span class="subcon-subgroup-leg">${icon} ${_escHdr(key)}</span>` +
                 `</td>`;
               tbody.insertBefore(sh, tr);
-              curPP = pp;
+              curKey = key; curKind = kind; runOpen = true;
             }
           } else {
+            closeRun(tr);
             tr.classList.remove('subcon-subchild');
-            curPP = null;                            // 港ペア未設定行が来たら見出し連続をリセット
           }
         });
+        closeRun(null);   // 末尾グループを締める
       })();
 
       // 全行の折りたたみ・除外状態を適用（小計・リマーク行を含む）
@@ -1626,65 +1674,66 @@
   function _updateGroupSums() {
     const tbody = document.getElementById('tableBody');
     if (!tbody) return;
-    let curSumEl = null, curSubRow = null, curSell = 0, curCost = 0, curMixed = false;
-    const flush = () => {
-      const sell = Math.round(curSell);
-      const cost = Math.round(curCost);
-      const mark = curMixed ? '※' : '';
-      const sellTxt = '¥' + fmt(sell) + mark;
-      const costTxt = '¥' + fmt(cost) + mark;
-      const ttl = curMixed ? '複数通貨を JPY 換算して合算（FX パネルのレート使用）' : '';
-      // グループヘッダーの集計（売値ベース）
-      if (curSumEl) { curSumEl.textContent = sell ? sellTxt : ''; curSumEl.title = ttl; }
-      // 小計行：仕入合計・売値合計・粗利率
-      if (curSubRow) {
-        const cEl = curSubRow.querySelector('.subcon-subtotal-cost');
-        const sEl = curSubRow.querySelector('.subcon-subtotal-sum');
-        const mEl = curSubRow.querySelector('.subcon-subtotal-margin');
-        if (cEl) { cEl.textContent = costTxt; cEl.title = ttl; }
-        if (sEl) { sEl.textContent = sellTxt; sEl.title = ttl; }
-        if (mEl) {
-          if (sell > 0) {
-            const m = (sell - cost) / sell * 100;
-            mEl.textContent = m.toFixed(1) + '%';
-            mEl.classList.toggle('is-neg', m < 0);
-          } else {
-            mEl.textContent = '—';
-            mEl.classList.remove('is-neg');
-          }
-        }
+    // サブコン小計（外側）とパターン小計（内側）の2階層を同時集計する
+    let scSumEl = null, scSubRow = null, scSell = 0, scCost = 0, scMixed = false;
+    let ptSell = 0, ptCost = 0, ptMixed = false;
+    const writeSub = (row, sell, cost, mixed) => {
+      const mark = mixed ? '※' : '';
+      const ttl = mixed ? '複数通貨を JPY 換算して合算（FX パネルのレート使用）' : '';
+      const cEl = row.querySelector('.subcon-subtotal-cost');
+      const sEl = row.querySelector('.subcon-subtotal-sum');
+      const mEl = row.querySelector('.subcon-subtotal-margin');
+      if (cEl) { cEl.textContent = '¥' + fmt(Math.round(cost)) + mark; cEl.title = ttl; }
+      if (sEl) { sEl.textContent = '¥' + fmt(Math.round(sell)) + mark; sEl.title = ttl; }
+      if (mEl) {
+        if (Math.round(sell) > 0) {
+          const m = (sell - cost) / sell * 100;
+          mEl.textContent = m.toFixed(1) + '%';
+          mEl.classList.toggle('is-neg', m < 0);
+        } else { mEl.textContent = '—'; mEl.classList.remove('is-neg'); }
       }
     };
+    const flushSc = () => {
+      const ttl = scMixed ? '複数通貨を JPY 換算して合算（FX パネルのレート使用）' : '';
+      if (scSumEl) { const s = Math.round(scSell); scSumEl.textContent = s ? '¥' + fmt(s) + (scMixed ? '※' : '') : ''; scSumEl.title = ttl; }
+      if (scSubRow) writeSub(scSubRow, scSell, scCost, scMixed);
+    };
+    const resetPt = () => { ptSell = 0; ptCost = 0; ptMixed = false; };
     Array.from(tbody.querySelectorAll('tr')).forEach(tr => {
-      if (tr.dataset.subGroup) return;     // 港ペア サブヘッダー：集計には影響させない（透過）
-      if (tr.dataset.subSum) {              // グループ小計行：現時点の累計を書き込む
-        curSubRow = tr;
-        flush();
+      if (tr.dataset.ptSum) {                // パターン小計行：内側累計を書き込み、内側だけリセット
+        writeSub(tr, ptSell, ptCost, ptMixed);
+        resetPt();
         return;
       }
-      if (tr.dataset.virtual) {            // グループヘッダー
-        flush();
-        curSumEl = tr.querySelector('.subcon-group-sum');
-        curSubRow = null; curSell = 0; curCost = 0; curMixed = false;
+      if (tr.dataset.subGroup) { resetPt(); return; }  // 内側グループ見出し：内側累計を開始（透過）
+      if (tr.dataset.subSum) {               // サブコン小計行
+        scSubRow = tr; flushSc(); return;
+      }
+      if (tr.dataset.virtual) {              // サブコングループ見出し
+        flushSc();
+        scSumEl = tr.querySelector('.subcon-group-sum');
+        scSubRow = null; scSell = 0; scCost = 0; scMixed = false; resetPt();
         return;
       }
-      if (tr.dataset.type) return;         // 小計・リマーク・社内メモ行は除外
-      if (tr.dataset.hideQuote === '1') return;  // 見積書非表示の行はグループ小計から除外
-      if (tr.dataset.outRange === '1') return;   // 適用期間外のサーチャージはグループ小計から除外
-      if (tr.dataset.actual === '1') return;     // 実費の行はグループ小計から除外
+      if (tr.dataset.type) return;           // 小計・リマーク・社内メモ行は除外
+      if (tr.dataset.hideQuote === '1') return;
+      if (tr.dataset.outRange === '1') return;
+      if (tr.dataset.actual === '1') return;
       const id = tr.id?.replace('row-', '');
-      if (!id || !curSumEl) return;
+      if (!id || !scSumEl) return;
       const bq = val(`bq-${id}`) || val(`pq-${id}`) || 0;
-      const bp = val(`bp-${id}`) || 0;   // 売単価
-      const pp = val(`pp-${id}`) || 0;   // 仕単価
+      const bp = val(`bp-${id}`) || 0;
+      const pp = val(`pp-${id}`) || 0;
       let sell = bq * bp, cost = bq * pp;
       const bc = document.getElementById(`bc-${id}`)?.value || 'JPY';
       const pc = document.getElementById(`pc-${id}`)?.value || 'JPY';
-      if (bc !== 'JPY') { curMixed = true; if (typeof toJPY === 'function') sell = toJPY(sell, bc); }
-      if (pc !== 'JPY') { curMixed = true; if (typeof toJPY === 'function') cost = toJPY(cost, pc); }
-      curSell += sell; curCost += cost;
+      let mixed = false;
+      if (bc !== 'JPY') { mixed = true; if (typeof toJPY === 'function') sell = toJPY(sell, bc); }
+      if (pc !== 'JPY') { mixed = true; if (typeof toJPY === 'function') cost = toJPY(cost, pc); }
+      scSell += sell; scCost += cost; if (mixed) scMixed = true;
+      ptSell += sell; ptCost += cost; if (mixed) ptMixed = true;
     });
-    flush();
+    flushSc();
   }
 
   function _escHdr(s) {
@@ -1743,7 +1792,7 @@
 
   function _gatherRowData(id) {
     const data = {};
-    ['nm','pq','un','pp','mk','nt','sv','zc','ac','vf','vt','cat','pc','bc'].forEach(f => {
+    ['nm','pq','un','pp','mk','nt','sv','pt','zc','ac','vf','vt','cat','pc','bc'].forEach(f => {
       const el = document.getElementById(`${f}-${id}`);
       if (el) data[f] = el.value;
     });
@@ -1763,7 +1812,7 @@
     } else {
       tbody.appendChild(newTr);
     }
-    ['nm','pq','un','pp','mk','nt','zc','ac','vf','vt'].forEach(f => {
+    ['nm','pq','un','pp','mk','nt','pt','zc','ac','vf','vt'].forEach(f => {
       const el = document.getElementById(`${f}-${newId}`);
       if (el && data[f] !== undefined) el.value = data[f];
     });
