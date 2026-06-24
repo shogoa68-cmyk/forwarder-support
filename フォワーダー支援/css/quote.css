@@ -3414,6 +3414,7 @@ body.qp-dash-active #quoteActionDock { display: none !important; }
 #qpDashboard .qpd-stat--won  .qpd-stat-n { color: #1e7e44; }
 #qpDashboard .qpd-stat--lost .qpd-stat-n { color: #c0392b; }
 #qpDashboard .qpd-stat--sent .qpd-stat-n { color: #1c6fa6; }
+#qpDashboard .qpd-stat--yoko .qpd-stat-n { color: #0f766e; }
 /* [hidden] を確実に効かせる（.qpd-login 等の display 指定が UA の [hidden] を上書きするのを防ぐ） */
 #qpDashboard [hidden] { display: none !important; }
 /* 検索＋ツール */

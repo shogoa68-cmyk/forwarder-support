@@ -686,7 +686,7 @@
   }
 
   // ===== お客様タブ =====
-  const _stCls = st => ({ '下書き中':'draft','提出済み':'sent','提示済み':'sent','ヨコヨコ提示':'sent','受注':'won','失注':'lost','辞退':'declined','保留':'hold' }[st] || 'draft');
+  const _stCls = st => ({ '下書き中':'draft','提出済み':'sent','提示済み':'sent','ヨコヨコ提示':'yoko','受注':'won','失注':'lost','辞退':'declined','保留':'hold' }[st] || 'draft');
 
   // ===== 📈 ダッシュボード（案件分析） =====
 
