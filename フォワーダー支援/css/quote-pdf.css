@@ -109,7 +109,15 @@
 /* サブコン別 売値小計（御見積書・顧客向け：金額のみ） */
 .qd-items .qd-subcon-sub td { background: #efe7d6; font-weight: 700; border-top: 1.5px solid #cdab6f; }
 .qd-items .qd-subcon-sub td:first-child { text-align: left; color: #5a3e28; border-left: 4px solid #8b6f47; }
-.qd-items .qd-remark td { background: #fffbe6; color: #555; font-size: 10px; }
+.qd-items .qd-remark td { background: #fffbe6; color: #555; font-size: 10px; padding-left: 34px; }
+/* ===== ツリー階層：サブコン › カテゴリー › 明細 ===== */
+/* 第2階層：カテゴリー見出し（インデント＋淡い背景） */
+.qd-items .qd-cat-head td {
+  background: #fafbfc; color: #1a1a1a; font-weight: 700; font-size: 11px;
+  padding: 5px 8px 5px 22px;
+}
+/* 第3階層：明細項目名（カテゴリー配下へインデント） */
+.qd-items td.qd-l3 { padding-left: 30px; }
 /* 印刷時の改ページ制御：行の途中で切れないように＋見出し行を各ページ先頭に繰り返す */
 .qd-items tr { page-break-inside: avoid; break-inside: avoid; }
 .qd-items thead { display: table-header-group; }
