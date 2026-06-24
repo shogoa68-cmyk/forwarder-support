@@ -1228,8 +1228,8 @@
     return _rowPattern(tr) || (tr.dataset.portPair || '').trim();
   }
   function _rowInnerKind(tr) {
-    if (_rowPattern(tr)) return 'pattern';
-    return (tr.dataset.portPair || '').trim() ? 'pp' : '';
+    // 港ペアはパターンへ一本化したため、内側キーがあれば常にパターン扱い（小計付き・🔖）
+    return _rowInnerKey(tr) ? 'pattern' : '';
   }
 
   // サブコン別グループヘッダーを再描画する
@@ -1544,8 +1544,8 @@
               sh.dataset.virtual  = '1';
               sh.dataset.subGroup = '1';
               sh.dataset.svKey    = curSvKey || _UNSET_KEY;
-              sh.className = 'subcon-subgroup-header' + (kind === 'pattern' ? ' is-pattern' : '');
-              const icon = kind === 'pattern' ? '🔖' : '🛳';
+              sh.className = 'subcon-subgroup-header is-pattern';
+              const icon = '🔖';
               sh.innerHTML =
                 `<td colspan="10" class="subcon-subgroup-cell">` +
                   `<span class="subcon-subgroup-leg">${icon} ${_escHdr(key)}</span>` +

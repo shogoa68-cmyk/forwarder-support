@@ -305,7 +305,8 @@
         if (db) { db.classList.add('is-on'); db.title = '入力完了（クリックで解除）'; }
       }
       // 港ペア（子グループキー）を復元
-      if (row.portPair) tr.dataset.portPair = row.portPair;
+      // 旧データの港ペアはパターンへ統合（パターン未設定時のみ移行）
+      if (row.portPair) { const ptEl = tr.querySelector('[data-field="pt"]'); if (ptEl && !ptEl.value) ptEl.value = row.portPair; }
       regularTrs.push(tr);
     });
     _afterRestoreRows(regularTrs, data.fields);
@@ -740,7 +741,7 @@
       const tr = document.createElement('tr');
       tr.id = 'row-' + id;
       tr.replaceChildren(buildRowHTML(id, item.cat, lastCur));
-      if (item.pp) tr.dataset.portPair = item.pp;   // 港ペア（子グループキー）
+      if (item.pp) { const ptEl = document.getElementById('pt-' + id); if (ptEl) ptEl.value = item.pp; }  // 航路名をパターン（サブコン内の入れ子キー）に
       tbody.appendChild(tr);
       const nmEl = document.getElementById('nm-'  + id); if (nmEl) nmEl.value = item.name;
       const ntEl = document.getElementById('nt-'  + id); if (ntEl) ntEl.value = item.note || '';
@@ -750,6 +751,7 @@
       if (typeof initDrag    === 'function') initDrag(tr);
     });
 
+    if (typeof renderSubconGroups === 'function') renderSubconGroups();  // 航路＝パターンの入れ子グループを描画
     updateTotals();
     quoteShowToast('✅ ゾーン構成プリセット適用完了（サブコン/航路別 ' + items.length + '行）', 'success');
   }
