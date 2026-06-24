@@ -1644,6 +1644,40 @@
   margin-top: 10px; padding: 10px 12px;
   background: #f6f1e8; border: 1px solid #e2d8c5; border-radius: 8px;
 }
+/* OT/FR はみ出しシミュレーション（複数サイズ） */
+#tab-quote-make .cc-spec--og { flex-direction: column; align-items: stretch; gap: 8px; }
+#tab-quote-make .cc-og-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+#tab-quote-make .cc-og-title { font-size: 11px; font-weight: 700; color: #5a4a35; letter-spacing: .02em; }
+#tab-quote-make .cc-og-add {
+  font-size: 11px; font-weight: 600; cursor: pointer; white-space: nowrap;
+  color: #5a4a35; background: #fff; border: 1px solid #c9b78f; border-radius: 6px; padding: 3px 10px;
+}
+#tab-quote-make .cc-og-add:hover { background: #efe5cf; border-color: #b89f6f; }
+#tab-quote-make .cc-og-list { display: flex; flex-direction: column; gap: 6px; }
+#tab-quote-make .cc-og-row {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px;
+  padding: 6px 8px; background: #fff; border: 1px solid #e2d8c5; border-radius: 6px;
+}
+#tab-quote-make .cc-og-row .cc-spec-input { min-width: 150px; }
+#tab-quote-make .cc-og-rowresult {
+  font-size: 11.5px; font-weight: 600; padding: 2px 8px; border-radius: 999px; white-space: nowrap;
+}
+#tab-quote-make .cc-og-rowresult b { font-weight: 800; }
+#tab-quote-make .cc-og-rowresult[data-state="empty"] { color: #9a8a70; }
+#tab-quote-make .cc-og-rowresult[data-state="fit"]   { color: #2f6a3a; background: #eaf4ea; border: 1px solid #c6e0c6; }
+#tab-quote-make .cc-og-rowresult[data-state="over"]  { color: #9a5a1e; background: #fbf0dd; border: 1px solid #e8cfa0; }
+#tab-quote-make .cc-og-del {
+  margin-left: auto; cursor: pointer; font-size: 12px; line-height: 1;
+  color: #9a5a4a; background: #fff; border: 1px solid #e0c4bc; border-radius: 6px; padding: 4px 8px;
+}
+#tab-quote-make .cc-og-del:hover { background: #fbeae6; border-color: #d49b8c; }
+#tab-quote-make .cc-og-hint {
+  font-size: 11px; padding: 6px 10px; border-radius: 6px;
+}
+#tab-quote-make .cc-og-hint small { display: block; font-size: 10px; color: #9a8a70; margin-top: 2px; }
+#tab-quote-make .cc-og-hint[data-state="empty"] { color: #9a8a70; background: #f0ebe0; }
+#tab-quote-make .cc-og-hint[data-state="fit"]   { color: #2f6a3a; background: #eaf4ea; border: 1px solid #c6e0c6; }
+#tab-quote-make .cc-og-hint[data-state="over"]  { color: #9a5a1e; background: #fbf0dd; border: 1px solid #e8cfa0; }
 #tab-quote-make .cc-spec-field { display: flex; flex-direction: column; gap: 5px; }
 #tab-quote-make .cc-spec-field label { font-size: 11px; font-weight: 700; color: #5a4a35; letter-spacing: .02em; }
 #tab-quote-make .cc-spec-input {
