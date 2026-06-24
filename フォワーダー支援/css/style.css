@@ -2312,6 +2312,7 @@ body:has(#compareOverlay.open) #quoteActionDock { display: none; }
   color: #2d6a4f;
   font-weight: 600;
 }
+.stats-num-col.stats-neg { color: #c0392b; }
 .stats-val {
   font-weight: 500;
 }
