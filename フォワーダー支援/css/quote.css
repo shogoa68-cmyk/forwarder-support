@@ -442,6 +442,7 @@
 #previewBox.layout-doc #pvCargoBox,
 #previewBox.layout-doc #previewTableWrap,
 #previewBox.layout-doc #pvTaxBox,
+#previewBox.layout-doc #pvScopeBox,
 #previewBox.layout-doc #pvRemarkBox,
 #previewBox.layout-doc #pvAuditMeta,
 #previewBox.layout-doc #pvCustomizeWrap { display: none !important; }
@@ -3168,6 +3169,25 @@
   font-size: 12px;
   color: #7d5a00;
   border-bottom: 1px solid #f0d9a0;
+  padding-bottom: 4px;
+}
+#tab-quote-make #pvScopeBox {
+  margin-top: 16px;
+  padding: 12px 14px;
+  background: #f4f8fc;
+  border: 1px solid #bcd5ea;
+  border-radius: 5px;
+  font-size: 12px;
+  line-height: 1.9;
+  color: #25435c;
+  white-space: pre-wrap;
+}
+#tab-quote-make #pvScopeBox strong {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 12px;
+  color: #1a5c8a;
+  border-bottom: 1px solid #bcd5ea;
   padding-bottom: 4px;
 }
 #tab-quote-make .tip { font-size: 11px; color: #7d6b56; margin-top: 10px; line-height: 1.8; }
@@ -6314,6 +6334,7 @@ body.qp-dash-active #quoteActionDock { display: none !important; }
     widows: 4;
   }
   body:has(#previewOverlay.open) #pvCondBox,
+  body:has(#previewOverlay.open) #pvScopeBox,
   body:has(#previewOverlay.open) #pvCargoBox {
     break-inside: avoid;
     page-break-inside: avoid;

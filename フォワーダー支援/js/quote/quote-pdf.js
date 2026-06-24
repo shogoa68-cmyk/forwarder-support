@@ -408,6 +408,10 @@
         </div>`}
       </div>
       ${(() => {
+        const sc = (document.getElementById('qf-scope')?.value || '').trim();
+        return sc ? `<div class="qd-remark-block qd-scope-block"><div class="qd-remark-ttl">🛠️ 作業範囲</div><div class="qd-remark-body">${esc(sc).replace(/\n/g, '<br>')}</div></div>` : '';
+      })()}
+      ${(() => {
         const rt = (typeof getRemarkText === 'function') ? getRemarkText() : (cond && cond.free) || '';
         return rt ? `<div class="qd-remark-block"><div class="qd-remark-ttl">📝 条件・免責事項（全体リマーク）</div><div class="qd-remark-body">${esc(rt).replace(/\n/g, '<br>')}</div></div>` : '';
       })()}

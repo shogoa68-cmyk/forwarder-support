@@ -163,6 +163,7 @@
       to: honorific(hdr.customer, hdr.person),
       ref: hdr.ref, validUntil: hdr.validUntil,
       subject, zones, detailGroups, exemptSub, taxableSub, tax, total, taxRate, hasFx, notes, issuer,
+      scope: (document.getElementById('qf-scope')?.value || '').trim(),
     };
   }
 
@@ -197,6 +198,7 @@
   }
   function _plainFooterLines(m) {
     const out = [];
+    if (m.scope) { out.push(''); out.push('【作業範囲】'); m.scope.split('\n').forEach(t => out.push('　' + t)); }
     if (m.notes.length) { out.push(''); m.notes.forEach(t => out.push('※ ' + t)); }
     out.push('');
     out.push('――――――――――');
@@ -270,7 +272,11 @@
     [m.issuer.address1, m.issuer.address2].filter(Boolean).forEach(a => sig.push(`<div>${escH(a)}</div>`));
     const telfax = [m.issuer.tel && ('TEL: ' + m.issuer.tel), m.issuer.fax && ('FAX: ' + m.issuer.fax)].filter(Boolean).join('　/　');
     if (telfax) sig.push(`<div>${escH(telfax)}</div>`);
-    return (notes.length ? `<div style="font-size:12px;color:#666;margin-bottom:10px;">${notes.map(escH).join('<br>')}</div>` : '')
+    const scopeHtml = m.scope
+      ? `<div style="margin-bottom:10px;"><div style="font-weight:700;font-size:13px;color:#5a4a35;margin-bottom:2px;">🛠️ 作業範囲</div><div style="font-size:13px;color:#333;">${escH(m.scope).replace(/\n/g, '<br>')}</div></div>`
+      : '';
+    return scopeHtml
+      + (notes.length ? `<div style="font-size:12px;color:#666;margin-bottom:10px;">${notes.map(escH).join('<br>')}</div>` : '')
       + `<div style="border-top:1px dashed #c9bfa8;padding-top:8px;font-size:13px;color:#444;">${sig.join('')}</div>`;
   }
   function _richWrap(inner) {
