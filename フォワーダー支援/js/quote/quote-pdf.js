@@ -449,16 +449,35 @@
       overlay.id = 'quoteDocOverlay';
       overlay.innerHTML = `
         <div class="qd-shell">
-          <div class="qd-toolbar">
-            <span class="qd-tb-title">📄 御見積書フォーマット（PDF出力）</span>
-            <label class="qd-tb-opt" title="ONにすると上部の御見積額・下部の合計／税サマリ（小計・課税対象小計・消費税・合計見積額）を非表示にします。小計行でパターンA/B比較を行う用途向け。"><input type="checkbox" id="qdHideTotal"> 合計を非表示（比較用）</label>
-            <button class="qd-tb-btn" id="qdEditIssuer">📇 発行元設定</button>
-            <input type="text" id="qdPdfTitle" class="qd-tb-title-in" placeholder="ファイル名（拡張子不要）" title="PDF保存時のファイル名（ブラウザの印刷ダイアログに反映）">
-            <button class="qd-tb-btn qd-tb-print" id="qdPrint">🖨️ PDF出力（印刷）</button>
-            <button class="qd-tb-btn" id="qdClose">閉じる</button>
+          <div class="qd-stage">
+            <div class="qd-preview" id="qdPreview"></div>
           </div>
-          <div class="qd-issuer-wrap" id="qdIssuerWrap" style="display:none;"></div>
-          <div class="qd-preview" id="qdPreview"></div>
+          <aside class="qd-panel">
+            <div class="qd-panel-head">
+              <div class="qd-panel-h">📄 PDF出力設定</div>
+              <div class="qd-panel-s">御見積書フォーマット</div>
+            </div>
+            <div class="qd-panel-body">
+              <div class="qd-fg">
+                <label for="qdPdfTitle">ファイル名</label>
+                <div class="qd-inp"><input type="text" id="qdPdfTitle" placeholder="ファイル名（拡張子不要）" title="PDF保存時のファイル名（ブラウザの印刷ダイアログに反映）"><span class="qd-ext">.pdf</span></div>
+              </div>
+              <label class="qd-toggle" title="ONにすると上部の御見積額・下部の合計／税サマリを非表示にします。小計行でパターンA/B比較を行う用途向け。">
+                <span class="qd-toggle-l">合計・税サマリを非表示<small>パターン比較用</small></span>
+                <input type="checkbox" id="qdHideTotal">
+              </label>
+              <div class="qd-issuer-card">
+                <div class="qd-ic-head"><span>📇 発行元</span><button type="button" class="qd-ic-edit" id="qdEditIssuer">編集</button></div>
+                <div class="qd-ic-body" id="qdIssuerSummary"></div>
+              </div>
+              <div class="qd-issuer-wrap" id="qdIssuerWrap" style="display:none;"></div>
+              <div class="qd-fg"><label>用紙</label><div class="qd-inp qd-static">A4 縦</div></div>
+            </div>
+            <div class="qd-panel-foot">
+              <button type="button" class="qd-btn-print" id="qdPrint">🖨️ PDF出力（印刷）</button>
+              <button type="button" class="qd-btn-ghost" id="qdClose">閉じる</button>
+            </div>
+          </aside>
         </div>`;
       document.body.appendChild(overlay);
       overlay.addEventListener('click', e => { if (e.target === overlay) closeQuoteDoc(); });
@@ -483,6 +502,24 @@
   function refreshQuoteDoc() {
     const prev = document.getElementById('qdPreview');
     if (prev) prev.innerHTML = buildQuoteDocHTML();
+    _renderIssuerSummary();
+  }
+
+  // 右パネルの発行元サマリ（会社名＋住所など）を描画
+  function _renderIssuerSummary() {
+    const el = document.getElementById('qdIssuerSummary');
+    if (!el) return;
+    const i = loadIssuer();
+    const co = (i.company || '').trim();
+    const lines = [
+      i.zip ? '〒' + esc(i.zip) : '',
+      esc(i.address1), esc(i.address2),
+      i.tel ? 'TEL ' + esc(i.tel) : '',
+      i.regno ? '登録番号 ' + esc(i.regno) : '',
+    ].filter(Boolean).join('<br>');
+    el.innerHTML = co
+      ? `<div class="qd-ic-co">${esc(co)}</div>${lines ? `<div class="qd-ic-ad">${lines}</div>` : ''}`
+      : `<div class="qd-ic-empty">未設定（「編集」から会社名・住所を入力）</div>`;
   }
 
   function toggleIssuerForm() {
