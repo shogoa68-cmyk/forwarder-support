@@ -869,10 +869,17 @@
     if (el.dataset.formulaMode === '1') return;
     el.dataset.formulaMode = '1';
     el.dataset.prevValue = el.value;
+    // type 切替で同期的に発火し得る“偽の blur(focusout)”を無視させるため、
+    // 切替の前にガードフラグを立てておく。
+    el.dataset.formulaJustEntered = '1';
     el.type = 'text';                 // 演算子を受け付けるため一時的に text 化
     el.classList.add('formula-editing');
     el.value = (seed != null ? seed : '=');
+    // type 切替でブラウザがフォーカスを外すことがあるため、明示的に取り戻す。
+    try { el.focus(); } catch (_) {}
     try { el.setSelectionRange(el.value.length, el.value.length); } catch (_) {}
+    // 偽 blur が来なかったブラウザではフラグが残らないよう次フレームで自動解除。
+    setTimeout(function () { delete el.dataset.formulaJustEntered; }, 0);
   }
 
   // 数式モードを抜けて number に戻す（commit=true なら評価結果を確定）
@@ -931,10 +938,23 @@
         enterFormulaMode(el, '=');
       }
     });
-    // フォーカスが外れたら確定（Tab・クリック移動など）
+    // フォーカスが外れたら確定（Tab・クリック移動など）。
+    // ただし type 切替直後にブラウザが出す“偽の blur”では確定しない。
+    // 次のイベントループで本当にフォーカスが外れているか（activeElement）で判定する。
     root.addEventListener('focusout', function(e) {
       const el = e.target;
-      if (_isFormulaCell(el) && el.dataset.formulaMode === '1') exitFormulaMode(el, true);
+      if (!_isFormulaCell(el) || el.dataset.formulaMode !== '1') return;
+      if (el.dataset.formulaJustEntered === '1') {
+        // 数式モード突入直後の偽 blur。1回だけ無視してフォーカスを戻す。
+        delete el.dataset.formulaJustEntered;
+        if (document.activeElement !== el) { try { el.focus(); } catch (_) {} }
+        return;
+      }
+      setTimeout(function() {
+        if (el.dataset.formulaMode !== '1') return;
+        if (document.activeElement === el) return;   // まだフォーカスあり＝偽 blur
+        exitFormulaMode(el, true);
+      }, 0);
     });
   }
 
