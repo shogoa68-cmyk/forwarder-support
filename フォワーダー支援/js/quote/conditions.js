@@ -1047,29 +1047,18 @@
     "20'FR（フラットラック）": { l: 585,  w: 244, h: null }, // フラットは高さ制限なし
     "40'FR（フラットラック）": { l: 1203, w: 244, h: null },
   };
-  // 基準コンテナ（内寸）選択肢
-  const OG_REF_LIST = [
-    ["20'OT（オープントップ）", "20'OT 内寸 589×235×230"],
-    ["40'OT（オープントップ）", "40'OT 内寸 1203×235×230"],
-    ["20'FR（フラットラック）", "20'FR 床面 585×244（高さ制限なし）"],
-    ["40'FR（フラットラック）", "40'FR 床面 1203×244（高さ制限なし）"],
-  ];
-  function _ogRefOptions(sel) {
-    return OG_REF_LIST.map(([v, l]) =>
-      `<option value="${v}"${v === sel ? ' selected' : ''}>${l}</option>`).join('');
-  }
-  // 1行ぶん（貨物実寸＋基準コンテナ＋はみ出し結果）の HTML
+  // 1行ぶん（貨物実寸 L×W×H ＋ 個数 ＋ 判定）の HTML。積載先コンテナは全行共通(#cc-og-ref)
   function _ogRowHTML(item) {
     item = item || {};
-    const ref = item.ref || "20'OT（オープントップ）";
     const v = x => (x == null || x === '') ? '' : x;
+    const qty = (item.qty == null || item.qty === '') ? '1' : item.qty;
     return `<div class="cc-og-row" data-og-row>
       <div class="cc-dims">
         <input type="number" class="cc-dim og-l" min="0" step="1" placeholder="長さ" inputmode="numeric" value="${v(item.l)}" oninput="recalcOverGauge()" /><span class="cc-dim-x">×</span>
         <input type="number" class="cc-dim og-w" min="0" step="1" placeholder="幅" inputmode="numeric" value="${v(item.w)}" oninput="recalcOverGauge()" /><span class="cc-dim-x">×</span>
         <input type="number" class="cc-dim og-h" min="0" step="1" placeholder="高さ" inputmode="numeric" value="${v(item.h)}" oninput="recalcOverGauge()" /><span class="cc-dim-unit">cm</span>
       </div>
-      <select class="cc-spec-input og-ref" onchange="recalcOverGauge()">${_ogRefOptions(ref)}</select>
+      <input type="number" class="cc-dim og-qty" min="1" step="1" value="${v(qty)}" inputmode="numeric" title="個数" oninput="recalcOverGauge()" />
       <span class="cc-og-rowresult" data-state="empty">—</span>
       <button type="button" class="cc-og-del" onclick="removeOverGaugeRow(this)" title="このサイズを削除" aria-label="削除">✕</button>
     </div>`;
@@ -1079,7 +1068,6 @@
     if (!list) return;
     list.insertAdjacentHTML('beforeend', _ogRowHTML(item && item.l !== undefined ? item : {}));
     recalcOverGauge();
-    // 追加した行の長さ入力にフォーカス
     const last = list.querySelector('[data-og-row]:last-child .og-l');
     if (last) last.focus();
   };
@@ -1093,35 +1081,54 @@
     if (list && !list.querySelector('[data-og-row]')) list.insertAdjacentHTML('beforeend', _ogRowHTML({}));
   }
   window._ensureOgRows = _ensureOgRows;
-  // 各行の貨物実寸→はみ出し寸法を計算して行ごとに表示＋全体ヒント＋ spec 保存
+  // 1本の積載先コンテナに複数サイズを「長さ方向へ一列」で積む簡易シミュレーション。
+  // 必要長さ＝Σ(長さ×個数) を内寸長さと比較。幅・高さは各サイズが断面に収まるか判定。
   window.recalcOverGauge = function () {
     _ensureOgRows();
+    const ref = document.getElementById('cc-og-ref')?.value || "20'OT（オープントップ）";
+    const inner = OTFR_INNER[ref] || OTFR_INNER["20'OT（オープントップ）"];
+    const over = (cargo, lim) => (cargo != null && lim != null && cargo > lim) ? +(cargo - lim).toFixed(1) : 0;
     const rows = Array.from(document.querySelectorAll('#ccOgList [data-og-row]'));
-    let anyInput = false, anyOver = false;
+    let anyInput = false, usedLen = 0, totalQty = 0, widthOver = false, heightOver = false;
     rows.forEach(row => {
       const num = sel => { const v = parseFloat(row.querySelector(sel)?.value); return Number.isFinite(v) ? v : null; };
       const cl = num('.og-l'), cw = num('.og-w'), ch = num('.og-h');
-      const ref = row.querySelector('.og-ref')?.value || "20'OT（オープントップ）";
-      const inner = OTFR_INNER[ref] || OTFR_INNER["20'OT（オープントップ）"];
-      const over = (cargo, lim) => (cargo != null && lim != null && cargo > lim) ? +(cargo - lim).toFixed(1) : 0;
-      const ogL = over(cl, inner.l), ogW = over(cw, inner.w), ogH = over(ch, inner.h);
+      let qty = parseInt(row.querySelector('.og-qty')?.value, 10);
+      if (!Number.isFinite(qty) || qty < 1) qty = 1;
       const res = row.querySelector('.cc-og-rowresult');
-      if (!res) return;
-      if (cl == null && cw == null && ch == null) { res.dataset.state = 'empty'; res.innerHTML = '—'; return; }
+      if (cl == null && cw == null && ch == null) { if (res) { res.dataset.state = 'empty'; res.innerHTML = '—'; } return; }
       anyInput = true;
-      const parts = [];
-      if (ogL > 0) parts.push(`長さ <b>+${ogL}</b>`);
-      if (ogW > 0) parts.push(`幅 <b>+${ogW}</b>`);
-      if (inner.h == null) { if (ch != null) parts.push(`高さ <b>${ch}</b>（FR制限なし）`); }
-      else if (ogH > 0) parts.push(`高さ <b>+${ogH}</b>`);
-      if (parts.length) { res.dataset.state = 'over'; res.innerHTML = '⚠️ はみ出し ' + parts.join(' / ') + ' cm'; anyOver = true; }
-      else { res.dataset.state = 'fit'; res.innerHTML = '✅ 収まります'; }
+      if (cl != null) usedLen += cl * qty;
+      totalQty += qty;
+      const ogW = over(cw, inner.w), ogH = over(ch, inner.h);
+      if (res) {
+        const parts = [];
+        if (ogW > 0) { parts.push(`幅 <b>+${ogW}</b>`); widthOver = true; }
+        if (inner.h != null && ogH > 0) { parts.push(`高さ <b>+${ogH}</b>`); heightOver = true; }
+        if (parts.length) { res.dataset.state = 'over'; res.innerHTML = '⚠️ ' + parts.join(' / ') + ' cm超過'; }
+        else { res.dataset.state = 'fit'; res.innerHTML = (inner.h == null) ? '✅ 幅OK（FR高さ制限なし）' : '✅ 幅・高さOK'; }
+      }
     });
-    const hint = document.getElementById('ccOgHint');
-    if (hint) {
-      if (!anyInput) { hint.dataset.state = 'empty'; hint.innerHTML = '📦 貨物の実寸を入力すると、はみ出し寸法を自動計算します（複数サイズ登録可）'; }
-      else if (anyOver) { hint.dataset.state = 'over'; hint.innerHTML = '⚠️ はみ出しのあるサイズがあります。実機・本船制限は別途要確認'; }
-      else { hint.dataset.state = 'fit'; hint.innerHTML = '✅ すべて基準コンテナ内寸に収まります（はみ出しなし）'; }
+    const sim = document.getElementById('ccOgSim');
+    if (sim) {
+      if (!anyInput) {
+        sim.dataset.state = 'empty';
+        sim.innerHTML = '📦 貨物サイズを入力すると、1本に積めるかシミュレーションします（長さ方向に一列で配置）';
+      } else {
+        usedLen = +usedLen.toFixed(1);
+        const remain = +(inner.l - usedLen).toFixed(1);
+        const lenOver = usedLen > inner.l;
+        const refShort = ref.replace(/（.*$/, '');
+        let head, state;
+        if (lenOver) { state = 'over'; head = `⚠️ 1本に積みきれません（長さ <b>+${+(usedLen - inner.l).toFixed(1)}cm</b> 超過）`; }
+        else { state = 'fit'; head = `✅ 1本（${refShort}）に長さ方向で積載可能（残り長さ <b>${remain}cm</b>）`; }
+        const xtra = [];
+        if (widthOver) xtra.push('幅が内寸を超えるサイズあり');
+        if (heightOver) xtra.push('高さが内寸を超えるサイズあり');
+        if (xtra.length) { state = 'over'; head += `<br>⚠️ ${xtra.join(' ／ ')}（その向きでは積込不可）`; }
+        sim.dataset.state = state;
+        sim.innerHTML = head + `<small>必要長さ ${usedLen}cm ／ 内寸長さ ${inner.l}cm　・　計${totalQty}個・一列積み前提　※実機・本船制限・固縛は別途要確認</small>`;
+      }
     }
     updateContainerSpec();
   };
@@ -1130,33 +1137,39 @@
     const sub  = document.querySelector('.cc-sub-tab.is-on')?.dataset.sub || 'rf';
     const vent = document.querySelector('#cc-rf-vent .cc-seg-btn.is-on')?.dataset.val || '無';
     const gv = id => (document.getElementById(id)?.value || '').trim();
-    // OT/FR：各行（複数サイズ）の実寸と基準内寸からはみ出しを算出
+    // OT/FR：積載先コンテナ（全行共通）＋各サイズ（実寸×個数）から一列積みを集計
     const over = (cargo, lim) => (cargo != null && lim != null && cargo > lim) ? +(cargo - lim).toFixed(1) : 0;
     const n = x => { const v = parseFloat(x); return Number.isFinite(v) ? v : null; };
+    const ogRef = document.getElementById('cc-og-ref')?.value || "20'OT（オープントップ）";
+    const inner = OTFR_INNER[ogRef] || OTFR_INNER["20'OT（オープントップ）"];
     const ogItems = [];
+    let usedLen = 0, totalQty = 0;
     document.querySelectorAll('#ccOgList [data-og-row]').forEach(row => {
       const rv = sel => (row.querySelector(sel)?.value || '').trim();
       const l = rv('.og-l'), w = rv('.og-w'), h = rv('.og-h');
       if (!l && !w && !h) return;   // 空行は保存しない
-      const ref = row.querySelector('.og-ref')?.value || "20'OT（オープントップ）";
-      const inner = OTFR_INNER[ref] || OTFR_INNER["20'OT（オープントップ）"];
+      let qty = parseInt(rv('.og-qty'), 10); if (!Number.isFinite(qty) || qty < 1) qty = 1;
+      if (n(l) != null) usedLen += n(l) * qty;
+      totalQty += qty;
       ogItems.push({
-        l, w, h, ref,
-        ogL: String(over(n(l), inner.l) || ''),
+        l, w, h, qty: String(qty),
         ogW: String(over(n(w), inner.w) || ''),
         ogH: String(inner.h == null ? '' : (over(n(h), inner.h) || '')),
       });
     });
+    usedLen = +usedLen.toFixed(1);
     const first = ogItems[0] || {};
     const spec = {
       cat, sub,
       rfTemp: gv('cc-rf-temp'),
       rfVent: vent,
-      ogItems,
+      ogRef,                       // 積載先コンテナ（全サイズ共通）
+      ogItems,                     // [{l,w,h,qty,ogW,ogH}]
+      // 一列積みシミュレーション結果のサマリ
+      ogSim: { usedLen: String(usedLen || ''), innerLen: inner.l, totalQty, fits: usedLen <= inner.l },
       // 後方互換：先頭サイズを従来フィールドにもミラー
-      ogRef: first.ref || "20'OT（オープントップ）",
       cargoL: first.l || '', cargoW: first.w || '', cargoH: first.h || '',
-      ogL: first.ogL || '', ogW: first.ogW || '', ogH: first.ogH || '',
+      ogL: '', ogW: first.ogW || '', ogH: first.ogH || '',
     };
     const el = document.getElementById('cond-container-spec');
     if (el) el.value = JSON.stringify(spec);
@@ -1169,10 +1182,15 @@
     try { spec = JSON.parse(document.getElementById('cond-container-spec')?.value || '{}') || {}; } catch (e) { spec = {}; }
     const setV = (id, v) => { const el = document.getElementById(id); if (el) el.value = v || ''; };
     setV('cc-rf-temp', spec.rfTemp);
-    // OT/FR 貨物サイズ（複数）を復元。旧形式（単一 cargoL/W/H + ogRef）は1行に変換
+    // OT/FR：積載先コンテナ（全行共通）を復元。旧データ（行ごと ref）は先頭サイズの ref を採用
+    const sharedRef = spec.ogRef
+      || (Array.isArray(spec.ogItems) && spec.ogItems[0] && spec.ogItems[0].ref)
+      || "20'OT（オープントップ）";
+    if (document.getElementById('cc-og-ref')) document.getElementById('cc-og-ref').value = sharedRef;
+    // 貨物サイズ（複数）を復元。旧形式（単一 cargoL/W/H）は1行に変換
     let ogItems = Array.isArray(spec.ogItems) ? spec.ogItems.slice() : [];
     if (!ogItems.length && (spec.cargoL || spec.cargoW || spec.cargoH)) {
-      ogItems = [{ l: spec.cargoL || '', w: spec.cargoW || '', h: spec.cargoH || '', ref: spec.ogRef || "20'OT（オープントップ）" }];
+      ogItems = [{ l: spec.cargoL || '', w: spec.cargoW || '', h: spec.cargoH || '', qty: '1' }];
     }
     const ogList = document.getElementById('ccOgList');
     if (ogList) {
