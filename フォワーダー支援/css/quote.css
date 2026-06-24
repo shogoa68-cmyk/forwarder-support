@@ -1679,6 +1679,8 @@
 #tab-quote-make .cc-og-hint[data-state="fit"]   { color: #2f6a3a; background: #eaf4ea; border: 1px solid #c6e0c6; }
 #tab-quote-make .cc-og-hint[data-state="over"]  { color: #9a5a1e; background: #fbf0dd; border: 1px solid #e8cfa0; }
 /* 積載先コンテナ（全行共通）＋列見出し＋一列積みシミュレーション結果 */
+#tab-quote-make .cc-og-controls { display: flex; align-items: center; gap: 10px 16px; flex-wrap: wrap; }
+#tab-quote-make .cc-og-cols { min-width: 140px; }
 #tab-quote-make .cc-og-ctn { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 #tab-quote-make .cc-og-ctn label { font-size: 11px; font-weight: 700; color: #5a4a35; white-space: nowrap; }
 #tab-quote-make .cc-og-ctn .cc-spec-input { min-width: 220px; height: 30px; }
