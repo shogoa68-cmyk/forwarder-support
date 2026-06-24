@@ -736,6 +736,13 @@
   outline-offset: -1px;
 }
 #tab-quote-make input[type="number"] { text-align: right; }
+/* Excel ライク数式入力中（= で一時的に text 化）：右寄せ維持＋数式中とわかる色付け */
+#tab-quote-make input.formula-editing {
+  text-align: right;
+  background: #fffbe6;
+  outline: 1px solid #e0b400;
+  outline-offset: -1px;
+}
 
 #tab-quote-make .w-name  { width: 100%; box-sizing: border-box; }
 /* 項目名セル：項目名（上）＋備考（下）を縦積み */

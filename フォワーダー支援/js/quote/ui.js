@@ -848,6 +848,62 @@
     } catch(e) { return null; }
   }
 
+  // 数式セル（#tableBody/#calcBody 内の数値入力）か判定
+  function _isFormulaCell(el) {
+    return el && el.tagName === 'INPUT' && !el.readOnly
+      && el.closest && el.closest('#tableBody, #calcBody');
+  }
+
+  // 式を評価して数値に確定（プレーン数値の直打ちも許容）
+  function _evalAndShow(expr) {
+    let result = safeEvalExpr(expr);
+    if (result === null) {
+      const n = Number(String(expr).trim());
+      if (expr !== '' && isFinite(n)) result = n;
+    }
+    return result;
+  }
+
+  // Excel ライク数式モードへ移行（= を押した瞬間だけ number → text に一時変換）
+  function enterFormulaMode(el, seed) {
+    if (el.dataset.formulaMode === '1') return;
+    el.dataset.formulaMode = '1';
+    el.dataset.prevValue = el.value;
+    // type 切替で同期的に発火し得る“偽の blur(focusout)”を無視させるため、
+    // 切替の前にガードフラグを立てておく。
+    el.dataset.formulaJustEntered = '1';
+    el.type = 'text';                 // 演算子を受け付けるため一時的に text 化
+    el.classList.add('formula-editing');
+    el.value = (seed != null ? seed : '=');
+    // type 切替でブラウザがフォーカスを外すことがあるため、明示的に取り戻す。
+    try { el.focus(); } catch (_) {}
+    try { el.setSelectionRange(el.value.length, el.value.length); } catch (_) {}
+    // 偽 blur が来なかったブラウザではフラグが残らないよう次フレームで自動解除。
+    setTimeout(function () { delete el.dataset.formulaJustEntered; }, 0);
+  }
+
+  // 数式モードを抜けて number に戻す（commit=true なら評価結果を確定）
+  function exitFormulaMode(el, commit) {
+    if (el.dataset.formulaMode !== '1') return;
+    const expr = el.value.replace(/^=/, '').trim();
+    const prev = el.dataset.prevValue || '';
+    el.classList.remove('formula-editing');
+    delete el.dataset.formulaMode;
+    delete el.dataset.prevValue;
+    el.type = 'number';
+    if (!commit) { el.value = prev; return; }
+    const result = _evalAndShow(expr);
+    if (result !== null) {
+      el.value = parseFloat(result.toFixed(6));
+      el.dispatchEvent(new Event('input', { bubbles: true }));
+      if (/[+\-*/]/.test(expr)) {
+        quoteShowToast('🧮 ' + expr + ' = ' + result.toLocaleString('ja-JP', {maximumFractionDigits:4}), 'info');
+      }
+    } else {
+      el.value = prev;   // 評価不能なら元の値に復帰
+    }
+  }
+
   function initFormulaInputs() {
     // Phase 2b：document 全体ではなく見積タブ内に限定
     const root = document.getElementById('tab-quote-make') || document;
@@ -864,9 +920,42 @@
         quoteShowToast('🧮 ' + text + ' = ' + result.toLocaleString('ja-JP', {maximumFractionDigits:4}), 'info');
       }
     });
-    // 注: 直打ちの "=1+2" は <input type="number"> が "=" を受け付けず value が空に
-    // なるため評価できない。数式入力は上の paste ハンドラ（コピペ）経由でのみ対応する。
-    // （以前ここに blur ハンドラがあったが number 入力では発火条件を満たさず常に no-op だった）
+
+    // Excel ライク直打ち数式：number セルで "=" を押すと数式モードに入る。
+    // <input type="number"> は "=" や "*" "/" を受け付けず value が空になるため、
+    // keydown で "=" を捕捉してそのセルだけ一時的に text 化し、演算子を入力可能にする。
+    // Enter / フォーカス離脱で評価 → 数値に確定し number へ戻す（Esc で取消）。
+    root.addEventListener('keydown', function(e) {
+      const el = e.target;
+      if (!_isFormulaCell(el)) return;
+      if (el.dataset.formulaMode === '1') {
+        if (e.key === 'Enter')  { e.preventDefault(); exitFormulaMode(el, true);  }
+        else if (e.key === 'Escape') { e.preventDefault(); exitFormulaMode(el, false); }
+        return;
+      }
+      if (e.key === '=' && el.type === 'number') {
+        e.preventDefault();
+        enterFormulaMode(el, '=');
+      }
+    });
+    // フォーカスが外れたら確定（Tab・クリック移動など）。
+    // ただし type 切替直後にブラウザが出す“偽の blur”では確定しない。
+    // 次のイベントループで本当にフォーカスが外れているか（activeElement）で判定する。
+    root.addEventListener('focusout', function(e) {
+      const el = e.target;
+      if (!_isFormulaCell(el) || el.dataset.formulaMode !== '1') return;
+      if (el.dataset.formulaJustEntered === '1') {
+        // 数式モード突入直後の偽 blur。1回だけ無視してフォーカスを戻す。
+        delete el.dataset.formulaJustEntered;
+        if (document.activeElement !== el) { try { el.focus(); } catch (_) {} }
+        return;
+      }
+      setTimeout(function() {
+        if (el.dataset.formulaMode !== '1') return;
+        if (document.activeElement === el) return;   // まだフォーカスあり＝偽 blur
+        exitFormulaMode(el, true);
+      }, 0);
+    });
   }
 
   // ========== 処理済みマーク（廃止：done-btn を撤去）==========
