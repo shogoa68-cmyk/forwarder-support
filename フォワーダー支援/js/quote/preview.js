@@ -741,6 +741,18 @@
       pvCargo.style.display = 'none';
     }
 
+    // 作業範囲（客先向けにも出力）
+    const scopeText = (document.getElementById('qf-scope')?.value || '').trim();
+    const pvScope = document.getElementById('pvScopeBox');
+    if (pvScope) {
+      if (scopeText) {
+        pvScope.style.display = 'block';
+        pvScope.innerHTML = `<strong>🛠️ 作業範囲</strong>${escHtml(scopeText)}`;
+      } else {
+        pvScope.style.display = 'none';
+      }
+    }
+
     const remarkText = getRemarkText();
     const pvRemark = document.getElementById('pvRemarkBox');
     if (remarkText) {
@@ -773,7 +785,7 @@
     if (pvTotSub) pvTotSub.dataset.raw = String(totJpy);
     // pvWasVisible を各セクション要素に記録する（applyPreviewCustomize の「戻す」判定に使用）
     // ここで表示中（display !== 'none'）のセクションを '1' としてマーク
-    ['pvMeta','pvCondBox','pvCargoBox','pvRemarkBox','pvTaxBox'].forEach(id => {
+    ['pvMeta','pvCondBox','pvCargoBox','pvScopeBox','pvRemarkBox','pvTaxBox'].forEach(id => {
       const el = document.getElementById(id);
       if (el) el.dataset.pvWasVisible = (el.style.display !== 'none') ? '1' : '0';
     });
@@ -892,6 +904,7 @@
       meta:   'pvMeta',
       cond:   'pvCondBox',
       cargo:  'pvCargoBox',
+      scope:  'pvScopeBox',
       remark: 'pvRemarkBox',
       tax:    'pvTaxBox',
     };
@@ -1274,6 +1287,12 @@
       return '';
     });
     lines.push(totalRow.join('\t'));
+    const scopeTextTsv = (document.getElementById('qf-scope')?.value || '').trim();
+    if (scopeTextTsv) {
+      lines.push('');
+      lines.push('【作業範囲】');
+      scopeTextTsv.split('\n').forEach(l => { if (l.trim()) lines.push(l); });
+    }
     const remarkText = getRemarkText();
     if (remarkText) {
       lines.push('');
@@ -1536,6 +1555,13 @@
     const ccySummary = _buildCcySummaryAoA(allRows, getEffectiveTaxRate());
     ccySummary.forEach(r => aoaRows.push(r));
 
+    // 作業範囲
+    const scopeTextXls = (document.getElementById('qf-scope')?.value || '').trim();
+    if (scopeTextXls) {
+      aoaRows.push([]);
+      aoaRows.push(['【作業範囲】']);
+      scopeTextXls.split('\n').forEach(line => { if (line.trim()) aoaRows.push([line]); });
+    }
     // 条件・リマーク
     const remarkText = getRemarkText?.() || '';
     if (remarkText) {
