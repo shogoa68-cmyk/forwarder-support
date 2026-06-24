@@ -244,6 +244,7 @@
     const _scLabelOf = d => ((d.sv || '').trim() || '（サブコン未設定）');
     const _scActive = (new Set(data.map(_scNorm)).size >= 2);
     let _scKey = null, _scLabel = null, _scJpy = 0, _scHas = false;
+    let _catKey = null;   // サブコン内の現在カテゴリ（サブコンが変わると null にリセット）
     const _scPush = () => {
       if (_scActive && _scHas) {
         // サブコン名は見出し行に表示済みのため、小計行では繰り返さず「小計」のみ
@@ -282,14 +283,22 @@
       // サブコン境界：キーが変わったら直前グループの売値小計を挿入
       if (_scActive) {
         const k = _scNorm(r);
-        if (_scHas && k !== _scKey) { _scPush(); _scJpy = 0; _scHas = false; }
+        if (_scHas && k !== _scKey) { _scPush(); _scJpy = 0; _scHas = false; _catKey = null; }
         if (!_scHas) {
           _scKey = k; _scLabel = _scLabelOf(r);  // グループ先頭の綴りを表示名に採用
           // 各サブコンブロックの先頭に見出しを置き、どのサブコンの明細かを明示する
           const _alH = (typeof getSubconAliases === 'function' ? getSubconAliases()[_scKey] : '') || '';
           lineHTML.push(`<tr class="qd-subcon-head"><td colspan="5">${esc(_alH || _scLabel)}</td></tr>`);
+          _catKey = null;   // 新しいサブコンに入ったのでカテゴリ見出しを再出させる
         }
         _scJpy += jpy; _scHas = true;
+      }
+      // カテゴリー境界：サブコン配下でカテゴリが変わったら見出し行を挿入（ツリー第2階層）
+      if (r.cat !== _catKey) {
+        const _catTxt = _catLabel(r.cat)
+          .replace(/^[\s\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{2190}-\u{21FF}\u{2B00}-\u{2BFF}️]+/u, '').trim();
+        if (_catTxt) lineHTML.push(`<tr class="qd-cat-head"><td colspan="5">${esc(_catTxt)}</td></tr>`);
+        _catKey = r.cat;
       }
       const validBadge = (() => {
         if (!r.vf && !r.vt) return '';
@@ -301,7 +310,7 @@
       })();
       lineHTML.push(
         `<tr>
-          <td class="qd-item">${r.taxed ? '<span class="qd-tax">*</span> ' : ''}${esc(_taxName(r.name, r.taxed))}${validBadge}</td>
+          <td class="qd-item qd-l3">${r.taxed ? '<span class="qd-tax">*</span> ' : ''}${esc(_taxName(r.name, r.taxed))}${validBadge}</td>
           <td class="qd-num">${qtyDisp}</td>
           <td class="qd-ctr">${esc(r.un || '')}</td>
           <td class="qd-num">${unitDisp}</td>
