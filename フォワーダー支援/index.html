@@ -3118,25 +3118,13 @@
                         </div>
                       </div>
                     </div>
-                    <div class="cc-spec">
-                      <div class="cc-spec-field cc-spec-field--dims">
-                        <label>📦 貨物の実寸（長さ×幅×高さ）</label>
-                        <div class="cc-dims">
-                          <input type="number" id="cc-cargo-l" class="cc-dim" min="0" step="1" placeholder="長さ" inputmode="numeric" oninput="recalcOverGauge()" /><span class="cc-dim-x">×</span>
-                          <input type="number" id="cc-cargo-w" class="cc-dim" min="0" step="1" placeholder="幅" inputmode="numeric" oninput="recalcOverGauge()" /><span class="cc-dim-x">×</span>
-                          <input type="number" id="cc-cargo-h" class="cc-dim" min="0" step="1" placeholder="高さ" inputmode="numeric" oninput="recalcOverGauge()" /><span class="cc-dim-unit">cm</span>
-                        </div>
+                    <div class="cc-spec cc-spec--og">
+                      <div class="cc-og-head">
+                        <span class="cc-og-title">📦 貨物の実寸（長さ×幅×高さ）／ 📐 基準コンテナ（内寸）</span>
+                        <button type="button" class="cc-og-add" onclick="addOverGaugeRow()">＋ サイズを追加</button>
                       </div>
-                      <div class="cc-spec-field">
-                        <label>📐 基準コンテナ（内寸）</label>
-                        <select id="cc-og-ref" class="cc-spec-input" onchange="recalcOverGauge()">
-                          <option value="20'OT（オープントップ）">20'OT 内寸 589×235×230</option>
-                          <option value="40'OT（オープントップ）">40'OT 内寸 1203×235×230</option>
-                          <option value="20'FR（フラットラック）">20'FR 床面 585×244（高さ制限なし）</option>
-                          <option value="40'FR（フラットラック）">40'FR 床面 1203×244（高さ制限なし）</option>
-                        </select>
-                      </div>
-                      <div class="cc-og-result" id="ccOgResult" data-state="empty">📦 貨物の実寸を入力すると、はみ出し寸法を自動計算します</div>
+                      <div id="ccOgList" class="cc-og-list"></div>
+                      <div class="cc-og-hint" id="ccOgHint" data-state="empty">📦 貨物の実寸を入力すると、はみ出し寸法を自動計算します（複数サイズ登録可）</div>
                     </div>
                   </div>
                 </div>

@@ -1029,7 +1029,11 @@
     if (ot) ot.hidden = sub !== 'otfr';
   }
   window.setContainerCat = function (cat) { _setCatUI(cat); updateContainerSpec(); };
-  window.setContainerSub = function (sub) { _setSubUI(sub); updateContainerSpec(); };
+  window.setContainerSub = function (sub) {
+    _setSubUI(sub);
+    if (sub === 'otfr' && typeof window.recalcOverGauge === 'function') window.recalcOverGauge(); // 行を用意＋再計算
+    else updateContainerSpec();
+  };
   window.setRfVent = function (v) {
     document.querySelectorAll('#cc-rf-vent .cc-seg-btn').forEach(b => b.classList.toggle('is-on', b.dataset.val === v));
     updateContainerSpec();
@@ -1043,34 +1047,81 @@
     "20'FR（フラットラック）": { l: 585,  w: 244, h: null }, // フラットは高さ制限なし
     "40'FR（フラットラック）": { l: 1203, w: 244, h: null },
   };
-  // 貨物実寸→はみ出し寸法を計算して表示＋ spec 保存
+  // 基準コンテナ（内寸）選択肢
+  const OG_REF_LIST = [
+    ["20'OT（オープントップ）", "20'OT 内寸 589×235×230"],
+    ["40'OT（オープントップ）", "40'OT 内寸 1203×235×230"],
+    ["20'FR（フラットラック）", "20'FR 床面 585×244（高さ制限なし）"],
+    ["40'FR（フラットラック）", "40'FR 床面 1203×244（高さ制限なし）"],
+  ];
+  function _ogRefOptions(sel) {
+    return OG_REF_LIST.map(([v, l]) =>
+      `<option value="${v}"${v === sel ? ' selected' : ''}>${l}</option>`).join('');
+  }
+  // 1行ぶん（貨物実寸＋基準コンテナ＋はみ出し結果）の HTML
+  function _ogRowHTML(item) {
+    item = item || {};
+    const ref = item.ref || "20'OT（オープントップ）";
+    const v = x => (x == null || x === '') ? '' : x;
+    return `<div class="cc-og-row" data-og-row>
+      <div class="cc-dims">
+        <input type="number" class="cc-dim og-l" min="0" step="1" placeholder="長さ" inputmode="numeric" value="${v(item.l)}" oninput="recalcOverGauge()" /><span class="cc-dim-x">×</span>
+        <input type="number" class="cc-dim og-w" min="0" step="1" placeholder="幅" inputmode="numeric" value="${v(item.w)}" oninput="recalcOverGauge()" /><span class="cc-dim-x">×</span>
+        <input type="number" class="cc-dim og-h" min="0" step="1" placeholder="高さ" inputmode="numeric" value="${v(item.h)}" oninput="recalcOverGauge()" /><span class="cc-dim-unit">cm</span>
+      </div>
+      <select class="cc-spec-input og-ref" onchange="recalcOverGauge()">${_ogRefOptions(ref)}</select>
+      <span class="cc-og-rowresult" data-state="empty">—</span>
+      <button type="button" class="cc-og-del" onclick="removeOverGaugeRow(this)" title="このサイズを削除" aria-label="削除">✕</button>
+    </div>`;
+  }
+  window.addOverGaugeRow = function (item) {
+    const list = document.getElementById('ccOgList');
+    if (!list) return;
+    list.insertAdjacentHTML('beforeend', _ogRowHTML(item && item.l !== undefined ? item : {}));
+    recalcOverGauge();
+    // 追加した行の長さ入力にフォーカス
+    const last = list.querySelector('[data-og-row]:last-child .og-l');
+    if (last) last.focus();
+  };
+  window.removeOverGaugeRow = function (btn) {
+    const row = btn?.closest('[data-og-row]');
+    if (row) row.remove();
+    recalcOverGauge();
+  };
+  function _ensureOgRows() {
+    const list = document.getElementById('ccOgList');
+    if (list && !list.querySelector('[data-og-row]')) list.insertAdjacentHTML('beforeend', _ogRowHTML({}));
+  }
+  window._ensureOgRows = _ensureOgRows;
+  // 各行の貨物実寸→はみ出し寸法を計算して行ごとに表示＋全体ヒント＋ spec 保存
   window.recalcOverGauge = function () {
-    const num = id => { const v = parseFloat(document.getElementById(id)?.value); return Number.isFinite(v) ? v : null; };
-    const cl = num('cc-cargo-l'), cw = num('cc-cargo-w'), ch = num('cc-cargo-h');
-    const ref = document.getElementById('cc-og-ref')?.value || "20'OT（オープントップ）";
-    const inner = OTFR_INNER[ref] || OTFR_INNER["20'OT（オープントップ）"];
-    const over = (cargo, lim) => (cargo != null && lim != null && cargo > lim) ? +(cargo - lim).toFixed(1) : 0;
-    const ogL = over(cl, inner.l), ogW = over(cw, inner.w), ogH = over(ch, inner.h);
-    const result = document.getElementById('ccOgResult');
-    if (result) {
-      if (cl == null && cw == null && ch == null) {
-        result.dataset.state = 'empty';
-        result.innerHTML = '📦 貨物の実寸を入力すると、はみ出し寸法を自動計算します';
-      } else {
-        const parts = [];
-        if (ogL > 0) parts.push(`長さ <b>+${ogL}cm</b>`);
-        if (ogW > 0) parts.push(`幅 <b>+${ogW}cm</b>`);
-        if (inner.h == null) {
-          if (ch != null) parts.push(`高さ <b>${ch}cm</b>（フラット＝制限なし／要確認）`);
-        } else if (ogH > 0) parts.push(`高さ <b>+${ogH}cm</b>`);
-        if (parts.length) {
-          result.dataset.state = 'over';
-          result.innerHTML = '⚠️ はみ出し：' + parts.join(' ／ ') + '<small>※ 基準内寸との差。実機・本船制限は別途要確認</small>';
-        } else {
-          result.dataset.state = 'fit';
-          result.innerHTML = '✅ 基準コンテナ内寸に収まります（はみ出しなし）';
-        }
-      }
+    _ensureOgRows();
+    const rows = Array.from(document.querySelectorAll('#ccOgList [data-og-row]'));
+    let anyInput = false, anyOver = false;
+    rows.forEach(row => {
+      const num = sel => { const v = parseFloat(row.querySelector(sel)?.value); return Number.isFinite(v) ? v : null; };
+      const cl = num('.og-l'), cw = num('.og-w'), ch = num('.og-h');
+      const ref = row.querySelector('.og-ref')?.value || "20'OT（オープントップ）";
+      const inner = OTFR_INNER[ref] || OTFR_INNER["20'OT（オープントップ）"];
+      const over = (cargo, lim) => (cargo != null && lim != null && cargo > lim) ? +(cargo - lim).toFixed(1) : 0;
+      const ogL = over(cl, inner.l), ogW = over(cw, inner.w), ogH = over(ch, inner.h);
+      const res = row.querySelector('.cc-og-rowresult');
+      if (!res) return;
+      if (cl == null && cw == null && ch == null) { res.dataset.state = 'empty'; res.innerHTML = '—'; return; }
+      anyInput = true;
+      const parts = [];
+      if (ogL > 0) parts.push(`長さ <b>+${ogL}</b>`);
+      if (ogW > 0) parts.push(`幅 <b>+${ogW}</b>`);
+      if (inner.h == null) { if (ch != null) parts.push(`高さ <b>${ch}</b>（FR制限なし）`); }
+      else if (ogH > 0) parts.push(`高さ <b>+${ogH}</b>`);
+      if (parts.length) { res.dataset.state = 'over'; res.innerHTML = '⚠️ はみ出し ' + parts.join(' / ') + ' cm'; anyOver = true; }
+      else { res.dataset.state = 'fit'; res.innerHTML = '✅ 収まります'; }
+    });
+    const hint = document.getElementById('ccOgHint');
+    if (hint) {
+      if (!anyInput) { hint.dataset.state = 'empty'; hint.innerHTML = '📦 貨物の実寸を入力すると、はみ出し寸法を自動計算します（複数サイズ登録可）'; }
+      else if (anyOver) { hint.dataset.state = 'over'; hint.innerHTML = '⚠️ はみ出しのあるサイズがあります。実機・本船制限は別途要確認'; }
+      else { hint.dataset.state = 'fit'; hint.innerHTML = '✅ すべて基準コンテナ内寸に収まります（はみ出しなし）'; }
     }
     updateContainerSpec();
   };
@@ -1079,21 +1130,33 @@
     const sub  = document.querySelector('.cc-sub-tab.is-on')?.dataset.sub || 'rf';
     const vent = document.querySelector('#cc-rf-vent .cc-seg-btn.is-on')?.dataset.val || '無';
     const gv = id => (document.getElementById(id)?.value || '').trim();
-    const num = id => { const v = parseFloat(document.getElementById(id)?.value); return Number.isFinite(v) ? v : null; };
-    // OT/FR：はみ出し寸法は貨物実寸と基準内寸から算出
-    const ref = document.getElementById('cc-og-ref')?.value || "20'OT（オープントップ）";
-    const inner = OTFR_INNER[ref] || OTFR_INNER["20'OT（オープントップ）"];
-    const cl = num('cc-cargo-l'), cw = num('cc-cargo-w'), ch = num('cc-cargo-h');
+    // OT/FR：各行（複数サイズ）の実寸と基準内寸からはみ出しを算出
     const over = (cargo, lim) => (cargo != null && lim != null && cargo > lim) ? +(cargo - lim).toFixed(1) : 0;
+    const n = x => { const v = parseFloat(x); return Number.isFinite(v) ? v : null; };
+    const ogItems = [];
+    document.querySelectorAll('#ccOgList [data-og-row]').forEach(row => {
+      const rv = sel => (row.querySelector(sel)?.value || '').trim();
+      const l = rv('.og-l'), w = rv('.og-w'), h = rv('.og-h');
+      if (!l && !w && !h) return;   // 空行は保存しない
+      const ref = row.querySelector('.og-ref')?.value || "20'OT（オープントップ）";
+      const inner = OTFR_INNER[ref] || OTFR_INNER["20'OT（オープントップ）"];
+      ogItems.push({
+        l, w, h, ref,
+        ogL: String(over(n(l), inner.l) || ''),
+        ogW: String(over(n(w), inner.w) || ''),
+        ogH: String(inner.h == null ? '' : (over(n(h), inner.h) || '')),
+      });
+    });
+    const first = ogItems[0] || {};
     const spec = {
       cat, sub,
       rfTemp: gv('cc-rf-temp'),
       rfVent: vent,
-      ogRef: ref,
-      cargoL: gv('cc-cargo-l'), cargoW: gv('cc-cargo-w'), cargoH: gv('cc-cargo-h'),
-      ogL: String(over(cl, inner.l) || ''),
-      ogW: String(over(cw, inner.w) || ''),
-      ogH: String(inner.h == null ? '' : (over(ch, inner.h) || '')),
+      ogItems,
+      // 後方互換：先頭サイズを従来フィールドにもミラー
+      ogRef: first.ref || "20'OT（オープントップ）",
+      cargoL: first.l || '', cargoW: first.w || '', cargoH: first.h || '',
+      ogL: first.ogL || '', ogW: first.ogW || '', ogH: first.ogH || '',
     };
     const el = document.getElementById('cond-container-spec');
     if (el) el.value = JSON.stringify(spec);
@@ -1106,8 +1169,16 @@
     try { spec = JSON.parse(document.getElementById('cond-container-spec')?.value || '{}') || {}; } catch (e) { spec = {}; }
     const setV = (id, v) => { const el = document.getElementById(id); if (el) el.value = v || ''; };
     setV('cc-rf-temp', spec.rfTemp);
-    setV('cc-cargo-l', spec.cargoL); setV('cc-cargo-w', spec.cargoW); setV('cc-cargo-h', spec.cargoH);
-    if (spec.ogRef && document.getElementById('cc-og-ref')) document.getElementById('cc-og-ref').value = spec.ogRef;
+    // OT/FR 貨物サイズ（複数）を復元。旧形式（単一 cargoL/W/H + ogRef）は1行に変換
+    let ogItems = Array.isArray(spec.ogItems) ? spec.ogItems.slice() : [];
+    if (!ogItems.length && (spec.cargoL || spec.cargoW || spec.cargoH)) {
+      ogItems = [{ l: spec.cargoL || '', w: spec.cargoW || '', h: spec.cargoH || '', ref: spec.ogRef || "20'OT（オープントップ）" }];
+    }
+    const ogList = document.getElementById('ccOgList');
+    if (ogList) {
+      ogList.innerHTML = ogItems.map(it => _ogRowHTML(it)).join('');
+      _ensureOgRows();   // 0件なら空行を1つ用意
+    }
     document.querySelectorAll('#cc-rf-vent .cc-seg-btn').forEach(b =>
       b.classList.toggle('is-on', b.dataset.val === (spec.rfVent || '無')));
     const SPECIAL = ["20'RF（冷凍）","40'RF（冷凍）","20'OT（オープントップ）","40'OT（オープントップ）","20'FR（フラットラック）","40'FR（フラットラック）"];
