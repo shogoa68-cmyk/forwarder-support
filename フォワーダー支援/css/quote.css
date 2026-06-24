@@ -184,6 +184,16 @@
   color: #6b5a42; background: #fff; border: 1px solid #c4b49a; border-radius: 6px; padding: 3px 9px;
 }
 #tab-quote-make .qf-refurl-edit:hover { background: #f0e8d8; }
+/* ===== 作業範囲（自由入力） ===== */
+#tab-quote-make .scope-body { padding: 4px 2px 2px; }
+#tab-quote-make #qf-scope {
+  width: 100%; min-height: 96px; resize: vertical; box-sizing: border-box;
+  font-family: inherit; font-size: 13px; line-height: 1.6;
+  padding: 8px 10px; border: 1px solid var(--border-md, #c4b49a); border-radius: 6px;
+  background: #fff; color: #3d2e1e;
+}
+#tab-quote-make #qf-scope:focus { border-color: #8b6914; outline: none; }
+#tab-quote-make #qf-scope::placeholder { color: #998070; font-size: 12px; }
 /* ===== 添付ファイル ===== */
 #tab-quote-make .quote-field-attach { margin-top: 6px; }
 #tab-quote-make .qf-attach-drop {
@@ -432,6 +442,7 @@
 #previewBox.layout-doc #pvCargoBox,
 #previewBox.layout-doc #previewTableWrap,
 #previewBox.layout-doc #pvTaxBox,
+#previewBox.layout-doc #pvScopeBox,
 #previewBox.layout-doc #pvRemarkBox,
 #previewBox.layout-doc #pvAuditMeta,
 #previewBox.layout-doc #pvCustomizeWrap { display: none !important; }
@@ -1237,6 +1248,47 @@
   font-weight: 600;
   white-space: nowrap;
 }
+/* ===== 実費（金額未確定・別途精算） ===== */
+#tab-quote-make .actual-cost-btn {
+  display: block;
+  margin-top: 3px;
+  padding: 1px 6px;
+  font-size: 10px;
+  line-height: 1.5;
+  border: 1px solid #c4b49a;
+  border-radius: 3px;
+  background: transparent;
+  color: #c4b49a;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+#tab-quote-make .actual-cost-btn:hover { border-color: #4a55a8; color: #4a55a8; opacity: 1; }
+#tab-quote-make .actual-cost-btn.is-on {
+  background: #eef0fb; border-color: #6b75c4; color: #3a45a0; font-weight: 600;
+}
+/* 価格セル：実費 ON で数値入力群を隠し「実費」バッジを表示 */
+#tab-quote-make .actual-cost-badge { display: none; }
+#tab-quote-make tr.row-actual-cost .stk-price { display: none; }
+#tab-quote-make tr.row-actual-cost .actual-cost-badge {
+  display: inline-block;
+  padding: 2px 10px;
+  background: #eef0fb;
+  border: 1px solid #aab2e0;
+  border-radius: 10px;
+  color: #3a45a0;
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+/* 実費 ON のときは排他の ¥0✓ ボタンを隠す（重複表示を防ぐ） */
+#tab-quote-make tr.row-actual-cost .zero-confirm-btn { display: none; }
+/* 実費の行：左に indigo アクセント（0円＝緑と区別） */
+#tab-quote-make tr.row-actual-cost > td.handle-cell { box-shadow: inset 3px 0 0 #6b75c4; }
+/* プレビュー：実費テキスト */
+#tab-quote-make .pv-actual-txt { color: #3a45a0; font-weight: 700; }
+
 /* ===== プレビュー入力ガイドパネル ===== */
 #tab-quote-make .pv-warn-guide {
   position: fixed;
@@ -3124,6 +3176,25 @@
   font-size: 12px;
   color: #7d5a00;
   border-bottom: 1px solid #f0d9a0;
+  padding-bottom: 4px;
+}
+#tab-quote-make #pvScopeBox {
+  margin-top: 16px;
+  padding: 12px 14px;
+  background: #f4f8fc;
+  border: 1px solid #bcd5ea;
+  border-radius: 5px;
+  font-size: 12px;
+  line-height: 1.9;
+  color: #25435c;
+  white-space: pre-wrap;
+}
+#tab-quote-make #pvScopeBox strong {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 12px;
+  color: #1a5c8a;
+  border-bottom: 1px solid #bcd5ea;
   padding-bottom: 4px;
 }
 #tab-quote-make .tip { font-size: 11px; color: #7d6b56; margin-top: 10px; line-height: 1.8; }
@@ -6270,6 +6341,7 @@ body.qp-dash-active #quoteActionDock { display: none !important; }
     widows: 4;
   }
   body:has(#previewOverlay.open) #pvCondBox,
+  body:has(#previewOverlay.open) #pvScopeBox,
   body:has(#previewOverlay.open) #pvCargoBox {
     break-inside: avoid;
     page-break-inside: avoid;

@@ -475,7 +475,7 @@
     const newId = addRowAfter(srcId);
 
     // テキスト・数値・日付フィールドをコピー（zc = 0円確認済みフラグ／vf・vt = 有効期限を含む）
-    ['nm','pq','un','pp','mk','nt','sv','zc','vf','vt'].forEach(f => {
+    ['nm','pq','un','pp','mk','nt','sv','zc','ac','vf','vt'].forEach(f => {
       const srcEl = document.getElementById(`${f}-${srcId}`);
       const dstEl = document.getElementById(`${f}-${newId}`);
       if (srcEl && dstEl) dstEl.value = srcEl.value;
@@ -569,10 +569,12 @@
     const q    = f => frag.querySelector(`[data-field="${f}"]`);
 
     // IDs
-    ['cat','tx','nm','pq','un','pc','pp','cd','bq','bc','bp','mk','st','pr','nt','sv','zc','vf','vt']
-      .forEach(f => { q(f).id = `${f}-${id}`; });
+    ['cat','tx','nm','pq','un','pc','pp','cd','bq','bc','bp','mk','st','pr','nt','sv','zc','ac','vf','vt']
+      .forEach(f => { const el = q(f); if (el) el.id = `${f}-${id}`; });
     const zcBtn = frag.querySelector('.zero-confirm-btn');
     if (zcBtn) zcBtn.onclick = () => toggleZeroConfirmed(id);;
+    const acBtn = frag.querySelector('.actual-cost-btn');
+    if (acBtn) acBtn.onclick = () => toggleActualCost(id);
     const remBtn = frag.querySelector('.btn-row-rem');
     const intBtn = frag.querySelector('.btn-row-int');
     if (remBtn) remBtn.onclick = () => rowInsertRemarkBelow(id);
@@ -653,11 +655,33 @@
     const canFx = typeof toJPY === 'function';
     const taxed = document.getElementById(`tx-${id}`)?.checked;
     const taxRate = (typeof getEffectiveTaxRate === 'function') ? getEffectiveTaxRate() : 0.10;
+    // 実費フラグ（金額未確定・別途精算）。単価・金額を「実費」表示し合計から除外
+    const isActualCost = document.getElementById(`ac-${id}`)?.value === '1';
+    const trEl0 = document.getElementById(`row-${id}`);
+    if (trEl0) {
+      trEl0.classList.toggle('row-actual-cost', isActualCost);
+      if (isActualCost) trEl0.dataset.actual = '1'; else delete trEl0.dataset.actual;
+    }
+    const acBtn0 = trEl0?.querySelector('.actual-cost-btn');
+    if (acBtn0) acBtn0.classList.toggle('is-on', isActualCost);
     // 小計セル
     const st = document.getElementById(`st-${id}`);
     if (st) {
       let stHTML;
       const isZeroConfirmed = document.getElementById(`zc-${id}`)?.value === '1';
+      if (isActualCost) {
+        stHTML = '<span class="actual-cost-badge actual-cost-badge--cell">実費</span>';
+        st.innerHTML = stHTML;
+        st.className = 'subtotal-cell subtotal-actual';
+        // 利益は算出不能 → —
+        const prAc = document.getElementById(`pr-${id}`);
+        if (prAc) { prAc.textContent = '—'; prAc.className = 'profit-cell profit-zero'; }
+        // ¥0✓ とは排他：0円バッジ/ボタンの ON を解除
+        const zcBtnA = trEl0?.querySelector('.zero-confirm-btn');
+        if (zcBtnA) zcBtnA.classList.remove('is-on');
+        updateTotals();
+        return;
+      }
       if (bc !== 'JPY' && canFx && subtotal) {
         const jpySub = Math.ceil(toJPY(subtotal, bc));
         stHTML = fmt(subtotal) + '<br><small class="jpy-conv-hint">(≈¥' + fmt(jpySub) + ')</small>';
@@ -700,8 +724,27 @@
     const zcEl = document.getElementById(`zc-${id}`);
     if (!zcEl) return;
     zcEl.value = zcEl.value === '1' ? '' : '1';
+    if (zcEl.value === '1') {                       // ¥0✓ と実費は排他
+      const acEl = document.getElementById(`ac-${id}`);
+      if (acEl) acEl.value = '';
+    }
     calc(id);
+    if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
   }
+
+  // ========== 実費トグル（金額未確定・合計から除外） ==========
+  function toggleActualCost(id) {
+    const acEl = document.getElementById(`ac-${id}`);
+    if (!acEl) return;
+    acEl.value = acEl.value === '1' ? '' : '1';
+    if (acEl.value === '1') {                        // 実費と ¥0✓ は排他
+      const zcEl = document.getElementById(`zc-${id}`);
+      if (zcEl) zcEl.value = '';
+    }
+    calc(id);
+    if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
+  }
+  window.toggleActualCost = toggleActualCost;
 
   function val(id) {
     let v = document.getElementById(id)?.value;
@@ -735,6 +778,7 @@
       if (tr.dataset.excluded === '1') return;    // 除外グループはスキップ
       if (tr.dataset.hideQuote === '1') return;   // 見積書非表示の行は合計から除外
       if (tr.dataset.outRange === '1') return;    // 適用期間外のサーチャージは合計から除外
+      if (tr.dataset.actual === '1') return;      // 実費（金額未確定）の行は合計から除外
       const id  = tr.id.replace('row-', '');
       const pc  = document.getElementById(`pc-${id}`)?.value || 'JPY';
       const bc  = document.getElementById(`bc-${id}`)?.value || 'JPY';
@@ -1060,7 +1104,7 @@
         groupBillCurrencies = new Set(); groupCostCurrencies = new Set();
       } else {
         // 見積書非表示・適用期間外の行は小計セパレータの集計に含めない
-        if (tr.dataset.hideQuote === '1' || tr.dataset.outRange === '1') return;
+        if (tr.dataset.hideQuote === '1' || tr.dataset.outRange === '1' || tr.dataset.actual === '1') return;
         const id = tr.id.replace('row-', '');
         const bq = val(`bq-${id}`);
         const bp = val(`bp-${id}`);
@@ -1627,6 +1671,7 @@
       if (tr.dataset.type) return;         // 小計・リマーク・社内メモ行は除外
       if (tr.dataset.hideQuote === '1') return;  // 見積書非表示の行はグループ小計から除外
       if (tr.dataset.outRange === '1') return;   // 適用期間外のサーチャージはグループ小計から除外
+      if (tr.dataset.actual === '1') return;     // 実費の行はグループ小計から除外
       const id = tr.id?.replace('row-', '');
       if (!id || !curSumEl) return;
       const bq = val(`bq-${id}`) || val(`pq-${id}`) || 0;
@@ -1698,7 +1743,7 @@
 
   function _gatherRowData(id) {
     const data = {};
-    ['nm','pq','un','pp','mk','nt','sv','zc','vf','vt','cat','pc','bc'].forEach(f => {
+    ['nm','pq','un','pp','mk','nt','sv','zc','ac','vf','vt','cat','pc','bc'].forEach(f => {
       const el = document.getElementById(`${f}-${id}`);
       if (el) data[f] = el.value;
     });
@@ -1718,7 +1763,7 @@
     } else {
       tbody.appendChild(newTr);
     }
-    ['nm','pq','un','pp','mk','nt','zc','vf','vt'].forEach(f => {
+    ['nm','pq','un','pp','mk','nt','zc','ac','vf','vt'].forEach(f => {
       const el = document.getElementById(`${f}-${newId}`);
       if (el && data[f] !== undefined) el.value = data[f];
     });

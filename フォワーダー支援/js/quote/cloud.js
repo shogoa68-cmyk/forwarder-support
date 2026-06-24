@@ -1372,9 +1372,10 @@
         const bp  = cells[11] || '';   // 売単価（= 仕入 + 載せ幅）
         const mk  = cells[13] || '';   // 載せ幅
         const nt  = cells[14] || '';
+        const ac  = (cells[18] === '1' || cells[18] === true);  // 実費（金額未確定）
         const catLbl = catLabel[cat] || cat;
         const qty    = (bq && un) ? `${escHtml(bq)} ${escHtml(un)}` : escHtml(bq || un || '—');
-        const mPct   = _cpMarginPct(pp, pc, pq, bp, bc, bq);
+        const mPct   = ac ? null : _cpMarginPct(pp, pc, pq, bp, bc, bq);
         const mCls   = mPct == null ? '' : (mPct > 0 ? 'cp-margin-pos' : mPct < 0 ? 'cp-margin-neg' : '');
         const mCell  = mPct == null ? '—' : mPct.toFixed(1) + '%';
         return `<tr class="cp-row cp-row-in-group" data-sv="${escHtml(g.sv)}" data-idx="${idx}">
@@ -1382,9 +1383,9 @@
           <td class="cp-cat">${escHtml(catLbl)}</td>
           <td class="cp-nm">${escHtml(nm)}</td>
           <td class="cp-qty">${qty}</td>
-          <td class="cp-price cp-pp">${_cpMoney(pp, pc)}</td>
-          <td class="cp-price cp-mk">${_cpNum(mk) ? _cpMoney(mk, bc) : '—'}</td>
-          <td class="cp-price cp-bp">${_cpMoney(bp, bc)}</td>
+          <td class="cp-price cp-pp">${ac ? '実費' : _cpMoney(pp, pc)}</td>
+          <td class="cp-price cp-mk">${ac ? '—' : (_cpNum(mk) ? _cpMoney(mk, bc) : '—')}</td>
+          <td class="cp-price cp-bp">${ac ? '実費' : _cpMoney(bp, bc)}</td>
           <td class="cp-price cp-margin ${mCls}">${mCell}</td>
           <td class="cp-nt">${escHtml(nt)}</td>
         </tr>`;

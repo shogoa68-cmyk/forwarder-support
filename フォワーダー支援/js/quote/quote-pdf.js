@@ -266,17 +266,22 @@
       const jpy = Math.ceil(_toJPY(sub, r.bc || 'JPY'));      // JPY換算
       // 外貨建ては輸出免税が原則（Excel/プレビューと同一ポリシー）。課税は JPY 建て行のみ。
       // 消費税は行ごとに切り上げて積み上げ、各出力経路（御見積書/プレビュー/Excel）で一致させる。
-      if (r.taxed && (r.bc || 'JPY') === 'JPY') {
-        taxableSub += jpy;
-        taxSum += Math.ceil(jpy * taxRate);
-      } else {
-        exemptSub += jpy;
+      const isActual = r._actual;   // 実費（金額未確定・合計除外・単価/金額は「実費」表示）
+      if (!isActual) {
+        if (r.taxed && (r.bc || 'JPY') === 'JPY') {
+          taxableSub += jpy;
+          taxSum += Math.ceil(jpy * taxRate);
+        } else {
+          exemptSub += jpy;
+        }
       }
       const isNonJpy = r.bc && r.bc !== 'JPY';
       // JPY 単価は端数があるときだけ小数表示（単価×数量＝金額の検算が崩れないように）
-      const unitDisp = isNonJpy
-        ? `${fmtNum(r.bp, 2)} ${esc(r.bc)}`
-        : `${Number.isInteger(r.bp) ? fmtInt(r.bp) : fmtNum(r.bp, 2)} JPY`;
+      const unitDisp = isActual
+        ? '実費'
+        : (isNonJpy
+          ? `${fmtNum(r.bp, 2)} ${esc(r.bc)}`
+          : `${Number.isInteger(r.bp) ? fmtInt(r.bp) : fmtNum(r.bp, 2)} JPY`);
       // 御見積書は客先向け公式文書のため、社内メモ(r.note)は出力しない（E-1 備考漏洩対策）
       // 数量は金額の根拠（sub = bq×bp）と一致させる。未入力時に「1」を捏造しない（B/台帳 C）
       const qtyDisp = (r.bq && r.bq > 0) ? fmtNum(r.bq, 4) : '—';
@@ -291,7 +296,7 @@
           lineHTML.push(`<tr class="qd-subcon-head"><td colspan="5">${esc(_alH || _scLabel)}</td></tr>`);
           _catKey = null;   // 新しいサブコンに入ったのでカテゴリ見出しを再出させる
         }
-        _scJpy += jpy; _scHas = true;
+        _scJpy += (isActual ? 0 : jpy); _scHas = true;   // 実費は小計に含めない
       }
       // カテゴリー境界：サブコン配下でカテゴリが変わったら見出し行を挿入（ツリー第2階層）
       if (r.cat !== _catKey) {
@@ -314,7 +319,7 @@
           <td class="qd-num">${qtyDisp}</td>
           <td class="qd-ctr">${esc(r.un || '')}</td>
           <td class="qd-num">${unitDisp}</td>
-          <td class="qd-num">¥${fmtInt(jpy)}</td>
+          <td class="qd-num">${isActual ? '実費' : '¥' + fmtInt(jpy)}</td>
         </tr>`
       );
     });
@@ -402,6 +407,10 @@
           </table>
         </div>`}
       </div>
+      ${(() => {
+        const sc = (document.getElementById('qf-scope')?.value || '').trim();
+        return sc ? `<div class="qd-remark-block qd-scope-block"><div class="qd-remark-ttl">🛠️ 作業範囲</div><div class="qd-remark-body">${esc(sc).replace(/\n/g, '<br>')}</div></div>` : '';
+      })()}
       ${(() => {
         const rt = (typeof getRemarkText === 'function') ? getRemarkText() : (cond && cond.free) || '';
         return rt ? `<div class="qd-remark-block"><div class="qd-remark-ttl">📝 条件・免責事項（全体リマーク）</div><div class="qd-remark-body">${esc(rt).replace(/\n/g, '<br>')}</div></div>` : '';

@@ -3198,6 +3198,20 @@
       <button class="fb-section-btn" onclick="openFeedback('物量情報')" title="このセクションへのフィードバック">💬 このセクションへのフィードバック</button>
     </div><!-- /section-volume -->
 
+    <!-- 作業範囲（当面は自由入力） -->
+    <div class="condition-section is-collapsible" id="section-scope">
+      <h2 class="section-toggle-head" onclick="toggleQuoteBottomAccordion('section-scope')">
+        <span class="section-caret">▼</span>
+        <span class="section-toggle-title">🛠️ 作業範囲</span>
+        <span class="section-collapsed-summary" id="sumScope"></span>
+      </h2>
+      <div class="scope-body">
+        <p class="section-desc">この見積もりで当社が担当する作業範囲（業務の範囲）を記述します。当面は自由入力です。お客様への出力反映は今後対応予定。</p>
+        <textarea id="qf-scope" class="qf-scope-area" placeholder="例）輸出通関手配、保税搬入、海上スペースブッキング、船積書類（B/L・I/V・P/L）作成、本船手配。&#10;※ 国内集荷・梱包・現地配送は含みません 等"></textarea>
+        <button class="fb-section-btn" onclick="openFeedback('作業範囲')" title="このセクションへのフィードバック">💬 このセクションへのフィードバック</button>
+      </div>
+    </div><!-- /section-scope -->
+
     <!-- ⑤ 全体リマーク -->
     <div class="condition-section remark-section is-collapsible" id="section-remark">
       <h2 class="section-toggle-head" onclick="toggleQuoteBottomAccordion('section-remark')">
@@ -3580,6 +3594,7 @@
           <span class="pv-tax-detail">消費税額: <b id="pvTaxAmount">—</b>　税込合計: <b id="pvTaxTotal">—</b></span>
           <span id="pvTotalSubtotal" data-raw="0" style="display:none;"></span>
         </div>
+        <div id="pvScopeBox" style="display:none;"><strong>🛠️ 作業範囲</strong></div>
         <div id="pvRemarkBox" style="display:none;"><strong>📝 条件・リマーク</strong></div>
         <div id="pvAuditMeta" class="pv-audit-meta"></div>
         <div class="pv-btns">
@@ -3612,6 +3627,7 @@
               <label><input type="checkbox" class="pv-sec-chk" data-sec="meta"         checked> 見積番号/お客様/担当</label>
               <label><input type="checkbox" class="pv-sec-chk" data-sec="cond"         checked> 引き合い条件</label>
               <label><input type="checkbox" class="pv-sec-chk" data-sec="cargo"        checked> 貨物ボリューム情報</label>
+              <label><input type="checkbox" class="pv-sec-chk" data-sec="scope"        checked> 作業範囲</label>
               <label><input type="checkbox" class="pv-sec-chk" data-sec="remark"       checked> 条件・リマーク</label>
               <label><input type="checkbox" class="pv-sec-chk" data-sec="table-remark" checked> テーブル内リマーク行</label>
               <label><input type="checkbox" class="pv-sec-chk" data-sec="tax"          checked> 消費税</label>
@@ -3706,7 +3722,10 @@
           <span class="stk-mk"><span class="stk-mk-plus" title="乗せ幅（仕入単価に加算 → 売単価）">＋</span><input type="number" data-field="mk" class="w-mkup" min="0" value="0" data-col="5" title="乗せ幅：仕入単価に加算して売単価になります" /></span>
         </div>
         <input type="hidden" data-field="zc" value="">
+        <input type="hidden" data-field="ac" value="">
         <button type="button" class="zero-confirm-btn" tabindex="-1" title="0円確認済みにする（もう一度クリックで解除）">¥0✓</button>
+        <button type="button" class="actual-cost-btn" tabindex="-1" title="実費（金額未確定・別途精算）。単価・金額に「実費」と表示し、合計から除外します（もう一度クリックで解除）。">実費</button>
+        <span class="actual-cost-badge" aria-hidden="true">実費</span>
       </td>
       <td class="tax-cell"><input type="checkbox" data-field="tx" title="ON にすると消費税 10% が自動計算され、項目名先頭に「*」が付きます。免税（非課税）の行は OFF のままにしてください。"></td>
       <td class="subtotal-cell" data-field="st">—</td>
@@ -4307,6 +4326,7 @@
             <option value="貿易条件・輸送モード">貿易条件・輸送モード</option>
             <option value="貨物情報">貨物情報</option>
             <option value="物量情報">物量情報</option>
+            <option value="作業範囲">作業範囲</option>
             <option value="見積もりテーブル">見積もりテーブル</option>
             <option value="全体リマーク">全体リマーク</option>
             <option value="LCL キャリア">LCL キャリア</option>

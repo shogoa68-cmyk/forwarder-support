@@ -132,7 +132,8 @@
       const _outRange   = tr.dataset.outRange === '1';     // 適用期間外（自動・客先非表示＋合計除外）
       // 客先出力・小計・PDF/Excel/CSV の除外は _hideQuote 一本で判定する（両者を合算）
       const _hideQuote  = _hideManual || _outRange;
-      rows.push({ _type: 'data', taxed, cat, name, pq, un, pc, pp, cd, bq, bc, bp, mk, cost, bill, profit, note, sv, vf, vt, zc, _hideQuote, _hideManual, _outRange });
+      const _actual     = tr.dataset.actual === '1';   // 実費（金額未確定・合計除外・単価/金額は「実費」表示）
+      rows.push({ _type: 'data', taxed, cat, name, pq, un, pc, pp, cd, bq, bc, bp, mk, cost, bill, profit, note, sv, vf, vt, zc, _actual, _hideQuote, _hideManual, _outRange });
     });
     return rows;
   }
@@ -164,7 +165,8 @@
       const profit = bill - cost;
       const note   = document.getElementById(`nt-${id}`)?.value || '';
       const sv     = document.getElementById(`sv-${id}`)?.value || '';
-      data.push({ taxed, cat, name, pq, un, pc, pp, cd, bq, bc, bp, mk, cost, bill, profit, note, sv });
+      const _actual = tr.dataset.actual === '1';   // 実費（金額未確定）
+      data.push({ taxed, cat, name, pq, un, pc, pp, cd, bq, bc, bp, mk, cost, bill, profit, note, sv, _actual });
     });
     return data;
   }
@@ -228,9 +230,10 @@
         return;
       }
       const isMemo = ['式','note','memo'].includes(un?.value) || /^[#＃]/.test(name);
-      // 0円確認済み（¥0✓）の行は意図的な 0 円。プレビューからも除外されるため警告対象外
+      // 0円確認済み（¥0✓）／実費（金額未確定）の行は意図的に単価なし → 警告対象外
       const zc = tr.querySelector('[data-field="zc"]')?.value === '1';
-      if (!isMemo && !zc && (parseFloat(bp?.value) || 0) === 0) {
+      const ac = tr.querySelector('[data-field="ac"]')?.value === '1';
+      if (!isMemo && !zc && !ac && (parseFloat(bp?.value) || 0) === 0) {
         tr.classList.add('row-warn-price');
       }
     });
@@ -424,7 +427,7 @@
     const hdr = getQuoteHeader();
     let totCost = 0, totBill = 0, totMk = 0;
     // 見積書非表示・適用期間外（いずれも _hideQuote）の行は合計に含めない
-    data.forEach(d => { if (d._hideQuote) return; totCost += d.cost; totBill += d.bill; totMk += d.mk; });
+    data.forEach(d => { if (d._hideQuote || d._actual) return; totCost += d.cost; totBill += d.bill; totMk += d.mk; });
     const totPr = totBill - totCost;
     const ccyGroups = {}; // billing 通貨別集計: { JPY: {sub,tax,mk}, USD: {...} }
     let totCostJpy = 0;
@@ -474,7 +477,7 @@
             _seq.push({ _type: 'subcon-header', label: clabel, normKey: ck, gi });
           }
           d._gi = gi;                                            // 行にグループ番号（地色分け用）
-          if (!d._hideQuote) {                                   // 見積書非表示の行は小計に含めない
+          if (!d._hideQuote && !d._actual) {                     // 見積書非表示・実費の行は小計に含めない
             cc += toJ(d.cost, d.pc || 'JPY');
             cb += toJ(d.bill, d.bc || 'JPY');
             if ((d.pc && d.pc !== 'JPY') || (d.bc && d.bc !== 'JPY')) cm = true;
@@ -550,9 +553,9 @@
       const nameCls = d.taxed ? 'pv-name pv-taxed' : 'pv-name';
       const sub     = (d.bq || 0) * (d.bp || 0);
       const jpyAmt  = (typeof toJPY === 'function') ? Math.ceil(toJPY(sub, d.bc)) : sub;
-      const taxAmt  = d.taxed ? sub * taxRate : 0;
-      // 見積書非表示の行は合計に一切含めない（行は社内モードのみグレー表示）
-      if (!d._hideQuote) {
+      const taxAmt  = (d.taxed && !d._actual) ? sub * taxRate : 0;
+      // 見積書非表示・実費の行は合計に一切含めない（実費は行は出すが金額未確定のため除外）
+      if (!d._hideQuote && !d._actual) {
         totSub += sub;
         totTax += taxAmt;
         totJpy += jpyAmt;
@@ -581,20 +584,31 @@
       const _hqBadge = d._outRange
         ? '<span class="pv-hq-badge pv-oor-badge" title="サーチャージの適用期間が見積もり提示日（有効期限）の範囲外のため、客先見積もり・PDF・Excel・CSV・合計から自動的に除外されます">📅 適用期間外</span> '
         : (d._hideManual ? '<span class="pv-hq-badge" title="この行は見積書（PDF・Excel・CSV・客先プレビュー）に出力されません">🚫見積書非表示</span> ' : '');
-      html += `<tr class="${(d._gi != null ? 'pv-grp-row pv-grp-c' + (d._gi % 4) : '')}${_hqCls}">
+      // 実費行：単価・金額は「実費」表示（金額未確定・別途精算）。CD/乗せ幅/円換算/税は空、利益は —
+      const _ac      = d._actual;
+      const _acTxt   = '<span class="pv-actual-txt">実費</span>';
+      const ppCell   = _ac ? _acTxt : fmtMoney(d.pp);
+      const cdCell   = _ac ? '' : fmtMoney(d.cd);
+      const bpCell   = _ac ? _acTxt : fmtMoney(d.bp);
+      const mkCell   = _ac ? '' : fmtMoney(d.mk);
+      const subCell  = _ac ? _acTxt : (fmtMoney(sub) + subJpyHint);
+      const jpyCell2 = _ac ? '' : jpyCellText;
+      const taxCell2 = _ac ? '' : taxCellText;
+      const prCell   = _ac ? '—' : (fmtMoney(d.profit) + prJpyHint);
+      html += `<tr class="${(d._gi != null ? 'pv-grp-row pv-grp-c' + (d._gi % 4) : '')}${_hqCls}${_ac ? ' pv-row-actual' : ''}">
         <td class="pv-name" style="font-size:11px;">${escHtml(getCatLabel(d.cat))}</td>
         <td class="pv-name">${escHtml(d.sv)}</td>
         <td class="${nameCls}">${_hqBadge}${escHtml(d.name)}${_pvValidityBadge(d.vf, d.vt)}</td>
         <td class="pv-num">${fmtRaw(d.pq)}</td><td>${escHtml(d.un || '')}</td><td>${escHtml(d.pc)}</td>
-        <td class="pv-num">${fmtMoney(d.pp)}</td>
-        <td class="pv-cd pv-num">${fmtMoney(d.cd)}</td>
+        <td class="pv-num">${ppCell}</td>
+        <td class="pv-cd pv-num">${cdCell}</td>
         <td class="pv-num">${fmtRaw(d.bq)}</td><td>${escHtml(d.bc)}</td>
-        <td class="pv-num">${fmtMoney(d.bp)}</td>
-        <td class="pv-num">${fmtMoney(d.mk)}</td>
-        <td class="pv-num pv-subtotal">${fmtMoney(sub)}${subJpyHint}</td>
-        <td class="pv-jpy">${jpyCellText}</td>
-        <td class="pv-num pv-tax-cell" data-sub="${sub}" data-ccy="${d.bc || 'JPY'}" data-taxed="${d.taxed ? 1 : 0}">${taxCellText}</td>
-        <td class="pv-pr ${pc} pv-num">${fmtMoney(d.profit)}${prJpyHint}</td>
+        <td class="pv-num">${bpCell}</td>
+        <td class="pv-num">${mkCell}</td>
+        <td class="pv-num pv-subtotal">${subCell}</td>
+        <td class="pv-jpy">${jpyCell2}</td>
+        <td class="pv-num pv-tax-cell" data-sub="${_ac ? 0 : sub}" data-ccy="${d.bc || 'JPY'}" data-taxed="${(d.taxed && !_ac) ? 1 : 0}">${taxCell2}</td>
+        <td class="pv-pr ${pc} pv-num">${prCell}</td>
         <td class="pv-name">${escHtml(d.note)}</td>
       </tr>`;
     });
@@ -727,6 +741,18 @@
       pvCargo.style.display = 'none';
     }
 
+    // 作業範囲（客先向けにも出力）
+    const scopeText = (document.getElementById('qf-scope')?.value || '').trim();
+    const pvScope = document.getElementById('pvScopeBox');
+    if (pvScope) {
+      if (scopeText) {
+        pvScope.style.display = 'block';
+        pvScope.innerHTML = `<strong>🛠️ 作業範囲</strong>${escHtml(scopeText)}`;
+      } else {
+        pvScope.style.display = 'none';
+      }
+    }
+
     const remarkText = getRemarkText();
     const pvRemark = document.getElementById('pvRemarkBox');
     if (remarkText) {
@@ -759,7 +785,7 @@
     if (pvTotSub) pvTotSub.dataset.raw = String(totJpy);
     // pvWasVisible を各セクション要素に記録する（applyPreviewCustomize の「戻す」判定に使用）
     // ここで表示中（display !== 'none'）のセクションを '1' としてマーク
-    ['pvMeta','pvCondBox','pvCargoBox','pvRemarkBox','pvTaxBox'].forEach(id => {
+    ['pvMeta','pvCondBox','pvCargoBox','pvScopeBox','pvRemarkBox','pvTaxBox'].forEach(id => {
       const el = document.getElementById(id);
       if (el) el.dataset.pvWasVisible = (el.style.display !== 'none') ? '1' : '0';
     });
@@ -878,6 +904,7 @@
       meta:   'pvMeta',
       cond:   'pvCondBox',
       cargo:  'pvCargoBox',
+      scope:  'pvScopeBox',
       remark: 'pvRemarkBox',
       tax:    'pvTaxBox',
     };
@@ -1213,14 +1240,14 @@
     { hdr: '数量',     fn: d => fmtRaw(d.pq),          pvGroup: 'pay',    role: 'pq'     },
     { hdr: '単位',     fn: d => d.un || '',            pvGroup: 'unit',   role: 'un'     },
     { hdr: '通貨',     fn: d => d.pc,                  pvGroup: 'pay',    role: 'pc'     },
-    { hdr: '単価',     fn: d => fmtRaw(d.pp),          pvGroup: 'pay',    role: 'pp'     },
-    { hdr: 'CD',       fn: d => fmtRaw(d.cd),          pvGroup: 'pay',    role: 'cd'     },
+    { hdr: '単価',     fn: d => d._actual ? '実費' : fmtRaw(d.pp), pvGroup: 'pay',    role: 'pp'     },
+    { hdr: 'CD',       fn: d => d._actual ? '' : fmtRaw(d.cd),     pvGroup: 'pay',    role: 'cd'     },
     { hdr: '数量',     fn: d => fmtRaw(d.bq),          pvGroup: 'bill',   role: 'bq'     },
     { hdr: '通貨',     fn: d => d.bc,                  pvGroup: 'bill',   role: 'bc'     },
-    { hdr: '単価',     fn: d => fmtRaw(d.bp),          pvGroup: 'bill',   role: 'bp'     },
-    { hdr: '乗せ幅',       fn: d => fmtRaw(d.mk),          pvGroup: 'mk',       role: 'mk'     },
-    { hdr: '円換算(JPY)', fn: d => { const s = (d.bq||0)*(d.bp||0); return (d.bc && d.bc !== 'JPY') ? fmtRaw(typeof toJPY === 'function' ? Math.ceil(toJPY(s, d.bc)) : s) : '—'; }, pvGroup: 'jpy-conv', role: 'jpyConv' },
-    { hdr: '利益',         fn: d => fmtRaw(d.profit),      pvGroup: 'profit',   role: 'profit' },
+    { hdr: '単価',     fn: d => d._actual ? '実費' : fmtRaw(d.bp), pvGroup: 'bill',   role: 'bp'     },
+    { hdr: '乗せ幅',       fn: d => d._actual ? '' : fmtRaw(d.mk),     pvGroup: 'mk',       role: 'mk'     },
+    { hdr: '円換算(JPY)', fn: d => { if (d._actual) return '実費'; const s = (d.bq||0)*(d.bp||0); return (d.bc && d.bc !== 'JPY') ? fmtRaw(typeof toJPY === 'function' ? Math.ceil(toJPY(s, d.bc)) : s) : '—'; }, pvGroup: 'jpy-conv', role: 'jpyConv' },
+    { hdr: '利益',         fn: d => d._actual ? '—' : fmtRaw(d.profit), pvGroup: 'profit',   role: 'profit' },
     { hdr: '備考',         fn: d => d.note,                pvGroup: 'note',     role: 'note'   },
   ];
 
@@ -1260,6 +1287,12 @@
       return '';
     });
     lines.push(totalRow.join('\t'));
+    const scopeTextTsv = (document.getElementById('qf-scope')?.value || '').trim();
+    if (scopeTextTsv) {
+      lines.push('');
+      lines.push('【作業範囲】');
+      scopeTextTsv.split('\n').forEach(l => { if (l.trim()) lines.push(l); });
+    }
     const remarkText = getRemarkText();
     if (remarkText) {
       lines.push('');
@@ -1372,16 +1405,16 @@
     { hdr: '数量(原価)',   fn: d => d.pq,                  pvGroup: 'pay',    role: 'pq'     },
     { hdr: '単位',         fn: d => d.un || '',            pvGroup: 'unit',   role: 'un'     },
     { hdr: '通貨(原価)',   fn: d => d.pc,                  pvGroup: 'pay',    role: 'pc'     },
-    { hdr: '単価(原価)',   fn: d => d.pp,                  pvGroup: 'pay',    role: 'pp'     },
-    { hdr: 'CD',           fn: d => d.cd,                  pvGroup: 'pay',    role: 'cd'     },
+    { hdr: '単価(原価)',   fn: d => d._actual ? '実費' : d.pp, pvGroup: 'pay',    role: 'pp'     },
+    { hdr: 'CD',           fn: d => d._actual ? '' : d.cd, pvGroup: 'pay',    role: 'cd'     },
     { hdr: '数量(請求)',   fn: d => d.bq,                  pvGroup: 'bill',   role: 'bq'     },
     { hdr: '通貨(請求)',   fn: d => d.bc,                  pvGroup: 'bill',   role: 'bc'     },
-    { hdr: '単価(請求)',   fn: d => d.bp,                  pvGroup: 'bill',   role: 'bp'     },
-    { hdr: '乗せ幅',       fn: d => d.mk,                  pvGroup: 'mk',     role: 'mk'     },
-    { hdr: '小計',         fn: d => (d.bq || 0) * (d.bp || 0), pvGroup: null,      role: 'sub'     },
-    { hdr: '円換算(JPY)', fn: d => { const s = (d.bq||0)*(d.bp||0); return (d.bc && d.bc !== 'JPY') ? (typeof toJPY === 'function' ? Math.ceil(toJPY(s, d.bc)) : '') : ''; }, pvGroup: 'jpy-conv', role: 'jpyConv' },
-    { hdr: '消費税',       fn: d => d.taxed ? (d.bq||0)*(d.bp||0)*getEffectiveTaxRate() : '', pvGroup: 'tax-col', role: 'taxAmt' },
-    { hdr: '利益',         fn: d => d.profit,              pvGroup: 'profit', role: 'profit' },
+    { hdr: '単価(請求)',   fn: d => d._actual ? '実費' : d.bp, pvGroup: 'bill',   role: 'bp'     },
+    { hdr: '乗せ幅',       fn: d => d._actual ? '' : d.mk, pvGroup: 'mk',     role: 'mk'     },
+    { hdr: '小計',         fn: d => d._actual ? '実費' : (d.bq || 0) * (d.bp || 0), pvGroup: null,      role: 'sub'     },
+    { hdr: '円換算(JPY)', fn: d => { if (d._actual) return '実費'; const s = (d.bq||0)*(d.bp||0); return (d.bc && d.bc !== 'JPY') ? (typeof toJPY === 'function' ? Math.ceil(toJPY(s, d.bc)) : '') : ''; }, pvGroup: 'jpy-conv', role: 'jpyConv' },
+    { hdr: '消費税',       fn: d => (d.taxed && !d._actual) ? (d.bq||0)*(d.bp||0)*getEffectiveTaxRate() : '', pvGroup: 'tax-col', role: 'taxAmt' },
+    { hdr: '利益',         fn: d => d._actual ? '—' : d.profit, pvGroup: 'profit', role: 'profit' },
     { hdr: '備考',         fn: d => d.note,                pvGroup: 'note',   role: 'note'   },
   ];
 
@@ -1495,15 +1528,17 @@
       const cost    = (d.pq || 0) * (d.pp || 0);
       const jpy     = typeof toJPY === 'function' ? Math.ceil(toJPY(sub, d.bc))  : sub;
       const costJpy = typeof toJPY === 'function' ? Math.ceil(toJPY(cost, d.pc)) : cost;
-      const taxAmt  = d.taxed ? sub * getEffectiveTaxRate() : 0;
-      totSub        += sub;
-      totJpyConv    += jpy;
-      totTaxAmt     += taxAmt;
-      // 外貨建ては輸出免税が原則のため JPY 行のみ税計算
-      totTaxAmtJpy  += (d.bc === 'JPY' && d.taxed) ? Math.ceil(jpy * getEffectiveTaxRate()) : 0;
-      totProfit     += d.profit;
-      totProfitJpy  += jpy - costJpy;
-      if (d.bc && d.bc !== 'JPY') hasFxRows = true;
+      const taxAmt  = (d.taxed && !d._actual) ? sub * getEffectiveTaxRate() : 0;
+      if (!d._actual) {                         // 実費行は金額未確定 → 合計に含めない
+        totSub        += sub;
+        totJpyConv    += jpy;
+        totTaxAmt     += taxAmt;
+        // 外貨建ては輸出免税が原則のため JPY 行のみ税計算
+        totTaxAmtJpy  += (d.bc === 'JPY' && d.taxed) ? Math.ceil(jpy * getEffectiveTaxRate()) : 0;
+        totProfit     += d.profit;
+        totProfitJpy  += jpy - costJpy;
+        if (d.bc && d.bc !== 'JPY') hasFxRows = true;
+      }
       aoaRows.push(visCols.map(c => c.fn(d)));
     });
     // 合計行（外貨混在時は JPY 換算ベースで集計）
@@ -1520,6 +1555,13 @@
     const ccySummary = _buildCcySummaryAoA(allRows, getEffectiveTaxRate());
     ccySummary.forEach(r => aoaRows.push(r));
 
+    // 作業範囲
+    const scopeTextXls = (document.getElementById('qf-scope')?.value || '').trim();
+    if (scopeTextXls) {
+      aoaRows.push([]);
+      aoaRows.push(['【作業範囲】']);
+      scopeTextXls.split('\n').forEach(line => { if (line.trim()) aoaRows.push([line]); });
+    }
     // 条件・リマーク
     const remarkText = getRemarkText?.() || '';
     if (remarkText) {
@@ -1558,14 +1600,14 @@
     { key: 'pq',     hdr: '数量',           fn: d => fmtRaw(d.pq) },
     { key: 'un',     hdr: '単位',           fn: d => d.un || '' },
     { key: 'pc',     hdr: '通貨',           fn: d => d.pc },
-    { key: 'pp',     hdr: '単価',           fn: d => fmtRaw(d.pp) },
-    { key: 'cd',     hdr: 'CD',             fn: d => fmtRaw(d.cd) },
+    { key: 'pp',     hdr: '単価',           fn: d => d._actual ? '実費' : fmtRaw(d.pp) },
+    { key: 'cd',     hdr: 'CD',             fn: d => d._actual ? '' : fmtRaw(d.cd) },
     { key: 'bq',     hdr: '数量(請求)',     fn: d => fmtRaw(d.bq) },
     { key: 'bc',     hdr: '通貨(請求)',     fn: d => d.bc },
-    { key: 'bp',     hdr: '単価(請求)',     fn: d => fmtRaw(d.bp) },
-    { key: 'mk',     hdr: '乗せ幅',         fn: d => fmtRaw(d.mk) },
-    { key: 'sub',    hdr: '小計',           fn: d => fmtRaw((d.bq||0)*(d.bp||0)) },
-    { key: 'profit', hdr: '利益',           fn: d => fmtRaw(d.profit) },
+    { key: 'bp',     hdr: '単価(請求)',     fn: d => d._actual ? '実費' : fmtRaw(d.bp) },
+    { key: 'mk',     hdr: '乗せ幅',         fn: d => d._actual ? '' : fmtRaw(d.mk) },
+    { key: 'sub',    hdr: '小計',           fn: d => d._actual ? '実費' : fmtRaw((d.bq||0)*(d.bp||0)) },
+    { key: 'profit', hdr: '利益',           fn: d => d._actual ? '—' : fmtRaw(d.profit) },
     { key: 'note',   hdr: '備考',           fn: d => d.note },
   ];
 
