@@ -686,7 +686,7 @@
   }
 
   // ===== お客様タブ =====
-  const _stCls = st => ({ '下書き中':'draft','提出済み':'sent','提示済み':'sent','受注':'won','失注':'lost','辞退':'declined','保留':'hold' }[st] || 'draft');
+  const _stCls = st => ({ '下書き中':'draft','提出済み':'sent','提示済み':'sent','ヨコヨコ提示':'sent','受注':'won','失注':'lost','辞退':'declined','保留':'hold' }[st] || 'draft');
 
   // ===== 📈 ダッシュボード（案件分析） =====
 
@@ -772,7 +772,7 @@
   }
 
   const _MODE_LABEL = { 'sea-fcl':'海上 FCL', 'sea-lcl':'海上 LCL', 'fcl':'FCL', 'lcl':'LCL', 'air':'航空', 'sea':'海上', 'rail':'鉄道', 'truck':'トラック' };
-  const _STATUS_ORDER = ['下書き中', '提出済み', '提示済み', '受注', '失注', '辞退', '保留'];
+  const _STATUS_ORDER = ['下書き中', '提出済み', '提示済み', 'ヨコヨコ提示', '受注', '失注', '辞退', '保留'];
 
   // 横棒ランキング HTML（[{label,count}] と最大値から生成）
   function _barRows(items, max, opt) {
