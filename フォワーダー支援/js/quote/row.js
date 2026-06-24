@@ -123,6 +123,21 @@
       } else {
         dragSrcRows = [tr];
       }
+      // 詳細行に子リマーク行がある場合は dragSrcRows に展開して一緒に移動させる
+      {
+        const addedIds = new Set(dragSrcRows.map(r => r.id));
+        const expanded = [];
+        dragSrcRows.forEach(r => {
+          expanded.push(r);
+          if (!r.dataset.type) {
+            const rid = r.id.replace('row-', '');
+            getChildRemarks(rid).forEach(c => {
+              if (!addedIds.has(c.id)) { expanded.push(c); addedIds.add(c.id); }
+            });
+          }
+        });
+        dragSrcRows = expanded;
+      }
       e.dataTransfer.effectAllowed = 'move';
       e.dataTransfer.setData('text/plain', tr.id);
       const movingRows = dragSrcRows;
@@ -322,14 +337,32 @@
 
   function moveRow(tr, dir) {
     const tbody = document.getElementById('tableBody');
+    // 詳細行の場合は子リマーク（data-parent-id が一致するリマーク行）を連動させる
+    const rowId = tr.dataset.type ? null : tr.id.replace('row-', '');
+    const children = rowId ? getChildRemarks(rowId) : [];
+
+    // 子リマークをまとめて親の直後に再配置するヘルパー
+    const reattachChildren = () => {
+      let after = tr;
+      children.forEach(c => { after.insertAdjacentElement('afterend', c); after = c; });
+    };
+
     if (dir < 0) {
       let prev = tr.previousElementSibling;
       while (prev?.dataset?.virtual) prev = prev.previousElementSibling;
-      if (prev) tbody.insertBefore(tr, prev);
+      if (prev) {
+        tbody.insertBefore(tr, prev);
+        reattachChildren();
+      }
     } else {
+      // 下移動：自分の子リマークをスキップして次の行を探す
       let next = tr.nextElementSibling;
+      while (next && children.includes(next)) next = next.nextElementSibling;
       while (next?.dataset?.virtual) next = next.nextElementSibling;
-      if (next) tbody.insertBefore(next, tr);
+      if (next) {
+        tbody.insertBefore(next, tr);
+        reattachChildren();
+      }
     }
     updateTotals();
     renderSubconGroups();
@@ -498,6 +531,27 @@
     if (dstTx?.checked) toggleTax(newId);
     checkUnfilled(newId);
     onPay(newId);
+
+    // 子リマーク行の複製：srcId の子リマークを新親（newId）の下に複製する。
+    // addRowAfter は srcId の直後に挿入するため、srcId の子リマーク群の後ろへ移動してから複製。
+    const srcChildren = getChildRemarks(srcId);
+    const newRow = document.getElementById(`row-${newId}`);
+    if (newRow && srcChildren.length) {
+      // newId_row を子リマーク群の末尾の後ろへ移動（元の挿入位置が子リマークの前になるため）
+      const lastChild = srcChildren[srcChildren.length - 1];
+      lastChild.insertAdjacentElement('afterend', newRow);
+      // 子リマークを複製して newId_row の直後に挿入
+      let insertAfter = newRow;
+      srcChildren.forEach(srcR => {
+        remarkCount++;
+        const cloned = srcR.cloneNode(true);
+        cloned.id = `row-remark-${remarkCount}`;
+        cloned.dataset.parentId = String(newId);
+        insertAfter.insertAdjacentElement('afterend', cloned);
+        initSubtotalDrag(cloned);
+        insertAfter = cloned;
+      });
+    }
 
     // subcon-child クラス等のグループ連結を即時反映（DOM並替でスクロール位置が変わらないよう保持）
     const savedScrollY = window.scrollY;
@@ -963,6 +1017,17 @@
       </td>
     `;
     if (opts?.internal) applyRemarkInternalState(tr, true);
+    // 親明細行の紐づけ：afterId が詳細行なら直接の親、リマーク行なら同じ親を引き継ぐ
+    if (afterId) {
+      const afterRow = document.getElementById(`row-${afterId}`);
+      if (afterRow) {
+        if (!afterRow.dataset.type) {
+          tr.dataset.parentId = String(afterId);
+        } else if (afterRow.dataset.type === 'remark' && afterRow.dataset.parentId) {
+          tr.dataset.parentId = afterRow.dataset.parentId;
+        }
+      }
+    }
     const tbody = document.getElementById('tableBody');
     if (afterId) {
       const afterRow = document.getElementById(`row-${afterId}`);
@@ -981,6 +1046,20 @@
 
   function removeRemarkRow(id) {
     document.getElementById(`row-${id}`)?.remove();
+  }
+
+  // 明細行 id の直後に続く「子リマーク行」を順に返す。
+  // data-parent-id が id に一致するリマーク行のみ対象（連続している間だけ）。
+  function getChildRemarks(parentId) {
+    const result = [];
+    const parentRow = document.getElementById(`row-${parentId}`);
+    if (!parentRow) return result;
+    let sib = parentRow.nextElementSibling;
+    while (sib && sib.dataset.type === 'remark' && sib.dataset.parentId === String(parentId)) {
+      result.push(sib);
+      sib = sib.nextElementSibling;
+    }
+    return result;
   }
 
   // ========== 社内メモ行（出力対象外・独立行タイプ）==========
@@ -1128,6 +1207,8 @@
   }
 
   function delRow(id) {
+    // 子リマーク行（data-parent-id が一致するリマーク）を先に削除
+    getChildRemarks(id).forEach(r => r.remove());
     document.getElementById(`row-${id}`)?.remove();
     updateTotals();
   }
