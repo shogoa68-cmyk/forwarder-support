@@ -3645,9 +3645,11 @@
         <!-- コンテナ本数連動アイコンは一旦 UI から非表示（機能・JSロジックは残置：window.toggleCntLink / _syncContainerLinkedRows / cntLink 復元）。
              再表示する場合は以下のボタンを戻すこと：
         <button class="cnt-link-btn" onclick="window.toggleCntLink?.(this)" title="コンテナ本数に数量を連動（FCL）" tabindex="-1">⛓</button> -->
-        <button class="row-hidequote-btn" onclick="window.toggleRowHideQuote?.(this)" title="この行を見積書（プレビュー客先表示・PDF・Excel・CSV）に出力しない" tabindex="-1">👁</button>
-        <button class="row-pending-btn" onclick="window.toggleRowPending?.(this)" title="後で調べて記入（要調査マーク）。サーチャージ等、最新情報を調べてから埋める項目に。" tabindex="-1">🔍</button>
-        <button class="row-done-btn" onclick="window.toggleRowDone?.(this)" title="入力完了の目印。作成を再開したとき、どこまで終わったか分かります（もう一度クリックで解除）。" tabindex="-1">✓</button>
+        <div class="row-acts">
+          <button class="row-hidequote-btn" onclick="window.toggleRowHideQuote?.(this)" title="この行を見積書（プレビュー客先表示・PDF・Excel・CSV）に出力しない" tabindex="-1">👁</button>
+          <button class="row-pending-btn" onclick="window.toggleRowPending?.(this)" title="後で調べて記入（要調査マーク）。サーチャージ等、最新情報を調べてから埋める項目に。" tabindex="-1">🔍</button>
+          <button class="row-done-btn" onclick="window.toggleRowDone?.(this)" title="入力完了の目印。作成を再開したとき、どこまで終わったか分かります（もう一度クリックで解除）。" tabindex="-1">✓</button>
+        </div>
       </td>
       <td class="catsv-cell stk-cell">
         <div class="stk">

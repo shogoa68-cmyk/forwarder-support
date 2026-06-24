@@ -594,10 +594,21 @@
 #tab-quote-make .row-move-btn:hover { background: #8b6914; color: #fff; border-color: #8b6914; }
 #tab-quote-make .row-move-btn:active { background: #8b6914; }
 #tab-quote-make td.handle-cell {
-  width: 44px;
+  width: 46px;
   background: #eaf2f8;
   padding: 3px 2px;
   text-align: center;
+  white-space: nowrap;
+  vertical-align: middle;
+}
+/* 行アクション（👁 🔍 ✓）：通常はドラッグハンドルのみ。ホバーで全表示、ON の行は常時表示 */
+#tab-quote-make .handle-cell .drag-handle { display: block; margin: 0 auto; }
+#tab-quote-make .row-acts {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 2px;
+  justify-items: center;
+  margin-top: 2px;
 }
 /* コンテナ連動ボタン */
 #tab-quote-make .cnt-link-btn {
@@ -7800,21 +7811,23 @@ button.um-memberno--empty:hover { background: #f4ead4; border-color: #cdb98e; }
 }
 #tab-quote-make tr.row-excluded td { opacity: 0.35; }
 
-/* ===== 行ごと「見積書で非表示」 ===== */
-/* 行アクションのトグルボタン（⛓ の隣） */
-#tab-quote-make .row-hidequote-btn {
-  background: none; border: none; cursor: pointer; padding: 0 2px;
-  font-size: 11px; line-height: 1; opacity: 0.45; vertical-align: middle;
+/* ===== 行アクションのトグルボタン（👁 見積書非表示 / 🔍 要調査 / ✓ 入力完了）===== */
+/* 共通：通常は非表示。行ホバー時に全ボタン表示、ON 状態のボタンは常時表示 */
+#tab-quote-make .row-acts button {
+  display: none;
+  width: 17px; height: 17px;
+  align-items: center; justify-content: center;
+  background: none; border: 1px solid transparent; border-radius: 4px;
+  cursor: pointer; padding: 0; margin: 0;
+  font-size: 11px; line-height: 1; opacity: 0.55; vertical-align: middle;
+  transition: opacity .12s, background .12s, border-color .12s;
 }
-#tab-quote-make .row-hidequote-btn:hover { opacity: 0.9; }
-#tab-quote-make .row-hidequote-btn.is-on { opacity: 1; filter: none; }
-/* 要調査（後で記入）トグル */
-#tab-quote-make .row-pending-btn {
-  background: none; border: none; cursor: pointer; padding: 0 2px;
-  font-size: 11px; line-height: 1; opacity: 0.4; vertical-align: middle;
-}
-#tab-quote-make .row-pending-btn:hover { opacity: 0.85; }
-#tab-quote-make .row-pending-btn.is-on { opacity: 1; filter: none; }
+#tab-quote-make tr:hover .row-acts button { display: inline-flex; }
+#tab-quote-make .row-acts button:hover { opacity: 1; background: #fff; border-color: #cdd6df; }
+#tab-quote-make .row-acts button.is-on { display: inline-flex; opacity: 1; }
+/* ✓ 入力完了は文字色で状態表現（OFF はグレー、ON は緑） */
+#tab-quote-make .row-done-btn { color: #9aa3ab; font-weight: 700; font-size: 12px; }
+#tab-quote-make .row-done-btn.is-on { color: #1f9d57; }
 /* 要調査の行：琥珀色の左アクセント＋淡い背景で「未確定・後で調べる」を強調 */
 #tab-quote-make tr.row-pending > td { background: #fff7ec; }
 #tab-quote-make tr.row-pending > td.handle-cell {
@@ -7823,14 +7836,6 @@ button.um-memberno--empty:hover { background: #f4ead4; border-color: #cdb98e; }
 #tab-quote-make tr.row-pending .w-name {
   border-color: #f0a868; background: #fffaf2;
 }
-/* 入力完了トグル（✓） */
-#tab-quote-make .row-done-btn {
-  background: none; border: none; cursor: pointer; padding: 0 2px;
-  font-size: 12px; font-weight: 700; line-height: 1; color: #9aa3ab;
-  opacity: 0.5; vertical-align: middle;
-}
-#tab-quote-make .row-done-btn:hover { opacity: 0.9; }
-#tab-quote-make .row-done-btn.is-on { opacity: 1; color: #1f9d57; }
 /* 完了の行：緑の左アクセント＋淡い背景で「入力済み」を強調 */
 #tab-quote-make tr.row-input-done > td { background: #f1faf4; }
 #tab-quote-make tr.row-input-done > td.handle-cell {
