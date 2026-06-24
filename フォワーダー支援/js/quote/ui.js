@@ -2682,8 +2682,8 @@
 
     const rows = document.querySelectorAll('#tableBody tr:not([data-type="subtotal"])');
     const activeRows = Array.from(rows).filter(tr => {
-      // 見積書非表示・適用期間外の行はサマリ（合計・粗利）に含めない（表フッター合計と整合）
-      if (tr.dataset.hideQuote === '1' || tr.dataset.outRange === '1') return false;
+      // 見積書非表示・適用期間外・実費の行はサマリ（合計・粗利）に含めない（表フッター合計と整合）
+      if (tr.dataset.hideQuote === '1' || tr.dataset.outRange === '1' || tr.dataset.actual === '1') return false;
       const id = tr.id.replace('row-', '');
       return document.getElementById(`nm-${id}`)?.value?.trim();
     });

@@ -1230,6 +1230,47 @@
   font-weight: 600;
   white-space: nowrap;
 }
+/* ===== 実費（金額未確定・別途精算） ===== */
+#tab-quote-make .actual-cost-btn {
+  display: block;
+  margin-top: 3px;
+  padding: 1px 6px;
+  font-size: 10px;
+  line-height: 1.5;
+  border: 1px solid #c4b49a;
+  border-radius: 3px;
+  background: transparent;
+  color: #c4b49a;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+#tab-quote-make .actual-cost-btn:hover { border-color: #4a55a8; color: #4a55a8; opacity: 1; }
+#tab-quote-make .actual-cost-btn.is-on {
+  background: #eef0fb; border-color: #6b75c4; color: #3a45a0; font-weight: 600;
+}
+/* 価格セル：実費 ON で数値入力群を隠し「実費」バッジを表示 */
+#tab-quote-make .actual-cost-badge { display: none; }
+#tab-quote-make tr.row-actual-cost .stk-price { display: none; }
+#tab-quote-make tr.row-actual-cost .actual-cost-badge {
+  display: inline-block;
+  padding: 2px 10px;
+  background: #eef0fb;
+  border: 1px solid #aab2e0;
+  border-radius: 10px;
+  color: #3a45a0;
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+/* 実費 ON のときは排他の ¥0✓ ボタンを隠す（重複表示を防ぐ） */
+#tab-quote-make tr.row-actual-cost .zero-confirm-btn { display: none; }
+/* 実費の行：左に indigo アクセント（0円＝緑と区別） */
+#tab-quote-make tr.row-actual-cost > td.handle-cell { box-shadow: inset 3px 0 0 #6b75c4; }
+/* プレビュー：実費テキスト */
+#tab-quote-make .pv-actual-txt { color: #3a45a0; font-weight: 700; }
+
 /* ===== プレビュー入力ガイドパネル ===== */
 #tab-quote-make .pv-warn-guide {
   position: fixed;
