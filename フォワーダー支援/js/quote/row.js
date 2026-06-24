@@ -1388,6 +1388,20 @@
       }
     });
   }
+  // サブコングループ別アクセント色（案B：カードの左スパイン＋ヘッダーティント）。
+  // 出現順にパレットを循環。同じサブコン名は再描画後も同色を維持（_grpColorMap でキャッシュ）。
+  const _GRP_PALETTE = ['#b0772f', '#2a6f9e', '#3d7a52', '#9c5a3c', '#6f5aa0', '#1f7d8c', '#c2722e', '#4a6aa0'];
+  const _grpColorMap = new Map();
+  let _grpColorSeq = 0;
+  function _groupAccent(key) {
+    if (key === _UNSET_KEY) return '#b9a883';
+    if (!_grpColorMap.has(key)) {
+      _grpColorMap.set(key, _GRP_PALETTE[_grpColorSeq % _GRP_PALETTE.length]);
+      _grpColorSeq++;
+    }
+    return _grpColorMap.get(key);
+  }
+
   // - 仮想 TR（data-virtual）を全削除してから再挿入
   // - グループ順：出現順。未設定グループは末尾
   // - グループが 1 つ以下のとき（全行同サブコン or 全行未設定）はヘッダー不要
@@ -1506,6 +1520,10 @@
           addRowToSubconGroup(key === _UNSET_KEY ? '' : label);
         });
         initGroupHeaderDrag(hdr, key);
+        // 案B：グループ別アクセント色をヘッダー＋配下データ行に伝播（左スパイン／ティント用）
+        const _accent = _groupAccent(key);
+        hdr.style.setProperty('--grp-accent', _accent);
+        groups[key].forEach(tr => tr.style.setProperty('--grp-accent', _accent));
         tbody.insertBefore(hdr, firstRow);
       });
 
@@ -1550,6 +1568,7 @@
           lastGroupRow = nextSib;
           nextSib = lastGroupRow.nextSibling;
         }
+        sub.style.setProperty('--grp-accent', _groupAccent(key));
         tbody.insertBefore(sub, lastGroupRow.nextSibling);
       });
       // 内側グループ（サブコン配下のパターン／港ペア）を挿入：
