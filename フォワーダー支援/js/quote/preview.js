@@ -1041,7 +1041,8 @@
   // ========== プレビューを1画面に収める ==========
   // モーダル(#previewBox)が縦スクロールせず1画面に収まるよう自動調整する。
   // レイアウトごとに収め方を変える（ユーザー要望）:
-  //   ・御見積書(doc): A4ページ全体を box ごと zoom で縮小（1画面に1ページ）。
+  //   ・御見積書(doc): 横幅基準でフィット（通常は等倍＝元サイズ）。高さは縮小せず
+  //        ページ送り＋オーバーレイ縦スクロールで対応（読みやすさ優先）。
   //   ・表計算(table): モーダルは原寸（横幅含む）のまま、情報量が多い時は内部スクロール。
   //        テーブルを主役とし、まずリマーク・貨物ボックスを内部スクロール化して余白を
   //        確保（テーブル領域がリマーク量で圧迫されないように）、それでも溢れる分だけ
@@ -1064,11 +1065,14 @@
     if (avail <= 0) return;
 
     if (box.classList.contains('layout-doc')) {
-      // 御見積書: box 全体を縮小して1画面に収める
-      const natural = box.offsetHeight;
-      if (!natural) return;
-      let z = avail / natural;
-      if (z >= 1) { box.style.zoom = ''; return; } // 既に収まっている → 等倍
+      // 御見積書: 横幅基準でフィット（高さでは縮小しない＝読みやすさ優先）。
+      // 1ページ(A4)が画面高さより高くても、ページ送り＋オーバーレイの縦スクロールで対応する。
+      // 通常幅のモニターでは等倍（元のサイズ）で表示され、極端に狭い時だけ横幅に合わせて縮小。
+      const naturalW = box.offsetWidth;
+      const availW = overlay.clientWidth - 40; // overlay 左右パディング合計（CSS: padding 30px 20px）
+      if (!naturalW || availW <= 0) { box.style.zoom = ''; return; }
+      const z = availW / naturalW;
+      if (z >= 1) { box.style.zoom = ''; return; } // 収まっている → 等倍
       box.style.zoom = String(Math.max(PV_FIT_MIN_ZOOM, z));
       return;
     }
