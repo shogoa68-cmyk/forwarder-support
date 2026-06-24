@@ -463,6 +463,39 @@
     ta.focus();
   };
 
+  // ===== 📝 メモのポップアウト（全画面・サイズ可変）=====
+  // #qf-memo と #qf-memo-pop を双方向同期。ポップアウト側の編集も元欄の input を発火させ自動保存に乗せる。
+  let _memoPopEscHandler = null;
+  window.openMemoPopout = function () {
+    const src = document.getElementById('qf-memo');
+    const pop = document.getElementById('qf-memo-pop');
+    const ov  = document.getElementById('qfMemoPopout');
+    if (!src || !pop || !ov) return;
+    pop.value = src.value;
+    ov.hidden = false;
+    // ポップアウトでの入力を元欄へ反映（input を発火 → 既存の自動保存リスナーが拾う）
+    pop.oninput = () => {
+      src.value = pop.value;
+      src.dispatchEvent(new Event('input', { bubbles: true }));
+    };
+    _memoPopEscHandler = (e) => { if (e.key === 'Escape') { e.stopPropagation(); window.closeMemoPopout(); } };
+    document.addEventListener('keydown', _memoPopEscHandler, true);
+    setTimeout(() => { pop.focus(); }, 30);
+  };
+  window.closeMemoPopout = function () {
+    const src = document.getElementById('qf-memo');
+    const pop = document.getElementById('qf-memo-pop');
+    const ov  = document.getElementById('qfMemoPopout');
+    if (!ov) return;
+    if (src && pop) {                       // 念のため最終同期
+      src.value = pop.value;
+      src.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+    ov.hidden = true;
+    if (_memoPopEscHandler) { document.removeEventListener('keydown', _memoPopEscHandler, true); _memoPopEscHandler = null; }
+    if (src) src.focus();
+  };
+
   function gatherAllData() {
     // フォーム値
     const fields = {};
