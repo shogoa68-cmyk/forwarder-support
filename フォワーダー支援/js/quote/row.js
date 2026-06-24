@@ -597,7 +597,7 @@
     q('mk').oninput    = () => calc(id);
     q('nt').onkeydown  = e  => noteKeydown(e, id);
     q('sv').onchange   = () => renderSubconGroups();
-    { const ptEl = q('pt'); if (ptEl) ptEl.onchange = () => renderSubconGroups(); }  // パターン変更でグループ再描画
+    { const ptEl = q('pt'); if (ptEl) { ptEl.onchange = () => renderSubconGroups(); ptEl.onfocus = () => _showPatternPopup(ptEl); } }  // パターン変更でグループ再描画＋航路サジェスト
     // サーチャージ有効期限：開始日を入れたら終了日を月末で自動補完（「通常はひと月」）
     q('vf').onchange   = () => autoFillValidTo(id);
     q('vt').onchange   = () => updateTotals();   // 終了日変更で適用期間の再判定
@@ -1231,6 +1231,57 @@
     // 港ペアはパターンへ一本化したため、内側キーがあれば常にパターン扱い（小計付き・🔖）
     return _rowInnerKey(tr) ? 'pattern' : '';
   }
+
+  // ===== パターン入力：幹線輸送の航路チップ（POL→via→POD、サブコン=キャリア除く）をサジェスト =====
+  function _patternRouteOptions() {
+    try {
+      const rts = JSON.parse(document.getElementById('z2-routes-data')?.value || '[]');
+      const seen = new Set(), out = [];
+      (Array.isArray(rts) ? rts : []).forEach(r => {
+        const s = [r.pol, r.via, r.pod].map(x => (x || '').trim()).filter(Boolean).join(' → ');
+        if (s && !seen.has(s)) { seen.add(s); out.push(s); }
+      });
+      return out;
+    } catch (e) { return []; }
+  }
+  let _ptPopupEl = null;
+  function _hidePtPopup() { if (_ptPopupEl) _ptPopupEl.hidden = true; }
+  window._hidePtPopup = _hidePtPopup;
+  function _ensurePtPopup() {
+    if (_ptPopupEl) return _ptPopupEl;
+    const p = document.createElement('div');
+    p.id = 'ptRoutePopup'; p.className = 'pt-route-popup'; p.hidden = true;
+    document.body.appendChild(p);
+    document.addEventListener('mousedown', (e) => {
+      if (_ptPopupEl && !_ptPopupEl.hidden && !_ptPopupEl.contains(e.target)
+        && !(e.target.classList && e.target.classList.contains('w-pattern'))) _hidePtPopup();
+    });
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape') _hidePtPopup(); });
+    window.addEventListener('scroll', _hidePtPopup, true);
+    _ptPopupEl = p; return p;
+  }
+  function _showPatternPopup(input) {
+    const opts = _patternRouteOptions();
+    if (!opts.length) return;                 // 航路が無ければ出さない
+    const p = _ensurePtPopup();
+    p.innerHTML = '<div class="pt-route-popup-ttl">🚢 幹線航路からパターンを選択</div>' +
+      opts.map(s => `<button type="button" class="pt-route-opt">${_escHdr(s)}</button>`).join('') +
+      '<button type="button" class="pt-route-opt pt-route-clear">（パターンなしにする）</button>';
+    Array.from(p.querySelectorAll('.pt-route-opt')).forEach((b, i) => {
+      b.addEventListener('mousedown', (e) => {   // blur より先に発火させる
+        e.preventDefault();
+        input.value = b.classList.contains('pt-route-clear') ? '' : opts[i];
+        input.dispatchEvent(new Event('change', { bubbles: true }));
+        _hidePtPopup();
+      });
+    });
+    const r = input.getBoundingClientRect();
+    p.style.left = (window.scrollX + r.left) + 'px';
+    p.style.top  = (window.scrollY + r.bottom + 2) + 'px';
+    p.style.minWidth = Math.max(180, r.width) + 'px';
+    p.hidden = false;
+  }
+  window._showPatternPopup = _showPatternPopup;
 
   // サブコン別グループヘッダーを再描画する
   // ---- 折りたたみ・除外状態（セッション中保持・再描画後も維持） ----

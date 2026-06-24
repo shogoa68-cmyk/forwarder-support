@@ -158,6 +158,22 @@
   padding: 14px 16px; font-family: inherit; font-size: 14px; line-height: 1.6;
   color: #3d2e1e; background: #fffdf7; border-radius: 0 0 10px 10px;
 }
+/* パターン入力：幹線航路サジェスト ポップアップ（body 直下＝非スコープ） */
+.pt-route-popup {
+  position: absolute; z-index: 11000;
+  background: #fff; border: 1px solid #b9c7dd; border-radius: 8px;
+  box-shadow: 0 8px 28px rgba(0,0,0,0.22); padding: 6px; max-width: 380px;
+  max-height: 300px; overflow-y: auto;
+}
+.pt-route-popup[hidden] { display: none; }
+.pt-route-popup-ttl { font-size: 10.5px; font-weight: 700; color: #6a7c97; padding: 2px 6px 5px; }
+.pt-route-opt {
+  display: block; width: 100%; text-align: left; cursor: pointer; white-space: nowrap;
+  font-size: 12px; color: #2a4a72; background: #f4f7fc; border: 1px solid #d3e0f0;
+  border-radius: 6px; padding: 5px 9px; margin: 2px 0; font-family: inherit;
+}
+.pt-route-opt:hover { background: #e4eefb; border-color: #9fb6d6; }
+.pt-route-clear { color: #8a7a64; background: #f3efe8; border-color: #ddd2c2; }
 /* ===== 参照URL（自動リンク化） ===== */
 #tab-quote-make .quote-field-refurl { grid-column: 1 / -1; margin-top: 6px; }
 #tab-quote-make #qf-refurl {
