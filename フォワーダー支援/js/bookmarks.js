@@ -117,7 +117,38 @@ function _bmRenderFnChips() {
     ).join('');
 }
 
-// ---------- リスト描画 ----------
+// ---------- リスト描画（案C：キャリアタイル） ----------
+// キャリアごとにタイル化し、リンクを機能アイコン付きピルで内側に配置。
+// ヘッダーのクリックで折りたたみ、ピルのホバーで ✎/🗑、末尾の破線ピルでその会社へ追加。
+const _BM_PALETTE = ['#2b7bb0','#0a7d4f','#9c5a3c','#1f7d8c','#264a8a','#6f5aa0','#a85a78','#3d6b8a','#7a5c2e','#4a7c59'];
+const _bmColorMap = new Map();
+let   _bmColorSeq = 0;
+function _bmCarrierColor(name) {
+  if (!name || name === '汎用') return '#7a6a52';
+  if (!_bmColorMap.has(name)) { _bmColorMap.set(name, _BM_PALETTE[_bmColorSeq % _BM_PALETTE.length]); _bmColorSeq++; }
+  return _bmColorMap.get(name);
+}
+function _bmCarrierAbbr(name) {
+  if (!name || name === '汎用') return '汎用';
+  const ascii = /^[\x00-\x7F]+$/.test(name);
+  if (ascii) { const a = name.replace(/[^A-Za-z0-9]/g, '').slice(0, 3).toUpperCase(); return a || name.slice(0, 3).toUpperCase(); }
+  return name.slice(0, 3);
+}
+const _BM_TYPE_SUB = { FCL: 'FCL 船会社', LCL: 'LCL キャリア', general: '汎用' };
+const _BM_FN_ICON = {
+  'スケジュール':'📅','航路':'🛣️','コンテナ追跡':'📍','CY OPEN/CUT':'🗓️',
+  'ローカルチャージ（輸出）':'💴','ローカルチャージ（輸入）':'💴',
+  '輸出サーチャージ':'⚡','輸入サーチャージ':'⚡','ブッキング':'📦',
+  'レート':'💱','書類':'📄','お知らせ':'📣',
+};
+function _bmFnIcon(fn) { return _BM_FN_ICON[fn] || '🔗'; }
+
+const _bmCollapsed = new Set();
+function _bmToggleTile(name) {
+  if (_bmCollapsed.has(name)) _bmCollapsed.delete(name); else _bmCollapsed.add(name);
+  _bmApply();
+}
+
 function _bmRenderList(rows) {
   const wrap = document.getElementById('bmListWrap');
   if (!wrap) return;
@@ -125,30 +156,57 @@ function _bmRenderList(rows) {
     wrap.innerHTML = '<div class="bm-empty">該当するブックマークはありません</div>';
     return;
   }
-  wrap.innerHTML = rows.map(r => {
-    const tags = [
-      r.carrier_type && r.carrier_type !== 'general'
-        ? `<span class="bm-tag bm-tag-type">${escHtml(r.carrier_type)}</span>` : '',
-      r.carrier
-        ? `<span class="bm-tag bm-tag-carrier">${escHtml(r.carrier)}</span>` : '',
-      r.function
-        ? `<span class="bm-tag bm-tag-fn">${escHtml(r.function)}</span>` : '',
-    ].filter(Boolean).join('');
-    const nameEl = r.url
-      ? `<a class="bm-card-name" href="${escHtml(r.url)}" target="_blank" rel="noopener">${escHtml(r.label)}</a>`
-      : `<span class="bm-card-name bm-no-url">${escHtml(r.label)}</span>`;
-    const noteEl = r.note
-      ? `<div class="bm-card-note">${escHtml(r.note)}</div>` : '';
-    return `<div class="bm-card">
-      <div class="bm-card-row1">
-        ${nameEl}
-        <button class="bm-edit-btn" onclick="bmEdit('${escHtml(r.id)}')" title="編集">✎</button>
-        <button class="bm-del-btn" onclick="bmDelete('${escHtml(r.id)}')" title="削除">🗑</button>
+  // キャリアでグループ化（carrier 空は「汎用」）
+  const groups = {};
+  rows.forEach(r => { const key = r.carrier || '汎用'; (groups[key] = groups[key] || []).push(r); });
+  const names = Object.keys(groups).sort((a, b) => {
+    if ((a === '汎用') !== (b === '汎用')) return a === '汎用' ? 1 : -1;
+    return a.localeCompare(b, 'ja');
+  });
+
+  wrap.innerHTML = names.map(name => {
+    const cc    = _bmCarrierColor(name);
+    const isCol = _bmCollapsed.has(name);
+    const list  = groups[name];
+    const type  = list[0].carrier_type || (name === '汎用' ? 'general' : 'FCL');
+    const sub   = _BM_TYPE_SUB[type] || '';
+    const pills = list.map(r => {
+      const ic   = _bmFnIcon(r.function);
+      const txt  = escHtml(r.label || r.function || 'リンク');
+      const open = r.url
+        ? `<a class="bm-pill" href="${escHtml(r.url)}" target="_blank" rel="noopener" title="${escHtml(r.label || '')}">`
+        : `<span class="bm-pill bm-pill-nourl" title="${escHtml(r.label || '')}">`;
+      const close = r.url ? '</a>' : '</span>';
+      return open
+        + `<span class="bm-pill-ic">${ic}</span>${txt}`
+        + `<span class="bm-pill-edit" onclick="event.preventDefault();event.stopPropagation();bmEdit('${escHtml(r.id)}')" title="編集">✎</span>`
+        + `<span class="bm-pill-del" onclick="event.preventDefault();event.stopPropagation();bmDelete('${escHtml(r.id)}')" title="削除">🗑</span>`
+        + close;
+    }).join('');
+    return `<div class="bm-tile${isCol ? ' collapsed' : ''}" style="--cc:${cc}">
+      <div class="bm-thead" data-bm-tile="${escHtml(name)}">
+        <div class="bm-tlogo">${escHtml(_bmCarrierAbbr(name))}</div>
+        <div class="bm-tmeta"><div class="bm-tname">${escHtml(name)}</div><div class="bm-tsub">${escHtml(sub)}</div></div>
+        <span class="bm-tcount">${list.length}</span>
+        <span class="bm-ttog">${isCol ? '▸' : '▾'}</span>
       </div>
-      <div class="bm-card-tags">${tags}</div>
-      ${noteEl}
+      <div class="bm-tbody">
+        ${pills}
+        <span class="bm-pill bm-pill-add" data-bm-add="${name === '汎用' ? '' : escHtml(name)}" data-bm-type="${escHtml(type)}">＋ 追加</span>
+      </div>
     </div>`;
   }).join('');
+}
+
+// タイルヘッダー折りたたみ／追加ピルはイベント委譲で処理（動的なキャリア名のクオート問題を回避）
+if (!window._bmTileDelegated) {
+  window._bmTileDelegated = true;
+  document.addEventListener('click', e => {
+    const add = e.target.closest('#bmListWrap .bm-pill-add');
+    if (add) { openAddBmModal({ carrier: add.dataset.bmAdd || '', type: add.dataset.bmType || 'FCL' }); return; }
+    const head = e.target.closest('#bmListWrap .bm-thead');
+    if (head && head.dataset.bmTile != null) { _bmToggleTile(head.dataset.bmTile); }
+  });
 }
 
 // ---------- フィルター操作 ----------
