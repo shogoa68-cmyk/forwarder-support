@@ -32,6 +32,8 @@ async function _bmLoad() {
   if (seedBtn) seedBtn.hidden = !user;
   const histBtn = document.getElementById('bmHistBtn');
   if (histBtn) histBtn.hidden = !user;
+  const dedupBtn = document.getElementById('bmDedupBtn');
+  if (dedupBtn) dedupBtn.hidden = !user;
 
   if (!user) {
     if (wrap) wrap.innerHTML =
@@ -134,7 +136,7 @@ function _bmCarrierAbbr(name) {
   if (ascii) { const a = name.replace(/[^A-Za-z0-9]/g, '').slice(0, 3).toUpperCase(); return a || name.slice(0, 3).toUpperCase(); }
   return name.slice(0, 3);
 }
-const _BM_TYPE_SUB = { FCL: 'FCL 船会社', LCL: 'LCL キャリア', general: '汎用' };
+const _BM_TYPE_SUB = { FCL: 'FCL 船会社', LCL: 'LCL キャリア', AIR: 'AIR 航空', general: '汎用' };
 const _BM_FN_ICON = {
   'スケジュール':'📅','航路':'🛣️','コンテナ追跡':'📍','CY OPEN/CUT':'🗓️',
   'ローカルチャージ（輸出）':'💴','ローカルチャージ（輸入）':'💴',
@@ -170,17 +172,26 @@ function _bmRenderList(rows) {
     const list  = groups[name];
     const type  = list[0].carrier_type || (name === '汎用' ? 'general' : 'FCL');
     const sub   = _BM_TYPE_SUB[type] || '';
+    // キャリアタイルは種別をドロップダウン化（選ぶとそのキャリアの全リンクを一括再設定）。
+    // 「汎用」グループ（会社名なし）は静的ラベルのまま。
+    const typeMeta = name === '汎用'
+      ? `<div class="bm-tsub">${escHtml(sub)}</div>`
+      : `<select class="bm-tsub bm-ttype" data-bm-carrier="${escHtml(name)}" onclick="event.stopPropagation()" title="このキャリアの全リンクの種別を変更">`
+        + ['FCL', 'LCL', 'AIR', 'general'].map(tv =>
+            `<option value="${tv}"${tv === type ? ' selected' : ''}>${escHtml(_BM_TYPE_SUB[tv] || tv)}</option>`
+          ).join('')
+        + `</select>`;
     const pills = list.map(r => {
       const ic   = _bmFnIcon(r.function);
       const txt  = escHtml(r.label || r.function || 'リンク');
-      // メモはホバーの title に併記し、メモ有りピルには 💬 マーカーを常時表示（ホバーで本文／タップで全文）
-      const tip  = escHtml((r.label || '') + (r.note ? '\n💬 ' + r.note : ''));
+      // メモ有りピルには 💬 マーカーを常時表示。ホバーで装飾ツールチップ（body 直付け・data-note 経由）
+      const lbl  = escHtml(r.label || '');
       const open = r.url
-        ? `<a class="bm-pill" href="${escHtml(r.url)}" target="_blank" rel="noopener" title="${tip}">`
-        : `<span class="bm-pill bm-pill-nourl" title="${tip}">`;
+        ? `<a class="bm-pill" href="${escHtml(r.url)}" target="_blank" rel="noopener" title="${lbl}">`
+        : `<span class="bm-pill bm-pill-nourl" title="${lbl}">`;
       const close = r.url ? '</a>' : '</span>';
       const noteMark = r.note
-        ? `<span class="bm-pill-note" onclick="event.preventDefault();event.stopPropagation();bmShowNote('${escHtml(r.id)}')" title="${escHtml(r.note)}">💬</span>`
+        ? `<span class="bm-pill-note" data-note="${escHtml(r.note)}">💬</span>`
         : '';
       return open
         + `<span class="bm-pill-ic">${ic}</span>${txt}${noteMark}`
@@ -191,7 +202,7 @@ function _bmRenderList(rows) {
     return `<div class="bm-tile${isCol ? ' collapsed' : ''}" style="--cc:${cc}">
       <div class="bm-thead" data-bm-tile="${escHtml(name)}">
         <div class="bm-tlogo">${escHtml(_bmCarrierAbbr(name))}</div>
-        <div class="bm-tmeta"><div class="bm-tname">${escHtml(name)}</div><div class="bm-tsub">${escHtml(sub)}</div></div>
+        <div class="bm-tmeta"><div class="bm-tname">${escHtml(name)}</div>${typeMeta}</div>
         <span class="bm-tcount">${list.length}</span>
         <span class="bm-ttog">${isCol ? '▸' : '▾'}</span>
       </div>
@@ -212,6 +223,54 @@ if (!window._bmTileDelegated) {
     const head = e.target.closest('#bmListWrap .bm-thead');
     if (head && head.dataset.bmTile != null) { _bmToggleTile(head.dataset.bmTile); }
   });
+  // タイル見出しの種別ドロップダウン変更 → そのキャリアの全リンクを一括再設定
+  document.addEventListener('change', e => {
+    const sel = e.target.closest('#bmListWrap .bm-ttype');
+    if (sel) bmRetypeCarrier(sel.dataset.bmCarrier, sel.value);
+  });
+}
+
+// メモのホバーツールチップ。タイルは overflow:hidden のため body 直付けで切れないようにし、
+// ホバー即・装飾付きで表示する（ネイティブ title の遅延を回避）。
+function _bmNoteTipEl() {
+  let t = document.getElementById('bmNoteTip');
+  if (!t) {
+    t = document.createElement('div');
+    t.id = 'bmNoteTip';
+    t.className = 'bm-note-tip';
+    document.body.appendChild(t);
+  }
+  return t;
+}
+function _bmShowNoteTip(target) {
+  const note = target.dataset.note;
+  if (!note) return;
+  const t = _bmNoteTipEl();
+  t.textContent = note;
+  t.style.display = 'block';
+  const r  = target.getBoundingClientRect();
+  const tw = t.offsetWidth, th = t.offsetHeight;
+  let left = r.left + r.width / 2 - tw / 2;
+  left = Math.max(8, Math.min(left, window.innerWidth - tw - 8));
+  let top = r.top - th - 8;
+  if (top < 8) top = r.bottom + 8;   // 上に入らなければ下に出す
+  t.style.left = left + 'px';
+  t.style.top  = top  + 'px';
+}
+function _bmHideNoteTip() {
+  const t = document.getElementById('bmNoteTip');
+  if (t) t.style.display = 'none';
+}
+if (!window._bmNoteTipDelegated) {
+  window._bmNoteTipDelegated = true;
+  document.addEventListener('mouseover', e => {
+    const m = e.target.closest('#bmListWrap .bm-pill-note');
+    if (m) _bmShowNoteTip(m);
+  });
+  document.addEventListener('mouseout', e => {
+    if (e.target.closest('#bmListWrap .bm-pill-note')) _bmHideNoteTip();
+  });
+  document.addEventListener('scroll', _bmHideNoteTip, true);
 }
 
 // ---------- フィルター操作 ----------
@@ -400,11 +459,35 @@ async function bmDelete(id) {
   if (typeof window.lcRefreshBmChips === 'function') window.lcRefreshBmChips();
 }
 
-// メモ全文をトーストで表示（💬 マーカーのタップ用・モバイルでも確実に確認できる）
-function bmShowNote(id) {
-  const r = _bmRows.find(row => row.id === id);
-  if (!r || !r.note) return;
-  quoteShowToast('💬 ' + r.note, 'info', 7000);
+// タイル見出しから、そのキャリアの全ブックマークの種別（carrier_type）を一括変更する。
+// 誤った種別（例：LCL キャリアを FCL に設定）を後から戻せるようにするための機能。
+async function bmRetypeCarrier(carrier, newType) {
+  const db = window.SupabaseClient;
+  if (!db || !carrier) return;
+  const targets = _bmRows.filter(r => (r.carrier || '') === carrier);
+  if (!targets.length) return;
+  if (targets[0].carrier_type === newType) return;   // 変化なし
+  const labelMap = { FCL: 'FCL 船会社', LCL: 'LCL キャリア', AIR: 'AIR 航空', general: '汎用' };
+  if (!confirm(`「${carrier}」の ${targets.length} 件すべての種別を「${labelMap[newType] || newType}」に変更しますか？`)) {
+    _bmApply();   // キャンセル時はドロップダウンの表示を元に戻す
+    return;
+  }
+  const { data, error } = await db.from('bookmarks')
+    .update({ carrier_type: newType }).eq('carrier', carrier).select();
+  if (error) {
+    quoteShowToast('⚠️ 種別の変更に失敗：' + error.message, 'warn', 6000);
+    _bmApply();
+    return;
+  }
+  if (!data || !data.length) {
+    quoteShowToast('⚠️ 変更されませんでした（権限不足の可能性）', 'warn', 7000);
+    _bmApply();
+    return;
+  }
+  _bmRows.forEach(r => { if ((r.carrier || '') === carrier) r.carrier_type = newType; });
+  quoteShowToast(`✅ 「${carrier}」の種別を変更しました（${data.length}件）`, 'success', 3000);
+  _bmApply();
+  if (typeof window.lcRefreshBmChips === 'function') window.lcRefreshBmChips();
 }
 
 function bmEdit(id) {
@@ -609,6 +692,109 @@ function closeBmHistory(e) {
   document.getElementById('bmHistModal')?.classList.remove('open');
 }
 
+// ---------- 重複の統合・削除 ----------
+// 同じキャリア＋URL（URL が無い場合はキャリア＋ラベル）を重複とみなしてグループ化し、
+// 「1件を残して他を統合・削除」できるようにする。誤って二重登録した場合の整理用。
+let _bmDupGroups = [];
+
+function _bmDupKey(r) {
+  const c = r.carrier || '';
+  return r.url ? c + ' U:' + r.url.trim() : c + ' L:' + (r.label || '');
+}
+
+function _bmFindDuplicates() {
+  const map = new Map();
+  _bmRows.forEach(r => {
+    const k = _bmDupKey(r);
+    if (!map.has(k)) map.set(k, []);
+    map.get(k).push(r);
+  });
+  return [...map.values()].filter(g => g.length > 1);
+}
+
+// 残す1件の既定（情報量が多い＝メモ有り・機能が未分類でない・ラベル有り。同点は作成が古い方）
+function _bmKeeperId(group) {
+  const score = r => (r.note ? 2 : 0) + (r.function && r.function !== '未分類' ? 1 : 0) + (r.label ? 1 : 0);
+  let best = group[0];
+  group.forEach(r => {
+    const s = score(r), bs = score(best);
+    if (s > bs || (s === bs && (r.created_at || '') < (best.created_at || ''))) best = r;
+  });
+  return best.id;
+}
+
+function openBmDedup() {
+  const modal = document.getElementById('bmDedupModal');
+  const list  = document.getElementById('bmDedupList');
+  if (!modal || !list) return;
+  modal.classList.add('open');
+  _bmDupGroups = _bmFindDuplicates();
+  if (!_bmDupGroups.length) {
+    list.innerHTML = '<div class="bm-empty">重複は見つかりませんでした 🎉</div>';
+    return;
+  }
+  list.innerHTML = _bmDupGroups.map((g, idx) => {
+    const keepId  = _bmKeeperId(g);
+    const carrier = g[0].carrier || '汎用';
+    const head = g[0].url
+      ? `<a href="${escHtml(g[0].url)}" target="_blank" rel="noopener">${escHtml(g[0].url)}</a>`
+      : `<span>${escHtml(g[0].label || '(無題)')}</span>`;
+    const rows = g.map(r => `
+      <label class="bm-dup-item">
+        <input type="radio" name="dedup-${idx}" value="${escHtml(r.id)}"${r.id === keepId ? ' checked' : ''}>
+        <span class="bm-dup-fn">${escHtml(r.function || '未分類')}</span>
+        <span class="bm-dup-label">${escHtml(r.label || '(無題)')}</span>
+        ${r.note ? `<span class="bm-dup-note" title="${escHtml(r.note)}">💬</span>` : ''}
+      </label>`).join('');
+    return `<div class="bm-dup-group">
+      <div class="bm-dup-head"><span class="bm-dup-carrier">${escHtml(carrier)}</span> ${head} <span class="bm-dup-count">${g.length}件</span></div>
+      <div class="bm-dup-hint">残す1件を選択：</div>
+      ${rows}
+      <button class="bm-dup-merge" onclick="bmDedupMerge(${idx})">選択を残して他を統合・削除</button>
+    </div>`;
+  }).join('');
+}
+
+async function bmDedupMerge(idx) {
+  const group = _bmDupGroups[idx];
+  if (!group) return;
+  const db = window.SupabaseClient;
+  if (!db) return;
+  const sel    = document.querySelector(`input[name="dedup-${idx}"]:checked`);
+  const keepId = sel ? sel.value : _bmKeeperId(group);
+  const keeper = group.find(r => r.id === keepId);
+  const others = group.filter(r => r.id !== keepId);
+  if (!keeper || !others.length) return;
+  if (!confirm(`重複 ${others.length} 件を削除し、1件（${keeper.label || '(無題)'}）に統合します。よろしいですか？`)) return;
+
+  // 統合：keeper の空フィールドを others から補完
+  const patch = {};
+  if (!keeper.note)                                       { const x = others.find(o => o.note); if (x) patch.note = x.note; }
+  if (!keeper.function || keeper.function === '未分類')   { const x = others.find(o => o.function && o.function !== '未分類'); if (x) patch.function = x.function; }
+  if (!keeper.url)                                        { const x = others.find(o => o.url); if (x) patch.url = x.url; }
+  if (!keeper.label)                                      { const x = others.find(o => o.label); if (x) patch.label = x.label; }
+  if (Object.keys(patch).length) {
+    const { error } = await db.from('bookmarks').update(patch).eq('id', keepId).select();
+    if (error) { quoteShowToast('⚠️ 統合(更新)に失敗：' + error.message, 'warn', 6000); return; }
+    Object.assign(keeper, patch);
+  }
+
+  // 重複削除
+  const ids = others.map(o => o.id);
+  const { error: delErr } = await db.from('bookmarks').delete().in('id', ids);
+  if (delErr) { quoteShowToast('⚠️ 削除に失敗：' + delErr.message, 'warn', 6000); return; }
+  _bmRows = _bmRows.filter(r => !ids.includes(r.id));
+  quoteShowToast(`✅ ${ids.length}件を統合・削除しました`, 'success', 3000);
+  _bmApply();
+  if (typeof window.lcRefreshBmChips === 'function') window.lcRefreshBmChips();
+  openBmDedup();   // 残りの重複を再表示
+}
+
+function closeBmDedup(e) {
+  if (e && e.target.id !== 'bmDedupModal') return;
+  document.getElementById('bmDedupModal')?.classList.remove('open');
+}
+
 // ---------- QSP 用キャリアブックマームフェッチ ----------
 window.fetchCarrierBmsForQSP = async function (carrierNames) {
   if (!carrierNames || !carrierNames.length) return;
@@ -649,7 +835,9 @@ window.closeAddBmModal = closeAddBmModal;
 window.saveBm          = saveBm;
 window.bmDelete        = bmDelete;
 window.bmEdit          = bmEdit;
-window.bmShowNote      = bmShowNote;
 window.seedCarrierBookmarks = seedCarrierBookmarks;
 window.openBmHistory   = openBmHistory;
 window.closeBmHistory  = closeBmHistory;
+window.openBmDedup     = openBmDedup;
+window.closeBmDedup    = closeBmDedup;
+window.bmDedupMerge    = bmDedupMerge;

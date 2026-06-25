@@ -1584,6 +1584,39 @@ body:has(#compareOverlay.open) #quoteActionDock { display: none; }
 .bm-tmeta { min-width: 0; }
 .bm-tname { font-size: 14px; font-weight: 700; color: #fff; line-height: 1.2; }
 .bm-tsub  { font-size: 10px; color: rgba(255,255,255,.82); margin-top: 1px; }
+.bm-ttype {
+  font-size: 10px; color: rgba(255,255,255,.95);
+  background: rgba(255,255,255,.16);
+  border: 1px solid rgba(255,255,255,.32);
+  border-radius: 5px; padding: 1px 4px; margin-top: 2px;
+  cursor: pointer; max-width: 140px; line-height: 1.3;
+}
+.bm-ttype:hover { background: rgba(255,255,255,.28); }
+.bm-ttype option { color: #222; }
+/* 重複の統合・削除モーダル */
+.bm-dup-group {
+  border: 1px solid #e2d8c8; border-radius: 10px;
+  padding: 10px 12px; margin-bottom: 12px; background: #fdfbf7;
+}
+.bm-dup-head { font-size: 12px; color: #5d4e3a; margin-bottom: 6px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.bm-dup-carrier { font-weight: 700; color: #1c4a66; }
+.bm-dup-head a { color: #2b7bb0; word-break: break-all; }
+.bm-dup-count { margin-left: auto; font-size: 10px; font-weight: 700; color: #b04a4a; background: #f7e6e6; border-radius: 10px; padding: 2px 8px; }
+.bm-dup-hint { font-size: 11px; color: #9a8a72; margin-bottom: 4px; }
+.bm-dup-item {
+  display: flex; align-items: center; gap: 8px;
+  padding: 5px 6px; border-radius: 6px; cursor: pointer; font-size: 13px;
+}
+.bm-dup-item:hover { background: #f1ece2; }
+.bm-dup-fn { font-size: 10px; color: #6f5aa0; background: #efeaf6; border-radius: 5px; padding: 1px 6px; flex-shrink: 0; }
+.bm-dup-label { color: #3d2e1e; }
+.bm-dup-note { font-size: 11px; cursor: help; }
+.bm-dup-merge {
+  margin-top: 8px; width: 100%;
+  background: #2b7bb0; color: #fff; border: none; border-radius: 7px;
+  padding: 7px; font-size: 12px; font-weight: 600; cursor: pointer;
+}
+.bm-dup-merge:hover { background: #226291; }
 .bm-tcount {
   margin-left: auto;
   font-size: 10px; font-weight: 600; color: #fff;
@@ -1610,10 +1643,20 @@ body:has(#compareOverlay.open) #quoteActionDock { display: none; }
 .bm-pill:hover { background: #eef4f8; border-color: #b8c4cb; transform: translateY(-1px); }
 .bm-pill-ic { font-size: 11px; opacity: .62; flex-shrink: 0; }
 .bm-pill-note {
-  font-size: 11px; flex-shrink: 0; cursor: pointer;
+  font-size: 11px; flex-shrink: 0; cursor: help;
   opacity: .8; line-height: 1; margin-left: 1px;
 }
 .bm-pill-note:hover { opacity: 1; transform: scale(1.15); }
+/* メモのホバーツールチップ（body 直付け・切れない・即時表示） */
+.bm-note-tip {
+  position: fixed; z-index: 99999; display: none;
+  max-width: 280px; padding: 8px 11px;
+  background: #2d2418; color: #fdf8f0;
+  font-size: 12px; line-height: 1.55; font-weight: 500;
+  border-radius: 8px; box-shadow: 0 6px 20px rgba(0,0,0,.28);
+  white-space: pre-wrap; word-break: break-word;
+  pointer-events: none;
+}
 .bm-pill-nourl { color: #3d2e1e; cursor: default; }
 .bm-pill-nourl:hover { transform: none; }
 .bm-pill-edit, .bm-pill-del {
