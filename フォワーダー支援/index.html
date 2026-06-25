@@ -3972,6 +3972,7 @@
   <div class="tab-content" id="tab-bookmark">
     <div class="bm-page-head">
       <h2 class="bm-page-title">🔖 チームブックマーク</h2>
+      <button class="bm-add-btn" id="bmDedupBtn" onclick="openBmDedup()" hidden title="重複登録を検出して1件に統合・削除します">🧹 重複整理</button>
       <button class="bm-add-btn" id="bmHistBtn" onclick="openBmHistory()" hidden title="チームの編集履歴（追加・更新・削除）を表示">🕘 履歴</button>
       <button class="bm-add-btn" id="bmSeedBtn" onclick="seedCarrierBookmarks()" hidden title="内蔵の船会社リンク（FCL/LCL/AIR）を未登録分だけチーム共有へ取り込みます">🌱 内蔵リンク取込</button>
       <button class="bm-add-btn" id="bmAddBtn" onclick="openAddBmModal()" hidden>＋ 追加</button>
@@ -4503,6 +4504,18 @@
 </div>
 
 <!-- ======= ブックマーク変更履歴モーダル ======= -->
+<div id="bmDedupModal" class="bm-modal-overlay" onclick="closeBmDedup(event)">
+  <div class="bm-modal-box bm-hist-box">
+    <div class="bm-modal-head">
+      <h3>🧹 重複の統合・削除</h3>
+      <button class="bm-modal-close" onclick="document.getElementById('bmDedupModal').classList.remove('open')" aria-label="閉じる">✕</button>
+    </div>
+    <div class="bm-hist-list" id="bmDedupList">
+      <div class="bm-empty">読み込み中…</div>
+    </div>
+  </div>
+</div>
+
 <div id="bmHistModal" class="bm-modal-overlay" onclick="closeBmHistory(event)">
   <div class="bm-modal-box bm-hist-box">
     <div class="bm-modal-head">
