@@ -1237,8 +1237,16 @@
 }
 
 /* ===== 0円確認済みボタン ===== */
+/* 行モードボタン（¥0✓ / 実費 / PS / 都度）を横一列に */
+#tab-quote-make .row-mode-btns {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+  margin-top: 3px;
+}
+#tab-quote-make .row-mode-btns > button { margin-top: 0; }
 #tab-quote-make .zero-confirm-btn {
-  display: block;
+  display: inline-block;
   margin-top: 3px;
   padding: 1px 6px;
   font-size: 10px;
@@ -1277,7 +1285,7 @@
 }
 /* ===== 実費（金額未確定・別途精算） ===== */
 #tab-quote-make .actual-cost-btn {
-  display: block;
+  display: inline-block;
   margin-top: 3px;
   padding: 1px 6px;
   font-size: 10px;
@@ -1315,7 +1323,7 @@
 #tab-quote-make tr.row-actual-cost > td.handle-cell { box-shadow: inset 3px 0 0 #6b75c4; }
 /* PROFIT SHARE（代理店収益）トグル＋行 */
 #tab-quote-make .profit-share-btn {
-  display: block; margin-top: 3px; padding: 1px 6px;
+  display: inline-block; margin-top: 3px; padding: 1px 6px;
   font-size: 10px; line-height: 1.5; border: 1px solid #c4b49a; border-radius: 3px;
   background: transparent; color: #c4b49a; cursor: pointer; font-family: inherit;
   transition: all 0.15s; white-space: nowrap;
@@ -1330,7 +1338,7 @@
 #tab-quote-make .tot-ps-row td { border-top: 1px dashed #d6bdf0; }
 /* 都度請求（発生時のみ）トグル＋行 */
 #tab-quote-make .cond-charge-btn {
-  display: block; margin-top: 3px; padding: 1px 6px;
+  display: inline-block; margin-top: 3px; padding: 1px 6px;
   font-size: 10px; line-height: 1.5; border: 1px solid #c4b49a; border-radius: 3px;
   background: transparent; color: #c4b49a; cursor: pointer; font-family: inherit;
   transition: all 0.15s; white-space: nowrap;
