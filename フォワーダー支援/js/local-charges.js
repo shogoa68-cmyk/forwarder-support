@@ -1033,9 +1033,10 @@
     if (curSel && !curSel.children.length) {
       curSel.innerHTML = LC_CURRENCIES.map(c => `<option value="${c}">${c}</option>`).join('');
     }
-    const unitSel = document.getElementById('lc_unit');
-    if (unitSel && !unitSel.children.length) {
-      unitSel.innerHTML = LC_UNITS.map(u => `<option value="${u}">${u || '（単位なし）'}</option>`).join('');
+    // 単位は自由入力（datalist で従来プリセットを候補表示）
+    const unitList = document.getElementById('lcUnitList');
+    if (unitList && !unitList.children.length) {
+      unitList.innerHTML = LC_UNITS.filter(Boolean).map(u => `<option value="${u}"></option>`).join('');
     }
   };
 

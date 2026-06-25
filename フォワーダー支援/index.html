@@ -4262,7 +4262,8 @@
         <label class="lc-form-label">金額目安</label>
         <input id="lc_amount" class="lc-form-input lc-form-input--num" type="number" min="0" placeholder="0">
         <select id="lc_currency" class="lc-form-select lc-form-select--cur"></select>
-        <select id="lc_unit"     class="lc-form-select lc-form-select--unit"></select>
+        <input id="lc_unit" class="lc-form-input lc-form-input--unit" type="text" list="lcUnitList" autocomplete="off" placeholder="単位（自由入力）">
+        <datalist id="lcUnitList"></datalist>
       </div>
       <div class="lc-form-row">
         <label class="lc-form-label">積み港（POL）</label>
