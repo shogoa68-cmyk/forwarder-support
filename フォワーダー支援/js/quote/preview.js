@@ -123,6 +123,7 @@
       const profit = bill - cost;
       const note   = document.getElementById(`nt-${id}`)?.value || '';
       const sv     = document.getElementById(`sv-${id}`)?.value || '';
+      const pt     = document.getElementById(`pt-${id}`)?.value || '';
       // 有効期限（vf/vt）はサーチャージ専用。他カテゴリは値が残っていても無視する
       const _isSur = cat === 'surcharge';
       const vf     = _isSur ? (document.getElementById(`vf-${id}`)?.value || '') : '';
@@ -135,7 +136,7 @@
       const _hideQuote  = _hideManual || _outRange || _ps;
       const _actual     = tr.dataset.actual === '1';   // 実費（金額未確定・合計除外・単価/金額は「実費」表示）
       const _cond       = tr.dataset.cond === '1';     // 都度請求（発生時のみ・金額は表示・合計に加算しない）
-      rows.push({ _type: 'data', taxed, cat, name, pq, un, pc, pp, cd, bq, bc, bp, mk, cost, bill, profit, note, sv, vf, vt, zc, _actual, _ps, _cond, _hideQuote, _hideManual, _outRange });
+      rows.push({ _type: 'data', taxed, cat, name, pq, un, pc, pp, cd, bq, bc, bp, mk, cost, bill, profit, note, sv, pt, vf, vt, zc, _actual, _ps, _cond, _hideQuote, _hideManual, _outRange });
     });
     return rows;
   }
