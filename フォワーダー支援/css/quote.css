@@ -7962,6 +7962,44 @@ button.um-memberno--empty:hover { background: #f4ead4; border-color: #cdb98e; }
 }
 
 /* 危険品・特殊貨物 区分チップ */
+/* 関連知識・他法令：リンクチップ＋要約パネル */
+#tab-quote-make .cargo-ref-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 2px; }
+#tab-quote-make .cargo-ref-chip {
+  display: inline-flex; align-items: center; gap: 3px;
+  font-size: 11px; font-weight: 600; line-height: 1; cursor: pointer;
+  padding: 4px 9px; border-radius: 999px; border: 1px solid #d3c9b6;
+  background: #fbf8f1; color: #5a4a35; text-decoration: none; font-family: inherit;
+  white-space: nowrap; transition: background .12s, border-color .12s;
+}
+#tab-quote-make .cargo-ref-chip:hover { background: #f0e8d8; border-color: #c4b49a; }
+#tab-quote-make .cargo-ref-chip--law { background: #fdeede; border-color: #e8b48f; color: #9a4a25; }
+#tab-quote-make .cargo-ref-chip--law:hover { background: #f9e2c8; }
+#tab-quote-make .cargo-ref-chip--law.is-on { background: #9a4a25; border-color: #9a4a25; color: #fff; }
+#tab-quote-make .cargo-ref-chip--in { background: #eef3fb; border-color: #c2d3ec; color: #2a4a72; }
+#tab-quote-make .cargo-ref-chip--in:hover { background: #e2ebf8; }
+#tab-quote-make .cargo-ref-chip--ext { background: #eef7f0; border-color: #c2e0cb; color: #2f6a3a; }
+#tab-quote-make .cargo-ref-chip--ext:hover { background: #e0f0e5; }
+#tab-quote-make .cargo-law-panel {
+  margin-top: 8px; border: 1px solid #e8b48f; border-radius: 8px; background: #fffaf3; padding: 10px 12px;
+}
+#tab-quote-make .cargo-law-panel[hidden] { display: none; }
+#tab-quote-make .cargo-law-head { font-size: 12px; font-weight: 700; color: #9a4a25; margin-bottom: 6px; }
+#tab-quote-make .cargo-law-note { font-size: 10.5px; font-weight: 400; color: #8a7a64; margin-left: 6px; }
+#tab-quote-make .cargo-law-table { width: 100%; border-collapse: collapse; font-size: 11.5px; }
+#tab-quote-make .cargo-law-table th {
+  text-align: left; font-size: 10.5px; color: #8a7a64; font-weight: 700;
+  border-bottom: 1px solid #ecd9c4; padding: 3px 6px;
+}
+#tab-quote-make .cargo-law-table td { padding: 4px 6px; border-bottom: 1px solid #f0e6d8; vertical-align: top; color: #3d2e1e; }
+#tab-quote-make .cargo-law-n { font-weight: 700; white-space: nowrap; }
+#tab-quote-make .cargo-law-o { color: #6a5a44; white-space: nowrap; font-size: 11px; }
+#tab-quote-make .cargo-law-t { color: #5a4a35; }
+#tab-quote-make .cargo-law-foot { margin-top: 8px; }
+#tab-quote-make .cargo-law-more {
+  font-size: 11px; font-weight: 600; cursor: pointer; color: #9a4a25;
+  background: #fff; border: 1px solid #e8b48f; border-radius: 6px; padding: 5px 10px;
+}
+#tab-quote-make .cargo-law-more:hover { background: #fdeede; }
 #tab-quote-make .haz-chips { display: flex; flex-wrap: wrap; gap: 8px; }
 /* セレクトは状態保持のため DOM に残すが視覚的に隠す（スクリーンリーダーからも除外） */
 #tab-quote-make .haz-select-hidden {

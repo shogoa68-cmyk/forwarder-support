@@ -464,6 +464,61 @@
     ta.focus();
   };
 
+  // ===== 貨物セクション：関連知識・他法令 =====
+  // 知識タブ（カテゴリ cat の サブタブ tabId）へジャンプし、任意で anchorId へスクロール
+  window.gotoRef = function (cat, tabId, anchorId) {
+    try {
+      document.querySelectorAll('.cat-btn').forEach(b => b.classList.remove('active'));
+      const catBtn = document.querySelector(`.cat-btn[onclick*="switchCategory('${cat}'"]`);
+      if (catBtn) catBtn.classList.add('active');
+      document.querySelectorAll('.sub-nav').forEach(s => s.classList.remove('active'));
+      document.getElementById('sub-' + cat)?.classList.add('active');
+      if (typeof switchTab === 'function') switchTab(tabId);
+      const sub = document.getElementById('sub-' + cat);
+      if (sub) {
+        sub.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        const tb = sub.querySelector(`.tab-btn[onclick*="switchTab('${tabId}'"]`);
+        if (tb) tb.classList.add('active');
+      }
+      setTimeout(() => {
+        const el = anchorId ? document.getElementById(anchorId) : document.getElementById('tab-' + tabId);
+        el?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 70);
+    } catch (e) { /* no-op */ }
+  };
+
+  // 輸入 他法令（関税法以外）11法令の要約。詳細は「🔒 貿易管理令・他法令」タブ。
+  const _IMPORT_OTHER_LAWS = [
+    { n: '食品衛生法',            o: '厚労省 検疫所',         t: '食品・添加物・容器包装・おもちゃ等。輸入届出が必要' },
+    { n: '植物防疫法',            o: '農水省 植物防疫所',     t: '植物・種子・木材・果実等。検査・消毒・輸入禁止品に注意' },
+    { n: '家畜伝染病予防法',      o: '農水省 動物検疫所',     t: '畜産物・肉製品・乳製品等。動物検疫・輸入禁止地域あり' },
+    { n: '薬機法（医薬品医療機器等法）', o: '厚労省',          t: '医薬品・医薬部外品・化粧品・医療機器。薬監証明等' },
+    { n: '電気用品安全法（PSE）', o: '経産省',                t: '電気用品。PSEマーク・技術基準適合が必要' },
+    { n: '電波法（技適）',        o: '総務省',                t: '無線機能を持つ機器。技術基準適合証明（技適マーク）' },
+    { n: '消費生活用製品安全法（PSC）', o: '経産省',          t: '特定製品（乳幼児用ベッド・ライター等）。PSCマーク' },
+    { n: '化審法',                o: '経産省・厚労省・環境省', t: '化学物質。新規化学物質の届出・規制対象に注意' },
+    { n: '毒物及び劇物取締法',    o: '厚労省',                t: '毒物・劇物。登録・表示・取扱の規制' },
+    { n: 'ワシントン条約（CITES）', o: '経産省・環境省',      t: '絶滅危惧種・象牙・革製品等。輸出入許可（CITES許可書）' },
+    { n: '外為法 輸入承認（IQ等）', o: '経産省',              t: '輸入割当・事前確認品目。輸入承認・確認が必要' },
+  ];
+  window.toggleCargoLawPanel = function () {
+    const p = document.getElementById('cargoLawPanel');
+    const btn = document.querySelector('.cargo-ref-chip--law');
+    if (!p) return;
+    if (!p.hidden) { p.hidden = true; if (btn) btn.classList.remove('is-on'); return; }
+    const esc = s => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    p.innerHTML =
+      '<div class="cargo-law-head">📥 輸入通関 ― 他法令（関税法以外の規制）<span class="cargo-law-note">品目により許可・承認・確認が必要。通関前に要確認</span></div>' +
+      '<table class="cargo-law-table"><thead><tr><th>法令</th><th>管轄</th><th>対象・ポイント</th></tr></thead><tbody>' +
+      _IMPORT_OTHER_LAWS.map(l =>
+        `<tr><td class="cargo-law-n">${esc(l.n)}</td><td class="cargo-law-o">${esc(l.o)}</td><td class="cargo-law-t">${esc(l.t)}</td></tr>`
+      ).join('') +
+      '</tbody></table>' +
+      '<div class="cargo-law-foot"><button type="button" class="cargo-law-more" onclick="gotoRef(\'docs\',\'regs\',\'regs-import-other-laws\')">詳しい一覧（管轄・手続き・通関影響）を他法令タブで開く ↗</button></div>';
+    p.hidden = false;
+    if (btn) btn.classList.add('is-on');
+  };
+
   // ===== 📝 メモのポップアウト（全画面・サイズ可変）=====
   // #qf-memo と #qf-memo-pop を双方向同期。ポップアウト側の編集も元欄の input を発火させ自動保存に乗せる。
   let _memoPopEscHandler = null;
