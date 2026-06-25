@@ -173,14 +173,14 @@ function _bmRenderList(rows) {
     const pills = list.map(r => {
       const ic   = _bmFnIcon(r.function);
       const txt  = escHtml(r.label || r.function || 'リンク');
-      // メモはホバーの title に併記し、メモ有りピルには 💬 マーカーを常時表示（ホバーで本文／タップで全文）
-      const tip  = escHtml((r.label || '') + (r.note ? '\n💬 ' + r.note : ''));
+      // メモ有りピルには 💬 マーカーを常時表示。ホバーで装飾ツールチップ（body 直付け・data-note 経由）
+      const lbl  = escHtml(r.label || '');
       const open = r.url
-        ? `<a class="bm-pill" href="${escHtml(r.url)}" target="_blank" rel="noopener" title="${tip}">`
-        : `<span class="bm-pill bm-pill-nourl" title="${tip}">`;
+        ? `<a class="bm-pill" href="${escHtml(r.url)}" target="_blank" rel="noopener" title="${lbl}">`
+        : `<span class="bm-pill bm-pill-nourl" title="${lbl}">`;
       const close = r.url ? '</a>' : '</span>';
       const noteMark = r.note
-        ? `<span class="bm-pill-note" onclick="event.preventDefault();event.stopPropagation();bmShowNote('${escHtml(r.id)}')" title="${escHtml(r.note)}">💬</span>`
+        ? `<span class="bm-pill-note" data-note="${escHtml(r.note)}">💬</span>`
         : '';
       return open
         + `<span class="bm-pill-ic">${ic}</span>${txt}${noteMark}`
@@ -212,6 +212,49 @@ if (!window._bmTileDelegated) {
     const head = e.target.closest('#bmListWrap .bm-thead');
     if (head && head.dataset.bmTile != null) { _bmToggleTile(head.dataset.bmTile); }
   });
+}
+
+// メモのホバーツールチップ。タイルは overflow:hidden のため body 直付けで切れないようにし、
+// ホバー即・装飾付きで表示する（ネイティブ title の遅延を回避）。
+function _bmNoteTipEl() {
+  let t = document.getElementById('bmNoteTip');
+  if (!t) {
+    t = document.createElement('div');
+    t.id = 'bmNoteTip';
+    t.className = 'bm-note-tip';
+    document.body.appendChild(t);
+  }
+  return t;
+}
+function _bmShowNoteTip(target) {
+  const note = target.dataset.note;
+  if (!note) return;
+  const t = _bmNoteTipEl();
+  t.textContent = note;
+  t.style.display = 'block';
+  const r  = target.getBoundingClientRect();
+  const tw = t.offsetWidth, th = t.offsetHeight;
+  let left = r.left + r.width / 2 - tw / 2;
+  left = Math.max(8, Math.min(left, window.innerWidth - tw - 8));
+  let top = r.top - th - 8;
+  if (top < 8) top = r.bottom + 8;   // 上に入らなければ下に出す
+  t.style.left = left + 'px';
+  t.style.top  = top  + 'px';
+}
+function _bmHideNoteTip() {
+  const t = document.getElementById('bmNoteTip');
+  if (t) t.style.display = 'none';
+}
+if (!window._bmNoteTipDelegated) {
+  window._bmNoteTipDelegated = true;
+  document.addEventListener('mouseover', e => {
+    const m = e.target.closest('#bmListWrap .bm-pill-note');
+    if (m) _bmShowNoteTip(m);
+  });
+  document.addEventListener('mouseout', e => {
+    if (e.target.closest('#bmListWrap .bm-pill-note')) _bmHideNoteTip();
+  });
+  document.addEventListener('scroll', _bmHideNoteTip, true);
 }
 
 // ---------- フィルター操作 ----------
@@ -398,13 +441,6 @@ async function bmDelete(id) {
   _bmRows = _bmRows.filter(r => r.id !== id);
   _bmApply();
   if (typeof window.lcRefreshBmChips === 'function') window.lcRefreshBmChips();
-}
-
-// メモ全文をトーストで表示（💬 マーカーのタップ用・モバイルでも確実に確認できる）
-function bmShowNote(id) {
-  const r = _bmRows.find(row => row.id === id);
-  if (!r || !r.note) return;
-  quoteShowToast('💬 ' + r.note, 'info', 7000);
 }
 
 function bmEdit(id) {
@@ -649,7 +685,6 @@ window.closeAddBmModal = closeAddBmModal;
 window.saveBm          = saveBm;
 window.bmDelete        = bmDelete;
 window.bmEdit          = bmEdit;
-window.bmShowNote      = bmShowNote;
 window.seedCarrierBookmarks = seedCarrierBookmarks;
 window.openBmHistory   = openBmHistory;
 window.closeBmHistory  = closeBmHistory;
