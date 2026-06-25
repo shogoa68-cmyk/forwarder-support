@@ -130,10 +130,11 @@
       const zc     = document.getElementById(`zc-${id}`)?.value === '1';
       const _hideManual = tr.dataset.hideQuote === '1';   // 手動の見積書非表示
       const _outRange   = tr.dataset.outRange === '1';     // 適用期間外（自動・客先非表示＋合計除外）
-      // 客先出力・小計・PDF/Excel/CSV の除外は _hideQuote 一本で判定する（両者を合算）
-      const _hideQuote  = _hideManual || _outRange;
+      const _ps         = tr.dataset.profitShare === '1';  // PROFIT SHARE（客先非表示・社内利益に計上）
+      // 客先出力・小計・PDF/Excel/CSV の除外は _hideQuote 一本で判定する（PROFIT SHARE も客先には出さない）
+      const _hideQuote  = _hideManual || _outRange || _ps;
       const _actual     = tr.dataset.actual === '1';   // 実費（金額未確定・合計除外・単価/金額は「実費」表示）
-      rows.push({ _type: 'data', taxed, cat, name, pq, un, pc, pp, cd, bq, bc, bp, mk, cost, bill, profit, note, sv, vf, vt, zc, _actual, _hideQuote, _hideManual, _outRange });
+      rows.push({ _type: 'data', taxed, cat, name, pq, un, pc, pp, cd, bq, bc, bp, mk, cost, bill, profit, note, sv, vf, vt, zc, _actual, _ps, _hideQuote, _hideManual, _outRange });
     });
     return rows;
   }
@@ -146,6 +147,7 @@
       if (tr.dataset.excluded === '1') return;  // 除外グループはスキップ
       if (tr.dataset.hideQuote === '1') return; // 見積書非表示の行はスキップ（合計・CSV から除外）
       if (tr.dataset.outRange === '1') return;  // 適用期間外のサーチャージはスキップ（客先合計・CSV から除外）
+      if (tr.dataset.profitShare === '1') return; // PROFIT SHARE は客先出力から除外
       if (tr.dataset.type === 'subtotal') return; // 小計行スキップ
       const id     = tr.id.replace('row-', '');
       const taxed  = document.getElementById(`tx-${id}`)?.checked || false;
@@ -581,7 +583,9 @@
       const prJpyHint = profitJpy !== null
         ? `<small class="pv-jpy-hint">(≈¥${fmtMoney(profitJpy)})</small>` : '';
       const _hqCls = d._hideQuote ? ' pv-row-hidden-quote' : '';
-      const _hqBadge = d._outRange
+      const _hqBadge = d._ps
+        ? '<span class="pv-hq-badge pv-ps-badge" title="PROFIT SHARE（代理店収益）。客先見積もりには出さず、社内利益にのみ計上します">🤝 PROFIT SHARE</span> '
+        : d._outRange
         ? '<span class="pv-hq-badge pv-oor-badge" title="サーチャージの適用期間が見積もり提示日（有効期限）の範囲外のため、客先見積もり・PDF・Excel・CSV・合計から自動的に除外されます">📅 適用期間外</span> '
         : (d._hideManual ? '<span class="pv-hq-badge" title="この行は見積書（PDF・Excel・CSV・客先プレビュー）に出力されません">🚫見積書非表示</span> ' : '');
       // 実費行：単価・金額は「実費」表示（金額未確定・別途精算）。CD/乗せ幅/円換算/税は空、利益は —

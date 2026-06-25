@@ -3430,6 +3430,15 @@
                 </td>
                 <td class="profit-cell profit-zero pr-cell" id="tot-profit">—</td>
               </tr>
+              <tr class="tot-row tot-ps-row" id="totPsRow" hidden>
+                <td></td><td></td><td></td><td></td><td></td><td></td>
+                <td style="text-align:right; color:#6b21a8; font-weight:bold;">社内利益<small style="font-weight:600;">（PS込み）</small></td>
+                <td></td>
+                <td class="tot-amt-cell" style="text-align:right; padding-right:8px; font-weight:bold; background:#f5edfb;">
+                  <span class="t-sell">代理店収益</span> <span id="tot-ps-rev">—</span>
+                </td>
+                <td class="profit-cell pr-cell" id="tot-ps-profit">—</td>
+              </tr>
             </tfoot>
           </table>
           </div>
@@ -3772,8 +3781,10 @@
         </div>
         <input type="hidden" data-field="zc" value="">
         <input type="hidden" data-field="ac" value="">
+        <input type="hidden" data-field="ps" value="">
         <button type="button" class="zero-confirm-btn" tabindex="-1" title="0円確認済みにする（もう一度クリックで解除）">¥0✓</button>
         <button type="button" class="actual-cost-btn" tabindex="-1" title="実費（金額未確定・別途精算）。単価・金額に「実費」と表示し、合計から除外します（もう一度クリックで解除）。">実費</button>
+        <button type="button" class="profit-share-btn" tabindex="-1" title="PROFIT SHARE（代理店収益）。客先見積もりには出さず、社内の利益・粗利率にのみ計上します（もう一度クリックで解除）。">PS</button>
         <span class="actual-cost-badge" aria-hidden="true">実費</span>
       </td>
       <td class="tax-cell"><input type="checkbox" data-field="tx" title="ON にすると消費税 10% が自動計算され、項目名先頭に「*」が付きます。免税（非課税）の行は OFF のままにしてください。"></td>
