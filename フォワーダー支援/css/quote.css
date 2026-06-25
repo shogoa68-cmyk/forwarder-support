@@ -3489,6 +3489,18 @@
 #tab-quote-make #previewTable tr.pv-subcon-header .pv-sch-cell { border-left: 5px solid var(--pv-ga); }
 #tab-quote-make #previewTable tr.pv-grp-row > td:first-child { border-left: 5px solid var(--pv-ga); }
 #tab-quote-make #previewTable tr.pv-subcon-subtotal > td:first-child { border-left: 5px solid var(--pv-ga); }
+#tab-quote-make #previewTable tr.pv-pattern-header td,
+#tab-quote-make #previewTable tr.pv-pattern-header .pv-ph-cell {
+  background: #faf5ec;
+  border-top: 1px solid #d8c5a4;
+  border-bottom: 1px dashed #d8c5a4;
+  color: #7a5c32;
+  font-size: 0.78em;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-left: 3px solid var(--pv-ga);
+}
+#tab-quote-make #previewTable tr.pv-pattern-subtotal > td:first-child { border-left: 3px solid var(--pv-ga); }
 #tab-quote-make #previewTable tr.pv-table-remark-row td {
   background: #eef3f8;
   border-top: 1px dashed #9ab0c8 !important;
