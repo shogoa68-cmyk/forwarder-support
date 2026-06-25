@@ -324,10 +324,18 @@ async function saveBm() {
   const { data: sd } = await db.auth.getSession();
   let error;
   if (id) {
-    // 編集（UPDATE）
-    ({ error } = await db.from('bookmarks').update({
+    // 編集（UPDATE）。.select() を付けて「実際に更新された行」を取得する。
+    // RLS の UPDATE ポリシーが無い等で 0 行更新の場合、Supabase は error=null を返すため、
+    // ここで行数を検査し「成功」と誤表示せず警告を出す。
+    const res = await db.from('bookmarks').update({
       label, url, carrier_type: type, carrier, function: fn, note,
-    }).eq('id', id));
+    }).eq('id', id).select();
+    error = res.error;
+    if (!error && (!res.data || res.data.length === 0)) {
+      if (btn) { btn.disabled = false; btn.textContent = '保存'; }
+      quoteShowToast('⚠️ 更新されませんでした（権限不足の可能性）。管理者に bookmarks の UPDATE ポリシーをご確認ください', 'warn', 8000);
+      return;
+    }
   } else {
     // 新規（INSERT）
     ({ error } = await db.from('bookmarks').insert({
