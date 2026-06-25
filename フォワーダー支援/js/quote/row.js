@@ -1563,6 +1563,8 @@
   function renderSubconGroups() {
     const tbody = document.getElementById('tableBody');
     if (!tbody) return;
+    // DOM 再構築でブラウザがスクロール位置をリセットするのを防ぐ
+    const _savedScrollY = window.scrollY;
     _inGroupRender = true;
     try {
       // 既存の仮想ヘッダーを削除
@@ -1791,6 +1793,8 @@
       _updateGroupSums();
     } finally {
       _inGroupRender = false;
+      // DOM 再構築後にスクロール位置を復元（パターン変更時のページトップへの強制移動を防ぐ）
+      if (window.scrollY !== _savedScrollY) window.scrollTo({ top: _savedScrollY, behavior: 'instant' });
     }
   }
 
