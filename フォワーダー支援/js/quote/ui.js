@@ -2771,8 +2771,8 @@
 
     const rows = document.querySelectorAll('#tableBody tr:not([data-type="subtotal"])');
     const activeRows = Array.from(rows).filter(tr => {
-      // 見積書非表示・適用期間外・実費の行はサマリ（合計・粗利）に含めない（表フッター合計と整合）
-      if (tr.dataset.hideQuote === '1' || tr.dataset.outRange === '1' || tr.dataset.actual === '1') return false;
+      // 見積書非表示・適用期間外・実費・PROFIT SHARE の行は客先サマリ（合計・粗利）に含めない
+      if (tr.dataset.hideQuote === '1' || tr.dataset.outRange === '1' || tr.dataset.actual === '1' || tr.dataset.profitShare === '1') return false;
       const id = tr.id.replace('row-', '');
       return document.getElementById(`nm-${id}`)?.value?.trim();
     });
@@ -2821,6 +2821,29 @@
     const fmtJPY = n => Math.round(n).toLocaleString('ja-JP');
     const profCls = profit >= 0 ? 'qsp-profit-pos' : 'qsp-profit-neg';
 
+    // PROFIT SHARE（代理店収益）：客先サマリ外で社内利益に計上
+    let psBillJPY = 0, psCostJPY = 0;
+    document.querySelectorAll('#tableBody tr[data-profit-share="1"]').forEach(tr => {
+      const id = tr.id.replace('row-', '');
+      const pc = document.getElementById(`pc-${id}`)?.value || 'JPY';
+      const bc = document.getElementById(`bc-${id}`)?.value || 'JPY';
+      const bq = parseFloat(document.getElementById(`bq-${id}`)?.value) || 0;
+      const bp = parseFloat(document.getElementById(`bp-${id}`)?.value) || 0;
+      const pq = parseFloat(document.getElementById(`pq-${id}`)?.value) || 0;
+      const pp = parseFloat(document.getElementById(`pp-${id}`)?.value) || 0;
+      psBillJPY += SharedCalc.jpyRound(toJPY(bq * bp, bc));
+      psCostJPY += SharedCalc.jpyRound(toJPY(pq * pp, pc));
+    });
+    const hasPs = psBillJPY || psCostJPY;
+    const internalProfit = profit + (psBillJPY - psCostJPY);
+    const internalMk = SharedCalc.grossMarginPct(totalBillJPY + psBillJPY, totalCostJPY + psCostJPY);
+    const psLines = hasPs
+      ? `<div class="qsp-section-label">🤝 社内利益（PROFIT SHARE 込み）</div>
+         <div class="qsp-total-row"><span>代理店収益</span><span>¥${fmtJPY(psBillJPY)}</span></div>
+         <div class="qsp-profit-row ${internalProfit >= 0 ? 'qsp-profit-pos' : 'qsp-profit-neg'}"><span>社内利益</span><span>¥${fmtJPY(internalProfit)}</span></div>
+         <div class="qsp-markup-row"><span>社内粗利率</span><span>${internalMk.toFixed(1)}%</span></div>`
+      : '';
+
     const curLines = Object.entries(billByCur)
       .filter(([, v]) => v)
       .sort(([a], [b]) => a.localeCompare(b))
@@ -2840,6 +2863,7 @@
       <div class="qsp-total-row"><span>売上合計</span><span>¥${fmtJPY(totalBillJPY)}</span></div>
       <div class="qsp-profit-row ${profCls}"><span>利益</span><span>¥${fmtJPY(profit)}</span></div>
       <div class="qsp-markup-row"><span>粗利率</span><span>${mkPct.toFixed(1)}%</span></div>
+      ${psLines}
       <div class="qsp-section-label">消費税</div>
       <div class="qsp-tax-row"><span>課税合計</span><span>¥${fmtJPY(taxableJPY)}</span></div>
       <div class="qsp-tax-row"><span>免税合計</span><span>¥${fmtJPY(exemptJPY)}</span></div>

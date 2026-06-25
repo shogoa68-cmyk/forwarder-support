@@ -508,7 +508,7 @@
     const newId = addRowAfter(srcId);
 
     // テキスト・数値・日付フィールドをコピー（zc = 0円確認済みフラグ／vf・vt = 有効期限を含む）
-    ['nm','pq','un','pp','mk','nt','sv','pt','zc','ac','vf','vt'].forEach(f => {
+    ['nm','pq','un','pp','mk','nt','sv','pt','zc','ac','ps','vf','vt'].forEach(f => {
       const srcEl = document.getElementById(`${f}-${srcId}`);
       const dstEl = document.getElementById(`${f}-${newId}`);
       if (srcEl && dstEl) dstEl.value = srcEl.value;
@@ -623,12 +623,14 @@
     const q    = f => frag.querySelector(`[data-field="${f}"]`);
 
     // IDs
-    ['cat','tx','nm','pq','un','pc','pp','cd','bq','bc','bp','mk','st','pr','nt','sv','pt','zc','ac','vf','vt']
+    ['cat','tx','nm','pq','un','pc','pp','cd','bq','bc','bp','mk','st','pr','nt','sv','pt','zc','ac','ps','vf','vt']
       .forEach(f => { const el = q(f); if (el) el.id = `${f}-${id}`; });
     const zcBtn = frag.querySelector('.zero-confirm-btn');
     if (zcBtn) zcBtn.onclick = () => toggleZeroConfirmed(id);;
     const acBtn = frag.querySelector('.actual-cost-btn');
     if (acBtn) acBtn.onclick = () => toggleActualCost(id);
+    const psBtn = frag.querySelector('.profit-share-btn');
+    if (psBtn) psBtn.onclick = () => toggleProfitShare(id);
     const remBtn = frag.querySelector('.btn-row-rem');
     const intBtn = frag.querySelector('.btn-row-int');
     if (remBtn) remBtn.onclick = () => rowInsertRemarkBelow(id);
@@ -719,6 +721,14 @@
     }
     const acBtn0 = trEl0?.querySelector('.actual-cost-btn');
     if (acBtn0) acBtn0.classList.toggle('is-on', isActualCost);
+    // PROFIT SHARE（代理店収益）：客先非表示・社内利益に計上。金額は通常表示
+    const isProfitShare = document.getElementById(`ps-${id}`)?.value === '1';
+    if (trEl0) {
+      trEl0.classList.toggle('row-profit-share', isProfitShare);
+      if (isProfitShare) trEl0.dataset.profitShare = '1'; else delete trEl0.dataset.profitShare;
+    }
+    const psBtn0 = trEl0?.querySelector('.profit-share-btn');
+    if (psBtn0) psBtn0.classList.toggle('is-on', isProfitShare);
     // 小計セル
     const st = document.getElementById(`st-${id}`);
     if (st) {
@@ -774,15 +784,20 @@
     return p > 0 ? 'profit-pos' : p < 0 ? 'profit-neg' : 'profit-zero';
   }
 
+  // ¥0✓ / 実費 / PS は排他。指定 id 以外のフラグをクリア
+  function _clearRowFlagsExcept(id, keep) {
+    ['zc', 'ac', 'ps'].forEach(f => {
+      if (f === keep) return;
+      const el = document.getElementById(`${f}-${id}`);
+      if (el) el.value = '';
+    });
+  }
   // ========== 0円確認済みトグル ==========
   function toggleZeroConfirmed(id) {
     const zcEl = document.getElementById(`zc-${id}`);
     if (!zcEl) return;
     zcEl.value = zcEl.value === '1' ? '' : '1';
-    if (zcEl.value === '1') {                       // ¥0✓ と実費は排他
-      const acEl = document.getElementById(`ac-${id}`);
-      if (acEl) acEl.value = '';
-    }
+    if (zcEl.value === '1') _clearRowFlagsExcept(id, 'zc');
     calc(id);
     if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
   }
@@ -792,14 +807,22 @@
     const acEl = document.getElementById(`ac-${id}`);
     if (!acEl) return;
     acEl.value = acEl.value === '1' ? '' : '1';
-    if (acEl.value === '1') {                        // 実費と ¥0✓ は排他
-      const zcEl = document.getElementById(`zc-${id}`);
-      if (zcEl) zcEl.value = '';
-    }
+    if (acEl.value === '1') _clearRowFlagsExcept(id, 'ac');
     calc(id);
     if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
   }
   window.toggleActualCost = toggleActualCost;
+
+  // ========== PROFIT SHARE トグル（客先非表示・社内利益に計上） ==========
+  function toggleProfitShare(id) {
+    const psEl = document.getElementById(`ps-${id}`);
+    if (!psEl) return;
+    psEl.value = psEl.value === '1' ? '' : '1';
+    if (psEl.value === '1') _clearRowFlagsExcept(id, 'ps');
+    calc(id);
+    if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
+  }
+  window.toggleProfitShare = toggleProfitShare;
 
   function val(id) {
     let v = document.getElementById(id)?.value;
@@ -825,6 +848,7 @@
     }
     let totCost = 0, totBill = 0, totMk = 0, totSub = 0;
     let totCostJPY = 0, totBillJPY = 0, totSubJPY = 0;
+    let psBillJPY = 0, psCostJPY = 0;   // PROFIT SHARE（代理店収益）社内計上分（JPY）
     let hasFx = false;
     // 通貨別集計: { bc: { sub, taxedSub, exemptSub } }
     const ccyData = {};
@@ -834,6 +858,14 @@
       if (tr.dataset.hideQuote === '1') return;   // 見積書非表示の行は合計から除外
       if (tr.dataset.outRange === '1') return;    // 適用期間外のサーチャージは合計から除外
       if (tr.dataset.actual === '1') return;      // 実費（金額未確定）の行は合計から除外
+      if (tr.dataset.profitShare === '1') {       // PROFIT SHARE：客先合計から除外し社内利益へ計上
+        const pid = tr.id.replace('row-', '');
+        const ppc = document.getElementById(`pc-${pid}`)?.value || 'JPY';
+        const pbc = document.getElementById(`bc-${pid}`)?.value || 'JPY';
+        psBillJPY += SharedCalc.jpyRound(toJPY(val(`bq-${pid}`) * val(`bp-${pid}`), pbc));
+        psCostJPY += SharedCalc.jpyRound(toJPY(val(`pq-${pid}`) * val(`pp-${pid}`), ppc));
+        return;
+      }
       const id  = tr.id.replace('row-', '');
       const pc  = document.getElementById(`pc-${id}`)?.value || 'JPY';
       const bc  = document.getElementById(`bc-${id}`)?.value || 'JPY';
@@ -879,6 +911,26 @@
       const mkPct = (window.SharedCalc ? SharedCalc.grossMarginPct(totBill, totCost) : 0);
       pEl.innerHTML = fmt(Math.round(totPr)) + `<small class="tot-margin">粗利 ${mkPct.toFixed(1)}%</small>`;
       pEl.className = `profit-cell ${pClass(totPr)}`;
+    }
+    // 社内利益（PROFIT SHARE 込み）行：PS 行があるときだけ表示
+    const psRow = document.getElementById('totPsRow');
+    if (psRow) {
+      if (psBillJPY || psCostJPY) {
+        psRow.hidden = false;
+        const psProfit = psBillJPY - psCostJPY;
+        const internalProfit = totPrJPY + psProfit;     // 客先利益(JPY) ＋ 代理店収益の利益
+        const internalBill   = totBillJPY + psBillJPY;
+        const mk = (window.SharedCalc ? SharedCalc.grossMarginPct(internalBill, totCostJPY + psCostJPY) : 0);
+        const revEl = document.getElementById('tot-ps-rev');
+        const prEl  = document.getElementById('tot-ps-profit');
+        if (revEl) revEl.textContent = '¥' + fmt(Math.round(psBillJPY));
+        if (prEl) {
+          prEl.innerHTML = '¥' + fmt(Math.round(internalProfit)) + `<small class="tot-margin">粗利 ${mk.toFixed(1)}%</small>`;
+          prEl.className = `profit-cell pr-cell ${pClass(internalProfit)}`;
+        }
+      } else {
+        psRow.hidden = true;
+      }
     }
     updateSubtotalRows();
     _updateGroupSums();
@@ -1184,7 +1236,7 @@
         groupBillCurrencies = new Set(); groupCostCurrencies = new Set();
       } else {
         // 見積書非表示・適用期間外の行は小計セパレータの集計に含めない
-        if (tr.dataset.hideQuote === '1' || tr.dataset.outRange === '1' || tr.dataset.actual === '1') return;
+        if (tr.dataset.hideQuote === '1' || tr.dataset.outRange === '1' || tr.dataset.actual === '1' || tr.dataset.profitShare === '1') return;
         const id = tr.id.replace('row-', '');
         const bq = val(`bq-${id}`);
         const bp = val(`bp-${id}`);
@@ -1870,6 +1922,7 @@
       if (tr.dataset.hideQuote === '1') return;
       if (tr.dataset.outRange === '1') return;
       if (tr.dataset.actual === '1') return;
+      if (tr.dataset.profitShare === '1') return;   // PROFIT SHARE は客先小計から除外
       const id = tr.id?.replace('row-', '');
       if (!id || !scSumEl) return;
       const bq = val(`bq-${id}`) || val(`pq-${id}`) || 0;
@@ -1943,7 +1996,7 @@
 
   function _gatherRowData(id) {
     const data = {};
-    ['nm','pq','un','pp','mk','nt','sv','pt','zc','ac','vf','vt','cat','pc','bc'].forEach(f => {
+    ['nm','pq','un','pp','mk','nt','sv','pt','zc','ac','ps','vf','vt','cat','pc','bc'].forEach(f => {
       const el = document.getElementById(`${f}-${id}`);
       if (el) data[f] = el.value;
     });
@@ -1963,7 +2016,7 @@
     } else {
       tbody.appendChild(newTr);
     }
-    ['nm','pq','un','pp','mk','nt','pt','zc','ac','vf','vt'].forEach(f => {
+    ['nm','pq','un','pp','mk','nt','pt','zc','ac','ps','vf','vt'].forEach(f => {
       const el = document.getElementById(`${f}-${newId}`);
       if (el && data[f] !== undefined) el.value = data[f];
     });

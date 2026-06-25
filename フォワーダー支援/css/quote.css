@@ -1313,6 +1313,21 @@
 #tab-quote-make tr.row-actual-cost .zero-confirm-btn { display: none; }
 /* 実費の行：左に indigo アクセント（0円＝緑と区別） */
 #tab-quote-make tr.row-actual-cost > td.handle-cell { box-shadow: inset 3px 0 0 #6b75c4; }
+/* PROFIT SHARE（代理店収益）トグル＋行 */
+#tab-quote-make .profit-share-btn {
+  display: block; margin-top: 3px; padding: 1px 6px;
+  font-size: 10px; line-height: 1.5; border: 1px solid #c4b49a; border-radius: 3px;
+  background: transparent; color: #c4b49a; cursor: pointer; font-family: inherit;
+  transition: all 0.15s; white-space: nowrap;
+}
+#tab-quote-make .profit-share-btn:hover { border-color: #8e44ad; color: #8e44ad; opacity: 1; }
+#tab-quote-make .profit-share-btn.is-on { background: #f5edfb; border-color: #8e44ad; color: #6b21a8; font-weight: 600; }
+/* PROFIT SHARE の行：紫アクセント＋淡い背景で「客先非表示・社内利益」を強調 */
+#tab-quote-make tr.row-profit-share > td { background: #faf5fe; }
+#tab-quote-make tr.row-profit-share > td.handle-cell { box-shadow: inset 3px 0 0 #8e44ad; }
+#tab-quote-make tr.row-profit-share .w-name { color: #6b21a8; }
+/* 合計フッターの社内利益（PS込み）行 */
+#tab-quote-make .tot-ps-row td { border-top: 1px dashed #d6bdf0; }
 /* プレビュー：実費テキスト */
 #tab-quote-make .pv-actual-txt { color: #3a45a0; font-weight: 700; }
 
@@ -8170,6 +8185,10 @@ button.um-memberno--empty:hover { background: #f4ead4; border-color: #cdb98e; }
 /* プレビュー：適用期間外バッジ（青系で「自動・期間判定」を区別） */
 #tab-quote-make #previewTable .pv-oor-badge {
   color: #2c5d8f; background: #e7f0fb; border-color: #a9c7e8;
+}
+/* プレビュー：PROFIT SHARE バッジ（紫系） */
+#tab-quote-make #previewTable .pv-ps-badge {
+  color: #6b21a8; background: #f3e8ff; border-color: #d6bdf0;
 }
 
 /* 作業テーブル：適用期間外の行（自動・客先非表示＋合計除外）。手動非表示とは別の青系で区別 */
