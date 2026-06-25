@@ -1610,10 +1610,20 @@ body:has(#compareOverlay.open) #quoteActionDock { display: none; }
 .bm-pill:hover { background: #eef4f8; border-color: #b8c4cb; transform: translateY(-1px); }
 .bm-pill-ic { font-size: 11px; opacity: .62; flex-shrink: 0; }
 .bm-pill-note {
-  font-size: 11px; flex-shrink: 0; cursor: pointer;
+  font-size: 11px; flex-shrink: 0; cursor: help;
   opacity: .8; line-height: 1; margin-left: 1px;
 }
 .bm-pill-note:hover { opacity: 1; transform: scale(1.15); }
+/* メモのホバーツールチップ（body 直付け・切れない・即時表示） */
+.bm-note-tip {
+  position: fixed; z-index: 99999; display: none;
+  max-width: 280px; padding: 8px 11px;
+  background: #2d2418; color: #fdf8f0;
+  font-size: 12px; line-height: 1.55; font-weight: 500;
+  border-radius: 8px; box-shadow: 0 6px 20px rgba(0,0,0,.28);
+  white-space: pre-wrap; word-break: break-word;
+  pointer-events: none;
+}
 .bm-pill-nourl { color: #3d2e1e; cursor: default; }
 .bm-pill-nourl:hover { transform: none; }
 .bm-pill-edit, .bm-pill-del {
