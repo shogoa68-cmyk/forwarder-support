@@ -1207,10 +1207,25 @@ button:focus-visible {
 /* ===== 印刷時：ナビ・FAB・フィードバック要素を非表示 =====
    見積プレビュー印刷は quote.css の @media print で別途制御。
    ここはポータル全体（知識タブ・インコタームズ等）の印刷を改善する。 */
+/* 見積もりタブへ戻るフローティングボタン（見積以外のタブ表示中だけ表示） */
+#backToQuoteFab {
+  position: fixed;
+  bottom: max(24px, calc(24px + env(safe-area-inset-bottom)));
+  left: max(20px, calc(20px + env(safe-area-inset-left)));
+  z-index: 1001;
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 11px 18px; border: none; border-radius: 999px; cursor: pointer;
+  background: #9a4a25; color: #fff; font-size: 14px; font-weight: 700;
+  font-family: inherit; box-shadow: 0 4px 16px rgba(0,0,0,.25);
+  transition: background .15s, transform .1s;
+}
+#backToQuoteFab:hover { background: #7d3a1c; transform: translateY(-1px); }
+#backToQuoteFab[hidden] { display: none; }
+
 @media print {
   .header, .cat-nav, .sub-nav, .footer,
   .fb-fab, #fbOverlay, #toast-container, #quoteActionDock,
-  #calcWidget { display: none !important; }
+  #backToQuoteFab, #calcWidget { display: none !important; }
 }
 
 /* ===== 見積アクションドック（右下フローティング・見積タブのみ） ===== */

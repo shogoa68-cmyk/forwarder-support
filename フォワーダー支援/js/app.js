@@ -22,3 +22,24 @@ function switchTab(tabId, btn){document.querySelectorAll('.tab-content').forEach
 document.addEventListener('DOMContentLoaded',()=>{if(document.getElementById('tab-quote-make')?.classList.contains('active')&&typeof window.initQuoteTab==='function')window.initQuoteTab();});
 // 数値入力欄での矢印キーによる増減を無効化（誤操作防止）
 document.addEventListener('keydown',function(e){if((e.key==='ArrowUp'||e.key==='ArrowDown')&&e.target&&e.target.matches&&e.target.matches('#tab-quote-make input[type="number"]')){e.preventDefault();}},true);
+
+// ===== 見積もりタブへ戻るフローティングボタン =====
+// 見積タブ(#tab-quote-make)以外を表示中だけ表示。switchTab を funnel として visibility を更新。
+(function () {
+  function updateBackToQuoteFab() {
+    var fab = document.getElementById('backToQuoteFab');
+    if (!fab) return;
+    var onQuote = document.getElementById('tab-quote-make')?.classList.contains('active');
+    fab.hidden = !!onQuote;
+  }
+  window.updateBackToQuoteFab = updateBackToQuoteFab;
+  var _origSwitchTab = window.switchTab;
+  if (typeof _origSwitchTab === 'function') {
+    window.switchTab = function () {
+      var r = _origSwitchTab.apply(this, arguments);
+      try { updateBackToQuoteFab(); } catch (e) {}
+      return r;
+    };
+  }
+  document.addEventListener('DOMContentLoaded', updateBackToQuoteFab);
+})();
