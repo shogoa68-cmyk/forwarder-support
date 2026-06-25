@@ -272,8 +272,8 @@ function openAddBmModal(presetData) {
   if (urlEl)     urlEl.value     = p.url     || '';
   if (noteEl)    noteEl.value    = p.note    || '';
   if (typeEl)    typeEl.value    = p.type    || (p.label ? _inferBmType() : 'FCL');
-  // 編集モードは既存の function 値をそのまま使用、追加モードはチップラベルから推測
-  if (fnEl)      fnEl.value      = isEdit ? (p.fn || '') : (p.fn ? (_inferBmFunction(p.fn) || '') : '');
+  // 機能は任意。編集は既存値、追加はチップラベルから推測。いずれも未取得なら「未分類」を初期選択。
+  if (fnEl)      fnEl.value      = isEdit ? (p.fn || '未分類') : (p.fn ? (_inferBmFunction(p.fn) || '未分類') : '未分類');
   // QSP 経由の新規追加時のみ会社名フィールドをロック。編集時は常に編集可能
   const lockCarrier = !isEdit && !!p.carrier;
   if (carrierEl) {
@@ -316,7 +316,8 @@ async function saveBm() {
   const note    = document.getElementById('bmFormNote')?.value.trim()   || null;
 
   if (!label) { quoteShowToast('⚠️ ラベルを入力してください', 'warn'); return; }
-  if (!fn)    { quoteShowToast('⚠️ 機能カテゴリを選択してください', 'warn'); return; }
+  // 機能カテゴリは任意。未選択は「未分類」で登録し、後から整理できるようにする。
+  const fnVal = fn || '未分類';
 
   const btn = document.getElementById('bmSaveBtn');
   if (btn) { btn.disabled = true; btn.textContent = '保存中…'; }
@@ -328,7 +329,7 @@ async function saveBm() {
     // RLS の UPDATE ポリシーが無い等で 0 行更新の場合、Supabase は error=null を返すため、
     // ここで行数を検査し「成功」と誤表示せず警告を出す。
     const res = await db.from('bookmarks').update({
-      label, url, carrier_type: type, carrier, function: fn, note,
+      label, url, carrier_type: type, carrier, function: fnVal, note,
     }).eq('id', id).select();
     error = res.error;
     if (!error && (!res.data || res.data.length === 0)) {
@@ -339,7 +340,7 @@ async function saveBm() {
   } else {
     // 新規（INSERT）
     ({ error } = await db.from('bookmarks').insert({
-      label, url, carrier_type: type, carrier, function: fn, note,
+      label, url, carrier_type: type, carrier, function: fnVal, note,
       created_by: sd?.session?.user?.email || null,
     }));
   }
