@@ -173,14 +173,14 @@ function _bmRenderList(rows) {
     const pills = list.map(r => {
       const ic   = _bmFnIcon(r.function);
       const txt  = escHtml(r.label || r.function || 'リンク');
-      // メモはホバーの title に併記し、メモ有りピルには 📝 マーカーを常時表示（タップで全文）
-      const tip  = escHtml((r.label || '') + (r.note ? '\n📝 ' + r.note : ''));
+      // メモはホバーの title に併記し、メモ有りピルには 💬 マーカーを常時表示（ホバーで本文／タップで全文）
+      const tip  = escHtml((r.label || '') + (r.note ? '\n💬 ' + r.note : ''));
       const open = r.url
         ? `<a class="bm-pill" href="${escHtml(r.url)}" target="_blank" rel="noopener" title="${tip}">`
         : `<span class="bm-pill bm-pill-nourl" title="${tip}">`;
       const close = r.url ? '</a>' : '</span>';
       const noteMark = r.note
-        ? `<span class="bm-pill-note" onclick="event.preventDefault();event.stopPropagation();bmShowNote('${escHtml(r.id)}')" title="メモを表示">📝</span>`
+        ? `<span class="bm-pill-note" onclick="event.preventDefault();event.stopPropagation();bmShowNote('${escHtml(r.id)}')" title="${escHtml(r.note)}">💬</span>`
         : '';
       return open
         + `<span class="bm-pill-ic">${ic}</span>${txt}${noteMark}`
@@ -400,11 +400,11 @@ async function bmDelete(id) {
   if (typeof window.lcRefreshBmChips === 'function') window.lcRefreshBmChips();
 }
 
-// メモ全文をトーストで表示（📝 マーカーのタップ用・モバイルでも確実に確認できる）
+// メモ全文をトーストで表示（💬 マーカーのタップ用・モバイルでも確実に確認できる）
 function bmShowNote(id) {
   const r = _bmRows.find(row => row.id === id);
   if (!r || !r.note) return;
-  quoteShowToast('📝 ' + r.note, 'info', 7000);
+  quoteShowToast('💬 ' + r.note, 'info', 7000);
 }
 
 function bmEdit(id) {
