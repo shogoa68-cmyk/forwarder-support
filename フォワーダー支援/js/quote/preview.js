@@ -123,6 +123,7 @@
       const profit = bill - cost;
       const note   = document.getElementById(`nt-${id}`)?.value || '';
       const sv     = document.getElementById(`sv-${id}`)?.value || '';
+      const pt     = document.getElementById(`pt-${id}`)?.value || '';
       // 有効期限（vf/vt）はサーチャージ専用。他カテゴリは値が残っていても無視する
       const _isSur = cat === 'surcharge';
       const vf     = _isSur ? (document.getElementById(`vf-${id}`)?.value || '') : '';
@@ -135,7 +136,7 @@
       const _hideQuote  = _hideManual || _outRange || _ps;
       const _actual     = tr.dataset.actual === '1';   // 実費（金額未確定・合計除外・単価/金額は「実費」表示）
       const _cond       = tr.dataset.cond === '1';     // 都度請求（発生時のみ・金額は表示・合計に加算しない）
-      rows.push({ _type: 'data', taxed, cat, name, pq, un, pc, pp, cd, bq, bc, bp, mk, cost, bill, profit, note, sv, vf, vt, zc, _actual, _ps, _cond, _hideQuote, _hideManual, _outRange });
+      rows.push({ _type: 'data', taxed, cat, name, pq, un, pc, pp, cd, bq, bc, bp, mk, cost, bill, profit, note, sv, pt, vf, vt, zc, _actual, _ps, _cond, _hideQuote, _hideManual, _outRange });
     });
     return rows;
   }
@@ -208,6 +209,8 @@
   // 「このまま出力」でバリデーションをスキップするフラグ
   let _pvBypassed   = false;
   let _pvWarnItems  = [];   // { msg, focusEl }
+  const _pvCollapsedPat = new Set(); // プレビュー内で折りたたみ中のパターンキー
+  const _pvExcludedPat  = new Set(); // プレビュー出力から除外中のパターンキー
   let _pvWarnIdx    = 0;
   let _pvWarnSkipFn = null;
 
@@ -429,9 +432,20 @@
     if (!_pvBypassed && !preOutputValidationGate('プレビュー表示', openPreview)) return;
     _pvBypassed = false;
     const hdr = getQuoteHeader();
+
+    // 除外パターンに属する行を事前フラグ（小計・合計から除外するため）
+    const _ptExcludedRows = new Set();
+    if (_pvExcludedPat.size > 0) {
+      const _scNorm0 = d => (subconNormKey(d.sv) || '（サブコン未設定）');
+      data.forEach(d => {
+        const ptKey = _scNorm0(d) + '\x00' + (d.pt || '').trim();
+        if (_pvExcludedPat.has(ptKey)) _ptExcludedRows.add(d);
+      });
+    }
+
     let totCost = 0, totBill = 0, totMk = 0;
-    // 見積書非表示・適用期間外（いずれも _hideQuote）の行は合計に含めない
-    data.forEach(d => { if (d._hideQuote || d._actual || d._cond) return; totCost += d.cost; totBill += d.bill; totMk += d.mk; });
+    // 見積書非表示・適用期間外（いずれも _hideQuote）および除外パターンの行は合計に含めない
+    data.forEach(d => { if (d._hideQuote || d._actual || d._cond || _ptExcludedRows.has(d)) return; totCost += d.cost; totBill += d.bill; totMk += d.mk; });
     const totPr = totBill - totCost;
     const ccyGroups = {}; // billing 通貨別集計: { JPY: {sub,tax,mk}, USD: {...} }
     let totCostJpy = 0;
@@ -481,7 +495,7 @@
       });
 
       let ck = null, clabel = null, cc = 0, cb = 0, cm = false, has = false, gi = -1;
-      let pk = null, plabel = null, pc = 0, pb = 0, pm = false, phas = false, _ptActive = false;
+      let pk = null, plabel = null, pc = 0, pb = 0, pm = false, phas = false, _ptActive = false, _ptCurExcluded = false;
 
       const pushPat = () => {
         if (phas) _seq.push({ _type: 'pattern-subtotal', label: plabel, cost: pc, bill: pb, mixed: pm, gi });
@@ -499,7 +513,7 @@
           if (has && k !== ck) {
             pushSub();
             cc = 0; cb = 0; cm = false; has = false;
-            pk = null; plabel = null; phas = false;
+            pk = null; plabel = null; phas = false; _ptCurExcluded = false;
           }
           if (!has) {
             ck = k; clabel = _scLabel(d); gi++;
@@ -511,11 +525,13 @@
           if (_ptActive && p !== pk) {
             if (phas) pushPat();
             pk = p; plabel = p || '（パターン未設定）';
-            _seq.push({ _type: 'pattern-header', label: plabel, gi });
-            phas = true;
+            const ptKey = ck + '\x00' + pk;
+            _ptCurExcluded = _pvExcludedPat.has(ptKey);
+            _seq.push({ _type: 'pattern-header', label: plabel, gi, normKey: ck, ptKey, excluded: _ptCurExcluded });
+            if (!_ptCurExcluded) phas = true;
           }
           d._gi = gi;
-          if (!d._hideQuote && !d._actual && !d._cond) {
+          if (!_ptCurExcluded && !d._hideQuote && !d._actual && !d._cond) {
             const jc = toJ(d.cost, d.pc || 'JPY');
             const jb = toJ(d.bill, d.bc || 'JPY');
             cc += jc; cb += jb;
@@ -523,6 +539,7 @@
             if ((d.pc && d.pc !== 'JPY') || (d.bc && d.bc !== 'JPY')) { cm = true; if (_ptActive) pm = true; }
           }
           has = true;
+          if (_ptCurExcluded) return; // 除外パターンの行は _seq に追加しない
         }
         _seq.push(d);
       });
@@ -574,8 +591,14 @@
         return;
       }
       if (d._type === 'pattern-header') {
-        html += `<tr class="pv-pattern-header pv-grp-c${d.gi % 4}">
-          <td colspan="17" class="pv-ph-cell">📋 ${escHtml(d.label)}</td>
+        const _ptCollapsed = _pvCollapsedPat.has(d.ptKey);
+        const _ptExclCls   = d.excluded ? ' pv-pat-excluded' : '';
+        html += `<tr class="pv-pattern-header pv-grp-c${d.gi % 4}${_ptExclCls}" data-pt-key="${escHtml(d.ptKey || '')}" data-pt-collapsed="${_ptCollapsed ? '1' : '0'}">
+          <td colspan="17" class="pv-ph-cell">
+            <button class="pv-pat-btn pv-pat-toggle" title="${_ptCollapsed ? '展開' : '折りたたむ'}">${_ptCollapsed ? '▶' : '▼'}</button>
+            📋 ${escHtml(d.label)}${d.excluded ? ' <span class="pv-pat-excl-badge">除外中</span>' : ''}
+            <button class="pv-pat-btn pv-pat-excl${d.excluded ? ' is-excluded' : ''}" title="${d.excluded ? 'このパターンの除外を解除' : 'このパターンを出力から除外'}">🚫</button>
+          </td>
         </tr>`;
         return;
       }
@@ -741,6 +764,47 @@
     html += tfootHtml + '</tfoot></table>';
 
     document.getElementById('previewTableWrap').innerHTML = html;
+
+    // ===== パターングループのトグル・除外ハンドラを設定 =====
+    document.querySelectorAll('#previewTable .pv-pattern-header').forEach(tr => {
+      const ptKey = tr.dataset.ptKey;
+      const toggleBtn = tr.querySelector('.pv-pat-toggle');
+      const exclBtn   = tr.querySelector('.pv-pat-excl');
+
+      const getPatRows = () => {
+        const rows = [];
+        let el = tr.nextElementSibling;
+        while (el && !el.classList.contains('pv-pattern-header')
+                   && !el.classList.contains('pv-subcon-subtotal')
+                   && !el.classList.contains('pv-subcon-header')) {
+          rows.push(el);
+          el = el.nextElementSibling;
+        }
+        return rows;
+      };
+
+      // 初期折りたたみ状態を適用
+      if (tr.dataset.ptCollapsed === '1') getPatRows().forEach(r => { r.style.display = 'none'; });
+
+      toggleBtn?.addEventListener('click', () => {
+        if (_pvCollapsedPat.has(ptKey)) {
+          _pvCollapsedPat.delete(ptKey);
+          toggleBtn.textContent = '▼'; toggleBtn.title = '折りたたむ';
+          getPatRows().forEach(r => { r.style.display = ''; });
+        } else {
+          _pvCollapsedPat.add(ptKey);
+          toggleBtn.textContent = '▶'; toggleBtn.title = '展開';
+          getPatRows().forEach(r => { r.style.display = 'none'; });
+        }
+      });
+
+      exclBtn?.addEventListener('click', () => {
+        if (_pvExcludedPat.has(ptKey)) _pvExcludedPat.delete(ptKey);
+        else _pvExcludedPat.add(ptKey);
+        _pvBypassed = true;
+        openPreview();
+      });
+    });
 
     const cond = getConditions();
     // 航路：1件以上の登録があれば航路ごとに via・キャリア・サービス名を含めて表示、なければ従来通り POL/POD を分けて表示
