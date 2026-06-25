@@ -223,6 +223,15 @@
   background: #f0f0f0; color: #888; font-weight: 600; font-size: 10.5px;
   padding: 3px 8px 3px 22px; border-color: #e0e0e0;
 }
+/* パターン別 グループ見出し（第2.5階層） */
+.qd-items .qd-pattern-head td {
+  background: #faf5ec; font-weight: 700; color: #7a5c32; text-align: left;
+  border-top: 1px solid #d8c5a4; border-left: 3px solid #c8a85a;
+  padding: 2px 8px 2px 22px; font-size: 10.5px;
+}
+/* パターン別 売値小計 */
+.qd-items .qd-pattern-sub td { background: #f5ede0; font-weight: 700; border-top: 1px dashed #c8a85a; }
+.qd-items .qd-pattern-sub td:first-child { text-align: left; color: #7a5c32; border-left: 3px solid #c8a85a; }
 /* 第3階層：明細項目名（カテゴリー配下へインデント） */
 .qd-items td.qd-l3 { padding-left: 30px; }
 /* 印刷時の改ページ制御：行の途中で切れないように＋見出し行を各ページ先頭に繰り返す */

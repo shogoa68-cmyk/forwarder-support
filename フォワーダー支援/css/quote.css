@@ -810,6 +810,7 @@
 #tab-quote-make tr.subcon-subchild .catsv-cell::before { left: 19px; }
 /* 港ペア（子グループ）サブヘッダー */
 #tab-quote-make .subcon-subgroup-header { pointer-events: none; }
+#tab-quote-make .subcon-subgroup-header.is-pattern { pointer-events: auto; }
 #tab-quote-make .subcon-subgroup-cell {
   background: #f3f6f1;
   border-top: 1px dashed #cdd9c4;
@@ -825,8 +826,26 @@
 /* パターンの内側グループ見出し（港ペア＝緑系と区別して青系） */
 #tab-quote-make .subcon-subgroup-header.is-pattern .subcon-subgroup-cell {
   background: #eef3fb; border-top: 1px dashed #c2d3ec; border-bottom: 1px solid #dde7f5;
+  display: flex; align-items: center; gap: 4px;
 }
-#tab-quote-make .subcon-subgroup-header.is-pattern .subcon-subgroup-leg { color: #2a4a72; }
+#tab-quote-make .subcon-subgroup-header.is-pattern .subcon-subgroup-leg { color: #2a4a72; flex: 1; }
+/* パターンサブヘッダーのトグル・除外ボタン */
+#tab-quote-make .subcon-subgroup-toggle,
+#tab-quote-make .subcon-subgroup-excl {
+  display: inline-flex; align-items: center; justify-content: center;
+  padding: 0 5px; height: 16px; font-size: 0.72em; line-height: 1;
+  background: rgba(255,255,255,0.7); border: 1px solid #b0c4df;
+  border-radius: 3px; cursor: pointer; color: #2a4a72; flex-shrink: 0;
+}
+#tab-quote-make .subcon-subgroup-toggle:hover,
+#tab-quote-make .subcon-subgroup-excl:hover { background: #d8e6f5; }
+#tab-quote-make .subcon-subgroup-excl.is-excluded { background: #f4d0d0; border-color: #c87070; color: #a03030; }
+#tab-quote-make .subcon-subgroup-header.is-pattern.is-excluded .subcon-subgroup-cell {
+  background: #f9f0f0; border-color: #e0b0b0;
+}
+#tab-quote-make .subcon-subgroup-header.is-pattern.is-excluded .subcon-subgroup-leg {
+  color: #a03030; text-decoration: line-through; opacity: 0.7;
+}
 #tab-quote-make .w-qty   { width: 58px; }
 #tab-quote-make .w-cur   { width: 62px; }
 #tab-quote-make .w-unit  { width: 70px; text-align: center; }
@@ -3501,27 +3520,6 @@
   border-left: 3px solid var(--pv-ga);
 }
 #tab-quote-make #previewTable tr.pv-pattern-subtotal > td:first-child { border-left: 3px solid var(--pv-ga); }
-#tab-quote-make #previewTable tr.pv-pat-excluded td,
-#tab-quote-make #previewTable tr.pv-pat-excluded .pv-ph-cell {
-  opacity: 0.55;
-  text-decoration: line-through;
-}
-#tab-quote-make #previewTable .pv-pat-btn {
-  display: inline-flex; align-items: center; justify-content: center;
-  padding: 0 4px; height: 16px; min-width: 18px;
-  font-size: 0.72em; line-height: 1;
-  background: rgba(255,255,255,0.6); border: 1px solid #c8b08a;
-  border-radius: 3px; cursor: pointer; vertical-align: middle;
-  color: #7a5c32;
-}
-#tab-quote-make #previewTable .pv-pat-btn:hover { background: #f0e4cc; }
-#tab-quote-make #previewTable .pv-pat-excl { float: right; margin-left: 4px; }
-#tab-quote-make #previewTable .pv-pat-excl.is-excluded { background: #f4d0d0; border-color: #c87070; color: #a03030; }
-#tab-quote-make #previewTable .pv-pat-excl-badge {
-  display: inline-block; margin-left: 6px;
-  padding: 0 5px; font-size: 0.7em; font-weight: 700;
-  background: #f4d0d0; color: #a03030; border-radius: 3px; vertical-align: middle;
-}
 #tab-quote-make #previewTable tr.pv-table-remark-row td {
   background: #eef3f8;
   border-top: 1px dashed #9ab0c8 !important;
