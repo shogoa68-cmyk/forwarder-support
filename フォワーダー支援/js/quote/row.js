@@ -288,6 +288,42 @@
   }
   window.toggleRowDone = toggleRowDone;
 
+  // 行アイコンからの 追加(➕)／複製(📋)／削除(🗑️)
+  function rowAddBelow(btn) {
+    const tr = btn?.closest('tr');
+    if (!tr) return;
+    const id = tr.id.replace('row-', '');
+    const newId = addRowAfter(id);
+    updateTotals();
+    const savedScrollY = window.scrollY;
+    renderSubconGroups();
+    window.scrollTo({ top: savedScrollY, behavior: 'instant' });
+    if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
+    setTimeout(() => document.getElementById(`nm-${newId}`)?.focus(), 0);
+  }
+  window.rowAddBelow = rowAddBelow;
+
+  function rowDuplicate(btn) {
+    const tr = btn?.closest('tr');
+    if (!tr) return;
+    duplicateRow(tr.id.replace('row-', ''));  // 内部で renderSubconGroups + 自動保存
+    updateTotals();
+  }
+  window.rowDuplicate = rowDuplicate;
+
+  function rowDelete(btn) {
+    const tr = btn?.closest('tr');
+    if (!tr) return;
+    const id = tr.id.replace('row-', '');
+    if (!window.confirm('この行を削除します。よろしいですか？')) return;
+    delRow(id);
+    const savedScrollY = window.scrollY;
+    renderSubconGroups();
+    window.scrollTo({ top: savedScrollY, behavior: 'instant' });
+    if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
+  }
+  window.rowDelete = rowDelete;
+
   // 入力完了の進捗バッジ（完了件数 / データ行総数）を更新。0 行なら非表示。
   function updateDoneCounter() {
     const dataRows = document.querySelectorAll('#tableBody tr[id^="row-"]:not([data-type]):not([data-virtual])');
