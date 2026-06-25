@@ -1593,6 +1593,30 @@ body:has(#compareOverlay.open) #quoteActionDock { display: none; }
 }
 .bm-ttype:hover { background: rgba(255,255,255,.28); }
 .bm-ttype option { color: #222; }
+/* 重複の統合・削除モーダル */
+.bm-dup-group {
+  border: 1px solid #e2d8c8; border-radius: 10px;
+  padding: 10px 12px; margin-bottom: 12px; background: #fdfbf7;
+}
+.bm-dup-head { font-size: 12px; color: #5d4e3a; margin-bottom: 6px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.bm-dup-carrier { font-weight: 700; color: #1c4a66; }
+.bm-dup-head a { color: #2b7bb0; word-break: break-all; }
+.bm-dup-count { margin-left: auto; font-size: 10px; font-weight: 700; color: #b04a4a; background: #f7e6e6; border-radius: 10px; padding: 2px 8px; }
+.bm-dup-hint { font-size: 11px; color: #9a8a72; margin-bottom: 4px; }
+.bm-dup-item {
+  display: flex; align-items: center; gap: 8px;
+  padding: 5px 6px; border-radius: 6px; cursor: pointer; font-size: 13px;
+}
+.bm-dup-item:hover { background: #f1ece2; }
+.bm-dup-fn { font-size: 10px; color: #6f5aa0; background: #efeaf6; border-radius: 5px; padding: 1px 6px; flex-shrink: 0; }
+.bm-dup-label { color: #3d2e1e; }
+.bm-dup-note { font-size: 11px; cursor: help; }
+.bm-dup-merge {
+  margin-top: 8px; width: 100%;
+  background: #2b7bb0; color: #fff; border: none; border-radius: 7px;
+  padding: 7px; font-size: 12px; font-weight: 600; cursor: pointer;
+}
+.bm-dup-merge:hover { background: #226291; }
 .bm-tcount {
   margin-left: auto;
   font-size: 10px; font-weight: 600; color: #fff;
