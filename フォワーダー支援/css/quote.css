@@ -1328,6 +1328,20 @@
 #tab-quote-make tr.row-profit-share .w-name { color: #6b21a8; }
 /* 合計フッターの社内利益（PS込み）行 */
 #tab-quote-make .tot-ps-row td { border-top: 1px dashed #d6bdf0; }
+/* 都度請求（発生時のみ）トグル＋行 */
+#tab-quote-make .cond-charge-btn {
+  display: block; margin-top: 3px; padding: 1px 6px;
+  font-size: 10px; line-height: 1.5; border: 1px solid #c4b49a; border-radius: 3px;
+  background: transparent; color: #c4b49a; cursor: pointer; font-family: inherit;
+  transition: all 0.15s; white-space: nowrap;
+}
+#tab-quote-make .cond-charge-btn:hover { border-color: #b8860b; color: #b8860b; opacity: 1; }
+#tab-quote-make .cond-charge-btn.is-on { background: #fff4e0; border-color: #d99a2b; color: #8a5a00; font-weight: 600; }
+/* 都度請求の行：琥珀（オレンジ）アクセント。金額は通常表示・合計外 */
+#tab-quote-make tr.row-conditional > td.handle-cell { box-shadow: inset 3px 0 0 #d99a2b; }
+#tab-quote-make tr.row-conditional > td { background: #fffaf0; }
+/* プレビュー：都度請求の客先注記 */
+#tab-quote-make .pv-cond-note { color: #8a5a00; font-size: 10.5px; font-weight: 700; margin-left: 4px; white-space: nowrap; }
 /* プレビュー：実費テキスト */
 #tab-quote-make .pv-actual-txt { color: #3a45a0; font-weight: 700; }
 

@@ -267,7 +267,8 @@
       // 外貨建ては輸出免税が原則（Excel/プレビューと同一ポリシー）。課税は JPY 建て行のみ。
       // 消費税は行ごとに切り上げて積み上げ、各出力経路（御見積書/プレビュー/Excel）で一致させる。
       const isActual = r._actual;   // 実費（金額未確定・合計除外・単価/金額は「実費」表示）
-      if (!isActual) {
+      const isCond   = r._cond;     // 都度請求（発生時のみ・金額は表示・合計に加算しない）
+      if (!isActual && !isCond) {
         if (r.taxed && (r.bc || 'JPY') === 'JPY') {
           taxableSub += jpy;
           taxSum += Math.ceil(jpy * taxRate);
@@ -296,7 +297,7 @@
           lineHTML.push(`<tr class="qd-subcon-head"><td colspan="5">${esc(_alH || _scLabel)}</td></tr>`);
           _catKey = null;   // 新しいサブコンに入ったのでカテゴリ見出しを再出させる
         }
-        _scJpy += (isActual ? 0 : jpy); _scHas = true;   // 実費は小計に含めない
+        _scJpy += ((isActual || isCond) ? 0 : jpy); _scHas = true;   // 実費・都度請求は小計に含めない
       }
       // カテゴリー境界：サブコン配下でカテゴリが変わったら見出し行を挿入（ツリー第2階層）
       if (r.cat !== _catKey) {
@@ -313,9 +314,10 @@
                     :                   '〜' + fmt(r.vt);
         return ` <span class="qd-validity">${esc(range)}</span>`;
       })();
+      const condNote = isCond ? ' <span class="qd-cond-note" style="color:#8a5a00;font-size:11px;font-weight:600;">（発生時のみ）</span>' : '';
       lineHTML.push(
-        `<tr>
-          <td class="qd-item qd-l3">${r.taxed ? '<span class="qd-tax">*</span> ' : ''}${esc(_taxName(r.name, r.taxed))}${validBadge}</td>
+        `<tr${isCond ? ' class="qd-cond-row"' : ''}>
+          <td class="qd-item qd-l3">${r.taxed ? '<span class="qd-tax">*</span> ' : ''}${esc(_taxName(r.name, r.taxed))}${validBadge}${condNote}</td>
           <td class="qd-num">${qtyDisp}</td>
           <td class="qd-ctr">${esc(r.un || '')}</td>
           <td class="qd-num">${unitDisp}</td>

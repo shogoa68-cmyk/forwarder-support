@@ -2771,8 +2771,8 @@
 
     const rows = document.querySelectorAll('#tableBody tr:not([data-type="subtotal"])');
     const activeRows = Array.from(rows).filter(tr => {
-      // 見積書非表示・適用期間外・実費・PROFIT SHARE の行は客先サマリ（合計・粗利）に含めない
-      if (tr.dataset.hideQuote === '1' || tr.dataset.outRange === '1' || tr.dataset.actual === '1' || tr.dataset.profitShare === '1') return false;
+      // 見積書非表示・適用期間外・実費・PROFIT SHARE・都度請求 の行は客先サマリ（合計・粗利）に含めない
+      if (tr.dataset.hideQuote === '1' || tr.dataset.outRange === '1' || tr.dataset.actual === '1' || tr.dataset.profitShare === '1' || tr.dataset.cond === '1') return false;
       const id = tr.id.replace('row-', '');
       return document.getElementById(`nm-${id}`)?.value?.trim();
     });

@@ -134,7 +134,8 @@
       // 客先出力・小計・PDF/Excel/CSV の除外は _hideQuote 一本で判定する（PROFIT SHARE も客先には出さない）
       const _hideQuote  = _hideManual || _outRange || _ps;
       const _actual     = tr.dataset.actual === '1';   // 実費（金額未確定・合計除外・単価/金額は「実費」表示）
-      rows.push({ _type: 'data', taxed, cat, name, pq, un, pc, pp, cd, bq, bc, bp, mk, cost, bill, profit, note, sv, vf, vt, zc, _actual, _ps, _hideQuote, _hideManual, _outRange });
+      const _cond       = tr.dataset.cond === '1';     // 都度請求（発生時のみ・金額は表示・合計に加算しない）
+      rows.push({ _type: 'data', taxed, cat, name, pq, un, pc, pp, cd, bq, bc, bp, mk, cost, bill, profit, note, sv, vf, vt, zc, _actual, _ps, _cond, _hideQuote, _hideManual, _outRange });
     });
     return rows;
   }
@@ -168,7 +169,8 @@
       const note   = document.getElementById(`nt-${id}`)?.value || '';
       const sv     = document.getElementById(`sv-${id}`)?.value || '';
       const _actual = tr.dataset.actual === '1';   // 実費（金額未確定）
-      data.push({ taxed, cat, name, pq, un, pc, pp, cd, bq, bc, bp, mk, cost, bill, profit, note, sv, _actual });
+      const _cond   = tr.dataset.cond === '1';     // 都度請求（発生時のみ・合計外）
+      data.push({ taxed, cat, name, pq, un, pc, pp, cd, bq, bc, bp, mk, cost, bill, profit, note, sv, _actual, _cond });
     });
     return data;
   }
@@ -429,7 +431,7 @@
     const hdr = getQuoteHeader();
     let totCost = 0, totBill = 0, totMk = 0;
     // 見積書非表示・適用期間外（いずれも _hideQuote）の行は合計に含めない
-    data.forEach(d => { if (d._hideQuote || d._actual) return; totCost += d.cost; totBill += d.bill; totMk += d.mk; });
+    data.forEach(d => { if (d._hideQuote || d._actual || d._cond) return; totCost += d.cost; totBill += d.bill; totMk += d.mk; });
     const totPr = totBill - totCost;
     const ccyGroups = {}; // billing 通貨別集計: { JPY: {sub,tax,mk}, USD: {...} }
     let totCostJpy = 0;
@@ -479,7 +481,7 @@
             _seq.push({ _type: 'subcon-header', label: clabel, normKey: ck, gi });
           }
           d._gi = gi;                                            // 行にグループ番号（地色分け用）
-          if (!d._hideQuote && !d._actual) {                     // 見積書非表示・実費の行は小計に含めない
+          if (!d._hideQuote && !d._actual && !d._cond) {          // 見積書非表示・実費・都度請求は小計に含めない
             cc += toJ(d.cost, d.pc || 'JPY');
             cb += toJ(d.bill, d.bc || 'JPY');
             if ((d.pc && d.pc !== 'JPY') || (d.bc && d.bc !== 'JPY')) cm = true;
@@ -557,7 +559,7 @@
       const jpyAmt  = (typeof toJPY === 'function') ? Math.ceil(toJPY(sub, d.bc)) : sub;
       const taxAmt  = (d.taxed && !d._actual) ? sub * taxRate : 0;
       // 見積書非表示・実費の行は合計に一切含めない（実費は行は出すが金額未確定のため除外）
-      if (!d._hideQuote && !d._actual) {
+      if (!d._hideQuote && !d._actual && !d._cond) {
         totSub += sub;
         totTax += taxAmt;
         totJpy += jpyAmt;
@@ -599,10 +601,12 @@
       const jpyCell2 = _ac ? '' : jpyCellText;
       const taxCell2 = _ac ? '' : taxCellText;
       const prCell   = _ac ? '—' : (fmtMoney(d.profit) + prJpyHint);
-      html += `<tr class="${(d._gi != null ? 'pv-grp-row pv-grp-c' + (d._gi % 4) : '')}${_hqCls}${_ac ? ' pv-row-actual' : ''}">
+      // 都度請求（発生時のみ）：客先にも金額は出すが合計外。客先向け注記を付ける
+      const _condNote = d._cond ? '<span class="pv-cond-note">（発生時のみ）</span>' : '';
+      html += `<tr class="${(d._gi != null ? 'pv-grp-row pv-grp-c' + (d._gi % 4) : '')}${_hqCls}${_ac ? ' pv-row-actual' : ''}${d._cond ? ' pv-row-cond' : ''}">
         <td class="pv-name" style="font-size:11px;">${escHtml(getCatLabel(d.cat))}</td>
         <td class="pv-name">${escHtml(d.sv)}</td>
-        <td class="${nameCls}">${_hqBadge}${escHtml(d.name)}${_pvValidityBadge(d.vf, d.vt)}</td>
+        <td class="${nameCls}">${_hqBadge}${escHtml(d.name)}${_condNote}${_pvValidityBadge(d.vf, d.vt)}</td>
         <td class="pv-num">${fmtRaw(d.pq)}</td><td>${escHtml(d.un || '')}</td><td>${escHtml(d.pc)}</td>
         <td class="pv-num">${ppCell}</td>
         <td class="pv-cd pv-num">${cdCell}</td>
@@ -1267,7 +1271,7 @@
   const TSV_COL_DEFS = [
     { hdr: 'カテゴリ', fn: d => getCatLabel(d.cat),    pvGroup: 'cat',    role: 'cat'    },
     { hdr: 'サブコン', fn: d => d.sv || '',            pvGroup: 'sv',     role: 'sv'     },
-    { hdr: '項目名',   fn: d => d.name,                pvGroup: null,     role: 'name'   },
+    { hdr: '項目名',   fn: d => d.name + (d._cond ? '（発生時のみ）' : ''), pvGroup: null,     role: 'name'   },
     { hdr: '数量',     fn: d => fmtRaw(d.pq),          pvGroup: 'pay',    role: 'pq'     },
     { hdr: '単位',     fn: d => d.un || '',            pvGroup: 'unit',   role: 'un'     },
     { hdr: '通貨',     fn: d => d.pc,                  pvGroup: 'pay',    role: 'pc'     },
@@ -1290,7 +1294,7 @@
     if (!sensitiveColumnsGate('クリップボードコピー')) return;
     const hdr = getQuoteHeader();
     let totCost = 0, totBill = 0, totMk = 0;
-    data.forEach(d => { totCost += d.cost; totBill += d.bill; totMk += d.mk; });
+    data.forEach(d => { if (d._actual || d._cond) return; totCost += d.cost; totBill += d.bill; totMk += d.mk; });
     const totPr = totBill - totCost;
     const vis = getPreviewVisibility();
     const visCols = TSV_COL_DEFS.filter(c => !c.pvGroup || vis[c.pvGroup]);
@@ -1431,7 +1435,7 @@
   const XLSX_COL_DEFS = [
     { hdr: 'カテゴリ',     fn: d => getCatLabel(d.cat),    pvGroup: 'cat',    role: 'cat'    },
     { hdr: 'サブコン',     fn: d => d.sv || '',            pvGroup: 'sv',     role: 'sv'     },
-    { hdr: '項目名',       fn: d => d.name,                pvGroup: null,     role: 'name'   },
+    { hdr: '項目名',       fn: d => d.name + (d._cond ? '（発生時のみ）' : ''), pvGroup: null,     role: 'name'   },
     { hdr: '課税',         fn: d => d.taxed ? '*' : '',   pvGroup: null,     role: 'tax'    },
     { hdr: '数量(原価)',   fn: d => d.pq,                  pvGroup: 'pay',    role: 'pq'     },
     { hdr: '単位',         fn: d => d.un || '',            pvGroup: 'unit',   role: 'un'     },
@@ -1560,7 +1564,7 @@
       const jpy     = typeof toJPY === 'function' ? Math.ceil(toJPY(sub, d.bc))  : sub;
       const costJpy = typeof toJPY === 'function' ? Math.ceil(toJPY(cost, d.pc)) : cost;
       const taxAmt  = (d.taxed && !d._actual) ? sub * getEffectiveTaxRate() : 0;
-      if (!d._actual) {                         // 実費行は金額未確定 → 合計に含めない
+      if (!d._actual && !d._cond) {             // 実費・都度請求は合計に含めない
         totSub        += sub;
         totJpyConv    += jpy;
         totTaxAmt     += taxAmt;
@@ -1627,7 +1631,7 @@
   const CSV_COL_DEFS = [
     { key: 'cat',    hdr: 'カテゴリ',       fn: d => d.cat },
     { key: 'sv',     hdr: 'サブコン',       fn: d => d.sv || '' },
-    { key: 'name',   hdr: '項目名',         fn: d => d.name },
+    { key: 'name',   hdr: '項目名',         fn: d => d.name + (d._cond ? '（発生時のみ）' : '') },
     { key: 'pq',     hdr: '数量',           fn: d => fmtRaw(d.pq) },
     { key: 'un',     hdr: '単位',           fn: d => d.un || '' },
     { key: 'pc',     hdr: '通貨',           fn: d => d.pc },
