@@ -173,12 +173,17 @@ function _bmRenderList(rows) {
     const pills = list.map(r => {
       const ic   = _bmFnIcon(r.function);
       const txt  = escHtml(r.label || r.function || 'リンク');
+      // メモはホバーの title に併記し、メモ有りピルには 📝 マーカーを常時表示（タップで全文）
+      const tip  = escHtml((r.label || '') + (r.note ? '\n📝 ' + r.note : ''));
       const open = r.url
-        ? `<a class="bm-pill" href="${escHtml(r.url)}" target="_blank" rel="noopener" title="${escHtml(r.label || '')}">`
-        : `<span class="bm-pill bm-pill-nourl" title="${escHtml(r.label || '')}">`;
+        ? `<a class="bm-pill" href="${escHtml(r.url)}" target="_blank" rel="noopener" title="${tip}">`
+        : `<span class="bm-pill bm-pill-nourl" title="${tip}">`;
       const close = r.url ? '</a>' : '</span>';
+      const noteMark = r.note
+        ? `<span class="bm-pill-note" onclick="event.preventDefault();event.stopPropagation();bmShowNote('${escHtml(r.id)}')" title="メモを表示">📝</span>`
+        : '';
       return open
-        + `<span class="bm-pill-ic">${ic}</span>${txt}`
+        + `<span class="bm-pill-ic">${ic}</span>${txt}${noteMark}`
         + `<span class="bm-pill-edit" onclick="event.preventDefault();event.stopPropagation();bmEdit('${escHtml(r.id)}')" title="編集">✎</span>`
         + `<span class="bm-pill-del" onclick="event.preventDefault();event.stopPropagation();bmDelete('${escHtml(r.id)}')" title="削除">🗑</span>`
         + close;
@@ -393,6 +398,13 @@ async function bmDelete(id) {
   _bmRows = _bmRows.filter(r => r.id !== id);
   _bmApply();
   if (typeof window.lcRefreshBmChips === 'function') window.lcRefreshBmChips();
+}
+
+// メモ全文をトーストで表示（📝 マーカーのタップ用・モバイルでも確実に確認できる）
+function bmShowNote(id) {
+  const r = _bmRows.find(row => row.id === id);
+  if (!r || !r.note) return;
+  quoteShowToast('📝 ' + r.note, 'info', 7000);
 }
 
 function bmEdit(id) {
@@ -637,6 +649,7 @@ window.closeAddBmModal = closeAddBmModal;
 window.saveBm          = saveBm;
 window.bmDelete        = bmDelete;
 window.bmEdit          = bmEdit;
+window.bmShowNote      = bmShowNote;
 window.seedCarrierBookmarks = seedCarrierBookmarks;
 window.openBmHistory   = openBmHistory;
 window.closeBmHistory  = closeBmHistory;

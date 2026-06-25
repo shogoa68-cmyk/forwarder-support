@@ -1609,6 +1609,11 @@ body:has(#compareOverlay.open) #quoteActionDock { display: none; }
 }
 .bm-pill:hover { background: #eef4f8; border-color: #b8c4cb; transform: translateY(-1px); }
 .bm-pill-ic { font-size: 11px; opacity: .62; flex-shrink: 0; }
+.bm-pill-note {
+  font-size: 11px; flex-shrink: 0; cursor: pointer;
+  opacity: .8; line-height: 1; margin-left: 1px;
+}
+.bm-pill-note:hover { opacity: 1; transform: scale(1.15); }
 .bm-pill-nourl { color: #3d2e1e; cursor: default; }
 .bm-pill-nourl:hover { transform: none; }
 .bm-pill-edit, .bm-pill-del {
