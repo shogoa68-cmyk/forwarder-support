@@ -3584,73 +3584,87 @@
     <!-- ========== プレビューモーダル ========== -->
     <div id="previewOverlay" onclick="overlayClick(event)">
       <div id="previewBox">
-        <h2>📋 プレビュー（表計算形式）</h2>
-        <div class="pv-layout-row">
-          <span class="pv-viewmode-label">🧾 レイアウト：</span>
-          <button class="save-btn pv-layout-btn" data-pvl="table" onclick="setPreviewLayout('table')" title="表計算形式：明細を編集チェック向けの表で表示">📋 表計算</button>
-          <button class="save-btn pv-layout-btn is-on" data-pvl="doc" onclick="setPreviewLayout('doc')" title="御見積書フォーマット：客先提出と同じ体裁で表示">📄 見積書</button>
-        </div>
-        <!-- 御見積書(doc)レイアウト用の発行日／有効期限 編集バー（表計算は pvMeta 内に同等入力あり） -->
-        <div id="pvDateEdit" class="pv-date-edit">
-          <label class="pv-de-item"><span>発行日</span><input type="date" id="pvDocDate" onchange="pvSyncDate('date', this.value)" title="フォームの発行日と同期します（御見積書に反映）" /></label>
-          <label class="pv-de-item"><span>有効期限</span><input type="date" id="pvDocValid" onchange="pvSyncDate('valid', this.value)" title="フォームの有効期限と同期します（御見積書に反映）" /></label>
-        </div>
-        <div id="pvMeta" class="pv-meta" style="display:none;"></div>
-        <div id="pvCondBox" style="display:none;"><strong>🚢 引き合い条件</strong></div>
-        <div id="pvCargoBox" style="display:none;"></div>
-        <div id="previewTableWrap"></div>
-        <div id="previewDocWrap"></div>
-        <div id="pvTaxBox" class="pv-tax-box">
-          <label class="pv-tax-label">🧾 消費税：</label>
-          <span class="pv-tax-fixed" id="pvTaxRateLabel">10%（標準）</span>
-          <input type="hidden" id="pvTaxRate" value="10">
-          <span class="pv-tax-detail">消費税額: <b id="pvTaxAmount">—</b>　税込合計: <b id="pvTaxTotal">—</b></span>
-          <span id="pvTotalSubtotal" data-raw="0" style="display:none;"></span>
-        </div>
-        <div id="pvScopeBox" style="display:none;"><strong>🛠️ 作業範囲</strong></div>
-        <div id="pvRemarkBox" style="display:none;"><strong>📝 条件・リマーク</strong></div>
-        <div id="pvAuditMeta" class="pv-audit-meta"></div>
-        <div class="pv-btns">
-          <button class="pv-btn-pdf" style="background:#1a3a6b; color:#fff; border-color:#1a3a6b;" onclick="openQuoteDoc()">📄 御見積書フォーマット</button>
-          <button class="pv-btn-email-plain" onclick="copyQuoteEmailPlain()" title="見積サマリをメール本文（プレーンテキスト）としてコピー">✉️ メール本文（プレーン）</button>
-          <button class="pv-btn-email-rich" onclick="copyQuoteEmailRich()" title="見積サマリをメール本文（リッチテキスト／表組み）としてコピー">📧 メール本文（リッチ）</button>
-          <button class="pv-btn-email-plain" onclick="copyQuoteEmailPlainDetail()" title="区間・カテゴリ別の明細行（項目名／数量／単位／単価／金額／備考）を含むメール本文（プレーンテキスト）としてコピー">✉️ メール本文（明細・プレーン）</button>
-          <button class="pv-btn-email-rich" onclick="copyQuoteEmailRichDetail()" title="区間・カテゴリ別の明細表（項目名／数量／単位／単価／金額／備考）を含むメール本文（リッチテキスト／表組み）としてコピー">📧 メール本文（明細・リッチ）</button>
-          <button class="pv-btn-close" onclick="closePreview()">閉じる</button>
-          <span class="pv-copy-msg" id="copyMsg">✅ コピーしました！</span>
-        </div>
-        <details class="pv-customize-wrap" id="pvCustomizeWrap">
-          <summary class="pv-customize-toggle">⚙️ 表示カスタマイズ</summary>
-          <div class="pv-customize-body">
-            <div class="pv-cust-group">
-              <span class="pv-cust-label">表示列：</span>
-              <label><input type="checkbox" class="pv-col-chk" data-col="cat"     checked> カテゴリ</label>
-              <label><input type="checkbox" class="pv-col-chk" data-col="pay"     checked> 原価列（数量/通貨/単価/CD）</label>
-              <label><input type="checkbox" class="pv-col-chk" data-col="unit"    checked> 単位</label>
-              <label><input type="checkbox" class="pv-col-chk" data-col="bill"    checked> 請求列（数量/通貨/単価）</label>
-              <label><input type="checkbox" class="pv-col-chk" data-col="mk"       checked> 乗せ幅</label>
-              <label><input type="checkbox" class="pv-col-chk" data-col="jpy-conv" checked> 円換算</label>
-              <label><input type="checkbox" class="pv-col-chk" data-col="tax-col"  checked> 消費税</label>
-              <label><input type="checkbox" class="pv-col-chk" data-col="profit"  checked> 利益</label>
-              <label><input type="checkbox" class="pv-col-chk" data-col="note"    checked> 備考</label>
-              <label><input type="checkbox" class="pv-col-chk" data-col="sv"      checked> サブコン</label>
-            </div>
-            <div class="pv-cust-group">
-              <span class="pv-cust-label">セクション：</span>
-              <label><input type="checkbox" class="pv-sec-chk" data-sec="meta"         checked> 見積番号/お客様/担当</label>
-              <label><input type="checkbox" class="pv-sec-chk" data-sec="cond"         checked> 引き合い条件</label>
-              <label><input type="checkbox" class="pv-sec-chk" data-sec="cargo"        checked> 貨物ボリューム情報</label>
-              <label><input type="checkbox" class="pv-sec-chk" data-sec="scope"        checked> 作業範囲</label>
-              <label><input type="checkbox" class="pv-sec-chk" data-sec="remark"       checked> 条件・リマーク</label>
-              <label><input type="checkbox" class="pv-sec-chk" data-sec="table-remark" checked> テーブル内リマーク行</label>
-              <label><input type="checkbox" class="pv-sec-chk" data-sec="tax"          checked> 消費税</label>
+        <!-- ===== 左レール：レイアウト切替＋表示カスタマイズ ===== -->
+        <aside class="pv-rail">
+          <div class="pv-rail-head">
+            <h2>📋 プレビュー</h2>
+          </div>
+          <div class="pv-rail-grp">
+            <div class="pv-rail-h3">レイアウト</div>
+            <div class="pv-rail-seg">
+              <button class="pv-layout-btn" data-pvl="table" onclick="setPreviewLayout('table')" title="表計算形式：明細を編集チェック向けの表で表示">📋 表計算</button>
+              <button class="pv-layout-btn is-on" data-pvl="doc" onclick="setPreviewLayout('doc')" title="御見積書フォーマット：客先提出と同じ体裁で表示">📄 見積書</button>
             </div>
           </div>
-        </details>
-        <p class="pv-hint">
-          ※ CSV はデータ行のみ出力（カテゴリ列を先頭に付与）。再読み込みにも対応。<br>
-          ※ <b>項目名の先頭にある <code>*</code> は課税項目を示します</b>（課税欄のチェックで自動付与）。消費税の列・税率は「消費税」セクションで設定できます。
-        </p>
+          <!-- pvCustomizeWrap id 維持（JS の listenerSet ガードと互換） -->
+          <div class="pv-rail-customize" id="pvCustomizeWrap">
+            <div class="pv-rail-grp">
+              <div class="pv-rail-h3">表示列</div>
+              <label class="pv-sw"><span>カテゴリ</span><input type="checkbox" class="pv-col-chk" data-col="cat" checked></label>
+              <label class="pv-sw"><span>原価列（数量/通貨/単価/CD）</span><input type="checkbox" class="pv-col-chk" data-col="pay" checked></label>
+              <label class="pv-sw"><span>単位</span><input type="checkbox" class="pv-col-chk" data-col="unit" checked></label>
+              <label class="pv-sw"><span>請求列（数量/通貨/単価）</span><input type="checkbox" class="pv-col-chk" data-col="bill" checked></label>
+              <label class="pv-sw"><span>乗せ幅</span><input type="checkbox" class="pv-col-chk" data-col="mk" checked></label>
+              <label class="pv-sw"><span>円換算</span><input type="checkbox" class="pv-col-chk" data-col="jpy-conv" checked></label>
+              <label class="pv-sw"><span>消費税</span><input type="checkbox" class="pv-col-chk" data-col="tax-col" checked></label>
+              <label class="pv-sw"><span>利益</span><input type="checkbox" class="pv-col-chk" data-col="profit" checked></label>
+              <label class="pv-sw"><span>備考</span><input type="checkbox" class="pv-col-chk" data-col="note" checked></label>
+              <label class="pv-sw"><span>サブコン</span><input type="checkbox" class="pv-col-chk" data-col="sv" checked></label>
+            </div>
+            <div class="pv-rail-grp">
+              <div class="pv-rail-h3">セクション</div>
+              <label class="pv-sw"><span>見積番号/お客様/担当</span><input type="checkbox" class="pv-sec-chk" data-sec="meta" checked></label>
+              <label class="pv-sw"><span>引き合い条件</span><input type="checkbox" class="pv-sec-chk" data-sec="cond" checked></label>
+              <label class="pv-sw"><span>貨物ボリューム情報</span><input type="checkbox" class="pv-sec-chk" data-sec="cargo" checked></label>
+              <label class="pv-sw"><span>作業範囲</span><input type="checkbox" class="pv-sec-chk" data-sec="scope" checked></label>
+              <label class="pv-sw"><span>条件・リマーク</span><input type="checkbox" class="pv-sec-chk" data-sec="remark" checked></label>
+              <label class="pv-sw"><span>テーブル内リマーク行</span><input type="checkbox" class="pv-sec-chk" data-sec="table-remark" checked></label>
+              <label class="pv-sw"><span>消費税</span><input type="checkbox" class="pv-sec-chk" data-sec="tax" checked></label>
+            </div>
+          </div>
+        </aside>
+        <!-- ===== メイン：ヘッダー＋スクロール本体 ===== -->
+        <div class="pv-main">
+          <div class="pv-main-head">
+            <span class="pv-main-title">📋 プレビュー（表計算形式）</span>
+            <span class="pv-main-sp"></span>
+            <div class="pv-btns">
+              <button class="pv-btn-pdf" style="background:#1a3a6b; color:#fff; border-color:#1a3a6b;" onclick="openQuoteDoc()">📄 御見積書フォーマット</button>
+              <button class="pv-btn-email-plain" onclick="copyQuoteEmailPlain()" title="見積サマリをメール本文（プレーンテキスト）としてコピー">✉️ メール本文（プレーン）</button>
+              <button class="pv-btn-email-rich" onclick="copyQuoteEmailRich()" title="見積サマリをメール本文（リッチテキスト／表組み）としてコピー">📧 メール本文（リッチ）</button>
+              <button class="pv-btn-email-plain" onclick="copyQuoteEmailPlainDetail()" title="区間・カテゴリ別の明細行を含むメール本文（プレーンテキスト）としてコピー">✉️ メール本文（明細・プレーン）</button>
+              <button class="pv-btn-email-rich" onclick="copyQuoteEmailRichDetail()" title="区間・カテゴリ別の明細表を含むメール本文（リッチテキスト）としてコピー">📧 メール本文（明細・リッチ）</button>
+              <button class="pv-btn-close" onclick="closePreview()">閉じる</button>
+              <span class="pv-copy-msg" id="copyMsg">✅ コピーしました！</span>
+            </div>
+          </div>
+          <div class="pv-main-scroll">
+            <!-- 御見積書(doc)レイアウト用の発行日／有効期限 編集バー -->
+            <div id="pvDateEdit" class="pv-date-edit">
+              <label class="pv-de-item"><span>発行日</span><input type="date" id="pvDocDate" onchange="pvSyncDate('date', this.value)" title="フォームの発行日と同期します（御見積書に反映）" /></label>
+              <label class="pv-de-item"><span>有効期限</span><input type="date" id="pvDocValid" onchange="pvSyncDate('valid', this.value)" title="フォームの有効期限と同期します（御見積書に反映）" /></label>
+            </div>
+            <div id="pvMeta" class="pv-meta" style="display:none;"></div>
+            <div id="pvCondBox" style="display:none;"><strong>🚢 引き合い条件</strong></div>
+            <div id="pvCargoBox" style="display:none;"></div>
+            <div id="previewTableWrap"></div>
+            <div id="previewDocWrap"></div>
+            <div id="pvTaxBox" class="pv-tax-box">
+              <label class="pv-tax-label">🧾 消費税：</label>
+              <span class="pv-tax-fixed" id="pvTaxRateLabel">10%（標準）</span>
+              <input type="hidden" id="pvTaxRate" value="10">
+              <span class="pv-tax-detail">消費税額: <b id="pvTaxAmount">—</b>　税込合計: <b id="pvTaxTotal">—</b></span>
+              <span id="pvTotalSubtotal" data-raw="0" style="display:none;"></span>
+            </div>
+            <div id="pvScopeBox" style="display:none;"><strong>🛠️ 作業範囲</strong></div>
+            <div id="pvRemarkBox" style="display:none;"><strong>📝 条件・リマーク</strong></div>
+            <div id="pvAuditMeta" class="pv-audit-meta"></div>
+            <p class="pv-hint">
+              ※ CSV はデータ行のみ出力（カテゴリ列を先頭に付与）。再読み込みにも対応。<br>
+              ※ <b>項目名の先頭にある <code>*</code> は課税項目を示します</b>（課税欄のチェックで自動付与）。消費税の列・税率は「消費税」セクションで設定できます。
+            </p>
+          </div>
+        </div>
       </div>
     </div>
 

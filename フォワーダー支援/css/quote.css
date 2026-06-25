@@ -3295,14 +3295,70 @@
 }
 #tab-quote-make #previewOverlay.open { display: flex; }
 #tab-quote-make #previewBox {
-  background: #fff; border-radius: 8px;
+  background: #fff; border-radius: 10px;
   box-shadow: 0 8px 40px rgba(0,0,0,0.25);
-  padding: 28px 30px 24px; width: 100%; max-width: 1040px;
+  padding: 0; width: 100%; max-width: 1180px;
+  display: flex; max-height: 92vh; overflow: hidden;
 }
 #tab-quote-make #previewBox h2 {
-  font-size: 16px; color: #3d2e1e; margin-bottom: 16px;
-  border-left: 4px solid #9a4a25; padding-left: 10px;
+  font-size: 14px; color: #3d2e1e; margin: 0;
+  border-left: 3px solid #9a4a25; padding-left: 9px; line-height: 1.4;
 }
+
+/* ===== プレビュー 案2 サイドレール＋メイン ===== */
+#tab-quote-make #previewBox .pv-rail {
+  width: 234px; flex: 0 0 234px; background: #f7f5f0;
+  border-right: 1px solid #e6e3dc; padding: 16px 15px; overflow-y: auto;
+  display: flex; flex-direction: column; gap: 18px;
+}
+#tab-quote-make .pv-rail-head { padding-bottom: 4px; }
+#tab-quote-make .pv-rail-grp { display: flex; flex-direction: column; gap: 5px; }
+#tab-quote-make .pv-rail-h3 {
+  font-size: 11px; color: #9a8f7a; letter-spacing: .06em; text-transform: uppercase;
+  font-weight: 700; margin-bottom: 4px;
+}
+#tab-quote-make .pv-rail-seg { display: flex; flex-direction: column; gap: 6px; }
+#tab-quote-make #previewBox .pv-rail-seg .pv-layout-btn {
+  text-align: left; border: 1px solid #d9cfc2; background: #fff; color: #5a4a35;
+  font: inherit; font-size: 12.5px; padding: 9px 12px; border-radius: 7px; cursor: pointer;
+}
+#tab-quote-make #previewBox .pv-rail-seg .pv-layout-btn:hover { border-color: #8b6914; }
+#tab-quote-make #previewBox .pv-rail-seg .pv-layout-btn.is-on {
+  background: #3d2e1e; border-color: #3d2e1e; color: #fff; font-weight: 700;
+}
+#tab-quote-make .pv-rail-customize { display: flex; flex-direction: column; gap: 18px; }
+/* スイッチ型トグル */
+#tab-quote-make .pv-sw {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  padding: 6px 2px; font-size: 12px; color: #5a4a35; cursor: pointer;
+  border-bottom: 1px solid #efe9dd; user-select: none;
+}
+#tab-quote-make .pv-sw:last-child { border-bottom: none; }
+#tab-quote-make .pv-sw > span { line-height: 1.35; flex: 1 1 auto; min-width: 0; text-align: left; }
+#tab-quote-make .pv-sw input[type=checkbox] {
+  appearance: none; -webkit-appearance: none; margin: 0; cursor: pointer;
+  position: relative; width: 34px; height: 19px; flex: 0 0 34px;
+  border-radius: 10px; background: #cfc7b6; transition: background .15s;
+}
+#tab-quote-make .pv-sw input[type=checkbox]::after {
+  content: ""; position: absolute; top: 2px; left: 2px;
+  width: 15px; height: 15px; border-radius: 50%; background: #fff;
+  transition: left .15s; box-shadow: 0 1px 2px rgba(0,0,0,.2);
+}
+#tab-quote-make .pv-sw input[type=checkbox]:checked { background: #5a6e42; }
+#tab-quote-make .pv-sw input[type=checkbox]:checked::after { left: 17px; }
+
+#tab-quote-make #previewBox .pv-main {
+  flex: 1; min-width: 0; display: flex; flex-direction: column; background: #fff;
+}
+#tab-quote-make .pv-main-head {
+  display: flex; align-items: center; gap: 12px; padding: 12px 18px;
+  border-bottom: 1px solid #e6e3dc; flex-wrap: wrap;
+}
+#tab-quote-make .pv-main-title { font-size: 14px; font-weight: 700; color: #3d2e1e; white-space: nowrap; }
+#tab-quote-make .pv-main-sp { flex: 1; }
+#tab-quote-make .pv-main-head .pv-btns { margin: 0; gap: 7px; }
+#tab-quote-make .pv-main-scroll { flex: 1; overflow-y: auto; padding: 18px 22px 20px; }
 #tab-quote-make .pv-meta {
   display: flex; gap: 24px; flex-wrap: wrap; font-size: 12px;
   margin-bottom: 14px; padding: 10px 14px;
@@ -3315,7 +3371,7 @@
 @media print { #tab-quote-make .pv-meta-date { border: none; background: none; padding: 0; } }
 #tab-quote-make #previewTableWrap { overflow-x: auto; }
 #tab-quote-make #previewTable {
-  border-collapse: collapse; width: 100%; min-width: 880px;
+  border-collapse: collapse; width: auto; min-width: 0;
   font-size: 12px; user-select: text;
 }
 #tab-quote-make #previewTable th {
@@ -5342,7 +5398,9 @@ body.qp-dash-active #quoteActionDock { display: none !important; }
 #tab-quote-make .condition-grid { grid-template-columns: 1fr; }
 #tab-quote-make .scope-btns { gap: 5px; }
 #tab-quote-make .scope-btn { padding: 5px 10px; font-size: 11px; }
-#tab-quote-make #previewBox { padding: 16px 14px; }
+#tab-quote-make #previewBox { padding: 0; flex-direction: column; max-height: 94vh; }
+#tab-quote-make #previewBox .pv-rail { width: 100%; flex-basis: auto; flex-direction: row; flex-wrap: wrap; border-right: none; border-bottom: 1px solid #e6e3dc; }
+#tab-quote-make .pv-rail-customize { flex-direction: row; flex-wrap: wrap; gap: 14px; }
 #tab-quote-make .quote-header { grid-template-columns: 1fr; gap: 8px; }
 #tab-quote-make .quote-field-memo { grid-column: 1; grid-row: auto; height: auto; margin-top: 4px; }
 #tab-quote-make #qf-ref,
@@ -6371,7 +6429,12 @@ body.qp-dash-active #quoteActionDock { display: none !important; }
   body:has(#previewOverlay.open) .pv-hint,
   body:has(#previewOverlay.open) .pv-mode-banner,
   body:has(#previewOverlay.open) .pv-layout-row,
+  body:has(#previewOverlay.open) .pv-rail,
+  body:has(#previewOverlay.open) .pv-main-head,
   body:has(#previewOverlay.open) #previewBox > h2 { display: none !important; }
+  body:has(#previewOverlay.open) #previewBox { display: block !important; max-height: none !important; overflow: visible !important; }
+  body:has(#previewOverlay.open) .pv-main { display: block !important; }
+  body:has(#previewOverlay.open) .pv-main-scroll { overflow: visible !important; padding: 0 !important; }
 
   /* ============ A) 表計算レイアウト（layout-doc でない）の印刷 ============ */
   body:has(#previewOverlay.open):not(:has(#previewBox.layout-doc)) #previewBox { page: pvLandscape; }
@@ -7948,7 +8011,11 @@ button.um-memberno--empty:hover { background: #f4ead4; border-color: #cdb98e; }
 #tab-quote-make .subcon-group-toggle:hover { opacity: 1; }
 #tab-quote-make .subcon-group-header-cell {
   background:linear-gradient(90deg,#f5ede0 0,#faf6ef 100%);
-  border-top:2px solid #e2ceb2;
+  /* 案B：アクセント色で薄くティント。color-mix 非対応時は上行の無地グラデにフォールバック */
+  background:linear-gradient(90deg,
+    color-mix(in srgb, var(--grp-accent, #d4ba8e) 16%, #f6efe3) 0,
+    color-mix(in srgb, var(--grp-accent, #d4ba8e) 5%, #faf6ef) 100%);
+  border-top:9px solid #ece2cf;
   border-bottom:1px solid #e8dccf;
   padding:5px 10px;
   display:flex;
@@ -8164,7 +8231,7 @@ button.um-memberno--empty:hover { background: #f4ead4; border-color: #cdb98e; }
 #tab-quote-make tr.subcon-group-header  > td:first-child,
 #tab-quote-make tr.subcon-child         > td:first-child,
 #tab-quote-make tr.subcon-grp-member    > td:first-child {
-  box-shadow: inset 4px 0 0 #d4ba8e;
+  box-shadow: inset 5px 0 0 var(--grp-accent, #d4ba8e);
 }
 /* グループ内のリマーク行は既存の青い左帯を消し、幹レール（box-shadow）に一本化 */
 #tab-quote-make tr.subcon-grp-member.remark-row > td:first-child {
@@ -8172,7 +8239,7 @@ button.um-memberno--empty:hover { background: #f4ead4; border-color: #cdb98e; }
 }
 /* 集計行（小計バー）の左端も幹色で閉じる（td は不透明 div に覆われるため inner に付与） */
 #tab-quote-make tr.subcon-group-subtotal .subcon-subtotal-inner {
-  border-left: 4px solid #d4ba8e;
+  border-left: 5px solid var(--grp-accent, #d4ba8e);
 }
 
 /* リマーク・社内メモ行：明細（catsv 列）より1段深くインデント＋エルボー（└）。

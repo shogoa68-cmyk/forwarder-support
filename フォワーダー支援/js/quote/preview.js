@@ -899,6 +899,29 @@
       }
     });
 
+    // ▼ 小計ラベル（colspan）行の桁ずれ補正
+    //   列を隠すと colspan 数と実表示列数がずれ金額セルが「小計」列からはみ出す。
+    //   表示中の先頭列数に colspan を合わせ、金額を小計列に揃える。
+    const _isOn = (col) => {
+      const c = document.querySelector(`.pv-col-chk[data-col="${col}"]`);
+      return !c || c.checked;
+    };
+    const _leadingVisible =
+      (_isOn('cat') ? 1 : 0) +
+      (_isOn('sv') ? 1 : 0) +
+      1 /* 項目名は常時表示 */ +
+      (_isOn('pay') ? 4 : 0) +
+      (_isOn('unit') ? 1 : 0) +
+      (_isOn('bill') ? 3 : 0) +
+      (_isOn('mk') ? 1 : 0);
+    table.querySelectorAll('.pv-scs-label, .pv-subtotal-sep-label').forEach(td => {
+      td.colSpan = Math.max(1, _leadingVisible);
+    });
+    const _leadHead = 1 /* 項目名 */ + (_isOn('cat') ? 1 : 0) + (_isOn('sv') ? 1 : 0);
+    table.querySelectorAll('tfoot tr.pv-total > td:first-child').forEach(td => {
+      td.colSpan = Math.max(1, _leadHead);
+    });
+
     // セクション表示切り替え
     const secMap = {
       meta:   'pvMeta',
