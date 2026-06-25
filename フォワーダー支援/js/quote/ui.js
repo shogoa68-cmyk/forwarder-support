@@ -3273,15 +3273,17 @@
     // 物量情報：サイズ行＋メトリクス行（GW・CBM・R/T・CW）を改行で
     const vd = window._volDigest || {};
     const volText = [vd.size, vd.metrics].filter(Boolean).join('\n');
+    const scopeSum = preview3((document.getElementById('qf-scope')?.value || '').trim());
     const rows = [
       ['section-ref',    '🗂️', '管理番号',     getSpan('sumRef')],
       ['section-cond',   '🚢', '貿易条件',     getSpan('sumCond')],
       ['section-cargo',  '📦', '貨物情報',     getSpan('sumCargo')],
       ['section-volume', '📊', '物量情報',     volText],
+      ['section-scope',  '🛠️', '作業範囲',     scopeSum],
       ['section-remark', '📑', '全体リマーク', remarkSum],
       ['section-table',  '📋', '費用テーブル', tableSum],
     ];
-    el.innerHTML = rows.map(function(r) {
+    let html = rows.map(function(r) {
       const id = r[0], icon = r[1], label = r[2];
       const empty = !r[3] || r[3] === '未入力';
       const txt = empty ? '未入力' : r[3];
@@ -3291,6 +3293,49 @@
         '<span class="qsp-dig-name">' + icon + ' ' + label + '</span>' +
         '<span class="qsp-dig-sum">' + escapeHtml(txt).replace(/\n/g, '<br>') + '</span></button>';
     }).join('');
+    // 費用テーブル内のサブコン別／サブコン×パターン別グループへのジャンプ
+    const groups = _collectTableGroups();
+    window._qspTableGroups = groups;
+    if (groups.length) {
+      html += '<div class="qsp-dig-subjumps">' + groups.map(function(g, i) {
+        return '<button type="button" class="qsp-dig-subjump' + (g.level ? ' is-pattern' : ' is-subcon') +
+          '" onclick="window.jumpToTableGroupIdx(' + i + ')" title="このグループへ移動">' +
+          escapeHtml(g.label) + '</button>';
+      }).join('') + '</div>';
+    }
+    el.innerHTML = html;
+  };
+  // 費用テーブルのサブコン／パターン見出し行を収集（ジャンプ用）
+  function _collectTableGroups() {
+    const out = [];
+    document.querySelectorAll('#tableBody tr.subcon-group-header, #tableBody tr.subcon-subgroup-header.is-pattern')
+      .forEach(function(tr) {
+        if (tr.classList.contains('subcon-group-header')) {
+          out.push({ level: 0, sv: tr.dataset.svKey || '', pt: '',
+                     label: (tr.querySelector('.subcon-group-label')?.textContent || '').trim() });
+        } else {
+          out.push({ level: 1, sv: tr.dataset.svKey || '', pt: tr.dataset.ptKey || '',
+                     label: '↳ ' + (tr.querySelector('.subcon-subgroup-leg')?.textContent || '').trim() });
+        }
+      });
+    return out;
+  }
+  window.jumpToTableGroupIdx = function(i) {
+    const g = (window._qspTableGroups || [])[i];
+    if (!g) return;
+    const sec = document.getElementById('section-table');
+    if (sec && sec.classList.contains('collapsed') && typeof toggleQuoteSection === 'function') toggleQuoteSection('section-table');
+    const sel = g.pt ? '#tableBody tr.subcon-subgroup-header.is-pattern' : '#tableBody tr.subcon-group-header';
+    let target = null;
+    document.querySelectorAll(sel).forEach(function(tr) {
+      if (target) return;
+      if (g.pt) { if ((tr.dataset.svKey || '') === g.sv && (tr.dataset.ptKey || '') === g.pt) target = tr; }
+      else      { if ((tr.dataset.svKey || '') === g.sv) target = tr; }
+    });
+    if (!target) return;
+    target.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    target.classList.add('grp-flash');
+    setTimeout(function() { target.classList.remove('grp-flash'); }, 1200);
   };
   window.openQuoteSectionFromDigest = function(id) {
     const sec = document.getElementById(id);

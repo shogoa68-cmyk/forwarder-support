@@ -1887,6 +1887,8 @@
       _inGroupRender = false;
       // DOM 再構築後にスクロール位置を復元（パターン変更時のページトップへの強制移動を防ぐ）
       if (window.scrollY !== _savedScrollY) window.scrollTo({ top: _savedScrollY, behavior: 'instant' });
+      // 右サマリ「要約」のテーブル内ジャンプリンクをグループ構成に追従させる
+      if (typeof window.renderQuoteSectionDigest === 'function') window.renderQuoteSectionDigest();
     }
   }
 
