@@ -508,7 +508,7 @@
     const newId = addRowAfter(srcId);
 
     // テキスト・数値・日付フィールドをコピー（zc = 0円確認済みフラグ／vf・vt = 有効期限を含む）
-    ['nm','pq','un','pp','mk','nt','sv','pt','zc','ac','ps','vf','vt'].forEach(f => {
+    ['nm','pq','un','pp','mk','nt','sv','pt','zc','ac','ps','co','vf','vt'].forEach(f => {
       const srcEl = document.getElementById(`${f}-${srcId}`);
       const dstEl = document.getElementById(`${f}-${newId}`);
       if (srcEl && dstEl) dstEl.value = srcEl.value;
@@ -623,7 +623,7 @@
     const q    = f => frag.querySelector(`[data-field="${f}"]`);
 
     // IDs
-    ['cat','tx','nm','pq','un','pc','pp','cd','bq','bc','bp','mk','st','pr','nt','sv','pt','zc','ac','ps','vf','vt']
+    ['cat','tx','nm','pq','un','pc','pp','cd','bq','bc','bp','mk','st','pr','nt','sv','pt','zc','ac','ps','co','vf','vt']
       .forEach(f => { const el = q(f); if (el) el.id = `${f}-${id}`; });
     const zcBtn = frag.querySelector('.zero-confirm-btn');
     if (zcBtn) zcBtn.onclick = () => toggleZeroConfirmed(id);;
@@ -631,6 +631,8 @@
     if (acBtn) acBtn.onclick = () => toggleActualCost(id);
     const psBtn = frag.querySelector('.profit-share-btn');
     if (psBtn) psBtn.onclick = () => toggleProfitShare(id);
+    const coBtn = frag.querySelector('.cond-charge-btn');
+    if (coBtn) coBtn.onclick = () => toggleConditional(id);
     const remBtn = frag.querySelector('.btn-row-rem');
     const intBtn = frag.querySelector('.btn-row-int');
     if (remBtn) remBtn.onclick = () => rowInsertRemarkBelow(id);
@@ -729,6 +731,14 @@
     }
     const psBtn0 = trEl0?.querySelector('.profit-share-btn');
     if (psBtn0) psBtn0.classList.toggle('is-on', isProfitShare);
+    // 都度請求（発生時のみ）：金額は通常表示、合計には加算しない
+    const isConditional = document.getElementById(`co-${id}`)?.value === '1';
+    if (trEl0) {
+      trEl0.classList.toggle('row-conditional', isConditional);
+      if (isConditional) trEl0.dataset.cond = '1'; else delete trEl0.dataset.cond;
+    }
+    const coBtn0 = trEl0?.querySelector('.cond-charge-btn');
+    if (coBtn0) coBtn0.classList.toggle('is-on', isConditional);
     // 小計セル
     const st = document.getElementById(`st-${id}`);
     if (st) {
@@ -784,9 +794,9 @@
     return p > 0 ? 'profit-pos' : p < 0 ? 'profit-neg' : 'profit-zero';
   }
 
-  // ¥0✓ / 実費 / PS は排他。指定 id 以外のフラグをクリア
+  // ¥0✓ / 実費 / PS / 都度 は排他。指定 id 以外のフラグをクリア
   function _clearRowFlagsExcept(id, keep) {
-    ['zc', 'ac', 'ps'].forEach(f => {
+    ['zc', 'ac', 'ps', 'co'].forEach(f => {
       if (f === keep) return;
       const el = document.getElementById(`${f}-${id}`);
       if (el) el.value = '';
@@ -824,6 +834,17 @@
   }
   window.toggleProfitShare = toggleProfitShare;
 
+  // ========== 都度請求トグル（発生時のみ／必要時のみ。金額は表示・合計に加算しない） ==========
+  function toggleConditional(id) {
+    const coEl = document.getElementById(`co-${id}`);
+    if (!coEl) return;
+    coEl.value = coEl.value === '1' ? '' : '1';
+    if (coEl.value === '1') _clearRowFlagsExcept(id, 'co');
+    calc(id);
+    if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
+  }
+  window.toggleConditional = toggleConditional;
+
   function val(id) {
     let v = document.getElementById(id)?.value;
     if (v == null || v === '') return 0;
@@ -858,6 +879,7 @@
       if (tr.dataset.hideQuote === '1') return;   // 見積書非表示の行は合計から除外
       if (tr.dataset.outRange === '1') return;    // 適用期間外のサーチャージは合計から除外
       if (tr.dataset.actual === '1') return;      // 実費（金額未確定）の行は合計から除外
+      if (tr.dataset.cond === '1') return;        // 都度請求（発生時のみ）の行は合計に加算しない
       if (tr.dataset.profitShare === '1') {       // PROFIT SHARE：客先合計から除外し社内利益へ計上
         const pid = tr.id.replace('row-', '');
         const ppc = document.getElementById(`pc-${pid}`)?.value || 'JPY';
@@ -1236,7 +1258,7 @@
         groupBillCurrencies = new Set(); groupCostCurrencies = new Set();
       } else {
         // 見積書非表示・適用期間外の行は小計セパレータの集計に含めない
-        if (tr.dataset.hideQuote === '1' || tr.dataset.outRange === '1' || tr.dataset.actual === '1' || tr.dataset.profitShare === '1') return;
+        if (tr.dataset.hideQuote === '1' || tr.dataset.outRange === '1' || tr.dataset.actual === '1' || tr.dataset.profitShare === '1' || tr.dataset.cond === '1') return;
         const id = tr.id.replace('row-', '');
         const bq = val(`bq-${id}`);
         const bp = val(`bp-${id}`);
@@ -1923,6 +1945,7 @@
       if (tr.dataset.outRange === '1') return;
       if (tr.dataset.actual === '1') return;
       if (tr.dataset.profitShare === '1') return;   // PROFIT SHARE は客先小計から除外
+      if (tr.dataset.cond === '1') return;          // 都度請求は客先小計から除外
       const id = tr.id?.replace('row-', '');
       if (!id || !scSumEl) return;
       const bq = val(`bq-${id}`) || val(`pq-${id}`) || 0;
@@ -1996,7 +2019,7 @@
 
   function _gatherRowData(id) {
     const data = {};
-    ['nm','pq','un','pp','mk','nt','sv','pt','zc','ac','ps','vf','vt','cat','pc','bc'].forEach(f => {
+    ['nm','pq','un','pp','mk','nt','sv','pt','zc','ac','ps','co','vf','vt','cat','pc','bc'].forEach(f => {
       const el = document.getElementById(`${f}-${id}`);
       if (el) data[f] = el.value;
     });
@@ -2016,7 +2039,7 @@
     } else {
       tbody.appendChild(newTr);
     }
-    ['nm','pq','un','pp','mk','nt','pt','zc','ac','ps','vf','vt'].forEach(f => {
+    ['nm','pq','un','pp','mk','nt','pt','zc','ac','ps','co','vf','vt'].forEach(f => {
       const el = document.getElementById(`${f}-${newId}`);
       if (el && data[f] !== undefined) el.value = data[f];
     });
