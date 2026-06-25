@@ -997,7 +997,7 @@
     </details>
 
     <!-- 輸入通関：他法令 -->
-    <div class="card">
+    <div class="card" id="regs-import-other-laws">
       <div class="section-title">📥 輸入通関 ― 他法令（関税法以外の規制）</div>
       <p style="font-size:12px;color:var(--text-md);margin-bottom:12px;">
         輸入申告に加えて、品目によっては他省庁の許可・承認・確認が必要です。通関前に要件を確認してください。
@@ -2818,6 +2818,26 @@
               </div>
             </div>
           </div>
+        </div>
+
+        <!-- ▼ 関連知識・他法令（リンクチップ＋知識DB要約） -->
+        <div class="cond-sub">
+          <div class="cond-sub-label">📚 関連知識・他法令 <span class="cond-sub-note">輸出入に必要な規制・手続きの参照</span></div>
+          <div class="cargo-ref-chips" id="cargoRefChips">
+            <button type="button" class="cargo-ref-chip cargo-ref-chip--law" onclick="toggleCargoLawPanel()" title="輸入の他法令（11法令）の要約をその場で表示">📋 輸入 他法令（11法令）</button>
+            <button type="button" class="cargo-ref-chip cargo-ref-chip--in" onclick="gotoRef('docs','regs','regs-import-other-laws')" title="他法令の一覧表（詳細）へ">🔒 他法令タブ ↗</button>
+            <button type="button" class="cargo-ref-chip cargo-ref-chip--in" onclick="gotoRef('docs','regs','')" title="貿易管理令・事前申告（AFR/ACI等）へ">🚢 事前申告/貿易管理 ↗</button>
+            <button type="button" class="cargo-ref-chip cargo-ref-chip--in" onclick="gotoRef('ref','incoterms','')" title="インコタームズの解説へ">📦 インコタームズ ↗</button>
+            <a class="cargo-ref-chip cargo-ref-chip--ext" href="https://www.customs.go.jp/tariff/index.htm" target="_blank" rel="noopener" title="実行関税率表（税関）">🌐 税関 実行関税率表</a>
+            <a class="cargo-ref-chip cargo-ref-chip--ext" href="https://www.kanzei.or.jp/statistical/tariff/top/index/j/" target="_blank" rel="noopener" title="WEBタリフ（関税協会）でHS検索">🌐 WEBタリフ(HS検索)</a>
+            <a class="cargo-ref-chip cargo-ref-chip--ext" href="https://www.maff.go.jp/pps/" target="_blank" rel="noopener" title="植物防疫所（農林水産省）">🌐 植物防疫所</a>
+            <a class="cargo-ref-chip cargo-ref-chip--ext" href="https://www.maff.go.jp/aqs/" target="_blank" rel="noopener" title="動物検疫所（農林水産省）">🌐 動物検疫所</a>
+            <a class="cargo-ref-chip cargo-ref-chip--ext" href="https://www.mhlw.go.jp/stf/seisakunitsuite/bunya/kenkou_iryou/shokuhin/yunyu_kanshi/index.html" target="_blank" rel="noopener" title="輸入食品監視（厚生労働省）">🌐 輸入食品(厚労省)</a>
+            <a class="cargo-ref-chip cargo-ref-chip--ext" href="https://www.meti.go.jp/policy/external_economy/trade_control/index.html" target="_blank" rel="noopener" title="安全保障貿易管理（経済産業省）">🌐 貿易管理(経産省)</a>
+            <a class="cargo-ref-chip cargo-ref-chip--ext" href="https://elaws.e-gov.go.jp/" target="_blank" rel="noopener" title="e-Gov 法令検索">🌐 e-Gov 法令検索</a>
+            <a class="cargo-ref-chip cargo-ref-chip--ext" href="https://www.naccscenter.com/" target="_blank" rel="noopener" title="NACCSセンター（輸出入・港湾関連情報処理センター）">🌐 NACCSセンター</a>
+          </div>
+          <div class="cargo-law-panel" id="cargoLawPanel" hidden></div>
         </div>
 
         <!-- ▼ 危険品・特殊貨物グループ（区分チップ） -->
