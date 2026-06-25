@@ -314,7 +314,7 @@
                     :                   '〜' + fmt(r.vt);
         return ` <span class="qd-validity">${esc(range)}</span>`;
       })();
-      const condNote = isCond ? ' <span class="qd-cond-note" style="color:#8a5a00;font-size:11px;font-weight:600;">（発生時のみ）</span>' : '';
+      const condNote = isCond ? ' <span class="qd-cond-note" style="color:#8a5a00;font-size:11px;font-weight:600;">（発生時/必要時のみ）</span>' : '';
       lineHTML.push(
         `<tr${isCond ? ' class="qd-cond-row"' : ''}>
           <td class="qd-item qd-l3">${r.taxed ? '<span class="qd-tax">*</span> ' : ''}${esc(_taxName(r.name, r.taxed))}${validBadge}${condNote}</td>
