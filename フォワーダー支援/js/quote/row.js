@@ -1441,8 +1441,10 @@
   // サブコン別グループヘッダーを再描画する
   // ---- 折りたたみ・除外状態（セッション中保持・再描画後も維持） ----
   const _UNSET_KEY       = '￿';
-  const _collapsedGroups = new Set();
-  const _excludedGroups  = new Set();
+  const _collapsedGroups   = new Set();
+  const _excludedGroups    = new Set();
+  const _collapsedPatterns = new Set(); // svKey + '\x00' + ptKey
+  const _excludedPatterns  = new Set(); // svKey + '\x00' + ptKey
   // サブコン別小計の「客先用表示名」（sv キー → 置換テキスト）。客先向け出力でサブコン名を隠すために使う。
   const _subconAlias     = Object.create(null);
   // グループ（サブコンブロック）ドラッグ並べ替え中の掴んでいるグループキー
@@ -1466,19 +1468,41 @@
     if (typeof window.updateSectionSummaries === 'function') window.updateSectionSummaries();
   }
 
+  function togglePatternGroup(compKey) {
+    if (_collapsedPatterns.has(compKey)) _collapsedPatterns.delete(compKey);
+    else _collapsedPatterns.add(compKey);
+    _applyGroupStates();
+  }
+
+  function togglePatternExclude(compKey) {
+    if (_excludedPatterns.has(compKey)) {
+      _excludedPatterns.delete(compKey);
+    } else {
+      _excludedPatterns.add(compKey);
+      _collapsedPatterns.add(compKey); // 除外時は自動折りたたみ
+    }
+    _applyGroupStates();
+    if (typeof updateTotals === 'function') updateTotals();
+    if (typeof window.updateSectionSummaries === 'function') window.updateSectionSummaries();
+  }
+
   function _applyGroupStates() {
     const tbody = document.getElementById('tableBody');
     if (!tbody) return;
     // DOM 順に全行を走査し、直前の仮想ヘッダーのグループキーを引き継ぐ
     // → 小計・リマーク行は「直前のサブコングループ」に属するとして扱う
-    let currentKey = null;
+    let currentKey = null, currentCompKey = null;
     Array.from(tbody.querySelectorAll('tr')).forEach(tr => {
       if (tr.dataset.ptSum) {
-        // パターン小計行（内側）：所属サブコンの折りたたみに追従（currentKey は維持）
-        const key = tr.dataset.svKey || null;
-        const collapsed = key && _collapsedGroups.has(key);
+        // パターン小計行：所属サブコン折りたたみ OR パターン折りたたみに追従
+        const svKey = tr.dataset.svKey || null;
+        const ptKey = tr.dataset.ptKey || null;
+        const compKey   = svKey && ptKey != null ? svKey + '\x00' + ptKey : null;
+        const collapsed = (svKey && _collapsedGroups.has(svKey)) || (compKey && _collapsedPatterns.has(compKey));
+        const excluded  = (svKey && _excludedGroups.has(svKey))  || (compKey && _excludedPatterns.has(compKey));
         tr.style.display = collapsed ? 'none' : '';
         tr.classList.toggle('is-collapsed', !!collapsed);
+        tr.classList.toggle('is-excluded',  !!excluded);
         return;
       }
       if (tr.dataset.subSum) {
@@ -1492,15 +1516,29 @@
         return;
       }
       if (tr.dataset.subGroup) {
-        // 港ペア サブヘッダー：所属サブコングループの折りたたみに追従（currentKey は維持）
-        const key = tr.dataset.svKey || null;
-        const collapsed = key && _collapsedGroups.has(key);
-        tr.style.display = collapsed ? 'none' : '';
-        tr.classList.toggle('is-collapsed', !!collapsed);
+        // パターンサブヘッダー：サブコン折りたたみ OR パターン折りたたみ/除外に追従
+        const svKey = tr.dataset.svKey || null;
+        const ptKey = tr.dataset.ptKey || null;
+        const compKey   = svKey && ptKey != null ? svKey + '\x00' + ptKey : null;
+        const scCollapsed = svKey && _collapsedGroups.has(svKey);
+        const ptCollapsed = compKey && _collapsedPatterns.has(compKey);
+        const excluded    = compKey && _excludedPatterns.has(compKey);
+        tr.style.display = scCollapsed ? 'none' : '';
+        tr.classList.toggle('is-collapsed', !!(scCollapsed || ptCollapsed));
+        tr.classList.toggle('is-excluded',  !!excluded);
+        const toggleBtn = tr.querySelector('.subcon-subgroup-toggle');
+        const exclBtn   = tr.querySelector('.subcon-subgroup-excl');
+        if (toggleBtn) toggleBtn.textContent = ptCollapsed ? '▶' : '▼';
+        if (exclBtn) {
+          exclBtn.textContent = excluded ? '含む' : '除外';
+          exclBtn.classList.toggle('is-excluded', !!excluded);
+        }
+        currentCompKey = compKey;
         return;
       }
       if (tr.dataset.virtual) {
         currentKey = tr.dataset.svKey || null;
+        currentCompKey = null; // サブコンヘッダーでパターン追跡をリセット
         if (!currentKey) return;
         const collapsed = _collapsedGroups.has(currentKey);
         const excluded  = _excludedGroups.has(currentKey);
@@ -1516,19 +1554,27 @@
         return;
       }
       if (!tr.dataset.type) {
-        // データ行：sv 値でグループ判定（揺らぎ吸収：正規化キー）
+        // データ行：サブコン除外 OR パターン除外を確認
         const sv        = _rowSubcon(tr) ?? '';
         const key       = subconNormKey(sv) || _UNSET_KEY;
-        const collapsed = _collapsedGroups.has(key);
-        const excluded  = _excludedGroups.has(key);
+        const scCollapsed = _collapsedGroups.has(key);
+        const ptCollapsed = currentCompKey && _collapsedPatterns.has(currentCompKey);
+        const scExcluded  = _excludedGroups.has(key);
+        const ptExcluded  = currentCompKey && _excludedPatterns.has(currentCompKey);
+        const collapsed   = scCollapsed || ptCollapsed;
+        const excluded    = scExcluded  || ptExcluded;
         tr.style.display    = collapsed ? 'none' : '';
         tr.dataset.excluded = excluded ? '1' : '';
         tr.classList.toggle('row-excluded', excluded);
       } else if (tr.dataset.type === 'subtotal' || tr.dataset.type === 'remark' || tr.dataset.type === 'internal') {
         // 小計・リマーク・社内メモ行：DOM 上の位置で直前のグループに属する
         if (currentKey !== null) {
-          const collapsed = _collapsedGroups.has(currentKey);
-          const excluded  = _excludedGroups.has(currentKey);
+          const scCollapsed = _collapsedGroups.has(currentKey);
+          const ptCollapsed = currentCompKey && _collapsedPatterns.has(currentCompKey);
+          const scExcluded  = _excludedGroups.has(currentKey);
+          const ptExcluded  = currentCompKey && _excludedPatterns.has(currentCompKey);
+          const collapsed   = scCollapsed || ptCollapsed;
+          const excluded    = scExcluded  || ptExcluded;
           tr.style.display    = collapsed ? 'none' : '';
           tr.dataset.excluded = excluded ? '1' : '';
           // ツリー帰属：レール表示用。リマーク・社内メモは明細の1段下（nested）
@@ -1563,6 +1609,8 @@
   function renderSubconGroups() {
     const tbody = document.getElementById('tableBody');
     if (!tbody) return;
+    // DOM 再構築でブラウザがスクロール位置をリセットするのを防ぐ
+    const _savedScrollY = window.scrollY;
     _inGroupRender = true;
     try {
       // 既存の仮想ヘッダーを削除
@@ -1737,6 +1785,7 @@
             sub.dataset.virtual = '1';
             sub.dataset.ptSum   = '1';
             sub.dataset.svKey   = curSvKey || _UNSET_KEY;
+            sub.dataset.ptKey   = curKey || '';
             sub.className = 'subcon-pattern-subtotal';
             sub.innerHTML =
               `<td colspan="10" class="subcon-pattern-subtotal-cell">` +
@@ -1766,15 +1815,24 @@
             if (!runOpen || key !== curKey) {
               closeRun(tr);                          // 直前の内側グループを締める（小計を tr の前に挿入）
               const sh = document.createElement('tr');
+              const _svK = curSvKey || _UNSET_KEY;
+              const _compK = _svK + '\x00' + key;
+              const _ptCollapsed = _collapsedPatterns.has(_compK);
+              const _ptExcluded  = _excludedPatterns.has(_compK);
               sh.dataset.virtual  = '1';
               sh.dataset.subGroup = '1';
-              sh.dataset.svKey    = curSvKey || _UNSET_KEY;
-              sh.className = 'subcon-subgroup-header is-pattern';
+              sh.dataset.svKey    = _svK;
+              sh.dataset.ptKey    = key;
+              sh.className = 'subcon-subgroup-header is-pattern' + (_ptExcluded ? ' is-excluded' : '');
               const icon = '🔖';
               sh.innerHTML =
                 `<td colspan="10" class="subcon-subgroup-cell">` +
+                  `<button type="button" class="subcon-subgroup-toggle" title="${_ptCollapsed ? '展開' : '折りたたみ/展開'}">${_ptCollapsed ? '▶' : '▼'}</button>` +
                   `<span class="subcon-subgroup-leg">${icon} ${_escHdr(key)}</span>` +
+                  `<button type="button" class="subcon-subgroup-excl${_ptExcluded ? ' is-excluded' : ''}" title="見積もりへの含める/除外を切り替え">${_ptExcluded ? '含む' : '除外'}</button>` +
                 `</td>`;
+              sh.querySelector('.subcon-subgroup-toggle').addEventListener('click', () => togglePatternGroup(_compK));
+              sh.querySelector('.subcon-subgroup-excl').addEventListener('click', () => togglePatternExclude(_compK));
               tbody.insertBefore(sh, tr);
               curKey = key; curKind = kind; runOpen = true;
             }
@@ -1791,6 +1849,8 @@
       _updateGroupSums();
     } finally {
       _inGroupRender = false;
+      // DOM 再構築後にスクロール位置を復元（パターン変更時のページトップへの強制移動を防ぐ）
+      if (window.scrollY !== _savedScrollY) window.scrollTo({ top: _savedScrollY, behavior: 'instant' });
     }
   }
 

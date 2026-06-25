@@ -123,6 +123,7 @@
       const profit = bill - cost;
       const note   = document.getElementById(`nt-${id}`)?.value || '';
       const sv     = document.getElementById(`sv-${id}`)?.value || '';
+      const pt     = document.getElementById(`pt-${id}`)?.value || '';
       // 有効期限（vf/vt）はサーチャージ専用。他カテゴリは値が残っていても無視する
       const _isSur = cat === 'surcharge';
       const vf     = _isSur ? (document.getElementById(`vf-${id}`)?.value || '') : '';
@@ -135,7 +136,7 @@
       const _hideQuote  = _hideManual || _outRange || _ps;
       const _actual     = tr.dataset.actual === '1';   // 実費（金額未確定・合計除外・単価/金額は「実費」表示）
       const _cond       = tr.dataset.cond === '1';     // 都度請求（発生時のみ・金額は表示・合計に加算しない）
-      rows.push({ _type: 'data', taxed, cat, name, pq, un, pc, pp, cd, bq, bc, bp, mk, cost, bill, profit, note, sv, vf, vt, zc, _actual, _ps, _cond, _hideQuote, _hideManual, _outRange });
+      rows.push({ _type: 'data', taxed, cat, name, pq, un, pc, pp, cd, bq, bc, bp, mk, cost, bill, profit, note, sv, pt, vf, vt, zc, _actual, _ps, _cond, _hideQuote, _hideManual, _outRange });
     });
     return rows;
   }
@@ -431,6 +432,7 @@
     const hdr = getQuoteHeader();
     let totCost = 0, totBill = 0, totMk = 0;
     // 見積書非表示・適用期間外（いずれも _hideQuote）の行は合計に含めない
+    // 除外パターンの行は collectAllRows() が data-excluded='1' でフィルタ済みのため除外不要
     data.forEach(d => { if (d._hideQuote || d._actual || d._cond) return; totCost += d.cost; totBill += d.bill; totMk += d.mk; });
     const totPr = totBill - totCost;
     const ccyGroups = {}; // billing 通貨別集計: { JPY: {sub,tax,mk}, USD: {...} }
@@ -460,31 +462,67 @@
 
     let totSub = 0, totTax = 0, totJpy = 0, hasNonJpyBill = false, hasNonJpyCost = false;
 
-    // ===== サブコン別グループが有効（2+ サブコン）なら、グループ境界に小計セパレーターを挿入 =====
+    // ===== サブコン別グループ（1社以上）およびパターン別サブグループ =====
     // 揺らぎ吸収：境界判定・小計集約・エイリアス参照は正規化キーで、表示は元の綴りで行う
     const _scNorm  = d => (subconNormKey(d.sv) || '（サブコン未設定）');
     const _scLabel = d => ((d.sv || '').trim() || '（サブコン未設定）');
-    const _scActive = (() => { const ks = new Set(data.map(_scNorm)); return ks.size >= 2; })();
+    const _ptNorm  = d => (d.pt || '').trim();
+    const _scActive = (() => { const ks = new Set(data.map(_scNorm)); return ks.size >= 1; })();
     // 仕入合計・粗利率は内部指標。利益列が表示されているとき（＝社内モード）のみラベルに併記
     const _scShowInternal = (typeof getPreviewVisibility === 'function') ? (getPreviewVisibility().profit !== false) : true;
     const _seq = [];
     if (_scActive) {
-      let ck = null, clabel = null, cc = 0, cb = 0, cm = false, has = false, gi = -1;
       const toJ = (a, c) => (c && c !== 'JPY' && typeof toJPY === 'function') ? toJPY(a, c) : a;
-      const pushSub = () => { if (has) _seq.push({ _type: 'subcon-subtotal', label: clabel, normKey: ck, cost: cc, bill: cb, mixed: cm, gi }); };
+
+      // サブコンごとのパターン種類数を事前集計（2種類以上あればパターン小計を出す）
+      const scPatternSets = {};
+      allRows.filter(d => d._type === 'data').forEach(d => {
+        const k = _scNorm(d);
+        if (!scPatternSets[k]) scPatternSets[k] = new Set();
+        scPatternSets[k].add(_ptNorm(d));
+      });
+
+      let ck = null, clabel = null, cc = 0, cb = 0, cm = false, has = false, gi = -1;
+      let pk = null, plabel = null, pc = 0, pb = 0, pm = false, phas = false, _ptActive = false;
+
+      const pushPat = () => {
+        if (phas) _seq.push({ _type: 'pattern-subtotal', label: plabel, cost: pc, bill: pb, mixed: pm, gi });
+        pc = 0; pb = 0; pm = false; phas = false;
+      };
+      const pushSub = () => {
+        if (_ptActive && phas) pushPat();
+        if (has) _seq.push({ _type: 'subcon-subtotal', label: clabel, normKey: ck, cost: cc, bill: cb, mixed: cm, gi });
+      };
+
       allRows.forEach(d => {
         if (d._type === 'data') {
           const k = _scNorm(d);
-          if (has && k !== ck) { pushSub(); cc = 0; cb = 0; cm = false; has = false; }
+          const p = _ptNorm(d);
+          if (has && k !== ck) {
+            pushSub();
+            cc = 0; cb = 0; cm = false; has = false;
+            pk = null; plabel = null; phas = false;
+          }
           if (!has) {
-            ck = k; clabel = _scLabel(d); gi++;                 // 新グループ開始
+            ck = k; clabel = _scLabel(d); gi++;
+            _ptActive = scPatternSets[k].size >= 2 ||
+                        (scPatternSets[k].size === 1 && !scPatternSets[k].has(''));
             _seq.push({ _type: 'subcon-header', label: clabel, normKey: ck, gi });
           }
-          d._gi = gi;                                            // 行にグループ番号（地色分け用）
-          if (!d._hideQuote && !d._actual && !d._cond) {          // 見積書非表示・実費・都度請求は小計に含めない
-            cc += toJ(d.cost, d.pc || 'JPY');
-            cb += toJ(d.bill, d.bc || 'JPY');
-            if ((d.pc && d.pc !== 'JPY') || (d.bc && d.bc !== 'JPY')) cm = true;
+          // パターン境界でサブグループヘッダー挿入
+          if (_ptActive && p !== pk) {
+            if (phas) pushPat();
+            pk = p; plabel = p || '（パターン未設定）';
+            _seq.push({ _type: 'pattern-header', label: plabel, gi });
+            phas = true;
+          }
+          d._gi = gi;
+          if (!d._hideQuote && !d._actual && !d._cond) {
+            const jc = toJ(d.cost, d.pc || 'JPY');
+            const jb = toJ(d.bill, d.bc || 'JPY');
+            cc += jc; cb += jb;
+            if (_ptActive) { pc += jc; pb += jb; }
+            if ((d.pc && d.pc !== 'JPY') || (d.bc && d.bc !== 'JPY')) { cm = true; if (_ptActive) pm = true; }
           }
           has = true;
         }
@@ -534,6 +572,28 @@
           <td data-ft-col="tax-col" style="${_scStyle}"></td>
           <td data-ft-col="profit" class="pv-num ${prCls}" style="${_scStyle}">¥${fmtMoney(prAmt)}</td>
           <td data-ft-col="note" style="${_scStyle}"></td>
+        </tr>`;
+        return;
+      }
+      if (d._type === 'pattern-header') {
+        html += `<tr class="pv-pattern-header pv-grp-c${d.gi % 4}">
+          <td colspan="17" class="pv-ph-cell">📋 ${escHtml(d.label)}</td>
+        </tr>`;
+        return;
+      }
+      if (d._type === 'pattern-subtotal') {
+        const prAmt = Math.round(d.bill - d.cost);
+        const prCls = prAmt > 0 ? 'pv-pos' : prAmt < 0 ? 'pv-neg' : 'pv-zero';
+        const mark = d.mixed ? '※' : '';
+        const sellTxt = '¥' + fmtMoney(Math.round(d.bill)) + mark;
+        const _ptStyle = 'background:#f0e8d8;border-top:1px dashed #c69a44;';
+        html += `<tr class="pv-pattern-subtotal pv-grp-c${(d.gi ?? 0) % 4}">
+          <td colspan="12" class="pv-pts-label" style="${_ptStyle}text-align:right !important;">↳ ${escHtml(d.label)} 小計</td>
+          <td class="pv-num" style="${_ptStyle}">${sellTxt}</td>
+          <td data-ft-col="jpy-conv" style="${_ptStyle}"></td>
+          <td data-ft-col="tax-col" style="${_ptStyle}"></td>
+          <td data-ft-col="profit" class="pv-num ${prCls}" style="${_ptStyle}">¥${fmtMoney(prAmt)}</td>
+          <td data-ft-col="note" style="${_ptStyle}"></td>
         </tr>`;
         return;
       }
@@ -890,7 +950,7 @@
       const show = chk.checked;
       // thead/tbody は nth-child で制御（1セル=1列のため位置が一致）
       indices.forEach(ci => {
-        table.querySelectorAll(`thead tr th:nth-child(${ci + 1}), tbody tr:not(.pv-subtotal-sep):not(.pv-subcon-subtotal):not(.pv-subcon-header):not(.pv-table-remark-row) td:nth-child(${ci + 1})`).forEach(cell => {
+        table.querySelectorAll(`thead tr th:nth-child(${ci + 1}), tbody tr:not(.pv-subtotal-sep):not(.pv-subcon-subtotal):not(.pv-subcon-header):not(.pv-pattern-header):not(.pv-pattern-subtotal):not(.pv-table-remark-row) td:nth-child(${ci + 1})`).forEach(cell => {
           cell.style.display = show ? '' : 'none';
         });
       });
@@ -922,7 +982,7 @@
       (_isOn('unit') ? 1 : 0) +
       (_isOn('bill') ? 3 : 0) +
       (_isOn('mk') ? 1 : 0);
-    table.querySelectorAll('.pv-scs-label, .pv-subtotal-sep-label').forEach(td => {
+    table.querySelectorAll('.pv-scs-label, .pv-subtotal-sep-label, .pv-pts-label').forEach(td => {
       td.colSpan = Math.max(1, _leadingVisible);
     });
     const _leadHead = 1 /* 項目名 */ + (_isOn('cat') ? 1 : 0) + (_isOn('sv') ? 1 : 0);

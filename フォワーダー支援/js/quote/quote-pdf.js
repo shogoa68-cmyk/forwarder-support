@@ -242,10 +242,26 @@
     // 揺らぎ吸収：境界判定・エイリアス参照は正規化キーで、表示は元の綴りで行う
     const _scNorm    = d => (subconNormKey(d.sv) || '（サブコン未設定）');
     const _scLabelOf = d => ((d.sv || '').trim() || '（サブコン未設定）');
+    const _ptNorm    = d => (d.pt || '').trim();
+    // サブコンごとのパターン種類数を事前集計（パターン別表示の有無を判定）
+    const scPatternSets = {};
+    data.forEach(d => {
+      const sk = _scNorm(d);
+      if (!scPatternSets[sk]) scPatternSets[sk] = new Set();
+      scPatternSets[sk].add(_ptNorm(d));
+    });
     const _scActive = (new Set(data.map(_scNorm)).size >= 2);
     let _scKey = null, _scLabel = null, _scJpy = 0, _scHas = false;
     let _catKey = null;   // サブコン内の現在カテゴリ（サブコンが変わると null にリセット）
+    let _ptActive = false, _ptKey = null, _ptJpy = 0, _ptHas = false;
+    const _ptPush = () => {
+      if (_ptActive && _ptHas) {
+        lineHTML.push(`<tr class="qd-pattern-sub"><td colspan="4">↳ 📋 ${esc(_ptKey || '（未設定）')} 小計</td><td class="qd-num">¥${fmtInt(_ptJpy)}</td></tr>`);
+      }
+      _ptJpy = 0; _ptHas = false;
+    };
     const _scPush = () => {
+      _ptPush(); // サブコン小計前にパターン小計をフラッシュ
       if (_scActive && _scHas) {
         // サブコン名は見出し行に表示済みのため、小計行では繰り返さず「小計」のみ
         lineHTML.push(`<tr class="qd-subcon-sub"><td colspan="4">↳ 小計</td><td class="qd-num">¥${fmtInt(_scJpy)}</td></tr>`);
@@ -289,15 +305,40 @@
       // サブコン境界：キーが変わったら直前グループの売値小計を挿入
       if (_scActive) {
         const k = _scNorm(r);
-        if (_scHas && k !== _scKey) { _scPush(); _scJpy = 0; _scHas = false; _catKey = null; }
+        if (_scHas && k !== _scKey) {
+          _scPush(); _scJpy = 0; _scHas = false; _catKey = null;
+          _ptActive = false; _ptKey = null;
+        }
         if (!_scHas) {
           _scKey = k; _scLabel = _scLabelOf(r);  // グループ先頭の綴りを表示名に採用
           // 各サブコンブロックの先頭に見出しを置き、どのサブコンの明細かを明示する
           const _alH = (typeof getSubconAliases === 'function' ? getSubconAliases()[_scKey] : '') || '';
           lineHTML.push(`<tr class="qd-subcon-head"><td colspan="5">${esc(_alH || _scLabel)}</td></tr>`);
           _catKey = null;   // 新しいサブコンに入ったのでカテゴリ見出しを再出させる
+          const ps = scPatternSets[k] || new Set();
+          _ptActive = ps.size >= 2 || (ps.size === 1 && !ps.has(''));
+          _ptKey = null; _ptJpy = 0; _ptHas = false;
         }
         _scJpy += ((isActual || isCond) ? 0 : jpy); _scHas = true;   // 実費・都度請求は小計に含めない
+      } else {
+        // サブコンが1社のみの場合もパターン表示を判定（初回のみ）
+        if (_ptKey === null) {
+          const k = _scNorm(r);
+          const ps = scPatternSets[k] || new Set();
+          _ptActive = ps.size >= 2 || (ps.size === 1 && !ps.has(''));
+        }
+      }
+      // パターン境界：キーが変わったら直前パターンの売値小計を挿入
+      if (_ptActive) {
+        const p = _ptNorm(r);
+        if (_ptHas && p !== _ptKey) { _ptPush(); _catKey = null; }
+        if (!_ptHas || p !== _ptKey) {
+          _ptKey = p;
+          lineHTML.push(`<tr class="qd-pattern-head"><td colspan="5">📋 ${esc(_ptKey || '（パターン未設定）')}</td></tr>`);
+          _catKey = null;
+        }
+        if (!isActual && !isCond) _ptJpy += jpy;
+        _ptHas = true;
       }
       // カテゴリー境界：サブコン配下でカテゴリが変わったら見出し行を挿入（ツリー第2階層）
       if (r.cat !== _catKey) {

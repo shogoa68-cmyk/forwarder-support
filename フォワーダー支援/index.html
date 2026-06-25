@@ -3388,6 +3388,9 @@
               <input type="text" id="bulkSubconSet" class="bulk-subcon-input" placeholder="サブコン一括設定…" maxlength="40"
                      onkeydown="if(event.key==='Enter'){applyBulkSubcon();}" title="チェックした行のサブコンを一括設定" />
               <button class="btn-bulk-subcon" onclick="applyBulkSubcon()" title="チェックした行のサブコンに左の値を一括設定">設定</button>
+              <input type="text" id="bulkPatternSet" class="bulk-subcon-input" placeholder="📋 パターン一括設定…" maxlength="40"
+                     onkeydown="if(event.key==='Enter'){applyBulkPattern();}" title="チェックした行のパターンを一括設定" />
+              <button class="btn-bulk-subcon" onclick="applyBulkPattern()" title="チェックした行のパターンに左の値を一括設定">設定</button>
               <input type="number" id="bulkMarkupSet" class="bulk-subcon-input bulk-markup-input" placeholder="＋ 乗せ幅一括…" min="0" step="any"
                      onkeydown="if(event.key==='Enter'){applyBulkMarkupSet();}" title="チェックした行の乗せ幅（仕入単価に加算）を一括設定" />
               <button class="btn-bulk-subcon" onclick="applyBulkMarkupSet()" title="チェックした行の乗せ幅に左の値を一括設定">設定</button>
@@ -4461,9 +4464,9 @@
           </select>
         </div>
         <div>
-          <label class="bm-form-label" for="bmFormFunction">機能 <span class="bm-required">必須</span></label>
+          <label class="bm-form-label" for="bmFormFunction">機能 <span class="bm-optional">任意 — 後で整理できます</span></label>
           <select id="bmFormFunction" class="bm-form-sel">
-            <option value="">— 選択 —</option>
+            <option value="未分類">未分類</option>
             <option>スケジュール</option>
             <option>航路</option>
             <option>輸入サーチャージ</option>
@@ -4478,7 +4481,7 @@
         </div>
       </div>
       <div class="bm-form-row" id="bmCarrierRow">
-        <label class="bm-form-label" for="bmFormCarrier">会社名 <span class="bm-optional">省略可</span></label>
+        <label class="bm-form-label" for="bmFormCarrier">会社名（サブコン・キャリア名） <span class="bm-optional">任意 — 入れておくと見積タブのチップに表示されます</span></label>
         <input type="text" id="bmFormCarrier" class="bm-form-input" placeholder="例：Maersk" list="bmCarrierDatalist">
         <datalist id="bmCarrierDatalist"></datalist>
         <span class="bm-carrier-hint" id="bmCarrierNote" style="display:none">📌 見積タブの幹線輸送に登録されたキャリア名と一致させることで、QSP チップに自動表示されます</span>
