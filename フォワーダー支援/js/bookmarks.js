@@ -283,7 +283,8 @@ function openAddBmModal(presetData) {
   const carrierRow = document.getElementById('bmCarrierRow');
   const carrierNote = document.getElementById('bmCarrierNote');
   if (carrierRow)  carrierRow.classList.toggle('bm-carrier-locked', lockCarrier);
-  if (carrierNote) carrierNote.style.display = lockCarrier ? '' : 'none';
+  // 会社名は任意だが、見積タブのチップ連動メリットを常に示して入力を促す（方針B）
+  if (carrierNote) carrierNote.style.display = '';
   // モーダルタイトルを切り替え
   const titleEl = document.getElementById('bmModalTitle');
   if (titleEl) titleEl.textContent = isEdit ? '🔖 ブックマークを編集' : '🔖 ブックマークを追加';
