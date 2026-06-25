@@ -4,7 +4,6 @@
 
   // cells 配列のインデックス（v3 format: [0]=selected [1]=cat [2]=sv [3]=tx [4]=nm [5]=pq [6]=un ...）
   const CI = { cat: 1, sv: 2, nm: 4, un: 6, bq: 7, pc: 8, bc: 9, pp: 10, bp: 11, pt: 19 };
-  const CARRIER_CATS = new Set(['ocean', 'surcharge', 'air']);
   const LOCAL_KEY    = 'masterCandidates_v1';
   const VOTES_TABLE  = 'master_votes';
 
@@ -87,17 +86,18 @@
       });
     }
     const allRows     = presets.flatMap(p => p.rows);
-    const svRows      = allRows.filter(r => r.sv && !CARRIER_CATS.has(r.cat));
-    const carrierRows = allRows.filter(r => r.sv &&  CARRIER_CATS.has(r.cat));
+    // サブコン: 明細行の「サブコン」欄すべて。キャリア: 幹線輸送（z2Carrier / 航路データ）から集計。
+    const svRows      = allRows.filter(r => r.sv);
     const excl = typeof window.arGetExclusions === 'function' ? window.arGetExclusions() : [];
     const svExcl = new Set(excl.filter(e => e.field === 'sv').map(e => e.value));
     const nmExcl = new Set(excl.filter(e => e.field === 'nm').map(e => e.value));
     const unExcl = new Set(excl.filter(e => e.field === 'un').map(e => e.value));
     const portExcl = new Set(excl.filter(e => e.field === 'port').map(e => e.value));
+    const carrierExcl = new Set(excl.filter(e => e.field === 'carrier').map(e => e.value));
     return {
       presets, totalPresets: presets.length, totalRows: allRows.length,
       svGroups:      _groupSimilar(svRows.map(r => r.sv), svExcl, 'sv'),
-      carrierGroups: _groupSimilar(carrierRows.map(r => r.sv), svExcl, 'sv'),
+      carrierGroups: _groupSimilar(_gatherCarriers(source), carrierExcl, 'carrier'),
       nmGroups:      _groupSimilar(allRows.map(r => r.nm).filter(Boolean), nmExcl, 'nm'),
       unGroups:      _groupSimilar(allRows.map(r => r.un).filter(Boolean), unExcl, 'un'),
       portGroups:    _groupSimilar(_gatherPorts(source), portExcl, 'port'),
@@ -123,6 +123,27 @@
     if (source !== 'cloud') _getLocalPresets().forEach(add);
     if (source !== 'local') (typeof window.cloudGetAllRows === 'function' ? window.cloudGetAllRows() : []).forEach(add);
     return ports;
+  }
+
+  // 幹線輸送のキャリア（z2Carrier）を全プリセットの条件フィールドから収集。
+  // 複数航路（z2-routes-data）がある場合はそちらの carrier を優先。
+  function _carrierValsFromFields(f) {
+    let rts = [];
+    try { rts = JSON.parse(f['z2-routes-data'] || '[]'); } catch (e) {}
+    const out = [];
+    if (Array.isArray(rts) && rts.length) {
+      rts.forEach(r => { const v = (r.carrier || '').trim(); if (v) out.push(v); });
+    } else {
+      const v = (f['z2Carrier'] || '').trim(); if (v) out.push(v);
+    }
+    return out;
+  }
+  function _gatherCarriers(source) {
+    const carriers = [];
+    const add = p => { carriers.push(..._carrierValsFromFields((p.data || {}).fields || {})); };
+    if (source !== 'cloud') _getLocalPresets().forEach(add);
+    if (source !== 'local') (typeof window.cloudGetAllRows === 'function' ? window.cloudGetAllRows() : []).forEach(add);
+    return carriers;
   }
 
   function _freq(arr) {
@@ -280,8 +301,8 @@
   function _renderGrouped(groups, field, colLabel, paneId) {
     const e = document.getElementById(paneId);
     if (!e || !_data) return;
-    // carrier も alias rule / 同義グループでは 'sv' フィールドを使う
-    const aliasField = (field === 'sv') ? 'sv' : field;
+    // alias rule / 同義グループのフィールド（sv/carrier/nm/port をそのまま使用）
+    const aliasField = field;
     const synGroups  = typeof window.synGetGroups === 'function' ? window.synGetGroups(aliasField) : [];
     const synCanons  = new Set(synGroups.map(g => g.canonical));
     const synAliasOf = {};
@@ -443,7 +464,7 @@
   // === ペイン描画 ===
 
   function _renderSv() { _renderGrouped(_data?.svGroups || [], 'sv', 'サブコン名', 'statsPane-sv'); }
-  function _renderCarrier() { _renderGrouped(_data?.carrierGroups || [], 'sv', 'キャリア名', 'statsPane-carrier'); }
+  function _renderCarrier() { _renderGrouped(_data?.carrierGroups || [], 'carrier', 'キャリア名', 'statsPane-carrier'); }
   function _renderPort() { _renderGrouped(_data?.portGroups || [], 'port', '港名', 'statsPane-port'); }
   function _renderNm()      { _renderGrouped(_data?.nmGroups      || [], 'nm', '品名',       'statsPane-nm'); }
 
@@ -1087,10 +1108,10 @@
     } else {
       entries = _getMasters().map(m => ({ ...m, isMine: true, promoted: true }));
     }
-    const labels = { sv: 'サブコン', nm: '品名', un: '単位', customer: 'お客様', port: '港' };
+    const labels = { sv: 'サブコン', carrier: 'キャリア', nm: '品名', un: '単位', customer: 'お客様', port: '港' };
 
     // --- 代表を新規登録するフォーム（実データに無い名称も登録可）---
-    const fieldOpts = [['sv', 'サブコン'], ['nm', '品名'], ['customer', 'お客様'], ['port', '港'], ['un', '単位']]
+    const fieldOpts = [['sv', 'サブコン'], ['carrier', 'キャリア'], ['nm', '品名'], ['customer', 'お客様'], ['port', '港'], ['un', '単位']]
       .map(([v, l]) => `<option value="${v}">${l}</option>`).join('');
     const formH = '<div class="master-new-form">' +
       '<span class="master-new-label">➕ 代表を新規登録</span>' +
@@ -1145,6 +1166,7 @@
     }
     const usageDesc = {
       sv:       '見積行のサブコン欄で入力補完候補に表示されます。',
+      carrier:  '幹線輸送（本船・航路）のキャリア欄で入力補完候補に表示されます。',
       nm:       '見積行の品名欄で入力補完候補に表示されます。',
       un:       '見積行の単位欄で入力補完候補に表示されます。',
       customer: 'お客様名欄で入力補完候補に表示されます。',
@@ -1579,7 +1601,7 @@
   };
 
   window.statsMasterAddAbbrev = function (field, value) {
-    const labels = { sv: 'サブコン', nm: '品名', un: '単位', customer: 'お客様', port: '港' };
+    const labels = { sv: 'サブコン', carrier: 'キャリア', nm: '品名', un: '単位', customer: 'お客様', port: '港' };
     const safeId = 'abbrev-inline-' + Math.random().toString(36).slice(2, 7);
     // 既存の「＋ 略称」ボタンを入力フォームに置換
     const btn = document.querySelector(`.stats-master-abbrev-add[onclick*="${_ea(value)}"]`);
