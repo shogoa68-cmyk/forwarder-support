@@ -1584,6 +1584,15 @@ body:has(#compareOverlay.open) #quoteActionDock { display: none; }
 .bm-tmeta { min-width: 0; }
 .bm-tname { font-size: 14px; font-weight: 700; color: #fff; line-height: 1.2; }
 .bm-tsub  { font-size: 10px; color: rgba(255,255,255,.82); margin-top: 1px; }
+.bm-ttype {
+  font-size: 10px; color: rgba(255,255,255,.95);
+  background: rgba(255,255,255,.16);
+  border: 1px solid rgba(255,255,255,.32);
+  border-radius: 5px; padding: 1px 4px; margin-top: 2px;
+  cursor: pointer; max-width: 140px; line-height: 1.3;
+}
+.bm-ttype:hover { background: rgba(255,255,255,.28); }
+.bm-ttype option { color: #222; }
 .bm-tcount {
   margin-left: auto;
   font-size: 10px; font-weight: 600; color: #fff;

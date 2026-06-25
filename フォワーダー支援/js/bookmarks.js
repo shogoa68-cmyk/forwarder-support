@@ -134,7 +134,7 @@ function _bmCarrierAbbr(name) {
   if (ascii) { const a = name.replace(/[^A-Za-z0-9]/g, '').slice(0, 3).toUpperCase(); return a || name.slice(0, 3).toUpperCase(); }
   return name.slice(0, 3);
 }
-const _BM_TYPE_SUB = { FCL: 'FCL 船会社', LCL: 'LCL キャリア', general: '汎用' };
+const _BM_TYPE_SUB = { FCL: 'FCL 船会社', LCL: 'LCL キャリア', AIR: 'AIR 航空', general: '汎用' };
 const _BM_FN_ICON = {
   'スケジュール':'📅','航路':'🛣️','コンテナ追跡':'📍','CY OPEN/CUT':'🗓️',
   'ローカルチャージ（輸出）':'💴','ローカルチャージ（輸入）':'💴',
@@ -170,6 +170,15 @@ function _bmRenderList(rows) {
     const list  = groups[name];
     const type  = list[0].carrier_type || (name === '汎用' ? 'general' : 'FCL');
     const sub   = _BM_TYPE_SUB[type] || '';
+    // キャリアタイルは種別をドロップダウン化（選ぶとそのキャリアの全リンクを一括再設定）。
+    // 「汎用」グループ（会社名なし）は静的ラベルのまま。
+    const typeMeta = name === '汎用'
+      ? `<div class="bm-tsub">${escHtml(sub)}</div>`
+      : `<select class="bm-tsub bm-ttype" data-bm-carrier="${escHtml(name)}" onclick="event.stopPropagation()" title="このキャリアの全リンクの種別を変更">`
+        + ['FCL', 'LCL', 'AIR', 'general'].map(tv =>
+            `<option value="${tv}"${tv === type ? ' selected' : ''}>${escHtml(_BM_TYPE_SUB[tv] || tv)}</option>`
+          ).join('')
+        + `</select>`;
     const pills = list.map(r => {
       const ic   = _bmFnIcon(r.function);
       const txt  = escHtml(r.label || r.function || 'リンク');
@@ -191,7 +200,7 @@ function _bmRenderList(rows) {
     return `<div class="bm-tile${isCol ? ' collapsed' : ''}" style="--cc:${cc}">
       <div class="bm-thead" data-bm-tile="${escHtml(name)}">
         <div class="bm-tlogo">${escHtml(_bmCarrierAbbr(name))}</div>
-        <div class="bm-tmeta"><div class="bm-tname">${escHtml(name)}</div><div class="bm-tsub">${escHtml(sub)}</div></div>
+        <div class="bm-tmeta"><div class="bm-tname">${escHtml(name)}</div>${typeMeta}</div>
         <span class="bm-tcount">${list.length}</span>
         <span class="bm-ttog">${isCol ? '▸' : '▾'}</span>
       </div>
@@ -211,6 +220,11 @@ if (!window._bmTileDelegated) {
     if (add) { openAddBmModal({ carrier: add.dataset.bmAdd || '', type: add.dataset.bmType || 'FCL' }); return; }
     const head = e.target.closest('#bmListWrap .bm-thead');
     if (head && head.dataset.bmTile != null) { _bmToggleTile(head.dataset.bmTile); }
+  });
+  // タイル見出しの種別ドロップダウン変更 → そのキャリアの全リンクを一括再設定
+  document.addEventListener('change', e => {
+    const sel = e.target.closest('#bmListWrap .bm-ttype');
+    if (sel) bmRetypeCarrier(sel.dataset.bmCarrier, sel.value);
   });
 }
 
@@ -439,6 +453,37 @@ async function bmDelete(id) {
   if (error) { quoteShowToast('⚠️ 削除エラー：' + error.message, 'warn'); return; }
   quoteShowToast('✅ 削除しました', 'success', 2000);
   _bmRows = _bmRows.filter(r => r.id !== id);
+  _bmApply();
+  if (typeof window.lcRefreshBmChips === 'function') window.lcRefreshBmChips();
+}
+
+// タイル見出しから、そのキャリアの全ブックマークの種別（carrier_type）を一括変更する。
+// 誤った種別（例：LCL キャリアを FCL に設定）を後から戻せるようにするための機能。
+async function bmRetypeCarrier(carrier, newType) {
+  const db = window.SupabaseClient;
+  if (!db || !carrier) return;
+  const targets = _bmRows.filter(r => (r.carrier || '') === carrier);
+  if (!targets.length) return;
+  if (targets[0].carrier_type === newType) return;   // 変化なし
+  const labelMap = { FCL: 'FCL 船会社', LCL: 'LCL キャリア', AIR: 'AIR 航空', general: '汎用' };
+  if (!confirm(`「${carrier}」の ${targets.length} 件すべての種別を「${labelMap[newType] || newType}」に変更しますか？`)) {
+    _bmApply();   // キャンセル時はドロップダウンの表示を元に戻す
+    return;
+  }
+  const { data, error } = await db.from('bookmarks')
+    .update({ carrier_type: newType }).eq('carrier', carrier).select();
+  if (error) {
+    quoteShowToast('⚠️ 種別の変更に失敗：' + error.message, 'warn', 6000);
+    _bmApply();
+    return;
+  }
+  if (!data || !data.length) {
+    quoteShowToast('⚠️ 変更されませんでした（権限不足の可能性）', 'warn', 7000);
+    _bmApply();
+    return;
+  }
+  _bmRows.forEach(r => { if ((r.carrier || '') === carrier) r.carrier_type = newType; });
+  quoteShowToast(`✅ 「${carrier}」の種別を変更しました（${data.length}件）`, 'success', 3000);
   _bmApply();
   if (typeof window.lcRefreshBmChips === 'function') window.lcRefreshBmChips();
 }
