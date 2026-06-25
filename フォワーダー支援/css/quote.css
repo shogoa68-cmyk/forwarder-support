@@ -3501,6 +3501,27 @@
   border-left: 3px solid var(--pv-ga);
 }
 #tab-quote-make #previewTable tr.pv-pattern-subtotal > td:first-child { border-left: 3px solid var(--pv-ga); }
+#tab-quote-make #previewTable tr.pv-pat-excluded td,
+#tab-quote-make #previewTable tr.pv-pat-excluded .pv-ph-cell {
+  opacity: 0.55;
+  text-decoration: line-through;
+}
+#tab-quote-make #previewTable .pv-pat-btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  padding: 0 4px; height: 16px; min-width: 18px;
+  font-size: 0.72em; line-height: 1;
+  background: rgba(255,255,255,0.6); border: 1px solid #c8b08a;
+  border-radius: 3px; cursor: pointer; vertical-align: middle;
+  color: #7a5c32;
+}
+#tab-quote-make #previewTable .pv-pat-btn:hover { background: #f0e4cc; }
+#tab-quote-make #previewTable .pv-pat-excl { float: right; margin-left: 4px; }
+#tab-quote-make #previewTable .pv-pat-excl.is-excluded { background: #f4d0d0; border-color: #c87070; color: #a03030; }
+#tab-quote-make #previewTable .pv-pat-excl-badge {
+  display: inline-block; margin-left: 6px;
+  padding: 0 5px; font-size: 0.7em; font-weight: 700;
+  background: #f4d0d0; color: #a03030; border-radius: 3px; vertical-align: middle;
+}
 #tab-quote-make #previewTable tr.pv-table-remark-row td {
   background: #eef3f8;
   border-top: 1px dashed #9ab0c8 !important;

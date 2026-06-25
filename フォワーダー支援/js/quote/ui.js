@@ -540,6 +540,32 @@
     quoteShowToast(`👷 ${count}行のサブコンを${val ? '「' + val + '」に' : 'クリアに'}設定しました`, 'success');
   }
 
+  // 選択（チェック）行のパターンを一括設定。選択は維持
+  function applyBulkPattern() {
+    const inp = document.getElementById('bulkPatternSet');
+    if (!inp) return;
+    const val = inp.value.trim();
+    const checkboxes = document.querySelectorAll('.row-select-chk:checked');
+    if (!checkboxes.length) {
+      quoteShowToast('⚠️ 設定したい行のチェックボックスにチェックを入れてください', 'warn', 3000);
+      return;
+    }
+    let count = 0;
+    checkboxes.forEach(chk => {
+      const tr = chk.closest('tr');
+      if (!tr || tr.dataset.type === 'subtotal' || tr.dataset.type === 'remark') return;
+      const id = tr.id.replace('row-', '');
+      const ptInp = document.getElementById(`pt-${id}`);
+      if (!ptInp) return;
+      ptInp.value = val;
+      ptInp.dispatchEvent(new Event('input', { bubbles: true }));
+      ptInp.dispatchEvent(new Event('change', { bubbles: true }));
+      count++;
+    });
+    inp.value = '';
+    quoteShowToast(`📋 ${count}行のパターンを${val ? '「' + val + '」に' : 'クリアに'}設定しました`, 'success');
+  }
+
   // 選択（チェック）行の乗せ幅（mk）を一括設定。選択は維持
   function applyBulkMarkupSet() {
     const inp = document.getElementById('bulkMarkupSet');
