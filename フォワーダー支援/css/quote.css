@@ -8211,6 +8211,8 @@ button.um-memberno--empty:hover { background: #f4ead4; border-color: #cdb98e; }
 /* ✓ 入力完了は文字色で状態表現（OFF はグレー、ON は緑） */
 #tab-quote-make .row-done-btn { color: #9aa3ab; font-weight: 700; font-size: 12px; }
 #tab-quote-make .row-done-btn.is-on { color: #1f9d57; }
+/* 行操作（➕複製📋削除🗑️）：削除はホバーで赤アクセント */
+#tab-quote-make .row-del-btn:hover { background: #fdecec; border-color: #e9a8a8; }
 /* 要調査の行：琥珀色の左アクセント＋淡い背景で「未確定・後で調べる」を強調 */
 #tab-quote-make tr.row-pending > td { background: #fff7ec; }
 #tab-quote-make tr.row-pending > td.handle-cell {
