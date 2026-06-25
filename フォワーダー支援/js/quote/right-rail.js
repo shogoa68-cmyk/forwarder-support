@@ -44,7 +44,7 @@
   // 共有し、tab（digest/flow/fin/chat）で内部ペインを出し分ける。レール側で
   // それぞれ独立アイコンとして並べ、押下時に qspSetTab(tab) で切替える。
   const MODS = [
-    { id: 'digest',   icon: '🧭', label: '要約',    title: '要約',         panel: 'quoteSummaryPanel', tab: 'digest' },
+    { id: 'digest',   icon: '🧭', label: 'ジャンプ', title: 'ジャンプ',     panel: 'quoteSummaryPanel', tab: 'digest' },
     { id: 'flow',     icon: '🚚', label: '輸送',    title: '輸送',         panel: 'quoteSummaryPanel', tab: 'flow'   },
     { id: 'bookmark', icon: '🔖', label: 'ブク',    title: 'ブックマーク',  panel: 'bmRailPanel' },
     { id: 'fin',      icon: '💰', label: '金額',    title: '金額',         panel: 'quoteSummaryPanel', tab: 'fin'    },
