@@ -321,7 +321,7 @@
           <td class="qd-num">${qtyDisp}</td>
           <td class="qd-ctr">${esc(r.un || '')}</td>
           <td class="qd-num">${unitDisp}</td>
-          <td class="qd-num">${isActual ? '実費' : '¥' + fmtInt(jpy)}</td>
+          <td class="qd-num">${isActual ? '実費' : isCond ? '' : '¥' + fmtInt(jpy)}</td>
         </tr>`
       );
     });
