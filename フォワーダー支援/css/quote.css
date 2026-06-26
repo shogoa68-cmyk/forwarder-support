@@ -1687,7 +1687,7 @@
 #tab-quote-make #volumeCondGrid .cond-field[data-field-id="container-type"] { grid-column: 1 / -1; }
 #tab-quote-make .container-chip-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(124px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(158px, 1fr));
   gap: 8px;
 }
 #tab-quote-make .cc-chip {
@@ -1709,8 +1709,11 @@
 #tab-quote-make .cc-chip.is-active .cc-label b { color: #1c4a66; }
 #tab-quote-make .cc-label small { font-size: 10px; color: #9a8a70; }
 /* コンテナチップの内寸・外寸（＋容積/最大重量）表示 */
-#tab-quote-make .cc-dims { display: flex; flex-direction: column; gap: 1px; margin: -2px 0 1px; }
-#tab-quote-make .cc-dim { font-size: 9.5px; line-height: 1.35; color: #6f6456; white-space: nowrap; }
+#tab-quote-make .cc-dims { display: flex; flex-direction: column; gap: 1px; margin: -2px 0 1px; min-width: 0; }
+#tab-quote-make .cc-dim {
+  font-size: 9.5px; line-height: 1.35; color: #6f6456;
+  white-space: normal; overflow-wrap: anywhere; letter-spacing: -.1px;
+}
 #tab-quote-make .cc-dim-in { color: #2f6a44; font-weight: 600; }
 #tab-quote-make .cc-dim-ex { color: #7a6040; }
 #tab-quote-make .cc-dim-cap { color: #9a8a70; }
