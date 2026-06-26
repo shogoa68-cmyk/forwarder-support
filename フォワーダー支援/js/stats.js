@@ -360,6 +360,7 @@
            `<td class="stats-val"><span class="ua-star">⭐</span>${_esc(g.canonical)} <span class="stats-syn-grp-badge" title="同義グループ（${members}種を集約）">同義 ${members}種</span></td>` +
            `<td class="stats-num-col"><div class="stats-bar-wrap"><div class="stats-bar" style="width:${Math.round(sr.total / maxTotal * 100)}%"></div><span class="stats-bar-label">${sr.total}</span></div>${sr.aliasCnt ? `<span class="ua-cnt-detail"> (${sr.own}+${sr.aliasCnt})</span>` : ''}</td>` +
            `<td class="stats-chips-cell">${chips}` +
+             `<button class="stats-syn-merge-canon" onclick="statsSynMergePicker('${_ea(aliasField)}','${_ea(g.canonical)}',this)" title="この代表を別の代表に統合">⤵ 統合</button>` +
              `<button class="stats-syn-dissolve" onclick="statsToggleSynCanonical('${_ea(aliasField)}','${_ea(g.canonical)}')" title="同義グループを解除">グループ解除</button>` +
            `</td></tr>`;
     });
@@ -419,19 +420,24 @@
     const canon = map[value];
     if (canon && typeof window.synRemoveAlias === 'function') await window.synRemoveAlias(field, value, canon);
   };
+  // 統合先（同一フィールドの他の代表）を選ぶピッカー。value が代表なら配下ごと統合される。
+  // 単位(un)は ua* 機構の代表を対象にする。
   window.statsSynMergePicker = function (field, value, btn) {
     document.querySelectorAll('.stats-syn-picker').forEach(el => el.remove());
-    const groups = (typeof window.synGetGroups === 'function' ? window.synGetGroups(field) : [])
-      .filter(g => g.canonical !== value);
-    if (!groups.length) {
+    const canons = (field === 'un'
+      ? (typeof window.uaGetGroups === 'function' ? window.uaGetGroups() : []).map(g => g.canonical)
+      : (typeof window.synGetGroups === 'function' ? window.synGetGroups(field) : []).map(g => g.canonical)
+    ).filter(c => c && c !== value);
+    if (!canons.length) {
       if (typeof window.quoteShowToast === 'function') window.quoteShowToast('⭐ 先に統合先の代表を設定してください', 'warn');
       return;
     }
     const wrap = document.createElement('span');
     wrap.className = 'stats-syn-picker';
     wrap.innerHTML =
+      `<span class="stats-syn-pick-lead">${_esc(value)} →</span>` +
       `<select class="stats-syn-sel">` +
-      groups.map(g => `<option value="${_eav(g.canonical)}">${_esc(g.canonical)}</option>`).join('') +
+      canons.map(c => `<option value="${_eav(c)}">${_esc(c)}</option>`).join('') +
       `</select>` +
       `<button class="stats-syn-pick-ok" onclick="statsSynConfirmMerge('${_ea(field)}','${_ea(value)}',this)">統合</button>` +
       `<button class="stats-syn-pick-cancel" onclick="this.closest('.stats-syn-picker').remove()">✕</button>`;
@@ -440,7 +446,15 @@
   window.statsSynConfirmMerge = async function (field, value, btn) {
     const sel = btn.closest('.stats-syn-picker')?.querySelector('select');
     if (!sel) return;
-    if (typeof window.synAddAlias === 'function') await window.synAddAlias(field, value, sel.value);
+    const target = sel.value;
+    if (!target || target === value) return;
+    if (field === 'un') {
+      // value（代表）を target（代表）へ統合：配下を吸収し target を代表に
+      if (typeof window.uaRenameCanonical === 'function') window.uaRenameCanonical(value, target);
+      if (typeof window.statsRerenderActive === 'function') window.statsRerenderActive();
+    } else if (typeof window.synAddAlias === 'function') {
+      await window.synAddAlias(field, value, target);
+    }
   };
 
   // 軽量再描画（クラウドプリセット/投票の再取得を伴わない。同義グループ更新時に使用）
@@ -598,7 +612,8 @@
              `<td class="stats-num-col">${item.total}` +
              (item.aliasCount ? `<span class="ua-cnt-detail"> (${item.ownCount}+${item.aliasCount})</span>` : '') +
              `</td><td>${chips || '<span class="ua-no-alias">—</span>'}</td>` +
-             `<td><button class="ua-remove-canon" onclick="uaRemoveGroup('${_ea(item.canonical)}')" title="グループを解除">解除</button></td>` +
+             `<td><button class="stats-syn-merge-canon" onclick="statsSynMergePicker('un','${_ea(item.canonical)}',this)" title="この代表を別の代表に統合">⤵ 統合</button>` +
+             `<button class="ua-remove-canon" onclick="uaRemoveGroup('${_ea(item.canonical)}')" title="グループを解除">解除</button></td>` +
              `</tr>`;
       } else {
         h += `<tr class="ua-ungrouped-row">` +
@@ -1048,6 +1063,7 @@
            `<td>${[...sr.persons].join('、') || '—'}</td>` +
            `<td>${_stHtml(sr.statuses)}</td>` +
            `<td class="stats-chips-cell">${memberChips}` +
+             `<button class="stats-syn-merge-canon" onclick="statsSynMergePicker('customer','${_ea(sr.g.canonical)}',this)" title="この代表を別の代表に統合">⤵ 統合</button>` +
              `<button class="stats-syn-dissolve" onclick="statsToggleSynCanonical('customer','${_ea(sr.g.canonical)}')" title="同義グループを解除">グループ解除</button></td>` +
            `</tr>`;
     });
@@ -1151,7 +1167,8 @@
         synH += `<tr><td>${labels[g.field] || g.field}</td>` +
                 `<td class="stats-val"><span class="ua-star">⭐</span>${_esc(g.canonical)}</td>` +
                 `<td>${chips}</td>` +
-                `<td><button class="stats-master-rename" title="代表名を変更（旧名称は別名として残ります）" onclick="statsMasterRename('${_ea(g.field)}','${_ea(g.canonical)}')">✏️ 名称変更</button>` +
+                `<td><button class="stats-master-merge" title="この代表を別の代表に統合（配下の別名ごと移動）" onclick="statsSynMergePicker('${_ea(g.field)}','${_ea(g.canonical)}',this)">⤵ 統合</button>` +
+                `<button class="stats-master-rename" title="代表名を変更（旧名称は別名として残ります）" onclick="statsMasterRename('${_ea(g.field)}','${_ea(g.canonical)}')">✏️ 名称変更</button>` +
                 `<button class="ua-remove-canon" title="グループを解除" onclick="${delGroup}">解除</button></td></tr>`;
       });
       synH += '</tbody></table></div>';

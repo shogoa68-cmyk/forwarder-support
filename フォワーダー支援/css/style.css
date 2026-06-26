@@ -2380,6 +2380,16 @@ body:has(#compareOverlay.open) #quoteActionDock { display: none; }
   border-radius: 4px; padding: 2px 8px; cursor: pointer; margin-right: 4px;
 }
 .stats-master-rename:hover { background: #f0e8d8; }
+/* 代表→別の代表へ統合するボタン（マスター管理／集計タブ共通） */
+.stats-master-merge,
+.stats-syn-merge-canon {
+  font-size: 11px; border: 1px solid #cdbb97; background: #fffdf8; color: #6b5840;
+  border-radius: 4px; padding: 2px 8px; cursor: pointer; margin-right: 4px;
+  white-space: nowrap;
+}
+.stats-master-merge:hover,
+.stats-syn-merge-canon:hover { background: #f0e8d8; }
+.stats-syn-pick-lead { font-size: 12px; font-weight: 700; color: #6b5840; margin-right: 4px; }
 
 /* 並び替えトグル（件数順／名前順）— 各集計タブ共通 */
 .stats-sort-toolbar {
