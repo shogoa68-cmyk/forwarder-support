@@ -1708,6 +1708,13 @@
 #tab-quote-make .cc-label b { font-size: 13.5px; font-weight: 700; color: #3d2e1e; letter-spacing: .01em; }
 #tab-quote-make .cc-chip.is-active .cc-label b { color: #1c4a66; }
 #tab-quote-make .cc-label small { font-size: 10px; color: #9a8a70; }
+/* コンテナチップの内寸・外寸（＋容積/最大重量）表示 */
+#tab-quote-make .cc-dims { display: flex; flex-direction: column; gap: 1px; margin: -2px 0 1px; }
+#tab-quote-make .cc-dim { font-size: 9.5px; line-height: 1.35; color: #6f6456; white-space: nowrap; }
+#tab-quote-make .cc-dim-in { color: #2f6a44; font-weight: 600; }
+#tab-quote-make .cc-dim-ex { color: #7a6040; }
+#tab-quote-make .cc-dim-cap { color: #9a8a70; }
+#tab-quote-make .cc-chip.is-active .cc-dim-in { color: #1c6a4a; }
 #tab-quote-make .cc-stepper {
   display: grid; grid-template-columns: 26px 1fr 26px; align-items: stretch;
   border: 1px solid #d9cfc2; border-radius: 7px; overflow: hidden; background: #fff;

@@ -100,11 +100,12 @@ window.SharedCalc = (function () {
   // 海上輸送のみ（ISO上限）は 20'GP ≒ 28,230 kg だが国内トラック輸送時は 21,500 kg が安全圏。
   // バンニング計算（calculator.js）は海上 ISO ベース maxPay:28,000 kg を使用しているため
   // ドアtoドア案件では本定義値（21,500 kg）を参照して重量チェックすること。
+  // dims = 内寸（cm）／ext = 外寸（cm・ISO 標準値）。表示は m 換算（÷100）。
   const containerSpecs = Object.freeze([
-    { key: '20gp', name: "20'GP", cbm: 25, maxKg: 21500, dims: { l: 589,  w: 235, h: 239 } },
-    { key: '40gp', name: "40'GP", cbm: 57, maxKg: 26500, dims: { l: 1203, w: 235, h: 239 } },
-    { key: '40hc', name: "40'HQ", cbm: 67, maxKg: 26500, dims: { l: 1203, w: 235, h: 269 } },
-    { key: '45hc', name: "45'HC", cbm: 86, maxKg: 26500, dims: { l: 1354, w: 235, h: 269 } },
+    { key: '20gp', name: "20'GP", cbm: 25, maxKg: 21500, dims: { l: 589,  w: 235, h: 239 }, ext: { l: 606,  w: 244, h: 259 } },
+    { key: '40gp', name: "40'GP", cbm: 57, maxKg: 26500, dims: { l: 1203, w: 235, h: 239 }, ext: { l: 1219, w: 244, h: 259 } },
+    { key: '40hc', name: "40'HQ", cbm: 67, maxKg: 26500, dims: { l: 1203, w: 235, h: 269 }, ext: { l: 1219, w: 244, h: 290 } },
+    { key: '45hc', name: "45'HC", cbm: 86, maxKg: 26500, dims: { l: 1354, w: 235, h: 269 }, ext: { l: 1372, w: 244, h: 290 } },
   ]);
 
   /** CBM/重量からコンテナ本数の目安を返す */
