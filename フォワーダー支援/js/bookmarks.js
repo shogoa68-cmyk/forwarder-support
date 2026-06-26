@@ -555,10 +555,19 @@ async function bmToggleVerify(id) {
     const { data, error } = await db.from('bookmark_verifications')
       .insert({ bookmark_id: id, checked_by: _bmMyEmail }).select();
     if (error) {
-      const msg = /bookmark_verifications|does not exist|relation/.test(error.message)
-        ? '⚠️ 確認テーブル未作成です（docs/sql/bookmarks-verifications.sql を実行してください）'
-        : '⚠️ 記録に失敗：' + error.message;
-      quoteShowToast(msg, 'warn', 7000);
+      const m = error.message || '不明なエラー';
+      let msg;
+      if (/schema cache|could not find the table/i.test(m)) {
+        msg = '⚠️ テーブルは作成済みですが反映待ちです。Supabaseで「NOTIFY pgrst, \'reload schema\';」を実行するか、少し待って再読み込みしてください';
+      } else if (/does not exist/i.test(m) && /relation|table/i.test(m)) {
+        msg = '⚠️ 確認テーブル未作成です（docs/sql/bookmarks-verifications.sql を実行してください）';
+      } else if (/row-level security|violates row-level/i.test(m)) {
+        msg = '⚠️ RLSで拒否されました：' + m;
+      } else {
+        msg = '⚠️ 記録に失敗：' + m;
+      }
+      console.error('[bmToggleVerify] insert error:', error);
+      quoteShowToast(msg, 'warn', 9000);
       return;
     }
     list.push((data && data[0]) || { bookmark_id: id, checked_by: _bmMyEmail, checked_at: new Date().toISOString() });
