@@ -987,6 +987,32 @@
     ).join('');
   }
 
+  // 各ドライコンテナチップに内寸・外寸（＋容積/最大重量）を表示。
+  // 寸法は SharedCalc.containerSpecs（内寸 dims・外寸 ext、cm）を唯一の情報源として m 換算表示。
+  window.renderContainerChipDims = function () {
+    if (!window.SharedCalc || !Array.isArray(SharedCalc.containerSpecs)) return;
+    const byName = {};
+    SharedCalc.containerSpecs.forEach(s => { byName[s.name] = s; });
+    const m = v => (v / 100).toFixed(2);
+    document.querySelectorAll('#containerChipGrid .cc-chip[data-ctype]').forEach(chip => {
+      const spec = byName[chip.dataset.ctype];
+      if (!spec) return;
+      if (chip.querySelector('.cc-dims')) return;   // 二重挿入防止
+      const inn = spec.dims ? `内寸 ${m(spec.dims.l)}×${m(spec.dims.w)}×${m(spec.dims.h)}m` : '';
+      const ext = spec.ext  ? `外寸 ${m(spec.ext.l)}×${m(spec.ext.w)}×${m(spec.ext.h)}m` : '';
+      const cap = (spec.cbm || spec.maxKg)
+        ? `容積 約${spec.cbm}m³ ／ 最大 ${Number(spec.maxKg).toLocaleString()}kg` : '';
+      const el = document.createElement('div');
+      el.className = 'cc-dims';
+      el.innerHTML =
+        (inn ? `<span class="cc-dim cc-dim-in">${inn}</span>` : '') +
+        (ext ? `<span class="cc-dim cc-dim-ex">${ext}</span>` : '') +
+        (cap ? `<span class="cc-dim cc-dim-cap">${cap}</span>` : '');
+      const label = chip.querySelector('.cc-label');
+      if (label) label.insertAdjacentElement('afterend', el); else chip.insertBefore(el, chip.firstChild);
+    });
+  };
+
   // チップの本数入力（0以下で解除）。データ形は従来どおり _containerEntries=[{type,count}]
   window.setContainerChip = function (type, raw) {
     const n = Math.max(0, parseInt(raw, 10) || 0);

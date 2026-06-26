@@ -2948,6 +2948,7 @@
     if (typeof initPreviewWarningListeners === 'function') initPreviewWarningListeners();
     if (typeof syncHazmatPanel === 'function') syncHazmatPanel(); // 危険品パネルの初期表示
     if (typeof syncMultiEntryFields === 'function') syncMultiEntryFields(); // コンテナ・荷姿の複数エントリ復元
+    if (typeof window.renderContainerChipDims === 'function') window.renderContainerChipDims(); // コンテナチップに内寸・外寸を表示
     if (typeof window.renderQuoteMilestones === 'function') window.renderQuoteMilestones();
     if (typeof window.renderQuoteCargoInfo === 'function') window.renderQuoteCargoInfo();
     if (typeof window.renderQuoteCarrierLinks === 'function') window.renderQuoteCarrierLinks();
