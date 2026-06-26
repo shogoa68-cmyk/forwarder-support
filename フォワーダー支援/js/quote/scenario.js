@@ -50,11 +50,15 @@
          <span class="sc-collapse-arrow">${_udCollapsed ? '▶' : '▼'}</span>
        </div>
        <div class="sc-body">
+         <div class="qsp-cargo-info ud-cargo-info" id="qspCargoInfo" style="display:none;"></div>
          <p class="sc-hint">明細行の単位ごとに現在の数量を表示します。数値を変えて<b>「一括反映」</b>すると、その単位・数量の行をまとめて更新します。<br>数量がバラつく単位は、現在の数量ごとに分けて表示されます。</p>
          <div class="ud-list">${listHtml}</div>
          <button class="ud-refresh" type="button" onclick="udRefresh()" title="明細から単位を再取得">🔄 再読み込み</button>
          <button class="sc-open-btn" type="button" onclick="udApplyAll()" ${groups.length ? '' : 'disabled'}>✅ 一括反映</button>
        </div>`;
+
+    // 物量情報（旧「輸送」メニューから統合）を数量パネル内に描画
+    if (typeof window.renderQuoteCargoInfo === 'function') window.renderQuoteCargoInfo();
   }
 
   // ---------- 操作 ----------
