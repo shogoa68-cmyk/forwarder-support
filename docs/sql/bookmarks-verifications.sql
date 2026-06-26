@@ -26,6 +26,11 @@ create table if not exists public.bookmark_verifications (
 create index if not exists idx_bm_verif_bookmark
   on public.bookmark_verifications (bookmark_id);
 
+-- テーブルレベル権限（GRANT）。SQL Editor で作成したテーブルには authenticated への
+-- 権限が自動付与されないため、明示的に付与する（これが無いと RLS 以前に
+-- "permission denied for table" になる）。
+grant select, insert, delete on public.bookmark_verifications to authenticated;
+
 alter table public.bookmark_verifications enable row level security;
 
 -- 閲覧：チームメンバーは全件閲覧可
