@@ -279,6 +279,7 @@
     _fill('unit-list',     'un');
     _fill('custSuggestions', 'customer');
     _fill('portSuggestions', 'port');
+    _fill('carriers-dl',   'carrier');
 
     // ユニット同義語グループをunitdatalistに追加
     const unDl = document.getElementById('unit-list');
@@ -346,7 +347,7 @@
 
     const rules = await window.arGetRules();
     const fields = ['sv', 'nm', 'un', 'port'];
-    const fieldLabel = { sv: 'サブコン', nm: '品名', un: '単位', port: '港', customer: 'お客様' };
+    const fieldLabel = { sv: 'サブコン', carrier: 'キャリア', nm: '品名', un: '単位', port: '港', customer: 'お客様' };
     const grouped = {};
     fields.forEach(f => { grouped[f] = rules.filter(r => r.field === f); });
 
@@ -437,7 +438,7 @@
 
     // 略称辞書セクション
     const abbrevPairs = _loadAbbrevPairs();
-    const abbrevFieldLabel = { sv: 'サブコン', nm: '品名', un: '単位', customer: 'お客様', port: '港' };
+    const abbrevFieldLabel = { sv: 'サブコン', carrier: 'キャリア', nm: '品名', un: '単位', customer: 'お客様', port: '港' };
     h += `<div class="ar-abbrev-section">
   <h4 class="ar-section-title">📖 略称辞書${abbrevPairs.length ? `（${abbrevPairs.length}件）` : ''}</h4>
   <p class="ar-abbrev-desc">略称と正式名称を関連付けます。統計タブで同一グループとして表示されます（例：NTL ＝ NAIGAI TRANS LINE）。</p>
@@ -472,7 +473,7 @@
     // 除外リスト
     const excl = _loadExclusions();
     if (excl.length > 0) {
-      const fl = { sv: 'サブコン', nm: '品名', un: '単位', port: '港', customer: 'お客様' };
+      const fl = { sv: 'サブコン', carrier: 'キャリア', nm: '品名', un: '単位', port: '港', customer: 'お客様' };
       h += `<div class="ar-excl-section">
   <h4 class="ar-section-title">🚫 ゆらぎ判定 除外リスト（${excl.length}件）</h4>
   <p class="ar-excl-desc">以下の表記はゆらぎ判定から外れています（別物として扱います）。</p>
@@ -532,7 +533,7 @@
   // 入力欄の list 属性 → フィールド種別。これらの datalist は見積タブ内にしか存在しない。
   const _LIST_FIELD = {
     svSuggestions: 'sv', nmSuggestions: 'nm', 'unit-list': 'un',
-    custSuggestions: 'customer', portSuggestions: 'port',
+    custSuggestions: 'customer', portSuggestions: 'port', 'carriers-dl': 'carrier',
   };
   // 入力値が「ある同義グループの統合表記（別名）」なら代表名を返す。代表名そのもの・未登録なら null。
   function _canonicalFor(field, value) {
