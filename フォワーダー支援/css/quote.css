@@ -8608,6 +8608,8 @@ button.um-memberno--empty:hover { background: #f4ead4; border-color: #cdb98e; }
 }
 #tab-quote-make .sc-add:hover { background: #f0ebe2; }
 /* ===== 単位で数量を一括変更（ud-*） ===== */
+/* 「輸送」から統合した物量情報ブロックを区切る */
+#tab-quote-make .ud-cargo-info { margin-bottom: 10px; padding-bottom: 8px; border-bottom: 1px solid #ece3d2; }
 #tab-quote-make .ud-list { display: flex; flex-direction: column; gap: 5px; margin-bottom: 8px; }
 #tab-quote-make .ud-row { display: flex; align-items: center; gap: 5px; }
 #tab-quote-make .ud-unit {
