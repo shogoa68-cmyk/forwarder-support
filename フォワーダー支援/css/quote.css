@@ -798,6 +798,40 @@
   border: 1px solid #e2c79a; background: #fffdf8; border-radius: 3px; padding: 1px 3px;
 }
 #tab-quote-make .name-cell .w-valid-date:focus { border-color: #8b6914; background: #fff; outline: none; }
+/* 最終更新日（lu）：全行に表示する社内メタ。有効期限（琥珀）と区別するため青灰系 */
+#tab-quote-make .name-cell .w-updated {
+  display: flex; align-items: center; gap: 3px; margin-top: 3px;
+}
+#tab-quote-make .name-cell .w-updated-lbl {
+  font-size: 9.5px; font-weight: 700; color: #4a6572; flex: none;
+  background: #eef3f6; border: 1px solid #cdd9e0; border-radius: 3px; padding: 1px 4px;
+}
+#tab-quote-make .name-cell .w-updated-date {
+  font-size: 10.5px; color: #46505a; min-width: 0; flex: 1;
+  border: 1px solid #cdd9e0; background: #fbfdfe; border-radius: 3px; padding: 1px 3px;
+}
+#tab-quote-make .name-cell .w-updated-date:focus { border-color: #4a6572; background: #fff; outline: none; }
+/* グループ見出しの最終更新日コントロール */
+#tab-quote-make .grp-updated {
+  display: inline-flex; align-items: center; gap: 4px; margin-left: 10px;
+}
+#tab-quote-make .grp-updated-lbl {
+  font-size: 10px; font-weight: 700; color: #4a6572;
+  background: #eef3f6; border: 1px solid #cdd9e0; border-radius: 3px; padding: 1px 5px;
+}
+#tab-quote-make .grp-updated-input {
+  font-size: 11px; color: #46505a; border: 1px solid #cdd9e0;
+  background: #fff; border-radius: 3px; padding: 1px 4px;
+}
+#tab-quote-make .grp-updated-today {
+  font-size: 10px; font-family: inherit; cursor: pointer; color: #4a6572;
+  background: #fff; border: 1px solid #cdd9e0; border-radius: 3px; padding: 1px 6px;
+}
+#tab-quote-make .grp-updated-today:hover { background: #eef3f6; border-color: #4a6572; }
+#tab-quote-make .grp-updated-mixed {
+  font-size: 9.5px; font-weight: 700; color: #9a6a00;
+  background: #fff3df; border: 1px solid #f0d9b0; border-radius: 3px; padding: 1px 5px;
+}
 /* サブコン配下行：C1 角丸エルボー（各行に小さな └ だけ。列境の全高トランクは置かない） */
 #tab-quote-make tr.subcon-child .catsv-cell { position: relative; padding-left: 15px; }
 #tab-quote-make tr.subcon-child .catsv-cell::before {
