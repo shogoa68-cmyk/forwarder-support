@@ -5,6 +5,11 @@ let _bmTypeFilter    = '';
 let _bmCarrierFilter = '';
 let _bmFnFilter      = '';
 
+// リンク確認（人による「確認済み」記録）
+let _bmVerif   = {};   // { bookmark_id: [{ checked_by, checked_at }] }
+let _bmProfile = {};   // { email: display_name }
+let _bmMyEmail = '';
+
 // QSP 幹線輸送チップ用キャリアブックマークキャッシュ
 window._qspBmCache = {};
 let _qspBmLastKey  = '';  // 重複フェッチ防止キー
@@ -55,8 +60,31 @@ async function _bmLoad() {
     return;
   }
   _bmRows = data || [];
+
+  // リンク確認記録＋表示名を取得（テーブル未作成でもエラーは握りつぶして 0 件扱い）
+  _bmMyEmail = user.email || '';
+  const [vRes, pRes] = await Promise.all([
+    db.from('bookmark_verifications').select('bookmark_id, checked_by, checked_at'),
+    db.from('user_profiles').select('email, display_name'),
+  ]);
+  _bmVerif = {};
+  (vRes.data || []).forEach(v => { (_bmVerif[v.bookmark_id] = _bmVerif[v.bookmark_id] || []).push(v); });
+  _bmProfile = {};
+  (pRes.data || []).forEach(p => { if (p.display_name) _bmProfile[p.email] = p.display_name; });
+
   _bmRenderTypeChips();
   _bmApply();
+}
+
+function _bmNameFor(email) {
+  if (!email) return '不明';
+  return _bmProfile[email] || email.split('@')[0];
+}
+function _bmVfmtDate(ts) {
+  if (!ts) return '';
+  const d = new Date(ts);
+  if (isNaN(d)) return '';
+  return d.toLocaleDateString('ja-JP', { year: 'numeric', month: '2-digit', day: '2-digit' });
 }
 
 function _bmApply() {
@@ -184,17 +212,27 @@ function _bmRenderList(rows) {
     const pills = list.map(r => {
       const ic   = _bmFnIcon(r.function);
       const txt  = escHtml(r.label || r.function || 'リンク');
-      // メモ有りピルには 💬 マーカーを常時表示。ホバーで装飾ツールチップ（body 直付け・data-note 経由）
       const lbl  = escHtml(r.label || '');
       const open = r.url
         ? `<a class="bm-pill" href="${escHtml(r.url)}" target="_blank" rel="noopener" title="${lbl}">`
         : `<span class="bm-pill bm-pill-nourl" title="${lbl}">`;
       const close = r.url ? '</a>' : '</span>';
+      // メモ有りピルには 💬 マーカー（ホバーで装飾ツールチップ／body 直付け）
       const noteMark = r.note
-        ? `<span class="bm-pill-note" data-note="${escHtml(r.note)}">💬</span>`
+        ? `<span class="bm-pill-note bm-tip" data-tip="${escHtml(r.note)}">💬</span>`
         : '';
+      // リンク確認バッジ（✓＋確認人数）。クリックで自分の確認を追加/取消、ホバーで確認者一覧
+      const vlist  = _bmVerif[r.id] || [];
+      const vcount = vlist.length;
+      const mine   = vlist.some(v => v.checked_by === _bmMyEmail);
+      const vcls   = vcount === 0 ? 'bm-verify-0' : (vcount >= 2 ? 'bm-verify-2' : 'bm-verify-1');
+      const vtip   = vcount
+        ? vlist.map(v => `✓ ${_bmNameFor(v.checked_by)}（${_bmVfmtDate(v.checked_at)}）`).join('\n')
+          + '\n\n' + (mine ? 'クリックで自分の確認を取消' : 'クリックで「確認済み」に追加')
+        : 'まだ確認されていません\nクリックで「確認済み」にできます';
+      const verifyBadge = `<span class="bm-verify ${vcls}${mine ? ' bm-verify-mine' : ''} bm-tip" data-tip="${escHtml(vtip)}" onclick="event.preventDefault();event.stopPropagation();bmToggleVerify('${escHtml(r.id)}')">✓${vcount || ''}</span>`;
       return open
-        + `<span class="bm-pill-ic">${ic}</span>${txt}${noteMark}`
+        + `<span class="bm-pill-ic">${ic}</span>${txt}${verifyBadge}${noteMark}`
         + `<span class="bm-pill-edit" onclick="event.preventDefault();event.stopPropagation();bmEdit('${escHtml(r.id)}')" title="編集">✎</span>`
         + `<span class="bm-pill-del" onclick="event.preventDefault();event.stopPropagation();bmDelete('${escHtml(r.id)}')" title="削除">🗑</span>`
         + close;
@@ -243,7 +281,7 @@ function _bmNoteTipEl() {
   return t;
 }
 function _bmShowNoteTip(target) {
-  const note = target.dataset.note;
+  const note = target.dataset.tip;
   if (!note) return;
   const t = _bmNoteTipEl();
   t.textContent = note;
@@ -264,11 +302,11 @@ function _bmHideNoteTip() {
 if (!window._bmNoteTipDelegated) {
   window._bmNoteTipDelegated = true;
   document.addEventListener('mouseover', e => {
-    const m = e.target.closest('#bmListWrap .bm-pill-note');
+    const m = e.target.closest('#bmListWrap .bm-tip');
     if (m) _bmShowNoteTip(m);
   });
   document.addEventListener('mouseout', e => {
-    if (e.target.closest('#bmListWrap .bm-pill-note')) _bmHideNoteTip();
+    if (e.target.closest('#bmListWrap .bm-tip')) _bmHideNoteTip();
   });
   document.addEventListener('scroll', _bmHideNoteTip, true);
 }
@@ -402,6 +440,13 @@ async function saveBm() {
       quoteShowToast('⚠️ 更新されませんでした（権限不足の可能性）。管理者に bookmarks の UPDATE ポリシーをご確認ください', 'warn', 8000);
       return;
     }
+    // URL を変更した場合、過去の「確認済み」記録は無効化（リンク先が変わったため）
+    if (!error) {
+      const oldRow = _bmRows.find(r => r.id === id);
+      if (oldRow && (oldRow.url || '') !== (url || '')) {
+        await db.from('bookmark_verifications').delete().eq('bookmark_id', id);
+      }
+    }
   } else {
     // 新規（INSERT）
     ({ error } = await db.from('bookmarks').insert({
@@ -488,6 +533,49 @@ async function bmRetypeCarrier(carrier, newType) {
   quoteShowToast(`✅ 「${carrier}」の種別を変更しました（${data.length}件）`, 'success', 3000);
   _bmApply();
   if (typeof window.lcRefreshBmChips === 'function') window.lcRefreshBmChips();
+}
+
+// リンク確認バッジのクリック：自分の「確認済み」を追加 / 取消する。
+async function bmToggleVerify(id) {
+  const db = window.SupabaseClient;
+  if (!db) return;
+  if (!_bmMyEmail) { quoteShowToast('⚠️ 記録にはログインが必要です', 'warn'); return; }
+  const list    = _bmVerif[id] || [];
+  const mineIdx = list.findIndex(v => v.checked_by === _bmMyEmail);
+  if (mineIdx >= 0) {
+    // 取消
+    const { error } = await db.from('bookmark_verifications')
+      .delete().eq('bookmark_id', id).eq('checked_by', _bmMyEmail);
+    if (error) { quoteShowToast('⚠️ 取消に失敗：' + error.message, 'warn', 6000); return; }
+    list.splice(mineIdx, 1);
+    _bmVerif[id] = list;
+    quoteShowToast('確認を取り消しました', 'info', 2000);
+  } else {
+    // 追加
+    const { data, error } = await db.from('bookmark_verifications')
+      .insert({ bookmark_id: id, checked_by: _bmMyEmail }).select();
+    if (error) {
+      const m = error.message || '不明なエラー';
+      let msg;
+      if (/schema cache|could not find the table/i.test(m)) {
+        msg = '⚠️ テーブルは作成済みですが反映待ちです。Supabaseで「NOTIFY pgrst, \'reload schema\';」を実行するか、少し待って再読み込みしてください';
+      } else if (/does not exist/i.test(m) && /relation|table/i.test(m)) {
+        msg = '⚠️ 確認テーブル未作成です（docs/sql/bookmarks-verifications.sql を実行してください）';
+      } else if (/row-level security|violates row-level/i.test(m)) {
+        msg = '⚠️ RLSで拒否されました：' + m;
+      } else {
+        msg = '⚠️ 記録に失敗：' + m;
+      }
+      console.error('[bmToggleVerify] insert error:', error);
+      quoteShowToast(msg, 'warn', 9000);
+      return;
+    }
+    list.push((data && data[0]) || { bookmark_id: id, checked_by: _bmMyEmail, checked_at: new Date().toISOString() });
+    _bmVerif[id] = list;
+    quoteShowToast('✅ 「確認済み」に記録しました', 'success', 2500);
+  }
+  _bmHideNoteTip();
+  _bmApply();
 }
 
 function bmEdit(id) {
@@ -835,6 +923,7 @@ window.closeAddBmModal = closeAddBmModal;
 window.saveBm          = saveBm;
 window.bmDelete        = bmDelete;
 window.bmEdit          = bmEdit;
+window.bmToggleVerify  = bmToggleVerify;
 window.seedCarrierBookmarks = seedCarrierBookmarks;
 window.openBmHistory   = openBmHistory;
 window.closeBmHistory  = closeBmHistory;

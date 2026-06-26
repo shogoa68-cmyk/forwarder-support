@@ -447,7 +447,9 @@
       const custDd = [customer && escHtml(customer), personH && escHtml(personH)].filter(Boolean).join('・');
       const titleText = (m && m.ref) ? m.ref : r.name;   // 見出しは仮REF#のみ（顧客/担当は下に別掲）
       const memoLine  = (m && m.memo) ? m.memo : '';
-      const dueBadge  = _dueBadge(m && m.due);
+      // 締切バッジ（締切超過／締切まで）は下書き中の案件のみ表示。提出済み以降は締切が無意味なため出さない
+      const isDraftStatus = _normalizeStatus(status) === '下書き中';
+      const dueBadge  = isDraftStatus ? _dueBadge(m && m.due) : '';
       const recvBadge = _receivedBadge(m && m.received);
       const prioRow   = (dueBadge || recvBadge) ? '<div class="cloud-card-prio">' + dueBadge + recvBadge + '</div>' : '';
 
