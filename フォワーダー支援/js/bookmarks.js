@@ -209,6 +209,9 @@ function _bmRenderList(rows) {
             `<option value="${tv}"${tv === type ? ' selected' : ''}>${escHtml(_BM_TYPE_SUB[tv] || tv)}</option>`
           ).join('')
         + `</select>`;
+    // 社名の変更・統合（英語/和文で分裂した同一会社を1つにまとめる）。汎用は対象外。
+    const renameBtn = name === '汎用' ? '' :
+      `<button class="bm-trename" data-bm-rename="${escHtml(name)}" onclick="event.stopPropagation();openBmRename(this.dataset.bmRename)" title="社名の変更・統合">✎</button>`;
     const pills = list.map(r => {
       const ic   = _bmFnIcon(r.function);
       const txt  = escHtml(r.label || r.function || 'リンク');
@@ -242,6 +245,7 @@ function _bmRenderList(rows) {
         <div class="bm-tlogo">${escHtml(_bmCarrierAbbr(name))}</div>
         <div class="bm-tmeta"><div class="bm-tname">${escHtml(name)}</div>${typeMeta}</div>
         <span class="bm-tcount">${list.length}</span>
+        ${renameBtn}
         <span class="bm-ttog">${isCol ? '▸' : '▾'}</span>
       </div>
       <div class="bm-tbody">
@@ -576,6 +580,66 @@ async function bmToggleVerify(id) {
   }
   _bmHideNoteTip();
   _bmApply();
+}
+
+// 社名の変更・統合：あるキャリアの全リンクの会社名を別名に付け替える。
+// 既存の社名を入力すると、その会社へ統合される（英語/和文の分裂解消用）。
+let _bmRenameFrom = '';
+
+function openBmRename(carrier) {
+  const modal = document.getElementById('bmRenameModal');
+  if (!modal || !carrier) return;
+  _bmRenameFrom = carrier;
+  const n = _bmRows.filter(r => (r.carrier || '') === carrier).length;
+  const fromEl  = document.getElementById('bmRenameFrom');
+  const cntEl   = document.getElementById('bmRenameCount');
+  const input   = document.getElementById('bmRenameInput');
+  if (fromEl) fromEl.textContent = carrier;
+  if (cntEl)  cntEl.textContent  = n;
+  if (input)  input.value = '';
+  const dl = document.getElementById('bmRenameDatalist');
+  if (dl) {
+    const carriers = [...new Set(_bmRows.map(r => r.carrier).filter(Boolean))]
+      .filter(c => c !== carrier).sort();
+    dl.innerHTML = carriers.map(c => `<option value="${escHtml(c)}">`).join('');
+  }
+  modal.classList.add('open');
+  input?.focus();
+}
+
+function closeBmRename(e) {
+  if (e && e.target.id !== 'bmRenameModal') return;
+  document.getElementById('bmRenameModal')?.classList.remove('open');
+}
+
+async function bmDoRename() {
+  const db = window.SupabaseClient;
+  if (!db) return;
+  const from = _bmRenameFrom;
+  const to   = document.getElementById('bmRenameInput')?.value.trim();
+  if (!from || !to) { quoteShowToast('⚠️ 新しい社名を入力してください', 'warn'); return; }
+  if (to === from) { closeBmRename(); return; }
+  const targets  = _bmRows.filter(r => (r.carrier || '') === from);
+  const merging  = _bmRows.some(r => (r.carrier || '') === to);
+  const msg = merging
+    ? `「${from}」の ${targets.length} 件を「${to}」に統合します。よろしいですか？`
+    : `「${from}」の ${targets.length} 件の社名を「${to}」に変更します。よろしいですか？`;
+  if (!confirm(msg)) return;
+
+  const { data, error } = await db.from('bookmarks')
+    .update({ carrier: to }).eq('carrier', from).select();
+  if (error) { quoteShowToast('⚠️ 変更に失敗：' + error.message, 'warn', 6000); return; }
+  if (!data || !data.length) {
+    quoteShowToast('⚠️ 変更されませんでした（権限不足の可能性）', 'warn', 7000); return;
+  }
+  _bmRows.forEach(r => { if ((r.carrier || '') === from) r.carrier = to; });
+  quoteShowToast(
+    merging ? `✅ 「${to}」に統合しました（${data.length}件）` : `✅ 社名を「${to}」に変更しました（${data.length}件）`,
+    'success', 3000
+  );
+  closeBmRename();
+  _bmApply();
+  if (typeof window.lcRefreshBmChips === 'function') window.lcRefreshBmChips();
 }
 
 function bmEdit(id) {
@@ -930,3 +994,6 @@ window.closeBmHistory  = closeBmHistory;
 window.openBmDedup     = openBmDedup;
 window.closeBmDedup    = closeBmDedup;
 window.bmDedupMerge    = bmDedupMerge;
+window.openBmRename    = openBmRename;
+window.closeBmRename   = closeBmRename;
+window.bmDoRename      = bmDoRename;

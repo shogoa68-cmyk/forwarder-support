@@ -1634,6 +1634,13 @@ body:has(#compareOverlay.open) #quoteActionDock { display: none; }
   background: rgba(255,255,255,.2);
   border-radius: 10px; padding: 2px 9px;
 }
+.bm-trename {
+  background: rgba(255,255,255,.16); border: 1px solid rgba(255,255,255,.3);
+  color: #fff; border-radius: 5px; font-size: 10px; cursor: pointer;
+  width: 22px; height: 18px; line-height: 1; flex-shrink: 0; padding: 0;
+}
+.bm-trename:hover { background: rgba(255,255,255,.3); }
+.bm-rename-info { font-size: 13px; color: #5d4e3a; }
 .bm-ttog { color: rgba(255,255,255,.85); font-size: 12px; width: 14px; text-align: center; }
 .bm-tbody {
   padding: 11px 12px;
