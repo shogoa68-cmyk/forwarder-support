@@ -997,17 +997,24 @@
     document.querySelectorAll('#containerChipGrid .cc-chip[data-ctype]').forEach(chip => {
       const spec = byName[chip.dataset.ctype];
       if (!spec) return;
-      if (chip.querySelector('.cc-dims')) return;   // 二重挿入防止
-      const inn = spec.dims ? `内寸 ${m(spec.dims.l)}×${m(spec.dims.w)}×${m(spec.dims.h)}m` : '';
-      const ext = spec.ext  ? `外寸 ${m(spec.ext.l)}×${m(spec.ext.w)}×${m(spec.ext.h)}m` : '';
+      if (chip.querySelector('.cc-chip-dims')) return;   // 二重挿入防止
+      const inn = spec.dims ? `内 ${m(spec.dims.l)}×${m(spec.dims.w)}×${m(spec.dims.h)}m` : '';
+      const ext = spec.ext  ? `外 ${m(spec.ext.l)}×${m(spec.ext.w)}×${m(spec.ext.h)}m` : '';
       const cap = (spec.cbm || spec.maxKg)
-        ? `容積 約${spec.cbm}m³ ／ 最大 ${Number(spec.maxKg).toLocaleString()}kg` : '';
+        ? `${spec.cbm}m³ / ${(Number(spec.maxKg) / 1000).toFixed(1)}t` : '';
+      // ホバーで内寸・外寸・容積/最大重量のフル情報を表示
+      const full = [
+        spec.dims ? `内寸 ${m(spec.dims.l)}×${m(spec.dims.w)}×${m(spec.dims.h)}m` : '',
+        spec.ext  ? `外寸 ${m(spec.ext.l)}×${m(spec.ext.w)}×${m(spec.ext.h)}m` : '',
+        (spec.cbm || spec.maxKg) ? `容積 約${spec.cbm}m³ ／ 最大 ${Number(spec.maxKg).toLocaleString()}kg` : '',
+      ].filter(Boolean).join('\n');
       const el = document.createElement('div');
-      el.className = 'cc-dims';
+      el.className = 'cc-chip-dims';
+      el.title = full;
       el.innerHTML =
-        (inn ? `<span class="cc-dim cc-dim-in">${inn}</span>` : '') +
-        (ext ? `<span class="cc-dim cc-dim-ex">${ext}</span>` : '') +
-        (cap ? `<span class="cc-dim cc-dim-cap">${cap}</span>` : '');
+        (inn ? `<span class="cc-chip-dim cc-chip-dim-in" title="${full}">${inn}</span>` : '') +
+        (ext ? `<span class="cc-chip-dim cc-chip-dim-ex" title="${full}">${ext}</span>` : '') +
+        (cap ? `<span class="cc-chip-dim cc-chip-dim-cap" title="${full}">${cap}</span>` : '');
       const label = chip.querySelector('.cc-label');
       if (label) label.insertAdjacentElement('afterend', el); else chip.insertBefore(el, chip.firstChild);
     });
