@@ -2040,7 +2040,7 @@
         </ul>
 
         <h4>① 管理番号入力</h4>
-        <p>見積もり番号・お客様名称・担当者を入力。後でフィルタや整理に使う識別情報です。<br>📝 <b>メモ</b>欄に申し送り・注意事項などを自由記述できます（お客様向け出力には含まれません）。</p>
+        <p>見積もり番号・お客様名称・<b>お客様側のご担当者</b>を入力。「ご担当者」は<b>宛先（お客様の窓口）</b>で、社内の見積もり作成者ではありません（作成者はクラウド共有時にログイン情報から自動記録されます）。後でフィルタや整理に使う識別情報です。<br>📝 <b>メモ</b>欄に申し送り・注意事項などを自由記述できます（お客様向け出力には含まれません）。</p>
 
         <h4>② 引き合い条件</h4>
         <ul>
@@ -2468,8 +2468,8 @@
             <input type="text" id="qf-customer" placeholder="例）○○商事" aria-required="true" list="custSuggestions" autocomplete="off" />
           </div>
           <div class="quote-field">
-            <label>担当（敬称略） <span class="req-mark" aria-hidden="true">*</span></label>
-            <input type="text" id="qf-person" placeholder="例）山田　※氏名のみ。出力時に自動で「様」付与" title="姓のみ／フルネームのみで入力（会社名は含めない）。出力時に自動で「様」が付きます" aria-required="true" />
+            <label>お客様 ご担当者（敬称略） <span class="req-mark" aria-hidden="true">*</span></label>
+            <input type="text" id="qf-person" placeholder="例）山田　※宛先（お客様側）の氏名。出力時に自動で「様」付与" title="お客様側（宛先）のご担当者名を入力します。社内の見積もり作成者ではありません。姓のみ／フルネームのみ（会社名は含めない）。客先向け出力（プレビュー・PDF）で会社名とともに宛先となり、自動で「様」が付きます。" aria-required="true" />
           </div>
           <div class="quote-field">
             <label>📥 依頼受信日 <span class="qf-memo-note">引き合いを受けた日（経過日数を表示）</span></label>
