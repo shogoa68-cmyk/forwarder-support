@@ -50,7 +50,7 @@
     { id: 'fin',      icon: '💰', label: '金額',    title: '金額',         panel: 'quoteSummaryPanel', tab: 'fin'    },
     { id: 'chat',     icon: '💬', label: '申し送り', title: '申し送り',     panel: 'quoteSummaryPanel', tab: 'chat'   },
     { id: 'similar',  icon: '🔍', label: '類似',    title: '類似見積',     panel: 'sqPanel' },
-    { id: 'scenario', icon: '🪜', label: 'シナリオ', title: 'シナリオ比較', panel: 'scPanel' },
+    { id: 'scenario', icon: '📦', label: '数量', title: '単位で数量を一括変更', panel: 'scPanel' },
     { id: 'subcon',   icon: '👷', label: 'サブコン', title: 'サブコン別',   panel: 'siPanel' },
     { id: 'charges',  icon: '📦', label: 'チャージ', title: '諸チャージ',   panel: 'lcRailPanel' },
     { id: 'pattern',  icon: '🗜️', label: '行パタ', title: '行パターン',   action: 'openRowPatternMgr' },

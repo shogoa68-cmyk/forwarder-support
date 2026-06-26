@@ -4108,21 +4108,6 @@
   <button class="qad-btn qad-save" id="qadMode" onclick="qpDockAction()" title="閲覧中は編集を開始／編集中は保存して作業終了">💾 保存</button>
 </div>
 
-<!-- シナリオ比較プレビューオーバーレイ -->
-<div id="scPreviewOverlay" hidden onclick="closeScenarioPreview(event)">
-  <div class="sc-pv-box" onclick="event.stopPropagation()">
-    <div class="sc-pv-head">
-      <span class="sc-pv-title">📊 シナリオ比較プレビュー</span>
-      <button class="sc-pv-close" type="button" onclick="closeScenarioPreview()" aria-label="閉じる">×</button>
-    </div>
-    <div id="scPreviewContent" class="sc-pv-body"></div>
-    <div class="sc-pv-foot">
-      <button class="sc-pv-print-btn" type="button" onclick="printScenarioPreview()">🖨️ 印刷</button>
-      <button type="button" onclick="closeScenarioPreview()">閉じる</button>
-    </div>
-  </div>
-</div>
-
 <!-- 類似見積プレビューモーダル -->
 <div id="sqPreviewOverlay" class="sq-preview-overlay" hidden onclick="sqClosePreview(event)">
   <div class="sq-preview-box" onclick="event.stopPropagation()">
