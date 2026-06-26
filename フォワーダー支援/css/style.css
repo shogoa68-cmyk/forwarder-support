@@ -1617,6 +1617,17 @@ body:has(#compareOverlay.open) #quoteActionDock { display: none; }
   padding: 7px; font-size: 12px; font-weight: 600; cursor: pointer;
 }
 .bm-dup-merge:hover { background: #226291; }
+/* リンク確認バッジ（✓＋確認人数） */
+.bm-verify {
+  font-size: 10px; font-weight: 700; flex-shrink: 0;
+  border-radius: 9px; padding: 0 5px; height: 16px; line-height: 16px;
+  display: inline-flex; align-items: center; cursor: pointer;
+}
+.bm-verify-0 { color: #b3a894; background: #ece6da; }
+.bm-verify-1 { color: #3f7d4f; background: #e3f1e6; }
+.bm-verify-2 { color: #fff;    background: #3f9d5f; }
+.bm-verify-mine { box-shadow: 0 0 0 1.5px #2b7bb0; }
+.bm-verify:hover { filter: brightness(.95); }
 .bm-tcount {
   margin-left: auto;
   font-size: 10px; font-weight: 600; color: #fff;
