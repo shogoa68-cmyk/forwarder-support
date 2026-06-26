@@ -253,7 +253,7 @@
     };
     tryHdr('qf-ref',         '見積もり番号を入力してください');
     tryHdr('qf-customer',    'お客様名称を入力してください');
-    tryHdr('qf-person',      '担当者名を入力してください');
+    tryHdr('qf-person',      'お客様ご担当者名を入力してください');
     tryHdr('cond-incoterms', 'インコタームズを選択してください');
     document.querySelectorAll('#tableBody tr.row-warn-price').forEach(tr => {
       const nm = tr.querySelector('[data-field="nm"]');
