@@ -9013,6 +9013,10 @@ button.um-memberno--empty:hover { background: #f4ead4; border-color: #cdb98e; }
 #tab-quote-make .qrc-drawer-body > .quote-summary-panel > .qsp-pane {
   border-top: none;
 }
+/* 数量パネル本文は drawer 内で縦スクロール可能に（物量情報＋単位一覧で下が切れる対策） */
+#tab-quote-make .qrc-drawer-body > .sc-panel > .sc-body {
+  flex: 1 1 auto; min-height: 0; overflow-y: auto;
+}
 
 /* ===== 右カラム 諸チャージパネル ===== */
 #tab-quote-make .lc-rail-panel {
