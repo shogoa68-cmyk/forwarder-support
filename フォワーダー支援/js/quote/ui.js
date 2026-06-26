@@ -2520,7 +2520,7 @@
   window.updateQuoteRefEmpty = function () {
     const empty = document.getElementById('qspRefEmpty');
     if (!empty) return;
-    const ids = ['qspMilestones', 'qspCargoInfo', 'qspCarrierLinks'];
+    const ids = ['qspMilestones', 'qspCarrierLinks'];   // 物量情報(qspCargoInfo)は「数量」メニューへ移動
     const anyShown = ids.some(id => {
       const el = document.getElementById(id);
       return el && el.style.display !== 'none' && el.innerHTML.trim();
