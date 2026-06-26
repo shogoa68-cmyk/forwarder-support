@@ -8607,6 +8607,28 @@ button.um-memberno--empty:hover { background: #f4ead4; border-color: #cdb98e; }
   text-align: center;
 }
 #tab-quote-make .sc-add:hover { background: #f0ebe2; }
+/* ===== 単位で数量を一括変更（ud-*） ===== */
+#tab-quote-make .ud-list { display: flex; flex-direction: column; gap: 5px; margin-bottom: 8px; }
+#tab-quote-make .ud-row { display: flex; align-items: center; gap: 5px; }
+#tab-quote-make .ud-unit {
+  flex: 1; min-width: 0; font-size: 12px; font-weight: 700; color: #46505a;
+  background: #eef3f6; border: 1px solid #cdd9e0; border-radius: 3px; padding: 3px 6px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+#tab-quote-make .ud-times { color: #999; font-size: 12px; flex: none; }
+#tab-quote-make .ud-qty-in {
+  width: 60px; flex: none; font-size: 12px; padding: 3px 5px;
+  border: 1px solid #cdd9e0; border-radius: 3px; text-align: right;
+}
+#tab-quote-make .ud-qty-in:focus { border-color: #4a6572; outline: none; }
+#tab-quote-make .ud-count { flex: none; font-size: 10px; color: #8a96a0; min-width: 30px; }
+#tab-quote-make .ud-empty { font-size: 11px; color: #9a8c74; line-height: 1.6; margin: 4px 0 8px; }
+#tab-quote-make .ud-refresh {
+  display: block; width: 100%; background: none; border: 1px dashed #c8b89a;
+  color: #7a6040; font-size: 12px; border-radius: 3px; padding: 4px 8px;
+  cursor: pointer; margin-bottom: 6px; text-align: center;
+}
+#tab-quote-make .ud-refresh:hover { background: #f0ebe2; }
 #tab-quote-make .sc-open-btn {
   display: block;
   width: 100%;
