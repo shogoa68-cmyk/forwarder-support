@@ -484,20 +484,6 @@
   }
 
   // ========== 行操作 ==========
-  // Tabで行追加するかどうか（tabAddEnabledはapp-constants.jsで宣言済み）
-  function toggleTabAdd(on) {
-    tabAddEnabled = !!on;
-    localStorage.setItem('tabAddEnabled', on ? '1' : '0');
-    showSaveStatus('Tabで行追加: ' + (on ? 'ON' : 'OFF'));
-  }
-  function noteKeydown(e, id) {
-    if (e.key === 'Tab' && !e.shiftKey && tabAddEnabled) {
-      e.preventDefault();
-      const newId = addRowAfter(id);
-      setTimeout(() => document.getElementById(`nm-${newId}`)?.focus(), 0);
-    }
-  }
-
   function addRowAfter(afterId) {
     rowCount++;
     const id = rowCount;
@@ -689,7 +675,6 @@
     q('pc').onchange   = () => onPay(id);
     q('pp').oninput    = () => onPay(id);
     q('mk').oninput    = () => calc(id);
-    q('nt').onkeydown  = e  => noteKeydown(e, id);
     q('sv').onchange   = () => renderSubconGroups();
     { const ptEl = q('pt'); if (ptEl) { ptEl.onchange = () => renderSubconGroups(); ptEl.onfocus = () => _showPatternPopup(ptEl); } }  // パターン変更でグループ再描画＋航路サジェスト
     // サーチャージ有効期限：開始日を入れたら終了日を月末で自動補完（「通常はひと月」）

@@ -707,13 +707,6 @@
       const chk = document.getElementById('autoSaveChk');
       if (chk) chk.checked = true;
     }
-    // Tabで行追加 設定の復元（デフォルト ON）
-    const savedTabAdd = localStorage.getItem('tabAddEnabled');
-    if (savedTabAdd === '0') {
-      tabAddEnabled = false;
-      const chk = document.getElementById('tabAddChk');
-      if (chk) chk.checked = false;
-    }
     // 自動保存データがある場合、復元バナーを表示
     if (localStorage.getItem('quoteData')) {
       const bar = document.getElementById('autosave-restore-bar');

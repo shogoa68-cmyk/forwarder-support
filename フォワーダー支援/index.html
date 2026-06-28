@@ -3274,7 +3274,7 @@
       <div id="tableWrap">
         <p class="section-desc">費用項目ごとに <b>支払い（仕入）</b> と <b>請求</b> の数量・通貨・単価を入力します。<b>③ 乗せ幅</b> を入力すると請求単価に自動加算、<b>④ 利益</b> 欄で粗利をリアルタイム確認できます。CSV インポートやカテゴリ順並び替えも利用可能です。<br>
         <span style="font-size:11px;color:var(--text-md);">💡 <b>項目名の先頭にある <code style="background:#fff;padding:1px 4px;border-radius:3px;">*</code> は課税項目を示します</b>（課税欄のチェックで自動付与）。プレビュー画面では消費税列に税額（10% 固定）が表示されます。</span><br>
-        <span style="font-size:11px;color:var(--text-md);">➕ <b>行を追加するには</b>：各明細行の左にある ➕（行追加）／📋（複製）／🗑️（削除）アイコン、Tab キー（最終行で次行を自動追加）、または Ctrl+K から「行を追加」を選択してください。リマーク・社内メモは各行の 💬／🔒 から、小計行はツールバーの ＝ から追加できます。</span></p>
+        <span style="font-size:11px;color:var(--text-md);">➕ <b>行を追加するには</b>：各明細行の左にある ➕（行追加）／📋（複製）／🗑️（削除）アイコン、最下行で ↓ キー、Ctrl+D（複製）、または Ctrl+K から「行を追加」を選択してください。リマーク・社内メモは各行の 💬／🔒 から、小計行はツールバーの ＝ から追加できます。</span></p>
         <div class="container">
           <!-- 統合コマンドバー：行操作・選択行・換算レート表示・⚙設定（為替/カテゴリ）を集約 -->
           <div class="quote-cmdbar">
@@ -3288,10 +3288,6 @@
                 <option value="end">末尾に追加</option>
                 <option value="selected">選択行の下に挿入</option>
               </select>
-              <label class="cmdbar-tabadd" title="OFFにすると、備考欄でTabを押しても新しい行が追加されません（次の入力欄へ移動するだけ）">
-                <input type="checkbox" id="tabAddChk" checked onchange="toggleTabAdd(this.checked)" />
-                <span>Tabで行追加</span>
-              </label>
               <span class="cmdbar-spacer"></span>
               <button id="clipboardIndicator" class="cmdbar-clipboard-indicator" hidden onclick="clearRowClipboard()" title="クリップボードをクリア">📋 <span id="clipIndicatorCount">0</span>行 ✕</button>
               <button id="pendingIndicator" class="cmdbar-pending-indicator" hidden onclick="jumpToFirstPending()" title="要調査（後で記入）の行へ移動。クリックで順に巡回します。">🔍 要調査 <span id="pendingCount">0</span>件</button>
