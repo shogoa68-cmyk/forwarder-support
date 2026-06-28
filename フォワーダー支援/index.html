@@ -4489,6 +4489,30 @@
 </div>
 
 <!-- ======= ブックマーク変更履歴モーダル ======= -->
+<div id="bmRenameModal" class="bm-modal-overlay" onclick="closeBmRename(event)">
+  <div class="bm-modal-box">
+    <div class="bm-modal-head">
+      <h3>🔗 社名の変更・統合</h3>
+      <button class="bm-modal-close" onclick="document.getElementById('bmRenameModal').classList.remove('open')" aria-label="閉じる">✕</button>
+    </div>
+    <div class="bm-form">
+      <div class="bm-form-row">
+        <div class="bm-rename-info">「<b id="bmRenameFrom"></b>」の <b id="bmRenameCount"></b> 件の社名を変更します</div>
+      </div>
+      <div class="bm-form-row">
+        <label class="bm-form-label" for="bmRenameInput">新しい社名</label>
+        <input type="text" id="bmRenameInput" class="bm-form-input" list="bmRenameDatalist" placeholder="例：内外トランスライン" maxlength="100">
+        <datalist id="bmRenameDatalist"></datalist>
+        <span class="bm-carrier-hint">既存の社名を入力すると、その会社に統合されます（リンクが1つのタイルにまとまります）</span>
+      </div>
+      <div class="bm-modal-foot">
+        <button type="button" class="bm-btn-cancel" onclick="document.getElementById('bmRenameModal').classList.remove('open')">キャンセル</button>
+        <button type="button" class="bm-btn-save" onclick="bmDoRename()">変更・統合</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <div id="bmDedupModal" class="bm-modal-overlay" onclick="closeBmDedup(event)">
   <div class="bm-modal-box bm-hist-box">
     <div class="bm-modal-head">
