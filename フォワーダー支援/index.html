@@ -3658,7 +3658,8 @@
               <button class="pv-btn-email-rich" onclick="copyQuoteEmailRich()" title="見積サマリをメール本文（リッチテキスト／表組み）としてコピー">📧 メール本文（リッチ）</button>
               <button class="pv-btn-email-plain" onclick="copyQuoteEmailPlainDetail()" title="区間・カテゴリ別の明細行を含むメール本文（プレーンテキスト）としてコピー">✉️ メール本文（明細・プレーン）</button>
               <button class="pv-btn-email-rich" onclick="copyQuoteEmailRichDetail()" title="区間・カテゴリ別の明細表を含むメール本文（リッチテキスト）としてコピー">📧 メール本文（明細・リッチ）</button>
-              <button class="pv-btn-print" onclick="window.print()" title="現在のプレビューを印刷（Ctrl+P と同じ）">🖨️ 印刷</button>
+              <button class="pv-btn-print" onclick="printFitPage('landscape')" title="A4横サイズにフィットして印刷（全列を収める）">🖨️ A4横フィット</button>
+              <button class="pv-btn-print" onclick="printFitPage('portrait')" title="A4縦サイズにフィットして印刷（全列を収める）">🖨️ A4縦フィット</button>
               <button class="pv-btn-close" onclick="closePreview()">閉じる</button>
               <span class="pv-copy-msg" id="copyMsg">✅ コピーしました！</span>
             </div>
