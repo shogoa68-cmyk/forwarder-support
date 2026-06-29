@@ -8231,6 +8231,24 @@ button.um-memberno--empty:hover { background: #f4ead4; border-color: #cdb98e; }
 }
 #tab-quote-make .subcon-group-add-btn:hover { background:#f5ede0; }
 
+/* グループ内カテゴリソートボタン */
+#tab-quote-make .subcon-group-sort-btn {
+  pointer-events: all;
+  margin-left: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  background: #eef2fb;
+  border: 1px solid #c2cbe8;
+  border-radius: 4px;
+  padding: 2px 8px;
+  cursor: pointer;
+  color: #3a5ab8;
+  white-space: nowrap;
+  line-height: 1.5;
+  flex-shrink: 0;
+}
+#tab-quote-make .subcon-group-sort-btn:hover { background: #dde5f7; }
+
 /* 除外ボタン */
 #tab-quote-make .subcon-group-excl {
   pointer-events: all;
