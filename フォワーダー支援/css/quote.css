@@ -3655,6 +3655,18 @@
 #tab-quote-make .pv-btn-email-rich:hover { background: #dde8fa; }
 #tab-quote-make .pv-btn-email-plain:active,
 #tab-quote-make .pv-btn-email-rich:active { filter: brightness(0.95); transform: scale(0.97); }
+#tab-quote-make .pv-btn-print {
+  background: #f0f4ff;
+  border: 1px solid #9eb3e8;
+  color: #1a3a8f;
+  padding: 6px 12px;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+}
+#tab-quote-make .pv-btn-print:hover { background: #dde8fa; }
+#tab-quote-make .pv-btn-print:active { filter: brightness(0.9); transform: scale(0.97); }
 #tab-quote-make .pv-btn-close {
   background: #7d6b56; color: white; border: none; border-radius: 5px;
   cursor: pointer; padding: 8px 18px; font-size: 13px; font-family: inherit;
