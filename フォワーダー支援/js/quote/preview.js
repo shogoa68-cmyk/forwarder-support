@@ -1489,6 +1489,47 @@
   }
   window.printDocStandalone = printDocStandalone;
 
+  // ========== フィット印刷（表計算レイアウト） ==========
+  // 表の自然幅を計測し zoom で A4 に収める。@page で向き指定も注入。
+  function printFitPage(orientation) {
+    const table = document.getElementById('previewTable');
+    if (!table) { window.print(); return; }
+
+    // スクロール幅 = 列を折り畳まず全て展開したときの自然幅
+    const naturalW = Math.max(table.scrollWidth, table.offsetWidth);
+    // A4 内容域 (96 dpi, 10mm 余白) : 縦 ≈ 718px、横 ≈ 1047px
+    const pageW = orientation === 'landscape' ? 1047 : 718;
+    const scale = naturalW > 0 ? Math.min(1, pageW / naturalW) : 1;
+
+    document.body.classList.add('pv-fit-print', 'pv-fit-' + orientation);
+
+    const styleId = 'pvFitPrintStyle';
+    let el = document.getElementById(styleId);
+    if (!el) { el = document.createElement('style'); el.id = styleId; document.head.appendChild(el); }
+    // named @page で向き確定 → body クラスで振り分け → zoom でフィット
+    el.textContent = [
+      '@media print {',
+      '  @page pvFitL { size: A4 landscape; margin: 10mm; }',
+      '  @page pvFitP { size: A4 portrait;  margin: 10mm; }',
+      '  body.pv-fit-landscape:has(#previewOverlay.open):not(:has(#previewBox.layout-doc)) #previewBox { page: pvFitL; }',
+      '  body.pv-fit-portrait:has(#previewOverlay.open):not(:has(#previewBox.layout-doc))  #previewBox { page: pvFitP; }',
+      '  body.pv-fit-print:has(#previewOverlay.open):not(:has(#previewBox.layout-doc)) #previewTable { width: max-content !important; }',
+      '  body.pv-fit-print:has(#previewOverlay.open):not(:has(#previewBox.layout-doc)) #previewTableWrap {',
+      '    zoom: ' + scale.toFixed(5) + ' !important;',
+      '  }',
+      '}',
+    ].join('\n');
+
+    const cleanup = () => {
+      el.textContent = '';
+      document.body.classList.remove('pv-fit-print', 'pv-fit-landscape', 'pv-fit-portrait');
+      window.removeEventListener('afterprint', cleanup);
+    };
+    window.addEventListener('afterprint', cleanup);
+    window.print();
+  }
+  window.printFitPage = printFitPage;
+
   // ========== Excel 出力（SheetJS） ==========
   // 各列定義に pvGroup を付け、プレビュー表示カスタマイズに連動して列を絞り込む
   // pvGroup: null は常時表示（名前/課税/小計）
