@@ -1495,28 +1495,49 @@
     const table = document.getElementById('previewTable');
     if (!table) { window.print(); return; }
 
-    // スクロール幅 = 列を折り畳まず全て展開したときの自然幅
-    const naturalW = Math.max(table.scrollWidth, table.offsetWidth);
+    // ── 計測フェーズ ──────────────────────────────────────────
+    // 印刷で実際に使う font-size/padding に縮小した状態で自然幅を計測する。
+    // スクリーン表示時（12px フォント）のまま計測すると zoom が過小になるため。
+    const ms = document.createElement('style');
+    ms.textContent = '#previewTable{font-size:8px!important}' +
+                     '#previewTable th,#previewTable td{padding:1px 3px!important}';
+    document.head.appendChild(ms);
+    void table.offsetHeight; // 強制リフロー
+    const naturalW = table.scrollWidth;
+    document.head.removeChild(ms);
+
     // A4 内容域 (96 dpi, 10mm 余白) : 縦 ≈ 718px、横 ≈ 1047px
     const pageW = orientation === 'landscape' ? 1047 : 718;
     const scale = naturalW > 0 ? Math.min(1, pageW / naturalW) : 1;
 
+    // 縮小率が低いとき（印刷でもまだ文字が小さい）は案内トーストを出す
+    if (scale < 0.8 && typeof quoteShowToast === 'function') {
+      quoteShowToast(
+        'フィット印刷: 縮小率 ' + Math.round(scale * 100) + '% です。' +
+        '左レールで不要な列（利益・乗せ幅など）を非表示にすると読みやすくなります。',
+        'info'
+      );
+    }
+
+    // ── 印刷スタイル注入 ─────────────────────────────────────
     document.body.classList.add('pv-fit-print', 'pv-fit-' + orientation);
 
     const styleId = 'pvFitPrintStyle';
     let el = document.getElementById(styleId);
     if (!el) { el = document.createElement('style'); el.id = styleId; document.head.appendChild(el); }
-    // named @page で向き確定 → body クラスで振り分け → zoom でフィット
+    const PFX = 'body.pv-fit-print:has(#previewOverlay.open):not(:has(#previewBox.layout-doc))';
     el.textContent = [
       '@media print {',
       '  @page pvFitL { size: A4 landscape; margin: 10mm; }',
       '  @page pvFitP { size: A4 portrait;  margin: 10mm; }',
       '  body.pv-fit-landscape:has(#previewOverlay.open):not(:has(#previewBox.layout-doc)) #previewBox { page: pvFitL; }',
       '  body.pv-fit-portrait:has(#previewOverlay.open):not(:has(#previewBox.layout-doc))  #previewBox { page: pvFitP; }',
-      '  body.pv-fit-print:has(#previewOverlay.open):not(:has(#previewBox.layout-doc)) #previewTable { width: max-content !important; }',
-      '  body.pv-fit-print:has(#previewOverlay.open):not(:has(#previewBox.layout-doc)) #previewTableWrap {',
-      '    zoom: ' + scale.toFixed(5) + ' !important;',
-      '  }',
+      // 計測と同じ font/padding に統一（既存 10px/2px ルールを上書き）
+      '  ' + PFX + ' #previewTable { font-size: 8px !important; width: max-content !important; }',
+      '  ' + PFX + ' #previewTable th,',
+      '  ' + PFX + ' #previewTable td { padding: 1px 3px !important; }',
+      // 計測した自然幅 → ページ幅に zoom で収める
+      '  ' + PFX + ' #previewTableWrap { zoom: ' + scale.toFixed(5) + ' !important; }',
       '}',
     ].join('\n');
 
