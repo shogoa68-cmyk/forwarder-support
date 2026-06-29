@@ -639,6 +639,29 @@
 
   function sortByCategory() { sortBy('category'); }
 
+  // サブコン別 / サブコン×パターン別グループ内のみカテゴリ順ソート
+  function sortGroupByCategory(svKey, ptKey) {
+    const tbody = document.getElementById('tableBody');
+    const members = _groupMemberRows(svKey, ptKey);
+    if (members.length < 2) return;
+    const catOrder = cat => { const i = CAT_VALUES.indexOf(cat); return i === -1 ? 999 : i; };
+    const sorted = [...members].sort((a, b) => {
+      const idA = a.id.replace('row-', ''), idB = b.id.replace('row-', '');
+      return catOrder(document.getElementById(`cat-${idA}`)?.value || '') -
+             catOrder(document.getElementById(`cat-${idB}`)?.value || '');
+    });
+    // すでにソート済みなら skip
+    const alreadySorted = members.every((tr, i) => tr === sorted[i]);
+    if (alreadySorted) return;
+    // 先頭メンバー行の直前に sorted を順に移動
+    const anchor = members[0];
+    sorted.forEach(tr => tbody.insertBefore(tr, anchor));
+    updateTotals();
+    renderSubconGroups();
+    if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
+  }
+  window.sortGroupByCategory = sortGroupByCategory;
+
   function buildRowHTML(id, initCat = '', initCur = 'JPY', initSv = '') {
     const tpl  = document.getElementById('row-tpl');
     const frag = tpl.content.cloneNode(true);
@@ -1815,12 +1838,17 @@
             `<button type="button" class="subcon-group-add-btn" ` +
               `data-sv="${_escAttr(key === _UNSET_KEY ? '' : label)}" ` +
               `title="${_escAttr(label)} に行を追加">＋</button>` +
+            `<button type="button" class="subcon-group-sort-btn" title="このグループ内をカテゴリ順に並び替え">⇅カテゴリ</button>` +
             _groupUpdatedHtml() +
           `</td>`;
         hdr.querySelector('.subcon-group-toggle').addEventListener('click', () => toggleSubconGroup(key));
         hdr.querySelector('.subcon-group-excl').addEventListener('click', () => toggleSubconExclude(key));
         hdr.querySelector('.subcon-group-add-btn').addEventListener('click', () => {
           addRowToSubconGroup(key === _UNSET_KEY ? '' : label);
+        });
+        hdr.querySelector('.subcon-group-sort-btn').addEventListener('click', e => {
+          e.stopPropagation();
+          sortGroupByCategory(key, '');
         });
         _attachGroupUpdatedControl(hdr, key, '');
         initGroupHeaderDrag(hdr, key);
@@ -1931,10 +1959,15 @@
                   `<button type="button" class="subcon-subgroup-toggle" title="${_ptCollapsed ? '展開' : '折りたたみ/展開'}">${_ptCollapsed ? '▶' : '▼'}</button>` +
                   `<span class="subcon-subgroup-leg">${icon} ${_escHdr(key)}</span>` +
                   `<button type="button" class="subcon-subgroup-excl${_ptExcluded ? ' is-excluded' : ''}" title="見積もりへの含める/除外を切り替え">${_ptExcluded ? '含む' : '除外'}</button>` +
+                  `<button type="button" class="subcon-group-sort-btn" title="このパターン内をカテゴリ順に並び替え">⇅カテゴリ</button>` +
                   _groupUpdatedHtml() +
                 `</td>`;
               sh.querySelector('.subcon-subgroup-toggle').addEventListener('click', () => togglePatternGroup(_compK));
               sh.querySelector('.subcon-subgroup-excl').addEventListener('click', () => togglePatternExclude(_compK));
+              sh.querySelector('.subcon-group-sort-btn').addEventListener('click', e => {
+                e.stopPropagation();
+                sortGroupByCategory(_svK, key);
+              });
               _attachGroupUpdatedControl(sh, _svK, key);
               tbody.insertBefore(sh, tr);
               curKey = key; curKind = kind; runOpen = true;
