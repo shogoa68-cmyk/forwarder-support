@@ -5398,6 +5398,51 @@ body.qp-dash-active #quoteActionDock { display: none !important; }
 #tab-quote-make .cloud-card-acts { display: flex; gap: 5px; flex-shrink: 0; flex-wrap: nowrap; }
 #tab-quote-make .cloud-card-who  { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
+/* === 💬 案件カード内 申し送り簡易表示（ダッシュボードのカード表示のみ） === */
+#tab-quote-make .cloud-card-chat { display: none; }
+#tab-quote-make #qpdListWrap .cloud-card-chat {
+  display: block; margin-top: 8px; padding-top: 6px; border-top: 1px dashed #e8e0d4;
+}
+#tab-quote-make #qpdListWrap .ccc-toggle {
+  display: flex; align-items: center; gap: 6px; width: 100%;
+  background: none; border: none; padding: 3px 2px; cursor: pointer;
+  font-size: 12px; color: #6b5e49; text-align: left;
+}
+#tab-quote-make #qpdListWrap .ccc-toggle:hover { color: #2b2014; }
+#tab-quote-make #qpdListWrap .ccc-count { font-weight: 600; white-space: nowrap; }
+#tab-quote-make #qpdListWrap .cloud-card-chat.ccc-has .ccc-count { color: #b06a00; }
+#tab-quote-make #qpdListWrap .ccc-preview {
+  flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  color: #998a72; font-size: 11px;
+}
+#tab-quote-make #qpdListWrap .ccc-caret { font-size: 10px; color: #b3a890; transition: transform .15s; }
+#tab-quote-make #qpdListWrap .cloud-card-chat.ccc-open .ccc-caret { transform: rotate(180deg); }
+#tab-quote-make #qpdListWrap .ccc-panel { margin-top: 6px; }
+#tab-quote-make #qpdListWrap .ccc-list {
+  max-height: 160px; overflow-y: auto; display: flex; flex-direction: column; gap: 6px;
+  padding: 6px; background: #fbf7ef; border-radius: 6px;
+}
+#tab-quote-make #qpdListWrap .ccc-list .cp-chat-item { font-size: 12px; }
+#tab-quote-make #qpdListWrap .ccc-list .cp-chat-meta { font-size: 10px; color: #8a7d66; margin-bottom: 1px; }
+#tab-quote-make #qpdListWrap .ccc-list .cp-chat-body { color: #2b2014; white-space: pre-wrap; word-break: break-word; }
+#tab-quote-make #qpdListWrap .ccc-list .cp-chat-item--mine .cp-chat-body {
+  background: #fff4dc; border-radius: 5px; padding: 3px 6px;
+}
+#tab-quote-make #qpdListWrap .ccc-list .cp-chat-login,
+#tab-quote-make #qpdListWrap .ccc-list .cp-chat-empty,
+#tab-quote-make #qpdListWrap .ccc-list .cp-chat-loading,
+#tab-quote-make #qpdListWrap .ccc-list .cp-chat-err { font-size: 11px; color: #8a7d66; }
+#tab-quote-make #qpdListWrap .ccc-compose { display: flex; gap: 6px; margin-top: 6px; }
+#tab-quote-make #qpdListWrap .ccc-input {
+  flex: 1; min-width: 0; padding: 6px 8px; border: 1px solid #d8ccb6; border-radius: 6px; font-size: 12px;
+}
+#tab-quote-make #qpdListWrap .ccc-send {
+  padding: 6px 12px; border: none; border-radius: 6px; background: #7a6a4f; color: #fff;
+  font-size: 12px; cursor: pointer; white-space: nowrap;
+}
+#tab-quote-make #qpdListWrap .ccc-send:hover { background: #685a42; }
+#tab-quote-make #qpdListWrap .ccc-send:disabled { opacity: .5; cursor: default; }
+
 /* === ブラウザ保存 リッチカード（茶系・チーム共有と同じ情報量／色で区別） === */
 #tab-quote-make .preset-item-rich { padding: 10px 12px; }
 #tab-quote-make .preset-rich-row1 { display: flex; align-items: center; gap: 8px; }
