@@ -3322,6 +3322,75 @@ body:has(#compareOverlay.open) #quoteActionDock { display: none; }
 }
 .lc-filter-input:focus { outline: none; border-color: #d97706; }
 
+/* ===== 諸チャージ: グループ表示セレクト（案3） ===== */
+.lc-group-select-wrap {
+  display: inline-flex; align-items: center; gap: 5px;
+  background: #fff; border: 1px solid #d8cbb2; border-radius: 8px; padding: 4px 9px;
+}
+.lc-group-select-ic { font-size: 13px; }
+.lc-group-select {
+  border: none; background: none; font: inherit; font-size: 12.5px;
+  color: #6b5a42; font-weight: 600; cursor: pointer; outline: none;
+}
+
+/* ===== 諸チャージ: グループ・アコーディオン（案3） ===== */
+.lc-acc { background: #fff; border: 1px solid #ebe1cf; border-radius: 10px; overflow: hidden; margin-bottom: 11px; }
+.lc-acc-h { display: flex; align-items: center; gap: 12px; padding: 11px 15px; background: #f7f0e2; cursor: pointer; user-select: none; }
+.lc-acc-h:hover { background: #f2e9d6; }
+.lc-acc-tw { width: 16px; color: #b08642; font-size: 11px; transition: transform 0.15s; }
+.lc-acc.is-collapsed .lc-acc-tw { transform: rotate(-90deg); }
+.lc-acc-name { font-size: 13.5px; font-weight: 700; color: #3a2c1e; }
+.lc-acc-count { font-size: 11px; color: #8a7a64; background: #fff; border: 1px solid #e3d8c2; border-radius: 20px; padding: 1px 9px; font-weight: 700; }
+.lc-acc-warn { font-size: 10.5px; font-weight: 700; padding: 2px 8px; border-radius: 4px; background: #fef3c7; color: #b45309; }
+.lc-acc-sp { flex: 1; }
+.lc-acc-cats { display: flex; gap: 5px; flex-wrap: wrap; justify-content: flex-end; }
+.lc-acc-rows { overflow: hidden; }
+.lc-acc.is-collapsed .lc-acc-rows { display: none; }
+/* 船会社グループ見出し直下：ブックマークリンクチップ帯（案3統合） */
+.lc-acc-bm {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  padding: 7px 15px; background: #fcf8ef; border-top: 1px solid #f1ebdd;
+}
+.lc-acc.is-collapsed .lc-acc-bm { display: none; }
+.lc-acc-bm-ic { font-size: 12px; flex-shrink: 0; }
+
+/* 行（グリッド：状態バー｜名称｜カテゴリ｜ルート｜金額｜操作） */
+.lc-row {
+  display: grid;
+  grid-template-columns: 4px minmax(180px, 1.6fr) auto minmax(90px, 1fr) auto auto;
+  align-items: center; gap: 14px; padding: 9px 14px 9px 0; border-top: 1px solid #f1ebdd;
+}
+.lc-acc--flat .lc-row:first-child { border-top: none; }
+.lc-row:hover { background: #fdfaf3; }
+.lc-row-bar { width: 4px; align-self: stretch; min-height: 34px; border-radius: 0 2px 2px 0; }
+.lc-row--green  .lc-row-bar { background: #22a35a; }
+.lc-row--amber  .lc-row-bar { background: #f59e0b; }
+.lc-row--red    .lc-row-bar { background: #dc2626; }
+.lc-row--future .lc-row-bar { background: #6366f1; }
+.lc-row--red    { opacity: 0.6; }
+.lc-row-main { min-width: 0; }
+.lc-row-nm { font-weight: 700; color: #2d2418; font-size: 13px; }
+.lc-row-sub { font-size: 10.5px; color: #9a8a76; font-weight: 400; margin-top: 1px; }
+.lc-row-cat { white-space: nowrap; }
+.lc-route-chip {
+  display: inline-flex; align-items: center; gap: 4px; font-size: 11.5px; color: #5a4a38;
+  background: #f3ede0; border: 1px solid #e3d8c2; border-radius: 6px; padding: 2px 8px; white-space: nowrap;
+}
+.lc-route-arr { color: #b08642; font-weight: 700; }
+.lc-route-none { color: #baad94; font-size: 12px; }
+.lc-row-amt { text-align: right; font-weight: 800; font-size: 13.5px; color: #1c1812; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.lc-r-unit { font-size: 10px; color: #9a8a76; font-weight: 500; margin-left: 3px; }
+.lc-row-ops { display: flex; gap: 4px; padding-right: 4px; white-space: nowrap; }
+.lc-row-ops button, .lc-row-ops .lc-attach-tbl-btn {
+  border: none; background: #f3ede0; width: 27px; height: 27px; border-radius: 6px;
+  cursor: pointer; font-size: 12px; display: inline-flex; align-items: center; justify-content: center; text-decoration: none;
+}
+.lc-row-ops button:hover, .lc-row-ops .lc-attach-tbl-btn:hover { background: #e7dcc6; }
+@media (max-width: 720px) {
+  .lc-row { grid-template-columns: 4px 1fr auto; grid-row-gap: 4px; }
+  .lc-row-cat, .lc-row-route { grid-column: 2 / 4; }
+}
+
 /* 一覧テーブル */
 .lc-table { width: 100%; border-collapse: collapse; font-size: 13px; }
 .lc-table thead tr { background: #f0e8d8; border-bottom: 2px solid #d0c0a0; }

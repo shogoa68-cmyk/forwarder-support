@@ -271,6 +271,14 @@
         </div>
         <div class="lc-topbar-right">
           <span id="lcCloudStatus" class="lc-cloud-off">💾 ローカル</span>
+          <label class="lc-group-select-wrap" title="一覧のグループ表示を切り替えます">
+            <span class="lc-group-select-ic">🗂️</span>
+            <select id="lcGroupMode" class="lc-group-select" onchange="lcSetGroupMode(this.value)">
+              <option value="carrier">船会社別</option>
+              <option value="cat">カテゴリ別</option>
+              <option value="none">グループなし</option>
+            </select>
+          </label>
           <button class="lc-variant-btn" onclick="lcToggleVariants()">🔀 ゆらぎ</button>
           <button class="lc-add-btn" onclick="lcOpenForm(null)">＋ 新規登録</button>
         </div>
