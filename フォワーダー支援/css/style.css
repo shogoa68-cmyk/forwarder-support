@@ -1647,7 +1647,26 @@ body:has(#compareOverlay.open) #quoteActionDock { display: none; }
   display: flex; flex-wrap: wrap; gap: 7px;
   align-content: flex-start;
 }
-.bm-tile.collapsed .bm-tbody { display: none; }
+.bm-tile.collapsed .bm-tbody,
+.bm-tile.collapsed .bm-rel-row { display: none; }
+/* 会社間の関係性（代理店関係など・統合ではなく結びつけるだけ） */
+.bm-rel-row {
+  display: flex; flex-wrap: wrap; gap: 6px; align-items: center;
+  padding: 7px 12px; border-top: 1px dashed #e2d8c8; background: #fbf8f2;
+}
+.bm-rel-chip {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: 11px; color: #6f5aa0; background: #efeaf6;
+  border: 1px solid #d9cfe6; border-radius: 999px; padding: 3px 6px 3px 10px;
+}
+.bm-rel-x { cursor: pointer; opacity: .6; font-size: 12px; line-height: 1; padding: 0 2px; }
+.bm-rel-x:hover { opacity: 1; color: #b04a4a; }
+.bm-rel-add {
+  font-size: 11px; color: #9a8a72; background: #fff;
+  border: 1px dashed #d9cfc2; border-radius: 999px; padding: 3px 9px;
+  cursor: pointer;
+}
+.bm-rel-add:hover { color: #6f5aa0; border-color: #6f5aa0; background: #f7f4fb; }
 
 .bm-pill {
   display: inline-flex; align-items: center; gap: 6px;

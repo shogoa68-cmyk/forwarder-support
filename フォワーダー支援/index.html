@@ -4495,6 +4495,34 @@
 </div>
 
 <!-- ======= ブックマーク変更履歴モーダル ======= -->
+<div id="bmRelationModal" class="bm-modal-overlay" onclick="closeBmRelation(event)">
+  <div class="bm-modal-box">
+    <div class="bm-modal-head">
+      <h3>🔗 関連会社を登録</h3>
+      <button class="bm-modal-close" onclick="document.getElementById('bmRelationModal').classList.remove('open')" aria-label="閉じる">✕</button>
+    </div>
+    <div class="bm-form">
+      <div class="bm-form-row">
+        <div class="bm-rename-info">「<b id="bmRelFrom"></b>」と関連する会社を登録します（統合はせず、双方の名前・ブックマークをそのまま残します）</div>
+      </div>
+      <div class="bm-form-row">
+        <label class="bm-form-label" for="bmRelInput">関連する会社名</label>
+        <input type="text" id="bmRelInput" class="bm-form-input" list="bmRelDatalist" placeholder="例：SITC" maxlength="100">
+        <datalist id="bmRelDatalist"></datalist>
+      </div>
+      <div class="bm-form-row">
+        <label class="bm-form-label" for="bmRelLabel">関係の種類</label>
+        <input type="text" id="bmRelLabel" class="bm-form-input" placeholder="例：代理店" maxlength="30">
+        <span class="bm-carrier-hint">登録すると、見積タブで片方のキャリアを選んだとき、もう片方に登録したリンクも一緒に表示されます</span>
+      </div>
+      <div class="bm-modal-foot">
+        <button type="button" class="bm-btn-cancel" onclick="document.getElementById('bmRelationModal').classList.remove('open')">キャンセル</button>
+        <button type="button" class="bm-btn-save" onclick="bmDoAddRelation()">登録</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <div id="bmRenameModal" class="bm-modal-overlay" onclick="closeBmRename(event)">
   <div class="bm-modal-box">
     <div class="bm-modal-head">

@@ -1886,16 +1886,26 @@
     const cur = (document.getElementById('z2Carrier')?.value || '').trim();
     if (cur && !names.includes(cur)) names.push(cur);
     const bmCache = window._qspBmCache || {};
+    const getRelated = typeof window.bmGetRelated === 'function' ? window.bmGetRelated : () => [];
     // 全面クラウド移行（フェーズ3）：内蔵DBの静的リンクは廃止し、クラウドの
     // ブックマーク（内蔵リンクをシード済み＋ユーザー追加）のみを唯一の真実として表示。
     // 各チップは bmId 経由で編集可能。icon のみ内蔵DBから流用。
+    // 関連会社（代理店関係など・carrier_relations）のブックマークも合わせて表示する。
     return names.map(name => {
       const c = map[name];
-      const links = (bmCache[name] || []).filter(bm => bm.url).map(bm => ({
+      const own = (bmCache[name] || []).filter(bm => bm.url).map(bm => ({
         label: bm.label, url: bm.url, title: bm.note || bm.label, isUserBm: true,
         bmId: bm.id, carrier: name, type: bm.carrier_type, fn: bm.function, note: bm.note,
       }));
-      return { name, icon: c?.icon || '', links };
+      const related = getRelated(name).flatMap(rel =>
+        (bmCache[rel.counterpart] || []).filter(bm => bm.url).map(bm => ({
+          label: bm.label, url: bm.url,
+          title: (bm.note ? bm.note + ' ／ ' : '') + `${rel.label}: ${rel.counterpart}`,
+          isUserBm: true, isRelated: true, relLabel: rel.label, relCarrier: rel.counterpart,
+          bmId: bm.id, carrier: rel.counterpart, type: bm.carrier_type, fn: bm.function, note: bm.note,
+        }))
+      );
+      return { name, icon: c?.icon || '', links: [...own, ...related] };
     });
   };
 

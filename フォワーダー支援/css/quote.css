@@ -7166,6 +7166,9 @@ body.qp-dash-active #quoteActionDock { display: none !important; }
   transition: background .12s, color .12s, border-color .12s;
 }
 #tab-quote-make .qsp-bm-new-chip:hover { background: #4a9c59; color: #fff; border-color: #4a9c59; border-style: solid; }
+/* 関連会社（代理店関係など）経由で表示しているリンクの印 */
+#tab-quote-make .qsp-ms-cl-chip--rel { border-style: dashed; }
+#tab-quote-make .qsp-ms-cl-rel { font-size: 9px; opacity: .75; margin-right: 2px; }
 
 /* ===== 右カラム「🔖 ブックマーク」パネル（案件連動リンクチップ） ===== */
 #tab-quote-make .bm-rail-panel { display: flex; flex-direction: column; gap: 8px; padding: 4px 2px; }

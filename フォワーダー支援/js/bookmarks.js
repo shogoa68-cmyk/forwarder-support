@@ -10,6 +10,28 @@ let _bmVerif   = {};   // { bookmark_id: [{ checked_by, checked_at }] }
 let _bmProfile = {};   // { email: display_name }
 let _bmMyEmail = '';
 
+// 会社間の関係性（代理店関係など・統合ではなく結びつけるだけ）
+let _bmRelAll    = [];   // [{ id, carrier_a, carrier_b, label }]
+let _bmRelLoaded = false;
+
+async function bmEnsureRelLoaded(force) {
+  if (_bmRelLoaded && !force) return;
+  const db = window.SupabaseClient;
+  if (!db) return;
+  const { data, error } = await db.from('carrier_relations').select('*');
+  if (error) return;   // テーブル未作成などは黙ってスキップ（関係なし扱い）
+  _bmRelAll = data || [];
+  _bmRelLoaded = true;
+}
+
+// あるキャリア名に結びついた相手（複数可）を返す。{ counterpart, label, relId }
+function bmGetRelated(name) {
+  if (!name) return [];
+  return _bmRelAll
+    .filter(r => r.carrier_a === name || r.carrier_b === name)
+    .map(r => ({ counterpart: r.carrier_a === name ? r.carrier_b : r.carrier_a, label: r.label || '代理店', relId: r.id }));
+}
+
 // QSP 幹線輸送チップ用キャリアブックマークキャッシュ
 window._qspBmCache = {};
 let _qspBmLastKey  = '';  // 重複フェッチ防止キー
@@ -71,6 +93,7 @@ async function _bmLoad() {
   (vRes.data || []).forEach(v => { (_bmVerif[v.bookmark_id] = _bmVerif[v.bookmark_id] || []).push(v); });
   _bmProfile = {};
   (pRes.data || []).forEach(p => { if (p.display_name) _bmProfile[p.email] = p.display_name; });
+  await bmEnsureRelLoaded(true);
 
   _bmRenderTypeChips();
   _bmApply();
@@ -212,6 +235,17 @@ function _bmRenderList(rows) {
     // 社名の変更・統合（英語/和文で分裂した同一会社を1つにまとめる）。汎用は対象外。
     const renameBtn = name === '汎用' ? '' :
       `<button class="bm-trename" data-bm-rename="${escHtml(name)}" onclick="event.stopPropagation();openBmRename(this.dataset.bmRename)" title="社名の変更・統合">✎</button>`;
+    // 関係性チップ（代理店関係など。統合とは違い、双方の名前・ブックマークをそのまま残す）
+    const rels = name === '汎用' ? [] : bmGetRelated(name);
+    const relChips = rels.map(rel =>
+      `<span class="bm-rel-chip" data-bm-rel-id="${escHtml(rel.relId)}" title="関係を解除するには × をクリック">`
+      + `${escHtml(rel.label)}: ${escHtml(rel.counterpart)}`
+      + `<span class="bm-rel-x" onclick="event.preventDefault();event.stopPropagation();bmRemoveRelation('${escHtml(rel.relId)}')">×</span>`
+      + `</span>`
+    ).join('');
+    const relAddBtn = name === '汎用' ? '' :
+      `<button class="bm-rel-add" data-bm-rel-carrier="${escHtml(name)}" onclick="event.stopPropagation();openBmRelation(this.dataset.bmRelCarrier)" title="関連会社（代理店関係など）を登録">＋🔗</button>`;
+    const relRow = (name === '汎用') ? '' : `<div class="bm-rel-row">${relChips}${relAddBtn}</div>`;
     const pills = list.map(r => {
       const ic   = _bmFnIcon(r.function);
       const txt  = escHtml(r.label || r.function || 'リンク');
@@ -252,6 +286,7 @@ function _bmRenderList(rows) {
         ${pills}
         <span class="bm-pill bm-pill-add" data-bm-add="${name === '汎用' ? '' : escHtml(name)}" data-bm-type="${escHtml(type)}">＋ 追加</span>
       </div>
+      ${relRow}
     </div>`;
   }).join('');
 }
@@ -642,6 +677,80 @@ async function bmDoRename() {
   if (typeof window.lcRefreshBmChips === 'function') window.lcRefreshBmChips();
 }
 
+// ---------- 会社間の関係性（代理店関係など・統合ではない） ----------
+let _bmRelFrom = '';
+
+function openBmRelation(carrier) {
+  const modal = document.getElementById('bmRelationModal');
+  if (!modal || !carrier) return;
+  _bmRelFrom = carrier;
+  const fromEl  = document.getElementById('bmRelFrom');
+  const input   = document.getElementById('bmRelInput');
+  const labelEl = document.getElementById('bmRelLabel');
+  if (fromEl)  fromEl.textContent = carrier;
+  if (input)   input.value = '';
+  if (labelEl) labelEl.value = '代理店';
+  const dl = document.getElementById('bmRelDatalist');
+  if (dl) {
+    const carriers = [...new Set(_bmRows.map(r => r.carrier).filter(Boolean))]
+      .filter(c => c !== carrier).sort();
+    dl.innerHTML = carriers.map(c => `<option value="${escHtml(c)}">`).join('');
+  }
+  modal.classList.add('open');
+  input?.focus();
+}
+
+function closeBmRelation(e) {
+  if (e && e.target.id !== 'bmRelationModal') return;
+  document.getElementById('bmRelationModal')?.classList.remove('open');
+}
+
+async function bmDoAddRelation() {
+  const db = window.SupabaseClient;
+  if (!db) return;
+  const a     = _bmRelFrom;
+  const b     = (document.getElementById('bmRelInput')?.value || '').trim();
+  const label = (document.getElementById('bmRelLabel')?.value || '').trim() || '代理店';
+  if (!a || !b) { quoteShowToast('⚠️ 関連する会社名を入力してください', 'warn'); return; }
+  if (a === b)  { quoteShowToast('⚠️ 同じ会社名は登録できません', 'warn'); return; }
+  // 既存の関係（順不同）があればラベルを更新、無ければ新規追加
+  const existing = _bmRelAll.find(r =>
+    (r.carrier_a === a && r.carrier_b === b) || (r.carrier_a === b && r.carrier_b === a));
+  const { data: sd } = await db.auth.getSession();
+  let error;
+  if (existing) {
+    ({ error } = await db.from('carrier_relations').update({ label }).eq('id', existing.id));
+  } else {
+    ({ error } = await db.from('carrier_relations').insert({
+      carrier_a: a, carrier_b: b, label, created_by: sd?.session?.user?.email || null,
+    }));
+  }
+  if (error) {
+    const msg = /schema cache|could not find the table|does not exist/i.test(error.message || '')
+      ? '⚠️ テーブル未作成です（docs/sql/carrier-relations.sql を実行してください）'
+      : '⚠️ 登録に失敗：' + error.message;
+    quoteShowToast(msg, 'warn', 8000);
+    return;
+  }
+  quoteShowToast(`✅ 「${a}」と「${b}」を${label}として結びつけました`, 'success', 3000);
+  closeBmRelation();
+  await bmEnsureRelLoaded(true);
+  _bmApply();
+  if (typeof window.lcRefreshBmChips === 'function') window.lcRefreshBmChips();
+}
+
+async function bmRemoveRelation(id) {
+  const db = window.SupabaseClient;
+  if (!db) return;
+  if (!confirm('この関係を解除しますか？（双方のブックマークはそのまま残ります）')) return;
+  const { error } = await db.from('carrier_relations').delete().eq('id', id);
+  if (error) { quoteShowToast('⚠️ 解除に失敗：' + error.message, 'warn', 6000); return; }
+  _bmRelAll = _bmRelAll.filter(r => r.id !== id);
+  quoteShowToast('✅ 関係を解除しました', 'success', 2000);
+  _bmApply();
+  if (typeof window.lcRefreshBmChips === 'function') window.lcRefreshBmChips();
+}
+
 function bmEdit(id) {
   const r = _bmRows.find(row => row.id === id);
   if (!r) return;
@@ -948,6 +1057,8 @@ function closeBmDedup(e) {
 }
 
 // ---------- QSP 用キャリアブックマームフェッチ ----------
+// 関連会社（代理店関係など）のブックマークも一緒に取得し、選択中キャリアの
+// チップに合わせて表示できるようにする（carrier_relations 経由）。
 window.fetchCarrierBmsForQSP = async function (carrierNames) {
   if (!carrierNames || !carrierNames.length) return;
   const key = [...carrierNames].sort().join('\0');
@@ -959,15 +1070,21 @@ window.fetchCarrierBmsForQSP = async function (carrierNames) {
   const { data: sd } = await db.auth.getSession();
   if (!sd?.session) return;
 
+  await bmEnsureRelLoaded();
+  const expanded = [...carrierNames];
+  carrierNames.forEach(n => bmGetRelated(n).forEach(rel => {
+    if (!expanded.includes(rel.counterpart)) expanded.push(rel.counterpart);
+  }));
+
   const { data, error } = await db
     .from('bookmarks')
     .select('id, label, url, carrier, carrier_type, function, note')
-    .in('carrier', carrierNames)
+    .in('carrier', expanded)
     .not('url', 'is', null);
   if (error) return;
 
   const cache = {};
-  carrierNames.forEach(n => { cache[n] = []; });
+  expanded.forEach(n => { cache[n] = []; });
   (data || []).forEach(bm => {
     if (bm.carrier && Object.prototype.hasOwnProperty.call(cache, bm.carrier)) {
       cache[bm.carrier].push(bm);
@@ -997,3 +1114,9 @@ window.bmDedupMerge    = bmDedupMerge;
 window.openBmRename    = openBmRename;
 window.closeBmRename   = closeBmRename;
 window.bmDoRename      = bmDoRename;
+window.bmEnsureRelLoaded = bmEnsureRelLoaded;
+window.bmGetRelated      = bmGetRelated;
+window.openBmRelation    = openBmRelation;
+window.closeBmRelation   = closeBmRelation;
+window.bmDoAddRelation   = bmDoAddRelation;
+window.bmRemoveRelation  = bmRemoveRelation;

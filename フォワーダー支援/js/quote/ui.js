@@ -2660,12 +2660,16 @@
     const blocks = [];
 
     // 1チップ（リンク＋✎編集）。✎ は既存ブックマークを編集モードで開く。
+    // isRelated: carrier_relations（代理店関係など）経由で表示している他社のリンク。
     const railChip = (o) => {
       const data = encodeURIComponent(JSON.stringify({
         id: o.id, label: o.label, url: o.url, type: o.type, carrier: o.carrier, fn: o.fn, note: o.note,
       }));
+      const relMark = o.isRelated
+        ? `<span class="qsp-ms-cl-rel" title="${escapeHtml((o.relLabel || '代理店') + ': ' + (o.relCarrier || ''))}">🔗${escapeHtml(o.relLabel || '')}</span>`
+        : '';
       return `<span class="qsp-ms-cl-chip-wrap">`
-        + `<a class="qsp-ms-cl-chip qsp-ms-cl-chip--user" href="${escapeHtml(o.url)}" target="_blank" rel="noopener" title="${escapeHtml(o.title || o.label)}">${escapeHtml(o.label)}</a>`
+        + `<a class="qsp-ms-cl-chip qsp-ms-cl-chip--user${o.isRelated ? ' qsp-ms-cl-chip--rel' : ''}" href="${escapeHtml(o.url)}" target="_blank" rel="noopener" title="${escapeHtml(o.title || o.label)}">${relMark}${escapeHtml(o.label)}</a>`
         + `<button class="qsp-chip-edit-btn" data-bm="${data}" onclick="openAddBmModal(JSON.parse(decodeURIComponent(this.dataset.bm)))" title="このブックマークを編集">✎</button>`
         + `</span>`;
     };
@@ -2694,7 +2698,8 @@
       window.getCarrierLinkData().filter(cd => cd.name).forEach(cd => {
         const chips = cd.links.map(l => railChip({
           id: l.bmId, label: l.label, url: l.url, title: l.title,
-          type: l.type, carrier: cd.name, fn: l.fn, note: l.note,
+          type: l.type, carrier: l.carrier || cd.name, fn: l.fn, note: l.note,
+          isRelated: l.isRelated, relLabel: l.relLabel, relCarrier: l.relCarrier,
         })).join('') + addChip(cd.name);
         blocks.push(carrierBlock(cd.icon || '🚢', cd.name, chips));
       });
