@@ -5,6 +5,7 @@
   const TABLE      = 'local_charges';
   const LOC_KEY    = 'localCharges_v1';
   const ATTACH_KEY = 'lcAttachments_v1';
+  const LC_BUCKET  = 'local-charge-files';   // Supabase Storage バケット（チーム共有添付）
 
   const LC_CATS = [
     { value: '',               label: '— カテゴリ —' },
@@ -25,6 +26,9 @@
   let _charges     = [];
   let _editId      = null;
   let _pickDir     = 'export';
+  // 案3 グループ表示：'carrier'（船会社別）| 'cat'（カテゴリ別）| 'none'（グループなし）
+  let _groupMode = (() => { try { return localStorage.getItem('lcGroupMode_v1') || 'carrier'; } catch (e) { return 'carrier'; } })();
+  const _collapsedGroups = new Set();
   // 添付ファイル状態: null=変更なし, false=削除, {name,type,dataUrl}=新規
   let _pendingAttach  = null;
   // フォームを開いたときの既存添付（表示用）
@@ -65,6 +69,52 @@
     reader.readAsDataURL(file);
   }
 
+  // === 添付ファイル（Supabase Storage：チーム共有） ===
+
+  // チャージの添付情報を返す（クラウド優先→ローカル）。{name, path}=クラウド / {name, dataUrl}=ローカル / null
+  function _lcAttachInfo(ch) {
+    if (ch && ch.attachment_path) return { name: ch.attachment_name || 'ファイル', path: ch.attachment_path };
+    const loc = _getAttach(ch && ch.id);
+    if (loc) return { name: loc.name, dataUrl: loc.dataUrl };
+    return null;
+  }
+
+  async function _lcSignedUrl(path) {
+    const c = _c();
+    if (!c || !path) return null;
+    const { data, error } = await c.storage.from(LC_BUCKET).createSignedUrl(path, 60 * 60);
+    if (error) { alert('ファイルの取得に失敗しました: ' + error.message); return null; }
+    return data?.signedUrl || null;
+  }
+
+  async function _lcOpenSignedPath(path) {
+    const url = await _lcSignedUrl(path);
+    if (url) window.open(url, '_blank', 'noopener');
+  }
+
+  // dataUrl から Blob を生成して Storage にアップロードし、保存パスを返す
+  async function _lcUploadAttach(chargeId, fileObj) {
+    const c = _c();
+    const blob = await (await fetch(fileObj.dataUrl)).blob();
+    const safe = String(fileObj.name || 'file').replace(/[^\w.\-]+/g, '_');
+    const path = `${chargeId}/${Date.now()}_${safe}`;
+    const { error } = await c.storage.from(LC_BUCKET)
+      .upload(path, blob, { contentType: fileObj.type || 'application/octet-stream', upsert: true });
+    if (error) throw error;
+    return path;
+  }
+
+  async function _lcRemoveStorage(path) {
+    const c = _c();
+    if (c && path) { try { await c.storage.from(LC_BUCKET).remove([path]); } catch (e) {} }
+  }
+
+  // 一覧の 📎 ボタン（クラウド添付）クリック → 署名URLで開く
+  window.lcDownloadAttach = function (el) {
+    const path = el?.dataset?.lcPath;
+    if (path) _lcOpenSignedPath(path);
+  };
+
   function _lcUpdateAttachUI() {
     // 表示すべき添付を決定
     const disp = (_pendingAttach !== null)
@@ -82,8 +132,17 @@
       selEl.style.display   = '';
       if (nameEl) {
         nameEl.textContent = disp.name;
-        nameEl.href        = disp.dataUrl;
-        nameEl.download    = disp.name;
+        if (disp.dataUrl) {
+          // 新規選択 or ローカル保存済み → 直接ダウンロード
+          nameEl.href     = disp.dataUrl;
+          nameEl.download  = disp.name;
+          nameEl.onclick   = null;
+        } else if (disp.path) {
+          // クラウド保存済み → クリックで署名URLを発行して開く
+          nameEl.href = '#';
+          nameEl.removeAttribute('download');
+          nameEl.onclick = ev => { ev.preventDefault(); _lcOpenSignedPath(disp.path); };
+        }
       }
     } else {
       emptyEl.style.display = '';
@@ -218,62 +277,104 @@
 
     const catMap = Object.fromEntries(LC_CATS.map(c => [c.value, c.label]));
 
-    let h = '<table class="lc-table"><thead><tr>' +
-            '<th>名称</th><th>カテゴリ</th><th>積み港</th><th>揚げ港</th><th>船会社</th>' +
-            '<th class="lc-num-col">金額</th><th>単位</th><th>適用期間</th><th>更新 / 作業者</th><th></th>' +
-            '</tr></thead><tbody>';
-
+    // === グループ化（案3：船会社／カテゴリ別アコーディオン） ===
+    const mode = _groupMode; // 'carrier' | 'cat' | 'none'
+    const groups = new Map(); // key -> { label, items, catSet }
+    const NO_CARRIER = '（船会社指定なし）';
     filtered.forEach(c => {
-      const today    = new Date().toISOString().slice(0, 10);
-      const warnDate = new Date(); warnDate.setDate(warnDate.getDate() + 30);
-      const warnStr  = warnDate.toISOString().slice(0, 10);
-      const isNotYet  = c.valid_from && c.valid_from > today;
-      const isExpired = c.valid_to && c.valid_to < today;
-      const isExpiring = !isExpired && c.valid_to && c.valid_to <= warnStr;
-      const rowCls = isExpired ? 'lc-expired' : isExpiring ? 'lc-expiring' : isNotYet ? 'lc-future' : '';
-      const pol = c.pol || c.port || '—';
-      const pod = c.pod || '—';
-      const descTitle = c.description ? ` title="${String(c.description).replace(/"/g,'&quot;')}"` : '';
-      const actor = (c.updated_by || c.created_by || '').split('@')[0];
-
-      const expiryBadge = isExpired
-        ? '<span class="lc-exp-badge lc-exp-badge--red">期限切れ</span>'
-        : isExpiring
-          ? `<span class="lc-exp-badge lc-exp-badge--amber">～${c.valid_to}</span>`
-          : '';
-
-      // 参照元アイコン（URLは外部リンク、それ以外はツールチップ）
-      const srcHtml = c.source
-        ? (c.source.startsWith('http')
-            ? ` <a class="lc-source-icon" href="${_ea(c.source)}" target="_blank" rel="noopener" title="${_ea(c.source)}">🔗</a>`
-            : ` <span class="lc-source-icon" title="${_ea(c.source)}">📄</span>`)
-        : '';
-
-      const periodStr = c.valid_from || c.valid_to
-        ? (c.valid_from ? _fmtDate(c.valid_from) : '—') + ' ～ ' + (c.valid_to ? _fmtDate(c.valid_to) : '')
-        : '—';
-      h += `<tr class="${rowCls}">` +
-           `<td class="lc-name"${descTitle}>${_esc(c.name)}${srcHtml}${expiryBadge}` +
-           (c.full_name ? `<div class="lc-name-sub">${_esc(c.full_name)}</div>` : '') +
-           `</td>` +
-           `<td class="lc-cat"><span class="lc-cat-badge lc-cat-${c.cat || 'other'}">${_esc(catMap[c.cat] || c.cat || '—')}</span></td>` +
-           `<td>${_esc(pol)}</td>` +
-           `<td>${_esc(pod)}</td>` +
-           `<td>${_esc(c.carrier || '—')}</td>` +
-           `<td class="lc-num-col">${_fmtAmt(c.amount, c.currency)}</td>` +
-           `<td>${_esc(c.unit || '—')}</td>` +
-           `<td class="lc-date">${periodStr}</td>` +
-           `<td class="lc-date">${c.updated_at ? _fmtDate(c.updated_at) : '—'}` +
-           (actor ? `<div class="lc-updated-by">${_esc(actor)}</div>` : '') +
-           `</td>` +
-           `<td class="lc-ops">` +
-           (_getAttach(c.id) ? `<a class="lc-attach-tbl-btn" href="${_getAttach(c.id).dataUrl}" download="${_ea(_getAttach(c.id).name)}" target="_blank" title="添付: ${_ea(_getAttach(c.id).name)}">📎</a>` : '') +
-           `<button class="lc-edit-btn" onclick="lcOpenForm('${c.id}')" title="編集">✏️</button>` +
-           `<button class="lc-del-btn"  onclick="lcDeleteCharge('${c.id}')" title="削除">🗑️</button>` +
-           `</td></tr>`;
+      let key, label;
+      if (mode === 'cat')       { key = c.cat || 'other'; label = catMap[key] || 'その他'; }
+      else if (mode === 'none') { key = '__all__'; label = ''; }
+      else                      { key = (c.carrier && c.carrier.trim()) || NO_CARRIER; label = key; }
+      if (!groups.has(key)) groups.set(key, { label, items: [], catSet: new Set() });
+      const g = groups.get(key);
+      g.items.push(c);
+      if (c.cat) g.catSet.add(c.cat);
     });
-    list.innerHTML = h + '</tbody></table>';
+
+    let h = '';
+    let gi = 0;
+    groups.forEach((g, key) => {
+      const gid = 'lcg-' + (gi++);
+      const rowsHtml = g.items.map(c => _lcRowHtml(c, catMap, mode)).join('');
+      const warn = g.items.filter(c => { const s = _lcStatus(c); return s.key === 'red' || s.key === 'amber'; }).length;
+      const collapsed = _collapsedGroups.has(key) ? ' is-collapsed' : '';
+
+      if (mode === 'none') { h += `<div class="lc-acc lc-acc--flat">${rowsHtml}</div>`; return; }
+
+      const catBadges = [...g.catSet].slice(0, 4)
+        .map(cv => `<span class="lc-cat-badge lc-cat-${cv}">${_esc((catMap[cv] || cv).replace(/^[^\s]+\s/, ''))}</span>`).join('');
+      const icon = mode === 'cat' ? '' : '🚢 ';
+      const warnChip = warn > 0 ? `<span class="lc-acc-warn">⚠ 要確認 ${warn}</span>` : '';
+      const bmStrip = (mode === 'carrier') ? _lcGroupBmHtml(key) : '';
+
+      h += `<div class="lc-acc${collapsed}" data-gkey="${_ea(key)}" id="${gid}">` +
+             `<div class="lc-acc-h" onclick="lcToggleGroup(this)" role="button" tabindex="0" aria-expanded="${collapsed ? 'false' : 'true'}">` +
+               `<span class="lc-acc-tw">▾</span>` +
+               `<span class="lc-acc-name">${icon}${_esc(g.label)}</span>` +
+               `<span class="lc-acc-count">${g.items.length}件</span>` +
+               warnChip +
+               `<span class="lc-acc-sp"></span>` +
+               `<span class="lc-acc-cats">${catBadges}</span>` +
+             `</div>` +
+             bmStrip +
+             `<div class="lc-acc-rows">${rowsHtml}</div>` +
+           `</div>`;
+    });
+
+    list.innerHTML = h;
     _lcRenderCarrierBmSection();
+  }
+
+  // チャージ1件の状態（緑=有効 / 橙=期限間近 / 赤=期限切れ / 青=適用前）
+  function _lcStatus(c) {
+    const today    = new Date().toISOString().slice(0, 10);
+    const warnDate = new Date(); warnDate.setDate(warnDate.getDate() + 30);
+    const warnStr  = warnDate.toISOString().slice(0, 10);
+    if (c.valid_to   && c.valid_to   < today)    return { key: 'red',    badge: '<span class="lc-exp-badge lc-exp-badge--red">期限切れ</span>' };
+    if (c.valid_from && c.valid_from > today)    return { key: 'future', badge: '<span class="lc-exp-badge lc-exp-badge--future">適用前</span>' };
+    if (c.valid_to   && c.valid_to   <= warnStr) return { key: 'amber',  badge: `<span class="lc-exp-badge lc-exp-badge--amber">～${_fmtDate(c.valid_to)}</span>` };
+    return { key: 'green', badge: '' };
+  }
+
+  // チャージ1件の行 HTML（状態アクセントバー＋名称＋カテゴリ＋ルート＋金額＋操作）
+  function _lcRowHtml(c, catMap, mode) {
+    const st  = _lcStatus(c);
+    const pol = c.pol || c.port || '';
+    const pod = c.pod || '';
+    const srcHtml = c.source
+      ? (c.source.startsWith('http')
+          ? ` <a class="lc-source-icon" href="${_ea(c.source)}" target="_blank" rel="noopener" title="${_ea(c.source)}">🔗</a>`
+          : ` <span class="lc-source-icon" title="${_ea(c.source)}">📄</span>`)
+      : '';
+    const att = _lcAttachInfo(c);
+    const attHtml = att
+      ? (att.dataUrl
+          ? `<a class="lc-attach-tbl-btn" href="${att.dataUrl}" download="${_ea(att.name)}" target="_blank" title="添付: ${_ea(att.name)}">📎</a>`
+          : `<button class="lc-attach-tbl-btn" data-lc-path="${_ea(att.path)}" onclick="lcDownloadAttach(this)" title="添付: ${_ea(att.name)}">📎</button>`)
+      : '';
+    const routeHtml = (pol || pod)
+      ? `<span class="lc-route-chip">${_esc(pol || '—')}${pod ? `<span class="lc-route-arr">→</span>${_esc(pod)}` : ''}</span>`
+      : '<span class="lc-route-none">—</span>';
+    const catChip = (mode === 'cat') ? '' :
+      `<span class="lc-cat-badge lc-cat-${c.cat || 'other'}">${_esc((catMap[c.cat] || c.cat || '—').replace(/^[^\s]+\s/, ''))}</span>`;
+    const amtUnit = c.unit ? `<span class="lc-r-unit">/ ${_esc(c.unit)}</span>` : '';
+
+    return `<div class="lc-row lc-row--${st.key}">` +
+             `<span class="lc-row-bar"></span>` +
+             `<div class="lc-row-main">` +
+               `<div class="lc-row-nm">${_esc(c.name)}${srcHtml}${st.badge}</div>` +
+               (c.full_name ? `<div class="lc-row-sub">${_esc(c.full_name)}</div>` : '') +
+             `</div>` +
+             `<div class="lc-row-cat">${catChip}</div>` +
+             `<div class="lc-row-route">${routeHtml}</div>` +
+             `<div class="lc-row-amt">${_fmtAmt(c.amount, c.currency)}${amtUnit}</div>` +
+             `<div class="lc-row-ops">` +
+               attHtml +
+               `<button class="lc-edit-btn" onclick="event.stopPropagation();lcOpenForm('${c.id}')" title="編集">✏️</button>` +
+               `<button class="lc-del-btn"  onclick="event.stopPropagation();lcDeleteCharge('${c.id}')" title="削除">🗑️</button>` +
+             `</div>` +
+           `</div>`;
   }
 
   // === 登録フォーム ===
@@ -303,9 +404,9 @@
     set('lc_source',     charge?.source     || '');
     set('lc_note',       charge?.note       || '');
 
-    // 添付ファイル状態を初期化
+    // 添付ファイル状態を初期化（クラウド添付優先→ローカル）
     _pendingAttach = null;
-    _currentAttach = _getAttach(charge?.id || null);
+    _currentAttach = _lcAttachInfo(charge);
     _lcUpdateAttachUI();
 
     // ドラッグ&ドロップ・ペーストを添付エリアに設定（1回だけ）
@@ -340,12 +441,13 @@
     _currentAttach = null;
   }
 
-  async function lcSaveCharge() {
+  // フォーム入力を1レコード分の row に組み立て（必須チェック込み・不正なら null）
+  function _lcCollectRow() {
     const g = id => document.getElementById(id)?.value?.trim() || '';
     const name    = g('lc_name');
     const carrier = g('lc_carrier');
-    if (!name)    { alert('名称は必須です'); return; }
-    if (!carrier) { alert('船会社（キャリアー）は必須です'); document.getElementById('lc_carrier')?.focus(); return; }
+    if (!carrier) { alert('船会社（キャリアー）は必須です'); document.getElementById('lc_carrier')?.focus(); return null; }
+    if (!name)    { alert('名称は必須です'); document.getElementById('lc_name')?.focus(); return null; }
 
     const row = {
       id:          _editId || undefined,
@@ -366,31 +468,98 @@
       note:        g('lc_note'),
     };
     if (!row.id) delete row.id;
+    return row;
+  }
 
-    const btn = document.querySelector('#lcFormModal .lc-save-btn');
-    if (btn) btn.disabled = true;
-    try {
-      const saved   = await _upsert(row);
-      const savedId = saved?.id || row.id || _editId;
-      // 添付ファイルを保存・削除（null=変更なし、false=削除、object=新規）
-      if (_pendingAttach !== null && savedId) {
-        _persistAttach(savedId, _pendingAttach || null);
+  // row を保存（クラウド/ローカル）＋添付反映＋一覧再描画。savedId を返す
+  async function _lcPersistRow(row) {
+    const c       = _c();
+    const saved   = await _upsert(row);
+    const savedId = saved?.id || row.id || _editId;
+
+    // 添付ファイル（_pendingAttach: null=変更なし / false=削除 / object=新規）
+    if (_pendingAttach !== null && savedId) {
+      if (c && _me()) {
+        // クラウド: Supabase Storage に保存し、行の attachment_path/_name を更新
+        const oldPath = saved?.attachment_path || row.attachment_path || null;
+        try {
+          if (_pendingAttach === false) {
+            await _lcRemoveStorage(oldPath);
+            await c.from(TABLE).update({ attachment_path: null, attachment_name: null }).eq('id', savedId);
+          } else {
+            const path = await _lcUploadAttach(savedId, _pendingAttach);
+            await c.from(TABLE).update({ attachment_path: path, attachment_name: _pendingAttach.name }).eq('id', savedId);
+            if (oldPath && oldPath !== path) await _lcRemoveStorage(oldPath);
+          }
+        } catch (e) {
+          alert('チャージは保存しましたが、添付ファイルのアップロードに失敗しました。\n'
+            + (e?.message || e)
+            + '\n（Storage バケット未作成の可能性。docs/supabase-local-charges-storage.sql を実行してください）');
+        }
+      } else {
+        // ローカル: localStorage（このブラウザのみ）
+        try { _persistAttach(savedId, _pendingAttach || null); }
+        catch (e) { alert('チャージは保存しましたが、添付ファイルの保存に失敗しました（ブラウザ保存の容量超過の可能性）。\n' + (e?.message || e)); }
       }
+    }
+
+    await _load(_dir);
+    lcRender();
+    lcRenderVariants();
+    _lcFetchCarrierBms();
+    return savedId;
+  }
+
+  function _lcFooterBtns() {
+    return document.querySelectorAll('#lcFormModal .lc-modal-footer button');
+  }
+
+  async function lcSaveCharge() {
+    const row = _lcCollectRow();
+    if (!row) return;
+    const btns = _lcFooterBtns();
+    btns.forEach(b => b.disabled = true);
+    try {
+      await _lcPersistRow(row);
       lcCloseForm();
-      await _load(_dir);
-      lcRender();
-      lcRenderVariants();
-      _lcFetchCarrierBms();
     } catch (e) {
       alert('保存に失敗しました: ' + e.message);
     } finally {
-      if (btn) btn.disabled = false;
+      btns.forEach(b => b.disabled = false);
+    }
+  }
+
+  // 保存後にモーダルを閉じず、共通項目を残して続けて入力できるようにする
+  async function lcSaveAndContinue() {
+    const row = _lcCollectRow();
+    if (!row) return;
+    const btns = _lcFooterBtns();
+    btns.forEach(b => b.disabled = true);
+    try {
+      await _lcPersistRow(row);
+      // 続けて新規入力: 入力済みの値はテンプレとして残し、新規レコード扱いにする
+      _editId = null;
+      const titleEl = document.getElementById('lcFormTitle');
+      if (titleEl) titleEl.textContent = '新規チャージ登録（続けて入力）';
+      if (typeof window.quoteShowToast === 'function') {
+        quoteShowToast(`✅ 「${row.name}」を保存。続けて入力できます`, 'success');
+      }
+      // 行ごとに変わりやすい「金額」へフォーカスして選択（名称等はテンプレとして残す）
+      const amtEl = document.getElementById('lc_amount');
+      if (amtEl) { amtEl.focus(); amtEl.select?.(); }
+    } catch (e) {
+      alert('保存に失敗しました: ' + e.message);
+    } finally {
+      btns.forEach(b => b.disabled = false);
     }
   }
 
   async function lcDeleteCharge(id) {
     const charge = _charges.find(c => c.id === id);
     if (!confirm(`「${charge?.name || id}」を削除しますか？`)) return;
+    // 添付ファイルも後始末（クラウド Storage / ローカル localStorage）
+    if (charge?.attachment_path) await _lcRemoveStorage(charge.attachment_path);
+    if (_getAttach(id)) { try { _persistAttach(id, null); } catch (e) {} }
     await _del(id);
     await _load(_dir);
     lcRender();
@@ -765,6 +934,8 @@
 
   window.initLocalChargesTab = async function () {
     _updateCloudStatus();
+    const gsel = document.getElementById('lcGroupMode');
+    if (gsel) gsel.value = _groupMode;
     lcSetDir('export');
   };
 
@@ -776,12 +947,12 @@
   async function _lcFetchCarrierBms() {
     const carriers = [...new Set(_charges.map(c => c.carrier).filter(Boolean))].sort();
     const key = carriers.join('\0');
-    if (key === _lcBmLastKey) { _lcRenderCarrierBmSection(); return; }
+    if (key === _lcBmLastKey) { lcRender(); return; }
 
     if (!carriers.length) {
       _lcBmCache = {};
       _lcBmLastKey = key;
-      _lcRenderCarrierBmSection();
+      lcRender();
       return;
     }
 
@@ -805,7 +976,7 @@
       _lcBmCache = cache;
     }
     _lcBmLastKey = key;
-    _lcRenderCarrierBmSection();
+    lcRender();
   }
 
   function _lcBmChipClass(fn) {
@@ -819,6 +990,8 @@
   function _lcRenderCarrierBmSection() {
     const el = document.getElementById('lcCarrierBmSection');
     if (!el) return;
+    // 船会社グループ表示のときはグループ見出しにチップを統合するため独立セクションは隠す
+    if (_groupMode === 'carrier') { el.hidden = true; return; }
 
     const carriers = [...new Set(_charges.map(c => c.carrier).filter(Boolean))].sort();
     if (!carriers.length) { el.hidden = true; return; }
@@ -853,6 +1026,43 @@
     _lcFetchCarrierBms();
   };
 
+  // 船会社グループ見出し直下のブックマークリンクチップ帯（案3統合）
+  function _lcGroupBmHtml(carrier) {
+    const NO_CARRIER = '（船会社指定なし）';
+    if (!carrier || carrier === NO_CARRIER) return '';
+    const bms   = _lcBmCache[carrier] || [];
+    const hasDb = !!(window.SupabaseClient);
+    if (!bms.length && !hasDb) return '';
+    let chips = bms.map(bm => {
+      const cls   = _lcBmChipClass(bm.function);
+      const title = _ea([bm.function, bm.note].filter(Boolean).join(' — '));
+      return `<a class="lc-bm-chip${cls ? ' ' + cls : ''}" href="${_ea(bm.url)}" target="_blank" rel="noopener" onclick="event.stopPropagation()" title="${title}">${_esc(bm.label)}</a>`;
+    }).join('');
+    if (hasDb) {
+      chips += `<button class="lc-bm-add-chip" data-lc-carrier="${_ea(carrier)}"` +
+               ` onclick="event.stopPropagation();openAddBmModal({carrier:this.dataset.lcCarrier,type:'FCL'})"` +
+               ` title="${_ea(carrier)}のブックマークを追加">＋</button>`;
+    }
+    return `<div class="lc-acc-bm"><span class="lc-acc-bm-ic">🔖</span><span class="lc-bm-chips">${chips}</span></div>`;
+  }
+
+  window.lcSetGroupMode = function (mode) {
+    _groupMode = mode;
+    try { localStorage.setItem('lcGroupMode_v1', mode); } catch (e) {}
+    const sel = document.getElementById('lcGroupMode');
+    if (sel && sel.value !== mode) sel.value = mode;
+    lcRender();
+  };
+  window.lcToggleGroup = function (headerEl) {
+    const acc = headerEl?.closest?.('.lc-acc');
+    if (!acc) return;
+    const key = acc.getAttribute('data-gkey');
+    const nowCollapsed = acc.classList.toggle('is-collapsed');
+    if (key) { if (nowCollapsed) _collapsedGroups.add(key); else _collapsedGroups.delete(key); }
+    const hh = acc.querySelector('.lc-acc-h');
+    if (hh) hh.setAttribute('aria-expanded', nowCollapsed ? 'false' : 'true');
+  };
+
   // === 添付ファイル操作（グローバル関数） ===
 
   window.lcHandleFileChange = function(input) {
@@ -872,6 +1082,7 @@
   window.lcOpenForm       = lcOpenForm;
   window.lcCloseForm      = lcCloseForm;
   window.lcSaveCharge     = lcSaveCharge;
+  window.lcSaveAndContinue = lcSaveAndContinue;
   window.lcDeleteCharge   = lcDeleteCharge;
   window.lcRenderVariants = lcRenderVariants;
   window.lcOpenPicker     = lcOpenPicker;
@@ -900,9 +1111,10 @@
     if (curSel && !curSel.children.length) {
       curSel.innerHTML = LC_CURRENCIES.map(c => `<option value="${c}">${c}</option>`).join('');
     }
-    const unitSel = document.getElementById('lc_unit');
-    if (unitSel && !unitSel.children.length) {
-      unitSel.innerHTML = LC_UNITS.map(u => `<option value="${u}">${u || '（単位なし）'}</option>`).join('');
+    // 単位は自由入力（datalist で従来プリセットを候補表示）
+    const unitList = document.getElementById('lcUnitList');
+    if (unitList && !unitList.children.length) {
+      unitList.innerHTML = LC_UNITS.filter(Boolean).map(u => `<option value="${u}"></option>`).join('');
     }
   };
 

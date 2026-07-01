@@ -176,14 +176,16 @@
       cond.routes.forEach((r, i) => {
         const rt = [r.pol, r.via, r.pod].filter(Boolean).join(' → ');
         const carrier = [r.carrier, r.service ? `(${r.service})` : ''].filter(Boolean).join(' ');
+        const tt = r.tt ? `T/T: ${r.tt}` : '';
         const label = cond.routes.length === 1 ? '航路' : `航路${i + 1}`;
-        if (rt || carrier) push(label, [rt, carrier].filter(Boolean).join('　'));
+        if (rt || carrier || tt) push(label, [rt, carrier, tt].filter(Boolean).join('　'));
       });
     } else {
       push('積み地（POL）', cond.pol);
       push('揚げ地（POD）', cond.pod);
     }
-    push('原産地', cond.origin);
+    // 出発地側ラベル：輸出は「集荷地」（原産地＝customs の原産地と混同しないため）。輸入・未設定は中立的に「発地」
+    push(cond.direction === 'export' ? '集荷地' : '発地', cond.origin);
     push('仕向地', cond.dest);
     push('コンテナ', cond.container);
     push('貨物名', cond.cargo);
@@ -225,7 +227,7 @@
   // ====== メイン：御見積書HTMLを生成 ======
   function buildQuoteDocHTML() {
     const hdr  = (typeof getQuoteHeader === 'function') ? getQuoteHeader() : {};
-    const rows = (typeof collectAllRows === 'function') ? collectAllRows() : [];
+    const rows = (typeof collectAllRows === 'function') ? collectAllRows().filter(r => !r._hideQuote) : [];  // 見積書非表示の行は出力しない
     const cond = (typeof getConditions === 'function') ? getConditions() : null;
     const taxRate = (typeof getEffectiveTaxRate === 'function') ? getEffectiveTaxRate() : 0.10;
     const issuer = loadIssuer();
@@ -240,13 +242,29 @@
     // 揺らぎ吸収：境界判定・エイリアス参照は正規化キーで、表示は元の綴りで行う
     const _scNorm    = d => (subconNormKey(d.sv) || '（サブコン未設定）');
     const _scLabelOf = d => ((d.sv || '').trim() || '（サブコン未設定）');
+    const _ptNorm    = d => (d.pt || '').trim();
+    // サブコンごとのパターン種類数を事前集計（パターン別表示の有無を判定）
+    const scPatternSets = {};
+    data.forEach(d => {
+      const sk = _scNorm(d);
+      if (!scPatternSets[sk]) scPatternSets[sk] = new Set();
+      scPatternSets[sk].add(_ptNorm(d));
+    });
     const _scActive = (new Set(data.map(_scNorm)).size >= 2);
     let _scKey = null, _scLabel = null, _scJpy = 0, _scHas = false;
+    let _catKey = null;   // サブコン内の現在カテゴリ（サブコンが変わると null にリセット）
+    let _ptActive = false, _ptKey = null, _ptJpy = 0, _ptHas = false;
+    const _ptPush = () => {
+      if (_ptActive && _ptHas) {
+        lineHTML.push(`<tr class="qd-pattern-sub"><td colspan="4">↳ 📋 ${esc(_ptKey || '（未設定）')} 小計</td><td class="qd-num">¥${fmtInt(_ptJpy)}</td></tr>`);
+      }
+      _ptJpy = 0; _ptHas = false;
+    };
     const _scPush = () => {
+      _ptPush(); // サブコン小計前にパターン小計をフラッシュ
       if (_scActive && _scHas) {
-        const _al = (typeof getSubconAliases === 'function' ? getSubconAliases()[_scKey] : '') || '';
-        const _lbl = _al || _scLabel;
-        lineHTML.push(`<tr class="qd-subcon-sub"><td colspan="4">↳ ${esc(_lbl)} 小計</td><td class="qd-num">¥${fmtInt(_scJpy)}</td></tr>`);
+        // サブコン名は見出し行に表示済みのため、小計行では繰り返さず「小計」のみ
+        lineHTML.push(`<tr class="qd-subcon-sub"><td colspan="4">↳ 小計</td><td class="qd-num">¥${fmtInt(_scJpy)}</td></tr>`);
       }
     };
     rows.forEach(r => {
@@ -264,26 +282,70 @@
       const jpy = Math.ceil(_toJPY(sub, r.bc || 'JPY'));      // JPY換算
       // 外貨建ては輸出免税が原則（Excel/プレビューと同一ポリシー）。課税は JPY 建て行のみ。
       // 消費税は行ごとに切り上げて積み上げ、各出力経路（御見積書/プレビュー/Excel）で一致させる。
-      if (r.taxed && (r.bc || 'JPY') === 'JPY') {
-        taxableSub += jpy;
-        taxSum += Math.ceil(jpy * taxRate);
-      } else {
-        exemptSub += jpy;
+      const isActual = r._actual;   // 実費（金額未確定・合計除外・単価/金額は「実費」表示）
+      const isCond   = r._cond;     // 都度請求（発生時のみ・金額は表示・合計に加算しない）
+      if (!isActual && !isCond) {
+        if (r.taxed && (r.bc || 'JPY') === 'JPY') {
+          taxableSub += jpy;
+          taxSum += Math.ceil(jpy * taxRate);
+        } else {
+          exemptSub += jpy;
+        }
       }
       const isNonJpy = r.bc && r.bc !== 'JPY';
       // JPY 単価は端数があるときだけ小数表示（単価×数量＝金額の検算が崩れないように）
-      const unitDisp = isNonJpy
-        ? `${fmtNum(r.bp, 2)} ${esc(r.bc)}`
-        : `${Number.isInteger(r.bp) ? fmtInt(r.bp) : fmtNum(r.bp, 2)} JPY`;
+      const unitDisp = isActual
+        ? '実費'
+        : (isNonJpy
+          ? `${fmtNum(r.bp, 2)} ${esc(r.bc)}`
+          : `${Number.isInteger(r.bp) ? fmtInt(r.bp) : fmtNum(r.bp, 2)} JPY`);
       // 御見積書は客先向け公式文書のため、社内メモ(r.note)は出力しない（E-1 備考漏洩対策）
       // 数量は金額の根拠（sub = bq×bp）と一致させる。未入力時に「1」を捏造しない（B/台帳 C）
       const qtyDisp = (r.bq && r.bq > 0) ? fmtNum(r.bq, 4) : '—';
       // サブコン境界：キーが変わったら直前グループの売値小計を挿入
       if (_scActive) {
         const k = _scNorm(r);
-        if (_scHas && k !== _scKey) { _scPush(); _scJpy = 0; _scHas = false; }
-        if (!_scHas) { _scKey = k; _scLabel = _scLabelOf(r); }  // グループ先頭の綴りを表示名に採用
-        _scJpy += jpy; _scHas = true;
+        if (_scHas && k !== _scKey) {
+          _scPush(); _scJpy = 0; _scHas = false; _catKey = null;
+          _ptActive = false; _ptKey = null;
+        }
+        if (!_scHas) {
+          _scKey = k; _scLabel = _scLabelOf(r);  // グループ先頭の綴りを表示名に採用
+          // 各サブコンブロックの先頭に見出しを置き、どのサブコンの明細かを明示する
+          const _alH = (typeof getSubconAliases === 'function' ? getSubconAliases()[_scKey] : '') || '';
+          lineHTML.push(`<tr class="qd-subcon-head"><td colspan="5">${esc(_alH || _scLabel)}</td></tr>`);
+          _catKey = null;   // 新しいサブコンに入ったのでカテゴリ見出しを再出させる
+          const ps = scPatternSets[k] || new Set();
+          _ptActive = ps.size >= 2 || (ps.size === 1 && !ps.has(''));
+          _ptKey = null; _ptJpy = 0; _ptHas = false;
+        }
+        _scJpy += ((isActual || isCond) ? 0 : jpy); _scHas = true;   // 実費・都度請求は小計に含めない
+      } else {
+        // サブコンが1社のみの場合もパターン表示を判定（初回のみ）
+        if (_ptKey === null) {
+          const k = _scNorm(r);
+          const ps = scPatternSets[k] || new Set();
+          _ptActive = ps.size >= 2 || (ps.size === 1 && !ps.has(''));
+        }
+      }
+      // パターン境界：キーが変わったら直前パターンの売値小計を挿入
+      if (_ptActive) {
+        const p = _ptNorm(r);
+        if (_ptHas && p !== _ptKey) { _ptPush(); _catKey = null; }
+        if (!_ptHas || p !== _ptKey) {
+          _ptKey = p;
+          lineHTML.push(`<tr class="qd-pattern-head"><td colspan="5">📋 ${esc(_ptKey || '（パターン未設定）')}</td></tr>`);
+          _catKey = null;
+        }
+        if (!isActual && !isCond) _ptJpy += jpy;
+        _ptHas = true;
+      }
+      // カテゴリー境界：サブコン配下でカテゴリが変わったら見出し行を挿入（ツリー第2階層）
+      if (r.cat !== _catKey) {
+        const _catTxt = _catLabel(r.cat)
+          .replace(/^[\s\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{2190}-\u{21FF}\u{2B00}-\u{2BFF}️]+/u, '').trim();
+        if (_catTxt) lineHTML.push(`<tr class="qd-cat-head"><td colspan="5">${esc(_catTxt)}</td></tr>`);
+        _catKey = r.cat;
       }
       const validBadge = (() => {
         if (!r.vf && !r.vt) return '';
@@ -293,13 +355,14 @@
                     :                   '〜' + fmt(r.vt);
         return ` <span class="qd-validity">${esc(range)}</span>`;
       })();
+      const condNote = isCond ? ' <span class="qd-cond-note" style="color:#8a5a00;font-size:11px;font-weight:600;">（発生時/必要時のみ）</span>' : '';
       lineHTML.push(
-        `<tr>
-          <td class="qd-item">${r.taxed ? '<span class="qd-tax">*</span> ' : ''}${esc(_taxName(r.name, r.taxed))}${validBadge}</td>
+        `<tr${isCond ? ' class="qd-cond-row"' : ''}>
+          <td class="qd-item qd-l3">${r.taxed ? '<span class="qd-tax">*</span> ' : ''}${esc(_taxName(r.name, r.taxed))}${validBadge}${condNote}</td>
           <td class="qd-num">${qtyDisp}</td>
           <td class="qd-ctr">${esc(r.un || '')}</td>
           <td class="qd-num">${unitDisp}</td>
-          <td class="qd-num">¥${fmtInt(jpy)}</td>
+          <td class="qd-num">${isActual ? '実費' : isCond ? '' : '¥' + fmtInt(jpy)}</td>
         </tr>`
       );
     });
@@ -388,6 +451,10 @@
         </div>`}
       </div>
       ${(() => {
+        const sc = (document.getElementById('qf-scope')?.value || '').trim();
+        return sc ? `<div class="qd-remark-block qd-scope-block"><div class="qd-remark-ttl">🛠️ 作業範囲</div><div class="qd-remark-body">${esc(sc).replace(/\n/g, '<br>')}</div></div>` : '';
+      })()}
+      ${(() => {
         const rt = (typeof getRemarkText === 'function') ? getRemarkText() : (cond && cond.free) || '';
         return rt ? `<div class="qd-remark-block"><div class="qd-remark-ttl">📝 条件・免責事項（全体リマーク）</div><div class="qd-remark-body">${esc(rt).replace(/\n/g, '<br>')}</div></div>` : '';
       })()}
@@ -416,7 +483,7 @@
 
   // ====== オーバーレイ表示 ======
   function openQuoteDoc() {
-    const data = (typeof collectAllRows === 'function') ? collectAllRows().filter(r => r._type === 'data') : [];
+    const data = (typeof collectAllRows === 'function') ? collectAllRows().filter(r => r._type === 'data' && !r._hideQuote) : [];
     if (!data.length) { alert('見積もり行がありません。'); return; }
 
     let overlay = document.getElementById('quoteDocOverlay');
@@ -425,16 +492,35 @@
       overlay.id = 'quoteDocOverlay';
       overlay.innerHTML = `
         <div class="qd-shell">
-          <div class="qd-toolbar">
-            <span class="qd-tb-title">📄 御見積書フォーマット（PDF出力）</span>
-            <label class="qd-tb-opt" title="ONにすると上部の御見積額・下部の合計／税サマリ（小計・課税対象小計・消費税・合計見積額）を非表示にします。小計行でパターンA/B比較を行う用途向け。"><input type="checkbox" id="qdHideTotal"> 合計を非表示（比較用）</label>
-            <button class="qd-tb-btn" id="qdEditIssuer">📇 発行元設定</button>
-            <input type="text" id="qdPdfTitle" class="qd-tb-title-in" placeholder="ファイル名（拡張子不要）" title="PDF保存時のファイル名（ブラウザの印刷ダイアログに反映）">
-            <button class="qd-tb-btn qd-tb-print" id="qdPrint">🖨️ PDF出力（印刷）</button>
-            <button class="qd-tb-btn" id="qdClose">閉じる</button>
+          <div class="qd-stage">
+            <div class="qd-preview" id="qdPreview"></div>
           </div>
-          <div class="qd-issuer-wrap" id="qdIssuerWrap" style="display:none;"></div>
-          <div class="qd-preview" id="qdPreview"></div>
+          <aside class="qd-panel">
+            <div class="qd-panel-head">
+              <div class="qd-panel-h">📄 PDF出力設定</div>
+              <div class="qd-panel-s">御見積書フォーマット</div>
+            </div>
+            <div class="qd-panel-body">
+              <div class="qd-fg">
+                <label for="qdPdfTitle">ファイル名</label>
+                <div class="qd-inp"><input type="text" id="qdPdfTitle" placeholder="ファイル名（拡張子不要）" title="PDF保存時のファイル名（ブラウザの印刷ダイアログに反映）"><span class="qd-ext">.pdf</span></div>
+              </div>
+              <label class="qd-toggle" title="ONにすると上部の御見積額・下部の合計／税サマリを非表示にします。小計行でパターンA/B比較を行う用途向け。">
+                <span class="qd-toggle-l">合計・税サマリを非表示<small>パターン比較用</small></span>
+                <input type="checkbox" id="qdHideTotal">
+              </label>
+              <div class="qd-issuer-card">
+                <div class="qd-ic-head"><span>📇 発行元</span><button type="button" class="qd-ic-edit" id="qdEditIssuer">編集</button></div>
+                <div class="qd-ic-body" id="qdIssuerSummary"></div>
+              </div>
+              <div class="qd-issuer-wrap" id="qdIssuerWrap" style="display:none;"></div>
+              <div class="qd-fg"><label>用紙</label><div class="qd-inp qd-static">A4 縦</div></div>
+            </div>
+            <div class="qd-panel-foot">
+              <button type="button" class="qd-btn-print" id="qdPrint">🖨️ PDF出力（印刷）</button>
+              <button type="button" class="qd-btn-ghost" id="qdClose">閉じる</button>
+            </div>
+          </aside>
         </div>`;
       document.body.appendChild(overlay);
       overlay.addEventListener('click', e => { if (e.target === overlay) closeQuoteDoc(); });
@@ -459,6 +545,24 @@
   function refreshQuoteDoc() {
     const prev = document.getElementById('qdPreview');
     if (prev) prev.innerHTML = buildQuoteDocHTML();
+    _renderIssuerSummary();
+  }
+
+  // 右パネルの発行元サマリ（会社名＋住所など）を描画
+  function _renderIssuerSummary() {
+    const el = document.getElementById('qdIssuerSummary');
+    if (!el) return;
+    const i = loadIssuer();
+    const co = (i.company || '').trim();
+    const lines = [
+      i.zip ? '〒' + esc(i.zip) : '',
+      esc(i.address1), esc(i.address2),
+      i.tel ? 'TEL ' + esc(i.tel) : '',
+      i.regno ? '登録番号 ' + esc(i.regno) : '',
+    ].filter(Boolean).join('<br>');
+    el.innerHTML = co
+      ? `<div class="qd-ic-co">${esc(co)}</div>${lines ? `<div class="qd-ic-ad">${lines}</div>` : ''}`
+      : `<div class="qd-ic-empty">未設定（「編集」から会社名・住所を入力）</div>`;
   }
 
   function toggleIssuerForm() {

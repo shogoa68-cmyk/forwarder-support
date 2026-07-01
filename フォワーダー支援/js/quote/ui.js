@@ -14,6 +14,8 @@
     { label: '🔄 条件変更',        text: '貨物の内容・数量・仕向地等に変更が生じた場合は再見積となります。' },
     { label: '📋 書類締切',        text: 'B/L・AWB等の書類提出締め切りは船会社・航空会社の指定期日に従います。遅延の場合は追加費用が発生します。' },
     { label: '🏦 支払条件',        text: '支払いは請求書発行後30日以内とします。期日を超過した場合、法定利率（民法所定）による遅延損害金が発生します。（※社内標準条件に書き換えてからご使用ください）' },
+    { label: '💵 PREPAID限定',     text: 'お見積りはPREPAID限定の料金です。' },
+    { label: '📐 単価見積もり',     text: '単価見積もりとなります。' },
   ];
 
 
@@ -538,6 +540,63 @@
     quoteShowToast(`👷 ${count}行のサブコンを${val ? '「' + val + '」に' : 'クリアに'}設定しました`, 'success');
   }
 
+  // 選択（チェック）行のパターンを一括設定。選択は維持
+  function applyBulkPattern() {
+    const inp = document.getElementById('bulkPatternSet');
+    if (!inp) return;
+    const val = inp.value.trim();
+    const checkboxes = document.querySelectorAll('.row-select-chk:checked');
+    if (!checkboxes.length) {
+      quoteShowToast('⚠️ 設定したい行のチェックボックスにチェックを入れてください', 'warn', 3000);
+      return;
+    }
+    let count = 0;
+    checkboxes.forEach(chk => {
+      const tr = chk.closest('tr');
+      if (!tr || tr.dataset.type === 'subtotal' || tr.dataset.type === 'remark') return;
+      const id = tr.id.replace('row-', '');
+      const ptInp = document.getElementById(`pt-${id}`);
+      if (!ptInp) return;
+      ptInp.value = val;
+      ptInp.dispatchEvent(new Event('input', { bubbles: true }));
+      ptInp.dispatchEvent(new Event('change', { bubbles: true }));
+      count++;
+    });
+    inp.value = '';
+    quoteShowToast(`📋 ${count}行のパターンを${val ? '「' + val + '」に' : 'クリアに'}設定しました`, 'success');
+  }
+
+  // 選択（チェック）行の乗せ幅（mk）を一括設定。選択は維持
+  function applyBulkMarkupSet() {
+    const inp = document.getElementById('bulkMarkupSet');
+    const raw = inp ? inp.value.trim() : '';
+    if (raw === '') return;
+    const num = Number(raw);
+    if (!isFinite(num) || num < 0) {
+      quoteShowToast('⚠️ 乗せ幅は 0 以上の数値で入力してください', 'warn', 3000);
+      return;
+    }
+    const checkboxes = document.querySelectorAll('.row-select-chk:checked');
+    if (!checkboxes.length) {
+      quoteShowToast('⚠️ 設定したい行のチェックボックスにチェックを入れてください', 'warn', 3000);
+      return;
+    }
+    let count = 0;
+    checkboxes.forEach(chk => {
+      const tr = chk.closest('tr');
+      if (!tr || tr.dataset.type) return;   // データ行のみ（小計・リマーク・社内メモは除外）
+      const id = tr.id.replace('row-', '');
+      const mkEl = document.getElementById(`mk-${id}`);
+      if (!mkEl) return;
+      mkEl.value = num;
+      mkEl.dispatchEvent(new Event('input', { bubbles: true }));  // calc(id) 再計算＋自動保存を発火
+      count++;
+    });
+    if (inp) inp.value = '';
+    if (typeof updateTotals === 'function') updateTotals();
+    quoteShowToast(`＋ ${count}行の乗せ幅を「${num}」に設定しました`, 'success');
+  }
+
   // ========== 一括コピー機能 ==========
   // position: 'below'（末尾選択行の直後）| 'above'（先頭選択行の直前）
   function copySelectedRows(position) {
@@ -647,13 +706,6 @@
       autoSaveEnabled = true;
       const chk = document.getElementById('autoSaveChk');
       if (chk) chk.checked = true;
-    }
-    // Tabで行追加 設定の復元（デフォルト ON）
-    const savedTabAdd = localStorage.getItem('tabAddEnabled');
-    if (savedTabAdd === '0') {
-      tabAddEnabled = false;
-      const chk = document.getElementById('tabAddChk');
-      if (chk) chk.checked = false;
     }
     // 自動保存データがある場合、復元バナーを表示
     if (localStorage.getItem('quoteData')) {
@@ -815,6 +867,62 @@
     } catch(e) { return null; }
   }
 
+  // 数式セル（#tableBody/#calcBody 内の数値入力）か判定
+  function _isFormulaCell(el) {
+    return el && el.tagName === 'INPUT' && !el.readOnly
+      && el.closest && el.closest('#tableBody, #calcBody');
+  }
+
+  // 式を評価して数値に確定（プレーン数値の直打ちも許容）
+  function _evalAndShow(expr) {
+    let result = safeEvalExpr(expr);
+    if (result === null) {
+      const n = Number(String(expr).trim());
+      if (expr !== '' && isFinite(n)) result = n;
+    }
+    return result;
+  }
+
+  // Excel ライク数式モードへ移行（= を押した瞬間だけ number → text に一時変換）
+  function enterFormulaMode(el, seed) {
+    if (el.dataset.formulaMode === '1') return;
+    el.dataset.formulaMode = '1';
+    el.dataset.prevValue = el.value;
+    // type 切替で同期的に発火し得る“偽の blur(focusout)”を無視させるため、
+    // 切替の前にガードフラグを立てておく。
+    el.dataset.formulaJustEntered = '1';
+    el.type = 'text';                 // 演算子を受け付けるため一時的に text 化
+    el.classList.add('formula-editing');
+    el.value = (seed != null ? seed : '=');
+    // type 切替でブラウザがフォーカスを外すことがあるため、明示的に取り戻す。
+    try { el.focus(); } catch (_) {}
+    try { el.setSelectionRange(el.value.length, el.value.length); } catch (_) {}
+    // 偽 blur が来なかったブラウザではフラグが残らないよう次フレームで自動解除。
+    setTimeout(function () { delete el.dataset.formulaJustEntered; }, 0);
+  }
+
+  // 数式モードを抜けて number に戻す（commit=true なら評価結果を確定）
+  function exitFormulaMode(el, commit) {
+    if (el.dataset.formulaMode !== '1') return;
+    const expr = el.value.replace(/^=/, '').trim();
+    const prev = el.dataset.prevValue || '';
+    el.classList.remove('formula-editing');
+    delete el.dataset.formulaMode;
+    delete el.dataset.prevValue;
+    el.type = 'number';
+    if (!commit) { el.value = prev; return; }
+    const result = _evalAndShow(expr);
+    if (result !== null) {
+      el.value = parseFloat(result.toFixed(6));
+      el.dispatchEvent(new Event('input', { bubbles: true }));
+      if (/[+\-*/]/.test(expr)) {
+        quoteShowToast('🧮 ' + expr + ' = ' + result.toLocaleString('ja-JP', {maximumFractionDigits:4}), 'info');
+      }
+    } else {
+      el.value = prev;   // 評価不能なら元の値に復帰
+    }
+  }
+
   function initFormulaInputs() {
     // Phase 2b：document 全体ではなく見積タブ内に限定
     const root = document.getElementById('tab-quote-make') || document;
@@ -831,9 +939,42 @@
         quoteShowToast('🧮 ' + text + ' = ' + result.toLocaleString('ja-JP', {maximumFractionDigits:4}), 'info');
       }
     });
-    // 注: 直打ちの "=1+2" は <input type="number"> が "=" を受け付けず value が空に
-    // なるため評価できない。数式入力は上の paste ハンドラ（コピペ）経由でのみ対応する。
-    // （以前ここに blur ハンドラがあったが number 入力では発火条件を満たさず常に no-op だった）
+
+    // Excel ライク直打ち数式：number セルで "=" を押すと数式モードに入る。
+    // <input type="number"> は "=" や "*" "/" を受け付けず value が空になるため、
+    // keydown で "=" を捕捉してそのセルだけ一時的に text 化し、演算子を入力可能にする。
+    // Enter / フォーカス離脱で評価 → 数値に確定し number へ戻す（Esc で取消）。
+    root.addEventListener('keydown', function(e) {
+      const el = e.target;
+      if (!_isFormulaCell(el)) return;
+      if (el.dataset.formulaMode === '1') {
+        if (e.key === 'Enter')  { e.preventDefault(); exitFormulaMode(el, true);  }
+        else if (e.key === 'Escape') { e.preventDefault(); exitFormulaMode(el, false); }
+        return;
+      }
+      if (e.key === '=' && el.type === 'number') {
+        e.preventDefault();
+        enterFormulaMode(el, '=');
+      }
+    });
+    // フォーカスが外れたら確定（Tab・クリック移動など）。
+    // ただし type 切替直後にブラウザが出す“偽の blur”では確定しない。
+    // 次のイベントループで本当にフォーカスが外れているか（activeElement）で判定する。
+    root.addEventListener('focusout', function(e) {
+      const el = e.target;
+      if (!_isFormulaCell(el) || el.dataset.formulaMode !== '1') return;
+      if (el.dataset.formulaJustEntered === '1') {
+        // 数式モード突入直後の偽 blur。1回だけ無視してフォーカスを戻す。
+        delete el.dataset.formulaJustEntered;
+        if (document.activeElement !== el) { try { el.focus(); } catch (_) {} }
+        return;
+      }
+      setTimeout(function() {
+        if (el.dataset.formulaMode !== '1') return;
+        if (document.activeElement === el) return;   // まだフォーカスあり＝偽 blur
+        exitFormulaMode(el, true);
+      }, 0);
+    });
   }
 
   // ========== 処理済みマーク（廃止：done-btn を撤去）==========
@@ -1036,7 +1177,7 @@
   }
 
   // 案件ステータス（qf-status）→ ドット色
-  const _PRESET_STATUS_DOT = { '下書き中':'#9c8e78', '提出済み':'#3f6a8c', '提示済み':'#3f6a8c', '受注':'#1e7e44', '失注':'#c0392b', '保留':'#b8860b', '辞退':'#6b21a8' };
+  const _PRESET_STATUS_DOT = { '下書き中':'#9c8e78', '提出済み':'#3f6a8c', '提示済み':'#3f6a8c', 'ヨコヨコ提示':'#0f9488', '受注':'#1e7e44', '失注':'#c0392b', '保留':'#b8860b', '辞退':'#6b21a8' };
   // プリセットの data.fields から一覧表示用メタを派生
   function _presetMeta(p) {
     const f = (p.data && p.data.fields) || {};
@@ -2372,7 +2513,7 @@
   window.updateQuoteRefEmpty = function () {
     const empty = document.getElementById('qspRefEmpty');
     if (!empty) return;
-    const ids = ['qspMilestones', 'qspCargoInfo', 'qspCarrierLinks'];
+    const ids = ['qspMilestones', 'qspCarrierLinks'];   // 物量情報(qspCargoInfo)は「数量」メニューへ移動
     const anyShown = ids.some(id => {
       const el = document.getElementById(id);
       return el && el.style.display !== 'none' && el.innerHTML.trim();
@@ -2472,51 +2613,9 @@
           </div>`;
       }).join('');
       const subcon = subconOf(m.z);
-      let subconHTML = subcon
+      const subconHTML = subcon
         ? `<div class="qsp-ms-subcon" title="サブコン">👷 ${escapeHtml(subcon)}</div>` : '';
-      // 出発地側・到着地側（z1/z3）：デフォルトサブコンのブックマークチップを表示
-      if ((m.z === 'z1' || m.z === 'z3') && subcon) {
-        const bmCache = window._qspBmCache || {};
-        const bms = (bmCache[subcon] || []).filter(b => b.url);
-        const addChip = `<button class="qsp-bm-new-chip" data-bm-carrier="${escapeHtml(subcon)}" onclick="openAddBmModal({carrier:this.dataset.bmCarrier})" title="${escapeHtml(subcon)} のブックマークを追加">＋</button>`;
-        const chips = bms.length
-          ? `<div class="qsp-ms-cl-chips">` + bms.map(bm =>
-              `<span class="qsp-ms-cl-chip-wrap"><a class="qsp-ms-cl-chip qsp-ms-cl-chip--user" href="${escapeHtml(bm.url)}" target="_blank" rel="noopener" title="${escapeHtml(bm.note || bm.label)}">${escapeHtml(bm.label)}</a></span>`
-            ).join('') + addChip + `</div>`
-          : `<div class="qsp-ms-cl-chips">${addChip}</div>`;
-        subconHTML = `<div class="qsp-ms-carrier"><div class="qsp-ms-carrier-name">👷 ${escapeHtml(subcon)}</div>${chips}</div>`;
-      }
-      // 幹線輸送（z2）：入力されたキャリアに応じてリンクチップを表示
-      if (m.z === 'z2' && typeof window.getCarrierLinkData === 'function') {
-        const carriers = window.getCarrierLinkData().filter(cd => cd.name);
-        if (carriers.length) {
-          subconHTML = carriers.map(cd => {
-            const addChip = `<button class="qsp-bm-new-chip" data-bm-carrier="${escapeHtml(cd.name)}" onclick="openAddBmModal({carrier:this.dataset.bmCarrier})" title="${escapeHtml(cd.name)} のブックマークを追加">＋</button>`;
-            const chips = cd.links.length
-              ? `<div class="qsp-ms-cl-chips">` + cd.links.map(l => {
-                  if (l.isUserBm) {
-                    // ユーザー追加ブックマーク：編集ボタンなし（Bookmark タブで管理）
-                    return `<span class="qsp-ms-cl-chip-wrap">`
-                      + `<a class="qsp-ms-cl-chip qsp-ms-cl-chip--user" href="${escapeHtml(l.url)}" target="_blank" rel="noopener" title="${escapeHtml(l.title)}">${escapeHtml(l.label)}</a>`
-                      + `</span>`;
-                  }
-                  const bmLabel   = escapeHtml(`${cd.name} ${l.label}`);
-                  const bmUrl     = escapeHtml(l.url);
-                  const bmCarrier = escapeHtml(cd.name);
-                  const bmFn      = escapeHtml(l.label);
-                  return `<span class="qsp-ms-cl-chip-wrap">`
-                    + `<a class="qsp-ms-cl-chip" href="${l.url}" target="_blank" rel="noopener" title="${escapeHtml(l.title)}">${escapeHtml(l.label)}</a>`
-                    + `<button class="qsp-chip-edit-btn" data-bm-label="${bmLabel}" data-bm-url="${bmUrl}" data-bm-carrier="${bmCarrier}" data-bm-fn="${bmFn}" onclick="openAddBmModal({label:this.dataset.bmLabel,url:this.dataset.bmUrl,carrier:this.dataset.bmCarrier,fn:this.dataset.bmFn})" title="このリンクを修正してブックマークに保存">✎</button>`
-                    + `</span>`;
-                }).join('') + addChip + `</div>`
-              : `<div class="qsp-ms-cl-chips">${addChip}</div>`;
-            return `<div class="qsp-ms-carrier">
-                <div class="qsp-ms-carrier-name">${cd.icon || '🚢'} ${escapeHtml(cd.name)}</div>
-                ${chips}
-              </div>`;
-          }).join('');
-        }
-      }
+      // ※ キャリア／サブコンのリンクチップは右カラム「🔖 ブックマーク」タブへ分離（renderQuoteBookmarkRail）
       const statusBadge = active ? '' : '<span class="qsp-mod-off">対象外</span>';
       return `<div class="qsp-mod ${active ? '' : 'is-off'}" data-zone="${m.z}">
           <div class="qsp-mod-head" onclick="filterQuoteByModule('${m.z}')" title="クリックでこのモジュールの費用だけを絞り込み表示（再クリックで解除）">
@@ -2543,6 +2642,79 @@
       <div class="qsp-ms-filter-hint" id="qspMsFilterHint" style="display:none;"></div>`;
     // フィルタ中ならアクティブ表示を復元
     if (window._activeModuleFilter) applyModuleFilterUI(window._activeModuleFilter);
+    // キャリア／サブコンのリンクチップは右カラム「🔖 ブックマーク」タブに分離表示
+    if (typeof window.renderQuoteBookmarkRail === 'function') window.renderQuoteBookmarkRail();
+  };
+
+  // ===== 案件連動ブックマーク（右カラム「🔖 ブックマーク」タブ）=====
+  // 輸送タブのマイルストーンから分離。現在の案件に関係するキャリア（z2 幹線）と
+  // 出発地側/到着地側のデフォルトサブコン（z1/z3）のリンクチップを集約表示する。
+  // 全面クラウド移行（フェーズ3）：内蔵リンク／ユーザーBM の区別を撤廃し、すべて
+  // チーム共有ブックマーク（1セット）として表示。各チップは ✎ で編集可（編集は
+  // クラウドへ反映＋履歴記録）。＋＝新規追加。表示にはログイン＋シード実行が前提。
+  window.renderQuoteBookmarkRail = function () {
+    const wrap = document.getElementById('bmRailChips');
+    if (!wrap) return;
+    const st = (typeof window.getTransportState === 'function') ? window.getTransportState() : null;
+    const bmCache = window._qspBmCache || {};
+    const blocks = [];
+
+    // 1チップ（リンク＋✎編集）。✎ は既存ブックマークを編集モードで開く。
+    // isRelated: carrier_relations（代理店関係など）経由で表示している他社のリンク。
+    const railChip = (o) => {
+      const data = encodeURIComponent(JSON.stringify({
+        id: o.id, label: o.label, url: o.url, type: o.type, carrier: o.carrier, fn: o.fn, note: o.note,
+      }));
+      const relMark = o.isRelated
+        ? `<span class="qsp-ms-cl-rel" title="${escapeHtml((o.relLabel || '代理店') + ': ' + (o.relCarrier || ''))}">🔗${escapeHtml(o.relLabel || '')}</span>`
+        : '';
+      return `<span class="qsp-ms-cl-chip-wrap">`
+        + `<a class="qsp-ms-cl-chip qsp-ms-cl-chip--user${o.isRelated ? ' qsp-ms-cl-chip--rel' : ''}" href="${escapeHtml(o.url)}" target="_blank" rel="noopener" title="${escapeHtml(o.title || o.label)}">${relMark}${escapeHtml(o.label)}</a>`
+        + `<button class="qsp-chip-edit-btn" data-bm="${data}" onclick="openAddBmModal(JSON.parse(decodeURIComponent(this.dataset.bm)))" title="このブックマークを編集">✎</button>`
+        + `</span>`;
+    };
+    const addChip = (carrier) =>
+      `<button class="qsp-bm-new-chip" data-bm-carrier="${escapeHtml(carrier)}" onclick="openAddBmModal({carrier:this.dataset.bmCarrier})" title="${escapeHtml(carrier)} のブックマークを追加">＋</button>`;
+    const carrierBlock = (icon, name, chipsHtml) =>
+      `<div class="qsp-ms-carrier"><div class="qsp-ms-carrier-name">${icon} ${escapeHtml(name)}</div><div class="qsp-ms-cl-chips">${chipsHtml}</div></div>`;
+
+    // z1/z3 サブコン（クラウドBMのみ・編集可＋追加）
+    const subconBlock = (subcon) => {
+      if (!subcon) return '';
+      const chips = (bmCache[subcon] || []).filter(b => b.url).map(b => railChip({
+        id: b.id, label: b.label, url: b.url, title: b.note || b.label,
+        type: b.carrier_type, carrier: subcon, fn: b.function, note: b.note,
+      })).join('') + addChip(subcon);
+      return carrierBlock('👷', subcon, chips);
+    };
+
+    // ① 出発地側サブコン
+    if (st && st.zone1On) {
+      const sc1 = (document.getElementById('z1DefaultSc')?.value || '').trim();
+      if (sc1) blocks.push(subconBlock(sc1));
+    }
+    // ② 幹線輸送キャリア（すべてクラウドBM・編集可＋追加）
+    if (typeof window.getCarrierLinkData === 'function') {
+      window.getCarrierLinkData().filter(cd => cd.name).forEach(cd => {
+        const chips = cd.links.map(l => railChip({
+          id: l.bmId, label: l.label, url: l.url, title: l.title,
+          type: l.type, carrier: l.carrier || cd.name, fn: l.fn, note: l.note,
+          isRelated: l.isRelated, relLabel: l.relLabel, relCarrier: l.relCarrier,
+        })).join('') + addChip(cd.name);
+        blocks.push(carrierBlock(cd.icon || '🚢', cd.name, chips));
+      });
+    }
+    // ③ 到着地側サブコン
+    if (st && st.zone3On) {
+      const sc3 = (document.getElementById('z3DefaultSc')?.value || '').trim();
+      if (sc3) blocks.push(subconBlock(sc3));
+    }
+
+    if (!blocks.length) {
+      wrap.innerHTML = '<div class="bm-rail-empty">「貿易条件・輸送モード」で輸送モードとキャリア／サブコンを設定すると、関連するリンクがここに表示されます。<br><br>※ リンクはチーム共有ブックマークから表示します（ログイン必須）。初回は「🔖 BOOKMARK」タブの「🌱 内蔵リンク取込」で内蔵リンクを取り込んでください。</div>';
+      return;
+    }
+    wrap.innerHTML = blocks.join('');
   };
 
   // ===== モジュール（区間）別フィルタ =====
@@ -2623,6 +2795,8 @@
 
     const rows = document.querySelectorAll('#tableBody tr:not([data-type="subtotal"])');
     const activeRows = Array.from(rows).filter(tr => {
+      // 見積書非表示・適用期間外・実費・PROFIT SHARE・都度請求 の行は客先サマリ（合計・粗利）に含めない
+      if (tr.dataset.hideQuote === '1' || tr.dataset.outRange === '1' || tr.dataset.actual === '1' || tr.dataset.profitShare === '1' || tr.dataset.cond === '1') return false;
       const id = tr.id.replace('row-', '');
       return document.getElementById(`nm-${id}`)?.value?.trim();
     });
@@ -2671,6 +2845,29 @@
     const fmtJPY = n => Math.round(n).toLocaleString('ja-JP');
     const profCls = profit >= 0 ? 'qsp-profit-pos' : 'qsp-profit-neg';
 
+    // PROFIT SHARE（代理店収益）：客先サマリ外で社内利益に計上
+    let psBillJPY = 0, psCostJPY = 0;
+    document.querySelectorAll('#tableBody tr[data-profit-share="1"]').forEach(tr => {
+      const id = tr.id.replace('row-', '');
+      const pc = document.getElementById(`pc-${id}`)?.value || 'JPY';
+      const bc = document.getElementById(`bc-${id}`)?.value || 'JPY';
+      const bq = parseFloat(document.getElementById(`bq-${id}`)?.value) || 0;
+      const bp = parseFloat(document.getElementById(`bp-${id}`)?.value) || 0;
+      const pq = parseFloat(document.getElementById(`pq-${id}`)?.value) || 0;
+      const pp = parseFloat(document.getElementById(`pp-${id}`)?.value) || 0;
+      psBillJPY += SharedCalc.jpyRound(toJPY(bq * bp, bc));
+      psCostJPY += SharedCalc.jpyRound(toJPY(pq * pp, pc));
+    });
+    const hasPs = psBillJPY || psCostJPY;
+    const internalProfit = profit + (psBillJPY - psCostJPY);
+    const internalMk = SharedCalc.grossMarginPct(totalBillJPY + psBillJPY, totalCostJPY + psCostJPY);
+    const psLines = hasPs
+      ? `<div class="qsp-section-label">🤝 社内利益（PROFIT SHARE 込み）</div>
+         <div class="qsp-total-row"><span>代理店収益</span><span>¥${fmtJPY(psBillJPY)}</span></div>
+         <div class="qsp-profit-row ${internalProfit >= 0 ? 'qsp-profit-pos' : 'qsp-profit-neg'}"><span>社内利益</span><span>¥${fmtJPY(internalProfit)}</span></div>
+         <div class="qsp-markup-row"><span>社内粗利率</span><span>${internalMk.toFixed(1)}%</span></div>`
+      : '';
+
     const curLines = Object.entries(billByCur)
       .filter(([, v]) => v)
       .sort(([a], [b]) => a.localeCompare(b))
@@ -2690,6 +2887,7 @@
       <div class="qsp-total-row"><span>売上合計</span><span>¥${fmtJPY(totalBillJPY)}</span></div>
       <div class="qsp-profit-row ${profCls}"><span>利益</span><span>¥${fmtJPY(profit)}</span></div>
       <div class="qsp-markup-row"><span>粗利率</span><span>${mkPct.toFixed(1)}%</span></div>
+      ${psLines}
       <div class="qsp-section-label">消費税</div>
       <div class="qsp-tax-row"><span>課税合計</span><span>¥${fmtJPY(taxableJPY)}</span></div>
       <div class="qsp-tax-row"><span>免税合計</span><span>¥${fmtJPY(exemptJPY)}</span></div>
@@ -2748,6 +2946,7 @@
     if (typeof initPreviewWarningListeners === 'function') initPreviewWarningListeners();
     if (typeof syncHazmatPanel === 'function') syncHazmatPanel(); // 危険品パネルの初期表示
     if (typeof syncMultiEntryFields === 'function') syncMultiEntryFields(); // コンテナ・荷姿の複数エントリ復元
+    if (typeof window.renderContainerChipDims === 'function') window.renderContainerChipDims(); // コンテナチップに内寸・外寸を表示
     if (typeof window.renderQuoteMilestones === 'function') window.renderQuoteMilestones();
     if (typeof window.renderQuoteCargoInfo === 'function') window.renderQuoteCargoInfo();
     if (typeof window.renderQuoteCarrierLinks === 'function') window.renderQuoteCarrierLinks();
@@ -2970,7 +3169,7 @@
   // ===== セクション折りたたみは廃止（見積サマリのジャンプ機能で代替） =====
   // 全セクションを常時展開。ヘッダークリック／ダイジェストからの呼び出しは
   // 「そのセクションへスクロール」のみ行う（畳まない）。
-  window.QUOTE_ALL_SECTIONS = ['section-ref', 'section-cond', 'section-cargo', 'section-volume', 'section-remark', 'section-table'];
+  window.QUOTE_ALL_SECTIONS = ['section-ref', 'section-cond', 'section-cargo', 'section-volume', 'section-scope', 'section-remark', 'section-table'];
   window.toggleQuoteSection = function(id) {
     const sec = document.getElementById(id);
     if (!sec) return;
@@ -3073,15 +3272,17 @@
     // 物量情報：サイズ行＋メトリクス行（GW・CBM・R/T・CW）を改行で
     const vd = window._volDigest || {};
     const volText = [vd.size, vd.metrics].filter(Boolean).join('\n');
+    const scopeSum = preview3((document.getElementById('qf-scope')?.value || '').trim());
     const rows = [
       ['section-ref',    '🗂️', '管理番号',     getSpan('sumRef')],
       ['section-cond',   '🚢', '貿易条件',     getSpan('sumCond')],
       ['section-cargo',  '📦', '貨物情報',     getSpan('sumCargo')],
       ['section-volume', '📊', '物量情報',     volText],
+      ['section-scope',  '🛠️', '作業範囲',     scopeSum],
       ['section-remark', '📑', '全体リマーク', remarkSum],
       ['section-table',  '📋', '費用テーブル', tableSum],
     ];
-    el.innerHTML = rows.map(function(r) {
+    let html = rows.map(function(r) {
       const id = r[0], icon = r[1], label = r[2];
       const empty = !r[3] || r[3] === '未入力';
       const txt = empty ? '未入力' : r[3];
@@ -3091,6 +3292,49 @@
         '<span class="qsp-dig-name">' + icon + ' ' + label + '</span>' +
         '<span class="qsp-dig-sum">' + escapeHtml(txt).replace(/\n/g, '<br>') + '</span></button>';
     }).join('');
+    // 費用テーブル内のサブコン別／サブコン×パターン別グループへのジャンプ
+    const groups = _collectTableGroups();
+    window._qspTableGroups = groups;
+    if (groups.length) {
+      html += '<div class="qsp-dig-subjumps">' + groups.map(function(g, i) {
+        return '<button type="button" class="qsp-dig-subjump' + (g.level ? ' is-pattern' : ' is-subcon') +
+          '" onclick="window.jumpToTableGroupIdx(' + i + ')" title="このグループへ移動">' +
+          escapeHtml(g.label) + '</button>';
+      }).join('') + '</div>';
+    }
+    el.innerHTML = html;
+  };
+  // 費用テーブルのサブコン／パターン見出し行を収集（ジャンプ用）
+  function _collectTableGroups() {
+    const out = [];
+    document.querySelectorAll('#tableBody tr.subcon-group-header, #tableBody tr.subcon-subgroup-header.is-pattern')
+      .forEach(function(tr) {
+        if (tr.classList.contains('subcon-group-header')) {
+          out.push({ level: 0, sv: tr.dataset.svKey || '', pt: '',
+                     label: (tr.querySelector('.subcon-group-label')?.textContent || '').trim() });
+        } else {
+          out.push({ level: 1, sv: tr.dataset.svKey || '', pt: tr.dataset.ptKey || '',
+                     label: '↳ ' + (tr.querySelector('.subcon-subgroup-leg')?.textContent || '').trim() });
+        }
+      });
+    return out;
+  }
+  window.jumpToTableGroupIdx = function(i) {
+    const g = (window._qspTableGroups || [])[i];
+    if (!g) return;
+    const sec = document.getElementById('section-table');
+    if (sec && sec.classList.contains('collapsed') && typeof toggleQuoteSection === 'function') toggleQuoteSection('section-table');
+    const sel = g.pt ? '#tableBody tr.subcon-subgroup-header.is-pattern' : '#tableBody tr.subcon-group-header';
+    let target = null;
+    document.querySelectorAll(sel).forEach(function(tr) {
+      if (target) return;
+      if (g.pt) { if ((tr.dataset.svKey || '') === g.sv && (tr.dataset.ptKey || '') === g.pt) target = tr; }
+      else      { if ((tr.dataset.svKey || '') === g.sv) target = tr; }
+    });
+    if (!target) return;
+    target.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    target.classList.add('grp-flash');
+    setTimeout(function() { target.classList.remove('grp-flash'); }, 1200);
   };
   window.openQuoteSectionFromDigest = function(id) {
     const sec = document.getElementById(id);

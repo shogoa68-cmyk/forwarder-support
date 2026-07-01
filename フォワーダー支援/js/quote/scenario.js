@@ -1,268 +1,130 @@
-// ========== シナリオ比較 ==========
-// ベース見積から倍率を変えた複数パターンの合計を比較する機能。
-// 各シナリオ：ラベル（例: "10CBM"）＋倍率（例: 10）を定義する。
-// 行に表示される 🔒 ボタンで「固定費」（倍率対象外）を指定可能。
+// ========== 単位で数量を一括変更（旧「シナリオ比較」を作り替え） ==========
+// 明細行から単位を抽出し、同じ「単位×現在数量」の行をまとめて表示。
+// パネルで数値を変更し「一括反映」すると、その単位・数量の行の数量(pq)を
+// まとめて書き換える（請求数量 bq へは既存の連動ロジックで自動反映）。
+// 数量がバラつく単位は、現在数量ごとに個別の行として表示する。
 
-  const _SC_KEY = 'quoteScenarios_v1';
-  const _SC_MAX = 4;
+  let _udCollapsed = false;
 
-  let _scEnabled   = false;
-  let _scCollapsed = true;   // 初期状態：折りたたみ
-  let _scScenarios = [];  // [{ id, label, scale }]
-
-  // ---------- 永続化 ----------
-
-  function _scLoad() {
-    try {
-      const saved = JSON.parse(localStorage.getItem(_SC_KEY) || 'null');
-      if (saved && Array.isArray(saved.scenarios)) {
-        _scEnabled   = !!saved.enabled;
-        _scScenarios = saved.scenarios;
-      }
-    } catch (e) { /* ignore */ }
-    if (!_scScenarios.length) {
-      _scScenarios = [
-        { id: 1, label: '小ロット', scale: 1 },
-        { id: 2, label: '中ロット', scale: 5 },
-        { id: 3, label: '大ロット', scale: 10 },
-      ];
-    }
-  }
-
-  function _scSave() {
-    try {
-      localStorage.setItem(_SC_KEY, JSON.stringify({ enabled: _scEnabled, scenarios: _scScenarios }));
-    } catch (e) { /* ignore */ }
+  // ---------- 明細から（単位×数量）グループを収集 ----------
+  function _udCollect() {
+    const map = new Map();   // key: 単位 \x00 数量 → { unit, qty, ids:[] }
+    document.querySelectorAll('#tableBody tr[id^="row-"]').forEach(tr => {
+      if (tr.dataset.type || tr.dataset.virtual) return;   // リマーク・社内メモ・小計・仮想行は対象外
+      const id = tr.id.replace('row-', '');
+      const un = (document.getElementById(`un-${id}`)?.value || '').trim();
+      if (!un) return;                                     // 単位なしの行は対象外
+      const pqEl = document.getElementById(`pq-${id}`);
+      if (!pqEl) return;
+      const qty = (pqEl.value || '').trim();
+      const key = un + '\x00' + qty;
+      if (!map.has(key)) map.set(key, { unit: un, qty, ids: [] });
+      map.get(key).ids.push(id);
+    });
+    return Array.from(map.values()).sort((a, b) =>
+      a.unit.localeCompare(b.unit, 'ja') || ((parseFloat(a.qty) || 0) - (parseFloat(b.qty) || 0)));
   }
 
   // ---------- パネル描画 ----------
-
-  function _scRenderPanel() {
+  function _udRenderPanel() {
     const panel = document.getElementById('scPanel');
     if (!panel) return;
+    const groups = _udCollect();
 
-    const listHtml = _scScenarios.map((s, i) =>
-      `<div class="sc-row" data-idx="${i}">
-         <input type="text" class="sc-label-in" value="${escHtml(s.label)}" placeholder="ラベル" maxlength="20"
-                onchange="scUpdateScenario(${i},'label',this.value)" />
-         <span class="sc-times">×</span>
-         <input type="number" class="sc-scale-in" value="${s.scale}" min="0.01" step="1"
-                onchange="scUpdateScenario(${i},'scale',parseFloat(this.value)||1)" />
-         ${_scScenarios.length > 2
-           ? `<button class="sc-del" type="button" onclick="scRemoveScenario(${i})" title="削除">✕</button>`
-           : ''}
-       </div>`
-    ).join('');
+    const listHtml = groups.length
+      ? groups.map(g =>
+          `<div class="ud-row" data-ids='${JSON.stringify(g.ids)}'>
+             <span class="ud-unit" title="${escHtml(g.unit)}">${escHtml(g.unit)}</span>
+             <span class="ud-times">×</span>
+             <input type="number" class="ud-qty-in" value="${escHtml(g.qty)}" min="0" step="1"
+                    title="新しい数量を入力して「一括反映」を押すと、この単位・数量の行をまとめて変更します" />
+             <span class="ud-count" title="この単位・数量の行数">${g.ids.length}行</span>
+           </div>`
+        ).join('')
+      : '<p class="ud-empty">単位が設定された明細行がありません。<br>明細行の「単位」欄を入力すると、ここに一覧表示されます。</p>';
 
-    panel.classList.toggle('sc-panel--collapsed', _scCollapsed);
+    panel.classList.toggle('sc-panel--collapsed', _udCollapsed);
     panel.innerHTML =
       `<div class="sc-head" onclick="scToggleCollapse()" style="cursor:pointer;">
-         <span class="sc-head-title">📊 シナリオ比較</span>
-         <span class="sc-collapse-arrow">${_scCollapsed ? '▶' : '▼'}</span>
+         <span class="sc-head-title">📦 単位で数量を一括変更</span>
+         <span class="sc-collapse-arrow">${_udCollapsed ? '▶' : '▼'}</span>
        </div>
-       <div class="sc-body${_scEnabled ? '' : ' sc-body--off'}">
-         <label class="sc-toggle" onclick="event.stopPropagation()">
-           <input type="checkbox" id="scEnabledChk" ${_scEnabled ? 'checked' : ''}
-                  onchange="scSetEnabled(this.checked)" />
-           <span>有効</span>
-         </label>
-         <p class="sc-hint">倍率を変えた複数パターンの合計を比較します。<br>各行の 🔒 で固定費（倍率対象外）を指定できます。</p>
-         <div class="sc-list">${listHtml}</div>
-         ${_scScenarios.length < _SC_MAX
-           ? `<button class="sc-add" type="button" onclick="scAddScenario()">＋ シナリオ追加</button>`
-           : ''}
-         <button class="sc-open-btn" type="button" onclick="openScenarioPreview()"
-                 ${!_scEnabled ? 'disabled' : ''}>📊 比較プレビュー</button>
+       <div class="sc-body">
+         <div class="qsp-cargo-info ud-cargo-info" id="qspCargoInfo" style="display:none;"></div>
+         <p class="sc-hint">明細行の単位ごとに現在の数量を表示します。数値を変えて<b>「一括反映」</b>すると、その単位・数量の行をまとめて更新します。<br>数量がバラつく単位は、現在の数量ごとに分けて表示されます。</p>
+         <div class="ud-list">${listHtml}</div>
+         <button class="ud-refresh" type="button" onclick="udRefresh()" title="明細から単位を再取得">🔄 再読み込み</button>
+         <button class="sc-open-btn" type="button" onclick="udApplyAll()" ${groups.length ? '' : 'disabled'}>✅ 一括反映</button>
        </div>`;
 
-    _scSyncRowToggles();
+    // 物量情報（旧「輸送」メニューから統合）を数量パネル内に描画
+    if (typeof window.renderQuoteCargoInfo === 'function') window.renderQuoteCargoInfo();
   }
 
-  // ---------- 公開 API ----------
+  // ---------- 操作 ----------
+  function scToggleCollapse() { _udCollapsed = !_udCollapsed; _udRenderPanel(); }
+  function udRefresh() { _udRenderPanel(); }
 
-  function scToggleCollapse() {
-    _scCollapsed = !_scCollapsed;
-    _scRenderPanel();
-  }
+  function udApplyAll() {
+    const panel = document.getElementById('scPanel');
+    if (!panel) return;
+    let unitsChanged = 0, rowsChanged = 0;
 
-  function scSetEnabled(v) {
-    _scEnabled = v;
-    _scSave();
-    _scRenderPanel();
-  }
-
-  function scUpdateScenario(idx, field, value) {
-    if (_scScenarios[idx]) { _scScenarios[idx][field] = value; _scSave(); }
-  }
-
-  function scAddScenario() {
-    if (_scScenarios.length >= _SC_MAX) return;
-    const maxId = _scScenarios.reduce((m, s) => Math.max(m, s.id || 0), 0);
-    _scScenarios.push({ id: maxId + 1, label: '', scale: 1 });
-    _scSave();
-    _scRenderPanel();
-  }
-
-  function scRemoveScenario(idx) {
-    if (_scScenarios.length <= 2) return;
-    _scScenarios.splice(idx, 1);
-    _scSave();
-    _scRenderPanel();
-  }
-
-  // ---------- 行の固定費トグル ----------
-
-  function _scSyncRowToggles() {
-    document.querySelectorAll('#tableBody tr[id^="row-"]').forEach(tr => _scApplyRowToggle(tr));
-  }
-
-  function _scApplyRowToggle(tr) {
-    const existing = tr.querySelector('.sc-fixed-btn');
-    if (!_scEnabled) { existing?.remove(); return; }
-    if (existing) return;
-    const handleCell = tr.querySelector('.handle-cell');
-    if (!handleCell) return;
-    const btn = document.createElement('button');
-    btn.type      = 'button';
-    btn.className = 'sc-fixed-btn';
-    const isFixed = tr.dataset.scFixed === '1';
-    btn.textContent = isFixed ? '🔒' : '🔓';
-    btn.title = isFixed ? '固定費（倍率対象外）- クリックで解除' : '固定費として扱う（倍率を掛けない）';
-    btn.classList.toggle('is-fixed', isFixed);
-    btn.onclick = () => {
-      const now = tr.dataset.scFixed === '1';
-      tr.dataset.scFixed = now ? '0' : '1';
-      btn.textContent = now ? '🔓' : '🔒';
-      btn.title = now ? '固定費として扱う（倍率を掛けない）' : '固定費（倍率対象外）- クリックで解除';
-      btn.classList.toggle('is-fixed', !now);
-    };
-    handleCell.appendChild(btn);
-  }
-
-  // ---------- 比較プレビュー ----------
-
-  function openScenarioPreview() {
-    if (!_scEnabled) return;
-    const overlay = document.getElementById('scPreviewOverlay');
-    if (!overlay) return;
-    document.getElementById('scPreviewContent').innerHTML = _buildScenarioHtml();
-    overlay.hidden = false;
-  }
-
-  function closeScenarioPreview(e) {
-    if (e && e.target.id !== 'scPreviewOverlay') return;
-    document.getElementById('scPreviewOverlay').hidden = true;
-  }
-
-  function printScenarioPreview() { window.print(); }
-
-  function _buildScenarioHtml() {
-    const scenarios = _scScenarios.filter(s => s.scale > 0);
-    if (!scenarios.length) return '<p class="sc-empty">シナリオが設定されていません</p>';
-
-    // 見積もり行データを収集
-    const rows = [];
-    document.querySelectorAll('#tableBody tr[id^="row-"]').forEach(tr => {
-      if (tr.dataset.excluded === '1') return; // 除外グループはスキップ
-      const id   = tr.id.replace('row-', '');
-      const name = (document.getElementById(`nm-${id}`)?.value || '').trim();
-      if (!name) return;
-      const bq      = parseFloat(document.getElementById(`bq-${id}`)?.value) || 1;
-      const bc      = document.getElementById(`bc-${id}`)?.value || 'JPY';
-      const bp      = parseFloat(document.getElementById(`bp-${id}`)?.value) || 0;
-      const isFixed = tr.dataset.scFixed === '1';
-      rows.push({ name, bq, bc, bp, isFixed });
+    panel.querySelectorAll('.ud-row').forEach(rowEl => {
+      let ids;
+      try { ids = JSON.parse(rowEl.dataset.ids || '[]'); } catch (e) { ids = []; }
+      const inp = rowEl.querySelector('.ud-qty-in');
+      if (!inp) return;
+      const newVal = (inp.value || '').trim();
+      if (newVal === '') return;                 // 空欄はスキップ
+      let touched = false;
+      ids.forEach(id => {
+        const pqEl = document.getElementById(`pq-${id}`);
+        if (!pqEl) return;
+        if ((pqEl.value || '').trim() !== newVal) {
+          pqEl.value = newVal;
+          // input イベントで既存の oninput（onPay → 請求数量連動・再計算・合計更新・自動保存）を発火
+          pqEl.dispatchEvent(new Event('input', { bubbles: true }));
+          rowsChanged++; touched = true;
+        }
+      });
+      if (touched) unitsChanged++;
     });
 
-    if (!rows.length) return '<p class="sc-empty">見積もり行がありません</p>';
+    if (typeof updateTotals === 'function') updateTotals();
+    _udRenderPanel();
 
-    const hdr  = typeof getQuoteHeader === 'function' ? getQuoteHeader() : {};
-    const cond = typeof getConditions  === 'function' ? getConditions()  : {};
+    if (rowsChanged === 0) {
+      if (typeof quoteShowToast === 'function') quoteShowToast('変更はありませんでした', 'info', 2500);
+      return;
+    }
 
-    const metaParts = [
-      hdr.customer   ? `顧客：${escHtml(hdr.customer)}`        : '',
-      cond.incoterms ? `インコタームズ：${escHtml(cond.incoterms)}` : '',
-      cond.mode      ? `輸送モード：${escHtml(cond.mode)}`      : '',
-    ].filter(Boolean);
-
-    // 通貨別合計（シナリオごと）
-    const totals = scenarios.map(() => ({}));
-
-    const bodyRows = rows.map(r => {
-      const fixedMark = r.isFixed ? ' <span class="sc-pv-fixed" title="固定費">🔒</span>' : '';
-      const cells = scenarios.map((s, si) => {
-        const scale  = r.isFixed ? 1 : s.scale;
-        const amount = r.bq * scale * r.bp;
-        totals[si][r.bc] = (totals[si][r.bc] || 0) + amount;
-        const jpyHint = r.bc !== 'JPY' && typeof toJPY === 'function'
-          ? `<small class="sc-pv-jpy">≈¥${fmtMoney(Math.ceil(toJPY(amount, r.bc)))}</small>` : '';
-        return `<td class="sc-pv-amt">${escHtml(r.bc)} ${fmtMoney(amount)}${jpyHint}</td>`;
-      }).join('');
-      return `<tr>
-        <td class="sc-pv-name">${escHtml(r.name)}${fixedMark}</td>
-        ${cells}
-      </tr>`;
-    }).join('');
-
-    const thScenarios = scenarios.map(s =>
-      `<th class="sc-pv-th">${escHtml(s.label || ('×' + s.scale))}<br><small class="sc-pv-scale">×${s.scale}</small></th>`
-    ).join('');
-
-    const totalCells = scenarios.map((_, si) => {
-      const ccyKeys = Object.keys(totals[si]).sort((a, b) =>
-        a === 'JPY' ? -1 : b === 'JPY' ? 1 : a.localeCompare(b));
-      const lines = ccyKeys.map(ccy => {
-        const jpyHint = ccy !== 'JPY' && typeof toJPY === 'function'
-          ? `<span class="sc-pv-jpy">≈¥${fmtMoney(Math.ceil(toJPY(totals[si][ccy], ccy)))}</span>` : '';
-        return `${escHtml(ccy)} ${fmtMoney(totals[si][ccy])}${jpyHint}`;
-      }).join('<br>');
-      return `<td class="sc-pv-total">${lines}</td>`;
-    }).join('');
-
-    return `
-      ${metaParts.length ? `<div class="sc-pv-meta">${metaParts.join(' &nbsp;｜&nbsp; ')}</div>` : ''}
-      <div class="sc-pv-scroll">
-      <table class="sc-pv-table">
-        <thead><tr>
-          <th class="sc-pv-th-name">項目名</th>
-          ${thScenarios}
-        </tr></thead>
-        <tbody>${bodyRows}</tbody>
-        <tfoot><tr>
-          <td class="sc-pv-total-label">合　計</td>
-          ${totalCells}
-        </tr></tfoot>
-      </table>
-      </div>`;
+    // 一括変更後：ユーザーに尋ねて印刷（プレビュー）モーダルを開く
+    if (window.confirm(`${unitsChanged}単位・計${rowsChanged}行の数量を一括変更しました。\n印刷プレビューを開きますか？`)) {
+      if (typeof openPreview === 'function') openPreview();
+      else if (typeof window.openPreview === 'function') window.openPreview();
+      else window.print();
+    } else if (typeof quoteShowToast === 'function') {
+      quoteShowToast(`数量を一括変更しました（${rowsChanged}行）`, 'success', 2500);
+    }
   }
 
   // ---------- 初期化 ----------
-
   function initScenarios() {
-    _scLoad();
-    _scRenderPanel();
-
-    // 行追加時にトグルボタンを自動付与
+    _udRenderPanel();
+    // 明細の追加・削除に追従してパネルを再描画
     const tbody = document.getElementById('tableBody');
     if (tbody && typeof MutationObserver !== 'undefined') {
-      new MutationObserver(mutations => {
-        if (!_scEnabled) return;
-        mutations.forEach(m => {
-          m.addedNodes.forEach(n => {
-            if (n.nodeType === 1 && n.matches?.('tr[id^="row-"]')) _scApplyRowToggle(n);
-          });
-        });
+      let _t = null;
+      new MutationObserver(() => {
+        clearTimeout(_t);
+        _t = setTimeout(() => { if (!_udCollapsed) _udRenderPanel(); }, 300);
       }).observe(tbody, { childList: true });
     }
   }
 
   // ---------- window 公開 ----------
-  window.initScenarios        = initScenarios;
-  window.scSetEnabled         = scSetEnabled;
-  window.scToggleCollapse     = scToggleCollapse;
-  window.scUpdateScenario     = scUpdateScenario;
-  window.scAddScenario        = scAddScenario;
-  window.scRemoveScenario     = scRemoveScenario;
-  window.openScenarioPreview  = openScenarioPreview;
-  window.closeScenarioPreview = closeScenarioPreview;
-  window.printScenarioPreview = printScenarioPreview;
+  window.initScenarios    = initScenarios;
+  window.scToggleCollapse = scToggleCollapse;
+  window.udRefresh        = udRefresh;
+  window.udApplyAll       = udApplyAll;

@@ -7,7 +7,7 @@
 
 CREATE TABLE IF NOT EXISTS synonym_groups (
   id          uuid        PRIMARY KEY DEFAULT gen_random_uuid(),
-  field       text        NOT NULL CHECK (field IN ('sv', 'nm', 'customer', 'port', 'un')),
+  field       text        NOT NULL CHECK (field IN ('sv', 'nm', 'customer', 'port', 'un', 'carrier')),
   canonical   text        NOT NULL,            -- 代表表記
   aliases     jsonb       NOT NULL DEFAULT '[]'::jsonb,  -- 統合された表記の配列
   created_by  text,
@@ -51,4 +51,12 @@ CREATE INDEX IF NOT EXISTS idx_synonym_groups_field ON synonym_groups(field);
 -- ============================================================
 ALTER TABLE alias_rules DROP CONSTRAINT IF EXISTS alias_rules_field_check;
 ALTER TABLE alias_rules
-  ADD CONSTRAINT alias_rules_field_check CHECK (field IN ('sv', 'nm', 'un', 'port'));
+  ADD CONSTRAINT alias_rules_field_check CHECK (field IN ('sv', 'nm', 'un', 'port', 'carrier'));
+
+-- ============================================================
+-- 既存 synonym_groups テーブルの CHECK 制約に 'carrier' を追加
+--   （キャリアをサブコンと別カテゴリの同義グループとして扱う対応）
+-- ============================================================
+ALTER TABLE synonym_groups DROP CONSTRAINT IF EXISTS synonym_groups_field_check;
+ALTER TABLE synonym_groups
+  ADD CONSTRAINT synonym_groups_field_check CHECK (field IN ('sv', 'nm', 'customer', 'port', 'un', 'carrier'));

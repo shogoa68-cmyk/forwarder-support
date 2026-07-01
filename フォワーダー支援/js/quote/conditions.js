@@ -6,7 +6,7 @@
 
   function clearConditions() {
     if (!confirm('貨物情報・引き合い条件をクリアしますか？')) return;
-    ['z2Carrier','z2Service','z2Pol','z2Pod','cond-origin','cond-dest','cond-cargo','cond-hs','cond-hs-basic','cond-hs-pref','cond-hs-pref-note',
+    ['z2Carrier','z2Service','z2Pol','z2Via','z2Pod','z2Tt','cond-origin','cond-dest','cond-cargo','cond-hs','cond-hs-basic','cond-hs-pref','cond-hs-pref-note',
      'cond-packing','cond-packing-preset','condFreeText',
      'cond-origin-country','cond-dest-country','z1Place','z1Country','z3Place','z3Country',
      'cond-container-count']
@@ -126,7 +126,7 @@
   // ※ 列の見た目の並び替えは row-tpl / thead 側だけで行い、ここは触らない。
   // 末尾の vf/vt（サーチャージ有効期限：開始/終了）は後方追加。既存保存データには無いが
   // _applyCells が undefined セルをスキップするため互換。順序は末尾以外変更しないこと。
-  const ROW_CELL_FIELDS = ['cat','sv','tx','nm','pq','un','bq','pc','bc','pp','bp','cd','mk','nt','zc','vf','vt'];
+  const ROW_CELL_FIELDS = ['cat','sv','tx','nm','pq','un','bq','pc','bc','pp','bp','cd','mk','nt','zc','vf','vt','ac','pt','ps','co','lu'];
 
   function _applyCells(tr, cells) {
     // cells[0] = 選択チェック、cells[1..] = ROW_CELL_FIELDS 順（DOM 列順に依存しない）
@@ -211,6 +211,7 @@
     if      (modeVal === '海上（FCL）') setTransport('fcl');
     else if (modeVal === '海上（LCL）') setTransport('lcl');
     else if (modeVal.startsWith('航空')) setTransport('air');
+    else if (modeVal === '国内手配のみ') setTransport('domestic');
 
     // 輸出/輸入方向
     const dir = fields['cond-direction'] || '';
@@ -237,6 +238,7 @@
       if (cb && area) area.style.display = cb.checked ? 'flex' : 'none';
     });
     _checkValidUntil();
+    if (typeof renderRefUrlLinks === 'function') renderRefUrlLinks(); // 参照URLをリンク表示へ
   }
 
   /**
@@ -281,10 +283,35 @@
         const btn = tr.querySelector('.cnt-link-btn');
         if (btn) { btn.classList.add('is-linked'); btn.title = '連動中（クリックで解除）'; }
       }
+      // 見積書非表示フラグを復元
+      if (row.hideQuote) {
+        tr.dataset.hideQuote = '1';
+        tr.classList.add('row-hidden-quote');
+        const hb = tr.querySelector('.row-hidequote-btn');
+        if (hb) { hb.classList.add('is-on'); hb.textContent = '🚫'; hb.title = '見積書で非表示中（クリックで出力に戻す）'; }
+      }
+      // 要調査（後で記入）フラグを復元
+      if (row.pending) {
+        tr.dataset.pending = '1';
+        tr.classList.add('row-pending');
+        const pb = tr.querySelector('.row-pending-btn');
+        if (pb) { pb.classList.add('is-on'); pb.title = '要調査（後で記入）中。最新情報を調べたらクリックで解除。'; }
+      }
+      // 入力完了マークを復元
+      if (row.done) {
+        tr.dataset.done = '1';
+        tr.classList.add('row-input-done');
+        const db = tr.querySelector('.row-done-btn');
+        if (db) { db.classList.add('is-on'); db.title = '入力完了（クリックで解除）'; }
+      }
+      // 港ペア（子グループキー）を復元
+      // 旧データの港ペアはパターンへ統合（パターン未設定時のみ移行）
+      if (row.portPair) { const ptEl = tr.querySelector('[data-field="pt"]'); if (ptEl && !ptEl.value) ptEl.value = row.portPair; }
       regularTrs.push(tr);
     });
     _afterRestoreRows(regularTrs, data.fields);
     if (typeof renderSubconGroups === 'function') renderSubconGroups();
+    if (typeof updatePendingCounter === 'function') updatePendingCounter();
   }
 
   // プリセット読み込み時に空値で上書きしないヘッダー項目
@@ -388,11 +415,148 @@
     }
   }
 
+  // ===== 参照URL：貼り付けたURLを自動リンク化（複数可・改行/空白区切り） =====
+  const _ruEsc = s => String(s)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  function _ruExtract(text) {
+    if (!text) return [];
+    const out = [], seen = new Set();
+    const re = /https?:\/\/[^\s<>"'）)】」]+/g;
+    let m;
+    while ((m = re.exec(text)) !== null) {
+      const u = m[0].replace(/[.,;:!?！？）)、。]+$/, ''); // 末尾の句読点・閉じ括弧は除外
+      if (u && !seen.has(u)) { seen.add(u); out.push(u); }
+    }
+    return out;
+  }
+  function _ruShort(u) {
+    try {
+      const p = new URL(u);
+      let s = p.hostname.replace(/^www\./, '') + (p.pathname && p.pathname !== '/' ? p.pathname : '');
+      return s.length > 48 ? s.slice(0, 47) + '…' : s;
+    } catch (_) { return u.length > 48 ? u.slice(0, 47) + '…' : u; }
+  }
+  // テキストエリアの内容から URL を抽出し、リンク表示（view）へ切り替える。
+  // URL が無ければ編集用テキストエリアのまま。
+  window.renderRefUrlLinks = function () {
+    const ta = document.getElementById('qf-refurl');
+    const view = document.getElementById('qf-refurl-view');
+    if (!ta || !view) return;
+    const links = _ruExtract(ta.value);
+    const wrap = view.querySelector('.qf-refurl-links');
+    if (!links.length) { view.hidden = true; ta.hidden = false; return; }
+    if (wrap) {
+      wrap.innerHTML = links.map(u =>
+        '<a class="qf-refurl-link" href="' + _ruEsc(u) + '" target="_blank" rel="noopener noreferrer" title="' +
+        _ruEsc(u) + '">🔗 ' + _ruEsc(_ruShort(u)) + '</a>'
+      ).join('');
+    }
+    ta.hidden = true;
+    view.hidden = false;
+  };
+  // リンク表示から編集モード（テキストエリア）へ戻す
+  window.editRefUrl = function () {
+    const ta = document.getElementById('qf-refurl');
+    const view = document.getElementById('qf-refurl-view');
+    if (!ta || !view) return;
+    view.hidden = true;
+    ta.hidden = false;
+    ta.focus();
+  };
+
+  // ===== 貨物セクション：関連知識・他法令 =====
+  // 知識タブ（カテゴリ cat の サブタブ tabId）へジャンプし、任意で anchorId へスクロール
+  window.gotoRef = function (cat, tabId, anchorId) {
+    try {
+      document.querySelectorAll('.cat-btn').forEach(b => b.classList.remove('active'));
+      const catBtn = document.querySelector(`.cat-btn[onclick*="switchCategory('${cat}'"]`);
+      if (catBtn) catBtn.classList.add('active');
+      document.querySelectorAll('.sub-nav').forEach(s => s.classList.remove('active'));
+      document.getElementById('sub-' + cat)?.classList.add('active');
+      if (typeof switchTab === 'function') switchTab(tabId);
+      const sub = document.getElementById('sub-' + cat);
+      if (sub) {
+        sub.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        const tb = sub.querySelector(`.tab-btn[onclick*="switchTab('${tabId}'"]`);
+        if (tb) tb.classList.add('active');
+      }
+      setTimeout(() => {
+        const el = anchorId ? document.getElementById(anchorId) : document.getElementById('tab-' + tabId);
+        el?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 70);
+    } catch (e) { /* no-op */ }
+  };
+
+  // 輸入 他法令（関税法以外）11法令の要約。詳細は「🔒 貿易管理令・他法令」タブ。
+  const _IMPORT_OTHER_LAWS = [
+    { n: '食品衛生法',            o: '厚労省 検疫所',         t: '食品・添加物・容器包装・おもちゃ等。輸入届出が必要' },
+    { n: '植物防疫法',            o: '農水省 植物防疫所',     t: '植物・種子・木材・果実等。検査・消毒・輸入禁止品に注意' },
+    { n: '家畜伝染病予防法',      o: '農水省 動物検疫所',     t: '畜産物・肉製品・乳製品等。動物検疫・輸入禁止地域あり' },
+    { n: '薬機法（医薬品医療機器等法）', o: '厚労省',          t: '医薬品・医薬部外品・化粧品・医療機器。薬監証明等' },
+    { n: '電気用品安全法（PSE）', o: '経産省',                t: '電気用品。PSEマーク・技術基準適合が必要' },
+    { n: '電波法（技適）',        o: '総務省',                t: '無線機能を持つ機器。技術基準適合証明（技適マーク）' },
+    { n: '消費生活用製品安全法（PSC）', o: '経産省',          t: '特定製品（乳幼児用ベッド・ライター等）。PSCマーク' },
+    { n: '化審法',                o: '経産省・厚労省・環境省', t: '化学物質。新規化学物質の届出・規制対象に注意' },
+    { n: '毒物及び劇物取締法',    o: '厚労省',                t: '毒物・劇物。登録・表示・取扱の規制' },
+    { n: 'ワシントン条約（CITES）', o: '経産省・環境省',      t: '絶滅危惧種・象牙・革製品等。輸出入許可（CITES許可書）' },
+    { n: '外為法 輸入承認（IQ等）', o: '経産省',              t: '輸入割当・事前確認品目。輸入承認・確認が必要' },
+  ];
+  window.toggleCargoLawPanel = function () {
+    const p = document.getElementById('cargoLawPanel');
+    const btn = document.querySelector('.cargo-ref-chip--law');
+    if (!p) return;
+    if (!p.hidden) { p.hidden = true; if (btn) btn.classList.remove('is-on'); return; }
+    const esc = s => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    p.innerHTML =
+      '<div class="cargo-law-head">📥 輸入通関 ― 他法令（関税法以外の規制）<span class="cargo-law-note">品目により許可・承認・確認が必要。通関前に要確認</span></div>' +
+      '<table class="cargo-law-table"><thead><tr><th>法令</th><th>管轄</th><th>対象・ポイント</th></tr></thead><tbody>' +
+      _IMPORT_OTHER_LAWS.map(l =>
+        `<tr><td class="cargo-law-n">${esc(l.n)}</td><td class="cargo-law-o">${esc(l.o)}</td><td class="cargo-law-t">${esc(l.t)}</td></tr>`
+      ).join('') +
+      '</tbody></table>' +
+      '<div class="cargo-law-foot"><button type="button" class="cargo-law-more" onclick="gotoRef(\'docs\',\'regs\',\'regs-import-other-laws\')">詳しい一覧（管轄・手続き・通関影響）を他法令タブで開く ↗</button></div>';
+    p.hidden = false;
+    if (btn) btn.classList.add('is-on');
+  };
+
+  // ===== 📝 メモのポップアウト（全画面・サイズ可変）=====
+  // #qf-memo と #qf-memo-pop を双方向同期。ポップアウト側の編集も元欄の input を発火させ自動保存に乗せる。
+  let _memoPopEscHandler = null;
+  window.openMemoPopout = function () {
+    const src = document.getElementById('qf-memo');
+    const pop = document.getElementById('qf-memo-pop');
+    const ov  = document.getElementById('qfMemoPopout');
+    if (!src || !pop || !ov) return;
+    pop.value = src.value;
+    ov.hidden = false;
+    // ポップアウトでの入力を元欄へ反映（input を発火 → 既存の自動保存リスナーが拾う）
+    pop.oninput = () => {
+      src.value = pop.value;
+      src.dispatchEvent(new Event('input', { bubbles: true }));
+    };
+    _memoPopEscHandler = (e) => { if (e.key === 'Escape') { e.stopPropagation(); window.closeMemoPopout(); } };
+    document.addEventListener('keydown', _memoPopEscHandler, true);
+    setTimeout(() => { pop.focus(); }, 30);
+  };
+  window.closeMemoPopout = function () {
+    const src = document.getElementById('qf-memo');
+    const pop = document.getElementById('qf-memo-pop');
+    const ov  = document.getElementById('qfMemoPopout');
+    if (!ov) return;
+    if (src && pop) {                       // 念のため最終同期
+      src.value = pop.value;
+      src.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+    ov.hidden = true;
+    if (_memoPopEscHandler) { document.removeEventListener('keydown', _memoPopEscHandler, true); _memoPopEscHandler = null; }
+    if (src) src.focus();
+  };
+
   function gatherAllData() {
     // フォーム値
     const fields = {};
     document.querySelectorAll('input[id], select[id], textarea[id]').forEach(el => {
-      if (['csvFileInput','importFileInput','rowPatternImportFile','autoSaveChk','tabAddChk'].includes(el.id)) return;
+      if (['csvFileInput','importFileInput','rowPatternImportFile','autoSaveChk'].includes(el.id)) return;
       fields[el.id] = el.type === 'checkbox' ? el.checked : el.value;
     });
     // テーブル行（通常行 / 小計行 / リマーク行をすべて保存）
@@ -418,6 +582,10 @@
       });
       const rowObj = { _type: 'data', cells };
       if (tr.dataset.cntLink === '1') rowObj.cntLink = true;
+      if (tr.dataset.hideQuote === '1') rowObj.hideQuote = true;
+      if (tr.dataset.pending === '1') rowObj.pending = true;          // 要調査（後で記入）
+      if (tr.dataset.done === '1') rowObj.done = true;                // 入力完了マーク
+      if (tr.dataset.portPair) rowObj.portPair = tr.dataset.portPair; // 港ペア（子グループ）
       rows.push(rowObj);
     });
     // _rowFormat: v3 = 小計行・リマーク行を含む型付きオブジェクト配列
@@ -584,7 +752,9 @@
       pod:     document.getElementById('z2Pod')?.value?.trim()     || '',
     }];
     routes.forEach(r => {
-      items.push({ cat: 'ocean', name: '', note: '', sv: r.carrier });
+      // 港ペア（POL → (Via) → POD）を行に付与し、サブコン(キャリア)配下で子グループ化する
+      const pp = [r.pol, r.via, r.pod].map(s => (s || '').trim()).filter(Boolean).join(' → ');
+      items.push({ cat: 'ocean', name: '', note: '', sv: r.carrier, pp });
     });
 
     // Zone ③ 到着地側 — サブコン単位で空行1行
@@ -626,6 +796,7 @@
       const tr = document.createElement('tr');
       tr.id = 'row-' + id;
       tr.replaceChildren(buildRowHTML(id, item.cat, lastCur));
+      if (item.pp) { const ptEl = document.getElementById('pt-' + id); if (ptEl) ptEl.value = item.pp; }  // 航路名をパターン（サブコン内の入れ子キー）に
       tbody.appendChild(tr);
       const nmEl = document.getElementById('nm-'  + id); if (nmEl) nmEl.value = item.name;
       const ntEl = document.getElementById('nt-'  + id); if (ntEl) ntEl.value = item.note || '';
@@ -635,6 +806,7 @@
       if (typeof initDrag    === 'function') initDrag(tr);
     });
 
+    if (typeof renderSubconGroups === 'function') renderSubconGroups();  // 航路＝パターンの入れ子グループを描画
     updateTotals();
     quoteShowToast('✅ ゾーン構成プリセット適用完了（サブコン/航路別 ' + items.length + '行）', 'success');
   }
@@ -815,6 +987,39 @@
     ).join('');
   }
 
+  // 各ドライコンテナチップに内寸・外寸（＋容積/最大重量）を表示。
+  // 寸法は SharedCalc.containerSpecs（内寸 dims・外寸 ext、cm）を唯一の情報源として m 換算表示。
+  window.renderContainerChipDims = function () {
+    if (!window.SharedCalc || !Array.isArray(SharedCalc.containerSpecs)) return;
+    const byName = {};
+    SharedCalc.containerSpecs.forEach(s => { byName[s.name] = s; });
+    const m = v => (v / 100).toFixed(2);
+    document.querySelectorAll('#containerChipGrid .cc-chip[data-ctype]').forEach(chip => {
+      const spec = byName[chip.dataset.ctype];
+      if (!spec) return;
+      if (chip.querySelector('.cc-chip-dims')) return;   // 二重挿入防止
+      const inn = spec.dims ? `内 ${m(spec.dims.l)}×${m(spec.dims.w)}×${m(spec.dims.h)}m` : '';
+      const ext = spec.ext  ? `外 ${m(spec.ext.l)}×${m(spec.ext.w)}×${m(spec.ext.h)}m` : '';
+      const cap = (spec.cbm || spec.maxKg)
+        ? `${spec.cbm}m³ / ${(Number(spec.maxKg) / 1000).toFixed(1)}t` : '';
+      // ホバーで内寸・外寸・容積/最大重量のフル情報を表示
+      const full = [
+        spec.dims ? `内寸 ${m(spec.dims.l)}×${m(spec.dims.w)}×${m(spec.dims.h)}m` : '',
+        spec.ext  ? `外寸 ${m(spec.ext.l)}×${m(spec.ext.w)}×${m(spec.ext.h)}m` : '',
+        (spec.cbm || spec.maxKg) ? `容積 約${spec.cbm}m³ ／ 最大 ${Number(spec.maxKg).toLocaleString()}kg` : '',
+      ].filter(Boolean).join('\n');
+      const el = document.createElement('div');
+      el.className = 'cc-chip-dims';
+      el.title = full;
+      el.innerHTML =
+        (inn ? `<span class="cc-chip-dim cc-chip-dim-in" title="${full}">${inn}</span>` : '') +
+        (ext ? `<span class="cc-chip-dim cc-chip-dim-ex" title="${full}">${ext}</span>` : '') +
+        (cap ? `<span class="cc-chip-dim cc-chip-dim-cap" title="${full}">${cap}</span>` : '');
+      const label = chip.querySelector('.cc-label');
+      if (label) label.insertAdjacentElement('afterend', el); else chip.insertBefore(el, chip.firstChild);
+    });
+  };
+
   // チップの本数入力（0以下で解除）。データ形は従来どおり _containerEntries=[{type,count}]
   window.setContainerChip = function (type, raw) {
     const n = Math.max(0, parseInt(raw, 10) || 0);
@@ -914,7 +1119,11 @@
     if (ot) ot.hidden = sub !== 'otfr';
   }
   window.setContainerCat = function (cat) { _setCatUI(cat); updateContainerSpec(); };
-  window.setContainerSub = function (sub) { _setSubUI(sub); updateContainerSpec(); };
+  window.setContainerSub = function (sub) {
+    _setSubUI(sub);
+    if (sub === 'otfr' && typeof window.recalcOverGauge === 'function') window.recalcOverGauge(); // 行を用意＋再計算
+    else updateContainerSpec();
+  };
   window.setRfVent = function (v) {
     document.querySelectorAll('#cc-rf-vent .cc-seg-btn').forEach(b => b.classList.toggle('is-on', b.dataset.val === v));
     updateContainerSpec();
@@ -928,33 +1137,113 @@
     "20'FR（フラットラック）": { l: 585,  w: 244, h: null }, // フラットは高さ制限なし
     "40'FR（フラットラック）": { l: 1203, w: 244, h: null },
   };
-  // 貨物実寸→はみ出し寸法を計算して表示＋ spec 保存
+  // 1行ぶん（貨物実寸 L×W×H ＋ 個数 ＋ 判定）の HTML。積載先コンテナは全行共通(#cc-og-ref)
+  function _ogRowHTML(item) {
+    item = item || {};
+    const v = x => (x == null || x === '') ? '' : x;
+    const qty = (item.qty == null || item.qty === '') ? '1' : item.qty;
+    return `<div class="cc-og-row" data-og-row>
+      <div class="cc-dims">
+        <input type="number" class="cc-dim og-l" min="0" step="1" placeholder="長さ" inputmode="numeric" value="${v(item.l)}" oninput="recalcOverGauge()" /><span class="cc-dim-x">×</span>
+        <input type="number" class="cc-dim og-w" min="0" step="1" placeholder="幅" inputmode="numeric" value="${v(item.w)}" oninput="recalcOverGauge()" /><span class="cc-dim-x">×</span>
+        <input type="number" class="cc-dim og-h" min="0" step="1" placeholder="高さ" inputmode="numeric" value="${v(item.h)}" oninput="recalcOverGauge()" /><span class="cc-dim-unit">cm</span>
+      </div>
+      <input type="number" class="cc-dim og-qty" min="1" step="1" value="${v(qty)}" inputmode="numeric" title="個数" oninput="recalcOverGauge()" />
+      <span class="cc-og-rowresult" data-state="empty">—</span>
+      <button type="button" class="cc-og-del" onclick="removeOverGaugeRow(this)" title="このサイズを削除" aria-label="削除">✕</button>
+    </div>`;
+  }
+  window.addOverGaugeRow = function (item) {
+    const list = document.getElementById('ccOgList');
+    if (!list) return;
+    list.insertAdjacentHTML('beforeend', _ogRowHTML(item && item.l !== undefined ? item : {}));
+    recalcOverGauge();
+    const last = list.querySelector('[data-og-row]:last-child .og-l');
+    if (last) last.focus();
+  };
+  window.removeOverGaugeRow = function (btn) {
+    const row = btn?.closest('[data-og-row]');
+    if (row) row.remove();
+    recalcOverGauge();
+  };
+  function _ensureOgRows() {
+    const list = document.getElementById('ccOgList');
+    if (list && !list.querySelector('[data-og-row]')) list.insertAdjacentHTML('beforeend', _ogRowHTML({}));
+  }
+  window._ensureOgRows = _ensureOgRows;
+  // 各レーンへピースを振り分けて最長レーンの長さを返す（Longest-Processing-Time 近似）
+  function _packLaneLen(lengths, lanes) {
+    const n = Math.max(1, lanes);
+    const totals = new Array(n).fill(0);
+    lengths.slice().sort((a, b) => b - a).forEach(len => {
+      let mi = 0;
+      for (let i = 1; i < n; i++) if (totals[i] < totals[mi]) mi = i;
+      totals[mi] += len;
+    });
+    return Math.max.apply(null, totals);
+  }
+  // 1本の積載先コンテナに複数サイズを積む簡易シミュレーション（幅方向に複数列＝2列等を考慮）。
+  // 列数ぶんのレーンへピースを振り分け、最長レーン長さを内寸長さと比較。幅・高さは断面判定。
   window.recalcOverGauge = function () {
-    const num = id => { const v = parseFloat(document.getElementById(id)?.value); return Number.isFinite(v) ? v : null; };
-    const cl = num('cc-cargo-l'), cw = num('cc-cargo-w'), ch = num('cc-cargo-h');
+    _ensureOgRows();
     const ref = document.getElementById('cc-og-ref')?.value || "20'OT（オープントップ）";
     const inner = OTFR_INNER[ref] || OTFR_INNER["20'OT（オープントップ）"];
+    const colMode = document.getElementById('cc-og-cols')?.value || 'auto';
     const over = (cargo, lim) => (cargo != null && lim != null && cargo > lim) ? +(cargo - lim).toFixed(1) : 0;
-    const ogL = over(cl, inner.l), ogW = over(cw, inner.w), ogH = over(ch, inner.h);
-    const result = document.getElementById('ccOgResult');
-    if (result) {
-      if (cl == null && cw == null && ch == null) {
-        result.dataset.state = 'empty';
-        result.innerHTML = '📦 貨物の実寸を入力すると、はみ出し寸法を自動計算します';
-      } else {
+    const rows = Array.from(document.querySelectorAll('#ccOgList [data-og-row]'));
+    let anyInput = false, totalQty = 0, widthOver = false, heightOver = false, maxW = 0;
+    const lengths = [];   // 個数ぶん展開した各ピースの長さ
+    rows.forEach(row => {
+      const num = sel => { const v = parseFloat(row.querySelector(sel)?.value); return Number.isFinite(v) ? v : null; };
+      const cl = num('.og-l'), cw = num('.og-w'), ch = num('.og-h');
+      let qty = parseInt(row.querySelector('.og-qty')?.value, 10);
+      if (!Number.isFinite(qty) || qty < 1) qty = 1;
+      const res = row.querySelector('.cc-og-rowresult');
+      if (cl == null && cw == null && ch == null) { if (res) { res.dataset.state = 'empty'; res.innerHTML = '—'; } return; }
+      anyInput = true;
+      totalQty += qty;
+      if (cw != null && cw > maxW) maxW = cw;
+      if (cl != null) for (let i = 0; i < qty; i++) lengths.push(cl);
+      const ogW = over(cw, inner.w), ogH = over(ch, inner.h);
+      if (res) {
         const parts = [];
-        if (ogL > 0) parts.push(`長さ <b>+${ogL}cm</b>`);
-        if (ogW > 0) parts.push(`幅 <b>+${ogW}cm</b>`);
-        if (inner.h == null) {
-          if (ch != null) parts.push(`高さ <b>${ch}cm</b>（フラット＝制限なし／要確認）`);
-        } else if (ogH > 0) parts.push(`高さ <b>+${ogH}cm</b>`);
-        if (parts.length) {
-          result.dataset.state = 'over';
-          result.innerHTML = '⚠️ はみ出し：' + parts.join(' ／ ') + '<small>※ 基準内寸との差。実機・本船制限は別途要確認</small>';
-        } else {
-          result.dataset.state = 'fit';
-          result.innerHTML = '✅ 基準コンテナ内寸に収まります（はみ出しなし）';
-        }
+        if (ogW > 0) { parts.push(`幅 <b>+${ogW}</b>`); widthOver = true; }
+        if (inner.h != null && ogH > 0) { parts.push(`高さ <b>+${ogH}</b>`); heightOver = true; }
+        if (parts.length) { res.dataset.state = 'over'; res.innerHTML = '⚠️ ' + parts.join(' / ') + ' cm超過'; }
+        else { res.dataset.state = 'fit'; res.innerHTML = (inner.h == null) ? '✅ 幅OK（FR高さ制限なし）' : '✅ 幅・高さOK'; }
+      }
+    });
+    // 幅方向に入る最大列数（最大幅基準）。列指定が幅を超える場合はキャップして警告
+    const maxColsByWidth = (maxW > 0) ? Math.max(1, Math.floor(inner.w / maxW)) : null;
+    let effCols, colCapped = false;
+    if (colMode === 'auto') {
+      effCols = maxColsByWidth || 1;
+    } else {
+      const req = parseInt(colMode, 10) || 1;
+      if (maxColsByWidth != null && req > maxColsByWidth) { effCols = maxColsByWidth; colCapped = true; }
+      else effCols = req;
+    }
+    const requiredLen = +_packLaneLen(lengths, effCols).toFixed(1);
+    const sim = document.getElementById('ccOgSim');
+    if (sim) {
+      if (!anyInput) {
+        sim.dataset.state = 'empty';
+        sim.innerHTML = '📦 貨物サイズを入力すると、1本に積めるかシミュレーションします（幅方向の列数を選べます）';
+      } else {
+        const remain = +(inner.l - requiredLen).toFixed(1);
+        const lenOver = requiredLen > inner.l;
+        const refShort = ref.replace(/（.*$/, '');
+        const colTxt = effCols + '列' + (colMode === 'auto' ? '（自動）' : '');
+        let head, state;
+        if (lenOver) { state = 'over'; head = `⚠️ 1本に積みきれません（${colTxt}でも 長さ <b>+${+(requiredLen - inner.l).toFixed(1)}cm</b> 超過）`; }
+        else { state = 'fit'; head = `✅ 1本（${refShort}・${colTxt}）に積載可能（残り長さ <b>${remain}cm</b>）`; }
+        const xtra = [];
+        if (colCapped) xtra.push(`幅方向は最大${maxColsByWidth}列まで（指定列数は入りません）`);
+        if (widthOver) xtra.push('幅が内寸を超えるサイズあり');
+        if (heightOver) xtra.push('高さが内寸を超えるサイズあり');
+        if (xtra.length) { if (widthOver || heightOver) state = 'over'; head += `<br>⚠️ ${xtra.join(' ／ ')}`; }
+        sim.dataset.state = state;
+        sim.innerHTML = head + `<small>必要長さ ${requiredLen}cm ／ 内寸長さ ${inner.l}cm　・　計${totalQty}個・幅方向${effCols}列で配置　※実機・本船制限・固縛は別途要確認</small>`;
       }
     }
     updateContainerSpec();
@@ -964,21 +1253,48 @@
     const sub  = document.querySelector('.cc-sub-tab.is-on')?.dataset.sub || 'rf';
     const vent = document.querySelector('#cc-rf-vent .cc-seg-btn.is-on')?.dataset.val || '無';
     const gv = id => (document.getElementById(id)?.value || '').trim();
-    const num = id => { const v = parseFloat(document.getElementById(id)?.value); return Number.isFinite(v) ? v : null; };
-    // OT/FR：はみ出し寸法は貨物実寸と基準内寸から算出
-    const ref = document.getElementById('cc-og-ref')?.value || "20'OT（オープントップ）";
-    const inner = OTFR_INNER[ref] || OTFR_INNER["20'OT（オープントップ）"];
-    const cl = num('cc-cargo-l'), cw = num('cc-cargo-w'), ch = num('cc-cargo-h');
+    // OT/FR：積載先コンテナ（全行共通）＋各サイズ（実寸×個数）から一列積みを集計
     const over = (cargo, lim) => (cargo != null && lim != null && cargo > lim) ? +(cargo - lim).toFixed(1) : 0;
+    const n = x => { const v = parseFloat(x); return Number.isFinite(v) ? v : null; };
+    const ogRef = document.getElementById('cc-og-ref')?.value || "20'OT（オープントップ）";
+    const ogCols = document.getElementById('cc-og-cols')?.value || 'auto';
+    const inner = OTFR_INNER[ogRef] || OTFR_INNER["20'OT（オープントップ）"];
+    const ogItems = [];
+    let totalQty = 0, maxW = 0;
+    const lengths = [];
+    document.querySelectorAll('#ccOgList [data-og-row]').forEach(row => {
+      const rv = sel => (row.querySelector(sel)?.value || '').trim();
+      const l = rv('.og-l'), w = rv('.og-w'), h = rv('.og-h');
+      if (!l && !w && !h) return;   // 空行は保存しない
+      let qty = parseInt(rv('.og-qty'), 10); if (!Number.isFinite(qty) || qty < 1) qty = 1;
+      totalQty += qty;
+      if (n(w) != null && n(w) > maxW) maxW = n(w);
+      if (n(l) != null) for (let i = 0; i < qty; i++) lengths.push(n(l));
+      ogItems.push({
+        l, w, h, qty: String(qty),
+        ogW: String(over(n(w), inner.w) || ''),
+        ogH: String(inner.h == null ? '' : (over(n(h), inner.h) || '')),
+      });
+    });
+    // 幅方向の列数を考慮した必要長さ（最長レーン）
+    const maxColsByWidth = (maxW > 0) ? Math.max(1, Math.floor(inner.w / maxW)) : null;
+    let effCols;
+    if (ogCols === 'auto') effCols = maxColsByWidth || 1;
+    else { const req = parseInt(ogCols, 10) || 1; effCols = (maxColsByWidth != null) ? Math.min(req, maxColsByWidth) : req; }
+    const requiredLen = +_packLaneLen(lengths, effCols).toFixed(1);
+    const first = ogItems[0] || {};
     const spec = {
       cat, sub,
       rfTemp: gv('cc-rf-temp'),
       rfVent: vent,
-      ogRef: ref,
-      cargoL: gv('cc-cargo-l'), cargoW: gv('cc-cargo-w'), cargoH: gv('cc-cargo-h'),
-      ogL: String(over(cl, inner.l) || ''),
-      ogW: String(over(cw, inner.w) || ''),
-      ogH: String(inner.h == null ? '' : (over(ch, inner.h) || '')),
+      ogRef,                       // 積載先コンテナ（全サイズ共通）
+      ogCols,                      // 幅方向の列数モード（auto/1/2/3）
+      ogItems,                     // [{l,w,h,qty,ogW,ogH}]
+      // 積載シミュレーション結果のサマリ（列数考慮）
+      ogSim: { cols: effCols, requiredLen: String(requiredLen || ''), innerLen: inner.l, totalQty, fits: requiredLen <= inner.l },
+      // 後方互換：先頭サイズを従来フィールドにもミラー
+      cargoL: first.l || '', cargoW: first.w || '', cargoH: first.h || '',
+      ogL: '', ogW: first.ogW || '', ogH: first.ogH || '',
     };
     const el = document.getElementById('cond-container-spec');
     if (el) el.value = JSON.stringify(spec);
@@ -991,8 +1307,23 @@
     try { spec = JSON.parse(document.getElementById('cond-container-spec')?.value || '{}') || {}; } catch (e) { spec = {}; }
     const setV = (id, v) => { const el = document.getElementById(id); if (el) el.value = v || ''; };
     setV('cc-rf-temp', spec.rfTemp);
-    setV('cc-cargo-l', spec.cargoL); setV('cc-cargo-w', spec.cargoW); setV('cc-cargo-h', spec.cargoH);
-    if (spec.ogRef && document.getElementById('cc-og-ref')) document.getElementById('cc-og-ref').value = spec.ogRef;
+    // OT/FR：積載先コンテナ（全行共通）を復元。旧データ（行ごと ref）は先頭サイズの ref を採用
+    const sharedRef = spec.ogRef
+      || (Array.isArray(spec.ogItems) && spec.ogItems[0] && spec.ogItems[0].ref)
+      || "20'OT（オープントップ）";
+    if (document.getElementById('cc-og-ref')) document.getElementById('cc-og-ref').value = sharedRef;
+    // 幅方向の列数モードを復元（旧データに無ければ自動）
+    if (document.getElementById('cc-og-cols')) document.getElementById('cc-og-cols').value = spec.ogCols || 'auto';
+    // 貨物サイズ（複数）を復元。旧形式（単一 cargoL/W/H）は1行に変換
+    let ogItems = Array.isArray(spec.ogItems) ? spec.ogItems.slice() : [];
+    if (!ogItems.length && (spec.cargoL || spec.cargoW || spec.cargoH)) {
+      ogItems = [{ l: spec.cargoL || '', w: spec.cargoW || '', h: spec.cargoH || '', qty: '1' }];
+    }
+    const ogList = document.getElementById('ccOgList');
+    if (ogList) {
+      ogList.innerHTML = ogItems.map(it => _ogRowHTML(it)).join('');
+      _ensureOgRows();   // 0件なら空行を1つ用意
+    }
     document.querySelectorAll('#cc-rf-vent .cc-seg-btn').forEach(b =>
       b.classList.toggle('is-on', b.dataset.val === (spec.rfVent || '無')));
     const SPECIAL = ["20'RF（冷凍）","40'RF（冷凍）","20'OT（オープントップ）","40'OT（オープントップ）","20'FR（フラットラック）","40'FR（フラットラック）"];
@@ -1196,10 +1527,21 @@
         + `<span class="z2-route-carrier">${_escMulti(r.carrier || '—')}</span>`
         + (r.service ? `<span class="z2-route-service">${_escMulti(r.service)}</span>` : '')
         + `<span class="z2-route-leg">${route}</span>`
+        + (r.tt ? `<span class="z2-route-tt" title="Transit Time（所要日数）">⏱️ ${_escMulti(r.tt)}</span>` : '')
         + `<button type="button" class="z2-route-edit" onclick="editRouteEntry(${i})" title="編集（フォームに書き戻す）">✎</button>`
         + `<button type="button" class="me-chip-del" onclick="removeRouteEntry(${i})" title="削除">×</button></span>`;
     }).join('');
     if (typeof window.renderQuoteCarrierLinks === 'function') window.renderQuoteCarrierLinks();
+    // パターン入力の候補（ptSuggestions）に航路（POL→via→POD）を供給：表記揺れ防止
+    const dl = document.getElementById('ptSuggestions');
+    if (dl) {
+      const seen = new Set(), opts = [];
+      _routeEntries.forEach(r => {
+        const s = [r.pol, r.via, r.pod].map(x => (x || '').trim()).filter(Boolean).join(' → ');
+        if (s && !seen.has(s)) { seen.add(s); opts.push(s); }
+      });
+      dl.innerHTML = opts.map(s => `<option value="${_escMulti(s)}"></option>`).join('');
+    }
   }
 
   function addRouteEntry() {
@@ -1208,17 +1550,20 @@
     const pol = (document.getElementById('z2Pol')?.value || '').trim();
     const via = (document.getElementById('z2Via')?.value || '').trim();
     const pod = (document.getElementById('z2Pod')?.value || '').trim();
+    const tt  = (document.getElementById('z2Tt')?.value || '').trim();
     if (!carrier && !pol && !pod) {
       if (typeof quoteShowToast==='function') quoteShowToast('⚠️ キャリアまたはPOL/PODを入力してください', 'warn', 1800);
       return;
     }
-    _routeEntries.push({ carrier, service, pol, via, pod, enabled: true });
+    _routeEntries.push({ carrier, service, pol, via, pod, tt, enabled: true });
     _renderRouteEntries();
-    // キャリア・サービス名をクリアして次の入力へ（POL/POD は同じ航路に別キャリアを追加できるよう保持）
+    // キャリア・サービス名・T/T をクリアして次の入力へ（POL/POD は同じ航路に別キャリアを追加できるよう保持）
     const carrierEl = document.getElementById('z2Carrier');
     if (carrierEl) { carrierEl.value = ''; }
     const serviceEl = document.getElementById('z2Service');
     if (serviceEl) { serviceEl.value = ''; }
+    const ttEl = document.getElementById('z2Tt');
+    if (ttEl) { ttEl.value = ''; }
     if (typeof onZ2CarrierChange === 'function') onZ2CarrierChange();
     document.getElementById('z2Carrier')?.focus();
     if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
@@ -1250,6 +1595,7 @@
     set('z2Pol', r.pol);
     set('z2Via', r.via);
     set('z2Pod', r.pod);
+    set('z2Tt', r.tt);
     // エントリを削除して再描画
     _routeEntries.splice(i, 1);
     _renderRouteEntries();
@@ -1379,10 +1725,12 @@
 
   /** Sea / Air プライマリトグル */
   function setTransport(transport) {
-    // transport: 'fcl' | 'lcl' | 'air'
+    // transport: 'fcl' | 'lcl' | 'air' | 'domestic'
     if (transport === 'fcl' || transport === 'lcl') {
       _currentTransport = 'sea';
       _currentSeaSub = transport;
+    } else if (transport === 'domestic') {
+      _currentTransport = 'domestic';   // 国内手配のみ（国際輸送なし・記録用）
     } else {
       _currentTransport = 'air';
     }
@@ -1417,6 +1765,8 @@
       sel.value = _currentSeaSub === 'lcl' ? '海上（LCL）' : '海上（FCL）';
     } else if (_currentTransport === 'air') {
       sel.value = '航空（AIR）';
+    } else if (_currentTransport === 'domestic') {
+      sel.value = '国内手配のみ';
     } else {
       sel.value = '';
     }
@@ -1425,6 +1775,7 @@
 
   /** 現在の輸送モードに対応するキャリアマップを返す */
   function _carrierMapForMode() {
+    if (_currentTransport === 'domestic') return {};   // 国内手配のみは船社/航空会社なし
     if (_currentTransport === 'air') return (typeof CARRIERS_AIR !== 'undefined') ? CARRIERS_AIR : {};
     if (_currentSeaSub === 'lcl')    return (typeof CARRIERS_LCL !== 'undefined') ? CARRIERS_LCL : {};
     return (typeof CARRIERS !== 'undefined') ? CARRIERS : {};
@@ -1433,6 +1784,7 @@
   /** 現在の輸送モードに対応するリンク定義を返す */
   function _linkDefsForMode() {
     const defs = (typeof CARRIER_LINK_DEFS !== 'undefined') ? CARRIER_LINK_DEFS : {};
+    if (_currentTransport === 'domestic') return [];   // 国内手配のみはキャリアリンクなし
     if (_currentTransport === 'air') return defs.air || [];
     if (_currentSeaSub === 'lcl')    return defs.lcl || [];
     return defs.fcl || [];
@@ -1534,15 +1886,26 @@
     const cur = (document.getElementById('z2Carrier')?.value || '').trim();
     if (cur && !names.includes(cur)) names.push(cur);
     const bmCache = window._qspBmCache || {};
+    const getRelated = typeof window.bmGetRelated === 'function' ? window.bmGetRelated : () => [];
+    // 全面クラウド移行（フェーズ3）：内蔵DBの静的リンクは廃止し、クラウドの
+    // ブックマーク（内蔵リンクをシード済み＋ユーザー追加）のみを唯一の真実として表示。
+    // 各チップは bmId 経由で編集可能。icon のみ内蔵DBから流用。
+    // 関連会社（代理店関係など・carrier_relations）のブックマークも合わせて表示する。
     return names.map(name => {
       const c = map[name];
-      const staticLinks = c ? defs
-        .map(d => ({ label: d.label, url: _resolveCarrierUrl(c[d.key]), title: (d.noteKey && c[d.noteKey]) ? c[d.noteKey] : d.label }))
-        .filter(l => l.url) : [];
-      const userLinks = (bmCache[name] || []).filter(bm => bm.url).map(bm => ({
-        label: bm.label, url: bm.url, title: bm.note || bm.label, isUserBm: true, bmId: bm.id,
+      const own = (bmCache[name] || []).filter(bm => bm.url).map(bm => ({
+        label: bm.label, url: bm.url, title: bm.note || bm.label, isUserBm: true,
+        bmId: bm.id, carrier: name, type: bm.carrier_type, fn: bm.function, note: bm.note,
       }));
-      return { name, icon: c?.icon || '', links: [...staticLinks, ...userLinks] };
+      const related = getRelated(name).flatMap(rel =>
+        (bmCache[rel.counterpart] || []).filter(bm => bm.url).map(bm => ({
+          label: bm.label, url: bm.url,
+          title: (bm.note ? bm.note + ' ／ ' : '') + `${rel.label}: ${rel.counterpart}`,
+          isUserBm: true, isRelated: true, relLabel: rel.label, relCarrier: rel.counterpart,
+          bmId: bm.id, carrier: rel.counterpart, type: bm.carrier_type, fn: bm.function, note: bm.note,
+        }))
+      );
+      return { name, icon: c?.icon || '', links: [...own, ...related] };
     });
   };
 

@@ -51,7 +51,7 @@
   <div class="cat-nav" role="tablist" aria-label="カテゴリ">
     <button class="cat-btn cat-btn-featured active" role="tab" aria-selected="true"  onclick="switchCategory('quote',  this)">💼 見積</button>
     <button class="cat-btn cat-btn-featured"        role="tab" aria-selected="false" onclick="switchCategory('stats',   this)">📊 統計</button>
-    <button class="cat-btn"        role="tab" aria-selected="false" onclick="switchCategory('cost', this)">💴 諸チャージ</button>
+    <button class="cat-btn cat-btn-featured" role="tab" aria-selected="false" onclick="switchCategory('cost', this)">💴 諸チャージ</button>
     <button class="cat-btn cat-btn-bookmark" role="tab" aria-selected="false" onclick="switchCategory('bookmark', this)">🔖 BOOKMARK</button>
     <button class="cat-btn"        role="tab" aria-selected="false" onclick="switchCategory('vessel', this)">🚢 本船・航路</button>
     <button class="cat-btn"        role="tab" aria-selected="false" title="Booking（船腹予約）と S/I（Shipping Instruction：船積指図書）の手続き" onclick="switchCategory('booking', this)">📋 Booking/SI</button>
@@ -271,6 +271,14 @@
         </div>
         <div class="lc-topbar-right">
           <span id="lcCloudStatus" class="lc-cloud-off">💾 ローカル</span>
+          <label class="lc-group-select-wrap" title="一覧のグループ表示を切り替えます">
+            <span class="lc-group-select-ic">🗂️</span>
+            <select id="lcGroupMode" class="lc-group-select" onchange="lcSetGroupMode(this.value)">
+              <option value="carrier">船会社別</option>
+              <option value="cat">カテゴリ別</option>
+              <option value="none">グループなし</option>
+            </select>
+          </label>
           <button class="lc-variant-btn" onclick="lcToggleVariants()">🔀 ゆらぎ</button>
           <button class="lc-add-btn" onclick="lcOpenForm(null)">＋ 新規登録</button>
         </div>
@@ -283,6 +291,8 @@
       </div>
 
       <div id="lcVariantPanel" class="lc-variant-panel" hidden></div>
+
+      <div id="lcCarrierBmSection" class="lc-bm-section" hidden></div>
 
       <div id="lcList" class="lc-list">
         <p class="lc-empty">読み込み中…</p>
@@ -995,7 +1005,7 @@
     </details>
 
     <!-- 輸入通関：他法令 -->
-    <div class="card">
+    <div class="card" id="regs-import-other-laws">
       <div class="section-title">📥 輸入通関 ― 他法令（関税法以外の規制）</div>
       <p style="font-size:12px;color:var(--text-md);margin-bottom:12px;">
         輸入申告に加えて、品目によっては他省庁の許可・承認・確認が必要です。通関前に要件を確認してください。
@@ -2038,7 +2048,7 @@
         </ul>
 
         <h4>① 管理番号入力</h4>
-        <p>見積もり番号・お客様名称・担当者を入力。後でフィルタや整理に使う識別情報です。<br>📝 <b>メモ</b>欄に申し送り・注意事項などを自由記述できます（お客様向け出力には含まれません）。</p>
+        <p>見積もり番号・お客様名称・<b>お客様側のご担当者</b>を入力。「ご担当者」は<b>宛先（お客様の窓口）</b>で、社内の見積もり作成者ではありません（作成者はクラウド共有時にログイン情報から自動記録されます）。後でフィルタや整理に使う識別情報です。<br>📝 <b>メモ</b>欄に申し送り・注意事項などを自由記述できます（お客様向け出力には含まれません）。</p>
 
         <h4>② 引き合い条件</h4>
         <ul>
@@ -2466,17 +2476,25 @@
             <input type="text" id="qf-customer" placeholder="例）○○商事" aria-required="true" list="custSuggestions" autocomplete="off" />
           </div>
           <div class="quote-field">
-            <label>担当（敬称略） <span class="req-mark" aria-hidden="true">*</span></label>
-            <input type="text" id="qf-person" placeholder="例）山田　※氏名のみ。出力時に自動で「様」付与" title="姓のみ／フルネームのみで入力（会社名は含めない）。出力時に自動で「様」が付きます" aria-required="true" />
+            <label>お客様 ご担当者（敬称略） <span class="req-mark" aria-hidden="true">*</span></label>
+            <input type="text" id="qf-person" placeholder="例）山田　※宛先（お客様側）の氏名。出力時に自動で「様」付与" title="お客様側（宛先）のご担当者名を入力します。社内の見積もり作成者ではありません。姓のみ／フルネームのみ（会社名は含めない）。客先向け出力（プレビュー・PDF）で会社名とともに宛先となり、自動で「様」が付きます。" aria-required="true" />
+          </div>
+          <div class="quote-field">
+            <label>📥 依頼受信日 <span class="qf-memo-note">引き合いを受けた日（経過日数を表示）</span></label>
+            <input type="date" id="qf-received" title="依頼を受信した日。ダッシュボードに経過日数を表示します" />
+          </div>
+          <div class="quote-field">
+            <label>⏰ 提出期限 <span class="qf-memo-note">回答の締切（残り日数で優先度表示）</span></label>
+            <input type="date" id="qf-due" title="見積提出の期限。ダッシュボードに残り日数を表示します" />
           </div>
           <div class="quote-field">
             <label>発行日</label>
-            <input type="date" id="qf-date" title="見積書の発行日。出力・Excelに含まれます" />
+            <input type="date" id="qf-date" title="見積書の発行日。出力・Excelに含まれます" onchange="window.updateTotals && window.updateTotals()" />
           </div>
           <div class="quote-field">
             <label>有効期限</label>
             <div class="qf-valid-until-row">
-              <input type="date" id="qf-valid-until" title="見積もりの有効期限。出力・Excelに含まれます" onchange="checkValidUntilWarning()" />
+              <input type="date" id="qf-valid-until" title="見積もりの有効期限。出力・Excelに含まれます。サーチャージの適用期間外判定の基準日になります" onchange="checkValidUntilWarning(); window.updateTotals && window.updateTotals()" />
               <button type="button" class="qf-days-btn" onclick="addDaysToValidUntil(7)"  title="今日から7日後">+7日</button>
               <button type="button" class="qf-days-btn" onclick="addDaysToValidUntil(30)" title="今日から30日後">+30日</button>
             </div>
@@ -2486,6 +2504,7 @@
             <div class="qf-status-btns" id="qf-status-btns">
               <button type="button" class="qf-status-btn active" data-status="下書き中"  onclick="setQuoteStatus('下書き中')">下書き中</button>
               <button type="button" class="qf-status-btn"        data-status="提示済み" onclick="setQuoteStatus('提示済み')">提示済み</button>
+              <button type="button" class="qf-status-btn"        data-status="ヨコヨコ提示" onclick="setQuoteStatus('ヨコヨコ提示')">ヨコヨコ提示</button>
               <button type="button" class="qf-status-btn"        data-status="受注"    onclick="setQuoteStatus('受注')">受注</button>
               <button type="button" class="qf-status-btn"        data-status="失注"    onclick="setQuoteStatus('失注')">失注</button>
               <button type="button" class="qf-status-btn"        data-status="辞退"    onclick="setQuoteStatus('辞退')">辞退</button>
@@ -2494,8 +2513,41 @@
             <input type="hidden" id="qf-status" value="下書き中" />
           </div>
           <div class="quote-field quote-field-memo">
-            <label>📝 メモ <span class="qf-memo-note">出力・プレビューには含まれません</span></label>
+            <label>📝 メモ <span class="qf-memo-note">出力・プレビューには含まれません</span>
+              <button type="button" class="qf-memo-expand-btn" onclick="openMemoPopout()" title="メモを拡大表示（全画面・サイズ可変）">⤢ 拡大</button>
+            </label>
             <textarea id="qf-memo" rows="6" placeholder="担当者間の申し送り・注意事項など、案件内部メモを自由に記述できます。お客様向け出力には含まれません。"></textarea>
+          </div>
+          <!-- 📝 メモ ポップアウト（全画面・サイズ可変）。#qf-memo と双方向同期 -->
+          <div id="qfMemoPopout" class="qf-memo-popout-overlay" hidden onclick="if(event.target===this)closeMemoPopout()">
+            <div class="qf-memo-popout-box" role="dialog" aria-label="メモ 拡大表示">
+              <div class="qf-memo-popout-head">
+                <span class="qf-memo-popout-title">📝 メモ</span>
+                <span class="qf-memo-popout-note">出力・プレビューには含まれません（#qf-memo と同じ内容）</span>
+                <button type="button" class="qf-memo-popout-close" onclick="closeMemoPopout()" title="閉じる（Esc）">✕ 閉じる</button>
+              </div>
+              <textarea id="qf-memo-pop" class="qf-memo-popout-area" placeholder="担当者間の申し送り・注意事項など、案件内部メモを自由に記述できます。お客様向け出力には含まれません。"></textarea>
+            </div>
+          </div>
+          <div class="quote-field quote-field-refurl">
+            <label>🔗 参照URL <span class="qf-memo-note">レート表・船社サイト等の参照リンク（複数可・改行区切り）。出力には含まれません</span></label>
+            <textarea id="qf-refurl" rows="2" placeholder="URL を貼り付け（複数可・改行区切り）。フォーカスを外すとクリックできるリンクになります" onblur="renderRefUrlLinks()"></textarea>
+            <div id="qf-refurl-view" class="qf-refurl-view" hidden>
+              <span class="qf-refurl-links"></span>
+              <button type="button" class="qf-refurl-edit" onclick="editRefUrl()" title="リンクを編集">✎ 編集</button>
+            </div>
+          </div>
+          <div class="quote-field quote-field-attach">
+            <label>📎 添付ファイル <span class="qf-memo-note">この案件に保存・チーム共有（ログイン必須）</span></label>
+            <label class="qf-attach-drop" id="qfAttachDrop"
+                   ondragover="event.preventDefault(); this.classList.add('is-drag');"
+                   ondragleave="this.classList.remove('is-drag');"
+                   ondrop="event.preventDefault(); this.classList.remove('is-drag'); qfAttachUpload(event.dataTransfer.files);">
+              <input type="file" id="qfAttachInput" multiple style="display:none" onchange="qfAttachUpload(this.files); this.value='';" />
+              <span class="qf-attach-hint">📥 ここにドラッグ＆ドロップ、またはクリックして選択<br><small>※ 添付は14日間で自動削除されます</small></span>
+            </label>
+            <div id="qfAttachMeter" class="qf-attach-meter"></div>
+            <div id="qfAttachList" class="qf-attach-list"></div>
           </div>
         </div>
         <button class="fb-section-btn" onclick="openFeedback('管理番号入力')" title="このセクションへのフィードバック">💬 このセクションへのフィードバック</button>
@@ -2548,6 +2600,7 @@
               <button class="cond-prim-btn" data-transport="fcl" onclick="setTransport('fcl')" title="Full Container Load：コンテナ1本貸切。1荷主が1コンテナを専用使用">🚢 FCL</button>
               <button class="cond-prim-btn" data-transport="lcl" onclick="setTransport('lcl')" title="Less than Container Load：混載。複数荷主の貨物を1コンテナに詰め合わせる">🚢 LCL</button>
               <button class="cond-prim-btn" data-transport="air" onclick="setTransport('air')">✈️ Air</button>
+              <button class="cond-prim-btn" data-transport="domestic" onclick="setTransport('domestic')" title="国内手配のみ（国際輸送なし）。国内トラック・倉庫・通関など国内作業の手配">🚚 国内手配のみ</button>
             </div>
             <!-- UI 状態保存用（JSON 読み込み時の復元に使用） -->
             <input type="hidden" id="cond-direction"    value="" />
@@ -2562,6 +2615,7 @@
               <option>海上＋陸上</option>
               <option>航空＋陸上</option>
               <option>陸上のみ</option>
+              <option>国内手配のみ</option>
             </select>
           </div>
           <div class="cond-prim-group">
@@ -2658,6 +2712,13 @@
                          placeholder="例）Shanghai">
                 </div>
                 <button type="button" class="z2-route-add" onclick="addRouteEntry()" title="このキャリア・POL・Via・PODを航路として追加（複数船会社・複数航路の比較見積に対応）">＋ 航路</button>
+              </div>
+              <div class="z2-row z2-tt-row">
+                <span class="z2-label" style="visibility:hidden">🚢</span>
+                <span class="z2-tt-prefix" title="Transit Time（積地→揚地のおおよその所要日数）">⏱️ T/T</span>
+                <input type="text" id="z2Tt" class="z2-input z2-tt-input"
+                       placeholder="輸送日数（任意）例）14日・約2週間・14 days"
+                       title="この航路のおおよその所要日数。「＋ 航路」で航路ごとに保持されます">
               </div>
               <div class="z2-route-list" id="z2RouteList"></div>
               <input type="hidden" id="z2-routes-data" />
@@ -2765,6 +2826,26 @@
               </div>
             </div>
           </div>
+        </div>
+
+        <!-- ▼ 関連知識・他法令（リンクチップ＋知識DB要約） -->
+        <div class="cond-sub">
+          <div class="cond-sub-label">📚 関連知識・他法令 <span class="cond-sub-note">輸出入に必要な規制・手続きの参照</span></div>
+          <div class="cargo-ref-chips" id="cargoRefChips">
+            <button type="button" class="cargo-ref-chip cargo-ref-chip--law" onclick="toggleCargoLawPanel()" title="輸入の他法令（11法令）の要約をその場で表示">📋 輸入 他法令（11法令）</button>
+            <button type="button" class="cargo-ref-chip cargo-ref-chip--in" onclick="gotoRef('docs','regs','regs-import-other-laws')" title="他法令の一覧表（詳細）へ">🔒 他法令タブ ↗</button>
+            <button type="button" class="cargo-ref-chip cargo-ref-chip--in" onclick="gotoRef('docs','regs','')" title="貿易管理令・事前申告（AFR/ACI等）へ">🚢 事前申告/貿易管理 ↗</button>
+            <button type="button" class="cargo-ref-chip cargo-ref-chip--in" onclick="gotoRef('ref','incoterms','')" title="インコタームズの解説へ">📦 インコタームズ ↗</button>
+            <a class="cargo-ref-chip cargo-ref-chip--ext" href="https://www.customs.go.jp/tariff/index.htm" target="_blank" rel="noopener" title="実行関税率表（税関）">🌐 税関 実行関税率表</a>
+            <a class="cargo-ref-chip cargo-ref-chip--ext" href="https://www.kanzei.or.jp/statistical/tariff/top/index/j/" target="_blank" rel="noopener" title="WEBタリフ（関税協会）でHS検索">🌐 WEBタリフ(HS検索)</a>
+            <a class="cargo-ref-chip cargo-ref-chip--ext" href="https://www.maff.go.jp/pps/" target="_blank" rel="noopener" title="植物防疫所（農林水産省）">🌐 植物防疫所</a>
+            <a class="cargo-ref-chip cargo-ref-chip--ext" href="https://www.maff.go.jp/aqs/" target="_blank" rel="noopener" title="動物検疫所（農林水産省）">🌐 動物検疫所</a>
+            <a class="cargo-ref-chip cargo-ref-chip--ext" href="https://www.mhlw.go.jp/stf/seisakunitsuite/bunya/kenkou_iryou/shokuhin/yunyu_kanshi/index.html" target="_blank" rel="noopener" title="輸入食品監視（厚生労働省）">🌐 輸入食品(厚労省)</a>
+            <a class="cargo-ref-chip cargo-ref-chip--ext" href="https://www.meti.go.jp/policy/external_economy/trade_control/index.html" target="_blank" rel="noopener" title="安全保障貿易管理（経済産業省）">🌐 貿易管理(経産省)</a>
+            <a class="cargo-ref-chip cargo-ref-chip--ext" href="https://elaws.e-gov.go.jp/" target="_blank" rel="noopener" title="e-Gov 法令検索">🌐 e-Gov 法令検索</a>
+            <a class="cargo-ref-chip cargo-ref-chip--ext" href="https://www.naccscenter.com/" target="_blank" rel="noopener" title="NACCSセンター（輸出入・港湾関連情報処理センター）">🌐 NACCSセンター</a>
+          </div>
+          <div class="cargo-law-panel" id="cargoLawPanel" hidden></div>
         </div>
 
         <!-- ▼ 危険品・特殊貨物グループ（区分チップ） -->
@@ -3065,25 +3146,38 @@
                         </div>
                       </div>
                     </div>
-                    <div class="cc-spec">
-                      <div class="cc-spec-field cc-spec-field--dims">
-                        <label>📦 貨物の実寸（長さ×幅×高さ）</label>
-                        <div class="cc-dims">
-                          <input type="number" id="cc-cargo-l" class="cc-dim" min="0" step="1" placeholder="長さ" inputmode="numeric" oninput="recalcOverGauge()" /><span class="cc-dim-x">×</span>
-                          <input type="number" id="cc-cargo-w" class="cc-dim" min="0" step="1" placeholder="幅" inputmode="numeric" oninput="recalcOverGauge()" /><span class="cc-dim-x">×</span>
-                          <input type="number" id="cc-cargo-h" class="cc-dim" min="0" step="1" placeholder="高さ" inputmode="numeric" oninput="recalcOverGauge()" /><span class="cc-dim-unit">cm</span>
+                    <div class="cc-spec cc-spec--og">
+                      <div class="cc-og-head">
+                        <div class="cc-og-controls">
+                          <div class="cc-og-ctn">
+                            <label>📐 積載先コンテナ（内寸）</label>
+                            <select id="cc-og-ref" class="cc-spec-input" onchange="recalcOverGauge()">
+                              <option value="20'OT（オープントップ）">20'OT 内寸 589×235×230</option>
+                              <option value="40'OT（オープントップ）">40'OT 内寸 1203×235×230</option>
+                              <option value="20'FR（フラットラック）">20'FR 床面 585×244（高さ制限なし）</option>
+                              <option value="40'FR（フラットラック）">40'FR 床面 1203×244（高さ制限なし）</option>
+                            </select>
+                          </div>
+                          <div class="cc-og-ctn">
+                            <label>↔ 幅方向の列数</label>
+                            <select id="cc-og-cols" class="cc-spec-input cc-og-cols" onchange="recalcOverGauge()">
+                              <option value="auto">自動（幅で判定）</option>
+                              <option value="1">1列</option>
+                              <option value="2">2列</option>
+                              <option value="3">3列</option>
+                            </select>
+                          </div>
                         </div>
+                        <button type="button" class="cc-og-add" onclick="addOverGaugeRow()">＋ 貨物サイズを追加</button>
                       </div>
-                      <div class="cc-spec-field">
-                        <label>📐 基準コンテナ（内寸）</label>
-                        <select id="cc-og-ref" class="cc-spec-input" onchange="recalcOverGauge()">
-                          <option value="20'OT（オープントップ）">20'OT 内寸 589×235×230</option>
-                          <option value="40'OT（オープントップ）">40'OT 内寸 1203×235×230</option>
-                          <option value="20'FR（フラットラック）">20'FR 床面 585×244（高さ制限なし）</option>
-                          <option value="40'FR（フラットラック）">40'FR 床面 1203×244（高さ制限なし）</option>
-                        </select>
+                      <div class="cc-og-listhead">
+                        <span class="cc-ogh-dims">📦 貨物の実寸 長さ×幅×高さ（cm）</span>
+                        <span class="cc-ogh-qty">個数</span>
+                        <span class="cc-ogh-res">判定（幅・高さ）</span>
+                        <span class="cc-ogh-del"></span>
                       </div>
-                      <div class="cc-og-result" id="ccOgResult" data-state="empty">📦 貨物の実寸を入力すると、はみ出し寸法を自動計算します</div>
+                      <div id="ccOgList" class="cc-og-list"></div>
+                      <div class="cc-og-sim" id="ccOgSim" data-state="empty">📦 貨物サイズを入力すると、1本に積めるかシミュレーションします（長さ方向に一列で配置）</div>
                     </div>
                   </div>
                 </div>
@@ -3145,6 +3239,20 @@
       <button class="fb-section-btn" onclick="openFeedback('物量情報')" title="このセクションへのフィードバック">💬 このセクションへのフィードバック</button>
     </div><!-- /section-volume -->
 
+    <!-- 作業範囲（当面は自由入力） -->
+    <div class="condition-section is-collapsible" id="section-scope">
+      <h2 class="section-toggle-head" onclick="toggleQuoteBottomAccordion('section-scope')">
+        <span class="section-caret">▼</span>
+        <span class="section-toggle-title">🛠️ 作業範囲</span>
+        <span class="section-collapsed-summary" id="sumScope"></span>
+      </h2>
+      <div class="scope-body">
+        <p class="section-desc">この見積もりで当社が担当する作業範囲（業務の範囲）を記述します。当面は自由入力です。お客様への出力反映は今後対応予定。</p>
+        <textarea id="qf-scope" class="qf-scope-area" placeholder="例）輸出通関手配、保税搬入、海上スペースブッキング、船積書類（B/L・I/V・P/L）作成、本船手配。&#10;※ 国内集荷・梱包・現地配送は含みません 等"></textarea>
+        <button class="fb-section-btn" onclick="openFeedback('作業範囲')" title="このセクションへのフィードバック">💬 このセクションへのフィードバック</button>
+      </div>
+    </div><!-- /section-scope -->
+
     <!-- ⑤ 全体リマーク -->
     <div class="condition-section remark-section is-collapsible" id="section-remark">
       <h2 class="section-toggle-head" onclick="toggleQuoteBottomAccordion('section-remark')">
@@ -3174,16 +3282,13 @@
       <div id="tableWrap">
         <p class="section-desc">費用項目ごとに <b>支払い（仕入）</b> と <b>請求</b> の数量・通貨・単価を入力します。<b>③ 乗せ幅</b> を入力すると請求単価に自動加算、<b>④ 利益</b> 欄で粗利をリアルタイム確認できます。CSV インポートやカテゴリ順並び替えも利用可能です。<br>
         <span style="font-size:11px;color:var(--text-md);">💡 <b>項目名の先頭にある <code style="background:#fff;padding:1px 4px;border-radius:3px;">*</code> は課税項目を示します</b>（課税欄のチェックで自動付与）。プレビュー画面では消費税列に税額（10% 固定）が表示されます。</span><br>
-        <span style="font-size:11px;color:var(--text-md);">➕ <b>行を追加するには</b>：表の上のツールバー「追加」グループ（＋行 ／ ＝小計 ／ 💬リマーク。挿入位置は「末尾／選択行の下」を選択可）、Tab キー（最終行で次行を自動追加）、または Ctrl+K から「行を追加」を選択してください。</span></p>
+        <span style="font-size:11px;color:var(--text-md);">➕ <b>行を追加するには</b>：各明細行の左にある ➕（行追加）／📋（複製）／🗑️（削除）アイコン、最下行で ↓ キー、Ctrl+D（複製）、または Ctrl+K から「行を追加」を選択してください。リマーク・社内メモは各行の 💬／🔒 から、小計行はツールバーの ＝ から追加できます。</span></p>
         <div class="container">
           <!-- 統合コマンドバー：行操作・選択行・換算レート表示・⚙設定（為替/カテゴリ）を集約 -->
           <div class="quote-cmdbar">
             <div class="cmdbar-main">
-              <span class="btn-group-label">行追加</span>
-              <button class="btn-ins-row cmdbar-icon-btn" onclick="toolbarInsertRow()" title="費用行を追加（明細）">＋</button>
-              <button class="btn-ins-sub cmdbar-icon-btn" onclick="toolbarInsertSubtotal()" title="小計行を追加">＝</button>
-              <button class="btn-ins-rem cmdbar-icon-btn" onclick="toolbarInsertRemark()" title="リマーク（注記）行を追加">💬</button>
-              <button class="btn-ins-int cmdbar-icon-btn" onclick="toolbarInsertInternal()" title="社内メモ行を追加（出力対象外）">🔒</button>
+              <span class="btn-group-label">小計</span>
+              <button class="btn-ins-sub cmdbar-icon-btn" onclick="toolbarInsertSubtotal()" title="小計行を追加（出力にも含まれます。費用行・リマーク・社内メモの追加は各明細行の ➕📋🗑️💬🔒 アイコンから）">＝</button>
               <button class="btn-bulk-pattern cmdbar-pattern-btn" onclick="openRowPatternMgr()" title="行パターン：チェックした行を保存／保存パターンを挿入">🗂️ 行パターン</button>
               <button class="cmdbar-lc-btn" onclick="lcOpenPicker()" title="諸チャージマスターから行を追加">📦 チャージ</button>
               <span class="btn-group-label">挿入位置</span>
@@ -3191,12 +3296,10 @@
                 <option value="end">末尾に追加</option>
                 <option value="selected">選択行の下に挿入</option>
               </select>
-              <label class="cmdbar-tabadd" title="OFFにすると、備考欄でTabを押しても新しい行が追加されません（次の入力欄へ移動するだけ）">
-                <input type="checkbox" id="tabAddChk" checked onchange="toggleTabAdd(this.checked)" />
-                <span>Tabで行追加</span>
-              </label>
               <span class="cmdbar-spacer"></span>
               <button id="clipboardIndicator" class="cmdbar-clipboard-indicator" hidden onclick="clearRowClipboard()" title="クリップボードをクリア">📋 <span id="clipIndicatorCount">0</span>行 ✕</button>
+              <button id="pendingIndicator" class="cmdbar-pending-indicator" hidden onclick="jumpToFirstPending()" title="要調査（後で記入）の行へ移動。クリックで順に巡回します。">🔍 要調査 <span id="pendingCount">0</span>件</button>
+              <button id="doneIndicator" class="cmdbar-done-indicator" hidden onclick="jumpToNextUnfinished()" title="入力完了の進捗。クリックで未完了の最初の行（続きから作業する行）へ移動します。">✅ 完了 <span id="doneCount">0</span>/<span id="doneTotal">0</span></button>
               <details class="cmdbar-more" id="cmdbarMore">
                 <summary class="cmdbar-more-summary" title="その他の操作（配置は検討中）">⋯</summary>
                 <div class="cmdbar-more-pop">
@@ -3286,6 +3389,12 @@
               <input type="text" id="bulkSubconSet" class="bulk-subcon-input" placeholder="サブコン一括設定…" maxlength="40"
                      onkeydown="if(event.key==='Enter'){applyBulkSubcon();}" title="チェックした行のサブコンを一括設定" />
               <button class="btn-bulk-subcon" onclick="applyBulkSubcon()" title="チェックした行のサブコンに左の値を一括設定">設定</button>
+              <input type="text" id="bulkPatternSet" class="bulk-subcon-input" placeholder="📋 パターン一括設定…" maxlength="40"
+                     onkeydown="if(event.key==='Enter'){applyBulkPattern();}" title="チェックした行のパターンを一括設定" />
+              <button class="btn-bulk-subcon" onclick="applyBulkPattern()" title="チェックした行のパターンに左の値を一括設定">設定</button>
+              <input type="number" id="bulkMarkupSet" class="bulk-subcon-input bulk-markup-input" placeholder="＋ 乗せ幅一括…" min="0" step="any"
+                     onkeydown="if(event.key==='Enter'){applyBulkMarkupSet();}" title="チェックした行の乗せ幅（仕入単価に加算）を一括設定" />
+              <button class="btn-bulk-subcon" onclick="applyBulkMarkupSet()" title="チェックした行の乗せ幅に左の値を一括設定">設定</button>
               <span class="cmdbar-spacer"></span>
               <button class="ctx-clear" onclick="clearRowSelection()" title="選択を解除">✕ 選択解除</button>
             </div>
@@ -3325,6 +3434,15 @@
                 </td>
                 <td class="profit-cell profit-zero pr-cell" id="tot-profit">—</td>
               </tr>
+              <tr class="tot-row tot-ps-row" id="totPsRow" hidden>
+                <td></td><td></td><td></td><td></td><td></td><td></td>
+                <td style="text-align:right; color:#6b21a8; font-weight:bold;">社内利益<small style="font-weight:600;">（PS込み）</small></td>
+                <td></td>
+                <td class="tot-amt-cell" style="text-align:right; padding-right:8px; font-weight:bold; background:#f5edfb;">
+                  <span class="t-sell">代理店収益</span> <span id="tot-ps-rev">—</span>
+                </td>
+                <td class="profit-cell pr-cell" id="tot-ps-profit">—</td>
+              </tr>
             </tfoot>
           </table>
           </div>
@@ -3349,7 +3467,7 @@
         </div>
         <!-- タブ切替：要約／輸送／金額 -->
         <div class="qsp-tabs" role="tablist">
-          <button class="qsp-tab" id="qspTabBtn-digest" role="tab" onclick="qspSetTab('digest')">🧭 要約</button>
+          <button class="qsp-tab" id="qspTabBtn-digest" role="tab" onclick="qspSetTab('digest')">🧭 ジャンプ</button>
           <button class="qsp-tab" id="qspTabBtn-flow"   role="tab" onclick="qspSetTab('flow')">🚚 輸送</button>
           <button class="qsp-tab" id="qspTabBtn-fin"    role="tab" onclick="qspSetTab('fin')">💰 金額</button>
           <button class="qsp-tab" id="qspTabBtn-chat"   role="tab" onclick="qspSetTab('chat')">💬 チャット</button>
@@ -3365,8 +3483,7 @@
           <div class="qsp-section-scroll">
             <div class="qsp-milestones" id="qspMilestones" style="display:none;"></div>
             <div class="qsp-carrier-links" id="qspCarrierLinks" style="display:none;"></div>
-            <div class="qsp-cargo-info" id="qspCargoInfo" style="display:none;"></div>
-            <p class="qsp-ref-empty" id="qspRefEmpty">引き合い条件・貨物・物量を入力すると、ここに作業範囲や物量がまとまります</p>
+            <p class="qsp-ref-empty" id="qspRefEmpty">引き合い条件を入力すると、ここに作業範囲やキャリア情報がまとまります（物量情報は「📦 数量」メニューへ移動しました）</p>
           </div>
         </div>
         <!-- 金額タブ：見積テーブルのまとめ -->
@@ -3426,6 +3543,15 @@
           <button id="lcRailInsertBtn" class="lc-rail-insert-btn"
                   onclick="lcRailInsert()" disabled>見積に追加</button>
         </div>
+      </div>
+
+      <!-- ブックマークパネル（右カラム・案件連動キャリア/サブコンリンク） -->
+      <div id="bmRailPanel" class="bm-rail-panel">
+        <div class="bm-rail-head">
+          <span class="bm-rail-title">🔖 この案件のリンク</span>
+          <button class="bm-rail-manage" onclick="document.querySelector('.cat-btn-bookmark')?.click()" title="全ブックマークを管理（上部 BOOKMARK タブ）">⚙ 管理</button>
+        </div>
+        <div id="bmRailChips" class="bm-rail-chips"></div>
       </div>
 
       </div><!-- /.quote-right-col -->
@@ -3490,71 +3616,95 @@
     <!-- ========== プレビューモーダル ========== -->
     <div id="previewOverlay" onclick="overlayClick(event)">
       <div id="previewBox">
-        <h2>📋 プレビュー（表計算形式）</h2>
-        <div class="pv-layout-row">
-          <span class="pv-viewmode-label">🧾 レイアウト：</span>
-          <button class="save-btn pv-layout-btn" data-pvl="table" onclick="setPreviewLayout('table')" title="表計算形式：明細を編集チェック向けの表で表示">📋 表計算</button>
-          <button class="save-btn pv-layout-btn is-on" data-pvl="doc" onclick="setPreviewLayout('doc')" title="御見積書フォーマット：客先提出と同じ体裁で表示">📄 見積書</button>
-        </div>
-        <div id="pvMeta" class="pv-meta" style="display:none;"></div>
-        <div id="pvCondBox" style="display:none;"><strong>🚢 引き合い条件</strong></div>
-        <div id="pvCargoBox" style="display:none;"></div>
-        <div id="previewTableWrap"></div>
-        <div id="previewDocWrap"></div>
-        <div id="pvTaxBox" class="pv-tax-box">
-          <label class="pv-tax-label">🧾 消費税：</label>
-          <span class="pv-tax-fixed" id="pvTaxRateLabel">10%（標準）</span>
-          <input type="hidden" id="pvTaxRate" value="10">
-          <span class="pv-tax-detail">消費税額: <b id="pvTaxAmount">—</b>　税込合計: <b id="pvTaxTotal">—</b></span>
-          <span id="pvTotalSubtotal" data-raw="0" style="display:none;"></span>
-        </div>
-        <div id="pvRemarkBox" style="display:none;"><strong>📝 条件・リマーク</strong></div>
-        <div id="pvAuditMeta" class="pv-audit-meta"></div>
-        <div class="pv-btns">
-          <button class="pv-btn-pdf" style="background:#1a3a6b; color:#fff; border-color:#1a3a6b;" onclick="openQuoteDoc()">📄 御見積書フォーマット</button>
-          <button class="pv-btn-email-plain" onclick="copyQuoteEmailPlain()" title="見積サマリをメール本文（プレーンテキスト）としてコピー">✉️ メール本文（プレーン）</button>
-          <button class="pv-btn-email-rich" onclick="copyQuoteEmailRich()" title="見積サマリをメール本文（リッチテキスト／表組み）としてコピー">📧 メール本文（リッチ）</button>
-          <button class="pv-btn-email-plain" onclick="copyQuoteEmailPlainDetail()" title="区間・カテゴリ別の明細行（項目名／数量／単位／単価／金額／備考）を含むメール本文（プレーンテキスト）としてコピー">✉️ メール本文（明細・プレーン）</button>
-          <button class="pv-btn-email-rich" onclick="copyQuoteEmailRichDetail()" title="区間・カテゴリ別の明細表（項目名／数量／単位／単価／金額／備考）を含むメール本文（リッチテキスト／表組み）としてコピー">📧 メール本文（明細・リッチ）</button>
-          <button class="pv-btn-close" onclick="closePreview()">閉じる</button>
-          <span class="pv-copy-msg" id="copyMsg">✅ コピーしました！</span>
-        </div>
-        <details class="pv-customize-wrap" id="pvCustomizeWrap">
-          <summary class="pv-customize-toggle">⚙️ 表示カスタマイズ</summary>
-          <div class="pv-customize-body">
-            <div class="pv-cust-group">
-              <span class="pv-cust-label">表示列：</span>
-              <label><input type="checkbox" class="pv-col-chk" data-col="cat"     checked> カテゴリ</label>
-              <label><input type="checkbox" class="pv-col-chk" data-col="pay"     checked> 原価列（数量/通貨/単価/CD）</label>
-              <label><input type="checkbox" class="pv-col-chk" data-col="unit"    checked> 単位</label>
-              <label><input type="checkbox" class="pv-col-chk" data-col="bill"    checked> 請求列（数量/通貨/単価）</label>
-              <label><input type="checkbox" class="pv-col-chk" data-col="mk"       checked> 乗せ幅</label>
-              <label><input type="checkbox" class="pv-col-chk" data-col="jpy-conv" checked> 円換算</label>
-              <label><input type="checkbox" class="pv-col-chk" data-col="tax-col"  checked> 消費税</label>
-              <label><input type="checkbox" class="pv-col-chk" data-col="profit"  checked> 利益</label>
-              <label><input type="checkbox" class="pv-col-chk" data-col="note"    checked> 備考</label>
-              <label><input type="checkbox" class="pv-col-chk" data-col="sv"      checked> サブコン</label>
-            </div>
-            <div class="pv-cust-group">
-              <span class="pv-cust-label">セクション：</span>
-              <label><input type="checkbox" class="pv-sec-chk" data-sec="meta"         checked> 見積番号/お客様/担当</label>
-              <label><input type="checkbox" class="pv-sec-chk" data-sec="cond"         checked> 引き合い条件</label>
-              <label><input type="checkbox" class="pv-sec-chk" data-sec="cargo"        checked> 貨物ボリューム情報</label>
-              <label><input type="checkbox" class="pv-sec-chk" data-sec="remark"       checked> 条件・リマーク</label>
-              <label><input type="checkbox" class="pv-sec-chk" data-sec="table-remark" checked> テーブル内リマーク行</label>
-              <label><input type="checkbox" class="pv-sec-chk" data-sec="tax"          checked> 消費税</label>
+        <!-- ===== 左レール：レイアウト切替＋表示カスタマイズ ===== -->
+        <aside class="pv-rail">
+          <div class="pv-rail-head">
+            <h2>📋 プレビュー</h2>
+          </div>
+          <div class="pv-rail-grp">
+            <div class="pv-rail-h3">レイアウト</div>
+            <div class="pv-rail-seg">
+              <button class="pv-layout-btn" data-pvl="table" onclick="setPreviewLayout('table')" title="表計算形式：明細を編集チェック向けの表で表示">📋 表計算</button>
+              <button class="pv-layout-btn is-on" data-pvl="doc" onclick="setPreviewLayout('doc')" title="御見積書フォーマット：客先提出と同じ体裁で表示">📄 見積書</button>
             </div>
           </div>
-        </details>
-        <p class="pv-hint">
-          ※ CSV はデータ行のみ出力（カテゴリ列を先頭に付与）。再読み込みにも対応。<br>
-          ※ <b>項目名の先頭にある <code>*</code> は課税項目を示します</b>（課税欄のチェックで自動付与）。消費税の列・税率は「消費税」セクションで設定できます。
-        </p>
+          <!-- pvCustomizeWrap id 維持（JS の listenerSet ガードと互換） -->
+          <div class="pv-rail-customize" id="pvCustomizeWrap">
+            <div class="pv-rail-grp">
+              <div class="pv-rail-h3">表示列</div>
+              <label class="pv-sw"><span>カテゴリ</span><input type="checkbox" class="pv-col-chk" data-col="cat" checked></label>
+              <label class="pv-sw"><span>原価列（数量/通貨/単価/CD）</span><input type="checkbox" class="pv-col-chk" data-col="pay" checked></label>
+              <label class="pv-sw"><span>単位</span><input type="checkbox" class="pv-col-chk" data-col="unit" checked></label>
+              <label class="pv-sw"><span>請求列（数量/通貨/単価）</span><input type="checkbox" class="pv-col-chk" data-col="bill" checked></label>
+              <label class="pv-sw"><span>乗せ幅</span><input type="checkbox" class="pv-col-chk" data-col="mk" checked></label>
+              <label class="pv-sw"><span>円換算</span><input type="checkbox" class="pv-col-chk" data-col="jpy-conv" checked></label>
+              <label class="pv-sw"><span>消費税</span><input type="checkbox" class="pv-col-chk" data-col="tax-col" checked></label>
+              <label class="pv-sw"><span>利益</span><input type="checkbox" class="pv-col-chk" data-col="profit" checked></label>
+              <label class="pv-sw"><span>備考</span><input type="checkbox" class="pv-col-chk" data-col="note" checked></label>
+              <label class="pv-sw"><span>サブコン</span><input type="checkbox" class="pv-col-chk" data-col="sv" checked></label>
+            </div>
+            <div class="pv-rail-grp">
+              <div class="pv-rail-h3">セクション</div>
+              <label class="pv-sw"><span>見積番号/お客様/担当</span><input type="checkbox" class="pv-sec-chk" data-sec="meta" checked></label>
+              <label class="pv-sw"><span>引き合い条件</span><input type="checkbox" class="pv-sec-chk" data-sec="cond" checked></label>
+              <label class="pv-sw"><span>貨物ボリューム情報</span><input type="checkbox" class="pv-sec-chk" data-sec="cargo" checked></label>
+              <label class="pv-sw"><span>作業範囲</span><input type="checkbox" class="pv-sec-chk" data-sec="scope" checked></label>
+              <label class="pv-sw"><span>条件・リマーク</span><input type="checkbox" class="pv-sec-chk" data-sec="remark" checked></label>
+              <label class="pv-sw"><span>テーブル内リマーク行</span><input type="checkbox" class="pv-sec-chk" data-sec="table-remark" checked></label>
+              <label class="pv-sw"><span>消費税</span><input type="checkbox" class="pv-sec-chk" data-sec="tax" checked></label>
+            </div>
+          </div>
+        </aside>
+        <!-- ===== メイン：ヘッダー＋スクロール本体 ===== -->
+        <div class="pv-main">
+          <div class="pv-main-head">
+            <span class="pv-main-title">📋 プレビュー（表計算形式）</span>
+            <span class="pv-main-sp"></span>
+            <div class="pv-btns">
+              <button class="pv-btn-pdf" style="background:#1a3a6b; color:#fff; border-color:#1a3a6b;" onclick="openQuoteDoc()">📄 御見積書フォーマット</button>
+              <button class="pv-btn-email-plain" onclick="copyQuoteEmailPlain()" title="見積サマリをメール本文（プレーンテキスト）としてコピー">✉️ メール本文（プレーン）</button>
+              <button class="pv-btn-email-rich" onclick="copyQuoteEmailRich()" title="見積サマリをメール本文（リッチテキスト／表組み）としてコピー">📧 メール本文（リッチ）</button>
+              <button class="pv-btn-email-plain" onclick="copyQuoteEmailPlainDetail()" title="区間・カテゴリ別の明細行を含むメール本文（プレーンテキスト）としてコピー">✉️ メール本文（明細・プレーン）</button>
+              <button class="pv-btn-email-rich" onclick="copyQuoteEmailRichDetail()" title="区間・カテゴリ別の明細表を含むメール本文（リッチテキスト）としてコピー">📧 メール本文（明細・リッチ）</button>
+              <button class="pv-btn-print" onclick="printFitPage('landscape')" title="A4横サイズにフィットして印刷（全列を収める）">🖨️ A4横フィット</button>
+              <button class="pv-btn-print" onclick="printFitPage('portrait')" title="A4縦サイズにフィットして印刷（全列を収める）">🖨️ A4縦フィット</button>
+              <button class="pv-btn-close" onclick="closePreview()">閉じる</button>
+              <span class="pv-copy-msg" id="copyMsg">✅ コピーしました！</span>
+            </div>
+          </div>
+          <div class="pv-main-scroll">
+            <!-- 御見積書(doc)レイアウト用の発行日／有効期限 編集バー -->
+            <div id="pvDateEdit" class="pv-date-edit">
+              <label class="pv-de-item"><span>発行日</span><input type="date" id="pvDocDate" onchange="pvSyncDate('date', this.value)" title="フォームの発行日と同期します（御見積書に反映）" /></label>
+              <label class="pv-de-item"><span>有効期限</span><input type="date" id="pvDocValid" onchange="pvSyncDate('valid', this.value)" title="フォームの有効期限と同期します（御見積書に反映）" /></label>
+            </div>
+            <div id="pvMeta" class="pv-meta" style="display:none;"></div>
+            <div id="pvCondBox" style="display:none;"><strong>🚢 引き合い条件</strong></div>
+            <div id="pvCargoBox" style="display:none;"></div>
+            <div id="previewTableWrap"></div>
+            <div id="previewDocWrap"></div>
+            <div id="pvTaxBox" class="pv-tax-box">
+              <label class="pv-tax-label">🧾 消費税：</label>
+              <span class="pv-tax-fixed" id="pvTaxRateLabel">10%（標準）</span>
+              <input type="hidden" id="pvTaxRate" value="10">
+              <span class="pv-tax-detail">消費税額: <b id="pvTaxAmount">—</b>　税込合計: <b id="pvTaxTotal">—</b></span>
+              <span id="pvTotalSubtotal" data-raw="0" style="display:none;"></span>
+            </div>
+            <div id="pvScopeBox" style="display:none;"><strong>🛠️ 作業範囲</strong></div>
+            <div id="pvRemarkBox" style="display:none;"><strong>📝 条件・リマーク</strong></div>
+            <div id="pvAuditMeta" class="pv-audit-meta"></div>
+            <p class="pv-hint">
+              ※ CSV はデータ行のみ出力（カテゴリ列を先頭に付与）。再読み込みにも対応。<br>
+              ※ <b>項目名の先頭にある <code>*</code> は課税項目を示します</b>（課税欄のチェックで自動付与）。消費税の列・税率は「消費税」セクションで設定できます。
+            </p>
+          </div>
+        </div>
       </div>
     </div>
 
     <!-- ===== 行テンプレート ===== -->
     <datalist id="svSuggestions"></datalist>
+    <datalist id="ptSuggestions"></datalist>
     <datalist id="nmSuggestions"></datalist>
     <datalist id="custSuggestions"></datalist>
 
@@ -3584,12 +3734,23 @@
       </td>
       <td class="handle-cell">
         <span class="drag-handle" title="ドラッグして並び替え">⠿</span>
-        <button class="cnt-link-btn" onclick="window.toggleCntLink?.(this)" title="コンテナ本数に数量を連動（FCL）" tabindex="-1">⛓</button>
+        <!-- コンテナ本数連動アイコンは一旦 UI から非表示（機能・JSロジックは残置：window.toggleCntLink / _syncContainerLinkedRows / cntLink 復元）。
+             再表示する場合は以下のボタンを戻すこと：
+        <button class="cnt-link-btn" onclick="window.toggleCntLink?.(this)" title="コンテナ本数に数量を連動（FCL）" tabindex="-1">⛓</button> -->
+        <div class="row-acts">
+          <button class="row-hidequote-btn" onclick="window.toggleRowHideQuote?.(this)" title="この行を見積書（プレビュー客先表示・PDF・Excel・CSV）に出力しない" tabindex="-1">👁</button>
+          <button class="row-pending-btn" onclick="window.toggleRowPending?.(this)" title="後で調べて記入（要調査マーク）。サーチャージ等、最新情報を調べてから埋める項目に。" tabindex="-1">🔍</button>
+          <button class="row-done-btn" onclick="window.toggleRowDone?.(this)" title="入力完了の目印。作成を再開したとき、どこまで終わったか分かります（もう一度クリックで解除）。" tabindex="-1">✓</button>
+          <button class="row-add-btn" onclick="window.rowAddBelow?.(this)" title="この行の直下に新しい行を追加" tabindex="-1">➕</button>
+          <button class="row-dup-btn" onclick="window.rowDuplicate?.(this)" title="この行を複製して直下に挿入" tabindex="-1">📋</button>
+          <button class="row-del-btn" onclick="window.rowDelete?.(this)" title="この行を削除" tabindex="-1">🗑️</button>
+        </div>
       </td>
       <td class="catsv-cell stk-cell">
         <div class="stk">
           <select class="w-cat" data-field="cat" data-col="0"></select>
           <input type="text" data-field="sv" class="w-subcon" placeholder="サブコン" list="svSuggestions" />
+          <input type="text" data-field="pt" class="w-pattern" placeholder="パターン（任意）" title="サブコン内をさらに分けるパターン名（任意）。同じパターン名の行がサブコン配下で入れ子のグループ・小計になります。" />
         </div>
       </td>
       <td class="name-cell">
@@ -3599,11 +3760,15 @@
           <button type="button" class="btn-row-rem" tabindex="-1" title="備考欄のテキストを引用して直下に備考行を挿入（空でも可）">💬</button>
           <button type="button" class="btn-row-int" tabindex="-1" title="備考欄のテキストを引用して直下に社内メモを挿入（空でも可）">🔒</button>
         </div>
-        <div class="w-valid" title="有効期限。開始日のみ入力も可（例：7/1〜 → 7/1 のみ）。終了日のみも可。">
+        <div class="w-valid" title="サーチャージ適用期間。開始日のみ／終了日のみも可。見積もり提示日（＝見積全体の有効期限。未設定なら発行日→今日）がこの期間を外れると、その行は客先見積もり・PDF・Excel・CSV・合計から自動的に除外されます（社内モードではグレー表示）。">
           <span class="w-valid-lbl">有効</span>
           <input type="date" data-field="vf" class="w-valid-date" title="適用開始日（終了日なしでも保存・表示されます）" />
           <span class="w-valid-sep">〜</span>
           <input type="date" data-field="vt" class="w-valid-date" title="適用終了日（省略可）" />
+        </div>
+        <div class="w-updated" title="この行の最終更新日（社内管理用・客先出力には含まれません）。サブコン／パターン見出しからまとめて設定もできます。">
+          <span class="w-updated-lbl">🕒 更新</span>
+          <input type="date" data-field="lu" class="w-updated-date" />
         </div>
       </td>
       <td class="qty-cell">
@@ -3627,7 +3792,16 @@
           <span class="stk-mk"><span class="stk-mk-plus" title="乗せ幅（仕入単価に加算 → 売単価）">＋</span><input type="number" data-field="mk" class="w-mkup" min="0" value="0" data-col="5" title="乗せ幅：仕入単価に加算して売単価になります" /></span>
         </div>
         <input type="hidden" data-field="zc" value="">
-        <button type="button" class="zero-confirm-btn" tabindex="-1" title="0円確認済みにする（もう一度クリックで解除）">¥0✓</button>
+        <input type="hidden" data-field="ac" value="">
+        <input type="hidden" data-field="ps" value="">
+        <input type="hidden" data-field="co" value="">
+        <div class="row-mode-btns">
+          <button type="button" class="zero-confirm-btn" tabindex="-1" title="0円確認済みにする（もう一度クリックで解除）">¥0✓</button>
+          <button type="button" class="actual-cost-btn" tabindex="-1" title="実費（金額未確定・別途精算）。単価・金額に「実費」と表示し、合計から除外します（もう一度クリックで解除）。">実費</button>
+          <button type="button" class="profit-share-btn" tabindex="-1" title="PROFIT SHARE（代理店収益）。客先見積もりには出さず、社内の利益・粗利率にのみ計上します（もう一度クリックで解除）。">PS</button>
+          <button type="button" class="cond-charge-btn" tabindex="-1" title="発生時のみ／必要時のみ請求。金額は客先にも表示しますが、見積もり合計には加算しません（もう一度クリックで解除）。">都度</button>
+        </div>
+        <span class="actual-cost-badge" aria-hidden="true">実費</span>
       </td>
       <td class="tax-cell"><input type="checkbox" data-field="tx" title="ON にすると消費税 10% が自動計算され、項目名先頭に「*」が付きます。免税（非課税）の行は OFF のままにしてください。"></td>
       <td class="subtotal-cell" data-field="st">—</td>
@@ -3768,6 +3942,8 @@
       <button class="stats-tab-btn"           role="tab" aria-selected="false" aria-controls="statsPane-nm"       id="statsTabBtn-nm"       onclick="statsSetPane('nm')">📝 品名</button>
       <button class="stats-tab-btn"           role="tab" aria-selected="false" aria-controls="statsPane-un"       id="statsTabBtn-un"       onclick="statsSetPane('un')">📐 単位</button>
       <button class="stats-tab-btn"           role="tab" aria-selected="false" aria-controls="statsPane-charges"  id="statsTabBtn-charges"  onclick="statsSetPane('charges')">💰 チャージ</button>
+      <button class="stats-tab-btn"           role="tab" aria-selected="false" aria-controls="statsPane-svport"   id="statsTabBtn-svport"   onclick="statsSetPane('svport')">🔗 サブコン×港</button>
+      <button class="stats-tab-btn"           role="tab" aria-selected="false" aria-controls="statsPane-pattern"  id="statsTabBtn-pattern"  onclick="statsSetPane('pattern')">🔖 パターン別</button>
       <button class="stats-tab-btn"           role="tab" aria-selected="false" aria-controls="statsPane-kpi"      id="statsTabBtn-kpi"      onclick="statsSetPane('kpi')">📈 KPI</button>
       <div class="stats-tab-group-sep"></div>
       <span class="stats-tab-group-label">マスター管理・是正</span>
@@ -3791,6 +3967,8 @@
       <div class="stats-pane-toolbar"><button class="stats-export-btn" onclick="statsExportCsv('un')">📥 CSV</button></div>
     </div>
     <div id="statsPane-charges"  class="stats-pane" role="tabpanel" aria-labelledby="statsTabBtn-charges"></div>
+    <div id="statsPane-svport"   class="stats-pane" role="tabpanel" aria-labelledby="statsTabBtn-svport"></div>
+    <div id="statsPane-pattern"  class="stats-pane" role="tabpanel" aria-labelledby="statsTabBtn-pattern"></div>
     <div id="statsPane-kpi"      class="stats-pane" role="tabpanel" aria-labelledby="statsTabBtn-kpi"></div>
     <div id="statsPane-master"   class="stats-pane" role="tabpanel" aria-labelledby="statsTabBtn-master"></div>
     <div id="statsPane-alias"    class="stats-pane" role="tabpanel" aria-labelledby="statsTabBtn-alias"></div>
@@ -3800,6 +3978,9 @@
   <div class="tab-content" id="tab-bookmark">
     <div class="bm-page-head">
       <h2 class="bm-page-title">🔖 チームブックマーク</h2>
+      <button class="bm-add-btn" id="bmDedupBtn" onclick="openBmDedup()" hidden title="重複登録を検出して1件に統合・削除します">🧹 重複整理</button>
+      <button class="bm-add-btn" id="bmHistBtn" onclick="openBmHistory()" hidden title="チームの編集履歴（追加・更新・削除）を表示">🕘 履歴</button>
+      <button class="bm-add-btn" id="bmSeedBtn" onclick="seedCarrierBookmarks()" hidden title="内蔵の船会社リンク（FCL/LCL/AIR）を未登録分だけチーム共有へ取り込みます">🌱 内蔵リンク取込</button>
       <button class="bm-add-btn" id="bmAddBtn" onclick="openAddBmModal()" hidden>＋ 追加</button>
     </div>
 
@@ -3930,21 +4111,6 @@
 <div id="quoteActionDock">
   <button class="qad-btn qad-preview" onclick="openPreview()" title="見積をプレビュー表示・CSV/Excel/PDF出力はここから（Ctrl+P）">📋 プレビュー</button>
   <button class="qad-btn qad-save" id="qadMode" onclick="qpDockAction()" title="閲覧中は編集を開始／編集中は保存して作業終了">💾 保存</button>
-</div>
-
-<!-- シナリオ比較プレビューオーバーレイ -->
-<div id="scPreviewOverlay" hidden onclick="closeScenarioPreview(event)">
-  <div class="sc-pv-box" onclick="event.stopPropagation()">
-    <div class="sc-pv-head">
-      <span class="sc-pv-title">📊 シナリオ比較プレビュー</span>
-      <button class="sc-pv-close" type="button" onclick="closeScenarioPreview()" aria-label="閉じる">×</button>
-    </div>
-    <div id="scPreviewContent" class="sc-pv-body"></div>
-    <div class="sc-pv-foot">
-      <button class="sc-pv-print-btn" type="button" onclick="printScenarioPreview()">🖨️ 印刷</button>
-      <button type="button" onclick="closeScenarioPreview()">閉じる</button>
-    </div>
-  </div>
 </div>
 
 <!-- 類似見積プレビューモーダル -->
@@ -4094,7 +4260,8 @@
         <label class="lc-form-label">金額目安</label>
         <input id="lc_amount" class="lc-form-input lc-form-input--num" type="number" min="0" placeholder="0">
         <select id="lc_currency" class="lc-form-select lc-form-select--cur"></select>
-        <select id="lc_unit"     class="lc-form-select lc-form-select--unit"></select>
+        <input id="lc_unit" class="lc-form-input lc-form-input--unit" type="text" list="lcUnitList" autocomplete="off" placeholder="単位（自由入力）">
+        <datalist id="lcUnitList"></datalist>
       </div>
       <div class="lc-form-row">
         <label class="lc-form-label">積み港（POL）</label>
@@ -4121,13 +4288,23 @@
         <input id="lc_note" class="lc-form-input" type="text" placeholder="補足情報">
       </div>
       <div class="lc-form-row lc-form-row--full">
-        <label class="lc-form-label">添付ファイル</label>
-        <div class="lc-attach-wip">
-          🚧 準備中 — アナウンス PDF などの添付は近日対応予定です。
+        <label class="lc-form-label">添付ファイル <span class="lc-form-hint">アナウンス PDF・タリフ等（5MBまで）</span></label>
+        <div id="lcAttachZone" class="lc-attach-zone">
+          <div id="lcAttachEmpty" class="lc-attach-empty">
+            <label class="lc-file-label-btn" for="lc_file">📎 ファイルを選択</label>
+            <input id="lc_file" class="lc-file-input" type="file" onchange="lcHandleFileChange(this)">
+            <span class="lc-attach-hint">ここにドラッグ＆ドロップ・貼り付けも可</span>
+          </div>
+          <div id="lcAttachSelected" class="lc-attach-selected" style="display:none">
+            <span class="lc-attach-icon-text">📄</span>
+            <a id="lcAttachFileName" class="lc-attach-name" target="_blank" rel="noopener">ファイル名</a>
+            <button type="button" class="lc-attach-remove" onclick="lcClearAttach()">削除</button>
+          </div>
         </div>
       </div>
     </div>
     <div class="lc-modal-footer">
+      <button class="lc-save-cont-btn" onclick="lcSaveAndContinue()" title="保存後、共通項目を残したまま続けて次の費用を入力できます">💾 保存して続けて入力</button>
       <button class="lc-save-btn" onclick="lcSaveCharge()">💾 保存</button>
       <button class="lc-cancel-btn" onclick="lcCloseForm()">キャンセル</button>
     </div>
@@ -4214,6 +4391,7 @@
             <option value="貿易条件・輸送モード">貿易条件・輸送モード</option>
             <option value="貨物情報">貨物情報</option>
             <option value="物量情報">物量情報</option>
+            <option value="作業範囲">作業範囲</option>
             <option value="見積もりテーブル">見積もりテーブル</option>
             <option value="全体リマーク">全体リマーク</option>
             <option value="LCL キャリア">LCL キャリア</option>
@@ -4250,6 +4428,9 @@
 
 <div id="toast-container"></div>
 
+<!-- 見積もりタブへ戻るフローティングボタン（見積以外のタブ表示中だけ出る） -->
+<button id="backToQuoteFab" type="button" hidden onclick="switchCategory('quote', document.querySelector('.cat-btn'))" title="見積もりタブへ戻る">← 見積もりに戻る</button>
+
 <!-- ======= ブックマーク追加モーダル ======= -->
 <div id="bmAddModal" class="bm-modal-overlay" onclick="closeAddBmModal(event)">
   <div class="bm-modal-box">
@@ -4273,13 +4454,14 @@
           <select id="bmFormType" class="bm-form-sel">
             <option value="FCL">FCL 船会社</option>
             <option value="LCL">LCL キャリア</option>
+            <option value="AIR">AIR 航空</option>
             <option value="general">汎用</option>
           </select>
         </div>
         <div>
-          <label class="bm-form-label" for="bmFormFunction">機能 <span class="bm-required">必須</span></label>
+          <label class="bm-form-label" for="bmFormFunction">機能 <span class="bm-optional">任意 — 後で整理できます</span></label>
           <select id="bmFormFunction" class="bm-form-sel">
-            <option value="">— 選択 —</option>
+            <option value="未分類">未分類</option>
             <option>スケジュール</option>
             <option>航路</option>
             <option>輸入サーチャージ</option>
@@ -4294,7 +4476,7 @@
         </div>
       </div>
       <div class="bm-form-row" id="bmCarrierRow">
-        <label class="bm-form-label" for="bmFormCarrier">会社名 <span class="bm-optional">省略可</span></label>
+        <label class="bm-form-label" for="bmFormCarrier">会社名（サブコン・キャリア名） <span class="bm-optional">任意 — 入れておくと見積タブのチップに表示されます</span></label>
         <input type="text" id="bmFormCarrier" class="bm-form-input" placeholder="例：Maersk" list="bmCarrierDatalist">
         <datalist id="bmCarrierDatalist"></datalist>
         <span class="bm-carrier-hint" id="bmCarrierNote" style="display:none">📌 見積タブの幹線輸送に登録されたキャリア名と一致させることで、QSP チップに自動表示されます</span>
@@ -4309,6 +4491,83 @@
         <button type="submit" class="bm-btn-save" id="bmSaveBtn">保存</button>
       </div>
     </form>
+  </div>
+</div>
+
+<!-- ======= ブックマーク変更履歴モーダル ======= -->
+<div id="bmRelationModal" class="bm-modal-overlay" onclick="closeBmRelation(event)">
+  <div class="bm-modal-box">
+    <div class="bm-modal-head">
+      <h3>🔗 関連会社を登録</h3>
+      <button class="bm-modal-close" onclick="document.getElementById('bmRelationModal').classList.remove('open')" aria-label="閉じる">✕</button>
+    </div>
+    <div class="bm-form">
+      <div class="bm-form-row">
+        <div class="bm-rename-info">「<b id="bmRelFrom"></b>」と関連する会社を登録します（統合はせず、双方の名前・ブックマークをそのまま残します）</div>
+      </div>
+      <div class="bm-form-row">
+        <label class="bm-form-label" for="bmRelInput">関連する会社名</label>
+        <input type="text" id="bmRelInput" class="bm-form-input" list="bmRelDatalist" placeholder="例：SITC" maxlength="100">
+        <datalist id="bmRelDatalist"></datalist>
+      </div>
+      <div class="bm-form-row">
+        <label class="bm-form-label" for="bmRelLabel">関係の種類</label>
+        <input type="text" id="bmRelLabel" class="bm-form-input" placeholder="例：代理店" maxlength="30">
+        <span class="bm-carrier-hint">登録すると、見積タブで片方のキャリアを選んだとき、もう片方に登録したリンクも一緒に表示されます</span>
+      </div>
+      <div class="bm-modal-foot">
+        <button type="button" class="bm-btn-cancel" onclick="document.getElementById('bmRelationModal').classList.remove('open')">キャンセル</button>
+        <button type="button" class="bm-btn-save" onclick="bmDoAddRelation()">登録</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="bmRenameModal" class="bm-modal-overlay" onclick="closeBmRename(event)">
+  <div class="bm-modal-box">
+    <div class="bm-modal-head">
+      <h3>🔗 社名の変更・統合</h3>
+      <button class="bm-modal-close" onclick="document.getElementById('bmRenameModal').classList.remove('open')" aria-label="閉じる">✕</button>
+    </div>
+    <div class="bm-form">
+      <div class="bm-form-row">
+        <div class="bm-rename-info">「<b id="bmRenameFrom"></b>」の <b id="bmRenameCount"></b> 件の社名を変更します</div>
+      </div>
+      <div class="bm-form-row">
+        <label class="bm-form-label" for="bmRenameInput">新しい社名</label>
+        <input type="text" id="bmRenameInput" class="bm-form-input" list="bmRenameDatalist" placeholder="例：内外トランスライン" maxlength="100">
+        <datalist id="bmRenameDatalist"></datalist>
+        <span class="bm-carrier-hint">既存の社名を入力すると、その会社に統合されます（リンクが1つのタイルにまとまります）</span>
+      </div>
+      <div class="bm-modal-foot">
+        <button type="button" class="bm-btn-cancel" onclick="document.getElementById('bmRenameModal').classList.remove('open')">キャンセル</button>
+        <button type="button" class="bm-btn-save" onclick="bmDoRename()">変更・統合</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="bmDedupModal" class="bm-modal-overlay" onclick="closeBmDedup(event)">
+  <div class="bm-modal-box bm-hist-box">
+    <div class="bm-modal-head">
+      <h3>🧹 重複の統合・削除</h3>
+      <button class="bm-modal-close" onclick="document.getElementById('bmDedupModal').classList.remove('open')" aria-label="閉じる">✕</button>
+    </div>
+    <div class="bm-hist-list" id="bmDedupList">
+      <div class="bm-empty">読み込み中…</div>
+    </div>
+  </div>
+</div>
+
+<div id="bmHistModal" class="bm-modal-overlay" onclick="closeBmHistory(event)">
+  <div class="bm-modal-box bm-hist-box">
+    <div class="bm-modal-head">
+      <h3>🕘 ブックマーク変更履歴</h3>
+      <button class="bm-modal-close" onclick="document.getElementById('bmHistModal').classList.remove('open')" aria-label="閉じる">✕</button>
+    </div>
+    <div class="bm-hist-list" id="bmHistList">
+      <div class="bm-empty">読み込み中…</div>
+    </div>
   </div>
 </div>
 

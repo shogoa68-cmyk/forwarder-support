@@ -18,7 +18,7 @@
   let _cloudInited = false;
 
   // 案件ステータス定義（順序＝表示順、key は DB 保存値）
-  const CLOUD_STATUSES = ['下書き中', '提出済み', '受注', '失注', '辞退', '保留'];
+  const CLOUD_STATUSES = ['下書き中', '提出済み', 'ヨコヨコ提示', '受注', '失注', '辞退', '保留'];
   const CLOUD_STATUS_DEFAULT = '下書き中';
 
   // 一覧キャッシュ＋絞り込み状態（フェーズ1：クライアント側フィルタ）
@@ -257,7 +257,7 @@
   }
 
   // ダッシュボードの並び替え
-  const _STATUS_ORDER = { '下書き中': 0, '提出済み': 1, '受注': 2, '失注': 3, '辞退': 4, '保留': 5 };
+  const _STATUS_ORDER = { '下書き中': 0, '提出済み': 1, 'ヨコヨコ提示': 2, '受注': 3, '失注': 4, '辞退': 5, '保留': 6 };
   function _sortCloudRows(rows) {
     const s = _cloudSort || 'updated';
     const upd = e => e.updated_at || '';
@@ -350,7 +350,7 @@
     return st === '提示済み' ? '提出済み' : (st || '');
   }
   function _statusClass(st) {
-    return { '下書き中':'draft', '提出済み':'sent', '提示済み':'sent', '受注':'won', '失注':'lost', '辞退':'declined', '保留':'hold' }[st] || 'draft';
+    return { '下書き中':'draft', '提出済み':'sent', '提示済み':'sent', 'ヨコヨコ提示':'yoko', '受注':'won', '失注':'lost', '辞退':'declined', '保留':'hold' }[st] || 'draft';
   }
 
   // 依頼受信日・提出期限から経過日／残り日数バッジを生成（ダッシュボード優先度表示）
@@ -447,7 +447,9 @@
       const custDd = [customer && escHtml(customer), personH && escHtml(personH)].filter(Boolean).join('・');
       const titleText = (m && m.ref) ? m.ref : r.name;   // 見出しは仮REF#のみ（顧客/担当は下に別掲）
       const memoLine  = (m && m.memo) ? m.memo : '';
-      const dueBadge  = _dueBadge(m && m.due);
+      // 締切バッジ（締切超過／締切まで）は下書き中の案件のみ表示。提出済み以降は締切が無意味なため出さない
+      const isDraftStatus = _normalizeStatus(status) === '下書き中';
+      const dueBadge  = isDraftStatus ? _dueBadge(m && m.due) : '';
       const recvBadge = _receivedBadge(m && m.received);
       const prioRow   = (dueBadge || recvBadge) ? '<div class="cloud-card-prio">' + dueBadge + recvBadge + '</div>' : '';
 
@@ -482,6 +484,25 @@
           (origExists ? ' <button class="btn-cf-preview" onclick="cloudPreviewPreset(\'' + encodeURIComponent(origId) + '\')" title="コピー元をプレビュー">プレビュー</button>' : '') +
           '</div>'
         : '';
+
+      // 💬 申し送り簡易表示＋投稿（ダッシュボードのみ表示・CSS で制御）。件数/プレビューは _loadDashChatSummaries が後追いで埋める
+      const chatFooter =
+        '<div class="cloud-card-chat" data-cid="' + escHtml(r.id) + '">' +
+          '<button type="button" class="ccc-toggle" onclick="dashToggleCardChat(this)">' +
+            '<span class="ccc-ico">💬</span>' +
+            '<span class="ccc-count">申し送り</span>' +
+            '<span class="ccc-preview"></span>' +
+            '<span class="ccc-caret">▾</span>' +
+          '</button>' +
+          '<div class="ccc-panel" hidden>' +
+            '<div class="ccc-list"><span class="cp-chat-loading">読み込み中…</span></div>' +
+            '<div class="ccc-compose">' +
+              '<input type="text" class="ccc-input" placeholder="申し送りを入力…" onkeydown="dashCardChatKey(event,this)">' +
+              '<button type="button" class="ccc-send" onclick="dashPostCardComment(this)">送信</button>' +
+            '</div>' +
+          '</div>' +
+        '</div>';
+
       return '' +
         '<div class="cloud-card cloud-card-labeled' + (others.length ? ' is-editing' : '') + '">' +
           '<div class="cloud-card-row1">' +
@@ -513,6 +534,7 @@
                 : '<button class="btn-preset-del"  onclick="cloudDeletePreset(\'' + idAttr + '\')" title="削除（全員から消えます）">✕</button>') +
             '</div>' +
           '</div>' +
+          chatFooter +
         '</div>';
     }).join('');
     // モーダルは常にカード、ダッシュボードはカード/リスト切替
@@ -526,6 +548,7 @@
         ? ('<div class="qpd-rows-head"><span>状態</span><span>見積番号</span><span>お客様 / 担当</span><span>作業者</span><span>更新</span><span></span></div>'
             + rows.map(_cloudListRow).join(''))
         : cardsHtml;
+      if (!listMode) _loadDashChatSummaries(rows);   // 💬 申し送りの件数/最新を後追いで埋める（カード表示時のみ）
     }
   }
 
@@ -1198,7 +1221,8 @@
     if (routeEntries.length) {
       routeEntries.forEach((r, i) => {
         const leg  = [r.pol, r.via, r.pod].filter(Boolean).join(' → ');
-        const line = [[r.carrier, r.service ? `(${r.service})` : ''].filter(Boolean).join(' '), leg].filter(Boolean).join('  ');
+        const tt   = r.tt ? `T/T: ${r.tt}` : '';
+        const line = [[r.carrier, r.service ? `(${r.service})` : ''].filter(Boolean).join(' '), leg, tt].filter(Boolean).join('  ');
         if (line) condRows.push(_cpKV(i === 0 ? '航路' : '　', line));
       });
     } else {
@@ -1371,9 +1395,10 @@
         const bp  = cells[11] || '';   // 売単価（= 仕入 + 載せ幅）
         const mk  = cells[13] || '';   // 載せ幅
         const nt  = cells[14] || '';
+        const ac  = (cells[18] === '1' || cells[18] === true);  // 実費（金額未確定）
         const catLbl = catLabel[cat] || cat;
         const qty    = (bq && un) ? `${escHtml(bq)} ${escHtml(un)}` : escHtml(bq || un || '—');
-        const mPct   = _cpMarginPct(pp, pc, pq, bp, bc, bq);
+        const mPct   = ac ? null : _cpMarginPct(pp, pc, pq, bp, bc, bq);
         const mCls   = mPct == null ? '' : (mPct > 0 ? 'cp-margin-pos' : mPct < 0 ? 'cp-margin-neg' : '');
         const mCell  = mPct == null ? '—' : mPct.toFixed(1) + '%';
         return `<tr class="cp-row cp-row-in-group" data-sv="${escHtml(g.sv)}" data-idx="${idx}">
@@ -1381,9 +1406,9 @@
           <td class="cp-cat">${escHtml(catLbl)}</td>
           <td class="cp-nm">${escHtml(nm)}</td>
           <td class="cp-qty">${qty}</td>
-          <td class="cp-price cp-pp">${_cpMoney(pp, pc)}</td>
-          <td class="cp-price cp-mk">${_cpNum(mk) ? _cpMoney(mk, bc) : '—'}</td>
-          <td class="cp-price cp-bp">${_cpMoney(bp, bc)}</td>
+          <td class="cp-price cp-pp">${ac ? '実費' : _cpMoney(pp, pc)}</td>
+          <td class="cp-price cp-mk">${ac ? '—' : (_cpNum(mk) ? _cpMoney(mk, bc) : '—')}</td>
+          <td class="cp-price cp-bp">${ac ? '実費' : _cpMoney(bp, bc)}</td>
           <td class="cp-price cp-margin ${mCls}">${mCell}</td>
           <td class="cp-nt">${escHtml(nt)}</td>
         </tr>`;
@@ -1787,6 +1812,123 @@
       if (btn) btn.disabled = false;
     }
   }
+
+  // ================================================================
+  // ========== 💬 ダッシュボードカード内 申し送り（簡易表示＋投稿） ==========
+  // ================================================================
+  const _dashChatCache = {};   // presetId -> { count, body }
+
+  // 一覧描画後に一括取得（N+1 回避：表示中の preset 全 ID を 1 クエリ）
+  async function _loadDashChatSummaries(rows) {
+    const c = _getClient();
+    if (!c || !_cloudUser) return;
+    const ids = (rows || []).map(r => r.id).filter(Boolean);
+    if (!ids.length) return;
+    const { data, error } = await c
+      .from('quote_comments')
+      .select('preset_id,body,created_at')
+      .in('preset_id', ids)
+      .order('created_at', { ascending: true });
+    if (error) { console.error('[cloud] dash chat summary error:', error); return; }
+    const map = {};
+    (data || []).forEach(r => {
+      const e = map[r.preset_id] || (map[r.preset_id] = { count: 0, body: '' });
+      e.count++; e.body = r.body;          // 昇順なので最後に残るのが最新
+    });
+    ids.forEach(id => { _dashChatCache[id] = map[id] || { count: 0, body: '' }; _applyDashChatSummary(id); });
+  }
+
+  function _applyDashChatSummary(presetId) {
+    const wrap = document.getElementById('qpdListWrap');
+    if (!wrap) return;
+    const sel = (window.CSS && CSS.escape) ? CSS.escape(presetId) : presetId;
+    const box = wrap.querySelector('.cloud-card-chat[data-cid="' + sel + '"]');
+    if (!box) return;
+    const s = _dashChatCache[presetId] || { count: 0, body: '' };
+    const cnt  = box.querySelector('.ccc-count');
+    const prev = box.querySelector('.ccc-preview');
+    if (cnt)  cnt.textContent  = s.count ? ('申し送り ' + s.count) : '申し送り';
+    if (prev) prev.textContent = s.count ? _truncateChat(s.body, 28) : '（まだありません）';
+    box.classList.toggle('ccc-has', !!s.count);
+  }
+
+  function _truncateChat(str, n) {
+    str = String(str || '').replace(/\s+/g, ' ').trim();
+    return str.length > n ? str.slice(0, n) + '…' : str;
+  }
+
+  window.dashToggleCardChat = function (btn) {
+    const box = btn.closest('.cloud-card-chat'); if (!box) return;
+    const panel = box.querySelector('.ccc-panel');
+    if (panel.hasAttribute('hidden')) {
+      panel.removeAttribute('hidden');
+      box.classList.add('ccc-open');
+      if (!box.dataset.loaded) _loadCardThread(box);
+    } else {
+      panel.setAttribute('hidden', '');
+      box.classList.remove('ccc-open');
+    }
+  };
+
+  async function _loadCardThread(box) {
+    const listEl = box.querySelector('.ccc-list');
+    const presetId = box.dataset.cid;
+    const c = _getClient();
+    if (!c || !_cloudUser) { listEl.innerHTML = '<span class="cp-chat-login">ログインが必要です</span>'; return; }
+    listEl.innerHTML = '<span class="cp-chat-loading">読み込み中…</span>';
+    const { data, error } = await c
+      .from('quote_comments')
+      .select('id,body,created_by,created_at')
+      .eq('preset_id', presetId)
+      .order('created_at', { ascending: true });
+    if (error) { listEl.innerHTML = '<span class="cp-chat-err">⚠️ 取得失敗</span>'; return; }
+    box.dataset.loaded = '1';
+    _renderCardThread(listEl, data || []);
+    listEl.scrollTop = listEl.scrollHeight;
+  }
+
+  function _renderCardThread(listEl, rows) {
+    if (!rows.length) { listEl.innerHTML = '<span class="cp-chat-empty">まだ申し送りはありません</span>'; return; }
+    listEl.innerHTML = rows.map(r => {
+      const isMine = _cloudUser && r.created_by === _cloudUser.email;
+      const name = escHtml(_nameFor(r.created_by));
+      const dt   = new Date(r.created_at).toLocaleString('ja-JP', { month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit' });
+      return '<div class="cp-chat-item' + (isMine ? ' cp-chat-item--mine' : '') + '">' +
+        '<div class="cp-chat-meta">' + name + ' · ' + dt + '</div>' +
+        '<div class="cp-chat-body">' + escHtml(r.body) + '</div></div>';
+    }).join('');
+  }
+
+  window.dashCardChatKey = function (ev, input) {
+    if (ev.key === 'Enter' && !ev.shiftKey) { ev.preventDefault(); window.dashPostCardComment(input); }
+  };
+
+  window.dashPostCardComment = async function (el) {
+    const box = el.closest('.cloud-card-chat'); if (!box) return;
+    const input = box.querySelector('.ccc-input');
+    const body  = input && input.value.trim();
+    if (!body) return;
+    const c = _getClient();
+    if (!c || !_cloudUser) { quoteShowToast('⚠️ ログインが必要です', 'warn'); return; }
+    const send = box.querySelector('.ccc-send');
+    if (send) send.disabled = true;
+    try {
+      const { error } = await c.from('quote_comments').insert({
+        preset_id: box.dataset.cid, body, created_by: _cloudUser.email,
+      });
+      if (error) throw error;
+      input.value = '';
+      box.dataset.loaded = '';          // 強制リロード
+      await _loadCardThread(box);
+      const s = _dashChatCache[box.dataset.cid] || (_dashChatCache[box.dataset.cid] = { count: 0, body: '' });
+      s.count++; s.body = body;
+      _applyDashChatSummary(box.dataset.cid);
+    } catch (e) {
+      quoteShowToast('⚠️ 送信失敗：' + (e.message || e), 'warn', 5000);
+    } finally {
+      if (send) send.disabled = false;
+    }
+  };
 
   // ================================================================
   // ========== 📦 ストレージ使用量表示 ==========
