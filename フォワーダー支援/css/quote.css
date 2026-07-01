@@ -909,6 +909,24 @@
 #tab-quote-make td.cd-cell,
 #tab-quote-make th.hd-cd { display: none; }
 
+/* 売通貨を仕入通貨と別建てにした行（独立モード） */
+#tab-quote-make .w-cur-sell { cursor: pointer; }
+#tab-quote-make tr.row-bc-indep .w-cur-sell {
+  border-color: #d08a3a;
+  background: #fff6ea;
+  color: #8a5a1a;
+  font-weight: 700;
+}
+/* 独立モードでは乗せ幅を無効表示（通貨跨ぎで加算不能のため直接入力に切替） */
+#tab-quote-make .w-mkup.mk-disabled {
+  background: #ede5d6;
+  border-color: #c8bfb2;
+  border-style: dashed;
+  color: #b3a48f;
+  opacity: 0.7;
+}
+#tab-quote-make tr.row-bc-indep .stk-mk-plus { opacity: 0.4; }
+
 /* ===== テーブル上部 為替レートバー ===== */
 #tab-quote-make .quote-fx-bar {
   display: none;
