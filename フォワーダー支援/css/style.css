@@ -3758,6 +3758,42 @@ a.lc-source-icon:hover { opacity: 0.75; }
 button.lc-attach-tbl-btn { background: none; border: none; padding: 0; cursor: pointer; }
 .lc-attach-tbl-btn:hover { opacity: 1; }
 
+/* ── POL/POD チップ入力（登録フォーム） ───────────────────────────────── */
+.lc-chips-input {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 5px;
+  min-height: 38px; padding: 5px 8px;
+  border: 1px solid #ccc; border-radius: 6px; background: #fff; cursor: text;
+}
+.lc-chips-input:focus-within { border-color: #2d6a4f; box-shadow: 0 0 0 2px rgba(45,106,79,.12); }
+.lc-chip {
+  display: inline-flex; align-items: center; gap: 4px;
+  background: #e7f0eb; color: #1b4332; border: 1px solid #b8d4c6;
+  border-radius: 12px; padding: 2px 6px 2px 10px; font-size: 12px; white-space: nowrap;
+}
+.lc-chip-x {
+  border: none; background: none; color: #4a6a58; cursor: pointer;
+  font-size: 14px; line-height: 1; padding: 0 2px;
+}
+.lc-chip-x:hover { color: #b71c1c; }
+.lc-chip-entry {
+  flex: 1; min-width: 90px; border: none; outline: none;
+  font-size: 13px; padding: 3px 2px; background: transparent;
+}
+.lc-preset-row { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 5px; }
+.lc-preset-chip {
+  font-size: 11px; color: #5a4a38; background: #f4efe6;
+  border: 1px solid #e0d4bc; border-radius: 10px; padding: 2px 8px; cursor: pointer;
+}
+.lc-preset-chip:hover { background: #e9dfca; border-color: #cbb890; }
+
+/* ── 一覧の POL/POD チップ表示 ────────────────────────────────────────── */
+.lc-places { display: flex; flex-wrap: wrap; gap: 3px; max-width: 160px; }
+.lc-place-chip {
+  font-size: 11px; background: #eef2f7; color: #33475b;
+  border-radius: 5px; padding: 1px 6px; white-space: nowrap;
+}
+.lc-place-more { font-size: 11px; color: #888; align-self: center; }
+
 /* ── Unit Alias Group UI ─────────────────────────────────────────────── */
 .ua-group-row td { background: #f9f9ff; }
 .ua-group-row td:first-child { font-weight: 600; }

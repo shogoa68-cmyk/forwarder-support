@@ -4263,13 +4263,19 @@
         <input id="lc_unit" class="lc-form-input lc-form-input--unit" type="text" list="lcUnitList" autocomplete="off" placeholder="単位（自由入力）">
         <datalist id="lcUnitList"></datalist>
       </div>
-      <div class="lc-form-row">
-        <label class="lc-form-label">積み港（POL）</label>
-        <input id="lc_pol" class="lc-form-input" type="text" placeholder="例: 東京港、横浜港、TPICT">
+      <div class="lc-form-row lc-form-row--full">
+        <label class="lc-form-label">積み港（POL） <span class="lc-form-hint">複数可・Enterで追加</span></label>
+        <div id="lcPolChips" class="lc-chips-input">
+          <input type="text" class="lc-chip-entry" data-lc-which="pol" placeholder="港を入力しEnter" autocomplete="off">
+        </div>
+        <div id="lcPolPresets" class="lc-preset-row"></div>
       </div>
-      <div class="lc-form-row">
-        <label class="lc-form-label">揚げ港（POD）</label>
-        <input id="lc_pod" class="lc-form-input" type="text" placeholder="例: USLAX、Shanghai、Hamburg">
+      <div class="lc-form-row lc-form-row--full">
+        <label class="lc-form-label">揚げ港（POD） <span class="lc-form-hint">複数仕向地可・Enterで追加</span></label>
+        <div id="lcPodChips" class="lc-chips-input">
+          <input type="text" class="lc-chip-entry" data-lc-which="pod" placeholder="仕向地を入力しEnter" autocomplete="off">
+        </div>
+        <div id="lcPodPresets" class="lc-preset-row"></div>
       </div>
       <div class="lc-form-row">
         <label class="lc-form-label">適用開始日</label>
