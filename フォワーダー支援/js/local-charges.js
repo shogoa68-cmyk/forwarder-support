@@ -22,6 +22,12 @@
   const LC_CURRENCIES = ['JPY', 'USD', 'EUR', 'CNY', 'SGD', 'HKD', 'GBP', 'AUD'];
   const LC_UNITS      = ['', '式', 'B/L', 'CNTR', '20ft', '40ft', 'R/T', 'CBM', 'kg', 'TON', 'pcs', 'shipment', 'DAY'];
 
+  // 積み港/揚げ港のエリアプリセット（ワンタップでチップ追加）
+  const LC_POL_PRESETS = ['日本各港', '東京', '横浜', '名古屋', '四日市', '大阪', '神戸', '清水', '博多', '門司'];
+  const LC_POD_PRESETS = ['北米西岸', '北米東岸', '欧州基幹港', '地中海', '東南アジア', '中国華南', '中国華北', '韓国', '台湾', '中東', '豪州', '南米'];
+  // 地点リストの区切り（半角/全角スラッシュ・カンマ・読点・改行）
+  const LC_PLACE_SEP   = /[\/／,、\n]+/;
+
   let _dir         = 'export';
   let _charges     = [];
   let _editId      = null;
@@ -29,6 +35,9 @@
   // 案3 グループ表示：'carrier'（船会社別）| 'cat'（カテゴリ別）| 'none'（グループなし）
   let _groupMode = (() => { try { return localStorage.getItem('lcGroupMode_v1') || 'carrier'; } catch (e) { return 'carrier'; } })();
   const _collapsedGroups = new Set();
+  // POL/POD チップの現在値（登録フォーム用）
+  let _polChips    = [];
+  let _podChips    = [];
   // 添付ファイル状態: null=変更なし, false=削除, {name,type,dataUrl}=新規
   let _pendingAttach  = null;
   // フォームを開いたときの既存添付（表示用）
@@ -206,6 +215,28 @@
     return (cur === 'JPY' ? '¥' : (cur + ' ')) + n.toLocaleString('ja-JP');
   }
 
+  // === 地点（POL/POD）リスト ヘルパー ===
+
+  // 保存文字列 → 配列（区切り分割・トリム・空除去・重複除去）
+  function _lcSplitPlaces(s) {
+    const out = [];
+    String(s || '').split(LC_PLACE_SEP).forEach(x => {
+      const v = x.trim();
+      if (v && !out.includes(v)) out.push(v);
+    });
+    return out;
+  }
+  // 配列 → 保存文字列
+  function _lcJoinPlaces(arr) { return (arr || []).join(' / '); }
+
+  // カード/ピッカー用: 短い要約（2件までは列挙、3件以上は「先頭 ほかN」）
+  function _lcPlacesSummary(raw) {
+    const arr = _lcSplitPlaces(raw);
+    if (!arr.length) return '';
+    if (arr.length <= 2) return arr.join('・');
+    return `${arr[0]} ほか${arr.length - 1}`;
+  }
+
   // ゆらぎ検出用正規化
   function _lcNormalize(s) {
     return String(s || '')
@@ -340,8 +371,9 @@
   // チャージ1件の行 HTML（状態アクセントバー＋名称＋カテゴリ＋ルート＋金額＋操作）
   function _lcRowHtml(c, catMap, mode) {
     const st  = _lcStatus(c);
-    const pol = c.pol || c.port || '';
-    const pod = c.pod || '';
+    const pol = _lcPlacesSummary(c.pol || c.port || '');
+    const pod = _lcPlacesSummary(c.pod || '');
+    const routeFull = _ea([c.pol || c.port, c.pod].filter(Boolean).join(' → '));
     const srcHtml = c.source
       ? (c.source.startsWith('http')
           ? ` <a class="lc-source-icon" href="${_ea(c.source)}" target="_blank" rel="noopener" title="${_ea(c.source)}">🔗</a>`
@@ -354,7 +386,7 @@
           : `<button class="lc-attach-tbl-btn" data-lc-path="${_ea(att.path)}" onclick="lcDownloadAttach(this)" title="添付: ${_ea(att.name)}">📎</button>`)
       : '';
     const routeHtml = (pol || pod)
-      ? `<span class="lc-route-chip">${_esc(pol || '—')}${pod ? `<span class="lc-route-arr">→</span>${_esc(pod)}` : ''}</span>`
+      ? `<span class="lc-route-chip" title="${routeFull}">${_esc(pol || '—')}${pod ? `<span class="lc-route-arr">→</span>${_esc(pod)}` : ''}</span>`
       : '<span class="lc-route-none">—</span>';
     const catChip = (mode === 'cat') ? '' :
       `<span class="lc-cat-badge lc-cat-${c.cat || 'other'}">${_esc((catMap[c.cat] || c.cat || '—').replace(/^[^\s]+\s/, ''))}</span>`;
@@ -377,6 +409,82 @@
            `</div>`;
   }
 
+  // === POL/POD チップ入力（登録フォーム） ===
+
+  function _lcChipArr(which) { return which === 'pol' ? _polChips : _podChips; }
+
+  function _lcRenderChips(which) {
+    const wrap = document.getElementById(which === 'pol' ? 'lcPolChips' : 'lcPodChips');
+    if (!wrap) return;
+    const input = wrap.querySelector('.lc-chip-entry');
+    [...wrap.querySelectorAll('.lc-chip')].forEach(el => el.remove());
+    const arr = _lcChipArr(which);
+    arr.forEach((v, i) => {
+      const chip = document.createElement('span');
+      chip.className = 'lc-chip';
+      chip.innerHTML = `${_esc(v)}<button type="button" class="lc-chip-x" title="削除">×</button>`;
+      chip.querySelector('.lc-chip-x').addEventListener('click', () => {
+        arr.splice(i, 1); _lcRenderChips(which);
+      });
+      if (input) wrap.insertBefore(chip, input); else wrap.appendChild(chip);
+    });
+  }
+
+  function _lcAddChip(which, val) {
+    const arr = _lcChipArr(which);
+    _lcSplitPlaces(val).forEach(v => { if (!arr.includes(v)) arr.push(v); });
+    _lcRenderChips(which);
+  }
+
+  // 未確定の入力欄テキストをチップ化（保存前フラッシュ）
+  function _lcFlushChipEntry(which) {
+    const wrap = document.getElementById(which === 'pol' ? 'lcPolChips' : 'lcPodChips');
+    const input = wrap?.querySelector('.lc-chip-entry');
+    if (input && input.value.trim()) { _lcAddChip(which, input.value); input.value = ''; }
+  }
+
+  function _lcSetChips(which, raw) {
+    const arr = _lcChipArr(which);
+    arr.length = 0;
+    _lcSplitPlaces(raw).forEach(v => arr.push(v));
+    const wrap = document.getElementById(which === 'pol' ? 'lcPolChips' : 'lcPodChips');
+    const input = wrap?.querySelector('.lc-chip-entry');
+    if (input) input.value = '';
+    _lcRenderChips(which);
+  }
+
+  // プリセットチップの描画＋入力欄イベントの初期化（1回だけ）
+  function _lcInitChipsUI() {
+    [['pol', 'lcPolPresets', LC_POL_PRESETS], ['pod', 'lcPodPresets', LC_POD_PRESETS]].forEach(([which, presetId, presets]) => {
+      const pr = document.getElementById(presetId);
+      if (pr && !pr.dataset.lcReady) {
+        pr.innerHTML = presets.map(p =>
+          `<button type="button" class="lc-preset-chip" onclick="lcPresetAdd('${which}','${_ea(p)}')">＋${_esc(p)}</button>`
+        ).join('');
+        pr.dataset.lcReady = '1';
+      }
+      const wrap = document.getElementById(which === 'pol' ? 'lcPolChips' : 'lcPodChips');
+      const input = wrap?.querySelector('.lc-chip-entry');
+      if (input && !input.dataset.lcReady) {
+        input.addEventListener('keydown', e => {
+          if (e.key === 'Enter' || e.key === ',' || e.key === '、') {
+            e.preventDefault();
+            if (input.value.trim()) { _lcAddChip(which, input.value); input.value = ''; }
+          } else if (e.key === 'Backspace' && !input.value) {
+            const arr = _lcChipArr(which);
+            if (arr.length) { arr.pop(); _lcRenderChips(which); }
+          }
+        });
+        input.addEventListener('blur', () => _lcFlushChipEntry(which));
+        // 空白部分クリックで入力欄にフォーカス
+        wrap.addEventListener('click', e => { if (e.target === wrap) input.focus(); });
+        input.dataset.lcReady = '1';
+      }
+    });
+  }
+
+  window.lcPresetAdd = function (which, val) { _lcAddChip(which, val); };
+
   // === 登録フォーム ===
 
   function lcOpenForm(id) {
@@ -396,8 +504,9 @@
     set('lc_amount',     charge?.amount     ?? '');
     set('lc_currency',   charge?.currency   || 'JPY');
     set('lc_unit',       charge?.unit       || '');
-    set('lc_pol',        charge?.pol  || charge?.port || '');
-    set('lc_pod',        charge?.pod        || '');
+    _lcInitChipsUI();
+    _lcSetChips('pol', charge?.pol || charge?.port || '');
+    _lcSetChips('pod', charge?.pod || '');
     set('lc_carrier',    charge?.carrier    || '');
     set('lc_valid_from', charge?.valid_from ? _fmtDate(charge.valid_from) : '');
     set('lc_valid_to',   charge?.valid_to   ? _fmtDate(charge.valid_to)   : '');
@@ -448,6 +557,9 @@
     const carrier = g('lc_carrier');
     if (!carrier) { alert('船会社（キャリアー）は必須です'); document.getElementById('lc_carrier')?.focus(); return null; }
     if (!name)    { alert('名称は必須です'); document.getElementById('lc_name')?.focus(); return null; }
+    // 未確定の入力欄をチップ化してから収集
+    _lcFlushChipEntry('pol');
+    _lcFlushChipEntry('pod');
 
     const row = {
       id:          _editId || undefined,
@@ -459,8 +571,8 @@
       amount:      document.getElementById('lc_amount')?.value !== '' ? Number(document.getElementById('lc_amount').value) : null,
       currency:    g('lc_currency') || 'JPY',
       unit:        g('lc_unit'),
-      pol:         g('lc_pol'),
-      pod:         g('lc_pod'),
+      pol:         _lcJoinPlaces(_polChips),
+      pod:         _lcJoinPlaces(_podChips),
       carrier:     g('lc_carrier'),
       valid_from:  g('lc_valid_from') || null,
       valid_to:    g('lc_valid_to')   || null,
@@ -713,7 +825,7 @@
       h += `<label class="lc-pick-row${_selected.has(c.id) ? ' selected' : ''}">` +
            `<input type="checkbox" class="lc-pick-chk" value="${c.id}" ${chk} onchange="lcPickToggle('${c.id}')">` +
            `<span class="lc-pick-name">${_esc(c.name)}${c.full_name ? `<span class="lc-pick-fullname">${_esc(c.full_name)}</span>` : ''}</span>` +
-           `<span class="lc-pick-meta">${_esc([(c.pol||c.port), c.pod, c.carrier].filter(Boolean).join(' / ') || '')}${c.description ? `<span class="lc-pick-desc">${_esc(c.description.slice(0, 60))}${c.description.length > 60 ? '…' : ''}</span>` : ''}</span>` +
+           `<span class="lc-pick-meta">${_esc([_lcPlacesSummary(c.pol||c.port), _lcPlacesSummary(c.pod), c.carrier].filter(Boolean).join(' / ') || '')}${c.description ? `<span class="lc-pick-desc">${_esc(c.description.slice(0, 60))}${c.description.length > 60 ? '…' : ''}</span>` : ''}</span>` +
            `<span class="lc-pick-amt">${_fmtAmt(c.amount, c.currency)}${c.unit ? ' / ' + _esc(c.unit) : ''}</span>` +
            `</label>`;
     });
@@ -817,14 +929,15 @@
           ? `<span class="lc-exp-badge lc-exp-badge--amber">～${c.valid_to}</span>`
           : '';
       const chk = _railSelIds.has(c.id) ? 'checked' : '';
-      const meta = [c.carrier, c.pol||c.port, c.pod].filter(Boolean).join(' / ');
+      const meta = [c.carrier, _lcPlacesSummary(c.pol||c.port), _lcPlacesSummary(c.pod)].filter(Boolean).join(' / ');
+      const metaFull = [c.carrier, c.pol||c.port, c.pod].filter(Boolean).join(' / ');
       const descTitle = c.description ? ` title="${String(c.description).replace(/"/g,'&quot;')}"` : '';
       const periodLabel = c.valid_from ? (c.valid_from + (c.valid_to ? '～'+c.valid_to : '～')) : '';
       return `<label class="lc-rail-card${cls}${selCls}"${descTitle}>` +
              `<input type="checkbox" class="lc-rail-chk" value="${_ea(c.id)}" ${chk} onchange="lcRailToggle('${_ea(c.id)}')">` +
              `<div class="lc-rail-info">` +
              `<div class="lc-rail-name">${_esc(c.name)}${badge}</div>` +
-             (meta ? `<div class="lc-rail-meta">${_esc(meta)}</div>` : '') +
+             (meta ? `<div class="lc-rail-meta" title="${_ea(metaFull)}">${_esc(meta)}</div>` : '') +
              `</div>` +
              `<div class="lc-rail-amt">${_fmtAmt(c.amount, c.currency)}${c.unit ? ' /'+_esc(c.unit) : ''}` +
              (periodLabel ? `<div class="lc-rail-period">${_esc(periodLabel)}</div>` : '') +
