@@ -609,7 +609,7 @@
 #tab-quote-make #quoteTable.customer-mode .hd-stk .t-cost,
 #tab-quote-make #quoteTable.customer-mode .hd-sub .t-cost { display: none; }
 #tab-quote-make #quoteTable.customer-mode .hd-stk .hd-sub { font-size: 0; }
-#tab-quote-make #quoteTable.customer-mode .hd-stk .hd-sub .t-sell { font-size: 9px; }
+#tab-quote-make #quoteTable.customer-mode .hd-stk .hd-sub .t-sell { font-size: 11px; }
 
 /* 客先モード時のテーブル上部バナー */
 #tab-quote-make.qvm-customer #tableScrollWrap {
@@ -730,7 +730,7 @@
 
 /* 課税 */
 #tab-quote-make td.tax-cell { width: 44px; }
-#tab-quote-make input[type="checkbox"] { width: 16px; height: 16px; cursor: pointer; accent-color: #e74c3c; }
+#tab-quote-make input[type="checkbox"] { width: 16px; height: 16px; cursor: pointer; accent-color: #d97706; }
 #tab-quote-make tr.taxed td { background-color: rgba(231,76,60,0.06) !important; }
 #tab-quote-make tr.taxed td.profit-pos { background-color: #fde8e8 !important; }
 
@@ -1049,7 +1049,7 @@
    =========================================================== */
 #tab-quote-make .t-cost { color: #c9a227; }
 #tab-quote-make .t-sell { color: #bde8c8; }
-#tab-quote-make .hd-sub { font-weight: 400; font-size: 9px; opacity: 0.95; }
+#tab-quote-make .hd-sub { font-weight: 400; font-size: 11px; opacity: 0.95; }
 /* 課税行 st セル：消費税ヒント */
 #tab-quote-make .tax-hint {
   display: block;
@@ -1205,8 +1205,7 @@
 #tab-quote-make .jpy-conv-hint {
   display: block;
   font-size: 10px;
-  color: #7d6b56;
-  opacity: 0.75;
+  color: #5e4e38; /* opacity 0.75 を削除し単色で WCAG AA 達成（≈5.5:1 on #fff） */
   font-style: italic;
   line-height: 1.2;
 }
@@ -5829,6 +5828,18 @@ body.qp-dash-active #quoteActionDock { display: none !important; }
   -webkit-overflow-scrolling: touch;
   margin-bottom: 0;
   min-height: 200px;
+  position: relative;
+}
+/* 右端フェードグラデーションで横スクロール可能であることを可視化（タブレット対応） */
+#tab-quote-make #tableScrollWrap::after {
+  content: '';
+  position: absolute;
+  right: 0;
+  top: 0;
+  height: 100%;
+  width: 28px;
+  background: linear-gradient(to right, transparent, rgba(242, 237, 230, 0.85));
+  pointer-events: none;
 }
 /* tfoot は通常フロー（行数に応じてテーブルが自然に伸び、内部スクロールしない） */
 #tab-quote-make #quoteTable tfoot {
@@ -6679,6 +6690,14 @@ body.qp-dash-active #quoteActionDock { display: none !important; }
   body:has(#previewOverlay.open) #pvCargoBox {
     break-inside: avoid;
     page-break-inside: avoid;
+  }
+
+  /* Ctrl+P（プレビュー未表示時）：テーブル行の背景色を白にリセット。
+     白黒プリンタでカテゴリ色が全行グレーになる問題を回避。 */
+  body:not(:has(#previewOverlay.open)) #tab-quote-make #quoteTable th,
+  body:not(:has(#previewOverlay.open)) #tab-quote-make #quoteTable td {
+    background-color: #fff !important;
+    color: #000 !important;
   }
 }
 /* ===== プレビュー 表示カスタマイズパネル ===== */
