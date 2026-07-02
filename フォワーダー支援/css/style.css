@@ -142,7 +142,7 @@ body:has(#tab-quote-make.active) .app {
 }
 .tab-btn {
   flex: 1;
-  min-width: 110px;
+  min-width: 60px;
   min-height: 40px;          /* Quick Win #3: タッチターゲット拡大（Apple HIG 44pt 寄り） */
   padding: 8px 10px;
   border: none;
@@ -154,6 +154,8 @@ body:has(#tab-quote-make.active) .app {
   cursor: pointer;
   transition: all 0.15s;
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
   text-align: center;
 }
 .tab-btn:hover { background: var(--accent-lt); color: var(--accent-dk); }
@@ -610,7 +612,7 @@ body:has(#tab-quote-make.active) .app { padding-bottom: 8px; }
 @media (max-width: 600px) {
   .lookup-form { flex-direction: column; }
   .lookup-form input, .lookup-form select { width: 100%; }
-  .tab-btn { font-size: 11px; padding: 7px 5px; min-width: 80px; }
+  .tab-btn { font-size: 11px; padding: 7px 5px; min-width: 50px; }
 }
 
 /* ===== 計算ツール ===== */
