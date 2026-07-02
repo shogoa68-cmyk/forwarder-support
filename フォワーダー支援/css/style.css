@@ -2058,6 +2058,100 @@ body:has(#compareOverlay.open) #quoteActionDock { display: none; }
   text-align: center;
 }
 
+/* お客様名称欄：詳細ボタン */
+.qf-customer-row { display: flex; gap: 6px; align-items: center; }
+.qf-customer-row input { flex: 1; }
+.qf-customer-detail-btn {
+  flex: none;
+  padding: 0 10px;
+  height: 32px;
+  font-size: 11px;
+  background: #eaf3ea;
+  border: 1px solid #9ec79e;
+  border-radius: 8px;
+  color: #2f6b3a;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.qf-customer-detail-btn:hover { background: #dcecdc; }
+
+/* お客様マスター詳細情報ポップアップ */
+.cd-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 3000;
+}
+.cd-overlay[hidden] { display: none; }
+.cd-box {
+  background: #fdfaf4;
+  border: 1px solid #c8b898;
+  border-radius: 10px;
+  width: 380px;
+  max-width: 95vw;
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 8px 32px rgba(0,0,0,.2);
+}
+.cd-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  border-bottom: 1px solid #e0d4bf;
+  background: #ede3d2;
+  border-radius: 9px 9px 0 0;
+}
+.cd-title { font-weight: 700; font-size: 14px; color: #3a2a10; flex: 1; }
+.cd-close {
+  background: none;
+  border: none;
+  font-size: 18px;
+  cursor: pointer;
+  color: #7a6040;
+  padding: 0 4px;
+  line-height: 1;
+}
+.cd-body { flex: 1; overflow-y: auto; padding: 14px 16px; }
+.cd-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.cd-table th {
+  width: 100px;
+  padding: 5px 8px;
+  color: #7a6040;
+  font-weight: 600;
+  text-align: left;
+  background: #f5ede0;
+  border-bottom: 1px solid #e8d8c0;
+  vertical-align: top;
+}
+.cd-table td {
+  padding: 5px 8px;
+  color: #3a2a10;
+  border-bottom: 1px solid #ede3d0;
+  white-space: pre-wrap;
+}
+.cd-foot {
+  display: flex;
+  gap: 8px;
+  padding: 12px 16px;
+  border-top: 1px solid #e0d4bf;
+  justify-content: flex-end;
+}
+.cd-edit-btn {
+  padding: 7px 14px;
+  background: none;
+  border: 1px solid #c8b898;
+  border-radius: 6px;
+  font-size: 13px;
+  cursor: pointer;
+  color: #5a4628;
+}
+.cd-edit-btn:hover { background: #ede3d2; }
+
 /* sq-head: 折り畳みエリア + 検索トグルボタン */
 .sq-head { gap: 0; padding: 0; }
 .sq-head-main {
@@ -2648,6 +2742,63 @@ body:has(#compareOverlay.open) #quoteActionDock { display: none; }
   padding: 1px 8px;
 }
 .stats-master-abbrev-add:hover { background: #f5ece0; border-color: #8a7060; color: #5a4030; }
+
+/* マスター管理タブ：詳細情報（お客様・品名） */
+.stats-master-detail-btn {
+  margin-right: 6px;
+  padding: 3px 9px;
+  font-size: 11px;
+  background: none;
+  border: 1px dashed #c8b898;
+  border-radius: 10px;
+  cursor: pointer;
+  color: #a08060;
+}
+.stats-master-detail-btn:hover { background: #f5ece0; border-color: #8a7060; color: #5a4030; }
+.stats-master-detail-btn.has-detail {
+  border-style: solid;
+  background: #eaf3ea;
+  border-color: #9ec79e;
+  color: #2f6b3a;
+}
+.stats-detail-row > td { background: #faf8f3; padding: 10px 14px; border-top: none; }
+.master-detail-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 14px;
+  align-items: flex-end;
+}
+.master-detail-label {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  font-size: 11px;
+  color: #6a5a48;
+  flex: 1 1 160px;
+  min-width: 140px;
+}
+.master-detail-textarea { resize: vertical; min-height: 32px; font-family: inherit; }
+.master-detail-actions { display: flex; gap: 8px; align-items: center; }
+.master-detail-save {
+  padding: 5px 14px;
+  font-size: 12px;
+  background: #5a8a5a;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+}
+.master-detail-save:hover { background: #4a7a4a; }
+.master-detail-del {
+  padding: 5px 12px;
+  font-size: 12px;
+  background: none;
+  border: 1px solid #d8b8a8;
+  color: #a85838;
+  border-radius: 8px;
+  cursor: pointer;
+}
+.master-detail-del:hover { background: #f8ece8; }
 
 /* マスター管理タブ：活用説明インフォ */
 .stats-master-info {

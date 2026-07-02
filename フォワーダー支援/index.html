@@ -2548,7 +2548,10 @@
           </div>
           <div class="quote-field">
             <label>お客様名称 <span class="req-mark" aria-hidden="true">*</span></label>
-            <input type="text" id="qf-customer" placeholder="例）○○商事" aria-required="true" list="custSuggestions" autocomplete="off" />
+            <div class="qf-customer-row">
+              <input type="text" id="qf-customer" placeholder="例）○○商事" aria-required="true" list="custSuggestions" autocomplete="off" />
+              <button type="button" id="qfCustomerDetailBtn" class="qf-customer-detail-btn" onclick="qfShowCustomerDetail()" hidden title="登録済みの詳細情報を表示">📇 詳細</button>
+            </div>
           </div>
           <div class="quote-field">
             <label>お客様 ご担当者（敬称略） <span class="req-mark" aria-hidden="true">*</span></label>
@@ -4191,6 +4194,20 @@
 <div id="quoteActionDock">
   <button class="qad-btn qad-preview" onclick="openPreview()" title="見積をプレビュー表示・CSV/Excel/PDF出力はここから（Ctrl+P）">📋 プレビュー</button>
   <button class="qad-btn qad-save" id="qadMode" onclick="qpDockAction()" title="閲覧中は編集を開始／編集中は保存して作業終了">💾 保存</button>
+</div>
+
+<!-- お客様マスター詳細情報 ポップアップ -->
+<div id="customerDetailOverlay" class="cd-overlay" hidden onclick="qfCloseCustomerDetail(event)">
+  <div class="cd-box" onclick="event.stopPropagation()">
+    <div class="cd-head">
+      <span id="cdTitle" class="cd-title"></span>
+      <button class="cd-close" onclick="qfCloseCustomerDetail()">×</button>
+    </div>
+    <div id="cdBody" class="cd-body"></div>
+    <div class="cd-foot">
+      <button class="cd-edit-btn" onclick="qfEditCustomerDetail()">✎ マスター管理で編集</button>
+    </div>
+  </div>
 </div>
 
 <!-- 類似見積プレビューモーダル -->

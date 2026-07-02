@@ -840,4 +840,78 @@
     if (toast && typeof window.quoteShowToast === 'function') window.quoteShowToast(toast, 'success');
   }
 
+  // === マスター詳細情報（種別ごとの追加項目・非破壊・クラウド共有 + ローカルフォールバック） ===
+  //   対象フィールド: customer（担当/所在地/メイン商材/仕向国輸入国/傾向/社内メモ）
+  //                 nm（デフォルト単位/デフォルト備考）
+  //   保存: cloud = master_details テーブル（チーム共有）、ローカル = masterDetails_v1
+  //   形式: [{ field, value, details: {...} }]
+  const MD_KEY   = 'masterDetails_v1';
+  const MD_TABLE = 'master_details';
+  let _mdCloud = null;
+  let _mdTableMissing = false;
+
+  window.MD_SCHEMA = {
+    customer: [
+      { key: 'contact',     label: '担当' },
+      { key: 'location',    label: '所在地' },
+      { key: 'mainGoods',   label: 'メイン商材' },
+      { key: 'destCountry', label: '仕向国/輸入国' },
+      { key: 'tendency',    label: '傾向' },
+      { key: 'memo',        label: '社内メモ', textarea: true },
+    ],
+    nm: [
+      { key: 'defaultUnit', label: 'デフォルト単位' },
+      { key: 'defaultNote', label: 'デフォルト備考' },
+    ],
+  };
+
+  function _mdLoadLocal() {
+    try { return JSON.parse(localStorage.getItem(MD_KEY) || '[]'); } catch (e) { return []; }
+  }
+  function _mdSaveLocal(arr) { localStorage.setItem(MD_KEY, JSON.stringify(arr)); }
+  function _mdAll() {
+    return (_cloud() && _mdCloud !== null) ? _mdCloud : _mdLoadLocal();
+  }
+  function _mdMissingErr(error) {
+    return error && /relation|does not exist|schema cache|not find/i.test(error.message || '');
+  }
+
+  window.mdLoadCloud = async function () {
+    if (!_cloud() || _mdTableMissing) { _mdCloud = null; return false; }
+    const { data, error } = await _c().from(MD_TABLE).select('field,value,details');
+    if (error) { if (_mdMissingErr(error)) _mdTableMissing = true; _mdCloud = null; return false; }
+    _mdCloud = (data || []).map(r => ({ field: r.field, value: r.value, details: r.details || {} }));
+    return true;
+  };
+
+  window.mdGet = function (field, value) {
+    return _mdAll().find(m => m.field === field && m.value === value) || null;
+  };
+  window.mdGetAll = function (field) {
+    return _mdAll().filter(m => m.field === field);
+  };
+
+  window.mdSave = async function (field, value, details) {
+    if (!field || !value) return;
+    const arr = _mdLoadLocal();
+    const idx = arr.findIndex(m => m.field === field && m.value === value);
+    if (idx >= 0) arr[idx].details = details;
+    else arr.unshift({ field, value, details });
+    _mdSaveLocal(arr);
+    if (_cloud() && !_mdTableMissing) {
+      const { error } = await _c().from(MD_TABLE).upsert(
+        { field, value, details, updated_by: _me(), updated_at: new Date().toISOString() },
+        { onConflict: 'field,value' }
+      );
+      if (_mdMissingErr(error)) _mdTableMissing = true;
+    }
+    await window.mdLoadCloud();
+  };
+
+  window.mdDelete = async function (field, value) {
+    _mdSaveLocal(_mdLoadLocal().filter(m => !(m.field === field && m.value === value)));
+    if (_cloud() && !_mdTableMissing) await _c().from(MD_TABLE).delete().match({ field, value });
+    await window.mdLoadCloud();
+  };
+
 })();

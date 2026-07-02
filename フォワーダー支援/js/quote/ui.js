@@ -724,6 +724,22 @@
     }
     // Undo/Redo 履歴の初期化（初期スナップショットを採取し input/mutation 監視を開始）
     if (typeof initQuoteHistory === 'function') initQuoteHistory();
+    // 品名マスターの詳細情報（単位・備考）自動入力
+    if (typeof initNmAutofill === 'function') initNmAutofill();
+    // お客様マスター詳細ボタン：入力変更で表示切替、クラウド詳細情報を先読み
+    const custInput = document.getElementById('qf-customer');
+    if (custInput) {
+      custInput.addEventListener('input', () => {
+        if (typeof window.qfRefreshCustomerDetailBtn === 'function') window.qfRefreshCustomerDetailBtn();
+      });
+    }
+    if (typeof window.mdLoadCloud === 'function') {
+      window.mdLoadCloud().then(() => {
+        if (typeof window.qfRefreshCustomerDetailBtn === 'function') window.qfRefreshCustomerDetailBtn();
+      });
+    } else if (typeof window.qfRefreshCustomerDetailBtn === 'function') {
+      window.qfRefreshCustomerDetailBtn();
+    }
   }
 
   // ========== トースト通知 ==========
