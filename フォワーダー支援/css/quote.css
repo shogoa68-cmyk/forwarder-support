@@ -609,7 +609,7 @@
 #tab-quote-make #quoteTable.customer-mode .hd-stk .t-cost,
 #tab-quote-make #quoteTable.customer-mode .hd-sub .t-cost { display: none; }
 #tab-quote-make #quoteTable.customer-mode .hd-stk .hd-sub { font-size: 0; }
-#tab-quote-make #quoteTable.customer-mode .hd-stk .hd-sub .t-sell { font-size: 9px; }
+#tab-quote-make #quoteTable.customer-mode .hd-stk .hd-sub .t-sell { font-size: 11px; }
 
 /* 客先モード時のテーブル上部バナー */
 #tab-quote-make.qvm-customer #tableScrollWrap {
@@ -730,7 +730,7 @@
 
 /* 課税 */
 #tab-quote-make td.tax-cell { width: 44px; }
-#tab-quote-make input[type="checkbox"] { width: 16px; height: 16px; cursor: pointer; accent-color: #e74c3c; }
+#tab-quote-make input[type="checkbox"] { width: 16px; height: 16px; cursor: pointer; accent-color: #d97706; }
 #tab-quote-make tr.taxed td { background-color: rgba(231,76,60,0.06) !important; }
 #tab-quote-make tr.taxed td.profit-pos { background-color: #fde8e8 !important; }
 
@@ -909,6 +909,24 @@
 #tab-quote-make td.cd-cell,
 #tab-quote-make th.hd-cd { display: none; }
 
+/* 売通貨を仕入通貨と別建てにした行（独立モード） */
+#tab-quote-make .w-cur-sell { cursor: pointer; }
+#tab-quote-make tr.row-bc-indep .w-cur-sell {
+  border-color: #d08a3a;
+  background: #fff6ea;
+  color: #8a5a1a;
+  font-weight: 700;
+}
+/* 独立モードでは乗せ幅を無効表示（通貨跨ぎで加算不能のため直接入力に切替） */
+#tab-quote-make .w-mkup.mk-disabled {
+  background: #ede5d6;
+  border-color: #c8bfb2;
+  border-style: dashed;
+  color: #b3a48f;
+  opacity: 0.7;
+}
+#tab-quote-make tr.row-bc-indep .stk-mk-plus { opacity: 0.4; }
+
 /* ===== テーブル上部 為替レートバー ===== */
 #tab-quote-make .quote-fx-bar {
   display: none;
@@ -1031,7 +1049,7 @@
    =========================================================== */
 #tab-quote-make .t-cost { color: #c9a227; }
 #tab-quote-make .t-sell { color: #bde8c8; }
-#tab-quote-make .hd-sub { font-weight: 400; font-size: 9px; opacity: 0.95; }
+#tab-quote-make .hd-sub { font-weight: 400; font-size: 11px; opacity: 0.95; }
 /* 課税行 st セル：消費税ヒント */
 #tab-quote-make .tax-hint {
   display: block;
@@ -1187,8 +1205,7 @@
 #tab-quote-make .jpy-conv-hint {
   display: block;
   font-size: 10px;
-  color: #7d6b56;
-  opacity: 0.75;
+  color: #5e4e38; /* opacity 0.75 を削除し単色で WCAG AA 達成（≈5.5:1 on #fff） */
   font-style: italic;
   line-height: 1.2;
 }
@@ -5811,6 +5828,18 @@ body.qp-dash-active #quoteActionDock { display: none !important; }
   -webkit-overflow-scrolling: touch;
   margin-bottom: 0;
   min-height: 200px;
+  position: relative;
+}
+/* 右端フェードグラデーションで横スクロール可能であることを可視化（タブレット対応） */
+#tab-quote-make #tableScrollWrap::after {
+  content: '';
+  position: absolute;
+  right: 0;
+  top: 0;
+  height: 100%;
+  width: 28px;
+  background: linear-gradient(to right, transparent, rgba(242, 237, 230, 0.85));
+  pointer-events: none;
 }
 /* tfoot は通常フロー（行数に応じてテーブルが自然に伸び、内部スクロールしない） */
 #tab-quote-make #quoteTable tfoot {
@@ -6661,6 +6690,14 @@ body.qp-dash-active #quoteActionDock { display: none !important; }
   body:has(#previewOverlay.open) #pvCargoBox {
     break-inside: avoid;
     page-break-inside: avoid;
+  }
+
+  /* Ctrl+P（プレビュー未表示時）：テーブル行の背景色を白にリセット。
+     白黒プリンタでカテゴリ色が全行グレーになる問題を回避。 */
+  body:not(:has(#previewOverlay.open)) #tab-quote-make #quoteTable th,
+  body:not(:has(#previewOverlay.open)) #tab-quote-make #quoteTable td {
+    background-color: #fff !important;
+    color: #000 !important;
   }
 }
 /* ===== プレビュー 表示カスタマイズパネル ===== */
@@ -8375,8 +8412,20 @@ button.um-memberno--empty:hover { background: #f4ead4; border-color: #cdb98e; }
 #tab-quote-make tr.row-hidden-quote .w-name { text-decoration: line-through; text-decoration-color: #b08a6a; }
 
 /* プレビュー：社内モードではグレーで表示、客先モード（has-sensitive なし）では非表示 */
-#tab-quote-make #previewTable tr.pv-row-hidden-quote > td { opacity: 0.5; background: #f7f3ec; }
-#tab-quote-make #previewTableWrap:not(.has-sensitive) #previewTable tr.pv-row-hidden-quote { display: none; }
+/* 見積書非表示（手動・PROFIT SHARE）: 社内モードで薄表示、客先モードで非表示 */
+#tab-quote-make #previewTable tr.pv-row-hidden-quote:not(.pv-row-out-range) > td { opacity: 0.5; background: #f7f3ec; }
+#tab-quote-make #previewTableWrap:not(.has-sensitive) #previewTable tr.pv-row-hidden-quote:not(.pv-row-out-range) { display: none; }
+/* 適用期間外サーチャージ: 常に打ち消し線で表示（合計・出力には含めない） */
+#tab-quote-make #previewTable tr.pv-row-out-range > td {
+  text-decoration: line-through !important;
+  text-decoration-color: #c0704a;
+  opacity: 0.7;
+  background: #fdf2ec !important;
+  color: #a05030 !important;
+}
+#tab-quote-make #previewTable tr.pv-row-out-range > td:first-child {
+  border-left: 3px solid #e08060;
+}
 #tab-quote-make #previewTable .pv-hq-badge {
   display: inline-block; font-size: 10px; font-weight: 700; color: #b3530e;
   background: #fdeede; border: 1px solid #e8b48f; border-radius: 4px; padding: 0 5px; margin-right: 4px;

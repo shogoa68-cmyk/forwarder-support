@@ -7,7 +7,7 @@
   --accent-dk: #3d2e1e;
   --accent-lt: #f0e8d8;
   --text:      #2d2418;
-  --text-md:   #7d6b56;
+  --text-md:   #6a5745;  /* WCAG AA ≈4.5:1 on #f2ede6（旧 #7d6b56 は 3.9:1 で AA 未達） */
   --text-lt:   #6b5a42;  /* WCAG AA 4.78:1 on #f2ede6（旧 #8a7560 は 3.76:1 で AA 未達） */
   /* sticky ナビゲーション高さ（cat-nav → sub-nav → save-toolbar の順）
      cat-nav: min-height:44px + padding:6px + margin ≈ 56px
@@ -177,7 +177,7 @@ body:has(#tab-quote-make.active) .app {
   border: 1px solid var(--border);
 }
 .section-title {
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 700;
   color: var(--text-md);
   text-transform: uppercase;

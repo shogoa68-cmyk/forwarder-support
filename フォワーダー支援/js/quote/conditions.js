@@ -151,24 +151,27 @@
       const rowId = nm.id.replace('nm-', '');
       checkUnfilled(rowId);
       onCatChange(rowId);
-      // onPay() は bc（請求通貨）を pc（仕入通貨）で上書きするため、
-      // _applyCells で復元した bc を退避・復元して pc≠bc の設定を保持する
+      // _applyCells で復元した bc（売通貨）/bp（売単価）を保持する。
+      // pc≠bc は独立モード＝売単価を直接保存しているので、そのまま復元する
       const bcEl = tr.querySelector('[data-field="bc"]');
+      const pcEl = tr.querySelector('[data-field="pc"]');
+      const bpEl = tr.querySelector('[data-field="bp"]');
       const savedBc = bcEl?.value;
-      onPay(parseInt(rowId));
-      if (bcEl && savedBc !== undefined) {
-        bcEl.value = savedBc;
-        // pc≠bc のとき onPay が設定した bpEl.dataset.base（pc 建て pp）を
-        // savedBc 建てに換算し直して bp 表示を正しく再計算する
-        const pc = tr.querySelector('[data-field="pc"]')?.value;
-        if (pc && savedBc && pc !== savedBc && typeof toJPY === 'function') {
-          const bpEl = tr.querySelector('[data-field="bp"]');
-          const ppVal = parseFloat(tr.querySelector('[data-field="pp"]')?.value) || 0;
-          const mkVal = parseFloat(tr.querySelector('[data-field="mk"]')?.value) || 0;
-          const ppJpy  = toJPY(ppVal, pc);
-          const ppInBc = savedBc === 'JPY' ? ppJpy : ppJpy / toJPY(1, savedBc);
-          if (bpEl) { bpEl.dataset.base = ppInBc; bpEl.value = ppInBc + mkVal; }
-        }
+      const savedBp = bpEl?.value;
+      const pc = pcEl?.value;
+      const indep = !!(savedBc && pc && savedBc !== pc);
+      if (indep) {
+        tr.dataset.bcIndep = '1';
+        if (typeof _setRowBcIndepUI === 'function') _setRowBcIndepUI(rowId, true);
+      } else {
+        delete tr.dataset.bcIndep;
+        if (typeof _setRowBcIndepUI === 'function') _setRowBcIndepUI(rowId, false);
+      }
+      onPay(parseInt(rowId));   // bcIndep を尊重（独立モードでは bc/bp を上書きしない）
+      if (indep) {
+        // onPay/_applyCells 後も保存値を確実に反映（売通貨・売単価は手入力保存分）
+        if (bcEl && savedBc !== undefined) bcEl.value = savedBc;
+        if (bpEl && savedBp !== undefined) { bpEl.dataset.base = savedBp; bpEl.value = savedBp; }
         if (typeof calc === 'function') calc(parseInt(rowId));
       }
       // tx は _applyCells で positional に復元済み。fields ID は非連番になり得るため使わない
