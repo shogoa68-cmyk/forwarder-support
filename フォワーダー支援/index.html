@@ -51,6 +51,7 @@
   <div class="cat-nav" role="tablist" aria-label="カテゴリ">
     <button class="cat-btn cat-btn-featured active" role="tab" aria-selected="true"  aria-controls="tab-quote-make"   onclick="switchCategory('quote',  this)">💼 見積</button>
     <button class="cat-btn cat-btn-featured"        role="tab" aria-selected="false" aria-controls="tab-stats"         onclick="switchCategory('stats',   this)">📊 統計</button>
+    <button class="cat-btn"        role="tab" aria-selected="false" aria-controls="tab-master"        onclick="switchCategory('master',  this)">🗂 マスター管理</button>
     <button class="cat-btn cat-btn-featured" role="tab" aria-selected="false" aria-controls="tab-local-charges" onclick="switchCategory('cost', this)">💴 諸チャージ</button>
     <button class="cat-btn cat-btn-bookmark" role="tab" aria-selected="false" aria-controls="tab-bookmark"   onclick="switchCategory('bookmark', this)">🔖 BOOKMARK</button>
     <button class="cat-btn"        role="tab" aria-selected="false" aria-controls="tab-tracking"     onclick="switchCategory('vessel', this)">🚢 本船・航路</button>
@@ -4019,10 +4020,6 @@
       <button class="stats-tab-btn"           role="tab" aria-selected="false" aria-controls="statsPane-svport"   id="statsTabBtn-svport"   onclick="statsSetPane('svport')">🔗 サブコン×港</button>
       <button class="stats-tab-btn"           role="tab" aria-selected="false" aria-controls="statsPane-pattern"  id="statsTabBtn-pattern"  onclick="statsSetPane('pattern')">🔖 パターン別</button>
       <button class="stats-tab-btn"           role="tab" aria-selected="false" aria-controls="statsPane-kpi"      id="statsTabBtn-kpi"      onclick="statsSetPane('kpi')">📈 KPI</button>
-      <div class="stats-tab-group-sep"></div>
-      <span class="stats-tab-group-label">マスター管理・是正</span>
-      <button class="stats-tab-btn"           role="tab" aria-selected="false" aria-controls="statsPane-master"   id="statsTabBtn-master"   onclick="statsSetPane('master')">⭐ マスター管理</button>
-      <button class="stats-tab-btn"           role="tab" aria-selected="false" aria-controls="statsPane-alias"    id="statsTabBtn-alias"    onclick="statsSetPane('alias')">🔀 エイリアス是正</button>
     </div>
 
     <div id="statsPane-sv"       class="stats-pane is-active" role="tabpanel" aria-labelledby="statsTabBtn-sv">
@@ -4044,8 +4041,16 @@
     <div id="statsPane-svport"   class="stats-pane" role="tabpanel" aria-labelledby="statsTabBtn-svport"></div>
     <div id="statsPane-pattern"  class="stats-pane" role="tabpanel" aria-labelledby="statsTabBtn-pattern"></div>
     <div id="statsPane-kpi"      class="stats-pane" role="tabpanel" aria-labelledby="statsTabBtn-kpi"></div>
-    <div id="statsPane-master"   class="stats-pane" role="tabpanel" aria-labelledby="statsTabBtn-master"></div>
-    <div id="statsPane-alias"    class="stats-pane" role="tabpanel" aria-labelledby="statsTabBtn-alias"></div>
+  </div>
+
+  <!-- ===================== Tab: マスター管理 ===================== -->
+  <div class="tab-content" id="tab-master">
+    <div class="stats-tabs" role="tablist" aria-label="マスター管理サブタブ">
+      <button class="stats-tab-btn is-active" role="tab" aria-selected="true"  aria-controls="statsPane-master" id="masterTabBtn-master" onclick="masterSetPane('master')">⭐ マスター管理</button>
+      <button class="stats-tab-btn"           role="tab" aria-selected="false" aria-controls="statsPane-alias"  id="masterTabBtn-alias"  onclick="masterSetPane('alias')">🔀 エイリアス是正</button>
+    </div>
+    <div id="statsPane-master"   class="stats-pane is-active" role="tabpanel" aria-labelledby="masterTabBtn-master"></div>
+    <div id="statsPane-alias"    class="stats-pane" role="tabpanel" aria-labelledby="masterTabBtn-alias"></div>
   </div>
 
   <!-- ===================== Tab: BOOKMARK ===================== -->

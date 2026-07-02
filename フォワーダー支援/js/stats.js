@@ -472,7 +472,10 @@
         group.variants.slice(1).map(function (v) { return v.value; })
       );
     }
-    statsSetPane('alias');
+    // エイリアス是正は独立した「🗂 マスター管理」タブへ移設済み。そちらへ遷移。
+    const catBtn = document.querySelector('.cat-btn[aria-controls="tab-master"]');
+    if (typeof window.switchCategory === 'function' && catBtn) window.switchCategory('master', catBtn);
+    if (typeof window.masterSetPane === 'function') window.masterSetPane('alias');
   };
 
   // === ペイン描画 ===
@@ -1539,6 +1542,35 @@
   };
 
   window.statsSetPane = statsSetPane;
+
+  // === 🗂 マスター管理タブ（統計から独立したトップレベルタブ）===
+  // マスター管理・エイリアス是正のサブタブ切替。パネル(#statsPane-master/-alias)は
+  // #tab-master へ移設済み。ID 据え置きのため _renderMaster/_renderAlias はそのまま動く。
+  function masterSetPane(paneId) {
+    document.querySelectorAll('#tab-master .stats-tab-btn').forEach(b => {
+      b.classList.remove('is-active'); b.setAttribute('aria-selected', 'false');
+    });
+    document.querySelectorAll('#tab-master .stats-pane').forEach(p => p.classList.remove('is-active'));
+    const btn = document.getElementById('masterTabBtn-' + paneId);
+    if (btn) { btn.classList.add('is-active'); btn.setAttribute('aria-selected', 'true'); }
+    document.getElementById('statsPane-' + paneId)?.classList.add('is-active');
+    if      (paneId === 'master') _renderMaster();
+    else if (paneId === 'alias')  _renderAlias();
+  }
+  window.masterSetPane = masterSetPane;
+
+  window.initMasterTab = async function () {
+    masterSetPane('master');
+    if (typeof window.arRefreshDatalist === 'function') window.arRefreshDatalist();
+    if (_cloud()) {
+      _cvMap = null;
+      await _loadCloudVotes();
+      if (typeof window.synLoadCloud === 'function') await window.synLoadCloud();
+      // アクティブなマスタータブのペインを再描画
+      const active = document.querySelector('#tab-master .stats-pane.is-active');
+      if (active && active.id === 'statsPane-alias') _renderAlias(); else _renderMaster();
+    }
+  };
 
   // 昇格済みマスターを全フィールド分まとめて返す（alias-rules.js の datalist 補完用）
   window.statsGetMasters = function () {
