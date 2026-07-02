@@ -648,7 +648,7 @@
       const _hqBadge = d._ps
         ? '<span class="pv-hq-badge pv-ps-badge" title="PROFIT SHARE（代理店収益）。客先見積もりには出さず、社内利益にのみ計上します">🤝 PROFIT SHARE</span> '
         : d._outRange
-        ? '<span class="pv-hq-badge pv-oor-badge" title="サーチャージの適用期間が見積もり提示日（有効期限）の範囲外のため、客先見積もり・PDF・Excel・CSV・合計から自動的に除外されます">📅 適用期間外</span> '
+        ? '<span class="pv-hq-badge pv-oor-badge" title="適用期間外のため合計・PDF・CSV・Excel から除外されています（プレビューには打ち消し線で表示）">📅 適用期間外</span> '
         : (d._hideManual ? '<span class="pv-hq-badge" title="この行は見積書（PDF・Excel・CSV・客先プレビュー）に出力されません">🚫見積書非表示</span> ' : '');
       // 実費行：単価・金額は「実費」表示（金額未確定・別途精算）。CD/乗せ幅/円換算/税は空、利益は —
       const _ac      = d._actual;
@@ -663,7 +663,7 @@
       const prCell   = _ac ? '—' : (fmtMoney(d.profit) + prJpyHint);
       // 都度請求（発生時のみ）：客先にも金額は出すが合計外。客先向け注記を付ける
       const _condNote = d._cond ? '<span class="pv-cond-note">（発生時のみ）</span>' : '';
-      html += `<tr class="${(d._gi != null ? 'pv-grp-row pv-grp-c' + (d._gi % 4) : '')}${_hqCls}${_ac ? ' pv-row-actual' : ''}${d._cond ? ' pv-row-cond' : ''}">
+      html += `<tr class="${(d._gi != null ? 'pv-grp-row pv-grp-c' + (d._gi % 4) : '')}${_hqCls}${d._outRange ? ' pv-row-out-range' : ''}${_ac ? ' pv-row-actual' : ''}${d._cond ? ' pv-row-cond' : ''}">
         <td class="pv-name" style="font-size:11px;">${escHtml(getCatLabel(d.cat))}</td>
         <td class="pv-name">${escHtml(d.sv)}</td>
         <td class="${nameCls}">${_hqBadge}${escHtml(d.name)}${_condNote}${_pvValidityBadge(d.vf, d.vt)}</td>
