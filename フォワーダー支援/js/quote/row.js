@@ -548,6 +548,18 @@
     const dstTx = document.getElementById(`tx-${newId}`);
     if (srcTx && dstTx) dstTx.checked = srcTx.checked;
 
+    // 売通貨独立モード（pc≠bc）を引き継ぐ：onPay で上書きされないよう先にフラグ・UI を設定
+    const srcIndep = document.getElementById(`row-${srcId}`)?.dataset.bcIndep === '1';
+    const dstTr = document.getElementById(`row-${newId}`);
+    if (srcIndep && dstTr) {
+      dstTr.dataset.bcIndep = '1';
+      _setRowBcIndepUI(newId, true);
+      // 売単価（bp）を直接コピー
+      const srcBp = document.getElementById(`bp-${srcId}`);
+      const dstBp = document.getElementById(`bp-${newId}`);
+      if (srcBp && dstBp) { dstBp.dataset.base = srcBp.value; dstBp.value = srcBp.value; }
+    }
+
     // 再計算・色・状態の更新
     onCatChange(newId);
     if (dstTx?.checked) toggleTax(newId);
@@ -698,6 +710,11 @@
     q('pc').onchange   = () => onPay(id);
     q('pp').oninput    = () => onPay(id);
     q('mk').oninput    = () => calc(id);
+    q('bc').onchange   = () => onBillCur(id);          // 売通貨を仕入通貨と別建てに
+    { const bpEl2 = q('bp'); if (bpEl2) bpEl2.oninput = () => {   // 独立モードで売単価を直接入力
+        bpEl2.dataset.base = bpEl2.value; calc(id);
+        if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
+      }; }
     q('sv').onchange   = () => renderSubconGroups();
     { const ptEl = q('pt'); if (ptEl) { ptEl.onchange = () => renderSubconGroups(); ptEl.onfocus = () => _showPatternPopup(ptEl); } }  // パターン変更でグループ再描画＋航路サジェスト
     // サーチャージ有効期限：開始日を入れたら終了日を月末で自動補完（「通常はひと月」）
@@ -731,17 +748,76 @@
   }
 
   // ========== 計算 ==========
+  // 通貨換算（from→to）。FX 未ロード時は素の値を返す
+  function _convCur(amount, from, to) {
+    if (!amount) return 0;
+    if (!from || !to || from === to) return amount;
+    if (typeof toJPY !== 'function') return amount;
+    const jpy = toJPY(amount, from);
+    return to === 'JPY' ? jpy : jpy / toJPY(1, to);
+  }
+
+  // 行の売通貨（bc）を仕入通貨（pc）と別建てにするか（独立モード）の UI 反映。
+  // 独立モード：売単価 bp を直接入力可・乗せ幅 mk は無効（通貨跨ぎで加算不能のため）
+  function _setRowBcIndepUI(id, indep) {
+    const bpEl = document.getElementById(`bp-${id}`);
+    const mkEl = document.getElementById(`mk-${id}`);
+    const tr   = document.getElementById(`row-${id}`);
+    if (bpEl) {
+      bpEl.readOnly = !indep;
+      bpEl.tabIndex = indep ? 0 : -1;
+      bpEl.classList.toggle('display-field', !indep);
+    }
+    if (mkEl) {
+      mkEl.readOnly = indep;
+      mkEl.tabIndex = indep ? -1 : 0;
+      mkEl.classList.toggle('mk-disabled', indep);
+    }
+    if (tr) tr.classList.toggle('row-bc-indep', indep);
+  }
+
+  // 売通貨（bc）変更時：pc と一致なら連動モードへ戻し、異なれば独立モードへ
+  function onBillCur(id) {
+    const tr = document.getElementById(`row-${id}`);
+    const pc = document.getElementById(`pc-${id}`)?.value || 'JPY';
+    const bc = document.getElementById(`bc-${id}`)?.value || 'JPY';
+    if (bc === pc) {
+      if (tr) delete tr.dataset.bcIndep;
+      _setRowBcIndepUI(id, false);
+      onPay(id);   // 連動モードで bp = 仕入単価 + 乗せ幅 を再計算
+    } else {
+      if (tr) tr.dataset.bcIndep = '1';
+      _setRowBcIndepUI(id, true);
+      // 売単価の初期値として仕入単価を売通貨へ換算した値をシード（そのまま手入力で上書き可）
+      const bpEl = document.getElementById(`bp-${id}`);
+      if (bpEl) {
+        const pp = val(`pp-${id}`);
+        const seed = Math.round(_convCur(pp, pc, bc) * 100) / 100;
+        bpEl.dataset.base = seed;
+        bpEl.value = seed;
+      }
+      calc(id);
+    }
+    if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
+  }
+
   function onPay(id) {
     const pq = val(`pq-${id}`);
     const pc = document.getElementById(`pc-${id}`)?.value;
     const pp = val(`pp-${id}`);
     const mk = val(`mk-${id}`);
+    const tr = document.getElementById(`row-${id}`);
+    const indep = tr?.dataset.bcIndep === '1';
     const bqEl = document.getElementById(`bq-${id}`);
     const bcEl = document.getElementById(`bc-${id}`);
     const bpEl = document.getElementById(`bp-${id}`);
     if (bqEl) bqEl.value = pq;
-    if (bcEl) bcEl.value = pc;
-    if (bpEl) { bpEl.dataset.base = pp; bpEl.value = pp + mk; }
+    if (!indep) {
+      // 連動モード：売通貨＝仕入通貨、売単価＝仕入単価＋乗せ幅
+      if (bcEl) bcEl.value = pc;
+      if (bpEl) { bpEl.dataset.base = pp; bpEl.value = pp + mk; }
+    }
+    // 独立モード：bc / bp はユーザー入力を保持（上書きしない）
     calc(id);
   }
 
@@ -751,7 +827,9 @@
     const bq = val(`bq-${id}`);
     const mk = val(`mk-${id}`);
     const bpEl = document.getElementById(`bp-${id}`);
-    if (bpEl) bpEl.value = (parseFloat(bpEl.dataset.base) || 0) + mk;
+    // 連動モードのみ 売単価＝基準額＋乗せ幅 を再計算。独立モードは手入力値を保持
+    const _indep = document.getElementById(`row-${id}`)?.dataset.bcIndep === '1';
+    if (bpEl && !_indep) bpEl.value = (parseFloat(bpEl.dataset.base) || 0) + mk;
     const bp = val(`bp-${id}`);
     const pc = document.getElementById(`pc-${id}`)?.value || 'JPY';
     const bc = document.getElementById(`bc-${id}`)?.value || 'JPY';
@@ -2217,7 +2295,7 @@
 
   function _gatherRowData(id) {
     const data = {};
-    ['nm','pq','un','pp','mk','nt','sv','pt','zc','ac','ps','co','vf','vt','lu','cat','pc','bc'].forEach(f => {
+    ['nm','pq','un','pp','mk','nt','sv','pt','zc','ac','ps','co','vf','vt','lu','cat','pc','bc','bp'].forEach(f => {
       const el = document.getElementById(`${f}-${id}`);
       if (el) data[f] = el.value;
     });
@@ -2245,11 +2323,20 @@
       const el = document.getElementById(`${f}-${newId}`);
       if (el && data[f] !== undefined) el.value = data[f];
     });
+    // 売通貨独立モード（pc≠bc）を復元：onPay に上書きされないよう先に設定
+    const _indep = data.bc !== undefined && data.pc !== undefined && data.bc !== data.pc;
+    if (_indep) {
+      newTr.dataset.bcIndep = '1';
+      _setRowBcIndepUI(newId, true);
+      const bpEl = document.getElementById(`bp-${newId}`);
+      if (bpEl && data.bp !== undefined) { bpEl.dataset.base = data.bp; bpEl.value = data.bp; }
+    }
     initDrag(newTr);
     onCatChange(newId);
     if (data.tx) toggleTax(newId);
     checkUnfilled(newId);
     onPay(newId);
+    if (_indep && typeof calc === 'function') calc(newId);
     return newId;
   }
 

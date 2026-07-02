@@ -609,7 +609,7 @@
 #tab-quote-make #quoteTable.customer-mode .hd-stk .t-cost,
 #tab-quote-make #quoteTable.customer-mode .hd-sub .t-cost { display: none; }
 #tab-quote-make #quoteTable.customer-mode .hd-stk .hd-sub { font-size: 0; }
-#tab-quote-make #quoteTable.customer-mode .hd-stk .hd-sub .t-sell { font-size: 9px; }
+#tab-quote-make #quoteTable.customer-mode .hd-stk .hd-sub .t-sell { font-size: 11px; }
 
 /* 客先モード時のテーブル上部バナー */
 #tab-quote-make.qvm-customer #tableScrollWrap {
@@ -730,7 +730,7 @@
 
 /* 課税 */
 #tab-quote-make td.tax-cell { width: 44px; }
-#tab-quote-make input[type="checkbox"] { width: 16px; height: 16px; cursor: pointer; accent-color: #e74c3c; }
+#tab-quote-make input[type="checkbox"] { width: 16px; height: 16px; cursor: pointer; accent-color: #d97706; }
 #tab-quote-make tr.taxed td { background-color: rgba(231,76,60,0.06) !important; }
 #tab-quote-make tr.taxed td.profit-pos { background-color: #fde8e8 !important; }
 
@@ -909,6 +909,24 @@
 #tab-quote-make td.cd-cell,
 #tab-quote-make th.hd-cd { display: none; }
 
+/* 売通貨を仕入通貨と別建てにした行（独立モード） */
+#tab-quote-make .w-cur-sell { cursor: pointer; }
+#tab-quote-make tr.row-bc-indep .w-cur-sell {
+  border-color: #d08a3a;
+  background: #fff6ea;
+  color: #8a5a1a;
+  font-weight: 700;
+}
+/* 独立モードでは乗せ幅を無効表示（通貨跨ぎで加算不能のため直接入力に切替） */
+#tab-quote-make .w-mkup.mk-disabled {
+  background: #ede5d6;
+  border-color: #c8bfb2;
+  border-style: dashed;
+  color: #b3a48f;
+  opacity: 0.7;
+}
+#tab-quote-make tr.row-bc-indep .stk-mk-plus { opacity: 0.4; }
+
 /* ===== テーブル上部 為替レートバー ===== */
 #tab-quote-make .quote-fx-bar {
   display: none;
@@ -1031,7 +1049,7 @@
    =========================================================== */
 #tab-quote-make .t-cost { color: #c9a227; }
 #tab-quote-make .t-sell { color: #bde8c8; }
-#tab-quote-make .hd-sub { font-weight: 400; font-size: 9px; opacity: 0.95; }
+#tab-quote-make .hd-sub { font-weight: 400; font-size: 11px; opacity: 0.95; }
 /* 課税行 st セル：消費税ヒント */
 #tab-quote-make .tax-hint {
   display: block;
@@ -1187,8 +1205,7 @@
 #tab-quote-make .jpy-conv-hint {
   display: block;
   font-size: 10px;
-  color: #7d6b56;
-  opacity: 0.75;
+  color: #5e4e38; /* opacity 0.75 を削除し単色で WCAG AA 達成（≈5.5:1 on #fff） */
   font-style: italic;
   line-height: 1.2;
 }
@@ -5398,6 +5415,51 @@ body.qp-dash-active #quoteActionDock { display: none !important; }
 #tab-quote-make .cloud-card-acts { display: flex; gap: 5px; flex-shrink: 0; flex-wrap: nowrap; }
 #tab-quote-make .cloud-card-who  { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
+/* === 💬 案件カード内 申し送り簡易表示（ダッシュボードのカード表示のみ） === */
+#tab-quote-make .cloud-card-chat { display: none; }
+#tab-quote-make #qpdListWrap .cloud-card-chat {
+  display: block; margin-top: 8px; padding-top: 6px; border-top: 1px dashed #e8e0d4;
+}
+#tab-quote-make #qpdListWrap .ccc-toggle {
+  display: flex; align-items: center; gap: 6px; width: 100%;
+  background: none; border: none; padding: 3px 2px; cursor: pointer;
+  font-size: 12px; color: #6b5e49; text-align: left;
+}
+#tab-quote-make #qpdListWrap .ccc-toggle:hover { color: #2b2014; }
+#tab-quote-make #qpdListWrap .ccc-count { font-weight: 600; white-space: nowrap; }
+#tab-quote-make #qpdListWrap .cloud-card-chat.ccc-has .ccc-count { color: #b06a00; }
+#tab-quote-make #qpdListWrap .ccc-preview {
+  flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  color: #998a72; font-size: 11px;
+}
+#tab-quote-make #qpdListWrap .ccc-caret { font-size: 10px; color: #b3a890; transition: transform .15s; }
+#tab-quote-make #qpdListWrap .cloud-card-chat.ccc-open .ccc-caret { transform: rotate(180deg); }
+#tab-quote-make #qpdListWrap .ccc-panel { margin-top: 6px; }
+#tab-quote-make #qpdListWrap .ccc-list {
+  max-height: 160px; overflow-y: auto; display: flex; flex-direction: column; gap: 6px;
+  padding: 6px; background: #fbf7ef; border-radius: 6px;
+}
+#tab-quote-make #qpdListWrap .ccc-list .cp-chat-item { font-size: 12px; }
+#tab-quote-make #qpdListWrap .ccc-list .cp-chat-meta { font-size: 10px; color: #8a7d66; margin-bottom: 1px; }
+#tab-quote-make #qpdListWrap .ccc-list .cp-chat-body { color: #2b2014; white-space: pre-wrap; word-break: break-word; }
+#tab-quote-make #qpdListWrap .ccc-list .cp-chat-item--mine .cp-chat-body {
+  background: #fff4dc; border-radius: 5px; padding: 3px 6px;
+}
+#tab-quote-make #qpdListWrap .ccc-list .cp-chat-login,
+#tab-quote-make #qpdListWrap .ccc-list .cp-chat-empty,
+#tab-quote-make #qpdListWrap .ccc-list .cp-chat-loading,
+#tab-quote-make #qpdListWrap .ccc-list .cp-chat-err { font-size: 11px; color: #8a7d66; }
+#tab-quote-make #qpdListWrap .ccc-compose { display: flex; gap: 6px; margin-top: 6px; }
+#tab-quote-make #qpdListWrap .ccc-input {
+  flex: 1; min-width: 0; padding: 6px 8px; border: 1px solid #d8ccb6; border-radius: 6px; font-size: 12px;
+}
+#tab-quote-make #qpdListWrap .ccc-send {
+  padding: 6px 12px; border: none; border-radius: 6px; background: #7a6a4f; color: #fff;
+  font-size: 12px; cursor: pointer; white-space: nowrap;
+}
+#tab-quote-make #qpdListWrap .ccc-send:hover { background: #685a42; }
+#tab-quote-make #qpdListWrap .ccc-send:disabled { opacity: .5; cursor: default; }
+
 /* === ブラウザ保存 リッチカード（茶系・チーム共有と同じ情報量／色で区別） === */
 #tab-quote-make .preset-item-rich { padding: 10px 12px; }
 #tab-quote-make .preset-rich-row1 { display: flex; align-items: center; gap: 8px; }
@@ -5766,6 +5828,18 @@ body.qp-dash-active #quoteActionDock { display: none !important; }
   -webkit-overflow-scrolling: touch;
   margin-bottom: 0;
   min-height: 200px;
+  position: relative;
+}
+/* 右端フェードグラデーションで横スクロール可能であることを可視化（タブレット対応） */
+#tab-quote-make #tableScrollWrap::after {
+  content: '';
+  position: absolute;
+  right: 0;
+  top: 0;
+  height: 100%;
+  width: 28px;
+  background: linear-gradient(to right, transparent, rgba(242, 237, 230, 0.85));
+  pointer-events: none;
 }
 /* tfoot は通常フロー（行数に応じてテーブルが自然に伸び、内部スクロールしない） */
 #tab-quote-make #quoteTable tfoot {
@@ -6617,6 +6691,14 @@ body.qp-dash-active #quoteActionDock { display: none !important; }
     break-inside: avoid;
     page-break-inside: avoid;
   }
+
+  /* Ctrl+P（プレビュー未表示時）：テーブル行の背景色を白にリセット。
+     白黒プリンタでカテゴリ色が全行グレーになる問題を回避。 */
+  body:not(:has(#previewOverlay.open)) #tab-quote-make #quoteTable th,
+  body:not(:has(#previewOverlay.open)) #tab-quote-make #quoteTable td {
+    background-color: #fff !important;
+    color: #000 !important;
+  }
 }
 /* ===== プレビュー 表示カスタマイズパネル ===== */
 #tab-quote-make .pv-customize-wrap {
@@ -7121,6 +7203,9 @@ body.qp-dash-active #quoteActionDock { display: none !important; }
   transition: background .12s, color .12s, border-color .12s;
 }
 #tab-quote-make .qsp-bm-new-chip:hover { background: #4a9c59; color: #fff; border-color: #4a9c59; border-style: solid; }
+/* 関連会社（代理店関係など）経由で表示しているリンクの印 */
+#tab-quote-make .qsp-ms-cl-chip--rel { border-style: dashed; }
+#tab-quote-make .qsp-ms-cl-rel { font-size: 9px; opacity: .75; margin-right: 2px; }
 
 /* ===== 右カラム「🔖 ブックマーク」パネル（案件連動リンクチップ） ===== */
 #tab-quote-make .bm-rail-panel { display: flex; flex-direction: column; gap: 8px; padding: 4px 2px; }

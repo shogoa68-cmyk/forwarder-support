@@ -49,15 +49,15 @@
   <!-- Tab Navigation -->
   <!-- ===== カテゴリーナビ（上段） ===== -->
   <div class="cat-nav" role="tablist" aria-label="カテゴリ">
-    <button class="cat-btn cat-btn-featured active" role="tab" aria-selected="true"  onclick="switchCategory('quote',  this)">💼 見積</button>
-    <button class="cat-btn cat-btn-featured"        role="tab" aria-selected="false" onclick="switchCategory('stats',   this)">📊 統計</button>
-    <button class="cat-btn cat-btn-featured" role="tab" aria-selected="false" onclick="switchCategory('cost', this)">💴 諸チャージ</button>
-    <button class="cat-btn cat-btn-bookmark" role="tab" aria-selected="false" onclick="switchCategory('bookmark', this)">🔖 BOOKMARK</button>
-    <button class="cat-btn"        role="tab" aria-selected="false" onclick="switchCategory('vessel', this)">🚢 本船・航路</button>
-    <button class="cat-btn"        role="tab" aria-selected="false" title="Booking（船腹予約）と S/I（Shipping Instruction：船積指図書）の手続き" onclick="switchCategory('booking', this)">📋 Booking/SI</button>
-    <button class="cat-btn"        role="tab" aria-selected="false" onclick="switchCategory('docs',   this)">📄 書類・通関</button>
-    <button class="cat-btn"        role="tab" aria-selected="false" onclick="switchCategory('calc',   this)">🧮 計算</button>
-    <button class="cat-btn"        role="tab" aria-selected="false" onclick="switchCategory('ref',    this)">📚 知識・参考</button>
+    <button class="cat-btn cat-btn-featured active" role="tab" aria-selected="true"  aria-controls="tab-quote-make"   onclick="switchCategory('quote',  this)">💼 見積</button>
+    <button class="cat-btn cat-btn-featured"        role="tab" aria-selected="false" aria-controls="tab-stats"         onclick="switchCategory('stats',   this)">📊 統計</button>
+    <button class="cat-btn cat-btn-featured" role="tab" aria-selected="false" aria-controls="tab-local-charges" onclick="switchCategory('cost', this)">💴 諸チャージ</button>
+    <button class="cat-btn cat-btn-bookmark" role="tab" aria-selected="false" aria-controls="tab-bookmark"   onclick="switchCategory('bookmark', this)">🔖 BOOKMARK</button>
+    <button class="cat-btn"        role="tab" aria-selected="false" aria-controls="tab-tracking"     onclick="switchCategory('vessel', this)">🚢 本船・航路</button>
+    <button class="cat-btn"        role="tab" aria-selected="false" aria-controls="tab-booking-tab"  title="Booking（船腹予約）と S/I（Shipping Instruction：船積指図書）の手続き" onclick="switchCategory('booking', this)">📋 Booking/SI</button>
+    <button class="cat-btn"        role="tab" aria-selected="false" aria-controls="tab-bldo"         onclick="switchCategory('docs',   this)">📄 書類・通関</button>
+    <button class="cat-btn"        role="tab" aria-selected="false" aria-controls="tab-calc"         onclick="switchCategory('calc',   this)">🧮 計算</button>
+    <button class="cat-btn"        role="tab" aria-selected="false" aria-controls="tab-incoterms"    onclick="switchCategory('ref',    this)">📚 知識・参考</button>
   </div>
 
   <!-- ===== サブタブナビ（下段・カテゴリー別） ===== -->
@@ -271,6 +271,14 @@
         </div>
         <div class="lc-topbar-right">
           <span id="lcCloudStatus" class="lc-cloud-off">💾 ローカル</span>
+          <label class="lc-group-select-wrap" title="一覧のグループ表示を切り替えます">
+            <span class="lc-group-select-ic">🗂️</span>
+            <select id="lcGroupMode" class="lc-group-select" onchange="lcSetGroupMode(this.value)">
+              <option value="carrier">船会社別</option>
+              <option value="cat">カテゴリ別</option>
+              <option value="none">グループなし</option>
+            </select>
+          </label>
           <button class="lc-variant-btn" onclick="lcToggleVariants()">🔀 ゆらぎ</button>
           <button class="lc-add-btn" onclick="lcOpenForm(null)">＋ 新規登録</button>
         </div>
@@ -2623,7 +2631,7 @@
         <div class="zone-builder" id="zoneBuilder">
           <div class="zone-card zone-origin zone-off" id="zone1Card">
             <div class="zone-card-header">
-              <button class="zone-toggle-btn" id="zone1Btn" onclick="toggleZone(1)">OFF</button>
+              <button class="zone-toggle-btn" id="zone1Btn" onclick="toggleZone(1)">OFF（無効）</button>
               <div class="zone-card-title">
                 <span class="zone-num">① 出発地側</span>
                 <span class="zone-subcon" id="zone1Subcon">日本協力会社</span>
@@ -2720,7 +2728,7 @@
 
           <div class="zone-card zone-dest zone-off" id="zone3Card">
             <div class="zone-card-header">
-              <button class="zone-toggle-btn" id="zone3Btn" onclick="toggleZone(3)">OFF</button>
+              <button class="zone-toggle-btn" id="zone3Btn" onclick="toggleZone(3)">OFF（無効）</button>
               <div class="zone-card-title">
                 <span class="zone-num">③ 到着地側</span>
                 <span class="zone-subcon" id="zone3Subcon">現地代理店</span>
@@ -3773,7 +3781,7 @@
       <td class="ccy-cell stk-cell">
         <div class="stk">
           <span class="stk-cost"><span class="stk-tag t-cost">仕</span><select data-field="pc" class="w-cur" data-col="3"></select></span>
-          <span class="stk-sell"><span class="stk-tag t-sell">売</span><select data-field="bc" class="w-cur display-field" tabindex="-1"></select></span>
+          <span class="stk-sell"><span class="stk-tag t-sell">売</span><select data-field="bc" class="w-cur w-cur-sell" data-col="3b" title="売値の通貨。仕入通貨と別にする場合はここで変更（売単価を直接入力できます）"></select></span>
         </div>
       </td>
       <td class="price-cell stk-cell">
@@ -4255,13 +4263,19 @@
         <input id="lc_unit" class="lc-form-input lc-form-input--unit" type="text" list="lcUnitList" autocomplete="off" placeholder="単位（自由入力）">
         <datalist id="lcUnitList"></datalist>
       </div>
-      <div class="lc-form-row">
-        <label class="lc-form-label">積み港（POL）</label>
-        <input id="lc_pol" class="lc-form-input" type="text" placeholder="例: 東京港、横浜港、TPICT">
+      <div class="lc-form-row lc-form-row--full">
+        <label class="lc-form-label">積み港（POL） <span class="lc-form-hint">複数可・Enterで追加</span></label>
+        <div id="lcPolChips" class="lc-chips-input">
+          <input type="text" class="lc-chip-entry" data-lc-which="pol" placeholder="港を入力しEnter" autocomplete="off">
+        </div>
+        <div id="lcPolPresets" class="lc-preset-row"></div>
       </div>
-      <div class="lc-form-row">
-        <label class="lc-form-label">揚げ港（POD）</label>
-        <input id="lc_pod" class="lc-form-input" type="text" placeholder="例: USLAX、Shanghai、Hamburg">
+      <div class="lc-form-row lc-form-row--full">
+        <label class="lc-form-label">揚げ港（POD） <span class="lc-form-hint">複数仕向地可・Enterで追加</span></label>
+        <div id="lcPodChips" class="lc-chips-input">
+          <input type="text" class="lc-chip-entry" data-lc-which="pod" placeholder="仕向地を入力しEnter" autocomplete="off">
+        </div>
+        <div id="lcPodPresets" class="lc-preset-row"></div>
       </div>
       <div class="lc-form-row">
         <label class="lc-form-label">適用開始日</label>
@@ -4487,6 +4501,34 @@
 </div>
 
 <!-- ======= ブックマーク変更履歴モーダル ======= -->
+<div id="bmRelationModal" class="bm-modal-overlay" onclick="closeBmRelation(event)">
+  <div class="bm-modal-box">
+    <div class="bm-modal-head">
+      <h3>🔗 関連会社を登録</h3>
+      <button class="bm-modal-close" onclick="document.getElementById('bmRelationModal').classList.remove('open')" aria-label="閉じる">✕</button>
+    </div>
+    <div class="bm-form">
+      <div class="bm-form-row">
+        <div class="bm-rename-info">「<b id="bmRelFrom"></b>」と関連する会社を登録します（統合はせず、双方の名前・ブックマークをそのまま残します）</div>
+      </div>
+      <div class="bm-form-row">
+        <label class="bm-form-label" for="bmRelInput">関連する会社名</label>
+        <input type="text" id="bmRelInput" class="bm-form-input" list="bmRelDatalist" placeholder="例：SITC" maxlength="100">
+        <datalist id="bmRelDatalist"></datalist>
+      </div>
+      <div class="bm-form-row">
+        <label class="bm-form-label" for="bmRelLabel">関係の種類</label>
+        <input type="text" id="bmRelLabel" class="bm-form-input" placeholder="例：代理店" maxlength="30">
+        <span class="bm-carrier-hint">登録すると、見積タブで片方のキャリアを選んだとき、もう片方に登録したリンクも一緒に表示されます</span>
+      </div>
+      <div class="bm-modal-foot">
+        <button type="button" class="bm-btn-cancel" onclick="document.getElementById('bmRelationModal').classList.remove('open')">キャンセル</button>
+        <button type="button" class="bm-btn-save" onclick="bmDoAddRelation()">登録</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <div id="bmRenameModal" class="bm-modal-overlay" onclick="closeBmRename(event)">
   <div class="bm-modal-box">
     <div class="bm-modal-head">

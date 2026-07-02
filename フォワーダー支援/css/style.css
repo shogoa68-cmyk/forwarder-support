@@ -7,7 +7,7 @@
   --accent-dk: #3d2e1e;
   --accent-lt: #f0e8d8;
   --text:      #2d2418;
-  --text-md:   #7d6b56;
+  --text-md:   #6a5745;  /* WCAG AA ≈4.5:1 on #f2ede6（旧 #7d6b56 は 3.9:1 で AA 未達） */
   --text-lt:   #6b5a42;  /* WCAG AA 4.78:1 on #f2ede6（旧 #8a7560 は 3.76:1 で AA 未達） */
   /* sticky ナビゲーション高さ（cat-nav → sub-nav → save-toolbar の順）
      cat-nav: min-height:44px + padding:6px + margin ≈ 56px
@@ -177,7 +177,7 @@ body:has(#tab-quote-make.active) .app {
   border: 1px solid var(--border);
 }
 .section-title {
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 700;
   color: var(--text-md);
   text-transform: uppercase;
@@ -1647,7 +1647,26 @@ body:has(#compareOverlay.open) #quoteActionDock { display: none; }
   display: flex; flex-wrap: wrap; gap: 7px;
   align-content: flex-start;
 }
-.bm-tile.collapsed .bm-tbody { display: none; }
+.bm-tile.collapsed .bm-tbody,
+.bm-tile.collapsed .bm-rel-row { display: none; }
+/* 会社間の関係性（代理店関係など・統合ではなく結びつけるだけ） */
+.bm-rel-row {
+  display: flex; flex-wrap: wrap; gap: 6px; align-items: center;
+  padding: 7px 12px; border-top: 1px dashed #e2d8c8; background: #fbf8f2;
+}
+.bm-rel-chip {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: 11px; color: #6f5aa0; background: #efeaf6;
+  border: 1px solid #d9cfe6; border-radius: 999px; padding: 3px 6px 3px 10px;
+}
+.bm-rel-x { cursor: pointer; opacity: .6; font-size: 12px; line-height: 1; padding: 0 2px; }
+.bm-rel-x:hover { opacity: 1; color: #b04a4a; }
+.bm-rel-add {
+  font-size: 11px; color: #9a8a72; background: #fff;
+  border: 1px dashed #d9cfc2; border-radius: 999px; padding: 3px 9px;
+  cursor: pointer;
+}
+.bm-rel-add:hover { color: #6f5aa0; border-color: #6f5aa0; background: #f7f4fb; }
 
 .bm-pill {
   display: inline-flex; align-items: center; gap: 6px;
@@ -3322,6 +3341,75 @@ body:has(#compareOverlay.open) #quoteActionDock { display: none; }
 }
 .lc-filter-input:focus { outline: none; border-color: #d97706; }
 
+/* ===== 諸チャージ: グループ表示セレクト（案3） ===== */
+.lc-group-select-wrap {
+  display: inline-flex; align-items: center; gap: 5px;
+  background: #fff; border: 1px solid #d8cbb2; border-radius: 8px; padding: 4px 9px;
+}
+.lc-group-select-ic { font-size: 13px; }
+.lc-group-select {
+  border: none; background: none; font: inherit; font-size: 12.5px;
+  color: #6b5a42; font-weight: 600; cursor: pointer; outline: none;
+}
+
+/* ===== 諸チャージ: グループ・アコーディオン（案3） ===== */
+.lc-acc { background: #fff; border: 1px solid #ebe1cf; border-radius: 10px; overflow: hidden; margin-bottom: 11px; }
+.lc-acc-h { display: flex; align-items: center; gap: 12px; padding: 11px 15px; background: #f7f0e2; cursor: pointer; user-select: none; }
+.lc-acc-h:hover { background: #f2e9d6; }
+.lc-acc-tw { width: 16px; color: #b08642; font-size: 11px; transition: transform 0.15s; }
+.lc-acc.is-collapsed .lc-acc-tw { transform: rotate(-90deg); }
+.lc-acc-name { font-size: 13.5px; font-weight: 700; color: #3a2c1e; }
+.lc-acc-count { font-size: 11px; color: #8a7a64; background: #fff; border: 1px solid #e3d8c2; border-radius: 20px; padding: 1px 9px; font-weight: 700; }
+.lc-acc-warn { font-size: 10.5px; font-weight: 700; padding: 2px 8px; border-radius: 4px; background: #fef3c7; color: #b45309; }
+.lc-acc-sp { flex: 1; }
+.lc-acc-cats { display: flex; gap: 5px; flex-wrap: wrap; justify-content: flex-end; }
+.lc-acc-rows { overflow: hidden; }
+.lc-acc.is-collapsed .lc-acc-rows { display: none; }
+/* 船会社グループ見出し直下：ブックマークリンクチップ帯（案3統合） */
+.lc-acc-bm {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  padding: 7px 15px; background: #fcf8ef; border-top: 1px solid #f1ebdd;
+}
+.lc-acc.is-collapsed .lc-acc-bm { display: none; }
+.lc-acc-bm-ic { font-size: 12px; flex-shrink: 0; }
+
+/* 行（グリッド：状態バー｜名称｜カテゴリ｜ルート｜金額｜操作） */
+.lc-row {
+  display: grid;
+  grid-template-columns: 4px minmax(180px, 1.6fr) auto minmax(90px, 1fr) auto auto;
+  align-items: center; gap: 14px; padding: 9px 14px 9px 0; border-top: 1px solid #f1ebdd;
+}
+.lc-acc--flat .lc-row:first-child { border-top: none; }
+.lc-row:hover { background: #fdfaf3; }
+.lc-row-bar { width: 4px; align-self: stretch; min-height: 34px; border-radius: 0 2px 2px 0; }
+.lc-row--green  .lc-row-bar { background: #22a35a; }
+.lc-row--amber  .lc-row-bar { background: #f59e0b; }
+.lc-row--red    .lc-row-bar { background: #dc2626; }
+.lc-row--future .lc-row-bar { background: #6366f1; }
+.lc-row--red    { opacity: 0.6; }
+.lc-row-main { min-width: 0; }
+.lc-row-nm { font-weight: 700; color: #2d2418; font-size: 13px; }
+.lc-row-sub { font-size: 10.5px; color: #9a8a76; font-weight: 400; margin-top: 1px; }
+.lc-row-cat { white-space: nowrap; }
+.lc-route-chip {
+  display: inline-flex; align-items: center; gap: 4px; font-size: 11.5px; color: #5a4a38;
+  background: #f3ede0; border: 1px solid #e3d8c2; border-radius: 6px; padding: 2px 8px; white-space: nowrap;
+}
+.lc-route-arr { color: #b08642; font-weight: 700; }
+.lc-route-none { color: #baad94; font-size: 12px; }
+.lc-row-amt { text-align: right; font-weight: 800; font-size: 13.5px; color: #1c1812; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.lc-r-unit { font-size: 10px; color: #9a8a76; font-weight: 500; margin-left: 3px; }
+.lc-row-ops { display: flex; gap: 4px; padding-right: 4px; white-space: nowrap; }
+.lc-row-ops button, .lc-row-ops .lc-attach-tbl-btn {
+  border: none; background: #f3ede0; width: 27px; height: 27px; border-radius: 6px;
+  cursor: pointer; font-size: 12px; display: inline-flex; align-items: center; justify-content: center; text-decoration: none;
+}
+.lc-row-ops button:hover, .lc-row-ops .lc-attach-tbl-btn:hover { background: #e7dcc6; }
+@media (max-width: 720px) {
+  .lc-row { grid-template-columns: 4px 1fr auto; grid-row-gap: 4px; }
+  .lc-row-cat, .lc-row-route { grid-column: 2 / 4; }
+}
+
 /* 一覧テーブル */
 .lc-table { width: 100%; border-collapse: collapse; font-size: 13px; }
 .lc-table thead tr { background: #f0e8d8; border-bottom: 2px solid #d0c0a0; }
@@ -3669,6 +3757,42 @@ a.lc-source-icon:hover { opacity: 0.75; }
 }
 button.lc-attach-tbl-btn { background: none; border: none; padding: 0; cursor: pointer; }
 .lc-attach-tbl-btn:hover { opacity: 1; }
+
+/* ── POL/POD チップ入力（登録フォーム） ───────────────────────────────── */
+.lc-chips-input {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 5px;
+  min-height: 38px; padding: 5px 8px;
+  border: 1px solid #ccc; border-radius: 6px; background: #fff; cursor: text;
+}
+.lc-chips-input:focus-within { border-color: #2d6a4f; box-shadow: 0 0 0 2px rgba(45,106,79,.12); }
+.lc-chip {
+  display: inline-flex; align-items: center; gap: 4px;
+  background: #e7f0eb; color: #1b4332; border: 1px solid #b8d4c6;
+  border-radius: 12px; padding: 2px 6px 2px 10px; font-size: 12px; white-space: nowrap;
+}
+.lc-chip-x {
+  border: none; background: none; color: #4a6a58; cursor: pointer;
+  font-size: 14px; line-height: 1; padding: 0 2px;
+}
+.lc-chip-x:hover { color: #b71c1c; }
+.lc-chip-entry {
+  flex: 1; min-width: 90px; border: none; outline: none;
+  font-size: 13px; padding: 3px 2px; background: transparent;
+}
+.lc-preset-row { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 5px; }
+.lc-preset-chip {
+  font-size: 11px; color: #5a4a38; background: #f4efe6;
+  border: 1px solid #e0d4bc; border-radius: 10px; padding: 2px 8px; cursor: pointer;
+}
+.lc-preset-chip:hover { background: #e9dfca; border-color: #cbb890; }
+
+/* ── 一覧の POL/POD チップ表示 ────────────────────────────────────────── */
+.lc-places { display: flex; flex-wrap: wrap; gap: 3px; max-width: 160px; }
+.lc-place-chip {
+  font-size: 11px; background: #eef2f7; color: #33475b;
+  border-radius: 5px; padding: 1px 6px; white-space: nowrap;
+}
+.lc-place-more { font-size: 11px; color: #888; align-self: center; }
 
 /* ── Unit Alias Group UI ─────────────────────────────────────────────── */
 .ua-group-row td { background: #f9f9ff; }
