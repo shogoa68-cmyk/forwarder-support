@@ -3794,6 +3794,90 @@ button.lc-attach-tbl-btn { background: none; border: none; padding: 0; cursor: p
 }
 .lc-place-more { font-size: 11px; color: #888; align-self: center; }
 
+/* ── 料金改定案内タブ ────────────────────────────────────────────────── */
+.rn-page { max-width: 1000px; margin: 0 auto; }
+.rn-section {
+  background: #fff; border: 1px solid #e7ddc9; border-radius: 10px;
+  padding: 14px 16px; margin-bottom: 16px;
+}
+.rn-section-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.rn-h { font-size: 15px; font-weight: 700; color: #3a2c1e; margin: 0; }
+.rn-hint { font-size: 12px; color: #8a7a6a; margin: 4px 0 10px; }
+.rn-count { font-size: 12px; color: #5a4a38; }
+.rn-plan-actions { display: flex; align-items: center; gap: 10px; }
+.rn-primary-btn {
+  padding: 7px 16px; background: #2d6a4f; color: #fff; border: none;
+  border-radius: 6px; font-size: 13px; font-weight: 700; cursor: pointer;
+}
+.rn-primary-btn:hover { background: #1b4332; }
+.rn-primary-btn:disabled { opacity: .45; cursor: not-allowed; }
+.rn-ghost-btn {
+  padding: 7px 14px; background: #fff; color: #2d6a4f; border: 1px solid #2d6a4f;
+  border-radius: 6px; font-size: 13px; font-weight: 700; cursor: pointer;
+}
+.rn-ghost-btn:hover { background: #eaf3ee; }
+.rn-link-btn { background: none; border: none; color: #8a7a6a; cursor: pointer; font-size: 12px; text-decoration: underline; }
+
+.rn-plan-list { display: flex; flex-direction: column; gap: 8px; }
+.rn-empty { padding: 20px; text-align: center; color: #9a8a78; font-size: 13px; line-height: 1.6; }
+.rn-plan-row {
+  display: flex; align-items: center; gap: 10px; padding: 10px 12px;
+  border: 1px solid #ece3d2; border-radius: 8px; background: #fdfbf7; cursor: pointer;
+}
+.rn-plan-row:hover { background: #faf6ef; }
+.rn-plan-row--sel { border-color: #2d6a4f; background: #f0f7f3; }
+.rn-plan-chk { width: 17px; height: 17px; flex-shrink: 0; cursor: pointer; }
+.rn-plan-main { flex: 1; min-width: 0; }
+.rn-plan-nm { font-weight: 700; color: #2a1f14; display: flex; align-items: center; gap: 8px; }
+.rn-plan-route { font-size: 12px; color: #8a7a6a; margin-top: 2px; }
+.rn-plan-amt { text-align: right; white-space: nowrap; }
+.rn-old { color: #9a8a78; text-decoration: line-through; font-size: 13px; }
+.rn-arr { margin: 0 6px; color: #b0a086; }
+.rn-new { font-weight: 700; color: #1a5c3a; font-variant-numeric: tabular-nums; }
+.rn-delta { display: inline-block; margin-left: 8px; font-size: 12px; font-weight: 700; }
+.rn-delta--up { color: #c0392b; }
+.rn-delta--down { color: #1e7a46; }
+.rn-delta--na { color: #999; font-weight: 400; }
+.rn-plan-eff { font-size: 11px; color: #8a7a6a; margin-top: 2px; }
+
+.rn-badge { font-size: 10px; font-weight: 700; padding: 1px 7px; border-radius: 8px; }
+.rn-badge--future  { background: #dbeafe; color: #1e40af; }
+.rn-badge--applied { background: #dcfce7; color: #166534; }
+.rn-badge--draft   { background: #fef3c7; color: #92400e; }
+.rn-badge--sent    { background: #dcfce7; color: #166534; }
+
+.rn-compose-grid { display: grid; grid-template-columns: 1fr 200px; gap: 12px; margin-bottom: 10px; }
+.rn-field { display: flex; flex-direction: column; gap: 4px; }
+.rn-label { font-size: 12px; font-weight: 600; color: #5a4a38; }
+.rn-input { padding: 7px 10px; border: 1px solid #ccc; border-radius: 6px; font-size: 13px; }
+.rn-input:focus { outline: none; border-color: #2d6a4f; }
+.rn-field--subject { margin-bottom: 10px; }
+.rn-subject-row { display: flex; gap: 6px; }
+.rn-subject-row .rn-input { flex: 1; }
+.rn-icon-btn { border: 1px solid #ccc; background: #f7f3ec; border-radius: 6px; cursor: pointer; padding: 0 10px; }
+.rn-icon-btn:hover { background: #efe7d8; }
+.rn-textarea { padding: 10px 12px; border: 1px solid #ccc; border-radius: 6px; font-size: 13px; line-height: 1.7; resize: vertical; font-family: inherit; }
+.rn-textarea:focus { outline: none; border-color: #2d6a4f; }
+.rn-compose-foot { display: flex; align-items: center; gap: 10px; margin-top: 12px; }
+.rn-foot-spacer { flex: 1; }
+
+.rn-history-list { display: flex; flex-direction: column; gap: 10px; }
+.rn-hist-card { border: 1px solid #ece3d2; border-radius: 8px; padding: 10px 12px; background: #fdfbf7; }
+.rn-hist-head { display: flex; align-items: center; gap: 8px; }
+.rn-hist-subj { font-weight: 700; color: #2a1f14; }
+.rn-hist-meta { font-size: 12px; color: #8a7a6a; margin: 4px 0 8px; }
+.rn-hist-ops { display: flex; flex-wrap: wrap; gap: 6px; }
+.rn-op { font-size: 12px; padding: 3px 10px; border: 1px solid #d4c8b0; background: #fff; border-radius: 6px; cursor: pointer; color: #5a4a38; }
+.rn-op:hover { background: #f0e8d8; }
+.rn-op--go { border-color: #2d6a4f; color: #2d6a4f; }
+.rn-op--del { border-color: #e0aaaa; color: #b3392f; }
+.rn-op--del:hover { background: #fdecea; }
+@media (max-width: 640px) {
+  .rn-compose-grid { grid-template-columns: 1fr; }
+  .rn-plan-row { flex-wrap: wrap; }
+  .rn-plan-amt { text-align: left; width: 100%; }
+}
+
 /* ── Unit Alias Group UI ─────────────────────────────────────────────── */
 .ua-group-row td { background: #f9f9ff; }
 .ua-group-row td:first-child { font-weight: 600; }

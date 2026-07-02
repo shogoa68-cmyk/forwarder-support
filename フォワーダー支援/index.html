@@ -74,6 +74,7 @@
   </div>
   <div class="tab-nav sub-nav" id="sub-cost" role="tablist" aria-label="cost サブタブ">
     <button class="tab-btn" role="tab" aria-selected="false" onclick="switchTab('local-charges', this)">📦 諸チャージ</button>
+    <button class="tab-btn" role="tab" aria-selected="false" onclick="switchTab('rate-notice', this)">📢 料金改定案内</button>
     <button class="tab-btn" hidden role="tab" aria-selected="false" onclick="switchTab('surcharge', this)">💴 サーチャージ</button>
     <button class="tab-btn" hidden role="tab" aria-selected="false" onclick="switchTab('freetime',  this)">⏱️ フリータイム</button>
   </div>
@@ -300,6 +301,79 @@
 
     </div>
   </div><!-- /tab-local-charges -->
+
+  <!-- ===================== 料金改定案内 tab ===================== -->
+  <div class="tab-content" role="tabpanel" id="tab-rate-notice">
+    <div class="rn-page">
+
+      <div class="lc-topbar">
+        <div class="lc-dir-tabs">
+          <button class="lc-dir-btn is-active" id="rnDirBtn-export" onclick="rnSetDir('export')">📤 輸出</button>
+          <button class="lc-dir-btn"           id="rnDirBtn-import" onclick="rnSetDir('import')">📥 輸入</button>
+        </div>
+        <div class="lc-topbar-right">
+          <span id="rnCloudStatus" class="lc-cloud-off">💾 ローカル</span>
+        </div>
+      </div>
+
+      <!-- 改定予定・改定履歴（自動検出） -->
+      <section class="rn-section">
+        <div class="rn-section-head">
+          <h3 class="rn-h">🗓️ 改定の検出（旧料金 → 新料金）</h3>
+          <div class="rn-plan-actions">
+            <span id="rnPlanCount" class="rn-count">未選択</span>
+            <button id="rnComposeBtn" class="rn-primary-btn" onclick="rnComposeFromSelection()" disabled>選択を案内に反映 →</button>
+          </div>
+        </div>
+        <p class="rn-hint">同じ「名称・船会社・航路」で適用期間の異なる料金を2件以上登録すると、改定として自動検出し差額を表示します。</p>
+        <div id="rnPlanList" class="rn-plan-list"><div class="rn-empty">読み込み中…</div></div>
+      </section>
+
+      <!-- 案内作成 -->
+      <section class="rn-section" id="rnComposePanel">
+        <div class="rn-section-head">
+          <h3 class="rn-h" id="rnComposeTitle">✍️ 案内の作成</h3>
+          <button class="rn-link-btn" onclick="rnClearCompose()">クリア</button>
+        </div>
+        <div class="rn-compose-grid">
+          <label class="rn-field">
+            <span class="rn-label">宛先（取引先）</span>
+            <input id="rnCustomer" class="rn-input" type="text" placeholder="例: ○○商事 御中">
+          </label>
+          <label class="rn-field">
+            <span class="rn-label">適用日</span>
+            <input id="rnEffective" class="rn-input" type="date">
+          </label>
+        </div>
+        <label class="rn-field rn-field--subject">
+          <span class="rn-label">件名</span>
+          <div class="rn-subject-row">
+            <input id="rnSubject" class="rn-input" type="text" placeholder="【輸出】料金改定のご案内">
+            <button class="rn-icon-btn" onclick="rnCopySubject()" title="件名をコピー">📋</button>
+          </div>
+        </label>
+        <label class="rn-field">
+          <span class="rn-label">本文</span>
+          <textarea id="rnBody" class="rn-textarea" rows="16" spellcheck="false" placeholder="上の一覧で改定を選び「選択を案内に反映」を押すと本文が生成されます。"></textarea>
+        </label>
+        <div class="rn-compose-foot">
+          <button class="rn-ghost-btn" onclick="rnCopyBody()">📋 本文をコピー</button>
+          <span class="rn-foot-spacer"></span>
+          <button class="rn-ghost-btn" onclick="rnSaveNotice('draft')">💾 下書き保存</button>
+          <button class="rn-primary-btn" onclick="rnSaveNotice('sent')">✅ 送信済みとして保存</button>
+        </div>
+      </section>
+
+      <!-- 案内履歴 -->
+      <section class="rn-section">
+        <div class="rn-section-head">
+          <h3 class="rn-h">📚 案内履歴</h3>
+        </div>
+        <div id="rnHistoryList" class="rn-history-list"><div class="rn-empty">読み込み中…</div></div>
+      </section>
+
+    </div>
+  </div><!-- /tab-rate-notice -->
 
   <!-- ===================== サーチャージ tab ===================== -->
   <div class="tab-content" role="tabpanel" id="tab-surcharge">
@@ -4047,6 +4121,7 @@
 <script src="js/stats.js"></script>
 <script src="js/alias-rules.js"></script>
 <script src="js/local-charges.js"></script>
+<script src="js/rate-notice.js"></script>
 
 <!-- =================================================================
      サイト全体スコープのフローティング UI（Phase 2c-Step1 で見積タブから昇格）
