@@ -247,6 +247,15 @@
   // HTML value="" 属性用
   function _eav(s)  { return String(s || '').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
 
+  // マスター詳細情報の展開ボタン（customer/nm のみ対象）
+  function _mdDetailBtn(field, value) {
+    if (field !== 'customer' && field !== 'nm') return '';
+    const has = typeof window.mdGet === 'function' && window.mdGet(field, value);
+    return `<button class="stats-master-detail-btn${has ? ' has-detail' : ''}" ` +
+           `title="${has ? '詳細情報を見る・編集' : '詳細情報を登録'}" ` +
+           `onclick="statsToggleMasterDetail('${_ea(field)}','${_ea(value)}',this)">${has ? '📇 詳細' : '＋ 詳細'}</button>`;
+  }
+
   // 同義グループ操作ボタン（⭐代表 / ⤵統合 / →代表ピル）。field は sv/nm/customer/port。
   function _synBtns(field, value, canons, aliasOf, cntMap) {
     const isCanon = canons.has(value);
@@ -1172,7 +1181,8 @@
                 `<td>${chips}</td>` +
                 `<td><button class="stats-master-merge" title="この代表を別の代表に統合（配下の別名ごと移動）" onclick="statsSynMergePicker('${_ea(g.field)}','${_ea(g.canonical)}',this)">⤵ 統合</button>` +
                 `<button class="stats-master-rename" title="代表名を変更（旧名称は別名として残ります）" onclick="statsMasterRename('${_ea(g.field)}','${_ea(g.canonical)}')">✏️ 名称変更</button>` +
-                `<button class="ua-remove-canon" title="グループを解除" onclick="${delGroup}">解除</button></td></tr>`;
+                `<button class="ua-remove-canon" title="グループを解除" onclick="${delGroup}">解除</button>` +
+                _mdDetailBtn(g.field, g.canonical) + `</td></tr>`;
       });
       synH += '</tbody></table></div>';
     }
@@ -1220,7 +1230,7 @@
            `<td>${labels[m.field] || m.field}</td>` +
            `<td class="stats-val">${_esc(m.value)}</td>` +
            `<td class="stats-master-abbrev-cell">${abbrevCell}</td>` +
-           `<td>${m.isMine ? `<button class="stats-demote-btn" onclick="statsToggleVote('${_ea(m.field)}','${_ea(m.value)}')">解除</button>` : '<span class="stats-empty-cell">他メンバー</span>'}</td>` +
+           `<td>${_mdDetailBtn(m.field, m.value)}${m.isMine ? `<button class="stats-demote-btn" onclick="statsToggleVote('${_ea(m.field)}','${_ea(m.value)}')">解除</button>` : '<span class="stats-empty-cell">他メンバー</span>'}</td>` +
            `</tr>`;
     });
     e.innerHTML = formH + h + '</tbody></table>' + synH;
@@ -1264,6 +1274,55 @@
       await window.synRenameCanonical(field, canonical, v);
     }
     if (typeof window.statsRerenderActive === 'function') window.statsRerenderActive();
+  };
+
+  // マスター管理: 詳細情報フォームの開閉（customer/nm のみ）
+  window.statsToggleMasterDetail = function (field, value, btn) {
+    const tr = btn.closest('tr');
+    if (!tr) return;
+    const next = tr.nextElementSibling;
+    if (next && next.classList.contains('stats-detail-row')) { next.remove(); return; }
+    document.querySelectorAll('.stats-detail-row').forEach(r => r.remove());
+    const schema = (window.MD_SCHEMA && window.MD_SCHEMA[field]) || [];
+    const existing = (typeof window.mdGet === 'function') ? window.mdGet(field, value) : null;
+    const details = (existing && existing.details) || {};
+    const fieldsHtml = schema.map(s => {
+      const id = 'md_' + s.key;
+      return s.textarea
+        ? `<label class="master-detail-label">${s.label}<textarea id="${id}" class="ar-input master-detail-textarea" rows="2">${_esc(details[s.key] || '')}</textarea></label>`
+        : `<label class="master-detail-label">${s.label}<input id="${id}" class="ar-input" type="text" value="${_eav(details[s.key] || '')}" /></label>`;
+    }).join('');
+    const row = document.createElement('tr');
+    row.className = 'stats-detail-row';
+    row.innerHTML = `<td colspan="${tr.children.length}"><div class="master-detail-form">${fieldsHtml}` +
+      `<div class="master-detail-actions">` +
+      `<button class="master-detail-save" onclick="statsSaveMasterDetail('${_ea(field)}','${_ea(value)}')">💾 保存</button>` +
+      (existing ? `<button class="master-detail-del" onclick="statsDeleteMasterDetail('${_ea(field)}','${_ea(value)}')">削除</button>` : '') +
+      `</div></div></td>`;
+    tr.after(row);
+  };
+
+  window.statsSaveMasterDetail = async function (field, value) {
+    const schema = (window.MD_SCHEMA && window.MD_SCHEMA[field]) || [];
+    const details = {};
+    schema.forEach(s => {
+      const el = document.getElementById('md_' + s.key);
+      if (!el) return;
+      const v = (el.value || '').trim();
+      if (v) details[s.key] = v;
+    });
+    if (typeof window.mdSave === 'function') await window.mdSave(field, value, details);
+    if (typeof window.quoteShowToast === 'function') window.quoteShowToast('📇 詳細情報を保存しました', 'success');
+    if (typeof window.mdRefreshCustomerBtn === 'function') window.mdRefreshCustomerBtn();
+    if (typeof window.statsRerenderActive === 'function') window.statsRerenderActive(); else _renderMaster();
+  };
+
+  window.statsDeleteMasterDetail = async function (field, value) {
+    if (!confirm('詳細情報を削除しますか？（マスター登録自体は解除されません）')) return;
+    if (typeof window.mdDelete === 'function') await window.mdDelete(field, value);
+    if (typeof window.quoteShowToast === 'function') window.quoteShowToast('詳細情報を削除しました');
+    if (typeof window.mdRefreshCustomerBtn === 'function') window.mdRefreshCustomerBtn();
+    if (typeof window.statsRerenderActive === 'function') window.statsRerenderActive(); else _renderMaster();
   };
 
   function _renderAlias() {
@@ -1536,6 +1595,7 @@
     if (_cloud()) {
       await _loadCloudVotes();
       if (typeof window.synLoadCloud === 'function') await window.synLoadCloud();
+      if (typeof window.mdLoadCloud === 'function') await window.mdLoadCloud();
       _renderCloud();
       _renderActivePane();
     }
@@ -1566,6 +1626,7 @@
       _cvMap = null;
       await _loadCloudVotes();
       if (typeof window.synLoadCloud === 'function') await window.synLoadCloud();
+      if (typeof window.mdLoadCloud === 'function') await window.mdLoadCloud();
       // アクティブなマスタータブのペインを再描画
       const active = document.querySelector('#tab-master .stats-pane.is-active');
       if (active && active.id === 'statsPane-alias') _renderAlias(); else _renderMaster();
@@ -1603,7 +1664,11 @@
       _data  = _build(source);
       _updateSummary();
       _renderCloud();
-      if (_cloud()) { await _loadCloudVotes(); if (typeof window.synLoadCloud === 'function') await window.synLoadCloud(); }
+      if (_cloud()) {
+        await _loadCloudVotes();
+        if (typeof window.synLoadCloud === 'function') await window.synLoadCloud();
+        if (typeof window.mdLoadCloud === 'function') await window.mdLoadCloud();
+      }
       _renderCloud();
       _renderActivePane();
       if (typeof window.arRefreshDatalist === 'function') window.arRefreshDatalist();
