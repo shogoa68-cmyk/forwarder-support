@@ -320,6 +320,52 @@
   // プリセット読み込み時に空値で上書きしないヘッダー項目
   const _HEADER_FIELD_IDS = ['qf-ref','qf-customer','qf-person','qf-date','qf-valid-until','qf-memo','qf-status'];
 
+  // === お客様マスター詳細情報ボタン（管理番号入力セクション） ===
+  function _cdEsc(s) {
+    return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+
+  window.qfRefreshCustomerDetailBtn = function () {
+    const btn = document.getElementById('qfCustomerDetailBtn');
+    const inp = document.getElementById('qf-customer');
+    if (!btn || !inp) return;
+    const value = (inp.value || '').trim();
+    const has = !!(value && typeof window.mdGet === 'function' && window.mdGet('customer', value));
+    btn.hidden = !has;
+  };
+
+  window.qfShowCustomerDetail = function () {
+    const inp = document.getElementById('qf-customer');
+    const value = (inp?.value || '').trim();
+    const rec = value && typeof window.mdGet === 'function' ? window.mdGet('customer', value) : null;
+    const body = document.getElementById('cdBody');
+    const title = document.getElementById('cdTitle');
+    const overlay = document.getElementById('customerDetailOverlay');
+    if (!rec || !body || !title || !overlay) return;
+    const schema = (window.MD_SCHEMA && window.MD_SCHEMA.customer) || [];
+    const details = rec.details || {};
+    const rows = schema
+      .filter(s => details[s.key])
+      .map(s => `<tr><th>${_cdEsc(s.label)}</th><td>${_cdEsc(details[s.key])}</td></tr>`)
+      .join('');
+    title.textContent = '📇 ' + value;
+    body.innerHTML = rows ? `<table class="cd-table">${rows}</table>` : '<p class="sq-empty-msg">詳細情報は未登録です。</p>';
+    overlay.hidden = false;
+  };
+
+  window.qfCloseCustomerDetail = function (event) {
+    if (event && event.target !== event.currentTarget) return;
+    const overlay = document.getElementById('customerDetailOverlay');
+    if (overlay) overlay.hidden = true;
+  };
+
+  window.qfEditCustomerDetail = function () {
+    window.qfCloseCustomerDetail();
+    const catBtn = document.querySelector('.cat-btn[aria-controls="tab-master"]');
+    if (typeof window.switchCategory === 'function' && catBtn) window.switchCategory('master', catBtn);
+    if (typeof window.masterSetPane === 'function') window.masterSetPane('master');
+  };
+
   // データを画面に適用（restoreAutoSave と同等。トースト・restoreBar 操作なし）
   function _applyQuoteData(data, { keepHeaderIfEmpty = false } = {}) {
     if (!data) return;
@@ -351,6 +397,7 @@
     if (typeof window.renderQuoteMilestones === 'function') window.renderQuoteMilestones();
     if (typeof window.updateRemarkChar === 'function') window.updateRemarkChar();
     if (typeof window.updateQuoteStatusUI === 'function') window.updateQuoteStatusUI();
+    if (typeof window.qfRefreshCustomerDetailBtn === 'function') window.qfRefreshCustomerDetailBtn();
   }
 
   function quoteUndo() {

@@ -11,6 +11,7 @@ CREATE TABLE IF NOT EXISTS local_charges (
   amount       numeric,    -- 単価目安
   currency     text        NOT NULL DEFAULT 'JPY',
   unit         text,       -- 式/B/L/CNTR/20ft/40ft/R/T/CBM 等
+  taxable      boolean     NOT NULL DEFAULT false,  -- true=課税 / false=免税
   pol          text,       -- 積み港（POL）・ターミナル
   pod          text,       -- 揚げ港（POD）
   port         text,       -- （旧）港列。互換のため残置。新規は pol/pod を使用
@@ -28,9 +29,14 @@ CREATE TABLE IF NOT EXISTS local_charges (
 );
 
 -- 既存テーブルがある場合の列追加は docs/supabase-local-charges-migration.sql を参照
+-- 消費税区分（taxable）列の追加は docs/supabase-local-charges-taxable.sql を参照
 -- 添付ファイルのチーム共有（Storage）は docs/supabase-local-charges-storage.sql を参照
 
 ALTER TABLE local_charges ENABLE ROW LEVEL SECURITY;
+
+-- テーブルレベル権限（GRANT）。SQL Editor で作成したテーブルには authenticated への
+-- 明示的な GRANT がないと RLS ポリシーの手前で "permission denied for table" になる。
+GRANT SELECT, INSERT, UPDATE, DELETE ON local_charges TO authenticated;
 
 CREATE POLICY "team members can read local_charges" ON local_charges
   FOR SELECT USING (is_team_member());

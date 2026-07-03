@@ -1,3 +1,5 @@
+<!-- 再デプロイトリガー（GitHub Pages デプロイの一時失敗 #296 の復旧・コード挙動に変更なし） -->
+<!-- 再デプロイトリガー（#298 の Pages デプロイ失敗＝同一run内artifact重複エラーの復旧・コード挙動に変更なし） -->
 <!DOCTYPE html>
 <html lang="ja">
 <head>
@@ -51,6 +53,7 @@
   <div class="cat-nav" role="tablist" aria-label="カテゴリ">
     <button class="cat-btn cat-btn-featured active" role="tab" aria-selected="true"  aria-controls="tab-quote-make"   onclick="switchCategory('quote',  this)">💼 見積</button>
     <button class="cat-btn cat-btn-featured"        role="tab" aria-selected="false" aria-controls="tab-stats"         onclick="switchCategory('stats',   this)">📊 統計</button>
+    <button class="cat-btn"        role="tab" aria-selected="false" aria-controls="tab-master"        onclick="switchCategory('master',  this)">🗂 マスター管理</button>
     <button class="cat-btn cat-btn-featured" role="tab" aria-selected="false" aria-controls="tab-local-charges" onclick="switchCategory('cost', this)">💴 諸チャージ</button>
     <button class="cat-btn cat-btn-bookmark" role="tab" aria-selected="false" aria-controls="tab-bookmark"   onclick="switchCategory('bookmark', this)">🔖 BOOKMARK</button>
     <button class="cat-btn"        role="tab" aria-selected="false" aria-controls="tab-tracking"     onclick="switchCategory('vessel', this)">🚢 本船・航路</button>
@@ -74,6 +77,7 @@
   </div>
   <div class="tab-nav sub-nav" id="sub-cost" role="tablist" aria-label="cost サブタブ">
     <button class="tab-btn" role="tab" aria-selected="false" onclick="switchTab('local-charges', this)">📦 諸チャージ</button>
+    <button class="tab-btn" role="tab" aria-selected="false" onclick="switchTab('rate-notice', this)">📢 料金改定案内</button>
     <button class="tab-btn" hidden role="tab" aria-selected="false" onclick="switchTab('surcharge', this)">💴 サーチャージ</button>
     <button class="tab-btn" hidden role="tab" aria-selected="false" onclick="switchTab('freetime',  this)">⏱️ フリータイム</button>
   </div>
@@ -300,6 +304,79 @@
 
     </div>
   </div><!-- /tab-local-charges -->
+
+  <!-- ===================== 料金改定案内 tab ===================== -->
+  <div class="tab-content" role="tabpanel" id="tab-rate-notice">
+    <div class="rn-page">
+
+      <div class="lc-topbar">
+        <div class="lc-dir-tabs">
+          <button class="lc-dir-btn is-active" id="rnDirBtn-export" onclick="rnSetDir('export')">📤 輸出</button>
+          <button class="lc-dir-btn"           id="rnDirBtn-import" onclick="rnSetDir('import')">📥 輸入</button>
+        </div>
+        <div class="lc-topbar-right">
+          <span id="rnCloudStatus" class="lc-cloud-off">💾 ローカル</span>
+        </div>
+      </div>
+
+      <!-- 改定予定・改定履歴（自動検出） -->
+      <section class="rn-section">
+        <div class="rn-section-head">
+          <h3 class="rn-h">🗓️ 改定の検出（旧料金 → 新料金）</h3>
+          <div class="rn-plan-actions">
+            <span id="rnPlanCount" class="rn-count">未選択</span>
+            <button id="rnComposeBtn" class="rn-primary-btn" onclick="rnComposeFromSelection()" disabled>選択を案内に反映 →</button>
+          </div>
+        </div>
+        <p class="rn-hint">同じ「名称・船会社・航路」で適用期間の異なる料金を2件以上登録すると、改定として自動検出し差額を表示します。</p>
+        <div id="rnPlanList" class="rn-plan-list"><div class="rn-empty">読み込み中…</div></div>
+      </section>
+
+      <!-- 案内作成 -->
+      <section class="rn-section" id="rnComposePanel">
+        <div class="rn-section-head">
+          <h3 class="rn-h" id="rnComposeTitle">✍️ 案内の作成</h3>
+          <button class="rn-link-btn" onclick="rnClearCompose()">クリア</button>
+        </div>
+        <div class="rn-compose-grid">
+          <label class="rn-field">
+            <span class="rn-label">宛先（取引先）</span>
+            <input id="rnCustomer" class="rn-input" type="text" placeholder="例: ○○商事 御中">
+          </label>
+          <label class="rn-field">
+            <span class="rn-label">適用日</span>
+            <input id="rnEffective" class="rn-input" type="date">
+          </label>
+        </div>
+        <label class="rn-field rn-field--subject">
+          <span class="rn-label">件名</span>
+          <div class="rn-subject-row">
+            <input id="rnSubject" class="rn-input" type="text" placeholder="【輸出】料金改定のご案内">
+            <button class="rn-icon-btn" onclick="rnCopySubject()" title="件名をコピー">📋</button>
+          </div>
+        </label>
+        <label class="rn-field">
+          <span class="rn-label">本文</span>
+          <textarea id="rnBody" class="rn-textarea" rows="16" spellcheck="false" placeholder="上の一覧で改定を選び「選択を案内に反映」を押すと本文が生成されます。"></textarea>
+        </label>
+        <div class="rn-compose-foot">
+          <button class="rn-ghost-btn" onclick="rnCopyBody()">📋 本文をコピー</button>
+          <span class="rn-foot-spacer"></span>
+          <button class="rn-ghost-btn" onclick="rnSaveNotice('draft')">💾 下書き保存</button>
+          <button class="rn-primary-btn" onclick="rnSaveNotice('sent')">✅ 送信済みとして保存</button>
+        </div>
+      </section>
+
+      <!-- 案内履歴 -->
+      <section class="rn-section">
+        <div class="rn-section-head">
+          <h3 class="rn-h">📚 案内履歴</h3>
+        </div>
+        <div id="rnHistoryList" class="rn-history-list"><div class="rn-empty">読み込み中…</div></div>
+      </section>
+
+    </div>
+  </div><!-- /tab-rate-notice -->
 
   <!-- ===================== サーチャージ tab ===================== -->
   <div class="tab-content" role="tabpanel" id="tab-surcharge">
@@ -2473,7 +2550,10 @@
           </div>
           <div class="quote-field">
             <label>お客様名称 <span class="req-mark" aria-hidden="true">*</span></label>
-            <input type="text" id="qf-customer" placeholder="例）○○商事" aria-required="true" list="custSuggestions" autocomplete="off" />
+            <div class="qf-customer-row">
+              <input type="text" id="qf-customer" placeholder="例）○○商事" aria-required="true" list="custSuggestions" autocomplete="off" />
+              <button type="button" id="qfCustomerDetailBtn" class="qf-customer-detail-btn" onclick="qfShowCustomerDetail()" hidden title="登録済みの詳細情報を表示">📇 詳細</button>
+            </div>
           </div>
           <div class="quote-field">
             <label>お客様 ご担当者（敬称略） <span class="req-mark" aria-hidden="true">*</span></label>
@@ -3945,10 +4025,6 @@
       <button class="stats-tab-btn"           role="tab" aria-selected="false" aria-controls="statsPane-svport"   id="statsTabBtn-svport"   onclick="statsSetPane('svport')">🔗 サブコン×港</button>
       <button class="stats-tab-btn"           role="tab" aria-selected="false" aria-controls="statsPane-pattern"  id="statsTabBtn-pattern"  onclick="statsSetPane('pattern')">🔖 パターン別</button>
       <button class="stats-tab-btn"           role="tab" aria-selected="false" aria-controls="statsPane-kpi"      id="statsTabBtn-kpi"      onclick="statsSetPane('kpi')">📈 KPI</button>
-      <div class="stats-tab-group-sep"></div>
-      <span class="stats-tab-group-label">マスター管理・是正</span>
-      <button class="stats-tab-btn"           role="tab" aria-selected="false" aria-controls="statsPane-master"   id="statsTabBtn-master"   onclick="statsSetPane('master')">⭐ マスター管理</button>
-      <button class="stats-tab-btn"           role="tab" aria-selected="false" aria-controls="statsPane-alias"    id="statsTabBtn-alias"    onclick="statsSetPane('alias')">🔀 エイリアス是正</button>
     </div>
 
     <div id="statsPane-sv"       class="stats-pane is-active" role="tabpanel" aria-labelledby="statsTabBtn-sv">
@@ -3970,8 +4046,16 @@
     <div id="statsPane-svport"   class="stats-pane" role="tabpanel" aria-labelledby="statsTabBtn-svport"></div>
     <div id="statsPane-pattern"  class="stats-pane" role="tabpanel" aria-labelledby="statsTabBtn-pattern"></div>
     <div id="statsPane-kpi"      class="stats-pane" role="tabpanel" aria-labelledby="statsTabBtn-kpi"></div>
-    <div id="statsPane-master"   class="stats-pane" role="tabpanel" aria-labelledby="statsTabBtn-master"></div>
-    <div id="statsPane-alias"    class="stats-pane" role="tabpanel" aria-labelledby="statsTabBtn-alias"></div>
+  </div>
+
+  <!-- ===================== Tab: マスター管理（統計から独立したトップレベルタブ） ===================== -->
+  <div class="tab-content" id="tab-master">
+    <div class="stats-tabs" role="tablist" aria-label="マスター管理サブタブ">
+      <button class="stats-tab-btn is-active" role="tab" aria-selected="true"  aria-controls="statsPane-master" id="masterTabBtn-master" onclick="masterSetPane('master')">⭐ マスター管理</button>
+      <button class="stats-tab-btn"           role="tab" aria-selected="false" aria-controls="statsPane-alias"  id="masterTabBtn-alias"  onclick="masterSetPane('alias')">🔀 エイリアス是正</button>
+    </div>
+    <div id="statsPane-master"   class="stats-pane is-active" role="tabpanel" aria-labelledby="masterTabBtn-master"></div>
+    <div id="statsPane-alias"    class="stats-pane" role="tabpanel" aria-labelledby="masterTabBtn-alias"></div>
   </div>
 
   <!-- ===================== Tab: BOOKMARK ===================== -->
@@ -4047,6 +4131,7 @@
 <script src="js/stats.js"></script>
 <script src="js/alias-rules.js"></script>
 <script src="js/local-charges.js"></script>
+<script src="js/rate-notice.js"></script>
 
 <!-- =================================================================
      サイト全体スコープのフローティング UI（Phase 2c-Step1 で見積タブから昇格）
@@ -4111,6 +4196,20 @@
 <div id="quoteActionDock">
   <button class="qad-btn qad-preview" onclick="openPreview()" title="見積をプレビュー表示・CSV/Excel/PDF出力はここから（Ctrl+P）">📋 プレビュー</button>
   <button class="qad-btn qad-save" id="qadMode" onclick="qpDockAction()" title="閲覧中は編集を開始／編集中は保存して作業終了">💾 保存</button>
+</div>
+
+<!-- お客様マスター詳細情報 ポップアップ -->
+<div id="customerDetailOverlay" class="cd-overlay" hidden onclick="qfCloseCustomerDetail(event)">
+  <div class="cd-box" onclick="event.stopPropagation()">
+    <div class="cd-head">
+      <span id="cdTitle" class="cd-title"></span>
+      <button class="cd-close" onclick="qfCloseCustomerDetail()">×</button>
+    </div>
+    <div id="cdBody" class="cd-body"></div>
+    <div class="cd-foot">
+      <button class="cd-edit-btn" onclick="qfEditCustomerDetail()">✎ マスター管理で編集</button>
+    </div>
+  </div>
 </div>
 
 <!-- 類似見積プレビューモーダル -->
@@ -4262,6 +4361,13 @@
         <select id="lc_currency" class="lc-form-select lc-form-select--cur"></select>
         <input id="lc_unit" class="lc-form-input lc-form-input--unit" type="text" list="lcUnitList" autocomplete="off" placeholder="単位（自由入力）">
         <datalist id="lcUnitList"></datalist>
+      </div>
+      <div class="lc-form-row lc-form-row--full">
+        <label class="lc-form-label">消費税区分</label>
+        <div class="lc-tax-toggle" role="radiogroup" aria-label="消費税区分">
+          <label class="lc-tax-opt"><input type="radio" name="lc_taxable" value="0" checked> 免税</label>
+          <label class="lc-tax-opt"><input type="radio" name="lc_taxable" value="1"> 課税</label>
+        </div>
       </div>
       <div class="lc-form-row lc-form-row--full">
         <label class="lc-form-label">積み港（POL） <span class="lc-form-hint">複数可・Enterで追加</span></label>

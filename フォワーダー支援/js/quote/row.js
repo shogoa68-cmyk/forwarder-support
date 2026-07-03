@@ -371,6 +371,34 @@
   }
   window.jumpToFirstPending = jumpToFirstPending;
 
+  // 品名マスターの詳細情報（デフォルト単位・デフォルト備考）を選択時に自動入力。
+  // 既に入力済みの単位/備考は上書きしない。
+  function initNmAutofill() {
+    const tbody = document.getElementById('tableBody');
+    if (!tbody) return;
+    tbody.addEventListener('change', e => {
+      const nmEl = e.target;
+      if (!nmEl.matches || !nmEl.matches('[data-field="nm"]')) return;
+      if (typeof window.mdGet !== 'function') return;
+      const value = (nmEl.value || '').replace(/^\*+/, '').trim();
+      if (!value) return;
+      const rec = window.mdGet('nm', value);
+      if (!rec) return;
+      const details = rec.details || {};
+      const tr = nmEl.closest('tr');
+      if (!tr) return;
+      const unEl = tr.querySelector('[data-field="un"]');
+      const ntEl = tr.querySelector('[data-field="nt"]');
+      let filled = false;
+      if (details.defaultUnit && unEl && !unEl.value.trim()) { unEl.value = details.defaultUnit; filled = true; }
+      if (details.defaultNote && ntEl && !ntEl.value.trim()) { ntEl.value = details.defaultNote; filled = true; }
+      if (filled && typeof window.quoteShowToast === 'function') {
+        window.quoteShowToast('📇 マスターの詳細情報から単位・備考を自動入力しました', 'info', 2200);
+      }
+    });
+  }
+  window.initNmAutofill = initNmAutofill;
+
   function moveRow(tr, dir) {
     const tbody = document.getElementById('tableBody');
     // 詳細行の場合は子リマーク（data-parent-id が一致するリマーク行）を連動させる
@@ -2418,6 +2446,10 @@
       if (pcEl) pcEl.value = ch.currency || lastCur;
       initDrag(tr);
       onCatChange(id);
+      if (ch.tx) {
+        const txEl = document.getElementById('tx-' + id);
+        if (txEl) { txEl.checked = true; toggleTax(id); }
+      }
       onPay(id);
     });
     updateTotals();
