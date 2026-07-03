@@ -3313,9 +3313,20 @@
     window._qspTableGroups = groups;
     if (groups.length) {
       html += '<div class="qsp-dig-subjumps">' + groups.map(function(g, i) {
-        return '<button type="button" class="qsp-dig-subjump' + (g.level ? ' is-pattern' : ' is-subcon') +
-          '" onclick="window.jumpToTableGroupIdx(' + i + ')" title="このグループへ移動">' +
-          escapeHtml(g.label) + '</button>';
+        const stateCls = (g.isCollapsed ? ' is-collapsed' : '') + (g.isExcluded ? ' is-excluded' : '');
+        return '<div class="qsp-dig-grp-item' + stateCls + '">' +
+          '<button type="button" class="qsp-dig-subjump' + (g.level ? ' is-pattern' : ' is-subcon') +
+            '" onclick="window.jumpToTableGroupIdx(' + i + ')" title="このグループへジャンプ">' +
+            escapeHtml(g.label) + '</button>' +
+          '<button type="button" class="qsp-dig-grp-collapse" ' +
+            'onclick="window._qspGroupAction(' + i + ',\'collapse\')" ' +
+            'title="' + (g.isCollapsed ? '展開' : '折りたたみ') + '">' +
+            (g.isCollapsed ? '▶' : '▼') + '</button>' +
+          '<button type="button" class="qsp-dig-grp-excl" ' +
+            'onclick="window._qspGroupAction(' + i + ',\'exclude\')" ' +
+            'title="' + (g.isExcluded ? '見積もりに含める' : '見積もりから除外') + '">' +
+            (g.isExcluded ? '含む' : '除外') + '</button>' +
+          '</div>';
       }).join('') + '</div>';
     }
     el.innerHTML = html;
@@ -3325,16 +3336,30 @@
     const out = [];
     document.querySelectorAll('#tableBody tr.subcon-group-header, #tableBody tr.subcon-subgroup-header.is-pattern')
       .forEach(function(tr) {
+        const isCollapsed = tr.classList.contains('is-collapsed');
+        const isExcluded  = tr.classList.contains('is-excluded');
         if (tr.classList.contains('subcon-group-header')) {
           out.push({ level: 0, sv: tr.dataset.svKey || '', pt: '',
-                     label: (tr.querySelector('.subcon-group-label')?.textContent || '').trim() });
+                     label: (tr.querySelector('.subcon-group-label')?.textContent || '').trim(),
+                     isCollapsed, isExcluded, el: tr });
         } else {
           out.push({ level: 1, sv: tr.dataset.svKey || '', pt: tr.dataset.ptKey || '',
-                     label: '↳ ' + (tr.querySelector('.subcon-subgroup-leg')?.textContent || '').trim() });
+                     label: '↳ ' + (tr.querySelector('.subcon-subgroup-leg')?.textContent || '').trim(),
+                     isCollapsed, isExcluded, el: tr });
         }
       });
     return out;
   }
+  // ジャンプタブから折りたたみ・除外を操作（既存テーブル見出しのボタンを内部クリック）
+  window._qspGroupAction = function(i, action) {
+    const g = (window._qspTableGroups || [])[i];
+    if (!g || !g.el) return;
+    const btnSel = action === 'collapse'
+      ? '.subcon-group-toggle, .subcon-subgroup-toggle'
+      : '.subcon-group-excl, .subcon-subgroup-excl';
+    const btn = g.el.querySelector(btnSel);
+    if (btn) btn.click(); // row.js 側が状態更新 + renderSubconGroups → renderQuoteSectionDigest を呼ぶ
+  };
   window.jumpToTableGroupIdx = function(i) {
     const g = (window._qspTableGroups || [])[i];
     if (!g) return;
