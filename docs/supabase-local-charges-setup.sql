@@ -34,6 +34,10 @@ CREATE TABLE IF NOT EXISTS local_charges (
 
 ALTER TABLE local_charges ENABLE ROW LEVEL SECURITY;
 
+-- テーブルレベル権限（GRANT）。SQL Editor で作成したテーブルには authenticated への
+-- 明示的な GRANT がないと RLS ポリシーの手前で "permission denied for table" になる。
+GRANT SELECT, INSERT, UPDATE, DELETE ON local_charges TO authenticated;
+
 CREATE POLICY "team members can read local_charges" ON local_charges
   FOR SELECT USING (is_team_member());
 

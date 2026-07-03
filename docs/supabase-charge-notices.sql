@@ -26,6 +26,10 @@ CREATE TABLE IF NOT EXISTS charge_notices (
 
 ALTER TABLE charge_notices ENABLE ROW LEVEL SECURITY;
 
+-- テーブルレベル権限（GRANT）。SQL Editor で作成したテーブルには authenticated への
+-- 明示的な GRANT がないと RLS ポリシーの手前で "permission denied for table" になる。
+GRANT SELECT, INSERT, UPDATE, DELETE ON charge_notices TO authenticated;
+
 DROP POLICY IF EXISTS "cn team read"   ON charge_notices;
 DROP POLICY IF EXISTS "cn team insert" ON charge_notices;
 DROP POLICY IF EXISTS "cn team update" ON charge_notices;
