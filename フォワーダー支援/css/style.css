@@ -4026,6 +4026,7 @@ button.lc-attach-tbl-btn { background: none; border: none; padding: 0; cursor: p
 .rn-hist-card { border: 1px solid #ece3d2; border-radius: 8px; padding: 10px 12px; background: #fdfbf7; }
 .rn-hist-head { display: flex; align-items: center; gap: 8px; }
 .rn-hist-subj { font-weight: 700; color: #2a1f14; }
+.rn-hist-items { font-size: 12px; color: #5a4a38; margin-top: 3px; }
 .rn-hist-meta { font-size: 12px; color: #8a7a6a; margin: 4px 0 8px; }
 .rn-hist-ops { display: flex; flex-wrap: wrap; gap: 6px; }
 .rn-op { font-size: 12px; padding: 3px 10px; border: 1px solid #d4c8b0; background: #fff; border-radius: 6px; cursor: pointer; color: #5a4a38; }
