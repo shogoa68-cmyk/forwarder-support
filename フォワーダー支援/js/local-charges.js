@@ -391,6 +391,7 @@
     const catChip = (mode === 'cat') ? '' :
       `<span class="lc-cat-badge lc-cat-${c.cat || 'other'}">${_esc((catMap[c.cat] || c.cat || '—').replace(/^[^\s]+\s/, ''))}</span>`;
     const amtUnit = c.unit ? `<span class="lc-r-unit">/ ${_esc(c.unit)}</span>` : '';
+    const taxBadge = c.taxable ? `<span class="lc-tax-badge">課税</span>` : '';
 
     return `<div class="lc-row lc-row--${st.key}">` +
              `<span class="lc-row-bar"></span>` +
@@ -400,7 +401,7 @@
              `</div>` +
              `<div class="lc-row-cat">${catChip}</div>` +
              `<div class="lc-row-route">${routeHtml}</div>` +
-             `<div class="lc-row-amt">${_fmtAmt(c.amount, c.currency)}${amtUnit}</div>` +
+             `<div class="lc-row-amt">${_fmtAmt(c.amount, c.currency)}${amtUnit}${taxBadge}</div>` +
              `<div class="lc-row-ops">` +
                attHtml +
                `<button class="lc-edit-btn" onclick="event.stopPropagation();lcOpenForm('${c.id}')" title="編集">✏️</button>` +
@@ -504,6 +505,8 @@
     set('lc_amount',     charge?.amount     ?? '');
     set('lc_currency',   charge?.currency   || 'JPY');
     set('lc_unit',       charge?.unit       || '');
+    const taxVal = charge?.taxable ? '1' : '0';
+    document.querySelectorAll('input[name="lc_taxable"]').forEach(r => { r.checked = (r.value === taxVal); });
     _lcInitChipsUI();
     _lcSetChips('pol', charge?.pol || charge?.port || '');
     _lcSetChips('pod', charge?.pod || '');
@@ -571,6 +574,7 @@
       amount:      document.getElementById('lc_amount')?.value !== '' ? Number(document.getElementById('lc_amount').value) : null,
       currency:    g('lc_currency') || 'JPY',
       unit:        g('lc_unit'),
+      taxable:     document.querySelector('input[name="lc_taxable"]:checked')?.value === '1',
       pol:         _lcJoinPlaces(_polChips),
       pod:         _lcJoinPlaces(_podChips),
       carrier:     g('lc_carrier'),
@@ -859,6 +863,7 @@
         unit:     c.unit,
         sv:       c.carrier || '',
         note:     c.note,
+        tx:       !!c.taxable,
       })));
     }
     lcClosePicker();
@@ -974,6 +979,7 @@
         name: c.name, cat: c.cat,
         amount: c.amount, currency: c.currency, unit: c.unit,
         sv: c.carrier || '', note: c.note,
+        tx: !!c.taxable,
       })));
       _railSelIds = new Set();
       lcRailFilter();
