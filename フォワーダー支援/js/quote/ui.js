@@ -3312,8 +3312,14 @@
     const groups = _collectTableGroups();
     window._qspTableGroups = groups;
     if (groups.length) {
+      let parentSvCollapsed = false, parentSvKey = null;
       html += '<div class="qsp-dig-subjumps">' + groups.map(function(g, i) {
-        const stateCls = (g.isCollapsed ? ' is-collapsed' : '') + (g.isExcluded ? ' is-excluded' : '');
+        if (g.level === 0) { parentSvKey = g.sv; parentSvCollapsed = g.isCollapsed; }
+        // 親サブコンが折りたたみ中のパターン行はジャンプタブ側でも非表示
+        const hiddenByParent = g.level === 1 && g.sv === parentSvKey && parentSvCollapsed;
+        const stateCls = (g.isCollapsed ? ' is-collapsed' : '') +
+                         (g.isExcluded  ? ' is-excluded'  : '') +
+                         (hiddenByParent ? ' is-parent-collapsed' : '');
         return '<div class="qsp-dig-grp-item' + stateCls + '">' +
           '<button type="button" class="qsp-dig-subjump' + (g.level ? ' is-pattern' : ' is-subcon') +
             '" onclick="window.jumpToTableGroupIdx(' + i + ')" title="このグループへジャンプ">' +
@@ -3358,7 +3364,9 @@
       ? '.subcon-group-toggle, .subcon-subgroup-toggle'
       : '.subcon-group-excl, .subcon-subgroup-excl';
     const btn = g.el.querySelector(btnSel);
-    if (btn) btn.click(); // row.js 側が状態更新 + renderSubconGroups → renderQuoteSectionDigest を呼ぶ
+    if (btn) btn.click(); // row.js 側が状態更新（_applyGroupStates）
+    // _applyGroupStates は renderQuoteSectionDigest を呼ばないため明示的に再描画
+    if (typeof window.renderQuoteSectionDigest === 'function') window.renderQuoteSectionDigest();
   };
   window.jumpToTableGroupIdx = function(i) {
     const g = (window._qspTableGroups || [])[i];

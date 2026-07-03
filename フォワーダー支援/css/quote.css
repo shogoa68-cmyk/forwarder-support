@@ -7049,6 +7049,7 @@ body.qp-dash-active #quoteActionDock { display: none !important; }
   color: #2a6a2a; background: #e6f5e6; border-color: #a0d0a0;
 }
 #tab-quote-make .qsp-dig-grp-item.is-excluded .qsp-dig-grp-excl:hover { background: #c8eac8; }
+#tab-quote-make .qsp-dig-grp-item.is-parent-collapsed { display: none; }
 /* ジャンプ先グループ見出しの一時ハイライト */
 #tab-quote-make tr.grp-flash > td { animation: grpFlash 1.2s ease-out; }
 @keyframes grpFlash {
