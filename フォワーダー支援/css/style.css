@@ -3911,6 +3911,14 @@ a.lc-source-icon:hover { opacity: 0.75; }
 button.lc-attach-tbl-btn { background: none; border: none; padding: 0; cursor: pointer; }
 .lc-attach-tbl-btn:hover { opacity: 1; }
 
+/* ── 消費税区分トグル（登録フォーム） ─────────────────────────────────── */
+.lc-tax-toggle { display: flex; gap: 14px; }
+.lc-tax-opt { display: inline-flex; align-items: center; gap: 5px; font-size: 13px; cursor: pointer; }
+.lc-tax-badge {
+  font-size: 11px; padding: 1px 7px; border-radius: 8px;
+  background: #fff3cd; color: #856404; margin-left: 4px; white-space: nowrap;
+}
+
 /* ── POL/POD チップ入力（登録フォーム） ───────────────────────────────── */
 .lc-chips-input {
   display: flex; flex-wrap: wrap; align-items: center; gap: 5px;

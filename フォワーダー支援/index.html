@@ -4362,6 +4362,13 @@
         <datalist id="lcUnitList"></datalist>
       </div>
       <div class="lc-form-row lc-form-row--full">
+        <label class="lc-form-label">消費税区分</label>
+        <div class="lc-tax-toggle" role="radiogroup" aria-label="消費税区分">
+          <label class="lc-tax-opt"><input type="radio" name="lc_taxable" value="0" checked> 免税</label>
+          <label class="lc-tax-opt"><input type="radio" name="lc_taxable" value="1"> 課税</label>
+        </div>
+      </div>
+      <div class="lc-form-row lc-form-row--full">
         <label class="lc-form-label">積み港（POL） <span class="lc-form-hint">複数可・Enterで追加</span></label>
         <div id="lcPolChips" class="lc-chips-input">
           <input type="text" class="lc-chip-entry" data-lc-which="pol" placeholder="港を入力しEnter" autocomplete="off">

@@ -2446,6 +2446,10 @@
       if (pcEl) pcEl.value = ch.currency || lastCur;
       initDrag(tr);
       onCatChange(id);
+      if (ch.tx) {
+        const txEl = document.getElementById('tx-' + id);
+        if (txEl) { txEl.checked = true; toggleTax(id); }
+      }
       onPay(id);
     });
     updateTotals();
