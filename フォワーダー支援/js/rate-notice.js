@@ -322,7 +322,8 @@
         ? '<span class="rn-badge rn-badge--sent">送信済み</span>'
         : '<span class="rn-badge rn-badge--draft">下書き</span>';
       const actor = (n.updated_by || n.created_by || '').split('@')[0];
-      const cnt = Array.isArray(n.items) ? n.items.length : 0;
+      const itemNames = Array.isArray(n.items) ? n.items.map(it => it?.name).filter(Boolean) : [];
+      const cnt = itemNames.length;
       const meta = [
         n.customer ? '宛先: ' + _esc(n.customer) : '',
         n.effective_date ? '適用: ' + _esc(_fmtDate(n.effective_date)) : '',
@@ -330,8 +331,16 @@
         actor ? _esc(actor) : '',
         n.updated_at ? _esc(_fmtDate(n.updated_at)) : '',
       ].filter(Boolean).join(' ／ ');
+      const itemsLimit = 3;
+      const itemsSummary = cnt
+        ? itemNames.slice(0, itemsLimit).join('、') + (cnt > itemsLimit ? ` ほか${cnt - itemsLimit}件` : '')
+        : '';
+      const itemsHtml = itemsSummary
+        ? `<div class="rn-hist-items" title="${_ea(itemNames.join('、'))}">📦 ${_esc(itemsSummary)}</div>`
+        : '';
       return `<div class="rn-hist-card">` +
         `<div class="rn-hist-head">${badge}<span class="rn-hist-subj">${_esc(n.subject || '(件名なし)')}</span></div>` +
+        itemsHtml +
         `<div class="rn-hist-meta">${meta}</div>` +
         `<div class="rn-hist-ops">` +
           `<button class="rn-op" onclick="rnReopen('${_ea(n.id)}')">📝 開く</button>` +
