@@ -3320,10 +3320,11 @@
         const stateCls = (g.isCollapsed ? ' is-collapsed' : '') +
                          (g.isExcluded  ? ' is-excluded'  : '') +
                          (hiddenByParent ? ' is-parent-collapsed' : '');
+        const sumHtml = g.sum ? '<span class="qsp-dig-grp-sum">' + escapeHtml(g.sum) + '</span>' : '';
         return '<div class="qsp-dig-grp-item' + stateCls + '">' +
           '<button type="button" class="qsp-dig-subjump' + (g.level ? ' is-pattern' : ' is-subcon') +
             '" onclick="window.jumpToTableGroupIdx(' + i + ')" title="このグループへジャンプ">' +
-            escapeHtml(g.label) + '</button>' +
+            escapeHtml(g.label) + sumHtml + '</button>' +
           '<button type="button" class="qsp-dig-grp-collapse" ' +
             'onclick="window._qspGroupAction(' + i + ',\'collapse\')" ' +
             'title="' + (g.isCollapsed ? '展開' : '折りたたみ') + '">' +
@@ -3345,13 +3346,25 @@
         const isCollapsed = tr.classList.contains('is-collapsed');
         const isExcluded  = tr.classList.contains('is-excluded');
         if (tr.classList.contains('subcon-group-header')) {
+          const sum = (tr.querySelector('.subcon-group-sum')?.textContent || '').trim();
           out.push({ level: 0, sv: tr.dataset.svKey || '', pt: '',
                      label: (tr.querySelector('.subcon-group-label')?.textContent || '').trim(),
-                     isCollapsed, isExcluded, el: tr });
+                     sum, isCollapsed, isExcluded, el: tr });
         } else {
-          out.push({ level: 1, sv: tr.dataset.svKey || '', pt: tr.dataset.ptKey || '',
+          const sv = tr.dataset.svKey || '', pt = tr.dataset.ptKey || '';
+          let sum = '';
+          const tbody = document.getElementById('tableBody');
+          if (tbody) {
+            for (const r of tbody.querySelectorAll('tr[data-pt-sum]')) {
+              if ((r.dataset.svKey || '') === sv && (r.dataset.ptKey || '') === pt) {
+                sum = (r.querySelector('.subcon-subtotal-sum')?.textContent || '').trim();
+                break;
+              }
+            }
+          }
+          out.push({ level: 1, sv, pt,
                      label: '↳ ' + (tr.querySelector('.subcon-subgroup-leg')?.textContent || '').trim(),
-                     isCollapsed, isExcluded, el: tr });
+                     sum, isCollapsed, isExcluded, el: tr });
         }
       });
     return out;
