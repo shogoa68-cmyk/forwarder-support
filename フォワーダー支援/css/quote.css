@@ -3700,6 +3700,32 @@
 }
 #tab-quote-make .pv-btn-close:hover { filter: brightness(1.2); }
 #tab-quote-make .pv-btn-close:active { filter: brightness(0.85); transform: scale(0.97); }
+/* ── プレビューヘッダー ボタングループ ── */
+#tab-quote-make .pv-btn-grp {
+  display: inline-flex;
+  align-items: stretch;
+  border: 1px solid #adc0e4;
+  border-radius: 5px;
+  overflow: hidden;
+}
+#tab-quote-make .pv-btn-grp::before {
+  content: attr(data-label);
+  font-size: 9px;
+  font-weight: 700;
+  color: #4a6fa5;
+  background: #dce8f8;
+  padding: 0 7px;
+  white-space: nowrap;
+  border-right: 1px solid #b0c4de;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+}
+#tab-quote-make .pv-btn-grp > button {
+  border-radius: 0;
+  border: none;
+  border-left: 1px solid #c5d5ee;
+}
 /* 客先用専用出力ボタン */
 #tab-quote-make .pv-btn-client-excel {
   background: #e8f4fd; border: 2px solid #1565c0; color: #0d47a1;

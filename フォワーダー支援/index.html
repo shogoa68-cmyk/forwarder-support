@@ -3752,13 +3752,17 @@
             <span class="pv-main-title">📋 プレビュー（表計算形式）</span>
             <span class="pv-main-sp"></span>
             <div class="pv-btns">
-              <button class="pv-btn-pdf" style="background:#1a3a6b; color:#fff; border-color:#1a3a6b;" onclick="openQuoteDoc()">📄 御見積書フォーマット</button>
-              <button class="pv-btn-email-plain" onclick="copyQuoteEmailPlain()" title="見積サマリをメール本文（プレーンテキスト）としてコピー">✉️ メール本文（プレーン）</button>
-              <button class="pv-btn-email-rich" onclick="copyQuoteEmailRich()" title="見積サマリをメール本文（リッチテキスト／表組み）としてコピー">📧 メール本文（リッチ）</button>
-              <button class="pv-btn-email-plain" onclick="copyQuoteEmailPlainDetail()" title="区間・カテゴリ別の明細行を含むメール本文（プレーンテキスト）としてコピー">✉️ メール本文（明細・プレーン）</button>
-              <button class="pv-btn-email-rich" onclick="copyQuoteEmailRichDetail()" title="区間・カテゴリ別の明細表を含むメール本文（リッチテキスト）としてコピー">📧 メール本文（明細・リッチ）</button>
-              <button class="pv-btn-print" onclick="printFitPage('landscape')" title="A4横サイズにフィットして印刷（全列を収める）">🖨️ A4横フィット</button>
-              <button class="pv-btn-print" onclick="printFitPage('portrait')" title="A4縦サイズにフィットして印刷（全列を収める）">🖨️ A4縦フィット</button>
+              <button class="pv-btn-pdf" style="background:#1a3a6b; color:#fff; border-color:#1a3a6b;" onclick="openQuoteDoc()">📄 御見積書</button>
+              <div class="pv-btn-grp" data-label="メール本文">
+                <button class="pv-btn-email-plain" onclick="copyQuoteEmailPlain()" title="見積サマリをメール本文（プレーンテキスト）としてコピー">✉️ プレーン</button>
+                <button class="pv-btn-email-rich" onclick="copyQuoteEmailRich()" title="見積サマリをメール本文（リッチテキスト／表組み）としてコピー">📧 リッチ</button>
+                <button class="pv-btn-email-plain" onclick="copyQuoteEmailPlainDetail()" title="区間・カテゴリ別の明細行を含むメール本文（プレーンテキスト）としてコピー">✉️ 明細P</button>
+                <button class="pv-btn-email-rich" onclick="copyQuoteEmailRichDetail()" title="区間・カテゴリ別の明細表を含むメール本文（リッチテキスト）としてコピー">📧 明細R</button>
+              </div>
+              <div class="pv-btn-grp" data-label="印刷">
+                <button class="pv-btn-print" onclick="printFitPage('landscape')" title="A4横サイズにフィットして印刷（全列を収める）">🖨️ 横</button>
+                <button class="pv-btn-print" onclick="printFitPage('portrait')" title="A4縦サイズにフィットして印刷（全列を収める）">🖨️ 縦</button>
+              </div>
               <button class="pv-btn-close" onclick="closePreview()">閉じる</button>
               <span class="pv-copy-msg" id="copyMsg">✅ コピーしました！</span>
             </div>
