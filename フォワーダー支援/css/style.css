@@ -3518,7 +3518,7 @@ body:has(#compareOverlay.open) #quoteActionDock { display: none; }
 .lc-acc-cats { display: flex; gap: 5px; flex-wrap: wrap; justify-content: flex-end; }
 .lc-acc-rows { overflow: hidden; }
 .lc-acc.is-collapsed .lc-acc-rows { display: none; }
-/* 船会社グループ見出し直下：ブックマークリンクチップ帯（案3統合） */
+/* 取引先グループ見出し直下：ブックマークリンクチップ帯（案3統合） */
 .lc-acc-bm {
   display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
   padding: 7px 15px; background: #fcf8ef; border-top: 1px solid #f1ebdd;
@@ -3591,6 +3591,9 @@ body:has(#compareOverlay.open) #quoteActionDock { display: none; }
 .lc-cat-customs-export, .lc-cat-customs-import { background: #f3e8ff; color: #6b21a8; }
 .lc-cat-ocean        { background: #cffafe; color: #0e7490; }
 .lc-cat-surcharge    { background: #fff3cd; color: #856404; }
+.lc-cat-domestic-transport { background: #ffe4d6; color: #9a3412; }
+.lc-cat-warehouse    { background: #e0e7ff; color: #3730a3; }
+.lc-cat-packing-cost { background: #fce7f3; color: #9d174d; }
 
 /* コマンドバーのチャージボタン */
 .cmdbar-lc-btn {

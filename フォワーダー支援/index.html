@@ -278,7 +278,7 @@
           <label class="lc-group-select-wrap" title="一覧のグループ表示を切り替えます">
             <span class="lc-group-select-ic">🗂️</span>
             <select id="lcGroupMode" class="lc-group-select" onchange="lcSetGroupMode(this.value)">
-              <option value="carrier">船会社別</option>
+              <option value="carrier">取引先別</option>
               <option value="cat">カテゴリ別</option>
               <option value="none">グループなし</option>
             </select>
@@ -291,7 +291,7 @@
       <div class="lc-filters">
         <input id="lcFilterText"    class="lc-filter-input" type="text" placeholder="🔍 名称・備考で検索"  oninput="lcRender()">
         <input id="lcFilterPort"    class="lc-filter-input" type="text" placeholder="🏯 積み港/揚げ港"   oninput="lcRender()">
-        <input id="lcFilterCarrier" class="lc-filter-input" type="text" placeholder="🚢 船会社"          oninput="lcRender()">
+        <input id="lcFilterCarrier" class="lc-filter-input" type="text" placeholder="🚚 取引先"          oninput="lcRender()">
       </div>
 
       <div id="lcVariantPanel" class="lc-variant-panel" hidden></div>
@@ -328,7 +328,7 @@
             <button id="rnComposeBtn" class="rn-primary-btn" onclick="rnComposeFromSelection()" disabled>選択を案内に反映 →</button>
           </div>
         </div>
-        <p class="rn-hint">同じ「名称・船会社・航路」で適用期間の異なる料金を2件以上登録すると、改定として自動検出し差額を表示します。</p>
+        <p class="rn-hint">同じ「名称・取引先・航路」で適用期間の異なる料金を2件以上登録すると、改定として自動検出し差額を表示します。</p>
         <div id="rnPlanList" class="rn-plan-list"><div class="rn-empty">読み込み中…</div></div>
       </section>
 
@@ -3615,7 +3615,7 @@
         </div>
         <div class="lc-rail-search-bar">
           <input type="search" id="lcRailSearch" class="lc-rail-search-input"
-                 placeholder="🔍 名称・船会社" oninput="lcRailFilter()">
+                 placeholder="🔍 名称・取引先" oninput="lcRailFilter()">
         </div>
         <div id="lcRailListWrap" class="lc-rail-list-wrap"></div>
         <div class="lc-rail-footer">
@@ -4336,8 +4336,8 @@
     </div>
     <div class="lc-form-body">
       <div class="lc-form-row lc-form-row--full">
-        <label class="lc-form-label">船会社 <span class="lc-required">必須</span></label>
-        <input id="lc_carrier" class="lc-form-input" type="text" placeholder="例: MSC、ONE、Evergreen">
+        <label class="lc-form-label">取引先 <span class="lc-required">必須</span></label>
+        <input id="lc_carrier" class="lc-form-input" type="text" placeholder="例: MSC、ONE、〇〇運送（サブコン）、△△倉庫">
       </div>
       <div class="lc-form-row lc-form-row--full">
         <label class="lc-form-label">略称・名称 <span class="lc-required">必須</span></label>
@@ -4440,7 +4440,7 @@
       <div class="lc-picker-filters">
         <input id="lcPickText"    class="lc-filter-input" type="text" placeholder="🔍 検索"     oninput="lcPickerRender()">
         <input id="lcPickPort"    class="lc-filter-input" type="text" placeholder="🏯 積み港/揚げ港" oninput="lcPickerRender()">
-        <input id="lcPickCarrier" class="lc-filter-input" type="text" placeholder="🚢 船会社"   oninput="lcPickerRender()">
+        <input id="lcPickCarrier" class="lc-filter-input" type="text" placeholder="🚚 取引先"   oninput="lcPickerRender()">
       </div>
     </div>
     <div id="lcPickerList" class="lc-picker-list"></div>

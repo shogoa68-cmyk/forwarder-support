@@ -1257,6 +1257,9 @@
 #tab-quote-make tr.cat-customs-export td { background: #ece0d0 !important; }
 #tab-quote-make tr.cat-customs-import td { background: #e0e6d0 !important; }
 #tab-quote-make tr.cat-insurance    td { background: #fff0f8 !important; }
+#tab-quote-make tr.cat-domestic-transport td { background: #ffe4d6 !important; }
+#tab-quote-make tr.cat-warehouse    td { background: #e0e7ff !important; }
+#tab-quote-make tr.cat-packing-cost td { background: #fce7f3 !important; }
 #tab-quote-make tr.cat-other        td { background: #ede5d6 !important; }
 
 #tab-quote-make tr.cat-domestic     td.profit-pos { background: #ffd8b0 !important; }
@@ -1268,6 +1271,9 @@
 #tab-quote-make tr.cat-overseas     td.profit-pos { background: #bbf0c4 !important; }
 #tab-quote-make tr.cat-customs      td.profit-pos { background: #dbb8ff !important; }
 #tab-quote-make tr.cat-insurance    td.profit-pos { background: #ffb8e8 !important; }
+#tab-quote-make tr.cat-domestic-transport td.profit-pos { background: #ffc8a8 !important; }
+#tab-quote-make tr.cat-warehouse    td.profit-pos { background: #c0c8ff !important; }
+#tab-quote-make tr.cat-packing-cost td.profit-pos { background: #f8c0de !important; }
 #tab-quote-make tr.cat-other        td.profit-pos { background: #a8947e !important; }
 
 #tab-quote-make tr.cat-domestic:hover     td { background: #ffe5cc !important; }
@@ -1279,6 +1285,9 @@
 #tab-quote-make tr.cat-overseas:hover     td { background: #d0f5e5 !important; }
 #tab-quote-make tr.cat-customs:hover      td { background: #e5d0ff !important; }
 #tab-quote-make tr.cat-insurance:hover    td { background: #ffd0ef !important; }
+#tab-quote-make tr.cat-domestic-transport:hover td { background: #ffd4bc !important; }
+#tab-quote-make tr.cat-warehouse:hover    td { background: #ccd4ff !important; }
+#tab-quote-make tr.cat-packing-cost:hover td { background: #fcd0e8 !important; }
 #tab-quote-make tr.cat-other:hover        td { background: #d9cfc2 !important; }
 
 /* ========== 未入力行グレーアウト ========== */
@@ -8156,6 +8165,9 @@ button.um-memberno--empty:hover { background: #f4ead4; border-color: #cdb98e; }
 #tab-quote-make .rp-cat.cat-customs-export{background:#fde8e0;color:#a8522e}
 #tab-quote-make .rp-cat.cat-customs-import{background:#fce4ec;color:#a8326a}
 #tab-quote-make .rp-cat.cat-insurance{background:#e0f0f5;color:#1a6a8a}
+#tab-quote-make .rp-cat.cat-domestic-transport{background:#ffe4d6;color:#9a3412}
+#tab-quote-make .rp-cat.cat-warehouse{background:#e0e7ff;color:#3730a3}
+#tab-quote-make .rp-cat.cat-packing-cost{background:#fce7f3;color:#9d174d}
 #tab-quote-make .rp-cat.cat-other{background:#ece8e1;color:#6b5a42}
 
 /* ============================================================

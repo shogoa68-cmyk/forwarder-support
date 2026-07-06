@@ -82,7 +82,7 @@
   }
 
   // === 改定ペア検出 ===
-  // 同名(正規化)＋船会社＋航路で束ね、valid_from 昇順に隣接する
+  // 同名(正規化)＋取引先＋航路で束ね、valid_from 昇順に隣接する
   // 金額の異なるレコードを「改定」とみなす
   function _detectPairs() {
     const groups = new Map();
@@ -144,7 +144,7 @@
     if (!wrap) return;
     if (!_pairs.length) {
       wrap.innerHTML = '<div class="rn-empty">改定ペアが見つかりません。<br>' +
-        '同じ「名称・船会社・航路」で適用期間の異なる料金を2件以上登録すると、差額を自動検出します。</div>';
+        '同じ「名称・取引先・航路」で適用期間の異なる料金を2件以上登録すると、差額を自動検出します。</div>';
       _updatePlanCount();
       return;
     }
