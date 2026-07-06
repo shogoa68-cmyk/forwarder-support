@@ -20,7 +20,7 @@ permissions:
 # 同時実行は 1 つに絞る（連続 push で並行デプロイにならないように）
 concurrency:
   group: pages
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   deploy:
