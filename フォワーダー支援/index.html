@@ -3597,11 +3597,22 @@
 
       <!-- サブコン別パネル（右カラム コンパクト表示） -->
       <div id="siPanel" class="si-panel">
-        <div class="si-search-bar">
-          <input type="search" id="siSubconSearch" class="si-search-input"
-                 placeholder="🔍 サブコン名・品名" oninput="subconSidePanelFilter()">
+        <div class="si-tab-bar">
+          <button class="si-tab is-active" data-sitab="current" onclick="siSetTab('current')">📋 現案件</button>
+          <button class="si-tab" data-sitab="past" onclick="siSetTab('past')">🗃️ 過去案件</button>
         </div>
-        <div id="siListWrap" class="si-list-wrap"></div>
+        <!-- 現案件ペイン -->
+        <div class="si-pane" id="siPane-current">
+          <div id="siCurrentWrap" class="si-list-wrap"></div>
+        </div>
+        <!-- 過去案件ペイン -->
+        <div class="si-pane" id="siPane-past" style="display:none">
+          <div class="si-search-bar">
+            <input type="search" id="siSubconSearch" class="si-search-input"
+                   placeholder="🔍 サブコン名・品名" oninput="subconSidePanelFilter()">
+          </div>
+          <div id="siListWrap" class="si-list-wrap"></div>
+        </div>
       </div>
 
       <!-- 諸チャージパネル（右カラム） -->
