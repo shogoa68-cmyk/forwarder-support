@@ -7033,11 +7033,18 @@ body.qp-dash-active #quoteActionDock { display: none !important; }
   font-size: 11px; color: #5a4a35; background: #fbf8f1;
   border: 1px solid #ece3d2; border-radius: 4px; padding: 3px 7px;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  display: flex; align-items: center; justify-content: space-between; gap: 4px;
   transition: background .12s, border-color .12s;
 }
 #tab-quote-make .qsp-dig-subjump:hover { background: #f3eada; border-color: #b89a5e; }
 #tab-quote-make .qsp-dig-subjump.is-subcon { font-weight: 700; }
 #tab-quote-make .qsp-dig-subjump.is-pattern { color: #6b5a3f; padding-left: 14px; }
+#tab-quote-make .qsp-dig-grp-sum {
+  flex-shrink: 0; font-size: 10px; font-weight: 700; color: #2a5e8a;
+  background: #e8f0f8; border-radius: 3px; padding: 1px 4px;
+  letter-spacing: .02em;
+}
+#tab-quote-make .qsp-dig-grp-item.is-excluded .qsp-dig-grp-sum { opacity: 0.45; }
 /* 折りたたみボタン */
 #tab-quote-make .qsp-dig-grp-collapse {
   flex-shrink: 0; cursor: pointer; font-family: inherit; font-size: 10px;
