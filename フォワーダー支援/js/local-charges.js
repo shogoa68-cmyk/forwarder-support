@@ -457,6 +457,26 @@
     _lcRenderChips(which);
   }
 
+  // ラベルの先頭テキストノードだけ差し替え（hint span 等の後続要素は維持）
+  function _lcSetLabelText(labelEl, text) {
+    if (!labelEl) return;
+    for (const node of labelEl.childNodes) {
+      if (node.nodeType === Node.TEXT_NODE) { node.textContent = text + ' '; return; }
+    }
+    labelEl.insertBefore(document.createTextNode(text + ' '), labelEl.firstChild);
+  }
+
+  // 国内配送・横持ち（サブコン）カテゴリのときは POL/POD を「集荷地」「配送地」表記に切り替える
+  function _lcUpdatePlaceLabels() {
+    const isDomesticTransport = document.getElementById('lc_cat')?.value === 'domestic-transport';
+    _lcSetLabelText(document.getElementById('lcPolLabel'), isDomesticTransport ? '集荷地' : '積み港（POL）');
+    _lcSetLabelText(document.getElementById('lcPodLabel'), isDomesticTransport ? '配送地' : '揚げ港（POD）');
+    const polEntry = document.getElementById('lcPolEntry');
+    const podEntry = document.getElementById('lcPodEntry');
+    if (polEntry) polEntry.placeholder = isDomesticTransport ? '集荷地を入力しEnter' : '港を入力しEnter';
+    if (podEntry) podEntry.placeholder = isDomesticTransport ? '配送地を入力しEnter' : '仕向地を入力しEnter';
+  }
+
   // プリセットチップの描画＋入力欄イベントの初期化（1回だけ）
   function _lcInitChipsUI() {
     [['pol', 'lcPolPresets', LC_POL_PRESETS], ['pod', 'lcPodPresets', LC_POD_PRESETS]].forEach(([which, presetId, presets]) => {
@@ -510,6 +530,12 @@
     set('lc_unit',       charge?.unit       || '');
     const taxVal = charge?.taxable ? '1' : '0';
     document.querySelectorAll('input[name="lc_taxable"]').forEach(r => { r.checked = (r.value === taxVal); });
+    _lcUpdatePlaceLabels();
+    const catSelForLabel = document.getElementById('lc_cat');
+    if (catSelForLabel && !catSelForLabel.dataset.lcLabelBound) {
+      catSelForLabel.addEventListener('change', _lcUpdatePlaceLabels);
+      catSelForLabel.dataset.lcLabelBound = '1';
+    }
     _lcInitChipsUI();
     _lcSetChips('pol', charge?.pol || charge?.port || '');
     _lcSetChips('pod', charge?.pod || '');
