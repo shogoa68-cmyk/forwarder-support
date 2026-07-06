@@ -2095,6 +2095,8 @@
       if (window.scrollY !== _savedScrollY) window.scrollTo({ top: _savedScrollY, behavior: 'instant' });
       // 右サマリ「要約」のテーブル内ジャンプリンクをグループ構成に追従させる
       if (typeof window.renderQuoteSectionDigest === 'function') window.renderQuoteSectionDigest();
+      // 👷 サブコンタブ「現案件」ペインを更新
+      if (typeof window.renderCurrentQuoteSubconPanel === 'function') window.renderCurrentQuoteSubconPanel();
     }
   }
 

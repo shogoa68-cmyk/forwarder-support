@@ -464,7 +464,162 @@
     return _aggregate(filtered);
   }
 
+  // ========== 現案件ペイン ==========
+
+  // タブ切替
+  function siSetTab(tab) {
+    document.querySelectorAll('#siPanel .si-tab').forEach(b => b.classList.toggle('is-active', b.dataset.sitab === tab));
+    document.querySelectorAll('#siPanel .si-pane').forEach(p => { p.style.display = p.id === 'siPane-' + tab ? '' : 'none'; });
+    if (tab === 'current') renderCurrentQuoteSubconPanel();
+  }
+
+  // 現在の見積テーブルをサブコン×パターン別に集計
+  function _collectCurrentQuoteBySubcon() {
+    const tbody = document.getElementById('tableBody');
+    if (!tbody) return [];
+    const groups = [];
+    const svMap = new Map();
+    let currentSv = null, currentPt = null;
+
+    Array.from(tbody.querySelectorAll('tr')).forEach(function(tr) {
+      if (tr.dataset.virtual) { currentSv = tr.dataset.svKey || ''; currentPt = null; return; }
+      if (tr.dataset.subGroup) { currentPt = tr.dataset.ptKey || null; return; }
+      if (tr.dataset.type || tr.dataset.ptSum || tr.dataset.subSum) return;
+      if (tr.dataset.outRange === '1') return;
+      const id = (tr.id || '').replace('row-', '');
+      if (!id) return;
+      const val = function(f) { return (document.getElementById(f + '-' + id) || {}).value || ''; };
+      const nm = val('nm'); if (!nm) return;
+      const sv = currentSv !== null ? currentSv : (val('sv') || '');
+      const svLabel = sv || '（未設定）';
+      const cat = val('cat'), bq = parseFloat(val('bq')) || 0, un = val('un');
+      const pp = parseFloat(val('pp')) || 0, pc = val('pc') || 'JPY';
+      const bp = parseFloat(val('bp')) || 0, bc = val('bc') || 'JPY';
+      const excluded = tr.dataset.excluded === '1';
+
+      let svGroup = svMap.get(svLabel);
+      if (!svGroup) {
+        svGroup = { sv: svLabel, ptMap: new Map(), ptOrder: [], sellTotal: 0, costTotal: 0, hasMixed: false };
+        svMap.set(svLabel, svGroup); groups.push(svGroup);
+      }
+      const ptKey = currentPt !== null ? currentPt : '';
+      let ptGroup = svGroup.ptMap.get(ptKey);
+      if (!ptGroup) {
+        ptGroup = { pt: ptKey, rows: [], sellTotal: 0, costTotal: 0, hasMixed: false };
+        svGroup.ptMap.set(ptKey, ptGroup); svGroup.ptOrder.push(ptKey);
+      }
+      const sellJPY = bc !== 'JPY' ? (typeof toJPY === 'function' ? toJPY(bq * bp, bc) : 0) : bq * bp;
+      const costJPY = pc !== 'JPY' ? (typeof toJPY === 'function' ? toJPY(bq * pp, pc) : 0) : bq * pp;
+      const mixed = bc !== 'JPY' || pc !== 'JPY';
+      ptGroup.rows.push({ cat, nm, bq, un, pp, pc, bp, bc, excluded });
+      if (!excluded) {
+        ptGroup.sellTotal += sellJPY; ptGroup.costTotal += costJPY;
+        svGroup.sellTotal += sellJPY; svGroup.costTotal += costJPY;
+        if (mixed) { ptGroup.hasMixed = true; svGroup.hasMixed = true; }
+      }
+    });
+    return groups;
+  }
+
+  function _fmtMoney(n, ccy) {
+    if (!n && n !== 0) return '—';
+    const c = (ccy || 'JPY').trim();
+    return c === 'JPY' ? '¥' + Math.round(n).toLocaleString('ja-JP')
+                       : c + ' ' + n.toLocaleString('ja-JP', { maximumFractionDigits: 2 });
+  }
+
+  // 1グループをクリップボード用テキストに変換
+  function _groupToText(svLabel, ptGroups) {
+    const lines = ['【' + svLabel + '】'];
+    ptGroups.forEach(function(pg) {
+      if (pg.pt) lines.push('  ▸ ' + pg.pt);
+      pg.rows.forEach(function(r) {
+        const qty = r.bq ? r.bq.toLocaleString('ja-JP') + (r.un ? ' ' + r.un : '') : '—';
+        const price = _fmtMoney(r.pp, r.pc);
+        const ex = r.excluded ? '【除外】' : '';
+        lines.push('  ' + ex + r.nm + '  ' + qty + '  仕入:' + price);
+      });
+    });
+    const allSell = ptGroups.reduce(function(s, p) { return s + p.sellTotal; }, 0);
+    const allCost = ptGroups.reduce(function(s, p) { return s + p.costTotal; }, 0);
+    const mixed   = ptGroups.some(function(p) { return p.hasMixed; });
+    lines.push('────');
+    lines.push('仕入合計: ' + _fmtMoney(allCost, 'JPY') + (mixed ? '（概算）' : '') +
+               '  /  売合計: ' + _fmtMoney(allSell, 'JPY') + (mixed ? '（概算）' : ''));
+    return lines.join('\n');
+  }
+
+  // 現案件ペインを描画
+  function renderCurrentQuoteSubconPanel() {
+    const wrap = document.getElementById('siCurrentWrap');
+    if (!wrap) return;
+    const groups = _collectCurrentQuoteBySubcon();
+    if (!groups.length) {
+      wrap.innerHTML = '<div class="preset-empty">費用テーブルにサブコン情報のある行がありません<br><small style="color:#bbb;">各行の「サブコン」欄に会社名を入力してください</small></div>';
+      return;
+    }
+    wrap.innerHTML = groups.map(function(g, gi) {
+      const ptGroups = g.ptOrder.map(function(k) { return g.ptMap.get(k); });
+      const hasPt = ptGroups.some(function(p) { return !!p.pt; });
+      const ptsHtml = ptGroups.map(function(pg) {
+        const ptHdr = pg.pt ? '<div class="sic-pt-hdr">▸ ' + _esc(pg.pt) + '</div>' : '';
+        const rowsHtml = pg.rows.map(function(r) {
+          const qty = r.bq ? r.bq.toLocaleString('ja-JP') + (r.un ? ' ' + _esc(r.un) : '') : '—';
+          return '<div class="sic-row' + (r.excluded ? ' is-excluded' : '') + '">' +
+            '<span class="rp-cat ' + (CAT_CLASS[r.cat] || 'cat-other') + '">' + _esc(ROLE[r.cat] || r.cat || '—') + '</span>' +
+            '<span class="sic-nm">' + _esc(r.nm) + '</span>' +
+            '<span class="sic-meta">' + qty + '</span>' +
+            '<span class="sic-price">' + _fmtMoney(r.pp, r.pc) + '</span>' +
+            '</div>';
+        }).join('');
+        const ptFooter = hasPt && pg.pt
+          ? '<div class="sic-pt-foot">' +
+              '<span>仕入 ' + _fmtMoney(pg.costTotal, 'JPY') + (pg.hasMixed ? '※' : '') + '</span>' +
+              '<span>売 ' + _fmtMoney(pg.sellTotal, 'JPY') + (pg.hasMixed ? '※' : '') + '</span>' +
+            '</div>'
+          : '';
+        return ptHdr + rowsHtml + ptFooter;
+      }).join('');
+      const mixed = g.hasMixed;
+      return '<div class="sic-card" data-gi="' + gi + '">' +
+        '<div class="sic-head">' +
+          '<span class="sic-sv">' + _esc(g.sv) + '</span>' +
+          '<span class="sic-total">' +
+            '仕入 ' + _fmtMoney(g.costTotal, 'JPY') + (mixed ? '※' : '') +
+            '  売 ' + _fmtMoney(g.sellTotal, 'JPY') + (mixed ? '※' : '') +
+          '</span>' +
+        '</div>' +
+        '<div class="sic-body">' + ptsHtml + '</div>' +
+        '<div class="sic-foot">' +
+          '<button class="sic-copy-btn" onclick="siCopyGroup(' + gi + ')" title="この会社分をテキストでコピー">📋 コピー</button>' +
+        '</div>' +
+        '</div>';
+    }).join('');
+  }
+
+  // コピーボタン
+  window._sicGroups = [];
+  function siCopyGroup(gi) {
+    const groups = _collectCurrentQuoteBySubcon();
+    const g = groups[gi];
+    if (!g) return;
+    const ptGroups = g.ptOrder.map(function(k) { return g.ptMap.get(k); });
+    const text = _groupToText(g.sv, ptGroups);
+    if (typeof SharedUI !== 'undefined' && SharedUI.copyToClipboard) {
+      SharedUI.copyToClipboard(text);
+    } else {
+      navigator.clipboard.writeText(text).catch(function() {
+        const ta = document.createElement('textarea');
+        ta.value = text; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove();
+      });
+    }
+    if (typeof quoteShowToast === 'function') quoteShowToast('📋 ' + g.sv + ' の明細をコピーしました', 'success');
+  }
+
   async function loadSubconPanel() {
+    // 現案件ペインはすぐ描画（クラウド不要）
+    renderCurrentQuoteSubconPanel();
+    // 過去案件ペインの読み込み
     const wrap = document.getElementById('siListWrap');
     if (!wrap) return;
     const db = _db();
@@ -571,6 +726,7 @@
   Object.assign(window, {
     loadSubconModules, renderSubconList, subconInsert, subconFilter, switchRowInsertTab,
     renderSubconSidePanel, subconInsertFromPanel, loadSubconPanel, subconSidePanelFilter,
+    siSetTab, renderCurrentQuoteSubconPanel, siCopyGroup,
     getSubconData: () => _subcons,
     loadSubconData: async () => { if (!_subcons.length) await loadSubconModules(); return _subcons; },
     buildSubconData: (presets) => _aggregate(presets),
