@@ -17,6 +17,9 @@
     { value: 'ocean',          label: '🚢 海上運賃' },
     { value: 'surcharge',      label: '⚡ サーチャージ' },
     { value: 'overseas',       label: '🌏 海外作業' },
+    { value: 'domestic-transport', label: '🚚 国内配送・横持ち（サブコン）' },
+    { value: 'warehouse',      label: '📦 倉庫保管（サブコン）' },
+    { value: 'packing-cost',   label: '🎁 梱包（サブコン）' },
     { value: 'other',          label: '📋 その他' },
   ];
   const LC_CURRENCIES = ['JPY', 'USD', 'EUR', 'CNY', 'SGD', 'HKD', 'GBP', 'AUD'];
@@ -32,7 +35,7 @@
   let _charges     = [];
   let _editId      = null;
   let _pickDir     = 'export';
-  // 案3 グループ表示：'carrier'（船会社別）| 'cat'（カテゴリ別）| 'none'（グループなし）
+  // 案3 グループ表示：'carrier'（取引先別）| 'cat'（カテゴリ別）| 'none'（グループなし）
   let _groupMode = (() => { try { return localStorage.getItem('lcGroupMode_v1') || 'carrier'; } catch (e) { return 'carrier'; } })();
   const _collapsedGroups = new Set();
   // POL/POD チップの現在値（登録フォーム用）
@@ -308,10 +311,10 @@
 
     const catMap = Object.fromEntries(LC_CATS.map(c => [c.value, c.label]));
 
-    // === グループ化（案3：船会社／カテゴリ別アコーディオン） ===
+    // === グループ化（案3：取引先／カテゴリ別アコーディオン） ===
     const mode = _groupMode; // 'carrier' | 'cat' | 'none'
     const groups = new Map(); // key -> { label, items, catSet }
-    const NO_CARRIER = '（船会社指定なし）';
+    const NO_CARRIER = '（取引先指定なし）';
     filtered.forEach(c => {
       let key, label;
       if (mode === 'cat')       { key = c.cat || 'other'; label = catMap[key] || 'その他'; }
@@ -558,7 +561,7 @@
     const g = id => document.getElementById(id)?.value?.trim() || '';
     const name    = g('lc_name');
     const carrier = g('lc_carrier');
-    if (!carrier) { alert('船会社（キャリアー）は必須です'); document.getElementById('lc_carrier')?.focus(); return null; }
+    if (!carrier) { alert('取引先は必須です'); document.getElementById('lc_carrier')?.focus(); return null; }
     if (!name)    { alert('名称は必須です'); document.getElementById('lc_name')?.focus(); return null; }
     // 未確定の入力欄をチップ化してから収集
     _lcFlushChipEntry('pol');
@@ -1109,7 +1112,7 @@
   function _lcRenderCarrierBmSection() {
     const el = document.getElementById('lcCarrierBmSection');
     if (!el) return;
-    // 船会社グループ表示のときはグループ見出しにチップを統合するため独立セクションは隠す
+    // 取引先グループ表示のときはグループ見出しにチップを統合するため独立セクションは隠す
     if (_groupMode === 'carrier') { el.hidden = true; return; }
 
     const carriers = [...new Set(_charges.map(c => c.carrier).filter(Boolean))].sort();
@@ -1145,9 +1148,9 @@
     _lcFetchCarrierBms();
   };
 
-  // 船会社グループ見出し直下のブックマークリンクチップ帯（案3統合）
+  // 取引先グループ見出し直下のブックマークリンクチップ帯（案3統合）
   function _lcGroupBmHtml(carrier) {
-    const NO_CARRIER = '（船会社指定なし）';
+    const NO_CARRIER = '（取引先指定なし）';
     if (!carrier || carrier === NO_CARRIER) return '';
     const bms   = _lcBmCache[carrier] || [];
     const hasDb = !!(window.SupabaseClient);
