@@ -738,6 +738,8 @@
         if (ok) updateTotals();
       });
     }
+    // 📌 メモ フロート付箋の初期化（IntersectionObserver・ドラッグ・同期）
+    if (typeof _initMemoFloat === 'function') _initMemoFloat();
     // Undo/Redo 履歴の初期化（初期スナップショットを採取し input/mutation 監視を開始）
     if (typeof initQuoteHistory === 'function') initQuoteHistory();
     // 品名マスターの詳細情報（単位・備考）自動入力
