@@ -752,10 +752,10 @@
     q('pq').oninput    = () => onPay(id);
     q('pc').onchange   = () => onPay(id);
     q('pp').oninput    = () => onPay(id);
-    q('mk').oninput    = () => calc(id);
+    q('mk').oninput    = () => { calc(id); _recalcPctDependents(id); };
     q('bc').onchange   = () => onBillCur(id);          // 売通貨を仕入通貨と別建てに
     { const bpEl2 = q('bp'); if (bpEl2) bpEl2.oninput = () => {   // 独立モードで売単価を直接入力
-        bpEl2.dataset.base = bpEl2.value; calc(id);
+        bpEl2.dataset.base = bpEl2.value; calc(id); _recalcPctDependents(id);
         if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
       }; }
     q('sv').onchange   = () => renderSubconGroups();
@@ -1065,7 +1065,7 @@
     if (pprefUid) {
       const refId = _findRowIdByUid(pprefUid);
       if (refId !== null) {
-        base = val(`pp-${refId}`);
+        base = val(`bp-${refId}`);   // 参照行の売値（売単価）を基準額とする
         const ppbaseEl = document.getElementById(`ppbase-${id}`);
         if (ppbaseEl) { ppbaseEl.value = base; ppbaseEl.readOnly = true; }
       } else {
