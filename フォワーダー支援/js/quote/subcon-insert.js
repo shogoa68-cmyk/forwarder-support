@@ -10,7 +10,7 @@
 
   // ROW_CELL_FIELDS と同じ並び（cells[0]=選択, cells[1..]=以下）
   // ['cat','sv','tx','nm','pq','un','bq','pc','bc','pp','bp','cd','mk','nt']
-  const CI = { cat:1, sv:2, tx:3, nm:4, pq:5, un:6, bq:7, pc:8, bc:9, pp:10, bp:11, cd:12, mk:13, nt:14 };
+  const CI = { cat:1, sv:2, tx:3, nm:4, pq:5, un:6, bq:7, pc:8, bc:9, pp:10, bp:11, cd:12, mk:13, nt:14, pt:19 };
   const ROLE = {
     'domestic':'国内作業', 'export-local':'輸出ローカル', 'ocean':'海上', 'air':'航空',
     'surcharge':'サーチャージ', 'import-local':'輸入ローカル', 'overseas':'海外作業',
@@ -99,6 +99,7 @@
             cat, name: nm, role: ROLE[cat] || '',
             un: (r.cells[CI.un]||''), pc: (r.cells[CI.pc]||'JPY'), bc: (r.cells[CI.bc]||'JPY'),
             ppSum: 0, ppCount: 0, lastPp: null, lastBp: (r.cells[CI.bp]||''),
+            lastPt: (r.cells[CI.pt]||'').trim(),
             lastUsed: 0,
             latest: r.cells,
             history: [],
@@ -106,7 +107,7 @@
         }
         const it = sc.items[key];
         if (pp != null) { it.ppSum += pp; it.ppCount++; }
-        if (ts >= it.lastUsed) { it.lastUsed = ts; it.lastPp = pp; it.lastBp = (r.cells[CI.bp]||''); it.latest = r.cells; }
+        if (ts >= it.lastUsed) { it.lastUsed = ts; it.lastPp = pp; it.lastBp = (r.cells[CI.bp]||''); it.lastPt = (r.cells[CI.pt]||'').trim(); it.latest = r.cells; }
         it.history.push({ ts, pp, bp: _num(r.cells[CI.bp]), route });
       });
     });
@@ -119,7 +120,7 @@
       items: Object.values(sc.items)
         .map(it => ({
           cat: it.cat, name: it.name, role: it.role, un: it.un, pc: it.pc, bc: it.bc,
-          pp: it.lastPp, bp: it.lastBp || '',
+          pp: it.lastPp, bp: it.lastBp || '', pt: it.lastPt || '',
           avgPp: it.ppCount ? (it.ppSum / it.ppCount) : null,
           lastUsed: it.lastUsed, cells: it.latest,
           history: it.history.sort((a, b) => a.ts - b.ts),
@@ -179,10 +180,11 @@
         const unit = it.un ? '<small class="rp-sc-unit"> /' + _esc(it.un) + '</small>' : '';
         const avg = (it.avgPp != null && it.ppCount !== 1)
           ? '<span class="rp-sc-avg">平均 ' + _money(it.avgPp, it.pc) + '</span>' : '';
+        const ptBadge = it.pt ? '<span class="rp-sc-pt">' + _esc(it.pt) + '</span>' : '';
         return '<label class="rp-sc-item">' +
             '<input type="checkbox" class="rp-sc-chk" data-si="' + si + '" data-ii="' + ii + '" checked>' +
             '<span class="rp-cat ' + (CAT_CLASS[it.cat]||'cat-other') + '">' + _esc(ROLE[it.cat]||it.cat||'—') + '</span>' +
-            '<span class="rp-sc-itemname">' + _esc(it.name) + '</span>' +
+            '<span class="rp-sc-nm-wrap"><span class="rp-sc-itemname">' + _esc(it.name) + '</span>' + ptBadge + '</span>' +
             '<span class="rp-sc-price">' + priceMain + unit + avg + '</span>' +
           '</label>';
       }).join('');
@@ -251,6 +253,7 @@
       bp:   g(CI.bp) || '',
       mk:   g(CI.mk) || '',
       note: g(CI.nt) || '',
+      pt:   g(CI.pt) || '',
     };
   }
 
@@ -337,10 +340,11 @@
           ? ppStr + '<span class="si-arrow">→</span>' + bpStr
           : ppStr;
         const unit = it.un ? '<small class="rp-sc-unit"> /' + _esc(it.un) + '</small>' : '';
+        const ptBadgeSi = it.pt ? '<span class="rp-sc-pt">' + _esc(it.pt) + '</span>' : '';
         return '<label class="rp-sc-item" draggable="true" data-si="' + si + '" data-ii="' + ii + '">' +
             '<input type="checkbox" class="rp-sc-chk si-chk" data-si="' + si + '" data-ii="' + ii + '" checked>' +
             '<span class="rp-cat ' + (CAT_CLASS[it.cat]||'cat-other') + '">' + _esc(ROLE[it.cat]||it.cat||'—') + '</span>' +
-            '<span class="rp-sc-itemname">' + _esc(it.name) + '</span>' +
+            '<span class="rp-sc-nm-wrap"><span class="rp-sc-itemname">' + _esc(it.name) + '</span>' + ptBadgeSi + '</span>' +
             '<span class="rp-sc-price">' + priceCell + unit + '</span>' +
           '</label>';
       }).join('');
