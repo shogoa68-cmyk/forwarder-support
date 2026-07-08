@@ -1427,6 +1427,42 @@
 /* 都度請求の行：琥珀（オレンジ）アクセント。金額は通常表示・合計外 */
 #tab-quote-make tr.row-conditional > td.handle-cell { box-shadow: inset 3px 0 0 #d99a2b; }
 #tab-quote-make tr.row-conditional > td { background: #fffaf0; }
+/* ===== % 計算モード ===== */
+#tab-quote-make .pct-mode-btn {
+  display: inline-block; margin-top: 3px; padding: 1px 6px;
+  font-size: 10px; line-height: 1.5; border: 1px solid #c4b49a; border-radius: 3px;
+  background: transparent; color: #c4b49a; cursor: pointer; font-family: inherit;
+  transition: all 0.15s; white-space: nowrap;
+}
+#tab-quote-make .pct-mode-btn:hover { border-color: #b0772f; color: #b0772f; }
+#tab-quote-make .pct-mode-btn.is-on { background: #fff3e0; border-color: #d4892a; color: #8a4c00; font-weight: 700; }
+/* % モード ON の行：仕入れセルに amber アクセント */
+#tab-quote-make tr.row-pct-mode .stk-cost .stk-tag { background: #ffe8c0; color: #8a4c00; }
+/* % モード: pct-group（レート × 基準額）の表示制御 */
+#tab-quote-make .pct-group { display: none; align-items: center; gap: 2px; flex-wrap: nowrap; }
+#tab-quote-make tr.row-pct-mode .pct-group { display: inline-flex; }
+/* % モード ON: pp 入力を読み取り専用スタイルに */
+#tab-quote-make tr.row-pct-mode .stk-cost .w-price {
+  width: 52px; pointer-events: none;
+  background: #f5f2ec; color: #888; border-color: #ddd; font-style: italic;
+}
+/* %率・基準額の入力欄 */
+#tab-quote-make .w-pct-rate {
+  width: 42px; font-size: 11px; padding: 1px 3px; height: 22px; box-sizing: border-box;
+  border: 1px solid #c5b89e; border-radius: 3px; background: #fffdf8; color: #7a4c10;
+  text-align: right;
+}
+#tab-quote-make .w-pct-rate:focus { border-color: #b0772f; outline: none; background: #fff; }
+#tab-quote-make .pct-x {
+  font-size: 9px; color: #aaa; white-space: nowrap; flex-shrink: 0;
+}
+#tab-quote-make .w-pct-base {
+  width: 68px; font-size: 11px; padding: 1px 3px; height: 22px; box-sizing: border-box;
+  border: 1px solid #c5b89e; border-radius: 3px; background: #fffdf8; color: #7a4c10;
+}
+#tab-quote-make .w-pct-base:focus { border-color: #b0772f; outline: none; background: #fff; }
+/* 客先モードでは pct-group 非表示（内部情報） */
+#tab-quote-make #quoteTable.customer-mode .pct-group { display: none !important; }
 /* プレビュー：都度請求の客先注記 */
 #tab-quote-make .pv-cond-note { color: #8a5a00; font-size: 10.5px; font-weight: 700; margin-left: 4px; white-space: nowrap; }
 /* プレビュー：実費テキスト */
@@ -3700,6 +3736,32 @@
 }
 #tab-quote-make .pv-btn-close:hover { filter: brightness(1.2); }
 #tab-quote-make .pv-btn-close:active { filter: brightness(0.85); transform: scale(0.97); }
+/* ── プレビューヘッダー ボタングループ ── */
+#tab-quote-make .pv-btn-grp {
+  display: inline-flex;
+  align-items: stretch;
+  border: 1px solid #adc0e4;
+  border-radius: 5px;
+  overflow: hidden;
+}
+#tab-quote-make .pv-btn-grp::before {
+  content: attr(data-label);
+  font-size: 9px;
+  font-weight: 700;
+  color: #4a6fa5;
+  background: #dce8f8;
+  padding: 0 7px;
+  white-space: nowrap;
+  border-right: 1px solid #b0c4de;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+}
+#tab-quote-make .pv-btn-grp > button {
+  border-radius: 0;
+  border: none;
+  border-left: 1px solid #c5d5ee;
+}
 /* 客先用専用出力ボタン */
 #tab-quote-make .pv-btn-client-excel {
   background: #e8f4fd; border: 2px solid #1565c0; color: #0d47a1;

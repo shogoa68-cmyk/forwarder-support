@@ -441,22 +441,6 @@
     }, { passive: false });
 
     document.getElementById('tableBody').addEventListener('keydown', e => {
-      // Ctrl+D: 現在行を複製して直下に挿入
-      if (e.ctrlKey && e.key === 'd') {
-        const tr = e.target.closest('tr');
-        if (!tr || !tr.id.startsWith('row-')) return;
-        e.preventDefault();
-        const col   = e.target.dataset.col;
-        const newId = duplicateRow(tr.id.replace('row-', ''));
-        setTimeout(() => {
-          const target = col
-            ? document.querySelector(`#row-${newId} [data-col="${col}"]`)
-            : document.getElementById(`nm-${newId}`);
-          if (target) { target.focus(); if (target.select) target.select(); }
-        }, 0);
-        return;
-      }
-
       if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown') return;
       const el  = e.target;
       const col = el.dataset.col;
@@ -477,11 +461,14 @@
           if (t) { t.focus(); if (t.select) t.select(); }
           return !!t;
         };
-        if (col === '4') {                 // 仕入れ単価
+        if (col === '4') {                 // 仕入れ単価（or pprate in pct mode）
           if (e.key === 'ArrowDown') focusField(tr, 'mk');           // ↓ → ＋乗せ幅
           else if (di > 0)           focusField(dataRows[di - 1], 'mk'); // ↑ → 前行の＋乗せ幅
         } else {                            // 乗せ幅（＋）
-          if (e.key === 'ArrowUp')   focusField(tr, 'pp');           // ↑ → 仕入れ単価
+          if (e.key === 'ArrowUp') {
+            const isPct = tr.classList.contains('row-pct-mode');
+            focusField(tr, isPct ? 'pprate' : 'pp');  // % モードは rate へ、通常は仕入れ単価へ
+          }
           else if (di < dataRows.length - 1) focusField(dataRows[di + 1], 'pp'); // ↓ → 次行の仕入れ
           else {                            // 末尾なら新規行を追加して仕入れへ
             const newId = addRowAfter(id);
@@ -558,7 +545,7 @@
     const newId = addRowAfter(srcId);
 
     // テキスト・数値・日付フィールドをコピー（zc = 0円確認済みフラグ／vf・vt = 有効期限を含む）
-    ['nm','pq','un','pp','mk','nt','sv','pt','zc','ac','ps','co','vf','vt','lu'].forEach(f => {
+    ['nm','pq','un','pp','mk','nt','sv','pt','zc','ac','ps','co','vf','vt','lu','ppmode','pprate','ppbase'].forEach(f => {
       const srcEl = document.getElementById(`${f}-${srcId}`);
       const dstEl = document.getElementById(`${f}-${newId}`);
       if (srcEl && dstEl) dstEl.value = srcEl.value;
@@ -613,6 +600,11 @@
         initSubtotalDrag(cloned);
         insertAfter = cloned;
       });
+    }
+
+    // % 計算モードを復元（コピー元が % モードなら複製先も同じモードに）
+    if (document.getElementById(`ppmode-${srcId}`)?.value === 'pct') {
+      _setPctModeUI(newId, true);
     }
 
     // subcon-child クラス等のグループ連結を即時反映（DOM並替でスクロール位置が変わらないよう保持）
@@ -708,7 +700,7 @@
     const q    = f => frag.querySelector(`[data-field="${f}"]`);
 
     // IDs
-    ['cat','tx','nm','pq','un','pc','pp','cd','bq','bc','bp','mk','st','pr','nt','sv','pt','zc','ac','ps','co','vf','vt','lu']
+    ['cat','tx','nm','pq','un','pc','pp','cd','bq','bc','bp','mk','st','pr','nt','sv','pt','zc','ac','ps','co','vf','vt','lu','ppmode','pprate','ppbase']
       .forEach(f => { const el = q(f); if (el) el.id = `${f}-${id}`; });
     const zcBtn = frag.querySelector('.zero-confirm-btn');
     if (zcBtn) zcBtn.onclick = () => toggleZeroConfirmed(id);;
@@ -718,6 +710,12 @@
     if (psBtn) psBtn.onclick = () => toggleProfitShare(id);
     const coBtn = frag.querySelector('.cond-charge-btn');
     if (coBtn) coBtn.onclick = () => toggleConditional(id);
+    const pctBtn = frag.querySelector('.pct-mode-btn');
+    if (pctBtn) pctBtn.onclick = () => togglePctMode(id);
+    const pprateEl = frag.querySelector('[data-field="pprate"]');
+    if (pprateEl) pprateEl.oninput = () => _calcPct(id);
+    const ppbaseEl = frag.querySelector('[data-field="ppbase"]');
+    if (ppbaseEl) ppbaseEl.oninput = () => _calcPct(id);
     const remBtn = frag.querySelector('.btn-row-rem');
     const intBtn = frag.querySelector('.btn-row-int');
     if (remBtn) remBtn.onclick = () => rowInsertRemarkBelow(id);
@@ -996,6 +994,67 @@
     if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
   }
   window.toggleConditional = toggleConditional;
+
+  // ========== % 計算モード ==========
+  function togglePctMode(id) {
+    const tr = document.getElementById(`row-${id}`);
+    if (!tr) return;
+    const on = !tr.classList.contains('row-pct-mode');
+    _setPctModeUI(id, on);
+    const ppmode = document.getElementById(`ppmode-${id}`);
+    if (ppmode) ppmode.value = on ? 'pct' : '';
+    if (on) {
+      _calcPct(id);
+      if (typeof quoteShowToast === 'function') quoteShowToast('% 計算モードをONにしました。%率と基準額を入力してください。', 'info');
+    } else {
+      // 直接入力モードに戻す：pp を再び編集可能に
+      const ppEl = document.getElementById(`pp-${id}`);
+      if (ppEl) {
+        ppEl.readOnly = false;
+        ppEl.setAttribute('data-col', '4');
+        ppEl.value = 0;
+      }
+      onPay(id);
+    }
+    if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
+  }
+
+  function _setPctModeUI(id, on) {
+    const tr = document.getElementById(`row-${id}`);
+    if (!tr) return;
+    tr.classList.toggle('row-pct-mode', on);
+    const btn = tr.querySelector('.pct-mode-btn');
+    if (btn) btn.classList.toggle('is-on', on);
+    const ppEl     = document.getElementById(`pp-${id}`);
+    const pprateEl = document.getElementById(`pprate-${id}`);
+    if (ppEl) {
+      ppEl.readOnly = on;
+      ppEl.tabIndex = on ? -1 : 0;
+      if (on) ppEl.removeAttribute('data-col'); else ppEl.setAttribute('data-col', '4');
+    }
+    if (pprateEl) {
+      pprateEl.tabIndex = on ? 0 : -1;
+      if (on) pprateEl.setAttribute('data-col', '4'); else pprateEl.removeAttribute('data-col');
+    }
+  }
+
+  function _calcPct(id) {
+    const rate = val(`pprate-${id}`);
+    const base = val(`ppbase-${id}`);
+    const pc   = document.getElementById(`pc-${id}`)?.value || 'JPY';
+    const raw  = base * rate / 100;
+    const computed = pc === 'JPY' ? Math.round(raw) : Math.round(raw * 100) / 100;
+    const ppEl = document.getElementById(`pp-${id}`);
+    if (ppEl) ppEl.value = computed;
+    onPay(id);
+  }
+
+  // 保存データ復元時に conditions.js から呼び出す
+  function _restorePctMode(id) {
+    _setPctModeUI(id, true);
+    _calcPct(id);
+  }
+  window._restorePctMode = _restorePctMode;
 
   function val(id) {
     let v = document.getElementById(id)?.value;
@@ -2325,7 +2384,7 @@
 
   function _gatherRowData(id) {
     const data = {};
-    ['nm','pq','un','pp','mk','nt','sv','pt','zc','ac','ps','co','vf','vt','lu','cat','pc','bc','bp'].forEach(f => {
+    ['nm','pq','un','pp','mk','nt','sv','pt','zc','ac','ps','co','vf','vt','lu','cat','pc','bc','bp','ppmode','pprate','ppbase'].forEach(f => {
       const el = document.getElementById(`${f}-${id}`);
       if (el) data[f] = el.value;
     });
@@ -2345,7 +2404,7 @@
     } else {
       tbody.appendChild(newTr);
     }
-    ['nm','pq','un','pp','mk','nt','pt','zc','ac','ps','co','vf','vt','lu'].forEach(f => {
+    ['nm','pq','un','pp','mk','nt','pt','zc','ac','ps','co','vf','vt','lu','ppmode','pprate','ppbase'].forEach(f => {
       const el = document.getElementById(`${f}-${newId}`);
       if (el && data[f] !== undefined) el.value = data[f];
     });
@@ -2367,6 +2426,7 @@
     checkUnfilled(newId);
     onPay(newId);
     if (_indep && typeof calc === 'function') calc(newId);
+    if (data.ppmode === 'pct') _setPctModeUI(newId, true);
     return newId;
   }
 

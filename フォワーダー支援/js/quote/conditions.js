@@ -126,7 +126,7 @@
   // ※ 列の見た目の並び替えは row-tpl / thead 側だけで行い、ここは触らない。
   // 末尾の vf/vt（サーチャージ有効期限：開始/終了）は後方追加。既存保存データには無いが
   // _applyCells が undefined セルをスキップするため互換。順序は末尾以外変更しないこと。
-  const ROW_CELL_FIELDS = ['cat','sv','tx','nm','pq','un','bq','pc','bc','pp','bp','cd','mk','nt','zc','vf','vt','ac','pt','ps','co','lu'];
+  const ROW_CELL_FIELDS = ['cat','sv','tx','nm','pq','un','bq','pc','bc','pp','bp','cd','mk','nt','zc','vf','vt','ac','pt','ps','co','lu','ppmode','pprate','ppbase'];
 
   function _applyCells(tr, cells) {
     // cells[0] = 選択チェック、cells[1..] = ROW_CELL_FIELDS 順（DOM 列順に依存しない）
@@ -178,6 +178,11 @@
       const txEl = tr.querySelector('[data-field="tx"]');
       if (txEl?.checked) tr.classList.add('taxed');
       else tr.classList.remove('taxed');
+      // % 計算モードの復元
+      const ppmodeEl = tr.querySelector('[data-field="ppmode"]');
+      if (ppmodeEl?.value === 'pct' && typeof window._restorePctMode === 'function') {
+        window._restorePctMode(rowId);
+      }
     });
   }
 
@@ -396,6 +401,7 @@
     _triggerCarrierBmFetch();
     if (typeof window.renderQuoteMilestones === 'function') window.renderQuoteMilestones();
     if (typeof window.updateRemarkChar === 'function') window.updateRemarkChar();
+    if (typeof window.syncRemarkChips === 'function') window.syncRemarkChips();
     if (typeof window.updateQuoteStatusUI === 'function') window.updateQuoteStatusUI();
     if (typeof window.qfRefreshCustomerDetailBtn === 'function') window.qfRefreshCustomerDetailBtn();
   }

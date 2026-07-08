@@ -3752,13 +3752,17 @@
             <span class="pv-main-title">📋 プレビュー（表計算形式）</span>
             <span class="pv-main-sp"></span>
             <div class="pv-btns">
-              <button class="pv-btn-pdf" style="background:#1a3a6b; color:#fff; border-color:#1a3a6b;" onclick="openQuoteDoc()">📄 御見積書フォーマット</button>
-              <button class="pv-btn-email-plain" onclick="copyQuoteEmailPlain()" title="見積サマリをメール本文（プレーンテキスト）としてコピー">✉️ メール本文（プレーン）</button>
-              <button class="pv-btn-email-rich" onclick="copyQuoteEmailRich()" title="見積サマリをメール本文（リッチテキスト／表組み）としてコピー">📧 メール本文（リッチ）</button>
-              <button class="pv-btn-email-plain" onclick="copyQuoteEmailPlainDetail()" title="区間・カテゴリ別の明細行を含むメール本文（プレーンテキスト）としてコピー">✉️ メール本文（明細・プレーン）</button>
-              <button class="pv-btn-email-rich" onclick="copyQuoteEmailRichDetail()" title="区間・カテゴリ別の明細表を含むメール本文（リッチテキスト）としてコピー">📧 メール本文（明細・リッチ）</button>
-              <button class="pv-btn-print" onclick="printFitPage('landscape')" title="A4横サイズにフィットして印刷（全列を収める）">🖨️ A4横フィット</button>
-              <button class="pv-btn-print" onclick="printFitPage('portrait')" title="A4縦サイズにフィットして印刷（全列を収める）">🖨️ A4縦フィット</button>
+              <button class="pv-btn-pdf" style="background:#1a3a6b; color:#fff; border-color:#1a3a6b;" onclick="openQuoteDoc()">📄 御見積書</button>
+              <div class="pv-btn-grp" data-label="メール本文">
+                <button class="pv-btn-email-plain" onclick="copyQuoteEmailPlain()" title="見積サマリをメール本文（プレーンテキスト）としてコピー">✉️ プレーン</button>
+                <button class="pv-btn-email-rich" onclick="copyQuoteEmailRich()" title="見積サマリをメール本文（リッチテキスト／表組み）としてコピー">📧 リッチ</button>
+                <button class="pv-btn-email-plain" onclick="copyQuoteEmailPlainDetail()" title="区間・カテゴリ別の明細行を含むメール本文（プレーンテキスト）としてコピー">✉️ 明細P</button>
+                <button class="pv-btn-email-rich" onclick="copyQuoteEmailRichDetail()" title="区間・カテゴリ別の明細表を含むメール本文（リッチテキスト）としてコピー">📧 明細R</button>
+              </div>
+              <div class="pv-btn-grp" data-label="印刷">
+                <button class="pv-btn-print" onclick="printFitPage('landscape')" title="A4横サイズにフィットして印刷（全列を収める）">🖨️ 横</button>
+                <button class="pv-btn-print" onclick="printFitPage('portrait')" title="A4縦サイズにフィットして印刷（全列を収める）">🖨️ 縦</button>
+              </div>
               <button class="pv-btn-close" onclick="closePreview()">閉じる</button>
               <span class="pv-copy-msg" id="copyMsg">✅ コピーしました！</span>
             </div>
@@ -3877,7 +3881,15 @@
       </td>
       <td class="price-cell stk-cell">
         <div class="stk stk-price">
-          <span class="stk-cost"><span class="stk-tag t-cost">仕</span><input type="number" data-field="pp" class="w-price" min="0" value="0" data-col="4" /></span>
+          <span class="stk-cost">
+            <span class="stk-tag t-cost">仕</span>
+            <input type="number" data-field="pp" class="w-price" min="0" value="0" data-col="4" />
+            <span class="pct-group">
+              <input type="number" data-field="pprate" class="w-pct-rate" min="0" step="0.01" value="0" placeholder="%" title="%率（例: 0.3 → 0.3%）" />
+              <span class="pct-x">%×</span>
+              <input type="number" data-field="ppbase" class="w-pct-base" min="0" value="0" placeholder="基準額" title="基準金額（例: CIF価格・保険価格など。仕入通貨と同じ通貨で入力）" />
+            </span>
+          </span>
           <span class="stk-sell"><span class="stk-tag t-sell">売</span><input type="number" data-field="bp" class="w-price display-field" value="0" tabindex="-1" readonly data-base="0" /></span>
           <span class="row-cd"><span class="row-cd-lbl" title="Currency Difference（通貨差調整値）">CD</span><input type="text" data-field="cd" class="w-cd display-field" value="" placeholder="—" tabindex="-1" readonly /></span>
           <span class="stk-mk"><span class="stk-mk-plus" title="乗せ幅（仕入単価に加算 → 売単価）">＋</span><input type="number" data-field="mk" class="w-mkup" min="0" value="0" data-col="5" title="乗せ幅：仕入単価に加算して売単価になります" /></span>
@@ -3886,11 +3898,13 @@
         <input type="hidden" data-field="ac" value="">
         <input type="hidden" data-field="ps" value="">
         <input type="hidden" data-field="co" value="">
+        <input type="hidden" data-field="ppmode" value="">
         <div class="row-mode-btns">
           <button type="button" class="zero-confirm-btn" tabindex="-1" title="0円確認済みにする（もう一度クリックで解除）">¥0✓</button>
           <button type="button" class="actual-cost-btn" tabindex="-1" title="実費（金額未確定・別途精算）。単価・金額に「実費」と表示し、合計から除外します（もう一度クリックで解除）。">実費</button>
           <button type="button" class="profit-share-btn" tabindex="-1" title="PROFIT SHARE（代理店収益）。客先見積もりには出さず、社内の利益・粗利率にのみ計上します（もう一度クリックで解除）。">PS</button>
           <button type="button" class="cond-charge-btn" tabindex="-1" title="発生時のみ／必要時のみ請求。金額は客先にも表示しますが、見積もり合計には加算しません（もう一度クリックで解除）。">都度</button>
+          <button type="button" class="pct-mode-btn" tabindex="-1" title="仕入単価を「○○の何%」として計算（%率と基準額を入力）。もう一度クリックで直接入力に戻す。">%</button>
         </div>
         <span class="actual-cost-badge" aria-hidden="true">実費</span>
       </td>
