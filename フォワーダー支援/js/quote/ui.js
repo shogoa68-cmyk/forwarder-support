@@ -239,6 +239,22 @@
   window.updateRemarkChar = updateRemarkChar;
   window.loadSharedRemarkPresets = loadSharedRemarkPresets;
 
+  // テキストエリアの内容を基準にチップの active 状態を同期する。
+  // _applyQuoteData（プリセット読込・新規案件・Undo 等）後に呼ぶ。
+  function syncRemarkChips() {
+    const ta = document.getElementById('remarkTextarea');
+    if (!ta) return;
+    const lines = ta.value.split('\n').map(l => l.trim()).filter(Boolean);
+    const all = getAllRemarkPresets();
+    document.querySelectorAll('#presetBtns .preset-btn[data-index]').forEach(btn => {
+      const idx = parseInt(btn.dataset.index, 10);
+      const preset = all[idx];
+      if (!preset?.text) { btn.classList.remove('active'); return; }
+      btn.classList.toggle('active', lines.includes(preset.text.trim()));
+    });
+  }
+  window.syncRemarkChips = syncRemarkChips;
+
   function getRemarkText() {
     return document.getElementById('remarkTextarea')?.value.trim() || '';
   }

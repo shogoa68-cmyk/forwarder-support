@@ -401,6 +401,7 @@
     _triggerCarrierBmFetch();
     if (typeof window.renderQuoteMilestones === 'function') window.renderQuoteMilestones();
     if (typeof window.updateRemarkChar === 'function') window.updateRemarkChar();
+    if (typeof window.syncRemarkChips === 'function') window.syncRemarkChips();
     if (typeof window.updateQuoteStatusUI === 'function') window.updateQuoteStatusUI();
     if (typeof window.qfRefreshCustomerDetailBtn === 'function') window.qfRefreshCustomerDetailBtn();
   }
