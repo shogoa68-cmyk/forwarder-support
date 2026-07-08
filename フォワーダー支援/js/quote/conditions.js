@@ -126,7 +126,7 @@
   // ※ 列の見た目の並び替えは row-tpl / thead 側だけで行い、ここは触らない。
   // 末尾の vf/vt（サーチャージ有効期限：開始/終了）は後方追加。既存保存データには無いが
   // _applyCells が undefined セルをスキップするため互換。順序は末尾以外変更しないこと。
-  const ROW_CELL_FIELDS = ['cat','sv','tx','nm','pq','un','bq','pc','bc','pp','bp','cd','mk','nt','zc','vf','vt','ac','pt','ps','co','lu','ppmode','pprate','ppbase'];
+  const ROW_CELL_FIELDS = ['cat','sv','tx','nm','pq','un','bq','pc','bc','pp','bp','cd','mk','nt','zc','vf','vt','ac','pt','ps','co','lu','ppmode','pprate','ppbase','uid','ppref'];
 
   function _applyCells(tr, cells) {
     // cells[0] = 選択チェック、cells[1..] = ROW_CELL_FIELDS 順（DOM 列順に依存しない）
@@ -184,6 +184,16 @@
         window._restorePctMode(rowId);
       }
     });
+    // % リンク参照セレクトを全行復元後に再構築（全行の UID が揃ったあとに実行）
+    if (typeof window._populatePprefSelect === 'function') {
+      trs.forEach(tr => {
+        const nm2 = tr.querySelector('[data-field="nm"]');
+        if (!nm2) return;
+        const rowId2 = nm2.id.replace('nm-', '');
+        const ppmodeEl2 = tr.querySelector('[data-field="ppmode"]');
+        if (ppmodeEl2?.value === 'pct') window._populatePprefSelect(rowId2);
+      });
+    }
   }
 
   /**
@@ -608,11 +618,126 @@
     if (src) src.focus();
   };
 
+  // ===== 📌 メモ フロート付箋（スクロール追従・ドラッグ可）=====
+  let _memoFloatUserClosed = false;  // × で閉じた後は自動表示しない
+  let _memoFloatManualOpen = false;  // 📌 ボタンで明示的に開いた（自動非表示しない）
+  let _memoSyncing = false;
+
+  function _showMemoFloat(mode) {
+    const fl  = document.getElementById('qfMemoFloat');
+    const src = document.getElementById('qf-memo');
+    const fta = document.getElementById('qf-memo-float-ta');
+    const btn = document.getElementById('qfMemoFloatBtn');
+    if (!fl || !fta) return;
+    if (mode === 'manual') { _memoFloatManualOpen = true; _memoFloatUserClosed = false; }
+    if (src) fta.value = src.value;
+    fl.removeAttribute('hidden');
+    if (btn) btn.classList.add('is-active');
+  }
+
+  function _hideMemoFloat() {
+    const fl  = document.getElementById('qfMemoFloat');
+    const btn = document.getElementById('qfMemoFloatBtn');
+    if (!fl) return;
+    fl.setAttribute('hidden', '');
+    if (btn) btn.classList.remove('is-active');
+  }
+
+  window.toggleMemoFloat = function () {
+    const fl = document.getElementById('qfMemoFloat');
+    if (!fl) return;
+    if (fl.hasAttribute('hidden')) {
+      _showMemoFloat('manual');
+    } else {
+      _memoFloatUserClosed = true;
+      _memoFloatManualOpen = false;
+      _hideMemoFloat();
+    }
+  };
+
+  window.closeMemoFloat = function () {
+    _memoFloatUserClosed = true;
+    _memoFloatManualOpen = false;
+    _hideMemoFloat();
+  };
+
+  function _initMemoFloat() {
+    const src = document.getElementById('qf-memo');
+    const fta = document.getElementById('qf-memo-float-ta');
+
+    // #qf-memo → float 同期（float が開いているときのみ）
+    if (src) {
+      src.addEventListener('input', () => {
+        if (_memoSyncing) return;
+        const fl = document.getElementById('qfMemoFloat');
+        if (fta && fl && !fl.hasAttribute('hidden')) {
+          _memoSyncing = true;
+          fta.value = src.value;
+          _memoSyncing = false;
+        }
+      });
+    }
+
+    // float → #qf-memo 同期（自動保存リスナーに乗せる）
+    if (fta) {
+      fta.addEventListener('input', () => {
+        if (_memoSyncing || !src) return;
+        _memoSyncing = true;
+        src.value = fta.value;
+        src.dispatchEvent(new Event('input', { bubbles: true }));
+        _memoSyncing = false;
+      });
+    }
+
+    // ドラッグ移動（ヘッダーを掴む）
+    const head = document.getElementById('qfMemoFloatHead');
+    const fl   = document.getElementById('qfMemoFloat');
+    if (head && fl) {
+      let startX, startY, startL, startT;
+      function onMove(e) {
+        fl.style.left   = Math.max(0, Math.min(window.innerWidth  - 80, startL + e.clientX - startX)) + 'px';
+        fl.style.top    = Math.max(0, Math.min(window.innerHeight - 40, startT + e.clientY - startY)) + 'px';
+      }
+      function onUp() {
+        document.removeEventListener('mousemove', onMove);
+        document.removeEventListener('mouseup', onUp);
+      }
+      head.addEventListener('mousedown', e => {
+        if (e.button !== 0) return;
+        const rect = fl.getBoundingClientRect();
+        fl.style.left = rect.left + 'px'; fl.style.top  = rect.top  + 'px';
+        fl.style.right = 'auto';          fl.style.bottom = 'auto';
+        startX = e.clientX; startY = e.clientY;
+        startL = rect.left; startT = rect.top;
+        document.addEventListener('mousemove', onMove);
+        document.addEventListener('mouseup', onUp);
+        e.preventDefault();
+      });
+    }
+
+    // IntersectionObserver：メモ欄が画面外に出たら自動表示
+    const memoField = document.querySelector('.quote-field-memo');
+    if (memoField && window.IntersectionObserver) {
+      const obs = new IntersectionObserver(entries => {
+        entries.forEach(entry => {
+          const hasMemo = src && src.value.trim().length > 0;
+          if (!entry.isIntersecting && hasMemo && !_memoFloatUserClosed) {
+            _showMemoFloat('auto');
+          } else if (entry.isIntersecting && !_memoFloatManualOpen) {
+            _hideMemoFloat();
+          }
+        });
+      }, { threshold: 0 });
+      obs.observe(memoField);
+    }
+  }
+  window._initMemoFloat = _initMemoFloat;
+
   function gatherAllData() {
     // フォーム値
     const fields = {};
     document.querySelectorAll('input[id], select[id], textarea[id]').forEach(el => {
-      if (['csvFileInput','importFileInput','rowPatternImportFile','autoSaveChk'].includes(el.id)) return;
+      if (['csvFileInput','importFileInput','rowPatternImportFile','autoSaveChk','qf-memo-pop','qf-memo-float-ta'].includes(el.id)) return;
       fields[el.id] = el.type === 'checkbox' ? el.checked : el.value;
     });
     // テーブル行（通常行 / 小計行 / リマーク行をすべて保存）

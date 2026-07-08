@@ -545,7 +545,7 @@
     const newId = addRowAfter(srcId);
 
     // テキスト・数値・日付フィールドをコピー（zc = 0円確認済みフラグ／vf・vt = 有効期限を含む）
-    ['nm','pq','un','pp','mk','nt','sv','pt','zc','ac','ps','co','vf','vt','lu','ppmode','pprate','ppbase'].forEach(f => {
+    ['nm','pq','un','pp','mk','nt','sv','pt','zc','ac','ps','co','vf','vt','lu','ppmode','pprate','ppbase','ppref'].forEach(f => {
       const srcEl = document.getElementById(`${f}-${srcId}`);
       const dstEl = document.getElementById(`${f}-${newId}`);
       if (srcEl && dstEl) dstEl.value = srcEl.value;
@@ -685,9 +685,14 @@
     // すでにソート済みなら skip
     const alreadySorted = members.every((tr, i) => tr === sorted[i]);
     if (alreadySorted) return;
-    // 先頭メンバー行の直前に sorted を順に移動
-    const anchor = members[0];
-    sorted.forEach(tr => tbody.insertBefore(tr, anchor));
+    // グループ末尾の次ノードを挿入基準にする。
+    // 先頭ノード基準だと sorted[0]===members[0] のとき insertBefore が no-op になり
+    // 後続行がその前に積まれてしまい順序が崩れるバグを防ぐ。
+    const afterGroup = members[members.length - 1].nextSibling;
+    sorted.forEach(tr => {
+      if (afterGroup) tbody.insertBefore(tr, afterGroup);
+      else tbody.appendChild(tr);
+    });
     updateTotals();
     renderSubconGroups();
     if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
@@ -700,7 +705,7 @@
     const q    = f => frag.querySelector(`[data-field="${f}"]`);
 
     // IDs
-    ['cat','tx','nm','pq','un','pc','pp','cd','bq','bc','bp','mk','st','pr','nt','sv','pt','zc','ac','ps','co','vf','vt','lu','ppmode','pprate','ppbase']
+    ['cat','tx','nm','pq','un','pc','pp','cd','bq','bc','bp','mk','st','pr','nt','sv','pt','zc','ac','ps','co','vf','vt','lu','ppmode','pprate','ppbase','uid','ppref']
       .forEach(f => { const el = q(f); if (el) el.id = `${f}-${id}`; });
     const zcBtn = frag.querySelector('.zero-confirm-btn');
     if (zcBtn) zcBtn.onclick = () => toggleZeroConfirmed(id);;
@@ -716,6 +721,18 @@
     if (pprateEl) pprateEl.oninput = () => _calcPct(id);
     const ppbaseEl = frag.querySelector('[data-field="ppbase"]');
     if (ppbaseEl) ppbaseEl.oninput = () => _calcPct(id);
+    const pprefSelEl = frag.querySelector('.w-ppref');
+    if (pprefSelEl) {
+      pprefSelEl.id = `pprefsel-${id}`;
+      pprefSelEl.onfocus = () => _populatePprefSelect(id);
+      pprefSelEl.onchange = () => {
+        const hid = document.getElementById(`ppref-${id}`);
+        if (hid) hid.value = pprefSelEl.value;
+        _onPprefChange(id);
+      };
+    }
+    const uidEl = q('uid');
+    if (uidEl) uidEl.value = 'r' + Math.random().toString(36).slice(2, 8);
     const remBtn = frag.querySelector('.btn-row-rem');
     const intBtn = frag.querySelector('.btn-row-int');
     if (remBtn) remBtn.onclick = () => rowInsertRemarkBelow(id);
@@ -845,6 +862,7 @@
     }
     // 独立モード：bc / bp はユーザー入力を保持（上書きしない）
     calc(id);
+    _recalcPctDependents(id);
   }
 
   function calc(id) {
@@ -1036,11 +1054,26 @@
       pprateEl.tabIndex = on ? 0 : -1;
       if (on) pprateEl.setAttribute('data-col', '4'); else pprateEl.removeAttribute('data-col');
     }
+    const ppbaseEl2 = document.getElementById(`ppbase-${id}`);
+    if (!on && ppbaseEl2) ppbaseEl2.readOnly = false;
   }
 
   function _calcPct(id) {
     const rate = val(`pprate-${id}`);
-    const base = val(`ppbase-${id}`);
+    const pprefUid = document.getElementById(`ppref-${id}`)?.value;
+    let base;
+    if (pprefUid) {
+      const refId = _findRowIdByUid(pprefUid);
+      if (refId !== null) {
+        base = val(`pp-${refId}`);
+        const ppbaseEl = document.getElementById(`ppbase-${id}`);
+        if (ppbaseEl) { ppbaseEl.value = base; ppbaseEl.readOnly = true; }
+      } else {
+        base = val(`ppbase-${id}`);
+      }
+    } else {
+      base = val(`ppbase-${id}`);
+    }
     const pc   = document.getElementById(`pc-${id}`)?.value || 'JPY';
     const raw  = base * rate / 100;
     const computed = pc === 'JPY' ? Math.round(raw) : Math.round(raw * 100) / 100;
@@ -1055,6 +1088,68 @@
     _calcPct(id);
   }
   window._restorePctMode = _restorePctMode;
+
+  // ========== % 行リンク ==========
+  const _pctRecalcInFlight = new Set();
+
+  function _findRowIdByUid(uid) {
+    if (!uid) return null;
+    for (const tr of document.querySelectorAll('#tableBody tr[id^="row-"]')) {
+      if (tr.dataset.virtual) continue;
+      const uidEl = tr.querySelector('[data-field="uid"]');
+      if (uidEl && uidEl.value === uid) return parseInt(tr.id.replace('row-', ''));
+    }
+    return null;
+  }
+
+  function _populatePprefSelect(id) {
+    const sel = document.getElementById(`pprefsel-${id}`);
+    const hid = document.getElementById(`ppref-${id}`);
+    if (!sel) return;
+    const savedUid = hid?.value || '';
+    sel.innerHTML = '<option value="">—（なし）</option>';
+    document.querySelectorAll('#tableBody tr[id^="row-"]').forEach(tr => {
+      if (tr.dataset.virtual) return;
+      const rowId = tr.id.replace('row-', '');
+      if (rowId === String(id)) return;
+      const uid = tr.querySelector('[data-field="uid"]')?.value;
+      if (!uid) return;
+      const nm = document.getElementById(`nm-${rowId}`)?.value?.trim() || `行 ${rowId}`;
+      const opt = document.createElement('option');
+      opt.value = uid;
+      opt.textContent = nm;
+      sel.appendChild(opt);
+    });
+    sel.value = savedUid;
+    const ppbaseEl = document.getElementById(`ppbase-${id}`);
+    if (ppbaseEl) ppbaseEl.readOnly = !!sel.value;
+  }
+  window._populatePprefSelect = _populatePprefSelect;
+
+  function _onPprefChange(id) {
+    const pprefUid = document.getElementById(`ppref-${id}`)?.value;
+    const ppbaseEl = document.getElementById(`ppbase-${id}`);
+    if (ppbaseEl) ppbaseEl.readOnly = !!pprefUid;
+    _calcPct(id);
+  }
+
+  function _recalcPctDependents(changedId) {
+    if (_pctRecalcInFlight.has(changedId)) return;
+    _pctRecalcInFlight.add(changedId);
+    try {
+      const changedUid = document.getElementById(`uid-${changedId}`)?.value;
+      if (!changedUid) return;
+      document.querySelectorAll('#tableBody tr[id^="row-"]').forEach(tr => {
+        if (tr.dataset.virtual) return;
+        const rowId = parseInt(tr.id.replace('row-', ''));
+        if (isNaN(rowId) || rowId === changedId) return;
+        const pprefUid = document.getElementById(`ppref-${rowId}`)?.value;
+        if (pprefUid === changedUid) _calcPct(rowId);
+      });
+    } finally {
+      _pctRecalcInFlight.delete(changedId);
+    }
+  }
 
   function val(id) {
     let v = document.getElementById(id)?.value;
@@ -2384,7 +2479,7 @@
 
   function _gatherRowData(id) {
     const data = {};
-    ['nm','pq','un','pp','mk','nt','sv','pt','zc','ac','ps','co','vf','vt','lu','cat','pc','bc','bp','ppmode','pprate','ppbase'].forEach(f => {
+    ['nm','pq','un','pp','mk','nt','sv','pt','zc','ac','ps','co','vf','vt','lu','cat','pc','bc','bp','ppmode','pprate','ppbase','uid','ppref'].forEach(f => {
       const el = document.getElementById(`${f}-${id}`);
       if (el) data[f] = el.value;
     });
@@ -2404,7 +2499,7 @@
     } else {
       tbody.appendChild(newTr);
     }
-    ['nm','pq','un','pp','mk','nt','pt','zc','ac','ps','co','vf','vt','lu','ppmode','pprate','ppbase'].forEach(f => {
+    ['nm','pq','un','pp','mk','nt','pt','zc','ac','ps','co','vf','vt','lu','ppmode','pprate','ppbase','ppref'].forEach(f => {
       const el = document.getElementById(`${f}-${newId}`);
       if (el && data[f] !== undefined) el.value = data[f];
     });
@@ -2426,7 +2521,11 @@
     checkUnfilled(newId);
     onPay(newId);
     if (_indep && typeof calc === 'function') calc(newId);
-    if (data.ppmode === 'pct') _setPctModeUI(newId, true);
+    if (data.ppmode === 'pct') {
+      _setPctModeUI(newId, true);
+      _populatePprefSelect(newId);
+      _calcPct(newId);
+    }
     return newId;
   }
 
