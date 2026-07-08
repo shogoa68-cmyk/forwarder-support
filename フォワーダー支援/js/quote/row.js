@@ -685,9 +685,14 @@
     // すでにソート済みなら skip
     const alreadySorted = members.every((tr, i) => tr === sorted[i]);
     if (alreadySorted) return;
-    // 先頭メンバー行の直前に sorted を順に移動
-    const anchor = members[0];
-    sorted.forEach(tr => tbody.insertBefore(tr, anchor));
+    // グループ末尾の次ノードを挿入基準にする。
+    // 先頭ノード基準だと sorted[0]===members[0] のとき insertBefore が no-op になり
+    // 後続行がその前に積まれてしまい順序が崩れるバグを防ぐ。
+    const afterGroup = members[members.length - 1].nextSibling;
+    sorted.forEach(tr => {
+      if (afterGroup) tbody.insertBefore(tr, afterGroup);
+      else tbody.appendChild(tr);
+    });
     updateTotals();
     renderSubconGroups();
     if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
