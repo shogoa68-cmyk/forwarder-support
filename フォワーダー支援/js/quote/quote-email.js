@@ -223,7 +223,7 @@
       out.push('《' + g.label + '》');
       g.items.forEach(it => {
         const taxMark = it.taxed ? '［課税］' : '';
-        const condMark = it.cond ? '（発生時/必要時のみ・物量に応じていずれかを適用）' : '';
+        const condMark = it.cond ? '（発生時/必要時のみ）' : '';
         const qtyUnit = fmtQty(it.qty) + (it.unit ? ' ' + it.unit : '');
         const pricing = it.actual ? '実費' : (qtyUnit + ' × ' + fmtAmt(it.price, it.ccy) + ' ＝ ' + fmtAmt(it.amount, it.ccy));
         const notePart = it.note ? '※' + it.note : '';
@@ -316,7 +316,7 @@ ${inner}
       body.push(`<tr><td colspan="${cols}" style="padding:6px 8px;font-size:12px;font-weight:700;background:#faf7ef;color:#5a4a35;border-bottom:1px solid #d9d2c4;">《${escH(g.label)}》</td></tr>`);
       g.items.forEach(it => {
         body.push(`<tr>`
-          + `<td style="${cell}${lblC}">${it.taxed ? '<span style="color:#b03030;">*</span> ' : ''}${escH(it.name)}${it.cond ? '<span style="color:#9a6a1e;font-size:11px;">（発生時/必要時のみ・物量に応じていずれかを適用）</span>' : ''}</td>`
+          + `<td style="${cell}${lblC}">${it.taxed ? '<span style="color:#b03030;">*</span> ' : ''}${escH(it.name)}${it.cond ? '<span style="color:#9a6a1e;font-size:11px;">（発生時/必要時のみ）</span>' : ''}</td>`
           + `<td style="${cell}${numC}">${fmtQty(it.qty)}</td>`
           + `<td style="${cell}${ctrC}">${escH(it.unit)}</td>`
           + `<td style="${cell}${numC}">${it.actual ? '実費' : fmtAmt(it.price, it.ccy)}</td>`

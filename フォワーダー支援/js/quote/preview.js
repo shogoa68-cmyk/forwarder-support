@@ -661,8 +661,8 @@
       const jpyCell2 = _ac ? '' : jpyCellText;
       const taxCell2 = _ac ? '' : taxCellText;
       const prCell   = _ac ? '—' : (fmtMoney(d.profit) + prJpyHint);
-      // 都度請求（発生時/必要時のみ・物量に応じていずれかを適用）：客先にも金額は出すが合計外。客先向け注記を付ける
-      const _condNote = d._cond ? '<span class="pv-cond-note">（発生時/必要時のみ・物量に応じていずれかを適用）</span>' : '';
+      // 都度請求（発生時/必要時のみ）：客先にも金額は出すが合計外。客先向け注記を付ける
+      const _condNote = d._cond ? '<span class="pv-cond-note">（発生時/必要時のみ）</span>' : '';
       html += `<tr class="${(d._gi != null ? 'pv-grp-row pv-grp-c' + (d._gi % 4) : '')}${_hqCls}${d._outRange ? ' pv-row-out-range' : ''}${_ac ? ' pv-row-actual' : ''}${d._cond ? ' pv-row-cond' : ''}">
         <td class="pv-name" style="font-size:11px;">${escHtml(getCatLabel(d.cat))}</td>
         <td class="pv-name">${escHtml(d.sv)}</td>
@@ -1331,7 +1331,7 @@
   const TSV_COL_DEFS = [
     { hdr: 'カテゴリ', fn: d => getCatLabel(d.cat),    pvGroup: 'cat',    role: 'cat'    },
     { hdr: 'サブコン', fn: d => d.sv || '',            pvGroup: 'sv',     role: 'sv'     },
-    { hdr: '項目名',   fn: d => d.name + (d._cond ? '（発生時/必要時のみ・物量に応じていずれかを適用）' : ''), pvGroup: null,     role: 'name'   },
+    { hdr: '項目名',   fn: d => d.name + (d._cond ? '（発生時/必要時のみ）' : ''), pvGroup: null,     role: 'name'   },
     { hdr: '数量',     fn: d => fmtRaw(d.pq),          pvGroup: 'pay',    role: 'pq'     },
     { hdr: '単位',     fn: d => d.un || '',            pvGroup: 'unit',   role: 'un'     },
     { hdr: '通貨',     fn: d => d.pc,                  pvGroup: 'pay',    role: 'pc'     },
@@ -1557,7 +1557,7 @@
   const XLSX_COL_DEFS = [
     { hdr: 'カテゴリ',     fn: d => getCatLabel(d.cat),    pvGroup: 'cat',    role: 'cat'    },
     { hdr: 'サブコン',     fn: d => d.sv || '',            pvGroup: 'sv',     role: 'sv'     },
-    { hdr: '項目名',       fn: d => d.name + (d._cond ? '（発生時/必要時のみ・物量に応じていずれかを適用）' : ''), pvGroup: null,     role: 'name'   },
+    { hdr: '項目名',       fn: d => d.name + (d._cond ? '（発生時/必要時のみ）' : ''), pvGroup: null,     role: 'name'   },
     { hdr: '課税',         fn: d => d.taxed ? '*' : '',   pvGroup: null,     role: 'tax'    },
     { hdr: '数量(原価)',   fn: d => d.pq,                  pvGroup: 'pay',    role: 'pq'     },
     { hdr: '単位',         fn: d => d.un || '',            pvGroup: 'unit',   role: 'un'     },
@@ -1753,7 +1753,7 @@
   const CSV_COL_DEFS = [
     { key: 'cat',    hdr: 'カテゴリ',       fn: d => d.cat },
     { key: 'sv',     hdr: 'サブコン',       fn: d => d.sv || '' },
-    { key: 'name',   hdr: '項目名',         fn: d => d.name + (d._cond ? '（発生時/必要時のみ・物量に応じていずれかを適用）' : '') },
+    { key: 'name',   hdr: '項目名',         fn: d => d.name + (d._cond ? '（発生時/必要時のみ）' : '') },
     { key: 'pq',     hdr: '数量',           fn: d => fmtRaw(d.pq) },
     { key: 'un',     hdr: '単位',           fn: d => d.un || '' },
     { key: 'pc',     hdr: '通貨',           fn: d => d.pc },

@@ -167,7 +167,13 @@
     let list = _subcons;
     const q = (filter || '').trim().toLowerCase();
     if (q) {
-      list = list.filter(sc => sc.name.toLowerCase().includes(q) || sc.items.some(it => it.name.toLowerCase().includes(q)));
+      list = list.filter(sc => sc.name.toLowerCase().includes(q) || sc.items.some(it =>
+        it.name.toLowerCase().includes(q) ||
+        (it.un  || '').toLowerCase().includes(q) ||
+        (it.cat || '').toLowerCase().includes(q) ||
+        (ROLE[it.cat] || '').toLowerCase().includes(q) ||
+        (it.pt  || '').toLowerCase().includes(q)
+      ));
     }
     if (!list.length) {
       wrap.innerHTML = '<div class="preset-empty">' + (q ? '該当するサブコンがありません' :
@@ -324,7 +330,13 @@
     if (!wrap) return;
     let list = _siSubcons;
     const q = (filter || '').trim().toLowerCase();
-    if (q) list = list.filter(sc => sc.name.toLowerCase().includes(q) || sc.items.some(it => it.name.toLowerCase().includes(q)));
+    if (q) list = list.filter(sc => sc.name.toLowerCase().includes(q) || sc.items.some(it =>
+      it.name.toLowerCase().includes(q) ||
+      (it.un  || '').toLowerCase().includes(q) ||
+      (it.cat || '').toLowerCase().includes(q) ||
+      (ROLE[it.cat] || '').toLowerCase().includes(q) ||
+      (it.pt  || '').toLowerCase().includes(q)
+    ));
     if (!list.length) {
       wrap.innerHTML = '<div class="preset-empty">' + (q ? '該当するサブコンがありません' :
         'サブコン情報のある案件がまだありません<br><small style="color:#bbb;">明細の「サブコン」欄に会社名を入れて案件を保存すると自動で集約されます</small>') + '</div>';
