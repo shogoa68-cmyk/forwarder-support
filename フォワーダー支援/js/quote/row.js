@@ -441,22 +441,6 @@
     }, { passive: false });
 
     document.getElementById('tableBody').addEventListener('keydown', e => {
-      // Ctrl+D: 現在行を複製して直下に挿入
-      if (e.ctrlKey && e.key === 'd') {
-        const tr = e.target.closest('tr');
-        if (!tr || !tr.id.startsWith('row-')) return;
-        e.preventDefault();
-        const col   = e.target.dataset.col;
-        const newId = duplicateRow(tr.id.replace('row-', ''));
-        setTimeout(() => {
-          const target = col
-            ? document.querySelector(`#row-${newId} [data-col="${col}"]`)
-            : document.getElementById(`nm-${newId}`);
-          if (target) { target.focus(); if (target.select) target.select(); }
-        }, 0);
-        return;
-      }
-
       if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown') return;
       const el  = e.target;
       const col = el.dataset.col;

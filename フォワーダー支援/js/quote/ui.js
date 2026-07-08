@@ -2267,10 +2267,18 @@
         if (checked.length) {
           copySelectedRows('below');
         } else {
-          const tr = document.activeElement?.closest('#tableBody tr');
+          const srcEl = document.activeElement;
+          const tr = srcEl?.closest('#tableBody tr');
           if (tr && tr.id.startsWith('row-')) {
-            duplicateRow(tr.id.replace('row-', ''));
+            const col = srcEl?.dataset?.col;
+            const newId = duplicateRow(tr.id.replace('row-', ''));
             quoteShowToast('📋 行を複製しました', 'success');
+            setTimeout(() => {
+              const target = col
+                ? document.querySelector(`#row-${newId} [data-col="${col}"]`)
+                : document.getElementById(`nm-${newId}`);
+              if (target) { target.focus(); if (target.select) target.select(); }
+            }, 0);
           }
         }
       }
