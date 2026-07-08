@@ -1501,6 +1501,15 @@
   border: 1px solid #c5b89e; border-radius: 3px; background: #fffdf8; color: #7a4c10;
 }
 #tab-quote-make .w-pct-base:focus { border-color: #b0772f; outline: none; background: #fff; }
+/* 参照行リンク選択時は基準額を読み取り専用表示 */
+#tab-quote-make .w-pct-base[readonly] { background: #f0ede6; color: #aaa; pointer-events: none; }
+/* % 参照行セレクト */
+#tab-quote-make .w-ppref {
+  font-size: 11px; padding: 1px 2px; height: 22px; box-sizing: border-box;
+  border: 1px solid #c5b89e; border-radius: 3px; background: #fffdf8; color: #7a4c10;
+  max-width: 84px; min-width: 32px;
+}
+#tab-quote-make .w-ppref:focus { border-color: #b0772f; outline: none; background: #fff; }
 /* 客先モードでは pct-group 非表示（内部情報） */
 #tab-quote-make #quoteTable.customer-mode .pct-group { display: none !important; }
 /* プレビュー：都度請求の客先注記 */

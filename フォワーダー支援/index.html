@@ -3898,6 +3898,7 @@
             <span class="pct-group">
               <input type="number" data-field="pprate" class="w-pct-rate" min="0" step="0.01" value="0" placeholder="%" title="%率（例: 0.3 → 0.3%）" />
               <span class="pct-x">%×</span>
+              <select class="w-ppref" title="参照行（選択するとその行の仕入単価を基準額として使用。変更されると自動再計算）"><option value="">—</option></select>
               <input type="number" data-field="ppbase" class="w-pct-base" min="0" value="0" placeholder="基準額" title="基準金額（例: CIF価格・保険価格など。仕入通貨と同じ通貨で入力）" />
             </span>
           </span>
@@ -3910,6 +3911,8 @@
         <input type="hidden" data-field="ps" value="">
         <input type="hidden" data-field="co" value="">
         <input type="hidden" data-field="ppmode" value="">
+        <input type="hidden" data-field="uid" value="">
+        <input type="hidden" data-field="ppref" value="">
         <div class="row-mode-btns">
           <button type="button" class="zero-confirm-btn" tabindex="-1" title="0円確認済みにする（もう一度クリックで解除）">¥0✓</button>
           <button type="button" class="actual-cost-btn" tabindex="-1" title="実費（金額未確定・別途精算）。単価・金額に「実費」と表示し、合計から除外します（もう一度クリックで解除）。">実費</button>
