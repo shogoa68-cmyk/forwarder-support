@@ -2016,15 +2016,7 @@
       // 港ペア（子グループ）の有無：サブコンが1つでも、港ペアが2つ以上あればグループ表示する
       const distinctPP = new Set(realRows.map(tr => _rowInnerKey(tr)).filter(Boolean));
 
-      // サブコンが1つ以下かつ港ペアも1つ以下なら表示不要（折りたたみ状態はリセット）
-      if (groupOrder.length < 2 && distinctPP.size < 2) {
-        _collapsedGroups.clear();
-        realRows.forEach(tr => { tr.style.display = ''; tr.classList.remove('subcon-child', 'subcon-subchild'); });
-        // ツリー帰属クラス（リマーク・社内メモ・小計行）も解除
-        tbody.querySelectorAll('.subcon-grp-member, .subcon-grp-nested')
-          .forEach(tr => tr.classList.remove('subcon-grp-member', 'subcon-grp-nested'));
-        return;
-      }
+      // （単一グループ・単一パターンでも常にグループ表示する）
 
       // グループ表示中：配下の各データ行をツリー風インデント（subcon-child）にする
       realRows.forEach(tr => tr.classList.add('subcon-child'));
@@ -2084,6 +2076,7 @@
         const hdr = document.createElement('tr');
         hdr.dataset.virtual = '1';
         hdr.dataset.svKey   = key;
+        hdr.dataset.svLabel = key === _UNSET_KEY ? '' : label;
         hdr.className = 'subcon-group-header' + (collapsed ? ' is-collapsed' : '');
         const excluded = _excludedGroups.has(key);
         hdr.innerHTML =
@@ -2140,6 +2133,8 @@
                 `<i>客先表示名</i>` +
                 `<input type="text" class="subcon-alias-input" placeholder="例）国内諸費用 一式（任意）" value="${_escAttr(_subconAlias[key] || '')}" />` +
               `</span>` +
+              `<button type="button" class="subcon-subtotal-add-btn" ` +
+                `title="${_escAttr(label)} に行を追加（このサブコン末尾）">＋ 行追加</button>` +
             `</div>` +
           `</td>`;
         // 末尾行の次（既存の小計・リマーク行があればその手前）に挿入
@@ -2152,6 +2147,13 @@
           });
           // 入力欄クリックで折りたたみ等の親ハンドラに伝播しないように
           aliasInp.addEventListener('click', e => e.stopPropagation());
+        }
+        const addBtn = sub.querySelector('.subcon-subtotal-add-btn');
+        if (addBtn) {
+          addBtn.addEventListener('click', e => {
+            e.stopPropagation();
+            addRowToSubconGroup(key === _UNSET_KEY ? '' : label, '');
+          });
         }
         // lastRow の直後に付随する typed 行（社内メモ・備考等）をスキップして小計を挿入
         let lastGroupRow = lastRow;
@@ -2176,6 +2178,7 @@
             sub.dataset.svKey   = curSvKey || _UNSET_KEY;
             sub.dataset.ptKey   = curKey || '';
             sub.className = 'subcon-pattern-subtotal';
+            const _svLabel = curSvKey === _UNSET_KEY ? '' : (groupLabel[curSvKey] || '');
             sub.innerHTML =
               `<td colspan="10" class="subcon-pattern-subtotal-cell">` +
                 `<div class="subcon-subtotal-inner subcon-subtotal-inner--pt">` +
@@ -2183,8 +2186,17 @@
                   `<span class="st-metric st-cost"><i>仕入合計</i><b class="subcon-subtotal-cost">¥0</b></span>` +
                   `<span class="st-metric st-sell"><i>売値合計</i><b class="subcon-subtotal-sum">¥0</b></span>` +
                   `<span class="st-metric st-margin"><i>粗利率</i><b class="subcon-subtotal-margin">—</b></span>` +
+                  `<button type="button" class="subcon-subtotal-add-btn subcon-pt-add-btn" ` +
+                    `data-sv="${_escAttr(_svLabel)}" data-pt="${_escAttr(curKey)}" ` +
+                    `title="${_escAttr(curKey)} に行を追加（このパターン末尾）">＋ 行追加</button>` +
                 `</div>` +
               `</td>`;
+            sub.querySelector('.subcon-pt-add-btn')?.addEventListener('click', (e => {
+              e.stopPropagation();
+              const sv = sub.querySelector('.subcon-pt-add-btn').dataset.sv;
+              const pt = sub.querySelector('.subcon-pt-add-btn').dataset.pt;
+              addRowToSubconGroup(sv, pt);
+            }));
             tbody.insertBefore(sub, beforeNode);
           }
           runOpen = false; curKey = null; curKind = null;
@@ -2431,16 +2443,22 @@
   }
 
   // 指定サブコングループの末尾に行を追加
-  function addRowToSubconGroup(sv) {
+  function addRowToSubconGroup(sv, pt) {
     const tbody = document.getElementById('tableBody');
     const realRows = Array.from(tbody.querySelectorAll('tr:not([data-virtual])'))
       .filter(tr => !tr.dataset.type);
-    // グループの末尾行を探す（揺らぎ吸収：正規化キーで一致判定）
+    // pt 指定あり → パターン末尾（sv + pt 両方一致する最後の行）
+    // pt 指定なし → サブコン末尾（sv 一致する最後の行）
     const targetKey = subconNormKey(sv);
     let lastInGroup = null;
     realRows.forEach(tr => {
       const rowSv = _rowSubcon(tr) ?? '';
-      if (subconNormKey(rowSv) === targetKey) lastInGroup = tr;
+      if (subconNormKey(rowSv) !== targetKey) return;
+      if (pt) {
+        const rowPt = tr.querySelector('[data-field="pt"]')?.value || '';
+        if (rowPt !== pt) return;
+      }
+      lastInGroup = tr;
     });
     let newId;
     if (lastInGroup) {
@@ -2450,9 +2468,15 @@
       const all = Array.from(tbody.querySelectorAll('tr:not([data-virtual])')).filter(tr => !tr.dataset.type);
       newId = all.length ? all[all.length - 1].id.replace('row-', '') : null;
     }
-    if (newId && sv) {
-      const svEl = document.getElementById(`sv-${newId}`);
-      if (svEl) svEl.value = sv;
+    if (newId) {
+      if (sv) {
+        const svEl = document.getElementById(`sv-${newId}`);
+        if (svEl) svEl.value = sv;
+      }
+      if (pt) {
+        const ptEl = document.getElementById(`pt-${newId}`);
+        if (ptEl) ptEl.value = pt;
+      }
     }
     renderSubconGroups();
     setTimeout(() => document.getElementById(`nm-${newId}`)?.focus(), 40);
@@ -2602,6 +2626,8 @@
       set('un-', ch.unit  || '');
       set('pp-', ch.amount != null ? ch.amount : '');
       set('bp-', ch.amount != null ? ch.amount : '');
+      if (ch.vf) set('vf-', ch.vf);
+      if (ch.vt) set('vt-', ch.vt);
       // 通貨を両欄に適用
       const pcEl = document.getElementById('pc-' + id);
       if (pcEl) pcEl.value = ch.currency || lastCur;

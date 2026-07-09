@@ -3800,12 +3800,29 @@ a.lc-source-icon:hover { opacity: 0.75; }
   display: inline-block; font-size: 10px; padding: 1px 5px; border-radius: 3px;
   margin-left: 4px; font-weight: 600; vertical-align: middle; white-space: nowrap;
 }
-.lc-exp-badge--red   { background: #fee2e2; color: #b91c1c; }
-.lc-exp-badge--amber { background: #fef3c7; color: #b45309; }
+.lc-exp-badge--red    { background: #fee2e2; color: #b91c1c; }
+.lc-exp-badge--amber  { background: #fef3c7; color: #b45309; }
+.lc-exp-badge--future { background: #dbeafe; color: #1d4ed8; }
 
 /* 諸チャージ一覧: 行の状態 */
 .lc-table tr.lc-expired  { opacity: 0.5; }
 .lc-table tr.lc-expiring { background: #fffbeb !important; }
+
+/* ===== 諸チャージ ピッカー: サブコン名・適用期間 ===== */
+.lc-pick-carrier {
+  display: inline-block; margin-top: 3px;
+  font-size: 11px; font-weight: 600; color: #5a3a10;
+  background: #fef3c7; border: 1px solid #f59e0b;
+  border-radius: 3px; padding: 1px 5px; white-space: nowrap;
+}
+.lc-pick-period {
+  font-size: 10px; color: #5a4a35; white-space: nowrap;
+}
+.lc-pick-ports {
+  font-size: 11px; color: #6a5a4a;
+}
+.lc-pick-row.is-expired { opacity: 0.55; }
+.lc-pick-row.is-expired .lc-pick-amt { color: #9a8070; }
 
 /* ===== サーチャージ変更通知モーダル ===== */
 .lc-notice-box {

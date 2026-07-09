@@ -3348,10 +3348,15 @@
                          (g.isExcluded  ? ' is-excluded'  : '') +
                          (hiddenByParent ? ' is-parent-collapsed' : '');
         const sumHtml = g.sum ? '<span class="qsp-dig-grp-sum">' + escapeHtml(g.sum) + '</span>' : '';
+        const addSv = escapeHtml(g.svLabel || '').replace(/'/g, '&#39;');
+        const addPt = escapeHtml(g.pt || '').replace(/'/g, '&#39;');
         return '<div class="qsp-dig-grp-item' + stateCls + '">' +
           '<button type="button" class="qsp-dig-subjump' + (g.level ? ' is-pattern' : ' is-subcon') +
             '" onclick="window.jumpToTableGroupIdx(' + i + ')" title="このグループへジャンプ">' +
             escapeHtml(g.label) + sumHtml + '</button>' +
+          '<button type="button" class="qsp-dig-grp-add" ' +
+            'onclick="window.addRowToSubconGroup(\'' + addSv + '\',\'' + addPt + '\')" ' +
+            'title="このブランチの末尾に行を追加（サブコン/パターンを引き継ぎ）">＋</button>' +
           '<button type="button" class="qsp-dig-grp-collapse" ' +
             'onclick="window._qspGroupAction(' + i + ',\'collapse\')" ' +
             'title="' + (g.isCollapsed ? '展開' : '折りたたみ') + '">' +
@@ -3374,11 +3379,15 @@
         const isExcluded  = tr.classList.contains('is-excluded');
         if (tr.classList.contains('subcon-group-header')) {
           const sum = (tr.querySelector('.subcon-group-sum')?.textContent || '').trim();
-          out.push({ level: 0, sv: tr.dataset.svKey || '', pt: '',
+          out.push({ level: 0, sv: tr.dataset.svKey || '', svLabel: tr.dataset.svLabel || '', pt: '',
                      label: (tr.querySelector('.subcon-group-label')?.textContent || '').trim(),
                      sum, isCollapsed, isExcluded, el: tr });
         } else {
           const sv = tr.dataset.svKey || '', pt = tr.dataset.ptKey || '';
+          // 親サブコンの表示名を探す
+          let svLabel = '';
+          const phdr = document.querySelector('#tableBody tr.subcon-group-header[data-sv-key="' + sv + '"]');
+          if (phdr) svLabel = phdr.dataset.svLabel || '';
           let sum = '';
           const tbody = document.getElementById('tableBody');
           if (tbody) {
@@ -3389,7 +3398,7 @@
               }
             }
           }
-          out.push({ level: 1, sv, pt,
+          out.push({ level: 1, sv, svLabel, pt,
                      label: '↳ ' + (tr.querySelector('.subcon-subgroup-leg')?.textContent || '').trim(),
                      sum, isCollapsed, isExcluded, el: tr });
         }
