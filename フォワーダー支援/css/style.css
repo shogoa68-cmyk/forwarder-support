@@ -2508,6 +2508,31 @@ body:has(#compareOverlay.open) #quoteActionDock { display: none; }
 }
 .master-new-btn:hover { background: #3d9d6c; }
 .master-new-hint { font-size: 11px; color: #a8956f; flex-basis: 100%; }
+
+/* マスター管理：種別絞り込みチップ（項目が増えてもスクロールせず種別ごとに閲覧できるように） */
+.master-filter-chips {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 6px;
+  position: sticky; top: 0; z-index: 5;
+  background: var(--bg-body, #f7f3ea);
+  padding: 8px 0; margin: 0 0 12px;
+  border-bottom: 1px solid #e6dcc8;
+}
+.master-filter-chip {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-size: 12px; font-weight: 600;
+  border: 1px solid #cdbb97; background: #fffdf8; color: #6b5840;
+  border-radius: 14px; padding: 3px 12px; cursor: pointer;
+  white-space: nowrap;
+}
+.master-filter-chip:hover { background: #f0e8d8; }
+.master-filter-chip.is-active {
+  background: #6b5840; border-color: #6b5840; color: #fff;
+}
+.master-filter-count {
+  font-size: 10px; font-weight: 700;
+  background: rgba(0,0,0,.08); border-radius: 8px; padding: 1px 6px;
+}
+.master-filter-chip.is-active .master-filter-count { background: rgba(255,255,255,.25); }
 .stats-master-rename {
   font-size: 11px; border: 1px solid #cdbb97; background: #fffdf8; color: #6b5840;
   border-radius: 4px; padding: 2px 8px; cursor: pointer; margin-right: 4px;

@@ -1119,6 +1119,13 @@
     e.innerHTML = h + '</tbody></table>';
   }
 
+  // マスター一覧の種別絞り込み（'all' | sv/carrier/nm/customer/port/un）。再描画をまたいで保持。
+  let _masterFieldFilter = 'all';
+  window.statsMasterSetFilter = function (f) {
+    _masterFieldFilter = f || 'all';
+    _renderMaster();
+  };
+
   function _renderMaster() {
     const e = document.getElementById('statsPane-master');
     if (!e) return;
@@ -1140,7 +1147,7 @@
 
     // --- 代表を新規登録するフォーム（実データに無い名称も登録可）---
     const fieldOpts = [['sv', 'サブコン'], ['carrier', 'キャリア'], ['nm', '品名'], ['customer', 'お客様'], ['port', '港'], ['un', '単位']]
-      .map(([v, l]) => `<option value="${v}">${l}</option>`).join('');
+      .map(([v, l]) => `<option value="${v}"${v === _masterFieldFilter ? ' selected' : ''}>${l}</option>`).join('');
     const formH = '<div class="master-new-form">' +
       '<span class="master-new-label">➕ 代表を新規登録</span>' +
       `<select id="masterNewField" class="ar-select">${fieldOpts}</select>` +
@@ -1159,12 +1166,36 @@
     // 下の「同義グループ（代表＝マスター）」欄に集約表示する（二重表示を避ける）。
     const synCanonSet = new Set(allSyn.map(g => g.field + '\x00' + g.canonical));
     entries = entries.filter(m => !synCanonSet.has(m.field + '\x00' + m.value));
+
+    // --- 種別絞り込みチップ（件数＝個別マスター＋同義グループの合算）---
+    const fieldOrder = ['sv', 'carrier', 'nm', 'customer', 'port', 'un'];
+    const counts = {};
+    fieldOrder.forEach(f => { counts[f] = 0; });
+    entries.forEach(m => { counts[m.field] = (counts[m.field] || 0) + 1; });
+    allSyn.forEach(g => { counts[g.field] = (counts[g.field] || 0) + 1; });
+    const totalCount = Object.values(counts).reduce((s, n) => s + n, 0);
+    // 現在の絞り込み種別が0件になったら「すべて」に戻す（削除・解除で空になった場合）
+    if (_masterFieldFilter !== 'all' && !counts[_masterFieldFilter]) _masterFieldFilter = 'all';
+    const chip = (f, label, n) =>
+      `<button class="master-filter-chip${_masterFieldFilter === f ? ' is-active' : ''}" ` +
+      `onclick="statsMasterSetFilter('${f}')">${label}<span class="master-filter-count">${n}</span></button>`;
+    let chipsH = '<div class="master-filter-chips">' +
+      chip('all', 'すべて', totalCount) +
+      fieldOrder.filter(f => counts[f] > 0).map(f => chip(f, labels[f], counts[f])).join('') +
+      '</div>';
+
+    // 絞り込みを適用
+    if (_masterFieldFilter !== 'all') {
+      entries = entries.filter(m => m.field === _masterFieldFilter);
+    }
+    const synFiltered = _masterFieldFilter === 'all' ? allSyn : allSyn.filter(g => g.field === _masterFieldFilter);
+
     let synH = '';
-    if (allSyn.length) {
+    if (synFiltered.length) {
       synH = '<div class="stats-syn-section"><p class="stats-master-info-title">⭐ 同義グループ（代表＝マスター）</p>' +
         `<p class="stats-master-info-note">⭐代表は自動的にマスター登録され、統合した別名はマスターから外れます。集計タブの ☆代表 / ⤵統合 で作成。件数は合算され入力補完にも反映されます。${cloudOn ? '（チーム共有）' : '（このブラウザに保存）'}</p>` +
         '<table class="stats-table"><thead><tr><th>種別</th><th>代表（マスター）</th><th>統合された表記</th><th>操作</th></tr></thead><tbody>';
-      allSyn.forEach(g => {
+      synFiltered.forEach(g => {
         const isUnit  = g.field === 'un';
         const aliases = g.aliases || [];
         const delAlias = (a) => isUnit
@@ -1188,10 +1219,10 @@
     }
 
     if (!entries.length) {
-      const note = allSyn.length
+      const note = synFiltered.length
         ? '<p class="stats-empty">個別マスターはありません（同義グループの代表が下に「マスター」として表示されています）。</p>'
         : '<p class="stats-empty">マスター登録はまだありません。<br>各集計の ☆登録（個別）または ⭐代表（同義グループ）で追加できます。</p>';
-      e.innerHTML = formH + note + synH;
+      e.innerHTML = formH + chipsH + note + synH;
       return;
     }
     const usageDesc = {
@@ -1207,8 +1238,9 @@
     let h = '<div class="stats-master-info">' +
             '<p class="stats-master-info-title">✅ 個別マスター（同義グループに属さない表記）の活用方法</p>' +
             '<ul class="stats-master-usage-list">' +
-            Object.entries(usageDesc).map(([f, desc]) =>
-              `<li><b>${labels[f] || f}</b>：${desc}</li>`).join('') +
+            Object.entries(usageDesc)
+              .filter(([f]) => _masterFieldFilter === 'all' || f === _masterFieldFilter)
+              .map(([f, desc]) => `<li><b>${labels[f] || f}</b>：${desc}</li>`).join('') +
             '<li><b>エイリアス是正</b>：表記ゆれを一括置換する際の「正規形」の候補として参照できます。</li>' +
             '</ul>' +
             `<p class="stats-master-info-note">☆ 登録 ボタンで即時マスターに追加。再クリックで解除できます。${cloudOn ? '（チーム全員で共有）' : '（このブラウザにローカル保存）'}</p>` +
@@ -1233,7 +1265,7 @@
            `<td>${_mdDetailBtn(m.field, m.value)}${m.isMine ? `<button class="stats-demote-btn" onclick="statsToggleVote('${_ea(m.field)}','${_ea(m.value)}')">解除</button>` : '<span class="stats-empty-cell">他メンバー</span>'}</td>` +
            `</tr>`;
     });
-    e.innerHTML = formH + h + '</tbody></table>' + synH;
+    e.innerHTML = formH + chipsH + h + '</tbody></table>' + synH;
   }
 
   // マスタータブから単位同義グループを操作した際、マスター画面も再描画する薄いラッパ
