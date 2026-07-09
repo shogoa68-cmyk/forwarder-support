@@ -9275,6 +9275,35 @@ button.um-memberno--empty:hover { background: #f4ead4; border-color: #cdb98e; }
   outline: none;
 }
 #tab-quote-make .si-search-input:focus { border-color: #b0996c; }
+/* カテゴリ絞り込みチップ */
+#tab-quote-make .si-cat-chips {
+  display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px;
+}
+#tab-quote-make .si-cat-chips:empty { display: none; }
+#tab-quote-make .si-cat-chip {
+  cursor: pointer; font-family: inherit; border: 1px solid transparent;
+  display: inline-flex; align-items: center; gap: 3px;
+  opacity: 0.72; transition: opacity .1s, box-shadow .1s;
+}
+#tab-quote-make .si-cat-chip:hover { opacity: 1; }
+#tab-quote-make .si-cat-chip.is-on {
+  opacity: 1; border-color: currentColor;
+  box-shadow: 0 0 0 1px currentColor inset;
+  font-weight: 700;
+}
+#tab-quote-make .si-cat-chip small { font-size: 9px; opacity: 0.75; }
+#tab-quote-make .si-cat-chip.si-cat-clear {
+  background: #f5ede0; color: #8b5a2a; border: 1px solid #d8c0a0;
+  font-size: 10px; font-weight: 600; padding: 1px 7px; border-radius: 10px;
+  opacity: 1;
+}
+#tab-quote-make .si-cat-chip.si-cat-clear:hover { background: #eaddc8; }
+/* ヒット件数サマリー・カード内該当件数 */
+#tab-quote-make .si-hit-note {
+  font-size: 10px; font-weight: 600; color: #7a6a50;
+  padding: 2px 4px 6px;
+}
+#tab-quote-make .si-cnt-hit { color: #2a6a2a; font-weight: 700; }
 #tab-quote-make .si-list-wrap {
   flex: 1 1 auto; overflow-y: auto; padding: 6px 8px 12px;
 }
