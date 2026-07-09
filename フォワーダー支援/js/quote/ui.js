@@ -3350,12 +3350,15 @@
                          (g.isExcluded  ? ' is-excluded'  : '') +
                          (hiddenByParent ? ' is-parent-collapsed' : '');
         const sumHtml = g.sum ? '<span class="qsp-dig-grp-sum">' + escapeHtml(g.sum) + '</span>' : '';
-        // 明細行：行名＋売値のみ（クリックでその行へジャンプ）
+        // 明細行：行名＋売値（クリックでジャンプ・⧉ で別ブランチへコピー）
         if (g.level === 2) {
           return '<div class="qsp-dig-grp-item is-row' + stateCls + '">' +
             '<button type="button" class="qsp-dig-subjump is-detail" ' +
               'onclick="window.jumpToTableRowId(\'' + g.rowId + '\')" title="この行へジャンプ">' +
               '<span class="qsp-dig-row-nm">' + escapeHtml(g.label) + '</span>' + sumHtml + '</button>' +
+            '<button type="button" class="qsp-dig-row-copy" ' +
+              'onclick="window._qspRowCopyMenu(' + i + ', event)" ' +
+              'title="この行を別ブランチ（サブコン/パターン）へコピー">⧉</button>' +
             '</div>';
         }
         const addSv = escapeHtml(g.svLabel || '').replace(/'/g, '&#39;');
@@ -3462,6 +3465,69 @@
     target.scrollIntoView({ block: 'center', behavior: 'smooth' });
     target.classList.add('grp-flash');
     setTimeout(function() { target.classList.remove('grp-flash'); }, 1200);
+  };
+  // 明細行の「⧉」→ コピー先ブランチ選択メニューを表示
+  window._qspRowCopyMenu = function(i, ev) {
+    ev.stopPropagation();
+    document.getElementById('qspCopyMenu')?.remove();
+    const groups = window._qspTableGroups || [];
+    const g = groups[i];
+    if (!g || g.level !== 2) return;
+    // この明細行が属するブランチ（直前の見出し）を特定
+    let curSv = null, curPt = '';
+    for (let j = i - 1; j >= 0; j--) {
+      if (groups[j].level === 1) { curSv = groups[j].svLabel || ''; curPt = groups[j].pt || ''; break; }
+      if (groups[j].level === 0) { curSv = groups[j].svLabel || ''; curPt = ''; break; }
+    }
+    // コピー先候補：全パターンブランチ＋パターンを持たないサブコンブランチ（自ブランチは除外）
+    const targets = [];
+    groups.forEach(function(h) {
+      if (h.level === 0) {
+        const hasPt = groups.some(x => x.level === 1 && x.sv === h.sv);
+        if (!hasPt) targets.push({ sv: h.svLabel || '', pt: '', label: h.svLabel || '（サブコン未設定）' });
+      } else if (h.level === 1) {
+        targets.push({ sv: h.svLabel || '', pt: h.pt || '',
+                       label: (h.svLabel || '（サブコン未設定）') + ' ▸ ' + (h.pt || '—') });
+      }
+    });
+    const list = targets.filter(t => !(t.sv === curSv && t.pt === curPt));
+    if (!list.length) {
+      if (typeof quoteShowToast === 'function') quoteShowToast('⚠️ コピー先になる別ブランチがありません', 'warn');
+      return;
+    }
+    const menu = document.createElement('div');
+    menu.id = 'qspCopyMenu';
+    menu.className = 'qsp-copy-menu';
+    const title = document.createElement('div');
+    title.className = 'qsp-copy-menu-title';
+    title.textContent = '⧉ コピー先ブランチを選択';
+    menu.appendChild(title);
+    list.forEach(function(t) {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'qsp-copy-menu-item';
+      b.textContent = t.label;
+      b.addEventListener('click', function() {
+        menu.remove();
+        if (typeof window.copyRowToSubconGroup !== 'function') return;
+        const newId = window.copyRowToSubconGroup(g.rowId, t.sv, t.pt);
+        if (newId && typeof quoteShowToast === 'function') {
+          quoteShowToast('⧉ 「' + t.label + '」の末尾にコピーしました', 'success');
+        }
+      });
+      menu.appendChild(b);
+    });
+    (document.getElementById('tab-quote-make') || document.body).appendChild(menu);
+    const r = ev.currentTarget.getBoundingClientRect();
+    menu.style.top  = Math.max(8, Math.min(r.bottom + 4, window.innerHeight - menu.offsetHeight - 8)) + 'px';
+    menu.style.left = Math.max(8, Math.min(r.left - 140, window.innerWidth - menu.offsetWidth - 8)) + 'px';
+    const closer = function(e2) {
+      if (!menu.isConnected || !menu.contains(e2.target)) {
+        menu.remove();
+        document.removeEventListener('click', closer);
+      }
+    };
+    setTimeout(function() { document.addEventListener('click', closer); }, 0);
   };
   // ジャンプタブの明細行クリック → 該当行へスクロール＆ハイライト
   window.jumpToTableRowId = function(rowId) {
