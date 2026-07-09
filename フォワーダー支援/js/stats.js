@@ -714,9 +714,12 @@
         }
         const avgHtml = avgStr ? `<div class="stats-hist-avg">平均 ${_esc(avgStr)}</div>` : '';
 
+        const ptHtml = it.pt ? `<span class="stats-pt-badge">${_esc(it.pt)}</span>` : '<span class="stats-empty-cell">—</span>';
+
         return `<tr>` +
                `<td><span class="rp-cat ${CAT_CLASS[it.cat]||'cat-other'}">${_esc(ROLE[it.cat]||it.cat||'—')}</span></td>` +
                `<td class="stats-val">${_esc(it.name)}</td>` +
+               `<td>${ptHtml}</td>` +
                `<td class="stats-sv-price">${_esc(priceCell)}${_esc(unit)}${avgHtml}${histHtml}</td>` +
                `</tr>`;
       }).join('');
@@ -726,7 +729,7 @@
            (hasSurcharge ? '<span class="stats-sv-surge-badge">⚡ サーチャージあり</span>' : '') +
            `<span class="stats-sv-detail-meta">使用 ${sc.uses}案件 · ${sc.items.length}項目</span></summary>` +
            `<table class="stats-table stats-sv-charge-table"><thead><tr>` +
-           `<th>カテゴリ</th><th>品名</th><th>単価（仕入 → 売上）</th>` +
+           `<th>カテゴリ</th><th>品名</th><th>パターン</th><th>単価（仕入 → 売上）</th>` +
            `</tr></thead><tbody>${rows}</tbody></table>` +
            `</details>`;
     });
