@@ -3339,15 +3339,25 @@
     const groups = _collectTableGroups();
     window._qspTableGroups = groups;
     if (groups.length) {
-      let parentSvCollapsed = false, parentSvKey = null;
+      let parentSvCollapsed = false, parentPtCollapsed = false;
       html += '<div class="qsp-dig-subjumps">' + groups.map(function(g, i) {
-        if (g.level === 0) { parentSvKey = g.sv; parentSvCollapsed = g.isCollapsed; }
-        // 親サブコンが折りたたみ中のパターン行はジャンプタブ側でも非表示
-        const hiddenByParent = g.level === 1 && g.sv === parentSvKey && parentSvCollapsed;
+        if (g.level === 0) { parentSvCollapsed = g.isCollapsed; parentPtCollapsed = false; }
+        if (g.level === 1) { parentPtCollapsed = g.isCollapsed; }
+        // 親グループが折りたたみ中の行はジャンプタブ側でも非表示
+        const hiddenByParent = (g.level === 1 && parentSvCollapsed) ||
+                               (g.level === 2 && (parentSvCollapsed || parentPtCollapsed));
         const stateCls = (g.isCollapsed ? ' is-collapsed' : '') +
                          (g.isExcluded  ? ' is-excluded'  : '') +
                          (hiddenByParent ? ' is-parent-collapsed' : '');
         const sumHtml = g.sum ? '<span class="qsp-dig-grp-sum">' + escapeHtml(g.sum) + '</span>' : '';
+        // 明細行：行名＋売値のみ（クリックでその行へジャンプ）
+        if (g.level === 2) {
+          return '<div class="qsp-dig-grp-item is-row' + stateCls + '">' +
+            '<button type="button" class="qsp-dig-subjump is-detail" ' +
+              'onclick="window.jumpToTableRowId(\'' + g.rowId + '\')" title="この行へジャンプ">' +
+              '<span class="qsp-dig-row-nm">' + escapeHtml(g.label) + '</span>' + sumHtml + '</button>' +
+            '</div>';
+        }
         const addSv = escapeHtml(g.svLabel || '').replace(/'/g, '&#39;');
         const addPt = escapeHtml(g.pt || '').replace(/'/g, '&#39;');
         return '<div class="qsp-dig-grp-item' + stateCls + '">' +
@@ -3370,39 +3380,58 @@
     }
     el.innerHTML = html;
   };
-  // 費用テーブルのサブコン／パターン見出し行を収集（ジャンプ用）
+  // 費用テーブルのサブコン／パターン見出し行＋明細行を DOM 順に収集（ジャンプ用）
   function _collectTableGroups() {
     const out = [];
-    document.querySelectorAll('#tableBody tr.subcon-group-header, #tableBody tr.subcon-subgroup-header.is-pattern')
-      .forEach(function(tr) {
-        const isCollapsed = tr.classList.contains('is-collapsed');
-        const isExcluded  = tr.classList.contains('is-excluded');
-        if (tr.classList.contains('subcon-group-header')) {
-          const sum = (tr.querySelector('.subcon-group-sum')?.textContent || '').trim();
-          out.push({ level: 0, sv: tr.dataset.svKey || '', svLabel: tr.dataset.svLabel || '', pt: '',
-                     label: (tr.querySelector('.subcon-group-label')?.textContent || '').trim(),
-                     sum, isCollapsed, isExcluded, el: tr });
-        } else {
-          const sv = tr.dataset.svKey || '', pt = tr.dataset.ptKey || '';
-          // 親サブコンの表示名を探す
-          let svLabel = '';
-          const phdr = document.querySelector('#tableBody tr.subcon-group-header[data-sv-key="' + sv + '"]');
-          if (phdr) svLabel = phdr.dataset.svLabel || '';
-          let sum = '';
-          const tbody = document.getElementById('tableBody');
-          if (tbody) {
-            for (const r of tbody.querySelectorAll('tr[data-pt-sum]')) {
-              if ((r.dataset.svKey || '') === sv && (r.dataset.ptKey || '') === pt) {
-                sum = (r.querySelector('.subcon-subtotal-sum')?.textContent || '').trim();
-                break;
-              }
+    document.querySelectorAll('#tableBody tr').forEach(function(tr) {
+      const isCollapsed = tr.classList.contains('is-collapsed');
+      const isExcluded  = tr.classList.contains('is-excluded');
+      if (tr.classList.contains('subcon-group-header')) {
+        const sum = (tr.querySelector('.subcon-group-sum')?.textContent || '').trim();
+        out.push({ level: 0, sv: tr.dataset.svKey || '', svLabel: tr.dataset.svLabel || '', pt: '',
+                   label: (tr.querySelector('.subcon-group-label')?.textContent || '').trim(),
+                   sum, isCollapsed, isExcluded, el: tr });
+        return;
+      }
+      if (tr.classList.contains('subcon-subgroup-header') && tr.classList.contains('is-pattern')) {
+        const sv = tr.dataset.svKey || '', pt = tr.dataset.ptKey || '';
+        // 親サブコンの表示名を探す
+        let svLabel = '';
+        const phdr = document.querySelector('#tableBody tr.subcon-group-header[data-sv-key="' + sv + '"]');
+        if (phdr) svLabel = phdr.dataset.svLabel || '';
+        let sum = '';
+        const tbody = document.getElementById('tableBody');
+        if (tbody) {
+          for (const r of tbody.querySelectorAll('tr[data-pt-sum]')) {
+            if ((r.dataset.svKey || '') === sv && (r.dataset.ptKey || '') === pt) {
+              sum = (r.querySelector('.subcon-subtotal-sum')?.textContent || '').trim();
+              break;
             }
           }
-          out.push({ level: 1, sv, svLabel, pt,
-                     label: '↳ ' + (tr.querySelector('.subcon-subgroup-leg')?.textContent || '').trim(),
-                     sum, isCollapsed, isExcluded, el: tr });
         }
-      });
+        out.push({ level: 1, sv, svLabel, pt,
+                   label: '↳ ' + (tr.querySelector('.subcon-subgroup-leg')?.textContent || '').trim(),
+                   sum, isCollapsed, isExcluded, el: tr });
+        return;
+      }
+      // 明細行（実データ行）：名称＋売値（JPY換算）を収集
+      if (tr.dataset.virtual || tr.dataset.type) return;
+      if (!tr.id || tr.id.indexOf('row-') !== 0) return;
+      const id = tr.id.slice(4);
+      const nm = (document.getElementById('nm-' + id)?.value || '').trim();
+      const num = eid => parseFloat(document.getElementById(eid)?.value) || 0;
+      const bq = num('bq-' + id) || num('pq-' + id);
+      const bp = num('bp-' + id);
+      const bc = document.getElementById('bc-' + id)?.value || 'JPY';
+      let sell = bq * bp, mark = '';
+      if (bc !== 'JPY' && typeof toJPY === 'function') { sell = toJPY(sell, bc); mark = '※'; }
+      const sum = sell ? '¥' + Math.round(sell).toLocaleString('ja-JP') + mark : '';
+      const flag = tr.dataset.hideQuote === '1' ? '🚫 ' : '';
+      const suffix = tr.dataset.cond === '1' ? '（都度）' : '';
+      out.push({ level: 2, rowId: tr.id,
+                 label: flag + (nm || '（名称未入力）') + suffix,
+                 sum, isCollapsed: false, isExcluded, el: tr });
+    });
     return out;
   }
   // ジャンプタブから折りたたみ・除外を操作（既存テーブル見出しのボタンを内部クリック）
@@ -3433,6 +3462,16 @@
     target.scrollIntoView({ block: 'center', behavior: 'smooth' });
     target.classList.add('grp-flash');
     setTimeout(function() { target.classList.remove('grp-flash'); }, 1200);
+  };
+  // ジャンプタブの明細行クリック → 該当行へスクロール＆ハイライト
+  window.jumpToTableRowId = function(rowId) {
+    const sec = document.getElementById('section-table');
+    if (sec && sec.classList.contains('collapsed') && typeof toggleQuoteSection === 'function') toggleQuoteSection('section-table');
+    const tr = document.getElementById(rowId);
+    if (!tr) return;
+    tr.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    tr.classList.add('grp-flash');
+    setTimeout(function() { tr.classList.remove('grp-flash'); }, 1200);
   };
   window.openQuoteSectionFromDigest = function(id) {
     const sec = document.getElementById(id);
