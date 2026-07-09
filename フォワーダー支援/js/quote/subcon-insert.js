@@ -26,6 +26,22 @@
 
   let _subcons   = [];   // モーダル用（全件集計）
   let _siSubcons = [];   // 右カラムパネル用（現案件条件でフィルタ済み）
+  let _siCatSel  = new Set();   // 右カラム：カテゴリチップの選択状態（空 = 全カテゴリ）
+
+  // ---------- 検索ヘルパー（スペース区切り AND・複数フィールド横断） ----------
+  function _terms(q) {
+    return String(q || '').trim().toLowerCase().split(/[\s　]+/).filter(Boolean);
+  }
+  function _itemMatches(it, terms) {
+    if (!terms.length) return true;
+    const hay = [it.name, it.un, it.cat, ROLE[it.cat] || '', it.pt].join(' ').toLowerCase();
+    return terms.every(t => hay.includes(t));
+  }
+  function _scMatches(sc, terms) {
+    if (!terms.length) return true;
+    const nm = sc.name.toLowerCase();
+    return terms.every(t => nm.includes(t)) || sc.items.some(it => _itemMatches(it, terms));
+  }
 
   function _db()   { return (window.quoteCloudClient && window.quoteCloudClient()) || window.SupabaseClient || null; }
   function _user() { const u = window.quoteCloudUser && window.quoteCloudUser(); return u ? (u.email||null) : null; }
@@ -165,18 +181,10 @@
     const wrap = document.getElementById('subconListWrap');
     if (!wrap) return;
     let list = _subcons;
-    const q = (filter || '').trim().toLowerCase();
-    if (q) {
-      list = list.filter(sc => sc.name.toLowerCase().includes(q) || sc.items.some(it =>
-        it.name.toLowerCase().includes(q) ||
-        (it.un  || '').toLowerCase().includes(q) ||
-        (it.cat || '').toLowerCase().includes(q) ||
-        (ROLE[it.cat] || '').toLowerCase().includes(q) ||
-        (it.pt  || '').toLowerCase().includes(q)
-      ));
-    }
+    const terms = _terms(filter);
+    if (terms.length) list = list.filter(sc => _scMatches(sc, terms));
     if (!list.length) {
-      wrap.innerHTML = '<div class="preset-empty">' + (q ? '該当するサブコンがありません' :
+      wrap.innerHTML = '<div class="preset-empty">' + (terms.length ? '該当するサブコンがありません' :
         'サブコン情報のある案件がまだありません<br><small style="color:#bbb;">明細の「サブコン」欄に会社名を入れて案件を保存すると、ここに自動で集約されます</small>') + '</div>';
       return;
     }
@@ -292,11 +300,11 @@
     if (window.quoteShowToast) quoteShowToast('📂 「' + sc.name + '」から ' + rows.length + ' 行を' + posLabel + 'に挿入しました', 'success');
   }
 
-  // 現在のフィルタ適用後リストの si 番目（描画時と同じ順序）
+  // 現在のフィルタ適用後リストの si 番目（描画時と同じ条件・同じ順序）
   function _filteredAt(si) {
-    const q = (document.getElementById('subconSearchInput')?.value || '').trim().toLowerCase();
+    const terms = _terms(document.getElementById('subconSearchInput')?.value || '');
     let list = _subcons;
-    if (q) list = list.filter(sc => sc.name.toLowerCase().includes(q) || sc.items.some(it => it.name.toLowerCase().includes(q)));
+    if (terms.length) list = list.filter(sc => _scMatches(sc, terms));
     return list[si];
   }
 
@@ -325,26 +333,71 @@
 
   // ========== 右カラム（コンパクト）レンダー ==========
 
-  function renderSubconSidePanel(filter) {
+  // 検索語＋カテゴリチップ適用後のリスト。items は該当行のみに絞り、_ii に元 index を保持
+  // （サブコン名自体がヒットした場合はそのサブコンの全行を表示。カテゴリチップは常に適用）
+  function _siFilteredList() {
+    const terms = _terms(document.getElementById('siSubconSearch')?.value || '');
+    const out = [];
+    _siSubcons.forEach(sc => {
+      const nameHit = terms.length > 0 && terms.every(t => sc.name.toLowerCase().includes(t));
+      let items = sc.items.map((it, ii) => Object.assign({ _ii: ii }, it));
+      if (_siCatSel.size) items = items.filter(it => _siCatSel.has(it.cat || ''));
+      if (terms.length && !nameHit) items = items.filter(it => _itemMatches(it, terms));
+      if (!items.length) return;
+      out.push(Object.assign({}, sc, { items, _total: sc.items.length }));
+    });
+    return out;
+  }
+
+  // カテゴリ絞り込みチップ（全サブコンの費用行に存在するカテゴリ＋件数）
+  function renderSiCatChips() {
+    const box = document.getElementById('siCatChips');
+    if (!box) return;
+    const counts = {};
+    _siSubcons.forEach(sc => sc.items.forEach(it => {
+      const k = it.cat || '';
+      counts[k] = (counts[k] || 0) + 1;
+    }));
+    const keys = Object.keys(ROLE).filter(k => counts[k]);
+    if (counts['']) keys.push('');
+    if (!keys.length) { box.innerHTML = ''; return; }
+    box.innerHTML = keys.map(k => {
+      const on = _siCatSel.has(k);
+      const label = k ? (ROLE[k] || k) : '区分なし';
+      return '<button type="button" class="si-cat-chip rp-cat ' + (CAT_CLASS[k] || 'cat-other') + (on ? ' is-on' : '') + '" ' +
+        'onclick="siToggleCatChip(\'' + _esc(k) + '\')" title="このカテゴリで絞り込み（複数選択可）">' +
+        _esc(label) + '<small>' + counts[k] + '</small></button>';
+    }).join('') + (_siCatSel.size
+      ? '<button type="button" class="si-cat-chip si-cat-clear" onclick="siClearCatChips()" title="カテゴリ絞り込みを解除">✕ 解除</button>'
+      : '');
+  }
+  function siToggleCatChip(k) {
+    if (_siCatSel.has(k)) _siCatSel.delete(k); else _siCatSel.add(k);
+    renderSubconSidePanel();
+  }
+  function siClearCatChips() {
+    _siCatSel.clear();
+    renderSubconSidePanel();
+  }
+
+  function renderSubconSidePanel() {
     const wrap = document.getElementById('siListWrap');
     if (!wrap) return;
-    let list = _siSubcons;
-    const q = (filter || '').trim().toLowerCase();
-    if (q) list = list.filter(sc => sc.name.toLowerCase().includes(q) || sc.items.some(it =>
-      it.name.toLowerCase().includes(q) ||
-      (it.un  || '').toLowerCase().includes(q) ||
-      (it.cat || '').toLowerCase().includes(q) ||
-      (ROLE[it.cat] || '').toLowerCase().includes(q) ||
-      (it.pt  || '').toLowerCase().includes(q)
-    ));
+    renderSiCatChips();
+    const terms = _terms(document.getElementById('siSubconSearch')?.value || '');
+    const filtering = terms.length > 0 || _siCatSel.size > 0;
+    const list = _siFilteredList();
     if (!list.length) {
-      wrap.innerHTML = '<div class="preset-empty">' + (q ? '該当するサブコンがありません' :
+      wrap.innerHTML = '<div class="preset-empty">' + (filtering ? '該当する費用行がありません' :
         'サブコン情報のある案件がまだありません<br><small style="color:#bbb;">明細の「サブコン」欄に会社名を入れて案件を保存すると自動で集約されます</small>') + '</div>';
       if (typeof window.qrcRefresh === 'function') window.qrcRefresh();
       return;
     }
-    wrap.innerHTML = list.map((sc, si) => {
-      const rows = sc.items.map((it, ii) => {
+    const hitItems = list.reduce((s, sc) => s + sc.items.length, 0);
+    const summary = filtering
+      ? '<div class="si-hit-note">🔍 ' + list.length + '社・' + hitItems + '項目がヒット</div>' : '';
+    wrap.innerHTML = summary + list.map((sc, si) => {
+      const rows = sc.items.map(it => {
         const ppStr = it.pp != null ? _money(it.pp, it.pc) : '—';
         const bpNum = it.bp ? parseFloat(it.bp) : null;
         const bpStr = bpNum != null && isFinite(bpNum) ? _money(bpNum, it.bc || it.pc) : null;
@@ -353,19 +406,22 @@
           : ppStr;
         const unit = it.un ? '<small class="rp-sc-unit"> /' + _esc(it.un) + '</small>' : '';
         const ptBadgeSi = it.pt ? '<span class="rp-sc-pt">' + _esc(it.pt) + '</span>' : '';
-        return '<label class="rp-sc-item" draggable="true" data-si="' + si + '" data-ii="' + ii + '">' +
-            '<input type="checkbox" class="rp-sc-chk si-chk" data-si="' + si + '" data-ii="' + ii + '" checked>' +
+        return '<label class="rp-sc-item" draggable="true" data-si="' + si + '" data-ii="' + it._ii + '">' +
+            '<input type="checkbox" class="rp-sc-chk si-chk" data-si="' + si + '" data-ii="' + it._ii + '" checked>' +
             '<span class="rp-cat ' + (CAT_CLASS[it.cat]||'cat-other') + '">' + _esc(ROLE[it.cat]||it.cat||'—') + '</span>' +
             '<span class="rp-sc-nm-wrap"><span class="rp-sc-itemname">' + _esc(it.name) + '</span>' + ptBadgeSi + '</span>' +
             '<span class="rp-sc-price">' + priceCell + unit + '</span>' +
           '</label>';
       }).join('');
+      const cntNote = (filtering && sc.items.length < sc._total)
+        ? '<span class="si-cnt-hit">該当 ' + sc.items.length + '/' + sc._total + '項目</span>'
+        : '<span>' + sc.items.length + '項目</span>';
       return '<div class="rp-sc-card" data-si="' + si + '">' +
         '<div class="rp-sc-head">' +
           '<span class="rp-sc-av">' + _icon(sc) + '</span>' +
           '<div class="rp-sc-main">' +
             '<div class="rp-sc-name">' + _esc(sc.name) + '</div>' +
-            '<div class="rp-sc-meta"><span>使用 ' + sc.uses + '案件</span><span>' + sc.items.length + '項目</span></div>' +
+            '<div class="rp-sc-meta"><span>使用 ' + sc.uses + '案件</span>' + cntNote + '</div>' +
           '</div>' +
         '</div>' +
         '<div class="rp-sc-body">' + rows + '</div>' +
@@ -408,17 +464,14 @@
   }
 
   function subconInsertFromPanel(si) {
-    const q = (document.getElementById('siSubconSearch')?.value || '').trim().toLowerCase();
-    let list = _siSubcons;
-    if (q) list = list.filter(sc => sc.name.toLowerCase().includes(q) || sc.items.some(it => it.name.toLowerCase().includes(q)));
-    const sc = list[si];
+    const sc = _siFilteredList()[si];
     if (!sc) return;
     const wrap = document.getElementById('siListWrap');
     if (!wrap) return;
     const rows = [];
     wrap.querySelectorAll('.rp-sc-chk[data-si="' + si + '"]:checked').forEach(chk => {
       const ii = parseInt(chk.dataset.ii, 10);
-      const it = sc.items[ii];
+      const it = sc.items.find(x => x._ii === ii);
       if (it) rows.push(_rowFromItem(it, sc.name));
     });
     if (!rows.length) return;
@@ -651,11 +704,11 @@
       return;
     }
     _siSubcons = _buildSiSubcons(data || []);
-    renderSubconSidePanel(document.getElementById('siSubconSearch')?.value || '');
+    renderSubconSidePanel();
   }
 
   function subconSidePanelFilter() {
-    renderSubconSidePanel(document.getElementById('siSubconSearch')?.value || '');
+    renderSubconSidePanel();
   }
 
   // チェック変更で選択数を更新
@@ -673,12 +726,9 @@
     if (!label) return;
     const si = parseInt(label.dataset.si, 10);
     const ii = parseInt(label.dataset.ii, 10);
-    const q = (document.getElementById('siSubconSearch')?.value || '').trim().toLowerCase();
-    let list = _siSubcons;
-    if (q) list = list.filter(sc => sc.name.toLowerCase().includes(q) || sc.items.some(it => it.name.toLowerCase().includes(q)));
-    const sc = list[si];
+    const sc = _siFilteredList()[si];
     if (!sc) return;
-    const it = sc.items[ii];
+    const it = sc.items.find(x => x._ii === ii);
     if (!it) return;
     e.dataTransfer.setData('application/x-si-item', JSON.stringify(_rowFromItem(it, sc.name)));
     e.dataTransfer.effectAllowed = 'copy';
@@ -742,6 +792,7 @@
   Object.assign(window, {
     loadSubconModules, renderSubconList, subconInsert, subconFilter, switchRowInsertTab,
     renderSubconSidePanel, subconInsertFromPanel, loadSubconPanel, subconSidePanelFilter,
+    siToggleCatChip, siClearCatChips,
     siSetTab, renderCurrentQuoteSubconPanel, siCopyGroup,
     getSubconData: () => _subcons,
     loadSubconData: async () => { if (!_subcons.length) await loadSubconModules(); return _subcons; },

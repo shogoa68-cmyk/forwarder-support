@@ -2481,6 +2481,56 @@
     renderSubconGroups();
     setTimeout(() => document.getElementById(`nm-${newId}`)?.focus(), 40);
   }
+  // 明細行を別ブランチ（サブコン/パターン）末尾へコピー（元行は残す）。newId を返す
+  function copyRowToSubconGroup(srcRowId, sv, pt) {
+    const sid = String(srcRowId).replace('row-', '');
+    if (!document.getElementById(`row-${sid}`)) return null;
+    const tbody = document.getElementById('tableBody');
+    const realRows = Array.from(tbody.querySelectorAll('tr:not([data-virtual])'))
+      .filter(tr => !tr.dataset.type);
+    const targetKey = subconNormKey(sv);
+    let lastInGroup = null;
+    realRows.forEach(tr => {
+      const rowSv = _rowSubcon(tr) ?? '';
+      if (subconNormKey(rowSv) !== targetKey) return;
+      if (pt) {
+        const rowPt = tr.querySelector('[data-field="pt"]')?.value || '';
+        if (rowPt !== pt) return;
+      }
+      lastInGroup = tr;
+    });
+    let newId;
+    if (lastInGroup) {
+      newId = addRowAfter(lastInGroup.id.replace('row-', ''));
+    } else {
+      addRow();
+      const all = Array.from(tbody.querySelectorAll('tr:not([data-virtual])')).filter(tr => !tr.dataset.type);
+      newId = all.length ? all[all.length - 1].id.replace('row-', '') : null;
+    }
+    if (!newId) return null;
+    // 値フィールド＋行フラグ（実費/PROFIT SHARE/都度/0円確認）を複製。sv/pt はコピー先の値
+    const COPY_VALS = ['cat','nm','pq','un','bq','pc','bc','pp','bp','mk','nt','vf','vt','ac','ps','co','zc'];
+    COPY_VALS.forEach(f => {
+      const s = document.getElementById(`${f}-${sid}`);
+      const d = document.getElementById(`${f}-${newId}`);
+      if (s && d) d.value = s.value;
+    });
+    const stx = document.getElementById(`tx-${sid}`);
+    const dtx = document.getElementById(`tx-${newId}`);
+    if (stx && dtx) dtx.checked = stx.checked;
+    const svEl = document.getElementById(`sv-${newId}`);
+    if (svEl) svEl.value = sv || '';
+    const ptEl = document.getElementById(`pt-${newId}`);
+    if (ptEl) ptEl.value = pt || '';
+    if (typeof toggleTax === 'function') toggleTax(newId);
+    if (typeof checkUnfilled === 'function') checkUnfilled(newId);
+    if (typeof onCatChange === 'function') onCatChange(newId);
+    onPay(newId);
+    renderSubconGroups();
+    if (typeof updateTotals === 'function') updateTotals();
+    return newId;
+  }
+  window.copyRowToSubconGroup = copyRowToSubconGroup;
   window.addRowToSubconGroup  = addRowToSubconGroup;
   window.toggleSubconGroup    = toggleSubconGroup;
   window.toggleSubconExclude  = toggleSubconExclude;
