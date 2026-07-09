@@ -7153,6 +7153,18 @@ body.qp-dash-active #quoteActionDock { display: none !important; }
 #tab-quote-make .qsp-dig-subjump:hover { background: #f3eada; border-color: #b89a5e; }
 #tab-quote-make .qsp-dig-subjump.is-subcon { font-weight: 700; }
 #tab-quote-make .qsp-dig-subjump.is-pattern { color: #6b5a3f; padding-left: 14px; }
+/* 明細行（level 2）：さらにインデント・控えめな見た目 */
+#tab-quote-make .qsp-dig-subjump.is-detail {
+  color: #7a6a52; background: transparent; border-color: transparent;
+  font-size: 10.5px; padding: 2px 7px 2px 24px;
+}
+#tab-quote-make .qsp-dig-subjump.is-detail:hover { background: #f3eada; border-color: #d8c9ad; }
+#tab-quote-make .qsp-dig-subjump.is-detail .qsp-dig-row-nm {
+  flex: 1 1 0; min-width: 0; overflow: hidden; text-overflow: ellipsis;
+}
+#tab-quote-make .qsp-dig-subjump.is-detail .qsp-dig-grp-sum {
+  color: #6a5a45; background: transparent; font-weight: 600; padding: 0;
+}
 #tab-quote-make .qsp-dig-grp-sum {
   flex-shrink: 0; font-size: 10px; font-weight: 700; color: #2a5e8a;
   background: #e8f0f8; border-radius: 3px; padding: 1px 4px;
