@@ -2602,6 +2602,8 @@
       set('un-', ch.unit  || '');
       set('pp-', ch.amount != null ? ch.amount : '');
       set('bp-', ch.amount != null ? ch.amount : '');
+      if (ch.vf) set('vf-', ch.vf);
+      if (ch.vt) set('vt-', ch.vt);
       // 通貨を両欄に適用
       const pcEl = document.getElementById('pc-' + id);
       if (pcEl) pcEl.value = ch.currency || lastCur;

@@ -853,12 +853,32 @@
     if (!filtered.length) { list.innerHTML = '<p class="lc-empty">該当なし</p>'; _updatePickCount(); return; }
 
     let h = '';
+    const today = new Date().toISOString().slice(0, 10);
     filtered.forEach(c => {
       const chk = _selected.has(c.id) ? 'checked' : '';
-      h += `<label class="lc-pick-row${_selected.has(c.id) ? ' selected' : ''}">` +
+      const st  = _lcStatus(c);
+      const isExpired = st.key === 'red';
+      // 名称列：name + full_name + サブコン名
+      const carrierHtml = c.carrier
+        ? `<span class="lc-pick-carrier">🏢 ${_esc(c.carrier)}</span>` : '';
+      // 適用期間
+      let periodHtml = '';
+      if (c.valid_from || c.valid_to) {
+        const from = c.valid_from ? _fmtDate(c.valid_from) : '';
+        const to   = c.valid_to   ? _fmtDate(c.valid_to)   : '';
+        periodHtml = `<span class="lc-pick-period">📅 ${from}〜${to}${st.badge}</span>`;
+      } else if (st.badge) {
+        periodHtml = `<span class="lc-pick-period">${st.badge}</span>`;
+      }
+      // 港・pod
+      const portStr = [_lcPlacesSummary(c.pol||c.port), _lcPlacesSummary(c.pod)].filter(Boolean).join(' → ');
+      const portHtml = portStr ? `<span class="lc-pick-ports">${_esc(portStr)}</span>` : '';
+      const descHtml = c.description
+        ? `<span class="lc-pick-desc">${_esc(c.description.slice(0, 80))}${c.description.length > 80 ? '…' : ''}</span>` : '';
+      h += `<label class="lc-pick-row${_selected.has(c.id) ? ' selected' : ''}${isExpired ? ' is-expired' : ''}">` +
            `<input type="checkbox" class="lc-pick-chk" value="${c.id}" ${chk} onchange="lcPickToggle('${c.id}')">` +
-           `<span class="lc-pick-name">${_esc(c.name)}${c.full_name ? `<span class="lc-pick-fullname">${_esc(c.full_name)}</span>` : ''}</span>` +
-           `<span class="lc-pick-meta">${_esc([_lcPlacesSummary(c.pol||c.port), _lcPlacesSummary(c.pod), c.carrier].filter(Boolean).join(' / ') || '')}${c.description ? `<span class="lc-pick-desc">${_esc(c.description.slice(0, 60))}${c.description.length > 60 ? '…' : ''}</span>` : ''}</span>` +
+           `<span class="lc-pick-name">${_esc(c.name)}${c.full_name ? `<span class="lc-pick-fullname">${_esc(c.full_name)}</span>` : ''}${carrierHtml}</span>` +
+           `<span class="lc-pick-meta">${portHtml}${periodHtml}${descHtml}</span>` +
            `<span class="lc-pick-amt">${_fmtAmt(c.amount, c.currency)}${c.unit ? ' / ' + _esc(c.unit) : ''}</span>` +
            `</label>`;
     });
@@ -893,6 +913,8 @@
         sv:       c.carrier || '',
         note:     c.note,
         tx:       !!c.taxable,
+        vf:       c.valid_from || '',
+        vt:       c.valid_to   || '',
       })));
     }
     lcClosePicker();
