@@ -3294,7 +3294,8 @@
     // 下部3セクションの要約を計算（ヘッダー要約スパンにも反映）
     const rowsCount = document.querySelectorAll('#tableBody tr [data-field="nm"]').length;
     const totSell = (document.getElementById('tot-subtotal')?.textContent || '').trim();
-    const tableSum = rowsCount ? (rowsCount + '項目' + (totSell && totSell !== '—' ? ' / 売 ' + totSell : '')) : '';
+    const marginTxt = (document.getElementById('tot-profit')?.querySelector('.tot-margin')?.textContent || '').trim();
+    const tableSum = rowsCount ? (rowsCount + '項目' + (totSell && totSell !== '—' ? ' / 売 ' + totSell : '') + (marginTxt ? ' / ' + marginTxt : '')) : '';
     const remarkRaw = ((typeof getRemarkText === 'function' ? getRemarkText() : '') || '').trim();
     // 先頭3行までをプレビュー表示（残りは … で省略）
     const preview3 = (txt) => {
