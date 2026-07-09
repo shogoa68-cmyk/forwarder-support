@@ -2899,6 +2899,16 @@ body:has(#compareOverlay.open) #quoteActionDock { display: none; }
 .stats-sv-charge-table { margin: 0; border-top: 1px solid #e8ddd0; }
 .stats-sv-charge-table td { padding: 4px 8px; font-size: 12px; }
 .stats-sv-price { color: #4a3820; white-space: nowrap; }
+.stats-pt-badge {
+  display: inline-block;
+  font-size: 10px;
+  color: #7a6040;
+  background: #f5ede0;
+  border: 1px solid #e0d0b8;
+  border-radius: 8px;
+  padding: 1px 7px;
+  white-space: nowrap;
+}
 
 .stats-empty {
   color: #9a8a78;
