@@ -501,7 +501,8 @@
 #previewBox.layout-doc #pvScopeBox,
 #previewBox.layout-doc #pvRemarkBox,
 #previewBox.layout-doc #pvAuditMeta,
-#previewBox.layout-doc #pvCustomizeWrap { display: none !important; }
+#previewBox.layout-doc #pvCustomizeWrap,
+#previewBox.layout-doc .pv-btn-excel { display: none !important; }
 
 /* 発行日／有効期限 編集バー：御見積書(doc)レイアウトでのみ表示（表計算は pvMeta 内に同等入力あり） */
 #previewBox #pvDateEdit { display: none; }
@@ -3509,7 +3510,7 @@
 #tab-quote-make #previewBox {
   background: #fff; border-radius: 10px;
   box-shadow: 0 8px 40px rgba(0,0,0,0.25);
-  padding: 0; width: 100%; max-width: 1180px;
+  padding: 0; width: min(98vw, 1640px); max-width: min(98vw, 1640px);
   display: flex; max-height: 92vh; overflow: hidden;
 }
 #tab-quote-make #previewBox h2 {
