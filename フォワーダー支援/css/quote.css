@@ -7160,6 +7160,14 @@ body.qp-dash-active #quoteActionDock { display: none !important; }
 }
 #tab-quote-make .qsp-dig-grp-item.is-excluded .qsp-dig-grp-sum { opacity: 0.45; }
 /* 折りたたみボタン */
+/* ＋ 行追加ボタン（QSPパネル ツリー） */
+#tab-quote-make .qsp-dig-grp-add {
+  flex-shrink: 0; cursor: pointer; font-family: inherit; font-size: 11px; font-weight: 700;
+  color: #2a6a2a; background: #e8f5e8; border: 1px solid #8fcc8f;
+  border-radius: 3px; padding: 2px 5px; line-height: 1;
+  transition: background .1s;
+}
+#tab-quote-make .qsp-dig-grp-add:hover { background: #c8e8c8; }
 #tab-quote-make .qsp-dig-grp-collapse {
   flex-shrink: 0; cursor: pointer; font-family: inherit; font-size: 10px;
   color: #7a6040; background: #f5ede0; border: 1px solid #ddd0b8;
@@ -8493,6 +8501,16 @@ button.um-memberno--empty:hover { background: #f4ead4; border-color: #cdb98e; }
   line-height:1.5;
 }
 #tab-quote-make .subcon-group-add-btn:hover { background:#f5ede0; }
+
+/* 小計行の ＋行追加ボタン（グループ末尾・パターン末尾共通） */
+#tab-quote-make .subcon-subtotal-add-btn {
+  flex-shrink: 0; margin-left: auto; cursor: pointer; font-family: inherit;
+  font-size: 11px; font-weight: 700; color: #2a6a2a;
+  background: #e8f5e8; border: 1px solid #8fcc8f;
+  border-radius: 4px; padding: 2px 8px; line-height: 1.4;
+  transition: background .1s; pointer-events: all;
+}
+#tab-quote-make .subcon-subtotal-add-btn:hover { background: #c8e8c8; }
 
 /* グループ内カテゴリソートボタン */
 #tab-quote-make .subcon-group-sort-btn {
