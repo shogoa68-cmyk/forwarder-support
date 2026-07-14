@@ -237,8 +237,23 @@
   }
 
   // 検索語・ステータス・詳細フィルターで絞り込んで描画
+  // 検索対象はカード表示と同じ導出値（data.fields 由来の仮REF#/顧客/担当/メモ/サブコン）＋DB列。
+  // DB列（name/customer/person）だけだと列昇格前の旧案件や仮REF#・表示名でヒットしない。
+  function _searchHayFor(r) {
+    if (r.__hay == null) {
+      const m = (window.quotePresetMeta && r.data) ? window.quotePresetMeta({ data: r.data }) : null;
+      r.__hay = [
+        r.name, r.customer, r.person, r.owner_email, r.created_by,
+        m && m.ref, m && m.customer, m && m.person, m && m.memo,
+        m && Array.isArray(m.subcons) && m.subcons.map(s => s.name).join(' '),
+      ].filter(Boolean).join(' ').toLowerCase();
+    }
+    // 表示名（プロフィール）は後追いロードされるためキャッシュに含めず毎回付加
+    const names = [_nameFor(r.owner_email), _nameFor(r.created_by)].filter(Boolean).join(' ').toLowerCase();
+    return r.__hay + (names ? ' ' + names : '');
+  }
   function _applyCloudFilter() {
-    const q   = _cloudSearch.trim().toLowerCase();
+    const terms = _cloudSearch.trim().toLowerCase().split(/[\s　]+/).filter(Boolean);
     const pol = _cloudFilterPol.trim().toLowerCase();
     const pod = _cloudFilterPod.trim().toLowerCase();
     const car = _cloudFilterCarrier.trim().toLowerCase();
@@ -249,9 +264,9 @@
       if (pol && !(r.pol     || '').toLowerCase().includes(pol)) return false;
       if (pod && !(r.pod     || '').toLowerCase().includes(pod)) return false;
       if (car && !(r.carrier || '').toLowerCase().includes(car)) return false;
-      if (!q) return true;
-      const hay = [r.name, r.customer, r.person, r.owner_email].filter(Boolean).join(' ').toLowerCase();
-      return hay.includes(q);
+      if (!terms.length) return true;
+      const hay = _searchHayFor(r);
+      return terms.every(t => hay.includes(t));   // スペース区切りで AND 検索
     });
     _renderCloudList(_sortCloudRows(rows));
   }

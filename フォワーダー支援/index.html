@@ -2077,7 +2077,7 @@
         <div class="qpd-stats" id="qpdStats"></div>
         <div class="qpd-tools">
           <div class="qpd-search-wrap">
-            <input type="text" id="qpdSearch" class="qpd-search" placeholder="🔍 案件名・お客様名・担当者で検索" oninput="cloudSearchInput(this.value)" />
+            <input type="text" id="qpdSearch" class="qpd-search" placeholder="🔍 REF#・案件名・お客様・担当者・メモ・サブコンで検索（スペースでAND）" oninput="cloudSearchInput(this.value)" />
             <button type="button" class="qpd-search-clear" id="qpdSearchClear" hidden onclick="qpdClearSearch()" title="検索をクリア">✕</button>
           </div>
           <div class="qpd-tools-row">
@@ -2309,7 +2309,7 @@
             </div>
             <div class="cloud-search-row">
               <input type="text" class="cloud-search-input" id="cloudSearchInput"
-                     placeholder="🔍 検索（案件名・お客様名・担当者）"
+                     placeholder="🔍 検索（REF#・案件名・お客様・担当者・メモ・サブコン）"
                      oninput="cloudSearchInput(this.value)" />
             </div>
             <div class="cloud-status-chips" id="cloudStatusChips"></div>
