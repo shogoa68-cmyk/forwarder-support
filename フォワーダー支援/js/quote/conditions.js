@@ -284,9 +284,10 @@
         return;
       }
       if (row && row._type === 'internal') {
-        insertInternalRow(null, { noFocus: true });
+        // 旧「社内メモ行」タイプ：リマーク行（社内メモ状態）として復元
+        insertRemarkRow(null, { internal: true, noFocus: true });
         const tr = tbody.lastElementChild;
-        const inp = tr?.querySelector('.internal-row-input');
+        const inp = tr?.querySelector('.remark-row-input');
         if (inp) inp.value = row.text || '';
         return;
       }
@@ -753,7 +754,8 @@
         return;
       }
       if (tr.dataset.type === 'internal') {
-        rows.push({ _type: 'internal', text: tr.querySelector('.internal-row-input')?.value || '' });
+        // 旧タイプ互換（現行コードでは生成されない）：リマーク行（社内メモ状態）として保存し正規化
+        rows.push({ _type: 'remark', text: tr.querySelector('.internal-row-input')?.value || '', internal: true });
         return;
       }
       const cells = [ tr.querySelector('.row-select-chk')?.checked ?? false ];
@@ -2156,9 +2158,10 @@ window.appendQuoteRows = function(rowObjects) {
       return;
     }
     if (row._type === 'internal') {
-      insertInternalRow(null, { noFocus: true });
+      // 旧「社内メモ行」タイプ：リマーク行（社内メモ状態）として復元
+      insertRemarkRow(null, { internal: true, noFocus: true });
       const tr = tbody.lastElementChild;
-      const inp = tr?.querySelector('.internal-row-input');
+      const inp = tr?.querySelector('.remark-row-input');
       if (inp) inp.value = row.text || '';
       return;
     }
