@@ -588,7 +588,7 @@
         const sellTxt = '¥' + fmtMoney(Math.round(d.bill)) + mark;
         const _ptStyle = 'background:#f0e8d8;border-top:1px dashed #c69a44;';
         html += `<tr class="pv-pattern-subtotal pv-grp-c${(d.gi ?? 0) % 4}">
-          <td colspan="12" class="pv-pts-label" style="${_ptStyle}text-align:right !important;">↳ ${escHtml(d.label)} 小計</td>
+          <td colspan="12" class="pv-pts-label" style="${_ptStyle}text-align:right !important;">↳ 小計</td>
           <td class="pv-num" style="${_ptStyle}">${sellTxt}</td>
           <td data-ft-col="jpy-conv" style="${_ptStyle}"></td>
           <td data-ft-col="tax-col" style="${_ptStyle}"></td>
