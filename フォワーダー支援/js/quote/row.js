@@ -1442,41 +1442,9 @@
     return result;
   }
 
-  // ========== 社内メモ行（出力対象外・独立行タイプ）==========
-  let internalCount = 0;
-  function insertInternalRow(afterId, opts) {
-    internalCount++;
-    const id = `internal-${internalCount}`;
-    const tr = document.createElement('tr');
-    tr.id = `row-${id}`;
-    tr.dataset.type = 'internal';
-    tr.className = 'internal-row';
-    tr.innerHTML = `
-      <td class="check-cell">
-        <input type="checkbox" class="row-select-chk" tabindex="-1" title="この行を選択（パターン保存・削除用）" style="width:13px;height:13px;cursor:pointer;margin:0;vertical-align:middle;" />
-      </td>
-      <td class="remark-drag-cell">
-        <span class="drag-handle" title="ドラッグして並び替え">⠿</span>
-      </td>
-      <td colspan="9" class="internal-row-cell">
-        <span class="internal-row-marker">🔒 社内メモ</span>
-        <input type="text" class="internal-row-input" placeholder="社内用メモ（プレビュー・PDF・CSV・Excel には出力されません）" />
-      </td>
-    `;
-    const tbody = document.getElementById('tableBody');
-    if (afterId) {
-      const afterRow = document.getElementById(`row-${afterId}`);
-      if (afterRow?.nextSibling) tbody.insertBefore(tr, afterRow.nextSibling);
-      else if (afterRow)         tbody.appendChild(tr);
-      else                       tbody.appendChild(tr);
-    } else {
-      tbody.appendChild(tr);
-    }
-    initSubtotalDrag(tr);
-    const inpI = tr.querySelector('.internal-row-input');
-    if (opts?.text) inpI.value = opts.text;
-    if (!opts?.noFocus && !opts?.text) inpI?.focus();
-  }
+  // ※ 旧「社内メモ行」（dataset.type='internal' の独立行タイプ）は廃止。
+  //   リマーク行の internal 状態（insertRemarkRow + {internal:true}）に一本化。
+  //   旧データの復元互換は conditions.js 側で remark 行へ変換する。
 
   // リマーク行：見積書に表示 ⇔ 社内メモ（見積書・PDF・メールに出力しない）の切替
   function applyRemarkInternalState(tr, internal) {
@@ -1622,7 +1590,8 @@
     if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
   }
   function toolbarInsertInternal() {
-    insertInternalRow(_toolbarInsertAfterId());
+    insertRemarkRow(_toolbarInsertAfterId(), { internal: true });
+    if (typeof updateTotals === 'function') updateTotals();
     if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
   }
 
@@ -1638,8 +1607,9 @@
   function rowInsertInternalBelow(id) {
     const nt = document.getElementById(`nt-${id}`);
     const text = nt ? nt.value.trim() : '';
-    insertInternalRow(id, text ? { text } : undefined);
+    insertRemarkRow(id, text ? { internal: true, text } : { internal: true });
     if (nt) { nt.value = ''; checkUnfilled(id); }
+    if (typeof updateTotals === 'function') updateTotals();
     if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
   }
 
