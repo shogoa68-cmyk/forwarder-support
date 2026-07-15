@@ -1050,18 +1050,30 @@
     qfRenderAttachments();
   }
 
-  // 検索ボックス入力
+  // 検索ボックス入力。空（空白のみ含む）になった時点で ✕ クリアと同じ扱いにする
   function cloudSearchInput(val) {
-    _cloudSearch = val || '';
+    if (!(val || '').trim()) { qpdClearSearch(); return; }
+    _cloudSearch = val;
+    _syncSearchInputs();
     const clr = document.getElementById('qpdSearchClear');
-    if (clr) clr.hidden = !_cloudSearch;
+    if (clr) clr.hidden = false;
     _applyCloudFilter();
+  }
+
+  // ダッシュボード／チーム共有モーダルの検索窓を同期（入力中の窓は触らず IME を壊さない）
+  function _syncSearchInputs() {
+    ['qpdSearch', 'cloudSearchInput'].forEach(id => {
+      const e = document.getElementById(id);
+      if (e && e !== document.activeElement && e.value !== _cloudSearch) e.value = _cloudSearch;
+    });
   }
 
   function qpdClearSearch() {
     _cloudSearch = '';
-    const inp = document.getElementById('qpdSearch');
-    if (inp) inp.value = '';
+    ['qpdSearch', 'cloudSearchInput'].forEach(id => {
+      const e = document.getElementById(id);
+      if (e) e.value = '';
+    });
     const clr = document.getElementById('qpdSearchClear');
     if (clr) clr.hidden = true;
     _applyCloudFilter();

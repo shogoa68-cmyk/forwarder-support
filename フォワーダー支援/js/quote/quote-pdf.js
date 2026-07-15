@@ -256,7 +256,8 @@
     let _ptActive = false, _ptKey = null, _ptJpy = 0, _ptHas = false;
     const _ptPush = () => {
       if (_ptActive && _ptHas) {
-        lineHTML.push(`<tr class="qd-pattern-sub"><td colspan="4">↳ 📋 ${esc(_ptKey || '（未設定）')} 小計</td><td class="qd-num">¥${fmtInt(_ptJpy)}</td></tr>`);
+        // パターン名は見出し行に表示済みのため、小計行では繰り返さず「小計」のみ
+        lineHTML.push(`<tr class="qd-pattern-sub"><td colspan="4">↳ 小計</td><td class="qd-num">¥${fmtInt(_ptJpy)}</td></tr>`);
       }
       _ptJpy = 0; _ptHas = false;
     };
