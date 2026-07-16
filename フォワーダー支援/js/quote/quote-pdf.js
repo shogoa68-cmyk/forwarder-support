@@ -285,7 +285,8 @@
       // 消費税は行ごとに切り上げて積み上げ、各出力経路（御見積書/プレビュー/Excel）で一致させる。
       const isActual = r._actual;   // 実費（金額未確定・合計除外・単価/金額は「実費」表示）
       const isCond   = r._cond;     // 都度請求（発生時のみ・金額は表示・合計に加算しない）
-      if (!isActual && !isCond) {
+      const isRef    = r._ref;      // 参考情報（金額は表示・合計に加算しない）
+      if (!isActual && !isCond && !isRef) {
         if (r.taxed && (r.bc || 'JPY') === 'JPY') {
           taxableSub += jpy;
           taxSum += Math.ceil(jpy * taxRate);
@@ -320,7 +321,7 @@
           _ptActive = ps.size >= 2 || (ps.size === 1 && !ps.has(''));
           _ptKey = null; _ptJpy = 0; _ptHas = false;
         }
-        _scJpy += ((isActual || isCond) ? 0 : jpy); _scHas = true;   // 実費・都度請求は小計に含めない
+        _scJpy += ((isActual || isCond || isRef) ? 0 : jpy); _scHas = true;   // 実費・都度請求・参考情報は小計に含めない
       } else {
         // サブコンが1社のみの場合もパターン表示を判定（初回のみ）
         if (_ptKey === null) {
@@ -338,7 +339,7 @@
           lineHTML.push(`<tr class="qd-pattern-head"><td colspan="5">📋 ${esc(_ptKey || '（パターン未設定）')}</td></tr>`);
           _catKey = null;
         }
-        if (!isActual && !isCond) _ptJpy += jpy;
+        if (!isActual && !isCond && !isRef) _ptJpy += jpy;
         _ptHas = true;
       }
       // カテゴリー境界：サブコン配下でカテゴリが変わったら見出し行を挿入（ツリー第2階層）
@@ -357,9 +358,11 @@
         return ` <span class="qd-validity">${esc(range)}</span>`;
       })();
       const condNote = isCond ? ' <span class="qd-cond-note" style="color:#8a5a00;font-size:11px;font-weight:600;">（発生時/必要時のみ）</span>' : '';
+      const refNote  = isRef  ? ' <span class="qd-ref-note" style="color:#3a5a80;font-size:11px;font-weight:600;">（参考情報）</span>' : '';
+      const rowCls = isCond ? ' class="qd-cond-row"' : isRef ? ' class="qd-ref-row"' : '';
       lineHTML.push(
-        `<tr${isCond ? ' class="qd-cond-row"' : ''}>
-          <td class="qd-item qd-l3">${r.taxed ? '<span class="qd-tax">*</span> ' : ''}${esc(_taxName(r.name, r.taxed))}${validBadge}${condNote}</td>
+        `<tr${rowCls}>
+          <td class="qd-item qd-l3">${r.taxed ? '<span class="qd-tax">*</span> ' : ''}${esc(_taxName(r.name, r.taxed))}${validBadge}${condNote}${refNote}</td>
           <td class="qd-num">${qtyDisp}</td>
           <td class="qd-ctr">${esc(r.un || '')}</td>
           <td class="qd-num">${unitDisp}</td>
