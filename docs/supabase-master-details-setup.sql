@@ -9,7 +9,7 @@
 
 CREATE TABLE IF NOT EXISTS master_details (
   id          uuid        PRIMARY KEY DEFAULT gen_random_uuid(),
-  field       text        NOT NULL CHECK (field IN ('customer', 'nm')),
+  field       text        NOT NULL CHECK (field IN ('customer', 'nm', 'sv', 'carrier', 'port')),
   value       text        NOT NULL,            -- マスター値（お客様名称 / 品名）
   details     jsonb       NOT NULL DEFAULT '{}'::jsonb,
   created_by  text,
@@ -45,3 +45,13 @@ CREATE TRIGGER master_details_updated_at
   FOR EACH ROW EXECUTE FUNCTION set_master_details_updated_at();
 
 CREATE INDEX IF NOT EXISTS idx_master_details_field_value ON master_details(field, value);
+
+
+-- ============================================================
+-- 既存 master_details テーブルの CHECK 制約に sv/carrier/port を追加
+--   （ふりがな登録をサブコン・キャリア・港マスターにも拡張する修正。
+--     初回セットアップ時に上の CREATE TABLE を実行済みの場合はこちらも実行すること）
+-- ============================================================
+ALTER TABLE master_details DROP CONSTRAINT IF EXISTS master_details_field_check;
+ALTER TABLE master_details
+  ADD CONSTRAINT master_details_field_check CHECK (field IN ('customer', 'nm', 'sv', 'carrier', 'port'));
