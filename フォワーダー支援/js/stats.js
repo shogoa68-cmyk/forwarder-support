@@ -1204,9 +1204,7 @@
         const delAlias = (a) => isUnit
           ? `statsUnitRemoveAlias('${_ea(a)}','${_ea(g.canonical)}')`
           : `synRemoveAlias('${_ea(g.field)}','${_ea(a)}','${_ea(g.canonical)}')`;
-        const delGroup = isUnit
-          ? `statsUnitRemoveGroup('${_ea(g.canonical)}')`
-          : `synRemoveGroup('${_ea(g.field)}','${_ea(g.canonical)}')`;
+        const delGroup = `statsConfirmRemoveGroup('${_ea(g.field)}','${_ea(g.canonical)}')`;
         const chips = aliases.length
           ? aliases.map(a => `<span class="stats-syn-member">${_esc(a)}<button class="ua-chip-del" title="統合解除" onclick="${delAlias(a)}">✕</button></span>`).join('')
           : '<span class="stats-empty-cell">—</span>';
@@ -1279,6 +1277,29 @@
   window.statsUnitRemoveAlias = function (alias, canonical) {
     if (typeof window.uaRemoveAlias === 'function') window.uaRemoveAlias(alias, canonical);
     if (typeof window.statsRerenderActive === 'function') window.statsRerenderActive();
+  };
+
+  // 同義グループの「解除」：誤クリック防止のため、影響内容を明示した確認ダイアログを挟む
+  window.statsConfirmRemoveGroup = async function (field, canonical) {
+    const isUnit = field === 'un';
+    const g = isUnit
+      ? (typeof window.uaGetGroups === 'function' ? window.uaGetGroups() : []).find(x => x.canonical === canonical)
+      : (typeof window.synGetGroups === 'function' ? window.synGetGroups(field) : []).find(x => x.canonical === canonical);
+    const aliases = (g && g.aliases) || [];
+    const aliasInfo = aliases.length
+      ? `統合されている ${aliases.length} 件の表記（${aliases.slice(0, 5).join('、')}${aliases.length > 5 ? ' ほか' : ''}）の統合が外れ、`
+      : '';
+    if (!confirm(
+      `⭐「${canonical}」の同義グループを解除しますか？\n\n` +
+      `${aliasInfo}件数の合算・入力補完への反映が無効になります。\n` +
+      `（見積データそのものは削除されません。再度 ⭐代表 / ⤵統合 で作り直せます）`
+    )) return;
+    if (isUnit) {
+      if (typeof window.uaRemoveGroup === 'function') window.uaRemoveGroup(canonical);
+      if (typeof window.statsRerenderActive === 'function') window.statsRerenderActive();
+    } else if (typeof window.synRemoveGroup === 'function') {
+      await window.synRemoveGroup(field, canonical);
+    }
   };
 
   // マスター管理: 代表を新規登録（実データに無い名称も可）
