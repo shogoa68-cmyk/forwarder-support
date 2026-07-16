@@ -226,7 +226,7 @@
         const taxMark = it.taxed ? '［課税］' : '';
         const condMark = (it.cond ? '（発生時/必要時のみ）' : '') + (it.ref ? '（参考情報）' : '');
         const qtyUnit = fmtQty(it.qty) + (it.unit ? ' ' + it.unit : '');
-        const pricing = it.actual ? '実費' : (qtyUnit + ' × ' + fmtAmt(it.price, it.ccy) + ' ＝ ' + fmtAmt(it.amount, it.ccy));
+        const pricing = it.actual ? '実費' : (qtyUnit + ' × ' + fmtAmt(it.price, it.ccy) + ' ＝ ' + (it.ref ? '(' + fmtAmt(it.amount, it.ccy) + ')' : fmtAmt(it.amount, it.ccy)));
         const notePart = it.note ? '※' + it.note : '';
         out.push('  ・' + [it.name + condMark, taxMark, pricing, notePart].filter(Boolean).join('  '));
       });
@@ -321,7 +321,7 @@ ${inner}
           + `<td style="${cell}${numC}">${fmtQty(it.qty)}</td>`
           + `<td style="${cell}${ctrC}">${escH(it.unit)}</td>`
           + `<td style="${cell}${numC}">${it.actual ? '実費' : fmtAmt(it.price, it.ccy)}</td>`
-          + `<td style="${cell}${numC}">${it.actual ? '実費' : fmtAmt(it.amount, it.ccy)}</td>`
+          + `<td style="${cell}${numC}">${it.actual ? '実費' : it.ref ? `<span style="color:#8a95a5;">(${fmtAmt(it.amount, it.ccy)})</span>` : fmtAmt(it.amount, it.ccy)}</td>`
           + (hasNote ? `<td style="${cell}${lblC}font-size:12px;color:#666;">${escH(it.note)}</td>` : '')
           + `</tr>`);
       });

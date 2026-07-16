@@ -1528,6 +1528,8 @@
 /* プレビュー：都度請求の客先注記 */
 #tab-quote-make .pv-cond-note { color: #8a5a00; font-size: 10.5px; font-weight: 700; margin-left: 4px; white-space: nowrap; }
 #tab-quote-make .pv-ref-note { color: #3a5a80; font-size: 10.5px; font-weight: 700; margin-left: 4px; white-space: nowrap; }
+/* 参考情報行の金額：括弧書き＋グレー（合計外の参考値であることを示す） */
+#tab-quote-make .pv-ref-amt { color: #8a95a5; }
 /* プレビュー：実費テキスト */
 #tab-quote-make .pv-actual-txt { color: #3a45a0; font-weight: 700; }
 

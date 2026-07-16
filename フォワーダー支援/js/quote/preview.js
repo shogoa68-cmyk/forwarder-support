@@ -659,8 +659,13 @@
       const cdCell   = _ac ? '' : fmtMoney(d.cd);
       const bpCell   = _ac ? _acTxt : fmtMoney(d.bp);
       const mkCell   = _ac ? '' : fmtMoney(d.mk);
-      const subCell  = _ac ? _acTxt : (fmtMoney(sub) + subJpyHint);
-      const jpyCell2 = _ac ? '' : jpyCellText;
+      // 参考情報行の金額は括弧書き＋グレーで「合計外の参考値」であることを示す
+      const subCell  = _ac ? _acTxt
+        : d._ref ? `<span class="pv-ref-amt">(${fmtMoney(sub)})</span>${subJpyHint}`
+        : (fmtMoney(sub) + subJpyHint);
+      const jpyCell2 = _ac ? ''
+        : (d._ref && jpyCellText !== '—') ? `<span class="pv-ref-amt">(${jpyCellText})</span>`
+        : jpyCellText;
       const taxCell2 = _ac ? '' : taxCellText;
       const prCell   = _ac ? '—' : (fmtMoney(d.profit) + prJpyHint);
       // 都度請求（発生時/必要時のみ）・参考情報：客先にも金額は出すが合計外。客先向け注記を付ける
