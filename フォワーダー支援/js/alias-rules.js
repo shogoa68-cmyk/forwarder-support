@@ -616,6 +616,41 @@
     else _dismissSuggest();
   });
 
+  // === 入力中の候補並び替え：読み（ふりがな）・名称が前方一致する候補を datalist 先頭へ ===
+  // Chrome 系の datalist ドロップダウンは option の DOM 順で表示されるため、
+  // 入力のたびに「前方一致 → 部分一致 → その他」の順に option を並べ替える。
+  // （例: 「か」入力時、かいじょううんちん（海上運賃）を ゆしゅつつうかんりょう より先頭に）
+  document.addEventListener('input', function (e) {
+    const t = e.target;
+    if (!t || t.tagName !== 'INPUT') return;
+    const listId = t.getAttribute('list');
+    const field = _LIST_FIELD[listId];
+    if (!field) return;
+    if (!t.closest || !t.closest('#tab-quote-make')) return;
+    const dl = document.getElementById(listId);
+    if (!dl) return;
+    const norm = s => _toHira(s).toLowerCase();
+    const q = norm(t.value);
+    if (!q) return;
+    const opts = Array.from(dl.children).filter(o => o.tagName === 'OPTION');
+    const rank = o => {
+      const val = norm(o.value);
+      const lab = norm(o.label || '');
+      if (val.startsWith(q) || (lab && lab.startsWith(q))) return 0;  // 前方一致
+      if (val.includes(q) || (lab && lab.includes(q))) return 1;      // 部分一致
+      return 2;
+    };
+    const ranked = opts.map((o, i) => ({ o, i, r: rank(o) }));
+    // 既に並び順が正しければ DOM を触らない（ドロップダウンのちらつき防止）
+    let needSort = false;
+    for (let k = 1; k < ranked.length; k++) {
+      if (ranked[k].r < ranked[k - 1].r) { needSort = true; break; }
+    }
+    if (!needSort) return;
+    ranked.sort((a, b) => a.r - b.r || a.i - b.i);
+    ranked.forEach(x => dl.appendChild(x.o));
+  });
+
 
   const UA_KEY = 'unitAlias_v1';
   function _loadUA()  { try { return JSON.parse(localStorage.getItem(UA_KEY) || '[]'); } catch(e) { return []; } }
