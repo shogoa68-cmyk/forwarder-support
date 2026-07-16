@@ -485,10 +485,11 @@
       });
 
       let ck = null, clabel = null, cc = 0, cb = 0, cm = false, has = false, gi = -1;
-      let pk = null, plabel = null, pc = 0, pb = 0, pm = false, phas = false, _ptActive = false;
+      let pk = null, plabel = null, pc = 0, pb = 0, pm = false, phas = false, _ptActive = false, _ptSubOn = false;
 
       const pushPat = () => {
-        if (phas) _seq.push({ _type: 'pattern-subtotal', label: plabel, cost: pc, bill: pb, mixed: pm, gi });
+        // パターン小計は2パターン以上のときだけ出す（1つだと直後のサブコン小計と同額で冗長）
+        if (phas && _ptSubOn) _seq.push({ _type: 'pattern-subtotal', label: plabel, cost: pc, bill: pb, mixed: pm, gi });
         pc = 0; pb = 0; pm = false; phas = false;
       };
       const pushSub = () => {
@@ -509,6 +510,7 @@
             ck = k; clabel = _scLabel(d); gi++;
             _ptActive = scPatternSets[k].size >= 2 ||
                         (scPatternSets[k].size === 1 && !scPatternSets[k].has(''));
+            _ptSubOn  = scPatternSets[k].size >= 2;
             _seq.push({ _type: 'subcon-header', label: clabel, normKey: ck, gi });
           }
           // パターン境界でサブグループヘッダー挿入

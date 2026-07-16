@@ -253,9 +253,11 @@
     const _scActive = (new Set(data.map(_scNorm)).size >= 2);
     let _scKey = null, _scLabel = null, _scJpy = 0, _scHas = false;
     let _catKey = null;   // サブコン内の現在カテゴリ（サブコンが変わると null にリセット）
-    let _ptActive = false, _ptKey = null, _ptJpy = 0, _ptHas = false;
+    let _ptActive = false, _ptSubOn = false, _ptKey = null, _ptJpy = 0, _ptHas = false;
     const _ptPush = () => {
-      if (_ptActive && _ptHas) {
+      // パターン小計はサブコン内に2パターン以上あるときだけ出す
+      // （1パターンのみだと直後のサブコン小計と同額の小計行が2行並び冗長）
+      if (_ptActive && _ptSubOn && _ptHas) {
         // パターン名は見出し行に表示済みのため、小計行では繰り返さず「小計」のみ
         lineHTML.push(`<tr class="qd-pattern-sub"><td colspan="4">↳ 小計</td><td class="qd-num">¥${fmtInt(_ptJpy)}</td></tr>`);
       }
@@ -319,6 +321,7 @@
           _catKey = null;   // 新しいサブコンに入ったのでカテゴリ見出しを再出させる
           const ps = scPatternSets[k] || new Set();
           _ptActive = ps.size >= 2 || (ps.size === 1 && !ps.has(''));
+          _ptSubOn  = ps.size >= 2;
           _ptKey = null; _ptJpy = 0; _ptHas = false;
         }
         _scJpy += ((isActual || isCond || isRef) ? 0 : jpy); _scHas = true;   // 実費・都度請求・参考情報は小計に含めない
@@ -328,6 +331,7 @@
           const k = _scNorm(r);
           const ps = scPatternSets[k] || new Set();
           _ptActive = ps.size >= 2 || (ps.size === 1 && !ps.has(''));
+          _ptSubOn  = ps.size >= 2;
         }
       }
       // パターン境界：キーが変わったら直前パターンの売値小計を挿入
