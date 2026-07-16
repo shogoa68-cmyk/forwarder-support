@@ -264,11 +264,18 @@
       const fromSyn = (typeof window.synGetGroups === 'function' ? window.synGetGroups(field) : [])
         .flatMap(g => [g.canonical, ...(g.aliases || [])]);
       const all = [...new Set([...fromRules, ...fromMaster, ...fromAbbrev, ...fromSyn])];
+      // マスター詳細のふりがなを option label に反映（読みひらがな入力でも候補にヒット）
+      const furi = {};
+      (typeof window.mdGetAll === 'function' ? window.mdGetAll(field) : []).forEach(m => {
+        const f = ((m.details || {}).furigana || '').trim();
+        if (f) furi[m.value] = f;
+      });
       // datalist 内の動的 option（data-master）だけを入れ替える
       dl.querySelectorAll('option[data-master]').forEach(o => o.remove());
       all.forEach(v => {
         const o = document.createElement('option');
         o.value = v;
+        if (furi[v]) o.label = furi[v];
         o.dataset.master = '1';
         dl.appendChild(o);
       });
@@ -589,6 +596,21 @@
     const field = _LIST_FIELD[t.getAttribute('list')];
     if (!field) return;
     if (!t.closest || !t.closest('#tab-quote-make')) return;   // 見積タブ内のみ
+    // ふりがな（読み）そのままの確定 → マスター値に自動変換（例: かいじょううんちん → 海上運賃）
+    // ※ 同期変換すると sv 欄では renderSubconGroups の DOM 並べ替え中に再発火した change が
+    //    レンダリングと競合するため、setTimeout で描画完了後に変換する
+    const fv = (typeof window.mdValueForFurigana === 'function') ? window.mdValueForFurigana(field, t.value) : null;
+    if (fv && fv !== t.value) {
+      const orig = t.value;
+      setTimeout(() => {
+        if (t.value !== orig) return;  // 変換待ちの間にユーザーが編集していたら何もしない
+        t.value = fv;
+        t.dispatchEvent(new Event('input',  { bubbles: true }));
+        t.dispatchEvent(new Event('change', { bubbles: true }));  // nm オートフィル・グループ再描画等を連動（変換後は再変換されない）
+        if (typeof window.quoteShowToast === 'function') window.quoteShowToast('🔤 ふりがなから「' + fv + '」に変換しました', 'info', 2000);
+      }, 0);
+      return;
+    }
     const canon = _canonicalFor(field, t.value);
     if (canon) _showSynSuggest(t, canon);
     else _dismissSuggest();
@@ -841,8 +863,10 @@
   }
 
   // === マスター詳細情報（種別ごとの追加項目・非破壊・クラウド共有 + ローカルフォールバック） ===
-  //   対象フィールド: customer（担当/所在地/メイン商材/仕向国輸入国/傾向/社内メモ）
-  //                 nm（デフォルト単位/デフォルト備考）
+  //   対象フィールド: customer（ふりがな/担当/所在地/メイン商材/仕向国輸入国/傾向/社内メモ）
+  //                 nm（ふりがな/デフォルト単位/デフォルト備考）
+  //                 sv / carrier / port（ふりがなのみ）
+  //   ふりがなは datalist の option label に反映し、読み（ひらがな）でもサジェストにヒットする
   //   保存: cloud = master_details テーブル（チーム共有）、ローカル = masterDetails_v1
   //   形式: [{ field, value, details: {...} }]
   const MD_KEY   = 'masterDetails_v1';
@@ -850,8 +874,10 @@
   let _mdCloud = null;
   let _mdTableMissing = false;
 
+  const _FURIGANA_FIELD = { key: 'furigana', label: 'ふりがな', placeholder: '例）かいじょううんちん（読みで入力補完にヒットします）' };
   window.MD_SCHEMA = {
     customer: [
+      _FURIGANA_FIELD,
       { key: 'contact',     label: '担当' },
       { key: 'location',    label: '所在地' },
       { key: 'mainGoods',   label: 'メイン商材' },
@@ -860,9 +886,25 @@
       { key: 'memo',        label: '社内メモ', textarea: true },
     ],
     nm: [
+      _FURIGANA_FIELD,
       { key: 'defaultUnit', label: 'デフォルト単位' },
       { key: 'defaultNote', label: 'デフォルト備考' },
     ],
+    sv:      [_FURIGANA_FIELD],
+    carrier: [_FURIGANA_FIELD],
+    port:    [_FURIGANA_FIELD],
+  };
+
+  // カタカナ→ひらがな正規化（読み比較用）
+  function _toHira(s) {
+    return String(s || '').trim().replace(/[ァ-ヶ]/g, c => String.fromCharCode(c.charCodeAt(0) - 0x60));
+  }
+  // 入力値が登録済みふりがな（読み）と完全一致するマスター値を返す。なければ null。
+  window.mdValueForFurigana = function (field, input) {
+    const v = _toHira(input);
+    if (!v) return null;
+    const hit = _mdAll().find(m => m.field === field && _toHira((m.details || {}).furigana) === v);
+    return hit ? hit.value : null;
   };
 
   function _mdLoadLocal() {

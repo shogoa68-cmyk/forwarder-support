@@ -247,9 +247,9 @@
   // HTML value="" 属性用
   function _eav(s)  { return String(s || '').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
 
-  // マスター詳細情報の展開ボタン（customer/nm のみ対象）
+  // マスター詳細情報の展開ボタン（MD_SCHEMA に定義のある種別のみ対象）
   function _mdDetailBtn(field, value) {
-    if (field !== 'customer' && field !== 'nm') return '';
+    if (!(window.MD_SCHEMA && window.MD_SCHEMA[field])) return '';
     const has = typeof window.mdGet === 'function' && window.mdGet(field, value);
     return `<button class="stats-master-detail-btn${has ? ' has-detail' : ''}" ` +
            `title="${has ? '詳細情報を見る・編集' : '詳細情報を登録'}" ` +
@@ -1325,7 +1325,7 @@
       const id = 'md_' + s.key;
       return s.textarea
         ? `<label class="master-detail-label">${s.label}<textarea id="${id}" class="ar-input master-detail-textarea" rows="2">${_esc(details[s.key] || '')}</textarea></label>`
-        : `<label class="master-detail-label">${s.label}<input id="${id}" class="ar-input" type="text" value="${_eav(details[s.key] || '')}" /></label>`;
+        : `<label class="master-detail-label">${s.label}<input id="${id}" class="ar-input" type="text" value="${_eav(details[s.key] || '')}"${s.placeholder ? ` placeholder="${_eav(s.placeholder)}"` : ''} /></label>`;
     }).join('');
     const row = document.createElement('tr');
     row.className = 'stats-detail-row';
@@ -1349,6 +1349,7 @@
     if (typeof window.mdSave === 'function') await window.mdSave(field, value, details);
     if (typeof window.quoteShowToast === 'function') window.quoteShowToast('📇 詳細情報を保存しました', 'success');
     if (typeof window.mdRefreshCustomerBtn === 'function') window.mdRefreshCustomerBtn();
+    if (typeof window.arRefreshDatalist === 'function') window.arRefreshDatalist();  // ふりがなを入力補完へ即反映
     if (typeof window.statsRerenderActive === 'function') window.statsRerenderActive(); else _renderMaster();
   };
 
@@ -1357,6 +1358,7 @@
     if (typeof window.mdDelete === 'function') await window.mdDelete(field, value);
     if (typeof window.quoteShowToast === 'function') window.quoteShowToast('詳細情報を削除しました');
     if (typeof window.mdRefreshCustomerBtn === 'function') window.mdRefreshCustomerBtn();
+    if (typeof window.arRefreshDatalist === 'function') window.arRefreshDatalist();
     if (typeof window.statsRerenderActive === 'function') window.statsRerenderActive(); else _renderMaster();
   };
 
