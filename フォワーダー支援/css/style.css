@@ -3057,8 +3057,10 @@ body:has(#compareOverlay.open) #quoteActionDock { display: none; }
   border-radius: 8px;
   cursor: pointer;
   color: #b0584a;
+  /* 誤クリック防止：通常操作（統合・名称変更）から物理的に離す */
+  margin-left: 14px;
 }
-.ua-remove-canon:hover { background: #fdeaea; }
+.ua-remove-canon:hover { background: #fdeaea; border-color: #c0584a; }
 .ua-ops { white-space: nowrap; }
 .ua-set-canon {
   padding: 2px 8px;
