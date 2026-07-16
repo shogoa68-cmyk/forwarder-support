@@ -88,20 +88,21 @@
       if (r._type !== 'data') return;
       const isActual = r._actual;   // 実費（金額未確定・合計除外・「実費」表示）
       const isCond   = r._cond;     // 都度請求（発生時のみ・金額は表示・合計に加算しない）
+      const isRef    = r._ref;      // 参考情報（金額は表示・合計に加算しない）
       const qty = r.bq || 0, price = r.bp || 0;
       const sub = qty * price;
       const jpy = isActual ? 0 : Math.ceil(toJPYx(sub, r.bc || 'JPY'));
-      if (!isActual && !isCond) {
+      if (!isActual && !isCond && !isRef) {
         if (r.bc && r.bc !== 'JPY') hasFx = true;
         if (r.taxed) taxableSub += jpy; else exemptSub += jpy;
         zoneSum += jpy;
       }
-      // 明細行（名前か金額があるもの、または実費・都度行）
-      if (r.name || sub || isActual || isCond) {
+      // 明細行（名前か金額があるもの、または実費・都度・参考行）
+      if (r.name || sub || isActual || isCond || isRef) {
         curItems.push({
           name: r.name || '', qty, unit: r.un || '', ccy: r.bc || 'JPY',
           price, amount: sub, note: r.note || '', taxed: !!r.taxed, cat: r.cat || '',
-          actual: isActual, cond: isCond,
+          actual: isActual, cond: isCond, ref: isRef,
         });
       }
     });
@@ -223,7 +224,7 @@
       out.push('《' + g.label + '》');
       g.items.forEach(it => {
         const taxMark = it.taxed ? '［課税］' : '';
-        const condMark = it.cond ? '（発生時/必要時のみ）' : '';
+        const condMark = (it.cond ? '（発生時/必要時のみ）' : '') + (it.ref ? '（参考情報）' : '');
         const qtyUnit = fmtQty(it.qty) + (it.unit ? ' ' + it.unit : '');
         const pricing = it.actual ? '実費' : (qtyUnit + ' × ' + fmtAmt(it.price, it.ccy) + ' ＝ ' + fmtAmt(it.amount, it.ccy));
         const notePart = it.note ? '※' + it.note : '';
@@ -316,7 +317,7 @@ ${inner}
       body.push(`<tr><td colspan="${cols}" style="padding:6px 8px;font-size:12px;font-weight:700;background:#faf7ef;color:#5a4a35;border-bottom:1px solid #d9d2c4;">《${escH(g.label)}》</td></tr>`);
       g.items.forEach(it => {
         body.push(`<tr>`
-          + `<td style="${cell}${lblC}">${it.taxed ? '<span style="color:#b03030;">*</span> ' : ''}${escH(it.name)}${it.cond ? '<span style="color:#9a6a1e;font-size:11px;">（発生時/必要時のみ）</span>' : ''}</td>`
+          + `<td style="${cell}${lblC}">${it.taxed ? '<span style="color:#b03030;">*</span> ' : ''}${escH(it.name)}${it.cond ? '<span style="color:#9a6a1e;font-size:11px;">（発生時/必要時のみ）</span>' : ''}${it.ref ? '<span style="color:#3a5a80;font-size:11px;">（参考情報）</span>' : ''}</td>`
           + `<td style="${cell}${numC}">${fmtQty(it.qty)}</td>`
           + `<td style="${cell}${ctrC}">${escH(it.unit)}</td>`
           + `<td style="${cell}${numC}">${it.actual ? '実費' : fmtAmt(it.price, it.ccy)}</td>`

@@ -1468,6 +1468,18 @@
 /* 都度請求の行：琥珀（オレンジ）アクセント。金額は通常表示・合計外 */
 #tab-quote-make tr.row-conditional > td.handle-cell { box-shadow: inset 3px 0 0 #d99a2b; }
 #tab-quote-make tr.row-conditional > td { background: #fffaf0; }
+/* 参考情報トグル＋行（金額は通常表示・合計外。都度とは別目的） */
+#tab-quote-make .ref-info-btn {
+  display: inline-block; margin-top: 3px; padding: 1px 6px;
+  font-size: 10px; line-height: 1.5; border: 1px solid #c4b49a; border-radius: 3px;
+  background: transparent; color: #c4b49a; cursor: pointer; font-family: inherit;
+  transition: all 0.15s; white-space: nowrap;
+}
+#tab-quote-make .ref-info-btn:hover { border-color: #3a6a9a; color: #3a6a9a; opacity: 1; }
+#tab-quote-make .ref-info-btn.is-on { background: #eaf2fa; border-color: #5a8ab8; color: #2a5a88; font-weight: 600; }
+/* 参考情報の行：青アクセント */
+#tab-quote-make tr.row-ref-info > td.handle-cell { box-shadow: inset 3px 0 0 #5a8ab8; }
+#tab-quote-make tr.row-ref-info > td { background: #f5f9fd; }
 /* ===== % 計算モード ===== */
 #tab-quote-make .pct-mode-btn {
   display: inline-block; margin-top: 3px; padding: 1px 6px;
@@ -1515,6 +1527,7 @@
 #tab-quote-make #quoteTable.customer-mode .pct-group { display: none !important; }
 /* プレビュー：都度請求の客先注記 */
 #tab-quote-make .pv-cond-note { color: #8a5a00; font-size: 10.5px; font-weight: 700; margin-left: 4px; white-space: nowrap; }
+#tab-quote-make .pv-ref-note { color: #3a5a80; font-size: 10.5px; font-weight: 700; margin-left: 4px; white-space: nowrap; }
 /* プレビュー：実費テキスト */
 #tab-quote-make .pv-actual-txt { color: #3a45a0; font-weight: 700; }
 

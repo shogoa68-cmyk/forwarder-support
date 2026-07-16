@@ -2838,7 +2838,7 @@
     const rows = document.querySelectorAll('#tableBody tr:not([data-type="subtotal"])');
     const activeRows = Array.from(rows).filter(tr => {
       // 見積書非表示・適用期間外・実費・PROFIT SHARE・都度請求 の行は客先サマリ（合計・粗利）に含めない
-      if (tr.dataset.hideQuote === '1' || tr.dataset.outRange === '1' || tr.dataset.actual === '1' || tr.dataset.profitShare === '1' || tr.dataset.cond === '1') return false;
+      if (tr.dataset.hideQuote === '1' || tr.dataset.outRange === '1' || tr.dataset.actual === '1' || tr.dataset.profitShare === '1' || tr.dataset.cond === '1' || tr.dataset.refInfo === '1') return false;
       const id = tr.id.replace('row-', '');
       return document.getElementById(`nm-${id}`)?.value?.trim();
     });
@@ -3430,7 +3430,7 @@
       if (bc !== 'JPY' && typeof toJPY === 'function') { sell = toJPY(sell, bc); mark = '※'; }
       const sum = sell ? '¥' + Math.round(sell).toLocaleString('ja-JP') + mark : '';
       const flag = tr.dataset.hideQuote === '1' ? '🚫 ' : '';
-      const suffix = tr.dataset.cond === '1' ? '（都度）' : '';
+      const suffix = (tr.dataset.cond === '1' ? '（都度）' : '') + (tr.dataset.refInfo === '1' ? '（参考）' : '');
       out.push({ level: 2, rowId: tr.id,
                  label: flag + (nm || '（名称未入力）') + suffix,
                  sum, isCollapsed: false, isExcluded, el: tr });

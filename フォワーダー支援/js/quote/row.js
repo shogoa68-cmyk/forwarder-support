@@ -705,7 +705,7 @@
     const q    = f => frag.querySelector(`[data-field="${f}"]`);
 
     // IDs
-    ['cat','tx','nm','pq','un','pc','pp','cd','bq','bc','bp','mk','st','pr','nt','sv','pt','zc','ac','ps','co','vf','vt','lu','ppmode','pprate','ppbase','uid','ppref']
+    ['cat','tx','nm','pq','un','pc','pp','cd','bq','bc','bp','mk','st','pr','nt','sv','pt','zc','ac','ps','co','ri','vf','vt','lu','ppmode','pprate','ppbase','uid','ppref']
       .forEach(f => { const el = q(f); if (el) el.id = `${f}-${id}`; });
     const zcBtn = frag.querySelector('.zero-confirm-btn');
     if (zcBtn) zcBtn.onclick = () => toggleZeroConfirmed(id);;
@@ -715,6 +715,8 @@
     if (psBtn) psBtn.onclick = () => toggleProfitShare(id);
     const coBtn = frag.querySelector('.cond-charge-btn');
     if (coBtn) coBtn.onclick = () => toggleConditional(id);
+    const riBtn = frag.querySelector('.ref-info-btn');
+    if (riBtn) riBtn.onclick = () => toggleRefInfo(id);
     const pctBtn = frag.querySelector('.pct-mode-btn');
     if (pctBtn) pctBtn.onclick = () => togglePctMode(id);
     const pprateEl = frag.querySelector('[data-field="pprate"]');
@@ -907,6 +909,14 @@
     }
     const coBtn0 = trEl0?.querySelector('.cond-charge-btn');
     if (coBtn0) coBtn0.classList.toggle('is-on', isConditional);
+    // 参考情報：金額は通常表示、合計には加算しない（都度とは別目的の注記）
+    const isRefInfo = document.getElementById(`ri-${id}`)?.value === '1';
+    if (trEl0) {
+      trEl0.classList.toggle('row-ref-info', isRefInfo);
+      if (isRefInfo) trEl0.dataset.refInfo = '1'; else delete trEl0.dataset.refInfo;
+    }
+    const riBtn0 = trEl0?.querySelector('.ref-info-btn');
+    if (riBtn0) riBtn0.classList.toggle('is-on', isRefInfo);
     // 小計セル
     const st = document.getElementById(`st-${id}`);
     if (st) {
@@ -962,9 +972,9 @@
     return p > 0 ? 'profit-pos' : p < 0 ? 'profit-neg' : 'profit-zero';
   }
 
-  // ¥0✓ / 実費 / PS / 都度 は排他。指定 id 以外のフラグをクリア
+  // ¥0✓ / 実費 / PS / 都度 / 参考 は排他。指定 id 以外のフラグをクリア
   function _clearRowFlagsExcept(id, keep) {
-    ['zc', 'ac', 'ps', 'co'].forEach(f => {
+    ['zc', 'ac', 'ps', 'co', 'ri'].forEach(f => {
       if (f === keep) return;
       const el = document.getElementById(`${f}-${id}`);
       if (el) el.value = '';
@@ -1012,6 +1022,17 @@
     if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
   }
   window.toggleConditional = toggleConditional;
+
+  // ========== 参考情報トグル（金額は表示・合計に加算しない。都度＝発生時のみ請求とは別目的） ==========
+  function toggleRefInfo(id) {
+    const riEl = document.getElementById(`ri-${id}`);
+    if (!riEl) return;
+    riEl.value = riEl.value === '1' ? '' : '1';
+    if (riEl.value === '1') _clearRowFlagsExcept(id, 'ri');
+    calc(id);
+    if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
+  }
+  window.toggleRefInfo = toggleRefInfo;
 
   // ========== % 計算モード ==========
   function togglePctMode(id) {
@@ -1186,6 +1207,7 @@
       if (tr.dataset.outRange === '1') return;    // 適用期間外のサーチャージは合計から除外
       if (tr.dataset.actual === '1') return;      // 実費（金額未確定）の行は合計から除外
       if (tr.dataset.cond === '1') return;        // 都度請求（発生時のみ）の行は合計に加算しない
+      if (tr.dataset.refInfo === '1') return;     // 参考情報の行は合計に加算しない
       if (tr.dataset.profitShare === '1') {       // PROFIT SHARE：客先合計から除外し社内利益へ計上
         const pid = tr.id.replace('row-', '');
         const ppc = document.getElementById(`pc-${pid}`)?.value || 'JPY';
@@ -1532,7 +1554,7 @@
         groupBillCurrencies = new Set(); groupCostCurrencies = new Set();
       } else {
         // 見積書非表示・適用期間外の行は小計セパレータの集計に含めない
-        if (tr.dataset.hideQuote === '1' || tr.dataset.outRange === '1' || tr.dataset.actual === '1' || tr.dataset.profitShare === '1' || tr.dataset.cond === '1') return;
+        if (tr.dataset.hideQuote === '1' || tr.dataset.outRange === '1' || tr.dataset.actual === '1' || tr.dataset.profitShare === '1' || tr.dataset.cond === '1' || tr.dataset.refInfo === '1') return;
         const id = tr.id.replace('row-', '');
         const bq = val(`bq-${id}`);
         const bp = val(`bp-${id}`);
@@ -2388,6 +2410,7 @@
       if (tr.dataset.actual === '1') return;
       if (tr.dataset.profitShare === '1') return;   // PROFIT SHARE は客先小計から除外
       if (tr.dataset.cond === '1') return;          // 都度請求は客先小計から除外
+      if (tr.dataset.refInfo === '1') return;       // 参考情報は客先小計から除外
       const id = tr.id?.replace('row-', '');
       if (!id || !scSumEl) return;
       const bq = val(`bq-${id}`) || val(`pq-${id}`) || 0;
@@ -2479,7 +2502,7 @@
     }
     if (!newId) return null;
     // 値フィールド＋行フラグ（実費/PROFIT SHARE/都度/0円確認）を複製。sv/pt はコピー先の値
-    const COPY_VALS = ['cat','nm','pq','un','bq','pc','bc','pp','bp','mk','nt','vf','vt','ac','ps','co','zc'];
+    const COPY_VALS = ['cat','nm','pq','un','bq','pc','bc','pp','bp','mk','nt','vf','vt','ac','ps','co','ri','zc'];
     COPY_VALS.forEach(f => {
       const s = document.getElementById(`${f}-${sid}`);
       const d = document.getElementById(`${f}-${newId}`);
