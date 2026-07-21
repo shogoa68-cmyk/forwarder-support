@@ -504,11 +504,13 @@
     const id = rowCount;
     const tr = document.createElement('tr');
     tr.id = `row-${id}`;
-    // 継承元の行からカテゴリ・通貨・サブコンを取得
+    // 継承元の行からカテゴリ・通貨・サブコン・パターンを取得
     const srcCat = document.getElementById(`cat-${afterId}`)?.value || '';
     const srcCur = document.getElementById(`pc-${afterId}`)?.value  || 'JPY';
     const srcSv  = document.getElementById(`sv-${afterId}`)?.value  || '';
+    const srcPt  = document.getElementById(`pt-${afterId}`)?.value  || '';
     tr.replaceChildren(buildRowHTML(id, srcCat, srcCur, srcSv));
+    if (srcPt) { const ptEl = tr.querySelector('[data-field="pt"]'); if (ptEl) ptEl.value = srcPt; }
     tr.classList.add('row-unfilled');
     const refRow = document.getElementById(`row-${afterId}`);
     if (refRow?.nextSibling) refRow.parentNode.insertBefore(tr, refRow.nextSibling);
@@ -524,6 +526,9 @@
     rowCount++;
     const id = rowCount;
     // 末尾行からカテゴリ・通貨・サブコンを継承（仮想グループヘッダーはスキップ）
+    // ※ パターン（pt）は継承しない：addRow はプリセット復元・諸チャージ挿入・行パターン挿入
+    //   など多数の経路から呼ばれ、pt が漏れると旧データ復元で誤ったパターンに入るため。
+    //   pt 継承は行の＋ボタン系（addRowAfter）のみ。
     const rows = Array.from(document.querySelectorAll('#tableBody tr')).filter(r => !r.dataset.virtual);
     const lastRow = rows.length ? rows[rows.length - 1] : null;
     const lastId  = lastRow ? lastRow.id.replace('row-', '') : null;
@@ -2466,10 +2471,10 @@
         const svEl = document.getElementById(`sv-${newId}`);
         if (svEl) svEl.value = sv;
       }
-      if (pt) {
-        const ptEl = document.getElementById(`pt-${newId}`);
-        if (ptEl) ptEl.value = pt;
-      }
+      // pt は常に明示設定（addRowAfter が直前行の pt を継承するため、
+      // サブコンレベル追加（pt=''）では継承値をクリアする）
+      const ptEl = document.getElementById(`pt-${newId}`);
+      if (ptEl) ptEl.value = pt || '';
     }
     renderSubconGroups();
     setTimeout(() => document.getElementById(`nm-${newId}`)?.focus(), 40);
