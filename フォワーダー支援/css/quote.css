@@ -8346,6 +8346,13 @@ button.um-memberno--empty:hover { background: #f4ead4; border-color: #cdb98e; }
 #tab-quote-make .rp-sc-nm-wrap { display:flex; flex-direction:column; overflow:hidden; min-width:0; }
 #tab-quote-make .rp-sc-itemname { color:#4a3f35; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 #tab-quote-make .rp-sc-pt { font-size:10px; color:#9a8070; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+/* 適用期間バッジ（サーチャージ等の vf/vt） */
+#tab-quote-make .rp-sc-period { font-size:10px; color:#7a6a45; white-space:nowrap; }
+#tab-quote-make .rp-sc-period.is-expired { color:#b03a2e; }
+#tab-quote-make .rp-sc-period-exp {
+  margin-left:3px; padding:0 4px; font-size:9px; font-weight:700;
+  color:#fff; background:#c0564a; border-radius:3px;
+}
 #tab-quote-make .rp-sc-price { text-align:right; color:#3d2e1e; font-variant-numeric:tabular-nums; white-space:nowrap; }
 #tab-quote-make .rp-sc-unit { color:#b0a18d; font-weight:400; }
 #tab-quote-make .rp-sc-avg { display:block; font-size:9.5px; color:#b0a18d; }

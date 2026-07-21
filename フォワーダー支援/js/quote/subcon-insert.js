@@ -10,7 +10,7 @@
 
   // ROW_CELL_FIELDS と同じ並び（cells[0]=選択, cells[1..]=以下）
   // ['cat','sv','tx','nm','pq','un','bq','pc','bc','pp','bp','cd','mk','nt']
-  const CI = { cat:1, sv:2, tx:3, nm:4, pq:5, un:6, bq:7, pc:8, bc:9, pp:10, bp:11, cd:12, mk:13, nt:14, pt:19 };
+  const CI = { cat:1, sv:2, tx:3, nm:4, pq:5, un:6, bq:7, pc:8, bc:9, pp:10, bp:11, cd:12, mk:13, nt:14, vf:16, vt:17, pt:19 };
   const ROLE = {
     'domestic':'国内作業', 'export-local':'輸出ローカル', 'ocean':'海上', 'air':'航空',
     'surcharge':'サーチャージ', 'import-local':'輸入ローカル', 'overseas':'海外作業',
@@ -116,6 +116,7 @@
             un: (r.cells[CI.un]||''), pc: (r.cells[CI.pc]||'JPY'), bc: (r.cells[CI.bc]||'JPY'),
             ppSum: 0, ppCount: 0, lastPp: null, lastBp: (r.cells[CI.bp]||''),
             lastPt: (r.cells[CI.pt]||'').trim(),
+            lastVf: (r.cells[CI.vf]||'').trim(), lastVt: (r.cells[CI.vt]||'').trim(),
             lastUsed: 0,
             latest: r.cells,
             history: [],
@@ -123,7 +124,7 @@
         }
         const it = sc.items[key];
         if (pp != null) { it.ppSum += pp; it.ppCount++; }
-        if (ts >= it.lastUsed) { it.lastUsed = ts; it.lastPp = pp; it.lastBp = (r.cells[CI.bp]||''); it.lastPt = (r.cells[CI.pt]||'').trim(); it.latest = r.cells; }
+        if (ts >= it.lastUsed) { it.lastUsed = ts; it.lastPp = pp; it.lastBp = (r.cells[CI.bp]||''); it.lastPt = (r.cells[CI.pt]||'').trim(); it.lastVf = (r.cells[CI.vf]||'').trim(); it.lastVt = (r.cells[CI.vt]||'').trim(); it.latest = r.cells; }
         it.history.push({ ts, pp, bp: _num(r.cells[CI.bp]), route });
       });
     });
@@ -137,6 +138,7 @@
         .map(it => ({
           cat: it.cat, name: it.name, role: it.role, un: it.un, pc: it.pc, bc: it.bc,
           pp: it.lastPp, bp: it.lastBp || '', pt: it.lastPt || '',
+          vf: it.lastVf || '', vt: it.lastVt || '',
           avgPp: it.ppCount ? (it.ppSum / it.ppCount) : null,
           lastUsed: it.lastUsed, cells: it.latest,
           history: it.history.sort((a, b) => a.ts - b.ts),
@@ -167,6 +169,19 @@
     if (!ts) return '—';
     return new Date(ts).toLocaleDateString('ja-JP', { year:'numeric', month:'2-digit', day:'2-digit' });
   }
+  // 適用期間バッジ（サーチャージ等の vf/vt）。期限切れは赤系で明示
+  function _periodBadge(it) {
+    const vf = (it.vf || '').trim(), vt = (it.vt || '').trim();
+    if (!vf && !vt) return '';
+    const f = s => s ? s.replace(/-/g, '/').replace(/^20/, '') : '';
+    const range = f(vf) + '〜' + f(vt);
+    const today = new Date().toISOString().slice(0, 10);
+    const expired = !!vt && vt < today;
+    return '<span class="rp-sc-period' + (expired ? ' is-expired' : '') +
+      '" title="適用期間' + (expired ? '（期限切れ・単価は参考値）' : '') + '">📅 ' + _esc(range) +
+      (expired ? '<b class="rp-sc-period-exp">期限切れ</b>' : '') + '</span>';
+  }
+
   function _icon(sc) {
     // 代表カテゴリのアイコン
     const cats = sc.items.map(i => i.cat);
@@ -198,7 +213,7 @@
         return '<label class="rp-sc-item">' +
             '<input type="checkbox" class="rp-sc-chk" data-si="' + si + '" data-ii="' + ii + '" checked>' +
             '<span class="rp-cat ' + (CAT_CLASS[it.cat]||'cat-other') + '">' + _esc(ROLE[it.cat]||it.cat||'—') + '</span>' +
-            '<span class="rp-sc-nm-wrap"><span class="rp-sc-itemname">' + _esc(it.name) + '</span>' + ptBadge + '</span>' +
+            '<span class="rp-sc-nm-wrap"><span class="rp-sc-itemname">' + _esc(it.name) + '</span>' + ptBadge + _periodBadge(it) + '</span>' +
             '<span class="rp-sc-price">' + priceMain + unit + avg + '</span>' +
           '</label>';
       }).join('');
@@ -268,6 +283,8 @@
       mk:   g(CI.mk) || '',
       note: g(CI.nt) || '',
       pt:   g(CI.pt) || '',
+      vf:   g(CI.vf) || '',
+      vt:   g(CI.vt) || '',
     };
   }
 
@@ -409,7 +426,7 @@
         return '<label class="rp-sc-item" draggable="true" data-si="' + si + '" data-ii="' + it._ii + '">' +
             '<input type="checkbox" class="rp-sc-chk si-chk" data-si="' + si + '" data-ii="' + it._ii + '" checked>' +
             '<span class="rp-cat ' + (CAT_CLASS[it.cat]||'cat-other') + '">' + _esc(ROLE[it.cat]||it.cat||'—') + '</span>' +
-            '<span class="rp-sc-nm-wrap"><span class="rp-sc-itemname">' + _esc(it.name) + '</span>' + ptBadgeSi + '</span>' +
+            '<span class="rp-sc-nm-wrap"><span class="rp-sc-itemname">' + _esc(it.name) + '</span>' + ptBadgeSi + _periodBadge(it) + '</span>' +
             '<span class="rp-sc-price">' + priceCell + unit + '</span>' +
           '</label>';
       }).join('');
