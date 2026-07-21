@@ -1625,6 +1625,8 @@
       set('mk',  rd.mk);
       set('nt',  rd.note);
       set('sv',  rd.sv);
+      if (rd.vf) set('vf', rd.vf);   // 適用期間（サーチャージ等）。無指定時は上書きしない
+      if (rd.vt) set('vt', rd.vt);
       if (typeof toggleTax === 'function') toggleTax(id);
       checkUnfilled(id);
       onCatChange(id);
@@ -1686,6 +1688,8 @@
       set('mk',  rd.mk);
       set('nt',  rd.note);
       set('sv',  rd.sv);
+      if (rd.vf) set('vf', rd.vf);   // 適用期間（サーチャージ等）。無指定時は上書きしない
+      if (rd.vt) set('vt', rd.vt);
       if (typeof toggleTax === 'function') toggleTax(id);
       checkUnfilled(id);
       onCatChange(id);
