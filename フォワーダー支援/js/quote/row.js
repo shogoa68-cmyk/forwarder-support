@@ -372,7 +372,9 @@
   window.jumpToFirstPending = jumpToFirstPending;
 
   // 品名マスターの詳細情報（デフォルト単位・デフォルト備考）を選択時に自動入力。
-  // 既に入力済みの単位/備考は上書きしない。
+  // ユーザーが手入力した単位/備考は上書きしないが、まだ「マスター由来の自動入力値」の
+  // ままなら（dataset.unAuto/ntAuto='1'）、項目名を別の品名に変えたときも追従して更新する。
+  // これにより、行複製後や既存行の品名だけ変更した場合でも入力支援が効くようにする。
   function initNmAutofill() {
     const tbody = document.getElementById('tableBody');
     if (!tbody) return;
@@ -390,11 +392,24 @@
       const unEl = tr.querySelector('[data-field="un"]');
       const ntEl = tr.querySelector('[data-field="nt"]');
       let filled = false;
-      if (details.defaultUnit && unEl && !unEl.value.trim()) { unEl.value = details.defaultUnit; filled = true; }
-      if (details.defaultNote && ntEl && !ntEl.value.trim()) { ntEl.value = details.defaultNote; filled = true; }
+      if (details.defaultUnit && unEl && (!unEl.value.trim() || tr.dataset.unAuto === '1')) {
+        unEl.value = details.defaultUnit; tr.dataset.unAuto = '1'; filled = true;
+      }
+      if (details.defaultNote && ntEl && (!ntEl.value.trim() || tr.dataset.ntAuto === '1')) {
+        ntEl.value = details.defaultNote; tr.dataset.ntAuto = '1'; filled = true;
+      }
       if (filled && typeof window.quoteShowToast === 'function') {
         window.quoteShowToast('📇 マスターの詳細情報から単位・備考を自動入力しました', 'info', 2200);
       }
+    });
+    // ユーザーが単位/備考を手入力したら「自動入力状態」を解除し、以後は上書きしない
+    tbody.addEventListener('input', e => {
+      const el = e.target;
+      if (!el.matches) return;
+      const tr = el.closest('tr');
+      if (!tr) return;
+      if (el.matches('[data-field="un"]')) delete tr.dataset.unAuto;
+      else if (el.matches('[data-field="nt"]')) delete tr.dataset.ntAuto;
     });
   }
   window.initNmAutofill = initNmAutofill;
@@ -567,6 +582,15 @@
     const srcTx = document.getElementById(`tx-${srcId}`);
     const dstTx = document.getElementById(`tx-${newId}`);
     if (srcTx && dstTx) dstTx.checked = srcTx.checked;
+
+    // マスター自動入力フラグ（un/nt）を引き継ぐ：複製元が自動入力のままなら複製先も
+    // 「自動入力状態」として扱い、複製後に項目名を変えたときマスターの新しい値で更新できるようにする
+    const srcTrEl = document.getElementById(`row-${srcId}`);
+    const dstTrEl = document.getElementById(`row-${newId}`);
+    if (srcTrEl && dstTrEl) {
+      if (srcTrEl.dataset.unAuto === '1') dstTrEl.dataset.unAuto = '1'; else delete dstTrEl.dataset.unAuto;
+      if (srcTrEl.dataset.ntAuto === '1') dstTrEl.dataset.ntAuto = '1'; else delete dstTrEl.dataset.ntAuto;
+    }
 
     // 売通貨独立モード（pc≠bc）を引き継ぐ：onPay で上書きされないよう先にフラグ・UI を設定
     const srcIndep = document.getElementById(`row-${srcId}`)?.dataset.bcIndep === '1';
