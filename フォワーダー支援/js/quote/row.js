@@ -2552,8 +2552,12 @@
   window.setSubconGroupNote = (svKey, pt, text) => {
     const k = _gnKey(svKey, pt);
     const t = (text || '').trim();
-    if (t) _groupNotes[k] = { text: t, ts: new Date().toISOString() };
-    else delete _groupNotes[k];
+    if (t) {
+      const u = (typeof window.quoteCloudUser === 'function' && window.quoteCloudUser()) || null;
+      _groupNotes[k] = { text: t, ts: new Date().toISOString(), by: (u && u.email) || '' };
+    } else {
+      delete _groupNotes[k];
+    }
   };
 
   window.getSubconAliases = () => Object.assign({}, _subconAlias);
