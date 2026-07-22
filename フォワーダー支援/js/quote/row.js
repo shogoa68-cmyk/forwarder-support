@@ -653,14 +653,34 @@
     const tbody = document.getElementById('tableBody');
     const allRows = Array.from(tbody.querySelectorAll('tr:not([data-virtual])'));
     if (allRows.length < 2) return;
-    // 小計行・リマーク行はソート対象外（末尾に移動）（E-6）
-    const dataRows  = allRows.filter(tr => !tr.dataset.type);
-    const otherRows = allRows.filter(tr =>  tr.dataset.type);
     const getId = tr => tr.id.replace('row-', '');
     const catOrder = cat => { const i = CAT_VALUES.indexOf(cat); return i === -1 ? 999 : i; };
 
-    dataRows.sort((a, b) => {
-      const idA = getId(a), idB = getId(b);
+    // データ行＋直後の子リマークを1ブロックとして扱う（ソートで親から離れないように）。
+    // 小計行（手動区切り）は従来通りソート対象外・末尾へ（E-6）。
+    const blocks = [];
+    const subtotalRows = [];
+    for (let i = 0; i < allRows.length; ) {
+      const tr = allRows[i];
+      if (tr.dataset.type === 'subtotal') { subtotalRows.push(tr); i++; continue; }
+      if (tr.dataset.type === 'remark') {
+        // 親を辿れない孤立リマーク（通常は発生しない）は単独ブロックとして現在位置を維持
+        blocks.push({ anchor: null, rows: [tr] });
+        i++; continue;
+      }
+      const rid = getId(tr);
+      const children = [];
+      let j = i + 1;
+      while (j < allRows.length && allRows[j].dataset.type === 'remark' && allRows[j].dataset.parentId === rid) {
+        children.push(allRows[j]); j++;
+      }
+      blocks.push({ anchor: tr, rows: [tr, ...children] });
+      i = j;
+    }
+
+    blocks.sort((a, b) => {
+      if (!a.anchor || !b.anchor) return 0;   // 孤立リマークは相対順序を維持（安定ソート前提）
+      const idA = getId(a.anchor), idB = getId(b.anchor);
       switch (type) {
         case 'category': {
           const cA = document.getElementById(`cat-${idA}`)?.value || '';
@@ -696,7 +716,8 @@
         default: return 0;
       }
     });
-    [...dataRows, ...otherRows].forEach(r => tbody.appendChild(r));
+    blocks.forEach(b => b.rows.forEach(r => tbody.appendChild(r)));
+    subtotalRows.forEach(r => tbody.appendChild(r));
     updateTotals();
     renderSubconGroups();
   }
@@ -709,22 +730,25 @@
     const members = _groupMemberRows(svKey, ptKey);
     if (members.length < 2) return;
     const catOrder = cat => { const i = CAT_VALUES.indexOf(cat); return i === -1 ? 999 : i; };
-    const sorted = [...members].sort((a, b) => {
-      const idA = a.id.replace('row-', ''), idB = b.id.replace('row-', '');
+    // データ行＋直後の子リマークを1ブロックとして扱う（ソートで親から離れないように）
+    const blocks = members.map(tr => ({ row: tr, rows: [tr, ...getChildRemarks(tr.id.replace('row-', ''))] }));
+    const sorted = [...blocks].sort((a, b) => {
+      const idA = a.row.id.replace('row-', ''), idB = b.row.id.replace('row-', '');
       return catOrder(document.getElementById(`cat-${idA}`)?.value || '') -
              catOrder(document.getElementById(`cat-${idB}`)?.value || '');
     });
     // すでにソート済みなら skip
-    const alreadySorted = members.every((tr, i) => tr === sorted[i]);
+    const alreadySorted = blocks.every((b, i) => b === sorted[i]);
     if (alreadySorted) return;
-    // グループ末尾の次ノードを挿入基準にする。
-    // 先頭ノード基準だと sorted[0]===members[0] のとき insertBefore が no-op になり
+    // グループ末尾（子リマークも含めた本当の末尾）の次ノードを挿入基準にする。
+    // 先頭ノード基準だと sorted[0]===blocks[0] のとき insertBefore が no-op になり
     // 後続行がその前に積まれてしまい順序が崩れるバグを防ぐ。
-    const afterGroup = members[members.length - 1].nextSibling;
-    sorted.forEach(tr => {
+    const lastBlockRows = blocks[blocks.length - 1].rows;
+    const afterGroup = lastBlockRows[lastBlockRows.length - 1].nextSibling;
+    sorted.forEach(b => b.rows.forEach(tr => {
       if (afterGroup) tbody.insertBefore(tr, afterGroup);
       else tbody.appendChild(tr);
-    });
+    }));
     updateTotals();
     renderSubconGroups();
     if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
