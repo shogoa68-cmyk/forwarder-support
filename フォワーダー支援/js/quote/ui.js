@@ -3371,11 +3371,17 @@
         const notePt = g.level === 1 ? (g.pt || '') : '';
         const note = (typeof window.getSubconGroupNote === 'function') ? window.getSubconGroupNote(g.sv, notePt) : null;
         const noteTs = note && note.ts ? new Date(note.ts).toLocaleString('ja-JP', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }) : '';
+        const noteBy = note && note.by
+          ? ((typeof window.quoteDisplayName === 'function' ? window.quoteDisplayName(note.by) : note.by) || '').replace(/@.*$/, '')
+          : '';
+        const noteMeta = (noteBy || noteTs)
+          ? '<span class="qsp-dig-note-meta">✏️ ' + escapeHtml([noteBy, noteTs].filter(Boolean).join('・')) + '</span>'
+          : '';
         const noteLine = note
           ? '<div class="qsp-dig-note-line' + (hiddenByParent ? ' is-parent-collapsed' : '') + '" ' +
               'onclick="window._qspGroupNoteEdit(' + i + ', event)" ' +
-              'title="クリックで編集' + (noteTs ? '（更新: ' + noteTs + '）' : '') + '">💬 ' +
-              escapeHtml(note.text).replace(/\n/g, '<br>') + '</div>'
+              'title="クリックで編集">💬 ' +
+              escapeHtml(note.text).replace(/\n/g, '<br>') + noteMeta + '</div>'
           : '';
         return '<div class="qsp-dig-grp-item' + stateCls + '">' +
           '<button type="button" class="qsp-dig-subjump' + (g.level ? ' is-pattern' : ' is-subcon') +
@@ -3568,10 +3574,14 @@
     ta.placeholder = '例）見積依頼済み・回答待ち（Ctrl+Enter で保存）';
     ta.value = cur ? cur.text : '';
     pop.appendChild(ta);
-    if (cur && cur.ts) {
+    if (cur && (cur.ts || cur.by)) {
       const meta = document.createElement('div');
       meta.className = 'qsp-note-pop-meta';
-      meta.textContent = '最終更新: ' + new Date(cur.ts).toLocaleString('ja-JP');
+      const byName = cur.by
+        ? ((typeof window.quoteDisplayName === 'function' ? window.quoteDisplayName(cur.by) : cur.by) || '').replace(/@.*$/, '')
+        : '';
+      meta.textContent = '最終更新: ' + (cur.ts ? new Date(cur.ts).toLocaleString('ja-JP') : '—') +
+        (byName ? '（✏️ ' + byName + '）' : '');
       pop.appendChild(meta);
     }
     const btns = document.createElement('div');

@@ -7237,6 +7237,9 @@ body.qp-dash-active #quoteActionDock { display: none !important; }
   cursor: pointer; word-break: break-word; transition: background .1s;
 }
 #tab-quote-make .qsp-dig-note-line:hover { background: #fff2cc; }
+#tab-quote-make .qsp-dig-note-meta {
+  display: block; margin-top: 2px; font-size: 9px; color: #ab9668;
+}
 #tab-quote-make .qsp-dig-note-line.is-parent-collapsed { display: none; }
 /* 申し送り編集ポップアップ */
 #tab-quote-make .qsp-note-pop {
