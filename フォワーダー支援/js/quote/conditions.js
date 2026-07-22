@@ -391,6 +391,7 @@
     data = migrateRowCells(data);
     // サブコン別小計の客先用表示名を復元（_rebuildTable → renderSubconGroups より前にセット）
     if (typeof setSubconAliases === 'function') setSubconAliases(data.subconAliases || {});
+    if (typeof setSubconGroupNotes === 'function') setSubconGroupNotes(data.groupNotes || {});
     Object.entries(data.fields || {}).forEach(([id, val]) => {
       // ヘッダー項目（仮REF/顧客名/担当者等）はプリセット側が空でも現在値を消さない
       if (keepHeaderIfEmpty && _HEADER_FIELD_IDS.includes(id) && !val) return;
@@ -777,6 +778,7 @@
     // _rowFormat: v3 = 小計行・リマーク行を含む型付きオブジェクト配列
     return { fields, rows, ts: new Date().toISOString(), _rowFormat: 'v3-mixed-rows',
              subconAliases: (typeof getSubconAliases === 'function' ? getSubconAliases() : {}),
+             groupNotes: (typeof getSubconGroupNotes === 'function' ? getSubconGroupNotes() : {}),
              fxSnapshot: { rates: { ..._fxRates }, ts: localStorage.getItem(SharedStorage.KEYS.FX_LAST_FETCHED) || null } };
   }
 
@@ -831,6 +833,8 @@
     let data;
     try { data = JSON.parse(raw); } catch(e) { return; }
     data = migrateRowCells(data);
+    if (typeof setSubconAliases === 'function') setSubconAliases(data.subconAliases || {});
+    if (typeof setSubconGroupNotes === 'function') setSubconGroupNotes(data.groupNotes || {});
     // フォーム復元
     Object.entries(data.fields || {}).forEach(([id, val]) => {
       const el = document.getElementById(id);
@@ -871,6 +875,8 @@
     data = migrateRowCells(data);
     const ts = data.ts ? new Date(data.ts).toLocaleString('ja-JP') : '不明';
     if (!confirm(`保存日時: ${ts}\n\n現在のデータを上書きして読み込みますか？`)) return;
+    if (typeof setSubconAliases === 'function') setSubconAliases(data.subconAliases || {});
+    if (typeof setSubconGroupNotes === 'function') setSubconGroupNotes(data.groupNotes || {});
     // フォーム復元
     Object.entries(data.fields || {}).forEach(([id, val]) => {
       const el = document.getElementById(id);
