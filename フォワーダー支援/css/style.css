@@ -2645,6 +2645,25 @@ body:has(#compareOverlay.open) #quoteActionDock { display: none; }
   border-color: #e8c84a;
   color: #7a5f00;
 }
+/* マスター管理タブの該当行へジャンプ */
+.stats-master-jump-btn {
+  padding: 3px 7px;
+  font-size: 11px;
+  background: #eef3fb;
+  border: 1px solid #b6c9e8;
+  border-radius: 10px;
+  cursor: pointer;
+  color: #1c4f9e;
+  white-space: nowrap;
+  margin-left: 2px;
+  transition: background 0.12s;
+}
+.stats-master-jump-btn:hover { background: #dbe6fa; }
+@keyframes statsMasterJumpFlash {
+  0%, 100% { background: transparent; }
+  25%, 75% { background: #fff2b8; }
+}
+.stats-master-jump-hl { animation: statsMasterJumpFlash 2.2s ease; }
 
 /* 品名ゆらぎ */
 .stats-nm-table .stats-chips-cell { white-space: normal; }

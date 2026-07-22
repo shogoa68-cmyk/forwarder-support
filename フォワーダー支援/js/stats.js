@@ -293,14 +293,33 @@
     return h;
   }
 
+  // マスター管理タブに実際に表示される項目か（個別マスター票 or 同義グループの代表）。
+  // ジャンプボタンを出すかどうかの判定に使う。
+  function _masterRegistered(field, value) {
+    if (_voteInfo(field, value).total > 0) return true;
+    const groups = typeof window.synGetGroups === 'function' ? window.synGetGroups(field) : [];
+    if (groups.some(g => g.canonical === value)) return true;
+    if (field === 'un') {
+      const ug = typeof window.uaGetGroups === 'function' ? window.uaGetGroups() : [];
+      if (ug.some(g => g.canonical === value)) return true;
+    }
+    return false;
+  }
+  function _masterJumpBtn(field, value) {
+    return `<button class="stats-master-jump-btn" title="🗂 マスター管理タブの該当行へジャンプ" ` +
+           `onclick="statsJumpToMaster('${_ea(field)}','${_ea(value)}')">🗂↗</button>`;
+  }
+
   function _voteBtn(field, value) {
     const v  = _voteInfo(field, value);
     const on = v.isMine;
-    return `<button class="stats-vote-btn${on ? ' stats-voted' : ''}" ` +
+    let h = `<button class="stats-vote-btn${on ? ' stats-voted' : ''}" ` +
            `onclick="statsToggleVote('${_ea(field)}','${_ea(value)}')" ` +
            `title="${on ? 'マスターを解除' : 'マスターに登録'}">` +
            (on ? '⭐ 登録済' : '☆ 登録') +
            '</button>';
+    if (_masterRegistered(field, value)) h += _masterJumpBtn(field, value);
+    return h;
   }
 
   // ゆらぎグループ表示（nm/sv/carrier/port 共通）。
@@ -501,6 +520,32 @@
     if (typeof window.masterSetPane === 'function') window.masterSetPane('alias');
   };
 
+  // 統計タブのマスター登録済み／代表登録済み項目から、🗂 マスター管理タブの該当行へジャンプ。
+  function _scrollToMasterRow(field, value) {
+    const rows = document.querySelectorAll('#statsPane-master tr[data-mfield]');
+    let target = null;
+    rows.forEach(r => { if (!target && r.dataset.mfield === field && r.dataset.mvalue === value) target = r; });
+    if (!target) return;
+    target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    target.classList.add('stats-master-jump-hl');
+    setTimeout(() => target.classList.remove('stats-master-jump-hl'), 2200);
+  }
+  window.statsJumpToMaster = async function (field, value) {
+    const catBtn = document.querySelector('.cat-btn[aria-controls="tab-master"]');
+    if (typeof window.switchCategory === 'function' && catBtn) window.switchCategory('master', catBtn);
+    if (typeof window.masterSetPane === 'function') window.masterSetPane('master');
+    // クラウド最新化してからフィルタ・スクロール（ローカルのみの場合は同期的に完了する）
+    if (_cloud()) {
+      _cvMap = null;
+      await _loadCloudVotes();
+      if (typeof window.synLoadCloud === 'function') await window.synLoadCloud();
+      if (typeof window.mdLoadCloud === 'function') await window.mdLoadCloud();
+    }
+    if (typeof window.statsMasterSetFilter === 'function') window.statsMasterSetFilter(field);
+    else _renderMaster();
+    _scrollToMasterRow(field, value);
+  };
+
   // === ペイン描画 ===
 
   function _renderSv() { _renderGrouped(_data?.svGroups || [], 'sv', 'サブコン名', 'statsPane-sv'); }
@@ -634,7 +679,7 @@
           `<button class="ua-chip-del" onclick="uaRemoveAlias('${_ea(a)}','${_ea(item.canonical)}')" title="統合解除">✕</button></span>`
         ).join('');
         h += `<tr class="ua-canonical-row">` +
-             `<td class="stats-val"><span class="ua-star">⭐</span>${_esc(item.canonical)}</td>` +
+             `<td class="stats-val"><span class="ua-star">⭐</span>${_esc(item.canonical)} ${_masterJumpBtn('un', item.canonical)}</td>` +
              `<td class="stats-num-col">${item.total}` +
              (item.aliasCount ? `<span class="ua-cnt-detail"> (${item.ownCount}+${item.aliasCount})</span>` : '') +
              `</td><td>${chips || '<span class="ua-no-alias">—</span>'}</td>` +
@@ -1222,7 +1267,7 @@
         const chips = aliases.length
           ? aliases.map(a => `<span class="stats-syn-member">${_esc(a)}<button class="ua-chip-del" title="統合解除" onclick="${delAlias(a)}">✕</button></span>`).join('')
           : '<span class="stats-empty-cell">—</span>';
-        synH += `<tr><td>${labels[g.field] || g.field}</td>` +
+        synH += `<tr data-mfield="${_eav(g.field)}" data-mvalue="${_eav(g.canonical)}"><td>${labels[g.field] || g.field}</td>` +
                 `<td class="stats-val"><span class="ua-star">⭐</span>${_esc(g.canonical)}${_mdBadge(g.field, g.canonical)}</td>` +
                 `<td>${chips}</td>` +
                 `<td><button class="stats-master-merge" title="この代表を別の代表に統合（配下の別名ごと移動）" onclick="statsSynMergePicker('${_ea(g.field)}','${_ea(g.canonical)}',this)">⤵ 統合</button>` +
@@ -1273,7 +1318,7 @@
       } else {
         abbrevCell = `<button class="stats-master-abbrev-add" onclick="statsMasterAddAbbrev('${_ea(m.field)}','${_ea(m.value)}')">＋ 略称</button>`;
       }
-      h += `<tr>` +
+      h += `<tr data-mfield="${_eav(m.field)}" data-mvalue="${_eav(m.value)}">` +
            `<td>${labels[m.field] || m.field}</td>` +
            `<td class="stats-val">${_esc(m.value)}${_mdBadge(m.field, m.value)}</td>` +
            `<td class="stats-master-abbrev-cell">${abbrevCell}</td>` +
