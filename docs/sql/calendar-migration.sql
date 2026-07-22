@@ -209,6 +209,15 @@ drop policy if exists "team read cal_sur history" on public.calendar_surcharges_
 create policy "team read cal_sur history" on public.calendar_surcharges_history
   for select using (public.is_team_member());
 
+-- 7) GRANT：ロールへのテーブル権限付与 ---------------------------------
+--    環境によっては新規テーブルに authenticated への権限が自動付与されず、
+--    「permission denied for table ...」になるため明示的に付与する。
+--    （実際の行レベルの絞り込みは上記 RLS ポリシーが行う）
+grant select, insert, update, delete on public.calendar_holidays   to authenticated;
+grant select, insert, update, delete on public.calendar_surcharges to authenticated;
+grant select on public.calendar_holidays_history   to authenticated;
+grant select on public.calendar_surcharges_history to authenticated;
+
 -- =====================================================================
 -- 動作確認（任意）：
 --   select source_type, count(*) from public.calendar_holidays group by 1;
