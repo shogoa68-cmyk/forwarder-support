@@ -2533,6 +2533,29 @@
   window.toggleSubconGroup    = toggleSubconGroup;
   window.toggleSubconExclude  = toggleSubconExclude;
   // サブコン別小計の「客先用表示名」マップ（保存・復元・客先出力で参照）
+  // ========== ブランチ別 申し送りメモ（進捗管理用） ==========
+  // キー：`${subconNormKey}||${pt}`（サブコンレベルは pt=''）。
+  // 保存データの groupNotes に永続化（gatherAllData / _applyQuoteData）。
+  const _groupNotes = {};
+  const _gnKey = (svKey, pt) => (svKey || '') + '||' + (pt || '');
+  window.getSubconGroupNotes = () => Object.assign({}, _groupNotes);
+  window.setSubconGroupNotes = (obj) => {
+    Object.keys(_groupNotes).forEach(k => delete _groupNotes[k]);
+    if (obj && typeof obj === 'object') {
+      Object.keys(obj).forEach(k => {
+        const v = obj[k];
+        if (v && typeof v.text === 'string' && v.text.trim()) _groupNotes[k] = v;
+      });
+    }
+  };
+  window.getSubconGroupNote = (svKey, pt) => _groupNotes[_gnKey(svKey, pt)] || null;
+  window.setSubconGroupNote = (svKey, pt, text) => {
+    const k = _gnKey(svKey, pt);
+    const t = (text || '').trim();
+    if (t) _groupNotes[k] = { text: t, ts: new Date().toISOString() };
+    else delete _groupNotes[k];
+  };
+
   window.getSubconAliases = () => Object.assign({}, _subconAlias);
   window.setSubconAliases = (obj) => {
     Object.keys(_subconAlias).forEach(k => delete _subconAlias[k]);

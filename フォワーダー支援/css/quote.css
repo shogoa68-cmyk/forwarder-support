@@ -7219,6 +7219,53 @@ body.qp-dash-active #quoteActionDock { display: none !important; }
   transition: background .1s;
 }
 #tab-quote-make .qsp-dig-grp-add:hover { background: #c8e8c8; }
+/* 💬 申し送りメモボタン（QSPパネル ツリー） */
+#tab-quote-make .qsp-dig-grp-note {
+  flex-shrink: 0; cursor: pointer; font-family: inherit; font-size: 10px;
+  color: #9a8a70; background: transparent; border: 1px solid transparent;
+  border-radius: 3px; padding: 2px 3px; line-height: 1;
+  filter: grayscale(1); opacity: 0.55; transition: opacity .1s, background .1s;
+}
+#tab-quote-make .qsp-dig-grp-note:hover { opacity: 1; filter: none; background: #fff4d8; border-color: #e0c88a; }
+#tab-quote-make .qsp-dig-grp-note.has-note {
+  opacity: 1; filter: none; background: #fff2cc; border-color: #d9b44a;
+}
+/* 申し送りメモ表示行 */
+#tab-quote-make .qsp-dig-note-line {
+  margin: 0 0 2px 14px; padding: 3px 8px; font-size: 10.5px; line-height: 1.45;
+  color: #7a5c1e; background: #fff8e4; border: 1px solid #ecd9a8; border-radius: 4px;
+  cursor: pointer; word-break: break-word; transition: background .1s;
+}
+#tab-quote-make .qsp-dig-note-line:hover { background: #fff2cc; }
+#tab-quote-make .qsp-dig-note-line.is-parent-collapsed { display: none; }
+/* 申し送り編集ポップアップ */
+#tab-quote-make .qsp-note-pop {
+  position: fixed; z-index: 3000; width: 280px;
+  background: #fffdf8; border: 1px solid #c9b88f; border-radius: 8px;
+  box-shadow: 0 6px 20px rgba(90, 70, 40, .25); padding: 8px;
+}
+#tab-quote-make .qsp-note-pop-title {
+  font-size: 11px; font-weight: 700; color: #6a5a40; margin-bottom: 6px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+#tab-quote-make .qsp-note-pop-ta {
+  width: 100%; box-sizing: border-box; resize: vertical;
+  font-family: inherit; font-size: 12px; color: #4a3a26;
+  background: #fff; border: 1px solid #d8c9ad; border-radius: 5px; padding: 5px 7px;
+}
+#tab-quote-make .qsp-note-pop-ta:focus { outline: none; border-color: #b8933e; }
+#tab-quote-make .qsp-note-pop-meta { font-size: 9.5px; color: #a09070; margin-top: 3px; }
+#tab-quote-make .qsp-note-pop-btns { display: flex; gap: 6px; margin-top: 7px; }
+#tab-quote-make .qsp-note-pop-btns button {
+  cursor: pointer; font-family: inherit; font-size: 11px; font-weight: 600;
+  border-radius: 5px; padding: 4px 12px; line-height: 1.3; border: 1px solid transparent;
+}
+#tab-quote-make .qsp-note-pop-save { background: #3f6a3f; color: #fff; }
+#tab-quote-make .qsp-note-pop-save:hover { background: #2f5a2f; }
+#tab-quote-make .qsp-note-pop-del { background: #fdeee6; color: #8b3a1a; border-color: #e8c0a0 !important; }
+#tab-quote-make .qsp-note-pop-del:hover { background: #f8d8c0; }
+#tab-quote-make .qsp-note-pop-cancel { background: #f0ead8; color: #6a5a40; margin-left: auto; }
+#tab-quote-make .qsp-note-pop-cancel:hover { background: #e4dac0; }
 #tab-quote-make .qsp-dig-grp-collapse {
   flex-shrink: 0; cursor: pointer; font-family: inherit; font-size: 10px;
   color: #7a6040; background: #f5ede0; border: 1px solid #ddd0b8;
@@ -8346,6 +8393,37 @@ button.um-memberno--empty:hover { background: #f4ead4; border-color: #cdb98e; }
 #tab-quote-make .rp-sc-nm-wrap { display:flex; flex-direction:column; overflow:hidden; min-width:0; }
 #tab-quote-make .rp-sc-itemname { color:#4a3f35; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 #tab-quote-make .rp-sc-pt { font-size:10px; color:#9a8070; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+/* 使用元案件バッジ（📂N）とポップアップ */
+#tab-quote-make .rp-sc-src-btn {
+  flex-shrink: 0; cursor: pointer; font-family: inherit;
+  font-size: 9px; font-weight: 600; color: #6a5a42;
+  background: #f3ede0; border: 1px solid #d8cbb0; border-radius: 8px;
+  padding: 0 5px; line-height: 1.5; white-space: nowrap;
+  transition: background .1s;
+}
+#tab-quote-make .rp-sc-src-btn:hover { background: #e8dcc4; border-color: #b8a070; }
+#tab-quote-make .si-src-pop {
+  position: fixed; z-index: 3000; width: 300px; max-height: 340px; overflow-y: auto;
+  background: #fffdf8; border: 1px solid #c9b88f; border-radius: 8px;
+  box-shadow: 0 6px 20px rgba(90, 70, 40, .25); padding: 6px;
+}
+#tab-quote-make .si-src-pop-title {
+  font-size: 10.5px; font-weight: 700; color: #6a5a40;
+  padding: 3px 6px 6px; border-bottom: 1px solid #ece3d2; margin-bottom: 4px;
+}
+#tab-quote-make .si-src-pop-item {
+  display: block; width: 100%; text-align: left; cursor: pointer; font-family: inherit;
+  background: transparent; border: none; border-radius: 5px; padding: 5px 7px;
+}
+#tab-quote-make .si-src-pop-item:hover { background: #f3eada; }
+#tab-quote-make .si-src-pop-nm {
+  display: block; font-size: 11.5px; font-weight: 600; color: #3a5a80;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+#tab-quote-make .si-src-pop-meta {
+  display: block; font-size: 10px; color: #8a7a64; margin-top: 1px;
+  white-space: normal; word-break: break-word;
+}
 /* 適用期間バッジ（サーチャージ等の vf/vt） */
 #tab-quote-make .rp-sc-period { font-size:10px; color:#7a6a45; white-space:nowrap; }
 #tab-quote-make .rp-sc-period.is-expired { color:#b03a2e; }

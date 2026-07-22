@@ -3367,10 +3367,23 @@
         }
         const addSv = escapeHtml(g.svLabel || '').replace(/'/g, '&#39;');
         const addPt = escapeHtml(g.pt || '').replace(/'/g, '&#39;');
+        // ブランチ別 申し送りメモ（進捗管理）
+        const notePt = g.level === 1 ? (g.pt || '') : '';
+        const note = (typeof window.getSubconGroupNote === 'function') ? window.getSubconGroupNote(g.sv, notePt) : null;
+        const noteTs = note && note.ts ? new Date(note.ts).toLocaleString('ja-JP', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }) : '';
+        const noteLine = note
+          ? '<div class="qsp-dig-note-line' + (hiddenByParent ? ' is-parent-collapsed' : '') + '" ' +
+              'onclick="window._qspGroupNoteEdit(' + i + ', event)" ' +
+              'title="クリックで編集' + (noteTs ? '（更新: ' + noteTs + '）' : '') + '">💬 ' +
+              escapeHtml(note.text).replace(/\n/g, '<br>') + '</div>'
+          : '';
         return '<div class="qsp-dig-grp-item' + stateCls + '">' +
           '<button type="button" class="qsp-dig-subjump' + (g.level ? ' is-pattern' : ' is-subcon') +
             '" onclick="window.jumpToTableGroupIdx(' + i + ')" title="このグループへジャンプ">' +
             escapeHtml(g.label) + sumHtml + '</button>' +
+          '<button type="button" class="qsp-dig-grp-note' + (note ? ' has-note' : '') + '" ' +
+            'onclick="window._qspGroupNoteEdit(' + i + ', event)" ' +
+            'title="' + (note ? '申し送りを編集' : '申し送りを追加（進捗管理メモ）') + '">💬</button>' +
           '<button type="button" class="qsp-dig-grp-add" ' +
             'onclick="window.addRowToSubconGroup(\'' + addSv + '\',\'' + addPt + '\')" ' +
             'title="このブランチの末尾に行を追加（サブコン/パターンを引き継ぎ）">＋</button>' +
@@ -3382,7 +3395,7 @@
             'onclick="window._qspGroupAction(' + i + ',\'exclude\')" ' +
             'title="' + (g.isExcluded ? '見積もりに含める' : '見積もりから除外') + '">' +
             (g.isExcluded ? '含む' : '除外') + '</button>' +
-          '</div>';
+          '</div>' + noteLine;
       }).join('') + '</div>';
     }
     el.innerHTML = html;
@@ -3532,6 +3545,76 @@
       }
     };
     setTimeout(function() { document.addEventListener('click', closer); }, 0);
+  };
+  // ブランチの「💬」→ 申し送りメモ編集ポップアップ（進捗管理用）
+  window._qspGroupNoteEdit = function(i, ev) {
+    ev.stopPropagation();
+    document.getElementById('qspNotePop')?.remove();
+    const groups = window._qspTableGroups || [];
+    const g = groups[i];
+    if (!g || g.level === 2) return;
+    const pt = g.level === 1 ? (g.pt || '') : '';
+    const cur = (typeof window.getSubconGroupNote === 'function') ? window.getSubconGroupNote(g.sv, pt) : null;
+    const pop = document.createElement('div');
+    pop.id = 'qspNotePop';
+    pop.className = 'qsp-note-pop';
+    const title = document.createElement('div');
+    title.className = 'qsp-note-pop-title';
+    title.textContent = '💬 申し送り：' + (g.label || '').replace(/^↳\s*/, '');
+    pop.appendChild(title);
+    const ta = document.createElement('textarea');
+    ta.className = 'qsp-note-pop-ta';
+    ta.rows = 3;
+    ta.placeholder = '例）見積依頼済み・回答待ち（Ctrl+Enter で保存）';
+    ta.value = cur ? cur.text : '';
+    pop.appendChild(ta);
+    if (cur && cur.ts) {
+      const meta = document.createElement('div');
+      meta.className = 'qsp-note-pop-meta';
+      meta.textContent = '最終更新: ' + new Date(cur.ts).toLocaleString('ja-JP');
+      pop.appendChild(meta);
+    }
+    const btns = document.createElement('div');
+    btns.className = 'qsp-note-pop-btns';
+    const applyNote = function(text, toastMsg, toastType) {
+      window.setSubconGroupNote(g.sv, pt, text);
+      pop.remove();
+      if (typeof window.renderQuoteSectionDigest === 'function') window.renderQuoteSectionDigest();
+      if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
+      if (typeof scheduleSnapshot === 'function') scheduleSnapshot();
+      if (typeof quoteShowToast === 'function') quoteShowToast(toastMsg, toastType);
+    };
+    const save = document.createElement('button');
+    save.type = 'button'; save.className = 'qsp-note-pop-save'; save.textContent = '保存';
+    save.addEventListener('click', function() {
+      applyNote(ta.value, ta.value.trim() ? '💬 申し送りを保存しました' : '💬 申し送りを削除しました', 'success');
+    });
+    btns.appendChild(save);
+    if (cur) {
+      const del = document.createElement('button');
+      del.type = 'button'; del.className = 'qsp-note-pop-del'; del.textContent = '削除';
+      del.addEventListener('click', function() { applyNote('', '💬 申し送りを削除しました', 'info'); });
+      btns.appendChild(del);
+    }
+    const cancel = document.createElement('button');
+    cancel.type = 'button'; cancel.className = 'qsp-note-pop-cancel'; cancel.textContent = 'キャンセル';
+    cancel.addEventListener('click', function() { pop.remove(); });
+    btns.appendChild(cancel);
+    pop.appendChild(btns);
+    (document.getElementById('tab-quote-make') || document.body).appendChild(pop);
+    const r = ev.currentTarget.getBoundingClientRect();
+    pop.style.top  = Math.max(8, Math.min(r.bottom + 4, window.innerHeight - pop.offsetHeight - 8)) + 'px';
+    pop.style.left = Math.max(8, Math.min(r.left - 200, window.innerWidth - pop.offsetWidth - 8)) + 'px';
+    ta.addEventListener('keydown', function(e) {
+      if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); save.click(); }
+      if (e.key === 'Escape') { e.stopPropagation(); pop.remove(); }
+    });
+    setTimeout(function() { ta.focus(); }, 30);
+    const closer = function(e2) {
+      if (!pop.isConnected) { document.removeEventListener('mousedown', closer); return; }
+      if (!pop.contains(e2.target)) { pop.remove(); document.removeEventListener('mousedown', closer); }
+    };
+    setTimeout(function() { document.addEventListener('mousedown', closer); }, 0);
   };
   // ジャンプタブの明細行クリック → 該当行へスクロール＆ハイライト
   window.jumpToTableRowId = function(rowId) {
