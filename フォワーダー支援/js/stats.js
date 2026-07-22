@@ -256,6 +256,20 @@
            `onclick="statsToggleMasterDetail('${_ea(field)}','${_ea(value)}',this)">${has ? '📇 詳細' : '＋ 詳細'}</button>`;
   }
 
+  // 名称セルに添える「詳細情報あり」バッジ（一覧を見ただけで入力済みかどうか分かるように）。
+  // どの項目が埋まっているかをツールチップで示す。
+  function _mdBadge(field, value) {
+    const schema = window.MD_SCHEMA && window.MD_SCHEMA[field];
+    if (!schema) return '';
+    const rec = typeof window.mdGet === 'function' ? window.mdGet(field, value) : null;
+    if (!rec) return '';
+    const details = rec.details || {};
+    const filled = schema.filter(s => (details[s.key] || '').trim());
+    if (!filled.length) return '';
+    const tip = filled.map(s => `${s.label}: ${details[s.key]}`).join('\n');
+    return ` <span class="stats-md-badge" title="${_eav(tip)}">📇 詳細${filled.length}件</span>`;
+  }
+
   // 同義グループ操作ボタン（⭐代表 / ⤵統合 / →代表ピル）。field は sv/nm/customer/port。
   function _synBtns(field, value, canons, aliasOf, cntMap) {
     const isCanon = canons.has(value);
@@ -1209,7 +1223,7 @@
           ? aliases.map(a => `<span class="stats-syn-member">${_esc(a)}<button class="ua-chip-del" title="統合解除" onclick="${delAlias(a)}">✕</button></span>`).join('')
           : '<span class="stats-empty-cell">—</span>';
         synH += `<tr><td>${labels[g.field] || g.field}</td>` +
-                `<td class="stats-val"><span class="ua-star">⭐</span>${_esc(g.canonical)}</td>` +
+                `<td class="stats-val"><span class="ua-star">⭐</span>${_esc(g.canonical)}${_mdBadge(g.field, g.canonical)}</td>` +
                 `<td>${chips}</td>` +
                 `<td><button class="stats-master-merge" title="この代表を別の代表に統合（配下の別名ごと移動）" onclick="statsSynMergePicker('${_ea(g.field)}','${_ea(g.canonical)}',this)">⤵ 統合</button>` +
                 `<button class="stats-master-rename" title="代表名を変更（旧名称は別名として残ります）" onclick="statsMasterRename('${_ea(g.field)}','${_ea(g.canonical)}')">✏️ 名称変更</button>` +
@@ -1261,7 +1275,7 @@
       }
       h += `<tr>` +
            `<td>${labels[m.field] || m.field}</td>` +
-           `<td class="stats-val">${_esc(m.value)}</td>` +
+           `<td class="stats-val">${_esc(m.value)}${_mdBadge(m.field, m.value)}</td>` +
            `<td class="stats-master-abbrev-cell">${abbrevCell}</td>` +
            `<td>${_mdDetailBtn(m.field, m.value)}${m.isMine ? `<button class="stats-demote-btn" onclick="statsToggleVote('${_ea(m.field)}','${_ea(m.value)}')">解除</button>` : '<span class="stats-empty-cell">他メンバー</span>'}</td>` +
            `</tr>`;

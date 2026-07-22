@@ -2786,6 +2786,21 @@ body:has(#compareOverlay.open) #quoteActionDock { display: none; }
   border-color: #9ec79e;
   color: #2f6b3a;
 }
+.stats-md-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  font-size: 10px;
+  font-weight: 700;
+  background: #eaf3ea;
+  border: 1px solid #9ec79e;
+  color: #2f6b3a;
+  border-radius: 9px;
+  padding: 1px 7px;
+  vertical-align: middle;
+  white-space: nowrap;
+  cursor: default;
+}
 .stats-detail-row > td { background: #faf8f3; padding: 10px 14px; border-top: none; }
 .master-detail-form {
   display: flex;
