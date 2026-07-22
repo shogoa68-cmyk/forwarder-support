@@ -562,6 +562,10 @@
 
   // ========== 行複製（Ctrl+D） ==========
   function duplicateRow(srcId) {
+    // addRowAfter は srcId の直後（＝既存の子リマーク行の手前）に新規行を挿入するため、
+    // 子リマーク行の取得は addRowAfter より前に行う（後で取得すると新規行が間に入り
+    // 「直後の兄弟」判定が外れて空配列になり、リマークが複製先側に取り残されるバグになる）
+    const srcChildren = getChildRemarks(srcId);
     const newId = addRowAfter(srcId);
 
     // テキスト・数値・日付フィールドをコピー（zc = 0円確認済みフラグ／vf・vt = 有効期限を含む）
@@ -610,9 +614,8 @@
     checkUnfilled(newId);
     onPay(newId);
 
-    // 子リマーク行の複製：srcId の子リマークを新親（newId）の下に複製する。
-    // addRowAfter は srcId の直後に挿入するため、srcId の子リマーク群の後ろへ移動してから複製。
-    const srcChildren = getChildRemarks(srcId);
+    // 子リマーク行の複製：srcId の子リマーク（duplicateRow 冒頭で取得済み）を
+    // 新親（newId）の下に複製する。newRow は srcId の子リマーク群の後ろへ移動してから複製。
     const newRow = document.getElementById(`row-${newId}`);
     if (newRow && srcChildren.length) {
       // newId_row を子リマーク群の末尾の後ろへ移動（元の挿入位置が子リマークの前になるため）
