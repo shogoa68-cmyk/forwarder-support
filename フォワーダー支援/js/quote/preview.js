@@ -130,13 +130,14 @@
       const vt     = _isSur ? (document.getElementById(`vt-${id}`)?.value || '') : '';
       const zc     = document.getElementById(`zc-${id}`)?.value === '1';
       const _hideManual = tr.dataset.hideQuote === '1';   // 手動の見積書非表示
-      const _outRange   = tr.dataset.outRange === '1';     // 適用期間外（自動・客先非表示＋合計除外）
+      const _outRange   = tr.dataset.outRange === '1';     // 適用期間外（自動・原則客先非表示＋合計除外）
       const _ps         = tr.dataset.profitShare === '1';  // PROFIT SHARE（客先非表示・社内利益に計上）
-      // 客先出力・小計・PDF/Excel/CSV の除外は _hideQuote 一本で判定する（PROFIT SHARE も客先には出さない）
-      const _hideQuote  = _hideManual || _outRange || _ps;
       const _actual     = tr.dataset.actual === '1';   // 実費（金額未確定・合計除外・単価/金額は「実費」表示）
       const _cond       = tr.dataset.cond === '1';     // 都度請求（発生時のみ・金額は表示・合計に加算しない）
       const _ref        = tr.dataset.refInfo === '1';  // 参考情報（金額は表示・合計に加算しない）
+      // 客先出力・小計・PDF/Excel/CSV の除外は _hideQuote 一本で判定する（PROFIT SHARE も客先には出さない）。
+      // 適用期間外は「参考」指定があれば例外的に出力する（金額は括弧書き・合計外のまま、客先へ参考提示したい場合）
+      const _hideQuote  = _hideManual || (_outRange && !_ref) || _ps;
       rows.push({ _type: 'data', taxed, cat, name, pq, un, pc, pp, cd, bq, bc, bp, mk, cost, bill, profit, note, sv, pt, vf, vt, zc, _actual, _ps, _cond, _ref, _hideQuote, _hideManual, _outRange });
     });
     return rows;
@@ -149,7 +150,8 @@
       if (tr.dataset.virtual) return;          // サブコングループヘッダー（仮想行）はスキップ
       if (tr.dataset.excluded === '1') return;  // 除外グループはスキップ
       if (tr.dataset.hideQuote === '1') return; // 見積書非表示の行はスキップ（合計・CSV から除外）
-      if (tr.dataset.outRange === '1') return;  // 適用期間外のサーチャージはスキップ（客先合計・CSV から除外）
+      // 適用期間外のサーチャージはスキップ（客先合計・CSV から除外）。「参考」指定があれば例外的に出力する
+      if (tr.dataset.outRange === '1' && tr.dataset.refInfo !== '1') return;
       if (tr.dataset.profitShare === '1') return; // PROFIT SHARE は客先出力から除外
       if (tr.dataset.type === 'subtotal') return; // 小計行スキップ
       const id     = tr.id.replace('row-', '');
