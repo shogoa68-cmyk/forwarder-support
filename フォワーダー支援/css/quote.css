@@ -8393,6 +8393,37 @@ button.um-memberno--empty:hover { background: #f4ead4; border-color: #cdb98e; }
 #tab-quote-make .rp-sc-nm-wrap { display:flex; flex-direction:column; overflow:hidden; min-width:0; }
 #tab-quote-make .rp-sc-itemname { color:#4a3f35; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 #tab-quote-make .rp-sc-pt { font-size:10px; color:#9a8070; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+/* 使用元案件バッジ（📂N）とポップアップ */
+#tab-quote-make .rp-sc-src-btn {
+  flex-shrink: 0; cursor: pointer; font-family: inherit;
+  font-size: 9px; font-weight: 600; color: #6a5a42;
+  background: #f3ede0; border: 1px solid #d8cbb0; border-radius: 8px;
+  padding: 0 5px; line-height: 1.5; white-space: nowrap;
+  transition: background .1s;
+}
+#tab-quote-make .rp-sc-src-btn:hover { background: #e8dcc4; border-color: #b8a070; }
+#tab-quote-make .si-src-pop {
+  position: fixed; z-index: 3000; width: 300px; max-height: 340px; overflow-y: auto;
+  background: #fffdf8; border: 1px solid #c9b88f; border-radius: 8px;
+  box-shadow: 0 6px 20px rgba(90, 70, 40, .25); padding: 6px;
+}
+#tab-quote-make .si-src-pop-title {
+  font-size: 10.5px; font-weight: 700; color: #6a5a40;
+  padding: 3px 6px 6px; border-bottom: 1px solid #ece3d2; margin-bottom: 4px;
+}
+#tab-quote-make .si-src-pop-item {
+  display: block; width: 100%; text-align: left; cursor: pointer; font-family: inherit;
+  background: transparent; border: none; border-radius: 5px; padding: 5px 7px;
+}
+#tab-quote-make .si-src-pop-item:hover { background: #f3eada; }
+#tab-quote-make .si-src-pop-nm {
+  display: block; font-size: 11.5px; font-weight: 600; color: #3a5a80;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+#tab-quote-make .si-src-pop-meta {
+  display: block; font-size: 10px; color: #8a7a64; margin-top: 1px;
+  white-space: normal; word-break: break-word;
+}
 /* 適用期間バッジ（サーチャージ等の vf/vt） */
 #tab-quote-make .rp-sc-period { font-size:10px; color:#7a6a45; white-space:nowrap; }
 #tab-quote-make .rp-sc-period.is-expired { color:#b03a2e; }

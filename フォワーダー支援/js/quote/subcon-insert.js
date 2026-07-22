@@ -122,12 +122,15 @@
             lastUsed: 0,
             latest: r.cells,
             history: [],
+            srcMap: {},   // この明細を使用した案件（preset id → メタ＋その時の仕入単価）
           };
         }
         const it = sc.items[key];
         if (pp != null) { it.ppSum += pp; it.ppCount++; }
         if (ts >= it.lastUsed) { it.lastUsed = ts; it.lastPp = pp; it.lastBp = (r.cells[CI.bp]||''); it.lastPt = (r.cells[CI.pt]||'').trim(); it.lastVf = (r.cells[CI.vf]||'').trim(); it.lastVt = (r.cells[CI.vt]||'').trim(); it.latest = r.cells; }
         it.history.push({ ts, pp, bp: _num(r.cells[CI.bp]), route });
+        it.srcMap[p.id] = { id: p.id, name: meta.name, customer: meta.customer, status: meta.status,
+                           route: meta.route, ts, pp, pc: pcKey };
       });
     });
     // 配列化
@@ -141,6 +144,7 @@
           cat: it.cat, name: it.name, role: it.role, un: it.un, pc: it.pc, bc: it.bc,
           pp: it.lastPp, bp: it.lastBp || '', pt: it.lastPt || '',
           vf: it.lastVf || '', vt: it.lastVt || '',
+          srcs: Object.values(it.srcMap).sort((a, b) => b.ts - a.ts),
           avgPp: it.ppCount ? (it.ppSum / it.ppCount) : null,
           lastUsed: it.lastUsed, cells: it.latest,
           history: it.history.sort((a, b) => a.ts - b.ts),
@@ -184,6 +188,71 @@
       (expired ? '<b class="rp-sc-period-exp">期限切れ</b>' : '') + '</span>';
   }
 
+  // 明細ごとの「使用元案件」バッジ（📂N）。mode: 'panel'（右カラム）| 'modal'（行を挿入モーダル）
+  function _srcBadge(mode, si, ii, it) {
+    const n = (it.srcs || []).length;
+    if (!n) return '';
+    return '<button type="button" class="rp-sc-src-btn" ' +
+      'onclick="siItemSrcPop(\'' + mode + '\',' + si + ',' + ii + ', event)" ' +
+      'title="この明細を使用した過去案件（' + n + '件）を表示">📂' + n + '</button>';
+  }
+
+  // 使用元案件ポップアップ（クリックで案件プレビューを開く）
+  function siItemSrcPop(mode, si, ii, ev) {
+    ev.preventDefault();
+    ev.stopPropagation();
+    document.getElementById('siSrcPop')?.remove();
+    let it = null;
+    if (mode === 'modal') {
+      const sc = _filteredAt(si);
+      if (sc) it = sc.items[ii];
+    } else {
+      const sc = _siFilteredList()[si];
+      if (sc) it = sc.items.find(x => x._ii === ii);
+    }
+    if (!it || !(it.srcs || []).length) return;
+    const pop = document.createElement('div');
+    pop.id = 'siSrcPop';
+    pop.className = 'si-src-pop';
+    const title = document.createElement('div');
+    title.className = 'si-src-pop-title';
+    title.textContent = '📂 「' + it.name + '」を使用した案件（' + it.srcs.length + '件・クリックでプレビュー）';
+    pop.appendChild(title);
+    it.srcs.forEach(s => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'si-src-pop-item';
+      const nm = document.createElement('span');
+      nm.className = 'si-src-pop-nm';
+      nm.textContent = s.name || '（無題）';
+      const meta = document.createElement('span');
+      meta.className = 'si-src-pop-meta';
+      meta.textContent = [
+        s.status || '',
+        s.customer ? '👤 ' + s.customer : '',
+        s.route ? '📍 ' + s.route : '',
+        '🕒 ' + _fmtDate(s.ts),
+        s.pp != null ? '仕入 ' + _money(s.pp, s.pc) : '',
+      ].filter(Boolean).join('・');
+      b.appendChild(nm);
+      b.appendChild(meta);
+      b.addEventListener('click', function() {
+        pop.remove();
+        if (typeof window.cloudPreviewPreset === 'function') window.cloudPreviewPreset(s.id);
+      });
+      pop.appendChild(b);
+    });
+    (document.getElementById('tab-quote-make') || document.body).appendChild(pop);
+    const r = ev.currentTarget.getBoundingClientRect();
+    pop.style.top  = Math.max(8, Math.min(r.bottom + 4, window.innerHeight - pop.offsetHeight - 8)) + 'px';
+    pop.style.left = Math.max(8, Math.min(r.left - 200, window.innerWidth - pop.offsetWidth - 8)) + 'px';
+    const closer = function(e2) {
+      if (!pop.isConnected) { document.removeEventListener('mousedown', closer); return; }
+      if (!pop.contains(e2.target)) { pop.remove(); document.removeEventListener('mousedown', closer); }
+    };
+    setTimeout(function() { document.addEventListener('mousedown', closer); }, 0);
+  }
+
   function _icon(sc) {
     // 代表カテゴリのアイコン
     const cats = sc.items.map(i => i.cat);
@@ -215,7 +284,7 @@
         return '<label class="rp-sc-item">' +
             '<input type="checkbox" class="rp-sc-chk" data-si="' + si + '" data-ii="' + ii + '" checked>' +
             '<span class="rp-cat ' + (CAT_CLASS[it.cat]||'cat-other') + '">' + _esc(ROLE[it.cat]||it.cat||'—') + '</span>' +
-            '<span class="rp-sc-nm-wrap"><span class="rp-sc-itemname">' + _esc(it.name) + '</span>' + ptBadge + _periodBadge(it) + '</span>' +
+            '<span class="rp-sc-nm-wrap"><span class="rp-sc-itemname">' + _esc(it.name) + '</span>' + ptBadge + _periodBadge(it) + _srcBadge('modal', si, ii, it) + '</span>' +
             '<span class="rp-sc-price">' + priceMain + unit + avg + '</span>' +
           '</label>';
       }).join('');
@@ -428,7 +497,7 @@
         return '<label class="rp-sc-item" draggable="true" data-si="' + si + '" data-ii="' + it._ii + '">' +
             '<input type="checkbox" class="rp-sc-chk si-chk" data-si="' + si + '" data-ii="' + it._ii + '" checked>' +
             '<span class="rp-cat ' + (CAT_CLASS[it.cat]||'cat-other') + '">' + _esc(ROLE[it.cat]||it.cat||'—') + '</span>' +
-            '<span class="rp-sc-nm-wrap"><span class="rp-sc-itemname">' + _esc(it.name) + '</span>' + ptBadgeSi + _periodBadge(it) + '</span>' +
+            '<span class="rp-sc-nm-wrap"><span class="rp-sc-itemname">' + _esc(it.name) + '</span>' + ptBadgeSi + _periodBadge(it) + _srcBadge('panel', si, it._ii, it) + '</span>' +
             '<span class="rp-sc-price">' + priceCell + unit + '</span>' +
           '</label>';
       }).join('');
@@ -826,7 +895,7 @@
   Object.assign(window, {
     loadSubconModules, renderSubconList, subconInsert, subconFilter, switchRowInsertTab,
     renderSubconSidePanel, subconInsertFromPanel, loadSubconPanel, subconSidePanelFilter,
-    siToggleCatChip, siClearCatChips, siToggleShowAll,
+    siToggleCatChip, siClearCatChips, siToggleShowAll, siItemSrcPop,
     siSetTab, renderCurrentQuoteSubconPanel, siCopyGroup,
     getSubconData: () => _subcons,
     loadSubconData: async () => { if (!_subcons.length) await loadSubconModules(); return _subcons; },
