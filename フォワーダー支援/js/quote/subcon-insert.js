@@ -25,8 +25,10 @@
   };
 
   let _subcons   = [];   // モーダル用（全件集計）
-  let _siSubcons = [];   // 右カラムパネル用（現案件条件でフィルタ済み）
+  let _siSubcons = [];   // 右カラムパネル用（現案件条件 or 全件、_siShowAll に応じて切替）
   let _siCatSel  = new Set();   // 右カラム：カテゴリチップの選択状態（空 = 全カテゴリ）
+  let _siShowAll = false;       // 右カラム：ON=全過去案件、OFF=現案件のサブコン/条件に合致するもののみ
+  let _siRawPresets = null;     // 直近取得した全プリセット（トグル切替時に再取得しないためのキャッシュ）
 
   // ---------- 検索ヘルパー（スペース区切り AND・複数フィールド横断） ----------
   function _terms(q) {
@@ -720,8 +722,23 @@
       wrap.innerHTML = '<div class="preset-empty">⚠️ 読み込みエラー：' + _esc(error.message) + '</div>';
       return;
     }
-    _siSubcons = _buildSiSubcons(data || []);
+    _siRawPresets = data || [];
+    _applySiScope();
+  }
+
+  // _siShowAll に応じて表示対象を切替（再取得はしない・キャッシュから再集計のみ）
+  function _applySiScope() {
+    if (!_siRawPresets) return;
+    _siSubcons = _siShowAll ? _aggregate(_siRawPresets) : _buildSiSubcons(_siRawPresets);
     renderSubconSidePanel();
+  }
+
+  // 現案件連動 ⇔ 全過去案件 の切替（右カラム「サブコン別」過去案件ペイン）
+  function siToggleShowAll(checked) {
+    _siShowAll = !!checked;
+    const lbl = document.getElementById('siScopeLabel');
+    if (lbl) lbl.textContent = _siShowAll ? '🌐 全過去案件のサブコン' : '🔎 現案件に関連するサブコンのみ';
+    _applySiScope();
   }
 
   function subconSidePanelFilter() {
@@ -809,7 +826,7 @@
   Object.assign(window, {
     loadSubconModules, renderSubconList, subconInsert, subconFilter, switchRowInsertTab,
     renderSubconSidePanel, subconInsertFromPanel, loadSubconPanel, subconSidePanelFilter,
-    siToggleCatChip, siClearCatChips,
+    siToggleCatChip, siClearCatChips, siToggleShowAll,
     siSetTab, renderCurrentQuoteSubconPanel, siCopyGroup,
     getSubconData: () => _subcons,
     loadSubconData: async () => { if (!_subcons.length) await loadSubconModules(); return _subcons; },
