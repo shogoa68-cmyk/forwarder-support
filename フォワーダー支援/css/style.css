@@ -1875,6 +1875,310 @@ body:has(#compareOverlay.open) #quoteActionDock { display: none; }
 .bm-btn-save:disabled { opacity: .6; cursor: not-allowed; }
 
 /* ================================================================
+   📅 カレンダー（祝日・協力会社休業日・サーチャージ適用日）
+   ================================================================ */
+#tab-calendar {
+  padding: 20px 16px;
+}
+.cal-page-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+}
+.cal-page-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: #3d2e1e;
+  margin-right: auto;
+}
+.cal-add-btn {
+  background: #2b7bb0;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  padding: 8px 18px;
+  font-size: 13px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background .15s;
+}
+.cal-add-btn:hover { background: #1c5d87; }
+
+.cal-filters {
+  background: #faf7f2;
+  border: 1px solid #d9cfc2;
+  border-radius: 8px;
+  padding: 12px 16px;
+  margin-bottom: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.cal-filter-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.cal-filter-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: #7d6b56;
+  min-width: 32px;
+  padding-top: 5px;
+  white-space: nowrap;
+}
+.cal-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.cal-chip {
+  background: #fff;
+  color: #5a6e7a;
+  border: 1px solid #cfd8dc;
+  border-radius: 999px;
+  padding: 3px 12px;
+  font-size: 12px;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background .12s, border-color .12s, color .12s;
+  white-space: nowrap;
+}
+.cal-chip:hover { background: #eef4f8; }
+.cal-chip.is-active { background: #2b7bb0; color: #fff; border-color: #2b7bb0; }
+
+.cal-nav {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  margin-bottom: 12px;
+}
+.cal-nav-btn {
+  background: #fff;
+  border: 1px solid #cfd8dc;
+  border-radius: 6px;
+  padding: 4px 12px;
+  font-size: 14px;
+  cursor: pointer;
+}
+.cal-nav-btn:hover { background: #eef4f8; }
+.cal-nav-label { font-size: 15px; font-weight: 700; color: #3d2e1e; min-width: 100px; text-align: center; }
+.cal-nav-today {
+  background: #f0e8d8;
+  color: #5d4e3a;
+  border: none;
+  border-radius: 6px;
+  padding: 4px 14px;
+  font-size: 12px;
+  font-family: inherit;
+  cursor: pointer;
+}
+.cal-nav-today:hover { background: #d9cfc2; }
+
+.cal-dow-row {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  margin-bottom: 4px;
+}
+.cal-dow {
+  text-align: center;
+  font-size: 11px;
+  font-weight: 700;
+  color: #8a7a64;
+  padding: 4px 0;
+}
+.cal-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
+}
+.cal-day {
+  min-height: 84px;
+  border: 1px solid #e8e0d4;
+  border-radius: 6px;
+  padding: 4px 5px;
+  background: #fff;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.cal-day--other-month { background: #f7f4ee; border-color: #f0ebe0; }
+.cal-day--today { border-color: #2b7bb0; box-shadow: inset 0 0 0 1px #2b7bb0; }
+.cal-day-num { font-size: 12px; font-weight: 600; color: #5d4e3a; }
+.cal-day-events { display: flex; flex-direction: column; gap: 2px; }
+.cal-dot {
+  font-size: 10.5px;
+  line-height: 1.3;
+  padding: 1px 5px;
+  border-radius: 4px;
+  color: #fff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: default;
+}
+.cal-dot--jp        { background: #c0564a; }
+.cal-dot--overseas  { background: #2b7bb0; }
+.cal-dot--partner   { background: #b3752c; cursor: pointer; }
+.cal-dot--surcharge { background: #6f5aa0; cursor: pointer; }
+.cal-more { font-size: 10px; color: #8a7a64; }
+
+/* サーチャージ一覧 */
+.cal-surcharge-list { margin-top: 20px; }
+.cal-sub-title { font-size: 14px; font-weight: 700; color: #3d2e1e; margin-bottom: 8px; }
+.cal-surcharge-item {
+  background: #fff;
+  border: 1px solid #d9cfc2;
+  border-radius: 8px;
+  padding: 10px 12px;
+  margin-bottom: 8px;
+  position: relative;
+}
+.cal-surcharge-main { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.cal-surcharge-name { font-weight: 700; font-size: 13px; color: #3d2e1e; }
+.cal-surcharge-meta { font-size: 11.5px; color: #7d6b56; }
+.cal-surcharge-dates { font-size: 12px; color: #5a6e7a; margin-top: 4px; }
+.cal-surcharge-note { font-size: 12px; color: #5d4e3a; margin-top: 3px; }
+.cal-surcharge-actions { position: absolute; top: 8px; right: 10px; display: flex; gap: 8px; }
+.cal-inline-edit, .cal-inline-del {
+  font-size: 13px;
+  color: #9a8a72;
+  cursor: pointer;
+  padding: 2px 4px;
+  border-radius: 4px;
+}
+.cal-inline-edit:hover { background: #eef4f8; color: #2b7bb0; }
+.cal-inline-del:hover  { background: #fdeceb; color: #b04a4a; }
+
+.cal-empty { text-align: center; color: #7d6b56; padding: 40px 16px; font-size: 13px; }
+.cal-empty a { color: #2b7bb0; }
+
+/* ツールチップ（bookmarks.js の bm-note-tip と同一方式） */
+.cal-note-tip {
+  display: none;
+  position: fixed;
+  z-index: 6000;
+  max-width: 260px;
+  background: #2d2418;
+  color: #fff;
+  font-size: 11.5px;
+  line-height: 1.5;
+  padding: 6px 10px;
+  border-radius: 6px;
+  box-shadow: 0 4px 14px rgba(0,0,0,.25);
+  pointer-events: none;
+  white-space: pre-line;
+}
+
+/* モーダル（bm-modal-* と同一構造） */
+.cal-modal-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,.4);
+  z-index: 5000;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+.cal-modal-overlay.open { display: flex; }
+.cal-modal-box {
+  background: #fff;
+  border-radius: 10px;
+  width: min(520px, 96vw);
+  max-height: 92vh;
+  overflow-y: auto;
+  box-shadow: 0 8px 32px rgba(0,0,0,.2);
+  display: flex;
+  flex-direction: column;
+}
+.cal-hist-box { width: min(640px, 96vw); }
+.cal-modal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px 10px;
+  border-bottom: 1px solid #e8e0d4;
+  flex-shrink: 0;
+}
+.cal-modal-head h3 { font-size: 15px; color: #3d2e1e; }
+.cal-modal-close {
+  background: none;
+  border: none;
+  font-size: 16px;
+  cursor: pointer;
+  color: #7d6b56;
+  padding: 2px 6px;
+}
+.cal-form { padding: 16px 20px; display: flex; flex-direction: column; gap: 12px; }
+.cal-form-row { display: flex; flex-direction: column; gap: 4px; }
+.cal-form-row-2col { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.cal-form-label { font-size: 12px; font-weight: 600; color: #5d4e3a; }
+.cal-required { color: #c0392b; font-size: 10px; font-weight: 700; margin-left: 4px; }
+.cal-optional { color: #7d6b56; font-size: 10.5px; font-weight: 400; margin-left: 4px; }
+.cal-form-input, .cal-form-sel, .cal-form-textarea {
+  border: 1px solid #cfd8dc;
+  border-radius: 5px;
+  padding: 7px 10px;
+  font-size: 13px;
+  font-family: inherit;
+  color: #2d2418;
+  background: #fff;
+  width: 100%;
+  box-sizing: border-box;
+}
+.cal-form-input:focus, .cal-form-sel:focus, .cal-form-textarea:focus { border-color: #2b7bb0; outline: none; }
+.cal-form-textarea { resize: vertical; }
+.cal-modal-foot { display: flex; justify-content: flex-end; gap: 8px; padding-top: 4px; }
+.cal-btn-cancel {
+  background: #f0e8d8;
+  color: #5d4e3a;
+  border: none;
+  border-radius: 5px;
+  padding: 8px 20px;
+  font-size: 13px;
+  font-family: inherit;
+  cursor: pointer;
+}
+.cal-btn-cancel:hover { background: #d9cfc2; }
+.cal-btn-save {
+  background: #2b7bb0;
+  color: #fff;
+  border: none;
+  border-radius: 5px;
+  padding: 8px 20px;
+  font-size: 13px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background .15s;
+}
+.cal-btn-save:hover { background: #1c5d87; }
+.cal-btn-save:disabled { opacity: .6; cursor: not-allowed; }
+
+/* 履歴一覧（bm-hist-* と同一構造） */
+.cal-hist-list { padding: 6px 16px 16px; overflow-y: auto; }
+.cal-hist-group-title { font-size: 13px; font-weight: 700; color: #3d2e1e; margin: 12px 2px 4px; }
+.cal-hist-item { padding: 10px 2px; border-bottom: 1px solid #efe8dc; }
+.cal-hist-row1 { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.cal-hist-act { font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 999px; color: #fff; flex-shrink: 0; }
+.cal-hist-act-ins { background: #4a9c59; }
+.cal-hist-act-upd { background: #2b7bb0; }
+.cal-hist-act-del { background: #c0564a; }
+.cal-hist-title { font-weight: 700; color: #3d2e1e; font-size: 13px; }
+.cal-hist-row2 { display: flex; gap: 12px; font-size: 11px; color: #8a7a64; margin-top: 3px; }
+.cal-hist-who { font-weight: 600; color: #6b5a42; }
+.cal-hist-body { margin-top: 6px; display: flex; flex-direction: column; gap: 3px; padding-left: 4px; border-left: 2px solid #ece4d8; }
+.cal-hist-field { font-size: 11.5px; display: flex; gap: 6px; align-items: baseline; flex-wrap: wrap; padding-left: 6px; }
+.cal-hist-fname { color: #8a7a64; min-width: 60px; }
+.cal-hist-old { color: #c0564a; text-decoration: line-through; word-break: break-all; }
+.cal-hist-new { color: #2e7d46; word-break: break-all; }
+.cal-hist-arrow { color: #aaa; }
+.cal-hist-nodiff { color: #aaa; }
+
+/* ================================================================
    類似見積サジェストパネル（右カラム下）
    ================================================================ */
 .sq-panel {

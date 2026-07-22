@@ -56,6 +56,7 @@
     <button class="cat-btn"        role="tab" aria-selected="false" aria-controls="tab-master"        onclick="switchCategory('master',  this)">🗂 マスター管理</button>
     <button class="cat-btn cat-btn-featured" role="tab" aria-selected="false" aria-controls="tab-local-charges" onclick="switchCategory('cost', this)">💴 諸チャージ</button>
     <button class="cat-btn cat-btn-bookmark" role="tab" aria-selected="false" aria-controls="tab-bookmark"   onclick="switchCategory('bookmark', this)">🔖 BOOKMARK</button>
+    <button class="cat-btn"        role="tab" aria-selected="false" aria-controls="tab-calendar"     onclick="switchCategory('calendar', this)">📅 カレンダー</button>
     <button class="cat-btn"        role="tab" aria-selected="false" aria-controls="tab-tracking"     onclick="switchCategory('vessel', this)">🚢 本船・航路</button>
     <button class="cat-btn"        role="tab" aria-selected="false" aria-controls="tab-booking-tab"  title="Booking（船腹予約）と S/I（Shipping Instruction：船積指図書）の手続き" onclick="switchCategory('booking', this)">📋 Booking/SI</button>
     <button class="cat-btn"        role="tab" aria-selected="false" aria-controls="tab-bldo"         onclick="switchCategory('docs',   this)">📄 書類・通関</button>
@@ -100,6 +101,9 @@
   </div>
   <div class="tab-nav sub-nav" id="sub-bookmark" role="tablist" aria-label="bookmark サブタブ">
     <!-- サブタブなし：switchCategory で直接 tab-bookmark を表示 -->
+  </div>
+  <div class="tab-nav sub-nav" id="sub-calendar" role="tablist" aria-label="calendar サブタブ">
+    <!-- サブタブなし：switchCategory で直接 tab-calendar を表示 -->
   </div>
   <div class="tab-nav sub-nav" id="sub-booking" role="tablist" aria-label="booking サブタブ">
     <button class="tab-btn" role="tab" aria-selected="false" onclick="switchTab('booking-tab', this)">🛳️ Booking</button>
@@ -4135,6 +4139,44 @@
     </div>
   </div>
 
+  <!-- ===================== Tab: CALENDAR ===================== -->
+  <div class="tab-content" id="tab-calendar">
+    <div class="cal-page-head">
+      <h2 class="cal-page-title">📅 カレンダー</h2>
+      <button class="cal-add-btn" id="calHistBtn" onclick="openCalHistory()" hidden title="編集履歴を表示">🕘 履歴</button>
+      <button class="cal-add-btn" id="calAddHolBtn" onclick="openAddCalHolidayModal()" hidden>＋ 協力会社休業日</button>
+      <button class="cal-add-btn" id="calAddSurBtn" onclick="openAddCalSurchargeModal()" hidden>＋ サーチャージ適用日</button>
+    </div>
+
+    <div class="cal-filters">
+      <div class="cal-filter-row">
+        <span class="cal-filter-label">種別</span>
+        <div class="cal-chips" id="calTypeChips"></div>
+      </div>
+      <div class="cal-filter-row" id="calCountryRow" hidden>
+        <span class="cal-filter-label">国</span>
+        <div class="cal-chips" id="calCountryChips"></div>
+      </div>
+      <div class="cal-filter-row" id="calCompanyRow" hidden>
+        <span class="cal-filter-label">会社</span>
+        <div class="cal-chips" id="calCompanyChips"></div>
+      </div>
+    </div>
+
+    <div class="cal-nav">
+      <button class="cal-nav-btn" onclick="calPrevMonth()">◀</button>
+      <span class="cal-nav-label" id="calMonthLabel"></span>
+      <button class="cal-nav-btn" onclick="calNextMonth()">▶</button>
+      <button class="cal-nav-today" onclick="calGoToday()">今日</button>
+    </div>
+
+    <div class="cal-grid-wrap" id="calGridWrap">
+      <div class="cal-empty">読み込み中…</div>
+    </div>
+
+    <div class="cal-surcharge-list" id="calSurchargeListWrap"></div>
+  </div>
+
   <!-- Footer -->
   <div class="footer">
     <span class="footer-text">フォワーダー実務支援ツール</span>
@@ -4172,6 +4214,7 @@
 <script src="js/quote/subcon-insert.js"></script>
 <script src="js/tweaks.js"></script>
 <script src="js/bookmarks.js"></script>
+<script src="js/calendar.js"></script>
 <script src="js/similar-quotes.js"></script>
 <script src="js/quote/scenario.js"></script>
 <script src="js/quote/right-rail.js"></script>
@@ -4726,6 +4769,95 @@
     </div>
     <div class="bm-hist-list" id="bmHistList">
       <div class="bm-empty">読み込み中…</div>
+    </div>
+  </div>
+</div>
+
+<!-- ======= カレンダー：追加/編集モーダル ======= -->
+<div id="calAddModal" class="cal-modal-overlay" onclick="closeCalModal(event)">
+  <div class="cal-modal-box">
+    <div class="cal-modal-head">
+      <h3 id="calModalTitle">📅 予定を追加</h3>
+      <button class="cal-modal-close" onclick="document.getElementById('calAddModal').classList.remove('open')" aria-label="閉じる">✕</button>
+    </div>
+    <form class="cal-form" onsubmit="event.preventDefault(); calFormKindIsHoliday() ? saveCalHoliday() : saveCalSurcharge();">
+      <input type="hidden" id="calFormId">
+      <div class="cal-form-row">
+        <label class="cal-form-label" for="calFormKind">種別</label>
+        <select id="calFormKind" class="cal-form-sel" onchange="calToggleFormKind()">
+          <option value="holiday">🤝 協力会社の休業日</option>
+          <option value="surcharge">💴 サーチャージ適用日</option>
+        </select>
+      </div>
+
+      <div id="calHolidayFields">
+        <div class="cal-form-row">
+          <label class="cal-form-label" for="calFormCompany">協力会社名 <span class="cal-required">必須</span></label>
+          <input type="text" id="calFormCompany" class="cal-form-input" placeholder="例：〇〇通関、〇〇陸運" maxlength="100">
+        </div>
+        <div class="cal-form-row">
+          <label class="cal-form-label" for="calFormHolDate">日付 <span class="cal-required">必須</span></label>
+          <input type="date" id="calFormHolDate" class="cal-form-input">
+        </div>
+        <div class="cal-form-row">
+          <label class="cal-form-label" for="calFormHolName">名称・理由 <span class="cal-required">必須</span></label>
+          <input type="text" id="calFormHolName" class="cal-form-input" placeholder="例：会社休業日" maxlength="100">
+        </div>
+        <div class="cal-form-row">
+          <label class="cal-form-label" for="calFormHolNote">メモ <span class="cal-optional">任意</span></label>
+          <textarea id="calFormHolNote" class="cal-form-textarea" rows="2"></textarea>
+        </div>
+      </div>
+
+      <div id="calSurchargeFields" hidden>
+        <div class="cal-form-row">
+          <label class="cal-form-label" for="calFormSurName">サーチャージ名 <span class="cal-required">必須</span></label>
+          <input type="text" id="calFormSurName" class="cal-form-input" placeholder="例：GRI, PSS" maxlength="100">
+        </div>
+        <div class="cal-form-row">
+          <label class="cal-form-label" for="calFormSurCarrier">対象船社/キャリア <span class="cal-optional">任意</span></label>
+          <input type="text" id="calFormSurCarrier" class="cal-form-input">
+        </div>
+        <div class="cal-form-row">
+          <label class="cal-form-label" for="calFormSurLane">対象航路 <span class="cal-optional">任意</span></label>
+          <input type="text" id="calFormSurLane" class="cal-form-input">
+        </div>
+        <div class="cal-form-row cal-form-row-2col">
+          <div>
+            <label class="cal-form-label" for="calFormSurFrom">適用開始 <span class="cal-required">必須</span></label>
+            <input type="date" id="calFormSurFrom" class="cal-form-input">
+          </div>
+          <div>
+            <label class="cal-form-label" for="calFormSurTo">適用終了 <span class="cal-optional">任意</span></label>
+            <input type="date" id="calFormSurTo" class="cal-form-input">
+          </div>
+        </div>
+        <div class="cal-form-row">
+          <label class="cal-form-label" for="calFormSurAmount">金額・詳細 <span class="cal-optional">任意</span></label>
+          <input type="text" id="calFormSurAmount" class="cal-form-input" placeholder="例：+USD 200/20'">
+        </div>
+        <div class="cal-form-row">
+          <label class="cal-form-label" for="calFormSurNote">メモ <span class="cal-optional">任意</span></label>
+          <textarea id="calFormSurNote" class="cal-form-textarea" rows="2"></textarea>
+        </div>
+      </div>
+
+      <div class="cal-modal-foot">
+        <button type="button" class="cal-btn-cancel" onclick="document.getElementById('calAddModal').classList.remove('open')">キャンセル</button>
+        <button type="submit" class="cal-btn-save" id="calSaveBtn">保存</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div id="calHistModal" class="cal-modal-overlay" onclick="closeCalHistory(event)">
+  <div class="cal-modal-box cal-hist-box">
+    <div class="cal-modal-head">
+      <h3>🕘 カレンダー編集履歴</h3>
+      <button class="cal-modal-close" onclick="document.getElementById('calHistModal').classList.remove('open')" aria-label="閉じる">✕</button>
+    </div>
+    <div class="cal-hist-list" id="calHistList">
+      <div class="cal-empty">読み込み中…</div>
     </div>
   </div>
 </div>
