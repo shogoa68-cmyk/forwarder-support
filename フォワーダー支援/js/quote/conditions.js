@@ -230,10 +230,13 @@
     else if (modeVal === '海上（LCL）') setTransport('lcl');
     else if (modeVal.startsWith('航空')) setTransport('air');
     else if (modeVal === '国内手配のみ') setTransport('domestic');
+    else if (!modeVal) _resetTransportUI();   // 空 = 未選択に戻す（新規作成・クリア時に前案件の選択が残らないように）
 
-    // 輸出/輸入方向
-    const dir = fields['cond-direction'] || '';
+    // 輸出/輸入方向。フィールドに明示的に空が入っている場合は未選択に戻す
+    // （undefined = 旧データにキー無し → 現状維持）
+    const dir = fields['cond-direction'];
     if (dir === 'export' || dir === 'import') setDirection(dir);
+    else if (dir !== undefined) setDirection('');
 
     // Zone 1 ON/OFF（現在値と異なる場合のみトグル）
     const wantZ1 = fields['cond-zone1-on'] === 'true' || fields['cond-zone1-on'] === true;
@@ -1904,6 +1907,20 @@
       const el = document.getElementById('van-rows-wrap');
       if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }, 200);
+  }
+
+  /** 輸送モードを未選択状態に戻す（新規作成・クリア時） */
+  function _resetTransportUI() {
+    _currentTransport = '';
+    _currentSeaSub = 'fcl';
+    document.querySelectorAll('#seaAirBtns .cond-prim-btn').forEach(b => b.classList.remove('active'));
+    const sel = document.getElementById('cond-mode');
+    if (sel) sel.value = '';
+    updateRouteModeIcon();
+    _applyZoneLabels();
+    _refreshCarrierDatalist();
+    if (typeof applyCargoFieldOrder === 'function') applyCargoFieldOrder();
+    if (typeof window.renderQuoteMilestones === 'function') window.renderQuoteMilestones();
   }
 
   /** Sea / Air プライマリトグル */

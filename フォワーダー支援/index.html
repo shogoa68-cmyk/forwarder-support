@@ -3619,6 +3619,10 @@
         <!-- 過去案件ペイン -->
         <div class="si-pane" id="siPane-past" style="display:none">
           <div class="si-search-bar">
+            <label class="si-scope-toggle" title="OFF：現在の見積のサブコン・条件に合致する過去案件のみ／ON：全過去案件のサブコンを対象">
+              <input type="checkbox" id="siShowAllChk" onchange="siToggleShowAll(this.checked)">
+              <span id="siScopeLabel">🔎 現案件に関連するサブコンのみ</span>
+            </label>
             <input type="search" id="siSubconSearch" class="si-search-input"
                    placeholder="🔍 サブコン・品名・単位・パターン（スペースでAND検索）" oninput="subconSidePanelFilter()">
             <div id="siCatChips" class="si-cat-chips"></div>
