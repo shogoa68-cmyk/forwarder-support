@@ -37,3 +37,6 @@ __pycache__/
 *.pyc
 dist/
 build/
+
+# ========== カレンダー祝日ICS取込（scripts/import-calendar-holidays.js の入力） ==========
+scripts/ics-input/
