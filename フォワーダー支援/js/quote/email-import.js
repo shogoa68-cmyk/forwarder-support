@@ -244,6 +244,19 @@
     html += '<p class="ei-hint">💡 単価は仕入・売の両方に入ります（粗利0）。仕入額が分かる場合は挿入後に修正してください。「要確認」行は品名・金額を必ず確認。</p>';
     wrap.innerHTML = html;
     document.getElementById('eiActions').hidden = false;
+    _updateInsertTarget();
+  }
+
+  // 「この見積へ挿入」の挿入先（＝今エディタで開いている見積名）を明示
+  function _updateInsertTarget() {
+    const el = document.getElementById('eiInsertTarget');
+    if (!el) return;
+    const nameEl = document.getElementById('currentQuoteName');
+    // currentQuoteName は hidden 属性で「新規見積」を表す。表示名があればそれを使う
+    const label = (nameEl && !nameEl.hidden && nameEl.textContent.trim())
+      ? nameEl.textContent.trim()
+      : '📝 新規見積（未保存）';
+    el.textContent = '挿入先 → ' + label;
   }
 
   function eiToggleAll(on) {

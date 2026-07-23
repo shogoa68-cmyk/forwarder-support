@@ -2061,7 +2061,6 @@
         <h2 class="qpd-title">📊 見積ダッシュボード</h2>
         <div class="qpd-head-actions">
           <button type="button" class="qpd-new" onclick="qpNewQuote()">🆕 新規見積を作成</button>
-          <button type="button" class="qpd-import" onclick="openEmailImport()" title="メール本文を貼り付けて見積データとして取り込む">📩 メール取込</button>
           <button type="button" class="qpd-resume" onclick="qpShowEditor()" title="編集中の見積画面に戻る">▶ 編集画面へ</button>
         </div>
       </div>
@@ -2218,6 +2217,11 @@
       <!-- 履歴：アイコンのみで表示 -->
       <button class="save-btn save-btn-icon save-btn-undo" id="btnQuoteUndo" onclick="quoteUndo()" disabled title="元に戻す (Ctrl+Z)">↶</button>
       <button class="save-btn save-btn-icon save-btn-redo" id="btnQuoteRedo" onclick="quoteRedo()" disabled title="やり直す (Ctrl+Y / Ctrl+Shift+Z)">↷</button>
+
+      <span class="save-toolbar-sep"></span>
+
+      <!-- 📩 メール取込：開いている見積へ行を挿入 or 新規展開 -->
+      <button type="button" class="save-btn save-btn-import" onclick="openEmailImport()" title="メール本文を貼り付けて、この見積に行を挿入（または新規案件として展開）">📩 メール取込</button>
 
       <span class="save-toolbar-sep"></span>
 
@@ -3706,7 +3710,10 @@
         </div>
         <div id="eiReviewWrap"></div>
         <div id="eiActions" class="ei-actions" hidden>
-          <button type="button" class="ei-act-insert" onclick="eiInsertRows()" title="チェックした行を現在編集中の見積テーブル末尾に追加">✏️ 現在の見積へ行を挿入</button>
+          <div class="ei-act-col">
+            <button type="button" class="ei-act-insert" onclick="eiInsertRows()" title="チェックした行を、今開いている見積テーブルの末尾に追加">✏️ この見積へ行を挿入</button>
+            <span class="ei-act-target" id="eiInsertTarget"></span>
+          </div>
           <button type="button" class="ei-act-new" onclick="eiApplyAsNew()" title="入力中の内容をクリアし、取込内容で新しい案件を作る（原文も案件データに保存）">🆕 新規案件として展開</button>
         </div>
       </div>
