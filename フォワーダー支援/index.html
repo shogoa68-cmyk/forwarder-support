@@ -2061,6 +2061,7 @@
         <h2 class="qpd-title">📊 見積ダッシュボード</h2>
         <div class="qpd-head-actions">
           <button type="button" class="qpd-new" onclick="qpNewQuote()">🆕 新規見積を作成</button>
+          <button type="button" class="qpd-import" onclick="openEmailImport()" title="メール本文を貼り付けて見積データとして取り込む">📩 メール取込</button>
           <button type="button" class="qpd-resume" onclick="qpShowEditor()" title="編集中の見積画面に戻る">▶ 編集画面へ</button>
         </div>
       </div>
@@ -2602,6 +2603,8 @@
               <button type="button" class="qf-memo-expand-btn" onclick="openMemoPopout()" title="メモを全画面で編集" style="margin-left:3px">⤢ 拡大</button>
             </label>
             <textarea id="qf-memo" rows="6" placeholder="担当者間の申し送り・注意事項など、案件内部メモを自由に記述できます。お客様向け出力には含まれません。"></textarea>
+            <!-- 📩 メール取込の原文（監査・再パース用。fields 経由で案件データに永続化） -->
+            <input type="hidden" id="qf-import-src" />
           </div>
           <!-- 📌 メモ フロート付箋（スクロール追従・ドラッグ可）。#qf-memo と双方向同期 -->
           <div id="qfMemoFloat" class="qf-memo-float" hidden>
@@ -3689,6 +3692,26 @@
     </div>
 
     <!-- ========== CSV列選択モーダル ========== -->
+    <!-- 📩 メール取込モーダル（貼り付け→解析→レビュー→挿入/新規展開） -->
+    <div id="emailImportModal" onclick="if(event.target===this)closeEmailImport()">
+      <div id="emailImportBox">
+        <div class="ei-head">
+          <h3>📩 メール取込（見積データ化）</h3>
+          <button type="button" class="ei-close" onclick="closeEmailImport()" title="閉じる">✕</button>
+        </div>
+        <p class="ei-desc">メールで提示した見積の本文を貼り付けて「解析」を押してください。自アプリのメール形式は高精度で復元でき、自由文も金額を含む行から明細候補を抽出します。</p>
+        <textarea id="eiText" rows="7" placeholder="ここにメール本文を貼り付け…&#10;例）&#10;《東京 → PENANG》&#10;  ・海上運賃20  1 20'GP × 475 USD ＝ 475 USD&#10;  ・THC  1 CNTR × ¥34,900 ＝ ¥34,900"></textarea>
+        <div class="ei-parse-bar">
+          <button type="button" class="ei-parse-btn" onclick="eiParse()">🔍 解析する</button>
+        </div>
+        <div id="eiReviewWrap"></div>
+        <div id="eiActions" class="ei-actions" hidden>
+          <button type="button" class="ei-act-insert" onclick="eiInsertRows()" title="チェックした行を現在編集中の見積テーブル末尾に追加">✏️ 現在の見積へ行を挿入</button>
+          <button type="button" class="ei-act-new" onclick="eiApplyAsNew()" title="入力中の内容をクリアし、取込内容で新しい案件を作る（原文も案件データに保存）">🆕 新規案件として展開</button>
+        </div>
+      </div>
+    </div>
+
     <div id="csvColModal" onclick="if(event.target===this)closeCsvColModal()">
       <div id="csvColBox">
         <h3>⬇ CSV出力：列を選択してください</h3>
@@ -4212,6 +4235,7 @@
 <script src="js/quote/cloud.js"></script>
 <script src="js/quote/users.js"></script>
 <script src="js/quote/subcon-insert.js"></script>
+<script src="js/quote/email-import.js"></script>
 <script src="js/tweaks.js"></script>
 <script src="js/bookmarks.js"></script>
 <script src="js/calendar.js"></script>

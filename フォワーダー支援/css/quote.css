@@ -4839,6 +4839,84 @@ body.qp-dash-active #quoteActionDock { display: none !important; }
 /* ========== プリセット管理 ========== */
 /* ---- スコーププリセットダイアログ ---- */
 /* ========== CSV列選択モーダル ========== */
+/* ===== 📩 メール取込モーダル ===== */
+#tab-quote-make #emailImportModal {
+  display: none; position: fixed; inset: 0;
+  background: rgba(0,0,0,.45); z-index: 9000;
+  align-items: center; justify-content: center;
+}
+#tab-quote-make #emailImportModal.open { display: flex; }
+#tab-quote-make #emailImportBox {
+  background: #fffdf8; border-radius: 10px;
+  padding: 16px 20px 18px; width: min(96vw, 1080px); max-height: 92vh;
+  overflow-y: auto; box-shadow: 0 8px 32px rgba(0,0,0,.25);
+}
+#tab-quote-make .ei-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px; }
+#tab-quote-make .ei-head h3 { margin: 0; font-size: 15px; color: #3d2e1e; }
+#tab-quote-make .ei-close {
+  cursor: pointer; font-family: inherit; font-size: 14px; color: #8a7a64;
+  background: transparent; border: none; padding: 2px 6px;
+}
+#tab-quote-make .ei-close:hover { color: #5a4a30; }
+#tab-quote-make .ei-desc { font-size: 11.5px; color: #7d6b56; margin: 0 0 8px; line-height: 1.6; }
+#tab-quote-make #eiText {
+  width: 100%; box-sizing: border-box; resize: vertical;
+  font-family: ui-monospace, Consolas, monospace; font-size: 12px; line-height: 1.5;
+  color: #3d2e1e; background: #fff; border: 1px solid #d8c9ad; border-radius: 6px; padding: 8px 10px;
+}
+#tab-quote-make #eiText:focus { outline: none; border-color: #b8933e; }
+#tab-quote-make .ei-parse-bar { margin: 8px 0 10px; }
+#tab-quote-make .ei-parse-btn {
+  cursor: pointer; font-family: inherit; font-size: 13px; font-weight: 700;
+  color: #fff; background: #3f6a3f; border: none; border-radius: 6px; padding: 7px 20px;
+}
+#tab-quote-make .ei-parse-btn:hover { background: #2f5a2f; }
+#tab-quote-make .ei-fields { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 8px; }
+#tab-quote-make .ei-fields label { font-size: 11px; font-weight: 600; color: #6a5a40; display: flex; align-items: center; gap: 5px; }
+#tab-quote-make .ei-fields input {
+  font-family: inherit; font-size: 12px; padding: 4px 7px;
+  border: 1px solid #d8c9ad; border-radius: 5px; background: #fff; color: #3d2e1e;
+}
+#tab-quote-make .ei-table { width: 100%; border-collapse: collapse; font-size: 11.5px; }
+#tab-quote-make .ei-table th {
+  background: #f0e8d8; color: #5a4a30; font-size: 10.5px; padding: 4px 5px;
+  border: 1px solid #e0d5c0; white-space: nowrap;
+}
+#tab-quote-make .ei-table td { border: 1px solid #ece3d2; padding: 2px 3px; background: #fff; }
+#tab-quote-make .ei-table .ei-in {
+  width: 100%; box-sizing: border-box; font-family: inherit; font-size: 11.5px;
+  border: 1px solid transparent; border-radius: 3px; padding: 3px 4px; background: transparent; color: #3d2e1e;
+}
+#tab-quote-make .ei-table .ei-in:focus { outline: none; border-color: #b8933e; background: #fffdf4; }
+#tab-quote-make .ei-table .ei-qty, #tab-quote-make .ei-table .ei-price { text-align: right; min-width: 64px; }
+#tab-quote-make .ei-table .ei-unit, #tab-quote-make .ei-table .ei-ccy { min-width: 52px; }
+#tab-quote-make .ei-table .ei-group { min-width: 90px; }
+#tab-quote-make .ei-table .ei-name { min-width: 160px; }
+#tab-quote-make .ei-flags { font-size: 10px; color: #8a6a2a; white-space: nowrap; text-align: center; }
+#tab-quote-make tr.ei-low td { background: #fff8ec; }
+#tab-quote-make .ei-conf {
+  display: inline-block; font-size: 9.5px; font-weight: 700; border-radius: 3px; padding: 1px 6px; white-space: nowrap;
+}
+#tab-quote-make .ei-conf-high { color: #1a6a3a; background: #e6f5e6; }
+#tab-quote-make .ei-conf-mid  { color: #7a5c1e; background: #fdf3d8; }
+#tab-quote-make .ei-conf-low  { color: #a04020; background: #fdeae0; }
+#tab-quote-make .ei-hint { font-size: 10.5px; color: #9a8a70; margin: 8px 0 0; }
+#tab-quote-make .ei-actions { display: flex; gap: 10px; margin-top: 12px; }
+#tab-quote-make .ei-actions button {
+  cursor: pointer; font-family: inherit; font-size: 12.5px; font-weight: 700;
+  border-radius: 6px; padding: 8px 18px; border: 1px solid transparent;
+}
+#tab-quote-make .ei-act-insert { background: #eef4ee; color: #2a5a2a; border-color: #a0c8a0 !important; }
+#tab-quote-make .ei-act-insert:hover { background: #d8ecd0; }
+#tab-quote-make .ei-act-new { background: #2e7d43; color: #fff; }
+#tab-quote-make .ei-act-new:hover { background: #226735; }
+/* ダッシュボードの取込ボタン（新規作成の隣） */
+#tab-quote-make .qpd-import {
+  cursor: pointer; font-family: inherit; font-size: 13px; font-weight: 600;
+  color: #4a5a80; background: #eef2fb; border: 1px solid #aab8dd; border-radius: 7px; padding: 8px 16px;
+}
+#tab-quote-make .qpd-import:hover { background: #dde6f8; }
+
 #tab-quote-make #csvColModal {
   display: none; position: fixed; inset: 0;
   background: rgba(0,0,0,.45); z-index: 9000;
