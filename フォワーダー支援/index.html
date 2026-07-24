@@ -2794,6 +2794,28 @@
                 <input type="text" id="z2Service" class="z2-input z2-service-input"
                        placeholder="サービス名（任意）例）FAL1、NEX1">
               </div>
+              <!-- 契約形態（任意）：契約先＝上のキャリア欄。役割と実運送人を分離して蓄積 -->
+              <div class="z2-row z2-relay-toggle-row">
+                <span class="z2-label" style="visibility:hidden">🚢</span>
+                <button type="button" class="z2-relay-toggle" id="z2RelayToggle"
+                        onclick="toggleZ2Relay()" aria-expanded="false"
+                        title="契約先（上のキャリア欄）が代理店・LCL業者などで、実際は別の船会社の船/スペースを使う場合に指定します（任意・蓄積用）">▸ 契約形態（役割・実運送人）</button>
+              </div>
+              <div class="z2-relay-fields" id="z2RelayFields" hidden>
+                <div class="z2-row">
+                  <span class="z2-label" style="visibility:hidden">🚢</span>
+                  <select id="z2CarrierRole" class="z2-input z2-relay-role" title="上のキャリア欄（契約先）の役割">
+                    <option value="">役割（任意）</option>
+                    <option value="agent">海外代理店</option>
+                    <option value="nvocc">NVOCC・コンソリ（LCL業者）</option>
+                    <option value="coloader">コローダー</option>
+                    <option value="direct">船社直</option>
+                  </select>
+                  <span class="z2-relay-as">as</span>
+                  <input type="text" id="z2ActualCarrier" class="z2-input z2-relay-actual" list="carriers-dl"
+                         placeholder="実運送人（実際の船会社）例）ONE, SJJ">
+                </div>
+              </div>
               <div id="z2CarrierLinks" class="carrier-links-panel" style="display:none"></div>
               <div class="z2-pol-pod-row">
                 <div class="z2-port">

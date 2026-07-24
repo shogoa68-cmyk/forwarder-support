@@ -6,7 +6,7 @@
 
   function clearConditions() {
     if (!confirm('貨物情報・引き合い条件をクリアしますか？')) return;
-    ['z2Carrier','z2Service','z2Pol','z2Via','z2Pod','z2Tt','cond-origin','cond-dest','cond-cargo','cond-hs','cond-hs-basic','cond-hs-pref','cond-hs-pref-note',
+    ['z2Carrier','z2Service','z2CarrierRole','z2ActualCarrier','z2Pol','z2Via','z2Pod','z2Tt','cond-origin','cond-dest','cond-cargo','cond-hs','cond-hs-basic','cond-hs-pref','cond-hs-pref-note',
      'cond-packing','cond-packing-preset','condFreeText',
      'cond-origin-country','cond-dest-country','z1Place','z1Country','z3Place','z3Country',
      'cond-container-count']
@@ -1714,9 +1714,13 @@
       if (r.via) parts.push('<span class="z2-route-via">via:' + _escMulti(r.via) + '</span>');
       if (r.pod) parts.push(_escMulti(r.pod));
       const route = parts.length ? parts.join(' → ') : 'ポート未設定';
+      const _roleLabel = { agent:'代理店', nvocc:'NVOCC/コンソリ', coloader:'コローダー', direct:'船社直' }[r.carrierRole] || '';
+      const _roleChip  = _roleLabel ? `<span class="z2-route-role" title="契約先の役割">${_escMulti(_roleLabel)}</span>` : '';
+      const _actualChip = r.actualCarrier ? `<span class="z2-route-actual" title="実運送人（実際の船会社）">as ${_escMulti(r.actualCarrier)}</span>` : '';
       return `<span class="z2-route-chip${on ? '' : ' z2-route-chip--off'}">`
         + `<button type="button" class="z2-route-toggle" onclick="toggleRouteEntry(${i})" title="${on ? '無効にする（一時停止）' : '有効にする'}">${on ? '✓' : '—'}</button>`
         + `<span class="z2-route-carrier">${_escMulti(r.carrier || '—')}</span>`
+        + _roleChip + _actualChip
         + (r.service ? `<span class="z2-route-service">${_escMulti(r.service)}</span>` : '')
         + `<span class="z2-route-leg">${route}</span>`
         + (r.tt ? `<span class="z2-route-tt" title="Transit Time（所要日数）">⏱️ ${_escMulti(r.tt)}</span>` : '')
@@ -1739,6 +1743,8 @@
   function addRouteEntry() {
     const carrier = (document.getElementById('z2Carrier')?.value || '').trim();
     const service = (document.getElementById('z2Service')?.value || '').trim();
+    const carrierRole   = (document.getElementById('z2CarrierRole')?.value || '').trim();
+    const actualCarrier = (document.getElementById('z2ActualCarrier')?.value || '').trim();
     const pol = (document.getElementById('z2Pol')?.value || '').trim();
     const via = (document.getElementById('z2Via')?.value || '').trim();
     const pod = (document.getElementById('z2Pod')?.value || '').trim();
@@ -1747,13 +1753,18 @@
       if (typeof quoteShowToast==='function') quoteShowToast('⚠️ キャリアまたはPOL/PODを入力してください', 'warn', 1800);
       return;
     }
-    _routeEntries.push({ carrier, service, pol, via, pod, tt, enabled: true });
+    // carrier=契約先（ブッキング/支払先）、carrierRole=その役割、actualCarrier=実運送人（実際の船会社）
+    _routeEntries.push({ carrier, service, carrierRole, actualCarrier, pol, via, pod, tt, enabled: true });
     _renderRouteEntries();
-    // キャリア・サービス名・T/T をクリアして次の入力へ（POL/POD は同じ航路に別キャリアを追加できるよう保持）
+    // キャリア・サービス名・T/T・契約形態をクリアして次の入力へ（POL/POD は同じ航路に別キャリアを追加できるよう保持）
     const carrierEl = document.getElementById('z2Carrier');
     if (carrierEl) { carrierEl.value = ''; }
     const serviceEl = document.getElementById('z2Service');
     if (serviceEl) { serviceEl.value = ''; }
+    const roleEl = document.getElementById('z2CarrierRole');
+    if (roleEl) { roleEl.value = ''; }
+    const actualEl = document.getElementById('z2ActualCarrier');
+    if (actualEl) { actualEl.value = ''; }
     const ttEl = document.getElementById('z2Tt');
     if (ttEl) { ttEl.value = ''; }
     if (typeof onZ2CarrierChange === 'function') onZ2CarrierChange();
@@ -1784,10 +1795,14 @@
     const set = (id, val) => { const el = document.getElementById(id); if (el) el.value = val || ''; };
     set('z2Carrier', r.carrier);
     set('z2Service', r.service);
+    set('z2CarrierRole', r.carrierRole);
+    set('z2ActualCarrier', r.actualCarrier);
     set('z2Pol', r.pol);
     set('z2Via', r.via);
     set('z2Pod', r.pod);
     set('z2Tt', r.tt);
+    // 契約形態が入っていればパネルを開いて見せる
+    if ((r.carrierRole || r.actualCarrier) && typeof toggleZ2Relay === 'function') toggleZ2Relay(true);
     // エントリを削除して再描画
     _routeEntries.splice(i, 1);
     _renderRouteEntries();
@@ -1798,6 +1813,19 @@
   }
   window.toggleRouteEntry = toggleRouteEntry;
   window.editRouteEntry   = editRouteEntry;
+  // 契約形態（役割・実運送人）パネルの開閉。force 省略時はトグル
+  function toggleZ2Relay(force) {
+    const panel = document.getElementById('z2RelayFields');
+    const btn = document.getElementById('z2RelayToggle');
+    if (!panel) return;
+    const open = (force === true || force === false) ? force : panel.hidden;
+    panel.hidden = !open;
+    if (btn) {
+      btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+      btn.textContent = (open ? '▾' : '▸') + ' 契約形態（役割・実運送人）';
+    }
+  }
+  window.toggleZ2Relay = toggleZ2Relay;
   // 復元用
   function syncRouteEntries() {
     const data = document.getElementById('z2-routes-data');
