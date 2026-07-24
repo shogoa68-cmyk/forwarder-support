@@ -3354,12 +3354,19 @@
                          (g.isExcluded  ? ' is-excluded'  : '') +
                          (hiddenByParent ? ' is-parent-collapsed' : '');
         const sumHtml = g.sum ? '<span class="qsp-dig-grp-sum">' + escapeHtml(g.sum) + '</span>' : '';
-        // 明細行：行名＋売値（クリックでジャンプ・⧉ で別ブランチへコピー）
+        // 明細行：ドラッグ移動・ジャンプ・表示/非表示トグル・⧉ で別ブランチへコピー
         if (g.level === 2) {
-          return '<div class="qsp-dig-grp-item is-row' + stateCls + '">' +
+          const hideOn = g.isHidden;
+          return '<div class="qsp-dig-grp-item is-row' + stateCls + (hideOn ? ' is-hidden-row' : '') + '" ' +
+              'draggable="true" data-qsp-rowid="' + escapeHtml(g.rowId) + '">' +
+            '<span class="qsp-dig-row-grip" title="ドラッグでグループ内の並び替え">⠿</span>' +
             '<button type="button" class="qsp-dig-subjump is-detail" ' +
               'onclick="window.jumpToTableRowId(\'' + g.rowId + '\')" title="この行へジャンプ">' +
               '<span class="qsp-dig-row-nm">' + escapeHtml(g.label) + '</span>' + sumHtml + '</button>' +
+            '<button type="button" class="qsp-dig-row-hide' + (hideOn ? ' is-on' : '') + '" ' +
+              'onclick="window._qspToggleRowHide(\'' + g.rowId + '\', event)" ' +
+              'title="' + (hideOn ? '見積書で非表示中（クリックで出力に戻す）' : 'この行を見積書（PDF/Excel/CSV/客先プレビュー）に出力しない') + '">' +
+              (hideOn ? '🚫' : '👁') + '</button>' +
             '<button type="button" class="qsp-dig-row-copy" ' +
               'onclick="window._qspRowCopyMenu(' + i + ', event)" ' +
               'title="この行を別ブランチ（サブコン/パターン）へコピー">⧉</button>' +
@@ -3405,6 +3412,7 @@
       }).join('') + '</div>';
     }
     el.innerHTML = html;
+    if (typeof window._qspInitRowDrag === 'function') window._qspInitRowDrag();
   };
   // 費用テーブルのサブコン／パターン見出し行＋明細行を DOM 順に収集（ジャンプ用）
   function _collectTableGroups() {
@@ -3452,11 +3460,11 @@
       let sell = bq * bp, mark = '';
       if (bc !== 'JPY' && typeof toJPY === 'function') { sell = toJPY(sell, bc); mark = '※'; }
       const sum = sell ? '¥' + Math.round(sell).toLocaleString('ja-JP') + mark : '';
-      const flag = tr.dataset.hideQuote === '1' ? '🚫 ' : '';
+      const isHidden = tr.dataset.hideQuote === '1';
       const suffix = (tr.dataset.cond === '1' ? '（都度）' : '') + (tr.dataset.refInfo === '1' ? '（参考）' : '');
       out.push({ level: 2, rowId: tr.id,
-                 label: flag + (nm || '（名称未入力）') + suffix,
-                 sum, isCollapsed: false, isExcluded, el: tr });
+                 label: (nm || '（名称未入力）') + suffix,
+                 sum, isCollapsed: false, isExcluded, isHidden, el: tr });
     });
     return out;
   }
@@ -3641,6 +3649,63 @@
     if (!sec) return;
     if (sec.classList.contains('collapsed') && typeof toggleQuoteSection === 'function') toggleQuoteSection(id);
     sec.scrollIntoView({ block: 'start' });
+  };
+  // ジャンプタブの明細行「👁/🚫」→ 見積書表示/非表示トグル（テーブル行と連動）
+  window._qspToggleRowHide = function(rowId, ev) {
+    if (ev) { ev.preventDefault(); ev.stopPropagation(); }
+    if (typeof window.toggleRowHideQuoteById === 'function') window.toggleRowHideQuoteById(rowId);
+    if (typeof window.renderQuoteSectionDigest === 'function') window.renderQuoteSectionDigest();
+  };
+  // ジャンプタブ明細行のドラッグ並び替え（グループ内のみ）。デリゲートで一度だけ束ねる
+  window._qspInitRowDrag = function() {
+    const box = document.getElementById('qspSectionDigest');
+    if (!box || box.dataset.dragBound === '1') return;
+    box.dataset.dragBound = '1';
+    let srcId = null;
+    const clearMarks = () => box.querySelectorAll('.qsp-drop-top, .qsp-drop-bottom')
+      .forEach(el => el.classList.remove('qsp-drop-top', 'qsp-drop-bottom'));
+    box.addEventListener('dragstart', function(e) {
+      const item = e.target.closest('.qsp-dig-grp-item.is-row[data-qsp-rowid]');
+      if (!item) { return; }
+      srcId = item.dataset.qspRowid;
+      e.dataTransfer.effectAllowed = 'move';
+      try { e.dataTransfer.setData('text/plain', srcId); } catch (_) {}
+      item.classList.add('qsp-row-dragging');
+    });
+    box.addEventListener('dragend', function() {
+      box.querySelectorAll('.qsp-row-dragging').forEach(el => el.classList.remove('qsp-row-dragging'));
+      clearMarks(); srcId = null;
+    });
+    box.addEventListener('dragover', function(e) {
+      if (!srcId) return;
+      const item = e.target.closest('.qsp-dig-grp-item.is-row[data-qsp-rowid]');
+      if (!item || item.dataset.qspRowid === srcId) return;
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+      const r = item.getBoundingClientRect();
+      const after = e.clientY > r.top + r.height / 2;
+      clearMarks();
+      item.classList.add(after ? 'qsp-drop-bottom' : 'qsp-drop-top');
+    });
+    box.addEventListener('drop', function(e) {
+      if (!srcId) return;
+      const item = e.target.closest('.qsp-dig-grp-item.is-row[data-qsp-rowid]');
+      if (!item || item.dataset.qspRowid === srcId) { clearMarks(); return; }
+      e.preventDefault();
+      const r = item.getBoundingClientRect();
+      const after = e.clientY > r.top + r.height / 2;
+      const tgtId = item.dataset.qspRowid;
+      clearMarks();
+      const ok = (typeof window.moveTableRowWithinGroup === 'function')
+        && window.moveTableRowWithinGroup(srcId, tgtId, after);
+      srcId = null;
+      if (!ok) {
+        if (typeof quoteShowToast === 'function') quoteShowToast('⚠️ 並び替えは同じサブコン／パターン内でのみ可能です', 'warn', 2600);
+        return;
+      }
+      // moveTableRowWithinGroup 内で renderSubconGroups → ジャンプタブも再描画される
+      if (typeof window.renderQuoteSectionDigest === 'function') window.renderQuoteSectionDigest();
+    });
   };
 
   // ===== 見積サマリ：タブ切替（要約／輸送／金額／チャット） =====
