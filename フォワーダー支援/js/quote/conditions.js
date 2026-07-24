@@ -1801,8 +1801,7 @@
     set('z2Via', r.via);
     set('z2Pod', r.pod);
     set('z2Tt', r.tt);
-    // 契約形態が入っていればパネルを開いて見せる
-    if ((r.carrierRole || r.actualCarrier) && typeof toggleZ2Relay === 'function') toggleZ2Relay(true);
+    // 契約形態パネルは常時表示のため展開処理は不要
     // エントリを削除して再描画
     _routeEntries.splice(i, 1);
     _renderRouteEntries();
@@ -1813,19 +1812,6 @@
   }
   window.toggleRouteEntry = toggleRouteEntry;
   window.editRouteEntry   = editRouteEntry;
-  // 契約形態（役割・実運送人）パネルの開閉。force 省略時はトグル
-  function toggleZ2Relay(force) {
-    const panel = document.getElementById('z2RelayFields');
-    const btn = document.getElementById('z2RelayToggle');
-    if (!panel) return;
-    const open = (force === true || force === false) ? force : panel.hidden;
-    panel.hidden = !open;
-    if (btn) {
-      btn.setAttribute('aria-expanded', open ? 'true' : 'false');
-      btn.textContent = (open ? '▾' : '▸') + ' 契約形態（役割・実運送人）';
-    }
-  }
-  window.toggleZ2Relay = toggleZ2Relay;
   // 復元用
   function syncRouteEntries() {
     const data = document.getElementById('z2-routes-data');
