@@ -7258,8 +7258,31 @@ body.qp-dash-active #quoteActionDock { display: none !important; }
 /* 明細行（level 2）：さらにインデント・控えめな見た目 */
 #tab-quote-make .qsp-dig-subjump.is-detail {
   color: #7a6a52; background: transparent; border-color: transparent;
-  font-size: 10.5px; padding: 2px 7px 2px 24px;
+  font-size: 10.5px; padding: 2px 7px 2px 4px;
 }
+/* 明細行のドラッググリップ（グループ内並び替え） */
+#tab-quote-make .qsp-dig-grp-item.is-row { cursor: default; }
+#tab-quote-make .qsp-dig-row-grip {
+  flex-shrink: 0; cursor: grab; color: #b8a888; font-size: 11px;
+  padding: 0 2px 0 12px; user-select: none; line-height: 1;
+}
+#tab-quote-make .qsp-dig-row-grip:active { cursor: grabbing; }
+#tab-quote-make .qsp-dig-grp-item.is-row.qsp-row-dragging { opacity: 0.45; }
+#tab-quote-make .qsp-dig-grp-item.is-row.qsp-drop-top { box-shadow: inset 0 2px 0 #b8933e; }
+#tab-quote-make .qsp-dig-grp-item.is-row.qsp-drop-bottom { box-shadow: inset 0 -2px 0 #b8933e; }
+/* 見積書非表示中の明細行：打ち消し線＋淡色 */
+#tab-quote-make .qsp-dig-grp-item.is-row.is-hidden-row .qsp-dig-row-nm {
+  text-decoration: line-through; color: #a8987e;
+}
+/* 明細行の 👁/🚫 表示トグル */
+#tab-quote-make .qsp-dig-row-hide {
+  flex-shrink: 0; cursor: pointer; font-family: inherit; font-size: 11px;
+  color: #7a6040; background: transparent; border: 1px solid transparent;
+  border-radius: 3px; padding: 2px 4px; line-height: 1; transition: background .1s;
+  filter: grayscale(1); opacity: 0.7;
+}
+#tab-quote-make .qsp-dig-row-hide:hover { background: #f0e6d2; border-color: #d8c9ad; opacity: 1; }
+#tab-quote-make .qsp-dig-row-hide.is-on { filter: none; opacity: 1; background: #fdeee6; border-color: #e8c0a0; }
 #tab-quote-make .qsp-dig-subjump.is-detail:hover { background: #f3eada; border-color: #d8c9ad; }
 #tab-quote-make .qsp-dig-subjump.is-detail .qsp-dig-row-nm {
   flex: 1 1 0; min-width: 0; overflow: hidden; text-overflow: ellipsis;

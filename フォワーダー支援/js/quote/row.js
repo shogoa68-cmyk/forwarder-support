@@ -227,6 +227,49 @@
   }
   window.toggleRowHideQuote = toggleRowHideQuote;
 
+  // 行 ID 指定で見積書非表示をトグル（右カラム ジャンプタブ等の外部 UI 用）。
+  // テーブル行のボタンがあればそれを押して既存ロジックを共用し、無ければ dataset を直接操作。
+  function toggleRowHideQuoteById(rowId) {
+    const tr = document.getElementById('row-' + String(rowId).replace(/^row-/, ''));
+    if (!tr) return false;
+    const btn = tr.querySelector('.row-hidequote-btn');
+    if (btn) { toggleRowHideQuote(btn); }
+    else {
+      const hidden = tr.dataset.hideQuote === '1';
+      if (hidden) { delete tr.dataset.hideQuote; tr.classList.remove('row-hidden-quote'); }
+      else { tr.dataset.hideQuote = '1'; tr.classList.add('row-hidden-quote'); }
+      updateTotals();
+      if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
+    }
+    return tr.dataset.hideQuote === '1';
+  }
+  window.toggleRowHideQuoteById = toggleRowHideQuoteById;
+
+  // 明細行を同一グループ内で並べ替え（右カラム ジャンプタブのドラッグ用）。
+  // グループ跨ぎ（サブコン/パターンが異なる移動）はテーブル本体のドラッグと同じく禁止し false を返す。
+  function moveTableRowWithinGroup(srcRowId, targetRowId, placeAfter) {
+    const tbody = document.getElementById('tableBody');
+    if (!tbody) return false;
+    const src = document.getElementById('row-' + String(srcRowId).replace(/^row-/, ''));
+    const tgt = document.getElementById('row-' + String(targetRowId).replace(/^row-/, ''));
+    if (!src || !tgt || src === tgt) return false;
+    // 同一グループ判定：サブコン正規化キー＋パターン内側キーが一致
+    const sameGroup = subconNormKey(_rowSubcon(src) ?? '') === subconNormKey(_rowSubcon(tgt) ?? '')
+                   && (_rowInnerKey(src) || '') === (_rowInnerKey(tgt) || '');
+    if (!sameGroup) return false;
+    // src に付随する子リマーク行も一緒に運ぶ。挿入位置は tgt の前／後。
+    // （仮想行スキップは不要：renderSubconGroups が直後に仮想行を再構築するため）
+    const block = [src, ...getChildRemarks(src.id.replace('row-', ''))];
+    const anchor = placeAfter ? tgt.nextSibling : tgt;
+    block.forEach(node => { tbody.insertBefore(node, anchor); });
+    updateTotals();
+    renderSubconGroups();
+    if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
+    if (typeof scheduleSnapshot === 'function') scheduleSnapshot();
+    return true;
+  }
+  window.moveTableRowWithinGroup = moveTableRowWithinGroup;
+
   // 行を「要調査（後で記入）」状態に切り替える。
   // サーチャージ等、最新情報を調べてから埋める項目を見失わないための目印。
   // 合計・出力には通常どおり含まれるが、視覚的に強調し、出力前ゲートで警告される。
