@@ -3357,12 +3357,24 @@
         // 明細行：ドラッグ移動・ジャンプ・表示/非表示トグル・⧉ で別ブランチへコピー
         if (g.level === 2) {
           const hideOn = g.isHidden;
+          // 乗せ幅・粗利率（内部指標・利益列が表示中のときのみ）：売値の下に小さく併記
+          const showInternal = (typeof getPreviewVisibility === 'function')
+            ? (getPreviewVisibility().profit !== false) : true;
+          let metaBits = '';
+          if (showInternal && !g.isActual) {
+            const mkPart = g.mkTxt ? '<span class="qsp-dig-row-mk" title="乗せ幅（単価加算分）">＋' + escapeHtml(g.mkTxt) + '</span>' : '';
+            const mgPart = (g.marginPct != null)
+              ? '<span class="qsp-dig-row-mg' + (g.marginPct < 0 ? ' is-neg' : '') + '" title="粗利率（JPY換算・行単位）">粗利 ' + g.marginPct.toFixed(1) + '%</span>'
+              : '';
+            if (mkPart || mgPart) metaBits = '<span class="qsp-dig-row-meta">' + mkPart + mgPart + '</span>';
+          }
+          const priceStack = '<span class="qsp-dig-row-price">' + sumHtml + metaBits + '</span>';
           return '<div class="qsp-dig-grp-item is-row' + stateCls + (hideOn ? ' is-hidden-row' : '') + '" ' +
               'draggable="true" data-qsp-rowid="' + escapeHtml(g.rowId) + '">' +
             '<span class="qsp-dig-row-grip" title="ドラッグでグループ内の並び替え">⠿</span>' +
             '<button type="button" class="qsp-dig-subjump is-detail" ' +
               'onclick="window.jumpToTableRowId(\'' + g.rowId + '\')" title="この行へジャンプ">' +
-              '<span class="qsp-dig-row-nm">' + escapeHtml(g.label) + '</span>' + sumHtml + '</button>' +
+              '<span class="qsp-dig-row-nm">' + escapeHtml(g.label) + '</span>' + priceStack + '</button>' +
             '<button type="button" class="qsp-dig-row-hide' + (hideOn ? ' is-on' : '') + '" ' +
               'onclick="window._qspToggleRowHide(\'' + g.rowId + '\', event)" ' +
               'title="' + (hideOn ? '見積書で非表示中（クリックで出力に戻す）' : 'この行を見積書（PDF/Excel/CSV/客先プレビュー）に出力しない') + '">' +
@@ -3457,12 +3469,27 @@
       const bq = num('bq-' + id) || num('pq-' + id);
       const bp = num('bp-' + id);
       const bc = document.getElementById('bc-' + id)?.value || 'JPY';
+      const pq = num('pq-' + id);
+      const pp = num('pp-' + id);
+      const pc = document.getElementById('pc-' + id)?.value || 'JPY';
+      const mkRaw = num('mk-' + id);   // 乗せ幅（請求通貨・単価加算分）
       let sell = bq * bp, mark = '';
       if (bc !== 'JPY' && typeof toJPY === 'function') { sell = toJPY(sell, bc); mark = '※'; }
+      let cost = pq * pp;
+      if (pc !== 'JPY' && typeof toJPY === 'function') cost = toJPY(cost, pc);
+      const isActual = tr.dataset.actual === '1';
       const sum = sell ? '¥' + Math.round(sell).toLocaleString('ja-JP') + mark : '';
+      // 乗せ幅（請求通貨建て・単価あたり）と粗利率（JPY換算・行単位）
+      const mkTxt = mkRaw ? (bc === 'JPY' ? '¥' + Math.round(mkRaw).toLocaleString('ja-JP')
+                                          : mkRaw.toLocaleString('ja-JP', { maximumFractionDigits: 2 }) + ' ' + bc) : '';
+      let marginPct = null;
+      if (!isActual && sell > 0) {
+        marginPct = (typeof SharedCalc !== 'undefined' && SharedCalc.grossMarginPct)
+          ? SharedCalc.grossMarginPct(sell, cost) : ((sell - cost) / sell * 100);
+      }
       const isHidden = tr.dataset.hideQuote === '1';
       const suffix = (tr.dataset.cond === '1' ? '（都度）' : '') + (tr.dataset.refInfo === '1' ? '（参考）' : '');
-      out.push({ level: 2, rowId: tr.id,
+      out.push({ level: 2, rowId: tr.id, mkTxt, marginPct, isActual,
                  label: (nm || '（名称未入力）') + suffix,
                  sum, isCollapsed: false, isExcluded, isHidden, el: tr });
     });

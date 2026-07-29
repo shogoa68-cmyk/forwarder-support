@@ -7290,6 +7290,16 @@ body.qp-dash-active #quoteActionDock { display: none !important; }
 #tab-quote-make .qsp-dig-subjump.is-detail .qsp-dig-grp-sum {
   color: #6a5a45; background: transparent; font-weight: 600; padding: 0;
 }
+/* 明細行：売値＋（乗せ幅・粗利率）の縦積み */
+#tab-quote-make .qsp-dig-row-price {
+  flex-shrink: 0; display: flex; flex-direction: column; align-items: flex-end; gap: 0; line-height: 1.25;
+}
+#tab-quote-make .qsp-dig-row-meta {
+  display: flex; gap: 5px; font-size: 8.5px; margin-top: 1px; white-space: nowrap;
+}
+#tab-quote-make .qsp-dig-row-mk { color: #8a6a30; }
+#tab-quote-make .qsp-dig-row-mg { color: #2a6a3a; font-weight: 600; }
+#tab-quote-make .qsp-dig-row-mg.is-neg { color: #c0392b; }
 /* 明細行の ⧉ コピーボタン */
 #tab-quote-make .qsp-dig-row-copy {
   flex-shrink: 0; cursor: pointer; font-family: inherit; font-size: 11px;
