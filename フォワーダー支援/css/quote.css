@@ -9620,6 +9620,13 @@ button.um-memberno--empty:hover { background: #f4ead4; border-color: #cdb98e; }
 #tab-quote-make .qrc-drawer-body > .quote-summary-panel > .qsp-pane {
   border-top: none;
 }
+/* 類似見積：リストをパネル内でスクロールさせる（従来は overflow 指定漏れで
+   sq-panel の overflow:hidden に阻まれスクロール不可だった）。
+   検索バーは上部固定、カード一覧のみ縦スクロール。 */
+#tab-quote-make .qrc-drawer-body > .sq-panel > .sq-list {
+  flex: 1 1 auto; min-height: 0; overflow-y: auto;
+}
+#tab-quote-make .qrc-drawer-body > .sq-panel > .sq-search-bar { flex: 0 0 auto; }
 
 /* ---- アイコンレール（常時表示） ---- */
 #tab-quote-make .qrc-rail {
