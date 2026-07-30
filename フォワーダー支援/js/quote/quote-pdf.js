@@ -204,6 +204,19 @@
     push('荷姿明細', _packingDetail() || cond.packing);
     push('総重量', cond.weight);
     push('総容積', cond.volume);
+    // 課金基準の目安：LCL は R/T、AIR は CW（容積重量課金）を表示。
+    // 貨物情報（サイズ・重量）が入力されている場合のみ。
+    const _cm = (typeof window.getCargoMetrics === 'function') ? window.getCargoMetrics() : null;
+    const _mode = cond.mode || '';
+    if (_cm) {
+      if (/LCL/i.test(_mode) && (_cm.cbm > 0 || _cm.kg > 0)) {
+        push('R/T（課金重量）', (_cm.rt || 0).toFixed(3) + ' R/T');
+      } else if (/航空|AIR/i.test(_mode) && (_cm.cw || 0) > 0) {
+        const cwTxt = (typeof SharedCalc !== 'undefined' && SharedCalc.fmtCw)
+          ? SharedCalc.fmtCw(_cm.cw) : String(Math.round(_cm.cw));
+        push('CW（課金重量）', cwTxt + ' kg');
+      }
+    }
     return { title, meta };
   }
 
