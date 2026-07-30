@@ -1488,6 +1488,14 @@
   transition: all 0.15s; white-space: nowrap;
 }
 #tab-quote-make .pct-mode-btn:hover { border-color: #b0772f; color: #b0772f; }
+/* 📇 マスター登録ボタン */
+#tab-quote-make .master-reg-btn {
+  display: inline-block; margin-top: 3px; padding: 1px 6px;
+  font-size: 10px; line-height: 1.5; border: 1px solid #a0b8c4; border-radius: 3px;
+  background: transparent; color: #5a8098; cursor: pointer; font-family: inherit;
+  transition: all 0.15s; white-space: nowrap;
+}
+#tab-quote-make .master-reg-btn:hover { border-color: #3a6a8f; color: #2a5a80; background: #eef4fa; }
 #tab-quote-make .pct-mode-btn.is-on { background: #fff3e0; border-color: #d4892a; color: #8a4c00; font-weight: 700; }
 /* % モード ON の行：仕入れセルに amber アクセント */
 #tab-quote-make tr.row-pct-mode .stk-cost .stk-tag { background: #ffe8c0; color: #8a4c00; }

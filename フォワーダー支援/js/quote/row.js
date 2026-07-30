@@ -432,8 +432,10 @@
       const details = rec.details || {};
       const tr = nmEl.closest('tr');
       if (!tr) return;
+      const rid = tr.id.replace('row-', '');
       const unEl = tr.querySelector('[data-field="un"]');
       const ntEl = tr.querySelector('[data-field="nt"]');
+      const catEl = document.getElementById('cat-' + rid);
       let filled = false;
       if (details.defaultUnit && unEl && (!unEl.value.trim() || tr.dataset.unAuto === '1')) {
         unEl.value = details.defaultUnit; tr.dataset.unAuto = '1'; filled = true;
@@ -441,8 +443,20 @@
       if (details.defaultNote && ntEl && (!ntEl.value.trim() || tr.dataset.ntAuto === '1')) {
         ntEl.value = details.defaultNote; tr.dataset.ntAuto = '1'; filled = true;
       }
+      // カテゴリ：未選択のときだけマスターの既定カテゴリを補完
+      if (details.defaultCat && catEl && !catEl.value) {
+        catEl.value = details.defaultCat; onCatChange(rid); updateTotals(); filled = true;
+      }
       if (filled && typeof window.quoteShowToast === 'function') {
-        window.quoteShowToast('📇 マスターの詳細情報から単位・備考を自動入力しました', 'info', 2200);
+        window.quoteShowToast('📇 マスターから単位・備考・カテゴリを自動入力しました', 'info', 2200);
+      }
+      // 代表単価は自動入力せず「参考」として通知のみ（案件・時期で変動するため）
+      const ccy = details.refCcy || 'JPY';
+      const refParts = [];
+      if (details.refCost) refParts.push('仕入 ' + _fmtRef(details.refCost, ccy));
+      if (details.refSell) refParts.push('売 ' + _fmtRef(details.refSell, ccy));
+      if (refParts.length && typeof window.quoteShowToast === 'function') {
+        window.quoteShowToast('📇 代表単価（参考）: ' + refParts.join(' / '), 'info', 3200);
       }
     });
     // ユーザーが単位/備考を手入力したら「自動入力状態」を解除し、以後は上書きしない
@@ -456,6 +470,55 @@
     });
   }
   window.initNmAutofill = initNmAutofill;
+
+  // 代表単価の参考表示フォーマット
+  function _fmtRef(v, ccy) {
+    const n = parseFloat(v); if (!isFinite(n)) return String(v);
+    return (ccy && ccy !== 'JPY')
+      ? n.toLocaleString('ja-JP', { maximumFractionDigits: 2 }) + ' ' + ccy
+      : '¥' + Math.round(n).toLocaleString('ja-JP');
+  }
+
+  // 📇 この行をマスター登録：品名（単位/備考/カテゴリ/代表単価）＋サブコンを upsert。
+  // 既存マスターは非破壊マージ（行が空の項目は既存値を残す）。価格は明示クリックなので常に更新。
+  async function registerRowToMaster(id) {
+    if (typeof window.mdSave !== 'function') {
+      if (window.quoteShowToast) quoteShowToast('⚠️ マスター機能が利用できません', 'warn'); return;
+    }
+    const g = f => (document.getElementById(f + '-' + id)?.value || '').trim();
+    const nm = g('nm').replace(/^\*+/, '').trim();
+    if (!nm) {
+      if (window.quoteShowToast) quoteShowToast('⚠️ 品名を入力してから登録してください', 'warn');
+      document.getElementById('nm-' + id)?.focus();
+      return;
+    }
+    const un = g('un'), nt = g('nt'), cat = g('cat'), sv = g('sv');
+    const pp = g('pp'), bp = g('bp'), bc = g('bc') || 'JPY';
+    // 既存マスターとマージ（ふりがな等の既存項目を保持）
+    const prev = (typeof window.mdGet === 'function' && window.mdGet('nm', nm))?.details || {};
+    const details = Object.assign({}, prev);
+    if (un)  details.defaultUnit = un;
+    if (nt)  details.defaultNote = nt;
+    if (cat) details.defaultCat  = cat;
+    // 代表単価（0/空は登録しない）。通貨は売通貨基準
+    if (parseFloat(pp) > 0) details.refCost = pp;
+    if (parseFloat(bp) > 0) details.refSell = bp;
+    if (details.refCost || details.refSell) details.refCcy = bc;
+    await window.mdSave('nm', nm, details);
+    // サブコンも登録（ふりがな等は既存維持）
+    let svMsg = '';
+    if (sv) {
+      const svPrev = (typeof window.mdGet === 'function' && window.mdGet('sv', sv))?.details || {};
+      await window.mdSave('sv', sv, svPrev);
+      svMsg = '・サブコン「' + sv + '」';
+    }
+    const bits = [un && '単位', nt && '備考', cat && 'カテゴリ',
+      (details.refCost || details.refSell) && '代表単価'].filter(Boolean).join('/');
+    if (window.quoteShowToast) {
+      quoteShowToast('📇 「' + nm + '」をマスター登録しました（' + (bits || '品名') + '）' + svMsg, 'success', 3200);
+    }
+  }
+  window.registerRowToMaster = registerRowToMaster;
 
   function moveRow(tr, dir) {
     const tbody = document.getElementById('tableBody');
@@ -818,6 +881,8 @@
     if (riBtn) riBtn.onclick = () => toggleRefInfo(id);
     const pctBtn = frag.querySelector('.pct-mode-btn');
     if (pctBtn) pctBtn.onclick = () => togglePctMode(id);
+    const mregBtn = frag.querySelector('.master-reg-btn');
+    if (mregBtn) mregBtn.onclick = () => registerRowToMaster(id);
     const pprateEl = frag.querySelector('[data-field="pprate"]');
     if (pprateEl) pprateEl.oninput = () => _calcPct(id);
     const ppbaseEl = frag.querySelector('[data-field="ppbase"]');
