@@ -504,14 +504,21 @@
     if (parseFloat(pp) > 0) details.refCost = pp;
     if (parseFloat(bp) > 0) details.refSell = bp;
     if (details.refCost || details.refSell) details.refCcy = bc;
+    // ① マスター一覧へ登録（マスター管理タブに出る本体。詳細ストアとは別）
+    if (typeof window.statsEnsureMaster === 'function') await window.statsEnsureMaster('nm', nm);
+    // ② 詳細（単位/備考/カテゴリ/代表単価）を保存
     await window.mdSave('nm', nm, details);
-    // サブコンも登録（ふりがな等は既存維持）
+    // サブコンも登録（一覧＋詳細。ふりがな等は既存維持）
     let svMsg = '';
     if (sv) {
+      if (typeof window.statsEnsureMaster === 'function') await window.statsEnsureMaster('sv', sv);
       const svPrev = (typeof window.mdGet === 'function' && window.mdGet('sv', sv))?.details || {};
       await window.mdSave('sv', sv, svPrev);
       svMsg = '・サブコン「' + sv + '」';
     }
+    // マスター管理タブを開いていれば即時反映
+    if (typeof window.statsRerenderActive === 'function') window.statsRerenderActive();
+    if (typeof window.arRefreshDatalist === 'function') window.arRefreshDatalist();
     const bits = [un && '単位', nt && '備考', cat && 'カテゴリ',
       (details.refCost || details.refSell) && '代表単価'].filter(Boolean).join('/');
     if (window.quoteShowToast) {
