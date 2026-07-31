@@ -117,8 +117,12 @@
     let row;
     if (type === 'remark')        row = { _type: 'remark', text: '', internal: false };
     else if (type === 'subtotal') row = { _type: 'subtotal', label: '' };
-    else row = { _type: 'data', cat: '', name: '', taxed: false, pq: '', un: '',
-                 pc: 'JPY', pp: '', bq: '', bc: 'JPY', bp: '', mk: '', note: '', sv: '' };
+    else {
+      // 直近の費用行に入力済みの取引先（サブコン）名を新規行にも引き継ぐ
+      const lastData = [..._edit.rows].reverse().find(r => r._type === 'data');
+      row = { _type: 'data', cat: '', name: '', taxed: false, pq: '', un: '',
+              pc: 'JPY', pp: '', bq: '', bc: 'JPY', bp: '', mk: '', note: '', sv: lastData?.sv || '' };
+    }
     _edit.rows.push(row);
     _renderRows();
     const box = document.getElementById('lcRpEditRows');
