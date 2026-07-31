@@ -342,7 +342,22 @@
           <span>明細</span>
           <span class="lcrp-edit-rowcount" id="lcRpEditRowCount"></span>
         </div>
-        <div id="lcRpEditRows" class="lcrp-edit-rows"></div>
+        <div class="lcrp-table-wrap">
+          <table class="lcrp-table">
+            <thead>
+              <tr>
+                <th class="lcrp-th-ops"></th>
+                <th class="lcrp-th-catsv" title="上段＝カテゴリ、下段＝取引先（サブコン）">カテゴリ<br><small>／取引先</small></th>
+                <th class="lcrp-th-name">品目名<br><small>／備考</small></th>
+                <th class="lcrp-th-qty">数量・単位</th>
+                <th class="lcrp-th-ccy" title="上段＝支払い（仕入）通貨、下段＝請求（売値）通貨">通貨<br><small><span class="lcrp-tag lcrp-tag-cost">仕</span>／<span class="lcrp-tag lcrp-tag-sell">売</span></small></th>
+                <th class="lcrp-th-price" title="上段＝支払い単価（仕入）、下段＝請求単価（売値）">単価<br><small><span class="lcrp-tag lcrp-tag-cost">仕</span>／<span class="lcrp-tag lcrp-tag-sell">売</span></small></th>
+                <th class="lcrp-th-tax" title="ON にすると消費税10%が自動計算され、品名先頭に「*」が付きます">課税</th>
+              </tr>
+            </thead>
+            <tbody id="lcRpEditRows"></tbody>
+          </table>
+        </div>
         <div class="lcrp-add-row-btns">
           <button type="button" onclick="lcRpAddRow('data')">＋ 費用行</button>
           <button type="button" onclick="lcRpAddRow('remark')">＋ リマーク</button>

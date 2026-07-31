@@ -126,7 +126,7 @@
     _edit.rows.push(row);
     _renderRows();
     const box = document.getElementById('lcRpEditRows');
-    box?.querySelector('.lcrp-er-row:last-child .lcrp-er-name')?.focus();
+    box?.querySelector('.lcrp-row:last-child .lcrp-w-name')?.focus();
   }
   window.lcRpAddRow = lcRpAddRow;
 
@@ -156,47 +156,60 @@
     return _curs().map(c => '<option value="' + _ea(c) + '"' + (c === sel ? ' selected' : '') + '>' + c + '</option>').join('');
   }
 
+  // 見積タブ本物の明細テーブル（#quoteTable）と同じ列構成・配色（カテゴリ/取引先の縦積み・
+  // 品目名/備考の縦積み・数量/単位・通貨/単価の仕入(仕)/売上(売)スタック）に合わせたレイアウト。
+  function _opsCell(i, last) {
+    return '<td class="lcrp-td-ops"><div class="lcrp-ops">' +
+      '<button type="button" onclick="lcRpMoveRow(' + i + ',-1)" title="上へ"' + (i === 0 ? ' disabled' : '') + '>▲</button>' +
+      '<button type="button" onclick="lcRpMoveRow(' + i + ',1)" title="下へ"' + (i === last ? ' disabled' : '') + '>▼</button>' +
+      '<button type="button" class="lcrp-td-del" onclick="lcRpDeleteRow(' + i + ')" title="この明細を削除">✕</button>' +
+    '</div></td>';
+  }
+
   function _rowEditor(rd, i, last) {
-    const acts =
-      '<span class="lcrp-er-acts">' +
-        '<button type="button" onclick="lcRpMoveRow(' + i + ',-1)" title="上へ"' + (i === 0 ? ' disabled' : '') + '>▲</button>' +
-        '<button type="button" onclick="lcRpMoveRow(' + i + ',1)" title="下へ"' + (i === last ? ' disabled' : '') + '>▼</button>' +
-        '<button type="button" class="lcrp-er-del" onclick="lcRpDeleteRow(' + i + ')" title="この明細を削除">✕</button>' +
-      '</span>';
     if (rd._type === 'remark') {
-      return '<div class="lcrp-er-row lcrp-er--remark">' +
-        '<span class="lcrp-er-ic">📝</span>' +
-        '<input type="text" class="lcrp-er-name" placeholder="リマーク文" value="' + _ea(rd.text || '') + '" oninput="lcRpSetCell(' + i + ',\'text\',this.value)">' +
-        '<label class="lcrp-er-chk" title="社内用（客先出力に含めない）"><input type="checkbox"' + (rd.internal ? ' checked' : '') + ' onchange="lcRpSetCell(' + i + ',\'internal\',this.checked)">社内</label>' +
-        acts +
-      '</div>';
+      return '<tr class="lcrp-row lcrp-row--remark">' +
+        _opsCell(i, last) +
+        '<td colspan="6" class="lcrp-remark-cell">' +
+          '<span class="lcrp-remark-marker">💬 リマーク</span>' +
+          '<input type="text" class="lcrp-w-name" placeholder="テーブル内コメント・注記を入力" value="' + _ea(rd.text || '') + '" oninput="lcRpSetCell(' + i + ',\'text\',this.value)">' +
+          '<label class="lcrp-inline-chk" title="社内用（客先出力に含めない）"><input type="checkbox"' + (rd.internal ? ' checked' : '') + ' onchange="lcRpSetCell(' + i + ',\'internal\',this.checked)">社内</label>' +
+        '</td>' +
+      '</tr>';
     }
     if (rd._type === 'subtotal') {
-      return '<div class="lcrp-er-row lcrp-er--subtotal">' +
-        '<span class="lcrp-er-ic">Σ</span>' +
-        '<input type="text" class="lcrp-er-name" placeholder="小計ラベル" value="' + _ea(rd.label || '') + '" oninput="lcRpSetCell(' + i + ',\'label\',this.value)">' +
-        acts +
-      '</div>';
+      return '<tr class="lcrp-row lcrp-row--subtotal">' +
+        _opsCell(i, last) +
+        '<td colspan="6" class="lcrp-subtotal-cell">' +
+          '<span class="lcrp-subtotal-marker">━━ 小計</span>' +
+          '<input type="text" class="lcrp-w-name" placeholder="グループ名（任意）" value="' + _ea(rd.label || '') + '" oninput="lcRpSetCell(' + i + ',\'label\',this.value)">' +
+        '</td>' +
+      '</tr>';
     }
-    return '<div class="lcrp-er-row lcrp-er--data">' +
-      '<div class="lcrp-er-l1">' +
-        '<select class="lcrp-er-cat" onchange="lcRpSetCell(' + i + ',\'cat\',this.value)">' + _catOpts(rd.cat || '') + '</select>' +
-        '<input type="text" class="lcrp-er-name" placeholder="品目名" value="' + _ea(rd.name || '') + '" oninput="lcRpSetCell(' + i + ',\'name\',this.value)">' +
-        '<select class="lcrp-er-unit" title="単位" onchange="lcRpSetCell(' + i + ',\'un\',this.value)">' + _unitOpts(rd.un || '') + '</select>' +
-        '<label class="lcrp-er-chk" title="課税対象"><input type="checkbox"' + (rd.taxed ? ' checked' : '') + ' onchange="lcRpSetCell(' + i + ',\'taxed\',this.checked)">税</label>' +
-        acts +
-      '</div>' +
-      '<div class="lcrp-er-l2">' +
-        '<input type="text" class="lcrp-er-sv" placeholder="取引先（サブコン）" value="' + _ea(rd.sv || '') + '" oninput="lcRpSetCell(' + i + ',\'sv\',this.value)">' +
-        '<span class="lcrp-er-grp lcrp-er-grp--cost">仕</span>' +
-        '<input type="text" inputmode="decimal" class="lcrp-er-num" placeholder="単価" value="' + _ea(rd.pp || '') + '" oninput="lcRpSetCell(' + i + ',\'pp\',this.value)">' +
-        '<select class="lcrp-er-cur" onchange="lcRpSetCell(' + i + ',\'pc\',this.value)">' + _curOpts(rd.pc || 'JPY') + '</select>' +
-        '<span class="lcrp-er-grp lcrp-er-grp--sell">売</span>' +
-        '<input type="text" inputmode="decimal" class="lcrp-er-num" placeholder="単価" value="' + _ea(rd.bp || '') + '" oninput="lcRpSetCell(' + i + ',\'bp\',this.value)">' +
-        '<select class="lcrp-er-cur" onchange="lcRpSetCell(' + i + ',\'bc\',this.value)">' + _curOpts(rd.bc || 'JPY') + '</select>' +
-        '<input type="text" class="lcrp-er-note" placeholder="備考" value="' + _ea(rd.note || '') + '" oninput="lcRpSetCell(' + i + ',\'note\',this.value)">' +
-      '</div>' +
-    '</div>';
+    return '<tr class="lcrp-row lcrp-row--data">' +
+      _opsCell(i, last) +
+      '<td class="lcrp-td-catsv">' +
+        '<select class="lcrp-w-cat" onchange="lcRpSetCell(' + i + ',\'cat\',this.value)">' + _catOpts(rd.cat || '') + '</select>' +
+        '<input type="text" class="lcrp-w-subcon" placeholder="取引先" value="' + _ea(rd.sv || '') + '" oninput="lcRpSetCell(' + i + ',\'sv\',this.value)">' +
+      '</td>' +
+      '<td class="lcrp-td-name">' +
+        '<input type="text" class="lcrp-w-name" placeholder="品目名" value="' + _ea(rd.name || '') + '" oninput="lcRpSetCell(' + i + ',\'name\',this.value)">' +
+        '<input type="text" class="lcrp-w-note" placeholder="備考" value="' + _ea(rd.note || '') + '" oninput="lcRpSetCell(' + i + ',\'note\',this.value)">' +
+      '</td>' +
+      '<td class="lcrp-td-qty">' +
+        '<input type="text" inputmode="decimal" class="lcrp-w-qty" placeholder="数量" value="' + _ea(rd.pq || '') + '" oninput="lcRpSetCell(' + i + ',\'pq\',this.value)">' +
+        '<select class="lcrp-w-unit" title="単位" onchange="lcRpSetCell(' + i + ',\'un\',this.value)">' + _unitOpts(rd.un || '') + '</select>' +
+      '</td>' +
+      '<td class="lcrp-td-ccy">' +
+        '<span class="lcrp-stk lcrp-stk-cost"><span class="lcrp-tag lcrp-tag-cost">仕</span><select class="lcrp-w-cur" onchange="lcRpSetCell(' + i + ',\'pc\',this.value)">' + _curOpts(rd.pc || 'JPY') + '</select></span>' +
+        '<span class="lcrp-stk lcrp-stk-sell"><span class="lcrp-tag lcrp-tag-sell">売</span><select class="lcrp-w-cur" onchange="lcRpSetCell(' + i + ',\'bc\',this.value)">' + _curOpts(rd.bc || 'JPY') + '</select></span>' +
+      '</td>' +
+      '<td class="lcrp-td-price">' +
+        '<span class="lcrp-stk lcrp-stk-cost"><span class="lcrp-tag lcrp-tag-cost">仕</span><input type="text" inputmode="decimal" class="lcrp-w-price" placeholder="単価" value="' + _ea(rd.pp || '') + '" oninput="lcRpSetCell(' + i + ',\'pp\',this.value)"></span>' +
+        '<span class="lcrp-stk lcrp-stk-sell"><span class="lcrp-tag lcrp-tag-sell">売</span><input type="text" inputmode="decimal" class="lcrp-w-price" placeholder="単価" value="' + _ea(rd.bp || '') + '" oninput="lcRpSetCell(' + i + ',\'bp\',this.value)"></span>' +
+      '</td>' +
+      '<td class="lcrp-td-tax"><input type="checkbox" title="課税対象"' + (rd.taxed ? ' checked' : '') + ' onchange="lcRpSetCell(' + i + ',\'taxed\',this.checked)"></td>' +
+    '</tr>';
   }
 
   function _renderRows() {
@@ -205,7 +218,7 @@
     if (!box || !_edit) return;
     if (cnt) cnt.textContent = _edit.rows.length + '行';
     if (!_edit.rows.length) {
-      box.innerHTML = '<div class="lcrp-empty">明細がありません。下のボタンで追加してください（保存には最低1行必要）</div>';
+      box.innerHTML = '<tr><td colspan="7" class="lcrp-empty-row">明細がありません。下のボタンで追加してください（保存には最低1行必要）</td></tr>';
       return;
     }
     const last = _edit.rows.length - 1;
