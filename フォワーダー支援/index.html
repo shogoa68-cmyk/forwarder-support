@@ -288,6 +288,7 @@
             </select>
           </label>
           <button class="lc-variant-btn" onclick="lcToggleVariants()">🔀 ゆらぎ</button>
+          <button class="lc-variant-btn" onclick="lcRpOpenList()">📋 明細プリセット</button>
           <button class="lc-add-btn" onclick="lcOpenForm(null)">＋ 新規登録</button>
         </div>
       </div>
@@ -306,6 +307,52 @@
         <p class="lc-empty">読み込み中…</p>
       </div>
 
+    </div>
+
+    <!-- ========== 明細プリセット（行パターン）一覧モーダル ========== -->
+    <div class="lcrp-modal" id="lcRpListModal" onclick="if(event.target===this)lcRpCloseList()">
+      <div class="lcrp-box">
+        <h3>📋 明細プリセット（行パターン）</h3>
+        <p class="lcrp-desc">
+          複数行の費用明細をまとめて登録し、見積タブの「🗂️ 行を挿入」→「📦 保存パターン」からそのまま呼び出せます（<strong>☁️ チーム共有・ログインが必要</strong>）。
+        </p>
+        <div class="lcrp-toolbar">
+          <button class="lcrp-btn-primary" onclick="lcRpNew()">＋ 新規プリセット作成</button>
+        </div>
+        <div class="lcrp-list-wrap" id="lcRpListWrap">
+          <div class="lcrp-empty">読み込み中…</div>
+        </div>
+        <div class="lcrp-footer">
+          <button class="lcrp-btn-close" onclick="lcRpCloseList()">閉じる</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ========== 明細プリセット 編集モーダル ========== -->
+    <div class="lcrp-modal" id="lcRpEditModal" onclick="if(event.target===this)lcRpCloseEdit()">
+      <div class="lcrp-box lcrp-edit-box">
+        <h3 id="lcRpEditTitle">✎ 明細プリセットの編集</h3>
+        <div class="lcrp-form-row">
+          <input type="text" id="lcRpEditName" class="lcrp-input" placeholder="パターン名（例：輸出ローカル一式）" maxlength="30">
+        </div>
+        <div class="lcrp-form-row">
+          <input type="text" id="lcRpEditNote" class="lcrp-input" placeholder="メモ（任意・チームに共有されます）" maxlength="120">
+        </div>
+        <div class="lcrp-edit-rows-head">
+          <span>明細</span>
+          <span class="lcrp-edit-rowcount" id="lcRpEditRowCount"></span>
+        </div>
+        <div id="lcRpEditRows" class="lcrp-edit-rows"></div>
+        <div class="lcrp-add-row-btns">
+          <button type="button" onclick="lcRpAddRow('data')">＋ 費用行</button>
+          <button type="button" onclick="lcRpAddRow('remark')">＋ リマーク</button>
+          <button type="button" onclick="lcRpAddRow('subtotal')">＋ 小計</button>
+        </div>
+        <div class="lcrp-footer">
+          <button class="lcrp-btn-close" onclick="lcRpCloseEdit()">キャンセル</button>
+          <button class="lcrp-btn-primary" onclick="lcRpSave()">💾 保存</button>
+        </div>
+      </div>
     </div>
   </div><!-- /tab-local-charges -->
 
@@ -4271,6 +4318,7 @@
 <script src="js/alias-rules.js"></script>
 <script src="js/local-charges.js"></script>
 <script src="js/rate-notice.js"></script>
+<script src="js/lc-row-pattern.js"></script>
 
 <!-- =================================================================
      サイト全体スコープのフローティング UI（Phase 2c-Step1 で見積タブから昇格）
