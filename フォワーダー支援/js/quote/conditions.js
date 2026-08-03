@@ -337,7 +337,9 @@
   }
 
   // プリセット読み込み時に空値で上書きしないヘッダー項目
-  const _HEADER_FIELD_IDS = ['qf-ref','qf-customer','qf-person','qf-date','qf-valid-until','qf-memo','qf-status'];
+  // ステータス(qf-status)は保護対象に含めない：既定値「下書き中」を持つため、
+  // 空プリセット読込時に前案件の値を維持すると別案件へ漏れて誤上書きの原因になる。
+  const _HEADER_FIELD_IDS = ['qf-ref','qf-customer','qf-person','qf-date','qf-valid-until','qf-memo'];
 
   // === お客様マスター詳細情報ボタン（管理番号入力セクション） ===
   function _cdEsc(s) {
@@ -400,6 +402,11 @@
       if (el.type === 'checkbox') el.checked = val;
       else el.value = val;
     });
+    // ステータスは必ずこのプリセットの値で確定させる（キー欠落・空でも前案件の値を
+    // 引き継がない）。既定は「下書き中」。これを怠ると別案件のステータスが漏れて
+    // 保存時に誤って上書きされる（case: 旧プリセットは data.fields に qf-status を持たない）。
+    const _stEl = document.getElementById('qf-status');
+    if (_stEl) _stEl.value = (data.fields && data.fields['qf-status']) ? data.fields['qf-status'] : '下書き中';
     _rebuildTable(data);
     _restoreUiState(data.fields);
     // 保存時の為替レートを復元（スナップショット）
