@@ -164,32 +164,90 @@ window.QuoteApp = window.QuoteApp || { state: {}, data: {}, fx: {} };
 let rowCount      = 0;
 let dragSrcRow    = null;
 let dragSrcRows   = null;  // 多選択ドラッグ時に実際に移動する行群（単一なら [dragSrcRow]）
-// ドラッグ起点フラグ：グリップ/ハンドルの mousedown で立て、mouseup で倒す。
-// document への mousedown / mouseup リスナーは「行ごと・ヘッダーごと」ではなく
-// ここで一度だけ登録する（毎行・毎再描画で addEventListener すると無制限に累積し、
-// 操作が重くなるため）。
-let _dragArmedRow = false;   // 明細行の ⠿ ハンドル
-let _dragArmedGrp = false;   // グループ見出しの ⠿ グリップ
-let _lastDragOverRow = null; // dragover で挿入位置マークを付けた直前の行（全行走査を避ける）
-// 判定は ⠿ 要素ピンポイントではなく「ハンドル列（セル）全体」を起点として許容する。
-// 理由：行にホバーすると .row-acts のボタン群（👁🔍✓➕📋🗑️）が display:none から現れ、
-// ハンドルセルの中身が縦に伸びる。セルは vertical-align:middle なので ⠿ は
-// 押す前に上へずれ、ユーザーが狙った位置には .row-acts が来る。要素ピンポイント判定だと
-// mousedown が ⠿ に当たらず武装できないため、dragstart が preventDefault され
-// 「掴んでも動かない＝ドラッグできない」状態になる。
-document.addEventListener('mousedown', (e) => {
-  const t = e.target;
-  if (!t || typeof t.closest !== 'function') return;
-  // ボタン・入力欄の上ではドラッグを武装しない（クリック操作を邪魔しないため）
-  if (t.closest('button, input, select, textarea, a')) return;
-  if (t.closest('#tableBody td.handle-cell, #tableBody td.subtotal-drag-cell, #tableBody td.remark-drag-cell')) {
-    _dragArmedRow = true; return;
+let _lastDragOverRow = null; // 挿入位置マークを付けた直前の行（全行走査を避ける）
+
+/* ===========================================================================
+   ポインタ操作による並べ替えドラッグ（HTML5 ネイティブ D&D の置き換え）
+
+   ネイティブ D&D（draggable 属性＋dragstart/dragover/drop）はブラウザ側の
+   ネストしたメッセージループで動く。何らかの理由でそのループが正常に
+   終了しないと、ブラウザはドラッグ中のままになり、クリックもキー入力も
+   一切ページへ届かなくなる ＝ 画面が「フリーズした」ように見える。
+   環境依存で再現条件を絞りにくく、明細テーブル・右カラムのツリー・
+   サブコン別パネルという別々の画面で同じ症状が報告されていた。
+
+   並べ替えはブラウザのドラッグ機構に頼る必要がないため、
+   pointerdown / pointermove / pointerup による自前実装へ置き換える。
+   途中でどう中断されても pointerup / pointercancel / Esc / blur のいずれかで
+   必ず後始末が走るので、操作不能状態にはならない。
+   =========================================================================== */
+window.startPointerDrag = function startPointerDrag(startEvt, handlers) {
+  const h = handlers || {};
+  const THRESHOLD = 4;                       // これ以上動いたら「ドラッグ開始」
+  const sx = startEvt.clientX, sy = startEvt.clientY;
+  let started = false;
+  let finished = false;
+  let raf = 0;
+  let lastX = sx, lastY = sy;
+
+  const cleanup = () => {
+    if (finished) return;
+    finished = true;
+    if (raf) cancelAnimationFrame(raf);
+    document.removeEventListener('pointermove', onMove, true);
+    document.removeEventListener('pointerup', onUp, true);
+    document.removeEventListener('pointercancel', onCancel, true);
+    document.removeEventListener('keydown', onKey, true);
+    window.removeEventListener('blur', onCancel, true);
+    document.body.classList.remove('is-row-dragging');
+    if (started && h.onEnd) h.onEnd();
+  };
+
+  // pointermove は連射されるため、実処理は rAF に間引く（大きい表でも詰まらせない）
+  function flush() {
+    raf = 0;
+    if (!finished && started && h.onMove) h.onMove(lastX, lastY);
   }
-  if (t.closest('#tableBody .subcon-group-grip')) { _dragArmedGrp = true; }
-}, { capture: true });
-document.addEventListener('mouseup', () => {
-  _dragArmedRow = false; _dragArmedGrp = false;
-}, { capture: true });
+  function onMove(e) {
+    lastX = e.clientX; lastY = e.clientY;
+    if (!started) {
+      if (Math.abs(lastX - sx) < THRESHOLD && Math.abs(lastY - sy) < THRESHOLD) return;
+      started = true;
+      document.body.classList.add('is-row-dragging');
+      if (h.onStart) h.onStart();
+    }
+    e.preventDefault();                      // テキスト選択を抑止
+    if (!raf) raf = requestAnimationFrame(flush);
+  }
+  function onUp(e) {
+    const wasStarted = started;
+    if (wasStarted) { e.preventDefault(); e.stopPropagation(); }
+    cleanupWith(() => { if (wasStarted && h.onDrop) h.onDrop(e.clientX, e.clientY); });
+  }
+  function onCancel() { cleanupWith(() => { if (started && h.onCancel) h.onCancel(); }); }
+  function onKey(e) { if (e.key === 'Escape') { e.stopPropagation(); onCancel(); } }
+  function cleanupWith(fn) {
+    if (finished) return;
+    if (raf) { cancelAnimationFrame(raf); raf = 0; }
+    try { fn(); } finally { cleanup(); }
+  }
+
+  document.addEventListener('pointermove', onMove, true);
+  document.addEventListener('pointerup', onUp, true);
+  document.addEventListener('pointercancel', onCancel, true);
+  document.addEventListener('keydown', onKey, true);
+  window.addEventListener('blur', onCancel, true);
+  return { cancel: onCancel, isStarted: () => started };
+};
+
+// ドラッグ中に画面端へ来たら自動スクロールする（ネイティブ D&D の代替）
+window.pointerDragAutoScroll = function (clientY) {
+  const M = 60, SPEED = 18;
+  if (clientY < M) window.scrollBy(0, -Math.ceil(SPEED * (M - clientY) / M));
+  else if (clientY > window.innerHeight - M) {
+    window.scrollBy(0, Math.ceil(SPEED * (clientY - (window.innerHeight - M)) / M));
+  }
+};
 let _inGroupRender = false; // renderSubconGroups 実行中フラグ（MutationObserver 抑制用）
 let calcRowCount  = 0;
 let _lastCalcResult = null;

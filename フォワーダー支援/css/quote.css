@@ -754,7 +754,8 @@
   opacity: 0.6;
   background: #f0e8d8 !important;
   box-shadow: 0 4px 16px rgba(0, 0, 0, .20);
-  transform: rotate(0.4deg);
+  /* transform: rotate() は付けない。テーブル行に transform を掛けると
+     表全体のレイアウトが再計算され、143 行規模で 200ms 超の固まりになるため。 */
   outline: 2px dashed #8b6914;
 }
 #tab-quote-make tr.drag-over-top td {
@@ -764,7 +765,7 @@
   border-bottom: 3px solid #8b6914 !important;
 }
 /* サイドパネル → テーブル D&D */
-#tab-quote-make .rp-sc-item[draggable] { cursor: grab; }
+#tab-quote-make .si-list-wrap .rp-sc-item { cursor: default; }
 #tab-quote-make .rp-sc-item.si-item-dragging { opacity: 0.45; cursor: grabbing; }
 #tab-quote-make tr.si-drop-top td { border-top: 3px solid #4a7fc1 !important; }
 #tab-quote-make tr.si-drop-bottom td { border-bottom: 3px solid #4a7fc1 !important; }
@@ -9603,7 +9604,7 @@ button.um-memberno--empty:hover { background: #f4ead4; border-color: #cdb98e; }
 }
 #tab-quote-make .si-list-wrap .rp-sc-grip:active { cursor: grabbing; }
 /* label 自体はもうドラッグの見た目（grab カーソル）を持たせない。起点はグリップのみ */
-#tab-quote-make .si-list-wrap .rp-sc-item[draggable] { cursor: default; }
+
 #tab-quote-make .si-list-wrap .rp-cat {
   font-size: 9px; padding: 1px 4px;
 }
@@ -9826,3 +9827,12 @@ button.um-memberno--empty:hover { background: #f4ead4; border-color: #cdb98e; }
 .stats-hist-date   { font-size: 10px; color: #aaa; }
 .stats-hist-arr    { color: #ccc; font-size: 12px; }
 .stats-hist-route { font-size: 10px; color: #aaa; font-weight: 400; }
+
+
+/* ===== ポインタ操作による並べ替えドラッグ中の共通スタイル =====
+   ネイティブ D&D をやめ pointerdown/move/up で実装しているため、
+   ドラッグ中のテキスト選択とカーソルは CSS 側で明示的に制御する。 */
+/* ※ 全称セレクタ（body.is-row-dragging *）は使わない。
+   クラス付与のたびに文書全体のスタイル再計算が走り、143 行規模で数百 ms かかるため。
+   user-select は継承するので body に一度だけ指定すれば足りる。 */
+body.is-row-dragging { cursor: grabbing; user-select: none; }
