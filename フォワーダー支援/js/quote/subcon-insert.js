@@ -495,7 +495,8 @@
         const unit = it.un ? '<small class="rp-sc-unit"> /' + _esc(it.un) + '</small>' : '';
         const ptBadgeSi = it.pt ? '<span class="rp-sc-pt">' + _esc(it.pt) + '</span>' : '';
         return '<label class="rp-sc-item" draggable="true" data-si="' + si + '" data-ii="' + it._ii + '">' +
-            '<input type="checkbox" class="rp-sc-chk si-chk" data-si="' + si + '" data-ii="' + it._ii + '" checked>' +
+            '<span class="rp-sc-grip" title="ドラッグして見積テーブルへ挿入">⠿</span>' +
+            '<input type="checkbox" class="rp-sc-chk si-chk" draggable="false" data-si="' + si + '" data-ii="' + it._ii + '" checked>' +
             '<span class="rp-cat ' + (CAT_CLASS[it.cat]||'cat-other') + '">' + _esc(ROLE[it.cat]||it.cat||'—') + '</span>' +
             '<span class="rp-sc-nm-wrap"><span class="rp-sc-itemname">' + _esc(it.name) + '</span>' + ptBadgeSi + _periodBadge(it) + _srcBadge('panel', si, it._ii, it) + '</span>' +
             '<span class="rp-sc-price">' + priceCell + unit + '</span>' +
@@ -824,9 +825,19 @@
   });
 
   // ===== ドラッグ＆ドロップ（サイドパネル → 見積テーブル） =====
+  // ドラッグ開始は必ず ⠿ グリップからに限定する（table 行の initDrag と同じ安全策）。
+  // label 全体を draggable にしたままだと、内部のチェックボックス上で掴んだときに
+  // ブラウザ標準のフォーム要素操作とネイティブ HTML5 ドラッグが競合し、
+  // 実機で操作不能（フリーズ）になるケースがあるため。
+  let _siGripArmed = false;
+  document.addEventListener('mousedown', function(e) {
+    _siGripArmed = !!e.target.closest('#siListWrap .rp-sc-item .rp-sc-grip');
+  });
   document.addEventListener('dragstart', function(e) {
     const label = e.target.closest('#siListWrap .rp-sc-item[draggable]');
     if (!label) return;
+    if (!_siGripArmed) { e.preventDefault(); return; }
+    _siGripArmed = false;
     const si = parseInt(label.dataset.si, 10);
     const ii = parseInt(label.dataset.ii, 10);
     const sc = _siFilteredList()[si];

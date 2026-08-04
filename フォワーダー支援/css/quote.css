@@ -9583,7 +9583,17 @@ button.um-memberno--empty:hover { background: #f4ead4; border-color: #cdb98e; }
 #tab-quote-make .si-list-wrap .rp-sc-meta { font-size: 10px; }
 #tab-quote-make .si-list-wrap .rp-sc-item {
   padding: 3px 0; gap: 4px; font-size: 11px;
+  /* グリップ列を追加（18px）：checkbox/カテゴリ/名前/価格の4列 → 5列に拡張 */
+  grid-template-columns: 16px 22px auto 1fr auto;
 }
+/* ドラッグ起点はこのグリップのみ（label 全体では誤操作でフリーズし得るため制限） */
+#tab-quote-make .si-list-wrap .rp-sc-grip {
+  cursor: grab; color: #b8a888; font-size: 11px; text-align: center;
+  line-height: 1; user-select: none; -webkit-user-drag: element;
+}
+#tab-quote-make .si-list-wrap .rp-sc-grip:active { cursor: grabbing; }
+/* label 自体はもうドラッグの見た目（grab カーソル）を持たせない。起点はグリップのみ */
+#tab-quote-make .si-list-wrap .rp-sc-item[draggable] { cursor: default; }
 #tab-quote-make .si-list-wrap .rp-cat {
   font-size: 9px; padding: 1px 4px;
 }
