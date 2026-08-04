@@ -165,11 +165,28 @@ let rowCount      = 0;
 let dragSrcRow    = null;
 let dragSrcRows   = null;  // 多選択ドラッグ時に実際に移動する行群（単一なら [dragSrcRow]）
 // ドラッグ起点フラグ：グリップ/ハンドルの mousedown で立て、mouseup で倒す。
-// document への mouseup リスナーは「行ごと・ヘッダーごと」ではなくここで一度だけ登録する。
-// （毎行・毎再描画で addEventListener すると無制限に累積し、操作が重くなるため）
+// document への mousedown / mouseup リスナーは「行ごと・ヘッダーごと」ではなく
+// ここで一度だけ登録する（毎行・毎再描画で addEventListener すると無制限に累積し、
+// 操作が重くなるため）。
 let _dragArmedRow = false;   // 明細行の ⠿ ハンドル
 let _dragArmedGrp = false;   // グループ見出しの ⠿ グリップ
 let _lastDragOverRow = null; // dragover で挿入位置マークを付けた直前の行（全行走査を避ける）
+// 判定は ⠿ 要素ピンポイントではなく「ハンドル列（セル）全体」を起点として許容する。
+// 理由：行にホバーすると .row-acts のボタン群（👁🔍✓➕📋🗑️）が display:none から現れ、
+// ハンドルセルの中身が縦に伸びる。セルは vertical-align:middle なので ⠿ は
+// 押す前に上へずれ、ユーザーが狙った位置には .row-acts が来る。要素ピンポイント判定だと
+// mousedown が ⠿ に当たらず武装できないため、dragstart が preventDefault され
+// 「掴んでも動かない＝ドラッグできない」状態になる。
+document.addEventListener('mousedown', (e) => {
+  const t = e.target;
+  if (!t || typeof t.closest !== 'function') return;
+  // ボタン・入力欄の上ではドラッグを武装しない（クリック操作を邪魔しないため）
+  if (t.closest('button, input, select, textarea, a')) return;
+  if (t.closest('#tableBody td.handle-cell, #tableBody td.subtotal-drag-cell, #tableBody td.remark-drag-cell')) {
+    _dragArmedRow = true; return;
+  }
+  if (t.closest('#tableBody .subcon-group-grip')) { _dragArmedGrp = true; }
+}, { capture: true });
 document.addEventListener('mouseup', () => {
   _dragArmedRow = false; _dragArmedGrp = false;
 }, { capture: true });

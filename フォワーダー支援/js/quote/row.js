@@ -95,19 +95,15 @@
 
   // ========== ドラッグ＆ドロップ ==========
   function initDrag(tr) {
-    // tr は常に draggable="true"。ハンドル以外からのドラッグは dragstart で防ぐ
+    // tr は常に draggable="true"。ハンドル列以外からのドラッグは dragstart で防ぐ
     tr.setAttribute('draggable', 'true');
-    const handle = tr.querySelector('.drag-handle');
 
     // dragstart の e.target は tr 自身になるため、mousedown でフラグを立てる。
-    // フラグ解除用の document mouseup は constants.js で一度だけ登録済み（累積防止）
-    if (handle) {
-      handle.addEventListener('mousedown', () => { _dragArmedRow = true; });
-    }
-
+    // 武装（mousedown）／解除（mouseup）の document リスナーは constants.js で
+    // 一度だけ委譲登録済み（行ごとに張ると累積して重くなるため）。
     tr.addEventListener('dragstart', e => {
-      // ハンドルを掴んでいない場合はドラッグ無効
-      if (!handle || !_dragArmedRow) {
+      // ハンドル列を掴んでいない場合はドラッグ無効
+      if (!_dragArmedRow) {
         e.preventDefault(); return;
       }
       _dragArmedRow = false;
@@ -254,16 +250,24 @@
 
   // 明細行を同一グループ内で並べ替え（右カラム ジャンプタブのドラッグ用）。
   // グループ跨ぎ（サブコン/パターンが異なる移動）はテーブル本体のドラッグと同じく禁止し false を返す。
+  // 同一グループ（サブコン正規化キー＋パターン内側キー）に属するかを判定。
+  // ドラッグ中の dragover から毎フレーム呼ぶため、DOM 参照のみで副作用なし。
+  function canMoveTableRowWithinGroup(srcRowId, targetRowId) {
+    const src = document.getElementById('row-' + String(srcRowId).replace(/^row-/, ''));
+    const tgt = document.getElementById('row-' + String(targetRowId).replace(/^row-/, ''));
+    if (!src || !tgt || src === tgt) return false;
+    return subconNormKey(_rowSubcon(src) ?? '') === subconNormKey(_rowSubcon(tgt) ?? '')
+        && (_rowInnerKey(src) || '') === (_rowInnerKey(tgt) || '');
+  }
+  window.canMoveTableRowWithinGroup = canMoveTableRowWithinGroup;
+
   function moveTableRowWithinGroup(srcRowId, targetRowId, placeAfter) {
     const tbody = document.getElementById('tableBody');
     if (!tbody) return false;
     const src = document.getElementById('row-' + String(srcRowId).replace(/^row-/, ''));
     const tgt = document.getElementById('row-' + String(targetRowId).replace(/^row-/, ''));
     if (!src || !tgt || src === tgt) return false;
-    // 同一グループ判定：サブコン正規化キー＋パターン内側キーが一致
-    const sameGroup = subconNormKey(_rowSubcon(src) ?? '') === subconNormKey(_rowSubcon(tgt) ?? '')
-                   && (_rowInnerKey(src) || '') === (_rowInnerKey(tgt) || '');
-    if (!sameGroup) return false;
+    if (!canMoveTableRowWithinGroup(srcRowId, targetRowId)) return false;
     // src に付随する子リマーク行も一緒に運ぶ。挿入位置は tgt の前／後。
     // （仮想行スキップは不要：renderSubconGroups が直後に仮想行を再構築するため）
     const block = [src, ...getChildRemarks(src.id.replace('row-', ''))];
@@ -1473,15 +1477,11 @@
   // 小計行ドラッグ初期化（通常行の initDrag と同じロジック）
   function initSubtotalDrag(tr) {
     tr.setAttribute('draggable', 'true');
-    const handle = tr.querySelector('.drag-handle');
-    let _dragFromHandle = false;
-    if (handle) {
-      handle.addEventListener('mousedown', () => { _dragFromHandle = true; });
-      document.addEventListener('mouseup', () => { _dragFromHandle = false; }, { capture: true });
-    }
+    // 武装／解除は constants.js の委譲リスナーが担当（小計行は .subtotal-drag-cell）。
+    // 行ごとに document へ mouseup を張ると再描画のたびに累積するため張らない。
     tr.addEventListener('dragstart', e => {
-      if (!handle || !_dragFromHandle) { e.preventDefault(); return; }
-      _dragFromHandle = false;
+      if (!_dragArmedRow) { e.preventDefault(); return; }
+      _dragArmedRow = false;
       dragSrcRow = tr;
       // 小計行はチェックボックスを持たない → 常に単一行ドラッグ
       dragSrcRows = [tr];
@@ -2270,7 +2270,11 @@
         hdr.className = 'subcon-group-header' + (collapsed ? ' is-collapsed' : '');
         const excluded = _excludedGroups.has(key);
         hdr.innerHTML =
+          // display:flex は td ではなく内側 div に持たせる。td を flex 化すると
+          // table-cell でなくなり colspan が無効化され、セルが 1 列分（約30px）に潰れて
+          // 中身がはみ出す＝見出しの右側がドロップ対象にならない（小計行と同じ既知バグ）。
           `<td colspan="10" class="subcon-group-header-cell">` +
+            `<div class="subcon-group-header-inner">` +
             `<span class="subcon-group-grip" title="ドラッグでグループ（ブロック）を並び替え">⠿</span>` +
             `<button type="button" class="subcon-group-toggle" title="折りたたみ/展開">${collapsed ? '▶' : '▼'}</button>` +
             `<span class="subcon-group-label">📦 ${_escHdr(label)}</span>` +
@@ -2283,6 +2287,7 @@
               `title="${_escAttr(label)} に行を追加">＋</button>` +
             `<button type="button" class="subcon-group-sort-btn" title="このグループ内をカテゴリ順に並び替え">⇅カテゴリ</button>` +
             _groupUpdatedHtml() +
+            `</div>` +
           `</td>`;
         hdr.querySelector('.subcon-group-toggle').addEventListener('click', () => toggleSubconGroup(key));
         hdr.querySelector('.subcon-group-excl').addEventListener('click', () => toggleSubconExclude(key));
@@ -2423,12 +2428,15 @@
               sh.className = 'subcon-subgroup-header is-pattern' + (_ptExcluded ? ' is-excluded' : '');
               const icon = '🔖';
               sh.innerHTML =
+                // 同上：flex は内側 div へ（td を flex 化すると colspan が潰れる）
                 `<td colspan="10" class="subcon-subgroup-cell">` +
+                  `<div class="subcon-subgroup-inner">` +
                   `<button type="button" class="subcon-subgroup-toggle" title="${_ptCollapsed ? '展開' : '折りたたみ/展開'}">${_ptCollapsed ? '▶' : '▼'}</button>` +
                   `<span class="subcon-subgroup-leg">${icon} ${_escHdr(key)}</span>` +
                   `<button type="button" class="subcon-subgroup-excl${_ptExcluded ? ' is-excluded' : ''}" title="見積もりへの含める/除外を切り替え">${_ptExcluded ? '含む' : '除外'}</button>` +
                   `<button type="button" class="subcon-group-sort-btn" title="このパターン内をカテゴリ順に並び替え">⇅カテゴリ</button>` +
                   _groupUpdatedHtml() +
+                  `</div>` +
                 `</td>`;
               sh.querySelector('.subcon-subgroup-toggle').addEventListener('click', () => togglePatternGroup(_compK));
               sh.querySelector('.subcon-subgroup-excl').addEventListener('click', () => togglePatternExclude(_compK));
@@ -2467,17 +2475,13 @@
   // 掴んだグループの配下行（データ行＋付随する社内メモ/備考/小計行）をブロックごと移動する。
   function initGroupHeaderDrag(hdr, key) {
     hdr.setAttribute('draggable', 'true');
-    const grip = hdr.querySelector('.subcon-group-grip');
-    // フラグ解除用の document mouseup は constants.js で一度だけ登録済み。
+    // 武装（grip の mousedown）／解除（mouseup）は constants.js で一度だけ委譲登録済み。
     // ここで登録すると renderSubconGroups の度にグループ数ぶん累積するため行わない。
-    if (grip) {
-      grip.addEventListener('mousedown', () => { _dragArmedGrp = true; });
-    }
     const clearMarks = () => document.querySelectorAll('#tableBody .subcon-group-header')
       .forEach(h => h.classList.remove('grp-drop-before', 'grp-drop-after'));
 
     hdr.addEventListener('dragstart', e => {
-      if (!grip || !_dragArmedGrp) { e.preventDefault(); return; }
+      if (!_dragArmedGrp) { e.preventDefault(); return; }
       _dragArmedGrp = false;
       _draggingGroupKey = key;
       hdr.classList.add('grp-dragging');

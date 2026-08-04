@@ -3723,6 +3723,15 @@
       const item = e.target.closest('.qsp-dig-grp-item.is-row[data-qsp-rowid]');
       if (!item || item.dataset.qspRowid === srcId) return;
       e.preventDefault();
+      // 並び替えは同じサブコン／パターン内のみ。別グループの上では
+      // 挿入マークを出さず「ドロップ不可」カーソルにして、
+      // 掴めているのにドロップだけ効かない（＝壊れて見える）状態を避ける。
+      if (typeof window.canMoveTableRowWithinGroup === 'function'
+          && !window.canMoveTableRowWithinGroup(srcId, item.dataset.qspRowid)) {
+        e.dataTransfer.dropEffect = 'none';
+        clearMarks();
+        return;
+      }
       e.dataTransfer.dropEffect = 'move';
       const r = item.getBoundingClientRect();
       const after = e.clientY > r.top + r.height / 2;
