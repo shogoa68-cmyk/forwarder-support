@@ -901,8 +901,10 @@
 /* パターンの内側グループ見出し（港ペア＝緑系と区別して青系） */
 #tab-quote-make .subcon-subgroup-header.is-pattern .subcon-subgroup-cell {
   background: #eef3fb; border-top: 1px dashed #c2d3ec; border-bottom: 1px solid #dde7f5;
-  display: flex; align-items: center; gap: 4px;
+  vertical-align: middle;
 }
+/* flex は td ではなく内側 div へ（td を flex 化すると colspan が潰れる） */
+#tab-quote-make .subcon-subgroup-inner { display: flex; align-items: center; gap: 4px; text-align: left; }
 #tab-quote-make .subcon-subgroup-header.is-pattern .subcon-subgroup-leg { color: #2a4a72; flex: 1; }
 /* パターンサブヘッダーのトグル・除外ボタン */
 #tab-quote-make .subcon-subgroup-toggle,
@@ -8728,10 +8730,18 @@ button.um-memberno--empty:hover { background: #f4ead4; border-color: #cdb98e; }
   border-top:9px solid #ece2cf;
   border-bottom:1px solid #e8dccf;
   padding:5px 10px;
+  vertical-align:middle;
+  user-select:none;
+}
+/* バグ修正：display:flex は td ではなく内側 div へ。td を flex 化すると table-cell
+   でなくなって colspan が無効になり、セルが 1 列分（約30px）に潰れて中身がはみ出す。
+   見た目が崩れるだけでなく、見出しの右側がドロップ対象にならずグループのドラッグ
+   並べ替えが効かなくなる（小計行では既に同じ修正済み）。 */
+#tab-quote-make .subcon-group-header-inner {
   display:flex;
   align-items:center;
   gap:8px;
-  user-select:none;
+  text-align:left;
 }
 #tab-quote-make .subcon-group-label {
   font-size:11.5px;
