@@ -164,6 +164,15 @@ window.QuoteApp = window.QuoteApp || { state: {}, data: {}, fx: {} };
 let rowCount      = 0;
 let dragSrcRow    = null;
 let dragSrcRows   = null;  // 多選択ドラッグ時に実際に移動する行群（単一なら [dragSrcRow]）
+// ドラッグ起点フラグ：グリップ/ハンドルの mousedown で立て、mouseup で倒す。
+// document への mouseup リスナーは「行ごと・ヘッダーごと」ではなくここで一度だけ登録する。
+// （毎行・毎再描画で addEventListener すると無制限に累積し、操作が重くなるため）
+let _dragArmedRow = false;   // 明細行の ⠿ ハンドル
+let _dragArmedGrp = false;   // グループ見出しの ⠿ グリップ
+let _lastDragOverRow = null; // dragover で挿入位置マークを付けた直前の行（全行走査を避ける）
+document.addEventListener('mouseup', () => {
+  _dragArmedRow = false; _dragArmedGrp = false;
+}, { capture: true });
 let _inGroupRender = false; // renderSubconGroups 実行中フラグ（MutationObserver 抑制用）
 let calcRowCount  = 0;
 let _lastCalcResult = null;
