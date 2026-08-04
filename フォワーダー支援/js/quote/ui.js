@@ -3690,8 +3690,24 @@
     if (!box || box.dataset.dragBound === '1') return;
     box.dataset.dragBound = '1';
     let srcId = null;
-    const clearMarks = () => box.querySelectorAll('.qsp-drop-top, .qsp-drop-bottom')
-      .forEach(el => el.classList.remove('qsp-drop-top', 'qsp-drop-bottom'));
+    let lastOver = null;   // 直前に挿入マークを付けた要素（全件走査を避ける）
+    let lastPos  = null;   // 直前のマーク位置（'qsp-drop-top' | 'qsp-drop-bottom'）
+    // マーク解除：直前要素だけを戻す。ツリーが 143 項目規模になると
+    // querySelectorAll の全走査が dragover 毎（＝毎フレーム）に走り重くなるため。
+    const clearMarks = () => {
+      if (lastOver) { lastOver.classList.remove('qsp-drop-top', 'qsp-drop-bottom'); lastOver = null; }
+      lastPos = null;
+    };
+    // ドラッグ状態の完全リセット。drop 後は再描画で元要素が DOM から消えるため
+    // box への委譲では dragend を受け取れない（＝ドラッグが宙吊りになり操作不能に見える）。
+    // そのため document 側でも必ず後始末する。
+    const resetDrag = () => {
+      document.querySelectorAll('#qspSectionDigest .qsp-row-dragging')
+        .forEach(el => el.classList.remove('qsp-row-dragging'));
+      document.querySelectorAll('#qspSectionDigest .qsp-drop-top, #qspSectionDigest .qsp-drop-bottom')
+        .forEach(el => el.classList.remove('qsp-drop-top', 'qsp-drop-bottom'));
+      lastOver = null; lastPos = null; srcId = null;
+    };
     box.addEventListener('dragstart', function(e) {
       const item = e.target.closest('.qsp-dig-grp-item.is-row[data-qsp-rowid]');
       if (!item) { return; }
@@ -3700,10 +3716,8 @@
       try { e.dataTransfer.setData('text/plain', srcId); } catch (_) {}
       item.classList.add('qsp-row-dragging');
     });
-    box.addEventListener('dragend', function() {
-      box.querySelectorAll('.qsp-row-dragging').forEach(el => el.classList.remove('qsp-row-dragging'));
-      clearMarks(); srcId = null;
-    });
+    // dragend は document で受ける（元要素が外れていても必ず発火する）
+    document.addEventListener('dragend', function() { if (srcId !== null) resetDrag(); });
     box.addEventListener('dragover', function(e) {
       if (!srcId) return;
       const item = e.target.closest('.qsp-dig-grp-item.is-row[data-qsp-rowid]');
@@ -3712,8 +3726,18 @@
       e.dataTransfer.dropEffect = 'move';
       const r = item.getBoundingClientRect();
       const after = e.clientY > r.top + r.height / 2;
-      clearMarks();
-      item.classList.add(after ? 'qsp-drop-bottom' : 'qsp-drop-top');
+      const pos = after ? 'qsp-drop-bottom' : 'qsp-drop-top';
+      // 対象・位置が前回と同じなら DOM を書き換えない。
+      // class を書き換えるとレイアウトが無効化され、次フレームの
+      // getBoundingClientRect で全体の再計算（143 行規模で数ms）が走るため、
+      // 変化が無いフレームでは触らないことがドラッグ中の滑らかさに効く。
+      if (lastOver === item && lastPos === pos) return;
+      if (lastOver && lastOver !== item) {
+        lastOver.classList.remove('qsp-drop-top', 'qsp-drop-bottom');
+      }
+      item.classList.remove('qsp-drop-top', 'qsp-drop-bottom');
+      item.classList.add(pos);
+      lastOver = item; lastPos = pos;
     });
     box.addEventListener('drop', function(e) {
       if (!srcId) return;
@@ -3723,16 +3747,15 @@
       const r = item.getBoundingClientRect();
       const after = e.clientY > r.top + r.height / 2;
       const tgtId = item.dataset.qspRowid;
-      clearMarks();
+      const _srcId = srcId;
+      resetDrag();   // 再描画で要素が消える前に状態を後始末する
       const ok = (typeof window.moveTableRowWithinGroup === 'function')
-        && window.moveTableRowWithinGroup(srcId, tgtId, after);
-      srcId = null;
+        && window.moveTableRowWithinGroup(_srcId, tgtId, after);
       if (!ok) {
         if (typeof quoteShowToast === 'function') quoteShowToast('⚠️ 並び替えは同じサブコン／パターン内でのみ可能です', 'warn', 2600);
-        return;
       }
-      // moveTableRowWithinGroup 内で renderSubconGroups → ジャンプタブも再描画される
-      if (typeof window.renderQuoteSectionDigest === 'function') window.renderQuoteSectionDigest();
+      // 再描画は moveTableRowWithinGroup 内の renderSubconGroups が行うため
+      // ここで renderQuoteSectionDigest を呼ばない（呼ぶと同一ドロップで3回描画され重い）
     });
   };
 
