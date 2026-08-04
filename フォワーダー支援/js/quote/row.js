@@ -433,6 +433,7 @@
 
   // 入力完了の進捗バッジ（完了件数 / データ行総数）を更新。0 行なら非表示。
   function updateDoneCounter() {
+    if (_quoteBulkUpdate) return;   // 一括更新中はまとめて後で 1 回だけ実行する
     const dataRows = document.querySelectorAll('#tableBody tr[id^="row-"]:not([data-type]):not([data-virtual])');
     const total = dataRows.length;
     let done = 0;
@@ -457,6 +458,7 @@
 
   // 要調査（後で記入）行の件数バッジを更新。0 件なら非表示。
   function updatePendingCounter() {
+    if (_quoteBulkUpdate) return;   // 一括更新中はまとめて後で 1 回だけ実行する
     const n = document.querySelectorAll('#tableBody tr[data-pending="1"]').length;
     const ind = document.getElementById('pendingIndicator');
     if (ind) ind.hidden = (n === 0);
@@ -1416,6 +1418,7 @@
   }
 
   function updateTotals() {
+    if (_quoteBulkUpdate) return;   // 一括更新中はまとめて後で 1 回だけ実行する
     updatePendingCounter();
     updateDoneCounter();      // 入力完了の進捗バッジを更新
     recomputeRowValidity();   // 適用期間外の行を判定（客先非表示・合計除外）
@@ -1682,6 +1685,7 @@
   };
 
   function updateSubtotalRows() {
+    if (_quoteBulkUpdate) return;   // 一括更新中はまとめて後で 1 回だけ実行する
     const tbody = document.getElementById('tableBody');
     const allRows = Array.from(tbody.querySelectorAll('tr'));
     // 通貨は混在し得るため、JPY 換算で集計する（_fxRates 経由）
@@ -2170,10 +2174,13 @@
   // - グループ順：出現順。未設定グループは末尾
   // - グループが 1 つ以下のとき（全行同サブコン or 全行未設定）はヘッダー不要
   function renderSubconGroups() {
+    if (_quoteBulkUpdate) return;   // 一括更新中はまとめて後で 1 回だけ実行する
     const tbody = document.getElementById('tableBody');
     if (!tbody) return;
-    // DOM 再構築でブラウザがスクロール位置をリセットするのを防ぐ
-    const _savedScrollY = window.scrollY;
+    // DOM 再構築でブラウザがスクロール位置をリセットするのを防ぐ。
+    // window.scrollY は読むだけで同期レイアウトを誘発するため、scroll イベントで
+    // 控えておいた値を使う（143 行の表で 1 回あたり数百 ms かかっていた）。
+    const _savedScrollY = _lastScrollY;
     _inGroupRender = true;
     try {
       // 既存の仮想ヘッダーを削除
@@ -2467,7 +2474,9 @@
     } finally {
       _inGroupRender = false;
       // DOM 再構築後にスクロール位置を復元（パターン変更時のページトップへの強制移動を防ぐ）
-      if (window.scrollY !== _savedScrollY) window.scrollTo({ top: _savedScrollY, behavior: 'instant' });
+      // 比較のために window.scrollY を読み直すと再び強制レイアウトが走るため、
+      // スクロールしている場合だけ無条件に戻す（0 のときは何もしない＝初回読込は無コスト）
+      if (_savedScrollY) window.scrollTo({ top: _savedScrollY, behavior: 'instant' });
       // 右サマリ「要約」のテーブル内ジャンプリンクをグループ構成に追従させる
       if (typeof window.renderQuoteSectionDigest === 'function') window.renderQuoteSectionDigest();
       // 👷 サブコンタブ「現案件」ペインを更新

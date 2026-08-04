@@ -292,6 +292,7 @@
   // ========== テーブル上部 為替レートバー ==========
   // JPY換算に使われている非JPY通貨のレートをコンパクト表示
   window.renderQuoteFxBar = function() {
+    if (_quoteBulkUpdate) return;   // 一括更新中はまとめて後で 1 回だけ実行する
     const bar = document.getElementById('quoteFxBar');
     if (!bar) return;
     // テーブル内で使用中の通貨を収集
@@ -1561,6 +1562,20 @@
 
   // 行データ配列を現在のテーブルに挿入（挿入位置セレクトを尊重）。posLabel を返す。
   function _insertPatternRows(patternRows) {
+    // 行を 1 本足すたびに表全体の集計が走らないよう一括扱いにする
+    // （末尾の updateSubtotalRows / updateTotals で 1 回だけ反映）
+    window.beginQuoteBulkUpdate();
+    try { return _insertPatternRowsInner(patternRows); }
+    finally {
+      window.endQuoteBulkUpdate();
+      if (typeof updateSubtotalRows === 'function') updateSubtotalRows();
+      updateTotals();
+      // 挿入した行をサブコン／パターンのグループへ反映（_insertPatternRowsAt と揃える）
+      if (typeof renderSubconGroups === 'function') renderSubconGroups();
+    }
+  }
+
+  function _insertPatternRowsInner(patternRows) {
     const pos = document.getElementById('rowPatternInsertPos')?.value || 'end';
     const tbody = document.getElementById('tableBody');
     let anchor = null;
@@ -1633,8 +1648,7 @@
       onCatChange(id);
       onPay(id);
     });
-    if (typeof updateSubtotalRows === 'function') updateSubtotalRows();
-    updateTotals();
+    // 集計は呼び出し元（_insertPatternRows）で一括処理の外に出してから行う
     return posLabel;
   }
 
@@ -1642,6 +1656,17 @@
   function _insertPatternRowsAt(patternRows, anchorTr) {
     const tbody = document.getElementById('tableBody');
     if (!tbody) return;
+    // 行を 1 本足すたびに表全体の集計が走らないよう一括扱いにする
+    // （末尾の updateSubtotalRows / updateTotals / renderSubconGroups で 1 回だけ反映）
+    window.beginQuoteBulkUpdate();
+    try { _insertPatternRowsAtInner(patternRows, anchorTr, tbody); }
+    finally { window.endQuoteBulkUpdate(); }
+    if (typeof updateSubtotalRows === 'function') updateSubtotalRows();
+    updateTotals();
+    if (typeof renderSubconGroups === 'function') renderSubconGroups();
+  }
+
+  function _insertPatternRowsAtInner(patternRows, anchorTr, tbody) {
     (patternRows || []).forEach(rd => {
       if (rd._type === 'remark') {
         insertRemarkRow(null, { noFocus: true, internal: rd.internal });
@@ -1696,9 +1721,7 @@
       onCatChange(id);
       onPay(id);
     });
-    if (typeof updateSubtotalRows === 'function') updateSubtotalRows();
-    updateTotals();
-    if (typeof renderSubconGroups === 'function') renderSubconGroups();
+    // 集計・再描画は呼び出し元（_insertPatternRowsAt）で一括処理の外に出してから行う
   }
   window._insertPatternRows   = _insertPatternRows;
   window._insertPatternRowsAt = _insertPatternRowsAt;
@@ -2833,6 +2856,7 @@
 
   // ===== 見積サマリパネル =====
   window.updateQuoteSummary = function updateQuoteSummary() {
+    if (_quoteBulkUpdate) return;   // 一括更新中はまとめて後で 1 回だけ実行する
     const panel = document.getElementById('qspFin');
     if (!panel) return;
 
@@ -3292,6 +3316,7 @@
   // アコーディオンで各セクションが畳まれていても、右パネルで全体を一望できるようにする。
   // クリックでそのセクションを展開（アコーディオン）してスクロール。
   window.renderQuoteSectionDigest = function() {
+    if (_quoteBulkUpdate) return;   // 一括更新中はまとめて後で 1 回だけ実行する
     // 下部3セクションの要約を計算（ヘッダー要約スパンにも反映）
     const rowsCount = document.querySelectorAll('#tableBody tr [data-field="nm"]').length;
     const totSell = (document.getElementById('tot-subtotal')?.textContent || '').trim();
@@ -3341,6 +3366,11 @@
     window._qspTableGroups = groups;
     if (groups.length) {
       let parentSvCollapsed = false, parentPtCollapsed = false;
+      // 乗せ幅・粗利率を出すかは表全体で 1 回だけ判定する。
+      // 明細ごとに getPreviewVisibility() を呼ぶと行数ぶん DOM 探索が走り、
+      // 143 行のプリセット読込で読み込み時間の大半を占めていた。
+      const _showInternal = (typeof getPreviewVisibility === 'function')
+        ? (getPreviewVisibility().profit !== false) : true;
       html += '<div class="qsp-dig-subjumps">' + groups.map(function(g, i) {
         if (g.level === 0) { parentSvCollapsed = g.isCollapsed; parentPtCollapsed = false; }
         if (g.level === 1) { parentPtCollapsed = g.isCollapsed; }
@@ -3355,8 +3385,7 @@
         if (g.level === 2) {
           const hideOn = g.isHidden;
           // 乗せ幅・粗利率（内部指標・利益列が表示中のときのみ）：売値の下に小さく併記
-          const showInternal = (typeof getPreviewVisibility === 'function')
-            ? (getPreviewVisibility().profit !== false) : true;
+          const showInternal = _showInternal;
           let metaBits = '';
           if (showInternal && !g.isActual) {
             const mkPart = g.mkTxt ? '<span class="qsp-dig-row-mk" title="乗せ幅（単価加算分）">＋' + escapeHtml(g.mkTxt) + '</span>' : '';
@@ -3766,6 +3795,7 @@
     try { localStorage.setItem('quoteSummaryTab_v1', tab); } catch(e) {}
   };
   window.updateQspTabBadges = function() {
+    if (_quoteBulkUpdate) return;   // 一括更新中はまとめて後で 1 回だけ実行する
     // 金額タブ：費用項目数
     const rows = document.querySelectorAll('#tableBody tr [data-field="nm"]').length;
     const finBtn = document.getElementById('qspTabBtn-fin');

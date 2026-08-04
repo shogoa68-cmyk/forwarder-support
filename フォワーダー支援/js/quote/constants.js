@@ -166,6 +166,34 @@ let dragSrcRow    = null;
 let dragSrcRows   = null;  // 多選択ドラッグ時に実際に移動する行群（単一なら [dragSrcRow]）
 let _lastDragOverRow = null; // 挿入位置マークを付けた直前の行（全行走査を避ける）
 
+/* ---------------------------------------------------------------------------
+   一括更新フラグ（プリセット読込・行の一括挿入など）
+
+   表全体を対象とする集計・再描画（updateTotals / renderSubconGroups /
+   updateQuoteSummary / renderQuoteSectionDigest ほか）は、行を 1 本足すたびに
+   呼ばれると行数の二乗に比例して重くなる。143 行のプリセット読込では
+   これらが 287 回ずつ走り、読み込みだけで 30 秒近く固まっていた。
+
+   一括処理の間は集計を止め、終わってから 1 回だけ走らせる。
+   ネストしても正しく動くようカウンタで持つ。
+   --------------------------------------------------------------------------- */
+/* テーブル再描画でスクロール位置を保つために使う縦スクロール量。
+   window.scrollY を直接読むと、DOM を書き換えた直後は同期レイアウト（強制リフロー）が
+   走り、143 行の表では 1 回あたり数百 ms かかる。scroll イベントはレイアウト確定後に
+   飛ぶため、そこで控えておいた値を使えば読み出しコストがゼロになる。 */
+let _lastScrollY = 0;
+window.addEventListener('scroll', () => { _lastScrollY = window.scrollY; }, { passive: true });
+
+let _quoteBulkUpdate = 0;
+window.beginQuoteBulkUpdate = function () { _quoteBulkUpdate++; };
+window.endQuoteBulkUpdate   = function () { _quoteBulkUpdate = Math.max(0, _quoteBulkUpdate - 1); };
+window.isQuoteBulkUpdate    = function () { return _quoteBulkUpdate > 0; };
+// 一括処理を実行し、必ずカウンタを戻す
+window.withQuoteBulkUpdate  = function (fn) {
+  _quoteBulkUpdate++;
+  try { return fn(); } finally { _quoteBulkUpdate = Math.max(0, _quoteBulkUpdate - 1); }
+};
+
 /* ===========================================================================
    ポインタ操作による並べ替えドラッグ（HTML5 ネイティブ D&D の置き換え）
 
