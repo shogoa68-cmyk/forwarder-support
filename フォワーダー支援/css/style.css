@@ -1681,6 +1681,13 @@ body:has(#compareOverlay.open) #quoteActionDock { display: none; }
 }
 .bm-pill:hover { background: #eef4f8; border-color: #b8c4cb; transform: translateY(-1px); }
 .bm-pill-ic { font-size: 11px; opacity: .62; flex-shrink: 0; }
+/* 関連会社（表記違い・代理店など）経由でこのタイルに表示しているピル */
+.bm-pill--rel { border-style: dashed; background: #f8f5ef; }
+.bm-pill-rel {
+  font-size: 10px; font-weight: 700; color: #6f5aa0;
+  background: #efeaf6; border-radius: 999px; padding: 1px 6px;
+  flex-shrink: 0; cursor: help;
+}
 .bm-pill-note {
   font-size: 11px; flex-shrink: 0; cursor: help;
   opacity: .8; line-height: 1; margin-left: 1px;
