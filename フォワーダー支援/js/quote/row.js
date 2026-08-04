@@ -94,7 +94,120 @@
   }
 
   // ========== ドラッグ＆ドロップ ==========
+  // ドロップ側（dragover / dragleave / drop / dragend）は行ごとではなく
+  // #tableBody への委譲で一度だけ登録する。行ごとに張ると
+  //   (1) 再描画のたびにリスナーが増えて重くなる
+  //   (2) initDrag を通らずに作られた行（複製・パターン挿入など）がドロップ先にならず、
+  //       掴めるのにどこにも落とせない＝「ドラッグ＆ドロップできない」状態になる
+  //   (3) ドラッグ元が DOM から外れると dragend が発火せず .dragging が残り続ける
+  // という不具合が起きる。委譲なら常にテーブル内の全行が対象になる。
+  let _tableDragDelegated = false;
+  function initTableDragDelegation() {
+    if (_tableDragDelegated) return;
+    const tbody = document.getElementById('tableBody');
+    if (!tbody) return;
+    _tableDragDelegated = true;
+
+    const clearMarks = () => {
+      if (_lastDragOverRow) {
+        _lastDragOverRow.classList.remove('drag-over-top', 'drag-over-bottom');
+        _lastDragOverRow = null;
+      }
+      tbody.querySelectorAll('tr.drag-over-top, tr.drag-over-bottom')
+        .forEach(r => r.classList.remove('drag-over-top', 'drag-over-bottom'));
+    };
+    const resetDrag = () => {
+      tbody.querySelectorAll('tr.dragging').forEach(r => r.classList.remove('dragging'));
+      clearMarks();
+      dragSrcRow = null;
+      dragSrcRows = null;
+    };
+    window._resetTableRowDrag = resetDrag;
+
+    // ドロップ先の解決。
+    // - 通常行／小計・リマーク行 … その行の前後へ挿入
+    // - グループ見出し（仮想行）  … そのグループの先頭へ挿入（グループ最上段へ移動する導線）
+    // 戻り値 null は「ドロップ不可」。
+    function resolveTarget(e) {
+      const tr = e.target.closest && e.target.closest('#tableBody tr');
+      if (!tr || !dragSrcRows || !dragSrcRows.length) return null;
+      const src = dragSrcRows[0];
+      const srcSv = _rowSubcon(src);
+
+      if (tr.classList.contains('subcon-group-header')) {
+        // データ行のみグループ見出しへドロップ可。同じサブコングループのときだけ。
+        if (srcSv === null) return null;
+        if ((subconNormKey(srcSv) || _UNSET_KEY) !== tr.dataset.svKey) return null;
+        // 見出し直後の最初の実行行を探す（配下にパターン見出し等の仮想行が挟まる）
+        let first = tr.nextSibling;
+        while (first && (first.dataset?.virtual)) first = first.nextSibling;
+        if (!first || dragSrcRows.includes(first)) return null;
+        return { mark: tr, markCls: 'drag-over-bottom', insertBefore: first };
+      }
+
+      if (tr.dataset.virtual) return null;              // 小計・パターン見出し等は対象外
+      if (dragSrcRows.includes(tr)) return null;        // ドラッグ中の行の上には出さない
+      // データ行同士のときだけ、異なるサブコングループへのドロップを禁止（正規化キーで判定）。
+      // リマーク・社内メモ・小計行（dataset.type 付き＝_rowSubcon が null）は自由に移動可。
+      if (srcSv !== null && subconNormKey(srcSv) !== subconNormKey(_rowSubcon(tr))) return null;
+      const rect = tr.getBoundingClientRect();
+      const after = e.clientY >= rect.top + rect.height / 2;
+      let insertBefore = after ? tr.nextSibling : tr;
+      while (insertBefore?.dataset?.virtual) insertBefore = insertBefore.nextSibling;
+      return { mark: tr, markCls: after ? 'drag-over-bottom' : 'drag-over-top', insertBefore };
+    }
+
+    tbody.addEventListener('dragover', e => {
+      if (!dragSrcRows || !dragSrcRows.length) return;  // サイドパネルからの D&D は別経路
+      e.preventDefault();
+      const t = resolveTarget(e);
+      if (!t) { e.dataTransfer.dropEffect = 'none'; clearMarks(); return; }
+      e.dataTransfer.dropEffect = 'move';
+      // dragover は毎フレーム発火する。全行を走査して class を外すと行数に比例して
+      // 重くなるため、直前にマークした行だけを戻す。
+      if (_lastDragOverRow && _lastDragOverRow !== t.mark) {
+        _lastDragOverRow.classList.remove('drag-over-top', 'drag-over-bottom');
+      }
+      if (_lastDragOverRow === t.mark && t.mark.classList.contains(t.markCls)) return;
+      t.mark.classList.remove('drag-over-top', 'drag-over-bottom');
+      t.mark.classList.add(t.markCls);
+      _lastDragOverRow = t.mark;
+    });
+
+    // テーブルの外へ出たら挿入マークを消す（行内の子要素間の往復では消さない）
+    tbody.addEventListener('dragleave', e => {
+      if (!dragSrcRows) return;
+      if (!e.relatedTarget || !tbody.contains(e.relatedTarget)) clearMarks();
+    });
+
+    tbody.addEventListener('drop', e => {
+      if (e.dataTransfer.types.includes('application/x-si-item')) return;  // サイドパネル経由
+      if (!dragSrcRows || !dragSrcRows.length) return;
+      e.preventDefault();
+      const t = resolveTarget(e);
+      const moving = dragSrcRows;
+      if (t) moving.forEach(srcTr => { tbody.insertBefore(srcTr, t.insertBefore); });
+      resetDrag();
+      updateTotals();
+      renderSubconGroups();
+      if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
+      if (!t && typeof quoteShowToast === 'function') {
+        quoteShowToast('⚠️ 並び替えは同じサブコン内でのみ可能です', 'warn', 2400);
+      }
+    });
+
+    // ドラッグ元の行が再描画で DOM から外れると行側の dragend は発火しない。
+    // document で受けて必ず後始末する（.dragging が残り続けるのを防ぐ）。
+    document.addEventListener('dragend', () => {
+      if (!dragSrcRows) return;
+      resetDrag();
+      updateTotals();
+      renderSubconGroups();
+    });
+  }
+
   function initDrag(tr) {
+    initTableDragDelegation();
     // tr は常に draggable="true"。ハンドル列以外からのドラッグは dragstart で防ぐ
     tr.setAttribute('draggable', 'true');
 
@@ -135,67 +248,15 @@
       }
       e.dataTransfer.effectAllowed = 'move';
       e.dataTransfer.setData('text/plain', tr.id);
+      // .dragging はドラッグ画像のスナップショット後に付ける（見た目を画像に含めない）。
+      // すでにドラッグが終わっていたら付けない ＝ 中断時に .dragging が残らないようにする。
       const movingRows = dragSrcRows;
-      setTimeout(() => movingRows.forEach(r => r.classList.add('dragging')), 0);
+      setTimeout(() => {
+        if (dragSrcRows !== movingRows) return;
+        movingRows.forEach(r => r.classList.add('dragging'));
+      }, 0);
     });
-    tr.addEventListener('dragend', () => {
-      (dragSrcRows || [tr]).forEach(r => r.classList.remove('dragging'));
-      document.querySelectorAll('#tableBody tr').forEach(r =>
-        r.classList.remove('drag-over-top', 'drag-over-bottom'));
-      _lastDragOverRow = null;
-      dragSrcRow = null;
-      dragSrcRows = null;
-      updateTotals();
-      renderSubconGroups();   // 移動後にグループ見出し・小計・ツリー帰属を再評価
-    });
-    tr.addEventListener('dragover', e => {
-      if (!dragSrcRows || !dragSrcRows.length) return;
-      e.preventDefault();
-      e.stopPropagation();
-      // ドラッグ中の行群の上には挿入インジケータを出さない
-      if (dragSrcRows.includes(tr)) return;
-      // データ行同士のときだけ、異なるサブコングループへのドロップを禁止（揺らぎ吸収：正規化キーで判定）。
-      // リマーク・社内メモ・小計行（dataset.type 付き＝_rowSubcon が null）は自由に移動可。
-      const _srcSv = _rowSubcon(dragSrcRows[0]);
-      if (_srcSv !== null && subconNormKey(_srcSv) !== subconNormKey(_rowSubcon(tr))) {
-        e.dataTransfer.dropEffect = 'none';
-        return;
-      }
-      e.dataTransfer.dropEffect = 'move';
-      // dragover はドラッグ中に毎フレーム発火する。全行を走査して class を外すと
-      // 行数に比例して重くなるため、直前にマークした行だけを戻す。
-      // getBoundingClientRect も 1 回にまとめる（強制レイアウトの削減）。
-      const rect = tr.getBoundingClientRect();
-      const mid = rect.top + rect.height / 2;
-      if (_lastDragOverRow && _lastDragOverRow !== tr) {
-        _lastDragOverRow.classList.remove('drag-over-top', 'drag-over-bottom');
-      }
-      tr.classList.remove('drag-over-top', 'drag-over-bottom');
-      tr.classList.add(e.clientY < mid ? 'drag-over-top' : 'drag-over-bottom');
-      _lastDragOverRow = tr;
-    });
-    tr.addEventListener('dragleave', () =>
-      tr.classList.remove('drag-over-top', 'drag-over-bottom'));
-    tr.addEventListener('drop', e => {
-      // サイドパネルからのドラッグはドキュメントレベルのハンドラに委ねる
-      if (e.dataTransfer.types.includes('application/x-si-item')) return;
-      e.preventDefault();
-      e.stopPropagation();
-      if (!dragSrcRows || !dragSrcRows.length || dragSrcRows.includes(tr)) return;
-      // データ行同士のときだけグループ跨ぎ禁止（リマーク・社内メモ・小計行は自由移動可）
-      const _srcSv = _rowSubcon(dragSrcRows[0]);
-      if (_srcSv !== null && subconNormKey(_srcSv) !== subconNormKey(_rowSubcon(tr))) return;
-      const mid = tr.getBoundingClientRect().top + tr.getBoundingClientRect().height / 2;
-      const tbody = document.getElementById('tableBody');
-      // 仮想グループヘッダーをスキップして実行行の隣に挿入
-      let insertBefore = e.clientY < mid ? tr : tr.nextSibling;
-      while (insertBefore?.dataset?.virtual) insertBefore = insertBefore.nextSibling;
-      // document 順で挿入することで元の並びを保持
-      dragSrcRows.forEach(srcTr => {
-        tbody.insertBefore(srcTr, insertBefore);
-      });
-      tr.classList.remove('drag-over-top', 'drag-over-bottom');
-    });
+    // dragover / dragleave / drop / dragend は #tableBody への委譲で処理（上記参照）
 
     // ▲▼ ボタンによる行移動
     const upBtn   = tr.querySelector('.row-move-up');
@@ -1476,9 +1537,10 @@
 
   // 小計行ドラッグ初期化（通常行の initDrag と同じロジック）
   function initSubtotalDrag(tr) {
+    initTableDragDelegation();
     tr.setAttribute('draggable', 'true');
     // 武装／解除は constants.js の委譲リスナーが担当（小計行は .subtotal-drag-cell）。
-    // 行ごとに document へ mouseup を張ると再描画のたびに累積するため張らない。
+    // ドロップ側は #tableBody への委譲で処理するため、行ごとには張らない。
     tr.addEventListener('dragstart', e => {
       if (!_dragArmedRow) { e.preventDefault(); return; }
       _dragArmedRow = false;
@@ -1487,45 +1549,11 @@
       dragSrcRows = [tr];
       e.dataTransfer.effectAllowed = 'move';
       e.dataTransfer.setData('text/plain', tr.id);
-      setTimeout(() => tr.classList.add('dragging'), 0);
-    });
-    tr.addEventListener('dragend', () => {
-      (dragSrcRows || [tr]).forEach(r => r.classList.remove('dragging'));
-      document.querySelectorAll('#tableBody tr').forEach(r =>
-        r.classList.remove('drag-over-top', 'drag-over-bottom'));
-      _lastDragOverRow = null;
-      dragSrcRow = null;
-      dragSrcRows = null;
-      updateTotals();
-      renderSubconGroups();   // 移動後にグループ見出し・小計・ツリー帰属を再評価
-    });
-    tr.addEventListener('dragover', e => {
-      if (!dragSrcRows || !dragSrcRows.length) return;
-      e.preventDefault(); e.stopPropagation();
-      e.dataTransfer.dropEffect = 'move';
-      if (dragSrcRows.includes(tr)) return;
-      // 全行走査は行数に比例して重いため、直前にマークした行だけ戻す（明細行側と同じ方針）
-      const rect = tr.getBoundingClientRect();
-      const mid = rect.top + rect.height / 2;
-      if (_lastDragOverRow && _lastDragOverRow !== tr) {
-        _lastDragOverRow.classList.remove('drag-over-top', 'drag-over-bottom');
-      }
-      tr.classList.remove('drag-over-top', 'drag-over-bottom');
-      tr.classList.add(e.clientY < mid ? 'drag-over-top' : 'drag-over-bottom');
-      _lastDragOverRow = tr;
-    });
-    tr.addEventListener('dragleave', () =>
-      tr.classList.remove('drag-over-top', 'drag-over-bottom'));
-    tr.addEventListener('drop', e => {
-      e.preventDefault(); e.stopPropagation();
-      if (!dragSrcRows || !dragSrcRows.length || dragSrcRows.includes(tr)) return;
-      const mid = tr.getBoundingClientRect().top + tr.getBoundingClientRect().height / 2;
-      const tbody = document.getElementById('tableBody');
-      const insertBefore = e.clientY < mid ? tr : tr.nextSibling;
-      dragSrcRows.forEach(srcTr => {
-        tbody.insertBefore(srcTr, insertBefore);
-      });
-      tr.classList.remove('drag-over-top', 'drag-over-bottom');
+      const movingRows = dragSrcRows;
+      setTimeout(() => {
+        if (dragSrcRows !== movingRows) return;
+        tr.classList.add('dragging');
+      }, 0);
     });
     const upBtn   = tr.querySelector('.subtotal-move-up');
     const downBtn = tr.querySelector('.subtotal-move-down');
