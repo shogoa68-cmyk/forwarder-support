@@ -2409,52 +2409,48 @@
   }
 
   // グリッド1つ分のドラッグ並び替えを初期化（内部ヘルパー）
+  // ネイティブ HTML5 D&D は使わない（constants.js の startPointerDrag を参照）。
+  // グリッドへの委譲なので、フィールドが再描画されてもリスナーは増えない。
   function _initGridSort(gridId) {
     const grid = document.getElementById(gridId);
-    if (!grid) return;
-    let dragSrc = null;
+    if (!grid || grid.dataset.sortBound === '1') return;
+    grid.dataset.sortBound = '1';
 
-    grid.querySelectorAll('.cond-field[data-field-id]').forEach(field => {
-      const handle = field.querySelector('.cond-sort-handle');
+    const clearMarks = () =>
+      grid.querySelectorAll('.cond-field').forEach(f => f.classList.remove('cond-field-over'));
 
-      let _fromHandle = false;
-      if (handle) {
-        handle.addEventListener('mousedown', () => { _fromHandle = true; });
-        document.addEventListener('mouseup', () => { _fromHandle = false; }, { capture: true });
-      }
+    grid.addEventListener('pointerdown', e => {
+      if (e.button !== 0) return;
+      const handle = e.target.closest('.cond-sort-handle');
+      if (!handle) return;
+      const field = handle.closest('.cond-field[data-field-id]');
+      if (!field) return;
+      e.preventDefault();
+      let target = null;   // { el, before }
+      let moved = false;
 
-      field.addEventListener('dragstart', e => {
-        if (!_fromHandle) { e.preventDefault(); return; }
-        _fromHandle = false;
-        dragSrc = field;
-        e.dataTransfer.effectAllowed = 'move';
-        setTimeout(() => field.classList.add('cond-field-dragging'), 0);
-      });
-      field.addEventListener('dragend', () => {
-        field.classList.remove('cond-field-dragging');
-        grid.querySelectorAll('.cond-field').forEach(f => f.classList.remove('cond-field-over'));
-        dragSrc = null;
-        saveCargoFieldOrder();
-      });
-      field.addEventListener('dragover', e => {
-        if (!dragSrc || dragSrc === field) return;
-        e.preventDefault();
-        e.dataTransfer.dropEffect = 'move';
-        grid.querySelectorAll('.cond-field').forEach(f => f.classList.remove('cond-field-over'));
-        field.classList.add('cond-field-over');
-      });
-      field.addEventListener('dragleave', () => field.classList.remove('cond-field-over'));
-      field.addEventListener('drop', e => {
-        e.preventDefault();
-        if (!dragSrc || dragSrc === field) return;
-        const rect = field.getBoundingClientRect();
-        const midX = rect.left + rect.width / 2;
-        if (e.clientX < midX) {
-          grid.insertBefore(dragSrc, field);
-        } else {
-          grid.insertBefore(dragSrc, field.nextSibling);
-        }
-        field.classList.remove('cond-field-over');
+      window.startPointerDrag(e, {
+        onStart() { field.classList.add('cond-field-dragging'); },
+        onMove(x, y) {
+          clearMarks();
+          target = null;
+          const el = document.elementFromPoint(x, y);
+          const over = el && el.closest ? el.closest('.cond-field[data-field-id]') : null;
+          if (!over || over === field || over.parentNode !== grid) return;
+          const r = over.getBoundingClientRect();
+          over.classList.add('cond-field-over');
+          target = { el: over, before: x < r.left + r.width / 2 };
+        },
+        onDrop() {
+          if (!target) return;
+          grid.insertBefore(field, target.before ? target.el : target.el.nextSibling);
+          moved = true;
+        },
+        onEnd() {
+          field.classList.remove('cond-field-dragging');
+          clearMarks();
+          if (moved) saveCargoFieldOrder();
+        },
       });
     });
   }
@@ -3371,7 +3367,7 @@
           }
           const priceStack = '<span class="qsp-dig-row-price">' + sumHtml + metaBits + '</span>';
           return '<div class="qsp-dig-grp-item is-row' + stateCls + (hideOn ? ' is-hidden-row' : '') + '" ' +
-              'draggable="true" data-qsp-rowid="' + escapeHtml(g.rowId) + '">' +
+              'data-qsp-rowid="' + escapeHtml(g.rowId) + '">' +
             '<span class="qsp-dig-row-grip" title="ドラッグでグループ内の並び替え">⠿</span>' +
             '<button type="button" class="qsp-dig-subjump is-detail" ' +
               'onclick="window.jumpToTableRowId(\'' + g.rowId + '\')" title="この行へジャンプ">' +
@@ -3689,82 +3685,69 @@
     const box = document.getElementById('qspSectionDigest');
     if (!box || box.dataset.dragBound === '1') return;
     box.dataset.dragBound = '1';
-    let srcId = null;
+    // ネイティブ HTML5 D&D は使わない。ブラウザのドラッグループが正常終了しないと
+    // クリックもキー入力も一切通らなくなる（＝フリーズしたように見える）ため、
+    // pointerdown/move/up による自前実装にしている（constants.js の startPointerDrag）。
     let lastOver = null;   // 直前に挿入マークを付けた要素（全件走査を避ける）
     let lastPos  = null;   // 直前のマーク位置（'qsp-drop-top' | 'qsp-drop-bottom'）
-    // マーク解除：直前要素だけを戻す。ツリーが 143 項目規模になると
-    // querySelectorAll の全走査が dragover 毎（＝毎フレーム）に走り重くなるため。
     const clearMarks = () => {
       if (lastOver) { lastOver.classList.remove('qsp-drop-top', 'qsp-drop-bottom'); lastOver = null; }
       lastPos = null;
     };
-    // ドラッグ状態の完全リセット。drop 後は再描画で元要素が DOM から消えるため
-    // box への委譲では dragend を受け取れない（＝ドラッグが宙吊りになり操作不能に見える）。
-    // そのため document 側でも必ず後始末する。
-    const resetDrag = () => {
+    const resetAll = () => {
       document.querySelectorAll('#qspSectionDigest .qsp-row-dragging')
         .forEach(el => el.classList.remove('qsp-row-dragging'));
       document.querySelectorAll('#qspSectionDigest .qsp-drop-top, #qspSectionDigest .qsp-drop-bottom')
         .forEach(el => el.classList.remove('qsp-drop-top', 'qsp-drop-bottom'));
-      lastOver = null; lastPos = null; srcId = null;
+      lastOver = null; lastPos = null;
     };
-    box.addEventListener('dragstart', function(e) {
+
+    box.addEventListener('pointerdown', function(e) {
+      if (e.button !== 0) return;
+      if (e.target.closest('button, input, select, textarea, a')) return;
       const item = e.target.closest('.qsp-dig-grp-item.is-row[data-qsp-rowid]');
-      if (!item) { return; }
-      srcId = item.dataset.qspRowid;
-      e.dataTransfer.effectAllowed = 'move';
-      try { e.dataTransfer.setData('text/plain', srcId); } catch (_) {}
-      item.classList.add('qsp-row-dragging');
-    });
-    // dragend は document で受ける（元要素が外れていても必ず発火する）
-    document.addEventListener('dragend', function() { if (srcId !== null) resetDrag(); });
-    box.addEventListener('dragover', function(e) {
-      if (!srcId) return;
-      const item = e.target.closest('.qsp-dig-grp-item.is-row[data-qsp-rowid]');
-      if (!item || item.dataset.qspRowid === srcId) return;
+      if (!item) return;
       e.preventDefault();
-      // 並び替えは同じサブコン／パターン内のみ。別グループの上では
-      // 挿入マークを出さず「ドロップ不可」カーソルにして、
-      // 掴めているのにドロップだけ効かない（＝壊れて見える）状態を避ける。
-      if (typeof window.canMoveTableRowWithinGroup === 'function'
-          && !window.canMoveTableRowWithinGroup(srcId, item.dataset.qspRowid)) {
-        e.dataTransfer.dropEffect = 'none';
-        clearMarks();
-        return;
-      }
-      e.dataTransfer.dropEffect = 'move';
-      const r = item.getBoundingClientRect();
-      const after = e.clientY > r.top + r.height / 2;
-      const pos = after ? 'qsp-drop-bottom' : 'qsp-drop-top';
-      // 対象・位置が前回と同じなら DOM を書き換えない。
-      // class を書き換えるとレイアウトが無効化され、次フレームの
-      // getBoundingClientRect で全体の再計算（143 行規模で数ms）が走るため、
-      // 変化が無いフレームでは触らないことがドラッグ中の滑らかさに効く。
-      if (lastOver === item && lastPos === pos) return;
-      if (lastOver && lastOver !== item) {
-        lastOver.classList.remove('qsp-drop-top', 'qsp-drop-bottom');
-      }
-      item.classList.remove('qsp-drop-top', 'qsp-drop-bottom');
-      item.classList.add(pos);
-      lastOver = item; lastPos = pos;
-    });
-    box.addEventListener('drop', function(e) {
-      if (!srcId) return;
-      const item = e.target.closest('.qsp-dig-grp-item.is-row[data-qsp-rowid]');
-      if (!item || item.dataset.qspRowid === srcId) { clearMarks(); return; }
-      e.preventDefault();
-      const r = item.getBoundingClientRect();
-      const after = e.clientY > r.top + r.height / 2;
-      const tgtId = item.dataset.qspRowid;
-      const _srcId = srcId;
-      resetDrag();   // 再描画で要素が消える前に状態を後始末する
-      const ok = (typeof window.moveTableRowWithinGroup === 'function')
-        && window.moveTableRowWithinGroup(_srcId, tgtId, after);
-      if (!ok) {
-        if (typeof quoteShowToast === 'function') quoteShowToast('⚠️ 並び替えは同じサブコン／パターン内でのみ可能です', 'warn', 2600);
-      }
-      // 再描画は moveTableRowWithinGroup 内の renderSubconGroups が行うため
-      // ここで renderQuoteSectionDigest を呼ばない（呼ぶと同一ドロップで3回描画され重い）
+      const srcId = item.dataset.qspRowid;
+      let drop = null;   // { tgtId, after }
+
+      window.startPointerDrag(e, {
+        onStart() { item.classList.add('qsp-row-dragging'); },
+        onMove(x, y) {
+          const el = document.elementFromPoint(x, y);
+          const over = el && el.closest ? el.closest('.qsp-dig-grp-item.is-row[data-qsp-rowid]') : null;
+          drop = null;
+          if (!over || over.dataset.qspRowid === srcId) { clearMarks(); return; }
+          // 並び替えは同じサブコン／パターン内のみ。別グループの上ではマークを出さない。
+          if (typeof window.canMoveTableRowWithinGroup === 'function'
+              && !window.canMoveTableRowWithinGroup(srcId, over.dataset.qspRowid)) {
+            clearMarks(); return;
+          }
+          const r = over.getBoundingClientRect();
+          const after = y > r.top + r.height / 2;
+          const pos = after ? 'qsp-drop-bottom' : 'qsp-drop-top';
+          drop = { tgtId: over.dataset.qspRowid, after };
+          // 対象・位置が前回と同じなら DOM を書き換えない（143 項目規模での再計算を避ける）
+          if (lastOver === over && lastPos === pos) return;
+          if (lastOver && lastOver !== over) {
+            lastOver.classList.remove('qsp-drop-top', 'qsp-drop-bottom');
+          }
+          over.classList.remove('qsp-drop-top', 'qsp-drop-bottom');
+          over.classList.add(pos);
+          lastOver = over; lastPos = pos;
+        },
+        onDrop() {
+          if (!drop) return;
+          resetAll();   // 再描画で要素が消える前に後始末する
+          const ok = (typeof window.moveTableRowWithinGroup === 'function')
+            && window.moveTableRowWithinGroup(srcId, drop.tgtId, drop.after);
+          if (!ok && typeof quoteShowToast === 'function') {
+            quoteShowToast('⚠️ 並び替えは同じサブコン／パターン内でのみ可能です', 'warn', 2600);
+          }
+          // 再描画は moveTableRowWithinGroup 内の renderSubconGroups が行う
+        },
+        onEnd: resetAll,
+      });
     });
   };
 
