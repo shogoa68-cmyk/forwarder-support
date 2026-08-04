@@ -99,19 +99,18 @@
     tr.setAttribute('draggable', 'true');
     const handle = tr.querySelector('.drag-handle');
 
-    // dragstart の e.target は tr 自身になるため、mousedown でフラグを立てる
-    let _dragFromHandle = false;
+    // dragstart の e.target は tr 自身になるため、mousedown でフラグを立てる。
+    // フラグ解除用の document mouseup は constants.js で一度だけ登録済み（累積防止）
     if (handle) {
-      handle.addEventListener('mousedown', () => { _dragFromHandle = true; });
-      document.addEventListener('mouseup', () => { _dragFromHandle = false; }, { capture: true });
+      handle.addEventListener('mousedown', () => { _dragArmedRow = true; });
     }
 
     tr.addEventListener('dragstart', e => {
       // ハンドルを掴んでいない場合はドラッグ無効
-      if (!handle || !_dragFromHandle) {
+      if (!handle || !_dragArmedRow) {
         e.preventDefault(); return;
       }
-      _dragFromHandle = false;
+      _dragArmedRow = false;
       dragSrcRow = tr;
       // 多選択ドラッグ：掴んだ行がチェック済みなら、チェックされている全行をまとめて移動
       const myChk = tr.querySelector('.row-select-chk');
@@ -147,6 +146,7 @@
       (dragSrcRows || [tr]).forEach(r => r.classList.remove('dragging'));
       document.querySelectorAll('#tableBody tr').forEach(r =>
         r.classList.remove('drag-over-top', 'drag-over-bottom'));
+      _lastDragOverRow = null;
       dragSrcRow = null;
       dragSrcRows = null;
       updateTotals();
@@ -166,10 +166,17 @@
         return;
       }
       e.dataTransfer.dropEffect = 'move';
-      const mid = tr.getBoundingClientRect().top + tr.getBoundingClientRect().height / 2;
-      document.querySelectorAll('#tableBody tr').forEach(r =>
-        r.classList.remove('drag-over-top', 'drag-over-bottom'));
+      // dragover はドラッグ中に毎フレーム発火する。全行を走査して class を外すと
+      // 行数に比例して重くなるため、直前にマークした行だけを戻す。
+      // getBoundingClientRect も 1 回にまとめる（強制レイアウトの削減）。
+      const rect = tr.getBoundingClientRect();
+      const mid = rect.top + rect.height / 2;
+      if (_lastDragOverRow && _lastDragOverRow !== tr) {
+        _lastDragOverRow.classList.remove('drag-over-top', 'drag-over-bottom');
+      }
+      tr.classList.remove('drag-over-top', 'drag-over-bottom');
       tr.classList.add(e.clientY < mid ? 'drag-over-top' : 'drag-over-bottom');
+      _lastDragOverRow = tr;
     });
     tr.addEventListener('dragleave', () =>
       tr.classList.remove('drag-over-top', 'drag-over-bottom'));
@@ -1486,6 +1493,7 @@
       (dragSrcRows || [tr]).forEach(r => r.classList.remove('dragging'));
       document.querySelectorAll('#tableBody tr').forEach(r =>
         r.classList.remove('drag-over-top', 'drag-over-bottom'));
+      _lastDragOverRow = null;
       dragSrcRow = null;
       dragSrcRows = null;
       updateTotals();
@@ -1496,10 +1504,15 @@
       e.preventDefault(); e.stopPropagation();
       e.dataTransfer.dropEffect = 'move';
       if (dragSrcRows.includes(tr)) return;
-      const mid = tr.getBoundingClientRect().top + tr.getBoundingClientRect().height / 2;
-      document.querySelectorAll('#tableBody tr').forEach(r =>
-        r.classList.remove('drag-over-top', 'drag-over-bottom'));
+      // 全行走査は行数に比例して重いため、直前にマークした行だけ戻す（明細行側と同じ方針）
+      const rect = tr.getBoundingClientRect();
+      const mid = rect.top + rect.height / 2;
+      if (_lastDragOverRow && _lastDragOverRow !== tr) {
+        _lastDragOverRow.classList.remove('drag-over-top', 'drag-over-bottom');
+      }
+      tr.classList.remove('drag-over-top', 'drag-over-bottom');
       tr.classList.add(e.clientY < mid ? 'drag-over-top' : 'drag-over-bottom');
+      _lastDragOverRow = tr;
     });
     tr.addEventListener('dragleave', () =>
       tr.classList.remove('drag-over-top', 'drag-over-bottom'));
@@ -2212,13 +2225,27 @@
           byKey[k].forEach(b => { if (!ppOrder.includes(b.pp)) ppOrder.push(b.pp); });
           byKey[k].sort((a, b) => ppOrder.indexOf(a.pp) - ppOrder.indexOf(b.pp));
         });
-        const frag = document.createDocumentFragment();
-        leading.forEach(tr => frag.appendChild(tr));
-        // groupOrder（出現順）に従ってブロックを再配置
+        // 目標の並び順を先に確定する
+        const desired = [];
+        leading.forEach(tr => desired.push(tr));
         groupOrder.forEach(k => {
-          (byKey[k] || []).forEach(b => b.rows.forEach(tr => frag.appendChild(tr)));
+          (byKey[k] || []).forEach(b => b.rows.forEach(tr => desired.push(tr)));
         });
-        tbody.appendChild(frag);
+        // 既に目標どおりなら DOM を触らない。全行を fragment 経由で付け替えると
+        // テーブル全体の再レイアウトが走り、143 行規模で 500ms 前後かかるため、
+        // 並び替えが不要なケース（＝大半の再描画）ではスキップして固まりを防ぐ。
+        const curChildren = tbody.children;
+        let same = curChildren.length === desired.length;
+        if (same) {
+          for (let i = 0; i < desired.length; i++) {
+            if (curChildren[i] !== desired[i]) { same = false; break; }
+          }
+        }
+        if (!same) {
+          const frag = document.createDocumentFragment();
+          desired.forEach(tr => frag.appendChild(tr));
+          tbody.appendChild(frag);
+        }
       })();
 
       // reorder 後の DOM 順で groups を再構築（港ペア並べ替えで先頭/末尾行がずれるため、
@@ -2271,7 +2298,13 @@
         // 案B：グループ別アクセント色をヘッダー＋配下データ行に伝播（左スパイン／ティント用）
         const _accent = _groupAccent(key);
         hdr.style.setProperty('--grp-accent', _accent);
-        groups[key].forEach(tr => tr.style.setProperty('--grp-accent', _accent));
+        // CSS カスタムプロパティの書き込みは配下要素の再スタイルを誘発するため、
+        // 値が変わらない行はスキップする（143 行規模で約 150ms の削減）
+        groups[key].forEach(tr => {
+          if (tr.style.getPropertyValue('--grp-accent') !== _accent) {
+            tr.style.setProperty('--grp-accent', _accent);
+          }
+        });
         tbody.insertBefore(hdr, firstRow);
       });
 
@@ -2435,17 +2468,17 @@
   function initGroupHeaderDrag(hdr, key) {
     hdr.setAttribute('draggable', 'true');
     const grip = hdr.querySelector('.subcon-group-grip');
-    let _fromGrip = false;
+    // フラグ解除用の document mouseup は constants.js で一度だけ登録済み。
+    // ここで登録すると renderSubconGroups の度にグループ数ぶん累積するため行わない。
     if (grip) {
-      grip.addEventListener('mousedown', () => { _fromGrip = true; });
-      document.addEventListener('mouseup', () => { _fromGrip = false; }, { capture: true });
+      grip.addEventListener('mousedown', () => { _dragArmedGrp = true; });
     }
     const clearMarks = () => document.querySelectorAll('#tableBody .subcon-group-header')
       .forEach(h => h.classList.remove('grp-drop-before', 'grp-drop-after'));
 
     hdr.addEventListener('dragstart', e => {
-      if (!grip || !_fromGrip) { e.preventDefault(); return; }
-      _fromGrip = false;
+      if (!grip || !_dragArmedGrp) { e.preventDefault(); return; }
+      _dragArmedGrp = false;
       _draggingGroupKey = key;
       hdr.classList.add('grp-dragging');
       e.dataTransfer.effectAllowed = 'move';
