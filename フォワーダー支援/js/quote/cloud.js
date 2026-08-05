@@ -542,6 +542,7 @@
               '✏️ ' + escHtml(updWho || '—') + '・' + ts + '</span>' +
             '<div class="cloud-card-acts">' +
               '<button class="btn-preset-preview" onclick="cloudPreviewPreset(\'' + idAttr + '\')" title="内容をプレビュー">プレビュー</button>' +
+              '<button class="btn-preset-pdf" onclick="cloudPdfPreset(\'' + idAttr + '\')" title="この案件を開いて御見積書PDFを出力">📄 PDF</button>' +
               '<button class="btn-preset-load" onclick="cloudLoadPreset(\'' + idAttr + '\')">読込</button>' +
               '<button class="btn-preset-copy" onclick="cloudDuplicatePreset(\'' + idAttr + '\')" title="コピーして新規案件を作成">📋 コピー</button>' +
               (lockedBy
@@ -586,6 +587,7 @@
       '<span class="qpd-row-ts">' + ts + '</span>' +
       '<span class="qpd-row-acts" onclick="event.stopPropagation()">' +
         '<button class="qpd-row-btn" onclick="cloudPreviewPreset(\'' + idAttr + '\')" title="プレビュー">👁</button>' +
+        '<button class="qpd-row-btn" onclick="cloudPdfPreset(\'' + idAttr + '\')" title="この案件を開いて御見積書PDFを出力">📄</button>' +
         '<button class="qpd-row-btn" onclick="cloudDuplicatePreset(\'' + idAttr + '\')" title="コピーして新規案件を作成">📋</button>' +
         (lockedBy
           ? '<button class="qpd-row-btn is-locked" disabled title="' + escHtml(_nameFor(lockedBy)) + ' さんが作業中">🔒</button>'
@@ -885,11 +887,56 @@
   var _quoteDirty = false;
   function _markQuoteDirty() { if (_shareMode === 'edit') _quoteDirty = true; }
   function _resetQuoteDirty() { setTimeout(function () { _quoteDirty = false; }, 0); }
-  // 「ダッシュボードに戻る」：未保存があれば確認
-  function qpBackToDashboard() {
-    if (_quoteDirty && _shareMode === 'edit') {
-      if (!confirm('⚠️ 保存していない変更があります。\nダッシュボードに戻りますか？\n\n（保存する場合はキャンセルして「💾 保存」を押してください。未保存のまま別の案件を開くと失われます）')) return;
-    }
+  // 未保存の変更があるときの確認ダイアログ（保存／破棄／中止の 3 択）。
+  // ブラウザ標準の confirm は 2 択しか作れず「その場で保存する」導線が作れないため、
+  // 専用のモーダルを出す。戻り値 true＝そのまま進んでよい／false＝操作を中止する。
+  function _confirmLeaveUnsaved(actionLabel) {
+    if (!(_quoteDirty && _shareMode === 'edit')) return Promise.resolve(true);
+    return new Promise(resolve => {
+      let ov = document.getElementById('qpLeaveConfirm');
+      if (!ov) {
+        ov = document.createElement('div');
+        ov.id = 'qpLeaveConfirm';
+        ov.innerHTML =
+          '<div class="qplc-box" role="dialog" aria-modal="true" aria-labelledby="qplcTitle">' +
+            '<div class="qplc-title" id="qplcTitle">⚠️ 保存していない変更があります</div>' +
+            '<p class="qplc-msg">この案件には保存していない変更があります。<br>' +
+              'このまま<span class="qplc-act"></span>と、変更は失われます。</p>' +
+            '<div class="qplc-btns">' +
+              '<button type="button" class="qplc-btn qplc-save">💾 保存して進む</button>' +
+              '<button type="button" class="qplc-btn qplc-discard">保存せずに進む</button>' +
+              '<button type="button" class="qplc-btn qplc-cancel">キャンセル</button>' +
+            '</div>' +
+          '</div>';
+        document.body.appendChild(ov);
+      }
+      ov.querySelector('.qplc-act').textContent = actionLabel || '進む';
+      ov.classList.add('open');
+
+      const finish = (result) => {
+        ov.classList.remove('open');
+        document.removeEventListener('keydown', onKey, true);
+        resolve(result);
+      };
+      const onKey = e => { if (e.key === 'Escape') { e.stopPropagation(); finish(false); } };
+      // 既存ハンドラを毎回作り直さないよう、押下時に一度だけ使う形で差し替える
+      ov.querySelector('.qplc-save').onclick = async () => {
+        ov.classList.add('is-busy');
+        try { await quoteModeSaveDone(); } finally { ov.classList.remove('is-busy'); }
+        // 保存に失敗した場合（dirty が残る）は進まずに留まる
+        finish(!_quoteDirty);
+      };
+      ov.querySelector('.qplc-discard').onclick = () => finish(true);
+      ov.querySelector('.qplc-cancel').onclick  = () => finish(false);
+      ov.onclick = e => { if (e.target === ov) finish(false); };
+      document.addEventListener('keydown', onKey, true);
+      ov.querySelector('.qplc-save').focus();
+    });
+  }
+
+  // 「ダッシュボードに戻る」：未保存があれば保存するか尋ねる
+  async function qpBackToDashboard() {
+    if (!(await _confirmLeaveUnsaved('ダッシュボードに戻る'))) return;
     qpShowDashboard();
   }
   function qpShowDashboard() {
@@ -1534,6 +1581,16 @@
     } else {
       quoteShowToast('📂 共有「' + data.name + '」を開きました（閲覧モード）。編集するには「✏️ 編集」', 'success', 4500);
     }
+  }
+
+  // ダッシュボードのカード／行から、案件を開いてそのまま御見積書 PDF を出力する。
+  // 出力後はその案件を開いたまま（閲覧モード）にする。出力前チェックで
+  // 入力の不足が見つかった場合、そのまま直せるようにするため。
+  async function cloudPdfPreset(rawId) {
+    if (!(await _confirmLeaveUnsaved('別の案件を開く'))) return;
+    await cloudLoadPreset(rawId);
+    if (typeof window.quickQuotePdf === 'function') window.quickQuotePdf();
+    else quoteShowToast('⚠️ PDF 出力を初期化できませんでした', 'warn');
   }
 
   // ---------- 削除 ----------
@@ -2196,6 +2253,7 @@
   window.cloudLogout         = cloudLogout;
   window.cloudSaveCurrent    = cloudSaveCurrent;
   window.cloudLoadPreset      = cloudLoadPreset;
+  window.cloudPdfPreset       = cloudPdfPreset;
   window.cloudDeletePreset    = cloudDeletePreset;
   window.cloudDuplicatePreset = cloudDuplicatePreset;
   window.cloudListPresets    = cloudListPresets;
