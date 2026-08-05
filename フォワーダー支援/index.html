@@ -2171,7 +2171,18 @@
             <button type="button" class="qpd-adv-clear" onclick="qpdClearAdv()">✕ クリア</button>
           </div>
         </div>
-        <div class="qpd-list preset-list-wrap" id="qpdListWrap"></div>
+        <div class="qpd-body">
+          <div class="qpd-body-main">
+            <div class="qpd-list preset-list-wrap" id="qpdListWrap"></div>
+          </div>
+          <aside class="qpd-side" id="qpdSide">
+            <section class="qpd-side-card" id="qpdRankCard">
+              <h3 class="qpd-side-h">🏆 お客様別 見積件数</h3>
+              <p class="qpd-side-note">クリックでそのお客様の案件だけに絞り込みます。上部のステータス絞り込みにも連動します。</p>
+              <div class="qpd-rank" id="qpdRankList"></div>
+            </section>
+          </aside>
+        </div>
       </div>
     </div>
 
