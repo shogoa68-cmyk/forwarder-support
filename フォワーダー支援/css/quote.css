@@ -4795,6 +4795,24 @@ body.qp-dash-active #quoteActionDock { display: none !important; }
   line-height: 1.5;
 }
 .toast.visible { opacity: 1; transform: translateX(0); }
+/* アクション付きトースト（「元に戻す」等）。
+   通常のトーストはクリックを下へ通すため pointer-events:none にしているので、
+   ボタンを持つときだけ受け取れるように戻す。 */
+.toast:has(.toast-action) { pointer-events: auto; }
+.toast-action {
+  display: block;
+  margin: 8px 0 0 auto;
+  background: rgba(255,255,255,.14);
+  color: #fff;
+  border: 1px solid rgba(255,255,255,.35);
+  border-radius: 6px;
+  padding: 4px 12px;
+  font-size: 12px;
+  font-weight: 700;
+  font-family: inherit;
+  cursor: pointer;
+}
+.toast-action:hover { background: rgba(255,255,255,.26); }
 .toast.success { border-left: 4px solid #5a6e42; }
 .toast.info { border-left: 4px solid #8b6914; }
 .toast.warning, .toast.warn { border-left: 4px solid #e67e22; }
@@ -5211,6 +5229,12 @@ body.qp-dash-active #quoteActionDock { display: none !important; }
   white-space: nowrap;
 }
 #tab-quote-make .btn-preset-preview:hover { background: #c7d9fc; }
+#tab-quote-make .btn-preset-pdf {
+  background: #e8eef7; color: #1a3a6b; border: 1px solid #bcc9dd;
+  border-radius: 4px; font-size: 11px; font-weight: 600; cursor: pointer; padding: 2px 8px;
+  white-space: nowrap;
+}
+#tab-quote-make .btn-preset-pdf:hover { background: #d3deee; }
 /* ---- クラウドプリセット 簡易プレビューモーダル ---- */
 #tab-quote-make .cloud-preview-modal {
   position: fixed; inset: 0; background: rgba(0,0,0,.5);
@@ -7093,7 +7117,10 @@ body.qp-dash-active #quoteActionDock { display: none !important; }
   flex: 0 0 260px;
   position: sticky;
   top: calc(var(--nav-cat-h, 48px) + var(--nav-sub-h, 40px) + 52px);
-  max-height: calc(100vh - var(--nav-cat-h, 48px) - var(--nav-sub-h, 40px) - 80px);
+  /* 右下のフローティングドック（📄PDF出力／📋プレビュー／💾保存）は position:fixed で
+     この列と同じ右下に重なる。ドックの高さぶんを差し引いて、パネル末尾の項目が
+     ボタンの下に隠れないようにする（--qad-dock-h は style.css で定義）。 */
+  max-height: calc(100vh - var(--nav-cat-h, 48px) - var(--nav-sub-h, 40px) - 80px - var(--qad-dock-h, 0px));
   display: flex;
   flex-direction: column;
   gap: 10px;

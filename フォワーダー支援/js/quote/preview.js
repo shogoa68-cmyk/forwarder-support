@@ -1565,6 +1565,9 @@
     window.print();
   }
   window.printFitPage = printFitPage;
+  // 出力前チェックは PDF 直接出力（quote-pdf.js の quickQuotePdf）からも使う
+  window.preOutputValidationGate = preOutputValidationGate;
+  window.sensitiveColumnsGate    = sensitiveColumnsGate;
 
   // ========== Excel 出力（SheetJS） ==========
   // 各列定義に pvGroup を付け、プレビュー表示カスタマイズに連動して列を絞り込む

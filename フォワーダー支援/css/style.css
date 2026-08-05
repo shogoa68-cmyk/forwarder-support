@@ -1227,10 +1227,14 @@ button:focus-visible {
 @media print {
   .header, .cat-nav, .sub-nav, .footer,
   .fb-fab, #fbOverlay, #toast-container, #quoteActionDock,
-  #backToQuoteFab, #calcWidget { display: none !important; }
+  #backToQuoteFab, #calcWidget, #qpLeaveConfirm { display: none !important; }
 }
 
 /* ===== 見積アクションドック（右下フローティング・見積タブのみ） ===== */
+/* ドックの占有高さ（ボタン高 42px ＋ 下余白 18px ＋ 逃げ 28px）。
+   右カラム（quote.css の .quote-right-col）が末尾をこの下に潜り込ませないよう、
+   max-height からこの値を引く。ドックの寸法を変えたらここも合わせること。 */
+:root { --qad-dock-h: 88px; }
 #quoteActionDock {
   display: none;
   position: fixed;
@@ -1242,6 +1246,7 @@ button:focus-visible {
 body:has(#tab-quote-make.active) #quoteActionDock { display: flex; }
 /* プレビューオーバーレイ・比較オーバーレイ表示中は隠す */
 body:has(#previewOverlay.open) #quoteActionDock,
+body:has(#quoteDocOverlay.open) #quoteActionDock,
 body:has(#compareOverlay.open) #quoteActionDock { display: none; }
 #quoteActionDock .qad-btn {
   display: inline-flex;
@@ -1266,6 +1271,8 @@ body:has(#compareOverlay.open) #quoteActionDock { display: none; }
   border: 1.5px solid var(--border-md);
 }
 #quoteActionDock .qad-compare:hover { background: var(--accent-lt); }
+#quoteActionDock .qad-pdf { background: #1a3a6b; color: #fff; }
+#quoteActionDock .qad-pdf:hover { background: #142e55; }
 #quoteActionDock .qad-save { background: #1e7e44; color: #fff; }
 #quoteActionDock .qad-save:hover { background: #18683a; }
 #quoteActionDock .qad-edit { background: #1c6fa6; color: #fff; }
@@ -4756,3 +4763,65 @@ button.lc-attach-tbl-btn { background: none; border: none; padding: 0; cursor: p
   font-size: 12px; padding: 4px 10px; border: 1px solid #d4c8b0; background: #fff; border-radius: 6px; cursor: pointer; color: #5a4a38;
 }
 #tab-local-charges .lcrp-add-row-btns button:hover { background: #f0e8d8; }
+
+/* ===========================================================
+   未保存確認ダイアログ（保存 / 破棄 / キャンセルの 3 択）
+   ブラウザ標準の confirm は 2 択しか作れず「その場で保存する」
+   導線が作れないため、専用のモーダルを用意している。
+   =========================================================== */
+#qpLeaveConfirm {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 9500;
+  background: rgba(40, 32, 20, 0.55);
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+#qpLeaveConfirm.open { display: flex; }
+#qpLeaveConfirm .qplc-box {
+  width: 100%;
+  max-width: 480px;
+  background: #fdfaf4;
+  border: 1px solid #d5c8b0;
+  border-radius: 12px;
+  padding: 22px 24px 18px;
+  box-shadow: 0 14px 40px rgba(50, 38, 22, 0.32);
+}
+#qpLeaveConfirm .qplc-title {
+  font-size: 15px;
+  font-weight: 800;
+  color: #8a5a16;
+  margin-bottom: 10px;
+}
+#qpLeaveConfirm .qplc-msg {
+  font-size: 13px;
+  line-height: 1.75;
+  color: #5a4a35;
+  margin: 0 0 18px;
+}
+#qpLeaveConfirm .qplc-act { font-weight: 700; }
+#qpLeaveConfirm .qplc-btns {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+#qpLeaveConfirm .qplc-btn {
+  font-family: inherit;
+  font-size: 12.5px;
+  white-space: nowrap;
+  font-weight: 700;
+  border-radius: 8px;
+  padding: 9px 14px;
+  cursor: pointer;
+  border: 1px solid transparent;
+}
+#qpLeaveConfirm .qplc-save { background: #1e7e44; color: #fff; }
+#qpLeaveConfirm .qplc-save:hover { background: #18683a; }
+#qpLeaveConfirm .qplc-discard { background: #fbf6ec; color: #a0402f; border-color: #e0bcae; }
+#qpLeaveConfirm .qplc-discard:hover { background: #f6e6de; }
+#qpLeaveConfirm .qplc-cancel { background: #f0e8d8; color: #6b5a42; border-color: #d9cfc2; }
+#qpLeaveConfirm .qplc-cancel:hover { background: #e5d9c2; }
+#qpLeaveConfirm.is-busy .qplc-btn { pointer-events: none; opacity: .6; }

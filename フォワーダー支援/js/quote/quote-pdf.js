@@ -33,6 +33,14 @@
   function loadHideTotal() {
     try { return localStorage.getItem(HIDE_TOTAL_KEY) === '1'; } catch (e) { return false; }
   }
+  // PDF 出力後にステータスを「提示済み」へ進めるか（既定 ON）
+  const AUTO_STATUS_KEY = 'quoteDocAutoStatus_v1';
+  function loadAutoStatus() {
+    try { return localStorage.getItem(AUTO_STATUS_KEY) !== '0'; } catch (e) { return true; }
+  }
+  function saveAutoStatus(on) {
+    try { localStorage.setItem(AUTO_STATUS_KEY, on ? '1' : '0'); } catch (e) {}
+  }
   function saveHideTotal(on) {
     try { localStorage.setItem(HIDE_TOTAL_KEY, on ? '1' : '0'); } catch (e) {}
   }
@@ -507,7 +515,9 @@
   }
 
   // ====== オーバーレイ表示 ======
-  function openQuoteDoc() {
+  // opts.quickPrint: true なら、描画後にそのまま印刷ダイアログまで進む（1クリック出力）
+  function openQuoteDoc(opts) {
+    const quickPrint = !!(opts && opts.quickPrint === true);
     const data = (typeof collectAllRows === 'function') ? collectAllRows().filter(r => r._type === 'data' && !r._hideQuote) : [];
     if (!data.length) { alert('見積もり行がありません。'); return; }
 
@@ -532,7 +542,11 @@
               </div>
               <label class="qd-toggle" title="ONにすると上部の御見積額・下部の合計／税サマリを非表示にします。小計行でパターンA/B比較を行う用途向け。">
                 <span class="qd-toggle-l">合計・税サマリを非表示<small>パターン比較用</small></span>
-                <input type="checkbox" id="qdHideTotal">
+                <input type="checkbox" id="qdHideTotal"><span class="qd-toggle-sw"></span>
+              </label>
+              <label class="qd-toggle" title="PDF を出力したあと、案件ステータスが「下書き中」なら自動で「提示済み」に進めます。受注・失注などのステータスは変更しません。">
+                <span class="qd-toggle-l">出力後に「提示済み」へ<small>下書き中のときだけ</small></span>
+                <input type="checkbox" id="qdAutoStatus"><span class="qd-toggle-sw"></span>
               </label>
               <div class="qd-issuer-card">
                 <div class="qd-ic-head"><span>📇 発行元</span><button type="button" class="qd-ic-edit" id="qdEditIssuer">編集</button></div>
@@ -556,15 +570,43 @@
       if (hideChk) {
         hideChk.addEventListener('change', () => { saveHideTotal(hideChk.checked); refreshQuoteDoc(); });
       }
+      const autoChk = overlay.querySelector('#qdAutoStatus');
+      if (autoChk) autoChk.addEventListener('change', () => saveAutoStatus(autoChk.checked));
     }
     // チェック状態・ファイル名を保存値に同期（オーバーレイ再利用時も整合）
     const hideChk = overlay.querySelector('#qdHideTotal');
     if (hideChk) hideChk.checked = loadHideTotal();
+    const autoChk2 = overlay.querySelector('#qdAutoStatus');
+    if (autoChk2) autoChk2.checked = loadAutoStatus();
     const titleIn = overlay.querySelector('#qdPdfTitle');
     if (titleIn) titleIn.value = _defaultPdfTitle();
     refreshQuoteDoc();
     overlay.classList.add('open');
     document.body.classList.add('qd-printing-ready');
+    // 1クリック出力：レイアウト確定を 2 フレーム待ってから印刷ダイアログを開く。
+    // （待たずに print すると、まだ描画中の内容が印刷対象になることがある）
+    if (quickPrint) {
+      requestAnimationFrame(() => requestAnimationFrame(() => {
+        printQuoteDoc();
+        // 1クリック導線では、印刷ダイアログを閉じたらそのまま編集画面へ戻る
+        //（「閉じる」を押させないため）。printQuoteDoc の後片付け（300ms）より後に閉じる。
+        setTimeout(closeQuoteDoc, 400);
+      }));
+    }
+  }
+
+  // 編集画面から 1 クリックで御見積書 PDF を出力する。
+  // プレビュー → 御見積書 → PDF出力（3クリック）を 1 クリックに縮める導線。
+  // 設定（ファイル名・発行元・合計非表示）は前回値をそのまま使う。
+  function quickQuotePdf() {
+    // プレビュー経由と同じ出力前チェックを通す（要調査行・重要列の出し忘れ防止）
+    if (typeof window.preOutputValidationGate === 'function') {
+      if (!window.preOutputValidationGate('PDF 出力（印刷）', () => openQuoteDoc({ quickPrint: true }))) return;
+    }
+    if (typeof window.sensitiveColumnsGate === 'function') {
+      if (!window.sensitiveColumnsGate('PDF 出力')) return;
+    }
+    openQuoteDoc({ quickPrint: true });
   }
 
   function refreshQuoteDoc() {
@@ -645,11 +687,36 @@
     setTimeout(() => {
       document.body.classList.remove('qd-print-mode');
       if (wasPreviewOpen) pv.classList.add('open');
+      _maybeAdvanceStatusAfterPdf();
     }, 300);
+  }
+
+  // PDF 出力後のステータス進行。
+  // ・「下書き中」のときだけ「提示済み」へ進める（受注・失注・保留などは触らない）
+  // ・印刷ダイアログでキャンセルしたかは Web からは判別できないため、
+  //   変更したことをトーストで必ず知らせ、その場で元に戻せるようにする
+  function _maybeAdvanceStatusAfterPdf() {
+    if (!loadAutoStatus()) return;
+    const el = document.getElementById('qf-status');
+    if (!el) return;
+    const prev = (el.value || '下書き中').trim();
+    if (prev !== '下書き中') return;
+    if (typeof window.setQuoteStatus !== 'function') return;
+    window.setQuoteStatus('提示済み');
+    if (typeof window.quoteShowToast === 'function') {
+      window.quoteShowToast('📄 PDF を出力し、ステータスを「提示済み」にしました', 'success', 7000, {
+        label: '元に戻す',
+        fn: () => {
+          window.setQuoteStatus(prev);
+          window.quoteShowToast('↩️ ステータスを「' + prev + '」に戻しました', 'info', 2600);
+        },
+      });
+    }
   }
 
   // export
   window.openQuoteDoc = openQuoteDoc;
+  window.quickQuotePdf = quickQuotePdf;
   window.closeQuoteDoc = closeQuoteDoc;
   window.printQuoteDoc = printQuoteDoc;
   window.buildQuoteDocHTML = buildQuoteDocHTML;

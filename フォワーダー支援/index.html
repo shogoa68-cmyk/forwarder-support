@@ -2269,7 +2269,7 @@
 
       <!-- 共有案件の作業モード：開く=閲覧／編集でロック取得（作業中）／保存=作業終了で解放→閲覧 -->
       <div class="qm-group" id="qmGroup">
-        <button type="button" class="save-btn qm-btn qm-dash"  id="qmDash"  onclick="qpShowDashboard()" title="ダッシュボード（案件一覧・統計）へ戻る">📊 ダッシュボードに戻る</button>
+        <button type="button" class="save-btn qm-btn qm-dash"  id="qmDash"  onclick="qpBackToDashboard()" title="ダッシュボード（案件一覧・統計）へ戻る">📊 ダッシュボードに戻る</button>
       </div>
       <span class="qm-banner" id="qmBanner" hidden></span>
       <span class="save-toolbar-sep"></span>
@@ -4396,6 +4396,7 @@
 
 <!-- 見積アクションドック（右下フローティング・見積タブのみ表示） -->
 <div id="quoteActionDock">
+  <button class="qad-btn qad-pdf" onclick="quickQuotePdf()" title="御見積書PDFをそのまま出力（A4縦）。ファイル名・発行元は前回の設定を使います。設定を変えたいときはプレビュー →「📄 御見積書」から">📄 PDF出力</button>
   <button class="qad-btn qad-preview" onclick="openPreview()" title="見積をプレビュー表示・CSV/Excel/PDF出力はここから（Ctrl+P）">📋 プレビュー</button>
   <button class="qad-btn qad-save" id="qadMode" onclick="qpDockAction()" title="閲覧中は編集を開始／編集中は保存して作業終了">💾 保存</button>
 </div>
