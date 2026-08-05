@@ -3965,8 +3965,8 @@ body.qp-dash-active #quoteActionDock { display: none !important; }
 #qpDashboard .qpd-rank-bar i { display: block; height: 100%; background: #b89a5e; border-radius: 2px; }
 #qpDashboard .qpd-rank-item.is-active .qpd-rank-bar i { background: #1a5c8a; }
 #qpDashboard .qpd-rank-meta { display: flex; gap: 6px; }
-#qpDashboard .qpd-rank-rate { font-size: 10px; font-weight: 700; color: #8a7a68; }
-#qpDashboard .qpd-rank-rate.is-good { color: #1e7e44; }
+/* 受注は「良し悪しの判定」ではなく実績の表示なので、閾値による色分けはしない */
+#qpDashboard .qpd-rank-rate { font-size: 10px; font-weight: 700; color: #1e7e44; }
 #qpDashboard .qpd-rank-n { flex: 0 0 auto; font-size: 13px; font-weight: 800; color: #4a3520; }
 #qpDashboard .qpd-rank-more,
 #qpDashboard .qpd-rank-clear {

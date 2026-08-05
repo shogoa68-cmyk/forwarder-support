@@ -650,8 +650,10 @@
     const list = [...map.values()];
     list.forEach(e => {
       e.label = Object.keys(e.labels).sort((a, b) => e.labels[b] - e.labels[a] || a.localeCompare(b, 'ja'))[0] || e.label;
-      const decided = e.won + e.lost;                       // 受注／失注が確定した件数
-      e.winRate = decided ? Math.round(e.won / decided * 100) : null;
+      // 受注率の分母は「そのお客様の総件数」。
+      // 受注 ÷（受注＋失注）にすると、失注は「はっきり失注と分かるタイミングが無く」
+      // 実務ではほとんど記録されないため、分母が受注だけになって必ず 100% になってしまう。
+      e.winRate = e.total ? Math.round(e.won / e.total * 100) : 0;
     });
     list.sort((a, b) => b.total - a.total || a.label.localeCompare(b.label, 'ja'));
     return list;
@@ -669,8 +671,12 @@
     const shown = _qpdRankExpanded ? list : list.slice(0, QPD_RANK_TOP);
     let h = shown.map((e, i) => {
       const on = _cloudFilterCustomer === e.key;
-      const rate = e.winRate == null ? '' :
-        '<span class="qpd-rank-rate' + (e.winRate >= 50 ? ' is-good' : '') + '" title="受注 ' + e.won + ' 件 / 失注 ' + e.lost + ' 件">受注率 ' + e.winRate + '%</span>';
+      // 受注が 1 件も無いお客様には出さない（0% を並べても読み取れる情報が無いため）。
+      // ステータス絞り込み中は分母が絞り込み後の件数になり比率の意味が変わるので出さない
+      // （例：「受注」で絞ると全社 100% になり読み取れる情報が無い）。
+      const rate = (e.won && !_cloudStatusFilter) ? '<span class="qpd-rank-rate" title="全 ' + e.total + ' 件のうち受注 ' + e.won +
+        ' 件（' + e.winRate + '%）' + (e.lost ? '／失注 ' + e.lost + ' 件' : '') + '">受注 ' +
+        e.won + '（' + e.winRate + '%）</span>' : '';
       return '<button type="button" class="qpd-rank-item' + (on ? ' is-active' : '') + '" ' +
           'onclick="qpdFilterCustomer(\'' + encodeURIComponent(e.key) + '\')" ' +
           'title="' + escHtml(e.label) + ' の案件だけに絞り込む（もう一度押すと解除）">' +
