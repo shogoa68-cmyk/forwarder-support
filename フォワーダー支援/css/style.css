@@ -3123,20 +3123,28 @@ body:has(#compareOverlay.open) #quoteActionDock { display: none; }
   border-color: #9ec79e;
   color: #2f6b3a;
 }
-.stats-md-badge {
+.stats-md-inline {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 4px;
+}
+.stats-md-chip {
   display: inline-flex;
-  align-items: center;
-  gap: 2px;
+  align-items: baseline;
+  gap: 4px;
   font-size: 10px;
-  font-weight: 700;
   background: #eaf3ea;
-  border: 1px solid #9ec79e;
-  color: #2f6b3a;
-  border-radius: 9px;
+  border: 1px solid #cfe4cf;
+  color: #3a5c3a;
+  border-radius: 8px;
   padding: 1px 7px;
-  vertical-align: middle;
   white-space: nowrap;
   cursor: default;
+}
+.stats-md-chip b {
+  font-weight: 700;
+  color: #2f6b3a;
 }
 .stats-detail-row > td { background: #faf8f3; padding: 10px 14px; border-top: none; }
 .master-detail-form {
