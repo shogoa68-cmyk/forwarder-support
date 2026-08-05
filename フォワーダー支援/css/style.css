@@ -2146,6 +2146,18 @@ body:has(#compareOverlay.open) #quoteActionDock { display: none; }
 .cal-form-input:focus, .cal-form-sel:focus, .cal-form-textarea:focus { border-color: #2b7bb0; outline: none; }
 .cal-form-textarea { resize: vertical; }
 .cal-modal-foot { display: flex; justify-content: flex-end; gap: 8px; padding-top: 4px; }
+.cal-btn-delete {
+  background: none;
+  color: #b04a4a;
+  border: 1px solid #d9a5a0;
+  border-radius: 5px;
+  padding: 8px 14px;
+  font-size: 13px;
+  font-family: inherit;
+  cursor: pointer;
+  margin-right: auto;   /* 左寄せにして誤クリックを防ぐ */
+}
+.cal-btn-delete:hover { background: #fdeceb; border-color: #b04a4a; }
 .cal-btn-cancel {
   background: #f0e8d8;
   color: #5d4e3a;

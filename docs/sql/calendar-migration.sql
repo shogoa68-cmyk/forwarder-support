@@ -22,7 +22,8 @@ create table if not exists public.calendar_holidays (
   source_type  text not null check (source_type in ('jp','overseas','partner')),
   country_code text,             -- 'JP','CN','US' 等。partner の場合は null 可
   company_name text,             -- source_type='partner' の時のみ使用（協力会社名）
-  event_date   date not null,
+  event_date   date not null,    -- 開始日（単日の場合はこの日のみ）
+  end_date     date,             -- 終了日（連休・長期休業用。単日は null）
   name         text not null,    -- 祝日名／休業理由
   note         text,
   ics_uid      text,             -- ICS 取込元の UID（再取込での追跡用。手入力行は null）
@@ -31,6 +32,10 @@ create table if not exists public.calendar_holidays (
   updated_at   timestamptz default now(),
   created_at   timestamptz default now()
 );
+
+-- 既にテーブルを作成済みの環境向け：end_date 列の後付け（冪等）
+alter table public.calendar_holidays
+  add column if not exists end_date date;
 
 -- 同一ソース・同一日・同一名の重複防止（ICS再取込のUPSERTキー、手入力の重複防止も兼ねる）
 create unique index if not exists uq_cal_hol_key
