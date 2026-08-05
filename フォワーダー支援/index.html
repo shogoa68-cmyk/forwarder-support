@@ -288,6 +288,7 @@
             </select>
           </label>
           <button class="lc-variant-btn" onclick="lcToggleVariants()">🔀 ゆらぎ</button>
+          <button class="lc-variant-btn" onclick="lcRpOpenList()">📋 明細プリセット</button>
           <button class="lc-add-btn" onclick="lcOpenForm(null)">＋ 新規登録</button>
         </div>
       </div>
@@ -306,6 +307,67 @@
         <p class="lc-empty">読み込み中…</p>
       </div>
 
+    </div>
+
+    <!-- ========== 明細プリセット（行パターン）一覧モーダル ========== -->
+    <div class="lcrp-modal" id="lcRpListModal" onclick="if(event.target===this)lcRpCloseList()">
+      <div class="lcrp-box">
+        <h3>📋 明細プリセット（行パターン）</h3>
+        <p class="lcrp-desc">
+          複数行の費用明細をまとめて登録し、見積タブの「🗂️ 行を挿入」→「📦 保存パターン」からそのまま呼び出せます（<strong>☁️ チーム共有・ログインが必要</strong>）。
+        </p>
+        <div class="lcrp-toolbar">
+          <button class="lcrp-btn-primary" onclick="lcRpNew()">＋ 新規プリセット作成</button>
+        </div>
+        <div class="lcrp-list-wrap" id="lcRpListWrap">
+          <div class="lcrp-empty">読み込み中…</div>
+        </div>
+        <div class="lcrp-footer">
+          <button class="lcrp-btn-close" onclick="lcRpCloseList()">閉じる</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ========== 明細プリセット 編集モーダル ========== -->
+    <div class="lcrp-modal" id="lcRpEditModal" onclick="if(event.target===this)lcRpCloseEdit()">
+      <div class="lcrp-box lcrp-edit-box">
+        <h3 id="lcRpEditTitle">✎ 明細プリセットの編集</h3>
+        <div class="lcrp-form-row">
+          <input type="text" id="lcRpEditName" class="lcrp-input" placeholder="パターン名（例：輸出ローカル一式）" maxlength="30">
+        </div>
+        <div class="lcrp-form-row">
+          <input type="text" id="lcRpEditNote" class="lcrp-input" placeholder="メモ（任意・チームに共有されます）" maxlength="120">
+        </div>
+        <div class="lcrp-edit-rows-head">
+          <span>明細</span>
+          <span class="lcrp-edit-rowcount" id="lcRpEditRowCount"></span>
+        </div>
+        <div class="lcrp-table-wrap">
+          <table class="lcrp-table">
+            <thead>
+              <tr>
+                <th class="lcrp-th-ops"></th>
+                <th class="lcrp-th-catsv" title="上段＝カテゴリ、下段＝取引先（サブコン）">カテゴリ<br><small>／取引先</small></th>
+                <th class="lcrp-th-name">品目名<br><small>／備考</small></th>
+                <th class="lcrp-th-qty">数量・単位</th>
+                <th class="lcrp-th-ccy" title="上段＝支払い（仕入）通貨、下段＝請求（売値）通貨">通貨<br><small><span class="lcrp-tag lcrp-tag-cost">仕</span>／<span class="lcrp-tag lcrp-tag-sell">売</span></small></th>
+                <th class="lcrp-th-price" title="上段＝支払い単価（仕入）、下段＝請求単価（売値）">単価<br><small><span class="lcrp-tag lcrp-tag-cost">仕</span>／<span class="lcrp-tag lcrp-tag-sell">売</span></small></th>
+                <th class="lcrp-th-tax" title="ON にすると消費税10%が自動計算され、品名先頭に「*」が付きます">課税</th>
+              </tr>
+            </thead>
+            <tbody id="lcRpEditRows"></tbody>
+          </table>
+        </div>
+        <div class="lcrp-add-row-btns">
+          <button type="button" onclick="lcRpAddRow('data')">＋ 費用行</button>
+          <button type="button" onclick="lcRpAddRow('remark')">＋ リマーク</button>
+          <button type="button" onclick="lcRpAddRow('subtotal')">＋ 小計</button>
+        </div>
+        <div class="lcrp-footer">
+          <button class="lcrp-btn-close" onclick="lcRpCloseEdit()">キャンセル</button>
+          <button class="lcrp-btn-primary" onclick="lcRpSave()">💾 保存</button>
+        </div>
+      </div>
     </div>
   </div><!-- /tab-local-charges -->
 
@@ -2086,6 +2148,7 @@
           </div>
           <div class="qpd-tools-row">
             <button type="button" class="qpd-adv-toggle" id="qpdAdvToggle" onclick="qpdToggleAdv()">🔎 詳細検索 ▶</button>
+            <button type="button" class="qpd-reset-all" id="qpdResetAll" hidden onclick="qpdResetAllFilters()" title="ステータス・検索・詳細検索・お客様の絞り込みをすべて解除して全件表示に戻します">✕ 絞り込みをすべて解除</button>
             <label class="qpd-sort">並び替え
               <select id="qpdSort" onchange="qpdSetSort(this.value)">
                 <option value="updated">更新日（新しい順）</option>
@@ -2109,7 +2172,18 @@
             <button type="button" class="qpd-adv-clear" onclick="qpdClearAdv()">✕ クリア</button>
           </div>
         </div>
-        <div class="qpd-list preset-list-wrap" id="qpdListWrap"></div>
+        <div class="qpd-body">
+          <div class="qpd-body-main">
+            <div class="qpd-list preset-list-wrap" id="qpdListWrap"></div>
+          </div>
+          <aside class="qpd-side" id="qpdSide">
+            <section class="qpd-side-card" id="qpdRankCard">
+              <h3 class="qpd-side-h">🏆 お客様別 見積件数</h3>
+              <p class="qpd-side-note">クリックでそのお客様の案件だけに絞り込みます。上部のステータス絞り込みにも連動します。<br>受注の割合は<b>そのお客様の総件数に対する比率</b>です。</p>
+              <div class="qpd-rank" id="qpdRankList"></div>
+            </section>
+          </aside>
+        </div>
       </div>
     </div>
 
@@ -2207,7 +2281,7 @@
 
       <!-- 共有案件の作業モード：開く=閲覧／編集でロック取得（作業中）／保存=作業終了で解放→閲覧 -->
       <div class="qm-group" id="qmGroup">
-        <button type="button" class="save-btn qm-btn qm-dash"  id="qmDash"  onclick="qpShowDashboard()" title="ダッシュボード（案件一覧・統計）へ戻る">📊 ダッシュボードに戻る</button>
+        <button type="button" class="save-btn qm-btn qm-dash"  id="qmDash"  onclick="qpBackToDashboard()" title="ダッシュボード（案件一覧・統計）へ戻る">📊 ダッシュボードに戻る</button>
       </div>
       <span class="qm-banner" id="qmBanner" hidden></span>
       <span class="save-toolbar-sep"></span>
@@ -2217,6 +2291,11 @@
       <!-- 履歴：アイコンのみで表示 -->
       <button class="save-btn save-btn-icon save-btn-undo" id="btnQuoteUndo" onclick="quoteUndo()" disabled title="元に戻す (Ctrl+Z)">↶</button>
       <button class="save-btn save-btn-icon save-btn-redo" id="btnQuoteRedo" onclick="quoteRedo()" disabled title="やり直す (Ctrl+Y / Ctrl+Shift+Z)">↷</button>
+
+      <span class="save-toolbar-sep"></span>
+
+      <!-- 📩 メール取込：開いている見積へ行を挿入 or 新規展開 -->
+      <button type="button" class="save-btn save-btn-import" onclick="openEmailImport()" title="メール本文を貼り付けて、この見積に行を挿入（または新規案件として展開）">📩 メール取込</button>
 
       <span class="save-toolbar-sep"></span>
 
@@ -2602,6 +2681,8 @@
               <button type="button" class="qf-memo-expand-btn" onclick="openMemoPopout()" title="メモを全画面で編集" style="margin-left:3px">⤢ 拡大</button>
             </label>
             <textarea id="qf-memo" rows="6" placeholder="担当者間の申し送り・注意事項など、案件内部メモを自由に記述できます。お客様向け出力には含まれません。"></textarea>
+            <!-- 📩 メール取込の原文（監査・再パース用。fields 経由で案件データに永続化） -->
+            <input type="hidden" id="qf-import-src" />
           </div>
           <!-- 📌 メモ フロート付箋（スクロール追従・ドラッグ可）。#qf-memo と双方向同期 -->
           <div id="qfMemoFloat" class="qf-memo-float" hidden>
@@ -2786,6 +2867,23 @@
                 <span class="z2-label" style="visibility:hidden">🚢</span>
                 <input type="text" id="z2Service" class="z2-input z2-service-input"
                        placeholder="サービス名（任意）例）FAL1、NEX1">
+              </div>
+              <!-- 契約形態（任意・常時表示）：契約先＝上のキャリア欄。役割と実運送人を分離して蓄積 -->
+              <div class="z2-relay-fields" id="z2RelayFields">
+                <div class="z2-row">
+                  <span class="z2-label" style="visibility:hidden">🚢</span>
+                  <select id="z2CarrierRole" class="z2-input z2-relay-role" title="上のキャリア欄（契約先）の役割。代理店・LCL業者などが別の船会社の船/スペースを使う場合に選択（任意・蓄積用）">
+                    <option value="">役割（任意）</option>
+                    <option value="agent">海外代理店</option>
+                    <option value="nvocc">NVOCC・コンソリ（LCL業者）</option>
+                    <option value="coloader">コローダー</option>
+                    <option value="direct">船社直</option>
+                  </select>
+                  <span class="z2-relay-as">as</span>
+                  <input type="text" id="z2ActualCarrier" class="z2-input z2-relay-actual" list="carriers-dl"
+                         placeholder="実運送人（実際の船会社）例）ONE, SJJ"
+                         title="実際に船/スペースを提供する船会社（任意・蓄積用）">
+                </div>
               </div>
               <div id="z2CarrierLinks" class="carrier-links-panel" style="display:none"></div>
               <div class="z2-pol-pod-row">
@@ -3689,6 +3787,29 @@
     </div>
 
     <!-- ========== CSV列選択モーダル ========== -->
+    <!-- 📩 メール取込モーダル（貼り付け→解析→レビュー→挿入/新規展開） -->
+    <div id="emailImportModal" onclick="if(event.target===this)closeEmailImport()">
+      <div id="emailImportBox">
+        <div class="ei-head">
+          <h3>📩 メール取込（見積データ化）</h3>
+          <button type="button" class="ei-close" onclick="closeEmailImport()" title="閉じる">✕</button>
+        </div>
+        <p class="ei-desc">メールで提示した見積の本文を貼り付けて「解析」を押してください。自アプリのメール形式は高精度で復元でき、自由文も金額を含む行から明細候補を抽出します。</p>
+        <textarea id="eiText" rows="7" placeholder="ここにメール本文を貼り付け…&#10;例）&#10;《東京 → PENANG》&#10;  ・海上運賃20  1 20'GP × 475 USD ＝ 475 USD&#10;  ・THC  1 CNTR × ¥34,900 ＝ ¥34,900"></textarea>
+        <div class="ei-parse-bar">
+          <button type="button" class="ei-parse-btn" onclick="eiParse()">🔍 解析する</button>
+        </div>
+        <div id="eiReviewWrap"></div>
+        <div id="eiActions" class="ei-actions" hidden>
+          <div class="ei-act-col">
+            <button type="button" class="ei-act-insert" onclick="eiInsertRows()" title="チェックした行を、今開いている見積テーブルの末尾に追加">✏️ この見積へ行を挿入</button>
+            <span class="ei-act-target" id="eiInsertTarget"></span>
+          </div>
+          <button type="button" class="ei-act-new" onclick="eiApplyAsNew()" title="入力中の内容をクリアし、取込内容で新しい案件を作る（原文も案件データに保存）">🆕 新規案件として展開</button>
+        </div>
+      </div>
+    </div>
+
     <div id="csvColModal" onclick="if(event.target===this)closeCsvColModal()">
       <div id="csvColBox">
         <h3>⬇ CSV出力：列を選択してください</h3>
@@ -3931,6 +4052,7 @@
           <button type="button" class="cond-charge-btn" tabindex="-1" title="発生時のみ／必要時のみ請求。金額は客先にも表示しますが、見積もり合計には加算しません（もう一度クリックで解除）。">都度</button>
           <button type="button" class="ref-info-btn" tabindex="-1" title="参考情報。金額は客先にも表示しますが、見積もり合計には加算しません。「都度（発生時のみ請求）」とは別に、参考として提示したい行に使用します（もう一度クリックで解除）。">参考</button>
           <button type="button" class="pct-mode-btn" tabindex="-1" title="仕入単価を「○○の何%」として計算（%率と基準額を入力）。もう一度クリックで直接入力に戻す。">%</button>
+          <button type="button" class="master-reg-btn" tabindex="-1" title="この行をマスター登録：品名（単位・備考・カテゴリ・代表単価）＋サブコンを登録し、次回同名入力時に自動入力・参考価格として活用します。">📇 登録</button>
         </div>
         <span class="actual-cost-badge" aria-hidden="true">実費</span>
       </td>
@@ -4212,6 +4334,7 @@
 <script src="js/quote/cloud.js"></script>
 <script src="js/quote/users.js"></script>
 <script src="js/quote/subcon-insert.js"></script>
+<script src="js/quote/email-import.js"></script>
 <script src="js/tweaks.js"></script>
 <script src="js/bookmarks.js"></script>
 <script src="js/calendar.js"></script>
@@ -4222,6 +4345,7 @@
 <script src="js/alias-rules.js"></script>
 <script src="js/local-charges.js"></script>
 <script src="js/rate-notice.js"></script>
+<script src="js/lc-row-pattern.js"></script>
 
 <!-- =================================================================
      サイト全体スコープのフローティング UI（Phase 2c-Step1 で見積タブから昇格）
@@ -4284,6 +4408,7 @@
 
 <!-- 見積アクションドック（右下フローティング・見積タブのみ表示） -->
 <div id="quoteActionDock">
+  <button class="qad-btn qad-pdf" onclick="quickQuotePdf()" title="御見積書PDFをそのまま出力（A4縦）。ファイル名・発行元は前回の設定を使います。設定を変えたいときはプレビュー →「📄 御見積書」から">📄 PDF出力</button>
   <button class="qad-btn qad-preview" onclick="openPreview()" title="見積をプレビュー表示・CSV/Excel/PDF出力はここから（Ctrl+P）">📋 プレビュー</button>
   <button class="qad-btn qad-save" id="qadMode" onclick="qpDockAction()" title="閲覧中は編集を開始／編集中は保存して作業終了">💾 保存</button>
 </div>

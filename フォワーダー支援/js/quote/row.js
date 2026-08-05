@@ -93,106 +93,162 @@
       : tr.classList.remove('row-unfilled');
   }
 
-  // ========== ドラッグ＆ドロップ ==========
-  function initDrag(tr) {
-    // tr は常に draggable="true"。ハンドル以外からのドラッグは dragstart で防ぐ
-    tr.setAttribute('draggable', 'true');
-    const handle = tr.querySelector('.drag-handle');
+  // ========== ドラッグ＆ドロップ（ポインタ操作による自前実装） ==========
+  // ネイティブ HTML5 D&D は使わない。ブラウザ側のドラッグループが正常終了しないと
+  // クリックもキー入力も一切ページへ届かなくなる（＝フリーズしたように見える）ため。
+  // 詳細は constants.js の startPointerDrag を参照。
+  //
+  // ドロップ先の解決・マーク描画・後始末は #tableBody 単位で一箇所にまとめる。
+  // 行ごとにリスナーを張ると、再描画のたびに累積し、また initDrag を通らずに
+  // 作られた行がドロップ先にならない（掴めるのに落とせない）不具合になる。
+  let _tableDragInited = false;
+  function initTableDragDelegation() {
+    if (_tableDragInited) return;
+    const tbody = document.getElementById('tableBody');
+    if (!tbody) return;
+    _tableDragInited = true;
 
-    // dragstart の e.target は tr 自身になるため、mousedown でフラグを立てる
-    let _dragFromHandle = false;
-    if (handle) {
-      handle.addEventListener('mousedown', () => { _dragFromHandle = true; });
-      document.addEventListener('mouseup', () => { _dragFromHandle = false; }, { capture: true });
+    const clearMarks = () => {
+      if (_lastDragOverRow) {
+        _lastDragOverRow.classList.remove('drag-over-top', 'drag-over-bottom');
+        _lastDragOverRow = null;
+      }
+      tbody.querySelectorAll('tr.drag-over-top, tr.drag-over-bottom')
+        .forEach(r => r.classList.remove('drag-over-top', 'drag-over-bottom'));
+    };
+    const resetDrag = () => {
+      tbody.querySelectorAll('tr.dragging').forEach(r => r.classList.remove('dragging'));
+      clearMarks();
+      dragSrcRow = null;
+      dragSrcRows = null;
+    };
+    window._resetTableRowDrag = resetDrag;
+
+    // 座標からドロップ先を解決する。
+    // - 通常行／小計・リマーク行 … その行の前後へ挿入
+    // - グループ見出し（仮想行）  … そのグループの先頭へ挿入（最上段へ移動する導線）
+    // 戻り値 null は「ドロップ不可」。
+    function resolveTarget(x, y) {
+      if (!dragSrcRows || !dragSrcRows.length) return null;
+      const el = document.elementFromPoint(x, y);
+      const tr = el && el.closest ? el.closest('#tableBody tr') : null;
+      if (!tr) return null;
+      const src = dragSrcRows[0];
+      const srcSv = _rowSubcon(src);
+
+      if (tr.classList.contains('subcon-group-header')) {
+        // データ行のみグループ見出しへドロップ可。同じサブコングループのときだけ。
+        if (srcSv === null) return null;
+        if ((subconNormKey(srcSv) || _UNSET_KEY) !== tr.dataset.svKey) return null;
+        // 見出し直後の最初の実行行を探す（配下にパターン見出し等の仮想行が挟まる）
+        let first = tr.nextSibling;
+        while (first && first.dataset && first.dataset.virtual) first = first.nextSibling;
+        if (!first || dragSrcRows.includes(first)) return null;
+        return { mark: tr, markCls: 'drag-over-bottom', insertBefore: first };
+      }
+
+      if (tr.dataset.virtual) return null;              // 小計・パターン見出し等は対象外
+      if (dragSrcRows.includes(tr)) return null;        // ドラッグ中の行の上には出さない
+      // データ行同士のときだけ、異なるサブコングループへのドロップを禁止（正規化キーで判定）。
+      // リマーク・社内メモ・小計行（dataset.type 付き＝_rowSubcon が null）は自由に移動可。
+      if (srcSv !== null && subconNormKey(srcSv) !== subconNormKey(_rowSubcon(tr))) return null;
+      const rect = tr.getBoundingClientRect();
+      const after = y >= rect.top + rect.height / 2;
+      let insertBefore = after ? tr.nextSibling : tr;
+      while (insertBefore && insertBefore.dataset && insertBefore.dataset.virtual) {
+        insertBefore = insertBefore.nextSibling;
+      }
+      return { mark: tr, markCls: after ? 'drag-over-bottom' : 'drag-over-top', insertBefore };
     }
 
-    tr.addEventListener('dragstart', e => {
-      // ハンドルを掴んでいない場合はドラッグ無効
-      if (!handle || !_dragFromHandle) {
-        e.preventDefault(); return;
-      }
-      _dragFromHandle = false;
+    // 行ドラッグを開始する（ハンドル列の pointerdown から呼ぶ）
+    function beginRowDrag(tr, ev, multi) {
       dragSrcRow = tr;
-      // 多選択ドラッグ：掴んだ行がチェック済みなら、チェックされている全行をまとめて移動
-      const myChk = tr.querySelector('.row-select-chk');
-      if (myChk?.checked) {
-        const selected = Array.from(
-          document.querySelectorAll('#tableBody tr .row-select-chk:checked')
-        ).map(c => c.closest('tr')).filter(Boolean);
-        dragSrcRows = selected.length > 1 ? selected : [tr];
-      } else {
-        dragSrcRows = [tr];
-      }
-      // 詳細行に子リマーク行がある場合は dragSrcRows に展開して一緒に移動させる
-      {
+      if (multi) {
+        const myChk = tr.querySelector('.row-select-chk');
+        if (myChk && myChk.checked) {
+          const selected = Array.from(
+            document.querySelectorAll('#tableBody tr .row-select-chk:checked')
+          ).map(c => c.closest('tr')).filter(Boolean);
+          dragSrcRows = selected.length > 1 ? selected : [tr];
+        } else {
+          dragSrcRows = [tr];
+        }
+        // 詳細行に子リマーク行がある場合は一緒に運ぶ
         const addedIds = new Set(dragSrcRows.map(r => r.id));
         const expanded = [];
         dragSrcRows.forEach(r => {
           expanded.push(r);
           if (!r.dataset.type) {
-            const rid = r.id.replace('row-', '');
-            getChildRemarks(rid).forEach(c => {
+            getChildRemarks(r.id.replace('row-', '')).forEach(c => {
               if (!addedIds.has(c.id)) { expanded.push(c); addedIds.add(c.id); }
             });
           }
         });
         dragSrcRows = expanded;
+      } else {
+        dragSrcRows = [tr];   // 小計・リマーク行は常に単独
       }
-      e.dataTransfer.effectAllowed = 'move';
-      e.dataTransfer.setData('text/plain', tr.id);
-      const movingRows = dragSrcRows;
-      setTimeout(() => movingRows.forEach(r => r.classList.add('dragging')), 0);
-    });
-    tr.addEventListener('dragend', () => {
-      (dragSrcRows || [tr]).forEach(r => r.classList.remove('dragging'));
-      document.querySelectorAll('#tableBody tr').forEach(r =>
-        r.classList.remove('drag-over-top', 'drag-over-bottom'));
-      dragSrcRow = null;
-      dragSrcRows = null;
-      updateTotals();
-      renderSubconGroups();   // 移動後にグループ見出し・小計・ツリー帰属を再評価
-    });
-    tr.addEventListener('dragover', e => {
-      if (!dragSrcRows || !dragSrcRows.length) return;
-      e.preventDefault();
-      e.stopPropagation();
-      // ドラッグ中の行群の上には挿入インジケータを出さない
-      if (dragSrcRows.includes(tr)) return;
-      // データ行同士のときだけ、異なるサブコングループへのドロップを禁止（揺らぎ吸収：正規化キーで判定）。
-      // リマーク・社内メモ・小計行（dataset.type 付き＝_rowSubcon が null）は自由に移動可。
-      const _srcSv = _rowSubcon(dragSrcRows[0]);
-      if (_srcSv !== null && subconNormKey(_srcSv) !== subconNormKey(_rowSubcon(tr))) {
-        e.dataTransfer.dropEffect = 'none';
-        return;
-      }
-      e.dataTransfer.dropEffect = 'move';
-      const mid = tr.getBoundingClientRect().top + tr.getBoundingClientRect().height / 2;
-      document.querySelectorAll('#tableBody tr').forEach(r =>
-        r.classList.remove('drag-over-top', 'drag-over-bottom'));
-      tr.classList.add(e.clientY < mid ? 'drag-over-top' : 'drag-over-bottom');
-    });
-    tr.addEventListener('dragleave', () =>
-      tr.classList.remove('drag-over-top', 'drag-over-bottom'));
-    tr.addEventListener('drop', e => {
-      // サイドパネルからのドラッグはドキュメントレベルのハンドラに委ねる
-      if (e.dataTransfer.types.includes('application/x-si-item')) return;
-      e.preventDefault();
-      e.stopPropagation();
-      if (!dragSrcRows || !dragSrcRows.length || dragSrcRows.includes(tr)) return;
-      // データ行同士のときだけグループ跨ぎ禁止（リマーク・社内メモ・小計行は自由移動可）
-      const _srcSv = _rowSubcon(dragSrcRows[0]);
-      if (_srcSv !== null && subconNormKey(_srcSv) !== subconNormKey(_rowSubcon(tr))) return;
-      const mid = tr.getBoundingClientRect().top + tr.getBoundingClientRect().height / 2;
-      const tbody = document.getElementById('tableBody');
-      // 仮想グループヘッダーをスキップして実行行の隣に挿入
-      let insertBefore = e.clientY < mid ? tr : tr.nextSibling;
-      while (insertBefore?.dataset?.virtual) insertBefore = insertBefore.nextSibling;
-      // document 順で挿入することで元の並びを保持
-      dragSrcRows.forEach(srcTr => {
-        tbody.insertBefore(srcTr, insertBefore);
+      const moving = dragSrcRows;
+      let moved = false;
+
+      window.startPointerDrag(ev, {
+        onStart() { moving.forEach(r => r.classList.add('dragging')); },
+        onMove(x, y) {
+          window.pointerDragAutoScroll(y);
+          const t = resolveTarget(x, y);
+          if (!t) { clearMarks(); return; }
+          if (_lastDragOverRow === t.mark && t.mark.classList.contains(t.markCls)) return;
+          if (_lastDragOverRow && _lastDragOverRow !== t.mark) {
+            _lastDragOverRow.classList.remove('drag-over-top', 'drag-over-bottom');
+          }
+          t.mark.classList.remove('drag-over-top', 'drag-over-bottom');
+          t.mark.classList.add(t.markCls);
+          _lastDragOverRow = t.mark;
+        },
+        onDrop(x, y) {
+          const t = resolveTarget(x, y);
+          if (t) {
+            moving.forEach(srcTr => { tbody.insertBefore(srcTr, t.insertBefore); });
+            moved = true;
+          } else if (typeof quoteShowToast === 'function') {
+            quoteShowToast('⚠️ 並び替えは同じサブコン内でのみ可能です', 'warn', 2400);
+          }
+        },
+        onEnd() {
+          resetDrag();
+          // 実際に動いていないなら再計算・再描画はしない（大きい表での無駄な固まりを防ぐ）
+          if (!moved) return;
+          updateTotals();
+          renderSubconGroups();
+          if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
+        },
       });
-      tr.classList.remove('drag-over-top', 'drag-over-bottom');
+    }
+
+    // ハンドル列の pointerdown を委譲で受ける。
+    // ⠿ 要素ピンポイントではなくハンドル列（セル）全体を起点にする理由：
+    // 行にホバーすると .row-acts のボタン群（👁🔍✓➕📋🗑️）が display:none から現れ、
+    // セルの中身が縦に伸びる。セルは vertical-align:middle なので ⠿ は押す前に
+    // 上へずれ、狙った位置には .row-acts が来る。ピンポイント判定では掴めない。
+    tbody.addEventListener('pointerdown', e => {
+      if (e.button !== 0) return;
+      const t = e.target;
+      if (!t || typeof t.closest !== 'function') return;
+      if (t.closest('button, input, select, textarea, a')) return;   // クリック操作を邪魔しない
+      const cell = t.closest('td.handle-cell, td.subtotal-drag-cell, td.remark-drag-cell');
+      if (!cell) return;
+      const tr = cell.closest('tr');
+      if (!tr) return;
+      e.preventDefault();
+      beginRowDrag(tr, e, !tr.dataset.type);
     });
+  }
+
+  function initDrag(tr) {
+    initTableDragDelegation();
+    // ネイティブ D&D を確実に無効化（過去に draggable="true" を付けていた行の後始末も兼ねる）
+    tr.setAttribute('draggable', 'false');
 
     // ▲▼ ボタンによる行移動
     const upBtn   = tr.querySelector('.row-move-up');
@@ -226,6 +282,57 @@
     if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
   }
   window.toggleRowHideQuote = toggleRowHideQuote;
+
+  // 行 ID 指定で見積書非表示をトグル（右カラム ジャンプタブ等の外部 UI 用）。
+  // テーブル行のボタンがあればそれを押して既存ロジックを共用し、無ければ dataset を直接操作。
+  function toggleRowHideQuoteById(rowId) {
+    const tr = document.getElementById('row-' + String(rowId).replace(/^row-/, ''));
+    if (!tr) return false;
+    const btn = tr.querySelector('.row-hidequote-btn');
+    if (btn) { toggleRowHideQuote(btn); }
+    else {
+      const hidden = tr.dataset.hideQuote === '1';
+      if (hidden) { delete tr.dataset.hideQuote; tr.classList.remove('row-hidden-quote'); }
+      else { tr.dataset.hideQuote = '1'; tr.classList.add('row-hidden-quote'); }
+      updateTotals();
+      if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
+    }
+    return tr.dataset.hideQuote === '1';
+  }
+  window.toggleRowHideQuoteById = toggleRowHideQuoteById;
+
+  // 明細行を同一グループ内で並べ替え（右カラム ジャンプタブのドラッグ用）。
+  // グループ跨ぎ（サブコン/パターンが異なる移動）はテーブル本体のドラッグと同じく禁止し false を返す。
+  // 同一グループ（サブコン正規化キー＋パターン内側キー）に属するかを判定。
+  // ドラッグ中の dragover から毎フレーム呼ぶため、DOM 参照のみで副作用なし。
+  function canMoveTableRowWithinGroup(srcRowId, targetRowId) {
+    const src = document.getElementById('row-' + String(srcRowId).replace(/^row-/, ''));
+    const tgt = document.getElementById('row-' + String(targetRowId).replace(/^row-/, ''));
+    if (!src || !tgt || src === tgt) return false;
+    return subconNormKey(_rowSubcon(src) ?? '') === subconNormKey(_rowSubcon(tgt) ?? '')
+        && (_rowInnerKey(src) || '') === (_rowInnerKey(tgt) || '');
+  }
+  window.canMoveTableRowWithinGroup = canMoveTableRowWithinGroup;
+
+  function moveTableRowWithinGroup(srcRowId, targetRowId, placeAfter) {
+    const tbody = document.getElementById('tableBody');
+    if (!tbody) return false;
+    const src = document.getElementById('row-' + String(srcRowId).replace(/^row-/, ''));
+    const tgt = document.getElementById('row-' + String(targetRowId).replace(/^row-/, ''));
+    if (!src || !tgt || src === tgt) return false;
+    if (!canMoveTableRowWithinGroup(srcRowId, targetRowId)) return false;
+    // src に付随する子リマーク行も一緒に運ぶ。挿入位置は tgt の前／後。
+    // （仮想行スキップは不要：renderSubconGroups が直後に仮想行を再構築するため）
+    const block = [src, ...getChildRemarks(src.id.replace('row-', ''))];
+    const anchor = placeAfter ? tgt.nextSibling : tgt;
+    block.forEach(node => { tbody.insertBefore(node, anchor); });
+    updateTotals();
+    renderSubconGroups();
+    if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
+    if (typeof scheduleSnapshot === 'function') scheduleSnapshot();
+    return true;
+  }
+  window.moveTableRowWithinGroup = moveTableRowWithinGroup;
 
   // 行を「要調査（後で記入）」状態に切り替える。
   // サーチャージ等、最新情報を調べてから埋める項目を見失わないための目印。
@@ -326,6 +433,7 @@
 
   // 入力完了の進捗バッジ（完了件数 / データ行総数）を更新。0 行なら非表示。
   function updateDoneCounter() {
+    if (_quoteBulkUpdate) return;   // 一括更新中はまとめて後で 1 回だけ実行する
     const dataRows = document.querySelectorAll('#tableBody tr[id^="row-"]:not([data-type]):not([data-virtual])');
     const total = dataRows.length;
     let done = 0;
@@ -350,6 +458,7 @@
 
   // 要調査（後で記入）行の件数バッジを更新。0 件なら非表示。
   function updatePendingCounter() {
+    if (_quoteBulkUpdate) return;   // 一括更新中はまとめて後で 1 回だけ実行する
     const n = document.querySelectorAll('#tableBody tr[data-pending="1"]').length;
     const ind = document.getElementById('pendingIndicator');
     if (ind) ind.hidden = (n === 0);
@@ -389,8 +498,10 @@
       const details = rec.details || {};
       const tr = nmEl.closest('tr');
       if (!tr) return;
+      const rid = tr.id.replace('row-', '');
       const unEl = tr.querySelector('[data-field="un"]');
       const ntEl = tr.querySelector('[data-field="nt"]');
+      const catEl = document.getElementById('cat-' + rid);
       let filled = false;
       if (details.defaultUnit && unEl && (!unEl.value.trim() || tr.dataset.unAuto === '1')) {
         unEl.value = details.defaultUnit; tr.dataset.unAuto = '1'; filled = true;
@@ -398,8 +509,20 @@
       if (details.defaultNote && ntEl && (!ntEl.value.trim() || tr.dataset.ntAuto === '1')) {
         ntEl.value = details.defaultNote; tr.dataset.ntAuto = '1'; filled = true;
       }
+      // カテゴリ：未選択のときだけマスターの既定カテゴリを補完
+      if (details.defaultCat && catEl && !catEl.value) {
+        catEl.value = details.defaultCat; onCatChange(rid); updateTotals(); filled = true;
+      }
       if (filled && typeof window.quoteShowToast === 'function') {
-        window.quoteShowToast('📇 マスターの詳細情報から単位・備考を自動入力しました', 'info', 2200);
+        window.quoteShowToast('📇 マスターから単位・備考・カテゴリを自動入力しました', 'info', 2200);
+      }
+      // 代表単価は自動入力せず「参考」として通知のみ（案件・時期で変動するため）
+      const ccy = details.refCcy || 'JPY';
+      const refParts = [];
+      if (details.refCost) refParts.push('仕入 ' + _fmtRef(details.refCost, ccy));
+      if (details.refSell) refParts.push('売 ' + _fmtRef(details.refSell, ccy));
+      if (refParts.length && typeof window.quoteShowToast === 'function') {
+        window.quoteShowToast('📇 代表単価（参考）: ' + refParts.join(' / '), 'info', 3200);
       }
     });
     // ユーザーが単位/備考を手入力したら「自動入力状態」を解除し、以後は上書きしない
@@ -413,6 +536,62 @@
     });
   }
   window.initNmAutofill = initNmAutofill;
+
+  // 代表単価の参考表示フォーマット
+  function _fmtRef(v, ccy) {
+    const n = parseFloat(v); if (!isFinite(n)) return String(v);
+    return (ccy && ccy !== 'JPY')
+      ? n.toLocaleString('ja-JP', { maximumFractionDigits: 2 }) + ' ' + ccy
+      : '¥' + Math.round(n).toLocaleString('ja-JP');
+  }
+
+  // 📇 この行をマスター登録：品名（単位/備考/カテゴリ/代表単価）＋サブコンを upsert。
+  // 既存マスターは非破壊マージ（行が空の項目は既存値を残す）。価格は明示クリックなので常に更新。
+  async function registerRowToMaster(id) {
+    if (typeof window.mdSave !== 'function') {
+      if (window.quoteShowToast) quoteShowToast('⚠️ マスター機能が利用できません', 'warn'); return;
+    }
+    const g = f => (document.getElementById(f + '-' + id)?.value || '').trim();
+    const nm = g('nm').replace(/^\*+/, '').trim();
+    if (!nm) {
+      if (window.quoteShowToast) quoteShowToast('⚠️ 品名を入力してから登録してください', 'warn');
+      document.getElementById('nm-' + id)?.focus();
+      return;
+    }
+    const un = g('un'), nt = g('nt'), cat = g('cat'), sv = g('sv');
+    const pp = g('pp'), bp = g('bp'), bc = g('bc') || 'JPY';
+    // 既存マスターとマージ（ふりがな等の既存項目を保持）
+    const prev = (typeof window.mdGet === 'function' && window.mdGet('nm', nm))?.details || {};
+    const details = Object.assign({}, prev);
+    if (un)  details.defaultUnit = un;
+    if (nt)  details.defaultNote = nt;
+    if (cat) details.defaultCat  = cat;
+    // 代表単価（0/空は登録しない）。通貨は売通貨基準
+    if (parseFloat(pp) > 0) details.refCost = pp;
+    if (parseFloat(bp) > 0) details.refSell = bp;
+    if (details.refCost || details.refSell) details.refCcy = bc;
+    // ① マスター一覧へ登録（マスター管理タブに出る本体。詳細ストアとは別）
+    if (typeof window.statsEnsureMaster === 'function') await window.statsEnsureMaster('nm', nm);
+    // ② 詳細（単位/備考/カテゴリ/代表単価）を保存
+    await window.mdSave('nm', nm, details);
+    // サブコンも登録（一覧＋詳細。ふりがな等は既存維持）
+    let svMsg = '';
+    if (sv) {
+      if (typeof window.statsEnsureMaster === 'function') await window.statsEnsureMaster('sv', sv);
+      const svPrev = (typeof window.mdGet === 'function' && window.mdGet('sv', sv))?.details || {};
+      await window.mdSave('sv', sv, svPrev);
+      svMsg = '・サブコン「' + sv + '」';
+    }
+    // マスター管理タブを開いていれば即時反映
+    if (typeof window.statsRerenderActive === 'function') window.statsRerenderActive();
+    if (typeof window.arRefreshDatalist === 'function') window.arRefreshDatalist();
+    const bits = [un && '単位', nt && '備考', cat && 'カテゴリ',
+      (details.refCost || details.refSell) && '代表単価'].filter(Boolean).join('/');
+    if (window.quoteShowToast) {
+      quoteShowToast('📇 「' + nm + '」をマスター登録しました（' + (bits || '品名') + '）' + svMsg, 'success', 3200);
+    }
+  }
+  window.registerRowToMaster = registerRowToMaster;
 
   function moveRow(tr, dir) {
     const tbody = document.getElementById('tableBody');
@@ -775,6 +954,8 @@
     if (riBtn) riBtn.onclick = () => toggleRefInfo(id);
     const pctBtn = frag.querySelector('.pct-mode-btn');
     if (pctBtn) pctBtn.onclick = () => togglePctMode(id);
+    const mregBtn = frag.querySelector('.master-reg-btn');
+    if (mregBtn) mregBtn.onclick = () => registerRowToMaster(id);
     const pprateEl = frag.querySelector('[data-field="pprate"]');
     if (pprateEl) pprateEl.oninput = () => _calcPct(id);
     const ppbaseEl = frag.querySelector('[data-field="ppbase"]');
@@ -1237,6 +1418,7 @@
   }
 
   function updateTotals() {
+    if (_quoteBulkUpdate) return;   // 一括更新中はまとめて後で 1 回だけ実行する
     updatePendingCounter();
     updateDoneCounter();      // 入力完了の進捗バッジを更新
     recomputeRowValidity();   // 適用期間外の行を判定（客先非表示・合計除外）
@@ -1350,55 +1532,9 @@
 
   // 小計行ドラッグ初期化（通常行の initDrag と同じロジック）
   function initSubtotalDrag(tr) {
-    tr.setAttribute('draggable', 'true');
-    const handle = tr.querySelector('.drag-handle');
-    let _dragFromHandle = false;
-    if (handle) {
-      handle.addEventListener('mousedown', () => { _dragFromHandle = true; });
-      document.addEventListener('mouseup', () => { _dragFromHandle = false; }, { capture: true });
-    }
-    tr.addEventListener('dragstart', e => {
-      if (!handle || !_dragFromHandle) { e.preventDefault(); return; }
-      _dragFromHandle = false;
-      dragSrcRow = tr;
-      // 小計行はチェックボックスを持たない → 常に単一行ドラッグ
-      dragSrcRows = [tr];
-      e.dataTransfer.effectAllowed = 'move';
-      e.dataTransfer.setData('text/plain', tr.id);
-      setTimeout(() => tr.classList.add('dragging'), 0);
-    });
-    tr.addEventListener('dragend', () => {
-      (dragSrcRows || [tr]).forEach(r => r.classList.remove('dragging'));
-      document.querySelectorAll('#tableBody tr').forEach(r =>
-        r.classList.remove('drag-over-top', 'drag-over-bottom'));
-      dragSrcRow = null;
-      dragSrcRows = null;
-      updateTotals();
-      renderSubconGroups();   // 移動後にグループ見出し・小計・ツリー帰属を再評価
-    });
-    tr.addEventListener('dragover', e => {
-      if (!dragSrcRows || !dragSrcRows.length) return;
-      e.preventDefault(); e.stopPropagation();
-      e.dataTransfer.dropEffect = 'move';
-      if (dragSrcRows.includes(tr)) return;
-      const mid = tr.getBoundingClientRect().top + tr.getBoundingClientRect().height / 2;
-      document.querySelectorAll('#tableBody tr').forEach(r =>
-        r.classList.remove('drag-over-top', 'drag-over-bottom'));
-      tr.classList.add(e.clientY < mid ? 'drag-over-top' : 'drag-over-bottom');
-    });
-    tr.addEventListener('dragleave', () =>
-      tr.classList.remove('drag-over-top', 'drag-over-bottom'));
-    tr.addEventListener('drop', e => {
-      e.preventDefault(); e.stopPropagation();
-      if (!dragSrcRows || !dragSrcRows.length || dragSrcRows.includes(tr)) return;
-      const mid = tr.getBoundingClientRect().top + tr.getBoundingClientRect().height / 2;
-      const tbody = document.getElementById('tableBody');
-      const insertBefore = e.clientY < mid ? tr : tr.nextSibling;
-      dragSrcRows.forEach(srcTr => {
-        tbody.insertBefore(srcTr, insertBefore);
-      });
-      tr.classList.remove('drag-over-top', 'drag-over-bottom');
-    });
+    initTableDragDelegation();
+    // 掴む／落とすは #tableBody の委譲（.subtotal-drag-cell / .remark-drag-cell）で処理する。
+    tr.setAttribute('draggable', 'false');
     const upBtn   = tr.querySelector('.subtotal-move-up');
     const downBtn = tr.querySelector('.subtotal-move-down');
     if (upBtn)   upBtn.addEventListener('click',  () => moveRow(tr, -1));
@@ -1549,6 +1685,7 @@
   };
 
   function updateSubtotalRows() {
+    if (_quoteBulkUpdate) return;   // 一括更新中はまとめて後で 1 回だけ実行する
     const tbody = document.getElementById('tableBody');
     const allRows = Array.from(tbody.querySelectorAll('tr'));
     // 通貨は混在し得るため、JPY 換算で集計する（_fxRates 経由）
@@ -2037,10 +2174,13 @@
   // - グループ順：出現順。未設定グループは末尾
   // - グループが 1 つ以下のとき（全行同サブコン or 全行未設定）はヘッダー不要
   function renderSubconGroups() {
+    if (_quoteBulkUpdate) return;   // 一括更新中はまとめて後で 1 回だけ実行する
     const tbody = document.getElementById('tableBody');
     if (!tbody) return;
-    // DOM 再構築でブラウザがスクロール位置をリセットするのを防ぐ
-    const _savedScrollY = window.scrollY;
+    // DOM 再構築でブラウザがスクロール位置をリセットするのを防ぐ。
+    // window.scrollY は読むだけで同期レイアウトを誘発するため、scroll イベントで
+    // 控えておいた値を使う（143 行の表で 1 回あたり数百 ms かかっていた）。
+    const _savedScrollY = _lastScrollY;
     _inGroupRender = true;
     try {
       // 既存の仮想ヘッダーを削除
@@ -2097,13 +2237,27 @@
           byKey[k].forEach(b => { if (!ppOrder.includes(b.pp)) ppOrder.push(b.pp); });
           byKey[k].sort((a, b) => ppOrder.indexOf(a.pp) - ppOrder.indexOf(b.pp));
         });
-        const frag = document.createDocumentFragment();
-        leading.forEach(tr => frag.appendChild(tr));
-        // groupOrder（出現順）に従ってブロックを再配置
+        // 目標の並び順を先に確定する
+        const desired = [];
+        leading.forEach(tr => desired.push(tr));
         groupOrder.forEach(k => {
-          (byKey[k] || []).forEach(b => b.rows.forEach(tr => frag.appendChild(tr)));
+          (byKey[k] || []).forEach(b => b.rows.forEach(tr => desired.push(tr)));
         });
-        tbody.appendChild(frag);
+        // 既に目標どおりなら DOM を触らない。全行を fragment 経由で付け替えると
+        // テーブル全体の再レイアウトが走り、143 行規模で 500ms 前後かかるため、
+        // 並び替えが不要なケース（＝大半の再描画）ではスキップして固まりを防ぐ。
+        const curChildren = tbody.children;
+        let same = curChildren.length === desired.length;
+        if (same) {
+          for (let i = 0; i < desired.length; i++) {
+            if (curChildren[i] !== desired[i]) { same = false; break; }
+          }
+        }
+        if (!same) {
+          const frag = document.createDocumentFragment();
+          desired.forEach(tr => frag.appendChild(tr));
+          tbody.appendChild(frag);
+        }
       })();
 
       // reorder 後の DOM 順で groups を再構築（港ペア並べ替えで先頭/末尾行がずれるため、
@@ -2128,7 +2282,11 @@
         hdr.className = 'subcon-group-header' + (collapsed ? ' is-collapsed' : '');
         const excluded = _excludedGroups.has(key);
         hdr.innerHTML =
+          // display:flex は td ではなく内側 div に持たせる。td を flex 化すると
+          // table-cell でなくなり colspan が無効化され、セルが 1 列分（約30px）に潰れて
+          // 中身がはみ出す＝見出しの右側がドロップ対象にならない（小計行と同じ既知バグ）。
           `<td colspan="10" class="subcon-group-header-cell">` +
+            `<div class="subcon-group-header-inner">` +
             `<span class="subcon-group-grip" title="ドラッグでグループ（ブロック）を並び替え">⠿</span>` +
             `<button type="button" class="subcon-group-toggle" title="折りたたみ/展開">${collapsed ? '▶' : '▼'}</button>` +
             `<span class="subcon-group-label">📦 ${_escHdr(label)}</span>` +
@@ -2141,6 +2299,7 @@
               `title="${_escAttr(label)} に行を追加">＋</button>` +
             `<button type="button" class="subcon-group-sort-btn" title="このグループ内をカテゴリ順に並び替え">⇅カテゴリ</button>` +
             _groupUpdatedHtml() +
+            `</div>` +
           `</td>`;
         hdr.querySelector('.subcon-group-toggle').addEventListener('click', () => toggleSubconGroup(key));
         hdr.querySelector('.subcon-group-excl').addEventListener('click', () => toggleSubconExclude(key));
@@ -2156,7 +2315,13 @@
         // 案B：グループ別アクセント色をヘッダー＋配下データ行に伝播（左スパイン／ティント用）
         const _accent = _groupAccent(key);
         hdr.style.setProperty('--grp-accent', _accent);
-        groups[key].forEach(tr => tr.style.setProperty('--grp-accent', _accent));
+        // CSS カスタムプロパティの書き込みは配下要素の再スタイルを誘発するため、
+        // 値が変わらない行はスキップする（143 行規模で約 150ms の削減）
+        groups[key].forEach(tr => {
+          if (tr.style.getPropertyValue('--grp-accent') !== _accent) {
+            tr.style.setProperty('--grp-accent', _accent);
+          }
+        });
         tbody.insertBefore(hdr, firstRow);
       });
 
@@ -2275,12 +2440,15 @@
               sh.className = 'subcon-subgroup-header is-pattern' + (_ptExcluded ? ' is-excluded' : '');
               const icon = '🔖';
               sh.innerHTML =
+                // 同上：flex は内側 div へ（td を flex 化すると colspan が潰れる）
                 `<td colspan="10" class="subcon-subgroup-cell">` +
+                  `<div class="subcon-subgroup-inner">` +
                   `<button type="button" class="subcon-subgroup-toggle" title="${_ptCollapsed ? '展開' : '折りたたみ/展開'}">${_ptCollapsed ? '▶' : '▼'}</button>` +
                   `<span class="subcon-subgroup-leg">${icon} ${_escHdr(key)}</span>` +
                   `<button type="button" class="subcon-subgroup-excl${_ptExcluded ? ' is-excluded' : ''}" title="見積もりへの含める/除外を切り替え">${_ptExcluded ? '含む' : '除外'}</button>` +
                   `<button type="button" class="subcon-group-sort-btn" title="このパターン内をカテゴリ順に並び替え">⇅カテゴリ</button>` +
                   _groupUpdatedHtml() +
+                  `</div>` +
                 `</td>`;
               sh.querySelector('.subcon-subgroup-toggle').addEventListener('click', () => togglePatternGroup(_compK));
               sh.querySelector('.subcon-subgroup-excl').addEventListener('click', () => togglePatternExclude(_compK));
@@ -2306,7 +2474,9 @@
     } finally {
       _inGroupRender = false;
       // DOM 再構築後にスクロール位置を復元（パターン変更時のページトップへの強制移動を防ぐ）
-      if (window.scrollY !== _savedScrollY) window.scrollTo({ top: _savedScrollY, behavior: 'instant' });
+      // 比較のために window.scrollY を読み直すと再び強制レイアウトが走るため、
+      // スクロールしている場合だけ無条件に戻す（0 のときは何もしない＝初回読込は無コスト）
+      if (_savedScrollY) window.scrollTo({ top: _savedScrollY, behavior: 'instant' });
       // 右サマリ「要約」のテーブル内ジャンプリンクをグループ構成に追従させる
       if (typeof window.renderQuoteSectionDigest === 'function') window.renderQuoteSectionDigest();
       // 👷 サブコンタブ「現案件」ペインを更新
@@ -2318,50 +2488,46 @@
   // グループヘッダーのグリップを掴んでドラッグし、別グループのヘッダー上にドロップすると、
   // 掴んだグループの配下行（データ行＋付随する社内メモ/備考/小計行）をブロックごと移動する。
   function initGroupHeaderDrag(hdr, key) {
-    hdr.setAttribute('draggable', 'true');
-    const grip = hdr.querySelector('.subcon-group-grip');
-    let _fromGrip = false;
-    if (grip) {
-      grip.addEventListener('mousedown', () => { _fromGrip = true; });
-      document.addEventListener('mouseup', () => { _fromGrip = false; }, { capture: true });
-    }
+    // ネイティブ D&D は使わない（constants.js の startPointerDrag を参照）
+    hdr.setAttribute('draggable', 'false');
     const clearMarks = () => document.querySelectorAll('#tableBody .subcon-group-header')
       .forEach(h => h.classList.remove('grp-drop-before', 'grp-drop-after'));
 
-    hdr.addEventListener('dragstart', e => {
-      if (!grip || !_fromGrip) { e.preventDefault(); return; }
-      _fromGrip = false;
-      _draggingGroupKey = key;
-      hdr.classList.add('grp-dragging');
-      e.dataTransfer.effectAllowed = 'move';
-      try { e.dataTransfer.setData('text/plain', 'grp:' + key); } catch (_) {}
-    });
-    hdr.addEventListener('dragend', () => {
-      _draggingGroupKey = null;
-      hdr.classList.remove('grp-dragging');
-      clearMarks();
-    });
-    hdr.addEventListener('dragover', e => {
-      if (_draggingGroupKey == null || _draggingGroupKey === key) return;
+    const grip = hdr.querySelector('.subcon-group-grip');
+    if (!grip) return;
+    grip.addEventListener('pointerdown', e => {
+      if (e.button !== 0) return;
       e.preventDefault();
-      e.stopPropagation();
-      e.dataTransfer.dropEffect = 'move';
-      const r = hdr.getBoundingClientRect();
-      const after = e.clientY > r.top + r.height / 2;
-      clearMarks();
-      hdr.classList.add(after ? 'grp-drop-after' : 'grp-drop-before');
-    });
-    hdr.addEventListener('dragleave', () =>
-      hdr.classList.remove('grp-drop-before', 'grp-drop-after'));
-    hdr.addEventListener('drop', e => {
-      if (_draggingGroupKey == null || _draggingGroupKey === key) return;
-      e.preventDefault();
-      e.stopPropagation();
-      const r = hdr.getBoundingClientRect();
-      const after = e.clientY > r.top + r.height / 2;
-      const src = _draggingGroupKey;
-      clearMarks();
-      moveSubconGroupBlock(src, key, after);
+      e.stopPropagation();          // 行ドラッグの委譲ハンドラと二重起動しない
+      let dropTarget = null;        // { key, after }
+      window.startPointerDrag(e, {
+        onStart() {
+          _draggingGroupKey = key;
+          hdr.classList.add('grp-dragging');
+        },
+        onMove(x, y) {
+          window.pointerDragAutoScroll(y);
+          clearMarks();
+          dropTarget = null;
+          const el = document.elementFromPoint(x, y);
+          const over = el && el.closest ? el.closest('#tableBody tr.subcon-group-header') : null;
+          if (!over || over === hdr) return;
+          const r = over.getBoundingClientRect();
+          const after = y > r.top + r.height / 2;
+          over.classList.add(after ? 'grp-drop-after' : 'grp-drop-before');
+          dropTarget = { key: over.dataset.svKey, after };
+        },
+        onDrop() {
+          if (dropTarget && dropTarget.key != null && dropTarget.key !== key) {
+            moveSubconGroupBlock(key, dropTarget.key, dropTarget.after);
+          }
+        },
+        onEnd() {
+          _draggingGroupKey = null;
+          hdr.classList.remove('grp-dragging');
+          clearMarks();
+        },
+      });
     });
   }
 

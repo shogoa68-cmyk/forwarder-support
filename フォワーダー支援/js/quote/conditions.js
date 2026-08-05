@@ -6,7 +6,7 @@
 
   function clearConditions() {
     if (!confirm('貨物情報・引き合い条件をクリアしますか？')) return;
-    ['z2Carrier','z2Service','z2Pol','z2Via','z2Pod','z2Tt','cond-origin','cond-dest','cond-cargo','cond-hs','cond-hs-basic','cond-hs-pref','cond-hs-pref-note',
+    ['z2Carrier','z2Service','z2CarrierRole','z2ActualCarrier','z2Pol','z2Via','z2Pod','z2Tt','cond-origin','cond-dest','cond-cargo','cond-hs','cond-hs-basic','cond-hs-pref','cond-hs-pref-note',
      'cond-packing','cond-packing-preset','condFreeText',
      'cond-origin-country','cond-dest-country','z1Place','z1Country','z3Place','z3Country',
      'cond-container-count']
@@ -267,6 +267,13 @@
    * v3 形式の rows 配列を受け取り、各行をタイプに応じて挿入する。
    */
   function _rebuildTable(data) {
+    // 行の復元中は表全体の集計・再描画を止める（行数の二乗に比例する固まりを防ぐ）。
+    // 集計は _applyQuoteData の末尾で 1 回だけ走らせる。
+    window.beginQuoteBulkUpdate();
+    try { _rebuildTableRows(data); } finally { window.endQuoteBulkUpdate(); }
+  }
+
+  function _rebuildTableRows(data) {
     document.getElementById('tableBody').innerHTML = '';
     rowCount = 0;
     const regularTrs = [];
@@ -332,12 +339,13 @@
       regularTrs.push(tr);
     });
     _afterRestoreRows(regularTrs, data.fields);
-    if (typeof renderSubconGroups === 'function') renderSubconGroups();
-    if (typeof updatePendingCounter === 'function') updatePendingCounter();
+    // renderSubconGroups / updatePendingCounter は _applyQuoteData 末尾でまとめて実行する
   }
 
   // プリセット読み込み時に空値で上書きしないヘッダー項目
-  const _HEADER_FIELD_IDS = ['qf-ref','qf-customer','qf-person','qf-date','qf-valid-until','qf-memo','qf-status'];
+  // ステータス(qf-status)は保護対象に含めない：既定値「下書き中」を持つため、
+  // 空プリセット読込時に前案件の値を維持すると別案件へ漏れて誤上書きの原因になる。
+  const _HEADER_FIELD_IDS = ['qf-ref','qf-customer','qf-person','qf-date','qf-valid-until','qf-memo'];
 
   // === お客様マスター詳細情報ボタン（管理番号入力セクション） ===
   function _cdEsc(s) {
@@ -400,6 +408,11 @@
       if (el.type === 'checkbox') el.checked = val;
       else el.value = val;
     });
+    // ステータスは必ずこのプリセットの値で確定させる（キー欠落・空でも前案件の値を
+    // 引き継がない）。既定は「下書き中」。これを怠ると別案件のステータスが漏れて
+    // 保存時に誤って上書きされる（case: 旧プリセットは data.fields に qf-status を持たない）。
+    const _stEl = document.getElementById('qf-status');
+    if (_stEl) _stEl.value = (data.fields && data.fields['qf-status']) ? data.fields['qf-status'] : '下書き中';
     _rebuildTable(data);
     _restoreUiState(data.fields);
     // 保存時の為替レートを復元（スナップショット）
@@ -408,7 +421,12 @@
       saveFxRates();
       if (data.fxSnapshot.ts) localStorage.setItem(SharedStorage.KEYS.FX_LAST_FETCHED, data.fxSnapshot.ts);
     }
+    // ここで初めて表全体の集計・再描画を 1 回だけ実行する（_rebuildTable 中は抑止済み）。
+    // renderSubconGroups が先：グループ見出し・小計の仮想行を作ってから合計を出す。
+    if (typeof renderSubconGroups === 'function') renderSubconGroups();
     if (typeof updateTotals === 'function') updateTotals();
+    if (typeof updateSubtotalRows === 'function') updateSubtotalRows();
+    if (typeof window.renderQuoteFxBar === 'function') window.renderQuoteFxBar();
     if (typeof updateRouteModeIcon === 'function') updateRouteModeIcon();
     if (typeof syncHazmatPanel === 'function') syncHazmatPanel();
     if (typeof syncMultiEntryFields === 'function') syncMultiEntryFields();
@@ -1714,9 +1732,13 @@
       if (r.via) parts.push('<span class="z2-route-via">via:' + _escMulti(r.via) + '</span>');
       if (r.pod) parts.push(_escMulti(r.pod));
       const route = parts.length ? parts.join(' → ') : 'ポート未設定';
+      const _roleLabel = { agent:'代理店', nvocc:'NVOCC/コンソリ', coloader:'コローダー', direct:'船社直' }[r.carrierRole] || '';
+      const _roleChip  = _roleLabel ? `<span class="z2-route-role" title="契約先の役割">${_escMulti(_roleLabel)}</span>` : '';
+      const _actualChip = r.actualCarrier ? `<span class="z2-route-actual" title="実運送人（実際の船会社）">as ${_escMulti(r.actualCarrier)}</span>` : '';
       return `<span class="z2-route-chip${on ? '' : ' z2-route-chip--off'}">`
         + `<button type="button" class="z2-route-toggle" onclick="toggleRouteEntry(${i})" title="${on ? '無効にする（一時停止）' : '有効にする'}">${on ? '✓' : '—'}</button>`
         + `<span class="z2-route-carrier">${_escMulti(r.carrier || '—')}</span>`
+        + _roleChip + _actualChip
         + (r.service ? `<span class="z2-route-service">${_escMulti(r.service)}</span>` : '')
         + `<span class="z2-route-leg">${route}</span>`
         + (r.tt ? `<span class="z2-route-tt" title="Transit Time（所要日数）">⏱️ ${_escMulti(r.tt)}</span>` : '')
@@ -1739,6 +1761,8 @@
   function addRouteEntry() {
     const carrier = (document.getElementById('z2Carrier')?.value || '').trim();
     const service = (document.getElementById('z2Service')?.value || '').trim();
+    const carrierRole   = (document.getElementById('z2CarrierRole')?.value || '').trim();
+    const actualCarrier = (document.getElementById('z2ActualCarrier')?.value || '').trim();
     const pol = (document.getElementById('z2Pol')?.value || '').trim();
     const via = (document.getElementById('z2Via')?.value || '').trim();
     const pod = (document.getElementById('z2Pod')?.value || '').trim();
@@ -1747,13 +1771,18 @@
       if (typeof quoteShowToast==='function') quoteShowToast('⚠️ キャリアまたはPOL/PODを入力してください', 'warn', 1800);
       return;
     }
-    _routeEntries.push({ carrier, service, pol, via, pod, tt, enabled: true });
+    // carrier=契約先（ブッキング/支払先）、carrierRole=その役割、actualCarrier=実運送人（実際の船会社）
+    _routeEntries.push({ carrier, service, carrierRole, actualCarrier, pol, via, pod, tt, enabled: true });
     _renderRouteEntries();
-    // キャリア・サービス名・T/T をクリアして次の入力へ（POL/POD は同じ航路に別キャリアを追加できるよう保持）
+    // キャリア・サービス名・T/T・契約形態をクリアして次の入力へ（POL/POD は同じ航路に別キャリアを追加できるよう保持）
     const carrierEl = document.getElementById('z2Carrier');
     if (carrierEl) { carrierEl.value = ''; }
     const serviceEl = document.getElementById('z2Service');
     if (serviceEl) { serviceEl.value = ''; }
+    const roleEl = document.getElementById('z2CarrierRole');
+    if (roleEl) { roleEl.value = ''; }
+    const actualEl = document.getElementById('z2ActualCarrier');
+    if (actualEl) { actualEl.value = ''; }
     const ttEl = document.getElementById('z2Tt');
     if (ttEl) { ttEl.value = ''; }
     if (typeof onZ2CarrierChange === 'function') onZ2CarrierChange();
@@ -1784,10 +1813,13 @@
     const set = (id, val) => { const el = document.getElementById(id); if (el) el.value = val || ''; };
     set('z2Carrier', r.carrier);
     set('z2Service', r.service);
+    set('z2CarrierRole', r.carrierRole);
+    set('z2ActualCarrier', r.actualCarrier);
     set('z2Pol', r.pol);
     set('z2Via', r.via);
     set('z2Pod', r.pod);
     set('z2Tt', r.tt);
+    // 契約形態パネルは常時表示のため展開処理は不要
     // エントリを削除して再描画
     _routeEntries.splice(i, 1);
     _renderRouteEntries();

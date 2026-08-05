@@ -494,8 +494,9 @@
           : ppStr;
         const unit = it.un ? '<small class="rp-sc-unit"> /' + _esc(it.un) + '</small>' : '';
         const ptBadgeSi = it.pt ? '<span class="rp-sc-pt">' + _esc(it.pt) + '</span>' : '';
-        return '<label class="rp-sc-item" draggable="true" data-si="' + si + '" data-ii="' + it._ii + '">' +
-            '<input type="checkbox" class="rp-sc-chk si-chk" data-si="' + si + '" data-ii="' + it._ii + '" checked>' +
+        return '<label class="rp-sc-item" data-si="' + si + '" data-ii="' + it._ii + '">' +
+            '<span class="rp-sc-grip" title="ドラッグして見積テーブルへ挿入">⠿</span>' +
+            '<input type="checkbox" class="rp-sc-chk si-chk" draggable="false" data-si="' + si + '" data-ii="' + it._ii + '" checked>' +
             '<span class="rp-cat ' + (CAT_CLASS[it.cat]||'cat-other') + '">' + _esc(ROLE[it.cat]||it.cat||'—') + '</span>' +
             '<span class="rp-sc-nm-wrap"><span class="rp-sc-itemname">' + _esc(it.name) + '</span>' + ptBadgeSi + _periodBadge(it) + _srcBadge('panel', si, it._ii, it) + '</span>' +
             '<span class="rp-sc-price">' + priceCell + unit + '</span>' +
@@ -824,8 +825,15 @@
   });
 
   // ===== ドラッグ＆ドロップ（サイドパネル → 見積テーブル） =====
-  document.addEventListener('dragstart', function(e) {
-    const label = e.target.closest('#siListWrap .rp-sc-item[draggable]');
+  // ネイティブ HTML5 D&D は使わない。ブラウザ側のドラッグループが正常終了しないと
+  // クリックもキー入力も一切ページへ届かなくなる（＝フリーズしたように見える）ため、
+  // pointerdown/move/up による自前実装に統一している（constants.js の startPointerDrag）。
+  // 開始は必ず ⠿ グリップから（チェックボックス操作と競合させない）。
+  document.addEventListener('pointerdown', function(e) {
+    if (e.button !== 0) return;
+    const grip = e.target.closest('#siListWrap .rp-sc-item .rp-sc-grip');
+    if (!grip) return;
+    const label = grip.closest('.rp-sc-item');
     if (!label) return;
     const si = parseInt(label.dataset.si, 10);
     const ii = parseInt(label.dataset.ii, 10);
@@ -833,64 +841,48 @@
     if (!sc) return;
     const it = sc.items.find(x => x._ii === ii);
     if (!it) return;
-    e.dataTransfer.setData('application/x-si-item', JSON.stringify(_rowFromItem(it, sc.name)));
-    e.dataTransfer.effectAllowed = 'copy';
-    label.classList.add('si-item-dragging');
-  });
-
-  document.addEventListener('dragend', function(e) {
-    if (!e.target.closest('#siListWrap .rp-sc-item[draggable]')) return;
-    document.querySelectorAll('.rp-sc-item.si-item-dragging').forEach(el => el.classList.remove('si-item-dragging'));
-    document.querySelectorAll('#tableBody tr.si-drop-top, #tableBody tr.si-drop-bottom').forEach(r => {
-      r.classList.remove('si-drop-top', 'si-drop-bottom');
-    });
-  });
-
-  document.addEventListener('dragover', function(e) {
-    if (!e.dataTransfer.types.includes('application/x-si-item')) return;
-    const tbody = document.getElementById('tableBody');
-    if (!tbody || !tbody.contains(e.target)) return;
     e.preventDefault();
-    e.dataTransfer.dropEffect = 'copy';
-    const tr = e.target.closest('#tableBody tr:not([data-virtual])');
-    document.querySelectorAll('#tableBody tr.si-drop-top, #tableBody tr.si-drop-bottom').forEach(r => {
-      r.classList.remove('si-drop-top', 'si-drop-bottom');
-    });
-    if (!tr) return;
-    const rect = tr.getBoundingClientRect();
-    tr.classList.add(e.clientY < rect.top + rect.height / 2 ? 'si-drop-top' : 'si-drop-bottom');
-  });
-
-  document.addEventListener('dragleave', function(e) {
-    const tbody = document.getElementById('tableBody');
-    if (!tbody) return;
-    if (tbody.contains(e.target) && !tbody.contains(e.relatedTarget)) {
-      document.querySelectorAll('#tableBody tr.si-drop-top, #tableBody tr.si-drop-bottom').forEach(r => {
-        r.classList.remove('si-drop-top', 'si-drop-bottom');
-      });
-    }
-  });
-
-  document.addEventListener('drop', function(e) {
-    const tbody = document.getElementById('tableBody');
-    if (!tbody || !tbody.contains(e.target)) return;
-    const raw = e.dataTransfer.getData('application/x-si-item');
-    if (!raw) return;
-    e.preventDefault();
-    document.querySelectorAll('#tableBody tr.si-drop-top, #tableBody tr.si-drop-bottom').forEach(r => {
-      r.classList.remove('si-drop-top', 'si-drop-bottom');
-    });
-    let row;
-    try { row = JSON.parse(raw); } catch(err) { return; }
-    const tr = e.target.closest('#tableBody tr:not([data-virtual])');
+    const row = _rowFromItem(it, sc.name);
     let anchorTr = null;
-    if (tr) {
-      const rect = tr.getBoundingClientRect();
-      anchorTr = e.clientY < rect.top + rect.height / 2 ? tr : (tr.nextSibling || null);
-    }
-    if (typeof window._insertPatternRowsAt === 'function') window._insertPatternRowsAt([row], anchorTr);
-    if (window.quoteShowToast) quoteShowToast('📂 「' + _esc(row.name || '費用行') + '」を挿入しました', 'success');
+    let overTable = false;   // テーブル上で離したときだけ挿入する
+
+    const clearMarks = () => {
+      document.querySelectorAll('#tableBody tr.si-drop-top, #tableBody tr.si-drop-bottom')
+        .forEach(r => r.classList.remove('si-drop-top', 'si-drop-bottom'));
+    };
+
+    window.startPointerDrag(e, {
+      onStart() { label.classList.add('si-item-dragging'); },
+      onMove(x, y) {
+        window.pointerDragAutoScroll(y);
+        clearMarks();
+        anchorTr = null; overTable = false;
+        const el = document.elementFromPoint(x, y);
+        const tr = el && el.closest ? el.closest('#tableBody tr:not([data-virtual])') : null;
+        if (!tr) return;
+        overTable = true;
+        const rect = tr.getBoundingClientRect();
+        const before = y < rect.top + rect.height / 2;
+        tr.classList.add(before ? 'si-drop-top' : 'si-drop-bottom');
+        anchorTr = before ? tr : (tr.nextSibling || null);
+      },
+      onDrop() {
+        if (!overTable) return;
+        clearMarks();
+        if (typeof window._insertPatternRowsAt === 'function') {
+          window._insertPatternRowsAt([row], anchorTr);
+          if (window.quoteShowToast) {
+            quoteShowToast('📂 「' + _esc(row.name || '費用行') + '」を挿入しました', 'success');
+          }
+        }
+      },
+      onEnd() {
+        label.classList.remove('si-item-dragging');
+        clearMarks();
+      },
+    });
   });
+
 
   Object.assign(window, {
     loadSubconModules, renderSubconList, subconInsert, subconFilter, switchRowInsertTab,

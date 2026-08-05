@@ -1304,7 +1304,10 @@
   // 現在の pv-col-chk 状態をオブジェクトで取得（チェックボックスが無ければ既定値 true）
   function getPreviewVisibility() {
     const def = { cat: true, pay: true, unit: true, bill: true, mk: true, 'jpy-conv': true, profit: true, note: true, sv: true, 'tax-col': true };
-    document.querySelectorAll('.pv-col-chk').forEach(chk => {
+    // 探索は #pvCustomizeWrap 配下に限定する。document 全体の querySelectorAll は
+    // 明細行が増えるほど重くなり、行ごとに呼ぶと読み込みが行数の二乗で膨らむ。
+    const wrap = document.getElementById('pvCustomizeWrap');
+    (wrap || document).querySelectorAll('.pv-col-chk').forEach(chk => {
       const k = chk.dataset.col;
       if (k && k in def) def[k] = chk.checked;
     });
@@ -1562,6 +1565,9 @@
     window.print();
   }
   window.printFitPage = printFitPage;
+  // 出力前チェックは PDF 直接出力（quote-pdf.js の quickQuotePdf）からも使う
+  window.preOutputValidationGate = preOutputValidationGate;
+  window.sensitiveColumnsGate    = sensitiveColumnsGate;
 
   // ========== Excel 出力（SheetJS） ==========
   // 各列定義に pvGroup を付け、プレビュー表示カスタマイズに連動して列を絞り込む

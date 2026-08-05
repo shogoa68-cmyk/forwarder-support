@@ -31,6 +31,7 @@
   let _cloudFilterPol     = '';
   let _cloudFilterPod     = '';
   let _cloudFilterCarrier = '';
+  let _cloudFilterCustomer = '';  // お客様別ランキングからの絞り込み（正規化キー）
   let _cloudAdvOpen       = false;
   // ダッシュボード：並び替え・表示形式
   let _cloudSort = 'updated';   // updated|status|who|person|customer
@@ -252,23 +253,66 @@
     const names = [_nameFor(r.owner_email), _nameFor(r.created_by)].filter(Boolean).join(' ').toLowerCase();
     return r.__hay + (names ? ' ' + names : '');
   }
-  function _applyCloudFilter() {
+  // お客様名の正規化キー（表記ゆれを吸収してランキングを寄せる）。
+  // 「(株)」「株式会社」などの差はここでは吸収せず、全角半角・大小文字・空白のみ揃える。
+  function _custKey(name) {
+    if (typeof window.subconNormKey === 'function') return window.subconNormKey(name);
+    return String(name == null ? '' : name).trim().toLowerCase();
+  }
+
+  // 絞り込み条件に一致するか。opts.skipCustomer=true でお客様絞り込みだけ無視する
+  // （ランキング自体は「お客様を選び直せる」よう、お客様条件を外して集計するため）。
+  function _rowMatchesFilters(r, opts) {
+    const skipCustomer = !!(opts && opts.skipCustomer);
     const terms = _cloudSearch.trim().toLowerCase().split(/[\s　]+/).filter(Boolean);
     const pol = _cloudFilterPol.trim().toLowerCase();
     const pod = _cloudFilterPod.trim().toLowerCase();
     const car = _cloudFilterCarrier.trim().toLowerCase();
-    const rows = _cloudRows.filter(r => {
-      if (_cloudStatusFilter && (_normalizeStatus(r.status) || CLOUD_STATUS_DEFAULT) !== _normalizeStatus(_cloudStatusFilter)) return false;
-      if (_cloudFilterMode    && r.transport_mode !== _cloudFilterMode)  return false;
-      if (_cloudFilterInco    && r.incoterms       !== _cloudFilterInco) return false;
-      if (pol && !(r.pol     || '').toLowerCase().includes(pol)) return false;
-      if (pod && !(r.pod     || '').toLowerCase().includes(pod)) return false;
-      if (car && !(r.carrier || '').toLowerCase().includes(car)) return false;
-      if (!terms.length) return true;
-      const hay = _searchHayFor(r);
-      return terms.every(t => hay.includes(t));   // スペース区切りで AND 検索
-    });
+    if (_cloudStatusFilter && (_normalizeStatus(r.status) || CLOUD_STATUS_DEFAULT) !== _normalizeStatus(_cloudStatusFilter)) return false;
+    if (_cloudFilterMode    && r.transport_mode !== _cloudFilterMode)  return false;
+    if (_cloudFilterInco    && r.incoterms       !== _cloudFilterInco) return false;
+    if (pol && !(r.pol     || '').toLowerCase().includes(pol)) return false;
+    if (pod && !(r.pod     || '').toLowerCase().includes(pod)) return false;
+    if (car && !(r.carrier || '').toLowerCase().includes(car)) return false;
+    if (!skipCustomer && _cloudFilterCustomer && _custKey(r.customer) !== _cloudFilterCustomer) return false;
+    if (!terms.length) return true;
+    const hay = _searchHayFor(r);
+    return terms.every(t => hay.includes(t));   // スペース区切りで AND 検索
+  }
+
+  function _applyCloudFilter() {
+    const rows = _cloudRows.filter(r => _rowMatchesFilters(r));
     _renderCloudList(_sortCloudRows(rows));
+    _renderQpdCustomerRank();
+    _syncResetAllBtn();
+  }
+
+  // 何らかの絞り込みが効いているか（「すべて解除」ボタンの出し分けに使う）
+  function _anyFilterActive() {
+    return !!(_cloudSearch.trim() || _cloudStatusFilter || _cloudFilterCustomer ||
+              _cloudFilterMode || _cloudFilterInco ||
+              _cloudFilterPol.trim() || _cloudFilterPod.trim() || _cloudFilterCarrier.trim());
+  }
+  function _syncResetAllBtn() {
+    const b = document.getElementById('qpdResetAll');
+    if (b) b.hidden = !_anyFilterActive();
+  }
+  // 絞り込みを一括解除して全件表示に戻す。
+  // 条件が複数種類（ステータス・検索・詳細検索・お客様）に分かれていて、
+  // それぞれ別の場所で解除する必要があり「元に戻せない」状態になりやすいため。
+  function qpdResetAllFilters() {
+    _cloudSearch = '';
+    _cloudStatusFilter = '';
+    _cloudFilterCustomer = '';
+    _cloudFilterMode = _cloudFilterInco = _cloudFilterPol = _cloudFilterPod = _cloudFilterCarrier = '';
+    ['qpdSearch', 'cloudSearchInput'].forEach(id => { const e = document.getElementById(id); if (e) e.value = ''; });
+    ['qpdFilterMode','qpdFilterInco','qpdFilterPol','qpdFilterPod','qpdFilterCarrier']
+      .forEach(id => { const e = document.getElementById(id); if (e) e.value = ''; });
+    const clr = document.getElementById('qpdSearchClear');
+    if (clr) clr.hidden = true;
+    _renderStatusChips();
+    _renderQpdStats();
+    _applyCloudFilter();
   }
 
   // ダッシュボードの並び替え
@@ -336,6 +380,7 @@
 
   function clearCloudAdvSearch() {
     _cloudFilterMode = _cloudFilterInco = _cloudFilterPol = _cloudFilterPod = _cloudFilterCarrier = '';
+    _cloudFilterCustomer = '';
     ['cloudFilterMode','cloudFilterInco','cloudFilterPol','cloudFilterPod','cloudFilterCarrier'].forEach(id => {
       const el = document.getElementById(id);
       if (el) el.value = '';
@@ -542,6 +587,7 @@
               '✏️ ' + escHtml(updWho || '—') + '・' + ts + '</span>' +
             '<div class="cloud-card-acts">' +
               '<button class="btn-preset-preview" onclick="cloudPreviewPreset(\'' + idAttr + '\')" title="内容をプレビュー">プレビュー</button>' +
+              '<button class="btn-preset-pdf" onclick="cloudPdfPreset(\'' + idAttr + '\')" title="この案件を開いて御見積書PDFを出力">📄 PDF</button>' +
               '<button class="btn-preset-load" onclick="cloudLoadPreset(\'' + idAttr + '\')">読込</button>' +
               '<button class="btn-preset-copy" onclick="cloudDuplicatePreset(\'' + idAttr + '\')" title="コピーして新規案件を作成">📋 コピー</button>' +
               (lockedBy
@@ -586,6 +632,7 @@
       '<span class="qpd-row-ts">' + ts + '</span>' +
       '<span class="qpd-row-acts" onclick="event.stopPropagation()">' +
         '<button class="qpd-row-btn" onclick="cloudPreviewPreset(\'' + idAttr + '\')" title="プレビュー">👁</button>' +
+        '<button class="qpd-row-btn" onclick="cloudPdfPreset(\'' + idAttr + '\')" title="この案件を開いて御見積書PDFを出力">📄</button>' +
         '<button class="qpd-row-btn" onclick="cloudDuplicatePreset(\'' + idAttr + '\')" title="コピーして新規案件を作成">📋</button>' +
         (lockedBy
           ? '<button class="qpd-row-btn is-locked" disabled title="' + escHtml(_nameFor(lockedBy)) + ' さんが作業中">🔒</button>'
@@ -606,6 +653,99 @@
     let html = card('', '全体', _cloudRows.length, 'all');
     html += CLOUD_STATUSES.map(st => card(st, st, count(st), _statusClass(st))).join('');
     box.innerHTML = html;
+  }
+
+  // ---------- ダッシュボード右カラム：お客様別 見積件数ランキング ----------
+  // 集計対象は「お客様絞り込み以外の条件に一致する行」。
+  // ステータス絞り込み（受注 など）と連動するので「受注が多いお客様」も見られる。
+  const QPD_RANK_TOP = 8;      // 既定の表示件数（残りは「すべて表示」で展開）
+  let _qpdRankExpanded = false;
+
+  function _qpdCustomerRanking() {
+    const map = new Map();   // key -> { key, label, total, won, lost }
+    _cloudRows.forEach(r => {
+      if (!_rowMatchesFilters(r, { skipCustomer: true })) return;
+      const raw = (r.customer || '').trim();
+      const key = _custKey(raw);
+      if (!key) return;                       // お客様名が未入力の案件は集計対象外
+      let e = map.get(key);
+      if (!e) { e = { key, label: raw, total: 0, won: 0, lost: 0, labels: {} }; map.set(key, e); }
+      e.total++;
+      e.labels[raw] = (e.labels[raw] || 0) + 1;   // 表記ゆれは最頻の綴りで表示する
+      const st = _normalizeStatus(r.status || CLOUD_STATUS_DEFAULT);
+      if (st === _normalizeStatus('受注')) e.won++;
+      else if (st === _normalizeStatus('失注')) e.lost++;
+    });
+    const list = [...map.values()];
+    list.forEach(e => {
+      e.label = Object.keys(e.labels).sort((a, b) => e.labels[b] - e.labels[a] || a.localeCompare(b, 'ja'))[0] || e.label;
+      // 受注率の分母は「そのお客様の総件数」。
+      // 受注 ÷（受注＋失注）にすると、失注は「はっきり失注と分かるタイミングが無く」
+      // 実務ではほとんど記録されないため、分母が受注だけになって必ず 100% になってしまう。
+      e.winRate = e.total ? Math.round(e.won / e.total * 100) : 0;
+    });
+    list.sort((a, b) => b.total - a.total || a.label.localeCompare(b.label, 'ja'));
+    return list;
+  }
+
+  function _renderQpdCustomerRank() {
+    const box = document.getElementById('qpdRankList');
+    if (!box) return;
+    const list = _qpdCustomerRanking();
+    if (!list.length) {
+      box.innerHTML = '<p class="qpd-rank-empty">該当する案件がありません。</p>';
+      return;
+    }
+    const max = list[0].total || 1;
+    const shown = _qpdRankExpanded ? list : list.slice(0, QPD_RANK_TOP);
+    // 解除ボタンは必ず先頭に置く。末尾だと一覧が長いときスクロールしないと見えず、
+    // 「絞り込んだあと戻せない」状態になるため。
+    let h = '';
+    if (_cloudFilterCustomer) {
+      const cur = list.find(x => x.key === _cloudFilterCustomer);
+      h += '<div class="qpd-rank-active">' +
+        '<span class="qpd-rank-active-l">絞り込み中：<b>' + escHtml(cur ? cur.label : '') + '</b></span>' +
+        '<button type="button" class="qpd-rank-clear" onclick="qpdFilterCustomer(\'\')">✕ 解除</button>' +
+      '</div>';
+    }
+    h += shown.map((e, i) => {
+      const on = _cloudFilterCustomer === e.key;
+      // 受注が 1 件も無いお客様には出さない（0% を並べても読み取れる情報が無いため）。
+      // ステータス絞り込み中は分母が絞り込み後の件数になり比率の意味が変わるので出さない
+      // （例：「受注」で絞ると全社 100% になり読み取れる情報が無い）。
+      const rate = (e.won && !_cloudStatusFilter) ? '<span class="qpd-rank-rate" title="全 ' + e.total + ' 件のうち受注 ' + e.won +
+        ' 件（' + e.winRate + '%）' + (e.lost ? '／失注 ' + e.lost + ' 件' : '') + '">受注 ' +
+        e.won + '（' + e.winRate + '%）</span>' : '';
+      return '<button type="button" class="qpd-rank-item' + (on ? ' is-active' : '') + '" ' +
+          'onclick="qpdFilterCustomer(\'' + encodeURIComponent(e.key) + '\')" ' +
+          'title="' + escHtml(e.label) + ' の案件だけに絞り込む（もう一度押すと解除）">' +
+        '<span class="qpd-rank-no">' + (i + 1) + '</span>' +
+        '<span class="qpd-rank-body">' +
+          '<span class="qpd-rank-name">' + escHtml(e.label) + '</span>' +
+          '<span class="qpd-rank-bar"><i style="width:' + Math.max(4, Math.round(e.total / max * 100)) + '%"></i></span>' +
+          (rate ? '<span class="qpd-rank-meta">' + rate + '</span>' : '') +
+        '</span>' +
+        '<span class="qpd-rank-n">' + e.total + '</span>' +
+      '</button>';
+    }).join('');
+    if (list.length > QPD_RANK_TOP) {
+      h += '<button type="button" class="qpd-rank-more" onclick="qpdRankToggleAll()">' +
+           (_qpdRankExpanded ? '▲ 上位 ' + QPD_RANK_TOP + '件だけ表示' : '▼ すべて表示（' + list.length + '社）') +
+           '</button>';
+    }
+    box.innerHTML = h;
+  }
+
+  // ランキングのお客様をクリック → 一覧をそのお客様だけに絞る（再クリックで解除）。
+  // 引数は onclick 属性に埋める都合で encodeURIComponent 済みのキー。
+  function qpdFilterCustomer(rawKey) {
+    const key = rawKey ? decodeURIComponent(rawKey) : '';
+    _cloudFilterCustomer = (key && key !== _cloudFilterCustomer) ? key : '';
+    _applyCloudFilter();
+  }
+  function qpdRankToggleAll() {
+    _qpdRankExpanded = !_qpdRankExpanded;
+    _renderQpdCustomerRank();
   }
 
   // ---------- Presence（同時編集の可視化／フェーズ2） ----------
@@ -885,11 +1025,56 @@
   var _quoteDirty = false;
   function _markQuoteDirty() { if (_shareMode === 'edit') _quoteDirty = true; }
   function _resetQuoteDirty() { setTimeout(function () { _quoteDirty = false; }, 0); }
-  // 「ダッシュボードに戻る」：未保存があれば確認
-  function qpBackToDashboard() {
-    if (_quoteDirty && _shareMode === 'edit') {
-      if (!confirm('⚠️ 保存していない変更があります。\nダッシュボードに戻りますか？\n\n（保存する場合はキャンセルして「💾 保存」を押してください。未保存のまま別の案件を開くと失われます）')) return;
-    }
+  // 未保存の変更があるときの確認ダイアログ（保存／破棄／中止の 3 択）。
+  // ブラウザ標準の confirm は 2 択しか作れず「その場で保存する」導線が作れないため、
+  // 専用のモーダルを出す。戻り値 true＝そのまま進んでよい／false＝操作を中止する。
+  function _confirmLeaveUnsaved(actionLabel) {
+    if (!(_quoteDirty && _shareMode === 'edit')) return Promise.resolve(true);
+    return new Promise(resolve => {
+      let ov = document.getElementById('qpLeaveConfirm');
+      if (!ov) {
+        ov = document.createElement('div');
+        ov.id = 'qpLeaveConfirm';
+        ov.innerHTML =
+          '<div class="qplc-box" role="dialog" aria-modal="true" aria-labelledby="qplcTitle">' +
+            '<div class="qplc-title" id="qplcTitle">⚠️ 保存していない変更があります</div>' +
+            '<p class="qplc-msg">この案件には保存していない変更があります。<br>' +
+              'このまま<span class="qplc-act"></span>と、変更は失われます。</p>' +
+            '<div class="qplc-btns">' +
+              '<button type="button" class="qplc-btn qplc-save">💾 保存して進む</button>' +
+              '<button type="button" class="qplc-btn qplc-discard">保存せずに進む</button>' +
+              '<button type="button" class="qplc-btn qplc-cancel">キャンセル</button>' +
+            '</div>' +
+          '</div>';
+        document.body.appendChild(ov);
+      }
+      ov.querySelector('.qplc-act').textContent = actionLabel || '進む';
+      ov.classList.add('open');
+
+      const finish = (result) => {
+        ov.classList.remove('open');
+        document.removeEventListener('keydown', onKey, true);
+        resolve(result);
+      };
+      const onKey = e => { if (e.key === 'Escape') { e.stopPropagation(); finish(false); } };
+      // 既存ハンドラを毎回作り直さないよう、押下時に一度だけ使う形で差し替える
+      ov.querySelector('.qplc-save').onclick = async () => {
+        ov.classList.add('is-busy');
+        try { await quoteModeSaveDone(); } finally { ov.classList.remove('is-busy'); }
+        // 保存に失敗した場合（dirty が残る）は進まずに留まる
+        finish(!_quoteDirty);
+      };
+      ov.querySelector('.qplc-discard').onclick = () => finish(true);
+      ov.querySelector('.qplc-cancel').onclick  = () => finish(false);
+      ov.onclick = e => { if (e.target === ov) finish(false); };
+      document.addEventListener('keydown', onKey, true);
+      ov.querySelector('.qplc-save').focus();
+    });
+  }
+
+  // 「ダッシュボードに戻る」：未保存があれば保存するか尋ねる
+  async function qpBackToDashboard() {
+    if (!(await _confirmLeaveUnsaved('ダッシュボードに戻る'))) return;
     qpShowDashboard();
   }
   function qpShowDashboard() {
@@ -941,6 +1126,7 @@
   }
   function qpdClearAdv() {
     _cloudFilterMode = _cloudFilterInco = _cloudFilterPol = _cloudFilterPod = _cloudFilterCarrier = '';
+    _cloudFilterCustomer = '';
     ['qpdFilterMode','qpdFilterInco','qpdFilterPol','qpdFilterPod','qpdFilterCarrier'].forEach(id => { const e = document.getElementById(id); if (e) e.value = ''; });
     _applyCloudFilter();
   }
@@ -1534,6 +1720,16 @@
     } else {
       quoteShowToast('📂 共有「' + data.name + '」を開きました（閲覧モード）。編集するには「✏️ 編集」', 'success', 4500);
     }
+  }
+
+  // ダッシュボードのカード／行から、案件を開いてそのまま御見積書 PDF を出力する。
+  // 出力後はその案件を開いたまま（閲覧モード）にする。出力前チェックで
+  // 入力の不足が見つかった場合、そのまま直せるようにするため。
+  async function cloudPdfPreset(rawId) {
+    if (!(await _confirmLeaveUnsaved('別の案件を開く'))) return;
+    await cloudLoadPreset(rawId);
+    if (typeof window.quickQuotePdf === 'function') window.quickQuotePdf();
+    else quoteShowToast('⚠️ PDF 出力を初期化できませんでした', 'warn');
   }
 
   // ---------- 削除 ----------
@@ -2196,6 +2392,10 @@
   window.cloudLogout         = cloudLogout;
   window.cloudSaveCurrent    = cloudSaveCurrent;
   window.cloudLoadPreset      = cloudLoadPreset;
+  window.cloudPdfPreset       = cloudPdfPreset;
+  window.qpdFilterCustomer    = qpdFilterCustomer;
+  window.qpdRankToggleAll     = qpdRankToggleAll;
+  window.qpdResetAllFilters   = qpdResetAllFilters;
   window.cloudDeletePreset    = cloudDeletePreset;
   window.cloudDuplicatePreset = cloudDuplicatePreset;
   window.cloudListPresets    = cloudListPresets;

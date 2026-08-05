@@ -164,6 +164,118 @@ window.QuoteApp = window.QuoteApp || { state: {}, data: {}, fx: {} };
 let rowCount      = 0;
 let dragSrcRow    = null;
 let dragSrcRows   = null;  // 多選択ドラッグ時に実際に移動する行群（単一なら [dragSrcRow]）
+let _lastDragOverRow = null; // 挿入位置マークを付けた直前の行（全行走査を避ける）
+
+/* ---------------------------------------------------------------------------
+   一括更新フラグ（プリセット読込・行の一括挿入など）
+
+   表全体を対象とする集計・再描画（updateTotals / renderSubconGroups /
+   updateQuoteSummary / renderQuoteSectionDigest ほか）は、行を 1 本足すたびに
+   呼ばれると行数の二乗に比例して重くなる。143 行のプリセット読込では
+   これらが 287 回ずつ走り、読み込みだけで 30 秒近く固まっていた。
+
+   一括処理の間は集計を止め、終わってから 1 回だけ走らせる。
+   ネストしても正しく動くようカウンタで持つ。
+   --------------------------------------------------------------------------- */
+/* テーブル再描画でスクロール位置を保つために使う縦スクロール量。
+   window.scrollY を直接読むと、DOM を書き換えた直後は同期レイアウト（強制リフロー）が
+   走り、143 行の表では 1 回あたり数百 ms かかる。scroll イベントはレイアウト確定後に
+   飛ぶため、そこで控えておいた値を使えば読み出しコストがゼロになる。 */
+let _lastScrollY = 0;
+window.addEventListener('scroll', () => { _lastScrollY = window.scrollY; }, { passive: true });
+
+let _quoteBulkUpdate = 0;
+window.beginQuoteBulkUpdate = function () { _quoteBulkUpdate++; };
+window.endQuoteBulkUpdate   = function () { _quoteBulkUpdate = Math.max(0, _quoteBulkUpdate - 1); };
+window.isQuoteBulkUpdate    = function () { return _quoteBulkUpdate > 0; };
+// 一括処理を実行し、必ずカウンタを戻す
+window.withQuoteBulkUpdate  = function (fn) {
+  _quoteBulkUpdate++;
+  try { return fn(); } finally { _quoteBulkUpdate = Math.max(0, _quoteBulkUpdate - 1); }
+};
+
+/* ===========================================================================
+   ポインタ操作による並べ替えドラッグ（HTML5 ネイティブ D&D の置き換え）
+
+   ネイティブ D&D（draggable 属性＋dragstart/dragover/drop）はブラウザ側の
+   ネストしたメッセージループで動く。何らかの理由でそのループが正常に
+   終了しないと、ブラウザはドラッグ中のままになり、クリックもキー入力も
+   一切ページへ届かなくなる ＝ 画面が「フリーズした」ように見える。
+   環境依存で再現条件を絞りにくく、明細テーブル・右カラムのツリー・
+   サブコン別パネルという別々の画面で同じ症状が報告されていた。
+
+   並べ替えはブラウザのドラッグ機構に頼る必要がないため、
+   pointerdown / pointermove / pointerup による自前実装へ置き換える。
+   途中でどう中断されても pointerup / pointercancel / Esc / blur のいずれかで
+   必ず後始末が走るので、操作不能状態にはならない。
+   =========================================================================== */
+window.startPointerDrag = function startPointerDrag(startEvt, handlers) {
+  const h = handlers || {};
+  const THRESHOLD = 4;                       // これ以上動いたら「ドラッグ開始」
+  const sx = startEvt.clientX, sy = startEvt.clientY;
+  let started = false;
+  let finished = false;
+  let raf = 0;
+  let lastX = sx, lastY = sy;
+
+  const cleanup = () => {
+    if (finished) return;
+    finished = true;
+    if (raf) cancelAnimationFrame(raf);
+    document.removeEventListener('pointermove', onMove, true);
+    document.removeEventListener('pointerup', onUp, true);
+    document.removeEventListener('pointercancel', onCancel, true);
+    document.removeEventListener('keydown', onKey, true);
+    window.removeEventListener('blur', onCancel, true);
+    document.body.classList.remove('is-row-dragging');
+    if (started && h.onEnd) h.onEnd();
+  };
+
+  // pointermove は連射されるため、実処理は rAF に間引く（大きい表でも詰まらせない）
+  function flush() {
+    raf = 0;
+    if (!finished && started && h.onMove) h.onMove(lastX, lastY);
+  }
+  function onMove(e) {
+    lastX = e.clientX; lastY = e.clientY;
+    if (!started) {
+      if (Math.abs(lastX - sx) < THRESHOLD && Math.abs(lastY - sy) < THRESHOLD) return;
+      started = true;
+      document.body.classList.add('is-row-dragging');
+      if (h.onStart) h.onStart();
+    }
+    e.preventDefault();                      // テキスト選択を抑止
+    if (!raf) raf = requestAnimationFrame(flush);
+  }
+  function onUp(e) {
+    const wasStarted = started;
+    if (wasStarted) { e.preventDefault(); e.stopPropagation(); }
+    cleanupWith(() => { if (wasStarted && h.onDrop) h.onDrop(e.clientX, e.clientY); });
+  }
+  function onCancel() { cleanupWith(() => { if (started && h.onCancel) h.onCancel(); }); }
+  function onKey(e) { if (e.key === 'Escape') { e.stopPropagation(); onCancel(); } }
+  function cleanupWith(fn) {
+    if (finished) return;
+    if (raf) { cancelAnimationFrame(raf); raf = 0; }
+    try { fn(); } finally { cleanup(); }
+  }
+
+  document.addEventListener('pointermove', onMove, true);
+  document.addEventListener('pointerup', onUp, true);
+  document.addEventListener('pointercancel', onCancel, true);
+  document.addEventListener('keydown', onKey, true);
+  window.addEventListener('blur', onCancel, true);
+  return { cancel: onCancel, isStarted: () => started };
+};
+
+// ドラッグ中に画面端へ来たら自動スクロールする（ネイティブ D&D の代替）
+window.pointerDragAutoScroll = function (clientY) {
+  const M = 60, SPEED = 18;
+  if (clientY < M) window.scrollBy(0, -Math.ceil(SPEED * (M - clientY) / M));
+  else if (clientY > window.innerHeight - M) {
+    window.scrollBy(0, Math.ceil(SPEED * (clientY - (window.innerHeight - M)) / M));
+  }
+};
 let _inGroupRender = false; // renderSubconGroups 実行中フラグ（MutationObserver 抑制用）
 let calcRowCount  = 0;
 let _lastCalcResult = null;

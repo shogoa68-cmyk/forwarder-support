@@ -1227,10 +1227,14 @@ button:focus-visible {
 @media print {
   .header, .cat-nav, .sub-nav, .footer,
   .fb-fab, #fbOverlay, #toast-container, #quoteActionDock,
-  #backToQuoteFab, #calcWidget { display: none !important; }
+  #backToQuoteFab, #calcWidget, #qpLeaveConfirm { display: none !important; }
 }
 
 /* ===== 見積アクションドック（右下フローティング・見積タブのみ） ===== */
+/* ドックの占有高さ（ボタン高 42px ＋ 下余白 18px ＋ 逃げ 28px）。
+   右カラム（quote.css の .quote-right-col）が末尾をこの下に潜り込ませないよう、
+   max-height からこの値を引く。ドックの寸法を変えたらここも合わせること。 */
+:root { --qad-dock-h: 88px; }
 #quoteActionDock {
   display: none;
   position: fixed;
@@ -1242,6 +1246,7 @@ button:focus-visible {
 body:has(#tab-quote-make.active) #quoteActionDock { display: flex; }
 /* プレビューオーバーレイ・比較オーバーレイ表示中は隠す */
 body:has(#previewOverlay.open) #quoteActionDock,
+body:has(#quoteDocOverlay.open) #quoteActionDock,
 body:has(#compareOverlay.open) #quoteActionDock { display: none; }
 #quoteActionDock .qad-btn {
   display: inline-flex;
@@ -1266,6 +1271,8 @@ body:has(#compareOverlay.open) #quoteActionDock { display: none; }
   border: 1.5px solid var(--border-md);
 }
 #quoteActionDock .qad-compare:hover { background: var(--accent-lt); }
+#quoteActionDock .qad-pdf { background: #1a3a6b; color: #fff; }
+#quoteActionDock .qad-pdf:hover { background: #142e55; }
 #quoteActionDock .qad-save { background: #1e7e44; color: #fff; }
 #quoteActionDock .qad-save:hover { background: #18683a; }
 #quoteActionDock .qad-edit { background: #1c6fa6; color: #fff; }
@@ -1681,6 +1688,13 @@ body:has(#compareOverlay.open) #quoteActionDock { display: none; }
 }
 .bm-pill:hover { background: #eef4f8; border-color: #b8c4cb; transform: translateY(-1px); }
 .bm-pill-ic { font-size: 11px; opacity: .62; flex-shrink: 0; }
+/* 関連会社（表記違い・代理店など）経由でこのタイルに表示しているピル */
+.bm-pill--rel { border-style: dashed; background: #f8f5ef; }
+.bm-pill-rel {
+  font-size: 10px; font-weight: 700; color: #6f5aa0;
+  background: #efeaf6; border-radius: 999px; padding: 1px 6px;
+  flex-shrink: 0; cursor: help;
+}
 .bm-pill-note {
   font-size: 11px; flex-shrink: 0; cursor: help;
   opacity: .8; line-height: 1; margin-left: 1px;
@@ -3109,20 +3123,28 @@ body:has(#compareOverlay.open) #quoteActionDock { display: none; }
   border-color: #9ec79e;
   color: #2f6b3a;
 }
-.stats-md-badge {
+.stats-md-inline {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 4px;
+}
+.stats-md-chip {
   display: inline-flex;
-  align-items: center;
-  gap: 2px;
+  align-items: baseline;
+  gap: 4px;
   font-size: 10px;
-  font-weight: 700;
   background: #eaf3ea;
-  border: 1px solid #9ec79e;
-  color: #2f6b3a;
-  border-radius: 9px;
+  border: 1px solid #cfe4cf;
+  color: #3a5c3a;
+  border-radius: 8px;
   padding: 1px 7px;
-  vertical-align: middle;
   white-space: nowrap;
   cursor: default;
+}
+.stats-md-chip b {
+  font-weight: 700;
+  color: #2f6b3a;
 }
 .stats-detail-row > td { background: #faf8f3; padding: 10px 14px; border-top: none; }
 .master-detail-form {
@@ -4621,3 +4643,193 @@ button.lc-attach-tbl-btn { background: none; border: none; padding: 0; cursor: p
   .sd-bar-row { grid-template-columns: 90px 1fr auto; gap: 6px; font-size: 11px; }
   .sd-trend-col .sd-bar-row { grid-template-columns: 80px 1fr auto; }
 }
+
+/* ── 諸チャージ: 明細プリセット（行パターン）モーダル ─────────────────── */
+#tab-local-charges .lcrp-modal {
+  position: fixed; inset: 0; z-index: 6000;
+  background: rgba(0,0,0,.45);
+  display: none; align-items: safe center; justify-content: center;
+}
+#tab-local-charges .lcrp-modal.open { display: flex; overflow-y: auto; padding: 20px 0; }
+#tab-local-charges .lcrp-box {
+  background: #fff; border-radius: 10px;
+  width: min(720px, 95vw); max-height: 90vh;
+  box-shadow: 0 8px 32px rgba(0,0,0,.28);
+  padding: 20px 24px; display: flex; flex-direction: column; gap: 10px;
+}
+#tab-local-charges .lcrp-edit-box { width: min(880px, 96vw); }
+#tab-local-charges .lcrp-box h3 { margin: 0; color: #3d2e1e; font-size: 16px; }
+#tab-local-charges .lcrp-desc { font-size: 12px; color: #8a7a6a; margin: 0; line-height: 1.6; }
+#tab-local-charges .lcrp-toolbar { display: flex; justify-content: flex-end; }
+#tab-local-charges .lcrp-btn-primary {
+  font-size: 13px; font-weight: 700; padding: 6px 14px; border-radius: 7px;
+  border: 1px solid #2d6a4f; background: #2d6a4f; color: #fff; cursor: pointer;
+}
+#tab-local-charges .lcrp-btn-primary:hover { background: #245a41; }
+#tab-local-charges .lcrp-btn-close {
+  font-size: 13px; padding: 6px 14px; border-radius: 7px;
+  border: 1px solid #d4c8b0; background: #fff; color: #5a4a38; cursor: pointer;
+}
+#tab-local-charges .lcrp-btn-close:hover { background: #f0e8d8; }
+#tab-local-charges .lcrp-footer { display: flex; justify-content: flex-end; gap: 8px; margin-top: 4px; }
+#tab-local-charges .lcrp-list-wrap { overflow-y: auto; flex: 1; display: flex; flex-direction: column; gap: 8px; min-height: 120px; }
+#tab-local-charges .lcrp-empty { color: #a89a86; font-size: 12.5px; text-align: center; padding: 24px 10px; line-height: 1.7; }
+#tab-local-charges .lcrp-empty small { color: #c2b6a4; }
+
+#tab-local-charges .lcrp-card { border: 1px solid #ece3d2; border-radius: 8px; padding: 10px 12px; background: #fffdf8; }
+#tab-local-charges .lcrp-card-head { display: flex; align-items: center; gap: 8px; }
+#tab-local-charges .lcrp-card-name { font-weight: 700; color: #2a1f14; }
+#tab-local-charges .lcrp-card-cnt { font-size: 11px; color: #8a7a6a; background: #f0e8d8; border-radius: 999px; padding: 1px 8px; }
+#tab-local-charges .lcrp-card-note { font-size: 12px; color: #6b5a42; margin-top: 3px; }
+#tab-local-charges .lcrp-card-meta { font-size: 11px; color: #a89a86; margin-top: 3px; }
+#tab-local-charges .lcrp-card-ops { display: flex; gap: 6px; margin-top: 8px; }
+#tab-local-charges .lcrp-card-ops button {
+  font-size: 12px; padding: 3px 10px; border: 1px solid #d4c8b0; background: #fff;
+  border-radius: 6px; cursor: pointer; color: #5a4a38;
+}
+#tab-local-charges .lcrp-card-ops button:hover { background: #f0e8d8; }
+#tab-local-charges .lcrp-card-del { color: #a8452e !important; border-color: #e0c0b0 !important; }
+
+#tab-local-charges .lcrp-form-row { display: flex; }
+#tab-local-charges .lcrp-input {
+  flex: 1; font-size: 13px; padding: 7px 10px; border: 1px solid #d4c8b0; border-radius: 6px;
+}
+#tab-local-charges .lcrp-edit-rows-head { display: flex; align-items: center; gap: 8px; font-size: 12.5px; font-weight: 700; color: #5a4a38; }
+#tab-local-charges .lcrp-edit-rowcount { font-size: 10.5px; font-weight: 700; color: #6b5a42; background: #f0e8d8; border-radius: 999px; padding: 1px 9px; }
+
+/* 見積タブ本物の明細テーブル（#quoteTable）に配色・列構成を合わせたレイアウト */
+#tab-local-charges .lcrp-table-wrap { border: 1px solid #ece3d2; border-radius: 8px; overflow: auto; max-height: 40vh; }
+#tab-local-charges .lcrp-table { width: 100%; border-collapse: collapse; font-size: 11.5px; table-layout: fixed; }
+#tab-local-charges .lcrp-table thead th {
+  position: sticky; top: 0; z-index: 1;
+  background: #f4efe6; color: #5a4a38; font-weight: 700; font-size: 11px;
+  padding: 6px 4px; text-align: center; border-bottom: 1px solid #e0d4bc; line-height: 1.3;
+}
+#tab-local-charges .lcrp-table thead small { font-weight: 400; font-size: 10px; opacity: .85; }
+#tab-local-charges .lcrp-th-ops   { width: 34px; }
+#tab-local-charges .lcrp-th-catsv { width: 104px; }
+#tab-local-charges .lcrp-th-name  { width: auto; }
+#tab-local-charges .lcrp-th-qty   { width: 70px; }
+#tab-local-charges .lcrp-th-ccy   { width: 82px; }
+#tab-local-charges .lcrp-th-price { width: 112px; }
+#tab-local-charges .lcrp-th-tax   { width: 40px; }
+
+#tab-local-charges .lcrp-table td { padding: 3px 4px; border-top: 1px solid #f6f1e7; vertical-align: top; }
+#tab-local-charges .lcrp-table tr:first-child td { border-top: none; }
+#tab-local-charges .lcrp-table input[type="text"],
+#tab-local-charges .lcrp-table select {
+  width: 100%; box-sizing: border-box; font-size: 11px; padding: 3px 4px;
+  border: 1px solid #d9ccb4; border-radius: 4px; background: #fff; min-width: 0;
+}
+#tab-local-charges .lcrp-td-tax { text-align: center; padding-top: 6px; }
+#tab-local-charges .lcrp-td-tax input { width: auto; }
+
+#tab-local-charges .lcrp-ops { display: flex; flex-direction: column; gap: 2px; align-items: center; }
+#tab-local-charges .lcrp-ops button {
+  font-size: 9px; border: 1px solid #d9ccb4; background: #fff; border-radius: 3px;
+  cursor: pointer; padding: 0 4px; color: #6b5a42; line-height: 1.5; width: 100%;
+}
+#tab-local-charges .lcrp-ops button:disabled { opacity: .35; cursor: default; }
+#tab-local-charges .lcrp-td-del { color: #a8452e; border-color: #e0c0b0 !important; }
+
+/* カテゴリ／取引先・品目名／備考：見積タブと同じ縦積み(stk) */
+#tab-local-charges .lcrp-td-catsv input,
+#tab-local-charges .lcrp-td-catsv select,
+#tab-local-charges .lcrp-td-name input,
+#tab-local-charges .lcrp-td-qty input,
+#tab-local-charges .lcrp-td-qty select { margin-bottom: 2px; }
+#tab-local-charges .lcrp-td-catsv input:last-child,
+#tab-local-charges .lcrp-td-name input:last-child,
+#tab-local-charges .lcrp-td-qty select:last-child { margin-bottom: 0; }
+#tab-local-charges .lcrp-w-subcon { font-size: 10.5px; }
+#tab-local-charges .lcrp-w-note { font-size: 10.5px; color: #6b5a42; }
+
+/* 通貨・単価：仕入(仕)＝金系／売上(売)＝緑系タグの縦積み（本物の .stk-cost / .stk-sell と同配色） */
+#tab-local-charges .lcrp-stk { display: flex; align-items: center; gap: 3px; margin-bottom: 2px; }
+#tab-local-charges .lcrp-stk select { font-size: 10.5px; padding: 3px 2px; }
+#tab-local-charges .lcrp-stk:last-child { margin-bottom: 0; }
+#tab-local-charges .lcrp-tag {
+  font-size: 9px; font-weight: 700; flex-shrink: 0; width: 14px; text-align: center; border-radius: 2px; padding: 1px 0;
+}
+#tab-local-charges .lcrp-tag-cost { color: #8a6516; background: #f4e9cf; }
+#tab-local-charges .lcrp-tag-sell { color: #2d6a4f; background: #d8eede; }
+#tab-local-charges .lcrp-stk-sell select,
+#tab-local-charges .lcrp-stk-sell input { background: #f3f8f4; color: #1a4a8f; border-color: #cfe3d4; }
+
+/* リマーク・小計：見積タブと同じマーカー＋全幅入力の帯 */
+#tab-local-charges .lcrp-remark-cell,
+#tab-local-charges .lcrp-subtotal-cell { display: flex; align-items: center; gap: 8px; }
+#tab-local-charges .lcrp-remark-cell input,
+#tab-local-charges .lcrp-subtotal-cell input { flex: 1; }
+#tab-local-charges .lcrp-remark-marker { font-size: 11px; color: #6b5a42; white-space: nowrap; }
+#tab-local-charges .lcrp-subtotal-marker { font-size: 11px; color: #a89a86; white-space: nowrap; }
+#tab-local-charges .lcrp-inline-chk { display: inline-flex; align-items: center; gap: 3px; font-size: 10.5px; color: #6b5a42; white-space: nowrap; }
+#tab-local-charges .lcrp-empty-row { text-align: center; color: #a89a86; font-size: 12px; padding: 20px; }
+
+#tab-local-charges .lcrp-add-row-btns { display: flex; gap: 8px; }
+#tab-local-charges .lcrp-add-row-btns button {
+  font-size: 12px; padding: 4px 10px; border: 1px solid #d4c8b0; background: #fff; border-radius: 6px; cursor: pointer; color: #5a4a38;
+}
+#tab-local-charges .lcrp-add-row-btns button:hover { background: #f0e8d8; }
+
+/* ===========================================================
+   未保存確認ダイアログ（保存 / 破棄 / キャンセルの 3 択）
+   ブラウザ標準の confirm は 2 択しか作れず「その場で保存する」
+   導線が作れないため、専用のモーダルを用意している。
+   =========================================================== */
+#qpLeaveConfirm {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 9500;
+  background: rgba(40, 32, 20, 0.55);
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+#qpLeaveConfirm.open { display: flex; }
+#qpLeaveConfirm .qplc-box {
+  width: 100%;
+  max-width: 480px;
+  background: #fdfaf4;
+  border: 1px solid #d5c8b0;
+  border-radius: 12px;
+  padding: 22px 24px 18px;
+  box-shadow: 0 14px 40px rgba(50, 38, 22, 0.32);
+}
+#qpLeaveConfirm .qplc-title {
+  font-size: 15px;
+  font-weight: 800;
+  color: #8a5a16;
+  margin-bottom: 10px;
+}
+#qpLeaveConfirm .qplc-msg {
+  font-size: 13px;
+  line-height: 1.75;
+  color: #5a4a35;
+  margin: 0 0 18px;
+}
+#qpLeaveConfirm .qplc-act { font-weight: 700; }
+#qpLeaveConfirm .qplc-btns {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+#qpLeaveConfirm .qplc-btn {
+  font-family: inherit;
+  font-size: 12.5px;
+  white-space: nowrap;
+  font-weight: 700;
+  border-radius: 8px;
+  padding: 9px 14px;
+  cursor: pointer;
+  border: 1px solid transparent;
+}
+#qpLeaveConfirm .qplc-save { background: #1e7e44; color: #fff; }
+#qpLeaveConfirm .qplc-save:hover { background: #18683a; }
+#qpLeaveConfirm .qplc-discard { background: #fbf6ec; color: #a0402f; border-color: #e0bcae; }
+#qpLeaveConfirm .qplc-discard:hover { background: #f6e6de; }
+#qpLeaveConfirm .qplc-cancel { background: #f0e8d8; color: #6b5a42; border-color: #d9cfc2; }
+#qpLeaveConfirm .qplc-cancel:hover { background: #e5d9c2; }
+#qpLeaveConfirm.is-busy .qplc-btn { pointer-events: none; opacity: .6; }

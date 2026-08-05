@@ -202,6 +202,40 @@ function _bmToggleTile(name) {
   _bmApply();
 }
 
+// 1件分のブックマークピルを組み立てる。rel を渡すと「関連会社（表記違い・代理店など）
+// 経由でこのタイルに表示している」印を付ける（統合はせず、あくまで表示だけ結びつける）。
+function _bmPillHtml(r, rel) {
+  const ic   = _bmFnIcon(r.function);
+  const txt  = escHtml(r.label || r.function || 'リンク');
+  const lbl  = escHtml(r.label || '');
+  const relMark = rel
+    ? `<span class="bm-pill-rel bm-tip" data-tip="${escHtml(rel.label + ': ' + rel.counterpart)}">🔗${escHtml(rel.label)}</span>`
+    : '';
+  const open = r.url
+    ? `<a class="bm-pill${rel ? ' bm-pill--rel' : ''}" href="${escHtml(r.url)}" target="_blank" rel="noopener" title="${lbl}">`
+    : `<span class="bm-pill bm-pill-nourl${rel ? ' bm-pill--rel' : ''}" title="${lbl}">`;
+  const close = r.url ? '</a>' : '</span>';
+  // メモ有りピルには 💬 マーカー（ホバーで装飾ツールチップ／body 直付け）
+  const noteMark = r.note
+    ? `<span class="bm-pill-note bm-tip" data-tip="${escHtml(r.note)}">💬</span>`
+    : '';
+  // リンク確認バッジ（✓＋確認人数）。クリックで自分の確認を追加/取消、ホバーで確認者一覧
+  const vlist  = _bmVerif[r.id] || [];
+  const vcount = vlist.length;
+  const mine   = vlist.some(v => v.checked_by === _bmMyEmail);
+  const vcls   = vcount === 0 ? 'bm-verify-0' : (vcount >= 2 ? 'bm-verify-2' : 'bm-verify-1');
+  const vtip   = vcount
+    ? vlist.map(v => `✓ ${_bmNameFor(v.checked_by)}（${_bmVfmtDate(v.checked_at)}）`).join('\n')
+      + '\n\n' + (mine ? 'クリックで自分の確認を取消' : 'クリックで「確認済み」に追加')
+    : 'まだ確認されていません\nクリックで「確認済み」にできます';
+  const verifyBadge = `<span class="bm-verify ${vcls}${mine ? ' bm-verify-mine' : ''} bm-tip" data-tip="${escHtml(vtip)}" onclick="event.preventDefault();event.stopPropagation();bmToggleVerify('${escHtml(r.id)}')">✓${vcount || ''}</span>`;
+  return open
+    + relMark + `<span class="bm-pill-ic">${ic}</span>${txt}${verifyBadge}${noteMark}`
+    + `<span class="bm-pill-edit" onclick="event.preventDefault();event.stopPropagation();bmEdit('${escHtml(r.id)}')" title="編集">✎</span>`
+    + `<span class="bm-pill-del" onclick="event.preventDefault();event.stopPropagation();bmDelete('${escHtml(r.id)}')" title="削除">🗑</span>`
+    + close;
+}
+
 function _bmRenderList(rows) {
   const wrap = document.getElementById('bmListWrap');
   if (!wrap) return;
@@ -246,34 +280,12 @@ function _bmRenderList(rows) {
     const relAddBtn = name === '汎用' ? '' :
       `<button class="bm-rel-add" data-bm-rel-carrier="${escHtml(name)}" onclick="event.stopPropagation();openBmRelation(this.dataset.bmRelCarrier)" title="関連会社（代理店関係など）を登録">＋🔗</button>`;
     const relRow = (name === '汎用') ? '' : `<div class="bm-rel-row">${relChips}${relAddBtn}</div>`;
-    const pills = list.map(r => {
-      const ic   = _bmFnIcon(r.function);
-      const txt  = escHtml(r.label || r.function || 'リンク');
-      const lbl  = escHtml(r.label || '');
-      const open = r.url
-        ? `<a class="bm-pill" href="${escHtml(r.url)}" target="_blank" rel="noopener" title="${lbl}">`
-        : `<span class="bm-pill bm-pill-nourl" title="${lbl}">`;
-      const close = r.url ? '</a>' : '</span>';
-      // メモ有りピルには 💬 マーカー（ホバーで装飾ツールチップ／body 直付け）
-      const noteMark = r.note
-        ? `<span class="bm-pill-note bm-tip" data-tip="${escHtml(r.note)}">💬</span>`
-        : '';
-      // リンク確認バッジ（✓＋確認人数）。クリックで自分の確認を追加/取消、ホバーで確認者一覧
-      const vlist  = _bmVerif[r.id] || [];
-      const vcount = vlist.length;
-      const mine   = vlist.some(v => v.checked_by === _bmMyEmail);
-      const vcls   = vcount === 0 ? 'bm-verify-0' : (vcount >= 2 ? 'bm-verify-2' : 'bm-verify-1');
-      const vtip   = vcount
-        ? vlist.map(v => `✓ ${_bmNameFor(v.checked_by)}（${_bmVfmtDate(v.checked_at)}）`).join('\n')
-          + '\n\n' + (mine ? 'クリックで自分の確認を取消' : 'クリックで「確認済み」に追加')
-        : 'まだ確認されていません\nクリックで「確認済み」にできます';
-      const verifyBadge = `<span class="bm-verify ${vcls}${mine ? ' bm-verify-mine' : ''} bm-tip" data-tip="${escHtml(vtip)}" onclick="event.preventDefault();event.stopPropagation();bmToggleVerify('${escHtml(r.id)}')">✓${vcount || ''}</span>`;
-      return open
-        + `<span class="bm-pill-ic">${ic}</span>${txt}${verifyBadge}${noteMark}`
-        + `<span class="bm-pill-edit" onclick="event.preventDefault();event.stopPropagation();bmEdit('${escHtml(r.id)}')" title="編集">✎</span>`
-        + `<span class="bm-pill-del" onclick="event.preventDefault();event.stopPropagation();bmDelete('${escHtml(r.id)}')" title="削除">🗑</span>`
-        + close;
-    }).join('');
+    const pills = list.map(r => _bmPillHtml(r)).join('');
+    // 関連会社（表記違い・代理店など）のブックマークも、このタイル内に印付きで一緒に表示する。
+    // 別会社として登録は維持したまま、このタイルからも見えるようにするだけ（統合はしない）。
+    const relPills = rels.flatMap(rel =>
+      _bmRows.filter(r => (r.carrier || '') === rel.counterpart).map(r => _bmPillHtml(r, rel))
+    ).join('');
     return `<div class="bm-tile${isCol ? ' collapsed' : ''}" style="--cc:${cc}">
       <div class="bm-thead" data-bm-tile="${escHtml(name)}">
         <div class="bm-tlogo">${escHtml(_bmCarrierAbbr(name))}</div>
@@ -283,7 +295,7 @@ function _bmRenderList(rows) {
         <span class="bm-ttog">${isCol ? '▸' : '▾'}</span>
       </div>
       <div class="bm-tbody">
-        ${pills}
+        ${pills}${relPills}
         <span class="bm-pill bm-pill-add" data-bm-add="${name === '汎用' ? '' : escHtml(name)}" data-bm-type="${escHtml(type)}">＋ 追加</span>
       </div>
       ${relRow}

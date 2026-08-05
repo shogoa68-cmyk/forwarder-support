@@ -754,7 +754,8 @@
   opacity: 0.6;
   background: #f0e8d8 !important;
   box-shadow: 0 4px 16px rgba(0, 0, 0, .20);
-  transform: rotate(0.4deg);
+  /* transform: rotate() は付けない。テーブル行に transform を掛けると
+     表全体のレイアウトが再計算され、143 行規模で 200ms 超の固まりになるため。 */
   outline: 2px dashed #8b6914;
 }
 #tab-quote-make tr.drag-over-top td {
@@ -764,7 +765,7 @@
   border-bottom: 3px solid #8b6914 !important;
 }
 /* サイドパネル → テーブル D&D */
-#tab-quote-make .rp-sc-item[draggable] { cursor: grab; }
+#tab-quote-make .si-list-wrap .rp-sc-item { cursor: default; }
 #tab-quote-make .rp-sc-item.si-item-dragging { opacity: 0.45; cursor: grabbing; }
 #tab-quote-make tr.si-drop-top td { border-top: 3px solid #4a7fc1 !important; }
 #tab-quote-make tr.si-drop-bottom td { border-bottom: 3px solid #4a7fc1 !important; }
@@ -901,8 +902,10 @@
 /* パターンの内側グループ見出し（港ペア＝緑系と区別して青系） */
 #tab-quote-make .subcon-subgroup-header.is-pattern .subcon-subgroup-cell {
   background: #eef3fb; border-top: 1px dashed #c2d3ec; border-bottom: 1px solid #dde7f5;
-  display: flex; align-items: center; gap: 4px;
+  vertical-align: middle;
 }
+/* flex は td ではなく内側 div へ（td を flex 化すると colspan が潰れる） */
+#tab-quote-make .subcon-subgroup-inner { display: flex; align-items: center; gap: 4px; text-align: left; }
 #tab-quote-make .subcon-subgroup-header.is-pattern .subcon-subgroup-leg { color: #2a4a72; flex: 1; }
 /* パターンサブヘッダーのトグル・除外ボタン */
 #tab-quote-make .subcon-subgroup-toggle,
@@ -1488,6 +1491,14 @@
   transition: all 0.15s; white-space: nowrap;
 }
 #tab-quote-make .pct-mode-btn:hover { border-color: #b0772f; color: #b0772f; }
+/* 📇 マスター登録ボタン */
+#tab-quote-make .master-reg-btn {
+  display: inline-block; margin-top: 3px; padding: 1px 6px;
+  font-size: 10px; line-height: 1.5; border: 1px solid #a0b8c4; border-radius: 3px;
+  background: transparent; color: #5a8098; cursor: pointer; font-family: inherit;
+  transition: all 0.15s; white-space: nowrap;
+}
+#tab-quote-make .master-reg-btn:hover { border-color: #3a6a8f; color: #2a5a80; background: #eef4fa; }
 #tab-quote-make .pct-mode-btn.is-on { background: #fff3e0; border-color: #d4892a; color: #8a4c00; font-weight: 700; }
 /* % モード ON の行：仕入れセルに amber アクセント */
 #tab-quote-make tr.row-pct-mode .stk-cost .stk-tag { background: #ffe8c0; color: #8a4c00; }
@@ -2779,6 +2790,13 @@
 #tab-quote-make .z2-route-via { font-size: 10px; color: #8a7a68; font-style: italic; }
 #tab-quote-make .z2-route-service { font-size: 10px; color: #4a6035; background: #e6efd8; border-radius: 8px; padding: 1px 5px; }
 #tab-quote-make .z2-route-tt { font-size: 10px; color: #6b4a2a; background: #f1e4d2; border-radius: 8px; padding: 1px 5px; white-space: nowrap; }
+/* 契約形態：役割・実運送人 */
+#tab-quote-make .z2-route-role { font-size: 10px; color: #7a5a2a; background: #f6ead0; border: 1px solid #e3ce9e; border-radius: 8px; padding: 0 5px; white-space: nowrap; }
+#tab-quote-make .z2-route-actual { font-size: 10px; font-weight: 600; color: #2c5d8f; background: #e7f0fb; border: 1px solid #b7cfea; border-radius: 8px; padding: 0 5px; white-space: nowrap; }
+#tab-quote-make .z2-relay-fields { margin: -2px 0 7px; }
+#tab-quote-make .z2-relay-role { flex: 0 0 auto; max-width: 46%; }
+#tab-quote-make .z2-relay-as { font-size: 11px; color: #8a7a64; font-style: italic; padding: 0 2px; white-space: nowrap; }
+#tab-quote-make .z2-relay-actual { flex: 1; min-width: 0; }
 #tab-quote-make .z2-service-row { margin-top: -4px; margin-bottom: 7px; }
 #tab-quote-make .z2-service-input { flex: 1; min-width: 0; }
 #tab-quote-make .z2-tt-row { margin-top: -2px; margin-bottom: 7px; align-items: center; }
@@ -3910,6 +3928,80 @@ body.qp-dash-active #quoteActionDock { display: none !important; }
 #qpDashboard .qpd-stat--lost .qpd-stat-n { color: #c0392b; }
 #qpDashboard .qpd-stat--sent .qpd-stat-n { color: #1c6fa6; }
 #qpDashboard .qpd-stat--yoko .qpd-stat-n { color: #0f766e; }
+/* ===== ダッシュボード：本体（案件一覧）＋右カラム（お客様別ランキング） ===== */
+#qpDashboard .qpd-body { display: flex; align-items: flex-start; gap: 16px; }
+#qpDashboard .qpd-body-main { flex: 1 1 0; min-width: 0; }
+#qpDashboard .qpd-side {
+  width: 260px; flex: 0 0 260px;
+  position: sticky;
+  /* ダッシュボードでは右下ドックを隠しているため、ドック分の逃げは不要 */
+  top: calc(var(--nav-cat-h, 48px) + var(--nav-sub-h, 40px) + 24px);
+  max-height: calc(100vh - var(--nav-cat-h, 48px) - var(--nav-sub-h, 40px) - 48px);
+  overflow-y: auto;
+}
+#qpDashboard .qpd-side-card {
+  background: #fff; border: 1px solid #e2d8c4; border-radius: 10px; padding: 12px 14px 14px;
+}
+#qpDashboard .qpd-side-h { font-size: 13px; font-weight: 800; color: #4a3520; margin: 0 0 4px; }
+#qpDashboard .qpd-side-note { font-size: 10.5px; color: #8a7a68; line-height: 1.6; margin: 0 0 10px; }
+#qpDashboard .qpd-rank { display: flex; flex-direction: column; gap: 4px; }
+#qpDashboard .qpd-rank-empty { font-size: 11.5px; color: #8a7a68; margin: 4px 0; }
+#qpDashboard .qpd-rank-item {
+  display: flex; align-items: center; gap: 8px; width: 100%;
+  background: none; border: 1px solid transparent; border-radius: 7px;
+  padding: 5px 6px; cursor: pointer; text-align: left; font-family: inherit;
+}
+#qpDashboard .qpd-rank-item:hover { background: #f7f2e6; border-color: #e2d8c4; }
+#qpDashboard .qpd-rank-item.is-active { background: #eaf1f8; border-color: #9bb7d4; }
+#qpDashboard .qpd-rank-no {
+  flex: 0 0 18px; font-size: 10.5px; font-weight: 800; color: #a8977f; text-align: right;
+}
+#qpDashboard .qpd-rank-body { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+#qpDashboard .qpd-rank-name {
+  font-size: 12px; font-weight: 700; color: #3d2e1e;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+#qpDashboard .qpd-rank-bar { height: 4px; border-radius: 2px; background: #ede5d6; overflow: hidden; }
+#qpDashboard .qpd-rank-bar i { display: block; height: 100%; background: #b89a5e; border-radius: 2px; }
+#qpDashboard .qpd-rank-item.is-active .qpd-rank-bar i { background: #1a5c8a; }
+#qpDashboard .qpd-rank-meta { display: flex; gap: 6px; }
+/* 受注は「良し悪しの判定」ではなく実績の表示なので、閾値による色分けはしない */
+#qpDashboard .qpd-rank-rate { font-size: 10px; font-weight: 700; color: #1e7e44; }
+#qpDashboard .qpd-rank-n { flex: 0 0 auto; font-size: 13px; font-weight: 800; color: #4a3520; }
+/* 絞り込み中の表示＋解除（ランキングの先頭に固定して必ず見えるようにする） */
+#qpDashboard .qpd-rank-active {
+  display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+  background: #eaf1f8; border: 1px solid #9bb7d4; border-radius: 7px;
+  padding: 6px 8px; margin-bottom: 6px;
+}
+#qpDashboard .qpd-rank-active-l { flex: 1 1 auto; min-width: 0; font-size: 11px; color: #1a4a72; }
+#qpDashboard .qpd-rank-active-l b { font-weight: 800; }
+#qpDashboard .qpd-rank-active .qpd-rank-clear { margin-top: 0; flex: 0 0 auto; }
+/* 絞り込みを一括解除（ツールバー） */
+#qpDashboard .qpd-reset-all {
+  background: #fbf6ec; border: 1px solid #e0bcae; color: #a0402f;
+  border-radius: 7px; padding: 6px 12px; font-size: 12px; font-weight: 700; cursor: pointer;
+}
+#qpDashboard .qpd-reset-all:hover { background: #f6e6de; }
+#qpDashboard .qpd-reset-all[hidden] { display: none; }
+#qpDashboard .qpd-rank-more,
+#qpDashboard .qpd-rank-clear {
+  margin-top: 6px; background: #f3ecdd; border: 1px solid #d8ccb6; color: #6b5a42;
+  border-radius: 7px; padding: 5px 8px; font-size: 11px; font-weight: 700;
+  cursor: pointer; font-family: inherit;
+}
+#qpDashboard .qpd-rank-more:hover,
+#qpDashboard .qpd-rank-clear:hover { background: #e9ddc4; }
+#qpDashboard .qpd-rank-clear { color: #a0402f; border-color: #e0bcae; background: #fbf6ec; }
+
+/* 狭い画面では右カラムを本体の下へ縦積み */
+@media (max-width: 900px) {
+  #qpDashboard .qpd-body { flex-direction: column; }
+  #qpDashboard .qpd-side {
+    width: 100%; flex: 1 1 auto; position: static; max-height: none; overflow: visible;
+  }
+}
+
 /* [hidden] を確実に効かせる（.qpd-login 等の display 指定が UA の [hidden] を上書きするのを防ぐ） */
 #qpDashboard [hidden] { display: none !important; }
 /* 検索＋ツール */
@@ -4777,6 +4869,24 @@ body.qp-dash-active #quoteActionDock { display: none !important; }
   line-height: 1.5;
 }
 .toast.visible { opacity: 1; transform: translateX(0); }
+/* アクション付きトースト（「元に戻す」等）。
+   通常のトーストはクリックを下へ通すため pointer-events:none にしているので、
+   ボタンを持つときだけ受け取れるように戻す。 */
+.toast:has(.toast-action) { pointer-events: auto; }
+.toast-action {
+  display: block;
+  margin: 8px 0 0 auto;
+  background: rgba(255,255,255,.14);
+  color: #fff;
+  border: 1px solid rgba(255,255,255,.35);
+  border-radius: 6px;
+  padding: 4px 12px;
+  font-size: 12px;
+  font-weight: 700;
+  font-family: inherit;
+  cursor: pointer;
+}
+.toast-action:hover { background: rgba(255,255,255,.26); }
 .toast.success { border-left: 4px solid #5a6e42; }
 .toast.info { border-left: 4px solid #8b6914; }
 .toast.warning, .toast.warn { border-left: 4px solid #e67e22; }
@@ -4839,6 +4949,86 @@ body.qp-dash-active #quoteActionDock { display: none !important; }
 /* ========== プリセット管理 ========== */
 /* ---- スコーププリセットダイアログ ---- */
 /* ========== CSV列選択モーダル ========== */
+/* ===== 📩 メール取込モーダル ===== */
+#tab-quote-make #emailImportModal {
+  display: none; position: fixed; inset: 0;
+  background: rgba(0,0,0,.45); z-index: 9000;
+  align-items: center; justify-content: center;
+}
+#tab-quote-make #emailImportModal.open { display: flex; }
+#tab-quote-make #emailImportBox {
+  background: #fffdf8; border-radius: 10px;
+  padding: 16px 20px 18px; width: min(96vw, 1080px); max-height: 92vh;
+  overflow-y: auto; box-shadow: 0 8px 32px rgba(0,0,0,.25);
+}
+#tab-quote-make .ei-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px; }
+#tab-quote-make .ei-head h3 { margin: 0; font-size: 15px; color: #3d2e1e; }
+#tab-quote-make .ei-close {
+  cursor: pointer; font-family: inherit; font-size: 14px; color: #8a7a64;
+  background: transparent; border: none; padding: 2px 6px;
+}
+#tab-quote-make .ei-close:hover { color: #5a4a30; }
+#tab-quote-make .ei-desc { font-size: 11.5px; color: #7d6b56; margin: 0 0 8px; line-height: 1.6; }
+#tab-quote-make #eiText {
+  width: 100%; box-sizing: border-box; resize: vertical;
+  font-family: ui-monospace, Consolas, monospace; font-size: 12px; line-height: 1.5;
+  color: #3d2e1e; background: #fff; border: 1px solid #d8c9ad; border-radius: 6px; padding: 8px 10px;
+}
+#tab-quote-make #eiText:focus { outline: none; border-color: #b8933e; }
+#tab-quote-make .ei-parse-bar { margin: 8px 0 10px; }
+#tab-quote-make .ei-parse-btn {
+  cursor: pointer; font-family: inherit; font-size: 13px; font-weight: 700;
+  color: #fff; background: #3f6a3f; border: none; border-radius: 6px; padding: 7px 20px;
+}
+#tab-quote-make .ei-parse-btn:hover { background: #2f5a2f; }
+#tab-quote-make .ei-fields { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 8px; }
+#tab-quote-make .ei-fields label { font-size: 11px; font-weight: 600; color: #6a5a40; display: flex; align-items: center; gap: 5px; }
+#tab-quote-make .ei-fields input {
+  font-family: inherit; font-size: 12px; padding: 4px 7px;
+  border: 1px solid #d8c9ad; border-radius: 5px; background: #fff; color: #3d2e1e;
+}
+#tab-quote-make .ei-table { width: 100%; border-collapse: collapse; font-size: 11.5px; }
+#tab-quote-make .ei-table th {
+  background: #f0e8d8; color: #5a4a30; font-size: 10.5px; padding: 4px 5px;
+  border: 1px solid #e0d5c0; white-space: nowrap;
+}
+#tab-quote-make .ei-table td { border: 1px solid #ece3d2; padding: 2px 3px; background: #fff; }
+#tab-quote-make .ei-table .ei-in {
+  width: 100%; box-sizing: border-box; font-family: inherit; font-size: 11.5px;
+  border: 1px solid transparent; border-radius: 3px; padding: 3px 4px; background: transparent; color: #3d2e1e;
+}
+#tab-quote-make .ei-table .ei-in:focus { outline: none; border-color: #b8933e; background: #fffdf4; }
+#tab-quote-make .ei-table .ei-qty, #tab-quote-make .ei-table .ei-price { text-align: right; min-width: 64px; }
+#tab-quote-make .ei-table .ei-unit, #tab-quote-make .ei-table .ei-ccy { min-width: 52px; }
+#tab-quote-make .ei-table .ei-group { min-width: 90px; }
+#tab-quote-make .ei-table .ei-name { min-width: 160px; }
+#tab-quote-make .ei-flags { font-size: 10px; color: #8a6a2a; white-space: nowrap; text-align: center; }
+#tab-quote-make tr.ei-low td { background: #fff8ec; }
+#tab-quote-make .ei-conf {
+  display: inline-block; font-size: 9.5px; font-weight: 700; border-radius: 3px; padding: 1px 6px; white-space: nowrap;
+}
+#tab-quote-make .ei-conf-high { color: #1a6a3a; background: #e6f5e6; }
+#tab-quote-make .ei-conf-mid  { color: #7a5c1e; background: #fdf3d8; }
+#tab-quote-make .ei-conf-low  { color: #a04020; background: #fdeae0; }
+#tab-quote-make .ei-hint { font-size: 10.5px; color: #9a8a70; margin: 8px 0 0; }
+#tab-quote-make .ei-actions { display: flex; gap: 10px; margin-top: 12px; align-items: flex-start; }
+#tab-quote-make .ei-act-col { display: flex; flex-direction: column; gap: 3px; }
+#tab-quote-make .ei-act-target { font-size: 10.5px; color: #6a7a95; font-weight: 600; padding-left: 2px; }
+#tab-quote-make .ei-actions button {
+  cursor: pointer; font-family: inherit; font-size: 12.5px; font-weight: 700;
+  border-radius: 6px; padding: 8px 18px; border: 1px solid transparent;
+}
+#tab-quote-make .ei-act-insert { background: #eef4ee; color: #2a5a2a; border-color: #a0c8a0 !important; }
+#tab-quote-make .ei-act-insert:hover { background: #d8ecd0; }
+#tab-quote-make .ei-act-new { background: #2e7d43; color: #fff; }
+#tab-quote-make .ei-act-new:hover { background: #226735; }
+/* ダッシュボードの取込ボタン（新規作成の隣） */
+#tab-quote-make .qpd-import {
+  cursor: pointer; font-family: inherit; font-size: 13px; font-weight: 600;
+  color: #4a5a80; background: #eef2fb; border: 1px solid #aab8dd; border-radius: 7px; padding: 8px 16px;
+}
+#tab-quote-make .qpd-import:hover { background: #dde6f8; }
+
 #tab-quote-make #csvColModal {
   display: none; position: fixed; inset: 0;
   background: rgba(0,0,0,.45); z-index: 9000;
@@ -5113,6 +5303,12 @@ body.qp-dash-active #quoteActionDock { display: none !important; }
   white-space: nowrap;
 }
 #tab-quote-make .btn-preset-preview:hover { background: #c7d9fc; }
+#tab-quote-make .btn-preset-pdf {
+  background: #e8eef7; color: #1a3a6b; border: 1px solid #bcc9dd;
+  border-radius: 4px; font-size: 11px; font-weight: 600; cursor: pointer; padding: 2px 8px;
+  white-space: nowrap;
+}
+#tab-quote-make .btn-preset-pdf:hover { background: #d3deee; }
 /* ---- クラウドプリセット 簡易プレビューモーダル ---- */
 #tab-quote-make .cloud-preview-modal {
   position: fixed; inset: 0; background: rgba(0,0,0,.5);
@@ -6995,7 +7191,10 @@ body.qp-dash-active #quoteActionDock { display: none !important; }
   flex: 0 0 260px;
   position: sticky;
   top: calc(var(--nav-cat-h, 48px) + var(--nav-sub-h, 40px) + 52px);
-  max-height: calc(100vh - var(--nav-cat-h, 48px) - var(--nav-sub-h, 40px) - 80px);
+  /* 右下のフローティングドック（📄PDF出力／📋プレビュー／💾保存）は position:fixed で
+     この列と同じ右下に重なる。ドックの高さぶんを差し引いて、パネル末尾の項目が
+     ボタンの下に隠れないようにする（--qad-dock-h は style.css で定義）。 */
+  max-height: calc(100vh - var(--nav-cat-h, 48px) - var(--nav-sub-h, 40px) - 80px - var(--qad-dock-h, 0px));
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -7171,8 +7370,31 @@ body.qp-dash-active #quoteActionDock { display: none !important; }
 /* 明細行（level 2）：さらにインデント・控えめな見た目 */
 #tab-quote-make .qsp-dig-subjump.is-detail {
   color: #7a6a52; background: transparent; border-color: transparent;
-  font-size: 10.5px; padding: 2px 7px 2px 24px;
+  font-size: 10.5px; padding: 2px 7px 2px 4px;
 }
+/* 明細行のドラッググリップ（グループ内並び替え） */
+#tab-quote-make .qsp-dig-grp-item.is-row { cursor: default; }
+#tab-quote-make .qsp-dig-row-grip {
+  flex-shrink: 0; cursor: grab; color: #b8a888; font-size: 11px;
+  padding: 0 2px 0 12px; user-select: none; line-height: 1;
+}
+#tab-quote-make .qsp-dig-row-grip:active { cursor: grabbing; }
+#tab-quote-make .qsp-dig-grp-item.is-row.qsp-row-dragging { opacity: 0.45; }
+#tab-quote-make .qsp-dig-grp-item.is-row.qsp-drop-top { box-shadow: inset 0 2px 0 #b8933e; }
+#tab-quote-make .qsp-dig-grp-item.is-row.qsp-drop-bottom { box-shadow: inset 0 -2px 0 #b8933e; }
+/* 見積書非表示中の明細行：打ち消し線＋淡色 */
+#tab-quote-make .qsp-dig-grp-item.is-row.is-hidden-row .qsp-dig-row-nm {
+  text-decoration: line-through; color: #a8987e;
+}
+/* 明細行の 👁/🚫 表示トグル */
+#tab-quote-make .qsp-dig-row-hide {
+  flex-shrink: 0; cursor: pointer; font-family: inherit; font-size: 11px;
+  color: #7a6040; background: transparent; border: 1px solid transparent;
+  border-radius: 3px; padding: 2px 4px; line-height: 1; transition: background .1s;
+  filter: grayscale(1); opacity: 0.7;
+}
+#tab-quote-make .qsp-dig-row-hide:hover { background: #f0e6d2; border-color: #d8c9ad; opacity: 1; }
+#tab-quote-make .qsp-dig-row-hide.is-on { filter: none; opacity: 1; background: #fdeee6; border-color: #e8c0a0; }
 #tab-quote-make .qsp-dig-subjump.is-detail:hover { background: #f3eada; border-color: #d8c9ad; }
 #tab-quote-make .qsp-dig-subjump.is-detail .qsp-dig-row-nm {
   flex: 1 1 0; min-width: 0; overflow: hidden; text-overflow: ellipsis;
@@ -7180,6 +7402,16 @@ body.qp-dash-active #quoteActionDock { display: none !important; }
 #tab-quote-make .qsp-dig-subjump.is-detail .qsp-dig-grp-sum {
   color: #6a5a45; background: transparent; font-weight: 600; padding: 0;
 }
+/* 明細行：売値＋（乗せ幅・粗利率）の縦積み */
+#tab-quote-make .qsp-dig-row-price {
+  flex-shrink: 0; display: flex; flex-direction: column; align-items: flex-end; gap: 0; line-height: 1.25;
+}
+#tab-quote-make .qsp-dig-row-meta {
+  display: flex; gap: 5px; font-size: 8.5px; margin-top: 1px; white-space: nowrap;
+}
+#tab-quote-make .qsp-dig-row-mk { color: #8a6a30; }
+#tab-quote-make .qsp-dig-row-mg { color: #2a6a3a; font-weight: 600; }
+#tab-quote-make .qsp-dig-row-mg.is-neg { color: #c0392b; }
 /* 明細行の ⧉ コピーボタン */
 #tab-quote-make .qsp-dig-row-copy {
   flex-shrink: 0; cursor: pointer; font-family: inherit; font-size: 11px;
@@ -8600,10 +8832,18 @@ button.um-memberno--empty:hover { background: #f4ead4; border-color: #cdb98e; }
   border-top:9px solid #ece2cf;
   border-bottom:1px solid #e8dccf;
   padding:5px 10px;
+  vertical-align:middle;
+  user-select:none;
+}
+/* バグ修正：display:flex は td ではなく内側 div へ。td を flex 化すると table-cell
+   でなくなって colspan が無効になり、セルが 1 列分（約30px）に潰れて中身がはみ出す。
+   見た目が崩れるだけでなく、見出しの右側がドロップ対象にならずグループのドラッグ
+   並べ替えが効かなくなる（小計行では既に同じ修正済み）。 */
+#tab-quote-make .subcon-group-header-inner {
   display:flex;
   align-items:center;
   gap:8px;
-  user-select:none;
+  text-align:left;
 }
 #tab-quote-make .subcon-group-label {
   font-size:11.5px;
@@ -9455,7 +9695,17 @@ button.um-memberno--empty:hover { background: #f4ead4; border-color: #cdb98e; }
 #tab-quote-make .si-list-wrap .rp-sc-meta { font-size: 10px; }
 #tab-quote-make .si-list-wrap .rp-sc-item {
   padding: 3px 0; gap: 4px; font-size: 11px;
+  /* グリップ列を追加（18px）：checkbox/カテゴリ/名前/価格の4列 → 5列に拡張 */
+  grid-template-columns: 16px 22px auto 1fr auto;
 }
+/* ドラッグ起点はこのグリップのみ（label 全体では誤操作でフリーズし得るため制限） */
+#tab-quote-make .si-list-wrap .rp-sc-grip {
+  cursor: grab; color: #b8a888; font-size: 11px; text-align: center;
+  line-height: 1; user-select: none; -webkit-user-drag: element;
+}
+#tab-quote-make .si-list-wrap .rp-sc-grip:active { cursor: grabbing; }
+/* label 自体はもうドラッグの見た目（grab カーソル）を持たせない。起点はグリップのみ */
+
 #tab-quote-make .si-list-wrap .rp-cat {
   font-size: 9px; padding: 1px 4px;
 }
@@ -9500,6 +9750,13 @@ button.um-memberno--empty:hover { background: #f4ead4; border-color: #cdb98e; }
 #tab-quote-make .qrc-drawer-body > .quote-summary-panel > .qsp-pane {
   border-top: none;
 }
+/* 類似見積：リストをパネル内でスクロールさせる（従来は overflow 指定漏れで
+   sq-panel の overflow:hidden に阻まれスクロール不可だった）。
+   検索バーは上部固定、カード一覧のみ縦スクロール。 */
+#tab-quote-make .qrc-drawer-body > .sq-panel > .sq-list {
+  flex: 1 1 auto; min-height: 0; overflow-y: auto;
+}
+#tab-quote-make .qrc-drawer-body > .sq-panel > .sq-search-bar { flex: 0 0 auto; }
 
 /* ---- アイコンレール（常時表示） ---- */
 #tab-quote-make .qrc-rail {
@@ -9671,3 +9928,12 @@ button.um-memberno--empty:hover { background: #f4ead4; border-color: #cdb98e; }
 .stats-hist-date   { font-size: 10px; color: #aaa; }
 .stats-hist-arr    { color: #ccc; font-size: 12px; }
 .stats-hist-route { font-size: 10px; color: #aaa; font-weight: 400; }
+
+
+/* ===== ポインタ操作による並べ替えドラッグ中の共通スタイル =====
+   ネイティブ D&D をやめ pointerdown/move/up で実装しているため、
+   ドラッグ中のテキスト選択とカーソルは CSS 側で明示的に制御する。 */
+/* ※ 全称セレクタ（body.is-row-dragging *）は使わない。
+   クラス付与のたびに文書全体のスタイル再計算が走り、143 行規模で数百 ms かかるため。
+   user-select は継承するので body に一度だけ指定すれば足りる。 */
+body.is-row-dragging { cursor: grabbing; user-select: none; }

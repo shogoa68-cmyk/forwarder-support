@@ -256,8 +256,8 @@
            `onclick="statsToggleMasterDetail('${_ea(field)}','${_ea(value)}',this)">${has ? '📇 詳細' : '＋ 詳細'}</button>`;
   }
 
-  // 名称セルに添える「詳細情報あり」バッジ（一覧を見ただけで入力済みかどうか分かるように）。
-  // どの項目が埋まっているかをツールチップで示す。
+  // 名称セルに添える「詳細情報」インライン表示（一覧を見ただけで入力済みの内容が分かるように）。
+  // 各項目を短いチップで表示。長い値は途中で省略しツールチップに全文を出す。
   function _mdBadge(field, value) {
     const schema = window.MD_SCHEMA && window.MD_SCHEMA[field];
     if (!schema) return '';
@@ -266,8 +266,12 @@
     const details = rec.details || {};
     const filled = schema.filter(s => (details[s.key] || '').trim());
     if (!filled.length) return '';
-    const tip = filled.map(s => `${s.label}: ${details[s.key]}`).join('\n');
-    return ` <span class="stats-md-badge" title="${_eav(tip)}">📇 詳細${filled.length}件</span>`;
+    const chips = filled.map(s => {
+      const v = String(details[s.key]).trim();
+      const short = v.length > 14 ? v.slice(0, 14) + '…' : v;
+      return `<span class="stats-md-chip" title="${_eav(s.label + '：' + v)}"><b>${_esc(s.label)}</b>${_esc(short)}</span>`;
+    }).join('');
+    return `<div class="stats-md-inline">${chips}</div>`;
   }
 
   // 同義グループ操作ボタン（⭐代表 / ⤵統合 / →代表ピル）。field は sv/nm/customer/port。

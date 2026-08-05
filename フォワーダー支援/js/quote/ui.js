@@ -16,6 +16,7 @@
     { label: '🏦 支払条件',        text: '支払いは請求書発行後30日以内とします。期日を超過した場合、法定利率（民法所定）による遅延損害金が発生します。（※社内標準条件に書き換えてからご使用ください）' },
     { label: '💵 PREPAID限定',     text: 'お見積りはPREPAID限定の料金です。' },
     { label: '📐 単価見積もり',     text: '単価見積もりとなります。' },
+    { label: '⚖️ 標準取引条件(JIFFA)', text: '本見積書に定めのない条件については、\n一般社団法人 国際フレイトフォワーダーズ協会が策定した\n「標準取引条件(2020)」によるものとします。\n見積り後ご下命頂き契約を交わす場合も、同様です。\n■標準取引条件(2020)全文\nhttps://www.jiffa.or.jp/documents/standard.html\n■弊社運送書類の約款\nhttps://www.jctyo.co.jp/company_info.html' },
   ];
 
 
@@ -291,6 +292,7 @@
   // ========== テーブル上部 為替レートバー ==========
   // JPY換算に使われている非JPY通貨のレートをコンパクト表示
   window.renderQuoteFxBar = function() {
+    if (_quoteBulkUpdate) return;   // 一括更新中はまとめて後で 1 回だけ実行する
     const bar = document.getElementById('quoteFxBar');
     if (!bar) return;
     // テーブル内で使用中の通貨を収集
@@ -761,12 +763,26 @@
   }
 
   // ========== トースト通知 ==========
-  function quoteShowToast(msg, type = 'info', duration = 2800) {
+  // action = { label, fn } を渡すとトースト内にボタンを出す（「元に戻す」等）
+  function quoteShowToast(msg, type = 'info', duration = 2800, action = null) {
     const container = document.getElementById('toast-container');
     if (!container) return;
     const el = document.createElement('div');
     el.className = 'toast ' + type;
     el.textContent = msg;
+    if (action && action.label && typeof action.fn === 'function') {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'toast-action';
+      btn.textContent = action.label;
+      btn.addEventListener('click', () => {
+        try { action.fn(); } finally {
+          el.classList.remove('visible');
+          setTimeout(() => el.remove(), 320);
+        }
+      });
+      el.appendChild(btn);
+    }
     container.appendChild(el);
     requestAnimationFrame(() => {
       requestAnimationFrame(() => el.classList.add('visible'));
@@ -1560,6 +1576,20 @@
 
   // 行データ配列を現在のテーブルに挿入（挿入位置セレクトを尊重）。posLabel を返す。
   function _insertPatternRows(patternRows) {
+    // 行を 1 本足すたびに表全体の集計が走らないよう一括扱いにする
+    // （末尾の updateSubtotalRows / updateTotals で 1 回だけ反映）
+    window.beginQuoteBulkUpdate();
+    try { return _insertPatternRowsInner(patternRows); }
+    finally {
+      window.endQuoteBulkUpdate();
+      if (typeof updateSubtotalRows === 'function') updateSubtotalRows();
+      updateTotals();
+      // 挿入した行をサブコン／パターンのグループへ反映（_insertPatternRowsAt と揃える）
+      if (typeof renderSubconGroups === 'function') renderSubconGroups();
+    }
+  }
+
+  function _insertPatternRowsInner(patternRows) {
     const pos = document.getElementById('rowPatternInsertPos')?.value || 'end';
     const tbody = document.getElementById('tableBody');
     let anchor = null;
@@ -1632,8 +1662,7 @@
       onCatChange(id);
       onPay(id);
     });
-    if (typeof updateSubtotalRows === 'function') updateSubtotalRows();
-    updateTotals();
+    // 集計は呼び出し元（_insertPatternRows）で一括処理の外に出してから行う
     return posLabel;
   }
 
@@ -1641,6 +1670,17 @@
   function _insertPatternRowsAt(patternRows, anchorTr) {
     const tbody = document.getElementById('tableBody');
     if (!tbody) return;
+    // 行を 1 本足すたびに表全体の集計が走らないよう一括扱いにする
+    // （末尾の updateSubtotalRows / updateTotals / renderSubconGroups で 1 回だけ反映）
+    window.beginQuoteBulkUpdate();
+    try { _insertPatternRowsAtInner(patternRows, anchorTr, tbody); }
+    finally { window.endQuoteBulkUpdate(); }
+    if (typeof updateSubtotalRows === 'function') updateSubtotalRows();
+    updateTotals();
+    if (typeof renderSubconGroups === 'function') renderSubconGroups();
+  }
+
+  function _insertPatternRowsAtInner(patternRows, anchorTr, tbody) {
     (patternRows || []).forEach(rd => {
       if (rd._type === 'remark') {
         insertRemarkRow(null, { noFocus: true, internal: rd.internal });
@@ -1695,9 +1735,7 @@
       onCatChange(id);
       onPay(id);
     });
-    if (typeof updateSubtotalRows === 'function') updateSubtotalRows();
-    updateTotals();
-    if (typeof renderSubconGroups === 'function') renderSubconGroups();
+    // 集計・再描画は呼び出し元（_insertPatternRowsAt）で一括処理の外に出してから行う
   }
   window._insertPatternRows   = _insertPatternRows;
   window._insertPatternRowsAt = _insertPatternRowsAt;
@@ -2408,52 +2446,48 @@
   }
 
   // グリッド1つ分のドラッグ並び替えを初期化（内部ヘルパー）
+  // ネイティブ HTML5 D&D は使わない（constants.js の startPointerDrag を参照）。
+  // グリッドへの委譲なので、フィールドが再描画されてもリスナーは増えない。
   function _initGridSort(gridId) {
     const grid = document.getElementById(gridId);
-    if (!grid) return;
-    let dragSrc = null;
+    if (!grid || grid.dataset.sortBound === '1') return;
+    grid.dataset.sortBound = '1';
 
-    grid.querySelectorAll('.cond-field[data-field-id]').forEach(field => {
-      const handle = field.querySelector('.cond-sort-handle');
+    const clearMarks = () =>
+      grid.querySelectorAll('.cond-field').forEach(f => f.classList.remove('cond-field-over'));
 
-      let _fromHandle = false;
-      if (handle) {
-        handle.addEventListener('mousedown', () => { _fromHandle = true; });
-        document.addEventListener('mouseup', () => { _fromHandle = false; }, { capture: true });
-      }
+    grid.addEventListener('pointerdown', e => {
+      if (e.button !== 0) return;
+      const handle = e.target.closest('.cond-sort-handle');
+      if (!handle) return;
+      const field = handle.closest('.cond-field[data-field-id]');
+      if (!field) return;
+      e.preventDefault();
+      let target = null;   // { el, before }
+      let moved = false;
 
-      field.addEventListener('dragstart', e => {
-        if (!_fromHandle) { e.preventDefault(); return; }
-        _fromHandle = false;
-        dragSrc = field;
-        e.dataTransfer.effectAllowed = 'move';
-        setTimeout(() => field.classList.add('cond-field-dragging'), 0);
-      });
-      field.addEventListener('dragend', () => {
-        field.classList.remove('cond-field-dragging');
-        grid.querySelectorAll('.cond-field').forEach(f => f.classList.remove('cond-field-over'));
-        dragSrc = null;
-        saveCargoFieldOrder();
-      });
-      field.addEventListener('dragover', e => {
-        if (!dragSrc || dragSrc === field) return;
-        e.preventDefault();
-        e.dataTransfer.dropEffect = 'move';
-        grid.querySelectorAll('.cond-field').forEach(f => f.classList.remove('cond-field-over'));
-        field.classList.add('cond-field-over');
-      });
-      field.addEventListener('dragleave', () => field.classList.remove('cond-field-over'));
-      field.addEventListener('drop', e => {
-        e.preventDefault();
-        if (!dragSrc || dragSrc === field) return;
-        const rect = field.getBoundingClientRect();
-        const midX = rect.left + rect.width / 2;
-        if (e.clientX < midX) {
-          grid.insertBefore(dragSrc, field);
-        } else {
-          grid.insertBefore(dragSrc, field.nextSibling);
-        }
-        field.classList.remove('cond-field-over');
+      window.startPointerDrag(e, {
+        onStart() { field.classList.add('cond-field-dragging'); },
+        onMove(x, y) {
+          clearMarks();
+          target = null;
+          const el = document.elementFromPoint(x, y);
+          const over = el && el.closest ? el.closest('.cond-field[data-field-id]') : null;
+          if (!over || over === field || over.parentNode !== grid) return;
+          const r = over.getBoundingClientRect();
+          over.classList.add('cond-field-over');
+          target = { el: over, before: x < r.left + r.width / 2 };
+        },
+        onDrop() {
+          if (!target) return;
+          grid.insertBefore(field, target.before ? target.el : target.el.nextSibling);
+          moved = true;
+        },
+        onEnd() {
+          field.classList.remove('cond-field-dragging');
+          clearMarks();
+          if (moved) saveCargoFieldOrder();
+        },
       });
     });
   }
@@ -2836,6 +2870,7 @@
 
   // ===== 見積サマリパネル =====
   window.updateQuoteSummary = function updateQuoteSummary() {
+    if (_quoteBulkUpdate) return;   // 一括更新中はまとめて後で 1 回だけ実行する
     const panel = document.getElementById('qspFin');
     if (!panel) return;
 
@@ -3295,6 +3330,7 @@
   // アコーディオンで各セクションが畳まれていても、右パネルで全体を一望できるようにする。
   // クリックでそのセクションを展開（アコーディオン）してスクロール。
   window.renderQuoteSectionDigest = function() {
+    if (_quoteBulkUpdate) return;   // 一括更新中はまとめて後で 1 回だけ実行する
     // 下部3セクションの要約を計算（ヘッダー要約スパンにも反映）
     const rowsCount = document.querySelectorAll('#tableBody tr [data-field="nm"]').length;
     const totSell = (document.getElementById('tot-subtotal')?.textContent || '').trim();
@@ -3344,6 +3380,11 @@
     window._qspTableGroups = groups;
     if (groups.length) {
       let parentSvCollapsed = false, parentPtCollapsed = false;
+      // 乗せ幅・粗利率を出すかは表全体で 1 回だけ判定する。
+      // 明細ごとに getPreviewVisibility() を呼ぶと行数ぶん DOM 探索が走り、
+      // 143 行のプリセット読込で読み込み時間の大半を占めていた。
+      const _showInternal = (typeof getPreviewVisibility === 'function')
+        ? (getPreviewVisibility().profit !== false) : true;
       html += '<div class="qsp-dig-subjumps">' + groups.map(function(g, i) {
         if (g.level === 0) { parentSvCollapsed = g.isCollapsed; parentPtCollapsed = false; }
         if (g.level === 1) { parentPtCollapsed = g.isCollapsed; }
@@ -3354,12 +3395,30 @@
                          (g.isExcluded  ? ' is-excluded'  : '') +
                          (hiddenByParent ? ' is-parent-collapsed' : '');
         const sumHtml = g.sum ? '<span class="qsp-dig-grp-sum">' + escapeHtml(g.sum) + '</span>' : '';
-        // 明細行：行名＋売値（クリックでジャンプ・⧉ で別ブランチへコピー）
+        // 明細行：ドラッグ移動・ジャンプ・表示/非表示トグル・⧉ で別ブランチへコピー
         if (g.level === 2) {
-          return '<div class="qsp-dig-grp-item is-row' + stateCls + '">' +
+          const hideOn = g.isHidden;
+          // 乗せ幅・粗利率（内部指標・利益列が表示中のときのみ）：売値の下に小さく併記
+          const showInternal = _showInternal;
+          let metaBits = '';
+          if (showInternal && !g.isActual) {
+            const mkPart = g.mkTxt ? '<span class="qsp-dig-row-mk" title="乗せ幅（単価加算分）">＋' + escapeHtml(g.mkTxt) + '</span>' : '';
+            const mgPart = (g.marginPct != null)
+              ? '<span class="qsp-dig-row-mg' + (g.marginPct < 0 ? ' is-neg' : '') + '" title="粗利率（JPY換算・行単位）">粗利 ' + g.marginPct.toFixed(1) + '%</span>'
+              : '';
+            if (mkPart || mgPart) metaBits = '<span class="qsp-dig-row-meta">' + mkPart + mgPart + '</span>';
+          }
+          const priceStack = '<span class="qsp-dig-row-price">' + sumHtml + metaBits + '</span>';
+          return '<div class="qsp-dig-grp-item is-row' + stateCls + (hideOn ? ' is-hidden-row' : '') + '" ' +
+              'data-qsp-rowid="' + escapeHtml(g.rowId) + '">' +
+            '<span class="qsp-dig-row-grip" title="ドラッグでグループ内の並び替え">⠿</span>' +
             '<button type="button" class="qsp-dig-subjump is-detail" ' +
               'onclick="window.jumpToTableRowId(\'' + g.rowId + '\')" title="この行へジャンプ">' +
-              '<span class="qsp-dig-row-nm">' + escapeHtml(g.label) + '</span>' + sumHtml + '</button>' +
+              '<span class="qsp-dig-row-nm">' + escapeHtml(g.label) + '</span>' + priceStack + '</button>' +
+            '<button type="button" class="qsp-dig-row-hide' + (hideOn ? ' is-on' : '') + '" ' +
+              'onclick="window._qspToggleRowHide(\'' + g.rowId + '\', event)" ' +
+              'title="' + (hideOn ? '見積書で非表示中（クリックで出力に戻す）' : 'この行を見積書（PDF/Excel/CSV/客先プレビュー）に出力しない') + '">' +
+              (hideOn ? '🚫' : '👁') + '</button>' +
             '<button type="button" class="qsp-dig-row-copy" ' +
               'onclick="window._qspRowCopyMenu(' + i + ', event)" ' +
               'title="この行を別ブランチ（サブコン/パターン）へコピー">⧉</button>' +
@@ -3405,6 +3464,7 @@
       }).join('') + '</div>';
     }
     el.innerHTML = html;
+    if (typeof window._qspInitRowDrag === 'function') window._qspInitRowDrag();
   };
   // 費用テーブルのサブコン／パターン見出し行＋明細行を DOM 順に収集（ジャンプ用）
   function _collectTableGroups() {
@@ -3449,14 +3509,29 @@
       const bq = num('bq-' + id) || num('pq-' + id);
       const bp = num('bp-' + id);
       const bc = document.getElementById('bc-' + id)?.value || 'JPY';
+      const pq = num('pq-' + id);
+      const pp = num('pp-' + id);
+      const pc = document.getElementById('pc-' + id)?.value || 'JPY';
+      const mkRaw = num('mk-' + id);   // 乗せ幅（請求通貨・単価加算分）
       let sell = bq * bp, mark = '';
       if (bc !== 'JPY' && typeof toJPY === 'function') { sell = toJPY(sell, bc); mark = '※'; }
+      let cost = pq * pp;
+      if (pc !== 'JPY' && typeof toJPY === 'function') cost = toJPY(cost, pc);
+      const isActual = tr.dataset.actual === '1';
       const sum = sell ? '¥' + Math.round(sell).toLocaleString('ja-JP') + mark : '';
-      const flag = tr.dataset.hideQuote === '1' ? '🚫 ' : '';
+      // 乗せ幅（請求通貨建て・単価あたり）と粗利率（JPY換算・行単位）
+      const mkTxt = mkRaw ? (bc === 'JPY' ? '¥' + Math.round(mkRaw).toLocaleString('ja-JP')
+                                          : mkRaw.toLocaleString('ja-JP', { maximumFractionDigits: 2 }) + ' ' + bc) : '';
+      let marginPct = null;
+      if (!isActual && sell > 0) {
+        marginPct = (typeof SharedCalc !== 'undefined' && SharedCalc.grossMarginPct)
+          ? SharedCalc.grossMarginPct(sell, cost) : ((sell - cost) / sell * 100);
+      }
+      const isHidden = tr.dataset.hideQuote === '1';
       const suffix = (tr.dataset.cond === '1' ? '（都度）' : '') + (tr.dataset.refInfo === '1' ? '（参考）' : '');
-      out.push({ level: 2, rowId: tr.id,
-                 label: flag + (nm || '（名称未入力）') + suffix,
-                 sum, isCollapsed: false, isExcluded, el: tr });
+      out.push({ level: 2, rowId: tr.id, mkTxt, marginPct, isActual,
+                 label: (nm || '（名称未入力）') + suffix,
+                 sum, isCollapsed: false, isExcluded, isHidden, el: tr });
     });
     return out;
   }
@@ -3642,6 +3717,82 @@
     if (sec.classList.contains('collapsed') && typeof toggleQuoteSection === 'function') toggleQuoteSection(id);
     sec.scrollIntoView({ block: 'start' });
   };
+  // ジャンプタブの明細行「👁/🚫」→ 見積書表示/非表示トグル（テーブル行と連動）
+  window._qspToggleRowHide = function(rowId, ev) {
+    if (ev) { ev.preventDefault(); ev.stopPropagation(); }
+    if (typeof window.toggleRowHideQuoteById === 'function') window.toggleRowHideQuoteById(rowId);
+    if (typeof window.renderQuoteSectionDigest === 'function') window.renderQuoteSectionDigest();
+  };
+  // ジャンプタブ明細行のドラッグ並び替え（グループ内のみ）。デリゲートで一度だけ束ねる
+  window._qspInitRowDrag = function() {
+    const box = document.getElementById('qspSectionDigest');
+    if (!box || box.dataset.dragBound === '1') return;
+    box.dataset.dragBound = '1';
+    // ネイティブ HTML5 D&D は使わない。ブラウザのドラッグループが正常終了しないと
+    // クリックもキー入力も一切通らなくなる（＝フリーズしたように見える）ため、
+    // pointerdown/move/up による自前実装にしている（constants.js の startPointerDrag）。
+    let lastOver = null;   // 直前に挿入マークを付けた要素（全件走査を避ける）
+    let lastPos  = null;   // 直前のマーク位置（'qsp-drop-top' | 'qsp-drop-bottom'）
+    const clearMarks = () => {
+      if (lastOver) { lastOver.classList.remove('qsp-drop-top', 'qsp-drop-bottom'); lastOver = null; }
+      lastPos = null;
+    };
+    const resetAll = () => {
+      document.querySelectorAll('#qspSectionDigest .qsp-row-dragging')
+        .forEach(el => el.classList.remove('qsp-row-dragging'));
+      document.querySelectorAll('#qspSectionDigest .qsp-drop-top, #qspSectionDigest .qsp-drop-bottom')
+        .forEach(el => el.classList.remove('qsp-drop-top', 'qsp-drop-bottom'));
+      lastOver = null; lastPos = null;
+    };
+
+    box.addEventListener('pointerdown', function(e) {
+      if (e.button !== 0) return;
+      if (e.target.closest('button, input, select, textarea, a')) return;
+      const item = e.target.closest('.qsp-dig-grp-item.is-row[data-qsp-rowid]');
+      if (!item) return;
+      e.preventDefault();
+      const srcId = item.dataset.qspRowid;
+      let drop = null;   // { tgtId, after }
+
+      window.startPointerDrag(e, {
+        onStart() { item.classList.add('qsp-row-dragging'); },
+        onMove(x, y) {
+          const el = document.elementFromPoint(x, y);
+          const over = el && el.closest ? el.closest('.qsp-dig-grp-item.is-row[data-qsp-rowid]') : null;
+          drop = null;
+          if (!over || over.dataset.qspRowid === srcId) { clearMarks(); return; }
+          // 並び替えは同じサブコン／パターン内のみ。別グループの上ではマークを出さない。
+          if (typeof window.canMoveTableRowWithinGroup === 'function'
+              && !window.canMoveTableRowWithinGroup(srcId, over.dataset.qspRowid)) {
+            clearMarks(); return;
+          }
+          const r = over.getBoundingClientRect();
+          const after = y > r.top + r.height / 2;
+          const pos = after ? 'qsp-drop-bottom' : 'qsp-drop-top';
+          drop = { tgtId: over.dataset.qspRowid, after };
+          // 対象・位置が前回と同じなら DOM を書き換えない（143 項目規模での再計算を避ける）
+          if (lastOver === over && lastPos === pos) return;
+          if (lastOver && lastOver !== over) {
+            lastOver.classList.remove('qsp-drop-top', 'qsp-drop-bottom');
+          }
+          over.classList.remove('qsp-drop-top', 'qsp-drop-bottom');
+          over.classList.add(pos);
+          lastOver = over; lastPos = pos;
+        },
+        onDrop() {
+          if (!drop) return;
+          resetAll();   // 再描画で要素が消える前に後始末する
+          const ok = (typeof window.moveTableRowWithinGroup === 'function')
+            && window.moveTableRowWithinGroup(srcId, drop.tgtId, drop.after);
+          if (!ok && typeof quoteShowToast === 'function') {
+            quoteShowToast('⚠️ 並び替えは同じサブコン／パターン内でのみ可能です', 'warn', 2600);
+          }
+          // 再描画は moveTableRowWithinGroup 内の renderSubconGroups が行う
+        },
+        onEnd: resetAll,
+      });
+    });
+  };
 
   // ===== 見積サマリ：タブ切替（要約／輸送／金額／チャット） =====
   window.QSP_TABS = ['digest', 'flow', 'fin', 'chat'];
@@ -3658,6 +3809,7 @@
     try { localStorage.setItem('quoteSummaryTab_v1', tab); } catch(e) {}
   };
   window.updateQspTabBadges = function() {
+    if (_quoteBulkUpdate) return;   // 一括更新中はまとめて後で 1 回だけ実行する
     // 金額タブ：費用項目数
     const rows = document.querySelectorAll('#tableBody tr [data-field="nm"]').length;
     const finBtn = document.getElementById('qspTabBtn-fin');

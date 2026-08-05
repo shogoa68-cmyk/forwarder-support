@@ -1272,6 +1272,11 @@
   window.lcCopyNotice       = lcCopyNotice;
   window.lcCopyNoticeSubject = lcCopyNoticeSubject;
 
+  // 明細プリセット（lc-row-pattern.js）から共有利用
+  window.LC_CATS       = LC_CATS;
+  window.LC_CURRENCIES = LC_CURRENCIES;
+  window.LC_UNITS      = LC_UNITS;
+
   window.lcInitFormSelects = function () {
     const catSel = document.getElementById('lc_cat');
     if (catSel && !catSel.children.length) {
