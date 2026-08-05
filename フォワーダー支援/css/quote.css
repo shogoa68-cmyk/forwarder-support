@@ -3928,6 +3928,64 @@ body.qp-dash-active #quoteActionDock { display: none !important; }
 #qpDashboard .qpd-stat--lost .qpd-stat-n { color: #c0392b; }
 #qpDashboard .qpd-stat--sent .qpd-stat-n { color: #1c6fa6; }
 #qpDashboard .qpd-stat--yoko .qpd-stat-n { color: #0f766e; }
+/* ===== ダッシュボード：本体（案件一覧）＋右カラム（お客様別ランキング） ===== */
+#qpDashboard .qpd-body { display: flex; align-items: flex-start; gap: 16px; }
+#qpDashboard .qpd-body-main { flex: 1 1 0; min-width: 0; }
+#qpDashboard .qpd-side {
+  width: 260px; flex: 0 0 260px;
+  position: sticky;
+  /* ダッシュボードでは右下ドックを隠しているため、ドック分の逃げは不要 */
+  top: calc(var(--nav-cat-h, 48px) + var(--nav-sub-h, 40px) + 24px);
+  max-height: calc(100vh - var(--nav-cat-h, 48px) - var(--nav-sub-h, 40px) - 48px);
+  overflow-y: auto;
+}
+#qpDashboard .qpd-side-card {
+  background: #fff; border: 1px solid #e2d8c4; border-radius: 10px; padding: 12px 14px 14px;
+}
+#qpDashboard .qpd-side-h { font-size: 13px; font-weight: 800; color: #4a3520; margin: 0 0 4px; }
+#qpDashboard .qpd-side-note { font-size: 10.5px; color: #8a7a68; line-height: 1.6; margin: 0 0 10px; }
+#qpDashboard .qpd-rank { display: flex; flex-direction: column; gap: 4px; }
+#qpDashboard .qpd-rank-empty { font-size: 11.5px; color: #8a7a68; margin: 4px 0; }
+#qpDashboard .qpd-rank-item {
+  display: flex; align-items: center; gap: 8px; width: 100%;
+  background: none; border: 1px solid transparent; border-radius: 7px;
+  padding: 5px 6px; cursor: pointer; text-align: left; font-family: inherit;
+}
+#qpDashboard .qpd-rank-item:hover { background: #f7f2e6; border-color: #e2d8c4; }
+#qpDashboard .qpd-rank-item.is-active { background: #eaf1f8; border-color: #9bb7d4; }
+#qpDashboard .qpd-rank-no {
+  flex: 0 0 18px; font-size: 10.5px; font-weight: 800; color: #a8977f; text-align: right;
+}
+#qpDashboard .qpd-rank-body { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+#qpDashboard .qpd-rank-name {
+  font-size: 12px; font-weight: 700; color: #3d2e1e;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+#qpDashboard .qpd-rank-bar { height: 4px; border-radius: 2px; background: #ede5d6; overflow: hidden; }
+#qpDashboard .qpd-rank-bar i { display: block; height: 100%; background: #b89a5e; border-radius: 2px; }
+#qpDashboard .qpd-rank-item.is-active .qpd-rank-bar i { background: #1a5c8a; }
+#qpDashboard .qpd-rank-meta { display: flex; gap: 6px; }
+#qpDashboard .qpd-rank-rate { font-size: 10px; font-weight: 700; color: #8a7a68; }
+#qpDashboard .qpd-rank-rate.is-good { color: #1e7e44; }
+#qpDashboard .qpd-rank-n { flex: 0 0 auto; font-size: 13px; font-weight: 800; color: #4a3520; }
+#qpDashboard .qpd-rank-more,
+#qpDashboard .qpd-rank-clear {
+  margin-top: 6px; background: #f3ecdd; border: 1px solid #d8ccb6; color: #6b5a42;
+  border-radius: 7px; padding: 5px 8px; font-size: 11px; font-weight: 700;
+  cursor: pointer; font-family: inherit;
+}
+#qpDashboard .qpd-rank-more:hover,
+#qpDashboard .qpd-rank-clear:hover { background: #e9ddc4; }
+#qpDashboard .qpd-rank-clear { color: #a0402f; border-color: #e0bcae; background: #fbf6ec; }
+
+/* 狭い画面では右カラムを本体の下へ縦積み */
+@media (max-width: 900px) {
+  #qpDashboard .qpd-body { flex-direction: column; }
+  #qpDashboard .qpd-side {
+    width: 100%; flex: 1 1 auto; position: static; max-height: none; overflow: visible;
+  }
+}
+
 /* [hidden] を確実に効かせる（.qpd-login 等の display 指定が UA の [hidden] を上書きするのを防ぐ） */
 #qpDashboard [hidden] { display: none !important; }
 /* 検索＋ツール */
