@@ -1242,6 +1242,7 @@ button:focus-visible {
 body:has(#tab-quote-make.active) #quoteActionDock { display: flex; }
 /* プレビューオーバーレイ・比較オーバーレイ表示中は隠す */
 body:has(#previewOverlay.open) #quoteActionDock,
+body:has(#quoteDocOverlay.open) #quoteActionDock,
 body:has(#compareOverlay.open) #quoteActionDock { display: none; }
 #quoteActionDock .qad-btn {
   display: inline-flex;
@@ -1266,6 +1267,8 @@ body:has(#compareOverlay.open) #quoteActionDock { display: none; }
   border: 1.5px solid var(--border-md);
 }
 #quoteActionDock .qad-compare:hover { background: var(--accent-lt); }
+#quoteActionDock .qad-pdf { background: #1a3a6b; color: #fff; }
+#quoteActionDock .qad-pdf:hover { background: #142e55; }
 #quoteActionDock .qad-save { background: #1e7e44; color: #fff; }
 #quoteActionDock .qad-save:hover { background: #18683a; }
 #quoteActionDock .qad-edit { background: #1c6fa6; color: #fff; }

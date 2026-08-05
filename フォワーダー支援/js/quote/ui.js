@@ -763,12 +763,26 @@
   }
 
   // ========== トースト通知 ==========
-  function quoteShowToast(msg, type = 'info', duration = 2800) {
+  // action = { label, fn } を渡すとトースト内にボタンを出す（「元に戻す」等）
+  function quoteShowToast(msg, type = 'info', duration = 2800, action = null) {
     const container = document.getElementById('toast-container');
     if (!container) return;
     const el = document.createElement('div');
     el.className = 'toast ' + type;
     el.textContent = msg;
+    if (action && action.label && typeof action.fn === 'function') {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'toast-action';
+      btn.textContent = action.label;
+      btn.addEventListener('click', () => {
+        try { action.fn(); } finally {
+          el.classList.remove('visible');
+          setTimeout(() => el.remove(), 320);
+        }
+      });
+      el.appendChild(btn);
+    }
     container.appendChild(el);
     requestAnimationFrame(() => {
       requestAnimationFrame(() => el.classList.add('visible'));

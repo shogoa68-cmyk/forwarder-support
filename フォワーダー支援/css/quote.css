@@ -4795,6 +4795,24 @@ body.qp-dash-active #quoteActionDock { display: none !important; }
   line-height: 1.5;
 }
 .toast.visible { opacity: 1; transform: translateX(0); }
+/* アクション付きトースト（「元に戻す」等）。
+   通常のトーストはクリックを下へ通すため pointer-events:none にしているので、
+   ボタンを持つときだけ受け取れるように戻す。 */
+.toast:has(.toast-action) { pointer-events: auto; }
+.toast-action {
+  display: block;
+  margin: 8px 0 0 auto;
+  background: rgba(255,255,255,.14);
+  color: #fff;
+  border: 1px solid rgba(255,255,255,.35);
+  border-radius: 6px;
+  padding: 4px 12px;
+  font-size: 12px;
+  font-weight: 700;
+  font-family: inherit;
+  cursor: pointer;
+}
+.toast-action:hover { background: rgba(255,255,255,.26); }
 .toast.success { border-left: 4px solid #5a6e42; }
 .toast.info { border-left: 4px solid #8b6914; }
 .toast.warning, .toast.warn { border-left: 4px solid #e67e22; }
