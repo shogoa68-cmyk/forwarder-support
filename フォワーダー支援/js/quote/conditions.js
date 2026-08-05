@@ -267,6 +267,13 @@
    * v3 形式の rows 配列を受け取り、各行をタイプに応じて挿入する。
    */
   function _rebuildTable(data) {
+    // 行の復元中は表全体の集計・再描画を止める（行数の二乗に比例する固まりを防ぐ）。
+    // 集計は _applyQuoteData の末尾で 1 回だけ走らせる。
+    window.beginQuoteBulkUpdate();
+    try { _rebuildTableRows(data); } finally { window.endQuoteBulkUpdate(); }
+  }
+
+  function _rebuildTableRows(data) {
     document.getElementById('tableBody').innerHTML = '';
     rowCount = 0;
     const regularTrs = [];
@@ -332,8 +339,7 @@
       regularTrs.push(tr);
     });
     _afterRestoreRows(regularTrs, data.fields);
-    if (typeof renderSubconGroups === 'function') renderSubconGroups();
-    if (typeof updatePendingCounter === 'function') updatePendingCounter();
+    // renderSubconGroups / updatePendingCounter は _applyQuoteData 末尾でまとめて実行する
   }
 
   // プリセット読み込み時に空値で上書きしないヘッダー項目
@@ -415,7 +421,12 @@
       saveFxRates();
       if (data.fxSnapshot.ts) localStorage.setItem(SharedStorage.KEYS.FX_LAST_FETCHED, data.fxSnapshot.ts);
     }
+    // ここで初めて表全体の集計・再描画を 1 回だけ実行する（_rebuildTable 中は抑止済み）。
+    // renderSubconGroups が先：グループ見出し・小計の仮想行を作ってから合計を出す。
+    if (typeof renderSubconGroups === 'function') renderSubconGroups();
     if (typeof updateTotals === 'function') updateTotals();
+    if (typeof updateSubtotalRows === 'function') updateSubtotalRows();
+    if (typeof window.renderQuoteFxBar === 'function') window.renderQuoteFxBar();
     if (typeof updateRouteModeIcon === 'function') updateRouteModeIcon();
     if (typeof syncHazmatPanel === 'function') syncHazmatPanel();
     if (typeof syncMultiEntryFields === 'function') syncMultiEntryFields();
