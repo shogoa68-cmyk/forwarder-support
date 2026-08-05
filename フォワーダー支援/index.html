@@ -2148,6 +2148,7 @@
           </div>
           <div class="qpd-tools-row">
             <button type="button" class="qpd-adv-toggle" id="qpdAdvToggle" onclick="qpdToggleAdv()">🔎 詳細検索 ▶</button>
+            <button type="button" class="qpd-reset-all" id="qpdResetAll" hidden onclick="qpdResetAllFilters()" title="ステータス・検索・詳細検索・お客様の絞り込みをすべて解除して全件表示に戻します">✕ 絞り込みをすべて解除</button>
             <label class="qpd-sort">並び替え
               <select id="qpdSort" onchange="qpdSetSort(this.value)">
                 <option value="updated">更新日（新しい順）</option>
@@ -2178,7 +2179,7 @@
           <aside class="qpd-side" id="qpdSide">
             <section class="qpd-side-card" id="qpdRankCard">
               <h3 class="qpd-side-h">🏆 お客様別 見積件数</h3>
-              <p class="qpd-side-note">クリックでそのお客様の案件だけに絞り込みます。上部のステータス絞り込みにも連動します。</p>
+              <p class="qpd-side-note">クリックでそのお客様の案件だけに絞り込みます。上部のステータス絞り込みにも連動します。<br>受注の割合は<b>そのお客様の総件数に対する比率</b>です。</p>
               <div class="qpd-rank" id="qpdRankList"></div>
             </section>
           </aside>
