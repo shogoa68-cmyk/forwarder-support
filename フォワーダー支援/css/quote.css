@@ -3968,6 +3968,22 @@ body.qp-dash-active #quoteActionDock { display: none !important; }
 /* 受注は「良し悪しの判定」ではなく実績の表示なので、閾値による色分けはしない */
 #qpDashboard .qpd-rank-rate { font-size: 10px; font-weight: 700; color: #1e7e44; }
 #qpDashboard .qpd-rank-n { flex: 0 0 auto; font-size: 13px; font-weight: 800; color: #4a3520; }
+/* 絞り込み中の表示＋解除（ランキングの先頭に固定して必ず見えるようにする） */
+#qpDashboard .qpd-rank-active {
+  display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+  background: #eaf1f8; border: 1px solid #9bb7d4; border-radius: 7px;
+  padding: 6px 8px; margin-bottom: 6px;
+}
+#qpDashboard .qpd-rank-active-l { flex: 1 1 auto; min-width: 0; font-size: 11px; color: #1a4a72; }
+#qpDashboard .qpd-rank-active-l b { font-weight: 800; }
+#qpDashboard .qpd-rank-active .qpd-rank-clear { margin-top: 0; flex: 0 0 auto; }
+/* 絞り込みを一括解除（ツールバー） */
+#qpDashboard .qpd-reset-all {
+  background: #fbf6ec; border: 1px solid #e0bcae; color: #a0402f;
+  border-radius: 7px; padding: 6px 12px; font-size: 12px; font-weight: 700; cursor: pointer;
+}
+#qpDashboard .qpd-reset-all:hover { background: #f6e6de; }
+#qpDashboard .qpd-reset-all[hidden] { display: none; }
 #qpDashboard .qpd-rank-more,
 #qpDashboard .qpd-rank-clear {
   margin-top: 6px; background: #f3ecdd; border: 1px solid #d8ccb6; color: #6b5a42;
