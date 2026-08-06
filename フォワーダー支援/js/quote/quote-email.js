@@ -34,6 +34,10 @@
     : Number(v).toLocaleString('ja-JP', { maximumFractionDigits: 2 }) + ' ' + ccy;
   // 数量（最大4桁小数・カンマ区切り）
   const fmtQty = v => Number(v || 0).toLocaleString('ja-JP', { maximumFractionDigits: 4 });
+  // 金額の数値部分のみ（通貨は別列に出すため付けない）。JPY は整数、外貨は小数2桁
+  const fmtNum = (v, ccy) => (!ccy || ccy === 'JPY')
+    ? Math.round(v).toLocaleString('ja-JP')
+    : Number(v).toLocaleString('ja-JP', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
   // 表示幅（全角=2, 半角=1）。半角スペース桁揃え用。
   function dw(str) {
@@ -217,20 +221,32 @@
   }
 
   // ====== プレーンテキスト：明細あり ======
+  // 明細行は「項目名｜通貨｜単価｜単位」の順で桁を揃えて並べる。
+  // 数量・金額は出さず、単価表（レートシート）として読ませる。
   function buildPlainDetailLines(m) {
+    const NAME_W = 30, CCY_W = 5, PRICE_W = 12;   // 半角換算の桁幅
+    const padR = (t, w) => t + ' '.repeat(Math.max(1, w - dw(t)));       // 左寄せ
+    const padL = (t, w) => ' '.repeat(Math.max(1, w - dw(t))) + t;       // 右寄せ
     const out = ['', '■ 明細'];
     m.detailGroups.forEach(g => {
       out.push('');
       out.push('《' + g.label + '》');
       g.items.forEach(it => {
-        const taxMark = it.taxed ? '［課税］' : '';
-        const condMark = (it.cond ? '（発生時/必要時のみ）' : '') + (it.ref ? '（参考情報）' : '');
-        const qtyUnit = fmtQty(it.qty) + (it.unit ? ' ' + it.unit : '');
-        const pricing = it.actual ? '実費' : (qtyUnit + ' × ' + fmtAmt(it.price, it.ccy) + ' ＝ ' + (it.ref ? '(' + fmtAmt(it.amount, it.ccy) + ')' : fmtAmt(it.amount, it.ccy)));
-        const notePart = it.note ? '※' + it.note : '';
-        out.push('  ・' + [it.name + condMark, taxMark, pricing, notePart].filter(Boolean).join('  '));
+        const mark = (it.taxed ? '*' : '') ;
+        const name = mark + it.name
+          + (it.cond ? '（発生時のみ）' : '')
+          + (it.ref  ? '（参考）' : '');
+        const ccy   = it.actual ? '' : (it.ccy || 'JPY');
+        const price = it.actual ? '実費' : fmtNum(it.price, it.ccy);
+        out.push('  ' + padR(name, NAME_W) + padR(ccy, CCY_W) + padL(price, PRICE_W)
+                 + (it.unit ? '  / ' + it.unit : ''));
+        if (it.note) out.push('  ' + ' '.repeat(2) + '※' + it.note);
       });
     });
+    if (m.detailGroups.some(g => g.items.some(it => it.taxed))) {
+      out.push('');
+      out.push('  * は課税対象項目');
+    }
     return out;
   }
   function buildPlainDetail(m) {
@@ -301,14 +317,14 @@ ${inner}
     const numC = 'text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap;';
     const ctrC = 'text-align:center;';
     const hasNote = m.detailGroups.some(g => g.items.some(it => it.note));
-    const cols = hasNote ? 6 : 5;
+    const cols = hasNote ? 5 : 4;
 
+    // 列は「項目名｜通貨｜単価｜単位」。数量・金額は出さず単価表として読ませる
     const head = `<tr>`
       + `<th style="${th}${lblC}">項目名</th>`
-      + `<th style="${th}${numC}">数量</th>`
-      + `<th style="${th}${ctrC}">単位</th>`
+      + `<th style="${th}${ctrC}">通貨</th>`
       + `<th style="${th}${numC}">単価</th>`
-      + `<th style="${th}${numC}">金額</th>`
+      + `<th style="${th}${ctrC}">単位</th>`
       + (hasNote ? `<th style="${th}${lblC}">備考</th>` : '')
       + `</tr>`;
 
@@ -318,10 +334,9 @@ ${inner}
       g.items.forEach(it => {
         body.push(`<tr>`
           + `<td style="${cell}${lblC}">${it.taxed ? '<span style="color:#b03030;">*</span> ' : ''}${escH(it.name)}${it.cond ? '<span style="color:#9a6a1e;font-size:11px;">（発生時/必要時のみ）</span>' : ''}${it.ref ? '<span style="color:#3a5a80;font-size:11px;">（参考情報）</span>' : ''}</td>`
-          + `<td style="${cell}${numC}">${fmtQty(it.qty)}</td>`
+          + `<td style="${cell}${ctrC}">${it.actual ? '' : escH(it.ccy || 'JPY')}</td>`
+          + `<td style="${cell}${numC}">${it.actual ? '実費' : fmtNum(it.price, it.ccy)}</td>`
           + `<td style="${cell}${ctrC}">${escH(it.unit)}</td>`
-          + `<td style="${cell}${numC}">${it.actual ? '実費' : fmtAmt(it.price, it.ccy)}</td>`
-          + `<td style="${cell}${numC}">${it.actual ? '実費' : it.ref ? `<span style="color:#8a95a5;">(${fmtAmt(it.amount, it.ccy)})</span>` : fmtAmt(it.amount, it.ccy)}</td>`
           + (hasNote ? `<td style="${cell}${lblC}font-size:12px;color:#666;">${escH(it.note)}</td>` : '')
           + `</tr>`);
       });
