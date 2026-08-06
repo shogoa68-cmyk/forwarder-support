@@ -26,7 +26,7 @@ jobs:
   deploy:
     environment:
       name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
+      url: ${{ steps.deployment.outputs.page_url || steps.deployment_retry.outputs.page_url }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -51,12 +51,16 @@ jobs:
         with:
           path: './フォワーダー支援'
 
-      # GitHub Pages 側が混雑すると deployment_queued のまま滞留することがある。
-      # 既定の待ち時間（10分）だと Timeout reached, aborting! で失敗し、公開が古いまま残るため
-      # 待ち時間を 30 分に延ばす（ステータス取得の一時エラーも少し多めに許容する）。
+      # GitHub Pages 側が混雑すると deployment_queued のまま滞留し、
+      # 10分で Timeout reached, aborting! となって公開が古いまま残ることがある。
+      # deploy-pages の timeout 入力は MAX_TIMEOUT=600000（10分）でクランプされるため延長できない
+      # （this.timeout = Math.min(timeoutInput, MAX_TIMEOUT)）。代わりに一度だけ再試行する。
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
-        with:
-          timeout: 1800000
-          error_count: 15
+        continue-on-error: true
+
+      - name: Deploy to GitHub Pages (再試行)
+        id: deployment_retry
+        if: steps.deployment.outcome == 'failure'
+        uses: actions/deploy-pages@v4
