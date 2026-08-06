@@ -3895,10 +3895,7 @@
             <div class="pv-btns">
               <button class="pv-btn-pdf" style="background:#1a3a6b; color:#fff; border-color:#1a3a6b;" onclick="openQuoteDoc()">📄 御見積書</button>
               <div class="pv-btn-grp" data-label="メール本文">
-                <button class="pv-btn-email-plain" onclick="copyQuoteEmailPlain()" title="見積サマリをメール本文（プレーンテキスト）としてコピー">✉️ プレーン</button>
-                <button class="pv-btn-email-rich" onclick="copyQuoteEmailRich()" title="見積サマリをメール本文（リッチテキスト／表組み）としてコピー">📧 リッチ</button>
-                <button class="pv-btn-email-plain" onclick="copyQuoteEmailPlainDetail()" title="区間・カテゴリ別の明細行を含むメール本文（プレーンテキスト）としてコピー">✉️ 明細P</button>
-                <button class="pv-btn-email-rich" onclick="copyQuoteEmailRichDetail()" title="区間・カテゴリ別の明細表を含むメール本文（リッチテキスト）としてコピー">📧 明細R</button>
+                <button class="pv-btn-email-plain" onclick="copyQuoteEmail()" title="明細付きのメール本文（プレーンテキスト）としてコピー">✉️ メール本文</button>
               </div>
               <button class="pv-btn-excel" onclick="exportExcel()" title="表計算形式で表示中の内容をExcel（.xlsx）でダウンロード">📊 Excel</button>
               <div class="pv-btn-grp" data-label="印刷">

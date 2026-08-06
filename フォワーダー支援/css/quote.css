@@ -3789,9 +3789,8 @@
   font-weight: 600;
 }
 #tab-quote-make .pv-btn-pdf:hover { background: #ffe0dc; }
-/* メール本文コピー（プレーン／リッチ） */
-#tab-quote-make .pv-btn-email-plain,
-#tab-quote-make .pv-btn-email-rich {
+/* メール本文コピー（プレーンテキスト・明細付き） */
+#tab-quote-make .pv-btn-email-plain {
   background: #eef4ff;
   border: 1px solid #9db8e0;
   color: #2a4d80;
@@ -3802,11 +3801,8 @@
   font-weight: 600;
   font-family: inherit;
 }
-#tab-quote-make .pv-btn-email-rich { background: #e9effb; border-color: #7e9fd6; }
-#tab-quote-make .pv-btn-email-plain:hover,
-#tab-quote-make .pv-btn-email-rich:hover { background: #dde8fa; }
-#tab-quote-make .pv-btn-email-plain:active,
-#tab-quote-make .pv-btn-email-rich:active { filter: brightness(0.95); transform: scale(0.97); }
+#tab-quote-make .pv-btn-email-plain:hover { background: #dde8fa; }
+#tab-quote-make .pv-btn-email-plain:active { filter: brightness(0.95); transform: scale(0.97); }
 #tab-quote-make .pv-btn-print {
   background: #f0f4ff;
   border: 1px solid #9eb3e8;

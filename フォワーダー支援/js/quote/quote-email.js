@@ -1,8 +1,8 @@
 // ================================================================
-//  見積をメール本文で返す（プレーン / リッチHTML）
-//  ・サマリー（区間別小計＋小計/課税/消費税＋御見積額＋有効期限）
-//  ・プレーン：項目名と金額を半角スペースで桁揃え
-//  ・リッチ：メール向けに軽量化したシンプル罫線の表（クリップボードへ text/html）
+//  見積をメール本文（プレーンテキスト・明細付き）で返す
+//  ・明細：カテゴリ／小計区間ごと、パターン別の小見出し付き
+//         「項目名 | 通貨 | 単価 | 単位」のパイプ区切り
+//  ・サマリー：区間別小計＋小計/課税/消費税＋御見積額＋有効期限
 //  依存（window 経由）：collectAllRows, getQuoteHeader, getConditions,
 //                       getEffectiveTaxRate, toJPY, quoteShowToast
 // ================================================================
@@ -25,15 +25,10 @@
 
   const yen   = n => '¥' + Math.round(n).toLocaleString('ja-JP');
   const toJPYx = (a, c) => (typeof toJPY === 'function' ? toJPY(a, c || 'JPY') : a);
-  const escH  = s => String(s == null ? '' : s)
-    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-
-  // 金額（通貨付き）：JPY は ¥1,234、それ以外は 1,234.00 USD
-  const fmtAmt = (v, ccy) => (!ccy || ccy === 'JPY')
-    ? '¥' + Math.round(v).toLocaleString('ja-JP')
-    : Number(v).toLocaleString('ja-JP', { maximumFractionDigits: 2 }) + ' ' + ccy;
-  // 数量（最大4桁小数・カンマ区切り）
-  const fmtQty = v => Number(v || 0).toLocaleString('ja-JP', { maximumFractionDigits: 4 });
+  // 金額の数値部分のみ（通貨は別列に出すため付けない）。JPY は整数、外貨は小数2桁
+  const fmtNum = (v, ccy) => (!ccy || ccy === 'JPY')
+    ? Math.round(v).toLocaleString('ja-JP')
+    : Number(v).toLocaleString('ja-JP', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
   // 表示幅（全角=2, 半角=1）。半角スペース桁揃え用。
   function dw(str) {
@@ -102,6 +97,7 @@
         curItems.push({
           name: r.name || '', qty, unit: r.un || '', ccy: r.bc || 'JPY',
           price, amount: sub, note: r.note || '', taxed: !!r.taxed, cat: r.cat || '',
+          pt: (r.pt || '').trim(),   // パターン（スポット/年間契約 等）。小見出しに使う
           actual: isActual, cond: isCond, ref: isRef,
         });
       }
@@ -211,26 +207,50 @@
     return out;
   }
 
-  // ====== プレーンテキスト：サマリのみ ======
-  function buildPlain(m) {
-    return [].concat(_plainHeaderLines(m), _plainSummaryLines(m), _plainFooterLines(m)).join('\n');
+  // ====== プレーンテキスト：明細あり ======
+  // グループ内の明細を「パターン」で区切って返す。
+  // 見積テーブルと同じ並び（DOM 順）を保つため、連続する同一パターンをひと塊にする。
+  // パターン未設定の行だけなら区切らない（従来どおり 1 塊）。
+  function _splitByPattern(items) {
+    const runs = [];
+    items.forEach(it => {
+      const pt = it.pt || '';
+      const last = runs[runs.length - 1];
+      if (last && last.pt === pt) last.items.push(it);
+      else runs.push({ pt, items: [it] });
+    });
+    return runs;
   }
 
-  // ====== プレーンテキスト：明細あり ======
+  // 明細行の表示名（課税マーク・発生時/参考の注記を付ける）
+  function _itemLabel(it) {
+    return (it.taxed ? '*' : '') + it.name
+      + (it.cond ? '（発生時のみ）' : '')
+      + (it.ref  ? '（参考）' : '');
+  }
+
+  // 明細行は「項目名 | 通貨 | 単価 | 単位」をパイプで区切って並べる。
+  // 桁揃えにするとメールソフトがプロポーショナルフォントのとき崩れるため、
+  // フォントに依存しない区切り文字を使う。数量・金額は出さず単価表として読ませる。
   function buildPlainDetailLines(m) {
     const out = ['', '■ 明細'];
     m.detailGroups.forEach(g => {
       out.push('');
       out.push('《' + g.label + '》');
-      g.items.forEach(it => {
-        const taxMark = it.taxed ? '［課税］' : '';
-        const condMark = (it.cond ? '（発生時/必要時のみ）' : '') + (it.ref ? '（参考情報）' : '');
-        const qtyUnit = fmtQty(it.qty) + (it.unit ? ' ' + it.unit : '');
-        const pricing = it.actual ? '実費' : (qtyUnit + ' × ' + fmtAmt(it.price, it.ccy) + ' ＝ ' + (it.ref ? '(' + fmtAmt(it.amount, it.ccy) + ')' : fmtAmt(it.amount, it.ccy)));
-        const notePart = it.note ? '※' + it.note : '';
-        out.push('  ・' + [it.name + condMark, taxMark, pricing, notePart].filter(Boolean).join('  '));
+      _splitByPattern(g.items).forEach(run => {
+        if (run.pt) out.push(' 〔' + run.pt + '〕');
+        run.items.forEach(it => {
+          const ccy   = it.actual ? '' : (it.ccy || 'JPY');
+          const price = it.actual ? '実費' : fmtNum(it.price, it.ccy);
+          out.push('  ' + [_itemLabel(it), ccy, price, it.unit].filter(Boolean).join(' | '));
+          if (it.note) out.push('    ※' + it.note);
+        });
       });
     });
+    if (m.detailGroups.some(g => g.items.some(it => it.taxed))) {
+      out.push('');
+      out.push('  * は課税対象項目');
+    }
     return out;
   }
   function buildPlainDetail(m) {
@@ -241,103 +261,6 @@
       _plainSummaryLines(m),
       _plainFooterLines(m)
     ).join('\n');
-  }
-
-  // ====== リッチ HTML 共通パーツ ======
-  function _richHeaderHtml(m) {
-    const meta = [];
-    if (m.subject)    meta.push(`<div><b>件名：</b>${escH(m.subject)}</div>`);
-    if (m.ref)        meta.push(`<div><b>見積番号：</b>${escH(m.ref)}</div>`);
-    if (m.validUntil) meta.push(`<div><b>有効期限：</b>${escH(m.validUntil)}</div>`);
-    return (m.to ? `<div>${escH(m.to)}</div><div style="height:8px;"></div>` : '')
-      + (m.issuer.greeting ? `<div>${escH(m.issuer.greeting).replace(/\n/g, '<br>')}</div><div style="height:10px;"></div>` : '')
-      + (meta.length ? `<div style="margin-bottom:8px;">${meta.join('')}</div>` : '');
-  }
-  function _richSummaryTableHtml(m) {
-    const cell = 'padding:4px 10px;font-size:14px;';
-    const lbl  = 'text-align:left;color:#333;';
-    const amt  = 'text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap;';
-    const bb   = 'border-bottom:1px solid #d9d2c4;';
-    const rowsHtml = [];
-    m.zones.forEach(z => {
-      rowsHtml.push(`<tr><td style="${cell}${lbl}${bb}">${escH(z.label)}</td><td style="${cell}${amt}${bb}">${yen(z.jpy)}</td></tr>`);
-    });
-    rowsHtml.push(`<tr><td style="${cell}${lbl}">小計（免税分）</td><td style="${cell}${amt}">${yen(m.exemptSub)}</td></tr>`);
-    rowsHtml.push(`<tr><td style="${cell}${lbl}">課税対象小計</td><td style="${cell}${amt}">${yen(m.taxableSub)}</td></tr>`);
-    rowsHtml.push(`<tr><td style="${cell}${lbl}${bb}">消費税（${Math.round(m.taxRate * 100)}%）</td><td style="${cell}${amt}${bb}">${yen(m.tax)}</td></tr>`);
-    rowsHtml.push(`<tr><td style="${cell}${lbl}font-weight:700;border-top:2px solid #5a4a35;">御見積額</td><td style="${cell}${amt}font-weight:700;font-size:15px;border-top:2px solid #5a4a35;">${yen(m.total)}</td></tr>`);
-    return `<table style="border-collapse:collapse;min-width:320px;margin:4px 0 10px;">${rowsHtml.join('')}</table>`;
-  }
-  function _richFooterHtml(m) {
-    const notes = m.notes.map(t => '※ ' + t);
-    const sig = [];
-    if (m.issuer.company) sig.push(`<div style="font-weight:700;">${escH(m.issuer.company)}</div>`);
-    [m.issuer.address1, m.issuer.address2].filter(Boolean).forEach(a => sig.push(`<div>${escH(a)}</div>`));
-    const telfax = [m.issuer.tel && ('TEL: ' + m.issuer.tel), m.issuer.fax && ('FAX: ' + m.issuer.fax)].filter(Boolean).join('　/　');
-    if (telfax) sig.push(`<div>${escH(telfax)}</div>`);
-    const scopeHtml = m.scope
-      ? `<div style="margin-bottom:10px;"><div style="font-weight:700;font-size:13px;color:#5a4a35;margin-bottom:2px;">🛠️ 作業範囲</div><div style="font-size:13px;color:#333;">${escH(m.scope).replace(/\n/g, '<br>')}</div></div>`
-      : '';
-    return scopeHtml
-      + (notes.length ? `<div style="font-size:12px;color:#666;margin-bottom:10px;">${notes.map(escH).join('<br>')}</div>` : '')
-      + `<div style="border-top:1px dashed #c9bfa8;padding-top:8px;font-size:13px;color:#444;">${sig.join('')}</div>`;
-  }
-  function _richWrap(inner) {
-    return `<div style="font-family:'Hiragino Kaku Gothic ProN','Yu Gothic',sans-serif;font-size:14px;color:#222;line-height:1.7;">
-${inner}
-</div>`;
-  }
-
-  // ====== リッチ HTML：サマリのみ ======
-  function buildRich(m) {
-    return _richWrap(_richHeaderHtml(m) + '\n' + _richSummaryTableHtml(m) + '\n' + _richFooterHtml(m));
-  }
-
-  // ====== リッチ HTML：明細あり ======
-  function _richDetailTableHtml(m) {
-    const th   = 'padding:5px 8px;font-size:12px;background:#f2eee3;color:#5a4a35;border-bottom:2px solid #c9bfa8;';
-    const cell = 'padding:4px 8px;font-size:13px;border-bottom:1px solid #ece7da;';
-    const lblC = 'text-align:left;';
-    const numC = 'text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap;';
-    const ctrC = 'text-align:center;';
-    const hasNote = m.detailGroups.some(g => g.items.some(it => it.note));
-    const cols = hasNote ? 6 : 5;
-
-    const head = `<tr>`
-      + `<th style="${th}${lblC}">項目名</th>`
-      + `<th style="${th}${numC}">数量</th>`
-      + `<th style="${th}${ctrC}">単位</th>`
-      + `<th style="${th}${numC}">単価</th>`
-      + `<th style="${th}${numC}">金額</th>`
-      + (hasNote ? `<th style="${th}${lblC}">備考</th>` : '')
-      + `</tr>`;
-
-    const body = [];
-    m.detailGroups.forEach(g => {
-      body.push(`<tr><td colspan="${cols}" style="padding:6px 8px;font-size:12px;font-weight:700;background:#faf7ef;color:#5a4a35;border-bottom:1px solid #d9d2c4;">《${escH(g.label)}》</td></tr>`);
-      g.items.forEach(it => {
-        body.push(`<tr>`
-          + `<td style="${cell}${lblC}">${it.taxed ? '<span style="color:#b03030;">*</span> ' : ''}${escH(it.name)}${it.cond ? '<span style="color:#9a6a1e;font-size:11px;">（発生時/必要時のみ）</span>' : ''}${it.ref ? '<span style="color:#3a5a80;font-size:11px;">（参考情報）</span>' : ''}</td>`
-          + `<td style="${cell}${numC}">${fmtQty(it.qty)}</td>`
-          + `<td style="${cell}${ctrC}">${escH(it.unit)}</td>`
-          + `<td style="${cell}${numC}">${it.actual ? '実費' : fmtAmt(it.price, it.ccy)}</td>`
-          + `<td style="${cell}${numC}">${it.actual ? '実費' : it.ref ? `<span style="color:#8a95a5;">(${fmtAmt(it.amount, it.ccy)})</span>` : fmtAmt(it.amount, it.ccy)}</td>`
-          + (hasNote ? `<td style="${cell}${lblC}font-size:12px;color:#666;">${escH(it.note)}</td>` : '')
-          + `</tr>`);
-      });
-    });
-    const taxNote = m.detailGroups.some(g => g.items.some(it => it.taxed))
-      ? `<div style="font-size:11px;color:#999;margin:2px 0 10px;">* は課税対象項目</div>` : '';
-    return `<table style="border-collapse:collapse;width:100%;margin:4px 0 4px;">`
-      + `<thead>${head}</thead><tbody>${body.join('')}</tbody></table>${taxNote}`;
-  }
-  function buildRichDetail(m) {
-    return _richWrap(
-      _richHeaderHtml(m) + '\n'
-      + _richDetailTableHtml(m) + '\n'
-      + _richSummaryTableHtml(m) + '\n'
-      + _richFooterHtml(m)
-    );
   }
 
   // ====== クリップボード ======
@@ -355,63 +278,14 @@ ${inner}
     return Promise.resolve();
   }
 
-  async function copyRich(html, plain) {
-    // 1) ClipboardItem（text/html + text/plain）
-    if (navigator.clipboard && window.ClipboardItem) {
-      try {
-        const item = new ClipboardItem({
-          'text/html': new Blob([html], { type: 'text/html' }),
-          'text/plain': new Blob([plain], { type: 'text/plain' }),
-        });
-        await navigator.clipboard.write([item]);
-        return true;
-      } catch (e) { /* フォールバックへ */ }
-    }
-    // 2) contenteditable + execCommand('copy')
-    const div = document.createElement('div');
-    div.contentEditable = 'true';
-    div.style.position = 'fixed'; div.style.left = '-9999px'; div.style.top = '0';
-    div.innerHTML = html;
-    document.body.appendChild(div);
-    const range = document.createRange(); range.selectNodeContents(div);
-    const sel = window.getSelection(); sel.removeAllRanges(); sel.addRange(range);
-    let ok = false;
-    try { ok = document.execCommand('copy'); } catch (e) {}
-    sel.removeAllRanges(); document.body.removeChild(div);
-    return ok;
-  }
-
   // ====== 公開 API（プレビューのボタンから呼ぶ） ======
-  function copyQuoteEmailPlain() {
-    const m = buildModel();
-    if (!m.total && !m.zones.length) { toast('費用項目がありません。', 'warn'); return; }
-    copyPlainText(buildPlain(m))
-      .then(() => toast('メール本文（プレーン）をコピーしました'))
-      .catch(() => toast('コピーに失敗しました。手動で選択してください。', 'error'));
-  }
-  async function copyQuoteEmailRich() {
-    const m = buildModel();
-    if (!m.total && !m.zones.length) { toast('費用項目がありません。', 'warn'); return; }
-    const ok = await copyRich(buildRich(m), buildPlain(m));
-    toast(ok ? 'メール本文（リッチテキスト）をコピーしました' : 'コピーに失敗しました。手動で選択してください。', ok ? 'success' : 'error');
-  }
-  // 明細あり版
-  function copyQuoteEmailPlainDetail() {
+  function copyQuoteEmail() {
     const m = buildModel();
     if (!m.total && !m.detailGroups.length) { toast('費用項目がありません。', 'warn'); return; }
     copyPlainText(buildPlainDetail(m))
-      .then(() => toast('メール本文（明細・プレーン）をコピーしました'))
+      .then(() => toast('メール本文をコピーしました'))
       .catch(() => toast('コピーに失敗しました。手動で選択してください。', 'error'));
   }
-  async function copyQuoteEmailRichDetail() {
-    const m = buildModel();
-    if (!m.total && !m.detailGroups.length) { toast('費用項目がありません。', 'warn'); return; }
-    const ok = await copyRich(buildRichDetail(m), buildPlainDetail(m));
-    toast(ok ? 'メール本文（明細・リッチテキスト）をコピーしました' : 'コピーに失敗しました。手動で選択してください。', ok ? 'success' : 'error');
-  }
 
-  window.copyQuoteEmailPlain       = copyQuoteEmailPlain;
-  window.copyQuoteEmailRich        = copyQuoteEmailRich;
-  window.copyQuoteEmailPlainDetail = copyQuoteEmailPlainDetail;
-  window.copyQuoteEmailRichDetail  = copyQuoteEmailRichDetail;
+  window.copyQuoteEmail = copyQuoteEmail;
 })();
