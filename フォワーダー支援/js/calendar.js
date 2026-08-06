@@ -23,6 +23,24 @@ function _fmtDateCal(d) {
   return d ? String(d).slice(0, 10) : '';
 }
 
+// ローカルタイムゾーンで YYYY-MM-DD を返す（toISOString は UTC 変換で日付がずれるため使わない）
+function _calYmd(d) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+// 'YYYY-MM-DD' の開始〜終了（終了 null は単日）を1日ずつ cb(dateStr) に渡す。最大366日で打ち切り
+function _calEachDay(from, to, cb) {
+  if (!from) return;
+  let cur = new Date(from + 'T00:00:00');
+  const end = new Date((to || from) + 'T00:00:00');
+  let guard = 0;
+  while (cur <= end && guard < 366) {
+    cb(_calYmd(cur));
+    cur.setDate(cur.getDate() + 1);
+    guard++;
+  }
+}
+
 async function _calLoad() {
   const db  = window.SupabaseClient;
   const grid = document.getElementById('calGridWrap');
@@ -149,31 +167,24 @@ function _calBuildDayMap() {
   _calHolidays.filter(holOk).forEach(h => {
     const meta = _CAL_TYPE_META[h.source_type] || {};
     const sub = h.source_type === 'overseas' ? (h.country_code || '') : (h.source_type === 'partner' ? (h.company_name || '') : '');
-    push(_fmtDateCal(h.event_date), {
-      kind: 'holiday', dotClass: meta.dotClass, title: h.name,
-      tip: [sub, h.name, h.note].filter(Boolean).join(' / '),
-      editable: h.source_type === 'partner', ref: h,
+    _calEachDay(_fmtDateCal(h.event_date), _fmtDateCal(h.end_date) || null, ds => {
+      push(ds, {
+        kind: 'holiday', dotClass: meta.dotClass, title: h.name,
+        tip: [sub, h.name, h.note].filter(Boolean).join(' / '),
+        editable: h.source_type === 'partner', ref: h,
+      });
     });
   });
 
   if (!_calTypeFilter || _calTypeFilter === 'surcharge') {
     _calSurcharges.forEach(s => {
-      const from = s.valid_from, to = s.valid_to || s.valid_from;
-      if (!from) return;
-      let cur = new Date(from + 'T00:00:00');
-      const end = new Date(to + 'T00:00:00');
-      // 期間が長すぎる誤入力での無限ループ/過負荷を避ける（最大 366 日分のみ展開）
-      let guard = 0;
-      while (cur <= end && guard < 366) {
-        const ds = cur.toISOString().slice(0, 10);
+      _calEachDay(_fmtDateCal(s.valid_from), _fmtDateCal(s.valid_to) || null, ds => {
         push(ds, {
           kind: 'surcharge', dotClass: _CAL_TYPE_META.surcharge.dotClass, title: s.surcharge_name,
           tip: [s.carrier, s.trade_lane, s.amount_note].filter(Boolean).join(' / '),
           editable: true, ref: s,
         });
-        cur.setDate(cur.getDate() + 1);
-        guard++;
-      }
+      });
     });
   }
   return map;
@@ -197,7 +208,7 @@ function _calRenderGrid() {
   const first   = new Date(y, m, 1);
   const startDow = first.getDay();
   const daysInMonth = new Date(y, m + 1, 0).getDate();
-  const todayStr = new Date().toISOString().slice(0, 10);
+  const todayStr = _calYmd(new Date());
 
   const cells = [];
   // 前月分の空パディング
@@ -231,7 +242,7 @@ function _calRenderGrid() {
 
 // ---------- サーチャージ一覧（グリッド下） ----------
 function _calSurchargeBadge(s) {
-  const today = new Date().toISOString().slice(0, 10);
+  const today = _calYmd(new Date());
   if (s.valid_from && s.valid_from > today) return '<span class="lc-exp-badge lc-exp-badge--future">適用前</span>';
   if (s.valid_to && s.valid_to < today)      return '<span class="lc-exp-badge lc-exp-badge--red">期限切れ</span>';
   return '<span class="lc-exp-badge lc-exp-badge--amber">適用中</span>';
@@ -288,6 +299,7 @@ function _calOpenModal(kind, preset) {
   if (kind === 'holiday') {
     document.getElementById('calFormCompany').value = p.company_name || '';
     document.getElementById('calFormHolDate').value = _fmtDateCal(p.event_date);
+    document.getElementById('calFormHolDateTo').value = _fmtDateCal(p.end_date);
     document.getElementById('calFormHolName').value = p.name || '';
     document.getElementById('calFormHolNote').value = p.note || '';
   } else {
@@ -306,7 +318,18 @@ function _calOpenModal(kind, preset) {
       ? (isEdit ? '🤝 協力会社休業日を編集' : '🤝 協力会社休業日を追加')
       : (isEdit ? '💴 サーチャージ適用日を編集' : '💴 サーチャージ適用日を追加');
   }
+  // 編集時のみ削除ボタンを表示
+  const delBtn = document.getElementById('calDeleteBtn');
+  if (delBtn) delBtn.hidden = !isEdit;
   modal.classList.add('open');
+}
+
+// モーダル内の削除ボタン：編集中の行を削除してモーダルを閉じる
+function calDeleteFromModal() {
+  const id = document.getElementById('calFormId')?.value;
+  if (!id) return;
+  document.getElementById('calAddModal')?.classList.remove('open');
+  if (calFormKindIsHoliday()) calDeleteHoliday(id); else calDeleteSurcharge(id);
 }
 
 function openAddCalHolidayModal(preset)   { _calOpenModal('holiday', preset); }
@@ -334,10 +357,12 @@ async function saveCalHoliday() {
   const id      = document.getElementById('calFormId')?.value || null;
   const company = document.getElementById('calFormCompany')?.value.trim();
   const date    = document.getElementById('calFormHolDate')?.value;
+  const dateTo  = document.getElementById('calFormHolDateTo')?.value || null;
   const name    = document.getElementById('calFormHolName')?.value.trim();
   const note    = document.getElementById('calFormHolNote')?.value.trim() || null;
 
   if (!company || !date || !name) { quoteShowToast('⚠️ 協力会社名・日付・名称を入力してください', 'warn'); return; }
+  if (dateTo && dateTo < date) { quoteShowToast('⚠️ 終了日は開始日以降の日付を指定してください', 'warn'); return; }
 
   const btn = document.getElementById('calSaveBtn');
   if (btn) { btn.disabled = true; btn.textContent = '保存中…'; }
@@ -346,7 +371,7 @@ async function saveCalHoliday() {
   let error;
   if (id) {
     const res = await db.from('calendar_holidays').update({
-      source_type: 'partner', company_name: company, event_date: date, name, note,
+      source_type: 'partner', company_name: company, event_date: date, end_date: dateTo, name, note,
     }).eq('id', id).select();
     error = res.error;
     if (!error && (!res.data || res.data.length === 0)) {
@@ -356,7 +381,7 @@ async function saveCalHoliday() {
     }
   } else {
     ({ error } = await db.from('calendar_holidays').insert({
-      source_type: 'partner', company_name: company, event_date: date, name, note,
+      source_type: 'partner', company_name: company, event_date: date, end_date: dateTo, name, note,
       created_by: sd?.session?.user?.email || null,
     }));
   }
@@ -381,6 +406,7 @@ async function saveCalSurcharge() {
   const note     = document.getElementById('calFormSurNote')?.value.trim() || null;
 
   if (!name || !from) { quoteShowToast('⚠️ サーチャージ名・適用開始日を入力してください', 'warn'); return; }
+  if (to && to < from) { quoteShowToast('⚠️ 適用終了日は開始日以降の日付を指定してください', 'warn'); return; }
 
   const btn = document.getElementById('calSaveBtn');
   if (btn) { btn.disabled = true; btn.textContent = '保存中…'; }
@@ -483,7 +509,8 @@ if (!window._calTipDelegated) {
 // ---------- 変更履歴ビュー ----------
 const _CAL_HIST_FIELDS_HOL = [
   { k: 'company_name', n: '協力会社名' },
-  { k: 'event_date',   n: '日付' },
+  { k: 'event_date',   n: '開始日' },
+  { k: 'end_date',     n: '終了日' },
   { k: 'name',         n: '名称' },
   { k: 'note',         n: 'メモ' },
 ];
@@ -594,6 +621,7 @@ window.openAddCalSurchargeModal = openAddCalSurchargeModal;
 window.calEditHoliday          = calEditHoliday;
 window.calEditSurcharge        = calEditSurcharge;
 window.closeCalModal          = closeCalModal;
+window.calDeleteFromModal     = calDeleteFromModal;
 window.saveCalHoliday         = saveCalHoliday;
 window.saveCalSurcharge       = saveCalSurcharge;
 window.calDeleteHoliday       = calDeleteHoliday;

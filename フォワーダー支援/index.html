@@ -4920,9 +4920,15 @@
           <label class="cal-form-label" for="calFormCompany">協力会社名 <span class="cal-required">必須</span></label>
           <input type="text" id="calFormCompany" class="cal-form-input" placeholder="例：〇〇通関、〇〇陸運" maxlength="100">
         </div>
-        <div class="cal-form-row">
-          <label class="cal-form-label" for="calFormHolDate">日付 <span class="cal-required">必須</span></label>
-          <input type="date" id="calFormHolDate" class="cal-form-input">
+        <div class="cal-form-row cal-form-row-2col">
+          <div>
+            <label class="cal-form-label" for="calFormHolDate">開始日 <span class="cal-required">必須</span></label>
+            <input type="date" id="calFormHolDate" class="cal-form-input">
+          </div>
+          <div>
+            <label class="cal-form-label" for="calFormHolDateTo">終了日 <span class="cal-optional">任意 — 連休はここまで指定</span></label>
+            <input type="date" id="calFormHolDateTo" class="cal-form-input">
+          </div>
         </div>
         <div class="cal-form-row">
           <label class="cal-form-label" for="calFormHolName">名称・理由 <span class="cal-required">必須</span></label>
@@ -4968,6 +4974,7 @@
       </div>
 
       <div class="cal-modal-foot">
+        <button type="button" class="cal-btn-delete" id="calDeleteBtn" hidden onclick="calDeleteFromModal()">🗑 削除</button>
         <button type="button" class="cal-btn-cancel" onclick="document.getElementById('calAddModal').classList.remove('open')">キャンセル</button>
         <button type="submit" class="cal-btn-save" id="calSaveBtn">保存</button>
       </div>
