@@ -19,6 +19,41 @@
     { label: '⚖️ 標準取引条件(JIFFA)', text: '本見積書に定めのない条件については、\n一般社団法人 国際フレイトフォワーダーズ協会が策定した\n「標準取引条件(2020)」によるものとします。\n見積り後ご下命頂き契約を交わす場合も、同様です。\n■標準取引条件(2020)全文\nhttps://www.jiffa.or.jp/documents/standard.html\n■弊社運送書類の約款\nhttps://www.jctyo.co.jp/company_info.html' },
   ];
 
+  // ----- 区切り線 -----
+  // 条件文のブロックを視覚的に分けるための水平線。プリセット文と違い
+  // 「同じものを何度でも・好きな位置に入れる」使い方をするので、
+  // トグル（押すと消える）ではなくカーソル位置への挿入にしている。
+  const REMARK_DIVIDERS = [
+    { label: '＝ 二重線', text: '＝'.repeat(24), title: '全角の二重線を挿入（見出しの区切りに）' },
+    { label: '─ 実線',   text: '─'.repeat(24), title: '全角の実線を挿入' },
+    { label: '- 点線',   text: '-'.repeat(48), title: '半角ハイフンの線を挿入' },
+  ];
+
+  // 区切り線をカーソル位置へ挿入する（必ず 1 行として入るよう前後の改行を補う）
+  function insertRemarkDivider(text) {
+    const ta = document.getElementById('remarkTextarea');
+    if (!ta) return;
+    const start = (ta.selectionStart != null) ? ta.selectionStart : ta.value.length;
+    const end   = (ta.selectionEnd   != null) ? ta.selectionEnd   : start;
+    const before = ta.value.slice(0, start);
+    const after  = ta.value.slice(end);
+    const lead  = (!before || before.endsWith('\n')) ? '' : '\n';
+    const trail = (!after  || after.startsWith('\n')) ? '' : '\n';
+    ta.value = before + lead + text + trail + after;
+    const pos = (before + lead + text).length;
+    ta.focus();
+    try { ta.setSelectionRange(pos, pos); } catch (e) {}
+    _remarkChanged(ta);
+  }
+  window.insertRemarkDivider = insertRemarkDivider;
+
+  // リマーク本文を JS から書き換えたときの共通後処理。
+  // value への代入では input が発火しないため、自動保存・操作履歴に乗らない。
+  function _remarkChanged(ta) {
+    updateRemarkChar();
+    if (ta) ta.dispatchEvent(new Event('input', { bubbles: true }));
+  }
+
 
   // ----- ユーザー定義プリセット（localStorage） -----
   const USER_REMARK_PRESETS_KEY = 'quoteRemarkUserPresets_v1';
@@ -151,6 +186,17 @@
     // ① 標準
     for (const p of PRESETS) wrap.appendChild(makeBtn(p, idx++));
 
+    // ①' 区切り線（トグルではなくカーソル位置へ挿入）
+    addTierLabel('区切り線');
+    for (const d of REMARK_DIVIDERS) {
+      const b = document.createElement('button');
+      b.className = 'preset-btn preset-btn-divider';
+      b.textContent = d.label;
+      b.title = d.title + '\n（カーソル位置に挿入します。何度でも入れられます）';
+      b.onclick = () => insertRemarkDivider(d.text);
+      wrap.appendChild(b);
+    }
+
     // ② チーム人気 ⭐
     const promotedItems = _sharedRemarkPresets.filter(p => p.use_count >= 5);
     if (promotedItems.length) {
@@ -221,7 +267,7 @@
       btn.classList.add('active');
       if (preset._shared && preset.id) _incrementSharedRemarkUseCount(preset.id);
     }
-    updateRemarkChar();
+    _remarkChanged(ta);
   }
 
   function clearRemark() {
@@ -229,7 +275,7 @@
     const prev = ta.value;
     ta.value = '';
     document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
-    updateRemarkChar();
+    _remarkChanged(ta);
     quoteShowToast('リマーク欄をクリアしました', 'info', 4000);
   }
 

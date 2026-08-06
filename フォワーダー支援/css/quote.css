@@ -3432,6 +3432,13 @@
 }
 #tab-quote-make .preset-btn-add:hover { background: #f0e8d8; border-style: solid; border-color: #6b5a42; color: #6b5a42; }
 /* プリセット段階ラベル（標準／チーム人気⭐／チーム共有☁️／個人） */
+/* 区切り線ボタン（トグルではなく挿入なので active 状態を持たない） */
+#tab-quote-make .preset-btn-divider {
+  background: #f4f1ea; border-color: #d9d2c4; color: #6b5a42;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  letter-spacing: .04em;
+}
+#tab-quote-make .preset-btn-divider:hover { background: #e9e3d5; border-color: #b89a5e; color: #4a3520; }
 #tab-quote-make .preset-tier-label {
   flex-basis: 100%;
   font-size: 11px;
