@@ -51,6 +51,12 @@ jobs:
         with:
           path: './フォワーダー支援'
 
+      # GitHub Pages 側が混雑すると deployment_queued のまま滞留することがある。
+      # 既定の待ち時間（10分）だと Timeout reached, aborting! で失敗し、公開が古いまま残るため
+      # 待ち時間を 30 分に延ばす（ステータス取得の一時エラーも少し多めに許容する）。
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
+        with:
+          timeout: 1800000
+          error_count: 15
