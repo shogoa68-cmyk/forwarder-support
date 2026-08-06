@@ -106,6 +106,7 @@
         curItems.push({
           name: r.name || '', qty, unit: r.un || '', ccy: r.bc || 'JPY',
           price, amount: sub, note: r.note || '', taxed: !!r.taxed, cat: r.cat || '',
+          pt: (r.pt || '').trim(),   // パターン（スポット/年間契約 等）。小見出しに使う
           actual: isActual, cond: isCond, ref: isRef,
         });
       }
@@ -221,26 +222,43 @@
   }
 
   // ====== プレーンテキスト：明細あり ======
-  // 明細行は「項目名｜通貨｜単価｜単位」の順で桁を揃えて並べる。
-  // 数量・金額は出さず、単価表（レートシート）として読ませる。
+  // グループ内の明細を「パターン」で区切って返す。
+  // 見積テーブルと同じ並び（DOM 順）を保つため、連続する同一パターンをひと塊にする。
+  // パターン未設定の行だけなら区切らない（従来どおり 1 塊）。
+  function _splitByPattern(items) {
+    const runs = [];
+    items.forEach(it => {
+      const pt = it.pt || '';
+      const last = runs[runs.length - 1];
+      if (last && last.pt === pt) last.items.push(it);
+      else runs.push({ pt, items: [it] });
+    });
+    return runs;
+  }
+
+  // 明細行の表示名（課税マーク・発生時/参考の注記を付ける）
+  function _itemLabel(it) {
+    return (it.taxed ? '*' : '') + it.name
+      + (it.cond ? '（発生時のみ）' : '')
+      + (it.ref  ? '（参考）' : '');
+  }
+
+  // 明細行は「項目名 | 通貨 | 単価 | 単位」をパイプで区切って並べる。
+  // 桁揃えにするとメールソフトがプロポーショナルフォントのとき崩れるため、
+  // フォントに依存しない区切り文字を使う。数量・金額は出さず単価表として読ませる。
   function buildPlainDetailLines(m) {
-    const NAME_W = 30, CCY_W = 5, PRICE_W = 12;   // 半角換算の桁幅
-    const padR = (t, w) => t + ' '.repeat(Math.max(1, w - dw(t)));       // 左寄せ
-    const padL = (t, w) => ' '.repeat(Math.max(1, w - dw(t))) + t;       // 右寄せ
     const out = ['', '■ 明細'];
     m.detailGroups.forEach(g => {
       out.push('');
       out.push('《' + g.label + '》');
-      g.items.forEach(it => {
-        const mark = (it.taxed ? '*' : '') ;
-        const name = mark + it.name
-          + (it.cond ? '（発生時のみ）' : '')
-          + (it.ref  ? '（参考）' : '');
-        const ccy   = it.actual ? '' : (it.ccy || 'JPY');
-        const price = it.actual ? '実費' : fmtNum(it.price, it.ccy);
-        out.push('  ' + padR(name, NAME_W) + padR(ccy, CCY_W) + padL(price, PRICE_W)
-                 + (it.unit ? '  / ' + it.unit : ''));
-        if (it.note) out.push('  ' + ' '.repeat(2) + '※' + it.note);
+      _splitByPattern(g.items).forEach(run => {
+        if (run.pt) out.push(' 〔' + run.pt + '〕');
+        run.items.forEach(it => {
+          const ccy   = it.actual ? '' : (it.ccy || 'JPY');
+          const price = it.actual ? '実費' : fmtNum(it.price, it.ccy);
+          out.push('  ' + [_itemLabel(it), ccy, price, it.unit].filter(Boolean).join(' | '));
+          if (it.note) out.push('    ※' + it.note);
+        });
       });
     });
     if (m.detailGroups.some(g => g.items.some(it => it.taxed))) {
@@ -331,7 +349,9 @@ ${inner}
     const body = [];
     m.detailGroups.forEach(g => {
       body.push(`<tr><td colspan="${cols}" style="padding:6px 8px;font-size:12px;font-weight:700;background:#faf7ef;color:#5a4a35;border-bottom:1px solid #d9d2c4;">《${escH(g.label)}》</td></tr>`);
-      g.items.forEach(it => {
+      _splitByPattern(g.items).forEach(run => {
+      if (run.pt) body.push(`<tr><td colspan="${cols}" style="padding:4px 8px 4px 20px;font-size:11.5px;font-weight:700;background:#f4f7fb;color:#2a4a72;border-bottom:1px solid #e2e8f0;">〔${escH(run.pt)}〕</td></tr>`);
+      run.items.forEach(it => {
         body.push(`<tr>`
           + `<td style="${cell}${lblC}">${it.taxed ? '<span style="color:#b03030;">*</span> ' : ''}${escH(it.name)}${it.cond ? '<span style="color:#9a6a1e;font-size:11px;">（発生時/必要時のみ）</span>' : ''}${it.ref ? '<span style="color:#3a5a80;font-size:11px;">（参考情報）</span>' : ''}</td>`
           + `<td style="${cell}${ctrC}">${it.actual ? '' : escH(it.ccy || 'JPY')}</td>`
@@ -339,6 +359,7 @@ ${inner}
           + `<td style="${cell}${ctrC}">${escH(it.unit)}</td>`
           + (hasNote ? `<td style="${cell}${lblC}font-size:12px;color:#666;">${escH(it.note)}</td>` : '')
           + `</tr>`);
+      });
       });
     });
     const taxNote = m.detailGroups.some(g => g.items.some(it => it.taxed))
