@@ -26,7 +26,7 @@ jobs:
   deploy:
     environment:
       name: github-pages
-      url: ${{ steps.deployment.outputs.page_url || steps.deployment_retry.outputs.page_url }}
+      url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -51,16 +51,13 @@ jobs:
         with:
           path: './フォワーダー支援'
 
-      # GitHub Pages 側が混雑すると deployment_queued のまま滞留し、
-      # 10分で Timeout reached, aborting! となって公開が古いまま残ることがある。
-      # deploy-pages の timeout 入力は MAX_TIMEOUT=600000（10分）でクランプされるため延長できない
-      # （this.timeout = Math.min(timeoutInput, MAX_TIMEOUT)）。代わりに一度だけ再試行する。
+      # 注意：Pages 側が混雑して deployment_queued のまま10分で
+      # Timeout reached, aborting! になることがあるが、ワークフロー側では回避できない。
+      #  - timeout 入力は MAX_TIMEOUT=600000（10分）でクランプされるので延長不可
+      #    （this.timeout = Math.min(timeoutInput, MAX_TIMEOUT)）
+      #  - 同一 run 内での再試行も不可。deployment ID がコミットSHAと同じで、
+      #    1回目のタイムアウトでキャンセル済みのため即 "Deployment cancelled." になる
+      # 復旧後に Actions から Re-run するか、新しいコミットを push し直すこと。
       - name: Deploy to GitHub Pages
         id: deployment
-        uses: actions/deploy-pages@v4
-        continue-on-error: true
-
-      - name: Deploy to GitHub Pages (再試行)
-        id: deployment_retry
-        if: steps.deployment.outcome == 'failure'
         uses: actions/deploy-pages@v4
