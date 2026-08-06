@@ -993,8 +993,13 @@
     q('pp').oninput    = () => onPay(id);
     q('mk').oninput    = () => { calc(id); _recalcPctDependents(id); };
     q('bc').onchange   = () => onBillCur(id);          // 売通貨を仕入通貨と別建てに
-    { const bpEl2 = q('bp'); if (bpEl2) bpEl2.oninput = () => {   // 独立モードで売単価を直接入力
-        bpEl2.dataset.base = bpEl2.value; calc(id); _recalcPctDependents(id);
+    { const bpEl2 = q('bp'); if (bpEl2) bpEl2.oninput = () => {
+        // 独立モードでは売単価を直接入力できる。基準額は換算値のままにして
+        // 乗せ幅を逆算する（乗せ幅・売単価のどちらから入れても整合する）
+        const base = parseFloat(bpEl2.dataset.base) || 0;
+        const mkEl2 = document.getElementById(`mk-${id}`);
+        if (mkEl2) mkEl2.value = Math.round(((parseFloat(bpEl2.value) || 0) - base) * 100) / 100;
+        calc(id); _recalcPctDependents(id);
         if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
       }; }
     q('sv').onchange   = () => renderSubconGroups();
@@ -1039,8 +1044,45 @@
     return to === 'JPY' ? jpy : jpy / toJPY(1, to);
   }
 
+  // 外貨へ換算した単価の端数処理：小数と 1 の位を切り捨てる（10 単位で丸める）。
+  // 換算値をそのまま出すと 66.67 のような半端な単価が客先に出てしまうため。
+  function _floorUnit(n) {
+    const v = Number(n) || 0;
+    return Math.floor(v / 10) * 10;
+  }
+
+  // 独立モード（仕入通貨 ≠ 売通貨）の基準額＝仕入単価を売通貨へ換算し 10 単位で切り捨てた値。
+  // 売単価はこれに乗せ幅（売通貨建て）を足したもの。
+  function _indepBase(id) {
+    const pp = val(`pp-${id}`);
+    const pc = document.getElementById(`pc-${id}`)?.value || 'JPY';
+    const bc = document.getElementById(`bc-${id}`)?.value || 'JPY';
+    return _floorUnit(_convCur(pp, pc, bc));
+  }
+
+  // 保存済みデータの復元用。独立モードの行について、保存されていた売単価をそのまま
+  // 再現したうえで、基準額（換算後の仕入単価）と乗せ幅（その差分）に分解する。
+  // 旧データは乗せ幅が無効だったため、実際の差分＝売単価−換算後仕入 を乗せ幅として復元する。
+  // これにより既存案件の金額は一切変わらず、以降の編集からは乗せ幅が効くようになる。
+  window.restoreIndepPricing = function (id, savedBp) {
+    const bpEl = document.getElementById(`bp-${id}`);
+    const mkEl = document.getElementById(`mk-${id}`);
+    if (!bpEl) return;
+    const bp = (savedBp === undefined || savedBp === null || savedBp === '')
+      ? (parseFloat(bpEl.value) || 0)
+      : (parseFloat(savedBp) || 0);
+    const base = _indepBase(id);
+    bpEl.dataset.base = base;
+    bpEl.value = bp;
+    if (mkEl) {
+      mkEl.value = Math.round((bp - base) * 100) / 100;
+      mkEl.dataset.ccy = document.getElementById(`bc-${id}`)?.value || 'JPY';
+    }
+  };
+
   // 行の売通貨（bc）を仕入通貨（pc）と別建てにするか（独立モード）の UI 反映。
-  // 独立モード：売単価 bp を直接入力可・乗せ幅 mk は無効（通貨跨ぎで加算不能のため）
+  // 独立モード：売単価＝換算後の仕入単価（10単位切り捨て）＋乗せ幅（売通貨建て）。
+  //             乗せ幅・売単価のどちらからでも入力でき、もう一方が追従する。
   function _setRowBcIndepUI(id, indep) {
     const bpEl = document.getElementById(`bp-${id}`);
     const mkEl = document.getElementById(`mk-${id}`);
@@ -1051,9 +1093,14 @@
       bpEl.classList.toggle('display-field', !indep);
     }
     if (mkEl) {
-      mkEl.readOnly = indep;
-      mkEl.tabIndex = indep ? -1 : 0;
-      mkEl.classList.toggle('mk-disabled', indep);
+      // 通貨が違っても乗せ幅は使える（売通貨建てで加算する）
+      mkEl.readOnly = false;
+      mkEl.tabIndex = 0;
+      mkEl.classList.remove('mk-disabled');
+      const bc = document.getElementById(`bc-${id}`)?.value || 'JPY';
+      mkEl.title = indep
+        ? `乗せ幅（${bc} 建て）：換算後の仕入単価に加算して売単価になります`
+        : '乗せ幅：仕入単価に加算して売単価になります';
     }
     if (tr) tr.classList.toggle('row-bc-indep', indep);
   }
@@ -1066,17 +1113,30 @@
     if (bc === pc) {
       if (tr) delete tr.dataset.bcIndep;
       _setRowBcIndepUI(id, false);
+      const mkEl0 = document.getElementById(`mk-${id}`);
+      if (mkEl0) {
+        const prevBc = mkEl0.dataset.ccy || pc;
+        if (prevBc !== pc) mkEl0.value = _floorUnit(_convCur(val(`mk-${id}`), prevBc, pc));
+        mkEl0.dataset.ccy = pc;
+      }
       onPay(id);   // 連動モードで bp = 仕入単価 + 乗せ幅 を再計算
     } else {
       if (tr) tr.dataset.bcIndep = '1';
       _setRowBcIndepUI(id, true);
-      // 売単価の初期値として仕入単価を売通貨へ換算した値をシード（そのまま手入力で上書き可）
+      // 乗せ幅も売通貨建てへ換算する（直前の売通貨＝旧 bc）。
+      // 換算せずに数値だけ残すと、¥2,000 の乗せ幅がそのまま $2,000 になってしまう。
+      const mkEl = document.getElementById(`mk-${id}`);
+      if (mkEl) {
+        const prevBc = mkEl.dataset.ccy || pc;   // 直前に乗せ幅を入力したときの通貨
+        if (prevBc !== bc) mkEl.value = _floorUnit(_convCur(val(`mk-${id}`), prevBc, bc));
+        mkEl.dataset.ccy = bc;
+      }
+      // 基準額＝仕入単価を売通貨へ換算し 10 単位で切り捨てた値。売単価はこれ＋乗せ幅
       const bpEl = document.getElementById(`bp-${id}`);
       if (bpEl) {
-        const pp = val(`pp-${id}`);
-        const seed = Math.round(_convCur(pp, pc, bc) * 100) / 100;
-        bpEl.dataset.base = seed;
-        bpEl.value = seed;
+        const base = _indepBase(id);
+        bpEl.dataset.base = base;
+        bpEl.value = base + val(`mk-${id}`);
       }
       calc(id);
     }
@@ -1098,8 +1158,13 @@
       // 連動モード：売通貨＝仕入通貨、売単価＝仕入単価＋乗せ幅
       if (bcEl) bcEl.value = pc;
       if (bpEl) { bpEl.dataset.base = pp; bpEl.value = pp + mk; }
+    } else if (bpEl) {
+      // 独立モード：売通貨は保持したまま、基準額（換算後の仕入単価）を追随させる。
+      // 売単価＝基準額＋乗せ幅（売通貨建て）
+      const base = _indepBase(id);
+      bpEl.dataset.base = base;
+      bpEl.value = base + mk;
     }
-    // 独立モード：bc / bp はユーザー入力を保持（上書きしない）
     calc(id);
     _recalcPctDependents(id);
   }
@@ -1110,9 +1175,9 @@
     const bq = val(`bq-${id}`);
     const mk = val(`mk-${id}`);
     const bpEl = document.getElementById(`bp-${id}`);
-    // 連動モードのみ 売単価＝基準額＋乗せ幅 を再計算。独立モードは手入力値を保持
-    const _indep = document.getElementById(`row-${id}`)?.dataset.bcIndep === '1';
-    if (bpEl && !_indep) bpEl.value = (parseFloat(bpEl.dataset.base) || 0) + mk;
+    // 売単価＝基準額＋乗せ幅。基準額は連動モードなら仕入単価、
+    // 独立モードなら仕入単価を売通貨へ換算し 10 単位で切り捨てた値
+    if (bpEl) bpEl.value = (parseFloat(bpEl.dataset.base) || 0) + mk;
     const bp = val(`bp-${id}`);
     const pc = document.getElementById(`pc-${id}`)?.value || 'JPY';
     const bc = document.getElementById(`bc-${id}`)?.value || 'JPY';

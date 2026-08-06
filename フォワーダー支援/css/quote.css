@@ -961,7 +961,8 @@
   color: #8a5a1a;
   font-weight: 700;
 }
-/* 独立モードでは乗せ幅を無効表示（通貨跨ぎで加算不能のため直接入力に切替） */
+/* .mk-disabled は使わなくなった（通貨が違っても乗せ幅は売通貨建てで使える）。
+   旧データ由来のクラスが残っていても崩れないようスタイルだけ残す。 */
 #tab-quote-make .w-mkup.mk-disabled {
   background: #ede5d6;
   border-color: #c8bfb2;
@@ -969,7 +970,6 @@
   color: #b3a48f;
   opacity: 0.7;
 }
-#tab-quote-make tr.row-bc-indep .stk-mk-plus { opacity: 0.4; }
 
 /* ===== テーブル上部 為替レートバー ===== */
 #tab-quote-make .quote-fx-bar {

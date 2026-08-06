@@ -171,7 +171,12 @@
       if (indep) {
         // onPay/_applyCells 後も保存値を確実に反映（売通貨・売単価は手入力保存分）
         if (bcEl && savedBc !== undefined) bcEl.value = savedBc;
-        if (bpEl && savedBp !== undefined) { bpEl.dataset.base = savedBp; bpEl.value = savedBp; }
+        // 売単価は保存値をそのまま再現しつつ、基準額（換算後の仕入単価）と
+        // 乗せ幅（その差分）へ分解する。保存値を base にそのまま入れると
+        // calc で「保存値＋乗せ幅」になり二重計上になるため専用の復元処理を使う。
+        if (typeof window.restoreIndepPricing === 'function') {
+          window.restoreIndepPricing(rowId, savedBp);
+        }
         if (typeof calc === 'function') calc(parseInt(rowId));
       }
       // tx は _applyCells で positional に復元済み。fields ID は非連番になり得るため使わない
@@ -413,14 +418,16 @@
     // 保存時に誤って上書きされる（case: 旧プリセットは data.fields に qf-status を持たない）。
     const _stEl = document.getElementById('qf-status');
     if (_stEl) _stEl.value = (data.fields && data.fields['qf-status']) ? data.fields['qf-status'] : '下書き中';
-    _rebuildTable(data);
-    _restoreUiState(data.fields);
-    // 保存時の為替レートを復元（スナップショット）
+    // 保存時の為替レートを先に復元する（スナップショット）。
+    // 異通貨行の売単価は換算値を基準にするため、行を組み立てる前にレートを戻さないと
+    // 保存時と違うレートで基準額・乗せ幅が算出されてしまう。
     if (data.fxSnapshot?.rates && Object.keys(data.fxSnapshot.rates).length) {
       _fxRates = { ...DEFAULT_FX_RATES, ...data.fxSnapshot.rates };
       saveFxRates();
       if (data.fxSnapshot.ts) localStorage.setItem(SharedStorage.KEYS.FX_LAST_FETCHED, data.fxSnapshot.ts);
     }
+    _rebuildTable(data);
+    _restoreUiState(data.fields);
     // ここで初めて表全体の集計・再描画を 1 回だけ実行する（_rebuildTable 中は抑止済み）。
     // renderSubconGroups が先：グループ見出し・小計の仮想行を作ってから合計を出す。
     if (typeof renderSubconGroups === 'function') renderSubconGroups();
@@ -861,14 +868,16 @@
       else el.value = val;
     });
     // テーブル行復元（通常行・小計行・リマーク行を含む）
-    _rebuildTable(data);
-    _restoreUiState(data.fields);
-    // 保存時の為替レートを復元（スナップショット）
+    // 保存時の為替レートを先に復元する（スナップショット）。
+    // 異通貨行の売単価は換算値を基準にするため、行を組み立てる前にレートを戻さないと
+    // 保存時と違うレートで基準額・乗せ幅が算出されてしまう。
     if (data.fxSnapshot?.rates && Object.keys(data.fxSnapshot.rates).length) {
       _fxRates = { ...DEFAULT_FX_RATES, ...data.fxSnapshot.rates };
       saveFxRates();
       if (data.fxSnapshot.ts) localStorage.setItem(SharedStorage.KEYS.FX_LAST_FETCHED, data.fxSnapshot.ts);
     }
+    _rebuildTable(data);
+    _restoreUiState(data.fields);
     updateTotals();
     updateRouteModeIcon();
     if (typeof syncHazmatPanel === 'function') syncHazmatPanel();
@@ -903,14 +912,16 @@
       else el.value = val;
     });
     // テーブル行復元（通常行・小計行・リマーク行を含む）
-    _rebuildTable(data);
-    _restoreUiState(data.fields);
-    // 保存時の為替レートを復元（スナップショット）
+    // 保存時の為替レートを先に復元する（スナップショット）。
+    // 異通貨行の売単価は換算値を基準にするため、行を組み立てる前にレートを戻さないと
+    // 保存時と違うレートで基準額・乗せ幅が算出されてしまう。
     if (data.fxSnapshot?.rates && Object.keys(data.fxSnapshot.rates).length) {
       _fxRates = { ...DEFAULT_FX_RATES, ...data.fxSnapshot.rates };
       saveFxRates();
       if (data.fxSnapshot.ts) localStorage.setItem(SharedStorage.KEYS.FX_LAST_FETCHED, data.fxSnapshot.ts);
     }
+    _rebuildTable(data);
+    _restoreUiState(data.fields);
     updateTotals();
     updateRouteModeIcon();
     showSaveStatus('📂 読み込みました');
