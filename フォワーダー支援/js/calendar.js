@@ -28,17 +28,54 @@ function _calYmd(d) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
-// 'YYYY-MM-DD' の開始〜終了（終了 null は単日）を1日ずつ cb(dateStr) に渡す。最大366日で打ち切り
-function _calEachDay(from, to, cb) {
-  if (!from) return;
-  let cur = new Date(from + 'T00:00:00');
-  const end = new Date((to || from) + 'T00:00:00');
-  let guard = 0;
-  while (cur <= end && guard < 366) {
-    cb(_calYmd(cur));
-    cur.setDate(cur.getDate() + 1);
-    guard++;
-  }
+// ---------- 表示色 ----------
+// 行の color 列（ユーザー指定）が最優先。未設定なら種別ごとの既定色にフォールバック。
+const _CAL_PALETTE = [
+  { hex: '#b3752c', label: 'ブラウン' },
+  { hex: '#2b7bb0', label: 'ブルー' },
+  { hex: '#3f8c5f', label: 'グリーン' },
+  { hex: '#6f5aa0', label: 'パープル' },
+  { hex: '#c0564a', label: 'レッド' },
+  { hex: '#1f7d8c', label: 'ティール' },
+  { hex: '#a85a78', label: 'ピンク' },
+  { hex: '#264a8a', label: 'ネイビー' },
+  { hex: '#7a7c2e', label: 'オリーブ' },
+  { hex: '#5a6e7a', label: 'スレート' },
+];
+const _CAL_TYPE_COLOR = { jp: '#c0564a', overseas: '#2b7bb0', partner: '#b3752c', surcharge: '#6f5aa0' };
+
+function _calColorOf(row, type) {
+  return (row && row.color) || _CAL_TYPE_COLOR[type] || '#7a6a52';
+}
+
+// 新規登録時の既定色：既存データで使われていない色を優先し、
+// 全色使用済みなら最も使用数の少ない色を返す（「既存以外の色に自動設定」）。
+function _calAutoColor() {
+  const used = {};
+  _calHolidays.forEach(h => { if (h.source_type === 'partner') { const c = _calColorOf(h, 'partner'); used[c] = (used[c] || 0) + 1; } });
+  _calSurcharges.forEach(s => { const c = _calColorOf(s, 'surcharge'); used[c] = (used[c] || 0) + 1; });
+  let best = _CAL_PALETTE[0].hex, bestN = Infinity;
+  _CAL_PALETTE.forEach(p => {
+    const n = used[p.hex] || 0;
+    if (n < bestN) { bestN = n; best = p.hex; }
+  });
+  return best;
+}
+
+function _calRenderColorChips(selected) {
+  const el = document.getElementById('calColorChips');
+  if (!el) return;
+  el.innerHTML = _CAL_PALETTE.map(p =>
+    `<button type="button" class="cal-color-chip${p.hex === selected ? ' is-active' : ''}"`
+    + ` style="background:${p.hex}" title="${p.label}"`
+    + ` onclick='calSetColor(${JSON.stringify(p.hex)})'></button>`
+  ).join('');
+}
+
+function calSetColor(hex) {
+  const input = document.getElementById('calFormColor');
+  if (input) input.value = hex;
+  _calRenderColorChips(hex);
 }
 
 async function _calLoad() {
@@ -152,11 +189,10 @@ function calSetType(type) {
 function calSetCountry(c) { _calCountryFilter = c; _calApply(); }
 function calSetCompany(c) { _calCompanyFilter = c; _calApply(); }
 
-// ---------- フィルタ適用済みイベント一覧を日付ごとに束ねる ----------
-// 戻り値: { 'YYYY-MM-DD': [{ kind, dotClass, title, tip, editable, ref }] }
-function _calBuildDayMap() {
-  const map = {};
-  const push = (dateStr, ev) => { (map[dateStr] = map[dateStr] || []).push(ev); };
+// ---------- フィルタ適用済みイベント一覧（期間つき） ----------
+// 戻り値: [{ kind, id, title, tip, color, editable, from, to }]（from/to は 'YYYY-MM-DD'、単日は同値）
+function _calBuildEvents() {
+  const out = [];
 
   const holOk = (h) => {
     if (_calTypeFilter && _calTypeFilter !== h.source_type) return false;
@@ -165,35 +201,92 @@ function _calBuildDayMap() {
     return true;
   };
   _calHolidays.filter(holOk).forEach(h => {
-    const meta = _CAL_TYPE_META[h.source_type] || {};
+    const from = _fmtDateCal(h.event_date);
+    if (!from) return;
     const sub = h.source_type === 'overseas' ? (h.country_code || '') : (h.source_type === 'partner' ? (h.company_name || '') : '');
-    _calEachDay(_fmtDateCal(h.event_date), _fmtDateCal(h.end_date) || null, ds => {
-      push(ds, {
-        kind: 'holiday', dotClass: meta.dotClass, title: h.name,
-        tip: [sub, h.name, h.note].filter(Boolean).join(' / '),
-        editable: h.source_type === 'partner', ref: h,
-      });
+    out.push({
+      kind: 'holiday', id: h.id, title: h.name,
+      tip: [sub, h.name, h.note].filter(Boolean).join(' / '),
+      color: _calColorOf(h, h.source_type),
+      editable: h.source_type === 'partner',
+      from, to: _fmtDateCal(h.end_date) || from,
     });
   });
 
   if (!_calTypeFilter || _calTypeFilter === 'surcharge') {
     _calSurcharges.forEach(s => {
-      _calEachDay(_fmtDateCal(s.valid_from), _fmtDateCal(s.valid_to) || null, ds => {
-        push(ds, {
-          kind: 'surcharge', dotClass: _CAL_TYPE_META.surcharge.dotClass, title: s.surcharge_name,
-          tip: [s.carrier, s.trade_lane, s.amount_note].filter(Boolean).join(' / '),
-          editable: true, ref: s,
-        });
+      const from = _fmtDateCal(s.valid_from);
+      if (!from) return;
+      out.push({
+        kind: 'surcharge', id: s.id, title: s.surcharge_name,
+        tip: [s.carrier, s.trade_lane, s.amount_note].filter(Boolean).join(' / '),
+        color: _calColorOf(s, 'surcharge'),
+        editable: true,
+        from, to: _fmtDateCal(s.valid_to) || from,
       });
     });
   }
-  return map;
+  // 開始が早い順 → 同じ開始日なら期間が長い順（帯が階段状にならず読みやすい）
+  out.sort((a, b) =>
+    a.from.localeCompare(b.from)
+    || b.to.localeCompare(a.to)
+    || String(a.title).localeCompare(String(b.title), 'ja'));
+  return out;
 }
 
 // ---------- 月表示グリッド ----------
 function calPrevMonth() { _calMonthCursor.setMonth(_calMonthCursor.getMonth() - 1); _calApply(); }
 function calNextMonth() { _calMonthCursor.setMonth(_calMonthCursor.getMonth() + 1); _calApply(); }
 function calGoToday()   { _calMonthCursor = new Date(); _calApply(); }
+
+const _CAL_MAX_LANES = 6;   // 1週あたりに積める帯の本数（超過分は「+N」表示）
+
+// イベントを「週ごとの帯（セグメント）」に分解し、重ならないレーンへ割り当てる。
+// 週をまたぐ期間は週境界で分割し、実際の開始/終了側だけ角を丸めて連続した1本に見せる。
+function _calBuildWeekSegments(events, y, m, startDow, daysInMonth, weekCount) {
+  const pad = (n) => String(n).padStart(2, '0');
+  const monthStart = `${y}-${pad(m + 1)}-01`;
+  const monthEnd   = `${y}-${pad(m + 1)}-${pad(daysInMonth)}`;
+
+  const weeks = Array.from({ length: weekCount }, () => ({ lanes: [], overflow: {} }));
+
+  events.forEach(ev => {
+    // 表示中の月からはみ出す部分は切り落とす
+    const s = ev.from < monthStart ? monthStart : ev.from;
+    const e = ev.to   > monthEnd   ? monthEnd   : ev.to;
+    if (s > e) return;
+
+    const cellS = parseInt(s.slice(8, 10), 10) + startDow - 1;
+    const cellE = parseInt(e.slice(8, 10), 10) + startDow - 1;
+
+    for (let w = Math.floor(cellS / 7); w <= Math.floor(cellE / 7); w++) {
+      const week = weeks[w];
+      if (!week) continue;
+      const segStart = Math.max(cellS, w * 7);
+      const segEnd   = Math.min(cellE, w * 7 + 6);
+      const c1 = segStart - w * 7;
+      const c2 = segEnd   - w * 7;
+
+      // 空いている最初のレーンを探す
+      let lane = week.lanes.findIndex(rowSegs => rowSegs.every(sg => sg.c2 < c1 || sg.c1 > c2));
+      if (lane < 0) {
+        if (week.lanes.length >= _CAL_MAX_LANES) {
+          // 溢れた分は各日の「+N」としてカウントするだけ
+          for (let c = c1; c <= c2; c++) week.overflow[c] = (week.overflow[c] || 0) + 1;
+          continue;
+        }
+        week.lanes.push([]);
+        lane = week.lanes.length - 1;
+      }
+      week.lanes[lane].push({
+        c1, c2, lane, ev,
+        isStart: segStart === cellS && ev.from >= monthStart,
+        isEnd:   segEnd   === cellE && ev.to   <= monthEnd,
+      });
+    }
+  });
+  return weeks;
+}
 
 function _calRenderGrid() {
   const wrap = document.getElementById('calGridWrap');
@@ -204,40 +297,59 @@ function _calRenderGrid() {
   const m = _calMonthCursor.getMonth();
   if (label) label.textContent = `${y}年${m + 1}月`;
 
-  const dayMap  = _calBuildDayMap();
-  const first   = new Date(y, m, 1);
-  const startDow = first.getDay();
+  const startDow    = new Date(y, m, 1).getDay();
   const daysInMonth = new Date(y, m + 1, 0).getDate();
-  const todayStr = _calYmd(new Date());
+  const weekCount   = Math.ceil((startDow + daysInMonth) / 7);
+  const todayStr    = _calYmd(new Date());
 
-  const cells = [];
-  // 前月分の空パディング
-  for (let i = 0; i < startDow; i++) cells.push(null);
-  for (let d = 1; d <= daysInMonth; d++) cells.push(d);
-  while (cells.length % 7 !== 0) cells.push(null);
+  const weeks = _calBuildWeekSegments(_calBuildEvents(), y, m, startDow, daysInMonth, weekCount);
+  const pad = (n) => String(n).padStart(2, '0');
 
   const dowNames = ['日', '月', '火', '水', '木', '金', '土'];
-  const head = dowNames.map(n => `<div class="cal-dow">${n}</div>`).join('');
+  const head = dowNames.map((n, i) =>
+    `<div class="cal-dow${i === 0 ? ' cal-dow--sun' : i === 6 ? ' cal-dow--sat' : ''}">${n}</div>`
+  ).join('');
 
-  const body = cells.map(d => {
-    if (d == null) return '<div class="cal-day cal-day--other-month"></div>';
-    const ds = `${y}-${String(m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
-    const evs = dayMap[ds] || [];
-    const isToday = ds === todayStr;
-    const dots = evs.slice(0, 4).map(ev => {
+  let html = '';
+  for (let w = 0; w < weekCount; w++) {
+    const week = weeks[w];
+    const laneCount = week.lanes.length;
+
+    // 日付セル（背景・枠）
+    let cellsHtml = '';
+    for (let c = 0; c < 7; c++) {
+      const day = w * 7 + c - startDow + 1;
+      if (day < 1 || day > daysInMonth) { cellsHtml += '<div class="cal-day cal-day--other-month"></div>'; continue; }
+      const ds = `${y}-${pad(m + 1)}-${pad(day)}`;
+      const cls = 'cal-day'
+        + (ds === todayStr ? ' cal-day--today' : '')
+        + (c === 0 ? ' cal-day--sun' : c === 6 ? ' cal-day--sat' : '');
+      const over = week.overflow[c] ? `<span class="cal-more">+${week.overflow[c]}</span>` : '';
+      cellsHtml += `<div class="${cls}"><div class="cal-day-num">${day}</div>${over}</div>`;
+    }
+
+    // 帯（セルの上にオーバーレイ。列をまたいで1本に繋がる）
+    const barsHtml = week.lanes.flat().map(sg => {
+      const ev = sg.ev;
       const clickAttr = ev.editable
-        ? ` onclick="event.stopPropagation();${ev.kind === 'holiday' ? 'calEditHoliday' : 'calEditSurcharge'}('${escHtml(ev.ref.id)}')"`
+        ? ` onclick="event.stopPropagation();${ev.kind === 'holiday' ? 'calEditHoliday' : 'calEditSurcharge'}('${escHtml(ev.id)}')"`
         : '';
-      return `<span class="cal-dot ${ev.dotClass} cal-tip" data-tip="${escHtml(ev.tip)}"${clickAttr}>${escHtml(ev.title)}</span>`;
+      const cls = 'cal-bar cal-tip'
+        + (sg.isStart ? ' is-start' : '')
+        + (sg.isEnd ? ' is-end' : '')
+        + (ev.editable ? ' is-editable' : '');
+      return `<div class="${cls}" data-tip="${escHtml(ev.tip)}"`
+        + ` style="grid-column:${sg.c1 + 1}/${sg.c2 + 2};grid-row:${sg.lane + 1};background:${escHtml(ev.color)}"${clickAttr}>`
+        + `<span class="cal-bar-label">${sg.isStart ? '' : '↪ '}${escHtml(ev.title)}</span></div>`;
     }).join('');
-    const more = evs.length > 4 ? `<span class="cal-more">+${evs.length - 4}</span>` : '';
-    return `<div class="cal-day${isToday ? ' cal-day--today' : ''}">
-      <div class="cal-day-num">${d}</div>
-      <div class="cal-day-events">${dots}${more}</div>
-    </div>`;
-  }).join('');
 
-  wrap.innerHTML = `<div class="cal-dow-row">${head}</div><div class="cal-grid">${body}</div>`;
+    html += `<div class="cal-week" style="--cal-lanes:${laneCount}">`
+      + `<div class="cal-week-cells">${cellsHtml}</div>`
+      + `<div class="cal-week-bars">${barsHtml}</div>`
+      + `</div>`;
+  }
+
+  wrap.innerHTML = `<div class="cal-dow-row">${head}</div><div class="cal-weeks">${html}</div>`;
 }
 
 // ---------- サーチャージ一覧（グリッド下） ----------
@@ -258,6 +370,7 @@ function _calRenderSurchargeList() {
     _calSurcharges.map(s => `
       <div class="cal-surcharge-item">
         <div class="cal-surcharge-main">
+          <span class="cal-surcharge-swatch" style="background:${escHtml(_calColorOf(s, 'surcharge'))}"></span>
           <span class="cal-surcharge-name">${escHtml(s.surcharge_name)}</span>
           ${_calSurchargeBadge(s)}
           ${s.carrier ? `<span class="cal-surcharge-meta">${escHtml(s.carrier)}</span>` : ''}
@@ -312,6 +425,9 @@ function _calOpenModal(kind, preset) {
     document.getElementById('calFormSurNote').value     = p.note || '';
   }
 
+  // 表示色：編集時は登録済みの色、新規は既存で使われていない色を自動選択
+  calSetColor(p.color || (isEdit ? _calColorOf(p, kind === 'holiday' ? 'partner' : 'surcharge') : _calAutoColor()));
+
   const titleEl = document.getElementById('calModalTitle');
   if (titleEl) {
     titleEl.textContent = kind === 'holiday'
@@ -360,6 +476,7 @@ async function saveCalHoliday() {
   const dateTo  = document.getElementById('calFormHolDateTo')?.value || null;
   const name    = document.getElementById('calFormHolName')?.value.trim();
   const note    = document.getElementById('calFormHolNote')?.value.trim() || null;
+  const color   = document.getElementById('calFormColor')?.value || null;
 
   if (!company || !date || !name) { quoteShowToast('⚠️ 協力会社名・日付・名称を入力してください', 'warn'); return; }
   if (dateTo && dateTo < date) { quoteShowToast('⚠️ 終了日は開始日以降の日付を指定してください', 'warn'); return; }
@@ -371,7 +488,7 @@ async function saveCalHoliday() {
   let error;
   if (id) {
     const res = await db.from('calendar_holidays').update({
-      source_type: 'partner', company_name: company, event_date: date, end_date: dateTo, name, note,
+      source_type: 'partner', company_name: company, event_date: date, end_date: dateTo, name, note, color,
     }).eq('id', id).select();
     error = res.error;
     if (!error && (!res.data || res.data.length === 0)) {
@@ -381,7 +498,7 @@ async function saveCalHoliday() {
     }
   } else {
     ({ error } = await db.from('calendar_holidays').insert({
-      source_type: 'partner', company_name: company, event_date: date, end_date: dateTo, name, note,
+      source_type: 'partner', company_name: company, event_date: date, end_date: dateTo, name, note, color,
       created_by: sd?.session?.user?.email || null,
     }));
   }
@@ -404,6 +521,7 @@ async function saveCalSurcharge() {
   const to       = document.getElementById('calFormSurTo')?.value || null;
   const amount   = document.getElementById('calFormSurAmount')?.value.trim() || null;
   const note     = document.getElementById('calFormSurNote')?.value.trim() || null;
+  const color    = document.getElementById('calFormColor')?.value || null;
 
   if (!name || !from) { quoteShowToast('⚠️ サーチャージ名・適用開始日を入力してください', 'warn'); return; }
   if (to && to < from) { quoteShowToast('⚠️ 適用終了日は開始日以降の日付を指定してください', 'warn'); return; }
@@ -415,7 +533,7 @@ async function saveCalSurcharge() {
   let error;
   if (id) {
     const res = await db.from('calendar_surcharges').update({
-      surcharge_name: name, carrier, trade_lane: lane, valid_from: from, valid_to: to, amount_note: amount, note,
+      surcharge_name: name, carrier, trade_lane: lane, valid_from: from, valid_to: to, amount_note: amount, note, color,
     }).eq('id', id).select();
     error = res.error;
     if (!error && (!res.data || res.data.length === 0)) {
@@ -425,7 +543,7 @@ async function saveCalSurcharge() {
     }
   } else {
     ({ error } = await db.from('calendar_surcharges').insert({
-      surcharge_name: name, carrier, trade_lane: lane, valid_from: from, valid_to: to, amount_note: amount, note,
+      surcharge_name: name, carrier, trade_lane: lane, valid_from: from, valid_to: to, amount_note: amount, note, color,
       created_by: sd?.session?.user?.email || null,
     }));
   }
@@ -513,6 +631,7 @@ const _CAL_HIST_FIELDS_HOL = [
   { k: 'end_date',     n: '終了日' },
   { k: 'name',         n: '名称' },
   { k: 'note',         n: 'メモ' },
+  { k: 'color',        n: '表示色' },
 ];
 const _CAL_HIST_FIELDS_SUR = [
   { k: 'surcharge_name', n: 'サーチャージ名' },
@@ -522,6 +641,7 @@ const _CAL_HIST_FIELDS_SUR = [
   { k: 'valid_to',       n: '適用終了' },
   { k: 'amount_note',    n: '金額・詳細' },
   { k: 'note',           n: 'メモ' },
+  { k: 'color',          n: '表示色' },
 ];
 
 function _calFmtTime(ts) {
@@ -622,6 +742,7 @@ window.calEditHoliday          = calEditHoliday;
 window.calEditSurcharge        = calEditSurcharge;
 window.closeCalModal          = closeCalModal;
 window.calDeleteFromModal     = calDeleteFromModal;
+window.calSetColor            = calSetColor;
 window.saveCalHoliday         = saveCalHoliday;
 window.saveCalSurcharge       = saveCalSurcharge;
 window.calDeleteHoliday       = calDeleteHoliday;
