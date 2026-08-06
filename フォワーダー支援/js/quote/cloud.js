@@ -401,7 +401,7 @@
       '" onclick="cloudFilterStatus(\'' + val + '\')">' + escHtml(label) +
       '<span class="cloud-chip-n">' + n + '</span></button>';
     let html = chip('', 'すべて', _cloudRows.length);
-    html += CLOUD_STATUSES.map(st => chip(st, st, count(st))).join('');
+    html += CLOUD_STATUSES.map(st => chip(st, _statusLabel(st), count(st))).join('');
     box.innerHTML = html;
   }
 
@@ -411,6 +411,33 @@
   }
   function _statusClass(st) {
     return { '下書き中':'draft', '提出済み':'sent', '提示済み':'sent', 'ヨコヨコ提示':'yoko', '受注':'won', '失注':'lost', '辞退':'declined', '保留':'hold' }[st] || 'draft';
+  }
+
+  // ダッシュボードのステータス変更プルダウンの選択肢。
+  // 見積編集画面のボタン（qf-status-btn）と同じ表記に揃える。
+  // DB には「提出済み」と「提示済み」の両方が混在し得るため、
+  // 現在値との照合は _normalizeStatus を通して行う。
+  const STATUS_CHOICES = ['下書き中', '提示済み', 'ヨコヨコ提示', '受注', '失注', '辞退', '保留'];
+
+  // 画面に出す表記。CLOUD_STATUSES は DB の正規値「提出済み」を持つが、
+  // 見積編集画面のボタンとダッシュボードのプルダウンは「提示済み」と表示するため、
+  // ステータスカード・チップの見出しもそちらへ揃える（値・集計は変えない）。
+  function _statusLabel(st) { return st === '提出済み' ? '提示済み' : st; }
+
+  // 案件一覧の行／カードに置くステータス変更プルダウン。
+  // 他メンバーが編集ロック中の案件は変更させない（保存時の競合検知を壊さないため）。
+  function _statusSelect(idAttr, status, lockedBy, extraCls) {
+    const cur = _normalizeStatus(status || CLOUD_STATUS_DEFAULT);
+    const cls = 'cloud-status-sel cloud-status--' + _statusClass(status) + (extraCls ? ' ' + extraCls : '');
+    if (lockedBy) {
+      return '<span class="cloud-status-badge cloud-status--' + _statusClass(status) + (extraCls ? ' ' + extraCls : '') + '" ' +
+        'title="' + escHtml(_nameFor(lockedBy)) + ' さんが作業中のため変更できません">' + escHtml(status) + ' 🔒</span>';
+    }
+    const opts = STATUS_CHOICES.map(st =>
+      '<option value="' + escHtml(st) + '"' + (_normalizeStatus(st) === cur ? ' selected' : '') + '>' + escHtml(st) + '</option>'
+    ).join('');
+    return '<select class="' + cls + '" title="ステータスを変更（チーム全員に反映されます）" ' +
+      'onclick="event.stopPropagation()" onchange="cloudSetStatus(\'' + idAttr + '\', this.value)">' + opts + '</select>';
   }
 
   // 依頼受信日・提出期限から経過日／残り日数バッジを生成（ダッシュボード優先度表示）
@@ -522,8 +549,8 @@
           '<span class="cloud-sc-name">' + escHtml(s.name) + '</span>' +
         '</span>').join('') + (subMore > 0 ? '<span class="cloud-sc-more">+' + subMore + '</span>' : '');
 
-      // ステータスは静的バッジ（ブラウザ保存と同じく編集不可）
-      const statusBadge = '<span class="cloud-status-badge cloud-status--' + _statusClass(status) + '">' + escHtml(status) + '</span>';
+      // ステータスは一覧上でそのまま変更できる（開かずに進捗を更新できるように）
+      const statusBadge = _statusSelect(idAttr, status, lockedBy);
 
       // 同時編集（Presence）：他メンバーが開いていれば「作業中」を名前入りで表示
       const others = _presenceOthers(r.id);
@@ -625,7 +652,7 @@
     const idAttr = encodeURIComponent(r.id);
     const lockedBy = _lockedByOther(r);
     return '<div class="qpd-row" onclick="cloudLoadPreset(\'' + idAttr + '\')" title="クリックで開く">' +
-      '<span class="qpd-row-status cloud-status-badge cloud-status--' + _statusClass(status) + '">' + escHtml(status) + '</span>' +
+      _statusSelect(idAttr, status, lockedBy, 'qpd-row-status') +
       '<span class="qpd-row-title">' + escHtml(title) + '</span>' +
       '<span class="qpd-row-cust">' + escHtml(cust) + (person ? ' <small>/ ' + escHtml(person) + '</small>' : '') + '</span>' +
       '<span class="qpd-row-who">' + escHtml(who) + '</span>' +
@@ -651,7 +678,7 @@
         (cls ? ' qpd-stat--' + cls : '') + '" onclick="cloudFilterStatus(\'' + val + '\')">' +
         '<span class="qpd-stat-n">' + n + '</span><span class="qpd-stat-l">' + escHtml(label) + '</span></button>';
     let html = card('', '全体', _cloudRows.length, 'all');
-    html += CLOUD_STATUSES.map(st => card(st, st, count(st), _statusClass(st))).join('');
+    html += CLOUD_STATUSES.map(st => card(st, _statusLabel(st), count(st), _statusClass(st))).join('');
     box.innerHTML = html;
   }
 
@@ -1276,18 +1303,41 @@
   // 行のステータス変更
   async function cloudSetStatus(rawId, status) {
     const c = _getClient();
-    if (!c) return;
+    if (!c || !_cloudUser) { quoteShowToast('⚠️ 先に Google でログインしてください', 'warn'); return; }
     const id = decodeURIComponent(rawId);
+    const row = _cloudRows.find(r => r.id === id);
+    const prev = row ? (row.status || CLOUD_STATUS_DEFAULT) : '';
+    if (prev === status) return;                       // 変化なし（プルダウンの選び直し）
+    // 他メンバーが編集ロック中は変更しない。updated_at を動かすと
+    // その人の保存時の競合検知が誤作動するため。
+    const lockedBy = row ? _lockedByOther(row) : null;
+    if (lockedBy) {
+      quoteShowToast('🔒 ' + _nameFor(lockedBy) + ' さんが作業中のため変更できません', 'warn', 4000);
+      _applyCloudFilter();                             // プルダウンの見た目を元に戻す
+      return;
+    }
     const { error } = await c.from(_table())
       .update({ status, owner_email: _cloudUser.email, updated_at: new Date().toISOString() })
       .eq('id', id);
-    if (error) { quoteShowToast('⚠️ ステータス更新に失敗：' + error.message, 'warn'); return; }
+    if (error) {
+      quoteShowToast('⚠️ ステータス更新に失敗：' + error.message, 'warn', 5000);
+      _applyCloudFilter();                             // 失敗時も見た目を元に戻す
+      return;
+    }
     // ローカルキャッシュも更新して即時反映
-    const row = _cloudRows.find(r => r.id === id);
     if (row) { row.status = status; row.owner_email = _cloudUser.email; row.updated_at = new Date().toISOString(); }
+    // いま開いている案件のステータスなら、編集画面側の表示も合わせる
+    if (_loadedCloudId === id && typeof window.setQuoteStatus === 'function') {
+      const el = document.getElementById('qf-status');
+      if (el && el.value !== status) window.setQuoteStatus(status);
+    }
     _renderStatusChips();
+    _renderQpdStats();                                 // 上部の件数カードも更新する
     _applyCloudFilter();
-    quoteShowToast('🔖 ステータスを「' + status + '」に変更しました', 'success');
+    quoteShowToast('🔖 ステータスを「' + status + '」に変更しました', 'success', 3000, {
+      label: '元に戻す',
+      fn: () => cloudSetStatus(rawId, prev),
+    });
   }
 
   // ---------- 保存（同名は上書き） ----------

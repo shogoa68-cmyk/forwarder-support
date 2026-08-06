@@ -3921,8 +3921,11 @@
   }
   function updateQuoteStatusUI() {
     const status = document.getElementById('qf-status')?.value || '下書き中';
+    // 「提出済み」（クラウド側の正規表記）と「提示済み」（この画面の表記）は同じ状態。
+    // 完全一致だけで判定すると、どちらでもないボタンが 1 つも点灯しない状態になる。
+    const norm = s => (s === '提出済み' ? '提示済み' : s);
     document.querySelectorAll('#qf-status-btns .qf-status-btn').forEach(btn => {
-      btn.classList.toggle('active', btn.dataset.status === status);
+      btn.classList.toggle('active', norm(btn.dataset.status) === norm(status));
     });
   }
   window.setQuoteStatus = setQuoteStatus;
