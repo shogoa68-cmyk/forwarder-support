@@ -26,6 +26,7 @@ create table if not exists public.calendar_holidays (
   end_date     date,             -- 終了日（連休・長期休業用。単日は null）
   name         text not null,    -- 祝日名／休業理由
   note         text,
+  color        text,             -- カレンダー上の帯の色（#RRGGBB）。null は種別ごとの既定色
   ics_uid      text,             -- ICS 取込元の UID（再取込での追跡用。手入力行は null）
   created_by   text,
   updated_by   text,
@@ -33,9 +34,10 @@ create table if not exists public.calendar_holidays (
   created_at   timestamptz default now()
 );
 
--- 既にテーブルを作成済みの環境向け：end_date 列の後付け（冪等）
+-- 既にテーブルを作成済みの環境向け：end_date / color 列の後付け（冪等）
 alter table public.calendar_holidays
-  add column if not exists end_date date;
+  add column if not exists end_date date,
+  add column if not exists color    text;
 
 -- 同一ソース・同一日・同一名の重複防止（ICS再取込のUPSERTキー、手入力の重複防止も兼ねる）
 create unique index if not exists uq_cal_hol_key
@@ -54,11 +56,16 @@ create table if not exists public.calendar_surcharges (
   valid_to       date,               -- 未定/無期限は null
   amount_note    text,               -- 金額・詳細（自由記述。厳密な数値管理はしない）
   note           text,
+  color          text,               -- カレンダー上の帯の色（#RRGGBB）。null は既定色
   created_by     text,
   updated_by     text,
   updated_at     timestamptz default now(),
   created_at     timestamptz default now()
 );
+
+-- 既にテーブルを作成済みの環境向け：color 列の後付け（冪等）
+alter table public.calendar_surcharges
+  add column if not exists color text;
 
 create index if not exists idx_cal_sur_dates on public.calendar_surcharges (valid_from, valid_to);
 

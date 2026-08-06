@@ -1994,6 +1994,7 @@ body:has(#compareOverlay.open) #quoteActionDock { display: none; }
 .cal-dow-row {
   display: grid;
   grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
   margin-bottom: 4px;
 }
 .cal-dow {
@@ -2003,41 +2004,90 @@ body:has(#compareOverlay.open) #quoteActionDock { display: none; }
   color: #8a7a64;
   padding: 4px 0;
 }
-.cal-grid {
+.cal-dow--sun { color: #c0564a; }
+.cal-dow--sat { color: #2b7bb0; }
+
+/* 週ごとに「日付セル」と「予定の帯」を重ねる。
+   帯は列をまたぐ grid アイテムなので、セル間の隙間も跨いで1本に繋がって見える。 */
+.cal-weeks { display: flex; flex-direction: column; gap: 4px; }
+.cal-week { position: relative; }
+.cal-week-cells {
   display: grid;
   grid-template-columns: repeat(7, 1fr);
   gap: 4px;
 }
 .cal-day {
-  min-height: 84px;
+  position: relative;
+  /* 通常は一定の高さ。帯が多い週だけレーン数に応じて伸ばす */
+  min-height: max(76px, calc(30px + var(--cal-lanes, 0) * 22px));
   border: 1px solid #e8e0d4;
   border-radius: 6px;
   padding: 4px 5px;
   background: #fff;
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
 }
 .cal-day--other-month { background: #f7f4ee; border-color: #f0ebe0; }
 .cal-day--today { border-color: #2b7bb0; box-shadow: inset 0 0 0 1px #2b7bb0; }
 .cal-day-num { font-size: 12px; font-weight: 600; color: #5d4e3a; }
-.cal-day-events { display: flex; flex-direction: column; gap: 2px; }
-.cal-dot {
+.cal-day--sun .cal-day-num { color: #c0564a; }
+.cal-day--sat .cal-day-num { color: #2b7bb0; }
+.cal-more {
+  position: absolute;
+  right: 5px;
+  bottom: 3px;
+  font-size: 10px;
+  color: #8a7a64;
+}
+
+.cal-week-bars {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  column-gap: 4px;
+  row-gap: 2px;
+  grid-auto-rows: 20px;
+  padding-top: 26px;   /* 日付番号の下から帯を並べる */
+  pointer-events: none;
+}
+.cal-bar {
+  pointer-events: auto;
+  display: flex;
+  align-items: center;
+  height: 20px;
+  padding: 0 6px;
   font-size: 10.5px;
-  line-height: 1.3;
-  padding: 1px 5px;
-  border-radius: 4px;
+  line-height: 1;
   color: #fff;
-  white-space: nowrap;
   overflow: hidden;
-  text-overflow: ellipsis;
   cursor: default;
 }
-.cal-dot--jp        { background: #c0564a; }
-.cal-dot--overseas  { background: #2b7bb0; }
-.cal-dot--partner   { background: #b3752c; cursor: pointer; }
-.cal-dot--surcharge { background: #6f5aa0; cursor: pointer; }
-.cal-more { font-size: 10px; color: #8a7a64; }
+/* 実際の開始日／終了日の側だけ角を丸める（週をまたぐ途中は角ばったまま繋げる） */
+.cal-bar.is-start { border-top-left-radius: 4px;  border-bottom-left-radius: 4px;  margin-left: 1px; }
+.cal-bar.is-end   { border-top-right-radius: 4px; border-bottom-right-radius: 4px; margin-right: 1px; }
+.cal-bar.is-editable { cursor: pointer; }
+.cal-bar.is-editable:hover { filter: brightness(1.12); }
+.cal-bar-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* 表示色パレット */
+.cal-color-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.cal-color-chip {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  padding: 0;
+  cursor: pointer;
+  transition: transform .12s, border-color .12s;
+}
+.cal-color-chip:hover { transform: scale(1.1); }
+.cal-color-chip.is-active { border-color: #3d2e1e; }
+.cal-surcharge-swatch {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+  flex-shrink: 0;
+}
 
 /* サーチャージ一覧 */
 .cal-surcharge-list { margin-top: 20px; }
