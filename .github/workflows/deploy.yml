@@ -57,6 +57,9 @@ jobs:
       #    （this.timeout = Math.min(timeoutInput, MAX_TIMEOUT)）
       #  - 同一 run 内での再試行も不可。deployment ID がコミットSHAと同じで、
       #    1回目のタイムアウトでキャンセル済みのため即 "Deployment cancelled." になる
+      #  - タイムアウトした側が Pages 側で「実行中」のまま残ると、以降のデプロイが
+      #    400 "due to in progress deployment. Please cancel <sha> first" で作成拒否される。
+      #    その場合は Settings → Environments → github-pages で当該デプロイを Cancel する
       # 復旧後に Actions から Re-run するか、新しいコミットを push し直すこと。
       - name: Deploy to GitHub Pages
         id: deployment
