@@ -57,7 +57,8 @@ github/202605_コード改修/
 - **認証**：Google ログイン（Supabase Auth / OAuth）。`cloud.js` の `cloudLogin/cloudLogout`
 - **保護**：RLS（Row Level Security）。`allowed_emails` テーブルに登録されたメンバーのみ読み書き可（判定は `security definer` 関数 `is_team_member()` 経由）。Google でログインできても許可リスト外はデータに触れない
 - **編集権限**：許可メンバーは全員が編集・削除可（`for all` ポリシー）
-- **テーブル**：`quote_presets { id, name, data(jsonb), status, customer, person, owner_email, created_by, updated_at }`。`data` はローカル `quotePresets_v1` と同形式（`gatherAllData()` / `_applyQuoteData()` 互換）
+- **テーブル**：`quote_presets { id, name, data(jsonb), status, customer, person, owner_email, created_by, editors(jsonb), updated_at }`。`data` はローカル `quotePresets_v1` と同形式（`gatherAllData()` / `_applyQuoteData()` 互換）
+- **作成者・更新者**：`created_by`＝作成者（1名・不変）、`owner_email`＝最終更新者、`editors`＝更新した人の履歴 `[{email, at, count}]`（新しい順・最大20件）。`editors` は BEFORE INSERT/UPDATE トリガー `bump_quote_preset_editors()` が自動更新するため、保存経路（保存／ダッシュボードのステータス変更）を問わず取りこぼさない。編集ロックや Presence だけの更新（`data`・`status` が不変）は加算しない。**スキーマは `docs/sql/quote-preset-editors.sql` を Supabase で実行する前提**（未実行でもカードは最終更新者のみで動作）
 - **案件ステータス／検索**：`status`（下書き中/提示済み/受注/失注）を行ごとにプルダウン変更・色分けバッジ・チップで絞り込み。検索ボックスは名前・顧客名・担当者でクライアント側フィルタ（フェーズ1）。`customer`/`person` は保存時に `data.fields['qf-customer'/'qf-person']` から列へ昇格。`created_by`＝作成者、`owner_email`＝最終更新者
 - **件数**：クラウド側は実質ほぼ無制限（無料枠 500MB ÷ 約4KB/件 ≒ 約12万件）。ローカル localStorage のみ最大50件
 - **キー**：`cloud-config.js` の `publishableKey`（`sb_publishable_...`）はブラウザ公開前提・RLS で保護されるためコミット可。**`sb_secret_...`（service_role）は絶対にコミットしない**
