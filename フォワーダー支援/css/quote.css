@@ -2835,6 +2835,8 @@
 #tab-quote-make .z2-route-chip {
   display: inline-flex;
   align-items: center;
+  flex-wrap: wrap;      /* 内容が長いチップは枠外にはみ出さず折り返す */
+  max-width: 100%;
   gap: 6px;
   padding: 3px 6px 3px 9px;
   background: #eef2e6;
@@ -2878,6 +2880,44 @@
 #tab-quote-make .z2-route-chip--off .z2-route-carrier,
 #tab-quote-make .z2-route-chip--off .z2-route-leg {
   text-decoration: line-through; color: #999;
+}
+/* 使用不可チップ（候補だったが使えなかった記録） */
+#tab-quote-make .z2-route-chip--ng {
+  background: #fbeceb; border-color: #e0b4b0;
+}
+#tab-quote-make .z2-route-chip--ng .z2-route-carrier,
+#tab-quote-make .z2-route-chip--ng .z2-route-leg {
+  text-decoration: line-through; color: #a1736e;
+}
+#tab-quote-make .z2-route-chip--ng .z2-route-toggle {
+  background: #c98b85; border-color: #c98b85;
+}
+#tab-quote-make .z2-route-ngtag {
+  display: inline-flex; align-items: center; max-width: 100%;
+  font-size: 10px; font-weight: 700; color: #a3352b;
+  background: #fadedb; border: 1px solid #e3a9a3; border-radius: 8px;
+  padding: 1px 5px; white-space: nowrap; cursor: pointer;
+  font-family: inherit; line-height: 1.4;
+}
+/* 理由は省略表示（全文は title に出る） */
+#tab-quote-make .z2-route-ngreason {
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  max-width: 150px; font-weight: 500;
+}
+#tab-quote-make .z2-route-carrier { white-space: nowrap; }
+#tab-quote-make .z2-route-ngtag:hover { background: #f6cdc8; border-color: #c07a72; }
+/* 使用不可トグル（🚫） */
+#tab-quote-make .z2-route-ng {
+  width: 17px; height: 17px; flex-shrink: 0;
+  border: 1px solid #d2b0ac; border-radius: 3px;
+  background: #fdf3f2; color: #a3352b;
+  font-size: 10px; line-height: 1; padding: 0;
+  cursor: pointer;
+  display: inline-flex; align-items: center; justify-content: center;
+}
+#tab-quote-make .z2-route-ng:hover { background: #f8d9d5; border-color: #c07a72; }
+#tab-quote-make .z2-route-chip--ng .z2-route-ng {
+  background: #a3352b; border-color: #a3352b; color: #fff;
 }
 #tab-quote-make .carrier-links-panel {
   display: flex; flex-wrap: wrap; align-items: center;

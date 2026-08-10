@@ -1728,7 +1728,10 @@
   }
 
   // ========== 幹線輸送：複数船会社・複数POL/POD 航路 ==========
-  let _routeEntries = [];   // [{ carrier, pol, pod }, ...]
+  let _routeEntries = [];   // [{ carrier, pol, pod, enabled, ng, ngReason }, ...]
+  // ✎ で一旦フォームへ戻したチップの状態（無効・使用不可）を、次の「＋航路」で引き継ぐ
+  let _pendingRouteFlags = null;
+  const NG_REASON_HINT = '使用不可の理由を入力してください\n（例：スペース満床 / CY カット後 / レート提示なし / 危険品不可 / 直近スケジュールなし）';
 
   function _renderRouteEntries() {
     const data = document.getElementById('z2-routes-data');
@@ -1737,7 +1740,8 @@
     if (!list) return;
     if (!_routeEntries.length) { list.innerHTML = ''; return; }
     list.innerHTML = _routeEntries.map((r, i) => {
-      const on = r.enabled !== false;
+      const ng = !!r.ng;                       // 使用不可（候補から外すが記録は残す）
+      const on = !ng && r.enabled !== false;
       const parts = [];
       if (r.pol) parts.push(_escMulti(r.pol));
       if (r.via) parts.push('<span class="z2-route-via">via:' + _escMulti(r.via) + '</span>');
@@ -1746,13 +1750,22 @@
       const _roleLabel = { agent:'代理店', nvocc:'NVOCC/コンソリ', coloader:'コローダー', direct:'船社直' }[r.carrierRole] || '';
       const _roleChip  = _roleLabel ? `<span class="z2-route-role" title="契約先の役割">${_escMulti(_roleLabel)}</span>` : '';
       const _actualChip = r.actualCarrier ? `<span class="z2-route-actual" title="実運送人（実際の船会社）">as ${_escMulti(r.actualCarrier)}</span>` : '';
-      return `<span class="z2-route-chip${on ? '' : ' z2-route-chip--off'}">`
+      // 理由が長いとチップからはみ出すので表示は省略し、全文は title に持たせる
+      const _ngTitle = '使用不可の理由を編集' + (r.ngReason ? '\n' + r.ngReason : '');
+      const _ngChip = ng
+        ? `<button type="button" class="z2-route-ngtag" onclick="editRouteNgReason(${i})" title="${_escMulti(_ngTitle)}">🚫 使用不可`
+          + (r.ngReason ? `<span class="z2-route-ngreason">：${_escMulti(r.ngReason)}</span>` : '')
+          + `</button>`
+        : '';
+      const _chipCls = ng ? ' z2-route-chip--ng' : (on ? '' : ' z2-route-chip--off');
+      return `<span class="z2-route-chip${_chipCls}">`
         + `<button type="button" class="z2-route-toggle" onclick="toggleRouteEntry(${i})" title="${on ? '無効にする（一時停止）' : '有効にする'}">${on ? '✓' : '—'}</button>`
         + `<span class="z2-route-carrier">${_escMulti(r.carrier || '—')}</span>`
-        + _roleChip + _actualChip
+        + _roleChip + _actualChip + _ngChip
         + (r.service ? `<span class="z2-route-service">${_escMulti(r.service)}</span>` : '')
         + `<span class="z2-route-leg">${route}</span>`
         + (r.tt ? `<span class="z2-route-tt" title="Transit Time（所要日数）">⏱️ ${_escMulti(r.tt)}</span>` : '')
+        + `<button type="button" class="z2-route-ng" onclick="toggleRouteNg(${i})" title="${ng ? '使用不可を解除する' : '使用不可として記録する（見積の対象外にするが、候補として検討した記録は残す）'}">🚫</button>`
         + `<button type="button" class="z2-route-edit" onclick="editRouteEntry(${i})" title="編集（フォームに書き戻す）">✎</button>`
         + `<button type="button" class="me-chip-del" onclick="removeRouteEntry(${i})" title="削除">×</button></span>`;
     }).join('');
@@ -1783,7 +1796,13 @@
       return;
     }
     // carrier=契約先（ブッキング/支払先）、carrierRole=その役割、actualCarrier=実運送人（実際の船会社）
-    _routeEntries.push({ carrier, service, carrierRole, actualCarrier, pol, via, pod, tt, enabled: true });
+    const flags = _pendingRouteFlags || { enabled: true, ng: false, ngReason: '' };
+    _pendingRouteFlags = null;
+    _routeEntries.push({ carrier, service, carrierRole, actualCarrier, pol, via, pod, tt,
+                         enabled: flags.enabled, ng: flags.ng, ngReason: flags.ngReason });
+    if (flags.ng && typeof quoteShowToast === 'function') {
+      quoteShowToast('🚫 使用不可の記録を引き継ぎました', 'info', 1800);
+    }
     _renderRouteEntries();
     // キャリア・サービス名・T/T・契約形態をクリアして次の入力へ（POL/POD は同じ航路に別キャリアを追加できるよう保持）
     const carrierEl = document.getElementById('z2Carrier');
@@ -1811,8 +1830,40 @@
     _triggerCarrierBmFetch();
   }
   function toggleRouteEntry(i) {
-    if (!_routeEntries[i]) return;
-    _routeEntries[i] = Object.assign({}, _routeEntries[i], { enabled: _routeEntries[i].enabled === false });
+    const cur = _routeEntries[i];
+    if (!cur) return;
+    // 有効化するときは「使用不可」も解除する（使えるようになった＝記録は不要）
+    const turnOn = cur.enabled === false || cur.ng;
+    _routeEntries[i] = Object.assign({}, cur, turnOn
+      ? { enabled: true, ng: false, ngReason: '' }
+      : { enabled: false });
+    _renderRouteEntries();
+    if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
+    if (typeof scheduleSnapshot === 'function') scheduleSnapshot();
+  }
+
+  // 使用不可の記録：チップを消さずに「候補として検討したが使えなかった」旨と理由を残す。
+  // enabled:false も併せて立てるので、見積・ゾーン構成・キャリアリンク等の対象からは外れる。
+  function toggleRouteNg(i) {
+    const r = _routeEntries[i];
+    if (!r) return;
+    if (r.ng) {
+      _routeEntries[i] = Object.assign({}, r, { ng: false, ngReason: '', enabled: true });
+    } else {
+      const reason = prompt(NG_REASON_HINT, r.ngReason || '');
+      if (reason === null) return;   // キャンセル
+      _routeEntries[i] = Object.assign({}, r, { ng: true, ngReason: reason.trim(), enabled: false });
+    }
+    _renderRouteEntries();
+    if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
+    if (typeof scheduleSnapshot === 'function') scheduleSnapshot();
+  }
+  function editRouteNgReason(i) {
+    const r = _routeEntries[i];
+    if (!r || !r.ng) return;
+    const reason = prompt(NG_REASON_HINT, r.ngReason || '');
+    if (reason === null) return;
+    _routeEntries[i] = Object.assign({}, r, { ngReason: reason.trim() });
     _renderRouteEntries();
     if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
     if (typeof scheduleSnapshot === 'function') scheduleSnapshot();
@@ -1831,6 +1882,8 @@
     set('z2Pod', r.pod);
     set('z2Tt', r.tt);
     // 契約形態パネルは常時表示のため展開処理は不要
+    // 無効・使用不可の状態は再登録時に引き継ぐ（✎ で消えてしまわないように）
+    _pendingRouteFlags = { enabled: r.enabled !== false && !r.ng, ng: !!r.ng, ngReason: r.ngReason || '' };
     // エントリを削除して再描画
     _routeEntries.splice(i, 1);
     _renderRouteEntries();
@@ -1839,8 +1892,10 @@
     if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
     if (typeof scheduleSnapshot === 'function') scheduleSnapshot();
   }
-  window.toggleRouteEntry = toggleRouteEntry;
-  window.editRouteEntry   = editRouteEntry;
+  window.toggleRouteEntry  = toggleRouteEntry;
+  window.editRouteEntry    = editRouteEntry;
+  window.toggleRouteNg     = toggleRouteNg;
+  window.editRouteNgReason = editRouteNgReason;
   // 復元用
   function syncRouteEntries() {
     const data = document.getElementById('z2-routes-data');
