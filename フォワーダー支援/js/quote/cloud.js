@@ -1782,8 +1782,14 @@
 
   function cloudImportSelectedRows() {
     const dataRows = _cpRows.filter(r => r._type === 'data' && r.cells?.length);
-    const chks = [...document.querySelectorAll('#cpTableBody .cp-row .cp-chk')];
-    const selected = dataRows.filter((_, i) => chks[i]?.checked);
+    // プレビュー表はサブコン単位にグループ化して並べ替えて描画するため、DOM の並び順は
+    // dataRows の並び順と一致しない。位置で対応づけると別の行が入るので data-idx で引く。
+    const selected = [...document.querySelectorAll('#cpTableBody .cp-row')]
+      .filter(tr => tr.querySelector('.cp-chk')?.checked)
+      .map(tr => Number(tr.dataset.idx))
+      .filter(i => Number.isInteger(i) && dataRows[i])
+      .sort((a, b) => a - b)          // 元の見積の並び順を保って追加する
+      .map(i => dataRows[i]);
     if (!selected.length) { quoteShowToast('⚠️ 行を選択してください', 'warn'); return; }
     if (typeof window.appendQuoteRows !== 'function') {
       quoteShowToast('⚠️ 行追加関数が未ロードです', 'warn'); return;
