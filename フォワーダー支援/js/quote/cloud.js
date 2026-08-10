@@ -1477,9 +1477,14 @@
     }
     // 複数航路（z2-routes-data）対応。なければ単一フィールドにフォールバック
     const routeEntries = [];
+    const ngRoutes = [];   // 使用不可として記録された候補（社内向けに別行で残す）
     try {
       const rts = JSON.parse(f['z2-routes-data'] || '[]');
-      if (Array.isArray(rts) && rts.length) rts.filter(r => r.enabled !== false).forEach(r => routeEntries.push(r));
+      if (Array.isArray(rts)) rts.forEach(r => {
+        if (!r) return;
+        if (r.ng) ngRoutes.push(r);
+        else if (r.enabled !== false) routeEntries.push(r);
+      });
     } catch(e) {}
     if (routeEntries.length) {
       routeEntries.forEach((r, i) => {
@@ -1494,6 +1499,11 @@
       }
       if (f['z2Carrier']) condRows.push(_cpKV('キャリア', f['z2Carrier']));
     }
+    ngRoutes.forEach((r, i) => {
+      const leg  = [r.pol, r.via, r.pod].filter(Boolean).join(' → ');
+      const line = [r.carrier || '—', leg, r.ngReason ? `理由: ${r.ngReason}` : ''].filter(Boolean).join('  ');
+      condRows.push(_cpKV(i === 0 ? '🚫 使用不可' : '　', line));
+    });
     const z3On = f['cond-zone3-on'] === 'true' || f['cond-zone3-on'] === true;
     if (z3On) {
       const z3 = [f['z3Place'], f['z3Country']].filter(Boolean).join(', ');
