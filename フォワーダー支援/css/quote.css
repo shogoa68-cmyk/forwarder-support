@@ -5789,6 +5789,18 @@ body.qp-dash-active #quoteActionDock { display: none !important; }
   flex-wrap: wrap; gap: 6px; margin-top: 8px; padding-top: 6px; border-top: 1px dashed #e8e0d4; }
 #tab-quote-make .cloud-card-acts { display: flex; gap: 5px; flex-shrink: 0; flex-wrap: nowrap; }
 #tab-quote-make .cloud-card-who  { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* 作成者（1名）と最終更新者（＋他N名）。フッターは幅が足りないので本文側の全幅行に置く */
+#tab-quote-make .cloud-kv-who { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; }
+#tab-quote-make .cloud-card-crt,
+#tab-quote-make .cloud-card-upd { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
+#tab-quote-make .cloud-card-crt { color: #6b7a85; }
+#tab-quote-make .cloud-card-upd { color: #4a5a66; cursor: help; }
+/* 「ほかに N 名が更新」バッジ */
+#tab-quote-make .cloud-card-edn {
+  display: inline-block; margin-left: 3px; padding: 0 4px;
+  font-size: 9.5px; font-weight: 700; line-height: 1.5;
+  color: #4a6a86; background: #e6eef5; border: 1px solid #c3d5e3; border-radius: 7px;
+}
 
 /* === 💬 案件カード内 申し送り簡易表示（ダッシュボードのカード表示のみ） === */
 #tab-quote-make .cloud-card-chat { display: none; }

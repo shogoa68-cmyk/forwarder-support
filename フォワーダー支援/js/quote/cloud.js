@@ -206,6 +206,41 @@
     return _profileMap[email] || email.split('@')[0];
   }
 
+  function _fmtWhen(v) {
+    if (!v) return '';
+    const d = new Date(v);
+    return isNaN(d.getTime()) ? ''
+      : d.toLocaleString('ja-JP', { month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit' });
+  }
+
+  // 更新者の履歴（editors 列）。新しい順。列が未マイグレーションの案件は
+  // 分かる範囲（最終更新者）で代用し、表示が空にならないようにする。
+  function _editorsOf(r) {
+    const list = Array.isArray(r.editors) ? r.editors.filter(e => e && e.email) : [];
+    if (list.length) return list;
+    return r.owner_email ? [{ email: r.owner_email, at: r.updated_at, count: 0 }] : [];
+  }
+
+  // カード/行の「誰が作って誰が触ったか」ツールチップ
+  function _whoTitle(r) {
+    const editors = _editorsOf(r);
+    const lines = [
+      '作成：' + _nameFor(r.created_by),
+      '最終更新：' + _nameFor(r.owner_email) + (r.updated_at ? '・' + _fmtWhen(r.updated_at) : ''),
+    ];
+    if (editors.length) {
+      lines.push('');
+      lines.push('更新した人（' + editors.length + '名）');
+      editors.forEach(e => {
+        const cnt = Number(e.count) > 0 ? Number(e.count) + '回' : '';
+        const at  = _fmtWhen(e.at);
+        const sub = [cnt, at].filter(Boolean).join(' / ');
+        lines.push('・' + _nameFor(e.email) + (sub ? '（' + sub + '）' : ''));
+      });
+    }
+    return lines.join('\n');
+  }
+
   // ---------- 一覧 ----------
   async function cloudListPresets(silent) {
     const c = _getClient();
@@ -213,15 +248,23 @@
     if (!c || !_cloudUser) return;
     if (wrap && !silent) wrap.innerHTML = '<div class="preset-empty">読み込み中…</div>';
     await _loadProfiles();
-    // locked_by/locked_at（編集ロック）も取得。列が未マイグレーションなら従来列にフォールバック。
+    // editors（更新者履歴）・locked_by/locked_at（編集ロック）も取得。
+    // 列が未マイグレーションでも動くよう、段階的にフォールバックする。
+    const BASE_COLS = 'id,name,status,customer,person,owner_email,created_by,updated_at,incoterms,transport_mode,pol,pod,carrier,data';
     let { data, error } = await c
       .from(_table())
-      .select('id,name,status,customer,person,owner_email,created_by,updated_at,incoterms,transport_mode,pol,pod,carrier,data,locked_by,locked_at')
+      .select(BASE_COLS + ',locked_by,locked_at,editors')
       .order('updated_at', { ascending: false });
     if (error) {
       ({ data, error } = await c
         .from(_table())
-        .select('id,name,status,customer,person,owner_email,created_by,updated_at,incoterms,transport_mode,pol,pod,carrier,data')
+        .select(BASE_COLS + ',locked_by,locked_at')
+        .order('updated_at', { ascending: false }));
+    }
+    if (error) {
+      ({ data, error } = await c
+        .from(_table())
+        .select(BASE_COLS)
         .order('updated_at', { ascending: false }));
     }
     if (error) {
@@ -250,7 +293,10 @@
       ].filter(Boolean).join(' ').toLowerCase();
     }
     // 表示名（プロフィール）は後追いロードされるためキャッシュに含めず毎回付加
-    const names = [_nameFor(r.owner_email), _nameFor(r.created_by)].filter(Boolean).join(' ').toLowerCase();
+    const names = [_nameFor(r.owner_email), _nameFor(r.created_by)]
+      .concat(_editorsOf(r).map(e => _nameFor(e.email)))
+      .concat(_editorsOf(r).map(e => e.email))
+      .filter(Boolean).join(' ').toLowerCase();
     return r.__hay + (names ? ' ' + names : '');
   }
   // お客様名の正規化キー（表記ゆれを吸収してランキングを寄せる）。
@@ -509,6 +555,13 @@
       const status = r.status || CLOUD_STATUS_DEFAULT;
       const updWho = _nameFor(r.owner_email);
       const crtWho = _nameFor(r.created_by);
+      // 最終更新者以外に何名が触ったか（＋N バッジ用）
+      const edOthers = _editorsOf(r).filter(e => e.email !== r.owner_email).length;
+      const whoDd =
+        '<span class="cloud-card-crt" title="作成者">👤 ' + escHtml(crtWho || '—') + '</span>' +
+        '<span class="cloud-card-upd" title="' + escHtml(_whoTitle(r)) + '">✏️ ' + escHtml(updWho || '—') +
+          (edOthers > 0 ? '<span class="cloud-card-edn" title="ほかに ' + edOthers + ' 名が更新">+' + edOthers + '</span>' : '') +
+        '</span>';
       const idAttr = encodeURIComponent(r.id);
       const lockedBy = _lockedByOther(r);   // 他メンバーが編集ロック中なら そのemail
 
@@ -607,11 +660,11 @@
             (carrier  ? '<dt>幹線</dt><dd>🚢 ' + escHtml(carrier) + '</dd>' : '') +
             (subHtml  ? '<dt>サブコン</dt><dd class="cloud-kv-sub">' + subHtml + '</dd>' : '') +
             (custDd   ? '<dt>お客様 / 担当</dt><dd>' + custDd + '</dd>' : '') +
+            '<dt>作成 / 更新</dt><dd class="cloud-kv-who">' + whoDd + '</dd>' +
           '</dl>' +
           copiedFromHtml +
           '<div class="cloud-card-foot">' +
-            '<span class="cloud-card-who" title="作成：' + escHtml(crtWho || '—') + ' / 最終更新：' + escHtml(updWho || '—') + '">' +
-              '✏️ ' + escHtml(updWho || '—') + '・' + ts + '</span>' +
+            '<span class="cloud-card-who" title="' + escHtml(_whoTitle(r)) + '">🕒 ' + ts + '</span>' +
             '<div class="cloud-card-acts">' +
               '<button class="btn-preset-preview" onclick="cloudPreviewPreset(\'' + idAttr + '\')" title="内容をプレビュー">プレビュー</button>' +
               '<button class="btn-preset-pdf" onclick="cloudPdfPreset(\'' + idAttr + '\')" title="この案件を開いて御見積書PDFを出力">📄 PDF</button>' +
@@ -648,14 +701,16 @@
     const cust   = (m ? m.customer : r.customer) || '';
     const person = (m ? m.person : r.person) || '';
     const who    = _nameFor(r.owner_email) || '—';
-    const ts     = r.updated_at ? new Date(r.updated_at).toLocaleString('ja-JP', { month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit' }) : '';
+    const others = _editorsOf(r).filter(e => e.email !== r.owner_email).length;
+    const ts     = _fmtWhen(r.updated_at);
     const idAttr = encodeURIComponent(r.id);
     const lockedBy = _lockedByOther(r);
     return '<div class="qpd-row" onclick="cloudLoadPreset(\'' + idAttr + '\')" title="クリックで開く">' +
       _statusSelect(idAttr, status, lockedBy, 'qpd-row-status') +
       '<span class="qpd-row-title">' + escHtml(title) + '</span>' +
       '<span class="qpd-row-cust">' + escHtml(cust) + (person ? ' <small>/ ' + escHtml(person) + '</small>' : '') + '</span>' +
-      '<span class="qpd-row-who">' + escHtml(who) + '</span>' +
+      '<span class="qpd-row-who" title="' + escHtml(_whoTitle(r)) + '">' + escHtml(who) +
+        (others > 0 ? '<span class="cloud-card-edn">+' + others + '</span>' : '') + '</span>' +
       '<span class="qpd-row-ts">' + ts + '</span>' +
       '<span class="qpd-row-acts" onclick="event.stopPropagation()">' +
         '<button class="qpd-row-btn" onclick="cloudPreviewPreset(\'' + idAttr + '\')" title="プレビュー">👁</button>' +
