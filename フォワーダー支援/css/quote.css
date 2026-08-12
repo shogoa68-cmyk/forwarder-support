@@ -907,8 +907,9 @@
 /* flex は td ではなく内側 div へ（td を flex 化すると colspan が潰れる） */
 #tab-quote-make .subcon-subgroup-inner { display: flex; align-items: center; gap: 4px; text-align: left; }
 #tab-quote-make .subcon-subgroup-header.is-pattern .subcon-subgroup-leg { color: #2a4a72; flex: 1; }
-/* パターンサブヘッダーのトグル・除外ボタン */
+/* パターンサブヘッダーのトグル・除外・名称変更ボタン */
 #tab-quote-make .subcon-subgroup-toggle,
+#tab-quote-make .subcon-subgroup-rename,
 #tab-quote-make .subcon-subgroup-excl {
   display: inline-flex; align-items: center; justify-content: center;
   padding: 0 5px; height: 16px; font-size: 0.72em; line-height: 1;
@@ -916,6 +917,7 @@
   border-radius: 3px; cursor: pointer; color: #2a4a72; flex-shrink: 0;
 }
 #tab-quote-make .subcon-subgroup-toggle:hover,
+#tab-quote-make .subcon-subgroup-rename:hover,
 #tab-quote-make .subcon-subgroup-excl:hover { background: #d8e6f5; }
 #tab-quote-make .subcon-subgroup-excl.is-excluded { background: #f4d0d0; border-color: #c87070; color: #a03030; }
 #tab-quote-make .subcon-subgroup-header.is-pattern.is-excluded .subcon-subgroup-cell {

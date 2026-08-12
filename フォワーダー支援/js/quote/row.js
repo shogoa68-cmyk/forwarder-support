@@ -1979,6 +1979,51 @@
     _syncGroupUpdatedHeaders();
     if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
   }
+
+  // パターン名を変更し、配下の全行の「パターン」欄へ一括反映する（親ツリー → 子項目）。
+  // 折りたたみ／除外／申し送りメモの状態は新しいパターン名のキーへ引き継ぐ。
+  // 変更後の名前が既存の別パターンと一致する場合は、そのグループへ合流する。
+  function renamePatternGroup(svKey, ptKey) {
+    const members = _groupMemberRows(svKey, ptKey);
+    if (!members.length) return;
+    const next = prompt('パターン名を変更します（配下の ' + members.length + ' 行すべてに反映されます）', ptKey);
+    if (next === null) return;
+    const trimmed = next.trim();
+    if (!trimmed) {
+      alert('パターン名を空にはできません。行ごとに解除する場合は各行のパターン欄を個別に消してください。');
+      return;
+    }
+    if (trimmed === ptKey) return;
+
+    const willMerge = _groupMemberRows(svKey, trimmed).length > 0;
+
+    members.forEach(tr => {
+      const id = tr.id.replace('row-', '');
+      const el = document.getElementById('pt-' + id);
+      if (el) el.value = trimmed;
+    });
+
+    // 折りたたみ／除外／申し送りメモの状態を新しいキーへ引き継ぐ
+    const oldComp = svKey + '\x00' + ptKey, newComp = svKey + '\x00' + trimmed;
+    if (_collapsedPatterns.has(oldComp)) { _collapsedPatterns.delete(oldComp); _collapsedPatterns.add(newComp); }
+    if (_excludedPatterns.has(oldComp))  { _excludedPatterns.delete(oldComp);  _excludedPatterns.add(newComp); }
+    const oldNote = (typeof window.getSubconGroupNote === 'function') ? window.getSubconGroupNote(svKey, ptKey) : null;
+    if (oldNote && typeof window.setSubconGroupNote === 'function') {
+      window.setSubconGroupNote(svKey, trimmed, oldNote.text);
+      window.setSubconGroupNote(svKey, ptKey, '');
+    }
+
+    renderSubconGroups();
+    if (typeof calcLiveUpdate === 'function') calcLiveUpdate();
+    if (typeof window.renderQuoteSectionDigest === 'function') window.renderQuoteSectionDigest();
+    if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
+    if (typeof scheduleSnapshot === 'function') scheduleSnapshot();
+    if (typeof quoteShowToast === 'function') {
+      const mergeNote = willMerge ? '（既存の同名パターンに合流しました）' : '';
+      quoteShowToast('🔖 パターン名を「' + trimmed + '」に一括変更しました（' + members.length + ' 行）' + mergeNote, 'success', 3500);
+    }
+  }
+  window.renamePatternGroup = renamePatternGroup;
   // 全グループ見出しの日付表示（入力値・「混在」バッジ）を現在の行から再計算（再描画不要）
   function _syncGroupUpdatedHeaders() {
     document.querySelectorAll('#tableBody tr.subcon-group-header, #tableBody tr.subcon-subgroup-header.is-pattern')
@@ -2510,12 +2555,17 @@
                   `<div class="subcon-subgroup-inner">` +
                   `<button type="button" class="subcon-subgroup-toggle" title="${_ptCollapsed ? '展開' : '折りたたみ/展開'}">${_ptCollapsed ? '▶' : '▼'}</button>` +
                   `<span class="subcon-subgroup-leg">${icon} ${_escHdr(key)}</span>` +
+                  `<button type="button" class="subcon-subgroup-rename" title="このパターン名を変更（配下の行すべてに反映）">✎</button>` +
                   `<button type="button" class="subcon-subgroup-excl${_ptExcluded ? ' is-excluded' : ''}" title="見積もりへの含める/除外を切り替え">${_ptExcluded ? '含む' : '除外'}</button>` +
                   `<button type="button" class="subcon-group-sort-btn" title="このパターン内をカテゴリ順に並び替え">⇅カテゴリ</button>` +
                   _groupUpdatedHtml() +
                   `</div>` +
                 `</td>`;
               sh.querySelector('.subcon-subgroup-toggle').addEventListener('click', () => togglePatternGroup(_compK));
+              sh.querySelector('.subcon-subgroup-rename').addEventListener('click', e => {
+                e.stopPropagation();
+                renamePatternGroup(_svK, key);
+              });
               sh.querySelector('.subcon-subgroup-excl').addEventListener('click', () => togglePatternExclude(_compK));
               sh.querySelector('.subcon-group-sort-btn').addEventListener('click', e => {
                 e.stopPropagation();
