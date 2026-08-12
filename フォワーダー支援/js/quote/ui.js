@@ -3435,8 +3435,11 @@
         if (g.level === 0) { parentSvCollapsed = g.isCollapsed; parentPtCollapsed = false; }
         if (g.level === 1) { parentPtCollapsed = g.isCollapsed; }
         // 親グループが折りたたみ中の行はジャンプタブ側でも非表示
+        // レベル2行がパターン折りたたみの影響を受けるのは、その行が実際に
+        // 直前のパターンに属している場合のみ（g.inPattern）。パターン明けの
+        // 「パターン無し」行が誤って一緒に畳まれる／隠れるのを防ぐ。
         const hiddenByParent = (g.level === 1 && parentSvCollapsed) ||
-                               (g.level === 2 && (parentSvCollapsed || parentPtCollapsed));
+                               (g.level === 2 && (parentSvCollapsed || (g.inPattern && parentPtCollapsed)));
         const stateCls = (g.isCollapsed ? ' is-collapsed' : '') +
                          (g.isExcluded  ? ' is-excluded'  : '') +
                          (hiddenByParent ? ' is-parent-collapsed' : '');
@@ -3575,7 +3578,12 @@
       }
       const isHidden = tr.dataset.hideQuote === '1';
       const suffix = (tr.dataset.cond === '1' ? '（都度）' : '') + (tr.dataset.refInfo === '1' ? '（参考）' : '');
-      out.push({ level: 2, rowId: tr.id, mkTxt, marginPct, isActual,
+      // 直前のパターン見出し（level1）に実際に属するか。renderSubconGroups() が
+      // パターン配下の行にのみ付与する subcon-subchild クラスで判定する。
+      // これが無いと、パターンの後に続く「パターン無し」の行まで見た目上その
+      // パターンの子として並んでしまい、折りたたみ状態も誤って引き継いでしまう。
+      const inPattern = tr.classList.contains('subcon-subchild');
+      out.push({ level: 2, rowId: tr.id, mkTxt, marginPct, isActual, inPattern,
                  label: (nm || '（名称未入力）') + suffix,
                  sum, isCollapsed: false, isExcluded, isHidden, el: tr });
     });

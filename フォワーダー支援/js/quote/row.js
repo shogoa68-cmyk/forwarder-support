@@ -2131,6 +2131,9 @@
     if (_collapsedGroups.has(key)) _collapsedGroups.delete(key);
     else                            _collapsedGroups.add(key);
     _applyGroupStates();
+    // _applyGroupStates は右カラム費用サマリー（ジャンプパネル）を再描画しないため、
+    // ここで明示的に反映する（表側の▼/▶と右カラムの折りたたみ状態がズレるのを防ぐ）
+    if (typeof window.renderQuoteSectionDigest === 'function') window.renderQuoteSectionDigest();
   }
 
   function toggleSubconExclude(key) {
@@ -2143,12 +2146,14 @@
     _applyGroupStates();
     if (typeof updateTotals === 'function') updateTotals();
     if (typeof window.updateSectionSummaries === 'function') window.updateSectionSummaries();
+    if (typeof window.renderQuoteSectionDigest === 'function') window.renderQuoteSectionDigest();
   }
 
   function togglePatternGroup(compKey) {
     if (_collapsedPatterns.has(compKey)) _collapsedPatterns.delete(compKey);
     else _collapsedPatterns.add(compKey);
     _applyGroupStates();
+    if (typeof window.renderQuoteSectionDigest === 'function') window.renderQuoteSectionDigest();
   }
 
   function togglePatternExclude(compKey) {
@@ -2159,6 +2164,7 @@
       _collapsedPatterns.add(compKey); // 除外時は自動折りたたみ
     }
     _applyGroupStates();
+    if (typeof window.renderQuoteSectionDigest === 'function') window.renderQuoteSectionDigest();
     if (typeof updateTotals === 'function') updateTotals();
     if (typeof window.updateSectionSummaries === 'function') window.updateSectionSummaries();
   }
