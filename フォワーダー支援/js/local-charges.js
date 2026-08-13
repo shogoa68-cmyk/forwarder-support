@@ -17,9 +17,9 @@
     { value: 'ocean',          label: '🚢 海上運賃' },
     { value: 'surcharge',      label: '⚡ サーチャージ' },
     { value: 'overseas',       label: '🌏 海外作業' },
-    { value: 'domestic-transport', label: '🚚 国内配送・横持ち（サブコン）' },
-    { value: 'warehouse',      label: '📦 倉庫保管（サブコン）' },
-    { value: 'packing-cost',   label: '🎁 梱包（サブコン）' },
+    { value: 'domestic-transport', label: '🚚 国内配送・横持ち' },
+    { value: 'warehouse',      label: '📦 倉庫保管' },
+    { value: 'packing-cost',   label: '🎁 梱包' },
     { value: 'other',          label: '📋 その他' },
   ];
   const LC_CURRENCIES = ['JPY', 'USD', 'EUR', 'CNY', 'SGD', 'HKD', 'GBP', 'AUD'];

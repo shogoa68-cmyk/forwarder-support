@@ -3431,7 +3431,34 @@
       // 143 行のプリセット読込で読み込み時間の大半を占めていた。
       const _showInternal = (typeof getPreviewVisibility === 'function')
         ? (getPreviewVisibility().profit !== false) : true;
-      html += '<div class="qsp-dig-subjumps">' + groups.map(function(g, i) {
+      // パターンあり・パターン無しの行が同じサブコン内に混在する場合、パターン明けの
+      // 「パターン無し」の始点が分かるよう区切りラベルを差し込む（表示専用の合成エントリ）。
+      // パターンを一切使っていないサブコンでは元々あいまいさが無いため何も足さない。
+      const patternedSv = new Set();
+      groups.forEach(function(g) { if (g.level === 1) patternedSv.add(g.sv); });
+      const items = [];
+      (function() {
+        let curSv = null, noPatternOpen = false;
+        groups.forEach(function(g, gi) {
+          if (g.level === 0) { curSv = g.sv; noPatternOpen = false; }
+          if (g.level === 1) { noPatternOpen = false; }
+          if (g.level === 2 && patternedSv.has(curSv) && !g.inPattern && !noPatternOpen) {
+            noPatternOpen = true;
+            let cnt = 0;
+            for (let j = gi; j < groups.length && groups[j].level === 2; j++) cnt++;
+            items.push({ kind: 'no-pattern', label: 'パターン未設定（' + cnt + '件）', svIdx: gi });
+          }
+          items.push({ idx: gi, g: g });
+        });
+      })();
+      html += '<div class="qsp-dig-subjumps">' + items.map(function(it) {
+        if (it.kind === 'no-pattern') {
+          // 直前のサブコン（level0）が折りたたみ中なら区切りラベルも一緒に隠す
+          const hiddenByParent = parentSvCollapsed;
+          return '<div class="qsp-dig-grp-item qsp-dig-nopattern' + (hiddenByParent ? ' is-parent-collapsed' : '') + '">' +
+            '<span class="qsp-dig-subjump is-pattern is-noptn">📎 ' + escapeHtml(it.label) + '</span></div>';
+        }
+        const g = it.g, i = it.idx;
         if (g.level === 0) { parentSvCollapsed = g.isCollapsed; parentPtCollapsed = false; }
         if (g.level === 1) { parentPtCollapsed = g.isCollapsed; }
         // 親グループが折りたたみ中の行はジャンプタブ側でも非表示

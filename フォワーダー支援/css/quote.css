@@ -7444,6 +7444,15 @@ body.qp-dash-active #quoteActionDock { display: none !important; }
 #tab-quote-make .qsp-dig-subjump:hover { background: #f3eada; border-color: #b89a5e; }
 #tab-quote-make .qsp-dig-subjump.is-subcon { font-weight: 700; }
 #tab-quote-make .qsp-dig-subjump.is-pattern { color: #6b5a3f; padding-left: 14px; }
+/* パターンあり・パターン無しが混在するサブコンで、パターン明けの区切りに出す表示専用ラベル
+   （クリック操作は無い：ボタンではなく span。折りたたみ等の状態を持たないため） */
+#tab-quote-make .qsp-dig-subjump.is-noptn {
+  cursor: default; background: transparent; border-style: dashed;
+  color: #9a8a70; font-style: italic; font-size: 10.5px;
+  padding: 2px 7px 2px 14px; justify-content: flex-start;
+}
+#tab-quote-make .qsp-dig-subjump.is-noptn:hover { background: transparent; border-color: #ece3d2; }
+#tab-quote-make .qsp-dig-nopattern.is-parent-collapsed { display: none; }
 /* 明細行（level 2）：さらにインデント・控えめな見た目 */
 #tab-quote-make .qsp-dig-subjump.is-detail {
   color: #7a6a52; background: transparent; border-color: transparent;
