@@ -2024,6 +2024,75 @@
     }
   }
   window.renamePatternGroup = renamePatternGroup;
+
+  // パターン名の末尾「（N）」を見つけて次の番号にする。既存の別パターンと衝突する場合は
+  // さらに番号を進める（例：既に「（2）」があれば「（3）」を使う）。
+  function _nextPatternCopyName(svKey, base) {
+    const m = base.match(/^(.*)（(\d+)）$/);
+    const root = m ? m[1] : base;
+    let n = m ? parseInt(m[2], 10) + 1 : 2;
+    let candidate = `${root}（${n}）`;
+    while (_groupMemberRows(svKey, candidate).length > 0) {
+      n++;
+      candidate = `${root}（${n}）`;
+    }
+    return candidate;
+  }
+
+  // パターン（サブコン内の1レーン）配下の明細行を丸ごと複製する。
+  // 複製先のパターン名には「（2）」等の連番を付け、新パターンとして独立させる。
+  // duplicateRow を1行ずつ呼ぶと元の行と複製行が交互に並んでしまい、パターンのグループ化
+  // （同じキーの連続行を1ブロックとみなす仕組み）が崩れるため、複製後に複製ブロックを
+  // まとめて元パターンの末尾へ移動してから、まとめてパターン名を付け替える。
+  function duplicatePatternGroup(svKey, ptKey) {
+    const srcIds = _groupMemberRows(svKey, ptKey).map(tr => tr.id.replace('row-', ''));
+    if (!srcIds.length) return;
+    const newName = _nextPatternCopyName(svKey, ptKey);
+
+    const lastSrcId = srcIds[srcIds.length - 1];
+    const lastSrcChildren = getChildRemarks(lastSrcId);
+    let tailAnchor = lastSrcChildren.length
+      ? lastSrcChildren[lastSrcChildren.length - 1]
+      : document.getElementById(`row-${lastSrcId}`);
+
+    const newIds = [];
+    srcIds.forEach(srcId => {
+      const newId = duplicateRow(srcId);
+      newIds.push(newId);
+      const newRow = document.getElementById(`row-${newId}`);
+      if (!newRow || !tailAnchor) return;
+      const block = [newRow, ...getChildRemarks(newId)];
+      block.forEach(node => {
+        tailAnchor.parentNode.insertBefore(node, tailAnchor.nextSibling);
+        tailAnchor = node;
+      });
+    });
+
+    newIds.forEach(id => {
+      const el = document.getElementById('pt-' + id);
+      if (el) el.value = newName;
+    });
+
+    renderSubconGroups();
+    if (typeof calcLiveUpdate === 'function') calcLiveUpdate();
+    if (typeof window.renderQuoteSectionDigest === 'function') window.renderQuoteSectionDigest();
+    if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
+    if (typeof scheduleSnapshot === 'function') scheduleSnapshot();
+    if (typeof quoteShowToast === 'function') {
+      quoteShowToast('📋 「' + ptKey + '」を「' + newName + '」として複製しました（' + newIds.length + ' 行）', 'success', 3500);
+    }
+    // 複製先のパターン見出しまでスクロール＋一時ハイライト
+    const newHdr = document.querySelector(
+      '#tableBody tr.subcon-subgroup-header[data-sv-key="' + (svKey === _UNSET_KEY ? _UNSET_KEY : CSS.escape(svKey)) + '"][data-pt-key="' + CSS.escape(newName) + '"]'
+    );
+    if (newHdr) {
+      newHdr.scrollIntoView({ block: 'center', behavior: 'smooth' });
+      newHdr.classList.add('grp-flash');
+      setTimeout(() => newHdr.classList.remove('grp-flash'), 1200);
+    }
+  }
+  window.duplicatePatternGroup = duplicatePatternGroup;
+
   // 全グループ見出しの日付表示（入力値・「混在」バッジ）を現在の行から再計算（再描画不要）
   function _syncGroupUpdatedHeaders() {
     document.querySelectorAll('#tableBody tr.subcon-group-header, #tableBody tr.subcon-subgroup-header.is-pattern')
@@ -2562,6 +2631,7 @@
                   `<button type="button" class="subcon-subgroup-toggle" title="${_ptCollapsed ? '展開' : '折りたたみ/展開'}">${_ptCollapsed ? '▶' : '▼'}</button>` +
                   `<span class="subcon-subgroup-leg">${icon} ${_escHdr(key)}</span>` +
                   `<button type="button" class="subcon-subgroup-rename" title="このパターン名を変更（配下の行すべてに反映）">✎</button>` +
+                  `<button type="button" class="subcon-subgroup-dup" title="このパターンの明細行をすべて複製（新しいパターンとして「（2）」等が付きます）">📋</button>` +
                   `<button type="button" class="subcon-subgroup-excl${_ptExcluded ? ' is-excluded' : ''}" title="見積もりへの含める/除外を切り替え">${_ptExcluded ? '含む' : '除外'}</button>` +
                   `<button type="button" class="subcon-group-sort-btn" title="このパターン内をカテゴリ順に並び替え">⇅カテゴリ</button>` +
                   _groupUpdatedHtml() +
@@ -2571,6 +2641,10 @@
               sh.querySelector('.subcon-subgroup-rename').addEventListener('click', e => {
                 e.stopPropagation();
                 renamePatternGroup(_svK, key);
+              });
+              sh.querySelector('.subcon-subgroup-dup').addEventListener('click', e => {
+                e.stopPropagation();
+                duplicatePatternGroup(_svK, key);
               });
               sh.querySelector('.subcon-subgroup-excl').addEventListener('click', () => togglePatternExclude(_compK));
               sh.querySelector('.subcon-group-sort-btn').addEventListener('click', e => {
