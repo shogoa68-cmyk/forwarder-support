@@ -11,6 +11,8 @@
 <link rel="stylesheet" href="css/quote-pdf.css">
 <!-- 見積タブで CSV/Excel/PDF 出力に使用（SheetJS） -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" defer></script>
+<!-- 荷姿・貨物明細のPDF一括取込（文字ベースPDFのテキスト位置抽出）に使用（PDF.js） -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js" defer></script>
 <!-- Supabase JS v2（UMDビルド・defer なし：body スクリプトより先に評価が必要） -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 </head>
@@ -3830,9 +3832,13 @@
         </div>
         <p class="ei-desc">お客様から提供された物量表（パッキングリスト等）をExcelからコピーしてそのまま貼り付けてください（タブ区切り推奨）。各行は梱包1個として個数1で取り込まれます。</p>
         <textarea id="pkiText" rows="7" placeholder="ここに表データを貼り付け…&#10;例）&#10;P/Style&#9;No.&#9;Case No.&#9;N/W(Kg)&#9;G/W(Kg)&#9;L×W×H(cm)&#10;PALLET&#9;1&#9;C001&#9;135&#9;140&#9;110×110×95"></textarea>
-        <div class="ei-parse-bar">
+        <div class="ei-parse-bar pki-parse-bar">
           <button type="button" class="ei-parse-btn" onclick="pkiParse()">🔍 解析する</button>
+          <span class="pki-or">または</span>
+          <button type="button" class="ei-parse-btn pki-pdf-btn" onclick="document.getElementById('pkiPdfFile').click()">📎 PDFをアップロード</button>
+          <input type="file" id="pkiPdfFile" accept="application/pdf" hidden onchange="pkiHandlePdfFile(this.files[0])">
         </div>
+        <p class="pki-pdf-hint">⚠️ PDFアップロードは<strong>文字ベースのPDF</strong>（Excel/Wordから出力した表など）のみ対応です。スキャン画像のPDFは現時点では読み取れません（テキストが抽出できない場合はエラー表示されます）。</p>
         <div id="pkiMapWrap"></div>
         <div id="pkiReviewWrap"></div>
         <div id="pkiActions" class="ei-actions" hidden>
