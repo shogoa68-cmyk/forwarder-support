@@ -3106,6 +3106,10 @@
                   </select>
                 </div>
                 <div class="cond-field">
+                  <label><span class="cond-icon">📋</span> 梱包方法（PI） <span class="cond-opt">任意</span></label>
+                  <input type="text" id="hz-pi" placeholder="例）PI954（IATA航空梱包指針番号）" maxlength="20" />
+                </div>
+                <div class="cond-field">
                   <label><span class="cond-icon">🚒</span> 国内消防法（危険物 類別）</label>
                   <select id="hz-fire-law">
                     <option value="">— 選択 —</option>
@@ -3127,6 +3131,12 @@
                   <input type="text" id="hz-flash" placeholder="例）23℃ 未満" maxlength="30" />
                 </div>
               </div>
+              <div class="hz-entry-actions">
+                <button type="button" class="hz-entry-add-btn" onclick="addHazEntry()">＋ この危険品を追加</button>
+                <span class="hz-entry-hint">複数の危険品が混載される場合は、1件ずつ入力して追加してください</span>
+              </div>
+              <div class="hz-entry-list" id="hzEntryList"></div>
+              <input type="hidden" id="hz-entries-data" />
             </div>
 
             <!-- 温度管理品（冷蔵） -->
