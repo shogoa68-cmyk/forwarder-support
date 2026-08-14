@@ -396,10 +396,18 @@
   };
 
   window.qfEditCustomerDetail = function () {
+    const value = (document.getElementById('qf-customer')?.value || '').trim();
     window.qfCloseCustomerDetail();
-    const catBtn = document.querySelector('.cat-btn[aria-controls="tab-master"]');
-    if (typeof window.switchCategory === 'function' && catBtn) window.switchCategory('master', catBtn);
-    if (typeof window.masterSetPane === 'function') window.masterSetPane('master');
+    // 🗂 マスター管理タブの該当行まで自動でスクロール・ハイライトし、詳細編集フォームも
+    // 開いた状態にする（statsJumpToMaster は元々この用途向けに用意されていたが未使用だった）。
+    // 見積タブへは #backToQuoteFab（見積タブ以外を表示中は自動で出るフローティングボタン）で戻れる。
+    if (value && typeof window.statsJumpToMaster === 'function') {
+      window.statsJumpToMaster('customer', value, true);
+    } else {
+      const catBtn = document.querySelector('.cat-btn[aria-controls="tab-master"]');
+      if (typeof window.switchCategory === 'function' && catBtn) window.switchCategory('master', catBtn);
+      if (typeof window.masterSetPane === 'function') window.masterSetPane('master');
+    }
   };
 
   // データを画面に適用（restoreAutoSave と同等。トースト・restoreBar 操作なし）
