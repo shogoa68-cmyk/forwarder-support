@@ -802,9 +802,11 @@
     if (typeof window.mdLoadCloud === 'function') {
       window.mdLoadCloud().then(() => {
         if (typeof window.qfRefreshCustomerDetailBtn === 'function') window.qfRefreshCustomerDetailBtn();
+        if (typeof window.refreshAllRowMasterDetailBtns === 'function') window.refreshAllRowMasterDetailBtns();
       });
-    } else if (typeof window.qfRefreshCustomerDetailBtn === 'function') {
-      window.qfRefreshCustomerDetailBtn();
+    } else {
+      if (typeof window.qfRefreshCustomerDetailBtn === 'function') window.qfRefreshCustomerDetailBtn();
+      if (typeof window.refreshAllRowMasterDetailBtns === 'function') window.refreshAllRowMasterDetailBtns();
     }
   }
 
