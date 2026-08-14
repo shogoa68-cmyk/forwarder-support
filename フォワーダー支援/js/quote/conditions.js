@@ -1715,6 +1715,21 @@
     if (typeof scheduleSnapshot === 'function') scheduleSnapshot();
   }
 
+  // 📋 貼り付けで一括登録（packing-import.js）から複数件をまとめて追加
+  function addPackingRowsBulk(entries) {
+    if (!Array.isArray(entries) || !entries.length) return 0;
+    entries.forEach(e => {
+      _packingEntries.push({
+        pkg: e.pkg || '', qty: e.qty || 1, l: e.l || '', w: e.w || '', h: e.h || '', kg: e.kg || '', stack: e.stack || '可',
+      });
+    });
+    _renderPackingEntries();
+    if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
+    if (typeof scheduleSnapshot === 'function') scheduleSnapshot();
+    return entries.length;
+  }
+  window.addPackingRowsBulk = addPackingRowsBulk;
+
   // hidden input（cond-container-data / cond-packing-data）から配列を復元して再描画
   function syncMultiEntryFields() {
     const cData = document.getElementById('cond-container-data');
