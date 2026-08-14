@@ -3430,6 +3430,7 @@
                 </div>
                 <div class="cargo-detail-actions">
                   <button type="button" class="me-add-btn" onclick="addPackingRow()">＋ 荷姿を追加</button>
+                  <button type="button" class="me-add-btn pki-open-btn" onclick="openPackingImport()" title="お客様から提供された物量表（パッキングリスト等）を貼り付けて一括登録">📋 貼り付けで一括登録</button>
                 </div>
                 <input type="hidden" id="cond-packing-data" />
                 <datalist id="packingOptions"></datalist>
@@ -3816,6 +3817,26 @@
             <span class="ei-act-target" id="eiInsertTarget"></span>
           </div>
           <button type="button" class="ei-act-new" onclick="eiApplyAsNew()" title="入力中の内容をクリアし、取込内容で新しい案件を作る（原文も案件データに保存）">🆕 新規案件として展開</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 📋 貼り付けで一括登録モーダル（荷姿・貨物明細） -->
+    <div id="packingImportModal" onclick="if(event.target===this)closePackingImport()">
+      <div id="packingImportBox">
+        <div class="ei-head">
+          <h3>📋 貼り付けで一括登録（荷姿・貨物明細）</h3>
+          <button type="button" class="ei-close" onclick="closePackingImport()" title="閉じる">✕</button>
+        </div>
+        <p class="ei-desc">お客様から提供された物量表（パッキングリスト等）をExcelからコピーしてそのまま貼り付けてください（タブ区切り推奨）。各行は梱包1個として個数1で取り込まれます。</p>
+        <textarea id="pkiText" rows="7" placeholder="ここに表データを貼り付け…&#10;例）&#10;P/Style&#9;No.&#9;Case No.&#9;N/W(Kg)&#9;G/W(Kg)&#9;L×W×H(cm)&#10;PALLET&#9;1&#9;C001&#9;135&#9;140&#9;110×110×95"></textarea>
+        <div class="ei-parse-bar">
+          <button type="button" class="ei-parse-btn" onclick="pkiParse()">🔍 解析する</button>
+        </div>
+        <div id="pkiMapWrap"></div>
+        <div id="pkiReviewWrap"></div>
+        <div id="pkiActions" class="ei-actions" hidden>
+          <button type="button" class="ei-act-new" onclick="pkiInsertRows()" title="チェックした行を荷姿・貨物明細に追加">✏️ 荷姿・貨物明細へ追加</button>
         </div>
       </div>
     </div>
@@ -4340,6 +4361,7 @@
 <script src="js/quote/users.js"></script>
 <script src="js/quote/subcon-insert.js"></script>
 <script src="js/quote/email-import.js"></script>
+<script src="js/quote/packing-import.js"></script>
 <script src="js/tweaks.js"></script>
 <script src="js/bookmarks.js"></script>
 <script src="js/calendar.js"></script>

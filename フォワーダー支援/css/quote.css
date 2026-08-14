@@ -5109,6 +5109,50 @@ body.qp-dash-active #quoteActionDock { display: none !important; }
 #tab-quote-make .ei-act-insert:hover { background: #d8ecd0; }
 #tab-quote-make .ei-act-new { background: #2e7d43; color: #fff; }
 #tab-quote-make .ei-act-new:hover { background: #226735; }
+/* ===== 📋 貼り付けで一括登録モーダル（荷姿・貨物明細） ===== */
+#tab-quote-make .pki-open-btn { background: #3a6baf; border-color: #3a6baf; }
+#tab-quote-make #packingImportModal {
+  display: none; position: fixed; inset: 0;
+  background: rgba(0,0,0,.45); z-index: 9000;
+  align-items: center; justify-content: center;
+}
+#tab-quote-make #packingImportModal.open { display: flex; }
+#tab-quote-make #packingImportBox {
+  background: #fffdf8; border-radius: 10px;
+  padding: 16px 20px 18px; width: min(96vw, 1080px); max-height: 92vh;
+  overflow-y: auto; box-shadow: 0 8px 32px rgba(0,0,0,.25);
+}
+#tab-quote-make #pkiText {
+  width: 100%; box-sizing: border-box; resize: vertical;
+  font-family: ui-monospace, Consolas, monospace; font-size: 12px; line-height: 1.5;
+  color: #3d2e1e; background: #fff; border: 1px solid #d8c9ad; border-radius: 6px; padding: 8px 10px;
+}
+#tab-quote-make #pkiText:focus { outline: none; border-color: #b8933e; }
+#tab-quote-make .pki-map-hint { font-size: 11px; color: #7d6b56; margin: 4px 0 6px; }
+#tab-quote-make .pki-map-table { width: 100%; border-collapse: collapse; font-size: 11px; margin-bottom: 10px; }
+#tab-quote-make .pki-map-table th {
+  background: #f0e8d8; color: #5a4a30; font-size: 10.5px; padding: 4px 5px;
+  border: 1px solid #e0d5c0; white-space: nowrap; text-align: left;
+}
+#tab-quote-make .pki-map-table td { border: 1px solid #ece3d2; padding: 3px; background: #fff; }
+#tab-quote-make .pki-map-table select {
+  width: 100%; box-sizing: border-box; font-family: inherit; font-size: 11px;
+  border: 1px solid #d8c9ad; border-radius: 4px; padding: 3px 4px; background: #fff; color: #3d2e1e;
+}
+#tab-quote-make .pki-table { width: 100%; border-collapse: collapse; font-size: 11.5px; }
+#tab-quote-make .pki-table th {
+  background: #f0e8d8; color: #5a4a30; font-size: 10.5px; padding: 4px 5px;
+  border: 1px solid #e0d5c0; white-space: nowrap;
+}
+#tab-quote-make .pki-table td { border: 1px solid #ece3d2; padding: 2px 3px; background: #fff; }
+#tab-quote-make .pki-table .pki-in {
+  width: 100%; box-sizing: border-box; font-family: inherit; font-size: 11.5px;
+  border: 1px solid transparent; border-radius: 3px; padding: 3px 4px; background: transparent; color: #3d2e1e;
+}
+#tab-quote-make .pki-table .pki-in:focus { outline: none; border-color: #b8933e; background: #fffdf4; }
+#tab-quote-make .pki-table select { font-family: inherit; font-size: 11.5px; border: 1px solid #d8c9ad; border-radius: 3px; }
+#tab-quote-make .pki-cbm { text-align: right; color: #6a5a40; }
+#tab-quote-make .pki-hint { font-size: 10.5px; color: #9a8a70; margin: 8px 0 0; }
 /* ダッシュボードの取込ボタン（新規作成の隣） */
 #tab-quote-make .qpd-import {
   cursor: pointer; font-family: inherit; font-size: 13px; font-weight: 600;
