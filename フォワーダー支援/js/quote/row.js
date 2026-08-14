@@ -484,6 +484,22 @@
   // ユーザーが手入力した単位/備考は上書きしないが、まだ「マスター由来の自動入力値」の
   // ままなら（dataset.unAuto/ntAuto='1'）、項目名を別の品名に変えたときも追従して更新する。
   // これにより、行複製後や既存行の品名だけ変更した場合でも入力支援が効くようにする。
+  // 品名マスター詳細へのジャンプボタン（行ごと）：入力値がマスター登録済みのときだけ表示。
+  // お客様マスターの qfRefreshCustomerDetailBtn と同じ考え方（内容ではなく登録有無で出し分け）。
+  function _refreshRowMasterDetailBtn(tr) {
+    if (!tr) return;
+    const nmEl = tr.querySelector('[data-field="nm"]');
+    const btn  = tr.querySelector('.master-detail-jump-btn');
+    if (!nmEl || !btn) return;
+    const value = (nmEl.value || '').replace(/^\*+/, '').trim();
+    const has = !!(value && typeof window.mdGet === 'function' && window.mdGet('nm', value));
+    btn.hidden = !has;
+  }
+  function refreshAllRowMasterDetailBtns() {
+    document.querySelectorAll('#tableBody tr[id^="row-"]:not([data-type])').forEach(_refreshRowMasterDetailBtn);
+  }
+  window.refreshAllRowMasterDetailBtns = refreshAllRowMasterDetailBtns;
+
   function initNmAutofill() {
     const tbody = document.getElementById('tableBody');
     if (!tbody) return;
@@ -492,6 +508,7 @@
       if (!nmEl.matches || !nmEl.matches('[data-field="nm"]')) return;
       if (typeof window.mdGet !== 'function') return;
       const value = (nmEl.value || '').replace(/^\*+/, '').trim();
+      _refreshRowMasterDetailBtn(nmEl.closest('tr'));
       if (!value) return;
       const rec = window.mdGet('nm', value);
       if (!rec) return;
@@ -956,6 +973,11 @@
     if (pctBtn) pctBtn.onclick = () => togglePctMode(id);
     const mregBtn = frag.querySelector('.master-reg-btn');
     if (mregBtn) mregBtn.onclick = () => registerRowToMaster(id);
+    const mdetBtn = frag.querySelector('.master-detail-jump-btn');
+    if (mdetBtn) mdetBtn.onclick = () => {
+      const value = (document.getElementById('nm-' + id)?.value || '').replace(/^\*+/, '').trim();
+      if (value && typeof window.mdShowDetailPopup === 'function') window.mdShowDetailPopup('nm', value);
+    };
     const pprateEl = frag.querySelector('[data-field="pprate"]');
     if (pprateEl) pprateEl.oninput = () => _calcPct(id);
     const ppbaseEl = frag.querySelector('[data-field="ppbase"]');

@@ -356,10 +356,14 @@
   // 空プリセット読込時に前案件の値を維持すると別案件へ漏れて誤上書きの原因になる。
   const _HEADER_FIELD_IDS = ['qf-ref','qf-customer','qf-person','qf-date','qf-valid-until','qf-memo'];
 
-  // === お客様マスター詳細情報ボタン（管理番号入力セクション） ===
+  // === マスター詳細情報ポップアップ（管理番号入力セクションの「詳細」ボタン等から共通利用） ===
+  // 元はお客様専用だったが、明細行の品名マスターなど他フィールドからも同じポップアップ・
+  // 「マスター管理で編集」ジャンプを使えるよう field 引数を取る汎用実装に一本化した。
   function _cdEsc(s) {
     return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
   }
+  let _cdField = 'customer';   // ポップアップに現在表示中のマスター種別（編集ボタンのジャンプ先に使う）
+  let _cdValue = '';
 
   window.qfRefreshCustomerDetailBtn = function () {
     const btn = document.getElementById('qfCustomerDetailBtn');
@@ -370,15 +374,15 @@
     btn.hidden = !has;
   };
 
-  window.qfShowCustomerDetail = function () {
-    const inp = document.getElementById('qf-customer');
-    const value = (inp?.value || '').trim();
-    const rec = value && typeof window.mdGet === 'function' ? window.mdGet('customer', value) : null;
+  window.mdShowDetailPopup = function (field, value) {
+    value = (value || '').trim();
+    const rec = value && typeof window.mdGet === 'function' ? window.mdGet(field, value) : null;
     const body = document.getElementById('cdBody');
     const title = document.getElementById('cdTitle');
     const overlay = document.getElementById('customerDetailOverlay');
     if (!rec || !body || !title || !overlay) return;
-    const schema = (window.MD_SCHEMA && window.MD_SCHEMA.customer) || [];
+    _cdField = field; _cdValue = value;
+    const schema = (window.MD_SCHEMA && window.MD_SCHEMA[field]) || [];
     const details = rec.details || {};
     const rows = schema
       .filter(s => details[s.key])
@@ -389,26 +393,32 @@
     overlay.hidden = false;
   };
 
+  window.qfShowCustomerDetail = function () {
+    const value = (document.getElementById('qf-customer')?.value || '').trim();
+    window.mdShowDetailPopup('customer', value);
+  };
+
   window.qfCloseCustomerDetail = function (event) {
     if (event && event.target !== event.currentTarget) return;
     const overlay = document.getElementById('customerDetailOverlay');
     if (overlay) overlay.hidden = true;
   };
 
-  window.qfEditCustomerDetail = function () {
-    const value = (document.getElementById('qf-customer')?.value || '').trim();
+  window.mdEditDetailPopup = function () {
+    const field = _cdField, value = _cdValue;
     window.qfCloseCustomerDetail();
     // 🗂 マスター管理タブの該当行まで自動でスクロール・ハイライトし、詳細編集フォームも
     // 開いた状態にする（statsJumpToMaster は元々この用途向けに用意されていたが未使用だった）。
     // 見積タブへは #backToQuoteFab（見積タブ以外を表示中は自動で出るフローティングボタン）で戻れる。
     if (value && typeof window.statsJumpToMaster === 'function') {
-      window.statsJumpToMaster('customer', value, true);
+      window.statsJumpToMaster(field, value, true);
     } else {
       const catBtn = document.querySelector('.cat-btn[aria-controls="tab-master"]');
       if (typeof window.switchCategory === 'function' && catBtn) window.switchCategory('master', catBtn);
       if (typeof window.masterSetPane === 'function') window.masterSetPane('master');
     }
   };
+  window.qfEditCustomerDetail = window.mdEditDetailPopup;
 
   // データを画面に適用（restoreAutoSave と同等。トースト・restoreBar 操作なし）
   function _applyQuoteData(data, { keepHeaderIfEmpty = false } = {}) {
@@ -460,6 +470,7 @@
     if (typeof window.syncRemarkChips === 'function') window.syncRemarkChips();
     if (typeof window.updateQuoteStatusUI === 'function') window.updateQuoteStatusUI();
     if (typeof window.qfRefreshCustomerDetailBtn === 'function') window.qfRefreshCustomerDetailBtn();
+    if (typeof window.refreshAllRowMasterDetailBtns === 'function') window.refreshAllRowMasterDetailBtns();
   }
 
   function quoteUndo() {
