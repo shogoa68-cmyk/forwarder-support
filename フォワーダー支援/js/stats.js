@@ -525,7 +525,9 @@
   };
 
   // 統計タブのマスター登録済み／代表登録済み項目から、🗂 マスター管理タブの該当行へジャンプ。
-  function _scrollToMasterRow(field, value) {
+  // openDetail=true の場合、該当行の「📇 詳細」を自動展開して編集フォームまで見せる
+  // （見積タブの「マスター管理で編集」ボタンから来た場合など、編集が目的の遷移向け）。
+  function _scrollToMasterRow(field, value, openDetail) {
     const rows = document.querySelectorAll('#statsPane-master tr[data-mfield]');
     let target = null;
     rows.forEach(r => { if (!target && r.dataset.mfield === field && r.dataset.mvalue === value) target = r; });
@@ -533,8 +535,12 @@
     target.scrollIntoView({ behavior: 'smooth', block: 'center' });
     target.classList.add('stats-master-jump-hl');
     setTimeout(() => target.classList.remove('stats-master-jump-hl'), 2200);
+    if (openDetail) {
+      const btn = target.querySelector('.stats-master-detail-btn');
+      if (btn) window.statsToggleMasterDetail(field, value, btn);
+    }
   }
-  window.statsJumpToMaster = async function (field, value) {
+  window.statsJumpToMaster = async function (field, value, openDetail) {
     const catBtn = document.querySelector('.cat-btn[aria-controls="tab-master"]');
     if (typeof window.switchCategory === 'function' && catBtn) window.switchCategory('master', catBtn);
     if (typeof window.masterSetPane === 'function') window.masterSetPane('master');
@@ -547,7 +553,7 @@
     }
     if (typeof window.statsMasterSetFilter === 'function') window.statsMasterSetFilter(field);
     else _renderMaster();
-    _scrollToMasterRow(field, value);
+    _scrollToMasterRow(field, value, openDetail);
   };
 
   // === ペイン描画 ===

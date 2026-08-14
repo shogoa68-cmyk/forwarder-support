@@ -69,7 +69,15 @@
   function pkiParse() {
     const text = document.getElementById('pkiText')?.value || '';
     if (!text.trim()) { if (window.quoteShowToast) quoteShowToast('⚠️ 表データを貼り付けてください', 'warn'); return; }
-    _lines = text.replace(/\r\n?/g, '\n').split('\n').map(l => l.replace(/\s+$/, '')).filter(l => l.trim()).map(_splitLine);
+    const lines = text.replace(/\r\n?/g, '\n').split('\n').map(l => l.replace(/\s+$/, '')).filter(l => l.trim()).map(_splitLine);
+    _processLines(lines);
+  }
+
+  // 貼り付けテキスト／PDF抽出のどちらから来た行データも、ここで共通処理
+  // （ヘッダー行検出 → 列マッピング初期化 → マッピングUI／レビュー表の描画）
+  function _processLines(lines) {
+    _lines = lines;
+    _entries = [];
     if (!_lines.length) return;
 
     // ヘッダー行検出：先頭5行のうち、キーワード一致が最多（2以上）の行を採用
@@ -90,6 +98,105 @@
     }
     _renderMapping();
     _rebuildEntries();
+  }
+
+  // ================================================================
+  //  📎 PDFアップロード（PDF.js でテキスト＋座標を抽出し、表として再構成）
+  //  ・文字ベースのPDFのみ対応（スキャン画像PDFはテキストが取得できないため不可）
+  //  ・列位置は罫線ではなくテキストのX座標のギャップから推定するため、
+  //    セル結合や複雑なレイアウトでは列がズレることがある（レビュー表で必ず確認・修正可能）
+  // ================================================================
+  const PDF_COL_GAP = 15;  // この値(pt)より大きいX座標の隙間を「別の列」とみなす
+  const PDF_ROW_TOL = 2;   // この値(pt)以内のY座標差を「同じ行」とみなす
+
+  function _pdfClusterRows(items) {
+    const rows = [];
+    items.forEach(it => {
+      let row = rows.find(r => Math.abs(r.y - it.y) <= PDF_ROW_TOL);
+      if (!row) { row = { y: it.y, items: [] }; rows.push(row); }
+      row.items.push(it);
+    });
+    rows.sort((a, b) => b.y - a.y); // PDFのY座標は上に行くほど大きいため降順＝上から下
+    rows.forEach(r => r.items.sort((a, b) => a.x - b.x));
+    return rows;
+  }
+  function _pdfClusterColumns(allItems) {
+    const xs = allItems.map(it => it.x).sort((a, b) => a - b);
+    const bounds = [];
+    let start = xs[0];
+    for (let i = 1; i < xs.length; i++) {
+      if (xs[i] - xs[i - 1] > PDF_COL_GAP) { bounds.push([start, xs[i - 1]]); start = xs[i]; }
+    }
+    bounds.push([start, xs[xs.length - 1]]);
+    return bounds;
+  }
+  function _pdfColIndexForX(bounds, x) {
+    for (let i = 0; i < bounds.length; i++) {
+      if (x >= bounds[i][0] - 1 && x <= bounds[i][1] + 1) return i;
+    }
+    let best = 0, bestDist = Infinity;
+    bounds.forEach((b, i) => { const d = Math.abs(x - b[0]); if (d < bestDist) { bestDist = d; best = i; } });
+    return best;
+  }
+  function _pdfRowsToTable(rows, bounds) {
+    return rows.map(r => {
+      const cells = new Array(bounds.length).fill('');
+      r.items.forEach(it => {
+        const ci = _pdfColIndexForX(bounds, it.x);
+        cells[ci] = cells[ci] ? cells[ci] + ' ' + it.str : it.str;
+      });
+      return cells;
+    });
+  }
+
+  // 全ページのテキスト位置から列境界を共通決定（ページごとに列がズレないようにするため）
+  async function _pdfExtractLines(pdfDoc) {
+    const pageItems = [];
+    let allItems = [];
+    for (let i = 1; i <= pdfDoc.numPages; i++) {
+      const page = await pdfDoc.getPage(i);
+      const tc = await page.getTextContent();
+      const items = tc.items
+        .filter(it => it.str && it.str.trim())
+        .map(it => ({ str: it.str.trim(), x: it.transform[4], y: it.transform[5] }));
+      pageItems.push(items);
+      allItems = allItems.concat(items);
+    }
+    if (!allItems.length) return [];
+    const bounds = _pdfClusterColumns(allItems);
+    let lines = [];
+    pageItems.forEach(items => {
+      if (!items.length) return;
+      lines = lines.concat(_pdfRowsToTable(_pdfClusterRows(items), bounds));
+    });
+    return lines;
+  }
+
+  async function pkiHandlePdfFile(file) {
+    if (!file) return;
+    if (typeof window.pdfjsLib === 'undefined') {
+      if (window.quoteShowToast) quoteShowToast('⚠️ PDF解析ライブラリの読み込みに失敗しました。時間をおいて再度お試しください', 'warn', 5000);
+      return;
+    }
+    try {
+      if (!pdfjsLib.GlobalWorkerOptions.workerSrc) {
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/' + pdfjsLib.version + '/pdf.worker.min.js';
+      }
+      const buf = await file.arrayBuffer();
+      const pdfDoc = await pdfjsLib.getDocument({ data: buf }).promise;
+      const lines = await _pdfExtractLines(pdfDoc);
+      if (!lines.length) {
+        if (window.quoteShowToast) quoteShowToast('⚠️ このPDFからテキストを抽出できませんでした。画像（スキャン）PDFの可能性があります。現時点では画像PDFは非対応です', 'warn', 6000);
+        return;
+      }
+      const t = document.getElementById('pkiText'); if (t) t.value = '';
+      _processLines(lines);
+      if (window.quoteShowToast) quoteShowToast('📎 PDFを解析しました。列の割り当てとレビュー内容を確認してください', 'success');
+    } catch (err) {
+      if (window.quoteShowToast) quoteShowToast('⚠️ PDFの解析に失敗しました：' + (err && err.message ? err.message : String(err)), 'warn', 6000);
+    } finally {
+      const inp = document.getElementById('pkiPdfFile'); if (inp) inp.value = '';
+    }
   }
 
   function _headerLabel(i) {
@@ -210,6 +317,6 @@
   }
 
   Object.assign(window, {
-    openPackingImport, closePackingImport, pkiParse, pkiOnColMapChange, pkiToggleAll, pkiToggleEntry, pkiUpdateEntry, pkiInsertRows,
+    openPackingImport, closePackingImport, pkiParse, pkiHandlePdfFile, pkiOnColMapChange, pkiToggleAll, pkiToggleEntry, pkiUpdateEntry, pkiInsertRows,
   });
 })();
