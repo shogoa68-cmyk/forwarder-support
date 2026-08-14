@@ -1733,8 +1733,101 @@
     if (typeof _applyContainerView === 'function') _applyContainerView();
     _renderPackingEntries();
     syncRouteEntries();
+    syncHazEntries();
     if (typeof window.renderQuoteCargoInfo === 'function') window.renderQuoteCargoInfo();
   }
+
+  // ========== 危険品・特殊貨物：複数件登録 ==========
+  // 入力欄（UN番号／クラス／PG／PI／消防法／PSN／引火点）を「1件分のフォーム」として使い、
+  // ＋ 追加のたびに _hazEntries へ積んでフォームをクリアする（幹線輸送の航路チップと同じ設計）。
+  // 後方互換：1件も追加せずフォームに直接入力しただけの旧来の使い方は、_hazEntries が空のまま
+  // 残るため、PDF側（quote-pdf.js の _hazmatDetail）がフォームの値をフォールバックとして拾う。
+  let _hazEntries = [];   // [{ un, cls, pg, pi, fireLaw, psn, flash }, ...]
+
+  function _hazFormGet() {
+    const v = id => (document.getElementById(id)?.value || '').trim();
+    return { un: v('hz-un'), cls: v('hz-class'), pg: v('hz-pg'), pi: v('hz-pi'),
+             fireLaw: v('hz-fire-law'), psn: v('hz-psn'), flash: v('hz-flash') };
+  }
+  function _hazFormSet(e) {
+    const set = (id, val) => { const el = document.getElementById(id); if (el) el.value = val || ''; };
+    set('hz-un', e.un); set('hz-class', e.cls); set('hz-pg', e.pg); set('hz-pi', e.pi);
+    set('hz-fire-law', e.fireLaw); set('hz-psn', e.psn); set('hz-flash', e.flash);
+  }
+  function _hazFormClear() { _hazFormSet({}); }
+  // 表示用の要約テキスト（チップ・PDF共通）
+  function _hazEntryLabel(e) {
+    const parts = [];
+    if (e.un)      parts.push('UN' + e.un.replace(/^UN/i, ''));
+    if (e.cls)     parts.push(e.cls);
+    if (e.pg)      parts.push(e.pg);
+    if (e.pi)      parts.push('PI' + e.pi.replace(/^PI/i, ''));
+    if (e.fireLaw) parts.push('消防法 ' + e.fireLaw);
+    if (e.psn)     parts.push('PSN: ' + e.psn);
+    if (e.flash)   parts.push('引火点 ' + e.flash);
+    return parts.join(' / ');
+  }
+
+  function _renderHazEntries() {
+    const data = document.getElementById('hz-entries-data');
+    if (data) data.value = JSON.stringify(_hazEntries);
+    const list = document.getElementById('hzEntryList');
+    if (!list) return;
+    if (!_hazEntries.length) { list.innerHTML = ''; return; }
+    list.innerHTML = _hazEntries.map((e, i) => {
+      const label = _hazEntryLabel(e) || '（未入力）';
+      return `<span class="hz-entry-chip">`
+        + `<span class="hz-entry-idx">${i + 1}</span>`
+        + `<span class="hz-entry-label">${_escMulti(e.psn || e.un || label)}</span>`
+        + `<span class="hz-entry-sub">${_escMulti(label)}</span>`
+        + `<button type="button" class="hz-entry-edit" onclick="editHazEntry(${i})" title="編集（フォームに書き戻す）">✎</button>`
+        + `<button type="button" class="me-chip-del" onclick="removeHazEntry(${i})" title="削除">×</button></span>`;
+    }).join('');
+  }
+
+  function addHazEntry() {
+    const e = _hazFormGet();
+    if (!e.un && !e.psn) {
+      if (typeof quoteShowToast === 'function') quoteShowToast('⚠️ UN番号または正式品名（PSN）を入力してください', 'warn', 1800);
+      return;
+    }
+    _hazEntries.push(e);
+    _hazFormClear();
+    _renderHazEntries();
+    document.getElementById('hz-un')?.focus();
+    if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
+    if (typeof scheduleSnapshot === 'function') scheduleSnapshot();
+  }
+  function removeHazEntry(i) {
+    _hazEntries.splice(i, 1);
+    _renderHazEntries();
+    if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
+    if (typeof scheduleSnapshot === 'function') scheduleSnapshot();
+  }
+  function editHazEntry(i) {
+    const e = _hazEntries[i];
+    if (!e) return;
+    _hazFormSet(e);
+    _hazEntries.splice(i, 1);
+    _renderHazEntries();
+    document.getElementById('hz-un')?.focus();
+    if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
+    if (typeof scheduleSnapshot === 'function') scheduleSnapshot();
+  }
+  window.addHazEntry    = addHazEntry;
+  window.removeHazEntry = removeHazEntry;
+  window.editHazEntry   = editHazEntry;
+  // 復元用（syncMultiEntryFields から呼ぶ）
+  function syncHazEntries() {
+    const data = document.getElementById('hz-entries-data');
+    try { _hazEntries = (data && data.value) ? JSON.parse(data.value) : []; }
+    catch (e) { _hazEntries = []; }
+    if (!Array.isArray(_hazEntries)) _hazEntries = [];
+    _renderHazEntries();
+  }
+  // PDF側（quote-pdf.js）が参照できるよう公開
+  window.getHazEntries  = () => _hazEntries.slice();
+  window.getHazEntryLabel = _hazEntryLabel;
 
   // ========== 幹線輸送：複数船会社・複数POL/POD 航路 ==========
   let _routeEntries = [];   // [{ carrier, pol, pod, enabled, ng, ngReason }, ...]

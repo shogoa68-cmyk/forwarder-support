@@ -116,18 +116,25 @@
     return '';
   }
 
-  // 危険品・特殊貨物の詳細を区分に応じて収集
+  // 危険品「危険品あり」区分の複数件対応：登録済みエントリ（複数可）を行ごとの文字列配列で返す。
+  // 1件も「＋ 追加」せずフォームに直接入力しただけの場合（旧来の単一入力の使い方）は、
+  // フォームの現在値を1件として返す（後方互換）。
+  function _hazEntryLines() {
+    const v = id => (document.getElementById(id)?.value || '').trim();
+    const fmt = (typeof window.getHazEntryLabel === 'function') ? window.getHazEntryLabel : (() => '');
+    const entries = (typeof window.getHazEntries === 'function') ? window.getHazEntries() : [];
+    if (entries.length) return entries.map(fmt).filter(Boolean);
+    const single = fmt({ un: v('hz-un'), cls: v('hz-class'), pg: v('hz-pg'), pi: v('hz-pi'),
+                          fireLaw: v('hz-fire-law'), psn: v('hz-psn'), flash: v('hz-flash') });
+    return single ? [single] : [];
+  }
+
+  // 危険品・特殊貨物の詳細を区分に応じて収集（「危険品あり」以外の区分用。
+  // 「危険品あり」は複数件対応のため _hazEntryLines() を別途使う）
   function _hazmatDetail(hazmat) {
     const v = id => (document.getElementById(id)?.value || '').trim();
     const parts = [];
-    if (hazmat === '危険品あり（クラス要確認）') {
-      if (v('hz-un'))        parts.push('UN' + v('hz-un').replace(/^UN/i, ''));
-      if (v('hz-class'))     parts.push(v('hz-class'));
-      if (v('hz-pg'))        parts.push(v('hz-pg'));
-      if (v('hz-fire-law'))  parts.push('消防法 ' + v('hz-fire-law'));
-      if (v('hz-psn'))       parts.push('PSN: ' + v('hz-psn'));
-      if (v('hz-flash'))     parts.push('引火点 ' + v('hz-flash'));
-    } else if (hazmat === '温度管理品（冷蔵）') {
+    if (hazmat === '温度管理品（冷蔵）') {
       if (v('hz-temp-chill'))   parts.push('設定温度 ' + v('hz-temp-chill'));
       if (v('hz-reefer-chill')) parts.push(v('hz-reefer-chill'));
     } else if (hazmat === '温度管理品（冷凍）') {
@@ -203,8 +210,18 @@
     if (cond.hsPref)   hs += (hs ? ' / ' : '') + '特恵' + cond.hsPref;
     push('HSコード', hs);
     if (cond.hsPrefNote) push('特恵備考', cond.hsPrefNote);
-    // 危険品・特殊貨物
-    if (cond.hazmat && cond.hazmat !== 'なし（一般貨物）') {
+    // 危険品・特殊貨物：「危険品あり」は複数件登録できるため、航路と同様に1件ずつ行を分けて出力する
+    if (cond.hazmat === '危険品あり（クラス要確認）') {
+      const lines = _hazEntryLines();
+      if (lines.length) {
+        lines.forEach((line, i) => {
+          const label = lines.length === 1 ? '危険品' : `危険品${i + 1}`;
+          push(label, line);
+        });
+      } else {
+        push('特殊貨物区分', cond.hazmat);
+      }
+    } else if (cond.hazmat && cond.hazmat !== 'なし（一般貨物）') {
       const detail = _hazmatDetail(cond.hazmat);
       push('特殊貨物区分', cond.hazmat + (detail ? `（${detail}）` : ''));
     }

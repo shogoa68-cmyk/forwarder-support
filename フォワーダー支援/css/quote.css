@@ -2780,6 +2780,48 @@
   border-color: #ddd2c4;
   border-left-color: #7d6b56;
 }
+/* 危険品：複数件登録（追加ボタン・登録済みチップ一覧） */
+#tab-quote-make .hz-entry-actions {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  margin-top: 10px;
+}
+#tab-quote-make .hz-entry-add-btn {
+  background: #c0654a; color: #fff; border: 1px solid #a8442a;
+  border-radius: 5px; padding: 5px 12px; font-size: 12px; font-weight: 700;
+  cursor: pointer; font-family: inherit;
+}
+#tab-quote-make .hz-entry-add-btn:hover { background: #a8442a; }
+#tab-quote-make .hz-entry-hint { font-size: 11px; color: #a8927f; }
+#tab-quote-make .hz-entry-list {
+  display: flex; flex-wrap: wrap; gap: 6px;
+  margin-top: 10px;
+}
+#tab-quote-make .hz-entry-list:empty { margin-top: 0; }
+#tab-quote-make .hz-entry-chip {
+  display: inline-flex; align-items: center; gap: 6px; max-width: 100%;
+  padding: 3px 6px 3px 9px;
+  background: #fff; border: 1px solid #e0b4a8; border-radius: 14px;
+  font-size: 11.5px; color: #6b3d2e;
+}
+#tab-quote-make .hz-entry-idx {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 15px; height: 15px; flex-shrink: 0;
+  background: #c0654a; color: #fff; border-radius: 50%;
+  font-size: 9.5px; font-weight: 700;
+}
+#tab-quote-make .hz-entry-label { font-weight: 700; white-space: nowrap; }
+#tab-quote-make .hz-entry-sub {
+  color: #a8927f; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 260px;
+}
+#tab-quote-make .hz-entry-edit {
+  width: 17px; height: 17px; flex-shrink: 0;
+  border: 1px solid #d8b8a8; border-radius: 3px;
+  background: #fbf2ee; color: #a8442a;
+  font-size: 11px; line-height: 1; padding: 0;
+  cursor: pointer;
+  display: inline-flex; align-items: center; justify-content: center;
+}
+#tab-quote-make .hz-entry-edit:hover { background: #f6dcd2; border-color: #c0654a; }
 #tab-quote-make .btn-zone-preset:active { filter: brightness(0.85); transform: scale(0.97); }
 /* ── Zone② 幹線輸送入力 ── */
 #tab-quote-make .zone2-inputs { padding: 10px 10px 8px; }
