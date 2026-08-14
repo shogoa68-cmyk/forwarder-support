@@ -5337,6 +5337,13 @@ body.qp-dash-active #quoteActionDock { display: none !important; }
 #tab-quote-make .preset-cf-name,
 #tab-quote-make .cloud-cf-name { font-style: italic; }
 #tab-quote-make .preset-cf-ref { font-style: normal; color: #a09080; font-size: 10px; }
+/* 世代バッジ（N代目）・オリジナル行（3代目以降のみ表示） */
+#tab-quote-make .preset-cf-gen {
+  font-style: normal; color: #6b5a42; background: #f0e8d8; border: 1px solid #dccBA0;
+  border-radius: 8px; font-size: 9.5px; font-weight: 700; padding: 0 5px; white-space: nowrap;
+}
+#tab-quote-make .cloud-copied-from--root,
+#tab-quote-make .preset-copied-from--root { border-top: none; padding-top: 0; margin-top: 0; }
 #tab-quote-make .btn-cf-preview {
   background: #f0eae0; color: #6b5a42; border: 1px solid #d5c8b5;
   border-radius: 3px; font-size: 10px; cursor: pointer; padding: 1px 6px;

@@ -1258,7 +1258,12 @@
     const newData = JSON.parse(JSON.stringify(src.data || {}));
     if (!newData.fields) newData.fields = {};
     const srcRef = (newData.fields['qf-ref'] || '').trim();
-    newData.copiedFrom = { name: src.name, ref: srcRef };
+    const srcCf = src.data && src.data.copiedFrom;
+    newData.copiedFrom = {
+      name: src.name, ref: srcRef,
+      gen: (srcCf && srcCf.gen ? srcCf.gen : 1) + 1,
+      root: (srcCf && srcCf.root) || { name: src.name, ref: srcRef },
+    };
     // 発番ID取得済みなら新REF#をコピー時点で採番（未取得の場合はコピー元番号を保持）
     const newRef = typeof generateQuoteRefValue === 'function' ? generateQuoteRefValue() : null;
     if (newRef) newData.fields['qf-ref'] = newRef;
@@ -1470,8 +1475,14 @@
 
       const cf = p.data && p.data.copiedFrom;
       const cfLabel = cf ? escHtml(cf.name || '不明') + (cf.ref ? ' <span class="preset-cf-ref">(' + escHtml(cf.ref) + ')</span>' : '') : '';
+      const genBadge = (cf && cf.gen) ? ' <span class="preset-cf-gen" title="オリジナルから数えた世代">' + cf.gen + '代目</span>' : '';
+      const root = cf && cf.root;
+      const rootLabel = (root && cf.gen > 2)
+        ? '<div class="preset-copied-from preset-copied-from--root">🌱 オリジナル：<span class="preset-cf-name">' + escHtml(root.name || '不明') +
+            (root.ref ? ' <span class="preset-cf-ref">(' + escHtml(root.ref) + ')</span>' : '') + '</span></div>'
+        : '';
       const copiedFromHtml = cf
-        ? '<div class="preset-copied-from">📋 コピー元：<span class="preset-cf-name">' + cfLabel + '</span></div>'
+        ? '<div class="preset-copied-from">📋 コピー元：<span class="preset-cf-name">' + cfLabel + '</span>' + genBadge + '</div>' + rootLabel
         : '';
 
       return '<div class="preset-list-item preset-item-rich' + (isLoaded ? ' preset-list-item--loaded' : '') + '">' +

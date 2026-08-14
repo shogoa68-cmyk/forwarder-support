@@ -1,5 +1,9 @@
 // ========== 引き合い条件・ゾーン (app-conditions.js) ==========
 
+  // 読み込んだ案件の「コピー元」情報。フォーム項目でも行データでもないため
+  // _applyQuoteData() で保持し、gatherAllData() で保存のたびに再添付する。
+  let _loadedCopiedFrom = null;
+
   // ========== 引き合い条件 ==========
 
 
@@ -402,6 +406,10 @@
   function _applyQuoteData(data, { keepHeaderIfEmpty = false } = {}) {
     if (!data) return;
     data = migrateRowCells(data);
+    // コピー元情報（📋 コピー由来の案件のみ持つ）を保持し、gatherAllData() で
+    // 保存のたびに再添付する。これをしないと保存の瞬間に消えてしまう
+    // （通常のフォーム値・行データではないため素通しでは残らない）。
+    _loadedCopiedFrom = data.copiedFrom || null;
     // サブコン別小計の客先用表示名を復元（_rebuildTable → renderSubconGroups より前にセット）
     if (typeof setSubconAliases === 'function') setSubconAliases(data.subconAliases || {});
     if (typeof setSubconGroupNotes === 'function') setSubconGroupNotes(data.groupNotes || {});
@@ -804,7 +812,8 @@
     return { fields, rows, ts: new Date().toISOString(), _rowFormat: 'v3-mixed-rows',
              subconAliases: (typeof getSubconAliases === 'function' ? getSubconAliases() : {}),
              groupNotes: (typeof getSubconGroupNotes === 'function' ? getSubconGroupNotes() : {}),
-             fxSnapshot: { rates: { ..._fxRates }, ts: localStorage.getItem(SharedStorage.KEYS.FX_LAST_FETCHED) || null } };
+             fxSnapshot: { rates: { ..._fxRates }, ts: localStorage.getItem(SharedStorage.KEYS.FX_LAST_FETCHED) || null },
+             ...(_loadedCopiedFrom ? { copiedFrom: _loadedCopiedFrom } : {}) };
   }
 
   /**
