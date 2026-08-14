@@ -619,10 +619,21 @@
       const origId = cf && cf.id;
       const origExists = origId && _cloudRows.some(row => row.id === origId);
       const cfRefBadge = (cf && cf.ref) ? ' <span class="preset-cf-ref">(' + escHtml(cf.ref) + ')</span>' : '';
-      const copiedFromHtml = cf
-        ? '<div class="cloud-copied-from">📋 コピー元：<span class="cloud-cf-name">' + escHtml(cf.name || '不明') + cfRefBadge + '</span>' +
-          (origExists ? ' <button class="btn-cf-preview" onclick="cloudPreviewPreset(\'' + encodeURIComponent(origId) + '\')" title="コピー元をプレビュー">プレビュー</button>' : '') +
+      // 世代：オリジナル=1・最初のコピー=2・コピーのコピー=3…。旧データ（gen 無し）は表示しない。
+      const genBadge = (cf && cf.gen) ? ' <span class="preset-cf-gen" title="オリジナルから数えた世代">' + cf.gen + '代目</span>' : '';
+      // ルート（一番最初のオリジナル）。3代目以降で、直近のコピー元と別人物のときだけ追加表示する。
+      const root = cf && cf.root;
+      const rootExists = !!(root && root.id && _cloudRows.some(row => row.id === root.id));
+      const rootHtml = (root && cf.gen > 2)
+        ? '<div class="cloud-copied-from cloud-copied-from--root">🌱 オリジナル：<span class="cloud-cf-name">' + escHtml(root.name || '不明') +
+            (root.ref ? ' <span class="preset-cf-ref">(' + escHtml(root.ref) + ')</span>' : '') + '</span>' +
+            (rootExists ? ' <button class="btn-cf-preview" onclick="cloudPreviewPreset(\'' + encodeURIComponent(root.id) + '\')" title="オリジナルをプレビュー">プレビュー</button>' : '') +
           '</div>'
+        : '';
+      const copiedFromHtml = cf
+        ? '<div class="cloud-copied-from">📋 コピー元：<span class="cloud-cf-name">' + escHtml(cf.name || '不明') + cfRefBadge + '</span>' + genBadge +
+          (origExists ? ' <button class="btn-cf-preview" onclick="cloudPreviewPreset(\'' + encodeURIComponent(origId) + '\')" title="コピー元をプレビュー">プレビュー</button>' : '') +
+          '</div>' + rootHtml
         : '';
 
       // 💬 申し送り簡易表示＋投稿（ダッシュボードのみ表示・CSS で制御）。件数/プレビューは _loadDashChatSummaries が後追いで埋める
@@ -1885,7 +1896,15 @@
     const newData = JSON.parse(JSON.stringify(src.data));
     if (!newData.fields) newData.fields = {};
     const srcRef = (newData.fields['qf-ref'] || '').trim();
-    newData.copiedFrom = { id: src.id, name: src.name, ref: srcRef };
+    // gen：オリジナル=1、その最初のコピー=2、コピーのコピー=3…と数える。
+    // root：チェーンの先頭（最初のオリジナル）を常に指す。コピー元自体がコピーで
+    // あれば root を引き継ぎ、そうでなければコピー元自身が root になる。
+    const srcCf = src.data && src.data.copiedFrom;
+    newData.copiedFrom = {
+      id: src.id, name: src.name, ref: srcRef,
+      gen: (srcCf && srcCf.gen ? srcCf.gen : 1) + 1,
+      root: (srcCf && srcCf.root) || { id: src.id, name: src.name, ref: srcRef },
+    };
     // 発番ID取得済みなら新REF#をコピー時点で採番（未取得の場合はコピー元番号を保持）
     const newRef = typeof generateQuoteRefValue === 'function' ? generateQuoteRefValue() : null;
     if (newRef) newData.fields['qf-ref'] = newRef;
