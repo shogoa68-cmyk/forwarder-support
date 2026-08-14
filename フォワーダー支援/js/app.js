@@ -25,7 +25,12 @@ document.addEventListener('keydown',function(e){if((e.key==='ArrowUp'||e.key==='
 
 // ===== 見積もりタブへ戻るフローティングボタン =====
 // 見積タブ(#tab-quote-make)以外を表示中だけ表示。switchTab を funnel として visibility を更新。
+// あわせて、見積タブから他タブへ移動する直前のスクロール位置を覚えておき、
+// 見積タブへ戻ってきたときに復元する（マスター管理タブへジャンプして「戻る」で
+// 元の行の位置に戻れるように）。
 (function () {
+  var _savedQuoteScrollY = null;
+
   function updateBackToQuoteFab() {
     var fab = document.getElementById('backToQuoteFab');
     if (!fab) return;
@@ -35,9 +40,17 @@ document.addEventListener('keydown',function(e){if((e.key==='ArrowUp'||e.key==='
   window.updateBackToQuoteFab = updateBackToQuoteFab;
   var _origSwitchTab = window.switchTab;
   if (typeof _origSwitchTab === 'function') {
-    window.switchTab = function () {
+    window.switchTab = function (tabId) {
+      var wasOnQuote = document.getElementById('tab-quote-make')?.classList.contains('active');
+      if (wasOnQuote && tabId !== 'quote-make') _savedQuoteScrollY = window.scrollY;
       var r = _origSwitchTab.apply(this, arguments);
       try { updateBackToQuoteFab(); } catch (e) {}
+      if (tabId === 'quote-make' && _savedQuoteScrollY !== null) {
+        var y = _savedQuoteScrollY;
+        _savedQuoteScrollY = null;
+        // タブ切替直後はレイアウトが確定していないことがあるため次フレームで復元
+        requestAnimationFrame(function () { window.scrollTo({ top: y, behavior: 'instant' }); });
+      }
       return r;
     };
   }
