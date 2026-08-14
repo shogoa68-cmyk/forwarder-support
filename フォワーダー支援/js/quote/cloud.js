@@ -21,6 +21,9 @@
   const CLOUD_STATUSES = ['下書き中', '提出済み', 'ヨコヨコ提示', '受注', '失注', '辞退', '保留'];
   const CLOUD_STATUS_DEFAULT = '下書き中';
 
+  // 「保留」のまま何日更新されなかったら下書きに自動的に戻すか（放置防止のリマインド）
+  const HOLD_STALE_DAYS = 14;
+
   // 一覧キャッシュ＋絞り込み状態（フェーズ1：クライアント側フィルタ）
   let _cloudRows = [];          // 取得した全件
   let _cloudSearch = '';        // 検索語（名前・顧客・担当）
@@ -274,10 +277,41 @@
       return;
     }
     _cloudRows = data || [];
+    await _checkStaleHolds();
     _renderStatusChips();
     _renderQpdStats();
     _renderAdvancedFilters();
     _applyCloudFilter();
+  }
+
+  // 「保留」のまま HOLD_STALE_DAYS 日以上更新が無い案件を「下書き中」へ自動的に戻し、
+  // 案件カードに「🔔 保留から自動復帰」バッジを出す（放置された保留案件の見落とし防止）。
+  // updated_at はステータス変更でも更新されるため、これを「保留になってからの経過日数」の近似値として使う。
+  async function _checkStaleHolds() {
+    const c = _getClient();
+    if (!c || !_cloudUser) return;
+    const now = Date.now();
+    const staleMs = HOLD_STALE_DAYS * 24 * 60 * 60 * 1000;
+    const stale = _cloudRows.filter(r => {
+      if (_normalizeStatus(r.status) !== '保留') return false;
+      if (_lockedByOther(r)) return false;   // 編集中のものは触らない
+      const upd = r.updated_at ? new Date(r.updated_at).getTime() : 0;
+      return upd && (now - upd) > staleMs;
+    });
+    if (!stale.length) return;
+    for (const r of stale) {
+      const heldDays = Math.floor((now - new Date(r.updated_at).getTime()) / (24 * 60 * 60 * 1000));
+      const newData = Object.assign({}, r.data, { remindedFromHold: { at: new Date().toISOString(), heldDays } });
+      const { error } = await c.from(_table())
+        .update({ status: CLOUD_STATUS_DEFAULT, data: newData, updated_at: new Date().toISOString() })
+        .eq('id', r.id);
+      if (!error) {
+        r.status = CLOUD_STATUS_DEFAULT;
+        r.data = newData;
+        r.updated_at = new Date().toISOString();
+      }
+    }
+    quoteShowToast('🔔 保留から' + HOLD_STALE_DAYS + '日以上経過した案件を' + stale.length + '件、下書きに戻しました', 'info', 6000);
   }
 
   // 検索語・ステータス・詳細フィルターで絞り込んで描画
@@ -506,6 +540,13 @@
     if (days < 0) return '';
     return '<span class="cloud-recv" title="依頼受信日：' + escHtml(recvStr) + '">📥 受信から ' + days + '日</span>';
   }
+  // 保留放置による自動復帰（_checkStaleHolds）で戻された案件に出す気づきバッジ
+  function _remindBadge(data) {
+    const rf = data && data.remindedFromHold;
+    if (!rf) return '';
+    const atStr = rf.at ? new Date(rf.at).toLocaleDateString('ja-JP') : '';
+    return '<span class="cloud-remind" title="保留のまま' + (rf.heldDays || 0) + '日経過したため ' + escHtml(atStr) + ' に自動的に下書きへ戻されました">🔔 保留から自動復帰</span>';
+  }
 
   // 役割ラベル＝費用行のカテゴリ（CATEGORIES の value → 短縮ラベル）
   const _SUBCON_ROLE = {
@@ -589,9 +630,10 @@
       const memoLine  = (m && m.memo) ? m.memo : '';
       // 締切バッジ（締切超過／締切まで）は下書き中の案件のみ表示。提出済み以降は締切が無意味なため出さない
       const isDraftStatus = _normalizeStatus(status) === '下書き中';
-      const dueBadge  = isDraftStatus ? _dueBadge(m && m.due) : '';
-      const recvBadge = _receivedBadge(m && m.received);
-      const prioRow   = (dueBadge || recvBadge) ? '<div class="cloud-card-prio">' + dueBadge + recvBadge + '</div>' : '';
+      const dueBadge    = isDraftStatus ? _dueBadge(m && m.due) : '';
+      const recvBadge   = _receivedBadge(m && m.received);
+      const remindBadge = isDraftStatus ? _remindBadge(r.data) : '';
+      const prioRow     = (dueBadge || recvBadge || remindBadge) ? '<div class="cloud-card-prio">' + dueBadge + recvBadge + remindBadge + '</div>' : '';
 
       // サブコン（役割ラベル付き・5件目以降は +N）
       const subShown = subcons.slice(0, 4);

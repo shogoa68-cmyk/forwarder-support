@@ -5872,6 +5872,10 @@ body.qp-dash-active #quoteActionDock { display: none !important; }
 #tab-quote-make .cloud-due--soon  { color: #8a5a16; background: #fcf1e0; border-color: #e7c79a; }
 #tab-quote-make .cloud-due--today { color: #a8442a; background: #fbeee9; border-color: #e0a18f; }
 #tab-quote-make .cloud-due--over  { color: #fff;    background: #c0392b; border-color: #a83224; }
+#tab-quote-make .cloud-remind {
+  font-size: 11px; font-weight: 700; border-radius: 999px; padding: 1px 9px; white-space: nowrap;
+  color: #6a4a9a; background: #f1eafb; border: 1px solid #d3bdf0;
+}
 #tab-quote-make .cloud-kv { display: grid; grid-template-columns: 68px 1fr; gap: 3px 8px; margin: 8px 0; }
 #tab-quote-make .cloud-kv dt { font-size: 10.5px; color: #94a3ad; font-weight: 600; padding-top: 1px; }
 #tab-quote-make .cloud-kv dd { font-size: 11.5px; color: #2c3e4a; margin: 0; }
