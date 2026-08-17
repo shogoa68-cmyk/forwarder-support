@@ -1937,6 +1937,8 @@
     if (!src || !src.data) { quoteShowToast('⚠️ コピー元が見つかりません', 'warn'); return; }
     const newData = JSON.parse(JSON.stringify(src.data));
     if (!newData.fields) newData.fields = {};
+    // 新規案件としてのコピーのため、コピー元の「入力完了」マークは引き継がない
+    if (Array.isArray(newData.rows)) newData.rows.forEach(r => { if (r) delete r.done; });
     const srcRef = (newData.fields['qf-ref'] || '').trim();
     // gen：オリジナル=1、その最初のコピー=2、コピーのコピー=3…と数える。
     // root：チェーンの先頭（最初のオリジナル）を常に指す。コピー元自体がコピーで

@@ -6492,6 +6492,15 @@ body.qp-dash-active #quoteActionDock { display: none !important; }
 }
 #tab-quote-make .cmdbar-done-indicator:hover { background: #d6efe0; }
 #tab-quote-make .cmdbar-done-indicator[hidden] { display: none; }
+#tab-quote-make .cmdbar-done-reset {
+  display: inline-flex; align-items: center; gap: 3px;
+  background: transparent; border: 1px solid #b8c4b0; color: #5a6a55;
+  border-radius: 12px; padding: 3px 10px; font-size: 11px; font-weight: 600;
+  cursor: pointer; white-space: nowrap; line-height: 1; font-family: inherit;
+  transition: background 0.15s;
+}
+#tab-quote-make .cmdbar-done-reset:hover { background: #eef2ec; }
+#tab-quote-make .cmdbar-done-reset[hidden] { display: none; }
 #tab-quote-make .btn-bulk-cat,
 #tab-quote-make .btn-bulk-cat-pick {
   border: 1px solid #a8947e;
