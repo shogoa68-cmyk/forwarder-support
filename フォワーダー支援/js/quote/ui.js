@@ -1259,6 +1259,8 @@
     if (!src) return;
     const newData = JSON.parse(JSON.stringify(src.data || {}));
     if (!newData.fields) newData.fields = {};
+    // 新規案件としてのコピーのため、コピー元の「入力完了」マークは引き継がない
+    if (Array.isArray(newData.rows)) newData.rows.forEach(r => { if (r) delete r.done; });
     const srcRef = (newData.fields['qf-ref'] || '').trim();
     const srcCf = src.data && src.data.copiedFrom;
     newData.copiedFrom = {

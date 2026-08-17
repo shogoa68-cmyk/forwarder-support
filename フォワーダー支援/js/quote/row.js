@@ -442,8 +442,39 @@
     if (ind) ind.hidden = (done === 0);
     const dc = document.getElementById('doneCount');  if (dc) dc.textContent = done;
     const dt = document.getElementById('doneTotal');  if (dt) dt.textContent = total;
+    const rst = document.getElementById('doneResetBtn');
+    if (rst) rst.hidden = (done === 0);
   }
   window.updateDoneCounter = updateDoneCounter;
+
+  // 入力完了マークを全行分まとめて解除する（過去案件のコピー直後の一括リセット等に使用）。
+  function clearAllDoneMarks() {
+    const dataRows = document.querySelectorAll('#tableBody tr[id^="row-"]:not([data-type]):not([data-virtual])');
+    let count = 0;
+    dataRows.forEach(tr => {
+      if (tr.dataset.done !== '1') return;
+      delete tr.dataset.done;
+      tr.classList.remove('row-input-done');
+      const db = tr.querySelector('.row-done-btn');
+      if (db) { db.classList.remove('is-on'); db.title = '入力完了の目印。作成を再開したとき、どこまで終わったか分かります（もう一度クリックで解除）。'; }
+      count++;
+    });
+    updateDoneCounter();
+    if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
+    if (typeof scheduleSnapshot === 'function') scheduleSnapshot();
+    if (window.quoteShowToast) quoteShowToast('✅ 入力完了マークを' + count + '件解除しました', 'success');
+    return count;
+  }
+  window.clearAllDoneMarks = clearAllDoneMarks;
+
+  function confirmClearAllDoneMarks() {
+    const dataRows = document.querySelectorAll('#tableBody tr[id^="row-"]:not([data-type]):not([data-virtual])');
+    const doneCount = Array.from(dataRows).filter(tr => tr.dataset.done === '1').length;
+    if (!doneCount) { if (window.quoteShowToast) quoteShowToast('入力完了マークの付いた行がありません', 'info'); return; }
+    if (!confirm('入力完了マークを全行分（' + doneCount + '件）解除します。よろしいですか？')) return;
+    clearAllDoneMarks();
+  }
+  window.confirmClearAllDoneMarks = confirmClearAllDoneMarks;
 
   // 未完了（＝続きから作業する）行へ移動。完了マークの無い最初のデータ行へスクロール。
   function jumpToNextUnfinished() {
