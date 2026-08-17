@@ -784,9 +784,11 @@
       { lbl: '協定税率 備考',   val: cond.hsPrefNote },
       { lbl: '重量',            val: cond.weight },
       { lbl: '容積',            val: cond.volume },
-      { lbl: '荷姿',            val: cond.packing },
+      { lbl: '荷姿明細',        val: (typeof window.getPackingDetailText === 'function' ? window.getPackingDetailText() : cond.packing) },
       { lbl: '危険品',          val: cond.hazmat },
     ].filter(f => f.val);
+    const _billing = (typeof window.getCargoBillingLine === 'function') ? window.getCargoBillingLine(cond.mode) : null;
+    if (_billing) condFields.push({ lbl: _billing.label, val: _billing.value });
 
     const pvCond = document.getElementById('pvCondBox');
     if (condFields.length || cond.free) {

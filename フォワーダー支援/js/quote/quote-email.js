@@ -157,11 +157,16 @@
     if (route) subjectParts.push(route);
     const subject = subjectParts.join('　');
 
+    // 物量情報（荷姿明細＋課金重量の目安）。未入力なら両方とも空・null のまま。
+    const packing = (typeof window.getPackingDetailText === 'function') ? window.getPackingDetailText() : '';
+    const billing = (typeof window.getCargoBillingLine === 'function') ? window.getCargoBillingLine(cond.mode) : null;
+
     return {
       to: honorific(hdr.customer, hdr.person),
       ref: hdr.ref, validUntil: hdr.validUntil,
       subject, zones, detailGroups, exemptSub, taxableSub, tax, total, taxRate, hasFx, notes, issuer,
       scope: (document.getElementById('qf-scope')?.value || '').trim(),
+      packing, billing,
     };
   }
 
@@ -179,6 +184,9 @@
     if (m.subject)    out.push('【件名】' + m.subject);
     if (m.ref)        out.push('【見積番号】' + m.ref);
     if (m.validUntil) out.push('【有効期限】' + m.validUntil);
+    if (m.packing || m.billing) {
+      out.push('【物量情報】' + [m.packing, m.billing && (m.billing.label + ' ' + m.billing.value)].filter(Boolean).join('　'));
+    }
     return out;
   }
   function _plainSummaryLines(m) {

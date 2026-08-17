@@ -1700,6 +1700,39 @@
     });
   };
 
+  // 荷姿・貨物明細（1個あたり寸法・重量・段積み）を客先向け出力（PDF/プレビュー/メール）で
+  // 共通利用できる読みやすい文字列にする。cond.packing（品名×個数のみ）より詳細。
+  window.getPackingDetailText = function () {
+    const named = (_packingEntries || []).filter(e => e && e.pkg);
+    if (!named.length) return '';
+    return named.map(e => {
+      const dim = [e.l, e.w, e.h].every(x => x) ? `${e.l}×${e.w}×${e.h}cm` : '';
+      const kg = e.kg ? `${e.kg}kg/個` : '';
+      const stackNote = e.stack === '不可' ? '段積み不可' : '';
+      const extra = [dim, kg, stackNote].filter(Boolean).join('、');
+      return `${e.pkg} × ${e.qty || 1}${extra ? `（${extra}）` : ''}`;
+    }).join('／');
+  };
+
+  // 輸送モードに応じた課金重量（LCL＝R/T・航空＝CW）の1行を、PDF/プレビュー/メールで
+  // 共通利用できる形式で返す。対象外・データ無しなら null。
+  window.getCargoBillingLine = function (mode) {
+    const cm = (typeof window.getCargoMetrics === 'function') ? window.getCargoMetrics() : null;
+    if (!cm) return null;
+    const m = mode || '';
+    if (/LCL/i.test(m) && (cm.cbm > 0 || cm.kg > 0)) {
+      const rt = cm.rt || 0;
+      let txt = rt.toFixed(3) + ' R/T';
+      if (rt > 0 && rt < 1) txt += '（MINIMUM 1 適用 → 1.000 R/T）';
+      return { label: 'R/T（課金重量）', value: txt };
+    }
+    if (/航空|AIR/i.test(m) && (cm.cw || 0) > 0) {
+      const cwTxt = (typeof SharedCalc !== 'undefined' && SharedCalc.fmtCw) ? SharedCalc.fmtCw(cm.cw) : String(Math.round(cm.cw));
+      return { label: 'CW（課金重量）', value: cwTxt + ' kg' };
+    }
+    return null;
+  };
+
   function updatePackingRow(i, key, val) {
     if (!_packingEntries[i]) return;
     _packingEntries[i][key] = val;

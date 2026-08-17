@@ -150,17 +150,9 @@
     return parts.join(' / ');
   }
 
-  // 荷姿明細を読みやすい文字列に（cond-packing-data の JSON から）
+  // 荷姿明細を読みやすい文字列に（寸法・重量・段積みを含む。conditions.js の共通実装）
   function _packingDetail() {
-    try {
-      const arr = JSON.parse(document.getElementById('cond-packing-data')?.value || '[]');
-      const named = arr.filter(e => e && e.pkg);
-      if (!named.length) return '';
-      return named.map(e => {
-        const dim = [e.l, e.w, e.h].every(x => x) ? `（${e.l}×${e.w}×${e.h}cm）` : '';
-        return `${e.pkg} × ${e.qty || 1}${dim}`;
-      }).join('、');
-    } catch (e) { return ''; }
+    return (typeof window.getPackingDetailText === 'function') ? window.getPackingDetailText() : '';
   }
 
   // 件名ブロックを引き合い条件から組み立てる（貨物・物量情報をすべて反映）
@@ -231,21 +223,8 @@
     push('総容積', cond.volume);
     // 課金基準の目安：LCL は R/T、AIR は CW（容積重量課金）を表示。
     // 貨物情報（サイズ・重量）が入力されている場合のみ。
-    const _cm = (typeof window.getCargoMetrics === 'function') ? window.getCargoMetrics() : null;
-    const _mode = cond.mode || '';
-    if (_cm) {
-      if (/LCL/i.test(_mode) && (_cm.cbm > 0 || _cm.kg > 0)) {
-        // LCL 海上運賃は最低 1 R/T。計算値が 1 未満なら MINIMUM 適用を明記
-        const _rt = _cm.rt || 0;
-        let _rtTxt = _rt.toFixed(3) + ' R/T';
-        if (_rt > 0 && _rt < 1) _rtTxt += '（MINIMUM 1 適用 → 1.000 R/T）';
-        push('R/T（課金重量）', _rtTxt);
-      } else if (/航空|AIR/i.test(_mode) && (_cm.cw || 0) > 0) {
-        const cwTxt = (typeof SharedCalc !== 'undefined' && SharedCalc.fmtCw)
-          ? SharedCalc.fmtCw(_cm.cw) : String(Math.round(_cm.cw));
-        push('CW（課金重量）', cwTxt + ' kg');
-      }
-    }
+    const _billing = (typeof window.getCargoBillingLine === 'function') ? window.getCargoBillingLine(cond.mode) : null;
+    if (_billing) push(_billing.label, _billing.value);
     return { title, meta };
   }
 
