@@ -1702,15 +1702,17 @@
 
   // 荷姿・貨物明細（1個あたり寸法・重量・段積み）を客先向け出力（PDF/プレビュー/メール）で
   // 共通利用できる読みやすい文字列にする。cond.packing（品名×個数のみ）より詳細。
+  // 荷姿名（pkg）が未入力でも、寸法・重量のいずれかがあれば出力する
+  // （総重量・総容積・R/T/CW は pkg 未入力の行も含めて集計されるため、そこと矛盾しないように）。
   window.getPackingDetailText = function () {
-    const named = (_packingEntries || []).filter(e => e && e.pkg);
+    const named = (_packingEntries || []).filter(e => e && (e.pkg || e.l || e.w || e.h || e.kg));
     if (!named.length) return '';
     return named.map(e => {
       const dim = [e.l, e.w, e.h].every(x => x) ? `${e.l}×${e.w}×${e.h}cm` : '';
       const kg = e.kg ? `${e.kg}kg/個` : '';
       const stackNote = e.stack === '不可' ? '段積み不可' : '';
       const extra = [dim, kg, stackNote].filter(Boolean).join('、');
-      return `${e.pkg} × ${e.qty || 1}${extra ? `（${extra}）` : ''}`;
+      return `${e.pkg || '荷姿未設定'} × ${e.qty || 1}${extra ? `（${extra}）` : ''}`;
     }).join('／');
   };
 
