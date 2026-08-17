@@ -2509,6 +2509,10 @@
 #tab-quote-make .zone-card.zone-origin { border-color: #f39c12; }
 #tab-quote-make .zone-card.zone-main { border-color: #6b5a42; }
 #tab-quote-make .zone-card.zone-dest { border-color: #8b6914; }
+/* 幹線輸送（②）は航路チップの登録数が多くなりやすいため、出発地側/到着地側より広く確保する */
+#tab-quote-make .zone-card.zone-main { flex: 2.4; min-width: 340px; }
+#tab-quote-make .zone-card.zone-origin,
+#tab-quote-make .zone-card.zone-dest { flex: 1; min-width: 150px; }
 #tab-quote-make .zone-card.zone-off { opacity: .55; filter: grayscale(.4); }
 #tab-quote-make .zone-card-header {
   display: flex;
