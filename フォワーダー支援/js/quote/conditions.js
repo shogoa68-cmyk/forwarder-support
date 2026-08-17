@@ -1929,7 +1929,10 @@
           + `</button>`
         : '';
       const _chipCls = ng ? ' z2-route-chip--ng' : (on ? '' : ' z2-route-chip--off');
+      const _atFirst = i === 0, _atLast = i === _routeEntries.length - 1;
       return `<span class="z2-route-chip${_chipCls}">`
+        + `<button type="button" class="z2-route-move" onclick="moveRouteEntry(${i},-1)" ${_atFirst ? 'disabled' : ''} title="上へ移動">↑</button>`
+        + `<button type="button" class="z2-route-move" onclick="moveRouteEntry(${i},1)" ${_atLast ? 'disabled' : ''} title="下へ移動">↓</button>`
         + `<button type="button" class="z2-route-toggle" onclick="toggleRouteEntry(${i})" title="${on ? '無効にする（一時停止）' : '有効にする'}">${on ? '✓' : '—'}</button>`
         + `<span class="z2-route-carrier">${_escMulti(r.carrier || '—')}</span>`
         + _roleChip + _actualChip + _ngChip
@@ -2000,6 +2003,20 @@
     if (typeof scheduleSnapshot === 'function') scheduleSnapshot();
     _triggerCarrierBmFetch();
   }
+
+  // 航路チップの並び替え（dir: -1=上へ、+1=下へ）。先頭の航路が代表POL/PODとして
+  // 見積条件（getConditions）に使われるため、優先度の高い航路を上に動かせるようにする。
+  function moveRouteEntry(i, dir) {
+    const j = i + dir;
+    if (j < 0 || j >= _routeEntries.length) return;
+    const tmp = _routeEntries[i];
+    _routeEntries[i] = _routeEntries[j];
+    _routeEntries[j] = tmp;
+    _renderRouteEntries();
+    if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
+    if (typeof scheduleSnapshot === 'function') scheduleSnapshot();
+  }
+  window.moveRouteEntry = moveRouteEntry;
   function toggleRouteEntry(i) {
     const cur = _routeEntries[i];
     if (!cur) return;
