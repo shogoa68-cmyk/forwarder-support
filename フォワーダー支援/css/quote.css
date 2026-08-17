@@ -2930,6 +2930,15 @@
 }
 #tab-quote-make .z2-route-move:hover:not(:disabled) { background: #ece0c0; border-color: #a08a50; }
 #tab-quote-make .z2-route-move:disabled { opacity: 0.3; cursor: default; }
+/* 幹線輸送 ドラッグハンドル（⠿） */
+#tab-quote-make .z2-route-drag {
+  flex-shrink: 0; color: #a89878; font-size: 13px; line-height: 1;
+  cursor: grab; padding: 0 1px; touch-action: none; user-select: none;
+}
+#tab-quote-make .z2-route-drag:hover { color: #6b5a42; }
+#tab-quote-make .z2-route-chip.is-dragging { opacity: 0.4; }
+#tab-quote-make .z2-route-chip.drag-over-left { box-shadow: -3px 0 0 #6a9c45; }
+#tab-quote-make .z2-route-chip.drag-over-right { box-shadow: 3px 0 0 #6a9c45; }
 /* 幹線輸送 トグルボタン（✓/—） */
 #tab-quote-make .z2-route-toggle {
   width: 17px; height: 17px; flex-shrink: 0;

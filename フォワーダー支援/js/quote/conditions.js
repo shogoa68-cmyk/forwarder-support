@@ -1931,6 +1931,7 @@
       const _chipCls = ng ? ' z2-route-chip--ng' : (on ? '' : ' z2-route-chip--off');
       const _atFirst = i === 0, _atLast = i === _routeEntries.length - 1;
       return `<span class="z2-route-chip${_chipCls}">`
+        + `<span class="z2-route-drag" title="ドラッグして並び替え">⠿</span>`
         + `<button type="button" class="z2-route-move" onclick="moveRouteEntry(${i},-1)" ${_atFirst ? 'disabled' : ''} title="上へ移動">↑</button>`
         + `<button type="button" class="z2-route-move" onclick="moveRouteEntry(${i},1)" ${_atLast ? 'disabled' : ''} title="下へ移動">↓</button>`
         + `<button type="button" class="z2-route-toggle" onclick="toggleRouteEntry(${i})" title="${on ? '無効にする（一時停止）' : '有効にする'}">${on ? '✓' : '—'}</button>`
@@ -1954,6 +1955,57 @@
       });
       dl.innerHTML = opts.map(s => `<option value="${_escMulti(s)}"></option>`).join('');
     }
+    _initRouteChipDrag();
+  }
+
+  // 航路チップの⠿ドラッグによる並び替え（pointer イベント・タッチ対応）。
+  // テーブル行のドラッグ（initTableDragDelegation）はサブコン/パターンのグループ制約があり
+  // 複雑なため流用せず、フラットな配列の並び替えに特化した簡易版を独自実装する。
+  let _routeDragIdx = null;
+  let _routeDragOverIdx = null;
+  function _initRouteChipDrag() {
+    const list = document.getElementById('z2RouteList');
+    if (!list || list.dataset.dragInited) return;
+    list.dataset.dragInited = '1';
+    list.addEventListener('pointerdown', e => {
+      const handle = e.target.closest('.z2-route-drag');
+      if (!handle) return;
+      const chip = handle.closest('.z2-route-chip');
+      const chips = Array.from(list.children);
+      const idx = chips.indexOf(chip);
+      if (!chip || idx < 0) return;
+      e.preventDefault();
+      _routeDragIdx = idx;
+      _routeDragOverIdx = null;
+      chip.classList.add('is-dragging');
+      const onMove = ev => {
+        const el = document.elementFromPoint(ev.clientX, ev.clientY);
+        const target = el && el.closest ? el.closest('.z2-route-chip') : null;
+        list.querySelectorAll('.z2-route-chip').forEach(c => c.classList.remove('drag-over-left', 'drag-over-right'));
+        if (!target || target === chip) { _routeDragOverIdx = null; return; }
+        const rect = target.getBoundingClientRect();
+        const after = ev.clientX >= rect.left + rect.width / 2;
+        target.classList.add(after ? 'drag-over-right' : 'drag-over-left');
+        const tIdx = Array.from(list.children).indexOf(target);
+        _routeDragOverIdx = after ? tIdx + 1 : tIdx;
+      };
+      const onUp = () => {
+        document.removeEventListener('pointermove', onMove);
+        list.querySelectorAll('.z2-route-chip').forEach(c => c.classList.remove('drag-over-left', 'drag-over-right', 'is-dragging'));
+        if (_routeDragOverIdx !== null && _routeDragOverIdx !== _routeDragIdx) {
+          let to = _routeDragOverIdx;
+          const [moved] = _routeEntries.splice(_routeDragIdx, 1);
+          if (to > _routeDragIdx) to--;   // 削除で1つ詰まった分を補正
+          _routeEntries.splice(to, 0, moved);
+          _renderRouteEntries();
+          if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
+          if (typeof scheduleSnapshot === 'function') scheduleSnapshot();
+        }
+        _routeDragIdx = null; _routeDragOverIdx = null;
+      };
+      document.addEventListener('pointermove', onMove);
+      document.addEventListener('pointerup', onUp, { once: true });
+    });
   }
 
   function addRouteEntry() {
