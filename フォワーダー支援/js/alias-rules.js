@@ -925,6 +925,11 @@
       { key: 'defaultUnit', label: 'デフォルト単位' },
       { key: 'defaultNote', label: 'デフォルト備考' },
       { key: 'defaultCat',  label: 'デフォルトカテゴリ' },
+      { key: 'defaultTax',  label: '課税区分', options: [
+        { value: '',         label: '（未指定・自動判定しない）' },
+        { value: 'taxed',    label: '課税' },
+        { value: 'nontaxed', label: '非課税' },
+      ] },
       { key: 'refCost',     label: '代表仕入単価（参考）' },
       { key: 'refSell',     label: '代表売単価（参考）' },
       { key: 'refCcy',      label: '代表単価の通貨' },

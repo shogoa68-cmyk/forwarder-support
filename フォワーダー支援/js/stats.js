@@ -267,7 +267,9 @@
     const filled = schema.filter(s => (details[s.key] || '').trim());
     if (!filled.length) return '';
     const chips = filled.map(s => {
-      const v = String(details[s.key]).trim();
+      const raw = String(details[s.key]).trim();
+      const opt = s.options && s.options.find(o => o.value === raw);
+      const v = opt ? opt.label : raw;
       const short = v.length > 14 ? v.slice(0, 14) + '…' : v;
       return `<span class="stats-md-chip" title="${_eav(s.label + '：' + v)}"><b>${_esc(s.label)}</b>${_esc(short)}</span>`;
     }).join('');
@@ -1413,6 +1415,12 @@
     const details = (existing && existing.details) || {};
     const fieldsHtml = schema.map(s => {
       const id = 'md_' + s.key;
+      if (s.options) {
+        const cur = details[s.key] || '';
+        const opts = s.options.map(o =>
+          `<option value="${_eav(o.value)}"${o.value === cur ? ' selected' : ''}>${_esc(o.label)}</option>`).join('');
+        return `<label class="master-detail-label">${s.label}<select id="${id}" class="ar-select">${opts}</select></label>`;
+      }
       return s.textarea
         ? `<label class="master-detail-label">${s.label}<textarea id="${id}" class="ar-input master-detail-textarea" rows="2">${_esc(details[s.key] || '')}</textarea></label>`
         : `<label class="master-detail-label">${s.label}<input id="${id}" class="ar-input" type="text" value="${_eav(details[s.key] || '')}"${s.placeholder ? ` placeholder="${_eav(s.placeholder)}"` : ''} /></label>`;

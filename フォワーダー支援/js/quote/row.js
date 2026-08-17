@@ -530,8 +530,18 @@
       if (details.defaultCat && catEl && !catEl.value) {
         catEl.value = details.defaultCat; onCatChange(rid); updateTotals(); filled = true;
       }
+      // 課税区分：ユーザーがこの行のチェックを一度でも手動操作したら（dataset.txUserSet）以後は追従しない
+      if ((details.defaultTax === 'taxed' || details.defaultTax === 'nontaxed') && tr.dataset.txUserSet !== '1') {
+        const txEl = document.getElementById('tx-' + rid);
+        const wantChecked = details.defaultTax === 'taxed';
+        if (txEl && txEl.checked !== wantChecked) {
+          txEl.checked = wantChecked;
+          toggleTax(rid);
+          filled = true;
+        }
+      }
       if (filled && typeof window.quoteShowToast === 'function') {
-        window.quoteShowToast('📇 マスターから単位・備考・カテゴリを自動入力しました', 'info', 2200);
+        window.quoteShowToast('📇 マスターから単位・備考・カテゴリ・課税区分を自動入力しました', 'info', 2200);
       }
       // 代表単価は自動入力せず「参考」として通知のみ（案件・時期で変動するため）
       const ccy = details.refCcy || 'JPY';
@@ -1007,8 +1017,9 @@
 
     // Event handlers
     q('cat').onchange  = () => { onCatChange(id); updateTotals(); };  // 期間外判定・合計を即反映
-    q('tx').onchange   = () => toggleTax(id);
-    q('tx').onkeydown  = e  => { if (e.key === 'Enter') { e.preventDefault(); e.target.checked = !e.target.checked; toggleTax(id); } };
+    // ユーザーが課税チェックを直接操作したら、以後はマスターの既定課税区分による自動追従をしない
+    q('tx').onchange   = () => { const r = document.getElementById(`row-${id}`); if (r) r.dataset.txUserSet = '1'; toggleTax(id); };
+    q('tx').onkeydown  = e  => { if (e.key === 'Enter') { e.preventDefault(); e.target.checked = !e.target.checked; const r = document.getElementById(`row-${id}`); if (r) r.dataset.txUserSet = '1'; toggleTax(id); } };
     q('nm').oninput    = () => checkUnfilled(id);
     q('pq').oninput    = () => onPay(id);
     q('pc').onchange   = () => onPay(id);
