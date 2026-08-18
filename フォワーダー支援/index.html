@@ -2814,6 +2814,7 @@
                 <span class="zone-num">① 出発地側</span>
                 <span class="zone-subcon" id="zone1Subcon">日本協力会社</span>
               </div>
+              <button type="button" class="zone-collapse-btn" onclick="toggleZoneCollapse(1)" title="折りたたむ/展開する">▼</button>
             </div>
             <div class="zone-addr-row">
               <input type="text" id="z1Place"   class="zone-addr-input"
@@ -2849,12 +2850,13 @@
             </div>
           </div>
 
-          <div class="zone-card zone-main">
+          <div class="zone-card zone-main" id="zone2Card">
             <div class="zone-card-header">
               <div class="zone-card-title">
                 <span class="zone-num">② 幹線輸送</span>
                 <span class="zone-subcon">キャリア</span>
               </div>
+              <button type="button" class="zone-collapse-btn" onclick="toggleZoneCollapse(2)" title="折りたたむ/展開する">▼</button>
             </div>
             <div class="zone2-inputs">
               <div class="z2-row">
@@ -2928,6 +2930,7 @@
                 <span class="zone-num">③ 到着地側</span>
                 <span class="zone-subcon" id="zone3Subcon">現地代理店</span>
               </div>
+              <button type="button" class="zone-collapse-btn" onclick="toggleZoneCollapse(3)" title="折りたたむ/展開する">▼</button>
             </div>
             <div class="zone-addr-row">
               <input type="text" id="z3Place"   class="zone-addr-input"

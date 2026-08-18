@@ -1101,6 +1101,17 @@
     if (dsc) { dsc.value = ''; dsc.disabled = true; }
   }
 
+  // ゾーンカード（①出発地側／②幹線輸送／③到着地側）の折りたたみ。
+  // ON/OFF（有効/無効）とは独立した、見た目だけの表示制御（保存はしない・毎回展開状態で開く）。
+  function toggleZoneCollapse(n) {
+    const card = document.getElementById('zone' + n + 'Card');
+    if (!card) return;
+    const collapsed = card.classList.toggle('zone-collapsed');
+    const btn = card.querySelector('.zone-collapse-btn');
+    if (btn) btn.textContent = collapsed ? '▶' : '▼';
+  }
+  window.toggleZoneCollapse = toggleZoneCollapse;
+
   function toggleZone(n) {
     if (n === 1) {
       _zone1On = !_zone1On;
