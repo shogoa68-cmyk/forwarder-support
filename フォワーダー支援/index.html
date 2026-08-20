@@ -3397,6 +3397,13 @@
             <div class="cond-field cond-field--cargo-detail" data-field-id="packing">
               <label><span class="cond-icon">📦</span> 荷姿・貨物明細（荷姿 × 個数 × サイズ）</label>
               <div class="cargo-detail">
+                <label class="cd-unknown-toggle">
+                  <input type="checkbox" id="cond-cargo-unknown" onchange="toggleCargoUnknown()">
+                  サイズ・重量が不明（引き合い時点では未確定）
+                </label>
+                <div class="cd-unknown-note" id="cdUnknownNoteWrap" hidden>
+                  <input type="text" id="cond-cargo-unknown-note" placeholder="任意）分かっている範囲の情報（例：20FT×1本相当、総重量約3トン 等）" />
+                </div>
                 <div class="cargo-detail-scroll">
                   <table class="cargo-detail-table" id="cargoDetailTable">
                     <thead>

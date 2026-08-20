@@ -11,12 +11,14 @@
   function clearConditions() {
     if (!confirm('貨物情報・引き合い条件をクリアしますか？')) return;
     ['z2Carrier','z2Service','z2CarrierRole','z2ActualCarrier','z2Pol','z2Via','z2Pod','z2Tt','cond-origin','cond-dest','cond-cargo','cond-hs','cond-hs-basic','cond-hs-pref','cond-hs-pref-note',
-     'cond-packing','cond-packing-preset','condFreeText',
+     'cond-packing','cond-packing-preset','condFreeText','cond-cargo-unknown-note',
      'cond-origin-country','cond-dest-country','z1Place','z1Country','z3Place','z3Country',
      'cond-container-count']
       .forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
     ['cond-incoterms','cond-mode','cond-container-type','cond-hazmat']
       .forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+    const _unkEl = document.getElementById('cond-cargo-unknown');
+    if (_unkEl) _unkEl.checked = false;
     // コンテナ・荷姿・航路の複数エントリもクリア
     _containerEntries = [];
     _packingEntries = [];
@@ -25,6 +27,7 @@
     if (typeof _renderPackingEntries === 'function') _renderPackingEntries();
     if (typeof _renderRouteEntries === 'function') _renderRouteEntries();
     if (typeof syncHazmatPanel === 'function') syncHazmatPanel();
+    if (typeof _applyCargoUnknownUI === 'function') _applyCargoUnknownUI();
     const _crp = document.getElementById('calcResultsPanel');
     if (_crp) _crp.style.display = 'none';
   }
@@ -258,6 +261,9 @@
     // 保険付保（insuranceOn は constants.js スコープ変数）
     const wantIns = fields['cond-insurance-on'] === 'true' || fields['cond-insurance-on'] === true;
     if (wantIns !== insuranceOn) toggleInsurance();
+
+    // サイズ・重量不明チェック：チェックボックス自体は既に復元済みなので見た目だけ同期
+    if (typeof _applyCargoUnknownUI === 'function') _applyCargoUnknownUI();
 
     // ゾーン ON 後、チェック済みのピース行のサブコン欄を表示
     [['piece-pickup','sc-pickup'], ['piece-wh-origin','sc-wh-origin'], ['piece-customs-e','sc-customs-e'],
@@ -1711,11 +1717,20 @@
     });
   };
 
+  // 「サイズ・重量が不明」チェックの有無（引き合い時点ではまだ物量が確定していない案件向け）
+  window.isCargoSizeUnknown = function () {
+    return !!document.getElementById('cond-cargo-unknown')?.checked;
+  };
+
   // 荷姿・貨物明細（1個あたり寸法・重量・段積み）を客先向け出力（PDF/プレビュー/メール）で
   // 共通利用できる読みやすい文字列にする。cond.packing（品名×個数のみ）より詳細。
   // 荷姿名（pkg）が未入力でも、寸法・重量のいずれかがあれば出力する
   // （総重量・総容積・R/T/CW は pkg 未入力の行も含めて集計されるため、そこと矛盾しないように）。
   window.getPackingDetailText = function () {
+    if (window.isCargoSizeUnknown()) {
+      const note = (document.getElementById('cond-cargo-unknown-note')?.value || '').trim();
+      return 'サイズ・重量 不明（引き合い時点では未確定）' + (note ? '　' + note : '');
+    }
     const named = (_packingEntries || []).filter(e => e && (e.pkg || e.l || e.w || e.h || e.kg));
     if (!named.length) return '';
     return named.map(e => {
@@ -1730,6 +1745,7 @@
   // 輸送モードに応じた課金重量（LCL＝R/T・航空＝CW）の1行を、PDF/プレビュー/メールで
   // 共通利用できる形式で返す。対象外・データ無しなら null。
   window.getCargoBillingLine = function (mode) {
+    if (window.isCargoSizeUnknown()) return null;   // 未確定のためR/T・CWは出さない
     const cm = (typeof window.getCargoMetrics === 'function') ? window.getCargoMetrics() : null;
     if (!cm) return null;
     const m = mode || '';
@@ -1745,6 +1761,25 @@
     }
     return null;
   };
+
+  // サイズ・重量が不明な引き合い向け：荷姿・貨物明細テーブルを隠して備考欄に切り替える。
+  // 見た目の切り替えのみ（チェック状態・備考テキストは通常の gatherAllData/_applyQuoteData で保存復元）。
+  function _applyCargoUnknownUI() {
+    const checked = window.isCargoSizeUnknown();
+    const scroll  = document.querySelector('.cargo-detail-scroll');
+    const actions = document.querySelector('.cargo-detail-actions');
+    const noteWrap = document.getElementById('cdUnknownNoteWrap');
+    if (scroll)  scroll.style.display = checked ? 'none' : '';
+    if (actions) actions.style.display = checked ? 'none' : '';
+    if (noteWrap) noteWrap.hidden = !checked;
+  }
+  function toggleCargoUnknown() {
+    _applyCargoUnknownUI();
+    if (typeof window.renderQuoteCargoInfo === 'function') window.renderQuoteCargoInfo();
+    if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
+    if (typeof scheduleSnapshot === 'function') scheduleSnapshot();
+  }
+  window.toggleCargoUnknown = toggleCargoUnknown;
 
   function updatePackingRow(i, key, val) {
     if (!_packingEntries[i]) return;
