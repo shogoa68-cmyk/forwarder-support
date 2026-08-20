@@ -2139,6 +2139,17 @@
   background: #fdfcfa;
   padding: 8px;
 }
+#tab-quote-make .cd-unknown-toggle {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 11.5px; color: #6b5a42; cursor: pointer; user-select: none;
+}
+#tab-quote-make .cd-unknown-toggle input { cursor: pointer; }
+#tab-quote-make .cd-unknown-note:not([hidden]) { display: flex; }
+#tab-quote-make .cd-unknown-note input {
+  flex: 1; font-family: inherit; font-size: 12px; padding: 6px 8px;
+  border: 1px solid #d8c9ad; border-radius: 5px; background: #fffdf7; color: #3d2e1e;
+}
+#tab-quote-make .cd-unknown-note input:focus { outline: none; border-color: #8b6914; }
 #tab-quote-make .cargo-detail-scroll { overflow-x: auto; }
 #tab-quote-make .cargo-detail-table {
   width: 100%;
