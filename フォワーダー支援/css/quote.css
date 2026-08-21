@@ -2507,9 +2507,9 @@
   gap: 12px;
   margin: 14px 0 10px;
   flex-wrap: wrap;
-  /* stretch だと折りたたんだカードが一番丈の高い隣のカードに合わせて伸びてしまい、
-     畳んだ意味が無くなるため、各カードが自分の中身の高さで独立するようにする */
-  align-items: flex-start;
+  /* 折りたたみは横方向（幅）なので、畳んだカードは隣のカードと同じ高さまで
+     伸ばして縦長の帯として揃える */
+  align-items: stretch;
 }
 #tab-quote-make .zone-card {
   flex: 1;
@@ -2552,7 +2552,39 @@
   display: inline-flex; align-items: center; justify-content: center;
 }
 #tab-quote-make .zone-collapse-btn:hover { background: #f0e8d8; border-color: #a8926a; }
+/* 折りたたみ＝横方向（幅）を細い帯にする。中身は隠し、見出しだけ縦書きで残す */
+#tab-quote-make .zone-card.zone-collapsed {
+  flex: 0 0 40px;
+  width: 40px;
+  min-width: 40px;
+  max-width: 40px;
+  display: flex;
+  flex-direction: column;
+}
 #tab-quote-make .zone-card.zone-collapsed > *:not(.zone-card-header) { display: none; }
+#tab-quote-make .zone-card.zone-collapsed .zone-card-header {
+  flex: 1;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  padding: 10px 4px;
+  gap: 8px;
+}
+#tab-quote-make .zone-card.zone-collapsed .zone-card-title {
+  flex: 1;
+  display: block;
+  writing-mode: vertical-rl;
+  text-orientation: mixed;
+  white-space: nowrap;
+}
+#tab-quote-make .zone-card.zone-collapsed .zone-subcon { display: none; }
+#tab-quote-make .zone-card.zone-collapsed .zone-toggle-btn {
+  writing-mode: vertical-rl;
+  text-orientation: mixed;
+  padding: 6px 3px;
+  font-size: 10px;
+  white-space: nowrap;
+}
 #tab-quote-make .zone-num { font-weight: 700; font-size: 13px; color: #3d2e1e; }
 #tab-quote-make .zone-subcon { font-size: 10px; color: #7d6b56; letter-spacing: .02em; }
 #tab-quote-make .zone-toggle-btn {
