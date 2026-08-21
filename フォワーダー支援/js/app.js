@@ -11,10 +11,16 @@ function switchTab(tabId, btn){document.querySelectorAll('.tab-content').forEach
     const mb=parseFloat(getComputedStyle(nav).marginBottom)||0;
     document.documentElement.style.setProperty('--nav-cat-h',(nav.offsetHeight+mb)+'px');
   }
+  // ResizeObserver はナビ自身のサイズ変化（折り返しによる高さ変化）を直接検知できるため、
+  // ウィンドウの resize でも自動的に発火する。両方登録すると1回のウィンドウリサイズで
+  // 同じ再計算（offsetHeight読取→style書込＝強制リフロー）が二重に走り、連続リサイズ時の
+  // 重さの一因になっていたため、resize リスナーは ResizeObserver 非対応環境向けの
+  // フォールバックとしてのみ登録する。
   if(typeof ResizeObserver!=='undefined'){
     new ResizeObserver(_syncNavH).observe(document.querySelector('.cat-nav')||document.body);
+  } else {
+    window.addEventListener('resize',_syncNavH,{passive:true});
   }
-  window.addEventListener('resize',_syncNavH,{passive:true});
   document.addEventListener('DOMContentLoaded',_syncNavH);
   _syncNavH();
 })();
