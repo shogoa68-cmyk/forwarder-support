@@ -2659,7 +2659,7 @@
           <div class="quote-field">
             <label>有効期限</label>
             <div class="qf-valid-until-row">
-              <input type="date" id="qf-valid-until" title="見積もりの有効期限。出力・Excelに含まれます。サーチャージの適用期間外判定の基準日になります" onchange="checkValidUntilWarning(); window.updateTotals && window.updateTotals()" />
+              <input type="date" id="qf-valid-until" title="見積もりの有効期限。出力・Excelに含まれます。発行日〜有効期限の期間と重ならないサーチャージは適用期間外として非表示になります" onchange="checkValidUntilWarning(); window.updateTotals && window.updateTotals()" />
               <button type="button" class="qf-days-btn" onclick="addDaysToValidUntil(7)"  title="今日から7日後">+7日</button>
               <button type="button" class="qf-days-btn" onclick="addDaysToValidUntil(30)" title="今日から30日後">+30日</button>
             </div>
