@@ -3819,6 +3819,28 @@
           <button type="button" class="ei-close" onclick="closeEmailImport()" title="閉じる">✕</button>
         </div>
         <p class="ei-desc">メールで提示した見積の本文を貼り付けて「解析」を押してください。自アプリのメール形式は高精度で復元でき、自由文も金額を含む行から明細候補を抽出します。</p>
+        <details class="ei-format-help">
+          <summary>💡 高精度で読み取れる書き方を見る（推奨フォーマット）</summary>
+          <div class="ei-format-body">
+            <p>次のように書くと、品名・数量・単価・通貨まで正確に取り込めます（本アプリのメール本文出力と同じ形式）。</p>
+            <pre>【見積番号】QT-2026-001
+【有効期限】2026/09/30
+
+《東京 → PENANG》
+　・海上運賃  1 20'GP × 475 USD ＝ 475 USD
+　・THC  1 CNTR × ¥34,900 ＝ ¥34,900　※3日間無料
+
+【作業範囲】
+　（この行以降は明細として取り込まれません）</pre>
+            <ul>
+              <li><b>《区間名》</b>：グループ見出し（明細のグループ欄に反映）</li>
+              <li><b>・品名　数量　単位 × 単価 ＝ 金額</b>：1行1明細として高確度で読み取り</li>
+              <li><b>※備考</b>：行末に書くと備考欄へ入ります</li>
+              <li>金額は <code>¥1,234</code> でも <code>1,234 USD</code> でもOK</li>
+            </ul>
+            <p>上記の形式でなくても<b>金額を含む行</b>なら自由文からも拾いますが、確度は「中」または「要確認」になります。取込後に品名・金額を必ず見直してください。</p>
+          </div>
+        </details>
         <textarea id="eiText" rows="7" placeholder="ここにメール本文を貼り付け…&#10;例）&#10;《東京 → PENANG》&#10;  ・海上運賃20  1 20'GP × 475 USD ＝ 475 USD&#10;  ・THC  1 CNTR × ¥34,900 ＝ ¥34,900"></textarea>
         <div class="ei-parse-bar">
           <button type="button" class="ei-parse-btn" onclick="eiParse()">🔍 解析する</button>
