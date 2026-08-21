@@ -40,16 +40,18 @@
   }
 
   // ===== サーチャージ適用期間（vf〜vt）の判定 =====
-  // 基準日（＝見積もり提示日）：見積全体の有効期限(qf-valid-until) → 発行日(qf-date) → 今日
-  function _quoteRefDate() {
-    const v = (document.getElementById('qf-valid-until')?.value || '').trim()
-           || (document.getElementById('qf-date')?.value || '').trim();
-    if (v) return v;
-    const d = new Date();
-    const z = n => String(n).padStart(2, '0');
-    return `${d.getFullYear()}-${z(d.getMonth() + 1)}-${z(d.getDate())}`;
+  // 見積が生きている期間＝発行日(qf-date・無ければ今日) 〜 有効期限(qf-valid-until・無ければ発行日と同じ)。
+  // サーチャージはこの期間のどこかで重なっていれば適用対象（客先へ表示）とする。
+  function _quoteRefRange() {
+    const start = (document.getElementById('qf-date')?.value || '').trim() || (() => {
+      const d = new Date();
+      const z = n => String(n).padStart(2, '0');
+      return `${d.getFullYear()}-${z(d.getMonth() + 1)}-${z(d.getDate())}`;
+    })();
+    const end = (document.getElementById('qf-valid-until')?.value || '').trim() || start;
+    return { start, end };
   }
-  // 行の適用期間が基準日を外れていれば true（期間未設定の行は常に有効＝false）。
+  // 行の適用期間が見積の生きている期間と一切重ならなければ true（期間未設定の行は常に有効＝false）。
   // 日付は ISO(YYYY-MM-DD) なので文字列比較で大小判定できる。
   function isRowOutOfRange(tr) {
     if (!tr || !tr.id || !tr.id.startsWith('row-')) return false;
@@ -59,9 +61,9 @@
     const vf = document.getElementById(`vf-${id}`)?.value || '';
     const vt = document.getElementById(`vt-${id}`)?.value || '';
     if (!vf && !vt) return false;        // 適用期間の指定がない行は対象外
-    const ref = _quoteRefDate();
-    if (vf && ref < vf) return true;     // 提示日が適用開始より前
-    if (vt && ref > vt) return true;     // 提示日が適用終了より後
+    const { start, end } = _quoteRefRange();
+    if (vt && vt < start) return true;   // 見積が生きている期間より前にサーチャージが終了済み
+    if (vf && vf > end)   return true;   // 見積の有効期限までにサーチャージがまだ開始しない
     return false;
   }
   window.isRowOutOfRange = isRowOutOfRange;
