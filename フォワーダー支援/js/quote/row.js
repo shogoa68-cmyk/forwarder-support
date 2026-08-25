@@ -2261,6 +2261,8 @@
   const _subconAlias     = Object.create(null);
   // グループ（サブコンブロック）ドラッグ並べ替え中の掴んでいるグループキー
   let _draggingGroupKey  = null;
+  // パターン（サブコン内の入れ子ブロック）ドラッグ並べ替え中の掴んでいるパターンキー
+  let _draggingPatternKey = null;
 
   function toggleSubconGroup(key) {
     if (_collapsedGroups.has(key)) _collapsedGroups.delete(key);
@@ -2694,6 +2696,7 @@
                 // 同上：flex は内側 div へ（td を flex 化すると colspan が潰れる）
                 `<td colspan="10" class="subcon-subgroup-cell">` +
                   `<div class="subcon-subgroup-inner">` +
+                  `<span class="subcon-subgroup-grip" title="ドラッグでこのパターンを並び替え（同じサブコン内のみ）">⠿</span>` +
                   `<button type="button" class="subcon-subgroup-toggle" title="${_ptCollapsed ? '展開' : '折りたたみ/展開'}">${_ptCollapsed ? '▶' : '▼'}</button>` +
                   `<span class="subcon-subgroup-leg">${icon} ${_escHdr(key)}</span>` +
                   `<button type="button" class="subcon-subgroup-rename" title="このパターン名を変更（配下の行すべてに反映）">✎</button>` +
@@ -2718,6 +2721,7 @@
                 sortGroupByCategory(_svK, key);
               });
               _attachGroupUpdatedControl(sh, _svK, key);
+              initPatternHeaderDrag(sh, _svK, key);
               tbody.insertBefore(sh, tr);
               curKey = key; curKind = kind; runOpen = true;
             }
@@ -2831,6 +2835,111 @@
       const frag = document.createDocumentFragment();
       leading.forEach(tr => frag.appendChild(tr));
       without.forEach(k => (byKey[k] || []).forEach(b => b.rows.forEach(tr => frag.appendChild(tr))));
+      tbody.appendChild(frag);
+    } finally {
+      _inGroupRender = false;
+    }
+    renderSubconGroups();   // ヘッダー・小計を新しい順で再生成
+    if (typeof updateTotals === 'function') updateTotals();
+    if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
+  }
+
+  // ---- パターン（サブコン内の入れ子ブロック）のドラッグ並べ替え ----
+  // パターン見出しのグリップを掴んでドラッグし、同じサブコン内の別パターン見出し上に
+  // ドロップすると、掴んだパターンの配下行をブロックごと移動する。
+  // サブコンをまたぐドロップは対象外（サブコン間の移動は行のサブコン欄を変える別操作のため）。
+  function initPatternHeaderDrag(sh, svKey, ptKey) {
+    sh.setAttribute('draggable', 'false');
+    const clearMarks = () => document.querySelectorAll('#tableBody .subcon-subgroup-header.is-pattern')
+      .forEach(h => h.classList.remove('grp-drop-before', 'grp-drop-after'));
+
+    const grip = sh.querySelector('.subcon-subgroup-grip');
+    if (!grip) return;
+    grip.addEventListener('pointerdown', e => {
+      if (e.button !== 0) return;
+      e.preventDefault();
+      e.stopPropagation();          // 行ドラッグ・サブコングループドラッグと二重起動しない
+      let dropTarget = null;        // { key, after }
+      window.startPointerDrag(e, {
+        onStart() {
+          _draggingPatternKey = ptKey;
+          sh.classList.add('grp-dragging');
+        },
+        onMove(x, y) {
+          window.pointerDragAutoScroll(y);
+          clearMarks();
+          dropTarget = null;
+          const el = document.elementFromPoint(x, y);
+          const over = el && el.closest ? el.closest('#tableBody tr.subcon-subgroup-header.is-pattern') : null;
+          if (!over || over === sh || over.dataset.svKey !== svKey) return;   // 別サブコンへは移動不可
+          const r = over.getBoundingClientRect();
+          const after = y > r.top + r.height / 2;
+          over.classList.add(after ? 'grp-drop-after' : 'grp-drop-before');
+          dropTarget = { key: over.dataset.ptKey, after };
+        },
+        onDrop() {
+          if (dropTarget && dropTarget.key != null && dropTarget.key !== ptKey) {
+            movePatternGroupBlock(svKey, ptKey, dropTarget.key, dropTarget.after);
+          }
+        },
+        onEnd() {
+          _draggingPatternKey = null;
+          sh.classList.remove('grp-dragging');
+          clearMarks();
+        },
+      });
+    });
+  }
+
+  // svKey サブコン内で、srcPtKey のパターンブロックを targetPtKey の前／後ろへ移動して再描画する。
+  // サブコンの並び・他サブコンの行順は一切変えない（renderSubconGroups により同一サブコンの
+  // ブロックは常に連続しているため、その連続範囲だけを新しい順で差し替える）。
+  function movePatternGroupBlock(svKey, srcPtKey, targetPtKey, placeAfter) {
+    const tbody = document.getElementById('tableBody');
+    if (!tbody || srcPtKey === targetPtKey) return;
+    _inGroupRender = true;
+    try {
+      tbody.querySelectorAll('[data-virtual]').forEach(r => r.remove());
+
+      const blocks = [];
+      const leading = [];
+      let cur = null;
+      Array.from(tbody.children).forEach(tr => {
+        if (!tr.dataset.type) {
+          const k = subconNormKey(_rowSubcon(tr) ?? '') || _UNSET_KEY;
+          cur = { svKey: k, ptKey: _rowInnerKey(tr) || '', rows: [tr] };
+          blocks.push(cur);
+        } else if (cur) {
+          cur.rows.push(tr);
+        } else {
+          leading.push(tr);
+        }
+      });
+
+      // 対象サブコンのブロック範囲（連続しているはず）を特定
+      let start = -1, end = -1;
+      blocks.forEach((b, i) => { if (b.svKey === svKey) { if (start < 0) start = i; end = i + 1; } });
+      if (start < 0) return;
+      const scoped = blocks.slice(start, end);
+
+      const ptOrder = [];
+      scoped.forEach(b => { if (!ptOrder.includes(b.ptKey)) ptOrder.push(b.ptKey); });
+      if (!ptOrder.includes(srcPtKey) || !ptOrder.includes(targetPtKey)) return;
+      const without = ptOrder.filter(k => k !== srcPtKey);
+      const ti = without.indexOf(targetPtKey);
+      if (ti < 0) return;
+      without.splice(placeAfter ? ti + 1 : ti, 0, srcPtKey);
+
+      const byPt = Object.create(null);
+      scoped.forEach(b => { (byPt[b.ptKey] || (byPt[b.ptKey] = [])).push(b); });
+      const newScoped = [];
+      without.forEach(k => (byPt[k] || []).forEach(b => newScoped.push(b)));
+
+      const newBlocks = blocks.slice(0, start).concat(newScoped, blocks.slice(end));
+
+      const frag = document.createDocumentFragment();
+      leading.forEach(tr => frag.appendChild(tr));
+      newBlocks.forEach(b => b.rows.forEach(tr => frag.appendChild(tr)));
       tbody.appendChild(frag);
     } finally {
       _inGroupRender = false;
