@@ -1598,7 +1598,10 @@
       routeEntries.forEach((r, i) => {
         const leg  = [r.pol, r.via, r.pod].filter(Boolean).join(' → ');
         const tt   = r.tt ? `T/T: ${r.tt}` : '';
-        const line = [[r.carrier, r.service ? `(${r.service})` : ''].filter(Boolean).join(' '), leg, tt].filter(Boolean).join('  ');
+        const carrierLine = (typeof window.formatRouteCarrierLine === 'function')
+          ? window.formatRouteCarrierLine(r)
+          : [r.carrier, r.service ? `(${r.service})` : ''].filter(Boolean).join(' ');
+        const line = [carrierLine, leg, tt].filter(Boolean).join('  ');
         if (line) condRows.push(_cpKV(i === 0 ? '航路' : '　', line));
       });
     } else {

@@ -32,6 +32,22 @@
     if (_crp) _crp.style.display = 'none';
   }
 
+  // 航路の契約先役割ラベル（航路チップ・各種テキスト出力で共用）
+  const ROUTE_ROLE_LABELS = { agent: '代理店', nvocc: 'NVOCC/コンソリ', coloader: 'コローダー', direct: '船社直' };
+  // 航路1件分の「契約先＋役割＋実運送人」を1行テキストで表現する共通ヘルパー。
+  // 例）GLOBAL BANGKOK TRANSPORT CO.,LTD. (FAL1) [代理店] as CMA CGM
+  // 御見積書PDF・プレビュー・Excel出力・クラウドプレビュー等で共用する。
+  window.formatRouteCarrierLine = function (r) {
+    if (!r) return '';
+    const roleLabel = ROUTE_ROLE_LABELS[r.carrierRole] || '';
+    return [
+      r.carrier,
+      r.service ? `(${r.service})` : '',
+      roleLabel ? `[${roleLabel}]` : '',
+      r.actualCarrier ? `as ${r.actualCarrier}` : '',
+    ].filter(Boolean).join(' ');
+  };
+
   function getConditions() {
     const g = id => document.getElementById(id)?.value.trim() || '';
     const _isFcl = _currentTransport !== 'air' && _currentSeaSub !== 'lcl';
@@ -1982,7 +1998,7 @@
       if (r.via) parts.push('<span class="z2-route-via">via:' + _escMulti(r.via) + '</span>');
       if (r.pod) parts.push(_escMulti(r.pod));
       const route = parts.length ? parts.join(' → ') : 'ポート未設定';
-      const _roleLabel = { agent:'代理店', nvocc:'NVOCC/コンソリ', coloader:'コローダー', direct:'船社直' }[r.carrierRole] || '';
+      const _roleLabel = ROUTE_ROLE_LABELS[r.carrierRole] || '';
       const _roleChip  = _roleLabel ? `<span class="z2-route-role" title="契約先の役割">${_escMulti(_roleLabel)}</span>` : '';
       const _actualChip = r.actualCarrier ? `<span class="z2-route-actual" title="実運送人（実際の船会社）">as ${_escMulti(r.actualCarrier)}</span>` : '';
       // 理由が長いとチップからはみ出すので表示は省略し、全文は title に持たせる
