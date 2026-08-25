@@ -437,6 +437,21 @@
     // サブコン別小計の客先用表示名を復元（_rebuildTable → renderSubconGroups より前にセット）
     if (typeof setSubconAliases === 'function') setSubconAliases(data.subconAliases || {});
     if (typeof setSubconGroupNotes === 'function') setSubconGroupNotes(data.groupNotes || {});
+    // 読み込む案件の data.fields に存在しないフィールド（機能追加前に保存された古い
+    // プリセット等でキー自体が無い場合）は、直前に開いていた別案件の値をそのまま
+    // 引き継いでしまう（例：参照URLが別案件に漏れて表示される）。qf-status で対応
+    // 済みだった問題を全フィールドへ一般化し、対象外のフィールドは先に空へ戻す。
+    // ヘッダー項目（_HEADER_FIELD_IDS）は keepHeaderIfEmpty の既存挙動があるため対象外、
+    // 一時的な UI 操作用フィールドも _clearQuoteForm と同じ SKIP で対象外にする。
+    const _SKIP_FIELDS = ['rowInsertPos', 'rowPatternInsertPos', 'bulkCatSet', 'bulkSubconSet', 'selectAllChk'];
+    document.querySelectorAll(
+      '#tab-quote-make .quote-main input[id], #tab-quote-make .quote-main select[id], #tab-quote-make .quote-main textarea[id]'
+    ).forEach(el => {
+      if (_SKIP_FIELDS.includes(el.id) || _HEADER_FIELD_IDS.includes(el.id)) return;
+      if (el.closest('.quote-cmdbar')) return;
+      if (Object.prototype.hasOwnProperty.call(data.fields || {}, el.id)) return;
+      if (el.type === 'checkbox') el.checked = false; else el.value = '';
+    });
     Object.entries(data.fields || {}).forEach(([id, val]) => {
       // ヘッダー項目（仮REF/顧客名/担当者等）はプリセット側が空でも現在値を消さない
       if (keepHeaderIfEmpty && _HEADER_FIELD_IDS.includes(id) && !val) return;
@@ -573,7 +588,10 @@
     if (!ta || !view) return;
     const links = _ruExtract(ta.value);
     const wrap = view.querySelector('.qf-refurl-links');
-    if (!links.length) { view.hidden = true; ta.hidden = false; return; }
+    if (!links.length) {
+      if (wrap) wrap.innerHTML = '';   // 別案件へ切り替わった際に古いリンクが残らないようにする
+      view.hidden = true; ta.hidden = false; return;
+    }
     if (wrap) {
       wrap.innerHTML = links.map(u =>
         '<a class="qf-refurl-link" href="' + _ruEsc(u) + '" target="_blank" rel="noopener noreferrer" title="' +
