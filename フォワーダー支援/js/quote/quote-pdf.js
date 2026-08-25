@@ -182,7 +182,9 @@
     if (_hasRoutes) {
       cond.routes.forEach((r, i) => {
         const rt = [r.pol, r.via, r.pod].filter(Boolean).join(' → ');
-        const carrier = [r.carrier, r.service ? `(${r.service})` : ''].filter(Boolean).join(' ');
+        const carrier = (typeof window.formatRouteCarrierLine === 'function')
+          ? window.formatRouteCarrierLine(r)
+          : [r.carrier, r.service ? `(${r.service})` : ''].filter(Boolean).join(' ');
         const tt = r.tt ? `T/T: ${r.tt}` : '';
         const label = cond.routes.length === 1 ? '航路' : `航路${i + 1}`;
         if (rt || carrier || tt) push(label, [rt, carrier, tt].filter(Boolean).join('　'));
