@@ -1287,26 +1287,36 @@
     ).join('');
   }
 
-  // 各ドライコンテナチップに内寸・外寸（＋容積/最大重量）を表示。
-  // 寸法は SharedCalc.containerSpecs（内寸 dims・外寸 ext、cm）を唯一の情報源として m 換算表示。
+  // 各コンテナチップ（ドライ／RF／OT／FR）に内寸・外寸（＋容積/最大重量）を表示。
+  // ドライは SharedCalc.containerSpecs、RF/OT/FRは SPECIAL_CONTAINER_SPECS を情報源として m 換算表示。
+  // FR（フラットラック）は高さ制限が無いため h が null になる想定で、その場合は「床面」表記にする。
   window.renderContainerChipDims = function () {
-    if (!window.SharedCalc || !Array.isArray(SharedCalc.containerSpecs)) return;
     const byName = {};
-    SharedCalc.containerSpecs.forEach(s => { byName[s.name] = s; });
+    if (window.SharedCalc && Array.isArray(SharedCalc.containerSpecs)) {
+      SharedCalc.containerSpecs.forEach(s => { byName[s.name] = s; });
+    }
+    Object.assign(byName, SPECIAL_CONTAINER_SPECS);
     const m = v => (v / 100).toFixed(2);
-    document.querySelectorAll('#containerChipGrid .cc-chip[data-ctype]').forEach(chip => {
+    document.querySelectorAll('.container-chip-grid .cc-chip[data-ctype]').forEach(chip => {
       const spec = byName[chip.dataset.ctype];
       if (!spec) return;
       if (chip.querySelector('.cc-chip-dims')) return;   // 二重挿入防止
-      const inn = spec.dims ? `内 ${m(spec.dims.l)}×${m(spec.dims.w)}×${m(spec.dims.h)}m` : '';
-      const ext = spec.ext  ? `外 ${m(spec.ext.l)}×${m(spec.ext.w)}×${m(spec.ext.h)}m` : '';
-      const cap = (spec.cbm || spec.maxKg)
-        ? `${spec.cbm}m³ / ${(Number(spec.maxKg) / 1000).toFixed(1)}t` : '';
+      const hasHeight = spec.dims && spec.dims.h != null;
+      const inn = !spec.dims ? ''
+        : hasHeight ? `内 ${m(spec.dims.l)}×${m(spec.dims.w)}×${m(spec.dims.h)}m`
+        : `床 ${m(spec.dims.l)}×${m(spec.dims.w)}m（高さ制限なし）`;
+      const ext = !spec.ext ? ''
+        : (spec.ext.h != null) ? `外 ${m(spec.ext.l)}×${m(spec.ext.w)}×${m(spec.ext.h)}m`
+        : `外 ${m(spec.ext.l)}×${m(spec.ext.w)}m`;
+      const cap = [spec.cbm ? `${spec.cbm}m³` : '', spec.maxKg ? `${(Number(spec.maxKg) / 1000).toFixed(1)}t` : '']
+        .filter(Boolean).join(' / ');
       // ホバーで内寸・外寸・容積/最大重量のフル情報を表示
       const full = [
-        spec.dims ? `内寸 ${m(spec.dims.l)}×${m(spec.dims.w)}×${m(spec.dims.h)}m` : '',
-        spec.ext  ? `外寸 ${m(spec.ext.l)}×${m(spec.ext.w)}×${m(spec.ext.h)}m` : '',
-        (spec.cbm || spec.maxKg) ? `容積 約${spec.cbm}m³ ／ 最大 ${Number(spec.maxKg).toLocaleString()}kg` : '',
+        !spec.dims ? '' : hasHeight ? `内寸 ${m(spec.dims.l)}×${m(spec.dims.w)}×${m(spec.dims.h)}m`
+          : `床面 ${m(spec.dims.l)}×${m(spec.dims.w)}m（高さ制限なし）`,
+        spec.ext ? (spec.ext.h != null ? `外寸 ${m(spec.ext.l)}×${m(spec.ext.w)}×${m(spec.ext.h)}m` : `外寸 ${m(spec.ext.l)}×${m(spec.ext.w)}m`) : '',
+        spec.cbm ? `容積 約${spec.cbm}m³` : '',
+        spec.maxKg ? `最大 ${Number(spec.maxKg).toLocaleString()}kg` : '',
       ].filter(Boolean).join('\n');
       const el = document.createElement('div');
       el.className = 'cc-chip-dims';
@@ -1401,6 +1411,19 @@
       _syncContainerLinkedRows();
     }
     if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
+  };
+
+  // 特殊コンテナ（RF／OT／FR）チップの内寸・外寸・容積目安（cm・m³・kg）。
+  // OT/FRの内寸（l/w）は OTFR_INNER（積載シミュレーションの基準値）と同じ数値を使い、
+  // 表示と計算で数値が食い違わないようにする。FRは高さ制限が無いため dims.h は null にし、
+  // renderContainerChipDims() 側で「床面」表記に切り替える。
+  const SPECIAL_CONTAINER_SPECS = {
+    "20'RF（冷凍）":           { dims: { l: 543,  w: 228, h: 225  }, ext: { l: 606,  w: 244, h: 259 }, cbm: 28,   maxKg: 20000 },
+    "40'RF（冷凍）":           { dims: { l: 1150, w: 228, h: 225  }, ext: { l: 1219, w: 244, h: 259 }, cbm: 59,   maxKg: 25000 },
+    "20'OT（オープントップ）": { dims: { l: 589,  w: 235, h: 230  }, ext: { l: 606,  w: 244, h: 259 }, cbm: 32,   maxKg: 21500 },
+    "40'OT（オープントップ）": { dims: { l: 1203, w: 235, h: 230  }, ext: { l: 1219, w: 244, h: 259 }, cbm: 65,   maxKg: 26500 },
+    "20'FR（フラットラック）": { dims: { l: 585,  w: 244, h: null }, ext: { l: 606,  w: 244, h: null }, cbm: null, maxKg: 30000 },
+    "40'FR（フラットラック）": { dims: { l: 1203, w: 244, h: null }, ext: { l: 1219, w: 244, h: null }, cbm: null, maxKg: 40000 },
   };
 
   // ===== コンテナ カテゴリ（ドライ／特殊）・サブ（RF／OT・FR）・追加仕様 =====
