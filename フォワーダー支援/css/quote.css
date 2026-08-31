@@ -377,11 +377,27 @@
 #tab-quote-make .qf-status-btn:hover { border-color: #a08060; background: #ece4d8; }
 #tab-quote-make .qf-status-btn.active[data-status="下書き中"] { background: #e8e4de; color: #5a4e3e; border-color: #b8a898; }
 #tab-quote-make .qf-status-btn.active[data-status="提示済み"] { background: #dceef8; color: #1a5c8a; border-color: #7db5d4; }
+#tab-quote-make .qf-status-btn.active[data-status="改定中"]   { background: #e8eaf9; color: #4550c4; border-color: #a8adec; }
 #tab-quote-make .qf-status-btn.active[data-status="ヨコヨコ提示"] { background: #d8f1ee; color: #0f766e; border-color: #5fc4ba; }
 #tab-quote-make .qf-status-btn.active[data-status="受注"]   { background: #d4edda; color: #1a6a35; border-color: #6cb88a; }
 #tab-quote-make .qf-status-btn.active[data-status="失注"]   { background: #fdecea; color: #c0392b; border-color: #f5b7b1; }
 #tab-quote-make .qf-status-btn.active[data-status="辞退"]   { background: #f3e8ff; color: #6b21a8; border-color: #c084fc; }
 #tab-quote-make .qf-status-btn.active[data-status="保留"]   { background: #fff4e0; color: #b45309; border-color: #f59e0b; }
+
+/* 「提示済み」の案件を再編集するための更新ボタン（提示済み時のみ表示） */
+#tab-quote-make .qf-revision-btn:not([hidden]) {
+  display: block;
+  margin-top: 6px;
+  padding: 5px 12px;
+  font-size: 11px;
+  font-weight: 700;
+  border: 1.5px solid #a8adec;
+  border-radius: 8px;
+  background: #eef0fd;
+  color: #4550c4;
+  cursor: pointer;
+}
+#tab-quote-make .qf-revision-btn:hover { background: #dde0fa; border-color: #4550c4; }
 
 /* ========== テーブル ========== */
 #tab-quote-make table { border-collapse: collapse; width: 100%; }
@@ -6122,6 +6138,7 @@ body.qp-dash-active #quoteActionDock { display: none !important; }
 }
 #tab-quote-make .cloud-status--draft    { background: #eceff1; color: #607d8b; }
 #tab-quote-make .cloud-status--sent     { background: #e3f0fa; color: #1c6fa6; }
+#tab-quote-make .cloud-status--revising { background: #e8eaf9; color: #4550c4; }
 #tab-quote-make .cloud-status--yoko     { background: #dff2f0; color: #0f766e; }
 #tab-quote-make .cloud-status--won      { background: #e6f4ea; color: #1e7e44; }
 #tab-quote-make .cloud-status--lost     { background: #fdeaea; color: #c0392b; }
@@ -6177,6 +6194,7 @@ body.qp-dash-active #quoteActionDock { display: none !important; }
 }
 #tab-quote-make .cloud-chip--draft.is-active { background: #607d8b; border-color: #607d8b; }
 #tab-quote-make .cloud-chip--sent.is-active  { background: #1c6fa6; border-color: #1c6fa6; }
+#tab-quote-make .cloud-chip--revising.is-active { background: #4550c4; border-color: #4550c4; }
 #tab-quote-make .cloud-chip--yoko.is-active  { background: #0f766e; border-color: #0f766e; }
 #tab-quote-make .cloud-chip--won.is-active   { background: #1e7e44; border-color: #1e7e44; }
 #tab-quote-make .cloud-chip--lost.is-active  { background: #c0392b; border-color: #c0392b; }

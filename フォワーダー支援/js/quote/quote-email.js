@@ -160,13 +160,15 @@
     // 物量情報（荷姿明細＋課金重量の目安）。未入力なら両方とも空・null のまま。
     const packing = (typeof window.getPackingDetailText === 'function') ? window.getPackingDetailText() : '';
     const billing = (typeof window.getCargoBillingLine === 'function') ? window.getCargoBillingLine(cond.mode) : null;
+    // 前回提示分からの変更点（🔄 更新でスナップショットが取られている場合のみ）
+    const revision = (typeof window.computeRevisionDiff === 'function') ? window.computeRevisionDiff() : null;
 
     return {
       to: honorific(hdr.customer, hdr.person),
       ref: hdr.ref, validUntil: hdr.validUntil,
       subject, zones, detailGroups, exemptSub, taxableSub, tax, total, taxRate, hasFx, notes, issuer,
       scope: (document.getElementById('qf-scope')?.value || '').trim(),
-      packing, billing,
+      packing, billing, revision,
     };
   }
 
@@ -187,6 +189,20 @@
     if (m.packing || m.billing) {
       out.push('【物量情報】' + [m.packing, m.billing && (m.billing.label + ' ' + m.billing.value)].filter(Boolean).join('　'));
     }
+    return out;
+  }
+  // 前回提示分からの変更点（追加・削除・変更）。revision が無ければ空配列。
+  function _plainRevisionLines(m) {
+    const d = m.revision;
+    if (!d) return [];
+    const out = ['', '【前回提示分からの変更点】'];
+    d.added.forEach(r => out.push('　＋ 追加：' + (r.nm || '（品名未設定）')));
+    d.removed.forEach(r => out.push('　－ 削除：' + (r.nm || '（品名未設定）')));
+    d.changed.forEach(c => {
+      const parts = c.fields.map(f => f.label + '：' + (f.from || '—') + ' → ' + (f.to || '—')).join('／');
+      out.push('　✎ 変更：' + (c.name || '（品名未設定）') + '（' + parts + '）');
+    });
+    if (d.totalFrom !== d.totalTo) out.push('　合計金額：¥' + d.totalFrom + ' → ¥' + d.totalTo);
     return out;
   }
   function _plainSummaryLines(m) {
@@ -264,6 +280,7 @@
   function buildPlainDetail(m) {
     return [].concat(
       _plainHeaderLines(m),
+      _plainRevisionLines(m),
       buildPlainDetailLines(m),
       [''],
       _plainSummaryLines(m),

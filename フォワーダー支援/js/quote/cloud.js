@@ -18,7 +18,7 @@
   let _cloudInited = false;
 
   // 案件ステータス定義（順序＝表示順、key は DB 保存値）
-  const CLOUD_STATUSES = ['下書き中', '提出済み', 'ヨコヨコ提示', '受注', '失注', '辞退', '保留'];
+  const CLOUD_STATUSES = ['下書き中', '提出済み', '改定中', 'ヨコヨコ提示', '受注', '失注', '辞退', '保留'];
   const CLOUD_STATUS_DEFAULT = '下書き中';
 
   // 「保留」のまま何日更新されなかったら下書きに自動的に戻すか（放置防止のリマインド）
@@ -396,7 +396,7 @@
   }
 
   // ダッシュボードの並び替え
-  const _STATUS_ORDER = { '下書き中': 0, '提出済み': 1, 'ヨコヨコ提示': 2, '受注': 3, '失注': 4, '辞退': 5, '保留': 6 };
+  const _STATUS_ORDER = { '下書き中': 0, '提出済み': 1, '改定中': 2, 'ヨコヨコ提示': 3, '受注': 4, '失注': 5, '辞退': 6, '保留': 7 };
   function _sortCloudRows(rows) {
     const s = _cloudSort || 'updated';
     const upd = e => e.updated_at || '';
@@ -490,14 +490,14 @@
     return st === '提示済み' ? '提出済み' : (st || '');
   }
   function _statusClass(st) {
-    return { '下書き中':'draft', '提出済み':'sent', '提示済み':'sent', 'ヨコヨコ提示':'yoko', '受注':'won', '失注':'lost', '辞退':'declined', '保留':'hold' }[st] || 'draft';
+    return { '下書き中':'draft', '提出済み':'sent', '提示済み':'sent', '改定中':'revising', 'ヨコヨコ提示':'yoko', '受注':'won', '失注':'lost', '辞退':'declined', '保留':'hold' }[st] || 'draft';
   }
 
   // ダッシュボードのステータス変更プルダウンの選択肢。
   // 見積編集画面のボタン（qf-status-btn）と同じ表記に揃える。
   // DB には「提出済み」と「提示済み」の両方が混在し得るため、
   // 現在値との照合は _normalizeStatus を通して行う。
-  const STATUS_CHOICES = ['下書き中', '提示済み', 'ヨコヨコ提示', '受注', '失注', '辞退', '保留'];
+  const STATUS_CHOICES = ['下書き中', '提示済み', '改定中', 'ヨコヨコ提示', '受注', '失注', '辞退', '保留'];
 
   // 画面に出す表記。CLOUD_STATUSES は DB の正規値「提出済み」を持つが、
   // 見積編集画面のボタンとダッシュボードのプルダウンは「提示済み」と表示するため、
