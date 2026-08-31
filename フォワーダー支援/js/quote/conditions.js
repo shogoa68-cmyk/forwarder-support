@@ -89,6 +89,66 @@
     };
   }
 
+  // ===== 改定履歴（前回提示分との差分） =====
+  // 「🔄 更新」ボタンで、提示済みの内容を「前回提示分」として qf-revision-baseline
+  // （hidden input・.quote-main の一員として通常のフィールドと同じく保存復元される）に
+  // JSON でスナップショットし、以降その内容と現在の内容の差分を客先向け出力（PDF・メール）
+  // に自動反映する。差分対象は客先出力に見える列（品名・数量・単位・通貨・単価・備考）のみ。
+  const REVISION_DIFF_FIELDS = ['nm', 'bq', 'un', 'bc', 'bp', 'nt'];
+  const REVISION_FIELD_LABELS = { nm: '品名', bq: '数量', un: '単位', bc: '通貨', bp: '単価', nt: '備考' };
+
+  // 現在の明細行（uid を持つ通常データ行のみ）を、差分対象フィールドだけ抜き出してスナップショット。
+  window.buildRevisionSnapshot = function () {
+    const rows = [];
+    document.querySelectorAll('#tableBody tr[id^="row-"]').forEach(tr => {
+      if (tr.dataset.virtual || tr.dataset.type) return;   // 仮想見出し・小計/リマーク行は対象外
+      const id = tr.id.replace('row-', '');
+      const uid = document.getElementById('uid-' + id)?.value || '';
+      if (!uid) return;
+      const row = { uid };
+      REVISION_DIFF_FIELDS.forEach(f => {
+        row[f] = document.getElementById(f + '-' + id)?.value ?? '';
+      });
+      rows.push(row);
+    });
+    return {
+      ts: new Date().toISOString(),
+      total: (document.getElementById('tot-subtotal')?.textContent || '').trim(),
+      rows,
+    };
+  };
+
+  window.getRevisionBaseline = function () {
+    try { return JSON.parse(document.getElementById('qf-revision-baseline')?.value || 'null'); }
+    catch (e) { return null; }
+  };
+
+  // baseline（前回提示分）と現在の内容を比較し、追加・削除・変更（セル単位）を返す。
+  // baseline が無い、または差分が無ければ null。
+  window.computeRevisionDiff = function () {
+    const baseline = window.getRevisionBaseline();
+    if (!baseline || !Array.isArray(baseline.rows) || !baseline.rows.length) return null;
+    const current = window.buildRevisionSnapshot();
+    const baseByUid = new Map(baseline.rows.map(r => [r.uid, r]));
+    const curByUid  = new Map(current.rows.map(r => [r.uid, r]));
+    const added = [], removed = [], changed = [];
+    current.rows.forEach(r => { if (!baseByUid.has(r.uid)) added.push(r); });
+    baseline.rows.forEach(r => { if (!curByUid.has(r.uid)) removed.push(r); });
+    baseline.rows.forEach(b => {
+      const c = curByUid.get(b.uid);
+      if (!c) return;
+      const fields = [];
+      REVISION_DIFF_FIELDS.forEach(f => {
+        if (String(b[f] ?? '') !== String(c[f] ?? '')) {
+          fields.push({ field: f, label: REVISION_FIELD_LABELS[f], from: b[f], to: c[f] });
+        }
+      });
+      if (fields.length) changed.push({ uid: b.uid, name: c.nm || b.nm, fields });
+    });
+    if (!added.length && !removed.length && !changed.length && baseline.total === current.total) return null;
+    return { added, removed, changed, totalFrom: baseline.total, totalTo: current.total, ts: baseline.ts };
+  };
+
   // ========== データ保存・読み込み（localStorage）==========
   // autoSaveTimer / autoSaveEnabled はapp-constants.jsで宣言済み
 

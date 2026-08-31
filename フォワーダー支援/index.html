@@ -2669,13 +2669,19 @@
             <div class="qf-status-btns" id="qf-status-btns">
               <button type="button" class="qf-status-btn active" data-status="下書き中"  onclick="setQuoteStatus('下書き中')">下書き中</button>
               <button type="button" class="qf-status-btn"        data-status="提示済み" onclick="setQuoteStatus('提示済み')">提示済み</button>
+              <button type="button" class="qf-status-btn"        data-status="改定中"   onclick="setQuoteStatus('改定中')">改定中</button>
               <button type="button" class="qf-status-btn"        data-status="ヨコヨコ提示" onclick="setQuoteStatus('ヨコヨコ提示')">ヨコヨコ提示</button>
               <button type="button" class="qf-status-btn"        data-status="受注"    onclick="setQuoteStatus('受注')">受注</button>
               <button type="button" class="qf-status-btn"        data-status="失注"    onclick="setQuoteStatus('失注')">失注</button>
               <button type="button" class="qf-status-btn"        data-status="辞退"    onclick="setQuoteStatus('辞退')">辞退</button>
               <button type="button" class="qf-status-btn"        data-status="保留"    onclick="setQuoteStatus('保留')">保留</button>
             </div>
+            <button type="button" class="qf-revision-btn" id="qfRevisionBtn" hidden onclick="startQuoteRevision()"
+                    title="現在の内容を「前回提示分」として記録し、改定中にして編集を再開します。次にPDF・メール本文を出力すると前回からの変更点が自動表示されます">
+              🔄 更新（前回提示分を記録して編集再開）
+            </button>
             <input type="hidden" id="qf-status" value="下書き中" />
+            <input type="hidden" id="qf-revision-baseline" />
           </div>
           <div class="quote-field quote-field-memo">
             <label>📝 メモ <span class="qf-memo-note">出力・プレビューには含まれません</span>

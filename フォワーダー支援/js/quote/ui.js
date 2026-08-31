@@ -4023,9 +4023,32 @@
     document.querySelectorAll('#qf-status-btns .qf-status-btn').forEach(btn => {
       btn.classList.toggle('active', norm(btn.dataset.status) === norm(status));
     });
+    // 「🔄 更新」は提示済みの案件を改定するための入口。それ以外のステータスでは意味が無いため隠す
+    const revBtn = document.getElementById('qfRevisionBtn');
+    if (revBtn) revBtn.hidden = norm(status) !== '提示済み';
   }
   window.setQuoteStatus = setQuoteStatus;
   window.updateQuoteStatusUI = updateQuoteStatusUI;
+
+  // 提示済みの案件を「改定中」にし、現在の内容を「前回提示分」としてスナップショットする。
+  // 以降、御見積書PDF・メール本文に前回分との差分（追加/削除/変更）が自動的に表示される。
+  window.startQuoteRevision = function () {
+    const status = (document.getElementById('qf-status')?.value || '').trim();
+    const norm = s => (s === '提出済み' ? '提示済み' : s);
+    if (norm(status) !== '提示済み') {
+      if (window.quoteShowToast) quoteShowToast('⚠️ 「提示済み」の案件でのみ更新を開始できます', 'warn');
+      return;
+    }
+    if (!confirm('現在の内容を「前回提示分」として記録し、改定中にして編集を再開します。よろしいですか？')) return;
+    const snap = (typeof window.buildRevisionSnapshot === 'function') ? window.buildRevisionSnapshot() : null;
+    const hid = document.getElementById('qf-revision-baseline');
+    if (hid) {
+      hid.value = snap ? JSON.stringify(snap) : '';
+      hid.dispatchEvent(new Event('change', { bubbles: true }));
+    }
+    setQuoteStatus('改定中');
+    if (window.quoteShowToast) quoteShowToast('🔄 前回提示分を記録しました。編集後、再度「提示済み」にしてください', 'success', 4000);
+  };
 
   // ===== Phase 2b：見積タブ初回表示時の遅延初期化集約 =====
   window.__quoteInitialized = false;

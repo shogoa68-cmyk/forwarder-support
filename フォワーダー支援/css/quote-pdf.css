@@ -281,6 +281,15 @@
   widows: 4;
 }
 
+/* 🔄 前回提示分からの変更点（改定中の案件のみ表示） */
+.qd-revision-block { margin-top: 0; margin-bottom: 14px; border-color: #a8adec; }
+.qd-revision-block .qd-remark-ttl { background: #eef0fd; color: #4550c4; }
+.qd-rev-list { margin: 0; padding: 8px 12px 4px 26px; font-size: 11px; line-height: 1.8; color: #333; }
+.qd-rev-add { color: #1a6a35; }
+.qd-rev-del { color: #c0392b; text-decoration: line-through; }
+.qd-rev-chg { color: #4550c4; }
+.qd-rev-total { padding: 0 12px 10px; font-size: 11.5px; font-weight: 700; color: #333; }
+
 /* ===== 印刷時：御見積書だけを出す ===== */
 @media print {
   body.qd-print-mode > *:not(#quoteDocOverlay) { display: none !important; }
