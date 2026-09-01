@@ -4026,6 +4026,9 @@
     // 「🔄 更新」は提示済みの案件を改定するための入口。それ以外のステータスでは意味が無いため隠す
     const revBtn = document.getElementById('qfRevisionBtn');
     if (revBtn) revBtn.hidden = norm(status) !== '提示済み';
+    // 表示/非表示トグルは「前回提示分」の記録（qf-revision-baseline）がある間だけ意味を持つ
+    const revToggle = document.getElementById('qfRevisionToggle');
+    if (revToggle) revToggle.hidden = !(document.getElementById('qf-revision-baseline')?.value || '').trim();
   }
   window.setQuoteStatus = setQuoteStatus;
   window.updateQuoteStatusUI = updateQuoteStatusUI;

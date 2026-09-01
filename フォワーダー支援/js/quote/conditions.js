@@ -124,8 +124,9 @@
   };
 
   // baseline（前回提示分）と現在の内容を比較し、追加・削除・変更（セル単位）を返す。
-  // baseline が無い、または差分が無ければ null。
+  // baseline が無い、差分が無い、またはユーザーが表示しない設定にしていれば null。
   window.computeRevisionDiff = function () {
+    if (document.getElementById('qf-revision-hide-diff')?.checked) return null;
     const baseline = window.getRevisionBaseline();
     if (!baseline || !Array.isArray(baseline.rows) || !baseline.rows.length) return null;
     const current = window.buildRevisionSnapshot();

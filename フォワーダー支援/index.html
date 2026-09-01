@@ -2680,6 +2680,10 @@
                     title="現在の内容を「前回提示分」として記録し、改定中にして編集を再開します。次にPDF・メール本文を出力すると前回からの変更点が自動表示されます">
               🔄 更新（前回提示分を記録して編集再開）
             </button>
+            <label class="qf-revision-toggle" id="qfRevisionToggle" hidden title="オフにすると、前回提示分との差分がある場合でも御見積書PDF・メール本文には出力されません（内部の記録自体は消えません）">
+              <input type="checkbox" id="qf-revision-hide-diff" />
+              客先向け出力（PDF・メール）に「前回提示分からの変更点」を表示しない
+            </label>
             <input type="hidden" id="qf-status" value="下書き中" />
             <input type="hidden" id="qf-revision-baseline" />
           </div>

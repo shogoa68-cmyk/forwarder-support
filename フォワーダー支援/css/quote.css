@@ -398,6 +398,16 @@
   cursor: pointer;
 }
 #tab-quote-make .qf-revision-btn:hover { background: #dde0fa; border-color: #4550c4; }
+#tab-quote-make .qf-revision-toggle:not([hidden]) {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 6px;
+  font-size: 10.5px;
+  color: #6a5a40;
+  cursor: pointer;
+}
+#tab-quote-make .qf-revision-toggle input { cursor: pointer; }
 
 /* ========== テーブル ========== */
 #tab-quote-make table { border-collapse: collapse; width: 100%; }
