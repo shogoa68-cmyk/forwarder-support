@@ -124,6 +124,7 @@
       const note   = document.getElementById(`nt-${id}`)?.value || '';
       const sv     = document.getElementById(`sv-${id}`)?.value || '';
       const pt     = document.getElementById(`pt-${id}`)?.value || '';
+      const uid    = document.getElementById(`uid-${id}`)?.value || '';
       // 有効期限（vf/vt）はサーチャージ専用。他カテゴリは値が残っていても無視する
       const _isSur = cat === 'surcharge';
       const vf     = _isSur ? (document.getElementById(`vf-${id}`)?.value || '') : '';
@@ -138,7 +139,7 @@
       // 客先出力・小計・PDF/Excel/CSV の除外は _hideQuote 一本で判定する（PROFIT SHARE も客先には出さない）。
       // 適用期間外は「参考」指定があれば例外的に出力する（金額は括弧書き・合計外のまま、客先へ参考提示したい場合）
       const _hideQuote  = _hideManual || (_outRange && !_ref) || _ps;
-      rows.push({ _type: 'data', taxed, cat, name, pq, un, pc, pp, cd, bq, bc, bp, mk, cost, bill, profit, note, sv, pt, vf, vt, zc, _actual, _ps, _cond, _ref, _hideQuote, _hideManual, _outRange });
+      rows.push({ _type: 'data', taxed, cat, name, pq, un, pc, pp, cd, bq, bc, bp, mk, cost, bill, profit, note, sv, pt, vf, vt, zc, uid, _actual, _ps, _cond, _ref, _hideQuote, _hideManual, _outRange });
     });
     return rows;
   }

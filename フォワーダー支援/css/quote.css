@@ -398,16 +398,36 @@
   cursor: pointer;
 }
 #tab-quote-make .qf-revision-btn:hover { background: #dde0fa; border-color: #4550c4; }
-#tab-quote-make .qf-revision-toggle:not([hidden]) {
+#tab-quote-make .qf-revision-options:not([hidden]) {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  margin-top: 6px;
+}
+#tab-quote-make .qf-revision-toggle {
   display: flex;
   align-items: center;
   gap: 5px;
-  margin-top: 6px;
   font-size: 10.5px;
   color: #6a5a40;
   cursor: pointer;
 }
 #tab-quote-make .qf-revision-toggle input { cursor: pointer; }
+#tab-quote-make .qf-revision-filters:not([hidden]) {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 3px 10px;
+  padding: 5px 8px;
+  background: #f7f6fb;
+  border: 1px solid #ddd8f0;
+  border-radius: 6px;
+  font-size: 10.5px;
+  color: #5a5470;
+}
+#tab-quote-make .qf-revision-filters-lbl { font-weight: 700; color: #4550c4; }
+#tab-quote-make .qf-revision-filters label { display: inline-flex; align-items: center; gap: 3px; cursor: pointer; white-space: nowrap; }
+#tab-quote-make .qf-revision-filters input { cursor: pointer; }
 
 /* ========== テーブル ========== */
 #tab-quote-make table { border-collapse: collapse; width: 100%; }

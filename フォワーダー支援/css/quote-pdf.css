@@ -290,6 +290,13 @@
 .qd-rev-chg { color: #4550c4; }
 .qd-rev-total { padding: 0 12px 10px; font-size: 11.5px; font-weight: 700; color: #333; }
 
+/* 前回提示分から追加／変更された明細行のハイライト（画面表示・印刷とも共通） */
+.qd-row-added  td { background: #eef7ee; }
+.qd-row-changed td { background: #eef0fd; }
+.qd-rev-mark { display: inline-block; font-size: 10px; font-weight: 700; }
+.qd-rev-mark-add { color: #1a6a35; }
+.qd-rev-mark-chg { color: #4550c4; }
+
 /* ===== 印刷時：御見積書だけを出す ===== */
 @media print {
   body.qd-print-mode > *:not(#quoteDocOverlay) { display: none !important; }
@@ -301,4 +308,22 @@
   body.qd-print-mode #quoteDocOverlay .qd-stage { display: block; padding: 0; background: #fff; }
   body.qd-print-mode .qd-page { box-shadow: none; width: 100%; min-height: auto; padding: 0; }
   @page { size: A4 portrait; margin: 14mm; }
+
+  /* 🔄 前回提示分からの変更点：本文中の元の位置ではなく、各ページ下部にフッターとして
+     固定表示する（position:fixed は印刷時にページごとへ繰り返される）。本文がフッターの
+     裏に隠れないよう、明細テーブル側に下マージンを確保する。 */
+  .qd-revision-block {
+    position: fixed;
+    left: 14mm; right: 14mm; bottom: 6mm;
+    margin: 0;
+    max-height: 32mm;
+    overflow: hidden;
+    font-size: 9px;
+    background: #fff;
+    box-shadow: 0 -2px 6px rgba(0,0,0,.08);
+  }
+  .qd-revision-block .qd-remark-ttl { font-size: 10px; padding: 3px 8px; }
+  .qd-rev-list { padding: 4px 8px 2px 20px; line-height: 1.5; }
+  .qd-rev-total { padding: 0 8px 4px; }
+  .qd-items { margin-bottom: 34mm; }
 }
