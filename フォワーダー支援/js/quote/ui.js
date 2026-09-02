@@ -4026,9 +4026,12 @@
     // 「🔄 更新」は提示済みの案件を改定するための入口。それ以外のステータスでは意味が無いため隠す
     const revBtn = document.getElementById('qfRevisionBtn');
     if (revBtn) revBtn.hidden = norm(status) !== '提示済み';
-    // 表示/非表示トグルは「前回提示分」の記録（qf-revision-baseline）がある間だけ意味を持つ
-    const revToggle = document.getElementById('qfRevisionToggle');
-    if (revToggle) revToggle.hidden = !(document.getElementById('qf-revision-baseline')?.value || '').trim();
+    // 表示/非表示トグル・種類フィルタは「前回提示分」の記録（qf-revision-baseline）がある間だけ意味を持つ
+    const revOptions = document.getElementById('qfRevisionOptions');
+    if (revOptions) revOptions.hidden = !(document.getElementById('qf-revision-baseline')?.value || '').trim();
+    // 種類フィルタは「表示する」設定のときだけ意味があるので、非表示設定中は畳んで隠す
+    const revFilters = document.getElementById('qfRevisionFilters');
+    if (revFilters) revFilters.hidden = !!document.getElementById('qf-revision-hide-diff')?.checked;
   }
   window.setQuoteStatus = setQuoteStatus;
   window.updateQuoteStatusUI = updateQuoteStatusUI;

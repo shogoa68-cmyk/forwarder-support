@@ -125,6 +125,7 @@
 
   // baseline（前回提示分）と現在の内容を比較し、追加・削除・変更（セル単位）を返す。
   // baseline が無い、差分が無い、またはユーザーが表示しない設定にしていれば null。
+  // 表示する変更の種類（追加/削除/単価変更/その他の変更）は qf-revision-show-* で絞り込める。
   window.computeRevisionDiff = function () {
     if (document.getElementById('qf-revision-hide-diff')?.checked) return null;
     const baseline = window.getRevisionBaseline();
@@ -132,22 +133,38 @@
     const current = window.buildRevisionSnapshot();
     const baseByUid = new Map(baseline.rows.map(r => [r.uid, r]));
     const curByUid  = new Map(current.rows.map(r => [r.uid, r]));
+    const isChecked = (id) => document.getElementById(id)?.checked !== false; // 未設定は既定で表示する
+    const showAdded   = isChecked('qf-revision-show-added');
+    const showRemoved = isChecked('qf-revision-show-removed');
+    const showPrice   = isChecked('qf-revision-show-price');
+    const showOther   = isChecked('qf-revision-show-other');
+
     const added = [], removed = [], changed = [];
-    current.rows.forEach(r => { if (!baseByUid.has(r.uid)) added.push(r); });
-    baseline.rows.forEach(r => { if (!curByUid.has(r.uid)) removed.push(r); });
+    if (showAdded)   current.rows.forEach(r => { if (!baseByUid.has(r.uid)) added.push(r); });
+    if (showRemoved) baseline.rows.forEach(r => { if (!curByUid.has(r.uid)) removed.push(r); });
     baseline.rows.forEach(b => {
       const c = curByUid.get(b.uid);
       if (!c) return;
       const fields = [];
       REVISION_DIFF_FIELDS.forEach(f => {
-        if (String(b[f] ?? '') !== String(c[f] ?? '')) {
-          fields.push({ field: f, label: REVISION_FIELD_LABELS[f], from: b[f], to: c[f] });
-        }
+        if (String(b[f] ?? '') === String(c[f] ?? '')) return;
+        const isPrice = f === 'bp';
+        if (isPrice ? !showPrice : !showOther) return;
+        fields.push({ field: f, label: REVISION_FIELD_LABELS[f], from: b[f], to: c[f] });
       });
       if (fields.length) changed.push({ uid: b.uid, name: c.nm || b.nm, fields });
     });
     if (!added.length && !removed.length && !changed.length && baseline.total === current.total) return null;
-    return { added, removed, changed, totalFrom: baseline.total, totalTo: current.total, ts: baseline.ts };
+    return {
+      added, removed, changed, totalFrom: baseline.total, totalTo: current.total, ts: baseline.ts,
+      // 明細行ハイライト用：uid → 'added' | 'changed'
+      rowMarks: (() => {
+        const m = Object.create(null);
+        added.forEach(r => { m[r.uid] = 'added'; });
+        changed.forEach(c => { m[c.uid] = 'changed'; });
+        return m;
+      })(),
+    };
   };
 
   // ========== データ保存・読み込み（localStorage）==========
@@ -542,6 +559,12 @@
     // 保存時に誤って上書きされる（case: 旧プリセットは data.fields に qf-status を持たない）。
     const _stEl = document.getElementById('qf-status');
     if (_stEl) _stEl.value = (data.fields && data.fields['qf-status']) ? data.fields['qf-status'] : '下書き中';
+    // 変更点フィルタ（追加/削除/単価変更/その他）は「表示する」が既定。上の汎用ループは
+    // キー欠落時に false（非表示）へ倒すため、ここでキーが無い場合だけ true に戻す。
+    ['qf-revision-show-added', 'qf-revision-show-removed', 'qf-revision-show-price', 'qf-revision-show-other'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el && !(data.fields && Object.prototype.hasOwnProperty.call(data.fields, id))) el.checked = true;
+    });
     // 保存時の為替レートを先に復元する（スナップショット）。
     // 異通貨行の売単価は換算値を基準にするため、行を組み立てる前にレートを戻さないと
     // 保存時と違うレートで基準額・乗せ幅が算出されてしまう。

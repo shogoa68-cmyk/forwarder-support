@@ -255,6 +255,10 @@
     const taxRate = (typeof getEffectiveTaxRate === 'function') ? getEffectiveTaxRate() : 0.10;
     const issuer = loadIssuer();
     const hideTotal = loadHideTotal();   // 合計・税サマリを隠す（パターン比較用途）
+    // 前回提示分からの変更点（🔄 更新でスナップショットが取られている場合のみ）。
+    // 明細テーブルの行ハイライトと末尾の変更点ブロックの両方でこの1回の計算結果を使う。
+    const _revDiff  = (typeof window.computeRevisionDiff === 'function') ? window.computeRevisionDiff() : null;
+    const _revMarks = _revDiff ? _revDiff.rowMarks : {};
 
     const data = rows.filter(r => r._type === 'data');
 
@@ -386,10 +390,15 @@
       })();
       const condNote = isCond ? ' <span class="qd-cond-note" style="color:#8a5a00;font-size:11px;font-weight:600;">（発生時/必要時のみ）</span>' : '';
       const refNote  = isRef  ? ' <span class="qd-ref-note" style="color:#3a5a80;font-size:11px;font-weight:600;">（参考情報）</span>' : '';
-      const rowCls = isCond ? ' class="qd-cond-row"' : isRef ? ' class="qd-ref-row"' : '';
+      // 前回提示分から追加／変更された行をハイライト（uid で突き合わせ）
+      const revMark = r.uid ? _revMarks[r.uid] : null;
+      const revCls  = revMark === 'added' ? ' qd-row-added' : revMark === 'changed' ? ' qd-row-changed' : '';
+      const revIcon = revMark === 'added' ? '<span class="qd-rev-mark qd-rev-mark-add" title="前回提示分から追加">＋</span> '
+                    : revMark === 'changed' ? '<span class="qd-rev-mark qd-rev-mark-chg" title="前回提示分から変更">✎</span> ' : '';
+      const rowCls = (isCond || isRef || revCls) ? ` class="${[isCond ? 'qd-cond-row' : '', isRef ? 'qd-ref-row' : '', revCls.trim()].filter(Boolean).join(' ')}"` : '';
       lineHTML.push(
         `<tr${rowCls}>
-          <td class="qd-item qd-l3">${r.taxed ? '<span class="qd-tax">*</span> ' : ''}${esc(_taxName(r.name, r.taxed))}${validBadge}${condNote}${refNote}</td>
+          <td class="qd-item qd-l3">${revIcon}${r.taxed ? '<span class="qd-tax">*</span> ' : ''}${esc(_taxName(r.name, r.taxed))}${validBadge}${condNote}${refNote}</td>
           <td class="qd-num">${qtyDisp}</td>
           <td class="qd-ctr">${esc(r.un || '')}</td>
           <td class="qd-num">${unitDisp}</td>
@@ -455,7 +464,7 @@
       </div>
 
       ${(() => {
-        const diff = (typeof window.computeRevisionDiff === 'function') ? window.computeRevisionDiff() : null;
+        const diff = _revDiff;
         if (!diff) return '';
         const lines = [];
         diff.added.forEach(r => lines.push(`<li class="qd-rev-add">＋ 追加：${esc(r.nm || '（品名未設定）')}</li>`));
