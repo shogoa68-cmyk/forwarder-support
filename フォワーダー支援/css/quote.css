@@ -6039,6 +6039,15 @@ body.qp-dash-active #quoteActionDock { display: none !important; }
   font-size: 11px; font-weight: 700; border-radius: 999px; padding: 1px 9px; white-space: nowrap;
   color: #6a4a9a; background: #f1eafb; border: 1px solid #d3bdf0;
 }
+/* 保留放置リマインドを個別に止める/再開するトグルボタン（他バッジと同じ見た目でクリック可） */
+#tab-quote-make .cloud-hold-toggle {
+  font-family: inherit; cursor: pointer;
+  font-size: 11px; font-weight: 700; border-radius: 999px; padding: 1px 9px; white-space: nowrap;
+  color: #6a4a9a; background: #f1eafb; border: 1px solid #d3bdf0;
+}
+#tab-quote-make .cloud-hold-toggle:hover { background: #e5d9f8; }
+#tab-quote-make .cloud-hold-toggle.is-off { color: #7d6b56; background: #f0ebe2; border-color: #ddd0bc; }
+#tab-quote-make .cloud-hold-toggle.is-off:hover { background: #e6ddd0; }
 #tab-quote-make .cloud-kv { display: grid; grid-template-columns: 68px 1fr; gap: 3px 8px; margin: 8px 0; }
 #tab-quote-make .cloud-kv dt { font-size: 10.5px; color: #94a3ad; font-weight: 600; padding-top: 1px; }
 #tab-quote-make .cloud-kv dd { font-size: 11.5px; color: #2c3e4a; margin: 0; }

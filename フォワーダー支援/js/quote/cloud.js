@@ -295,6 +295,7 @@
     const stale = _cloudRows.filter(r => {
       if (_normalizeStatus(r.status) !== '保留') return false;
       if (_lockedByOther(r)) return false;   // 編集中のものは触らない
+      if (r.data && r.data.holdReminderOff) return false;   // ユーザーがこの案件だけリマインドを止めている
       const upd = r.updated_at ? new Date(r.updated_at).getTime() : 0;
       return upd && (now - upd) > staleMs;
     });
@@ -633,7 +634,18 @@
       const dueBadge    = isDraftStatus ? _dueBadge(m && m.due) : '';
       const recvBadge   = _receivedBadge(m && m.received);
       const remindBadge = isDraftStatus ? _remindBadge(r.data) : '';
-      const prioRow     = (dueBadge || recvBadge || remindBadge) ? '<div class="cloud-card-prio">' + dueBadge + recvBadge + remindBadge + '</div>' : '';
+      // 保留放置の自動復帰を個別に止める/再開するトグル。「保留」中、または直前に自動復帰
+      // させられた（remindBadge が出ている）案件でだけ意味を持つため、そのときだけ出す。
+      const holdOff     = !!(r.data && r.data.holdReminderOff);
+      const holdToggle  = (_normalizeStatus(status) === '保留' || remindBadge)
+        ? '<button type="button" class="cloud-hold-toggle' + (holdOff ? ' is-off' : '') + '" ' +
+          'onclick="event.stopPropagation();cloudToggleHoldReminder(\'' + idAttr + '\',' + (!holdOff) + ')" ' +
+          'title="' + (holdOff
+            ? 'この案件は保留のまま放置してもリマインドしません。クリックでリマインドを再開'
+            : HOLD_STALE_DAYS + '日間動きが無いと自動的に下書きへ戻ります。クリックでこの案件だけリマインドを止める') + '">' +
+          (holdOff ? '🔕 リマインド停止中' : '🔔 リマインド止める') + '</button>'
+        : '';
+      const prioRow     = (dueBadge || recvBadge || remindBadge || holdToggle) ? '<div class="cloud-card-prio">' + dueBadge + recvBadge + remindBadge + holdToggle + '</div>' : '';
 
       // サブコン（役割ラベル付き・5件目以降は +N）
       const subShown = subcons.slice(0, 4);
@@ -1445,6 +1457,33 @@
     quoteShowToast('🔖 ステータスを「' + status + '」に変更しました', 'success', 3000, {
       label: '元に戻す',
       fn: () => cloudSetStatus(rawId, prev),
+    });
+  }
+
+  // 保留放置の自動復帰（_checkStaleHolds）を、この案件だけ個別に止める/再開する。
+  // 意図的に長期保留したい案件で、下書きへ戻されるのを煩わしく感じる場合に使う。
+  async function cloudToggleHoldReminder(rawId, off) {
+    const c = _getClient();
+    if (!c || !_cloudUser) { quoteShowToast('⚠️ 先に Google でログインしてください', 'warn'); return; }
+    const id = decodeURIComponent(rawId);
+    const row = _cloudRows.find(r => r.id === id);
+    if (!row) return;
+    const lockedBy = _lockedByOther(row);
+    if (lockedBy) {
+      quoteShowToast('🔒 ' + _nameFor(lockedBy) + ' さんが作業中のため変更できません', 'warn', 4000);
+      return;
+    }
+    const newData = Object.assign({}, row.data, { holdReminderOff: !!off });
+    const { error } = await c.from(_table()).update({ data: newData }).eq('id', id);
+    if (error) {
+      quoteShowToast('⚠️ 更新に失敗：' + error.message, 'warn', 5000);
+      return;
+    }
+    row.data = newData;
+    _applyCloudFilter();
+    quoteShowToast(off ? '🔕 この案件の保留リマインドを停止しました' : '🔔 この案件の保留リマインドを再開しました', 'success', 3000, {
+      label: '元に戻す',
+      fn: () => cloudToggleHoldReminder(rawId, !off),
     });
   }
 
@@ -2587,6 +2626,7 @@
   window.cloudSearchInput      = cloudSearchInput;
   window.cloudFilterStatus     = cloudFilterStatus;
   window.cloudSetStatus        = cloudSetStatus;
+  window.cloudToggleHoldReminder = cloudToggleHoldReminder;
   window.toggleCloudAdvSearch  = toggleCloudAdvSearch;
   window.cloudFilterAdvanced   = cloudFilterAdvanced;
   window.clearCloudAdvSearch   = clearCloudAdvSearch;
