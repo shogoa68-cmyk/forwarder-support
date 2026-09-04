@@ -763,10 +763,10 @@
     const routeFields = (cond.routes && cond.routes.length >= 1)
       ? cond.routes.map((r, i) => ({
           lbl: cond.routes.length === 1 ? '航路' : `航路${i + 1}`,
-          val: [[r.pol, r.via, r.pod].filter(Boolean).join(' → '),
-                (typeof window.formatRouteCarrierLine === 'function')
+          val: [(typeof window.formatRouteCarrierLine === 'function')
                   ? window.formatRouteCarrierLine(r)
                   : [r.carrier, r.service ? `(${r.service})` : ''].filter(Boolean).join(' '),
+                [r.pol, r.via, r.pod].filter(Boolean).join(' → '),
                 r.tt ? `T/T: ${r.tt}` : ''
                ].filter(Boolean).join('　'),
         }))
@@ -1668,10 +1668,10 @@
     const routePairs = (cExcel.routes && cExcel.routes.length >= 1)
       ? cExcel.routes.map((r, i) => [
           cExcel.routes.length === 1 ? '航路' : `航路${i + 1}`,
-          [[r.pol, r.via, r.pod].filter(Boolean).join(' → '),
-           (typeof window.formatRouteCarrierLine === 'function')
+          [(typeof window.formatRouteCarrierLine === 'function')
              ? window.formatRouteCarrierLine(r)
              : [r.carrier, r.service ? `(${r.service})` : ''].filter(Boolean).join(' '),
+           [r.pol, r.via, r.pod].filter(Boolean).join(' → '),
            r.tt ? `T/T: ${r.tt}` : ''
           ].filter(Boolean).join('　'),
         ])
