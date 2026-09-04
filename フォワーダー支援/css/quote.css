@@ -5263,6 +5263,13 @@ body.qp-dash-active #quoteActionDock { display: none !important; }
 #tab-quote-make .ei-table .ei-qty, #tab-quote-make .ei-table .ei-price { text-align: right; min-width: 64px; }
 #tab-quote-make .ei-table .ei-unit, #tab-quote-make .ei-table .ei-ccy { min-width: 52px; }
 #tab-quote-make .ei-table .ei-group { min-width: 90px; }
+#tab-quote-make .ei-group-cell { display: flex; align-items: center; gap: 2px; }
+#tab-quote-make .ei-group-cell .ei-group { flex: 1; min-width: 70px; }
+#tab-quote-make .ei-group-pattern-btn {
+  flex: none; border: none; background: transparent; cursor: pointer;
+  font-size: 12px; line-height: 1; padding: 2px 3px; border-radius: 3px; opacity: 0.55;
+}
+#tab-quote-make .ei-group-pattern-btn:hover { background: #f0e8d8; opacity: 1; }
 #tab-quote-make .ei-table .ei-name { min-width: 160px; }
 #tab-quote-make .ei-flags { font-size: 10px; color: #8a6a2a; white-space: nowrap; text-align: center; }
 #tab-quote-make tr.ei-low td { background: #fff8ec; }
