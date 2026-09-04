@@ -227,7 +227,8 @@
       const flags = (e.taxed ? '課税 ' : '') + (e.cond ? '都度 ' : '') + (e.ref ? '参考 ' : '') + (e.actual ? '実費' : '');
       html += `<tr data-gi="${gi}" class="ei-row ei-${e.conf}">` +
         `<td><input type="checkbox" class="ei-chk" checked></td>` +
-        `<td><input type="text" class="ei-in ei-group" value="${_esc(curGroup)}" title="小計行のラベルとして挿入（空欄可）"></td>` +
+        `<td class="ei-group-cell"><input type="text" class="ei-in ei-group" value="${_esc(curGroup)}" title="小計行のラベルとして挿入（空欄可）">` +
+        `<button type="button" class="ei-group-pattern-btn" title="同じグループのチェック済み行を「行パターン」として登録" onclick="eiSaveGroupAsPattern(this)">🔖</button></td>` +
         `<td><select class="ei-in ei-cat">${_catOptions(cat)}</select></td>` +
         `<td><input type="text" class="ei-in ei-name" value="${_esc(e.name)}"></td>` +
         `<td><input type="number" class="ei-in ei-qty" value="${e.qty ?? ''}" step="any"></td>` +
@@ -297,6 +298,41 @@
     return out;
   }
 
+  // レビュー表の1行 → 「行パターン」保存用のフラット形式（row_patterns.rows の要素）へ変換
+  function _reviewRowToPatternObj(tr, src) {
+    const v = cls => tr.querySelector('.' + cls)?.value ?? '';
+    const ccy = (v('ei-ccy').trim().toUpperCase() || 'JPY');
+    const price = src.actual ? '' : v('ei-price');
+    return {
+      _type: 'data',
+      cat: v('ei-cat'), name: v('ei-name').trim(), taxed: !!src.taxed,
+      pq: v('ei-qty'), un: v('ei-unit').trim(), pc: ccy, pp: price,
+      bq: v('ei-qty'), bc: ccy, bp: price, mk: '', note: v('ei-note').trim(), sv: '',
+    };
+  }
+
+  // グループの🔖ボタン：同じグループ名（現在の入力値）で、チェック済みの行だけを
+  // 「行パターン」として登録するモーダルへ渡す（保存自体は ui.js 側の共通フロー）
+  function eiSaveGroupAsPattern(btn) {
+    const tr = btn.closest('tr');
+    if (!tr) return;
+    const group = (tr.querySelector('.ei-group')?.value || '').trim();
+    if (!group) { if (window.quoteShowToast) quoteShowToast('⚠️ グループ名を入力してから登録してください', 'warn'); return; }
+    const items = (_parsed?.entries || []).filter(e => e._kind === 'item');
+    const rows = [];
+    document.querySelectorAll('#eiReviewWrap tbody tr').forEach(r => {
+      if ((r.querySelector('.ei-group')?.value || '').trim() !== group) return;
+      if (!r.querySelector('.ei-chk')?.checked) return;
+      const gi = parseInt(r.dataset.gi, 10);
+      const obj = _reviewRowToPatternObj(r, items[gi] || {});
+      if (obj.name) rows.push(obj);
+    });
+    if (!rows.length) { if (window.quoteShowToast) quoteShowToast('⚠️ 「' + group + '」にチェック済みの行がありません', 'warn'); return; }
+    if (typeof window.openRowPatternMgrWithRows === 'function') {
+      window.openRowPatternMgrWithRows(rows, group);
+    }
+  }
+
   function _reviewFields() {
     return {
       customer: document.getElementById('eiF-customer')?.value.trim() || '',
@@ -358,6 +394,7 @@
 
   Object.assign(window, {
     openEmailImport, closeEmailImport, eiParse, eiToggleAll, eiInsertRows, eiApplyAsNew,
+    eiSaveGroupAsPattern,
     parseQuoteEmail,   // テスト・将来の AI パーサー差し替え用に公開
   });
 })();

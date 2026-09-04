@@ -1584,6 +1584,10 @@
     return out;
   }
 
+  // メール取込画面など、現在の見積テーブル以外から渡された行データを保存する場合に使う
+  // （null なら openRowPatternMgr() 経由の通常フロー＝現在のテーブルのチェック行を保存）
+  let _pendingPatternRows = null;
+
   function openRowPatternMgr() {
     const inp = document.getElementById('rowPatternNameInput');
     if (inp && !inp.value) {
@@ -1595,10 +1599,27 @@
     loadRowPatternsFromCloud();
     setTimeout(() => inp?.focus(), 50);
   }
-  function closeRowPatternMgr() { document.getElementById('rowPatternModal').classList.remove('open'); }
+
+  // 外部（メール取込のグループ登録等）から行データを渡してパターン保存モーダルを開く
+  function openRowPatternMgrWithRows(rows, defaultName) {
+    _pendingPatternRows = rows;
+    const inp = document.getElementById('rowPatternNameInput');
+    if (inp) inp.value = defaultName || '';
+    const noteInp = document.getElementById('rowPatternNoteInput');
+    if (noteInp) noteInp.value = '';
+    document.getElementById('rowPatternModal').classList.add('open');
+    loadRowPatternsFromCloud();
+    setTimeout(() => inp?.focus(), 50);
+  }
+  window.openRowPatternMgrWithRows = openRowPatternMgrWithRows;
+
+  function closeRowPatternMgr() {
+    document.getElementById('rowPatternModal').classList.remove('open');
+    _pendingPatternRows = null;
+  }
 
   async function saveRowPatternFromChecked() {
-    const rows = _gatherCheckedRowsData();
+    const rows = _pendingPatternRows || _gatherCheckedRowsData();
     if (!rows.length) {
       quoteShowToast('⚠️ 保存する行のチェックボックスを選択してください', 'warn', 3000);
       return;
@@ -1631,6 +1652,7 @@
     if (res.error) { quoteShowToast('⚠️ 保存に失敗：' + res.error.message, 'warn', 6000); return; }
     if (nameInp) nameInp.value = '';
     if (noteInp) noteInp.value = '';
+    _pendingPatternRows = null;
     await loadRowPatternsFromCloud();
     quoteShowToast(`💾 行パターン「${name}」を保存（${rows.length}行・チーム共有）`, 'success');
   }
