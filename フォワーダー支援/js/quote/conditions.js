@@ -138,6 +138,7 @@
     const showRemoved = isChecked('qf-revision-show-removed');
     const showPrice   = isChecked('qf-revision-show-price');
     const showOther   = isChecked('qf-revision-show-other');
+    const showTotal   = isChecked('qf-revision-show-total');
 
     const added = [], removed = [], changed = [];
     if (showAdded)   current.rows.forEach(r => { if (!baseByUid.has(r.uid)) added.push(r); });
@@ -156,7 +157,7 @@
     });
     if (!added.length && !removed.length && !changed.length && baseline.total === current.total) return null;
     return {
-      added, removed, changed, totalFrom: baseline.total, totalTo: current.total, ts: baseline.ts,
+      added, removed, changed, totalFrom: baseline.total, totalTo: current.total, showTotal, ts: baseline.ts,
       // 明細行ハイライト用：uid → 'added' | 'changed'
       rowMarks: (() => {
         const m = Object.create(null);
@@ -561,7 +562,7 @@
     if (_stEl) _stEl.value = (data.fields && data.fields['qf-status']) ? data.fields['qf-status'] : '下書き中';
     // 変更点フィルタ（追加/削除/単価変更/その他）は「表示する」が既定。上の汎用ループは
     // キー欠落時に false（非表示）へ倒すため、ここでキーが無い場合だけ true に戻す。
-    ['qf-revision-show-added', 'qf-revision-show-removed', 'qf-revision-show-price', 'qf-revision-show-other'].forEach(id => {
+    ['qf-revision-show-added', 'qf-revision-show-removed', 'qf-revision-show-price', 'qf-revision-show-other', 'qf-revision-show-total'].forEach(id => {
       const el = document.getElementById(id);
       if (el && !(data.fields && Object.prototype.hasOwnProperty.call(data.fields, id))) el.checked = true;
     });
