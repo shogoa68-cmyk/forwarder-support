@@ -282,8 +282,8 @@
   widows: 4;
 }
 
-/* 🔄 前回提示分からの変更点（改定中の案件のみ表示） */
-.qd-revision-block { margin-top: 0; margin-bottom: 14px; border-color: #a8adec; }
+/* 🔄 前回提示分からの変更点（改定中の案件のみ表示。見積書の最後に表示） */
+.qd-revision-block { margin-top: 14px; margin-bottom: 14px; border-color: #a8adec; }
 .qd-revision-block .qd-remark-ttl { background: #eef0fd; color: #4550c4; }
 .qd-rev-list { margin: 0; padding: 8px 12px 4px 26px; font-size: 11px; line-height: 1.8; color: #333; }
 .qd-rev-add { color: #1a6a35; }
@@ -309,22 +309,4 @@
   body.qd-print-mode #quoteDocOverlay .qd-stage { display: block; padding: 0; background: #fff; }
   body.qd-print-mode .qd-page { box-shadow: none; width: 100%; min-height: auto; padding: 0; }
   @page { size: A4 portrait; margin: 14mm; }
-
-  /* 🔄 前回提示分からの変更点：本文中の元の位置ではなく、各ページ下部にフッターとして
-     固定表示する（position:fixed は印刷時にページごとへ繰り返される）。本文がフッターの
-     裏に隠れないよう、明細テーブル側に下マージンを確保する。 */
-  .qd-revision-block {
-    position: fixed;
-    left: 14mm; right: 14mm; bottom: 6mm;
-    margin: 0;
-    max-height: 32mm;
-    overflow: hidden;
-    font-size: 9px;
-    background: #fff;
-    box-shadow: 0 -2px 6px rgba(0,0,0,.08);
-  }
-  .qd-revision-block .qd-remark-ttl { font-size: 10px; padding: 3px 8px; }
-  .qd-rev-list { padding: 4px 8px 2px 20px; line-height: 1.5; }
-  .qd-rev-total { padding: 0 8px 4px; }
-  .qd-items { margin-bottom: 34mm; }
 }

@@ -202,7 +202,7 @@
       const parts = c.fields.map(f => f.label + '：' + (f.from || '—') + ' → ' + (f.to || '—')).join('／');
       out.push('　✎ 変更：' + (c.name || '（品名未設定）') + '（' + parts + '）');
     });
-    if (d.totalFrom !== d.totalTo) out.push('　合計金額：¥' + d.totalFrom + ' → ¥' + d.totalTo);
+    if (d.showTotal !== false && d.totalFrom !== d.totalTo) out.push('　合計金額：¥' + d.totalFrom + ' → ¥' + d.totalTo);
     return out;
   }
   function _plainSummaryLines(m) {

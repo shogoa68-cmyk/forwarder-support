@@ -466,25 +466,6 @@
         </div>` : ''}
       </div>
 
-      ${(() => {
-        const diff = _revDiff;
-        if (!diff) return '';
-        const lines = [];
-        diff.added.forEach(r => lines.push(`<li class="qd-rev-add">＋ 追加：${esc(r.nm || '（品名未設定）')}</li>`));
-        diff.removed.forEach(r => lines.push(`<li class="qd-rev-del">－ 削除：${esc(r.nm || '（品名未設定）')}</li>`));
-        diff.changed.forEach(c => {
-          const parts = c.fields.map(f => `${esc(f.label)}：${esc(String(f.from || '—'))} → ${esc(String(f.to || '—'))}`).join('／');
-          lines.push(`<li class="qd-rev-chg">✎ 変更：${esc(c.name || '（品名未設定）')}（${parts}）</li>`);
-        });
-        const totalLine = diff.totalFrom !== diff.totalTo
-          ? `<div class="qd-rev-total">合計金額：¥${esc(diff.totalFrom)} → ¥${esc(diff.totalTo)}</div>` : '';
-        return `<div class="qd-remark-block qd-revision-block">
-          <div class="qd-remark-ttl">🔄 前回提示分からの変更点</div>
-          <ul class="qd-rev-list">${lines.join('')}</ul>
-          ${totalLine}
-        </div>`;
-      })()}
-
       <table class="qd-items">
         <thead><tr>
           <th class="qd-item">見積項目／摘要</th><th>数量</th><th>単位</th><th>単価</th><th>金額(JPY)</th>
@@ -519,6 +500,24 @@
       ${(() => {
         const rt = (typeof getRemarkText === 'function') ? getRemarkText() : (cond && cond.free) || '';
         return rt ? `<div class="qd-remark-block"><div class="qd-remark-ttl">📝 条件・免責事項（全体リマーク）</div><div class="qd-remark-body">${esc(rt).replace(/\n/g, '<br>')}</div></div>` : '';
+      })()}
+      ${(() => {
+        const diff = _revDiff;
+        if (!diff) return '';
+        const lines = [];
+        diff.added.forEach(r => lines.push(`<li class="qd-rev-add">＋ 追加：${esc(r.nm || '（品名未設定）')}</li>`));
+        diff.removed.forEach(r => lines.push(`<li class="qd-rev-del">－ 削除：${esc(r.nm || '（品名未設定）')}</li>`));
+        diff.changed.forEach(c => {
+          const parts = c.fields.map(f => `${esc(f.label)}：${esc(String(f.from || '—'))} → ${esc(String(f.to || '—'))}`).join('／');
+          lines.push(`<li class="qd-rev-chg">✎ 変更：${esc(c.name || '（品名未設定）')}（${parts}）</li>`);
+        });
+        const totalLine = (diff.showTotal !== false && diff.totalFrom !== diff.totalTo)
+          ? `<div class="qd-rev-total">合計金額：¥${esc(diff.totalFrom)} → ¥${esc(diff.totalTo)}</div>` : '';
+        return `<div class="qd-remark-block qd-revision-block">
+          <div class="qd-remark-ttl">🔄 前回提示分からの変更点</div>
+          <ul class="qd-rev-list">${lines.join('')}</ul>
+          ${totalLine}
+        </div>`;
       })()}
     </div>`;
   }
