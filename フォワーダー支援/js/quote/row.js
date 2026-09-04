@@ -1000,7 +1000,7 @@
     const q    = f => frag.querySelector(`[data-field="${f}"]`);
 
     // IDs
-    ['cat','tx','nm','pq','un','pc','pp','cd','bq','bc','bp','mk','st','pr','nt','sv','pt','zc','ac','ps','co','ri','vf','vt','lu','ppmode','pprate','ppbase','uid','ppref']
+    ['cat','tx','nm','pq','un','pc','pp','cd','bq','bc','bp','mk','st','pr','nt','sv','pt','zc','ac','ps','co','ri','es','vf','vt','lu','ppmode','pprate','ppbase','uid','ppref']
       .forEach(f => { const el = q(f); if (el) el.id = `${f}-${id}`; });
     const zcBtn = frag.querySelector('.zero-confirm-btn');
     if (zcBtn) zcBtn.onclick = () => toggleZeroConfirmed(id);;
@@ -1012,6 +1012,8 @@
     if (coBtn) coBtn.onclick = () => toggleConditional(id);
     const riBtn = frag.querySelector('.ref-info-btn');
     if (riBtn) riBtn.onclick = () => toggleRefInfo(id);
+    const esBtn = frag.querySelector('.est-btn');
+    if (esBtn) esBtn.onclick = () => toggleEstimate(id);
     const pctBtn = frag.querySelector('.pct-mode-btn');
     if (pctBtn) pctBtn.onclick = () => togglePctMode(id);
     const mregBtn = frag.querySelector('.master-reg-btn');
@@ -1285,6 +1287,14 @@
     }
     const riBtn0 = trEl0?.querySelector('.ref-info-btn');
     if (riBtn0) riBtn0.classList.toggle('is-on', isRefInfo);
+    // 概算（金額は目安）：合計には通常どおり加算するが、金額の前に「約」を付けて表示する
+    const isEstimate = document.getElementById(`es-${id}`)?.value === '1';
+    if (trEl0) {
+      trEl0.classList.toggle('row-estimate', isEstimate);
+      if (isEstimate) trEl0.dataset.estimate = '1'; else delete trEl0.dataset.estimate;
+    }
+    const esBtn0 = trEl0?.querySelector('.est-btn');
+    if (esBtn0) esBtn0.classList.toggle('is-on', isEstimate);
     // 小計セル
     const st = document.getElementById(`st-${id}`);
     if (st) {
@@ -1303,13 +1313,14 @@
         updateTotals();
         return;
       }
+      const estPrefix = isEstimate ? '<span class="est-prefix" title="概算（目安の金額）">約</span>' : '';
       if (bc !== 'JPY' && canFx && subtotal) {
         const jpySub = Math.ceil(toJPY(subtotal, bc));
-        stHTML = fmt(subtotal) + '<br><small class="jpy-conv-hint">(≈¥' + fmt(jpySub) + ')</small>';
+        stHTML = estPrefix + fmt(subtotal) + '<br><small class="jpy-conv-hint">(≈¥' + fmt(jpySub) + ')</small>';
         if (taxed) stHTML += '<br><small class="tax-hint">（消費税：≈¥' + fmt(Math.ceil(jpySub * taxRate)) + '）</small>';
       } else {
         if (subtotal) {
-          stHTML = fmt(subtotal);
+          stHTML = estPrefix + fmt(subtotal);
           if (taxed) stHTML += '<br><small class="tax-hint">（消費税：' + fmt(Math.ceil(subtotal * taxRate)) + '円）</small>';
         } else if (isZeroConfirmed) {
           stHTML = '<span class="zero-confirmed-badge">¥0 ✓</span>';
@@ -1401,6 +1412,18 @@
     if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
   }
   window.toggleRefInfo = toggleRefInfo;
+
+  // ========== 概算トグル（金額は目安。合計には通常どおり加算する） ==========
+  // ¥0✓/実費/PS/都度/参考とは異なり、合計からの除外や客先非表示を伴わない独立したフラグ
+  // なので、_clearRowFlagsExcept の排他グループには含めない（他フラグと併用可能）。
+  function toggleEstimate(id) {
+    const esEl = document.getElementById(`es-${id}`);
+    if (!esEl) return;
+    esEl.value = esEl.value === '1' ? '' : '1';
+    calc(id);
+    if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
+  }
+  window.toggleEstimate = toggleEstimate;
 
   // ========== % 計算モード ==========
   function togglePctMode(id) {

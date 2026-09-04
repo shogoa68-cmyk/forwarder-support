@@ -1532,6 +1532,18 @@
 #tab-quote-make .ref-info-btn.is-on { background: #eaf2fa; border-color: #5a8ab8; color: #2a5a88; font-weight: 600; }
 /* 参考情報の行：青アクセント */
 #tab-quote-make tr.row-ref-info > td.handle-cell { box-shadow: inset 3px 0 0 #5a8ab8; }
+/* 概算（金額は目安。合計には通常どおり加算） */
+#tab-quote-make .est-btn {
+  display: inline-block; margin-top: 3px; padding: 1px 6px;
+  font-size: 10px; line-height: 1.5; border: 1px solid #c4b49a; border-radius: 3px;
+  background: transparent; color: #c4b49a; cursor: pointer; font-family: inherit;
+  transition: all 0.15s; white-space: nowrap;
+}
+#tab-quote-make .est-btn:hover { border-color: #2f8f6e; color: #2f8f6e; opacity: 1; }
+#tab-quote-make .est-btn.is-on { background: #e8f6f0; border-color: #2f8f6e; color: #1e6e52; font-weight: 600; }
+/* 概算の行：緑アクセント。金額は通常表示だが前に「約」を付ける */
+#tab-quote-make tr.row-estimate > td.handle-cell { box-shadow: inset 3px 0 0 #2f8f6e; }
+#tab-quote-make .est-prefix { color: #1e6e52; font-weight: 700; font-size: 10.5px; margin-right: 1px; }
 #tab-quote-make tr.row-ref-info > td { background: #f5f9fd; }
 /* ===== % 計算モード ===== */
 #tab-quote-make .pct-mode-btn {

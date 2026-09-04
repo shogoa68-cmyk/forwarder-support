@@ -324,10 +324,13 @@
         }
       }
       const isNonJpy = r.bc && r.bc !== 'JPY';
+      // 概算（金額は目安）：合計には通常どおり加算するが、単価・金額の前に「約」を付ける
+      const isEstimate = r._estimate && !isActual;
+      const estTag = isEstimate ? '<span class="qd-est-tag" title="概算（目安の金額）">約</span> ' : '';
       // JPY 単価は端数があるときだけ小数表示（単価×数量＝金額の検算が崩れないように）
       const unitDisp = isActual
         ? '実費'
-        : (isNonJpy
+        : estTag + (isNonJpy
           ? `${fmtNum(r.bp, 2)} ${esc(r.bc)}`
           : `${Number.isInteger(r.bp) ? fmtInt(r.bp) : fmtNum(r.bp, 2)} JPY`);
       // 御見積書は客先向け公式文書のため、社内メモ(r.note)は出力しない（E-1 備考漏洩対策）
@@ -402,7 +405,7 @@
           <td class="qd-num">${qtyDisp}</td>
           <td class="qd-ctr">${esc(r.un || '')}</td>
           <td class="qd-num">${unitDisp}</td>
-          <td class="qd-num">${isActual ? '実費' : isCond ? '' : isRef ? '<span style="color:#8a95a5;">(¥' + fmtInt(jpy) + ')</span>' : '¥' + fmtInt(jpy)}</td>
+          <td class="qd-num">${isActual ? '実費' : isCond ? '' : isRef ? '<span style="color:#8a95a5;">(¥' + fmtInt(jpy) + ')</span>' : estTag + '¥' + fmtInt(jpy)}</td>
         </tr>`
       );
     });
