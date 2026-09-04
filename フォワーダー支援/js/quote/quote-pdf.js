@@ -187,7 +187,7 @@
           : [r.carrier, r.service ? `(${r.service})` : ''].filter(Boolean).join(' ');
         const tt = r.tt ? `T/T: ${r.tt}` : '';
         const label = cond.routes.length === 1 ? '航路' : `航路${i + 1}`;
-        if (rt || carrier || tt) push(label, [rt, carrier, tt].filter(Boolean).join('　'));
+        if (rt || carrier || tt) push(label, [carrier, rt, tt].filter(Boolean).join('　'));
       });
     } else {
       push('積み地（POL）', cond.pol);
