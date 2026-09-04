@@ -1000,4 +1000,64 @@
     await window.mdLoadCloud();
   };
 
+  // === マスター詳細情報：添付ファイル（field/value 単位・保管期限なし） ===
+  //   保存先: master_attachments テーブル + Storage バケット masterAttachmentBucket。
+  //   quote_attachments（案件添付・14日で自動削除）とは別テーブル・別バケットで、
+  //   自動削除の仕組みは一切無い。クラウド専用機能（ローカルフォールバックは無し）。
+  const MA_TABLE  = 'master_attachments';
+  const MA_BUCKET = () => (window.CLOUD_CONFIG && window.CLOUD_CONFIG.masterAttachmentBucket) || 'master-attachments';
+  let _maTableMissing = false;
+
+  window.mdListAttachments = async function (field, value) {
+    if (!_cloud() || _maTableMissing || !field || !value) return [];
+    const { data, error } = await _c().from(MA_TABLE)
+      .select('id,file_name,file_size,mime_type,storage_path,uploaded_by,created_at')
+      .eq('field', field).eq('value', value)
+      .order('created_at', { ascending: false });
+    if (error) { if (_mdMissingErr(error)) _maTableMissing = true; return []; }
+    return data || [];
+  };
+
+  window.mdAttachUpload = async function (field, value, files) {
+    files = Array.prototype.slice.call(files || []);
+    if (!files.length || !field || !value) return;
+    const c = _c();
+    if (!c || !_me()) { if (window.quoteShowToast) window.quoteShowToast('⚠️ 添付にはログインが必要です', 'warn', 4000); return; }
+    let okN = 0;
+    for (const file of files) {
+      if (file.size > 25 * 1024 * 1024) { if (window.quoteShowToast) window.quoteShowToast('⚠️ ' + file.name + ' は25MB超のため添付不可', 'warn', 5000); continue; }
+      const src = (typeof window._compressImage === 'function') ? await window._compressImage(file) : file;
+      // Storage キーは ASCII 安全のみ（日本語/全角は Invalid key）。表示名は file_name に原文保持
+      const nm = src.name || file.name || 'file';
+      const dot = nm.lastIndexOf('.');
+      const ext = dot >= 0 ? nm.slice(dot).replace(/[^A-Za-z0-9.]/g, '') : '';
+      const base = (dot >= 0 ? nm.slice(0, dot) : nm).replace(/[^A-Za-z0-9._-]+/g, '_').replace(/_{2,}/g, '_').replace(/^_+|_+$/g, '').slice(0, 40) || 'file';
+      const path = field + '/' + Date.now() + '_' + Math.random().toString(36).slice(2, 8) + '_' + base + ext;
+      const up = await c.storage.from(MA_BUCKET()).upload(path, src, { contentType: src.type || undefined, upsert: false });
+      if (up.error) { if (window.quoteShowToast) window.quoteShowToast('⚠️ アップロード失敗：' + up.error.message, 'warn', 6000); continue; }
+      const ins = await c.from(MA_TABLE).insert({ field, value, storage_path: path, file_name: file.name, file_size: src.size, mime_type: src.type || null, uploaded_by: _me() });
+      if (ins.error) { if (window.quoteShowToast) window.quoteShowToast('⚠️ 記録失敗：' + ins.error.message, 'warn', 6000); try { await c.storage.from(MA_BUCKET()).remove([path]); } catch (e) {} continue; }
+      okN++;
+    }
+    if (okN && window.quoteShowToast) window.quoteShowToast('📎 ' + okN + ' 件を添付しました', 'success', 2500);
+    if (typeof window.statsRefreshMasterAttachments === 'function') window.statsRefreshMasterAttachments(field, value);
+  };
+
+  window.mdAttachOpen = async function (rawPath) {
+    const c = _c(); if (!c) return;
+    const res = await c.storage.from(MA_BUCKET()).createSignedUrl(decodeURIComponent(rawPath), 120);
+    if (res.error || !res.data) { if (window.quoteShowToast) window.quoteShowToast('⚠️ リンク作成に失敗しました', 'warn'); return; }
+    window.open(res.data.signedUrl, '_blank', 'noopener');
+  };
+
+  window.mdAttachDelete = async function (attId, rawPath, field, value) {
+    if (!confirm('この添付ファイルを削除しますか？（チーム全員から消えます）')) return;
+    const c = _c(); if (!c) return;
+    const del = await c.from(MA_TABLE).delete().eq('id', attId);
+    if (del.error) { if (window.quoteShowToast) window.quoteShowToast('⚠️ 削除に失敗：' + del.error.message, 'warn', 6000); return; }
+    try { await c.storage.from(MA_BUCKET()).remove([decodeURIComponent(rawPath)]); } catch (e) {}
+    if (window.quoteShowToast) window.quoteShowToast('🗑️ 添付を削除しました', 'info', 2200);
+    if (typeof window.statsRefreshMasterAttachments === 'function') window.statsRefreshMasterAttachments(field, value);
+  };
+
 })();

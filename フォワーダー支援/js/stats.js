@@ -1431,8 +1431,38 @@
       `<div class="master-detail-actions">` +
       `<button class="master-detail-save" onclick="statsSaveMasterDetail('${_ea(field)}','${_ea(value)}')">💾 保存</button>` +
       (existing ? `<button class="master-detail-del" onclick="statsDeleteMasterDetail('${_ea(field)}','${_ea(value)}')">削除</button>` : '') +
-      `</div></div></td>`;
+      `</div></div>` +
+      `<div class="master-attach-box">` +
+        `<div class="master-attach-hdr"><span>📎 添付ファイル（保管期限なし）</span>` +
+          `<label class="master-attach-upload-btn">＋ ファイルを追加` +
+            `<input type="file" multiple hidden onchange="mdAttachUpload('${_ea(field)}','${_ea(value)}',this.files);this.value='';"></label>` +
+        `</div>` +
+        `<div class="master-attach-list" id="mdAttachList"><span class="master-attach-loading">読み込み中…</span></div>` +
+      `</div></td>`;
     tr.after(row);
+    window.statsRefreshMasterAttachments(field, value);
+  };
+
+  // 添付ファイル一覧を再取得して #mdAttachList を再描画（アップロード／削除後にも呼ぶ）
+  window.statsRefreshMasterAttachments = async function (field, value) {
+    const wrap = document.getElementById('mdAttachList');
+    if (!wrap) return;
+    if (typeof window.mdListAttachments !== 'function') { wrap.innerHTML = '<span class="master-attach-empty">添付機能は未設定です</span>'; return; }
+    const items = await window.mdListAttachments(field, value);
+    const cur = document.getElementById('mdAttachList');   // 取得中に閉じられていたら何もしない
+    if (!cur) return;
+    if (!items.length) { cur.innerHTML = '<span class="master-attach-empty">添付はまだありません</span>'; return; }
+    cur.innerHTML = items.map(a => {
+      const who = (typeof window.quoteDisplayName === 'function') ? window.quoteDisplayName(a.uploaded_by) : (a.uploaded_by || '—');
+      const ts = a.created_at ? new Date(a.created_at).toLocaleDateString('ja-JP', { year: 'numeric', month: '2-digit', day: '2-digit' }) : '';
+      const sz = a.file_size ? (a.file_size > 1048576 ? (a.file_size / 1048576).toFixed(1) + 'MB' : Math.max(1, Math.round(a.file_size / 1024)) + 'KB') : '';
+      const icon = /pdf/i.test(a.mime_type || '') ? '📄' : (/image/i.test(a.mime_type || '') ? '🖼️' : '📎');
+      return '<div class="master-attach-item">' +
+        `<button type="button" class="master-attach-open" onclick="mdAttachOpen('${encodeURIComponent(a.storage_path)}')" title="開く／ダウンロード">${icon} ${_esc(a.file_name)}</button>` +
+        `<span class="master-attach-meta">${sz ? sz + ' · ' : ''}${_esc(who)} · ${ts}</span>` +
+        `<button type="button" class="master-attach-del" onclick="mdAttachDelete('${a.id}','${encodeURIComponent(a.storage_path)}','${_ea(field)}','${_ea(value)}')" title="削除">✕</button>` +
+      '</div>';
+    }).join('');
   };
 
   window.statsSaveMasterDetail = async function (field, value) {
