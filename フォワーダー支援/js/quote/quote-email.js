@@ -98,7 +98,7 @@
           name: r.name || '', qty, unit: r.un || '', ccy: r.bc || 'JPY',
           price, amount: sub, note: r.note || '', taxed: !!r.taxed, cat: r.cat || '',
           pt: (r.pt || '').trim(),   // パターン（スポット/年間契約 等）。小見出しに使う
-          actual: isActual, cond: isCond, ref: isRef,
+          actual: isActual, cond: isCond, ref: isRef, estimate: !!r._estimate,
         });
       }
     });
@@ -265,7 +265,7 @@
         if (run.pt) out.push(' 〔' + run.pt + '〕');
         run.items.forEach(it => {
           const ccy   = it.actual ? '' : (it.ccy || 'JPY');
-          const price = it.actual ? '実費' : fmtNum(it.price, it.ccy);
+          const price = it.actual ? '実費' : (it.estimate ? '約' : '') + fmtNum(it.price, it.ccy);
           out.push('  ' + [_itemLabel(it), ccy, price, it.unit].filter(Boolean).join(' | '));
           if (it.note) out.push('    ※' + it.note);
         });
