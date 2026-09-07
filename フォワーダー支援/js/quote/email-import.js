@@ -264,24 +264,20 @@
     document.querySelectorAll('#eiReviewWrap .ei-chk').forEach(c => { c.checked = on; });
   }
 
-  // レビュー表 → 行データ（cells 形式 + 小計行）へ変換。
-  // グループは小計行のラベルにするだけでなく、各行の pt（パターン。サブコン内の
-  // 入れ子キー・row.js の _rowInnerKey）にもそのまま登録する。これにより挿入後の
-  // 編集画面で「20'コンテナの場合」等のグループが自動的にパターン単位の小計
-  // （仕入合計・売値合計・粗利率）としてもまとまる。
+  // レビュー表 → 行データ（cells 形式）へ変換。
+  // グループは各行の pt（パターン。サブコン内の入れ子キー・row.js の _rowInnerKey）へ
+  // そのまま登録する。これにより挿入後の編集画面で「20'コンテナの場合」等のグループが
+  // 自動的にパターン単位の小計（仕入合計・売値合計・粗利率）としてまとまるため、
+  // 別途グループ変更のたびに小計行（_type:'subtotal'）を差し込む必要はない。
   function _gatherReviewRows() {
     const items = (_parsed?.entries || []).filter(e => e._kind === 'item');
     const out = [];
-    let lastGroup = null;
-    const flushGroup = () => { if (lastGroup) { out.push({ _type: 'subtotal', label: lastGroup }); lastGroup = null; } };
     document.querySelectorAll('#eiReviewWrap tbody tr').forEach(tr => {
       if (!tr.querySelector('.ei-chk')?.checked) return;
       const gi = parseInt(tr.dataset.gi, 10);
       const src = items[gi] || {};
       const v = cls => tr.querySelector('.' + cls)?.value ?? '';
       const group = v('ei-group').trim();
-      // グループが変わったら直前グループの小計行を差し込む
-      if (lastGroup !== null && group !== lastGroup) flushGroup();
       const cells = [false];
       const f = {
         cat: v('ei-cat'), sv: '', tx: !!src.taxed, nm: v('ei-name').trim(),
@@ -296,9 +292,7 @@
       CELL_FIELDS.forEach(k => cells.push(f[k]));
       if (!f.nm) return;
       out.push({ _type: 'data', cells });
-      lastGroup = group || null;
     });
-    flushGroup();
     return out;
   }
 
