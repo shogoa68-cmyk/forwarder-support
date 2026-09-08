@@ -3246,6 +3246,56 @@ body:has(#compareOverlay.open) #quoteActionDock { display: none; }
 }
 .master-detail-del:hover { background: #f8ece8; }
 
+/* マスター管理タブ：添付ファイル（保管期限なし） */
+.master-attach-box {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px dashed #d8cebc;
+}
+.master-attach-hdr {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 11px;
+  color: #6a5a48;
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+.master-attach-upload-btn {
+  font-size: 11px;
+  font-weight: 600;
+  color: #4a7a4a;
+  border: 1px solid #b8d4b8;
+  border-radius: 6px;
+  padding: 3px 10px;
+  cursor: pointer;
+  background: #f2f8f2;
+}
+.master-attach-upload-btn:hover { background: #e6f2e6; }
+.master-attach-list { display: flex; flex-direction: column; gap: 4px; }
+.master-attach-empty, .master-attach-loading { font-size: 11px; color: #9a8a70; }
+.master-attach-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11.5px;
+  background: #fff;
+  border: 1px solid #ece3d2;
+  border-radius: 6px;
+  padding: 4px 8px;
+}
+.master-attach-open {
+  border: none; background: none; cursor: pointer; padding: 0;
+  color: #3d6a9a; text-decoration: underline; font-size: 11.5px; text-align: left;
+}
+.master-attach-open:hover { color: #2a4d70; }
+.master-attach-meta { color: #9a8a70; font-size: 10.5px; white-space: nowrap; margin-left: auto; }
+.master-attach-del {
+  border: none; background: none; cursor: pointer; color: #a85838; font-size: 12px;
+  padding: 0 2px; line-height: 1;
+}
+.master-attach-del:hover { color: #7a3a20; }
+
 /* マスター管理タブ：活用説明インフォ */
 .stats-master-info {
   background: #f0ede5;

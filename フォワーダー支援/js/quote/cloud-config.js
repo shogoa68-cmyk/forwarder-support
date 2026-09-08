@@ -13,4 +13,7 @@ window.CLOUD_CONFIG = {
   publishableKey: 'sb_publishable_lZE95xEK5bHMI_CWPTg8-g_L6lLeAi7',
   table:          'quote_presets',
   attachmentBucket: 'quote-attachments',
+  // マスター管理（お客様マスター等）の添付ファイル用バケット。quote-attachments とは別の
+  // 専用バケット（14日自動削除の pg_cron 対象外・保管期限なし）。
+  masterAttachmentBucket: 'master-attachments',
 };

@@ -227,7 +227,7 @@
       const flags = (e.taxed ? '課税 ' : '') + (e.cond ? '都度 ' : '') + (e.ref ? '参考 ' : '') + (e.actual ? '実費' : '');
       html += `<tr data-gi="${gi}" class="ei-row ei-${e.conf}">` +
         `<td><input type="checkbox" class="ei-chk" checked></td>` +
-        `<td class="ei-group-cell"><input type="text" class="ei-in ei-group" value="${_esc(curGroup)}" title="小計行のラベルとして挿入（空欄可）">` +
+        `<td class="ei-group-cell"><input type="text" class="ei-in ei-group" value="${_esc(curGroup)}" title="挿入時：小計行のラベル、かつ各行の「パターン（任意）」に登録されます（空欄可）">` +
         `<button type="button" class="ei-group-pattern-btn" title="同じグループのチェック済み行を「行パターン」として登録" onclick="eiSaveGroupAsPattern(this)">🔖</button></td>` +
         `<td><select class="ei-in ei-cat">${_catOptions(cat)}</select></td>` +
         `<td><input type="text" class="ei-in ei-name" value="${_esc(e.name)}"></td>` +
@@ -264,20 +264,20 @@
     document.querySelectorAll('#eiReviewWrap .ei-chk').forEach(c => { c.checked = on; });
   }
 
-  // レビュー表 → 行データ（cells 形式 + 小計行）へ変換
+  // レビュー表 → 行データ（cells 形式）へ変換。
+  // グループは各行の pt（パターン。サブコン内の入れ子キー・row.js の _rowInnerKey）へ
+  // そのまま登録する。これにより挿入後の編集画面で「20'コンテナの場合」等のグループが
+  // 自動的にパターン単位の小計（仕入合計・売値合計・粗利率）としてまとまるため、
+  // 別途グループ変更のたびに小計行（_type:'subtotal'）を差し込む必要はない。
   function _gatherReviewRows() {
     const items = (_parsed?.entries || []).filter(e => e._kind === 'item');
     const out = [];
-    let lastGroup = null;
-    const flushGroup = () => { if (lastGroup) { out.push({ _type: 'subtotal', label: lastGroup }); lastGroup = null; } };
     document.querySelectorAll('#eiReviewWrap tbody tr').forEach(tr => {
       if (!tr.querySelector('.ei-chk')?.checked) return;
       const gi = parseInt(tr.dataset.gi, 10);
       const src = items[gi] || {};
       const v = cls => tr.querySelector('.' + cls)?.value ?? '';
       const group = v('ei-group').trim();
-      // グループが変わったら直前グループの小計行を差し込む
-      if (lastGroup !== null && group !== lastGroup) flushGroup();
       const cells = [false];
       const f = {
         cat: v('ei-cat'), sv: '', tx: !!src.taxed, nm: v('ei-name').trim(),
@@ -285,16 +285,14 @@
         pc: (v('ei-ccy').trim().toUpperCase() || 'JPY'), bc: (v('ei-ccy').trim().toUpperCase() || 'JPY'),
         pp: src.actual ? '' : v('ei-price'), bp: src.actual ? '' : v('ei-price'),
         cd: '', mk: '', nt: v('ei-note').trim(),
-        zc: '', vf: '', vt: '', ac: src.actual ? '1' : '', pt: '',
+        zc: '', vf: '', vt: '', ac: src.actual ? '1' : '', pt: group,
         ps: '', co: src.cond ? '1' : '', lu: '', ppmode: '', pprate: '', ppbase: '', uid: '', ppref: '',
         ri: src.ref ? '1' : '',
       };
       CELL_FIELDS.forEach(k => cells.push(f[k]));
       if (!f.nm) return;
       out.push({ _type: 'data', cells });
-      lastGroup = group || null;
     });
-    flushGroup();
     return out;
   }
 
@@ -358,6 +356,10 @@
     if (!rows.length) { if (window.quoteShowToast) quoteShowToast('⚠️ 挿入する行にチェックを入れてください', 'warn'); return; }
     if (typeof window.appendQuoteRows !== 'function') return;
     const n = window.appendQuoteRows(rows);
+    // appendQuoteRows() 自体はサブコン／パターンの入れ子グループ（見出し・小計の仮想行）を
+    // 再描画しないため、ここで明示的に呼ぶ。呼ばないと pt（パターン）へ登録したグループが
+    // 画面上には反映されず、他の操作で偶然再描画されるまで見えないままになる。
+    if (typeof renderSubconGroups === 'function') renderSubconGroups();
     closeEmailImport();
     if (typeof window.qpShowEditor === 'function') window.qpShowEditor();
     if (window.quoteShowToast) quoteShowToast('📩 メールから ' + n + ' 行を挿入しました', 'success');
