@@ -2023,7 +2023,9 @@
       if (!text) return '';
       return visible.length > 1 ? `【${pt.name || `パターン${i + 1}`}】${text}` : text;
     }).filter(Boolean);
-    return blocks.join('　');
+    // パターンごとに改行して区切る（PDF/プレビュー側は white-space:pre-line で折り返し表示、
+    // メール本文はプレーンテキストなのでそのまま改行になる）
+    return blocks.join('\n');
   };
 
   // 輸送モードに応じた課金重量（LCL＝R/T・航空＝CW）の1行を、PDF/プレビュー/メールで

@@ -437,7 +437,7 @@
     ].filter(Boolean).join('<br>');
 
     const metaRows = subj.meta.map(([k, v]) =>
-      `<div class="qd-srow"><span class="qd-sk">${esc(k)}</span><span class="qd-sv">${esc(v)}</span></div>`
+      `<div class="qd-srow"><span class="qd-sk">${esc(k)}</span><span class="qd-sv">${nl2br(v)}</span></div>`
     ).join('');
 
     return `
