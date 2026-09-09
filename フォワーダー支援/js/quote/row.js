@@ -767,8 +767,14 @@
     if (srcPt) { const ptEl = tr.querySelector('[data-field="pt"]'); if (ptEl) ptEl.value = srcPt; }
     tr.classList.add('row-unfilled');
     const refRow = document.getElementById(`row-${afterId}`);
-    if (refRow?.nextSibling) refRow.parentNode.insertBefore(tr, refRow.nextSibling);
-    else if (refRow)         refRow.parentNode.appendChild(tr);
+    // afterId に子リマーク行（dataset.parentId===afterId）が付いている場合、その直後に
+    // 挿入すると「afterId と子リマークの間」に新規行が割り込み、リマークが見た目上
+    // 新規行の直後（＝新規行に付随しているよう）に見えてしまう。子リマーク群の末尾を
+    // 挿入位置の基準にすることで、既存のリマークは元の親行に固定されたままにする。
+    const childRemarks = refRow ? getChildRemarks(afterId) : [];
+    const anchor = childRemarks.length ? childRemarks[childRemarks.length - 1] : refRow;
+    if (anchor?.nextSibling) anchor.parentNode.insertBefore(tr, anchor.nextSibling);
+    else if (anchor)         anchor.parentNode.appendChild(tr);
     else                     document.getElementById('tableBody').appendChild(tr);
     initDrag(tr);
     onCatChange(id);  // カテゴリ色を適用
