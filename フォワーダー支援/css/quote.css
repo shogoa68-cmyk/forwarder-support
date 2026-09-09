@@ -3651,7 +3651,7 @@
 }
 #tab-quote-make .pv-cond-item { display: flex; gap: 6px; font-size: 12px; }
 #tab-quote-make .pv-cond-lbl { color: #7d6b56; font-weight: 600; white-space: nowrap; }
-#tab-quote-make .pv-cond-val { color: #3d2e1e; }
+#tab-quote-make .pv-cond-val { color: #3d2e1e; white-space: pre-line; }
 #tab-quote-make .pv-cond-free {
   margin-top: 8px; padding-top: 8px;
   border-top: 1px dashed #e8d9c2;
