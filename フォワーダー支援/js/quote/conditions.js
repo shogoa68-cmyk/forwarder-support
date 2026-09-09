@@ -84,8 +84,13 @@
       incoterms: g('cond-incoterms'), mode: g('cond-mode'), container,
       cargo: g('cond-cargo'), hsCode: g('cond-hs'),
       hsBasic: g('cond-hs-basic'), hsPref: g('cond-hs-pref'), hsPrefNote: g('cond-hs-pref-note'),
-      weight: (_lastCargoMetrics.kg > 0 ? `${_lastCargoMetrics.kg.toLocaleString()} kg` : ''),
-      volume: (_lastCargoMetrics.cbm > 0 ? `${_lastCargoMetrics.cbm.toFixed(3)} CBM` : ''), packing: packing, hazmat: g('cond-hazmat'),
+      weight: (typeof window.getCargoWeightText === 'function')
+        ? window.getCargoWeightText()
+        : (_lastCargoMetrics.kg > 0 ? `${_lastCargoMetrics.kg.toLocaleString()} kg` : ''),
+      volume: (typeof window.getCargoVolumeText === 'function')
+        ? window.getCargoVolumeText()
+        : (_lastCargoMetrics.cbm > 0 ? `${_lastCargoMetrics.cbm.toFixed(3)} CBM` : ''),
+      packing: packing, hazmat: g('cond-hazmat'),
       free: g('condFreeText'),
       direction: _currentDirection || '',   // 'export' | 'import' | ''
     };
@@ -2007,25 +2012,60 @@
     }).join('／');
   }
 
+  // 「見積書に表示」がONのパターンのみを対象にする（🔒に切り替えたパターンは社内比較用のみ）
+  function _visiblePackingPatterns() {
+    return (_packingPatterns || [])
+      .map((pt, i) => ({ pt, i }))
+      .filter(({ pt }) => pt.showInQuote !== false);
+  }
+
+  // 表示対象パターンごとに blockFn(pt, i) の結果をまとめる共通処理。
+  // パターンが1件（＝複数パターン機能を使っていない案件、または表示対象が実質1件）なら
+  // パターン名を前置きしない（従来どおりの見た目を保つ）。2件以上表示する場合のみ
+  // 【パターン名】を前置きし、改行で区切る（荷姿明細・総重量・総容積で共用）。
+  function _buildPatternBreakdownText(blockFn) {
+    const visible = _visiblePackingPatterns();
+    const blocks = visible.map(({ pt, i }) => {
+      const text = blockFn(pt, i);
+      if (!text) return '';
+      return visible.length > 1 ? `【${pt.name || `パターン${i + 1}`}】${text}` : text;
+    }).filter(Boolean);
+    return blocks.join('\n');
+  }
+
+  // 1パターン分の総重量(kg)・総容積(CBM)
+  function _patternWeightCbm(entries) {
+    let kg = 0, cbm = 0;
+    (entries || []).forEach(e => {
+      const q = parseInt(e.qty, 10) || 0;
+      kg  += (parseFloat(e.kg) || 0) * q;
+      cbm += _rowCbm(e);
+    });
+    return { kg, cbm };
+  }
+
   window.getPackingDetailText = function () {
     if (window.isCargoSizeUnknown()) {
       const note = (document.getElementById('cond-cargo-unknown-note')?.value || '').trim();
       return 'サイズ・重量 不明（引き合い時点では未確定）' + (note ? '　' + note : '');
     }
-    // 「見積書に表示」がONのパターンのみを対象にする（🔒に切り替えたパターンは社内比較用のみ）。
-    // パターンが1件（＝複数パターン機能を使っていない案件）ならパターン名は前置きしない
-    // （従来どおりの見た目を保つ）。2件以上を表示する場合のみ【パターン名】を前置きする。
-    const visible = (_packingPatterns || [])
-      .map((pt, i) => ({ pt, i }))
-      .filter(({ pt }) => pt.showInQuote !== false);
-    const blocks = visible.map(({ pt, i }) => {
-      const text = _packingEntriesText(pt.entries);
-      if (!text) return '';
-      return visible.length > 1 ? `【${pt.name || `パターン${i + 1}`}】${text}` : text;
-    }).filter(Boolean);
-    // パターンごとに改行して区切る（PDF/プレビュー側は white-space:pre-line で折り返し表示、
-    // メール本文はプレーンテキストなのでそのまま改行になる）
-    return blocks.join('\n');
+    return _buildPatternBreakdownText((pt) => _packingEntriesText(pt.entries));
+  };
+
+  // 総重量・総容積（複数パターンを表示する場合はパターンごとに内訳を出す）
+  window.getCargoWeightText = function () {
+    if (window.isCargoSizeUnknown()) return '';
+    return _buildPatternBreakdownText((pt) => {
+      const { kg } = _patternWeightCbm(pt.entries);
+      return kg > 0 ? `${kg.toLocaleString()} kg` : '';
+    });
+  };
+  window.getCargoVolumeText = function () {
+    if (window.isCargoSizeUnknown()) return '';
+    return _buildPatternBreakdownText((pt) => {
+      const { cbm } = _patternWeightCbm(pt.entries);
+      return cbm > 0 ? `${cbm.toFixed(3)} CBM` : '';
+    });
   };
 
   // 輸送モードに応じた課金重量（LCL＝R/T・航空＝CW）の1行を、PDF/プレビュー/メールで
