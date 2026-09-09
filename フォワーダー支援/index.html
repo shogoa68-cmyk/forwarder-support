@@ -3424,6 +3424,7 @@
                 <div class="cd-unknown-note" id="cdUnknownNoteWrap" hidden>
                   <input type="text" id="cond-cargo-unknown-note" placeholder="任意）分かっている範囲の情報（例：20FT×1本相当、総重量約3トン 等）" />
                 </div>
+                <div class="cd-pattern-tabs" id="cdPatternTabs" title="荷姿・貨物明細の想定パターンを複数作成し、切り替えて比較できます（合算ではなく代替シナリオ）"></div>
                 <div class="cargo-detail-scroll">
                   <table class="cargo-detail-table" id="cargoDetailTable">
                     <thead>
@@ -3465,6 +3466,7 @@
                   <button type="button" class="me-add-btn pki-open-btn" onclick="openPackingImport()" title="お客様から提供された物量表（パッキングリスト等）を貼り付けて一括登録">📋 貼り付けで一括登録</button>
                 </div>
                 <input type="hidden" id="cond-packing-data" />
+                <input type="hidden" id="cond-packing-patterns" />
                 <datalist id="packingOptions"></datalist>
               </div>
             </div>

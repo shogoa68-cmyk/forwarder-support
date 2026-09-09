@@ -22,6 +22,8 @@
     // コンテナ・荷姿・航路の複数エントリもクリア
     _containerEntries = [];
     _packingEntries = [];
+    _packingPatterns = [{ name: '', entries: _packingEntries }];
+    _packingActiveIdx = 0;
     _routeEntries = [];
     if (typeof _renderContainerEntries === 'function') _renderContainerEntries();
     if (typeof _renderPackingEntries === 'function') _renderPackingEntries();
@@ -1346,7 +1348,13 @@
   // ========== コンテナ／荷姿 複数エントリ管理 ==========
   // 「入力 → 追加 → 行追加」を繰り返して複数のコンテナ種類・荷姿を登録できる
   let _containerEntries = [];   // [{ type:"20'GP", count:2 }, ...]
-  let _packingEntries   = [];   // ["カートン", "パレット", ...]
+  let _packingEntries   = [];   // ["カートン", "パレット", ...]（常に現在アクティブなパターンの entries を指す）
+  // 荷姿・貨物明細の「想定パターン」（代替シナリオ。合算ではなく切り替えて比較する）。
+  // 常に1件以上存在する。_packingEntries は _packingPatterns[_packingActiveIdx].entries への
+  // 参照そのもの（同じ配列オブジェクトを指す）にしているため、既存の add/remove/update 系の
+  // 関数はそのまま _packingEntries を触るだけで、自動的に現在のパターンへ反映される。
+  let _packingPatterns  = [{ name: '', entries: _packingEntries }];
+  let _packingActiveIdx = 0;
 
   function _renderContainerEntries() {
     const data = document.getElementById('cond-container-data');
@@ -1771,10 +1779,90 @@
     if (typeof scheduleSnapshot === 'function') scheduleSnapshot();
   }
 
+  // 想定パターン（_packingPatterns）を hidden へ保存。_packingEntries は現在アクティブな
+  // パターンの entries そのもの（同一配列参照）なので、ここでは配列の中身を触らず
+  // アクティブ index と全パターン分のスナップショットをまとめて書き出すだけでよい。
+  function _syncPackingPatternsData() {
+    const el = document.getElementById('cond-packing-patterns');
+    if (!el) return;
+    el.value = JSON.stringify({ activeIdx: _packingActiveIdx, patterns: _packingPatterns });
+  }
+
+  function _renderPackingPatternTabs() {
+    const wrap = document.getElementById('cdPatternTabs');
+    if (!wrap) return;
+    // パターンが1件だけ（かつ無名）なら、まだ複数パターンを使っていない案件なので
+    // タブ自体は出さず「＋ 別パターンを作成」だけ出す
+    const onlyOneUnnamed = _packingPatterns.length === 1 && !_packingPatterns[0].name;
+    const tabsHtml = onlyOneUnnamed ? '' : _packingPatterns.map((pt, i) => {
+      const label = pt.name || `パターン${i + 1}`;
+      const active = i === _packingActiveIdx;
+      const n = (pt.entries || []).filter(e => e && e.pkg).length;
+      return `<span class="cd-pattern-tab${active ? ' is-active' : ''}" onclick="switchPackingPattern(${i})" title="クリックでこのパターンに切り替え（他のパターンの内容は保持されます）">` +
+        `<span class="cd-pattern-tab-label">${_escMulti(label)}</span>` +
+        (n ? `<span class="cd-pattern-tab-count">${n}</span>` : '') +
+        `<span class="cd-pattern-tab-rename" onclick="event.stopPropagation();renamePackingPattern(${i})" title="パターン名を変更">✎</span>` +
+        (_packingPatterns.length > 1 ? `<span class="cd-pattern-tab-del" onclick="event.stopPropagation();removePackingPattern(${i})" title="このパターンを削除">×</span>` : '') +
+        `</span>`;
+    }).join('');
+    wrap.innerHTML = tabsHtml +
+      `<button type="button" class="cd-pattern-add-btn" onclick="addPackingPattern()" title="荷姿・貨物明細の代替シナリオ（例：パレット梱包の場合／バラ積みの場合）を追加し、切り替えて比較できます">＋ 別パターンを作成</button>`;
+  }
+
+  window.switchPackingPattern = function (i) {
+    if (i === _packingActiveIdx || !_packingPatterns[i]) return;
+    _packingActiveIdx = i;
+    _packingEntries = _packingPatterns[i].entries;
+    _renderPackingEntries();
+    if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
+    if (typeof scheduleSnapshot === 'function') scheduleSnapshot();
+  };
+
+  window.addPackingPattern = function () {
+    const name = prompt('新しいパターン名を入力してください（例：パレット梱包の場合）');
+    if (name == null) return;   // キャンセル
+    // 現パターンが無名・未入力のまま2件目を作ろうとした場合の事故防止に、既定名を補う
+    _packingPatterns.forEach((pt, i) => { if (!pt.name) pt.name = `パターン${i + 1}`; });
+    _packingPatterns.push({ name: name.trim() || `パターン${_packingPatterns.length + 1}`, entries: [] });
+    _packingActiveIdx = _packingPatterns.length - 1;
+    _packingEntries = _packingPatterns[_packingActiveIdx].entries;
+    _renderPackingEntries();
+    if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
+    if (typeof scheduleSnapshot === 'function') scheduleSnapshot();
+  };
+
+  window.renamePackingPattern = function (i) {
+    const pt = _packingPatterns[i];
+    if (!pt) return;
+    const name = prompt('パターン名を入力してください', pt.name || `パターン${i + 1}`);
+    if (name == null) return;
+    pt.name = name.trim();
+    _renderPackingPatternTabs();
+    _syncPackingPatternsData();
+    if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
+    if (typeof scheduleSnapshot === 'function') scheduleSnapshot();
+  };
+
+  window.removePackingPattern = function (i) {
+    if (_packingPatterns.length <= 1 || !_packingPatterns[i]) return;
+    const label = _packingPatterns[i].name || `パターン${i + 1}`;
+    if (!confirm(`「${label}」を削除しますか？（このパターンの荷姿・貨物明細のみ削除されます）`)) return;
+    _packingPatterns.splice(i, 1);
+    // 削除したものがアクティブだった／それより手前なら index を合わせ直す
+    if (_packingActiveIdx >= _packingPatterns.length) _packingActiveIdx = _packingPatterns.length - 1;
+    else if (i < _packingActiveIdx) _packingActiveIdx--;
+    _packingEntries = _packingPatterns[_packingActiveIdx].entries;
+    _renderPackingEntries();
+    if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
+    if (typeof scheduleSnapshot === 'function') scheduleSnapshot();
+  };
+
   function _renderPackingEntries() {
     const body = document.getElementById('cargoDetailBody');
     const data = document.getElementById('cond-packing-data');
     if (data) data.value = JSON.stringify(_packingEntries);
+    _renderPackingPatternTabs();
+    _syncPackingPatternsData();
     // datalist（荷姿候補）を用意
     const dl = document.getElementById('packingOptions');
     if (dl && !dl.dataset.filled) {
@@ -1929,11 +2017,15 @@
     if (document.getElementById('cond-packing-data')) {
       document.getElementById('cond-packing-data').value = JSON.stringify(_packingEntries);
     }
+    // _packingEntries は _packingPatterns[_packingActiveIdx].entries と同じ配列を指しているため
+    // 中身の更新はここまでで反映済み。cond-packing-patterns（保存用スナップショット）だけ同期する
+    _syncPackingPatternsData();
     // CBM セルとフッターのみ更新（フォーカスを維持するため全再描画しない）
     if (['qty','l','w','h'].includes(key)) {
       const cell = document.getElementById('cdCbm-' + i);
       if (cell) cell.textContent = _rowCbm(_packingEntries[i]).toFixed(3);
     }
+    if (key === 'pkg') _renderPackingPatternTabs();   // タブの件数バッジ（荷姿名ありの行数）を更新
     _updatePackingTotals();
     if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
     if (typeof scheduleSnapshot === 'function') scheduleSnapshot();
@@ -1986,6 +2078,25 @@
     _packingEntries = _packingEntries.map(e =>
       (typeof e === 'string') ? { pkg: e, qty: 1, l:'', w:'', h:'', kg:'', stack:'可' } : e
     );
+    // 荷姿・貨物明細の想定パターン（cond-packing-patterns）を復元。
+    // 無ければ旧データ（パターン未対応）とみなし、cond-packing-data の内容を単一パターンとして扱う。
+    const ptData = document.getElementById('cond-packing-patterns');
+    let restoredPt = null;
+    try { restoredPt = (ptData && ptData.value) ? JSON.parse(ptData.value) : null; }
+    catch (e) { restoredPt = null; }
+    if (restoredPt && Array.isArray(restoredPt.patterns) && restoredPt.patterns.length) {
+      _packingPatterns = restoredPt.patterns.map(pt => ({
+        name: (pt && pt.name) || '',
+        entries: Array.isArray(pt && pt.entries)
+          ? pt.entries.map(e => (typeof e === 'string') ? { pkg: e, qty: 1, l:'', w:'', h:'', kg:'', stack:'可' } : e)
+          : [],
+      }));
+      _packingActiveIdx = (Number.isInteger(restoredPt.activeIdx) && _packingPatterns[restoredPt.activeIdx]) ? restoredPt.activeIdx : 0;
+      _packingEntries = _packingPatterns[_packingActiveIdx].entries;
+    } else {
+      _packingPatterns = [{ name: '', entries: _packingEntries }];
+      _packingActiveIdx = 0;
+    }
     _renderContainerEntries();
     if (typeof _applyContainerView === 'function') _applyContainerView();
     _renderPackingEntries();
