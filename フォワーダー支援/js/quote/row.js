@@ -1320,7 +1320,7 @@
         // ¥0✓ とは排他：0円バッジ/ボタンの ON を解除
         const zcBtnA = trEl0?.querySelector('.zero-confirm-btn');
         if (zcBtnA) zcBtnA.classList.remove('is-on');
-        updateTotals();
+        scheduleUpdateTotals();
         return;
       }
       const estPrefix = isEstimate ? '<span class="est-prefix" title="概算（目安の金額）">約</span>' : '';
@@ -1354,7 +1354,7 @@
       pr.textContent = fmt(profit);
     }
     pr.className = `profit-cell ${pClass(profit)}`;
-    updateTotals();
+    scheduleUpdateTotals();
   }
 
   function pClass(p) {
@@ -1579,6 +1579,18 @@
     // 全角数字・小数点・マイナスを半角化（IME 確定ミスやコピペでの 0 欠落を防ぐ）
     v = String(v).replace(/[０-９．－]/g, ch => String.fromCharCode(ch.charCodeAt(0) - 0xFEE0));
     return parseFloat(v) || 0;
+  }
+
+  // updateTotals() はテーブル全体を6回ほどフルスキャンする重い処理（進捗バッジ・有効期限
+  // 判定・合計・小計行・サブコン別集計）。calc()/onPay() から数量・単価・乗せ幅の入力の
+  // たびに同期で呼ぶと、行数が多い案件でキー入力ごとに毎回フルスキャンが走り体感が重くなる。
+  // 行自体の小計セル（st-id）は calc() 内で即時反映済みなので、全体合計側は少し遅れても
+  // 実用上問題ない。短時間にまとまった入力を1回にまとめて実行する。
+  let _totalsDebounceTimer = null;
+  function scheduleUpdateTotals() {
+    if (_quoteBulkUpdate) return;   // 一括更新中はまとめて後で 1 回だけ実行する（呼び出し元が updateTotals() を直接呼ぶ）
+    clearTimeout(_totalsDebounceTimer);
+    _totalsDebounceTimer = setTimeout(updateTotals, 180);
   }
 
   function updateTotals() {
