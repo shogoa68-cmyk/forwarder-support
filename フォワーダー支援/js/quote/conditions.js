@@ -1798,15 +1798,18 @@
       const label = pt.name || `パターン${i + 1}`;
       const active = i === _packingActiveIdx;
       const n = (pt.entries || []).filter(e => e && e.pkg).length;
-      return `<span class="cd-pattern-tab${active ? ' is-active' : ''}" onclick="switchPackingPattern(${i})" title="クリックでこのパターンに切り替え（他のパターンの内容は保持されます）">` +
+      const shown = pt.showInQuote !== false;   // 未設定（旧データ）は表示扱い
+      return `<span class="cd-pattern-tab${active ? ' is-active' : ''}${shown ? '' : ' is-hidden-from-quote'}" onclick="switchPackingPattern(${i})" title="クリックでこのパターンに切り替え（他のパターンの内容は保持されます）">` +
         `<span class="cd-pattern-tab-label">${_escMulti(label)}</span>` +
         (n ? `<span class="cd-pattern-tab-count">${n}</span>` : '') +
+        `<span class="cd-pattern-tab-vis" onclick="event.stopPropagation();togglePackingPatternVisibility(${i})" title="${shown ? 'クリックで「見積書に表示しない」に切替（社内比較用のみになります）' : 'クリックで「見積書に表示」に切替'}">${shown ? '📄' : '🔒'}</span>` +
         `<span class="cd-pattern-tab-rename" onclick="event.stopPropagation();renamePackingPattern(${i})" title="パターン名を変更">✎</span>` +
         (_packingPatterns.length > 1 ? `<span class="cd-pattern-tab-del" onclick="event.stopPropagation();removePackingPattern(${i})" title="このパターンを削除">×</span>` : '') +
         `</span>`;
     }).join('');
     wrap.innerHTML = tabsHtml +
-      `<button type="button" class="cd-pattern-add-btn" onclick="addPackingPattern()" title="荷姿・貨物明細の代替シナリオ（例：パレット梱包の場合／バラ積みの場合）を追加し、切り替えて比較できます">＋ 別パターンを作成</button>`;
+      `<button type="button" class="cd-pattern-add-btn" onclick="addPackingPattern()" title="荷姿・貨物明細の代替シナリオ（例：パレット梱包の場合／バラ積みの場合）を追加し、切り替えて比較できます">＋ 別パターンを作成</button>` +
+      `<button type="button" class="cd-pattern-add-btn cd-pattern-dup-btn" onclick="duplicatePackingPattern()" title="表示中のパターンの内容をコピーして新しいパターンを作ります（似た構成のパターンを作るときに便利）">📋 複製して作成</button>`;
   }
 
   window.switchPackingPattern = function (i) {
@@ -1818,6 +1821,20 @@
     if (typeof scheduleSnapshot === 'function') scheduleSnapshot();
   };
 
+  // 客先向け出力（御見積書PDF・プレビュー・メール本文）にこのパターンを含めるかどうかの切替。
+  // 非表示にしても案件内には残り、社内での比較検討用パターンとして使い続けられる
+  // （リマーク行の「見積書に表示 ⇔ 社内メモ」と同じ考え方）。
+  window.togglePackingPatternVisibility = function (i) {
+    const pt = _packingPatterns[i];
+    if (!pt) return;
+    pt.showInQuote = (pt.showInQuote === false);   // false→true→false…と反転
+    _renderPackingPatternTabs();
+    _syncPackingPatternsData();
+    if (typeof window.renderQuoteCargoInfo === 'function') window.renderQuoteCargoInfo();
+    if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
+    if (typeof scheduleSnapshot === 'function') scheduleSnapshot();
+  };
+
   window.addPackingPattern = function () {
     const name = prompt('新しいパターン名を入力してください（例：パレット梱包の場合）');
     if (name == null) return;   // キャンセル
@@ -1825,6 +1842,27 @@
     _packingPatterns.forEach((pt, i) => { if (!pt.name) pt.name = `パターン${i + 1}`; });
     _packingPatterns.push({ name: name.trim() || `パターン${_packingPatterns.length + 1}`, entries: [] });
     _packingActiveIdx = _packingPatterns.length - 1;
+    _packingEntries = _packingPatterns[_packingActiveIdx].entries;
+    _renderPackingEntries();
+    if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
+    if (typeof scheduleSnapshot === 'function') scheduleSnapshot();
+  };
+
+  // 表示中のパターンを複製して新しいパターンを作る（似た構成から差分だけ直したい場合向け）
+  window.duplicatePackingPattern = function () {
+    const src = _packingPatterns[_packingActiveIdx];
+    if (!src) return;
+    const srcLabel = src.name || `パターン${_packingActiveIdx + 1}`;
+    const name = prompt('複製後のパターン名を入力してください', `${srcLabel}のコピー`);
+    if (name == null) return;   // キャンセル
+    _packingPatterns.forEach((pt, i) => { if (!pt.name) pt.name = `パターン${i + 1}`; });
+    const cloned = {
+      name: name.trim() || `${srcLabel}のコピー`,
+      entries: (src.entries || []).map(e => ({ ...e })),   // 参照を共有しないよう複製
+      showInQuote: src.showInQuote,
+    };
+    _packingPatterns.splice(_packingActiveIdx + 1, 0, cloned);   // 複製元の直後に挿入
+    _packingActiveIdx += 1;
     _packingEntries = _packingPatterns[_packingActiveIdx].entries;
     _renderPackingEntries();
     if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
@@ -1956,12 +1994,9 @@
   // 共通利用できる読みやすい文字列にする。cond.packing（品名×個数のみ）より詳細。
   // 荷姿名（pkg）が未入力でも、寸法・重量のいずれかがあれば出力する
   // （総重量・総容積・R/T/CW は pkg 未入力の行も含めて集計されるため、そこと矛盾しないように）。
-  window.getPackingDetailText = function () {
-    if (window.isCargoSizeUnknown()) {
-      const note = (document.getElementById('cond-cargo-unknown-note')?.value || '').trim();
-      return 'サイズ・重量 不明（引き合い時点では未確定）' + (note ? '　' + note : '');
-    }
-    const named = (_packingEntries || []).filter(e => e && (e.pkg || e.l || e.w || e.h || e.kg));
+  // 1パターン分の明細行を読みやすい文字列に（「荷姿 × 個数（寸法、重量、段積み）」を／区切り）
+  function _packingEntriesText(entries) {
+    const named = (entries || []).filter(e => e && (e.pkg || e.l || e.w || e.h || e.kg));
     if (!named.length) return '';
     return named.map(e => {
       const dim = [e.l, e.w, e.h].every(x => x) ? `${e.l}×${e.w}×${e.h}cm` : '';
@@ -1970,6 +2005,25 @@
       const extra = [dim, kg, stackNote].filter(Boolean).join('、');
       return `${e.pkg || '荷姿未設定'} × ${e.qty || 1}${extra ? `（${extra}）` : ''}`;
     }).join('／');
+  }
+
+  window.getPackingDetailText = function () {
+    if (window.isCargoSizeUnknown()) {
+      const note = (document.getElementById('cond-cargo-unknown-note')?.value || '').trim();
+      return 'サイズ・重量 不明（引き合い時点では未確定）' + (note ? '　' + note : '');
+    }
+    // 「見積書に表示」がONのパターンのみを対象にする（🔒に切り替えたパターンは社内比較用のみ）。
+    // パターンが1件（＝複数パターン機能を使っていない案件）ならパターン名は前置きしない
+    // （従来どおりの見た目を保つ）。2件以上を表示する場合のみ【パターン名】を前置きする。
+    const visible = (_packingPatterns || [])
+      .map((pt, i) => ({ pt, i }))
+      .filter(({ pt }) => pt.showInQuote !== false);
+    const blocks = visible.map(({ pt, i }) => {
+      const text = _packingEntriesText(pt.entries);
+      if (!text) return '';
+      return visible.length > 1 ? `【${pt.name || `パターン${i + 1}`}】${text}` : text;
+    }).filter(Boolean);
+    return blocks.join('　');
   };
 
   // 輸送モードに応じた課金重量（LCL＝R/T・航空＝CW）の1行を、PDF/プレビュー/メールで
@@ -2090,6 +2144,7 @@
         entries: Array.isArray(pt && pt.entries)
           ? pt.entries.map(e => (typeof e === 'string') ? { pkg: e, qty: 1, l:'', w:'', h:'', kg:'', stack:'可' } : e)
           : [],
+        showInQuote: (pt && pt.showInQuote === false) ? false : true,
       }));
       _packingActiveIdx = (Number.isInteger(restoredPt.activeIdx) && _packingPatterns[restoredPt.activeIdx]) ? restoredPt.activeIdx : 0;
       _packingEntries = _packingPatterns[_packingActiveIdx].entries;
