@@ -556,6 +556,13 @@
         html += `<tr class="pv-subcon-header pv-grp-c${d.gi % 4}">
           <td colspan="17" class="pv-sch-cell">${escHtml(_dispH)}</td>
         </tr>`;
+        // サブコン別リマーク（「見積書に表示」がONのときのみ客先向け出力にも表示）
+        const _remarkH = (typeof getSubconRemarks === 'function' ? getSubconRemarks()[d.normKey] : null);
+        if (_remarkH && _remarkH.show && _remarkH.text && _remarkH.text.trim()) {
+          html += `<tr class="pv-subcon-remark-row pv-grp-c${d.gi % 4}">
+            <td colspan="17" class="pv-subcon-remark-cell">📝 ${escHtml(_remarkH.text)}</td>
+          </tr>`;
+        }
         return;
       }
       if (d._type === 'subcon-subtotal') {

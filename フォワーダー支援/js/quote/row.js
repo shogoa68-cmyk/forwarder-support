@@ -2304,6 +2304,8 @@
   const _excludedPatterns  = new Set(); // svKey + '\x00' + ptKey
   // サブコン別小計の「客先用表示名」（sv キー → 置換テキスト）。客先向け出力でサブコン名を隠すために使う。
   const _subconAlias     = Object.create(null);
+  // サブコン別小計の「客先向けリマーク」（sv キー → {text, show}）。show=false は見積書・PDF・メールに出力しない。
+  const _subconRemark    = Object.create(null);
   // グループ（サブコンブロック）ドラッグ並べ替え中の掴んでいるグループキー
   let _draggingGroupKey  = null;
   // パターン（サブコン内の入れ子ブロック）ドラッグ並べ替え中の掴んでいるパターンキー
@@ -2633,6 +2635,7 @@
         sub.dataset.svKey   = key;
         sub.dataset.subSum  = '1';
         sub.className = 'subcon-group-subtotal';
+        const remarkObj = _subconRemark[key] || { text: '', show: true };
         sub.innerHTML =
           `<td colspan="10" class="subcon-group-subtotal-cell">` +
             `<div class="subcon-subtotal-inner">` +
@@ -2646,6 +2649,13 @@
               `</span>` +
               `<button type="button" class="subcon-subtotal-add-btn" ` +
                 `title="${_escAttr(label)} に行を追加（このサブコン末尾）">＋ 行追加</button>` +
+              `<span class="st-remark" title="このサブコンに関する注記。「見積書に表示」がONの間だけ客先向け出力（プレビュー・御見積書PDF）にも表示されます。">` +
+                `<i>📝 サブコン別リマーク</i>` +
+                `<input type="text" class="subcon-remark-input" placeholder="このサブコンへの注記（任意）" value="${_escAttr(remarkObj.text || '')}" />` +
+                `<button type="button" class="subcon-remark-toggle${remarkObj.show ? ' is-shown' : ''}" ` +
+                  `title="${remarkObj.show ? 'クリックで見積書には表示しない（社内用）にする' : 'クリックで見積書にも表示する'}">` +
+                  `${remarkObj.show ? '📄 見積書に表示' : '🔒 非表示'}</button>` +
+              `</span>` +
             `</div>` +
           `</td>`;
         // 末尾行の次（既存の小計・リマーク行があればその手前）に挿入
@@ -2664,6 +2674,36 @@
           addBtn.addEventListener('click', e => {
             e.stopPropagation();
             addRowToSubconGroup(key === _UNSET_KEY ? '' : label, '');
+          });
+        }
+        const remarkInp    = sub.querySelector('.subcon-remark-input');
+        const remarkToggle = sub.querySelector('.subcon-remark-toggle');
+        if (remarkInp) {
+          remarkInp.addEventListener('input', () => {
+            const t = remarkInp.value;
+            if (t.trim()) {
+              const cur = _subconRemark[key] || { show: true };
+              cur.text = t;
+              _subconRemark[key] = cur;
+            } else {
+              delete _subconRemark[key];
+            }
+            if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
+          });
+          remarkInp.addEventListener('click', e => e.stopPropagation());
+        }
+        if (remarkToggle) {
+          remarkToggle.addEventListener('click', e => {
+            e.stopPropagation();
+            const t = remarkInp ? remarkInp.value : '';
+            const cur = _subconRemark[key] || { text: t, show: true };
+            cur.show = !cur.show;
+            cur.text = t;
+            if (t.trim()) _subconRemark[key] = cur; else delete _subconRemark[key];
+            remarkToggle.classList.toggle('is-shown', cur.show);
+            remarkToggle.textContent = cur.show ? '📄 見積書に表示' : '🔒 非表示';
+            remarkToggle.title = cur.show ? 'クリックで見積書には表示しない（社内用）にする' : 'クリックで見積書にも表示する';
+            if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
           });
         }
         // lastRow の直後に付随する typed 行（社内メモ・備考等）をスキップして小計を挿入
@@ -3201,6 +3241,26 @@
         if (!obj[k]) return;
         const nk = subconNormKey(k) || k;
         _subconAlias[nk] = obj[k];
+      });
+    }
+  };
+
+  window.getSubconRemarks = () => {
+    const out = {};
+    Object.keys(_subconRemark).forEach(k => {
+      const v = _subconRemark[k];
+      if (v && typeof v.text === 'string' && v.text.trim()) out[k] = { text: v.text, show: v.show !== false };
+    });
+    return out;
+  };
+  window.setSubconRemarks = (obj) => {
+    Object.keys(_subconRemark).forEach(k => delete _subconRemark[k]);
+    if (obj && typeof obj === 'object') {
+      Object.keys(obj).forEach(k => {
+        const v = obj[k];
+        if (!v || typeof v.text !== 'string' || !v.text.trim()) return;
+        const nk = subconNormKey(k) || k;
+        _subconRemark[nk] = { text: v.text, show: v.show !== false };
       });
     }
   };

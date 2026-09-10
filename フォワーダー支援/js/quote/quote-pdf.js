@@ -348,6 +348,11 @@
           // 各サブコンブロックの先頭に見出しを置き、どのサブコンの明細かを明示する
           const _alH = (typeof getSubconAliases === 'function' ? getSubconAliases()[_scKey] : '') || '';
           lineHTML.push(`<tr class="qd-subcon-head"><td colspan="5">${esc(_alH || _scLabel)}</td></tr>`);
+          // サブコン別リマーク（「見積書に表示」がONのときのみ御見積書PDFにも表示）
+          const _rmH = (typeof getSubconRemarks === 'function' ? getSubconRemarks()[_scKey] : null);
+          if (_rmH && _rmH.show && _rmH.text && _rmH.text.trim()) {
+            lineHTML.push(`<tr class="qd-subcon-remark"><td colspan="5">📝 ${esc(_rmH.text)}</td></tr>`);
+          }
           _catKey = null;   // 新しいサブコンに入ったのでカテゴリ見出しを再出させる
           const ps = scPatternSets[k] || new Set();
           _ptActive = ps.size >= 2 || (ps.size === 1 && !ps.has(''));
