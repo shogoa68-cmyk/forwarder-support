@@ -3980,6 +3980,17 @@
 #tab-quote-make #previewTable .pv-grp-c2 { --pv-ga: #3f9e6f; }
 #tab-quote-make #previewTable .pv-grp-c3 { --pv-ga: #9b6bbf; }
 #tab-quote-make #previewTable tr.pv-subcon-header .pv-sch-cell { border-left: 5px solid var(--pv-ga); }
+/* サブコン別リマーク（見出し帯の直下・「見積書に表示」ONのときのみ出力） */
+#tab-quote-make #previewTable tr.pv-subcon-remark-row td {
+  background: #fdf8ec;
+  border-left: 5px solid var(--pv-ga);
+  padding: 3px 8px;
+}
+#tab-quote-make #previewTable .pv-subcon-remark-cell {
+  text-align: left !important;
+  color: #7a5c32;
+  font-size: 11px;
+}
 #tab-quote-make #previewTable tr.pv-grp-row > td:first-child { border-left: 5px solid var(--pv-ga); }
 #tab-quote-make #previewTable tr.pv-subcon-subtotal > td:first-child { border-left: 5px solid var(--pv-ga); }
 #tab-quote-make #previewTable tr.pv-pattern-header td,
@@ -9497,7 +9508,7 @@ button.um-memberno--empty:hover { background: #f4ead4; border-color: #cdb98e; }
 /* バグ修正：display:flex を td から内側 div へ移し、colspan が潰れないようにする */
 #tab-quote-make .subcon-group-subtotal-cell { padding: 0; }
 #tab-quote-make .subcon-subtotal-inner {
-  background: #3a2c1c; padding: 8px 18px;
+  background: #3a2c1c; padding: 14px 18px;
   display: flex; align-items: center; gap: 10px 20px; flex-wrap: wrap;
 }
 #tab-quote-make .subcon-subtotal-label {
@@ -9542,6 +9553,34 @@ button.um-memberno--empty:hover { background: #f4ead4; border-color: #cdb98e; }
 #tab-quote-make .subcon-subtotal-inner .st-alias .subcon-alias-input::placeholder { color: #9c8a6a; }
 #tab-quote-make .subcon-subtotal-inner .st-alias .subcon-alias-input:focus {
   outline: none; background: #fff; border-color: #c9a55f; box-shadow: 0 0 0 2px rgba(201,165,95,.35);
+}
+/* サブコン別リマーク（客先向け出力への表示可否をトグルできる注記）。常に新しい行に折り返す */
+#tab-quote-make .subcon-subtotal-inner .st-remark {
+  display: flex; align-items: center; gap: 6px;
+  flex-basis: 100%; width: 100%;
+  margin-top: 6px; padding-top: 8px; border-top: 1px dashed rgba(255,255,255,.18);
+}
+#tab-quote-make .subcon-subtotal-inner .st-remark i {
+  font-style: normal; font-size: 10px; font-weight: 700; color: #b89e74; white-space: nowrap;
+}
+#tab-quote-make .subcon-subtotal-inner .st-remark .subcon-remark-input {
+  pointer-events: auto;
+  font-size: 12px; color: #2c2418; background: #f3e8d2;
+  border: 1px solid #6b5636; border-radius: 4px; padding: 3px 8px;
+  flex: 1 1 240px; min-width: 120px; max-width: 480px;
+}
+#tab-quote-make .subcon-subtotal-inner .st-remark .subcon-remark-input::placeholder { color: #9c8a6a; }
+#tab-quote-make .subcon-subtotal-inner .st-remark .subcon-remark-input:focus {
+  outline: none; background: #fff; border-color: #c9a55f; box-shadow: 0 0 0 2px rgba(201,165,95,.35);
+}
+#tab-quote-make .subcon-subtotal-inner .st-remark .subcon-remark-toggle {
+  pointer-events: auto; flex: none;
+  font-size: 11px; font-weight: 700; color: #cbb68a;
+  background: #2c2114; border: 1px solid #6b5636; border-radius: 4px; padding: 3px 8px;
+  cursor: pointer; white-space: nowrap;
+}
+#tab-quote-make .subcon-subtotal-inner .st-remark .subcon-remark-toggle.is-shown {
+  color: #2c2418; background: #7ee0a6; border-color: #4fae7a;
 }
 #tab-quote-make .subcon-group-subtotal.is-collapsed { display: none; }
 #tab-quote-make .subcon-group-subtotal.is-excluded .subcon-subtotal-inner {
