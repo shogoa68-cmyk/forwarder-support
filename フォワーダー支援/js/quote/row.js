@@ -3188,6 +3188,16 @@
     const stx = document.getElementById(`tx-${sid}`);
     const dtx = document.getElementById(`tx-${newId}`);
     if (stx && dtx) dtx.checked = stx.checked;
+    // マスター自動入力フラグ（un/nt）も引き継ぐ（duplicateRow と同じ考え方）。
+    // これを怠ると、コピー先の単位欄には値が入っているのに「マスター由来の自動入力」
+    // としては扱われず、コピー後に品名だけ別のマスター項目（例：20'→40'）へ変えても
+    // 単位がそのマスターの値へ追従して更新されない不具合になる。
+    const srcTrEl2 = document.getElementById(`row-${sid}`);
+    const dstTrEl2 = document.getElementById(`row-${newId}`);
+    if (srcTrEl2 && dstTrEl2) {
+      if (srcTrEl2.dataset.unAuto === '1') dstTrEl2.dataset.unAuto = '1'; else delete dstTrEl2.dataset.unAuto;
+      if (srcTrEl2.dataset.ntAuto === '1') dstTrEl2.dataset.ntAuto = '1'; else delete dstTrEl2.dataset.ntAuto;
+    }
     const svEl = document.getElementById(`sv-${newId}`);
     if (svEl) svEl.value = sv || '';
     const ptEl = document.getElementById(`pt-${newId}`);
