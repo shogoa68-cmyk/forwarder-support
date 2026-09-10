@@ -213,10 +213,12 @@
       '<label>お客様 <input type="text" id="eiF-customer" value="' + _esc(fields.customer || '') + '"></label>' +
       '<label>REF# <input type="text" id="eiF-ref" value="' + _esc(fields.ref || '') + '"></label>' +
       '<label>有効期限 <input type="date" id="eiF-valid" value="' + _esc(fields.validUntil || '') + '"></label>' +
+      '<label>サブコン一括設定 <input type="text" id="eiBulkSv" list="svSuggestions" placeholder="例）〇〇物流">' +
+        '<button type="button" class="ei-bulk-sv-btn" onclick="eiApplyBulkSv()" title="入力したサブコン名を全行に反映します（個別に直したい行は挿入前に上書き可能）">全行に設定</button></label>' +
       '</div>';
     html += '<table class="ei-table"><thead><tr>' +
       '<th><input type="checkbox" id="eiChkAll" checked onchange="eiToggleAll(this.checked)"></th>' +
-      '<th>グループ</th><th>カテゴリ</th><th>品名</th><th>数量</th><th>単位</th><th>通貨</th><th>単価</th><th>フラグ</th><th>備考</th><th>確度</th>' +
+      '<th>グループ</th><th>カテゴリ</th><th>サブコン</th><th>品名</th><th>数量</th><th>単位</th><th>通貨</th><th>単価</th><th>フラグ</th><th>備考</th><th>確度</th>' +
       '</tr></thead><tbody>';
     let curGroup = '';
     let gi = -1;
@@ -230,6 +232,7 @@
         `<td class="ei-group-cell"><input type="text" class="ei-in ei-group" value="${_esc(curGroup)}" title="挿入時：小計行のラベル、かつ各行の「パターン（任意）」に登録されます（空欄可）">` +
         `<button type="button" class="ei-group-pattern-btn" title="同じグループのチェック済み行を「行パターン」として登録" onclick="eiSaveGroupAsPattern(this)">🔖</button></td>` +
         `<td><select class="ei-in ei-cat">${_catOptions(cat)}</select></td>` +
+        `<td><input type="text" class="ei-in ei-sv" value="" list="svSuggestions" placeholder="任意"></td>` +
         `<td><input type="text" class="ei-in ei-name" value="${_esc(e.name)}"></td>` +
         `<td><input type="number" class="ei-in ei-qty" value="${e.qty ?? ''}" step="any"></td>` +
         `<td><input type="text" class="ei-in ei-unit" value="${_esc(e.unit || '')}"></td>` +
@@ -264,6 +267,13 @@
     document.querySelectorAll('#eiReviewWrap .ei-chk').forEach(c => { c.checked = on; });
   }
 
+  // 「サブコン一括設定」：入力したサブコン名を表の全行へ反映（個別に違う行は挿入前に直接編集可）
+  function eiApplyBulkSv() {
+    const v = (document.getElementById('eiBulkSv')?.value || '').trim();
+    if (!v) return;
+    document.querySelectorAll('#eiReviewWrap .ei-sv').forEach(el => { el.value = v; });
+  }
+
   // レビュー表 → 行データ（cells 形式）へ変換。
   // グループは各行の pt（パターン。サブコン内の入れ子キー・row.js の _rowInnerKey）へ
   // そのまま登録する。これにより挿入後の編集画面で「20'コンテナの場合」等のグループが
@@ -280,7 +290,7 @@
       const group = v('ei-group').trim();
       const cells = [false];
       const f = {
-        cat: v('ei-cat'), sv: '', tx: !!src.taxed, nm: v('ei-name').trim(),
+        cat: v('ei-cat'), sv: v('ei-sv').trim(), tx: !!src.taxed, nm: v('ei-name').trim(),
         pq: v('ei-qty'), un: v('ei-unit').trim(), bq: v('ei-qty'),
         pc: (v('ei-ccy').trim().toUpperCase() || 'JPY'), bc: (v('ei-ccy').trim().toUpperCase() || 'JPY'),
         pp: src.actual ? '' : v('ei-price'), bp: src.actual ? '' : v('ei-price'),
@@ -305,7 +315,7 @@
       _type: 'data',
       cat: v('ei-cat'), name: v('ei-name').trim(), taxed: !!src.taxed,
       pq: v('ei-qty'), un: v('ei-unit').trim(), pc: ccy, pp: price,
-      bq: v('ei-qty'), bc: ccy, bp: price, mk: '', note: v('ei-note').trim(), sv: '',
+      bq: v('ei-qty'), bc: ccy, bp: price, mk: '', note: v('ei-note').trim(), sv: v('ei-sv').trim(),
     };
   }
 
@@ -396,7 +406,7 @@
 
   Object.assign(window, {
     openEmailImport, closeEmailImport, eiParse, eiToggleAll, eiInsertRows, eiApplyAsNew,
-    eiSaveGroupAsPattern,
+    eiSaveGroupAsPattern, eiApplyBulkSv,
     parseQuoteEmail,   // テスト・将来の AI パーサー差し替え用に公開
   });
 })();
