@@ -1436,8 +1436,16 @@
       _applyCloudFilter();                             // プルダウンの見た目を元に戻す
       return;
     }
+    // status 列だけでなく data.fields['qf-status'] も一緒に更新する。ここを揃えて
+    // おかないと、次にこの案件を開いたとき（_applyQuoteData が data.fields から
+    // 復元する）古いステータスに戻って見えてしまう（例：「🔄 更新」ボタンが出ない）。
+    const newData = (row && row.data) ? Object.assign({}, row.data, {
+      fields: Object.assign({}, row.data.fields, { 'qf-status': status }),
+    }) : undefined;
+    const updatePayload = { status, owner_email: _cloudUser.email, updated_at: new Date().toISOString() };
+    if (newData) updatePayload.data = newData;
     const { error } = await c.from(_table())
-      .update({ status, owner_email: _cloudUser.email, updated_at: new Date().toISOString() })
+      .update(updatePayload)
       .eq('id', id);
     if (error) {
       quoteShowToast('⚠️ ステータス更新に失敗：' + error.message, 'warn', 5000);
@@ -1445,7 +1453,10 @@
       return;
     }
     // ローカルキャッシュも更新して即時反映
-    if (row) { row.status = status; row.owner_email = _cloudUser.email; row.updated_at = new Date().toISOString(); }
+    if (row) {
+      row.status = status; row.owner_email = _cloudUser.email; row.updated_at = new Date().toISOString();
+      if (newData) row.data = newData;
+    }
     // いま開いている案件のステータスなら、編集画面側の表示も合わせる
     if (_loadedCloudId === id && typeof window.setQuoteStatus === 'function') {
       const el = document.getElementById('qf-status');
@@ -1899,7 +1910,7 @@
     if (!c) return;
     const id = decodeURIComponent(rawId);
     const { data, error } = await c
-      .from(_table()).select('name,data,updated_at').eq('id', id).single();
+      .from(_table()).select('name,data,status,updated_at').eq('id', id).single();
     if (error || !data) { quoteShowToast('⚠️ 読み込みに失敗しました', 'warn'); return; }
 
     // 直前に自分が別案件を編集中だったら解放してから開く
@@ -1908,6 +1919,16 @@
     // 競合検知の基準として、ロードした案件 id と更新時刻を記録
     _loadedCloudId = id;
     _loadedCloudTs = data.updated_at || null;
+
+    // ダッシュボードのステータス変更（cloudSetStatus）は status 列だけを更新し、
+    // data.fields['qf-status'] は書き換えないため、両者が食い違うことがある
+    // （例：ダッシュボードで「提示済み」に変更した直後にこの案件を開くと、古い
+    // data.fields の値で復元されてしまい「🔄 更新」ボタンが出ない）。
+    // status 列を正として、復元前に fields 側へ反映しておく。
+    if (data.status && data.data) {
+      if (!data.data.fields) data.data.fields = {};
+      data.data.fields['qf-status'] = data.status;
+    }
 
     // チャットタブが開いていれば即時更新
     if (document.getElementById('qspPane-chat')?.classList.contains('is-active')) {
@@ -1981,6 +2002,10 @@
     if (!newData.fields) newData.fields = {};
     // 新規案件としてのコピーのため、コピー元の「入力完了」マークは引き継がない
     if (Array.isArray(newData.rows)) newData.rows.forEach(r => { if (r) delete r.done; });
+    // ステータスもコピー元を引き継がず「下書き中」に戻す（下の insert の status 列と揃える）。
+    // ここを揃えないと、コピー直後にこの案件を開いた際 data.fields の古いステータスで
+    // 復元されてしまう（cloudSetStatus と同じ理由の食い違い）。
+    newData.fields['qf-status'] = CLOUD_STATUS_DEFAULT;
     const srcRef = (newData.fields['qf-ref'] || '').trim();
     // gen：オリジナル=1、その最初のコピー=2、コピーのコピー=3…と数える。
     // root：チェーンの先頭（最初のオリジナル）を常に指す。コピー元自体がコピーで
