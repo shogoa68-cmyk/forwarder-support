@@ -9556,7 +9556,7 @@ button.um-memberno--empty:hover { background: #f4ead4; border-color: #cdb98e; }
 }
 /* サブコン別リマーク（客先向け出力への表示可否をトグルできる注記）。常に新しい行に折り返す */
 #tab-quote-make .subcon-subtotal-inner .st-remark {
-  display: flex; align-items: center; gap: 6px;
+  display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
   flex-basis: 100%; width: 100%;
   margin-top: 6px; padding-top: 8px; border-top: 1px dashed rgba(255,255,255,.18);
 }
@@ -9567,7 +9567,9 @@ button.um-memberno--empty:hover { background: #f4ead4; border-color: #cdb98e; }
   pointer-events: auto;
   font-size: 12px; color: #2c2418; background: #f3e8d2;
   border: 1px solid #6b5636; border-radius: 4px; padding: 3px 8px;
-  flex: 1 1 240px; min-width: 120px; max-width: 480px;
+  flex: 0 1 auto; min-width: 120px; max-width: 100%;
+  /* 入力したテキスト量に応じて幅が伸縮する（対応ブラウザのみ。未対応ブラウザは min-width 相当で表示） */
+  field-sizing: content;
 }
 #tab-quote-make .subcon-subtotal-inner .st-remark .subcon-remark-input::placeholder { color: #9c8a6a; }
 #tab-quote-make .subcon-subtotal-inner .st-remark .subcon-remark-input:focus {
