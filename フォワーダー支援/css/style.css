@@ -726,11 +726,42 @@ body:has(#tab-quote-make.active) .app { padding-bottom: 8px; }
 }
 .btn-send-to-quote:hover { background: var(--accent); border-color: var(--accent-dk); color: #f5ede0; }
 
-/* ===== コンテナ断面SVG ===== */
-.container-svg-wrap  { margin-top: 14px; display: flex; flex-wrap: wrap; gap: 14px; align-items: flex-start; }
-.container-svg-item  { text-align: center; }
-.container-svg-label { font-size: 11px; color: var(--text-md); font-weight: 600; margin-top: 4px; }
-.container-svg-sub   { font-size: 10px; color: var(--text-lt); margin-top: 2px; }
+/* ===== バンニング 3D積み付けプレビュー ===== */
+.van3d-toolbar {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 12px;
+  margin-top: 8px; margin-bottom: 8px;
+}
+.van3d-toolbar-label { font-size: 11px; color: var(--text-md); font-weight: 600; display: flex; align-items: center; gap: 6px; }
+.van3d-cont-select {
+  border: 1.5px solid var(--border); border-radius: 7px; font-size: 12px;
+  padding: 4px 8px; background: #fff; color: var(--text);
+}
+.van3d-view-btns { display: flex; flex-wrap: wrap; gap: 6px; }
+.van3d-view-btn {
+  background: #fff; border: 1px solid var(--border); color: var(--text-md);
+  padding: 4px 9px; border-radius: 6px; font-size: 11px; cursor: pointer; transition: all 0.15s;
+}
+.van3d-view-btn:hover { background: var(--accent-lt); border-color: var(--accent); color: var(--accent-dk); }
+.van3d-legend { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 8px; }
+.van3d-legend-item { display: flex; align-items: center; gap: 5px; font-size: 11px; color: var(--text-md); }
+.van3d-swatch { width: 11px; height: 11px; border-radius: 3px; display: inline-block; border: 1px solid rgba(0,0,0,0.15); }
+.van3d-wrap {
+  width: 100%; max-width: 620px; height: 360px;
+  border: 1.5px solid var(--border-md); border-radius: 10px;
+  background: #fff; overflow: hidden;
+}
+.van3d-canvas-host { width: 100%; height: 100%; position: relative; }
+.van3d-canvas { display: block; width: 100%; height: 100%; touch-action: none; cursor: grab; }
+.van3d-loading, .van3d-offline-msg {
+  display: flex; align-items: center; justify-content: center; height: 100%;
+  font-size: 12px; color: var(--text-lt); text-align: center; padding: 0 16px;
+}
+.van3d-stats { font-size: 11px; color: var(--text-md); margin-top: 8px; line-height: 1.8; }
+.van3d-warn { color: #b45309; font-weight: 700; }
+.van3d-note { color: var(--text-lt); }
+@media (max-width: 480px) {
+  .van3d-wrap { height: 280px; }
+}
 
 /* ===== フィードバックフッター ===== */
 .feedback-footer {
