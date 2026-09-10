@@ -5315,6 +5315,13 @@ body.qp-dash-active #quoteActionDock { display: none !important; }
 }
 #tab-quote-make .ei-group-pattern-btn:hover { background: #f0e8d8; opacity: 1; }
 #tab-quote-make .ei-table .ei-name { min-width: 160px; }
+#tab-quote-make .ei-table .ei-sv { min-width: 90px; }
+#tab-quote-make .ei-bulk-sv-btn {
+  height: 24px; padding: 0 8px; margin-left: 2px;
+  border: 1px solid #8b9a6e; border-radius: 4px; background: #eef2e6; color: #4a5c33;
+  font-size: 10.5px; font-family: inherit; cursor: pointer; white-space: nowrap;
+}
+#tab-quote-make .ei-bulk-sv-btn:hover { background: #dfe8d0; }
 #tab-quote-make .ei-flags { font-size: 10px; color: #8a6a2a; white-space: nowrap; text-align: center; }
 #tab-quote-make tr.ei-low td { background: #fff8ec; }
 #tab-quote-make .ei-conf {
