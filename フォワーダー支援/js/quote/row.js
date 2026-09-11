@@ -1030,6 +1030,7 @@
       const srcBp = document.getElementById(`bp-${srcId}`);
       const dstBp = document.getElementById(`bp-${newId}`);
       if (srcBp && dstBp) { dstBp.dataset.base = srcBp.value; dstBp.value = srcBp.value; }
+      _updateBpBaseHint(newId);
     }
 
     // 再計算・色・状態の更新
@@ -1335,6 +1336,7 @@
       mkEl.value = Math.round((bp - base) * 100) / 100;
       mkEl.dataset.ccy = document.getElementById(`bc-${id}`)?.value || 'JPY';
     }
+    if (typeof _updateBpBaseHint === 'function') _updateBpBaseHint(id);
   };
 
   // 行の売通貨（bc）を仕入通貨（pc）と別建てにするか（独立モード）の UI 反映。
@@ -1360,6 +1362,29 @@
         : '乗せ幅：仕入単価に加算して売単価になります';
     }
     if (tr) tr.classList.toggle('row-bc-indep', indep);
+    if (!indep) {
+      const hint = tr?.querySelector('.bp-base-hint');
+      if (hint) hint.hidden = true;
+    }
+  }
+
+  // 独立モード（仕入通貨≠売通貨）のとき、売単価欄の近くに「原価換算」の目安
+  // （＝これを下回ると赤字になるライン）を表示する。数値は一切変更しない参考表示のみ。
+  // 注意：dataset.base（＝_indepBase の戻り値）は「客先へ出す綺麗な数字」にするため
+  // 10 単位で切り捨てた値であり、真の損益分岐点よりわずかに低い（最大 9.99 通貨単位）。
+  // 乗せ幅 0 のままだと、この切り捨てだけで見かけ上の赤字が出てしまうため、ここでは
+  // 切り捨て前の正確な換算原価を計算して表示する（bp/dataset.base の更新有無に依存しない）。
+  function _updateBpBaseHint(id) {
+    const tr = document.getElementById(`row-${id}`);
+    const hint = tr?.querySelector('.bp-base-hint');
+    if (!hint) return;
+    if (tr.dataset.bcIndep !== '1') { hint.hidden = true; return; }
+    const pp = val(`pp-${id}`);
+    const pc = document.getElementById(`pc-${id}`)?.value || 'JPY';
+    const bc = document.getElementById(`bc-${id}`)?.value || 'JPY';
+    const trueCost = (typeof _convCur === 'function') ? _convCur(pp, pc, bc) : 0;
+    hint.hidden = false;
+    hint.textContent = '原価換算 ' + fmt(trueCost) + ' ' + bc;
   }
 
   // 売通貨（bc）変更時：pc と一致なら連動モードへ戻し、異なれば独立モードへ
@@ -1395,6 +1420,7 @@
         bpEl.dataset.base = base;
         bpEl.value = base + val(`mk-${id}`);
       }
+      _updateBpBaseHint(id);
       calc(id);
     }
     if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
@@ -1421,6 +1447,7 @@
       const base = _indepBase(id);
       bpEl.dataset.base = base;
       bpEl.value = base + mk;
+      _updateBpBaseHint(id);
     }
     calc(id);
     _recalcPctDependents(id);
@@ -3507,6 +3534,7 @@
       _setRowBcIndepUI(newId, true);
       const bpEl = document.getElementById(`bp-${newId}`);
       if (bpEl && data.bp !== undefined) { bpEl.dataset.base = data.bp; bpEl.value = data.bp; }
+      _updateBpBaseHint(newId);
     }
     initDrag(newTr);
     onCatChange(newId);
