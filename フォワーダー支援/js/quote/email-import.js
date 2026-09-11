@@ -274,6 +274,81 @@
     document.querySelectorAll('#eiReviewWrap .ei-sv').forEach(el => { el.value = v; });
   }
 
+  // ====== 🤖 AI整形用プロンプト ======
+  // 業者から受け取った見積（メール本文・PDFのテキスト・表など）を、Gemini/Copilot/
+  // Claude/ChatGPT 等の汎用AIに渡して parseQuoteEmail() が高確度（ei-high）で読み取れる
+  // 書式へ変換させるためのプロンプト。書式を変えたら _AI_PROMPT_EXAMPLE も含めて
+  // parseQuoteEmail() の実際の挙動とズレないよう見直すこと。
+  const AI_IMPORT_PROMPT =
+`あなたはフォワーディング業務の見積書を整形するアシスタントです。以下に貼り付ける見積書（メール本文・PDFのテキスト・表など）を読み取り、次のフォーマット規則に厳密に従ってテキストに変換してください。
+
+## 出力フォーマット
+
+### 1. 明細行（1行1項目）
+品名 数量 単位 × 単価 通貨 ＝ 金額 通貨
+
+例：
+海上運賃 1 40'GP × 1,680 USD ＝ 1,680 USD
+THC 1 40FT × 20,000 JPY ＝ 20,000 JPY
+
+・数量が不明／「一式」の場合は 1 としてください。
+・単位は 20FT・40FT・KG・CBM・R/T・式 など分かる範囲で構いません（空欄でも可）。単位にスペースを含めないでください。
+・単価と金額は必ず両方書いてください（数量×単価＝金額で計算が合うように）。
+・× と ＝ は全角でも半角（x, =）でも構いません。
+
+### 2. 金額未定の項目（実費）
+品名 実費
+例：ドレージ 実費
+（数量・単価・金額は書かない。「実費」の前後は必ずスペースを空ける）
+
+### 3. フラグ（分かる場合のみ、行末に付ける）
+・課税対象 → [課税]
+・都度発生（発生時のみ請求） → （発生時/必要時のみ）
+・参考情報（合計に含めない） → （参考情報）
+
+### 4. 備考
+行末に ※備考の内容 の形式で追加してください。
+例：通関手数料 1 式 × 12,000 JPY ＝ 12,000 JPY ※輸出通関一式
+
+### 5. グループ分け（コンテナサイズ等で内訳が分かれる場合）
+区切りの直前に 《グループ名》 という行だけの見出しを入れてください。
+例：
+《20FTの場合》
+（20FT分の明細行…）
+《40FTの場合》
+（40FT分の明細行…）
+
+### 6. 除外するもの
+小計・消費税・合計・御見積額などの集計行、注記（TEL/FAX/メールアドレス等）は出力しないでください。
+
+### 7. 任意（分かれば先頭に1行ずつ）
+【見積番号】見積書に記載の番号
+【有効期限】YYYY-MM-DD
+
+## 厳守事項
+出力は上記フォーマットの行のみとしてください。前置き・説明文・見出し（「以下が変換結果です」等）・番号付け・コードブロックの\`\`\`は付けないでください。そのままシステムへ貼り付けます。
+
+---
+（ここから下に、変換したい見積書の本文を貼り付けてください）
+`;
+
+  function eiCopyAiPrompt() {
+    const done = () => { if (window.quoteShowToast) quoteShowToast('🤖 AI整形用プロンプトをコピーしました。Gemini/Copilot/Claude/ChatGPT等に見積本文と一緒に貼り付けてください', 'success', 4500); };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(AI_IMPORT_PROMPT).then(done).catch(() => _eiCopyFallback(done));
+    } else {
+      _eiCopyFallback(done);
+    }
+  }
+  function _eiCopyFallback(done) {
+    const ta = document.createElement('textarea');
+    ta.value = AI_IMPORT_PROMPT; ta.style.position = 'fixed'; ta.style.opacity = '0';
+    document.body.appendChild(ta); ta.select();
+    try { document.execCommand('copy'); done(); }
+    catch (e) { if (window.quoteShowToast) quoteShowToast('⚠️ コピーに失敗しました', 'warn'); }
+    finally { document.body.removeChild(ta); }
+  }
+
   // レビュー表 → 行データ（cells 形式）へ変換。
   // グループは各行の pt（パターン。サブコン内の入れ子キー・row.js の _rowInnerKey）へ
   // そのまま登録する。これにより挿入後の編集画面で「20'コンテナの場合」等のグループが
@@ -406,7 +481,7 @@
 
   Object.assign(window, {
     openEmailImport, closeEmailImport, eiParse, eiToggleAll, eiInsertRows, eiApplyAsNew,
-    eiSaveGroupAsPattern, eiApplyBulkSv,
+    eiSaveGroupAsPattern, eiApplyBulkSv, eiCopyAiPrompt,
     parseQuoteEmail,   // テスト・将来の AI パーサー差し替え用に公開
   });
 })();
