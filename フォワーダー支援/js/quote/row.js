@@ -303,6 +303,185 @@
   }
   window.toggleRowHideQuoteById = toggleRowHideQuoteById;
 
+  // ========== 行の統合（複数行を1行にまとめたことを視覚的に示す） ==========
+  // 「👁/🚫 見積書非表示」だけでは、単に非表示にした行なのか、他の行へ内容を
+  // まとめた（統合した）意図的な操作なのかが区別できない。統合された行には
+  // dataset.mergedInto（統合先行の uid）を付けたうえで見積書非表示（hideQuote）
+  // にし、統合先行には件数バッジ、統合された行には「統合先：◯◯」ラベルを表示する。
+  // 仕入・売は「統合先＋統合される行」全体の合計（JPY換算）を統合先行へ一度だけ
+  // 反映する（以降はライブ同期せず、通常の行と同じように自由に編集できる）。
+  function mergeSelectedRows(rowIds) {
+    const ids = Array.from(new Set((rowIds || []).map(id => String(id).replace(/^row-/, ''))));
+    if (ids.length < 2) {
+      if (typeof quoteShowToast === 'function') quoteShowToast('⚠️ 統合するには2行以上選択してください', 'warn');
+      return;
+    }
+    const trs = ids.map(id => document.getElementById('row-' + id)).filter(Boolean);
+    if (trs.length < 2) return;
+    if (trs.some(tr => tr.dataset.mergedInto)) {
+      if (typeof quoteShowToast === 'function') quoteShowToast('⚠️ すでに統合済みの行が含まれています。先に統合を解除してください', 'warn');
+      return;
+    }
+    const parentTr = trs[0];
+    const parentId = parentTr.id.replace('row-', '');
+    const childTrs = trs.slice(1);
+
+    // 選択行全体（統合先を含む）の仕入・売合計を JPY換算で算出
+    let totalCostJpy = 0, totalBillJpy = 0, fxMissing = false;
+    trs.forEach(tr => {
+      const id = tr.id.replace('row-', '');
+      const pq = val(`pq-${id}`), pp = val(`pp-${id}`);
+      const bq = val(`bq-${id}`), bp = val(`bp-${id}`);
+      const pc = document.getElementById(`pc-${id}`)?.value || 'JPY';
+      const bc = document.getElementById(`bc-${id}`)?.value || 'JPY';
+      const cost = pq * pp, bill = bq * bp;
+      const costJpy = pc === 'JPY' ? cost : (typeof toJPY === 'function' ? toJPY(cost, pc) : NaN);
+      const billJpy = bc === 'JPY' ? bill : (typeof toJPY === 'function' ? toJPY(bill, bc) : NaN);
+      if (isNaN(costJpy) || isNaN(billJpy)) fxMissing = true;
+      else { totalCostJpy += costJpy; totalBillJpy += billJpy; }
+    });
+
+    // 統合先行を合計値へ上書き（独立通貨モードは解除し、連動モード・JPYへ統一）
+    delete parentTr.dataset.bcIndep;
+    if (typeof _setRowBcIndepUI === 'function') _setRowBcIndepUI(parentId, false);
+    const pcEl = document.getElementById('pc-' + parentId);
+    const pqEl = document.getElementById('pq-' + parentId);
+    const ppEl = document.getElementById('pp-' + parentId);
+    const mkEl = document.getElementById('mk-' + parentId);
+    if (pcEl) pcEl.value = 'JPY';
+    if (pqEl) pqEl.value = 1;
+    if (ppEl) ppEl.value = Math.round(totalCostJpy);
+    if (mkEl) mkEl.value = Math.round(totalBillJpy - totalCostJpy);
+    onPay(parentId);
+
+    // 統合元の品名を備考へ自動記録（すでに備考があるときは上書きしない）
+    const ntEl = document.getElementById('nt-' + parentId);
+    if (ntEl && !ntEl.value.trim()) {
+      const names = childTrs
+        .map(tr => (document.getElementById('nm-' + tr.id.replace('row-', ''))?.value || '').trim())
+        .filter(Boolean);
+      if (names.length) ntEl.value = '統合元：' + names.join('＋');
+    }
+
+    const parentUid = document.getElementById('uid-' + parentId)?.value || parentId;
+    childTrs.forEach(tr => {
+      const id = tr.id.replace('row-', '');
+      tr.dataset.mergedInto = parentUid;
+      tr.dataset.hideQuote  = '1';
+      tr.classList.add('row-hidden-quote', 'row-merged-child');
+      const hb = tr.querySelector('.row-hidequote-btn');
+      if (hb) { hb.classList.add('is-on'); hb.textContent = '🚫'; hb.title = '統合済み（クリックで統合を解除せず単に出力に戻すことも可能）'; }
+      const chk = tr.querySelector('.row-select-chk');
+      if (chk) chk.checked = false;   // 統合後は選択状態を解除（選択ツールバーの誤操作防止）
+    });
+
+    refreshMergeBadges();
+    updateTotals();
+    if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
+    if (typeof quoteShowToast === 'function') {
+      const label = (document.getElementById('nm-' + parentId)?.value || '').trim() || '（無題）';
+      const warn = fxMissing ? '\n⚠️ 為替レート未取得の通貨があり、合算額がずれている可能性があります。確認してください' : '';
+      quoteShowToast('🔗 ' + childTrs.length + ' 行を「' + label + '」へ統合しました' + warn, fxMissing ? 'warn' : 'success', fxMissing ? 6000 : 3500);
+    }
+  }
+  window.mergeSelectedRows = mergeSelectedRows;
+
+  // 統合を解除：対象行を通常表示へ戻す（金額はそのまま。統合先行の金額は自動では
+  // 戻さない＝統合後に統合先を編集している場合があるため、意図せず上書きしない）
+  function unmergeRow(rowId) {
+    const tr = document.getElementById('row-' + String(rowId).replace(/^row-/, ''));
+    if (!tr || !tr.dataset.mergedInto) return;
+    delete tr.dataset.mergedInto;
+    delete tr.dataset.hideQuote;
+    tr.classList.remove('row-hidden-quote', 'row-merged-child');
+    const hb = tr.querySelector('.row-hidequote-btn');
+    if (hb) { hb.classList.remove('is-on'); hb.textContent = '👁'; hb.title = 'この行を見積書（プレビュー客先表示・PDF・Excel・CSV）に出力しない'; }
+    refreshMergeBadges();
+    updateTotals();
+    if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
+    if (typeof quoteShowToast === 'function') quoteShowToast('🔓 統合を解除しました', 'success', 2500);
+  }
+  window.unmergeRow = unmergeRow;
+
+  // 統合バッジ（統合先：🔗 N行を統合 / 統合された行：↳ 🔗 統合先：◯◯）を全行ぶん再描画。
+  // 統合先の行が削除されて参照が宙に浮いた場合は、統合を自動解除して通常表示に戻す。
+  function refreshMergeBadges() {
+    const tbody = document.getElementById('tableBody');
+    if (!tbody) return;
+    const rows = Array.from(tbody.querySelectorAll('tr[id^="row-"]')).filter(tr => !tr.dataset.type);
+    const nameByUid = {};
+    rows.forEach(tr => {
+      const id = tr.id.replace('row-', '');
+      const uid = document.getElementById('uid-' + id)?.value || id;
+      nameByUid[uid] = (document.getElementById('nm-' + id)?.value || '').trim() || '（無題）';
+    });
+    // 統合先が消えている行は自動的に統合解除する
+    let orphaned = 0;
+    rows.forEach(tr => {
+      if (tr.dataset.mergedInto && !(tr.dataset.mergedInto in nameByUid)) {
+        delete tr.dataset.mergedInto;
+        delete tr.dataset.hideQuote;
+        tr.classList.remove('row-hidden-quote', 'row-merged-child');
+        const hb = tr.querySelector('.row-hidequote-btn');
+        if (hb) { hb.classList.remove('is-on'); hb.textContent = '👁'; }
+        orphaned++;
+      }
+    });
+    if (orphaned && typeof quoteShowToast === 'function') {
+      quoteShowToast('🔗 統合先の行が削除されたため、' + orphaned + ' 行の統合を自動解除しました', 'info', 4500);
+    }
+    const childCount = {};
+    rows.forEach(tr => {
+      if (tr.dataset.mergedInto) childCount[tr.dataset.mergedInto] = (childCount[tr.dataset.mergedInto] || 0) + 1;
+    });
+    rows.forEach(tr => {
+      const id = tr.id.replace('row-', '');
+      const nmEl = document.getElementById('nm-' + id);
+      if (!nmEl) return;
+      let badge = tr.querySelector('.row-merge-badge');
+      if (tr.dataset.mergedInto) {
+        const parentLabel = nameByUid[tr.dataset.mergedInto] || '';
+        if (!badge) {
+          badge = document.createElement('div');
+          badge.className = 'row-merge-badge';
+          nmEl.insertAdjacentElement('afterend', badge);
+        }
+        badge.className = 'row-merge-badge row-merge-badge--child';
+        badge.innerHTML = '';
+        const label = document.createElement('span');
+        label.className = 'row-merge-badge-label';
+        label.textContent = '↳ 🔗 統合先：' + parentLabel;
+        const undoBtn = document.createElement('button');
+        undoBtn.type = 'button';
+        undoBtn.className = 'row-merge-undo-btn';
+        undoBtn.title = '統合を解除（この行を通常表示に戻す）';
+        undoBtn.textContent = '統合解除';
+        undoBtn.addEventListener('click', e => { e.stopPropagation(); unmergeRow(id); });
+        badge.appendChild(label);
+        badge.appendChild(undoBtn);
+      } else {
+        const uid = document.getElementById('uid-' + id)?.value || id;
+        const n = childCount[uid] || 0;
+        if (n > 0) {
+          if (!badge) {
+            badge = document.createElement('div');
+            badge.className = 'row-merge-badge';
+            nmEl.insertAdjacentElement('afterend', badge);
+          }
+          badge.className = 'row-merge-badge row-merge-badge--parent';
+          const childNames = rows.filter(t => t.dataset.mergedInto === uid)
+            .map(t => (document.getElementById('nm-' + t.id.replace('row-', ''))?.value || '').trim())
+            .filter(Boolean);
+          badge.textContent = '🔗 ' + n + '行を統合';
+          badge.title = childNames.length ? '統合元：' + childNames.join('、') : '';
+        } else if (badge) {
+          badge.remove();
+        }
+      }
+    });
+  }
+  window.refreshMergeBadges = refreshMergeBadges;
+
   // 明細行を同一グループ内で並べ替え（右カラム ジャンプタブのドラッグ用）。
   // グループ跨ぎ（サブコン/パターンが異なる移動）はテーブル本体のドラッグと同じく禁止し false を返す。
   // 同一グループ（サブコン正規化キー＋パターン内側キー）に属するかを判定。
@@ -1950,6 +2129,8 @@
     getChildRemarks(id).forEach(r => r.remove());
     document.getElementById(`row-${id}`)?.remove();
     updateTotals();
+    // 削除した行が統合先だった場合、統合先を失った行を自動的に統合解除する
+    if (typeof refreshMergeBadges === 'function') refreshMergeBadges();
   }
 
   // ========== ツールバーからの行挿入（末尾／選択行の下） ==========
@@ -2821,6 +3002,7 @@
       // 全行の折りたたみ・除外状態を適用（小計・リマーク行を含む）
       _applyGroupStates();
       _updateGroupSums();
+      if (typeof refreshMergeBadges === 'function') refreshMergeBadges();
     } finally {
       _inGroupRender = false;
       // DOM 再構築後にスクロール位置を復元（パターン変更時のページトップへの強制移動を防ぐ）
