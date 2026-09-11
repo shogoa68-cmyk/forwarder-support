@@ -1166,6 +1166,14 @@
   display: flex;
   align-items: center;
   gap: 3px;
+  flex-wrap: wrap;
+}
+/* 独立モード（仕入通貨≠売通貨）のときだけ表示：売単価がこれを下回ると赤字になる
+   目安（仕入単価を売通貨へ換算した金額）。数値は変更しない参考表示のみ。 */
+#tab-quote-make .bp-base-hint {
+  flex-basis: 100%;
+  font-size: 9.5px; color: #9a5a2a; white-space: nowrap;
+  padding-left: 15px; /* 「売」タグの幅ぶんインデントして入力欄の頭に揃える */
 }
 #tab-quote-make .stk-tag {
   font-size: 9px;
