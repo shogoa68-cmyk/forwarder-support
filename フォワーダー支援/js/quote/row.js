@@ -1525,14 +1525,24 @@
     }
     // 利益セル
     const pr = document.getElementById(`pr-${id}`);
+    // 仕入通貨と売通貨が異なる場合、profit（= subtotal - pq*pp）は異なる通貨の数値を
+    // そのまま引き算した無意味な値になる（例：売 20 USD − 仕入 1939 INR ＝ 見かけ上 -1919）。
+    // その場合は円換算後の差額のみを正として表示し、無意味な生の差は出さない。
+    const ccyMismatch = pc !== bc;
     const isFx = canFx && (bc !== 'JPY' || pc !== 'JPY') && (subtotal || profit);
-    if (isFx) {
+    if (ccyMismatch && canFx) {
+      const jpyProfit = Math.ceil(toJPY(subtotal, bc) - toJPY(pq * pp, pc));
+      pr.innerHTML = '≈¥' + fmt(jpyProfit) +
+        '<br><small class="jpy-conv-hint" title="仕入（' + pc + '）と売（' + bc + '）の通貨が異なるため、円換算後の差額のみを表示しています">円換算後</small>';
+      pr.className = `profit-cell ${pClass(jpyProfit)}`;
+    } else if (isFx) {
       const jpyProfit = Math.ceil(toJPY(subtotal, bc) - toJPY(pq * pp, pc));
       pr.innerHTML = fmt(profit) + '<br><small class="jpy-conv-hint">(≈¥' + fmt(jpyProfit) + ')</small>';
+      pr.className = `profit-cell ${pClass(profit)}`;
     } else {
       pr.textContent = fmt(profit);
+      pr.className = `profit-cell ${pClass(profit)}`;
     }
-    pr.className = `profit-cell ${pClass(profit)}`;
     scheduleUpdateTotals();
   }
 

@@ -8,6 +8,16 @@
     return PV_TAX_RATE_DEFAULT;
   }
 
+  // 行の利益（売 - 仕入）を算出。仕入通貨(pc)と売通貨(bc)が異なる場合、
+  // bill・cost をそのまま引き算すると異なる通貨の数値を混同した無意味な値になるため、
+  // 両方を JPY 換算してから差し引く（row.js の calc() と同じ考え方）。
+  function _rowProfit(bill, cost, bc, pc) {
+    if (bc && pc && bc !== pc && typeof toJPY === 'function') {
+      return Math.ceil(toJPY(bill, bc) - toJPY(cost, pc));
+    }
+    return bill - cost;
+  }
+
   // 発行日の当日補完（御見積書 _todayIso と同じ JST 日付）。
   // 御見積書・Excel・TSV で発行日の扱いを統一するために使用。
   function _pvTodayIso() {
@@ -120,7 +130,7 @@
       const mk     = val(`mk-${id}`);
       const cost   = pq * pp;
       const bill   = bq * bp;
-      const profit = bill - cost;
+      const profit = _rowProfit(bill, cost, bc, pc);
       const note   = document.getElementById(`nt-${id}`)?.value || '';
       const sv     = document.getElementById(`sv-${id}`)?.value || '';
       const pt     = document.getElementById(`pt-${id}`)?.value || '';
@@ -171,7 +181,7 @@
       const mk     = val(`mk-${id}`);
       const cost   = pq * pp;
       const bill   = bq * bp;
-      const profit = bill - cost;
+      const profit = _rowProfit(bill, cost, bc, pc);
       const note   = document.getElementById(`nt-${id}`)?.value || '';
       const sv     = document.getElementById(`sv-${id}`)?.value || '';
       const _actual = tr.dataset.actual === '1';   // 実費（金額未確定）
@@ -628,7 +638,6 @@
         </tr>`;
         return;
       }
-      const pc      = d.profit > 0 ? 'pv-pos' : d.profit < 0 ? 'pv-neg' : 'pv-zero';
       const nameCls = d.taxed ? 'pv-name pv-taxed' : 'pv-name';
       const sub     = (d.bq || 0) * (d.bp || 0);
       const jpyAmt  = (typeof toJPY === 'function') ? Math.ceil(toJPY(sub, d.bc)) : sub;
@@ -659,6 +668,11 @@
         ? Math.ceil(toJPY(sub, d.bc || 'JPY') - toJPY(d.cost, d.pc || 'JPY')) : null;
       const prJpyHint = profitJpy !== null
         ? `<small class="pv-jpy-hint">(≈¥${fmtMoney(profitJpy)})</small>` : '';
+      // 仕入通貨と売通貨が異なる場合、d.profit（= bill - cost）は異なる通貨の数値をそのまま
+      // 引き算した無意味な値になる。その場合は円換算後の差額を正として使う（符号・金額とも）。
+      const ccyMismatch = !!(d.pc && d.bc && d.pc !== d.bc && profitJpy !== null);
+      const profitForDisplay = ccyMismatch ? profitJpy : d.profit;
+      const pc = profitForDisplay > 0 ? 'pv-pos' : profitForDisplay < 0 ? 'pv-neg' : 'pv-zero';
       const _hqCls = d._hideQuote ? ' pv-row-hidden-quote' : '';
       const _hqBadge = d._ps
         ? '<span class="pv-hq-badge pv-ps-badge" title="PROFIT SHARE（代理店収益）。客先見積もりには出さず、社内利益にのみ計上します">🤝 PROFIT SHARE</span> '
@@ -680,7 +694,9 @@
         : (d._ref && jpyCellText !== '—') ? `<span class="pv-ref-amt">(${jpyCellText})</span>`
         : jpyCellText;
       const taxCell2 = _ac ? '' : taxCellText;
-      const prCell   = _ac ? '—' : (fmtMoney(d.profit) + prJpyHint);
+      const prCell   = _ac ? '—' : ccyMismatch
+        ? ('≈¥' + fmtMoney(profitJpy) + `<br><small class="pv-jpy-hint" title="仕入（${escHtml(d.pc)}）と売（${escHtml(d.bc)}）の通貨が異なるため、円換算後の差額のみを表示しています">円換算後</small>`)
+        : (fmtMoney(d.profit) + prJpyHint);
       // 都度請求（発生時/必要時のみ）・参考情報：客先にも金額は出すが合計外。客先向け注記を付ける
       const _condNote = d._cond ? '<span class="pv-cond-note">（発生時/必要時のみ）</span>' : '';
       const _refNote  = d._ref  ? '<span class="pv-ref-note">（参考情報）</span>' : '';
@@ -1727,7 +1743,10 @@
         totTaxAmtJpy  += (d.bc === 'JPY' && d.taxed) ? Math.ceil(jpy * getEffectiveTaxRate()) : 0;
         totProfit     += d.profit;
         totProfitJpy  += jpy - costJpy;
-        if (d.bc && d.bc !== 'JPY') hasFxRows = true;
+        // 売通貨だけでなく仕入通貨も見る：売=JPYでも仕入が外貨の行が混じっていれば
+        // native 合計（totProfit）は通貨の異なる値を混ぜて合算することになるため、
+        // JPY 換算合計（totProfitJpy）を使う判定に含める
+        if ((d.bc && d.bc !== 'JPY') || (d.pc && d.pc !== 'JPY')) hasFxRows = true;
       }
       aoaRows.push(visCols.map(c => c.fn(d)));
     });
