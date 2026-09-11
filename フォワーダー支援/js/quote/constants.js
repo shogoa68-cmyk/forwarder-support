@@ -10,7 +10,7 @@
 window.QuoteApp = window.QuoteApp || { state: {}, data: {}, fx: {} };
 
   // ========== 定数 ==========
-  const CURRENCIES = ['JPY','USD','EUR','CNY','KRW','SGD','HKD','GBP','AUD','TWD','THB','VND','MYR','IDR','PHP'];
+  const CURRENCIES = ['JPY','USD','EUR','CNY','KRW','SGD','HKD','GBP','AUD','TWD','THB','VND','MYR','IDR','PHP','INR'];
   const UNITS = ['', 'B/L', 'CNTR', 'CBM', 'R/T', 'CW', 'kg', 'TON', 'pcs', '件', '式', 'set', 'shipment', 'CTN', 'PLT', '時間', '日', 'HOUR', 'DAY'];
 
   const CATEGORIES = [
@@ -288,16 +288,16 @@ let autoSaveEnabled = false;
 // キーはCURRENCIES の値と一致させる
 // API取得失敗時のフォールバック値。定期的に更新のこと。
 // 更新したら必ず DEFAULT_FX_RATES_ASOF も同じ日付に直す（出力物の根拠として刻まれる）。
-const DEFAULT_FX_RATES_ASOF = '2026-05-27'; // フォールバック値の最終手動確認日
+const DEFAULT_FX_RATES_ASOF = '2026-05-27'; // フォールバック値の最終手動確認日（INR追加分は別途確認のこと）
 const DEFAULT_FX_RATES = {
   USD: 150, EUR: 165, CNY: 21, KRW: 0.11, SGD: 112,
   HKD: 19, GBP: 192, AUD: 99, TWD: 4.7, THB: 4.2,
-  VND: 0.006, MYR: 32, IDR: 0.0096, PHP: 2.6
+  VND: 0.006, MYR: 32, IDR: 0.0096, PHP: 2.6, INR: 1.8
 };
 
 // 為替レートパネルで表示・編集する通貨を絞り込む
 // （行ごとの通貨セレクタや fetchAutoFxRates の対象には影響しない）
-const FX_DISPLAY_CURRENCIES = ['USD', 'EUR', 'GBP', 'CNY', 'SGD', 'KRW', 'HKD', 'AUD', 'TWD', 'THB', 'MYR', 'IDR', 'PHP'];
+const FX_DISPLAY_CURRENCIES = ['USD', 'EUR', 'GBP', 'CNY', 'SGD', 'KRW', 'HKD', 'AUD', 'TWD', 'THB', 'MYR', 'IDR', 'PHP', 'INR'];
 
 // ユーザーが上書きしたレート（localStorageから復元）
 let _fxRates = { ...DEFAULT_FX_RATES };
