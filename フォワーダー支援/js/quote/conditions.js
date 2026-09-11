@@ -436,6 +436,11 @@
         const hb = tr.querySelector('.row-hidequote-btn');
         if (hb) { hb.classList.add('is-on'); hb.textContent = '🚫'; hb.title = '見積書で非表示中（クリックで出力に戻す）'; }
       }
+      // 行の統合フラグを復元（バッジ描画は全行復元後に refreshMergeBadges でまとめて行う）
+      if (row.mergedInto) {
+        tr.dataset.mergedInto = row.mergedInto;
+        tr.classList.add('row-merged-child');
+      }
       // 要調査（後で記入）フラグを復元
       if (row.pending) {
         tr.dataset.pending = '1';
@@ -955,6 +960,7 @@
       const rowObj = { _type: 'data', cells };
       if (tr.dataset.cntLink === '1') rowObj.cntLink = true;
       if (tr.dataset.hideQuote === '1') rowObj.hideQuote = true;
+      if (tr.dataset.mergedInto) rowObj.mergedInto = tr.dataset.mergedInto;   // 統合先行の uid
       if (tr.dataset.pending === '1') rowObj.pending = true;          // 要調査（後で記入）
       if (tr.dataset.done === '1') rowObj.done = true;                // 入力完了マーク
       if (tr.dataset.portPair) rowObj.portPair = tr.dataset.portPair; // 港ペア（子グループ）

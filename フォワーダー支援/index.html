@@ -3634,6 +3634,8 @@
               <input type="number" id="bulkMarkupSet" class="bulk-subcon-input bulk-markup-input" placeholder="＋ 乗せ幅一括…" min="0" step="any"
                      onkeydown="if(event.key==='Enter'){applyBulkMarkupSet();}" title="チェックした行の乗せ幅（仕入単価に加算）を一括設定" />
               <button class="btn-bulk-subcon" onclick="applyBulkMarkupSet()" title="チェックした行の乗せ幅に左の値を一括設定">設定</button>
+              <span class="ctx-sep" aria-hidden="true">|</span>
+              <button class="btn-bulk-merge" onclick="mergeSelectedRowsFromToolbar()" title="チェックした行を1行にまとめる（先頭のチェック行が統合先。仕入・売の合計を反映し、残りの行は見積書非表示＋「統合先」ラベル付きで区別されます）">🔗 統合</button>
               <span class="cmdbar-spacer"></span>
               <button class="ctx-clear" onclick="clearRowSelection()" title="選択を解除">✕ 選択解除</button>
             </div>
@@ -3841,6 +3843,7 @@
           <button type="button" class="ei-close" onclick="closeEmailImport()" title="閉じる">✕</button>
         </div>
         <p class="ei-desc">メールで提示した見積の本文を貼り付けて「解析」を押してください。自アプリのメール形式は高精度で復元でき、自由文も金額を含む行から明細候補を抽出します。</p>
+        <button type="button" class="ei-ai-prompt-btn" onclick="eiCopyAiPrompt()" title="業者からの見積（メール本文・PDFのテキスト・表など）をGemini/Copilot/Claude/ChatGPT等に貼り付けて、この画面が高精度で読み取れる書式へ変換させるためのプロンプトをコピーします">🤖 AI整形用プロンプトをコピー</button>
         <details class="ei-format-help">
           <summary>💡 高精度で読み取れる書き方を見る（推奨フォーマット）</summary>
           <div class="ei-format-body">

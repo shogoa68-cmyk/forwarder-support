@@ -5260,6 +5260,12 @@ body.qp-dash-active #quoteActionDock { display: none !important; }
 }
 #tab-quote-make .ei-close:hover { color: #5a4a30; }
 #tab-quote-make .ei-desc { font-size: 11.5px; color: #7d6b56; margin: 0 0 8px; line-height: 1.6; }
+#tab-quote-make .ei-ai-prompt-btn {
+  cursor: pointer; font-family: inherit; font-size: 11.5px; font-weight: 700;
+  color: #4a3c7a; background: #ece6fa; border: 1px solid #c9b8f0; border-radius: 6px;
+  padding: 6px 12px; margin: 0 0 10px; display: inline-block;
+}
+#tab-quote-make .ei-ai-prompt-btn:hover { background: #ddd2f5; }
 #tab-quote-make .ei-format-help {
   margin: 0 0 10px; border: 1px solid #e0d5c0; border-radius: 6px; background: #fbf6ec;
 }
@@ -6489,6 +6495,12 @@ body.qp-dash-active #quoteActionDock { display: none !important; }
   font-size: 12px; cursor: pointer; font-family: inherit;
 }
 #tab-quote-make .btn-bulk-delete:hover { background: #c0392b; }
+#tab-quote-make .btn-bulk-merge {
+  background: #eaf6fb; color: #1c5a78; border: 1px solid #8ec4dd;
+  padding: 5px 12px; border-radius: 4px;
+  font-size: 12px; font-weight: 700; cursor: pointer; font-family: inherit;
+}
+#tab-quote-make .btn-bulk-merge:hover { background: #d5edf7; }
 /* ========== 設定エリア（為替・カスタムカテゴリ） ========== */
 #tab-quote-make .table-settings-row {
   display: flex;
@@ -9425,6 +9437,29 @@ button.um-memberno--empty:hover { background: #f4ead4; border-color: #cdb98e; }
 /* 作業テーブル：非表示指定の行はグレー＋点線で区別（行は残す） */
 #tab-quote-make tr.row-hidden-quote > td { opacity: 0.5; background: #f6f1e8; }
 #tab-quote-make tr.row-hidden-quote .w-name { text-decoration: line-through; text-decoration-color: #b08a6a; }
+/* 行の統合バッジ：単なる「非表示」と区別し、意図した統合であることを明示する */
+#tab-quote-make tr.row-merged-child > td { opacity: 0.7; background: #eef6fb; }
+#tab-quote-make .row-merge-badge {
+  display: flex; align-items: center; gap: 6px; margin-top: 3px;
+  font-size: 10.5px; line-height: 1.4;
+}
+#tab-quote-make .row-merge-badge--parent {
+  display: inline-flex; align-items: center;
+  color: #1c5a78; background: #eaf6fb; border: 1px solid #8ec4dd;
+  border-radius: 10px; padding: 1px 8px; font-weight: 700; width: fit-content;
+  cursor: default;
+}
+#tab-quote-make .row-merge-badge--child { color: #3a6a8a; }
+#tab-quote-make .row-merge-badge--child .row-merge-badge-label { font-weight: 700; }
+#tab-quote-make .row-merge-badge--child .row-merge-undo-btn {
+  cursor: pointer; font-family: inherit; font-size: 10px; font-weight: 700;
+  color: #1c5a78; background: #fff; border: 1px solid #8ec4dd; border-radius: 4px;
+  padding: 1px 6px;
+}
+#tab-quote-make .row-merge-badge--child .row-merge-undo-btn:hover { background: #eaf6fb; }
+/* 統合された行は見積書非表示（row-hidden-quote）の打消し線と重ねて薄く表示されるため、
+   区別のため打消し線は付けない（品名は読めたままにする） */
+#tab-quote-make tr.row-merged-child .w-name { text-decoration: none; }
 
 /* プレビュー：社内モードではグレーで表示、客先モード（has-sensitive なし）では非表示 */
 /* 見積書非表示（手動・PROFIT SHARE）: 社内モードで薄表示、客先モードで非表示 */

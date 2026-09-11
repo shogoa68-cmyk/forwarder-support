@@ -734,6 +734,27 @@
     window.refreshRowSelectionMode?.();
   }
 
+  // ========== 選択行の統合（先頭行を統合先として残りをまとめる） ==========
+  function mergeSelectedRowsFromToolbar() {
+    const checkboxes = document.querySelectorAll('.row-select-chk:checked');
+    if (checkboxes.length < 2) {
+      quoteShowToast('⚠️ 統合するには2行以上チェックしてください（先頭のチェック行が統合先になります）', 'warn', 3500);
+      return;
+    }
+    const rows = Array.from(checkboxes).map(chk => chk.closest('tr')).filter(tr => tr && !tr.dataset.type);
+    if (rows.length < 2) {
+      quoteShowToast('⚠️ 小計行・リマーク行は統合できません。通常行を選択してください', 'warn', 3000);
+      return;
+    }
+    if (typeof window.mergeSelectedRows === 'function') {
+      window.mergeSelectedRows(rows.map(tr => tr.id.replace('row-', '')));
+    }
+    const allChk = document.getElementById('selectAllChk');
+    if (allChk) allChk.checked = false;
+    window.refreshRowSelectionMode?.();
+  }
+  window.mergeSelectedRowsFromToolbar = mergeSelectedRowsFromToolbar;
+
   // ========== 選択行削除 ==========
   function deleteSelectedRows() {
     const checkboxes = document.querySelectorAll('.row-select-chk:checked');
@@ -746,6 +767,8 @@
     const allChk = document.getElementById('selectAllChk');
     if (allChk) allChk.checked = false;
     updateTotals();
+    // 削除した行が統合先だった場合、統合先を失った行を自動的に統合解除する
+    window.refreshMergeBadges?.();
     quoteShowToast(`🗑️ ${rows.length}行を削除しました`, 'info');
     window.refreshRowSelectionMode?.();
   }
