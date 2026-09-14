@@ -2705,11 +2705,18 @@
   window.expandAllGroups = expandAllGroups;
 
   // 折りたたみ・除外状態の取得／復元（保存データへの永続化用）
+  // パターンキーは内部的に NUL 文字（\x00）区切りの合成キーだが、そのまま
+  // 保存すると Postgres(jsonb) が   を含む文字列を拒否し保存失敗になる
+  // ため、[svKey, ptKey] のペア配列に変換してから永続化する。
+  function _splitPatternKey(compKey) {
+    const idx = compKey.indexOf('\x00');
+    return idx === -1 ? [compKey, ''] : [compKey.slice(0, idx), compKey.slice(idx + 1)];
+  }
   window.getGroupDisplayState = () => ({
     collapsedGroups:   Array.from(_collapsedGroups),
     excludedGroups:    Array.from(_excludedGroups),
-    collapsedPatterns: Array.from(_collapsedPatterns),
-    excludedPatterns:  Array.from(_excludedPatterns),
+    collapsedPatterns: Array.from(_collapsedPatterns).map(_splitPatternKey),
+    excludedPatterns:  Array.from(_excludedPatterns).map(_splitPatternKey),
   });
   window.setGroupDisplayState = (state) => {
     _collapsedGroups.clear(); _excludedGroups.clear();
@@ -2717,8 +2724,12 @@
     if (!state) return;
     (state.collapsedGroups   || []).forEach(k => _collapsedGroups.add(k));
     (state.excludedGroups    || []).forEach(k => _excludedGroups.add(k));
-    (state.collapsedPatterns || []).forEach(k => _collapsedPatterns.add(k));
-    (state.excludedPatterns  || []).forEach(k => _excludedPatterns.add(k));
+    (state.collapsedPatterns || []).forEach(pair => {
+      if (Array.isArray(pair)) _collapsedPatterns.add(pair[0] + '\x00' + pair[1]);
+    });
+    (state.excludedPatterns  || []).forEach(pair => {
+      if (Array.isArray(pair)) _excludedPatterns.add(pair[0] + '\x00' + pair[1]);
+    });
   };
 
   // サブコングループ別アクセント色（案B：カードの左スパイン＋ヘッダーティント）。
