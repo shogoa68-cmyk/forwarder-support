@@ -531,7 +531,7 @@
           if (_ptActive && p !== pk) {
             if (phas) pushPat();
             pk = p; plabel = p || '（パターン未設定）';
-            _seq.push({ _type: 'pattern-header', label: plabel, gi });
+            _seq.push({ _type: 'pattern-header', label: plabel, svNormKey: ck, ptKey: p, gi });
             phas = true;
           }
           d._gi = gi;
@@ -604,6 +604,14 @@
         html += `<tr class="pv-pattern-header pv-grp-c${d.gi % 4}">
           <td colspan="17" class="pv-ph-cell">📋 ${escHtml(d.label)}</td>
         </tr>`;
+        // パターン別リマーク（「見積書に表示」がONのときのみ客先向け出力にも表示）
+        const _remarkP = (typeof getSubconRemarks === 'function' && d.svNormKey && d.ptKey)
+          ? getSubconRemarks()[d.svNormKey + '||' + d.ptKey] : null;
+        if (_remarkP && _remarkP.show && _remarkP.text && _remarkP.text.trim()) {
+          html += `<tr class="pv-pattern-remark-row pv-grp-c${d.gi % 4}">
+            <td colspan="17" class="pv-subcon-remark-cell">📝 ${escHtml(_remarkP.text)}</td>
+          </tr>`;
+        }
         return;
       }
       if (d._type === 'pattern-subtotal') {

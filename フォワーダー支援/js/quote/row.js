@@ -2523,7 +2523,11 @@
   // サブコン別小計の「客先用表示名」（sv キー → 置換テキスト）。客先向け出力でサブコン名を隠すために使う。
   const _subconAlias     = Object.create(null);
   // サブコン別小計の「客先向けリマーク」（sv キー → {text, show}）。show=false は見積書・PDF・メールに出力しない。
+  // パターン単位のリマークも同じマップに同居させる。サブコン単位は従来どおり svKey のみのキー（後方互換）、
+  // パターン単位は 'svKey||ptKey'。区切りに NUL 文字（\x00）は使わない（Supabase/jsonb 保存時に
+  // "unsupported Unicode escape sequence" エラーになるため。_groupNotes の _gnKey と同じ '||' 方式に揃える）。
   const _subconRemark    = Object.create(null);
+  const _remarkKey = (svKey, pt) => pt ? (svKey + '||' + pt) : svKey;
   // グループ（サブコンブロック）ドラッグ並べ替え中の掴んでいるグループキー
   let _draggingGroupKey  = null;
   // パターン（サブコン内の入れ子ブロック）ドラッグ並べ替え中の掴んでいるパターンキー
@@ -3006,6 +3010,8 @@
             sub.dataset.ptKey   = curKey || '';
             sub.className = 'subcon-pattern-subtotal';
             const _svLabel = curSvKey === _UNSET_KEY ? '' : (groupLabel[curSvKey] || '');
+            const _rmKey = _remarkKey(curSvKey || _UNSET_KEY, curKey);
+            const _remarkObj = _subconRemark[_rmKey] || { text: '', show: true };
             sub.innerHTML =
               `<td colspan="10" class="subcon-pattern-subtotal-cell">` +
                 `<div class="subcon-subtotal-inner subcon-subtotal-inner--pt">` +
@@ -3016,6 +3022,13 @@
                   `<button type="button" class="subcon-subtotal-add-btn subcon-pt-add-btn" ` +
                     `data-sv="${_escAttr(_svLabel)}" data-pt="${_escAttr(curKey)}" ` +
                     `title="${_escAttr(curKey)} に行を追加（このパターン末尾）">＋ 行追加</button>` +
+                  `<span class="st-remark" title="このパターンに関する注記。「見積書に表示」がONの間だけ客先向け出力（プレビュー・御見積書PDF・メール）にも表示されます。">` +
+                    `<i>📝 パターン別リマーク</i>` +
+                    `<input type="text" class="subcon-remark-input" placeholder="このパターンへの注記（任意）" value="${_escAttr(_remarkObj.text || '')}" />` +
+                    `<button type="button" class="subcon-remark-toggle${_remarkObj.show ? ' is-shown' : ''}" ` +
+                      `title="${_remarkObj.show ? 'クリックで見積書には表示しない（社内用）にする' : 'クリックで見積書にも表示する'}">` +
+                      `${_remarkObj.show ? '📄 見積書に表示' : '🔒 非表示'}</button>` +
+                  `</span>` +
                 `</div>` +
               `</td>`;
             sub.querySelector('.subcon-pt-add-btn')?.addEventListener('click', (e => {
@@ -3024,6 +3037,36 @@
               const pt = sub.querySelector('.subcon-pt-add-btn').dataset.pt;
               addRowToSubconGroup(sv, pt);
             }));
+            const _ptRemarkInp    = sub.querySelector('.subcon-remark-input');
+            const _ptRemarkToggle = sub.querySelector('.subcon-remark-toggle');
+            if (_ptRemarkInp) {
+              _ptRemarkInp.addEventListener('input', () => {
+                const t = _ptRemarkInp.value;
+                if (t.trim()) {
+                  const cur = _subconRemark[_rmKey] || { show: true };
+                  cur.text = t;
+                  _subconRemark[_rmKey] = cur;
+                } else {
+                  delete _subconRemark[_rmKey];
+                }
+                if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
+              });
+              _ptRemarkInp.addEventListener('click', e => e.stopPropagation());
+            }
+            if (_ptRemarkToggle) {
+              _ptRemarkToggle.addEventListener('click', e => {
+                e.stopPropagation();
+                const t = _ptRemarkInp ? _ptRemarkInp.value : '';
+                const cur = _subconRemark[_rmKey] || { text: t, show: true };
+                cur.show = !cur.show;
+                cur.text = t;
+                if (t.trim()) _subconRemark[_rmKey] = cur; else delete _subconRemark[_rmKey];
+                _ptRemarkToggle.classList.toggle('is-shown', cur.show);
+                _ptRemarkToggle.textContent = cur.show ? '📄 見積書に表示' : '🔒 非表示';
+                _ptRemarkToggle.title = cur.show ? 'クリックで見積書には表示しない（社内用）にする' : 'クリックで見積書にも表示する';
+                if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
+              });
+            }
             tbody.insertBefore(sub, beforeNode);
           }
           runOpen = false; curKey = null; curKind = null;
@@ -3546,7 +3589,13 @@
       Object.keys(obj).forEach(k => {
         const v = obj[k];
         if (!v || typeof v.text !== 'string' || !v.text.trim()) return;
-        const nk = subconNormKey(k) || k;
+        // パターン単位キー（'svKey||ptKey'）は sv 側のみ正規化し直し、pt 側（生テキスト）は
+        // そのまま保つ。subconNormKey を合成キー全体にかけると pt 部分の大文字・空白も
+        // 変わってしまい実際のパターンキーと一致しなくなるため
+        const sep = k.indexOf('||');
+        const nk = sep === -1
+          ? (subconNormKey(k) || k)
+          : (subconNormKey(k.slice(0, sep)) || k.slice(0, sep)) + '||' + k.slice(sep + 2);
         _subconRemark[nk] = { text: v.text, show: v.show !== false };
       });
     }
