@@ -122,14 +122,15 @@ function sqScheduleSearch() {
 }
 
 async function sqDoSearch() {
-  const q   = (document.getElementById('sqSearchText')?.value || '').trim();
-  const ref = (document.getElementById('sqSearchRef')?.value  || '').trim();
-  const pol = (document.getElementById('sqSearchPol')?.value  || '').trim();
-  const pod = (document.getElementById('sqSearchPod')?.value  || '').trim();
-  const st  = document.querySelector('#sqPanel .sq-status-chip.is-on')?.dataset.status || '';
+  const q    = (document.getElementById('sqSearchText')?.value || '').trim();
+  const ref  = (document.getElementById('sqSearchRef')?.value  || '').trim();
+  const pol  = (document.getElementById('sqSearchPol')?.value  || '').trim();
+  const pod  = (document.getElementById('sqSearchPod')?.value  || '').trim();
+  const st   = document.querySelector('#sqPanel .sq-status-chip.is-on')?.dataset.status || '';
+  const mode = document.querySelector('#sqPanel .sq-mode-chip.is-on')?.dataset.mode || '';
 
   // 何も入力なければ auto 結果を表示
-  if (!q && !ref && !pol && !pod && !st) {
+  if (!q && !ref && !pol && !pod && !st && !mode) {
     _sqListRender(_sqAllResults.slice(0, _sqShowCount), _sqAllResults.length);
     return;
   }
@@ -144,11 +145,12 @@ async function sqDoSearch() {
     .order('updated_at', { ascending: false })
     .limit(20);
 
-  if (q)   dbq = dbq.or(`name.ilike.%${q}%,customer.ilike.%${q}%`);
-  if (ref) dbq = dbq.ilike('ref', `%${ref}%`);
-  if (pol) dbq = dbq.ilike('pol', `%${pol}%`);
-  if (pod) dbq = dbq.ilike('pod', `%${pod}%`);
-  if (st)  dbq = dbq.eq('status', st);
+  if (q)    dbq = dbq.or(`name.ilike.%${q}%,customer.ilike.%${q}%`);
+  if (ref)  dbq = dbq.ilike('ref', `%${ref}%`);
+  if (pol)  dbq = dbq.ilike('pol', `%${pol}%`);
+  if (pod)  dbq = dbq.ilike('pod', `%${pod}%`);
+  if (st)   dbq = dbq.eq('status', st);
+  if (mode) dbq = dbq.eq('transport_mode', mode);
 
   let { data, error } = await dbq;
   if (error && _sqIsMissingRefColumn(error)) {
@@ -158,10 +160,11 @@ async function sqDoSearch() {
       .select('id,name,status,customer,person,incoterms,transport_mode,pol,pod,carrier,updated_at')
       .order('updated_at', { ascending: false })
       .limit(20);
-    if (q)   dbq2 = dbq2.or(`name.ilike.%${q}%,customer.ilike.%${q}%`);
-    if (pol) dbq2 = dbq2.ilike('pol', `%${pol}%`);
-    if (pod) dbq2 = dbq2.ilike('pod', `%${pod}%`);
-    if (st)  dbq2 = dbq2.eq('status', st);
+    if (q)    dbq2 = dbq2.or(`name.ilike.%${q}%,customer.ilike.%${q}%`);
+    if (pol)  dbq2 = dbq2.ilike('pol', `%${pol}%`);
+    if (pod)  dbq2 = dbq2.ilike('pod', `%${pod}%`);
+    if (st)   dbq2 = dbq2.eq('status', st);
+    if (mode) dbq2 = dbq2.eq('transport_mode', mode);
     ({ data, error } = await dbq2);
   }
   if (error) return;
@@ -180,6 +183,12 @@ function _sqIsMissingRefColumn(error) {
 
 function sqStatusFilter(btn) {
   document.querySelectorAll('#sqPanel .sq-status-chip').forEach(b => b.classList.remove('is-on'));
+  btn.classList.add('is-on');
+  sqDoSearch();
+}
+
+function sqModeFilter(btn) {
+  document.querySelectorAll('#sqPanel .sq-mode-chip').forEach(b => b.classList.remove('is-on'));
   btn.classList.add('is-on');
   sqDoSearch();
 }
@@ -220,6 +229,13 @@ function _sqRender(rows, panel, p, total) {
        <div class="sq-search-row sq-search-row-2col">
          <input id="sqSearchPol" class="sq-search-input" placeholder="POL（積み港）" oninput="sqScheduleSearch()">
          <input id="sqSearchPod" class="sq-search-input" placeholder="POD（揚げ港）" oninput="sqScheduleSearch()">
+       </div>
+       <div class="sq-search-row sq-status-row">
+         <span class="sq-search-label">輸送モード</span>
+         <button class="sq-mode-chip is-on" data-mode="" onclick="sqModeFilter(this)">すべて</button>
+         <button class="sq-mode-chip" data-mode="海上（FCL）" onclick="sqModeFilter(this)">FCL</button>
+         <button class="sq-mode-chip" data-mode="海上（LCL）" onclick="sqModeFilter(this)">LCL</button>
+         <button class="sq-mode-chip" data-mode="航空（AIR）" onclick="sqModeFilter(this)">AIR</button>
        </div>
        <div class="sq-search-row sq-status-row">
          <span class="sq-search-label">状態</span>
@@ -349,4 +365,5 @@ window.sqToggleSearch    = sqToggleSearch;
 window.sqScheduleSearch  = sqScheduleSearch;
 window.sqDoSearch        = sqDoSearch;
 window.sqStatusFilter    = sqStatusFilter;
+window.sqModeFilter      = sqModeFilter;
 window.sqLoadMore        = sqLoadMore;

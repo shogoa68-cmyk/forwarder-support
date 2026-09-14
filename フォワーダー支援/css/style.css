@@ -2659,6 +2659,18 @@ a.bm-contact-item:hover { background: #2e6b3e; color: #fff; border-color: #2e6b3
 }
 .sq-status-chip:hover { background: #ede3d0; }
 .sq-status-chip.is-on { background: #4a3820; color: #fff; border-color: #4a3820; }
+.sq-mode-chip {
+  padding: 3px 9px;
+  font-size: 11px;
+  border: 1px solid #ccc0a8;
+  border-radius: 10px;
+  background: #fff;
+  color: #7a6040;
+  cursor: pointer;
+  transition: background .1s, color .1s;
+}
+.sq-mode-chip:hover { background: #ede3d0; }
+.sq-mode-chip.is-on { background: #4a3820; color: #fff; border-color: #4a3820; }
 
 /* スコアドット */
 .sq-score-dots {
