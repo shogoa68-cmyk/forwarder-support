@@ -9868,6 +9868,16 @@ button.um-memberno--empty:hover { background: #f4ead4; border-color: #cdb98e; }
 #tab-quote-make .ud-qty-in:focus { border-color: #4a6572; outline: none; }
 #tab-quote-make .ud-count { flex: none; font-size: 10px; color: #8a96a0; min-width: 30px; }
 #tab-quote-make .ud-empty { font-size: 11px; color: #9a8c74; line-height: 1.6; margin: 4px 0 8px; }
+#tab-quote-make .ud-chk { flex: none; width: 13px; height: 13px; margin: 0; cursor: pointer; }
+#tab-quote-make .ud-row--excluded { opacity: 0.45; }
+#tab-quote-make .ud-row--excluded .ud-unit { text-decoration: line-through; }
+#tab-quote-make .ud-select-toggle {
+  display: flex; justify-content: flex-end; gap: 5px;
+  font-size: 10.5px; color: #6a7580; margin: -2px 0 5px;
+}
+#tab-quote-make .ud-select-all { cursor: pointer; text-decoration: underline; }
+#tab-quote-make .ud-select-all:hover { color: #2a3540; }
+#tab-quote-make .ud-select-sep { color: #c0c8ce; }
 #tab-quote-make .ud-refresh {
   display: block; width: 100%; background: none; border: 1px dashed #c8b89a;
   color: #7a6040; font-size: 12px; border-radius: 3px; padding: 4px 8px;

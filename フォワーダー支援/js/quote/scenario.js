@@ -5,6 +5,9 @@
 // 数量がバラつく単位は、現在数量ごとに個別の行として表示する。
 
   let _udCollapsed = false;
+  // 「一括反映」の対象から外したグループ（キー：単位\x00数量）。既定は全グループ対象。
+  // パネル再描画をまたいで状態を保つため、行の増減があっても同じキーなら除外指定が残る。
+  const _udExcluded = new Set();
 
   // ---------- 明細から（単位×数量）グループを収集 ----------
   function _udCollect() {
@@ -32,15 +35,19 @@
     const groups = _udCollect();
 
     const listHtml = groups.length
-      ? groups.map(g =>
-          `<div class="ud-row" data-ids='${JSON.stringify(g.ids)}'>
+      ? groups.map(g => {
+          const key = g.unit + '\x00' + g.qty;
+          const included = !_udExcluded.has(key);
+          return `<div class="ud-row${included ? '' : ' ud-row--excluded'}" data-ids='${JSON.stringify(g.ids)}' data-key="${escHtml(key)}">
+             <input type="checkbox" class="ud-chk" ${included ? 'checked' : ''}
+                    onchange="udToggleGroup(this)" title="チェックを外すと「一括反映」の対象から除外します" />
              <span class="ud-unit" title="${escHtml(g.unit)}">${escHtml(g.unit)}</span>
              <span class="ud-times">×</span>
-             <input type="number" class="ud-qty-in" value="${escHtml(g.qty)}" min="0" step="1"
+             <input type="number" class="ud-qty-in" value="${escHtml(g.qty)}" min="0" step="1" ${included ? '' : 'disabled'}
                     title="新しい数量を入力して「一括反映」を押すと、この単位・数量の行をまとめて変更します" />
              <span class="ud-count" title="この単位・数量の行数">${g.ids.length}行</span>
-           </div>`
-        ).join('')
+           </div>`;
+        }).join('')
       : '<p class="ud-empty">単位が設定された明細行がありません。<br>明細行の「単位」欄を入力すると、ここに一覧表示されます。</p>';
 
     panel.classList.toggle('sc-panel--collapsed', _udCollapsed);
@@ -51,7 +58,12 @@
        </div>
        <div class="sc-body">
          <div class="qsp-cargo-info ud-cargo-info" id="qspCargoInfo" style="display:none;"></div>
-         <p class="sc-hint">明細行の単位ごとに現在の数量を表示します。数値を変えて<b>「一括反映」</b>すると、その単位・数量の行をまとめて更新します。<br>数量がバラつく単位は、現在の数量ごとに分けて表示されます。</p>
+         <p class="sc-hint">明細行の単位ごとに現在の数量を表示します。数値を変えて<b>「一括反映」</b>すると、その単位・数量の行をまとめて更新します。<br>数量がバラつく単位は、現在の数量ごとに分けて表示されます。チェックを外すとその単位を対象から除外できます。</p>
+         ${groups.length ? `<div class="ud-select-toggle">
+           <span class="ud-select-all" onclick="udSelectAll(true)">すべて選択</span>
+           <span class="ud-select-sep">/</span>
+           <span class="ud-select-all" onclick="udSelectAll(false)">すべて解除</span>
+         </div>` : ''}
          <div class="ud-list">${listHtml}</div>
          <button class="ud-refresh" type="button" onclick="udRefresh()" title="明細から単位を再取得">🔄 再読み込み</button>
          <button class="sc-open-btn" type="button" onclick="udApplyAll()" ${groups.length ? '' : 'disabled'}>✅ 一括反映</button>
@@ -65,12 +77,34 @@
   function scToggleCollapse() { _udCollapsed = !_udCollapsed; _udRenderPanel(); }
   function udRefresh() { _udRenderPanel(); }
 
+  // グループごとのチェック切り替え（一括反映の対象／対象外）
+  function udToggleGroup(chk) {
+    const rowEl = chk.closest('.ud-row');
+    if (!rowEl) return;
+    const key = rowEl.dataset.key || '';
+    if (chk.checked) _udExcluded.delete(key); else _udExcluded.add(key);
+    rowEl.classList.toggle('ud-row--excluded', !chk.checked);
+    const inp = rowEl.querySelector('.ud-qty-in');
+    if (inp) inp.disabled = !chk.checked;
+  }
+
+  // すべて選択／すべて解除
+  function udSelectAll(on) {
+    const panel = document.getElementById('scPanel');
+    if (!panel) return;
+    panel.querySelectorAll('.ud-row').forEach(rowEl => {
+      const chk = rowEl.querySelector('.ud-chk');
+      if (chk) { chk.checked = on; udToggleGroup(chk); }
+    });
+  }
+
   function udApplyAll() {
     const panel = document.getElementById('scPanel');
     if (!panel) return;
     let unitsChanged = 0, rowsChanged = 0;
 
     panel.querySelectorAll('.ud-row').forEach(rowEl => {
+      if (rowEl.querySelector('.ud-chk')?.checked === false) return;   // チェックを外したグループは対象外
       let ids;
       try { ids = JSON.parse(rowEl.dataset.ids || '[]'); } catch (e) { ids = []; }
       const inp = rowEl.querySelector('.ud-qty-in');
@@ -128,3 +162,5 @@
   window.scToggleCollapse = scToggleCollapse;
   window.udRefresh        = udRefresh;
   window.udApplyAll       = udApplyAll;
+  window.udToggleGroup    = udToggleGroup;
+  window.udSelectAll      = udSelectAll;
