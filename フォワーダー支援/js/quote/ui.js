@@ -3485,6 +3485,10 @@
     const groups = _collectTableGroups();
     window._qspTableGroups = groups;
     if (groups.length) {
+      html += '<div class="qsp-dig-tree-actions">' +
+        '<button type="button" class="qsp-dig-tree-btn" onclick="window.collapseAllGroups()" title="サブコン・パターンの見出しをすべて折りたたみます（除外状態は変わりません）">▶ すべて折りたたむ</button>' +
+        '<button type="button" class="qsp-dig-tree-btn" onclick="window.expandAllGroups()" title="サブコン・パターンの見出しをすべて展開します（除外状態は変わりません）">▼ すべて展開</button>' +
+        '</div>';
       let parentSvCollapsed = false, parentPtCollapsed = false;
       // 乗せ幅・粗利率を出すかは表全体で 1 回だけ判定する。
       // 明細ごとに getPreviewVisibility() を呼ぶと行数ぶん DOM 探索が走り、
