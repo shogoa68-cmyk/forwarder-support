@@ -59,11 +59,20 @@ async function _sqFetch() {
   if (p.pod)      orParts.push(`pod.ilike.%${p.pod}%`);
   if (p.customer) orParts.push(`customer.ilike.%${p.customer}%`);
 
-  const { data, error } = await db.from('quote_presets')
-    .select('id,name,status,customer,person,incoterms,transport_mode,pol,pod,carrier,updated_at')
+  let { data, error } = await db.from('quote_presets')
+    .select('id,name,ref,status,customer,person,incoterms,transport_mode,pol,pod,carrier,updated_at')
     .or(orParts.join(','))
     .order('updated_at', { ascending: false })
     .limit(25);
+  // ref 列が未マイグレーション（docs/sql/quote-preset-ref.sql 未実行）の環境でも
+  // 自動サジェスト自体は動くよう、ref 抜きで再試行する
+  if (error && _sqIsMissingRefColumn(error)) {
+    ({ data, error } = await db.from('quote_presets')
+      .select('id,name,status,customer,person,incoterms,transport_mode,pol,pod,carrier,updated_at')
+      .or(orParts.join(','))
+      .order('updated_at', { ascending: false })
+      .limit(25));
+  }
 
   if (error) { panel.hidden = true; return; }
 
@@ -114,12 +123,13 @@ function sqScheduleSearch() {
 
 async function sqDoSearch() {
   const q   = (document.getElementById('sqSearchText')?.value || '').trim();
+  const ref = (document.getElementById('sqSearchRef')?.value  || '').trim();
   const pol = (document.getElementById('sqSearchPol')?.value  || '').trim();
   const pod = (document.getElementById('sqSearchPod')?.value  || '').trim();
   const st  = document.querySelector('#sqPanel .sq-status-chip.is-on')?.dataset.status || '';
 
   // 何も入力なければ auto 結果を表示
-  if (!q && !pol && !pod && !st) {
+  if (!q && !ref && !pol && !pod && !st) {
     _sqListRender(_sqAllResults.slice(0, _sqShowCount), _sqAllResults.length);
     return;
   }
@@ -130,22 +140,42 @@ async function sqDoSearch() {
   if (!sd?.session?.user) return;
 
   let dbq = db.from('quote_presets')
-    .select('id,name,status,customer,person,incoterms,transport_mode,pol,pod,carrier,updated_at')
+    .select('id,name,ref,status,customer,person,incoterms,transport_mode,pol,pod,carrier,updated_at')
     .order('updated_at', { ascending: false })
     .limit(20);
 
   if (q)   dbq = dbq.or(`name.ilike.%${q}%,customer.ilike.%${q}%`);
+  if (ref) dbq = dbq.ilike('ref', `%${ref}%`);
   if (pol) dbq = dbq.ilike('pol', `%${pol}%`);
   if (pod) dbq = dbq.ilike('pod', `%${pod}%`);
   if (st)  dbq = dbq.eq('status', st);
 
-  const { data, error } = await dbq;
+  let { data, error } = await dbq;
+  if (error && _sqIsMissingRefColumn(error)) {
+    // ref 列が未マイグレーションの環境：ref 検索は使えないが他の絞り込みは続行する
+    if (ref) quoteShowToast('⚠️ 見積もり番号での検索はまだ使えません（DB側の設定が必要です）', 'warn', 4000);
+    let dbq2 = db.from('quote_presets')
+      .select('id,name,status,customer,person,incoterms,transport_mode,pol,pod,carrier,updated_at')
+      .order('updated_at', { ascending: false })
+      .limit(20);
+    if (q)   dbq2 = dbq2.or(`name.ilike.%${q}%,customer.ilike.%${q}%`);
+    if (pol) dbq2 = dbq2.ilike('pol', `%${pol}%`);
+    if (pod) dbq2 = dbq2.ilike('pod', `%${pod}%`);
+    if (st)  dbq2 = dbq2.eq('status', st);
+    ({ data, error } = await dbq2);
+  }
   if (error) return;
 
   // auto-params でスコアも付与（参考表示）
   const p = _sqGetParams();
   const rows = (data || []).map(r => ({ ...r, _score: _sqScore(r, p) }));
   _sqListRender(rows, rows.length);
+}
+
+// ref 列が未マイグレーション（Supabase 側で docs/sql/quote-preset-ref.sql 未実行）のときの
+// Postgrest エラーを判定する（"column ... ref ... does not exist" 系のメッセージ）
+function _sqIsMissingRefColumn(error) {
+  return !!(error && /column .*ref.* does not exist/i.test(error.message || ''));
 }
 
 function sqStatusFilter(btn) {
@@ -181,6 +211,9 @@ function _sqRender(rows, panel, p, total) {
        <button class="sq-search-toggle" onclick="sqToggleSearch()" title="絞り込み検索">🔍</button>
      </div>` +
     `<div class="sq-search-bar" hidden>
+       <div class="sq-search-row">
+         <input id="sqSearchRef" class="sq-search-input" placeholder="見積もり番号で検索（例：05-2606100-02）" oninput="sqScheduleSearch()">
+       </div>
        <div class="sq-search-row">
          <input id="sqSearchText" class="sq-search-input" placeholder="見積名・顧客名で検索" oninput="sqScheduleSearch()">
        </div>
@@ -226,6 +259,7 @@ function _sqCardHtml(r) {
   const podShort = (r.pod || '').split(/[,、]/)[0].trim();
   const route  = (polShort || podShort) ? `<span class="sq-route">${escHtml([polShort, podShort].filter(Boolean).join(' → '))}</span>` : '';
   const cust   = r.customer ? `<span class="sq-cust">${escHtml(r.customer)}</span>` : '';
+  const ref    = r.ref ? `<span class="sq-ref">${escHtml(r.ref)}</span>` : '';
   const date   = r.updated_at ? new Date(r.updated_at).toLocaleDateString('ja-JP', { month: 'numeric', day: 'numeric' }) : '';
   const score  = r._score != null ? _sqScoreDots(r._score) : '';
   const level  = r._score != null ? (r._score >= _SQ_MAX * 0.6 ? 3 : r._score >= _SQ_MAX * 0.27 ? 2 : 1) : 0;
@@ -235,7 +269,7 @@ function _sqCardHtml(r) {
       <span class="sq-card-name">${escHtml(r.name || '（無題）')}</span>
       ${badge}${score}
     </div>
-    <div class="sq-card-sub">${cust}${route}</div>
+    <div class="sq-card-sub">${ref}${cust}${route}</div>
     <div class="sq-card-tags">${inco}${mode}</div>
     ${date ? `<div class="sq-card-date">${date}</div>` : ''}
   </div>`;
@@ -267,7 +301,7 @@ async function _sqFallbackPreview(id) {
   const db = window.SupabaseClient;
   if (!db) return;
   const { data, error } = await db.from('quote_presets')
-    .select('id,name,status,customer,person,incoterms,transport_mode,pol,pod,carrier,created_by,updated_at')
+    .select('id,name,ref,status,customer,person,incoterms,transport_mode,pol,pod,carrier,created_by,updated_at')
     .eq('id', id).single();
   if (error || !data) { quoteShowToast('⚠️ 取得失敗', 'warn'); return; }
 
@@ -275,6 +309,7 @@ async function _sqFallbackPreview(id) {
   document.getElementById('sqPreviewTitle').textContent = data.name || '（無題）';
 
   const rows = [
+    ['見積もり番号',   data.ref],
     ['インコタームズ', data.incoterms],
     ['輸送モード',     data.transport_mode],
     ['POL → POD',     data.pol && data.pod ? `${data.pol} → ${data.pod}` : null],

@@ -2369,6 +2369,13 @@ a.bm-contact-item:hover { background: #2e6b3e; color: #fff; border-color: #2e6b3
   margin-bottom: 6px;
   align-items: baseline;
 }
+.sq-ref {
+  font-weight: 700;
+  color: #5a4628;
+  font-variant-numeric: tabular-nums;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
 .sq-cust {
   overflow: hidden;
   text-overflow: ellipsis;
