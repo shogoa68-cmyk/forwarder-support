@@ -376,6 +376,13 @@
         if (!_ptHas || p !== _ptKey) {
           _ptKey = p;
           lineHTML.push(`<tr class="qd-pattern-head"><td colspan="5">📋 ${esc(_ptKey || '（パターン未設定）')}</td></tr>`);
+          // パターン別リマーク（「見積書に表示」がONのときのみ御見積書PDFにも表示）
+          if (_ptKey) {
+            const _rmP = (typeof getSubconRemarks === 'function' ? getSubconRemarks()[_scKey + '||' + _ptKey] : null);
+            if (_rmP && _rmP.show && _rmP.text && _rmP.text.trim()) {
+              lineHTML.push(`<tr class="qd-pattern-remark"><td colspan="5">📝 ${esc(_rmP.text)}</td></tr>`);
+            }
+          }
           _catKey = null;
         }
         if (!isActual && !isCond && !isRef) _ptJpy += jpy;

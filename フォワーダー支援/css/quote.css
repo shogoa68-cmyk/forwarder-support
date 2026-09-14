@@ -4013,6 +4013,12 @@
   border-left: 3px solid var(--pv-ga);
 }
 #tab-quote-make #previewTable tr.pv-pattern-subtotal > td:first-child { border-left: 3px solid var(--pv-ga); }
+/* パターン別リマーク（パターン見出しの直下・「見積書に表示」ONのときのみ出力） */
+#tab-quote-make #previewTable tr.pv-pattern-remark-row td {
+  background: #fdf8ec;
+  border-left: 3px solid var(--pv-ga);
+  padding: 3px 8px;
+}
 #tab-quote-make #previewTable tr.pv-table-remark-row td {
   background: #eef3f8;
   border-top: 1px dashed #9ab0c8 !important;
