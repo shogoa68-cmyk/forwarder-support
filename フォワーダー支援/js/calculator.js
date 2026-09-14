@@ -140,7 +140,7 @@ function appendCalcResult(id, html, summary) {
       <span class="calc-history-summary">${summary||''}</span>
       <button class="btn-copy-result" onclick="copyCalcResult(this)" title="整形テキストをコピー">📋 コピー</button>
       <button class="btn-send-to-quote" onclick="sendCalcResultToQuote(this)" title="見積もりタブの「全体リマーク（条件・免責事項）」へ追記">📝 見積もりへ</button>
-      <button class="calc-history-close" onclick="const e=this.closest('.calc-history-entry'),c=e.parentElement;e.remove();if(!c.querySelector('.calc-history-entry'))c.style.display='none'">×</button>
+      <button class="calc-history-close" onclick="const e=this.closest('.calc-history-entry'),c=e.parentElement;if(e._van3dCleanup)e._van3dCleanup();e.remove();if(!c.querySelector('.calc-history-entry'))c.style.display='none'">×</button>
     </div>${html}`;
   container.insertBefore(entry, container.firstChild);
 }
@@ -642,8 +642,10 @@ function calcPalletize() {
 }
 
 // ================================================================
-//  バンニング計算 + SVG断面図
+//  バンニング計算 + 3D積み付けプレビュー
 // ================================================================
+
+let _van3dSeq = 0;
 
 function calcVanning() {
   const { unit, factor } = getUnitConversion('van-unit', 'cm');
@@ -718,7 +720,6 @@ function calcVanning() {
       </div>`;
     }).join('');
 
-    const svgHtml = Object.entries(CONT).map(([key,c]) => buildContainerSVG(key, c, [bl,bw,bh], rowNoStack, rec.key)).join('');
     const inputLine = formatRowInputSummary([
       `${blInput}×${bwInput}×${bhInput}${unit}`,
       `${bkg}kg`,
@@ -726,14 +727,15 @@ function calcVanning() {
       rowNoStack ? '段積み不可' : stackLabel,
       qty>0 ? `× ${qty}個` : ''
     ]);
+    const van3dId = `van3d-host-${++_van3dSeq}`;
     appendCalcResult('van-result',
       renderInputEcho(inputLine) +
       `<div class="calc-row">${cardsHtml}</div>
       <p style="font-size:11px;color:#718096;margin-top:10px;">※ ダンネージなしの理論値。実際の積み付けは現場でご確認ください。</p>
-      <div style="margin-top:12px;font-size:11px;font-weight:700;color:var(--text-md);">📐 コンテナ断面図（端面ビュー）</div>
-      <p style="font-size:11px;color:var(--text-lt);margin-top:2px;margin-bottom:6px;">幅方向・高さ方向に貨物がどう並ぶかを示します。破線＝ドア有効高さ。</p>
-      <div class="container-svg-wrap">${svgHtml}</div>`,
+      <div style="margin-top:12px;font-size:11px;font-weight:700;color:var(--text-md);">🧊 3D積み付けプレビュー</div>
+      <div id="${van3dId}"></div>`,
       inputLine);
+    window.Vanning3D && window.Vanning3D.mountPreview('#'+van3dId, cargo, CONT, rec.key);
     return;
   }
 
@@ -821,6 +823,7 @@ function calcVanning() {
     ? `<p style="font-size:11px;color:#b45309;margin-top:6px;">⚠️ 段積み不可の品種が ${noStackCount} 件あります（床面積占有を簡易補正）。</p>`
     : '';
 
+  const van3dId = `van3d-host-${++_van3dSeq}`;
   appendCalcResult('van-result',
     `<div style="margin-bottom:10px;">
       <div style="font-size:11px;font-weight:700;color:var(--text-md);margin-bottom:6px;">📦 品種別内訳（合計 ${totalCBM.toFixed(4)} CBM${totalKg>0?' / '+totalKg.toLocaleString()+' kg':''}）</div>
@@ -828,95 +831,11 @@ function calcVanning() {
     </div>
     <div class="calc-row">${cardsHtml}</div>
     ${stackNote}
-    <p style="font-size:11px;color:#718096;margin-top:10px;">※ CBMベースの理論値。混載バンニングは積み合わせ次第で変わります。実際の積み付けは現場でご確認ください。</p>`,
+    <p style="font-size:11px;color:#718096;margin-top:10px;">※ CBMベースの理論値。混載バンニングは積み合わせ次第で変わります。実際の積み付けは現場でご確認ください。</p>
+    <div style="margin-top:12px;font-size:11px;font-weight:700;color:var(--text-md);">🧊 3D積み付けプレビュー（推奨コンテナ：${rec.c.label}）</div>
+    <div id="${van3dId}"></div>`,
     `${cargo.length}品種 / 合計${totalCBM.toFixed(3)}CBM${globalNoStack?' / 全行段積み不可':noStackCount>0?' / 一部段積み不可':''}`);
-}
-
-// コンテナ端面断面図SVGを生成
-function buildContainerSVG(key, cont, dims, noStack, recKey) {
-  const SVG_W = 170, SVG_H = 140;
-  const PAD_L = 14, PAD_T = 10, PAD_R = 24, PAD_B = 12;
-
-  const contW_cm = cont.w; // 内寸幅 (cm)
-  const contH_cm = cont.h; // 内寸高 (cm)
-
-  const drawW = SVG_W - PAD_L - PAD_R;
-  const drawH = SVG_H - PAD_T - PAD_B;
-  const scale  = Math.min(drawW / contW_cm, drawH / contH_cm);
-
-  const dispW  = contW_cm * scale;
-  const dispH  = contH_cm * scale;
-  const ox     = PAD_L + (drawW - dispW) / 2;
-  const oy     = PAD_T + (drawH - dispH) / 2;
-
-  // 最良の向き（幅×高さ方向の収納数最大）を探す
-  const PERMS = [[0,1,2],[0,2,1],[1,0,2],[1,2,0],[2,0,1],[2,1,0]];
-  let bestPerm = PERMS[0], bestFace = 0;
-  PERMS.forEach(p => {
-    const cols = Math.floor(contW_cm / dims[p[1]]);
-    const rows = noStack ? Math.min(1, Math.floor(contH_cm / dims[p[2]])) : Math.floor(contH_cm / dims[p[2]]);
-    if (cols * rows > bestFace) { bestFace = cols * rows; bestPerm = p; }
-  });
-
-  const boxW_cm = dims[bestPerm[1]];
-  const boxH_cm = dims[bestPerm[2]];
-  const cols    = Math.floor(contW_cm / boxW_cm);
-  const rows    = noStack ? Math.min(1, Math.floor(contH_cm / boxH_cm)) : Math.floor(contH_cm / boxH_cm);
-  const dispBW  = boxW_cm * scale;
-  const dispBH  = boxH_cm * scale;
-
-  // ドア有効高さ (cm): 20/40ft標準=228, HC=256
-  const doorH_cm  = key === '40hc' ? 256 : 228;
-  const dispDoorY = oy + dispH - doorH_cm * scale;
-  const overDoor  = (boxH_cm * rows) > doorH_cm;
-
-  // 貨物ボックスを描画（最大40個で打ち止め）
-  let boxes = '', count = 0;
-  for (let r = 0; r < rows && count < 40; r++) {
-    for (let c = 0; c < cols && count < 40; c++) {
-      const bx = ox + c * dispBW;
-      const by = oy + dispH - (r + 1) * dispBH;
-      boxes += `<rect x="${bx.toFixed(1)}" y="${by.toFixed(1)}"
-        width="${(dispBW - 0.6).toFixed(1)}" height="${(dispBH - 0.6).toFixed(1)}"
-        fill="#7bb8d4" stroke="#4a88a8" stroke-width="0.6" opacity="0.82"/>`;
-      count++;
-    }
-  }
-
-  const isRec      = key === recKey;
-  const framCol    = isRec ? '#3a7a32' : '#9a8a78';
-  const bgCol      = isRec ? '#eaf4e8' : '#f8f4ef';
-  const doorColor  = overDoor ? '#e53e3e' : '#a0a0a0';
-  const recBadge   = isRec ? ' ✅' : '';
-
-  return `<div class="container-svg-item">
-    <svg width="${SVG_W}" height="${SVG_H}" viewBox="0 0 ${SVG_W} ${SVG_H}"
-         style="border:1.5px solid ${framCol};border-radius:6px;background:${bgCol};">
-      <!-- コンテナ輪郭 -->
-      <rect x="${ox.toFixed(1)}" y="${oy.toFixed(1)}"
-            width="${dispW.toFixed(1)}" height="${dispH.toFixed(1)}"
-            fill="none" stroke="${framCol}" stroke-width="1.5"/>
-      <!-- 貨物ボックス -->
-      ${boxes}
-      <!-- ドア有効高さ ライン -->
-      <line x1="${ox.toFixed(1)}" y1="${dispDoorY.toFixed(1)}"
-            x2="${(ox+dispW).toFixed(1)}" y2="${dispDoorY.toFixed(1)}"
-            stroke="${doorColor}" stroke-width="1.0" stroke-dasharray="3,2"/>
-      <text x="${(ox+dispW+2).toFixed(1)}" y="${(dispDoorY+4).toFixed(1)}"
-            font-size="7" fill="${doorColor}">ドア</text>
-      ${overDoor ? `<text x="${(ox+dispW/2).toFixed(1)}" y="${(oy+dispH+9).toFixed(1)}"
-            font-size="7.5" fill="#e53e3e" text-anchor="middle" font-weight="bold">⚠ ドア高超過</text>` : ''}
-      <!-- 幅寸法ラベル -->
-      <text x="${(ox+dispW/2).toFixed(1)}" y="${(oy-2).toFixed(1)}"
-            font-size="7" fill="#666" text-anchor="middle">${contW_cm}cm</text>
-      <!-- 高さ寸法ラベル -->
-      <text x="${(ox-3).toFixed(1)}" y="${(oy+dispH/2).toFixed(1)}"
-            font-size="7" fill="#666" text-anchor="middle"
-            transform="rotate(-90,${(ox-3).toFixed(1)},${(oy+dispH/2).toFixed(1)})">${contH_cm}cm</text>
-    </svg>
-    <div class="container-svg-label">${cont.label}${recBadge}</div>
-    <div class="container-svg-sub">${cols}列×${rows}段 (端面${cols*rows}個/層)</div>
-  </div>`;
+  window.Vanning3D && window.Vanning3D.mountPreview('#'+van3dId, cargo, CONT, rec.key);
 }
 
 // ================================================================
