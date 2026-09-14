@@ -7804,6 +7804,16 @@ body.qp-dash-active #quoteActionDock { display: none !important; }
   overflow: hidden;
 }
 #tab-quote-make .qsp-dig-row.is-empty .qsp-dig-sum { color: #b6a78c; font-style: italic; }
+/* すべて折りたたむ／すべて展開（費用テーブルのグループツリー用） */
+#tab-quote-make .qsp-dig-tree-actions {
+  display: flex; gap: 6px; margin: 2px 0 4px 10px;
+}
+#tab-quote-make .qsp-dig-tree-btn {
+  cursor: pointer; font-family: inherit; font-size: 10px; font-weight: 600;
+  color: #7a6a4e; background: #f7f1e2; border: 1px solid #d8c9ad; border-radius: 10px;
+  padding: 2px 8px;
+}
+#tab-quote-make .qsp-dig-tree-btn:hover { background: #efe4c8; }
 /* 費用テーブル内グループ（サブコン別／パターン別）へのジャンプリンク */
 #tab-quote-make .qsp-dig-subjumps {
   display: flex; flex-direction: column; gap: 2px;

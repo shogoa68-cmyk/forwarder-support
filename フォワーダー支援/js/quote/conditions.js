@@ -545,6 +545,7 @@
     if (typeof setSubconAliases === 'function') setSubconAliases(data.subconAliases || {});
     if (typeof setSubconRemarks === 'function') setSubconRemarks(data.subconRemarks || {});
     if (typeof setSubconGroupNotes === 'function') setSubconGroupNotes(data.groupNotes || {});
+    if (typeof setGroupDisplayState === 'function') setGroupDisplayState(data.groupDisplayState || null);
     // 読み込む案件の data.fields に存在しないフィールド（機能追加前に保存された古い
     // プリセット等でキー自体が無い場合）は、直前に開いていた別案件の値をそのまま
     // 引き継いでしまう（例：参照URLが別案件に漏れて表示される）。qf-status で対応
@@ -971,6 +972,7 @@
              subconAliases: (typeof getSubconAliases === 'function' ? getSubconAliases() : {}),
              subconRemarks: (typeof getSubconRemarks === 'function' ? getSubconRemarks() : {}),
              groupNotes: (typeof getSubconGroupNotes === 'function' ? getSubconGroupNotes() : {}),
+             groupDisplayState: (typeof getGroupDisplayState === 'function' ? getGroupDisplayState() : {}),
              fxSnapshot: { rates: { ..._fxRates }, ts: localStorage.getItem(SharedStorage.KEYS.FX_LAST_FETCHED) || null },
              ...(_loadedCopiedFrom ? { copiedFrom: _loadedCopiedFrom } : {}) };
   }
@@ -1029,6 +1031,7 @@
     if (typeof setSubconAliases === 'function') setSubconAliases(data.subconAliases || {});
     if (typeof setSubconRemarks === 'function') setSubconRemarks(data.subconRemarks || {});
     if (typeof setSubconGroupNotes === 'function') setSubconGroupNotes(data.groupNotes || {});
+    if (typeof setGroupDisplayState === 'function') setGroupDisplayState(data.groupDisplayState || null);
     // フォーム復元
     Object.entries(data.fields || {}).forEach(([id, val]) => {
       const el = document.getElementById(id);
@@ -1074,6 +1077,7 @@
     if (typeof setSubconAliases === 'function') setSubconAliases(data.subconAliases || {});
     if (typeof setSubconRemarks === 'function') setSubconRemarks(data.subconRemarks || {});
     if (typeof setSubconGroupNotes === 'function') setSubconGroupNotes(data.groupNotes || {});
+    if (typeof setGroupDisplayState === 'function') setGroupDisplayState(data.groupDisplayState || null);
     // フォーム復元
     Object.entries(data.fields || {}).forEach(([id, val]) => {
       const el = document.getElementById(id);

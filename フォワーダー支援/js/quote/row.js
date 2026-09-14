@@ -2674,6 +2674,53 @@
       }
     });
   }
+
+  // ========== 折りたたみ・除外状態の一括操作・保存/復元 ==========
+  // 現在テーブルに存在するサブコン／パターンの見出しをすべて折りたたむ（除外状態は変更しない）
+  function collapseAllGroups() {
+    const tbody = document.getElementById('tableBody');
+    if (!tbody) return;
+    tbody.querySelectorAll('tr.subcon-group-header').forEach(tr => {
+      const key = tr.dataset.svKey;
+      if (key) _collapsedGroups.add(key);
+    });
+    tbody.querySelectorAll('tr.subcon-subgroup-header.is-pattern').forEach(tr => {
+      const svKey = tr.dataset.svKey, ptKey = tr.dataset.ptKey;
+      if (svKey && ptKey != null) _collapsedPatterns.add(svKey + '\x00' + ptKey);
+    });
+    _applyGroupStates();
+    if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
+    if (typeof window.renderQuoteSectionDigest === 'function') window.renderQuoteSectionDigest();
+  }
+  window.collapseAllGroups = collapseAllGroups;
+
+  // すべてのサブコン／パターンの見出しを展開する（除外状態は変更しない）
+  function expandAllGroups() {
+    _collapsedGroups.clear();
+    _collapsedPatterns.clear();
+    _applyGroupStates();
+    if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
+    if (typeof window.renderQuoteSectionDigest === 'function') window.renderQuoteSectionDigest();
+  }
+  window.expandAllGroups = expandAllGroups;
+
+  // 折りたたみ・除外状態の取得／復元（保存データへの永続化用）
+  window.getGroupDisplayState = () => ({
+    collapsedGroups:   Array.from(_collapsedGroups),
+    excludedGroups:    Array.from(_excludedGroups),
+    collapsedPatterns: Array.from(_collapsedPatterns),
+    excludedPatterns:  Array.from(_excludedPatterns),
+  });
+  window.setGroupDisplayState = (state) => {
+    _collapsedGroups.clear(); _excludedGroups.clear();
+    _collapsedPatterns.clear(); _excludedPatterns.clear();
+    if (!state) return;
+    (state.collapsedGroups   || []).forEach(k => _collapsedGroups.add(k));
+    (state.excludedGroups    || []).forEach(k => _excludedGroups.add(k));
+    (state.collapsedPatterns || []).forEach(k => _collapsedPatterns.add(k));
+    (state.excludedPatterns  || []).forEach(k => _excludedPatterns.add(k));
+  };
+
   // サブコングループ別アクセント色（案B：カードの左スパイン＋ヘッダーティント）。
   // 出現順にパレットを循環。同じサブコン名は再描画後も同色を維持（_grpColorMap でキャッシュ）。
   const _GRP_PALETTE = ['#b0772f', '#2a6f9e', '#3d7a52', '#9c5a3c', '#6f5aa0', '#1f7d8c', '#c2722e', '#4a6aa0'];
