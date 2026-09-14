@@ -5822,6 +5822,14 @@ body.qp-dash-active #quoteActionDock { display: none !important; }
   border-radius: 6px; font-size: 13px; font-weight: 600; cursor: pointer;
 }
 #tab-quote-make .cp-btn-load:hover { background: #0f2347; }
+#tab-quote-make .cp-btn-copy {
+  padding: 7px 14px; background: #fff; color: #6b5636; border: 1px solid #c9a55f;
+  border-radius: 6px; font-size: 13px; font-weight: 600; cursor: pointer;
+}
+#tab-quote-make .cp-btn-copy:hover { background: #f3e8d2; }
+#tab-quote-make .cp-ref {
+  font-weight: 700; color: #6b5636; font-variant-numeric: tabular-nums;
+}
 #tab-quote-make .cp-btn-cancel {
   padding: 7px 12px; background: none; border: 1px solid #c8b898;
   border-radius: 6px; font-size: 13px; cursor: pointer; color: #5a4628;

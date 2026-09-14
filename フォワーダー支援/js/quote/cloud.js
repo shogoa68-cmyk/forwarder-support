@@ -251,13 +251,19 @@
     if (!c || !_cloudUser) return;
     if (wrap && !silent) wrap.innerHTML = '<div class="preset-empty">読み込み中…</div>';
     await _loadProfiles();
-    // editors（更新者履歴）・locked_by/locked_at（編集ロック）も取得。
+    // editors（更新者履歴）・locked_by/locked_at（編集ロック）・ref（見積もり番号）も取得。
     // 列が未マイグレーションでも動くよう、段階的にフォールバックする。
     const BASE_COLS = 'id,name,status,customer,person,owner_email,created_by,updated_at,incoterms,transport_mode,pol,pod,carrier,data';
     let { data, error } = await c
       .from(_table())
-      .select(BASE_COLS + ',locked_by,locked_at,editors')
+      .select(BASE_COLS + ',ref,locked_by,locked_at,editors')
       .order('updated_at', { ascending: false });
+    if (error) {
+      ({ data, error } = await c
+        .from(_table())
+        .select(BASE_COLS + ',locked_by,locked_at,editors')
+        .order('updated_at', { ascending: false }));
+    }
     if (error) {
       ({ data, error } = await c
         .from(_table())
@@ -1498,6 +1504,17 @@
     });
   }
 
+  // ref 列（見積もり番号）はマイグレーション未実行の環境でも保存自体は落ちないよう、
+  // "column ... ref ... does not exist" エラーのときだけ ref 抜きで再試行する。
+  // op(withRef) は withRef を見て payload に ref を含めるかどうかを切り替えて実行する関数。
+  async function _withRefFallback(op) {
+    let resp = await op(true);
+    if (resp.error && /column .*ref.* does not exist/i.test(resp.error.message || '')) {
+      resp = await op(false);
+    }
+    return resp;
+  }
+
   // ---------- 保存（同名は上書き） ----------
   async function cloudSaveCurrent() {
     const c = _getClient();
@@ -1515,6 +1532,7 @@
     const f = (data && data.fields) || {};
     const customer       = (f['qf-customer']    || '').trim() || null;
     const person         = (f['qf-person']      || '').trim() || null;
+    const ref            = (f['qf-ref']         || '').trim() || null;
     const incoterms      = (f['cond-incoterms'] || '').trim() || null;
     const transport_mode = (f['cond-mode']       || '').trim() || null;
     const status         = (f['qf-status']      || '').trim() || CLOUD_STATUS_DEFAULT;
@@ -1563,11 +1581,14 @@
       if (!confirmed && exId !== _loadedCloudId && !confirm('共有プリセット「' + name + '」が既にあります。上書きしますか？')) return;
       const nowIso = new Date().toISOString();
       // 上書き時は作成者は維持（ステータスはフォームの qf-status 値で更新）
-      resp = await c.from(_table())
-        .update({ data, subcons, status, customer, person, incoterms, transport_mode, pol, pod, carrier,
-                  owner_email: _cloudUser.email, updated_at: nowIso })
+      resp = await _withRefFallback(withRef => c.from(_table())
+        .update(Object.assign(
+          { data, subcons, status, customer, person, incoterms, transport_mode, pol, pod, carrier,
+            owner_email: _cloudUser.email, updated_at: nowIso },
+          withRef ? { ref } : {}
+        ))
         .eq('id', exId)
-        .select('id');
+        .select('id'));
       // 編集ロックで拒否されると エラー無しで 0 行（RLS）。他メンバー編集中＝上書き不可。
       if (!resp.error && (!resp.data || !resp.data.length)) {
         quoteShowToast('🔒 他メンバーが編集中のため上書き保存できません（読込し直すと最新になります）', 'warn', 6500);
@@ -1575,13 +1596,14 @@
       }
       if (!resp.error) { _loadedCloudId = exId; _loadedCloudTs = nowIso; }  // 自分の保存を基準時刻に更新
     } else {
-      resp = await c.from(_table())
-        .insert({
-          name, data, subcons, status, customer, person, incoterms, transport_mode, pol, pod, carrier,
-          owner_email: _cloudUser.email,
-          created_by:  _cloudUser.email,
-        })
-        .select('id,updated_at').single();
+      resp = await _withRefFallback(withRef => c.from(_table())
+        .insert(Object.assign(
+          { name, data, subcons, status, customer, person, incoterms, transport_mode, pol, pod, carrier,
+            owner_email: _cloudUser.email,
+            created_by:  _cloudUser.email },
+          withRef ? { ref } : {}
+        ))
+        .select('id,updated_at').single());
       if (!resp.error && resp.data) {   // 新規作成：競合検知の基準にも採用
         _loadedCloudId = resp.data.id;
         _loadedCloudTs = resp.data.updated_at || new Date().toISOString();
@@ -1742,6 +1764,8 @@
       metaParts.push(`<span class="cp-expired-warn">⚠️ 有効期限切れ（${escHtml(validUntil)}）</span>`);
     }
     if (data.status) metaParts.push(`<span class="cp-status-badge cp-status--${_statusClass(data.status)}">${escHtml(data.status)}</span>`);
+    const _cpRef = (rawData?.fields?.['qf-ref'] || '').trim();
+    if (_cpRef) metaParts.push(`<span class="cp-ref">🔖 ${escHtml(_cpRef)}</span>`);
     if (data.customer) metaParts.push(`👤 ${escHtml(data.customer)}`);
     if (data.person)   metaParts.push(`🧑‍💼 ${escHtml(data.person)}`);
     if (data.updated_at) {
@@ -1905,6 +1929,15 @@
     cloudLoadPreset(_cpId);
   }
 
+  // プレビュー中の案件を、現在の入力内容を上書きせずに新しい案件として複製する。
+  // 類似見積パネルからプレビューを開いた場合など、_cloudRows（ダッシュボード一覧）が
+  // 未取得の文脈でも cloudDuplicatePreset 側のフォールバック取得で動く。
+  function cloudCopyFromPreview() {
+    if (!_cpId) return;
+    document.getElementById('cloudPreviewModal').style.display = 'none';
+    cloudDuplicatePreset(encodeURIComponent(_cpId));
+  }
+
   async function cloudLoadPreset(rawId) {
     const c = _getClient();
     if (!c) return;
@@ -1996,7 +2029,14 @@
     const c = _getClient();
     if (!c || !_cloudUser) { quoteShowToast('⚠️ ログインが必要です', 'warn'); return; }
     const id = decodeURIComponent(rawId);
-    const src = _cloudRows.find(r => r.id === id);
+    let src = _cloudRows.find(r => r.id === id);
+    if (!src) {
+      // ダッシュボード一覧（_cloudRows）が未取得の文脈（類似見積パネルからの直接コピー等）
+      // でも動くよう、見つからなければ直接1件取得する
+      const { data: row, error: fetchErr } = await c.from(_table())
+        .select('id,name,data').eq('id', id).single();
+      if (!fetchErr && row) src = row;
+    }
     if (!src || !src.data) { quoteShowToast('⚠️ コピー元が見つかりません', 'warn'); return; }
     const newData = JSON.parse(JSON.stringify(src.data));
     if (!newData.fields) newData.fields = {};
@@ -2041,11 +2081,13 @@
       }
     } catch(e) {}
     const subcons = _extractSubcons(newData);
-    const { error } = await c.from(_table()).insert({
-      name: copyName, data: newData, subcons, status: CLOUD_STATUS_DEFAULT,
-      customer, person, incoterms, transport_mode, pol, pod, carrier,
-      owner_email: _cloudUser.email, created_by: _cloudUser.email,
-    });
+    const ref = (f['qf-ref'] || '').trim() || null;
+    const { error } = await _withRefFallback(withRef => c.from(_table()).insert(Object.assign(
+      { name: copyName, data: newData, subcons, status: CLOUD_STATUS_DEFAULT,
+        customer, person, incoterms, transport_mode, pol, pod, carrier,
+        owner_email: _cloudUser.email, created_by: _cloudUser.email },
+      withRef ? { ref } : {}
+    )));
     if (error) { quoteShowToast('⚠️ コピーに失敗：' + error.message, 'warn', 5000); return; }
     quoteShowToast('📋 「' + src.name + '」をコピーしました → 「' + copyName + '」', 'success', 3500);
     cloudListPresets();
@@ -2659,6 +2701,7 @@
   window.closeCloudPreview     = closeCloudPreview;
   window.cloudImportSelectedRows = cloudImportSelectedRows;
   window.cloudPreviewLoadFull  = cloudPreviewLoadFull;
+  window.cloudCopyFromPreview  = cloudCopyFromPreview;
   window.cpToggleAll           = cpToggleAll;
   window.cpToggleGroup         = cpToggleGroup;
   window.cpUpdateSelCount      = _cpUpdateSelCount;
