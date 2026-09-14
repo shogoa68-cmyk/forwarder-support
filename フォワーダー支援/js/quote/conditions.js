@@ -502,9 +502,32 @@
       .map(s => `<tr><th>${_cdEsc(s.label)}</th><td>${_cdEsc(details[s.key])}</td></tr>`)
       .join('');
     title.textContent = '📇 ' + value;
-    body.innerHTML = rows ? `<table class="cd-table">${rows}</table>` : '<p class="sq-empty-msg">詳細情報は未登録です。</p>';
+    body.innerHTML =
+      (rows ? `<table class="cd-table">${rows}</table>` : '<p class="sq-empty-msg">詳細情報は未登録です。</p>') +
+      `<div class="master-attach-box"><div class="master-attach-hdr"><span>📎 添付ファイル</span></div>` +
+      `<div class="master-attach-list" id="cdAttachList"><span class="master-attach-loading">読み込み中…</span></div></div>`;
     overlay.hidden = false;
+    _cdRefreshAttachments(field, value);
   };
+
+  // 添付ファイル一覧を取得して #cdAttachList に読み取り専用表示（開く／ダウンロードのみ。編集はマスター管理タブで）
+  async function _cdRefreshAttachments(field, value) {
+    const wrap = document.getElementById('cdAttachList');
+    if (!wrap) return;
+    if (typeof window.mdListAttachments !== 'function') { wrap.innerHTML = '<span class="master-attach-empty">添付機能は未設定です</span>'; return; }
+    const items = await window.mdListAttachments(field, value);
+    const cur = document.getElementById('cdAttachList');   // 取得中にポップアップが閉じられていたら何もしない
+    if (!cur) return;
+    if (!items.length) { cur.innerHTML = '<span class="master-attach-empty">添付はまだありません</span>'; return; }
+    cur.innerHTML = items.map(a => {
+      const sz = a.file_size ? (a.file_size > 1048576 ? (a.file_size / 1048576).toFixed(1) + 'MB' : Math.max(1, Math.round(a.file_size / 1024)) + 'KB') : '';
+      const icon = /pdf/i.test(a.mime_type || '') ? '📄' : (/image/i.test(a.mime_type || '') ? '🖼️' : '📎');
+      return '<div class="master-attach-item">' +
+        `<button type="button" class="master-attach-open" onclick="mdAttachOpen('${encodeURIComponent(a.storage_path)}')" title="開く／ダウンロード">${icon} ${_cdEsc(a.file_name)}</button>` +
+        `<span class="master-attach-meta">${sz}</span>` +
+      '</div>';
+    }).join('');
+  }
 
   window.qfShowCustomerDetail = function () {
     const value = (document.getElementById('qf-customer')?.value || '').trim();
