@@ -32,6 +32,26 @@ function bmGetRelated(name) {
     .map(r => ({ counterpart: r.carrier_a === name ? r.carrier_b : r.carrier_a, label: r.label || '代理店', relId: r.id }));
 }
 
+// 会社単位の連絡先（電話・メール）。ブックマーク（個々のリンク）とは別に1社1件で管理。
+let _bmContacts       = {};   // { carrier: { id, phone, email, note } }
+let _bmContactsLoaded = false;
+
+async function bmEnsureContactsLoaded(force) {
+  if (_bmContactsLoaded && !force) return;
+  const db = window.SupabaseClient;
+  if (!db) return;
+  const { data, error } = await db.from('carrier_contacts').select('*');
+  if (error) return;   // テーブル未作成などは黙ってスキップ（連絡先なし扱い）
+  const map = {};
+  (data || []).forEach(c => { map[c.carrier] = c; });
+  _bmContacts = map;
+  _bmContactsLoaded = true;
+}
+
+function bmGetContact(name) {
+  return (name && _bmContacts[name]) || null;
+}
+
 // QSP 幹線輸送チップ用キャリアブックマークキャッシュ
 window._qspBmCache = {};
 let _qspBmLastKey  = '';  // 重複フェッチ防止キー
@@ -94,6 +114,7 @@ async function _bmLoad() {
   _bmProfile = {};
   (pRes.data || []).forEach(p => { if (p.display_name) _bmProfile[p.email] = p.display_name; });
   await bmEnsureRelLoaded(true);
+  await bmEnsureContactsLoaded(true);
 
   _bmRenderTypeChips();
   _bmApply();
@@ -280,6 +301,15 @@ function _bmRenderList(rows) {
     const relAddBtn = name === '汎用' ? '' :
       `<button class="bm-rel-add" data-bm-rel-carrier="${escHtml(name)}" onclick="event.stopPropagation();openBmRelation(this.dataset.bmRelCarrier)" title="関連会社（代理店関係など）を登録">＋🔗</button>`;
     const relRow = (name === '汎用') ? '' : `<div class="bm-rel-row">${relChips}${relAddBtn}</div>`;
+    // 連絡先（電話・メール）。会社単位で1件。汎用は対象外。
+    const contact = name === '汎用' ? null : bmGetContact(name);
+    const contactBits = [];
+    if (contact?.phone) contactBits.push(`<a class="bm-contact-item" href="tel:${escHtml(contact.phone.replace(/[^\d+]/g, ''))}" onclick="event.stopPropagation()" title="電話をかける">📞${escHtml(contact.phone)}</a>`);
+    if (contact?.email) contactBits.push(`<a class="bm-contact-item" href="mailto:${escHtml(contact.email)}" onclick="event.stopPropagation()" title="メールを送る">✉️${escHtml(contact.email)}</a>`);
+    if (contact?.note)  contactBits.push(`<span class="bm-contact-item bm-contact-note bm-tip" data-tip="${escHtml(contact.note)}">📝</span>`);
+    const contactEditBtn = name === '汎用' ? '' :
+      `<button class="bm-contact-edit" data-bm-contact-carrier="${escHtml(name)}" onclick="event.stopPropagation();openBmContact(this.dataset.bmContactCarrier)" title="連絡先を編集">${contact ? '✎' : '＋📞 連絡先'}</button>`;
+    const contactRow = (name === '汎用') ? '' : `<div class="bm-contact-row">${contactBits.join('')}${contactEditBtn}</div>`;
     const pills = list.map(r => _bmPillHtml(r)).join('');
     // 関連会社（表記違い・代理店など）のブックマークも、このタイル内に印付きで一緒に表示する。
     // 別会社として登録は維持したまま、このタイルからも見えるようにするだけ（統合はしない）。
@@ -298,6 +328,7 @@ function _bmRenderList(rows) {
         ${pills}${relPills}
         <span class="bm-pill bm-pill-add" data-bm-add="${name === '汎用' ? '' : escHtml(name)}" data-bm-type="${escHtml(type)}">＋ 追加</span>
       </div>
+      ${contactRow}
       ${relRow}
     </div>`;
   }).join('');
@@ -763,6 +794,71 @@ async function bmRemoveRelation(id) {
   if (typeof window.lcRefreshBmChips === 'function') window.lcRefreshBmChips();
 }
 
+// ---------- 連絡先（電話・メール） ----------
+let _bmContactCarrier = '';
+
+function openBmContact(carrier) {
+  const modal = document.getElementById('bmContactModal');
+  if (!modal || !carrier) return;
+  _bmContactCarrier = carrier;
+  const c = bmGetContact(carrier) || {};
+  const nameEl  = document.getElementById('bmContactCarrierName');
+  const phoneEl = document.getElementById('bmContactPhone');
+  const emailEl = document.getElementById('bmContactEmail');
+  const noteEl  = document.getElementById('bmContactNote');
+  if (nameEl)  nameEl.textContent = carrier;
+  if (phoneEl) phoneEl.value = c.phone || '';
+  if (emailEl) emailEl.value = c.email || '';
+  if (noteEl)  noteEl.value  = c.note  || '';
+  modal.classList.add('open');
+  phoneEl?.focus();
+}
+
+function closeBmContact(e) {
+  if (e && e.target.id !== 'bmContactModal') return;
+  document.getElementById('bmContactModal')?.classList.remove('open');
+}
+
+async function bmDoSaveContact() {
+  const db = window.SupabaseClient;
+  if (!db) return;
+  const carrier = _bmContactCarrier;
+  if (!carrier) return;
+  const phone = (document.getElementById('bmContactPhone')?.value || '').trim() || null;
+  const email = (document.getElementById('bmContactEmail')?.value || '').trim() || null;
+  const note  = (document.getElementById('bmContactNote')?.value  || '').trim() || null;
+  const { data: sd } = await db.auth.getSession();
+  const { data, error } = await db.from('carrier_contacts')
+    .upsert({ carrier, phone, email, note, updated_by: sd?.session?.user?.email || null }, { onConflict: 'carrier' })
+    .select();
+  if (error) {
+    const msg = /schema cache|could not find the table|does not exist/i.test(error.message || '')
+      ? '⚠️ テーブル未作成です（docs/sql/carrier-contacts.sql を実行してください）'
+      : '⚠️ 保存に失敗：' + error.message;
+    quoteShowToast(msg, 'warn', 8000);
+    return;
+  }
+  if (data && data[0]) _bmContacts[carrier] = data[0];
+  quoteShowToast('✅ 連絡先を保存しました', 'success', 2500);
+  closeBmContact();
+  _bmApply();
+}
+
+async function bmDeleteContact() {
+  const db = window.SupabaseClient;
+  if (!db) return;
+  const carrier = _bmContactCarrier;
+  const c = bmGetContact(carrier);
+  if (!c) { closeBmContact(); return; }
+  if (!confirm(`「${carrier}」の連絡先を削除しますか？`)) return;
+  const { error } = await db.from('carrier_contacts').delete().eq('id', c.id);
+  if (error) { quoteShowToast('⚠️ 削除に失敗：' + error.message, 'warn', 6000); return; }
+  delete _bmContacts[carrier];
+  quoteShowToast('✅ 連絡先を削除しました', 'success', 2000);
+  closeBmContact();
+  _bmApply();
+}
+
 function bmEdit(id) {
   const r = _bmRows.find(row => row.id === id);
   if (!r) return;
@@ -1132,3 +1228,8 @@ window.openBmRelation    = openBmRelation;
 window.closeBmRelation   = closeBmRelation;
 window.bmDoAddRelation   = bmDoAddRelation;
 window.bmRemoveRelation  = bmRemoveRelation;
+window.bmGetContact       = bmGetContact;
+window.openBmContact      = openBmContact;
+window.closeBmContact     = closeBmContact;
+window.bmDoSaveContact    = bmDoSaveContact;
+window.bmDeleteContact    = bmDeleteContact;

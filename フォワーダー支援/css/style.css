@@ -1688,7 +1688,8 @@ body:has(#compareOverlay.open) #quoteActionDock { display: none; }
   align-content: flex-start;
 }
 .bm-tile.collapsed .bm-tbody,
-.bm-tile.collapsed .bm-rel-row { display: none; }
+.bm-tile.collapsed .bm-rel-row,
+.bm-tile.collapsed .bm-contact-row { display: none; }
 /* 会社間の関係性（代理店関係など・統合ではなく結びつけるだけ） */
 .bm-rel-row {
   display: flex; flex-wrap: wrap; gap: 6px; align-items: center;
@@ -1707,6 +1708,25 @@ body:has(#compareOverlay.open) #quoteActionDock { display: none; }
   cursor: pointer;
 }
 .bm-rel-add:hover { color: #6f5aa0; border-color: #6f5aa0; background: #f7f4fb; }
+
+/* 連絡先（電話・メール） */
+.bm-contact-row {
+  display: flex; flex-wrap: wrap; gap: 6px; align-items: center;
+  padding: 7px 12px; border-top: 1px dashed #e2d8c8; background: #f5f9f5;
+}
+.bm-contact-item {
+  display: inline-flex; align-items: center; gap: 3px;
+  font-size: 11px; color: #2e6b3e; background: #e6f2e8;
+  border: 1px solid #cbe3cf; border-radius: 999px; padding: 3px 9px;
+  text-decoration: none; cursor: help;
+}
+a.bm-contact-item:hover { background: #2e6b3e; color: #fff; border-color: #2e6b3e; text-decoration: none; }
+.bm-contact-edit {
+  font-size: 11px; color: #9a8a72; background: #fff;
+  border: 1px dashed #d9cfc2; border-radius: 999px; padding: 3px 9px;
+  cursor: pointer;
+}
+.bm-contact-edit:hover { color: #2e6b3e; border-color: #2e6b3e; background: #f0f8f1; }
 
 .bm-pill {
   display: inline-flex; align-items: center; gap: 6px;

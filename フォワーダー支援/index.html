@@ -4918,6 +4918,36 @@
 </div>
 
 <!-- ======= ブックマーク変更履歴モーダル ======= -->
+<div id="bmContactModal" class="bm-modal-overlay" onclick="closeBmContact(event)">
+  <div class="bm-modal-box">
+    <div class="bm-modal-head">
+      <h3>📞 連絡先を編集</h3>
+      <button class="bm-modal-close" onclick="document.getElementById('bmContactModal').classList.remove('open')" aria-label="閉じる">✕</button>
+    </div>
+    <div class="bm-form">
+      <div class="bm-form-row">
+        <div class="bm-rename-info">「<b id="bmContactCarrierName"></b>」の連絡先（チーム全員が閲覧できます）</div>
+      </div>
+      <div class="bm-form-row">
+        <label class="bm-form-label" for="bmContactPhone">電話番号</label>
+        <input type="tel" id="bmContactPhone" class="bm-form-input" placeholder="例：03-1234-5678">
+      </div>
+      <div class="bm-form-row">
+        <label class="bm-form-label" for="bmContactEmail">メールアドレス</label>
+        <input type="email" id="bmContactEmail" class="bm-form-input" placeholder="例：info@example.com">
+      </div>
+      <div class="bm-form-row">
+        <label class="bm-form-label" for="bmContactNote">メモ</label>
+        <textarea id="bmContactNote" class="bm-form-textarea" rows="2" placeholder="例：営業担当◯◯様、緊急時は携帯へ"></textarea>
+      </div>
+      <div class="bm-modal-foot">
+        <button type="button" class="bm-btn-cancel" id="bmContactDelBtn" onclick="bmDeleteContact()">削除</button>
+        <button type="button" class="bm-btn-save" onclick="bmDoSaveContact()">保存</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <div id="bmRelationModal" class="bm-modal-overlay" onclick="closeBmRelation(event)">
   <div class="bm-modal-box">
     <div class="bm-modal-head">
