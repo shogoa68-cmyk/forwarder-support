@@ -514,24 +514,86 @@
     box.innerHTML = html;
   }
 
-  // タグ絞り込みチップ（使用件数の多い順・クリックで単一選択トグル）
-  let _cloudTagChipList = [];   // 直近描画したチップの並び。onclick に生のタグ文字列を
-                                 // 埋め込むとクォート等を含む場合に壊れるためインデックス経由にする
-  function _renderTagChips() {
-    const box = document.getElementById('qpdTagChips');
-    if (!box) return;
+  // タグごとの使用件数（多い順）。チップ・タグ別ランキング・クイック絞り込みの候補
+  // すべてでこの並びを共通利用する。
+  function _tagCounts() {
     const counts = {};
     _cloudRows.forEach(r => (Array.isArray(r.tags) ? r.tags : []).forEach(t => { counts[t] = (counts[t] || 0) + 1; }));
-    const list = Object.keys(counts).map(t => ({ tag: t, count: counts[t] })).sort((a, b) => b.count - a.count);
+    return Object.keys(counts).map(t => ({ tag: t, count: counts[t] }))
+      .sort((a, b) => b.count - a.count || a.tag.localeCompare(b.tag, 'ja'));
+  }
+
+  // タグ絞り込みチップ（使用件数の多い順・クリックで単一選択トグル）。
+  // 件数が多いと横に大量に並んで見づらくなるため、既定は上位のみ表示し
+  // 「▼ もっと見る」で全件展開する（右レールのサブコン名チップと同じパターン）。
+  const QPD_TAG_CHIP_TOP_N = 12;
+  let _cloudTagChipsExpanded = false;
+  let _cloudTagChipList = [];   // 直近描画したチップの並び（常に全件）。onclick に生の
+                                 // タグ文字列を埋め込むとクォート等を含む場合に壊れるため
+                                 // インデックス経由にする。折りたたみ表示中も先頭からの
+                                 // スライスなのでインデックスは全件リストと一致する。
+  function _renderTagChips() {
+    const box = document.getElementById('qpdTagChips');
+    _renderTagQuickFilterOptions();
+    if (!box) return;
+    const list = _tagCounts();
     _cloudTagChipList = list;
     if (!list.length) { box.innerHTML = ''; return; }
-    box.innerHTML = list.map((c, i) =>
+    const shown = _cloudTagChipsExpanded ? list : list.slice(0, QPD_TAG_CHIP_TOP_N);
+    const remaining = list.length - shown.length;
+    box.innerHTML = shown.map((c, i) =>
       '<button type="button" class="cloud-tag-filter-chip' + (_cloudFilterTag === c.tag ? ' is-active' : '') + '" ' +
       'onclick="cloudFilterTag(' + i + ')" title="このタグで絞り込み">🏷️ ' + escHtml(c.tag) +
       '<span class="cloud-chip-n">' + c.count + '</span></button>'
-    ).join('') + (_cloudFilterTag
+    ).join('')
+    + (remaining > 0
+        ? '<button type="button" class="cloud-tag-filter-more" onclick="cloudTagChipsToggleExpand()">▼ もっと見る（+' + remaining + '件）</button>'
+        : (_cloudTagChipsExpanded && list.length > QPD_TAG_CHIP_TOP_N
+            ? '<button type="button" class="cloud-tag-filter-more" onclick="cloudTagChipsToggleExpand()">▲ 折りたたむ</button>'
+            : ''))
+    + (_cloudFilterTag
       ? '<button type="button" class="cloud-tag-filter-clear" onclick="cloudFilterTag(-1)">✕ 解除</button>'
       : '');
+  }
+  function cloudTagChipsToggleExpand() {
+    _cloudTagChipsExpanded = !_cloudTagChipsExpanded;
+    _renderTagChips();
+  }
+  // タグ名でのクイック絞り込み入力欄（<datalist> 候補・全タグを対象、チップの
+  // 折りたたみ状態とは無関係に選べる）。入力中は完全一致した瞬間に即絞り込み、
+  // Enter では前方一致/部分一致でも確定できるようにして「一覧から探す」手間を省く。
+  function _renderTagQuickFilterOptions() {
+    const dl = document.getElementById('qpdTagSuggestions');
+    if (!dl) return;
+    dl.innerHTML = _cloudTagChipList.map(c => '<option value="' + escHtml(c.tag) + '">').join('');
+  }
+  function qpdTagQuickFilterInput(val) {
+    const v = (val || '').trim();
+    if (!v) {
+      if (_cloudFilterTag) { _cloudFilterTag = ''; _renderTagChips(); _applyCloudFilter(); }
+      return;
+    }
+    const hit = _cloudTagChipList.find(c => c.tag === v);
+    if (hit && _cloudFilterTag !== hit.tag) {
+      _cloudFilterTag = hit.tag;
+      _renderTagChips();
+      _applyCloudFilter();
+    }
+  }
+  function qpdTagQuickFilterCommit(val) {
+    const v = (val || '').trim();
+    if (!v) return;
+    const exact = _cloudTagChipList.find(c => c.tag === v);
+    const hit = exact || _cloudTagChipList.find(c => c.tag.toLowerCase().includes(v.toLowerCase()));
+    if (!hit) {
+      if (typeof quoteShowToast === 'function') quoteShowToast('⚠️ 該当するタグが見つかりません', 'warn', 2000);
+      return;
+    }
+    _cloudFilterTag = hit.tag;
+    const inp = document.getElementById('qpdTagQuickFilter');
+    if (inp) inp.value = hit.tag;
+    _renderTagChips();
+    _applyCloudFilter();
   }
   function cloudFilterTag(idx) {
     if (idx < 0) {
@@ -887,6 +949,15 @@
     let html = card('', '全体', _cloudRows.length, 'all');
     html += CLOUD_STATUSES.map(st => card(st, _statusLabel(st), count(st), _statusClass(st))).join('');
     box.innerHTML = html;
+  }
+
+  // ---------- ダッシュボード右カラム：ランキングカードのタブ切替 ----------
+  // 「お客様別」「タグ別」は別カード（縦積み）だと場所を取るため、1枚のカード内で
+  // タブ切替できるようにする。データ自体は _applyCloudFilter() 経由で両方とも
+  // 常に最新化されるので、ここでは表示するペインを切り替えるだけでよい。
+  function qpdRankSetTab(tab) {
+    document.querySelectorAll('#qpdRankCard .qpd-rank-tab').forEach(b => b.classList.toggle('is-active', b.dataset.ranktab === tab));
+    document.querySelectorAll('#qpdRankCard .qpd-rank-pane').forEach(p => { p.hidden = p.id !== 'qpdRankPane-' + tab; });
   }
 
   // ---------- ダッシュボード右カラム：お客様別 見積件数ランキング ----------
@@ -1704,6 +1775,9 @@
   }
 
   window.cloudFilterTag  = cloudFilterTag;
+  window.cloudTagChipsToggleExpand = cloudTagChipsToggleExpand;
+  window.qpdTagQuickFilterInput  = qpdTagQuickFilterInput;
+  window.qpdTagQuickFilterCommit = qpdTagQuickFilterCommit;
   window.cloudAddTag     = cloudAddTag;
   window.cloudRemoveTag  = cloudRemoveTag;
 
@@ -3053,6 +3127,7 @@
   window.cloudSaveCurrent    = cloudSaveCurrent;
   window.cloudLoadPreset      = cloudLoadPreset;
   window.cloudPdfPreset       = cloudPdfPreset;
+  window.qpdRankSetTab        = qpdRankSetTab;
   window.qpdFilterCustomer    = qpdFilterCustomer;
   window.qpdRankToggleAll     = qpdRankToggleAll;
   window.qpdFilterTagRank     = qpdFilterTagRank;
