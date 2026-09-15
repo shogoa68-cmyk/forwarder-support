@@ -463,7 +463,7 @@
 
     return `
     <div class="qd-page">
-      <div class="qd-top"><span></span><span>DATE：${esc(dateStr)}　　PAGE：1 / 1</span></div>
+      <div class="qd-top"><span></span><span style="text-align:right;line-height:1.6;">見積書NO：${esc(hdr.ref) || '—'}<br>DATE：${esc(dateStr)}　　PAGE：1 / 1</span></div>
       <div class="qd-title">御 見 積 書</div>
 
       <div class="qd-head">
@@ -473,7 +473,6 @@
         </div>
         <div class="qd-from">
           <div class="qd-co">${esc(issuer.company) || '<span class="qd-placeholder">（発行元会社名を設定してください）</span>'}</div>
-          <div class="qd-no">見積書NO: ${esc(hdr.ref) || '—'}</div>
           <div class="qd-addr">${issuerAddr || '<span class="qd-placeholder">（住所・連絡先を設定）</span>'}</div>
         </div>
       </div>

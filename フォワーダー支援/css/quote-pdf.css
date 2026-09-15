@@ -185,8 +185,7 @@
 }
 .qd-greet { font-size: 11px; color: #333; line-height: 1.7; }
 .qd-from { width: 290px; font-size: 11px; }
-.qd-co { font-size: 14px; font-weight: 700; margin-bottom: 2px; }
-.qd-no { font-size: 11px; color: #444; margin-bottom: 6px; }
+.qd-co { font-size: 14px; font-weight: 700; margin-bottom: 4px; }
 .qd-addr { color: #333; line-height: 1.6; }
 .qd-placeholder { color: #c0392b; font-weight: 400; }
 
