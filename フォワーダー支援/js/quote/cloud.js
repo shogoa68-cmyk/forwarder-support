@@ -346,7 +346,11 @@
       .concat(_editorsOf(r).map(e => _nameFor(e.email)))
       .concat(_editorsOf(r).map(e => e.email))
       .filter(Boolean).join(' ').toLowerCase();
-    return r.__hay + (names ? ' ' + names : '');
+    // タグもダッシュボードのカード編集からその場で書き換わる（_cloudUpdateTags は
+    // 行オブジェクトを直接書き換えるだけで __hay を更新しない）ため、キャッシュに
+    // 含めず毎回付加して古いタグで検索されないようにする
+    const tags = (Array.isArray(r.tags) && r.tags.length) ? r.tags.join(' ').toLowerCase() : '';
+    return r.__hay + (names ? ' ' + names : '') + (tags ? ' ' + tags : '');
   }
   // お客様名の正規化キー（表記ゆれを吸収してランキングを寄せる）。
   // 「(株)」「株式会社」などの差はここでは吸収せず、全角半角・大小文字・空白のみ揃える。
@@ -355,10 +359,12 @@
     return String(name == null ? '' : name).trim().toLowerCase();
   }
 
-  // 絞り込み条件に一致するか。opts.skipCustomer=true でお客様絞り込みだけ無視する
-  // （ランキング自体は「お客様を選び直せる」よう、お客様条件を外して集計するため）。
+  // 絞り込み条件に一致するか。opts.skipCustomer=true でお客様絞り込みだけ、
+  // opts.skipTag=true でタグ絞り込みだけを無視する（各ランキングが「他の条件は
+  // 効かせたまま、自分自身の軸だけは選び直せる」よう、その条件だけ外して集計するため）。
   function _rowMatchesFilters(r, opts) {
     const skipCustomer = !!(opts && opts.skipCustomer);
+    const skipTag = !!(opts && opts.skipTag);
     const terms = _cloudSearch.trim().toLowerCase().split(/[\s　]+/).filter(Boolean);
     const pol = _cloudFilterPol.trim().toLowerCase();
     const pod = _cloudFilterPod.trim().toLowerCase();
@@ -369,7 +375,7 @@
     if (pol && !(r.pol     || '').toLowerCase().includes(pol)) return false;
     if (pod && !(r.pod     || '').toLowerCase().includes(pod)) return false;
     if (car && !(r.carrier || '').toLowerCase().includes(car)) return false;
-    if (_cloudFilterTag && !(Array.isArray(r.tags) && r.tags.includes(_cloudFilterTag))) return false;
+    if (!skipTag && _cloudFilterTag && !(Array.isArray(r.tags) && r.tags.includes(_cloudFilterTag))) return false;
     if (!skipCustomer && _cloudFilterCustomer && _custKey(r.customer) !== _cloudFilterCustomer) return false;
     if (!terms.length) return true;
     const hay = _searchHayFor(r);
@@ -380,6 +386,7 @@
     const rows = _cloudRows.filter(r => _rowMatchesFilters(r));
     _renderCloudList(_sortCloudRows(rows));
     _renderQpdCustomerRank();
+    _renderQpdTagRank();
     _syncResetAllBtn();
   }
 
@@ -973,6 +980,79 @@
   function qpdRankToggleAll() {
     _qpdRankExpanded = !_qpdRankExpanded;
     _renderQpdCustomerRank();
+  }
+
+  // ---------- ダッシュボード右カラム：タグ別 見積件数ランキング ----------
+  // お客様別ランキングと同じ考え方：タグ絞り込み以外の条件（ステータス・検索・
+  // 詳細検索・お客様）に一致する行を対象に、タグごとの件数を集計する。
+  // 1案件に複数タグが付いていれば、そのタグそれぞれに +1 する（延べ件数）。
+  let _qpdTagRankExpanded = false;
+
+  function _qpdTagRanking() {
+    const map = new Map();   // tag -> { key, label, total }
+    _cloudRows.forEach(r => {
+      if (!_rowMatchesFilters(r, { skipTag: true })) return;
+      (Array.isArray(r.tags) ? r.tags : []).forEach(t => {
+        let e = map.get(t);
+        if (!e) { e = { key: t, label: t, total: 0 }; map.set(t, e); }
+        e.total++;
+      });
+    });
+    const list = [...map.values()];
+    list.sort((a, b) => b.total - a.total || a.label.localeCompare(b.label, 'ja'));
+    return list;
+  }
+
+  function _renderQpdTagRank() {
+    const box = document.getElementById('qpdTagRankList');
+    if (!box) return;
+    const list = _qpdTagRanking();
+    if (!list.length) {
+      box.innerHTML = '<p class="qpd-rank-empty">タグが付いた案件がありません。</p>';
+      return;
+    }
+    const max = list[0].total || 1;
+    const shown = _qpdTagRankExpanded ? list : list.slice(0, QPD_RANK_TOP);
+    let h = '';
+    if (_cloudFilterTag) {
+      h += '<div class="qpd-rank-active">' +
+        '<span class="qpd-rank-active-l">絞り込み中：<b>🏷️ ' + escHtml(_cloudFilterTag) + '</b></span>' +
+        '<button type="button" class="qpd-rank-clear" onclick="qpdFilterTagRank(\'\')">✕ 解除</button>' +
+      '</div>';
+    }
+    h += shown.map((e, i) => {
+      const on = _cloudFilterTag === e.key;
+      return '<button type="button" class="qpd-rank-item' + (on ? ' is-active' : '') + '" ' +
+          'onclick="qpdFilterTagRank(\'' + encodeURIComponent(e.key) + '\')" ' +
+          'title="🏷️ ' + escHtml(e.label) + ' の案件だけに絞り込む（もう一度押すと解除）">' +
+        '<span class="qpd-rank-no">' + (i + 1) + '</span>' +
+        '<span class="qpd-rank-body">' +
+          '<span class="qpd-rank-name">🏷️ ' + escHtml(e.label) + '</span>' +
+          '<span class="qpd-rank-bar"><i style="width:' + Math.max(4, Math.round(e.total / max * 100)) + '%"></i></span>' +
+        '</span>' +
+        '<span class="qpd-rank-n">' + e.total + '</span>' +
+      '</button>';
+    }).join('');
+    if (list.length > QPD_RANK_TOP) {
+      h += '<button type="button" class="qpd-rank-more" onclick="qpdTagRankToggleAll()">' +
+           (_qpdTagRankExpanded ? '▲ 上位 ' + QPD_RANK_TOP + '件だけ表示' : '▼ すべて表示（' + list.length + '件）') +
+           '</button>';
+    }
+    box.innerHTML = h;
+  }
+
+  // ランキングのタグをクリック → 一覧をそのタグだけに絞る（再クリックで解除）。
+  // 上部のタグ絞り込みチップ（_cloudFilterTag）と状態を共有するため、チップ側の
+  // 表示も同期させる。引数は onclick 属性に埋める都合で encodeURIComponent 済み。
+  function qpdFilterTagRank(rawKey) {
+    const key = rawKey ? decodeURIComponent(rawKey) : '';
+    _cloudFilterTag = (key && key !== _cloudFilterTag) ? key : '';
+    _renderTagChips();
+    _applyCloudFilter();
+  }
+  function qpdTagRankToggleAll() {
+    _qpdTagRankExpanded = !_qpdTagRankExpanded;
+    _renderQpdTagRank();
   }
 
   // ---------- Presence（同時編集の可視化／フェーズ2） ----------
@@ -2975,6 +3055,8 @@
   window.cloudPdfPreset       = cloudPdfPreset;
   window.qpdFilterCustomer    = qpdFilterCustomer;
   window.qpdRankToggleAll     = qpdRankToggleAll;
+  window.qpdFilterTagRank     = qpdFilterTagRank;
+  window.qpdTagRankToggleAll  = qpdTagRankToggleAll;
   window.qpdResetAllFilters   = qpdResetAllFilters;
   window.cloudDeletePreset    = cloudDeletePreset;
   window.cloudDuplicatePreset = cloudDuplicatePreset;
