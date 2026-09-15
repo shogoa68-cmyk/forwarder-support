@@ -130,6 +130,28 @@
     catch (e) { return null; }
   };
 
+  // buildRevisionSnapshot() の DOM 版に対し、こちらは保存済みデータ（gatherAllData() の
+  // rows＝セル配列形式）からスナップショットを構築する。DOM が存在しない文脈
+  // （案件コピー時、コピー元の内容をそのまま「前回提示分」にする等）で使う。
+  // 合計金額はここでは算出できないため空のままにする（computeRevisionDiff 側が
+  // 合計不明として総額差分表示をスキップする）。
+  window.buildRevisionSnapshotFromRowsData = function (rows, total) {
+    const uidIdx = ROW_CELL_FIELDS.indexOf('uid');
+    const out = [];
+    (Array.isArray(rows) ? rows : []).forEach(r => {
+      if (!r || r._type !== 'data' || !Array.isArray(r.cells)) return;
+      const uid = r.cells[uidIdx + 1];
+      if (!uid) return;
+      const row = { uid };
+      REVISION_DIFF_FIELDS.forEach(f => {
+        const idx = ROW_CELL_FIELDS.indexOf(f);
+        row[f] = idx >= 0 ? (r.cells[idx + 1] ?? '') : '';
+      });
+      out.push(row);
+    });
+    return { ts: new Date().toISOString(), total: total || '', rows: out };
+  };
+
   // baseline（前回提示分）と現在の内容を比較し、追加・削除・変更（セル単位）を返す。
   // baseline が無い、差分が無い、またはユーザーが表示しない設定にしていれば null。
   // 表示する変更の種類（追加/削除/単価変更/その他の変更）は qf-revision-show-* で絞り込める。
@@ -162,9 +184,13 @@
       });
       if (fields.length) changed.push({ uid: b.uid, name: c.nm || b.nm, fields });
     });
-    if (!added.length && !removed.length && !changed.length && baseline.total === current.total) return null;
+    // コピー時ベースライン等、DOM を経ずに構築されたスナップショットは合計金額を
+    // 保持していない（空文字）。その場合は合計不一致を「変更あり」とみなさない
+    // （現在値との文字列比較が常に不一致になり、行差分が無くても誤検知するため）。
+    const totalKnown = !!String(baseline.total || '').trim();
+    if (!added.length && !removed.length && !changed.length && (!totalKnown || baseline.total === current.total)) return null;
     return {
-      added, removed, changed, totalFrom: baseline.total, totalTo: current.total, showTotal, ts: baseline.ts,
+      added, removed, changed, totalFrom: baseline.total, totalTo: current.total, showTotal: showTotal && totalKnown, ts: baseline.ts,
       // 明細行ハイライト用：uid → 'added' | 'changed'
       rowMarks: (() => {
         const m = Object.create(null);

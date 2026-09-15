@@ -2326,6 +2326,13 @@
     // ここを揃えないと、コピー直後にこの案件を開いた際 data.fields の古いステータスで
     // 復元されてしまう（cloudSetStatus と同じ理由の食い違い）。
     newData.fields['qf-status'] = CLOUD_STATUS_DEFAULT;
+    // コピー元の内容を「前回提示分」として記録し、改定中の案件と同じ仕組みで
+    // コピー先の追加/変更行をハイライトできるようにする（行の uid はそのままコピー
+    // されるため、以降コピー先を編集すればそこから差分が出る）。
+    if (typeof window.buildRevisionSnapshotFromRowsData === 'function') {
+      const baseline = window.buildRevisionSnapshotFromRowsData(src.data.rows);
+      if (baseline.rows.length) newData.fields['qf-revision-baseline'] = JSON.stringify(baseline);
+    }
     const srcRef = (newData.fields['qf-ref'] || '').trim();
     // gen：オリジナル=1、その最初のコピー=2、コピーのコピー=3…と数える。
     // root：チェーンの先頭（最初のオリジナル）を常に指す。コピー元自体がコピーで
