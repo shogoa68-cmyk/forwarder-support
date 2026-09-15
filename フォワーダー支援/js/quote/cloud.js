@@ -385,8 +385,7 @@
   function _applyCloudFilter() {
     const rows = _cloudRows.filter(r => _rowMatchesFilters(r));
     _renderCloudList(_sortCloudRows(rows));
-    _renderQpdCustomerRank();
-    _renderQpdTagRank();
+    _renderActiveQpdRank();   // タブで隠れている側は再計算しない（切替時に改めて描画する）
     _syncResetAllBtn();
   }
 
@@ -404,6 +403,7 @@
   // 条件が複数種類（ステータス・検索・詳細検索・お客様）に分かれていて、
   // それぞれ別の場所で解除する必要があり「元に戻せない」状態になりやすいため。
   function qpdResetAllFilters() {
+    clearTimeout(_cloudSearchDebounceTimer);
     _cloudSearch = '';
     _cloudStatusFilter = '';
     _cloudFilterCustomer = '';
@@ -958,6 +958,16 @@
   function qpdRankSetTab(tab) {
     document.querySelectorAll('#qpdRankCard .qpd-rank-tab').forEach(b => b.classList.toggle('is-active', b.dataset.ranktab === tab));
     document.querySelectorAll('#qpdRankCard .qpd-rank-pane').forEach(p => { p.hidden = p.id !== 'qpdRankPane-' + tab; });
+    _renderActiveQpdRank();   // 検索・絞り込み中にタブを切り替えた場合に備え、表示側を最新化する
+  }
+
+  // 現在アクティブなタブのランキングだけを再計算・再描画する（負荷軽減：検索・
+  // 絞り込みのたびに毎回2種類とも集計し直すのは無駄なため、見えている方だけにする）
+  function _renderActiveQpdRank() {
+    const activeBtn = document.querySelector('#qpdRankCard .qpd-rank-tab.is-active');
+    const tab = activeBtn ? activeBtn.dataset.ranktab : 'customer';
+    if (tab === 'tag') _renderQpdTagRank();
+    else _renderQpdCustomerRank();
   }
 
   // ---------- ダッシュボード右カラム：お客様別 見積件数ランキング ----------
@@ -1614,14 +1624,18 @@
     qfRenderAttachments();
   }
 
-  // 検索ボックス入力。空（空白のみ含む）になった時点で ✕ クリアと同じ扱いにする
+  // 検索ボックス入力。空（空白のみ含む）になった時点で ✕ クリアと同じ扱いにする。
+  // 絞り込み本体（一覧の再描画＋ランキング再集計）は1文字ごとに即実行せず、
+  // 短い間隔でまとめて1回にする（連続タイプ中に毎回フル再描画が走ると重くなるため）。
+  let _cloudSearchDebounceTimer = null;
   function cloudSearchInput(val) {
     if (!(val || '').trim()) { qpdClearSearch(); return; }
     _cloudSearch = val;
     _syncSearchInputs();
     const clr = document.getElementById('qpdSearchClear');
     if (clr) clr.hidden = false;
-    _applyCloudFilter();
+    clearTimeout(_cloudSearchDebounceTimer);
+    _cloudSearchDebounceTimer = setTimeout(_applyCloudFilter, 200);
   }
 
   // ダッシュボード／チーム共有モーダルの検索窓を同期（入力中の窓は触らず IME を壊さない）
@@ -1633,6 +1647,7 @@
   }
 
   function qpdClearSearch() {
+    clearTimeout(_cloudSearchDebounceTimer);
     _cloudSearch = '';
     ['qpdSearch', 'cloudSearchInput'].forEach(id => {
       const e = document.getElementById(id);
@@ -2781,10 +2796,17 @@
     if (!c || !_cloudUser) return;
     const ids = (rows || []).map(r => r.id).filter(Boolean);
     if (!ids.length) return;
+    // カード一覧は検索・絞り込み・並び替えのたびに毎回再描画されるが、申し送り
+    // 件数はそれで変わるものではない。取得済みの案件はキャッシュから即時反映し、
+    // まだ一度も取得していない案件だけをサーバーへ問い合わせる（さもないと
+    // 検索ボックスへの1文字入力ごとに quote_comments へ問い合わせが飛んでしまう）
+    const uncached = ids.filter(id => !(id in _dashChatCache));
+    ids.forEach(id => { if (id in _dashChatCache) _applyDashChatSummary(id); });
+    if (!uncached.length) return;
     const { data, error } = await c
       .from('quote_comments')
       .select('preset_id,body,created_at')
-      .in('preset_id', ids)
+      .in('preset_id', uncached)
       .order('created_at', { ascending: true });
     if (error) { console.error('[cloud] dash chat summary error:', error); return; }
     const map = {};
@@ -2792,7 +2814,7 @@
       const e = map[r.preset_id] || (map[r.preset_id] = { count: 0, body: '' });
       e.count++; e.body = r.body;          // 昇順なので最後に残るのが最新
     });
-    ids.forEach(id => { _dashChatCache[id] = map[id] || { count: 0, body: '' }; _applyDashChatSummary(id); });
+    uncached.forEach(id => { _dashChatCache[id] = map[id] || { count: 0, body: '' }; _applyDashChatSummary(id); });
   }
 
   function _applyDashChatSummary(presetId) {
