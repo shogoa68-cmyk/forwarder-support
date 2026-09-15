@@ -4274,6 +4274,20 @@ body.qp-dash-active #quoteActionDock { display: none !important; }
 }
 #qpDashboard .qpd-side-h { font-size: 13px; font-weight: 800; color: #4a3520; margin: 0 0 4px; }
 #qpDashboard .qpd-side-note { font-size: 10.5px; color: #8a7a68; line-height: 1.6; margin: 0 0 10px; }
+/* ランキングカード：お客様別／タグ別をタブで切り替え（カード内タブ） */
+#qpDashboard .qpd-rank-card { padding-top: 0; overflow: hidden; }
+#qpDashboard .qpd-rank-tab-bar {
+  display: flex; border-bottom: 2px solid #e4d9c8; background: #f9f5ef;
+  margin: 0 -14px 10px; border-radius: 10px 10px 0 0;
+}
+#qpDashboard .qpd-rank-tab {
+  flex: 1; padding: 8px 4px; font-size: 12px; font-weight: 700; color: #8a7a68;
+  background: none; border: none; cursor: pointer; font-family: inherit;
+  border-bottom: 2px solid transparent; margin-bottom: -2px; transition: color .12s, background .12s;
+}
+#qpDashboard .qpd-rank-tab:hover { background: #f0e8d8; color: #5a4a30; }
+#qpDashboard .qpd-rank-tab.is-active { color: #5a3a10; border-bottom-color: #b07830; }
+#qpDashboard .qpd-rank-pane[hidden] { display: none; }
 #qpDashboard .qpd-rank { display: flex; flex-direction: column; gap: 4px; }
 #qpDashboard .qpd-rank-empty { font-size: 11.5px; color: #8a7a68; margin: 4px 0; }
 #qpDashboard .qpd-rank-item {
@@ -4399,6 +4413,13 @@ body.qp-dash-active #quoteActionDock { display: none !important; }
   grid-template-columns: 24px 84px minmax(120px,1.4fr) minmax(120px,1.6fr) 110px 92px 64px;
 }
 #qpDashboard .qpd-row-chk { justify-self: center; }
+/* 🏷️ タグ名クイック絞り込み（テキスト入力＋候補） */
+#qpDashboard .qpd-tag-quickfilter { margin-top: 8px; }
+#qpDashboard .qpd-tag-quickfilter-input {
+  width: 100%; box-sizing: border-box; font-family: inherit; font-size: 11.5px;
+  border: 1px solid #d9cfc2; border-radius: 8px; padding: 5px 10px; background: #fffdf8;
+}
+#qpDashboard .qpd-tag-quickfilter-input:focus { outline: none; border-color: #b8985a; }
 /* 🏷️ タグ絞り込みチップ */
 #qpDashboard .qpd-tag-chips { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 8px; }
 #qpDashboard .qpd-tag-chips:empty { display: none; margin-top: 0; }
@@ -4414,6 +4435,11 @@ body.qp-dash-active #quoteActionDock { display: none !important; }
   padding: 0 6px; min-width: 15px; text-align: center;
 }
 #qpDashboard .cloud-tag-filter-chip.is-active .cloud-chip-n { background: rgba(255,255,255,.28); }
+#qpDashboard .cloud-tag-filter-more {
+  cursor: pointer; font-family: inherit; font-size: 11px; color: #8b7a5a;
+  background: none; border: 1px dashed #cbb98e; border-radius: 12px; padding: 3px 9px;
+}
+#qpDashboard .cloud-tag-filter-more:hover { background: #f6f1e6; }
 #qpDashboard .cloud-tag-filter-clear {
   background: #f0ece4; border: 1px solid #d8ccb6; color: #6b5a42;
   border-radius: 12px; padding: 3px 10px; font-size: 11px; cursor: pointer;

@@ -2175,6 +2175,13 @@
             <input type="text" id="qpdFilterCarrier" class="qpd-adv-input" placeholder="船会社・NVOCC・航空会社" oninput="qpdApplyAdv()" />
             <button type="button" class="qpd-adv-clear" onclick="qpdClearAdv()">✕ クリア</button>
           </div>
+          <div class="qpd-tag-quickfilter">
+            <input type="text" id="qpdTagQuickFilter" list="qpdTagSuggestions" class="qpd-tag-quickfilter-input"
+                   placeholder="🔍 タグ名で絞り込み（候補から選択 or Enter）"
+                   oninput="qpdTagQuickFilterInput(this.value)"
+                   onkeydown="if(event.key==='Enter'){event.preventDefault();qpdTagQuickFilterCommit(this.value);}" />
+            <datalist id="qpdTagSuggestions"></datalist>
+          </div>
           <div class="qpd-tag-chips" id="qpdTagChips"></div>
         </div>
         <div class="qpd-body">
@@ -2187,15 +2194,19 @@
             <div class="qpd-list preset-list-wrap" id="qpdListWrap"></div>
           </div>
           <aside class="qpd-side" id="qpdSide">
-            <section class="qpd-side-card" id="qpdRankCard">
-              <h3 class="qpd-side-h">🏆 お客様別 見積件数</h3>
-              <p class="qpd-side-note">クリックでそのお客様の案件だけに絞り込みます。上部のステータス絞り込みにも連動します。<br>受注の割合は<b>そのお客様の総件数に対する比率</b>です。</p>
-              <div class="qpd-rank" id="qpdRankList"></div>
-            </section>
-            <section class="qpd-side-card" id="qpdTagRankCard">
-              <h3 class="qpd-side-h">🏷️ タグ別 見積件数</h3>
-              <p class="qpd-side-note">クリックでそのタグの案件だけに絞り込みます（上部のタグチップと連動）。1件で複数タグが付いていればそれぞれに加算した延べ件数です。</p>
-              <div class="qpd-rank" id="qpdTagRankList"></div>
+            <section class="qpd-side-card qpd-rank-card" id="qpdRankCard">
+              <div class="qpd-rank-tab-bar">
+                <button type="button" class="qpd-rank-tab is-active" data-ranktab="customer" onclick="qpdRankSetTab('customer')">🏆 お客様別</button>
+                <button type="button" class="qpd-rank-tab" data-ranktab="tag" onclick="qpdRankSetTab('tag')">🏷️ タグ別</button>
+              </div>
+              <div class="qpd-rank-pane" id="qpdRankPane-customer">
+                <p class="qpd-side-note">クリックでそのお客様の案件だけに絞り込みます。上部のステータス絞り込みにも連動します。<br>受注の割合は<b>そのお客様の総件数に対する比率</b>です。</p>
+                <div class="qpd-rank" id="qpdRankList"></div>
+              </div>
+              <div class="qpd-rank-pane" id="qpdRankPane-tag" hidden>
+                <p class="qpd-side-note">クリックでそのタグの案件だけに絞り込みます（上部のタグチップと連動）。1件で複数タグが付いていればそれぞれに加算した延べ件数です。</p>
+                <div class="qpd-rank" id="qpdTagRankList"></div>
+              </div>
             </section>
           </aside>
         </div>
