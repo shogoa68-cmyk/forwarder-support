@@ -801,6 +801,8 @@
     }
     // carriers-dl datalist をモードに合わせて初期化（conditions.js）
     if (typeof _refreshCarrierDatalist === 'function') _refreshCarrierDatalist();
+    // タグ入力のサジェスト（既知のタグ一覧）を先読み
+    if (typeof window.qfLoadTagSuggestions === 'function') window.qfLoadTagSuggestions();
     // カスタムカテゴリパネルを描画
     renderUserCatPanel();
     // 為替レート：自動モードなら起動時に取得

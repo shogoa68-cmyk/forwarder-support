@@ -625,6 +625,7 @@
     if (typeof window.updateSectionSummaries === 'function') window.updateSectionSummaries();
     _triggerCarrierBmFetch();
     if (typeof window.renderQuoteMilestones === 'function') window.renderQuoteMilestones();
+    if (typeof window.qfRenderTagChips === 'function') window.qfRenderTagChips();
     if (typeof window.updateRemarkChar === 'function') window.updateRemarkChar();
     if (typeof window.syncRemarkChips === 'function') window.syncRemarkChips();
     if (typeof window.updateQuoteStatusUI === 'function') window.updateQuoteStatusUI();
@@ -1079,6 +1080,7 @@
     if (typeof syncMultiEntryFields === 'function') syncMultiEntryFields();
     if (typeof window.updateSectionSummaries === 'function') window.updateSectionSummaries();
     if (typeof window.renderQuoteMilestones === 'function') window.renderQuoteMilestones();
+    if (typeof window.qfRenderTagChips === 'function') window.qfRenderTagChips();
     dismissRestoreBar();
     const ts = data.ts ? new Date(data.ts).toLocaleString('ja-JP') : '';
     quoteShowToast('↩ 自動保存データを復元しました' + (ts ? '（' + ts + '）' : ''), 'success', 3500);
@@ -1327,6 +1329,7 @@
     }
     applyZoneState();
     if (typeof window.renderQuoteMilestones === 'function') window.renderQuoteMilestones();
+    if (typeof window.qfRenderTagChips === 'function') window.qfRenderTagChips();
   }
 
   /** インコタームズ選択時のヒント表示（index.html の onchange="showIncotermsHint()" から呼ばれる） */
@@ -2125,6 +2128,64 @@
       return { label: 'CW（課金重量）', value: cwTxt + ' kg' };
     }
     return null;
+  };
+
+  // ========== 🏷️ 案件タグ ==========
+  // #qf-tags-data（hidden・JSON配列文字列）が実データ。#qfTagsChips は見た目だけの
+  // チップ表示で、保存/復元は他の qf-* 項目と同じく gatherAllData/_applyQuoteData の
+  // 汎用ループに任せる（id を持つ hidden input のため特別扱い不要）。
+  function _qfTagsArr() {
+    try {
+      const a = JSON.parse(document.getElementById('qf-tags-data')?.value || '[]');
+      return Array.isArray(a) ? a.map(t => String(t || '')).filter(Boolean) : [];
+    } catch (e) { return []; }
+  }
+  function _qfSetTagsArr(arr) {
+    const el = document.getElementById('qf-tags-data');
+    if (el) el.value = JSON.stringify(arr);
+    window.qfRenderTagChips();
+    if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
+  }
+  window.qfRenderTagChips = function () {
+    const box = document.getElementById('qfTagsChips');
+    if (!box) return;
+    box.innerHTML = _qfTagsArr().map((t, i) =>
+      '<span class="qf-tag-chip">🏷️ ' + escHtml(t) +
+        '<button type="button" onclick="qfRemoveTag(' + i + ')" title="このタグを外す">×</button></span>'
+    ).join('');
+  };
+  window.qfAddTagFromInput = function () {
+    const inp = document.getElementById('qfTagsInput');
+    const t = (inp?.value || '').trim();
+    if (!t) return;
+    const cur = _qfTagsArr();
+    if (cur.includes(t)) {
+      if (typeof quoteShowToast === 'function') quoteShowToast('ℹ️ すでに追加されています', 'info', 2000);
+      inp.value = '';
+      return;
+    }
+    _qfSetTagsArr([...cur, t]);
+    inp.value = '';
+    inp.focus();
+  };
+  window.qfRemoveTag = function (idx) {
+    _qfSetTagsArr(_qfTagsArr().filter((_, i) => i !== idx));
+  };
+  window.qfTagsKeydown = function (e) {
+    if (e.key === 'Enter') { e.preventDefault(); window.qfAddTagFromInput(); }
+  };
+  // タグ入力欄のサジェスト（全案件で使われている既知のタグ。取得はチーム共有ログイン時のみ）
+  window.qfLoadTagSuggestions = async function () {
+    const dl = document.getElementById('qfTagSuggestions');
+    if (!dl) return;
+    const db = (typeof window.quoteCloudClient === 'function') ? window.quoteCloudClient() : null;
+    if (!db) return;
+    const { data, error } = await db.from('quote_presets').select('tags').limit(500);
+    if (error) return;
+    const set = new Set();
+    (data || []).forEach(r => (Array.isArray(r.tags) ? r.tags : []).forEach(t => t && set.add(t)));
+    dl.innerHTML = Array.from(set).sort((a, b) => a.localeCompare(b, 'ja'))
+      .map(t => '<option value="' + escHtml(t) + '">').join('');
   };
 
   // サイズ・重量が不明な引き合い向け：荷姿・貨物明細テーブルを隠して備考欄に切り替える。

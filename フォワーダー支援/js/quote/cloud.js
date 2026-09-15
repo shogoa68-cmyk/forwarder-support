@@ -35,9 +35,10 @@
   let _cloudFilterPod     = '';
   let _cloudFilterCarrier = '';
   let _cloudFilterCustomer = '';  // お客様別ランキングからの絞り込み（正規化キー）
+  let _cloudFilterTag     = '';   // タグ絞り込み（'' = すべて）
   let _cloudAdvOpen       = false;
   // ダッシュボード：並び替え・表示形式
-  let _cloudSort = 'updated';   // updated|status|who|person|customer
+  let _cloudSort = 'updated';   // updated|status|who|person|customer|tags
   let _cloudView = 'card';      // card|list
   // プレビュー
   let _cpId        = null;   // プレビュー中のプリセット ID
@@ -251,13 +252,19 @@
     if (!c || !_cloudUser) return;
     if (wrap && !silent) wrap.innerHTML = '<div class="preset-empty">読み込み中…</div>';
     await _loadProfiles();
-    // editors（更新者履歴）・locked_by/locked_at（編集ロック）・ref（見積もり番号）も取得。
-    // 列が未マイグレーションでも動くよう、段階的にフォールバックする。
+    // editors（更新者履歴）・locked_by/locked_at（編集ロック）・ref（見積もり番号）・
+    // tags（案件タグ）も取得。列が未マイグレーションでも動くよう、段階的にフォールバックする。
     const BASE_COLS = 'id,name,status,customer,person,owner_email,created_by,updated_at,incoterms,transport_mode,pol,pod,carrier,data';
     let { data, error } = await c
       .from(_table())
-      .select(BASE_COLS + ',ref,locked_by,locked_at,editors')
+      .select(BASE_COLS + ',ref,tags,locked_by,locked_at,editors')
       .order('updated_at', { ascending: false });
+    if (error) {
+      ({ data, error } = await c
+        .from(_table())
+        .select(BASE_COLS + ',ref,locked_by,locked_at,editors')
+        .order('updated_at', { ascending: false }));
+    }
     if (error) {
       ({ data, error } = await c
         .from(_table())
@@ -285,6 +292,7 @@
     _cloudRows = data || [];
     await _checkStaleHolds();
     _renderStatusChips();
+    _renderTagChips();
     _renderQpdStats();
     _renderAdvancedFilters();
     _applyCloudFilter();
@@ -361,6 +369,7 @@
     if (pol && !(r.pol     || '').toLowerCase().includes(pol)) return false;
     if (pod && !(r.pod     || '').toLowerCase().includes(pod)) return false;
     if (car && !(r.carrier || '').toLowerCase().includes(car)) return false;
+    if (_cloudFilterTag && !(Array.isArray(r.tags) && r.tags.includes(_cloudFilterTag))) return false;
     if (!skipCustomer && _cloudFilterCustomer && _custKey(r.customer) !== _cloudFilterCustomer) return false;
     if (!terms.length) return true;
     const hay = _searchHayFor(r);
@@ -376,7 +385,7 @@
 
   // 何らかの絞り込みが効いているか（「すべて解除」ボタンの出し分けに使う）
   function _anyFilterActive() {
-    return !!(_cloudSearch.trim() || _cloudStatusFilter || _cloudFilterCustomer ||
+    return !!(_cloudSearch.trim() || _cloudStatusFilter || _cloudFilterCustomer || _cloudFilterTag ||
               _cloudFilterMode || _cloudFilterInco ||
               _cloudFilterPol.trim() || _cloudFilterPod.trim() || _cloudFilterCarrier.trim());
   }
@@ -391,6 +400,7 @@
     _cloudSearch = '';
     _cloudStatusFilter = '';
     _cloudFilterCustomer = '';
+    _cloudFilterTag = '';
     _cloudFilterMode = _cloudFilterInco = _cloudFilterPol = _cloudFilterPod = _cloudFilterCarrier = '';
     ['qpdSearch', 'cloudSearchInput'].forEach(id => { const e = document.getElementById(id); if (e) e.value = ''; });
     ['qpdFilterMode','qpdFilterInco','qpdFilterPol','qpdFilterPod','qpdFilterCarrier']
@@ -398,6 +408,7 @@
     const clr = document.getElementById('qpdSearchClear');
     if (clr) clr.hidden = true;
     _renderStatusChips();
+    _renderTagChips();
     _renderQpdStats();
     _applyCloudFilter();
   }
@@ -418,6 +429,10 @@
     else if (s === 'who')      r.sort((a, b) => who(a).localeCompare(who(b), 'ja') || upd(b).localeCompare(upd(a)));
     else if (s === 'person')   r.sort((a, b) => (a.person   || '').localeCompare(b.person   || '', 'ja') || upd(b).localeCompare(upd(a)));
     else if (s === 'customer') r.sort((a, b) => (a.customer || '').localeCompare(b.customer || '', 'ja') || upd(b).localeCompare(upd(a)));
+    else if (s === 'tags') {
+      const tagKey = e => (Array.isArray(e.tags) && e.tags.length) ? e.tags.slice().sort().join(',') : '￿';   // タグ無しは最後
+      r.sort((a, b) => tagKey(a).localeCompare(tagKey(b), 'ja') || upd(b).localeCompare(upd(a)));
+    }
     else                       r.sort((a, b) => upd(b).localeCompare(upd(a)));   // updated（既定）
     return r;
   }
@@ -490,6 +505,37 @@
     let html = chip('', 'すべて', _cloudRows.length);
     html += CLOUD_STATUSES.map(st => chip(st, _statusLabel(st), count(st))).join('');
     box.innerHTML = html;
+  }
+
+  // タグ絞り込みチップ（使用件数の多い順・クリックで単一選択トグル）
+  let _cloudTagChipList = [];   // 直近描画したチップの並び。onclick に生のタグ文字列を
+                                 // 埋め込むとクォート等を含む場合に壊れるためインデックス経由にする
+  function _renderTagChips() {
+    const box = document.getElementById('qpdTagChips');
+    if (!box) return;
+    const counts = {};
+    _cloudRows.forEach(r => (Array.isArray(r.tags) ? r.tags : []).forEach(t => { counts[t] = (counts[t] || 0) + 1; }));
+    const list = Object.keys(counts).map(t => ({ tag: t, count: counts[t] })).sort((a, b) => b.count - a.count);
+    _cloudTagChipList = list;
+    if (!list.length) { box.innerHTML = ''; return; }
+    box.innerHTML = list.map((c, i) =>
+      '<button type="button" class="cloud-tag-filter-chip' + (_cloudFilterTag === c.tag ? ' is-active' : '') + '" ' +
+      'onclick="cloudFilterTag(' + i + ')" title="このタグで絞り込み">🏷️ ' + escHtml(c.tag) +
+      '<span class="cloud-chip-n">' + c.count + '</span></button>'
+    ).join('') + (_cloudFilterTag
+      ? '<button type="button" class="cloud-tag-filter-clear" onclick="cloudFilterTag(-1)">✕ 解除</button>'
+      : '');
+  }
+  function cloudFilterTag(idx) {
+    if (idx < 0) {
+      _cloudFilterTag = '';
+    } else {
+      const c = _cloudTagChipList[idx];
+      if (!c) return;
+      _cloudFilterTag = (_cloudFilterTag === c.tag) ? '' : c.tag;   // 同じものを再クリックで解除
+    }
+    _renderTagChips();
+    _applyCloudFilter();
   }
 
   // 旧値「提示済み」→「提出済み」に正規化（DB 移行前の既存データ対応）
@@ -714,6 +760,18 @@
           '</div>' +
         '</div>';
 
+      // 🏷️ 案件タグ（ダッシュボードから直接追加/削除できる）
+      const rowTags = Array.isArray(r.tags) ? r.tags : [];
+      const tagsRowHtml =
+        '<div class="cloud-preset-tags">' +
+          rowTags.map((t, ti) =>
+            '<span class="cloud-tag-chip">🏷️ ' + escHtml(t) +
+              '<button type="button" onclick="event.stopPropagation();cloudRemoveTag(\'' + idAttr + '\',' + ti + ')" title="このタグを外す">×</button>' +
+            '</span>'
+          ).join('') +
+          '<button type="button" class="cloud-tag-add-btn" onclick="event.stopPropagation();cloudAddTag(\'' + idAttr + '\')" title="タグを追加">＋ タグ</button>' +
+        '</div>';
+
       const linkChk = _cloudLinkMode
         ? '<input type="checkbox" class="cloud-link-chk" onclick="event.stopPropagation();cloudToggleLinkSel(\'' + idAttr + '\')"' +
             (_cloudLinkSel.has(r.id) ? ' checked' : '') + ' title="この案件を選択して他の案件と関連付ける">'
@@ -738,6 +796,7 @@
             (custDd   ? '<dt>お客様 / 担当</dt><dd>' + custDd + '</dd>' : '') +
             '<dt>作成 / 更新</dt><dd class="cloud-kv-who">' + whoDd + '</dd>' +
           '</dl>' +
+          tagsRowHtml +
           copiedFromHtml +
           '<div class="cloud-card-foot">' +
             '<span class="cloud-card-who" title="' + escHtml(_whoTitle(r)) + '">🕒 ' + ts + '</span>' +
@@ -1519,15 +1578,72 @@
     });
   }
 
-  // ref 列（見積もり番号）はマイグレーション未実行の環境でも保存自体は落ちないよう、
-  // "column ... ref ... does not exist" エラーのときだけ ref 抜きで再試行する。
-  // op(withRef) は withRef を見て payload に ref を含めるかどうかを切り替えて実行する関数。
-  async function _withRefFallback(op) {
-    let resp = await op(true);
-    if (resp.error && /column .*ref.* does not exist/i.test(resp.error.message || '')) {
-      resp = await op(false);
+  // ---------- 🏷️ 案件タグ（ダッシュボードから直接編集） ----------
+  async function _cloudUpdateTags(rawId, nextTags) {
+    const c = _getClient();
+    if (!c || !_cloudUser) { quoteShowToast('⚠️ 先に Google でログインしてください', 'warn'); return false; }
+    const id = decodeURIComponent(rawId);
+    const row = _cloudRows.find(r => r.id === id);
+    if (!row) return false;
+    const lockedBy = _lockedByOther(row);
+    if (lockedBy) {
+      quoteShowToast('🔒 ' + _nameFor(lockedBy) + ' さんが作業中のため変更できません', 'warn', 4000);
+      return false;
     }
-    return resp;
+    const { error } = await c.from(_table()).update({ tags: nextTags }).eq('id', id);
+    if (error) {
+      const msg = /schema cache|could not find the .?tags.? column|does not exist/i.test(error.message || '')
+        ? '⚠️ タグ列が未作成です（docs/sql/quote-preset-tags.sql を実行してください）'
+        : '⚠️ タグの更新に失敗：' + error.message;
+      quoteShowToast(msg, 'warn', 6000);
+      return false;
+    }
+    row.tags = nextTags;
+    _renderTagChips();
+    _applyCloudFilter();
+    return true;
+  }
+
+  function cloudAddTag(rawId) {
+    const t = (prompt('追加するタグを入力してください（例：至急／リピート客）') || '').trim();
+    if (!t) return;
+    const id = decodeURIComponent(rawId);
+    const row = _cloudRows.find(r => r.id === id);
+    const cur = (row && Array.isArray(row.tags)) ? row.tags : [];
+    if (cur.includes(t)) { quoteShowToast('ℹ️ すでに付いています', 'info', 2500); return; }
+    _cloudUpdateTags(rawId, [...cur, t]);
+  }
+
+  function cloudRemoveTag(rawId, tagIdx) {
+    const id = decodeURIComponent(rawId);
+    const row = _cloudRows.find(r => r.id === id);
+    const cur = (row && Array.isArray(row.tags)) ? row.tags : [];
+    const tag = cur[tagIdx];
+    if (tag == null) return;
+    _cloudUpdateTags(rawId, cur.filter((_, i) => i !== tagIdx));
+  }
+
+  window.cloudFilterTag  = cloudFilterTag;
+  window.cloudAddTag     = cloudAddTag;
+  window.cloudRemoveTag  = cloudRemoveTag;
+
+  // ref（見積もり番号）・tags（案件タグ）のように後から追加した列は、
+  // マイグレーション未実行の環境でも保存自体は落ちないようにしたい。
+  // "column ... <col> ... does not exist" エラーのときだけ、その列を除いて
+  // 自動的に再試行する（複数列が未マイグレーションでも1列ずつ間引いて収束する）。
+  // buildAndRun(excluded: Set<string>) は、excluded に入っている列名を payload から
+  // 除いて実際に Supabase を呼ぶ関数。
+  async function _withOptionalCols(colNames, buildAndRun) {
+    const excluded = new Set();
+    for (;;) {
+      const resp = await buildAndRun(excluded);
+      if (!resp.error) return resp;
+      const msg = resp.error.message || '';
+      const missing = colNames.find(col => !excluded.has(col) &&
+        new RegExp('column .*\\b' + col + '\\b.* does not exist|could not find the .?' + col + '.? column', 'i').test(msg));
+      if (!missing) return resp;   // 無関係のエラー、またはこれ以上間引けない
+      excluded.add(missing);
+    }
   }
 
   // ---------- 保存（同名は上書き） ----------
@@ -1565,6 +1681,12 @@
         }
       } catch(e) {}
     }
+    // 案件タグ（qf-tags-data は編集画面のタグ入力が書き込む JSON 配列文字列）
+    let tags = [];
+    try {
+      const parsed = JSON.parse(f['qf-tags-data'] || '[]');
+      if (Array.isArray(parsed)) tags = parsed.map(t => String(t || '').trim()).filter(Boolean);
+    } catch(e) {}
 
     // ロード済みIDがある場合はID直接更新（コピー元と名前が被っても安全）。なければ同名チェック
     let existingId = _loadedCloudId || null;
@@ -1596,11 +1718,12 @@
       if (!confirmed && exId !== _loadedCloudId && !confirm('共有プリセット「' + name + '」が既にあります。上書きしますか？')) return;
       const nowIso = new Date().toISOString();
       // 上書き時は作成者は維持（ステータスはフォームの qf-status 値で更新）
-      resp = await _withRefFallback(withRef => c.from(_table())
+      resp = await _withOptionalCols(['ref', 'tags'], excluded => c.from(_table())
         .update(Object.assign(
           { data, subcons, status, customer, person, incoterms, transport_mode, pol, pod, carrier,
             owner_email: _cloudUser.email, updated_at: nowIso },
-          withRef ? { ref } : {}
+          excluded.has('ref')  ? {} : { ref },
+          excluded.has('tags') ? {} : { tags }
         ))
         .eq('id', exId)
         .select('id'));
@@ -1611,12 +1734,13 @@
       }
       if (!resp.error) { _loadedCloudId = exId; _loadedCloudTs = nowIso; }  // 自分の保存を基準時刻に更新
     } else {
-      resp = await _withRefFallback(withRef => c.from(_table())
+      resp = await _withOptionalCols(['ref', 'tags'], excluded => c.from(_table())
         .insert(Object.assign(
           { name, data, subcons, status, customer, person, incoterms, transport_mode, pol, pod, carrier,
             owner_email: _cloudUser.email,
             created_by:  _cloudUser.email },
-          withRef ? { ref } : {}
+          excluded.has('ref')  ? {} : { ref },
+          excluded.has('tags') ? {} : { tags }
         ))
         .select('id,updated_at').single());
       if (!resp.error && resp.data) {   // 新規作成：競合検知の基準にも採用
@@ -2238,11 +2362,17 @@
     } catch(e) {}
     const subcons = _extractSubcons(newData);
     const ref = (f['qf-ref'] || '').trim() || null;
-    const { error } = await _withRefFallback(withRef => c.from(_table()).insert(Object.assign(
+    let tags = [];
+    try {
+      const parsed = JSON.parse(f['qf-tags-data'] || '[]');
+      if (Array.isArray(parsed)) tags = parsed.map(t => String(t || '').trim()).filter(Boolean);
+    } catch(e) {}
+    const { error } = await _withOptionalCols(['ref', 'tags'], excluded => c.from(_table()).insert(Object.assign(
       { name: copyName, data: newData, subcons, status: CLOUD_STATUS_DEFAULT,
         customer, person, incoterms, transport_mode, pol, pod, carrier,
         owner_email: _cloudUser.email, created_by: _cloudUser.email },
-      withRef ? { ref } : {}
+      excluded.has('ref')  ? {} : { ref },
+      excluded.has('tags') ? {} : { tags }
     )));
     if (error) { quoteShowToast('⚠️ コピーに失敗：' + error.message, 'warn', 5000); return; }
     quoteShowToast('📋 「' + src.name + '」をコピーしました → 「' + copyName + '」', 'success', 3500);
