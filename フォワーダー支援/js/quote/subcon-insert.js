@@ -477,18 +477,32 @@
     renderSubconSidePanel();
   }
 
-  // サブコン名絞り込みチップ（使用件数の多い順・上位のみ＋「もっと見る」で全社展開）
+  // サブコン名絞り込みチップ（使用件数の多い順・上位のみ＋「もっと見る」で全社展開）。
+  // 「もっと見る」で全社展開すると数十社分のチップが並び、末尾の「折りたたむ」
+  // まで毎回スクロールしないと戻せなくなる（＝抜け出せなくなる）ため、
+  //   ① 検索欄（#siSubconSearch）の文字列でチップ自体も絞り込む
+  //   ② 展開中は「折りたたむ」ボタンを先頭にも出す（末尾は従来通り残す）
+  // の2本立てで対処する。
   const SI_SV_CHIP_TOP_N = 12;
   function renderSiSvChips() {
     const box = document.getElementById('siSvChips');
     if (!box) return;
-    const counts = _siSubcons.map(sc => ({ name: sc.name, count: sc.items.length }));
+    let counts = _siSubcons.map(sc => ({ name: sc.name, count: sc.items.length }));
     counts.sort((a, b) => b.count - a.count);
+    const terms = _terms(document.getElementById('siSubconSearch')?.value || '');
+    if (terms.length) counts = counts.filter(c => terms.every(t => c.name.toLowerCase().includes(t)));
     _siSvChipList = counts;
-    if (!counts.length) { box.innerHTML = ''; return; }
-    const shown = _siSvExpanded ? counts : counts.slice(0, SI_SV_CHIP_TOP_N);
+    if (!counts.length) {
+      box.innerHTML = terms.length ? '<span class="si-sv-chip-empty">該当する会社がありません</span>' : '';
+      return;
+    }
+    // 検索中は「上位N件だけ」に絞る意味が無いので全件表示する
+    const shown = (terms.length || _siSvExpanded) ? counts : counts.slice(0, SI_SV_CHIP_TOP_N);
     const remaining = counts.length - shown.length;
-    box.innerHTML = shown.map((c, i) => {
+    const canCollapse = !terms.length && _siSvExpanded && counts.length > SI_SV_CHIP_TOP_N;
+    const collapseBtn = '<button type="button" class="si-sv-chip si-sv-more" onclick="siToggleSvChipsExpand()">▲ 折りたたむ</button>';
+    box.innerHTML = (canCollapse ? collapseBtn : '')
+    + shown.map((c, i) => {
       const on = _siSvSel.has(c.name);
       return '<button type="button" class="si-sv-chip' + (on ? ' is-on' : '') + '" ' +
         'onclick="siToggleSvChip(' + i + ')" title="このサブコンで絞り込み（複数選択可）">' +
@@ -496,9 +510,7 @@
     }).join('')
     + (remaining > 0
         ? '<button type="button" class="si-sv-chip si-sv-more" onclick="siToggleSvChipsExpand()">▼ もっと見る（+' + remaining + '社）</button>'
-        : (_siSvExpanded && counts.length > SI_SV_CHIP_TOP_N
-            ? '<button type="button" class="si-sv-chip si-sv-more" onclick="siToggleSvChipsExpand()">▲ 折りたたむ</button>'
-            : ''))
+        : (canCollapse ? collapseBtn : ''))
     + (_siSvSel.size
         ? '<button type="button" class="si-sv-chip si-sv-clear" onclick="siClearSvChips()" title="サブコン絞り込みを解除">✕ 解除</button>'
         : '');
