@@ -4267,6 +4267,7 @@ body.qp-dash-active #quoteActionDock { display: none !important; }
   top: calc(var(--nav-cat-h, 48px) + var(--nav-sub-h, 40px) + 24px);
   max-height: calc(100vh - var(--nav-cat-h, 48px) - var(--nav-sub-h, 40px) - 48px);
   overflow-y: auto;
+  display: flex; flex-direction: column; gap: 12px;
 }
 #qpDashboard .qpd-side-card {
   background: #fff; border: 1px solid #e2d8c4; border-radius: 10px; padding: 12px 14px 14px;
