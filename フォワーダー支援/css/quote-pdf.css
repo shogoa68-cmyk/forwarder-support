@@ -211,38 +211,47 @@
 .qd-est-tag { color: #1e6e52; font-weight: 700; font-size: 9.5px; }
 .qd-validity { font-size: 9px; color: #888; margin-left: 4px; white-space: nowrap; }
 .qd-items .qd-sub td { background: #f3efe7; font-weight: 700; }
-/* サブコン別 グループ見出し（御見積書・顧客向け：ブロック先頭の区切り） */
+/* ===== ツリー階層：サブコン(0) › パターン(1) › カテゴリー(2) › 明細/リマーク(3) =====
+   段が深くなるほどインデントを大きく取り、ツリー構造を強調する。見出し行と
+   対応する小計行・リマーク行は必ず同じインデント幅で揃える（ズレると、どの
+   小計がどの階層のものか分かりにくくなるため） */
+/* 第0階層：サブコン別 グループ見出し（御見積書・顧客向け：ブロック先頭の区切り） */
 .qd-items .qd-subcon-head td {
   background: #f3ece0; font-weight: 800; color: #5a3e28; text-align: left;
   border-top: 2px solid #cdab6f; border-left: 4px solid #8b6f47;
-  padding-top: 5px; padding-bottom: 5px; letter-spacing: .02em;
+  padding-top: 5px; padding-bottom: 5px; padding-left: 10px; letter-spacing: .02em;
 }
 /* サブコン別リマーク（御見積書・顧客向け：見出し直下・「見積書に表示」ONのときのみ出力） */
 .qd-items .qd-subcon-remark td {
   background: #fffbe6; color: #5a3e28; font-size: 10px; text-align: left;
-  border-left: 4px solid #8b6f47; padding: 3px 8px 3px 14px;
+  border-left: 4px solid #8b6f47; padding: 3px 8px 3px 16px;
 }
 /* サブコン別 売値小計（御見積書・顧客向け：金額のみ） */
 .qd-items .qd-subcon-sub td { background: #efe7d6; font-weight: 700; border-top: 1.5px solid #cdab6f; }
-.qd-items .qd-subcon-sub td:first-child { text-align: left; color: #5a3e28; border-left: 4px solid #8b6f47; }
-.qd-items .qd-remark td { background: #fffbe6; color: #555; font-size: 10px; padding-left: 34px; }
-/* ===== ツリー階層：サブコン › カテゴリー › 明細 ===== */
-/* 第2階層：カテゴリー見出し（薄グレー・細字で階層を主張しすぎない） */
-.qd-items .qd-cat-head td {
-  background: #f0f0f0; color: #888; font-weight: 600; font-size: 10.5px;
-  padding: 3px 8px 3px 22px; border-color: #e0e0e0;
-}
-/* パターン別 グループ見出し（第2.5階層） */
+.qd-items .qd-subcon-sub td:first-child { text-align: left; color: #5a3e28; border-left: 4px solid #8b6f47; padding-left: 10px; }
+/* 第1階層：パターン別 グループ見出し（サブコンとカテゴリーの間） */
 .qd-items .qd-pattern-head td {
   background: #faf5ec; font-weight: 700; color: #7a5c32; text-align: left;
   border-top: 1px solid #d8c5a4; border-left: 3px solid #c8a85a;
-  padding: 2px 8px 2px 22px; font-size: 10.5px;
+  padding-left: 28px; font-size: 10.5px;
+}
+/* パターン別リマーク */
+.qd-items .qd-pattern-remark td {
+  background: #fffbe6; color: #7a5c32; font-size: 10px; text-align: left;
+  border-left: 3px solid #c8a85a; padding-left: 34px;
 }
 /* パターン別 売値小計 */
 .qd-items .qd-pattern-sub td { background: #f5ede0; font-weight: 700; border-top: 1px dashed #c8a85a; }
-.qd-items .qd-pattern-sub td:first-child { text-align: left; color: #7a5c32; border-left: 3px solid #c8a85a; }
+.qd-items .qd-pattern-sub td:first-child { text-align: left; color: #7a5c32; border-left: 3px solid #c8a85a; padding-left: 28px; }
+/* 第2階層：カテゴリー見出し（薄グレー・細字で階層を主張しすぎない） */
+.qd-items .qd-cat-head td {
+  background: #f0f0f0; color: #888; font-weight: 600; font-size: 10.5px;
+  padding-left: 46px; border-color: #e0e0e0;
+}
 /* 第3階層：明細項目名（カテゴリー配下へインデント） */
-.qd-items td.qd-l3 { padding-left: 30px; }
+.qd-items td.qd-l3 { padding-left: 64px; }
+/* 明細に付くリマーク（※で始まる注記行）：明細よりさらに一段インデント */
+.qd-items .qd-remark td { background: #fffbe6; color: #555; font-size: 10px; padding-left: 70px; }
 /* 印刷時の改ページ制御：行の途中で切れないように＋見出し行を各ページ先頭に繰り返す */
 .qd-items tr { page-break-inside: avoid; break-inside: avoid; }
 .qd-items thead { display: table-header-group; }
