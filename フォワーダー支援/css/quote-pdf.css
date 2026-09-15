@@ -242,7 +242,7 @@
 }
 /* パターン別 売値小計 */
 .qd-items .qd-pattern-sub td { background: #f5ede0; font-weight: 700; border-top: 1px dashed #c8a85a; }
-.qd-items .qd-pattern-sub td:first-child { text-align: left; color: #7a5c32; border-left: 3px solid #c8a85a; padding-left: 28px; }
+.qd-items .qd-pattern-sub td:first-child { text-align: right; color: #7a5c32; border-left: 3px solid #c8a85a; padding-left: 28px; }
 /* 第2階層：カテゴリー見出し（薄グレー・細字で階層を主張しすぎない） */
 .qd-items .qd-cat-head td {
   background: #f0f0f0; color: #888; font-weight: 600; font-size: 10.5px;
