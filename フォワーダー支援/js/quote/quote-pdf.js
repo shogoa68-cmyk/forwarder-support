@@ -110,7 +110,9 @@
     const pn = (person || '').trim();
     if (pn) {
       const honor = _HONORIFIC_RE.test(pn) ? '' : ' 様';
-      return [co, pn + honor].filter(Boolean).join('　');
+      // 会社名と担当者名は改行して分ける（同じ行に詰めると幅次第で
+      // 担当者名の途中（例：「鈴木」→「鈴」「木」）で折り返されてしまうため）
+      return [co, pn + honor].filter(Boolean).join('\n');
     }
     if (co) return _HONORIFIC_RE.test(co) ? co : co + ' 御中';
     return '';
@@ -278,7 +280,7 @@
       scPatternSets[sk].add(_ptNorm(d));
     });
     const _scActive = (new Set(data.map(_scNorm)).size >= 2);
-    let _scKey = null, _scLabel = null, _scJpy = 0, _scHas = false;
+    let _scKey = null, _scLabel = null, _scHeadLabel = null, _scJpy = 0, _scHas = false;
     let _catKey = null;   // サブコン内の現在カテゴリ（サブコンが変わると null にリセット）
     let _ptActive = false, _ptSubOn = false, _ptKey = null, _ptJpy = 0, _ptHas = false;
     const _ptPush = () => {
@@ -293,8 +295,9 @@
     const _scPush = () => {
       _ptPush(); // サブコン小計前にパターン小計をフラッシュ
       if (_scActive && _scHas) {
-        // サブコン名は見出し行に表示済みのため、小計行では繰り返さず「小計」のみ
-        lineHTML.push(`<tr class="qd-subcon-sub"><td colspan="4">↳ 小計</td><td class="qd-num">¥${fmtInt(_scJpy)}</td></tr>`);
+        // サブコン小計はページが分かれると見出し行が前ページに残り会社名が分からなくなるため、
+        // 「小計」だけでなくサブコン名も併記する（例：「SEABRIDGE 小計」）
+        lineHTML.push(`<tr class="qd-subcon-sub"><td colspan="4">↳ ${esc(_scHeadLabel || '')} 小計</td><td class="qd-num">¥${fmtInt(_scJpy)}</td></tr>`);
       }
     };
     rows.forEach(r => {
@@ -347,7 +350,8 @@
           _scKey = k; _scLabel = _scLabelOf(r);  // グループ先頭の綴りを表示名に採用
           // 各サブコンブロックの先頭に見出しを置き、どのサブコンの明細かを明示する
           const _alH = (typeof getSubconAliases === 'function' ? getSubconAliases()[_scKey] : '') || '';
-          lineHTML.push(`<tr class="qd-subcon-head"><td colspan="5">${esc(_alH || _scLabel)}</td></tr>`);
+          _scHeadLabel = _alH || _scLabel;
+          lineHTML.push(`<tr class="qd-subcon-head"><td colspan="5">${esc(_scHeadLabel)}</td></tr>`);
           // サブコン別リマーク（「見積書に表示」がONのときのみ御見積書PDFにも表示）
           const _rmH = (typeof getSubconRemarks === 'function' ? getSubconRemarks()[_scKey] : null);
           if (_rmH && _rmH.show && _rmH.text && _rmH.text.trim()) {
@@ -440,11 +444,16 @@
     const validStr = _fmtJpDate(hdr.validUntil);
     const custName = _formatRecipient(hdr.customer, hdr.person) || '（宛先未入力）';
 
-    const issuerAddr = [
-      issuer.zip ? '〒' + esc(issuer.zip) : '',
-      esc(issuer.address1), esc(issuer.address2),
+    // 住所1/2、TEL/FAX はそれぞれ1行にまとめる（行数を詰めて発行元情報をコンパクトに）
+    const issuerAddrLine = [esc(issuer.address1), esc(issuer.address2)].filter(Boolean).join('　');
+    const issuerContactLine = [
       issuer.tel ? 'TEL: ' + esc(issuer.tel) : '',
       issuer.fax ? 'FAX: ' + esc(issuer.fax) : '',
+    ].filter(Boolean).join('　');
+    const issuerAddr = [
+      issuer.zip ? '〒' + esc(issuer.zip) : '',
+      issuerAddrLine,
+      issuerContactLine,
       issuer.regno ? '登録番号: ' + esc(issuer.regno) : '',
     ].filter(Boolean).join('<br>');
 
@@ -454,17 +463,16 @@
 
     return `
     <div class="qd-page">
-      <div class="qd-top"><span></span><span>DATE：${esc(dateStr)}　　PAGE：1 / 1</span></div>
+      <div class="qd-top"><span></span><span style="text-align:right;line-height:1.6;">見積書NO：${esc(hdr.ref) || '—'}<br>DATE：${esc(dateStr)}　　PAGE：1 / 1</span></div>
       <div class="qd-title">御 見 積 書</div>
 
       <div class="qd-head">
         <div class="qd-to">
-          <div class="qd-cust">${esc(custName)}</div>
+          <div class="qd-cust">${nl2br(custName)}</div>
           <div class="qd-greet">${nl2br(issuer.greeting)}</div>
         </div>
         <div class="qd-from">
           <div class="qd-co">${esc(issuer.company) || '<span class="qd-placeholder">（発行元会社名を設定してください）</span>'}</div>
-          <div class="qd-no">見積書NO: ${esc(hdr.ref) || '—'}</div>
           <div class="qd-addr">${issuerAddr || '<span class="qd-placeholder">（住所・連絡先を設定）</span>'}</div>
         </div>
       </div>

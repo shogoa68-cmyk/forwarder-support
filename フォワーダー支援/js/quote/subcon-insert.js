@@ -432,7 +432,11 @@
     const out = [];
     _siSubcons.forEach(sc => {
       if (_siSvSel.size && !_siSvSel.has(sc.name)) return;
-      const nameHit = terms.length > 0 && terms.every(t => sc.name.toLowerCase().includes(t));
+      // サブコン名チップで明示的に選んだ会社は「会社名がヒットした」のと同じ扱いにする。
+      // 検索欄にカタカナ会社名とは一致しない文字（ローマ字表記など）が残ったままだと、
+      // せっかくチップで選んだ会社の明細（＝料金）まで全滅してしまうため。
+      const svPicked = _siSvSel.has(sc.name);
+      const nameHit = svPicked || (terms.length > 0 && terms.every(t => sc.name.toLowerCase().includes(t)));
       let items = sc.items.map((it, ii) => Object.assign({ _ii: ii }, it));
       if (_siCatSel.size) items = items.filter(it => _siCatSel.has(it.cat || ''));
       if (terms.length && !nameHit) items = items.filter(it => _itemMatches(it, terms));
