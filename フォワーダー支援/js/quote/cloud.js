@@ -714,9 +714,14 @@
           '</div>' +
         '</div>';
 
+      const linkChk = _cloudLinkMode
+        ? '<input type="checkbox" class="cloud-link-chk" onclick="event.stopPropagation();cloudToggleLinkSel(\'' + idAttr + '\')"' +
+            (_cloudLinkSel.has(r.id) ? ' checked' : '') + ' title="この案件を選択して他の案件と関連付ける">'
+        : '';
       return '' +
-        '<div class="cloud-card cloud-card-labeled' + (others.length ? ' is-editing' : '') + '">' +
+        '<div class="cloud-card cloud-card-labeled' + (others.length ? ' is-editing' : '') + (_cloudLinkMode ? ' cloud-card--linkmode' : '') + '">' +
           '<div class="cloud-card-row1">' +
+            linkChk +
             statusBadge +
             '<span class="cloud-card-name" title="' + escHtml(r.name) + '">' + escHtml(titleText) + '</span>' +
             '<button class="btn-ref-copy" data-ref="' + escHtml(titleText) + '" onclick="copyRefNumber(this.dataset.ref,this)" title="管理番号をコピー（&quot;番号&quot;形式）"><svg class="icon-copy" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="1" width="9" height="9" rx="1.5"/><rect x="1" y="4" width="9" height="9" rx="1.5"/></svg></button>' +
@@ -757,7 +762,9 @@
       const listMode = _cloudView === 'list';
       dashWrap.classList.toggle('qpd-list--rows', listMode);
       dashWrap.innerHTML = listMode
-        ? ('<div class="qpd-rows-head"><span>状態</span><span>見積番号</span><span>お客様 / 担当</span><span>作業者</span><span>更新</span><span></span></div>'
+        ? ('<div class="qpd-rows-head' + (_cloudLinkMode ? ' qpd-row--linkmode' : '') + '">' +
+              (_cloudLinkMode ? '<span></span>' : '') +
+              '<span>状態</span><span>見積番号</span><span>お客様 / 担当</span><span>作業者</span><span>更新</span><span></span></div>'
             + rows.map(_cloudListRow).join(''))
         : cardsHtml;
       if (!listMode) _loadDashChatSummaries(rows);   // 💬 申し送りの件数/最新を後追いで埋める（カード表示時のみ）
@@ -776,7 +783,15 @@
     const ts     = _fmtWhen(r.updated_at);
     const idAttr = encodeURIComponent(r.id);
     const lockedBy = _lockedByOther(r);
-    return '<div class="qpd-row" onclick="cloudLoadPreset(\'' + idAttr + '\')" title="クリックで開く">' +
+    const rowClick = _cloudLinkMode
+      ? "cloudToggleLinkSel('" + idAttr + "')"
+      : "cloudLoadPreset('" + idAttr + "')";
+    const linkChk = _cloudLinkMode
+      ? '<input type="checkbox" class="cloud-link-chk qpd-row-chk" onclick="event.stopPropagation();cloudToggleLinkSel(\'' + idAttr + '\')"' +
+          (_cloudLinkSel.has(r.id) ? ' checked' : '') + ' title="この案件を選択して他の案件と関連付ける">'
+      : '';
+    return '<div class="qpd-row' + (_cloudLinkMode ? ' qpd-row--linkmode' : '') + '" onclick="' + rowClick + '" title="' + (_cloudLinkMode ? 'クリックで選択' : 'クリックで開く') + '">' +
+      linkChk +
       _statusSelect(idAttr, status, lockedBy, 'qpd-row-status') +
       '<span class="qpd-row-title">' + escHtml(title) + '</span>' +
       '<span class="qpd-row-cust">' + escHtml(cust) + (person ? ' <small>/ ' + escHtml(person) + '</small>' : '') + '</span>' +
@@ -2064,17 +2079,22 @@
     return links.map(l => Object.assign({}, l, { preset: map[l.otherId] || null })).filter(l => l.preset);
   }
 
-  async function cloudLinkPresets(idA, idB, note) {
+  // opts.silent: true のときトーストを出さない（ダッシュボードの複数選択→まとめて関連付け
+  // で1ペアごとにトーストが乱立しないようにするため）。戻り値は常に { ok, reason, message }。
+  // reason: 'guard'（未ログイン等）/'duplicate'（既存あり）/'error'（DBエラー）/'created'（成功）
+  async function cloudLinkPresets(idA, idB, note, opts) {
+    const silent = !!(opts && opts.silent);
+    const toast = silent ? function () {} : quoteShowToast;
     const c = _getClient();
-    if (!c || !_cloudUser) { quoteShowToast('⚠️ ログインが必要です', 'warn'); return false; }
-    if (!idA || !idB || idA === idB) { quoteShowToast('⚠️ 関連付ける案件を正しく選んでください', 'warn'); return false; }
+    if (!c || !_cloudUser) { toast('⚠️ ログインが必要です', 'warn'); return { ok: false, reason: 'guard' }; }
+    if (!idA || !idB || idA === idB) { toast('⚠️ 関連付ける案件を正しく選んでください', 'warn'); return { ok: false, reason: 'guard' }; }
     const { data: existing, error: existErr } = await c.from('quote_preset_links')
       .select('id')
       .or(`and(preset_a.eq.${idA},preset_b.eq.${idB}),and(preset_a.eq.${idB},preset_b.eq.${idA})`)
       .limit(1);
     if (!existErr && existing && existing.length) {
-      quoteShowToast('ℹ️ すでに関連付けられています', 'info', 3000);
-      return false;
+      toast('ℹ️ すでに関連付けられています', 'info', 3000);
+      return { ok: false, reason: 'duplicate' };
     }
     const { error } = await c.from('quote_preset_links').insert({
       preset_a: idA, preset_b: idB, note: (note || '').trim() || null, created_by: _cloudUser.email,
@@ -2083,12 +2103,69 @@
       const msg = /schema cache|could not find the table|does not exist/i.test(error.message || '')
         ? '⚠️ テーブル未作成です（docs/sql/quote-preset-links.sql を実行してください）'
         : '⚠️ 関連付けに失敗：' + error.message;
-      quoteShowToast(msg, 'warn', 8000);
-      return false;
+      toast(msg, 'warn', 8000);
+      return { ok: false, reason: 'error', message: error.message };
     }
-    quoteShowToast('🔗 案件を関連付けました', 'success', 2500);
-    return true;
+    toast('🔗 案件を関連付けました', 'success', 2500);
+    return { ok: true, reason: 'created' };
   }
+
+  // ---------- 🔗 ダッシュボード：チェックボックスでまとめて関連付け ----------
+  // 選択したN件の全ペア（N=2なら1組、N=3なら3組…）を一括でリンクする。
+  // 個別トーストは出さず、完了後にまとめて1つのトーストで結果を報告する。
+  let _cloudLinkMode = false;      // 関連付けモード（選択チェックボックスを表示中か）
+  const _cloudLinkSel = new Set(); // 選択中のプリセットID
+
+  function cloudToggleLinkMode() {
+    _cloudLinkMode = !_cloudLinkMode;
+    if (!_cloudLinkMode) _cloudLinkSel.clear();
+    document.getElementById('qpdLinkModeBtn')?.classList.toggle('is-on', _cloudLinkMode);
+    _applyCloudFilter();
+    _renderCloudLinkBar();
+  }
+
+  function cloudToggleLinkSel(rawId) {
+    const id = decodeURIComponent(rawId);
+    if (_cloudLinkSel.has(id)) _cloudLinkSel.delete(id); else _cloudLinkSel.add(id);
+    _renderCloudLinkBar();
+  }
+
+  function _renderCloudLinkBar() {
+    const bar = document.getElementById('qpdLinkBar');
+    if (!bar) return;
+    bar.hidden = !_cloudLinkMode;
+    if (!_cloudLinkMode) return;
+    const n = _cloudLinkSel.size;
+    const pairs = n >= 2 ? (n * (n - 1) / 2) : 0;
+    const countEl = document.getElementById('qpdLinkBarCount');
+    if (countEl) countEl.textContent = n + '件選択中' + (pairs ? '（' + pairs + '組を関連付け）' : '');
+    const btn = document.getElementById('qpdLinkBarBtn');
+    if (btn) btn.disabled = n < 2;
+  }
+
+  async function cloudLinkSelected() {
+    const ids = Array.from(_cloudLinkSel);
+    if (ids.length < 2) return;
+    let created = 0, duplicate = 0, failed = 0;
+    for (let i = 0; i < ids.length; i++) {
+      for (let j = i + 1; j < ids.length; j++) {
+        const res = await cloudLinkPresets(ids[i], ids[j], null, { silent: true });
+        if (res.ok) created++;
+        else if (res.reason === 'duplicate') duplicate++;
+        else failed++;
+      }
+    }
+    const parts = [];
+    if (created)   parts.push(created + '組を関連付け');
+    if (duplicate) parts.push(duplicate + '組は関連付け済み');
+    if (failed)    parts.push(failed + '組は失敗');
+    quoteShowToast('🔗 ' + (parts.join('・') || '完了'), failed ? 'warn' : 'success', 4500);
+    cloudToggleLinkMode();   // 選択モードを終了（選択もクリア）
+  }
+
+  window.cloudToggleLinkMode = cloudToggleLinkMode;
+  window.cloudToggleLinkSel  = cloudToggleLinkSel;
+  window.cloudLinkSelected   = cloudLinkSelected;
 
   async function cloudUnlinkPreset(linkId) {
     const c = _getClient();

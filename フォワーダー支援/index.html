@@ -2164,6 +2164,7 @@
               <button type="button" id="qpdViewCard" class="is-active" onclick="qpdSetView('card')">▦ カード</button>
               <button type="button" id="qpdViewList" onclick="qpdSetView('list')">≣ リスト</button>
             </div>
+            <button type="button" id="qpdLinkModeBtn" class="qpd-linkmode-btn" onclick="cloudToggleLinkMode()" title="チェックボックスで複数の案件を選び、まとめて関連付けます">🔗 関連付けモード</button>
           </div>
           <div class="qpd-adv" id="qpdAdv" hidden>
             <select id="qpdFilterMode" class="qpd-adv-sel" onchange="qpdApplyAdv()"><option value="">輸送モード：すべて</option></select>
@@ -2176,6 +2177,11 @@
         </div>
         <div class="qpd-body">
           <div class="qpd-body-main">
+            <div class="qpd-link-bar" id="qpdLinkBar" hidden>
+              <span id="qpdLinkBarCount">0件選択中</span>
+              <button type="button" id="qpdLinkBarBtn" onclick="cloudLinkSelected()" disabled>🔗 まとめて関連付け</button>
+              <button type="button" class="qpd-link-bar-cancel" onclick="cloudToggleLinkMode()">✕ 終了</button>
+            </div>
             <div class="qpd-list preset-list-wrap" id="qpdListWrap"></div>
           </div>
           <aside class="qpd-side" id="qpdSide">
