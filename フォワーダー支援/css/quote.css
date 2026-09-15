@@ -5827,6 +5827,11 @@ body.qp-dash-active #quoteActionDock { display: none !important; }
   border-radius: 6px; font-size: 13px; font-weight: 600; cursor: pointer;
 }
 #tab-quote-make .cp-btn-copy:hover { background: #f3e8d2; }
+#tab-quote-make .cp-btn-link {
+  padding: 7px 14px; background: #fff; color: #2d6a4f; border: 1px solid #2d6a4f;
+  border-radius: 6px; font-size: 13px; font-weight: 600; cursor: pointer;
+}
+#tab-quote-make .cp-btn-link:hover { background: #eaf5ef; }
 #tab-quote-make .cp-ref {
   font-weight: 700; color: #6b5636; font-variant-numeric: tabular-nums;
 }
@@ -10248,6 +10253,28 @@ button.um-memberno--empty:hover { background: #f4ead4; border-color: #cdb98e; }
   opacity: 1;
 }
 #tab-quote-make .si-cat-chip.si-cat-clear:hover { background: #eaddc8; }
+/* サブコン名絞り込みチップ（使用件数の多い順・上位のみ＋もっと見る） */
+#tab-quote-make .si-sv-chips {
+  display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px;
+}
+#tab-quote-make .si-sv-chips:empty { display: none; }
+#tab-quote-make .si-sv-chip {
+  cursor: pointer; font-family: inherit; font-size: 10.5px; color: #6b5636;
+  background: #f7f1e2; border: 1px solid #d8c9ad; border-radius: 10px;
+  padding: 2px 8px; display: inline-flex; align-items: center; gap: 4px;
+}
+#tab-quote-make .si-sv-chip:hover { background: #efe4c8; }
+#tab-quote-make .si-sv-chip.is-on {
+  background: #6b5636; color: #fff; border-color: #6b5636; font-weight: 700;
+}
+#tab-quote-make .si-sv-chip small { font-size: 9px; opacity: 0.75; }
+#tab-quote-make .si-sv-chip.si-sv-more {
+  background: none; border-style: dashed; color: #8b7a5a;
+}
+#tab-quote-make .si-sv-chip.si-sv-clear {
+  background: #f5ede0; color: #8b5a2a; border-color: #d8c0a0; font-weight: 600;
+}
+#tab-quote-make .si-sv-chip.si-sv-clear:hover { background: #eaddc8; }
 /* ヒット件数サマリー・カード内該当件数 */
 #tab-quote-make .si-hit-note {
   font-size: 10px; font-weight: 600; color: #7a6a50;

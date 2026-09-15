@@ -27,6 +27,10 @@
   let _subcons   = [];   // モーダル用（全件集計）
   let _siSubcons = [];   // 右カラムパネル用（現案件条件 or 全件、_siShowAll に応じて切替）
   let _siCatSel  = new Set();   // 右カラム：カテゴリチップの選択状態（空 = 全カテゴリ）
+  let _siSvSel   = new Set();   // 右カラム：サブコン名チップの選択状態（空 = 全サブコン・複数選択可）
+  let _siSvExpanded  = false;   // サブコン名チップの折りたたみ状態（false = 使用件数上位のみ表示）
+  let _siSvChipList  = [];      // 直近描画したサブコン名チップの並び（会社名を onclick 属性へ直接埋め込むと
+                                 // クォート等を含む名前で壊れるため、クリックはインデックス経由で参照する）
   let _siShowAll = false;       // 右カラム：ON=全過去案件、OFF=現案件のサブコン/条件に合致するもののみ
   let _siRawPresets = null;     // 直近取得した全プリセット（トグル切替時に再取得しないためのキャッシュ）
 
@@ -427,6 +431,7 @@
     const terms = _terms(document.getElementById('siSubconSearch')?.value || '');
     const out = [];
     _siSubcons.forEach(sc => {
+      if (_siSvSel.size && !_siSvSel.has(sc.name)) return;
       const nameHit = terms.length > 0 && terms.every(t => sc.name.toLowerCase().includes(t));
       let items = sc.items.map((it, ii) => Object.assign({ _ii: ii }, it));
       if (_siCatSel.size) items = items.filter(it => _siCatSel.has(it.cat || ''));
@@ -468,10 +473,52 @@
     renderSubconSidePanel();
   }
 
+  // サブコン名絞り込みチップ（使用件数の多い順・上位のみ＋「もっと見る」で全社展開）
+  const SI_SV_CHIP_TOP_N = 12;
+  function renderSiSvChips() {
+    const box = document.getElementById('siSvChips');
+    if (!box) return;
+    const counts = _siSubcons.map(sc => ({ name: sc.name, count: sc.items.length }));
+    counts.sort((a, b) => b.count - a.count);
+    _siSvChipList = counts;
+    if (!counts.length) { box.innerHTML = ''; return; }
+    const shown = _siSvExpanded ? counts : counts.slice(0, SI_SV_CHIP_TOP_N);
+    const remaining = counts.length - shown.length;
+    box.innerHTML = shown.map((c, i) => {
+      const on = _siSvSel.has(c.name);
+      return '<button type="button" class="si-sv-chip' + (on ? ' is-on' : '') + '" ' +
+        'onclick="siToggleSvChip(' + i + ')" title="このサブコンで絞り込み（複数選択可）">' +
+        _esc(c.name) + '<small>' + c.count + '</small></button>';
+    }).join('')
+    + (remaining > 0
+        ? '<button type="button" class="si-sv-chip si-sv-more" onclick="siToggleSvChipsExpand()">▼ もっと見る（+' + remaining + '社）</button>'
+        : (_siSvExpanded && counts.length > SI_SV_CHIP_TOP_N
+            ? '<button type="button" class="si-sv-chip si-sv-more" onclick="siToggleSvChipsExpand()">▲ 折りたたむ</button>'
+            : ''))
+    + (_siSvSel.size
+        ? '<button type="button" class="si-sv-chip si-sv-clear" onclick="siClearSvChips()" title="サブコン絞り込みを解除">✕ 解除</button>'
+        : '');
+  }
+  function siToggleSvChip(idx) {
+    const c = _siSvChipList[idx];
+    if (!c) return;
+    if (_siSvSel.has(c.name)) _siSvSel.delete(c.name); else _siSvSel.add(c.name);
+    renderSubconSidePanel();
+  }
+  function siClearSvChips() {
+    _siSvSel.clear();
+    renderSubconSidePanel();
+  }
+  function siToggleSvChipsExpand() {
+    _siSvExpanded = !_siSvExpanded;
+    renderSubconSidePanel();
+  }
+
   function renderSubconSidePanel() {
     const wrap = document.getElementById('siListWrap');
     if (!wrap) return;
     renderSiCatChips();
+    renderSiSvChips();
     const terms = _terms(document.getElementById('siSubconSearch')?.value || '');
     const filtering = terms.length > 0 || _siCatSel.size > 0;
     const list = _siFilteredList();
@@ -888,6 +935,7 @@
     loadSubconModules, renderSubconList, subconInsert, subconFilter, switchRowInsertTab,
     renderSubconSidePanel, subconInsertFromPanel, loadSubconPanel, subconSidePanelFilter,
     siToggleCatChip, siClearCatChips, siToggleShowAll, siItemSrcPop,
+    siToggleSvChip, siClearSvChips, siToggleSvChipsExpand,
     siSetTab, renderCurrentQuoteSubconPanel, siCopyGroup,
     getSubconData: () => _subcons,
     loadSubconData: async () => { if (!_subcons.length) await loadSubconModules(); return _subcons; },
