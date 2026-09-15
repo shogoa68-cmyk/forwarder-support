@@ -4347,6 +4347,33 @@ body.qp-dash-active #quoteActionDock { display: none !important; }
 #qpDashboard .qpd-row-btn { width: 26px; height: 26px; border: 1px solid #d9cfc2; background: #fbf8f1; border-radius: 6px; cursor: pointer; font-size: 12px; }
 #qpDashboard .qpd-row-btn:hover:not(:disabled) { background: #efe6d4; }
 #qpDashboard .qpd-row-btn.is-locked { color: #8a5a16; border-color: #e7c79a; background: #fcf1e0; cursor: not-allowed; }
+/* 🔗 関連付けモード（チェックボックスでまとめて選択→リンク） */
+#qpDashboard .qpd-linkmode-btn {
+  background: #f3ecdd; border: 1px solid #d8ccb6; color: #6b5a42;
+  border-radius: 7px; padding: 6px 12px; font-size: 12px; font-weight: 700; cursor: pointer;
+}
+#qpDashboard .qpd-linkmode-btn:hover { background: #e9ddc4; }
+#qpDashboard .qpd-linkmode-btn.is-on { background: #2d6a4f; color: #fff; border-color: #2d6a4f; }
+#qpDashboard .qpd-link-bar {
+  display: flex; align-items: center; gap: 10px;
+  background: #eaf5ef; border: 1px solid #a9d3bc; border-radius: 8px;
+  padding: 8px 14px; margin-bottom: 10px; font-size: 13px; color: #205838;
+}
+#qpDashboard .qpd-link-bar[hidden] { display: none; }
+#qpDashboard .qpd-link-bar #qpdLinkBarBtn {
+  background: #2d6a4f; color: #fff; border: none; border-radius: 6px;
+  padding: 6px 14px; font-size: 12px; font-weight: 700; cursor: pointer;
+}
+#qpDashboard .qpd-link-bar #qpdLinkBarBtn:disabled { background: #aebfb5; cursor: not-allowed; }
+#qpDashboard .qpd-link-bar-cancel {
+  background: none; border: 1px solid #a9d3bc; color: #205838;
+  border-radius: 6px; padding: 6px 12px; font-size: 12px; cursor: pointer; margin-left: auto;
+}
+#qpDashboard .qpd-rows-head.qpd-row--linkmode,
+#qpDashboard .qpd-row.qpd-row--linkmode {
+  grid-template-columns: 24px 84px minmax(120px,1.4fr) minmax(120px,1.6fr) 110px 92px 64px;
+}
+#qpDashboard .qpd-row-chk { justify-self: center; }
 @media (max-width: 720px) {
   #qpDashboard .qpd-rows-head { display: none; }
   #qpDashboard .qpd-row { grid-template-columns: 70px 1fr 60px; grid-auto-rows: auto; }
@@ -6108,6 +6135,8 @@ body.qp-dash-active #quoteActionDock { display: none !important; }
 }
 #tab-quote-make .cloud-card:last-child { border-bottom: none; }
 #tab-quote-make .cloud-card-row1 { display: flex; align-items: center; gap: 8px; }
+#tab-quote-make .cloud-card--linkmode { background: #fdfbf6; }
+#tab-quote-make .cloud-link-chk { width: 16px; height: 16px; flex-shrink: 0; cursor: pointer; }
 #tab-quote-make .cloud-card-name {
   flex: 1; font-size: 13px; font-weight: 600; color: #2c3e4a;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;

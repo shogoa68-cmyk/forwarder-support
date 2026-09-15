@@ -201,8 +201,8 @@ async function sqDoLinkSearch() {
 async function sqPickLinkResult(id) {
   const loadedId = typeof window.quoteCloudLoadedId === 'function' ? window.quoteCloudLoadedId() : null;
   if (!loadedId || typeof window.cloudLinkPresets !== 'function') return;
-  const ok = await window.cloudLinkPresets(loadedId, id);
-  if (ok) {
+  const res = await window.cloudLinkPresets(loadedId, id);
+  if (res && res.ok) {
     _sqLinkSearchOpen = false;
     await _sqFetch();
   }
