@@ -8,6 +8,11 @@ let _sqSearchOpen  = false;
 let _sqAllResults  = [];  // auto-fetch の全候補
 let _sqShowCount   = 5;   // 現在の表示件数
 
+// 🔗 関連付けた案件（コピーではない手動リンク・常に双方向）
+let _sqLinks           = [];   // 現在開いている案件の関連リンク一覧（cloudFetchPresetLinks の結果）
+let _sqLinkSearchOpen  = false;
+let _sqLinkSearchTimer = null;
+
 // スコア重み（合計最大 15）
 const _SQ_W = { mode: 4, inco: 3, pol: 3, pod: 3, customer: 2 };
 const _SQ_MAX = 15;
@@ -40,9 +45,17 @@ async function _sqFetch() {
   const panel = document.getElementById('sqPanel');
   if (!panel) return;
 
+  await _sqFetchLinks();
+
   const p = _sqGetParams();
-  if (!p.inco && !p.mode && !p.pol && !p.pod && !p.customer) {
-    panel.hidden = true;
+  const hasCriteria = !!(p.inco || p.mode || p.pol || p.pod || p.customer);
+  const loadedId = typeof window.quoteCloudLoadedId === 'function' ? window.quoteCloudLoadedId() : null;
+
+  // 自動サジェスト条件が無くても、案件を開いていれば「🔗 関連付けた案件」だけは表示する
+  if (!hasCriteria) {
+    if (!loadedId && !_sqLinks.length) { panel.hidden = true; return; }
+    panel.hidden = false;
+    panel.innerHTML = _sqLinksHtml();
     return;
   }
 
@@ -96,6 +109,110 @@ function _sqScore(r, p) {
   if (p.pod      && ci(r.pod  || '').includes(ci(p.pod)))          s += _SQ_W.pod;
   if (p.customer && ci(r.customer || '').includes(ci(p.customer))) s += _SQ_W.customer;
   return s;
+}
+
+// ---- 🔗 関連付けた案件（コピーではない手動リンク・常に双方向）-------------
+async function _sqFetchLinks() {
+  const id = typeof window.quoteCloudLoadedId === 'function' ? window.quoteCloudLoadedId() : null;
+  if (!id || typeof window.cloudFetchPresetLinks !== 'function') { _sqLinks = []; return; }
+  _sqLinks = await window.cloudFetchPresetLinks(id);
+}
+
+function _sqLinksHtml() {
+  const loadedId = typeof window.quoteCloudLoadedId === 'function' ? window.quoteCloudLoadedId() : null;
+  if (!loadedId) return '';
+  const items = _sqLinks.map(l => {
+    const pr = l.preset;
+    const badge = _sqStatusBadge(pr.status);
+    const ref = pr.ref ? `<span class="sq-ref">${escHtml(pr.ref)}</span>` : '';
+    const cust = pr.customer ? `<span class="sq-cust">${escHtml(pr.customer)}</span>` : '';
+    return `<div class="sq-link-item" onclick="sqOpenPreview('${escHtml(pr.id)}')">
+      <div class="sq-link-item-top">
+        <span class="sq-link-name">${escHtml(pr.name || '（無題）')}</span>${badge}
+        <button type="button" class="sq-link-unlink" onclick="event.stopPropagation();sqUnlinkPreset('${escHtml(l.linkId)}')" title="関連付けを解除">✕</button>
+      </div>
+      <div class="sq-card-sub">${ref}${cust}</div>
+    </div>`;
+  }).join('');
+  return `<div class="sq-links-section">
+    <div class="sq-links-head">
+      <span class="sq-links-title">🔗 関連付けた案件${_sqLinks.length ? '（' + _sqLinks.length + '）' : ''}</span>
+      <button type="button" class="sq-links-add-btn" onclick="sqToggleLinkSearch()" title="他の案件をこの案件に関連付ける">＋ 関連付け</button>
+    </div>
+    <div class="sq-link-search-bar" id="sqLinkSearchBar" ${_sqLinkSearchOpen ? '' : 'hidden'}>
+      <input id="sqLinkSearchInput" class="sq-search-input" placeholder="見積名・見積もり番号・顧客名で検索" oninput="sqScheduleLinkSearch()">
+      <div class="sq-link-search-results" id="sqLinkSearchResults"></div>
+    </div>
+    <div class="sq-links-list">${items || '<div class="sq-links-empty">関連付けた案件はまだありません</div>'}</div>
+  </div>`;
+}
+
+function sqToggleLinkSearch() {
+  _sqLinkSearchOpen = !_sqLinkSearchOpen;
+  const bar = document.getElementById('sqLinkSearchBar');
+  if (bar) bar.hidden = !_sqLinkSearchOpen;
+  if (_sqLinkSearchOpen) document.getElementById('sqLinkSearchInput')?.focus();
+}
+
+function sqScheduleLinkSearch() {
+  clearTimeout(_sqLinkSearchTimer);
+  _sqLinkSearchTimer = setTimeout(sqDoLinkSearch, 350);
+}
+
+async function sqDoLinkSearch() {
+  const q = (document.getElementById('sqLinkSearchInput')?.value || '').trim();
+  const box = document.getElementById('sqLinkSearchResults');
+  if (!box) return;
+  if (!q) { box.innerHTML = ''; return; }
+  const db = window.SupabaseClient;
+  if (!db) return;
+  const { data: sd } = await db.auth.getSession();
+  if (!sd?.session?.user) return;
+  const loadedId = typeof window.quoteCloudLoadedId === 'function' ? window.quoteCloudLoadedId() : null;
+  if (!loadedId) { box.innerHTML = '<div class="sq-empty-msg">先に案件を保存・読み込みしてください</div>'; return; }
+
+  let { data, error } = await db.from('quote_presets')
+    .select('id,name,ref,status,customer,updated_at')
+    .or(`name.ilike.%${q}%,customer.ilike.%${q}%,ref.ilike.%${q}%`)
+    .order('updated_at', { ascending: false })
+    .limit(8);
+  if (error && _sqIsMissingRefColumn(error)) {
+    ({ data, error } = await db.from('quote_presets')
+      .select('id,name,status,customer,updated_at')
+      .or(`name.ilike.%${q}%,customer.ilike.%${q}%`)
+      .order('updated_at', { ascending: false })
+      .limit(8));
+  }
+  if (error) { box.innerHTML = ''; return; }
+
+  const already = new Set(_sqLinks.map(l => l.otherId));
+  const rows = (data || []).filter(r => r.id !== loadedId);
+  box.innerHTML = rows.length
+    ? rows.map(r => {
+        const linked = already.has(r.id);
+        const ref = r.ref ? ` <span class="sq-ref">${escHtml(r.ref)}</span>` : '';
+        return `<button type="button" class="sq-link-result${linked ? ' is-linked' : ''}" ` +
+          `onclick="sqPickLinkResult('${escHtml(r.id)}')" ${linked ? 'disabled' : ''}>` +
+          `${escHtml(r.name || '（無題）')}${ref}${linked ? '（関連付け済み）' : ''}</button>`;
+      }).join('')
+    : '<div class="sq-empty-msg">該当する案件がありません</div>';
+}
+
+async function sqPickLinkResult(id) {
+  const loadedId = typeof window.quoteCloudLoadedId === 'function' ? window.quoteCloudLoadedId() : null;
+  if (!loadedId || typeof window.cloudLinkPresets !== 'function') return;
+  const ok = await window.cloudLinkPresets(loadedId, id);
+  if (ok) {
+    _sqLinkSearchOpen = false;
+    await _sqFetch();
+  }
+}
+
+async function sqUnlinkPreset(linkId) {
+  if (!confirm('この関連付けを解除しますか？（双方のカードから解除されます）')) return;
+  if (typeof window.cloudUnlinkPreset !== 'function') return;
+  const ok = await window.cloudUnlinkPreset(linkId);
+  if (ok) await _sqFetch();
 }
 
 // ---- 開閉 ---------------------------------------------------------------
@@ -210,6 +327,7 @@ function _sqRender(rows, panel, p, total) {
   panel.hidden = false;
   panel.classList.toggle('sq-panel--collapsed', _sqCollapsed);
   panel.innerHTML =
+    _sqLinksHtml() +
     `<div class="sq-head">
        <span class="sq-head-main" onclick="sqToggleCollapse()">
          <span class="sq-head-title">📎 類似の過去見積</span>
@@ -367,3 +485,9 @@ window.sqDoSearch        = sqDoSearch;
 window.sqStatusFilter    = sqStatusFilter;
 window.sqModeFilter      = sqModeFilter;
 window.sqLoadMore        = sqLoadMore;
+window.sqOnActivate      = _sqFetch;
+window.sqToggleLinkSearch  = sqToggleLinkSearch;
+window.sqScheduleLinkSearch = sqScheduleLinkSearch;
+window.sqDoLinkSearch     = sqDoLinkSearch;
+window.sqPickLinkResult   = sqPickLinkResult;
+window.sqUnlinkPreset     = sqUnlinkPreset;

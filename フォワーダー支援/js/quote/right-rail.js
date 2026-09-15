@@ -183,6 +183,10 @@
     if (mod === 'bookmark' && typeof window.renderQuoteBookmarkRail === 'function') {
       window.renderQuoteBookmarkRail();
     }
+    // 類似見積パネル：アクティブ化時に「🔗 関連付けた案件」を最新化
+    if (mod === 'similar' && typeof window.sqOnActivate === 'function') {
+      window.sqOnActivate();
+    }
   }
 
   function render() {

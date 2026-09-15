@@ -1614,6 +1614,7 @@
     // 保存＝作業終了：ロックと Presence（作業中）を解放し、閲覧モードへ移行
     const savedId = existingId || (resp.data && resp.data.id);
     if (savedId) { _loadedCloudId = savedId; }
+    if (typeof window.sqOnActivate === 'function') window.sqOnActivate();
     _exitShareEditing();          // Presence untrack + ロック解放
     _applyShareMode('view');      // 閲覧モードへ（他メンバーが編集可能に）
     qfRenderAttachments();        // 保存後は添付フィールドが使える（preset_id 確定）
@@ -1785,7 +1786,20 @@
     document.getElementById('cloudPreviewModal').style.display = 'flex';
     cpSwitchRightPane('summary');
     _loadAttachments(_cpId);
+
+    // 「現在の案件に関連付ける」は、編集中の案件がありプレビュー中の案件と別のときだけ出す
+    const linkBtn = document.getElementById('cpLinkBtn');
+    if (linkBtn) linkBtn.hidden = !_loadedCloudId || _loadedCloudId === _cpId;
   }
+
+  // プレビュー中の案件を、現在編集中（読み込み済み）の案件に関連付ける（常に双方向）
+  function cloudLinkFromPreview() {
+    if (!_cpId) return;
+    if (!_loadedCloudId) { quoteShowToast('⚠️ 先に案件を保存・読み込みしてから関連付けてください', 'warn'); return; }
+    if (_loadedCloudId === _cpId) { quoteShowToast('ℹ️ 現在編集中の案件と同じです', 'info'); return; }
+    cloudLinkPresets(_loadedCloudId, _cpId);
+  }
+  window.cloudLinkFromPreview = cloudLinkFromPreview;
 
   // 数値パース／通貨つき金額表示（JPYは¥、非JPYは通貨コード併記）
   function _cpNum(v) { const n = parseFloat(String(v == null ? '' : v).replace(/[, ]/g, '')); return isFinite(n) ? n : null; }
@@ -1952,6 +1966,8 @@
     // 競合検知の基準として、ロードした案件 id と更新時刻を記録
     _loadedCloudId = id;
     _loadedCloudTs = data.updated_at || null;
+    // 類似見積パネルの「🔗 関連付けた案件」を、開いた案件に合わせて更新
+    if (typeof window.sqOnActivate === 'function') window.sqOnActivate();
 
     // ダッシュボードのステータス変更（cloudSetStatus）は status 列だけを更新し、
     // data.fields['qf-status'] は書き換えないため、両者が食い違うことがある
@@ -2023,6 +2039,69 @@
     quoteShowToast('🗑️ 共有プリセットを削除しました', 'info');
     cloudListPresets();
   }
+
+  // ---------- 🔗 案件同士の関連付け（quote_preset_links・常に双方向） ----------
+  // コピー（copiedFrom）とは別に、多レグ分割・代替提案・取引先の過去案件参照など、
+  // 任意の2案件を手動でつなげる。テーブル未作成時は carrier_relations と同じ方針で
+  // 「関連なし」として黙ってスキップする（読み取り側）。
+  async function cloudFetchPresetLinks(id) {
+    const c = _getClient();
+    if (!c || !id) return [];
+    const { data, error } = await c.from('quote_preset_links')
+      .select('id,preset_a,preset_b,note')
+      .or(`preset_a.eq.${id},preset_b.eq.${id}`);
+    if (error) return [];   // テーブル未作成などは黙ってスキップ（関連なし扱い）
+    const links = (data || []).map(r => ({
+      linkId: r.id, otherId: r.preset_a === id ? r.preset_b : r.preset_a, note: r.note || '',
+    }));
+    if (!links.length) return [];
+    const otherIds = links.map(l => l.otherId);
+    const { data: others, error: err2 } = await c.from('quote_presets')
+      .select('id,name,ref,status,customer,updated_at').in('id', otherIds);
+    if (err2) return [];
+    const map = {};
+    (others || []).forEach(o => { map[o.id] = o; });
+    return links.map(l => Object.assign({}, l, { preset: map[l.otherId] || null })).filter(l => l.preset);
+  }
+
+  async function cloudLinkPresets(idA, idB, note) {
+    const c = _getClient();
+    if (!c || !_cloudUser) { quoteShowToast('⚠️ ログインが必要です', 'warn'); return false; }
+    if (!idA || !idB || idA === idB) { quoteShowToast('⚠️ 関連付ける案件を正しく選んでください', 'warn'); return false; }
+    const { data: existing, error: existErr } = await c.from('quote_preset_links')
+      .select('id')
+      .or(`and(preset_a.eq.${idA},preset_b.eq.${idB}),and(preset_a.eq.${idB},preset_b.eq.${idA})`)
+      .limit(1);
+    if (!existErr && existing && existing.length) {
+      quoteShowToast('ℹ️ すでに関連付けられています', 'info', 3000);
+      return false;
+    }
+    const { error } = await c.from('quote_preset_links').insert({
+      preset_a: idA, preset_b: idB, note: (note || '').trim() || null, created_by: _cloudUser.email,
+    });
+    if (error) {
+      const msg = /schema cache|could not find the table|does not exist/i.test(error.message || '')
+        ? '⚠️ テーブル未作成です（docs/sql/quote-preset-links.sql を実行してください）'
+        : '⚠️ 関連付けに失敗：' + error.message;
+      quoteShowToast(msg, 'warn', 8000);
+      return false;
+    }
+    quoteShowToast('🔗 案件を関連付けました', 'success', 2500);
+    return true;
+  }
+
+  async function cloudUnlinkPreset(linkId) {
+    const c = _getClient();
+    if (!c) return false;
+    const { error } = await c.from('quote_preset_links').delete().eq('id', linkId);
+    if (error) { quoteShowToast('⚠️ 解除に失敗：' + error.message, 'warn', 5000); return false; }
+    quoteShowToast('🔗 関連付けを解除しました', 'info', 2000);
+    return true;
+  }
+
+  window.cloudFetchPresetLinks = cloudFetchPresetLinks;
+  window.cloudLinkPresets      = cloudLinkPresets;
+  window.cloudUnlinkPreset     = cloudUnlinkPreset;
 
   // ---------- コピー ----------
   async function cloudDuplicatePreset(rawId) {
@@ -2739,6 +2818,7 @@
   // ---------- 他モジュール（行パターン等）からのログイン情報参照用 ----------
   window.quoteCloudUser   = function () { return _cloudUser; };
   window.quoteCloudClient = function () { return _getClient(); };
+  window.quoteCloudLoadedId = function () { return _loadedCloudId; };
   window.quoteDisplayName = function (email) { return (email && _profileMap[email]) || email || '—'; };
   window.quoteLoadProfiles = _loadProfiles;
 

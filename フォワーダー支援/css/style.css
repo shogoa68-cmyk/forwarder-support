@@ -2401,6 +2401,48 @@ a.bm-contact-item:hover { background: #2e6b3e; color: #fff; border-color: #2e6b3
 .sq-tag-mode { background: #e6f7f0; color: #0e6645; }
 .sq-card-date { font-size: 11px; color: #b0a08a; text-align: right; margin-top: 5px; }
 
+/* 🔗 関連付けた案件（コピーではない手動リンク・常に双方向） */
+.sq-links-section {
+  border-bottom: 1px solid #d5c8b0;
+  background: #f2ede1;
+}
+.sq-links-head {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 6px; padding: 8px 14px;
+}
+.sq-links-title { font-weight: 700; font-size: 12px; color: #4a3820; }
+.sq-links-add-btn {
+  cursor: pointer; font-family: inherit; font-size: 10.5px; font-weight: 700;
+  color: #2d6a4f; background: #eaf5ef; border: 1px solid #a9d3bc; border-radius: 10px;
+  padding: 2px 9px;
+}
+.sq-links-add-btn:hover { background: #d9ecdf; }
+.sq-link-search-bar { padding: 0 14px 8px; display: flex; flex-direction: column; gap: 6px; }
+.sq-link-search-results { display: flex; flex-direction: column; gap: 3px; }
+.sq-link-result {
+  text-align: left; cursor: pointer; font-family: inherit; font-size: 12px;
+  color: #3a2a10; background: #fff; border: 1px solid #e0d4bf; border-radius: 6px;
+  padding: 6px 9px;
+}
+.sq-link-result:hover { background: #ede8df; }
+.sq-link-result.is-linked { color: #a09070; cursor: default; background: #f2ede1; }
+.sq-links-list { display: flex; flex-direction: column; }
+.sq-links-empty { padding: 6px 14px 10px; font-size: 11px; color: #a09070; }
+.sq-link-item {
+  padding: 8px 14px; cursor: pointer; border-top: 1px solid #e6dcc6;
+}
+.sq-link-item:hover { background: #ede8df; }
+.sq-link-item-top { display: flex; align-items: center; gap: 6px; }
+.sq-link-name {
+  font-size: 13px; font-weight: 600; color: #3a2a10; flex: 1;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.sq-link-unlink {
+  cursor: pointer; font-family: inherit; font-size: 11px; color: #a05a3c;
+  background: none; border: none; padding: 2px 4px; flex-shrink: 0;
+}
+.sq-link-unlink:hover { color: #c0402a; }
+
 /* ================================================================
    類似見積プレビューモーダル
    ================================================================ */
