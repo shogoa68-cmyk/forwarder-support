@@ -10391,6 +10391,7 @@ button.um-memberno--empty:hover { background: #f4ead4; border-color: #cdb98e; }
   background: #f5ede0; color: #8b5a2a; border-color: #d8c0a0; font-weight: 600;
 }
 #tab-quote-make .si-sv-chip.si-sv-clear:hover { background: #eaddc8; }
+#tab-quote-make .si-sv-chip-empty { font-size: 10.5px; color: #9a8878; }
 /* ヒット件数サマリー・カード内該当件数 */
 #tab-quote-make .si-hit-note {
   font-size: 10px; font-weight: 600; color: #7a6a50;
