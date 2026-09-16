@@ -65,20 +65,141 @@
     localStorage.setItem(USER_REMARK_PRESETS_KEY, JSON.stringify(arr));
   }
 
+  // ----- 貨物種別リマーク -----
+  // 「試しにまず自動車から」の方針で1件だけ定義。他の貨物種別に広げるときは
+  // ここへ追記するだけでよい。判定は品名（cond-cargo）に含まれるキーワードで
+  // 行う簡易版（構造化された貨物種別フィールドが無いため）。
+  const CARGO_TYPE_DEFS = [
+    { key: '自動車', label: '🚗 自動車', keywords: ['自動車'] },
+  ];
+  function _cargoTypeMatches(def) {
+    const cargoText = (document.getElementById('cond-cargo')?.value || '').trim();
+    if (!cargoText) return false;
+    return def.keywords.some(kw => cargoText.includes(kw));
+  }
+
+  // ----- プリセット確認（検証）記録（bookmark_verifications と同じ考え方） -----
+  let _remarkVerif   = {};   // { preset_id: [{ checked_by, checked_at }] }
+  let _remarkProfile = {};   // { email: display_name }
+  let _remarkMyEmail = '';
+
+  function _remarkNameFor(email) {
+    if (!email) return '不明';
+    return _remarkProfile[email] || email.split('@')[0];
+  }
+  function _remarkVfmtDate(ts) {
+    if (!ts) return '';
+    const d = new Date(ts);
+    return isNaN(d) ? '' : d.toLocaleDateString('ja-JP', { year: 'numeric', month: '2-digit', day: '2-digit' });
+  }
+
   // ----- 共有プリセット（Supabase） -----
-  let _sharedRemarkPresets = []; // { id, label, text, use_count, created_by, created_at }
+  let _sharedRemarkPresets = []; // { id, label, text, use_count, created_by, created_at, cargo_type }
+
+  // cargo_type 列がまだ作成されていない環境（docs/sql/remark-presets-cargo-verify.sql
+  // 未実行）でも、既存の共有プリセット機能自体は壊さずに動くようフォールバックする
+  async function _fetchRemarkPresets(c) {
+    let { data, error } = await c.from('remark_presets')
+      .select('id, label, text, use_count, created_by, created_at, cargo_type')
+      .order('use_count', { ascending: false });
+    if (error && /cargo_type/i.test(error.message || '')) {
+      ({ data, error } = await c.from('remark_presets')
+        .select('id, label, text, use_count, created_by, created_at')
+        .order('use_count', { ascending: false }));
+    }
+    return { data, error };
+  }
 
   async function loadSharedRemarkPresets() {
     const c = window.quoteCloudClient && window.quoteCloudClient();
     if (!c) return;
+    const user = window.quoteCloudUser && window.quoteCloudUser();
+    _remarkMyEmail = (user && user.email) || '';
+    const [pRes, vRes, profRes] = await Promise.all([
+      _fetchRemarkPresets(c),
+      c.from('remark_preset_verifications').select('preset_id, checked_by, checked_at'),
+      c.from('user_profiles').select('email, display_name'),
+    ]);
+    if (!pRes.error && pRes.data) _sharedRemarkPresets = pRes.data;
+    _remarkVerif = {};
+    if (!vRes.error) (vRes.data || []).forEach(v => { (_remarkVerif[v.preset_id] = _remarkVerif[v.preset_id] || []).push(v); });
+    _remarkProfile = {};
+    if (!profRes.error) (profRes.data || []).forEach(p => { if (p.display_name) _remarkProfile[p.email] = p.display_name; });
+    renderRemarkPresets();
+  }
+
+  // プリセット確認バッジのクリック：自分の「確認済み」を追加 / 取消する
+  async function remarkToggleVerify(id) {
+    const c = window.quoteCloudClient && window.quoteCloudClient();
+    if (!c) return;
+    if (!_remarkMyEmail) { quoteShowToast('⚠️ 確認の記録にはログインが必要です', 'warn'); return; }
+    const list = _remarkVerif[id] || [];
+    const mineIdx = list.findIndex(v => v.checked_by === _remarkMyEmail);
+    if (mineIdx >= 0) {
+      const { error } = await c.from('remark_preset_verifications')
+        .delete().eq('preset_id', id).eq('checked_by', _remarkMyEmail);
+      if (error) { quoteShowToast('⚠️ 取消に失敗：' + error.message, 'warn', 6000); return; }
+      list.splice(mineIdx, 1);
+      _remarkVerif[id] = list;
+      quoteShowToast('確認を取り消しました', 'info', 2000);
+    } else {
+      const { data, error } = await c.from('remark_preset_verifications')
+        .insert({ preset_id: id, checked_by: _remarkMyEmail }).select();
+      if (error) {
+        const m = error.message || '不明なエラー';
+        const msg = /does not exist/i.test(m) && /relation|table/i.test(m)
+          ? '⚠️ 確認テーブル未作成です（docs/sql/remark-presets-cargo-verify.sql を実行してください）'
+          : '⚠️ 記録に失敗：' + m;
+        quoteShowToast(msg, 'warn', 8000);
+        return;
+      }
+      list.push((data && data[0]) || { preset_id: id, checked_by: _remarkMyEmail, checked_at: new Date().toISOString() });
+      _remarkVerif[id] = list;
+      quoteShowToast('✅ 「確認済み」に記録しました', 'success', 2500);
+    }
+    renderRemarkPresets();
+  }
+
+  // 確認バッジ（✓＋確認人数）。クリックで自分の確認を追加/取消、ホバーで確認者一覧
+  function _remarkVerifyBadge(id) {
+    const vlist  = _remarkVerif[id] || [];
+    const vcount = vlist.length;
+    const mine   = vlist.some(v => v.checked_by === _remarkMyEmail);
+    const span = document.createElement('span');
+    span.className = 'preset-verify' + (vcount === 0 ? ' preset-verify-0' : (vcount >= 2 ? ' preset-verify-2' : ' preset-verify-1')) + (mine ? ' preset-verify-mine' : '');
+    span.textContent = '✓' + (vcount || '');
+    span.title = vcount
+      ? vlist.map(v => `✓ ${_remarkNameFor(v.checked_by)}（${_remarkVfmtDate(v.checked_at)}）`).join('\n')
+        + '\n\n' + (mine ? 'クリックで自分の確認を取消' : 'クリックで「確認済み」に追加')
+      : 'まだ確認されていません\nクリックで「確認済み」にできます';
+    span.onclick = (e) => { e.stopPropagation(); remarkToggleVerify(id); };
+    return span;
+  }
+
+  // 貨物種別プリセットを共有に追加（addSharedRemarkPreset と同じ流れ・cargo_type付き）
+  async function addCargoTypeRemarkPreset(cargoType, cargoLabel) {
+    const c = window.quoteCloudClient && window.quoteCloudClient();
+    const user = window.quoteCloudUser && window.quoteCloudUser();
+    if (!c || !user) { quoteShowToast('⚠️ ログインが必要です', 'warn'); return; }
+    const label = prompt(`「${cargoLabel}」用プリセットのラベル名を入力してください（例：🚗 危険物該当の可能性）`);
+    if (!label || !label.trim()) return;
+    const text = prompt('プリセットの本文を入力してください');
+    if (!text || !text.trim()) return;
     const { data, error } = await c
       .from('remark_presets')
-      .select('id, label, text, use_count, created_by, created_at')
-      .order('use_count', { ascending: false });
-    if (!error && data) {
-      _sharedRemarkPresets = data;
-      renderRemarkPresets();
+      .insert({ label: label.trim(), text: text.trim(), use_count: 0, created_by: user.email, cargo_type: cargoType })
+      .select().single();
+    if (error) {
+      const m = error.message || '不明なエラー';
+      const msg = /cargo_type/i.test(m)
+        ? '⚠️ 貨物種別列が未作成です（docs/sql/remark-presets-cargo-verify.sql を実行してください）'
+        : '⚠️ 追加に失敗しました：' + m;
+      quoteShowToast(msg, 'warn', 8000);
+      return;
     }
+    _sharedRemarkPresets.push(data);
+    renderRemarkPresets();
+    quoteShowToast(`✅ 「${label.trim()}」を「${cargoLabel}」の推奨リマークに追加しました`, 'success');
   }
 
   async function addSharedRemarkPreset() {
@@ -123,11 +244,18 @@
     }
   }
 
-  // 全プリセット = 固定 + チーム人気（use_count>=5）+ チーム共有 + 個人定義
+  // 全プリセット = 貨物種別（現在の品名と一致するものだけ）+ 固定 + チーム人気（use_count>=5）
+  //              + チーム共有 + 個人定義
+  // 貨物種別プリセットは cargo_type 列を持つ行だけを対象にし、一般の
+  // チーム人気／チーム共有からは除外する（専用タブにだけ出す）。
   function getAllRemarkPresets() {
-    const promoted = _sharedRemarkPresets.filter(p => p.use_count >= 5).map(p => ({ ...p, _promoted: true, _shared: true }));
-    const shared   = _sharedRemarkPresets.filter(p => p.use_count < 5).map(p => ({ ...p, _shared: true }));
-    return [...PRESETS, ...promoted, ...shared, ...getUserRemarkPresets().map(p => ({ ...p, _user: true }))];
+    const general  = _sharedRemarkPresets.filter(p => !p.cargo_type);
+    const promoted = general.filter(p => p.use_count >= 5).map(p => ({ ...p, _promoted: true, _shared: true }));
+    const shared   = general.filter(p => p.use_count < 5).map(p => ({ ...p, _shared: true }));
+    const cargoAll = CARGO_TYPE_DEFS
+      .filter(def => _cargoTypeMatches(def))
+      .flatMap(def => _sharedRemarkPresets.filter(p => p.cargo_type === def.key).map(p => ({ ...p, _cargoType: true })));
+    return [...cargoAll, ...PRESETS, ...promoted, ...shared, ...getUserRemarkPresets().map(p => ({ ...p, _user: true }))];
   }
 
   function initRemarks() {
@@ -135,6 +263,10 @@
     document.getElementById('remarkTextarea').addEventListener('input', updateRemarkChar);
     updateRemarkChar();
     loadSharedRemarkPresets();
+    // 品名（貨物種別の判定材料）が変わるたびに、貨物種別プリセットタブの
+    // 表示・非表示を切り替える
+    const cargoEl = document.getElementById('cond-cargo');
+    if (cargoEl) cargoEl.addEventListener('input', renderRemarkPresets);
   }
 
   function renderRemarkPresets() {
@@ -154,7 +286,8 @@
     function makeBtn(p, idx) {
       const btn = document.createElement('button');
       let cls = 'preset-btn';
-      if (p._promoted) cls += ' preset-btn-promoted';
+      if (p._cargoType) cls += ' preset-btn-cargo';
+      else if (p._promoted) cls += ' preset-btn-promoted';
       else if (p._shared) cls += ' preset-btn-shared';
       else if (p._user) cls += ' preset-btn-user';
       btn.className = cls;
@@ -163,13 +296,14 @@
       const lbl = document.createElement('span');
       lbl.textContent = p.label;
       btn.appendChild(lbl);
+      if (p._cargoType && p.id) btn.appendChild(_remarkVerifyBadge(p.id));
       if (p._user) {
         const x = document.createElement('span');
         x.className = 'preset-btn-del'; x.textContent = '✕';
         x.title = 'このプリセットを削除';
         x.onclick = (e) => { e.stopPropagation(); deleteUserRemarkPreset(p.label); };
         btn.appendChild(x);
-      } else if (p._shared) {
+      } else if (p._shared || p._cargoType) {
         const x = document.createElement('span');
         x.className = 'preset-btn-del'; x.textContent = '✕';
         x.title = 'このプリセットを削除';
@@ -182,6 +316,22 @@
     }
 
     let idx = 0;
+
+    // ⓪ 貨物種別（現在の品名と一致するものだけ・最優先で表示）
+    for (const def of CARGO_TYPE_DEFS) {
+      if (!_cargoTypeMatches(def)) continue;
+      const items = _sharedRemarkPresets.filter(p => p.cargo_type === def.key);
+      if (!items.length && !isLoggedIn) continue;   // 何も出せない（空タブ＋追加ボタンも無い）なら見出しごと省く
+      addTierLabel(def.label + '（貨物種別の推奨リマーク）');
+      for (const p of items) wrap.appendChild(makeBtn({ ...p, _cargoType: true }, idx++));
+      if (isLoggedIn) {
+        const ab = document.createElement('button');
+        ab.className = 'preset-btn preset-btn-add';
+        ab.textContent = '＋ ' + def.label + 'に追加';
+        ab.onclick = () => addCargoTypeRemarkPreset(def.key, def.label);
+        wrap.appendChild(ab);
+      }
+    }
 
     // ① 標準
     for (const p of PRESETS) wrap.appendChild(makeBtn(p, idx++));
@@ -197,15 +347,16 @@
       wrap.appendChild(b);
     }
 
-    // ② チーム人気 ⭐
-    const promotedItems = _sharedRemarkPresets.filter(p => p.use_count >= 5);
+    // ② チーム人気 ⭐（貨物種別プリセットは専用タブに出すため除外）
+    const generalItems  = _sharedRemarkPresets.filter(p => !p.cargo_type);
+    const promotedItems = generalItems.filter(p => p.use_count >= 5);
     if (promotedItems.length) {
       addTierLabel('チーム人気 ⭐');
       for (const p of promotedItems) wrap.appendChild(makeBtn({ ...p, _promoted: true, _shared: true }, idx++));
     }
 
     // ③ チーム共有 ☁️
-    const sharedItems = _sharedRemarkPresets.filter(p => p.use_count < 5);
+    const sharedItems = generalItems.filter(p => p.use_count < 5);
     if (sharedItems.length || isLoggedIn) {
       addTierLabel('チーム共有 ☁️');
       for (const p of sharedItems) wrap.appendChild(makeBtn({ ...p, _shared: true }, idx++));
