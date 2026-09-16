@@ -606,6 +606,33 @@
   };
   window.qfEditCustomerDetail = window.mdEditDetailPopup;
 
+  // 「コピー元」情報（ダッシュボードのカードに出ているのと同じ表示）を案件編集画面
+  // 側（① 管理番号入力の直下）にも出す。ダッシュボードでしか見えず、編集中に元案件を
+  // 参照したくても分からなかったため。
+  function _renderCopiedFromInfo() {
+    const box = document.getElementById('qfCopiedFromInfo');
+    if (!box) return;
+    const cf = _loadedCopiedFrom;
+    if (!cf) { box.hidden = true; box.innerHTML = ''; return; }
+    const rows = (typeof _cloudRows !== 'undefined' && Array.isArray(_cloudRows)) ? _cloudRows : [];
+    const origExists = cf.id && rows.some(row => row.id === cf.id);
+    const cfRefBadge = cf.ref ? ' <span class="preset-cf-ref">(' + escHtml(cf.ref) + ')</span>' : '';
+    const genBadge = cf.gen ? ' <span class="preset-cf-gen" title="オリジナルから数えた世代">' + cf.gen + '代目</span>' : '';
+    const root = cf.root;
+    const rootExists = !!(root && root.id && rows.some(row => row.id === root.id));
+    const rootHtml = (root && cf.gen > 2)
+      ? '<div class="qf-copied-from-root">🌱 オリジナル：<span class="cloud-cf-name">' + escHtml(root.name || '不明') +
+          (root.ref ? ' <span class="preset-cf-ref">(' + escHtml(root.ref) + ')</span>' : '') + '</span>' +
+          (rootExists ? ' <button type="button" class="btn-cf-preview" onclick="cloudPreviewPreset(\'' + encodeURIComponent(root.id) + '\')" title="オリジナルをプレビュー">プレビュー</button>' : '') +
+        '</div>'
+      : '';
+    box.innerHTML =
+      '<div class="qf-copied-from-main">📋 コピー元：<span class="cloud-cf-name">' + escHtml(cf.name || '不明') + cfRefBadge + '</span>' + genBadge +
+      (origExists ? ' <button type="button" class="btn-cf-preview" onclick="cloudPreviewPreset(\'' + encodeURIComponent(cf.id) + '\')" title="コピー元をプレビュー">プレビュー</button>' : '') +
+      '</div>' + rootHtml;
+    box.hidden = false;
+  }
+
   // データを画面に適用（restoreAutoSave と同等。トースト・restoreBar 操作なし）
   function _applyQuoteData(data, { keepHeaderIfEmpty = false } = {}) {
     if (!data) return;
@@ -614,6 +641,7 @@
     // 保存のたびに再添付する。これをしないと保存の瞬間に消えてしまう
     // （通常のフォーム値・行データではないため素通しでは残らない）。
     _loadedCopiedFrom = data.copiedFrom || null;
+    _renderCopiedFromInfo();
     // サブコン別小計の客先用表示名を復元（_rebuildTable → renderSubconGroups より前にセット）
     if (typeof setSubconAliases === 'function') setSubconAliases(data.subconAliases || {});
     if (typeof setSubconRemarks === 'function') setSubconRemarks(data.subconRemarks || {});

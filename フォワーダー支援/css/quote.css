@@ -5838,6 +5838,19 @@ body.qp-dash-active #quoteActionDock { display: none !important; }
   border-radius: 3px; font-size: 10px; cursor: pointer; padding: 1px 6px;
 }
 #tab-quote-make .btn-cf-preview:hover { background: #e8dfd2; }
+/* コピー元情報（① 管理番号入力の直下・ダッシュボードのカード表示と同じ内容） */
+#tab-quote-make .qf-copied-from-info {
+  display: flex; flex-direction: column; gap: 3px;
+  background: #f5efe0; border: 1px solid #ddd0b0; border-radius: 8px;
+  padding: 6px 10px; margin-bottom: 10px; font-size: 11.5px; color: #6b5a42;
+}
+#tab-quote-make .qf-copied-from-info .qf-copied-from-main,
+#tab-quote-make .qf-copied-from-info .qf-copied-from-root {
+  display: flex; align-items: center; gap: 4px; flex-wrap: wrap;
+}
+#tab-quote-make .qf-copied-from-info .qf-copied-from-root {
+  padding-top: 3px; border-top: 1px dashed #e0d5bc; margin-top: 1px;
+}
 #tab-quote-make .btn-preset-preview {
   background: #e8f0fe; color: #1a56db; border: 1px solid #bfcfe8;
   border-radius: 4px; font-size: 11px; font-weight: 600; cursor: pointer; padding: 2px 8px;
