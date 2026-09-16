@@ -3780,6 +3780,29 @@
 }
 #tab-quote-make .preset-btn-shared .preset-btn-del:hover,
 #tab-quote-make .preset-btn-promoted .preset-btn-del:hover { background: #c0392b; color: #fff; }
+/* 貨物種別プリセット（品名に一致するときだけ専用タブに表示・複数人による確認バッジ付き） */
+#tab-quote-make .preset-btn-cargo {
+  background: #eafaf0; border-color: #7fd8a0; color: #1e7e44;
+  display: inline-flex; align-items: center; gap: 6px;
+}
+#tab-quote-make .preset-btn-cargo:hover { background: #cdf3dc; border-color: #4bc177; }
+#tab-quote-make .preset-btn-cargo.active { background: #7fd8a0; border-color: #1e7e44; color: #103d20; font-weight: 600; }
+#tab-quote-make .preset-btn-cargo .preset-btn-del {
+  display: inline-block; margin-left: 2px; font-size: 10px; padding: 0 3px;
+  border-radius: 3px; color: #2a8f57; cursor: pointer; transition: background .15s;
+}
+#tab-quote-make .preset-btn-cargo .preset-btn-del:hover { background: #c0392b; color: #fff; }
+/* 確認（検証）バッジ（✓＋確認人数）。bookmarks.js の .bm-verify と同じ配色思想 */
+#tab-quote-make .preset-verify {
+  font-size: 10px; font-weight: 700; flex-shrink: 0;
+  border-radius: 9px; padding: 0 5px; height: 16px; line-height: 16px;
+  display: inline-flex; align-items: center; cursor: pointer;
+}
+#tab-quote-make .preset-verify-0 { color: #7a9a84; background: rgba(255,255,255,.6); }
+#tab-quote-make .preset-verify-1 { color: #fff; background: #3f9d5f; }
+#tab-quote-make .preset-verify-2 { color: #fff; background: #1e7e44; }
+#tab-quote-make .preset-verify-mine { box-shadow: 0 0 0 1.5px #2b7bb0; }
+#tab-quote-make .preset-verify:hover { filter: brightness(.95); }
 #tab-quote-make .remark-body { display: flex; flex-direction: column; gap: 10px; }
 #tab-quote-make #remarkTextarea {
   width: 100%;
