@@ -4954,6 +4954,30 @@
   </div>
 </div>
 
+<!-- ======= 全体リマーク：プリセット追加モーダル（共有／貨物種別／個人 共通） ======= -->
+<div id="remarkPresetModal" class="bm-modal-overlay" onclick="closeRemarkPresetModal(event)">
+  <div class="bm-modal-box">
+    <div class="bm-modal-head">
+      <h3 id="rpModalTitle">📄 プリセットを追加</h3>
+      <button class="bm-modal-close" onclick="document.getElementById('remarkPresetModal').classList.remove('open')" aria-label="閉じる">✕</button>
+    </div>
+    <form class="bm-form" onsubmit="saveRemarkPresetModal();return false;">
+      <div class="bm-form-row">
+        <label class="bm-form-label" for="rpFormLabel">ラベル名 <span class="bm-required">必須</span></label>
+        <input type="text" id="rpFormLabel" class="bm-form-input" placeholder="例：📄 特別条件" maxlength="60">
+      </div>
+      <div class="bm-form-row">
+        <label class="bm-form-label" for="rpFormText">本文 <span class="bm-required">必須</span></label>
+        <textarea id="rpFormText" class="bm-form-textarea" rows="4" placeholder="全体リマーク欄に挿入される本文を入力してください"></textarea>
+      </div>
+      <div class="bm-modal-foot">
+        <button type="button" class="bm-btn-cancel" onclick="document.getElementById('remarkPresetModal').classList.remove('open')">キャンセル</button>
+        <button type="submit" class="bm-btn-save">保存</button>
+      </div>
+    </form>
+  </div>
+</div>
+
 <!-- ======= ブックマーク変更履歴モーダル ======= -->
 <div id="bmContactModal" class="bm-modal-overlay" onclick="closeBmContact(event)">
   <div class="bm-modal-box">
