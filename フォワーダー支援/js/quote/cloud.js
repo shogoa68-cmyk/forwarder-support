@@ -2264,8 +2264,13 @@
     const c = _getClient();
     if (!c) return;
     const id = decodeURIComponent(rawId);
-    const { data, error } = await c
-      .from(_table()).select('name,data,status,updated_at').eq('id', id).single();
+    let { data, error } = await c
+      .from(_table()).select('name,data,status,tags,updated_at').eq('id', id).single();
+    if (error && /tags/i.test(error.message || '')) {
+      // tags 列が未マイグレーションの環境でも読込自体は失敗させない
+      ({ data, error } = await c
+        .from(_table()).select('name,data,status,updated_at').eq('id', id).single());
+    }
     if (error || !data) { quoteShowToast('⚠️ 読み込みに失敗しました', 'warn'); return; }
 
     // 直前に自分が別案件を編集中だったら解放してから開く
@@ -2285,6 +2290,15 @@
     if (data.status && data.data) {
       if (!data.data.fields) data.data.fields = {};
       data.data.fields['qf-status'] = data.status;
+    }
+    // タグも同じ理由で食い違う：ダッシュボードのカードから直接タグを追加/削除
+    // （cloudAddTag/cloudRemoveTag → _cloudUpdateTags）すると tags 列だけが更新され
+    // data.fields['qf-tags-data'] は書き換わらないため、直後にこの案件をエディタで
+    // 開くと前回エディタ保存時点の古いタグで復元されてしまう。tags 列を正として、
+    // 復元前に fields 側へ反映しておく（status と同じ対処）。
+    if (Array.isArray(data.tags) && data.data) {
+      if (!data.data.fields) data.data.fields = {};
+      data.data.fields['qf-tags-data'] = JSON.stringify(data.tags);
     }
 
     // チャットタブが開いていれば即時更新

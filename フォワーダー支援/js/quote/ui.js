@@ -176,22 +176,56 @@
     return span;
   }
 
-  // 貨物種別プリセットを共有に追加（addSharedRemarkPreset と同じ流れ・cargo_type付き）
-  async function addCargoTypeRemarkPreset(cargoType, cargoLabel) {
+  // ----- プリセット追加モーダル（共有／貨物種別／個人 共通） -----
+  // ラベル名・本文をそれぞれ別々の prompt() で聞いていたのを、1つのフォームに
+  // まとめた（bmAddModal と同じ .bm-modal-* / .bm-form-* を流用）。
+  // _rpModalScope: 'shared' | 'user' | { cargoType, cargoLabel }
+  let _rpModalScope = null;
+
+  function _openRemarkPresetModal(scope, title, labelPlaceholder) {
+    _rpModalScope = scope;
+    const titleEl = document.getElementById('rpModalTitle');
+    if (titleEl) titleEl.textContent = title;
+    const labelEl = document.getElementById('rpFormLabel');
+    const textEl  = document.getElementById('rpFormText');
+    if (labelEl) { labelEl.value = ''; labelEl.placeholder = labelPlaceholder || '例：📄 特別条件'; }
+    if (textEl) textEl.value = '';
+    document.getElementById('remarkPresetModal')?.classList.add('open');
+    setTimeout(() => labelEl?.focus(), 50);
+  }
+  function closeRemarkPresetModal(ev) {
+    if (ev && ev.target.id !== 'remarkPresetModal') return;
+    document.getElementById('remarkPresetModal')?.classList.remove('open');
+  }
+
+  async function saveRemarkPresetModal() {
+    const label = (document.getElementById('rpFormLabel')?.value || '').trim();
+    const text  = (document.getElementById('rpFormText')?.value  || '').trim();
+    if (!label) { quoteShowToast('⚠️ ラベル名を入力してください', 'warn'); return; }
+    if (!text)  { quoteShowToast('⚠️ 本文を入力してください', 'warn'); return; }
+    const scope = _rpModalScope;
+
+    if (scope === 'user') {
+      const arr = getUserRemarkPresets();
+      if (arr.some(p => p.label === label)) { quoteShowToast('⚠️ 同名のラベルが既にあります', 'warn'); return; }
+      arr.push({ label, text });
+      saveUserRemarkPresets(arr);
+      renderRemarkPresets();
+      quoteShowToast(`✅ 「${label}」を追加しました`, 'success');
+      closeRemarkPresetModal();
+      return;
+    }
+
     const c = window.quoteCloudClient && window.quoteCloudClient();
     const user = window.quoteCloudUser && window.quoteCloudUser();
     if (!c || !user) { quoteShowToast('⚠️ ログインが必要です', 'warn'); return; }
-    const label = prompt(`「${cargoLabel}」用プリセットのラベル名を入力してください（例：🚗 危険物該当の可能性）`);
-    if (!label || !label.trim()) return;
-    const text = prompt('プリセットの本文を入力してください');
-    if (!text || !text.trim()) return;
-    const { data, error } = await c
-      .from('remark_presets')
-      .insert({ label: label.trim(), text: text.trim(), use_count: 0, created_by: user.email, cargo_type: cargoType })
-      .select().single();
+    const cargoType = (scope && scope.cargoType) || null;
+    const payload = { label, text, use_count: 0, created_by: user.email };
+    if (cargoType) payload.cargo_type = cargoType;
+    const { data, error } = await c.from('remark_presets').insert(payload).select().single();
     if (error) {
       const m = error.message || '不明なエラー';
-      const msg = /cargo_type/i.test(m)
+      const msg = cargoType && /cargo_type/i.test(m)
         ? '⚠️ 貨物種別列が未作成です（docs/sql/remark-presets-cargo-verify.sql を実行してください）'
         : '⚠️ 追加に失敗しました：' + m;
       quoteShowToast(msg, 'warn', 8000);
@@ -199,25 +233,23 @@
     }
     _sharedRemarkPresets.push(data);
     renderRemarkPresets();
-    quoteShowToast(`✅ 「${label.trim()}」を「${cargoLabel}」の推奨リマークに追加しました`, 'success');
+    quoteShowToast(cargoType
+      ? `✅ 「${label}」を「${scope.cargoLabel}」の推奨リマークに追加しました`
+      : `✅ 「${label}」を共有プリセットに追加しました`, 'success');
+    closeRemarkPresetModal();
   }
 
-  async function addSharedRemarkPreset() {
-    const c = window.quoteCloudClient && window.quoteCloudClient();
+  // 貨物種別プリセットを共有に追加
+  function addCargoTypeRemarkPreset(cargoType, cargoLabel) {
     const user = window.quoteCloudUser && window.quoteCloudUser();
-    if (!c || !user) { quoteShowToast('⚠️ ログインが必要です', 'warn'); return; }
-    const label = prompt('共有プリセットのラベル名を入力してください（例：📄 特別条件）');
-    if (!label || !label.trim()) return;
-    const text = prompt('共有プリセットの本文を入力してください');
-    if (!text || !text.trim()) return;
-    const { data, error } = await c
-      .from('remark_presets')
-      .insert({ label: label.trim(), text: text.trim(), use_count: 0, created_by: user.email })
-      .select().single();
-    if (error) { quoteShowToast('⚠️ 追加に失敗しました：' + error.message, 'warn'); return; }
-    _sharedRemarkPresets.push(data);
-    renderRemarkPresets();
-    quoteShowToast(`✅ 「${label.trim()}」を共有プリセットに追加しました`, 'success');
+    if (!user) { quoteShowToast('⚠️ ログインが必要です', 'warn'); return; }
+    _openRemarkPresetModal({ cargoType, cargoLabel }, `${cargoLabel} プリセットを追加`, '例：🚗 危険物該当の可能性');
+  }
+
+  function addSharedRemarkPreset() {
+    const user = window.quoteCloudUser && window.quoteCloudUser();
+    if (!user) { quoteShowToast('⚠️ ログインが必要です', 'warn'); return; }
+    _openRemarkPresetModal('shared', '☁️ 共有プリセットを追加', '例：📄 特別条件');
   }
 
   async function deleteSharedRemarkPreset(id, label) {
@@ -380,19 +412,7 @@
   }
 
   function addUserRemarkPreset() {
-    const label = prompt('プリセットのラベル名を入力してください（例：📄 特別条件）');
-    if (!label || !label.trim()) return;
-    const text = prompt('プリセットの本文を入力してください');
-    if (!text || !text.trim()) return;
-    const arr = getUserRemarkPresets();
-    if (arr.some(p => p.label === label.trim())) {
-      quoteShowToast('⚠️ 同名のラベルが既にあります', 'warn');
-      return;
-    }
-    arr.push({ label: label.trim(), text: text.trim() });
-    saveUserRemarkPresets(arr);
-    renderRemarkPresets();
-    quoteShowToast(`✅ 「${label.trim()}」を追加しました`, 'success');
+    _openRemarkPresetModal('user', '個人プリセットを追加', '例：📄 特別条件');
   }
 
   function deleteUserRemarkPreset(label) {
