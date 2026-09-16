@@ -1892,6 +1892,27 @@ a.bm-contact-item:hover { background: #2e6b3e; color: #fff; border-color: #2e6b3
   margin-top: 4px;
   line-height: 1.5;
 }
+/* モーダル内：ファイル添付欄 */
+.bm-file-attach-box {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+}
+.bm-file-pick-btn {
+  font-size: 12px; color: #1c4a66; background: #eef4f8;
+  border: 1px solid #b8c4cb; border-radius: 7px; padding: 6px 12px;
+  cursor: pointer; white-space: nowrap;
+}
+.bm-file-pick-btn:hover { background: #dfebf3; }
+.bm-file-attach-info { font-size: 12px; color: #3d2e1e; flex: 1; min-width: 0; word-break: break-all; }
+.bm-file-attach-info.bm-file-attach-removing { color: #b04a4a; font-style: italic; }
+.bm-file-remove-btn {
+  font-size: 11px; color: #9a8a72; background: #fff;
+  border: 1px solid #d9cfc2; border-radius: 7px; padding: 4px 9px;
+  cursor: pointer; white-space: nowrap;
+}
+.bm-file-remove-btn:hover { color: #b04a4a; border-color: #b04a4a; }
+/* タイル内：ファイル添付ピル */
+.bm-pill-file { background: #fdf6ea; border-color: #e3cf9a; }
+.bm-pill-file:hover { background: #f5e9cc; }
 .bm-form-input, .bm-form-sel, .bm-form-textarea {
   border: 1px solid #cfd8dc;
   border-radius: 5px;

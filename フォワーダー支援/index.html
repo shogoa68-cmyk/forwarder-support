@@ -4911,6 +4911,15 @@
         <label class="bm-form-label" for="bmFormUrl">URL <span class="bm-optional">省略可 — メモのみでも登録できます</span></label>
         <input type="url" id="bmFormUrl" class="bm-form-input" placeholder="https://...">
       </div>
+      <div class="bm-form-row">
+        <label class="bm-form-label">ファイル添付 <span class="bm-optional">任意 — 料金表・案内PDFなどを共有できます（20MBまで）</span></label>
+        <input type="file" id="bmFormFileInput" class="bm-form-input" onchange="bmOnFilePicked(this)" style="display:none">
+        <div id="bmFileAttachBox" class="bm-file-attach-box">
+          <button type="button" class="bm-file-pick-btn" onclick="document.getElementById('bmFormFileInput').click()">📎 ファイルを選択</button>
+          <span id="bmFileAttachInfo" class="bm-file-attach-info"></span>
+          <button type="button" id="bmFileRemoveBtn" class="bm-file-remove-btn" onclick="bmClearFilePick()" hidden>✕ 添付を外す</button>
+        </div>
+      </div>
       <div class="bm-form-row bm-form-row-2col">
         <div>
           <label class="bm-form-label" for="bmFormType">種別</label>

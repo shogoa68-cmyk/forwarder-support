@@ -225,17 +225,40 @@ function _bmToggleTile(name) {
 
 // 1件分のブックマークピルを組み立てる。rel を渡すと「関連会社（表記違い・代理店など）
 // 経由でこのタイルに表示している」印を付ける（統合はせず、あくまで表示だけ結びつける）。
+function _bmFmtFileSize(sz) {
+  if (!sz) return '';
+  return sz > 1048576 ? (sz / 1048576).toFixed(1) + 'MB' : Math.max(1, Math.round(sz / 1024)) + 'KB';
+}
+function _bmFileIcon(mime) {
+  if (/pdf/i.test(mime || '')) return '📄';
+  if (/image/i.test(mime || '')) return '🖼️';
+  if (/sheet|excel|csv/i.test(mime || '')) return '📊';
+  return '📎';
+}
+
 function _bmPillHtml(r, rel) {
-  const ic   = _bmFnIcon(r.function);
-  const txt  = escHtml(r.label || r.function || 'リンク');
-  const lbl  = escHtml(r.label || '');
+  const ic     = _bmFnIcon(r.function);
+  const txt    = escHtml(r.label || r.function || 'リンク');
+  const hasFile = !!r.file_path;
+  const lbl    = escHtml(r.label || '') + (hasFile && r.file_size ? `（${_bmFmtFileSize(r.file_size)}）` : '');
   const relMark = rel
     ? `<span class="bm-pill-rel bm-tip" data-tip="${escHtml(rel.label + ': ' + rel.counterpart)}">🔗${escHtml(rel.label)}</span>`
     : '';
-  const open = r.url
-    ? `<a class="bm-pill${rel ? ' bm-pill--rel' : ''}" href="${escHtml(r.url)}" target="_blank" rel="noopener" title="${lbl}">`
-    : `<span class="bm-pill bm-pill-nourl${rel ? ' bm-pill--rel' : ''}" title="${lbl}">`;
-  const close = r.url ? '</a>' : '</span>';
+  let open, close;
+  if (hasFile) {
+    // ファイル添付：クリックで署名付き URL を都度取得して開く（Storage は非公開バケット）
+    open  = `<span class="bm-pill bm-pill-file${rel ? ' bm-pill--rel' : ''}" onclick="bmOpenFile('${escHtml(r.id)}')" title="${lbl}">`;
+    close = `</span>`;
+  } else if (r.url) {
+    open  = `<a class="bm-pill${rel ? ' bm-pill--rel' : ''}" href="${escHtml(r.url)}" target="_blank" rel="noopener" title="${lbl}">`;
+    close = `</a>`;
+  } else {
+    open  = `<span class="bm-pill bm-pill-nourl${rel ? ' bm-pill--rel' : ''}" title="${lbl}">`;
+    close = `</span>`;
+  }
+  const iconEl = hasFile
+    ? `<span class="bm-pill-ic">${_bmFileIcon(r.mime_type)}</span>`
+    : `<span class="bm-pill-ic">${ic}</span>`;
   // メモ有りピルには 💬 マーカー（ホバーで装飾ツールチップ／body 直付け）
   const noteMark = r.note
     ? `<span class="bm-pill-note bm-tip" data-tip="${escHtml(r.note)}">💬</span>`
@@ -251,7 +274,7 @@ function _bmPillHtml(r, rel) {
     : 'まだ確認されていません\nクリックで「確認済み」にできます';
   const verifyBadge = `<span class="bm-verify ${vcls}${mine ? ' bm-verify-mine' : ''} bm-tip" data-tip="${escHtml(vtip)}" onclick="event.preventDefault();event.stopPropagation();bmToggleVerify('${escHtml(r.id)}')">✓${vcount || ''}</span>`;
   return open
-    + relMark + `<span class="bm-pill-ic">${ic}</span>${txt}${verifyBadge}${noteMark}`
+    + relMark + iconEl + txt + verifyBadge + noteMark
     + `<span class="bm-pill-edit" onclick="event.preventDefault();event.stopPropagation();bmEdit('${escHtml(r.id)}')" title="編集">✎</span>`
     + `<span class="bm-pill-del" onclick="event.preventDefault();event.stopPropagation();bmDelete('${escHtml(r.id)}')" title="削除">🗑</span>`
     + close;
@@ -480,6 +503,10 @@ function openAddBmModal(presetData) {
       dl.innerHTML = carriers.map(c => `<option value="${escHtml(c)}">`).join('');
     }
   }
+  // ファイル添付欄をリセット（編集時は既存の添付があれば表示）
+  const fileInput = document.getElementById('bmFormFileInput');
+  if (fileInput) fileInput.value = '';
+  _bmResetFileState(p.filePath ? { path: p.filePath, name: p.fileName, size: p.fileSize, mime: p.mimeType } : null);
   modal.classList.add('open');
   labelEl?.focus();
 }
@@ -487,6 +514,78 @@ function openAddBmModal(presetData) {
 function closeAddBmModal(e) {
   if (e && e.target.id !== 'bmAddModal') return;
   document.getElementById('bmAddModal')?.classList.remove('open');
+}
+
+// ---------- ファイル添付（モーダル内の選択状態） ----------
+// existing: 保存済みの添付 {path,name,size,mime} | null
+// picked:   モーダルでこれから保存する新しい File | null
+// removed:  true なら保存時に既存の添付を削除する
+let _bmFileState = { existing: null, picked: null, removed: false };
+const BM_FILE_MAX_BYTES = 20 * 1024 * 1024;
+
+function _bmResetFileState(existing) {
+  _bmFileState = { existing: existing || null, picked: null, removed: false };
+  _bmRenderFileBox();
+}
+
+function _bmRenderFileBox() {
+  const info  = document.getElementById('bmFileAttachInfo');
+  const rmBtn = document.getElementById('bmFileRemoveBtn');
+  if (!info) return;
+  const st = _bmFileState;
+  if (st.picked) {
+    info.textContent = `${_bmFileIcon(st.picked.type)} ${st.picked.name}（${_bmFmtFileSize(st.picked.size)}）`;
+    info.classList.remove('bm-file-attach-removing');
+    if (rmBtn) { rmBtn.hidden = false; rmBtn.textContent = '✕ 選択を取消'; }
+  } else if (st.existing && !st.removed) {
+    info.textContent = `${_bmFileIcon(st.existing.mime)} ${st.existing.name}${st.existing.size ? '（' + _bmFmtFileSize(st.existing.size) + '）' : ''}`;
+    info.classList.remove('bm-file-attach-removing');
+    if (rmBtn) { rmBtn.hidden = false; rmBtn.textContent = '✕ 添付を外す'; }
+  } else if (st.existing && st.removed) {
+    info.textContent = '（保存時にこの添付は削除されます）';
+    info.classList.add('bm-file-attach-removing');
+    if (rmBtn) { rmBtn.hidden = false; rmBtn.textContent = '↺ 取り消す'; }
+  } else {
+    info.textContent = '';
+    info.classList.remove('bm-file-attach-removing');
+    if (rmBtn) rmBtn.hidden = true;
+  }
+}
+
+function bmOnFilePicked(inputEl) {
+  const f = inputEl.files && inputEl.files[0];
+  inputEl.value = '';   // 同じファイルの再選択でも change が発火するようにクリア
+  if (!f) return;
+  if (f.size > BM_FILE_MAX_BYTES) {
+    quoteShowToast('⚠️ ' + f.name + ' は20MB超のため添付できません', 'warn', 5000);
+    return;
+  }
+  _bmFileState.picked  = f;
+  _bmFileState.removed = false;
+  _bmRenderFileBox();
+}
+
+function bmClearFilePick() {
+  const st = _bmFileState;
+  if (st.picked) st.picked = null;
+  else if (st.existing) st.removed = !st.removed;
+  _bmRenderFileBox();
+}
+
+async function bmOpenFile(id) {
+  const r = _bmRows.find(row => row.id === id);
+  if (!r || !r.file_path) return;
+  const db = window.SupabaseClient;
+  if (!db) return;
+  const { data, error } = await db.storage.from('bookmark-files').createSignedUrl(r.file_path, 120);
+  if (error || !data) {
+    const msg = /schema cache|does not exist|not find|bucket/i.test(error?.message || '')
+      ? '⚠️ ファイルStorageが未作成です（docs/sql/bookmarks-files.sql を実行してください）'
+      : '⚠️ ファイルを開けませんでした：' + (error?.message || '');
+    quoteShowToast(msg, 'warn', 8000);
+    return;
+  }
+  window.open(data.signedUrl, '_blank', 'noopener');
 }
 
 async function saveBm() {
@@ -507,6 +606,34 @@ async function saveBm() {
   const btn = document.getElementById('bmSaveBtn');
   if (btn) { btn.disabled = true; btn.textContent = '保存中…'; }
 
+  // 添付ファイルの変更を反映（新規選択のアップロード／削除フラグ）。
+  // effectiveId は新規行にも先んじて割り振り、Storage パスに使う。
+  const effectiveId = id || crypto.randomUUID();
+  let fileFields = {};             // 変更が無ければキー自体を含めない（既存の添付を保持）
+  let oldFilePathToRemove = null;  // 差し替え・削除された旧ファイル（DB成功後に除去）
+  if (_bmFileState.picked) {
+    const file = _bmFileState.picked;
+    const nm   = file.name || 'file';
+    const dot  = nm.lastIndexOf('.');
+    const ext  = dot >= 0 ? nm.slice(dot).replace(/[^A-Za-z0-9.]/g, '') : '';
+    const base = (dot >= 0 ? nm.slice(0, dot) : nm).replace(/[^A-Za-z0-9._-]+/g, '_').replace(/_{2,}/g, '_').replace(/^_+|_+$/g, '').slice(0, 40) || 'file';
+    const path = effectiveId + '/' + Date.now() + '_' + Math.random().toString(36).slice(2, 8) + '_' + base + ext;
+    const up = await db.storage.from('bookmark-files').upload(path, file, { contentType: file.type || undefined, upsert: false });
+    if (up.error) {
+      if (btn) { btn.disabled = false; btn.textContent = '保存'; }
+      const msg = /schema cache|does not exist|not find|bucket/i.test(up.error.message || '')
+        ? '⚠️ ファイルStorageが未作成です（docs/sql/bookmarks-files.sql を実行してください）'
+        : '⚠️ ファイルのアップロードに失敗：' + up.error.message;
+      quoteShowToast(msg, 'warn', 8000);
+      return;
+    }
+    fileFields = { file_path: path, file_name: file.name, file_size: file.size, mime_type: file.type || null };
+    if (_bmFileState.existing) oldFilePathToRemove = _bmFileState.existing.path;
+  } else if (_bmFileState.removed && _bmFileState.existing) {
+    fileFields = { file_path: null, file_name: null, file_size: null, mime_type: null };
+    oldFilePathToRemove = _bmFileState.existing.path;
+  }
+
   const { data: sd } = await db.auth.getSession();
   let error;
   if (id) {
@@ -514,12 +641,13 @@ async function saveBm() {
     // RLS の UPDATE ポリシーが無い等で 0 行更新の場合、Supabase は error=null を返すため、
     // ここで行数を検査し「成功」と誤表示せず警告を出す。
     const res = await db.from('bookmarks').update({
-      label, url, carrier_type: type, carrier, function: fnVal, note,
+      label, url, carrier_type: type, carrier, function: fnVal, note, ...fileFields,
     }).eq('id', id).select();
     error = res.error;
     if (!error && (!res.data || res.data.length === 0)) {
       if (btn) { btn.disabled = false; btn.textContent = '保存'; }
       quoteShowToast('⚠️ 更新されませんでした（権限不足の可能性）。管理者に bookmarks の UPDATE ポリシーをご確認ください', 'warn', 8000);
+      if (fileFields.file_path) { try { await db.storage.from('bookmark-files').remove([fileFields.file_path]); } catch (e) {} }
       return;
     }
     // URL を変更した場合、過去の「確認済み」記録は無効化（リンク先が変わったため）
@@ -530,10 +658,10 @@ async function saveBm() {
       }
     }
   } else {
-    // 新規（INSERT）
+    // 新規（INSERT）。id は上で採番済み（添付ファイルの Storage パスと一致させるため）
     ({ error } = await db.from('bookmarks').insert({
-      label, url, carrier_type: type, carrier, function: fnVal, note,
-      created_by: sd?.session?.user?.email || null,
+      id: effectiveId, label, url, carrier_type: type, carrier, function: fnVal, note,
+      created_by: sd?.session?.user?.email || null, ...fileFields,
     }));
   }
 
@@ -541,8 +669,12 @@ async function saveBm() {
 
   if (error) {
     quoteShowToast('⚠️ 保存エラー：' + error.message, 'warn', 6000);
+    // アップロード済みだが DB 書き込みに失敗した場合、孤立ファイルを削除しておく
+    if (fileFields.file_path) { try { await db.storage.from('bookmark-files').remove([fileFields.file_path]); } catch (e) {} }
     return;
   }
+  // 差し替え・削除された旧ファイルを Storage から除去（ベストエフォート）
+  if (oldFilePathToRemove) { try { await db.storage.from('bookmark-files').remove([oldFilePathToRemove]); } catch (e) {} }
   quoteShowToast(id ? '✅ 更新しました' : '✅ ブックマークを追加しました', 'success', 3000);
   document.getElementById('bmAddModal')?.classList.remove('open');
 
@@ -578,8 +710,10 @@ async function bmDelete(id) {
   if (!confirm('このブックマークを削除しますか？')) return;
   const db = window.SupabaseClient;
   if (!db) return;
+  const target = _bmRows.find(r => r.id === id);
   const { error } = await db.from('bookmarks').delete().eq('id', id);
   if (error) { quoteShowToast('⚠️ 削除エラー：' + error.message, 'warn'); return; }
+  if (target?.file_path) { try { await db.storage.from('bookmark-files').remove([target.file_path]); } catch (e) {} }
   quoteShowToast('✅ 削除しました', 'success', 2000);
   _bmRows = _bmRows.filter(r => r.id !== id);
   _bmApply();
@@ -863,13 +997,17 @@ function bmEdit(id) {
   const r = _bmRows.find(row => row.id === id);
   if (!r) return;
   openAddBmModal({
-    id:      r.id,
-    label:   r.label,
-    url:     r.url     || '',
-    type:    r.carrier_type || 'FCL',
-    carrier: r.carrier  || '',
-    fn:      r.function || '',
-    note:    r.note     || '',
+    id:       r.id,
+    label:    r.label,
+    url:      r.url     || '',
+    type:     r.carrier_type || 'FCL',
+    carrier:  r.carrier  || '',
+    fn:       r.function || '',
+    note:     r.note     || '',
+    filePath: r.file_path || '',
+    fileName: r.file_name || '',
+    fileSize: r.file_size || 0,
+    mimeType: r.mime_type || '',
   });
 }
 
@@ -1210,6 +1348,9 @@ window.bmSetFn         = bmSetFn;
 window.openAddBmModal  = openAddBmModal;
 window.closeAddBmModal = closeAddBmModal;
 window.saveBm          = saveBm;
+window.bmOnFilePicked  = bmOnFilePicked;
+window.bmClearFilePick = bmClearFilePick;
+window.bmOpenFile      = bmOpenFile;
 window.bmDelete        = bmDelete;
 window.bmEdit          = bmEdit;
 window.bmToggleVerify  = bmToggleVerify;
