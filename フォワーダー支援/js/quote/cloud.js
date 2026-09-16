@@ -2098,6 +2098,9 @@
     // 「現在の案件に関連付ける」は、編集中の案件がありプレビュー中の案件と別のときだけ出す
     const linkBtn = document.getElementById('cpLinkBtn');
     if (linkBtn) linkBtn.hidden = !_loadedCloudId || _loadedCloudId === _cpId;
+    // 「内容を引用」はプレビュー中の案件そのものを見ているときだけ隠す（自分自身への引用は無意味）
+    const quoteBtn = document.getElementById('cpQuoteBtn');
+    if (quoteBtn) quoteBtn.hidden = (_loadedCloudId === _cpId);
   }
 
   // プレビュー中の案件を、現在編集中（読み込み済み）の案件に関連付ける（常に双方向）
@@ -2107,6 +2110,41 @@
     if (_loadedCloudId === _cpId) { quoteShowToast('ℹ️ 現在編集中の案件と同じです', 'info'); return; }
     cloudLinkPresets(_loadedCloudId, _cpId);
   }
+
+  // プレビュー中の案件の内容を、現在編集中の案件へ「引用」する。
+  // 「管理番号入力」セクション（見積もり番号・お客様名称・担当・受信日・提出期限・
+  // 発行日・有効期限・ステータス・タグ・メモ・参照URL 等）は現在の値のまま維持し、
+  // それ以外（引き合い条件・貨物情報・作業範囲・全体リマーク・見積もりテーブル）だけを
+  // プレビュー中の案件の内容で上書きする。「📂 全体を読み込む」（cloudPreviewLoadFull）
+  // は cloudLoadPreset を呼びプレビュー中の案件そのものを開く（管理番号入力も含め
+  // すべて切り替わる）のに対し、こちらは現在の案件の管理情報を保ったまま中身だけ
+  // 取り込む点が異なる。
+  async function cloudQuoteFromPreview() {
+    if (!_cpId) return;
+    if (!confirm(
+      '「' + (_cpFullName || 'プレビュー中の案件') + '」の内容（引き合い条件・貨物情報・見積もりテーブル・全体リマーク等）を、\n' +
+      '現在編集中の案件へ取り込みます。\n\n' +
+      '「管理番号入力」セクション（見積もり番号・お客様名称・担当・ステータス・タグ等）は現在の値のまま維持されます。\n' +
+      'それ以外の内容（見積もりテーブルを含む）は上書きされます。よろしいですか？'
+    )) return;
+    const c = _getClient();
+    if (!c) return;
+    const { data, error } = await c.from(_table()).select('data').eq('id', _cpId).single();
+    if (error || !data) { quoteShowToast('⚠️ 取得に失敗しました：' + (error?.message || ''), 'warn', 6000); return; }
+    const importData = JSON.parse(JSON.stringify(data.data || {}));
+    if (!importData.fields) importData.fields = {};
+    // コピー元案件自体の「コピー元」表示を引き継がない（内容の引用であり複製ではないため）
+    delete importData.copiedFrom;
+    // 「管理番号入力」セクションの現在値をそのまま維持する
+    document.querySelectorAll('#section-ref input[id], #section-ref select[id], #section-ref textarea[id]').forEach(el => {
+      importData.fields[el.id] = (el.type === 'checkbox') ? el.checked : el.value;
+    });
+    document.getElementById('cloudPreviewModal').style.display = 'none';
+    _applyQuoteData(importData);
+    if (typeof calcLiveUpdate === 'function') calcLiveUpdate();
+    quoteShowToast('📥 「' + (_cpFullName || '') + '」の内容を引用しました（管理番号入力は現在の値のまま）', 'success', 5000);
+  }
+  window.cloudQuoteFromPreview = cloudQuoteFromPreview;
   window.cloudLinkFromPreview = cloudLinkFromPreview;
 
   // 数値パース／通貨つき金額表示（JPYは¥、非JPYは通貨コード併記）
