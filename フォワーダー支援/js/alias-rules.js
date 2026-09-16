@@ -1045,7 +1045,9 @@
 
   window.mdAttachOpen = async function (rawPath) {
     const c = _c(); if (!c) return;
-    const res = await c.storage.from(MA_BUCKET()).createSignedUrl(decodeURIComponent(rawPath), 120);
+    // download:false を明示 → Supabase が Content-Disposition: attachment を付けず、
+    // ブラウザが表示可能な形式（PDF/画像等）は新規タブでそのまま開ける
+    const res = await c.storage.from(MA_BUCKET()).createSignedUrl(decodeURIComponent(rawPath), 120, { download: false });
     if (res.error || !res.data) { if (window.quoteShowToast) window.quoteShowToast('⚠️ リンク作成に失敗しました', 'warn'); return; }
     window.open(res.data.signedUrl, '_blank', 'noopener');
   };
