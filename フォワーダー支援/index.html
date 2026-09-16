@@ -2689,6 +2689,7 @@
               <input type="date" id="qf-valid-until" title="見積もりの有効期限。出力・Excelに含まれます。発行日〜有効期限の期間と重ならないサーチャージは適用期間外として非表示になります" onchange="checkValidUntilWarning(); window.updateTotals && window.updateTotals()" />
               <button type="button" class="qf-days-btn" onclick="addDaysToValidUntil(7)"  title="今日から7日後">+7日</button>
               <button type="button" class="qf-days-btn" onclick="addDaysToValidUntil(30)" title="今日から30日後">+30日</button>
+              <button type="button" class="qf-days-btn qf-spot-btn" id="qfSpotToggleBtn" onclick="toggleValidUntilSpot()" title="日付の代わりに「SPOT（提示した本船のみ）」など任意のテキストで表記します">SPOT</button>
             </div>
           </div>
           <div class="quote-field quote-field-status">

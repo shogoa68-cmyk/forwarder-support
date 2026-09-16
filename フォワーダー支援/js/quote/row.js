@@ -48,7 +48,9 @@
       const z = n => String(n).padStart(2, '0');
       return `${d.getFullYear()}-${z(d.getMonth() + 1)}-${z(d.getDate())}`;
     })();
-    const end = (document.getElementById('qf-valid-until')?.value || '').trim() || start;
+    // SPOT表記（日付以外の自由記述）は期間の終わりを判定できないため未指定（=start）扱い
+    const rawEnd = (document.getElementById('qf-valid-until')?.value || '').trim();
+    const end = (/^\d{4}-\d{2}-\d{2}$/.test(rawEnd) ? rawEnd : '') || start;
     return { start, end };
   }
   // 行の適用期間が見積の生きている期間と一切重ならなければ true（期間未設定の行は常に有効＝false）。

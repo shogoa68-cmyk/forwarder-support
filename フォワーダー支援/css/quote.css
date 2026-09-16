@@ -328,6 +328,20 @@
   transition: background 0.15s;
 }
 #tab-quote-make .qf-days-btn:hover { background: #dde8f0; }
+/* SPOT表記（有効期限＝提示した本船のみ、等）トグル */
+#tab-quote-make .qf-valid-until-row.qf-mode-spot #qf-valid-until {
+  border-color: #c9930f;
+  background: #fffaf0;
+  color: #8a6200;
+  font-weight: 600;
+}
+#tab-quote-make .qf-valid-until-row.qf-mode-spot .qf-days-btn:not(.qf-spot-btn) { display: none; }
+#tab-quote-make .qf-spot-btn.qf-mode-spot,
+#tab-quote-make .qf-valid-until-row.qf-mode-spot .qf-spot-btn {
+  background: #c9930f;
+  border-color: #a97600;
+  color: #fff;
+}
 
 /* 仮REF# 自動採番ボタン行 */
 #tab-quote-make .qf-ref-row {
