@@ -2195,13 +2195,29 @@
 
     tbody.innerHTML = groups.map(g => {
       const svEsc = escHtml(g.sv);
-      const gId = 'cpg-' + g.sv.replace(/[^a-z0-9]/gi, '_');
       const header = `<tr class="cp-group-head">
         <td><input type="checkbox" class="cp-group-chk" data-group="${escHtml(g.sv)}" checked onchange="cpToggleGroup(this,'${escHtml(g.sv)}')" title="このサブコンを一括選択"></td>
         <td colspan="8" class="cp-group-label">🏢 ${svEsc} <span class="cp-group-cnt">${g.rows.length}行</span></td>
       </tr>`;
+
+      // サブコン内をパターン（cells[19]）でサブグループ化。パターンが1種類も無いか
+      // 「（未設定）」のみなら見出しは出さない（御見積書PDF/プレビューと同じ基準：
+      // 2種以上、または名前付きパターンが1種類だけでも表示する）
+      const patternSet = new Set(g.rows.map(({ row }) => (row.cells[19] || '').trim()));
+      const showPattern = patternSet.size >= 2 || (patternSet.size === 1 && !patternSet.has(''));
+
+      let currentPt = null;
       const rowHtml = g.rows.map(({ row, idx }) => {
         const cells = row.cells;
+        const pt = (cells[19] || '').trim();
+        let ptHeader = '';
+        if (showPattern && pt !== currentPt) {
+          currentPt = pt;
+          ptHeader = `<tr class="cp-pattern-head">
+            <td></td>
+            <td colspan="8" class="cp-pattern-label">📋 ${escHtml(pt || '（パターン未設定）')}</td>
+          </tr>`;
+        }
         const cat = cells[1] || '';
         const nm  = cells[4] || '';
         const pq  = cells[5] || '';
@@ -2219,7 +2235,8 @@
         const mPct   = ac ? null : _cpMarginPct(pp, pc, pq, bp, bc, bq);
         const mCls   = mPct == null ? '' : (mPct > 0 ? 'cp-margin-pos' : mPct < 0 ? 'cp-margin-neg' : '');
         const mCell  = mPct == null ? '—' : mPct.toFixed(1) + '%';
-        return `<tr class="cp-row cp-row-in-group" data-sv="${escHtml(g.sv)}" data-idx="${idx}">
+        const rowCls = 'cp-row cp-row-in-group' + (showPattern ? ' cp-row-in-pattern' : '');
+        return ptHeader + `<tr class="${rowCls}" data-sv="${escHtml(g.sv)}" data-idx="${idx}">
           <td><input type="checkbox" class="cp-chk" checked onchange="cpUpdateSelCount()"></td>
           <td class="cp-cat">${escHtml(catLbl)}</td>
           <td class="cp-nm">${escHtml(nm)}</td>

@@ -5927,6 +5927,10 @@ body.qp-dash-active #quoteActionDock { display: none !important; }
 #tab-quote-make .cp-group-label { font-weight: 700; font-size: 12px; color: #4a3520; }
 #tab-quote-make .cp-group-cnt { font-weight: 400; color: #9a8070; font-size: 11px; margin-left: 6px; }
 #tab-quote-make .cp-row-in-group td:first-child { padding-left: 20px; }
+#tab-quote-make .cp-pattern-head { background: #faf5ec; }
+#tab-quote-make .cp-pattern-head td { padding: 4px 8px; }
+#tab-quote-make .cp-pattern-label { font-weight: 600; font-size: 11px; color: #7a5c32; padding-left: 12px !important; }
+#tab-quote-make .cp-row-in-pattern td:first-child { padding-left: 34px; }
 #tab-quote-make .cloud-preview-foot {
   display: flex; align-items: center; gap: 8px; padding: 10px 16px;
   border-top: 1px solid #d5c8b0; background: #fdfaf4; flex-shrink: 0;
