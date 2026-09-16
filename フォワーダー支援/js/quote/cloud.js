@@ -20,6 +20,11 @@
   // 案件ステータス定義（順序＝表示順、key は DB 保存値）
   const CLOUD_STATUSES = ['下書き中', '提出済み', '改定中', 'ヨコヨコ提示', '受注', '失注', '辞退', '保留'];
   const CLOUD_STATUS_DEFAULT = '下書き中';
+  // ダッシュボード上部の集計タイルでは「下書き中」「改定中」を1枚に統合して表示する
+  // （どちらも客先へまだ提示できていない＝作業中の案件のため）。案件ごとのステータス
+  // 選択肢（STATUS_CHOICES）や詳細検索チップ（_renderStatusChips）は従来通り区別する。
+  const DRAFT_GROUP_STATUSES = ['下書き中', '改定中'];
+  const DRAFT_GROUP_FILTER = '__draft_revising__';
 
   // 「保留」のまま何日更新されなかったら下書きに自動的に戻すか（放置防止のリマインド）
   const HOLD_STALE_DAYS = 14;
@@ -369,7 +374,13 @@
     const pol = _cloudFilterPol.trim().toLowerCase();
     const pod = _cloudFilterPod.trim().toLowerCase();
     const car = _cloudFilterCarrier.trim().toLowerCase();
-    if (_cloudStatusFilter && (_normalizeStatus(r.status) || CLOUD_STATUS_DEFAULT) !== _normalizeStatus(_cloudStatusFilter)) return false;
+    if (_cloudStatusFilter) {
+      const st = _normalizeStatus(r.status) || CLOUD_STATUS_DEFAULT;
+      const matchesStatus = (_cloudStatusFilter === DRAFT_GROUP_FILTER)
+        ? DRAFT_GROUP_STATUSES.includes(st)
+        : st === _normalizeStatus(_cloudStatusFilter);
+      if (!matchesStatus) return false;
+    }
     if (_cloudFilterMode    && r.transport_mode !== _cloudFilterMode)  return false;
     if (_cloudFilterInco    && r.incoterms       !== _cloudFilterInco) return false;
     if (pol && !(r.pol     || '').toLowerCase().includes(pol)) return false;
@@ -947,7 +958,11 @@
         (cls ? ' qpd-stat--' + cls : '') + '" onclick="cloudFilterStatus(\'' + val + '\')">' +
         '<span class="qpd-stat-n">' + n + '</span><span class="qpd-stat-l">' + escHtml(label) + '</span></button>';
     let html = card('', '全体', _cloudRows.length, 'all');
-    html += CLOUD_STATUSES.map(st => card(st, _statusLabel(st), count(st), _statusClass(st))).join('');
+    // 「下書き中」の位置に、下書き中＋改定中を合算した統合タイルを1枚だけ出す
+    const draftGroupN = DRAFT_GROUP_STATUSES.reduce((sum, st) => sum + count(st), 0);
+    html += card(DRAFT_GROUP_FILTER, '下書き中・改定中', draftGroupN, 'draft');
+    html += CLOUD_STATUSES.filter(st => !DRAFT_GROUP_STATUSES.includes(st))
+      .map(st => card(st, _statusLabel(st), count(st), _statusClass(st))).join('');
     box.innerHTML = html;
   }
 
