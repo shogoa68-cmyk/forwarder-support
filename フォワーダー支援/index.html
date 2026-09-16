@@ -2525,7 +2525,8 @@
         <div class="cloud-preview-foot">
           <span id="cpSelCount" class="cp-sel-count"></span>
           <button class="cp-btn-import" onclick="cloudImportSelectedRows()">✅ 選択した行を追加</button>
-          <button class="cp-btn-load"   onclick="cloudPreviewLoadFull()">📂 全体を読み込む</button>
+          <button class="cp-btn-quote" id="cpQuoteBtn" onclick="cloudQuoteFromPreview()" title="この案件の内容（引き合い条件・貨物情報・見積もりテーブル・全体リマーク等）を、現在編集中の案件へ取り込みます。「管理番号入力」セクション（見積もり番号・お客様名称・担当・受信日・提出期限・ステータス・タグ・メモ等）は現在の値のまま維持されます。">📥 内容を引用（管理番号は現状維持）</button>
+          <button class="cp-btn-load"   onclick="cloudPreviewLoadFull()" title="この案件をそのまま開きます。現在編集中の内容は閉じられ、管理番号入力を含めすべてこの案件の内容に切り替わります">📂 全体を読み込む</button>
           <button class="cp-btn-copy"   onclick="cloudCopyFromPreview()" title="この案件を複製して新しい案件として保存します（現在の入力内容は上書きしません）">📋 コピーして新規作成</button>
           <button class="cp-btn-link" id="cpLinkBtn" hidden onclick="cloudLinkFromPreview()" title="コピーせず、この案件を現在編集中の案件と関連付けます（常に双方向）">🔗 現在の案件に関連付ける</button>
           <button class="cp-btn-cancel" onclick="closeCloudPreview()">閉じる</button>
@@ -2688,6 +2689,7 @@
               <input type="date" id="qf-valid-until" title="見積もりの有効期限。出力・Excelに含まれます。発行日〜有効期限の期間と重ならないサーチャージは適用期間外として非表示になります" onchange="checkValidUntilWarning(); window.updateTotals && window.updateTotals()" />
               <button type="button" class="qf-days-btn" onclick="addDaysToValidUntil(7)"  title="今日から7日後">+7日</button>
               <button type="button" class="qf-days-btn" onclick="addDaysToValidUntil(30)" title="今日から30日後">+30日</button>
+              <button type="button" class="qf-days-btn qf-spot-btn" id="qfSpotToggleBtn" onclick="toggleValidUntilSpot()" title="日付の代わりに「SPOT（提示した本船のみ）」など任意のテキストで表記します">SPOT</button>
             </div>
           </div>
           <div class="quote-field quote-field-status">

@@ -328,6 +328,20 @@
   transition: background 0.15s;
 }
 #tab-quote-make .qf-days-btn:hover { background: #dde8f0; }
+/* SPOT表記（有効期限＝提示した本船のみ、等）トグル */
+#tab-quote-make .qf-valid-until-row.qf-mode-spot #qf-valid-until {
+  border-color: #c9930f;
+  background: #fffaf0;
+  color: #8a6200;
+  font-weight: 600;
+}
+#tab-quote-make .qf-valid-until-row.qf-mode-spot .qf-days-btn:not(.qf-spot-btn) { display: none; }
+#tab-quote-make .qf-spot-btn.qf-mode-spot,
+#tab-quote-make .qf-valid-until-row.qf-mode-spot .qf-spot-btn {
+  background: #c9930f;
+  border-color: #a97600;
+  color: #fff;
+}
 
 /* 仮REF# 自動採番ボタン行 */
 #tab-quote-make .qf-ref-row {
@@ -5927,6 +5941,10 @@ body.qp-dash-active #quoteActionDock { display: none !important; }
 #tab-quote-make .cp-group-label { font-weight: 700; font-size: 12px; color: #4a3520; }
 #tab-quote-make .cp-group-cnt { font-weight: 400; color: #9a8070; font-size: 11px; margin-left: 6px; }
 #tab-quote-make .cp-row-in-group td:first-child { padding-left: 20px; }
+#tab-quote-make .cp-pattern-head { background: #faf5ec; }
+#tab-quote-make .cp-pattern-head td { padding: 4px 8px; }
+#tab-quote-make .cp-pattern-label { font-weight: 600; font-size: 11px; color: #7a5c32; padding-left: 12px !important; }
+#tab-quote-make .cp-row-in-pattern td:first-child { padding-left: 34px; }
 #tab-quote-make .cloud-preview-foot {
   display: flex; align-items: center; gap: 8px; padding: 10px 16px;
   border-top: 1px solid #d5c8b0; background: #fdfaf4; flex-shrink: 0;
@@ -5937,6 +5955,11 @@ body.qp-dash-active #quoteActionDock { display: none !important; }
   border-radius: 6px; font-size: 13px; font-weight: 700; cursor: pointer;
 }
 #tab-quote-make .cp-btn-import:hover { background: #1b4332; }
+#tab-quote-make .cp-btn-quote {
+  padding: 7px 14px; background: #5a3d8a; color: #fff; border: none;
+  border-radius: 6px; font-size: 13px; font-weight: 600; cursor: pointer;
+}
+#tab-quote-make .cp-btn-quote:hover { background: #452c6e; }
 #tab-quote-make .cp-btn-load {
   padding: 7px 14px; background: #1a3a6b; color: #fff; border: none;
   border-radius: 6px; font-size: 13px; font-weight: 600; cursor: pointer;

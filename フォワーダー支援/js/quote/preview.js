@@ -58,12 +58,21 @@
     var id = which === 'valid' ? 'qf-valid-until' : 'qf-date';
     var el = document.getElementById(id);
     if (!el) return;
+    if (id === 'qf-valid-until') {
+      // プレビュー側の日付ピッカーで実際の日付が選ばれたら SPOT 表記を解除して通常の日付欄に戻す
+      var isIsoDate = !val || /^\d{4}-\d{2}-\d{2}$/.test(val);
+      el.type = isIsoDate ? 'date' : 'text';
+      el.closest('.qf-valid-until-row')?.classList.toggle('qf-mode-spot', !isIsoDate);
+    }
     el.value = val;
     el.dispatchEvent(new Event('change', { bubbles: true }));   // 自動保存・有効期限警告などを発火
     // 表計算・御見積書の両入力欄を同期（どちらから編集しても揃える）
     var docId = which === 'valid' ? 'pvDocValid' : 'pvDocDate';
     var docEl = document.getElementById(docId);
-    if (docEl && docEl.value !== val) docEl.value = val;
+    if (docEl) {
+      if (which === 'valid') docEl.type = el.type;
+      if (docEl.value !== val) docEl.value = val;
+    }
     // 御見積書レイアウト表示中なら、発行日／有効期限の変更を即反映するため再描画
     var box = document.getElementById('previewBox');
     if (box && box.classList.contains('layout-doc') && typeof renderDocPreview === 'function') {
@@ -455,12 +464,16 @@
     let totCostJpy = 0;
 
     const metaEl = document.getElementById('pvMeta');
+    // SPOT等の自由記述（ISO日付以外）は type=date の欄に入れると空欄に見えてしまうため、
+    // その場合だけ type=text で表示・編集できるようにする
+    const validIsIsoDate = !hdr.validUntil || /^\d{4}-\d{2}-\d{2}$/.test(hdr.validUntil);
+    const validInputType = validIsIsoDate ? 'date' : 'text';
     const metaHTML = [
       hdr.ref      ? `<div class="pv-meta-item"><span class="lbl">見積もり番号</span><span class="val">${escHtml(hdr.ref)}</span></div>` : '',
       hdr.customer ? `<div class="pv-meta-item"><span class="lbl">お客様</span><span class="val">${escHtml(hdr.customer)}</span></div>` : '',
       hdr.person   ? `<div class="pv-meta-item"><span class="lbl">担当</span><span class="val">${escHtml(formatPersonWithHonorific(hdr.person))}</span></div>` : '',
       `<div class="pv-meta-item pv-meta-edit"><span class="lbl">発行日</span><input type="date" class="pv-meta-date" value="${escHtml(hdr.date)}" onchange="pvSyncDate('date', this.value)" title="フォームの発行日と同期します" /></div>`,
-      `<div class="pv-meta-item pv-meta-edit"><span class="lbl">有効期限</span><input type="date" class="pv-meta-date" value="${escHtml(hdr.validUntil)}" onchange="pvSyncDate('valid', this.value)" title="フォームの有効期限と同期します" /></div>`,
+      `<div class="pv-meta-item pv-meta-edit"><span class="lbl">有効期限</span><input type="${validInputType}" class="pv-meta-date" value="${escHtml(hdr.validUntil)}" onchange="pvSyncDate('valid', this.value)" title="フォームの有効期限と同期します" /></div>`,
     ].join('');
     metaEl.innerHTML = metaHTML;
     metaEl.style.display = metaHTML ? 'flex' : 'none';
@@ -1279,7 +1292,10 @@
       const dEl = document.getElementById('pvDocDate');
       const vEl = document.getElementById('pvDocValid');
       if (dEl) dEl.value = hdr.date || '';
-      if (vEl) vEl.value = hdr.validUntil || '';
+      if (vEl) {
+        vEl.type = (!hdr.validUntil || /^\d{4}-\d{2}-\d{2}$/.test(hdr.validUntil)) ? 'date' : 'text';
+        vEl.value = hdr.validUntil || '';
+      }
       renderDocPreview();
     }
   }

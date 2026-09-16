@@ -343,14 +343,15 @@
    */
   function _checkValidUntil() {
     const el = document.getElementById('qf-valid-until');
-    if (!el || !el.value) { el?.classList.remove('qf-expired'); return; }
+    // SPOT表記（type=text）は日付比較の対象外
+    if (!el || el.type !== 'date' || !el.value) { el?.classList.remove('qf-expired'); return; }
     const expired = new Date(el.value) < new Date(new Date().toDateString());
     el.classList.toggle('qf-expired', expired);
   }
 
   function _addDaysToValidUntil(n) {
     const el = document.getElementById('qf-valid-until');
-    if (!el) return;
+    if (!el || el.type !== 'date') return;
     const base = el.value ? new Date(el.value + 'T00:00:00') : new Date();
     base.setDate(base.getDate() + n);
     el.value = base.toLocaleDateString('sv', { timeZone: 'Asia/Tokyo' }); // "YYYY-MM-DD" JST
@@ -358,8 +359,31 @@
     if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
   }
 
+  // 有効期限を日付入力 ⇔ 自由記述（SPOT 等）で切り替える。
+  // フォワーディング実務では「有効期限＝提示した本船のみ」というSPOT運賃が多く、
+  // 特定の日付を書けないケースがあるため、日付入力の代わりに任意テキストを入れられるようにする。
+  function _toggleValidUntilSpot() {
+    const el = document.getElementById('qf-valid-until');
+    const row = el?.closest('.qf-valid-until-row');
+    if (!el || !row) return;
+    if (el.type === 'text') {
+      el.type = 'date';
+      el.value = '';
+      row.classList.remove('qf-mode-spot');
+    } else {
+      el.type = 'text';
+      el.value = 'SPOT（提示した本船のみ）';
+      row.classList.add('qf-mode-spot');
+      el.focus();
+      el.select();
+    }
+    _checkValidUntil();
+    if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
+  }
+
   window.checkValidUntilWarning = _checkValidUntil;
   window.addDaysToValidUntil    = _addDaysToValidUntil;
+  window.toggleValidUntilSpot   = _toggleValidUntilSpot;
 
   function _restoreUiState(fields) {
     if (!fields) return;
@@ -615,6 +639,15 @@
       if (keepHeaderIfEmpty && _HEADER_FIELD_IDS.includes(id) && !val) return;
       const el = document.getElementById(id);
       if (!el) return;
+      if (id === 'qf-valid-until') {
+        // SPOT表記（ISO日付以外の文字列）は type=text でないと value が入らないため、
+        // 復元前に日付形式かどうかで input type を合わせてから値をセットする
+        const isIsoDate = !val || /^\d{4}-\d{2}-\d{2}$/.test(val);
+        el.type = isIsoDate ? 'date' : 'text';
+        el.closest('.qf-valid-until-row')?.classList.toggle('qf-mode-spot', !isIsoDate);
+        el.value = val || '';
+        return;
+      }
       if (el.type === 'checkbox') el.checked = val;
       else el.value = val;
     });
