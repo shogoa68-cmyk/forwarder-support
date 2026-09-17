@@ -4377,7 +4377,7 @@ body.qp-dash-active #quoteActionDock { display: none !important; }
 
 /* 狭い画面では右カラムを本体の下へ縦積み */
 @media (max-width: 900px) {
-  #qpDashboard .qpd-body { flex-direction: column; }
+  #qpDashboard .qpd-body { flex-direction: column; align-items: stretch; }
   #qpDashboard .qpd-side {
     width: 100%; flex: 1 1 auto; position: static; max-height: none; overflow: visible;
   }
@@ -4405,7 +4405,7 @@ body.qp-dash-active #quoteActionDock { display: none !important; }
 #qpDashboard .qpd-adv-sel, #qpDashboard .qpd-adv-input { font-size: 12px; padding: 6px 8px; border: 1px solid #d9cfc2; border-radius: 6px; background: #fff; flex: 1 1 160px; min-width: 130px; }
 #qpDashboard .qpd-adv-clear { background: #f0ece4; border: 1px solid #d8ccb6; color: #6b5a42; border-radius: 6px; padding: 6px 12px; font-size: 12px; cursor: pointer; }
 /* 一覧（カード） */
-#qpDashboard .qpd-list { display: grid; grid-template-columns: 1fr; gap: 10px; }
+#qpDashboard .qpd-list { display: grid; grid-template-columns: 1fr; gap: 10px; container-type: inline-size; container-name: qpddash; }
 /* さらに読み込む（段階表示）ボタン。カード列・行列どちらでも全幅で最下部に置く */
 #qpDashboard .qpd-load-more {
   grid-column: 1 / -1; width: 100%; margin-top: 4px; padding: 10px 12px;
@@ -6420,12 +6420,15 @@ body.qp-dash-active #quoteActionDock { display: none !important; }
 #tab-quote-make #qpdListWrap .ccc-send:hover { background: #685a42; }
 #tab-quote-make #qpdListWrap .ccc-send:disabled { opacity: .5; cursor: default; }
 
-/* 1列化で空いたカード右側を申し送りスペースに（広い画面のみ2カラム／狭い画面は下積み） */
-@media (min-width: 720px) {
+/* 1列化で空いたカード右側を申し送りスペースに。
+   ビューポート幅ではなくカード列（.qpd-body-main）の実幅で判定するコンテナクエリにし、
+   右のランキングサイドバーが横に居て列が狭いときは自動で1カラム（申し送りは下）に戻す。 */
+#tab-quote-make #qpdListWrap .cloud-card { min-width: 0; }   /* グリッド項目の min-content はみ出しを防ぐ */
+@container qpddash (min-width: 620px) {
   #tab-quote-make #qpdListWrap .cloud-card { display: flex; align-items: stretch; gap: 14px; }
   #tab-quote-make #qpdListWrap .cloud-card-main { flex: 1 1 auto; min-width: 0; }
   #tab-quote-make #qpdListWrap .cloud-card > .cloud-card-chat {
-    flex: 0 0 clamp(260px, 34%, 420px); align-self: stretch;
+    flex: 0 0 clamp(240px, 32%, 400px); align-self: stretch;
     margin-top: 0; padding: 2px 0 2px 14px;
     border-top: none; border-left: 1px dashed #e8e0d4;
   }
