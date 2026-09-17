@@ -316,6 +316,106 @@
            `onclick="statsJumpToMaster('${_ea(field)}','${_ea(value)}')">🗂↗</button>`;
   }
 
+  // 表記名をクリックすると、その表記が使われている案件一覧をポップオーバー表示する。
+  function _usageSpan(field, value) {
+    if (!value) return '';
+    return `<span class="stats-usage-link" onclick="statsShowUsage('${_ea(field)}','${_ea(value)}', event)" ` +
+           `title="この表記が使われている案件を確認">${_esc(value)}</span>`;
+  }
+
+  // 明細行の該当フィールド値を取り出す（nm は課税マーク * を除去して比較）
+  function _rowFieldValue(field, cells) {
+    if (!Array.isArray(cells)) return null;
+    if (field === 'sv') return (cells[CI.sv] || '').trim();
+    if (field === 'nm') return (cells[CI.nm] || '').replace(/^\*+/, '').trim();
+    if (field === 'un') return (cells[CI.un] || '').trim();
+    return null;
+  }
+
+  // 表記（field/value）が使われている案件（ローカル＋クラウド）を検索。新しい順。
+  function _casesUsing(field, value) {
+    const source = document.getElementById('statsSource')?.value || 'both';
+    const out = [];
+    const check = (p, isCloud) => {
+      const f = (p.data || {}).fields || {};
+      let match;
+      if (field === 'customer') {
+        match = (isCloud ? (p.customer || '') : (f['qf-customer'] || '')).trim() === value;
+      } else if (field === 'carrier') {
+        match = _carrierValsFromFields(f).includes(value);
+      } else if (field === 'port') {
+        match = _portValsFromFields(f).includes(value);
+      } else {
+        const rows = (p.data || {}).rows;
+        match = Array.isArray(rows) && rows.some(r => r && r._type === 'data' && _rowFieldValue(field, r.cells) === value);
+      }
+      if (!match) return;
+      out.push({
+        src: isCloud ? 'cloud' : 'local',
+        id:  isCloud ? p.id : null,
+        name:     p.name || '（名称なし）',
+        customer: (isCloud ? (p.customer || '') : (f['qf-customer'] || '')).trim(),
+        person:   (isCloud ? (p.person   || '') : (f['qf-person']   || '')).trim(),
+        status:   (isCloud ? (p.status   || '') : (f['qf-status']   || '')).trim(),
+        ts: isCloud ? (p.updated_at ? new Date(p.updated_at).getTime() : 0) : (p.ts ? new Date(p.ts).getTime() : 0),
+      });
+    };
+    if (source !== 'cloud') _getLocalPresets().forEach(p => check(p, false));
+    if (source !== 'local') (typeof window.cloudGetAllRows === 'function' ? window.cloudGetAllRows() : []).forEach(p => check(p, true));
+    out.sort((a, b) => b.ts - a.ts);
+    return out;
+  }
+
+  // 「使用案件」ポップオーバー（body 直下に fixed 配置、既存 syn-suggest と同じ流儀）
+  let _usagePop = null;
+  function _usagePopOutsideClick(e) {
+    if (_usagePop && !_usagePop.contains(e.target)) _dismissUsagePop();
+  }
+  function _dismissUsagePop() {
+    if (_usagePop) { _usagePop.remove(); _usagePop = null; }
+    document.removeEventListener('mousedown', _usagePopOutsideClick, true);
+  }
+  window.statsHideUsage = _dismissUsagePop;
+  window.statsShowUsage = function (field, value, ev) {
+    if (ev && typeof ev.stopPropagation === 'function') ev.stopPropagation();
+    _dismissUsagePop();
+    const cases = _casesUsing(field, value);
+    const pop = document.createElement('div');
+    pop.className = 'stats-usage-pop';
+    let body;
+    if (!cases.length) {
+      body = '<p class="stats-usage-pop-empty">この表記を使用している案件が見つかりませんでした。</p>';
+    } else {
+      body = '<div class="stats-usage-pop-list">' + cases.map(c => {
+        const meta = [
+          c.status || '',
+          c.customer ? '👤 ' + _esc(c.customer) : '',
+          c.person   ? '🧑‍💼 ' + _esc(c.person) : '',
+          c.ts ? '🕒 ' + new Date(c.ts).toLocaleDateString('ja-JP', { year: '2-digit', month: '2-digit', day: '2-digit' }) : '',
+        ].filter(Boolean).join('・');
+        const clickable = c.src === 'cloud';
+        return `<div class="stats-usage-pop-item${clickable ? ' is-clickable' : ''}"` +
+               (clickable ? ` onclick="cloudPreviewPreset('${_ea(String(c.id))}')"` : '') +
+               ` title="${clickable ? 'クリックでプレビュー' : 'このブラウザのローカル保存案件（プレビュー非対応）'}">` +
+               `<span class="stats-usage-pop-src">${c.src === 'cloud' ? '☁️' : '💾'}</span>` +
+               `<span class="stats-usage-pop-name">${_esc(c.name)}</span>` +
+               (meta ? `<span class="stats-usage-pop-meta">${meta}</span>` : '') +
+               `</div>`;
+      }).join('') + '</div>';
+    }
+    pop.innerHTML =
+      `<div class="stats-usage-pop-head"><span>📂 「${_esc(value)}」を使用している案件（${cases.length}件）</span>` +
+      `<button class="stats-usage-pop-close" onclick="statsHideUsage()">✕</button></div>` + body;
+    pop.style.position = 'fixed';
+    document.body.appendChild(pop);
+    const target = (ev && (ev.currentTarget || ev.target));
+    const r = target ? target.getBoundingClientRect() : { bottom: 60, left: 20 };
+    pop.style.top  = Math.max(8, Math.min(r.bottom + 6, window.innerHeight - pop.offsetHeight - 8)) + 'px';
+    pop.style.left = Math.max(8, Math.min(r.left, window.innerWidth - pop.offsetWidth - 8)) + 'px';
+    _usagePop = pop;
+    setTimeout(() => document.addEventListener('mousedown', _usagePopOutsideClick, true), 0);
+  };
+
   function _voteBtn(field, value) {
     const v  = _voteInfo(field, value);
     const on = v.isMine;
@@ -416,19 +516,19 @@
       const g = sr.g;
       const members = (g.aliases || []).length + 1;
       let chips = `<span class="stats-chip stats-chip--canon">` +
-                  `<span class="stats-chip-text">⭐ ${_esc(g.canonical)}</span>` +
+                  `<span class="stats-chip-text">⭐ ${_usageSpan(field, g.canonical)}</span>` +
                   `<span class="stats-chip-cnt">×${sr.own}</span>` +
                   _voteBtn(field, g.canonical) +
                   `</span>`;
       (g.aliases || []).forEach(a => {
         chips += `<span class="stats-chip">` +
-                 `<span class="stats-chip-text">${_esc(a)}</span>` +
+                 `<span class="stats-chip-text">${_usageSpan(field, a)}</span>` +
                  `<span class="stats-chip-cnt">×${cntMap[a] || 0}</span>` +
                  `<button class="stats-syn-unmerge" onclick="statsSynUnmerge('${_ea(aliasField)}','${_ea(a)}')" title="統合を解除">✕</button>` +
                  `</span>`;
       });
       h += `<tr class="stats-syn-row">` +
-           `<td class="stats-val"><span class="ua-star">⭐</span>${_esc(g.canonical)} <span class="stats-syn-grp-badge" title="同義グループ（${members}種を集約）">同義 ${members}種</span></td>` +
+           `<td class="stats-val"><span class="ua-star">⭐</span>${_usageSpan(field, g.canonical)} <span class="stats-syn-grp-badge" title="同義グループ（${members}種を集約）">同義 ${members}種</span></td>` +
            `<td class="stats-num-col"><div class="stats-bar-wrap"><div class="stats-bar" style="width:${Math.round(sr.total / maxTotal * 100)}%"></div><span class="stats-bar-label">${sr.total}</span></div>${sr.aliasCnt ? `<span class="ua-cnt-detail"> (${sr.own}+${sr.aliasCnt})</span>` : ''}</td>` +
            `<td class="stats-chips-cell">${chips}` +
              `<button class="stats-syn-merge-canon" onclick="statsSynMergePicker('${_ea(aliasField)}','${_ea(g.canonical)}',this)" title="この代表を別の代表に統合">⤵ 統合</button>` +
@@ -442,7 +542,7 @@
       const gId  = paneId + '-' + g.origIdx;
       _renderedGroups[gId] = { aliasField, variants: g.variants };
       h += `<tr${hasV ? ' class="stats-has-variant"' : ''}>`;
-      h += `<td class="stats-val">${_esc(g.variants[0].value)}`;
+      h += `<td class="stats-val">${_usageSpan(field, g.variants[0].value)}`;
       if (hasV) {
         if (g.isAbbrevGroup) {
           h += ` <span class="stats-variant-badge stats-variant-badge--abbrev" title="略称辞書で関連付けられた表記">略称 ${g.variants.length}種</span>`;
@@ -458,7 +558,7 @@
       h += `<td class="stats-chips-cell">`;
       g.variants.forEach(v => {
         h += `<span class="stats-chip">` +
-             `<span class="stats-chip-text">${_esc(v.value)}</span>` +
+             `<span class="stats-chip-text">${_usageSpan(field, v.value)}</span>` +
              `<span class="stats-chip-cnt">×${v.count}</span>` +
              _voteBtn(field, v.value) +
              (hasV ? `<button class="stats-excl-chip-btn" onclick="statsExcludeVariant('${_ea(aliasField)}','${_ea(v.value)}')" title="ゆらぎ判定から除外（別物として扱う）">≠</button>` : '') +
@@ -720,11 +820,11 @@
     visList.forEach(item => {
       if (item.type === 'canonical') {
         const chips = item.aliases.map(a =>
-          `<span class="ua-alias-chip">${_esc(a)}<span class="ua-chip-cnt"> ×${countMap[a] || 0}</span>` +
+          `<span class="ua-alias-chip">${_usageSpan('un', a)}<span class="ua-chip-cnt"> ×${countMap[a] || 0}</span>` +
           `<button class="ua-chip-del" onclick="uaRemoveAlias('${_ea(a)}','${_ea(item.canonical)}')" title="統合解除">✕</button></span>`
         ).join('');
         h += `<tr class="ua-canonical-row">` +
-             `<td class="stats-val"><span class="ua-star">⭐</span>${_esc(item.canonical)} ${_masterJumpBtn('un', item.canonical)}</td>` +
+             `<td class="stats-val"><span class="ua-star">⭐</span>${_usageSpan('un', item.canonical)} ${_masterJumpBtn('un', item.canonical)}</td>` +
              `<td class="stats-num-col">${item.total}` +
              (item.aliasCount ? `<span class="ua-cnt-detail"> (${item.ownCount}+${item.aliasCount})</span>` : '') +
              `</td><td>${chips || '<span class="ua-no-alias">—</span>'}</td>` +
@@ -733,7 +833,7 @@
              `</tr>`;
       } else {
         h += `<tr class="ua-ungrouped-row">` +
-             `<td class="stats-val">${_esc(item.value)}</td>` +
+             `<td class="stats-val">${_usageSpan('un', item.value)}</td>` +
              `<td class="stats-num-col">${item.total}</td>` +
              `<td></td>` +
              `<td class="ua-ops">` +
@@ -1173,14 +1273,14 @@
       shownRows++;
       const memberChips = sr.members.map((m, i) =>
         `<span class="stats-chip${i === 0 ? ' stats-chip--canon' : ''}">` +
-        `<span class="stats-chip-text">${i === 0 ? '⭐ ' : ''}${_esc(m)}</span>` +
+        `<span class="stats-chip-text">${i === 0 ? '⭐ ' : ''}${_usageSpan('customer', m)}</span>` +
         `<span class="stats-chip-cnt">×${sr.memberCounts[m] || 0}</span>` +
         (i === 0 ? _voteBtn('customer', m)
                  : `<button class="stats-syn-unmerge" onclick="statsSynUnmerge('customer','${_ea(m)}')" title="統合を解除">✕</button>`) +
         `</span>`
       ).join('');
       h += `<tr class="stats-syn-row">` +
-           `<td class="stats-val"><span class="ua-star">⭐</span>${_esc(sr.g.canonical)} <span class="stats-syn-grp-badge" title="同義グループ（${sr.members.length}種を集約）">同義 ${sr.members.length}種</span></td>` +
+           `<td class="stats-val"><span class="ua-star">⭐</span>${_usageSpan('customer', sr.g.canonical)} <span class="stats-syn-grp-badge" title="同義グループ（${sr.members.length}種を集約）">同義 ${sr.members.length}種</span></td>` +
            `<td class="stats-num-col">${sr.count}</td>` +
            `<td>${[...sr.persons].join('、') || '—'}</td>` +
            `<td>${_stHtml(sr.statuses)}</td>` +
@@ -1217,7 +1317,7 @@
       }
 
       const nameCell = g.customer
-        ? `${_esc(g.customer)}${variantBadge}`
+        ? `${_usageSpan('customer', g.customer)}${variantBadge}`
         : '<span class="stats-empty-cell">（未入力）</span>';
       const opCell = g.customer
         ? _voteBtn('customer', g.customer) + _synBtns('customer', g.customer, synCanons, synAliasOf, synCntMap)
