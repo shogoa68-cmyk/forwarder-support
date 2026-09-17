@@ -2864,10 +2864,12 @@
 #tab-quote-make .zone-addr-row {
   padding: 6px 10px 4px;
   display: flex;
+  flex-wrap: wrap;
   gap: 6px;
 }
 #tab-quote-make .zone-addr-input {
   flex: 1;
+  min-width: 0;
   padding: 5px 8px;
   border: 1px solid #d5dce8;
   border-radius: 4px;
@@ -2883,6 +2885,20 @@
 #tab-quote-make .zone-addr-input::placeholder { color: #7d6b56; font-size: 10px; }
 #tab-quote-make .zone-addr-input:disabled { opacity: .4; cursor: not-allowed; }
 #tab-quote-make .zone-addr-country { max-width: 88px; }
+#tab-quote-make .zone-maps-btn {
+  flex: 0 0 auto;
+  padding: 5px 8px;
+  border: 1px solid #d9cfc2;
+  border-radius: 4px;
+  background: #fff;
+  color: #3d5a80;
+  font-size: 12px;
+  line-height: 1;
+  cursor: pointer;
+  transition: background .15s, border-color .15s;
+}
+#tab-quote-make .zone-maps-btn:hover:not(:disabled) { background: #eaf1fb; border-color: #a9c0dd; }
+#tab-quote-make .zone-maps-btn:disabled { opacity: .4; cursor: not-allowed; }
 #tab-quote-make .w-subcon { width: 90px; font-size: 11px; }
 #tab-quote-make .zone-preset-bar { padding: 10px 0 2px; text-align: center; }
 /* 独立セクション化したゾーンプリセット適用 */
