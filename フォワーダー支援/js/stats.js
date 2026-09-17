@@ -1421,9 +1421,17 @@
         const chips = aliases.length
           ? aliases.map(a => `<span class="stats-syn-member">${_esc(a)}<button class="ua-chip-del" title="統合解除" onclick="${delAlias(a)}">✕</button></span>`).join('')
           : '<span class="stats-empty-cell">—</span>';
+        const addAliasHtml =
+          `<span class="stats-syn-add-alias">` +
+            `<input type="text" class="stats-syn-add-input" placeholder="別名を追加（例: OCEAN FREIGHT）" ` +
+              `title="日本語・英語などどんな表記でも別名として追加できます。入力後 Enter か ＋ で確定。" ` +
+              `onkeydown="if(event.key==='Enter'){event.preventDefault();statsSynAddAliasInline('${_ea(g.field)}','${_ea(g.canonical)}',this);}">` +
+            `<button type="button" class="stats-syn-add-btn" title="別名として追加" ` +
+              `onclick="statsSynAddAliasInline('${_ea(g.field)}','${_ea(g.canonical)}',this.previousElementSibling)">＋</button>` +
+          `</span>`;
         synH += `<tr data-mfield="${_eav(g.field)}" data-mvalue="${_eav(g.canonical)}"><td>${labels[g.field] || g.field}</td>` +
                 `<td class="stats-val"><span class="ua-star">⭐</span>${_esc(g.canonical)}${_mdBadge(g.field, g.canonical)}</td>` +
-                `<td>${chips}</td>` +
+                `<td>${chips}${addAliasHtml}</td>` +
                 `<td><button class="stats-master-merge" title="この代表を別の代表に統合（配下の別名ごと移動）" onclick="statsSynMergePicker('${_ea(g.field)}','${_ea(g.canonical)}',this)">⤵ 統合</button>` +
                 `<button class="stats-master-rename" title="代表名を変更（旧名称は別名として残ります）" onclick="statsMasterRename('${_ea(g.field)}','${_ea(g.canonical)}')">✏️ 名称変更</button>` +
                 `<button class="ua-remove-canon" title="グループを解除" onclick="${delGroup}">解除</button>` +
@@ -1512,6 +1520,24 @@
       if (typeof window.statsRerenderActive === 'function') window.statsRerenderActive();
     } else if (typeof window.synRemoveGroup === 'function') {
       await window.synRemoveGroup(field, canonical);
+    }
+  };
+
+  // 同義グループへ任意の表記（日本語・英語など言語不問）を別名として直接追加。
+  // 実データに存在しない値でも登録可（既存の ⤵統合 は実データ由来の値しか選べないため、その簡易版）。
+  window.statsSynAddAliasInline = async function (field, canonical, inputEl) {
+    if (!inputEl) return;
+    const alias = (inputEl.value || '').trim();
+    if (!alias) return;
+    if (alias === canonical) {
+      if (typeof window.quoteShowToast === 'function') window.quoteShowToast('代表名と同じ表記です', 'warn');
+      return;
+    }
+    if (field === 'un') {
+      if (typeof window.uaAddAlias === 'function') window.uaAddAlias(alias, canonical);
+      if (typeof window.statsRerenderActive === 'function') window.statsRerenderActive();
+    } else if (typeof window.synAddAlias === 'function') {
+      await window.synAddAlias(field, alias, canonical);
     }
   };
 

@@ -2990,6 +2990,22 @@ a.bm-contact-item:hover { background: #2e6b3e; color: #fff; border-color: #2e6b3
   font-size: 12px; background: #f0e8d8; border-radius: 4px;
   padding: 1px 4px 1px 7px; margin: 0 4px 3px 0;
 }
+/* 同義グループへ別名を直接タイプ入力して追加（言語不問：日本語⇄英語など） */
+.stats-syn-add-alias {
+  display: inline-flex; align-items: center; gap: 3px;
+  margin: 0 0 3px;
+}
+.stats-syn-add-input {
+  font-size: 12px; border: 1px dashed #cdbb97; background: #fffdf8;
+  border-radius: 4px; padding: 1px 6px; width: 140px;
+}
+.stats-syn-add-input:focus { border-style: solid; border-color: #8a7060; outline: none; }
+.stats-syn-add-btn {
+  font-size: 11px; font-weight: 700; border: 1px solid #9ec79e;
+  background: #eaf3ea; color: #2f6b3a; border-radius: 4px;
+  padding: 1px 7px; cursor: pointer; line-height: 1.4;
+}
+.stats-syn-add-btn:hover { background: #dcecdc; }
 /* 集計タブの同義グループ統合行 */
 .stats-syn-row { background: #fffdf5; }
 .stats-syn-row > .stats-val { font-weight: 700; }
