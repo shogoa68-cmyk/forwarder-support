@@ -3122,6 +3122,44 @@ a.bm-contact-item:hover { background: #2e6b3e; color: #fff; border-color: #2e6b3
 }
 .syn-suggest-dismiss:hover { background: #f3f3f3; }
 
+/* 表記クリック → 使用案件ポップオーバー */
+.stats-usage-link {
+  cursor: pointer;
+  border-bottom: 1px dashed #b8a888;
+}
+.stats-usage-link:hover { color: #1c4f9e; border-bottom-color: #1c4f9e; }
+.stats-usage-pop {
+  z-index: 500;
+  width: 320px; max-width: calc(100vw - 16px);
+  max-height: 60vh; overflow-y: auto;
+  background: #fffdf8; border: 1px solid #d8c8a8; border-radius: 8px;
+  box-shadow: 0 6px 20px rgba(0,0,0,.2);
+  font-size: 12px;
+}
+.stats-usage-pop-head {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  padding: 8px 10px; border-bottom: 1px solid #ece0c8;
+  font-weight: 700; color: #5a4a38;
+  position: sticky; top: 0; background: #fffdf8;
+}
+.stats-usage-pop-close {
+  border: none; background: none; cursor: pointer; color: #a89878; font-size: 13px;
+  padding: 0 2px; line-height: 1;
+}
+.stats-usage-pop-close:hover { color: #b0584a; }
+.stats-usage-pop-empty { padding: 12px 10px; color: #a89878; }
+.stats-usage-pop-list { display: flex; flex-direction: column; }
+.stats-usage-pop-item {
+  display: flex; flex-direction: column; gap: 2px;
+  padding: 7px 10px; border-bottom: 1px solid #f0e8d8;
+}
+.stats-usage-pop-item:last-child { border-bottom: none; }
+.stats-usage-pop-item.is-clickable { cursor: pointer; }
+.stats-usage-pop-item.is-clickable:hover { background: #f7f1e6; }
+.stats-usage-pop-src { margin-right: 4px; }
+.stats-usage-pop-name { font-weight: 600; color: #3a2c1e; }
+.stats-usage-pop-meta { font-size: 11px; color: #8a7a60; }
+
 /* ペイン */
 .stats-pane {
   display: none;
