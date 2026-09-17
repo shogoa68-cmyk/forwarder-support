@@ -507,13 +507,84 @@ function openAddBmModal(presetData) {
   const fileInput = document.getElementById('bmFormFileInput');
   if (fileInput) fileInput.value = '';
   _bmResetFileState(p.filePath ? { path: p.filePath, name: p.fileName, size: p.fileSize, mime: p.mimeType } : null);
+  _bmDismissCarrierSuggest();
   modal.classList.add('open');
   labelEl?.focus();
 }
 
 function closeAddBmModal(e) {
   if (e && e.target.id !== 'bmAddModal') return;
+  _bmDismissCarrierSuggest();
   document.getElementById('bmAddModal')?.classList.remove('open');
+}
+
+// ---------- 会社名の入力支援（種別の自動補完・表記ゆれの提案） ----------
+// 完全一致する会社名は元々同じタイルに集約されるので実害はないが、全角/半角・
+// 大文字小文字・前後の空白だけが違う「表記ゆれ」は別会社として登録されてしまう
+// （＝タイルが分裂する）。入力時点で検知し、揃えるか選べるようにする。
+function _bmDominantType(carrier) {
+  const rows = _bmRows.filter(r => (r.carrier || '') === carrier);
+  if (!rows.length) return null;
+  const counts = {};
+  rows.forEach(r => { const t = r.carrier_type || 'FCL'; counts[t] = (counts[t] || 0) + 1; });
+  return Object.keys(counts).sort((a, b) => counts[b] - counts[a])[0];
+}
+function _bmNormCarrier(s) {
+  return String(s || '').trim().replace(/[　\s]+/g, ' ').toLowerCase();
+}
+function _bmFindSimilarCarrier(input) {
+  const norm = _bmNormCarrier(input);
+  if (!norm) return null;
+  const carriers = [...new Set(_bmRows.map(r => r.carrier).filter(Boolean))];
+  return carriers.find(c => c !== input && _bmNormCarrier(c) === norm) || null;
+}
+
+let _bmCarrierSuggestEl = null;
+function _bmDismissCarrierSuggest() {
+  if (_bmCarrierSuggestEl) { _bmCarrierSuggestEl.remove(); _bmCarrierSuggestEl = null; }
+}
+function _bmShowCarrierSuggest(inputEl, canonical) {
+  _bmDismissCarrierSuggest();
+  const r = inputEl.getBoundingClientRect();
+  const el = document.createElement('div');
+  el.className = 'bm-carrier-suggest';
+  el.innerHTML =
+    `<span class="bm-carrier-suggest-msg">💡 既存の「${escHtml(canonical)}」と同じ会社では？</span>` +
+    `<button type="button" class="bm-carrier-suggest-apply">揃える</button>` +
+    `<button type="button" class="bm-carrier-suggest-dismiss" title="このまま登録">✕</button>`;
+  el.style.position = 'fixed';
+  el.style.left = Math.round(r.left) + 'px';
+  el.style.top  = Math.round(r.bottom + 4) + 'px';
+  document.body.appendChild(el);
+  el.querySelector('.bm-carrier-suggest-apply').addEventListener('click', () => {
+    inputEl.value = canonical;
+    inputEl.dispatchEvent(new Event('input', { bubbles: true }));
+    _bmDismissCarrierSuggest();
+    inputEl.focus();
+  });
+  el.querySelector('.bm-carrier-suggest-dismiss').addEventListener('click', _bmDismissCarrierSuggest);
+  _bmCarrierSuggestEl = el;
+}
+
+if (!window._bmCarrierSuggestDelegated) {
+  window._bmCarrierSuggestDelegated = true;
+  document.addEventListener('input', (e) => {
+    if (e.target.id !== 'bmFormCarrier' || e.target.readOnly) return;
+    const val = e.target.value.trim();
+    if (!val) { _bmDismissCarrierSuggest(); return; }
+    // 完全一致する既存会社があれば、その会社の種別を自動補完（リンクごとに種別が
+    // バラつき、種別フィルタで一部だけ表示/非表示になる不具合を防ぐ）
+    const dom = _bmDominantType(val);
+    if (dom) {
+      const typeEl = document.getElementById('bmFormType');
+      if (typeEl) typeEl.value = dom;
+    }
+    // 表記ゆれ（全角/半角・大文字小文字・空白差）を検知して提案
+    const similar = _bmFindSimilarCarrier(val);
+    if (similar) _bmShowCarrierSuggest(e.target, similar);
+    else _bmDismissCarrierSuggest();
+  });
+  document.addEventListener('scroll', _bmDismissCarrierSuggest, true);
 }
 
 // ---------- ファイル添付（モーダル内の選択状態） ----------
@@ -572,12 +643,13 @@ function bmClearFilePick() {
   _bmRenderFileBox();
 }
 
-async function bmOpenFile(id) {
-  const r = _bmRows.find(row => row.id === id);
-  if (!r || !r.file_path) return;
+// 署名付きURLを取得して開く共通処理。BOOKMARK タブ（_bmRows 経由）と見積タブの
+// QSP チップ（file_path を直接渡す）の両方から呼べるよう分離してある。
+async function _bmOpenSignedFile(path) {
+  if (!path) return;
   const db = window.SupabaseClient;
   if (!db) return;
-  const { data, error } = await db.storage.from('bookmark-files').createSignedUrl(r.file_path, 120);
+  const { data, error } = await db.storage.from('bookmark-files').createSignedUrl(path, 120);
   if (error || !data) {
     const msg = /schema cache|does not exist|not find|bucket/i.test(error?.message || '')
       ? '⚠️ ファイルStorageが未作成です（docs/sql/bookmarks-files.sql を実行してください）'
@@ -586,6 +658,17 @@ async function bmOpenFile(id) {
     return;
   }
   window.open(data.signedUrl, '_blank', 'noopener');
+}
+
+async function bmOpenFile(id) {
+  const r = _bmRows.find(row => row.id === id);
+  if (!r || !r.file_path) return;
+  await _bmOpenSignedFile(r.file_path);
+}
+
+// 見積タブの QSP チップなど、_bmRows を経由せず file_path を直接持っている場所から使う。
+function bmOpenFilePath(encodedPath) {
+  _bmOpenSignedFile(decodeURIComponent(encodedPath));
 }
 
 async function saveBm() {
@@ -1324,9 +1407,9 @@ window.fetchCarrierBmsForQSP = async function (carrierNames) {
 
   const { data, error } = await db
     .from('bookmarks')
-    .select('id, label, url, carrier, carrier_type, function, note')
+    .select('id, label, url, carrier, carrier_type, function, note, file_path, file_name, file_size, mime_type')
     .in('carrier', expanded)
-    .not('url', 'is', null);
+    .or('url.not.is.null,file_path.not.is.null');
   if (error) return;
 
   const cache = {};
@@ -1351,6 +1434,7 @@ window.saveBm          = saveBm;
 window.bmOnFilePicked  = bmOnFilePicked;
 window.bmClearFilePick = bmClearFilePick;
 window.bmOpenFile      = bmOpenFile;
+window.bmOpenFilePath  = bmOpenFilePath;
 window.bmDelete        = bmDelete;
 window.bmEdit          = bmEdit;
 window.bmToggleVerify  = bmToggleVerify;

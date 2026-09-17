@@ -4377,7 +4377,7 @@ body.qp-dash-active #quoteActionDock { display: none !important; }
 
 /* 狭い画面では右カラムを本体の下へ縦積み */
 @media (max-width: 900px) {
-  #qpDashboard .qpd-body { flex-direction: column; }
+  #qpDashboard .qpd-body { flex-direction: column; align-items: stretch; }
   #qpDashboard .qpd-side {
     width: 100%; flex: 1 1 auto; position: static; max-height: none; overflow: visible;
   }
@@ -4405,7 +4405,15 @@ body.qp-dash-active #quoteActionDock { display: none !important; }
 #qpDashboard .qpd-adv-sel, #qpDashboard .qpd-adv-input { font-size: 12px; padding: 6px 8px; border: 1px solid #d9cfc2; border-radius: 6px; background: #fff; flex: 1 1 160px; min-width: 130px; }
 #qpDashboard .qpd-adv-clear { background: #f0ece4; border: 1px solid #d8ccb6; color: #6b5a42; border-radius: 6px; padding: 6px 12px; font-size: 12px; cursor: pointer; }
 /* 一覧（カード） */
-#qpDashboard .qpd-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 10px; }
+#qpDashboard .qpd-list { display: grid; grid-template-columns: 1fr; gap: 10px; container-type: inline-size; container-name: qpddash; }
+/* さらに読み込む（段階表示）ボタン。カード列・行列どちらでも全幅で最下部に置く */
+#qpDashboard .qpd-load-more {
+  grid-column: 1 / -1; width: 100%; margin-top: 4px; padding: 10px 12px;
+  background: #f6f1e7; border: 1px dashed #cdbf9f; border-radius: 10px;
+  color: #6b5a42; font-size: 12.5px; font-weight: 600; cursor: pointer;
+}
+#qpDashboard .qpd-load-more:hover { background: #efe7d6; border-color: #b9a97f; }
+#qpDashboard .qpd-list--rows .qpd-load-more { border-radius: 0; margin-top: 0; border-left: none; border-right: none; border-bottom: none; }
 /* 一覧（リスト＝行表示） */
 #qpDashboard .qpd-list.qpd-list--rows { display: block; border: 1px solid #e2d8c4; border-radius: 10px; overflow: hidden; background: #fff; }
 #qpDashboard .qpd-rows-head,
@@ -6386,6 +6394,8 @@ body.qp-dash-active #quoteActionDock { display: none !important; }
 }
 #tab-quote-make #qpdListWrap .ccc-caret { font-size: 10px; color: #b3a890; transition: transform .15s; }
 #tab-quote-make #qpdListWrap .cloud-card-chat.ccc-open .ccc-caret { transform: rotate(180deg); }
+/* 展開中はトグル行の最新プレビューを隠す（下のスレッドと重複するため） */
+#tab-quote-make #qpdListWrap .cloud-card-chat.ccc-open .ccc-toggle .ccc-preview { display: none; }
 #tab-quote-make #qpdListWrap .ccc-panel { margin-top: 6px; }
 #tab-quote-make #qpdListWrap .ccc-list {
   max-height: 160px; overflow-y: auto; display: flex; flex-direction: column; gap: 6px;
@@ -6411,6 +6421,26 @@ body.qp-dash-active #quoteActionDock { display: none !important; }
 }
 #tab-quote-make #qpdListWrap .ccc-send:hover { background: #685a42; }
 #tab-quote-make #qpdListWrap .ccc-send:disabled { opacity: .5; cursor: default; }
+
+/* 1列化で空いたカード右側を申し送りスペースに。
+   ビューポート幅ではなくカード列（.qpd-body-main）の実幅で判定するコンテナクエリにし、
+   右のランキングサイドバーが横に居て列が狭いときは自動で1カラム（申し送りは下）に戻す。 */
+#tab-quote-make #qpdListWrap .cloud-card { min-width: 0; }   /* グリッド項目の min-content はみ出しを防ぐ */
+@container qpddash (min-width: 620px) {
+  #tab-quote-make #qpdListWrap .cloud-card { display: flex; align-items: stretch; gap: 14px; }
+  #tab-quote-make #qpdListWrap .cloud-card-main { flex: 1 1 auto; min-width: 0; }
+  #tab-quote-make #qpdListWrap .cloud-card > .cloud-card-chat {
+    flex: 0 0 clamp(240px, 32%, 400px); align-self: stretch;
+    margin-top: 0; padding: 2px 0 2px 14px;
+    border-top: none; border-left: 1px dashed #e8e0d4;
+  }
+  /* 右カラムでは最新プレビューを折り返して見せる（1行省略をやめる） */
+  #tab-quote-make #qpdListWrap .cloud-card > .cloud-card-chat .ccc-toggle { align-items: flex-start; }
+  #tab-quote-make #qpdListWrap .cloud-card > .cloud-card-chat .ccc-preview {
+    white-space: normal; overflow: visible; display: -webkit-box;
+    -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+  }
+}
 
 /* === ブラウザ保存 リッチカード（茶系・チーム共有と同じ情報量／色で区別） === */
 #tab-quote-make .preset-item-rich { padding: 10px 12px; }
@@ -8366,6 +8396,7 @@ body.qp-dash-active #quoteActionDock { display: none !important; }
 #tab-quote-make .qsp-ms-cl-chip:hover { background: #1a4a8f; color: #fff; }
 #tab-quote-make .qsp-ms-cl-chip--user { border-color: #b0cfa0; background: #f0f8ea; color: #2a6030; }
 #tab-quote-make .qsp-ms-cl-chip--user:hover { background: #2a6030; color: #fff; }
+#tab-quote-make .qsp-ms-cl-chip--file { cursor: pointer; }
 #tab-quote-make .qsp-chip-edit-btn {
   font-size: 11px; padding: 0 2px; margin-left: 1px;
   background: none; color: #b0c4d8; border: none;

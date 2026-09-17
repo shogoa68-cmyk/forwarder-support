@@ -3020,15 +3020,21 @@
 
     // 1チップ（リンク＋✎編集）。✎ は既存ブックマークを編集モードで開く。
     // isRelated: carrier_relations（代理店関係など）経由で表示している他社のリンク。
+    // filePath があればファイル添付：署名付きURLを都度取得して開く（bmOpenFilePath）。
     const railChip = (o) => {
       const data = encodeURIComponent(JSON.stringify({
         id: o.id, label: o.label, url: o.url, type: o.type, carrier: o.carrier, fn: o.fn, note: o.note,
+        filePath: o.filePath, fileName: o.fileName, fileSize: o.fileSize, mimeType: o.mimeType,
       }));
       const relMark = o.isRelated
         ? `<span class="qsp-ms-cl-rel" title="${escapeHtml((o.relLabel || '代理店') + ': ' + (o.relCarrier || ''))}">🔗${escapeHtml(o.relLabel || '')}</span>`
         : '';
+      const cls = `qsp-ms-cl-chip qsp-ms-cl-chip--user${o.isRelated ? ' qsp-ms-cl-chip--rel' : ''}${o.filePath ? ' qsp-ms-cl-chip--file' : ''}`;
+      const mainEl = o.filePath
+        ? `<span class="${cls}" onclick="bmOpenFilePath('${encodeURIComponent(o.filePath)}')" title="${escapeHtml(o.title || o.label)}">${relMark}📎${escapeHtml(o.label)}</span>`
+        : `<a class="${cls}" href="${escapeHtml(o.url)}" target="_blank" rel="noopener" title="${escapeHtml(o.title || o.label)}">${relMark}${escapeHtml(o.label)}</a>`;
       return `<span class="qsp-ms-cl-chip-wrap">`
-        + `<a class="qsp-ms-cl-chip qsp-ms-cl-chip--user${o.isRelated ? ' qsp-ms-cl-chip--rel' : ''}" href="${escapeHtml(o.url)}" target="_blank" rel="noopener" title="${escapeHtml(o.title || o.label)}">${relMark}${escapeHtml(o.label)}</a>`
+        + mainEl
         + `<button class="qsp-chip-edit-btn" data-bm="${data}" onclick="openAddBmModal(JSON.parse(decodeURIComponent(this.dataset.bm)))" title="このブックマークを編集">✎</button>`
         + `</span>`;
     };
@@ -3040,9 +3046,10 @@
     // z1/z3 サブコン（クラウドBMのみ・編集可＋追加）
     const subconBlock = (subcon) => {
       if (!subcon) return '';
-      const chips = (bmCache[subcon] || []).filter(b => b.url).map(b => railChip({
+      const chips = (bmCache[subcon] || []).filter(b => b.url || b.file_path).map(b => railChip({
         id: b.id, label: b.label, url: b.url, title: b.note || b.label,
         type: b.carrier_type, carrier: subcon, fn: b.function, note: b.note,
+        filePath: b.file_path, fileName: b.file_name, fileSize: b.file_size, mimeType: b.mime_type,
       })).join('') + addChip(subcon);
       return carrierBlock('👷', subcon, chips);
     };
@@ -3059,6 +3066,7 @@
           id: l.bmId, label: l.label, url: l.url, title: l.title,
           type: l.type, carrier: l.carrier || cd.name, fn: l.fn, note: l.note,
           isRelated: l.isRelated, relLabel: l.relLabel, relCarrier: l.relCarrier,
+          filePath: l.filePath, fileName: l.fileName, fileSize: l.fileSize, mimeType: l.mimeType,
         })).join('') + addChip(cd.name);
         blocks.push(carrierBlock(cd.icon || '🚢', cd.name, chips));
       });

@@ -1892,6 +1892,25 @@ a.bm-contact-item:hover { background: #2e6b3e; color: #fff; border-color: #2e6b3
   margin-top: 4px;
   line-height: 1.5;
 }
+/* 会社名の表記ゆれ提案（syn-suggest と同系デザイン） */
+.bm-carrier-suggest {
+  position: fixed; z-index: 99999;
+  display: inline-flex; align-items: center; gap: 8px;
+  background: #fffbe9; border: 1px solid #e0b84a; border-radius: 8px;
+  padding: 5px 8px 5px 11px; font-size: 12px; color: #5a4a2a;
+  box-shadow: 0 4px 14px rgba(0,0,0,.18); max-width: 360px;
+}
+.bm-carrier-suggest-apply {
+  font-size: 12px; font-weight: 700; border: 1px solid #3a9268;
+  background: #4caf7d; color: #fff; border-radius: 5px; padding: 2px 10px; cursor: pointer;
+  white-space: nowrap;
+}
+.bm-carrier-suggest-apply:hover { background: #3d9d6c; }
+.bm-carrier-suggest-dismiss {
+  font-size: 12px; border: 1px solid #ddd; background: #fff; color: #888;
+  border-radius: 5px; padding: 2px 6px; cursor: pointer;
+}
+.bm-carrier-suggest-dismiss:hover { background: #f3f3f3; }
 /* モーダル内：ファイル添付欄 */
 .bm-file-attach-box {
   display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
@@ -2971,6 +2990,22 @@ a.bm-contact-item:hover { background: #2e6b3e; color: #fff; border-color: #2e6b3
   font-size: 12px; background: #f0e8d8; border-radius: 4px;
   padding: 1px 4px 1px 7px; margin: 0 4px 3px 0;
 }
+/* 同義グループへ別名を直接タイプ入力して追加（言語不問：日本語⇄英語など） */
+.stats-syn-add-alias {
+  display: inline-flex; align-items: center; gap: 3px;
+  margin: 0 0 3px;
+}
+.stats-syn-add-input {
+  font-size: 12px; border: 1px dashed #cdbb97; background: #fffdf8;
+  border-radius: 4px; padding: 1px 6px; width: 140px;
+}
+.stats-syn-add-input:focus { border-style: solid; border-color: #8a7060; outline: none; }
+.stats-syn-add-btn {
+  font-size: 11px; font-weight: 700; border: 1px solid #9ec79e;
+  background: #eaf3ea; color: #2f6b3a; border-radius: 4px;
+  padding: 1px 7px; cursor: pointer; line-height: 1.4;
+}
+.stats-syn-add-btn:hover { background: #dcecdc; }
 /* 集計タブの同義グループ統合行 */
 .stats-syn-row { background: #fffdf5; }
 .stats-syn-row > .stats-val { font-weight: 700; }
@@ -3075,6 +3110,13 @@ a.bm-contact-item:hover { background: #2e6b3e; color: #fff; border-color: #2e6b3
 .stats-sort-btn.is-active {
   background: #f7eccb; border-color: #e0b84a; color: #6b4f10; font-weight: 700;
 }
+.stats-unorg-toggle {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: 12px; color: #6b5840; cursor: pointer;
+  margin-left: 10px; padding-left: 10px;
+  border-left: 1px solid #e0d4bc;
+}
+.stats-unorg-toggle input { cursor: pointer; }
 
 /* 入力支援：代表表記への置換サジェスト（body 直下に fixed 配置） */
 .syn-suggest {
@@ -3095,6 +3137,44 @@ a.bm-contact-item:hover { background: #2e6b3e; color: #fff; border-color: #2e6b3
   border-radius: 5px; padding: 2px 6px; cursor: pointer;
 }
 .syn-suggest-dismiss:hover { background: #f3f3f3; }
+
+/* 表記クリック → 使用案件ポップオーバー */
+.stats-usage-link {
+  cursor: pointer;
+  border-bottom: 1px dashed #b8a888;
+}
+.stats-usage-link:hover { color: #1c4f9e; border-bottom-color: #1c4f9e; }
+.stats-usage-pop {
+  z-index: 500;
+  width: 320px; max-width: calc(100vw - 16px);
+  max-height: 60vh; overflow-y: auto;
+  background: #fffdf8; border: 1px solid #d8c8a8; border-radius: 8px;
+  box-shadow: 0 6px 20px rgba(0,0,0,.2);
+  font-size: 12px;
+}
+.stats-usage-pop-head {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  padding: 8px 10px; border-bottom: 1px solid #ece0c8;
+  font-weight: 700; color: #5a4a38;
+  position: sticky; top: 0; background: #fffdf8;
+}
+.stats-usage-pop-close {
+  border: none; background: none; cursor: pointer; color: #a89878; font-size: 13px;
+  padding: 0 2px; line-height: 1;
+}
+.stats-usage-pop-close:hover { color: #b0584a; }
+.stats-usage-pop-empty { padding: 12px 10px; color: #a89878; }
+.stats-usage-pop-list { display: flex; flex-direction: column; }
+.stats-usage-pop-item {
+  display: flex; flex-direction: column; gap: 2px;
+  padding: 7px 10px; border-bottom: 1px solid #f0e8d8;
+}
+.stats-usage-pop-item:last-child { border-bottom: none; }
+.stats-usage-pop-item.is-clickable { cursor: pointer; }
+.stats-usage-pop-item.is-clickable:hover { background: #f7f1e6; }
+.stats-usage-pop-src { margin-right: 4px; }
+.stats-usage-pop-name { font-weight: 600; color: #3a2c1e; }
+.stats-usage-pop-meta { font-size: 11px; color: #8a7a60; }
 
 /* ペイン */
 .stats-pane {
@@ -4518,6 +4598,7 @@ a.lc-source-icon:hover { opacity: 0.75; }
   background: #eceff1; color: #37474f;
   border: 1px solid #cfd8dc;
   transition: background .12s;
+  cursor: pointer;
 }
 .lc-bm-chip:hover { background: #cfd8dc; color: #1a237e; }
 .lc-bm-chip--export  { background: #e8f5e9; color: #2e7d32; border-color: #a5d6a7; }

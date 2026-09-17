@@ -3020,16 +3020,18 @@
     // 関連会社（代理店関係など・carrier_relations）のブックマークも合わせて表示する。
     return names.map(name => {
       const c = map[name];
-      const own = (bmCache[name] || []).filter(bm => bm.url).map(bm => ({
+      const own = (bmCache[name] || []).filter(bm => bm.url || bm.file_path).map(bm => ({
         label: bm.label, url: bm.url, title: bm.note || bm.label, isUserBm: true,
         bmId: bm.id, carrier: name, type: bm.carrier_type, fn: bm.function, note: bm.note,
+        filePath: bm.file_path, fileName: bm.file_name, fileSize: bm.file_size, mimeType: bm.mime_type,
       }));
       const related = getRelated(name).flatMap(rel =>
-        (bmCache[rel.counterpart] || []).filter(bm => bm.url).map(bm => ({
+        (bmCache[rel.counterpart] || []).filter(bm => bm.url || bm.file_path).map(bm => ({
           label: bm.label, url: bm.url,
           title: (bm.note ? bm.note + ' ／ ' : '') + `${rel.label}: ${rel.counterpart}`,
           isUserBm: true, isRelated: true, relLabel: rel.label, relCarrier: rel.counterpart,
           bmId: bm.id, carrier: rel.counterpart, type: bm.carrier_type, fn: bm.function, note: bm.note,
+          filePath: bm.file_path, fileName: bm.file_name, fileSize: bm.file_size, mimeType: bm.mime_type,
         }))
       );
       return { name, icon: c?.icon || '', links: [...own, ...related] };
