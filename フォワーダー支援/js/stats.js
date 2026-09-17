@@ -339,11 +339,21 @@
     _renderActivePane();
   };
   function _cmpName(a, b) { return String(a || '').localeCompare(String(b || ''), 'ja'); }
+
+  // 「未整理のみ」表示フィルタ：同義グループ化済み・マスター登録済みの項目を隠し、
+  // まだ手つかずの項目だけを表示する。件数が増えてきたリストから次にやるべきことを見つけやすくする。
+  let _statsUnorganizedOnly = false;
+  window.statsToggleUnorganized = function () {
+    _statsUnorganizedOnly = !_statsUnorganizedOnly;
+    _renderActivePane();
+  };
   function _sortToolbar() {
     const by = _statsSort;
     return '<div class="stats-sort-toolbar"><span class="stats-sort-label">並び替え</span>' +
            `<button class="stats-sort-btn${by === 'count' ? ' is-active' : ''}" onclick="statsSetSort('count')">件数順</button>` +
-           `<button class="stats-sort-btn${by === 'name' ? ' is-active' : ''}" onclick="statsSetSort('name')">名前順（あ→ん）</button></div>`;
+           `<button class="stats-sort-btn${by === 'name' ? ' is-active' : ''}" onclick="statsSetSort('name')">名前順（あ→ん）</button>` +
+           `<label class="stats-unorg-toggle" title="⭐同義グループ化済み・マスター登録済みの項目を隠し、未整理の項目だけ表示します">` +
+           `<input type="checkbox" onchange="statsToggleUnorganized()"${_statsUnorganizedOnly ? ' checked' : ''}> 未整理のみ表示</label></div>`;
   }
 
   function _renderGrouped(groups, field, colLabel, paneId) {
@@ -377,10 +387,23 @@
     });
     if (_statsSort === 'name') restGroups.sort((a, b) => _cmpName(a.variants[0].value, b.variants[0].value));
 
-    if (!synRows.length && !restGroups.length) { e.innerHTML = '<p class="stats-empty">データなし</p>'; return; }
+    // 「未整理のみ」フィルタ：同義グループ行（＝整理済み）を隠し、まだ手つかずの
+    // 単独項目（個別マスター登録もされていないもの）だけ残す。ゆらぎ複数種の行は
+    // まだ同義グループに統合されていない＝手つかずなので常に表示する。
+    const visSynRows  = _statsUnorganizedOnly ? [] : synRows;
+    const visRestGroups = _statsUnorganizedOnly
+      ? restGroups.filter(g => g.variants.length > 1 || !_masterRegistered(field, g.variants[0].value))
+      : restGroups;
+
+    if (!visSynRows.length && !visRestGroups.length) {
+      e.innerHTML = _sortToolbar() + (synRows.length || restGroups.length
+        ? '<p class="stats-empty">🎉 未整理の項目はありません。すべて同義グループ化・マスター登録済みです。</p>'
+        : '<p class="stats-empty">データなし</p>');
+      return;
+    }
 
     // 件数バーのスケール（表示行の最大 total）
-    const maxTotal = Math.max(1, ...synRows.map(r => r.total), ...restGroups.map(g => g.total));
+    const maxTotal = Math.max(1, ...visSynRows.map(r => r.total), ...visRestGroups.map(g => g.total));
 
     let h = _sortToolbar() +
             '<p class="stats-syn-hint">☆代表 で同義グループの基準を決め、他の表記を ⤵統合 でまとめると、⭐行に集約され件数が合算されます（非破壊）。表記ゆれの一括置換は「ゆらぎ N種」バッジから。</p>' +
@@ -389,7 +412,7 @@
             `</tr></thead><tbody>`;
 
     // --- 同義グループ（統合表示）---
-    synRows.forEach(sr => {
+    visSynRows.forEach(sr => {
       const g = sr.g;
       const members = (g.aliases || []).length + 1;
       let chips = `<span class="stats-chip stats-chip--canon">` +
@@ -414,7 +437,7 @@
     });
 
     // --- 残りの自動ゆらぎグループ ---
-    restGroups.forEach(g => {
+    visRestGroups.forEach(g => {
       const hasV = g.variants.length > 1;
       const gId  = paneId + '-' + g.origIdx;
       _renderedGroups[gId] = { aliasField, variants: g.variants };
@@ -678,13 +701,23 @@
       return b.total - a.total;
     });
 
+    // 「未整理のみ」フィルタ：代表（⭐）に統合済みの単位グループを隠し、
+    // まだ代表未設定の単位（ungrouped）だけ表示する。
+    const visList = _statsUnorganizedOnly ? displayList.filter(it => it.type !== 'canonical') : displayList;
+
+    if (!visList.length) {
+      e.innerHTML = _sortToolbar() +
+        '<p class="stats-empty">🎉 未整理の単位はありません。すべて代表に統合済みです。</p>';
+      return;
+    }
+
     let h = _sortToolbar() +
       '<div class="ua-pane-hint">⭐ 代表に設定 → グループの基準単位として登録　　→ 統合 → 代表に紐付け（件数が合算されます）</div>' +
       '<table class="stats-table stats-un-table"><thead><tr>' +
       '<th>単位</th><th class="stats-num-col">件数</th><th>同義グループ</th><th>操作</th>' +
       '</tr></thead><tbody>';
 
-    displayList.forEach(item => {
+    visList.forEach(item => {
       if (item.type === 'canonical') {
         const chips = item.aliases.map(a =>
           `<span class="ua-alias-chip">${_esc(a)}<span class="ua-chip-cnt"> ×${countMap[a] || 0}</span>` +
@@ -1134,7 +1167,10 @@
     });
     synRows.sort((a, b) => _statsSort === 'name' ? _cmpName(a.g.canonical, b.g.canonical) : b.count - a.count);
 
-    synRows.forEach(sr => {
+    let shownRows = 0;
+    const visSynRows = _statsUnorganizedOnly ? [] : synRows;
+    visSynRows.forEach(sr => {
+      shownRows++;
       const memberChips = sr.members.map((m, i) =>
         `<span class="stats-chip${i === 0 ? ' stats-chip--canon' : ''}">` +
         `<span class="stats-chip-text">${i === 0 ? '⭐ ' : ''}${_esc(m)}</span>` +
@@ -1160,11 +1196,15 @@
       : groups;
     restCust.forEach(g => {
       if (g.customer && consumed.has(g.customer)) return;   // 同義グループに集約済み
+      const cg0 = g.customer ? normToCanon.get(_normalize(g.customer)) : null;
+      const inFluctCluster = !!(cg0 && cg0.variants.length > 1);
+      if (_statsUnorganizedOnly && g.customer && !inFluctCluster && _masterRegistered('customer', g.customer)) return;
+      shownRows++;
       const persons = [...g.persons].join('、') || '—';
       const stHtml = _stHtml(g.statuses);
 
       // ゆらぎバッジ（同じ正規化キーに複数表記がある場合）
-      const cg = g.customer ? normToCanon.get(_normalize(g.customer)) : null;
+      const cg = cg0;
       let variantBadge = '';
       if (cg && cg.variants.length > 1 && cg.variants[0].value === g.customer) {
         const gId = 'statsPane-customer-' + gIdx;
@@ -1190,7 +1230,9 @@
            `<td class="stats-chips-cell">${opCell}</td>` +
            `</tr>`;
     });
-    e.innerHTML = h + '</tbody></table>';
+    e.innerHTML = shownRows
+      ? h + '</tbody></table>'
+      : _sortToolbar() + '<p class="stats-empty">🎉 未整理の項目はありません。すべて同義グループ化・マスター登録済みです。</p>';
   }
 
   // マスター一覧の種別絞り込み（'all' | sv/carrier/nm/customer/port/un）。再描画をまたいで保持。
