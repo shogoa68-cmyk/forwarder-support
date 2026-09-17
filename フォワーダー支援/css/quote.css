@@ -8366,6 +8366,7 @@ body.qp-dash-active #quoteActionDock { display: none !important; }
 #tab-quote-make .qsp-ms-cl-chip:hover { background: #1a4a8f; color: #fff; }
 #tab-quote-make .qsp-ms-cl-chip--user { border-color: #b0cfa0; background: #f0f8ea; color: #2a6030; }
 #tab-quote-make .qsp-ms-cl-chip--user:hover { background: #2a6030; color: #fff; }
+#tab-quote-make .qsp-ms-cl-chip--file { cursor: pointer; }
 #tab-quote-make .qsp-chip-edit-btn {
   font-size: 11px; padding: 0 2px; margin-left: 1px;
   background: none; color: #b0c4d8; border: none;

@@ -643,12 +643,13 @@ function bmClearFilePick() {
   _bmRenderFileBox();
 }
 
-async function bmOpenFile(id) {
-  const r = _bmRows.find(row => row.id === id);
-  if (!r || !r.file_path) return;
+// 署名付きURLを取得して開く共通処理。BOOKMARK タブ（_bmRows 経由）と見積タブの
+// QSP チップ（file_path を直接渡す）の両方から呼べるよう分離してある。
+async function _bmOpenSignedFile(path) {
+  if (!path) return;
   const db = window.SupabaseClient;
   if (!db) return;
-  const { data, error } = await db.storage.from('bookmark-files').createSignedUrl(r.file_path, 120);
+  const { data, error } = await db.storage.from('bookmark-files').createSignedUrl(path, 120);
   if (error || !data) {
     const msg = /schema cache|does not exist|not find|bucket/i.test(error?.message || '')
       ? '⚠️ ファイルStorageが未作成です（docs/sql/bookmarks-files.sql を実行してください）'
@@ -657,6 +658,17 @@ async function bmOpenFile(id) {
     return;
   }
   window.open(data.signedUrl, '_blank', 'noopener');
+}
+
+async function bmOpenFile(id) {
+  const r = _bmRows.find(row => row.id === id);
+  if (!r || !r.file_path) return;
+  await _bmOpenSignedFile(r.file_path);
+}
+
+// 見積タブの QSP チップなど、_bmRows を経由せず file_path を直接持っている場所から使う。
+function bmOpenFilePath(encodedPath) {
+  _bmOpenSignedFile(decodeURIComponent(encodedPath));
 }
 
 async function saveBm() {
@@ -1395,9 +1407,9 @@ window.fetchCarrierBmsForQSP = async function (carrierNames) {
 
   const { data, error } = await db
     .from('bookmarks')
-    .select('id, label, url, carrier, carrier_type, function, note')
+    .select('id, label, url, carrier, carrier_type, function, note, file_path, file_name, file_size, mime_type')
     .in('carrier', expanded)
-    .not('url', 'is', null);
+    .or('url.not.is.null,file_path.not.is.null');
   if (error) return;
 
   const cache = {};
@@ -1422,6 +1434,7 @@ window.saveBm          = saveBm;
 window.bmOnFilePicked  = bmOnFilePicked;
 window.bmClearFilePick = bmClearFilePick;
 window.bmOpenFile      = bmOpenFile;
+window.bmOpenFilePath  = bmOpenFilePath;
 window.bmDelete        = bmDelete;
 window.bmEdit          = bmEdit;
 window.bmToggleVerify  = bmToggleVerify;

@@ -1132,9 +1132,9 @@
       if (sd?.session) {
         const { data } = await db
           .from('bookmarks')
-          .select('id, label, url, carrier, function, note')
+          .select('id, label, url, carrier, function, note, file_path, file_name, file_size, mime_type')
           .in('carrier', carriers)
-          .not('url', 'is', null);
+          .or('url.not.is.null,file_path.not.is.null');
         const cache = {};
         carriers.forEach(c => { cache[c] = []; });
         (data || []).forEach(bm => { if (cache[bm.carrier]) cache[bm.carrier].push(bm); });
@@ -1177,7 +1177,11 @@
       bms.forEach(bm => {
         const cls   = _lcBmChipClass(bm.function);
         const title = _ea([bm.function, bm.note].filter(Boolean).join(' — '));
-        h += `<a class="lc-bm-chip${cls ? ' ' + cls : ''}" href="${_ea(bm.url)}" target="_blank" rel="noopener" title="${title}">${_esc(bm.label)}</a>`;
+        if (bm.file_path) {
+          h += `<span class="lc-bm-chip${cls ? ' ' + cls : ''}" onclick="bmOpenFilePath('${encodeURIComponent(bm.file_path)}')" title="${title}">📎${_esc(bm.label)}</span>`;
+        } else {
+          h += `<a class="lc-bm-chip${cls ? ' ' + cls : ''}" href="${_ea(bm.url)}" target="_blank" rel="noopener" title="${title}">${_esc(bm.label)}</a>`;
+        }
       });
       if (hasDb) {
         h += `<button class="lc-bm-add-chip" data-lc-carrier="${_ea(carrier)}"` +
