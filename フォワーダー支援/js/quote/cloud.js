@@ -839,17 +839,22 @@
           '</div>' + rootHtml
         : '';
 
-      // 💬 申し送り簡易表示＋投稿（ダッシュボードのみ表示・CSS で制御）。件数/プレビューは _loadDashChatSummaries が後追いで埋める
+      // 💬 申し送り（ダッシュボードのみ表示・CSS で制御）。既定で展開表示。
+      // 一括取得済み（_dashChatCache）ならスレッド本文をその場で描画（追加クエリなし）、
+      // 未取得なら「読み込み中…」を出し _loadDashChatSummaries が後追いで埋める。
+      const _chatC = _dashChatCache[r.id];
+      const _chatLoaded = _chatC && Array.isArray(_chatC.rows);
+      const _chatListHtml = _chatLoaded ? _cardThreadHtml(_chatC.rows) : '<span class="cp-chat-loading">読み込み中…</span>';
       const chatFooter =
-        '<div class="cloud-card-chat" data-cid="' + escHtml(r.id) + '">' +
+        '<div class="cloud-card-chat ccc-open' + (_chatC && _chatC.count ? ' ccc-has' : '') + '" data-cid="' + escHtml(r.id) + '"' + (_chatLoaded ? ' data-loaded="1"' : '') + '>' +
           '<button type="button" class="ccc-toggle" onclick="dashToggleCardChat(this)">' +
             '<span class="ccc-ico">💬</span>' +
-            '<span class="ccc-count">申し送り</span>' +
-            '<span class="ccc-preview"></span>' +
+            '<span class="ccc-count">' + (_chatC && _chatC.count ? '申し送り ' + _chatC.count : '申し送り') + '</span>' +
+            '<span class="ccc-preview">' + (_chatC ? escHtml(_chatC.count ? _truncateChat(_chatC.body, 28) : '（まだありません）') : '') + '</span>' +
             '<span class="ccc-caret">▾</span>' +
           '</button>' +
-          '<div class="ccc-panel" hidden>' +
-            '<div class="ccc-list"><span class="cp-chat-loading">読み込み中…</span></div>' +
+          '<div class="ccc-panel">' +
+            '<div class="ccc-list">' + _chatListHtml + '</div>' +
             '<div class="ccc-compose">' +
               '<input type="text" class="ccc-input" placeholder="申し送りを入力…" onkeydown="dashCardChatKey(event,this)">' +
               '<button type="button" class="ccc-send" onclick="dashPostCardComment(this)">送信</button>' +
@@ -2916,16 +2921,17 @@
     if (!uncached.length) return;
     const { data, error } = await c
       .from('quote_comments')
-      .select('preset_id,body,created_at')
+      .select('id,preset_id,body,created_by,created_at')
       .in('preset_id', uncached)
       .order('created_at', { ascending: true });
     if (error) { console.error('[cloud] dash chat summary error:', error); return; }
     const map = {};
     (data || []).forEach(r => {
-      const e = map[r.preset_id] || (map[r.preset_id] = { count: 0, body: '' });
+      const e = map[r.preset_id] || (map[r.preset_id] = { count: 0, body: '', rows: [] });
       e.count++; e.body = r.body;          // 昇順なので最後に残るのが最新
+      e.rows.push(r);                       // 常時展開でスレッド全文を描画するため全行を保持
     });
-    uncached.forEach(id => { _dashChatCache[id] = map[id] || { count: 0, body: '' }; _applyDashChatSummary(id); });
+    uncached.forEach(id => { _dashChatCache[id] = map[id] || { count: 0, body: '', rows: [] }; _applyDashChatSummary(id); });
   }
 
   function _applyDashChatSummary(presetId) {
@@ -2934,12 +2940,15 @@
     const sel = (window.CSS && CSS.escape) ? CSS.escape(presetId) : presetId;
     const box = wrap.querySelector('.cloud-card-chat[data-cid="' + sel + '"]');
     if (!box) return;
-    const s = _dashChatCache[presetId] || { count: 0, body: '' };
+    const s = _dashChatCache[presetId] || { count: 0, body: '', rows: [] };
     const cnt  = box.querySelector('.ccc-count');
     const prev = box.querySelector('.ccc-preview');
     if (cnt)  cnt.textContent  = s.count ? ('申し送り ' + s.count) : '申し送り';
     if (prev) prev.textContent = s.count ? _truncateChat(s.body, 28) : '（まだありません）';
     box.classList.toggle('ccc-has', !!s.count);
+    // 常時展開：スレッド本文をキャッシュから描画（追加クエリなし）。折り畳み状態（hidden）は変えない
+    const listEl = box.querySelector('.ccc-list');
+    if (listEl && Array.isArray(s.rows)) { _renderCardThread(listEl, s.rows); box.dataset.loaded = '1'; }
   }
 
   function _truncateChat(str, n) {
@@ -2977,9 +2986,9 @@
     listEl.scrollTop = listEl.scrollHeight;
   }
 
-  function _renderCardThread(listEl, rows) {
-    if (!rows.length) { listEl.innerHTML = '<span class="cp-chat-empty">まだ申し送りはありません</span>'; return; }
-    listEl.innerHTML = rows.map(r => {
+  function _cardThreadHtml(rows) {
+    if (!rows || !rows.length) return '<span class="cp-chat-empty">まだ申し送りはありません</span>';
+    return rows.map(r => {
       const isMine = _cloudUser && r.created_by === _cloudUser.email;
       const name = escHtml(_nameFor(r.created_by));
       const dt   = new Date(r.created_at).toLocaleString('ja-JP', { month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit' });
@@ -2987,6 +2996,9 @@
         '<div class="cp-chat-meta">' + name + ' · ' + dt + '</div>' +
         '<div class="cp-chat-body">' + escHtml(r.body) + '</div></div>';
     }).join('');
+  }
+  function _renderCardThread(listEl, rows) {
+    listEl.innerHTML = _cardThreadHtml(rows);
   }
 
   window.dashCardChatKey = function (ev, input) {
@@ -3008,11 +3020,14 @@
       });
       if (error) throw error;
       input.value = '';
-      box.dataset.loaded = '';          // 強制リロード
-      await _loadCardThread(box);
-      const s = _dashChatCache[box.dataset.cid] || (_dashChatCache[box.dataset.cid] = { count: 0, body: '' });
-      s.count++; s.body = body;
-      _applyDashChatSummary(box.dataset.cid);
+      const id = box.dataset.cid;
+      const s = _dashChatCache[id] || (_dashChatCache[id] = { count: 0, body: '', rows: [] });
+      if (!Array.isArray(s.rows)) s.rows = [];
+      s.count = (s.count || 0) + 1; s.body = body;
+      s.rows.push({ id: 'local-' + Date.now(), body, created_by: _cloudUser.email, created_at: new Date().toISOString() });
+      _applyDashChatSummary(id);          // キャッシュから件数・プレビュー・スレッドを再描画（追加クエリなし）
+      const listEl = box.querySelector('.ccc-list');
+      if (listEl) listEl.scrollTop = listEl.scrollHeight;
     } catch (e) {
       quoteShowToast('⚠️ 送信失敗：' + (e.message || e), 'warn', 5000);
     } finally {

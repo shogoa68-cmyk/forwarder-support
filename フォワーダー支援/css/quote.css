@@ -6394,6 +6394,8 @@ body.qp-dash-active #quoteActionDock { display: none !important; }
 }
 #tab-quote-make #qpdListWrap .ccc-caret { font-size: 10px; color: #b3a890; transition: transform .15s; }
 #tab-quote-make #qpdListWrap .cloud-card-chat.ccc-open .ccc-caret { transform: rotate(180deg); }
+/* 展開中はトグル行の最新プレビューを隠す（下のスレッドと重複するため） */
+#tab-quote-make #qpdListWrap .cloud-card-chat.ccc-open .ccc-toggle .ccc-preview { display: none; }
 #tab-quote-make #qpdListWrap .ccc-panel { margin-top: 6px; }
 #tab-quote-make #qpdListWrap .ccc-list {
   max-height: 160px; overflow-y: auto; display: flex; flex-direction: column; gap: 6px;
