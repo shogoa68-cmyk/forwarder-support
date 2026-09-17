@@ -4405,7 +4405,7 @@ body.qp-dash-active #quoteActionDock { display: none !important; }
 #qpDashboard .qpd-adv-sel, #qpDashboard .qpd-adv-input { font-size: 12px; padding: 6px 8px; border: 1px solid #d9cfc2; border-radius: 6px; background: #fff; flex: 1 1 160px; min-width: 130px; }
 #qpDashboard .qpd-adv-clear { background: #f0ece4; border: 1px solid #d8ccb6; color: #6b5a42; border-radius: 6px; padding: 6px 12px; font-size: 12px; cursor: pointer; }
 /* 一覧（カード） */
-#qpDashboard .qpd-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 10px; }
+#qpDashboard .qpd-list { display: grid; grid-template-columns: 1fr; gap: 10px; }
 /* 一覧（リスト＝行表示） */
 #qpDashboard .qpd-list.qpd-list--rows { display: block; border: 1px solid #e2d8c4; border-radius: 10px; overflow: hidden; background: #fff; }
 #qpDashboard .qpd-rows-head,
