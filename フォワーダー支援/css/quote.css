@@ -4406,6 +4406,14 @@ body.qp-dash-active #quoteActionDock { display: none !important; }
 #qpDashboard .qpd-adv-clear { background: #f0ece4; border: 1px solid #d8ccb6; color: #6b5a42; border-radius: 6px; padding: 6px 12px; font-size: 12px; cursor: pointer; }
 /* 一覧（カード） */
 #qpDashboard .qpd-list { display: grid; grid-template-columns: 1fr; gap: 10px; }
+/* さらに読み込む（段階表示）ボタン。カード列・行列どちらでも全幅で最下部に置く */
+#qpDashboard .qpd-load-more {
+  grid-column: 1 / -1; width: 100%; margin-top: 4px; padding: 10px 12px;
+  background: #f6f1e7; border: 1px dashed #cdbf9f; border-radius: 10px;
+  color: #6b5a42; font-size: 12.5px; font-weight: 600; cursor: pointer;
+}
+#qpDashboard .qpd-load-more:hover { background: #efe7d6; border-color: #b9a97f; }
+#qpDashboard .qpd-list--rows .qpd-load-more { border-radius: 0; margin-top: 0; border-left: none; border-right: none; border-bottom: none; }
 /* 一覧（リスト＝行表示） */
 #qpDashboard .qpd-list.qpd-list--rows { display: block; border: 1px solid #e2d8c4; border-radius: 10px; overflow: hidden; background: #fff; }
 #qpDashboard .qpd-rows-head,

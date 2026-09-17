@@ -45,6 +45,11 @@
   // ダッシュボード：並び替え・表示形式
   let _cloudSort = 'updated';   // updated|status|who|person|customer|tags
   let _cloudView = 'card';      // card|list
+  // ダッシュボード段階表示（重さ対策：上位から N 件ずつ描画し「さらに読み込む」で追加）
+  const DASH_PAGE = 10;         // 1 ページ＝10 件
+  let _dashLimit = DASH_PAGE;   // 現在の表示上限（絞り込み変更でリセット・「さらに読み込む」で加算）
+  let _dashFilterSig = null;    // 絞り込みシグネチャ（変わった時だけ先頭ページへ戻す）
+  let _dashFilteredRows = [];   // 直近の絞り込み済み・ソート済み行（追加読み込み用）
   // プレビュー
   let _cpId        = null;   // プレビュー中のプリセット ID
   let _cpRows      = [];     // プレビュー中の行データ（v3形式）
@@ -394,10 +399,21 @@
   }
 
   function _applyCloudFilter() {
-    const rows = _cloudRows.filter(r => _rowMatchesFilters(r));
-    _renderCloudList(_sortCloudRows(rows));
+    const rows = _sortCloudRows(_cloudRows.filter(r => _rowMatchesFilters(r)));
+    // 絞り込み・並び替えが変わったときだけ先頭ページに戻す（ステータス変更や Presence 等の
+    // 付随的な再描画では表示件数を保つ＝スクロール位置・展開状態を崩さない）
+    const sig = JSON.stringify([_cloudSearch, _cloudStatusFilter, _cloudFilterCustomer, _cloudFilterTag,
+      _cloudFilterMode, _cloudFilterInco, _cloudFilterPol, _cloudFilterPod, _cloudFilterCarrier, _cloudSort, _cloudView]);
+    if (sig !== _dashFilterSig) { _dashFilterSig = sig; _dashLimit = DASH_PAGE; }
+    _renderCloudList(rows);
     _renderActiveQpdRank();   // タブで隠れている側は再計算しない（切替時に改めて描画する）
     _syncResetAllBtn();
+  }
+
+  // 「さらに読み込む」：ダッシュボードの表示上限を DASH_PAGE 件ぶん増やして再描画
+  function qpdLoadMore() {
+    _dashLimit += DASH_PAGE;
+    _renderCloudList(_dashFilteredRows);
   }
 
   // 何らかの絞り込みが効いているか（「すべて解除」ボタンの出し分けに使う）
@@ -721,7 +737,8 @@
       wraps.forEach(w => w.innerHTML = html);
       return;
     }
-    const cardsHtml = rows.map(r => {
+    // 1 案件カードの HTML を組み立てる（モーダル一覧・ダッシュボードの両方から使う）
+    function _cloudCardHtml(r) {
       const ts = r.updated_at
         ? new Date(r.updated_at).toLocaleString('ja-JP',
             { month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit' })
@@ -894,21 +911,29 @@
           '</div>' +
           chatFooter +
         '</div>';
-    }).join('');
-    // モーダルは常にカード、ダッシュボードはカード/リスト切替
+    }
+    // モーダル一覧：開いているときだけ全件ビルド（閉じている間の無駄な全件描画を避ける。
+    // 開くと cloudOnPresetMgrOpen → cloudListPresets が改めて描画する）
     const modalWrap = document.getElementById('cloudPresetListWrap');
     const dashWrap  = document.getElementById('qpdListWrap');
-    if (modalWrap) modalWrap.innerHTML = cardsHtml;
+    const modalOpen = document.getElementById('presetMgrModal')?.classList.contains('open');
+    if (modalWrap && modalOpen) modalWrap.innerHTML = rows.map(_cloudCardHtml).join('');
     if (dashWrap) {
+      _dashFilteredRows = rows;                       // 追加読み込み用に保持（絞り込み済み・ソート済み全件）
       const listMode = _cloudView === 'list';
+      const shown  = rows.slice(0, _dashLimit);       // 上位 _dashLimit 件だけ描画
+      const remain = rows.length - shown.length;
+      const moreBtn = remain > 0
+        ? '<button type="button" class="qpd-load-more" onclick="qpdLoadMore()">さらに読み込む（残り ' + remain + ' 件）</button>'
+        : '';
       dashWrap.classList.toggle('qpd-list--rows', listMode);
       dashWrap.innerHTML = listMode
         ? ('<div class="qpd-rows-head' + (_cloudLinkMode ? ' qpd-row--linkmode' : '') + '">' +
               (_cloudLinkMode ? '<span></span>' : '') +
               '<span>状態</span><span>見積番号</span><span>お客様 / 担当</span><span>作業者</span><span>更新</span><span></span></div>'
-            + rows.map(_cloudListRow).join(''))
-        : cardsHtml;
-      if (!listMode) _loadDashChatSummaries(rows);   // 💬 申し送りの件数/最新を後追いで埋める（カード表示時のみ）
+            + shown.map(_cloudListRow).join('') + moreBtn)
+        : (shown.map(_cloudCardHtml).join('') + moreBtn);
+      if (!listMode) _loadDashChatSummaries(shown);   // 💬 申し送りの件数/最新は描画済みぶんだけ取得
     }
   }
 
@@ -3288,6 +3313,7 @@
   window.qpdClearSearch = qpdClearSearch;
   window.qpdSetSort     = qpdSetSort;
   window.qpdSetView     = qpdSetView;
+  window.qpdLoadMore    = qpdLoadMore;
   // 添付ファイル
   window.qfAttachUpload     = qfAttachUpload;
   window.qfAttachOpen       = qfAttachOpen;
