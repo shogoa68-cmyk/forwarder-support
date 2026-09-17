@@ -1,0 +1,8 @@
+# Supabase ローカル設定（Edge Function のデプロイ設定用）
+# project_id はローカル識別子。リモートへは `supabase link --project-ref <ref>` で接続する。
+project_id = "forwarder-support"
+
+# drive-broker はゲートウェイでの JWT 検証をオフにし、関数内で
+# getUser() + is_team_member() により認証・認可する（CORS プリフライト対策も兼ねる）。
+[functions.drive-broker]
+verify_jwt = false

@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex">
+<title>Drive Broker PoC — フォワーダー支援</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" defer></script>
+<script src="js/quote/cloud-config.js" defer></script>
+<style>
+  :root {
+    --bg: #f7f3ec; --card: #ffffff; --ink: #4a3f35; --muted: #8a7a66;
+    --line: #e7ddcd; --accent: #6b5a42; --ok: #1e7e44; --err: #c0392b;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #26211b; --card: #322b23; --ink: #ece3d5; --muted: #b3a488;
+      --line: #4a3f31; --accent: #d9c39a;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink);
+    font-family: system-ui, -apple-system, "Noto Sans JP", sans-serif; line-height: 1.6; }
+  .wrap { max-width: 720px; margin: 0 auto; padding: 20px 16px 64px; }
+  h1 { font-size: 20px; margin: 8px 0 4px; }
+  .sub { color: var(--muted); font-size: 13px; margin: 0 0 18px; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 12px;
+    padding: 16px; margin-bottom: 14px; }
+  .card h2 { font-size: 14px; margin: 0 0 10px; }
+  button { font: inherit; border: 1px solid var(--accent); background: var(--accent);
+    color: #fff; padding: 8px 14px; border-radius: 8px; cursor: pointer; }
+  button.ghost { background: transparent; color: var(--accent); }
+  button:disabled { opacity: .5; cursor: not-allowed; }
+  .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  input[type=file] { font: inherit; color: var(--ink); }
+  .status { font-size: 13px; color: var(--muted); }
+  .status.ok { color: var(--ok); }
+  .status.err { color: var(--err); }
+  pre { background: rgba(0,0,0,.05); border-radius: 8px; padding: 10px; font-size: 12px;
+    overflow-x: auto; white-space: pre-wrap; word-break: break-all; }
+  ul.files { list-style: none; margin: 8px 0 0; padding: 0; }
+  ul.files li { border-top: 1px solid var(--line); padding: 8px 0; display: flex;
+    justify-content: space-between; gap: 8px; font-size: 13px; align-items: center; }
+  a { color: var(--accent); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>📦 Drive Broker PoC</h1>
+  <p class="sub">外部ストレージ（Google Drive・<code>drive.file</code> ブローカー）の最小動作確認。
+    ログイン → init（ポータルフォルダ作成）→ アップロード → 一覧 → ダウンロード。</p>
+
+  <div class="card">
+    <h2>1. ログイン</h2>
+    <div class="row">
+      <button id="btnLogin">Google でログイン</button>
+      <button id="btnLogout" class="ghost">ログアウト</button>
+    </div>
+    <p id="authStatus" class="status" style="margin-top:10px;">読み込み中…</p>
+  </div>
+
+  <div class="card">
+    <h2>2. ポータルフォルダを用意（init）</h2>
+    <button id="btnInit" disabled>init 実行</button>
+    <p id="initStatus" class="status" style="margin-top:10px;"></p>
+  </div>
+
+  <div class="card">
+    <h2>3. アップロード</h2>
+    <div class="row">
+      <input type="file" id="fileInput" disabled>
+      <button id="btnUpload" disabled>アップロード</button>
+    </div>
+    <p id="uploadStatus" class="status" style="margin-top:10px;"></p>
+  </div>
+
+  <div class="card">
+    <h2>4. 一覧 / ダウンロード</h2>
+    <button id="btnList" disabled>一覧を更新</button>
+    <ul class="files" id="fileList"></ul>
+    <p id="listStatus" class="status" style="margin-top:10px;"></p>
+  </div>
+
+  <div class="card">
+    <h2>ログ</h2>
+    <pre id="log"></pre>
+  </div>
+</div>
+
+<script>
+(function () {
+  let sb = null;
+  const FN = 'drive-broker';
+  const $ = (id) => document.getElementById(id);
+  const log = (m) => { $('log').textContent = '[' + new Date().toLocaleTimeString() + '] ' + m + '\n' + $('log').textContent; };
+  const setStatus = (el, msg, cls) => { el.textContent = msg; el.className = 'status' + (cls ? ' ' + cls : ''); };
+
+  function fnUrl(qs) {
+    return window.CLOUD_CONFIG.url + '/functions/v1/' + FN + (qs ? ('?' + qs) : '');
+  }
+
+  async function callFn(body) {
+    // supabase-js の functions.invoke は認証トークン(apikey/Authorization)を自動付与
+    const { data, error } = await sb.functions.invoke(FN, { body });
+    if (error) throw new Error(error.message || String(error));
+    if (data && data.error) throw new Error(data.error);
+    return data;
+  }
+
+  function fileToBase64(file) {
+    return new Promise((resolve, reject) => {
+      const r = new FileReader();
+      r.onload = () => resolve(String(r.result).split(',')[1]); // data: プレフィックスを除去
+      r.onerror = reject;
+      r.readAsDataURL(file);
+    });
+  }
+
+  function setEnabled(loggedIn) {
+    ['btnInit', 'btnUpload', 'btnList', 'fileInput'].forEach((id) => { $(id).disabled = !loggedIn; });
+  }
+
+  async function refreshAuth() {
+    const { data: { session } } = await sb.auth.getSession();
+    if (session) {
+      setStatus($('authStatus'), 'ログイン中: ' + (session.user.email || session.user.id), 'ok');
+      setEnabled(true);
+    } else {
+      setStatus($('authStatus'), '未ログイン', '');
+      setEnabled(false);
+    }
+    return session;
+  }
+
+  async function init() {
+    if (!window.CLOUD_CONFIG || !window.supabase) { setStatus($('authStatus'), '設定/ライブラリ未読込', 'err'); return; }
+    sb = window.supabase.createClient(window.CLOUD_CONFIG.url, window.CLOUD_CONFIG.publishableKey);
+    await refreshAuth();
+    sb.auth.onAuthStateChange(() => refreshAuth());
+
+    $('btnLogin').onclick = () =>
+      sb.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: location.href.split('#')[0] } });
+    $('btnLogout').onclick = async () => { await sb.auth.signOut(); };
+
+    $('btnInit').onclick = async () => {
+      setStatus($('initStatus'), '実行中…');
+      try { const d = await callFn({ action: 'init' }); setStatus($('initStatus'), 'OK: folderId=' + d.portalFolderId, 'ok'); log('init: ' + JSON.stringify(d)); }
+      catch (e) { setStatus($('initStatus'), 'エラー: ' + e.message, 'err'); log('init ERROR: ' + e.message); }
+    };
+
+    $('btnUpload').onclick = async () => {
+      const f = $('fileInput').files[0];
+      if (!f) { setStatus($('uploadStatus'), 'ファイルを選択してください', 'err'); return; }
+      setStatus($('uploadStatus'), 'アップロード中…');
+      try {
+        const contentBase64 = await fileToBase64(f);
+        const d = await callFn({ action: 'upload', name: f.name, mimeType: f.type, contentBase64 });
+        setStatus($('uploadStatus'), 'OK: ' + d.file.name + ' (' + d.file.id + ')', 'ok');
+        log('upload: ' + JSON.stringify(d.file));
+        renderList();
+      } catch (e) { setStatus($('uploadStatus'), 'エラー: ' + e.message, 'err'); log('upload ERROR: ' + e.message); }
+    };
+
+    $('btnList').onclick = renderList;
+  }
+
+  async function renderList() {
+    setStatus($('listStatus'), '取得中…');
+    try {
+      const d = await callFn({ action: 'list' });
+      const ul = $('fileList'); ul.innerHTML = '';
+      (d.files || []).forEach((f) => {
+        const li = document.createElement('li');
+        const left = document.createElement('span');
+        left.textContent = f.name + '  ' + (f.size ? ('(' + f.size + 'B)') : '');
+        const btn = document.createElement('button');
+        btn.className = 'ghost'; btn.textContent = 'ダウンロード';
+        btn.onclick = () => downloadFile(f.id, f.name);
+        li.appendChild(left); li.appendChild(btn);
+        ul.appendChild(li);
+      });
+      setStatus($('listStatus'), (d.files || []).length + ' 件', 'ok');
+      log('list: ' + (d.files || []).length + ' files');
+    } catch (e) { setStatus($('listStatus'), 'エラー: ' + e.message, 'err'); log('list ERROR: ' + e.message); }
+  }
+
+  async function downloadFile(id, name) {
+    try {
+      const { data: { session } } = await sb.auth.getSession();
+      const res = await fetch(fnUrl('action=download&id=' + encodeURIComponent(id)), {
+        headers: { Authorization: 'Bearer ' + session.access_token, apikey: window.CLOUD_CONFIG.publishableKey },
+      });
+      if (!res.ok) throw new Error(await res.text());
+      const blob = await res.blob();
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob); a.download = name; a.click();
+      URL.revokeObjectURL(a.href);
+      log('download OK: ' + name);
+    } catch (e) { log('download ERROR: ' + e.message); }
+  }
+
+  window.addEventListener('DOMContentLoaded', () => setTimeout(init, 60));
+})();
+</script>
+</body>
+</html>
