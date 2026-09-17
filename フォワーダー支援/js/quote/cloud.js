@@ -858,6 +858,7 @@
         : '';
       return '' +
         '<div class="cloud-card cloud-card-labeled' + (others.length ? ' is-editing' : '') + (_cloudLinkMode ? ' cloud-card--linkmode' : '') + '">' +
+          '<div class="cloud-card-main">' +
           '<div class="cloud-card-row1">' +
             linkChk +
             statusBadge +
@@ -889,6 +890,7 @@
                 ? '<button class="btn-preset-del is-locked" disabled title="' + escHtml(_nameFor(lockedBy)) + ' さんが作業中のため削除できません">🔒</button>'
                 : '<button class="btn-preset-del"  onclick="cloudDeletePreset(\'' + idAttr + '\')" title="削除（全員から消えます）">✕</button>') +
             '</div>' +
+          '</div>' +
           '</div>' +
           chatFooter +
         '</div>';

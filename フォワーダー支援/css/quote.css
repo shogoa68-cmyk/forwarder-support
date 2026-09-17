@@ -6412,6 +6412,23 @@ body.qp-dash-active #quoteActionDock { display: none !important; }
 #tab-quote-make #qpdListWrap .ccc-send:hover { background: #685a42; }
 #tab-quote-make #qpdListWrap .ccc-send:disabled { opacity: .5; cursor: default; }
 
+/* 1列化で空いたカード右側を申し送りスペースに（広い画面のみ2カラム／狭い画面は下積み） */
+@media (min-width: 720px) {
+  #tab-quote-make #qpdListWrap .cloud-card { display: flex; align-items: stretch; gap: 14px; }
+  #tab-quote-make #qpdListWrap .cloud-card-main { flex: 1 1 auto; min-width: 0; }
+  #tab-quote-make #qpdListWrap .cloud-card > .cloud-card-chat {
+    flex: 0 0 clamp(260px, 34%, 420px); align-self: stretch;
+    margin-top: 0; padding: 2px 0 2px 14px;
+    border-top: none; border-left: 1px dashed #e8e0d4;
+  }
+  /* 右カラムでは最新プレビューを折り返して見せる（1行省略をやめる） */
+  #tab-quote-make #qpdListWrap .cloud-card > .cloud-card-chat .ccc-toggle { align-items: flex-start; }
+  #tab-quote-make #qpdListWrap .cloud-card > .cloud-card-chat .ccc-preview {
+    white-space: normal; overflow: visible; display: -webkit-box;
+    -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+  }
+}
+
 /* === ブラウザ保存 リッチカード（茶系・チーム共有と同じ情報量／色で区別） === */
 #tab-quote-make .preset-item-rich { padding: 10px 12px; }
 #tab-quote-make .preset-rich-row1 { display: flex; align-items: center; gap: 8px; }
