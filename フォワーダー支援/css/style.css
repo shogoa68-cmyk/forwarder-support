@@ -3094,6 +3094,13 @@ a.bm-contact-item:hover { background: #2e6b3e; color: #fff; border-color: #2e6b3
 .stats-sort-btn.is-active {
   background: #f7eccb; border-color: #e0b84a; color: #6b4f10; font-weight: 700;
 }
+.stats-unorg-toggle {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: 12px; color: #6b5840; cursor: pointer;
+  margin-left: 10px; padding-left: 10px;
+  border-left: 1px solid #e0d4bc;
+}
+.stats-unorg-toggle input { cursor: pointer; }
 
 /* 入力支援：代表表記への置換サジェスト（body 直下に fixed 配置） */
 .syn-suggest {
