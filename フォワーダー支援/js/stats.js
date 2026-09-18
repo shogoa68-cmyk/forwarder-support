@@ -763,6 +763,106 @@
     e.innerHTML = h + '</tbody></table>';
   }
   window.statsSvPortBy = function (by) { _svPortBy = (by === 'port') ? 'port' : 'sv'; _renderSvPort(); };
+
+  // ===== 🧾 お客様×品名 単価 =====
+  // 「このお客様に・この品名を・いくらで仕入れ・いくらで売ったか」を明細行から集計する。
+  // 品名は課税マーク * を除去して他タブと同じ正規化を適用。単価未入力の行は対象外。
+  let _custItemBy = 'customer';   // 'customer' | 'nm'
+  function _buildCustItemStats(source) {
+    const map = new Map();   // customer + '\x00' + nm → 集計
+    const add = (p, isCloud) => {
+      const f = (p.data || {}).fields || {};
+      const customer = (isCloud ? (p.customer || '') : (f['qf-customer'] || '')).trim() || '（未入力）';
+      const rows = (p.data || {}).rows;
+      if (!Array.isArray(rows)) return;
+      const ts = isCloud ? (p.updated_at ? new Date(p.updated_at).getTime() : 0) : (p.ts ? new Date(p.ts).getTime() : 0);
+      rows.forEach(r => {
+        if (!r || r._type !== 'data' || !Array.isArray(r.cells)) return;
+        const c  = r.cells;
+        const nm = (c[CI.nm] || '').replace(/^\*+/, '').trim();
+        const pp = _num(c[10]), bp = _num(c[11]);
+        if (!nm || (pp == null && bp == null)) return;   // 品名・単価どちらも無ければ対象外
+        const pq = _num(c[5]) > 0 ? _num(c[5]) : 1;
+        const bq = _num(c[7]) > 0 ? _num(c[7]) : 1;
+        const pc = (c[8] || 'JPY').trim() || 'JPY';
+        const bc = (c[9] || 'JPY').trim() || 'JPY';
+        const un = (c[6] || '').trim();
+        const key = customer + '\x00' + nm;
+        if (!map.has(key)) {
+          map.set(key, { customer, nm, count: 0, lastTs: 0, lastPp: null, lastPc: 'JPY', lastBp: null, lastBc: 'JPY', lastUn: '', costSum: 0, billSum: 0 });
+        }
+        const g = map.get(key);
+        g.count++;
+        if (ts >= g.lastTs) { g.lastTs = ts; g.lastPp = pp; g.lastPc = pc; g.lastBp = bp; g.lastBc = bc; g.lastUn = un; }
+        if (pp != null) { const costJ = _toJ(pp * pq, pc); if (costJ != null) g.costSum += costJ; }
+        if (bp != null) { const billJ = _toJ(bp * bq, bc); if (billJ != null) g.billSum += billJ; }
+      });
+    };
+    if (source !== 'cloud') _getLocalPresets().forEach(p => add(p, false));
+    if (source !== 'local') (typeof window.cloudGetAllRows === 'function' ? window.cloudGetAllRows() : []).forEach(p => add(p, true));
+    return [...map.values()];
+  }
+
+  function _renderCustItem() {
+    const e = document.getElementById('statsPane-custitem');
+    if (!e) return;
+    const source = document.getElementById('statsSource')?.value || 'both';
+    const rows = _buildCustItemStats(source);
+    if (!rows.length) {
+      e.innerHTML = '<p class="stats-empty">単価入力のある明細がありません。<br>' +
+        '<small>明細行に仕入単価・売単価のどちらかを入れて案件を保存すると、ここに集計されます。</small></p>';
+      return;
+    }
+    const by = _custItemBy;
+    const keyField = by === 'customer' ? 'customer' : 'nm';
+    const otherLabel = by === 'customer' ? '品名' : 'お客様';
+    const otherField = by === 'customer' ? 'nm' : 'customer';
+    const money = (n, cur) => {
+      if (n == null) return '—';
+      const c = (cur || 'JPY').trim() || 'JPY';
+      return c === 'JPY' ? '¥' + Math.round(n).toLocaleString('ja-JP') : c + ' ' + n.toLocaleString('ja-JP', { maximumFractionDigits: 2 });
+    };
+    const groups = new Map();
+    rows.forEach(r => {
+      const k = r[keyField];
+      if (!groups.has(k)) groups.set(k, { key: k, items: [], bill: 0, cost: 0 });
+      const g = groups.get(k);
+      g.items.push(r); g.bill += r.billSum; g.cost += r.costSum;
+    });
+    const list = [...groups.values()].sort((a, b) => b.bill - a.bill);
+    list.forEach(g => g.items.sort((a, b) => b.count - a.count));
+
+    let h = '<div class="svp-toolbar"><span class="svp-by-label">グループ基準</span>' +
+            `<button class="svp-by-btn${by === 'customer' ? ' is-active' : ''}" onclick="statsCustItemBy('customer')">👤 お客様別</button>` +
+            `<button class="svp-by-btn${by === 'nm' ? ' is-active' : ''}" onclick="statsCustItemBy('nm')">📝 品名別</button></div>` +
+            '<p class="stats-syn-hint">案件の明細行から、お客様ごと・品名ごとの仕入単価と売単価を集計します。単価は直近使用時の値（通貨そのまま）、粗利率は全件JPY換算の合計から算出します。</p>';
+
+    list.forEach(g => {
+      const margin = (window.SharedCalc && g.bill > 0) ? SharedCalc.grossMarginPct(g.bill, g.cost) : null;
+      const mCls = margin == null ? '' : (margin >= 0 ? 'sd-margin-pos' : 'sd-margin-neg');
+      const rowsHtml = g.items.map(it => {
+        const ppStr = money(it.lastPp, it.lastPc) + (it.lastPp != null && it.lastUn ? ' /' + _esc(it.lastUn) : '');
+        const bpStr = money(it.lastBp, it.lastBc) + (it.lastBp != null && it.lastUn ? ' /' + _esc(it.lastUn) : '');
+        const itMargin = (window.SharedCalc && it.billSum > 0) ? SharedCalc.grossMarginPct(it.billSum, it.costSum) : null;
+        const itMCls = itMargin == null ? '' : (itMargin >= 0 ? 'sd-margin-pos' : 'sd-margin-neg');
+        const label = it[otherField];
+        return `<tr><td class="stats-val">${_usageSpan(otherField, label)}</td>` +
+               `<td class="stats-num-col">${it.count}</td>` +
+               `<td class="stats-sv-price">${ppStr}</td>` +
+               `<td class="stats-sv-price">${bpStr}</td>` +
+               `<td class="stats-num-col ${itMCls}">${itMargin == null ? '—' : itMargin.toFixed(1) + '%'}</td></tr>`;
+      }).join('');
+      h += `<details class="stats-sv-detail">` +
+           `<summary><b>${_usageSpan(keyField, g.key)}</b>` +
+           `<span class="stats-sv-detail-meta">${g.items.length}品目 · 売上 ${_jpy(g.bill)} · 粗利率 <span class="${mCls}">${margin == null ? '—' : margin.toFixed(1) + '%'}</span></span></summary>` +
+           `<table class="stats-table sd-money-table stats-sv-charge-table"><thead><tr>` +
+           `<th>${otherLabel}</th><th class="stats-num-col">回数</th><th>直近仕入単価</th><th>直近売単価</th><th class="stats-num-col">粗利率</th>` +
+           `</tr></thead><tbody>${rowsHtml}</tbody></table></details>`;
+    });
+    e.innerHTML = '<div class="stats-sv-charges-wrap">' + h + '</div>';
+  }
+  window.statsCustItemBy = function (by) { _custItemBy = (by === 'nm') ? 'nm' : 'customer'; _renderCustItem(); };
+
   function _renderUn() {
     const e = document.getElementById('statsPane-un');
     if (!e || !_data) return;
@@ -1878,6 +1978,7 @@
     else if (id === 'nm')       _renderNm();
     else if (id === 'un')       _renderUn();
     else if (id === 'svport')   _renderSvPort();
+    else if (id === 'custitem') _renderCustItem();
     else if (id === 'charges')  _renderCharges();
     else if (id === 'master')   _renderMaster();
     else if (id === 'alias')    _renderAlias();
@@ -1904,6 +2005,7 @@
     else if (paneId === 'nm')       _renderNm();
     else if (paneId === 'un')       _renderUn();
     else if (paneId === 'svport')   _renderSvPort();
+    else if (paneId === 'custitem') _renderCustItem();
     else if (paneId === 'pattern')  _renderPattern();
     else if (paneId === 'charges')  _renderCharges();
     else if (paneId === 'master')   _renderMaster();
