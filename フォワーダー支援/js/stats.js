@@ -852,7 +852,7 @@
                `<td class="stats-sv-price">${bpStr}</td>` +
                `<td class="stats-num-col ${itMCls}">${itMargin == null ? '—' : itMargin.toFixed(1) + '%'}</td></tr>`;
       }).join('');
-      h += `<details class="stats-sv-detail" open>` +
+      h += `<details class="stats-sv-detail">` +
            `<summary><b>${_usageSpan(keyField, g.key)}</b>` +
            `<span class="stats-sv-detail-meta">${g.items.length}品目 · 売上 ${_jpy(g.bill)} · 粗利率 <span class="${mCls}">${margin == null ? '—' : margin.toFixed(1) + '%'}</span></span></summary>` +
            `<table class="stats-table sd-money-table stats-sv-charge-table"><thead><tr>` +
