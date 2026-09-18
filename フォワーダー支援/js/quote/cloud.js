@@ -18,12 +18,12 @@
   let _cloudInited = false;
 
   // 案件ステータス定義（順序＝表示順、key は DB 保存値）
-  const CLOUD_STATUSES = ['下書き中', '提出済み', '改定中', 'ヨコヨコ提示', '受注', '失注', '辞退', '保留'];
+  const CLOUD_STATUSES = ['下書き中', '提出済み', '改定中', '情報待ち', 'ヨコヨコ提示', '受注', '失注', '辞退', '保留'];
   const CLOUD_STATUS_DEFAULT = '下書き中';
-  // ダッシュボード上部の集計タイルでは「下書き中」「改定中」を1枚に統合して表示する
-  // （どちらも客先へまだ提示できていない＝作業中の案件のため）。案件ごとのステータス
-  // 選択肢（STATUS_CHOICES）や詳細検索チップ（_renderStatusChips）は従来通り区別する。
-  const DRAFT_GROUP_STATUSES = ['下書き中', '改定中'];
+  // ダッシュボード上部の集計タイルでは「下書き中」「改定中」「情報待ち」を1枚に統合して
+  // 表示する（いずれも客先へまだ提示できていない＝作業中の案件のため）。案件ごとの
+  // ステータス選択肢（STATUS_CHOICES）や詳細検索チップ（_renderStatusChips）は従来通り区別する。
+  const DRAFT_GROUP_STATUSES = ['下書き中', '改定中', '情報待ち'];
   const DRAFT_GROUP_FILTER = '__draft_revising__';
 
   // 「保留」のまま何日更新されなかったら下書きに自動的に戻すか（放置防止のリマインド）
@@ -464,7 +464,7 @@
   }
 
   // ダッシュボードの並び替え
-  const _STATUS_ORDER = { '下書き中': 0, '提出済み': 1, '改定中': 2, 'ヨコヨコ提示': 3, '受注': 4, '失注': 5, '辞退': 6, '保留': 7 };
+  const _STATUS_ORDER = { '下書き中': 0, '提出済み': 1, '改定中': 2, '情報待ち': 3, 'ヨコヨコ提示': 4, '受注': 5, '失注': 6, '辞退': 7, '保留': 8 };
   function _sortCloudRows(rows) {
     const s = _cloudSort || 'updated';
     const upd = e => e.updated_at || '';
@@ -655,14 +655,14 @@
     return st === '提示済み' ? '提出済み' : (st || '');
   }
   function _statusClass(st) {
-    return { '下書き中':'draft', '提出済み':'sent', '提示済み':'sent', '改定中':'revising', 'ヨコヨコ提示':'yoko', '受注':'won', '失注':'lost', '辞退':'declined', '保留':'hold' }[st] || 'draft';
+    return { '下書き中':'draft', '提出済み':'sent', '提示済み':'sent', '改定中':'revising', '情報待ち':'draft', 'ヨコヨコ提示':'yoko', '受注':'won', '失注':'lost', '辞退':'declined', '保留':'hold' }[st] || 'draft';
   }
 
   // ダッシュボードのステータス変更プルダウンの選択肢。
   // 見積編集画面のボタン（qf-status-btn）と同じ表記に揃える。
   // DB には「提出済み」と「提示済み」の両方が混在し得るため、
   // 現在値との照合は _normalizeStatus を通して行う。
-  const STATUS_CHOICES = ['下書き中', '提示済み', '改定中', 'ヨコヨコ提示', '受注', '失注', '辞退', '保留'];
+  const STATUS_CHOICES = ['下書き中', '提示済み', '改定中', '情報待ち', 'ヨコヨコ提示', '受注', '失注', '辞退', '保留'];
 
   // 画面に出す表記。CLOUD_STATUSES は DB の正規値「提出済み」を持つが、
   // 見積編集画面のボタンとダッシュボードのプルダウンは「提示済み」と表示するため、
@@ -1006,9 +1006,10 @@
         (cls ? ' qpd-stat--' + cls : '') + '" onclick="cloudFilterStatus(\'' + val + '\')">' +
         '<span class="qpd-stat-n">' + n + '</span><span class="qpd-stat-l">' + escHtml(label) + '</span></button>';
     let html = card('', '全体', _cloudRows.length, 'all');
-    // 「下書き中」の位置に、下書き中＋改定中を合算した統合タイルを1枚だけ出す
+    // 「下書き中」の位置に、DRAFT_GROUP_STATUSES（下書き中＋改定中＋情報待ち）を
+    // 合算した統合タイルを1枚だけ出す
     const draftGroupN = DRAFT_GROUP_STATUSES.reduce((sum, st) => sum + count(st), 0);
-    html += card(DRAFT_GROUP_FILTER, '下書き中・改定中', draftGroupN, 'draft');
+    html += card(DRAFT_GROUP_FILTER, '下書き中・改定中・情報待ち', draftGroupN, 'draft');
     html += CLOUD_STATUSES.filter(st => !DRAFT_GROUP_STATUSES.includes(st))
       .map(st => card(st, _statusLabel(st), count(st), _statusClass(st))).join('');
     box.innerHTML = html;
