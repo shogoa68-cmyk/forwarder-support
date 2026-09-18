@@ -2885,9 +2885,14 @@
             <div class="zone-pieces" id="zone1Pieces" oninput="onZonePiecesInput(event,1)">
               <div class="zone-default-sc">
                 <span class="z-ds-label">🏢</span>
-                <input type="text" class="zone-default-input" id="z1DefaultSc"
-                       placeholder="デフォルトサブコン（全ピース共通）"
-                       disabled oninput="applyDefaultSubcon(1,this.value)">
+                <div class="zone-default-entries" id="z1DefaultScArea">
+                  <div class="sc-entry">
+                    <input type="text" class="zone-default-input sc-input" id="z1DefaultSc"
+                           placeholder="デフォルトサブコン（全ピース共通）"
+                           disabled oninput="applyDefaultSubcon(1)">
+                    <button type="button" class="sc-add-btn" disabled onclick="addDefaultScEntry(1)" title="サブコンを追加（複数社に分ける場合、それぞれ明細行の起点になります）">＋</button>
+                  </div>
+                </div>
               </div>
               <div class="piece-row">
                 <label class="piece-item"><input type="checkbox" id="piece-pickup" disabled onchange="applyZoneState();onPieceCheck(this,'sc-pickup')"> 🚚 集荷</label>
@@ -3002,9 +3007,14 @@
             <div class="zone-pieces" id="zone3Pieces" oninput="onZonePiecesInput(event,3)">
               <div class="zone-default-sc">
                 <span class="z-ds-label">🏢</span>
-                <input type="text" class="zone-default-input" id="z3DefaultSc"
-                       placeholder="デフォルトサブコン（全ピース共通）"
-                       disabled oninput="applyDefaultSubcon(3,this.value)">
+                <div class="zone-default-entries" id="z3DefaultScArea">
+                  <div class="sc-entry">
+                    <input type="text" class="zone-default-input sc-input" id="z3DefaultSc"
+                           placeholder="デフォルトサブコン（全ピース共通）"
+                           disabled oninput="applyDefaultSubcon(3)">
+                    <button type="button" class="sc-add-btn" disabled onclick="addDefaultScEntry(3)" title="サブコンを追加（複数社に分ける場合、それぞれ明細行の起点になります）">＋</button>
+                  </div>
+                </div>
               </div>
               <div class="piece-row">
                 <label class="piece-item"><input type="checkbox" id="piece-customs-i" disabled onchange="applyZoneState();onPieceCheck(this,'sc-customs-i')"> 🛃 通関（輸入）</label>

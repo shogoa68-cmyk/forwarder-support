@@ -1241,26 +1241,46 @@
   }
 
   // ========== ゾーン構成プリセット適用 ==========
-  function _getFirstScValue(areaId) {
+  // 指定コンテナ内の全ての .sc-input（サブコン入力）から、空でない値を出現順に集める。
+  // ピースごとの複数サブコン入力（sc-entry の＋）、デフォルトサブコン（全ピース共通）
+  // の複数登録の両方をこの1つの関数で扱う。
+  function _getAllScValues(areaId) {
     const area = document.getElementById(areaId);
-    if (!area) return '';
-    return area.querySelector('.sc-input')?.value?.trim() || '';
+    if (!area) return [];
+    return Array.from(area.querySelectorAll('.sc-input'))
+      .map(el => el.value.trim())
+      .filter(Boolean);
   }
 
   function _buildZonePresetItems() {
     const items = [];
 
-    // Zone ① 出発地側 — サブコン単位で空行1行
+    // Zone ① 出発地側 — 関与するサブコンごとに空行1行（同じサブコン名は1行にまとめる）。
+    // ピースにサブコンが個別入力されていればそちらを優先、無ければデフォルトサブコン
+    // （複数登録されていればその全社分）にフォールバックする。
     if (_zone1On) {
-      const def1 = document.getElementById('z1DefaultSc')?.value?.trim() || '';
+      const defs1 = _getAllScValues('z1DefaultScArea');
       const seen1 = new Set();
-      const addZ1 = (sv) => {
-        if (!seen1.has(sv)) { seen1.add(sv); items.push({ cat: 'domestic', name: '', note: '', sv }); }
+      const addZ1 = (svList) => {
+        (svList.length ? svList : ['']).forEach(sv => {
+          if (seen1.has(sv)) return;
+          seen1.add(sv);
+          items.push({ cat: 'domestic', name: '', note: '', sv });
+        });
       };
-      if (document.getElementById('piece-pickup')?.checked)    addZ1(_getFirstScValue('sc-pickup')    || def1);
-      if (document.getElementById('piece-wh-origin')?.checked) addZ1(_getFirstScValue('sc-wh-origin')  || def1);
-      if (document.getElementById('piece-customs-e')?.checked) addZ1(_getFirstScValue('sc-customs-e')  || def1);
-      addZ1(def1); // 港湾諸費用（常時）を def1 グループに含める
+      if (document.getElementById('piece-pickup')?.checked) {
+        const own = _getAllScValues('sc-pickup');
+        addZ1(own.length ? own : defs1);
+      }
+      if (document.getElementById('piece-wh-origin')?.checked) {
+        const own = _getAllScValues('sc-wh-origin');
+        addZ1(own.length ? own : defs1);
+      }
+      if (document.getElementById('piece-customs-e')?.checked) {
+        const own = _getAllScValues('sc-customs-e');
+        addZ1(own.length ? own : defs1);
+      }
+      addZ1(defs1); // 港湾諸費用（常時）：登録した全デフォルトサブコン分
     }
 
     // Zone ② 幹線輸送 — 有効（enabled）航路のみ carrier 単位で空行1行
@@ -1276,17 +1296,30 @@
       items.push({ cat: 'ocean', name: '', note: '', sv: r.carrier, pp });
     });
 
-    // Zone ③ 到着地側 — サブコン単位で空行1行
+    // Zone ③ 到着地側 — 関与するサブコンごとに空行1行（Zone①と同じ考え方）
     if (_zone3On) {
-      const def3 = document.getElementById('z3DefaultSc')?.value?.trim() || '';
+      const defs3 = _getAllScValues('z3DefaultScArea');
       const seen3 = new Set();
-      const addZ3 = (sv) => {
-        if (!seen3.has(sv)) { seen3.add(sv); items.push({ cat: 'overseas', name: '', note: '', sv }); }
+      const addZ3 = (svList) => {
+        (svList.length ? svList : ['']).forEach(sv => {
+          if (seen3.has(sv)) return;
+          seen3.add(sv);
+          items.push({ cat: 'overseas', name: '', note: '', sv });
+        });
       };
-      addZ3(def3); // 仕向港費用（常時）を def3 グループに含める
-      if (document.getElementById('piece-customs-i')?.checked) addZ3(_getFirstScValue('sc-customs-i') || def3);
-      if (document.getElementById('piece-wh-dest')?.checked)   addZ3(_getFirstScValue('sc-wh-dest')   || def3);
-      if (document.getElementById('piece-deliver')?.checked)   addZ3(_getFirstScValue('sc-deliver')   || def3);
+      addZ3(defs3); // 仕向港費用（常時）：登録した全デフォルトサブコン分
+      if (document.getElementById('piece-customs-i')?.checked) {
+        const own = _getAllScValues('sc-customs-i');
+        addZ3(own.length ? own : defs3);
+      }
+      if (document.getElementById('piece-wh-dest')?.checked) {
+        const own = _getAllScValues('sc-wh-dest');
+        addZ3(own.length ? own : defs3);
+      }
+      if (document.getElementById('piece-deliver')?.checked) {
+        const own = _getAllScValues('sc-deliver');
+        addZ3(own.length ? own : defs3);
+      }
     }
 
     return items;
@@ -1367,8 +1400,15 @@
       const inp = area.querySelector('.sc-input');
       if (inp) { inp.value = ''; delete inp.dataset.auto; }
     });
+    const dscArea = document.querySelector('#' + piecesId + ' .zone-default-entries');
+    if (dscArea) {
+      const dscEntries = dscArea.querySelectorAll('.sc-entry');
+      dscEntries.forEach((e, i) => { if (i > 0) e.remove(); });
+    }
     const dsc = document.querySelector('#' + piecesId + ' .zone-default-input');
     if (dsc) { dsc.value = ''; dsc.disabled = true; }
+    const dscAddBtn = document.querySelector('#' + piecesId + ' .zone-default-sc .sc-add-btn');
+    if (dscAddBtn) dscAddBtn.disabled = true;
   }
 
   // ゾーンカード（①出発地側／②幹線輸送／③到着地側）の折りたたみ。
@@ -1397,8 +1437,9 @@
       }
       if (_zone1On) {
         document.querySelectorAll('#zone1Pieces input[type=checkbox]').forEach(cb => { cb.disabled = false; });
-        const dsc1 = document.getElementById('z1DefaultSc');
-        if (dsc1) dsc1.disabled = false;
+        document.querySelectorAll('#zone1Pieces .zone-default-input').forEach(el => { el.disabled = false; });
+        const dscAddBtn1 = document.querySelector('#zone1Pieces .zone-default-sc .sc-add-btn');
+        if (dscAddBtn1) dscAddBtn1.disabled = false;
         ['z1Place','z1Country','z1MapsBtn'].forEach(id => { const el = document.getElementById(id); if (el) el.disabled = false; });
       } else {
         _resetZonePieces('zone1Pieces');
@@ -1418,8 +1459,9 @@
       }
       if (_zone3On) {
         document.querySelectorAll('#zone3Pieces input[type=checkbox]').forEach(cb => { cb.disabled = false; });
-        const dsc3 = document.getElementById('z3DefaultSc');
-        if (dsc3) dsc3.disabled = false;
+        document.querySelectorAll('#zone3Pieces .zone-default-input').forEach(el => { el.disabled = false; });
+        const dscAddBtn3 = document.querySelector('#zone3Pieces .zone-default-sc .sc-add-btn');
+        if (dscAddBtn3) dscAddBtn3.disabled = false;
         ['z3Place','z3Country','z3MapsBtn'].forEach(id => { const el = document.getElementById(id); if (el) el.disabled = false; });
       } else {
         _resetZonePieces('zone3Pieces');
@@ -2791,11 +2833,30 @@
     entry.querySelector('.sc-input').focus();
   }
 
+  /** デフォルトサブコン（全ピース共通）に複数社を登録できるよう行を追加（＋ボタン）。
+   *  国内作業（①）／海外作業（③）を複数社で分ける場合、それぞれが
+   *  「ゾーン構成から見積もり行を生成」で明細行の起点（1社1行）になる。 */
+  function addDefaultScEntry(zone) {
+    const area = document.getElementById('z' + zone + 'DefaultScArea');
+    if (!area) return;
+    const entry = document.createElement('div');
+    entry.className = 'sc-entry';
+    entry.innerHTML =
+      '<input type="text" class="zone-default-input sc-input" placeholder="サブコン">' +
+      '<button class="sc-del-btn" type="button" onclick="this.parentElement.remove()">－</button>';
+    area.appendChild(entry);
+    entry.querySelector('.sc-input').focus();
+  }
+
   function onZonePiecesInput(e, zone) {
     if (e.target.classList.contains('sc-input')) delete e.target.dataset.auto;
   }
 
-  function applyDefaultSubcon(zone, val) {
+  // デフォルトサブコン欄（1つめの入力）の値を、未編集のピース欄へ自動反映する。
+  // 2つめ以降に追加した入力は「ゾーン構成から見積もり行を生成」時にのみ使う
+  // 別会社候補という位置づけのため、ここでの自動反映対象は1つめのみ。
+  function applyDefaultSubcon(zone) {
+    const val = (document.getElementById('z' + zone + 'DefaultSc')?.value || '').trim();
     const piecesId = zone === 1 ? 'zone1Pieces' : 'zone3Pieces';
     document.querySelectorAll('#' + piecesId + ' .piece-subcon-area').forEach(area => {
       const inp = area.querySelector('.sc-input');
@@ -2971,11 +3032,9 @@
     }
     const cur = (document.getElementById('z2Carrier')?.value || '').trim();
     if (cur && !names.includes(cur)) names.push(cur);
-    // z1/z3: デフォルトサブコン
-    const sc1 = (document.getElementById('z1DefaultSc')?.value || '').trim();
-    if (sc1 && !names.includes(sc1)) names.push(sc1);
-    const sc3 = (document.getElementById('z3DefaultSc')?.value || '').trim();
-    if (sc3 && !names.includes(sc3)) names.push(sc3);
+    // z1/z3: デフォルトサブコン（複数登録分すべて）
+    _getAllScValues('z1DefaultScArea').forEach(sc => { if (!names.includes(sc)) names.push(sc); });
+    _getAllScValues('z3DefaultScArea').forEach(sc => { if (!names.includes(sc)) names.push(sc); });
     if (names.length) window.fetchCarrierBmsForQSP(names);
   }
 

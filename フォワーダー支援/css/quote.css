@@ -2848,12 +2848,13 @@
 #tab-quote-make .zone-off .piece-subcon-area { display: none !important; }
 /* ── ゾーンデフォルトサブコン入力 ── */
 #tab-quote-make .zone-default-sc {
-  display: flex; align-items: center; gap: 6px;
+  display: flex; align-items: flex-start; gap: 6px;
   padding: 6px 8px; margin-bottom: 6px;
   background: #eaf9f1; border-radius: 4px;
   border: 1px dashed #5a6e42;
 }
-#tab-quote-make .z-ds-label { font-size: 13px; flex-shrink: 0; }
+#tab-quote-make .z-ds-label { font-size: 13px; flex-shrink: 0; padding-top: 4px; }
+#tab-quote-make .zone-default-entries { display: flex; flex-direction: column; gap: 4px; flex: 1; min-width: 0; }
 #tab-quote-make .zone-default-input {
   flex: 1; font-size: 11px; padding: 4px 8px;
   border: 1px solid #5a6e42; border-radius: 4px; min-width: 0;
@@ -2861,6 +2862,7 @@
 }
 #tab-quote-make .zone-default-input::placeholder { color: #a8c8a0; font-weight: 400; }
 #tab-quote-make .zone-off .zone-default-input { opacity: .45; pointer-events: none; }
+#tab-quote-make .zone-default-sc .sc-add-btn:disabled { opacity: .4; cursor: not-allowed; pointer-events: none; }
 #tab-quote-make .zone-addr-row {
   padding: 6px 10px 4px;
   display: flex;
