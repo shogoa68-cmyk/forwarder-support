@@ -28,6 +28,7 @@
   let _siSubcons = [];   // 右カラムパネル用（現案件条件 or 全件、_siShowAll に応じて切替）
   let _siCatSel  = new Set();   // 右カラム：カテゴリチップの選択状態（空 = 全カテゴリ）
   let _siSvSel   = new Set();   // 右カラム：サブコン名チップの選択状態（空 = 全サブコン・複数選択可）
+  let _siPtSel   = new Set();   // 右カラム：パターン名チップの選択状態（空 = 全パターン・複数選択可）
   let _siSvExpanded  = false;   // サブコン名チップの折りたたみ状態（false = 使用件数上位のみ表示）
   let _siSvChipList  = [];      // 直近描画したサブコン名チップの並び（会社名を onclick 属性へ直接埋め込むと
                                  // クォート等を含む名前で壊れるため、クリックはインデックス経由で参照する）
@@ -439,6 +440,7 @@
       const nameHit = svPicked || (terms.length > 0 && terms.every(t => sc.name.toLowerCase().includes(t)));
       let items = sc.items.map((it, ii) => Object.assign({ _ii: ii }, it));
       if (_siCatSel.size) items = items.filter(it => _siCatSel.has(it.cat || ''));
+      if (_siPtSel.size) items = items.filter(it => _siPtSel.has(it.pt || ''));
       if (terms.length && !nameHit) items = items.filter(it => _itemMatches(it, terms));
       if (!items.length) return;
       out.push(Object.assign({}, sc, { items, _total: sc.items.length }));
@@ -530,13 +532,45 @@
     renderSubconSidePanel();
   }
 
+  // パターン絞り込みチップ（明細ごとの直近パターン名＝it.pt で絞り込み、件数の多い順）。
+  // パターン未設定の明細（it.pt === ''）も「（パターン未設定）」チップとしてまとめる。
+  function renderSiPtChips() {
+    const box = document.getElementById('siPtChips');
+    if (!box) return;
+    const counts = {};
+    _siSubcons.forEach(sc => sc.items.forEach(it => {
+      const k = it.pt || '';
+      counts[k] = (counts[k] || 0) + 1;
+    }));
+    const keys = Object.keys(counts).sort((a, b) => counts[b] - counts[a]);
+    if (!keys.length) { box.innerHTML = ''; return; }
+    box.innerHTML = keys.map(k => {
+      const on = _siPtSel.has(k);
+      const label = k || '（パターン未設定）';
+      return '<button type="button" class="si-pt-chip' + (on ? ' is-on' : '') + '" ' +
+        'onclick="siTogglePtChip(\'' + _esc(k) + '\')" title="このパターンで絞り込み（複数選択可）">' +
+        _esc(label) + '<small>' + counts[k] + '</small></button>';
+    }).join('') + (_siPtSel.size
+      ? '<button type="button" class="si-pt-chip si-pt-clear" onclick="siClearPtChips()" title="パターン絞り込みを解除">✕ 解除</button>'
+      : '');
+  }
+  function siTogglePtChip(k) {
+    if (_siPtSel.has(k)) _siPtSel.delete(k); else _siPtSel.add(k);
+    renderSubconSidePanel();
+  }
+  function siClearPtChips() {
+    _siPtSel.clear();
+    renderSubconSidePanel();
+  }
+
   function renderSubconSidePanel() {
     const wrap = document.getElementById('siListWrap');
     if (!wrap) return;
     renderSiCatChips();
     renderSiSvChips();
+    renderSiPtChips();
     const terms = _terms(document.getElementById('siSubconSearch')?.value || '');
-    const filtering = terms.length > 0 || _siCatSel.size > 0;
+    const filtering = terms.length > 0 || _siCatSel.size > 0 || _siSvSel.size > 0 || _siPtSel.size > 0;
     const list = _siFilteredList();
     if (!list.length) {
       wrap.innerHTML = '<div class="preset-empty">' + (filtering ? '該当する費用行がありません' :
@@ -952,6 +986,7 @@
     renderSubconSidePanel, subconInsertFromPanel, loadSubconPanel, subconSidePanelFilter,
     siToggleCatChip, siClearCatChips, siToggleShowAll, siItemSrcPop,
     siToggleSvChip, siClearSvChips, siToggleSvChipsExpand,
+    siTogglePtChip, siClearPtChips,
     siSetTab, renderCurrentQuoteSubconPanel, siCopyGroup,
     getSubconData: () => _subcons,
     loadSubconData: async () => { if (!_subcons.length) await loadSubconModules(); return _subcons; },
