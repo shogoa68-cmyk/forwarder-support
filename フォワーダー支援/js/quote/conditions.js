@@ -385,6 +385,18 @@
   window.addDaysToValidUntil    = _addDaysToValidUntil;
   window.toggleValidUntilSpot   = _toggleValidUntilSpot;
 
+  // ①出発地側／③到着地側の「場所」「国」欄に入力した文字列でGoogle Maps検索を
+  // 新規タブで開く。住所が曖昧・略記（例：川崎市／上海市浦東新区）でも、
+  // それらしい場所を地図上ですぐ確認できるようにするための簡易リンク。
+  function _openZoneMapsSearch(n) {
+    const place   = (document.getElementById('z' + n + 'Place')?.value   || '').trim();
+    const country = (document.getElementById('z' + n + 'Country')?.value || '').trim();
+    const query = [place, country].filter(Boolean).join(', ');
+    if (!query) { quoteShowToast('ℹ️ 場所または国を入力してください', 'info', 1800); return; }
+    window.open('https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(query), '_blank', 'noopener');
+  }
+  window.openZoneMapsSearch = _openZoneMapsSearch;
+
   function _restoreUiState(fields) {
     if (!fields) return;
 
@@ -1387,10 +1399,10 @@
         document.querySelectorAll('#zone1Pieces input[type=checkbox]').forEach(cb => { cb.disabled = false; });
         const dsc1 = document.getElementById('z1DefaultSc');
         if (dsc1) dsc1.disabled = false;
-        ['z1Place','z1Country'].forEach(id => { const el = document.getElementById(id); if (el) el.disabled = false; });
+        ['z1Place','z1Country','z1MapsBtn'].forEach(id => { const el = document.getElementById(id); if (el) el.disabled = false; });
       } else {
         _resetZonePieces('zone1Pieces');
-        ['z1Place','z1Country'].forEach(id => { const el = document.getElementById(id); if (el) el.disabled = true; });
+        ['z1Place','z1Country','z1MapsBtn'].forEach(id => { const el = document.getElementById(id); if (el) el.disabled = true; });
       }
     } else if (n === 3) {
       _zone3On = !_zone3On;
@@ -1408,10 +1420,10 @@
         document.querySelectorAll('#zone3Pieces input[type=checkbox]').forEach(cb => { cb.disabled = false; });
         const dsc3 = document.getElementById('z3DefaultSc');
         if (dsc3) dsc3.disabled = false;
-        ['z3Place','z3Country'].forEach(id => { const el = document.getElementById(id); if (el) el.disabled = false; });
+        ['z3Place','z3Country','z3MapsBtn'].forEach(id => { const el = document.getElementById(id); if (el) el.disabled = false; });
       } else {
         _resetZonePieces('zone3Pieces');
-        ['z3Place','z3Country'].forEach(id => { const el = document.getElementById(id); if (el) el.disabled = true; });
+        ['z3Place','z3Country','z3MapsBtn'].forEach(id => { const el = document.getElementById(id); if (el) el.disabled = true; });
       }
     }
     applyZoneState();

@@ -261,7 +261,12 @@
     const wrap = document.getElementById('cloudPresetListWrap');
     if (!c || !_cloudUser) return;
     if (wrap && !silent) wrap.innerHTML = '<div class="preset-empty">読み込み中…</div>';
-    await _loadProfiles();
+    // 同義グループ（お客様名等の表記ゆれマッピング）を最新化してから集計する。
+    // _custKey() がこのキャッシュを参照するため、ランキング描画より前に解決させる必要がある。
+    await Promise.all([
+      _loadProfiles(),
+      (typeof window.synLoadCloud === 'function' ? window.synLoadCloud() : Promise.resolve()),
+    ]);
     // editors（更新者履歴）・locked_by/locked_at（編集ロック）・ref（見積もり番号）・
     // tags（案件タグ）も取得。列が未マイグレーションでも動くよう、段階的にフォールバックする。
     const BASE_COLS = 'id,name,status,customer,person,owner_email,created_by,updated_at,incoterms,transport_mode,pol,pod,carrier,data';
@@ -363,10 +368,21 @@
     return r.__hay + (names ? ' ' + names : '') + (tags ? ' ' + tags : '');
   }
   // お客様名の正規化キー（表記ゆれを吸収してランキングを寄せる）。
-  // 「(株)」「株式会社」などの差はここでは吸収せず、全角半角・大小文字・空白のみ揃える。
+  // 全角半角・大小文字・空白の吸収に加え、マスター管理タブ「🔀 エイリアス是正」の
+  // 同義グループ（例：「早川運輸」を別名として「早川運輸株式会社」に登録）が
+  // 設定されていれば、その代表表記へ寄せてから正規化する。これにより「株式会社」
+  // の有無等の差が原因で同じお客様の案件がランキング上で分裂するのを防ぐ。
+  // 同義グループ未登録の組み合わせ（法人格の差だけでは自動では吸収されない）は
+  // 従来通り別お客様として扱われる。
   function _custKey(name) {
-    if (typeof window.subconNormKey === 'function') return window.subconNormKey(name);
-    return String(name == null ? '' : name).trim().toLowerCase();
+    const raw = String(name == null ? '' : name).trim();
+    let canon = raw;
+    if (raw && typeof window.synGetNormalizeMap === 'function') {
+      const map = window.synGetNormalizeMap('customer');
+      if (map && Object.prototype.hasOwnProperty.call(map, raw)) canon = map[raw];
+    }
+    if (typeof window.subconNormKey === 'function') return window.subconNormKey(canon);
+    return canon.toLowerCase();
   }
 
   // 絞り込み条件に一致するか。opts.skipCustomer=true でお客様絞り込みだけ、
