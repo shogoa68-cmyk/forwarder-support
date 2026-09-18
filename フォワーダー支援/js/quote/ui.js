@@ -2946,8 +2946,8 @@
     ];
     // サブコン情報を収集
     const subconOf = (z) => {
-      if (z === 'z1') return (document.getElementById('z1DefaultSc')?.value || '').trim();
-      if (z === 'z3') return (document.getElementById('z3DefaultSc')?.value || '').trim();
+      if (z === 'z1') return (typeof _getAllScValues === 'function' ? _getAllScValues('z1DefaultScArea') : []).join('、');
+      if (z === 'z3') return (typeof _getAllScValues === 'function' ? _getAllScValues('z3DefaultScArea') : []).join('、');
       if (z === 'z2') {
         // 幹線：登録航路のキャリア、無ければ入力欄
         try {
@@ -3054,10 +3054,10 @@
       return carrierBlock('👷', subcon, chips);
     };
 
-    // ① 出発地側サブコン
+    // ① 出発地側サブコン（複数登録時はそれぞれ別ブロック）
     if (st && st.zone1On) {
-      const sc1 = (document.getElementById('z1DefaultSc')?.value || '').trim();
-      if (sc1) blocks.push(subconBlock(sc1));
+      const scList1 = typeof _getAllScValues === 'function' ? _getAllScValues('z1DefaultScArea') : [];
+      scList1.forEach(sc => blocks.push(subconBlock(sc)));
     }
     // ② 幹線輸送キャリア（すべてクラウドBM・編集可＋追加）
     if (typeof window.getCarrierLinkData === 'function') {
@@ -3071,10 +3071,10 @@
         blocks.push(carrierBlock(cd.icon || '🚢', cd.name, chips));
       });
     }
-    // ③ 到着地側サブコン
+    // ③ 到着地側サブコン（複数登録時はそれぞれ別ブロック）
     if (st && st.zone3On) {
-      const sc3 = (document.getElementById('z3DefaultSc')?.value || '').trim();
-      if (sc3) blocks.push(subconBlock(sc3));
+      const scList3 = typeof _getAllScValues === 'function' ? _getAllScValues('z3DefaultScArea') : [];
+      scList3.forEach(sc => blocks.push(subconBlock(sc)));
     }
 
     if (!blocks.length) {
