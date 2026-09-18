@@ -422,6 +422,7 @@
       _cloudFilterMode, _cloudFilterInco, _cloudFilterPol, _cloudFilterPod, _cloudFilterCarrier, _cloudSort, _cloudView]);
     if (sig !== _dashFilterSig) { _dashFilterSig = sig; _dashLimit = DASH_PAGE; }
     _renderCloudList(rows);
+    _renderTagChips();        // タグチップは現在の絞り込み（ステータス等）に連動して件数・顔ぶれを更新
     _renderActiveQpdRank();   // タブで隠れている側は再計算しない（切替時に改めて描画する）
     _syncResetAllBtn();
   }
@@ -561,7 +562,11 @@
   // すべてでこの並びを共通利用する。
   function _tagCounts() {
     const counts = {};
-    _cloudRows.forEach(r => (Array.isArray(r.tags) ? r.tags : []).forEach(t => { counts[t] = (counts[t] || 0) + 1; }));
+    // タグ以外の現在の絞り込み（ステータス・検索・詳細検索・お客様）に一致する案件だけを集計。
+    // 例：「下書き中」で絞り込み中は、その下書き案件に付いているタグだけがチップに出る。
+    // 自分の軸（タグ）は skipTag で外し、絞り込み中でも他タグへ選び直せるようにする。
+    _cloudRows.filter(r => _rowMatchesFilters(r, { skipTag: true }))
+      .forEach(r => (Array.isArray(r.tags) ? r.tags : []).forEach(t => { counts[t] = (counts[t] || 0) + 1; }));
     return Object.keys(counts).map(t => ({ tag: t, count: counts[t] }))
       .sort((a, b) => b.count - a.count || a.tag.localeCompare(b.tag, 'ja'));
   }
