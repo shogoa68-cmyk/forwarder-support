@@ -3037,9 +3037,13 @@
   function _triggerCarrierBmFetch() {
     if (typeof window.fetchCarrierBmsForQSP !== 'function') return;
     const names = [];
-    // z2: 幹線キャリア（有効航路のみ）
+    // z2: 幹線キャリア（有効航路のみ）。契約先（carrier）に加え、
+    // 実運送人（actualCarrier＝「as ○○」）が別会社の場合はそちらのブックマークも対象にする
     if (_routeEntries && _routeEntries.length) {
-      _routeEntries.filter(r => r.enabled !== false).forEach(r => { if (r.carrier && !names.includes(r.carrier)) names.push(r.carrier); });
+      _routeEntries.filter(r => r.enabled !== false).forEach(r => {
+        if (r.carrier && !names.includes(r.carrier)) names.push(r.carrier);
+        if (r.actualCarrier && !names.includes(r.actualCarrier)) names.push(r.actualCarrier);
+      });
     }
     const cur = (document.getElementById('z2Carrier')?.value || '').trim();
     if (cur && !names.includes(cur)) names.push(cur);
@@ -3089,8 +3093,13 @@
     const map  = _carrierMapForMode();
     const defs = _linkDefsForMode();
     const names = [];
+    // 契約先（carrier）に加え、実運送人（actualCarrier＝「as ○○」）が別会社の場合は
+    // そちらのブックマークも別ブロックとして表示する（実際に船を運航するのは実運送人のため）
     if (_routeEntries && _routeEntries.length) {
-      _routeEntries.filter(r => r.enabled !== false).forEach(r => { if (r.carrier && !names.includes(r.carrier)) names.push(r.carrier); });
+      _routeEntries.filter(r => r.enabled !== false).forEach(r => {
+        if (r.carrier && !names.includes(r.carrier)) names.push(r.carrier);
+        if (r.actualCarrier && !names.includes(r.actualCarrier)) names.push(r.actualCarrier);
+      });
     }
     const cur = (document.getElementById('z2Carrier')?.value || '').trim();
     if (cur && !names.includes(cur)) names.push(cur);

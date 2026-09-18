@@ -10500,6 +10500,28 @@ button.um-memberno--empty:hover { background: #f4ead4; border-color: #cdb98e; }
 }
 #tab-quote-make .si-sv-chip.si-sv-clear:hover { background: #eaddc8; }
 #tab-quote-make .si-sv-chip-empty { font-size: 10.5px; color: #9a8878; }
+/* タグ絞り込みチップ（関与案件のタグの和集合で絞り込み・使用件数の多い順＋もっと見る） */
+#tab-quote-make .si-tag-chips {
+  display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px;
+}
+#tab-quote-make .si-tag-chips:empty { display: none; }
+#tab-quote-make .si-tag-chip {
+  cursor: pointer; font-family: inherit; font-size: 10.5px; color: #6b5a1f;
+  background: #fbf4d8; border: 1px solid #e2d29a; border-radius: 10px;
+  padding: 2px 8px; display: inline-flex; align-items: center; gap: 4px;
+}
+#tab-quote-make .si-tag-chip:hover { background: #f5ecc0; }
+#tab-quote-make .si-tag-chip.is-on {
+  background: #a08a3a; color: #fff; border-color: #a08a3a; font-weight: 700;
+}
+#tab-quote-make .si-tag-chip small { font-size: 9px; opacity: 0.75; }
+#tab-quote-make .si-tag-chip.si-tag-more {
+  background: none; border-style: dashed; color: #a08a3a;
+}
+#tab-quote-make .si-tag-chip.si-tag-clear {
+  background: #f5ede0; color: #8b5a2a; border-color: #d8c0a0; font-weight: 600;
+}
+#tab-quote-make .si-tag-chip.si-tag-clear:hover { background: #eaddc8; }
 /* ヒット件数サマリー・カード内該当件数 */
 #tab-quote-make .si-hit-note {
   font-size: 10px; font-weight: 600; color: #7a6a50;
