@@ -31,6 +31,9 @@
   let _siSvExpanded  = false;   // サブコン名チップの折りたたみ状態（false = 使用件数上位のみ表示）
   let _siSvChipList  = [];      // 直近描画したサブコン名チップの並び（会社名を onclick 属性へ直接埋め込むと
                                  // クォート等を含む名前で壊れるため、クリックはインデックス経由で参照する）
+  let _siTagSel      = new Set();   // 右カラム：案件タグチップの選択状態（空 = 全タグ・複数選択可）
+  let _siTagExpanded = false;       // タグチップの折りたたみ状態（false = 使用件数上位のみ表示）
+  let _siTagChipList = [];          // 直近描画したタグチップの並び（クリックはインデックス経由）
   let _siShowAll = false;       // 右カラム：ON=全過去案件、OFF=現案件のサブコン/条件に合致するもののみ
   let _siRawPresets = null;     // 直近取得した全プリセット（トグル切替時に再取得しないためのキャッシュ）
 
@@ -85,6 +88,7 @@
       mode:     (p.transport_mode || '').trim() || (f['cond-mode'] || '').trim(),
       route:    [pol, pod].filter(Boolean).join(' → '),
       ts:       p.updated_at ? new Date(p.updated_at).getTime() : 0,
+      tags:     Array.isArray(p.tags) ? p.tags : [],
     };
   }
 
@@ -134,7 +138,7 @@
         if (ts >= it.lastUsed) { it.lastUsed = ts; it.lastPp = pp; it.lastBp = (r.cells[CI.bp]||''); it.lastPt = (r.cells[CI.pt]||'').trim(); it.lastVf = (r.cells[CI.vf]||'').trim(); it.lastVt = (r.cells[CI.vt]||'').trim(); it.latest = r.cells; }
         it.history.push({ ts, pp, bp: _num(r.cells[CI.bp]), route });
         it.srcMap[p.id] = { id: p.id, name: meta.name, customer: meta.customer, status: meta.status,
-                           route: meta.route, ts, pp, pc: pcKey };
+                           route: meta.route, ts, pp, pc: pcKey, tags: meta.tags };
       });
     });
     // 配列化
@@ -144,20 +148,37 @@
       uses: Object.keys(sc.sources).length,
       sources: Object.values(sc.sources).sort((a, b) => b.ts - a.ts),
       items: Object.values(sc.items)
-        .map(it => ({
-          cat: it.cat, name: it.name, role: it.role, un: it.un, pc: it.pc, bc: it.bc,
-          pp: it.lastPp, bp: it.lastBp || '', pt: it.lastPt || '',
-          vf: it.lastVf || '', vt: it.lastVt || '',
-          srcs: Object.values(it.srcMap).sort((a, b) => b.ts - a.ts),
-          avgPp: it.ppCount ? (it.ppSum / it.ppCount) : null,
-          lastUsed: it.lastUsed, cells: it.latest,
-          history: it.history.sort((a, b) => a.ts - b.ts),
-        }))
+        .map(it => {
+          // この明細を使っていたどれかの案件が持つタグの和集合（重複除去）。
+          // 明細1件は複数の過去案件から集計されるため、タグ絞り込みは
+          // 「関与した案件のいずれかが該当タグを持てば表示」という考え方にする。
+          const tagSet = new Set();
+          Object.values(it.srcMap).forEach(s => (s.tags || []).forEach(t => tagSet.add(t)));
+          return {
+            cat: it.cat, name: it.name, role: it.role, un: it.un, pc: it.pc, bc: it.bc,
+            pp: it.lastPp, bp: it.lastBp || '', pt: it.lastPt || '',
+            vf: it.lastVf || '', vt: it.lastVt || '',
+            srcs: Object.values(it.srcMap).sort((a, b) => b.ts - a.ts),
+            tags: Array.from(tagSet),
+            avgPp: it.ppCount ? (it.ppSum / it.ppCount) : null,
+            lastUsed: it.lastUsed, cells: it.latest,
+            history: it.history.sort((a, b) => a.ts - b.ts),
+          };
+        })
         .sort((a, b) => b.lastUsed - a.lastUsed),
     })).sort((a, b) => b.lastUsed - a.lastUsed);
   }
 
   // ---------- 取得 ----------
+  // tags 列（タグ絞り込み用）込みで取得し、列が未マイグレーションの環境では
+  // 落ちずに tags 無しへフォールバックする。
+  async function _fetchAllPresets(db) {
+    const BASE = 'id,name,customer,person,status,transport_mode,pol,pod,data,updated_at';
+    let res = await db.from('quote_presets').select(BASE + ',tags');
+    if (res.error) res = await db.from('quote_presets').select(BASE);
+    return res;
+  }
+
   async function loadSubconModules() {
     const wrap = document.getElementById('subconListWrap');
     const db = _db();
@@ -167,8 +188,7 @@
       return;
     }
     if (wrap) wrap.innerHTML = '<div class="preset-empty">読み込み中…</div>';
-    const { data, error } = await db.from('quote_presets')
-      .select('id,name,customer,person,status,transport_mode,pol,pod,data,updated_at');
+    const { data, error } = await _fetchAllPresets(db);
     if (error) { if (wrap) wrap.innerHTML = '<div class="preset-empty">⚠️ 読み込みエラー：' + _esc(error.message) + '</div>'; return; }
     _subcons = _aggregate(data || []);
     renderSubconList();
@@ -439,6 +459,9 @@
       const nameHit = svPicked || (terms.length > 0 && terms.every(t => sc.name.toLowerCase().includes(t)));
       let items = sc.items.map((it, ii) => Object.assign({ _ii: ii }, it));
       if (_siCatSel.size) items = items.filter(it => _siCatSel.has(it.cat || ''));
+      // タグ絞り込み：明細1件は複数の過去案件から集計されるため、選択したタグの
+      // いずれか1つでも関与案件が持っていれば表示する（it.tags は和集合を事前計算済み）
+      if (_siTagSel.size) items = items.filter(it => (it.tags || []).some(t => _siTagSel.has(t)));
       if (terms.length && !nameHit) items = items.filter(it => _itemMatches(it, terms));
       if (!items.length) return;
       out.push(Object.assign({}, sc, { items, _total: sc.items.length }));
@@ -530,13 +553,68 @@
     renderSubconSidePanel();
   }
 
+  // 案件タグ絞り込みチップ（明細ごとの関与案件タグの和集合＝it.tags で絞り込み、件数の多い順）。
+  // サブコン名チップと同じ「上位N件＋もっと見る／検索欄との連動」の構成にする
+  // （パターン名チップは表記のバラつきが大きく件数が爆発して重くなったため撤去した経緯があり、
+  //   タグは案件作成者が手入力する少数の定型語である前提でも念のため同じ安全策を踏襲する）。
+  const SI_TAG_CHIP_TOP_N = 12;
+  function renderSiTagChips() {
+    const box = document.getElementById('siTagChips');
+    if (!box) return;
+    const counts = {};
+    _siSubcons.forEach(sc => sc.items.forEach(it => {
+      (it.tags || []).forEach(t => { counts[t] = (counts[t] || 0) + 1; });
+    }));
+    let list = Object.keys(counts).map(t => ({ name: t, count: counts[t] }));
+    list.sort((a, b) => b.count - a.count);
+    const terms = _terms(document.getElementById('siSubconSearch')?.value || '');
+    if (terms.length) list = list.filter(c => terms.every(t => c.name.toLowerCase().includes(t)));
+    _siTagChipList = list;
+    if (!list.length) {
+      box.innerHTML = terms.length ? '<span class="si-sv-chip-empty">該当するタグがありません</span>' : '';
+      return;
+    }
+    const shown = (terms.length || _siTagExpanded) ? list : list.slice(0, SI_TAG_CHIP_TOP_N);
+    const remaining = list.length - shown.length;
+    const canCollapse = !terms.length && _siTagExpanded && list.length > SI_TAG_CHIP_TOP_N;
+    const collapseBtn = '<button type="button" class="si-tag-chip si-tag-more" onclick="siToggleTagChipsExpand()">▲ 折りたたむ</button>';
+    box.innerHTML = (canCollapse ? collapseBtn : '')
+    + shown.map((c, i) => {
+      const on = _siTagSel.has(c.name);
+      return '<button type="button" class="si-tag-chip' + (on ? ' is-on' : '') + '" ' +
+        'onclick="siToggleTagChip(' + i + ')" title="このタグを持つ案件由来の明細で絞り込み（複数選択可）">' +
+        '🏷️ ' + _esc(c.name) + '<small>' + c.count + '</small></button>';
+    }).join('')
+    + (remaining > 0
+        ? '<button type="button" class="si-tag-chip si-tag-more" onclick="siToggleTagChipsExpand()">▼ もっと見る（+' + remaining + '件）</button>'
+        : (canCollapse ? collapseBtn : ''))
+    + (_siTagSel.size
+        ? '<button type="button" class="si-tag-chip si-tag-clear" onclick="siClearTagChips()" title="タグ絞り込みを解除">✕ 解除</button>'
+        : '');
+  }
+  function siToggleTagChip(idx) {
+    const c = _siTagChipList[idx];
+    if (!c) return;
+    if (_siTagSel.has(c.name)) _siTagSel.delete(c.name); else _siTagSel.add(c.name);
+    renderSubconSidePanel();
+  }
+  function siClearTagChips() {
+    _siTagSel.clear();
+    renderSubconSidePanel();
+  }
+  function siToggleTagChipsExpand() {
+    _siTagExpanded = !_siTagExpanded;
+    renderSubconSidePanel();
+  }
+
   function renderSubconSidePanel() {
     const wrap = document.getElementById('siListWrap');
     if (!wrap) return;
     renderSiCatChips();
     renderSiSvChips();
+    renderSiTagChips();
     const terms = _terms(document.getElementById('siSubconSearch')?.value || '');
-    const filtering = terms.length > 0 || _siCatSel.size > 0 || _siSvSel.size > 0;
+    const filtering = terms.length > 0 || _siCatSel.size > 0 || _siSvSel.size > 0 || _siTagSel.size > 0;
     const list = _siFilteredList();
     if (!list.length) {
       wrap.innerHTML = '<div class="preset-empty">' + (filtering ? '該当する費用行がありません' :
@@ -849,8 +927,7 @@
       return;
     }
     wrap.innerHTML = '<div class="preset-empty">読み込み中…</div>';
-    const { data, error } = await db.from('quote_presets')
-      .select('id,name,customer,person,status,transport_mode,pol,pod,data,updated_at');
+    const { data, error } = await _fetchAllPresets(db);
     if (error) {
       wrap.innerHTML = '<div class="preset-empty">⚠️ 読み込みエラー：' + _esc(error.message) + '</div>';
       return;
@@ -952,6 +1029,7 @@
     renderSubconSidePanel, subconInsertFromPanel, loadSubconPanel, subconSidePanelFilter,
     siToggleCatChip, siClearCatChips, siToggleShowAll, siItemSrcPop,
     siToggleSvChip, siClearSvChips, siToggleSvChipsExpand,
+    siToggleTagChip, siClearTagChips, siToggleTagChipsExpand,
     siSetTab, renderCurrentQuoteSubconPanel, siCopyGroup,
     getSubconData: () => _subcons,
     loadSubconData: async () => { if (!_subcons.length) await loadSubconModules(); return _subcons; },
