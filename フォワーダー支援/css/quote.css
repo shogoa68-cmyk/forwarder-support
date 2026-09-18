@@ -10500,25 +10500,6 @@ button.um-memberno--empty:hover { background: #f4ead4; border-color: #cdb98e; }
 }
 #tab-quote-make .si-sv-chip.si-sv-clear:hover { background: #eaddc8; }
 #tab-quote-make .si-sv-chip-empty { font-size: 10.5px; color: #9a8878; }
-/* パターン絞り込みチップ（明細ごとの直近パターン名で絞り込み） */
-#tab-quote-make .si-pt-chips {
-  display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px;
-}
-#tab-quote-make .si-pt-chips:empty { display: none; }
-#tab-quote-make .si-pt-chip {
-  cursor: pointer; font-family: inherit; font-size: 10.5px; color: #4a6b5a;
-  background: #eef6f0; border: 1px solid #b9d6c2; border-radius: 10px;
-  padding: 2px 8px; display: inline-flex; align-items: center; gap: 4px;
-}
-#tab-quote-make .si-pt-chip:hover { background: #dcecdf; }
-#tab-quote-make .si-pt-chip.is-on {
-  background: #4a6b5a; color: #fff; border-color: #4a6b5a; font-weight: 700;
-}
-#tab-quote-make .si-pt-chip small { font-size: 9px; opacity: 0.75; }
-#tab-quote-make .si-pt-chip.si-pt-clear {
-  background: #f5ede0; color: #8b5a2a; border-color: #d8c0a0; font-weight: 600;
-}
-#tab-quote-make .si-pt-chip.si-pt-clear:hover { background: #eaddc8; }
 /* ヒット件数サマリー・カード内該当件数 */
 #tab-quote-make .si-hit-note {
   font-size: 10px; font-weight: 600; color: #7a6a50;
