@@ -2216,15 +2216,20 @@
     return blocks.join('\n');
   }
 
-  // 1パターン分の総重量(kg)・総容積(CBM)
+  // 1パターン分の総重量(kg)・総容積(CBM)・課金重量（R/T・CW）。
+  // R/T・CW は _updatePackingTotals() と同じ SharedCalc の式を使い、全画面で計算方法を統一する。
   function _patternWeightCbm(entries) {
-    let kg = 0, cbm = 0;
+    let kg = 0, cbm = 0, volWt = 0;
     (entries || []).forEach(e => {
       const q = parseInt(e.qty, 10) || 0;
       kg  += (parseFloat(e.kg) || 0) * q;
       cbm += _rowCbm(e);
+      const l = parseFloat(e.l) || 0, w = parseFloat(e.w) || 0, h = parseFloat(e.h) || 0;
+      volWt += (l * w * h / 6000) * q;   // 容積重量(kg)＝L×W×H(cm)÷6000×個数（航空CW用）
     });
-    return { kg, cbm };
+    const rt = SharedCalc.lclRt(cbm, kg);
+    const cw = SharedCalc.airChargeableWeight(kg, volWt);
+    return { kg, cbm, rt, cw };
   }
 
   window.getPackingDetailText = function () {
@@ -2253,22 +2258,28 @@
 
   // 輸送モードに応じた課金重量（LCL＝R/T・航空＝CW）の1行を、PDF/プレビュー/メールで
   // 共通利用できる形式で返す。対象外・データ無しなら null。
+  // 総重量・総容積（getCargoWeightText/getCargoVolumeText）と同じく、複数物量パターンを
+  // 表示する場合はパターンごとに内訳を出す（_buildPatternBreakdownText を共用）。
   window.getCargoBillingLine = function (mode) {
     if (window.isCargoSizeUnknown()) return null;   // 未確定のためR/T・CWは出さない
-    const cm = (typeof window.getCargoMetrics === 'function') ? window.getCargoMetrics() : null;
-    if (!cm) return null;
     const m = mode || '';
-    if (/LCL/i.test(m) && (cm.cbm > 0 || cm.kg > 0)) {
-      const rt = cm.rt || 0;
-      let txt = rt.toFixed(3) + ' R/T';
-      if (rt > 0 && rt < 1) txt += '（MINIMUM 1 適用 → 1.000 R/T）';
-      return { label: 'R/T（課金重量）', value: txt };
-    }
-    if (/航空|AIR/i.test(m) && (cm.cw || 0) > 0) {
-      const cwTxt = (typeof SharedCalc !== 'undefined' && SharedCalc.fmtCw) ? SharedCalc.fmtCw(cm.cw) : String(Math.round(cm.cw));
-      return { label: 'CW（課金重量）', value: cwTxt + ' kg' };
-    }
-    return null;
+    const isLcl = /LCL/i.test(m);
+    const isAir = /航空|AIR/i.test(m);
+    if (!isLcl && !isAir) return null;
+    const text = _buildPatternBreakdownText((pt) => {
+      const { kg, cbm, rt, cw } = _patternWeightCbm(pt.entries);
+      if (isLcl) {
+        if (!(cbm > 0 || kg > 0)) return '';
+        let txt = rt.toFixed(3) + ' R/T';
+        if (rt > 0 && rt < 1) txt += '（MINIMUM 1 適用 → 1.000 R/T）';
+        return txt;
+      }
+      if (!(cw > 0)) return '';
+      const cwTxt = (typeof SharedCalc !== 'undefined' && SharedCalc.fmtCw) ? SharedCalc.fmtCw(cw) : String(Math.round(cw));
+      return cwTxt + ' kg';
+    });
+    if (!text) return null;
+    return { label: isLcl ? 'R/T（課金重量）' : 'CW（課金重量）', value: text };
   };
 
   // ========== 🏷️ 案件タグ ==========
