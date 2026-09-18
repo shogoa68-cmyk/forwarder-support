@@ -20,6 +20,11 @@ CREATE TABLE IF NOT EXISTS remark_presets (
   created_at timestamptz NOT NULL DEFAULT now()
 );
 
+-- テーブル自体への権限（authenticated ロール）。これが無いと RLS ポリシーが
+-- 許可していても "permission denied for table remark_presets" で失敗する
+-- （PostgreSQL はテーブル権限を RLS より先にチェックするため）。
+GRANT SELECT, INSERT, UPDATE, DELETE ON remark_presets TO authenticated;
+
 ALTER TABLE remark_presets ENABLE ROW LEVEL SECURITY;
 
 DROP POLICY IF EXISTS "team members can read remark_presets" ON remark_presets;
