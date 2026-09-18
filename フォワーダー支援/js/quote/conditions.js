@@ -654,6 +654,7 @@
     // （通常のフォーム値・行データではないため素通しでは残らない）。
     _loadedCopiedFrom = data.copiedFrom || null;
     _renderCopiedFromInfo();
+    if (typeof setRemarkImages === 'function') setRemarkImages(data.remarkImages || []);
     // サブコン別小計の客先用表示名を復元（_rebuildTable → renderSubconGroups より前にセット）
     if (typeof setSubconAliases === 'function') setSubconAliases(data.subconAliases || {});
     if (typeof setSubconRemarks === 'function') setSubconRemarks(data.subconRemarks || {});
@@ -727,6 +728,7 @@
     if (typeof window.qfRenderTagChips === 'function') window.qfRenderTagChips();
     if (typeof window.updateRemarkChar === 'function') window.updateRemarkChar();
     if (typeof window.syncRemarkChips === 'function') window.syncRemarkChips();
+    if (typeof window.renderRemarkImages === 'function') window.renderRemarkImages();
     if (typeof window.updateQuoteStatusUI === 'function') window.updateQuoteStatusUI();
     if (typeof window.qfRefreshCustomerDetailBtn === 'function') window.qfRefreshCustomerDetailBtn();
     if (typeof window.refreshAllRowMasterDetailBtns === 'function') window.refreshAllRowMasterDetailBtns();
@@ -1092,6 +1094,7 @@
     });
     // _rowFormat: v3 = 小計行・リマーク行を含む型付きオブジェクト配列
     return { fields, rows, ts: new Date().toISOString(), _rowFormat: 'v3-mixed-rows',
+             remarkImages: (typeof getRemarkImages === 'function' ? getRemarkImages() : []),
              subconAliases: (typeof getSubconAliases === 'function' ? getSubconAliases() : {}),
              subconRemarks: (typeof getSubconRemarks === 'function' ? getSubconRemarks() : {}),
              groupNotes: (typeof getSubconGroupNotes === 'function' ? getSubconGroupNotes() : {}),
@@ -1151,6 +1154,7 @@
     let data;
     try { data = JSON.parse(raw); } catch(e) { return; }
     data = migrateRowCells(data);
+    if (typeof setRemarkImages === 'function') setRemarkImages(data.remarkImages || []);
     if (typeof setSubconAliases === 'function') setSubconAliases(data.subconAliases || {});
     if (typeof setSubconRemarks === 'function') setSubconRemarks(data.subconRemarks || {});
     if (typeof setSubconGroupNotes === 'function') setSubconGroupNotes(data.groupNotes || {});
@@ -1180,6 +1184,7 @@
     if (typeof window.updateSectionSummaries === 'function') window.updateSectionSummaries();
     if (typeof window.renderQuoteMilestones === 'function') window.renderQuoteMilestones();
     if (typeof window.qfRenderTagChips === 'function') window.qfRenderTagChips();
+    if (typeof window.renderRemarkImages === 'function') window.renderRemarkImages();
     dismissRestoreBar();
     const ts = data.ts ? new Date(data.ts).toLocaleString('ja-JP') : '';
     quoteShowToast('↩ 自動保存データを復元しました' + (ts ? '（' + ts + '）' : ''), 'success', 3500);
@@ -1198,6 +1203,7 @@
     data = migrateRowCells(data);
     const ts = data.ts ? new Date(data.ts).toLocaleString('ja-JP') : '不明';
     if (!confirm(`保存日時: ${ts}\n\n現在のデータを上書きして読み込みますか？`)) return;
+    if (typeof setRemarkImages === 'function') setRemarkImages(data.remarkImages || []);
     if (typeof setSubconAliases === 'function') setSubconAliases(data.subconAliases || {});
     if (typeof setSubconRemarks === 'function') setSubconRemarks(data.subconRemarks || {});
     if (typeof setSubconGroupNotes === 'function') setSubconGroupNotes(data.groupNotes || {});
@@ -1222,6 +1228,7 @@
     _restoreUiState(data.fields);
     updateTotals();
     updateRouteModeIcon();
+    if (typeof window.renderRemarkImages === 'function') window.renderRemarkImages();
     showSaveStatus('📂 読み込みました');
   }
 

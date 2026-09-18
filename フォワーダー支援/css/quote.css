@@ -3859,6 +3859,32 @@
 }
 #tab-quote-make .btn-remark-clear:hover { background: #d9cfc2; color: #3d2e1e; }
 #tab-quote-make .remark-char { font-size: 11px; color: #7d6b56; margin-left: auto; }
+#tab-quote-make .remark-img-section { margin-top: 10px; }
+#tab-quote-make .remark-img-list { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 8px; }
+#tab-quote-make .remark-img-list[hidden] { display: none; }
+#tab-quote-make .remark-img-thumb {
+  position: relative; width: 84px; height: 84px;
+  border: 1px solid #e0d5c0; border-radius: 6px; overflow: hidden; background: #fff;
+}
+#tab-quote-make .remark-img-thumb img { width: 100%; height: 100%; object-fit: cover; cursor: zoom-in; display: block; }
+#tab-quote-make .remark-img-del {
+  position: absolute; top: 2px; right: 2px; width: 18px; height: 18px; line-height: 16px;
+  border: none; border-radius: 50%; background: rgba(0,0,0,0.55); color: #fff; font-size: 11px;
+  cursor: pointer; padding: 0; font-family: inherit;
+}
+#tab-quote-make .remark-img-del:hover { background: rgba(200,40,40,0.85); }
+#tab-quote-make .remark-img-add-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+#tab-quote-make .btn-remark-img-add {
+  background: #f0e8d8; color: #7d6b56; border: none; border-radius: 4px;
+  padding: 5px 14px; font-size: 12px; cursor: pointer; font-family: inherit; white-space: nowrap;
+}
+#tab-quote-make .btn-remark-img-add:hover { background: #d9cfc2; color: #3d2e1e; }
+#tab-quote-make .remark-img-hint { font-size: 10.5px; color: #a39682; }
+#tab-quote-make #pvRemarkBox .pv-remark-images { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+#tab-quote-make #pvRemarkBox .pv-remark-images img {
+  max-width: 180px; max-height: 180px; border: 1px solid #f0d9a0; border-radius: 4px;
+  object-fit: contain; background: #fff;
+}
 #tab-quote-make #pvRemarkBox {
   margin-top: 16px;
   padding: 12px 14px;

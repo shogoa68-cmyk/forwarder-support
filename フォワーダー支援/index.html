@@ -3558,6 +3558,14 @@
           <button class="btn-remark-clear" onclick="clearRemark()">クリア</button>
           <span class="remark-char" id="remarkChar">0文字</span>
         </div>
+        <div class="remark-img-section">
+          <div class="remark-img-list" id="remarkImgList" hidden></div>
+          <div class="remark-img-add-row">
+            <button type="button" class="btn-remark-img-add" onclick="document.getElementById('remarkImgFile').click()">🖼️ 画像を添付</button>
+            <input type="file" id="remarkImgFile" accept="image/*" multiple hidden onchange="handleRemarkImageFiles(this.files); this.value='';">
+            <span class="remark-img-hint">クリップボードからの貼り付け（Ctrl+V）にも対応。添付画像は御見積書PDF・プレビュー印刷にもリマーク欄末尾へ表示されます（最大10枚）</span>
+          </div>
+        </div>
         <button class="fb-section-btn" onclick="openFeedback('全体リマーク')" title="このセクションへのフィードバック">💬 このセクションへのフィードバック</button>
       </div>
     </div>
