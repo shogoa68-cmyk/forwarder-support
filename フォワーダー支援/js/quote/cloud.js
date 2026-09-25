@@ -422,6 +422,7 @@
       _cloudFilterMode, _cloudFilterInco, _cloudFilterPol, _cloudFilterPod, _cloudFilterCarrier, _cloudSort, _cloudView]);
     if (sig !== _dashFilterSig) { _dashFilterSig = sig; _dashLimit = DASH_PAGE; }
     _renderCloudList(rows);
+    _renderTagChips();        // タグチップは現在の絞り込み（ステータス等）に連動して件数・顔ぶれを更新
     _renderActiveQpdRank();   // タブで隠れている側は再計算しない（切替時に改めて描画する）
     _syncResetAllBtn();
   }
@@ -561,7 +562,11 @@
   // すべてでこの並びを共通利用する。
   function _tagCounts() {
     const counts = {};
-    _cloudRows.forEach(r => (Array.isArray(r.tags) ? r.tags : []).forEach(t => { counts[t] = (counts[t] || 0) + 1; }));
+    // タグ以外の現在の絞り込み（ステータス・検索・詳細検索・お客様）に一致する案件だけを集計。
+    // 例：「下書き中」で絞り込み中は、その下書き案件に付いているタグだけがチップに出る。
+    // 自分の軸（タグ）は skipTag で外し、絞り込み中でも他タグへ選び直せるようにする。
+    _cloudRows.filter(r => _rowMatchesFilters(r, { skipTag: true }))
+      .forEach(r => (Array.isArray(r.tags) ? r.tags : []).forEach(t => { counts[t] = (counts[t] || 0) + 1; }));
     return Object.keys(counts).map(t => ({ tag: t, count: counts[t] }))
       .sort((a, b) => b.count - a.count || a.tag.localeCompare(b.tag, 'ja'));
   }
@@ -855,6 +860,11 @@
           '</div>' + rootHtml
         : '';
 
+      // 🔗 関連案件（ダッシュボードのみ）。表示中カードのリンクを _loadDashLinks が一括取得して埋める。
+      // 関連が無いカードは空divのまま（CSS の :empty で非表示）＝一覧を汚さない。
+      const linksSection = '<div class="cloud-card-links" data-lid="' + escHtml(r.id) + '">' +
+        (r.id in _dashLinkCache ? _dashLinksInnerHtml(r.id, _dashLinkCache[r.id]) : '') + '</div>';
+
       // 💬 申し送り（ダッシュボードのみ表示・CSS で制御）。既定で展開表示。
       // 一括取得済み（_dashChatCache）ならスレッド本文をその場で描画（追加クエリなし）、
       // 未取得なら「読み込み中…」を出し _loadDashChatSummaries が後追いで埋める。
@@ -917,6 +927,7 @@
           '</dl>' +
           tagsRowHtml +
           copiedFromHtml +
+          linksSection +
           '<div class="cloud-card-foot">' +
             '<span class="cloud-card-who" title="' + escHtml(_whoTitle(r)) + '">🕒 ' + ts + '</span>' +
             '<div class="cloud-card-acts">' +
@@ -955,6 +966,7 @@
             + shown.map(_cloudListRow).join('') + moreBtn)
         : (shown.map(_cloudCardHtml).join('') + moreBtn);
       if (!listMode) _loadDashChatSummaries(shown);   // 💬 申し送りの件数/最新は描画済みぶんだけ取得
+      if (!listMode) _loadDashLinks(shown);           // 🔗 関連案件も描画済みぶんだけ一括取得
     }
   }
 
@@ -2533,6 +2545,7 @@
       return { ok: false, reason: 'error', message: error.message };
     }
     toast('🔗 案件を関連付けました', 'success', 2500);
+    _invalidateDashLinks();   // ダッシュボードカードの関連案件を次回描画で取り直す
     return { ok: true, reason: 'created' };
   }
 
@@ -2599,6 +2612,7 @@
     const { error } = await c.from('quote_preset_links').delete().eq('id', linkId);
     if (error) { quoteShowToast('⚠️ 解除に失敗：' + error.message, 'warn', 5000); return false; }
     quoteShowToast('🔗 関連付けを解除しました', 'info', 2000);
+    _invalidateDashLinks();   // ダッシュボードカードの関連案件を次回描画で取り直す
     return true;
   }
 
@@ -3050,6 +3064,85 @@
     } finally {
       if (send) send.disabled = false;
     }
+  };
+
+  // ================================================================
+  // ========== 🔗 ダッシュボードカード内 関連案件（quote_preset_links・双方向） ==========
+  // ================================================================
+  const DASH_LINKS_TOP_N = 3;
+  const _dashLinkCache = {};          // presetId -> [{id,name,ref,status}]（直接リンク＝1次）
+  const _dashLinkExpanded = new Set(); // 「さらに表示」中の presetId
+  function _invalidateDashLinks() { for (const k in _dashLinkCache) delete _dashLinkCache[k]; }
+
+  // 表示中カードの関連案件を一括取得（N+1 回避：リンク1クエリ＋相手案件メタ1クエリ）
+  async function _loadDashLinks(rows) {
+    const c = _getClient();
+    if (!c || !_cloudUser) return;
+    const ids = (rows || []).map(r => r.id).filter(Boolean);
+    if (!ids.length) return;
+    const uncached = ids.filter(id => !(id in _dashLinkCache));
+    ids.forEach(id => { if (id in _dashLinkCache) _applyDashLinks(id); });
+    if (!uncached.length) return;
+    const inList = '(' + uncached.join(',') + ')';
+    const { data: links, error } = await c.from('quote_preset_links')
+      .select('preset_a,preset_b')
+      .or('preset_a.in.' + inList + ',preset_b.in.' + inList);
+    if (error) { uncached.forEach(id => { _dashLinkCache[id] = []; }); return; }  // テーブル未作成等は関連なし扱い
+    const set = new Set(uncached);
+    const adj = {}; uncached.forEach(id => (adj[id] = []));
+    const otherIds = new Set();
+    (links || []).forEach(l => {
+      if (set.has(l.preset_a) && l.preset_b !== l.preset_a) { adj[l.preset_a].push(l.preset_b); otherIds.add(l.preset_b); }
+      if (set.has(l.preset_b) && l.preset_a !== l.preset_b) { adj[l.preset_b].push(l.preset_a); otherIds.add(l.preset_a); }
+    });
+    const metaMap = {};
+    if (otherIds.size) {
+      const { data: metas } = await c.from('quote_presets')
+        .select('id,name,ref,status').in('id', Array.from(otherIds));
+      (metas || []).forEach(m => { metaMap[m.id] = m; });
+    }
+    uncached.forEach(id => {
+      const seen = new Set(); const uniq = [];
+      (adj[id] || []).forEach(oid => { const m = metaMap[oid]; if (m && !seen.has(m.id)) { seen.add(m.id); uniq.push(m); } });
+      _dashLinkCache[id] = uniq;
+      _applyDashLinks(id);
+    });
+  }
+
+  function _applyDashLinks(presetId) {
+    const wrap = document.getElementById('qpdListWrap');
+    if (!wrap) return;
+    const sel = (window.CSS && CSS.escape) ? CSS.escape(presetId) : presetId;
+    const box = wrap.querySelector('.cloud-card-links[data-lid="' + sel + '"]');
+    if (!box) return;
+    box.innerHTML = _dashLinksInnerHtml(presetId, _dashLinkCache[presetId] || []);
+  }
+
+  function _dashLinksInnerHtml(presetId, arr) {
+    if (!arr || !arr.length) return '';   // 関連なしは何も描かない（:empty で非表示）
+    const expanded = _dashLinkExpanded.has(presetId);
+    const shown = expanded ? arr : arr.slice(0, DASH_LINKS_TOP_N);
+    const remain = arr.length - shown.length;
+    const items = shown.map(m => {
+      const st = m.status || CLOUD_STATUS_DEFAULT;
+      const badge = '<span class="cloud-status-badge cloud-status--' + _statusClass(st) + '">' + escHtml(st) + '</span>';
+      const ref = m.ref ? '<span class="clink-ref">' + escHtml(m.ref) + '</span>' : '';
+      return '<button type="button" class="cloud-clink" onclick="cloudPreviewPreset(\'' + encodeURIComponent(m.id) + '\')" title="内容をプレビュー">' +
+        badge + '<span class="clink-name">' + escHtml(m.name || '（無題）') + '</span>' + ref + '</button>';
+    }).join('');
+    const more = remain > 0
+      ? '<button type="button" class="cloud-clink-more" onclick="dashToggleCardLinks(\'' + encodeURIComponent(presetId) + '\')">さらに表示（+' + remain + '）</button>'
+      : (expanded && arr.length > DASH_LINKS_TOP_N
+          ? '<button type="button" class="cloud-clink-more" onclick="dashToggleCardLinks(\'' + encodeURIComponent(presetId) + '\')">▲ 折りたたむ</button>'
+          : '');
+    return '<div class="cloud-card-links-head">🔗 関連案件（' + arr.length + '）</div>' +
+      '<div class="cloud-clink-list">' + items + '</div>' + more;
+  }
+
+  window.dashToggleCardLinks = function (encId) {
+    const id = decodeURIComponent(encId);
+    if (_dashLinkExpanded.has(id)) _dashLinkExpanded.delete(id); else _dashLinkExpanded.add(id);
+    _applyDashLinks(id);
   };
 
   // ================================================================
