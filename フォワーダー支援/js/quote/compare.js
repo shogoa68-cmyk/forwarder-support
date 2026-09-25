@@ -10,6 +10,7 @@
     document.querySelectorAll('#tableBody tr[id^="row-"]').forEach(tr => {
       if (tr.dataset.type || tr.dataset.virtual) return;   // 小計・リマーク行・サブコングループ見出し（仮想行）は対象外
       if (tr.dataset.mergedInto) return;                   // 他行へ統合済みの行は対象外
+      if (tr.dataset.actual === '1' || tr.dataset.cond === '1') return;   // 実費（金額未確定）・都度請求（発生時のみ）は単価比較の対象外
       const id = tr.id.replace('row-', '');
       const nm = (document.getElementById('nm-' + id)?.value || '').trim();
       if (!nm) return;
