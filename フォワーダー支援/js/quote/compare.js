@@ -10,9 +10,11 @@
     document.querySelectorAll('#tableBody tr[id^="row-"]').forEach(tr => {
       if (tr.dataset.type || tr.dataset.virtual) return;   // 小計・リマーク行・サブコングループ見出し（仮想行）は対象外
       if (tr.dataset.mergedInto) return;                   // 他行へ統合済みの行は対象外
+      if (tr.dataset.actual === '1' || tr.dataset.cond === '1') return;   // 実費（金額未確定）・都度請求（発生時のみ）は単価比較の対象外
       const id = tr.id.replace('row-', '');
       const nm = (document.getElementById('nm-' + id)?.value || '').trim();
       if (!nm) return;
+      const un = (document.getElementById('un-' + id)?.value || '').trim();
       const sv = (document.getElementById('sv-' + id)?.value || '').trim();
       const pq = parseFloat(document.getElementById('pq-' + id)?.value) || 0;
       const pp = parseFloat(document.getElementById('pp-' + id)?.value) || 0;
@@ -20,22 +22,23 @@
       const hidden = tr.dataset.hideQuote === '1';
       const unitCostJPY  = (typeof toJPY === 'function') ? toJPY(pp, pc) : pp;
       const totalCostJPY = (typeof toJPY === 'function') ? toJPY(pq * pp, pc) : pq * pp;
-      rows.push({ id, nm, sv, pq, pp, pc, hidden, unitCostJPY, totalCostJPY });
+      rows.push({ id, nm, un, sv, pq, pp, pc, hidden, unitCostJPY, totalCostJPY });
     });
     return rows;
   }
 
   function _cmpGroupByName(rows) {
-    const map = new Map();
+    const map = new Map();   // key: 品名 \x00 単位 → 行配列（単位まで一致するものだけを比較対象にする）
     rows.forEach(r => {
-      if (!map.has(r.nm)) map.set(r.nm, []);
-      map.get(r.nm).push(r);
+      const key = r.nm + '\x00' + r.un;
+      if (!map.has(key)) map.set(key, []);
+      map.get(key).push(r);
     });
     return Array.from(map.values())
       .filter(list => list.length >= 2)
       .map(list => {
         list.sort((a, b) => a.unitCostJPY - b.unitCostJPY);
-        return { nm: list[0].nm, rows: list };
+        return { nm: list[0].nm, un: list[0].un, rows: list };
       })
       // 最安値と最高値の差（＝比較する意味の大きさ）が大きい項目から表示
       .sort((a, b) => {
@@ -54,13 +57,13 @@
 
     if (!_cmpGroups.length) {
       panel.innerHTML =
-        '<p class="cmp-empty">同じ品名（項目名）の行が2件以上あると、ここで仕入単価を比較できます。<br>' +
-        '同じ費用について複数サブコンから見積を取った場合、それぞれ同じ品名で行を入力してください。</p>';
+        '<p class="cmp-empty">品名・単位の両方が一致する行が2件以上あると、ここで仕入単価を比較できます。<br>' +
+        '同じ費用について複数サブコンから見積を取った場合、それぞれ同じ品名・単位で行を入力してください。</p>';
       return;
     }
 
     panel.innerHTML =
-      '<p class="cmp-hint">同一品名の行を仕入単価（JPY換算）で比較し、最安値を⭐で表示します。<br>' +
+      '<p class="cmp-hint">品名・単位が一致する行を仕入単価（JPY換算）で比較し、最安値を⭐で表示します。<br>' +
       '「👁️ 非表示にする」は見積書への表示/非表示の切替のみで、行は削除されません。</p>' +
       '<div class="cmp-scroll">' +
       '<div class="cmp-list">' +
@@ -85,7 +88,8 @@
           </div>`;
         }).join('');
         return `<div class="cmp-group">
-          <div class="cmp-group-title">${escHtml(g.nm)}
+          <div class="cmp-group-title">
+            <span class="cmp-group-name">${escHtml(g.nm)}${g.un ? '<span class="cmp-group-unit">（' + escHtml(g.un) + '）</span>' : ''}</span>
             <button type="button" class="cmp-group-apply-btn" onclick="cmpKeepCheapestOnly(${gi})" title="最安値の行だけ見積書に表示し、他は非表示にします">⭐ 最安値だけ表示</button>
           </div>
           ${rowsHtml}
