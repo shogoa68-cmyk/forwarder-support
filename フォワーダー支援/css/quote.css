@@ -9764,6 +9764,9 @@ button.um-memberno--empty:hover { background: #f4ead4; border-color: #cdb98e; }
 /* 作業テーブル：非表示指定の行はグレー＋点線で区別（行は残す） */
 #tab-quote-make tr.row-hidden-quote > td { opacity: 0.5; background: #f6f1e8; }
 #tab-quote-make tr.row-hidden-quote .w-name { text-decoration: line-through; text-decoration-color: #b08a6a; }
+/* 比較パネル：同一品名・単位の中で仕入単価が最安値の行を自動ハイライト */
+#tab-quote-make tr.row-cmp-best > td { background: #fffce0; }
+#tab-quote-make tr.row-cmp-best > td.handle-cell { box-shadow: inset 3px 0 0 #d4af00; }
 /* 行の統合バッジ：単なる「非表示」と区別し、意図した統合であることを明示する */
 #tab-quote-make tr.row-merged-child > td { opacity: 0.7; background: #eef6fb; }
 #tab-quote-make .row-merge-badge {

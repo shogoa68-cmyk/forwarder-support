@@ -1,7 +1,8 @@
 // ========== 比較（同一項目の最安値比較） ==========
-// 右カラム「⚖️ 比較」パネル。品名（nm）が同じ行が2件以上あるものだけを
+// 右カラム「⚖️ 比較」パネル。品名（nm）・単位（un）が一致する行が2件以上あるものを
 // グループ化し、仕入単価（JPY換算）が最も安い行を⭐でハイライトする。
-// 削除はせず、既存の「見積書非表示（👁/🚫）」を使って候補を絞り込めるようにする。
+// 見積書本体（明細テーブル）側の該当行にも自動でハイライト表示する（行の削除・
+// 非表示は行わない。個別の見積書非表示切替は既存の「👁/🚫」をそのまま利用）。
 
   let _cmpGroups = [];   // 直近描画したグループ（クリックはインデックス経由・quote-tag-chips と同じ安全策）
 
@@ -50,10 +51,22 @@
 
   function _cmpFmtJpy(n) { return '¥' + Math.round(n).toLocaleString('ja-JP'); }
 
+  // 見積書本体（明細テーブル）側の行ハイライトを、現在の比較結果に合わせて同期する。
+  // 一旦全部クリアしてから各グループの最安値行にだけ付け直す（価格変更等で最安値の
+  // 行が入れ替わっても古いハイライトが残らないようにするため）。
+  function _cmpSyncTableHighlight(groups) {
+    document.querySelectorAll('#tableBody tr.row-cmp-best').forEach(tr => tr.classList.remove('row-cmp-best'));
+    groups.forEach(g => {
+      const tr = document.getElementById('row-' + g.rows[0].id);
+      if (tr) tr.classList.add('row-cmp-best');
+    });
+  }
+
   function renderCompareRail() {
     const panel = document.getElementById('cmpRailPanel');
     if (!panel) return;
     _cmpGroups = _cmpGroupByName(_cmpRows());
+    _cmpSyncTableHighlight(_cmpGroups);
 
     if (!_cmpGroups.length) {
       panel.innerHTML =
@@ -64,7 +77,7 @@
 
     panel.innerHTML =
       '<p class="cmp-hint">品名・単位が一致する行を仕入単価（JPY換算）で比較し、最安値を⭐で表示します。<br>' +
-      '「👁️ 非表示にする」は見積書への表示/非表示の切替のみで、行は削除されません。</p>' +
+      '見積書本体の該当行も自動でハイライトされます。「👁️ 非表示にする」は見積書への表示/非表示の切替のみで、行は削除されません。</p>' +
       '<div class="cmp-scroll">' +
       '<div class="cmp-list">' +
       _cmpGroups.map((g, gi) => {
@@ -90,7 +103,7 @@
         return `<div class="cmp-group">
           <div class="cmp-group-title">
             <span class="cmp-group-name">${escHtml(g.nm)}${g.un ? '<span class="cmp-group-unit">（' + escHtml(g.un) + '）</span>' : ''}</span>
-            <button type="button" class="cmp-group-apply-btn" onclick="cmpKeepCheapestOnly(${gi})" title="最安値の行だけ見積書に表示し、他は非表示にします">⭐ 最安値だけ表示</button>
+            <button type="button" class="cmp-group-apply-btn" onclick="cmpJumpToCheapest(${gi})" title="見積書本体の最安値行へジャンプします（表示中はハイライトされています）">📍 表で見る</button>
           </div>
           ${rowsHtml}
         </div>`;
@@ -99,18 +112,17 @@
       '</div>';
   }
 
-  // 指定グループの最安値行だけを表示に、他は非表示にする（削除はしない）
-  function cmpKeepCheapestOnly(idx) {
+  // 指定グループの最安値行（見積書本体側）へスクロールして一瞬フラッシュする。
+  // ハイライト自体は renderCompareRail() のたびに自動で同期されているため、
+  // ここでは「今どこにあるか」を見せるだけで行の表示/非表示には触れない。
+  function cmpJumpToCheapest(idx) {
     const g = _cmpGroups[idx];
     if (!g) return;
-    g.rows.forEach((r, i) => {
-      const shouldHide = i !== 0;
-      if (r.hidden !== shouldHide && typeof window.toggleRowHideQuoteById === 'function') {
-        window.toggleRowHideQuoteById(r.id);
-      }
-    });
-    renderCompareRail();
-    if (typeof quoteShowToast === 'function') quoteShowToast('⭐ 最安値の行だけ見積書に表示にしました', 'success', 2500);
+    const tr = document.getElementById('row-' + g.rows[0].id);
+    if (!tr) return;
+    tr.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    tr.classList.add('jump-target-flash');
+    setTimeout(() => tr.classList.remove('jump-target-flash'), 1200);
   }
 
   // レールのバッジ表示用：パネルを開いていなくても現在の比較可能件数を返す
@@ -119,5 +131,5 @@
   }
 
   window.renderCompareRail = renderCompareRail;
-  window.cmpKeepCheapestOnly = cmpKeepCheapestOnly;
+  window.cmpJumpToCheapest = cmpJumpToCheapest;
   window.getCompareGroupCount = getCompareGroupCount;
