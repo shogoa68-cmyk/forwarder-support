@@ -293,7 +293,9 @@
   function initRemarks() {
     renderRemarkPresets();
     document.getElementById('remarkTextarea').addEventListener('input', updateRemarkChar);
+    document.getElementById('remarkTextarea').addEventListener('paste', _onRemarkTextareaPaste);
     updateRemarkChar();
+    renderRemarkImages();
     loadSharedRemarkPresets();
     // 品名（貨物種別の判定材料）が変わるたびに、貨物種別プリセットタブの
     // 表示・非表示を切り替える
@@ -476,6 +478,124 @@
   function getRemarkText() {
     return document.getElementById('remarkTextarea')?.value.trim() || '';
   }
+
+  // ----- 全体リマーク：添付画像（見積書出力にも表示） -----
+  // リサイズ・JPEG圧縮してから data URL のまま案件データに含める
+  // （quotePresets_v1 / Supabase quote_presets.data の gatherAllData() 出力に相乗り）。
+  const REMARK_IMG_MAX_DIM   = 1400;  // リサイズ後の最大辺（px）
+  const REMARK_IMG_QUALITY   = 0.82;  // JPEG 圧縮品質
+  const REMARK_IMG_MAX_COUNT = 10;    // 1 案件あたりの添付上限枚数
+
+  let _remarkImages = [];   // [{ id, dataUrl }]
+
+  function getRemarkImages() { return _remarkImages; }
+  function setRemarkImages(arr) {
+    _remarkImages = Array.isArray(arr) ? arr.filter(im => im && im.dataUrl) : [];
+  }
+  window.getRemarkImages = getRemarkImages;
+  window.setRemarkImages = setRemarkImages;
+
+  // value代入と同様、画像の追加/削除は input/change を自然発火しないため
+  // 明示的に change を飛ばして自動保存（scheduleAutoSave）に乗せる。
+  function _remarkImagesChanged() {
+    renderRemarkImages();
+    if (typeof window.renderQuoteSectionDigest === 'function') window.renderQuoteSectionDigest();
+    const ta = document.getElementById('remarkTextarea');
+    if (ta) ta.dispatchEvent(new Event('change', { bubbles: true }));
+  }
+
+  function _resizeRemarkImage(file) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const img = new Image();
+        img.onload = () => {
+          let { width, height } = img;
+          const scale = Math.min(1, REMARK_IMG_MAX_DIM / Math.max(width, height));
+          width = Math.max(1, Math.round(width * scale));
+          height = Math.max(1, Math.round(height * scale));
+          const canvas = document.createElement('canvas');
+          canvas.width = width; canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          ctx.fillStyle = '#fff';   // JPEG化で透過部分が黒くならないよう先に白で塗る
+          ctx.fillRect(0, 0, width, height);
+          ctx.drawImage(img, 0, 0, width, height);
+          resolve(canvas.toDataURL('image/jpeg', REMARK_IMG_QUALITY));
+        };
+        img.onerror = () => reject(new Error('image decode failed'));
+        img.src = reader.result;
+      };
+      reader.onerror = () => reject(new Error('file read failed'));
+      reader.readAsDataURL(file);
+    });
+  }
+
+  async function handleRemarkImageFiles(fileList) {
+    const files = Array.from(fileList || []).filter(f => f.type && f.type.startsWith('image/'));
+    if (!files.length) return;
+    const room = REMARK_IMG_MAX_COUNT - _remarkImages.length;
+    if (room <= 0) {
+      quoteShowToast(`⚠️ 添付画像は最大${REMARK_IMG_MAX_COUNT}枚までです`, 'warn');
+      return;
+    }
+    const targets = files.slice(0, room);
+    if (files.length > targets.length) {
+      quoteShowToast(`⚠️ 上限のため先頭${targets.length}枚のみ追加しました（最大${REMARK_IMG_MAX_COUNT}枚）`, 'warn');
+    }
+    for (const file of targets) {
+      try {
+        const dataUrl = await _resizeRemarkImage(file);
+        _remarkImages.push({ id: 'ri' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7), dataUrl });
+      } catch (e) { /* 読み込み失敗の画像はスキップ */ }
+    }
+    _remarkImagesChanged();
+  }
+  window.handleRemarkImageFiles = handleRemarkImageFiles;
+
+  function removeRemarkImage(id) {
+    _remarkImages = _remarkImages.filter(im => im.id !== id);
+    _remarkImagesChanged();
+  }
+  window.removeRemarkImage = removeRemarkImage;
+
+  function _onRemarkTextareaPaste(e) {
+    const items = (e.clipboardData || window.clipboardData)?.items;
+    if (!items) return;
+    const files = [];
+    for (const item of items) {
+      if (item.kind === 'file' && item.type && item.type.startsWith('image/')) {
+        const f = item.getAsFile();
+        if (f) files.push(f);
+      }
+    }
+    if (files.length) {
+      e.preventDefault();
+      handleRemarkImageFiles(files);
+    }
+  }
+
+  function renderRemarkImages() {
+    const box = document.getElementById('remarkImgList');
+    if (!box) return;
+    if (!_remarkImages.length) { box.innerHTML = ''; box.hidden = true; return; }
+    box.hidden = false;
+    box.innerHTML = _remarkImages.map(im =>
+      '<div class="remark-img-thumb">' +
+        '<img src="' + im.dataUrl + '" alt="添付画像" title="クリックで原寸表示" onclick="window.open(this.src, \'_blank\')">' +
+        '<button type="button" class="remark-img-del" onclick="removeRemarkImage(\'' + im.id + '\')" title="削除">✕</button>' +
+      '</div>'
+    ).join('');
+  }
+  window.renderRemarkImages = renderRemarkImages;
+
+  // 出力（プレビュー／御見積書PDF）に埋め込む画像ギャラリーの HTML 断片
+  function remarkImagesOutputHTML(cssClass) {
+    if (!_remarkImages.length) return '';
+    return '<div class="' + cssClass + '">' +
+      _remarkImages.map(im => '<img src="' + im.dataUrl + '" alt="添付画像">').join('') +
+      '</div>';
+  }
+  window.remarkImagesOutputHTML = remarkImagesOutputHTML;
 
   function csvEsc(v) {
     const s = String(v == null ? '' : v);
@@ -2656,7 +2776,8 @@
   function _cargoModeKey() {
     if (typeof _currentTransport === 'undefined') return 'fcl';
     if (_currentTransport === 'air') return 'air';
-    if (_currentSeaSub === 'lcl')    return 'lcl';
+    // RORO・在来船はコンテナ詰めを行わないため、荷姿明細優先のLCL用レイアウトを流用
+    if (_currentSeaSub === 'lcl' || _currentSeaSub === 'roro' || _currentSeaSub === 'conv') return 'lcl';
     return 'fcl';
   }
 
@@ -2909,31 +3030,64 @@
         { l: '荷渡し',   z: 'z3' },
       ];
     } else {
-      const sub = st.seaSub === 'lcl' ? 'LCL' : 'FCL';
-      modeLabel = '🚢 Sea ' + sub + (isImport ? '（輸入）' : '（輸出）');
-      steps = (st.seaSub === 'lcl')
-        ? [
-            { l: '集荷',     z: 'z1' },
-            { l: 'CFS搬入',  z: 'z1' },
-            { l: '輸出通関', z: 'z1' },
-            { l: '船積(POL)', z: 'z2' },
-            { l: '海上輸送', z: 'z2' },
-            { l: '入港(POD)', z: 'z2' },
-            { l: 'デバン',   z: 'z3' },
-            { l: '輸入通関', z: 'z3' },
-            { l: '荷渡し',   z: 'z3' },
-          ]
-        : [
-            { l: '集荷',      z: 'z1' },
-            { l: 'バンニング', z: 'z1' },
-            { l: '輸出通関',  z: 'z1' },
-            { l: '船積(POL)', z: 'z2' },
-            { l: '海上輸送',  z: 'z2' },
-            { l: '入港(POD)', z: 'z2' },
-            { l: '輸入通関',  z: 'z3' },
-            { l: 'ドレー',    z: 'z3' },
-            { l: '荷渡し',    z: 'z3' },
-          ];
+      const SEA_SUB_META = {
+        lcl:  { label: 'LCL',  icon: '🚢' },
+        roro: { label: 'RORO', icon: '🚗' },
+        conv: { label: '在来船', icon: '⚓' },
+      };
+      const meta = SEA_SUB_META[st.seaSub] || { label: 'FCL', icon: '🚢' };
+      modeLabel = meta.icon + ' Sea ' + meta.label + (isImport ? '（輸入）' : '（輸出）');
+      if (st.seaSub === 'lcl') {
+        steps = [
+          { l: '集荷',     z: 'z1' },
+          { l: 'CFS搬入',  z: 'z1' },
+          { l: '輸出通関', z: 'z1' },
+          { l: '船積(POL)', z: 'z2' },
+          { l: '海上輸送', z: 'z2' },
+          { l: '入港(POD)', z: 'z2' },
+          { l: 'デバン',   z: 'z3' },
+          { l: '輸入通関', z: 'z3' },
+          { l: '荷渡し',   z: 'z3' },
+        ];
+      } else if (st.seaSub === 'roro') {
+        // RORO：自走・台車で積み込むためコンテナ詰め（バンニング/デバン）の工程はない
+        steps = [
+          { l: '集荷',      z: 'z1' },
+          { l: '搬入',      z: 'z1' },
+          { l: '輸出通関',  z: 'z1' },
+          { l: '船積(RORO)', z: 'z2' },
+          { l: '海上輸送',  z: 'z2' },
+          { l: '入港(POD)', z: 'z2' },
+          { l: '輸入通関',  z: 'z3' },
+          { l: '搬出',      z: 'z3' },
+          { l: '荷渡し',    z: 'z3' },
+        ];
+      } else if (st.seaSub === 'conv') {
+        // 在来船（コンベンショナル）：クレーン等の個別荷役でコンテナ詰めは行わない
+        steps = [
+          { l: '集荷',        z: 'z1' },
+          { l: '搬入',        z: 'z1' },
+          { l: '輸出通関',    z: 'z1' },
+          { l: '船積(荷役)',  z: 'z2' },
+          { l: '海上輸送',    z: 'z2' },
+          { l: '入港(POD)',   z: 'z2' },
+          { l: '陸揚げ(荷役)', z: 'z3' },
+          { l: '輸入通関',    z: 'z3' },
+          { l: '荷渡し',      z: 'z3' },
+        ];
+      } else {
+        steps = [
+          { l: '集荷',      z: 'z1' },
+          { l: 'バンニング', z: 'z1' },
+          { l: '輸出通関',  z: 'z1' },
+          { l: '船積(POL)', z: 'z2' },
+          { l: '海上輸送',  z: 'z2' },
+          { l: '入港(POD)', z: 'z2' },
+          { l: '輸入通関',  z: 'z3' },
+          { l: 'ドレー',    z: 'z3' },
+          { l: '荷渡し',    z: 'z3' },
+        ];
+      }
     }
 
     const inScope = z => z === 'z2' || (z === 'z1' && z1On) || (z === 'z3' && z3On);
@@ -3142,7 +3296,11 @@
     if (m.qty > 0)   rows.push(['総個数', m.qty.toLocaleString() + ' 個']);
     if (m.cbm > 0)   rows.push(['総容積', m.cbm.toFixed(3) + ' CBM', 'cbm']);
     if (m.kg > 0)    rows.push(['総重量', Math.round(m.kg).toLocaleString() + ' kg']);
-    if (m.rt > 0)    rows.push(['R/T', m.rt.toFixed(3), 'rt']);
+    if (m.rt > 0) {
+      const rtMin = Math.max(m.rt, 1);   // R/T課金は最低1（1を下回る場合はMIN適用）
+      const rtLabel = rtMin.toFixed(3) + (rtMin > m.rt ? '（MIN）' : '');
+      rows.push(['R/T', rtLabel, 'rt']);
+    }
     if (m.cw > 0)    rows.push(['CW', SharedCalc.fmtCw(m.cw) + ' kg', 'cw']);
     if (!rows.length) { el.style.display = 'none'; el.innerHTML = ''; return; }
     el.style.display = 'block';
@@ -3631,7 +3789,8 @@
       const head = lines.slice(0, 3).join('\n');
       return lines.length > 3 ? head + '\n…' : head;
     };
-    const remarkSum = preview3(remarkRaw);
+    const remarkImgCount = (typeof getRemarkImages === 'function' ? getRemarkImages().length : 0);
+    const remarkSum = preview3(remarkRaw) + (remarkImgCount ? (remarkRaw ? ' ' : '') + `📷${remarkImgCount}` : '');
     const setSum = (id, t) => { const e = document.getElementById(id); if (e) e.textContent = t ? '— ' + t : '— 未入力'; };
     setSum('sumTable', tableSum); setSum('sumRemark', remarkSum);
     if (typeof window.updateQspTabBadges === 'function') window.updateQspTabBadges();

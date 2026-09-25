@@ -294,6 +294,11 @@
   orphans: 4;
   widows: 4;
 }
+.qd-remark-images { display: flex; flex-wrap: wrap; gap: 8px; padding: 0 12px 10px; }
+.qd-remark-images img {
+  max-width: 220px; max-height: 220px; border: 1px solid #ccc; border-radius: 3px;
+  object-fit: contain; page-break-inside: avoid; break-inside: avoid;
+}
 
 /* 🔄 前回提示分からの変更点（改定中の案件のみ表示。見積書の最後に表示） */
 .qd-revision-block { margin-top: 14px; margin-bottom: 14px; border-color: #a8adec; }
