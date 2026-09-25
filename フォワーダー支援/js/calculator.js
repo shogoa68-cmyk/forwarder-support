@@ -262,6 +262,29 @@ function sendCalcResultToQuote(btn) {
   }
 }
 
+// 見積もりタブ「貨物情報」→ 計算タブのバンニングシミュレーター（3D積み付けプレビュー）へジャンプ。
+// 戻り（入力していたスクロール位置の復元）は #backToQuoteFab（app.js の switchTab ラッパー）が
+// 汎用的に処理するため、ここでは遷移＋対象カードへのスクロールのみを行う。
+function jumpToVanningSimulator() {
+  const calcCatBtn = document.querySelector('.cat-btn[aria-controls="tab-calc"]');
+  if (calcCatBtn && typeof switchCategory === 'function') {
+    switchCategory('calc', calcCatBtn);
+  } else if (typeof switchTab === 'function') {
+    switchTab('calc');
+  }
+  requestAnimationFrame(() => {
+    const target = document.getElementById('van-rows-wrap')?.closest('.card');
+    if (!target) return;
+    target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    target.classList.add('jump-target-flash');
+    setTimeout(() => target.classList.remove('jump-target-flash'), 1200);
+  });
+  if (typeof quoteShowToast === 'function') {
+    quoteShowToast('🧊 バンニングシミュレーターに移動しました（「← 見積もりに戻る」で戻れます）', 'info', 3000);
+  }
+}
+window.jumpToVanningSimulator = jumpToVanningSimulator;
+
 // ================================================================
 //  複数行管理ユーティリティ
 // ================================================================

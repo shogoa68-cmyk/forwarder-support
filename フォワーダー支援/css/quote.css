@@ -5561,6 +5561,8 @@ body.qp-dash-active #quoteActionDock { display: none !important; }
 #tab-quote-make .ei-act-new:hover { background: #226735; }
 /* ===== 📋 貼り付けで一括登録モーダル（荷姿・貨物明細） ===== */
 #tab-quote-make .pki-open-btn { background: #3a6baf; border-color: #3a6baf; }
+#tab-quote-make .van-jump-btn { background: #6b46a0; border-color: #6b46a0; }
+#tab-quote-make .van-jump-btn:hover { background: #59378a; border-color: #59378a; }
 #tab-quote-make .pki-parse-bar { display: flex; align-items: center; gap: 10px; }
 #tab-quote-make .pki-or { font-size: 11px; color: #9a8a70; }
 #tab-quote-make .pki-pdf-btn { background: #8a5a2a; }
