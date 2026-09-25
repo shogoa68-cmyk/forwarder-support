@@ -10236,6 +10236,7 @@ button.um-memberno--empty:hover { background: #f4ead4; border-color: #cdb98e; }
 
 /* ========== ⚖️ 比較パネル（同一項目の最安値比較） ========== */
 #tab-quote-make .cmp-panel { padding: 10px 12px; font-size: 12px; overflow-y: auto; }
+#tab-quote-make .cmp-scroll { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
 #tab-quote-make .cmp-empty { font-size: 12px; color: #7a6a50; line-height: 1.7; }
 #tab-quote-make .cmp-hint { font-size: 11px; color: #8a7a5c; line-height: 1.7; margin-bottom: 10px; }
 #tab-quote-make .cmp-list { display: flex; flex-direction: column; gap: 12px; }
