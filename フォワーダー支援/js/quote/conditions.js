@@ -52,7 +52,7 @@
 
   function getConditions() {
     const g = id => document.getElementById(id)?.value.trim() || '';
-    const _isFcl = _currentTransport !== 'air' && _currentSeaSub !== 'lcl';
+    const _isFcl = _currentTransport !== 'air' && _currentSeaSub === 'fcl';
     // コンテナ：複数エントリ対応（未登録なら単体エディタ値にフォールバック）
     let container = '';
     if (_isFcl) {
@@ -404,6 +404,8 @@
     const modeVal = (document.getElementById('cond-mode')?.value || '').trim();
     if      (modeVal === '海上（FCL）') setTransport('fcl');
     else if (modeVal === '海上（LCL）') setTransport('lcl');
+    else if (modeVal === '海上（RORO）') setTransport('roro');
+    else if (modeVal === '海上（在来船）') setTransport('conv');
     else if (modeVal.startsWith('航空')) setTransport('air');
     else if (modeVal === '国内手配のみ') setTransport('domestic');
     else if (!modeVal) _resetTransportUI();   // 空 = 未選択に戻す（新規作成・クリア時に前案件の選択が残らないように）
@@ -1375,7 +1377,7 @@
   // 現在の選択状態を保持
   let _currentDirection = '';  // 'export' | 'import' | ''
   let _currentTransport = '';  // 'sea' | 'air' | ''
-  let _currentSeaSub    = 'fcl'; // 'fcl' | 'lcl'
+  let _currentSeaSub    = 'fcl'; // 'fcl' | 'lcl' | 'roro' | 'conv'
 
   // ---- スコープ拡張オプション状態 ----
   // ---- ゾーンビルダー状態 ----
@@ -2943,8 +2945,8 @@
 
   /** Sea / Air プライマリトグル */
   function setTransport(transport) {
-    // transport: 'fcl' | 'lcl' | 'air' | 'domestic'
-    if (transport === 'fcl' || transport === 'lcl') {
+    // transport: 'fcl' | 'lcl' | 'roro' | 'conv' | 'air' | 'domestic'
+    if (transport === 'fcl' || transport === 'lcl' || transport === 'roro' || transport === 'conv') {
       _currentTransport = 'sea';
       _currentSeaSub = transport;
     } else if (transport === 'domestic') {
@@ -2980,7 +2982,8 @@
     const sel = document.getElementById('cond-mode');
     if (!sel) return;
     if (_currentTransport === 'sea') {
-      sel.value = _currentSeaSub === 'lcl' ? '海上（LCL）' : '海上（FCL）';
+      const SEA_MODE_LABELS = { fcl: '海上（FCL）', lcl: '海上（LCL）', roro: '海上（RORO）', conv: '海上（在来船）' };
+      sel.value = SEA_MODE_LABELS[_currentSeaSub] || '海上（FCL）';
     } else if (_currentTransport === 'air') {
       sel.value = '航空（AIR）';
     } else if (_currentTransport === 'domestic') {
@@ -3030,6 +3033,12 @@
     } else if (_currentSeaSub === 'lcl') {
       if (icon)  icon.textContent  = '🚢';
       if (input) input.placeholder = 'NVOCC名（例：近鉄エクスプレス）';
+    } else if (_currentSeaSub === 'roro') {
+      if (icon)  icon.textContent  = '🚗';
+      if (input) input.placeholder = 'RORO船社名（例：商船三井フェリー）';
+    } else if (_currentSeaSub === 'conv') {
+      if (icon)  icon.textContent  = '⚓';
+      if (input) input.placeholder = '在来船社名（例：BBCチャータリング）';
     } else {
       if (icon)  icon.textContent  = '🚢';
       if (input) input.placeholder = 'キャリア名（例：ONE）';

@@ -2776,7 +2776,8 @@
   function _cargoModeKey() {
     if (typeof _currentTransport === 'undefined') return 'fcl';
     if (_currentTransport === 'air') return 'air';
-    if (_currentSeaSub === 'lcl')    return 'lcl';
+    // RORO・在来船はコンテナ詰めを行わないため、荷姿明細優先のLCL用レイアウトを流用
+    if (_currentSeaSub === 'lcl' || _currentSeaSub === 'roro' || _currentSeaSub === 'conv') return 'lcl';
     return 'fcl';
   }
 
@@ -3029,31 +3030,64 @@
         { l: '荷渡し',   z: 'z3' },
       ];
     } else {
-      const sub = st.seaSub === 'lcl' ? 'LCL' : 'FCL';
-      modeLabel = '🚢 Sea ' + sub + (isImport ? '（輸入）' : '（輸出）');
-      steps = (st.seaSub === 'lcl')
-        ? [
-            { l: '集荷',     z: 'z1' },
-            { l: 'CFS搬入',  z: 'z1' },
-            { l: '輸出通関', z: 'z1' },
-            { l: '船積(POL)', z: 'z2' },
-            { l: '海上輸送', z: 'z2' },
-            { l: '入港(POD)', z: 'z2' },
-            { l: 'デバン',   z: 'z3' },
-            { l: '輸入通関', z: 'z3' },
-            { l: '荷渡し',   z: 'z3' },
-          ]
-        : [
-            { l: '集荷',      z: 'z1' },
-            { l: 'バンニング', z: 'z1' },
-            { l: '輸出通関',  z: 'z1' },
-            { l: '船積(POL)', z: 'z2' },
-            { l: '海上輸送',  z: 'z2' },
-            { l: '入港(POD)', z: 'z2' },
-            { l: '輸入通関',  z: 'z3' },
-            { l: 'ドレー',    z: 'z3' },
-            { l: '荷渡し',    z: 'z3' },
-          ];
+      const SEA_SUB_META = {
+        lcl:  { label: 'LCL',  icon: '🚢' },
+        roro: { label: 'RORO', icon: '🚗' },
+        conv: { label: '在来船', icon: '⚓' },
+      };
+      const meta = SEA_SUB_META[st.seaSub] || { label: 'FCL', icon: '🚢' };
+      modeLabel = meta.icon + ' Sea ' + meta.label + (isImport ? '（輸入）' : '（輸出）');
+      if (st.seaSub === 'lcl') {
+        steps = [
+          { l: '集荷',     z: 'z1' },
+          { l: 'CFS搬入',  z: 'z1' },
+          { l: '輸出通関', z: 'z1' },
+          { l: '船積(POL)', z: 'z2' },
+          { l: '海上輸送', z: 'z2' },
+          { l: '入港(POD)', z: 'z2' },
+          { l: 'デバン',   z: 'z3' },
+          { l: '輸入通関', z: 'z3' },
+          { l: '荷渡し',   z: 'z3' },
+        ];
+      } else if (st.seaSub === 'roro') {
+        // RORO：自走・台車で積み込むためコンテナ詰め（バンニング/デバン）の工程はない
+        steps = [
+          { l: '集荷',      z: 'z1' },
+          { l: '搬入',      z: 'z1' },
+          { l: '輸出通関',  z: 'z1' },
+          { l: '船積(RORO)', z: 'z2' },
+          { l: '海上輸送',  z: 'z2' },
+          { l: '入港(POD)', z: 'z2' },
+          { l: '輸入通関',  z: 'z3' },
+          { l: '搬出',      z: 'z3' },
+          { l: '荷渡し',    z: 'z3' },
+        ];
+      } else if (st.seaSub === 'conv') {
+        // 在来船（コンベンショナル）：クレーン等の個別荷役でコンテナ詰めは行わない
+        steps = [
+          { l: '集荷',        z: 'z1' },
+          { l: '搬入',        z: 'z1' },
+          { l: '輸出通関',    z: 'z1' },
+          { l: '船積(荷役)',  z: 'z2' },
+          { l: '海上輸送',    z: 'z2' },
+          { l: '入港(POD)',   z: 'z2' },
+          { l: '陸揚げ(荷役)', z: 'z3' },
+          { l: '輸入通関',    z: 'z3' },
+          { l: '荷渡し',      z: 'z3' },
+        ];
+      } else {
+        steps = [
+          { l: '集荷',      z: 'z1' },
+          { l: 'バンニング', z: 'z1' },
+          { l: '輸出通関',  z: 'z1' },
+          { l: '船積(POL)', z: 'z2' },
+          { l: '海上輸送',  z: 'z2' },
+          { l: '入港(POD)', z: 'z2' },
+          { l: '輸入通関',  z: 'z3' },
+          { l: 'ドレー',    z: 'z3' },
+          { l: '荷渡し',    z: 'z3' },
+        ];
+      }
     }
 
     const inScope = z => z === 'z2' || (z === 'z1' && z1On) || (z === 'z3' && z3On);
