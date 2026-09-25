@@ -651,10 +651,19 @@ function calcVanning() {
   const { unit, factor } = getUnitConversion('van-unit', 'cm');
   // maxPay: 海上輸送（ISO規格）ベースのペイロード上限。ドアtoドア含む場合は
   // 道路法軸重制限により 20'GP は 21,500 kg（shared/calc.js の値）が目安。
+  // 20ft/40ft Dry・40ft HC は内寸で厳密に収まる前提。
+  // Flat Rack・Open Top は側壁/屋根が無く、規格寸法を超える貨物（はみ出し）を
+  // 前提とした特殊コンテナのため、openAxes に指定した軸は寸法超過でも
+  // 積み残し扱いにせず「はみ出し」として検知・3D表示する（packContainer側）。
+  // 寸法は目安（ISO規格・代表値）。船社により若干異なるため現場で確認してください。
   const CONT = {
     '20ft':{l:589,w:235,h:239,maxPay:28000,label:'20ft Dry'},
     '40ft':{l:1203,w:235,h:239,maxPay:26500,label:'40ft Dry'},
     '40hc':{l:1203,w:235,h:269,maxPay:26500,label:'40ft HC'},
+    '20ot':{l:589,w:235,h:231,maxPay:28000,label:'20ft Open Top',openAxes:['h']},
+    '40ot':{l:1203,w:235,h:231,maxPay:26500,label:'40ft Open Top',openAxes:['h']},
+    '20fr':{l:589,w:228,h:200,maxPay:30000,label:'20ft Flat Rack',openAxes:['l','w','h']},
+    '40fr':{l:1203,w:228,h:200,maxPay:40000,label:'40ft Flat Rack',openAxes:['l','w','h']},
   };
   const globalNoStack = document.getElementById('van-no-stack').checked;
   const PERMS   = [[0,1,2],[0,2,1],[1,0,2],[1,2,0],[2,0,1],[2,1,0]];
