@@ -863,6 +863,105 @@
   }
   window.statsCustItemBy = function (by) { _custItemBy = (by === 'nm') ? 'nm' : 'customer'; _renderCustItem(); };
 
+  // ===== 🎯 マージンばらつき（作成者差）=====
+  // 「同じお客様・同じ品名・同じ仕向地」なのに、見積作成者によって粗利率がどれだけ
+  // 違うかを可視化する。感覚でマージンを乗せている箇所をチームで共有するための集計。
+  // 作成者（created_by）はクラウド共有案件にしかないため、対象はクラウドデータのみ。
+  function _podValFromFields(f) {
+    let rts = [];
+    try { rts = JSON.parse(f['z2-routes-data'] || '[]'); } catch (e) {}
+    if (Array.isArray(rts) && rts.length) {
+      const v = rts.map(r => (r.pod || '').trim()).filter(Boolean).join(', ');
+      if (v) return v;
+    }
+    return (f['z2Pod'] || '').trim() || null;
+  }
+  function _buildMarginDiffStats() {
+    const map = new Map();   // customer + '\x00' + nm + '\x00' + pod → { customer, nm, pod, creators: Map(email→集計) }
+    const rowsSrc = typeof window.cloudGetAllRows === 'function' ? window.cloudGetAllRows() : [];
+    rowsSrc.forEach(p => {
+      const creatorEmail = (p.created_by || '').trim();
+      if (!creatorEmail) return;   // 作成者不明は比較対象外
+      const f = (p.data || {}).fields || {};
+      const customer = (p.customer || '').trim() || '（未入力）';
+      const pod = _podValFromFields(f) || '（未入力）';
+      const rows = (p.data || {}).rows;
+      if (!Array.isArray(rows)) return;
+      rows.forEach(r => {
+        if (!r || r._type !== 'data' || !Array.isArray(r.cells)) return;
+        const c  = r.cells;
+        const nm = (c[CI.nm] || '').replace(/^\*+/, '').trim();
+        const pp = _num(c[10]), bp = _num(c[11]);
+        if (!nm || (pp == null && bp == null)) return;
+        const pq = _num(c[5]) > 0 ? _num(c[5]) : 1;
+        const bq = _num(c[7]) > 0 ? _num(c[7]) : 1;
+        const pc = (c[8] || 'JPY').trim() || 'JPY';
+        const bc = (c[9] || 'JPY').trim() || 'JPY';
+        const key = customer + '\x00' + nm + '\x00' + pod;
+        if (!map.has(key)) map.set(key, { customer, nm, pod, creators: new Map() });
+        const g = map.get(key);
+        if (!g.creators.has(creatorEmail)) g.creators.set(creatorEmail, { email: creatorEmail, count: 0, costSum: 0, billSum: 0 });
+        const cg = g.creators.get(creatorEmail);
+        cg.count++;
+        if (pp != null) { const costJ = _toJ(pp * pq, pc); if (costJ != null) cg.costSum += costJ; }
+        if (bp != null) { const billJ = _toJ(bp * bq, bc); if (billJ != null) cg.billSum += billJ; }
+      });
+    });
+    return [...map.values()];
+  }
+
+  function _creatorName(email) {
+    return (typeof window.quoteDisplayName === 'function' ? window.quoteDisplayName(email) : null) || email;
+  }
+
+  function _renderMarginDiff() {
+    const e = document.getElementById('statsPane-margindiff');
+    if (!e) return;
+    const groups = _buildMarginDiffStats();
+    let excluded = 0;
+    const list = [];
+    groups.forEach(g => {
+      const creators = [...g.creators.values()].map(cg => ({
+        ...cg,
+        margin: (window.SharedCalc && cg.billSum > 0) ? SharedCalc.grossMarginPct(cg.billSum, cg.costSum) : null,
+      }));
+      const withMargin = creators.filter(c => c.margin != null);
+      if (withMargin.length < 2) { excluded++; return; }
+      const spread = Math.max(...withMargin.map(c => c.margin)) - Math.min(...withMargin.map(c => c.margin));
+      creators.sort((a, b) => (b.margin ?? -Infinity) - (a.margin ?? -Infinity));
+      list.push({ customer: g.customer, nm: g.nm, pod: g.pod, creators, spread });
+    });
+    if (!list.length) {
+      e.innerHTML = '<p class="stats-empty">作成者間で比較できるデータがまだありません。<br>' +
+        '<small>同じお客様・品名・仕向地の案件を、2人以上の作成者がクラウドに保存すると、ここに集計されます' +
+        (excluded ? `（現在 ${excluded} 件の組み合わせは作成者が1人のみのため対象外）` : '') + '。</small></p>';
+      return;
+    }
+    list.sort((a, b) => b.spread - a.spread);
+
+    let h = '<p class="stats-syn-hint">同じお客様・品名・仕向地の組み合わせについて、見積作成者ごとの平均粗利率を比較します。' +
+            '作成者情報があるクラウド共有案件のみが対象で、作成者が1人しかいない組み合わせは除外しています' +
+            (excluded ? `（除外 ${excluded} 件）` : '') + '。粗利率の差（ばらつき）が大きい順に表示します。</p>';
+
+    list.forEach(g => {
+      const rowsHtml = g.creators.map(cg => {
+        const mCls = cg.margin == null ? '' : (cg.margin >= 0 ? 'sd-margin-pos' : 'sd-margin-neg');
+        const avgBill = cg.count > 0 ? cg.billSum / cg.count : null;
+        return `<tr><td class="stats-val">${_esc(_creatorName(cg.email))}</td>` +
+               `<td class="stats-num-col">${cg.count}</td>` +
+               `<td class="stats-num-col ${mCls}">${cg.margin == null ? '—' : cg.margin.toFixed(1) + '%'}</td>` +
+               `<td class="stats-sv-price">${avgBill == null ? '—' : _jpy(avgBill)}</td></tr>`;
+      }).join('');
+      h += `<details class="stats-sv-detail">` +
+           `<summary><b>${_usageSpan('customer', g.customer)} ・ ${_usageSpan('nm', g.nm)} ・ 仕向地 ${_esc(g.pod)}</b>` +
+           `<span class="stats-sv-detail-meta">作成者 ${g.creators.length}名 · 粗利率の差 <span class="sd-margin-neg">${g.spread.toFixed(1)}pt</span></span></summary>` +
+           `<table class="stats-table sd-money-table stats-sv-charge-table"><thead><tr>` +
+           `<th>作成者</th><th class="stats-num-col">件数</th><th class="stats-num-col">平均粗利率</th><th>平均売上/回</th>` +
+           `</tr></thead><tbody>${rowsHtml}</tbody></table></details>`;
+    });
+    e.innerHTML = '<div class="stats-sv-charges-wrap">' + h + '</div>';
+  }
+
   function _renderUn() {
     const e = document.getElementById('statsPane-un');
     if (!e || !_data) return;
@@ -1819,11 +1918,13 @@
 
     const metas = [];
     const source = document.getElementById('statsSource')?.value || 'both';
+    // 「担当者」は社内の見積作成者（created_by）で集計する。qf-person/person はお客様側の
+    // 宛先担当者名であり、社内メンバーとは別物のため使わない（登録メンバー名で表示するため）。
     if (source !== 'cloud') {
       _getLocalPresets().forEach(p => {
         const f = (p.data || {}).fields || {};
         metas.push({
-          person:  (f['qf-person']   || '').trim(),
+          person:  '💾 ローカル保存（作成者不明）',
           status:  (f['qf-status']   || '').trim(),
           rows:    _extractRowsWithPrice(p),
         });
@@ -1832,8 +1933,9 @@
     if (source !== 'local') {
       const cloud = typeof window.cloudGetAllRows === 'function' ? window.cloudGetAllRows() : [];
       cloud.forEach(p => {
+        const createdBy = (p.created_by || '').trim();
         metas.push({
-          person:  (p.person   || '').trim(),
+          person:  createdBy ? _creatorName(createdBy) : '（作成者不明）',
           status:  (p.status   || '').trim(),
           rows:    _extractRowsWithPrice(p),
         });
@@ -1871,8 +1973,8 @@
       kpiCards.map(k => `<div class="stats-kpi-card"><div class="stats-kpi-value">${_esc(String(k.value))}</div><div class="stats-kpi-label">${_esc(k.label)}</div></div>`).join('') +
       '</div>';
 
-    h += '<h3 class="stats-kpi-section-title">担当者別成績</h3>';
-    h += '<table class="stats-table"><thead><tr><th>担当者</th><th class="stats-num-col">総件数</th><th class="stats-num-col">提示済</th><th class="stats-num-col">受注</th><th class="stats-num-col">失注</th><th class="stats-num-col">受注率</th></tr></thead><tbody>';
+    h += '<h3 class="stats-kpi-section-title">見積作成者別成績</h3>';
+    h += '<table class="stats-table"><thead><tr><th>作成者</th><th class="stats-num-col">総件数</th><th class="stats-num-col">提示済</th><th class="stats-num-col">受注</th><th class="stats-num-col">失注</th><th class="stats-num-col">受注率</th></tr></thead><tbody>';
     persons.forEach(([person, d]) => {
       const wr = d.sent ? Math.round(d.won / d.sent * 100) + '%' : '—';
       const barW = d.sent ? Math.round(d.won / d.sent * 100) : 0;
@@ -1979,6 +2081,7 @@
     else if (id === 'un')       _renderUn();
     else if (id === 'svport')   _renderSvPort();
     else if (id === 'custitem') _renderCustItem();
+    else if (id === 'margindiff') _renderMarginDiff();
     else if (id === 'charges')  _renderCharges();
     else if (id === 'master')   _renderMaster();
     else if (id === 'alias')    _renderAlias();
@@ -2006,6 +2109,7 @@
     else if (paneId === 'un')       _renderUn();
     else if (paneId === 'svport')   _renderSvPort();
     else if (paneId === 'custitem') _renderCustItem();
+    else if (paneId === 'margindiff') _renderMarginDiff();
     else if (paneId === 'pattern')  _renderPattern();
     else if (paneId === 'charges')  _renderCharges();
     else if (paneId === 'master')   _renderMaster();

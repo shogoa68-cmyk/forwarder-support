@@ -54,6 +54,10 @@
   let _cpId        = null;   // プレビュー中のプリセット ID
   let _cpRows      = [];     // プレビュー中の行データ（v3形式）
   let _cpFullName  = '';     // プレビュー中のプリセット名
+  // #cloudPreviewModal は #tab-quote-make の子要素（display:none の祖先を持つと中身は
+  // 見た目上どうやっても表示できない）。統計タブ等、見積タブ以外から開いた場合は
+  // 表示直前に見積タブへ一時的に切り替え、「閉じる」で元のタブへ戻す。
+  let _cpReturnTabId = null;
   // メンバープロフィール（email → display_name / avatar）
   let _profileMap  = {};     // { 'email': 'name', ... }（後方互換）
   let _profileAv   = {};     // { 'email': { color, emoji }, ... }
@@ -2167,6 +2171,13 @@
 
     _cpRenderTable(rows);
     _cpUpdateSelCount();
+    const curActive = document.querySelector('.tab-content.active');
+    if (curActive && curActive.id !== 'tab-quote-make') {
+      _cpReturnTabId = curActive.id.replace(/^tab-/, '');
+      if (typeof window.switchTab === 'function') window.switchTab('quote-make');
+    } else {
+      _cpReturnTabId = null;
+    }
     document.getElementById('cloudPreviewModal').style.display = 'flex';
     cpSwitchRightPane('summary');
     _loadAttachments(_cpId);
@@ -2361,6 +2372,11 @@
     if (e && e.target.id !== 'cloudPreviewModal') return;
     document.getElementById('cloudPreviewModal').style.display = 'none';
     _cpId = null; _cpRows = [];
+    if (_cpReturnTabId && typeof window.switchTab === 'function') {
+      const backTo = _cpReturnTabId;
+      _cpReturnTabId = null;
+      window.switchTab(backTo);
+    }
   }
 
   function cloudImportSelectedRows() {

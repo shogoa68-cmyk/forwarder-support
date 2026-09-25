@@ -884,10 +884,11 @@
     }
 
     const remarkText = getRemarkText();
+    const remarkImgHtml = (typeof remarkImagesOutputHTML === 'function') ? remarkImagesOutputHTML('pv-remark-images') : '';
     const pvRemark = document.getElementById('pvRemarkBox');
-    if (remarkText) {
+    if (remarkText || remarkImgHtml) {
       pvRemark.style.display = 'block';
-      pvRemark.innerHTML = `<strong>📝 条件・リマーク</strong>${escHtml(remarkText)}`;
+      pvRemark.innerHTML = `<strong>📝 条件・リマーク</strong>${escHtml(remarkText)}${remarkImgHtml}`;
     } else {
       pvRemark.style.display = 'none';
     }

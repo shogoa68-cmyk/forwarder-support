@@ -519,7 +519,10 @@
       })()}
       ${(() => {
         const rt = (typeof getRemarkText === 'function') ? getRemarkText() : (cond && cond.free) || '';
-        return rt ? `<div class="qd-remark-block"><div class="qd-remark-ttl">📝 条件・免責事項（全体リマーク）</div><div class="qd-remark-body">${esc(rt).replace(/\n/g, '<br>')}</div></div>` : '';
+        const imgHtml = (typeof remarkImagesOutputHTML === 'function') ? remarkImagesOutputHTML('qd-remark-images') : '';
+        if (!rt && !imgHtml) return '';
+        const bodyHtml = rt ? `<div class="qd-remark-body">${esc(rt).replace(/\n/g, '<br>')}</div>` : '';
+        return `<div class="qd-remark-block"><div class="qd-remark-ttl">📝 条件・免責事項（全体リマーク）</div>${bodyHtml}${imgHtml}</div>`;
       })()}
       ${(() => {
         const diff = _revDiff;

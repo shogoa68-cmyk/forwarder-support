@@ -52,7 +52,7 @@
 
   function getConditions() {
     const g = id => document.getElementById(id)?.value.trim() || '';
-    const _isFcl = _currentTransport !== 'air' && _currentSeaSub !== 'lcl';
+    const _isFcl = _currentTransport !== 'air' && _currentSeaSub === 'fcl';
     // コンテナ：複数エントリ対応（未登録なら単体エディタ値にフォールバック）
     let container = '';
     if (_isFcl) {
@@ -404,6 +404,8 @@
     const modeVal = (document.getElementById('cond-mode')?.value || '').trim();
     if      (modeVal === '海上（FCL）') setTransport('fcl');
     else if (modeVal === '海上（LCL）') setTransport('lcl');
+    else if (modeVal === '海上（RORO）') setTransport('roro');
+    else if (modeVal === '海上（在来船）') setTransport('conv');
     else if (modeVal.startsWith('航空')) setTransport('air');
     else if (modeVal === '国内手配のみ') setTransport('domestic');
     else if (!modeVal) _resetTransportUI();   // 空 = 未選択に戻す（新規作成・クリア時に前案件の選択が残らないように）
@@ -654,6 +656,7 @@
     // （通常のフォーム値・行データではないため素通しでは残らない）。
     _loadedCopiedFrom = data.copiedFrom || null;
     _renderCopiedFromInfo();
+    if (typeof setRemarkImages === 'function') setRemarkImages(data.remarkImages || []);
     // サブコン別小計の客先用表示名を復元（_rebuildTable → renderSubconGroups より前にセット）
     if (typeof setSubconAliases === 'function') setSubconAliases(data.subconAliases || {});
     if (typeof setSubconRemarks === 'function') setSubconRemarks(data.subconRemarks || {});
@@ -727,6 +730,7 @@
     if (typeof window.qfRenderTagChips === 'function') window.qfRenderTagChips();
     if (typeof window.updateRemarkChar === 'function') window.updateRemarkChar();
     if (typeof window.syncRemarkChips === 'function') window.syncRemarkChips();
+    if (typeof window.renderRemarkImages === 'function') window.renderRemarkImages();
     if (typeof window.updateQuoteStatusUI === 'function') window.updateQuoteStatusUI();
     if (typeof window.qfRefreshCustomerDetailBtn === 'function') window.qfRefreshCustomerDetailBtn();
     if (typeof window.refreshAllRowMasterDetailBtns === 'function') window.refreshAllRowMasterDetailBtns();
@@ -1092,6 +1096,7 @@
     });
     // _rowFormat: v3 = 小計行・リマーク行を含む型付きオブジェクト配列
     return { fields, rows, ts: new Date().toISOString(), _rowFormat: 'v3-mixed-rows',
+             remarkImages: (typeof getRemarkImages === 'function' ? getRemarkImages() : []),
              subconAliases: (typeof getSubconAliases === 'function' ? getSubconAliases() : {}),
              subconRemarks: (typeof getSubconRemarks === 'function' ? getSubconRemarks() : {}),
              groupNotes: (typeof getSubconGroupNotes === 'function' ? getSubconGroupNotes() : {}),
@@ -1151,6 +1156,7 @@
     let data;
     try { data = JSON.parse(raw); } catch(e) { return; }
     data = migrateRowCells(data);
+    if (typeof setRemarkImages === 'function') setRemarkImages(data.remarkImages || []);
     if (typeof setSubconAliases === 'function') setSubconAliases(data.subconAliases || {});
     if (typeof setSubconRemarks === 'function') setSubconRemarks(data.subconRemarks || {});
     if (typeof setSubconGroupNotes === 'function') setSubconGroupNotes(data.groupNotes || {});
@@ -1180,6 +1186,7 @@
     if (typeof window.updateSectionSummaries === 'function') window.updateSectionSummaries();
     if (typeof window.renderQuoteMilestones === 'function') window.renderQuoteMilestones();
     if (typeof window.qfRenderTagChips === 'function') window.qfRenderTagChips();
+    if (typeof window.renderRemarkImages === 'function') window.renderRemarkImages();
     dismissRestoreBar();
     const ts = data.ts ? new Date(data.ts).toLocaleString('ja-JP') : '';
     quoteShowToast('↩ 自動保存データを復元しました' + (ts ? '（' + ts + '）' : ''), 'success', 3500);
@@ -1198,6 +1205,7 @@
     data = migrateRowCells(data);
     const ts = data.ts ? new Date(data.ts).toLocaleString('ja-JP') : '不明';
     if (!confirm(`保存日時: ${ts}\n\n現在のデータを上書きして読み込みますか？`)) return;
+    if (typeof setRemarkImages === 'function') setRemarkImages(data.remarkImages || []);
     if (typeof setSubconAliases === 'function') setSubconAliases(data.subconAliases || {});
     if (typeof setSubconRemarks === 'function') setSubconRemarks(data.subconRemarks || {});
     if (typeof setSubconGroupNotes === 'function') setSubconGroupNotes(data.groupNotes || {});
@@ -1222,6 +1230,7 @@
     _restoreUiState(data.fields);
     updateTotals();
     updateRouteModeIcon();
+    if (typeof window.renderRemarkImages === 'function') window.renderRemarkImages();
     showSaveStatus('📂 読み込みました');
   }
 
@@ -1368,7 +1377,7 @@
   // 現在の選択状態を保持
   let _currentDirection = '';  // 'export' | 'import' | ''
   let _currentTransport = '';  // 'sea' | 'air' | ''
-  let _currentSeaSub    = 'fcl'; // 'fcl' | 'lcl'
+  let _currentSeaSub    = 'fcl'; // 'fcl' | 'lcl' | 'roro' | 'conv'
 
   // ---- スコープ拡張オプション状態 ----
   // ---- ゾーンビルダー状態 ----
@@ -2936,8 +2945,8 @@
 
   /** Sea / Air プライマリトグル */
   function setTransport(transport) {
-    // transport: 'fcl' | 'lcl' | 'air' | 'domestic'
-    if (transport === 'fcl' || transport === 'lcl') {
+    // transport: 'fcl' | 'lcl' | 'roro' | 'conv' | 'air' | 'domestic'
+    if (transport === 'fcl' || transport === 'lcl' || transport === 'roro' || transport === 'conv') {
       _currentTransport = 'sea';
       _currentSeaSub = transport;
     } else if (transport === 'domestic') {
@@ -2973,7 +2982,8 @@
     const sel = document.getElementById('cond-mode');
     if (!sel) return;
     if (_currentTransport === 'sea') {
-      sel.value = _currentSeaSub === 'lcl' ? '海上（LCL）' : '海上（FCL）';
+      const SEA_MODE_LABELS = { fcl: '海上（FCL）', lcl: '海上（LCL）', roro: '海上（RORO）', conv: '海上（在来船）' };
+      sel.value = SEA_MODE_LABELS[_currentSeaSub] || '海上（FCL）';
     } else if (_currentTransport === 'air') {
       sel.value = '航空（AIR）';
     } else if (_currentTransport === 'domestic') {
@@ -3023,6 +3033,12 @@
     } else if (_currentSeaSub === 'lcl') {
       if (icon)  icon.textContent  = '🚢';
       if (input) input.placeholder = 'NVOCC名（例：近鉄エクスプレス）';
+    } else if (_currentSeaSub === 'roro') {
+      if (icon)  icon.textContent  = '🚗';
+      if (input) input.placeholder = 'RORO船社名（例：商船三井フェリー）';
+    } else if (_currentSeaSub === 'conv') {
+      if (icon)  icon.textContent  = '⚓';
+      if (input) input.placeholder = '在来船社名（例：BBCチャータリング）';
     } else {
       if (icon)  icon.textContent  = '🚢';
       if (input) input.placeholder = 'キャリア名（例：ONE）';
@@ -3223,7 +3239,7 @@ window.reflectToQuote = function(key) {
   }
   const round3 = v => String(Math.round(v * 1000) / 1000);
   const config = {
-    rt:  { value: m.rt,  label: 'R/T',  fmt: round3,  units: ['RT', 'R/T'] },
+    rt:  { value: m.rt > 0 ? Math.max(m.rt, 1) : m.rt, label: 'R/T',  fmt: round3,  units: ['RT', 'R/T'] },
     cw:  { value: m.cw,  label: 'CW',   fmt: String,   units: ['KG', 'CW'] },
     cbm: { value: m.cbm, label: 'CBM',  fmt: round3,  units: ['M3', 'CBM', 'M³'] },
   };
