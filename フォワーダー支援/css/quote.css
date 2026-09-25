@@ -4352,6 +4352,8 @@ body.qp-dash-active #quoteActionDock { display: none !important; }
 }
 #qpDashboard .qpd-side-card {
   background: #fff; border: 1px solid #e2d8c4; border-radius: 10px; padding: 12px 14px 14px;
+  flex-shrink: 0;   /* flex 縦並びで押し縮められて overflow:hidden にクリップされ、パネルがスクロール
+                        不能になるのを防ぐ（カードは自然な高さを保ち .qpd-side 側がスクロールする） */
 }
 #qpDashboard .qpd-side-h { font-size: 13px; font-weight: 800; color: #4a3520; margin: 0 0 4px; }
 #qpDashboard .qpd-side-note { font-size: 10.5px; color: #8a7a68; line-height: 1.6; margin: 0 0 10px; }
@@ -9077,7 +9079,20 @@ body.qp-dash-active #quoteActionDock { display: none !important; }
   font-size: .7rem;
   color: #999;
   white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: 5px;
 }
+/* 申し送り発言者の小さな丸アバター（色＋絵文字/頭文字・プロフィール連動） */
+#tab-quote-make .cp-chat-av {
+  flex-shrink: 0;
+  width: 18px; height: 18px; border-radius: 50%;
+  display: inline-flex; align-items: center; justify-content: center;
+  color: #fff; font-size: 10px; font-weight: 700; line-height: 1;
+  overflow: hidden;
+}
+#tab-quote-make .cp-chat-metatext { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+#tab-quote-make .cp-chat-item--mine .cp-chat-meta { flex-direction: row-reverse; }
 #tab-quote-make .cp-chat-body {
   background: #f0ebe0;
   border-radius: 10px 10px 10px 2px;

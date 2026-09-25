@@ -81,6 +81,13 @@
   }
   window.quoteAvatarFor = _avatarFor;
 
+  // チャット（申し送り）メタ行の先頭に出す小さな丸アバター（色＋絵文字/頭文字）
+  function _chatAvatarHtml(email, name) {
+    const a = _avatarFor(email, name);
+    return '<span class="cp-chat-av" style="background:' + a.color + '" title="' + escHtml(name || '') + '">' +
+      escHtml(a.label || '?') + '</span>';
+  }
+
   // 設定が実値で埋まっているか（プレースホルダのままなら false）
   function cloudIsConfigured() {
     const c = window.CLOUD_CONFIG;
@@ -2914,10 +2921,11 @@
     if (!rows.length) { wrap.innerHTML = '<span class="cp-chat-empty">まだコメントはありません</span>'; return; }
     wrap.innerHTML = rows.map(r => {
       const isMine = _cloudUser && r.created_by === _cloudUser.email;
-      const name = escHtml(_nameFor(r.created_by));
+      const rawName = _nameFor(r.created_by);
+      const name = escHtml(rawName);
       const dt   = new Date(r.created_at).toLocaleString('ja-JP', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
       return `<div class="cp-chat-item${isMine ? ' cp-chat-item--mine' : ''}">
-        <div class="cp-chat-meta">${name} · ${dt}</div>
+        <div class="cp-chat-meta">${_chatAvatarHtml(r.created_by, rawName)}<span class="cp-chat-metatext">${name} · ${dt}</span></div>
         <div class="cp-chat-body">${escHtml(r.body)}</div>
       </div>`;
     }).join('');
@@ -3037,10 +3045,11 @@
     if (!rows || !rows.length) return '<span class="cp-chat-empty">まだ申し送りはありません</span>';
     return rows.map(r => {
       const isMine = _cloudUser && r.created_by === _cloudUser.email;
-      const name = escHtml(_nameFor(r.created_by));
+      const rawName = _nameFor(r.created_by);
+      const name = escHtml(rawName);
       const dt   = new Date(r.created_at).toLocaleString('ja-JP', { month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit' });
       return '<div class="cp-chat-item' + (isMine ? ' cp-chat-item--mine' : '') + '">' +
-        '<div class="cp-chat-meta">' + name + ' · ' + dt + '</div>' +
+        '<div class="cp-chat-meta">' + _chatAvatarHtml(r.created_by, rawName) + '<span class="cp-chat-metatext">' + name + ' · ' + dt + '</span></div>' +
         '<div class="cp-chat-body">' + escHtml(r.body) + '</div></div>';
     }).join('');
   }
@@ -3225,10 +3234,11 @@
     }
     wrap.innerHTML = rows.map(r => {
       const isMine = _cloudUser && r.created_by === _cloudUser.email;
-      const name = escHtml(_nameFor(r.created_by));
+      const rawName = _nameFor(r.created_by);
+      const name = escHtml(rawName);
       const dt   = new Date(r.created_at).toLocaleString('ja-JP', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
       return `<div class="cp-chat-item${isMine ? ' cp-chat-item--mine' : ''}">
-        <div class="cp-chat-meta">${name} · ${dt}</div>
+        <div class="cp-chat-meta">${_chatAvatarHtml(r.created_by, rawName)}<span class="cp-chat-metatext">${name} · ${dt}</span></div>
         <div class="cp-chat-body">${escHtml(r.body)}</div>
       </div>`;
     }).join('');
