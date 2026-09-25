@@ -2072,6 +2072,7 @@
     pt.name = name.trim();
     _renderPackingPatternTabs();
     _syncPackingPatternsData();
+    if (typeof window.udRefresh === 'function') window.udRefresh();   // 数量メニューのパターン選択欄のラベルも更新
     if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
     if (typeof scheduleSnapshot === 'function') scheduleSnapshot();
   };
@@ -2167,6 +2168,8 @@
     // hidden に R/T・CW も保持（プレビュー等で参照可能に）
     _lastCargoMetrics = { cbm: totCbm, kg: totKg, rt, cw, qty: totQty };
     if (typeof window.renderQuoteCargoInfo === 'function') window.renderQuoteCargoInfo();
+    // 右カラム「数量」メニューのパターン選択欄（ud-pattern-select）も同期
+    if (typeof window.udRefresh === 'function') window.udRefresh();
   }
   let _lastCargoMetrics = { cbm: 0, kg: 0, rt: 0, cw: 0, qty: 0 };
 

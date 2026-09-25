@@ -57,6 +57,7 @@
          <span class="sc-collapse-arrow">${_udCollapsed ? '▶' : '▼'}</span>
        </div>
        <div class="sc-body">
+         ${_udPatternSelectHtml()}
          <div class="qsp-cargo-info ud-cargo-info" id="qspCargoInfo" style="display:none;"></div>
          <p class="sc-hint">明細行の単位ごとに現在の数量を表示します。数値を変えて<b>「一括反映」</b>すると、その単位・数量の行をまとめて更新します。<br>数量がバラつく単位は、現在の数量ごとに分けて表示されます。チェックを外すとその単位を対象から除外できます。</p>
          ${groups.length ? `<div class="ud-select-toggle">
@@ -72,6 +73,34 @@
     // 物量情報（旧「輸送」メニューから統合）を数量パネル内に描画
     if (typeof window.renderQuoteCargoInfo === 'function') window.renderQuoteCargoInfo();
   }
+
+  // 貨物情報（荷姿・貨物明細）に複数の想定パターンが登録されている場合、
+  // ここから直接切り替えて物量情報（CBM/重量/R-T/CW）を確認できるようにする。
+  // 1パターンのみ（未命名）の案件では選択の意味が無いため表示しない
+  // （貨物情報側の cdPatternTabs と同じ判定基準）。
+  function _udPatternSelectHtml() {
+    if (typeof _packingPatterns === 'undefined' || !Array.isArray(_packingPatterns)) return '';
+    const onlyOneUnnamed = _packingPatterns.length === 1 && !_packingPatterns[0].name;
+    if (onlyOneUnnamed) return '';
+    const opts = _packingPatterns.map((pt, i) => {
+      const label = pt.name || `パターン${i + 1}`;
+      const selected = i === _packingActiveIdx ? ' selected' : '';
+      return `<option value="${i}"${selected}>${escHtml(label)}</option>`;
+    }).join('');
+    return `<div class="ud-pattern-select-row">
+      <span class="ud-pattern-select-label">📦 物量パターン</span>
+      <select class="ud-pattern-select" onchange="udSwitchPattern(this.value)" title="貨物情報に登録した想定パターンを切り替えて物量情報を確認します">${opts}</select>
+    </div>`;
+  }
+
+  // パターン切替：貨物情報側の状態を更新してからこのパネルを再描画する
+  function udSwitchPattern(i) {
+    i = parseInt(i, 10);
+    if (Number.isNaN(i)) return;
+    if (typeof window.switchPackingPattern === 'function') window.switchPackingPattern(i);
+    _udRenderPanel();
+  }
+  window.udSwitchPattern = udSwitchPattern;
 
   // ---------- 操作 ----------
   function scToggleCollapse() { _udCollapsed = !_udCollapsed; _udRenderPanel(); }

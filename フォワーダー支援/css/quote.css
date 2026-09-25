@@ -10114,6 +10114,14 @@ button.um-memberno--empty:hover { background: #f4ead4; border-color: #cdb98e; }
   opacity: 0.45;
   pointer-events: none;
 }
+#tab-quote-make .ud-pattern-select-row {
+  display: flex; align-items: center; gap: 6px; margin-bottom: 8px;
+}
+#tab-quote-make .ud-pattern-select-label { font-size: 11px; font-weight: 700; color: #7a6040; white-space: nowrap; }
+#tab-quote-make .ud-pattern-select {
+  flex: 1 1 auto; min-width: 0; font-size: 12px; font-family: inherit;
+  padding: 3px 6px; border: 1px solid #d9cfc2; border-radius: 4px; background: #fff; color: #3d2e1e;
+}
 #tab-quote-make .sc-hint {
   font-size: 11px;
   color: #7a6040;
