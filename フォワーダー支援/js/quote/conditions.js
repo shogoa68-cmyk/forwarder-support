@@ -3230,7 +3230,7 @@ window.reflectToQuote = function(key) {
   }
   const round3 = v => String(Math.round(v * 1000) / 1000);
   const config = {
-    rt:  { value: m.rt,  label: 'R/T',  fmt: round3,  units: ['RT', 'R/T'] },
+    rt:  { value: m.rt > 0 ? Math.max(m.rt, 1) : m.rt, label: 'R/T',  fmt: round3,  units: ['RT', 'R/T'] },
     cw:  { value: m.cw,  label: 'CW',   fmt: String,   units: ['KG', 'CW'] },
     cbm: { value: m.cbm, label: 'CBM',  fmt: round3,  units: ['M3', 'CBM', 'M³'] },
   };

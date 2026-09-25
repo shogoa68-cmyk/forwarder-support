@@ -3262,7 +3262,11 @@
     if (m.qty > 0)   rows.push(['総個数', m.qty.toLocaleString() + ' 個']);
     if (m.cbm > 0)   rows.push(['総容積', m.cbm.toFixed(3) + ' CBM', 'cbm']);
     if (m.kg > 0)    rows.push(['総重量', Math.round(m.kg).toLocaleString() + ' kg']);
-    if (m.rt > 0)    rows.push(['R/T', m.rt.toFixed(3), 'rt']);
+    if (m.rt > 0) {
+      const rtMin = Math.max(m.rt, 1);   // R/T課金は最低1（1を下回る場合はMIN適用）
+      const rtLabel = rtMin.toFixed(3) + (rtMin > m.rt ? '（MIN）' : '');
+      rows.push(['R/T', rtLabel, 'rt']);
+    }
     if (m.cw > 0)    rows.push(['CW', SharedCalc.fmtCw(m.cw) + ' kg', 'cw']);
     if (!rows.length) { el.style.display = 'none'; el.innerHTML = ''; return; }
     el.style.display = 'block';
