@@ -262,6 +262,91 @@ function sendCalcResultToQuote(btn) {
   }
 }
 
+// 見積もりタブ「貨物情報」の荷姿・貨物明細（cond-packing-data）から、
+// 寸法（長さ/幅/高さ/重量）が入力済みの行だけを抽出する。単位は常に cm。
+function _gatherCargoEntriesForVanTransfer() {
+  const raw = document.getElementById('cond-packing-data')?.value;
+  if (!raw) return [];
+  let entries;
+  try { entries = JSON.parse(raw); } catch (e) { return []; }
+  if (!Array.isArray(entries)) return [];
+  return entries.filter(e => {
+    const l = parseFloat(e?.l), w = parseFloat(e?.w), h = parseFloat(e?.h);
+    return l > 0 && w > 0 && h > 0;
+  });
+}
+
+// 抽出した貨物明細を計算タブのバンニング行（#van-rows-wrap）へ転記する。
+// 既存の1行目は使い回し、2件目以降は addCalcRow('van') で複製して追加する。
+function _fillVanRowsFromCargoEntries(entries) {
+  const wrap = document.getElementById('van-rows-wrap');
+  if (!wrap) return false;
+  let rows = Array.from(wrap.querySelectorAll('.calc-multi-row'));
+  while (rows.length > 1) { rows.pop().remove(); }
+  const unitSel = document.getElementById('van-unit');
+  if (unitSel) unitSel.value = 'cm';   // cond-packing-data は常に cm 換算値
+
+  entries.forEach((entry, i) => {
+    let row;
+    if (i === 0) {
+      row = rows[0];
+    } else {
+      addCalcRow('van');
+      row = wrap.querySelector('.calc-multi-row:last-child');
+    }
+    if (typeof injectAuxCalcFields === 'function') injectAuxCalcFields(row);
+    const set = (key, val) => { const el = row.querySelector(`[data-key="${key}"]`); if (el) el.value = val; };
+    set('l', entry.l);
+    set('w', entry.w);
+    set('h', entry.h);
+    set('weight', entry.kg || '');
+    set('qty', entry.qty || 1);
+    const stackSel = row.querySelector('[data-key="stack"]');
+    if (stackSel) stackSel.value = entry.stack === '不可' ? 'ng' : 'ok';
+  });
+  updateRowNums(wrap);
+  return true;
+}
+
+// 見積もりタブ「貨物情報」→ 計算タブのバンニングシミュレーター（3D積み付けプレビュー）へジャンプ。
+// 寸法入力済みの荷姿があれば転記した上で自動計算まで行う。
+// 戻り（入力していたスクロール位置の復元）は #backToQuoteFab（app.js の switchTab ラッパー）が
+// 汎用的に処理するため、ここでは遷移＋転記＋対象カードへのスクロールのみを行う。
+function jumpToVanningSimulator() {
+  const entries = _gatherCargoEntriesForVanTransfer();
+
+  const calcCatBtn = document.querySelector('.cat-btn[aria-controls="tab-calc"]');
+  if (calcCatBtn && typeof switchCategory === 'function') {
+    switchCategory('calc', calcCatBtn);
+  } else if (typeof switchTab === 'function') {
+    switchTab('calc');
+  }
+
+  let transferred = false;
+  if (entries.length) {
+    transferred = _fillVanRowsFromCargoEntries(entries);
+    if (transferred) calcVanning();
+  }
+
+  requestAnimationFrame(() => {
+    const target = transferred
+      ? document.getElementById('van-result')
+      : document.getElementById('van-rows-wrap')?.closest('.card');
+    if (!target) return;
+    target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    target.classList.add('jump-target-flash');
+    setTimeout(() => target.classList.remove('jump-target-flash'), 1200);
+  });
+
+  if (typeof quoteShowToast === 'function') {
+    const msg = transferred
+      ? `🧊 貨物情報（${entries.length}件）をバンニングシミュレーターへ転記しました（「← 見積もりに戻る」で戻れます）`
+      : '🧊 バンニングシミュレーターに移動しました（「← 見積もりに戻る」で戻れます）';
+    quoteShowToast(msg, 'info', 3000);
+  }
+}
+window.jumpToVanningSimulator = jumpToVanningSimulator;
+
 // ================================================================
 //  複数行管理ユーティリティ
 // ================================================================
@@ -651,10 +736,19 @@ function calcVanning() {
   const { unit, factor } = getUnitConversion('van-unit', 'cm');
   // maxPay: 海上輸送（ISO規格）ベースのペイロード上限。ドアtoドア含む場合は
   // 道路法軸重制限により 20'GP は 21,500 kg（shared/calc.js の値）が目安。
+  // 20ft/40ft Dry・40ft HC は内寸で厳密に収まる前提。
+  // Flat Rack・Open Top は側壁/屋根が無く、規格寸法を超える貨物（はみ出し）を
+  // 前提とした特殊コンテナのため、openAxes に指定した軸は寸法超過でも
+  // 積み残し扱いにせず「はみ出し」として検知・3D表示する（packContainer側）。
+  // 寸法は目安（ISO規格・代表値）。船社により若干異なるため現場で確認してください。
   const CONT = {
     '20ft':{l:589,w:235,h:239,maxPay:28000,label:'20ft Dry'},
     '40ft':{l:1203,w:235,h:239,maxPay:26500,label:'40ft Dry'},
     '40hc':{l:1203,w:235,h:269,maxPay:26500,label:'40ft HC'},
+    '20ot':{l:589,w:235,h:231,maxPay:28000,label:'20ft Open Top',openAxes:['h']},
+    '40ot':{l:1203,w:235,h:231,maxPay:26500,label:'40ft Open Top',openAxes:['h']},
+    '20fr':{l:589,w:228,h:200,maxPay:30000,label:'20ft Flat Rack',openAxes:['l','w','h']},
+    '40fr':{l:1203,w:228,h:200,maxPay:40000,label:'40ft Flat Rack',openAxes:['l','w','h']},
   };
   const globalNoStack = document.getElementById('van-no-stack').checked;
   const PERMS   = [[0,1,2],[0,2,1],[1,0,2],[1,2,0],[2,0,1],[2,1,0]];

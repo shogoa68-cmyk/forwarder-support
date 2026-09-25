@@ -5563,6 +5563,8 @@ body.qp-dash-active #quoteActionDock { display: none !important; }
 #tab-quote-make .ei-act-new:hover { background: #226735; }
 /* ===== 📋 貼り付けで一括登録モーダル（荷姿・貨物明細） ===== */
 #tab-quote-make .pki-open-btn { background: #3a6baf; border-color: #3a6baf; }
+#tab-quote-make .van-jump-btn { background: #6b46a0; border-color: #6b46a0; }
+#tab-quote-make .van-jump-btn:hover { background: #59378a; border-color: #59378a; }
 #tab-quote-make .pki-parse-bar { display: flex; align-items: center; gap: 10px; }
 #tab-quote-make .pki-or { font-size: 11px; color: #9a8a70; }
 #tab-quote-make .pki-pdf-btn { background: #8a5a2a; }
@@ -10232,6 +10234,40 @@ button.um-memberno--empty:hover { background: #f4ead4; border-color: #cdb98e; }
 #tab-quote-make .sc-fixed-btn:hover { opacity: 1; }
 #tab-quote-make .sc-fixed-btn.is-fixed { opacity: 1; }
 
+/* ========== ⚖️ 比較パネル（同一項目の最安値比較） ========== */
+#tab-quote-make .cmp-panel { padding: 10px 12px; font-size: 12px; overflow-y: auto; }
+#tab-quote-make .cmp-empty { font-size: 12px; color: #7a6a50; line-height: 1.7; }
+#tab-quote-make .cmp-hint { font-size: 11px; color: #8a7a5c; line-height: 1.7; margin-bottom: 10px; }
+#tab-quote-make .cmp-list { display: flex; flex-direction: column; gap: 12px; }
+#tab-quote-make .cmp-group {
+  border: 1px solid #e4d9c8; border-radius: 6px; background: #fffdf7; padding: 8px 10px;
+}
+#tab-quote-make .cmp-group-title {
+  display: flex; align-items: center; justify-content: space-between; gap: 6px;
+  font-size: 12.5px; font-weight: 700; color: #5a4a30; margin-bottom: 6px;
+}
+#tab-quote-make .cmp-group-apply-btn {
+  flex: 0 0 auto; background: #f0e8d8; color: #7d6b56; border: none; border-radius: 4px;
+  padding: 3px 8px; font-size: 10.5px; cursor: pointer; font-family: inherit; white-space: nowrap;
+}
+#tab-quote-make .cmp-group-apply-btn:hover { background: #d9cfc2; color: #3d2e1e; }
+#tab-quote-make .cmp-row {
+  display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+  padding: 4px 0; border-top: 1px dashed #ecdfc8; font-size: 11.5px;
+}
+#tab-quote-make .cmp-row:first-child { border-top: none; }
+#tab-quote-make .cmp-row--best { color: #1a6a35; font-weight: 700; }
+#tab-quote-make .cmp-row--hidden { opacity: 0.55; }
+#tab-quote-make .cmp-row-star { width: 14px; flex: 0 0 auto; }
+#tab-quote-make .cmp-row-sv { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#tab-quote-make .cmp-row-price { flex: 0 0 auto; }
+#tab-quote-make .cmp-row-gap { flex: 0 0 auto; color: #c0392b; font-size: 10.5px; }
+#tab-quote-make .cmp-row-hide-btn {
+  flex: 0 0 auto; background: none; border: 1px solid #d9cfc2; border-radius: 4px;
+  padding: 2px 6px; font-size: 10px; color: #7a6a50; cursor: pointer; font-family: inherit;
+}
+#tab-quote-make .cmp-row-hide-btn:hover { background: #f0e8d8; color: #3d2e1e; }
+
 /* --- 比較プレビューオーバーレイ --- */
 #scPreviewOverlay {
   position: fixed;
@@ -10438,6 +10474,7 @@ button.um-memberno--empty:hover { background: #f4ead4; border-color: #cdb98e; }
 #tab-quote-make .qrc-drawer-body > .quote-summary-panel,
 #tab-quote-make .qrc-drawer-body > .sq-panel,
 #tab-quote-make .qrc-drawer-body > .sc-panel,
+#tab-quote-make .qrc-drawer-body > .cmp-panel,
 #tab-quote-make .qrc-drawer-body > .si-panel {
   width: 100%; flex: 1 1 auto; border: none; border-radius: 0; box-shadow: none;
   background: transparent; margin: 0; display: flex; flex-direction: column; overflow: hidden;

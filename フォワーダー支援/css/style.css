@@ -759,6 +759,8 @@ body:has(#tab-quote-make.active) .app { padding-bottom: 8px; }
 .van3d-stats { font-size: 11px; color: var(--text-md); margin-top: 8px; line-height: 1.8; }
 .van3d-warn { color: #b45309; font-weight: 700; }
 .van3d-note { color: var(--text-lt); }
+.van3d-overhang { color: #c53030; font-weight: 700; }
+.jump-target-flash { animation: flash-green 0.9s ease-out; }
 @media (max-width: 480px) {
   .van3d-wrap { height: 280px; }
 }
