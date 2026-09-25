@@ -1918,11 +1918,13 @@
 
     const metas = [];
     const source = document.getElementById('statsSource')?.value || 'both';
+    // 「担当者」は社内の見積作成者（created_by）で集計する。qf-person/person はお客様側の
+    // 宛先担当者名であり、社内メンバーとは別物のため使わない（登録メンバー名で表示するため）。
     if (source !== 'cloud') {
       _getLocalPresets().forEach(p => {
         const f = (p.data || {}).fields || {};
         metas.push({
-          person:  (f['qf-person']   || '').trim(),
+          person:  '💾 ローカル保存（作成者不明）',
           status:  (f['qf-status']   || '').trim(),
           rows:    _extractRowsWithPrice(p),
         });
@@ -1931,8 +1933,9 @@
     if (source !== 'local') {
       const cloud = typeof window.cloudGetAllRows === 'function' ? window.cloudGetAllRows() : [];
       cloud.forEach(p => {
+        const createdBy = (p.created_by || '').trim();
         metas.push({
-          person:  (p.person   || '').trim(),
+          person:  createdBy ? _creatorName(createdBy) : '（作成者不明）',
           status:  (p.status   || '').trim(),
           rows:    _extractRowsWithPrice(p),
         });
@@ -1970,8 +1973,8 @@
       kpiCards.map(k => `<div class="stats-kpi-card"><div class="stats-kpi-value">${_esc(String(k.value))}</div><div class="stats-kpi-label">${_esc(k.label)}</div></div>`).join('') +
       '</div>';
 
-    h += '<h3 class="stats-kpi-section-title">担当者別成績</h3>';
-    h += '<table class="stats-table"><thead><tr><th>担当者</th><th class="stats-num-col">総件数</th><th class="stats-num-col">提示済</th><th class="stats-num-col">受注</th><th class="stats-num-col">失注</th><th class="stats-num-col">受注率</th></tr></thead><tbody>';
+    h += '<h3 class="stats-kpi-section-title">見積作成者別成績</h3>';
+    h += '<table class="stats-table"><thead><tr><th>作成者</th><th class="stats-num-col">総件数</th><th class="stats-num-col">提示済</th><th class="stats-num-col">受注</th><th class="stats-num-col">失注</th><th class="stats-num-col">受注率</th></tr></thead><tbody>';
     persons.forEach(([person, d]) => {
       const wr = d.sent ? Math.round(d.won / d.sent * 100) + '%' : '—';
       const barW = d.sent ? Math.round(d.won / d.sent * 100) : 0;
