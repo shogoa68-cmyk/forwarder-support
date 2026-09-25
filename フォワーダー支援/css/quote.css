@@ -4326,6 +4326,8 @@ body.qp-dash-active #quoteActionDock { display: none !important; }
 }
 #qpDashboard .qpd-side-card {
   background: #fff; border: 1px solid #e2d8c4; border-radius: 10px; padding: 12px 14px 14px;
+  flex-shrink: 0;   /* flex 縦並びで押し縮められて overflow:hidden にクリップされ、パネルがスクロール
+                        不能になるのを防ぐ（カードは自然な高さを保ち .qpd-side 側がスクロールする） */
 }
 #qpDashboard .qpd-side-h { font-size: 13px; font-weight: 800; color: #4a3520; margin: 0 0 4px; }
 #qpDashboard .qpd-side-note { font-size: 10.5px; color: #8a7a68; line-height: 1.6; margin: 0 0 10px; }
