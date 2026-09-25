@@ -9079,7 +9079,20 @@ body.qp-dash-active #quoteActionDock { display: none !important; }
   font-size: .7rem;
   color: #999;
   white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: 5px;
 }
+/* 申し送り発言者の小さな丸アバター（色＋絵文字/頭文字・プロフィール連動） */
+#tab-quote-make .cp-chat-av {
+  flex-shrink: 0;
+  width: 18px; height: 18px; border-radius: 50%;
+  display: inline-flex; align-items: center; justify-content: center;
+  color: #fff; font-size: 10px; font-weight: 700; line-height: 1;
+  overflow: hidden;
+}
+#tab-quote-make .cp-chat-metatext { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+#tab-quote-make .cp-chat-item--mine .cp-chat-meta { flex-direction: row-reverse; }
 #tab-quote-make .cp-chat-body {
   background: #f0ebe0;
   border-radius: 10px 10px 10px 2px;
