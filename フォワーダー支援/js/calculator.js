@@ -262,25 +262,87 @@ function sendCalcResultToQuote(btn) {
   }
 }
 
+// 見積もりタブ「貨物情報」の荷姿・貨物明細（cond-packing-data）から、
+// 寸法（長さ/幅/高さ/重量）が入力済みの行だけを抽出する。単位は常に cm。
+function _gatherCargoEntriesForVanTransfer() {
+  const raw = document.getElementById('cond-packing-data')?.value;
+  if (!raw) return [];
+  let entries;
+  try { entries = JSON.parse(raw); } catch (e) { return []; }
+  if (!Array.isArray(entries)) return [];
+  return entries.filter(e => {
+    const l = parseFloat(e?.l), w = parseFloat(e?.w), h = parseFloat(e?.h);
+    return l > 0 && w > 0 && h > 0;
+  });
+}
+
+// 抽出した貨物明細を計算タブのバンニング行（#van-rows-wrap）へ転記する。
+// 既存の1行目は使い回し、2件目以降は addCalcRow('van') で複製して追加する。
+function _fillVanRowsFromCargoEntries(entries) {
+  const wrap = document.getElementById('van-rows-wrap');
+  if (!wrap) return false;
+  let rows = Array.from(wrap.querySelectorAll('.calc-multi-row'));
+  while (rows.length > 1) { rows.pop().remove(); }
+  const unitSel = document.getElementById('van-unit');
+  if (unitSel) unitSel.value = 'cm';   // cond-packing-data は常に cm 換算値
+
+  entries.forEach((entry, i) => {
+    let row;
+    if (i === 0) {
+      row = rows[0];
+    } else {
+      addCalcRow('van');
+      row = wrap.querySelector('.calc-multi-row:last-child');
+    }
+    if (typeof injectAuxCalcFields === 'function') injectAuxCalcFields(row);
+    const set = (key, val) => { const el = row.querySelector(`[data-key="${key}"]`); if (el) el.value = val; };
+    set('l', entry.l);
+    set('w', entry.w);
+    set('h', entry.h);
+    set('weight', entry.kg || '');
+    set('qty', entry.qty || 1);
+    const stackSel = row.querySelector('[data-key="stack"]');
+    if (stackSel) stackSel.value = entry.stack === '不可' ? 'ng' : 'ok';
+  });
+  updateRowNums(wrap);
+  return true;
+}
+
 // 見積もりタブ「貨物情報」→ 計算タブのバンニングシミュレーター（3D積み付けプレビュー）へジャンプ。
+// 寸法入力済みの荷姿があれば転記した上で自動計算まで行う。
 // 戻り（入力していたスクロール位置の復元）は #backToQuoteFab（app.js の switchTab ラッパー）が
-// 汎用的に処理するため、ここでは遷移＋対象カードへのスクロールのみを行う。
+// 汎用的に処理するため、ここでは遷移＋転記＋対象カードへのスクロールのみを行う。
 function jumpToVanningSimulator() {
+  const entries = _gatherCargoEntriesForVanTransfer();
+
   const calcCatBtn = document.querySelector('.cat-btn[aria-controls="tab-calc"]');
   if (calcCatBtn && typeof switchCategory === 'function') {
     switchCategory('calc', calcCatBtn);
   } else if (typeof switchTab === 'function') {
     switchTab('calc');
   }
+
+  let transferred = false;
+  if (entries.length) {
+    transferred = _fillVanRowsFromCargoEntries(entries);
+    if (transferred) calcVanning();
+  }
+
   requestAnimationFrame(() => {
-    const target = document.getElementById('van-rows-wrap')?.closest('.card');
+    const target = transferred
+      ? document.getElementById('van-result')
+      : document.getElementById('van-rows-wrap')?.closest('.card');
     if (!target) return;
     target.scrollIntoView({ behavior: 'smooth', block: 'start' });
     target.classList.add('jump-target-flash');
     setTimeout(() => target.classList.remove('jump-target-flash'), 1200);
   });
+
   if (typeof quoteShowToast === 'function') {
-    quoteShowToast('🧊 バンニングシミュレーターに移動しました（「← 見積もりに戻る」で戻れます）', 'info', 3000);
+    const msg = transferred
+      ? `🧊 貨物情報（${entries.length}件）をバンニングシミュレーターへ転記しました（「← 見積もりに戻る」で戻れます）`
+      : '🧊 バンニングシミュレーターに移動しました（「← 見積もりに戻る」で戻れます）';
+    quoteShowToast(msg, 'info', 3000);
   }
 }
 window.jumpToVanningSimulator = jumpToVanningSimulator;
