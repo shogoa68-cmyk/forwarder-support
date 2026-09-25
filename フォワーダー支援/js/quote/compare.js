@@ -62,6 +62,7 @@
     panel.innerHTML =
       '<p class="cmp-hint">同一品名の行を仕入単価（JPY換算）で比較し、最安値を⭐で表示します。<br>' +
       '「👁️ 非表示にする」は見積書への表示/非表示の切替のみで、行は削除されません。</p>' +
+      '<div class="cmp-scroll">' +
       '<div class="cmp-list">' +
       _cmpGroups.map((g, gi) => {
         const cheapestJPY = g.rows[0].unitCostJPY;
@@ -90,6 +91,7 @@
           ${rowsHtml}
         </div>`;
       }).join('') +
+      '</div>' +
       '</div>';
   }
 
