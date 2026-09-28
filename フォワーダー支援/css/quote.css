@@ -9754,6 +9754,9 @@ button.um-memberno--empty:hover { background: #f4ead4; border-color: #cdb98e; }
 #tab-quote-make tr:hover .row-acts button { display: inline-flex; }
 #tab-quote-make .row-acts button:hover { opacity: 1; background: #fff; border-color: #cdd6df; }
 #tab-quote-make .row-acts button.is-on { display: inline-flex; opacity: 1; }
+/* 物量パターンに紐付いている👁/🚫は、パターン依存であることが分かるよう常に表示する */
+#tab-quote-make .row-acts button.hide-pattern-linked,
+#tab-quote-make .row-acts button.hide-pattern-needs-check { display: inline-flex; opacity: 1; }
 /* ✓ 入力完了は文字色で状態表現（OFF はグレー、ON は緑） */
 #tab-quote-make .row-done-btn { color: #9aa3ab; font-weight: 700; font-size: 12px; }
 #tab-quote-make .row-done-btn.is-on { color: #1f9d57; }
@@ -9786,6 +9789,18 @@ button.um-memberno--empty:hover { background: #f4ead4; border-color: #cdb98e; }
 }
 /* 他のパターンでは数量が紐付けられているのに、表示中のパターンでは未設定の行（要確認） */
 #tab-quote-make .pq-pattern-needs-check {
+  border-color: #c98a1f !important;
+  border-style: dashed !important;
+  box-shadow: 0 0 0 1px #c98a1f inset;
+  background: #fdf3df;
+}
+/* 見積書 表示/非表示（👁/🚫）が物量パターンに紐付いている行（pq-pattern-linked/needs-check と同じ配色） */
+#tab-quote-make .row-hidequote-btn.hide-pattern-linked {
+  border-color: #6b8a3d !important;
+  box-shadow: 0 0 0 1px #6b8a3d inset;
+  background: #f4f8ec;
+}
+#tab-quote-make .row-hidequote-btn.hide-pattern-needs-check {
   border-color: #c98a1f !important;
   border-style: dashed !important;
   box-shadow: 0 0 0 1px #c98a1f inset;

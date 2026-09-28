@@ -280,12 +280,30 @@
       btn.textContent = '🚫';
       btn.title = '見積書で非表示中（クリックで出力に戻す）';
     }
+    _recordPatternHideState(tr, btn);
     updateTotals();   // グループ小計（_updateGroupSums）も内部で更新される
     // ※ renderSubconGroups() は呼ばない：行の並べ替え（同名サブコンの集約）が走り、
     //   下方の行が上のグループへ移動してしまうため。非表示は並び順を変える操作ではない。
     if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
   }
   window.toggleRowHideQuote = toggleRowHideQuote;
+
+  // ユーザーがこの行の見積書 表示/非表示（👁/🚫）を直接切り替えた場合のみ、
+  // 現在アクティブな物量パターンへ紐付けを記録する（_recordPatternQty と同じ考え方）。
+  // toggleRowHideQuote は内部の再計算経路からは呼ばれず、常にユーザー操作起点のため
+  // ここに直接記録ロジックを置いてよい（onPay のような誤記録の懸念が無い）。
+  function _recordPatternHideState(tr, btn) {
+    if (typeof _packingPatterns === 'undefined' || _packingPatterns.length < 2) return;
+    const pat = _packingPatterns[_packingActiveIdx];
+    const uid = tr.querySelector('[data-field="uid"]')?.value;
+    if (!pat || !uid) return;
+    if (!pat.hideLinks) pat.hideLinks = {};
+    pat.hideLinks[uid] = tr.dataset.hideQuote === '1';
+    if (btn) {
+      btn.classList.add('hide-pattern-linked');
+      btn.classList.remove('hide-pattern-needs-check');
+    }
+  }
 
   // 行 ID 指定で見積書非表示をトグル（右カラム ジャンプタブ等の外部 UI 用）。
   // テーブル行のボタンがあればそれを押して既存ロジックを共用し、無ければ dataset を直接操作。
@@ -298,6 +316,7 @@
       const hidden = tr.dataset.hideQuote === '1';
       if (hidden) { delete tr.dataset.hideQuote; tr.classList.remove('row-hidden-quote'); }
       else { tr.dataset.hideQuote = '1'; tr.classList.add('row-hidden-quote'); }
+      _recordPatternHideState(tr);
       updateTotals();
       if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
     }
