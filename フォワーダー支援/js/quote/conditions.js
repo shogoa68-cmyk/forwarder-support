@@ -284,6 +284,12 @@
       const nm = tr.querySelector('[data-field="nm"]');
       if (!nm) return;
       const rowId = nm.id.replace('nm-', '');
+      // uid（行の内部識別ID）が空の行を修復する。uid 導入前に保存された古いプリセットは
+      // 空文字として保存されており、addRow() が最初に振った乱数IDを _applyCells() が
+      // 「保存値（空文字）で上書き」してしまうため、復元のたびに空のまま残り続けていた
+      // （物量パターンの数量紐付けなど uid に依存する機能が、その行だけ永久に効かなくなる）。
+      const uidEl = tr.querySelector('[data-field="uid"]');
+      if (uidEl && !uidEl.value) uidEl.value = 'r' + Math.random().toString(36).slice(2, 8);
       checkUnfilled(rowId);
       onCatChange(rowId);
       // _applyCells で復元した bc（売通貨）/bp（売単価）を保持する。
