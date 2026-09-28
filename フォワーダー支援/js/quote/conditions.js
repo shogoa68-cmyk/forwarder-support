@@ -2042,6 +2042,25 @@
     });
   }
 
+  // 指定パターンに、見積もりテーブル全行の「今の」数量をまるごと記録する（上書き）。
+  // 複数パターンを使い始める瞬間（2件目のパターン作成・複製）に、それまで入力していた
+  // 数量を「1件目のパターンの値」として確定させておくためのもの。これをしないと、
+  // 複数パターン運用を始める前に入力した数量はどのパターンにも属さないまま残り、
+  // 他パターンへ切替→戻しても復元されない（=1件目のパターンだけ機能しないように見える）。
+  function _snapshotAllQtyIntoPattern(i) {
+    const pat = _packingPatterns[i];
+    if (!pat) return;
+    if (!pat.qtyLinks) pat.qtyLinks = {};
+    document.querySelectorAll('#tableBody tr[id^="row-"]').forEach(tr => {
+      if (tr.dataset.type || tr.dataset.virtual) return;
+      const id = tr.id.replace('row-', '');
+      const uid = document.getElementById(`uid-${id}`)?.value;
+      const pqEl = document.getElementById(`pq-${id}`);
+      if (!uid || !pqEl) return;
+      pat.qtyLinks[uid] = parseFloat(pqEl.value) || 0;
+    });
+  }
+
   // 客先向け出力（御見積書PDF・プレビュー・メール本文）にこのパターンを含めるかどうかの切替。
   // 非表示にしても案件内には残り、社内での比較検討用パターンとして使い続けられる
   // （リマーク行の「見積書に表示 ⇔ 社内メモ」と同じ考え方）。
@@ -2061,6 +2080,10 @@
     if (name == null) return;   // キャンセル
     // 現パターンが無名・未入力のまま2件目を作ろうとした場合の事故防止に、既定名を補う
     _packingPatterns.forEach((pt, i) => { if (!pt.name) pt.name = `パターン${i + 1}`; });
+    // 2件目を作る瞬間に、今表示中のパターンの数量を「そのパターンの値」として確定させておく。
+    // これをしないと、複数パターンを使い始める前に入力した数量がどのパターンにも
+    // 属さないまま扱われ、後で他パターンへ切替→戻すと値が引き継がれない不具合になる
+    _snapshotAllQtyIntoPattern(_packingActiveIdx);
     _packingPatterns.push({ name: name.trim() || `パターン${_packingPatterns.length + 1}`, entries: [], qtyLinks: {} });
     _packingActiveIdx = _packingPatterns.length - 1;
     _packingEntries = _packingPatterns[_packingActiveIdx].entries;
@@ -2077,6 +2100,8 @@
     const name = prompt('複製後のパターン名を入力してください', `${srcLabel}のコピー`);
     if (name == null) return;   // キャンセル
     _packingPatterns.forEach((pt, i) => { if (!pt.name) pt.name = `パターン${i + 1}`; });
+    // 複製元パターンの数量も確定させてから複製する（addPackingPattern と同じ理由）
+    _snapshotAllQtyIntoPattern(_packingActiveIdx);
     const cloned = {
       name: name.trim() || `${srcLabel}のコピー`,
       entries: (src.entries || []).map(e => ({ ...e })),   // 参照を共有しないよう複製
