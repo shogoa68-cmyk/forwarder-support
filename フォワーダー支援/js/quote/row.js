@@ -2592,6 +2592,7 @@
       _excludedGroups.add(key);
       _collapsedGroups.add(key); // 除外時は自動折りたたみ
     }
+    _recordPatternGroupExclude(key, _excludedGroups.has(key));
     _applyGroupStates();
     if (typeof updateTotals === 'function') updateTotals();
     if (typeof window.updateSectionSummaries === 'function') window.updateSectionSummaries();
@@ -2612,11 +2613,51 @@
       _excludedPatterns.add(compKey);
       _collapsedPatterns.add(compKey); // 除外時は自動折りたたみ
     }
+    _recordPatternGroupExclude(compKey, _excludedPatterns.has(compKey));
     _applyGroupStates();
     if (typeof window.renderQuoteSectionDigest === 'function') window.renderQuoteSectionDigest();
     if (typeof updateTotals === 'function') updateTotals();
     if (typeof window.updateSectionSummaries === 'function') window.updateSectionSummaries();
   }
+
+  // ユーザーがサブコン／サブコン×パターン見出しの「含む/除外」を直接切り替えた場合のみ、
+  // 現在アクティブな物量パターンへ紐付けを記録する（_recordPatternQty と同じ考え方）。
+  // key はサブコン単体なら svKey、サブコン×パターンなら svKey + '\x00' + ptKey。
+  function _recordPatternGroupExclude(key, excluded) {
+    if (typeof _packingPatterns === 'undefined' || _packingPatterns.length < 2) return;
+    const pat = _packingPatterns[_packingActiveIdx];
+    if (!pat || !key) return;
+    if (!pat.groupExcludeLinks) pat.groupExcludeLinks = {};
+    pat.groupExcludeLinks[key] = excluded;
+  }
+
+  // 指定パターンに記録された、サブコン・サブコン×パターン見出しの「含む/除外」を
+  // 実際のテーブルへ適用する。switchPackingPattern() 等から conditions.js 経由で呼ばれる。
+  function _applyPatternGroupExcludeLinks(i) {
+    const pat = _packingPatterns[i];
+    const links = (pat && pat.groupExcludeLinks) || {};
+    let changed = false;
+    document.querySelectorAll('#tableBody tr[data-virtual]').forEach(tr => {
+      const svKey = tr.dataset.svKey;
+      if (!svKey) return;
+      const key = tr.dataset.subGroup ? (svKey + '\x00' + (tr.dataset.ptKey || '')) : svKey;
+      if (!Object.prototype.hasOwnProperty.call(links, key)) return;
+      const shouldExclude = !!links[key];
+      const set = tr.dataset.subGroup ? _excludedPatterns : _excludedGroups;
+      const isExcluded = set.has(key);
+      if (shouldExclude !== isExcluded) {
+        if (shouldExclude) set.add(key); else set.delete(key);
+        changed = true;
+      }
+    });
+    if (changed) {
+      _applyGroupStates();
+      if (typeof updateTotals === 'function') updateTotals();
+      if (typeof window.updateSectionSummaries === 'function') window.updateSectionSummaries();
+      if (typeof window.renderQuoteSectionDigest === 'function') window.renderQuoteSectionDigest();
+    }
+  }
+  window._applyPatternGroupExcludeLinks = _applyPatternGroupExcludeLinks;
 
   function _applyGroupStates() {
     const tbody = document.getElementById('tableBody');
