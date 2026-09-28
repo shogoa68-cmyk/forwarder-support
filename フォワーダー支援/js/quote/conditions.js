@@ -22,7 +22,7 @@
     // コンテナ・荷姿・航路の複数エントリもクリア
     _containerEntries = [];
     _packingEntries = [];
-    _packingPatterns = [{ name: '', entries: _packingEntries, qtyLinks: {}, excludedUnits: [], hideLinks: {} }];
+    _packingPatterns = [{ name: '', entries: _packingEntries, qtyLinks: {}, excludedUnits: [], hideLinks: {}, groupExcludeLinks: {} }];
     _packingActiveIdx = 0;
     _routeEntries = [];
     if (typeof _renderContainerEntries === 'function') _renderContainerEntries();
@@ -1559,7 +1559,7 @@
   // switchPackingPattern() で適用。個数・R/T・W/M・C/W等、単位を問わず任意の行で使える）
   // excludedUnits: ["単位\x00数量", ...]。「単位で数量を一括変更」パネル（scenario.js）で
   // チェックを外し「一括反映」の対象から除外した単位グループを、パターンごとに記憶する
-  let _packingPatterns  = [{ name: '', entries: _packingEntries, qtyLinks: {}, excludedUnits: [], hideLinks: {} }];
+  let _packingPatterns  = [{ name: '', entries: _packingEntries, qtyLinks: {}, excludedUnits: [], hideLinks: {}, groupExcludeLinks: {} }];
   let _packingActiveIdx = 0;
 
   function _renderContainerEntries() {
@@ -2096,6 +2096,8 @@
       }
     });
     if (hideChanged && typeof updateTotals === 'function') updateTotals();
+    // サブコン・サブコン×パターン見出しの「含む/除外」の紐付けを適用（row.js 側で定義）
+    if (typeof _applyPatternGroupExcludeLinks === 'function') _applyPatternGroupExcludeLinks(i);
   }
 
   // 「単位で数量を一括変更」パネル（scenario.js）の除外チェック状態を、表示中のパターンへ
@@ -2135,6 +2137,20 @@
       if (pqEl) pat.qtyLinks[uid] = parseFloat(pqEl.value) || 0;
       pat.hideLinks[uid] = tr.dataset.hideQuote === '1';
     });
+    // サブコン・サブコン×パターン見出しの「含む/除外」も現状のまま確定させる
+    if (!pat.groupExcludeLinks) pat.groupExcludeLinks = {};
+    document.querySelectorAll('#tableBody tr[data-virtual]').forEach(tr => {
+      const svKey = tr.dataset.svKey;
+      if (!svKey) return;
+      if (tr.dataset.subGroup) {
+        const ptKey = tr.dataset.ptKey;
+        if (ptKey == null) return;
+        const compKey = svKey + '\x00' + ptKey;
+        pat.groupExcludeLinks[compKey] = typeof _excludedPatterns !== 'undefined' && _excludedPatterns.has(compKey);
+      } else {
+        pat.groupExcludeLinks[svKey] = typeof _excludedGroups !== 'undefined' && _excludedGroups.has(svKey);
+      }
+    });
   }
 
   // 客先向け出力（御見積書PDF・プレビュー・メール本文）にこのパターンを含めるかどうかの切替。
@@ -2160,7 +2176,7 @@
     // これをしないと、複数パターンを使い始める前に入力した数量がどのパターンにも
     // 属さないまま扱われ、後で他パターンへ切替→戻すと値が引き継がれない不具合になる
     _snapshotAllQtyIntoPattern(_packingActiveIdx);
-    _packingPatterns.push({ name: name.trim() || `パターン${_packingPatterns.length + 1}`, entries: [], qtyLinks: {}, excludedUnits: [], hideLinks: {} });
+    _packingPatterns.push({ name: name.trim() || `パターン${_packingPatterns.length + 1}`, entries: [], qtyLinks: {}, excludedUnits: [], hideLinks: {}, groupExcludeLinks: {} });
     _packingActiveIdx = _packingPatterns.length - 1;
     _packingEntries = _packingPatterns[_packingActiveIdx].entries;
     _renderPackingEntries();
@@ -2186,6 +2202,7 @@
       qtyLinks: { ...(src.qtyLinks || {}) },   // 数量の紐付けも複製元を引き継ぐ（参照は共有しない）
       excludedUnits: [...(src.excludedUnits || [])],   // 一括反映の除外設定も複製元を引き継ぐ
       hideLinks: { ...(src.hideLinks || {}) },   // 見積書表示/非表示の紐付けも複製元を引き継ぐ
+      groupExcludeLinks: { ...(src.groupExcludeLinks || {}) },   // サブコン・サブコン×パターン見出しの含む/除外も複製元を引き継ぐ
     };
     _packingPatterns.splice(_packingActiveIdx + 1, 0, cloned);   // 複製元の直後に挿入
     _packingActiveIdx += 1;
@@ -2587,11 +2604,12 @@
         qtyLinks: (pt && pt.qtyLinks && typeof pt.qtyLinks === 'object') ? pt.qtyLinks : {},
         excludedUnits: Array.isArray(pt && pt.excludedUnits) ? pt.excludedUnits : [],
         hideLinks: (pt && pt.hideLinks && typeof pt.hideLinks === 'object') ? pt.hideLinks : {},
+        groupExcludeLinks: (pt && pt.groupExcludeLinks && typeof pt.groupExcludeLinks === 'object') ? pt.groupExcludeLinks : {},
       }));
       _packingActiveIdx = (Number.isInteger(restoredPt.activeIdx) && _packingPatterns[restoredPt.activeIdx]) ? restoredPt.activeIdx : 0;
       _packingEntries = _packingPatterns[_packingActiveIdx].entries;
     } else {
-      _packingPatterns = [{ name: '', entries: _packingEntries, qtyLinks: {}, excludedUnits: [], hideLinks: {} }];
+      _packingPatterns = [{ name: '', entries: _packingEntries, qtyLinks: {}, excludedUnits: [], hideLinks: {}, groupExcludeLinks: {} }];
       _packingActiveIdx = 0;
     }
     _renderContainerEntries();
