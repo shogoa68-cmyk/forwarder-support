@@ -1442,7 +1442,12 @@
     if (!pat || !uid) return;
     if (!pat.qtyLinks) pat.qtyLinks = {};
     pat.qtyLinks[uid] = val(`pq-${id}`);
-    document.getElementById(`pq-${id}`)?.classList.add('pq-pattern-linked');
+    // 紐付け済みになった以上「要確認」（＝他パターンには紐付けがあるが今のパターンには無い）
+    // という状態ではなくなるため、直前の描画で付いていた警告表示を消す
+    const pqEl = document.getElementById(`pq-${id}`);
+    pqEl?.classList.add('pq-pattern-linked');
+    pqEl?.classList.remove('pq-pattern-needs-check');
+    if (pqEl) pqEl.title = '';
   }
 
   function onPay(id) {
