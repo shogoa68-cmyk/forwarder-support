@@ -22,7 +22,7 @@
     // コンテナ・荷姿・航路の複数エントリもクリア
     _containerEntries = [];
     _packingEntries = [];
-    _packingPatterns = [{ name: '', entries: _packingEntries }];
+    _packingPatterns = [{ name: '', entries: _packingEntries, qtyLinks: {} }];
     _packingActiveIdx = 0;
     _routeEntries = [];
     if (typeof _renderContainerEntries === 'function') _renderContainerEntries();
@@ -1548,7 +1548,10 @@
   // 常に1件以上存在する。_packingEntries は _packingPatterns[_packingActiveIdx].entries への
   // 参照そのもの（同じ配列オブジェクトを指す）にしているため、既存の add/remove/update 系の
   // 関数はそのまま _packingEntries を触るだけで、自動的に現在のパターンへ反映される。
-  let _packingPatterns  = [{ name: '', entries: _packingEntries }];
+  // qtyLinks: { rowUid: 数量 }。「1コンテナの場合／2コンテナの場合」等、パターンごとに
+  // 見積もりテーブルの数量を変えて保存・切替するための紐付け（row.js の onPay() で記録、
+  // switchPackingPattern() で適用。個数・R/T・W/M・C/W等、単位を問わず任意の行で使える）
+  let _packingPatterns  = [{ name: '', entries: _packingEntries, qtyLinks: {} }];
   let _packingActiveIdx = 0;
 
   function _renderContainerEntries() {
@@ -2012,9 +2015,32 @@
     _packingActiveIdx = i;
     _packingEntries = _packingPatterns[i].entries;
     _renderPackingEntries();
+    _applyPatternQtyLinks(i);
     if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
     if (typeof scheduleSnapshot === 'function') scheduleSnapshot();
   };
+
+  // パターンに保存済みの数量（qtyLinks：個数・R/T・W/M・C/W等、単位を問わず任意の行）を
+  // 見積もりテーブルへ適用する。値が無い行（そのパターンではまだ数量を変えていない行）は
+  // 現状の値のまま触らない。記録側は row.js の onPay() 参照。
+  function _applyPatternQtyLinks(i) {
+    const pat = _packingPatterns[i];
+    const links = (pat && pat.qtyLinks) || {};
+    document.querySelectorAll('#tableBody tr[id^="row-"]').forEach(tr => {
+      if (tr.dataset.type || tr.dataset.virtual) return;   // 小計・リマーク行・仮想行は対象外
+      const id = tr.id.replace('row-', '');
+      const uid = document.getElementById(`uid-${id}`)?.value;
+      const pqEl = document.getElementById(`pq-${id}`);
+      if (!pqEl) return;
+      const hasLink = uid && Object.prototype.hasOwnProperty.call(links, uid);
+      pqEl.classList.toggle('pq-pattern-linked', !!hasLink);
+      if (!hasLink) return;
+      const qty = links[uid];
+      if (pqEl.value == qty) return;
+      pqEl.value = qty;
+      pqEl.dispatchEvent(new Event('input', { bubbles: true }));
+    });
+  }
 
   // 客先向け出力（御見積書PDF・プレビュー・メール本文）にこのパターンを含めるかどうかの切替。
   // 非表示にしても案件内には残り、社内での比較検討用パターンとして使い続けられる
@@ -2035,7 +2061,7 @@
     if (name == null) return;   // キャンセル
     // 現パターンが無名・未入力のまま2件目を作ろうとした場合の事故防止に、既定名を補う
     _packingPatterns.forEach((pt, i) => { if (!pt.name) pt.name = `パターン${i + 1}`; });
-    _packingPatterns.push({ name: name.trim() || `パターン${_packingPatterns.length + 1}`, entries: [] });
+    _packingPatterns.push({ name: name.trim() || `パターン${_packingPatterns.length + 1}`, entries: [], qtyLinks: {} });
     _packingActiveIdx = _packingPatterns.length - 1;
     _packingEntries = _packingPatterns[_packingActiveIdx].entries;
     _renderPackingEntries();
@@ -2055,6 +2081,7 @@
       name: name.trim() || `${srcLabel}のコピー`,
       entries: (src.entries || []).map(e => ({ ...e })),   // 参照を共有しないよう複製
       showInQuote: src.showInQuote,
+      qtyLinks: { ...(src.qtyLinks || {}) },   // 数量の紐付けも複製元を引き継ぐ（参照は共有しない）
     };
     _packingPatterns.splice(_packingActiveIdx + 1, 0, cloned);   // 複製元の直後に挿入
     _packingActiveIdx += 1;
@@ -2087,6 +2114,7 @@
     else if (i < _packingActiveIdx) _packingActiveIdx--;
     _packingEntries = _packingPatterns[_packingActiveIdx].entries;
     _renderPackingEntries();
+    _applyPatternQtyLinks(_packingActiveIdx);   // 1件だけになった場合はハイライトを消す
     if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
     if (typeof scheduleSnapshot === 'function') scheduleSnapshot();
   };
@@ -2451,16 +2479,18 @@
           ? pt.entries.map(e => (typeof e === 'string') ? { pkg: e, qty: 1, l:'', w:'', h:'', kg:'', stack:'可' } : e)
           : [],
         showInQuote: (pt && pt.showInQuote === false) ? false : true,
+        qtyLinks: (pt && pt.qtyLinks && typeof pt.qtyLinks === 'object') ? pt.qtyLinks : {},
       }));
       _packingActiveIdx = (Number.isInteger(restoredPt.activeIdx) && _packingPatterns[restoredPt.activeIdx]) ? restoredPt.activeIdx : 0;
       _packingEntries = _packingPatterns[_packingActiveIdx].entries;
     } else {
-      _packingPatterns = [{ name: '', entries: _packingEntries }];
+      _packingPatterns = [{ name: '', entries: _packingEntries, qtyLinks: {} }];
       _packingActiveIdx = 0;
     }
     _renderContainerEntries();
     if (typeof _applyContainerView === 'function') _applyContainerView();
     _renderPackingEntries();
+    _applyPatternQtyLinks(_packingActiveIdx);   // 数量紐付けのハイライト表示を復元（数量自体はテーブル側の保存値がそのまま正）
     syncRouteEntries();
     syncHazEntries();
     if (typeof window.renderQuoteCargoInfo === 'function') window.renderQuoteCargoInfo();
@@ -3261,7 +3291,8 @@ window.reflectToQuote = function(key) {
     const pqEl = document.getElementById('pq-' + id);
     if (pqEl) {
       pqEl.value = displayVal;
-      if (typeof onPay === 'function') onPay(parseInt(id, 10));
+      // input イベント経由で onPay を呼ぶ（物量パターンへの数量紐付け記録も兼ねる。row.js 参照）
+      pqEl.dispatchEvent(new Event('input', { bubbles: true }));
     } else {
       const bqEl = document.getElementById('bq-' + id);
       if (bqEl) bqEl.value = displayVal;

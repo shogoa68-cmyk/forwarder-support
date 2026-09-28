@@ -90,7 +90,8 @@
     return `<div class="ud-pattern-select-row">
       <span class="ud-pattern-select-label">📦 物量パターン</span>
       <select class="ud-pattern-select" onchange="udSwitchPattern(this.value)" title="貨物情報に登録した想定パターンを切り替えて物量情報を確認します">${opts}</select>
-    </div>`;
+    </div>
+    <p class="ud-pattern-qty-hint">💡 見積もりテーブルの数量欄（緑枠<span class="pq-pattern-linked-sample"></span>）は、パターンを切り替えて編集すると、その数量がパターンごとに記憶されます（例：「1本の場合」「2本の場合」で行の数量を変えて保存）。</p>`;
   }
 
   // パターン切替：貨物情報側の状態を更新してからこのパネルを再描画する

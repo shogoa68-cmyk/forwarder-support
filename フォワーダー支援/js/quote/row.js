@@ -1244,7 +1244,7 @@
     q('tx').onchange   = () => { const r = document.getElementById(`row-${id}`); if (r) r.dataset.txUserSet = '1'; toggleTax(id); };
     q('tx').onkeydown  = e  => { if (e.key === 'Enter') { e.preventDefault(); e.target.checked = !e.target.checked; const r = document.getElementById(`row-${id}`); if (r) r.dataset.txUserSet = '1'; toggleTax(id); } };
     q('nm').oninput    = () => checkUnfilled(id);
-    q('pq').oninput    = () => onPay(id);
+    q('pq').oninput    = () => { _recordPatternQty(id); onPay(id); };
     q('pc').onchange   = () => onPay(id);
     q('pp').oninput    = () => onPay(id);
     q('mk').oninput    = () => { calc(id); _recalcPctDependents(id); };
@@ -1426,6 +1426,23 @@
       calc(id);
     }
     if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
+  }
+
+  // 物量パターンが2件以上ある場合、数量（pq）の変更を現在アクティブなパターンに記録する。
+  // 「1コンテナの場合／2コンテナの場合」等、パターンごとに見積もりテーブルの数量を
+  // 保存・切替するための紐付け（個数・R/T・W/M・C/W等、単位は問わない）。
+  // pq の input イベント（ユーザーの直接入力・reflectToQuote()・一括反映等、いずれも
+  // dispatchEvent で発火）からのみ呼ぶ。onPay() 自体は addRow() 等の内部初期化からも
+  // 呼ばれるため、そちら側に置くと「触っていない行」まで誤って記録されてしまう。
+  // 適用側は conditions.js の switchPackingPattern() / _applyPatternQtyLinks()。
+  function _recordPatternQty(id) {
+    if (typeof _packingPatterns === 'undefined' || _packingPatterns.length < 2) return;
+    const pat = _packingPatterns[_packingActiveIdx];
+    const uid = document.getElementById(`uid-${id}`)?.value;
+    if (!pat || !uid) return;
+    if (!pat.qtyLinks) pat.qtyLinks = {};
+    pat.qtyLinks[uid] = val(`pq-${id}`);
+    document.getElementById(`pq-${id}`)?.classList.add('pq-pattern-linked');
   }
 
   function onPay(id) {
