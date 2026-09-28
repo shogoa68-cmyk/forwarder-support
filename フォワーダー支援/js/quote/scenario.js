@@ -5,13 +5,29 @@
 // 数量がバラつく単位は、現在数量ごとに個別の行として表示する。
 
   let _udCollapsed = false;
-  // 「一括反映」の対象から外したグループ（キー：単位\x00数量）。既定は全グループ対象。
-  // パネル再描画をまたいで状態を保つため、行の増減があっても同じキーなら除外指定が残る。
-  const _udExcluded = new Set();
+  // グループキーの区切り文字。以前は '\x00'（NUL）を使っていたが、_udRenderPanel() が
+  // innerHTML でHTMLを流し込む際、HTMLパーサがNUL文字を U+FFFD に置き換えてしまうため、
+  // data-key 属性から読み戻した値と _udCollect() が毎回計算する値が一致せず、
+  // パネル再描画（パターン切替・行追加削除等）のたびに除外指定が無効になる不具合があった。
+  // 私用領域の文字（実データに出現しない）に変更して回避する。
+  const _UD_KEY_SEP = '';
+  // 「一括反映」の対象から外したグループ（キー：単位+区切り文字+数量）は、物量パターンごとに
+  // conditions.js 側（_packingPatterns[i].excludedUnits）へ記憶・復元する
+  // （window._udIsUnitExcluded / window._udSetUnitExcluded 経由）。パターンが無い
+  // （conditions.js 未読込等の）環境向けに、フォールバック用のローカル Set も残す。
+  const _udExcludedFallback = new Set();
+  function _udIsExcluded(key) {
+    if (typeof window._udIsUnitExcluded === 'function') return window._udIsUnitExcluded(key);
+    return _udExcludedFallback.has(key);
+  }
+  function _udSetExcluded(key, excluded) {
+    if (typeof window._udSetUnitExcluded === 'function') { window._udSetUnitExcluded(key, excluded); return; }
+    if (excluded) _udExcludedFallback.add(key); else _udExcludedFallback.delete(key);
+  }
 
   // ---------- 明細から（単位×数量）グループを収集 ----------
   function _udCollect() {
-    const map = new Map();   // key: 単位 \x00 数量 → { unit, qty, ids:[] }
+    const map = new Map();   // key: 単位 + 区切り文字 + 数量 → { unit, qty, ids:[] }
     document.querySelectorAll('#tableBody tr[id^="row-"]').forEach(tr => {
       if (tr.dataset.type || tr.dataset.virtual) return;   // リマーク・社内メモ・小計・仮想行は対象外
       const id = tr.id.replace('row-', '');
@@ -20,7 +36,7 @@
       const pqEl = document.getElementById(`pq-${id}`);
       if (!pqEl) return;
       const qty = (pqEl.value || '').trim();
-      const key = un + '\x00' + qty;
+      const key = un + _UD_KEY_SEP + qty;
       if (!map.has(key)) map.set(key, { unit: un, qty, ids: [] });
       map.get(key).ids.push(id);
     });
@@ -36,8 +52,8 @@
 
     const listHtml = groups.length
       ? groups.map(g => {
-          const key = g.unit + '\x00' + g.qty;
-          const included = !_udExcluded.has(key);
+          const key = g.unit + _UD_KEY_SEP + g.qty;
+          const included = !_udIsExcluded(key);
           return `<div class="ud-row${included ? '' : ' ud-row--excluded'}" data-ids='${JSON.stringify(g.ids)}' data-key="${escHtml(key)}">
              <input type="checkbox" class="ud-chk" ${included ? 'checked' : ''}
                     onchange="udToggleGroup(this)" title="チェックを外すと「一括反映」の対象から除外します" />
@@ -112,7 +128,7 @@
     const rowEl = chk.closest('.ud-row');
     if (!rowEl) return;
     const key = rowEl.dataset.key || '';
-    if (chk.checked) _udExcluded.delete(key); else _udExcluded.add(key);
+    _udSetExcluded(key, !chk.checked);
     rowEl.classList.toggle('ud-row--excluded', !chk.checked);
     const inp = rowEl.querySelector('.ud-qty-in');
     if (inp) inp.disabled = !chk.checked;
