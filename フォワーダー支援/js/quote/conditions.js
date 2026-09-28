@@ -22,7 +22,7 @@
     // コンテナ・荷姿・航路の複数エントリもクリア
     _containerEntries = [];
     _packingEntries = [];
-    _packingPatterns = [{ name: '', entries: _packingEntries, qtyLinks: {} }];
+    _packingPatterns = [{ name: '', entries: _packingEntries, qtyLinks: {}, excludedUnits: [] }];
     _packingActiveIdx = 0;
     _routeEntries = [];
     if (typeof _renderContainerEntries === 'function') _renderContainerEntries();
@@ -1551,7 +1551,9 @@
   // qtyLinks: { rowUid: 数量 }。「1コンテナの場合／2コンテナの場合」等、パターンごとに
   // 見積もりテーブルの数量を変えて保存・切替するための紐付け（row.js の onPay() で記録、
   // switchPackingPattern() で適用。個数・R/T・W/M・C/W等、単位を問わず任意の行で使える）
-  let _packingPatterns  = [{ name: '', entries: _packingEntries, qtyLinks: {} }];
+  // excludedUnits: ["単位\x00数量", ...]。「単位で数量を一括変更」パネル（scenario.js）で
+  // チェックを外し「一括反映」の対象から除外した単位グループを、パターンごとに記憶する
+  let _packingPatterns  = [{ name: '', entries: _packingEntries, qtyLinks: {}, excludedUnits: [] }];
   let _packingActiveIdx = 0;
 
   function _renderContainerEntries() {
@@ -2051,6 +2053,24 @@
     });
   }
 
+  // 「単位で数量を一括変更」パネル（scenario.js）の除外チェック状態を、表示中のパターンへ
+  // 記録・参照するためのヘルパー。旧データ（excludedUnits 未定義）は「除外なし」扱い。
+  window._udIsUnitExcluded = function (key) {
+    const pat = _packingPatterns[_packingActiveIdx];
+    return !!(pat && Array.isArray(pat.excludedUnits) && pat.excludedUnits.includes(key));
+  };
+  window._udSetUnitExcluded = function (key, excluded) {
+    const pat = _packingPatterns[_packingActiveIdx];
+    if (!pat) return;
+    if (!Array.isArray(pat.excludedUnits)) pat.excludedUnits = [];
+    const idx = pat.excludedUnits.indexOf(key);
+    if (excluded && idx === -1) pat.excludedUnits.push(key);
+    else if (!excluded && idx !== -1) pat.excludedUnits.splice(idx, 1);
+    _syncPackingPatternsData();
+    if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
+    if (typeof scheduleSnapshot === 'function') scheduleSnapshot();
+  };
+
   // 指定パターンに、見積もりテーブル全行の「今の」数量をまるごと記録する（上書き）。
   // 複数パターンを使い始める瞬間（2件目のパターン作成・複製）に、それまで入力していた
   // 数量を「1件目のパターンの値」として確定させておくためのもの。これをしないと、
@@ -2093,7 +2113,7 @@
     // これをしないと、複数パターンを使い始める前に入力した数量がどのパターンにも
     // 属さないまま扱われ、後で他パターンへ切替→戻すと値が引き継がれない不具合になる
     _snapshotAllQtyIntoPattern(_packingActiveIdx);
-    _packingPatterns.push({ name: name.trim() || `パターン${_packingPatterns.length + 1}`, entries: [], qtyLinks: {} });
+    _packingPatterns.push({ name: name.trim() || `パターン${_packingPatterns.length + 1}`, entries: [], qtyLinks: {}, excludedUnits: [] });
     _packingActiveIdx = _packingPatterns.length - 1;
     _packingEntries = _packingPatterns[_packingActiveIdx].entries;
     _renderPackingEntries();
@@ -2117,6 +2137,7 @@
       entries: (src.entries || []).map(e => ({ ...e })),   // 参照を共有しないよう複製
       showInQuote: src.showInQuote,
       qtyLinks: { ...(src.qtyLinks || {}) },   // 数量の紐付けも複製元を引き継ぐ（参照は共有しない）
+      excludedUnits: [...(src.excludedUnits || [])],   // 一括反映の除外設定も複製元を引き継ぐ
     };
     _packingPatterns.splice(_packingActiveIdx + 1, 0, cloned);   // 複製元の直後に挿入
     _packingActiveIdx += 1;
@@ -2516,11 +2537,12 @@
           : [],
         showInQuote: (pt && pt.showInQuote === false) ? false : true,
         qtyLinks: (pt && pt.qtyLinks && typeof pt.qtyLinks === 'object') ? pt.qtyLinks : {},
+        excludedUnits: Array.isArray(pt && pt.excludedUnits) ? pt.excludedUnits : [],
       }));
       _packingActiveIdx = (Number.isInteger(restoredPt.activeIdx) && _packingPatterns[restoredPt.activeIdx]) ? restoredPt.activeIdx : 0;
       _packingEntries = _packingPatterns[_packingActiveIdx].entries;
     } else {
-      _packingPatterns = [{ name: '', entries: _packingEntries, qtyLinks: {} }];
+      _packingPatterns = [{ name: '', entries: _packingEntries, qtyLinks: {}, excludedUnits: [] }];
       _packingActiveIdx = 0;
     }
     _renderContainerEntries();
