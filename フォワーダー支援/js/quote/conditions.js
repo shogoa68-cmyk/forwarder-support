@@ -2023,9 +2023,12 @@
   // パターンに保存済みの数量（qtyLinks：個数・R/T・W/M・C/W等、単位を問わず任意の行）を
   // 見積もりテーブルへ適用する。値が無い行（そのパターンではまだ数量を変えていない行）は
   // 現状の値のまま触らない。記録側は row.js の onPay() 参照。
+  // ただし「他のパターンでは数量が紐付けられているのに、このパターンでは未設定」の行は
+  // 値を書き換えずに残ることになり見落としやすいため、要確認の警告表示を付ける。
   function _applyPatternQtyLinks(i) {
     const pat = _packingPatterns[i];
     const links = (pat && pat.qtyLinks) || {};
+    const otherPatterns = _packingPatterns.filter((_, idx) => idx !== i);
     document.querySelectorAll('#tableBody tr[id^="row-"]').forEach(tr => {
       if (tr.dataset.type || tr.dataset.virtual) return;   // 小計・リマーク行・仮想行は対象外
       const id = tr.id.replace('row-', '');
@@ -2034,6 +2037,12 @@
       if (!pqEl) return;
       const hasLink = uid && Object.prototype.hasOwnProperty.call(links, uid);
       pqEl.classList.toggle('pq-pattern-linked', !!hasLink);
+      const needsCheck = !hasLink && uid &&
+        otherPatterns.some(pt => pt.qtyLinks && Object.prototype.hasOwnProperty.call(pt.qtyLinks, uid));
+      pqEl.classList.toggle('pq-pattern-needs-check', !!needsCheck);
+      pqEl.title = needsCheck
+        ? '他の物量パターンではこの数量が個別に設定されていますが、このパターン（' + (pat.name || `パターン${i + 1}`) + '）ではまだ設定されていません。現在の値のまま変わりませんので、必要なら数量を入力し直してください。'
+        : '';
       if (!hasLink) return;
       const qty = links[uid];
       if (pqEl.value == qty) return;
@@ -2088,6 +2097,7 @@
     _packingActiveIdx = _packingPatterns.length - 1;
     _packingEntries = _packingPatterns[_packingActiveIdx].entries;
     _renderPackingEntries();
+    _applyPatternQtyLinks(_packingActiveIdx);   // 新パターンは数量未設定のため「要確認」表示を反映
     if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
     if (typeof scheduleSnapshot === 'function') scheduleSnapshot();
   };
@@ -2112,6 +2122,7 @@
     _packingActiveIdx += 1;
     _packingEntries = _packingPatterns[_packingActiveIdx].entries;
     _renderPackingEntries();
+    _applyPatternQtyLinks(_packingActiveIdx);   // 複製元の紐付け状態（ハイライト）を反映
     if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
     if (typeof scheduleSnapshot === 'function') scheduleSnapshot();
   };

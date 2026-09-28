@@ -9784,6 +9784,13 @@ button.um-memberno--empty:hover { background: #f4ead4; border-color: #cdb98e; }
   box-shadow: 0 0 0 1px #6b8a3d inset;
   background: #f4f8ec;
 }
+/* 他のパターンでは数量が紐付けられているのに、表示中のパターンでは未設定の行（要確認） */
+#tab-quote-make .pq-pattern-needs-check {
+  border-color: #c98a1f !important;
+  border-style: dashed !important;
+  box-shadow: 0 0 0 1px #c98a1f inset;
+  background: #fdf3df;
+}
 /* 行の統合バッジ：単なる「非表示」と区別し、意図した統合であることを明示する */
 #tab-quote-make tr.row-merged-child > td { opacity: 0.7; background: #eef6fb; }
 #tab-quote-make .row-merge-badge {
@@ -10145,6 +10152,10 @@ button.um-memberno--empty:hover { background: #f4ead4; border-color: #cdb98e; }
 #tab-quote-make .pq-pattern-linked-sample {
   display: inline-block; width: 22px; height: 11px; vertical-align: middle; margin: 0 2px;
   border-radius: 2px; background: #f4f8ec; box-shadow: 0 0 0 1px #6b8a3d inset;
+}
+#tab-quote-make .pq-pattern-needs-check-sample {
+  display: inline-block; width: 22px; height: 11px; vertical-align: middle; margin: 0 2px;
+  border-radius: 2px; background: #fdf3df; box-shadow: 0 0 0 1px #c98a1f inset;
 }
 #tab-quote-make .sc-hint {
   font-size: 11px;
