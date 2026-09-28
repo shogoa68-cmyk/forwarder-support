@@ -4495,6 +4495,10 @@ body.qp-dash-active #quoteActionDock { display: none !important; }
   padding: 6px 14px; font-size: 12px; font-weight: 700; cursor: pointer;
 }
 #qpDashboard .qpd-link-bar #qpdLinkBarBtn:disabled { background: #aebfb5; cursor: not-allowed; }
+#qpDashboard .qpd-link-bar-note {
+  flex: 1; min-width: 120px; padding: 6px 10px; font-size: 12px; font-family: inherit;
+  border: 1px solid #a9d3bc; border-radius: 6px; background: #fff; color: #234;
+}
 #qpDashboard .qpd-link-bar-cancel {
   background: none; border: 1px solid #a9d3bc; color: #205838;
   border-radius: 6px; padding: 6px 12px; font-size: 12px; cursor: pointer; margin-left: auto;
@@ -6492,6 +6496,13 @@ body.qp-dash-active #quoteActionDock { display: none !important; }
   margin-top: 5px; background: none; border: none; color: #7a6a4f; font-size: 11.5px; font-weight: 600; cursor: pointer; padding: 2px 0;
 }
 #tab-quote-make #qpdListWrap .cloud-clink-more:hover { color: #2b2014; text-decoration: underline; }
+/* 関連付けの理由（read-only 表示） */
+#tab-quote-make #qpdListWrap .cloud-clink-wrap { display: flex; flex-direction: column; gap: 2px; }
+#tab-quote-make #qpdListWrap .clink-note {
+  font-size: 10.5px; color: #6b5a42; background: #fff7e6; border: 1px solid #ecdcb8;
+  border-radius: 5px; padding: 2px 7px; margin-left: 2px;
+  white-space: pre-wrap; word-break: break-word;
+}
 
 /* 1列化で空いたカード右側を申し送りスペースに。
    ビューポート幅ではなくカード列（.qpd-body-main）の実幅で判定するコンテナクエリにし、
