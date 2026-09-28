@@ -2580,7 +2580,10 @@
 
   function cloudToggleLinkMode() {
     _cloudLinkMode = !_cloudLinkMode;
-    if (!_cloudLinkMode) _cloudLinkSel.clear();
+    if (!_cloudLinkMode) {
+      _cloudLinkSel.clear();
+      const nt = document.getElementById('qpdLinkBarNote'); if (nt) nt.value = '';   // 理由入力をリセット
+    }
     document.getElementById('qpdLinkModeBtn')?.classList.toggle('is-on', _cloudLinkMode);
     _applyCloudFilter();
     _renderCloudLinkBar();
@@ -2608,10 +2611,11 @@
   async function cloudLinkSelected() {
     const ids = Array.from(_cloudLinkSel);
     if (ids.length < 2) return;
+    const note = (document.getElementById('qpdLinkBarNote')?.value || '').trim() || null;
     let created = 0, duplicate = 0, failed = 0;
     for (let i = 0; i < ids.length; i++) {
       for (let j = i + 1; j < ids.length; j++) {
-        const res = await cloudLinkPresets(ids[i], ids[j], null, { silent: true });
+        const res = await cloudLinkPresets(ids[i], ids[j], note, { silent: true });
         if (res.ok) created++;
         else if (res.reason === 'duplicate') duplicate++;
         else failed++;
@@ -2639,9 +2643,22 @@
     return true;
   }
 
+  // 関連付けの理由（note）を更新する。空文字なら null（理由なし）に戻す。
+  async function cloudUpdateLinkNote(linkId, note) {
+    const c = _getClient();
+    if (!c || !_cloudUser) { quoteShowToast('⚠️ ログインが必要です', 'warn'); return false; }
+    const { error } = await c.from('quote_preset_links')
+      .update({ note: (note || '').trim() || null }).eq('id', linkId);
+    if (error) { quoteShowToast('⚠️ 理由の保存に失敗：' + error.message, 'warn', 5000); return false; }
+    _invalidateDashLinks();
+    quoteShowToast('📝 関連付けの理由を保存しました', 'success', 2000);
+    return true;
+  }
+
   window.cloudFetchPresetLinks = cloudFetchPresetLinks;
   window.cloudLinkPresets      = cloudLinkPresets;
   window.cloudUnlinkPreset     = cloudUnlinkPreset;
+  window.cloudUpdateLinkNote   = cloudUpdateLinkNote;
 
   // ---------- コピー ----------
   async function cloudDuplicatePreset(rawId) {
@@ -3110,15 +3127,15 @@
     if (!uncached.length) return;
     const inList = '(' + uncached.join(',') + ')';
     const { data: links, error } = await c.from('quote_preset_links')
-      .select('preset_a,preset_b')
+      .select('preset_a,preset_b,note')
       .or('preset_a.in.' + inList + ',preset_b.in.' + inList);
     if (error) { uncached.forEach(id => { _dashLinkCache[id] = []; }); return; }  // テーブル未作成等は関連なし扱い
     const set = new Set(uncached);
     const adj = {}; uncached.forEach(id => (adj[id] = []));
     const otherIds = new Set();
     (links || []).forEach(l => {
-      if (set.has(l.preset_a) && l.preset_b !== l.preset_a) { adj[l.preset_a].push(l.preset_b); otherIds.add(l.preset_b); }
-      if (set.has(l.preset_b) && l.preset_a !== l.preset_b) { adj[l.preset_b].push(l.preset_a); otherIds.add(l.preset_a); }
+      if (set.has(l.preset_a) && l.preset_b !== l.preset_a) { adj[l.preset_a].push({ oid: l.preset_b, note: l.note || '' }); otherIds.add(l.preset_b); }
+      if (set.has(l.preset_b) && l.preset_a !== l.preset_b) { adj[l.preset_b].push({ oid: l.preset_a, note: l.note || '' }); otherIds.add(l.preset_a); }
     });
     const metaMap = {};
     if (otherIds.size) {
@@ -3128,7 +3145,7 @@
     }
     uncached.forEach(id => {
       const seen = new Set(); const uniq = [];
-      (adj[id] || []).forEach(oid => { const m = metaMap[oid]; if (m && !seen.has(m.id)) { seen.add(m.id); uniq.push(m); } });
+      (adj[id] || []).forEach(e => { const m = metaMap[e.oid]; if (m && !seen.has(m.id)) { seen.add(m.id); uniq.push(Object.assign({}, m, { note: e.note })); } });
       _dashLinkCache[id] = uniq;
       _applyDashLinks(id);
     });
@@ -3152,8 +3169,11 @@
       const st = m.status || CLOUD_STATUS_DEFAULT;
       const badge = '<span class="cloud-status-badge cloud-status--' + _statusClass(st) + '">' + escHtml(st) + '</span>';
       const ref = m.ref ? '<span class="clink-ref">' + escHtml(m.ref) + '</span>' : '';
-      return '<button type="button" class="cloud-clink" onclick="cloudPreviewPreset(\'' + encodeURIComponent(m.id) + '\')" title="内容をプレビュー">' +
-        badge + '<span class="clink-name">' + escHtml(m.name || '（無題）') + '</span>' + ref + '</button>';
+      const note = m.note ? '<div class="clink-note" title="関連付けの理由">📝 ' + escHtml(m.note) + '</div>' : '';
+      return '<div class="cloud-clink-wrap">' +
+        '<button type="button" class="cloud-clink" onclick="cloudPreviewPreset(\'' + encodeURIComponent(m.id) + '\')" title="内容をプレビュー">' +
+        badge + '<span class="clink-name">' + escHtml(m.name || '（無題）') + '</span>' + ref + '</button>' +
+        note + '</div>';
     }).join('');
     const more = remain > 0
       ? '<button type="button" class="cloud-clink-more" onclick="dashToggleCardLinks(\'' + encodeURIComponent(presetId) + '\')">さらに表示（+' + remain + '）</button>'
