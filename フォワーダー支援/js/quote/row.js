@@ -50,8 +50,11 @@
     })();
     // SPOT表記（日付以外の自由記述）は期間の終わりを判定できないため未指定（=start）扱い
     const rawEnd = (document.getElementById('qf-valid-until')?.value || '').trim();
-    const end = (/^\d{4}-\d{2}-\d{2}$/.test(rawEnd) ? rawEnd : '') || start;
-    return { start, end };
+    const isIsoDate = /^\d{4}-\d{2}-\d{2}$/.test(rawEnd);
+    const end = (isIsoDate ? rawEnd : '') || start;
+    // SPOT中は end=start（1日だけ）に潰れてしまい、未来日のサーチャージが軒並み
+    // 「期間外」判定されて非表示になってしまうため、判定側で SPOT かどうかを区別できるようにする
+    return { start, end, isSpot: !!rawEnd && !isIsoDate };
   }
   // 行の適用期間が見積の生きている期間と一切重ならなければ true（期間未設定の行は常に有効＝false）。
   // 日付は ISO(YYYY-MM-DD) なので文字列比較で大小判定できる。
@@ -63,7 +66,10 @@
     const vf = document.getElementById(`vf-${id}`)?.value || '';
     const vt = document.getElementById(`vt-${id}`)?.value || '';
     if (!vf && !vt) return false;        // 適用期間の指定がない行は対象外
-    const { start, end } = _quoteRefRange();
+    const { start, end, isSpot } = _quoteRefRange();
+    // 見積の有効期限が SPOT（自由記述）のときは終了日を判定できないため、
+    // 適用期間による絞り込みは行わず常に表示する
+    if (isSpot) return false;
     if (vt && vt < start) return true;   // 見積が生きている期間より前にサーチャージが終了済み
     if (vf && vf > end)   return true;   // 見積の有効期限までにサーチャージがまだ開始しない
     return false;
