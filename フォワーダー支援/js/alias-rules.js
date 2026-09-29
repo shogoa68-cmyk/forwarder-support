@@ -653,8 +653,16 @@
 
 
   const UA_KEY = 'unitAlias_v1';
-  function _loadUA()  { try { return JSON.parse(localStorage.getItem(UA_KEY) || '[]'); } catch(e) { return []; } }
-  function _saveUA(a) { localStorage.setItem(UA_KEY, JSON.stringify(a)); }
+  // 統計タブでは品名/サブコン/キャリア等の描画中に行・チップ単位で繰り返し呼ばれるため、
+  // 毎回 JSON.parse し直すとデータ量に比例して重くなる。保存時のみ無効化するキャッシュで
+  // 同一レンダリング内の再パースを避ける。
+  let _uaCache = null;
+  function _loadUA()  {
+    if (_uaCache !== null) return _uaCache;
+    try { _uaCache = JSON.parse(localStorage.getItem(UA_KEY) || '[]'); } catch(e) { _uaCache = []; }
+    return _uaCache;
+  }
+  function _saveUA(a) { _uaCache = a; localStorage.setItem(UA_KEY, JSON.stringify(a)); }
   function _notifyUA() {
     _refreshDatalist();
     if (typeof window.statsRefreshUnPane === 'function') window.statsRefreshUnPane();
@@ -765,10 +773,15 @@
   let _synCloud = null;          // cloud キャッシュ（未ロード時 null）
   let _synTableMissing = false;  // テーブル未作成を検知したら以後ローカルにフォールバック
 
+  // 統計タブのレンダリング中（品名/サブコン/キャリア/港/お客様の行・チップ単位）に
+  // 繰り返し呼ばれるため、保存時のみ無効化するキャッシュで再パースを避ける。
+  let _synLocalCache = null;
   function _synLoadLocal() {
-    try { return JSON.parse(localStorage.getItem(SYN_KEY) || '[]'); } catch (e) { return []; }
+    if (_synLocalCache !== null) return _synLocalCache;
+    try { _synLocalCache = JSON.parse(localStorage.getItem(SYN_KEY) || '[]'); } catch (e) { _synLocalCache = []; }
+    return _synLocalCache;
   }
-  function _synSaveLocal(arr) { localStorage.setItem(SYN_KEY, JSON.stringify(arr)); }
+  function _synSaveLocal(arr) { _synLocalCache = arr; localStorage.setItem(SYN_KEY, JSON.stringify(arr)); }
   // 有効なソース（ログイン中でキャッシュ済みなら cloud、なければ local）
   function _synAll() {
     return (_cloud() && _synCloud !== null) ? _synCloud : _synLoadLocal();

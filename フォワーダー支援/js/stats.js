@@ -200,11 +200,16 @@
 
   // === ローカルマスター候補（クラウド未使用時のフォールバック） ===
 
+  // 品名/サブコン/キャリア/港/お客様の行・チップ単位で繰り返し呼ばれるため、
+  // 保存時のみ無効化するキャッシュで同一レンダリング内の再パースを避ける。
+  let _mastersCache = null;
   function _getMasters() {
-    try { return JSON.parse(localStorage.getItem(LOCAL_KEY) || '[]'); }
-    catch (e) { return []; }
+    if (_mastersCache !== null) return _mastersCache;
+    try { _mastersCache = JSON.parse(localStorage.getItem(LOCAL_KEY) || '[]'); }
+    catch (e) { _mastersCache = []; }
+    return _mastersCache;
   }
-  function _saveMasters(arr) { localStorage.setItem(LOCAL_KEY, JSON.stringify(arr)); }
+  function _saveMasters(arr) { _mastersCache = arr; localStorage.setItem(LOCAL_KEY, JSON.stringify(arr)); }
 
   // === 投票 ===
 
@@ -301,10 +306,17 @@
 
   // マスター管理タブに実際に表示される項目か（個別マスター票 or 同義グループの代表）。
   // ジャンプボタンを出すかどうかの判定に使う。
-  function _masterRegistered(field, value) {
-    if (_voteInfo(field, value).total > 0) return true;
-    const groups = typeof window.synGetGroups === 'function' ? window.synGetGroups(field) : [];
-    if (groups.some(g => g.canonical === value)) return true;
+  // synCanonsOverride: 呼び出し元（_renderGrouped/_renderCustomer 等）が同じフィールドの
+  // 同義グループ代表 Set を既に計算済みの場合に渡すと、行・チップ単位の呼び出しのたびに
+  // synGetGroups() を再取得・再フィルタする無駄を避けられる（データ量が増えるほど効く）。
+  function _masterRegistered(field, value, voteInfo, synCanonsOverride) {
+    if ((voteInfo || _voteInfo(field, value)).total > 0) return true;
+    if (synCanonsOverride) {
+      if (synCanonsOverride.has(value)) return true;
+    } else {
+      const groups = typeof window.synGetGroups === 'function' ? window.synGetGroups(field) : [];
+      if (groups.some(g => g.canonical === value)) return true;
+    }
     if (field === 'un') {
       const ug = typeof window.uaGetGroups === 'function' ? window.uaGetGroups() : [];
       if (ug.some(g => g.canonical === value)) return true;
@@ -416,7 +428,7 @@
     setTimeout(() => document.addEventListener('mousedown', _usagePopOutsideClick, true), 0);
   };
 
-  function _voteBtn(field, value) {
+  function _voteBtn(field, value, synCanonsOverride) {
     const v  = _voteInfo(field, value);
     const on = v.isMine;
     let h = `<button class="stats-vote-btn${on ? ' stats-voted' : ''}" ` +
@@ -424,7 +436,7 @@
            `title="${on ? 'マスターを解除' : 'マスターに登録'}">` +
            (on ? '⭐ 登録済' : '☆ 登録') +
            '</button>';
-    if (_masterRegistered(field, value)) h += _masterJumpBtn(field, value);
+    if (_masterRegistered(field, value, v, synCanonsOverride)) h += _masterJumpBtn(field, value);
     return h;
   }
 
@@ -492,7 +504,7 @@
     // まだ同義グループに統合されていない＝手つかずなので常に表示する。
     const visSynRows  = _statsUnorganizedOnly ? [] : synRows;
     const visRestGroups = _statsUnorganizedOnly
-      ? restGroups.filter(g => g.variants.length > 1 || !_masterRegistered(field, g.variants[0].value))
+      ? restGroups.filter(g => g.variants.length > 1 || !_masterRegistered(field, g.variants[0].value, null, synCanons))
       : restGroups;
 
     if (!visSynRows.length && !visRestGroups.length) {
@@ -518,7 +530,7 @@
       let chips = `<span class="stats-chip stats-chip--canon">` +
                   `<span class="stats-chip-text">⭐ ${_usageSpan(field, g.canonical)}</span>` +
                   `<span class="stats-chip-cnt">×${sr.own}</span>` +
-                  _voteBtn(field, g.canonical) +
+                  _voteBtn(field, g.canonical, synCanons) +
                   `</span>`;
       (g.aliases || []).forEach(a => {
         chips += `<span class="stats-chip">` +
@@ -560,7 +572,7 @@
         h += `<span class="stats-chip">` +
              `<span class="stats-chip-text">${_usageSpan(field, v.value)}</span>` +
              `<span class="stats-chip-cnt">×${v.count}</span>` +
-             _voteBtn(field, v.value) +
+             _voteBtn(field, v.value, synCanons) +
              (hasV ? `<button class="stats-excl-chip-btn" onclick="statsExcludeVariant('${_ea(aliasField)}','${_ea(v.value)}')" title="ゆらぎ判定から除外（別物として扱う）">≠</button>` : '') +
              _synBtns(aliasField, v.value, synCanons, synAliasOf, cntMap) +
              `</span>`;
@@ -1474,7 +1486,7 @@
         `<span class="stats-chip${i === 0 ? ' stats-chip--canon' : ''}">` +
         `<span class="stats-chip-text">${i === 0 ? '⭐ ' : ''}${_usageSpan('customer', m)}</span>` +
         `<span class="stats-chip-cnt">×${sr.memberCounts[m] || 0}</span>` +
-        (i === 0 ? _voteBtn('customer', m)
+        (i === 0 ? _voteBtn('customer', m, synCanons)
                  : `<button class="stats-syn-unmerge" onclick="statsSynUnmerge('customer','${_ea(m)}')" title="統合を解除">✕</button>`) +
         `</span>`
       ).join('');
@@ -1497,7 +1509,7 @@
       if (g.customer && consumed.has(g.customer)) return;   // 同義グループに集約済み
       const cg0 = g.customer ? normToCanon.get(_normalize(g.customer)) : null;
       const inFluctCluster = !!(cg0 && cg0.variants.length > 1);
-      if (_statsUnorganizedOnly && g.customer && !inFluctCluster && _masterRegistered('customer', g.customer)) return;
+      if (_statsUnorganizedOnly && g.customer && !inFluctCluster && _masterRegistered('customer', g.customer, null, synCanons)) return;
       shownRows++;
       const persons = [...g.persons].join('、') || '—';
       const stHtml = _stHtml(g.statuses);
@@ -1519,7 +1531,7 @@
         ? `${_usageSpan('customer', g.customer)}${variantBadge}`
         : '<span class="stats-empty-cell">（未入力）</span>';
       const opCell = g.customer
-        ? _voteBtn('customer', g.customer) + _synBtns('customer', g.customer, synCanons, synAliasOf, synCntMap)
+        ? _voteBtn('customer', g.customer, synCanons) + _synBtns('customer', g.customer, synCanons, synAliasOf, synCntMap)
         : '';
       h += `<tr>` +
            `<td class="stats-val">${nameCell}</td>` +
@@ -2095,7 +2107,10 @@
       b.classList.remove('is-active');
       b.setAttribute('aria-selected', 'false');
     });
-    document.querySelectorAll('#tab-stats .stats-pane').forEach(p => p.classList.remove('is-active'));
+    // 非表示になるタブの中身は破棄する。statsSetPane は毎回対象タブを全面的に再構築する
+    // ので保持する意味がなく、放置すると（display:none で隠れているだけで）DOM に残り
+    // 続け、タブを渡り歩くほどページ全体が重くなっていく（データが増えるほど顕著）。
+    document.querySelectorAll('#tab-stats .stats-pane').forEach(p => { p.classList.remove('is-active'); p.innerHTML = ''; });
     const activeBtn = document.getElementById('statsTabBtn-' + paneId);
     if (activeBtn) { activeBtn.classList.add('is-active'); activeBtn.setAttribute('aria-selected', 'true'); }
     document.getElementById('statsPane-'   + paneId)?.classList.add('is-active');
