@@ -50,8 +50,11 @@
     })();
     // SPOT表記（日付以外の自由記述）は期間の終わりを判定できないため未指定（=start）扱い
     const rawEnd = (document.getElementById('qf-valid-until')?.value || '').trim();
-    const end = (/^\d{4}-\d{2}-\d{2}$/.test(rawEnd) ? rawEnd : '') || start;
-    return { start, end };
+    const isIsoDate = /^\d{4}-\d{2}-\d{2}$/.test(rawEnd);
+    const end = (isIsoDate ? rawEnd : '') || start;
+    // SPOT中は end=start（1日だけ）に潰れてしまい、未来日のサーチャージが軒並み
+    // 「期間外」判定されて非表示になってしまうため、判定側で SPOT かどうかを区別できるようにする
+    return { start, end, isSpot: !!rawEnd && !isIsoDate };
   }
   // 行の適用期間が見積の生きている期間と一切重ならなければ true（期間未設定の行は常に有効＝false）。
   // 日付は ISO(YYYY-MM-DD) なので文字列比較で大小判定できる。
@@ -63,7 +66,10 @@
     const vf = document.getElementById(`vf-${id}`)?.value || '';
     const vt = document.getElementById(`vt-${id}`)?.value || '';
     if (!vf && !vt) return false;        // 適用期間の指定がない行は対象外
-    const { start, end } = _quoteRefRange();
+    const { start, end, isSpot } = _quoteRefRange();
+    // 見積の有効期限が SPOT（自由記述）のときは終了日を判定できないため、
+    // 適用期間による絞り込みは行わず常に表示する
+    if (isSpot) return false;
     if (vt && vt < start) return true;   // 見積が生きている期間より前にサーチャージが終了済み
     if (vf && vf > end)   return true;   // 見積の有効期限までにサーチャージがまだ開始しない
     return false;
@@ -347,32 +353,53 @@
     const parentId = parentTr.id.replace('row-', '');
     const childTrs = trs.slice(1);
 
-    // 選択行全体（統合先を含む）の仕入・売合計を JPY換算で算出
-    let totalCostJpy = 0, totalBillJpy = 0, fxMissing = false;
+    // 選択行全体（統合先を含む）の仕入通貨・売通貨がすべて一致していれば、
+    // 換算せずその通貨のまま合算する（無用なJPY強制変換・換算誤差を避ける）。
+    // 通貨が混在している場合のみ、従来通りJPYへ換算して合算する。
+    const rowCcys = trs.map(tr => {
+      const id = tr.id.replace('row-', '');
+      return {
+        pc: document.getElementById(`pc-${id}`)?.value || 'JPY',
+        bc: document.getElementById(`bc-${id}`)?.value || 'JPY',
+      };
+    });
+    const commonCcy = rowCcys[0].pc;
+    const sameCurrency = rowCcys.every(c => c.pc === commonCcy && c.bc === commonCcy);
+    const targetCcy = sameCurrency ? commonCcy : 'JPY';
+
+    // 選択行全体（統合先を含む）の仕入・売合計を算出
+    let totalCost = 0, totalBill = 0, fxMissing = false;
     trs.forEach(tr => {
       const id = tr.id.replace('row-', '');
       const pq = val(`pq-${id}`), pp = val(`pp-${id}`);
       const bq = val(`bq-${id}`), bp = val(`bp-${id}`);
-      const pc = document.getElementById(`pc-${id}`)?.value || 'JPY';
-      const bc = document.getElementById(`bc-${id}`)?.value || 'JPY';
       const cost = pq * pp, bill = bq * bp;
-      const costJpy = pc === 'JPY' ? cost : (typeof toJPY === 'function' ? toJPY(cost, pc) : NaN);
-      const billJpy = bc === 'JPY' ? bill : (typeof toJPY === 'function' ? toJPY(bill, bc) : NaN);
-      if (isNaN(costJpy) || isNaN(billJpy)) fxMissing = true;
-      else { totalCostJpy += costJpy; totalBillJpy += billJpy; }
+      if (sameCurrency) {
+        totalCost += cost;
+        totalBill += bill;
+      } else {
+        const pc = document.getElementById(`pc-${id}`)?.value || 'JPY';
+        const bc = document.getElementById(`bc-${id}`)?.value || 'JPY';
+        const costJpy = pc === 'JPY' ? cost : (typeof toJPY === 'function' ? toJPY(cost, pc) : NaN);
+        const billJpy = bc === 'JPY' ? bill : (typeof toJPY === 'function' ? toJPY(bill, bc) : NaN);
+        if (isNaN(costJpy) || isNaN(billJpy)) fxMissing = true;
+        else { totalCost += costJpy; totalBill += billJpy; }
+      }
     });
+    // JPYは整数、外貨はセント単位まで丸める
+    const roundCcy = v => targetCcy === 'JPY' ? Math.round(v) : Math.round(v * 100) / 100;
 
-    // 統合先行を合計値へ上書き（独立通貨モードは解除し、連動モード・JPYへ統一）
+    // 統合先行を合計値へ上書き（独立通貨モードは解除し、連動モード・共通通貨へ統一）
     delete parentTr.dataset.bcIndep;
     if (typeof _setRowBcIndepUI === 'function') _setRowBcIndepUI(parentId, false);
     const pcEl = document.getElementById('pc-' + parentId);
     const pqEl = document.getElementById('pq-' + parentId);
     const ppEl = document.getElementById('pp-' + parentId);
     const mkEl = document.getElementById('mk-' + parentId);
-    if (pcEl) pcEl.value = 'JPY';
+    if (pcEl) pcEl.value = targetCcy;
     if (pqEl) pqEl.value = 1;
-    if (ppEl) ppEl.value = Math.round(totalCostJpy);
-    if (mkEl) mkEl.value = Math.round(totalBillJpy - totalCostJpy);
+    if (ppEl) ppEl.value = roundCcy(totalCost);
+    if (mkEl) mkEl.value = roundCcy(totalBill - totalCost);
     onPay(parentId);
 
     // 統合元の品名を備考へ自動記録（すでに備考があるときは上書きしない）
