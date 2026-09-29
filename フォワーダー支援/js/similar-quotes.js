@@ -12,6 +12,9 @@ let _sqShowCount   = 5;   // 現在の表示件数
 let _sqLinks           = [];   // 現在開いている案件の関連リンク一覧（cloudFetchPresetLinks の結果）
 let _sqLinkSearchOpen  = false;
 let _sqLinkSearchTimer = null;
+let _sqLinkResults     = [];   // 直近のリンク検索結果（理由バーで名前を引き当てるため）
+let _sqPendingLinkId   = null; // 理由入力待ちの関連付け先ID
+let _sqEditNoteFor     = null; // 理由を編集中の linkId
 
 // スコア重み（合計最大 15）
 const _SQ_W = { mode: 4, inco: 3, pol: 3, pod: 3, customer: 2 };
@@ -126,12 +129,24 @@ function _sqLinksHtml() {
     const badge = _sqStatusBadge(pr.status);
     const ref = pr.ref ? `<span class="sq-ref">${escHtml(pr.ref)}</span>` : '';
     const cust = pr.customer ? `<span class="sq-cust">${escHtml(pr.customer)}</span>` : '';
+    const editing = _sqEditNoteFor === l.linkId;
+    const noteBlock = editing
+      ? `<div class="sq-link-note-edit" onclick="event.stopPropagation()">
+           <input id="sqLinkNoteInput" class="sq-search-input" value="${escHtml(l.note || '')}" placeholder="関連付けの理由（例：多レグ分割の相方／代替案）"
+             onkeydown="if(event.key==='Enter'){event.preventDefault();sqSaveLinkNote('${escHtml(l.linkId)}');}">
+           <button type="button" class="sq-links-add-btn" onclick="event.stopPropagation();sqSaveLinkNote('${escHtml(l.linkId)}')">保存</button>
+           <button type="button" class="sq-link-note-cancel" onclick="event.stopPropagation();sqCancelEditNote()">✕</button>
+         </div>`
+      : (l.note
+          ? `<div class="sq-link-note" onclick="event.stopPropagation();sqEditLinkNote('${escHtml(l.linkId)}')" title="クリックで理由を編集">📝 ${escHtml(l.note)}</div>`
+          : `<button type="button" class="sq-link-note-add" onclick="event.stopPropagation();sqEditLinkNote('${escHtml(l.linkId)}')">＋ 理由を追加</button>`);
     return `<div class="sq-link-item" onclick="sqOpenPreview('${escHtml(pr.id)}')">
       <div class="sq-link-item-top">
         <span class="sq-link-name">${escHtml(pr.name || '（無題）')}</span>${badge}
         <button type="button" class="sq-link-unlink" onclick="event.stopPropagation();sqUnlinkPreset('${escHtml(l.linkId)}')" title="関連付けを解除">✕</button>
       </div>
       <div class="sq-card-sub">${ref}${cust}</div>
+      ${noteBlock}
     </div>`;
   }).join('');
   return `<div class="sq-links-section">
@@ -187,6 +202,7 @@ async function sqDoLinkSearch() {
 
   const already = new Set(_sqLinks.map(l => l.otherId));
   const rows = (data || []).filter(r => r.id !== loadedId);
+  _sqLinkResults = rows;   // 理由バーで名前を引き当てるため保持
   box.innerHTML = rows.length
     ? rows.map(r => {
         const linked = already.has(r.id);
@@ -201,11 +217,63 @@ async function sqDoLinkSearch() {
 async function sqPickLinkResult(id) {
   const loadedId = typeof window.quoteCloudLoadedId === 'function' ? window.quoteCloudLoadedId() : null;
   if (!loadedId || typeof window.cloudLinkPresets !== 'function') return;
-  const res = await window.cloudLinkPresets(loadedId, id);
+  // すぐには関連付けず、まず「理由（任意）」を入力できるバーを出す
+  _sqPendingLinkId = id;
+  _renderLinkReasonBar();
+}
+
+function _renderLinkReasonBar() {
+  const box = document.getElementById('sqLinkSearchResults');
+  if (!box) return;
+  const row = _sqLinkResults.find(r => r.id === _sqPendingLinkId);
+  const nm = row ? (row.name || '（無題）') : '';
+  box.innerHTML =
+    '<div class="sq-link-reason">' +
+      '<div class="sq-link-reason-target">🔗 「' + escHtml(nm) + '」に関連付け</div>' +
+      '<input id="sqLinkReasonInput" class="sq-search-input" placeholder="関連付けの理由（任意。例：多レグ分割の相方／代替案）" ' +
+        'onkeydown="if(event.key===\'Enter\'){event.preventDefault();sqConfirmPendingLink();}">' +
+      '<div class="sq-link-reason-acts">' +
+        '<button type="button" class="sq-links-add-btn" onclick="sqConfirmPendingLink()">🔗 関連付ける</button>' +
+        '<button type="button" class="sq-link-note-cancel" onclick="sqCancelPendingLink()">キャンセル</button>' +
+      '</div>' +
+    '</div>';
+  document.getElementById('sqLinkReasonInput')?.focus();
+}
+
+async function sqConfirmPendingLink() {
+  const loadedId = typeof window.quoteCloudLoadedId === 'function' ? window.quoteCloudLoadedId() : null;
+  const id = _sqPendingLinkId;
+  if (!loadedId || !id || typeof window.cloudLinkPresets !== 'function') return;
+  const note = (document.getElementById('sqLinkReasonInput')?.value || '').trim();
+  const res = await window.cloudLinkPresets(loadedId, id, note);
   if (res && res.ok) {
+    _sqPendingLinkId = null;
     _sqLinkSearchOpen = false;
     await _sqFetch();
   }
+}
+
+function sqCancelPendingLink() {
+  _sqPendingLinkId = null;
+  const box = document.getElementById('sqLinkSearchResults');
+  if (box) box.innerHTML = '';
+  document.getElementById('sqLinkSearchInput')?.focus();
+}
+
+// 既存リンクの理由（note）を編集
+function sqEditLinkNote(linkId) {
+  _sqEditNoteFor = linkId;
+  _sqFetch().then(() => document.getElementById('sqLinkNoteInput')?.focus());
+}
+function sqCancelEditNote() {
+  _sqEditNoteFor = null;
+  _sqFetch();
+}
+async function sqSaveLinkNote(linkId) {
+  const note = (document.getElementById('sqLinkNoteInput')?.value || '').trim();
+  if (typeof window.cloudUpdateLinkNote === 'function') await window.cloudUpdateLinkNote(linkId, note);
+  _sqEditNoteFor = null;
+  await _sqFetch();
 }
 
 async function sqUnlinkPreset(linkId) {

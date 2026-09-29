@@ -64,6 +64,10 @@
     const overflowByType = {};
     const eps = [{ x: 0, y: 0, z: 0 }];
     const containerVolume = container.l * container.w * container.h;
+    // Flat Rack／Open Top 等、側壁・屋根が無く寸法超過（はみ出し）を前提とする
+    // コンテナ種別。指定軸は内寸を超えても積み残し扱いにせず「はみ出し」として配置する
+    const openAxes = container.openAxes || [];
+    const hasOpenAxes = openAxes.length > 0;
     let usedVolume = 0;
     let budgetExhausted = false;
     const startTime = Date.now();
@@ -91,7 +95,8 @@
         continue;
       }
       // 体積による事前枝刈り：残り空間より体積が大きければ探索するまでもなく積み残し確定
-      if (piece.volume > containerVolume - usedVolume + EPS) {
+      // （はみ出しを許容する軸がある場合は「残り空間」の前提が崩れるため枝刈りしない）
+      if (!hasOpenAxes && piece.volume > containerVolume - usedVolume + EPS) {
         overflowByType[piece.typeIndex] = (overflowByType[piece.typeIndex] || 0) + 1;
         continue;
       }
@@ -114,9 +119,12 @@
           const dims = [piece.l, piece.w, piece.h];
           const perm = PERMS[pp];
           const bw_ = dims[perm[0]], bd_ = dims[perm[1]], bh_ = dims[perm[2]];
-          if (ep.x + bw_ > container.l + EPS) continue;
-          if (ep.y + bd_ > container.w + EPS) continue;
-          if (ep.z + bh_ > container.h + EPS) continue;
+          const overL = ep.x + bw_ > container.l + EPS;
+          const overW = ep.y + bd_ > container.w + EPS;
+          const overH = ep.z + bh_ > container.h + EPS;
+          if (overL && !openAxes.includes('l')) continue;
+          if (overW && !openAxes.includes('w')) continue;
+          if (overH && !openAxes.includes('h')) continue;
 
           let collide = false;
           for (let k = 0; k < placed.length; k++) {
@@ -125,7 +133,11 @@
           if (collide) continue;
           if (!isSupported(ep.x, ep.y, ep.z, bw_, bd_)) continue;
 
-          placedBox = { x: ep.x, y: ep.y, z: ep.z, w: bw_, d: bd_, h: bh_, noStack: piece.noStack, typeIndex: piece.typeIndex };
+          placedBox = {
+            x: ep.x, y: ep.y, z: ep.z, w: bw_, d: bd_, h: bh_,
+            noStack: piece.noStack, typeIndex: piece.typeIndex,
+            overL, overW, overH,
+          };
           break epLoop;
         }
       }
@@ -141,8 +153,16 @@
       }
     }
 
+    // はみ出し集計（Flat Rack／Open Top 等 openAxes 指定時のみ発生）
+    const overhang = { l: 0, w: 0, h: 0, maxL: 0, maxW: 0, maxH: 0 };
+    placed.forEach(b => {
+      if (b.overL) { overhang.l++; overhang.maxL = Math.max(overhang.maxL, b.x + b.w - container.l); }
+      if (b.overW) { overhang.w++; overhang.maxW = Math.max(overhang.maxW, b.y + b.d - container.w); }
+      if (b.overH) { overhang.h++; overhang.maxH = Math.max(overhang.maxH, b.z + b.h - container.h); }
+    });
+
     return {
-      placed, overflowByType, uncimulatedByType,
+      placed, overflowByType, uncimulatedByType, overhang,
       totalRequested, totalPlaced: placed.length,
       usedVolume, containerVolume,
       utilization: containerVolume > 0 ? (usedVolume / containerVolume * 100) : 0,
@@ -266,6 +286,14 @@
       if (overflowTotal > 0) {
         html += `　｜　<span class="van3d-warn">⚠️ 積み残し ${overflowTotal.toLocaleString()}個（このコンテナには入りきりません）</span>`;
       }
+      const oh = packResult.overhang;
+      if (oh && (oh.l || oh.w || oh.h)) {
+        const parts = [];
+        if (oh.l) parts.push(`長さ方向 ${oh.l}個（最大+${Math.round(oh.maxL)}cm）`);
+        if (oh.w) parts.push(`幅方向 ${oh.w}個（最大+${Math.round(oh.maxW)}cm）`);
+        if (oh.h) parts.push(`高さ方向 ${oh.h}個（最大+${Math.round(oh.maxH)}cm）`);
+        html += `　｜　<span class="van3d-overhang">📏 はみ出し：${parts.join('／')}（船腹・クレーン・固定要領は現場で要確認）</span>`;
+      }
       if (uncimulatedTotal > 0) {
         html += `　｜　<span class="van3d-note">※ 個数が多いため一部のみ3Dシミュレーション（残り${uncimulatedTotal.toLocaleString()}個は概算）</span>`;
       }
@@ -295,15 +323,17 @@
 
       const packResult = getPackResult(contKey);
       packResult.placed.forEach(b => {
+        const isOver = b.overL || b.overW || b.overH;
         const geo = new THREE.BoxGeometry(b.w, b.h, b.d);
         const mesh = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({
-          color: colorForType(b.typeIndex), transparent: true, opacity: 0.82,
+          color: colorForType(b.typeIndex), transparent: true, opacity: isOver ? 0.6 : 0.82,
         }));
         mesh.position.set(b.x + b.w / 2 - cont.l / 2, b.z + b.h / 2, b.y + b.d / 2 - cont.w / 2);
         scene.add(mesh);
         const boxLines = new THREE.LineSegments(
           new THREE.EdgesGeometry(geo),
-          new THREE.LineBasicMaterial({ color: 0x333333, transparent: true, opacity: 0.5 })
+          // はみ出している個体はコンテナ寸法を超えている旨がひと目で分かるよう縁取りを警告色に
+          new THREE.LineBasicMaterial({ color: isOver ? 0xe53e3e : 0x333333, transparent: true, opacity: isOver ? 0.9 : 0.5 })
         );
         boxLines.position.copy(mesh.position);
         scene.add(boxLines);

@@ -22,7 +22,7 @@
     // コンテナ・荷姿・航路の複数エントリもクリア
     _containerEntries = [];
     _packingEntries = [];
-    _packingPatterns = [{ name: '', entries: _packingEntries }];
+    _packingPatterns = [{ name: '', entries: _packingEntries, qtyLinks: {}, excludedUnits: [], hideLinks: {}, groupExcludeLinks: {} }];
     _packingActiveIdx = 0;
     _routeEntries = [];
     if (typeof _renderContainerEntries === 'function') _renderContainerEntries();
@@ -284,6 +284,12 @@
       const nm = tr.querySelector('[data-field="nm"]');
       if (!nm) return;
       const rowId = nm.id.replace('nm-', '');
+      // uid（行の内部識別ID）が空の行を修復する。uid 導入前に保存された古いプリセットは
+      // 空文字として保存されており、addRow() が最初に振った乱数IDを _applyCells() が
+      // 「保存値（空文字）で上書き」してしまうため、復元のたびに空のまま残り続けていた
+      // （物量パターンの数量紐付けなど uid に依存する機能が、その行だけ永久に効かなくなる）。
+      const uidEl = tr.querySelector('[data-field="uid"]');
+      if (uidEl && !uidEl.value) uidEl.value = 'r' + Math.random().toString(36).slice(2, 8);
       checkUnfilled(rowId);
       onCatChange(rowId);
       // _applyCells で復元した bc（売通貨）/bp（売単価）を保持する。
@@ -1548,7 +1554,12 @@
   // 常に1件以上存在する。_packingEntries は _packingPatterns[_packingActiveIdx].entries への
   // 参照そのもの（同じ配列オブジェクトを指す）にしているため、既存の add/remove/update 系の
   // 関数はそのまま _packingEntries を触るだけで、自動的に現在のパターンへ反映される。
-  let _packingPatterns  = [{ name: '', entries: _packingEntries }];
+  // qtyLinks: { rowUid: 数量 }。「1コンテナの場合／2コンテナの場合」等、パターンごとに
+  // 見積もりテーブルの数量を変えて保存・切替するための紐付け（row.js の onPay() で記録、
+  // switchPackingPattern() で適用。個数・R/T・W/M・C/W等、単位を問わず任意の行で使える）
+  // excludedUnits: ["単位\x00数量", ...]。「単位で数量を一括変更」パネル（scenario.js）で
+  // チェックを外し「一括反映」の対象から除外した単位グループを、パターンごとに記憶する
+  let _packingPatterns  = [{ name: '', entries: _packingEntries, qtyLinks: {}, excludedUnits: [], hideLinks: {}, groupExcludeLinks: {} }];
   let _packingActiveIdx = 0;
 
   function _renderContainerEntries() {
@@ -2012,9 +2023,135 @@
     _packingActiveIdx = i;
     _packingEntries = _packingPatterns[i].entries;
     _renderPackingEntries();
+    _applyPatternQtyLinks(i);
     if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
     if (typeof scheduleSnapshot === 'function') scheduleSnapshot();
   };
+
+  // パターンに保存済みの数量（qtyLinks：個数・R/T・W/M・C/W等、単位を問わず任意の行）を
+  // 見積もりテーブルへ適用する。値が無い行（そのパターンではまだ数量を変えていない行）は
+  // 現状の値のまま触らない。記録側は row.js の onPay() 参照。
+  // ただし「他のパターンでは数量が紐付けられているのに、このパターンでは未設定」の行は
+  // 値を書き換えずに残ることになり見落としやすいため、要確認の警告表示を付ける。
+  function _applyPatternQtyLinks(i) {
+    const pat = _packingPatterns[i];
+    const links = (pat && pat.qtyLinks) || {};
+    const hideLinks = (pat && pat.hideLinks) || {};
+    const otherPatterns = _packingPatterns.filter((_, idx) => idx !== i);
+    let hideChanged = false;
+    document.querySelectorAll('#tableBody tr[id^="row-"]').forEach(tr => {
+      if (tr.dataset.type || tr.dataset.virtual) return;   // 小計・リマーク行・仮想行は対象外
+      const id = tr.id.replace('row-', '');
+      const uid = document.getElementById(`uid-${id}`)?.value;
+      const pqEl = document.getElementById(`pq-${id}`);
+      if (pqEl) {
+        const hasLink = uid && Object.prototype.hasOwnProperty.call(links, uid);
+        pqEl.classList.toggle('pq-pattern-linked', !!hasLink);
+        const needsCheck = !hasLink && uid &&
+          otherPatterns.some(pt => pt.qtyLinks && Object.prototype.hasOwnProperty.call(pt.qtyLinks, uid));
+        pqEl.classList.toggle('pq-pattern-needs-check', !!needsCheck);
+        pqEl.title = needsCheck
+          ? '他の物量パターンではこの数量が個別に設定されていますが、このパターン（' + (pat.name || `パターン${i + 1}`) + '）ではまだ設定されていません。現在の値のまま変わりませんので、必要なら数量を入力し直してください。'
+          : '';
+        if (hasLink) {
+          const qty = links[uid];
+          if (pqEl.value != qty) {
+            pqEl.value = qty;
+            pqEl.dispatchEvent(new Event('input', { bubbles: true }));
+          }
+        }
+      }
+      // 見積書 表示/非表示（👁/🚫）の紐付けを適用
+      const hideBtn = tr.querySelector('.row-hidequote-btn');
+      const hasHideLink = uid && Object.prototype.hasOwnProperty.call(hideLinks, uid);
+      const hideNeedsCheck = !hasHideLink && uid &&
+        otherPatterns.some(pt => pt.hideLinks && Object.prototype.hasOwnProperty.call(pt.hideLinks, uid));
+      if (hideBtn) {
+        hideBtn.classList.toggle('hide-pattern-linked', !!hasHideLink);
+        hideBtn.classList.toggle('hide-pattern-needs-check', !!hideNeedsCheck);
+        if (hideNeedsCheck) {
+          hideBtn.title = '他の物量パターンでは見積書表示/非表示が個別に設定されていますが、このパターン（' +
+            (pat.name || `パターン${i + 1}`) + '）ではまだ設定されていません。必要ならクリックして設定し直してください。';
+        } else {
+          hideBtn.title = (tr.dataset.hideQuote === '1')
+            ? '見積書で非表示中（クリックで出力に戻す）'
+            : 'この行を見積書（プレビュー客先表示・PDF・Excel・CSV）に出力しない';
+        }
+      }
+      if (hasHideLink) {
+        const shouldHide = !!hideLinks[uid];
+        const isHidden = tr.dataset.hideQuote === '1';
+        if (shouldHide !== isHidden) {
+          if (shouldHide) { tr.dataset.hideQuote = '1'; tr.classList.add('row-hidden-quote'); }
+          else { delete tr.dataset.hideQuote; tr.classList.remove('row-hidden-quote'); }
+          if (hideBtn) {
+            hideBtn.classList.toggle('is-on', shouldHide);
+            hideBtn.textContent = shouldHide ? '🚫' : '👁';
+            hideBtn.title = shouldHide
+              ? '見積書で非表示中（クリックで出力に戻す）'
+              : 'この行を見積書（プレビュー客先表示・PDF・Excel・CSV）に出力しない';
+          }
+          hideChanged = true;
+        }
+      }
+    });
+    if (hideChanged && typeof updateTotals === 'function') updateTotals();
+    // サブコン・サブコン×パターン見出しの「含む/除外」の紐付けを適用（row.js 側で定義）
+    if (typeof _applyPatternGroupExcludeLinks === 'function') _applyPatternGroupExcludeLinks(i);
+  }
+
+  // 「単位で数量を一括変更」パネル（scenario.js）の除外チェック状態を、表示中のパターンへ
+  // 記録・参照するためのヘルパー。旧データ（excludedUnits 未定義）は「除外なし」扱い。
+  window._udIsUnitExcluded = function (key) {
+    const pat = _packingPatterns[_packingActiveIdx];
+    return !!(pat && Array.isArray(pat.excludedUnits) && pat.excludedUnits.includes(key));
+  };
+  window._udSetUnitExcluded = function (key, excluded) {
+    const pat = _packingPatterns[_packingActiveIdx];
+    if (!pat) return;
+    if (!Array.isArray(pat.excludedUnits)) pat.excludedUnits = [];
+    const idx = pat.excludedUnits.indexOf(key);
+    if (excluded && idx === -1) pat.excludedUnits.push(key);
+    else if (!excluded && idx !== -1) pat.excludedUnits.splice(idx, 1);
+    _syncPackingPatternsData();
+    if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
+    if (typeof scheduleSnapshot === 'function') scheduleSnapshot();
+  };
+
+  // 指定パターンに、見積もりテーブル全行の「今の」数量をまるごと記録する（上書き）。
+  // 複数パターンを使い始める瞬間（2件目のパターン作成・複製）に、それまで入力していた
+  // 数量を「1件目のパターンの値」として確定させておくためのもの。これをしないと、
+  // 複数パターン運用を始める前に入力した数量はどのパターンにも属さないまま残り、
+  // 他パターンへ切替→戻しても復元されない（=1件目のパターンだけ機能しないように見える）。
+  function _snapshotAllQtyIntoPattern(i) {
+    const pat = _packingPatterns[i];
+    if (!pat) return;
+    if (!pat.qtyLinks) pat.qtyLinks = {};
+    if (!pat.hideLinks) pat.hideLinks = {};
+    document.querySelectorAll('#tableBody tr[id^="row-"]').forEach(tr => {
+      if (tr.dataset.type || tr.dataset.virtual) return;
+      const id = tr.id.replace('row-', '');
+      const uid = document.getElementById(`uid-${id}`)?.value;
+      const pqEl = document.getElementById(`pq-${id}`);
+      if (!uid) return;
+      if (pqEl) pat.qtyLinks[uid] = parseFloat(pqEl.value) || 0;
+      pat.hideLinks[uid] = tr.dataset.hideQuote === '1';
+    });
+    // サブコン・サブコン×パターン見出しの「含む/除外」も現状のまま確定させる
+    if (!pat.groupExcludeLinks) pat.groupExcludeLinks = {};
+    document.querySelectorAll('#tableBody tr[data-virtual]').forEach(tr => {
+      const svKey = tr.dataset.svKey;
+      if (!svKey) return;
+      if (tr.dataset.subGroup) {
+        const ptKey = tr.dataset.ptKey;
+        if (ptKey == null) return;
+        const compKey = svKey + '\x00' + ptKey;
+        pat.groupExcludeLinks[compKey] = typeof _excludedPatterns !== 'undefined' && _excludedPatterns.has(compKey);
+      } else {
+        pat.groupExcludeLinks[svKey] = typeof _excludedGroups !== 'undefined' && _excludedGroups.has(svKey);
+      }
+    });
+  }
 
   // 客先向け出力（御見積書PDF・プレビュー・メール本文）にこのパターンを含めるかどうかの切替。
   // 非表示にしても案件内には残り、社内での比較検討用パターンとして使い続けられる
@@ -2035,10 +2172,15 @@
     if (name == null) return;   // キャンセル
     // 現パターンが無名・未入力のまま2件目を作ろうとした場合の事故防止に、既定名を補う
     _packingPatterns.forEach((pt, i) => { if (!pt.name) pt.name = `パターン${i + 1}`; });
-    _packingPatterns.push({ name: name.trim() || `パターン${_packingPatterns.length + 1}`, entries: [] });
+    // 2件目を作る瞬間に、今表示中のパターンの数量を「そのパターンの値」として確定させておく。
+    // これをしないと、複数パターンを使い始める前に入力した数量がどのパターンにも
+    // 属さないまま扱われ、後で他パターンへ切替→戻すと値が引き継がれない不具合になる
+    _snapshotAllQtyIntoPattern(_packingActiveIdx);
+    _packingPatterns.push({ name: name.trim() || `パターン${_packingPatterns.length + 1}`, entries: [], qtyLinks: {}, excludedUnits: [], hideLinks: {}, groupExcludeLinks: {} });
     _packingActiveIdx = _packingPatterns.length - 1;
     _packingEntries = _packingPatterns[_packingActiveIdx].entries;
     _renderPackingEntries();
+    _applyPatternQtyLinks(_packingActiveIdx);   // 新パターンは数量未設定のため「要確認」表示を反映
     if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
     if (typeof scheduleSnapshot === 'function') scheduleSnapshot();
   };
@@ -2051,15 +2193,22 @@
     const name = prompt('複製後のパターン名を入力してください', `${srcLabel}のコピー`);
     if (name == null) return;   // キャンセル
     _packingPatterns.forEach((pt, i) => { if (!pt.name) pt.name = `パターン${i + 1}`; });
+    // 複製元パターンの数量も確定させてから複製する（addPackingPattern と同じ理由）
+    _snapshotAllQtyIntoPattern(_packingActiveIdx);
     const cloned = {
       name: name.trim() || `${srcLabel}のコピー`,
       entries: (src.entries || []).map(e => ({ ...e })),   // 参照を共有しないよう複製
       showInQuote: src.showInQuote,
+      qtyLinks: { ...(src.qtyLinks || {}) },   // 数量の紐付けも複製元を引き継ぐ（参照は共有しない）
+      excludedUnits: [...(src.excludedUnits || [])],   // 一括反映の除外設定も複製元を引き継ぐ
+      hideLinks: { ...(src.hideLinks || {}) },   // 見積書表示/非表示の紐付けも複製元を引き継ぐ
+      groupExcludeLinks: { ...(src.groupExcludeLinks || {}) },   // サブコン・サブコン×パターン見出しの含む/除外も複製元を引き継ぐ
     };
     _packingPatterns.splice(_packingActiveIdx + 1, 0, cloned);   // 複製元の直後に挿入
     _packingActiveIdx += 1;
     _packingEntries = _packingPatterns[_packingActiveIdx].entries;
     _renderPackingEntries();
+    _applyPatternQtyLinks(_packingActiveIdx);   // 複製元の紐付け状態（ハイライト）を反映
     if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
     if (typeof scheduleSnapshot === 'function') scheduleSnapshot();
   };
@@ -2072,6 +2221,7 @@
     pt.name = name.trim();
     _renderPackingPatternTabs();
     _syncPackingPatternsData();
+    if (typeof window.udRefresh === 'function') window.udRefresh();   // 数量メニューのパターン選択欄のラベルも更新
     if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
     if (typeof scheduleSnapshot === 'function') scheduleSnapshot();
   };
@@ -2086,6 +2236,7 @@
     else if (i < _packingActiveIdx) _packingActiveIdx--;
     _packingEntries = _packingPatterns[_packingActiveIdx].entries;
     _renderPackingEntries();
+    _applyPatternQtyLinks(_packingActiveIdx);   // 1件だけになった場合はハイライトを消す
     if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
     if (typeof scheduleSnapshot === 'function') scheduleSnapshot();
   };
@@ -2167,6 +2318,8 @@
     // hidden に R/T・CW も保持（プレビュー等で参照可能に）
     _lastCargoMetrics = { cbm: totCbm, kg: totKg, rt, cw, qty: totQty };
     if (typeof window.renderQuoteCargoInfo === 'function') window.renderQuoteCargoInfo();
+    // 右カラム「数量」メニューのパターン選択欄（ud-pattern-select）も同期
+    if (typeof window.udRefresh === 'function') window.udRefresh();
   }
   let _lastCargoMetrics = { cbm: 0, kg: 0, rt: 0, cw: 0, qty: 0 };
 
@@ -2448,16 +2601,21 @@
           ? pt.entries.map(e => (typeof e === 'string') ? { pkg: e, qty: 1, l:'', w:'', h:'', kg:'', stack:'可' } : e)
           : [],
         showInQuote: (pt && pt.showInQuote === false) ? false : true,
+        qtyLinks: (pt && pt.qtyLinks && typeof pt.qtyLinks === 'object') ? pt.qtyLinks : {},
+        excludedUnits: Array.isArray(pt && pt.excludedUnits) ? pt.excludedUnits : [],
+        hideLinks: (pt && pt.hideLinks && typeof pt.hideLinks === 'object') ? pt.hideLinks : {},
+        groupExcludeLinks: (pt && pt.groupExcludeLinks && typeof pt.groupExcludeLinks === 'object') ? pt.groupExcludeLinks : {},
       }));
       _packingActiveIdx = (Number.isInteger(restoredPt.activeIdx) && _packingPatterns[restoredPt.activeIdx]) ? restoredPt.activeIdx : 0;
       _packingEntries = _packingPatterns[_packingActiveIdx].entries;
     } else {
-      _packingPatterns = [{ name: '', entries: _packingEntries }];
+      _packingPatterns = [{ name: '', entries: _packingEntries, qtyLinks: {}, excludedUnits: [], hideLinks: {}, groupExcludeLinks: {} }];
       _packingActiveIdx = 0;
     }
     _renderContainerEntries();
     if (typeof _applyContainerView === 'function') _applyContainerView();
     _renderPackingEntries();
+    _applyPatternQtyLinks(_packingActiveIdx);   // 数量紐付けのハイライト表示を復元（数量自体はテーブル側の保存値がそのまま正）
     syncRouteEntries();
     syncHazEntries();
     if (typeof window.renderQuoteCargoInfo === 'function') window.renderQuoteCargoInfo();
@@ -3258,7 +3416,8 @@ window.reflectToQuote = function(key) {
     const pqEl = document.getElementById('pq-' + id);
     if (pqEl) {
       pqEl.value = displayVal;
-      if (typeof onPay === 'function') onPay(parseInt(id, 10));
+      // input イベント経由で onPay を呼ぶ（物量パターンへの数量紐付け記録も兼ねる。row.js 参照）
+      pqEl.dispatchEvent(new Event('input', { bubbles: true }));
     } else {
       const bqEl = document.getElementById('bq-' + id);
       if (bqEl) bqEl.value = displayVal;

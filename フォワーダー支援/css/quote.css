@@ -4352,6 +4352,8 @@ body.qp-dash-active #quoteActionDock { display: none !important; }
 }
 #qpDashboard .qpd-side-card {
   background: #fff; border: 1px solid #e2d8c4; border-radius: 10px; padding: 12px 14px 14px;
+  flex-shrink: 0;   /* flex 縦並びで押し縮められて overflow:hidden にクリップされ、パネルがスクロール
+                        不能になるのを防ぐ（カードは自然な高さを保ち .qpd-side 側がスクロールする） */
 }
 #qpDashboard .qpd-side-h { font-size: 13px; font-weight: 800; color: #4a3520; margin: 0 0 4px; }
 #qpDashboard .qpd-side-note { font-size: 10.5px; color: #8a7a68; line-height: 1.6; margin: 0 0 10px; }
@@ -4493,6 +4495,10 @@ body.qp-dash-active #quoteActionDock { display: none !important; }
   padding: 6px 14px; font-size: 12px; font-weight: 700; cursor: pointer;
 }
 #qpDashboard .qpd-link-bar #qpdLinkBarBtn:disabled { background: #aebfb5; cursor: not-allowed; }
+#qpDashboard .qpd-link-bar-note {
+  flex: 1; min-width: 120px; padding: 6px 10px; font-size: 12px; font-family: inherit;
+  border: 1px solid #a9d3bc; border-radius: 6px; background: #fff; color: #234;
+}
 #qpDashboard .qpd-link-bar-cancel {
   background: none; border: 1px solid #a9d3bc; color: #205838;
   border-radius: 6px; padding: 6px 12px; font-size: 12px; cursor: pointer; margin-left: auto;
@@ -5561,6 +5567,8 @@ body.qp-dash-active #quoteActionDock { display: none !important; }
 #tab-quote-make .ei-act-new:hover { background: #226735; }
 /* ===== 📋 貼り付けで一括登録モーダル（荷姿・貨物明細） ===== */
 #tab-quote-make .pki-open-btn { background: #3a6baf; border-color: #3a6baf; }
+#tab-quote-make .van-jump-btn { background: #6b46a0; border-color: #6b46a0; }
+#tab-quote-make .van-jump-btn:hover { background: #59378a; border-color: #59378a; }
 #tab-quote-make .pki-parse-bar { display: flex; align-items: center; gap: 10px; }
 #tab-quote-make .pki-or { font-size: 11px; color: #9a8a70; }
 #tab-quote-make .pki-pdf-btn { background: #8a5a2a; }
@@ -6488,6 +6496,13 @@ body.qp-dash-active #quoteActionDock { display: none !important; }
   margin-top: 5px; background: none; border: none; color: #7a6a4f; font-size: 11.5px; font-weight: 600; cursor: pointer; padding: 2px 0;
 }
 #tab-quote-make #qpdListWrap .cloud-clink-more:hover { color: #2b2014; text-decoration: underline; }
+/* 関連付けの理由（read-only 表示） */
+#tab-quote-make #qpdListWrap .cloud-clink-wrap { display: flex; flex-direction: column; gap: 2px; }
+#tab-quote-make #qpdListWrap .clink-note {
+  font-size: 10.5px; color: #6b5a42; background: #fff7e6; border: 1px solid #ecdcb8;
+  border-radius: 5px; padding: 2px 7px; margin-left: 2px;
+  white-space: pre-wrap; word-break: break-word;
+}
 
 /* 1列化で空いたカード右側を申し送りスペースに。
    ビューポート幅ではなくカード列（.qpd-body-main）の実幅で判定するコンテナクエリにし、
@@ -9077,7 +9092,20 @@ body.qp-dash-active #quoteActionDock { display: none !important; }
   font-size: .7rem;
   color: #999;
   white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: 5px;
 }
+/* 申し送り発言者の小さな丸アバター（色＋絵文字/頭文字・プロフィール連動） */
+#tab-quote-make .cp-chat-av {
+  flex-shrink: 0;
+  width: 18px; height: 18px; border-radius: 50%;
+  display: inline-flex; align-items: center; justify-content: center;
+  color: #fff; font-size: 10px; font-weight: 700; line-height: 1;
+  overflow: hidden;
+}
+#tab-quote-make .cp-chat-metatext { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+#tab-quote-make .cp-chat-item--mine .cp-chat-meta { flex-direction: row-reverse; }
 #tab-quote-make .cp-chat-body {
   background: #f0ebe0;
   border-radius: 10px 10px 10px 2px;
@@ -9726,6 +9754,9 @@ button.um-memberno--empty:hover { background: #f4ead4; border-color: #cdb98e; }
 #tab-quote-make tr:hover .row-acts button { display: inline-flex; }
 #tab-quote-make .row-acts button:hover { opacity: 1; background: #fff; border-color: #cdd6df; }
 #tab-quote-make .row-acts button.is-on { display: inline-flex; opacity: 1; }
+/* 物量パターンに紐付いている👁/🚫は、パターン依存であることが分かるよう常に表示する */
+#tab-quote-make .row-acts button.hide-pattern-linked,
+#tab-quote-make .row-acts button.hide-pattern-needs-check { display: inline-flex; opacity: 1; }
 /* ✓ 入力完了は文字色で状態表現（OFF はグレー、ON は緑） */
 #tab-quote-make .row-done-btn { color: #9aa3ab; font-weight: 700; font-size: 12px; }
 #tab-quote-make .row-done-btn.is-on { color: #1f9d57; }
@@ -9747,6 +9778,34 @@ button.um-memberno--empty:hover { background: #f4ead4; border-color: #cdb98e; }
 /* 作業テーブル：非表示指定の行はグレー＋点線で区別（行は残す） */
 #tab-quote-make tr.row-hidden-quote > td { opacity: 0.5; background: #f6f1e8; }
 #tab-quote-make tr.row-hidden-quote .w-name { text-decoration: line-through; text-decoration-color: #b08a6a; }
+/* 比較パネル：同一品名・単位の中で仕入単価が最安値の行を自動ハイライト */
+#tab-quote-make tr.row-cmp-best > td { background: #fffce0; }
+#tab-quote-make tr.row-cmp-best > td.handle-cell { box-shadow: inset 3px 0 0 #d4af00; }
+/* 物量パターンに数量が紐付いている行（パターン切替で自動的に数量が変わる） */
+#tab-quote-make .pq-pattern-linked {
+  border-color: #6b8a3d !important;
+  box-shadow: 0 0 0 1px #6b8a3d inset;
+  background: #f4f8ec;
+}
+/* 他のパターンでは数量が紐付けられているのに、表示中のパターンでは未設定の行（要確認） */
+#tab-quote-make .pq-pattern-needs-check {
+  border-color: #c98a1f !important;
+  border-style: dashed !important;
+  box-shadow: 0 0 0 1px #c98a1f inset;
+  background: #fdf3df;
+}
+/* 見積書 表示/非表示（👁/🚫）が物量パターンに紐付いている行（pq-pattern-linked/needs-check と同じ配色） */
+#tab-quote-make .row-hidequote-btn.hide-pattern-linked {
+  border-color: #6b8a3d !important;
+  box-shadow: 0 0 0 1px #6b8a3d inset;
+  background: #f4f8ec;
+}
+#tab-quote-make .row-hidequote-btn.hide-pattern-needs-check {
+  border-color: #c98a1f !important;
+  border-style: dashed !important;
+  box-shadow: 0 0 0 1px #c98a1f inset;
+  background: #fdf3df;
+}
 /* 行の統合バッジ：単なる「非表示」と区別し、意図した統合であることを明示する */
 #tab-quote-make tr.row-merged-child > td { opacity: 0.7; background: #eef6fb; }
 #tab-quote-make .row-merge-badge {
@@ -10094,6 +10153,25 @@ button.um-memberno--empty:hover { background: #f4ead4; border-color: #cdb98e; }
   opacity: 0.45;
   pointer-events: none;
 }
+#tab-quote-make .ud-pattern-select-row {
+  display: flex; align-items: center; gap: 6px; margin-bottom: 8px;
+}
+#tab-quote-make .ud-pattern-select-label { font-size: 11px; font-weight: 700; color: #7a6040; white-space: nowrap; }
+#tab-quote-make .ud-pattern-select {
+  flex: 1 1 auto; min-width: 0; font-size: 12px; font-family: inherit;
+  padding: 3px 6px; border: 1px solid #d9cfc2; border-radius: 4px; background: #fff; color: #3d2e1e;
+}
+#tab-quote-make .ud-pattern-qty-hint {
+  font-size: 10.5px; color: #7a6040; line-height: 1.6; margin: 0 0 10px 0;
+}
+#tab-quote-make .pq-pattern-linked-sample {
+  display: inline-block; width: 22px; height: 11px; vertical-align: middle; margin: 0 2px;
+  border-radius: 2px; background: #f4f8ec; box-shadow: 0 0 0 1px #6b8a3d inset;
+}
+#tab-quote-make .pq-pattern-needs-check-sample {
+  display: inline-block; width: 22px; height: 11px; vertical-align: middle; margin: 0 2px;
+  border-radius: 2px; background: #fdf3df; box-shadow: 0 0 0 1px #c98a1f inset;
+}
 #tab-quote-make .sc-hint {
   font-size: 11px;
   color: #7a6040;
@@ -10216,6 +10294,43 @@ button.um-memberno--empty:hover { background: #f4ead4; border-color: #cdb98e; }
 }
 #tab-quote-make .sc-fixed-btn:hover { opacity: 1; }
 #tab-quote-make .sc-fixed-btn.is-fixed { opacity: 1; }
+
+/* ========== ⚖️ 比較パネル（同一項目の最安値比較） ========== */
+#tab-quote-make .cmp-panel { padding: 10px 12px; font-size: 12px; overflow-y: auto; }
+#tab-quote-make .cmp-scroll { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
+#tab-quote-make .cmp-empty { font-size: 12px; color: #7a6a50; line-height: 1.7; }
+#tab-quote-make .cmp-hint { font-size: 11px; color: #8a7a5c; line-height: 1.7; margin-bottom: 10px; }
+#tab-quote-make .cmp-list { display: flex; flex-direction: column; gap: 12px; }
+#tab-quote-make .cmp-group {
+  border: 1px solid #e4d9c8; border-radius: 6px; background: #fffdf7; padding: 8px 10px;
+}
+#tab-quote-make .cmp-group-title {
+  display: flex; align-items: center; justify-content: space-between; gap: 6px;
+  font-size: 12.5px; font-weight: 700; color: #5a4a30; margin-bottom: 6px;
+}
+#tab-quote-make .cmp-group-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#tab-quote-make .cmp-group-unit { font-weight: 400; color: #8a7a5c; font-size: 11px; }
+#tab-quote-make .cmp-group-apply-btn {
+  flex: 0 0 auto; background: #f0e8d8; color: #7d6b56; border: none; border-radius: 4px;
+  padding: 3px 8px; font-size: 10.5px; cursor: pointer; font-family: inherit; white-space: nowrap;
+}
+#tab-quote-make .cmp-group-apply-btn:hover { background: #d9cfc2; color: #3d2e1e; }
+#tab-quote-make .cmp-row {
+  display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+  padding: 4px 0; border-top: 1px dashed #ecdfc8; font-size: 11.5px;
+}
+#tab-quote-make .cmp-row:first-child { border-top: none; }
+#tab-quote-make .cmp-row--best { color: #1a6a35; font-weight: 700; }
+#tab-quote-make .cmp-row--hidden { opacity: 0.55; }
+#tab-quote-make .cmp-row-star { width: 14px; flex: 0 0 auto; }
+#tab-quote-make .cmp-row-sv { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#tab-quote-make .cmp-row-price { flex: 0 0 auto; }
+#tab-quote-make .cmp-row-gap { flex: 0 0 auto; color: #c0392b; font-size: 10.5px; }
+#tab-quote-make .cmp-row-hide-btn {
+  flex: 0 0 auto; background: none; border: 1px solid #d9cfc2; border-radius: 4px;
+  padding: 2px 6px; font-size: 10px; color: #7a6a50; cursor: pointer; font-family: inherit;
+}
+#tab-quote-make .cmp-row-hide-btn:hover { background: #f0e8d8; color: #3d2e1e; }
 
 /* --- 比較プレビューオーバーレイ --- */
 #scPreviewOverlay {
@@ -10423,6 +10538,7 @@ button.um-memberno--empty:hover { background: #f4ead4; border-color: #cdb98e; }
 #tab-quote-make .qrc-drawer-body > .quote-summary-panel,
 #tab-quote-make .qrc-drawer-body > .sq-panel,
 #tab-quote-make .qrc-drawer-body > .sc-panel,
+#tab-quote-make .qrc-drawer-body > .cmp-panel,
 #tab-quote-make .qrc-drawer-body > .si-panel {
   width: 100%; flex: 1 1 auto; border: none; border-radius: 0; box-shadow: none;
   background: transparent; margin: 0; display: flex; flex-direction: column; overflow: hidden;

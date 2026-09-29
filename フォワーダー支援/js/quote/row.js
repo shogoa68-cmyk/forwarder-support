@@ -280,12 +280,30 @@
       btn.textContent = '🚫';
       btn.title = '見積書で非表示中（クリックで出力に戻す）';
     }
+    _recordPatternHideState(tr, btn);
     updateTotals();   // グループ小計（_updateGroupSums）も内部で更新される
     // ※ renderSubconGroups() は呼ばない：行の並べ替え（同名サブコンの集約）が走り、
     //   下方の行が上のグループへ移動してしまうため。非表示は並び順を変える操作ではない。
     if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
   }
   window.toggleRowHideQuote = toggleRowHideQuote;
+
+  // ユーザーがこの行の見積書 表示/非表示（👁/🚫）を直接切り替えた場合のみ、
+  // 現在アクティブな物量パターンへ紐付けを記録する（_recordPatternQty と同じ考え方）。
+  // toggleRowHideQuote は内部の再計算経路からは呼ばれず、常にユーザー操作起点のため
+  // ここに直接記録ロジックを置いてよい（onPay のような誤記録の懸念が無い）。
+  function _recordPatternHideState(tr, btn) {
+    if (typeof _packingPatterns === 'undefined' || _packingPatterns.length < 2) return;
+    const pat = _packingPatterns[_packingActiveIdx];
+    const uid = tr.querySelector('[data-field="uid"]')?.value;
+    if (!pat || !uid) return;
+    if (!pat.hideLinks) pat.hideLinks = {};
+    pat.hideLinks[uid] = tr.dataset.hideQuote === '1';
+    if (btn) {
+      btn.classList.add('hide-pattern-linked');
+      btn.classList.remove('hide-pattern-needs-check');
+    }
+  }
 
   // 行 ID 指定で見積書非表示をトグル（右カラム ジャンプタブ等の外部 UI 用）。
   // テーブル行のボタンがあればそれを押して既存ロジックを共用し、無ければ dataset を直接操作。
@@ -298,6 +316,7 @@
       const hidden = tr.dataset.hideQuote === '1';
       if (hidden) { delete tr.dataset.hideQuote; tr.classList.remove('row-hidden-quote'); }
       else { tr.dataset.hideQuote = '1'; tr.classList.add('row-hidden-quote'); }
+      _recordPatternHideState(tr);
       updateTotals();
       if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
     }
@@ -1244,7 +1263,7 @@
     q('tx').onchange   = () => { const r = document.getElementById(`row-${id}`); if (r) r.dataset.txUserSet = '1'; toggleTax(id); };
     q('tx').onkeydown  = e  => { if (e.key === 'Enter') { e.preventDefault(); e.target.checked = !e.target.checked; const r = document.getElementById(`row-${id}`); if (r) r.dataset.txUserSet = '1'; toggleTax(id); } };
     q('nm').oninput    = () => checkUnfilled(id);
-    q('pq').oninput    = () => onPay(id);
+    q('pq').oninput    = () => { _recordPatternQty(id); onPay(id); };
     q('pc').onchange   = () => onPay(id);
     q('pp').oninput    = () => onPay(id);
     q('mk').oninput    = () => { calc(id); _recalcPctDependents(id); };
@@ -1426,6 +1445,28 @@
       calc(id);
     }
     if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
+  }
+
+  // 物量パターンが2件以上ある場合、数量（pq）の変更を現在アクティブなパターンに記録する。
+  // 「1コンテナの場合／2コンテナの場合」等、パターンごとに見積もりテーブルの数量を
+  // 保存・切替するための紐付け（個数・R/T・W/M・C/W等、単位は問わない）。
+  // pq の input イベント（ユーザーの直接入力・reflectToQuote()・一括反映等、いずれも
+  // dispatchEvent で発火）からのみ呼ぶ。onPay() 自体は addRow() 等の内部初期化からも
+  // 呼ばれるため、そちら側に置くと「触っていない行」まで誤って記録されてしまう。
+  // 適用側は conditions.js の switchPackingPattern() / _applyPatternQtyLinks()。
+  function _recordPatternQty(id) {
+    if (typeof _packingPatterns === 'undefined' || _packingPatterns.length < 2) return;
+    const pat = _packingPatterns[_packingActiveIdx];
+    const uid = document.getElementById(`uid-${id}`)?.value;
+    if (!pat || !uid) return;
+    if (!pat.qtyLinks) pat.qtyLinks = {};
+    pat.qtyLinks[uid] = val(`pq-${id}`);
+    // 紐付け済みになった以上「要確認」（＝他パターンには紐付けがあるが今のパターンには無い）
+    // という状態ではなくなるため、直前の描画で付いていた警告表示を消す
+    const pqEl = document.getElementById(`pq-${id}`);
+    pqEl?.classList.add('pq-pattern-linked');
+    pqEl?.classList.remove('pq-pattern-needs-check');
+    if (pqEl) pqEl.title = '';
   }
 
   function onPay(id) {
@@ -2551,6 +2592,7 @@
       _excludedGroups.add(key);
       _collapsedGroups.add(key); // 除外時は自動折りたたみ
     }
+    _recordPatternGroupExclude(key, _excludedGroups.has(key));
     _applyGroupStates();
     if (typeof updateTotals === 'function') updateTotals();
     if (typeof window.updateSectionSummaries === 'function') window.updateSectionSummaries();
@@ -2571,11 +2613,51 @@
       _excludedPatterns.add(compKey);
       _collapsedPatterns.add(compKey); // 除外時は自動折りたたみ
     }
+    _recordPatternGroupExclude(compKey, _excludedPatterns.has(compKey));
     _applyGroupStates();
     if (typeof window.renderQuoteSectionDigest === 'function') window.renderQuoteSectionDigest();
     if (typeof updateTotals === 'function') updateTotals();
     if (typeof window.updateSectionSummaries === 'function') window.updateSectionSummaries();
   }
+
+  // ユーザーがサブコン／サブコン×パターン見出しの「含む/除外」を直接切り替えた場合のみ、
+  // 現在アクティブな物量パターンへ紐付けを記録する（_recordPatternQty と同じ考え方）。
+  // key はサブコン単体なら svKey、サブコン×パターンなら svKey + '\x00' + ptKey。
+  function _recordPatternGroupExclude(key, excluded) {
+    if (typeof _packingPatterns === 'undefined' || _packingPatterns.length < 2) return;
+    const pat = _packingPatterns[_packingActiveIdx];
+    if (!pat || !key) return;
+    if (!pat.groupExcludeLinks) pat.groupExcludeLinks = {};
+    pat.groupExcludeLinks[key] = excluded;
+  }
+
+  // 指定パターンに記録された、サブコン・サブコン×パターン見出しの「含む/除外」を
+  // 実際のテーブルへ適用する。switchPackingPattern() 等から conditions.js 経由で呼ばれる。
+  function _applyPatternGroupExcludeLinks(i) {
+    const pat = _packingPatterns[i];
+    const links = (pat && pat.groupExcludeLinks) || {};
+    let changed = false;
+    document.querySelectorAll('#tableBody tr[data-virtual]').forEach(tr => {
+      const svKey = tr.dataset.svKey;
+      if (!svKey) return;
+      const key = tr.dataset.subGroup ? (svKey + '\x00' + (tr.dataset.ptKey || '')) : svKey;
+      if (!Object.prototype.hasOwnProperty.call(links, key)) return;
+      const shouldExclude = !!links[key];
+      const set = tr.dataset.subGroup ? _excludedPatterns : _excludedGroups;
+      const isExcluded = set.has(key);
+      if (shouldExclude !== isExcluded) {
+        if (shouldExclude) set.add(key); else set.delete(key);
+        changed = true;
+      }
+    });
+    if (changed) {
+      _applyGroupStates();
+      if (typeof updateTotals === 'function') updateTotals();
+      if (typeof window.updateSectionSummaries === 'function') window.updateSectionSummaries();
+      if (typeof window.renderQuoteSectionDigest === 'function') window.renderQuoteSectionDigest();
+    }
+  }
+  window._applyPatternGroupExcludeLinks = _applyPatternGroupExcludeLinks;
 
   function _applyGroupStates() {
     const tbody = document.getElementById('tableBody');

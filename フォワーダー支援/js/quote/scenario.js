@@ -5,13 +5,29 @@
 // 数量がバラつく単位は、現在数量ごとに個別の行として表示する。
 
   let _udCollapsed = false;
-  // 「一括反映」の対象から外したグループ（キー：単位\x00数量）。既定は全グループ対象。
-  // パネル再描画をまたいで状態を保つため、行の増減があっても同じキーなら除外指定が残る。
-  const _udExcluded = new Set();
+  // グループキーの区切り文字。以前は '\x00'（NUL）を使っていたが、_udRenderPanel() が
+  // innerHTML でHTMLを流し込む際、HTMLパーサがNUL文字を U+FFFD に置き換えてしまうため、
+  // data-key 属性から読み戻した値と _udCollect() が毎回計算する値が一致せず、
+  // パネル再描画（パターン切替・行追加削除等）のたびに除外指定が無効になる不具合があった。
+  // 私用領域の文字（実データに出現しない）に変更して回避する。
+  const _UD_KEY_SEP = '';
+  // 「一括反映」の対象から外したグループ（キー：単位+区切り文字+数量）は、物量パターンごとに
+  // conditions.js 側（_packingPatterns[i].excludedUnits）へ記憶・復元する
+  // （window._udIsUnitExcluded / window._udSetUnitExcluded 経由）。パターンが無い
+  // （conditions.js 未読込等の）環境向けに、フォールバック用のローカル Set も残す。
+  const _udExcludedFallback = new Set();
+  function _udIsExcluded(key) {
+    if (typeof window._udIsUnitExcluded === 'function') return window._udIsUnitExcluded(key);
+    return _udExcludedFallback.has(key);
+  }
+  function _udSetExcluded(key, excluded) {
+    if (typeof window._udSetUnitExcluded === 'function') { window._udSetUnitExcluded(key, excluded); return; }
+    if (excluded) _udExcludedFallback.add(key); else _udExcludedFallback.delete(key);
+  }
 
   // ---------- 明細から（単位×数量）グループを収集 ----------
   function _udCollect() {
-    const map = new Map();   // key: 単位 \x00 数量 → { unit, qty, ids:[] }
+    const map = new Map();   // key: 単位 + 区切り文字 + 数量 → { unit, qty, ids:[] }
     document.querySelectorAll('#tableBody tr[id^="row-"]').forEach(tr => {
       if (tr.dataset.type || tr.dataset.virtual) return;   // リマーク・社内メモ・小計・仮想行は対象外
       const id = tr.id.replace('row-', '');
@@ -20,7 +36,7 @@
       const pqEl = document.getElementById(`pq-${id}`);
       if (!pqEl) return;
       const qty = (pqEl.value || '').trim();
-      const key = un + '\x00' + qty;
+      const key = un + _UD_KEY_SEP + qty;
       if (!map.has(key)) map.set(key, { unit: un, qty, ids: [] });
       map.get(key).ids.push(id);
     });
@@ -36,8 +52,8 @@
 
     const listHtml = groups.length
       ? groups.map(g => {
-          const key = g.unit + '\x00' + g.qty;
-          const included = !_udExcluded.has(key);
+          const key = g.unit + _UD_KEY_SEP + g.qty;
+          const included = !_udIsExcluded(key);
           return `<div class="ud-row${included ? '' : ' ud-row--excluded'}" data-ids='${JSON.stringify(g.ids)}' data-key="${escHtml(key)}">
              <input type="checkbox" class="ud-chk" ${included ? 'checked' : ''}
                     onchange="udToggleGroup(this)" title="チェックを外すと「一括反映」の対象から除外します" />
@@ -57,6 +73,7 @@
          <span class="sc-collapse-arrow">${_udCollapsed ? '▶' : '▼'}</span>
        </div>
        <div class="sc-body">
+         ${_udPatternSelectHtml()}
          <div class="qsp-cargo-info ud-cargo-info" id="qspCargoInfo" style="display:none;"></div>
          <p class="sc-hint">明細行の単位ごとに現在の数量を表示します。数値を変えて<b>「一括反映」</b>すると、その単位・数量の行をまとめて更新します。<br>数量がバラつく単位は、現在の数量ごとに分けて表示されます。チェックを外すとその単位を対象から除外できます。</p>
          ${groups.length ? `<div class="ud-select-toggle">
@@ -73,6 +90,35 @@
     if (typeof window.renderQuoteCargoInfo === 'function') window.renderQuoteCargoInfo();
   }
 
+  // 貨物情報（荷姿・貨物明細）に複数の想定パターンが登録されている場合、
+  // ここから直接切り替えて物量情報（CBM/重量/R-T/CW）を確認できるようにする。
+  // 1パターンのみ（未命名）の案件では選択の意味が無いため表示しない
+  // （貨物情報側の cdPatternTabs と同じ判定基準）。
+  function _udPatternSelectHtml() {
+    if (typeof _packingPatterns === 'undefined' || !Array.isArray(_packingPatterns)) return '';
+    const onlyOneUnnamed = _packingPatterns.length === 1 && !_packingPatterns[0].name;
+    if (onlyOneUnnamed) return '';
+    const opts = _packingPatterns.map((pt, i) => {
+      const label = pt.name || `パターン${i + 1}`;
+      const selected = i === _packingActiveIdx ? ' selected' : '';
+      return `<option value="${i}"${selected}>${escHtml(label)}</option>`;
+    }).join('');
+    return `<div class="ud-pattern-select-row">
+      <span class="ud-pattern-select-label">📦 物量パターン</span>
+      <select class="ud-pattern-select" onchange="udSwitchPattern(this.value)" title="貨物情報に登録した想定パターンを切り替えて物量情報を確認します">${opts}</select>
+    </div>
+    <p class="ud-pattern-qty-hint">💡 見積もりテーブルの数量欄（緑枠<span class="pq-pattern-linked-sample"></span>）は、パターンを切り替えて編集すると、その数量がパターンごとに記憶されます（例：「1本の場合」「2本の場合」で行の数量を変えて保存）。橙色の点線枠<span class="pq-pattern-needs-check-sample"></span>は、他のパターンでは数量が個別設定されているのに、今表示中のパターンではまだ設定されていない行です。値は自動では変わらないので、必要なら数量を入力し直してください。</p>`;
+  }
+
+  // パターン切替：貨物情報側の状態を更新してからこのパネルを再描画する
+  function udSwitchPattern(i) {
+    i = parseInt(i, 10);
+    if (Number.isNaN(i)) return;
+    if (typeof window.switchPackingPattern === 'function') window.switchPackingPattern(i);
+    _udRenderPanel();
+  }
+  window.udSwitchPattern = udSwitchPattern;
+
   // ---------- 操作 ----------
   function scToggleCollapse() { _udCollapsed = !_udCollapsed; _udRenderPanel(); }
   function udRefresh() { _udRenderPanel(); }
@@ -82,7 +128,7 @@
     const rowEl = chk.closest('.ud-row');
     if (!rowEl) return;
     const key = rowEl.dataset.key || '';
-    if (chk.checked) _udExcluded.delete(key); else _udExcluded.add(key);
+    _udSetExcluded(key, !chk.checked);
     rowEl.classList.toggle('ud-row--excluded', !chk.checked);
     const inp = rowEl.querySelector('.ud-qty-in');
     if (inp) inp.disabled = !chk.checked;

@@ -45,7 +45,7 @@
   // それぞれ独立アイコンとして並べ、押下時に qspSetTab(tab) で切替える。
   const MODS = [
     { id: 'digest',   icon: '🧭', label: 'ジャンプ', title: 'ジャンプ',     panel: 'quoteSummaryPanel', tab: 'digest' },
-    { id: 'flow',     icon: '🚚', label: '輸送',    title: '輸送',         panel: 'quoteSummaryPanel', tab: 'flow'   },
+    { id: 'compare',  icon: '⚖️', label: '比較',    title: '同一項目の最安値比較', panel: 'cmpRailPanel' },
     { id: 'bookmark', icon: '🔖', label: 'ブク',    title: 'ブックマーク',  panel: 'bmRailPanel' },
     { id: 'fin',      icon: '💰', label: '金額',    title: '金額',         panel: 'quoteSummaryPanel', tab: 'fin'    },
     { id: 'chat',     icon: '💬', label: '申し送り', title: '申し送り',     panel: 'quoteSummaryPanel', tab: 'chat'   },
@@ -80,6 +80,7 @@
       quoteSummaryPanel: document.getElementById('quoteSummaryPanel'),
       sqPanel:           document.getElementById('sqPanel'),
       scPanel:           document.getElementById('scPanel'),
+      cmpRailPanel:      document.getElementById('cmpRailPanel'),
       siPanel:           document.getElementById('siPanel'),
       lcRailPanel:       document.getElementById('lcRailPanel'),
       bmRailPanel:       document.getElementById('bmRailPanel'),
@@ -175,6 +176,10 @@
     if (mod === 'subcon' && typeof window.loadSubconPanel === 'function') {
       window.loadSubconPanel();
     }
+    // 比較パネル：アクティブ化時に最新の行データで再描画
+    if (mod === 'compare' && typeof window.renderCompareRail === 'function') {
+      window.renderCompareRail();
+    }
     // 諸チャージパネル：アクティブ化時にデータロード
     if (mod === 'charges' && typeof window.loadChargesRail === 'function') {
       window.loadChargesRail();
@@ -208,7 +213,7 @@
 
     // パネル出し分け（active のモジュールの panel だけ表示）
     const showPanel = def ? def.panel : null;
-    ['quoteSummaryPanel', 'sqPanel', 'scPanel', 'siPanel', 'lcRailPanel', 'bmRailPanel'].forEach(function (id) {
+    ['quoteSummaryPanel', 'sqPanel', 'scPanel', 'cmpRailPanel', 'siPanel', 'lcRailPanel', 'bmRailPanel'].forEach(function (id) {
       const el = document.getElementById(id);
       if (!el) return;
       // sqPanel は内部で hidden 属性を自前制御するため、表示は wrapper 側で行う
@@ -243,6 +248,12 @@
     if (siBtn) {
       const n = document.querySelectorAll('#siPanel .rp-sc-card').length;
       _setBadge(siBtn, n > 0 ? String(n) : '');
+    }
+    // 比較：同一品名で比較可能な項目数バッジ
+    const cmpBtn = col.querySelector('.qrc-rail-btn[data-mod="compare"]');
+    if (cmpBtn) {
+      const n = (typeof window.getCompareGroupCount === 'function') ? window.getCompareGroupCount() : 0;
+      _setBadge(cmpBtn, n > 0 ? String(n) : '');
     }
     // 諸チャージ：期限切れ・期限間近にドット
     const lcBtn = col.querySelector('.qrc-rail-btn[data-mod="charges"]');
