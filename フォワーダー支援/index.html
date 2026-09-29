@@ -3671,6 +3671,16 @@
                         <div style="margin-top:5px; font-size:11px; color:#888;">※ カテゴリ削除後、そのカテゴリが設定された行は「未設定」になります。<br>※ カスタムカテゴリはブラウザの localStorage に保存されます（同じブラウザ内のみ有効）。</div>
                       </details>
                     </div>
+                    <div id="catOrderPanel">
+                      <details id="catOrderDetails">
+                        <summary onclick="renderCatOrderPanel()">⇅ カテゴリ並び順（「⇅カテゴリ」ソートで使う順序）</summary>
+                        <div id="catOrderList" class="cat-order-list"></div>
+                        <div class="cat-order-actions">
+                          <button type="button" class="cat-order-reset-btn" onclick="resetCatOrder()">既定の順序に戻す</button>
+                        </div>
+                        <div style="margin-top:5px; font-size:11px; color:#888;">※ ドラッグで並べ替えると「⇅カテゴリ」ボタンの並び順に反映されます。</div>
+                      </details>
+                    </div>
                   </div>
                 </details>
               </div><!-- /quote-fx-wrap -->

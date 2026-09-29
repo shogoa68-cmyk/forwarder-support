@@ -6915,6 +6915,27 @@ body.qp-dash-active #quoteActionDock { display: none !important; }
 #tab-quote-make .user-cat-chip.cat-user-c { background: #f0e8d8; border-color: #8b6914; }
 #tab-quote-make .user-cat-chip.cat-user-d { background: #e8d9c2; border-color: #9a4a25; }
 #tab-quote-make .user-cat-chip.cat-user-e { background: #fef9e7; border-color: #f39c12; }
+/* ========== カテゴリ並び順（「⇅カテゴリ」ソート用） ========== */
+#tab-quote-make .cat-order-list {
+  display: flex; flex-direction: column; gap: 3px;
+  max-height: 240px; overflow-y: auto; margin-bottom: 6px;
+}
+#tab-quote-make .cat-order-item {
+  display: flex; align-items: center; gap: 6px;
+  padding: 4px 7px; border-radius: 4px;
+  background: #f7f4ee; border: 1px solid #d9cfc2;
+  font-size: 12px; cursor: grab;
+}
+#tab-quote-make .cat-order-item.is-dragging { opacity: 0.4; }
+#tab-quote-make .cat-order-grip { color: #a89a82; flex-shrink: 0; }
+#tab-quote-make .cat-order-label { flex: 1; }
+#tab-quote-make .cat-order-actions { display: flex; justify-content: flex-end; }
+#tab-quote-make .cat-order-reset-btn {
+  background: #ece9e4; color: #555; border: none;
+  padding: 3px 9px; border-radius: 4px; font-size: 11px;
+  cursor: pointer; font-family: inherit;
+}
+#tab-quote-make .cat-order-reset-btn:hover { background: #ddd8d0; }
 /* ========== 貨物情報フィールド並び替え ========== */
 #tab-quote-make .cond-sort-handle {
   display: inline-block;

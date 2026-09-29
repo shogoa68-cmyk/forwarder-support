@@ -18,6 +18,7 @@ window.SharedStorage = (function () {
     // 見積支援
     QUOTE_DATA:        'quoteData',           // 見積の自動保存
     USER_CATEGORIES:   'userCategories_v1',   // 自作カテゴリ
+    CATEGORY_ORDER:    'categoryOrder_v1',    // カテゴリ並び替え（↑↓カテゴリ）の任意順序
     FX_RATES:          'fxRates_v1',          // 為替レート（ユーザ上書き含む）
     FX_AUTO_MODE:      'fxAutoMode_v1',       // 為替自動取得モード
     FX_LAST_FETCHED:   'fxLastFetched_v1',    // 為替最終取得時刻
