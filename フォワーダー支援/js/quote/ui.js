@@ -745,6 +745,7 @@
     if (input) input.value = '';
     renderUserCatPanel();
     refreshAllCategoryDropdowns();
+    if (typeof renderCatOrderPanel === 'function') renderCatOrderPanel();   // 新規カテゴリを並び順の末尾に反映
     quoteShowToast(`✅ カテゴリ「${label}」を追加しました`, 'success');
   }
 
@@ -756,6 +757,7 @@
     saveUserCategories(cats.filter(c => c.value !== value));
     renderUserCatPanel();
     refreshAllCategoryDropdowns();
+    if (typeof renderCatOrderPanel === 'function') renderCatOrderPanel();   // 削除したカテゴリを並び順からも除去
     quoteShowToast(`🗑️ 「${cat.label}」を削除しました`, 'info');
   }
 
@@ -784,6 +786,65 @@
     sel.innerHTML = html;
     sel.value = '__none__';
   }
+
+  // ========== カテゴリ並び順（「⇅カテゴリ」ソートで使う任意順序） ==========
+  function renderCatOrderPanel() {
+    const order = getCategoryOrder();
+    const byValue = Object.create(null);
+    getAllCategories().forEach(c => { byValue[c.value] = c; });
+    const list = document.getElementById('catOrderList');
+    if (!list) return;
+    list.innerHTML = order.map(v => {
+      const c = byValue[v];
+      if (!c) return '';
+      return `<div class="cat-order-item" draggable="true" data-value="${escHtml(v)}"
+                   ondragstart="_catOrderDragStart(event)" ondragover="_catOrderDragOver(event)"
+                   ondrop="_catOrderDrop(event)" ondragend="_catOrderDragEnd()">
+                <span class="cat-order-grip" title="ドラッグで並び替え">⠿</span>
+                <span class="cat-order-label">${escHtml(c.label)}</span>
+              </div>`;
+    }).join('');
+  }
+  window.renderCatOrderPanel = renderCatOrderPanel;
+
+  let _catOrderDragSrc = null;
+  function _catOrderDragStart(e) {
+    _catOrderDragSrc = e.currentTarget;
+    e.dataTransfer.effectAllowed = 'move';
+    e.currentTarget.classList.add('is-dragging');
+  }
+  function _catOrderDragOver(e) {
+    e.preventDefault();
+    const target = e.currentTarget;
+    if (!_catOrderDragSrc || target === _catOrderDragSrc) return;
+    const list = document.getElementById('catOrderList');
+    if (!list) return;
+    const items = Array.from(list.children);
+    const srcIdx = items.indexOf(_catOrderDragSrc);
+    const tgtIdx = items.indexOf(target);
+    if (srcIdx < tgtIdx) list.insertBefore(_catOrderDragSrc, target.nextSibling);
+    else list.insertBefore(_catOrderDragSrc, target);
+  }
+  function _catOrderDrop(e) { e.preventDefault(); }
+  function _catOrderDragEnd() {
+    if (_catOrderDragSrc) _catOrderDragSrc.classList.remove('is-dragging');
+    _catOrderDragSrc = null;
+    const list = document.getElementById('catOrderList');
+    if (!list) return;
+    saveCategoryOrder(Array.from(list.children).map(el => el.dataset.value));
+  }
+  window._catOrderDragStart = _catOrderDragStart;
+  window._catOrderDragOver  = _catOrderDragOver;
+  window._catOrderDrop      = _catOrderDrop;
+  window._catOrderDragEnd   = _catOrderDragEnd;
+
+  function resetCatOrder() {
+    if (!confirm('カテゴリの並び順を既定に戻しますか？')) return;
+    saveCategoryOrder([]);   // 空にすると getCategoryOrder() は既定の並びを返す
+    renderCatOrderPanel();
+    quoteShowToast('↩️ カテゴリの並び順を既定に戻しました', 'info');
+  }
+  window.resetCatOrder = resetCatOrder;
 
   // 選択（チェック）行のカテゴリを一括設定。選択は維持し、続けてサブコン設定も可能にする
   function applyBulkCategorySet(sel) {

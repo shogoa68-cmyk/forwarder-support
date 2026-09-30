@@ -1127,7 +1127,8 @@
     const allRows = Array.from(tbody.querySelectorAll('tr:not([data-virtual])'));
     if (allRows.length < 2) return;
     const getId = tr => tr.id.replace('row-', '');
-    const catOrder = cat => { const i = CAT_VALUES.indexOf(cat); return i === -1 ? 999 : i; };
+    const _catOrderList = (typeof getCategoryOrder === 'function') ? getCategoryOrder() : CAT_VALUES;
+    const catOrder = cat => { const i = _catOrderList.indexOf(cat); return i === -1 ? 999 : i; };
 
     // データ行＋直後の子リマークを1ブロックとして扱う（ソートで親から離れないように）。
     // 小計行（手動区切り）は従来通りソート対象外・末尾へ（E-6）。
@@ -1202,7 +1203,8 @@
     const tbody = document.getElementById('tableBody');
     const members = _groupMemberRows(svKey, ptKey);
     if (members.length < 2) return;
-    const catOrder = cat => { const i = CAT_VALUES.indexOf(cat); return i === -1 ? 999 : i; };
+    const _catOrderList = (typeof getCategoryOrder === 'function') ? getCategoryOrder() : CAT_VALUES;
+    const catOrder = cat => { const i = _catOrderList.indexOf(cat); return i === -1 ? 999 : i; };
     // データ行＋直後の子リマークを1ブロックとして扱う（ソートで親から離れないように）
     const blocks = members.map(tr => ({ row: tr, rows: [tr, ...getChildRemarks(tr.id.replace('row-', ''))] }));
     const sorted = [...blocks].sort((a, b) => {

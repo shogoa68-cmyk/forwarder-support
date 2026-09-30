@@ -1024,8 +1024,13 @@
     if (head && fl) {
       let startX, startY, startL, startT;
       function onMove(e) {
-        fl.style.left   = Math.max(0, Math.min(window.innerWidth  - 80, startL + e.clientX - startX)) + 'px';
-        fl.style.top    = Math.max(0, Math.min(window.innerHeight - 40, startT + e.clientY - startY)) + 'px';
+        // 固定値（80px/40px）でクランプすると、付箋の実際の幅・高さより小さい場合に
+        // 右端・下端に寄せたとき閉じるボタン（ヘッダー右側）が画面外へ出て押せなくなる
+        // 不具合があったため、実際の要素サイズを基準にクランプする
+        const w = fl.offsetWidth  || 80;
+        const h = fl.offsetHeight || 40;
+        fl.style.left   = Math.max(0, Math.min(window.innerWidth  - w, startL + e.clientX - startX)) + 'px';
+        fl.style.top    = Math.max(0, Math.min(window.innerHeight - h, startT + e.clientY - startY)) + 'px';
       }
       function onUp() {
         document.removeEventListener('mousemove', onMove);
