@@ -747,7 +747,20 @@ function calcPalletize() {
     `合計${totalQtyAll}個`, `${bins.length}パレット`
   ]);
 
-  const van3dId = `van3d-host-${++_van3dSeq}`;
+  // パレットごとに3Dプレビューを表示（同時WebGL描画数が増えすぎないよう上限を設ける）
+  const MAX_3D_PALLETS = 6;
+  const preview3dBins = bins.slice(0, MAX_3D_PALLETS);
+  const van3dIds = preview3dBins.map(() => `van3d-host-${++_van3dSeq}`);
+  const preview3dHtml = preview3dBins.map((b, bi) =>
+    `<div style="margin-top:14px;">
+      <div style="font-size:11px;font-weight:700;color:var(--text-md);margin-bottom:6px;">🧊 3D積み付けプレビュー（パレット${bi + 1}）</div>
+      <div id="${van3dIds[bi]}"></div>
+    </div>`
+  ).join('');
+  const preview3dOmitNote = bins.length > MAX_3D_PALLETS
+    ? `<p style="font-size:11px;color:#718096;margin-top:10px;">※ 3Dプレビューは先頭${MAX_3D_PALLETS}パレット分のみ表示しています（同時描画数の制限のため）。${MAX_3D_PALLETS + 1}枚目以降は上記「パレット別 推奨配分」の内訳をご確認ください。</p>`
+    : '';
+
   appendCalcResult('pal-result',
     `<div style="margin-bottom:10px;">
       <div style="font-size:11px;font-weight:700;color:var(--text-md);margin-bottom:6px;">📦 品種別内訳</div>
@@ -764,12 +777,18 @@ function calcPalletize() {
       </div>
     </div>
     <p style="font-size:11px;color:#718096;margin-top:10px;">※ 3Dビンパッキング（床面支持率80%以上を配置条件）による理論値。実際の積み付けは現場でご確認ください。</p>
-    <div style="margin-top:12px;font-size:11px;font-weight:700;color:var(--text-md);">🧊 3D積み付けプレビュー（パレット1枚目）</div>
-    <div id="${van3dId}"></div>`,
+    ${preview3dOmitNote}
+    ${preview3dHtml}`,
     inputLine);
 
   const contDefs = { pallet: { l: pw, w: pd, h: maxH, label: `${pwDisp}×${pdDisp}${palUnit} / 高さ上限${maxHDisp}${palUnit}` } };
-  window.Vanning3D.mountPreview('#' + van3dId, cargo, contDefs, 'pallet');
+  preview3dBins.forEach((b, bi) => {
+    // そのパレットに実際に積まれた品種・個数だけを渡す（他パレット分は含めない）
+    const binCargo = cargo
+      .map((r, i) => (b.countByOrig[i] > 0 ? { ...r, qty: b.countByOrig[i] } : null))
+      .filter(Boolean);
+    window.Vanning3D.mountPreview('#' + van3dIds[bi], binCargo, contDefs, 'pallet');
+  });
 }
 
 // 複数品種・複数個数の貨物を、1パレット分ずつ Vanning3D.packContainer で詰め切るまで
