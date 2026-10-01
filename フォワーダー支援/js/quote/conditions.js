@@ -2009,11 +2009,11 @@
       const label = pt.name || `パターン${i + 1}`;
       const active = i === _packingActiveIdx;
       const n = (pt.entries || []).filter(e => e && e.pkg).length;
-      const shown = pt.showInQuote !== false;   // 未設定（旧データ）は表示扱い
+      const shown = _isPatternVisibleInQuote(pt, i);
       return `<span class="cd-pattern-tab${active ? ' is-active' : ''}${shown ? '' : ' is-hidden-from-quote'}" onclick="switchPackingPattern(${i})" title="クリックでこのパターンに切り替え（他のパターンの内容は保持されます）">` +
         `<span class="cd-pattern-tab-label">${_escMulti(label)}</span>` +
         (n ? `<span class="cd-pattern-tab-count">${n}</span>` : '') +
-        `<span class="cd-pattern-tab-vis" onclick="event.stopPropagation();togglePackingPatternVisibility(${i})" title="${shown ? 'クリックで「見積書に表示しない」に切替（社内比較用のみになります）' : 'クリックで「見積書に表示」に切替'}">${shown ? '📄' : '🔒'}</span>` +
+        `<span class="cd-pattern-tab-vis" onclick="event.stopPropagation();togglePackingPatternVisibility(${i})" title="${shown ? 'クリックで「見積書に表示しない」に固定します（社内比較用のみになります）' : 'クリックで「見積書に表示」に固定します（選択中のタブでなくても表示されます）'}">${shown ? '📄' : '🔒'}</span>` +
         `<span class="cd-pattern-tab-rename" onclick="event.stopPropagation();renamePackingPattern(${i})" title="パターン名を変更">✎</span>` +
         (_packingPatterns.length > 1 ? `<span class="cd-pattern-tab-del" onclick="event.stopPropagation();removePackingPattern(${i})" title="このパターンを削除">×</span>` : '') +
         `</span>`;
@@ -2164,7 +2164,9 @@
   window.togglePackingPatternVisibility = function (i) {
     const pt = _packingPatterns[i];
     if (!pt) return;
-    pt.showInQuote = (pt.showInQuote === false);   // false→true→false…と反転
+    // 現在の実効表示状態（未設定時はアクティブタブかどうかで決まる）の反対を、明示的な
+    // true/false として固定する。以後はタブ切替に関わらずこの指定が優先される
+    pt.showInQuote = !_isPatternVisibleInQuote(pt, i);
     _renderPackingPatternTabs();
     _syncPackingPatternsData();
     if (typeof window.renderQuoteCargoInfo === 'function') window.renderQuoteCargoInfo();
@@ -2362,11 +2364,22 @@
     }).join('\n');
   }
 
-  // 「見積書に表示」がONのパターンのみを対象にする（🔒に切り替えたパターンは社内比較用のみ）
+  // このパターンを見積書（PDF・プレビュー・メール本文）に出力するかどうか：
+  // ・showInQuote === false … 明示的に「見積書に表示しない」（🔒）＝常に除外
+  // ・showInQuote === true  … 明示的に「見積書に表示」（📄）＝アクティブタブでなくても常に含める
+  //                           （複数パターンをあえて併記したい場合の追加表示用）
+  // ・未設定（既定）        … 現在アクティブなタブのパターンのみ表示。タブを切り替えると
+  //                           見積書に出る物量パターンも自動的に切り替わる
+  function _isPatternVisibleInQuote(pt, i) {
+    if (pt.showInQuote === false) return false;
+    if (pt.showInQuote === true) return true;
+    return i === _packingActiveIdx;
+  }
+
   function _visiblePackingPatterns() {
     return (_packingPatterns || [])
       .map((pt, i) => ({ pt, i }))
-      .filter(({ pt }) => pt.showInQuote !== false);
+      .filter(({ pt, i }) => _isPatternVisibleInQuote(pt, i));
   }
 
   // 表示対象パターンごとに blockFn(pt, i) の結果をまとめる共通処理。
@@ -2605,7 +2618,10 @@
         entries: Array.isArray(pt && pt.entries)
           ? pt.entries.map(e => (typeof e === 'string') ? { pkg: e, qty: 1, l:'', w:'', h:'', kg:'', stack:'可' } : e)
           : [],
-        showInQuote: (pt && pt.showInQuote === false) ? false : true,
+        // 明示的な true/false のみ保持し、未設定ならそのまま未設定に戻す
+        // （未設定＝「アクティブタブのみ表示」という既定挙動を復元後も効かせるため、
+        // ここで true に丸め込まない）
+        showInQuote: (pt && typeof pt.showInQuote === 'boolean') ? pt.showInQuote : undefined,
         qtyLinks: (pt && pt.qtyLinks && typeof pt.qtyLinks === 'object') ? pt.qtyLinks : {},
         excludedUnits: Array.isArray(pt && pt.excludedUnits) ? pt.excludedUnits : [],
         hideLinks: (pt && pt.hideLinks && typeof pt.hideLinks === 'object') ? pt.hideLinks : {},
