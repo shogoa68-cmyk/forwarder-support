@@ -221,10 +221,16 @@
       const detail = _hazmatDetail(cond.hazmat);
       push('特殊貨物区分', cond.hazmat + (detail ? `（${detail}）` : ''));
     }
-    // 物量情報
-    push('荷姿明細', _packingDetail() || cond.packing);
-    push('総重量', cond.weight);
-    push('総容積', cond.volume);
+    // 物量情報：複数パターン案件はパターンごとのツリー形式で1行にまとめ、
+    // 【パターンA】が項目ごとに繰り返し表示されるのを避ける。単一パターンの
+    // 案件では従来通り3項目に分けて表示する（見た目を変えない）。
+    if (cond.cargoPatternTree) {
+      push('物量情報', cond.cargoPatternTree);
+    } else {
+      push('荷姿明細', _packingDetail() || cond.packing);
+      push('総重量', cond.weight);
+      push('総容積', cond.volume);
+    }
     // 課金基準の目安：LCL は R/T、AIR は CW（容積重量課金）を表示。
     // 貨物情報（サイズ・重量）が入力されている場合のみ。
     const _billing = (typeof window.getCargoBillingLine === 'function') ? window.getCargoBillingLine(cond.mode) : null;

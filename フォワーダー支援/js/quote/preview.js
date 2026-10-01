@@ -872,9 +872,15 @@
       { lbl: '関税率（基本）',   val: cond.hsBasic },
       { lbl: '協定税率',        val: cond.hsPref },
       { lbl: '協定税率 備考',   val: cond.hsPrefNote },
-      { lbl: '重量',            val: cond.weight },
-      { lbl: '容積',            val: cond.volume },
-      { lbl: '荷姿明細',        val: (typeof window.getPackingDetailText === 'function' ? window.getPackingDetailText() : cond.packing) },
+      // 物量情報：複数パターン案件はツリー形式で1項目にまとめる（【パターン名】が
+      // 項目ごとに繰り返されるのを避ける）。単一パターンの案件では従来通り3項目に分ける。
+      ...(cond.cargoPatternTree
+        ? [{ lbl: '物量情報', val: cond.cargoPatternTree }]
+        : [
+            { lbl: '重量', val: cond.weight },
+            { lbl: '容積', val: cond.volume },
+            { lbl: '荷姿明細', val: (typeof window.getPackingDetailText === 'function' ? window.getPackingDetailText() : cond.packing) },
+          ]),
       { lbl: '危険品',          val: cond.hazmat },
     ].filter(f => f.val);
     const _billing = (typeof window.getCargoBillingLine === 'function') ? window.getCargoBillingLine(cond.mode) : null;
