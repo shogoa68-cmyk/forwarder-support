@@ -2388,10 +2388,14 @@
   // 【パターン名】を前置きし、改行で区切る（荷姿明細・総重量・総容積で共用）。
   function _buildPatternBreakdownText(blockFn) {
     const visible = _visiblePackingPatterns();
+    // パターン名は「表示対象が複数件」ではなく「案件に複数パターンが登録されているか」で
+    // 判定する。アクティブタブのみ表示（既定挙動）で表示件数が1件に絞られていても、
+    // 他にもパターンが存在する案件では「どのパターンか」が分かるよう名称を残す。
+    const multiPattern = (_packingPatterns || []).length > 1;
     const blocks = visible.map(({ pt, i }) => {
       const text = blockFn(pt, i);
       if (!text) return '';
-      return visible.length > 1 ? `【${pt.name || `パターン${i + 1}`}】${text}` : text;
+      return multiPattern ? `【${pt.name || `パターン${i + 1}`}】${text}` : text;
     }).filter(Boolean);
     return blocks.join('\n');
   }
