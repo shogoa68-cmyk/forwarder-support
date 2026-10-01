@@ -196,7 +196,13 @@
     }).join('') + '</div>';
   }
 
-  function mountPreview(hostSelector, cargoRows, contDefs, initialKey) {
+  // opts.precomputed：呼び出し側で既に配置計算済みの packResult 相当オブジェクトを渡すと、
+  // packContainer() を呼ばずそれをそのまま描画に使う（パレタイズのレイヤー積みパターンなど、
+  // 汎用ヒューリスティックとは別のアルゴリズムで配置を決めたい場合に使用）。
+  // initialKey のコンテナに対してのみ有効（コンテナ切替セレクトで他キーへ変更した場合は
+  // 通常どおり packContainer() で計算する）。
+  function mountPreview(hostSelector, cargoRows, contDefs, initialKey, opts) {
+    opts = opts || {};
     const hostEl = document.querySelector(hostSelector);
     if (!hostEl || !cargoRows.length) return;
 
@@ -229,6 +235,7 @@
     };
 
     function getPackResult(key) {
+      if (opts.precomputed && key === initialKey) return opts.precomputed;
       if (!state.cache[key]) state.cache[key] = packContainer(cargoRows, contDefs[key]);
       return state.cache[key];
     }

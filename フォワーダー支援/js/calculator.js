@@ -866,8 +866,7 @@ function calcPalletize() {
   if (cargo.length === 0) { quoteShowToast('⚠️ 箱の寸法を入力してください', 'warning'); return; }
   if (!window.Vanning3D) { quoteShowToast('⚠️ 3D計算モジュールを読み込めませんでした', 'error'); return; }
 
-  const container = { l: pw, w: pd, h: maxH };
-  const { bins, leftoverByOrig } = _palPackMultiBin(cargo, container);
+  const { bins, leftoverByOrig } = _packPalletsLayered(cargo, pw, pd, maxH);
 
   if (bins.length === 0) {
     quoteShowToast('⚠️ パレットサイズ・高さ上限に対して箱が大きすぎます', 'warning');
@@ -955,39 +954,135 @@ function calcPalletize() {
 
   const contDefs = { pallet: { l: pw, w: pd, h: maxH, label: `${pwDisp}×${pdDisp}${palUnit} / 高さ上限${maxHDisp}${palUnit}` } };
   preview3dBins.forEach((b, bi) => {
-    // そのパレットに実際に積まれた品種・個数だけを渡す（他パレット分は含めない）
-    const binCargo = cargo
-      .map((r, i) => (b.countByOrig[i] > 0 ? { ...r, qty: b.countByOrig[i] } : null))
-      .filter(Boolean);
-    window.Vanning3D.mountPreview('#' + van3dIds[bi], binCargo, contDefs, 'pallet');
+    // _packPalletsLayered で計算済みの配置（段積みパターン）をそのまま描画に使う。
+    // cargo は品種配列全体を渡す（typeIndex は元の品種インデックスと一致しているため、
+    // 全パレットで凡例の「品種N」番号が揃う）
+    const usedVolume = b.placed.reduce((s, p) => s + p.w * p.d * p.h, 0);
+    const precomputed = {
+      placed: b.placed,
+      overflowByType: {}, uncimulatedByType: {}, overhang: { l: 0, w: 0, h: 0 },
+      totalRequested: b.placed.length, totalPlaced: b.placed.length,
+      usedVolume, containerVolume: pw * pd * maxH, utilization: b.utilization,
+    };
+    window.Vanning3D.mountPreview('#' + van3dIds[bi], cargo, contDefs, 'pallet', { precomputed });
   });
 }
 
-// 複数品種・複数個数の貨物を、1パレット分ずつ Vanning3D.packContainer で詰め切るまで
-// パレットを積み増していく（厳密なビンパッキングではなく「1枚ずつ最善配置→残りを次へ」の
-// 貪欲法だが、品種混載時の必要パレット数を体積ベース推定より正確に見積もれる）。
-function _palPackMultiBin(cargoRows, container, maxBins) {
+// ================================================================
+//  パレタイズ：段（レイヤー）単位の積み付けアルゴリズム
+//  実務のパレタイズ（ブロック積み・レンガ積み等）は「1段を床面いっぱいに敷き詰めてから
+//  次の段へ」が基本だが、Vanning3D.packContainer は箱を体積の大きい順に「どこかに
+//  とにかく置く」3D自由配置ヒューリスティックのため、高さの異なる品種が混在すると
+//  段ごとの高さが揃わず階段状の隙間ができやすい（パレタイズでは特に目立つ）。
+//  この2関数は、段ごとに床面を2Dビンパッキング（ギロチン分割+Best-Area-Fit）で
+//  敷き詰めてから次の段へ進む方式で、より隙間の少ない・現実の積み付けに近い結果を作る。
+// ================================================================
+
+// 1段分の床面（pw×pd）へ、候補品種（footprint l×w、各qty）を敷き詰める。
+// candidates: [{l,w,qty,...}]。返り値 placements の ci は candidates 内のインデックス。
+function _fillLayerFootprint(candidates, pw, pd) {
+  const EPS = 1e-6;
+  const remainingQty = candidates.map(c => c.qty);
+  const placements = [];
+  let freeRects = [{ x: 0, y: 0, w: pw, d: pd }];
+  // 床面積が大きい品種から優先的に配置（大きい箱を先に置かないと隙間だらけになりやすい）
+  const order = candidates.map((c, i) => i).sort((a, b) => (candidates[b].l * candidates[b].w) - (candidates[a].l * candidates[a].w));
+
+  let progressed = true;
+  while (progressed) {
+    progressed = false;
+    for (const ci of order) {
+      if (remainingQty[ci] <= 0) continue;
+      const c = candidates[ci];
+      // 最も小さい空き矩形から試す（Best-Area-Fit：余白を細切れにしすぎないため）
+      freeRects.sort((a, b) => (a.w * a.d) - (b.w * b.d));
+      let placedHere = false;
+      for (let ri = 0; ri < freeRects.length; ri++) {
+        const r = freeRects[ri];
+        const orients = [[c.l, c.w], [c.w, c.l]]; // 通常向き・90度回転の両方を試す
+        for (const [pw_, pd_] of orients) {
+          if (pw_ <= r.w + EPS && pd_ <= r.d + EPS) {
+            placements.push({ x: r.x, y: r.y, w: pw_, d: pd_, ci });
+            remainingQty[ci]--;
+            // ギロチン分割：配置した箱の右側帯・下側帯を新しい空き矩形として残す
+            const rightRect  = { x: r.x + pw_, y: r.y, w: r.w - pw_, d: pd_ };
+            const bottomRect = { x: r.x, y: r.y + pd_, w: r.w, d: r.d - pd_ };
+            freeRects.splice(ri, 1);
+            if (rightRect.w > EPS && rightRect.d > EPS) freeRects.push(rightRect);
+            if (bottomRect.w > EPS && bottomRect.d > EPS) freeRects.push(bottomRect);
+            placedHere = true;
+            progressed = true;
+            break;
+          }
+        }
+        if (placedHere) break;
+      }
+    }
+  }
+  return { placements, consumed: remainingQty.map((rq, i) => candidates[i].qty - rq) };
+}
+
+// 1パレット分を、段（レイヤー）を積み上げながら埋める。
+// remainingTypes: [{idx, l, w, h, qty, noStack}, ...]（呼び出し側が全体の残数を保持し、
+// この関数は配置した分だけ各要素の qty を直接減算する＝副作用あり）
+function _packPalletLayered(remainingTypes, pw, pd, maxH) {
+  const EPS = 1e-6;
+  const placed = [];
+  let z = 0;
+  while (true) {
+    const headroom = maxH - z;
+    if (headroom <= EPS) break;
+    const avail = remainingTypes.filter(r => r.qty > 0 && r.h <= headroom + EPS && (!r.noStack || z < EPS));
+    if (!avail.length) break;
+    // この段の高さ：入る高さの中で最も個数（総量）が多いものを採用（段数を減らし床効率を優先）
+    const heightQty = {};
+    avail.forEach(r => { heightQty[r.h] = (heightQty[r.h] || 0) + r.qty; });
+    let layerH = Object.keys(heightQty).map(Number)
+      .sort((a, b) => heightQty[b] - heightQty[a] || b - a)[0];
+    // 床置き限定（段積み不可）の品種は z===0 の今しか置けない。選ばれた段高がその品種の
+    // 高さ未満だと配置チャンスを逃して積み残しになってしまうため、必要なら段高を押し上げる。
+    if (z < EPS) {
+      const noStackMaxH = avail.reduce((m, r) => r.noStack ? Math.max(m, r.h) : m, 0);
+      if (noStackMaxH > layerH) layerH = noStackMaxH;
+    }
+    const layerCandidates = avail.filter(r => r.h <= layerH + EPS);
+    const { placements, consumed } = _fillLayerFootprint(layerCandidates, pw, pd);
+    if (!placements.length) break; // 進捗なし→無限ループ防止で打ち切り
+    placements.forEach(pl => {
+      const type = layerCandidates[pl.ci];
+      placed.push({ x: pl.x, y: pl.y, z, w: pl.w, d: pl.d, h: type.h, typeIndex: type.idx });
+    });
+    consumed.forEach((cnt, ci) => { layerCandidates[ci].qty -= cnt; });
+    z += layerH;
+  }
+  return placed;
+}
+
+// 複数品種・複数個数の貨物を、1パレット分ずつ _packPalletLayered で詰め切るまで
+// パレットを積み増していく。
+function _packPalletsLayered(cargo, pw, pd, maxH, maxBins) {
   maxBins = maxBins || 60;
-  const remaining = cargoRows.map(r => ({ ...r, qty: Math.max(1, parseInt(r.qty, 10) || 1) }));
+  const remaining = cargo.map((r, i) => ({ idx: i, l: r.bl, w: r.bw, h: r.bh, qty: Math.max(1, parseInt(r.qty, 10) || 1), noStack: r.rowNoStack }));
   const bins = [];
   while (remaining.some(r => r.qty > 0) && bins.length < maxBins) {
-    const activeIdxList = [];
-    const activeRows = [];
-    remaining.forEach((r, i) => { if (r.qty > 0) { activeIdxList.push(i); activeRows.push(r); } });
-    const result = window.Vanning3D.packContainer(activeRows, container);
-    if (result.totalPlaced === 0) break; // どの個体も1つも入らない（単体でサイズ超過）→無限ループ防止
+    const placed = _packPalletLayered(remaining, pw, pd, maxH);
+    if (!placed.length) break; // どの個体も1つも入らない（単体でサイズ超過）→無限ループ防止
     const countByOrig = {};
     let binWeight = 0;
-    result.placed.forEach(p => {
-      const origIdx = activeIdxList[p.typeIndex];
-      countByOrig[origIdx] = (countByOrig[origIdx] || 0) + 1;
-      binWeight += cargoRows[origIdx].weight || 0;
+    let usedVolume = 0;
+    placed.forEach(p => {
+      countByOrig[p.typeIndex] = (countByOrig[p.typeIndex] || 0) + 1;
+      binWeight += cargo[p.typeIndex].weight || 0;
+      usedVolume += p.w * p.d * p.h;
     });
-    Object.entries(countByOrig).forEach(([origIdx, cnt]) => { remaining[origIdx].qty -= cnt; });
-    bins.push({ countByOrig, binWeight, utilization: result.utilization });
+    const containerVolume = pw * pd * maxH;
+    bins.push({
+      placed, countByOrig, binWeight,
+      utilization: containerVolume > 0 ? (usedVolume / containerVolume * 100) : 0,
+    });
   }
   const leftoverByOrig = {};
-  remaining.forEach((r, i) => { if (r.qty > 0) leftoverByOrig[i] = r.qty; });
+  remaining.forEach(r => { if (r.qty > 0) leftoverByOrig[r.idx] = r.qty; });
   return { bins, leftoverByOrig };
 }
 
