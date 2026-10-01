@@ -1910,7 +1910,7 @@
     <!-- 4. パレタイズシミュレーション -->
     <div class="card">
       <div class="section-title">🔲 パレタイズシミュレーション</div>
-      <p class="calc-desc">パレット上に箱が何個積めるかをシミュレーションします。最も効率的な向きを自動選択します。<br>
+      <p class="calc-desc">サイズ・重量が異なる複数品種を登録すると、3Dビンパッキングで効率よく混載できる配分（何をどのパレットに何個積むか）を自動提案し、3Dプレビューで確認できます。<br>
         <span style="font-size:11px;line-height:1.9;">📦 標準パレットサイズ：T11（日本標準） <strong>1100×1100mm</strong>　／　ISO/EUR-2 <strong>1200×1000mm</strong>　／　EUR pallet <strong>1200×800mm</strong>　／　北米標準 <strong>1219×1016mm</strong>（48×40インチ）</span></p>
       <div class="calc-shared-opts">
         <div class="calc-field"><span class="calc-label">単位（全行共通／カスタムパレット含む）</span>
@@ -1934,7 +1934,8 @@
           <div class="calc-field"><span class="calc-label">パレット縦</span><input type="number" class="calc-input" id="pal-pw" placeholder="1100" style="width:100px;"></div>
           <div class="calc-field"><span class="calc-label">パレット横</span><input type="number" class="calc-input" id="pal-pd" placeholder="1100" style="width:100px;"></div>
         </div>
-        <div class="calc-field"><span class="calc-label">積み段数（全行共通）</span><input type="number" class="calc-input" id="pal-layers" value="5" min="1" style="width:70px;"></div>
+        <div class="calc-field"><span class="calc-label">最大積み付け高さ（全行共通）</span><input type="number" class="calc-input" id="pal-max-height" value="1500" min="1" style="width:90px;"></div>
+        <div class="calc-field"><span class="calc-label">パレット最大積載重量 kg（任意）</span><input type="number" class="calc-input" id="pal-max-weight" placeholder="1000" min="0" style="width:90px;"></div>
       </div>
       <div class="multi-row-wrap" id="pal-rows-wrap">
         <div class="calc-multi-row">
@@ -1942,6 +1943,7 @@
           <div class="calc-field"><span class="calc-label">箱 長さ</span><input type="number" class="calc-input" data-key="l" placeholder="400" min="0"></div>
           <div class="calc-field"><span class="calc-label">箱 幅</span><input type="number" class="calc-input" data-key="w" placeholder="300" min="0"></div>
           <div class="calc-field"><span class="calc-label">箱 高さ</span><input type="number" class="calc-input" data-key="h" placeholder="250" min="0"></div>
+          <div class="calc-field"><span class="calc-label">1個の重量 kg（任意）</span><input type="number" class="calc-input" data-key="weight" placeholder="10" min="0"></div>
           <div class="calc-field"><span class="calc-label">総個数（任意）</span><input type="number" class="calc-input" data-key="total" placeholder="100" min="1" style="width:90px;"></div>
           <button class="btn-row-del" onclick="removeCalcRow(this)" title="この行を削除" style="display:none;">×</button>
         </div>

@@ -653,77 +653,134 @@ function calcPalletize() {
     pw = pwInput * factor; pd = pdInput * factor;
     pwDisp = pwInput; pdDisp = pdInput; palUnit = unit;
   }
-  const lay  = parseInt(document.getElementById('pal-layers').value) || 1;
+  const maxHInput = parseFloat(document.getElementById('pal-max-height').value);
+  if (isNaN(maxHInput) || maxHInput <= 0) { quoteShowToast('⚠️ 最大積み付け高さを入力してください', 'warning'); return; }
+  const maxH = maxHInput * factor;
+  const maxWeight = parseFloat(document.getElementById('pal-max-weight').value) || 0; // kg、任意（0=制限なし）
+
   const wrap = document.getElementById('pal-rows-wrap');
-  const rows = wrap.querySelectorAll('.calc-multi-row');
-  const results = [];
-  for (const row of rows) {
+  const rowEls = wrap.querySelectorAll('.calc-multi-row');
+  const cargo = [];
+  for (const row of rowEls) {
     const blInput = parseFloat(row.querySelector('[data-key="l"]').value);
     const bwInput = parseFloat(row.querySelector('[data-key="w"]').value);
     const bhInput = parseFloat(row.querySelector('[data-key="h"]').value);
-    const tot = parseInt(row.querySelector('[data-key="total"]').value) || 0;
+    const weight  = parseFloat(row.querySelector('[data-key="weight"]').value) || 0;
+    const totInput = parseInt(row.querySelector('[data-key="total"]').value, 10);
+    const tot = isNaN(totInput) ? 0 : totInput;
     if ([blInput,bwInput,bhInput].some(isNaN)) continue;
     const meta = getRowMeta(row);
     // mm 換算で計算式に投入
     const bl = blInput * factor, bw = bwInput * factor, bh = bhInput * factor;
-    const o1 = {cols:Math.floor(pw/bl),rows:Math.floor(pd/bw)};
-    const o2 = {cols:Math.floor(pw/bw),rows:Math.floor(pd/bl)};
-    const p1 = o1.cols*o1.rows, p2 = o2.cols*o2.rows;
-    const best     = p1>=p2 ? o1 : o2;
-    const perPer1L = Math.max(p1,p2);
-    // 段積み不可なら 1 段固定
-    const effLay   = meta.stack === 'ng' ? 1 : lay;
-    const perPallet = perPer1L * effLay;
-    const pNeeded   = (tot > 0 && perPallet > 0) ? Math.ceil(tot/perPallet) : null;
-    results.push({ bl, bw, bh, blInput, bwInput, bhInput, tot, best, perPer1L, perPallet, pNeeded, effLay, ...meta });
+    cargo.push({ bl, bw, bh, blInput, bwInput, bhInput, weight, qty: tot > 0 ? tot : 1, rowNoStack: meta.stack === 'ng', ...meta });
   }
-  if (results.length === 0) { quoteShowToast('⚠️ 箱の寸法を入力してください', 'warning'); return; }
+  if (cargo.length === 0) { quoteShowToast('⚠️ 箱の寸法を入力してください', 'warning'); return; }
+  if (!window.Vanning3D) { quoteShowToast('⚠️ 3D計算モジュールを読み込めませんでした', 'error'); return; }
 
-  if (results.length === 1) {
-    const r = results[0];
-    const inputLine = formatRowInputSummary([
-      `箱 ${r.blInput}×${r.bwInput}×${r.bhInput}${unit}`,
-      `パレット ${pwDisp}×${pdDisp}${palUnit}`,
-      `${r.effLay}段${r.stack==='ng'?'（段積み不可で 1 段固定）':''}`,
-      r.packing,
-      r.tot>0?`総 ${r.tot}個`:''
-    ]);
-    appendCalcResult('pal-result',
-      renderInputEcho(inputLine) +
-      `<div class="calc-row">
-      <div class="calc-item"><div class="calc-item-label">パレットサイズ</div><div class="calc-item-value">${pwDisp}×${pdDisp} ${palUnit}</div></div>
-      <div class="calc-item hl"><div class="calc-item-label">1段あたり</div><div class="calc-item-value">${r.perPer1L} 個 <span class="calc-note">(${r.best.cols}列×${r.best.rows}行)</span></div></div>
-      <div class="calc-item hl"><div class="calc-item-label">1パレット合計（${r.effLay}段）</div><div class="calc-item-value">${r.perPallet} 個</div></div>
-      <div class="calc-item"><div class="calc-item-label">積載後高さ（箱のみ）</div><div class="calc-item-value">${(r.bh*r.effLay).toLocaleString()} mm</div></div>
-      ${r.pNeeded!==null?`<div class="calc-item hl"><div class="calc-item-label">必要パレット数（${r.tot}個）</div><div class="calc-item-value">${r.pNeeded} パレット</div></div>`:''}
-    </div>`,
-    inputLine);
-  } else {
-    let totalPallets = 0;
-    const rowsHtml = results.map((r, i) => {
-      if (r.pNeeded !== null) totalPallets += r.pNeeded;
-      const lbl = formatRowInputSummary([
-        `箱${r.blInput}×${r.bwInput}×${r.bhInput}${unit}`,
-        r.packing,
-        r.stack==='ng'?'段積み不可':'',
-        r.tot>0?`総${r.tot}個`:''
-      ]);
-      return `<div style="margin-bottom:8px;">
-        <div class="calc-row-label">品種${i+1}　${lbl}</div>
-        <div class="calc-row">
-          <div class="calc-item hl"><div class="calc-item-label">1パレット（${r.effLay}段）</div><div class="calc-item-value">${r.perPallet} 個 <span class="calc-note">(${r.best.cols}×${r.best.rows}行)</span></div></div>
-          ${r.pNeeded!==null?`<div class="calc-item hl"><div class="calc-item-label">必要パレット数</div><div class="calc-item-value">${r.pNeeded} パレット</div></div>`:''}
-        </div>
-      </div>`;
-    }).join('');
-    const totalHtml = totalPallets > 0
-      ? `<div style="margin-top:10px;padding-top:10px;border-top:2px solid var(--accent);">
-          <div class="calc-row">
-            <div class="calc-item hl" style="flex:1;"><div class="calc-item-label">合計パレット数（全${results.length}品種）</div><div class="calc-item-value">${totalPallets} パレット</div></div>
-          </div></div>` : '';
-    appendCalcResult('pal-result', rowsHtml + totalHtml,
-      `${results.length}品種 / パレット${pwDisp}×${pdDisp}${palUnit} ${lay}段${totalPallets>0?' / 合計'+totalPallets+'パレット':''}`);
+  const container = { l: pw, w: pd, h: maxH };
+  const { bins, leftoverByOrig } = _palPackMultiBin(cargo, container);
+
+  if (bins.length === 0) {
+    quoteShowToast('⚠️ パレットサイズ・高さ上限に対して箱が大きすぎます', 'warning');
+    return;
   }
+
+  const totalQtyAll = cargo.reduce((s, r) => s + r.qty, 0);
+  const leftoverTotal = Object.values(leftoverByOrig).reduce((a, b) => a + b, 0);
+
+  // 品種別の配置状況（要求数・配置数・積み残し）
+  const placedByOrig = {};
+  bins.forEach(b => { Object.entries(b.countByOrig).forEach(([i, c]) => { placedByOrig[i] = (placedByOrig[i] || 0) + c; }); });
+  const detailHtml = cargo.map((r, i) => {
+    const placed = placedByOrig[i] || 0;
+    const lbl = formatRowInputSummary([
+      `${r.blInput}×${r.bwInput}×${r.bhInput}${unit}`,
+      r.weight > 0 ? `${r.weight}kg` : '',
+      r.packing, r.rowNoStack ? '段積み不可' : '',
+      `× ${r.qty}個`
+    ]);
+    const short = leftoverByOrig[i] > 0
+      ? ` <span style="color:#e53e3e;font-size:11px;font-weight:700;">⚠️ 積み残し${leftoverByOrig[i]}個</span>` : '';
+    return `<div style="margin-bottom:6px;">
+      <div class="calc-row-label">品種${i + 1}　${lbl}</div>
+      <div style="font-size:12px;color:var(--text-md);">配置 ${placed}/${r.qty}個${short}</div>
+    </div>`;
+  }).join('');
+
+  // パレットごとの推奨配分
+  const binsHtml = bins.map((b, bi) => {
+    const items = Object.entries(b.countByOrig).map(([i, c]) => `品種${Number(i) + 1}×${c}`).join('　');
+    const overWeight = maxWeight > 0 && b.binWeight > maxWeight;
+    const wLine = b.binWeight > 0
+      ? `　／　重量 ${b.binWeight.toLocaleString()}kg${overWeight ? ' <span style="color:#e53e3e;font-weight:700;">⚠️ 重量超過</span>' : ''}`
+      : '';
+    return `<div class="calc-item${overWeight ? '' : ' hl'}">
+      <div class="calc-item-label">パレット ${bi + 1}</div>
+      <div class="calc-item-value" style="font-size:13px;">${items}</div>
+      <div style="font-size:11px;color:#718096;margin-top:3px;">積載率 ${b.utilization.toFixed(1)}%${wLine}</div>
+    </div>`;
+  }).join('');
+
+  const leftoverWarn = leftoverTotal > 0
+    ? `<p style="font-size:11px;color:#c53030;margin-top:8px;">⚠️ ${leftoverTotal}個は配置できませんでした。パレットサイズ・高さ上限に対して寸法が大きすぎる品種がある可能性があります。</p>`
+    : '';
+
+  const inputLine = formatRowInputSummary([
+    `${cargo.length}品種`, `パレット${pwDisp}×${pdDisp}${palUnit}`, `高さ上限${maxHInput}${unit}`,
+    `合計${totalQtyAll}個`, `${bins.length}パレット`
+  ]);
+
+  const van3dId = `van3d-host-${++_van3dSeq}`;
+  appendCalcResult('pal-result',
+    `<div style="margin-bottom:10px;">
+      <div style="font-size:11px;font-weight:700;color:var(--text-md);margin-bottom:6px;">📦 品種別内訳</div>
+      ${detailHtml}
+    </div>
+    <div style="margin-bottom:10px;">
+      <div style="font-size:11px;font-weight:700;color:var(--text-md);margin-bottom:6px;">🗂 パレット別 推奨配分</div>
+      <div class="calc-row">${binsHtml}</div>
+    </div>
+    ${leftoverWarn}
+    <div style="margin-top:10px;padding-top:10px;border-top:2px solid var(--accent);">
+      <div class="calc-row">
+        <div class="calc-item hl" style="flex:1;"><div class="calc-item-label">合計必要パレット数</div><div class="calc-item-value">${bins.length} パレット</div></div>
+      </div>
+    </div>
+    <p style="font-size:11px;color:#718096;margin-top:10px;">※ 3Dビンパッキング（床面支持率80%以上を配置条件）による理論値。実際の積み付けは現場でご確認ください。</p>
+    <div style="margin-top:12px;font-size:11px;font-weight:700;color:var(--text-md);">🧊 3D積み付けプレビュー（パレット1枚目）</div>
+    <div id="${van3dId}"></div>`,
+    inputLine);
+
+  const contDefs = { pallet: { l: pw, w: pd, h: maxH, label: `${pwDisp}×${pdDisp}${palUnit} / 高さ上限${maxHInput}${unit}` } };
+  window.Vanning3D.mountPreview('#' + van3dId, cargo, contDefs, 'pallet');
+}
+
+// 複数品種・複数個数の貨物を、1パレット分ずつ Vanning3D.packContainer で詰め切るまで
+// パレットを積み増していく（厳密なビンパッキングではなく「1枚ずつ最善配置→残りを次へ」の
+// 貪欲法だが、品種混載時の必要パレット数を体積ベース推定より正確に見積もれる）。
+function _palPackMultiBin(cargoRows, container, maxBins) {
+  maxBins = maxBins || 60;
+  const remaining = cargoRows.map(r => ({ ...r, qty: Math.max(1, parseInt(r.qty, 10) || 1) }));
+  const bins = [];
+  while (remaining.some(r => r.qty > 0) && bins.length < maxBins) {
+    const activeIdxList = [];
+    const activeRows = [];
+    remaining.forEach((r, i) => { if (r.qty > 0) { activeIdxList.push(i); activeRows.push(r); } });
+    const result = window.Vanning3D.packContainer(activeRows, container);
+    if (result.totalPlaced === 0) break; // どの個体も1つも入らない（単体でサイズ超過）→無限ループ防止
+    const countByOrig = {};
+    let binWeight = 0;
+    result.placed.forEach(p => {
+      const origIdx = activeIdxList[p.typeIndex];
+      countByOrig[origIdx] = (countByOrig[origIdx] || 0) + 1;
+      binWeight += cargoRows[origIdx].weight || 0;
+    });
+    Object.entries(countByOrig).forEach(([origIdx, cnt]) => { remaining[origIdx].qty -= cnt; });
+    bins.push({ countByOrig, binWeight, utilization: result.utilization });
+  }
+  const leftoverByOrig = {};
+  remaining.forEach((r, i) => { if (r.qty > 0) leftoverByOrig[i] = r.qty; });
+  return { bins, leftoverByOrig };
 }
 
 // ================================================================
