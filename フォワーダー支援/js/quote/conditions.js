@@ -90,6 +90,11 @@
       volume: (typeof window.getCargoVolumeText === 'function')
         ? window.getCargoVolumeText()
         : (_lastCargoMetrics.cbm > 0 ? `${_lastCargoMetrics.cbm.toFixed(3)} CBM` : ''),
+      // 複数パターン案件向けのツリー形式まとめ（単一パターン案件では null）。
+      // null のときは呼び出し側で weight/volume/packing を従来通り個別に使う。
+      cargoPatternTree: (typeof window.getCargoPatternTreeText === 'function')
+        ? window.getCargoPatternTreeText()
+        : null,
       packing: packing, hazmat: g('cond-hazmat'),
       free: g('condFreeText'),
       direction: _currentDirection || '',   // 'export' | 'import' | ''
@@ -2438,6 +2443,33 @@
       const { cbm } = _patternWeightCbm(pt.entries);
       return cbm > 0 ? `${cbm.toFixed(3)} CBM` : '';
     });
+  };
+
+  // 複数パターンを使っている案件向け：荷姿明細・総重量・総容積を、パターンごとに
+  // ツリー形式（【パターン名】の下に3項目をぶら下げる）でまとめたテキストを返す。
+  // 【パターンA】【パターンA】【パターンA】と項目ごとに同じパターン名を繰り返す
+  // 従来表示だと冗長で見づらいとの指摘を受けて追加。
+  //
+  // 単一パターンの案件（複数パターン機能を使っていない）では null を返す。
+  // 呼び出し側はその場合、従来通り getPackingDetailText/getCargoWeightText/
+  // getCargoVolumeText を個別の項目として表示する（見た目を変えないため）。
+  window.getCargoPatternTreeText = function () {
+    if (window.isCargoSizeUnknown()) return null;
+    if ((_packingPatterns || []).length <= 1) return null;
+    const visible = _visiblePackingPatterns();
+    const blocks = visible.map(({ pt, i }) => {
+      const packingRaw = _packingEntriesText(pt.entries);
+      const { kg, cbm } = _patternWeightCbm(pt.entries);
+      const lines = [];
+      if (packingRaw) lines.push(`荷姿明細：${packingRaw.replace(/\n/g, '／')}`);
+      if (kg > 0) lines.push(`総重量：${kg.toLocaleString()} kg`);
+      if (cbm > 0) lines.push(`総容積：${cbm.toFixed(3)} CBM`);
+      if (!lines.length) return '';
+      const name = pt.name || `パターン${i + 1}`;
+      const treeLines = lines.map((l, li) => (li === lines.length - 1 ? '┗ ' : '┣ ') + l);
+      return `【${name}】\n${treeLines.join('\n')}`;
+    }).filter(Boolean);
+    return blocks.join('\n\n');
   };
 
   // 輸送モードに応じた課金重量（LCL＝R/T・航空＝CW）の1行を、PDF/プレビュー/メールで
