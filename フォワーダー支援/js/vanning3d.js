@@ -340,7 +340,9 @@
       });
 
       const camera = new THREE.PerspectiveCamera(45, 1, 1, Math.max(cont.l, cont.w, cont.h) * 20);
-      const renderer = new THREE.WebGLRenderer({ antialias: true });
+      // preserveDrawingBuffer: PDF出力（canvas.toDataURL()でのスナップショット取得）のために必要。
+      // 既定（false）だと描画直後にバッファがクリアされ得るため、取り込み時に空白画像になることがある。
+      const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
       renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
       canvasHost.innerHTML = '';
       renderer.domElement.className = 'van3d-canvas';

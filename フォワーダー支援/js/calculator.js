@@ -129,17 +129,22 @@ function renderInputEcho(text) {
 //  計算結果ヘルパー
 // ================================================================
 
-function appendCalcResult(id, html, summary) {
+function appendCalcResult(id, html, summary, opts) {
+  opts = opts || {};
   const container = document.getElementById(id);
   container.style.display = 'block';
   const n = container.querySelectorAll('.calc-history-entry').length + 1;
   const entry = document.createElement('div');
   entry.className = 'calc-history-entry';
+  const pdfBtn = opts.pdfTitle
+    ? `<button class="btn-pdf-result" data-pdf-title="${opts.pdfTitle}" onclick="exportCalcResultPdf(this)" title="PDFとして出力（印刷プレビューから保存）">📄 PDF出力</button>`
+    : '';
   entry.innerHTML = `<div class="calc-history-header">
       <span class="calc-history-num">#${n}</span>
       <span class="calc-history-summary">${summary||''}</span>
       <button class="btn-copy-result" onclick="copyCalcResult(this)" title="整形テキストをコピー">📋 コピー</button>
       <button class="btn-send-to-quote" onclick="sendCalcResultToQuote(this)" title="見積もりタブの「全体リマーク（条件・免責事項）」へ追記">📝 見積もりへ</button>
+      ${pdfBtn}
       <button class="calc-history-close" onclick="const e=this.closest('.calc-history-entry'),c=e.parentElement;if(e._van3dCleanup)e._van3dCleanup();e.remove();if(!c.querySelector('.calc-history-entry'))c.style.display='none'">×</button>
     </div>${html}`;
   container.insertBefore(entry, container.firstChild);
@@ -260,6 +265,97 @@ function sendCalcResultToQuote(btn) {
   if (typeof quoteShowToast === 'function') {
     quoteShowToast('📝 全体リマーク欄へ計算結果を追記しました', 'success');
   }
+}
+
+// ================================================================
+//  計算結果 PDF出力（パレタイズ・バンニング。3Dプレビューがあるツールのみ）
+//  既存の御見積書PDF（quote-pdf.js）と同じ方式：専用オーバーレイを印刷対象に
+//  限定するprint CSSを敷き、window.print()でブラウザの「PDFとして保存」に委ねる
+//  （新規ライブラリを追加しない、このアプリの既定方針に合わせている）
+// ================================================================
+function exportCalcResultPdf(btn) {
+  const entry = btn.closest('.calc-history-entry');
+  if (!entry) return;
+  const pdfTitle = btn.dataset.pdfTitle || '計算結果';
+  const summary  = entry.querySelector('.calc-history-summary')?.textContent?.trim() || '';
+
+  // 複製後のcanvasは描画内容を保持しないため、必ずライブ側のcanvasから先にPNGを取り込む
+  const shotsByHostId = new Map();
+  entry.querySelectorAll('[id^="van3d-host-"]').forEach(host => {
+    const canvas = host.querySelector('.van3d-canvas');
+    if (!canvas) return;
+    try { shotsByHostId.set(host.id, canvas.toDataURL('image/png')); } catch (e) { /* WebGL未対応環境等は無視 */ }
+  });
+
+  const clone = entry.cloneNode(true);
+  clone.querySelector('.calc-history-header')?.remove();
+  clone.querySelectorAll('[id^="van3d-host-"]').forEach(host => {
+    const dataUrl    = shotsByHostId.get(host.id);
+    const legendHtml = host.querySelector('.van3d-legend')?.outerHTML || '';
+    const statsText  = host.querySelector('.van3d-stats')?.textContent?.trim() || '';
+    const imgHtml = dataUrl
+      ? `<img src="${dataUrl}" style="max-width:100%;border:1px solid #d8c8ae;border-radius:6px;">`
+      : `<p style="font-size:11px;color:#a08a60;">（3Dプレビューはこの環境では生成できませんでした）</p>`;
+    host.outerHTML = `${legendHtml}<div style="margin:8px 0;">${imgHtml}</div><div style="font-size:11px;color:#718096;">${statsText}</div>`;
+  });
+
+  _openCalcPdfOverlay(pdfTitle, summary, clone.innerHTML);
+}
+
+function _openCalcPdfOverlay(title, summary, bodyHtml) {
+  let overlay = document.getElementById('calcPdfOverlay');
+  if (!overlay) {
+    overlay = document.createElement('div');
+    overlay.id = 'calcPdfOverlay';
+    overlay.innerHTML = `
+      <div class="cpd-shell">
+        <div class="cpd-stage"><div class="cpd-doc" id="cpdDoc"></div></div>
+        <aside class="cpd-panel">
+          <div class="cpd-panel-head">
+            <div class="cpd-panel-h">📄 PDF出力</div>
+          </div>
+          <div class="cpd-panel-body">
+            <div class="cpd-fg">
+              <label for="cpdTitle">ファイル名</label>
+              <div class="cpd-inp"><input type="text" id="cpdTitle"><span class="cpd-ext">.pdf</span></div>
+            </div>
+          </div>
+          <div class="cpd-panel-foot">
+            <button type="button" class="cpd-btn-print" id="cpdPrint">🖨️ PDF出力（印刷）</button>
+            <button type="button" class="cpd-btn-ghost" id="cpdClose">閉じる</button>
+          </div>
+        </aside>
+      </div>`;
+    document.body.appendChild(overlay);
+    overlay.addEventListener('click', e => { if (e.target === overlay) _closeCalcPdfOverlay(); });
+    overlay.querySelector('#cpdClose').addEventListener('click', _closeCalcPdfOverlay);
+    overlay.querySelector('#cpdPrint').addEventListener('click', _printCalcPdf);
+  }
+  const now = new Date();
+  const dateStr = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}`;
+  const titleIn = overlay.querySelector('#cpdTitle');
+  if (titleIn) titleIn.value = `${title}_${dateStr}`;
+  overlay.querySelector('#cpdDoc').innerHTML =
+    `<div class="cpd-doc-title">${title}</div>
+     <div class="cpd-doc-date">${new Date().toLocaleString('ja-JP')} 出力</div>
+     ${summary ? `<div class="cpd-doc-summary">${summary}</div>` : ''}
+     ${bodyHtml}`;
+  overlay.classList.add('open');
+}
+
+function _closeCalcPdfOverlay() {
+  document.getElementById('calcPdfOverlay')?.classList.remove('open');
+}
+
+function _printCalcPdf() {
+  const titleIn = document.getElementById('cpdTitle');
+  const customTitle = titleIn ? titleIn.value.trim() : '';
+  const prevTitle = document.title;
+  if (customTitle) document.title = customTitle;
+  document.body.classList.add('cpd-print-mode');
+  window.print(); // 同期的：ダイアログを閉じるまでここでブロック
+  document.title = prevTitle;
+  setTimeout(() => { document.body.classList.remove('cpd-print-mode'); }, 300);
 }
 
 // 見積もりタブ「貨物情報」の荷姿・貨物明細（cond-packing-data）から、
@@ -779,7 +875,7 @@ function calcPalletize() {
     <p style="font-size:11px;color:#718096;margin-top:10px;">※ 3Dビンパッキング（床面支持率80%以上を配置条件）による理論値。実際の積み付けは現場でご確認ください。</p>
     ${preview3dOmitNote}
     ${preview3dHtml}`,
-    inputLine);
+    inputLine, { pdfTitle: 'パレタイズ計算結果' });
 
   const contDefs = { pallet: { l: pw, w: pd, h: maxH, label: `${pwDisp}×${pdDisp}${palUnit} / 高さ上限${maxHDisp}${palUnit}` } };
   preview3dBins.forEach((b, bi) => {
@@ -921,7 +1017,7 @@ function calcVanning() {
       <p style="font-size:11px;color:#718096;margin-top:10px;">※ ダンネージなしの理論値。実際の積み付けは現場でご確認ください。</p>
       <div style="margin-top:12px;font-size:11px;font-weight:700;color:var(--text-md);">🧊 3D積み付けプレビュー</div>
       <div id="${van3dId}"></div>`,
-      inputLine);
+      inputLine, { pdfTitle: 'バンニング計算結果' });
     window.Vanning3D && window.Vanning3D.mountPreview('#'+van3dId, cargo, CONT, rec.key);
     return;
   }
@@ -1021,7 +1117,8 @@ function calcVanning() {
     <p style="font-size:11px;color:#718096;margin-top:10px;">※ CBMベースの理論値。混載バンニングは積み合わせ次第で変わります。実際の積み付けは現場でご確認ください。</p>
     <div style="margin-top:12px;font-size:11px;font-weight:700;color:var(--text-md);">🧊 3D積み付けプレビュー（推奨コンテナ：${rec.c.label}）</div>
     <div id="${van3dId}"></div>`,
-    `${cargo.length}品種 / 合計${totalCBM.toFixed(3)}CBM${globalNoStack?' / 全行段積み不可':noStackCount>0?' / 一部段積み不可':''}`);
+    `${cargo.length}品種 / 合計${totalCBM.toFixed(3)}CBM${globalNoStack?' / 全行段積み不可':noStackCount>0?' / 一部段積み不可':''}`,
+    { pdfTitle: 'バンニング計算結果' });
   window.Vanning3D && window.Vanning3D.mountPreview('#'+van3dId, cargo, CONT, rec.key);
 }
 
