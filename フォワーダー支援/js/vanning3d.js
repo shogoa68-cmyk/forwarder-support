@@ -429,13 +429,20 @@
     canvasHost.innerHTML = '<div class="van3d-loading">⏳ 3D配置を計算中...</div>';
     setTimeout(() => { buildScene(state.contKey); }, 0);
 
+    // 1つの履歴エントリ内に複数の mountPreview（例：パレタイズのパレット別3Dプレビュー）が
+    // 同居するケースがあるため、クリーンアップ関数は配列で蓄積し、×ボタン押下時に全て実行する
     const entryEl = hostEl.closest('.calc-history-entry');
     if (entryEl) {
-      entryEl._van3dCleanup = () => {
+      const cleanup = () => {
         disposeScene();
         if (resizeObs) resizeObs.disconnect();
         else window.removeEventListener('resize', resizeAndRender);
       };
+      if (!entryEl._van3dCleanups) {
+        entryEl._van3dCleanups = [];
+        entryEl._van3dCleanup = () => { entryEl._van3dCleanups.forEach(fn => fn()); };
+      }
+      entryEl._van3dCleanups.push(cleanup);
     }
   }
 
