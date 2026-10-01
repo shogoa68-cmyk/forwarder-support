@@ -1024,22 +1024,56 @@ function _fillLayerFootprint(candidates, pw, pd) {
 
 // 段の高さの選び方：入る高さの中で最も個数（総量）が多いものを採用する。
 // 段数を減らして床効率を優先するため、潤沢にある品種を軸に床を敷き詰めやすい。
-//
-// 高さ上限（maxH）は「これを超えてはいけない」という制約でしかなく、「そこに
-// ぴったり合わせて積む」目標ではない。以前、残り高さ（headroom）をその高さで
-// 割った余りが最小になる高さを優先する方式も試したが、これは高さ上限から逆算して
-// 積み方を決めてしまうロジックであり、実際の積み付けとしては不自然になり得る
-// （ユーザー指摘を受けて撤去）。天井にスペースが残る（箱の高さの組み合わせが
-// 高さ上限をぴったり割り切らない）のは普通のことなので、それ自体を埋めようとしない。
+// _packGreedyContinue（1手先読みの「続き」シミュレーション）で使う単純な貪欲ロジック。
 function _heightPickByQty(avail) {
   const heightQty = {};
   avail.forEach(r => { heightQty[r.h] = (heightQty[r.h] || 0) + r.qty; });
   return Object.keys(heightQty).map(Number).sort((a, b) => heightQty[b] - heightQty[a] || b - a)[0];
 }
 
+// 単純な貪欲法で、ある高さ（zStart）から上限（maxH）まで最後まで詰める。
+// 1手先読み（_packPalletLayered）の「この手を選んだ場合に最終的に何個入るか」を
+// 見積もるための補助関数。remainingTypes を直接消費する（副作用あり）。
+function _packGreedyContinue(remainingTypes, pw, pd, maxH, zStart) {
+  const EPS = 1e-6;
+  const placed = [];
+  let z = zStart;
+  while (true) {
+    const headroom = maxH - z;
+    if (headroom <= EPS) break;
+    const avail = remainingTypes.filter(r => r.qty > 0 && r.h <= headroom + EPS && (!r.noStack || z < EPS));
+    if (!avail.length) break;
+    let layerH = _heightPickByQty(avail);
+    if (z < EPS) {
+      const noStackMaxH = avail.reduce((m, r) => r.noStack ? Math.max(m, r.h) : m, 0);
+      if (noStackMaxH > layerH) layerH = noStackMaxH;
+    }
+    const layerCandidates = avail.filter(r => r.h <= layerH + EPS);
+    const { placements, consumed } = _fillLayerFootprint(layerCandidates, pw, pd);
+    if (!placements.length) break;
+    placements.forEach(pl => {
+      const type = layerCandidates[pl.ci];
+      placed.push({ x: pl.x, y: pl.y, z, w: pl.w, d: pl.d, h: type.h, typeIndex: type.idx });
+    });
+    consumed.forEach((cnt, ci) => { layerCandidates[ci].qty -= cnt; });
+    z += layerH;
+  }
+  return placed;
+}
+
 // 1パレット分を、段（レイヤー）を積み上げながら埋める。
 // remainingTypes: [{idx, l, w, h, qty, noStack}, ...]（呼び出し側が全体の残数を保持し、
 // この関数は配置した分だけ各要素の qty を直接減算する＝副作用あり）
+//
+// 次の段の高さは「入る高さそれぞれ」を候補として1手先読みする：各候補でその段を
+// 実際に敷き詰めた後、残りを単純な貪欲法（_packGreedyContinue）で最後まで続けた場合の
+// 合計配置数をシミュレートし、一番多く入る候補を採用する。
+//
+// 高さ上限（maxH）は「これを超えてはいけない」という制約として使うのみで、
+// 「そこにぴったり合わせて積む」計算（残り高さを割った余り等）は一切行わない
+// （過去に試したが、高さ上限から逆算して積み方を決める不自然なロジックになるため
+// 撤去した）。本関数が天井に近づくことがあるとすれば、それは「より多くの箱が
+// 実際に入る」という結果に過ぎず、高さ上限を目標にした計算ではない。
 function _packPalletLayered(remainingTypes, pw, pd, maxH) {
   const EPS = 1e-6;
   const placed = [];
@@ -1049,22 +1083,45 @@ function _packPalletLayered(remainingTypes, pw, pd, maxH) {
     if (headroom <= EPS) break;
     const avail = remainingTypes.filter(r => r.qty > 0 && r.h <= headroom + EPS && (!r.noStack || z < EPS));
     if (!avail.length) break;
-    let layerH = _heightPickByQty(avail);
-    // 床置き限定（段積み不可）の品種は z===0 の今しか置けない。選ばれた段高がその品種の
-    // 高さ未満だと配置チャンスを逃して積み残しになってしまうため、必要なら段高を押し上げる。
-    if (z < EPS) {
-      const noStackMaxH = avail.reduce((m, r) => r.noStack ? Math.max(m, r.h) : m, 0);
-      if (noStackMaxH > layerH) layerH = noStackMaxH;
+
+    const candidateHeights = [...new Set(avail.map(r => r.h))];
+    let best = null;
+    for (const h0 of candidateHeights) {
+      let layerH = h0;
+      // 床置き限定（段積み不可）の品種は z===0 の今しか置けない。選んだ段高がその品種の
+      // 高さ未満だと配置チャンスを逃して積み残しになってしまうため、必要なら段高を押し上げる。
+      if (z < EPS) {
+        const noStackMaxH = avail.reduce((m, r) => r.noStack ? Math.max(m, r.h) : m, 0);
+        if (noStackMaxH > layerH) layerH = noStackMaxH;
+      }
+      const layerCandidates = avail.filter(r => r.h <= layerH + EPS).map(r => ({ ...r }));
+      const { placements, consumed } = _fillLayerFootprint(layerCandidates, pw, pd);
+      if (!placements.length) continue;
+
+      const trialRemaining = remainingTypes.map(r => ({ ...r }));
+      consumed.forEach((cnt, ci) => {
+        const idx = layerCandidates[ci].idx;
+        trialRemaining.find(r => r.idx === idx).qty -= cnt;
+      });
+      const thisLayerPlaced = placements.map(pl => {
+        const type = layerCandidates[pl.ci];
+        return { x: pl.x, y: pl.y, z, w: pl.w, d: pl.d, h: type.h, typeIndex: type.idx };
+      });
+      // 比較用の見積もりシミュレーションは別クローンで行い、実際に採用する
+      // trialRemaining（＝この1段だけ消費した状態）には影響させない
+      const lookaheadRemaining = trialRemaining.map(r => ({ ...r }));
+      const restPlaced = _packGreedyContinue(lookaheadRemaining, pw, pd, maxH, z + layerH);
+      const total = thisLayerPlaced.length + restPlaced.length;
+
+      if (!best || total > best.total) {
+        best = { total, layerH, thisLayerPlaced, trialRemaining };
+      }
     }
-    const layerCandidates = avail.filter(r => r.h <= layerH + EPS);
-    const { placements, consumed } = _fillLayerFootprint(layerCandidates, pw, pd);
-    if (!placements.length) break; // 進捗なし→無限ループ防止で打ち切り
-    placements.forEach(pl => {
-      const type = layerCandidates[pl.ci];
-      placed.push({ x: pl.x, y: pl.y, z, w: pl.w, d: pl.d, h: type.h, typeIndex: type.idx });
-    });
-    consumed.forEach((cnt, ci) => { layerCandidates[ci].qty -= cnt; });
-    z += layerH;
+
+    if (!best) break; // どの高さを試しても1個も入らない→無限ループ防止で打ち切り
+    placed.push(...best.thisLayerPlaced);
+    remainingTypes.forEach((r, i) => { r.qty = best.trialRemaining.find(x => x.idx === r.idx).qty; });
+    z += best.layerH;
   }
   return placed;
 }
