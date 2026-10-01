@@ -637,6 +637,18 @@ function togglePalCustom() {
     document.getElementById('pal-size').value === 'custom' ? 'flex' : 'none';
 }
 
+// 単位切替時：「最大積み付け高さ」の既定値（1500mm相当）を選択中の単位に換算し直す。
+// ユーザーが値を手入力済み（oninputでuserEdited='1'が立つ）の場合は上書きしない。
+// これをしないと、既定値 1500 のまま単位だけ mm→cm に切り替わった場合に
+// 1500cm（15m）として計算されてしまう。
+function onPalUnitChange() {
+  const hInput = document.getElementById('pal-max-height');
+  if (!hInput || hInput.dataset.userEdited === '1') return;
+  const unit = document.getElementById('pal-unit').value || 'mm';
+  const val = 1500 / (_UNIT_TO_MM[unit] || 1);
+  hInput.value = Number.isInteger(val) ? val : Math.round(val * 100) / 100;
+}
+
 function calcPalletize() {
   const { unit, factor } = getUnitConversion('pal-unit', 'mm');
   const sv = document.getElementById('pal-size').value;
@@ -656,6 +668,11 @@ function calcPalletize() {
   const maxHInput = parseFloat(document.getElementById('pal-max-height').value);
   if (isNaN(maxHInput) || maxHInput <= 0) { quoteShowToast('⚠️ 最大積み付け高さを入力してください', 'warning'); return; }
   const maxH = maxHInput * factor;
+  // 表示はパレットサイズと同じ単位（palUnit）に揃える（標準サイズ選択時は常にmm固定のため、
+  // 高さだけ別単位で入力していると表示上「1100×1100mm / 高さ上限1500cm」のように
+  // 単位が食い違って見えてしまうのを防ぐ）
+  const maxHDispVal = maxH / _UNIT_TO_MM[palUnit];
+  const maxHDisp = Number.isInteger(maxHDispVal) ? maxHDispVal : Math.round(maxHDispVal * 100) / 100;
   const maxWeight = parseFloat(document.getElementById('pal-max-weight').value) || 0; // kg、任意（0=制限なし）
 
   const wrap = document.getElementById('pal-rows-wrap');
@@ -726,7 +743,7 @@ function calcPalletize() {
     : '';
 
   const inputLine = formatRowInputSummary([
-    `${cargo.length}品種`, `パレット${pwDisp}×${pdDisp}${palUnit}`, `高さ上限${maxHInput}${unit}`,
+    `${cargo.length}品種`, `パレット${pwDisp}×${pdDisp}${palUnit}`, `高さ上限${maxHDisp}${palUnit}`,
     `合計${totalQtyAll}個`, `${bins.length}パレット`
   ]);
 
@@ -751,7 +768,7 @@ function calcPalletize() {
     <div id="${van3dId}"></div>`,
     inputLine);
 
-  const contDefs = { pallet: { l: pw, w: pd, h: maxH, label: `${pwDisp}×${pdDisp}${palUnit} / 高さ上限${maxHInput}${unit}` } };
+  const contDefs = { pallet: { l: pw, w: pd, h: maxH, label: `${pwDisp}×${pdDisp}${palUnit} / 高さ上限${maxHDisp}${palUnit}` } };
   window.Vanning3D.mountPreview('#' + van3dId, cargo, contDefs, 'pallet');
 }
 

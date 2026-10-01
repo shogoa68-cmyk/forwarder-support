@@ -1914,7 +1914,7 @@
         <span style="font-size:11px;line-height:1.9;">📦 標準パレットサイズ：T11（日本標準） <strong>1100×1100mm</strong>　／　ISO/EUR-2 <strong>1200×1000mm</strong>　／　EUR pallet <strong>1200×800mm</strong>　／　北米標準 <strong>1219×1016mm</strong>（48×40インチ）</span></p>
       <div class="calc-shared-opts">
         <div class="calc-field"><span class="calc-label">単位（全行共通／カスタムパレット含む）</span>
-          <select id="pal-unit" class="calc-unit-select">
+          <select id="pal-unit" class="calc-unit-select" onchange="onPalUnitChange()">
             <option value="mm">mm</option>
             <option value="cm">cm</option>
             <option value="in">inch</option>
@@ -1934,7 +1934,7 @@
           <div class="calc-field"><span class="calc-label">パレット縦</span><input type="number" class="calc-input" id="pal-pw" placeholder="1100" style="width:100px;"></div>
           <div class="calc-field"><span class="calc-label">パレット横</span><input type="number" class="calc-input" id="pal-pd" placeholder="1100" style="width:100px;"></div>
         </div>
-        <div class="calc-field"><span class="calc-label">最大積み付け高さ（全行共通）</span><input type="number" class="calc-input" id="pal-max-height" value="1500" min="1" style="width:90px;"></div>
+        <div class="calc-field"><span class="calc-label">最大積み付け高さ（全行共通・上の単位に従う）</span><input type="number" class="calc-input" id="pal-max-height" value="1500" min="1" style="width:90px;" oninput="this.dataset.userEdited='1'"></div>
         <div class="calc-field"><span class="calc-label">パレット最大積載重量 kg（任意）</span><input type="number" class="calc-input" id="pal-max-weight" placeholder="1000" min="0" style="width:90px;"></div>
       </div>
       <div class="multi-row-wrap" id="pal-rows-wrap">
