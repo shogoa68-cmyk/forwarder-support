@@ -360,6 +360,7 @@ function _printCalcPdf() {
 
 // 見積もりタブ「貨物情報」の荷姿・貨物明細（cond-packing-data）から、
 // 寸法（長さ/幅/高さ/重量）が入力済みの行だけを抽出する。単位は常に cm。
+// バンニング・パレタイズ両方のジャンプ転記で共用する。
 function _gatherCargoEntriesForVanTransfer() {
   const raw = document.getElementById('cond-packing-data')?.value;
   if (!raw) return [];
@@ -442,6 +443,81 @@ function jumpToVanningSimulator() {
   }
 }
 window.jumpToVanningSimulator = jumpToVanningSimulator;
+
+// 抽出した貨物明細を計算タブのパレタイズ行（#pal-rows-wrap）へ転記する。
+// バンニングと違い、個数欄は data-key="total"（任意項目）であることに注意。
+function _fillPalRowsFromCargoEntries(entries) {
+  const wrap = document.getElementById('pal-rows-wrap');
+  if (!wrap) return false;
+  let rows = Array.from(wrap.querySelectorAll('.calc-multi-row'));
+  while (rows.length > 1) { rows.pop().remove(); }
+  const unitSel = document.getElementById('pal-unit');
+  if (unitSel) {
+    unitSel.value = 'cm';   // cond-packing-data は常に cm 換算値
+    // 単位を直接書き換えただけだと onchange が発火しないため、最大積み付け高さの
+    // 既定値（未編集時）が旧単位のまま残ってしまう（手動切替時と同じ不具合を踏む）。
+    // onPalUnitChange() を明示的に呼んで単位に合わせた値へ揃える。
+    if (typeof onPalUnitChange === 'function') onPalUnitChange();
+  }
+
+  entries.forEach((entry, i) => {
+    let row;
+    if (i === 0) {
+      row = rows[0];
+    } else {
+      addCalcRow('pal');
+      row = wrap.querySelector('.calc-multi-row:last-child');
+    }
+    if (typeof injectAuxCalcFields === 'function') injectAuxCalcFields(row);
+    const set = (key, val) => { const el = row.querySelector(`[data-key="${key}"]`); if (el) el.value = val; };
+    set('l', entry.l);
+    set('w', entry.w);
+    set('h', entry.h);
+    set('weight', entry.kg || '');
+    set('total', entry.qty || 1);
+    const stackSel = row.querySelector('[data-key="stack"]');
+    if (stackSel) stackSel.value = entry.stack === '不可' ? 'ng' : 'ok';
+  });
+  updateRowNums(wrap);
+  return true;
+}
+
+// 見積もりタブ「貨物情報」→ 計算タブのパレタイズシミュレーター（3D積み付けプレビュー）へジャンプ。
+// 寸法入力済みの荷姿があれば転記した上で自動計算まで行う。
+function jumpToPalletizeSimulator() {
+  const entries = _gatherCargoEntriesForVanTransfer();
+
+  const calcCatBtn = document.querySelector('.cat-btn[aria-controls="tab-calc"]');
+  if (calcCatBtn && typeof switchCategory === 'function') {
+    switchCategory('calc', calcCatBtn);
+  } else if (typeof switchTab === 'function') {
+    switchTab('calc');
+  }
+
+  let transferred = false;
+  if (entries.length) {
+    transferred = _fillPalRowsFromCargoEntries(entries);
+    if (transferred) calcPalletize();
+  }
+
+  requestAnimationFrame(() => {
+    const target = transferred
+      ? document.getElementById('pal-result')
+      : document.getElementById('pal-rows-wrap')?.closest('.card');
+    if (!target) return;
+    target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    target.classList.add('jump-target-flash');
+    setTimeout(() => target.classList.remove('jump-target-flash'), 1200);
+  });
+
+  if (typeof quoteShowToast === 'function') {
+    const msg = transferred
+      ? `🔲 貨物情報（${entries.length}件）をパレタイズシミュレーターへ転記しました（「← 見積もりに戻る」で戻れます）`
+      : '🔲 パレタイズシミュレーターに移動しました（「← 見積もりに戻る」で戻れます）';
+    quoteShowToast(msg, 'info', 3000);
+  }
+}
+window.jumpToPalletizeSimulator = jumpToPalletizeSimulator;
 
 // ================================================================
 //  複数行管理ユーティリティ
