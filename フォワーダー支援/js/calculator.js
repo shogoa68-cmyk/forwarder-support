@@ -1022,10 +1022,31 @@ function _fillLayerFootprint(candidates, pw, pd) {
   return { placements, consumed: remainingQty.map((rq, i) => candidates[i].qty - rq) };
 }
 
+// 段の高さ選び方 その1：入る高さの中で最も個数（総量）が多いものを採用する。
+// 段数を減らして床効率を優先するため、潤沢にある品種を軸に床を敷き詰めやすい。
+function _heightPickByQty(avail) {
+  const heightQty = {};
+  avail.forEach(r => { heightQty[r.h] = (heightQty[r.h] || 0) + r.qty; });
+  return Object.keys(heightQty).map(Number).sort((a, b) => heightQty[b] - heightQty[a] || b - a)[0];
+}
+
+// 段の高さ選び方 その2：残り高さ（headroom）をその高さで割った余りが最小になる
+// ものを採用する。最後に使い切れない「天井のすき間」を極力残さないための選び方。
+// 数量が少ない品種を早々に選んでしまうと、その品種を使い切った後の層構成が
+// かえって不利になることがあるため、その1と両方試して良い方を採用する
+// （_packPalletLayeredBest）。
+function _heightPickByRemainder(avail, headroom) {
+  const heightQty = {};
+  avail.forEach(r => { heightQty[r.h] = (heightQty[r.h] || 0) + r.qty; });
+  return Object.keys(heightQty).map(Number)
+    .sort((a, b) => (headroom % a) - (headroom % b) || heightQty[b] - heightQty[a] || b - a)[0];
+}
+
 // 1パレット分を、段（レイヤー）を積み上げながら埋める。
 // remainingTypes: [{idx, l, w, h, qty, noStack}, ...]（呼び出し側が全体の残数を保持し、
 // この関数は配置した分だけ各要素の qty を直接減算する＝副作用あり）
-function _packPalletLayered(remainingTypes, pw, pd, maxH) {
+// heightPicker(avail, headroom) は次の段の高さを返す関数（_heightPickByQty 等）。
+function _packPalletLayered(remainingTypes, pw, pd, maxH, heightPicker) {
   const EPS = 1e-6;
   const placed = [];
   let z = 0;
@@ -1034,11 +1055,7 @@ function _packPalletLayered(remainingTypes, pw, pd, maxH) {
     if (headroom <= EPS) break;
     const avail = remainingTypes.filter(r => r.qty > 0 && r.h <= headroom + EPS && (!r.noStack || z < EPS));
     if (!avail.length) break;
-    // この段の高さ：入る高さの中で最も個数（総量）が多いものを採用（段数を減らし床効率を優先）
-    const heightQty = {};
-    avail.forEach(r => { heightQty[r.h] = (heightQty[r.h] || 0) + r.qty; });
-    let layerH = Object.keys(heightQty).map(Number)
-      .sort((a, b) => heightQty[b] - heightQty[a] || b - a)[0];
+    let layerH = heightPicker(avail, headroom);
     // 床置き限定（段積み不可）の品種は z===0 の今しか置けない。選ばれた段高がその品種の
     // 高さ未満だと配置チャンスを逃して積み残しになってしまうため、必要なら段高を押し上げる。
     if (z < EPS) {
@@ -1058,14 +1075,41 @@ function _packPalletLayered(remainingTypes, pw, pd, maxH) {
   return placed;
 }
 
-// 複数品種・複数個数の貨物を、1パレット分ずつ _packPalletLayered で詰め切るまで
+// _packPalletLayered を2つの段高選び方（個数優先／余り最小優先）それぞれで試し、
+// 配置数が多い方（同数なら天井のすき間が少ない方）を採用する。
+// 個数優先は「潤沢な品種で床を安定して敷き詰める」のに強く、余り最小優先は
+// 「高さ上限ぴったりに収めて天井のすき間を消す」のに強いが、品種ごとの残数次第で
+// どちらが有利かは変わるため、両方試して実際の結果で比較するのが最も確実。
+function _packPalletLayeredBest(remainingTypes, pw, pd, maxH) {
+  const cloneTypes = () => remainingTypes.map(r => ({ ...r }));
+  const tryStrategy = (picker) => {
+    const clone = cloneTypes();
+    const placed = _packPalletLayered(clone, pw, pd, maxH, picker);
+    return { placed, clone };
+  };
+  const byQty = tryStrategy(_heightPickByQty);
+  const byRemainder = tryStrategy(_heightPickByRemainder);
+  const score = (r) => {
+    const maxZ = r.placed.length ? Math.max(...r.placed.map(p => p.z + p.h)) : 0;
+    return { count: r.placed.length, waste: maxH - maxZ };
+  };
+  const sQty = score(byQty), sRem = score(byRemainder);
+  const winner = (sQty.count !== sRem.count)
+    ? (sQty.count > sRem.count ? byQty : byRemainder)
+    : (sQty.waste <= sRem.waste ? byQty : byRemainder);
+  // 採用した戦略が消費した結果を、呼び出し側が保持する残数へ反映する
+  remainingTypes.forEach((r, i) => { r.qty = winner.clone[i].qty; });
+  return winner.placed;
+}
+
+// 複数品種・複数個数の貨物を、1パレット分ずつ _packPalletLayeredBest で詰め切るまで
 // パレットを積み増していく。
 function _packPalletsLayered(cargo, pw, pd, maxH, maxBins) {
   maxBins = maxBins || 60;
   const remaining = cargo.map((r, i) => ({ idx: i, l: r.bl, w: r.bw, h: r.bh, qty: Math.max(1, parseInt(r.qty, 10) || 1), noStack: r.rowNoStack }));
   const bins = [];
   while (remaining.some(r => r.qty > 0) && bins.length < maxBins) {
-    const placed = _packPalletLayered(remaining, pw, pd, maxH);
+    const placed = _packPalletLayeredBest(remaining, pw, pd, maxH);
     if (!placed.length) break; // どの個体も1つも入らない（単体でサイズ超過）→無限ループ防止
     const countByOrig = {};
     let binWeight = 0;
