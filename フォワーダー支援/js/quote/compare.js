@@ -5,6 +5,9 @@
 // 非表示は行わない。個別の見積書非表示切替は既存の「👁/🚫」をそのまま利用）。
 
   let _cmpGroups = [];   // 直近描画したグループ（クリックはインデックス経由・quote-tag-chips と同じ安全策）
+  // 比較対象を特定の「パターン」（行のpt欄＝サブコン×パターングループのパターン名）だけに
+  // 絞り込むフィルタ。空文字＝すべてのパターンを対象（従来通り）。
+  let _cmpPatternFilter = '';
 
   function _cmpRows() {
     const rows = [];
@@ -17,20 +20,30 @@
       if (!nm) return;
       const un = (document.getElementById('un-' + id)?.value || '').trim();
       const sv = (document.getElementById('sv-' + id)?.value || '').trim();
+      const pt = (document.getElementById('pt-' + id)?.value || '').trim();
       const pq = parseFloat(document.getElementById('pq-' + id)?.value) || 0;
       const pp = parseFloat(document.getElementById('pp-' + id)?.value) || 0;
       const pc = document.getElementById('pc-' + id)?.value || 'JPY';
       const hidden = tr.dataset.hideQuote === '1';
       const unitCostJPY  = (typeof toJPY === 'function') ? toJPY(pp, pc) : pp;
       const totalCostJPY = (typeof toJPY === 'function') ? toJPY(pq * pp, pc) : pq * pp;
-      rows.push({ id, nm, un, sv, pq, pp, pc, hidden, unitCostJPY, totalCostJPY });
+      rows.push({ id, nm, un, sv, pt, pq, pp, pc, hidden, unitCostJPY, totalCostJPY });
     });
     return rows;
   }
 
+  // 今の表に実際に使われているパターン名（行のpt欄）の一覧。プルダウンの選択肢に使う。
+  function _cmpAvailablePatterns(rows) {
+    return Array.from(new Set(rows.map(r => r.pt).filter(Boolean))).sort((a, b) => a.localeCompare(b, 'ja'));
+  }
+
   function _cmpGroupByName(rows) {
+    // パターン絞り込み中は、そのパターンの行＋パターン未設定（＝どの想定にも属さない共通費用）の行のみを対象にする
+    const filtered = _cmpPatternFilter
+      ? rows.filter(r => r.pt === _cmpPatternFilter || !r.pt)
+      : rows;
     const map = new Map();   // key: 品名 \x00 単位 → 行配列（単位まで一致するものだけを比較対象にする）
-    rows.forEach(r => {
+    filtered.forEach(r => {
       const key = r.nm + '\x00' + r.un;
       if (!map.has(key)) map.set(key, []);
       map.get(key).push(r);
@@ -49,6 +62,13 @@
       });
   }
 
+  // パターン選択プルダウンの変更ハンドラ
+  function cmpSetPatternFilter(value) {
+    _cmpPatternFilter = value || '';
+    renderCompareRail();
+  }
+  window.cmpSetPatternFilter = cmpSetPatternFilter;
+
   function _cmpFmtJpy(n) { return '¥' + Math.round(n).toLocaleString('ja-JP'); }
 
   // 見積書本体（明細テーブル）側の行ハイライトを、現在の比較結果に合わせて同期する。
@@ -65,17 +85,32 @@
   function renderCompareRail() {
     const panel = document.getElementById('cmpRailPanel');
     if (!panel) return;
-    _cmpGroups = _cmpGroupByName(_cmpRows());
+    const allRows = _cmpRows();
+    const patterns = _cmpAvailablePatterns(allRows);
+    // 選択中のパターンが（削除・リネーム等で）もう存在しなければ「すべて」に戻す
+    if (_cmpPatternFilter && !patterns.includes(_cmpPatternFilter)) _cmpPatternFilter = '';
+    _cmpGroups = _cmpGroupByName(allRows);
     _cmpSyncTableHighlight(_cmpGroups);
 
+    const patternSelectHtml = patterns.length
+      ? `<div class="cmp-pattern-row">
+           <span class="cmp-pattern-lbl">📦 パターン</span>
+           <select class="cmp-pattern-select" onchange="cmpSetPatternFilter(this.value)" title="サブコン×パターン見出し（行のパターン欄）で比較対象を絞り込みます">
+             <option value=""${_cmpPatternFilter ? '' : ' selected'}>すべてのパターン</option>
+             ${patterns.map(p => `<option value="${escHtml(p)}"${p === _cmpPatternFilter ? ' selected' : ''}>${escHtml(p)}</option>`).join('')}
+           </select>
+         </div>`
+      : '';
+
     if (!_cmpGroups.length) {
-      panel.innerHTML =
-        '<p class="cmp-empty">品名・単位の両方が一致する行が2件以上あると、ここで仕入単価を比較できます。<br>' +
-        '同じ費用について複数サブコンから見積を取った場合、それぞれ同じ品名・単位で行を入力してください。</p>';
+      const emptyMsg = _cmpPatternFilter
+        ? `「${escHtml(_cmpPatternFilter)}」に品名・単位の両方が一致する行が2件以上ありません（パターン未設定の共通費用も対象に含めています）。`
+        : '品名・単位の両方が一致する行が2件以上あると、ここで仕入単価を比較できます。<br>同じ費用について複数サブコンから見積を取った場合、それぞれ同じ品名・単位で行を入力してください。';
+      panel.innerHTML = patternSelectHtml + `<p class="cmp-empty">${emptyMsg}</p>`;
       return;
     }
 
-    panel.innerHTML =
+    panel.innerHTML = patternSelectHtml +
       '<p class="cmp-hint">品名・単位が一致する行を仕入単価（JPY換算）で比較し、最安値を⭐で表示します。<br>' +
       '見積書本体の該当行も自動でハイライトされます。「👁️ 非表示にする」は見積書への表示/非表示の切替のみで、行は削除されません。</p>' +
       '<div class="cmp-scroll">' +

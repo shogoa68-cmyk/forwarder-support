@@ -10339,6 +10339,14 @@ button.um-memberno--empty:hover { background: #f4ead4; border-color: #cdb98e; }
 
 /* ========== ⚖️ 比較パネル（同一項目の最安値比較） ========== */
 #tab-quote-make .cmp-panel { padding: 10px 12px; font-size: 12px; overflow-y: auto; }
+#tab-quote-make .cmp-pattern-row {
+  display: flex; align-items: center; gap: 6px; margin-bottom: 8px;
+}
+#tab-quote-make .cmp-pattern-lbl { font-size: 11px; font-weight: 700; color: #7a6040; white-space: nowrap; }
+#tab-quote-make .cmp-pattern-select {
+  flex: 1 1 auto; min-width: 0; font-size: 12px; font-family: inherit;
+  padding: 3px 6px; border: 1px solid #d9cfc2; border-radius: 4px; background: #fff; color: #3d2e1e;
+}
 #tab-quote-make .cmp-scroll { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
 #tab-quote-make .cmp-empty { font-size: 12px; color: #7a6a50; line-height: 1.7; }
 #tab-quote-make .cmp-hint { font-size: 11px; color: #8a7a5c; line-height: 1.7; margin-bottom: 10px; }
