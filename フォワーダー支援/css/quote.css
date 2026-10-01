@@ -10339,6 +10339,26 @@ button.um-memberno--empty:hover { background: #f4ead4; border-color: #cdb98e; }
 
 /* ========== ⚖️ 比較パネル（同一項目の最安値比較） ========== */
 #tab-quote-make .cmp-panel { padding: 10px 12px; font-size: 12px; overflow-y: auto; }
+#tab-quote-make .cmp-pattern-totals {
+  border: 1px solid #e4d9c8; border-radius: 6px; background: #fffdf7;
+  padding: 8px 10px; margin-bottom: 10px;
+}
+#tab-quote-make .cmp-pattern-totals-title { font-size: 12px; font-weight: 700; color: #5a4a30; margin-bottom: 6px; }
+#tab-quote-make .cmp-pt-total-common { font-size: 11px; color: #8a7a5c; margin-bottom: 6px; }
+#tab-quote-make .cmp-pt-total-row {
+  display: flex; align-items: center; gap: 6px; width: 100%;
+  padding: 5px 6px; margin-bottom: 4px; border-radius: 5px;
+  border: 1px solid transparent; background: #fff; cursor: pointer;
+  font-family: inherit; font-size: 12px; color: #3d2e1e; text-align: left;
+}
+#tab-quote-make .cmp-pt-total-row:hover { background: #fff6e0; border-color: #e4d9c8; }
+#tab-quote-make .cmp-pt-total-row:last-child { margin-bottom: 0; }
+#tab-quote-make .cmp-pt-total--best { background: #fff8e0; border-color: #e6c25a; }
+#tab-quote-make .cmp-pt-total--active { border-color: #c9ab73; box-shadow: 0 0 0 1px #c9ab73 inset; }
+#tab-quote-make .cmp-pt-total-star { width: 14px; flex: none; }
+#tab-quote-make .cmp-pt-total-name { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
+#tab-quote-make .cmp-pt-total-amt { font-weight: 700; white-space: nowrap; }
+#tab-quote-make .cmp-pt-total-breakdown { font-size: 10px; color: #8a7a5c; white-space: nowrap; }
 #tab-quote-make .cmp-pattern-row {
   display: flex; align-items: center; gap: 6px; margin-bottom: 8px;
 }

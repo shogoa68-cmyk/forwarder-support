@@ -1,6 +1,10 @@
-// ========== 比較（同一項目の最安値比較） ==========
-// 右カラム「⚖️ 比較」パネル。品名（nm）・単位（un）が一致する行が2件以上あるものを
-// グループ化し、仕入単価（JPY換算）が最も安い行を⭐でハイライトする。
+// ========== 比較（同一項目の最安値比較・パターン別合計比較） ==========
+// 右カラム「⚖️ 比較」パネル。
+// 1. パターン別合計比較：行のpt欄（サブコン×パターン見出しのパターン名）が2種類以上
+//    あるとき、パターンごとの仕入合計（JPY換算、パターン未設定＝共通費用を含む）を
+//    算出し、最安のパターンを⭐で表示する。クリックするとそのパターンへ絞り込む。
+// 2. 品目別最安値比較：品名（nm）・単位（un）が一致する行が2件以上あるものをグループ化し、
+//    仕入単価（JPY換算）が最も安い行を⭐でハイライトする（上のパターン選択で絞り込み可）。
 // 見積書本体（明細テーブル）側の該当行にも自動でハイライト表示する（行の削除・
 // 非表示は行わない。個別の見積書非表示切替は既存の「👁/🚫」をそのまま利用）。
 
@@ -69,6 +73,24 @@
   }
   window.cmpSetPatternFilter = cmpSetPatternFilter;
 
+  // パターンごとの合計金額（仕入・JPY換算）を算出する。
+  // 品名・単位の一致は問わず、そのパターンに属する行（pt一致）＋パターン未設定の
+  // 共通費用行をすべて合算する（「パターンAを選んだ場合の総額」を見るため）。
+  // 非表示（👁️非表示にする）行も、見積書に出していないだけで実際の費用ではあるため含める。
+  function _cmpPatternTotals(rows, patterns) {
+    let commonTotal = 0;
+    const ownTotals = Object.create(null);
+    patterns.forEach(p => { ownTotals[p] = 0; });
+    rows.forEach(r => {
+      if (r.pt) { if (r.pt in ownTotals) ownTotals[r.pt] += r.totalCostJPY; }
+      else commonTotal += r.totalCostJPY;
+    });
+    const byPattern = patterns
+      .map(p => ({ pt: p, ownTotal: ownTotals[p], grandTotal: ownTotals[p] + commonTotal }))
+      .sort((a, b) => a.grandTotal - b.grandTotal);
+    return { commonTotal, byPattern };
+  }
+
   function _cmpFmtJpy(n) { return '¥' + Math.round(n).toLocaleString('ja-JP'); }
 
   // 見積書本体（明細テーブル）側の行ハイライトを、現在の比較結果に合わせて同期する。
@@ -102,15 +124,42 @@
          </div>`
       : '';
 
+    // パターンが2件以上あるときだけ、パターンごとの合計比較を表示する
+    const patternTotalsHtml = patterns.length >= 2 ? (() => {
+      const { commonTotal, byPattern } = _cmpPatternTotals(allRows, patterns);
+      const commonLine = commonTotal
+        ? `<div class="cmp-pt-total-common">共通費用（どのパターンにも含まれます）： ${_cmpFmtJpy(commonTotal)}</div>`
+        : '';
+      const rowsHtml = byPattern.map((p, i) => {
+        const isCheapest = i === 0;
+        const isActive = p.pt === _cmpPatternFilter;
+        const breakdown = commonTotal
+          ? `<span class="cmp-pt-total-breakdown">（共通${_cmpFmtJpy(commonTotal)}＋個別${_cmpFmtJpy(p.ownTotal)}）</span>`
+          : '';
+        return `<button type="button" class="cmp-pt-total-row${isCheapest ? ' cmp-pt-total--best' : ''}${isActive ? ' cmp-pt-total--active' : ''}"
+            onclick="cmpSetPatternFilter('${escHtml(p.pt).replace(/'/g, "\\'")}')" title="クリックするとこのパターンの内訳（下の品目別比較）に絞り込みます">
+          <span class="cmp-pt-total-star">${isCheapest ? '⭐' : ''}</span>
+          <span class="cmp-pt-total-name">${escHtml(p.pt)}</span>
+          <span class="cmp-pt-total-amt">${_cmpFmtJpy(p.grandTotal)}</span>
+          ${breakdown}
+        </button>`;
+      }).join('');
+      return `<div class="cmp-pattern-totals">
+          <div class="cmp-pattern-totals-title">📊 パターン別 合計比較（仕入・JPY換算）</div>
+          ${commonLine}
+          ${rowsHtml}
+        </div>`;
+    })() : '';
+
     if (!_cmpGroups.length) {
       const emptyMsg = _cmpPatternFilter
         ? `「${escHtml(_cmpPatternFilter)}」に品名・単位の両方が一致する行が2件以上ありません（パターン未設定の共通費用も対象に含めています）。`
         : '品名・単位の両方が一致する行が2件以上あると、ここで仕入単価を比較できます。<br>同じ費用について複数サブコンから見積を取った場合、それぞれ同じ品名・単位で行を入力してください。';
-      panel.innerHTML = patternSelectHtml + `<p class="cmp-empty">${emptyMsg}</p>`;
+      panel.innerHTML = patternTotalsHtml + patternSelectHtml + `<p class="cmp-empty">${emptyMsg}</p>`;
       return;
     }
 
-    panel.innerHTML = patternSelectHtml +
+    panel.innerHTML = patternTotalsHtml + patternSelectHtml +
       '<p class="cmp-hint">品名・単位が一致する行を仕入単価（JPY換算）で比較し、最安値を⭐で表示します。<br>' +
       '見積書本体の該当行も自動でハイライトされます。「👁️ 非表示にする」は見積書への表示/非表示の切替のみで、行は削除されません。</p>' +
       '<div class="cmp-scroll">' +
