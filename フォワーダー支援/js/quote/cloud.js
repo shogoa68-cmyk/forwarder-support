@@ -41,6 +41,8 @@
   let _cloudFilterCarrier = '';
   let _cloudFilterCustomer = '';  // お客様別ランキングからの絞り込み（正規化キー）
   let _cloudFilterTag     = '';   // タグ絞り込み（'' = すべて）
+  let _cloudFollowFilter  = false; // 🔔 料金更新フォロー（要フォロー）だけに絞り込む
+  let _followEditId       = null;  // 料金フォローのインライン編集中の案件ID
   let _cloudAdvOpen       = false;
   // ダッシュボード：並び替え・表示形式
   let _cloudSort = 'updated';   // updated|status|who|person|customer|tags
@@ -317,6 +319,7 @@
     }
     _cloudRows = data || [];
     await _checkStaleHolds();
+    _notifyPriceFollows();
     _renderStatusChips();
     _renderTagChips();
     _renderQpdStats();
@@ -353,6 +356,23 @@
       }
     }
     quoteShowToast('🔔 保留から' + HOLD_STALE_DAYS + '日以上経過した案件を' + stale.length + '件、下書きに戻しました', 'info', 6000);
+  }
+
+  // ログイン/一覧取得時に、料金更新フォローの「期限到来・超過」をまとめてトースト通知。
+  // 「要フォロー」タイルへの絞り込みボタン付き。
+  function _notifyPriceFollows() {
+    const due = _cloudRows.filter(r => {
+      const pf = _priceFollow(r); if (!pf) return false;
+      const lvl = _followLevel(pf);
+      return lvl === 'over' || lvl === 'today';
+    });
+    if (!due.length) return;
+    const over = due.filter(r => _followLevel(_priceFollow(r)) === 'over').length;
+    const msg = '🔔 料金更新フォローの確認期限が来ています：' + due.length + '件' + (over ? '（うち期限超過 ' + over + '件）' : '');
+    quoteShowToast(msg, over ? 'warn' : 'info', 7000, {
+      label: '要フォローを表示',
+      fn: () => { if (!_cloudFollowFilter) cloudToggleFollowFilter(); },
+    });
   }
 
   // 検索語・ステータス・詳細フィルターで絞り込んで描画
@@ -406,6 +426,7 @@
     const pol = _cloudFilterPol.trim().toLowerCase();
     const pod = _cloudFilterPod.trim().toLowerCase();
     const car = _cloudFilterCarrier.trim().toLowerCase();
+    if (_cloudFollowFilter && !_priceFollow(r)) return false;   // 🔔 要フォローのみ
     if (_cloudStatusFilter) {
       const st = _normalizeStatus(r.status) || CLOUD_STATUS_DEFAULT;
       const matchesStatus = (_cloudStatusFilter === DRAFT_GROUP_FILTER)
@@ -430,7 +451,7 @@
     // 絞り込み・並び替えが変わったときだけ先頭ページに戻す（ステータス変更や Presence 等の
     // 付随的な再描画では表示件数を保つ＝スクロール位置・展開状態を崩さない）
     const sig = JSON.stringify([_cloudSearch, _cloudStatusFilter, _cloudFilterCustomer, _cloudFilterTag,
-      _cloudFilterMode, _cloudFilterInco, _cloudFilterPol, _cloudFilterPod, _cloudFilterCarrier, _cloudSort, _cloudView]);
+      _cloudFilterMode, _cloudFilterInco, _cloudFilterPol, _cloudFilterPod, _cloudFilterCarrier, _cloudSort, _cloudView, _cloudFollowFilter]);
     if (sig !== _dashFilterSig) { _dashFilterSig = sig; _dashLimit = DASH_PAGE; }
     _renderCloudList(rows);
     _renderTagChips();        // タグチップは現在の絞り込み（ステータス等）に連動して件数・顔ぶれを更新
@@ -447,7 +468,7 @@
   // 何らかの絞り込みが効いているか（「すべて解除」ボタンの出し分けに使う）
   function _anyFilterActive() {
     return !!(_cloudSearch.trim() || _cloudStatusFilter || _cloudFilterCustomer || _cloudFilterTag ||
-              _cloudFilterMode || _cloudFilterInco ||
+              _cloudFilterMode || _cloudFilterInco || _cloudFollowFilter ||
               _cloudFilterPol.trim() || _cloudFilterPod.trim() || _cloudFilterCarrier.trim());
   }
   function _syncResetAllBtn() {
@@ -463,6 +484,7 @@
     _cloudStatusFilter = '';
     _cloudFilterCustomer = '';
     _cloudFilterTag = '';
+    _cloudFollowFilter = false;
     _cloudFilterMode = _cloudFilterInco = _cloudFilterPol = _cloudFilterPod = _cloudFilterCarrier = '';
     ['qpdSearch', 'cloudSearchInput'].forEach(id => { const e = document.getElementById(id); if (e) e.value = ''; });
     ['qpdFilterMode','qpdFilterInco','qpdFilterPol','qpdFilterPod','qpdFilterCarrier']
@@ -729,6 +751,56 @@
     return '<span class="cloud-remind" title="保留のまま' + (rf.heldDays || 0) + '日経過したため ' + escHtml(atStr) + ' に自動的に下書きへ戻されました">🔔 保留から自動復帰</span>';
   }
 
+  // 🔔 料金更新フォロー（暫定料金で提示し、最新料金が出たら更新したい案件）
+  function _priceFollow(r) { return (r && r.data && r.data.priceFollow) || null; }
+  function _mmdd(dateStr) {
+    var d = new Date(dateStr); if (isNaN(d.getTime())) return escHtml(dateStr);
+    return (d.getMonth() + 1) + '/' + d.getDate();
+  }
+  // フォローの緊急度レベル（期限との差）。due 未設定は 'none'
+  function _followLevel(pf) {
+    if (!pf || !pf.due) return 'none';
+    var d = new Date(pf.due); if (isNaN(d.getTime())) return 'none';
+    var days = Math.round((d.getTime() - _todayStart()) / 86400000);
+    if (days < 0)  return 'over';
+    if (days === 0) return 'today';
+    if (days <= 3)  return 'soon';
+    return 'ok';
+  }
+  // フォロー設定/編集のUI（カードのバッジ領域に出す）。編集中はインライン入力を出す。
+  function _followControl(r, idAttr, lockedBy) {
+    const pf = _priceFollow(r);
+    if (_followEditId === r.id && !lockedBy) {
+      const due = (pf && pf.due) || '';
+      const note = (pf && pf.note) || '';
+      return '<div class="cloud-follow-edit" data-fid="' + escHtml(r.id) + '" onclick="event.stopPropagation()">' +
+        '<span class="cloud-follow-edit-lbl">🔔 次回確認日</span>' +
+        '<input type="date" class="cloud-follow-date" value="' + escHtml(due) + '">' +
+        '<input type="text" class="cloud-follow-note" placeholder="メモ（任意。例：船社回答待ち）" value="' + escHtml(note) + '">' +
+        '<button type="button" class="cloud-follow-save" onclick="cloudSaveFollow(\'' + idAttr + '\')">保存</button>' +
+        (pf ? '<button type="button" class="cloud-follow-clear" onclick="cloudClearFollow(\'' + idAttr + '\')">更新済み（解除）</button>' : '') +
+        '<button type="button" class="cloud-follow-cancel" onclick="cloudCancelFollowEdit()">✕</button>' +
+      '</div>';
+    }
+    if (pf) {
+      const lvl = _followLevel(pf);
+      let txt;
+      if (lvl === 'over')  txt = '料金更新 期限超過';
+      else if (lvl === 'today') txt = '料金更新 本日';
+      else if (lvl === 'soon')  txt = '料金更新 〜' + _mmdd(pf.due);
+      else if (lvl === 'ok')    txt = '料金更新 〜' + _mmdd(pf.due);
+      else txt = '料金更新フォロー';
+      const tip = '最新料金が出たら更新（クリックで編集・解除）' + (pf.due ? '／次回確認：' + escHtml(pf.due) : '') + (pf.note ? '／' + escHtml(pf.note) : '');
+      return '<button type="button" class="cloud-follow cloud-follow--' + lvl + '" ' +
+        (lockedBy ? '' : 'onclick="event.stopPropagation();cloudEditFollow(\'' + idAttr + '\')" ') +
+        'title="' + tip + '">🔔 ' + escHtml(txt) + '</button>';
+    }
+    // 未設定：控えめな設定ボタン
+    if (lockedBy) return '';
+    return '<button type="button" class="cloud-follow-set" onclick="event.stopPropagation();cloudEditFollow(\'' + idAttr + '\')" ' +
+      'title="最新料金が出たら更新したい案件としてフォロー登録">🔔 料金フォロー</button>';
+  }
+
   // 役割ラベル＝費用行のカテゴリ（CATEGORIES の value → 短縮ラベル）
   const _SUBCON_ROLE = {
     'domestic':'国内作業', 'export-local':'輸出ローカル', 'ocean':'海上', 'air':'航空',
@@ -826,7 +898,9 @@
             : HOLD_STALE_DAYS + '日間動きが無いと自動的に下書きへ戻ります。クリックでこの案件だけリマインドを止める') + '">' +
           (holdOff ? '🔕 リマインド停止中' : '🔔 リマインド止める') + '</button>'
         : '';
-      const prioRow     = (dueBadge || recvBadge || remindBadge || holdToggle) ? '<div class="cloud-card-prio">' + dueBadge + recvBadge + remindBadge + holdToggle + '</div>' : '';
+      // 🔔 料金更新フォロー（暫定提示→最新料金が出たら更新）。どのステータスでも付けられる
+      const followCtl   = _followControl(r, idAttr, lockedBy);
+      const prioRow     = (dueBadge || recvBadge || remindBadge || holdToggle || followCtl) ? '<div class="cloud-card-prio">' + dueBadge + recvBadge + remindBadge + holdToggle + followCtl + '</div>' : '';
 
       // サブコン（役割ラベル付き・5件目以降は +N）
       const subShown = subcons.slice(0, 4);
@@ -933,7 +1007,7 @@
             (condHtml ? '<dt>条件</dt><dd class="cloud-kv-tags">' + condHtml + '</dd>' : '') +
             (carrier  ? '<dt>幹線</dt><dd>🚢 ' + escHtml(carrier) + '</dd>' : '') +
             (subHtml  ? '<dt>サブコン</dt><dd class="cloud-kv-sub">' + subHtml + '</dd>' : '') +
-            (custDd   ? '<dt>お客様 / 担当</dt><dd>' + custDd + '</dd>' : '') +
+            (custDd   ? '<dt>お客様 / 担当</dt><dd class="cloud-kv-cust">' + custDd + '</dd>' : '') +
             '<dt>作成 / 更新</dt><dd class="cloud-kv-who">' + whoDd + '</dd>' +
           '</dl>' +
           tagsRowHtml +
@@ -1035,6 +1109,15 @@
     html += card(DRAFT_GROUP_FILTER, '下書き中・改定中・情報待ち', draftGroupN, 'draft');
     html += CLOUD_STATUSES.filter(st => !DRAFT_GROUP_STATUSES.includes(st))
       .map(st => card(st, _statusLabel(st), count(st), _statusClass(st))).join('');
+    // 🔔 料金更新フォロー（要フォロー）タイル。期限超過があれば件数を強調
+    const follows = _cloudRows.filter(_priceFollow);
+    if (follows.length) {
+      const overdue = follows.filter(r => _followLevel(_priceFollow(r)) === 'over').length;
+      const lbl = overdue ? '要フォロー（超過' + overdue + '）' : '要フォロー';
+      html += '<button type="button" class="qpd-stat qpd-stat--follow' + (_cloudFollowFilter ? ' is-active' : '') +
+        (overdue ? ' qpd-stat--follow-over' : '') + '" onclick="cloudToggleFollowFilter()" title="最新料金が出たら更新したい案件（料金更新フォロー）だけに絞り込み">' +
+        '<span class="qpd-stat-n">🔔 ' + follows.length + '</span><span class="qpd-stat-l">' + escHtml(lbl) + '</span></button>';
+    }
     box.innerHTML = html;
   }
 
@@ -1829,6 +1912,47 @@
       label: '元に戻す',
       fn: () => cloudToggleHoldReminder(rawId, !off),
     });
+  }
+
+  // ---------- 🔔 料金更新フォロー（暫定提示→最新料金が出たら更新） ----------
+  function cloudEditFollow(rawId) { _followEditId = decodeURIComponent(rawId); _applyCloudFilter(); _focusFollowDate(); }
+  function cloudCancelFollowEdit() { _followEditId = null; _applyCloudFilter(); }
+  function _focusFollowDate() {
+    setTimeout(() => { document.querySelector('#qpdListWrap .cloud-follow-edit .cloud-follow-date')?.focus(); }, 0);
+  }
+  async function _writeFollow(rawId, pf) {   // pf=object で設定／null で解除
+    const c = _getClient();
+    if (!c || !_cloudUser) { quoteShowToast('⚠️ 先に Google でログインしてください', 'warn'); return false; }
+    const id = decodeURIComponent(rawId);
+    const row = _cloudRows.find(r => r.id === id);
+    if (!row) return false;
+    const lockedBy = _lockedByOther(row);
+    if (lockedBy) { quoteShowToast('🔒 ' + _nameFor(lockedBy) + ' さんが作業中のため変更できません', 'warn', 4000); return false; }
+    const newData = Object.assign({}, row.data);
+    if (pf) newData.priceFollow = pf; else delete newData.priceFollow;
+    const { error } = await c.from(_table()).update({ data: newData }).eq('id', id);
+    if (error) { quoteShowToast('⚠️ 更新に失敗：' + error.message, 'warn', 5000); return false; }
+    row.data = newData;
+    _followEditId = null;
+    _applyCloudFilter();
+    return true;
+  }
+  async function cloudSaveFollow(rawId) {
+    const wrap = document.getElementById('qpdListWrap');
+    const box = wrap && wrap.querySelector('.cloud-follow-edit');
+    const due  = (box && box.querySelector('.cloud-follow-date')?.value || '').trim();
+    const note = (box && box.querySelector('.cloud-follow-note')?.value || '').trim();
+    const ok = await _writeFollow(rawId, { due: due || '', note: note || '', setAt: new Date().toISOString(), setBy: _cloudUser && _cloudUser.email });
+    if (ok) quoteShowToast('🔔 料金更新フォローを登録しました' + (due ? '（次回確認：' + due + '）' : ''), 'success', 3000);
+  }
+  async function cloudClearFollow(rawId) {
+    const ok = await _writeFollow(rawId, null);
+    if (ok) quoteShowToast('✅ 料金更新フォローを解除しました（更新済み）', 'success', 2500);
+  }
+  function cloudToggleFollowFilter() {
+    _cloudFollowFilter = !_cloudFollowFilter;
+    _renderQpdStats();
+    _applyCloudFilter();
   }
 
   // ---------- 🏷️ 案件タグ（ダッシュボードから直接編集） ----------
@@ -3127,15 +3251,15 @@
     if (!uncached.length) return;
     const inList = '(' + uncached.join(',') + ')';
     const { data: links, error } = await c.from('quote_preset_links')
-      .select('preset_a,preset_b,note')
+      .select('id,preset_a,preset_b,note')
       .or('preset_a.in.' + inList + ',preset_b.in.' + inList);
     if (error) { uncached.forEach(id => { _dashLinkCache[id] = []; }); return; }  // テーブル未作成等は関連なし扱い
     const set = new Set(uncached);
     const adj = {}; uncached.forEach(id => (adj[id] = []));
     const otherIds = new Set();
     (links || []).forEach(l => {
-      if (set.has(l.preset_a) && l.preset_b !== l.preset_a) { adj[l.preset_a].push({ oid: l.preset_b, note: l.note || '' }); otherIds.add(l.preset_b); }
-      if (set.has(l.preset_b) && l.preset_a !== l.preset_b) { adj[l.preset_b].push({ oid: l.preset_a, note: l.note || '' }); otherIds.add(l.preset_a); }
+      if (set.has(l.preset_a) && l.preset_b !== l.preset_a) { adj[l.preset_a].push({ oid: l.preset_b, note: l.note || '', linkId: l.id }); otherIds.add(l.preset_b); }
+      if (set.has(l.preset_b) && l.preset_a !== l.preset_b) { adj[l.preset_b].push({ oid: l.preset_a, note: l.note || '', linkId: l.id }); otherIds.add(l.preset_a); }
     });
     const metaMap = {};
     if (otherIds.size) {
@@ -3145,7 +3269,7 @@
     }
     uncached.forEach(id => {
       const seen = new Set(); const uniq = [];
-      (adj[id] || []).forEach(e => { const m = metaMap[e.oid]; if (m && !seen.has(m.id)) { seen.add(m.id); uniq.push(Object.assign({}, m, { note: e.note })); } });
+      (adj[id] || []).forEach(e => { const m = metaMap[e.oid]; if (m && !seen.has(m.id)) { seen.add(m.id); uniq.push(Object.assign({}, m, { note: e.note, linkId: e.linkId })); } });
       _dashLinkCache[id] = uniq;
       _applyDashLinks(id);
     });
@@ -3170,9 +3294,14 @@
       const badge = '<span class="cloud-status-badge cloud-status--' + _statusClass(st) + '">' + escHtml(st) + '</span>';
       const ref = m.ref ? '<span class="clink-ref">' + escHtml(m.ref) + '</span>' : '';
       const note = m.note ? '<div class="clink-note" title="関連付けの理由">📝 ' + escHtml(m.note) + '</div>' : '';
+      const unlink = m.linkId
+        ? '<button type="button" class="clink-unlink" onclick="event.stopPropagation();dashUnlinkCardLink(\'' + encodeURIComponent(m.linkId) + '\')" title="この関連付けを解除（双方のカードから外れます）">✕</button>'
+        : '';
       return '<div class="cloud-clink-wrap">' +
+        '<div class="cloud-clink-row">' +
         '<button type="button" class="cloud-clink" onclick="cloudPreviewPreset(\'' + encodeURIComponent(m.id) + '\')" title="内容をプレビュー">' +
         badge + '<span class="clink-name">' + escHtml(m.name || '（無題）') + '</span>' + ref + '</button>' +
+        unlink + '</div>' +
         note + '</div>';
     }).join('');
     const more = remain > 0
@@ -3188,6 +3317,15 @@
     const id = decodeURIComponent(encId);
     if (_dashLinkExpanded.has(id)) _dashLinkExpanded.delete(id); else _dashLinkExpanded.add(id);
     _applyDashLinks(id);
+  };
+
+  // ダッシュボードのカードから関連付けを解除（双方向リンクを1行削除）
+  window.dashUnlinkCardLink = async function (encLinkId) {
+    const linkId = decodeURIComponent(encLinkId);
+    if (!confirm('この関連付けを解除しますか？（双方のカードから外れます。案件自体は削除されません）')) return;
+    if (typeof cloudUnlinkPreset !== 'function') return;
+    const ok = await cloudUnlinkPreset(linkId);   // 成功時は _invalidateDashLinks 済み
+    if (ok) _applyCloudFilter();                   // ダッシュボードを再描画して関連案件を取り直す
   };
 
   // ================================================================
@@ -3448,6 +3586,11 @@
   window.cloudFilterStatus     = cloudFilterStatus;
   window.cloudSetStatus        = cloudSetStatus;
   window.cloudToggleHoldReminder = cloudToggleHoldReminder;
+  window.cloudEditFollow        = cloudEditFollow;
+  window.cloudCancelFollowEdit  = cloudCancelFollowEdit;
+  window.cloudSaveFollow        = cloudSaveFollow;
+  window.cloudClearFollow       = cloudClearFollow;
+  window.cloudToggleFollowFilter = cloudToggleFollowFilter;
   window.toggleCloudAdvSearch  = toggleCloudAdvSearch;
   window.cloudFilterAdvanced   = cloudFilterAdvanced;
   window.clearCloudAdvSearch   = clearCloudAdvSearch;
