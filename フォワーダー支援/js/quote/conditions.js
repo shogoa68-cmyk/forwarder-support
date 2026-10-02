@@ -2517,6 +2517,16 @@
     return blocks.join('\n\n');
   };
 
+  // 複数パターンを使っている案件で、現在アクティブなパターン名を返す（PDF等の出力
+  // ファイル名への反映用）。単一パターンの案件（複数パターン機能を使っていない）では
+  // null を返す＝ファイル名は従来通り変わらない。
+  window.getActivePatternName = function () {
+    if ((_packingPatterns || []).length <= 1) return null;
+    const pt = _packingPatterns[_packingActiveIdx];
+    if (!pt) return null;
+    return pt.name || `パターン${_packingActiveIdx + 1}`;
+  };
+
   // 輸送モードに応じた課金重量（LCL＝R/T・航空＝CW）の1行を、PDF/プレビュー/メールで
   // 共通利用できる形式で返す。対象外・データ無しなら null。
   // 総重量・総容積（getCargoWeightText/getCargoVolumeText）と同じく、複数物量パターンを
