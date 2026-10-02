@@ -96,7 +96,10 @@
     const safe = s => String(s || '').replace(/[\/\\:*?"<>|\t\n\r]/g, '_').replace(/_+/g, '_').trim().slice(0, 40);
     const personH = hdr.person && window.formatPersonWithHonorific
       ? window.formatPersonWithHonorific(hdr.person) : (hdr.person || '');
-    const parts = [hdr.ref, hdr.customer, personH].map(safe).filter(Boolean);
+    // 複数の物量パターンを使っている案件では、現在出力対象のパターン名もファイル名に
+    // 反映する（パターンA/Bをそれぞれ出力したときに上書きし合わないように）
+    const patternName = (typeof window.getActivePatternName === 'function') ? window.getActivePatternName() : null;
+    const parts = [hdr.ref, hdr.customer, personH, patternName].map(safe).filter(Boolean);
     if (parts.length) return parts.join('_');
     const today = new Date().toLocaleDateString('sv', { timeZone: 'Asia/Tokyo' }).replace(/-/g, '');
     return '御見積書_' + today;

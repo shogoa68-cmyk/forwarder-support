@@ -97,7 +97,10 @@
     const safe  = s => s.replace(/[\/\\:*?"<>|\t\n\r]/g, '_').replace(/_+/g, '_').trim().slice(0, 40);
     const cond = getConditions();
     const mode = safe(cond.mode || '');
-    const parts = [hdr.ref, hdr.customer, mode, hdr.person].map(safe).filter(Boolean);
+    // 複数の物量パターンを使っている案件では、現在出力対象のパターン名もファイル名に
+    // 反映する（パターンA/Bをそれぞれ出力したときに上書きし合わないように）
+    const patternName = (typeof window.getActivePatternName === 'function') ? window.getActivePatternName() : null;
+    const parts = [hdr.ref, hdr.customer, mode, hdr.person, patternName].map(safe).filter(Boolean);
     const prefix = isSensitiveOn() ? '[社内用]_' : '[客先]_';
     return prefix + (parts.length ? parts.join('_') : '見積もり_' + today) + '.' + ext;
   }

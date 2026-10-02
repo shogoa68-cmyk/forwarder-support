@@ -1107,9 +1107,13 @@
       });
     }
 
-    // % 計算モードを復元（コピー元が % モードなら複製先も同じモードに）
-    if (document.getElementById(`ppmode-${srcId}`)?.value === 'pct') {
+    // % 計算モード／売値ベースモードを復元（コピー元が同じモードなら複製先も引き継ぐ）
+    const srcPpmode = document.getElementById(`ppmode-${srcId}`)?.value;
+    if (srcPpmode === 'pct') {
       _setPctModeUI(newId, true);
+    } else if (srcPpmode === 'sell') {
+      _setSellModeUI(newId, true);
+      _calcFromSell(newId);
     }
 
     // subcon-child クラス等のグループ連結を即時反映（DOM並替でスクロール位置が変わらないよう保持）
@@ -1295,9 +1299,14 @@
     q('pq').oninput    = () => { _recordPatternQty(id); onPay(id); };
     q('pc').onchange   = () => onPay(id);
     q('pp').oninput    = () => onPay(id);
-    q('mk').oninput    = () => { calc(id); _recalcPctDependents(id); };
+    q('mk').oninput    = () => {
+      if (_isSellMode(id)) { _calcFromSell(id); _recalcPctDependents(id); if (typeof scheduleAutoSave === 'function') scheduleAutoSave(); return; }
+      calc(id); _recalcPctDependents(id);
+    };
     q('bc').onchange   = () => onBillCur(id);          // 売通貨を仕入通貨と別建てに
     { const bpEl2 = q('bp'); if (bpEl2) bpEl2.oninput = () => {
+        // 売値ベースモードでは売単価が入力値。乗せ幅はそのまま、仕入単価を逆算する
+        if (_isSellMode(id)) { _calcFromSell(id); _recalcPctDependents(id); if (typeof scheduleAutoSave === 'function') scheduleAutoSave(); return; }
         // 独立モードでは売単価を直接入力できる。基準額は換算値のままにして
         // 乗せ幅を逆算する（乗せ幅・売単価のどちらから入れても整合する）
         const base = parseFloat(bpEl2.dataset.base) || 0;
@@ -1505,11 +1514,16 @@
     const mk = val(`mk-${id}`);
     const tr = document.getElementById(`row-${id}`);
     const indep = tr?.dataset.bcIndep === '1';
+    const sellMode = _isSellMode(id);
     const bqEl = document.getElementById(`bq-${id}`);
     const bcEl = document.getElementById(`bc-${id}`);
     const bpEl = document.getElementById(`bp-${id}`);
     if (bqEl) bqEl.value = pq;
-    if (!indep) {
+    if (sellMode) {
+      // 売値ベースモード：売単価が入力値のため、ここでは仕入通貨＝売通貨に揃えるだけ。
+      // 仕入単価（pp）の再算出は bp/mk の oninput（_calcFromSell）側で行う
+      if (bcEl) bcEl.value = pc;
+    } else if (!indep) {
       // 連動モード：売通貨＝仕入通貨、売単価＝仕入単価＋乗せ幅
       if (bcEl) bcEl.value = pc;
       if (bpEl) { bpEl.dataset.base = pp; bpEl.value = pp + mk; }
@@ -1532,8 +1546,9 @@
     const mk = val(`mk-${id}`);
     const bpEl = document.getElementById(`bp-${id}`);
     // 売単価＝基準額＋乗せ幅。基準額は連動モードなら仕入単価、
-    // 独立モードなら仕入単価を売通貨へ換算し 10 単位で切り捨てた値
-    if (bpEl) bpEl.value = (parseFloat(bpEl.dataset.base) || 0) + mk;
+    // 独立モードなら仕入単価を売通貨へ換算し 10 単位で切り捨てた値。
+    // 売値ベースモードでは売単価そのものが入力値のため上書きしない
+    if (bpEl && !_isSellMode(id)) bpEl.value = (parseFloat(bpEl.dataset.base) || 0) + mk;
     const bp = val(`bp-${id}`);
     const pc = document.getElementById(`pc-${id}`)?.value || 'JPY';
     const bc = document.getElementById(`bc-${id}`)?.value || 'JPY';
@@ -1798,6 +1813,60 @@
     _calcPct(id);
   }
   window._restorePctMode = _restorePctMode;
+
+  // ========== 売値ベースモード（既存システムから売値のみを移植する場合向け）==========
+  // 通常は 仕入単価(pp)＋乗せ幅(mk)＝売単価(bp) が入力の向き（pp が真の入力値）。
+  // 既存システムからの移植やメール取込では売値しか分からないことが多いため、
+  // この行に限り向きを逆にする：売単価(bp) が入力値、乗せ幅(mk) を入力すると
+  // 仕入単価(pp) を自動算出する（pp＝bp－mk）。ppmode フィールド（% 計算モードと同じ
+  // 保存領域）に 'sell' を記録することでこの状態を保存・復元する。
+  function _isSellMode(id) {
+    return document.getElementById(`ppmode-${id}`)?.value === 'sell';
+  }
+
+  function _setSellModeUI(id, on) {
+    const tr = document.getElementById(`row-${id}`);
+    if (!tr) return;
+    tr.classList.toggle('row-sell-mode', on);
+    const ppEl = document.getElementById(`pp-${id}`);
+    const bpEl = document.getElementById(`bp-${id}`);
+    const mkEl = document.getElementById(`mk-${id}`);
+    if (ppEl) {
+      ppEl.readOnly = on;
+      ppEl.tabIndex = on ? -1 : 0;
+      ppEl.classList.toggle('display-field', on);
+      if (on) ppEl.removeAttribute('data-col'); else ppEl.setAttribute('data-col', '4');
+      ppEl.title = on ? '売単価－乗せ幅から自動算出（売値ベースモード）' : '';
+    }
+    if (bpEl) {
+      bpEl.readOnly = !on;
+      bpEl.tabIndex = on ? 0 : -1;
+      bpEl.classList.toggle('display-field', !on);
+    }
+    if (mkEl) {
+      mkEl.title = on
+        ? '乗せ幅：売単価から差し引いて仕入単価になります（売値ベースモード）'
+        : '乗せ幅：仕入単価に加算して売単価になります';
+    }
+  }
+
+  function _calcFromSell(id) {
+    const bp = val(`bp-${id}`);
+    const mk = val(`mk-${id}`);
+    const pc = document.getElementById(`pc-${id}`)?.value || 'JPY';
+    const raw = bp - mk;
+    const computed = pc === 'JPY' ? Math.round(raw) : Math.round(raw * 100) / 100;
+    const ppEl = document.getElementById(`pp-${id}`);
+    if (ppEl) ppEl.value = computed;
+    onPay(id);
+  }
+
+  // 保存データ復元時に conditions.js から呼び出す
+  function _restoreSellMode(id) {
+    _setSellModeUI(id, true);
+    _calcFromSell(id);
+  }
+  window._restoreSellMode = _restoreSellMode;
 
   // ========== % 行リンク ==========
   const _pctRecalcInFlight = new Set();
@@ -3766,6 +3835,9 @@
       _setPctModeUI(newId, true);
       _populatePprefSelect(newId);
       _calcPct(newId);
+    } else if (data.ppmode === 'sell') {
+      _setSellModeUI(newId, true);
+      _calcFromSell(newId);
     }
     return newId;
   }
