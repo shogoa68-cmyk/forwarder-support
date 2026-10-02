@@ -926,12 +926,14 @@
   window.MD_SCHEMA = {
     customer: [
       _FURIGANA_FIELD,
-      { key: 'contact',     label: '担当' },
-      { key: 'location',    label: '所在地' },
-      { key: 'mainGoods',   label: 'メイン商材' },
-      { key: 'destCountry', label: '仕向国/輸入国' },
-      { key: 'tendency',    label: '傾向' },
-      { key: 'memo',        label: '社内メモ', textarea: true },
+      { key: 'contacts',     label: '担当者', contacts: true },
+      { key: 'location',     label: '所在地' },
+      { key: 'mainGoods',    label: 'メイン商材' },
+      { key: 'destCountry',  label: '仕向国/輸入国' },
+      { key: 'tendency',     label: '傾向' },
+      { key: 'website',      label: 'ウェブサイト', link: true, placeholder: '例）https://example.com' },
+      { key: 'tags',         label: 'タグ', tags: true },
+      { key: 'memo',         label: '社内メモ', textarea: true },
     ],
     nm: [
       _FURIGANA_FIELD,
