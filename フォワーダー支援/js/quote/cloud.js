@@ -3251,15 +3251,15 @@
     if (!uncached.length) return;
     const inList = '(' + uncached.join(',') + ')';
     const { data: links, error } = await c.from('quote_preset_links')
-      .select('preset_a,preset_b,note')
+      .select('id,preset_a,preset_b,note')
       .or('preset_a.in.' + inList + ',preset_b.in.' + inList);
     if (error) { uncached.forEach(id => { _dashLinkCache[id] = []; }); return; }  // テーブル未作成等は関連なし扱い
     const set = new Set(uncached);
     const adj = {}; uncached.forEach(id => (adj[id] = []));
     const otherIds = new Set();
     (links || []).forEach(l => {
-      if (set.has(l.preset_a) && l.preset_b !== l.preset_a) { adj[l.preset_a].push({ oid: l.preset_b, note: l.note || '' }); otherIds.add(l.preset_b); }
-      if (set.has(l.preset_b) && l.preset_a !== l.preset_b) { adj[l.preset_b].push({ oid: l.preset_a, note: l.note || '' }); otherIds.add(l.preset_a); }
+      if (set.has(l.preset_a) && l.preset_b !== l.preset_a) { adj[l.preset_a].push({ oid: l.preset_b, note: l.note || '', linkId: l.id }); otherIds.add(l.preset_b); }
+      if (set.has(l.preset_b) && l.preset_a !== l.preset_b) { adj[l.preset_b].push({ oid: l.preset_a, note: l.note || '', linkId: l.id }); otherIds.add(l.preset_a); }
     });
     const metaMap = {};
     if (otherIds.size) {
@@ -3269,7 +3269,7 @@
     }
     uncached.forEach(id => {
       const seen = new Set(); const uniq = [];
-      (adj[id] || []).forEach(e => { const m = metaMap[e.oid]; if (m && !seen.has(m.id)) { seen.add(m.id); uniq.push(Object.assign({}, m, { note: e.note })); } });
+      (adj[id] || []).forEach(e => { const m = metaMap[e.oid]; if (m && !seen.has(m.id)) { seen.add(m.id); uniq.push(Object.assign({}, m, { note: e.note, linkId: e.linkId })); } });
       _dashLinkCache[id] = uniq;
       _applyDashLinks(id);
     });
@@ -3294,9 +3294,14 @@
       const badge = '<span class="cloud-status-badge cloud-status--' + _statusClass(st) + '">' + escHtml(st) + '</span>';
       const ref = m.ref ? '<span class="clink-ref">' + escHtml(m.ref) + '</span>' : '';
       const note = m.note ? '<div class="clink-note" title="関連付けの理由">📝 ' + escHtml(m.note) + '</div>' : '';
+      const unlink = m.linkId
+        ? '<button type="button" class="clink-unlink" onclick="event.stopPropagation();dashUnlinkCardLink(\'' + encodeURIComponent(m.linkId) + '\')" title="この関連付けを解除（双方のカードから外れます）">✕</button>'
+        : '';
       return '<div class="cloud-clink-wrap">' +
+        '<div class="cloud-clink-row">' +
         '<button type="button" class="cloud-clink" onclick="cloudPreviewPreset(\'' + encodeURIComponent(m.id) + '\')" title="内容をプレビュー">' +
         badge + '<span class="clink-name">' + escHtml(m.name || '（無題）') + '</span>' + ref + '</button>' +
+        unlink + '</div>' +
         note + '</div>';
     }).join('');
     const more = remain > 0
@@ -3312,6 +3317,15 @@
     const id = decodeURIComponent(encId);
     if (_dashLinkExpanded.has(id)) _dashLinkExpanded.delete(id); else _dashLinkExpanded.add(id);
     _applyDashLinks(id);
+  };
+
+  // ダッシュボードのカードから関連付けを解除（双方向リンクを1行削除）
+  window.dashUnlinkCardLink = async function (encLinkId) {
+    const linkId = decodeURIComponent(encLinkId);
+    if (!confirm('この関連付けを解除しますか？（双方のカードから外れます。案件自体は削除されません）')) return;
+    if (typeof cloudUnlinkPreset !== 'function') return;
+    const ok = await cloudUnlinkPreset(linkId);   // 成功時は _invalidateDashLinks 済み
+    if (ok) _applyCloudFilter();                   // ダッシュボードを再描画して関連案件を取り直す
   };
 
   // ================================================================
