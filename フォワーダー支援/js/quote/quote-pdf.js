@@ -160,7 +160,16 @@
   // qd-tax スパンで * を描画するため、二重 * を避けてここで取り除く。
   function _taxName(name, taxed) {
     const s = String(name == null ? '' : name);
-    return taxed ? s.replace(/^\*\s?/, '') : s;
+    const jaName = taxed ? s.replace(/^\*\s?/, '') : s;
+    // 英語出力時：品名マスター（MD_SCHEMA.nm の「英語品名」details.enName）に登録があれば
+    // それを使う。未登録の品名はそのまま日本語品名を出力する（品名ごとに個別マスター
+    // 登録した分だけ段階的に英語化が進む設計。備考等の他の自由記述は対象外）
+    if (_curLangEn) {
+      const rec = (typeof window.mdGet === 'function') ? window.mdGet('nm', jaName) : null;
+      const en = rec && rec.details && rec.details.enName && String(rec.details.enName).trim();
+      if (en) return en;
+    }
+    return jaName;
   }
 
   function _toJPY(amount, ccy) {

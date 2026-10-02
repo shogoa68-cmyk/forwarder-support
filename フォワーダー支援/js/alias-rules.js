@@ -937,6 +937,7 @@
     ],
     nm: [
       _FURIGANA_FIELD,
+      { key: 'enName',      label: '英語品名', placeholder: '例）Ocean Freight（御見積書PDFの「英語で出力」ON時にこの品名で出力されます）' },
       { key: 'defaultUnit', label: 'デフォルト単位' },
       { key: 'defaultNote', label: 'デフォルト備考' },
       { key: 'defaultCat',  label: 'デフォルトカテゴリ' },
