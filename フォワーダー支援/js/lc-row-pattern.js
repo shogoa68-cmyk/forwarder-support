@@ -50,6 +50,28 @@
     _renderList();
   }
 
+  function _filteredPatterns() {
+    const dir = document.querySelector('input[name="lcRpListDir"]:checked')?.value || '';
+    const q = (document.getElementById('lcRpListSearch')?.value || '').trim().toLowerCase();
+    return _patterns.filter(p => {
+      if (dir && (p.direction || '') !== dir) return false;
+      if (q) {
+        const hay = [p.name, ...(Array.isArray(p.tags) ? p.tags : [])].join(' ').toLowerCase();
+        if (!hay.includes(q)) return false;
+      }
+      return true;
+    });
+  }
+
+  function lcRpFilterList() { _renderList(); }
+  window.lcRpFilterList = lcRpFilterList;
+
+  function _dirBadge(direction) {
+    if (direction === 'export') return '<span class="lcrp-dir-badge lcrp-dir-badge--export">📤 輸出</span>';
+    if (direction === 'import') return '<span class="lcrp-dir-badge lcrp-dir-badge--import">📥 輸入</span>';
+    return '';
+  }
+
   function _renderList() {
     const wrap = document.getElementById('lcRpListWrap');
     if (!wrap) return;
@@ -57,15 +79,25 @@
       wrap.innerHTML = '<div class="lcrp-empty">保存済みの明細プリセットはありません<br><small>「＋ 新規プリセット作成」から登録してください</small></div>';
       return;
     }
-    wrap.innerHTML = _patterns.map(p => {
+    const list = _filteredPatterns();
+    if (!list.length) {
+      wrap.innerHTML = '<div class="lcrp-empty">条件に一致する明細プリセットがありません</div>';
+      return;
+    }
+    wrap.innerHTML = list.map(p => {
       const cnt = Array.isArray(p.rows) ? p.rows.length : 0;
       const actor = _name(p.updated_by || p.created_by);
+      const tagsHtml = Array.isArray(p.tags) && p.tags.length
+        ? '<div class="lcrp-card-tags">' + p.tags.map(t => '<span class="lcrp-card-tag">' + _esc(t) + '</span>').join('') + '</div>'
+        : '';
       return '<div class="lcrp-card">' +
         '<div class="lcrp-card-head">' +
+          _dirBadge(p.direction) +
           '<span class="lcrp-card-name">' + _esc(p.name) + '</span>' +
           '<span class="lcrp-card-cnt">' + cnt + '行</span>' +
         '</div>' +
         (p.note ? '<div class="lcrp-card-note">' + _esc(p.note) + '</div>' : '') +
+        tagsHtml +
         '<div class="lcrp-card-meta">更新: ' + _esc(actor) + ' ・ ' + _fmtDate(p.updated_at) + '</div>' +
         '<div class="lcrp-card-ops">' +
           '<button onclick="lcRpOpenEdit(\'' + _ea(p.id) + '\')">✎ 開く</button>' +
@@ -78,7 +110,7 @@
   // === 編集モーダル ===
 
   function lcRpNew() {
-    _edit = { id: null, name: '', note: '', rows: [] };
+    _edit = { id: null, name: '', note: '', direction: '', tags: [], rows: [] };
     _openEditor('＋ 明細プリセットの新規作成');
   }
   window.lcRpNew = lcRpNew;
@@ -90,6 +122,8 @@
       id: p.id,
       name: p.name || '',
       note: p.note || '',
+      direction: p.direction || '',
+      tags: Array.isArray(p.tags) ? p.tags.slice() : [],
       rows: Array.isArray(p.rows) ? p.rows.map(r => Object.assign({}, r)) : [],
     };
     _openEditor('✎ 「' + p.name + '」を編集');
@@ -101,9 +135,60 @@
     if (t) t.textContent = title;
     const nm = document.getElementById('lcRpEditName'); if (nm) nm.value = _edit.name;
     const nt = document.getElementById('lcRpEditNote'); if (nt) nt.value = _edit.note;
+    document.querySelectorAll('input[name="lcRpEditDir"]').forEach(r => { r.checked = (r.value === (_edit.direction || '')); });
+    _rpInitTagsUI();
+    _rpRenderTags();
     _renderRows();
     document.getElementById('lcRpEditModal')?.classList.add('open');
     _ensureMasterData();
+  }
+
+  // === タグチップ入力（諸チャージ POL/POD チップと同じ操作感：Enterで追加・×/Backspaceで削除） ===
+
+  function _rpRenderTags() {
+    const wrap = document.getElementById('lcRpEditTags');
+    if (!wrap || !_edit) return;
+    const input = wrap.querySelector('.lcrp-tag-entry');
+    [...wrap.querySelectorAll('.lcrp-tag-chip')].forEach(el => el.remove());
+    _edit.tags.forEach((v, i) => {
+      const chip = document.createElement('span');
+      chip.className = 'lcrp-tag-chip';
+      chip.innerHTML = _esc(v) + '<button type="button" class="lcrp-tag-x" title="削除">×</button>';
+      chip.querySelector('.lcrp-tag-x').addEventListener('click', () => {
+        _edit.tags.splice(i, 1); _rpRenderTags();
+      });
+      if (input) wrap.insertBefore(chip, input); else wrap.appendChild(chip);
+    });
+  }
+
+  function _rpAddTag(val) {
+    if (!_edit) return;
+    const v = (val || '').trim();
+    if (v && !_edit.tags.includes(v)) { _edit.tags.push(v); _rpRenderTags(); }
+  }
+
+  function _rpFlushTagEntry() {
+    const wrap = document.getElementById('lcRpEditTags');
+    const input = wrap?.querySelector('.lcrp-tag-entry');
+    if (input && input.value.trim()) { _rpAddTag(input.value); input.value = ''; }
+  }
+
+  function _rpInitTagsUI() {
+    const wrap = document.getElementById('lcRpEditTags');
+    const input = wrap?.querySelector('.lcrp-tag-entry');
+    if (input && !input.dataset.lcrpReady) {
+      input.addEventListener('keydown', e => {
+        if (e.key === 'Enter' || e.key === ',' || e.key === '、') {
+          e.preventDefault();
+          if (input.value.trim()) { _rpAddTag(input.value); input.value = ''; }
+        } else if (e.key === 'Backspace' && !input.value) {
+          if (_edit.tags.length) { _edit.tags.pop(); _rpRenderTags(); }
+        }
+      });
+      input.addEventListener('blur', _rpFlushTagEntry);
+      wrap.addEventListener('click', e => { if (e.target === wrap) input.focus(); });
+      input.dataset.lcrpReady = '1';
+    }
   }
 
   // 見積タブを一度も開いていない場合でもマスター（品名/単位/取引先サジェスト・自動入力）
@@ -335,23 +420,46 @@
     const email = _me();
     if (!db || !email) { alert('チーム共有にはログインが必要です'); return; }
 
+    _rpFlushTagEntry();
+    const direction = document.querySelector('input[name="lcRpEditDir"]:checked')?.value || null;
+    const tags = (_edit.tags || []).slice();
+
     // _taxUserSet は編集中だけ使う内部状態（マスター追従の可否判定）。保存データには残さない。
     const rows = _edit.rows.map(r => {
       if (r._type !== 'data') return r;
       const { _taxUserSet, ...rest } = r;
       return rest;
     });
-    const base = { name, note, rows, updated_by: email };
+    const base = { name, note, direction, tags, rows, updated_by: email };
     let error;
     if (_edit.id) {
       ({ error } = await db.from(TABLE).update(Object.assign({ updated_at: new Date().toISOString() }, base)).eq('id', _edit.id));
     } else {
       ({ error } = await db.from(TABLE).insert(Object.assign({ created_by: email }, base)));
     }
+    // direction/tags 列が未マイグレーションでも保存は通す（既存 links 列と同じフォールバック方式）
+    let fellBack = false;
+    if (error && /direction|tags/.test(error.message || '')) {
+      const fallback = { name, note, rows, updated_by: email };
+      if (_edit.id) {
+        ({ error } = await db.from(TABLE).update(Object.assign({ updated_at: new Date().toISOString() }, fallback)).eq('id', _edit.id));
+      } else {
+        ({ error } = await db.from(TABLE).insert(Object.assign({ created_by: email }, fallback)));
+      }
+      fellBack = !error;
+    }
     if (error) { alert('保存に失敗しました: ' + error.message); return; }
     lcRpCloseEdit();
     await _load();
-    if (typeof window.quoteShowToast === 'function') window.quoteShowToast('💾 明細プリセット「' + name + '」を保存しました', 'success');
+    if (typeof window.quoteShowToast === 'function') {
+      window.quoteShowToast(
+        fellBack
+          ? '💾 保存しました（大分類/タグは追加SQL適用後に保存できます）'
+          : '💾 明細プリセット「' + name + '」を保存しました',
+        fellBack ? 'warn' : 'success',
+        fellBack ? 5500 : undefined
+      );
+    }
   }
   window.lcRpSave = lcRpSave;
 
