@@ -9850,6 +9850,12 @@ button.um-memberno--empty:hover { background: #f4ead4; border-color: #cdb98e; }
   box-shadow: 0 0 0 1px #c98a1f inset;
   background: #fdf3df;
 }
+/* 幹線輸送：航路の有効/無効（✓/—）が物量パターンに紐付いている（pq-pattern-linked と同じ配色） */
+#tab-quote-make .z2-route-toggle.route-pattern-linked {
+  border-color: #6b8a3d !important;
+  box-shadow: 0 0 0 1px #6b8a3d inset;
+  background: #f4f8ec;
+}
 /* 行の統合バッジ：単なる「非表示」と区別し、意図した統合であることを明示する */
 #tab-quote-make tr.row-merged-child > td { opacity: 0.7; background: #eef6fb; }
 #tab-quote-make .row-merge-badge {

@@ -22,7 +22,7 @@
     // コンテナ・荷姿・航路の複数エントリもクリア
     _containerEntries = [];
     _packingEntries = [];
-    _packingPatterns = [{ name: '', entries: _packingEntries, qtyLinks: {}, excludedUnits: [], hideLinks: {}, groupExcludeLinks: {} }];
+    _packingPatterns = [{ name: '', entries: _packingEntries, qtyLinks: {}, excludedUnits: [], hideLinks: {}, groupExcludeLinks: {}, routeLinks: {} }];
     _packingActiveIdx = 0;
     _routeEntries = [];
     if (typeof _renderContainerEntries === 'function') _renderContainerEntries();
@@ -1569,7 +1569,7 @@
   // switchPackingPattern() で適用。個数・R/T・W/M・C/W等、単位を問わず任意の行で使える）
   // excludedUnits: ["単位\x00数量", ...]。「単位で数量を一括変更」パネル（scenario.js）で
   // チェックを外し「一括反映」の対象から除外した単位グループを、パターンごとに記憶する
-  let _packingPatterns  = [{ name: '', entries: _packingEntries, qtyLinks: {}, excludedUnits: [], hideLinks: {}, groupExcludeLinks: {} }];
+  let _packingPatterns  = [{ name: '', entries: _packingEntries, qtyLinks: {}, excludedUnits: [], hideLinks: {}, groupExcludeLinks: {}, routeLinks: {} }];
   let _packingActiveIdx = 0;
 
   function _renderContainerEntries() {
@@ -2034,6 +2034,8 @@
     _packingEntries = _packingPatterns[i].entries;
     _renderPackingEntries();
     _applyPatternQtyLinks(i);
+    _applyPatternRouteLinks(i);
+    _renderRouteEntries();
     if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
     if (typeof scheduleSnapshot === 'function') scheduleSnapshot();
   };
@@ -2110,6 +2112,42 @@
     if (typeof _applyPatternGroupExcludeLinks === 'function') _applyPatternGroupExcludeLinks(i);
   }
 
+  // 幹線輸送：航路の有効/無効（✓/—）を、物量パターンに紐付けて適用する。
+  // 紐付けが無い航路（そのパターンでまだ切り替えたことがない航路）は現状の enabled のまま触らない
+  // （_applyPatternQtyLinks の「紐付けが無ければ値を書き換えない」方針と同じ）。
+  function _applyPatternRouteLinks(i) {
+    const pat = _packingPatterns[i];
+    const links = (pat && pat.routeLinks) || {};
+    (_routeEntries || []).forEach(r => {
+      if (r.rid && Object.prototype.hasOwnProperty.call(links, r.rid)) {
+        r.enabled = !!links[r.rid];
+      }
+    });
+  }
+
+  // ユーザーが航路の✓/—を直接切り替えた場合のみ、現在アクティブな物量パターンへ
+  // 紐付けを記録する（_recordPatternHideState と同じ考え方）。パターンを複数使っている
+  // 案件でなければ記録しない＝従来通り全パターン共通の単一状態のまま
+  function _recordPatternRouteState(i) {
+    if (!_packingPatterns || _packingPatterns.length < 2) return;
+    const pat = _packingPatterns[_packingActiveIdx];
+    const r = _routeEntries[i];
+    if (!pat || !r || !r.rid) return;
+    if (!pat.routeLinks) pat.routeLinks = {};
+    pat.routeLinks[r.rid] = r.enabled !== false;
+    _syncPackingPatternsData();
+  }
+
+  // 航路チップに安定した識別子（rid）を付与する。旧データ（rid 未保存）の補完も兼ねる
+  let _routeIdSeq = 0;
+  function _newRouteId() {
+    _routeIdSeq += 1;
+    return 'r' + Date.now().toString(36) + _routeIdSeq.toString(36);
+  }
+  function _ensureRouteIds() {
+    (_routeEntries || []).forEach(r => { if (!r.rid) r.rid = _newRouteId(); });
+  }
+
   // 「単位で数量を一括変更」パネル（scenario.js）の除外チェック状態を、表示中のパターンへ
   // 記録・参照するためのヘルパー。旧データ（excludedUnits 未定義）は「除外なし」扱い。
   window._udIsUnitExcluded = function (key) {
@@ -2161,6 +2199,12 @@
         pat.groupExcludeLinks[svKey] = typeof _excludedGroups !== 'undefined' && _excludedGroups.has(svKey);
       }
     });
+    // 幹線輸送：航路の有効/無効も現状のまま確定させる（qtyLinks/hideLinks と同じ理由）
+    if (!pat.routeLinks) pat.routeLinks = {};
+    _ensureRouteIds();
+    (_routeEntries || []).forEach(r => {
+      if (r.rid) pat.routeLinks[r.rid] = r.enabled !== false;
+    });
   }
 
   // 客先向け出力（御見積書PDF・プレビュー・メール本文）にこのパターンを含めるかどうかの切替。
@@ -2188,7 +2232,7 @@
     // これをしないと、複数パターンを使い始める前に入力した数量がどのパターンにも
     // 属さないまま扱われ、後で他パターンへ切替→戻すと値が引き継がれない不具合になる
     _snapshotAllQtyIntoPattern(_packingActiveIdx);
-    _packingPatterns.push({ name: name.trim() || `パターン${_packingPatterns.length + 1}`, entries: [], qtyLinks: {}, excludedUnits: [], hideLinks: {}, groupExcludeLinks: {} });
+    _packingPatterns.push({ name: name.trim() || `パターン${_packingPatterns.length + 1}`, entries: [], qtyLinks: {}, excludedUnits: [], hideLinks: {}, groupExcludeLinks: {}, routeLinks: {} });
     _packingActiveIdx = _packingPatterns.length - 1;
     _packingEntries = _packingPatterns[_packingActiveIdx].entries;
     _renderPackingEntries();
@@ -2215,6 +2259,7 @@
       excludedUnits: [...(src.excludedUnits || [])],   // 一括反映の除外設定も複製元を引き継ぐ
       hideLinks: { ...(src.hideLinks || {}) },   // 見積書表示/非表示の紐付けも複製元を引き継ぐ
       groupExcludeLinks: { ...(src.groupExcludeLinks || {}) },   // サブコン・サブコン×パターン見出しの含む/除外も複製元を引き継ぐ
+      routeLinks: { ...(src.routeLinks || {}) },   // 航路の有効/無効も複製元を引き継ぐ
     };
     _packingPatterns.splice(_packingActiveIdx + 1, 0, cloned);   // 複製元の直後に挿入
     _packingActiveIdx += 1;
@@ -2662,11 +2707,12 @@
         excludedUnits: Array.isArray(pt && pt.excludedUnits) ? pt.excludedUnits : [],
         hideLinks: (pt && pt.hideLinks && typeof pt.hideLinks === 'object') ? pt.hideLinks : {},
         groupExcludeLinks: (pt && pt.groupExcludeLinks && typeof pt.groupExcludeLinks === 'object') ? pt.groupExcludeLinks : {},
+        routeLinks: (pt && pt.routeLinks && typeof pt.routeLinks === 'object') ? pt.routeLinks : {},
       }));
       _packingActiveIdx = (Number.isInteger(restoredPt.activeIdx) && _packingPatterns[restoredPt.activeIdx]) ? restoredPt.activeIdx : 0;
       _packingEntries = _packingPatterns[_packingActiveIdx].entries;
     } else {
-      _packingPatterns = [{ name: '', entries: _packingEntries, qtyLinks: {}, excludedUnits: [], hideLinks: {}, groupExcludeLinks: {} }];
+      _packingPatterns = [{ name: '', entries: _packingEntries, qtyLinks: {}, excludedUnits: [], hideLinks: {}, groupExcludeLinks: {}, routeLinks: {} }];
       _packingActiveIdx = 0;
     }
     _renderContainerEntries();
@@ -2802,11 +2848,17 @@
         : '';
       const _chipCls = ng ? ' z2-route-chip--ng' : (on ? '' : ' z2-route-chip--off');
       const _atFirst = i === 0, _atLast = i === _routeEntries.length - 1;
+      // 物量パターンを複数使っている案件で、この航路の有効/無効がアクティブなパターンに
+      // 紐付け記録済みの場合はトグルに印を付ける（pq-pattern-linked と同じ考え方）
+      const _routeLinked = (_packingPatterns && _packingPatterns.length > 1 && r.rid) &&
+        Object.prototype.hasOwnProperty.call((_packingPatterns[_packingActiveIdx] && _packingPatterns[_packingActiveIdx].routeLinks) || {}, r.rid);
+      const _toggleTitle = (on ? '無効にする（一時停止）' : '有効にする') +
+        (_routeLinked ? '\n（この航路の有効/無効は現在のパターンに紐付けて記憶されています）' : '');
       return `<span class="z2-route-chip${_chipCls}">`
         + `<span class="z2-route-drag" title="ドラッグして並び替え">⠿</span>`
         + `<button type="button" class="z2-route-move" onclick="moveRouteEntry(${i},-1)" ${_atFirst ? 'disabled' : ''} title="上へ移動">↑</button>`
         + `<button type="button" class="z2-route-move" onclick="moveRouteEntry(${i},1)" ${_atLast ? 'disabled' : ''} title="下へ移動">↓</button>`
-        + `<button type="button" class="z2-route-toggle" onclick="toggleRouteEntry(${i})" title="${on ? '無効にする（一時停止）' : '有効にする'}">${on ? '✓' : '—'}</button>`
+        + `<button type="button" class="z2-route-toggle${_routeLinked ? ' route-pattern-linked' : ''}" onclick="toggleRouteEntry(${i})" title="${_escMulti(_toggleTitle)}">${on ? '✓' : '—'}</button>`
         + `<span class="z2-route-carrier">${_escMulti(r.carrier || '—')}</span>`
         + _roleChip + _actualChip + _ngChip
         + (r.service ? `<span class="z2-route-service">${_escMulti(r.service)}</span>` : '')
@@ -2894,10 +2946,10 @@
       return;
     }
     // carrier=契約先（ブッキング/支払先）、carrierRole=その役割、actualCarrier=実運送人（実際の船会社）
-    const flags = _pendingRouteFlags || { enabled: true, ng: false, ngReason: '' };
+    const flags = _pendingRouteFlags || { enabled: true, ng: false, ngReason: '', rid: null };
     _pendingRouteFlags = null;
     _routeEntries.push({ carrier, service, carrierRole, actualCarrier, pol, via, pod, tt,
-                         enabled: flags.enabled, ng: flags.ng, ngReason: flags.ngReason });
+                         enabled: flags.enabled, ng: flags.ng, ngReason: flags.ngReason, rid: flags.rid || _newRouteId() });
     if (flags.ng && typeof quoteShowToast === 'function') {
       quoteShowToast('🚫 使用不可の記録を引き継ぎました', 'info', 1800);
     }
@@ -2949,6 +3001,9 @@
     _routeEntries[i] = Object.assign({}, cur, turnOn
       ? { enabled: true, ng: false, ngReason: '' }
       : { enabled: false });
+    // 物量パターンを複数使っている案件では、この有効/無効をアクティブなパターンに記憶する
+    // （パターンを切り替えると、切替先で最後に記録した状態へ自動で戻る）
+    _recordPatternRouteState(i);
     _renderRouteEntries();
     if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
     if (typeof scheduleSnapshot === 'function') scheduleSnapshot();
@@ -2994,8 +3049,8 @@
     set('z2Pod', r.pod);
     set('z2Tt', r.tt);
     // 契約形態パネルは常時表示のため展開処理は不要
-    // 無効・使用不可の状態は再登録時に引き継ぐ（✎ で消えてしまわないように）
-    _pendingRouteFlags = { enabled: r.enabled !== false && !r.ng, ng: !!r.ng, ngReason: r.ngReason || '' };
+    // 無効・使用不可の状態・rid（パターン紐付けの識別子）は再登録時に引き継ぐ（✎ で消えてしまわないように）
+    _pendingRouteFlags = { enabled: r.enabled !== false && !r.ng, ng: !!r.ng, ngReason: r.ngReason || '', rid: r.rid };
     // エントリを削除して再描画
     _routeEntries.splice(i, 1);
     _renderRouteEntries();
@@ -3014,6 +3069,8 @@
     try { _routeEntries = (data && data.value) ? JSON.parse(data.value) : []; }
     catch(e) { _routeEntries = []; }
     if (!Array.isArray(_routeEntries)) _routeEntries = [];
+    _ensureRouteIds();   // 旧データ（rid 未保存）を補完
+    _applyPatternRouteLinks(_packingActiveIdx);   // 読込時点のアクティブパターンの有効/無効を適用
     _renderRouteEntries();
   }
 
