@@ -269,16 +269,32 @@
     const rec = typeof window.mdGet === 'function' ? window.mdGet(field, value) : null;
     if (!rec) return '';
     const details = rec.details || {};
-    const filled = schema.filter(s => (details[s.key] || '').trim());
-    if (!filled.length) return '';
-    const chips = filled.map(s => {
-      const raw = String(details[s.key]).trim();
-      const opt = s.options && s.options.find(o => o.value === raw);
-      const v = opt ? opt.label : raw;
-      const short = v.length > 14 ? v.slice(0, 14) + '…' : v;
-      return `<span class="stats-md-chip" title="${_eav(s.label + '：' + v)}"><b>${_esc(s.label)}</b>${_esc(short)}</span>`;
-    }).join('');
-    return `<div class="stats-md-inline">${chips}</div>`;
+    const chips = [];
+    schema.forEach(s => {
+      const raw = details[s.key];
+      if (s.contacts) {
+        if (!Array.isArray(raw) || !raw.length) return;
+        const names = raw.map(c => c.name).filter(Boolean);
+        const disp = names.length ? names.slice(0, 2).join('、') + (names.length > 2 ? ' 他' : '') : raw.length + '名';
+        chips.push(`<span class="stats-md-chip" title="${_eav(s.label + '：' + raw.length + '名')}"><b>${_esc(s.label)}</b>${_esc(disp)}</span>`);
+        return;
+      }
+      if (s.tags) {
+        if (!Array.isArray(raw) || !raw.length) return;
+        const joined = raw.join('、');
+        const short = joined.length > 14 ? joined.slice(0, 14) + '…' : joined;
+        chips.push(`<span class="stats-md-chip" title="${_eav(s.label + '：' + joined)}"><b>${_esc(s.label)}</b>${_esc(short)}</span>`);
+        return;
+      }
+      const v = String(raw || '').trim();
+      if (!v) return;
+      const opt = s.options && s.options.find(o => o.value === v);
+      const disp = opt ? opt.label : v;
+      const short = disp.length > 14 ? disp.slice(0, 14) + '…' : disp;
+      chips.push(`<span class="stats-md-chip" title="${_eav(s.label + '：' + disp)}"><b>${_esc(s.label)}</b>${_esc(short)}</span>`);
+    });
+    if (!chips.length) return '';
+    return `<div class="stats-md-inline">${chips.join('')}</div>`;
   }
 
   // 同義グループ操作ボタン（⭐代表 / ⤵統合 / →代表ピル）。field は sv/nm/customer/port。
@@ -1783,6 +1799,42 @@
   };
 
   // マスター管理: 詳細情報フォームの開閉（customer/nm のみ）
+  // 担当者1名分の入力行（氏名・電話番号・E-MAIL・その他連絡手段）
+  function _mdContactRowHtml(c) {
+    c = c || {};
+    return `<div class="md-contact-row">` +
+      `<input type="text" class="ar-input md-contact-name" placeholder="氏名" value="${_eav(c.name || '')}">` +
+      `<input type="text" class="ar-input md-contact-phone" placeholder="電話番号" value="${_eav(c.phone || '')}">` +
+      `<input type="text" class="ar-input md-contact-email" placeholder="E-MAIL" value="${_eav(c.email || '')}">` +
+      `<input type="text" class="ar-input md-contact-other" placeholder="その他連絡手段" value="${_eav(c.other || '')}">` +
+      `<button type="button" class="md-contact-del" title="この担当者を削除" onclick="this.closest('.md-contact-row').remove()">✕</button>` +
+      `</div>`;
+  }
+  window.statsAddContactRow = function (containerId) {
+    const wrap = document.getElementById(containerId);
+    if (!wrap) return;
+    const tmp = document.createElement('div');
+    tmp.innerHTML = _mdContactRowHtml({});
+    wrap.appendChild(tmp.firstElementChild);
+  };
+  window.statsAddTagChip = function (containerId) {
+    const inputEl = document.getElementById(containerId + '_input');
+    const wrap = document.getElementById(containerId);
+    if (!inputEl || !wrap) return;
+    const v = (inputEl.value || '').trim();
+    if (!v) return;
+    const exists = Array.from(wrap.querySelectorAll('.stats-md-tag-chip'))
+      .some(c => (c.childNodes[0]?.textContent || '').trim() === v);
+    if (!exists) {
+      const span = document.createElement('span');
+      span.className = 'stats-md-tag-chip';
+      span.innerHTML = `${_esc(v)}<button type="button" onclick="this.parentElement.remove()">✕</button>`;
+      wrap.appendChild(span);
+    }
+    inputEl.value = '';
+    inputEl.focus();
+  };
+
   window.statsToggleMasterDetail = function (field, value, btn) {
     const tr = btn.closest('tr');
     if (!tr) return;
@@ -1794,6 +1846,30 @@
     const details = (existing && existing.details) || {};
     const fieldsHtml = schema.map(s => {
       const id = 'md_' + s.key;
+      if (s.contacts) {
+        // 旧・単一担当者フィールド（details.contact）からの非破壊移行：
+        // まだ新形式のデータが無ければ、1件目として表示するだけ（保存時に新形式へ統一）
+        let list = Array.isArray(details[s.key]) ? details[s.key].slice() : [];
+        if (!list.length && details.contact) list = [{ name: details.contact, phone: '', email: '', other: '' }];
+        if (!list.length) list = [{}];
+        return `<div class="master-detail-contacts">` +
+          `<span class="master-detail-contacts-label">${s.label}</span>` +
+          `<div id="${id}" class="master-contacts-editor">${list.map(_mdContactRowHtml).join('')}</div>` +
+          `<button type="button" class="master-contact-add" onclick="statsAddContactRow('${id}')">＋ 担当者を追加</button>` +
+          `</div>`;
+      }
+      if (s.tags) {
+        const list = Array.isArray(details[s.key]) ? details[s.key] : [];
+        const chips = list.map(t => `<span class="stats-md-tag-chip">${_esc(t)}<button type="button" onclick="this.parentElement.remove()">✕</button></span>`).join('');
+        return `<div class="master-detail-tags">` +
+          `<span class="master-detail-contacts-label">${s.label}</span>` +
+          `<div id="${id}" class="master-tags-editor">${chips}</div>` +
+          `<span class="stats-syn-add-alias">` +
+            `<input type="text" class="stats-syn-add-input" id="${id}_input" placeholder="タグを追加" ` +
+              `onkeydown="if(event.key==='Enter'){event.preventDefault();statsAddTagChip('${id}');}">` +
+            `<button type="button" class="stats-syn-add-btn" onclick="statsAddTagChip('${id}')">＋</button>` +
+          `</span></div>`;
+      }
       if (s.options) {
         const cur = details[s.key] || '';
         const opts = s.options.map(o =>
@@ -1848,7 +1924,29 @@
     const schema = (window.MD_SCHEMA && window.MD_SCHEMA[field]) || [];
     const details = {};
     schema.forEach(s => {
-      const el = document.getElementById('md_' + s.key);
+      const id = 'md_' + s.key;
+      if (s.contacts) {
+        const wrap = document.getElementById(id);
+        if (!wrap) return;
+        const rows = Array.from(wrap.querySelectorAll('.md-contact-row')).map(row => ({
+          name:  row.querySelector('.md-contact-name') ?.value.trim() || '',
+          phone: row.querySelector('.md-contact-phone')?.value.trim() || '',
+          email: row.querySelector('.md-contact-email')?.value.trim() || '',
+          other: row.querySelector('.md-contact-other')?.value.trim() || '',
+        })).filter(c => c.name || c.phone || c.email || c.other);
+        if (rows.length) details[s.key] = rows;
+        return;
+      }
+      if (s.tags) {
+        const wrap = document.getElementById(id);
+        if (!wrap) return;
+        const tags = Array.from(wrap.querySelectorAll('.stats-md-tag-chip'))
+          .map(chip => (chip.childNodes[0]?.textContent || '').trim())
+          .filter(Boolean);
+        if (tags.length) details[s.key] = tags;
+        return;
+      }
+      const el = document.getElementById(id);
       if (!el) return;
       const v = (el.value || '').trim();
       if (v) details[s.key] = v;

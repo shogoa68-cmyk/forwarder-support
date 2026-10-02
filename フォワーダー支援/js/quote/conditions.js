@@ -573,8 +573,30 @@
     const schema = (window.MD_SCHEMA && window.MD_SCHEMA[field]) || [];
     const details = rec.details || {};
     const rows = schema
-      .filter(s => details[s.key])
-      .map(s => `<tr><th>${_cdEsc(s.label)}</th><td>${_cdEsc(details[s.key])}</td></tr>`)
+      .map(s => {
+        const raw = details[s.key];
+        if (s.contacts) {
+          if (!Array.isArray(raw) || !raw.length) return '';
+          const items = raw.map(c => {
+            const meta = [c.phone, c.email, c.other].filter(Boolean).join(' / ');
+            return `<div class="cd-contact-item"><b>${_cdEsc(c.name || '（氏名未入力）')}</b>` +
+              (meta ? `<span class="cd-contact-meta">${_cdEsc(meta)}</span>` : '') + `</div>`;
+          }).join('');
+          return `<tr><th>${_cdEsc(s.label)}</th><td>${items}</td></tr>`;
+        }
+        if (s.tags) {
+          if (!Array.isArray(raw) || !raw.length) return '';
+          const chips = raw.map(t => `<span class="cd-tag-chip">${_cdEsc(t)}</span>`).join('');
+          return `<tr><th>${_cdEsc(s.label)}</th><td>${chips}</td></tr>`;
+        }
+        if (!raw) return '';
+        if (s.link) {
+          const url = String(raw).trim();
+          const href = /^https?:\/\//i.test(url) ? url : 'https://' + url;
+          return `<tr><th>${_cdEsc(s.label)}</th><td><a href="${_cdEsc(href)}" target="_blank" rel="noopener noreferrer">${_cdEsc(url)}</a></td></tr>`;
+        }
+        return `<tr><th>${_cdEsc(s.label)}</th><td>${_cdEsc(raw)}</td></tr>`;
+      })
       .join('');
     title.textContent = '📇 ' + value;
     body.innerHTML =

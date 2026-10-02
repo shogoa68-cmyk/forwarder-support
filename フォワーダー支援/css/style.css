@@ -3586,6 +3586,105 @@ a.bm-contact-item:hover { background: #2e6b3e; color: #fff; border-color: #2e6b3
 }
 .master-detail-del:hover { background: #f8ece8; }
 
+/* マスター詳細：担当者（複数名・連絡先） */
+.master-detail-contacts, .master-detail-tags {
+  flex: 1 1 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  font-size: 11px;
+  color: #6a5a48;
+}
+.master-detail-contacts-label { font-weight: 600; }
+.master-contacts-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.md-contact-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  background: #fffbe9;
+  border: 1px solid #e6dcc8;
+  border-radius: 6px;
+  padding: 5px 7px;
+}
+.md-contact-row input {
+  font-size: 12px;
+  padding: 3px 7px;
+  border: 1px solid #d8c8a8;
+  border-radius: 5px;
+  flex: 1 1 110px;
+  min-width: 90px;
+}
+.md-contact-row .md-contact-name { flex-basis: 130px; }
+.md-contact-del {
+  flex: none;
+  background: none;
+  border: none;
+  color: #b0584a;
+  cursor: pointer;
+  font-size: 13px;
+  padding: 0 4px;
+}
+.md-contact-del:hover { color: #7a3a20; }
+.master-contact-add {
+  align-self: flex-start;
+  font-size: 11px;
+  border: 1px dashed #cdbb97;
+  background: #fffdf8;
+  color: #6b5840;
+  border-radius: 6px;
+  padding: 3px 10px;
+  cursor: pointer;
+}
+.master-contact-add:hover { background: #f0e8d8; }
+
+/* マスター詳細：タグ */
+.master-tags-editor { display: flex; flex-wrap: wrap; gap: 5px; }
+.stats-md-tag-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  background: #e8f0fb;
+  border: 1px solid #b8cfec;
+  color: #2a4d70;
+  border-radius: 10px;
+  padding: 2px 8px;
+}
+.stats-md-tag-chip button {
+  background: none;
+  border: none;
+  color: #6a8bb0;
+  cursor: pointer;
+  font-size: 11px;
+  padding: 0;
+  line-height: 1;
+}
+.stats-md-tag-chip button:hover { color: #2a4d70; }
+
+/* 見積タブのマスター詳細ポップアップ：担当者・タグ・リンク */
+.cd-contact-item {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 4px;
+}
+.cd-contact-item:last-child { margin-bottom: 0; }
+.cd-contact-meta { font-size: 11px; color: #8a7656; }
+.cd-tag-chip {
+  display: inline-block;
+  font-size: 11px;
+  background: #e8f0fb;
+  border: 1px solid #b8cfec;
+  color: #2a4d70;
+  border-radius: 10px;
+  padding: 1px 8px;
+  margin: 0 4px 4px 0;
+}
+
 /* マスター管理タブ：添付ファイル（保管期限なし） */
 .master-attach-box {
   margin-top: 10px;
