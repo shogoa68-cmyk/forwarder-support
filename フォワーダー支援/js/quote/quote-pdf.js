@@ -45,6 +45,96 @@
     try { localStorage.setItem(HIDE_TOTAL_KEY, on ? '1' : '0'); } catch (e) {}
   }
 
+  // 英語出力オプション（海外客先向け）。御見積書PDFの固定ラベル（見出し・項目名・
+  // 合計欄等）のみを英訳する。品名・備考・サブコン名等のユーザー入力本文（自由記述）は
+  // 対象外で日本語のまま出力される（別途翻訳が必要な場合は手動で英語入力すること）。
+  const LANG_EN_KEY = 'quoteDocLangEn_v1';
+  function loadLangEn() {
+    try { return localStorage.getItem(LANG_EN_KEY) === '1'; } catch (e) { return false; }
+  }
+  function saveLangEn(on) {
+    try { localStorage.setItem(LANG_EN_KEY, on ? '1' : '0'); } catch (e) {}
+  }
+
+  // 固定ラベル対訳表。t(key) は現在の出力言語（_curLangEn）に応じて日本語/英語を返す。
+  const LABELS = {
+    docTitle:       ['御 見 積 書', 'QUOTATION'],
+    quoteNo:        ['見積書NO', 'Quote No.'],
+    date:           ['DATE', 'Date'],
+    page:           ['PAGE', 'Page'],
+    itemCol:        ['見積項目／摘要', 'Description'],
+    qtyCol:         ['数量', 'Qty'],
+    unitCol:        ['単位', 'Unit'],
+    priceCol:       ['単価', 'Unit Price'],
+    amountCol:      ['金額(JPY)', 'Amount (JPY)'],
+    totalAmount:    ['御見積額', 'Total Quotation'],
+    validUntil:     ['本見積書有効期限', 'Valid Until'],
+    notesTitle:     ['見積項目（＊印は課税対象取引です）', 'Items marked with * are subject to consumption tax.'],
+    currency:       ['通貨', 'Currency'],
+    rate:           ['レート', 'Rate'],
+    exemptSub:      ['小計（免税分）', 'Subtotal (Tax-exempt)'],
+    taxableSub:     ['課税対象小計', 'Taxable Subtotal'],
+    tax:            ['消費税', 'Consumption Tax'],
+    grandTotal:     ['合計見積額', 'Grand Total'],
+    subtotal:       ['小計', 'Subtotal'],
+    incoterms:      ['建値（INCOTERMS）', 'Incoterms'],
+    route:          ['航路', 'Route'],
+    pol:            ['積み地（POL）', 'Port of Loading (POL)'],
+    pod:            ['揚げ地（POD）', 'Port of Discharge (POD)'],
+    originPickup:   ['集荷地', 'Pickup Location'],
+    origin:         ['発地', 'Origin'],
+    dest:           ['仕向地', 'Destination'],
+    container:      ['コンテナ', 'Container'],
+    cargo:          ['貨物名', 'Cargo'],
+    hsCode:         ['HSコード', 'HS Code'],
+    hsPrefNote:     ['特恵備考', 'Preferential Tariff Note'],
+    hazmat:         ['特殊貨物区分', 'Special Cargo Type'],
+    cargoInfo:      ['物量情報', 'Cargo Details'],
+    packing:        ['荷姿明細', 'Packing Details'],
+    weight:         ['総重量', 'Total Weight'],
+    volume:         ['総容積', 'Total Volume'],
+    regno:          ['登録番号', 'Registration No.'],
+    noRecipient:    ['（宛先未入力）', '(Recipient not entered)'],
+    scopeTitle:     ['🛠️ 作業範囲', '🛠️ Scope of Work'],
+    remarksTitle:   ['📝 条件・免責事項（全体リマーク）', '📝 Terms & Remarks'],
+    revisionTitle:  ['🔄 前回提示分からの変更点', '🔄 Changes from Previous Version'],
+    estimateTag:    ['約', 'Approx.'],
+    unpriced:       ['実費', 'At Cost'],
+    conditional:    ['（発生時/必要時のみ）', '(If applicable)'],
+    reference:      ['（参考情報）', '(For reference)'],
+    noPattern:      ['（パターン未設定）', '(No pattern)'],
+  };
+  // 方向（輸出/輸入）・輸送モード・特殊貨物区分は選択式の固定セットなので、
+  // 値（cond.direction は内部コード、mode/hazmat は選択肢テキストそのもの）で引ける対訳表を別途用意する
+  const DIRECTION_EN = { export: 'Export', import: 'Import' };
+  const MODE_EN = {
+    '海上（FCL）': 'Ocean (FCL)', '海上（LCL）': 'Ocean (LCL)', '海上（RORO）': 'Ocean (RORO)',
+    '海上（在来船）': 'Ocean (Conventional)', '航空（AIR）': 'Air', '海上＋陸上': 'Ocean + Inland',
+    '航空＋陸上': 'Air + Inland', '陸上のみ': 'Inland Only', '国内手配のみ': 'Domestic Arrangement Only',
+  };
+  const HAZMAT_EN = {
+    'なし（一般貨物）': 'None (General Cargo)',
+    '危険品あり（クラス要確認）': 'Hazardous (Class TBC)',
+    '温度管理品（冷蔵）': 'Temperature-Controlled (Chilled)',
+    '温度管理品（冷凍）': 'Temperature-Controlled (Frozen)',
+    '重量物・大型貨物': 'Heavy / Oversized Cargo',
+    'その他（特記事項参照）': 'Other (See Remarks)',
+  };
+  // カテゴリーは value コード（'ocean'/'air' 等）で引く（絵文字＋日本語の表示ラベルを直接は訳さない）
+  const CAT_EN = {
+    domestic: 'Domestic Handling', 'export-local': 'Export Local Charges', ocean: 'Ocean Freight',
+    air: 'Air Freight', surcharge: 'Surcharge', 'import-local': 'Import Local Charges',
+    overseas: 'Overseas Handling', 'customs-export': 'Customs Clearance (Export)',
+    'customs-import': 'Customs Clearance (Import)', insurance: 'Insurance', 'domestic-transport': 'Domestic Transport',
+    warehouse: 'Warehousing', 'packing-cost': 'Packing', other: 'Other',
+  };
+  let _curLangEn = false;   // buildQuoteDocHTML() 実行中だけ有効な出力言語フラグ
+  function t(key) {
+    const pair = LABELS[key];
+    if (!pair) return key;
+    return _curLangEn ? pair[1] : pair[0];
+  }
+
   const esc = s => String(s == null ? '' : s)
     .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;');
@@ -78,6 +168,7 @@
     return (!ccy || ccy === 'JPY') ? amount : amount;
   }
   function _catLabel(v) {
+    if (_curLangEn) return CAT_EN[v] || (typeof getCatLabel === 'function' ? (getCatLabel(v) || '') : (v || ''));
     return (typeof getCatLabel === 'function') ? (getCatLabel(v) || '') : (v || '');
   }
   function _fmtJpDate(iso) {
@@ -111,6 +202,8 @@
   function _formatRecipient(company, person) {
     const co = (company || '').trim();
     const pn = (person || '').trim();
+    // 英語出力では日本語の敬称（様／御中）は付けない（名前・社名部分は自由記述のため訳さずそのまま出す）
+    if (_curLangEn) return [co, pn].filter(Boolean).join('\n');
     if (pn) {
       const honor = _HONORIFIC_RE.test(pn) ? '' : ' 様';
       // 会社名と担当者名は改行して分ける（同じ行に詰めると幅次第で
@@ -163,8 +256,11 @@
   // 件名ブロックを引き合い条件から組み立てる（貨物・物量情報をすべて反映）
   function buildSubject(cond) {
     if (!cond) return { title: '', meta: [] };
-    const dir = cond.direction === 'export' ? '輸出' : cond.direction === 'import' ? '輸入' : '';
-    const titleParts = [dir + (cond.mode ? ' ' + cond.mode : '')].filter(Boolean);
+    const dir = _curLangEn
+      ? (DIRECTION_EN[cond.direction] || '')
+      : (cond.direction === 'export' ? '輸出' : cond.direction === 'import' ? '輸入' : '');
+    const modeDisp = _curLangEn ? (MODE_EN[cond.mode] || cond.mode || '') : (cond.mode || '');
+    const titleParts = [dir + (modeDisp ? ' ' + modeDisp : '')].filter(Boolean);
     const _hasRoutes = cond.routes && cond.routes.length >= 1;
     const _multiRoute = cond.routes && cond.routes.length > 1;
     // 件名の航路：ルート情報から via を含めて組み立て
@@ -172,7 +268,9 @@
     if (_hasRoutes) {
       const r0 = cond.routes[0];
       const r0leg = [r0.pol, r0.via, r0.pod].filter(Boolean).join(' → ');
-      route = _multiRoute ? (r0leg + ` 他${cond.routes.length - 1}航路`) : r0leg;
+      route = _multiRoute
+        ? (r0leg + (_curLangEn ? ` +${cond.routes.length - 1} more` : ` 他${cond.routes.length - 1}航路`))
+        : r0leg;
     } else {
       route = [cond.pol, cond.pod].filter(Boolean).join(' → ');
     }
@@ -182,7 +280,7 @@
     const meta = [];
     const push = (k, v) => { if (v) meta.push([k, v]); };
 
-    push('建値（INCOTERMS）', cond.incoterms);
+    push(t('incoterms'), cond.incoterms);
     // 航路：1件以上の登録があれば航路ごとに via・キャリア・サービス名を含めて全件併記
     if (_hasRoutes) {
       cond.routes.forEach((r, i) => {
@@ -191,48 +289,49 @@
           ? window.formatRouteCarrierLine(r)
           : [r.carrier, r.service ? `(${r.service})` : ''].filter(Boolean).join(' ');
         const tt = r.tt ? `T/T: ${r.tt}` : '';
-        const label = cond.routes.length === 1 ? '航路' : `航路${i + 1}`;
+        const label = cond.routes.length === 1 ? t('route') : `${t('route')} ${i + 1}`;
         if (rt || carrier || tt) push(label, [carrier, rt, tt].filter(Boolean).join('　'));
       });
     } else {
-      push('積み地（POL）', cond.pol);
-      push('揚げ地（POD）', cond.pod);
+      push(t('pol'), cond.pol);
+      push(t('pod'), cond.pod);
     }
     // 出発地側ラベル：輸出は「集荷地」（原産地＝customs の原産地と混同しないため）。輸入・未設定は中立的に「発地」
-    push(cond.direction === 'export' ? '集荷地' : '発地', cond.origin);
-    push('仕向地', cond.dest);
-    push('コンテナ', cond.container);
-    push('貨物名', cond.cargo);
+    push(cond.direction === 'export' ? t('originPickup') : t('origin'), cond.origin);
+    push(t('dest'), cond.dest);
+    push(t('container'), cond.container);
+    push(t('cargo'), cond.cargo);
     // HSコード（基本／特恵があれば併記）
     let hs = cond.hsCode || '';
-    if (cond.hsBasic)  hs += (hs ? ' / ' : '') + '基本' + cond.hsBasic;
-    if (cond.hsPref)   hs += (hs ? ' / ' : '') + '特恵' + cond.hsPref;
-    push('HSコード', hs);
-    if (cond.hsPrefNote) push('特恵備考', cond.hsPrefNote);
+    if (cond.hsBasic)  hs += (hs ? ' / ' : '') + (_curLangEn ? 'Standard ' : '基本') + cond.hsBasic;
+    if (cond.hsPref)   hs += (hs ? ' / ' : '') + (_curLangEn ? 'Preferential ' : '特恵') + cond.hsPref;
+    push(t('hsCode'), hs);
+    if (cond.hsPrefNote) push(t('hsPrefNote'), cond.hsPrefNote);
     // 危険品・特殊貨物：「危険品あり」は複数件登録できるため、航路と同様に1件ずつ行を分けて出力する
     if (cond.hazmat === '危険品あり（クラス要確認）') {
       const lines = _hazEntryLines();
       if (lines.length) {
         lines.forEach((line, i) => {
-          const label = lines.length === 1 ? '危険品' : `危険品${i + 1}`;
+          const label = lines.length === 1 ? t('hazmat') : `${t('hazmat')} ${i + 1}`;
           push(label, line);
         });
       } else {
-        push('特殊貨物区分', cond.hazmat);
+        push(t('hazmat'), _curLangEn ? (HAZMAT_EN[cond.hazmat] || cond.hazmat) : cond.hazmat);
       }
     } else if (cond.hazmat && cond.hazmat !== 'なし（一般貨物）') {
       const detail = _hazmatDetail(cond.hazmat);
-      push('特殊貨物区分', cond.hazmat + (detail ? `（${detail}）` : ''));
+      const hazDisp = _curLangEn ? (HAZMAT_EN[cond.hazmat] || cond.hazmat) : cond.hazmat;
+      push(t('hazmat'), hazDisp + (detail ? `（${detail}）` : ''));
     }
     // 物量情報：複数パターン案件はパターンごとのツリー形式で1行にまとめ、
     // 【パターンA】が項目ごとに繰り返し表示されるのを避ける。単一パターンの
     // 案件では従来通り3項目に分けて表示する（見た目を変えない）。
     if (cond.cargoPatternTree) {
-      push('物量情報', cond.cargoPatternTree);
+      push(t('cargoInfo'), cond.cargoPatternTree);
     } else {
-      push('荷姿明細', _packingDetail() || cond.packing);
-      push('総重量', cond.weight);
-      push('総容積', cond.volume);
+      push(t('packing'), _packingDetail() || cond.packing);
+      push(t('weight'), cond.weight);
+      push(t('volume'), cond.volume);
     }
     // 課金基準の目安：LCL は R/T、AIR は CW（容積重量課金）を表示。
     // 貨物情報（サイズ・重量）が入力されている場合のみ。
@@ -260,6 +359,7 @@
 
   // ====== メイン：御見積書HTMLを生成 ======
   function buildQuoteDocHTML() {
+    _curLangEn = loadLangEn();   // この描画中だけ有効な出力言語（固定ラベルのみ英訳。品名等の自由記述は対象外）
     const hdr  = (typeof getQuoteHeader === 'function') ? getQuoteHeader() : {};
     const rows = (typeof collectAllRows === 'function') ? collectAllRows().filter(r => !r._hideQuote) : [];  // 見積書非表示の行は出力しない
     const cond = (typeof getConditions === 'function') ? getConditions() : null;
@@ -297,7 +397,7 @@
       // （1パターンのみだと直後のサブコン小計と同額の小計行が2行並び冗長）
       if (_ptActive && _ptSubOn && _ptHas) {
         // パターン名は見出し行に表示済みのため、小計行では繰り返さず「小計」のみ
-        lineHTML.push(`<tr class="qd-pattern-sub"><td colspan="4">↳ 小計</td><td class="qd-num">¥${fmtInt(_ptJpy)}</td></tr>`);
+        lineHTML.push(`<tr class="qd-pattern-sub"><td colspan="4">↳ ${t('subtotal')}</td><td class="qd-num">¥${fmtInt(_ptJpy)}</td></tr>`);
       }
       _ptJpy = 0; _ptHas = false;
     };
@@ -306,7 +406,7 @@
       if (_scActive && _scHas) {
         // サブコン小計はページが分かれると見出し行が前ページに残り会社名が分からなくなるため、
         // 「小計」だけでなくサブコン名も併記する（例：「SEABRIDGE 小計」）
-        lineHTML.push(`<tr class="qd-subcon-sub"><td colspan="4">↳ ${esc(_scHeadLabel || '')} 小計</td><td class="qd-num">¥${fmtInt(_scJpy)}</td></tr>`);
+        lineHTML.push(`<tr class="qd-subcon-sub"><td colspan="4">↳ ${esc(_scHeadLabel || '')} ${t('subtotal')}</td><td class="qd-num">¥${fmtInt(_scJpy)}</td></tr>`);
       }
     };
     rows.forEach(r => {
@@ -316,7 +416,7 @@
         return;
       }
       if (r._type === 'subtotal') {
-        lineHTML.push(`<tr class="qd-sub"><td colspan="4">${esc(r.label || '小計')}</td><td class="qd-num">${_yenSub(r.subtotalText)}</td></tr>`);
+        lineHTML.push(`<tr class="qd-sub"><td colspan="4">${esc(r.label || t('subtotal'))}</td><td class="qd-num">${_yenSub(r.subtotalText)}</td></tr>`);
         return;
       }
       // data
@@ -338,10 +438,10 @@
       const isNonJpy = r.bc && r.bc !== 'JPY';
       // 概算（金額は目安）：合計には通常どおり加算するが、単価・金額の前に「約」を付ける
       const isEstimate = r._estimate && !isActual;
-      const estTag = isEstimate ? '<span class="qd-est-tag" title="概算（目安の金額）">約</span> ' : '';
+      const estTag = isEstimate ? `<span class="qd-est-tag" title="概算（目安の金額）">${t('estimateTag')}</span> ` : '';
       // JPY 単価は端数があるときだけ小数表示（単価×数量＝金額の検算が崩れないように）
       const unitDisp = isActual
-        ? '実費'
+        ? t('unpriced')
         : estTag + (isNonJpy
           ? `${fmtNum(r.bp, 2)} ${esc(r.bc)}`
           : `${Number.isInteger(r.bp) ? fmtInt(r.bp) : fmtNum(r.bp, 2)} JPY`);
@@ -388,7 +488,7 @@
         if (_ptHas && p !== _ptKey) { _ptPush(); _catKey = null; }
         if (!_ptHas || p !== _ptKey) {
           _ptKey = p;
-          lineHTML.push(`<tr class="qd-pattern-head"><td colspan="5">📋 ${esc(_ptKey || '（パターン未設定）')}</td></tr>`);
+          lineHTML.push(`<tr class="qd-pattern-head"><td colspan="5">📋 ${esc(_ptKey || t('noPattern'))}</td></tr>`);
           // パターン別リマーク（「見積書に表示」がONのときのみ御見積書PDFにも表示）
           if (_ptKey) {
             const _rmP = (typeof getSubconRemarks === 'function' ? getSubconRemarks()[_scKey + '||' + _ptKey] : null);
@@ -416,8 +516,8 @@
                     :                   '〜' + fmt(r.vt);
         return ` <span class="qd-validity">${esc(range)}</span>`;
       })();
-      const condNote = isCond ? ' <span class="qd-cond-note" style="color:#8a5a00;font-size:11px;font-weight:600;">（発生時/必要時のみ）</span>' : '';
-      const refNote  = isRef  ? ' <span class="qd-ref-note" style="color:#3a5a80;font-size:11px;font-weight:600;">（参考情報）</span>' : '';
+      const condNote = isCond ? ` <span class="qd-cond-note" style="color:#8a5a00;font-size:11px;font-weight:600;">${t('conditional')}</span>` : '';
+      const refNote  = isRef  ? ` <span class="qd-ref-note" style="color:#3a5a80;font-size:11px;font-weight:600;">${t('reference')}</span>` : '';
       // 前回提示分から追加／変更された行をハイライト（uid で突き合わせ）
       const revMark = r.uid ? _revMarks[r.uid] : null;
       const revCls  = revMark === 'added' ? ' qd-row-added' : revMark === 'changed' ? ' qd-row-changed' : '';
@@ -430,7 +530,7 @@
           <td class="qd-num">${qtyDisp}</td>
           <td class="qd-ctr">${esc(r.un || '')}</td>
           <td class="qd-num">${unitDisp}</td>
-          <td class="qd-num">${isActual ? '実費' : isCond ? '' : isRef ? '<span style="color:#8a95a5;">(¥' + fmtInt(jpy) + ')</span>' : estTag + '¥' + fmtInt(jpy)}</td>
+          <td class="qd-num">${isActual ? t('unpriced') : isCond ? '' : isRef ? '<span style="color:#8a95a5;">(¥' + fmtInt(jpy) + ')</span>' : estTag + '¥' + fmtInt(jpy)}</td>
         </tr>`
       );
     });
@@ -451,7 +551,7 @@
 
     const dateStr  = _fmtJpDate(hdr.date || _todayIso());
     const validStr = _fmtJpDate(hdr.validUntil);
-    const custName = _formatRecipient(hdr.customer, hdr.person) || '（宛先未入力）';
+    const custName = _formatRecipient(hdr.customer, hdr.person) || t('noRecipient');
 
     // 住所1/2、TEL/FAX はそれぞれ1行にまとめる（行数を詰めて発行元情報をコンパクトに）
     const issuerAddrLine = [esc(issuer.address1), esc(issuer.address2)].filter(Boolean).join('　');
@@ -460,10 +560,10 @@
       issuer.fax ? 'FAX: ' + esc(issuer.fax) : '',
     ].filter(Boolean).join('　');
     const issuerAddr = [
-      issuer.zip ? '〒' + esc(issuer.zip) : '',
+      issuer.zip ? (_curLangEn ? 'Zip ' : '〒') + esc(issuer.zip) : '',
       issuerAddrLine,
       issuerContactLine,
-      issuer.regno ? '登録番号: ' + esc(issuer.regno) : '',
+      issuer.regno ? t('regno') + ': ' + esc(issuer.regno) : '',
     ].filter(Boolean).join('<br>');
 
     const metaRows = subj.meta.map(([k, v]) =>
@@ -472,8 +572,8 @@
 
     return `
     <div class="qd-page">
-      <div class="qd-top"><span></span><span style="text-align:right;line-height:1.6;">見積書NO：${esc(hdr.ref) || '—'}<br>DATE：${esc(dateStr)}　　PAGE：1 / 1</span></div>
-      <div class="qd-title">御 見 積 書</div>
+      <div class="qd-top"><span></span><span style="text-align:right;line-height:1.6;">${t('quoteNo')}：${esc(hdr.ref) || '—'}<br>${t('date')}：${esc(dateStr)}　　${t('page')}：1 / 1</span></div>
+      <div class="qd-title">${t('docTitle')}</div>
 
       <div class="qd-head">
         <div class="qd-to">
@@ -490,48 +590,48 @@
         ${subj.title ? `<div class="qd-subj-ttl">${esc(subj.title)}</div>` : ''}
         ${metaRows ? `<div class="qd-meta">${metaRows}</div>` : ''}
         ${(!hideTotal || validStr) ? `<div class="qd-amt-row">
-          <span>${hideTotal ? '' : '御見積額'}${validStr ? `　<span class="qd-valid">本見積書有効期限：${esc(validStr)}</span>` : ''}</span>
+          <span>${hideTotal ? '' : t('totalAmount')}${validStr ? `　<span class="qd-valid">${t('validUntil')}：${esc(validStr)}</span>` : ''}</span>
           ${hideTotal ? '' : `<span class="qd-amt">¥ ${fmtInt(total)} <span class="qd-jpy">(JPY)</span></span>`}
         </div>` : ''}
       </div>
 
       <table class="qd-items">
         <thead><tr>
-          <th class="qd-item">見積項目／摘要</th><th>数量</th><th>単位</th><th>単価</th><th>金額(JPY)</th>
+          <th class="qd-item">${t('itemCol')}</th><th>${t('qtyCol')}</th><th>${t('unitCol')}</th><th>${t('priceCol')}</th><th>${t('amountCol')}</th>
         </tr></thead>
         <tbody>${lineHTML.join('')}</tbody>
       </table>
 
       <div class="qd-foot">
         <div class="qd-notes">
-          <b>見積項目（＊印は課税対象取引です）</b>
+          <b>${t('notesTitle')}</b>
         </div>
         <div class="qd-rate">
           <table>
-            <tr><td class="qd-ctr qd-rh">通貨</td><td class="qd-ctr qd-rh">レート</td></tr>
+            <tr><td class="qd-ctr qd-rh">${t('currency')}</td><td class="qd-ctr qd-rh">${t('rate')}</td></tr>
             ${rateRows}
           </table>
           ${fxMetaNote}
         </div>
         ${hideTotal ? '' : `<div class="qd-sum">
           <table>
-            <tr><td class="qd-sk2">小計（免税分）</td><td class="qd-num">¥${fmtInt(exemptSub)}</td></tr>
-            <tr><td class="qd-sk2">課税対象小計</td><td class="qd-num">¥${fmtInt(taxableSub)}</td></tr>
-            <tr><td class="qd-sk2">消費税（${Math.round(taxRate * 100)}%）</td><td class="qd-num">¥${fmtInt(tax)}</td></tr>
-            <tr class="qd-total"><td>合計見積額</td><td class="qd-num">¥${fmtInt(total)}</td></tr>
+            <tr><td class="qd-sk2">${t('exemptSub')}</td><td class="qd-num">¥${fmtInt(exemptSub)}</td></tr>
+            <tr><td class="qd-sk2">${t('taxableSub')}</td><td class="qd-num">¥${fmtInt(taxableSub)}</td></tr>
+            <tr><td class="qd-sk2">${t('tax')}（${Math.round(taxRate * 100)}%）</td><td class="qd-num">¥${fmtInt(tax)}</td></tr>
+            <tr class="qd-total"><td>${t('grandTotal')}</td><td class="qd-num">¥${fmtInt(total)}</td></tr>
           </table>
         </div>`}
       </div>
       ${(() => {
         const sc = (document.getElementById('qf-scope')?.value || '').trim();
-        return sc ? `<div class="qd-remark-block qd-scope-block"><div class="qd-remark-ttl">🛠️ 作業範囲</div><div class="qd-remark-body">${esc(sc).replace(/\n/g, '<br>')}</div></div>` : '';
+        return sc ? `<div class="qd-remark-block qd-scope-block"><div class="qd-remark-ttl">${t('scopeTitle')}</div><div class="qd-remark-body">${esc(sc).replace(/\n/g, '<br>')}</div></div>` : '';
       })()}
       ${(() => {
         const rt = (typeof getRemarkText === 'function') ? getRemarkText() : (cond && cond.free) || '';
         const imgHtml = (typeof remarkImagesOutputHTML === 'function') ? remarkImagesOutputHTML('qd-remark-images') : '';
         if (!rt && !imgHtml) return '';
         const bodyHtml = rt ? `<div class="qd-remark-body">${esc(rt).replace(/\n/g, '<br>')}</div>` : '';
-        return `<div class="qd-remark-block"><div class="qd-remark-ttl">📝 条件・免責事項（全体リマーク）</div>${bodyHtml}${imgHtml}</div>`;
+        return `<div class="qd-remark-block"><div class="qd-remark-ttl">${t('remarksTitle')}</div>${bodyHtml}${imgHtml}</div>`;
       })()}
       ${(() => {
         const diff = _revDiff;
@@ -546,7 +646,7 @@
         const totalLine = (diff.showTotal !== false && diff.totalFrom !== diff.totalTo)
           ? `<div class="qd-rev-total">合計金額：¥${esc(diff.totalFrom)} → ¥${esc(diff.totalTo)}</div>` : '';
         return `<div class="qd-remark-block qd-revision-block">
-          <div class="qd-remark-ttl">🔄 前回提示分からの変更点</div>
+          <div class="qd-remark-ttl">${t('revisionTitle')}</div>
           <ul class="qd-rev-list">${lines.join('')}</ul>
           ${totalLine}
         </div>`;
@@ -600,6 +700,10 @@
                 <label for="qdPdfTitle">ファイル名</label>
                 <div class="qd-inp"><input type="text" id="qdPdfTitle" placeholder="ファイル名（拡張子不要）" title="PDF保存時のファイル名（ブラウザの印刷ダイアログに反映）"><span class="qd-ext">.pdf</span></div>
               </div>
+              <label class="qd-toggle" title="ONにすると、見出し・項目名・合計欄等の固定ラベルを英語で出力します（海外客先向け）。品名・備考・サブコン名等のご自身で入力した文章は翻訳されず日本語のまま出力されます。">
+                <span class="qd-toggle-l">🌐 英語で出力<small>固定ラベルのみ</small></span>
+                <input type="checkbox" id="qdLangEn"><span class="qd-toggle-sw"></span>
+              </label>
               <label class="qd-toggle" title="ONにすると上部の御見積額・下部の合計／税サマリを非表示にします。小計行でパターンA/B比較を行う用途向け。">
                 <span class="qd-toggle-l">合計・税サマリを非表示<small>パターン比較用</small></span>
                 <input type="checkbox" id="qdHideTotal"><span class="qd-toggle-sw"></span>
@@ -632,12 +736,16 @@
       }
       const autoChk = overlay.querySelector('#qdAutoStatus');
       if (autoChk) autoChk.addEventListener('change', () => saveAutoStatus(autoChk.checked));
+      const langChk = overlay.querySelector('#qdLangEn');
+      if (langChk) langChk.addEventListener('change', () => { saveLangEn(langChk.checked); refreshQuoteDoc(); });
     }
     // チェック状態・ファイル名を保存値に同期（オーバーレイ再利用時も整合）
     const hideChk = overlay.querySelector('#qdHideTotal');
     if (hideChk) hideChk.checked = loadHideTotal();
     const autoChk2 = overlay.querySelector('#qdAutoStatus');
     if (autoChk2) autoChk2.checked = loadAutoStatus();
+    const langChk2 = overlay.querySelector('#qdLangEn');
+    if (langChk2) langChk2.checked = loadLangEn();
     const titleIn = overlay.querySelector('#qdPdfTitle');
     if (titleIn) titleIn.value = _defaultPdfTitle();
     refreshQuoteDoc();
