@@ -2692,7 +2692,7 @@
           </div>
           <div class="quote-field">
             <label>お客様 ご担当者（敬称略） <span class="req-mark" aria-hidden="true">*</span></label>
-            <input type="text" id="qf-person" placeholder="例）山田　※宛先（お客様側）の氏名。出力時に自動で「様」付与" title="お客様側（宛先）のご担当者名を入力します。社内の見積もり作成者ではありません。姓のみ／フルネームのみ（会社名は含めない）。客先向け出力（プレビュー・PDF）で会社名とともに宛先となり、自動で「様」が付きます。" aria-required="true" />
+            <input type="text" id="qf-person" placeholder="例）山田　※宛先（お客様側）の氏名。出力時に自動で「様」付与" title="お客様側（宛先）のご担当者名を入力します。社内の見積もり作成者ではありません。姓のみ／フルネームのみ（会社名は含めない）。客先向け出力（プレビュー・PDF）で会社名とともに宛先となり、自動で「様」が付きます。登録済みのお客様なら、マスターの担当者一覧から候補表示されます。" aria-required="true" list="qfPersonSuggestions" autocomplete="off" />
           </div>
           <div class="quote-field">
             <label>📥 依頼受信日 <span class="qf-memo-note">引き合いを受けた日（経過日数を表示）</span></label>
@@ -4137,6 +4137,8 @@
     <datalist id="ptSuggestions"></datalist>
     <datalist id="nmSuggestions"></datalist>
     <datalist id="custSuggestions"></datalist>
+    <!-- お客様マスターの登録済み担当者一覧（お客様名称入力に応じて qfRefreshPersonSuggestions が動的に差し替える） -->
+    <datalist id="qfPersonSuggestions"></datalist>
 
     <datalist id="unit-list">
       <option value="B/L"></option>
