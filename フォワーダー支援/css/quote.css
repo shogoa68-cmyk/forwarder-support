@@ -6420,6 +6420,49 @@ body.qp-dash-active #quoteActionDock { display: none !important; }
 #tab-quote-make .cloud-hold-toggle:hover { background: #e5d9f8; }
 #tab-quote-make .cloud-hold-toggle.is-off { color: #7d6b56; background: #f0ebe2; border-color: #ddd0bc; }
 #tab-quote-make .cloud-hold-toggle.is-off:hover { background: #e6ddd0; }
+
+/* 🔔 料金更新フォロー（バッジ／設定ボタン／インライン編集） */
+#tab-quote-make .cloud-follow, #tab-quote-make .cloud-follow-set {
+  font-family: inherit; cursor: pointer; white-space: nowrap;
+  font-size: 11px; font-weight: 700; border-radius: 999px; padding: 1px 9px; border: 1px solid transparent;
+}
+#tab-quote-make .cloud-follow-set { color: #7d6b56; background: #f3ede1; border-color: #ded0bc; font-weight: 600; }
+#tab-quote-make .cloud-follow-set:hover { background: #e9e0d0; color: #5a4a30; }
+#tab-quote-make .cloud-follow--none  { color: #205838; background: #e9f5ee; border-color: #b6ddc6; }
+#tab-quote-make .cloud-follow--ok    { color: #205838; background: #e9f5ee; border-color: #b6ddc6; }
+#tab-quote-make .cloud-follow--soon  { color: #8a5a16; background: #fcf1e0; border-color: #e7c79a; }
+#tab-quote-make .cloud-follow--today { color: #a8442a; background: #fbeee9; border-color: #e0a18f; }
+#tab-quote-make .cloud-follow--over  { color: #fff;    background: #c0392b; border-color: #a83224; }
+#tab-quote-make .cloud-follow:hover  { filter: brightness(0.96); }
+#tab-quote-make .cloud-follow-edit {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 6px; width: 100%;
+  background: #f1f8f3; border: 1px solid #b6ddc6; border-radius: 8px; padding: 6px 8px;
+}
+#tab-quote-make .cloud-follow-edit-lbl { font-size: 11px; font-weight: 700; color: #205838; }
+#tab-quote-make .cloud-follow-date {
+  font-family: inherit; font-size: 12px; padding: 4px 6px; border: 1px solid #c7d8cd; border-radius: 6px; background: #fff;
+}
+#tab-quote-make .cloud-follow-note {
+  flex: 1; min-width: 120px; font-family: inherit; font-size: 12px; padding: 4px 8px; border: 1px solid #c7d8cd; border-radius: 6px; background: #fff;
+}
+#tab-quote-make .cloud-follow-save {
+  font-family: inherit; cursor: pointer; font-size: 12px; font-weight: 700; color: #fff; background: #2d6a4f;
+  border: none; border-radius: 6px; padding: 5px 12px;
+}
+#tab-quote-make .cloud-follow-save:hover { background: #255c43; }
+#tab-quote-make .cloud-follow-clear {
+  font-family: inherit; cursor: pointer; font-size: 11.5px; color: #205838; background: none;
+  border: 1px solid #b6ddc6; border-radius: 6px; padding: 5px 10px;
+}
+#tab-quote-make .cloud-follow-clear:hover { background: #e3f0e8; }
+#tab-quote-make .cloud-follow-cancel {
+  font-family: inherit; cursor: pointer; font-size: 13px; color: #7d6b56; background: none; border: none; padding: 2px 6px;
+}
+/* 要フォロー 統計タイル */
+#qpDashboard .qpd-stat--follow .qpd-stat-n { color: #205838; }
+#qpDashboard .qpd-stat--follow.is-active { border-color: #2d6a4f; box-shadow: 0 0 0 2px rgba(45,106,79,.18); }
+#qpDashboard .qpd-stat--follow-over .qpd-stat-n { color: #c0392b; }
+
 #tab-quote-make .cloud-kv { display: grid; grid-template-columns: 68px 1fr; gap: 3px 8px; margin: 8px 0; }
 #tab-quote-make .cloud-kv dt { font-size: 10.5px; color: #94a3ad; font-weight: 600; padding-top: 1px; }
 #tab-quote-make .cloud-kv dd { font-size: 11.5px; color: #2c3e4a; margin: 0; }
