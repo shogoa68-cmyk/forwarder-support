@@ -5165,6 +5165,7 @@ button.lc-attach-tbl-btn { background: none; border: none; padding: 0; cursor: p
 #tab-local-charges .lcrp-th-ccy   { width: 82px; }
 #tab-local-charges .lcrp-th-price { width: 112px; }
 #tab-local-charges .lcrp-th-tax   { width: 40px; }
+#tab-local-charges .lcrp-th-mstr  { width: 32px; }
 
 #tab-local-charges .lcrp-table td { padding: 3px 4px; border-top: 1px solid #f6f1e7; vertical-align: top; }
 #tab-local-charges .lcrp-table tr:first-child td { border-top: none; }
@@ -5175,6 +5176,12 @@ button.lc-attach-tbl-btn { background: none; border: none; padding: 0; cursor: p
 }
 #tab-local-charges .lcrp-td-tax { text-align: center; padding-top: 6px; }
 #tab-local-charges .lcrp-td-tax input { width: auto; }
+#tab-local-charges .lcrp-td-mstr { text-align: center; padding-top: 4px; }
+#tab-local-charges .lcrp-mstr-btn {
+  font-size: 13px; border: 1px solid #d9ccb4; background: #fff; border-radius: 4px;
+  cursor: pointer; padding: 2px 5px; line-height: 1.4;
+}
+#tab-local-charges .lcrp-mstr-btn:hover { background: #f0e8d8; }
 
 #tab-local-charges .lcrp-ops { display: flex; flex-direction: column; gap: 2px; align-items: center; }
 #tab-local-charges .lcrp-ops button {
