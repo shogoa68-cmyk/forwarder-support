@@ -5566,6 +5566,10 @@ body.qp-dash-active #quoteActionDock { display: none !important; }
   font-size: 10.5px; font-family: inherit; cursor: pointer; white-space: nowrap;
 }
 #tab-quote-make .ei-bulk-sv-btn:hover { background: #dfe8d0; }
+#tab-quote-make .ei-sellmode-label {
+  padding: 4px 9px; border: 1px solid #d4892a; border-radius: 5px; background: #fff3e0; color: #8a4c00;
+}
+#tab-quote-make .ei-sellmode-label input { accent-color: #d4892a; }
 #tab-quote-make .ei-flags { font-size: 10px; color: #8a6a2a; white-space: nowrap; text-align: center; }
 #tab-quote-make tr.ei-low td { background: #fff8ec; }
 #tab-quote-make .ei-conf {

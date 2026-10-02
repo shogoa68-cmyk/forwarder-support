@@ -329,10 +329,12 @@
       const txEl = tr.querySelector('[data-field="tx"]');
       if (txEl?.checked) tr.classList.add('taxed');
       else tr.classList.remove('taxed');
-      // % 計算モードの復元
+      // % 計算モード／売値ベースモードの復元
       const ppmodeEl = tr.querySelector('[data-field="ppmode"]');
       if (ppmodeEl?.value === 'pct' && typeof window._restorePctMode === 'function') {
         window._restorePctMode(rowId);
+      } else if (ppmodeEl?.value === 'sell' && typeof window._restoreSellMode === 'function') {
+        window._restoreSellMode(rowId);
       }
     });
     // % リンク参照セレクトを全行復元後に再構築（全行の UID が揃ったあとに実行）
