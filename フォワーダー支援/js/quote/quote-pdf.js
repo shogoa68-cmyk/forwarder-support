@@ -16,6 +16,10 @@
     fax: '03-5765-7667',
     regno: '',     // インボイス登録番号（任意）
     greeting: '毎度格別のお引き立てを賜り、厚く御礼申し上げます。\n下記の通り、御見積り申し上げます。\n何卒ご用命の程、宜しくお願い申し上げます。',
+    // 英語出力（「🌐 英語で出力」ON）用。空欄の項目は日本語の値にフォールバックする
+    // （挨拶文のみ標準の英文を初期値として持つ）
+    companyEn: '', address1En: '', address2En: '',
+    greetingEn: 'Thank you for your continued support.\nPlease find our quotation below.\nWe look forward to your favorable consideration.',
   };
 
   function loadIssuer() {
@@ -103,6 +107,8 @@
     conditional:    ['（発生時/必要時のみ）', '(If applicable)'],
     reference:      ['（参考情報）', '(For reference)'],
     noPattern:      ['（パターン未設定）', '(No pattern)'],
+    noSubcon:       ['（サブコン未設定）', '(No subcontractor)'],
+    noCategory:     ['— カテゴリ —', '— Uncategorized —'],
   };
   // 方向（輸出/輸入）・輸送モード・特殊貨物区分は選択式の固定セットなので、
   // 値（cond.direction は内部コード、mode/hazmat は選択肢テキストそのもの）で引ける対訳表を別途用意する
@@ -177,6 +183,7 @@
     return (!ccy || ccy === 'JPY') ? amount : amount;
   }
   function _catLabel(v) {
+    if (_curLangEn && !v) return t('noCategory');
     if (_curLangEn) return CAT_EN[v] || (typeof getCatLabel === 'function' ? (getCatLabel(v) || '') : (v || ''));
     return (typeof getCatLabel === 'function') ? (getCatLabel(v) || '') : (v || '');
   }
@@ -242,15 +249,15 @@
     const v = id => (document.getElementById(id)?.value || '').trim();
     const parts = [];
     if (hazmat === '温度管理品（冷蔵）') {
-      if (v('hz-temp-chill'))   parts.push('設定温度 ' + v('hz-temp-chill'));
+      if (v('hz-temp-chill'))   parts.push((_curLangEn ? 'Set temp. ' : '設定温度 ') + v('hz-temp-chill'));
       if (v('hz-reefer-chill')) parts.push(v('hz-reefer-chill'));
     } else if (hazmat === '温度管理品（冷凍）') {
-      if (v('hz-temp-frozen'))   parts.push('設定温度 ' + v('hz-temp-frozen'));
+      if (v('hz-temp-frozen'))   parts.push((_curLangEn ? 'Set temp. ' : '設定温度 ') + v('hz-temp-frozen'));
       if (v('hz-reefer-frozen')) parts.push(v('hz-reefer-frozen'));
     } else if (hazmat === '重量物・大型貨物') {
-      if (v('hz-heavy-weight')) parts.push('単体重量 ' + v('hz-heavy-weight'));
-      if (v('hz-heavy-dim'))    parts.push('寸法 ' + v('hz-heavy-dim'));
-      if (v('hz-heavy-equip'))  parts.push('機材 ' + v('hz-heavy-equip'));
+      if (v('hz-heavy-weight')) parts.push((_curLangEn ? 'Unit weight ' : '単体重量 ') + v('hz-heavy-weight'));
+      if (v('hz-heavy-dim'))    parts.push((_curLangEn ? 'Dimensions ' : '寸法 ') + v('hz-heavy-dim'));
+      if (v('hz-heavy-equip'))  parts.push((_curLangEn ? 'Equipment ' : '機材 ') + v('hz-heavy-equip'));
     } else if (hazmat === 'その他（特記事項参照）') {
       if (v('hz-other-note')) parts.push(v('hz-other-note'));
     }
@@ -367,13 +374,29 @@
   }
 
   // ====== メイン：御見積書HTMLを生成 ======
+  // conditions.js の荷姿明細・課金重量などの文言関数にも出力言語を伝える（window._outputLangEn）。
+  // 同期処理の間だけ有効にし、終わったら必ず戻す（プレビュー・メール等の日本語出力に影響させない）
   function buildQuoteDocHTML() {
+    _curLangEn = loadLangEn();
+    window._outputLangEn = _curLangEn;
+    try { return _buildQuoteDocHTMLInner(); }
+    finally { window._outputLangEn = false; }
+  }
+  function _buildQuoteDocHTMLInner() {
     _curLangEn = loadLangEn();   // この描画中だけ有効な出力言語（固定ラベルのみ英訳。品名等の自由記述は対象外）
     const hdr  = (typeof getQuoteHeader === 'function') ? getQuoteHeader() : {};
     const rows = (typeof collectAllRows === 'function') ? collectAllRows().filter(r => !r._hideQuote) : [];  // 見積書非表示の行は出力しない
     const cond = (typeof getConditions === 'function') ? getConditions() : null;
     const taxRate = (typeof getEffectiveTaxRate === 'function') ? getEffectiveTaxRate() : 0.10;
-    const issuer = loadIssuer();
+    const issuer0 = loadIssuer();
+    const issuer = _curLangEn
+      ? Object.assign({}, issuer0, {
+          company:  (issuer0.companyEn  || '').trim() || issuer0.company,
+          address1: (issuer0.address1En || '').trim() || issuer0.address1,
+          address2: (issuer0.address2En || '').trim() || issuer0.address2,
+          greeting: (issuer0.greetingEn || '').trim() || issuer0.greeting,
+        })
+      : issuer0;
     const hideTotal = loadHideTotal();   // 合計・税サマリを隠す（パターン比較用途）
     // 前回提示分からの変更点（🔄 更新でスナップショットが取られている場合のみ）。
     // 明細テーブルの行ハイライトと末尾の変更点ブロックの両方でこの1回の計算結果を使う。
@@ -388,7 +411,7 @@
     // サブコン別グループが有効（2+ サブコン）なら、グループ境界に売値小計を挿入（顧客向けのため金額のみ）
     // 揺らぎ吸収：境界判定・エイリアス参照は正規化キーで、表示は元の綴りで行う
     const _scNorm    = d => (subconNormKey(d.sv) || '（サブコン未設定）');
-    const _scLabelOf = d => ((d.sv || '').trim() || '（サブコン未設定）');
+    const _scLabelOf = d => ((d.sv || '').trim() || t('noSubcon'));
     const _ptNorm    = d => (d.pt || '').trim();
     // サブコンごとのパターン種類数を事前集計（パターン別表示の有無を判定）
     const scPatternSets = {};
@@ -680,6 +703,13 @@
           ${f('address2', '住所2（building等）', '例）〇〇ビルディング 3階')}
         </div>
         <label class="qd-fld qd-fld-wide"><span>挨拶文</span><textarea data-issuer="greeting" rows="2">${esc(issuer.greeting)}</textarea></label>
+        <div class="qd-issuer-ttl" style="margin-top:10px;">🌐 英語版（「英語で出力」ON時に使用。空欄は日本語の値を使います）</div>
+        <div class="qd-fld-grid">
+          ${f('companyEn', 'Company name', 'e.g. JCT Co., Ltd.')}
+          ${f('address1En', 'Address 1', 'e.g. 2-11-5 Shibaura, Minato-ku, Tokyo')}
+          ${f('address2En', 'Address 2 (building)', 'e.g. Igarashi Bldg. 3F')}
+        </div>
+        <label class="qd-fld qd-fld-wide"><span>Greeting</span><textarea data-issuer="greetingEn" rows="3">${esc(issuer.greetingEn)}</textarea></label>
       </div>`;
   }
 
