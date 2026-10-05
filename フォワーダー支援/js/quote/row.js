@@ -2429,6 +2429,30 @@
         return ptKey ? (_rowInnerKey(tr) === ptKey) : true;
       });
   }
+  // サブコン／パターン見出しのチェック：配下の全明細行の選択チェック（.row-select-chk）を一括で ON/OFF
+  function selectGroupRows(svKey, ptKey, on) {
+    _groupMemberRows(svKey, ptKey).forEach(tr => {
+      const c = tr.querySelector('.row-select-chk');
+      if (c) c.checked = on;
+    });
+    if (typeof window.refreshRowSelectionMode === 'function') window.refreshRowSelectionMode();   // 内部で見出しチェックも同期
+    else _syncGroupSelectChecks();
+  }
+  // 見出しチェックの状態を配下の行チェックから算出（全選択=ON／一部=中間／なし=OFF）
+  function _syncGroupSelectChecks() {
+    document.querySelectorAll('#tableBody tr.subcon-group-header, #tableBody tr.subcon-subgroup-header.is-pattern').forEach(h => {
+      const chk = h.querySelector('.subcon-group-chk');
+      if (!chk) return;
+      const svKey = h.dataset.svKey || _UNSET_KEY;
+      const ptKey = h.classList.contains('subcon-subgroup-header') ? (h.dataset.ptKey || '') : '';
+      const boxes = _groupMemberRows(svKey, ptKey).map(tr => tr.querySelector('.row-select-chk')).filter(Boolean);
+      const n = boxes.filter(c => c.checked).length;
+      chk.checked = boxes.length > 0 && n === boxes.length;
+      chk.indeterminate = n > 0 && n < boxes.length;
+    });
+  }
+  window.syncGroupSelectChecks = _syncGroupSelectChecks;
+
   // グループ配下の lu 集約：全行同値なら {value, mixed:false}、バラつき（空との混在含む）なら {value:'', mixed:true}
   function _groupUpdatedDate(svKey, ptKey) {
     const states = new Set();
@@ -3051,6 +3075,7 @@
             `<div class="subcon-group-header-inner">` +
             `<span class="subcon-group-grip" title="ドラッグでグループ（ブロック）を並び替え">⠿</span>` +
             `<button type="button" class="subcon-group-toggle" title="折りたたみ/展開">${collapsed ? '▶' : '▼'}</button>` +
+            `<input type="checkbox" class="subcon-group-chk" title="このサブコンの全明細を選択／解除（一部だけ選択中は中間表示）">` +
             `<span class="subcon-group-label">📦 ${_escHdr(label)}</span>` +
             `<span class="subcon-group-count">${count} 行</span>` +
             `<span class="subcon-group-sum"></span>` +
@@ -3064,6 +3089,9 @@
             `</div>` +
           `</td>`;
         hdr.querySelector('.subcon-group-toggle').addEventListener('click', () => toggleSubconGroup(key));
+        { const gchk = hdr.querySelector('.subcon-group-chk');
+          gchk.addEventListener('click', e => e.stopPropagation());
+          gchk.addEventListener('change', () => selectGroupRows(key, '', gchk.checked)); }
         hdr.querySelector('.subcon-group-excl').addEventListener('click', () => toggleSubconExclude(key));
         hdr.querySelector('.subcon-group-add-btn').addEventListener('click', () => {
           addRowToSubconGroup(key === _UNSET_KEY ? '' : label);
@@ -3284,6 +3312,7 @@
                   `<div class="subcon-subgroup-inner">` +
                   `<span class="subcon-subgroup-grip" title="ドラッグでこのパターンを並び替え（同じサブコン内のみ）">⠿</span>` +
                   `<button type="button" class="subcon-subgroup-toggle" title="${_ptCollapsed ? '展開' : '折りたたみ/展開'}">${_ptCollapsed ? '▶' : '▼'}</button>` +
+                  `<input type="checkbox" class="subcon-group-chk" title="このパターンの全明細を選択／解除（一部だけ選択中は中間表示）">` +
                   `<span class="subcon-subgroup-leg">${icon} ${_escHdr(key)}</span>` +
                   `<button type="button" class="subcon-subgroup-rename" title="このパターン名を変更（配下の行すべてに反映）">✎</button>` +
                   `<button type="button" class="subcon-subgroup-dup" title="このパターンの明細行をすべて複製（新しいパターンとして「（2）」等が付きます）">📋</button>` +
@@ -3293,6 +3322,9 @@
                   `</div>` +
                 `</td>`;
               sh.querySelector('.subcon-subgroup-toggle').addEventListener('click', () => togglePatternGroup(_compK));
+              { const gchk = sh.querySelector('.subcon-group-chk');
+                gchk.addEventListener('click', e => e.stopPropagation());
+                gchk.addEventListener('change', () => selectGroupRows(_svK, key, gchk.checked)); }
               sh.querySelector('.subcon-subgroup-rename').addEventListener('click', e => {
                 e.stopPropagation();
                 renamePatternGroup(_svK, key);
@@ -3322,6 +3354,7 @@
       // 全行の折りたたみ・除外状態を適用（小計・リマーク行を含む）
       _applyGroupStates();
       _updateGroupSums();
+      _syncGroupSelectChecks();
       if (typeof refreshMergeBadges === 'function') refreshMergeBadges();
     } finally {
       _inGroupRender = false;

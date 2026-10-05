@@ -11143,3 +11143,8 @@ button.um-memberno--empty:hover { background: #f4ead4; border-color: #cdb98e; }
    クラス付与のたびに文書全体のスタイル再計算が走り、143 行規模で数百 ms かかるため。
    user-select は継承するので body に一度だけ指定すれば足りる。 */
 body.is-row-dragging { cursor: grabbing; user-select: none; }
+
+/* サブコン／パターン見出しの「配下の全明細を選択」チェック */
+#tab-quote-make .subcon-group-chk {
+  width: 15px; height: 15px; margin: 0 4px 0 2px; cursor: pointer; flex: none; accent-color: #8b6914;
+}
