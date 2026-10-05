@@ -3251,6 +3251,12 @@ a.bm-contact-item:hover { background: #2e6b3e; color: #fff; border-color: #2e6b3
 .stats-sort-btn.is-active {
   background: #f7eccb; border-color: #e0b84a; color: #6b4f10; font-weight: 700;
 }
+.stats-more-wrap { text-align: center; margin: 12px 0 4px; }
+.stats-more-btn {
+  padding: 6px 18px; border: 1px solid #c9b79a; border-radius: 16px;
+  background: #fff; color: #5a4632; font-size: 13px; cursor: pointer;
+}
+.stats-more-btn:hover { background: #f0e8d8; }
 .stats-unorg-toggle {
   display: inline-flex; align-items: center; gap: 4px;
   font-size: 12px; color: #6b5840; cursor: pointer;
