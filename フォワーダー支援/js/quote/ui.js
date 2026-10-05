@@ -2960,7 +2960,7 @@
 
   // ========== 荷姿カスタムプリセット ==========
   const PACKING_PRESETS_KEY  = 'customPackings_v1';
-  const DEFAULT_PACKINGS = ['カートン','パレット','ドラム缶','袋（バッグ）','木箱','スチール缶','バルク','コイル','ロール'];
+  const DEFAULT_PACKINGS = ['カートン','パレット','ドラム缶','袋（バッグ）','木箱','スチール缶','バルク','コイル','ロール','梱包なし'];
 
   function getPackingList() {
     try {

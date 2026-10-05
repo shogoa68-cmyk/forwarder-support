@@ -2334,7 +2334,7 @@
     if (dl && !dl.dataset.filled) {
       const list = (typeof window.getPackingList === 'function')
         ? window.getPackingList()
-        : ['カートン','パレット','ドラム缶','袋（バッグ）','木箱','バルク'];
+        : ['カートン','パレット','ドラム缶','袋（バッグ）','木箱','バルク','梱包なし'];
       dl.innerHTML = list.map(p => `<option value="${_escMulti(p)}"></option>`).join('');
       dl.dataset.filled = '1';
     }
