@@ -562,6 +562,27 @@
     const value = (inp.value || '').trim();
     const has = !!(value && typeof window.mdGet === 'function' && window.mdGet('customer', value));
     btn.hidden = !has;
+    window.qfRefreshPersonSuggestions();
+  };
+
+  // お客様マスターに登録済みの担当者を「お客様 ご担当者」欄のサジェスト候補へ反映
+  window.qfRefreshPersonSuggestions = function () {
+    const dl = document.getElementById('qfPersonSuggestions');
+    const inp = document.getElementById('qf-customer');
+    if (!dl || !inp) return;
+    dl.innerHTML = '';
+    const value = (inp.value || '').trim();
+    const rec = value && typeof window.mdGet === 'function' ? window.mdGet('customer', value) : null;
+    const contacts = rec && Array.isArray(rec.details?.contacts) ? rec.details.contacts : [];
+    contacts.forEach(c => {
+      const name = (c.name || '').trim();
+      if (!name) return;
+      const o = document.createElement('option');
+      o.value = name;
+      const meta = [c.phone, c.email, c.other].filter(Boolean).join(' / ');
+      if (meta) o.label = meta;
+      dl.appendChild(o);
+    });
   };
 
   window.mdShowDetailPopup = function (field, value) {
