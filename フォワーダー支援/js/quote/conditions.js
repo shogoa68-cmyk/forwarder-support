@@ -2453,10 +2453,11 @@
     if (!named.length) return '';
     return named.map(e => {
       const dim = [e.l, e.w, e.h].every(x => x) ? `${e.l}×${e.w}×${e.h}cm` : '';
-      const kg = e.kg ? `${e.kg}kg/個` : '';
-      const stackNote = e.stack === '不可' ? '段積み不可' : '';
-      const extra = [dim, kg, stackNote].filter(Boolean).join('、');
-      return `${e.pkg || '荷姿未設定'} × ${e.qty || 1}${extra ? `（${extra}）` : ''}`;
+      const en = window._outputLangEn === true;   // 御見積書PDFの英語出力中のみ英語の文言にする
+      const kg = e.kg ? (en ? `${e.kg}kg/pc` : `${e.kg}kg/個`) : '';
+      const stackNote = e.stack === '不可' ? (en ? 'Do not stack' : '段積み不可') : '';
+      const extra = [dim, kg, stackNote].filter(Boolean).join(en ? ', ' : '、');
+      return `${e.pkg || (en ? 'Packing not specified' : '荷姿未設定')} × ${e.qty || 1}${extra ? (en ? ` (${extra})` : `（${extra}）`) : ''}`;
     }).join('\n');
   }
 
@@ -2491,7 +2492,7 @@
     const blocks = visible.map(({ pt, i }) => {
       const text = blockFn(pt, i);
       if (!text) return '';
-      return multiPattern ? `【${pt.name || `パターン${i + 1}`}】${text}` : text;
+      return multiPattern ? `【${pt.name || (window._outputLangEn === true ? `Pattern ${i + 1}` : `パターン${i + 1}`)}】${text}` : text;
     }).filter(Boolean);
     return blocks.join('\n');
   }
@@ -2515,7 +2516,7 @@
   window.getPackingDetailText = function () {
     if (window.isCargoSizeUnknown()) {
       const note = (document.getElementById('cond-cargo-unknown-note')?.value || '').trim();
-      return 'サイズ・重量 不明（引き合い時点では未確定）' + (note ? '　' + note : '');
+      return (window._outputLangEn === true ? 'Size / weight unknown (not fixed at inquiry)' : 'サイズ・重量 不明（引き合い時点では未確定）') + (note ? '　' + note : '');
     }
     return _buildPatternBreakdownText((pt) => _packingEntriesText(pt.entries));
   };
@@ -2552,11 +2553,12 @@
       const packingRaw = _packingEntriesText(pt.entries);
       const { kg, cbm } = _patternWeightCbm(pt.entries);
       const lines = [];
-      if (packingRaw) lines.push(`荷姿明細：${packingRaw.replace(/\n/g, '／')}`);
-      if (kg > 0) lines.push(`総重量：${kg.toLocaleString()} kg`);
-      if (cbm > 0) lines.push(`総容積：${cbm.toFixed(3)} CBM`);
+      const en = window._outputLangEn === true;
+      if (packingRaw) lines.push(`${en ? 'Packing Details: ' : '荷姿明細：'}${packingRaw.replace(/\n/g, en ? ' / ' : '／')}`);
+      if (kg > 0) lines.push(`${en ? 'Total Weight: ' : '総重量：'}${kg.toLocaleString()} kg`);
+      if (cbm > 0) lines.push(`${en ? 'Total Volume: ' : '総容積：'}${cbm.toFixed(3)} CBM`);
       if (!lines.length) return '';
-      const name = pt.name || `パターン${i + 1}`;
+      const name = pt.name || (en ? `Pattern ${i + 1}` : `パターン${i + 1}`);
       const treeLines = lines.map((l, li) => (li === lines.length - 1 ? '┗ ' : '┣ ') + l);
       return `【${name}】\n${treeLines.join('\n')}`;
     }).filter(Boolean);
@@ -2588,7 +2590,7 @@
       if (isLcl) {
         if (!(cbm > 0 || kg > 0)) return '';
         let txt = rt.toFixed(3) + ' R/T';
-        if (rt > 0 && rt < 1) txt += '（MINIMUM 1 適用 → 1.000 R/T）';
+        if (rt > 0 && rt < 1) txt += (window._outputLangEn === true ? ' (MINIMUM 1 applied → 1.000 R/T)' : '（MINIMUM 1 適用 → 1.000 R/T）');
         return txt;
       }
       if (!(cw > 0)) return '';
@@ -2596,7 +2598,7 @@
       return cwTxt + ' kg';
     });
     if (!text) return null;
-    return { label: isLcl ? 'R/T（課金重量）' : 'CW（課金重量）', value: text };
+    return { label: window._outputLangEn === true ? (isLcl ? 'R/T (Chargeable)' : 'CW (Chargeable)') : (isLcl ? 'R/T（課金重量）' : 'CW（課金重量）'), value: text };
   };
 
   // ========== 🏷️ 案件タグ ==========
