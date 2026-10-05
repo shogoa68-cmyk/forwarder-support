@@ -466,7 +466,7 @@
     rows.forEach(r => {
       if (r._type === 'remark') {
         if (r.internal) return; // 社内メモは PDF に出力しない
-        lineHTML.push(`<tr class="qd-remark"><td colspan="5">※ ${esc(r.text)}</td></tr>`);
+        lineHTML.push(`<tr class="qd-remark"><td colspan="5">※ ${esc(_curLangEn && typeof window.translateRemarkToEn === 'function' ? window.translateRemarkToEn(r.text) : r.text)}</td></tr>`);
         return;
       }
       if (r._type === 'subtotal') {
@@ -681,7 +681,8 @@
         return sc ? `<div class="qd-remark-block qd-scope-block"><div class="qd-remark-ttl">${t('scopeTitle')}</div><div class="qd-remark-body">${esc(sc).replace(/\n/g, '<br>')}</div></div>` : '';
       })()}
       ${(() => {
-        const rt = (typeof getRemarkText === 'function') ? getRemarkText() : (cond && cond.free) || '';
+        let rt = (typeof getRemarkText === 'function') ? getRemarkText() : (cond && cond.free) || '';
+        if (_curLangEn && typeof window.translateRemarkToEn === 'function') rt = window.translateRemarkToEn(rt);   // 定型文を英文に
         const imgHtml = (typeof remarkImagesOutputHTML === 'function') ? remarkImagesOutputHTML('qd-remark-images') : '';
         if (!rt && !imgHtml) return '';
         const bodyHtml = rt ? `<div class="qd-remark-body">${esc(rt).replace(/\n/g, '<br>')}</div>` : '';
