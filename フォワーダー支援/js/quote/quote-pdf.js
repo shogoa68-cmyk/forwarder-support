@@ -156,6 +156,17 @@
     .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;');
   const nl2br = s => esc(s).replace(/\n/g, '<br>');
+  // 本文中の URL（http/https）をクリックできるリンクにする。入力は esc() 済みの文字列。
+  // 印刷（PDFに保存）してもリンクとして残る。日本語の句読点・括弧など非ASCII文字で URL を打ち切り、
+  // 末尾の . , ; : ) は URL に含めない
+  function linkify(escaped) {
+    return String(escaped).replace(/https?:\/\/[A-Za-z0-9\-._~:/?#\[\]@!$&'()*+,;=%]+/g, m => {
+      const tail = (m.match(/[.,;:)]+$/) || [''])[0];
+      const url = tail ? m.slice(0, m.length - tail.length) : m;
+      return `<a class="qd-link" href="${url}" target="_blank" rel="noopener">${url}</a>${tail}`;
+    });
+  }
+  const nl2brLink = s => linkify(esc(s)).replace(/\n/g, '<br>');
   const fmtInt = n => Math.round(n).toLocaleString('ja-JP');
   const fmtNum = (n, d) => Number(n).toLocaleString('ja-JP', { minimumFractionDigits: d || 0, maximumFractionDigits: d || 0 });
 
@@ -466,7 +477,7 @@
     rows.forEach(r => {
       if (r._type === 'remark') {
         if (r.internal) return; // 社内メモは PDF に出力しない
-        lineHTML.push(`<tr class="qd-remark"><td colspan="5">※ ${esc(_curLangEn && typeof window.translateRemarkToEn === 'function' ? window.translateRemarkToEn(r.text) : r.text)}</td></tr>`);
+        lineHTML.push(`<tr class="qd-remark"><td colspan="5">※ ${linkify(esc(_curLangEn && typeof window.translateRemarkToEn === 'function' ? window.translateRemarkToEn(r.text) : r.text))}</td></tr>`);
         return;
       }
       if (r._type === 'subtotal') {
@@ -518,7 +529,7 @@
           // サブコン別リマーク（「見積書に表示」がONのときのみ御見積書PDFにも表示）
           const _rmH = (typeof getSubconRemarks === 'function' ? getSubconRemarks()[_scKey] : null);
           if (_rmH && _rmH.show && _rmH.text && _rmH.text.trim()) {
-            lineHTML.push(`<tr class="qd-subcon-remark"><td colspan="5">📝 ${esc(_rmH.text)}</td></tr>`);
+            lineHTML.push(`<tr class="qd-subcon-remark"><td colspan="5">📝 ${linkify(esc(_rmH.text))}</td></tr>`);
           }
           _catKey = null;   // 新しいサブコンに入ったのでカテゴリ見出しを再出させる
           const ps = scPatternSets[k] || new Set();
@@ -547,7 +558,7 @@
           if (_ptKey) {
             const _rmP = (typeof getSubconRemarks === 'function' ? getSubconRemarks()[_scKey + '||' + _ptKey] : null);
             if (_rmP && _rmP.show && _rmP.text && _rmP.text.trim()) {
-              lineHTML.push(`<tr class="qd-pattern-remark"><td colspan="5">📝 ${esc(_rmP.text)}</td></tr>`);
+              lineHTML.push(`<tr class="qd-pattern-remark"><td colspan="5">📝 ${linkify(esc(_rmP.text))}</td></tr>`);
             }
           }
           _catKey = null;
@@ -632,7 +643,7 @@
       <div class="qd-head">
         <div class="qd-to">
           <div class="qd-cust">${nl2br(custName)}</div>
-          <div class="qd-greet">${nl2br(issuer.greeting)}</div>
+          <div class="qd-greet">${nl2brLink(issuer.greeting)}</div>
         </div>
         <div class="qd-from">
           <div class="qd-co">${esc(issuer.company) || '<span class="qd-placeholder">（発行元会社名を設定してください）</span>'}</div>
@@ -678,14 +689,14 @@
       </div>
       ${(() => {
         const sc = (document.getElementById('qf-scope')?.value || '').trim();
-        return sc ? `<div class="qd-remark-block qd-scope-block"><div class="qd-remark-ttl">${t('scopeTitle')}</div><div class="qd-remark-body">${esc(sc).replace(/\n/g, '<br>')}</div></div>` : '';
+        return sc ? `<div class="qd-remark-block qd-scope-block"><div class="qd-remark-ttl">${t('scopeTitle')}</div><div class="qd-remark-body">${nl2brLink(sc)}</div></div>` : '';
       })()}
       ${(() => {
         let rt = (typeof getRemarkText === 'function') ? getRemarkText() : (cond && cond.free) || '';
         if (_curLangEn && typeof window.translateRemarkToEn === 'function') rt = window.translateRemarkToEn(rt);   // 定型文を英文に
         const imgHtml = (typeof remarkImagesOutputHTML === 'function') ? remarkImagesOutputHTML('qd-remark-images') : '';
         if (!rt && !imgHtml) return '';
-        const bodyHtml = rt ? `<div class="qd-remark-body">${esc(rt).replace(/\n/g, '<br>')}</div>` : '';
+        const bodyHtml = rt ? `<div class="qd-remark-body">${nl2brLink(rt)}</div>` : '';
         return `<div class="qd-remark-block"><div class="qd-remark-ttl">${t('remarksTitle')}</div>${bodyHtml}${imgHtml}</div>`;
       })()}
       ${(() => {

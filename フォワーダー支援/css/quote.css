@@ -11148,3 +11148,6 @@ body.is-row-dragging { cursor: grabbing; user-select: none; }
 #tab-quote-make .subcon-group-chk {
   width: 15px; height: 15px; margin: 0 4px 0 2px; cursor: pointer; flex: none; accent-color: #8b6914;
 }
+
+/* 御見積書：本文中のURLリンク（印刷・PDFにもリンクとして残る） */
+.qd-page a.qd-link { color: #1a56a0; text-decoration: underline; word-break: break-all; }
