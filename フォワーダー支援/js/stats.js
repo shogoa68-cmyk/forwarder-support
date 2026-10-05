@@ -94,6 +94,7 @@
     const unExcl = new Set(excl.filter(e => e.field === 'un').map(e => e.value));
     const portExcl = new Set(excl.filter(e => e.field === 'port').map(e => e.value));
     const carrierExcl = new Set(excl.filter(e => e.field === 'carrier').map(e => e.value));
+    const customerExcl = new Set(excl.filter(e => e.field === 'customer').map(e => e.value));
     return {
       presets, totalPresets: presets.length, totalRows: allRows.length,
       svGroups:      _groupSimilar(svRows.map(r => r.sv), svExcl, 'sv'),
@@ -101,6 +102,7 @@
       nmGroups:      _groupSimilar(allRows.map(r => r.nm).filter(Boolean), nmExcl, 'nm'),
       unGroups:      _groupSimilar(allRows.map(r => r.un).filter(Boolean), unExcl, 'un'),
       portGroups:    _groupSimilar(_gatherPorts(source), portExcl, 'port'),
+      customerGroups: _groupSimilar(_gatherCustomers(source), customerExcl, 'customer'),
     };
   }
 
@@ -138,6 +140,13 @@
     }
     return out;
   }
+  // お客様名を全プリセットから収集（ゆらぎ件数の集計用。お客様タブ自体は別途集計）。
+  function _gatherCustomers(source) {
+    const out = [];
+    if (source !== 'cloud') _getLocalPresets().forEach(p => { const v = (((p.data || {}).fields || {})['qf-customer'] || '').trim(); if (v) out.push(v); });
+    if (source !== 'local') (typeof window.cloudGetAllRows === 'function' ? window.cloudGetAllRows() : []).forEach(p => { const v = (p.customer || '').trim(); if (v) out.push(v); });
+    return out;
+  }
   function _gatherCarriers(source) {
     const carriers = [];
     const add = p => { carriers.push(..._carrierValsFromFields((p.data || {}).fields || {})); };
@@ -152,13 +161,22 @@
     return [...m.entries()].sort((a, b) => b[1] - a[1]).map(([value, count]) => ({ value, count }));
   }
 
-  function _normalize(s) {
-    return s
+  // ゆらぎ判定用の正規化キー。NFKC で全角英数・半角カナ・㈱等の互換文字を統一し、
+  // 記号・空白・長音等を除去、カタカナはひらがなへ寄せる。
+  // field==='customer' のときは「株式会社／(株)／㈱」等の法人格表記も除去する
+  // （「株式会社ハブネット」「ハブネット(株)」を同一視するため）。
+  const _CORP_RE = /株式会社|有限会社|合同会社|合資会社|\(株\)|\(有\)|\(合\)|\(同\)|\bco\.?,?\s*ltd\b\.?|\binc\b\.?|\bcorp\b\.?|\bllc\b/g;
+  function _normalize(s, field) {
+    let t = String(s == null ? '' : s)
+      .normalize('NFKC')
       .replace(/^\*+/, '')                   // 課税マーク（品名先頭の *）を除去
       .replace(/【[^】]*】/g, '')
-      .replace(/[\s　・ー―\-\/\\]+/g, '')
-      .toLowerCase()
+      .toLowerCase();
+    if (field === 'customer') t = t.replace(_CORP_RE, '');
+    t = t
+      .replace(/[\s　・ー―\-\/\\.,，、。()「」『』"'“”]+/g, '')
       .replace(/[ァ-ン]/g, c => String.fromCharCode(c.charCodeAt(0) - 0x60));
+    return t || String(s == null ? '' : s).normalize('NFKC').toLowerCase();   // 全文が除去対象でも空キーにしない
   }
 
   function _groupSimilar(names, excl, field) {
@@ -177,7 +195,7 @@
           isAbbrevGroup = true;
           canonical = pair.full;
         } else {
-          key = _normalize(value);
+          key = _normalize(value, field);
         }
       }
       if (!key) return;
@@ -462,8 +480,24 @@
   // === 並べ替え（件数順／名前順）===
   // 名前順にすると似た表記が隣接し、代表登録（⭐代表→統合）作業がしやすくなる。
   let _statsSort = 'count';   // 'count' | 'name'
+  // 行数の多いリストは先頭 LIST_PAGE 件だけ描画し「もっと見る」で追加する
+  // （項目数に比例して DOM 生成・描画が重くなるため）。条件を変えたら先頭に戻す。
+  const LIST_PAGE = 100;
+  let _listLimit = {};   // paneId → 現在の表示上限
+  function _limitOf(paneId) { return _listLimit[paneId] || LIST_PAGE; }
+  function _moreHtml(paneId, total) {
+    const lim = _limitOf(paneId);
+    if (total <= lim) return '';
+    return `<div class="stats-more-wrap"><button class="stats-more-btn" onclick="statsShowMore('${paneId}')">` +
+           `▼ もっと見る（残り ${total - lim} 件 / 全 ${total} 件）</button></div>`;
+  }
+  window.statsShowMore = function (paneId) {
+    _listLimit[paneId] = _limitOf(paneId) + LIST_PAGE;
+    _renderActivePane();
+  };
   window.statsSetSort = function (mode) {
     _statsSort = (mode === 'name') ? 'name' : 'count';
+    _listLimit = {};
     _renderActivePane();
   };
   function _cmpName(a, b) { return String(a || '').localeCompare(String(b || ''), 'ja'); }
@@ -473,6 +507,14 @@
   let _statsUnorganizedOnly = false;
   window.statsToggleUnorganized = function () {
     _statsUnorganizedOnly = !_statsUnorganizedOnly;
+    _listLimit = {};
+    _renderActivePane();
+  };
+  // 「ゆらぎありのみ」表示フィルタ：表記ゆれ（同じ読みで複数の表記）がある項目だけを表示する。
+  let _statsFluctOnly = false;
+  window.statsToggleFluct = function () {
+    _statsFluctOnly = !_statsFluctOnly;
+    _listLimit = {};
     _renderActivePane();
   };
   function _sortToolbar() {
@@ -481,7 +523,9 @@
            `<button class="stats-sort-btn${by === 'count' ? ' is-active' : ''}" onclick="statsSetSort('count')">件数順</button>` +
            `<button class="stats-sort-btn${by === 'name' ? ' is-active' : ''}" onclick="statsSetSort('name')">名前順（あ→ん）</button>` +
            `<label class="stats-unorg-toggle" title="⭐同義グループ化済み・マスター登録済みの項目を隠し、未整理の項目だけ表示します">` +
-           `<input type="checkbox" onchange="statsToggleUnorganized()"${_statsUnorganizedOnly ? ' checked' : ''}> 未整理のみ表示</label></div>`;
+           `<input type="checkbox" onchange="statsToggleUnorganized()"${_statsUnorganizedOnly ? ' checked' : ''}> 未整理のみ表示</label>` +
+           `<label class="stats-unorg-toggle" title="表記ゆれ（同じ読みで複数の表記）がある項目だけ表示します">` +
+           `<input type="checkbox" onchange="statsToggleFluct()"${_statsFluctOnly ? ' checked' : ''}> ゆらぎありのみ表示</label></div>`;
   }
 
   function _renderGrouped(groups, field, colLabel, paneId) {
@@ -518,20 +562,29 @@
     // 「未整理のみ」フィルタ：同義グループ行（＝整理済み）を隠し、まだ手つかずの
     // 単独項目（個別マスター登録もされていないもの）だけ残す。ゆらぎ複数種の行は
     // まだ同義グループに統合されていない＝手つかずなので常に表示する。
-    const visSynRows  = _statsUnorganizedOnly ? [] : synRows;
-    const visRestGroups = _statsUnorganizedOnly
+    // 「ゆらぎありのみ」：同義グループ（整理済み）は隠し、複数表記のある自動ゆらぎグループだけ残す。
+    const visSynRows  = (_statsUnorganizedOnly || _statsFluctOnly) ? [] : synRows;
+    let visRestGroups = _statsUnorganizedOnly
       ? restGroups.filter(g => g.variants.length > 1 || !_masterRegistered(field, g.variants[0].value, null, synCanons))
       : restGroups;
+    if (_statsFluctOnly) visRestGroups = visRestGroups.filter(g => g.variants.length > 1);
 
     if (!visSynRows.length && !visRestGroups.length) {
       e.innerHTML = _sortToolbar() + (synRows.length || restGroups.length
-        ? '<p class="stats-empty">🎉 未整理の項目はありません。すべて同義グループ化・マスター登録済みです。</p>'
+        ? (_statsFluctOnly
+            ? '<p class="stats-empty">ゆらぎのある項目はありません。</p>'
+            : '<p class="stats-empty">🎉 未整理の項目はありません。すべて同義グループ化・マスター登録済みです。</p>')
         : '<p class="stats-empty">データなし</p>');
       return;
     }
 
     // 件数バーのスケール（表示行の最大 total）
-    const maxTotal = Math.max(1, ...visSynRows.map(r => r.total), ...visRestGroups.map(g => g.total));
+    const maxTotal = Math.max(1, visSynRows.reduce((m, r) => Math.max(m, r.total), 0), visRestGroups.reduce((m, g) => Math.max(m, g.total), 0));
+    // 描画は先頭 N 行のみ（行数が多いほど重くなるため。残りは「もっと見る」で追加）
+    const totalRows = visSynRows.length + visRestGroups.length;
+    const pageLimit = _limitOf(paneId);
+    const shownSyn  = visSynRows.slice(0, pageLimit);
+    const shownRest = visRestGroups.slice(0, Math.max(0, pageLimit - shownSyn.length));
 
     let h = _sortToolbar() +
             '<p class="stats-syn-hint">☆代表 で同義グループの基準を決め、他の表記を ⤵統合 でまとめると、⭐行に集約され件数が合算されます（非破壊）。表記ゆれの一括置換は「ゆらぎ N種」バッジから。</p>' +
@@ -540,7 +593,7 @@
             `</tr></thead><tbody>`;
 
     // --- 同義グループ（統合表示）---
-    visSynRows.forEach(sr => {
+    shownSyn.forEach(sr => {
       const g = sr.g;
       const members = (g.aliases || []).length + 1;
       let chips = `<span class="stats-chip stats-chip--canon">` +
@@ -565,7 +618,7 @@
     });
 
     // --- 残りの自動ゆらぎグループ ---
-    visRestGroups.forEach(g => {
+    shownRest.forEach(g => {
       const hasV = g.variants.length > 1;
       const gId  = paneId + '-' + g.origIdx;
       _renderedGroups[gId] = { aliasField, variants: g.variants };
@@ -595,7 +648,7 @@
       });
       h += '</td></tr>';
     });
-    e.innerHTML = h + '</tbody></table>';
+    e.innerHTML = h + '</tbody></table>' + _moreHtml(paneId, totalRows);
   }
 
   window.statsExcludeVariant = async function (field, value) {
@@ -780,7 +833,7 @@
             _sortToolbar() +
             '<p class="stats-syn-hint">案件単位で「使われたサブコン × その案件の港」を共起集計します。同義グループの代表に正規化し、件数＝両方を含む案件数です。</p>' +
             `<table class="stats-table"><thead><tr><th>${keyLabel}</th><th class="stats-num-col">件数</th><th>${otherLabel}（×件数）</th></tr></thead><tbody>`;
-    list.forEach(g => {
+    list.slice(0, _limitOf('statsPane-svport')).forEach(g => {
       const chips = g.items.map(it =>
         `<span class="stats-chip"><span class="stats-chip-text">${_esc(it.other)}</span><span class="stats-chip-cnt">×${it.count}</span></span>`
       ).join('');
@@ -788,9 +841,9 @@
            `<td class="stats-num-col"><div class="stats-bar-wrap"><div class="stats-bar" style="width:${Math.round(g.total / maxTotal * 100)}%"></div><span class="stats-bar-label">${g.total}</span></div></td>` +
            `<td class="stats-chips-cell">${chips}</td></tr>`;
     });
-    e.innerHTML = h + '</tbody></table>';
+    e.innerHTML = h + '</tbody></table>' + _moreHtml('statsPane-svport', list.length);
   }
-  window.statsSvPortBy = function (by) { _svPortBy = (by === 'port') ? 'port' : 'sv'; _renderSvPort(); };
+  window.statsSvPortBy = function (by) { _svPortBy = (by === 'port') ? 'port' : 'sv'; _listLimit = {}; _renderSvPort(); };
 
   // ===== 🧾 お客様×品名 単価 =====
   // 「このお客様に・この品名を・いくらで仕入れ・いくらで売ったか」を明細行から集計する。
@@ -865,7 +918,7 @@
             `<button class="svp-by-btn${by === 'nm' ? ' is-active' : ''}" onclick="statsCustItemBy('nm')">📝 品名別</button></div>` +
             '<p class="stats-syn-hint">案件の明細行から、お客様ごと・品名ごとの仕入単価と売単価を集計します。単価は直近使用時の値（通貨そのまま）、粗利率は全件JPY換算の合計から算出します。</p>';
 
-    list.forEach(g => {
+    list.slice(0, _limitOf('statsPane-custitem')).forEach(g => {
       const margin = (window.SharedCalc && g.bill > 0) ? SharedCalc.grossMarginPct(g.bill, g.cost) : null;
       const mCls = margin == null ? '' : (margin >= 0 ? 'sd-margin-pos' : 'sd-margin-neg');
       const rowsHtml = g.items.map(it => {
@@ -887,9 +940,9 @@
            `<th>${otherLabel}</th><th class="stats-num-col">回数</th><th>直近仕入単価</th><th>直近売単価</th><th class="stats-num-col">粗利率</th>` +
            `</tr></thead><tbody>${rowsHtml}</tbody></table></details>`;
     });
-    e.innerHTML = '<div class="stats-sv-charges-wrap">' + h + '</div>';
+    e.innerHTML = '<div class="stats-sv-charges-wrap">' + h + '</div>' + _moreHtml('statsPane-custitem', list.length);
   }
-  window.statsCustItemBy = function (by) { _custItemBy = (by === 'nm') ? 'nm' : 'customer'; _renderCustItem(); };
+  window.statsCustItemBy = function (by) { _custItemBy = (by === 'nm') ? 'nm' : 'customer'; _listLimit = {}; _renderCustItem(); };
 
   // ===== 🎯 マージンばらつき（作成者差）=====
   // 「同じお客様・同じ品名・同じ仕向地」なのに、見積作成者によって粗利率がどれだけ
@@ -971,7 +1024,7 @@
             '作成者情報があるクラウド共有案件のみが対象で、作成者が1人しかいない組み合わせは除外しています' +
             (excluded ? `（除外 ${excluded} 件）` : '') + '。粗利率の差（ばらつき）が大きい順に表示します。</p>';
 
-    list.forEach(g => {
+    list.slice(0, _limitOf('statsPane-margindiff')).forEach(g => {
       const rowsHtml = g.creators.map(cg => {
         const mCls = cg.margin == null ? '' : (cg.margin >= 0 ? 'sd-margin-pos' : 'sd-margin-neg');
         const avgBill = cg.count > 0 ? cg.billSum / cg.count : null;
@@ -987,7 +1040,7 @@
            `<th>作成者</th><th class="stats-num-col">件数</th><th class="stats-num-col">平均粗利率</th><th>平均売上/回</th>` +
            `</tr></thead><tbody>${rowsHtml}</tbody></table></details>`;
     });
-    e.innerHTML = '<div class="stats-sv-charges-wrap">' + h + '</div>';
+    e.innerHTML = '<div class="stats-sv-charges-wrap">' + h + '</div>' + _moreHtml('statsPane-margindiff', list.length);
   }
 
   function _renderUn() {
@@ -1005,9 +1058,9 @@
       (g.aliases || []).forEach(a => { aliasToCanon[a] = g.canonical; });
     });
 
-    // 各単位の件数マップ
+    // 各単位（表記ごと）の件数マップ
     const countMap = {};
-    rawGroups.forEach(g => { countMap[g.variants[0].value] = g.total; });
+    rawGroups.forEach(g => g.variants.forEach(v => { countMap[v.value] = (countMap[v.value] || 0) + v.count; }));
 
     // 表示リスト構築
     const displayList = [];
@@ -1016,35 +1069,43 @@
       const aliasCount = (g.aliases || []).reduce((s, a) => s + (countMap[a] || 0), 0);
       displayList.push({ type: 'canonical', canonical: g.canonical, ownCount, aliasCount, total: ownCount + aliasCount, aliases: g.aliases || [] });
     });
+    // 代表・統合済みでない表記だけを未整理として並べる。正規化キーが同じ表記（ゆらぎ）は
+    // 隣り合う行にまとめ、先頭行に「ゆらぎ N種」バッジを付ける。
+    const ungroupedGroups = [];
     rawGroups.forEach(g => {
-      const v = g.variants[0].value;
-      if (!canonicalSet.has(v) && !aliasToCanon[v]) displayList.push({ type: 'ungrouped', value: v, total: g.total });
+      const rest = g.variants.filter(v => !canonicalSet.has(v.value) && !aliasToCanon[v.value]);
+      if (rest.length) ungroupedGroups.push({ variants: rest, total: rest.reduce((s, v) => s + v.count, 0), fluct: g.variants.length > 1 });
     });
+    ungroupedGroups.sort((a, b) => _statsSort === 'name'
+      ? _cmpName(a.variants[0].value, b.variants[0].value)
+      : b.total - a.total);
     const _unName = it => it.type === 'canonical' ? it.canonical : it.value;
-    displayList.sort((a, b) => {
-      if (_statsSort === 'name') return _cmpName(_unName(a), _unName(b));
-      if (a.type === 'canonical' && b.type !== 'canonical') return -1;
-      if (a.type !== 'canonical' && b.type === 'canonical') return 1;
-      return b.total - a.total;
-    });
+    displayList.sort((a, b) => _statsSort === 'name' ? _cmpName(_unName(a), _unName(b)) : b.total - a.total);
+    ungroupedGroups.forEach(g => g.variants.forEach((v, i) => {
+      displayList.push({ type: 'ungrouped', value: v.value, total: v.count, fluct: g.fluct, fluctN: g.variants.length, first: i === 0 });
+    }));
 
     // 「未整理のみ」フィルタ：代表（⭐）に統合済みの単位グループを隠し、
-    // まだ代表未設定の単位（ungrouped）だけ表示する。
-    const visList = _statsUnorganizedOnly ? displayList.filter(it => it.type !== 'canonical') : displayList;
+    // まだ代表未設定の単位（ungrouped）だけ表示する。「ゆらぎありのみ」は複数表記のある未整理単位だけ。
+    let visList = displayList;
+    if (_statsUnorganizedOnly) visList = visList.filter(it => it.type !== 'canonical');
+    if (_statsFluctOnly)       visList = visList.filter(it => it.type === 'ungrouped' && it.fluct);
 
     if (!visList.length) {
-      e.innerHTML = _sortToolbar() +
-        '<p class="stats-empty">🎉 未整理の単位はありません。すべて代表に統合済みです。</p>';
+      e.innerHTML = _sortToolbar() + (_statsFluctOnly
+        ? '<p class="stats-empty">ゆらぎのある単位はありません。</p>'
+        : '<p class="stats-empty">🎉 未整理の単位はありません。すべて代表に統合済みです。</p>');
       return;
     }
 
+    const shownList = visList.slice(0, _limitOf('statsPane-un'));
     let h = _sortToolbar() +
       '<div class="ua-pane-hint">⭐ 代表に設定 → グループの基準単位として登録　　→ 統合 → 代表に紐付け（件数が合算されます）</div>' +
       '<table class="stats-table stats-un-table"><thead><tr>' +
       '<th>単位</th><th class="stats-num-col">件数</th><th>同義グループ</th><th>操作</th>' +
       '</tr></thead><tbody>';
 
-    visList.forEach(item => {
+    shownList.forEach(item => {
       if (item.type === 'canonical') {
         const chips = item.aliases.map(a =>
           `<span class="ua-alias-chip">${_usageSpan('un', a)}<span class="ua-chip-cnt"> ×${countMap[a] || 0}</span>` +
@@ -1059,8 +1120,11 @@
              `<button class="ua-remove-canon" onclick="uaRemoveGroup('${_ea(item.canonical)}')" title="グループを解除">解除</button></td>` +
              `</tr>`;
       } else {
-        h += `<tr class="ua-ungrouped-row">` +
-             `<td class="stats-val">${_usageSpan('un', item.value)}</td>` +
+        const badge = (item.fluct && item.first)
+          ? ` <span class="stats-variant-badge" title="読みが同じ表記が複数あります（${item.fluctN}種）。代表を決めて統合すると件数が合算されます">ゆらぎ ${item.fluctN}種</span>`
+          : '';
+        h += `<tr class="ua-ungrouped-row${item.fluct ? ' stats-has-variant' : ''}">` +
+             `<td class="stats-val">${_usageSpan('un', item.value)}${badge}</td>` +
              `<td class="stats-num-col">${item.total}</td>` +
              `<td></td>` +
              `<td class="ua-ops">` +
@@ -1070,7 +1134,7 @@
       }
     });
 
-    e.innerHTML = h + '</tbody></table>';
+    e.innerHTML = h + '</tbody></table>' + _moreHtml('statsPane-un', visList.length);
   }
   window.statsRefreshUnPane = _renderUn;
 
@@ -1448,7 +1512,7 @@
     // 正規化キー → グループ先頭名のマップ（ゆらぎバッジ用）
     const normToCanon = new Map();
     custGroups.forEach(cg => {
-      if (cg.variants.length > 1) normToCanon.set(_normalize(cg.variants[0].value), cg);
+      if (cg.variants.length > 1) normToCanon.set(_normalize(cg.variants[0].value, 'customer'), cg);
     });
 
     // 同義グループ状態（手動・⭐代表／統合）
@@ -1494,10 +1558,12 @@
     });
     synRows.sort((a, b) => _statsSort === 'name' ? _cmpName(a.g.canonical, b.g.canonical) : b.count - a.count);
 
-    let shownRows = 0;
-    const visSynRows = _statsUnorganizedOnly ? [] : synRows;
+    let shownRows = 0;   // 条件に合う全行数（描画は先頭 lim 行のみ）
+    const lim = _limitOf('statsPane-customer');
+    const visSynRows = (_statsUnorganizedOnly || _statsFluctOnly) ? [] : synRows;
     visSynRows.forEach(sr => {
       shownRows++;
+      if (shownRows > lim) return;
       const memberChips = sr.members.map((m, i) =>
         `<span class="stats-chip${i === 0 ? ' stats-chip--canon' : ''}">` +
         `<span class="stats-chip-text">${i === 0 ? '⭐ ' : ''}${_usageSpan('customer', m)}</span>` +
@@ -1518,15 +1584,20 @@
     });
 
     // --- 残りのお客様（自動ゆらぎ検出は従来表示）---
-    const restCust = _statsSort === 'name'
-      ? [...groups].sort((a, b) => _cmpName(a.customer, b.customer))
-      : groups;
+    // ゆらぎありのみ：同じゆらぎクラスタの表記が隣り合うよう正規化キー順に並べる
+    const restCust = _statsFluctOnly
+      ? [...groups].sort((a, b) => _cmpName(_normalize(a.customer, 'customer'), _normalize(b.customer, 'customer')) || b.count - a.count)
+      : (_statsSort === 'name'
+          ? [...groups].sort((a, b) => _cmpName(a.customer, b.customer))
+          : groups);
     restCust.forEach(g => {
       if (g.customer && consumed.has(g.customer)) return;   // 同義グループに集約済み
-      const cg0 = g.customer ? normToCanon.get(_normalize(g.customer)) : null;
+      const cg0 = g.customer ? normToCanon.get(_normalize(g.customer, 'customer')) : null;
       const inFluctCluster = !!(cg0 && cg0.variants.length > 1);
+      if (_statsFluctOnly && !inFluctCluster) return;
       if (_statsUnorganizedOnly && g.customer && !inFluctCluster && _masterRegistered('customer', g.customer, null, synCanons)) return;
       shownRows++;
+      if (shownRows > lim) return;
       const persons = [...g.persons].join('、') || '—';
       const stHtml = _stHtml(g.statuses);
 
@@ -1558,8 +1629,10 @@
            `</tr>`;
     });
     e.innerHTML = shownRows
-      ? h + '</tbody></table>'
-      : _sortToolbar() + '<p class="stats-empty">🎉 未整理の項目はありません。すべて同義グループ化・マスター登録済みです。</p>';
+      ? h + '</tbody></table>' + _moreHtml('statsPane-customer', shownRows)
+      : _sortToolbar() + (_statsFluctOnly
+          ? '<p class="stats-empty">ゆらぎのある項目はありません。</p>'
+          : '<p class="stats-empty">🎉 未整理の項目はありません。すべて同義グループ化・マスター登録済みです。</p>');
   }
 
   // マスター一覧の種別絞り込み（'all' | sv/carrier/nm/customer/port/un）。再描画をまたいで保持。
@@ -1992,7 +2065,7 @@
     set('statsSvCount',  _data.svGroups.length + _data.carrierGroups.length);
     set('statsNmGroups', _data.nmGroups.length);
     // ゆらぎ件数 = バリアントが2種以上のグループ数の合計
-    const blur = [..._data.svGroups, ..._data.carrierGroups, ..._data.nmGroups, ..._data.unGroups]
+    const blur = [..._data.svGroups, ..._data.carrierGroups, ..._data.nmGroups, ..._data.unGroups, ..._data.customerGroups]
       .filter(g => g.variants.length > 1).length;
     set('statsBlurCount', blur);
     // マスター候補数
@@ -2214,6 +2287,7 @@
   // === サブタブ切替 ===
 
   function statsSetPane(paneId) {
+    _listLimit = {};
     document.querySelectorAll('#tab-stats .stats-tab-btn').forEach(b => {
       b.classList.remove('is-active');
       b.setAttribute('aria-selected', 'false');
