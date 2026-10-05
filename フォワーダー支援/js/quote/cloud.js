@@ -929,7 +929,9 @@
       const origExists = origId && _cloudRows.some(row => row.id === origId);
       const cfRefBadge = (cf && cf.ref) ? ' <span class="preset-cf-ref">(' + escHtml(cf.ref) + ')</span>' : '';
       // 世代：オリジナル=1・最初のコピー=2・コピーのコピー=3…。旧データ（gen 無し）は表示しない。
-      const genBadge = (cf && cf.gen) ? ' <span class="preset-cf-gen" title="オリジナルから数えた世代">' + cf.gen + '代目</span>' : '';
+      // 世代バッジは「この案件自身」の世代なので、コピー元の行ではなく自分のREF#の横に出す
+      // （コピー元の行に付けると、コピー元が○代目のように読めてしまうため）
+      const selfGenBadge = (cf && cf.gen) ? '<span class="preset-cf-gen preset-cf-gen--self" title="この案件は、オリジナルから数えて' + cf.gen + '代目です（コピー元は ' + (cf.gen - 1) + '代目）">' + cf.gen + '代目</span>' : '';
       // ルート（一番最初のオリジナル）。3代目以降で、直近のコピー元と別人物のときだけ追加表示する。
       const root = cf && cf.root;
       const rootExists = !!(root && root.id && _cloudRows.some(row => row.id === root.id));
@@ -940,7 +942,7 @@
           '</div>'
         : '';
       const copiedFromHtml = cf
-        ? '<div class="cloud-copied-from">📋 コピー元：<span class="cloud-cf-name">' + escHtml(cf.name || '不明') + cfRefBadge + '</span>' + genBadge +
+        ? '<div class="cloud-copied-from">📋 コピー元：<span class="cloud-cf-name">' + escHtml(cf.name || '不明') + cfRefBadge + '</span>' +
           (origExists ? ' <button class="btn-cf-preview" onclick="cloudPreviewPreset(\'' + encodeURIComponent(origId) + '\')" title="コピー元をプレビュー">プレビュー</button>' : '') +
           '</div>' + rootHtml
         : '';
@@ -995,7 +997,7 @@
           '<div class="cloud-card-row1">' +
             linkChk +
             statusBadge +
-            '<span class="cloud-card-name" title="' + escHtml(r.name) + '">' + escHtml(titleText) + '</span>' +
+            '<span class="cloud-card-name" title="' + escHtml(r.name) + '">' + escHtml(titleText) + selfGenBadge + '</span>' +
             '<button class="btn-ref-copy" data-ref="' + escHtml(titleText) + '" onclick="copyRefNumber(this.dataset.ref,this)" title="管理番号をコピー（&quot;番号&quot;形式）"><svg class="icon-copy" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="1" width="9" height="9" rx="1.5"/><rect x="1" y="4" width="9" height="9" rx="1.5"/></svg></button>' +
           '</div>' +
           prioRow +

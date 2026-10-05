@@ -1856,20 +1856,20 @@
 
       const cf = p.data && p.data.copiedFrom;
       const cfLabel = cf ? escHtml(cf.name || '不明') + (cf.ref ? ' <span class="preset-cf-ref">(' + escHtml(cf.ref) + ')</span>' : '') : '';
-      const genBadge = (cf && cf.gen) ? ' <span class="preset-cf-gen" title="オリジナルから数えた世代">' + cf.gen + '代目</span>' : '';
+      const selfGenBadge = (cf && cf.gen) ? '<span class="preset-cf-gen preset-cf-gen--self" title="この案件は、オリジナルから数えて' + cf.gen + '代目です（コピー元は ' + (cf.gen - 1) + '代目）">' + cf.gen + '代目</span>' : '';
       const root = cf && cf.root;
       const rootLabel = (root && cf.gen > 2)
         ? '<div class="preset-copied-from preset-copied-from--root">🌱 オリジナル：<span class="preset-cf-name">' + escHtml(root.name || '不明') +
             (root.ref ? ' <span class="preset-cf-ref">(' + escHtml(root.ref) + ')</span>' : '') + '</span></div>'
         : '';
       const copiedFromHtml = cf
-        ? '<div class="preset-copied-from">📋 コピー元：<span class="preset-cf-name">' + cfLabel + '</span>' + genBadge + '</div>' + rootLabel
+        ? '<div class="preset-copied-from">📋 コピー元：<span class="preset-cf-name">' + cfLabel + '</span></div>' + rootLabel
         : '';
 
       return '<div class="preset-list-item preset-item-rich' + (isLoaded ? ' preset-list-item--loaded' : '') + '">' +
         '<div class="preset-rich-row1">' +
           statusHtml +
-          '<span class="preset-list-name" title="' + escHtml(p.name) + '">' + escHtml(titleText) + '</span>' +
+          '<span class="preset-list-name" title="' + escHtml(p.name) + '">' + escHtml(titleText) + selfGenBadge + '</span>' +
           '<button class="btn-ref-copy" data-ref="' + escHtml(titleText) + '" onclick="copyRefNumber(this.dataset.ref,this)" title="管理番号をコピー（&quot;番号&quot;形式）"><svg class="icon-copy" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="1" width="9" height="9" rx="1.5"/><rect x="1" y="4" width="9" height="9" rx="1.5"/></svg></button>' +
           (isLoaded ? '<span class="preset-loaded-badge">編集中</span>' : '') +
         '</div>' +

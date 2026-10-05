@@ -5969,6 +5969,11 @@ body.qp-dash-active #quoteActionDock { display: none !important; }
   font-style: normal; color: #6b5a42; background: #f0e8d8; border: 1px solid #dccBA0;
   border-radius: 8px; font-size: 9.5px; font-weight: 700; padding: 0 5px; white-space: nowrap;
 }
+/* この案件自身の世代（REF#の横）。コピー元の世代と読み違えないよう目立つ色にする */
+#tab-quote-make .preset-cf-gen--self {
+  color: #7a3f00; background: #ffe9c7; border-color: #e0a64f; font-size: 10.5px; padding: 1px 8px;
+  margin-left: 6px; flex: none;
+}
 #tab-quote-make .cloud-copied-from--root,
 #tab-quote-make .preset-copied-from--root { border-top: none; padding-top: 0; margin-top: 0; }
 #tab-quote-make .btn-cf-preview {
