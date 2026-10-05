@@ -186,6 +186,21 @@
   // 課税行の品名から先頭の課税マーク * を1つ除去（表示直前）。
   // * は row.js が課税ON時に品名へ付与する内部マーカー。御見積書では別途
   // qd-tax スパンで * を描画するため、二重 * を避けてここで取り除く。
+  // 英語出力時：マスター（お客様・サブコン・港）に登録した英語名称（details.enName）があれば置き換える。
+  // 別名（統合表記）で入力されていても代表名に寄せてから引く。未登録・空欄は元の表記のまま
+  function _masterEn(field, value) {
+    const v = String(value == null ? '' : value).trim();
+    if (!_curLangEn || !v || typeof window.mdGet !== 'function') return value;
+    let canon = v;
+    if (typeof window.synGetNormalizeMap === 'function') {
+      const c = (window.synGetNormalizeMap(field) || {})[v];
+      if (c) canon = c;
+    }
+    const rec = window.mdGet(field, canon) || window.mdGet(field, v);
+    const en = rec && rec.details && String(rec.details.enName || '').trim();
+    return en || value;
+  }
+
   function _taxName(name, taxed) {
     const s = String(name == null ? '' : name);
     const jaName = taxed ? s.replace(/^\*\s?/, '') : s;
@@ -250,7 +265,7 @@
     const co = (company || '').trim();
     const pn = (person || '').trim();
     // 英語出力では日本語の敬称（様／御中）は付けない（名前・社名部分は自由記述のため訳さずそのまま出す）
-    if (_curLangEn) return [co, pn].filter(Boolean).join('\n');
+    if (_curLangEn) return [_masterEn('customer', co), pn].filter(Boolean).join('\n');
     if (pn) {
       const honor = _HONORIFIC_RE.test(pn) ? '' : ' 様';
       // 会社名と担当者名は改行して分ける（同じ行に詰めると幅次第で
@@ -314,12 +329,12 @@
     let route = '';
     if (_hasRoutes) {
       const r0 = cond.routes[0];
-      const r0leg = [r0.pol, r0.via, r0.pod].filter(Boolean).join(' → ');
+      const r0leg = [r0.pol, r0.via, r0.pod].filter(Boolean).map(x => _masterEn('port', x)).join(' → ');
       route = _multiRoute
         ? (r0leg + (_curLangEn ? ` +${cond.routes.length - 1} more` : ` 他${cond.routes.length - 1}航路`))
         : r0leg;
     } else {
-      route = [cond.pol, cond.pod].filter(Boolean).join(' → ');
+      route = [cond.pol, cond.pod].filter(Boolean).map(x => _masterEn('port', x)).join(' → ');
     }
     if (route) titleParts.push(route);
     const title = titleParts.join('　');
@@ -331,7 +346,7 @@
     // 航路：1件以上の登録があれば航路ごとに via・キャリア・サービス名を含めて全件併記
     if (_hasRoutes) {
       cond.routes.forEach((r, i) => {
-        const rt = [r.pol, r.via, r.pod].filter(Boolean).join(' → ');
+        const rt = [r.pol, r.via, r.pod].filter(Boolean).map(x => _masterEn('port', x)).join(' → ');
         const carrier = (typeof window.formatRouteCarrierLine === 'function')
           ? window.formatRouteCarrierLine(r)
           : [r.carrier, r.service ? `(${r.service})` : ''].filter(Boolean).join(' ');
@@ -340,8 +355,8 @@
         if (rt || carrier || tt) push(label, [carrier, rt, tt].filter(Boolean).join('　'));
       });
     } else {
-      push(t('pol'), cond.pol);
-      push(t('pod'), cond.pod);
+      push(t('pol'), _masterEn('port', cond.pol));
+      push(t('pod'), _masterEn('port', cond.pod));
     }
     // 出発地側ラベル：輸出は「集荷地」（原産地＝customs の原産地と混同しないため）。輸入・未設定は中立的に「発地」
     push(cond.direction === 'export' ? t('originPickup') : t('origin'), cond.origin);
@@ -524,7 +539,7 @@
           _scKey = k; _scLabel = _scLabelOf(r);  // グループ先頭の綴りを表示名に採用
           // 各サブコンブロックの先頭に見出しを置き、どのサブコンの明細かを明示する
           const _alH = (typeof getSubconAliases === 'function' ? getSubconAliases()[_scKey] : '') || '';
-          _scHeadLabel = _alH || _scLabel;
+          _scHeadLabel = _alH || _masterEn('sv', _scLabel);
           lineHTML.push(`<tr class="qd-subcon-head"><td colspan="5">${esc(_scHeadLabel)}</td></tr>`);
           // サブコン別リマーク（「見積書に表示」がONのときのみ御見積書PDFにも表示）
           const _rmH = (typeof getSubconRemarks === 'function' ? getSubconRemarks()[_scKey] : null);
