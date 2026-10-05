@@ -268,18 +268,24 @@
       const all = masterOnly
         ? [...new Set(fromMaster)]
         : [...new Set([...fromRules, ...fromMaster, ...fromAbbrev, ...fromSyn])];
-      // マスター詳細のふりがなを option label に反映（読みひらがな入力でも候補にヒット）
-      const furi = {};
+      // マスター詳細のふりがな・英語名称を option label に反映（読みひらがな／英字入力でも候補にヒット）
+      const furi = {}, eng = {};
       (typeof window.mdGetAll === 'function' ? window.mdGetAll(field) : []).forEach(m => {
-        const f = ((m.details || {}).furigana || '').trim();
+        const d = m.details || {};
+        const f = (d.furigana || '').trim();
+        const e = (d.enName || '').trim();
         if (f) furi[m.value] = f;
+        if (e) eng[m.value] = e;
       });
       // datalist 内の動的 option（data-master）だけを入れ替える
       dl.querySelectorAll('option[data-master]').forEach(o => o.remove());
       all.forEach(v => {
         const o = document.createElement('option');
         o.value = v;
-        if (furi[v]) o.label = furi[v];
+        const lab = [furi[v], eng[v]].filter(Boolean).join(' / ');
+        if (lab) o.label = lab;
+        if (furi[v]) o.dataset.furi = furi[v];
+        if (eng[v])  o.dataset.en   = eng[v];
         o.dataset.master = '1';
         dl.appendChild(o);
       });
@@ -681,10 +687,10 @@
     if (!q) return;
     const opts = Array.from(dl.children).filter(o => o.tagName === 'OPTION');
     const rank = o => {
-      const val = norm(o.value);
-      const lab = norm(o.label || '');
-      if (val.startsWith(q) || (lab && lab.startsWith(q))) return 0;  // 前方一致
-      if (val.includes(q) || (lab && lab.includes(q))) return 1;      // 部分一致
+      // 候補の照合対象：値・ふりがな・英語名称（それぞれ単独で前方一致を判定）
+      const keys = [o.value, o.dataset.furi, o.dataset.en].filter(Boolean).map(norm);
+      if (keys.some(k => k.startsWith(q))) return 0;  // 前方一致
+      if (keys.some(k => k.includes(q)))   return 1;  // 部分一致
       return 2;
     };
     const ranked = opts.map((o, i) => ({ o, i, r: rank(o) }));
@@ -970,9 +976,12 @@
   let _mdTableMissing = false;
 
   const _FURIGANA_FIELD = { key: 'furigana', label: 'ふりがな', placeholder: '例）かいじょううんちん（読みで入力補完にヒットします）' };
+  // 英語名称（全種別共通キー enName。品名は PDF 英語出力でも使う）
+  const _EN_FIELD = { key: 'enName', label: '英語名称', placeholder: '例）ABC Trading Co., Ltd.（英字入力でも入力補完にヒットします）' };
   window.MD_SCHEMA = {
     customer: [
       _FURIGANA_FIELD,
+      _EN_FIELD,
       { key: 'contacts',     label: '担当者', contacts: true },
       { key: 'location',     label: '所在地' },
       { key: 'mainGoods',    label: 'メイン商材' },
@@ -984,7 +993,7 @@
     ],
     nm: [
       _FURIGANA_FIELD,
-      { key: 'enName',      label: '英語品名', placeholder: '例）Ocean Freight（御見積書PDFの「英語で出力」ON時にこの品名で出力されます）' },
+      { key: 'enName',      label: '英語品名', placeholder: '例）Ocean Freight（英字入力でも入力補完にヒット／御見積書PDFの「英語で出力」ON時にこの品名で出力されます）' },
       { key: 'defaultUnit', label: 'デフォルト単位' },
       { key: 'defaultNote', label: 'デフォルト備考' },
       { key: 'defaultCat',  label: 'デフォルトカテゴリ' },
@@ -997,20 +1006,25 @@
       { key: 'refSell',     label: '代表売単価（参考）' },
       { key: 'refCcy',      label: '代表単価の通貨' },
     ],
-    sv:      [_FURIGANA_FIELD],
-    carrier: [_FURIGANA_FIELD],
-    port:    [_FURIGANA_FIELD],
+    sv:      [_FURIGANA_FIELD, _EN_FIELD],
+    carrier: [_FURIGANA_FIELD, _EN_FIELD],
+    port:    [_FURIGANA_FIELD, _EN_FIELD],
   };
 
   // カタカナ→ひらがな正規化（読み比較用）
   function _toHira(s) {
     return String(s || '').trim().replace(/[ァ-ヶ]/g, c => String.fromCharCode(c.charCodeAt(0) - 0x60));
   }
-  // 入力値が登録済みふりがな（読み）と完全一致するマスター値を返す。なければ null。
+  // 入力値が登録済みふりがな（読み）または英語名称（大小文字無視）と完全一致するマスター値を返す。なければ null。
   window.mdValueForFurigana = function (field, input) {
     const v = _toHira(input);
     if (!v) return null;
-    const hit = _mdAll().find(m => m.field === field && _toHira((m.details || {}).furigana) === v);
+    const lv = v.toLowerCase();
+    const hit = _mdAll().find(m => {
+      if (m.field !== field) return false;
+      const d = m.details || {};
+      return _toHira(d.furigana) === v || String(d.enName || '').trim().toLowerCase() === lv;
+    });
     return hit ? hit.value : null;
   };
 
