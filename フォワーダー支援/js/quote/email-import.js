@@ -215,8 +215,8 @@
       '<label>有効期限 <input type="date" id="eiF-valid" value="' + _esc(fields.validUntil || '') + '"></label>' +
       '<label>サブコン一括設定 <input type="text" id="eiBulkSv" list="svSuggestions" placeholder="例）〇〇物流">' +
         '<button type="button" class="ei-bulk-sv-btn" onclick="eiApplyBulkSv()" title="入力したサブコン名を全行に反映します（個別に直したい行は挿入前に上書き可能）">全行に設定</button></label>' +
-      '<label class="ei-sellmode-label" title="既存システムからの移植等、取り込む単価が「売値」しか分からない場合向け。チェックすると、取り込んだ単価は売単価として登録され、仕入単価は空欄になります。挿入後に見積テーブルで行ごとに「乗せ幅」を入力すると、仕入単価が自動で算出されます（売単価－乗せ幅）。">' +
-        '<input type="checkbox" id="eiSellMode"> 💰 単価を売値として取り込む（仕入は乗せ幅から後で算出）</label>' +
+      '<label class="ei-sellmode-label" title="既存システムからの移植等、取り込む単価が「売値」しか分からない場合向け。チェックすると、取り込んだ単価は売単価として登録され、仕入単価は空欄になります。挿入後に見積テーブルで行ごとに「仕入単価」を入力すると、乗せ幅が自動で算出されます（売単価－仕入単価）。">' +
+        '<input type="checkbox" id="eiSellMode"> 💰 単価を売値として取り込む（仕入を後で入力→乗せ幅を自動算出）</label>' +
       '</div>';
     html += '<table class="ei-table"><thead><tr>' +
       '<th><input type="checkbox" id="eiChkAll" checked onchange="eiToggleAll(this.checked)"></th>' +
@@ -247,7 +247,7 @@
     });
     html += '</tbody></table>';
     html += '<datalist id="eiCcyList">' + CCY_LIST.map(c => `<option value="${c}">`).join('') + '</datalist>';
-    html += '<p class="ei-hint">💡 通常は単価が仕入・売の両方に入ります（粗利0）。仕入額が分かる場合は挿入後に修正してください。「💰 単価を売値として取り込む」をONにすると、単価は売値としてのみ登録され、挿入後に乗せ幅を入力すれば仕入額が自動算出されます。「要確認」行は品名・金額を必ず確認。</p>';
+    html += '<p class="ei-hint">💡 通常は単価が仕入・売の両方に入ります（粗利0）。仕入額が分かる場合は挿入後に修正してください。「💰 単価を売値として取り込む」をONにすると、単価は売値としてのみ登録され、挿入後に仕入単価を入力すれば乗せ幅が自動算出されます。「要確認」行は品名・金額を必ず確認。</p>';
     wrap.innerHTML = html;
     document.getElementById('eiActions').hidden = false;
     _updateInsertTarget();
@@ -361,7 +361,7 @@ THC 1 40FT × 20,000 JPY ＝ 20,000 JPY
     // 売値として取り込む（既存システムからの移植等、売値しか分からない場合向け）：
     // 取り込んだ単価を売単価(bp)のみに入れ、仕入単価(pp)は空欄のまま「売値ベースモード」
     // （ppmode='sell'、row.js の _setSellModeUI/_calcFromSell）にしておく。
-    // 挿入後に見積テーブルで乗せ幅(mk)を入力すると、仕入単価が自動算出される
+    // 挿入後に見積テーブルで仕入単価(pp)を入力すると、乗せ幅(mk)が自動算出される
     const sellMode = document.getElementById('eiSellMode')?.checked;
     const out = [];
     document.querySelectorAll('#eiReviewWrap tbody tr').forEach(tr => {
