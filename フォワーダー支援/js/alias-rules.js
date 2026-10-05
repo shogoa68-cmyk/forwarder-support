@@ -254,7 +254,9 @@
       try { masters = JSON.parse(localStorage.getItem('masterCandidates_v1') || '[]'); } catch { masters = []; }
     }
 
-    const _fill = (dlId, field) => {
+    // masterOnly=true：候補をマスター登録済みの代表名だけにする（別名・略称・統合ルールは候補に出さない）。
+    // 表記の揺らぎを入力時点で増やさないため（現在はサブコン欄で使用）
+    const _fill = (dlId, field, masterOnly) => {
       const dl = document.getElementById(dlId);
       if (!dl) return;
       const fromRules  = rules.filter(r => r.field === field).map(r => r.to_value);
@@ -263,7 +265,9 @@
       const fromAbbrev = abbrevPairs.flatMap(p => [p.abbrev, p.full]);
       const fromSyn = (typeof window.synGetGroups === 'function' ? window.synGetGroups(field) : [])
         .flatMap(g => [g.canonical, ...(g.aliases || [])]);
-      const all = [...new Set([...fromRules, ...fromMaster, ...fromAbbrev, ...fromSyn])];
+      const all = masterOnly
+        ? [...new Set(fromMaster)]
+        : [...new Set([...fromRules, ...fromMaster, ...fromAbbrev, ...fromSyn])];
       // マスター詳細のふりがなを option label に反映（読みひらがな入力でも候補にヒット）
       const furi = {};
       (typeof window.mdGetAll === 'function' ? window.mdGetAll(field) : []).forEach(m => {
@@ -281,7 +285,7 @@
       });
     };
 
-    _fill('svSuggestions', 'sv');
+    _fill('svSuggestions', 'sv', true);   // サブコンはマスターからの引用のみ
     _fill('nmSuggestions', 'nm');
     _fill('unit-list',     'un');
     _fill('custSuggestions', 'customer');
@@ -560,15 +564,13 @@
     document.removeEventListener('scroll', _dismissSuggest, true);
     window.removeEventListener('resize', _dismissSuggest);
   }
-  function _showSynSuggest(input, canonical) {
+  // 入力欄の下に出す小さな提案ポップアップ（共通）。wire(el) でボタンの動作を結ぶ
+  function _openSuggest(input, innerHtml, wire, ms) {
     _dismissSuggest();
     const r = input.getBoundingClientRect();
     const el = document.createElement('div');
     el.className = 'syn-suggest';
-    el.innerHTML =
-      `<span class="syn-suggest-msg">💡 代表表記 <b>${_esc(canonical)}</b> に揃える？</span>` +
-      `<button type="button" class="syn-suggest-apply">置換</button>` +
-      `<button type="button" class="syn-suggest-dismiss" title="閉じる">✕</button>`;
+    el.innerHTML = innerHtml;
     el.style.position = 'fixed';
     el.style.left = Math.round(r.left) + 'px';
     el.style.top  = Math.round(r.bottom + 4) + 'px';
@@ -576,19 +578,63 @@
     // はみ出し補正
     const er = el.getBoundingClientRect();
     if (er.right > window.innerWidth - 8) el.style.left = Math.max(8, window.innerWidth - er.width - 8) + 'px';
-    el.querySelector('.syn-suggest-apply').addEventListener('click', () => {
-      input.value = canonical;
-      input.dispatchEvent(new Event('input',  { bubbles: true }));
-      input.dispatchEvent(new Event('change', { bubbles: true }));
-      _dismissSuggest();
-      try { input.focus(); } catch (e) {}
-    });
+    wire(el);
     el.querySelector('.syn-suggest-dismiss').addEventListener('click', _dismissSuggest);
     document.addEventListener('scroll', _dismissSuggest, true);
     window.addEventListener('resize', _dismissSuggest);
-    _suggestTimer = setTimeout(_dismissSuggest, 9000);
+    _suggestTimer = setTimeout(_dismissSuggest, ms || 9000);
     _suggestEl = el;
   }
+  function _showSynSuggest(input, canonical) {
+    _openSuggest(input,
+      `<span class="syn-suggest-msg">💡 代表表記 <b>${_esc(canonical)}</b> に揃える？</span>` +
+      `<button type="button" class="syn-suggest-apply">置換</button>` +
+      `<button type="button" class="syn-suggest-dismiss" title="閉じる">✕</button>`,
+      el => el.querySelector('.syn-suggest-apply').addEventListener('click', () => {
+        input.value = canonical;
+        input.dispatchEvent(new Event('input',  { bubbles: true }));
+        input.dispatchEvent(new Event('change', { bubbles: true }));
+        _dismissSuggest();
+        try { input.focus(); } catch (e) {}
+      }));
+  }
+
+  // サブコン欄：マスター未登録の名称を確定したとき、登録するか確認する（揺らぎを増やさないため）
+  function _masterValues(field) {
+    let masters = [];
+    if (typeof window.statsGetMasters === 'function') masters = window.statsGetMasters();
+    else { try { masters = JSON.parse(localStorage.getItem('masterCandidates_v1') || '[]'); } catch { masters = []; } }
+    return masters.filter(m => m.field === field).map(m => m.value);
+  }
+  function _showMasterRegisterSuggest(input, value) {
+    _openSuggest(input,
+      `<span class="syn-suggest-msg">⚠️ 「<b>${_esc(value)}</b>」はサブコンのマスターに未登録です</span>` +
+      `<button type="button" class="syn-suggest-apply">マスター登録</button>` +
+      `<button type="button" class="syn-suggest-dismiss" title="登録せずこのまま使う">このまま使う</button>`,
+      el => el.querySelector('.syn-suggest-apply').addEventListener('click', async () => {
+        _dismissSuggest();
+        if (typeof window.statsEnsureMaster === 'function') await window.statsEnsureMaster('sv', value);
+        const prev = (typeof window.mdGet === 'function' && window.mdGet('sv', value))?.details || {};
+        if (typeof window.mdSave === 'function') await window.mdSave('sv', value, prev);
+        _refreshDatalist();
+        if (typeof window.statsRerenderActive === 'function') window.statsRerenderActive();
+        if (typeof window.quoteShowToast === 'function') window.quoteShowToast('📇 サブコン「' + value + '」をマスター登録しました', 'success', 2800);
+      }),
+      12000);
+  }
+  // 未登録のサブコン名を確認。マスターが1件も無い間（未整備・読込前）は出さない。
+  // 空白・大小文字・全半角だけ違うマスターがあれば、登録を促す前に「代表表記に揃える」を提案する
+  function _checkSubconMaster(input) {
+    const v = (input.value || '').trim();
+    if (!v) { _dismissSuggest(); return; }
+    const masters = _masterValues('sv');
+    if (!masters.length || masters.includes(v)) { _dismissSuggest(); return; }
+    const key = (typeof window.subconNormKey === 'function') ? window.subconNormKey(v) : v.toLowerCase();
+    const near = masters.find(m => ((typeof window.subconNormKey === 'function') ? window.subconNormKey(m) : m.toLowerCase()) === key);
+    if (near) _showSynSuggest(input, near);
+    else _showMasterRegisterSuggest(input, v);
+  }
+
   // 入力確定（change＝blur時など）で別名一致を判定して提案
   document.addEventListener('change', function (e) {
     const t = e.target;
@@ -613,6 +659,7 @@
     }
     const canon = _canonicalFor(field, t.value);
     if (canon) _showSynSuggest(t, canon);
+    else if (field === 'sv') _checkSubconMaster(t);   // サブコンはマスター引用：未登録なら確認
     else _dismissSuggest();
   });
 
