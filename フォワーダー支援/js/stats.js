@@ -2022,8 +2022,9 @@
       .filter(r => r.sv || r.nm);
   }
 
-  function _renderKpi() {
-    const e = document.getElementById('statsPane-kpi');
+  // 📊 データ：目標値を持たない実績の集計（案件数・受注率・作成者別成績）。
+  function _renderData() {
+    const e = document.getElementById('statsPane-data');
     if (!e) return;
 
     const metas = [];
@@ -2099,6 +2100,17 @@
     });
     h += '</tbody></table>';
     e.innerHTML = h;
+  }
+
+  // 🎯 KPI：目標値を定めた指標だけを扱う。目標値の設定方法は未定のため、現時点では
+  // 準備中の案内のみ表示する（実績の集計は「📊 データ」タブ）。
+  function _renderKpi() {
+    const e = document.getElementById('statsPane-kpi');
+    if (!e) return;
+    e.innerHTML =
+      '<p class="stats-empty">🎯 KPI（目標値を定めた指標）は準備中です。<br>' +
+      '<small>目標値の設定方法を決めたうえで、ここに目標に対する達成状況を表示します。' +
+      '目標値を持たない実績の集計（案件数・受注率・作成者別成績）は「📊 データ」タブで確認できます。</small></p>';
   }
 
   // === 🔖 パターン別：受注率・粗利率 ===
@@ -2195,6 +2207,7 @@
     else if (id === 'charges')  _renderCharges();
     else if (id === 'master')   _renderMaster();
     else if (id === 'alias')    _renderAlias();
+    else if (id === 'data')     _renderData();
     else if (id === 'kpi')      _renderKpi();
   }
 
@@ -2227,6 +2240,7 @@
     else if (paneId === 'charges')  _renderCharges();
     else if (paneId === 'master')   _renderMaster();
     else if (paneId === 'alias')    _renderAlias();
+    else if (paneId === 'data')     _renderData();
     else if (paneId === 'kpi')      _renderKpi();
   }
 
