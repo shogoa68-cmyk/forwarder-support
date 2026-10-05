@@ -187,6 +187,15 @@
     if (_curLangEn) return CAT_EN[v] || (typeof getCatLabel === 'function' ? (getCatLabel(v) || '') : (v || ''));
     return (typeof getCatLabel === 'function') ? (getCatLabel(v) || '') : (v || '');
   }
+  // 国内表記の電話番号を国際表記へ（英語出力用）：03-5765-7668 → +81-3-5765-7668。
+  // 先頭の 0（市外局番・携帯の 0）を取って +81- を付ける。既に + や国番号で始まる値はそのまま。
+  function _intlTel(raw) {
+    const s = String(raw == null ? '' : raw).trim();
+    if (!s || /^\+/.test(s)) return s;
+    if (/^0\d+$/.test(s)) return '+81-' + s.slice(1);                       // ハイフン無し：0357657668
+    if (/^\(?0\d+\)?[\s-]*\d/.test(s)) return s.replace(/^\(?0(\d+)\)?[\s-]*/, '+81-$1-');   // 03-xxxx / (03)xxxx / 090-xxxx
+    return s;
+  }
   function _fmtJpDate(iso) {
     if (!iso) return '';
     const m = String(iso).match(/^(\d{4})-(\d{2})-(\d{2})$/);
@@ -395,6 +404,8 @@
           address1: (issuer0.address1En || '').trim() || issuer0.address1,
           address2: (issuer0.address2En || '').trim() || issuer0.address2,
           greeting: (issuer0.greetingEn || '').trim() || issuer0.greeting,
+          tel: _intlTel(issuer0.tel),   // 英語版は国番号付き（+81-…）で出す
+          fax: _intlTel(issuer0.fax),
         })
       : issuer0;
     const hideTotal = loadHideTotal();   // 合計・税サマリを隠す（パターン比較用途）
