@@ -2344,6 +2344,7 @@
 
       <!-- 📩 メール取込：開いている見積へ行を挿入 or 新規展開 -->
       <button type="button" class="save-btn save-btn-import" onclick="openEmailImport()" title="メール本文を貼り付けて、この見積に行を挿入（または新規案件として展開）">📩 メール取込</button>
+      <button type="button" class="save-btn save-btn-import" onclick="openSubconRequestMail()" title="この見積の案件情報と、選んだサブコン宛ての明細から、見積・作業の依頼メール（定型文）を作成します。仕入単価・備考は載せません">✉️ サブコン依頼メール</button>
 
       <span class="save-toolbar-sep"></span>
 
@@ -4537,6 +4538,7 @@
 <script src="js/quote/users.js"></script>
 <script src="js/quote/subcon-insert.js"></script>
 <script src="js/quote/email-import.js"></script>
+<script src="js/quote/subcon-request-mail.js"></script>
 <script src="js/quote/packing-import.js"></script>
 <script src="js/tweaks.js"></script>
 <script src="js/bookmarks.js"></script>

@@ -5566,6 +5566,37 @@ body.qp-dash-active #quoteActionDock { display: none !important; }
   font-size: 10.5px; font-family: inherit; cursor: pointer; white-space: nowrap;
 }
 #tab-quote-make .ei-bulk-sv-btn:hover { background: #dfe8d0; }
+/* ✉️ サブコン依頼メール */
+#tab-quote-make #subconReqModal {
+  display: none; position: fixed; inset: 0; background: rgba(0,0,0,.45); z-index: 9000;
+  align-items: center; justify-content: center;
+}
+#tab-quote-make #subconReqModal.open { display: flex; }
+#tab-quote-make #subconReqBox {
+  background: #fffdf8; border-radius: 10px; padding: 16px 20px 18px;
+  width: min(96vw, 860px); max-height: 92vh; overflow-y: auto; box-shadow: 0 8px 32px rgba(0,0,0,.25);
+}
+#tab-quote-make .sr-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px; }
+#tab-quote-make .sr-head h3 { margin: 0; font-size: 15px; color: #3d2e1e; }
+#tab-quote-make .sr-close { cursor: pointer; font-family: inherit; font-size: 14px; color: #8a7a64; background: transparent; border: none; padding: 2px 6px; }
+#tab-quote-make .sr-desc { font-size: 11.5px; color: #7d6b56; margin: 0 0 8px; line-height: 1.6; }
+#tab-quote-make .sr-fields { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px 12px; margin-bottom: 8px; }
+#tab-quote-make .sr-fields label, #tab-quote-make .sr-extra { font-size: 11px; font-weight: 600; color: #6a5a40; display: flex; flex-direction: column; gap: 3px; }
+#tab-quote-make #subconReqBox input[type="text"], #tab-quote-make #subconReqBox select, #tab-quote-make #subconReqBox textarea {
+  font-family: inherit; font-size: 12px; padding: 5px 7px; border: 1px solid #d8c9ad; border-radius: 5px;
+  background: #fff; color: #3d2e1e; box-sizing: border-box; width: 100%;
+}
+#tab-quote-make .sr-extra { margin-bottom: 8px; }
+#tab-quote-make .sr-sub-row { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+#tab-quote-make .sr-sub-row .sr-k { font-size: 11px; font-weight: 700; color: #6a5a40; flex: none; }
+#tab-quote-make #srBody { line-height: 1.6; resize: vertical; }
+#tab-quote-make .sr-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+#tab-quote-make .sr-btn { cursor: pointer; font-family: inherit; font-size: 12.5px; font-weight: 700; border-radius: 6px; padding: 7px 14px; border: 1px solid #8b9a6e; background: #eef2e6; color: #4a5c33; }
+#tab-quote-make .sr-btn:hover { background: #dfe8d0; }
+#tab-quote-make .sr-btn-pri { background: #3f6a3f; color: #fff; border-color: #3f6a3f; }
+#tab-quote-make .sr-btn-pri:hover { background: #2f5a2f; }
+#tab-quote-make .sr-btn-ghost { background: transparent; border-color: #c8bfb2; color: #7d6b56; }
+@media (max-width: 640px) { #tab-quote-make .sr-fields { grid-template-columns: 1fr; } }
 #tab-quote-make .ei-sellmode-label {
   padding: 4px 9px; border: 1px solid #d4892a; border-radius: 5px; background: #fff3e0; color: #8a4c00;
 }
