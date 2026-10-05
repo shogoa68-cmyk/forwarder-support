@@ -129,17 +129,22 @@ function renderInputEcho(text) {
 //  計算結果ヘルパー
 // ================================================================
 
-function appendCalcResult(id, html, summary) {
+function appendCalcResult(id, html, summary, opts) {
+  opts = opts || {};
   const container = document.getElementById(id);
   container.style.display = 'block';
   const n = container.querySelectorAll('.calc-history-entry').length + 1;
   const entry = document.createElement('div');
   entry.className = 'calc-history-entry';
+  const pdfBtn = opts.pdfTitle
+    ? `<button class="btn-pdf-result" data-pdf-title="${opts.pdfTitle}" onclick="exportCalcResultPdf(this)" title="PDFとして出力（印刷プレビューから保存）">📄 PDF出力</button>`
+    : '';
   entry.innerHTML = `<div class="calc-history-header">
       <span class="calc-history-num">#${n}</span>
       <span class="calc-history-summary">${summary||''}</span>
       <button class="btn-copy-result" onclick="copyCalcResult(this)" title="整形テキストをコピー">📋 コピー</button>
       <button class="btn-send-to-quote" onclick="sendCalcResultToQuote(this)" title="見積もりタブの「全体リマーク（条件・免責事項）」へ追記">📝 見積もりへ</button>
+      ${pdfBtn}
       <button class="calc-history-close" onclick="const e=this.closest('.calc-history-entry'),c=e.parentElement;if(e._van3dCleanup)e._van3dCleanup();e.remove();if(!c.querySelector('.calc-history-entry'))c.style.display='none'">×</button>
     </div>${html}`;
   container.insertBefore(entry, container.firstChild);
@@ -262,8 +267,100 @@ function sendCalcResultToQuote(btn) {
   }
 }
 
+// ================================================================
+//  計算結果 PDF出力（パレタイズ・バンニング。3Dプレビューがあるツールのみ）
+//  既存の御見積書PDF（quote-pdf.js）と同じ方式：専用オーバーレイを印刷対象に
+//  限定するprint CSSを敷き、window.print()でブラウザの「PDFとして保存」に委ねる
+//  （新規ライブラリを追加しない、このアプリの既定方針に合わせている）
+// ================================================================
+function exportCalcResultPdf(btn) {
+  const entry = btn.closest('.calc-history-entry');
+  if (!entry) return;
+  const pdfTitle = btn.dataset.pdfTitle || '計算結果';
+  const summary  = entry.querySelector('.calc-history-summary')?.textContent?.trim() || '';
+
+  // 複製後のcanvasは描画内容を保持しないため、必ずライブ側のcanvasから先にPNGを取り込む
+  const shotsByHostId = new Map();
+  entry.querySelectorAll('[id^="van3d-host-"]').forEach(host => {
+    const canvas = host.querySelector('.van3d-canvas');
+    if (!canvas) return;
+    try { shotsByHostId.set(host.id, canvas.toDataURL('image/png')); } catch (e) { /* WebGL未対応環境等は無視 */ }
+  });
+
+  const clone = entry.cloneNode(true);
+  clone.querySelector('.calc-history-header')?.remove();
+  clone.querySelectorAll('[id^="van3d-host-"]').forEach(host => {
+    const dataUrl    = shotsByHostId.get(host.id);
+    const legendHtml = host.querySelector('.van3d-legend')?.outerHTML || '';
+    const statsText  = host.querySelector('.van3d-stats')?.textContent?.trim() || '';
+    const imgHtml = dataUrl
+      ? `<img src="${dataUrl}" style="max-width:100%;border:1px solid #d8c8ae;border-radius:6px;">`
+      : `<p style="font-size:11px;color:#a08a60;">（3Dプレビューはこの環境では生成できませんでした）</p>`;
+    host.outerHTML = `${legendHtml}<div style="margin:8px 0;">${imgHtml}</div><div style="font-size:11px;color:#718096;">${statsText}</div>`;
+  });
+
+  _openCalcPdfOverlay(pdfTitle, summary, clone.innerHTML);
+}
+
+function _openCalcPdfOverlay(title, summary, bodyHtml) {
+  let overlay = document.getElementById('calcPdfOverlay');
+  if (!overlay) {
+    overlay = document.createElement('div');
+    overlay.id = 'calcPdfOverlay';
+    overlay.innerHTML = `
+      <div class="cpd-shell">
+        <div class="cpd-stage"><div class="cpd-doc" id="cpdDoc"></div></div>
+        <aside class="cpd-panel">
+          <div class="cpd-panel-head">
+            <div class="cpd-panel-h">📄 PDF出力</div>
+          </div>
+          <div class="cpd-panel-body">
+            <div class="cpd-fg">
+              <label for="cpdTitle">ファイル名</label>
+              <div class="cpd-inp"><input type="text" id="cpdTitle"><span class="cpd-ext">.pdf</span></div>
+            </div>
+          </div>
+          <div class="cpd-panel-foot">
+            <button type="button" class="cpd-btn-print" id="cpdPrint">🖨️ PDF出力（印刷）</button>
+            <button type="button" class="cpd-btn-ghost" id="cpdClose">閉じる</button>
+          </div>
+        </aside>
+      </div>`;
+    document.body.appendChild(overlay);
+    overlay.addEventListener('click', e => { if (e.target === overlay) _closeCalcPdfOverlay(); });
+    overlay.querySelector('#cpdClose').addEventListener('click', _closeCalcPdfOverlay);
+    overlay.querySelector('#cpdPrint').addEventListener('click', _printCalcPdf);
+  }
+  const now = new Date();
+  const dateStr = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}`;
+  const titleIn = overlay.querySelector('#cpdTitle');
+  if (titleIn) titleIn.value = `${title}_${dateStr}`;
+  overlay.querySelector('#cpdDoc').innerHTML =
+    `<div class="cpd-doc-title">${title}</div>
+     <div class="cpd-doc-date">${new Date().toLocaleString('ja-JP')} 出力</div>
+     ${summary ? `<div class="cpd-doc-summary">${summary}</div>` : ''}
+     ${bodyHtml}`;
+  overlay.classList.add('open');
+}
+
+function _closeCalcPdfOverlay() {
+  document.getElementById('calcPdfOverlay')?.classList.remove('open');
+}
+
+function _printCalcPdf() {
+  const titleIn = document.getElementById('cpdTitle');
+  const customTitle = titleIn ? titleIn.value.trim() : '';
+  const prevTitle = document.title;
+  if (customTitle) document.title = customTitle;
+  document.body.classList.add('cpd-print-mode');
+  window.print(); // 同期的：ダイアログを閉じるまでここでブロック
+  document.title = prevTitle;
+  setTimeout(() => { document.body.classList.remove('cpd-print-mode'); }, 300);
+}
+
 // 見積もりタブ「貨物情報」の荷姿・貨物明細（cond-packing-data）から、
 // 寸法（長さ/幅/高さ/重量）が入力済みの行だけを抽出する。単位は常に cm。
+// バンニング・パレタイズ両方のジャンプ転記で共用する。
 function _gatherCargoEntriesForVanTransfer() {
   const raw = document.getElementById('cond-packing-data')?.value;
   if (!raw) return [];
@@ -346,6 +443,81 @@ function jumpToVanningSimulator() {
   }
 }
 window.jumpToVanningSimulator = jumpToVanningSimulator;
+
+// 抽出した貨物明細を計算タブのパレタイズ行（#pal-rows-wrap）へ転記する。
+// バンニングと違い、個数欄は data-key="total"（任意項目）であることに注意。
+function _fillPalRowsFromCargoEntries(entries) {
+  const wrap = document.getElementById('pal-rows-wrap');
+  if (!wrap) return false;
+  let rows = Array.from(wrap.querySelectorAll('.calc-multi-row'));
+  while (rows.length > 1) { rows.pop().remove(); }
+  const unitSel = document.getElementById('pal-unit');
+  if (unitSel) {
+    unitSel.value = 'cm';   // cond-packing-data は常に cm 換算値
+    // 単位を直接書き換えただけだと onchange が発火しないため、最大積み付け高さの
+    // 既定値（未編集時）が旧単位のまま残ってしまう（手動切替時と同じ不具合を踏む）。
+    // onPalUnitChange() を明示的に呼んで単位に合わせた値へ揃える。
+    if (typeof onPalUnitChange === 'function') onPalUnitChange();
+  }
+
+  entries.forEach((entry, i) => {
+    let row;
+    if (i === 0) {
+      row = rows[0];
+    } else {
+      addCalcRow('pal');
+      row = wrap.querySelector('.calc-multi-row:last-child');
+    }
+    if (typeof injectAuxCalcFields === 'function') injectAuxCalcFields(row);
+    const set = (key, val) => { const el = row.querySelector(`[data-key="${key}"]`); if (el) el.value = val; };
+    set('l', entry.l);
+    set('w', entry.w);
+    set('h', entry.h);
+    set('weight', entry.kg || '');
+    set('total', entry.qty || 1);
+    const stackSel = row.querySelector('[data-key="stack"]');
+    if (stackSel) stackSel.value = entry.stack === '不可' ? 'ng' : 'ok';
+  });
+  updateRowNums(wrap);
+  return true;
+}
+
+// 見積もりタブ「貨物情報」→ 計算タブのパレタイズシミュレーター（3D積み付けプレビュー）へジャンプ。
+// 寸法入力済みの荷姿があれば転記した上で自動計算まで行う。
+function jumpToPalletizeSimulator() {
+  const entries = _gatherCargoEntriesForVanTransfer();
+
+  const calcCatBtn = document.querySelector('.cat-btn[aria-controls="tab-calc"]');
+  if (calcCatBtn && typeof switchCategory === 'function') {
+    switchCategory('calc', calcCatBtn);
+  } else if (typeof switchTab === 'function') {
+    switchTab('calc');
+  }
+
+  let transferred = false;
+  if (entries.length) {
+    transferred = _fillPalRowsFromCargoEntries(entries);
+    if (transferred) calcPalletize();
+  }
+
+  requestAnimationFrame(() => {
+    const target = transferred
+      ? document.getElementById('pal-result')
+      : document.getElementById('pal-rows-wrap')?.closest('.card');
+    if (!target) return;
+    target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    target.classList.add('jump-target-flash');
+    setTimeout(() => target.classList.remove('jump-target-flash'), 1200);
+  });
+
+  if (typeof quoteShowToast === 'function') {
+    const msg = transferred
+      ? `🔲 貨物情報（${entries.length}件）をパレタイズシミュレーターへ転記しました（「← 見積もりに戻る」で戻れます）`
+      : '🔲 パレタイズシミュレーターに移動しました（「← 見積もりに戻る」で戻れます）';
+    quoteShowToast(msg, 'info', 3000);
+  }
+}
+window.jumpToPalletizeSimulator = jumpToPalletizeSimulator;
 
 // ================================================================
 //  複数行管理ユーティリティ
@@ -637,6 +809,18 @@ function togglePalCustom() {
     document.getElementById('pal-size').value === 'custom' ? 'flex' : 'none';
 }
 
+// 単位切替時：「最大積み付け高さ」の既定値（1500mm相当）を選択中の単位に換算し直す。
+// ユーザーが値を手入力済み（oninputでuserEdited='1'が立つ）の場合は上書きしない。
+// これをしないと、既定値 1500 のまま単位だけ mm→cm に切り替わった場合に
+// 1500cm（15m）として計算されてしまう。
+function onPalUnitChange() {
+  const hInput = document.getElementById('pal-max-height');
+  if (!hInput || hInput.dataset.userEdited === '1') return;
+  const unit = document.getElementById('pal-unit').value || 'mm';
+  const val = 1500 / (_UNIT_TO_MM[unit] || 1);
+  hInput.value = Number.isInteger(val) ? val : Math.round(val * 100) / 100;
+}
+
 function calcPalletize() {
   const { unit, factor } = getUnitConversion('pal-unit', 'mm');
   const sv = document.getElementById('pal-size').value;
@@ -653,77 +837,321 @@ function calcPalletize() {
     pw = pwInput * factor; pd = pdInput * factor;
     pwDisp = pwInput; pdDisp = pdInput; palUnit = unit;
   }
-  const lay  = parseInt(document.getElementById('pal-layers').value) || 1;
+  const maxHInput = parseFloat(document.getElementById('pal-max-height').value);
+  if (isNaN(maxHInput) || maxHInput <= 0) { quoteShowToast('⚠️ 最大積み付け高さを入力してください', 'warning'); return; }
+  const maxH = maxHInput * factor;
+  // 表示はパレットサイズと同じ単位（palUnit）に揃える（標準サイズ選択時は常にmm固定のため、
+  // 高さだけ別単位で入力していると表示上「1100×1100mm / 高さ上限1500cm」のように
+  // 単位が食い違って見えてしまうのを防ぐ）
+  const maxHDispVal = maxH / _UNIT_TO_MM[palUnit];
+  const maxHDisp = Number.isInteger(maxHDispVal) ? maxHDispVal : Math.round(maxHDispVal * 100) / 100;
+  const maxWeight = parseFloat(document.getElementById('pal-max-weight').value) || 0; // kg、任意（0=制限なし）
+
   const wrap = document.getElementById('pal-rows-wrap');
-  const rows = wrap.querySelectorAll('.calc-multi-row');
-  const results = [];
-  for (const row of rows) {
+  const rowEls = wrap.querySelectorAll('.calc-multi-row');
+  const cargo = [];
+  for (const row of rowEls) {
     const blInput = parseFloat(row.querySelector('[data-key="l"]').value);
     const bwInput = parseFloat(row.querySelector('[data-key="w"]').value);
     const bhInput = parseFloat(row.querySelector('[data-key="h"]').value);
-    const tot = parseInt(row.querySelector('[data-key="total"]').value) || 0;
+    const weight  = parseFloat(row.querySelector('[data-key="weight"]').value) || 0;
+    const totInput = parseInt(row.querySelector('[data-key="total"]').value, 10);
+    const tot = isNaN(totInput) ? 0 : totInput;
     if ([blInput,bwInput,bhInput].some(isNaN)) continue;
     const meta = getRowMeta(row);
     // mm 換算で計算式に投入
     const bl = blInput * factor, bw = bwInput * factor, bh = bhInput * factor;
-    const o1 = {cols:Math.floor(pw/bl),rows:Math.floor(pd/bw)};
-    const o2 = {cols:Math.floor(pw/bw),rows:Math.floor(pd/bl)};
-    const p1 = o1.cols*o1.rows, p2 = o2.cols*o2.rows;
-    const best     = p1>=p2 ? o1 : o2;
-    const perPer1L = Math.max(p1,p2);
-    // 段積み不可なら 1 段固定
-    const effLay   = meta.stack === 'ng' ? 1 : lay;
-    const perPallet = perPer1L * effLay;
-    const pNeeded   = (tot > 0 && perPallet > 0) ? Math.ceil(tot/perPallet) : null;
-    results.push({ bl, bw, bh, blInput, bwInput, bhInput, tot, best, perPer1L, perPallet, pNeeded, effLay, ...meta });
+    cargo.push({ bl, bw, bh, blInput, bwInput, bhInput, weight, qty: tot > 0 ? tot : 1, rowNoStack: meta.stack === 'ng', ...meta });
   }
-  if (results.length === 0) { quoteShowToast('⚠️ 箱の寸法を入力してください', 'warning'); return; }
+  if (cargo.length === 0) { quoteShowToast('⚠️ 箱の寸法を入力してください', 'warning'); return; }
+  if (!window.Vanning3D) { quoteShowToast('⚠️ 3D計算モジュールを読み込めませんでした', 'error'); return; }
 
-  if (results.length === 1) {
-    const r = results[0];
-    const inputLine = formatRowInputSummary([
-      `箱 ${r.blInput}×${r.bwInput}×${r.bhInput}${unit}`,
-      `パレット ${pwDisp}×${pdDisp}${palUnit}`,
-      `${r.effLay}段${r.stack==='ng'?'（段積み不可で 1 段固定）':''}`,
-      r.packing,
-      r.tot>0?`総 ${r.tot}個`:''
-    ]);
-    appendCalcResult('pal-result',
-      renderInputEcho(inputLine) +
-      `<div class="calc-row">
-      <div class="calc-item"><div class="calc-item-label">パレットサイズ</div><div class="calc-item-value">${pwDisp}×${pdDisp} ${palUnit}</div></div>
-      <div class="calc-item hl"><div class="calc-item-label">1段あたり</div><div class="calc-item-value">${r.perPer1L} 個 <span class="calc-note">(${r.best.cols}列×${r.best.rows}行)</span></div></div>
-      <div class="calc-item hl"><div class="calc-item-label">1パレット合計（${r.effLay}段）</div><div class="calc-item-value">${r.perPallet} 個</div></div>
-      <div class="calc-item"><div class="calc-item-label">積載後高さ（箱のみ）</div><div class="calc-item-value">${(r.bh*r.effLay).toLocaleString()} mm</div></div>
-      ${r.pNeeded!==null?`<div class="calc-item hl"><div class="calc-item-label">必要パレット数（${r.tot}個）</div><div class="calc-item-value">${r.pNeeded} パレット</div></div>`:''}
-    </div>`,
-    inputLine);
-  } else {
-    let totalPallets = 0;
-    const rowsHtml = results.map((r, i) => {
-      if (r.pNeeded !== null) totalPallets += r.pNeeded;
-      const lbl = formatRowInputSummary([
-        `箱${r.blInput}×${r.bwInput}×${r.bhInput}${unit}`,
-        r.packing,
-        r.stack==='ng'?'段積み不可':'',
-        r.tot>0?`総${r.tot}個`:''
-      ]);
-      return `<div style="margin-bottom:8px;">
-        <div class="calc-row-label">品種${i+1}　${lbl}</div>
-        <div class="calc-row">
-          <div class="calc-item hl"><div class="calc-item-label">1パレット（${r.effLay}段）</div><div class="calc-item-value">${r.perPallet} 個 <span class="calc-note">(${r.best.cols}×${r.best.rows}行)</span></div></div>
-          ${r.pNeeded!==null?`<div class="calc-item hl"><div class="calc-item-label">必要パレット数</div><div class="calc-item-value">${r.pNeeded} パレット</div></div>`:''}
-        </div>
-      </div>`;
-    }).join('');
-    const totalHtml = totalPallets > 0
-      ? `<div style="margin-top:10px;padding-top:10px;border-top:2px solid var(--accent);">
-          <div class="calc-row">
-            <div class="calc-item hl" style="flex:1;"><div class="calc-item-label">合計パレット数（全${results.length}品種）</div><div class="calc-item-value">${totalPallets} パレット</div></div>
-          </div></div>` : '';
-    appendCalcResult('pal-result', rowsHtml + totalHtml,
-      `${results.length}品種 / パレット${pwDisp}×${pdDisp}${palUnit} ${lay}段${totalPallets>0?' / 合計'+totalPallets+'パレット':''}`);
+  const { bins, leftoverByOrig } = _packPalletsLayered(cargo, pw, pd, maxH);
+
+  if (bins.length === 0) {
+    quoteShowToast('⚠️ パレットサイズ・高さ上限に対して箱が大きすぎます', 'warning');
+    return;
   }
+
+  const totalQtyAll = cargo.reduce((s, r) => s + r.qty, 0);
+  const leftoverTotal = Object.values(leftoverByOrig).reduce((a, b) => a + b, 0);
+
+  // 品種別の配置状況（要求数・配置数・積み残し）
+  const placedByOrig = {};
+  bins.forEach(b => { Object.entries(b.countByOrig).forEach(([i, c]) => { placedByOrig[i] = (placedByOrig[i] || 0) + c; }); });
+  const detailHtml = cargo.map((r, i) => {
+    const placed = placedByOrig[i] || 0;
+    const lbl = formatRowInputSummary([
+      `${r.blInput}×${r.bwInput}×${r.bhInput}${unit}`,
+      r.weight > 0 ? `${r.weight}kg` : '',
+      r.packing, r.rowNoStack ? '段積み不可' : '',
+      `× ${r.qty}個`
+    ]);
+    const short = leftoverByOrig[i] > 0
+      ? ` <span style="color:#e53e3e;font-size:11px;font-weight:700;">⚠️ 積み残し${leftoverByOrig[i]}個</span>` : '';
+    return `<div style="margin-bottom:6px;">
+      <div class="calc-row-label">品種${i + 1}　${lbl}</div>
+      <div style="font-size:12px;color:var(--text-md);">配置 ${placed}/${r.qty}個${short}</div>
+    </div>`;
+  }).join('');
+
+  // パレットごとの推奨配分
+  const binsHtml = bins.map((b, bi) => {
+    const items = Object.entries(b.countByOrig).map(([i, c]) => `品種${Number(i) + 1}×${c}`).join('　');
+    const overWeight = maxWeight > 0 && b.binWeight > maxWeight;
+    const wLine = b.binWeight > 0
+      ? `　／　重量 ${b.binWeight.toLocaleString()}kg${overWeight ? ' <span style="color:#e53e3e;font-weight:700;">⚠️ 重量超過</span>' : ''}`
+      : '';
+    return `<div class="calc-item${overWeight ? '' : ' hl'}">
+      <div class="calc-item-label">パレット ${bi + 1}</div>
+      <div class="calc-item-value" style="font-size:13px;">${items}</div>
+      <div style="font-size:11px;color:#718096;margin-top:3px;">積載率 ${b.utilization.toFixed(1)}%${wLine}</div>
+    </div>`;
+  }).join('');
+
+  const leftoverWarn = leftoverTotal > 0
+    ? `<p style="font-size:11px;color:#c53030;margin-top:8px;">⚠️ ${leftoverTotal}個は配置できませんでした。パレットサイズ・高さ上限に対して寸法が大きすぎる品種がある可能性があります。</p>`
+    : '';
+
+  const inputLine = formatRowInputSummary([
+    `${cargo.length}品種`, `パレット${pwDisp}×${pdDisp}${palUnit}`, `高さ上限${maxHDisp}${palUnit}`,
+    `合計${totalQtyAll}個`, `${bins.length}パレット`
+  ]);
+
+  // パレットごとに3Dプレビューを表示（同時WebGL描画数が増えすぎないよう上限を設ける）
+  const MAX_3D_PALLETS = 6;
+  const preview3dBins = bins.slice(0, MAX_3D_PALLETS);
+  const van3dIds = preview3dBins.map(() => `van3d-host-${++_van3dSeq}`);
+  const preview3dHtml = preview3dBins.map((b, bi) =>
+    `<div style="margin-top:14px;">
+      <div style="font-size:11px;font-weight:700;color:var(--text-md);margin-bottom:6px;">🧊 3D積み付けプレビュー（パレット${bi + 1}）</div>
+      <div id="${van3dIds[bi]}"></div>
+    </div>`
+  ).join('');
+  const preview3dOmitNote = bins.length > MAX_3D_PALLETS
+    ? `<p style="font-size:11px;color:#718096;margin-top:10px;">※ 3Dプレビューは先頭${MAX_3D_PALLETS}パレット分のみ表示しています（同時描画数の制限のため）。${MAX_3D_PALLETS + 1}枚目以降は上記「パレット別 推奨配分」の内訳をご確認ください。</p>`
+    : '';
+
+  appendCalcResult('pal-result',
+    `<div style="margin-bottom:10px;">
+      <div style="font-size:11px;font-weight:700;color:var(--text-md);margin-bottom:6px;">📦 品種別内訳</div>
+      ${detailHtml}
+    </div>
+    <div style="margin-bottom:10px;">
+      <div style="font-size:11px;font-weight:700;color:var(--text-md);margin-bottom:6px;">🗂 パレット別 推奨配分</div>
+      <div class="calc-row">${binsHtml}</div>
+    </div>
+    ${leftoverWarn}
+    <div style="margin-top:10px;padding-top:10px;border-top:2px solid var(--accent);">
+      <div class="calc-row">
+        <div class="calc-item hl" style="flex:1;"><div class="calc-item-label">合計必要パレット数</div><div class="calc-item-value">${bins.length} パレット</div></div>
+      </div>
+    </div>
+    <p style="font-size:11px;color:#718096;margin-top:10px;">※ 3Dビンパッキング（床面支持率80%以上を配置条件）による理論値。実際の積み付けは現場でご確認ください。</p>
+    ${preview3dOmitNote}
+    ${preview3dHtml}`,
+    inputLine, { pdfTitle: 'パレタイズ計算結果' });
+
+  const contDefs = { pallet: { l: pw, w: pd, h: maxH, label: `${pwDisp}×${pdDisp}${palUnit} / 高さ上限${maxHDisp}${palUnit}` } };
+  preview3dBins.forEach((b, bi) => {
+    // _packPalletsLayered で計算済みの配置（段積みパターン）をそのまま描画に使う。
+    // cargo は品種配列全体を渡す（typeIndex は元の品種インデックスと一致しているため、
+    // 全パレットで凡例の「品種N」番号が揃う）
+    const usedVolume = b.placed.reduce((s, p) => s + p.w * p.d * p.h, 0);
+    const precomputed = {
+      placed: b.placed,
+      overflowByType: {}, uncimulatedByType: {}, overhang: { l: 0, w: 0, h: 0 },
+      totalRequested: b.placed.length, totalPlaced: b.placed.length,
+      usedVolume, containerVolume: pw * pd * maxH, utilization: b.utilization,
+    };
+    window.Vanning3D.mountPreview('#' + van3dIds[bi], cargo, contDefs, 'pallet', { precomputed });
+  });
+}
+
+// ================================================================
+//  パレタイズ：段（レイヤー）単位の積み付けアルゴリズム
+//  実務のパレタイズ（ブロック積み・レンガ積み等）は「1段を床面いっぱいに敷き詰めてから
+//  次の段へ」が基本だが、Vanning3D.packContainer は箱を体積の大きい順に「どこかに
+//  とにかく置く」3D自由配置ヒューリスティックのため、高さの異なる品種が混在すると
+//  段ごとの高さが揃わず階段状の隙間ができやすい（パレタイズでは特に目立つ）。
+//  この2関数は、段ごとに床面を2Dビンパッキング（ギロチン分割+Best-Area-Fit）で
+//  敷き詰めてから次の段へ進む方式で、より隙間の少ない・現実の積み付けに近い結果を作る。
+// ================================================================
+
+// 1段分の床面（pw×pd）へ、候補品種（footprint l×w、各qty）を敷き詰める。
+// candidates: [{l,w,qty,...}]。返り値 placements の ci は candidates 内のインデックス。
+function _fillLayerFootprint(candidates, pw, pd) {
+  const EPS = 1e-6;
+  const remainingQty = candidates.map(c => c.qty);
+  const placements = [];
+  let freeRects = [{ x: 0, y: 0, w: pw, d: pd }];
+  // 床面積が大きい品種から優先的に配置（大きい箱を先に置かないと隙間だらけになりやすい）
+  const order = candidates.map((c, i) => i).sort((a, b) => (candidates[b].l * candidates[b].w) - (candidates[a].l * candidates[a].w));
+
+  let progressed = true;
+  while (progressed) {
+    progressed = false;
+    for (const ci of order) {
+      if (remainingQty[ci] <= 0) continue;
+      const c = candidates[ci];
+      // 最も小さい空き矩形から試す（Best-Area-Fit：余白を細切れにしすぎないため）
+      freeRects.sort((a, b) => (a.w * a.d) - (b.w * b.d));
+      let placedHere = false;
+      for (let ri = 0; ri < freeRects.length; ri++) {
+        const r = freeRects[ri];
+        const orients = [[c.l, c.w], [c.w, c.l]]; // 通常向き・90度回転の両方を試す
+        for (const [pw_, pd_] of orients) {
+          if (pw_ <= r.w + EPS && pd_ <= r.d + EPS) {
+            placements.push({ x: r.x, y: r.y, w: pw_, d: pd_, ci });
+            remainingQty[ci]--;
+            // ギロチン分割：配置した箱の右側帯・下側帯を新しい空き矩形として残す
+            const rightRect  = { x: r.x + pw_, y: r.y, w: r.w - pw_, d: pd_ };
+            const bottomRect = { x: r.x, y: r.y + pd_, w: r.w, d: r.d - pd_ };
+            freeRects.splice(ri, 1);
+            if (rightRect.w > EPS && rightRect.d > EPS) freeRects.push(rightRect);
+            if (bottomRect.w > EPS && bottomRect.d > EPS) freeRects.push(bottomRect);
+            placedHere = true;
+            progressed = true;
+            break;
+          }
+        }
+        if (placedHere) break;
+      }
+    }
+  }
+  return { placements, consumed: remainingQty.map((rq, i) => candidates[i].qty - rq) };
+}
+
+// 段の高さの選び方：入る高さの中で最も個数（総量）が多いものを採用する。
+// 段数を減らして床効率を優先するため、潤沢にある品種を軸に床を敷き詰めやすい。
+// _packGreedyContinue（1手先読みの「続き」シミュレーション）で使う単純な貪欲ロジック。
+function _heightPickByQty(avail) {
+  const heightQty = {};
+  avail.forEach(r => { heightQty[r.h] = (heightQty[r.h] || 0) + r.qty; });
+  return Object.keys(heightQty).map(Number).sort((a, b) => heightQty[b] - heightQty[a] || b - a)[0];
+}
+
+// 単純な貪欲法で、ある高さ（zStart）から上限（maxH）まで最後まで詰める。
+// 1手先読み（_packPalletLayered）の「この手を選んだ場合に最終的に何個入るか」を
+// 見積もるための補助関数。remainingTypes を直接消費する（副作用あり）。
+function _packGreedyContinue(remainingTypes, pw, pd, maxH, zStart) {
+  const EPS = 1e-6;
+  const placed = [];
+  let z = zStart;
+  while (true) {
+    const headroom = maxH - z;
+    if (headroom <= EPS) break;
+    const avail = remainingTypes.filter(r => r.qty > 0 && r.h <= headroom + EPS && (!r.noStack || z < EPS));
+    if (!avail.length) break;
+    let layerH = _heightPickByQty(avail);
+    if (z < EPS) {
+      const noStackMaxH = avail.reduce((m, r) => r.noStack ? Math.max(m, r.h) : m, 0);
+      if (noStackMaxH > layerH) layerH = noStackMaxH;
+    }
+    const layerCandidates = avail.filter(r => r.h <= layerH + EPS);
+    const { placements, consumed } = _fillLayerFootprint(layerCandidates, pw, pd);
+    if (!placements.length) break;
+    placements.forEach(pl => {
+      const type = layerCandidates[pl.ci];
+      placed.push({ x: pl.x, y: pl.y, z, w: pl.w, d: pl.d, h: type.h, typeIndex: type.idx });
+    });
+    consumed.forEach((cnt, ci) => { layerCandidates[ci].qty -= cnt; });
+    z += layerH;
+  }
+  return placed;
+}
+
+// 1パレット分を、段（レイヤー）を積み上げながら埋める。
+// remainingTypes: [{idx, l, w, h, qty, noStack}, ...]（呼び出し側が全体の残数を保持し、
+// この関数は配置した分だけ各要素の qty を直接減算する＝副作用あり）
+//
+// 次の段の高さは「入る高さそれぞれ」を候補として1手先読みする：各候補でその段を
+// 実際に敷き詰めた後、残りを単純な貪欲法（_packGreedyContinue）で最後まで続けた場合の
+// 合計配置数をシミュレートし、一番多く入る候補を採用する。
+//
+// 高さ上限（maxH）は「これを超えてはいけない」という制約として使うのみで、
+// 「そこにぴったり合わせて積む」計算（残り高さを割った余り等）は一切行わない
+// （過去に試したが、高さ上限から逆算して積み方を決める不自然なロジックになるため
+// 撤去した）。本関数が天井に近づくことがあるとすれば、それは「より多くの箱が
+// 実際に入る」という結果に過ぎず、高さ上限を目標にした計算ではない。
+function _packPalletLayered(remainingTypes, pw, pd, maxH) {
+  const EPS = 1e-6;
+  const placed = [];
+  let z = 0;
+  while (true) {
+    const headroom = maxH - z;
+    if (headroom <= EPS) break;
+    const avail = remainingTypes.filter(r => r.qty > 0 && r.h <= headroom + EPS && (!r.noStack || z < EPS));
+    if (!avail.length) break;
+
+    const candidateHeights = [...new Set(avail.map(r => r.h))];
+    let best = null;
+    for (const h0 of candidateHeights) {
+      let layerH = h0;
+      // 床置き限定（段積み不可）の品種は z===0 の今しか置けない。選んだ段高がその品種の
+      // 高さ未満だと配置チャンスを逃して積み残しになってしまうため、必要なら段高を押し上げる。
+      if (z < EPS) {
+        const noStackMaxH = avail.reduce((m, r) => r.noStack ? Math.max(m, r.h) : m, 0);
+        if (noStackMaxH > layerH) layerH = noStackMaxH;
+      }
+      const layerCandidates = avail.filter(r => r.h <= layerH + EPS).map(r => ({ ...r }));
+      const { placements, consumed } = _fillLayerFootprint(layerCandidates, pw, pd);
+      if (!placements.length) continue;
+
+      const trialRemaining = remainingTypes.map(r => ({ ...r }));
+      consumed.forEach((cnt, ci) => {
+        const idx = layerCandidates[ci].idx;
+        trialRemaining.find(r => r.idx === idx).qty -= cnt;
+      });
+      const thisLayerPlaced = placements.map(pl => {
+        const type = layerCandidates[pl.ci];
+        return { x: pl.x, y: pl.y, z, w: pl.w, d: pl.d, h: type.h, typeIndex: type.idx };
+      });
+      // 比較用の見積もりシミュレーションは別クローンで行い、実際に採用する
+      // trialRemaining（＝この1段だけ消費した状態）には影響させない
+      const lookaheadRemaining = trialRemaining.map(r => ({ ...r }));
+      const restPlaced = _packGreedyContinue(lookaheadRemaining, pw, pd, maxH, z + layerH);
+      const total = thisLayerPlaced.length + restPlaced.length;
+
+      if (!best || total > best.total) {
+        best = { total, layerH, thisLayerPlaced, trialRemaining };
+      }
+    }
+
+    if (!best) break; // どの高さを試しても1個も入らない→無限ループ防止で打ち切り
+    placed.push(...best.thisLayerPlaced);
+    remainingTypes.forEach((r, i) => { r.qty = best.trialRemaining.find(x => x.idx === r.idx).qty; });
+    z += best.layerH;
+  }
+  return placed;
+}
+
+// 複数品種・複数個数の貨物を、1パレット分ずつ _packPalletLayered で詰め切るまで
+// パレットを積み増していく。
+function _packPalletsLayered(cargo, pw, pd, maxH, maxBins) {
+  maxBins = maxBins || 60;
+  const remaining = cargo.map((r, i) => ({ idx: i, l: r.bl, w: r.bw, h: r.bh, qty: Math.max(1, parseInt(r.qty, 10) || 1), noStack: r.rowNoStack }));
+  const bins = [];
+  while (remaining.some(r => r.qty > 0) && bins.length < maxBins) {
+    const placed = _packPalletLayered(remaining, pw, pd, maxH);
+    if (!placed.length) break; // どの個体も1つも入らない（単体でサイズ超過）→無限ループ防止
+    const countByOrig = {};
+    let binWeight = 0;
+    let usedVolume = 0;
+    placed.forEach(p => {
+      countByOrig[p.typeIndex] = (countByOrig[p.typeIndex] || 0) + 1;
+      binWeight += cargo[p.typeIndex].weight || 0;
+      usedVolume += p.w * p.d * p.h;
+    });
+    const containerVolume = pw * pd * maxH;
+    bins.push({
+      placed, countByOrig, binWeight,
+      utilization: containerVolume > 0 ? (usedVolume / containerVolume * 100) : 0,
+    });
+  }
+  const leftoverByOrig = {};
+  remaining.forEach(r => { if (r.qty > 0) leftoverByOrig[r.idx] = r.qty; });
+  return { bins, leftoverByOrig };
 }
 
 // ================================================================
@@ -828,7 +1256,7 @@ function calcVanning() {
       <p style="font-size:11px;color:#718096;margin-top:10px;">※ ダンネージなしの理論値。実際の積み付けは現場でご確認ください。</p>
       <div style="margin-top:12px;font-size:11px;font-weight:700;color:var(--text-md);">🧊 3D積み付けプレビュー</div>
       <div id="${van3dId}"></div>`,
-      inputLine);
+      inputLine, { pdfTitle: 'バンニング計算結果' });
     window.Vanning3D && window.Vanning3D.mountPreview('#'+van3dId, cargo, CONT, rec.key);
     return;
   }
@@ -928,7 +1356,8 @@ function calcVanning() {
     <p style="font-size:11px;color:#718096;margin-top:10px;">※ CBMベースの理論値。混載バンニングは積み合わせ次第で変わります。実際の積み付けは現場でご確認ください。</p>
     <div style="margin-top:12px;font-size:11px;font-weight:700;color:var(--text-md);">🧊 3D積み付けプレビュー（推奨コンテナ：${rec.c.label}）</div>
     <div id="${van3dId}"></div>`,
-    `${cargo.length}品種 / 合計${totalCBM.toFixed(3)}CBM${globalNoStack?' / 全行段積み不可':noStackCount>0?' / 一部段積み不可':''}`);
+    `${cargo.length}品種 / 合計${totalCBM.toFixed(3)}CBM${globalNoStack?' / 全行段積み不可':noStackCount>0?' / 一部段積み不可':''}`,
+    { pdfTitle: 'バンニング計算結果' });
   window.Vanning3D && window.Vanning3D.mountPreview('#'+van3dId, cargo, CONT, rec.key);
 }
 

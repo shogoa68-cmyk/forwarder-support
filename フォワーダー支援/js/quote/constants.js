@@ -135,6 +135,22 @@ window.QuoteApp = window.QuoteApp || { state: {}, data: {}, fx: {} };
     return [...CATEGORIES, ...getUserCategories()];
   }
 
+  // 「↑↓カテゴリ」ソートで使う並び順（ユーザーが並べ替えた任意の順序）。
+  // 未設定時は既定の CATEGORIES＋自作カテゴリの並びをそのまま使う。
+  // 保存済みの順序に無いカテゴリ（後から追加された自作カテゴリ等）は末尾に足す。
+  // 削除済みカテゴリ（もう存在しない value）は除外する。
+  function getCategoryOrder() {
+    const allValues = getAllCategories().map(c => c.value).filter(v => v !== '');
+    const saved = SharedStorage.getJSON(SharedStorage.KEYS.CATEGORY_ORDER, null);
+    if (!Array.isArray(saved) || !saved.length) return allValues;
+    const kept = saved.filter(v => allValues.includes(v));
+    const missing = allValues.filter(v => !kept.includes(v));
+    return [...kept, ...missing];
+  }
+  function saveCategoryOrder(order) {
+    SharedStorage.setJSON(SharedStorage.KEYS.CATEGORY_ORDER, order);
+  }
+
   function catOpts(sel) {
     const userCats = getUserCategories();
     let html = CATEGORIES.map(c =>

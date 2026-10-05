@@ -745,6 +745,7 @@
     if (input) input.value = '';
     renderUserCatPanel();
     refreshAllCategoryDropdowns();
+    if (typeof renderCatOrderPanel === 'function') renderCatOrderPanel();   // 新規カテゴリを並び順の末尾に反映
     quoteShowToast(`✅ カテゴリ「${label}」を追加しました`, 'success');
   }
 
@@ -756,6 +757,7 @@
     saveUserCategories(cats.filter(c => c.value !== value));
     renderUserCatPanel();
     refreshAllCategoryDropdowns();
+    if (typeof renderCatOrderPanel === 'function') renderCatOrderPanel();   // 削除したカテゴリを並び順からも除去
     quoteShowToast(`🗑️ 「${cat.label}」を削除しました`, 'info');
   }
 
@@ -784,6 +786,65 @@
     sel.innerHTML = html;
     sel.value = '__none__';
   }
+
+  // ========== カテゴリ並び順（「⇅カテゴリ」ソートで使う任意順序） ==========
+  function renderCatOrderPanel() {
+    const order = getCategoryOrder();
+    const byValue = Object.create(null);
+    getAllCategories().forEach(c => { byValue[c.value] = c; });
+    const list = document.getElementById('catOrderList');
+    if (!list) return;
+    list.innerHTML = order.map(v => {
+      const c = byValue[v];
+      if (!c) return '';
+      return `<div class="cat-order-item" draggable="true" data-value="${escHtml(v)}"
+                   ondragstart="_catOrderDragStart(event)" ondragover="_catOrderDragOver(event)"
+                   ondrop="_catOrderDrop(event)" ondragend="_catOrderDragEnd()">
+                <span class="cat-order-grip" title="ドラッグで並び替え">⠿</span>
+                <span class="cat-order-label">${escHtml(c.label)}</span>
+              </div>`;
+    }).join('');
+  }
+  window.renderCatOrderPanel = renderCatOrderPanel;
+
+  let _catOrderDragSrc = null;
+  function _catOrderDragStart(e) {
+    _catOrderDragSrc = e.currentTarget;
+    e.dataTransfer.effectAllowed = 'move';
+    e.currentTarget.classList.add('is-dragging');
+  }
+  function _catOrderDragOver(e) {
+    e.preventDefault();
+    const target = e.currentTarget;
+    if (!_catOrderDragSrc || target === _catOrderDragSrc) return;
+    const list = document.getElementById('catOrderList');
+    if (!list) return;
+    const items = Array.from(list.children);
+    const srcIdx = items.indexOf(_catOrderDragSrc);
+    const tgtIdx = items.indexOf(target);
+    if (srcIdx < tgtIdx) list.insertBefore(_catOrderDragSrc, target.nextSibling);
+    else list.insertBefore(_catOrderDragSrc, target);
+  }
+  function _catOrderDrop(e) { e.preventDefault(); }
+  function _catOrderDragEnd() {
+    if (_catOrderDragSrc) _catOrderDragSrc.classList.remove('is-dragging');
+    _catOrderDragSrc = null;
+    const list = document.getElementById('catOrderList');
+    if (!list) return;
+    saveCategoryOrder(Array.from(list.children).map(el => el.dataset.value));
+  }
+  window._catOrderDragStart = _catOrderDragStart;
+  window._catOrderDragOver  = _catOrderDragOver;
+  window._catOrderDrop      = _catOrderDrop;
+  window._catOrderDragEnd   = _catOrderDragEnd;
+
+  function resetCatOrder() {
+    if (!confirm('カテゴリの並び順を既定に戻しますか？')) return;
+    saveCategoryOrder([]);   // 空にすると getCategoryOrder() は既定の並びを返す
+    renderCatOrderPanel();
+    quoteShowToast('↩️ カテゴリの並び順を既定に戻しました', 'info');
+  }
+  window.resetCatOrder = resetCatOrder;
 
   // 選択（チェック）行のカテゴリを一括設定。選択は維持し、続けてサブコン設定も可能にする
   function applyBulkCategorySet(sel) {
@@ -1795,20 +1856,20 @@
 
       const cf = p.data && p.data.copiedFrom;
       const cfLabel = cf ? escHtml(cf.name || '不明') + (cf.ref ? ' <span class="preset-cf-ref">(' + escHtml(cf.ref) + ')</span>' : '') : '';
-      const genBadge = (cf && cf.gen) ? ' <span class="preset-cf-gen" title="オリジナルから数えた世代">' + cf.gen + '代目</span>' : '';
+      const selfGenBadge = (cf && cf.gen) ? '<span class="preset-cf-gen preset-cf-gen--self" title="この案件は、オリジナルから数えて' + cf.gen + '代目です（コピー元は ' + (cf.gen - 1) + '代目）">' + cf.gen + '代目</span>' : '';
       const root = cf && cf.root;
       const rootLabel = (root && cf.gen > 2)
         ? '<div class="preset-copied-from preset-copied-from--root">🌱 オリジナル：<span class="preset-cf-name">' + escHtml(root.name || '不明') +
             (root.ref ? ' <span class="preset-cf-ref">(' + escHtml(root.ref) + ')</span>' : '') + '</span></div>'
         : '';
       const copiedFromHtml = cf
-        ? '<div class="preset-copied-from">📋 コピー元：<span class="preset-cf-name">' + cfLabel + '</span>' + genBadge + '</div>' + rootLabel
+        ? '<div class="preset-copied-from">📋 コピー元：<span class="preset-cf-name">' + cfLabel + '</span></div>' + rootLabel
         : '';
 
       return '<div class="preset-list-item preset-item-rich' + (isLoaded ? ' preset-list-item--loaded' : '') + '">' +
         '<div class="preset-rich-row1">' +
           statusHtml +
-          '<span class="preset-list-name" title="' + escHtml(p.name) + '">' + escHtml(titleText) + '</span>' +
+          '<span class="preset-list-name" title="' + escHtml(p.name) + '">' + escHtml(titleText) + selfGenBadge + '</span>' +
           '<button class="btn-ref-copy" data-ref="' + escHtml(titleText) + '" onclick="copyRefNumber(this.dataset.ref,this)" title="管理番号をコピー（&quot;番号&quot;形式）"><svg class="icon-copy" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="1" width="9" height="9" rx="1.5"/><rect x="1" y="4" width="9" height="9" rx="1.5"/></svg></button>' +
           (isLoaded ? '<span class="preset-loaded-badge">編集中</span>' : '') +
         '</div>' +
@@ -2899,7 +2960,7 @@
 
   // ========== 荷姿カスタムプリセット ==========
   const PACKING_PRESETS_KEY  = 'customPackings_v1';
-  const DEFAULT_PACKINGS = ['カートン','パレット','ドラム缶','袋（バッグ）','木箱','スチール缶','バルク','コイル','ロール'];
+  const DEFAULT_PACKINGS = ['カートン','パレット','ドラム缶','袋（バッグ）','木箱','スチール缶','バルク','コイル','ロール','梱包なし'];
 
   function getPackingList() {
     try {

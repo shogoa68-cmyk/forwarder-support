@@ -319,6 +319,14 @@
           複数行の費用明細をまとめて登録し、見積タブの「🗂️ 行を挿入」→「📦 保存パターン」からそのまま呼び出せます（<strong>☁️ チーム共有・ログインが必要</strong>）。
         </p>
         <div class="lcrp-toolbar">
+          <div class="lcrp-list-filters">
+            <div class="lcrp-dir-toggle lcrp-dir-toggle--sm" role="radiogroup" aria-label="方向で絞り込み">
+              <label class="lcrp-dir-opt"><input type="radio" name="lcRpListDir" value="" checked onchange="lcRpFilterList()"><span>すべて</span></label>
+              <label class="lcrp-dir-opt"><input type="radio" name="lcRpListDir" value="export" onchange="lcRpFilterList()"><span>📤 輸出</span></label>
+              <label class="lcrp-dir-opt"><input type="radio" name="lcRpListDir" value="import" onchange="lcRpFilterList()"><span>📥 輸入</span></label>
+            </div>
+            <input type="search" id="lcRpListSearch" class="lcrp-input lcrp-list-search" placeholder="🔍 名称・タグで検索" oninput="lcRpFilterList()">
+          </div>
           <button class="lcrp-btn-primary" onclick="lcRpNew()">＋ 新規プリセット作成</button>
         </div>
         <div class="lcrp-list-wrap" id="lcRpListWrap">
@@ -340,6 +348,16 @@
         <div class="lcrp-form-row">
           <input type="text" id="lcRpEditNote" class="lcrp-input" placeholder="メモ（任意・チームに共有されます）" maxlength="120">
         </div>
+        <div class="lcrp-form-row lcrp-form-row--meta">
+          <div class="lcrp-dir-toggle" role="radiogroup" aria-label="大分類（輸出/輸入）">
+            <label class="lcrp-dir-opt"><input type="radio" name="lcRpEditDir" value=""><span>共通</span></label>
+            <label class="lcrp-dir-opt"><input type="radio" name="lcRpEditDir" value="export"><span>📤 輸出</span></label>
+            <label class="lcrp-dir-opt"><input type="radio" name="lcRpEditDir" value="import"><span>📥 輸入</span></label>
+          </div>
+          <div id="lcRpEditTags" class="lcrp-tags-input">
+            <input type="text" id="lcRpEditTagEntry" class="lcrp-tag-entry" placeholder="タグを入力しEnter（例：航空／緊急）" autocomplete="off">
+          </div>
+        </div>
         <div class="lcrp-edit-rows-head">
           <span>明細</span>
           <span class="lcrp-edit-rowcount" id="lcRpEditRowCount"></span>
@@ -355,6 +373,7 @@
                 <th class="lcrp-th-ccy" title="上段＝支払い（仕入）通貨、下段＝請求（売値）通貨">通貨<br><small><span class="lcrp-tag lcrp-tag-cost">仕</span>／<span class="lcrp-tag lcrp-tag-sell">売</span></small></th>
                 <th class="lcrp-th-price" title="上段＝支払い単価（仕入）、下段＝請求単価（売値）">単価<br><small><span class="lcrp-tag lcrp-tag-cost">仕</span>／<span class="lcrp-tag lcrp-tag-sell">売</span></small></th>
                 <th class="lcrp-th-tax" title="ON にすると消費税10%が自動計算され、品名先頭に「*」が付きます">課税</th>
+                <th class="lcrp-th-mstr" title="品名・単位・カテゴリ・取引先・代表単価をマスターへ登録します">📇</th>
               </tr>
             </thead>
             <tbody id="lcRpEditRows"></tbody>
@@ -1910,11 +1929,11 @@
     <!-- 4. パレタイズシミュレーション -->
     <div class="card">
       <div class="section-title">🔲 パレタイズシミュレーション</div>
-      <p class="calc-desc">パレット上に箱が何個積めるかをシミュレーションします。最も効率的な向きを自動選択します。<br>
+      <p class="calc-desc">サイズ・重量が異なる複数品種を登録すると、3Dビンパッキングで効率よく混載できる配分（何をどのパレットに何個積むか）を自動提案し、3Dプレビューで確認できます。<br>
         <span style="font-size:11px;line-height:1.9;">📦 標準パレットサイズ：T11（日本標準） <strong>1100×1100mm</strong>　／　ISO/EUR-2 <strong>1200×1000mm</strong>　／　EUR pallet <strong>1200×800mm</strong>　／　北米標準 <strong>1219×1016mm</strong>（48×40インチ）</span></p>
       <div class="calc-shared-opts">
         <div class="calc-field"><span class="calc-label">単位（全行共通／カスタムパレット含む）</span>
-          <select id="pal-unit" class="calc-unit-select">
+          <select id="pal-unit" class="calc-unit-select" onchange="onPalUnitChange()">
             <option value="mm">mm</option>
             <option value="cm">cm</option>
             <option value="in">inch</option>
@@ -1934,7 +1953,8 @@
           <div class="calc-field"><span class="calc-label">パレット縦</span><input type="number" class="calc-input" id="pal-pw" placeholder="1100" style="width:100px;"></div>
           <div class="calc-field"><span class="calc-label">パレット横</span><input type="number" class="calc-input" id="pal-pd" placeholder="1100" style="width:100px;"></div>
         </div>
-        <div class="calc-field"><span class="calc-label">積み段数（全行共通）</span><input type="number" class="calc-input" id="pal-layers" value="5" min="1" style="width:70px;"></div>
+        <div class="calc-field"><span class="calc-label">最大積み付け高さ（全行共通・上の単位に従う）</span><input type="number" class="calc-input" id="pal-max-height" value="1500" min="1" style="width:90px;" oninput="this.dataset.userEdited='1'"></div>
+        <div class="calc-field"><span class="calc-label">パレット最大積載重量 kg（任意）</span><input type="number" class="calc-input" id="pal-max-weight" placeholder="1000" min="0" style="width:90px;"></div>
       </div>
       <div class="multi-row-wrap" id="pal-rows-wrap">
         <div class="calc-multi-row">
@@ -1942,6 +1962,7 @@
           <div class="calc-field"><span class="calc-label">箱 長さ</span><input type="number" class="calc-input" data-key="l" placeholder="400" min="0"></div>
           <div class="calc-field"><span class="calc-label">箱 幅</span><input type="number" class="calc-input" data-key="w" placeholder="300" min="0"></div>
           <div class="calc-field"><span class="calc-label">箱 高さ</span><input type="number" class="calc-input" data-key="h" placeholder="250" min="0"></div>
+          <div class="calc-field"><span class="calc-label">1個の重量 kg（任意）</span><input type="number" class="calc-input" data-key="weight" placeholder="10" min="0"></div>
           <div class="calc-field"><span class="calc-label">総個数（任意）</span><input type="number" class="calc-input" data-key="total" placeholder="100" min="1" style="width:90px;"></div>
           <button class="btn-row-del" onclick="removeCalcRow(this)" title="この行を削除" style="display:none;">×</button>
         </div>
@@ -2323,6 +2344,7 @@
 
       <!-- 📩 メール取込：開いている見積へ行を挿入 or 新規展開 -->
       <button type="button" class="save-btn save-btn-import" onclick="openEmailImport()" title="メール本文を貼り付けて、この見積に行を挿入（または新規案件として展開）">📩 メール取込</button>
+      <button type="button" class="save-btn save-btn-import" onclick="openSubconRequestMail()" title="この見積の案件情報と、選んだサブコン宛ての明細から、見積・作業の依頼メール（定型文）を作成します。仕入単価・備考は載せません">✉️ サブコン依頼メール</button>
 
       <span class="save-toolbar-sep"></span>
 
@@ -3522,6 +3544,7 @@
                   <button type="button" class="me-add-btn" onclick="addPackingRow()">＋ 荷姿を追加</button>
                   <button type="button" class="me-add-btn pki-open-btn" onclick="openPackingImport()" title="お客様から提供された物量表（パッキングリスト等）を貼り付けて一括登録">📋 貼り付けで一括登録</button>
                   <button type="button" class="me-add-btn van-jump-btn" onclick="jumpToVanningSimulator()" title="計算タブのバンニングシミュレーター（3D積み付けプレビュー）を開きます。戻るボタンでこの画面に戻れます">🧊 バンニングシミュレーターへ</button>
+                  <button type="button" class="me-add-btn pal-jump-btn" onclick="jumpToPalletizeSimulator()" title="計算タブのパレタイズシミュレーター（3D積み付けプレビュー）を開きます。戻るボタンでこの画面に戻れます">🔲 パレタイズシミュレーターへ</button>
                 </div>
                 <input type="hidden" id="cond-packing-data" />
                 <input type="hidden" id="cond-packing-patterns" />
@@ -3669,6 +3692,16 @@
                           <button type="button" class="user-cat-add-btn" onclick="doAddUserCat()">＋ 追加</button>
                         </div>
                         <div style="margin-top:5px; font-size:11px; color:#888;">※ カテゴリ削除後、そのカテゴリが設定された行は「未設定」になります。<br>※ カスタムカテゴリはブラウザの localStorage に保存されます（同じブラウザ内のみ有効）。</div>
+                      </details>
+                    </div>
+                    <div id="catOrderPanel">
+                      <details id="catOrderDetails">
+                        <summary onclick="renderCatOrderPanel()">⇅ カテゴリ並び順（「⇅カテゴリ」ソートで使う順序）</summary>
+                        <div id="catOrderList" class="cat-order-list"></div>
+                        <div class="cat-order-actions">
+                          <button type="button" class="cat-order-reset-btn" onclick="resetCatOrder()">既定の順序に戻す</button>
+                        </div>
+                        <div style="margin-top:5px; font-size:11px; color:#888;">※ ドラッグで並べ替えると「⇅カテゴリ」ボタンの並び順に反映されます。</div>
                       </details>
                     </div>
                   </div>
@@ -4505,6 +4538,8 @@
 <script src="js/quote/users.js"></script>
 <script src="js/quote/subcon-insert.js"></script>
 <script src="js/quote/email-import.js"></script>
+<script src="js/quote/subcon-request-mail.js"></script>
+<script src="js/quote/memo-title.js"></script>
 <script src="js/quote/packing-import.js"></script>
 <script src="js/tweaks.js"></script>
 <script src="js/bookmarks.js"></script>

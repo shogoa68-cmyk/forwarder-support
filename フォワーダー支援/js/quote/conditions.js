@@ -22,7 +22,7 @@
     // コンテナ・荷姿・航路の複数エントリもクリア
     _containerEntries = [];
     _packingEntries = [];
-    _packingPatterns = [{ name: '', entries: _packingEntries, qtyLinks: {}, excludedUnits: [], hideLinks: {}, groupExcludeLinks: {} }];
+    _packingPatterns = [{ name: '', entries: _packingEntries, qtyLinks: {}, excludedUnits: [], hideLinks: {}, groupExcludeLinks: {}, routeLinks: {} }];
     _packingActiveIdx = 0;
     _routeEntries = [];
     if (typeof _renderContainerEntries === 'function') _renderContainerEntries();
@@ -90,6 +90,11 @@
       volume: (typeof window.getCargoVolumeText === 'function')
         ? window.getCargoVolumeText()
         : (_lastCargoMetrics.cbm > 0 ? `${_lastCargoMetrics.cbm.toFixed(3)} CBM` : ''),
+      // 複数パターン案件向けのツリー形式まとめ（単一パターン案件では null）。
+      // null のときは呼び出し側で weight/volume/packing を従来通り個別に使う。
+      cargoPatternTree: (typeof window.getCargoPatternTreeText === 'function')
+        ? window.getCargoPatternTreeText()
+        : null,
       packing: packing, hazmat: g('cond-hazmat'),
       free: g('condFreeText'),
       direction: _currentDirection || '',   // 'export' | 'import' | ''
@@ -324,10 +329,12 @@
       const txEl = tr.querySelector('[data-field="tx"]');
       if (txEl?.checked) tr.classList.add('taxed');
       else tr.classList.remove('taxed');
-      // % 計算モードの復元
+      // % 計算モード／売値ベースモードの復元
       const ppmodeEl = tr.querySelector('[data-field="ppmode"]');
       if (ppmodeEl?.value === 'pct' && typeof window._restorePctMode === 'function') {
         window._restorePctMode(rowId);
+      } else if (ppmodeEl?.value === 'sell' && typeof window._restoreSellMode === 'function') {
+        window._restoreSellMode(rowId);
       }
     });
     // % リンク参照セレクトを全行復元後に再構築（全行の UID が揃ったあとに実行）
@@ -568,8 +575,30 @@
     const schema = (window.MD_SCHEMA && window.MD_SCHEMA[field]) || [];
     const details = rec.details || {};
     const rows = schema
-      .filter(s => details[s.key])
-      .map(s => `<tr><th>${_cdEsc(s.label)}</th><td>${_cdEsc(details[s.key])}</td></tr>`)
+      .map(s => {
+        const raw = details[s.key];
+        if (s.contacts) {
+          if (!Array.isArray(raw) || !raw.length) return '';
+          const items = raw.map(c => {
+            const meta = [c.phone, c.email, c.other].filter(Boolean).join(' / ');
+            return `<div class="cd-contact-item"><b>${_cdEsc(c.name || '（氏名未入力）')}</b>` +
+              (meta ? `<span class="cd-contact-meta">${_cdEsc(meta)}</span>` : '') + `</div>`;
+          }).join('');
+          return `<tr><th>${_cdEsc(s.label)}</th><td>${items}</td></tr>`;
+        }
+        if (s.tags) {
+          if (!Array.isArray(raw) || !raw.length) return '';
+          const chips = raw.map(t => `<span class="cd-tag-chip">${_cdEsc(t)}</span>`).join('');
+          return `<tr><th>${_cdEsc(s.label)}</th><td>${chips}</td></tr>`;
+        }
+        if (!raw) return '';
+        if (s.link) {
+          const url = String(raw).trim();
+          const href = /^https?:\/\//i.test(url) ? url : 'https://' + url;
+          return `<tr><th>${_cdEsc(s.label)}</th><td><a href="${_cdEsc(href)}" target="_blank" rel="noopener noreferrer">${_cdEsc(url)}</a></td></tr>`;
+        }
+        return `<tr><th>${_cdEsc(s.label)}</th><td>${_cdEsc(raw)}</td></tr>`;
+      })
       .join('');
     title.textContent = '📇 ' + value;
     body.innerHTML =
@@ -637,7 +666,8 @@
     const rows = (typeof _cloudRows !== 'undefined' && Array.isArray(_cloudRows)) ? _cloudRows : [];
     const origExists = cf.id && rows.some(row => row.id === cf.id);
     const cfRefBadge = cf.ref ? ' <span class="preset-cf-ref">(' + escHtml(cf.ref) + ')</span>' : '';
-    const genBadge = cf.gen ? ' <span class="preset-cf-gen" title="オリジナルから数えた世代">' + cf.gen + '代目</span>' : '';
+    // この案件自身の世代（コピー元の世代ではない）を「この案件は○代目」と明示して先頭に出す
+    const selfGenBadge = cf.gen ? '<span class="preset-cf-gen preset-cf-gen--self" title="オリジナルから数えた世代">この案件は ' + cf.gen + '代目</span> ' : '';
     const root = cf.root;
     const rootExists = !!(root && root.id && rows.some(row => row.id === root.id));
     const rootHtml = (root && cf.gen > 2)
@@ -647,7 +677,7 @@
         '</div>'
       : '';
     box.innerHTML =
-      '<div class="qf-copied-from-main">📋 コピー元：<span class="cloud-cf-name">' + escHtml(cf.name || '不明') + cfRefBadge + '</span>' + genBadge +
+      '<div class="qf-copied-from-main">' + selfGenBadge + '📋 コピー元：<span class="cloud-cf-name">' + escHtml(cf.name || '不明') + cfRefBadge + '</span>' +
       (origExists ? ' <button type="button" class="btn-cf-preview" onclick="cloudPreviewPreset(\'' + encodeURIComponent(cf.id) + '\')" title="コピー元をプレビュー">プレビュー</button>' : '') +
       '</div>' + rootHtml;
     box.hidden = false;
@@ -1024,8 +1054,13 @@
     if (head && fl) {
       let startX, startY, startL, startT;
       function onMove(e) {
-        fl.style.left   = Math.max(0, Math.min(window.innerWidth  - 80, startL + e.clientX - startX)) + 'px';
-        fl.style.top    = Math.max(0, Math.min(window.innerHeight - 40, startT + e.clientY - startY)) + 'px';
+        // 固定値（80px/40px）でクランプすると、付箋の実際の幅・高さより小さい場合に
+        // 右端・下端に寄せたとき閉じるボタン（ヘッダー右側）が画面外へ出て押せなくなる
+        // 不具合があったため、実際の要素サイズを基準にクランプする
+        const w = fl.offsetWidth  || 80;
+        const h = fl.offsetHeight || 40;
+        fl.style.left   = Math.max(0, Math.min(window.innerWidth  - w, startL + e.clientX - startX)) + 'px';
+        fl.style.top    = Math.max(0, Math.min(window.innerHeight - h, startT + e.clientY - startY)) + 'px';
       }
       function onUp() {
         document.removeEventListener('mousemove', onMove);
@@ -1559,7 +1594,7 @@
   // switchPackingPattern() で適用。個数・R/T・W/M・C/W等、単位を問わず任意の行で使える）
   // excludedUnits: ["単位\x00数量", ...]。「単位で数量を一括変更」パネル（scenario.js）で
   // チェックを外し「一括反映」の対象から除外した単位グループを、パターンごとに記憶する
-  let _packingPatterns  = [{ name: '', entries: _packingEntries, qtyLinks: {}, excludedUnits: [], hideLinks: {}, groupExcludeLinks: {} }];
+  let _packingPatterns  = [{ name: '', entries: _packingEntries, qtyLinks: {}, excludedUnits: [], hideLinks: {}, groupExcludeLinks: {}, routeLinks: {} }];
   let _packingActiveIdx = 0;
 
   function _renderContainerEntries() {
@@ -2004,11 +2039,11 @@
       const label = pt.name || `パターン${i + 1}`;
       const active = i === _packingActiveIdx;
       const n = (pt.entries || []).filter(e => e && e.pkg).length;
-      const shown = pt.showInQuote !== false;   // 未設定（旧データ）は表示扱い
+      const shown = _isPatternVisibleInQuote(pt, i);
       return `<span class="cd-pattern-tab${active ? ' is-active' : ''}${shown ? '' : ' is-hidden-from-quote'}" onclick="switchPackingPattern(${i})" title="クリックでこのパターンに切り替え（他のパターンの内容は保持されます）">` +
         `<span class="cd-pattern-tab-label">${_escMulti(label)}</span>` +
         (n ? `<span class="cd-pattern-tab-count">${n}</span>` : '') +
-        `<span class="cd-pattern-tab-vis" onclick="event.stopPropagation();togglePackingPatternVisibility(${i})" title="${shown ? 'クリックで「見積書に表示しない」に切替（社内比較用のみになります）' : 'クリックで「見積書に表示」に切替'}">${shown ? '📄' : '🔒'}</span>` +
+        `<span class="cd-pattern-tab-vis" onclick="event.stopPropagation();togglePackingPatternVisibility(${i})" title="${shown ? 'クリックで「見積書に表示しない」に固定します（社内比較用のみになります）' : 'クリックで「見積書に表示」に固定します（選択中のタブでなくても表示されます）'}">${shown ? '📄' : '🔒'}</span>` +
         `<span class="cd-pattern-tab-rename" onclick="event.stopPropagation();renamePackingPattern(${i})" title="パターン名を変更">✎</span>` +
         (_packingPatterns.length > 1 ? `<span class="cd-pattern-tab-del" onclick="event.stopPropagation();removePackingPattern(${i})" title="このパターンを削除">×</span>` : '') +
         `</span>`;
@@ -2024,6 +2059,8 @@
     _packingEntries = _packingPatterns[i].entries;
     _renderPackingEntries();
     _applyPatternQtyLinks(i);
+    _applyPatternRouteLinks(i);
+    _renderRouteEntries();
     if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
     if (typeof scheduleSnapshot === 'function') scheduleSnapshot();
   };
@@ -2100,6 +2137,42 @@
     if (typeof _applyPatternGroupExcludeLinks === 'function') _applyPatternGroupExcludeLinks(i);
   }
 
+  // 幹線輸送：航路の有効/無効（✓/—）を、物量パターンに紐付けて適用する。
+  // 紐付けが無い航路（そのパターンでまだ切り替えたことがない航路）は現状の enabled のまま触らない
+  // （_applyPatternQtyLinks の「紐付けが無ければ値を書き換えない」方針と同じ）。
+  function _applyPatternRouteLinks(i) {
+    const pat = _packingPatterns[i];
+    const links = (pat && pat.routeLinks) || {};
+    (_routeEntries || []).forEach(r => {
+      if (r.rid && Object.prototype.hasOwnProperty.call(links, r.rid)) {
+        r.enabled = !!links[r.rid];
+      }
+    });
+  }
+
+  // ユーザーが航路の✓/—を直接切り替えた場合のみ、現在アクティブな物量パターンへ
+  // 紐付けを記録する（_recordPatternHideState と同じ考え方）。パターンを複数使っている
+  // 案件でなければ記録しない＝従来通り全パターン共通の単一状態のまま
+  function _recordPatternRouteState(i) {
+    if (!_packingPatterns || _packingPatterns.length < 2) return;
+    const pat = _packingPatterns[_packingActiveIdx];
+    const r = _routeEntries[i];
+    if (!pat || !r || !r.rid) return;
+    if (!pat.routeLinks) pat.routeLinks = {};
+    pat.routeLinks[r.rid] = r.enabled !== false;
+    _syncPackingPatternsData();
+  }
+
+  // 航路チップに安定した識別子（rid）を付与する。旧データ（rid 未保存）の補完も兼ねる
+  let _routeIdSeq = 0;
+  function _newRouteId() {
+    _routeIdSeq += 1;
+    return 'r' + Date.now().toString(36) + _routeIdSeq.toString(36);
+  }
+  function _ensureRouteIds() {
+    (_routeEntries || []).forEach(r => { if (!r.rid) r.rid = _newRouteId(); });
+  }
+
   // 「単位で数量を一括変更」パネル（scenario.js）の除外チェック状態を、表示中のパターンへ
   // 記録・参照するためのヘルパー。旧データ（excludedUnits 未定義）は「除外なし」扱い。
   window._udIsUnitExcluded = function (key) {
@@ -2151,6 +2224,12 @@
         pat.groupExcludeLinks[svKey] = typeof _excludedGroups !== 'undefined' && _excludedGroups.has(svKey);
       }
     });
+    // 幹線輸送：航路の有効/無効も現状のまま確定させる（qtyLinks/hideLinks と同じ理由）
+    if (!pat.routeLinks) pat.routeLinks = {};
+    _ensureRouteIds();
+    (_routeEntries || []).forEach(r => {
+      if (r.rid) pat.routeLinks[r.rid] = r.enabled !== false;
+    });
   }
 
   // 客先向け出力（御見積書PDF・プレビュー・メール本文）にこのパターンを含めるかどうかの切替。
@@ -2159,7 +2238,9 @@
   window.togglePackingPatternVisibility = function (i) {
     const pt = _packingPatterns[i];
     if (!pt) return;
-    pt.showInQuote = (pt.showInQuote === false);   // false→true→false…と反転
+    // 現在の実効表示状態（未設定時はアクティブタブかどうかで決まる）の反対を、明示的な
+    // true/false として固定する。以後はタブ切替に関わらずこの指定が優先される
+    pt.showInQuote = !_isPatternVisibleInQuote(pt, i);
     _renderPackingPatternTabs();
     _syncPackingPatternsData();
     if (typeof window.renderQuoteCargoInfo === 'function') window.renderQuoteCargoInfo();
@@ -2176,7 +2257,7 @@
     // これをしないと、複数パターンを使い始める前に入力した数量がどのパターンにも
     // 属さないまま扱われ、後で他パターンへ切替→戻すと値が引き継がれない不具合になる
     _snapshotAllQtyIntoPattern(_packingActiveIdx);
-    _packingPatterns.push({ name: name.trim() || `パターン${_packingPatterns.length + 1}`, entries: [], qtyLinks: {}, excludedUnits: [], hideLinks: {}, groupExcludeLinks: {} });
+    _packingPatterns.push({ name: name.trim() || `パターン${_packingPatterns.length + 1}`, entries: [], qtyLinks: {}, excludedUnits: [], hideLinks: {}, groupExcludeLinks: {}, routeLinks: {} });
     _packingActiveIdx = _packingPatterns.length - 1;
     _packingEntries = _packingPatterns[_packingActiveIdx].entries;
     _renderPackingEntries();
@@ -2203,6 +2284,7 @@
       excludedUnits: [...(src.excludedUnits || [])],   // 一括反映の除外設定も複製元を引き継ぐ
       hideLinks: { ...(src.hideLinks || {}) },   // 見積書表示/非表示の紐付けも複製元を引き継ぐ
       groupExcludeLinks: { ...(src.groupExcludeLinks || {}) },   // サブコン・サブコン×パターン見出しの含む/除外も複製元を引き継ぐ
+      routeLinks: { ...(src.routeLinks || {}) },   // 航路の有効/無効も複製元を引き継ぐ
     };
     _packingPatterns.splice(_packingActiveIdx + 1, 0, cloned);   // 複製元の直後に挿入
     _packingActiveIdx += 1;
@@ -2252,7 +2334,7 @@
     if (dl && !dl.dataset.filled) {
       const list = (typeof window.getPackingList === 'function')
         ? window.getPackingList()
-        : ['カートン','パレット','ドラム缶','袋（バッグ）','木箱','バルク'];
+        : ['カートン','パレット','ドラム缶','袋（バッグ）','木箱','バルク','梱包なし'];
       dl.innerHTML = list.map(p => `<option value="${_escMulti(p)}"></option>`).join('');
       dl.dataset.filled = '1';
     }
@@ -2357,11 +2439,22 @@
     }).join('\n');
   }
 
-  // 「見積書に表示」がONのパターンのみを対象にする（🔒に切り替えたパターンは社内比較用のみ）
+  // このパターンを見積書（PDF・プレビュー・メール本文）に出力するかどうか：
+  // ・showInQuote === false … 明示的に「見積書に表示しない」（🔒）＝常に除外
+  // ・showInQuote === true  … 明示的に「見積書に表示」（📄）＝アクティブタブでなくても常に含める
+  //                           （複数パターンをあえて併記したい場合の追加表示用）
+  // ・未設定（既定）        … 現在アクティブなタブのパターンのみ表示。タブを切り替えると
+  //                           見積書に出る物量パターンも自動的に切り替わる
+  function _isPatternVisibleInQuote(pt, i) {
+    if (pt.showInQuote === false) return false;
+    if (pt.showInQuote === true) return true;
+    return i === _packingActiveIdx;
+  }
+
   function _visiblePackingPatterns() {
     return (_packingPatterns || [])
       .map((pt, i) => ({ pt, i }))
-      .filter(({ pt }) => pt.showInQuote !== false);
+      .filter(({ pt, i }) => _isPatternVisibleInQuote(pt, i));
   }
 
   // 表示対象パターンごとに blockFn(pt, i) の結果をまとめる共通処理。
@@ -2370,10 +2463,14 @@
   // 【パターン名】を前置きし、改行で区切る（荷姿明細・総重量・総容積で共用）。
   function _buildPatternBreakdownText(blockFn) {
     const visible = _visiblePackingPatterns();
+    // パターン名は「表示対象が複数件」ではなく「案件に複数パターンが登録されているか」で
+    // 判定する。アクティブタブのみ表示（既定挙動）で表示件数が1件に絞られていても、
+    // 他にもパターンが存在する案件では「どのパターンか」が分かるよう名称を残す。
+    const multiPattern = (_packingPatterns || []).length > 1;
     const blocks = visible.map(({ pt, i }) => {
       const text = blockFn(pt, i);
       if (!text) return '';
-      return visible.length > 1 ? `【${pt.name || `パターン${i + 1}`}】${text}` : text;
+      return multiPattern ? `【${pt.name || `パターン${i + 1}`}】${text}` : text;
     }).filter(Boolean);
     return blocks.join('\n');
   }
@@ -2416,6 +2513,43 @@
       const { cbm } = _patternWeightCbm(pt.entries);
       return cbm > 0 ? `${cbm.toFixed(3)} CBM` : '';
     });
+  };
+
+  // 複数パターンを使っている案件向け：荷姿明細・総重量・総容積を、パターンごとに
+  // ツリー形式（【パターン名】の下に3項目をぶら下げる）でまとめたテキストを返す。
+  // 【パターンA】【パターンA】【パターンA】と項目ごとに同じパターン名を繰り返す
+  // 従来表示だと冗長で見づらいとの指摘を受けて追加。
+  //
+  // 単一パターンの案件（複数パターン機能を使っていない）では null を返す。
+  // 呼び出し側はその場合、従来通り getPackingDetailText/getCargoWeightText/
+  // getCargoVolumeText を個別の項目として表示する（見た目を変えないため）。
+  window.getCargoPatternTreeText = function () {
+    if (window.isCargoSizeUnknown()) return null;
+    if ((_packingPatterns || []).length <= 1) return null;
+    const visible = _visiblePackingPatterns();
+    const blocks = visible.map(({ pt, i }) => {
+      const packingRaw = _packingEntriesText(pt.entries);
+      const { kg, cbm } = _patternWeightCbm(pt.entries);
+      const lines = [];
+      if (packingRaw) lines.push(`荷姿明細：${packingRaw.replace(/\n/g, '／')}`);
+      if (kg > 0) lines.push(`総重量：${kg.toLocaleString()} kg`);
+      if (cbm > 0) lines.push(`総容積：${cbm.toFixed(3)} CBM`);
+      if (!lines.length) return '';
+      const name = pt.name || `パターン${i + 1}`;
+      const treeLines = lines.map((l, li) => (li === lines.length - 1 ? '┗ ' : '┣ ') + l);
+      return `【${name}】\n${treeLines.join('\n')}`;
+    }).filter(Boolean);
+    return blocks.join('\n\n');
+  };
+
+  // 複数パターンを使っている案件で、現在アクティブなパターン名を返す（PDF等の出力
+  // ファイル名への反映用）。単一パターンの案件（複数パターン機能を使っていない）では
+  // null を返す＝ファイル名は従来通り変わらない。
+  window.getActivePatternName = function () {
+    if ((_packingPatterns || []).length <= 1) return null;
+    const pt = _packingPatterns[_packingActiveIdx];
+    if (!pt) return null;
+    return pt.name || `パターン${_packingActiveIdx + 1}`;
   };
 
   // 輸送モードに応じた課金重量（LCL＝R/T・航空＝CW）の1行を、PDF/プレビュー/メールで
@@ -2600,16 +2734,20 @@
         entries: Array.isArray(pt && pt.entries)
           ? pt.entries.map(e => (typeof e === 'string') ? { pkg: e, qty: 1, l:'', w:'', h:'', kg:'', stack:'可' } : e)
           : [],
-        showInQuote: (pt && pt.showInQuote === false) ? false : true,
+        // 明示的な true/false のみ保持し、未設定ならそのまま未設定に戻す
+        // （未設定＝「アクティブタブのみ表示」という既定挙動を復元後も効かせるため、
+        // ここで true に丸め込まない）
+        showInQuote: (pt && typeof pt.showInQuote === 'boolean') ? pt.showInQuote : undefined,
         qtyLinks: (pt && pt.qtyLinks && typeof pt.qtyLinks === 'object') ? pt.qtyLinks : {},
         excludedUnits: Array.isArray(pt && pt.excludedUnits) ? pt.excludedUnits : [],
         hideLinks: (pt && pt.hideLinks && typeof pt.hideLinks === 'object') ? pt.hideLinks : {},
         groupExcludeLinks: (pt && pt.groupExcludeLinks && typeof pt.groupExcludeLinks === 'object') ? pt.groupExcludeLinks : {},
+        routeLinks: (pt && pt.routeLinks && typeof pt.routeLinks === 'object') ? pt.routeLinks : {},
       }));
       _packingActiveIdx = (Number.isInteger(restoredPt.activeIdx) && _packingPatterns[restoredPt.activeIdx]) ? restoredPt.activeIdx : 0;
       _packingEntries = _packingPatterns[_packingActiveIdx].entries;
     } else {
-      _packingPatterns = [{ name: '', entries: _packingEntries, qtyLinks: {}, excludedUnits: [], hideLinks: {}, groupExcludeLinks: {} }];
+      _packingPatterns = [{ name: '', entries: _packingEntries, qtyLinks: {}, excludedUnits: [], hideLinks: {}, groupExcludeLinks: {}, routeLinks: {} }];
       _packingActiveIdx = 0;
     }
     _renderContainerEntries();
@@ -2745,11 +2883,17 @@
         : '';
       const _chipCls = ng ? ' z2-route-chip--ng' : (on ? '' : ' z2-route-chip--off');
       const _atFirst = i === 0, _atLast = i === _routeEntries.length - 1;
+      // 物量パターンを複数使っている案件で、この航路の有効/無効がアクティブなパターンに
+      // 紐付け記録済みの場合はトグルに印を付ける（pq-pattern-linked と同じ考え方）
+      const _routeLinked = (_packingPatterns && _packingPatterns.length > 1 && r.rid) &&
+        Object.prototype.hasOwnProperty.call((_packingPatterns[_packingActiveIdx] && _packingPatterns[_packingActiveIdx].routeLinks) || {}, r.rid);
+      const _toggleTitle = (on ? '無効にする（一時停止）' : '有効にする') +
+        (_routeLinked ? '\n（この航路の有効/無効は現在のパターンに紐付けて記憶されています）' : '');
       return `<span class="z2-route-chip${_chipCls}">`
         + `<span class="z2-route-drag" title="ドラッグして並び替え">⠿</span>`
         + `<button type="button" class="z2-route-move" onclick="moveRouteEntry(${i},-1)" ${_atFirst ? 'disabled' : ''} title="上へ移動">↑</button>`
         + `<button type="button" class="z2-route-move" onclick="moveRouteEntry(${i},1)" ${_atLast ? 'disabled' : ''} title="下へ移動">↓</button>`
-        + `<button type="button" class="z2-route-toggle" onclick="toggleRouteEntry(${i})" title="${on ? '無効にする（一時停止）' : '有効にする'}">${on ? '✓' : '—'}</button>`
+        + `<button type="button" class="z2-route-toggle${_routeLinked ? ' route-pattern-linked' : ''}" onclick="toggleRouteEntry(${i})" title="${_escMulti(_toggleTitle)}">${on ? '✓' : '—'}</button>`
         + `<span class="z2-route-carrier">${_escMulti(r.carrier || '—')}</span>`
         + _roleChip + _actualChip + _ngChip
         + (r.service ? `<span class="z2-route-service">${_escMulti(r.service)}</span>` : '')
@@ -2837,10 +2981,10 @@
       return;
     }
     // carrier=契約先（ブッキング/支払先）、carrierRole=その役割、actualCarrier=実運送人（実際の船会社）
-    const flags = _pendingRouteFlags || { enabled: true, ng: false, ngReason: '' };
+    const flags = _pendingRouteFlags || { enabled: true, ng: false, ngReason: '', rid: null };
     _pendingRouteFlags = null;
     _routeEntries.push({ carrier, service, carrierRole, actualCarrier, pol, via, pod, tt,
-                         enabled: flags.enabled, ng: flags.ng, ngReason: flags.ngReason });
+                         enabled: flags.enabled, ng: flags.ng, ngReason: flags.ngReason, rid: flags.rid || _newRouteId() });
     if (flags.ng && typeof quoteShowToast === 'function') {
       quoteShowToast('🚫 使用不可の記録を引き継ぎました', 'info', 1800);
     }
@@ -2892,6 +3036,9 @@
     _routeEntries[i] = Object.assign({}, cur, turnOn
       ? { enabled: true, ng: false, ngReason: '' }
       : { enabled: false });
+    // 物量パターンを複数使っている案件では、この有効/無効をアクティブなパターンに記憶する
+    // （パターンを切り替えると、切替先で最後に記録した状態へ自動で戻る）
+    _recordPatternRouteState(i);
     _renderRouteEntries();
     if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
     if (typeof scheduleSnapshot === 'function') scheduleSnapshot();
@@ -2937,8 +3084,8 @@
     set('z2Pod', r.pod);
     set('z2Tt', r.tt);
     // 契約形態パネルは常時表示のため展開処理は不要
-    // 無効・使用不可の状態は再登録時に引き継ぐ（✎ で消えてしまわないように）
-    _pendingRouteFlags = { enabled: r.enabled !== false && !r.ng, ng: !!r.ng, ngReason: r.ngReason || '' };
+    // 無効・使用不可の状態・rid（パターン紐付けの識別子）は再登録時に引き継ぐ（✎ で消えてしまわないように）
+    _pendingRouteFlags = { enabled: r.enabled !== false && !r.ng, ng: !!r.ng, ngReason: r.ngReason || '', rid: r.rid };
     // エントリを削除して再描画
     _routeEntries.splice(i, 1);
     _renderRouteEntries();
@@ -2957,6 +3104,8 @@
     try { _routeEntries = (data && data.value) ? JSON.parse(data.value) : []; }
     catch(e) { _routeEntries = []; }
     if (!Array.isArray(_routeEntries)) _routeEntries = [];
+    _ensureRouteIds();   // 旧データ（rid 未保存）を補完
+    _applyPatternRouteLinks(_packingActiveIdx);   // 読込時点のアクティブパターンの有効/無効を適用
     _renderRouteEntries();
   }
 

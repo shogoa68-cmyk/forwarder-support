@@ -196,7 +196,13 @@
     }).join('') + '</div>';
   }
 
-  function mountPreview(hostSelector, cargoRows, contDefs, initialKey) {
+  // opts.precomputed：呼び出し側で既に配置計算済みの packResult 相当オブジェクトを渡すと、
+  // packContainer() を呼ばずそれをそのまま描画に使う（パレタイズのレイヤー積みパターンなど、
+  // 汎用ヒューリスティックとは別のアルゴリズムで配置を決めたい場合に使用）。
+  // initialKey のコンテナに対してのみ有効（コンテナ切替セレクトで他キーへ変更した場合は
+  // 通常どおり packContainer() で計算する）。
+  function mountPreview(hostSelector, cargoRows, contDefs, initialKey, opts) {
+    opts = opts || {};
     const hostEl = document.querySelector(hostSelector);
     if (!hostEl || !cargoRows.length) return;
 
@@ -229,6 +235,7 @@
     };
 
     function getPackResult(key) {
+      if (opts.precomputed && key === initialKey) return opts.precomputed;
       if (!state.cache[key]) state.cache[key] = packContainer(cargoRows, contDefs[key]);
       return state.cache[key];
     }
@@ -340,7 +347,9 @@
       });
 
       const camera = new THREE.PerspectiveCamera(45, 1, 1, Math.max(cont.l, cont.w, cont.h) * 20);
-      const renderer = new THREE.WebGLRenderer({ antialias: true });
+      // preserveDrawingBuffer: PDF出力（canvas.toDataURL()でのスナップショット取得）のために必要。
+      // 既定（false）だと描画直後にバッファがクリアされ得るため、取り込み時に空白画像になることがある。
+      const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
       renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
       canvasHost.innerHTML = '';
       renderer.domElement.className = 'van3d-canvas';
@@ -429,13 +438,20 @@
     canvasHost.innerHTML = '<div class="van3d-loading">⏳ 3D配置を計算中...</div>';
     setTimeout(() => { buildScene(state.contKey); }, 0);
 
+    // 1つの履歴エントリ内に複数の mountPreview（例：パレタイズのパレット別3Dプレビュー）が
+    // 同居するケースがあるため、クリーンアップ関数は配列で蓄積し、×ボタン押下時に全て実行する
     const entryEl = hostEl.closest('.calc-history-entry');
     if (entryEl) {
-      entryEl._van3dCleanup = () => {
+      const cleanup = () => {
         disposeScene();
         if (resizeObs) resizeObs.disconnect();
         else window.removeEventListener('resize', resizeAndRender);
       };
+      if (!entryEl._van3dCleanups) {
+        entryEl._van3dCleanups = [];
+        entryEl._van3dCleanup = () => { entryEl._van3dCleanups.forEach(fn => fn()); };
+      }
+      entryEl._van3dCleanups.push(cleanup);
     }
   }
 

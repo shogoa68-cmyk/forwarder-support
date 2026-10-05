@@ -50,8 +50,11 @@
     })();
     // SPOT表記（日付以外の自由記述）は期間の終わりを判定できないため未指定（=start）扱い
     const rawEnd = (document.getElementById('qf-valid-until')?.value || '').trim();
-    const end = (/^\d{4}-\d{2}-\d{2}$/.test(rawEnd) ? rawEnd : '') || start;
-    return { start, end };
+    const isIsoDate = /^\d{4}-\d{2}-\d{2}$/.test(rawEnd);
+    const end = (isIsoDate ? rawEnd : '') || start;
+    // SPOT中は end=start（1日だけ）に潰れてしまい、未来日のサーチャージが軒並み
+    // 「期間外」判定されて非表示になってしまうため、判定側で SPOT かどうかを区別できるようにする
+    return { start, end, isSpot: !!rawEnd && !isIsoDate };
   }
   // 行の適用期間が見積の生きている期間と一切重ならなければ true（期間未設定の行は常に有効＝false）。
   // 日付は ISO(YYYY-MM-DD) なので文字列比較で大小判定できる。
@@ -63,7 +66,10 @@
     const vf = document.getElementById(`vf-${id}`)?.value || '';
     const vt = document.getElementById(`vt-${id}`)?.value || '';
     if (!vf && !vt) return false;        // 適用期間の指定がない行は対象外
-    const { start, end } = _quoteRefRange();
+    const { start, end, isSpot } = _quoteRefRange();
+    // 見積の有効期限が SPOT（自由記述）のときは終了日を判定できないため、
+    // 適用期間による絞り込みは行わず常に表示する
+    if (isSpot) return false;
     if (vt && vt < start) return true;   // 見積が生きている期間より前にサーチャージが終了済み
     if (vf && vf > end)   return true;   // 見積の有効期限までにサーチャージがまだ開始しない
     return false;
@@ -347,32 +353,53 @@
     const parentId = parentTr.id.replace('row-', '');
     const childTrs = trs.slice(1);
 
-    // 選択行全体（統合先を含む）の仕入・売合計を JPY換算で算出
-    let totalCostJpy = 0, totalBillJpy = 0, fxMissing = false;
+    // 選択行全体（統合先を含む）の仕入通貨・売通貨がすべて一致していれば、
+    // 換算せずその通貨のまま合算する（無用なJPY強制変換・換算誤差を避ける）。
+    // 通貨が混在している場合のみ、従来通りJPYへ換算して合算する。
+    const rowCcys = trs.map(tr => {
+      const id = tr.id.replace('row-', '');
+      return {
+        pc: document.getElementById(`pc-${id}`)?.value || 'JPY',
+        bc: document.getElementById(`bc-${id}`)?.value || 'JPY',
+      };
+    });
+    const commonCcy = rowCcys[0].pc;
+    const sameCurrency = rowCcys.every(c => c.pc === commonCcy && c.bc === commonCcy);
+    const targetCcy = sameCurrency ? commonCcy : 'JPY';
+
+    // 選択行全体（統合先を含む）の仕入・売合計を算出
+    let totalCost = 0, totalBill = 0, fxMissing = false;
     trs.forEach(tr => {
       const id = tr.id.replace('row-', '');
       const pq = val(`pq-${id}`), pp = val(`pp-${id}`);
       const bq = val(`bq-${id}`), bp = val(`bp-${id}`);
-      const pc = document.getElementById(`pc-${id}`)?.value || 'JPY';
-      const bc = document.getElementById(`bc-${id}`)?.value || 'JPY';
       const cost = pq * pp, bill = bq * bp;
-      const costJpy = pc === 'JPY' ? cost : (typeof toJPY === 'function' ? toJPY(cost, pc) : NaN);
-      const billJpy = bc === 'JPY' ? bill : (typeof toJPY === 'function' ? toJPY(bill, bc) : NaN);
-      if (isNaN(costJpy) || isNaN(billJpy)) fxMissing = true;
-      else { totalCostJpy += costJpy; totalBillJpy += billJpy; }
+      if (sameCurrency) {
+        totalCost += cost;
+        totalBill += bill;
+      } else {
+        const pc = document.getElementById(`pc-${id}`)?.value || 'JPY';
+        const bc = document.getElementById(`bc-${id}`)?.value || 'JPY';
+        const costJpy = pc === 'JPY' ? cost : (typeof toJPY === 'function' ? toJPY(cost, pc) : NaN);
+        const billJpy = bc === 'JPY' ? bill : (typeof toJPY === 'function' ? toJPY(bill, bc) : NaN);
+        if (isNaN(costJpy) || isNaN(billJpy)) fxMissing = true;
+        else { totalCost += costJpy; totalBill += billJpy; }
+      }
     });
+    // JPYは整数、外貨はセント単位まで丸める
+    const roundCcy = v => targetCcy === 'JPY' ? Math.round(v) : Math.round(v * 100) / 100;
 
-    // 統合先行を合計値へ上書き（独立通貨モードは解除し、連動モード・JPYへ統一）
+    // 統合先行を合計値へ上書き（独立通貨モードは解除し、連動モード・共通通貨へ統一）
     delete parentTr.dataset.bcIndep;
     if (typeof _setRowBcIndepUI === 'function') _setRowBcIndepUI(parentId, false);
     const pcEl = document.getElementById('pc-' + parentId);
     const pqEl = document.getElementById('pq-' + parentId);
     const ppEl = document.getElementById('pp-' + parentId);
     const mkEl = document.getElementById('mk-' + parentId);
-    if (pcEl) pcEl.value = 'JPY';
+    if (pcEl) pcEl.value = targetCcy;
     if (pqEl) pqEl.value = 1;
-    if (ppEl) ppEl.value = Math.round(totalCostJpy);
-    if (mkEl) mkEl.value = Math.round(totalBillJpy - totalCostJpy);
+    if (ppEl) ppEl.value = roundCcy(totalCost);
+    if (mkEl) mkEl.value = roundCcy(totalBill - totalCost);
     onPay(parentId);
 
     // 統合元の品名を備考へ自動記録（すでに備考があるときは上書きしない）
@@ -1080,9 +1107,13 @@
       });
     }
 
-    // % 計算モードを復元（コピー元が % モードなら複製先も同じモードに）
-    if (document.getElementById(`ppmode-${srcId}`)?.value === 'pct') {
+    // % 計算モード／売値ベースモードを復元（コピー元が同じモードなら複製先も引き継ぐ）
+    const srcPpmode = document.getElementById(`ppmode-${srcId}`)?.value;
+    if (srcPpmode === 'pct') {
       _setPctModeUI(newId, true);
+    } else if (srcPpmode === 'sell') {
+      _setSellModeUI(newId, true);
+      _calcFromSell(newId);
     }
 
     // subcon-child クラス等のグループ連結を即時反映（DOM並替でスクロール位置が変わらないよう保持）
@@ -1100,7 +1131,8 @@
     const allRows = Array.from(tbody.querySelectorAll('tr:not([data-virtual])'));
     if (allRows.length < 2) return;
     const getId = tr => tr.id.replace('row-', '');
-    const catOrder = cat => { const i = CAT_VALUES.indexOf(cat); return i === -1 ? 999 : i; };
+    const _catOrderList = (typeof getCategoryOrder === 'function') ? getCategoryOrder() : CAT_VALUES;
+    const catOrder = cat => { const i = _catOrderList.indexOf(cat); return i === -1 ? 999 : i; };
 
     // データ行＋直後の子リマークを1ブロックとして扱う（ソートで親から離れないように）。
     // 小計行（手動区切り）は従来通りソート対象外・末尾へ（E-6）。
@@ -1175,7 +1207,8 @@
     const tbody = document.getElementById('tableBody');
     const members = _groupMemberRows(svKey, ptKey);
     if (members.length < 2) return;
-    const catOrder = cat => { const i = CAT_VALUES.indexOf(cat); return i === -1 ? 999 : i; };
+    const _catOrderList = (typeof getCategoryOrder === 'function') ? getCategoryOrder() : CAT_VALUES;
+    const catOrder = cat => { const i = _catOrderList.indexOf(cat); return i === -1 ? 999 : i; };
     // データ行＋直後の子リマークを1ブロックとして扱う（ソートで親から離れないように）
     const blocks = members.map(tr => ({ row: tr, rows: [tr, ...getChildRemarks(tr.id.replace('row-', ''))] }));
     const sorted = [...blocks].sort((a, b) => {
@@ -1266,9 +1299,14 @@
     q('pq').oninput    = () => { _recordPatternQty(id); onPay(id); };
     q('pc').onchange   = () => onPay(id);
     q('pp').oninput    = () => onPay(id);
-    q('mk').oninput    = () => { calc(id); _recalcPctDependents(id); };
+    q('mk').oninput    = () => {
+      if (_isSellMode(id)) { _calcFromSell(id); _recalcPctDependents(id); if (typeof scheduleAutoSave === 'function') scheduleAutoSave(); return; }
+      calc(id); _recalcPctDependents(id);
+    };
     q('bc').onchange   = () => onBillCur(id);          // 売通貨を仕入通貨と別建てに
     { const bpEl2 = q('bp'); if (bpEl2) bpEl2.oninput = () => {
+        // 売値ベースモードでは売単価が入力値。乗せ幅はそのまま、仕入単価を逆算する
+        if (_isSellMode(id)) { _calcFromSell(id); _recalcPctDependents(id); if (typeof scheduleAutoSave === 'function') scheduleAutoSave(); return; }
         // 独立モードでは売単価を直接入力できる。基準額は換算値のままにして
         // 乗せ幅を逆算する（乗せ幅・売単価のどちらから入れても整合する）
         const base = parseFloat(bpEl2.dataset.base) || 0;
@@ -1476,11 +1514,16 @@
     const mk = val(`mk-${id}`);
     const tr = document.getElementById(`row-${id}`);
     const indep = tr?.dataset.bcIndep === '1';
+    const sellMode = _isSellMode(id);
     const bqEl = document.getElementById(`bq-${id}`);
     const bcEl = document.getElementById(`bc-${id}`);
     const bpEl = document.getElementById(`bp-${id}`);
     if (bqEl) bqEl.value = pq;
-    if (!indep) {
+    if (sellMode) {
+      // 売値ベースモード：売単価が入力値のため、ここでは仕入通貨＝売通貨に揃えるだけ。
+      // 仕入単価（pp）の再算出は bp/mk の oninput（_calcFromSell）側で行う
+      if (bcEl) bcEl.value = pc;
+    } else if (!indep) {
       // 連動モード：売通貨＝仕入通貨、売単価＝仕入単価＋乗せ幅
       if (bcEl) bcEl.value = pc;
       if (bpEl) { bpEl.dataset.base = pp; bpEl.value = pp + mk; }
@@ -1503,8 +1546,9 @@
     const mk = val(`mk-${id}`);
     const bpEl = document.getElementById(`bp-${id}`);
     // 売単価＝基準額＋乗せ幅。基準額は連動モードなら仕入単価、
-    // 独立モードなら仕入単価を売通貨へ換算し 10 単位で切り捨てた値
-    if (bpEl) bpEl.value = (parseFloat(bpEl.dataset.base) || 0) + mk;
+    // 独立モードなら仕入単価を売通貨へ換算し 10 単位で切り捨てた値。
+    // 売値ベースモードでは売単価そのものが入力値のため上書きしない
+    if (bpEl && !_isSellMode(id)) bpEl.value = (parseFloat(bpEl.dataset.base) || 0) + mk;
     const bp = val(`bp-${id}`);
     const pc = document.getElementById(`pc-${id}`)?.value || 'JPY';
     const bc = document.getElementById(`bc-${id}`)?.value || 'JPY';
@@ -1769,6 +1813,60 @@
     _calcPct(id);
   }
   window._restorePctMode = _restorePctMode;
+
+  // ========== 売値ベースモード（既存システムから売値のみを移植する場合向け）==========
+  // 通常は 仕入単価(pp)＋乗せ幅(mk)＝売単価(bp) が入力の向き（pp が真の入力値）。
+  // 既存システムからの移植やメール取込では売値しか分からないことが多いため、
+  // この行に限り向きを逆にする：売単価(bp) が入力値、乗せ幅(mk) を入力すると
+  // 仕入単価(pp) を自動算出する（pp＝bp－mk）。ppmode フィールド（% 計算モードと同じ
+  // 保存領域）に 'sell' を記録することでこの状態を保存・復元する。
+  function _isSellMode(id) {
+    return document.getElementById(`ppmode-${id}`)?.value === 'sell';
+  }
+
+  function _setSellModeUI(id, on) {
+    const tr = document.getElementById(`row-${id}`);
+    if (!tr) return;
+    tr.classList.toggle('row-sell-mode', on);
+    const ppEl = document.getElementById(`pp-${id}`);
+    const bpEl = document.getElementById(`bp-${id}`);
+    const mkEl = document.getElementById(`mk-${id}`);
+    if (ppEl) {
+      ppEl.readOnly = on;
+      ppEl.tabIndex = on ? -1 : 0;
+      ppEl.classList.toggle('display-field', on);
+      if (on) ppEl.removeAttribute('data-col'); else ppEl.setAttribute('data-col', '4');
+      ppEl.title = on ? '売単価－乗せ幅から自動算出（売値ベースモード）' : '';
+    }
+    if (bpEl) {
+      bpEl.readOnly = !on;
+      bpEl.tabIndex = on ? 0 : -1;
+      bpEl.classList.toggle('display-field', !on);
+    }
+    if (mkEl) {
+      mkEl.title = on
+        ? '乗せ幅：売単価から差し引いて仕入単価になります（売値ベースモード）'
+        : '乗せ幅：仕入単価に加算して売単価になります';
+    }
+  }
+
+  function _calcFromSell(id) {
+    const bp = val(`bp-${id}`);
+    const mk = val(`mk-${id}`);
+    const pc = document.getElementById(`pc-${id}`)?.value || 'JPY';
+    const raw = bp - mk;
+    const computed = pc === 'JPY' ? Math.round(raw) : Math.round(raw * 100) / 100;
+    const ppEl = document.getElementById(`pp-${id}`);
+    if (ppEl) ppEl.value = computed;
+    onPay(id);
+  }
+
+  // 保存データ復元時に conditions.js から呼び出す
+  function _restoreSellMode(id) {
+    _setSellModeUI(id, true);
+    _calcFromSell(id);
+  }
+  window._restoreSellMode = _restoreSellMode;
 
   // ========== % 行リンク ==========
   const _pctRecalcInFlight = new Set();
@@ -3737,6 +3835,9 @@
       _setPctModeUI(newId, true);
       _populatePprefSelect(newId);
       _calcPct(newId);
+    } else if (data.ppmode === 'sell') {
+      _setSellModeUI(newId, true);
+      _calcFromSell(newId);
     }
     return newId;
   }

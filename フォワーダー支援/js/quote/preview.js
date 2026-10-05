@@ -97,7 +97,10 @@
     const safe  = s => s.replace(/[\/\\:*?"<>|\t\n\r]/g, '_').replace(/_+/g, '_').trim().slice(0, 40);
     const cond = getConditions();
     const mode = safe(cond.mode || '');
-    const parts = [hdr.ref, hdr.customer, mode, hdr.person].map(safe).filter(Boolean);
+    // 複数の物量パターンを使っている案件では、現在出力対象のパターン名もファイル名に
+    // 反映する（パターンA/Bをそれぞれ出力したときに上書きし合わないように）
+    const patternName = (typeof window.getActivePatternName === 'function') ? window.getActivePatternName() : null;
+    const parts = [hdr.ref, hdr.customer, mode, hdr.person, patternName].map(safe).filter(Boolean);
     const prefix = isSensitiveOn() ? '[社内用]_' : '[客先]_';
     return prefix + (parts.length ? parts.join('_') : '見積もり_' + today) + '.' + ext;
   }
@@ -333,6 +336,44 @@
     _pvWarnSkipFn = null;
   }
 
+  // 為替レート警告の項目内に埋め込む、その場で更新できるミニ編集フォーム
+  // （実際に使用中の通貨のみ・メインの為替レート設定パネルと同じ _fxRates/updateFxRate を共用）
+  function _pvWarnFxEditorHtml(currencies) {
+    const rows = currencies.map(cur => `
+      <label class="pv-wg-fx-item">
+        <span class="pv-wg-fx-cur">${escHtml(cur)}</span>
+        <input type="number" class="pv-wg-fx-inp" min="0" step="0.01"
+               value="${typeof _fxRates !== 'undefined' ? (_fxRates[cur] || '') : ''}"
+               oninput="if (typeof updateFxRate === 'function') updateFxRate('${cur}', this.value)"
+               onchange="_pvWarnFxRateCommit('${cur}', this.value)" />
+        <span class="pv-wg-fx-unit">円</span>
+      </label>`).join('');
+    return `<div class="pv-wg-fx-editor" onclick="event.stopPropagation()">${rows}` +
+      `<button type="button" class="pv-wg-fx-fetch" onclick="pvWarnGuideFxFetch(this)">🔄 今すぐ取得</button></div>`;
+  }
+
+  // ミニ編集フォームで手入力された値を確定（＝この場で確認・訂正したとみなし、
+  // 「24時間以上前」の判定基準となる最終取得日時も更新して警告を解消する）
+  function _pvWarnFxRateCommit(cur, val) {
+    if (typeof updateFxRate === 'function') updateFxRate(cur, val);
+    localStorage.setItem(SharedStorage.KEYS.FX_LAST_FETCHED, new Date().toISOString());
+    if (typeof renderFxPanel === 'function') renderFxPanel();   // メインのFXパネルが開いていれば表示も同期
+    _pvWarnRefresh();
+  }
+
+  // ミニ編集フォームの「🔄 今すぐ取得」：メインパネルと同じ取得処理を呼び、結果に応じて警告を再評価
+  async function pvWarnGuideFxFetch(btn) {
+    if (btn) { btn.disabled = true; btn.textContent = '取得中…'; }
+    if (typeof doFetchFxRates === 'function') await doFetchFxRates();
+    _pvWarnRefresh();
+  }
+
+  // 現在のフォーム状態から警告一覧を再計算して表示を更新する。
+  // 解消済みなら _openWarnGuide 内の判定でパネルごと自動的に閉じる。
+  function _pvWarnRefresh() {
+    if (typeof preOutputValidationGate === 'function') preOutputValidationGate('', _pvWarnSkipFn);
+  }
+
   function _openWarnGuide(skipFn, infoItems = []) {
     _pvWarnItems  = [..._buildWarnItems(), ...infoItems];
     _pvWarnIdx    = 0;
@@ -354,11 +395,12 @@
     const list = document.getElementById('pvWarnGuideList');
     if (list) {
       list.innerHTML = _pvWarnItems.map((item, i) =>
-        `<li class="pv-wg-item${item.focusEl ? '' : ' pv-wg-item-info'}" data-idx="${i}">` +
+        `<li class="pv-wg-item${item.focusEl ? '' : ' pv-wg-item-info'}${item.fxCurrencies ? ' pv-wg-item-fx' : ''}" data-idx="${i}">` +
           (item.focusEl
             ? `<span class="pv-wg-item-num">${i + 1}</span>`
             : `<span class="pv-wg-item-icon">ℹ</span>`) +
           `<span>${escHtml(item.msg)}</span>` +
+          (item.fxCurrencies ? _pvWarnFxEditorHtml(item.fxCurrencies) : '') +
         `</li>`
       ).join('');
       list.querySelectorAll('.pv-wg-item').forEach(li =>
@@ -426,9 +468,12 @@
           infoItems.push({ msg: `粗利率 ${gm.toFixed(1)}% — 目安（20〜40%）より${dir}です`, focusEl: null });
         }
       }
-      const hasNonJpy = data.some(d => (d.pc && d.pc !== 'JPY') || (d.bc && d.bc !== 'JPY'));
-      if (hasNonJpy && isFxStale()) {
-        infoItems.push({ msg: '為替レートが 24 時間以上前の値です。FX パネルから「🔄 今すぐ取得」を推奨', focusEl: null });
+      const usedNonJpy = [...new Set(data.flatMap(d => [d.pc, d.bc]).filter(c => c && c !== 'JPY'))];
+      if (usedNonJpy.length && isFxStale()) {
+        infoItems.push({
+          msg: '為替レートが 24 時間以上前の値です。このまま右のボタンから更新できます',
+          focusEl: null, fxCurrencies: usedNonJpy,
+        });
       }
     }
 
@@ -830,9 +875,15 @@
       { lbl: '関税率（基本）',   val: cond.hsBasic },
       { lbl: '協定税率',        val: cond.hsPref },
       { lbl: '協定税率 備考',   val: cond.hsPrefNote },
-      { lbl: '重量',            val: cond.weight },
-      { lbl: '容積',            val: cond.volume },
-      { lbl: '荷姿明細',        val: (typeof window.getPackingDetailText === 'function' ? window.getPackingDetailText() : cond.packing) },
+      // 物量情報：複数パターン案件はツリー形式で1項目にまとめる（【パターン名】が
+      // 項目ごとに繰り返されるのを避ける）。単一パターンの案件では従来通り3項目に分ける。
+      ...(cond.cargoPatternTree
+        ? [{ lbl: '物量情報', val: cond.cargoPatternTree }]
+        : [
+            { lbl: '重量', val: cond.weight },
+            { lbl: '容積', val: cond.volume },
+            { lbl: '荷姿明細', val: (typeof window.getPackingDetailText === 'function' ? window.getPackingDetailText() : cond.packing) },
+          ]),
       { lbl: '危険品',          val: cond.hazmat },
     ].filter(f => f.val);
     const _billing = (typeof window.getCargoBillingLine === 'function') ? window.getCargoBillingLine(cond.mode) : null;
