@@ -113,6 +113,17 @@
   // 方向（輸出/輸入）・輸送モード・特殊貨物区分は選択式の固定セットなので、
   // 値（cond.direction は内部コード、mode/hazmat は選択肢テキストそのもの）で引ける対訳表を別途用意する
   const DIRECTION_EN = { export: 'Export', import: 'Import' };
+  // インコタームズ（選択肢は「CIF（運賃・保険料込み）」形式）。コード部分で引き、Incoterms 2020 の正式名称を併記する
+  const INCOTERMS_EN = {
+    EXW: 'Ex Works', FCA: 'Free Carrier', CPT: 'Carriage Paid To', CIP: 'Carriage and Insurance Paid To',
+    DAP: 'Delivered at Place', DPU: 'Delivered at Place Unloaded', DDP: 'Delivered Duty Paid',
+    FAS: 'Free Alongside Ship', FOB: 'Free On Board', CFR: 'Cost and Freight', CIF: 'Cost, Insurance and Freight',
+  };
+  function _incotermsDisp(v) {
+    if (!_curLangEn || !v) return v;
+    const code = String(v).split('（')[0].trim().toUpperCase();
+    return INCOTERMS_EN[code] ? `${code} (${INCOTERMS_EN[code]})` : v;
+  }
   const MODE_EN = {
     '海上（FCL）': 'Ocean (FCL)', '海上（LCL）': 'Ocean (LCL)', '海上（RORO）': 'Ocean (RORO)',
     '海上（在来船）': 'Ocean (Conventional)', '航空（AIR）': 'Air', '海上＋陸上': 'Ocean + Inland',
@@ -305,7 +316,7 @@
     const meta = [];
     const push = (k, v) => { if (v) meta.push([k, v]); };
 
-    push(t('incoterms'), cond.incoterms);
+    push(t('incoterms'), _incotermsDisp(cond.incoterms));
     // 航路：1件以上の登録があれば航路ごとに via・キャリア・サービス名を含めて全件併記
     if (_hasRoutes) {
       cond.routes.forEach((r, i) => {
