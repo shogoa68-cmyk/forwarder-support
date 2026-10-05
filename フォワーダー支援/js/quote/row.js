@@ -1298,14 +1298,17 @@
     q('nm').oninput    = () => checkUnfilled(id);
     q('pq').oninput    = () => { _recordPatternQty(id); onPay(id); };
     q('pc').onchange   = () => onPay(id);
-    q('pp').oninput    = () => onPay(id);
+    q('pp').oninput    = () => {
+      if (_isSellMode(id)) { _calcFromSell(id); _recalcPctDependents(id); return; }   // 売値ベース：仕入入力→乗せ幅を算出
+      onPay(id);
+    };
     q('mk').oninput    = () => {
-      if (_isSellMode(id)) { _calcFromSell(id); _recalcPctDependents(id); if (typeof scheduleAutoSave === 'function') scheduleAutoSave(); return; }
+      if (_isSellMode(id)) { _calcFromSell(id); _recalcPctDependents(id); return; }   // 乗せ幅は自動算出（編集不可）
       calc(id); _recalcPctDependents(id);
     };
     q('bc').onchange   = () => onBillCur(id);          // 売通貨を仕入通貨と別建てに
     { const bpEl2 = q('bp'); if (bpEl2) bpEl2.oninput = () => {
-        // 売値ベースモードでは売単価が入力値。乗せ幅はそのまま、仕入単価を逆算する
+        // 売値ベースモードでは売単価が入力値。仕入単価はそのまま、乗せ幅を算出し直す
         if (_isSellMode(id)) { _calcFromSell(id); _recalcPctDependents(id); if (typeof scheduleAutoSave === 'function') scheduleAutoSave(); return; }
         // 独立モードでは売単価を直接入力できる。基準額は換算値のままにして
         // 乗せ幅を逆算する（乗せ幅・売単価のどちらから入れても整合する）
@@ -1521,7 +1524,7 @@
     if (bqEl) bqEl.value = pq;
     if (sellMode) {
       // 売値ベースモード：売単価が入力値のため、ここでは仕入通貨＝売通貨に揃えるだけ。
-      // 仕入単価（pp）の再算出は bp/mk の oninput（_calcFromSell）側で行う
+      // 乗せ幅（mk）の再算出は pp/bp の oninput（_calcFromSell）側で行う
       if (bcEl) bcEl.value = pc;
     } else if (!indep) {
       // 連動モード：売通貨＝仕入通貨、売単価＝仕入単価＋乗せ幅
@@ -1817,9 +1820,10 @@
   // ========== 売値ベースモード（既存システムから売値のみを移植する場合向け）==========
   // 通常は 仕入単価(pp)＋乗せ幅(mk)＝売単価(bp) が入力の向き（pp が真の入力値）。
   // 既存システムからの移植やメール取込では売値しか分からないことが多いため、
-  // この行に限り向きを逆にする：売単価(bp) が入力値、乗せ幅(mk) を入力すると
-  // 仕入単価(pp) を自動算出する（pp＝bp－mk）。ppmode フィールド（% 計算モードと同じ
-  // 保存領域）に 'sell' を記録することでこの状態を保存・復元する。
+  // この行に限り「売値を先に決め、仕入を入力して乗せ幅を割り出す」向きにする：
+  //   売単価(bp)＝入力（固定）／仕入単価(pp)＝入力／乗せ幅(mk)＝bp－pp を自動算出（編集不可）。
+  // 仕入が未入力（空欄）の間は乗せ幅も空欄のまま（売値＝全額が利益に見えないよう、仕入を入れた時点で算出）。
+  // ppmode フィールド（% 計算モードと同じ保存領域）に 'sell' を記録することでこの状態を保存・復元する。
   function _isSellMode(id) {
     return document.getElementById(`ppmode-${id}`)?.value === 'sell';
   }
@@ -1832,11 +1836,12 @@
     const bpEl = document.getElementById(`bp-${id}`);
     const mkEl = document.getElementById(`mk-${id}`);
     if (ppEl) {
-      ppEl.readOnly = on;
-      ppEl.tabIndex = on ? -1 : 0;
-      ppEl.classList.toggle('display-field', on);
-      if (on) ppEl.removeAttribute('data-col'); else ppEl.setAttribute('data-col', '4');
-      ppEl.title = on ? '売単価－乗せ幅から自動算出（売値ベースモード）' : '';
+      ppEl.readOnly = false;
+      ppEl.tabIndex = 0;
+      ppEl.classList.remove('display-field');
+      ppEl.setAttribute('data-col', '4');
+      ppEl.placeholder = on ? '仕入を入力' : '';
+      ppEl.title = on ? '仕入単価を入力すると、売単価との差が乗せ幅として自動算出されます（売値ベースモード）' : '';
     }
     if (bpEl) {
       bpEl.readOnly = !on;
@@ -1844,20 +1849,27 @@
       bpEl.classList.toggle('display-field', !on);
     }
     if (mkEl) {
+      mkEl.readOnly = on;
+      mkEl.tabIndex = on ? -1 : 0;
+      mkEl.classList.toggle('display-field', on);
       mkEl.title = on
-        ? '乗せ幅：売単価から差し引いて仕入単価になります（売値ベースモード）'
+        ? '乗せ幅＝売単価－仕入単価（自動算出・売値ベースモード）。仕入単価を入力すると表示されます'
         : '乗せ幅：仕入単価に加算して売単価になります';
     }
   }
 
   function _calcFromSell(id) {
-    const bp = val(`bp-${id}`);
-    const mk = val(`mk-${id}`);
-    const pc = document.getElementById(`pc-${id}`)?.value || 'JPY';
-    const raw = bp - mk;
-    const computed = pc === 'JPY' ? Math.round(raw) : Math.round(raw * 100) / 100;
     const ppEl = document.getElementById(`pp-${id}`);
-    if (ppEl) ppEl.value = computed;
+    const mkEl = document.getElementById(`mk-${id}`);
+    const pc = document.getElementById(`pc-${id}`)?.value || 'JPY';
+    if (mkEl) {
+      if (ppEl && String(ppEl.value).trim() !== '') {
+        const raw = val(`bp-${id}`) - val(`pp-${id}`);
+        mkEl.value = pc === 'JPY' ? Math.round(raw) : Math.round(raw * 100) / 100;
+      } else {
+        mkEl.value = '';   // 仕入が未入力の間は乗せ幅も出さない
+      }
+    }
     onPay(id);
   }
 
@@ -2429,6 +2441,30 @@
         return ptKey ? (_rowInnerKey(tr) === ptKey) : true;
       });
   }
+  // サブコン／パターン見出しのチェック：配下の全明細行の選択チェック（.row-select-chk）を一括で ON/OFF
+  function selectGroupRows(svKey, ptKey, on) {
+    _groupMemberRows(svKey, ptKey).forEach(tr => {
+      const c = tr.querySelector('.row-select-chk');
+      if (c) c.checked = on;
+    });
+    if (typeof window.refreshRowSelectionMode === 'function') window.refreshRowSelectionMode();   // 内部で見出しチェックも同期
+    else _syncGroupSelectChecks();
+  }
+  // 見出しチェックの状態を配下の行チェックから算出（全選択=ON／一部=中間／なし=OFF）
+  function _syncGroupSelectChecks() {
+    document.querySelectorAll('#tableBody tr.subcon-group-header, #tableBody tr.subcon-subgroup-header.is-pattern').forEach(h => {
+      const chk = h.querySelector('.subcon-group-chk');
+      if (!chk) return;
+      const svKey = h.dataset.svKey || _UNSET_KEY;
+      const ptKey = h.classList.contains('subcon-subgroup-header') ? (h.dataset.ptKey || '') : '';
+      const boxes = _groupMemberRows(svKey, ptKey).map(tr => tr.querySelector('.row-select-chk')).filter(Boolean);
+      const n = boxes.filter(c => c.checked).length;
+      chk.checked = boxes.length > 0 && n === boxes.length;
+      chk.indeterminate = n > 0 && n < boxes.length;
+    });
+  }
+  window.syncGroupSelectChecks = _syncGroupSelectChecks;
+
   // グループ配下の lu 集約：全行同値なら {value, mixed:false}、バラつき（空との混在含む）なら {value:'', mixed:true}
   function _groupUpdatedDate(svKey, ptKey) {
     const states = new Set();
@@ -3051,6 +3087,7 @@
             `<div class="subcon-group-header-inner">` +
             `<span class="subcon-group-grip" title="ドラッグでグループ（ブロック）を並び替え">⠿</span>` +
             `<button type="button" class="subcon-group-toggle" title="折りたたみ/展開">${collapsed ? '▶' : '▼'}</button>` +
+            `<input type="checkbox" class="subcon-group-chk" title="このサブコンの全明細を選択／解除（一部だけ選択中は中間表示）">` +
             `<span class="subcon-group-label">📦 ${_escHdr(label)}</span>` +
             `<span class="subcon-group-count">${count} 行</span>` +
             `<span class="subcon-group-sum"></span>` +
@@ -3064,6 +3101,9 @@
             `</div>` +
           `</td>`;
         hdr.querySelector('.subcon-group-toggle').addEventListener('click', () => toggleSubconGroup(key));
+        { const gchk = hdr.querySelector('.subcon-group-chk');
+          gchk.addEventListener('click', e => e.stopPropagation());
+          gchk.addEventListener('change', () => selectGroupRows(key, '', gchk.checked)); }
         hdr.querySelector('.subcon-group-excl').addEventListener('click', () => toggleSubconExclude(key));
         hdr.querySelector('.subcon-group-add-btn').addEventListener('click', () => {
           addRowToSubconGroup(key === _UNSET_KEY ? '' : label);
@@ -3284,6 +3324,7 @@
                   `<div class="subcon-subgroup-inner">` +
                   `<span class="subcon-subgroup-grip" title="ドラッグでこのパターンを並び替え（同じサブコン内のみ）">⠿</span>` +
                   `<button type="button" class="subcon-subgroup-toggle" title="${_ptCollapsed ? '展開' : '折りたたみ/展開'}">${_ptCollapsed ? '▶' : '▼'}</button>` +
+                  `<input type="checkbox" class="subcon-group-chk" title="このパターンの全明細を選択／解除（一部だけ選択中は中間表示）">` +
                   `<span class="subcon-subgroup-leg">${icon} ${_escHdr(key)}</span>` +
                   `<button type="button" class="subcon-subgroup-rename" title="このパターン名を変更（配下の行すべてに反映）">✎</button>` +
                   `<button type="button" class="subcon-subgroup-dup" title="このパターンの明細行をすべて複製（新しいパターンとして「（2）」等が付きます）">📋</button>` +
@@ -3293,6 +3334,9 @@
                   `</div>` +
                 `</td>`;
               sh.querySelector('.subcon-subgroup-toggle').addEventListener('click', () => togglePatternGroup(_compK));
+              { const gchk = sh.querySelector('.subcon-group-chk');
+                gchk.addEventListener('click', e => e.stopPropagation());
+                gchk.addEventListener('change', () => selectGroupRows(_svK, key, gchk.checked)); }
               sh.querySelector('.subcon-subgroup-rename').addEventListener('click', e => {
                 e.stopPropagation();
                 renamePatternGroup(_svK, key);
@@ -3322,6 +3366,7 @@
       // 全行の折りたたみ・除外状態を適用（小計・リマーク行を含む）
       _applyGroupStates();
       _updateGroupSums();
+      _syncGroupSelectChecks();
       if (typeof refreshMergeBadges === 'function') refreshMergeBadges();
     } finally {
       _inGroupRender = false;
