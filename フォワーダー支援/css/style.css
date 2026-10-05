@@ -1815,9 +1815,11 @@ body:has(#compareOverlay.open) #quoteActionDock { display: none; }
 
 /* 連絡先（電話・メール） */
 .bm-contact-row {
-  display: flex; flex-wrap: wrap; gap: 6px; align-items: center;
+  display: flex; flex-direction: column; gap: 6px; align-items: flex-start;
   padding: 7px 12px; border-top: 1px dashed #e2d8c8; background: #f5f9f5;
 }
+.bm-contact-person { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.bm-contact-who { font-size: 12px; font-weight: 700; color: #2e4a36; }
 .bm-contact-item {
   display: inline-flex; align-items: center; gap: 3px;
   font-size: 11px; color: #2e6b3e; background: #e6f2e8;
@@ -1831,6 +1833,18 @@ a.bm-contact-item:hover { background: #2e6b3e; color: #fff; border-color: #2e6b3
   cursor: pointer;
 }
 .bm-contact-edit:hover { color: #2e6b3e; border-color: #2e6b3e; background: #f0f8f1; }
+/* 連絡先編集モーダル：担当者カード */
+.bm-contact-edit-list { display: flex; flex-direction: column; gap: 10px; max-height: 52vh; overflow-y: auto; padding: 2px; }
+.bm-cedit-card { border: 1px solid #d9cfc2; border-radius: 10px; background: #fdfbf7; padding: 10px 12px; }
+.bm-cedit-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+.bm-cedit-no { font-size: 12px; font-weight: 700; color: #2e6b3e; }
+.bm-cedit-del { font-size: 11px; color: #9a8a72; background: #fff; border: 1px solid #d9cfc2; border-radius: 7px; padding: 2px 8px; cursor: pointer; }
+.bm-cedit-del:hover { color: #b04a4a; border-color: #b04a4a; }
+.bm-cedit-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 10px; }
+.bm-cedit-field { display: flex; flex-direction: column; gap: 3px; font-size: 11px; color: #5d4e3a; min-width: 0; }
+.bm-cedit-field input { width: 100%; box-sizing: border-box; }
+.bm-cedit-wide { grid-column: 1 / -1; }
+@media (max-width: 520px) { .bm-cedit-grid { grid-template-columns: 1fr; } }
 
 .bm-pill {
   display: inline-flex; align-items: center; gap: 6px;

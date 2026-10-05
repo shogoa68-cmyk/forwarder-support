@@ -32,8 +32,8 @@ function bmGetRelated(name) {
     .map(r => ({ counterpart: r.carrier_a === name ? r.carrier_b : r.carrier_a, label: r.label || '代理店', relId: r.id }));
 }
 
-// 会社単位の連絡先（電話・メール）。ブックマーク（個々のリンク）とは別に1社1件で管理。
-let _bmContacts       = {};   // { carrier: { id, phone, email, note } }
+// 会社単位の連絡先（担当者を複数登録可）。ブックマーク（個々のリンク）とは別に管理。
+let _bmContacts       = {};   // { carrier: [{ id, carrier, person_name, department, phone, email, note, sort_order }] }
 let _bmContactsLoaded = false;
 
 async function bmEnsureContactsLoaded(force) {
@@ -43,13 +43,26 @@ async function bmEnsureContactsLoaded(force) {
   const { data, error } = await db.from('carrier_contacts').select('*');
   if (error) return;   // テーブル未作成などは黙ってスキップ（連絡先なし扱い）
   const map = {};
-  (data || []).forEach(c => { map[c.carrier] = c; });
+  (data || [])
+    .slice()
+    .sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0) || String(a.updated_at || '').localeCompare(String(b.updated_at || '')))
+    .forEach(c => { (map[c.carrier] = map[c.carrier] || []).push(c); });
   _bmContacts = map;
   _bmContactsLoaded = true;
 }
 
+// その会社の連絡先（担当者）一覧
+function bmGetContacts(name) {
+  return (name && _bmContacts[name]) || [];
+}
+
+// 後方互換：メール宛先の自動入力（subcon-request-mail.js）が c.email を単一値として参照する。
+// メールアドレスを持つ最初の担当者を代表として返す（全員分は contacts に入っている）。
 function bmGetContact(name) {
-  return (name && _bmContacts[name]) || null;
+  const list = bmGetContacts(name);
+  if (!list.length) return null;
+  const rep = list.find(c => c.email) || list[0];
+  return { ...rep, contacts: list };
 }
 
 // QSP 幹線輸送チップ用キャリアブックマークキャッシュ
@@ -324,15 +337,20 @@ function _bmRenderList(rows) {
     const relAddBtn = name === '汎用' ? '' :
       `<button class="bm-rel-add" data-bm-rel-carrier="${escHtml(name)}" onclick="event.stopPropagation();openBmRelation(this.dataset.bmRelCarrier)" title="関連会社（代理店関係など）を登録">＋🔗</button>`;
     const relRow = (name === '汎用') ? '' : `<div class="bm-rel-row">${relChips}${relAddBtn}</div>`;
-    // 連絡先（電話・メール）。会社単位で1件。汎用は対象外。
-    const contact = name === '汎用' ? null : bmGetContact(name);
-    const contactBits = [];
-    if (contact?.phone) contactBits.push(`<a class="bm-contact-item" href="tel:${escHtml(contact.phone.replace(/[^\d+]/g, ''))}" onclick="event.stopPropagation()" title="電話をかける">📞${escHtml(contact.phone)}</a>`);
-    if (contact?.email) contactBits.push(`<a class="bm-contact-item" href="mailto:${escHtml(contact.email)}" onclick="event.stopPropagation()" title="メールを送る">✉️${escHtml(contact.email)}</a>`);
-    if (contact?.note)  contactBits.push(`<span class="bm-contact-item bm-contact-note bm-tip" data-tip="${escHtml(contact.note)}">📝</span>`);
+    // 連絡先（担当者を複数登録可）。担当者ごとに1行：氏名／部署・電話・メール・メモ。汎用は対象外。
+    const contacts = name === '汎用' ? [] : bmGetContacts(name);
+    const contactLines = contacts.map(c => {
+      const who  = [c.person_name, c.department].filter(Boolean).join(' / ');
+      const bits = [];
+      if (who)     bits.push(`<span class="bm-contact-who">👤${escHtml(who)}</span>`);
+      if (c.phone) bits.push(`<a class="bm-contact-item" href="tel:${escHtml(c.phone.replace(/[^\d+]/g, ''))}" onclick="event.stopPropagation()" title="電話をかける">📞${escHtml(c.phone)}</a>`);
+      if (c.email) bits.push(`<a class="bm-contact-item" href="mailto:${escHtml(c.email)}" onclick="event.stopPropagation()" title="メールを送る">✉️${escHtml(c.email)}</a>`);
+      if (c.note)  bits.push(`<span class="bm-contact-item bm-contact-note bm-tip" data-tip="${escHtml(c.note)}">📝</span>`);
+      return bits.length ? `<div class="bm-contact-person">${bits.join('')}</div>` : '';
+    }).join('');
     const contactEditBtn = name === '汎用' ? '' :
-      `<button class="bm-contact-edit" data-bm-contact-carrier="${escHtml(name)}" onclick="event.stopPropagation();openBmContact(this.dataset.bmContactCarrier)" title="連絡先を編集">${contact ? '✎' : '＋📞 連絡先'}</button>`;
-    const contactRow = (name === '汎用') ? '' : `<div class="bm-contact-row">${contactBits.join('')}${contactEditBtn}</div>`;
+      `<button class="bm-contact-edit" data-bm-contact-carrier="${escHtml(name)}" onclick="event.stopPropagation();openBmContact(this.dataset.bmContactCarrier)" title="連絡先（担当者）を追加・編集">${contacts.length ? '✎ 連絡先を編集' : '＋📞 連絡先'}</button>`;
+    const contactRow = (name === '汎用') ? '' : `<div class="bm-contact-row">${contactLines}${contactEditBtn}</div>`;
     const pills = list.map(r => _bmPillHtml(r)).join('');
     // 関連会社（表記違い・代理店など）のブックマークも、このタイル内に印付きで一緒に表示する。
     // 別会社として登録は維持したまま、このタイルからも見えるようにするだけ（統合はしない）。
@@ -1011,24 +1029,74 @@ async function bmRemoveRelation(id) {
   if (typeof window.lcRefreshBmChips === 'function') window.lcRefreshBmChips();
 }
 
-// ---------- 連絡先（電話・メール） ----------
+// ---------- 連絡先（担当者を複数登録可） ----------
 let _bmContactCarrier = '';
+let _bmContactDraft   = [];   // モーダル編集中の担当者 [{ id, person_name, department, phone, email, note }]
+let _bmContactOrigIds = [];   // モーダルを開いた時点で DB にあった id（削除対象の判定用）
+
+function _bmContactBlank() {
+  return { id: crypto.randomUUID(), person_name: '', department: '', phone: '', email: '', note: '' };
+}
 
 function openBmContact(carrier) {
   const modal = document.getElementById('bmContactModal');
   if (!modal || !carrier) return;
   _bmContactCarrier = carrier;
-  const c = bmGetContact(carrier) || {};
-  const nameEl  = document.getElementById('bmContactCarrierName');
-  const phoneEl = document.getElementById('bmContactPhone');
-  const emailEl = document.getElementById('bmContactEmail');
-  const noteEl  = document.getElementById('bmContactNote');
-  if (nameEl)  nameEl.textContent = carrier;
-  if (phoneEl) phoneEl.value = c.phone || '';
-  if (emailEl) emailEl.value = c.email || '';
-  if (noteEl)  noteEl.value  = c.note  || '';
+  const existing = bmGetContacts(carrier);
+  _bmContactOrigIds = existing.map(c => c.id);
+  _bmContactDraft = existing.map(c => ({
+    id: c.id, person_name: c.person_name || '', department: c.department || '',
+    phone: c.phone || '', email: c.email || '', note: c.note || '',
+  }));
+  if (!_bmContactDraft.length) _bmContactDraft.push(_bmContactBlank());
+  const nameEl = document.getElementById('bmContactCarrierName');
+  if (nameEl) nameEl.textContent = carrier;
+  _bmRenderContactEditor();
   modal.classList.add('open');
-  phoneEl?.focus();
+  modal.querySelector('.bm-cedit-card input')?.focus();
+}
+
+function _bmRenderContactEditor() {
+  const wrap = document.getElementById('bmContactList');
+  if (!wrap) return;
+  if (!_bmContactDraft.length) {
+    wrap.innerHTML = '<div class="bm-empty">担当者が登録されていません。下の「＋ 担当者を追加」から登録できます。</div>';
+    return;
+  }
+  const fld = (i, key, label, ph, type, wide) =>
+    `<label class="bm-cedit-field${wide ? ' bm-cedit-wide' : ''}"><span>${label}</span>` +
+    `<input type="${type || 'text'}" class="bm-form-input" value="${escHtml(_bmContactDraft[i][key])}" placeholder="${ph}"` +
+    ` oninput="bmContactSetField(${i},'${key}',this.value)"></label>`;
+  wrap.innerHTML = _bmContactDraft.map((c, i) =>
+    `<div class="bm-cedit-card">` +
+      `<div class="bm-cedit-head"><span class="bm-cedit-no">担当者 ${i + 1}</span>` +
+      `<button type="button" class="bm-cedit-del" onclick="bmContactRemoveEntry(${i})" title="この担当者を削除">🗑 削除</button></div>` +
+      `<div class="bm-cedit-grid">` +
+        fld(i, 'person_name', '担当名', '例：田中 太郎') +
+        fld(i, 'department',  '部署名', '例：営業部') +
+        fld(i, 'phone',       '電話番号', '例：03-1234-5678', 'tel') +
+        fld(i, 'email',       'メールアドレス', '例：tanaka@example.com', 'email') +
+        fld(i, 'note',        'メモ', '例：緊急時は携帯へ', 'text', true) +
+      `</div>` +
+    `</div>`
+  ).join('');
+}
+
+function bmContactSetField(i, field, value) {
+  if (_bmContactDraft[i]) _bmContactDraft[i][field] = value;
+}
+
+function bmContactAddEntry() {
+  _bmContactDraft.push(_bmContactBlank());
+  _bmRenderContactEditor();
+  const cards = document.querySelectorAll('#bmContactList .bm-cedit-card');
+  const last = cards[cards.length - 1];
+  if (last) { last.scrollIntoView({ block: 'nearest' }); last.querySelector('input')?.focus(); }
+}
+
+function bmContactRemoveEntry(i) {
+  _bmContactDraft.splice(i, 1);
+  _bmRenderContactEditor();
 }
 
 function closeBmContact(e) {
@@ -1036,42 +1104,46 @@ function closeBmContact(e) {
   document.getElementById('bmContactModal')?.classList.remove('open');
 }
 
+function _bmContactErrMsg(error) {
+  const m = error?.message || '';
+  if (/duplicate key|unique constraint|schema cache|column|could not find the table|does not exist/i.test(m)) {
+    return '⚠️ 連絡先テーブルが複数登録に未対応です（docs/sql/carrier-contacts.sql を再実行してください）';
+  }
+  return '⚠️ 保存に失敗：' + m;
+}
+
 async function bmDoSaveContact() {
   const db = window.SupabaseClient;
   if (!db) return;
   const carrier = _bmContactCarrier;
   if (!carrier) return;
-  const phone = (document.getElementById('bmContactPhone')?.value || '').trim() || null;
-  const email = (document.getElementById('bmContactEmail')?.value || '').trim() || null;
-  const note  = (document.getElementById('bmContactNote')?.value  || '').trim() || null;
   const { data: sd } = await db.auth.getSession();
-  const { data, error } = await db.from('carrier_contacts')
-    .upsert({ carrier, phone, email, note, updated_by: sd?.session?.user?.email || null }, { onConflict: 'carrier' })
-    .select();
-  if (error) {
-    const msg = /schema cache|could not find the table|does not exist/i.test(error.message || '')
-      ? '⚠️ テーブル未作成です（docs/sql/carrier-contacts.sql を実行してください）'
-      : '⚠️ 保存に失敗：' + error.message;
-    quoteShowToast(msg, 'warn', 8000);
-    return;
-  }
-  if (data && data[0]) _bmContacts[carrier] = data[0];
-  quoteShowToast('✅ 連絡先を保存しました', 'success', 2500);
-  closeBmContact();
-  _bmApply();
-}
+  const email = sd?.session?.user?.email || null;
+  const now = new Date().toISOString();
+  const t = (v) => (v || '').trim() || null;
+  // 全項目が空の担当者カードは登録しない（＝空のまま保存すれば削除扱い）
+  const rows = _bmContactDraft
+    .map(c => ({
+      id: c.id, carrier,
+      person_name: t(c.person_name), department: t(c.department),
+      phone: t(c.phone), email: t(c.email), note: t(c.note),
+    }))
+    .filter(r => r.person_name || r.department || r.phone || r.email || r.note)
+    .map((r, i) => ({ ...r, sort_order: i, updated_by: email, updated_at: now }));
+  const keepIds   = new Set(rows.map(r => r.id));
+  const deleteIds = _bmContactOrigIds.filter(id => !keepIds.has(id));
+  if (!rows.length && !deleteIds.length) { closeBmContact(); return; }
 
-async function bmDeleteContact() {
-  const db = window.SupabaseClient;
-  if (!db) return;
-  const carrier = _bmContactCarrier;
-  const c = bmGetContact(carrier);
-  if (!c) { closeBmContact(); return; }
-  if (!confirm(`「${carrier}」の連絡先を削除しますか？`)) return;
-  const { error } = await db.from('carrier_contacts').delete().eq('id', c.id);
-  if (error) { quoteShowToast('⚠️ 削除に失敗：' + error.message, 'warn', 6000); return; }
-  delete _bmContacts[carrier];
-  quoteShowToast('✅ 連絡先を削除しました', 'success', 2000);
+  if (rows.length) {
+    const { error } = await db.from('carrier_contacts').upsert(rows, { onConflict: 'id' });
+    if (error) { quoteShowToast(_bmContactErrMsg(error), 'warn', 8000); return; }
+  }
+  if (deleteIds.length) {
+    const { error } = await db.from('carrier_contacts').delete().in('id', deleteIds);
+    if (error) { quoteShowToast('⚠️ 削除に失敗：' + error.message, 'warn', 6000); }
+  }
+  await bmEnsureContactsLoaded(true);
+  quoteShowToast('✅ 連絡先を保存しました', 'success', 2500);
   closeBmContact();
   _bmApply();
 }
@@ -1454,7 +1526,10 @@ window.closeBmRelation   = closeBmRelation;
 window.bmDoAddRelation   = bmDoAddRelation;
 window.bmRemoveRelation  = bmRemoveRelation;
 window.bmGetContact       = bmGetContact;
+window.bmGetContacts      = bmGetContacts;
 window.openBmContact      = openBmContact;
 window.closeBmContact     = closeBmContact;
 window.bmDoSaveContact    = bmDoSaveContact;
-window.bmDeleteContact    = bmDeleteContact;
+window.bmContactSetField  = bmContactSetField;
+window.bmContactAddEntry  = bmContactAddEntry;
+window.bmContactRemoveEntry = bmContactRemoveEntry;
