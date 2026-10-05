@@ -113,6 +113,17 @@
   // 方向（輸出/輸入）・輸送モード・特殊貨物区分は選択式の固定セットなので、
   // 値（cond.direction は内部コード、mode/hazmat は選択肢テキストそのもの）で引ける対訳表を別途用意する
   const DIRECTION_EN = { export: 'Export', import: 'Import' };
+  // インコタームズ（選択肢は「CIF（運賃・保険料込み）」形式）。コード部分で引き、Incoterms 2020 の正式名称を併記する
+  const INCOTERMS_EN = {
+    EXW: 'Ex Works', FCA: 'Free Carrier', CPT: 'Carriage Paid To', CIP: 'Carriage and Insurance Paid To',
+    DAP: 'Delivered at Place', DPU: 'Delivered at Place Unloaded', DDP: 'Delivered Duty Paid',
+    FAS: 'Free Alongside Ship', FOB: 'Free On Board', CFR: 'Cost and Freight', CIF: 'Cost, Insurance and Freight',
+  };
+  function _incotermsDisp(v) {
+    if (!_curLangEn || !v) return v;
+    const code = String(v).split('（')[0].trim().toUpperCase();
+    return INCOTERMS_EN[code] ? `${code} (${INCOTERMS_EN[code]})` : v;
+  }
   const MODE_EN = {
     '海上（FCL）': 'Ocean (FCL)', '海上（LCL）': 'Ocean (LCL)', '海上（RORO）': 'Ocean (RORO)',
     '海上（在来船）': 'Ocean (Conventional)', '航空（AIR）': 'Air', '海上＋陸上': 'Ocean + Inland',
@@ -145,6 +156,17 @@
     .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;');
   const nl2br = s => esc(s).replace(/\n/g, '<br>');
+  // 本文中の URL（http/https）をクリックできるリンクにする。入力は esc() 済みの文字列。
+  // 印刷（PDFに保存）してもリンクとして残る。日本語の句読点・括弧など非ASCII文字で URL を打ち切り、
+  // 末尾の . , ; : ) は URL に含めない
+  function linkify(escaped) {
+    return String(escaped).replace(/https?:\/\/[A-Za-z0-9\-._~:/?#\[\]@!$&'()*+,;=%]+/g, m => {
+      const tail = (m.match(/[.,;:)]+$/) || [''])[0];
+      const url = tail ? m.slice(0, m.length - tail.length) : m;
+      return `<a class="qd-link" href="${url}" target="_blank" rel="noopener">${url}</a>${tail}`;
+    });
+  }
+  const nl2brLink = s => linkify(esc(s)).replace(/\n/g, '<br>');
   const fmtInt = n => Math.round(n).toLocaleString('ja-JP');
   const fmtNum = (n, d) => Number(n).toLocaleString('ja-JP', { minimumFractionDigits: d || 0, maximumFractionDigits: d || 0 });
 
@@ -186,6 +208,15 @@
     if (_curLangEn && !v) return t('noCategory');
     if (_curLangEn) return CAT_EN[v] || (typeof getCatLabel === 'function' ? (getCatLabel(v) || '') : (v || ''));
     return (typeof getCatLabel === 'function') ? (getCatLabel(v) || '') : (v || '');
+  }
+  // 国内表記の電話番号を国際表記へ（英語出力用）：03-5765-7668 → +81-3-5765-7668。
+  // 先頭の 0（市外局番・携帯の 0）を取って +81- を付ける。既に + や国番号で始まる値はそのまま。
+  function _intlTel(raw) {
+    const s = String(raw == null ? '' : raw).trim();
+    if (!s || /^\+/.test(s)) return s;
+    if (/^0\d+$/.test(s)) return '+81-' + s.slice(1);                       // ハイフン無し：0357657668
+    if (/^\(?0\d+\)?[\s-]*\d/.test(s)) return s.replace(/^\(?0(\d+)\)?[\s-]*/, '+81-$1-');   // 03-xxxx / (03)xxxx / 090-xxxx
+    return s;
   }
   function _fmtJpDate(iso) {
     if (!iso) return '';
@@ -296,7 +327,7 @@
     const meta = [];
     const push = (k, v) => { if (v) meta.push([k, v]); };
 
-    push(t('incoterms'), cond.incoterms);
+    push(t('incoterms'), _incotermsDisp(cond.incoterms));
     // 航路：1件以上の登録があれば航路ごとに via・キャリア・サービス名を含めて全件併記
     if (_hasRoutes) {
       cond.routes.forEach((r, i) => {
@@ -395,6 +426,8 @@
           address1: (issuer0.address1En || '').trim() || issuer0.address1,
           address2: (issuer0.address2En || '').trim() || issuer0.address2,
           greeting: (issuer0.greetingEn || '').trim() || issuer0.greeting,
+          tel: _intlTel(issuer0.tel),   // 英語版は国番号付き（+81-…）で出す
+          fax: _intlTel(issuer0.fax),
         })
       : issuer0;
     const hideTotal = loadHideTotal();   // 合計・税サマリを隠す（パターン比較用途）
@@ -444,7 +477,7 @@
     rows.forEach(r => {
       if (r._type === 'remark') {
         if (r.internal) return; // 社内メモは PDF に出力しない
-        lineHTML.push(`<tr class="qd-remark"><td colspan="5">※ ${esc(r.text)}</td></tr>`);
+        lineHTML.push(`<tr class="qd-remark"><td colspan="5">※ ${linkify(esc(_curLangEn && typeof window.translateRemarkToEn === 'function' ? window.translateRemarkToEn(r.text) : r.text))}</td></tr>`);
         return;
       }
       if (r._type === 'subtotal') {
@@ -496,7 +529,7 @@
           // サブコン別リマーク（「見積書に表示」がONのときのみ御見積書PDFにも表示）
           const _rmH = (typeof getSubconRemarks === 'function' ? getSubconRemarks()[_scKey] : null);
           if (_rmH && _rmH.show && _rmH.text && _rmH.text.trim()) {
-            lineHTML.push(`<tr class="qd-subcon-remark"><td colspan="5">📝 ${esc(_rmH.text)}</td></tr>`);
+            lineHTML.push(`<tr class="qd-subcon-remark"><td colspan="5">📝 ${linkify(esc(_rmH.text))}</td></tr>`);
           }
           _catKey = null;   // 新しいサブコンに入ったのでカテゴリ見出しを再出させる
           const ps = scPatternSets[k] || new Set();
@@ -525,7 +558,7 @@
           if (_ptKey) {
             const _rmP = (typeof getSubconRemarks === 'function' ? getSubconRemarks()[_scKey + '||' + _ptKey] : null);
             if (_rmP && _rmP.show && _rmP.text && _rmP.text.trim()) {
-              lineHTML.push(`<tr class="qd-pattern-remark"><td colspan="5">📝 ${esc(_rmP.text)}</td></tr>`);
+              lineHTML.push(`<tr class="qd-pattern-remark"><td colspan="5">📝 ${linkify(esc(_rmP.text))}</td></tr>`);
             }
           }
           _catKey = null;
@@ -610,7 +643,7 @@
       <div class="qd-head">
         <div class="qd-to">
           <div class="qd-cust">${nl2br(custName)}</div>
-          <div class="qd-greet">${nl2br(issuer.greeting)}</div>
+          <div class="qd-greet">${nl2brLink(issuer.greeting)}</div>
         </div>
         <div class="qd-from">
           <div class="qd-co">${esc(issuer.company) || '<span class="qd-placeholder">（発行元会社名を設定してください）</span>'}</div>
@@ -656,13 +689,14 @@
       </div>
       ${(() => {
         const sc = (document.getElementById('qf-scope')?.value || '').trim();
-        return sc ? `<div class="qd-remark-block qd-scope-block"><div class="qd-remark-ttl">${t('scopeTitle')}</div><div class="qd-remark-body">${esc(sc).replace(/\n/g, '<br>')}</div></div>` : '';
+        return sc ? `<div class="qd-remark-block qd-scope-block"><div class="qd-remark-ttl">${t('scopeTitle')}</div><div class="qd-remark-body">${nl2brLink(sc)}</div></div>` : '';
       })()}
       ${(() => {
-        const rt = (typeof getRemarkText === 'function') ? getRemarkText() : (cond && cond.free) || '';
+        let rt = (typeof getRemarkText === 'function') ? getRemarkText() : (cond && cond.free) || '';
+        if (_curLangEn && typeof window.translateRemarkToEn === 'function') rt = window.translateRemarkToEn(rt);   // 定型文を英文に
         const imgHtml = (typeof remarkImagesOutputHTML === 'function') ? remarkImagesOutputHTML('qd-remark-images') : '';
         if (!rt && !imgHtml) return '';
-        const bodyHtml = rt ? `<div class="qd-remark-body">${esc(rt).replace(/\n/g, '<br>')}</div>` : '';
+        const bodyHtml = rt ? `<div class="qd-remark-body">${nl2brLink(rt)}</div>` : '';
         return `<div class="qd-remark-block"><div class="qd-remark-ttl">${t('remarksTitle')}</div>${bodyHtml}${imgHtml}</div>`;
       })()}
       ${(() => {
