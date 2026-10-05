@@ -666,7 +666,8 @@
     const rows = (typeof _cloudRows !== 'undefined' && Array.isArray(_cloudRows)) ? _cloudRows : [];
     const origExists = cf.id && rows.some(row => row.id === cf.id);
     const cfRefBadge = cf.ref ? ' <span class="preset-cf-ref">(' + escHtml(cf.ref) + ')</span>' : '';
-    const genBadge = cf.gen ? ' <span class="preset-cf-gen" title="オリジナルから数えた世代">' + cf.gen + '代目</span>' : '';
+    // この案件自身の世代（コピー元の世代ではない）を「この案件は○代目」と明示して先頭に出す
+    const selfGenBadge = cf.gen ? '<span class="preset-cf-gen preset-cf-gen--self" title="オリジナルから数えた世代">この案件は ' + cf.gen + '代目</span> ' : '';
     const root = cf.root;
     const rootExists = !!(root && root.id && rows.some(row => row.id === root.id));
     const rootHtml = (root && cf.gen > 2)
@@ -676,7 +677,7 @@
         '</div>'
       : '';
     box.innerHTML =
-      '<div class="qf-copied-from-main">📋 コピー元：<span class="cloud-cf-name">' + escHtml(cf.name || '不明') + cfRefBadge + '</span>' + genBadge +
+      '<div class="qf-copied-from-main">' + selfGenBadge + '📋 コピー元：<span class="cloud-cf-name">' + escHtml(cf.name || '不明') + cfRefBadge + '</span>' +
       (origExists ? ' <button type="button" class="btn-cf-preview" onclick="cloudPreviewPreset(\'' + encodeURIComponent(cf.id) + '\')" title="コピー元をプレビュー">プレビュー</button>' : '') +
       '</div>' + rootHtml;
     box.hidden = false;
@@ -2333,7 +2334,7 @@
     if (dl && !dl.dataset.filled) {
       const list = (typeof window.getPackingList === 'function')
         ? window.getPackingList()
-        : ['カートン','パレット','ドラム缶','袋（バッグ）','木箱','バルク'];
+        : ['カートン','パレット','ドラム缶','袋（バッグ）','木箱','バルク','梱包なし'];
       dl.innerHTML = list.map(p => `<option value="${_escMulti(p)}"></option>`).join('');
       dl.dataset.filled = '1';
     }
