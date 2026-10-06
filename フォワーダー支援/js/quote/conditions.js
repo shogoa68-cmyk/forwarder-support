@@ -580,8 +580,10 @@
       if (!name) return;
       const o = document.createElement('option');
       o.value = name;
-      const meta = [c.phone, c.email, c.other].filter(Boolean).join(' / ');
-      if (meta) o.label = meta;
+      const furi = (c.furigana || '').trim();
+      const meta = [furi, c.phone, c.email, c.other].filter(Boolean).join(' / ');
+      if (meta) o.label = meta;   // ふりがなも label に入れ、読み入力でも候補にヒットさせる
+      if (furi) o.dataset.furi = furi;
       dl.appendChild(o);
     });
   };
@@ -724,13 +726,14 @@
     // プリセット等でキー自体が無い場合）は、直前に開いていた別案件の値をそのまま
     // 引き継いでしまう（例：参照URLが別案件に漏れて表示される）。qf-status で対応
     // 済みだった問題を全フィールドへ一般化し、対象外のフィールドは先に空へ戻す。
-    // ヘッダー項目（_HEADER_FIELD_IDS）は keepHeaderIfEmpty の既存挙動があるため対象外、
+    // ヘッダー項目（_HEADER_FIELD_IDS）は keepHeaderIfEmpty 指定時のみ対象外（現在値を保持）。
+    // 案件を開く経路は指定せず、保存内容どおりに復元する（空の項目に前の案件の値を残さない）。
     // 一時的な UI 操作用フィールドも _clearQuoteForm と同じ SKIP で対象外にする。
     const _SKIP_FIELDS = ['rowInsertPos', 'rowPatternInsertPos', 'bulkCatSet', 'bulkSubconSet', 'selectAllChk'];
     document.querySelectorAll(
       '#tab-quote-make .quote-main input[id], #tab-quote-make .quote-main select[id], #tab-quote-make .quote-main textarea[id]'
     ).forEach(el => {
-      if (_SKIP_FIELDS.includes(el.id) || _HEADER_FIELD_IDS.includes(el.id)) return;
+      if (_SKIP_FIELDS.includes(el.id) || (keepHeaderIfEmpty && _HEADER_FIELD_IDS.includes(el.id))) return;
       if (el.closest('.quote-cmdbar')) return;
       if (Object.prototype.hasOwnProperty.call(data.fields || {}, el.id)) return;
       if (el.type === 'checkbox') el.checked = false; else el.value = '';

@@ -11151,3 +11151,7 @@ body.is-row-dragging { cursor: grabbing; user-select: none; }
 
 /* 御見積書：本文中のURLリンク（印刷・PDFにもリンクとして残る） */
 .qd-page a.qd-link { color: #1a56a0; text-decoration: underline; word-break: break-all; }
+
+/* メール取込の確認表：課税列 */
+#tab-quote-make .ei-table .ei-tax-cell, #tab-quote-make .ei-table .ei-tax-th { text-align: center; white-space: nowrap; }
+#tab-quote-make .ei-table .ei-tax { width: 15px; height: 15px; cursor: pointer; accent-color: #8b6914; vertical-align: middle; }

@@ -2587,7 +2587,8 @@
     }
 
     // 復元処理（開く＝閲覧モード：ロックも Presence も取得しない）
-    _applyQuoteData(data.data, { keepHeaderIfEmpty: true });
+    // 保存内容どおりに復元する（お客様名・担当者等が空の案件でも、前に開いていた案件の値を残さない）
+    _applyQuoteData(data.data);
     if (typeof calcLiveUpdate === 'function') calcLiveUpdate();
     if (typeof setCurrentQuoteName === 'function') setCurrentQuoteName(data.name);
     if (typeof closePresetMgr === 'function') closePresetMgr();

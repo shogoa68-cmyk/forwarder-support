@@ -669,6 +669,21 @@
     else _dismissSuggest();
   });
 
+  // お客様ご担当者：読み（ひらがな／カタカナ）をそのまま確定したら、マスター登録の氏名へ変換
+  document.addEventListener('change', function (e) {
+    const t = e.target;
+    if (!t || t.id !== 'qf-person' || !t.closest || !t.closest('#tab-quote-make')) return;
+    const sq = x => _toHira(x).replace(/[\s\u3000]+/g, '');   // 姓名間の空白は無視して比較
+    const v = sq(t.value);
+    if (!v) return;
+    const dl = document.getElementById('qfPersonSuggestions');
+    const hit = dl && Array.from(dl.children).find(o => o.dataset.furi && sq(o.dataset.furi) === v);
+    if (!hit || hit.value === t.value) return;
+    t.value = hit.value;
+    t.dispatchEvent(new Event('input', { bubbles: true }));
+    if (typeof window.quoteShowToast === 'function') window.quoteShowToast('🔤 ふりがなから「' + hit.value + '」に変換しました', 'info', 2000);
+  });
+
   // === 入力中の候補並び替え：読み（ふりがな）・名称が前方一致する候補を datalist 先頭へ ===
   // Chrome 系の datalist ドロップダウンは option の DOM 順で表示されるため、
   // 入力のたびに「前方一致 → 部分一致 → その他」の順に option を並べ替える。
@@ -677,7 +692,7 @@
     const t = e.target;
     if (!t || t.tagName !== 'INPUT') return;
     const listId = t.getAttribute('list');
-    const field = _LIST_FIELD[listId];
+    const field = _LIST_FIELD[listId] || (listId === 'qfPersonSuggestions' ? 'person' : null);
     if (!field) return;
     if (!t.closest || !t.closest('#tab-quote-make')) return;
     const dl = document.getElementById(listId);

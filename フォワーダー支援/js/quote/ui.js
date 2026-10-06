@@ -1615,8 +1615,8 @@
     const preset  = presets[idx];
     if (!preset) return;
     // _applyQuoteData でフォーム復元・行再構築（v3 mixed-rows 対応）・合計更新を一括処理
-    // keepHeaderIfEmpty=true: 仮REF/顧客名/担当者が空のプリセットでも現在入力値を消さない
-    _applyQuoteData(preset.data, { keepHeaderIfEmpty: true });
+    // 保存内容どおりに復元する（仮REF/顧客名/担当者が空のプリセットでも、前に開いていた案件の値を残さない）
+    _applyQuoteData(preset.data);
     calcLiveUpdate();
     closePresetMgr();
     setCurrentQuoteName(preset.name);
