@@ -279,7 +279,18 @@
       });
       // datalist 内の動的 option（data-master）だけを入れ替える
       dl.querySelectorAll('option[data-master]').forEach(o => o.remove());
+      // 静的／別処理で作られた同名 option（内蔵DBのキャリア等）があれば重複追加せず、読み・英語名だけ付与する
+      const existing = new Map();
+      Array.from(dl.children).forEach(o => { if (o.tagName === 'OPTION') existing.set(o.value, o); });
       all.forEach(v => {
+        const ex = existing.get(v);
+        if (ex) {
+          const lab0 = [furi[v], eng[v]].filter(Boolean).join(' / ');
+          if (lab0) ex.label = lab0;
+          if (furi[v]) ex.dataset.furi = furi[v];
+          if (eng[v])  ex.dataset.en   = eng[v];
+          return;
+        }
         const o = document.createElement('option');
         o.value = v;
         const lab = [furi[v], eng[v]].filter(Boolean).join(' / ');

@@ -107,9 +107,15 @@
 
   function collectAllRows() {
     const rows = [];
+    // 物量パターン別の出力（FCL案／LCL案の併記）：window._outputPatternView が設定されている間は、
+    // そのパターンに記録された数量・表示/非表示・サブコン含む/除外を当てはめた状態で収集する
+    const _pv = (window._outputPatternView != null && typeof window.patternRowStates === 'function')
+      ? window.patternRowStates(window._outputPatternView) : null;
     document.querySelectorAll('#tableBody tr').forEach(tr => {
       if (tr.dataset.virtual) return;         // サブコングループヘッダー（仮想行）はスキップ
-      if (tr.dataset.excluded === '1') return; // 除外グループはスキップ
+      const _st = _pv ? _pv.get(tr.id) : null;
+      if (_pv ? !!(_st && _st.excluded) : tr.dataset.excluded === '1') return; // 除外グループはスキップ
+      if (_pv && tr.dataset.type === 'subtotal') return;   // 手動の小計行は現在表示中のパターンの値しか持たないため、他パターンの出力では省く
       if (tr.dataset.type === 'subtotal') {
         const label       = tr.querySelector('.subtotal-label')?.value || '';
         const billingText = tr.querySelector('.subtotal-group-billing')?.textContent?.trim() || '—';
@@ -131,12 +137,12 @@
       const taxed  = document.getElementById(`tx-${id}`)?.checked || false;
       const cat    = document.getElementById(`cat-${id}`)?.value || '';
       const name   = document.getElementById(`nm-${id}`)?.value || '';
-      const pq     = val(`pq-${id}`);
+      const pq     = _st ? _st.qty : val(`pq-${id}`);
       const un     = document.getElementById(`un-${id}`)?.value || '';
       const pc     = document.getElementById(`pc-${id}`)?.value || '';
       const pp     = val(`pp-${id}`);
       const cd     = val(`cd-${id}`);
-      const bq     = val(`bq-${id}`);
+      const bq     = _st ? _st.qty : val(`bq-${id}`);   // 売数量は仕入数量に連動（onPay）
       const bc     = document.getElementById(`bc-${id}`)?.value || '';
       const bp     = val(`bp-${id}`);
       const mk     = val(`mk-${id}`);
@@ -152,7 +158,7 @@
       const vf     = _isSur ? (document.getElementById(`vf-${id}`)?.value || '') : '';
       const vt     = _isSur ? (document.getElementById(`vt-${id}`)?.value || '') : '';
       const zc     = document.getElementById(`zc-${id}`)?.value === '1';
-      const _hideManual = tr.dataset.hideQuote === '1';   // 手動の見積書非表示
+      const _hideManual = _st ? !!_st.hidden : tr.dataset.hideQuote === '1';   // 手動の見積書非表示
       const _outRange   = tr.dataset.outRange === '1';     // 適用期間外（自動・原則客先非表示＋合計除外）
       const _ps         = tr.dataset.profitShare === '1';  // PROFIT SHARE（客先非表示・社内利益に計上）
       const _actual     = tr.dataset.actual === '1';   // 実費（金額未確定・合計除外・単価/金額は「実費」表示）

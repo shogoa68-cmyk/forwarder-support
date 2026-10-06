@@ -3360,6 +3360,7 @@
   window.renderQuoteCargoInfo = function () {
     const el = document.getElementById('qspCargoInfo');
     if (!el) return;
+    if (typeof window.renderFclLcl === 'function') window.renderFclLcl();   // FCL/LCL 損益分岐パネルの物量を追随
     const m = (typeof window.getCargoMetrics === 'function') ? window.getCargoMetrics() : null;
     if (!m) { el.style.display = 'none'; return; }
     // [ラベル, 値, reflectKey(省略可)]

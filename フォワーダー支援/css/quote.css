@@ -11155,3 +11155,46 @@ body.is-row-dragging { cursor: grabbing; user-select: none; }
 /* メール取込の確認表：課税列 */
 #tab-quote-make .ei-table .ei-tax-cell, #tab-quote-make .ei-table .ei-tax-th { text-align: center; white-space: nowrap; }
 #tab-quote-make .ei-table .ei-tax { width: 15px; height: 15px; cursor: pointer; accent-color: #8b6914; vertical-align: middle; }
+
+/* ========== 🆚 FCL/LCL 損益分岐パネル ========== */
+#tab-quote-make .fl-panel { padding: 10px 12px; font-size: 12px; overflow-y: auto; }
+#tab-quote-make .qrc-drawer-body > .fl-panel {
+  width: 100%; flex: 1 1 auto; border: none; border-radius: 0; box-shadow: none;
+  background: transparent; margin: 0; display: flex; flex-direction: column; overflow-y: auto;
+}
+#tab-quote-make .fl-hint { margin: 0 0 8px; font-size: 11px; color: #8a7a5c; line-height: 1.5; }
+#tab-quote-make .fl-sec { border: 1px solid #e4d9c8; border-radius: 6px; background: #fffdf7; padding: 7px 9px; margin-bottom: 8px; }
+#tab-quote-make .fl-sec-title { font-weight: 700; color: #5a4a30; margin-bottom: 5px; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+#tab-quote-make .fl-sub { font-weight: 400; font-size: 10.5px; color: #8a7a5c; }
+#tab-quote-make .fl-grid { display: grid; grid-template-columns: 7.5em 1fr; gap: 4px 8px; align-items: center; }
+#tab-quote-make .fl-grid label { font-size: 11px; color: #6a5a40; }
+#tab-quote-make .fl-in, #tab-quote-make .fl-cur { font-size: 12px; padding: 3px 6px; border: 1px solid #d8c8a8; border-radius: 5px; min-width: 0; width: 100%; box-sizing: border-box; }
+#tab-quote-make .fl-cur { width: auto; }
+#tab-quote-make .fl-cargo-now { font-size: 11px; color: #6a5a40; margin-top: 5px; }
+#tab-quote-make .fl-verdict { border-radius: 6px; padding: 8px 10px; margin-bottom: 8px; font-size: 12.5px; line-height: 1.6; background: #eef6ea; border: 1px solid #b8d6ad; }
+#tab-quote-make .fl-verdict.is-lcl { background: #eaf1fa; border-color: #b4c9e6; }
+#tab-quote-make .fl-verdict.is-warn { background: #fdf3e3; border-color: #ecd09b; color: #6a4a10; }
+#tab-quote-make .fl-verdict b { font-size: 13px; }
+#tab-quote-make .fl-be { margin: 0 0 8px; padding-left: 1.2em; font-size: 11.5px; line-height: 1.6; color: #4a3a20; }
+#tab-quote-make .fl-tbl { width: 100%; border-collapse: collapse; font-size: 11px; }
+#tab-quote-make .fl-tbl th, #tab-quote-make .fl-tbl td { border-bottom: 1px solid #ece2d0; padding: 3px 4px; text-align: right; white-space: nowrap; }
+#tab-quote-make .fl-tbl th { background: #f6efe0; color: #5a4a30; font-weight: 600; }
+#tab-quote-make .fl-tbl td:first-child, #tab-quote-make .fl-tbl th:first-child { text-align: left; }
+#tab-quote-make .fl-tbl td.is-win { font-weight: 700; color: #2f6b2a; }
+#tab-quote-make .fl-tbl tr.is-now td { background: #fff3c4; }
+#tab-quote-make .fl-note { font-size: 10.5px; color: #8a7a5c; margin-top: 6px; line-height: 1.5; }
+
+/* 物量パターン：輸送モード（FCL/LCL）バッジ・指定 */
+#tab-quote-make .cd-pattern-tab-mode { font-size: 9.5px; font-weight: 700; border-radius: 3px; padding: 0 4px; margin-right: 4px; color: #fff; background: #7a7a7a; letter-spacing: .02em; }
+#tab-quote-make .cd-pattern-tab-mode.is-fcl { background: #4e7a3a; }
+#tab-quote-make .cd-pattern-tab-mode.is-lcl { background: #3a6aa0; }
+#tab-quote-make .cd-pattern-mode-wrap { display: inline-flex; align-items: center; gap: 4px; margin-left: 6px; font-size: 11px; color: #6a5a40; }
+#tab-quote-make .cd-pattern-mode-sel { font-size: 11px; padding: 1px 4px; border: 1px solid #d8c8a8; border-radius: 4px; background: #fff; }
+#tab-quote-make .cd-pattern-fcllcl-btn { border-color: #7a9fc8; color: #3a6aa0; }
+#tab-quote-make .fl-calc > summary { cursor: pointer; font-weight: 700; color: #5a4a30; margin: 4px 0 8px; }
+#tab-quote-make .fl-mk-btn { margin-top: 6px; font-size: 12px; padding: 4px 10px; border: 1px solid #7a9fc8; border-radius: 6px; background: #f2f7fc; color: #3a6aa0; cursor: pointer; }
+#tab-quote-make .fl-mk-btn:hover { background: #e4eef9; }
+#tab-quote-make .fl-pt-row { cursor: pointer; }
+#tab-quote-make .fl-pt-row:hover td { background: #faf3e0; }
+#tab-quote-make .fl-multi { display: flex; gap: 6px; align-items: flex-start; font-size: 11.5px; line-height: 1.5; margin: 6px 0 8px; color: #4a3a20; cursor: pointer; }
+#tab-quote-make .fl-multi input { margin-top: 2px; }

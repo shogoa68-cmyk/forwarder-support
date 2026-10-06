@@ -328,3 +328,22 @@
   body.qd-print-mode .qd-page { box-shadow: none; width: 100%; min-height: auto; padding: 0; }
   @page { size: A4 portrait; margin: 14mm; }
 }
+
+/* ===== 物量パターンの併記出力（FCL案／LCL案） ===== */
+.qd-pat-label { text-align: center; font-size: 15px; font-weight: 700; color: #2a4a70; margin: -8px 0 12px; letter-spacing: 2px; }
+.qd-pat-section { margin-top: 36px; padding-top: 28px; border-top: 2px dashed #bbb; }
+.qd-cmp { margin: 14px 0 10px; }
+.qd-cmp-ttl { font-size: 13px; font-weight: 700; margin-bottom: 6px; color: #222; }
+.qd-cmp-table td, .qd-cmp-table th { vertical-align: top; }
+.qd-cmp-content { font-size: 11.5px; line-height: 1.6; }
+.qd-cmp-amt { font-size: 14px; font-weight: 700; white-space: nowrap; }
+.qd-cmp-mode { display: inline-block; font-size: 10px; font-weight: 700; color: #fff; border-radius: 3px; padding: 0 5px; background: #666; }
+.qd-cmp-mode-fcl { background: #4e7a3a; }
+.qd-cmp-mode-lcl { background: #3a6aa0; }
+.qd-cmp-note { font-size: 10.5px; color: #555; margin-top: 6px; }
+@media print {
+  body.qd-print-mode .qd-pat-section { break-before: page; page-break-before: always; margin-top: 0; padding-top: 0; border-top: none; }
+}
+.qd-cmp-table { table-layout: fixed; width: 100%; }
+.qd-cmp-table th:nth-child(1) { width: 26%; }
+.qd-cmp-table th:nth-child(3) { width: 24%; }
