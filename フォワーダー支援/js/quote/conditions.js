@@ -3357,6 +3357,8 @@
     if (!dl) return;
     const map = _carrierMapForMode();
     dl.innerHTML = Object.keys(map).map(k => `<option value="${k}">`).join('');
+    // 作り直しで消えたマスター登録のキャリア（過去案件・同義語・ふりがな等）を再反映
+    if (typeof window.arRefreshDatalist === 'function') window.arRefreshDatalist();
 
     // z2 アイコン・プレースホルダーもモードに合わせて更新
     const icon  = document.getElementById('z2ModeIcon');
