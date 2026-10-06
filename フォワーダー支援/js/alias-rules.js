@@ -67,10 +67,13 @@
     // クラウドにも同期（失敗しても続行）
     if (_cloud()) {
       const c = _c(), me = _me();
-      await c.from(TABLE).upsert(
+      const { error } = await c.from(TABLE).upsert(
         { field, from_value, to_value, created_by: me },
         { onConflict: 'field,from_value' }
       );
+      if (error && typeof window.quoteShowToast === 'function') {
+        window.quoteShowToast('⚠️ クラウドへの保存に失敗しました（ローカルには保存済み）：' + error.message, 'warn', 6000);
+      }
     }
     await _afterChange();
   };
@@ -123,6 +126,30 @@
         } catch (e) {}
       }
     }
+    // customer は引き合い条件の qf-customer、carrier は z2Carrier と複数航路（z2-routes-data）に格納
+    const custRules = rules.filter(r => r.field === 'customer');
+    const carRules  = rules.filter(r => r.field === 'carrier');
+    if ((custRules.length || carRules.length) && out.fields && typeof out.fields === 'object') {
+      const f = out.fields;
+      const _repBy = (list, cur) => {
+        const t = (cur || '').trim();
+        const hit = list.find(r => r.from_value.trim() === t);
+        return hit ? hit.to_value : cur;
+      };
+      if (custRules.length && f['qf-customer'] != null) f['qf-customer'] = _repBy(custRules, f['qf-customer']);
+      if (carRules.length) {
+        if (f['z2Carrier'] != null) f['z2Carrier'] = _repBy(carRules, f['z2Carrier']);
+        if (f['z2-routes-data']) {
+          try {
+            const rts = JSON.parse(f['z2-routes-data']);
+            if (Array.isArray(rts)) {
+              rts.forEach(rt => { if (rt.carrier != null) rt.carrier = _repBy(carRules, rt.carrier); });
+              f['z2-routes-data'] = JSON.stringify(rts);
+            }
+          } catch (e) {}
+        }
+      }
+    }
     return out;
   }
 
@@ -144,6 +171,20 @@
     return { pol, pod };
   }
 
+  // data.fields から customer / carrier 列値を再導出（cloud.js の列昇格ロジックと同形）。
+  function _deriveCustCarrierCols(data) {
+    const f = (data && data.fields) || {};
+    const customer = (f['qf-customer'] || '').trim() || null;
+    let carrier = (f['z2Carrier'] || '').trim() || null;
+    if (!carrier && !(f['z2Pol'] || '').trim() && !(f['z2Pod'] || '').trim()) {
+      try {
+        const rts = JSON.parse(f['z2-routes-data'] || '[]');
+        if (Array.isArray(rts) && rts.length) carrier = rts.map(r => r.carrier).filter(Boolean).join(', ') || null;
+      } catch (e) {}
+    }
+    return { customer, carrier };
+  }
+
   window.arApplyLocal = async function (rules) {
     if (!rules || !rules.length) return 0;
     let presets;
@@ -162,6 +203,8 @@
     const c = _c();
     if (!c || !rules || !rules.length) return 0;
     const hasPort = rules.some(r => r.field === 'port');
+    const hasCust = rules.some(r => r.field === 'customer');
+    const hasCar  = rules.some(r => r.field === 'carrier');
     const { data: presets } = await c.from(PRESETS_TABLE).select('id,data');
     if (!presets) return 0;
     let count = 0;
@@ -172,6 +215,12 @@
         const upd = { data: after };
         // 港の置換時は pol/pod 列も再導出して整合（クラウド一覧の航路フィルタ用）
         if (hasPort) { const { pol, pod } = _derivePortCols(after); upd.pol = pol; upd.pod = pod; }
+        // お客様・キャリアの置換時も customer / carrier 列を再導出（一覧の表示・検索用）
+        if (hasCust || hasCar) {
+          const cc = _deriveCustCarrierCols(after);
+          if (hasCust) upd.customer = cc.customer;
+          if (hasCar)  upd.carrier  = cc.carrier;
+        }
         await c.from(PRESETS_TABLE).update(upd).eq('id', p.id);
         count++;
       }
@@ -363,7 +412,7 @@
     if (!pane) return;
 
     const rules = await window.arGetRules();
-    const fields = ['sv', 'nm', 'un', 'port'];
+    const fields = ['sv', 'carrier', 'customer', 'nm', 'un', 'port'];
     const fieldLabel = { sv: 'サブコン', carrier: 'キャリア', nm: '品名', un: '単位', port: '港', customer: 'お客様' };
     const grouped = {};
     fields.forEach(f => { grouped[f] = rules.filter(r => r.field === f); });
@@ -407,6 +456,8 @@
   <div class="ar-add-form">
     <select id="arField" class="ar-select">
       <option value="sv"${preField==='sv'?' selected':''}>サブコン</option>
+      <option value="carrier"${preField==='carrier'?' selected':''}>キャリア</option>
+      <option value="customer"${preField==='customer'?' selected':''}>お客様</option>
       <option value="nm"${preField==='nm'?' selected':''}>品名</option>
       <option value="un"${preField==='un'?' selected':''}>単位</option>
       <option value="port"${preField==='port'?' selected':''}>港</option>
@@ -462,9 +513,10 @@
   <div class="ar-add-form">
     <select id="arAbbrevField" class="ar-select">
       <option value="sv">サブコン</option>
+      <option value="carrier">キャリア</option>
+      <option value="customer">お客様</option>
       <option value="nm">品名</option>
       <option value="un">単位</option>
-      <option value="customer">お客様</option>
       <option value="port">港</option>
     </select>
     <input id="arAbbrevShort" class="ar-input" type="text" placeholder="略称（例: NTL）">
