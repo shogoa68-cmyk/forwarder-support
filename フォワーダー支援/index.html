@@ -3859,6 +3859,38 @@
       <!-- 比較パネル（同一項目の最安値比較） -->
       <div id="cmpRailPanel" class="cmp-panel"></div>
 
+      <!-- FCL/LCL 損益分岐パネル -->
+      <div id="flPanel" class="fl-panel">
+        <p class="fl-hint">仕入ベースで、FCL（コンテナ貸切）と LCL（混載）のどちらが有利か／何CBMから逆転するかを出します。単価を入れると自動計算されます（入力値は案件に保存されます）。</p>
+        <div class="fl-sec">
+          <div class="fl-sec-title">📦 物量 <span class="fl-sub">空欄＝案件の貨物情報を使用</span></div>
+          <div class="fl-grid">
+            <label>CBM</label><input type="number" id="fl-cbm" class="fl-in" min="0" step="any" placeholder="" title="空欄なら案件の総容積" oninput="renderFclLcl()">
+            <label>重量 kg</label><input type="number" id="fl-kg" class="fl-in" min="0" step="any" placeholder="" title="空欄なら案件の総重量" oninput="renderFclLcl()">
+          </div>
+          <div class="fl-cargo-now" id="flCargoNow"></div>
+        </div>
+        <div class="fl-sec">
+          <div class="fl-sec-title">🚢 LCL（混載） <span class="fl-sub">通貨</span> <select id="fl-lcl-cur" class="fl-cur" onchange="renderFclLcl()"><option value="JPY">JPY</option><option value="USD" selected>USD</option><option value="EUR">EUR</option><option value="CNY">CNY</option><option value="KRW">KRW</option><option value="SGD">SGD</option><option value="HKD">HKD</option><option value="GBP">GBP</option><option value="AUD">AUD</option><option value="TWD">TWD</option><option value="THB">THB</option><option value="VND">VND</option><option value="MYR">MYR</option><option value="IDR">IDR</option><option value="PHP">PHP</option><option value="INR">INR</option></select></div>
+          <div class="fl-grid">
+            <label>運賃 /RT</label><input type="number" id="fl-lcl-rate" class="fl-in" min="0" step="any" placeholder="例 60" title="" oninput="renderFclLcl()">
+            <label>諸チャージ /RT</label><input type="number" id="fl-lcl-perrt" class="fl-in" min="0" step="any" placeholder="CFS等 例 15" title="CFS charge など R/T 単位で掛かる費用" oninput="renderFclLcl()">
+            <label>固定費 /BL</label><input type="number" id="fl-lcl-fix" class="fl-in" min="0" step="any" placeholder="DOC等 例 100" title="B/L 1枚あたりの固定費用（ドキュメント費など）" oninput="renderFclLcl()">
+            <label>最低 R/T</label><input type="number" id="fl-lcl-min" class="fl-in" min="0" step="any" placeholder="1" title="LCL の最低課金R/T（既定 1）" oninput="renderFclLcl()">
+          </div>
+        </div>
+        <div class="fl-sec">
+          <div class="fl-sec-title">🚛 FCL（貸切） <span class="fl-sub">通貨</span> <select id="fl-fcl-cur" class="fl-cur" onchange="renderFclLcl()"><option value="JPY">JPY</option><option value="USD" selected>USD</option><option value="EUR">EUR</option><option value="CNY">CNY</option><option value="KRW">KRW</option><option value="SGD">SGD</option><option value="HKD">HKD</option><option value="GBP">GBP</option><option value="AUD">AUD</option><option value="TWD">TWD</option><option value="THB">THB</option><option value="VND">VND</option><option value="MYR">MYR</option><option value="IDR">IDR</option><option value="PHP">PHP</option><option value="INR">INR</option></select></div>
+          <div class="fl-grid">
+            <label>20'GP /本</label><input type="number" id="fl-f20" class="fl-in" min="0" step="any" placeholder="運賃+諸費用" title="1本あたり（運賃＋THC等）" oninput="renderFclLcl()">
+            <label>40'GP /本</label><input type="number" id="fl-f40" class="fl-in" min="0" step="any" placeholder="運賃+諸費用" title="" oninput="renderFclLcl()">
+            <label>40'HQ /本</label><input type="number" id="fl-f40hq" class="fl-in" min="0" step="any" placeholder="運賃+諸費用" title="" oninput="renderFclLcl()">
+            <label>固定費 /BL</label><input type="number" id="fl-fcl-fix" class="fl-in" min="0" step="any" placeholder="DOC等 例 100" title="B/L 1枚あたりの固定費用" oninput="renderFclLcl()">
+          </div>
+        </div>
+        <div id="flResult" class="fl-result"></div>
+      </div>
+
       <!-- サブコン別パネル（右カラム コンパクト表示） -->
       <div id="siPanel" class="si-panel">
         <div class="si-tab-bar">
@@ -4552,6 +4584,7 @@
 <script src="js/similar-quotes.js"></script>
 <script src="js/quote/scenario.js"></script>
 <script src="js/quote/compare.js"></script>
+<script src="js/quote/fcl-lcl.js"></script>
 <script src="js/quote/right-rail.js"></script>
 <script src="js/stats.js"></script>
 <script src="js/alias-rules.js"></script>

@@ -46,6 +46,7 @@
   const MODS = [
     { id: 'digest',   icon: '🧭', label: 'ジャンプ', title: 'ジャンプ',     panel: 'quoteSummaryPanel', tab: 'digest' },
     { id: 'compare',  icon: '⚖️', label: '比較',    title: '同一項目の最安値比較', panel: 'cmpRailPanel' },
+    { id: 'fcllcl',   icon: '🆚', label: 'FCL/LCL', title: 'FCL/LCL 損益分岐', panel: 'flPanel' },
     { id: 'bookmark', icon: '🔖', label: 'ブク',    title: 'ブックマーク',  panel: 'bmRailPanel' },
     { id: 'fin',      icon: '💰', label: '金額',    title: '金額',         panel: 'quoteSummaryPanel', tab: 'fin'    },
     { id: 'chat',     icon: '💬', label: '申し送り', title: '申し送り',     panel: 'quoteSummaryPanel', tab: 'chat'   },
@@ -81,6 +82,7 @@
       sqPanel:           document.getElementById('sqPanel'),
       scPanel:           document.getElementById('scPanel'),
       cmpRailPanel:      document.getElementById('cmpRailPanel'),
+      flPanel:           document.getElementById('flPanel'),
       siPanel:           document.getElementById('siPanel'),
       lcRailPanel:       document.getElementById('lcRailPanel'),
       bmRailPanel:       document.getElementById('bmRailPanel'),
@@ -180,6 +182,10 @@
     if (mod === 'compare' && typeof window.renderCompareRail === 'function') {
       window.renderCompareRail();
     }
+    // FCL/LCL 損益分岐パネル：アクティブ化時に最新の物量で再計算
+    if (mod === 'fcllcl' && typeof window.renderFclLcl === 'function') {
+      window.renderFclLcl();
+    }
     // 諸チャージパネル：アクティブ化時にデータロード
     if (mod === 'charges' && typeof window.loadChargesRail === 'function') {
       window.loadChargesRail();
@@ -213,7 +219,7 @@
 
     // パネル出し分け（active のモジュールの panel だけ表示）
     const showPanel = def ? def.panel : null;
-    ['quoteSummaryPanel', 'sqPanel', 'scPanel', 'cmpRailPanel', 'siPanel', 'lcRailPanel', 'bmRailPanel'].forEach(function (id) {
+    ['quoteSummaryPanel', 'sqPanel', 'scPanel', 'cmpRailPanel', 'flPanel', 'siPanel', 'lcRailPanel', 'bmRailPanel'].forEach(function (id) {
       const el = document.getElementById(id);
       if (!el) return;
       // sqPanel は内部で hidden 属性を自前制御するため、表示は wrapper 側で行う
