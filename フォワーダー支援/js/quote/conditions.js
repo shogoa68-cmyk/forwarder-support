@@ -81,7 +81,8 @@
     const routes = _activeRoutes.slice();
     return {
       pol, pod, origin, dest, routes,
-      incoterms: g('cond-incoterms'), mode: g('cond-mode'), container,
+      // 「設定なし」（インコタームズを使わない案件）は出力では空扱い＝建値の行を出さない（必須チェックは別途、入力済み扱い）
+      incoterms: (g('cond-incoterms') === '設定なし' ? '' : g('cond-incoterms')), mode: g('cond-mode'), container,
       cargo: g('cond-cargo'), hsCode: g('cond-hs'),
       hsBasic: g('cond-hs-basic'), hsPref: g('cond-hs-pref'), hsPrefNote: g('cond-hs-pref-note'),
       weight: (typeof window.getCargoWeightText === 'function')

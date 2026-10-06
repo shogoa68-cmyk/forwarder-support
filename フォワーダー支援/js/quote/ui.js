@@ -1846,7 +1846,7 @@
 
       const route = quoteRouteHtml(m, 'preset-kv-arrow');
       const condHtml =
-        (m.incoterms ? '<span class="preset-tag preset-tag-inco">' + escHtml(m.incoterms.split('（')[0]) + '</span>' : '') +
+        ((m.incoterms && m.incoterms !== '設定なし') ? '<span class="preset-tag preset-tag-inco">' + escHtml(m.incoterms.split('（')[0]) + '</span>' : '') +
         (m.mode      ? '<span class="preset-tag preset-tag-mode">' + escHtml(m.mode) + '</span>' : '');
       const personH = m.person && (window.formatPersonWithHonorific ? window.formatPersonWithHonorific(m.person) : m.person);
       const custDd = [m.customer && escHtml(m.customer), personH && escHtml(personH)].filter(Boolean).join('・');
@@ -3788,7 +3788,7 @@
 
     // 引き合い条件
     const condParts = [];
-    const inco = g('cond-incoterms'); if (inco) condParts.push(inco);
+    const inco = g('cond-incoterms'); if (inco && inco !== '設定なし') condParts.push(inco);
     if (typeof _currentDirection !== 'undefined' && _currentDirection) {
       condParts.push(_currentDirection === 'export' ? '輸出' : '輸入');
     }
