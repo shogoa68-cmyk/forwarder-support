@@ -876,7 +876,7 @@
         ? window.quoteRouteHtml(routeMeta, 'cloud-kv-arrow')
         : ((pol || pod) ? [pol, pod].filter(Boolean).map(escHtml).join(' <span class="cloud-kv-arrow">→</span> ') : '');
       const condHtml =
-        (inco ? '<span class="cloud-tag cloud-tag-inco">' + escHtml(String(inco).split('（')[0]) + '</span>' : '') +
+        ((inco && inco !== '設定なし') ? '<span class="cloud-tag cloud-tag-inco">' + escHtml(String(inco).split('（')[0]) + '</span>' : '') +
         (mode ? '<span class="cloud-tag cloud-tag-mode">' + escHtml(mode) + '</span>' : '');
       const personH = person && (window.formatPersonWithHonorific ? window.formatPersonWithHonorific(person) : person);
       const custDd = [customer && escHtml(customer), personH && escHtml(personH)].filter(Boolean).join('・');

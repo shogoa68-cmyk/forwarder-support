@@ -252,7 +252,7 @@
     if (!hdr.ref)      document.getElementById('qf-ref')?.classList.add('quote-warn-field');
     if (!hdr.customer) document.getElementById('qf-customer')?.classList.add('quote-warn-field');
     if (!hdr.person)   document.getElementById('qf-person')?.classList.add('quote-warn-field');
-    if (cond && !cond.incoterms) document.getElementById('cond-incoterms')?.classList.add('quote-warn-field');
+    if (cond && !cond.incoterms && document.getElementById('cond-incoterms')?.value !== '設定なし') document.getElementById('cond-incoterms')?.classList.add('quote-warn-field');   // 「設定なし」は選択済み
     document.querySelectorAll('#tableBody tr[id^="row-"]').forEach(tr => {
       const nm   = tr.querySelector('[data-field="nm"]');
       const bp   = tr.querySelector('[data-field="bp"]');
