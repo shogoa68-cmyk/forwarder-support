@@ -1877,6 +1877,7 @@
     c = c || {};
     return `<div class="md-contact-row">` +
       `<input type="text" class="ar-input md-contact-name" placeholder="氏名" value="${_eav(c.name || '')}">` +
+      `<input type="text" class="ar-input md-contact-furi" placeholder="ふりがな（読みで入力補完）" title="ふりがな：見積の「ご担当者」欄で、読みのひらがなを入力すると氏名の候補に出ます" value="${_eav(c.furigana || '')}">` +
       `<input type="text" class="ar-input md-contact-phone" placeholder="電話番号" value="${_eav(c.phone || '')}">` +
       `<input type="text" class="ar-input md-contact-email" placeholder="E-MAIL" value="${_eav(c.email || '')}">` +
       `<input type="text" class="ar-input md-contact-other" placeholder="その他連絡手段" value="${_eav(c.other || '')}">` +
@@ -2003,10 +2004,11 @@
         if (!wrap) return;
         const rows = Array.from(wrap.querySelectorAll('.md-contact-row')).map(row => ({
           name:  row.querySelector('.md-contact-name') ?.value.trim() || '',
+          furigana: row.querySelector('.md-contact-furi')?.value.trim() || '',
           phone: row.querySelector('.md-contact-phone')?.value.trim() || '',
           email: row.querySelector('.md-contact-email')?.value.trim() || '',
           other: row.querySelector('.md-contact-other')?.value.trim() || '',
-        })).filter(c => c.name || c.phone || c.email || c.other);
+        })).filter(c => c.name || c.furigana || c.phone || c.email || c.other);
         if (rows.length) details[s.key] = rows;
         return;
       }

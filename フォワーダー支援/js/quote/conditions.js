@@ -580,8 +580,10 @@
       if (!name) return;
       const o = document.createElement('option');
       o.value = name;
-      const meta = [c.phone, c.email, c.other].filter(Boolean).join(' / ');
-      if (meta) o.label = meta;
+      const furi = (c.furigana || '').trim();
+      const meta = [furi, c.phone, c.email, c.other].filter(Boolean).join(' / ');
+      if (meta) o.label = meta;   // ふりがなも label に入れ、読み入力でも候補にヒットさせる
+      if (furi) o.dataset.furi = furi;
       dl.appendChild(o);
     });
   };
