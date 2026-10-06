@@ -123,9 +123,47 @@
 
   window.flCalc = calc;
 
-  window.renderFclLcl = function () {
+  // この案件の物量パターン別の見積合計（FCL案／LCL案の比較）
+  function renderPatternCompare() {
+    const box = $('flPatterns');
+    if (!box) return;
+    const tots = (typeof window.calcPatternTotals === 'function') ? window.calcPatternTotals() : [];
+    if (tots.length < 2) {
+      box.innerHTML = '<div class="fl-sec-title">📋 パターン比較</div>' +
+        '<div class="fl-sub" style="line-height:1.6">この案件にはまだ物量パターンが1つだけです。「FCL案」「LCL案」を作ると、見積合計を並べて比較できます。</div>' +
+        '<button type="button" class="fl-mk-btn" onclick="createFclLclPatterns()">🆚 FCL/LCL比較案を作成</button>';
+      return;
+    }
+    const ok = tots.filter(t => t.rows > 0);
+    const cheapest = ok.length ? ok.reduce((a, b) => (b.totalJPY < a.totalJPY ? b : a)) : null;
+    const f = tots.find(t => t.mode === 'fcl'), l = tots.find(t => t.mode === 'lcl');
+    let head = '';
+    if (f && l && f.rows && l.rows) {
+      const diff = f.totalJPY - l.totalJPY;
+      head = `<div class="fl-verdict ${diff > 0 ? 'is-lcl' : ''}">${_esc(f.name)} <b>${FMT(f.totalJPY)}</b> ／ ${_esc(l.name)} <b>${FMT(l.totalJPY)}</b><br>` +
+        (diff === 0 ? '差額なし' : `差額 <b>${FMT(Math.abs(diff))}</b>（${diff > 0 ? _esc(l.name) : _esc(f.name)}が安い・税込）`) + '</div>';
+    }
+    box.innerHTML = '<div class="fl-sec-title">📋 パターン比較 <span class="fl-sub">税込・客先合計</span></div>' + head +
+      '<table class="fl-tbl"><thead><tr><th>パターン</th><th>見積合計</th><th>仕入</th><th>粗利</th></tr></thead><tbody>' +
+      tots.map(t => {
+        const badge = t.mode ? `<span class="cd-pattern-tab-mode is-${t.mode}">${t.mode.toUpperCase()}</span>` : '';
+        const act = (typeof _packingActiveIdx !== 'undefined' && _packingActiveIdx === t.idx);
+        return `<tr class="fl-pt-row ${act ? 'is-now' : ''}" onclick="switchPackingPattern(${t.idx})" title="クリックでこのパターンに切り替え">` +
+          `<td>${badge}${_esc(t.name)}${cheapest && cheapest.idx === t.idx && ok.length > 1 ? ' ⭐' : ''}</td>` +
+          `<td class="${cheapest && cheapest.idx === t.idx && ok.length > 1 ? 'is-win' : ''}">${t.rows ? FMT(t.totalJPY) : '—'}</td>` +
+          `<td>${t.rows ? FMT(t.costJPY) : '—'}</td>` +
+          `<td>${t.rows ? FMT(t.profitJPY) + '<br><small>' + t.marginPct.toFixed(1) + '%</small>' : '—'}</td></tr>`;
+      }).join('') + '</tbody></table>' +
+      (tots.some(t => t.fxMissing) ? '<div class="fl-note">※ 為替レート未取得の通貨を含むため、一部の金額が0円扱いです。</div>' : '') +
+      '<div class="fl-note">※ 各パターンに記録した数量・見積書の表示/非表示・サブコンの含む/除外を反映した合計です（切替先の画面と一致）。⭐＝見積合計が最安。</div>';
+  }
+
+  window.renderFclLcl = function (force) {
     const box = $('flResult');
     if (!box) return;
+    const panel = $('flPanel');
+    if (!force && panel && !panel.offsetParent) return;   // 非表示中は計算しない（updateTotals から頻繁に呼ばれるため）
+    renderPatternCompare();
     const r = calc();
     const { cargo, d } = r;
 

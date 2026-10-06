@@ -3861,7 +3861,10 @@
 
       <!-- FCL/LCL 損益分岐パネル -->
       <div id="flPanel" class="fl-panel">
-        <p class="fl-hint">仕入ベースで、FCL（コンテナ貸切）と LCL（混載）のどちらが有利か／何CBMから逆転するかを出します。単価を入れると自動計算されます（入力値は案件に保存されます）。</p>
+        <p class="fl-hint">①この案件の「FCL案／LCL案」など物量パターンごとの見積合計を並べて比較します。②下の損益分岐は、仕入単価からどちらが有利か／何CBMから逆転するかを出します（入力値は案件に保存されます）。</p>
+        <div class="fl-sec" id="flPatterns"></div>
+        <details class="fl-calc" open>
+        <summary>🧮 損益分岐（FCL/LCL どちらが得か）</summary>
         <div class="fl-sec">
           <div class="fl-sec-title">📦 物量 <span class="fl-sub">空欄＝案件の貨物情報を使用</span></div>
           <div class="fl-grid">
@@ -3889,6 +3892,7 @@
           </div>
         </div>
         <div id="flResult" class="fl-result"></div>
+        </details>
       </div>
 
       <!-- サブコン別パネル（右カラム コンパクト表示） -->

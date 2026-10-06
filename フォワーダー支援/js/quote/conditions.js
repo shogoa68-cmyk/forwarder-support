@@ -1625,6 +1625,8 @@
   function _renderContainerEntries() {
     const data = document.getElementById('cond-container-data');
     if (data) data.value = JSON.stringify(_containerEntries);
+    _syncActivePatternContainers();
+    if (typeof _syncPackingPatternsData === 'function') _syncPackingPatternsData();
     // チップUIに反映：各チップの本数入力とアクティブ状態を _containerEntries から復元
     document.querySelectorAll('.cc-chip').forEach(chip => {
       const e = _containerEntries.find(x => x.type === chip.dataset.ctype);
@@ -2048,9 +2050,17 @@
   // 想定パターン（_packingPatterns）を hidden へ保存。_packingEntries は現在アクティブな
   // パターンの entries そのもの（同一配列参照）なので、ここでは配列の中身を触らず
   // アクティブ index と全パターン分のスナップショットをまとめて書き出すだけでよい。
+  // 輸送モード（FCL/LCL）を持つパターンは、コンテナの種類・本数もパターンごとに記憶する
+  // （FCL案は20'GP×1、LCL案はコンテナなし、のように切替で入れ替えるため）
+  function _syncActivePatternContainers() {
+    const act = _packingPatterns[_packingActiveIdx];
+    if (act && act.mode) act.containers = (_containerEntries || []).map(e => ({ ...e }));
+  }
+
   function _syncPackingPatternsData() {
     const el = document.getElementById('cond-packing-patterns');
     if (!el) return;
+    _syncActivePatternContainers();
     el.value = JSON.stringify({ activeIdx: _packingActiveIdx, patterns: _packingPatterns });
   }
 
@@ -2065,7 +2075,9 @@
       const active = i === _packingActiveIdx;
       const n = (pt.entries || []).filter(e => e && e.pkg).length;
       const shown = _isPatternVisibleInQuote(pt, i);
+      const modeBadge = pt.mode ? `<span class="cd-pattern-tab-mode is-${pt.mode}">${pt.mode.toUpperCase()}</span>` : '';
       return `<span class="cd-pattern-tab${active ? ' is-active' : ''}${shown ? '' : ' is-hidden-from-quote'}" onclick="switchPackingPattern(${i})" title="クリックでこのパターンに切り替え（他のパターンの内容は保持されます）">` +
+        modeBadge +
         `<span class="cd-pattern-tab-label">${_escMulti(label)}</span>` +
         (n ? `<span class="cd-pattern-tab-count">${n}</span>` : '') +
         `<span class="cd-pattern-tab-vis" onclick="event.stopPropagation();togglePackingPatternVisibility(${i})" title="${shown ? 'クリックで「見積書に表示しない」に固定します（社内比較用のみになります）' : 'クリックで「見積書に表示」に固定します（選択中のタブでなくても表示されます）'}">${shown ? '📄' : '🔒'}</span>` +
@@ -2075,13 +2087,90 @@
     }).join('');
     wrap.innerHTML = tabsHtml +
       `<button type="button" class="cd-pattern-add-btn" onclick="addPackingPattern()" title="荷姿・貨物明細の代替シナリオ（例：パレット梱包の場合／バラ積みの場合）を追加し、切り替えて比較できます">＋ 別パターンを作成</button>` +
-      `<button type="button" class="cd-pattern-add-btn cd-pattern-dup-btn" onclick="duplicatePackingPattern()" title="表示中のパターンの内容をコピーして新しいパターンを作ります（似た構成のパターンを作るときに便利）">📋 複製して作成</button>`;
+      `<button type="button" class="cd-pattern-add-btn cd-pattern-dup-btn" onclick="duplicatePackingPattern()" title="表示中のパターンの内容をコピーして新しいパターンを作ります（似た構成のパターンを作るときに便利）">📋 複製して作成</button>` + _patternModeControlsHtml();
   }
+
+  // アクティブなパターンの輸送モード（FCL/LCL）指定と、FCL/LCL比較案のワンクリック作成
+  function _patternModeControlsHtml() {
+    if (_currentTransport === 'air' || _currentTransport === 'domestic') return '';
+    const act = _packingPatterns[_packingActiveIdx] || {};
+    const anyMode = _packingPatterns.some(pt => pt.mode);
+    const sel = `<label class="cd-pattern-mode-wrap" title="このパターンを開いたとき、輸送モード（FCL/LCL）・コンテナ指定を自動で切り替えます。「FCL案」「LCL案」を並べて比較・併記したいときに指定します">` +
+      `<span>輸送モード</span><select class="cd-pattern-mode-sel" onchange="setPackingPatternMode(this.value)">` +
+      `<option value=""${act.mode ? '' : ' selected'}>指定なし</option>` +
+      `<option value="fcl"${act.mode === 'fcl' ? ' selected' : ''}>FCL</option>` +
+      `<option value="lcl"${act.mode === 'lcl' ? ' selected' : ''}>LCL</option></select></label>`;
+    const mk = anyMode ? '' :
+      `<button type="button" class="cd-pattern-add-btn cd-pattern-fcllcl-btn" onclick="createFclLclPatterns()" title="今の内容を土台に「FCL案」「LCL案」の2パターンを作ります。LCL案では航路（NVOCC）や費用行を切り替えて、両案を比較・お客様へ併記できます">🆚 FCL/LCL比較案を作成</button>`;
+    return mk + sel;
+  }
+
+  // パターンの輸送モードを反映（モード切替＋コンテナ指定の入れ替え）
+  function _applyPatternMode(i) {
+    const pat = _packingPatterns[i];
+    if (!pat || !pat.mode) return;
+    if (_currentTransport === 'air' || _currentTransport === 'domestic') return;
+    if (_currentTransport !== 'sea' || _currentSeaSub !== pat.mode) setTransport(pat.mode);
+    if (pat.mode === 'lcl') _containerEntries = Array.isArray(pat.containers) ? pat.containers.map(e => ({ ...e })) : [];
+    else if (Array.isArray(pat.containers)) _containerEntries = pat.containers.map(e => ({ ...e }));
+    _renderContainerEntries();
+    if (typeof window.renderQuoteCargoInfo === 'function') window.renderQuoteCargoInfo();
+  }
+
+  window.setPackingPatternMode = function (mode) {
+    const pat = _packingPatterns[_packingActiveIdx];
+    if (!pat) return;
+    mode = (mode === 'fcl' || mode === 'lcl') ? mode : '';
+    pat.mode = mode || undefined;
+    if (!mode) delete pat.containers;
+    else pat.containers = (_containerEntries || []).map(e => ({ ...e }));
+    if (mode) _applyPatternMode(_packingActiveIdx);
+    _renderPackingPatternTabs();
+    _syncPackingPatternsData();
+    if (typeof window.renderFclLcl === 'function') window.renderFclLcl();
+    if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
+    if (typeof scheduleSnapshot === 'function') scheduleSnapshot();
+  };
+
+  // 今の内容を土台に FCL案／LCL案 の2パターンを作る（現在のモードが LCL なら LCL案が土台）
+  window.createFclLclPatterns = function () {
+    if (_packingPatterns.some(pt => pt.mode)) return;
+    const baseMode  = (_currentTransport === 'sea' && _currentSeaSub === 'lcl') ? 'lcl' : 'fcl';
+    const otherMode = baseMode === 'fcl' ? 'lcl' : 'fcl';
+    const label = m => m.toUpperCase() + '案';
+    _packingPatterns.forEach((pt, i) => { if (!pt.name) pt.name = `パターン${i + 1}`; });
+    const src = _packingPatterns[_packingActiveIdx];
+    _snapshotAllQtyIntoPattern(_packingActiveIdx);
+    if (_packingPatterns.length === 1 && /^パターン1$/.test(src.name)) src.name = label(baseMode);
+    src.mode = baseMode;
+    src.containers = (_containerEntries || []).map(e => ({ ...e }));
+    const cloned = {
+      name: label(otherMode),
+      entries: (src.entries || []).map(e => ({ ...e })),
+      showInQuote: src.showInQuote,
+      qtyLinks: { ...(src.qtyLinks || {}) },
+      excludedUnits: [...(src.excludedUnits || [])],
+      hideLinks: { ...(src.hideLinks || {}) },
+      groupExcludeLinks: { ...(src.groupExcludeLinks || {}) },
+      routeLinks: { ...(src.routeLinks || {}) },
+      mode: otherMode,
+      containers: otherMode === 'lcl' ? [] : (src.containers || []).map(e => ({ ...e })),
+    };
+    _packingPatterns.splice(_packingActiveIdx + 1, 0, cloned);
+    _renderPackingEntries();
+    if (typeof window.quoteShowToast === 'function') {
+      window.quoteShowToast(`🆚 「${src.name}」と「${cloned.name}」を作成しました。${label(otherMode)}のタブに切り替えて、航路（${otherMode === 'lcl' ? 'NVOCC' : '船社'}）と費用行を調整してください`, 'success', 6000);
+    }
+    if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
+    if (typeof scheduleSnapshot === 'function') scheduleSnapshot();
+  };
 
   window.switchPackingPattern = function (i) {
     if (i === _packingActiveIdx || !_packingPatterns[i]) return;
+    _syncActivePatternContainers();   // 離れるパターンのコンテナ指定を確定
     _packingActiveIdx = i;
     _packingEntries = _packingPatterns[i].entries;
+    _applyPatternMode(i);             // FCL/LCL 指定があれば輸送モード・コンテナを切替
     _renderPackingEntries();
     _applyPatternQtyLinks(i);
     _applyPatternRouteLinks(i);
@@ -2310,6 +2399,8 @@
       hideLinks: { ...(src.hideLinks || {}) },   // 見積書表示/非表示の紐付けも複製元を引き継ぐ
       groupExcludeLinks: { ...(src.groupExcludeLinks || {}) },   // サブコン・サブコン×パターン見出しの含む/除外も複製元を引き継ぐ
       routeLinks: { ...(src.routeLinks || {}) },   // 航路の有効/無効も複製元を引き継ぐ
+      mode: src.mode,                              // 輸送モード（FCL/LCL）・コンテナ指定も引き継ぐ
+      containers: Array.isArray(src.containers) ? src.containers.map(e => ({ ...e })) : undefined,
     };
     _packingPatterns.splice(_packingActiveIdx + 1, 0, cloned);   // 複製元の直後に挿入
     _packingActiveIdx += 1;
@@ -2342,6 +2433,7 @@
     if (_packingActiveIdx >= _packingPatterns.length) _packingActiveIdx = _packingPatterns.length - 1;
     else if (i < _packingActiveIdx) _packingActiveIdx--;
     _packingEntries = _packingPatterns[_packingActiveIdx].entries;
+    _applyPatternMode(_packingActiveIdx);
     _renderPackingEntries();
     _applyPatternQtyLinks(_packingActiveIdx);   // 1件だけになった場合はハイライトを消す
     if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
@@ -2770,6 +2862,8 @@
         hideLinks: (pt && pt.hideLinks && typeof pt.hideLinks === 'object') ? pt.hideLinks : {},
         groupExcludeLinks: (pt && pt.groupExcludeLinks && typeof pt.groupExcludeLinks === 'object') ? pt.groupExcludeLinks : {},
         routeLinks: (pt && pt.routeLinks && typeof pt.routeLinks === 'object') ? pt.routeLinks : {},
+        mode: (pt && (pt.mode === 'fcl' || pt.mode === 'lcl')) ? pt.mode : undefined,
+        containers: (pt && Array.isArray(pt.containers)) ? pt.containers : undefined,
       }));
       _packingActiveIdx = (Number.isInteger(restoredPt.activeIdx) && _packingPatterns[restoredPt.activeIdx]) ? restoredPt.activeIdx : 0;
       _packingEntries = _packingPatterns[_packingActiveIdx].entries;
