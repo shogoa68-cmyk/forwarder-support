@@ -55,6 +55,25 @@
     return null;
   }
 
+  // 課税・非課税の判定（本文の語から）。戻り値 'on'＝課税／'off'＝非課税／null＝判定できない。
+  //  非課税：非課税・免税・不課税・課税対象外
+  //  課税  ：[課税]・（課税）・課税対象・空白で区切られた「課税」・税別・消費税別・別途消費税
+  // 「課税価格」「保税」など別の語の一部は拾わない。非課税の語を優先する。
+  const _TAX_OFF_RE = /非課税|免税|不課税|課税対象外/;
+  const _TAX_ON_RE  = /課税対象|[［\[（(]\s*課税\s*[］\]）)]|(^|[\s　])課税(?=[\s　]|$)|税別|消費税別|別途消費税/;
+  function _taxOf(text) {
+    const t = String(text || '');
+    if (_TAX_OFF_RE.test(t)) return 'off';
+    if (_TAX_ON_RE.test(t)) return 'on';
+    return null;
+  }
+  // 品名に混ざった課税区分の目印（括弧書き・空白区切りの語）を取り除く
+  const _TAX_PAREN_RE = /[［\[（(]\s*(非課税|免税|不課税|課税対象外|課税対象|課税|税別|消費税別|別途消費税)\s*[］\]）)]/g;
+  const _TAX_BARE_RE  = /(^|[\s　])(非課税|免税|不課税|課税対象外|課税対象|課税|税別|消費税別)(?=[\s　]|$)/g;
+  function _stripTaxMarks(body) {
+    return body.replace(_TAX_PAREN_RE, ' ').replace(_TAX_BARE_RE, ' ');
+  }
+
   function inferCat(name) {
     for (const h of CAT_HINTS) if (h.re.test(name)) return h.cat;
     return '';
@@ -110,10 +129,13 @@
       if (m) { note = m[1].trim(); body = body.slice(0, m.index).trim(); }
 
       // フラグ抽出
-      const taxed  = /［課税］|\[課税\]/.test(body);
+      // 課税／非課税：行の語（[課税]・課税対象・税別・非課税・免税 等）→ 無ければ備考の語から判定
+      let tax = _taxOf(body);
+      if (tax === null) tax = _taxOf(note);
+      const taxed  = tax === 'on';
       const cond   = /（発生時\/必要時のみ）/.test(body);
       const refFlg = /（参考情報）/.test(body);
-      body = body.replace(/［課税］|\[課税\]|（発生時\/必要時のみ）|（参考情報）/g, ' ').replace(/\s+/g, ' ').trim();
+      body = _stripTaxMarks(body).replace(/（発生時\/必要時のみ）|（参考情報）/g, ' ').replace(/\s+/g, ' ').trim();
 
       // パターンA（自形式・高確度）：NAME  qty [unit] × price ＝ amount
       m = body.match(new RegExp(
@@ -127,7 +149,7 @@
             _kind: 'item', conf: 'high',
             name: m[1].trim(), qty: _num(m[2]) ?? 1, unit: (m[3] || '').trim(),
             ccy: (price || amt).ccy, price: price ? price.v : (amt ? amt.v / (_num(m[2]) || 1) : null),
-            taxed, cond, ref: refFlg, note,
+            taxed, taxSrc: tax, cond, ref: refFlg, note,
           });
           return;
         }
@@ -137,7 +159,7 @@
       if (/(^|\s)実費(\s|$)/.test(body)) {
         const nm2 = body.replace(/(^|\s)実費(\s|$)/, ' ').replace(/\s+/g, ' ').trim();
         if (nm2) {
-          entries.push({ _kind: 'item', conf: 'high', name: nm2, qty: '', unit: '', ccy: 'JPY', price: null, actual: true, taxed, cond, ref: refFlg, note });
+          entries.push({ _kind: 'item', conf: 'high', name: nm2, qty: '', unit: '', ccy: 'JPY', price: null, actual: true, taxed, taxSrc: tax, cond, ref: refFlg, note });
           return;
         }
       }
@@ -161,7 +183,7 @@
           entries.push({
             _kind: 'item', conf: isBullet ? 'mid' : 'low',
             name: nm3, qty, unit, ccy: money.ccy, price: money.v / (qty || 1),
-            taxed, cond, ref: refFlg, note,
+            taxed, taxSrc: tax, cond, ref: refFlg, note,
           });
         }
       }
@@ -215,12 +237,12 @@
       '<label>有効期限 <input type="date" id="eiF-valid" value="' + _esc(fields.validUntil || '') + '"></label>' +
       '<label>サブコン一括設定 <input type="text" id="eiBulkSv" list="svSuggestions" placeholder="例）〇〇物流">' +
         '<button type="button" class="ei-bulk-sv-btn" onclick="eiApplyBulkSv()" title="入力したサブコン名を全行に反映します（個別に直したい行は挿入前に上書き可能）">全行に設定</button></label>' +
-      '<label class="ei-sellmode-label" title="既存システムからの移植等、取り込む単価が「売値」しか分からない場合向け。チェックすると、取り込んだ単価は売単価として登録され、仕入単価は空欄になります。挿入後に見積テーブルで行ごとに「乗せ幅」を入力すると、仕入単価が自動で算出されます（売単価－乗せ幅）。">' +
-        '<input type="checkbox" id="eiSellMode"> 💰 単価を売値として取り込む（仕入は乗せ幅から後で算出）</label>' +
+      '<label class="ei-sellmode-label" title="既存システムからの移植等、取り込む単価が「売値」しか分からない場合向け。チェックすると、取り込んだ単価は売単価として登録され、仕入単価は空欄になります。挿入後に見積テーブルで行ごとに「仕入単価」を入力すると、乗せ幅が自動で算出されます（売単価－仕入単価）。">' +
+        '<input type="checkbox" id="eiSellMode"> 💰 単価を売値として取り込む（仕入を後で入力→乗せ幅を自動算出）</label>' +
       '</div>';
     html += '<table class="ei-table"><thead><tr>' +
       '<th><input type="checkbox" id="eiChkAll" checked onchange="eiToggleAll(this.checked)"></th>' +
-      '<th>グループ</th><th>カテゴリ</th><th>サブコン</th><th>品名</th><th>数量</th><th>単位</th><th>通貨</th><th>単価</th><th>フラグ</th><th>備考</th><th>確度</th>' +
+      '<th>グループ</th><th>カテゴリ</th><th>サブコン</th><th>品名</th><th>数量</th><th>単位</th><th>通貨</th><th>単価</th><th class="ei-tax-th" title="課税対象の行にチェック。見出しのチェックで全行を一括切替">課税 <input type="checkbox" id="eiTaxAll" onchange="eiToggleAllTax(this.checked)"></th><th>フラグ</th><th>備考</th><th>確度</th>' +
       '</tr></thead><tbody>';
     let curGroup = '';
     let gi = -1;
@@ -228,7 +250,7 @@
       if (e._kind === 'group') { curGroup = e.label; return; }
       gi++;
       const cat = inferCat(e.name);
-      const flags = (e.taxed ? '課税 ' : '') + (e.cond ? '都度 ' : '') + (e.ref ? '参考 ' : '') + (e.actual ? '実費' : '');
+      const flags = (e.cond ? '都度 ' : '') + (e.ref ? '参考 ' : '') + (e.actual ? '実費' : '');
       html += `<tr data-gi="${gi}" class="ei-row ei-${e.conf}">` +
         `<td><input type="checkbox" class="ei-chk" checked></td>` +
         `<td class="ei-group-cell"><input type="text" class="ei-in ei-group" value="${_esc(curGroup)}" title="挿入時：小計行のラベル、かつ各行の「パターン（任意）」に登録されます（空欄可）">` +
@@ -240,14 +262,15 @@
         `<td><input type="text" class="ei-in ei-unit" value="${_esc(e.unit || '')}"></td>` +
         `<td><input type="text" class="ei-in ei-ccy" value="${_esc(e.ccy || 'JPY')}" list="eiCcyList"></td>` +
         `<td><input type="number" class="ei-in ei-price" value="${e.price != null ? Math.round(e.price * 100) / 100 : ''}" step="any"></td>` +
-        `<td class="ei-flags" title="解析されたフラグ（課税/都度/参考/実費）">${_esc(flags.trim() || '—')}</td>` +
+        `<td class="ei-tax-cell"><input type="checkbox" class="ei-tax"${e.taxed ? ' checked' : ''} title="${e.taxSrc === 'on' ? '本文の語（[課税]・課税対象・税別 等）から課税と判定' : e.taxSrc === 'off' ? '本文の語（非課税・免税 等）から非課税と判定' : '判定できなかったため非課税（必要ならチェック）'}"></td>` +
+        `<td class="ei-flags" title="解析されたフラグ（都度/参考/実費）">${_esc(flags.trim() || '—')}</td>` +
         `<td><input type="text" class="ei-in ei-note" value="${_esc(e.note || '')}"></td>` +
         `<td>${confBadge(e.conf)}</td>` +
         `</tr>`;
     });
     html += '</tbody></table>';
     html += '<datalist id="eiCcyList">' + CCY_LIST.map(c => `<option value="${c}">`).join('') + '</datalist>';
-    html += '<p class="ei-hint">💡 通常は単価が仕入・売の両方に入ります（粗利0）。仕入額が分かる場合は挿入後に修正してください。「💰 単価を売値として取り込む」をONにすると、単価は売値としてのみ登録され、挿入後に乗せ幅を入力すれば仕入額が自動算出されます。「要確認」行は品名・金額を必ず確認。</p>';
+    html += '<p class="ei-hint">💡 通常は単価が仕入・売の両方に入ります（粗利0）。仕入額が分かる場合は挿入後に修正してください。「💰 単価を売値として取り込む」をONにすると、単価は売値としてのみ登録され、挿入後に仕入単価を入力すれば乗せ幅が自動算出されます。「課税」列は本文の語（[課税]・課税対象・税別・非課税・免税 等）から判定した結果です。違う行はチェックで直してください。「要確認」行は品名・金額を必ず確認。</p>';
     wrap.innerHTML = html;
     document.getElementById('eiActions').hidden = false;
     _updateInsertTarget();
@@ -265,6 +288,9 @@
     el.textContent = '挿入先 → ' + label;
   }
 
+  function eiToggleAllTax(on) {
+    document.querySelectorAll('#eiReviewWrap .ei-tax').forEach(c => { c.checked = on; });
+  }
   function eiToggleAll(on) {
     document.querySelectorAll('#eiReviewWrap .ei-chk').forEach(c => { c.checked = on; });
   }
@@ -361,7 +387,7 @@ THC 1 40FT × 20,000 JPY ＝ 20,000 JPY
     // 売値として取り込む（既存システムからの移植等、売値しか分からない場合向け）：
     // 取り込んだ単価を売単価(bp)のみに入れ、仕入単価(pp)は空欄のまま「売値ベースモード」
     // （ppmode='sell'、row.js の _setSellModeUI/_calcFromSell）にしておく。
-    // 挿入後に見積テーブルで乗せ幅(mk)を入力すると、仕入単価が自動算出される
+    // 挿入後に見積テーブルで仕入単価(pp)を入力すると、乗せ幅(mk)が自動算出される
     const sellMode = document.getElementById('eiSellMode')?.checked;
     const out = [];
     document.querySelectorAll('#eiReviewWrap tbody tr').forEach(tr => {
@@ -374,7 +400,7 @@ THC 1 40FT × 20,000 JPY ＝ 20,000 JPY
       const price = v('ei-price');
       const useSell = sellMode && !src.actual;
       const f = {
-        cat: v('ei-cat'), sv: v('ei-sv').trim(), tx: !!src.taxed, nm: v('ei-name').trim(),
+        cat: v('ei-cat'), sv: v('ei-sv').trim(), tx: !!tr.querySelector('.ei-tax')?.checked, nm: v('ei-name').trim(),
         pq: v('ei-qty'), un: v('ei-unit').trim(), bq: v('ei-qty'),
         pc: (v('ei-ccy').trim().toUpperCase() || 'JPY'), bc: (v('ei-ccy').trim().toUpperCase() || 'JPY'),
         pp: src.actual ? '' : (useSell ? '' : price), bp: src.actual ? '' : price,
@@ -397,7 +423,7 @@ THC 1 40FT × 20,000 JPY ＝ 20,000 JPY
     const price = src.actual ? '' : v('ei-price');
     return {
       _type: 'data',
-      cat: v('ei-cat'), name: v('ei-name').trim(), taxed: !!src.taxed,
+      cat: v('ei-cat'), name: v('ei-name').trim(), taxed: !!tr.querySelector('.ei-tax')?.checked,
       pq: v('ei-qty'), un: v('ei-unit').trim(), pc: ccy, pp: price,
       bq: v('ei-qty'), bc: ccy, bp: price, mk: '', note: v('ei-note').trim(), sv: v('ei-sv').trim(),
     };
@@ -489,7 +515,7 @@ THC 1 40FT × 20,000 JPY ＝ 20,000 JPY
   }
 
   Object.assign(window, {
-    openEmailImport, closeEmailImport, eiParse, eiToggleAll, eiInsertRows, eiApplyAsNew,
+    openEmailImport, closeEmailImport, eiParse, eiToggleAll, eiToggleAllTax, eiInsertRows, eiApplyAsNew,
     eiSaveGroupAsPattern, eiApplyBulkSv, eiCopyAiPrompt,
     parseQuoteEmail,   // テスト・将来の AI パーサー差し替え用に公開
   });

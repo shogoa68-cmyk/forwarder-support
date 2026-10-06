@@ -876,7 +876,7 @@
         ? window.quoteRouteHtml(routeMeta, 'cloud-kv-arrow')
         : ((pol || pod) ? [pol, pod].filter(Boolean).map(escHtml).join(' <span class="cloud-kv-arrow">→</span> ') : '');
       const condHtml =
-        (inco ? '<span class="cloud-tag cloud-tag-inco">' + escHtml(String(inco).split('（')[0]) + '</span>' : '') +
+        ((inco && inco !== '設定なし') ? '<span class="cloud-tag cloud-tag-inco">' + escHtml(String(inco).split('（')[0]) + '</span>' : '') +
         (mode ? '<span class="cloud-tag cloud-tag-mode">' + escHtml(mode) + '</span>' : '');
       const personH = person && (window.formatPersonWithHonorific ? window.formatPersonWithHonorific(person) : person);
       const custDd = [customer && escHtml(customer), personH && escHtml(personH)].filter(Boolean).join('・');
@@ -2587,7 +2587,8 @@
     }
 
     // 復元処理（開く＝閲覧モード：ロックも Presence も取得しない）
-    _applyQuoteData(data.data, { keepHeaderIfEmpty: true });
+    // 保存内容どおりに復元する（お客様名・担当者等が空の案件でも、前に開いていた案件の値を残さない）
+    _applyQuoteData(data.data);
     if (typeof calcLiveUpdate === 'function') calcLiveUpdate();
     if (typeof setCurrentQuoteName === 'function') setCurrentQuoteName(data.name);
     if (typeof closePresetMgr === 'function') closePresetMgr();

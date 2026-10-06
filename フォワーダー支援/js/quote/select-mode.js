@@ -21,6 +21,8 @@
     if (!tb) return;
     const n = tb.querySelectorAll('.row-select-chk:checked').length;
     tb.classList.toggle('selection-mode', n > 0);
+    // サブコン／パターン見出しのチェック（配下の全選択・一部選択）を行チェックに合わせる
+    if (typeof window.syncGroupSelectChecks === 'function') window.syncGroupSelectChecks();
     // 案C：選択中のみ文脈バーを表示
     const ctx = document.getElementById('cmdbarContext');
     if (ctx) {

@@ -254,7 +254,9 @@
       try { masters = JSON.parse(localStorage.getItem('masterCandidates_v1') || '[]'); } catch { masters = []; }
     }
 
-    const _fill = (dlId, field) => {
+    // masterOnly=true：候補をマスター登録済みの代表名だけにする（別名・略称・統合ルールは候補に出さない）。
+    // 表記の揺らぎを入力時点で増やさないため（現在はサブコン欄で使用）
+    const _fill = (dlId, field, masterOnly) => {
       const dl = document.getElementById(dlId);
       if (!dl) return;
       const fromRules  = rules.filter(r => r.field === field).map(r => r.to_value);
@@ -263,25 +265,33 @@
       const fromAbbrev = abbrevPairs.flatMap(p => [p.abbrev, p.full]);
       const fromSyn = (typeof window.synGetGroups === 'function' ? window.synGetGroups(field) : [])
         .flatMap(g => [g.canonical, ...(g.aliases || [])]);
-      const all = [...new Set([...fromRules, ...fromMaster, ...fromAbbrev, ...fromSyn])];
-      // マスター詳細のふりがなを option label に反映（読みひらがな入力でも候補にヒット）
-      const furi = {};
+      const all = masterOnly
+        ? [...new Set(fromMaster)]
+        : [...new Set([...fromRules, ...fromMaster, ...fromAbbrev, ...fromSyn])];
+      // マスター詳細のふりがな・英語名称を option label に反映（読みひらがな／英字入力でも候補にヒット）
+      const furi = {}, eng = {};
       (typeof window.mdGetAll === 'function' ? window.mdGetAll(field) : []).forEach(m => {
-        const f = ((m.details || {}).furigana || '').trim();
+        const d = m.details || {};
+        const f = (d.furigana || '').trim();
+        const e = (d.enName || '').trim();
         if (f) furi[m.value] = f;
+        if (e) eng[m.value] = e;
       });
       // datalist 内の動的 option（data-master）だけを入れ替える
       dl.querySelectorAll('option[data-master]').forEach(o => o.remove());
       all.forEach(v => {
         const o = document.createElement('option');
         o.value = v;
-        if (furi[v]) o.label = furi[v];
+        const lab = [furi[v], eng[v]].filter(Boolean).join(' / ');
+        if (lab) o.label = lab;
+        if (furi[v]) o.dataset.furi = furi[v];
+        if (eng[v])  o.dataset.en   = eng[v];
         o.dataset.master = '1';
         dl.appendChild(o);
       });
     };
 
-    _fill('svSuggestions', 'sv');
+    _fill('svSuggestions', 'sv', true);   // サブコンはマスターからの引用のみ
     _fill('nmSuggestions', 'nm');
     _fill('unit-list',     'un');
     _fill('custSuggestions', 'customer');
@@ -560,15 +570,13 @@
     document.removeEventListener('scroll', _dismissSuggest, true);
     window.removeEventListener('resize', _dismissSuggest);
   }
-  function _showSynSuggest(input, canonical) {
+  // 入力欄の下に出す小さな提案ポップアップ（共通）。wire(el) でボタンの動作を結ぶ
+  function _openSuggest(input, innerHtml, wire, ms) {
     _dismissSuggest();
     const r = input.getBoundingClientRect();
     const el = document.createElement('div');
     el.className = 'syn-suggest';
-    el.innerHTML =
-      `<span class="syn-suggest-msg">💡 代表表記 <b>${_esc(canonical)}</b> に揃える？</span>` +
-      `<button type="button" class="syn-suggest-apply">置換</button>` +
-      `<button type="button" class="syn-suggest-dismiss" title="閉じる">✕</button>`;
+    el.innerHTML = innerHtml;
     el.style.position = 'fixed';
     el.style.left = Math.round(r.left) + 'px';
     el.style.top  = Math.round(r.bottom + 4) + 'px';
@@ -576,19 +584,63 @@
     // はみ出し補正
     const er = el.getBoundingClientRect();
     if (er.right > window.innerWidth - 8) el.style.left = Math.max(8, window.innerWidth - er.width - 8) + 'px';
-    el.querySelector('.syn-suggest-apply').addEventListener('click', () => {
-      input.value = canonical;
-      input.dispatchEvent(new Event('input',  { bubbles: true }));
-      input.dispatchEvent(new Event('change', { bubbles: true }));
-      _dismissSuggest();
-      try { input.focus(); } catch (e) {}
-    });
+    wire(el);
     el.querySelector('.syn-suggest-dismiss').addEventListener('click', _dismissSuggest);
     document.addEventListener('scroll', _dismissSuggest, true);
     window.addEventListener('resize', _dismissSuggest);
-    _suggestTimer = setTimeout(_dismissSuggest, 9000);
+    _suggestTimer = setTimeout(_dismissSuggest, ms || 9000);
     _suggestEl = el;
   }
+  function _showSynSuggest(input, canonical) {
+    _openSuggest(input,
+      `<span class="syn-suggest-msg">💡 代表表記 <b>${_esc(canonical)}</b> に揃える？</span>` +
+      `<button type="button" class="syn-suggest-apply">置換</button>` +
+      `<button type="button" class="syn-suggest-dismiss" title="閉じる">✕</button>`,
+      el => el.querySelector('.syn-suggest-apply').addEventListener('click', () => {
+        input.value = canonical;
+        input.dispatchEvent(new Event('input',  { bubbles: true }));
+        input.dispatchEvent(new Event('change', { bubbles: true }));
+        _dismissSuggest();
+        try { input.focus(); } catch (e) {}
+      }));
+  }
+
+  // サブコン欄：マスター未登録の名称を確定したとき、登録するか確認する（揺らぎを増やさないため）
+  function _masterValues(field) {
+    let masters = [];
+    if (typeof window.statsGetMasters === 'function') masters = window.statsGetMasters();
+    else { try { masters = JSON.parse(localStorage.getItem('masterCandidates_v1') || '[]'); } catch { masters = []; } }
+    return masters.filter(m => m.field === field).map(m => m.value);
+  }
+  function _showMasterRegisterSuggest(input, value) {
+    _openSuggest(input,
+      `<span class="syn-suggest-msg">⚠️ 「<b>${_esc(value)}</b>」はサブコンのマスターに未登録です</span>` +
+      `<button type="button" class="syn-suggest-apply">マスター登録</button>` +
+      `<button type="button" class="syn-suggest-dismiss" title="登録せずこのまま使う">このまま使う</button>`,
+      el => el.querySelector('.syn-suggest-apply').addEventListener('click', async () => {
+        _dismissSuggest();
+        if (typeof window.statsEnsureMaster === 'function') await window.statsEnsureMaster('sv', value);
+        const prev = (typeof window.mdGet === 'function' && window.mdGet('sv', value))?.details || {};
+        if (typeof window.mdSave === 'function') await window.mdSave('sv', value, prev);
+        _refreshDatalist();
+        if (typeof window.statsRerenderActive === 'function') window.statsRerenderActive();
+        if (typeof window.quoteShowToast === 'function') window.quoteShowToast('📇 サブコン「' + value + '」をマスター登録しました', 'success', 2800);
+      }),
+      12000);
+  }
+  // 未登録のサブコン名を確認。マスターが1件も無い間（未整備・読込前）は出さない。
+  // 空白・大小文字・全半角だけ違うマスターがあれば、登録を促す前に「代表表記に揃える」を提案する
+  function _checkSubconMaster(input) {
+    const v = (input.value || '').trim();
+    if (!v) { _dismissSuggest(); return; }
+    const masters = _masterValues('sv');
+    if (!masters.length || masters.includes(v)) { _dismissSuggest(); return; }
+    const key = (typeof window.subconNormKey === 'function') ? window.subconNormKey(v) : v.toLowerCase();
+    const near = masters.find(m => ((typeof window.subconNormKey === 'function') ? window.subconNormKey(m) : m.toLowerCase()) === key);
+    if (near) _showSynSuggest(input, near);
+    else _showMasterRegisterSuggest(input, v);
+  }
+
   // 入力確定（change＝blur時など）で別名一致を判定して提案
   document.addEventListener('change', function (e) {
     const t = e.target;
@@ -613,7 +665,23 @@
     }
     const canon = _canonicalFor(field, t.value);
     if (canon) _showSynSuggest(t, canon);
+    else if (field === 'sv') _checkSubconMaster(t);   // サブコンはマスター引用：未登録なら確認
     else _dismissSuggest();
+  });
+
+  // お客様ご担当者：読み（ひらがな／カタカナ）をそのまま確定したら、マスター登録の氏名へ変換
+  document.addEventListener('change', function (e) {
+    const t = e.target;
+    if (!t || t.id !== 'qf-person' || !t.closest || !t.closest('#tab-quote-make')) return;
+    const sq = x => _toHira(x).replace(/[\s\u3000]+/g, '');   // 姓名間の空白は無視して比較
+    const v = sq(t.value);
+    if (!v) return;
+    const dl = document.getElementById('qfPersonSuggestions');
+    const hit = dl && Array.from(dl.children).find(o => o.dataset.furi && sq(o.dataset.furi) === v);
+    if (!hit || hit.value === t.value) return;
+    t.value = hit.value;
+    t.dispatchEvent(new Event('input', { bubbles: true }));
+    if (typeof window.quoteShowToast === 'function') window.quoteShowToast('🔤 ふりがなから「' + hit.value + '」に変換しました', 'info', 2000);
   });
 
   // === 入力中の候補並び替え：読み（ふりがな）・名称が前方一致する候補を datalist 先頭へ ===
@@ -624,7 +692,7 @@
     const t = e.target;
     if (!t || t.tagName !== 'INPUT') return;
     const listId = t.getAttribute('list');
-    const field = _LIST_FIELD[listId];
+    const field = _LIST_FIELD[listId] || (listId === 'qfPersonSuggestions' ? 'person' : null);
     if (!field) return;
     if (!t.closest || !t.closest('#tab-quote-make')) return;
     const dl = document.getElementById(listId);
@@ -634,10 +702,10 @@
     if (!q) return;
     const opts = Array.from(dl.children).filter(o => o.tagName === 'OPTION');
     const rank = o => {
-      const val = norm(o.value);
-      const lab = norm(o.label || '');
-      if (val.startsWith(q) || (lab && lab.startsWith(q))) return 0;  // 前方一致
-      if (val.includes(q) || (lab && lab.includes(q))) return 1;      // 部分一致
+      // 候補の照合対象：値・ふりがな・英語名称（それぞれ単独で前方一致を判定）
+      const keys = [o.value, o.dataset.furi, o.dataset.en].filter(Boolean).map(norm);
+      if (keys.some(k => k.startsWith(q))) return 0;  // 前方一致
+      if (keys.some(k => k.includes(q)))   return 1;  // 部分一致
       return 2;
     };
     const ranked = opts.map((o, i) => ({ o, i, r: rank(o) }));
@@ -923,9 +991,12 @@
   let _mdTableMissing = false;
 
   const _FURIGANA_FIELD = { key: 'furigana', label: 'ふりがな', placeholder: '例）かいじょううんちん（読みで入力補完にヒットします）' };
+  // 英語名称（全種別共通キー enName。品名は PDF 英語出力でも使う）
+  const _EN_FIELD = { key: 'enName', label: '英語名称', placeholder: '例）ABC Trading Co., Ltd.（英字入力でも入力補完にヒットします）' };
   window.MD_SCHEMA = {
     customer: [
       _FURIGANA_FIELD,
+      _EN_FIELD,
       { key: 'contacts',     label: '担当者', contacts: true },
       { key: 'location',     label: '所在地' },
       { key: 'mainGoods',    label: 'メイン商材' },
@@ -937,7 +1008,7 @@
     ],
     nm: [
       _FURIGANA_FIELD,
-      { key: 'enName',      label: '英語品名', placeholder: '例）Ocean Freight（御見積書PDFの「英語で出力」ON時にこの品名で出力されます）' },
+      { key: 'enName',      label: '英語品名', placeholder: '例）Ocean Freight（英字入力でも入力補完にヒット／御見積書PDFの「英語で出力」ON時にこの品名で出力されます）' },
       { key: 'defaultUnit', label: 'デフォルト単位' },
       { key: 'defaultNote', label: 'デフォルト備考' },
       { key: 'defaultCat',  label: 'デフォルトカテゴリ' },
@@ -950,20 +1021,25 @@
       { key: 'refSell',     label: '代表売単価（参考）' },
       { key: 'refCcy',      label: '代表単価の通貨' },
     ],
-    sv:      [_FURIGANA_FIELD],
-    carrier: [_FURIGANA_FIELD],
-    port:    [_FURIGANA_FIELD],
+    sv:      [_FURIGANA_FIELD, _EN_FIELD],
+    carrier: [_FURIGANA_FIELD, _EN_FIELD],
+    port:    [_FURIGANA_FIELD, _EN_FIELD],
   };
 
   // カタカナ→ひらがな正規化（読み比較用）
   function _toHira(s) {
     return String(s || '').trim().replace(/[ァ-ヶ]/g, c => String.fromCharCode(c.charCodeAt(0) - 0x60));
   }
-  // 入力値が登録済みふりがな（読み）と完全一致するマスター値を返す。なければ null。
+  // 入力値が登録済みふりがな（読み）または英語名称（大小文字無視）と完全一致するマスター値を返す。なければ null。
   window.mdValueForFurigana = function (field, input) {
     const v = _toHira(input);
     if (!v) return null;
-    const hit = _mdAll().find(m => m.field === field && _toHira((m.details || {}).furigana) === v);
+    const lv = v.toLowerCase();
+    const hit = _mdAll().find(m => {
+      if (m.field !== field) return false;
+      const d = m.details || {};
+      return _toHira(d.furigana) === v || String(d.enName || '').trim().toLowerCase() === lv;
+    });
     return hit ? hit.value : null;
   };
 

@@ -2,22 +2,33 @@
 
   // ========== リマーク欄 ==========
   const PRESETS = [
-    { label: '📅 有効期限',        text: '本見積もりの有効期限は発行日より30日間とします。' },
-    { label: '💱 為替変動',        text: '外貨建て料金は見積もり時の為替レートを基準としており、船積み時のレートにより変動します。' },
-    { label: '⛽ 燃油サーチャージ', text: '燃油サーチャージ（BAF/FAF）は市況により変動します。適用時点のレートを別途申し受けます。' },
-    { label: '🚢 スペース確保',     text: '船腹・航空スペースの確保は保証できません。手配状況により変更となる場合があります。' },
-    { label: '📦 重量・容積',      text: '運賃はW/Mの高い方を適用します（海上：1CBM＝1,000kg、航空：1CBM＝167kg）。' },
-    { label: '🛃 通関費用',        text: '通関費用・関税・消費税等は本見積もりに含まれておりません。' },
-    { label: '🛡️ 貨物保険',       text: '貨物保険料は含まれておりません。付保をご希望の場合は別途ご相談ください。' },
-    { label: '⚓ 港湾混雑',        text: '港湾混雑・ストライキ・天災等による遅延・追加費用は含まれておりません。' },
-    { label: '☣️ 危険品',         text: '危険品・温度管理貨物・特殊貨物については別途ご相談ください。条件が異なります。' },
-    { label: '🔄 条件変更',        text: '貨物の内容・数量・仕向地等に変更が生じた場合は再見積となります。' },
-    { label: '📋 書類締切',        text: 'B/L・AWB等の書類提出締め切りは船会社・航空会社の指定期日に従います。遅延の場合は追加費用が発生します。' },
-    { label: '🏦 支払条件',        text: '支払いは請求書発行後30日以内とします。期日を超過した場合、法定利率（民法所定）による遅延損害金が発生します。（※社内標準条件に書き換えてからご使用ください）' },
-    { label: '💵 PREPAID限定',     text: 'お見積りはPREPAID限定の料金です。' },
-    { label: '📐 単価見積もり',     text: '単価見積もりとなります。' },
-    { label: '⚖️ 標準取引条件(JIFFA)', text: '本見積書に定めのない条件については、\n一般社団法人 国際フレイトフォワーダーズ協会が策定した\n「標準取引条件(2020)」によるものとします。\n見積り後ご下命頂き契約を交わす場合も、同様です。\n■標準取引条件(2020)全文\nhttps://www.jiffa.or.jp/documents/standard.html\n■弊社運送書類の約款\nhttps://www.jctyo.co.jp/company_info.html' },
+    { label: '📅 有効期限',        text: '本見積もりの有効期限は発行日より30日間とします。', en: 'This quotation is valid for 30 days from the date of issue.' },
+    { label: '💱 為替変動',        text: '外貨建て料金は見積もり時の為替レートを基準としており、船積み時のレートにより変動します。', en: 'Charges quoted in foreign currencies are based on the exchange rate at the time of quotation and are subject to change according to the rate at the time of shipment.' },
+    { label: '⛽ 燃油サーチャージ', text: '燃油サーチャージ（BAF/FAF）は市況により変動します。適用時点のレートを別途申し受けます。', en: 'Fuel surcharges (BAF/FAF) fluctuate with market conditions. The rate applicable at the time of shipment will be charged separately.' },
+    { label: '🚢 スペース確保',     text: '船腹・航空スペースの確保は保証できません。手配状況により変更となる場合があります。', en: 'Vessel and air cargo space cannot be guaranteed. Arrangements are subject to change depending on availability.' },
+    { label: '📦 重量・容積',      text: '運賃はW/Mの高い方を適用します（海上：1CBM＝1,000kg、航空：1CBM＝167kg）。', en: 'Freight is charged on a weight or measurement (W/M) basis, whichever is greater (Ocean: 1 CBM = 1,000 kg; Air: 1 CBM = 167 kg).' },
+    { label: '🛃 通関費用',        text: '通関費用・関税・消費税等は本見積もりに含まれておりません。', en: 'Customs clearance fees, duties, consumption tax, etc. are not included in this quotation.' },
+    { label: '🛡️ 貨物保険',       text: '貨物保険料は含まれておりません。付保をご希望の場合は別途ご相談ください。', en: 'Cargo insurance is not included. Please contact us separately if you wish to arrange coverage.' },
+    { label: '⚓ 港湾混雑',        text: '港湾混雑・ストライキ・天災等による遅延・追加費用は含まれておりません。', en: 'Delays and additional costs caused by port congestion, strikes, natural disasters, etc. are not included.' },
+    { label: '☣️ 危険品',         text: '危険品・温度管理貨物・特殊貨物については別途ご相談ください。条件が異なります。', en: 'Please consult us separately for dangerous goods, temperature-controlled cargo, and special cargo, as different conditions apply.' },
+    { label: '🔄 条件変更',        text: '貨物の内容・数量・仕向地等に変更が生じた場合は再見積となります。', en: 'A re-quotation will be required if there are any changes to the cargo description, quantity, destination, etc.' },
+    { label: '📋 書類締切',        text: 'B/L・AWB等の書類提出締め切りは船会社・航空会社の指定期日に従います。遅延の場合は追加費用が発生します。', en: 'The deadline for submitting documents such as B/L and AWB follows the date specified by the carrier or airline. Additional charges will apply for late submission.' },
+    { label: '🏦 支払条件',        text: '支払いは請求書発行後30日以内とします。期日を超過した場合、法定利率（民法所定）による遅延損害金が発生します。（※社内標準条件に書き換えてからご使用ください）', en: 'Payment is due within 30 days after the invoice is issued. If payment is overdue, delay damages will accrue at the statutory interest rate under the Japanese Civil Code. (Note: Please replace with our standard terms before use.)' },
+    { label: '💵 PREPAID限定',     text: 'お見積りはPREPAID限定の料金です。', en: 'This quotation applies to PREPAID freight only.' },
+    { label: '📐 単価見積もり',     text: '単価見積もりとなります。', en: 'This is a unit-rate quotation.' },
+    { label: '⚖️ 標準取引条件(JIFFA)', text: '本見積書に定めのない条件については、\n一般社団法人 国際フレイトフォワーダーズ協会が策定した\n「標準取引条件(2020)」によるものとします。\n見積り後ご下命頂き契約を交わす場合も、同様です。\n■標準取引条件(2020)全文\nhttps://www.jiffa.or.jp/documents/standard.html\n■弊社運送書類の約款\nhttps://www.jctyo.co.jp/company_info.html', en: 'Terms and conditions not specified in this quotation shall be governed by the "Standard Trading Conditions (2020)"\nestablished by the Japan International Freight Forwarders Association (JIFFA).\nThe same shall apply when a contract is concluded following this quotation.\n■ Standard Trading Conditions (2020) - full text\nhttps://www.jiffa.or.jp/documents/standard.html\n■ Terms and conditions of our transport documents\nhttps://www.jctyo.co.jp/company_info.html' },
   ];
+
+  // 英語出力用：リマーク本文に含まれる定型文（PRESETS の日本語）を英文へ置換する。
+  // 定型文の文言をそのまま使っている部分だけが対象で、書き換えた文・自由記述は日本語のまま残る。
+  // 長い定型文（複数行）から先に置換する
+  function translateRemarkToEn(text) {
+    let out = String(text == null ? '' : text);
+    PRESETS.filter(p => p.en).sort((a, b) => b.text.length - a.text.length)
+      .forEach(p => { if (out.includes(p.text)) out = out.split(p.text).join(p.en); });
+    return out;
+  }
+  window.translateRemarkToEn = translateRemarkToEn;
 
   // ----- 区切り線 -----
   // 条件文のブロックを視覚的に分けるための水平線。プリセット文と違い
@@ -1604,8 +1615,8 @@
     const preset  = presets[idx];
     if (!preset) return;
     // _applyQuoteData でフォーム復元・行再構築（v3 mixed-rows 対応）・合計更新を一括処理
-    // keepHeaderIfEmpty=true: 仮REF/顧客名/担当者が空のプリセットでも現在入力値を消さない
-    _applyQuoteData(preset.data, { keepHeaderIfEmpty: true });
+    // 保存内容どおりに復元する（仮REF/顧客名/担当者が空のプリセットでも、前に開いていた案件の値を残さない）
+    _applyQuoteData(preset.data);
     calcLiveUpdate();
     closePresetMgr();
     setCurrentQuoteName(preset.name);
@@ -1835,7 +1846,7 @@
 
       const route = quoteRouteHtml(m, 'preset-kv-arrow');
       const condHtml =
-        (m.incoterms ? '<span class="preset-tag preset-tag-inco">' + escHtml(m.incoterms.split('（')[0]) + '</span>' : '') +
+        ((m.incoterms && m.incoterms !== '設定なし') ? '<span class="preset-tag preset-tag-inco">' + escHtml(m.incoterms.split('（')[0]) + '</span>' : '') +
         (m.mode      ? '<span class="preset-tag preset-tag-mode">' + escHtml(m.mode) + '</span>' : '');
       const personH = m.person && (window.formatPersonWithHonorific ? window.formatPersonWithHonorific(m.person) : m.person);
       const custDd = [m.customer && escHtml(m.customer), personH && escHtml(personH)].filter(Boolean).join('・');
@@ -3777,7 +3788,7 @@
 
     // 引き合い条件
     const condParts = [];
-    const inco = g('cond-incoterms'); if (inco) condParts.push(inco);
+    const inco = g('cond-incoterms'); if (inco && inco !== '設定なし') condParts.push(inco);
     if (typeof _currentDirection !== 'undefined' && _currentDirection) {
       condParts.push(_currentDirection === 'export' ? '輸出' : '輸入');
     }
