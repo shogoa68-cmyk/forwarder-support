@@ -2794,19 +2794,14 @@
   }
   window._applyPatternGroupExcludeLinks = _applyPatternGroupExcludeLinks;
 
-  // ========== 物量パターン別の見積合計（FCL案／LCL案の比較・併記出力用） ==========
+  // ========== 物量パターン別の見積合計・出力用の行状態（FCL案／LCL案の比較・併記出力用） ==========
   // 各パターンに記録された紐付け（数量 qtyLinks・見積書表示 hideLinks・サブコン含む/除外 groupExcludeLinks）を
-  // 現在のテーブルへ当てはめて合計を算出する。画面の状態は一切変えない（読み取りのみ）。
+  // 現在のテーブルへ当てはめた「そのパターンを表示したときの行状態」を算出する。画面の状態は一切変えない（読み取りのみ）。
   // 紐付けが無い行・グループは「現在の状態のまま」とみなす（パターン切替時の挙動と同じ）。
-  // 集計規則は updateTotals() と同じ（除外・見積書非表示・期間外・実費・都度請求・参考情報・PROFIT SHARE は客先合計外、
-  // JPY換算は行ごとに jpyRound）。消費税は課税チェックのJPY行のみ（updateQuoteSummary と同じ）。
-  window.calcPatternTotals = function () {
-    const pats = (typeof _packingPatterns !== 'undefined') ? _packingPatterns : [];
-    if (!pats.length) return [];
-    const rate = (typeof getEffectiveTaxRate === 'function') ? getEffectiveTaxRate() : 0.10;
-    // DOM順に走査して、各データ行が属するグループキーを確定する（_applyGroupStates と同じ追跡）
+  // 行を DOM 順に走査し、各行が属するグループキーを確定する（_applyGroupStates と同じ追跡）
+  function _patternWalkRows() {
     const rows = [];
-    let currentCompKey = null;
+    let currentKey = null, currentCompKey = null;
     document.querySelectorAll('#tableBody tr').forEach(tr => {
       if (tr.dataset.ptSum || tr.dataset.subSum) return;
       if (tr.dataset.subGroup) {
@@ -2814,44 +2809,68 @@
         currentCompKey = svKey && ptKey != null ? svKey + '\x00' + ptKey : null;
         return;
       }
-      if (tr.dataset.virtual) { currentCompKey = null; return; }
-      if (tr.dataset.type) return;                       // 小計・リマーク・社内メモ行
+      if (tr.dataset.virtual) { currentKey = tr.dataset.svKey || null; currentCompKey = null; return; }
+      if (tr.dataset.type) {
+        // 小計・リマーク・社内メモ行：直前のサブコングループに属する
+        rows.push({ tr, kind: 'misc', key: currentKey, compKey: currentCompKey });
+        return;
+      }
       const id = tr.id.replace('row-', '');
       const uid = document.getElementById(`uid-${id}`)?.value || '';
       const sv = _rowSubcon(tr) ?? '';
-      rows.push({
-        tr, id, uid, compKey: currentCompKey,
-        key: subconNormKey(sv) || _UNSET_KEY,
-      });
+      rows.push({ tr, kind: 'data', id, uid, compKey: currentCompKey, key: subconNormKey(sv) || _UNSET_KEY });
     });
+    return rows;
+  }
+
+  // パターン i の行状態。戻り値：Map（tr.id → { excluded, hidden, qty }）。qty はデータ行のみ
+  window.patternRowStates = function (i) {
+    const pat = (typeof _packingPatterns !== 'undefined') ? _packingPatterns[i] : null;
+    const out = new Map();
+    if (!pat) return out;
+    const qtyL = pat.qtyLinks || {}, hideL = pat.hideLinks || {}, grpL = pat.groupExcludeLinks || {};
+    const has = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
+    _patternWalkRows().forEach(r => {
+      const scEx = r.key != null ? (has(grpL, r.key) ? !!grpL[r.key] : _excludedGroups.has(r.key)) : false;
+      const ptEx = r.compKey ? (has(grpL, r.compKey) ? !!grpL[r.compKey] : _excludedPatterns.has(r.compKey)) : false;
+      const excluded = scEx || ptEx;
+      if (r.kind === 'misc') { out.set(r.tr.id, { excluded }); return; }
+      const hidden = (r.uid && has(hideL, r.uid)) ? !!hideL[r.uid] : r.tr.dataset.hideQuote === '1';
+      const qty = (r.uid && has(qtyL, r.uid)) ? (parseFloat(qtyL[r.uid]) || 0) : val(`pq-${r.id}`);
+      out.set(r.tr.id, { excluded, hidden, qty });
+    });
+    return out;
+  };
+
+  // 集計規則は updateTotals() と同じ（除外・見積書非表示・期間外・実費・都度請求・参考情報・PROFIT SHARE は客先合計外、
+  // JPY換算は行ごとに jpyRound）。消費税は課税チェックのJPY行のみ、行ごと切り上げ（御見積書PDFと同じ）。
+  window.calcPatternTotals = function () {
+    const pats = (typeof _packingPatterns !== 'undefined') ? _packingPatterns : [];
+    if (!pats.length) return [];
+    const rate = (typeof getEffectiveTaxRate === 'function') ? getEffectiveTaxRate() : 0.10;
     return pats.map((pat, i) => {
-      const qtyL = pat.qtyLinks || {}, hideL = pat.hideLinks || {}, grpL = pat.groupExcludeLinks || {};
-      const has = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
+      const states = window.patternRowStates(i);
       let billJPY = 0, costJPY = 0, taxJPY = 0, n = 0, fxMissing = false;
       const billByCur = {};
-      rows.forEach(r => {
+      _patternWalkRows().forEach(r => {
+        if (r.kind !== 'data') return;
+        const st = states.get(r.tr.id);
+        if (!st || st.excluded || st.hidden) return;
         const d = r.tr.dataset;
-        const scEx = has(grpL, r.key) ? !!grpL[r.key] : _excludedGroups.has(r.key);
-        const ptEx = r.compKey ? (has(grpL, r.compKey) ? !!grpL[r.compKey] : _excludedPatterns.has(r.compKey)) : false;
-        if (scEx || ptEx) return;
-        const hidden = (r.uid && has(hideL, r.uid)) ? !!hideL[r.uid] : d.hideQuote === '1';
-        if (hidden) return;
         if (d.outRange === '1' || d.actual === '1' || d.cond === '1' || d.refInfo === '1' || d.profitShare === '1') return;
         const id = r.id;
-        const qty = (r.uid && has(qtyL, r.uid)) ? (parseFloat(qtyL[r.uid]) || 0) : val(`pq-${id}`);
+        const qty = st.qty;
         const pc = document.getElementById(`pc-${id}`)?.value || 'JPY';
         const bc = document.getElementById(`bc-${id}`)?.value || 'JPY';
         const bill = qty * val(`bp-${id}`), cost = qty * val(`pp-${id}`);
         const b = toJPY(bill, bc), c = toJPY(cost, pc);
         if (!isFinite(b) || !isFinite(c)) fxMissing = true;
-        const bj = SharedCalc.jpyRound(isFinite(b) ? b : 0);
-        billJPY += bj;
+        billJPY += SharedCalc.jpyRound(isFinite(b) ? b : 0);
         costJPY += SharedCalc.jpyRound(isFinite(c) ? c : 0);
         billByCur[bc] = (billByCur[bc] || 0) + (bc === 'JPY' ? SharedCalc.jpyRound(bill) : bill);
-        if (document.getElementById(`tx-${id}`)?.checked && bc === 'JPY') taxJPY += bill * rate;
+        if (document.getElementById(`tx-${id}`)?.checked && bc === 'JPY') taxJPY += Math.ceil(SharedCalc.jpyRound(b) * rate);   // 御見積書PDFと同じ：行ごと切り上げ
         n++;
       });
-      taxJPY = Math.round(taxJPY);
       const profit = billJPY - costJPY;
       return {
         idx: i, name: pat.name || `パターン${i + 1}`, mode: pat.mode || '',

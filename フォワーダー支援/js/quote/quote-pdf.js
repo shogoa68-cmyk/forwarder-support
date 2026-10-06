@@ -109,6 +109,11 @@
     noPattern:      ['（パターン未設定）', '(No pattern)'],
     noSubcon:       ['（サブコン未設定）', '(No subcontractor)'],
     noCategory:     ['— カテゴリ —', '— Uncategorized —'],
+    cmpTitle:       ['■ 御見積案の比較', '■ Quotation Options'],
+    cmpPlan:        ['案', 'Option'],
+    cmpContent:     ['内容', 'Description'],
+    cmpAmt:         ['御見積額（税込）', 'Total (incl. tax)'],
+    cmpNote:        ['※ 各案の明細・条件は次ページ以降をご覧ください。', 'Please refer to the following pages for the details and terms of each option.'],
   };
   // 方向（輸出/輸入）・輸送モード・特殊貨物区分は選択式の固定セットなので、
   // 値（cond.direction は内部コード、mode/hazmat は選択肢テキストそのもの）で引ける対訳表を別途用意する
@@ -251,7 +256,8 @@
       ? window.formatPersonWithHonorific(hdr.person) : (hdr.person || '');
     // 複数の物量パターンを使っている案件では、現在出力対象のパターン名もファイル名に
     // 反映する（パターンA/Bをそれぞれ出力したときに上書きし合わないように）
-    const patternName = (typeof window.getActivePatternName === 'function') ? window.getActivePatternName() : null;
+    const _multi = (typeof window.getOutputPatternViews === 'function') && !!window.getOutputPatternViews();
+    const patternName = (!_multi && typeof window.getActivePatternName === 'function') ? window.getActivePatternName() : null;   // 併記出力は全案を含むためパターン名は付けない
     const parts = [hdr.ref, hdr.customer, personH, patternName].map(safe).filter(Boolean);
     if (parts.length) return parts.join('_');
     const today = new Date().toLocaleDateString('sv', { timeZone: 'Asia/Tokyo' }).replace(/-/g, '');
@@ -425,10 +431,44 @@
   function buildQuoteDocHTML() {
     _curLangEn = loadLangEn();
     window._outputLangEn = _curLangEn;
-    try { return _buildQuoteDocHTMLInner(); }
+    try {
+      // 物量パターンの併記（FCL案／LCL案など）：比較表＋案ごとの明細を1つの文書にまとめる
+      const views = (typeof window.getOutputPatternViews === 'function') ? window.getOutputPatternViews() : null;
+      if (views && typeof window.withPatternView === 'function') return _buildMultiPatternHTML(views);
+      return _buildQuoteDocHTMLInner();
+    }
     finally { window._outputLangEn = false; }
   }
-  function _buildQuoteDocHTMLInner() {
+
+  // 直近の _buildQuoteDocHTMLInner が算出した金額・件名（併記の比較表で使う）
+  let _lastBuild = null;
+  const _unwrapPage = html => String(html).replace(/^\s*<div class="qd-page">/, '').replace(/<\/div>\s*$/, '');
+
+  function _buildMultiPatternHTML(views) {
+    const infos = [];
+    const sections = views.map(v => {
+      const html = window.withPatternView(v.idx, () => _buildQuoteDocHTMLInner({ patternLabel: v.name }));
+      infos.push(Object.assign({}, v, _lastBuild));
+      return `<div class="qd-pat-section">${_unwrapPage(html)}</div>`;
+    });
+    const hideTotal = loadHideTotal();
+    const head = _unwrapPage(_buildQuoteDocHTMLInner({ compare: true }));
+    const cutAt = head.indexOf('<table class="qd-items">');
+    const header = cutAt >= 0 ? head.slice(0, cutAt) : head;
+    const rowsHtml = infos.map(f => {
+      const mode = f.mode ? `<span class="qd-cmp-mode qd-cmp-mode-${esc(f.mode)}">${esc(f.mode.toUpperCase())}</span> ` : '';
+      const content = [f.subjTitle, f.container ? `${t('container')}: ${f.container}` : ''].filter(Boolean).join('<br>');
+      return `<tr><td class="qd-item"><b>${mode}${esc(f.name)}</b></td><td class="qd-cmp-content">${content ? content.split('<br>').map(esc).join('<br>') : '—'}</td>` +
+        (hideTotal ? '' : `<td class="qd-num qd-cmp-amt">¥${fmtInt(f.total)}</td>`) + `</tr>`;
+    }).join('');
+    const compare = `<div class="qd-cmp"><div class="qd-cmp-ttl">${t('cmpTitle')}</div>` +
+      `<table class="qd-items qd-cmp-table"><thead><tr><th class="qd-item">${t('cmpPlan')}</th><th>${t('cmpContent')}</th>${hideTotal ? '' : `<th>${t('cmpAmt')}</th>`}</tr></thead>` +
+      `<tbody>${rowsHtml}</tbody></table><div class="qd-cmp-note">${t('cmpNote')}</div></div>`;
+    return `<div class="qd-page">${header}${compare}${sections.join('')}</div>`;
+  }
+
+  function _buildQuoteDocHTMLInner(opts) {
+    opts = opts || {};
     _curLangEn = loadLangEn();   // この描画中だけ有効な出力言語（固定ラベルのみ英訳。品名等の自由記述は対象外）
     const hdr  = (typeof getQuoteHeader === 'function') ? getQuoteHeader() : {};
     const rows = (typeof collectAllRows === 'function') ? collectAllRows().filter(r => !r._hideQuote) : [];  // 見積書非表示の行は出力しない
@@ -445,7 +485,7 @@
           fax: _intlTel(issuer0.fax),
         })
       : issuer0;
-    const hideTotal = loadHideTotal();   // 合計・税サマリを隠す（パターン比較用途）
+    const hideTotal = loadHideTotal() || !!opts.compare;   // 合計・税サマリを隠す（パターン比較用途）。併記の比較ページでも隠す
     // 前回提示分からの変更点（🔄 更新でスナップショットが取られている場合のみ）。
     // 明細テーブルの行ハイライトと末尾の変更点ブロックの両方でこの1回の計算結果を使う。
     const _revDiff  = (typeof window.computeRevisionDiff === 'function') ? window.computeRevisionDiff() : null;
@@ -619,7 +659,8 @@
     const tax   = taxSum;   // 行ごと切り上げの合計（Math.floor 一括計算からの修正）
     const total = taxableSub + exemptSub + tax;
 
-    const subj = buildSubject(cond);
+    const subj = opts.compare ? { title: '', meta: [] } : buildSubject(cond);   // 比較ページは案ごとの内容を持たない
+    _lastBuild = { total, tax, subjTitle: opts.compare ? '' : subj.title, container: opts.compare ? '' : (cond && cond.container) || '' };
     const rates = collectRates(rows);
     const rateRows = ['JPY', ...Object.keys(rates)]
       .map(c => `<tr><td class="qd-ctr">${esc(c)}</td><td class="qd-num">${c === 'JPY' ? '1.00' : (rates[c] != null ? fmtNum(rates[c], rates[c] < 0.1 ? 4 : 2) : '—')}</td></tr>`)
@@ -654,6 +695,7 @@
     <div class="qd-page">
       <div class="qd-top"><span></span><span style="text-align:right;line-height:1.6;">${t('quoteNo')}：${esc(hdr.ref) || '—'}<br>${t('date')}：${esc(dateStr)}　　${t('page')}：1 / 1</span></div>
       <div class="qd-title">${t('docTitle')}</div>
+      ${opts.patternLabel ? `<div class="qd-pat-label">【${esc(opts.patternLabel)}】</div>` : ''}
 
       <div class="qd-head">
         <div class="qd-to">
@@ -796,6 +838,10 @@
                 <span class="qd-toggle-l">合計・税サマリを非表示<small>パターン比較用</small></span>
                 <input type="checkbox" id="qdHideTotal"><span class="qd-toggle-sw"></span>
               </label>
+              <label class="qd-toggle" id="qdMultiWrap" title="ONにすると、物量パターン（例：FCL案／LCL案）の比較表と、案ごとの明細・条件・合計を1つの御見積書にまとめて出力します。タブの🔒（見積書に表示しない）を付けたパターンは含みません。パターンが2つ以上あるときに使えます。">
+                <span class="qd-toggle-l">🆚 パターンを併記<small>FCL案／LCL案など</small></span>
+                <input type="checkbox" id="qdMultiOut"><span class="qd-toggle-sw"></span>
+              </label>
               <label class="qd-toggle" title="PDF を出力したあと、案件ステータスが「下書き中」なら自動で「提示済み」に進めます。受注・失注などのステータスは変更しません。">
                 <span class="qd-toggle-l">出力後に「提示済み」へ<small>下書き中のときだけ</small></span>
                 <input type="checkbox" id="qdAutoStatus"><span class="qd-toggle-sw"></span>
@@ -826,6 +872,14 @@
       if (autoChk) autoChk.addEventListener('change', () => saveAutoStatus(autoChk.checked));
       const langChk = overlay.querySelector('#qdLangEn');
       if (langChk) langChk.addEventListener('change', () => { saveLangEn(langChk.checked); refreshQuoteDoc(); });
+      const multiChk = overlay.querySelector('#qdMultiOut');
+      if (multiChk) multiChk.addEventListener('change', () => {
+        const f = document.getElementById('qf-multi-out');
+        if (f) f.value = multiChk.checked ? '1' : '0';   // 案件に保存（'' は自動、'1' 併記、'0' 併記しない）
+        if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
+        const ti = document.getElementById('qdPdfTitle'); if (ti) ti.value = _defaultPdfTitle();
+        refreshQuoteDoc();
+      });
     }
     // チェック状態・ファイル名を保存値に同期（オーバーレイ再利用時も整合）
     const hideChk = overlay.querySelector('#qdHideTotal');
@@ -834,6 +888,13 @@
     if (autoChk2) autoChk2.checked = loadAutoStatus();
     const langChk2 = overlay.querySelector('#qdLangEn');
     if (langChk2) langChk2.checked = loadLangEn();
+    const multiChk2 = overlay.querySelector('#qdMultiOut');
+    if (multiChk2) {
+      const nPat = (typeof window.getPackingPatternCount === 'function') ? window.getPackingPatternCount() : 1;
+      multiChk2.checked = !!(typeof window.getOutputPatternViews === 'function' && window.getOutputPatternViews());
+      multiChk2.disabled = nPat < 2;
+      const w = overlay.querySelector('#qdMultiWrap'); if (w) w.style.opacity = nPat < 2 ? '.45' : '';
+    }
     const titleIn = overlay.querySelector('#qdPdfTitle');
     if (titleIn) titleIn.value = _defaultPdfTitle();
     refreshQuoteDoc();

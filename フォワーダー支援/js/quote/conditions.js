@@ -162,6 +162,7 @@
   // baseline が無い、差分が無い、またはユーザーが表示しない設定にしていれば null。
   // 表示する変更の種類（追加/削除/単価変更/その他の変更）は qf-revision-show-* で絞り込める。
   window.computeRevisionDiff = function () {
+    if (window._outputPatternView != null) return null;   // パターン別（併記）出力では前回提示分との差分は出さない
     if (document.getElementById('qf-revision-hide-diff')?.checked) return null;
     const baseline = window.getRevisionBaseline();
     if (!baseline || !Array.isArray(baseline.rows) || !baseline.rows.length) return null;
@@ -2117,6 +2118,56 @@
     if (typeof window.renderQuoteCargoInfo === 'function') window.renderQuoteCargoInfo();
   }
 
+  // ===== パターン併記出力（御見積書に FCL案／LCL案 を並べる） =====
+  // 併記の対象：qf-multi-out が '1'（強制ON）なら「見積書に表示しない（🔒）」でない全パターン、
+  // ''（自動）なら FCL と LCL の輸送モードを持つ2パターンがあるときだけ、'0'（OFF）なら併記しない。
+  // 2件未満なら null（＝従来どおり現在のパターンだけの1枚出力）。
+  window.getPackingPatternCount = function () { return _packingPatterns.length; };
+  window.getOutputPatternViews = function () {
+    const flag = document.getElementById('qf-multi-out')?.value || '';
+    if (flag === '0' || _packingPatterns.length < 2) return null;
+    const cands = _packingPatterns.map((pt, i) => ({ pt, i })).filter(({ pt }) => pt.showInQuote !== false);
+    if (cands.length < 2) return null;
+    if (flag !== '1' && !(cands.some(c => c.pt.mode === 'fcl') && cands.some(c => c.pt.mode === 'lcl'))) return null;
+    return cands.map(({ pt, i }) => ({ idx: i, name: pt.name || `パターン${i + 1}`, mode: pt.mode || '' }));
+  };
+
+  // 指定パターンを「表示したとき」の状態で fn を同期実行し、必ず元の状態へ戻す（イベントは発火しない・保存もしない）。
+  // 御見積書などの出力が参照する輸送モード・コンテナ・荷姿・航路の有効/無効を一時的に差し替えるだけ。
+  window.withPatternView = function (i, fn) {
+    const pat = _packingPatterns[i];
+    if (!pat) return fn();
+    const sel = document.getElementById('cond-mode');
+    const saved = {
+      idx: _packingActiveIdx, entries: _packingEntries, transport: _currentTransport, sub: _currentSeaSub,
+      cont: _containerEntries, mode: sel ? sel.value : '', routes: (_routeEntries || []).map(r => r.enabled),
+      view: window._outputPatternView,
+    };
+    try {
+      _packingActiveIdx = i;
+      _packingEntries = pat.entries;
+      if (pat.mode && _currentTransport !== 'air' && _currentTransport !== 'domestic') {
+        _currentTransport = 'sea';
+        _currentSeaSub = pat.mode;
+        const LABELS = { fcl: '海上（FCL）', lcl: '海上（LCL）' };
+        if (sel) sel.value = LABELS[pat.mode];
+        _containerEntries = pat.mode === 'lcl' ? [] : (Array.isArray(pat.containers) ? pat.containers : _containerEntries);
+      }
+      const links = pat.routeLinks || {};
+      (_routeEntries || []).forEach(r => {
+        if (r.rid && Object.prototype.hasOwnProperty.call(links, r.rid)) r.enabled = !!links[r.rid];
+      });
+      window._outputPatternView = i;
+      return fn();
+    } finally {
+      window._outputPatternView = saved.view;
+      _packingActiveIdx = saved.idx; _packingEntries = saved.entries;
+      _currentTransport = saved.transport; _currentSeaSub = saved.sub; _containerEntries = saved.cont;
+      if (sel) sel.value = saved.mode;
+      (_routeEntries || []).forEach((r, k) => { r.enabled = saved.routes[k]; });
+    }
+  };
+
   window.setPackingPatternMode = function (mode) {
     const pat = _packingPatterns[_packingActiveIdx];
     if (!pat) return;
@@ -2564,6 +2615,8 @@
   // ・未設定（既定）        … 現在アクティブなタブのパターンのみ表示。タブを切り替えると
   //                           見積書に出る物量パターンも自動的に切り替わる
   function _isPatternVisibleInQuote(pt, i) {
+    // パターン別出力（FCL案／LCL案の併記）の最中は、出力対象の1パターンだけを「表示」とみなす
+    if (window._outputPatternView != null) return i === window._outputPatternView;
     if (pt.showInQuote === false) return false;
     if (pt.showInQuote === true) return true;
     return i === _packingActiveIdx;

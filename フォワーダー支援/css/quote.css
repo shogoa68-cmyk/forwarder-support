@@ -11196,3 +11196,5 @@ body.is-row-dragging { cursor: grabbing; user-select: none; }
 #tab-quote-make .fl-mk-btn:hover { background: #e4eef9; }
 #tab-quote-make .fl-pt-row { cursor: pointer; }
 #tab-quote-make .fl-pt-row:hover td { background: #faf3e0; }
+#tab-quote-make .fl-multi { display: flex; gap: 6px; align-items: flex-start; font-size: 11.5px; line-height: 1.5; margin: 6px 0 8px; color: #4a3a20; cursor: pointer; }
+#tab-quote-make .fl-multi input { margin-top: 2px; }

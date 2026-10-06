@@ -122,6 +122,12 @@
   function _esc(s) { return String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
 
   window.flCalc = calc;
+  window.flSetMultiOut = function (on) {
+    const f = $('qf-multi-out');
+    if (f) f.value = on ? '1' : '0';
+    if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
+    window.renderFclLcl(true);
+  };
 
   // この案件の物量パターン別の見積合計（FCL案／LCL案の比較）
   function renderPatternCompare() {
@@ -143,7 +149,10 @@
       head = `<div class="fl-verdict ${diff > 0 ? 'is-lcl' : ''}">${_esc(f.name)} <b>${FMT(f.totalJPY)}</b> ／ ${_esc(l.name)} <b>${FMT(l.totalJPY)}</b><br>` +
         (diff === 0 ? '差額なし' : `差額 <b>${FMT(Math.abs(diff))}</b>（${diff > 0 ? _esc(l.name) : _esc(f.name)}が安い・税込）`) + '</div>';
     }
-    box.innerHTML = '<div class="fl-sec-title">📋 パターン比較 <span class="fl-sub">税込・客先合計</span></div>' + head +
+    const multiOn = !!(typeof window.getOutputPatternViews === 'function' && window.getOutputPatternViews());
+    const multiLbl = `<label class="fl-multi" title="ONにすると、御見積書（PDF・プレビュー）とメール本文に、案の比較表と案ごとの明細・合計をまとめて出力します。タブの🔒（見積書に表示しない）を付けた案は含みません。">` +
+      `<input type="checkbox" ${multiOn ? 'checked' : ''} onchange="flSetMultiOut(this.checked)"> 👥 お客様向け出力（御見積書・メール）に両案を併記する</label>`;
+    box.innerHTML = '<div class="fl-sec-title">📋 パターン比較 <span class="fl-sub">税込・客先合計</span></div>' + head + multiLbl +
       '<table class="fl-tbl"><thead><tr><th>パターン</th><th>見積合計</th><th>仕入</th><th>粗利</th></tr></thead><tbody>' +
       tots.map(t => {
         const badge = t.mode ? `<span class="cd-pattern-tab-mode is-${t.mode}">${t.mode.toUpperCase()}</span>` : '';

@@ -288,6 +288,28 @@
     ).join('\n');
   }
 
+  // ====== プレーンテキスト：物量パターン併記（FCL案／LCL案など） ======
+  // 宛名・挨拶・見積番号・有効期限は1回、比較（案ごとの御見積額）→案ごとの明細・内訳→作業範囲・署名は1回。
+  function buildPlainMulti(views) {
+    const models = views.map(v => ({ v, m: window.withPatternView(v.idx, buildModel) }));
+    const m0 = models[0].m;
+    const out = [].concat(_plainHeaderLines(Object.assign({}, m0, { subject: '', packing: '', billing: null })));
+    out.push('', '【御見積案の比較】');
+    models.forEach(({ v, m }) => out.push(_plainLine('　' + v.name, yen(m.total))));
+    models.forEach(({ v, m }) => {
+      out.push('', '━━━━━━━━━━━━━━━━━━━━', '■ ' + v.name, '━━━━━━━━━━━━━━━━━━━━');
+      if (m.subject) out.push('【内容】' + m.subject);
+      if (m.packing || m.billing) {
+        out.push('【物量情報】' + [m.packing, m.billing && (m.billing.label + ' ' + m.billing.value)].filter(Boolean).join('　'));
+      }
+      out.push.apply(out, buildPlainDetailLines(m));
+      out.push('');
+      out.push.apply(out, _plainSummaryLines(m));
+    });
+    out.push.apply(out, _plainFooterLines(m0));
+    return out.join('\n');
+  }
+
   // ====== クリップボード ======
   function toast(msg, type) { if (window.quoteShowToast) quoteShowToast(msg, type || 'success'); }
 
@@ -305,6 +327,13 @@
 
   // ====== 公開 API（プレビューのボタンから呼ぶ） ======
   function copyQuoteEmail() {
+    const views = (typeof window.getOutputPatternViews === 'function') ? window.getOutputPatternViews() : null;
+    if (views && typeof window.withPatternView === 'function') {
+      copyPlainText(buildPlainMulti(views))
+        .then(() => toast('メール本文（' + views.map(v => v.name).join('／') + ' 併記）をコピーしました'))
+        .catch(() => toast('コピーに失敗しました。手動で選択してください。', 'error'));
+      return;
+    }
     const m = buildModel();
     if (!m.total && !m.detailGroups.length) { toast('費用項目がありません。', 'warn'); return; }
     copyPlainText(buildPlainDetail(m))
