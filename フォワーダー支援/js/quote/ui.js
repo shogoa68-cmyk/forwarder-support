@@ -3255,10 +3255,14 @@
       const relMark = o.isRelated
         ? `<span class="qsp-ms-cl-rel" title="${escapeHtml((o.relLabel || '代理店') + ': ' + (o.relCarrier || ''))}">🔗${escapeHtml(o.relLabel || '')}</span>`
         : '';
-      const cls = `qsp-ms-cl-chip qsp-ms-cl-chip--user${o.isRelated ? ' qsp-ms-cl-chip--rel' : ''}${o.filePath ? ' qsp-ms-cl-chip--file' : ''}`;
+      const ck  = (window.bmClickInfo && o.id) ? window.bmClickInfo(o.id) : { total: 0, mine: 0 };
+      const cls = `qsp-ms-cl-chip qsp-ms-cl-chip--user${o.isRelated ? ' qsp-ms-cl-chip--rel' : ''}${o.filePath ? ' qsp-ms-cl-chip--file' : ''}${o.popular ? ' qsp-ms-cl-chip--hot' : ''}`;
+      const hotMark = o.popular ? '🔥' : '';
+      const ckTitle = ck.total ? `\n👆 クリック ${ck.total}回／自分 ${ck.mine}回` : '';
+      const ckAttr  = o.id ? ` data-bm-click="${escapeHtml(o.id)}"` : '';
       const mainEl = o.filePath
-        ? `<span class="${cls}" onclick="bmOpenFilePath('${encodeURIComponent(o.filePath)}')" title="${escapeHtml(o.title || o.label)}">${relMark}📎${escapeHtml(o.label)}</span>`
-        : `<a class="${cls}" href="${escapeHtml(o.url)}" target="_blank" rel="noopener" title="${escapeHtml(o.title || o.label)}">${relMark}${escapeHtml(o.label)}</a>`;
+        ? `<span class="${cls}"${ckAttr} onclick="bmOpenFilePath('${encodeURIComponent(o.filePath)}')" title="${escapeHtml((o.title || o.label) + ckTitle)}">${relMark}${hotMark}📎${escapeHtml(o.label)}</span>`
+        : `<a class="${cls}"${ckAttr} href="${escapeHtml(o.url)}" target="_blank" rel="noopener" title="${escapeHtml((o.title || o.label) + ckTitle)}">${relMark}${hotMark}${escapeHtml(o.label)}</a>`;
       return `<span class="qsp-ms-cl-chip-wrap">`
         + mainEl
         + `<button class="qsp-chip-edit-btn" data-bm="${data}" onclick="openAddBmModal(JSON.parse(decodeURIComponent(this.dataset.bm)))" title="このブックマークを編集">✎</button>`
@@ -3273,9 +3277,13 @@
     const subconBlock = (subcon) => {
       if (!subcon) return '';
       const fnRank = (b) => (window.bmFnRank ? window.bmFnRank(b.function) : 0);
-      const chips = (bmCache[subcon] || []).filter(b => b.url || b.file_path)
-        .slice().sort((a, b) => fnRank(a) - fnRank(b) || String(a.label || '').localeCompare(String(b.label || ''), 'ja'))
+      const clicks = (b) => (window.bmClickTotal ? window.bmClickTotal(b.id) : 0);
+      const scBms = (bmCache[subcon] || []).filter(b => b.url || b.file_path);
+      const pop = window.bmPopularIds ? window.bmPopularIds(scBms.map(b => b.id)) : new Set();
+      const chips = scBms
+        .slice().sort((a, b) => fnRank(a) - fnRank(b) || clicks(b) - clicks(a) || String(a.label || '').localeCompare(String(b.label || ''), 'ja'))
         .map(b => railChip({
+        popular: pop.has(b.id),
         id: b.id, label: b.label, url: b.url, title: b.note || b.label,
         type: b.carrier_type, carrier: subcon, fn: b.function, note: b.note,
         filePath: b.file_path, fileName: b.file_name, fileSize: b.file_size, mimeType: b.mime_type,
@@ -3291,7 +3299,9 @@
     // ② 幹線輸送キャリア（すべてクラウドBM・編集可＋追加）
     if (typeof window.getCarrierLinkData === 'function') {
       window.getCarrierLinkData().filter(cd => cd.name).forEach(cd => {
+        const pop = window.bmPopularIds ? window.bmPopularIds(cd.links.map(l => l.bmId)) : new Set();
         const chips = cd.links.map(l => railChip({
+          popular: pop.has(l.bmId),
           id: l.bmId, label: l.label, url: l.url, title: l.title,
           type: l.type, carrier: l.carrier || cd.name, fn: l.fn, note: l.note,
           isRelated: l.isRelated, relLabel: l.relLabel, relCarrier: l.relCarrier,

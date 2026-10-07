@@ -3645,7 +3645,9 @@
           filePath: bm.file_path, fileName: bm.file_name, fileSize: bm.file_size, mimeType: bm.mime_type,
         }))
       );
+      const clicks = (x) => (window.bmClickTotal ? window.bmClickTotal(x.bmId) : 0);
       const byFn = (a, b) => (window.bmFnRank ? window.bmFnRank(a.fn) - window.bmFnRank(b.fn) : 0)
+        || clicks(b) - clicks(a)
         || String(a.label || '').localeCompare(String(b.label || ''), 'ja');
       return { name, icon: c?.icon || '', links: [...own.sort(byFn), ...related.sort(byFn)] };
     });

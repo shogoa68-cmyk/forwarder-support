@@ -1873,6 +1873,10 @@ a.bm-contact-item:hover { background: #2e6b3e; color: #fff; border-color: #2e6b3
 .bm-pill-ic { font-size: 11px; opacity: .62; flex-shrink: 0; }
 /* 関連会社（表記違い・代理店など）経由でこのタイルに表示しているピル */
 .bm-pill--rel { border-style: dashed; background: #f8f5ef; }
+/* 人気（クリック数の多い）チップ */
+.bm-pill--hot { background: linear-gradient(180deg, #fffaf0, #ffefcf); border-color: #f0b34a; box-shadow: 0 0 0 1px rgba(240,179,74,.28); }
+.bm-pill--hot:hover { background: #ffe9bd; border-color: #e59a1c; }
+.bm-hot { font-size: 10px; font-weight: 700; color: #c0580c; flex-shrink: 0; }
 .bm-pill-rel {
   font-size: 10px; font-weight: 700; color: #6f5aa0;
   background: #efeaf6; border-radius: 999px; padding: 1px 6px;
@@ -4861,6 +4865,8 @@ a.lc-source-icon:hover { opacity: 0.75; }
   cursor: pointer;
 }
 .lc-bm-chip:hover { background: #cfd8dc; color: #1a237e; }
+.lc-bm-chip--hot { background: #fff4dc; border-color: #f0b34a; color: #8a4a06; font-weight: 600; }
+.lc-bm-chip--hot:hover { background: #ffe9bd; }
 .lc-bm-chip--export  { background: #e8f5e9; color: #2e7d32; border-color: #a5d6a7; }
 .lc-bm-chip--export:hover  { background: #c8e6c9; }
 .lc-bm-chip--import  { background: #e3f2fd; color: #1565c0; border-color: #90caf9; }

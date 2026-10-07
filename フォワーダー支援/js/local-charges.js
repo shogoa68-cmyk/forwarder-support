@@ -1146,7 +1146,26 @@
       _lcBmCache = cache;
     }
     _lcBmLastKey = key;
+    if (window.bmEnsureClickCounts) { try { await window.bmEnsureClickCounts(); } catch (e) {} }   // 人気チップのハイライト用
     lcRender();
+  }
+
+  // 人気（クリック数が多い）チップの id 集合（BOOKMARK タブ・見積タブと同じ基準）
+  function _lcPopular(bms) {
+    return window.bmPopularIds ? window.bmPopularIds(bms.map(b => b.id)) : new Set();
+  }
+  // 諸チャージのブックマークチップ。ファイル添付（URLなし）は署名付きURLで開く。
+  // stopProp: 親（アコーディオン見出し）のクリックに伝播させない
+  function _lcBmChipHtml(bm, cls, title, stopProp, hot) {
+    const ck     = window.bmClickInfo ? window.bmClickInfo(bm.id) : { total: 0, mine: 0 };
+    const tip    = title + (ck.total ? `\n👆 クリック ${ck.total}回／自分 ${ck.mine}回` : '');
+    const klass  = `lc-bm-chip${cls ? ' ' + cls : ''}${hot ? ' lc-bm-chip--hot' : ''}`;
+    const common = `class="${klass}" data-bm-click="${_ea(bm.id)}" title="${tip}"`;
+    const stop   = stopProp ? 'event.stopPropagation();' : '';
+    const hotMk  = hot ? '🔥' : '';
+    return bm.file_path
+      ? `<span ${common} onclick="${stop}bmOpenFilePath('${encodeURIComponent(bm.file_path)}')">${hotMk}📎${_esc(bm.label)}</span>`
+      : `<a ${common} href="${_ea(bm.url)}" target="_blank" rel="noopener"${stopProp ? ' onclick="event.stopPropagation()"' : ''}>${hotMk}${_esc(bm.label)}</a>`;
   }
 
   function _lcBmChipClass(fn) {
@@ -1177,11 +1196,7 @@
       bms.forEach(bm => {
         const cls   = _lcBmChipClass(bm.function);
         const title = _ea([bm.function, bm.note].filter(Boolean).join(' — '));
-        if (bm.file_path) {
-          h += `<span class="lc-bm-chip${cls ? ' ' + cls : ''}" onclick="bmOpenFilePath('${encodeURIComponent(bm.file_path)}')" title="${title}">📎${_esc(bm.label)}</span>`;
-        } else {
-          h += `<a class="lc-bm-chip${cls ? ' ' + cls : ''}" href="${_ea(bm.url)}" target="_blank" rel="noopener" title="${title}">${_esc(bm.label)}</a>`;
-        }
+        h += _lcBmChipHtml(bm, cls, title, false, _lcPopular(bms).has(bm.id));
       });
       if (hasDb) {
         h += `<button class="lc-bm-add-chip" data-lc-carrier="${_ea(carrier)}"` +
@@ -1210,7 +1225,7 @@
     let chips = bms.map(bm => {
       const cls   = _lcBmChipClass(bm.function);
       const title = _ea([bm.function, bm.note].filter(Boolean).join(' — '));
-      return `<a class="lc-bm-chip${cls ? ' ' + cls : ''}" href="${_ea(bm.url)}" target="_blank" rel="noopener" onclick="event.stopPropagation()" title="${title}">${_esc(bm.label)}</a>`;
+      return _lcBmChipHtml(bm, cls, title, true, _lcPopular(bms).has(bm.id));
     }).join('');
     if (hasDb) {
       chips += `<button class="lc-bm-add-chip" data-lc-carrier="${_ea(carrier)}"` +

@@ -11,6 +11,74 @@ const BM_TYPES = [
   { key: 'general',    label: '汎用' },
 ];
 
+// ---------- クリック数（人気のチップのハイライト） ----------
+// bookmark_clicks に1クリック1行で記録（bookmarks 本体は更新しない）。直近 BM_CLICK_DAYS 日を
+// サーバー側 RPC（bookmark_click_counts）で集計して取得する。
+const BM_CLICK_DAYS   = 90;   // 集計期間
+const BM_POP_MIN      = 3;    // 人気とみなす最小クリック数
+const BM_POP_TOP      = 3;    // 1タイル（1キャリアのブロック）で人気にするのは上位何件まで
+let _bmClicks         = {};   // { bookmark_id: { total, mine } }
+let _bmClicksAt       = 0;    // 最終取得時刻（古ければ再取得）
+const _bmClickLast    = new Map();   // 連打の二重計上防止
+
+async function bmEnsureClickCounts(force) {
+  if (!force && _bmClicksAt && Date.now() - _bmClicksAt < 10 * 60 * 1000) return;
+  const db = window.SupabaseClient;
+  if (!db) return;
+  const { data: sd } = await db.auth.getSession();
+  if (!sd?.session) return;
+  const { data, error } = await db.rpc('bookmark_click_counts', { p_days: BM_CLICK_DAYS });
+  if (error) return;   // 未作成などは黙ってスキップ（ハイライトなし）
+  const m = {};
+  (data || []).forEach(r => { m[r.bookmark_id] = { total: Number(r.total) || 0, mine: Number(r.mine) || 0 }; });
+  _bmClicks = m;
+  _bmClicksAt = Date.now();
+}
+
+function bmClickInfo(id)  { return _bmClicks[id] || { total: 0, mine: 0 }; }
+function bmClickTotal(id) { return bmClickInfo(id).total; }
+
+// ids のうち人気（BM_POP_MIN 回以上かつ上位 BM_POP_TOP 件）の id 集合
+function bmPopularIds(ids) {
+  return new Set(
+    [...new Set(ids)].filter(id => bmClickTotal(id) >= BM_POP_MIN)
+      .sort((a, b) => bmClickTotal(b) - bmClickTotal(a))
+      .slice(0, BM_POP_TOP)
+  );
+}
+
+async function bmRecordClick(id) {
+  if (!id || String(id).startsWith('_local_')) return;
+  const now = Date.now();
+  if (now - (_bmClickLast.get(id) || 0) < 5000) return;
+  _bmClickLast.set(id, now);
+  const db = window.SupabaseClient;
+  if (!db) return;
+  const { data: sd } = await db.auth.getSession();
+  const email = sd?.session?.user?.email;
+  if (!email) return;
+  const c = _bmClicks[id] || (_bmClicks[id] = { total: 0, mine: 0 });
+  c.total++; c.mine++;   // 即時にローカルへ反映（次の描画から効く）
+  const { error } = await db.from('bookmark_clicks').insert({ bookmark_id: id, clicked_by: email });
+  if (error) { c.total--; c.mine--; }
+}
+
+// チップ（data-bm-click を持つ要素）のクリックを検知して記録する。
+// 諸チャージのチップ等は onclick で stopPropagation するため、キャプチャ段階で拾う。
+// 編集／削除／確認／メモなどの副操作は数えない。
+if (!window._bmClickDelegated) {
+  window._bmClickDelegated = true;
+  const handler = (e) => {
+    if (e.type === 'auxclick' && e.button !== 1) return;   // 中クリック（新しいタブ）も1回として数える
+    const el = e.target.closest && e.target.closest('[data-bm-click]');
+    if (!el) return;
+    if (e.target.closest('.bm-pill-edit, .bm-pill-del, .bm-verify, .bm-pill-note, .bm-pill-rel, .qsp-chip-edit-btn')) return;
+    bmRecordClick(el.dataset.bmClick);
+  };
+  document.addEventListener('click', handler, true);
+  document.addEventListener('auxclick', handler, true);
+}
+
 // 機能（function）の表示順。タイル内のグループ・見積タブ右カラムのチップ並びで共通に使う。
 // 一覧にない機能（自由入力など）は「その他」の直前、未分類は最後。
 const BM_FN_ORDER = [
@@ -179,6 +247,7 @@ async function _bmLoad() {
   (pRes.data || []).forEach(p => { if (p.display_name) _bmProfile[p.email] = p.display_name; });
   await bmEnsureRelLoaded(true);
   await bmEnsureContactsLoaded(true);
+  await bmEnsureClickCounts(true);
 
   _bmRenderTypeChips();
   _bmApply();
@@ -297,24 +366,28 @@ function _bmFileIcon(mime) {
   return '📎';
 }
 
-function _bmPillHtml(r, rel) {
+function _bmPillHtml(r, rel, popular) {
   const ic     = _bmFnIcon(r.function);
   const txt    = escHtml(r.label || r.function || 'リンク');
   const hasFile = !!r.file_path;
-  const lbl    = escHtml(r.label || '') + (hasFile && r.file_size ? `（${_bmFmtFileSize(r.file_size)}）` : '');
+  const ck     = bmClickInfo(r.id);
+  const hot    = !!popular;
+  const lbl    = escHtml(r.label || '') + (hasFile && r.file_size ? `（${_bmFmtFileSize(r.file_size)}）` : '')
+               + (ck.total ? `\n👆 クリック ${ck.total}回（直近${BM_CLICK_DAYS}日）／自分 ${ck.mine}回` : '');
+  const hotCls = (hot ? ' bm-pill--hot' : '') + (rel ? ' bm-pill--rel' : '');
   const relMark = rel
     ? `<span class="bm-pill-rel bm-tip" data-tip="${escHtml(rel.label + ': ' + rel.counterpart)}">🔗${escHtml(rel.label)}</span>`
     : '';
   let open, close;
   if (hasFile) {
     // ファイル添付：クリックで署名付き URL を都度取得して開く（Storage は非公開バケット）
-    open  = `<span class="bm-pill bm-pill-file${rel ? ' bm-pill--rel' : ''}" onclick="bmOpenFile('${escHtml(r.id)}')" title="${lbl}">`;
+    open  = `<span class="bm-pill bm-pill-file${hotCls}" data-bm-click="${escHtml(r.id)}" onclick="bmOpenFile('${escHtml(r.id)}')" title="${lbl}">`;
     close = `</span>`;
   } else if (r.url) {
-    open  = `<a class="bm-pill${rel ? ' bm-pill--rel' : ''}" href="${escHtml(r.url)}" target="_blank" rel="noopener" title="${lbl}">`;
+    open  = `<a class="bm-pill${hotCls}" data-bm-click="${escHtml(r.id)}" href="${escHtml(r.url)}" target="_blank" rel="noopener" title="${lbl}">`;
     close = `</a>`;
   } else {
-    open  = `<span class="bm-pill bm-pill-nourl${rel ? ' bm-pill--rel' : ''}" title="${lbl}">`;
+    open  = `<span class="bm-pill bm-pill-nourl${hotCls}" title="${lbl}">`;
     close = `</span>`;
   }
   const iconEl = hasFile
@@ -335,7 +408,7 @@ function _bmPillHtml(r, rel) {
     : 'まだ確認されていません\nクリックで「確認済み」にできます';
   const verifyBadge = `<span class="bm-verify ${vcls}${mine ? ' bm-verify-mine' : ''} bm-tip" data-tip="${escHtml(vtip)}" onclick="event.preventDefault();event.stopPropagation();bmToggleVerify('${escHtml(r.id)}')">✓${vcount || ''}</span>`;
   return open
-    + relMark + iconEl + txt + verifyBadge + noteMark
+    + relMark + iconEl + txt + (hot ? `<span class="bm-hot">🔥${ck.total}</span>` : '') + verifyBadge + noteMark
     + `<span class="bm-pill-edit" onclick="event.preventDefault();event.stopPropagation();bmEdit('${escHtml(r.id)}')" title="編集">✎</span>`
     + `<span class="bm-pill-del" onclick="event.preventDefault();event.stopPropagation();bmDelete('${escHtml(r.id)}')" title="削除">🗑</span>`
     + close;
@@ -346,6 +419,7 @@ function _bmPillHtml(r, rel) {
 // 同じグループ内は自社 → 関連会社の順、その中はラベル順。
 function _bmGroupedPillsHtml(ownRows, relItems) {
   const items = [...ownRows.map(r => ({ r, rel: null })), ...relItems];
+  const popular = bmPopularIds(items.map(it => it.r.id));
   const groups = new Map();
   items.forEach(it => {
     const fn = it.r.function || '未分類';
@@ -356,11 +430,12 @@ function _bmGroupedPillsHtml(ownRows, relItems) {
   const showHead = !(keys.length === 1 && keys[0] === '未分類');
   return keys.map(fn => {
     const arr = groups.get(fn).sort((a, b) =>
-      (a.rel ? 1 : 0) - (b.rel ? 1 : 0) || String(a.r.label || '').localeCompare(String(b.r.label || ''), 'ja'));
+      (a.rel ? 1 : 0) - (b.rel ? 1 : 0) || bmClickTotal(b.r.id) - bmClickTotal(a.r.id)
+      || String(a.r.label || '').localeCompare(String(b.r.label || ''), 'ja'));
     const head = showHead
       ? `<div class="bm-fhead"><span class="bm-fhead-ic">${_bmFnIcon(fn)}</span>${escHtml(fn)}<span class="bm-fcount">${arr.length}</span></div>`
       : '';
-    return `<div class="bm-fgroup">${head}<div class="bm-fpills">${arr.map(it => _bmPillHtml(it.r, it.rel)).join('')}</div></div>`;
+    return `<div class="bm-fgroup">${head}<div class="bm-fpills">${arr.map(it => _bmPillHtml(it.r, it.rel, popular.has(it.r.id))).join('')}</div></div>`;
   }).join('');
 }
 
@@ -1541,6 +1616,7 @@ window.fetchCarrierBmsForQSP = async function (carrierNames) {
   if (!sd?.session) return;
 
   await bmEnsureRelLoaded();
+  await bmEnsureClickCounts();
   const expanded = [...carrierNames];
   carrierNames.forEach(n => bmGetRelated(n).forEach(rel => {
     if (!expanded.includes(rel.counterpart)) expanded.push(rel.counterpart);
@@ -1596,6 +1672,11 @@ window.bmDoAddRelation   = bmDoAddRelation;
 window.bmRemoveRelation  = bmRemoveRelation;
 window.bmGetContact       = bmGetContact;
 window.bmFnRank           = bmFnRank;
+window.bmClickInfo         = bmClickInfo;
+window.bmClickTotal        = bmClickTotal;
+window.bmPopularIds        = bmPopularIds;
+window.bmRecordClick       = bmRecordClick;
+window.bmEnsureClickCounts = bmEnsureClickCounts;
 window.bmTypeForTransport = bmTypeForTransport;
 window.bmEnsureCarrierTypes = bmEnsureCarrierTypes;
 window.bmCarrierNamesForType = bmCarrierNamesForType;
