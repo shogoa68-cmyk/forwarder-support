@@ -1,5 +1,16 @@
 // ========== 🔖 BOOKMARK（チーム共有ブックマーク） ==========
 
+// 種別（carrier_type）の定義。チップ・タイルのドロップダウン・確認ダイアログはここから生成する。
+// key は DB に保存される値（DB 側に値の制約は無いため、追加はここだけで済む）。
+const BM_TYPES = [
+  { key: 'FCL',        label: 'FCL 船会社' },
+  { key: 'LCL',        label: 'LCL キャリア' },
+  { key: 'AIR',        label: 'AIR 航空' },
+  { key: 'RORO',       label: 'RO/RO 船' },
+  { key: 'BREAKBULK',  label: '在来船' },
+  { key: 'general',    label: '汎用' },
+];
+
 let _bmRows          = [];
 let _bmTypeFilter    = '';
 let _bmCarrierFilter = '';
@@ -159,11 +170,8 @@ function _bmRenderTypeChips() {
   const el = document.getElementById('bmTypeChips');
   if (!el) return;
   const types = [
-    { key: '',        label: 'すべて' },
-    { key: 'FCL',     label: 'FCL 船会社' },
-    { key: 'LCL',     label: 'LCL キャリア' },
-    { key: 'AIR',     label: 'AIR 航空' },
-    { key: 'general', label: '汎用' },
+    { key: '', label: 'すべて' },
+    ...BM_TYPES,
   ];
   el.innerHTML = types.map(t =>
     `<button class="bm-chip${_bmTypeFilter === t.key ? ' is-active' : ''}"
@@ -221,7 +229,7 @@ function _bmCarrierAbbr(name) {
   if (ascii) { const a = name.replace(/[^A-Za-z0-9]/g, '').slice(0, 3).toUpperCase(); return a || name.slice(0, 3).toUpperCase(); }
   return name.slice(0, 3);
 }
-const _BM_TYPE_SUB = { FCL: 'FCL 船会社', LCL: 'LCL キャリア', AIR: 'AIR 航空', general: '汎用' };
+const _BM_TYPE_SUB = Object.fromEntries(BM_TYPES.map(t => [t.key, t.label]));
 const _BM_FN_ICON = {
   'スケジュール':'📅','航路':'🛣️','コンテナ追跡':'📍','CY OPEN/CUT':'🗓️',
   'ローカルチャージ（輸出）':'💴','ローカルチャージ（輸入）':'💴',
@@ -319,7 +327,7 @@ function _bmRenderList(rows) {
     const typeMeta = name === '汎用'
       ? `<div class="bm-tsub">${escHtml(sub)}</div>`
       : `<select class="bm-tsub bm-ttype" data-bm-carrier="${escHtml(name)}" onclick="event.stopPropagation()" title="このキャリアの全リンクの種別を変更">`
-        + ['FCL', 'LCL', 'AIR', 'general'].map(tv =>
+        + BM_TYPES.map(t => t.key).map(tv =>
             `<option value="${tv}"${tv === type ? ' selected' : ''}>${escHtml(_BM_TYPE_SUB[tv] || tv)}</option>`
           ).join('')
         + `</select>`;
@@ -829,7 +837,7 @@ async function bmRetypeCarrier(carrier, newType) {
   const targets = _bmRows.filter(r => (r.carrier || '') === carrier);
   if (!targets.length) return;
   if (targets[0].carrier_type === newType) return;   // 変化なし
-  const labelMap = { FCL: 'FCL 船会社', LCL: 'LCL キャリア', AIR: 'AIR 航空', general: '汎用' };
+  const labelMap = _BM_TYPE_SUB;
   if (!confirm(`「${carrier}」の ${targets.length} 件すべての種別を「${labelMap[newType] || newType}」に変更しますか？`)) {
     _bmApply();   // キャンセル時はドロップダウンの表示を元に戻す
     return;
