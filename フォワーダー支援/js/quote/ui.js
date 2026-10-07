@@ -3272,7 +3272,10 @@
     // z1/z3 サブコン（クラウドBMのみ・編集可＋追加）
     const subconBlock = (subcon) => {
       if (!subcon) return '';
-      const chips = (bmCache[subcon] || []).filter(b => b.url || b.file_path).map(b => railChip({
+      const fnRank = (b) => (window.bmFnRank ? window.bmFnRank(b.function) : 0);
+      const chips = (bmCache[subcon] || []).filter(b => b.url || b.file_path)
+        .slice().sort((a, b) => fnRank(a) - fnRank(b) || String(a.label || '').localeCompare(String(b.label || ''), 'ja'))
+        .map(b => railChip({
         id: b.id, label: b.label, url: b.url, title: b.note || b.label,
         type: b.carrier_type, carrier: subcon, fn: b.function, note: b.note,
         filePath: b.file_path, fileName: b.file_name, fileSize: b.file_size, mimeType: b.mime_type,

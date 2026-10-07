@@ -3480,6 +3480,8 @@
     if (_currentTransport === 'domestic') return {};   // 国内手配のみは船社/航空会社なし
     if (_currentTransport === 'air') return (typeof CARRIERS_AIR !== 'undefined') ? CARRIERS_AIR : {};
     if (_currentSeaSub === 'lcl')    return (typeof CARRIERS_LCL !== 'undefined') ? CARRIERS_LCL : {};
+    // RORO・在来船は組み込みの船社データが無い（FCL の船社を出さない）。候補はブックマーク（種別）から補う
+    if (_currentSeaSub === 'roro' || _currentSeaSub === 'conv') return {};
     return (typeof CARRIERS !== 'undefined') ? CARRIERS : {};
   }
 
@@ -3489,6 +3491,7 @@
     if (_currentTransport === 'domestic') return [];   // 国内手配のみはキャリアリンクなし
     if (_currentTransport === 'air') return defs.air || [];
     if (_currentSeaSub === 'lcl')    return defs.lcl || [];
+    if (_currentSeaSub === 'roro' || _currentSeaSub === 'conv') return [];
     return defs.fcl || [];
   }
 
@@ -3506,6 +3509,24 @@
     dl.innerHTML = Object.keys(map).map(k => `<option value="${k}">`).join('');
     // 作り直しで消えたマスター登録のキャリア（過去案件・同義語・ふりがな等）を再反映
     if (typeof window.arRefreshDatalist === 'function') window.arRefreshDatalist();
+
+    // 現在の輸送モードと同じ「種別」のブックマークが登録されている会社を候補に追加
+    // （FCL→FCL / LCL→LCL / RORO→RO/RO 船 / 在来船→在来船 / Air→AIR）
+    const appendBmCarriers = () => {
+      if (typeof window.bmCarrierNamesForType !== 'function' || typeof window.bmTypeForTransport !== 'function') return;
+      const type = window.bmTypeForTransport(_currentTransport, _currentSeaSub);
+      dl.querySelectorAll('option[data-bm]').forEach(o => o.remove());
+      if (!type || type === 'general') return;
+      const have = new Set(Array.from(dl.options).map(o => o.value));
+      window.bmCarrierNamesForType(type).forEach(n => {
+        if (have.has(n)) return;
+        const o = document.createElement('option');
+        o.value = n; o.dataset.bm = '1';
+        dl.appendChild(o);
+      });
+    };
+    appendBmCarriers();
+    if (typeof window.bmEnsureCarrierTypes === 'function') window.bmEnsureCarrierTypes().then(appendBmCarriers);
 
     // z2 アイコン・プレースホルダーもモードに合わせて更新
     const icon  = document.getElementById('z2ModeIcon');
@@ -3624,7 +3645,9 @@
           filePath: bm.file_path, fileName: bm.file_name, fileSize: bm.file_size, mimeType: bm.mime_type,
         }))
       );
-      return { name, icon: c?.icon || '', links: [...own, ...related] };
+      const byFn = (a, b) => (window.bmFnRank ? window.bmFnRank(a.fn) - window.bmFnRank(b.fn) : 0)
+        || String(a.label || '').localeCompare(String(b.label || ''), 'ja');
+      return { name, icon: c?.icon || '', links: [...own.sort(byFn), ...related.sort(byFn)] };
     });
   };
 

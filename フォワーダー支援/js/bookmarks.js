@@ -11,6 +11,26 @@ const BM_TYPES = [
   { key: 'general',    label: '汎用' },
 ];
 
+// 機能（function）の表示順。タイル内のグループ・見積タブ右カラムのチップ並びで共通に使う。
+// 一覧にない機能（自由入力など）は「その他」の直前、未分類は最後。
+const BM_FN_ORDER = [
+  'スケジュール', '航路', 'コンテナ追跡', 'CY OPEN/CUT', 'ブッキング', 'レート',
+  '輸出サーチャージ', '輸入サーチャージ', 'ローカルチャージ（輸出）', 'ローカルチャージ（輸入）',
+  '書類', 'お知らせ', 'その他', '未分類',
+];
+function bmFnRank(fn) {
+  const i = BM_FN_ORDER.indexOf(fn || '未分類');
+  return i >= 0 ? i : BM_FN_ORDER.indexOf('その他') - 0.5;
+}
+
+// 見積タブの輸送モード → ブックマーク種別。未選択（transport が空）は null。
+function bmTypeForTransport(transport, seaSub) {
+  if (transport === 'air')      return 'AIR';
+  if (transport === 'domestic') return 'general';
+  if (transport === 'sea')      return ({ fcl: 'FCL', lcl: 'LCL', roro: 'RORO', conv: 'BREAKBULK' })[seaSub] || 'FCL';
+  return null;
+}
+
 let _bmRows          = [];
 let _bmTypeFilter    = '';
 let _bmCarrierFilter = '';
@@ -74,6 +94,26 @@ function bmGetContact(name) {
   if (!list.length) return null;
   const rep = list.find(c => c.email) || list[0];
   return { ...rep, contacts: list };
+}
+
+// 見積タブのキャリア候補用：BOOKMARK タブを開いていなくても会社名と種別だけ軽量取得する。
+let _bmLightRows = null;   // [{ carrier, carrier_type }]
+async function bmEnsureCarrierTypes(force) {
+  if (_bmLightRows && !force) return;
+  const db = window.SupabaseClient;
+  if (!db) return;
+  const { data: sd } = await db.auth.getSession();
+  if (!sd?.session) return;
+  const { data, error } = await db.from('bookmarks').select('carrier, carrier_type').not('carrier', 'is', null);
+  if (error) return;
+  _bmLightRows = data || [];
+}
+// 指定した種別のブックマークが登録されている会社名（BOOKMARK タブ読込済みならそちらを優先して最新を使う）
+function bmCarrierNamesForType(type) {
+  const src = _bmRows.length ? _bmRows : (_bmLightRows || []);
+  const set = new Set();
+  src.forEach(r => { if (r.carrier && (r.carrier_type || 'FCL') === type) set.add(r.carrier); });
+  return [...set].sort((a, b) => a.localeCompare(b, 'ja'));
 }
 
 // QSP 幹線輸送チップ用キャリアブックマークキャッシュ
@@ -301,6 +341,29 @@ function _bmPillHtml(r, rel) {
     + close;
 }
 
+// タイル内のピルを機能（function）ごとにまとめ、BM_FN_ORDER の順で見出し付きに並べる。
+// 見出しは「未分類しか無い」場合は付けない（見出しだけが並んで冗長になるため）。
+// 同じグループ内は自社 → 関連会社の順、その中はラベル順。
+function _bmGroupedPillsHtml(ownRows, relItems) {
+  const items = [...ownRows.map(r => ({ r, rel: null })), ...relItems];
+  const groups = new Map();
+  items.forEach(it => {
+    const fn = it.r.function || '未分類';
+    if (!groups.has(fn)) groups.set(fn, []);
+    groups.get(fn).push(it);
+  });
+  const keys = [...groups.keys()].sort((a, b) => bmFnRank(a) - bmFnRank(b) || a.localeCompare(b, 'ja'));
+  const showHead = !(keys.length === 1 && keys[0] === '未分類');
+  return keys.map(fn => {
+    const arr = groups.get(fn).sort((a, b) =>
+      (a.rel ? 1 : 0) - (b.rel ? 1 : 0) || String(a.r.label || '').localeCompare(String(b.r.label || ''), 'ja'));
+    const head = showHead
+      ? `<div class="bm-fhead"><span class="bm-fhead-ic">${_bmFnIcon(fn)}</span>${escHtml(fn)}<span class="bm-fcount">${arr.length}</span></div>`
+      : '';
+    return `<div class="bm-fgroup">${head}<div class="bm-fpills">${arr.map(it => _bmPillHtml(it.r, it.rel)).join('')}</div></div>`;
+  }).join('');
+}
+
 function _bmRenderList(rows) {
   const wrap = document.getElementById('bmListWrap');
   if (!wrap) return;
@@ -359,12 +422,12 @@ function _bmRenderList(rows) {
     const contactEditBtn = name === '汎用' ? '' :
       `<button class="bm-contact-edit" data-bm-contact-carrier="${escHtml(name)}" onclick="event.stopPropagation();openBmContact(this.dataset.bmContactCarrier)" title="連絡先（担当者）を追加・編集">${contacts.length ? '✎ 連絡先を編集' : '＋📞 連絡先'}</button>`;
     const contactRow = (name === '汎用') ? '' : `<div class="bm-contact-row">${contactLines}${contactEditBtn}</div>`;
-    const pills = list.map(r => _bmPillHtml(r)).join('');
     // 関連会社（表記違い・代理店など）のブックマークも、このタイル内に印付きで一緒に表示する。
     // 別会社として登録は維持したまま、このタイルからも見えるようにするだけ（統合はしない）。
-    const relPills = rels.flatMap(rel =>
-      _bmRows.filter(r => (r.carrier || '') === rel.counterpart).map(r => _bmPillHtml(r, rel))
-    ).join('');
+    const relItems = rels.flatMap(rel =>
+      _bmRows.filter(r => (r.carrier || '') === rel.counterpart).map(r => ({ r, rel }))
+    );
+    const groupedPills = _bmGroupedPillsHtml(list, relItems);
     return `<div class="bm-tile${isCol ? ' collapsed' : ''}" style="--cc:${cc}">
       <div class="bm-thead" data-bm-tile="${escHtml(name)}">
         <div class="bm-tlogo">${escHtml(_bmCarrierAbbr(name))}</div>
@@ -373,8 +436,8 @@ function _bmRenderList(rows) {
         ${renameBtn}
         <span class="bm-ttog">${isCol ? '▸' : '▾'}</span>
       </div>
-      <div class="bm-tbody">
-        ${pills}${relPills}
+      <div class="bm-tbody bm-tbody--grouped">
+        ${groupedPills}
         <span class="bm-pill bm-pill-add" data-bm-add="${name === '汎用' ? '' : escHtml(name)}" data-bm-type="${escHtml(type)}">＋ 追加</span>
       </div>
       ${contactRow}
@@ -481,11 +544,8 @@ function _inferBmFunction(chipLabel) {
 }
 
 function _inferBmType() {
-  const m = document.getElementById('cond-mode')?.value || '';
-  if (m.includes('LCL')) return 'LCL';
-  if (m.includes('FCL')) return 'FCL';
-  if (m.includes('AIR')) return 'general';
-  return 'FCL';
+  const st = (typeof window.getTransportState === 'function') ? window.getTransportState() : null;
+  return (st && bmTypeForTransport(st.transport, st.seaSub)) || 'FCL';
 }
 
 function openAddBmModal(presetData) {
@@ -504,7 +564,8 @@ function openAddBmModal(presetData) {
   if (labelEl)   labelEl.value   = p.label   || '';
   if (urlEl)     urlEl.value     = p.url     || '';
   if (noteEl)    noteEl.value    = p.note    || '';
-  if (typeEl)    typeEl.value    = p.type    || (p.label ? _inferBmType() : 'FCL');
+  // 種別の既定値：明示指定 → その会社の既存の種別 → 見積タブ経由なら現在の輸送モード → BOOKMARK タブで絞り込み中の種別 → FCL
+  if (typeEl)    typeEl.value    = p.type || (p.carrier && _bmDominantType(p.carrier)) || ((p.carrier || p.label) ? _inferBmType() : (_bmTypeFilter || 'FCL'));
   // 機能は任意。編集は既存値、追加はチップラベルから推測。いずれも未取得なら「未分類」を初期選択。
   if (fnEl)      fnEl.value      = isEdit ? (p.fn || '未分類') : (p.fn ? (_inferBmFunction(p.fn) || '未分類') : '未分類');
   // QSP 経由の新規追加時のみ会社名フィールドをロック。編集時は常に編集可能
@@ -1534,6 +1595,10 @@ window.closeBmRelation   = closeBmRelation;
 window.bmDoAddRelation   = bmDoAddRelation;
 window.bmRemoveRelation  = bmRemoveRelation;
 window.bmGetContact       = bmGetContact;
+window.bmFnRank           = bmFnRank;
+window.bmTypeForTransport = bmTypeForTransport;
+window.bmEnsureCarrierTypes = bmEnsureCarrierTypes;
+window.bmCarrierNamesForType = bmCarrierNamesForType;
 window.bmGetContacts      = bmGetContacts;
 window.openBmContact      = openBmContact;
 window.closeBmContact     = closeBmContact;
