@@ -86,10 +86,10 @@
     add(ov, '輸送区分', [dir, cond.mode].filter(Boolean).join(' '));
     add(ov, '建値', cond.incoterms);
     if (routes.length) {
-      routes.forEach((r, i) => {
+      (routeLegItems(cond.direction, routes, false) || routes.map((r, i) => ({ r, label: routes.length === 1 ? '航路' : `航路${i + 1}` }))).forEach(({ r, label }) => {
         const carrier = [r.carrier, r.service ? `(${r.service})` : ''].filter(Boolean).join(' ');
         const tt = r.tt ? `T/T: ${r.tt}` : '';
-        add(ov, routes.length === 1 ? '航路' : `航路${i + 1}`, [carrier, legOf(r), tt].filter(Boolean).join('　'));
+        add(ov, label, [carrier, legOf(r), tt].filter(Boolean).join('　'));
       });
     } else {
       add(ov, '積み地（POL）', cond.pol);

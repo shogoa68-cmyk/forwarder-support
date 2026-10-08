@@ -2601,9 +2601,15 @@
     return named.map(e => {
       const dim = [e.l, e.w, e.h].every(x => x) ? `${e.l}×${e.w}×${e.h}cm` : '';
       const en = window._outputLangEn === true;   // 御見積書PDFの英語出力中のみ英語の文言にする
+      // 1個あたりの容積（寸法がそろっているときだけ）：L×W×H(cm)÷1,000,000。小数4桁・末尾の0は省く
+      let vol = '';
+      if ([e.l, e.w, e.h].every(x => parseFloat(x) > 0)) {
+        const cbm = parseFloat(e.l) * parseFloat(e.w) * parseFloat(e.h) / 1e6;
+        vol = `${String(cbm >= 0.0001 ? +cbm.toFixed(4) : +cbm.toPrecision(2))}${en ? 'CBM/pc' : 'CBM/個'}`;
+      }
       const kg = e.kg ? (en ? `${e.kg}kg/pc` : `${e.kg}kg/個`) : '';
       const stackNote = e.stack === '不可' ? (en ? 'Do not stack' : '段積み不可') : '';
-      const extra = [dim, kg, stackNote].filter(Boolean).join(en ? ', ' : '、');
+      const extra = [dim, vol, kg, stackNote].filter(Boolean).join(en ? ', ' : '、');
       return `${e.pkg || (en ? 'Packing not specified' : '荷姿未設定')} × ${e.qty || 1}${extra ? (en ? ` (${extra})` : `（${extra}）`) : ''}`;
     }).join('\n');
   }
@@ -3031,6 +3037,27 @@
   let _pendingRouteFlags = null;
   const NG_REASON_HINT = '使用不可の理由を入力してください\n（例：スペース満床 / CY カット後 / レート提示なし / 危険品不可 / 直近スケジュールなし）';
 
+  // 往復案件（輸出→輸入など）：航路ごとに往路／復路を指定するボタン（未指定→往路→復路→未指定…）
+  // どの航路にも指定が無いときは、御見積書では1本目＝往路・2本目＝復路として扱う
+  function _legBtn(r, i) {
+    const round = dirIsRound(_currentDirection);
+    if (!round && !r.leg) return '';
+    const dirName = leg => ((leg === 'out') === (dirFirstLeg(_currentDirection) === 'export')) ? '輸出' : '輸入';
+    const txt = r.leg === 'out' ? '往' : r.leg === 'ret' ? '復' : '区間';
+    const tip = r.leg === 'out' ? `往路（${dirName('out')}）の航路。クリックで復路に切り替え`
+              : r.leg === 'ret' ? `復路（${dirName('ret')}）の航路。クリックで未指定に戻す`
+              : '往路／復路を指定（クリックで切替）。どの航路も未指定なら、1本目＝往路・2本目＝復路として御見積書に出力します';
+    return `<button type="button" class="z2-route-legbtn${r.leg ? ' is-' + r.leg : ''}" onclick="cycleRouteLeg(${i})" ${round ? '' : 'disabled'} title="${_escMulti(tip)}">${txt}</button>`;
+  }
+  window.cycleRouteLeg = function (i) {
+    const r = _routeEntries[i];
+    if (!r) return;
+    r.leg = r.leg === 'out' ? 'ret' : r.leg === 'ret' ? '' : 'out';
+    _renderRouteEntries();
+    if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
+    if (typeof scheduleSnapshot === 'function') scheduleSnapshot();
+  };
+
   function _renderRouteEntries() {
     const data = document.getElementById('z2-routes-data');
     if (data) data.value = JSON.stringify(_routeEntries);
@@ -3068,6 +3095,7 @@
         + `<button type="button" class="z2-route-move" onclick="moveRouteEntry(${i},-1)" ${_atFirst ? 'disabled' : ''} title="上へ移動">↑</button>`
         + `<button type="button" class="z2-route-move" onclick="moveRouteEntry(${i},1)" ${_atLast ? 'disabled' : ''} title="下へ移動">↓</button>`
         + `<button type="button" class="z2-route-toggle${_routeLinked ? ' route-pattern-linked' : ''}" onclick="toggleRouteEntry(${i})" title="${_escMulti(_toggleTitle)}">${on ? '✓' : '—'}</button>`
+        + _legBtn(r, i)
         + `<span class="z2-route-carrier">${_escMulti(r.carrier || '—')}</span>`
         + _roleChip + _actualChip + _ngChip
         + (r.service ? `<span class="z2-route-service">${_escMulti(r.service)}</span>` : '')
@@ -3155,10 +3183,10 @@
       return;
     }
     // carrier=契約先（ブッキング/支払先）、carrierRole=その役割、actualCarrier=実運送人（実際の船会社）
-    const flags = _pendingRouteFlags || { enabled: true, ng: false, ngReason: '', rid: null };
+    const flags = _pendingRouteFlags || { enabled: true, ng: false, ngReason: '', rid: null, leg: '' };
     _pendingRouteFlags = null;
     _routeEntries.push({ carrier, service, carrierRole, actualCarrier, pol, via, pod, tt,
-                         enabled: flags.enabled, ng: flags.ng, ngReason: flags.ngReason, rid: flags.rid || _newRouteId() });
+                         enabled: flags.enabled, ng: flags.ng, ngReason: flags.ngReason, rid: flags.rid || _newRouteId(), leg: flags.leg || '' });
     if (flags.ng && typeof quoteShowToast === 'function') {
       quoteShowToast('🚫 使用不可の記録を引き継ぎました', 'info', 1800);
     }
@@ -3259,7 +3287,7 @@
     set('z2Tt', r.tt);
     // 契約形態パネルは常時表示のため展開処理は不要
     // 無効・使用不可の状態・rid（パターン紐付けの識別子）は再登録時に引き継ぐ（✎ で消えてしまわないように）
-    _pendingRouteFlags = { enabled: r.enabled !== false && !r.ng, ng: !!r.ng, ngReason: r.ngReason || '', rid: r.rid };
+    _pendingRouteFlags = { enabled: r.enabled !== false && !r.ng, ng: !!r.ng, ngReason: r.ngReason || '', rid: r.rid, leg: r.leg || '' };
     // エントリを削除して再描画
     _routeEntries.splice(i, 1);
     _renderRouteEntries();
@@ -3389,6 +3417,7 @@
     );
     _applyZoneLabels();
     applyZoneState();
+    _renderRouteEntries();   // 往復案件では航路チップに往路／復路ボタンを出す
     if (typeof window.renderQuoteMilestones === 'function') window.renderQuoteMilestones();
   }
 

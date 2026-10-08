@@ -855,9 +855,10 @@
 
     const cond = getConditions();
     // 航路：1件以上の登録があれば航路ごとに via・キャリア・サービス名を含めて表示、なければ従来通り POL/POD を分けて表示
+    const _legItems = routeLegItems(cond.direction, cond.routes, false);   // 往復案件：往路→復路の順・ラベルつき
     const routeFields = (cond.routes && cond.routes.length >= 1)
-      ? cond.routes.map((r, i) => ({
-          lbl: cond.routes.length === 1 ? '航路' : `航路${i + 1}`,
+      ? (_legItems || cond.routes.map((r, i) => ({ r, label: cond.routes.length === 1 ? '航路' : `航路${i + 1}` }))).map(({ r, label }) => ({
+          lbl: label,
           val: [(typeof window.formatRouteCarrierLine === 'function')
                   ? window.formatRouteCarrierLine(r)
                   : [r.carrier, r.service ? `(${r.service})` : ''].filter(Boolean).join(' '),
@@ -1771,8 +1772,8 @@
     // 引き合い条件（POL/POD/インコタームズ/輸送モード/コンテナ/貨物名）
     const cExcel = getConditions();
     const routePairs = (cExcel.routes && cExcel.routes.length >= 1)
-      ? cExcel.routes.map((r, i) => [
-          cExcel.routes.length === 1 ? '航路' : `航路${i + 1}`,
+      ? (routeLegItems(cExcel.direction, cExcel.routes, false) || cExcel.routes.map((r, i) => ({ r, label: cExcel.routes.length === 1 ? '航路' : `航路${i + 1}` }))).map(({ r, label }) => [
+          label,
           [(typeof window.formatRouteCarrierLine === 'function')
              ? window.formatRouteCarrierLine(r)
              : [r.carrier, r.service ? `(${r.service})` : ''].filter(Boolean).join(' '),
