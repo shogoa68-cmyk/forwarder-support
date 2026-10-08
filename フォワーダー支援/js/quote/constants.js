@@ -442,3 +442,30 @@ function dirFirstLeg(d) {
 }
 /** 往復案件（輸出→輸入／輸入→輸出）か */
 function dirIsRound(d) { return d === 'export_import' || d === 'import_export'; }
+/**
+ * 往復案件（輸出→輸入／輸入→輸出）の航路ラベル。戻り値は表示順（往路→復路→区間未設定）の [{ r, label }]。
+ * 往復案件でない／航路が無いときは null（呼び出し側は従来の「航路／航路N」を使う）。
+ * 各航路の leg（'out'＝往路／'ret'＝復路／空＝未指定）はユーザーが航路チップで指定する。
+ * どの航路にも指定が無ければ従来どおり 1本目＝往路・2本目＝復路。
+ */
+function routeLegItems(direction, routes, en) {
+  if (!dirIsRound(direction) || !Array.isArray(routes) || !routes.length) return null;
+  const T = en ? { route: 'Route', out: 'Outbound', ret: 'Return', ex: 'Export', im: 'Import' }
+               : { route: '航路', out: '往路', ret: '復路', ex: '輸出', im: '輸入' };
+  const first = dirFirstLeg(direction);
+  const dirOf = leg => ((leg === 'out') === (first === 'export')) ? T.ex : T.im;   // 往路の方向＝先頭の語、復路はその逆
+  let legs = routes.map(r => (r && (r.leg === 'out' || r.leg === 'ret')) ? r.leg : '');
+  if (!legs.some(Boolean)) legs = routes.map((_, i) => (i === 0 ? 'out' : i === 1 ? 'ret' : ''));
+  const total = { out: legs.filter(l => l === 'out').length, ret: legs.filter(l => l === 'ret').length };
+  const rank = { out: 0, ret: 1, '': 2 };
+  const seq = { out: 0, ret: 0 };
+  return routes.map((r, i) => ({ r, leg: legs[i], i }))
+    .sort((a, b) => rank[a.leg] - rank[b.leg] || a.i - b.i)
+    .map(({ r, leg, i }) => {
+      if (!leg) return { r, label: `${T.route}${en ? ' ' : ''}${i + 1}` };
+      seq[leg] += 1;
+      const num = total[leg] > 1 ? (en ? ` ${seq[leg]}` : String(seq[leg])) : '';
+      const d = dirOf(leg);
+      return { r, label: T[leg] + num + (en ? ` (${d})` : `（${d}）`) };
+    });
+}

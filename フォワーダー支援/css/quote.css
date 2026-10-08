@@ -11200,3 +11200,9 @@ body.is-row-dragging { cursor: grabbing; user-select: none; }
 #tab-quote-make .fl-pt-row:hover td { background: #faf3e0; }
 #tab-quote-make .fl-multi { display: flex; gap: 6px; align-items: flex-start; font-size: 11.5px; line-height: 1.5; margin: 6px 0 8px; color: #4a3a20; cursor: pointer; }
 #tab-quote-make .fl-multi input { margin-top: 2px; }
+
+/* 往復案件：航路の往路／復路ボタン */
+#tab-quote-make .z2-route-legbtn { font-size: 10.5px; font-weight: 700; padding: 0 6px; margin-right: 4px; border: 1px dashed #b9a98a; border-radius: 9px; background: #fff; color: #8a7a5c; cursor: pointer; }
+#tab-quote-make .z2-route-legbtn.is-out { border-style: solid; border-color: #4e7a3a; background: #eef5e8; color: #3a6a2a; }
+#tab-quote-make .z2-route-legbtn.is-ret { border-style: solid; border-color: #3a6aa0; background: #eaf1fa; color: #2a5a90; }
+#tab-quote-make .z2-route-legbtn:disabled { cursor: default; opacity: .6; }

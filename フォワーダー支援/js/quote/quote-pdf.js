@@ -109,8 +109,6 @@
     noPattern:      ['（パターン未設定）', '(No pattern)'],
     noSubcon:       ['（サブコン未設定）', '(No subcontractor)'],
     noCategory:     ['— カテゴリ —', '— Uncategorized —'],
-    outbound:       ['往路', 'Outbound'],
-    returnLeg:      ['復路', 'Return'],
     cmpTitle:       ['■ 御見積案の比較', '■ Quotation Options'],
     cmpPlan:        ['案', 'Option'],
     cmpContent:     ['内容', 'Description'],
@@ -126,12 +124,6 @@
     DAP: 'Delivered at Place', DPU: 'Delivered at Place Unloaded', DDP: 'Delivered Duty Paid',
     FAS: 'Free Alongside Ship', FOB: 'Free On Board', CFR: 'Cost and Freight', CIF: 'Cost, Insurance and Freight',
   };
-  // 往復案件の区間（0=往路 / 1=復路）の方向ラベル（日本語：輸出/輸入、英語：Export/Import）
-  function dirLegLabel(dir, legIdx) {
-    const first = dirFirstLeg(dir);
-    const leg = legIdx === 0 ? first : (first === 'export' ? 'import' : 'export');
-    return _curLangEn ? (DIRECTION_EN[leg] || '') : dirLabel(leg);
-  }
   function _incotermsDisp(v) {
     if (!_curLangEn || !v) return v;
     const code = String(v).split('（')[0].trim().toUpperCase();
@@ -341,8 +333,9 @@
     const _multiRoute = cond.routes && cond.routes.length > 1;
     // 件名の航路：ルート情報から via を含めて組み立て
     let route = '';
+    const _legItems = _hasRoutes ? routeLegItems(cond.direction, cond.routes, _curLangEn) : null;   // 往復案件：往路が先頭
     if (_hasRoutes) {
-      const r0 = cond.routes[0];
+      const r0 = _legItems ? _legItems[0].r : cond.routes[0];
       const r0leg = [r0.pol, r0.via, r0.pod].filter(Boolean).map(x => _masterEn('port', x)).join(' → ');
       route = _multiRoute
         ? (r0leg + (_curLangEn ? ` +${cond.routes.length - 1} more` : ` 他${cond.routes.length - 1}航路`))
@@ -359,17 +352,12 @@
     push(t('incoterms'), _incotermsDisp(cond.incoterms));
     // 航路：1件以上の登録があれば航路ごとに via・キャリア・サービス名を含めて全件併記
     if (_hasRoutes) {
-      cond.routes.forEach((r, i) => {
+      (_legItems || cond.routes.map((r, i) => ({ r, label: cond.routes.length === 1 ? t('route') : `${t('route')} ${i + 1}` }))).forEach(({ r, label }) => {
         const rt = [r.pol, r.via, r.pod].filter(Boolean).map(x => _masterEn('port', x)).join(' → ');
         const carrier = (typeof window.formatRouteCarrierLine === 'function')
           ? window.formatRouteCarrierLine(r)
           : [r.carrier, r.service ? `(${r.service})` : ''].filter(Boolean).join(' ');
         const tt = r.tt ? `T/T: ${r.tt}` : '';
-        // 往復案件（輸出→輸入など）は、1本目＝往路、2本目＝復路として区間の方向も添える
-        const _legDir = (dirIsRound(cond.direction) && i < 2) ? dirLegLabel(cond.direction, i) : '';
-        const label = _legDir
-          ? (i === 0 ? t('outbound') : t('returnLeg')) + (_curLangEn ? ` (${_legDir})` : `（${_legDir}）`)
-          : (cond.routes.length === 1 ? t('route') : `${t('route')} ${i + 1}`);
         if (rt || carrier || tt) push(label, [carrier, rt, tt].filter(Boolean).join('　'));
       });
     } else {
