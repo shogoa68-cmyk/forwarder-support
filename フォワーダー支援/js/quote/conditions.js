@@ -2601,9 +2601,15 @@
     return named.map(e => {
       const dim = [e.l, e.w, e.h].every(x => x) ? `${e.l}×${e.w}×${e.h}cm` : '';
       const en = window._outputLangEn === true;   // 御見積書PDFの英語出力中のみ英語の文言にする
+      // 1個あたりの容積（寸法がそろっているときだけ）：L×W×H(cm)÷1,000,000。小数4桁・末尾の0は省く
+      let vol = '';
+      if ([e.l, e.w, e.h].every(x => parseFloat(x) > 0)) {
+        const cbm = parseFloat(e.l) * parseFloat(e.w) * parseFloat(e.h) / 1e6;
+        vol = `${String(cbm >= 0.0001 ? +cbm.toFixed(4) : +cbm.toPrecision(2))}${en ? 'CBM/pc' : 'CBM/個'}`;
+      }
       const kg = e.kg ? (en ? `${e.kg}kg/pc` : `${e.kg}kg/個`) : '';
       const stackNote = e.stack === '不可' ? (en ? 'Do not stack' : '段積み不可') : '';
-      const extra = [dim, kg, stackNote].filter(Boolean).join(en ? ', ' : '、');
+      const extra = [dim, vol, kg, stackNote].filter(Boolean).join(en ? ', ' : '、');
       return `${e.pkg || (en ? 'Packing not specified' : '荷姿未設定')} × ${e.qty || 1}${extra ? (en ? ` (${extra})` : `（${extra}）`) : ''}`;
     }).join('\n');
   }
