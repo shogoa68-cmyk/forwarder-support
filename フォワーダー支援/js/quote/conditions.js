@@ -3058,9 +3058,12 @@
     if (typeof scheduleSnapshot === 'function') scheduleSnapshot();
   };
 
-  function _renderRouteEntries() {
+  // viewOnly=true：チップの再描画だけ行い、保存用の隠しフィールド（z2-routes-data）には書き込まない。
+  // 案件を開く途中（フィールド復元後・航路の復元前）に呼ばれても、前の案件の航路で隠しフィールドを
+  // 上書きして新しい案件へ混入させないため（setDirection から呼ぶときに使う）
+  function _renderRouteEntries(viewOnly) {
     const data = document.getElementById('z2-routes-data');
-    if (data) data.value = JSON.stringify(_routeEntries);
+    if (data && !viewOnly) data.value = JSON.stringify(_routeEntries);
     const list = document.getElementById('z2RouteList');
     if (!list) return;
     if (!_routeEntries.length) { list.innerHTML = ''; return; }
@@ -3417,7 +3420,7 @@
     );
     _applyZoneLabels();
     applyZoneState();
-    _renderRouteEntries();   // 往復案件では航路チップに往路／復路ボタンを出す
+    _renderRouteEntries(true);   // 往復案件では航路チップに往路／復路ボタンを出す（表示のみ・保存データは触らない）
     if (typeof window.renderQuoteMilestones === 'function') window.renderQuoteMilestones();
   }
 
