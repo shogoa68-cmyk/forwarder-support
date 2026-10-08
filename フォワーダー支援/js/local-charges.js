@@ -799,7 +799,7 @@
 
   async function lcOpenPicker() {
     const qDir = typeof window._currentDirection !== 'undefined'
-      ? (window._currentDirection === 'import' ? 'import' : 'export')
+      ? (dirFirstLeg(window._currentDirection) === 'import' ? 'import' : 'export')   // 往復案件は往路の方向から（切替で他方も選べる）
       : 'export';
     _pickDir  = qDir;
     _selected = new Set();
@@ -935,7 +935,7 @@
     const wrap = document.getElementById('lcRailListWrap');
     if (!wrap) return;
     const cond = typeof window.getConditions === 'function' ? window.getConditions() : {};
-    _railDir = (cond.direction === 'import') ? 'import' : 'export';
+    _railDir = (dirFirstLeg(cond.direction) === 'import') ? 'import' : 'export';   // 往復案件は往路の方向から（レールの切替で他方も選べる）
     document.getElementById('lcRailDirBtn-export')?.classList.toggle('is-active', _railDir === 'export');
     document.getElementById('lcRailDirBtn-import')?.classList.toggle('is-active', _railDir === 'import');
     wrap.innerHTML = '<div class="lc-rail-empty">読み込み中…</div>';

@@ -147,8 +147,7 @@
     globalRemarkLines.forEach(t => notes.push(t));
 
     // 件名（方向 / 輸送モード / POL→POD）
-    const dirMap = { export: '輸出', import: '輸入' };
-    const dir = dirMap[cond.direction] || '';
+    const dir = dirLabel(cond.direction);
     const route = (cond.routes && cond.routes.length > 1)
       ? [cond.pol, cond.pod].filter(Boolean).join(' → ') + ` 他${cond.routes.length - 1}航路`
       : [cond.pol, cond.pod].filter(Boolean).join(' → ');

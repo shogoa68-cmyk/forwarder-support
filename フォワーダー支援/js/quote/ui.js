@@ -3081,7 +3081,8 @@
     if (!st || !st.transport) { el.style.display = 'none'; el.innerHTML = ''; return; }
 
     const isAir = st.transport === 'air';
-    const isImport = st.direction === 'import';
+    const isImport = dirFirstLeg(st.direction) === 'import';
+    const isRound  = dirIsRound(st.direction);   // 輸出→輸入／輸入→輸出（同じ貨物が往復）
     const z1On = !!st.zone1On;   // 出発地側
     const z3On = !!st.zone3On;   // 到着地側
 
@@ -3089,7 +3090,7 @@
     // z1=出発地側 / z2=幹線（常時）/ z3=到着地側
     let steps, modeLabel;
     if (isAir) {
-      modeLabel = '✈️ Air' + (isImport ? '（輸入）' : '（輸出）');
+      modeLabel = '✈️ Air' + (dirLabel(st.direction) ? '（' + dirLabel(st.direction) + '）' : '（輸出）');
       steps = [
         { l: '集荷',     z: 'z1' },
         { l: '搬入',     z: 'z1' },
@@ -3108,7 +3109,7 @@
         conv: { label: '在来船', icon: '⚓' },
       };
       const meta = SEA_SUB_META[st.seaSub] || { label: 'FCL', icon: '🚢' };
-      modeLabel = meta.icon + ' Sea ' + meta.label + (isImport ? '（輸入）' : '（輸出）');
+      modeLabel = meta.icon + ' Sea ' + meta.label + (dirLabel(st.direction) ? '（' + dirLabel(st.direction) + '）' : '（輸出）');
       if (st.seaSub === 'lcl') {
         steps = [
           { l: '集荷',     z: 'z1' },
@@ -3160,6 +3161,14 @@
           { l: '荷渡し',    z: 'z3' },
         ];
       }
+    }
+
+    // 往復案件：往路の工程の後に、出発側と到着側を入れ替えた復路の工程を続ける
+    // （復路は到着地側(z3)で出発手続きをし、出発地側(z1)へ戻って輸入通関・荷渡し）
+    if (isRound) {
+      const swapZ = z => (z === 'z1' ? 'z3' : z === 'z3' ? 'z1' : z);
+      steps = steps.map(s => ({ l: '往）' + s.l, z: s.z }))
+        .concat(steps.map(s => ({ l: '復）' + s.l, z: swapZ(s.z) })));
     }
 
     const inScope = z => z === 'z2' || (z === 'z1' && z1On) || (z === 'z3' && z3On);
@@ -3804,7 +3813,7 @@
     const condParts = [];
     const inco = g('cond-incoterms'); if (inco && inco !== '設定なし') condParts.push(inco);
     if (typeof _currentDirection !== 'undefined' && _currentDirection) {
-      condParts.push(_currentDirection === 'export' ? '輸出' : '輸入');
+      condParts.push(dirLabel(_currentDirection));
     }
     if (typeof _currentTransport !== 'undefined' && _currentTransport) {
       let m = _currentTransport === 'air' ? 'Air' : 'Sea';

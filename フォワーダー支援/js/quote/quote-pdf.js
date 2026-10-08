@@ -109,6 +109,8 @@
     noPattern:      ['（パターン未設定）', '(No pattern)'],
     noSubcon:       ['（サブコン未設定）', '(No subcontractor)'],
     noCategory:     ['— カテゴリ —', '— Uncategorized —'],
+    outbound:       ['往路', 'Outbound'],
+    returnLeg:      ['復路', 'Return'],
     cmpTitle:       ['■ 御見積案の比較', '■ Quotation Options'],
     cmpPlan:        ['案', 'Option'],
     cmpContent:     ['内容', 'Description'],
@@ -117,13 +119,19 @@
   };
   // 方向（輸出/輸入）・輸送モード・特殊貨物区分は選択式の固定セットなので、
   // 値（cond.direction は内部コード、mode/hazmat は選択肢テキストそのもの）で引ける対訳表を別途用意する
-  const DIRECTION_EN = { export: 'Export', import: 'Import' };
+  const DIRECTION_EN = { export: 'Export', import: 'Import', export_import: 'Export → Import', import_export: 'Import → Export' };
   // インコタームズ（選択肢は「CIF（運賃・保険料込み）」形式）。コード部分で引き、Incoterms 2020 の正式名称を併記する
   const INCOTERMS_EN = {
     EXW: 'Ex Works', FCA: 'Free Carrier', CPT: 'Carriage Paid To', CIP: 'Carriage and Insurance Paid To',
     DAP: 'Delivered at Place', DPU: 'Delivered at Place Unloaded', DDP: 'Delivered Duty Paid',
     FAS: 'Free Alongside Ship', FOB: 'Free On Board', CFR: 'Cost and Freight', CIF: 'Cost, Insurance and Freight',
   };
+  // 往復案件の区間（0=往路 / 1=復路）の方向ラベル（日本語：輸出/輸入、英語：Export/Import）
+  function dirLegLabel(dir, legIdx) {
+    const first = dirFirstLeg(dir);
+    const leg = legIdx === 0 ? first : (first === 'export' ? 'import' : 'export');
+    return _curLangEn ? (DIRECTION_EN[leg] || '') : dirLabel(leg);
+  }
   function _incotermsDisp(v) {
     if (!_curLangEn || !v) return v;
     const code = String(v).split('（')[0].trim().toUpperCase();
@@ -326,7 +334,7 @@
     if (!cond) return { title: '', meta: [] };
     const dir = _curLangEn
       ? (DIRECTION_EN[cond.direction] || '')
-      : (cond.direction === 'export' ? '輸出' : cond.direction === 'import' ? '輸入' : '');
+      : dirLabel(cond.direction);
     const modeDisp = _curLangEn ? (MODE_EN[cond.mode] || cond.mode || '') : (cond.mode || '');
     const titleParts = [dir + (modeDisp ? ' ' + modeDisp : '')].filter(Boolean);
     const _hasRoutes = cond.routes && cond.routes.length >= 1;
@@ -357,7 +365,11 @@
           ? window.formatRouteCarrierLine(r)
           : [r.carrier, r.service ? `(${r.service})` : ''].filter(Boolean).join(' ');
         const tt = r.tt ? `T/T: ${r.tt}` : '';
-        const label = cond.routes.length === 1 ? t('route') : `${t('route')} ${i + 1}`;
+        // 往復案件（輸出→輸入など）は、1本目＝往路、2本目＝復路として区間の方向も添える
+        const _legDir = (dirIsRound(cond.direction) && i < 2) ? dirLegLabel(cond.direction, i) : '';
+        const label = _legDir
+          ? (i === 0 ? t('outbound') : t('returnLeg')) + (_curLangEn ? ` (${_legDir})` : `（${_legDir}）`)
+          : (cond.routes.length === 1 ? t('route') : `${t('route')} ${i + 1}`);
         if (rt || carrier || tt) push(label, [carrier, rt, tt].filter(Boolean).join('　'));
       });
     } else {
@@ -365,7 +377,7 @@
       push(t('pod'), _masterEn('port', cond.pod));
     }
     // 出発地側ラベル：輸出は「集荷地」（原産地＝customs の原産地と混同しないため）。輸入・未設定は中立的に「発地」
-    push(cond.direction === 'export' ? t('originPickup') : t('origin'), cond.origin);
+    push(dirFirstLeg(cond.direction) === 'export' ? t('originPickup') : t('origin'), cond.origin);
     push(t('dest'), cond.dest);
     push(t('container'), cond.container);
     push(t('cargo'), cond.cargo);
