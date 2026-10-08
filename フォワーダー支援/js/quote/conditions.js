@@ -98,7 +98,7 @@
         : null,
       packing: packing, hazmat: g('cond-hazmat'),
       free: g('condFreeText'),
-      direction: _currentDirection || '',   // 'export' | 'import' | ''
+      direction: _currentDirection || '',   // 'export' | 'import' | 'export_import' | 'import_export' | ''
     };
   }
 
@@ -428,7 +428,7 @@
     // 輸出/輸入方向。フィールドに明示的に空が入っている場合は未選択に戻す
     // （undefined = 旧データにキー無し → 現状維持）
     const dir = fields['cond-direction'];
-    if (dir === 'export' || dir === 'import') setDirection(dir);
+    if (dir === 'export' || dir === 'import' || dir === 'export_import' || dir === 'import_export') setDirection(dir);
     else if (dir !== undefined) setDirection('');
 
     // Zone 1 ON/OFF（現在値と異なる場合のみトグル）
@@ -3374,7 +3374,7 @@
   /** 方向・輸送モードに応じてゾーンカードのラベルを更新 */
   function _applyZoneLabels() {
     const dir = _currentDirection;
-    const isExport = (dir === 'export');
+    const isExport = (dirFirstLeg(dir) === 'export');   // 往復案件は往路の方向に従う
     document.getElementById('zone1Subcon').textContent = isExport ? '日本協力会社' : '現地代理店';
     document.getElementById('zone3Subcon').textContent = isExport ? '現地代理店'   : '日本協力会社';
   }

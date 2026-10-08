@@ -747,7 +747,9 @@
     if (dir) {
       filtered = filtered.filter(p => {
         const pDir = ((p.data && p.data.fields && p.data.fields['cond-direction']) || '').trim();
-        return !pDir || pDir === dir;
+        // 往復案件（輸出→輸入など）は、往路・復路どちらの方向の案件も候補にする
+        const legs = dirIsRound(dir) ? dir.split('_') : [dir];
+        return !pDir || pDir === dir || legs.includes(pDir) || (dirIsRound(pDir) && pDir.split('_').includes(dir));
       });
     }
     if (polSet.length || podSet.length) {

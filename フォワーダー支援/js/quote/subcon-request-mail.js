@@ -62,7 +62,7 @@
     const issuer = loadIssuer();
     const items = itemsFor(normKey(opts.subcon));
 
-    const dir = ({ export: '輸出', import: '輸入' })[cond.direction] || '';
+    const dir = dirLabel(cond.direction);
     const routes = cond.routes || [];
     const legOf = r => [r.pol, r.via, r.pod].filter(Boolean).join(' → ');
     const route = routes.length ? legOf(routes[0]) + (routes.length > 1 ? ` 他${routes.length - 1}航路` : '')
@@ -95,7 +95,7 @@
       add(ov, '積み地（POL）', cond.pol);
       add(ov, '揚げ地（POD）', cond.pod);
     }
-    add(ov, cond.direction === 'export' ? '集荷地' : '発地', cond.origin);
+    add(ov, dirFirstLeg(cond.direction) === 'export' ? '集荷地' : '発地', cond.origin);
     add(ov, '仕向地', cond.dest);
     add(ov, 'コンテナ', cond.container);
     if (ov.length) { L.push(''); L.push('■ 案件概要'); ov.forEach(x => L.push(x)); }

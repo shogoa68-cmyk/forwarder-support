@@ -2166,7 +2166,7 @@
     const condRows = [];
 
     const dir = f['cond-direction'];
-    if (dir) condRows.push(_cpKV('方向', dir === 'export' ? '輸出' : dir === 'import' ? '輸入' : dir));
+    if (dir) condRows.push(_cpKV('方向', dirLabel(dir) || dir));
     if (f['cond-incoterms']) condRows.push(_cpKV('インコタームズ', f['cond-incoterms']));
     if (f['cond-mode'])      condRows.push(_cpKV('輸送モード', f['cond-mode']));
     const ins = f['cond-insurance-on'] === 'true' || f['cond-insurance-on'] === true;

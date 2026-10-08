@@ -426,3 +426,19 @@ Object.defineProperties(QuoteApp.fx, {
   DEFAULT_RATES:   { value: DEFAULT_FX_RATES, enumerable: true },  // const なので value のみ
   DEFAULT_RATES_ASOF: { value: DEFAULT_FX_RATES_ASOF, enumerable: true },
 });
+
+// ================================================================
+// 方向（輸出／輸入／輸出→輸入／輸入→輸出）
+// 'export_import' は「日本から輸出して再び輸入する」往復案件（修理・展示会など）、
+// 'import_export' は「輸入して再輸出する」案件（保税・加工など）。同じ貨物が往復する前提で、
+// 往路（1区間目）の方向＝先頭の語。ゾーンの呼称・諸チャージの初期表示などは往路の方向に従う。
+// ================================================================
+const DIRECTION_LABEL = { export: '輸出', import: '輸入', export_import: '輸出→輸入', import_export: '輸入→輸出' };
+function dirLabel(d) { return DIRECTION_LABEL[d] || ''; }
+/** 往路の方向（'export' | 'import' | ''）。輸出→輸入なら 'export'、輸入→輸出なら 'import' */
+function dirFirstLeg(d) {
+  return (d === 'export' || d === 'export_import') ? 'export'
+       : (d === 'import' || d === 'import_export') ? 'import' : '';
+}
+/** 往復案件（輸出→輸入／輸入→輸出）か */
+function dirIsRound(d) { return d === 'export_import' || d === 'import_export'; }
