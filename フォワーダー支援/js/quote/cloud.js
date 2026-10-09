@@ -2829,6 +2829,7 @@
     // 発番ID取得済みなら新REF#をコピー時点で採番（未取得の場合はコピー元番号を保持）
     const newRef = typeof generateQuoteRefValue === 'function' ? generateQuoteRefValue() : null;
     if (newRef) newData.fields['qf-ref'] = newRef;
+    delete newData.fields['qf-core-ref'];   // 基幹REF#は手配した案件に固有のため、コピーには引き継がない
     const existingNames = _cloudRows.map(r => r.name);
     let baseName = src.name + ' のコピー';
     let copyName = baseName;

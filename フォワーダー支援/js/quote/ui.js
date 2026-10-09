@@ -688,6 +688,19 @@
   window.unpinFixedRemark = unpinFixedRemark;
   window.renderFixedRemarks = renderFixedRemarks;
 
+  // ----- 基幹システム REF#（受注・手配した案件の紐付け） -----
+  // 英数字（と - _ / .）だけを受け付ける。全角は半角へ、空白は除去。使えない文字は取り除いて知らせる。
+  function normalizeCoreRef(el) {
+    if (!el) return;
+    const raw = String(el.value || '');
+    const norm = raw.normalize('NFKC').replace(/\s+/g, '');
+    const clean = norm.replace(/[^A-Za-z0-9\-_\/.]/g, '');
+    if (clean !== raw) el.value = clean;
+    if (clean !== norm) quoteShowToast('⚠️ 基幹REF#に使えない文字（英数字・- _ / . 以外）を取り除きました', 'warn', 3500);
+    el.dispatchEvent(new Event('input', { bubbles: true }));
+  }
+  window.normalizeCoreRef = normalizeCoreRef;
+
   // ----- 全体リマーク：添付画像（見積書出力にも表示） -----
   // リサイズ・JPEG圧縮してから data URL のまま案件データに含める
   // （quotePresets_v1 / Supabase quote_presets.data の gatherAllData() 出力に相乗り）。
@@ -1857,6 +1870,7 @@
     // 発番ID取得済みなら新REF#をコピー時点で採番（未取得の場合はコピー元番号を保持）
     const newRef = typeof generateQuoteRefValue === 'function' ? generateQuoteRefValue() : null;
     if (newRef) newData.fields['qf-ref'] = newRef;
+    delete newData.fields['qf-core-ref'];   // 基幹REF#は手配した案件に固有のため、コピーには引き継がない
     let baseName = src.name + ' のコピー';
     let copyName = baseName;
     let n = 2;

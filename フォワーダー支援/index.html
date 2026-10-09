@@ -2750,6 +2750,12 @@
             <input type="hidden" id="qf-status" value="下書き中" />
             <input type="hidden" id="qf-revision-baseline" />
           </div>
+          <div class="quote-field quote-field-corerf">
+            <label>🔗 基幹システム REF# <span class="qf-memo-note">受注・手配後に登録（英数字）。社内用で、見積書などの出力には含まれません</span></label>
+            <input type="text" id="qf-core-ref" maxlength="40" autocomplete="off" spellcheck="false" inputmode="latin"
+                   placeholder="例）EX2410-0123" onchange="normalizeCoreRef(this)"
+                   title="この見積を使って実際に手配した案件の、基幹システム上の REF# を登録します。半角の英数字（とハイフン・アンダースコア・スラッシュ・ピリオド）が使えます。全角は半角に直します。" />
+          </div>
           <div class="quote-field quote-field-tags">
             <label>🏷️ タグ <span class="qf-memo-note">分類・絞り込み用（複数可）</span></label>
             <div class="qf-tags-chips" id="qfTagsChips"></div>
