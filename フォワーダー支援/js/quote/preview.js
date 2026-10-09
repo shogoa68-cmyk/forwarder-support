@@ -941,7 +941,7 @@
       }
     }
 
-    const remarkText = getRemarkText();
+    const remarkText = getRemarkTextForOutput();   // 全体リマーク＋常時付記
     const remarkImgHtml = (typeof remarkImagesOutputHTML === 'function') ? remarkImagesOutputHTML('pv-remark-images') : '';
     const pvRemark = document.getElementById('pvRemarkBox');
     if (remarkText || remarkImgHtml) {
@@ -1515,7 +1515,7 @@
       lines.push('【作業範囲】');
       scopeTextTsv.split('\n').forEach(l => { if (l.trim()) lines.push(l); });
     }
-    const remarkText = getRemarkText();
+    const remarkText = getRemarkTextForOutput();   // 全体リマーク＋常時付記
     if (remarkText) {
       lines.push('');
       lines.push('【条件・リマーク】');
@@ -1855,7 +1855,7 @@
       scopeTextXls.split('\n').forEach(line => { if (line.trim()) aoaRows.push([line]); });
     }
     // 条件・リマーク
-    const remarkText = getRemarkText?.() || '';
+    const remarkText = (typeof getRemarkTextForOutput === 'function' ? getRemarkTextForOutput() : getRemarkText?.()) || '';
     if (remarkText) {
       aoaRows.push([]);
       aoaRows.push(['【条件・リマーク】']);

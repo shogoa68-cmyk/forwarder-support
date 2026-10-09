@@ -757,6 +757,13 @@
         return `<div class="qd-remark-block"><div class="qd-remark-ttl">${t('remarksTitle')}</div>${bodyHtml}${imgHtml}</div>`;
       })()}
       ${(() => {
+        // 常時付記：全体リマークの下に固定で出す（設定は「全体リマーク」欄の📎常時付記）
+        let fx = (typeof window.getFixedRemarkText === 'function') ? window.getFixedRemarkText() : '';
+        if (!fx) return '';
+        if (_curLangEn && typeof window.translateRemarkToEn === 'function') fx = window.translateRemarkToEn(fx);
+        return `<div class="qd-remark-block qd-remark-fixed"><div class="qd-remark-body">${nl2brLink(fx)}</div></div>`;
+      })()}
+      ${(() => {
         const diff = _revDiff;
         if (!diff) return '';
         const lines = [];

@@ -3585,8 +3585,14 @@
       </h2>
       <div id="remarkBody" class="remark-body">
         <p class="section-desc">見積もり全体に共通して適用する条件・免責事項を入力します。<b>プリセットボタン</b>（有効期限・運賃変動条項・フリータイムなど）をクリックすると定型文を追加できます。提出前に必ず内容を確認してください。</p>
+        <div class="remark-cargo-row">
+          <label for="remarkCargoSel">📦 品物別リマーク</label>
+          <select id="remarkCargoSel" onchange="onRemarkCargoSelChange(this)" title="品物の区分を選ぶと、その品物向けのリマーク（例：医療機器の薬機法、自動車）のボタンが下に出ます。常に全部を並べず、必要なときだけ選んで表示します。品名に合う区分は自動で選ばれます。"></select>
+          <button type="button" id="remarkCargoDel" class="remark-cargo-del" onclick="deleteRemarkCargoType()" hidden title="選択中の区分（個人で追加したもの）を削除">区分を削除</button>
+        </div>
         <div class="remark-presets" id="presetBtns"></div>
         <textarea id="remarkTextarea" placeholder="見積もり全体に適用する条件・免責事項を入力してください。上のボタンでプリセットを追加できます。"></textarea>
+        <div class="remark-fixed-box" id="remarkFixedBox"></div>
         <div class="remark-actions">
           <button class="btn-remark-clear" onclick="clearRemark()">クリア</button>
           <span class="remark-char" id="remarkChar">0文字</span>
@@ -5099,6 +5105,10 @@
       <div class="bm-form-row">
         <label class="bm-form-label" for="rpFormText">本文 <span class="bm-required">必須</span></label>
         <textarea id="rpFormText" class="bm-form-textarea" rows="4" placeholder="全体リマーク欄に挿入される本文を入力してください"></textarea>
+      </div>
+      <div class="bm-form-row" id="rpDestRow" hidden>
+        <label class="bm-form-label"><input type="checkbox" id="rpFormPersonal"> 自分だけに保存する（個人・この端末のみ）</label>
+        <div style="font-size:11px;color:#8a7a5c;margin-top:2px;">チェックなし＝チーム共有（ログイン必須）として保存します。</div>
       </div>
       <div class="bm-modal-foot">
         <button type="button" class="bm-btn-cancel" onclick="document.getElementById('remarkPresetModal').classList.remove('open')">キャンセル</button>
