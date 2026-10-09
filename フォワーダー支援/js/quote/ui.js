@@ -11,6 +11,7 @@
     { label: '🛡️ 貨物保険',       text: '貨物保険料は含まれておりません。付保をご希望の場合は別途ご相談ください。', en: 'Cargo insurance is not included. Please contact us separately if you wish to arrange coverage.' },
     { label: '⚓ 港湾混雑',        text: '港湾混雑・ストライキ・天災等による遅延・追加費用は含まれておりません。', en: 'Delays and additional costs caused by port congestion, strikes, natural disasters, etc. are not included.' },
     { label: '☣️ 危険品',         text: '危険品・温度管理貨物・特殊貨物については別途ご相談ください。条件が異なります。', en: 'Please consult us separately for dangerous goods, temperature-controlled cargo, and special cargo, as different conditions apply.' },
+    { label: '💊 薬機法（医療機器・健康効果）', text: '【薬機法に関するご注意】\n医療機器・医薬品・医薬部外品・化粧品、および健康効果・治療効果等を標榜する商品（健康器具・マッサージ器・サプリメント類等を含む）を日本へ輸入する場合、「医薬品、医療機器等の品質、有効性及び安全性の確保等に関する法律（薬機法）」の規制対象となることがあります。\n・商品の形状・成分・表示や広告上の効能効果の標榜内容により、医療機器等に該当すると判断される場合があります。該当の可否は、輸入前に所管の地方厚生局等へご確認ください。\n・事業として輸入する場合、製造販売業の許可、製品の承認・認証・届出、外国製造業者の登録等が必要となることがあり、通関時に関係書類の提示を求められます。\n・必要な許認可・書類が整わない貨物は、輸入が認められず、積み戻し・廃棄となる場合があります。これに伴う保管料・デマレージ・ディテンション等の追加費用は、荷主様のご負担となります。\n・当社は、薬機法上の該当性・適法性について判断・保証を行うものではありません。', en: '[Notice regarding the Pharmaceuticals and Medical Devices Act (PMD Act)]\nImporting medical devices, pharmaceuticals, quasi-drugs, cosmetics, or products that claim health or therapeutic benefits (including health appliances, massagers and supplements) into Japan may be subject to the Act on Securing Quality, Efficacy and Safety of Products including Pharmaceuticals and Medical Devices (PMD Act).\n- Depending on the product\'s form, ingredients, labeling and the efficacy claims made in labeling or advertising, it may be classified as a medical device or similar product. Please confirm with the competent Regional Bureau of Health and Welfare before importing.\n- When importing for business purposes, a marketing business license, product approval/certification/notification, and registration of the foreign manufacturer may be required, and related documents may be requested at customs clearance.\n- Cargo for which the required licenses or documents are not in place may be refused import and be re-shipped or destroyed. Any resulting storage charges, demurrage, detention and other additional costs will be borne by the shipper.\n- We do not determine or guarantee whether a product falls under, or complies with, the PMD Act.' },
     { label: '🔄 条件変更',        text: '貨物の内容・数量・仕向地等に変更が生じた場合は再見積となります。', en: 'A re-quotation will be required if there are any changes to the cargo description, quantity, destination, etc.' },
     { label: '📋 書類締切',        text: 'B/L・AWB等の書類提出締め切りは船会社・航空会社の指定期日に従います。遅延の場合は追加費用が発生します。', en: 'The deadline for submitting documents such as B/L and AWB follows the date specified by the carrier or airline. Additional charges will apply for late submission.' },
     { label: '🏦 支払条件',        text: '支払いは請求書発行後30日以内とします。期日を超過した場合、法定利率（民法所定）による遅延損害金が発生します。（※社内標準条件に書き換えてからご使用ください）', en: 'Payment is due within 30 days after the invoice is issued. If payment is overdue, delay damages will accrue at the statutory interest rate under the Japanese Civil Code. (Note: Please replace with our standard terms before use.)' },
@@ -443,7 +444,15 @@
     const text = preset?.text;
     if (!text) return;
     if (btn.classList.contains('active')) {
-      ta.value = ta.value.split('\n').filter(l => l.trim() !== text.trim()).join('\n').replace(/^\n+|\n+$/g, '');
+      // 複数行の定型文（薬機法・JIFFA 等）は1行ずつの照合では消せないため、本文ごと取り除く
+      const _t = text.trim();
+      let v = ta.value;
+      if (_t.includes('\n') && v.includes(_t)) {
+        v = v.includes('\n' + _t) ? v.replace('\n' + _t, '') : v.includes(_t + '\n') ? v.replace(_t + '\n', '') : v.replace(_t, '');
+      } else {
+        v = v.split('\n').filter(l => l.trim() !== _t).join('\n');
+      }
+      ta.value = v.replace(/^\n+|\n+$/g, '');
       btn.classList.remove('active');
     } else {
       const cur = ta.value.trim();
