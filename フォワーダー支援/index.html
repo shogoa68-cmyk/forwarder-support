@@ -2834,9 +2834,31 @@
 
         <div class="cond-primary-bar">
           <div class="cond-prim-group cond-prim-group-inco">
-            <span class="cond-prim-label">🔖 インコタームズ</span>
+            <span class="cond-prim-label" id="incoLabel">🔖 インコタームズ</span>
             <select id="cond-incoterms" class="cond-inco-select" onchange="showIncotermsHint(this.value)">
               <option value="">— 選択 —</option>
+              <option value="設定なし">設定なし</option>
+              <optgroup label="任意の場所">
+                <option>EXW（工場渡し）</option>
+                <option>FCA（運送人渡し）</option>
+                <option>CPT（輸送費込み）</option>
+                <option>CIP（輸送費・保険料込み）</option>
+                <option>DAP（仕向地持込渡し）</option>
+                <option>DPU（荷卸込持込渡し）</option>
+                <option>DDP（関税込持込渡し）</option>
+              </optgroup>
+              <optgroup label="海上・内水路専用" id="inco-sea-group">
+                <option>FAS（船側渡し）</option>
+                <option>FOB（本船渡し）</option>
+                <option>CFR（運賃込み）</option>
+                <option>CIF（運賃・保険料込み）</option>
+              </optgroup>
+            </select>
+          </div>
+          <div class="cond-prim-group cond-prim-group-inco" id="incoRetGroup" hidden>
+            <span class="cond-prim-label" id="incoRetLabel">🔖 復路 インコタームズ</span>
+            <select id="cond-incoterms-ret" class="cond-inco-select" onchange="showIncotermsHint(this.value)">
+              <option value="">（往路と同じ）</option>
               <option value="設定なし">設定なし</option>
               <optgroup label="任意の場所">
                 <option>EXW（工場渡し）</option>

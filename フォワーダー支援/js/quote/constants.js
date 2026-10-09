@@ -469,3 +469,9 @@ function routeLegItems(direction, routes, en) {
       return { r, label: T[leg] + num + (en ? ` (${d})` : `（${d}）`) };
     });
 }
+/** 往復案件の区間（'out'=往路 / 'ret'=復路）の方向名。日本語：輸出／輸入、英語：Export／Import */
+function dirLegName(direction, leg, en) {
+  const first = dirFirstLeg(direction);
+  const isExport = (leg === 'out') === (first === 'export');
+  return en ? (isExport ? 'Export' : 'Import') : (isExport ? '輸出' : '輸入');
+}

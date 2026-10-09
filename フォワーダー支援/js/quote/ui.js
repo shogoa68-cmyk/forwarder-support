@@ -4024,6 +4024,7 @@
     // 引き合い条件
     const condParts = [];
     const inco = g('cond-incoterms'); if (inco && inco !== '設定なし') condParts.push(inco);
+    const incoRet = g('cond-incoterms-ret'); if (incoRet && incoRet !== '設定なし' && dirIsRound(_currentDirection)) condParts.push('復路 ' + incoRet);
     if (typeof _currentDirection !== 'undefined' && _currentDirection) {
       condParts.push(dirLabel(_currentDirection));
     }

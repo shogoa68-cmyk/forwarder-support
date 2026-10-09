@@ -84,7 +84,12 @@
     const ov = [];
     const add = (arr, k, v) => { if (v) arr.push('　' + k + '：' + v); };
     add(ov, '輸送区分', [dir, cond.mode].filter(Boolean).join(' '));
-    add(ov, '建値', cond.incoterms);
+    if (dirIsRound(cond.direction) && cond.incotermsRet && cond.incotermsRet !== cond.incoterms) {
+      add(ov, `建値 往路（${dirLegName(cond.direction, 'out')}）`, cond.incoterms);
+      add(ov, `建値 復路（${dirLegName(cond.direction, 'ret')}）`, cond.incotermsRet);
+    } else {
+      add(ov, '建値', cond.incoterms);
+    }
     if (routes.length) {
       (routeLegItems(cond.direction, routes, false) || routes.map((r, i) => ({ r, label: routes.length === 1 ? '航路' : `航路${i + 1}` }))).forEach(({ r, label }) => {
         const carrier = [r.carrier, r.service ? `(${r.service})` : ''].filter(Boolean).join(' ');
