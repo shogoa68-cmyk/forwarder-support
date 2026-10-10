@@ -1,0 +1,74 @@
+<!-- @dsCard group="Components" -->
+<!doctype html>
+<html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>入力欄・選択</title>
+<link rel="stylesheet" href="../css/tokens.css">
+<link rel="stylesheet" href="../css/style.css">
+<link rel="stylesheet" href="../css/quote.css">
+<style>
+  body { margin: 0; padding: 20px; background: #fff; color: #2d2418; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Hiragino Kaku Gothic ProN', 'Yu Gothic', sans-serif; font-size: 13px; }
+  h1 { font-size: 15px; margin: 0 0 4px; } .sub { color: #6a5745; font-size: 12px; margin: 0 0 14px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 10px; }
+  .sw { border: 1px solid #d9cfc2; border-radius: 8px; overflow: hidden; background: #fff; }
+  .sw .chip { height: 44px; border-bottom: 1px solid #d9cfc2; }
+  .sw .meta { padding: 6px 8px; font-size: 11px; line-height: 1.5; } .sw b { font-size: 11.5px; } .sw code { color: #6a5745; }
+  .sec { font-size: 12px; font-weight: 700; color: #3d2e1e; margin: 16px 0 6px; }
+  .row { display: flex; align-items: baseline; gap: 14px; padding: 5px 0; border-bottom: 1px solid #eee; } .row code { width: 130px; color: #6a5745; font-size: 11px; } .row .v { width: 56px; color: #888; font-size: 11px; }
+</style></head><body><h1>入力欄・選択</h1><p class="sub">見積ヘッダー、インコタームズ選択、貨物入力。実際の画面から取り出した HTML です（クラス名・構造は機能とつながっているため変えないでください）。</p><div id="tab-quote-make" class="tab-content active"><div class="quote-workspace"><div class="quote-main"><div style="margin:0 0 14px"><div class="quote-field">
+            <label>見積もり番号 <span class="req-mark" aria-hidden="true">*</span></label>
+            <div class="qf-ref-row">
+              <input type="text" id="qf-ref" placeholder="例）2024-001（🔢で自動採番）" aria-required="true" data-pv-warn-bound="1">
+              <button type="button" id="qfRefAuto" class="qf-ref-auto-btn" onclick="fillQuoteRef()" title="発番ID（2桁）＋年月日＋連番で自動採番">🔢 自動採番</button>
+            </div>
+          </div></div><div style="margin:0 0 14px"><div class="quote-field">
+            <label>お客様名称 <span class="req-mark" aria-hidden="true">*</span></label>
+            <div class="qf-customer-row">
+              <input type="text" id="qf-customer" placeholder="例）○○商事" aria-required="true" list="custSuggestions" autocomplete="off" data-pv-warn-bound="1">
+              <button type="button" id="qfCustomerDetailBtn" class="qf-customer-detail-btn" onclick="qfShowCustomerDetail()" hidden="" title="登録済みの詳細情報を表示">📇 詳細</button>
+            </div>
+          </div></div><div style="margin:0 0 14px"><div class="quote-field">
+            <label>お客様 ご担当者（敬称略） <span class="req-mark" aria-hidden="true">*</span></label>
+            <input type="text" id="qf-person" placeholder="例）山田　※宛先（お客様側）の氏名。出力時に自動で「様」付与" title="お客様側（宛先）のご担当者名を入力します。社内の見積もり作成者ではありません。姓のみ／フルネームのみ（会社名は含めない）。客先向け出力（プレビュー・PDF）で会社名とともに宛先となり、自動で「様」が付きます。登録済みのお客様なら、マスターの担当者一覧から候補表示されます。" aria-required="true" list="qfPersonSuggestions" autocomplete="off" data-pv-warn-bound="1">
+          </div></div><div style="margin:0 0 14px"><div class="cond-prim-group cond-prim-group-inco">
+            <span class="cond-prim-label" id="incoLabel">🔖 インコタームズ</span>
+            <select id="cond-incoterms" class="cond-inco-select" onchange="showIncotermsHint(this.value)" data-pv-warn-bound="1">
+              <option value="">— 選択 —</option>
+              <option value="設定なし">設定なし</option>
+              <optgroup label="任意の場所">
+                <option>EXW（工場渡し）</option>
+                <option>FCA（運送人渡し）</option>
+                <option>CPT（輸送費込み）</option>
+                <option>CIP（輸送費・保険料込み）</option>
+                <option>DAP（仕向地持込渡し）</option>
+                <option>DPU（荷卸込持込渡し）</option>
+                <option>DDP（関税込持込渡し）</option>
+              </optgroup>
+              <optgroup label="海上・内水路専用" id="inco-sea-group">
+                <option>FAS（船側渡し）</option>
+                <option>FOB（本船渡し）</option>
+                <option>CFR（運賃込み）</option>
+                <option>CIF（運賃・保険料込み）</option>
+              </optgroup>
+            </select>
+          </div></div><div style="margin:0 0 14px"><div class="cond-prim-group cond-prim-group-inco" id="incoRetGroup" hidden="">
+            <span class="cond-prim-label" id="incoRetLabel">🔖 復路（輸入）インコタームズ</span>
+            <select id="cond-incoterms-ret" class="cond-inco-select" onchange="showIncotermsHint(this.value)">
+              <option value="">（往路と同じ）</option>
+              <option value="設定なし">設定なし</option>
+              <optgroup label="任意の場所">
+                <option>EXW（工場渡し）</option>
+                <option>FCA（運送人渡し）</option>
+                <option>CPT（輸送費込み）</option>
+                <option>CIP（輸送費・保険料込み）</option>
+                <option>DAP（仕向地持込渡し）</option>
+                <option>DPU（荷卸込持込渡し）</option>
+                <option>DDP（関税込持込渡し）</option>
+              </optgroup>
+              <optgroup label="海上・内水路専用" id="inco-sea-group">
+                <option>FAS（船側渡し）</option>
+                <option>FOB（本船渡し）</option>
+                <option>CFR（運賃込み）</option>
+                <option>CIF（運賃・保険料込み）</option>
+              </optgroup>
+            </select>
+          </div></div></div></div></div></body></html>

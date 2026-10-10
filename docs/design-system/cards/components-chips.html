@@ -1,0 +1,165 @@
+<!-- @dsCard group="Components" -->
+<!doctype html>
+<html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>チップ・タブ</title>
+<link rel="stylesheet" href="../css/tokens.css">
+<link rel="stylesheet" href="../css/style.css">
+<link rel="stylesheet" href="../css/quote.css">
+<style>
+  body { margin: 0; padding: 20px; background: #fff; color: #2d2418; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Hiragino Kaku Gothic ProN', 'Yu Gothic', sans-serif; font-size: 13px; }
+  h1 { font-size: 15px; margin: 0 0 4px; } .sub { color: #6a5745; font-size: 12px; margin: 0 0 14px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 10px; }
+  .sw { border: 1px solid #d9cfc2; border-radius: 8px; overflow: hidden; background: #fff; }
+  .sw .chip { height: 44px; border-bottom: 1px solid #d9cfc2; }
+  .sw .meta { padding: 6px 8px; font-size: 11px; line-height: 1.5; } .sw b { font-size: 11.5px; } .sw code { color: #6a5745; }
+  .sec { font-size: 12px; font-weight: 700; color: #3d2e1e; margin: 16px 0 6px; }
+  .row { display: flex; align-items: baseline; gap: 14px; padding: 5px 0; border-bottom: 1px solid #eee; } .row code { width: 130px; color: #6a5745; font-size: 11px; } .row .v { width: 56px; color: #888; font-size: 11px; }
+</style></head><body><h1>チップ・タブ</h1><p class="sub">航路チップ、物量パターンのタブ、コンテナ選択。実際の画面から取り出した HTML です（クラス名・構造は機能とつながっているため変えないでください）。</p><div id="tab-quote-make" class="tab-content active"><div class="quote-workspace"><div class="quote-main"><div style="margin:0 0 14px"><div class="z2-route-list" id="z2RouteList" data-drag-inited="1"><span class="z2-route-chip"><span class="z2-route-drag" title="ドラッグして並び替え">⠿</span><button type="button" class="z2-route-move" onclick="moveRouteEntry(0,-1)" disabled="" title="上へ移動">↑</button><button type="button" class="z2-route-move" onclick="moveRouteEntry(0,1)" disabled="" title="下へ移動">↓</button><button type="button" class="z2-route-toggle" onclick="toggleRouteEntry(0)" title="無効にする（一時停止）">✓</button><span class="z2-route-carrier">Maersk</span><span class="z2-route-leg">NAGOYA → XIAMEN</span><button type="button" class="z2-route-ng" onclick="toggleRouteNg(0)" title="使用不可として記録する（見積の対象外にするが、候補として検討した記録は残す）">🚫</button><button type="button" class="z2-route-edit" onclick="editRouteEntry(0)" title="編集（フォームに書き戻す）">✎</button><button type="button" class="me-chip-del" onclick="removeRouteEntry(0)" title="削除">×</button></span></div></div><div style="margin:0 0 14px"><div class="cd-pattern-tabs" id="cdPatternTabs" title="荷姿・貨物明細の想定パターンを複数作成し、切り替えて比較できます（合算ではなく代替シナリオ）"><span class="cd-pattern-tab is-active" onclick="switchPackingPattern(0)" title="クリックでこのパターンに切り替え（他のパターンの内容は保持されます）"><span class="cd-pattern-tab-mode is-fcl">FCL</span><span class="cd-pattern-tab-label">FCL案</span><span class="cd-pattern-tab-vis" onclick="event.stopPropagation();togglePackingPatternVisibility(0)" title="クリックで「見積書に表示しない」に固定します（社内比較用のみになります）">📄</span><span class="cd-pattern-tab-rename" onclick="event.stopPropagation();renamePackingPattern(0)" title="パターン名を変更">✎</span><span class="cd-pattern-tab-del" onclick="event.stopPropagation();removePackingPattern(0)" title="このパターンを削除">×</span></span><span class="cd-pattern-tab is-hidden-from-quote" onclick="switchPackingPattern(1)" title="クリックでこのパターンに切り替え（他のパターンの内容は保持されます）"><span class="cd-pattern-tab-mode is-lcl">LCL</span><span class="cd-pattern-tab-label">LCL案</span><span class="cd-pattern-tab-vis" onclick="event.stopPropagation();togglePackingPatternVisibility(1)" title="クリックで「見積書に表示」に固定します（選択中のタブでなくても表示されます）">🔒</span><span class="cd-pattern-tab-rename" onclick="event.stopPropagation();renamePackingPattern(1)" title="パターン名を変更">✎</span><span class="cd-pattern-tab-del" onclick="event.stopPropagation();removePackingPattern(1)" title="このパターンを削除">×</span></span><button type="button" class="cd-pattern-add-btn" onclick="addPackingPattern()" title="荷姿・貨物明細の代替シナリオ（例：パレット梱包の場合／バラ積みの場合）を追加し、切り替えて比較できます">＋ 別パターンを作成</button><button type="button" class="cd-pattern-add-btn cd-pattern-dup-btn" onclick="duplicatePackingPattern()" title="表示中のパターンの内容をコピーして新しいパターンを作ります（似た構成のパターンを作るときに便利）">📋 複製して作成</button><label class="cd-pattern-mode-wrap" title="このパターンを開いたとき、輸送モード（FCL/LCL）・コンテナ指定を自動で切り替えます。「FCL案」「LCL案」を並べて比較・併記したいときに指定します"><span>輸送モード</span><select class="cd-pattern-mode-sel" onchange="setPackingPatternMode(this.value)"><option value="">指定なし</option><option value="fcl" selected="">FCL</option><option value="lcl">LCL</option></select></label></div></div><div style="margin:0 0 14px"><div class="cc-chip" data-ctype="20'GP" title="20ft 一般ドライ（General Purpose）">
+                      <span class="cc-label"><b>20'GP</b><small>ドライ</small></span><div class="cc-chip-dims" title="内寸 5.89×2.35×2.39m
+外寸 6.06×2.44×2.59m
+容積 約25m³
+最大 21,500kg"><span class="cc-chip-dim cc-chip-dim-in" title="内寸 5.89×2.35×2.39m
+外寸 6.06×2.44×2.59m
+容積 約25m³
+最大 21,500kg">内 5.89×2.35×2.39m</span><span class="cc-chip-dim cc-chip-dim-ex" title="内寸 5.89×2.35×2.39m
+外寸 6.06×2.44×2.59m
+容積 約25m³
+最大 21,500kg">外 6.06×2.44×2.59m</span><span class="cc-chip-dim cc-chip-dim-cap" title="内寸 5.89×2.35×2.39m
+外寸 6.06×2.44×2.59m
+容積 約25m³
+最大 21,500kg">25m³ / 21.5t</span></div>
+                      <div class="cc-stepper">
+                        <button type="button" class="cc-step cc-minus" onclick="bumpContainerChip(this,-1)" aria-label="減らす">−</button>
+                        <input type="number" class="cc-count" min="0" step="1" value="0" inputmode="numeric" placeholder="0" oninput="setContainerChip(this.closest('.cc-chip').dataset.ctype, this.value)">
+                        <button type="button" class="cc-step cc-plus" onclick="bumpContainerChip(this,1)" aria-label="増やす">＋</button>
+                      </div>
+                    </div></div><div style="margin:0 0 14px"><div class="cc-chip" data-ctype="40'GP" title="40ft 一般ドライ（General Purpose）">
+                      <span class="cc-label"><b>40'GP</b><small>ドライ</small></span><div class="cc-chip-dims" title="内寸 12.03×2.35×2.39m
+外寸 12.19×2.44×2.59m
+容積 約57m³
+最大 26,500kg"><span class="cc-chip-dim cc-chip-dim-in" title="内寸 12.03×2.35×2.39m
+外寸 12.19×2.44×2.59m
+容積 約57m³
+最大 26,500kg">内 12.03×2.35×2.39m</span><span class="cc-chip-dim cc-chip-dim-ex" title="内寸 12.03×2.35×2.39m
+外寸 12.19×2.44×2.59m
+容積 約57m³
+最大 26,500kg">外 12.19×2.44×2.59m</span><span class="cc-chip-dim cc-chip-dim-cap" title="内寸 12.03×2.35×2.39m
+外寸 12.19×2.44×2.59m
+容積 約57m³
+最大 26,500kg">57m³ / 26.5t</span></div>
+                      <div class="cc-stepper">
+                        <button type="button" class="cc-step cc-minus" onclick="bumpContainerChip(this,-1)" aria-label="減らす">−</button>
+                        <input type="number" class="cc-count" min="0" step="1" value="0" inputmode="numeric" placeholder="0" oninput="setContainerChip(this.closest('.cc-chip').dataset.ctype, this.value)">
+                        <button type="button" class="cc-step cc-plus" onclick="bumpContainerChip(this,1)" aria-label="増やす">＋</button>
+                      </div>
+                    </div></div><div style="margin:0 0 14px"><div class="cc-chip" data-ctype="40'HQ" title="40ft 背高（High Cube／40HC）">
+                      <span class="cc-label"><b>40'HQ</b><small>背高</small></span><div class="cc-chip-dims" title="内寸 12.03×2.35×2.69m
+外寸 12.19×2.44×2.90m
+容積 約67m³
+最大 26,500kg"><span class="cc-chip-dim cc-chip-dim-in" title="内寸 12.03×2.35×2.69m
+外寸 12.19×2.44×2.90m
+容積 約67m³
+最大 26,500kg">内 12.03×2.35×2.69m</span><span class="cc-chip-dim cc-chip-dim-ex" title="内寸 12.03×2.35×2.69m
+外寸 12.19×2.44×2.90m
+容積 約67m³
+最大 26,500kg">外 12.19×2.44×2.90m</span><span class="cc-chip-dim cc-chip-dim-cap" title="内寸 12.03×2.35×2.69m
+外寸 12.19×2.44×2.90m
+容積 約67m³
+最大 26,500kg">67m³ / 26.5t</span></div>
+                      <div class="cc-stepper">
+                        <button type="button" class="cc-step cc-minus" onclick="bumpContainerChip(this,-1)" aria-label="減らす">−</button>
+                        <input type="number" class="cc-count" min="0" step="1" value="0" inputmode="numeric" placeholder="0" oninput="setContainerChip(this.closest('.cc-chip').dataset.ctype, this.value)">
+                        <button type="button" class="cc-step cc-plus" onclick="bumpContainerChip(this,1)" aria-label="増やす">＋</button>
+                      </div>
+                    </div></div><div style="margin:0 0 14px"><div class="cc-chip" data-ctype="20'RF（冷凍）" title="20ft 冷凍・冷蔵（Reefer）">
+                        <span class="cc-label"><b>20'RF</b><small>冷凍・冷蔵</small></span><div class="cc-chip-dims" title="内寸 5.43×2.28×2.25m
+外寸 6.06×2.44×2.59m
+容積 約28m³
+最大 20,000kg"><span class="cc-chip-dim cc-chip-dim-in" title="内寸 5.43×2.28×2.25m
+外寸 6.06×2.44×2.59m
+容積 約28m³
+最大 20,000kg">内 5.43×2.28×2.25m</span><span class="cc-chip-dim cc-chip-dim-ex" title="内寸 5.43×2.28×2.25m
+外寸 6.06×2.44×2.59m
+容積 約28m³
+最大 20,000kg">外 6.06×2.44×2.59m</span><span class="cc-chip-dim cc-chip-dim-cap" title="内寸 5.43×2.28×2.25m
+外寸 6.06×2.44×2.59m
+容積 約28m³
+最大 20,000kg">28m³ / 20.0t</span></div>
+                        <div class="cc-stepper">
+                          <button type="button" class="cc-step cc-minus" onclick="bumpContainerChip(this,-1)" aria-label="減らす">−</button>
+                          <input type="number" class="cc-count" min="0" step="1" value="0" inputmode="numeric" placeholder="0" oninput="setContainerChip(this.closest('.cc-chip').dataset.ctype, this.value)">
+                          <button type="button" class="cc-step cc-plus" onclick="bumpContainerChip(this,1)" aria-label="増やす">＋</button>
+                        </div>
+                      </div></div><div style="margin:0 0 14px"><div class="cc-chip" data-ctype="40'RF（冷凍）" title="40ft 冷凍・冷蔵（Reefer）">
+                        <span class="cc-label"><b>40'RF</b><small>冷凍・冷蔵</small></span><div class="cc-chip-dims" title="内寸 11.50×2.28×2.25m
+外寸 12.19×2.44×2.59m
+容積 約59m³
+最大 25,000kg"><span class="cc-chip-dim cc-chip-dim-in" title="内寸 11.50×2.28×2.25m
+外寸 12.19×2.44×2.59m
+容積 約59m³
+最大 25,000kg">内 11.50×2.28×2.25m</span><span class="cc-chip-dim cc-chip-dim-ex" title="内寸 11.50×2.28×2.25m
+外寸 12.19×2.44×2.59m
+容積 約59m³
+最大 25,000kg">外 12.19×2.44×2.59m</span><span class="cc-chip-dim cc-chip-dim-cap" title="内寸 11.50×2.28×2.25m
+外寸 12.19×2.44×2.59m
+容積 約59m³
+最大 25,000kg">59m³ / 25.0t</span></div>
+                        <div class="cc-stepper">
+                          <button type="button" class="cc-step cc-minus" onclick="bumpContainerChip(this,-1)" aria-label="減らす">−</button>
+                          <input type="number" class="cc-count" min="0" step="1" value="0" inputmode="numeric" placeholder="0" oninput="setContainerChip(this.closest('.cc-chip').dataset.ctype, this.value)">
+                          <button type="button" class="cc-step cc-plus" onclick="bumpContainerChip(this,1)" aria-label="増やす">＋</button>
+                        </div>
+                      </div></div><div style="margin:0 0 14px"><div class="cc-chip" data-ctype="20'OT（オープントップ）" title="20ft オープントップ">
+                        <span class="cc-label"><b>20'OT</b><small>オープン</small></span><div class="cc-chip-dims" title="内寸 5.89×2.35×2.30m
+外寸 6.06×2.44×2.59m
+容積 約32m³
+最大 21,500kg"><span class="cc-chip-dim cc-chip-dim-in" title="内寸 5.89×2.35×2.30m
+外寸 6.06×2.44×2.59m
+容積 約32m³
+最大 21,500kg">内 5.89×2.35×2.30m</span><span class="cc-chip-dim cc-chip-dim-ex" title="内寸 5.89×2.35×2.30m
+外寸 6.06×2.44×2.59m
+容積 約32m³
+最大 21,500kg">外 6.06×2.44×2.59m</span><span class="cc-chip-dim cc-chip-dim-cap" title="内寸 5.89×2.35×2.30m
+外寸 6.06×2.44×2.59m
+容積 約32m³
+最大 21,500kg">32m³ / 21.5t</span></div>
+                        <div class="cc-stepper">
+                          <button type="button" class="cc-step cc-minus" onclick="bumpContainerChip(this,-1)" aria-label="減らす">−</button>
+                          <input type="number" class="cc-count" min="0" step="1" value="0" inputmode="numeric" placeholder="0" oninput="setContainerChip(this.closest('.cc-chip').dataset.ctype, this.value)">
+                          <button type="button" class="cc-step cc-plus" onclick="bumpContainerChip(this,1)" aria-label="増やす">＋</button>
+                        </div>
+                      </div></div><div style="margin:0 0 14px"><div class="cc-chip" data-ctype="40'OT（オープントップ）" title="40ft オープントップ">
+                        <span class="cc-label"><b>40'OT</b><small>オープン</small></span><div class="cc-chip-dims" title="内寸 12.03×2.35×2.30m
+外寸 12.19×2.44×2.59m
+容積 約65m³
+最大 26,500kg"><span class="cc-chip-dim cc-chip-dim-in" title="内寸 12.03×2.35×2.30m
+外寸 12.19×2.44×2.59m
+容積 約65m³
+最大 26,500kg">内 12.03×2.35×2.30m</span><span class="cc-chip-dim cc-chip-dim-ex" title="内寸 12.03×2.35×2.30m
+外寸 12.19×2.44×2.59m
+容積 約65m³
+最大 26,500kg">外 12.19×2.44×2.59m</span><span class="cc-chip-dim cc-chip-dim-cap" title="内寸 12.03×2.35×2.30m
+外寸 12.19×2.44×2.59m
+容積 約65m³
+最大 26,500kg">65m³ / 26.5t</span></div>
+                        <div class="cc-stepper">
+                          <button type="button" class="cc-step cc-minus" onclick="bumpContainerChip(this,-1)" aria-label="減らす">−</button>
+                          <input type="number" class="cc-count" min="0" step="1" value="0" inputmode="numeric" placeholder="0" oninput="setContainerChip(this.closest('.cc-chip').dataset.ctype, this.value)">
+                          <button type="button" class="cc-step cc-plus" onclick="bumpContainerChip(this,1)" aria-label="増やす">＋</button>
+                        </div>
+                      </div></div><div style="margin:0 0 14px"><div class="cc-chip" data-ctype="20'FR（フラットラック）" title="20ft フラットラック">
+                        <span class="cc-label"><b>20'FR</b><small>フラット</small></span><div class="cc-chip-dims" title="床面 5.85×2.44m（高さ制限なし）
+外寸 6.06×2.44m
+最大 30,000kg"><span class="cc-chip-dim cc-chip-dim-in" title="床面 5.85×2.44m（高さ制限なし）
+外寸 6.06×2.44m
+最大 30,000kg">床 5.85×2.44m（高さ制限なし）</span><span class="cc-chip-dim cc-chip-dim-ex" title="床面 5.85×2.44m（高さ制限なし）
+外寸 6.06×2.44m
+最大 30,000kg">外 6.06×2.44m</span><span class="cc-chip-dim cc-chip-dim-cap" title="床面 5.85×2.44m（高さ制限なし）
+外寸 6.06×2.44m
+最大 30,000kg">30.0t</span></div>
+                        <div class="cc-stepper">
+                          <button type="button" class="cc-step cc-minus" onclick="bumpContainerChip(this,-1)" aria-label="減らす">−</button>
+                          <input type="number" class="cc-count" min="0" step="1" value="0" inputmode="numeric" placeholder="0" oninput="setContainerChip(this.closest('.cc-chip').dataset.ctype, this.value)">
+                          <button type="button" class="cc-step cc-plus" onclick="bumpContainerChip(this,1)" aria-label="増やす">＋</button>
+                        </div>
+                      </div></div></div></div></div></body></html>

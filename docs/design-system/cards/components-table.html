@@ -1,0 +1,253 @@
+<!-- @dsCard group="Components" -->
+<!doctype html>
+<html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>見積明細の表</title>
+<link rel="stylesheet" href="../css/tokens.css">
+<link rel="stylesheet" href="../css/style.css">
+<link rel="stylesheet" href="../css/quote.css">
+<style>
+  body { margin: 0; padding: 20px; background: #fff; color: #2d2418; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Hiragino Kaku Gothic ProN', 'Yu Gothic', sans-serif; font-size: 13px; }
+  h1 { font-size: 15px; margin: 0 0 4px; } .sub { color: #6a5745; font-size: 12px; margin: 0 0 14px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 10px; }
+  .sw { border: 1px solid #d9cfc2; border-radius: 8px; overflow: hidden; background: #fff; }
+  .sw .chip { height: 44px; border-bottom: 1px solid #d9cfc2; }
+  .sw .meta { padding: 6px 8px; font-size: 11px; line-height: 1.5; } .sw b { font-size: 11.5px; } .sw code { color: #6a5745; }
+  .sec { font-size: 12px; font-weight: 700; color: #3d2e1e; margin: 16px 0 6px; }
+  .row { display: flex; align-items: baseline; gap: 14px; padding: 5px 0; border-bottom: 1px solid #eee; } .row code { width: 130px; color: #6a5745; font-size: 11px; } .row .v { width: 56px; color: #888; font-size: 11px; }
+</style></head><body><h1>見積明細の表</h1><p class="sub">明細行（仕入・乗せ幅・売値）と合計行。実際の画面から取り出した HTML です（クラス名・構造は機能とつながっているため変えないでください）。</p><div id="tab-quote-make" class="tab-content active"><div class="quote-workspace"><div class="quote-main"><div style="margin:0 0 14px"><table id="quoteTable">
+            <thead>
+              <tr>
+                <th class="hd-base" style="width:22px; padding:2px; text-align:center;">
+                  <input type="checkbox" id="selectAllChk" title="全選択 / 解除" style="width:13px;height:13px;cursor:pointer;margin:0;" onclick="toggleSelectAll(this.checked)">
+                </th>
+                <th class="hd-base" style="width:44px;"></th>
+                <th class="hd-base hd-catsv" style="width:104px;" title="上段＝カテゴリ、下段＝サブコン（協力会社・下請け業者名）">カテゴリ<br><small class="hd-sub">／サブコン</small></th>
+                <th class="hd-base" style="width:188px;">項目名<br><small class="hd-sub">／備考</small></th>
+                <th class="hd-base" style="width:65px;">数量·単位</th>
+                <th class="hd-base hd-stk" style="width:62px;" title="上段＝支払い（仕入）通貨、下段＝請求（売値）通貨">通貨<br><small class="hd-sub"><span class="t-cost">仕</span>／<span class="t-sell">売</span></small></th>
+                <th class="hd-base hd-stk" style="width:118px;" title="上段＝支払い単価（仕入）、中＝＋乗せ幅、下段＝請求単価（売値）。CD は通貨差調整値">単価<br><small class="hd-sub"><span class="t-cost">仕</span>＋<span class="hd-mk-tag">乗</span>／<span class="t-sell">売</span></small></th>
+                <th class="hd-base" style="width:38px;" title="ON にすると消費税 10% が自動計算され、項目名先頭に「*」が付きます。免税（非課税）の行は OFF のままにしてください。">課税</th>
+                <th class="hd-bill" style="width:92px;">小計<br><small class="hd-sub t-sell">売</small></th>
+                <th class="hd-profit hd-pr" style="width:80px;">利益</th>
+              </tr>
+            </thead>
+            <tbody id="tableBody"><tr data-virtual="1" data-sv-key="a社" data-sv-label="A社" class="subcon-group-header" draggable="false" style="--grp-accent: #b0772f;"><td colspan="10" class="subcon-group-header-cell"><div class="subcon-group-header-inner"><span class="subcon-group-grip" title="ドラッグでグループ（ブロック）を並び替え">⠿</span><button type="button" class="subcon-group-toggle" title="折りたたみ/展開">▼</button><input type="checkbox" class="subcon-group-chk" title="このサブコンの全明細を選択／解除（一部だけ選択中は中間表示）"><span class="subcon-group-label">📦 A社</span><span class="subcon-group-count">1 行</span><span class="subcon-group-sum" title="">¥120,000</span><button type="button" class="subcon-group-excl" title="見積もりへの含める/除外を切り替え">除外</button><button type="button" class="subcon-group-add-btn" data-sv="A社" title="A社 に行を追加">＋</button><button type="button" class="subcon-group-sort-btn" title="このグループ内をカテゴリ順に並び替え">⇅カテゴリ</button><span class="grp-updated" title="このグループの最終更新日（社内管理用・客先出力には含まれません）。設定すると配下の全行に反映されます。"><span class="grp-updated-lbl">🕒 更新</span><input type="date" class="grp-updated-input"><button type="button" class="grp-updated-today" title="今日に一括設定">今日</button><span class="grp-updated-mixed" style="display:none">混在</span></span></div></td></tr><tr id="row-1" class="subcon-child" draggable="false" style="--grp-accent: #b0772f;" data-excluded="">
+      <td class="check-cell">
+        <input type="checkbox" class="row-select-chk" tabindex="-1" title="この行を選択（コピー・削除用）" style="width:13px;height:13px;cursor:pointer;margin:0;">
+      </td>
+      <td class="handle-cell">
+        <span class="drag-handle" title="ドラッグして並び替え">⠿</span>
+        <!-- コンテナ本数連動アイコンは一旦 UI から非表示（機能・JSロジックは残置：window.toggleCntLink / _syncContainerLinkedRows / cntLink 復元）。
+             再表示する場合は以下のボタンを戻すこと：
+        <button class="cnt-link-btn" onclick="window.toggleCntLink?.(this)" title="コンテナ本数に数量を連動（FCL）" tabindex="-1">⛓</button> -->
+        <div class="row-acts">
+          <button class="row-hidequote-btn" onclick="window.toggleRowHideQuote?.(this)" title="この行を見積書（プレビュー客先表示・PDF・Excel・CSV）に出力しない" tabindex="-1">👁</button>
+          <button class="row-pending-btn" onclick="window.toggleRowPending?.(this)" title="後で調べて記入（要調査マーク）。サーチャージ等、最新情報を調べてから埋める項目に。" tabindex="-1">🔍</button>
+          <button class="row-done-btn" onclick="window.toggleRowDone?.(this)" title="入力完了の目印。作成を再開したとき、どこまで終わったか分かります（もう一度クリックで解除）。" tabindex="-1">✓</button>
+          <button class="row-add-btn" onclick="window.rowAddBelow?.(this)" title="この行の直下に新しい行を追加" tabindex="-1">➕</button>
+          <button class="row-dup-btn" onclick="window.rowDuplicate?.(this)" title="この行を複製して直下に挿入" tabindex="-1">📋</button>
+          <button class="row-del-btn" onclick="window.rowDelete?.(this)" title="この行を削除" tabindex="-1">🗑️</button>
+        </div>
+      </td>
+      <td class="catsv-cell stk-cell">
+        <div class="stk">
+          <select class="w-cat" data-field="cat" data-col="0" id="cat-1"><option value="" selected="">— カテゴリ —</option><option value="domestic">🏠 国内作業</option><option value="export-local">📤 輸出ローカルチャージ</option><option value="ocean">🚢 海上運賃</option><option value="air">✈️ 航空運賃</option><option value="surcharge">⚡ サーチャージ</option><option value="import-local">📥 輸入ローカルチャージ</option><option value="overseas">🌏 海外作業</option><option value="customs-export">🛃 通関諸費用（輸出）</option><option value="customs-import">🛃 通関諸費用（輸入）</option><option value="insurance">🛡️ 保険料</option><option value="domestic-transport">🚚 国内配送・横持ち</option><option value="warehouse">📦 倉庫保管</option><option value="packing-cost">🎁 梱包</option><option value="other">📋 その他</option></select>
+          <input type="text" data-field="sv" class="w-subcon" placeholder="サブコン" list="svSuggestions" id="sv-1">
+          <input type="text" data-field="pt" class="w-pattern" placeholder="パターン（任意）" title="サブコン内をさらに分けるパターン名（任意）。同じパターン名の行がサブコン配下で入れ子のグループ・小計になります。" id="pt-1">
+        </div>
+      </td>
+      <td class="name-cell">
+        <input type="text" data-field="nm" class="w-name" placeholder="例）海上運賃" data-col="1" list="nmSuggestions" id="nm-1">
+        <div class="w-note-row">
+          <input type="text" data-field="nt" class="w-note" placeholder="備考（任意）" data-col="6" id="nt-1">
+          <button type="button" class="btn-row-rem" tabindex="-1" title="備考欄のテキストを引用して直下に備考行を挿入（空でも可）">💬</button>
+          <button type="button" class="btn-row-int" tabindex="-1" title="備考欄のテキストを引用して直下に社内メモを挿入（空でも可）">🔒</button>
+        </div>
+        <div class="w-valid" title="サーチャージ適用期間。開始日のみ／終了日のみも可。見積もり提示日（＝見積全体の有効期限。未設定なら発行日→今日）がこの期間を外れると、その行は客先見積もり・PDF・Excel・CSV・合計から自動的に除外されます（社内モードではグレー表示）。">
+          <span class="w-valid-lbl">有効</span>
+          <input type="date" data-field="vf" class="w-valid-date" title="適用開始日（終了日なしでも保存・表示されます）" id="vf-1">
+          <span class="w-valid-sep">〜</span>
+          <input type="date" data-field="vt" class="w-valid-date" title="適用終了日（省略可）" id="vt-1">
+        </div>
+        <div class="w-updated" title="この行の最終更新日（社内管理用・客先出力には含まれません）。サブコン／パターン見出しからまとめて設定もできます。">
+          <span class="w-updated-lbl">🕒 更新</span>
+          <input type="date" data-field="lu" class="w-updated-date" id="lu-1">
+        </div>
+      </td>
+      <td class="qty-cell">
+        <div class="qty-wrap">
+          <input type="number" data-field="pq" class="w-qty" min="0" value="1" data-col="2" title="" id="pq-1">
+          <input type="text" list="unit-list" data-field="un" class="w-unit" data-col="2u" placeholder="単位" id="un-1">
+        </div>
+        <input type="number" data-field="bq" value="1" tabindex="-1" readonly="" class="bq-mirror" id="bq-1">
+      </td>
+      <td class="ccy-cell stk-cell">
+        <div class="stk">
+          <span class="stk-cost"><span class="stk-tag t-cost">仕</span><select data-field="pc" class="w-cur" data-col="3" id="pc-1"><option value="JPY" selected="">JPY</option><option value="USD">USD</option><option value="EUR">EUR</option><option value="CNY">CNY</option><option value="KRW">KRW</option><option value="SGD">SGD</option><option value="HKD">HKD</option><option value="GBP">GBP</option><option value="AUD">AUD</option><option value="TWD">TWD</option><option value="THB">THB</option><option value="VND">VND</option><option value="MYR">MYR</option><option value="IDR">IDR</option><option value="PHP">PHP</option><option value="INR">INR</option></select></span>
+          <span class="stk-sell"><span class="stk-tag t-sell">売</span><select data-field="bc" class="w-cur w-cur-sell" data-col="3b" title="売値の通貨。仕入通貨と別にする場合はここで変更（売単価を直接入力できます）" id="bc-1"><option value="JPY" selected="">JPY</option><option value="USD">USD</option><option value="EUR">EUR</option><option value="CNY">CNY</option><option value="KRW">KRW</option><option value="SGD">SGD</option><option value="HKD">HKD</option><option value="GBP">GBP</option><option value="AUD">AUD</option><option value="TWD">TWD</option><option value="THB">THB</option><option value="VND">VND</option><option value="MYR">MYR</option><option value="IDR">IDR</option><option value="PHP">PHP</option><option value="INR">INR</option></select></span>
+        </div>
+      </td>
+      <td class="price-cell stk-cell">
+        <div class="stk stk-price">
+          <span class="stk-cost">
+            <span class="stk-tag t-cost">仕</span>
+            <input type="number" data-field="pp" class="w-price" min="0" value="0" data-col="4" id="pp-1">
+            <span class="pct-group">
+              <input type="number" data-field="pprate" class="w-pct-rate" min="0" step="0.01" value="0" placeholder="%" title="%率（例: 0.3 → 0.3%）" id="pprate-1">
+              <span class="pct-x">%×</span>
+              <select class="w-ppref" title="参照行（選択するとその行の仕入単価を基準額として使用。変更されると自動再計算）" id="pprefsel-1"><option value="">—</option></select>
+              <input type="number" data-field="ppbase" class="w-pct-base" min="0" value="0" placeholder="基準額" title="基準金額（例: CIF価格・保険価格など。仕入通貨と同じ通貨で入力）" id="ppbase-1">
+            </span>
+          </span>
+          <span class="stk-sell"><span class="stk-tag t-sell">売</span><input type="number" data-field="bp" class="w-price display-field" value="0" tabindex="-1" readonly="" data-base="100000" id="bp-1"><small class="bp-base-hint" hidden="" title="仕入単価を売通貨へ換算した正確な金額（端数切り捨て前）です。これを下回る売単価にすると赤字になります。※このライン自体が仕入通貨と売通貨の為替レートに基づく目安であり、実際のレートと差が出る場合があります"></small></span>
+          <span class="row-cd"><span class="row-cd-lbl" title="Currency Difference（通貨差調整値）">CD</span><input type="text" data-field="cd" class="w-cd display-field" value="" placeholder="—" tabindex="-1" readonly="" id="cd-1"></span>
+          <span class="stk-mk"><span class="stk-mk-plus" title="乗せ幅（仕入単価に加算 → 売単価）">＋</span><input type="number" data-field="mk" class="w-mkup" min="0" value="0" data-col="5" title="乗せ幅：仕入単価に加算して売単価になります" id="mk-1"></span>
+        </div>
+        <input type="hidden" data-field="zc" value="" id="zc-1">
+        <input type="hidden" data-field="ac" value="" id="ac-1">
+        <input type="hidden" data-field="ps" value="" id="ps-1">
+        <input type="hidden" data-field="co" value="" id="co-1">
+        <input type="hidden" data-field="ri" value="" id="ri-1">
+        <input type="hidden" data-field="ppmode" value="" id="ppmode-1">
+        <input type="hidden" data-field="uid" value="rfsut36" id="uid-1">
+        <input type="hidden" data-field="ppref" value="" id="ppref-1">
+        <input type="hidden" data-field="es" value="" id="es-1">
+        <div class="row-mode-btns">
+          <button type="button" class="zero-confirm-btn" tabindex="-1" title="0円確認済みにする（もう一度クリックで解除）">¥0✓</button>
+          <button type="button" class="actual-cost-btn" tabindex="-1" title="実費（金額未確定・別途精算）。単価・金額に「実費」と表示し、合計から除外します（もう一度クリックで解除）。">実費</button>
+          <button type="button" class="profit-share-btn" tabindex="-1" title="PROFIT SHARE（代理店収益）。客先見積もりには出さず、社内の利益・粗利率にのみ計上します（もう一度クリックで解除）。">PS</button>
+          <button type="button" class="cond-charge-btn" tabindex="-1" title="発生時のみ／必要時のみ請求。金額は客先にも表示しますが、見積もり合計には加算しません（もう一度クリックで解除）。">都度</button>
+          <button type="button" class="ref-info-btn" tabindex="-1" title="参考情報。金額は客先にも表示しますが、見積もり合計には加算しません。「都度（発生時のみ請求）」とは別に、参考として提示したい行に使用します（もう一度クリックで解除）。">参考</button>
+          <button type="button" class="est-btn" tabindex="-1" title="概算（金額は目安）。単価・金額の前に「約」を付けて表示します。見積もり合計には通常どおり加算されます（もう一度クリックで解除）。">概算</button>
+          <button type="button" class="pct-mode-btn" tabindex="-1" title="仕入単価を「○○の何%」として計算（%率と基準額を入力）。もう一度クリックで直接入力に戻す。">%</button>
+          <button type="button" class="master-reg-btn" tabindex="-1" title="この行をマスター登録：品名（単位・備考・カテゴリ・代表単価）＋サブコンを登録し、次回同名入力時に自動入力・参考価格として活用します。">📇 登録</button>
+          <button type="button" class="master-detail-jump-btn" tabindex="-1" hidden="" title="この品名のマスター詳細を見る・マスター管理タブの該当行へジャンプ">📇 詳細</button>
+        </div>
+        <span class="actual-cost-badge" aria-hidden="true">実費</span>
+      </td>
+      <td class="tax-cell"><input type="checkbox" data-field="tx" title="ON にすると消費税 10% が自動計算され、項目名先頭に「*」が付きます。免税（非課税）の行は OFF のままにしてください。" id="tx-1"></td>
+      <td class="subtotal-cell subtotal-has-value" data-field="st" id="st-1">120,000</td>
+      <td class="profit-cell profit-pos" data-field="pr" id="pr-1">20,000</td>
+    </tr><tr data-virtual="1" data-sv-key="a社" data-sub-sum="1" class="subcon-group-subtotal" style="--grp-accent: #b0772f;"><td colspan="10" class="subcon-group-subtotal-cell"><div class="subcon-subtotal-inner"><span class="subcon-subtotal-label">↳ A社 小計</span><span class="st-metric st-cost"><i>仕入合計</i><b class="subcon-subtotal-cost" title="">¥100,000</b></span><span class="st-metric st-sell"><i>売値合計</i><b class="subcon-subtotal-sum" title="">¥120,000</b></span><span class="st-metric st-margin"><i>粗利率</i><b class="subcon-subtotal-margin">16.7%</b></span><span class="st-alias" title="客先向け出力（プレビュー・御見積書PDF）で、この小計の「A社」をここに入力した名前へ置換します。空欄ならサブコン名のまま。"><i>客先表示名</i><input type="text" class="subcon-alias-input" placeholder="例）国内諸費用 一式（任意）" value=""></span><button type="button" class="subcon-subtotal-add-btn" title="A社 に行を追加（このサブコン末尾）">＋ 行追加</button><span class="st-remark" title="このサブコンに関する注記。「見積書に表示」がONの間だけ客先向け出力（プレビュー・御見積書PDF）にも表示されます。"><i>📝 サブコン別リマーク</i><input type="text" class="subcon-remark-input" placeholder="このサブコンへの注記（任意）" value=""><button type="button" class="subcon-remark-toggle is-shown" title="クリックで見積書には表示しない（社内用）にする">📄 見積書に表示</button></span></div></td></tr><tr data-virtual="1" data-sv-key="b社" data-sv-label="B社" class="subcon-group-header" draggable="false" style="--grp-accent: #2a6f9e;"><td colspan="10" class="subcon-group-header-cell"><div class="subcon-group-header-inner"><span class="subcon-group-grip" title="ドラッグでグループ（ブロック）を並び替え">⠿</span><button type="button" class="subcon-group-toggle" title="折りたたみ/展開">▼</button><input type="checkbox" class="subcon-group-chk" title="このサブコンの全明細を選択／解除（一部だけ選択中は中間表示）"><span class="subcon-group-label">📦 B社</span><span class="subcon-group-count">1 行</span><span class="subcon-group-sum" title="">¥35,000</span><button type="button" class="subcon-group-excl" title="見積もりへの含める/除外を切り替え">除外</button><button type="button" class="subcon-group-add-btn" data-sv="B社" title="B社 に行を追加">＋</button><button type="button" class="subcon-group-sort-btn" title="このグループ内をカテゴリ順に並び替え">⇅カテゴリ</button><span class="grp-updated" title="このグループの最終更新日（社内管理用・客先出力には含まれません）。設定すると配下の全行に反映されます。"><span class="grp-updated-lbl">🕒 更新</span><input type="date" class="grp-updated-input"><button type="button" class="grp-updated-today" title="今日に一括設定">今日</button><span class="grp-updated-mixed" style="display:none">混在</span></span></div></td></tr><tr id="row-2" class="subcon-child" draggable="false" style="--grp-accent: #2a6f9e;" data-excluded="">
+      <td class="check-cell">
+        <input type="checkbox" class="row-select-chk" tabindex="-1" title="この行を選択（コピー・削除用）" style="width:13px;height:13px;cursor:pointer;margin:0;">
+      </td>
+      <td class="handle-cell">
+        <span class="drag-handle" title="ドラッグして並び替え">⠿</span>
+        <!-- コンテナ本数連動アイコンは一旦 UI から非表示（機能・JSロジックは残置：window.toggleCntLink / _syncContainerLinkedRows / cntLink 復元）。
+             再表示する場合は以下のボタンを戻すこと：
+        <button class="cnt-link-btn" onclick="window.toggleCntLink?.(this)" title="コンテナ本数に数量を連動（FCL）" tabindex="-1">⛓</button> -->
+        <div class="row-acts">
+          <button class="row-hidequote-btn" onclick="window.toggleRowHideQuote?.(this)" title="この行を見積書（プレビュー客先表示・PDF・Excel・CSV）に出力しない" tabindex="-1">👁</button>
+          <button class="row-pending-btn" onclick="window.toggleRowPending?.(this)" title="後で調べて記入（要調査マーク）。サーチャージ等、最新情報を調べてから埋める項目に。" tabindex="-1">🔍</button>
+          <button class="row-done-btn" onclick="window.toggleRowDone?.(this)" title="入力完了の目印。作成を再開したとき、どこまで終わったか分かります（もう一度クリックで解除）。" tabindex="-1">✓</button>
+          <button class="row-add-btn" onclick="window.rowAddBelow?.(this)" title="この行の直下に新しい行を追加" tabindex="-1">➕</button>
+          <button class="row-dup-btn" onclick="window.rowDuplicate?.(this)" title="この行を複製して直下に挿入" tabindex="-1">📋</button>
+          <button class="row-del-btn" onclick="window.rowDelete?.(this)" title="この行を削除" tabindex="-1">🗑️</button>
+        </div>
+      </td>
+      <td class="catsv-cell stk-cell">
+        <div class="stk">
+          <select class="w-cat" data-field="cat" data-col="0" id="cat-2"><option value="" selected="">— カテゴリ —</option><option value="domestic">🏠 国内作業</option><option value="export-local">📤 輸出ローカルチャージ</option><option value="ocean">🚢 海上運賃</option><option value="air">✈️ 航空運賃</option><option value="surcharge">⚡ サーチャージ</option><option value="import-local">📥 輸入ローカルチャージ</option><option value="overseas">🌏 海外作業</option><option value="customs-export">🛃 通関諸費用（輸出）</option><option value="customs-import">🛃 通関諸費用（輸入）</option><option value="insurance">🛡️ 保険料</option><option value="domestic-transport">🚚 国内配送・横持ち</option><option value="warehouse">📦 倉庫保管</option><option value="packing-cost">🎁 梱包</option><option value="other">📋 その他</option></select>
+          <input type="text" data-field="sv" class="w-subcon" placeholder="サブコン" list="svSuggestions" id="sv-2">
+          <input type="text" data-field="pt" class="w-pattern" placeholder="パターン（任意）" title="サブコン内をさらに分けるパターン名（任意）。同じパターン名の行がサブコン配下で入れ子のグループ・小計になります。" id="pt-2">
+        </div>
+      </td>
+      <td class="name-cell">
+        <input type="text" data-field="nm" class="w-name" placeholder="例）海上運賃" data-col="1" list="nmSuggestions" id="nm-2">
+        <div class="w-note-row">
+          <input type="text" data-field="nt" class="w-note" placeholder="備考（任意）" data-col="6" id="nt-2">
+          <button type="button" class="btn-row-rem" tabindex="-1" title="備考欄のテキストを引用して直下に備考行を挿入（空でも可）">💬</button>
+          <button type="button" class="btn-row-int" tabindex="-1" title="備考欄のテキストを引用して直下に社内メモを挿入（空でも可）">🔒</button>
+        </div>
+        <div class="w-valid" title="サーチャージ適用期間。開始日のみ／終了日のみも可。見積もり提示日（＝見積全体の有効期限。未設定なら発行日→今日）がこの期間を外れると、その行は客先見積もり・PDF・Excel・CSV・合計から自動的に除外されます（社内モードではグレー表示）。">
+          <span class="w-valid-lbl">有効</span>
+          <input type="date" data-field="vf" class="w-valid-date" title="適用開始日（終了日なしでも保存・表示されます）" id="vf-2">
+          <span class="w-valid-sep">〜</span>
+          <input type="date" data-field="vt" class="w-valid-date" title="適用終了日（省略可）" id="vt-2">
+        </div>
+        <div class="w-updated" title="この行の最終更新日（社内管理用・客先出力には含まれません）。サブコン／パターン見出しからまとめて設定もできます。">
+          <span class="w-updated-lbl">🕒 更新</span>
+          <input type="date" data-field="lu" class="w-updated-date" id="lu-2">
+        </div>
+      </td>
+      <td class="qty-cell">
+        <div class="qty-wrap">
+          <input type="number" data-field="pq" class="w-qty" min="0" value="1" data-col="2" title="数量" id="pq-2">
+          <input type="text" list="unit-list" data-field="un" class="w-unit" data-col="2u" placeholder="単位" id="un-2">
+        </div>
+        <input type="number" data-field="bq" value="1" tabindex="-1" readonly="" class="bq-mirror" id="bq-2">
+      </td>
+      <td class="ccy-cell stk-cell">
+        <div class="stk">
+          <span class="stk-cost"><span class="stk-tag t-cost">仕</span><select data-field="pc" class="w-cur" data-col="3" id="pc-2"><option value="JPY" selected="">JPY</option><option value="USD">USD</option><option value="EUR">EUR</option><option value="CNY">CNY</option><option value="KRW">KRW</option><option value="SGD">SGD</option><option value="HKD">HKD</option><option value="GBP">GBP</option><option value="AUD">AUD</option><option value="TWD">TWD</option><option value="THB">THB</option><option value="VND">VND</option><option value="MYR">MYR</option><option value="IDR">IDR</option><option value="PHP">PHP</option><option value="INR">INR</option></select></span>
+          <span class="stk-sell"><span class="stk-tag t-sell">売</span><select data-field="bc" class="w-cur w-cur-sell" data-col="3b" title="売値の通貨。仕入通貨と別にする場合はここで変更（売単価を直接入力できます）" id="bc-2"><option value="JPY" selected="">JPY</option><option value="USD">USD</option><option value="EUR">EUR</option><option value="CNY">CNY</option><option value="KRW">KRW</option><option value="SGD">SGD</option><option value="HKD">HKD</option><option value="GBP">GBP</option><option value="AUD">AUD</option><option value="TWD">TWD</option><option value="THB">THB</option><option value="VND">VND</option><option value="MYR">MYR</option><option value="IDR">IDR</option><option value="PHP">PHP</option><option value="INR">INR</option></select></span>
+        </div>
+      </td>
+      <td class="price-cell stk-cell">
+        <div class="stk stk-price">
+          <span class="stk-cost">
+            <span class="stk-tag t-cost">仕</span>
+            <input type="number" data-field="pp" class="w-price" min="0" value="0" data-col="4" id="pp-2">
+            <span class="pct-group">
+              <input type="number" data-field="pprate" class="w-pct-rate" min="0" step="0.01" value="0" placeholder="%" title="%率（例: 0.3 → 0.3%）" id="pprate-2">
+              <span class="pct-x">%×</span>
+              <select class="w-ppref" title="参照行（選択するとその行の仕入単価を基準額として使用。変更されると自動再計算）" id="pprefsel-2"><option value="">—</option></select>
+              <input type="number" data-field="ppbase" class="w-pct-base" min="0" value="0" placeholder="基準額" title="基準金額（例: CIF価格・保険価格など。仕入通貨と同じ通貨で入力）" id="ppbase-2">
+            </span>
+          </span>
+          <span class="stk-sell"><span class="stk-tag t-sell">売</span><input type="number" data-field="bp" class="w-price display-field" value="0" tabindex="-1" readonly="" data-base="30000" id="bp-2"><small class="bp-base-hint" hidden="" title="仕入単価を売通貨へ換算した正確な金額（端数切り捨て前）です。これを下回る売単価にすると赤字になります。※このライン自体が仕入通貨と売通貨の為替レートに基づく目安であり、実際のレートと差が出る場合があります"></small></span>
+          <span class="row-cd"><span class="row-cd-lbl" title="Currency Difference（通貨差調整値）">CD</span><input type="text" data-field="cd" class="w-cd display-field" value="" placeholder="—" tabindex="-1" readonly="" id="cd-2"></span>
+          <span class="stk-mk"><span class="stk-mk-plus" title="乗せ幅（仕入単価に加算 → 売単価）">＋</span><input type="number" data-field="mk" class="w-mkup" min="0" value="0" data-col="5" title="乗せ幅：仕入単価に加算して売単価になります" id="mk-2"></span>
+        </div>
+        <input type="hidden" data-field="zc" value="" id="zc-2">
+        <input type="hidden" data-field="ac" value="" id="ac-2">
+        <input type="hidden" data-field="ps" value="" id="ps-2">
+        <input type="hidden" data-field="co" value="" id="co-2">
+        <input type="hidden" data-field="ri" value="" id="ri-2">
+        <input type="hidden" data-field="ppmode" value="" id="ppmode-2">
+        <input type="hidden" data-field="uid" value="rwg1mke" id="uid-2">
+        <input type="hidden" data-field="ppref" value="" id="ppref-2">
+        <input type="hidden" data-field="es" value="" id="es-2">
+        <div class="row-mode-btns">
+          <button type="button" class="zero-confirm-btn" tabindex="-1" title="0円確認済みにする（もう一度クリックで解除）">¥0✓</button>
+          <button type="button" class="actual-cost-btn" tabindex="-1" title="実費（金額未確定・別途精算）。単価・金額に「実費」と表示し、合計から除外します（もう一度クリックで解除）。">実費</button>
+          <button type="button" class="profit-share-btn" tabindex="-1" title="PROFIT SHARE（代理店収益）。客先見積もりには出さず、社内の利益・粗利率にのみ計上します（もう一度クリックで解除）。">PS</button>
+          <button type="button" class="cond-charge-btn" tabindex="-1" title="発生時のみ／必要時のみ請求。金額は客先にも表示しますが、見積もり合計には加算しません（もう一度クリックで解除）。">都度</button>
+          <button type="button" class="ref-info-btn" tabindex="-1" title="参考情報。金額は客先にも表示しますが、見積もり合計には加算しません。「都度（発生時のみ請求）」とは別に、参考として提示したい行に使用します（もう一度クリックで解除）。">参考</button>
+          <button type="button" class="est-btn" tabindex="-1" title="概算（金額は目安）。単価・金額の前に「約」を付けて表示します。見積もり合計には通常どおり加算されます（もう一度クリックで解除）。">概算</button>
+          <button type="button" class="pct-mode-btn" tabindex="-1" title="仕入単価を「○○の何%」として計算（%率と基準額を入力）。もう一度クリックで直接入力に戻す。">%</button>
+          <button type="button" class="master-reg-btn" tabindex="-1" title="この行をマスター登録：品名（単位・備考・カテゴリ・代表単価）＋サブコンを登録し、次回同名入力時に自動入力・参考価格として活用します。">📇 登録</button>
+          <button type="button" class="master-detail-jump-btn" tabindex="-1" hidden="" title="この品名のマスター詳細を見る・マスター管理タブの該当行へジャンプ">📇 詳細</button>
+        </div>
+        <span class="actual-cost-badge" aria-hidden="true">実費</span>
+      </td>
+      <td class="tax-cell"><input type="checkbox" data-field="tx" title="ON にすると消費税 10% が自動計算され、項目名先頭に「*」が付きます。免税（非課税）の行は OFF のままにしてください。" id="tx-2"></td>
+      <td class="subtotal-cell subtotal-has-value" data-field="st" id="st-2">35,000</td>
+      <td class="profit-cell profit-pos" data-field="pr" id="pr-2">5,000</td>
+    </tr><tr data-virtual="1" data-sv-key="b社" data-sub-sum="1" class="subcon-group-subtotal" style="--grp-accent: #2a6f9e;"><td colspan="10" class="subcon-group-subtotal-cell"><div class="subcon-subtotal-inner"><span class="subcon-subtotal-label">↳ B社 小計</span><span class="st-metric st-cost"><i>仕入合計</i><b class="subcon-subtotal-cost" title="">¥30,000</b></span><span class="st-metric st-sell"><i>売値合計</i><b class="subcon-subtotal-sum" title="">¥35,000</b></span><span class="st-metric st-margin"><i>粗利率</i><b class="subcon-subtotal-margin">14.3%</b></span><span class="st-alias" title="客先向け出力（プレビュー・御見積書PDF）で、この小計の「B社」をここに入力した名前へ置換します。空欄ならサブコン名のまま。"><i>客先表示名</i><input type="text" class="subcon-alias-input" placeholder="例）国内諸費用 一式（任意）" value=""></span><button type="button" class="subcon-subtotal-add-btn" title="B社 に行を追加（このサブコン末尾）">＋ 行追加</button><span class="st-remark" title="このサブコンに関する注記。「見積書に表示」がONの間だけ客先向け出力（プレビュー・御見積書PDF）にも表示されます。"><i>📝 サブコン別リマーク</i><input type="text" class="subcon-remark-input" placeholder="このサブコンへの注記（任意）" value=""><button type="button" class="subcon-remark-toggle is-shown" title="クリックで見積書には表示しない（社内用）にする">📄 見積書に表示</button></span></div></td></tr></tbody>
+            <tfoot>
+              <tr class="tot-row">
+                <td></td><td></td><td></td><td></td><td></td><td></td>
+                <td id="tot-row-label" style="text-align:right; color:#555; font-weight:bold;">合　計</td>
+                <td></td>
+                <td class="subtotal-cell tot-amt-cell" style="text-align:right; padding-right:8px; font-weight:bold; background:#eef5fb;">
+                  <div class="stk">
+                    <span class="stk-cost"><span class="t-cost">仕</span> <span id="tot-cost">130,000</span></span>
+                    <span class="stk-sell"><span class="t-sell">売</span> <span id="tot-subtotal">155,000</span></span>
+                  </div>
+                  <span id="tot-billing" style="display:none;">155,000</span>
+                </td>
+                <td class="profit-cell profit-pos" id="tot-profit">25,000<small class="tot-margin">粗利 16.1%</small></td>
+              </tr>
+              <tr class="tot-row tot-ps-row" id="totPsRow" hidden="">
+                <td></td><td></td><td></td><td></td><td></td><td></td>
+                <td style="text-align:right; color:#6b21a8; font-weight:bold;">社内利益<small style="font-weight:600;">（PS込み）</small></td>
+                <td></td>
+                <td class="tot-amt-cell" style="text-align:right; padding-right:8px; font-weight:bold; background:#f5edfb;">
+                  <span class="t-sell">代理店収益</span> <span id="tot-ps-rev">—</span>
+                </td>
+                <td class="profit-cell pr-cell" id="tot-ps-profit">—</td>
+              </tr>
+            </tfoot>
+          </table></div></div></div></div></body></html>

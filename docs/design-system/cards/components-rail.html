@@ -1,0 +1,50 @@
+<!-- @dsCard group="Components" -->
+<!doctype html>
+<html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>右カラムのレール・パネル</title>
+<link rel="stylesheet" href="../css/tokens.css">
+<link rel="stylesheet" href="../css/style.css">
+<link rel="stylesheet" href="../css/quote.css">
+<style>
+  body { margin: 0; padding: 20px; background: #fff; color: #2d2418; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Hiragino Kaku Gothic ProN', 'Yu Gothic', sans-serif; font-size: 13px; }
+  h1 { font-size: 15px; margin: 0 0 4px; } .sub { color: #6a5745; font-size: 12px; margin: 0 0 14px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 10px; }
+  .sw { border: 1px solid #d9cfc2; border-radius: 8px; overflow: hidden; background: #fff; }
+  .sw .chip { height: 44px; border-bottom: 1px solid #d9cfc2; }
+  .sw .meta { padding: 6px 8px; font-size: 11px; line-height: 1.5; } .sw b { font-size: 11.5px; } .sw code { color: #6a5745; }
+  .sec { font-size: 12px; font-weight: 700; color: #3d2e1e; margin: 16px 0 6px; }
+  .row { display: flex; align-items: baseline; gap: 14px; padding: 5px 0; border-bottom: 1px solid #eee; } .row code { width: 130px; color: #6a5745; font-size: 11px; } .row .v { width: 56px; color: #888; font-size: 11px; }
+</style></head><body><h1>右カラムのレール・パネル</h1><p class="sub">ジャンプ・比較・FCL/LCL などのパネル切替。実際の画面から取り出した HTML です（クラス名・構造は機能とつながっているため変えないでください）。</p><div id="tab-quote-make" class="tab-content active"><div class="quote-workspace"><div class="quote-main"><div style="margin:0 0 14px"><nav class="qrc-rail" id="qrcRail"><button class="qrc-rail-btn is-on" data-mod="digest" title="ジャンプ"><span class="qrc-rail-ico">🧭</span><em>ジャンプ</em></button><button class="qrc-rail-btn" data-mod="compare" title="同一項目の最安値比較"><span class="qrc-rail-ico">⚖️</span><em>比較</em></button><button class="qrc-rail-btn" data-mod="fcllcl" title="FCL/LCL 損益分岐"><span class="qrc-rail-ico">🆚</span><em>FCL/LCL</em></button><button class="qrc-rail-btn" data-mod="bookmark" title="ブックマーク"><span class="qrc-rail-ico">🔖</span><em>ブク</em></button><button class="qrc-rail-btn" data-mod="fin" title="金額"><span class="qrc-rail-ico">💰</span><em>金額</em></button><button class="qrc-rail-btn" data-mod="chat" title="申し送り"><span class="qrc-rail-ico">💬</span><em>申し送り</em></button><button class="qrc-rail-btn" data-mod="similar" title="類似見積"><span class="qrc-rail-ico">🔍</span><em>類似</em></button><button class="qrc-rail-btn" data-mod="scenario" title="単位で数量を一括変更"><span class="qrc-rail-ico">📦</span><em>数量</em></button><button class="qrc-rail-btn" data-mod="subcon" title="サブコン別"><span class="qrc-rail-ico">👷</span><em>サブコン</em></button><button class="qrc-rail-btn" data-mod="charges" title="諸チャージ"><span class="qrc-rail-ico">📦</span><em>チャージ</em></button><button class="qrc-rail-btn" data-mod="pattern" title="行パターン"><span class="qrc-rail-ico">🗜️</span><em>行パタ</em></button></nav></div><div style="margin:0 0 14px"><div id="flPanel" class="fl-panel" style="display: none;">
+        <p class="fl-hint">①この案件の「FCL案／LCL案」など物量パターンごとの見積合計を並べて比較します。②下の損益分岐は、仕入単価からどちらが有利か／何CBMから逆転するかを出します（入力値は案件に保存されます）。</p>
+        <div class="fl-sec" id="flPatterns"><div class="fl-sec-title">📋 パターン比較</div><div class="fl-sub" style="line-height:1.6">この案件にはまだ物量パターンが1つだけです。「FCL案」「LCL案」を作ると、見積合計を並べて比較できます。</div><button type="button" class="fl-mk-btn" onclick="createFclLclPatterns()">🆚 FCL/LCL比較案を作成</button></div>
+        <details class="fl-calc" open="">
+        <summary>🧮 損益分岐（FCL/LCL どちらが得か）</summary>
+        <div class="fl-sec">
+          <div class="fl-sec-title">📦 物量 <span class="fl-sub">空欄＝案件の貨物情報を使用</span></div>
+          <div class="fl-grid">
+            <label>CBM</label><input type="number" id="fl-cbm" class="fl-in" min="0" step="any" placeholder="" title="空欄なら案件の総容積" oninput="renderFclLcl()">
+            <label>重量 kg</label><input type="number" id="fl-kg" class="fl-in" min="0" step="any" placeholder="" title="空欄なら案件の総重量" oninput="renderFclLcl()">
+          </div>
+          <div class="fl-cargo-now" id="flCargoNow">物量が未入力です（案件の貨物情報、または上の CBM を入れてください）。損益分岐CBMは物量なしでも出ます。</div>
+        </div>
+        <div class="fl-sec">
+          <div class="fl-sec-title">🚢 LCL（混載） <span class="fl-sub">通貨</span> <select id="fl-lcl-cur" class="fl-cur" onchange="renderFclLcl()"><option value="JPY">JPY</option><option value="USD" selected="">USD</option><option value="EUR">EUR</option><option value="CNY">CNY</option><option value="KRW">KRW</option><option value="SGD">SGD</option><option value="HKD">HKD</option><option value="GBP">GBP</option><option value="AUD">AUD</option><option value="TWD">TWD</option><option value="THB">THB</option><option value="VND">VND</option><option value="MYR">MYR</option><option value="IDR">IDR</option><option value="PHP">PHP</option><option value="INR">INR</option></select></div>
+          <div class="fl-grid">
+            <label>運賃 /RT</label><input type="number" id="fl-lcl-rate" class="fl-in" min="0" step="any" placeholder="例 60" title="" oninput="renderFclLcl()">
+            <label>諸チャージ /RT</label><input type="number" id="fl-lcl-perrt" class="fl-in" min="0" step="any" placeholder="CFS等 例 15" title="CFS charge など R/T 単位で掛かる費用" oninput="renderFclLcl()">
+            <label>固定費 /BL</label><input type="number" id="fl-lcl-fix" class="fl-in" min="0" step="any" placeholder="DOC等 例 100" title="B/L 1枚あたりの固定費用（ドキュメント費など）" oninput="renderFclLcl()">
+            <label>最低 R/T</label><input type="number" id="fl-lcl-min" class="fl-in" min="0" step="any" placeholder="1" title="LCL の最低課金R/T（既定 1）" oninput="renderFclLcl()">
+          </div>
+        </div>
+        <div class="fl-sec">
+          <div class="fl-sec-title">🚛 FCL（貸切） <span class="fl-sub">通貨</span> <select id="fl-fcl-cur" class="fl-cur" onchange="renderFclLcl()"><option value="JPY">JPY</option><option value="USD" selected="">USD</option><option value="EUR">EUR</option><option value="CNY">CNY</option><option value="KRW">KRW</option><option value="SGD">SGD</option><option value="HKD">HKD</option><option value="GBP">GBP</option><option value="AUD">AUD</option><option value="TWD">TWD</option><option value="THB">THB</option><option value="VND">VND</option><option value="MYR">MYR</option><option value="IDR">IDR</option><option value="PHP">PHP</option><option value="INR">INR</option></select></div>
+          <div class="fl-grid">
+            <label>20'GP /本</label><input type="number" id="fl-f20" class="fl-in" min="0" step="any" placeholder="運賃+諸費用" title="1本あたり（運賃＋THC等）" oninput="renderFclLcl()">
+            <label>40'GP /本</label><input type="number" id="fl-f40" class="fl-in" min="0" step="any" placeholder="運賃+諸費用" title="" oninput="renderFclLcl()">
+            <label>40'HQ /本</label><input type="number" id="fl-f40hq" class="fl-in" min="0" step="any" placeholder="運賃+諸費用" title="" oninput="renderFclLcl()">
+            <label>固定費 /BL</label><input type="number" id="fl-fcl-fix" class="fl-in" min="0" step="any" placeholder="DOC等 例 100" title="B/L 1枚あたりの固定費用" oninput="renderFclLcl()">
+          </div>
+        </div>
+        <div id="flResult" class="fl-result"><div class="fl-verdict is-warn">LCL の運賃/諸チャージと、FCL の1本あたり費用（20'/40'/40'HQ のいずれか）を入れると比較結果が出ます。</div></div>
+        </details>
+      </div></div></div></div></div></body></html>
