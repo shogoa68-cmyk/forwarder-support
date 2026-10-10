@@ -645,8 +645,8 @@
                     :                   '〜' + fmt(r.vt);
         return ` <span class="qd-validity">${esc(range)}</span>`;
       })();
-      const condNote = isCond ? ` <span class="qd-cond-note" style="color:#8a5a00;font-size:11px;font-weight:600;">${t('conditional')}</span>` : '';
-      const refNote  = isRef  ? ` <span class="qd-ref-note" style="color:#3a5a80;font-size:11px;font-weight:600;">${t('reference')}</span>` : '';
+      const condNote = isCond ? ` <span class="qd-cond-note" style="color:var(--doc-note-cond);font-size:var(--doc-fs-body);font-weight:600;">${t('conditional')}</span>` : '';
+      const refNote  = isRef  ? ` <span class="qd-ref-note" style="color:var(--doc-note-ref);font-size:var(--doc-fs-body);font-weight:600;">${t('reference')}</span>` : '';
       // 前回提示分から追加／変更された行をハイライト（uid で突き合わせ）
       const revMark = r.uid ? _revMarks[r.uid] : null;
       const revCls  = revMark === 'added' ? ' qd-row-added' : revMark === 'changed' ? ' qd-row-changed' : '';
@@ -659,7 +659,7 @@
           <td class="qd-num">${qtyDisp}</td>
           <td class="qd-ctr">${esc(r.un || '')}</td>
           <td class="qd-num">${unitDisp}</td>
-          <td class="qd-num">${isActual ? t('unpriced') : isCond ? '' : isRef ? '<span style="color:#8a95a5;">(¥' + fmtInt(jpy) + ')</span>' : estTag + '¥' + fmtInt(jpy)}</td>
+          <td class="qd-num">${isActual ? t('unpriced') : isCond ? '' : isRef ? '<span style="color:var(--doc-note-ref-amt);">(¥' + fmtInt(jpy) + ')</span>' : estTag + '¥' + fmtInt(jpy)}</td>
         </tr>`
       );
     });
@@ -676,7 +676,7 @@
       .join('');
     const fxMeta = (typeof getFxAuditMeta === 'function') ? getFxAuditMeta() : null;
     const fxMetaNote = fxMeta
-      ? `<div style="font-size:9px;color:#666;margin-top:4px;line-height:1.5;">${esc(fxMeta.fxLine)}<br>${esc(fxMeta.created)}</div>`
+      ? `<div style="font-size:var(--doc-fs-tiny);color:var(--doc-text-faint);margin-top:4px;line-height:1.5;">${esc(fxMeta.fxLine)}<br>${esc(fxMeta.created)}</div>`
       : '';
 
     const dateStr  = _fmtJpDate(hdr.date || _todayIso());
