@@ -15,7 +15,7 @@
      'cond-origin-country','cond-dest-country','z1Place','z1Country','z3Place','z3Country',
      'cond-container-count']
       .forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
-    ['cond-incoterms','cond-mode','cond-container-type','cond-hazmat']
+    ['cond-incoterms','cond-incoterms-ret','cond-mode','cond-container-type','cond-hazmat']
       .forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
     const _unkEl = document.getElementById('cond-cargo-unknown');
     if (_unkEl) _unkEl.checked = false;
@@ -83,6 +83,8 @@
       pol, pod, origin, dest, routes,
       // 「設定なし」（インコタームズを使わない案件）は出力では空扱い＝建値の行を出さない（必須チェックは別途、入力済み扱い）
       incoterms: (g('cond-incoterms') === '設定なし' ? '' : g('cond-incoterms')), mode: g('cond-mode'), container,
+      // 往復案件（輸出→輸入など）で、復路のインコタームズが往路と異なるときだけ入る（空＝往路と同じ）
+      incotermsRet: (dirIsRound(_currentDirection) && g('cond-incoterms-ret') !== '設定なし') ? g('cond-incoterms-ret') : '',
       cargo: g('cond-cargo'), hsCode: g('cond-hs'),
       hsBasic: g('cond-hs-basic'), hsPref: g('cond-hs-pref'), hsPrefNote: g('cond-hs-pref-note'),
       weight: (typeof window.getCargoWeightText === 'function')
@@ -3410,6 +3412,17 @@
     document.getElementById('zone3Subcon').textContent = isExport ? '現地代理店'   : '日本協力会社';
   }
 
+  /** 往復案件：復路のインコタームズ欄の表示と、各欄のラベル（往路／復路の方向つき）を切り替える */
+  function _applyIncotermsLegUi() {
+    const round = dirIsRound(_currentDirection);
+    const grp = document.getElementById('incoRetGroup');
+    if (grp) grp.hidden = !round;
+    const l1 = document.getElementById('incoLabel');
+    const l2 = document.getElementById('incoRetLabel');
+    if (l1) l1.textContent = round ? `🔖 往路（${dirLegName(_currentDirection, 'out')}）インコタームズ` : '🔖 インコタームズ';
+    if (l2) l2.textContent = `🔖 復路（${dirLegName(_currentDirection, 'ret')}）インコタームズ`;
+  }
+
   /** 輸出/輸入トグル */
   function setDirection(dir) {
     _currentDirection = dir;
@@ -3421,6 +3434,7 @@
     _applyZoneLabels();
     applyZoneState();
     _renderRouteEntries(true);   // 往復案件では航路チップに往路／復路ボタンを出す（表示のみ・保存データは触らない）
+    _applyIncotermsLegUi();
     if (typeof window.renderQuoteMilestones === 'function') window.renderQuoteMilestones();
   }
 

@@ -874,7 +874,9 @@
       ...routeFields,
       { lbl: dirFirstLeg(cond.direction) === 'export' ? '集荷地' : '発地', val: cond.origin },
       { lbl: '仕向地',          val: cond.dest },
-      { lbl: 'インコタームズ',  val: cond.incoterms },
+      ...(dirIsRound(cond.direction) && cond.incotermsRet && cond.incotermsRet !== cond.incoterms
+        ? [{ lbl: `インコタームズ 往路（${dirLegName(cond.direction, 'out')}）`, val: cond.incoterms }, { lbl: `インコタームズ 復路（${dirLegName(cond.direction, 'ret')}）`, val: cond.incotermsRet }]
+        : [{ lbl: 'インコタームズ',  val: cond.incoterms }]),
       { lbl: '輸送モード',      val: cond.mode },
       { lbl: 'コンテナ',        val: cond.container },
       { lbl: '貨物名',          val: cond.cargo },
@@ -941,7 +943,7 @@
       }
     }
 
-    const remarkText = getRemarkText();
+    const remarkText = getRemarkTextForOutput();   // 全体リマーク＋常時付記
     const remarkImgHtml = (typeof remarkImagesOutputHTML === 'function') ? remarkImagesOutputHTML('pv-remark-images') : '';
     const pvRemark = document.getElementById('pvRemarkBox');
     if (remarkText || remarkImgHtml) {
@@ -1515,7 +1517,7 @@
       lines.push('【作業範囲】');
       scopeTextTsv.split('\n').forEach(l => { if (l.trim()) lines.push(l); });
     }
-    const remarkText = getRemarkText();
+    const remarkText = getRemarkTextForOutput();   // 全体リマーク＋常時付記
     if (remarkText) {
       lines.push('');
       lines.push('【条件・リマーク】');
@@ -1784,7 +1786,10 @@
       : [['POL（積み地）', cExcel.pol], ['POD（揚げ地）', cExcel.pod]];
     const condPairs = [
       ...routePairs,
-      ['インコタームズ', cExcel.incoterms], ['輸送モード', cExcel.mode],
+      ...(dirIsRound(cExcel.direction) && cExcel.incotermsRet && cExcel.incotermsRet !== cExcel.incoterms
+        ? [[`インコタームズ 往路（${dirLegName(cExcel.direction, 'out')}）`, cExcel.incoterms], [`インコタームズ 復路（${dirLegName(cExcel.direction, 'ret')}）`, cExcel.incotermsRet]]
+        : [['インコタームズ', cExcel.incoterms]]),
+      ['輸送モード', cExcel.mode],
       ['コンテナ', cExcel.container], ['貨物名', cExcel.cargo],
     ].filter(([, v]) => v);
     if (condPairs.length) condPairs.forEach(([k, v]) => aoaRows.push([k, v]));
@@ -1855,7 +1860,7 @@
       scopeTextXls.split('\n').forEach(line => { if (line.trim()) aoaRows.push([line]); });
     }
     // 条件・リマーク
-    const remarkText = getRemarkText?.() || '';
+    const remarkText = (typeof getRemarkTextForOutput === 'function' ? getRemarkTextForOutput() : getRemarkText?.()) || '';
     if (remarkText) {
       aoaRows.push([]);
       aoaRows.push(['【条件・リマーク】']);

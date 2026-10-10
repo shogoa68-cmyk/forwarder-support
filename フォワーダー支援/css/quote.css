@@ -11206,3 +11206,18 @@ body.is-row-dragging { cursor: grabbing; user-select: none; }
 #tab-quote-make .z2-route-legbtn.is-out { border-style: solid; border-color: #4e7a3a; background: #eef5e8; color: #3a6a2a; }
 #tab-quote-make .z2-route-legbtn.is-ret { border-style: solid; border-color: #3a6aa0; background: #eaf1fa; color: #2a5a90; }
 #tab-quote-make .z2-route-legbtn:disabled { cursor: default; opacity: .6; }
+
+/* 品物別リマーク（区分プルダウン）・常時付記 */
+#tab-quote-make .remark-cargo-row { display: flex; align-items: center; gap: 8px; margin: 4px 0 8px; flex-wrap: wrap; }
+#tab-quote-make .remark-cargo-row label { font-size: 12px; font-weight: 700; color: #5a4a30; }
+#tab-quote-make .remark-cargo-row select { font-size: 12px; padding: 4px 8px; border: 1px solid #d8c8a8; border-radius: 6px; background: #fff; min-width: 260px; max-width: 100%; }
+#tab-quote-make .remark-cargo-del { font-size: 11px; padding: 2px 8px; border: 1px solid #d9b3a8; border-radius: 6px; background: #fff; color: #a04a35; cursor: pointer; }
+#tab-quote-make .remark-fixed-box { margin: 8px 0; padding: 8px 10px; border: 1px dashed #b9a98a; border-radius: 6px; background: #fbf8f0; font-size: 12px; }
+#tab-quote-make .rfx-head { display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; margin-bottom: 4px; }
+#tab-quote-make .rfx-sub { font-size: 10.5px; color: #8a7a5c; }
+#tab-quote-make .rfx-empty { font-size: 11px; color: #8a7a5c; margin: 2px 0 6px; }
+#tab-quote-make .rfx-item { display: flex; align-items: center; gap: 8px; padding: 3px 0; border-bottom: 1px solid #efe6d2; }
+#tab-quote-make .rfx-lbl { font-weight: 700; color: #4a3a20; white-space: nowrap; }
+#tab-quote-make .rfx-txt { flex: 1; color: #6a5a40; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#tab-quote-make .rfx-del { border: none; background: none; color: #a04a35; cursor: pointer; font-size: 13px; }
+#tab-quote-make .rfx-add { margin-top: 6px; font-size: 12px; padding: 3px 8px; border: 1px solid #d8c8a8; border-radius: 6px; background: #fff; max-width: 100%; }

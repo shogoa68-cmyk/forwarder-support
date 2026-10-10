@@ -130,7 +130,8 @@
       .filter(Boolean);
 
     // 条件・リマーク欄（下部テキストエリア）を行単位で追加
-    const globalRemarkRaw = (typeof getRemarkText === 'function') ? getRemarkText()
+    const globalRemarkRaw = (typeof getRemarkTextForOutput === 'function') ? getRemarkTextForOutput()   // 常時付記を含む
+      : (typeof getRemarkText === 'function') ? getRemarkText()
       : (document.getElementById('remarkTextarea')?.value || '');
     const globalRemarkLines = globalRemarkRaw
       .split('\n')

@@ -109,6 +109,8 @@
     noPattern:      ['（パターン未設定）', '(No pattern)'],
     noSubcon:       ['（サブコン未設定）', '(No subcontractor)'],
     noCategory:     ['— カテゴリ —', '— Uncategorized —'],
+    outbound:       ['往路', 'Outbound'],
+    returnLeg:      ['復路', 'Return'],
     cmpTitle:       ['■ 御見積案の比較', '■ Quotation Options'],
     cmpPlan:        ['案', 'Option'],
     cmpContent:     ['内容', 'Description'],
@@ -349,7 +351,14 @@
     const meta = [];
     const push = (k, v) => { if (v) meta.push([k, v]); };
 
-    push(t('incoterms'), _incotermsDisp(cond.incoterms));
+    // 往復案件で復路のインコタームズが往路と異なるときは、往路・復路を分けて出す
+    if (dirIsRound(cond.direction) && cond.incotermsRet && cond.incotermsRet !== cond.incoterms) {
+      const _lg = leg => (leg === 'out' ? t('outbound') : t('returnLeg')) + (_curLangEn ? ` (${dirLegName(cond.direction, leg, true)})` : `（${dirLegName(cond.direction, leg, false)}）`);
+      if (cond.incoterms) push(`${t('incoterms')}　${_lg('out')}`, _incotermsDisp(cond.incoterms));
+      push(`${t('incoterms')}　${_lg('ret')}`, _incotermsDisp(cond.incotermsRet));
+    } else {
+      push(t('incoterms'), _incotermsDisp(cond.incoterms));
+    }
     // 航路：1件以上の登録があれば航路ごとに via・キャリア・サービス名を含めて全件併記
     if (_hasRoutes) {
       (_legItems || cond.routes.map((r, i) => ({ r, label: cond.routes.length === 1 ? t('route') : `${t('route')} ${i + 1}` }))).forEach(({ r, label }) => {
@@ -755,6 +764,13 @@
         if (!rt && !imgHtml) return '';
         const bodyHtml = rt ? `<div class="qd-remark-body">${nl2brLink(rt)}</div>` : '';
         return `<div class="qd-remark-block"><div class="qd-remark-ttl">${t('remarksTitle')}</div>${bodyHtml}${imgHtml}</div>`;
+      })()}
+      ${(() => {
+        // 常時付記：全体リマークの下に固定で出す（設定は「全体リマーク」欄の📎常時付記）
+        let fx = (typeof window.getFixedRemarkText === 'function') ? window.getFixedRemarkText() : '';
+        if (!fx) return '';
+        if (_curLangEn && typeof window.translateRemarkToEn === 'function') fx = window.translateRemarkToEn(fx);
+        return `<div class="qd-remark-block qd-remark-fixed"><div class="qd-remark-body">${nl2brLink(fx)}</div></div>`;
       })()}
       ${(() => {
         const diff = _revDiff;

@@ -11,7 +11,6 @@
     { label: '🛡️ 貨物保険',       text: '貨物保険料は含まれておりません。付保をご希望の場合は別途ご相談ください。', en: 'Cargo insurance is not included. Please contact us separately if you wish to arrange coverage.' },
     { label: '⚓ 港湾混雑',        text: '港湾混雑・ストライキ・天災等による遅延・追加費用は含まれておりません。', en: 'Delays and additional costs caused by port congestion, strikes, natural disasters, etc. are not included.' },
     { label: '☣️ 危険品',         text: '危険品・温度管理貨物・特殊貨物については別途ご相談ください。条件が異なります。', en: 'Please consult us separately for dangerous goods, temperature-controlled cargo, and special cargo, as different conditions apply.' },
-    { label: '💊 薬機法（医療機器・健康効果）', text: '【薬機法に関するご注意】\n医療機器・医薬品・医薬部外品・化粧品、および健康効果・治療効果等を標榜する商品（健康器具・マッサージ器・サプリメント類等を含む）を日本へ輸入する場合、「医薬品、医療機器等の品質、有効性及び安全性の確保等に関する法律（薬機法）」の規制対象となることがあります。\n・商品の形状・成分・表示や広告上の効能効果の標榜内容により、医療機器等に該当すると判断される場合があります。該当の可否は、輸入前に所管の地方厚生局等へご確認ください。\n・事業として輸入する場合、製造販売業の許可、製品の承認・認証・届出、外国製造業者の登録等が必要となることがあり、通関時に関係書類の提示を求められます。\n・必要な許認可・書類が整わない貨物は、輸入が認められず、積み戻し・廃棄となる場合があります。これに伴う保管料・デマレージ・ディテンション等の追加費用は、荷主様のご負担となります。\n・当社は、薬機法上の該当性・適法性について判断・保証を行うものではありません。', en: '[Notice regarding the Pharmaceuticals and Medical Devices Act (PMD Act)]\nImporting medical devices, pharmaceuticals, quasi-drugs, cosmetics, or products that claim health or therapeutic benefits (including health appliances, massagers and supplements) into Japan may be subject to the Act on Securing Quality, Efficacy and Safety of Products including Pharmaceuticals and Medical Devices (PMD Act).\n- Depending on the product\'s form, ingredients, labeling and the efficacy claims made in labeling or advertising, it may be classified as a medical device or similar product. Please confirm with the competent Regional Bureau of Health and Welfare before importing.\n- When importing for business purposes, a marketing business license, product approval/certification/notification, and registration of the foreign manufacturer may be required, and related documents may be requested at customs clearance.\n- Cargo for which the required licenses or documents are not in place may be refused import and be re-shipped or destroyed. Any resulting storage charges, demurrage, detention and other additional costs will be borne by the shipper.\n- We do not determine or guarantee whether a product falls under, or complies with, the PMD Act.' },
     { label: '🔄 条件変更',        text: '貨物の内容・数量・仕向地等に変更が生じた場合は再見積となります。', en: 'A re-quotation will be required if there are any changes to the cargo description, quantity, destination, etc.' },
     { label: '📋 書類締切',        text: 'B/L・AWB等の書類提出締め切りは船会社・航空会社の指定期日に従います。遅延の場合は追加費用が発生します。', en: 'The deadline for submitting documents such as B/L and AWB follows the date specified by the carrier or airline. Additional charges will apply for late submission.' },
     { label: '🏦 支払条件',        text: '支払いは請求書発行後30日以内とします。期日を超過した場合、法定利率（民法所定）による遅延損害金が発生します。（※社内標準条件に書き換えてからご使用ください）', en: 'Payment is due within 30 days after the invoice is issued. If payment is overdue, delay damages will accrue at the statutory interest rate under the Japanese Civil Code. (Note: Please replace with our standard terms before use.)' },
@@ -25,7 +24,7 @@
   // 長い定型文（複数行）から先に置換する
   function translateRemarkToEn(text) {
     let out = String(text == null ? '' : text);
-    PRESETS.filter(p => p.en).sort((a, b) => b.text.length - a.text.length)
+    PRESETS.concat(_allBuiltinCargoRemarks()).filter(p => p.en).sort((a, b) => b.text.length - a.text.length)
       .forEach(p => { if (out.includes(p.text)) out = out.split(p.text).join(p.en); });
     return out;
   }
@@ -77,18 +76,102 @@
     localStorage.setItem(USER_REMARK_PRESETS_KEY, JSON.stringify(arr));
   }
 
-  // ----- 貨物種別リマーク -----
-  // 「試しにまず自動車から」の方針で1件だけ定義。他の貨物種別に広げるときは
-  // ここへ追記するだけでよい。判定は品名（cond-cargo）に含まれるキーワードで
-  // 行う簡易版（構造化された貨物種別フィールドが無いため）。
+  // ----- 品物別リマーク（貨物種別） -----
+  // 全体リマーク欄の「📦 品物別リマーク」プルダウンで区分を選ぶと、その区分のリマークボタンだけが出る
+  // （常にすべてを並べると画面が煩雑になるため、必要なときだけ選んで表示する）。
+  //  ・標準の区分（下の CARGO_TYPE_DEFS）：自動車／医療機器・健康効果。builtin は標準で付く定型文
+  //  ・ユーザーが「＋ 区分を追加」で作る区分（個人・localStorage）
+  //  ・各区分のリマークは、チーム共有（Supabase remark_presets.cargo_type）／個人（localStorage）／標準 の3種
+  //  ・選択中の区分は案件ごとに保存（#remarkCargoSel）。未選択のとき、品名が keywords に一致すれば自動で選ぶ
   const CARGO_TYPE_DEFS = [
     { key: '自動車', label: '🚗 自動車', keywords: ['自動車'] },
+    { key: '医療機器・健康効果', label: '💊 医療機器・健康効果',
+      keywords: ['医療機器', '健康器具', '治療器', 'マッサージ', 'サプリ', '化粧品', '医薬', '美容機器', '低周波'],
+      builtin: [
+        { label: '💊 薬機法（輸入時の注意）',
+          text: '【薬機法に関するご注意】\n医療機器・医薬品・医薬部外品・化粧品、および健康効果・治療効果等を標榜する商品（健康器具・マッサージ器・サプリメント類等を含む）を日本へ輸入する場合、「医薬品、医療機器等の品質、有効性及び安全性の確保等に関する法律（薬機法）」の規制対象となることがあります。\n・商品の形状・成分・表示や広告上の効能効果の標榜内容により、医療機器等に該当すると判断される場合があります。該当の可否は、輸入前に所管の地方厚生局等へご確認ください。\n・事業として輸入する場合、製造販売業の許可、製品の承認・認証・届出、外国製造業者の登録等が必要となることがあり、通関時に関係書類の提示を求められます。\n・必要な許認可・書類が整わない貨物は、輸入が認められず、積み戻し・廃棄となる場合があります。これに伴う保管料・デマレージ・ディテンション等の追加費用は、荷主様のご負担となります。\n・当社は、薬機法上の該当性・適法性について判断・保証を行うものではありません。',
+          en: '[Notice regarding the Pharmaceuticals and Medical Devices Act (PMD Act)]\nImporting medical devices, pharmaceuticals, quasi-drugs, cosmetics, or products that claim health or therapeutic benefits (including health appliances, massagers and supplements) into Japan may be subject to the Act on Securing Quality, Efficacy and Safety of Products including Pharmaceuticals and Medical Devices (PMD Act).\n- Depending on the product\'s form, ingredients, labeling and the efficacy claims made in labeling or advertising, it may be classified as a medical device or similar product. Please confirm with the competent Regional Bureau of Health and Welfare before importing.\n- When importing for business purposes, a marketing business license, product approval/certification/notification, and registration of the foreign manufacturer may be required, and related documents may be requested at customs clearance.\n- Cargo for which the required licenses or documents are not in place may be refused import and be re-shipped or destroyed. Any resulting storage charges, demurrage, detention and other additional costs will be borne by the shipper.\n- We do not determine or guarantee whether a product falls under, or complies with, the PMD Act.' },
+      ] },
   ];
+  const USER_CARGO_TYPES_KEY   = 'quoteCargoTypesUser_v1';     // [{ key, label }]
+  const USER_CARGO_REMARKS_KEY = 'quoteCargoRemarksUser_v1';   // [{ type, label, text }]
+  function _lsGet(k) { try { return JSON.parse(localStorage.getItem(k) || '[]'); } catch (e) { return []; } }
+  function getUserCargoTypes() { return _lsGet(USER_CARGO_TYPES_KEY).filter(t => t && t.key); }
+  function getUserCargoRemarks() { return _lsGet(USER_CARGO_REMARKS_KEY).filter(r => r && r.type && r.text); }
+  function getAllCargoTypes() {
+    const keys = new Set(CARGO_TYPE_DEFS.map(d => d.key));
+    const user = getUserCargoTypes().filter(t => !keys.has(t.key)).map(t => ({ key: t.key, label: '📦 ' + t.label, keywords: [], _user: true }));
+    return [...CARGO_TYPE_DEFS, ...user];
+  }
+  function _allBuiltinCargoRemarks() { return CARGO_TYPE_DEFS.flatMap(d => d.builtin || []); }
   function _cargoTypeMatches(def) {
     const cargoText = (document.getElementById('cond-cargo')?.value || '').trim();
     if (!cargoText) return false;
-    return def.keywords.some(kw => cargoText.includes(kw));
+    return (def.keywords || []).some(kw => cargoText.includes(kw));
   }
+  function _selectedCargoType() { return document.getElementById('remarkCargoSel')?.value || ''; }
+  // 区分に属するリマーク（標準＋チーム共有＋個人）
+  function getCargoTypeItems(key) {
+    const def = getAllCargoTypes().find(d => d.key === key);
+    if (!def) return [];
+    return [
+      ...(def.builtin || []).map(p => ({ ...p, _cargoType: true, _builtin: true })),
+      ..._sharedRemarkPresets.filter(p => p.cargo_type === key).map(p => ({ ...p, _cargoType: true })),
+      ...getUserCargoRemarks().filter(r => r.type === key).map(r => ({ label: r.label, text: r.text, _cargoType: true, _cargoLocal: true, _cargoKey: key })),
+    ];
+  }
+  // プルダウンの選択肢を作り直す（選択値は保つ）
+  function fillCargoTypeSelect() {
+    const sel = document.getElementById('remarkCargoSel');
+    if (!sel) return;
+    const cur = sel.value;
+    sel.innerHTML = '<option value="">（区分を選ぶと、その品物のリマークを表示）</option>' +
+      getAllCargoTypes().map(d => `<option value="${escapeHtml(d.key)}">${escapeHtml(d.label)}</option>`).join('') +
+      '<option value="__add__">＋ 区分を追加…</option>';
+    sel.value = getAllCargoTypes().some(d => d.key === cur) ? cur : '';
+    const del = document.getElementById('remarkCargoDel');
+    if (del) del.hidden = !getUserCargoTypes().some(t => t.key === sel.value);
+  }
+  function onRemarkCargoSelChange(sel) {
+    if (sel.value === '__add__') {
+      const name = (prompt('品物の区分名を入力してください（例：食品、化学品、リチウム電池）') || '').trim();
+      sel.value = '';
+      if (name) {
+        const all = getAllCargoTypes();
+        if (!all.some(d => d.key === name)) {
+          const arr = getUserCargoTypes(); arr.push({ key: name, label: name });
+          localStorage.setItem(USER_CARGO_TYPES_KEY, JSON.stringify(arr));
+        }
+        fillCargoTypeSelect();
+        sel.value = name;
+      } else { fillCargoTypeSelect(); }
+    }
+    const del = document.getElementById('remarkCargoDel');
+    if (del) del.hidden = !getUserCargoTypes().some(t => t.key === sel.value);
+    renderRemarkPresets();
+    if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
+  }
+  function deleteRemarkCargoType() {
+    const key = _selectedCargoType();
+    const t = getUserCargoTypes().find(x => x.key === key);
+    if (!t) return;
+    if (!confirm(`区分「${t.label}」と、その個人リマークを削除しますか？（チーム共有のリマークは残ります）`)) return;
+    localStorage.setItem(USER_CARGO_TYPES_KEY, JSON.stringify(getUserCargoTypes().filter(x => x.key !== key)));
+    localStorage.setItem(USER_CARGO_REMARKS_KEY, JSON.stringify(getUserCargoRemarks().filter(r => r.type !== key)));
+    const sel = document.getElementById('remarkCargoSel'); if (sel) sel.value = '';
+    fillCargoTypeSelect(); renderRemarkPresets();
+    if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
+    quoteShowToast(`🗑️ 区分「${t.label}」を削除しました`, 'info');
+  }
+  function deleteUserCargoRemark(type, label) {
+    if (!confirm(`「${label}」を削除しますか？`)) return;
+    localStorage.setItem(USER_CARGO_REMARKS_KEY, JSON.stringify(getUserCargoRemarks().filter(r => !(r.type === type && r.label === label))));
+    renderRemarkPresets();
+    quoteShowToast(`🗑️ 「${label}」を削除しました`, 'info');
+  }
+  window.onRemarkCargoSelChange = onRemarkCargoSelChange;
+  window.deleteRemarkCargoType = deleteRemarkCargoType;
+  window.fillCargoTypeSelect = fillCargoTypeSelect;
 
   // ----- プリセット確認（検証）記録（bookmark_verifications と同じ考え方） -----
   let _remarkVerif   = {};   // { preset_id: [{ checked_by, checked_at }] }
@@ -201,6 +284,13 @@
     const labelEl = document.getElementById('rpFormLabel');
     const textEl  = document.getElementById('rpFormText');
     if (labelEl) { labelEl.value = ''; labelEl.placeholder = labelPlaceholder || '例：📄 特別条件'; }
+    // 品物別リマークの追加時だけ、保存先（共有／個人）の選択を出す。未ログインは個人固定
+    const isCargo = !!(scope && typeof scope === 'object' && scope.cargoType);
+    const loggedIn = !!(window.quoteCloudUser && window.quoteCloudUser());
+    const destRow = document.getElementById('rpDestRow');
+    const personal = document.getElementById('rpFormPersonal');
+    if (destRow) destRow.hidden = !isCargo;
+    if (personal) { personal.checked = isCargo && !loggedIn; personal.disabled = !loggedIn; }
     if (textEl) textEl.value = '';
     document.getElementById('remarkPresetModal')?.classList.add('open');
     setTimeout(() => labelEl?.focus(), 50);
@@ -216,6 +306,18 @@
     if (!label) { quoteShowToast('⚠️ ラベル名を入力してください', 'warn'); return; }
     if (!text)  { quoteShowToast('⚠️ 本文を入力してください', 'warn'); return; }
     const scope = _rpModalScope;
+
+    // 品物別リマーク：個人（この端末）に保存
+    if (scope && typeof scope === 'object' && scope.cargoType && document.getElementById('rpFormPersonal')?.checked) {
+      const arr = getUserCargoRemarks();
+      if (arr.some(r => r.type === scope.cargoType && r.label === label)) { quoteShowToast('⚠️ 同名のラベルが既にあります', 'warn'); return; }
+      arr.push({ type: scope.cargoType, label, text });
+      localStorage.setItem(USER_CARGO_REMARKS_KEY, JSON.stringify(arr));
+      renderRemarkPresets();
+      quoteShowToast(`✅ 「${label}」を「${scope.cargoLabel}」に追加しました（個人）`, 'success');
+      closeRemarkPresetModal();
+      return;
+    }
 
     if (scope === 'user') {
       const arr = getUserRemarkPresets();
@@ -253,9 +355,8 @@
 
   // 貨物種別プリセットを共有に追加
   function addCargoTypeRemarkPreset(cargoType, cargoLabel) {
-    const user = window.quoteCloudUser && window.quoteCloudUser();
-    if (!user) { quoteShowToast('⚠️ ログインが必要です', 'warn'); return; }
-    _openRemarkPresetModal({ cargoType, cargoLabel }, `${cargoLabel} プリセットを追加`, '例：🚗 危険物該当の可能性');
+    // ログイン中は「チーム共有／個人」を選べる（既定は共有）。未ログインは個人（この端末のみ）に保存
+    _openRemarkPresetModal({ cargoType, cargoLabel }, `${cargoLabel} のリマークを追加`, '例：🚗 危険物該当の可能性');
   }
 
   function addSharedRemarkPreset() {
@@ -288,7 +389,7 @@
     }
   }
 
-  // 全プリセット = 貨物種別（現在の品名と一致するものだけ）+ 固定 + チーム人気（use_count>=5）
+  // 全プリセット = 貨物種別（プルダウンで選択中の区分）+ 固定 + チーム人気（use_count>=5）
   //              + チーム共有 + 個人定義
   // 貨物種別プリセットは cargo_type 列を持つ行だけを対象にし、一般の
   // チーム人気／チーム共有からは除外する（専用タブにだけ出す）。
@@ -296,14 +397,14 @@
     const general  = _sharedRemarkPresets.filter(p => !p.cargo_type);
     const promoted = general.filter(p => p.use_count >= 5).map(p => ({ ...p, _promoted: true, _shared: true }));
     const shared   = general.filter(p => p.use_count < 5).map(p => ({ ...p, _shared: true }));
-    const cargoAll = CARGO_TYPE_DEFS
-      .filter(def => _cargoTypeMatches(def))
-      .flatMap(def => _sharedRemarkPresets.filter(p => p.cargo_type === def.key).map(p => ({ ...p, _cargoType: true })));
+    const cargoAll = getCargoTypeItems(_selectedCargoType());   // 「品物別リマーク」で選択中の区分のみ
     return [...cargoAll, ...PRESETS, ...promoted, ...shared, ...getUserRemarkPresets().map(p => ({ ...p, _user: true }))];
   }
 
   function initRemarks() {
+    fillCargoTypeSelect();
     renderRemarkPresets();
+    renderFixedRemarks();
     document.getElementById('remarkTextarea').addEventListener('input', updateRemarkChar);
     document.getElementById('remarkTextarea').addEventListener('paste', _onRemarkTextareaPaste);
     updateRemarkChar();
@@ -312,7 +413,14 @@
     // 品名（貨物種別の判定材料）が変わるたびに、貨物種別プリセットタブの
     // 表示・非表示を切り替える
     const cargoEl = document.getElementById('cond-cargo');
-    if (cargoEl) cargoEl.addEventListener('input', renderRemarkPresets);
+    if (cargoEl) cargoEl.addEventListener('input', () => {
+      // 区分が未選択のときだけ、品名に合う区分を自動で選ぶ（選び直した区分は上書きしない）
+      const sel = document.getElementById('remarkCargoSel');
+      if (sel && !sel.value) {
+        const hit = getAllCargoTypes().find(d => _cargoTypeMatches(d));
+        if (hit) { sel.value = hit.key; const del = document.getElementById('remarkCargoDel'); if (del) del.hidden = !hit._user; renderRemarkPresets(); }
+      }
+    });
   }
 
   function renderRemarkPresets() {
@@ -342,13 +450,22 @@
       const lbl = document.createElement('span');
       lbl.textContent = p.label;
       btn.appendChild(lbl);
-      if (p._cargoType && p.id) btn.appendChild(_remarkVerifyBadge(p.id));
+      if (p._cargoType && p.id && !p._builtin) btn.appendChild(_remarkVerifyBadge(p.id));
       if (p._user) {
         const x = document.createElement('span');
         x.className = 'preset-btn-del'; x.textContent = '✕';
         x.title = 'このプリセットを削除';
         x.onclick = (e) => { e.stopPropagation(); deleteUserRemarkPreset(p.label); };
         btn.appendChild(x);
+      } else if (p._cargoLocal) {
+        const x = document.createElement('span');
+        x.className = 'preset-btn-del'; x.textContent = '✕';
+        x.title = 'このリマークを削除（個人）';
+        const ck = p._cargoKey, cl = p.label;
+        x.onclick = (e) => { e.stopPropagation(); deleteUserCargoRemark(ck, cl); };
+        btn.appendChild(x);
+      } else if (p._builtin) {
+        // 標準の定型文は削除できない
       } else if (p._shared || p._cargoType) {
         const x = document.createElement('span');
         x.className = 'preset-btn-del'; x.textContent = '✕';
@@ -363,20 +480,17 @@
 
     let idx = 0;
 
-    // ⓪ 貨物種別（現在の品名と一致するものだけ・最優先で表示）
-    for (const def of CARGO_TYPE_DEFS) {
-      if (!_cargoTypeMatches(def)) continue;
-      const items = _sharedRemarkPresets.filter(p => p.cargo_type === def.key);
-      if (!items.length && !isLoggedIn) continue;   // 何も出せない（空タブ＋追加ボタンも無い）なら見出しごと省く
-      addTierLabel(def.label + '（貨物種別の推奨リマーク）');
-      for (const p of items) wrap.appendChild(makeBtn({ ...p, _cargoType: true }, idx++));
-      if (isLoggedIn) {
-        const ab = document.createElement('button');
-        ab.className = 'preset-btn preset-btn-add';
-        ab.textContent = '＋ ' + def.label + 'に追加';
-        ab.onclick = () => addCargoTypeRemarkPreset(def.key, def.label);
-        wrap.appendChild(ab);
-      }
+    // ⓪ 品物別リマーク（プルダウンで選んだ区分のぶんだけ表示）
+    const selKey = _selectedCargoType();
+    const selDef = getAllCargoTypes().find(d => d.key === selKey);
+    if (selDef) {
+      addTierLabel(selDef.label + '（品物別リマーク）');
+      for (const p of getCargoTypeItems(selKey)) wrap.appendChild(makeBtn(p, idx++));
+      const ab = document.createElement('button');
+      ab.className = 'preset-btn preset-btn-add';
+      ab.textContent = '＋ ' + selDef.label + 'に追加';
+      ab.onclick = () => addCargoTypeRemarkPreset(selDef.key, selDef.label);
+      wrap.appendChild(ab);
     }
 
     // ① 標準
@@ -423,6 +537,9 @@
     pb.textContent = '＋ 個人に追加';
     pb.onclick = () => addUserRemarkPreset();
     wrap.appendChild(pb);
+    wrap.dataset.rendered = selKey;
+    syncRemarkChips();
+    if (typeof renderFixedRemarks === 'function') renderFixedRemarks();   // 共有プリセットの読込・追加削除に追随
   }
 
   function addUserRemarkPreset() {
@@ -484,13 +601,18 @@
   function syncRemarkChips() {
     const ta = document.getElementById('remarkTextarea');
     if (!ta) return;
+    // 案件の読込直後など、表示中の区分がプルダウンの選択とずれていれば先に描き直す（描き直し側から再入しない）
+    const wrapEl = document.getElementById('presetBtns');
+    if (wrapEl && (wrapEl.dataset.rendered || '') !== _selectedCargoType()) { fillCargoTypeSelect(); renderRemarkPresets(); return; }
     const lines = ta.value.split('\n').map(l => l.trim()).filter(Boolean);
     const all = getAllRemarkPresets();
     document.querySelectorAll('#presetBtns .preset-btn[data-index]').forEach(btn => {
       const idx = parseInt(btn.dataset.index, 10);
       const preset = all[idx];
       if (!preset?.text) { btn.classList.remove('active'); return; }
-      btn.classList.toggle('active', lines.includes(preset.text.trim()));
+      const _pt = preset.text.trim();
+      // 複数行の定型文は1行ずつの照合では見つからないため、本文ごと含まれているかで判定する
+      btn.classList.toggle('active', lines.includes(_pt) || (_pt.includes('\n') && ta.value.includes(_pt)));
     });
   }
   window.syncRemarkChips = syncRemarkChips;
@@ -498,6 +620,86 @@
   function getRemarkText() {
     return document.getElementById('remarkTextarea')?.value.trim() || '';
   }
+
+  // ----- 常時付記（すべての見積書で、全体リマークの下に自動で付く定型文） -----
+  // 毎回ボタンを押さなくても、標準取引条件（JIFFA）のような「必ず付けたい文」が出力の末尾に付く。
+  // 設定はこのブラウザに保存（案件には保存しない＝全案件に共通）。全体リマーク欄に同じ文が既に入っていれば重複させない。
+  const FIXED_REMARKS_KEY = 'quoteFixedRemarks_v1';   // [{ label, text }]
+  function getFixedRemarks() { return _lsGet(FIXED_REMARKS_KEY).filter(f => f && f.text); }
+  function saveFixedRemarks(arr) { localStorage.setItem(FIXED_REMARKS_KEY, JSON.stringify(arr)); }
+  // 常時付記に選べる文：標準・品物別（全区分）・共有・個人。本文が同じものは1つにまとめる
+  function _pinnablePresets() {
+    const all = [
+      ...PRESETS, ..._allBuiltinCargoRemarks(),
+      ...getAllCargoTypes().flatMap(d => getCargoTypeItems(d.key)),
+      ..._sharedRemarkPresets.filter(p => !p.cargo_type),
+      ...getUserRemarkPresets(),
+    ];
+    const seen = new Set();
+    return all.filter(p => p && p.text && p.label && !seen.has(p.text.trim()) && seen.add(p.text.trim()));
+  }
+  function getFixedRemarkText() {
+    const body = getRemarkText();
+    return getFixedRemarks().map(f => f.text.trim()).filter(t => t && !body.includes(t)).join('\n\n');
+  }
+  // 客先向け出力（プレビュー・メール・Excel 等）に載せる全体リマーク＝入力欄の本文＋常時付記
+  function getRemarkTextForOutput() {
+    return [getRemarkText(), getFixedRemarkText()].filter(Boolean).join('\n\n');
+  }
+  window.getFixedRemarkText = getFixedRemarkText;
+  window.getRemarkTextForOutput = getRemarkTextForOutput;
+
+  function renderFixedRemarks() {
+    const box = document.getElementById('remarkFixedBox');
+    if (!box) return;
+    const fixed = getFixedRemarks();
+    const pinned = new Set(fixed.map(f => f.text.trim()));
+    const opts = _pinnablePresets().filter(p => !pinned.has(p.text.trim()));
+    const items = fixed.map((f, i) =>
+      `<div class="rfx-item"><span class="rfx-lbl">${escapeHtml(f.label)}</span>` +
+      `<span class="rfx-txt" title="${escapeHtml(f.text)}">${escapeHtml(f.text.replace(/\s+/g, ' ').slice(0, 70))}${f.text.length > 70 ? '…' : ''}</span>` +
+      `<button type="button" class="rfx-del" onclick="unpinFixedRemark(${i})" title="常時付記から外す">✕</button></div>`).join('');
+    box.innerHTML =
+      `<div class="rfx-head"><b>📎 常時付記</b><span class="rfx-sub">すべての見積書の、全体リマークの下に自動で付きます（このブラウザの設定）</span></div>` +
+      (items || '<div class="rfx-empty">設定なし。必ず付けたい文（標準取引条件など）を下から選んで追加できます。</div>') +
+      `<select class="rfx-add" onchange="pinFixedRemark(this.value); this.value=''">` +
+      `<option value="">＋ 常時付記に追加…</option>` +
+      opts.map(p => `<option value="${escapeHtml(p.text.trim())}" data-label="${escapeHtml(p.label)}">${escapeHtml(p.label)}</option>`).join('') +
+      `</select>`;
+  }
+  function pinFixedRemark(text) {
+    if (!text) return;
+    const opt = [...document.querySelectorAll('#remarkFixedBox .rfx-add option')].find(o => o.value === text);
+    const arr = getFixedRemarks();
+    if (arr.some(f => f.text.trim() === text)) return;
+    arr.push({ label: opt?.dataset.label || '付記', text });
+    saveFixedRemarks(arr);
+    renderFixedRemarks();
+    quoteShowToast(`📎 「${opt?.dataset.label || '付記'}」を常時付記に追加しました`, 'success');
+  }
+  function unpinFixedRemark(i) {
+    const arr = getFixedRemarks();
+    const f = arr[i]; if (!f) return;
+    arr.splice(i, 1); saveFixedRemarks(arr);
+    renderFixedRemarks();
+    quoteShowToast(`「${f.label}」を常時付記から外しました`, 'info');
+  }
+  window.pinFixedRemark = pinFixedRemark;
+  window.unpinFixedRemark = unpinFixedRemark;
+  window.renderFixedRemarks = renderFixedRemarks;
+
+  // ----- 基幹システム REF#（受注・手配した案件の紐付け） -----
+  // 英数字（と - _ / .）だけを受け付ける。全角は半角へ、空白は除去。使えない文字は取り除いて知らせる。
+  function normalizeCoreRef(el) {
+    if (!el) return;
+    const raw = String(el.value || '');
+    const norm = raw.normalize('NFKC').replace(/\s+/g, '');
+    const clean = norm.replace(/[^A-Za-z0-9\-_\/.]/g, '');
+    if (clean !== raw) el.value = clean;
+    if (clean !== norm) quoteShowToast('⚠️ 基幹REF#に使えない文字（英数字・- _ / . 以外）を取り除きました', 'warn', 3500);
+    el.dispatchEvent(new Event('input', { bubbles: true }));
+  }
+  window.normalizeCoreRef = normalizeCoreRef;
 
   // ----- 全体リマーク：添付画像（見積書出力にも表示） -----
   // リサイズ・JPEG圧縮してから data URL のまま案件データに含める
@@ -1668,6 +1870,7 @@
     // 発番ID取得済みなら新REF#をコピー時点で採番（未取得の場合はコピー元番号を保持）
     const newRef = typeof generateQuoteRefValue === 'function' ? generateQuoteRefValue() : null;
     if (newRef) newData.fields['qf-ref'] = newRef;
+    delete newData.fields['qf-core-ref'];   // 基幹REF#は手配した案件に固有のため、コピーには引き継がない
     let baseName = src.name + ' のコピー';
     let copyName = baseName;
     let n = 2;
@@ -3821,6 +4024,7 @@
     // 引き合い条件
     const condParts = [];
     const inco = g('cond-incoterms'); if (inco && inco !== '設定なし') condParts.push(inco);
+    const incoRet = g('cond-incoterms-ret'); if (incoRet && incoRet !== '設定なし' && dirIsRound(_currentDirection)) condParts.push('復路 ' + incoRet);
     if (typeof _currentDirection !== 'undefined' && _currentDirection) {
       condParts.push(dirLabel(_currentDirection));
     }

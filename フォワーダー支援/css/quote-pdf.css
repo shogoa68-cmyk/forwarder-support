@@ -347,3 +347,5 @@
 .qd-cmp-table { table-layout: fixed; width: 100%; }
 .qd-cmp-table th:nth-child(1) { width: 26%; }
 .qd-cmp-table th:nth-child(3) { width: 24%; }
+
+.qd-remark-fixed { margin-top: 10px; }
