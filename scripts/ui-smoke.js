@@ -112,6 +112,18 @@ async function main() {
     if (target) await page.locator(target).first().screenshot(opts); else await page.screenshot(opts);
   };
 
+  // 御見積書は、画面の枠に収まらない長さになるため、文書だけを別の領域に描き出して全体を撮る
+  const docShot = async name => {
+    if (!shotsDir) return;
+    await page.evaluate(() => {
+      let box = document.getElementById('docShotBox');
+      if (!box) { box = document.createElement('div'); box.id = 'docShotBox'; box.style.cssText = 'position:absolute;left:0;top:0;z-index:2147483000;background:#fff;'; document.body.appendChild(box); }
+      box.innerHTML = buildQuoteDocHTML();
+    });
+    await shot(name, '#docShotBox');
+    await page.evaluate(() => document.getElementById('docShotBox')?.remove());
+  };
+
   await page.goto(base + SITE_URL_PATH, { waitUntil: 'domcontentloaded' });
   await page.addStyleTag({ content: '*{caret-color:transparent!important;} *,*::before,*::after{animation:none!important;transition:none!important;}' });
   await page.waitForTimeout(600);
@@ -187,7 +199,19 @@ async function main() {
   await page.evaluate(() => openQuoteDoc());
   await page.waitForTimeout(600);
   check('御見積書の出力画面が開く', await page.evaluate(() => !!document.querySelector('#quoteDocOverlay.open .qd-page')));
-  await shot('06-quote-doc', '#qdPreview');
+  await docShot('06-quote-doc');
+  // 御見積書の各種行（発生時のみ・参考情報・概算の注記）と、物量パターンの併記表示
+  await page.evaluate(() => {
+    const trs = [...document.querySelectorAll('#tableBody tr[id^="row-"]:not([data-virtual])')].filter(t => !t.dataset.type);
+    if (trs[0]) trs[0].dataset.estimate = '1';
+    if (trs[1]) trs[1].dataset.cond = '1';
+    if (trs[2]) trs[2].dataset.refInfo = '1';
+    const f = document.getElementById('qf-multi-out'); if (f) f.value = '1';
+  });
+  await docShot('06b-quote-doc-flags-multi');
+  await page.evaluate(() => { const f = document.getElementById('qf-multi-out'); if (f) f.value = '0'; localStorage.setItem('quoteDocLangEn_v1', '1'); });
+  await docShot('06c-quote-doc-en');
+  await page.evaluate(() => { localStorage.setItem('quoteDocLangEn_v1', '0'); });
   await page.evaluate(() => closeQuoteDoc());
 
   // ⑨ ダッシュボード（未ログイン表示）・計算タブ
