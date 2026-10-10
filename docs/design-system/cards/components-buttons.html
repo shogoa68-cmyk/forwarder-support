@@ -1,0 +1,52 @@
+<!-- @dsCard group="Components" -->
+<!doctype html>
+<html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ボタン</title>
+<link rel="stylesheet" href="../css/tokens.css">
+<link rel="stylesheet" href="../css/style.css">
+<link rel="stylesheet" href="../css/quote.css">
+<style>
+  body { margin: 0; padding: 20px; background: #fff; color: #2d2418; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Hiragino Kaku Gothic ProN', 'Yu Gothic', sans-serif; font-size: 13px; }
+  h1 { font-size: 15px; margin: 0 0 4px; } .sub { color: #6a5745; font-size: 12px; margin: 0 0 14px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 10px; }
+  .sw { border: 1px solid #d9cfc2; border-radius: 8px; overflow: hidden; background: #fff; }
+  .sw .chip { height: 44px; border-bottom: 1px solid #d9cfc2; }
+  .sw .meta { padding: 6px 8px; font-size: 11px; line-height: 1.5; } .sw b { font-size: 11.5px; } .sw code { color: #6a5745; }
+  .sec { font-size: 12px; font-weight: 700; color: #3d2e1e; margin: 16px 0 6px; }
+  .row { display: flex; align-items: baseline; gap: 14px; padding: 5px 0; border-bottom: 1px solid #eee; } .row code { width: 130px; color: #6a5745; font-size: 11px; } .row .v { width: 56px; color: #888; font-size: 11px; }
+</style></head><body><h1>ボタン</h1><p class="sub">方向・輸送モードの切替、ステータス、定型文、追加ボタンなど。実際の画面から取り出した HTML です（クラス名・構造は機能とつながっているため変えないでください）。</p><div id="tab-quote-make" class="tab-content active"><div class="quote-workspace"><div class="quote-main"><div style="margin:0 0 14px"><div class="cond-prim-btns" id="dirBtns">
+              <button class="cond-prim-btn active" data-dir="export" onclick="setDirection('export')">📤 輸出</button>
+              <button class="cond-prim-btn" data-dir="import" onclick="setDirection('import')">📥 輸入</button>
+              <button class="cond-prim-btn" data-dir="export_import" onclick="setDirection('export_import')" title="日本から輸出して、再び輸入する案件（修理・展示会・再輸入など）。往路＝輸出、復路＝輸入">🔁 輸出→輸入</button>
+              <button class="cond-prim-btn" data-dir="import_export" onclick="setDirection('import_export')" title="輸入して、再び輸出する案件（保税・加工・再輸出など）。往路＝輸入、復路＝輸出">🔁 輸入→輸出</button>
+            </div></div><div style="margin:0 0 14px"><div class="cond-prim-btns" id="seaAirBtns">
+              <button class="cond-prim-btn active" data-transport="fcl" onclick="setTransport('fcl')" title="Full Container Load：コンテナ1本貸切。1荷主が1コンテナを専用使用">🚢 FCL</button>
+              <button class="cond-prim-btn" data-transport="lcl" onclick="setTransport('lcl')" title="Less than Container Load：混載。複数荷主の貨物を1コンテナに詰め合わせる">🚢 LCL</button>
+              <button class="cond-prim-btn" data-transport="roro" onclick="setTransport('roro')" title="RORO船（Roll-on/Roll-off）：車両・重機等を自走／台車で積み込む輸送。コンテナ詰めは行わない">🚗 RORO</button>
+              <button class="cond-prim-btn" data-transport="conv" onclick="setTransport('conv')" title="在来船（コンベンショナル）：クレーン等で個別荷役する重量物・長尺物・ベアカーゴ輸送。コンテナ詰めは行わない">⚓ 在来船</button>
+              <button class="cond-prim-btn" data-transport="air" onclick="setTransport('air')">✈️ Air</button>
+              <button class="cond-prim-btn" data-transport="domestic" onclick="setTransport('domestic')" title="国内手配のみ（国際輸送なし）。国内トラック・倉庫・通関など国内作業の手配">🚚 国内手配のみ</button>
+            </div></div><div style="margin:0 0 14px"><div class="qf-status-btns" id="qf-status-btns">
+              <button type="button" class="qf-status-btn active" data-status="下書き中" onclick="setQuoteStatus('下書き中')">下書き中</button>
+              <button type="button" class="qf-status-btn" data-status="提示済み" onclick="setQuoteStatus('提示済み')">提示済み</button>
+              <button type="button" class="qf-status-btn" data-status="改定中" onclick="setQuoteStatus('改定中')">改定中</button>
+              <button type="button" class="qf-status-btn" data-status="情報待ち" onclick="setQuoteStatus('情報待ち')">情報待ち</button>
+              <button type="button" class="qf-status-btn" data-status="ヨコヨコ提示" onclick="setQuoteStatus('ヨコヨコ提示')">ヨコヨコ提示</button>
+              <button type="button" class="qf-status-btn" data-status="受注" onclick="setQuoteStatus('受注')">受注</button>
+              <button type="button" class="qf-status-btn" data-status="失注" onclick="setQuoteStatus('失注')">失注</button>
+              <button type="button" class="qf-status-btn" data-status="辞退" onclick="setQuoteStatus('辞退')">辞退</button>
+              <button type="button" class="qf-status-btn" data-status="保留" onclick="setQuoteStatus('保留')">保留</button>
+            </div></div><div style="margin:0 0 14px"><div class="qf-ref-row">
+              <input type="text" id="qf-ref" placeholder="例）2024-001（🔢で自動採番）" aria-required="true" data-pv-warn-bound="1">
+              <button type="button" id="qfRefAuto" class="qf-ref-auto-btn" onclick="fillQuoteRef()" title="発番ID（2桁）＋年月日＋連番で自動採番">🔢 自動採番</button>
+            </div></div><div style="margin:0 0 14px"><div class="remark-presets" id="presetBtns" data-rendered=""><button class="preset-btn" data-index="0" title="本見積もりの有効期限は発行日より30日間とします。"><span>📅 有効期限</span></button><button class="preset-btn" data-index="1" title="外貨建て料金は見積もり時の為替レートを基準としており、船積み時のレートにより変動します。"><span>💱 為替変動</span></button><button class="preset-btn" data-index="2" title="燃油サーチャージ（BAF/FAF）は市況により変動します。適用時点のレートを別途申し受けます。"><span>⛽ 燃油サーチャージ</span></button><button class="preset-btn" data-index="3" title="船腹・航空スペースの確保は保証できません。手配状況により変更となる場合があります。"><span>🚢 スペース確保</span></button><button class="preset-btn" data-index="4" title="運賃はW/Mの高い方を適用します（海上：1CBM＝1,000kg、航空：1CBM＝167kg）。"><span>📦 重量・容積</span></button><button class="preset-btn" data-index="5" title="通関費用・関税・消費税等は本見積もりに含まれておりません。"><span>🛃 通関費用</span></button><button class="preset-btn" data-index="6" title="貨物保険料は含まれておりません。付保をご希望の場合は別途ご相談ください。"><span>🛡️ 貨物保険</span></button><button class="preset-btn" data-index="7" title="港湾混雑・ストライキ・天災等による遅延・追加費用は含まれておりません。"><span>⚓ 港湾混雑</span></button><button class="preset-btn" data-index="8" title="危険品・温度管理貨物・特殊貨物については別途ご相談ください。条件が異なります。"><span>☣️ 危険品</span></button><button class="preset-btn" data-index="9" title="貨物の内容・数量・仕向地等に変更が生じた場合は再見積となります。"><span>🔄 条件変更</span></button><button class="preset-btn" data-index="10" title="B/L・AWB等の書類提出締め切りは船会社・航空会社の指定期日に従います。遅延の場合は追加費用が発生します。"><span>📋 書類締切</span></button><button class="preset-btn" data-index="11" title="支払いは請求書発行後30日以内とします。期日を超過した場合、法定利率（民法所定）による遅延損害金が発生します。（※社内標準条件に書き換えてからご使用ください）"><span>🏦 支払条件</span></button><button class="preset-btn" data-index="12" title="お見積りはPREPAID限定の料金です。"><span>💵 PREPAID限定</span></button><button class="preset-btn" data-index="13" title="単価見積もりとなります。"><span>📐 単価見積もり</span></button><button class="preset-btn" data-index="14" title="本見積書に定めのない条件については、
+一般社団法人 国際フレイトフォワーダーズ協会が策定した
+「標準取引条件(2020)」によるものとします。
+見積り後ご下命頂き契約を交わす場合も、同様です。
+■標準取引条件(2020)全文
+https://www.jiffa.or.jp/documents/standard.html
+■弊社運送書類の約款
+https://www.jctyo.co.jp/company_info.html"><span>⚖️ 標準取引条件(JIFFA)</span></button><div class="preset-tier-label">区切り線</div><button class="preset-btn preset-btn-divider" title="全角の二重線を挿入（見出しの区切りに）
+（カーソル位置に挿入します。何度でも入れられます）">＝ 二重線</button><button class="preset-btn preset-btn-divider" title="全角の実線を挿入
+（カーソル位置に挿入します。何度でも入れられます）">─ 実線</button><button class="preset-btn preset-btn-divider" title="半角ハイフンの線を挿入
+（カーソル位置に挿入します。何度でも入れられます）">- 点線</button><div class="preset-tier-label">個人</div><button class="preset-btn preset-btn-add">＋ 個人に追加</button></div></div></div></div></div></body></html>

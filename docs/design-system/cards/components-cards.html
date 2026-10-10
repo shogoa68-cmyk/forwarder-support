@@ -1,0 +1,216 @@
+<!-- @dsCard group="Components" -->
+<!doctype html>
+<html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>セクション（カード）</title>
+<link rel="stylesheet" href="../css/tokens.css">
+<link rel="stylesheet" href="../css/style.css">
+<link rel="stylesheet" href="../css/quote.css">
+<style>
+  body { margin: 0; padding: 20px; background: #fff; color: #2d2418; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Hiragino Kaku Gothic ProN', 'Yu Gothic', sans-serif; font-size: 13px; }
+  h1 { font-size: 15px; margin: 0 0 4px; } .sub { color: #6a5745; font-size: 12px; margin: 0 0 14px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 10px; }
+  .sw { border: 1px solid #d9cfc2; border-radius: 8px; overflow: hidden; background: #fff; }
+  .sw .chip { height: 44px; border-bottom: 1px solid #d9cfc2; }
+  .sw .meta { padding: 6px 8px; font-size: 11px; line-height: 1.5; } .sw b { font-size: 11.5px; } .sw code { color: #6a5745; }
+  .sec { font-size: 12px; font-weight: 700; color: #3d2e1e; margin: 16px 0 6px; }
+  .row { display: flex; align-items: baseline; gap: 14px; padding: 5px 0; border-bottom: 1px solid #eee; } .row code { width: 130px; color: #6a5745; font-size: 11px; } .row .v { width: 56px; color: #888; font-size: 11px; }
+</style></head><body><h1>セクション（カード）</h1><p class="sub">管理番号入力・貿易条件・全体リマークの各セクション。実際の画面から取り出した HTML です（クラス名・構造は機能とつながっているため変えないでください）。</p><div id="tab-quote-make" class="tab-content active"><div class="quote-workspace"><div class="quote-main"><div style="margin:0 0 14px"><div class="condition-section is-collapsible" id="section-ref">
+      <h2 class="section-toggle-head" onclick="toggleQuoteSection('section-ref')">
+        <span class="section-caret">▼</span>
+        <span class="section-toggle-title">🗂️ 管理番号入力</span>
+        <span class="section-collapsed-summary" id="sumRef">— 未入力　[下書き中]</span>
+      <span class="section-help-wrap"><button type="button" class="section-help-btn" aria-label="このセクションの説明" tabindex="0">?</button><p class="section-desc section-desc-tip">案件を管理するための識別情報を入力します。<b>見積もり番号</b> は問い合わせ番号など任意の形式で OK。後でフィルタリングや整理に使えます。<br>
+        <span style="font-size:11px;color:var(--text-md);">💡 <b>担当</b>は<strong>敬称略（呼び捨て）</strong>で入力してください。プレビュー・Excel・コピー出力時に自動で「様」が付与されます。</span></p></span></h2>
+      <div id="refBody">
+        
+        <div id="qfCopiedFromInfo" class="qf-copied-from-info" hidden=""></div>
+        <div class="quote-header">
+          <div class="quote-field">
+            <label>見積もり番号 <span class="req-mark" aria-hidden="true">*</span></label>
+            <div class="qf-ref-row">
+              <input type="text" id="qf-ref" placeholder="例）2024-001（🔢で自動採番）" aria-required="true" data-pv-warn-bound="1">
+              <button type="button" id="qfRefAuto" class="qf-ref-auto-btn" onclick="fillQuoteRef()" title="発番ID（2桁）＋年月日＋連番で自動採番">🔢 自動採番</button>
+            </div>
+          </div>
+          <div class="quote-field">
+            <label>お客様名称 <span class="req-mark" aria-hidden="true">*</span></label>
+            <div class="qf-customer-row">
+              <input type="text" id="qf-customer" placeholder="例）○○商事" aria-required="true" list="custSuggestions" autocomplete="off" data-pv-warn-bound="1">
+              <button type="button" id="qfCustomerDetailBtn" class="qf-customer-detail-btn" onclick="qfShowCustomerDetail()" hidden="" title="登録済みの詳細情報を表示">📇 詳細</button>
+            </div>
+          </div>
+          <div class="quote-field">
+            <label>お客様 ご担当者（敬称略） <span class="req-mark" aria-hidden="true">*</span></label>
+            <input type="text" id="qf-person" placeholder="例）山田　※宛先（お客様側）の氏名。出力時に自動で「様」付与" title="お客様側（宛先）のご担当者名を入力します。社内の見積もり作成者ではありません。姓のみ／フルネームのみ（会社名は含めない）。客先向け出力（プレビュー・PDF）で会社名とともに宛先となり、自動で「様」が付きます。登録済みのお客様なら、マスターの担当者一覧から候補表示されます。" aria-required="true" list="qfPersonSuggestions" autocomplete="off" data-pv-warn-bound="1">
+          </div>
+          <div class="quote-field">
+            <label>📥 依頼受信日 <span class="qf-memo-note">引き合いを受けた日（経過日数を表示）</span></label>
+            <input type="date" id="qf-received" title="依頼を受信した日。ダッシュボードに経過日数を表示します">
+          </div>
+          <div class="quote-field">
+            <label>⏰ 提出期限 <span class="qf-memo-note">回答の締切（残り日数で優先度表示）</span></label>
+            <input type="date" id="qf-due" title="見積提出の期限。ダッシュボードに残り日数を表示します">
+          </div>
+          <div class="quote-field">
+            <label>発行日</label>
+            <input type="date" id="qf-date" title="見積書の発行日。出力・Excelに含まれます" onchange="window.updateTotals &amp;&amp; window.updateTotals()">
+          </div>
+          <div class="quote-field">
+            <label>有効期限</label>
+            <div class="qf-valid-until-row">
+              <input type="date" id="qf-valid-until" title="見積もりの有効期限。出力・Excelに含まれます。発行日〜有効期限の期間と重ならないサーチャージは適用期間外として非表示になります" onchange="checkValidUntilWarning(); window.updateTotals &amp;&amp; window.updateTotals()">
+              <button type="button" class="qf-days-btn" onclick="addDaysToValidUntil(7)" title="今日から7日後">+7日</button>
+              <button type="button" class="qf-days-btn" onclick="addDaysToValidUntil(30)" title="今日から30日後">+30日</button>
+              <button type="button" class="qf-days-btn qf-spot-btn" id="qfSpotToggleBtn" onclick="toggleValidUntilSpot()" title="日付の代わりに「SPOT（提示した本船のみ）」など任意のテキストで表記します">SPOT</button>
+            </div>
+          </div>
+          <div class="quote-field quote-field-status">
+            <label>ステータス</label>
+            <div class="qf-status-btns" id="qf-status-btns">
+              <button type="button" class="qf-status-btn active" data-status="下書き中" onclick="setQuoteStatus('下書き中')">下書き中</button>
+              <button type="button" class="qf-status-btn" data-status="提示済み" onclick="setQuoteStatus('提示済み')">提示済み</button>
+              <button type="button" class="qf-status-btn" data-status="改定中" onclick="setQuoteStatus('改定中')">改定中</button>
+              <button type="button" class="qf-status-btn" data-status="情報待ち" onclick="setQuoteStatus('情報待ち')">情報待ち</button>
+              <button type="button" class="qf-status-btn" data-status="ヨコヨコ提示" onclick="setQuoteStatus('ヨコヨコ提示')">ヨコヨコ提示</button>
+              <button type="button" class="qf-status-btn" data-status="受注" onclick="setQuoteStatus('受注')">受注</button>
+              <button type="button" class="qf-status-btn" data-status="失注" onclick="setQuoteStatus('失注')">失注</button>
+              <button type="button" class="qf-status-btn" data-status="辞退" onclick="setQuoteStatus('辞退')">辞退</button>
+              <button type="button" class="qf-status-btn" data-status="保留" onclick="setQuoteStatus('保留')">保留</button>
+            </div>
+            <button type="button" class="qf-revision-btn" id="qfRevisionBtn" hidden="" onclick="startQuoteRevision()" title="現在の内容を「前回提示分」として記録し、改定中にして編集を再開します。次にPDF・メール本文を出力すると前回からの変更点が自動表示されます">
+              🔄 更新（前回提示分を記録して編集再開）
+            </button>
+            <div class="qf-revision-options" id="qfRevisionOptions" hidden="">
+              <label class="qf-revision-toggle" title="オフにすると、前回提示分との差分がある場合でも御見積書PDF・メール本文には出力されません（内部の記録自体は消えません）">
+                <input type="checkbox" id="qf-revision-hide-diff" onchange="if(typeof updateQuoteStatusUI==='function')updateQuoteStatusUI();">
+                客先向け出力（PDF・メール）に「前回提示分からの変更点」を表示しない
+              </label>
+              <div class="qf-revision-filters" id="qfRevisionFilters" title="表示する変更の種類を絞り込みます">
+                <span class="qf-revision-filters-lbl">表示する変更：</span>
+                <label><input type="checkbox" id="qf-revision-show-added" checked=""> 追加項目</label>
+                <label><input type="checkbox" id="qf-revision-show-removed" checked=""> 削除項目</label>
+                <label><input type="checkbox" id="qf-revision-show-price" checked=""> 単価変更</label>
+                <label><input type="checkbox" id="qf-revision-show-other" checked=""> その他の変更（数量・単位・通貨・備考）</label>
+                <label><input type="checkbox" id="qf-revision-show-total" checked=""> 合計金額</label>
+              </div>
+            </div>
+            <input type="hidden" id="qf-status" value="下書き中">
+            <input type="hidden" id="qf-revision-baseline">
+          </div>
+          <div class="quote-field quote-field-corerf">
+            <label>🔗 基幹システム REF# <span class="qf-memo-note">受注・手配後に登録（英数字）。社内用で、見積書などの出力には含まれません</span></label>
+            <input type="text" id="qf-core-ref" maxlength="40" autocomplete="off" spellcheck="false" inputmode="latin" placeholder="例）EX2410-0123" onchange="normalizeCoreRef(this)" title="この見積を使って実際に手配した案件の、基幹システム上の REF# を登録します。半角の英数字（とハイフン・アンダースコア・スラッシュ・ピリオド）が使えます。全角は半角に直します。">
+          </div>
+          <div class="quote-field quote-field-tags">
+            <label>🏷️ タグ <span class="qf-memo-note">分類・絞り込み用（複数可）</span></label>
+            <div class="qf-tags-chips" id="qfTagsChips"></div>
+            <div class="qf-tags-add-row">
+              <input type="text" id="qfTagsInput" placeholder="タグを入力してEnter（例：至急／リピート客）" list="qfTagSuggestions" autocomplete="off" onkeydown="qfTagsKeydown(event)">
+              <button type="button" class="qf-tags-add-btn" onclick="qfAddTagFromInput()">＋ 追加</button>
+            </div>
+            <datalist id="qfTagSuggestions"></datalist>
+            <input type="hidden" id="qf-tags-data" value="[]">
+          </div>
+          <div class="quote-field quote-field-memo">
+            <label>📝 メモ <span class="qf-memo-note">出力・プレビューには含まれません</span>
+              <button type="button" class="qf-memo-expand-btn" id="qfMemoFloatBtn" onclick="toggleMemoFloat()" title="メモ付箋を画面固定表示（スクロール追従・ドラッグ可）">📌 付箋</button>
+              <button type="button" class="qf-memo-expand-btn" onclick="openMemoPopout()" title="メモを全画面で編集" style="margin-left:3px">⤢ 拡大</button>
+            </label>
+            <textarea id="qf-memo" rows="6" placeholder="担当者間の申し送り・注意事項など、案件内部メモを自由に記述できます。お客様向け出力には含まれません。" data-memo-title="1" style="display: none;"></textarea><div class="qm-wrap qm-wrap--main"><textarea class="qm-title" rows="1" placeholder="1行目がメモのタイトルになります" aria-label="メモのタイトル（1行目）" style="height: 23px;"></textarea><textarea class="qm-body" placeholder="担当者間の申し送り・注意事項など、案件内部メモを自由に記述できます。お客様向け出力には含まれません。" aria-label="メモ本文（2行目以降）"></textarea></div>
+            <!-- 📩 メール取込の原文（監査・再パース用。fields 経由で案件データに永続化） -->
+            <input type="hidden" id="qf-import-src">
+          </div>
+          <!-- 📌 メモ フロート付箋（スクロール追従・ドラッグ可）。#qf-memo と双方向同期 -->
+          <div id="qfMemoFloat" class="qf-memo-float" hidden="">
+            <div class="qf-memo-float-head" id="qfMemoFloatHead">
+              <span class="qf-memo-float-icon">📝</span>
+              <span class="qf-memo-float-title">メモ付箋</span>
+              <button type="button" class="qf-memo-float-btn" onclick="openMemoPopout()" title="全画面で編集">⤢</button>
+              <button type="button" class="qf-memo-float-btn" onclick="closeMemoFloat()" title="付箋を閉じる">✕</button>
+            </div>
+            <textarea id="qf-memo-float-ta" class="qf-memo-float-area" placeholder="メモなし（上のメモ欄に入力すると表示されます）" data-memo-title="1" style="display: none;"></textarea><div class="qm-wrap qm-wrap--float"><textarea class="qm-title" rows="1" placeholder="1行目がメモのタイトルになります" aria-label="メモのタイトル（1行目）"></textarea><textarea class="qm-body" placeholder="メモなし（上のメモ欄に入力すると表示されます）" aria-label="メモ本文（2行目以降）"></textarea></div>
+          </div>
+          <!-- 📝 メモ ポップアウト（全画面・サイズ可変）。#qf-memo と双方向同期 -->
+          <div id="qfMemoPopout" class="qf-memo-popout-overlay" hidden="" onclick="if(event.target===this)closeMemoPopout()">
+            <div class="qf-memo-popout-box" role="dialog" aria-label="メモ 拡大表示">
+              <div class="qf-memo-popout-head">
+                <span class="qf-memo-popout-title">📝 メモ</span>
+                <span class="qf-memo-popout-note">出力・プレビューには含まれません（#qf-memo と同じ内容）</span>
+                <button type="button" class="qf-memo-popout-close" onclick="closeMemoPopout()" title="閉じる（Esc）">✕ 閉じる</button>
+              </div>
+              <textarea id="qf-memo-pop" class="qf-memo-popout-area" placeholder="担当者間の申し送り・注意事項など、案件内部メモを自由に記述できます。お客様向け出力には含まれません。" data-memo-title="1" style="display: none;"></textarea><div class="qm-wrap qm-wrap--pop"><textarea class="qm-title" rows="1" placeholder="1行目がメモのタイトルになります" aria-label="メモのタイトル（1行目）"></textarea><textarea class="qm-body" placeholder="担当者間の申し送り・注意事項など、案件内部メモを自由に記述できます。お客様向け出力には含まれません。" aria-label="メモ本文（2行目以降）"></textarea></div>
+            </div>
+          </div>
+          <div class="quote-field quote-field-refurl">
+            <label>🔗 参照URL <span class="qf-memo-note">レート表・船社サイト等の参照リンク（複数可・改行区切り）。出力には含まれません</span></label>
+            <textarea id="qf-refurl" rows="2" placeholder="URL を貼り付け（複数可・改行区切り）。フォーカスを外すとクリックできるリンクになります" onblur="renderRefUrlLinks()"></textarea>
+            <div id="qf-refurl-view" class="qf-refurl-view" hidden="">
+              <span class="qf-refurl-links"></span>
+              <button type="button" class="qf-refurl-edit" onclick="editRefUrl()" title="リンクを編集">✎ 編集</button>
+            </div>
+          </div>
+          <div class="quote-field quote-field-attach">
+            <label>📎 添付ファイル <span class="qf-memo-note">この案件に保存・チーム共有（ログイン必須）</span></label>
+            <label class="qf-attach-drop" id="qfAttachDrop" ondragover="event.preventDefault(); this.classList.add('is-drag');" ondragleave="this.classList.remove('is-drag');" ondrop="event.preventDefault(); this.classList.remove('is-drag'); qfAttachUpload(event.dataTransfer.files);">
+              <input type="file" id="qfAttachInput" multiple="" style="display:none" onchange="qfAttachUpload(this.files); this.value='';">
+              <span class="qf-attach-hint">📥 ここにドラッグ＆ドロップ、またはクリックして選択<br><small>※ 添付は14日間で自動削除されます</small></span>
+            </label>
+            <div id="qfAttachMeter" class="qf-attach-meter"></div>
+            <div id="qfAttachList" class="qf-attach-list"></div>
+          </div>
+        </div>
+        <button class="fb-section-btn" onclick="openFeedback('管理番号入力')" title="このセクションへのフィードバック">💬 このセクションへのフィードバック</button>
+      </div>
+    </div></div><div style="margin:0 0 14px"><div class="condition-section remark-section is-collapsible" id="section-remark">
+      <h2 class="section-toggle-head" onclick="toggleQuoteBottomAccordion('section-remark')">
+        <span class="section-caret">▼</span>
+        <span class="section-toggle-title">📝 全体リマーク・免責事項</span>
+        <span class="section-collapsed-summary" id="sumRemark">— 未入力</span>
+      <span class="section-help-wrap"><button type="button" class="section-help-btn" aria-label="このセクションの説明" tabindex="0">?</button><p class="section-desc section-desc-tip">見積もり全体に共通して適用する条件・免責事項を入力します。<b>プリセットボタン</b>（有効期限・運賃変動条項・フリータイムなど）をクリックすると定型文を追加できます。提出前に必ず内容を確認してください。</p></span></h2>
+      <div id="remarkBody" class="remark-body">
+        
+        <div class="remark-cargo-row">
+          <label for="remarkCargoSel">📦 品物別リマーク</label>
+          <select id="remarkCargoSel" onchange="onRemarkCargoSelChange(this)" title="品物の区分を選ぶと、その品物向けのリマーク（例：医療機器の薬機法、自動車）のボタンが下に出ます。常に全部を並べず、必要なときだけ選んで表示します。品名に合う区分は自動で選ばれます。"><option value="">（区分を選ぶと、その品物のリマークを表示）</option><option value="自動車">🚗 自動車</option><option value="医療機器・健康効果">💊 医療機器・健康効果</option><option value="__add__">＋ 区分を追加…</option></select>
+          <button type="button" id="remarkCargoDel" class="remark-cargo-del" onclick="deleteRemarkCargoType()" hidden="" title="選択中の区分（個人で追加したもの）を削除">区分を削除</button>
+        </div>
+        <div class="remark-presets" id="presetBtns" data-rendered=""><button class="preset-btn" data-index="0" title="本見積もりの有効期限は発行日より30日間とします。"><span>📅 有効期限</span></button><button class="preset-btn" data-index="1" title="外貨建て料金は見積もり時の為替レートを基準としており、船積み時のレートにより変動します。"><span>💱 為替変動</span></button><button class="preset-btn" data-index="2" title="燃油サーチャージ（BAF/FAF）は市況により変動します。適用時点のレートを別途申し受けます。"><span>⛽ 燃油サーチャージ</span></button><button class="preset-btn" data-index="3" title="船腹・航空スペースの確保は保証できません。手配状況により変更となる場合があります。"><span>🚢 スペース確保</span></button><button class="preset-btn" data-index="4" title="運賃はW/Mの高い方を適用します（海上：1CBM＝1,000kg、航空：1CBM＝167kg）。"><span>📦 重量・容積</span></button><button class="preset-btn" data-index="5" title="通関費用・関税・消費税等は本見積もりに含まれておりません。"><span>🛃 通関費用</span></button><button class="preset-btn" data-index="6" title="貨物保険料は含まれておりません。付保をご希望の場合は別途ご相談ください。"><span>🛡️ 貨物保険</span></button><button class="preset-btn" data-index="7" title="港湾混雑・ストライキ・天災等による遅延・追加費用は含まれておりません。"><span>⚓ 港湾混雑</span></button><button class="preset-btn" data-index="8" title="危険品・温度管理貨物・特殊貨物については別途ご相談ください。条件が異なります。"><span>☣️ 危険品</span></button><button class="preset-btn" data-index="9" title="貨物の内容・数量・仕向地等に変更が生じた場合は再見積となります。"><span>🔄 条件変更</span></button><button class="preset-btn" data-index="10" title="B/L・AWB等の書類提出締め切りは船会社・航空会社の指定期日に従います。遅延の場合は追加費用が発生します。"><span>📋 書類締切</span></button><button class="preset-btn" data-index="11" title="支払いは請求書発行後30日以内とします。期日を超過した場合、法定利率（民法所定）による遅延損害金が発生します。（※社内標準条件に書き換えてからご使用ください）"><span>🏦 支払条件</span></button><button class="preset-btn" data-index="12" title="お見積りはPREPAID限定の料金です。"><span>💵 PREPAID限定</span></button><button class="preset-btn" data-index="13" title="単価見積もりとなります。"><span>📐 単価見積もり</span></button><button class="preset-btn" data-index="14" title="本見積書に定めのない条件については、
+一般社団法人 国際フレイトフォワーダーズ協会が策定した
+「標準取引条件(2020)」によるものとします。
+見積り後ご下命頂き契約を交わす場合も、同様です。
+■標準取引条件(2020)全文
+https://www.jiffa.or.jp/documents/standard.html
+■弊社運送書類の約款
+https://www.jctyo.co.jp/company_info.html"><span>⚖️ 標準取引条件(JIFFA)</span></button><div class="preset-tier-label">区切り線</div><button class="preset-btn preset-btn-divider" title="全角の二重線を挿入（見出しの区切りに）
+（カーソル位置に挿入します。何度でも入れられます）">＝ 二重線</button><button class="preset-btn preset-btn-divider" title="全角の実線を挿入
+（カーソル位置に挿入します。何度でも入れられます）">─ 実線</button><button class="preset-btn preset-btn-divider" title="半角ハイフンの線を挿入
+（カーソル位置に挿入します。何度でも入れられます）">- 点線</button><div class="preset-tier-label">個人</div><button class="preset-btn preset-btn-add">＋ 個人に追加</button></div>
+        <textarea id="remarkTextarea" placeholder="見積もり全体に適用する条件・免責事項を入力してください。上のボタンでプリセットを追加できます。"></textarea>
+        <div class="remark-fixed-box" id="remarkFixedBox"><div class="rfx-head"><b>📎 常時付記</b><span class="rfx-sub">すべての見積書の、全体リマークの下に自動で付きます（このブラウザの設定）</span></div><div class="rfx-empty">設定なし。必ず付けたい文（標準取引条件など）を下から選んで追加できます。</div><select class="rfx-add" onchange="pinFixedRemark(this.value); this.value=''"><option value="">＋ 常時付記に追加…</option><option value="本見積もりの有効期限は発行日より30日間とします。" data-label="📅 有効期限">📅 有効期限</option><option value="外貨建て料金は見積もり時の為替レートを基準としており、船積み時のレートにより変動します。" data-label="💱 為替変動">💱 為替変動</option><option value="燃油サーチャージ（BAF/FAF）は市況により変動します。適用時点のレートを別途申し受けます。" data-label="⛽ 燃油サーチャージ">⛽ 燃油サーチャージ</option><option value="船腹・航空スペースの確保は保証できません。手配状況により変更となる場合があります。" data-label="🚢 スペース確保">🚢 スペース確保</option><option value="運賃はW/Mの高い方を適用します（海上：1CBM＝1,000kg、航空：1CBM＝167kg）。" data-label="📦 重量・容積">📦 重量・容積</option><option value="通関費用・関税・消費税等は本見積もりに含まれておりません。" data-label="🛃 通関費用">🛃 通関費用</option><option value="貨物保険料は含まれておりません。付保をご希望の場合は別途ご相談ください。" data-label="🛡️ 貨物保険">🛡️ 貨物保険</option><option value="港湾混雑・ストライキ・天災等による遅延・追加費用は含まれておりません。" data-label="⚓ 港湾混雑">⚓ 港湾混雑</option><option value="危険品・温度管理貨物・特殊貨物については別途ご相談ください。条件が異なります。" data-label="☣️ 危険品">☣️ 危険品</option><option value="貨物の内容・数量・仕向地等に変更が生じた場合は再見積となります。" data-label="🔄 条件変更">🔄 条件変更</option><option value="B/L・AWB等の書類提出締め切りは船会社・航空会社の指定期日に従います。遅延の場合は追加費用が発生します。" data-label="📋 書類締切">📋 書類締切</option><option value="支払いは請求書発行後30日以内とします。期日を超過した場合、法定利率（民法所定）による遅延損害金が発生します。（※社内標準条件に書き換えてからご使用ください）" data-label="🏦 支払条件">🏦 支払条件</option><option value="お見積りはPREPAID限定の料金です。" data-label="💵 PREPAID限定">💵 PREPAID限定</option><option value="単価見積もりとなります。" data-label="📐 単価見積もり">📐 単価見積もり</option><option value="本見積書に定めのない条件については、
+一般社団法人 国際フレイトフォワーダーズ協会が策定した
+「標準取引条件(2020)」によるものとします。
+見積り後ご下命頂き契約を交わす場合も、同様です。
+■標準取引条件(2020)全文
+https://www.jiffa.or.jp/documents/standard.html
+■弊社運送書類の約款
+https://www.jctyo.co.jp/company_info.html" data-label="⚖️ 標準取引条件(JIFFA)">⚖️ 標準取引条件(JIFFA)</option><option value="【薬機法に関するご注意】
+医療機器・医薬品・医薬部外品・化粧品、および健康効果・治療効果等を標榜する商品（健康器具・マッサージ器・サプリメント類等を含む）を日本へ輸入する場合、「医薬品、医療機器等の品質、有効性及び安全性の確保等に関する法律（薬機法）」の規制対象となることがあります。
+・商品の形状・成分・表示や広告上の効能効果の標榜内容により、医療機器等に該当すると判断される場合があります。該当の可否は、輸入前に所管の地方厚生局等へご確認ください。
+・事業として輸入する場合、製造販売業の許可、製品の承認・認証・届出、外国製造業者の登録等が必要となることがあり、通関時に関係書類の提示を求められます。
+・必要な許認可・書類が整わない貨物は、輸入が認められず、積み戻し・廃棄となる場合があります。これに伴う保管料・デマレージ・ディテンション等の追加費用は、荷主様のご負担となります。
+・当社は、薬機法上の該当性・適法性について判断・保証を行うものではありません。" data-label="💊 薬機法（輸入時の注意）">💊 薬機法（輸入時の注意）</option></select></div>
+        <div class="remark-actions">
+          <button class="btn-remark-clear" onclick="clearRemark()">クリア</button>
+          <span class="remark-char" id="remarkChar">0文字</span>
+        </div>
+        <div class="remark-img-section">
+          <div class="remark-img-list" id="remarkImgList" hidden=""></div>
+          <div class="remark-img-add-row">
+            <button type="button" class="btn-remark-img-add" onclick="document.getElementById('remarkImgFile').click()">🖼️ 画像を添付</button>
+            <input type="file" id="remarkImgFile" accept="image/*" multiple="" hidden="" onchange="handleRemarkImageFiles(this.files); this.value='';">
+            <span class="remark-img-hint">クリップボードからの貼り付け（Ctrl+V）にも対応。添付画像は御見積書PDF・プレビュー印刷にもリマーク欄末尾へ表示されます（最大10枚）</span>
+          </div>
+        </div>
+        <button class="fb-section-btn" onclick="openFeedback('全体リマーク')" title="このセクションへのフィードバック">💬 このセクションへのフィードバック</button>
+      </div>
+    </div></div></div></div></div></body></html>
