@@ -1,0 +1,3841 @@
+{
+ "note": "デザイン変更で壊してはいけない、画面（HTML/CSS）と機能（JS）のつなぎ目の基準。node scripts/check-ui-contract.js --update で再生成。",
+ "ids": [
+  "air-divisor",
+  "air-rows-wrap",
+  "autoSaveChk",
+  "autosave-restore-bar",
+  "backToQuoteFab",
+  "bmAddBtn",
+  "bmAddModal",
+  "bmCarrierChips",
+  "bmCarrierDatalist",
+  "bmCarrierNote",
+  "bmCarrierRow",
+  "bmContactCarrierName",
+  "bmContactList",
+  "bmContactModal",
+  "bmDedupBtn",
+  "bmDedupList",
+  "bmDedupModal",
+  "bmFileAttachInfo",
+  "bmFileRemoveBtn",
+  "bmFnChips",
+  "bmFormCarrier",
+  "bmFormFileInput",
+  "bmFormFunction",
+  "bmFormId",
+  "bmFormLabel",
+  "bmFormNote",
+  "bmFormType",
+  "bmFormUrl",
+  "bmHistBtn",
+  "bmHistList",
+  "bmHistModal",
+  "bmListWrap",
+  "bmModalTitle",
+  "bmRailChips",
+  "bmRailPanel",
+  "bmRelDatalist",
+  "bmRelFrom",
+  "bmRelInput",
+  "bmRelLabel",
+  "bmRelationModal",
+  "bmRenameCount",
+  "bmRenameDatalist",
+  "bmRenameFrom",
+  "bmRenameInput",
+  "bmRenameModal",
+  "bmSaveBtn",
+  "bmSeedBtn",
+  "bmTypeChips",
+  "btnPasteClipboard",
+  "btnQuoteRedo",
+  "btnQuoteUndo",
+  "bulkCatSet",
+  "bulkCurrencySet",
+  "bulkMarkupSet",
+  "bulkPatternSet",
+  "bulkSubconSet",
+  "bulkUnitSet",
+  "calAddHolBtn",
+  "calAddModal",
+  "calAddSurBtn",
+  "calColorChips",
+  "calCompanyChips",
+  "calCompanyRow",
+  "calCountryChips",
+  "calCountryRow",
+  "calDeleteBtn",
+  "calFormColor",
+  "calFormCompany",
+  "calFormHolDate",
+  "calFormHolDateTo",
+  "calFormHolName",
+  "calFormHolNote",
+  "calFormId",
+  "calFormKind",
+  "calFormSurAmount",
+  "calFormSurCarrier",
+  "calFormSurFrom",
+  "calFormSurLane",
+  "calFormSurName",
+  "calFormSurNote",
+  "calFormSurTo",
+  "calGridWrap",
+  "calHistBtn",
+  "calHistList",
+  "calHistModal",
+  "calHolidayFields",
+  "calModalTitle",
+  "calMonthLabel",
+  "calSaveBtn",
+  "calSurchargeFields",
+  "calSurchargeListWrap",
+  "calTypeChips",
+  "calcDisplay",
+  "calcHandle",
+  "calcSub",
+  "calcWidget",
+  "cargoDetailBody",
+  "cargoLawPanel",
+  "carriers-dl",
+  "catOrderList",
+  "cbm-rows-wrap",
+  "cbm-unit",
+  "cc-og-cols",
+  "cc-og-ref",
+  "cc-rf-vent",
+  "ccOgList",
+  "ccOgSim",
+  "ccPaneDry",
+  "ccPaneOtfr",
+  "ccPaneRf",
+  "ccPaneSpecial",
+  "cdBody",
+  "cdPatternTabs",
+  "cdTitle",
+  "cdUnknownNoteWrap",
+  "clipIndicatorCount",
+  "clipboardIndicator",
+  "cloudAdvBody",
+  "cloudAdvChevron",
+  "cloudAdvClearBtn",
+  "cloudAuthState",
+  "cloudFilterCarrier",
+  "cloudFilterInco",
+  "cloudFilterMode",
+  "cloudFilterPod",
+  "cloudFilterPol",
+  "cloudHeaderAuth",
+  "cloudLoginHint",
+  "cloudPresetListWrap",
+  "cloudPreviewModal",
+  "cloudShareBody",
+  "cloudShareSection",
+  "cloudStatusChips",
+  "cloudStorageInfo",
+  "cmdInput",
+  "cmdList",
+  "cmdPalette",
+  "cmdbarContext",
+  "cmdbarGear",
+  "cmpPresetList",
+  "cmpPrintBtn",
+  "cmpRailPanel",
+  "cmpResult",
+  "compareOverlay",
+  "cond-cargo",
+  "cond-cargo-unknown",
+  "cond-cargo-unknown-note",
+  "cond-container-data",
+  "cond-container-spec",
+  "cond-direction",
+  "cond-hazmat",
+  "cond-incoterms",
+  "cond-incoterms-hint",
+  "cond-insurance-on",
+  "cond-mode",
+  "cond-packing-data",
+  "cond-packing-patterns",
+  "cond-zone1-on",
+  "cond-zone3-on",
+  "copyMsg",
+  "cpAttachList",
+  "cpChatInput",
+  "cpChatList",
+  "cpCondInfo",
+  "cpLinkBtn",
+  "cpMeta",
+  "cpQuoteBtn",
+  "cpSelCount",
+  "cpSelectAll",
+  "cpTableBody",
+  "cpTitle",
+  "csvColModal",
+  "csvDropZone",
+  "csvMsg",
+  "ctxSelCount",
+  "currentQuoteName",
+  "customerDetailOverlay",
+  "dirBtns",
+  "doneCount",
+  "doneIndicator",
+  "doneResetBtn",
+  "doneTotal",
+  "duty-cif",
+  "duty-extra",
+  "duty-hs",
+  "duty-low-mode",
+  "duty-rate",
+  "eiActions",
+  "eiInsertTarget",
+  "eiReviewWrap",
+  "eiText",
+  "emailImportModal",
+  "fbBody",
+  "fbForm",
+  "fbHeadTitle",
+  "fbListContent",
+  "fbListFilter",
+  "fbListPane",
+  "fbOverlay",
+  "fbSection",
+  "fbSendPane",
+  "fbSubmitBtn",
+  "fbTabList",
+  "fbTabSend",
+  "flPanel",
+  "fxAutoModeChk",
+  "fxFetchBtn",
+  "fxLastFetched",
+  "fxRateGrid",
+  "hazChips",
+  "hazmatDetail",
+  "hdrCloudAvatar",
+  "hdrCloudLogin",
+  "hdrCloudName",
+  "hdrCloudUser",
+  "hdrUserMgrBtn",
+  "hz-entries-data",
+  "hz-un",
+  "hzEntryList",
+  "incoLabel",
+  "incoRetGroup",
+  "incoRetLabel",
+  "ins-fob",
+  "ins-freight",
+  "ins-rate",
+  "insSubcon",
+  "insToggleBtn",
+  "lcAttachEmpty",
+  "lcAttachFileName",
+  "lcAttachSelected",
+  "lcAttachZone",
+  "lcCarrierBmSection",
+  "lcCloudStatus",
+  "lcFilterCarrier",
+  "lcFilterPort",
+  "lcFilterText",
+  "lcFormModal",
+  "lcFormTitle",
+  "lcGroupMode",
+  "lcList",
+  "lcNameList",
+  "lcNoticeBody",
+  "lcNoticeModal",
+  "lcNoticeSubject",
+  "lcPickCarrier",
+  "lcPickCountMsg",
+  "lcPickInsertBtn",
+  "lcPickPort",
+  "lcPickText",
+  "lcPickerList",
+  "lcPickerModal",
+  "lcPodEntry",
+  "lcPodLabel",
+  "lcPolEntry",
+  "lcPolLabel",
+  "lcRailDirBtn-export",
+  "lcRailDirBtn-import",
+  "lcRailInsertBtn",
+  "lcRailListWrap",
+  "lcRailPanel",
+  "lcRailSearch",
+  "lcRailSelCount",
+  "lcRpEditModal",
+  "lcRpEditName",
+  "lcRpEditNote",
+  "lcRpEditRowCount",
+  "lcRpEditRows",
+  "lcRpEditTags",
+  "lcRpEditTitle",
+  "lcRpListModal",
+  "lcRpListSearch",
+  "lcRpListWrap",
+  "lcUnitList",
+  "lcVariantPanel",
+  "lc_amount",
+  "lc_carrier",
+  "lc_cat",
+  "lc_currency",
+  "lc_description",
+  "lc_file",
+  "lc_name",
+  "lcl-rows-wrap",
+  "newCatInput",
+  "packingImportModal",
+  "packingOptions",
+  "pal-custom-wrap",
+  "pal-max-height",
+  "pal-max-weight",
+  "pal-pd",
+  "pal-pw",
+  "pal-result",
+  "pal-rows-wrap",
+  "pal-size",
+  "pal-unit",
+  "pendingCount",
+  "pendingIndicator",
+  "piece-customs-e",
+  "piece-customs-i",
+  "piece-deliver",
+  "piece-pickup",
+  "piece-wh-dest",
+  "piece-wh-origin",
+  "pkiActions",
+  "pkiMapWrap",
+  "pkiPdfFile",
+  "pkiReviewWrap",
+  "pkiText",
+  "presetBrowserSection",
+  "presetBtns",
+  "presetListWrap",
+  "presetMgrModal",
+  "presetNameInput",
+  "previewBox",
+  "previewDocWrap",
+  "previewOverlay",
+  "previewTableWrap",
+  "profColors",
+  "profEmojiInput",
+  "profEmojis",
+  "profMemberNo",
+  "profModal",
+  "profNameInput",
+  "profOverlay",
+  "profPreviewAv",
+  "profPreviewName",
+  "ptSuggestions",
+  "pvAuditMeta",
+  "pvCargoBox",
+  "pvCondBox",
+  "pvCustomizeWrap",
+  "pvDocDate",
+  "pvDocValid",
+  "pvMeta",
+  "pvRemarkBox",
+  "pvScopeBox",
+  "pvTaxAmount",
+  "pvTaxTotal",
+  "pvTotalSubtotal",
+  "pvWarnGuide",
+  "pvWarnGuideList",
+  "pvWarnGuideNextBtn",
+  "pvWarnGuideTitle",
+  "qadMode",
+  "qf-customer",
+  "qf-date",
+  "qf-import-src",
+  "qf-memo",
+  "qf-memo-float-ta",
+  "qf-memo-pop",
+  "qf-multi-out",
+  "qf-person",
+  "qf-ref",
+  "qf-refurl",
+  "qf-refurl-view",
+  "qf-revision-baseline",
+  "qf-revision-hide-diff",
+  "qf-scope",
+  "qf-status",
+  "qf-status-btns",
+  "qf-tags-data",
+  "qf-valid-until",
+  "qfAttachList",
+  "qfAttachMeter",
+  "qfCopiedFromInfo",
+  "qfCustomerDetailBtn",
+  "qfMemoFloat",
+  "qfMemoFloatBtn",
+  "qfMemoFloatHead",
+  "qfMemoPopout",
+  "qfPersonSuggestions",
+  "qfRevisionBtn",
+  "qfRevisionFilters",
+  "qfRevisionOptions",
+  "qfTagSuggestions",
+  "qfTagsChips",
+  "qfTagsInput",
+  "qmBanner",
+  "qpdAdv",
+  "qpdAdvToggle",
+  "qpdFilterCarrier",
+  "qpdFilterInco",
+  "qpdFilterMode",
+  "qpdFilterPod",
+  "qpdFilterPol",
+  "qpdLinkBar",
+  "qpdLinkBarBtn",
+  "qpdLinkBarCount",
+  "qpdLinkBarNote",
+  "qpdLinkModeBtn",
+  "qpdListWrap",
+  "qpdLogin",
+  "qpdMain",
+  "qpdRankCard",
+  "qpdRankList",
+  "qpdResetAll",
+  "qpdSearchClear",
+  "qpdStats",
+  "qpdTagChips",
+  "qpdTagQuickFilter",
+  "qpdTagRankList",
+  "qpdTagSuggestions",
+  "qpdViewCard",
+  "qpdViewList",
+  "qspCarrierLinks",
+  "qspChatInput",
+  "qspChatList",
+  "qspFin",
+  "qspMilestones",
+  "qspPane-chat",
+  "qspRefEmpty",
+  "qspSectionDigest",
+  "qspTabBtn-fin",
+  "qspTabBtn-flow",
+  "quoteFxBar",
+  "quoteSummaryPanel",
+  "quoteTabHelp",
+  "quoteTable",
+  "rate-amount",
+  "rate-from",
+  "rate-status",
+  "remarkCargoDel",
+  "remarkCargoSel",
+  "remarkChar",
+  "remarkFixedBox",
+  "remarkImgList",
+  "remarkPresetModal",
+  "remarkTextarea",
+  "rnCloudStatus",
+  "rnComposeBtn",
+  "rnComposePanel",
+  "rnComposeTitle",
+  "rnDirBtn-export",
+  "rnDirBtn-import",
+  "rnHistoryList",
+  "rnPlanCount",
+  "rnPlanList",
+  "row-tpl",
+  "rowInsertPos",
+  "rowPatternInsertPos",
+  "rowPatternListWrap",
+  "rowPatternModal",
+  "rowPatternNameInput",
+  "rowPatternNoteInput",
+  "rpDestRow",
+  "rpEditLinks",
+  "rpEditName",
+  "rpEditNote",
+  "rpEditOverlay",
+  "rpEditRowCount",
+  "rpEditRows",
+  "rpFormLabel",
+  "rpFormPersonal",
+  "rpFormText",
+  "rpModalTitle",
+  "rpPanePattern",
+  "rpPaneSubcon",
+  "rpTabPattern",
+  "rpTabSubcon",
+  "saveStatus",
+  "scPanel",
+  "scopePresetItems",
+  "scopePresetModal",
+  "scopePresetTitle",
+  "seaAirBtns",
+  "section-ref",
+  "section-remark",
+  "section-table",
+  "selectAllChk",
+  "siCatChips",
+  "siCurrentWrap",
+  "siListWrap",
+  "siPanel",
+  "siScopeLabel",
+  "siSubconSearch",
+  "siSvChips",
+  "siTagChips",
+  "sqPanel",
+  "sqPreviewBody",
+  "sqPreviewOverlay",
+  "sqPreviewTitle",
+  "statsCloudStatus",
+  "statsHelpPanel",
+  "statsPane-alias",
+  "statsPane-charges",
+  "statsPane-custitem",
+  "statsPane-customer",
+  "statsPane-data",
+  "statsPane-kpi",
+  "statsPane-margindiff",
+  "statsPane-master",
+  "statsPane-pattern",
+  "statsPane-svport",
+  "statsPane-un",
+  "statsPeriod",
+  "statsSource",
+  "subconListWrap",
+  "subconSearchInput",
+  "sumCargo",
+  "sumCond",
+  "sumRef",
+  "sumVolume",
+  "tab-master",
+  "tab-quote-make",
+  "tab-stats",
+  "tableBody",
+  "toast-container",
+  "tot-billing",
+  "tot-cost",
+  "tot-profit",
+  "tot-ps-profit",
+  "tot-ps-rev",
+  "tot-row-label",
+  "tot-subtotal",
+  "totPsRow",
+  "umHeadSub",
+  "umInviteBtn",
+  "umInviteEmail",
+  "umInvitePanel",
+  "umInviteRole",
+  "umMemberList",
+  "umMembersPane",
+  "umModal",
+  "umOverlay",
+  "umPermsPane",
+  "umRoleFilter",
+  "umSearch",
+  "umTabMembers",
+  "umTabPerms",
+  "unit-list",
+  "userCatList",
+  "van-no-stack",
+  "van-result",
+  "van-rows-wrap",
+  "van-unit",
+  "z2-routes-data",
+  "z2ActualCarrier",
+  "z2Carrier",
+  "z2CarrierLinks",
+  "z2CarrierRole",
+  "z2ModeIcon",
+  "z2Pod",
+  "z2Pol",
+  "z2RouteList",
+  "z2Service",
+  "z2Tt",
+  "z2Via",
+  "zone1Btn",
+  "zone1Card",
+  "zone1Pieces",
+  "zone1Subcon",
+  "zone3Btn",
+  "zone3Card",
+  "zone3Pieces",
+  "zone3Subcon"
+ ],
+ "handlers": {
+  "addCalcRow": {
+   "uses": 5,
+   "defined": true
+  },
+  "addDaysToValidUntil": {
+   "uses": 2,
+   "defined": true
+  },
+  "addDefaultScEntry": {
+   "uses": 2,
+   "defined": true
+  },
+  "addHazEntry": {
+   "uses": 1,
+   "defined": true
+  },
+  "addOverGaugeRow": {
+   "uses": 1,
+   "defined": true
+  },
+  "addPackingRow": {
+   "uses": 1,
+   "defined": true
+  },
+  "addRouteEntry": {
+   "uses": 1,
+   "defined": true
+  },
+  "addScEntry": {
+   "uses": 6,
+   "defined": true
+  },
+  "applyBulkCategorySet": {
+   "uses": 1,
+   "defined": true
+  },
+  "applyBulkCurrencySet": {
+   "uses": 1,
+   "defined": true
+  },
+  "applyBulkMarkupSet": {
+   "uses": 2,
+   "defined": true
+  },
+  "applyBulkPattern": {
+   "uses": 2,
+   "defined": true
+  },
+  "applyBulkSubcon": {
+   "uses": 2,
+   "defined": true
+  },
+  "applyBulkUnitSet": {
+   "uses": 2,
+   "defined": true
+  },
+  "applyCsvPreset": {
+   "uses": 2,
+   "defined": true
+  },
+  "applyDefaultSubcon": {
+   "uses": 2,
+   "defined": true
+  },
+  "applyScopePreset": {
+   "uses": 2,
+   "defined": true
+  },
+  "applyZoneBasedPreset": {
+   "uses": 1,
+   "defined": true
+  },
+  "applyZoneState": {
+   "uses": 6,
+   "defined": true
+  },
+  "bmClearFilePick": {
+   "uses": 1,
+   "defined": true
+  },
+  "bmContactAddEntry": {
+   "uses": 1,
+   "defined": true
+  },
+  "bmDoAddRelation": {
+   "uses": 1,
+   "defined": true
+  },
+  "bmDoRename": {
+   "uses": 1,
+   "defined": true
+  },
+  "bmDoSaveContact": {
+   "uses": 1,
+   "defined": true
+  },
+  "bmOnFilePicked": {
+   "uses": 1,
+   "defined": true
+  },
+  "bumpContainerChip": {
+   "uses": 22,
+   "defined": true
+  },
+  "calDeleteFromModal": {
+   "uses": 1,
+   "defined": true
+  },
+  "calFormKindIsHoliday": {
+   "uses": 1,
+   "defined": true
+  },
+  "calGoToday": {
+   "uses": 1,
+   "defined": true
+  },
+  "calNextMonth": {
+   "uses": 1,
+   "defined": true
+  },
+  "calPrevMonth": {
+   "uses": 1,
+   "defined": true
+  },
+  "calToggleFormKind": {
+   "uses": 1,
+   "defined": true
+  },
+  "calcAirCW": {
+   "uses": 1,
+   "defined": true
+  },
+  "calcCBMSai": {
+   "uses": 1,
+   "defined": true
+  },
+  "calcDuty": {
+   "uses": 1,
+   "defined": true
+  },
+  "calcInsurance": {
+   "uses": 1,
+   "defined": true
+  },
+  "calcKey": {
+   "uses": 20,
+   "defined": true
+  },
+  "calcLclRT": {
+   "uses": 1,
+   "defined": true
+  },
+  "calcPalletize": {
+   "uses": 1,
+   "defined": true
+  },
+  "calcRate": {
+   "uses": 1,
+   "defined": true
+  },
+  "calcVanning": {
+   "uses": 1,
+   "defined": true
+  },
+  "checkValidUntilWarning": {
+   "uses": 1,
+   "defined": true
+  },
+  "clearCalcResult": {
+   "uses": 8,
+   "defined": true
+  },
+  "clearCloudAdvSearch": {
+   "uses": 1,
+   "defined": true
+  },
+  "clearConditions": {
+   "uses": 1,
+   "defined": true
+  },
+  "clearRemark": {
+   "uses": 1,
+   "defined": true
+  },
+  "clearRowClipboard": {
+   "uses": 1,
+   "defined": true
+  },
+  "clearRowSelection": {
+   "uses": 1,
+   "defined": true
+  },
+  "closeAddBmModal": {
+   "uses": 1,
+   "defined": true
+  },
+  "closeBmContact": {
+   "uses": 2,
+   "defined": true
+  },
+  "closeBmDedup": {
+   "uses": 1,
+   "defined": true
+  },
+  "closeBmHistory": {
+   "uses": 1,
+   "defined": true
+  },
+  "closeBmRelation": {
+   "uses": 1,
+   "defined": true
+  },
+  "closeBmRename": {
+   "uses": 1,
+   "defined": true
+  },
+  "closeCalHistory": {
+   "uses": 1,
+   "defined": true
+  },
+  "closeCalModal": {
+   "uses": 1,
+   "defined": true
+  },
+  "closeCalcWidget": {
+   "uses": 1,
+   "defined": true
+  },
+  "closeCloudPreview": {
+   "uses": 3,
+   "defined": true
+  },
+  "closeCmdPalette": {
+   "uses": 1,
+   "defined": true
+  },
+  "closeCompare": {
+   "uses": 2,
+   "defined": true
+  },
+  "closeCsvColModal": {
+   "uses": 2,
+   "defined": true
+  },
+  "closeEmailImport": {
+   "uses": 2,
+   "defined": true
+  },
+  "closeFeedback": {
+   "uses": 3,
+   "defined": true
+  },
+  "closeMemoFloat": {
+   "uses": 1,
+   "defined": true
+  },
+  "closeMemoPopout": {
+   "uses": 2,
+   "defined": true
+  },
+  "closePackingImport": {
+   "uses": 2,
+   "defined": true
+  },
+  "closePresetMgr": {
+   "uses": 2,
+   "defined": true
+  },
+  "closePreview": {
+   "uses": 1,
+   "defined": true
+  },
+  "closeProfileEdit": {
+   "uses": 3,
+   "defined": true
+  },
+  "closeRemarkPresetModal": {
+   "uses": 1,
+   "defined": true
+  },
+  "closeRowPatternEdit": {
+   "uses": 2,
+   "defined": true
+  },
+  "closeRowPatternMgr": {
+   "uses": 2,
+   "defined": true
+  },
+  "closeScopePresetDlg": {
+   "uses": 1,
+   "defined": true
+  },
+  "closeTbMenus": {
+   "uses": 1,
+   "defined": true
+  },
+  "closeUserMgr": {
+   "uses": 2,
+   "defined": true
+  },
+  "cloudCopyFromPreview": {
+   "uses": 1,
+   "defined": true
+  },
+  "cloudFilterAdvanced": {
+   "uses": 5,
+   "defined": true
+  },
+  "cloudImportSelectedRows": {
+   "uses": 1,
+   "defined": true
+  },
+  "cloudLinkFromPreview": {
+   "uses": 1,
+   "defined": true
+  },
+  "cloudLinkSelected": {
+   "uses": 1,
+   "defined": true
+  },
+  "cloudLogin": {
+   "uses": 2,
+   "defined": true
+  },
+  "cloudLogout": {
+   "uses": 1,
+   "defined": true
+  },
+  "cloudPreviewLoadFull": {
+   "uses": 1,
+   "defined": true
+  },
+  "cloudQuoteFromPreview": {
+   "uses": 1,
+   "defined": true
+  },
+  "cloudSaveCurrent": {
+   "uses": 1,
+   "defined": true
+  },
+  "cloudSearchInput": {
+   "uses": 2,
+   "defined": true
+  },
+  "cloudToggleLinkMode": {
+   "uses": 2,
+   "defined": true
+  },
+  "cmdKeydown": {
+   "uses": 1,
+   "defined": true
+  },
+  "confirmClearAllDoneMarks": {
+   "uses": 1,
+   "defined": true
+  },
+  "copyQuoteEmail": {
+   "uses": 1,
+   "defined": true
+  },
+  "copyRowsToClipboard": {
+   "uses": 1,
+   "defined": true
+  },
+  "copySelectedRows": {
+   "uses": 1,
+   "defined": true
+  },
+  "cpPostComment": {
+   "uses": 2,
+   "defined": true
+  },
+  "cpSwitchRightPane": {
+   "uses": 2,
+   "defined": true
+  },
+  "cpToggleAll": {
+   "uses": 1,
+   "defined": true
+  },
+  "cpUploadAttachment": {
+   "uses": 1,
+   "defined": true
+  },
+  "deleteEmptyRows": {
+   "uses": 1,
+   "defined": true
+  },
+  "deleteRemarkCargoType": {
+   "uses": 1,
+   "defined": true
+  },
+  "deleteSelectedRows": {
+   "uses": 1,
+   "defined": true
+  },
+  "dismissRestoreBar": {
+   "uses": 1,
+   "defined": true
+  },
+  "doAddUserCat": {
+   "uses": 2,
+   "defined": true
+  },
+  "doDownloadCSV": {
+   "uses": 1,
+   "defined": true
+  },
+  "doFetchFxRates": {
+   "uses": 1,
+   "defined": true
+  },
+  "editRefUrl": {
+   "uses": 1,
+   "defined": true
+  },
+  "eiApplyAsNew": {
+   "uses": 1,
+   "defined": true
+  },
+  "eiCopyAiPrompt": {
+   "uses": 1,
+   "defined": true
+  },
+  "eiInsertRows": {
+   "uses": 1,
+   "defined": true
+  },
+  "eiParse": {
+   "uses": 1,
+   "defined": true
+  },
+  "exportExcel": {
+   "uses": 1,
+   "defined": true
+  },
+  "exportRowPatterns": {
+   "uses": 1,
+   "defined": true
+  },
+  "fillQuoteRef": {
+   "uses": 1,
+   "defined": true
+  },
+  "filterCmd": {
+   "uses": 1,
+   "defined": true
+  },
+  "filterFbList": {
+   "uses": 1,
+   "defined": true
+  },
+  "freetimeLookup": {
+   "uses": 1,
+   "defined": false
+  },
+  "gotoRef": {
+   "uses": 3,
+   "defined": true
+  },
+  "handleRemarkImageFiles": {
+   "uses": 1,
+   "defined": true
+  },
+  "importRowPatternsFile": {
+   "uses": 1,
+   "defined": true
+  },
+  "judgeIncoterms": {
+   "uses": 1,
+   "defined": false
+  },
+  "jumpToFirstPending": {
+   "uses": 1,
+   "defined": true
+  },
+  "jumpToNextUnfinished": {
+   "uses": 1,
+   "defined": true
+  },
+  "jumpToPalletizeSimulator": {
+   "uses": 1,
+   "defined": true
+  },
+  "jumpToVanningSimulator": {
+   "uses": 1,
+   "defined": true
+  },
+  "lcClearAttach": {
+   "uses": 1,
+   "defined": true
+  },
+  "lcCloseForm": {
+   "uses": 3,
+   "defined": true
+  },
+  "lcCloseNotice": {
+   "uses": 3,
+   "defined": true
+  },
+  "lcClosePicker": {
+   "uses": 3,
+   "defined": true
+  },
+  "lcCopyNotice": {
+   "uses": 1,
+   "defined": true
+  },
+  "lcCopyNoticeSubject": {
+   "uses": 1,
+   "defined": true
+  },
+  "lcHandleFileChange": {
+   "uses": 1,
+   "defined": true
+  },
+  "lcInsertSelected": {
+   "uses": 1,
+   "defined": true
+  },
+  "lcOpenForm": {
+   "uses": 1,
+   "defined": true
+  },
+  "lcOpenNotice": {
+   "uses": 1,
+   "defined": true
+  },
+  "lcOpenPicker": {
+   "uses": 1,
+   "defined": true
+  },
+  "lcPickerDir": {
+   "uses": 2,
+   "defined": true
+  },
+  "lcPickerRender": {
+   "uses": 3,
+   "defined": true
+  },
+  "lcRailDir": {
+   "uses": 2,
+   "defined": true
+  },
+  "lcRailFilter": {
+   "uses": 1,
+   "defined": true
+  },
+  "lcRailInsert": {
+   "uses": 1,
+   "defined": true
+  },
+  "lcRender": {
+   "uses": 3,
+   "defined": true
+  },
+  "lcRpAddRow": {
+   "uses": 3,
+   "defined": true
+  },
+  "lcRpCloseEdit": {
+   "uses": 2,
+   "defined": true
+  },
+  "lcRpCloseList": {
+   "uses": 2,
+   "defined": true
+  },
+  "lcRpFilterList": {
+   "uses": 4,
+   "defined": true
+  },
+  "lcRpNew": {
+   "uses": 1,
+   "defined": true
+  },
+  "lcRpOpenList": {
+   "uses": 1,
+   "defined": true
+  },
+  "lcRpSave": {
+   "uses": 1,
+   "defined": true
+  },
+  "lcSaveAndContinue": {
+   "uses": 1,
+   "defined": true
+  },
+  "lcSaveCharge": {
+   "uses": 1,
+   "defined": true
+  },
+  "lcSetDir": {
+   "uses": 2,
+   "defined": true
+  },
+  "lcSetGroupMode": {
+   "uses": 1,
+   "defined": true
+  },
+  "lcToggleVariants": {
+   "uses": 1,
+   "defined": true
+  },
+  "loadCSV": {
+   "uses": 1,
+   "defined": true
+  },
+  "loadFbList": {
+   "uses": 1,
+   "defined": true
+  },
+  "masterSetPane": {
+   "uses": 2,
+   "defined": true
+  },
+  "mergeSelectedRowsFromToolbar": {
+   "uses": 1,
+   "defined": true
+  },
+  "normalizeCoreRef": {
+   "uses": 1,
+   "defined": true
+  },
+  "onDragOver": {
+   "uses": 1,
+   "defined": true
+  },
+  "onDrop": {
+   "uses": 1,
+   "defined": true
+  },
+  "onFxAutoModeChange": {
+   "uses": 1,
+   "defined": true
+  },
+  "onHazmatChange": {
+   "uses": 1,
+   "defined": true
+  },
+  "onPalUnitChange": {
+   "uses": 1,
+   "defined": true
+  },
+  "onPieceCheck": {
+   "uses": 6,
+   "defined": true
+  },
+  "onRemarkCargoSelChange": {
+   "uses": 1,
+   "defined": true
+  },
+  "onZ2CarrierChange": {
+   "uses": 1,
+   "defined": true
+  },
+  "onZonePiecesInput": {
+   "uses": 2,
+   "defined": true
+  },
+  "openAddBmModal": {
+   "uses": 1,
+   "defined": true
+  },
+  "openAddCalHolidayModal": {
+   "uses": 1,
+   "defined": true
+  },
+  "openAddCalSurchargeModal": {
+   "uses": 1,
+   "defined": true
+  },
+  "openBmDedup": {
+   "uses": 1,
+   "defined": true
+  },
+  "openBmHistory": {
+   "uses": 1,
+   "defined": true
+  },
+  "openCalHistory": {
+   "uses": 1,
+   "defined": true
+  },
+  "openEmailImport": {
+   "uses": 1,
+   "defined": true
+  },
+  "openFeedback": {
+   "uses": 8,
+   "defined": true
+  },
+  "openMemoPopout": {
+   "uses": 2,
+   "defined": true
+  },
+  "openPackingImport": {
+   "uses": 1,
+   "defined": true
+  },
+  "openPresetMgr": {
+   "uses": 1,
+   "defined": true
+  },
+  "openPreview": {
+   "uses": 1,
+   "defined": true
+  },
+  "openProfileEdit": {
+   "uses": 1,
+   "defined": true
+  },
+  "openQuoteDoc": {
+   "uses": 1,
+   "defined": true
+  },
+  "openQuoteTabHelp": {
+   "uses": 1,
+   "defined": true
+  },
+  "openRowPatternMgr": {
+   "uses": 1,
+   "defined": true
+  },
+  "openSubconRequestMail": {
+   "uses": 1,
+   "defined": true
+  },
+  "openUserMgr": {
+   "uses": 1,
+   "defined": true
+  },
+  "openZoneMapsSearch": {
+   "uses": 2,
+   "defined": true
+  },
+  "overlayClick": {
+   "uses": 1,
+   "defined": true
+  },
+  "pasteClipboardRows": {
+   "uses": 1,
+   "defined": true
+  },
+  "pkiHandlePdfFile": {
+   "uses": 1,
+   "defined": true
+  },
+  "pkiInsertRows": {
+   "uses": 1,
+   "defined": true
+  },
+  "pkiParse": {
+   "uses": 1,
+   "defined": true
+  },
+  "printFitPage": {
+   "uses": 2,
+   "defined": true
+  },
+  "profUpdatePreview": {
+   "uses": 2,
+   "defined": true
+  },
+  "pvSyncDate": {
+   "uses": 2,
+   "defined": true
+  },
+  "pvWarnGuideClose": {
+   "uses": 1,
+   "defined": true
+  },
+  "pvWarnGuideNext": {
+   "uses": 1,
+   "defined": true
+  },
+  "pvWarnGuideSkip": {
+   "uses": 1,
+   "defined": true
+  },
+  "qfAddTagFromInput": {
+   "uses": 1,
+   "defined": true
+  },
+  "qfAttachUpload": {
+   "uses": 2,
+   "defined": true
+  },
+  "qfCloseCustomerDetail": {
+   "uses": 2,
+   "defined": true
+  },
+  "qfEditCustomerDetail": {
+   "uses": 1,
+   "defined": true
+  },
+  "qfShowCustomerDetail": {
+   "uses": 1,
+   "defined": true
+  },
+  "qfTagsKeydown": {
+   "uses": 1,
+   "defined": true
+  },
+  "qpBackToDashboard": {
+   "uses": 1,
+   "defined": true
+  },
+  "qpDockAction": {
+   "uses": 1,
+   "defined": true
+  },
+  "qpNewQuote": {
+   "uses": 2,
+   "defined": true
+  },
+  "qpShowEditor": {
+   "uses": 1,
+   "defined": true
+  },
+  "qpdApplyAdv": {
+   "uses": 5,
+   "defined": true
+  },
+  "qpdClearAdv": {
+   "uses": 1,
+   "defined": true
+  },
+  "qpdClearSearch": {
+   "uses": 1,
+   "defined": true
+  },
+  "qpdRankSetTab": {
+   "uses": 2,
+   "defined": true
+  },
+  "qpdResetAllFilters": {
+   "uses": 1,
+   "defined": true
+  },
+  "qpdSetSort": {
+   "uses": 1,
+   "defined": true
+  },
+  "qpdSetView": {
+   "uses": 2,
+   "defined": true
+  },
+  "qpdTagQuickFilterCommit": {
+   "uses": 1,
+   "defined": true
+  },
+  "qpdTagQuickFilterInput": {
+   "uses": 1,
+   "defined": true
+  },
+  "qpdToggleAdv": {
+   "uses": 1,
+   "defined": true
+  },
+  "qspPostComment": {
+   "uses": 2,
+   "defined": true
+  },
+  "qspSetTab": {
+   "uses": 4,
+   "defined": true
+  },
+  "quickLookup": {
+   "uses": 1,
+   "defined": false
+  },
+  "quickQuotePdf": {
+   "uses": 1,
+   "defined": true
+  },
+  "quoteRedo": {
+   "uses": 1,
+   "defined": true
+  },
+  "quoteUndo": {
+   "uses": 1,
+   "defined": true
+  },
+  "recalcOverGauge": {
+   "uses": 2,
+   "defined": true
+  },
+  "reflectToQuote": {
+   "uses": 3,
+   "defined": true
+  },
+  "removeCalcRow": {
+   "uses": 5,
+   "defined": true
+  },
+  "renderCatOrderPanel": {
+   "uses": 1,
+   "defined": true
+  },
+  "renderFclLcl": {
+   "uses": 12,
+   "defined": true
+  },
+  "renderFxPanel": {
+   "uses": 2,
+   "defined": true
+  },
+  "renderRefUrlLinks": {
+   "uses": 1,
+   "defined": true
+  },
+  "renderUserCatPanel": {
+   "uses": 1,
+   "defined": true
+  },
+  "resetAll": {
+   "uses": 1,
+   "defined": true
+  },
+  "resetCatOrder": {
+   "uses": 1,
+   "defined": true
+  },
+  "resetIncoterms": {
+   "uses": 1,
+   "defined": false
+  },
+  "restoreAutoSave": {
+   "uses": 1,
+   "defined": true
+  },
+  "rnClearCompose": {
+   "uses": 1,
+   "defined": true
+  },
+  "rnComposeFromSelection": {
+   "uses": 1,
+   "defined": true
+  },
+  "rnCopyBody": {
+   "uses": 1,
+   "defined": true
+  },
+  "rnCopySubject": {
+   "uses": 1,
+   "defined": true
+  },
+  "rnSaveNotice": {
+   "uses": 2,
+   "defined": true
+  },
+  "rnSetDir": {
+   "uses": 2,
+   "defined": true
+  },
+  "rpEditAddLink": {
+   "uses": 1,
+   "defined": true
+  },
+  "rpEditAddRow": {
+   "uses": 3,
+   "defined": true
+  },
+  "runCompare": {
+   "uses": 1,
+   "defined": true
+  },
+  "saveBm": {
+   "uses": 1,
+   "defined": true
+  },
+  "saveCalHoliday": {
+   "uses": 1,
+   "defined": true
+  },
+  "saveCalSurcharge": {
+   "uses": 1,
+   "defined": true
+  },
+  "savePreset": {
+   "uses": 2,
+   "defined": true
+  },
+  "saveProfile": {
+   "uses": 1,
+   "defined": true
+  },
+  "saveRemarkPresetModal": {
+   "uses": 1,
+   "defined": true
+  },
+  "saveRowPatternEdit": {
+   "uses": 1,
+   "defined": true
+  },
+  "saveRowPatternFromChecked": {
+   "uses": 2,
+   "defined": true
+  },
+  "seedCarrierBookmarks": {
+   "uses": 1,
+   "defined": true
+  },
+  "setContainerCat": {
+   "uses": 2,
+   "defined": true
+  },
+  "setContainerChip": {
+   "uses": 11,
+   "defined": true
+  },
+  "setContainerSub": {
+   "uses": 2,
+   "defined": true
+  },
+  "setDirection": {
+   "uses": 4,
+   "defined": true
+  },
+  "setHazmatChip": {
+   "uses": 6,
+   "defined": true
+  },
+  "setLayoutScale": {
+   "uses": 3,
+   "defined": true
+  },
+  "setPreviewLayout": {
+   "uses": 2,
+   "defined": true
+  },
+  "setQuoteStatus": {
+   "uses": 9,
+   "defined": true
+  },
+  "setRfVent": {
+   "uses": 2,
+   "defined": true
+  },
+  "setTransport": {
+   "uses": 6,
+   "defined": true
+  },
+  "showIncotermsHint": {
+   "uses": 2,
+   "defined": true
+  },
+  "siSetTab": {
+   "uses": 2,
+   "defined": true
+  },
+  "siToggleShowAll": {
+   "uses": 1,
+   "defined": true
+  },
+  "sortBy": {
+   "uses": 1,
+   "defined": true
+  },
+  "sqClosePreview": {
+   "uses": 3,
+   "defined": true
+  },
+  "sqLoadConfirm": {
+   "uses": 1,
+   "defined": true
+  },
+  "startQuoteRevision": {
+   "uses": 1,
+   "defined": true
+  },
+  "statsExportCsv": {
+   "uses": 5,
+   "defined": true
+  },
+  "statsRefresh": {
+   "uses": 3,
+   "defined": true
+  },
+  "statsSetPane": {
+   "uses": 12,
+   "defined": true
+  },
+  "statsToggleHelp": {
+   "uses": 2,
+   "defined": true
+  },
+  "subconFilter": {
+   "uses": 1,
+   "defined": true
+  },
+  "subconSidePanelFilter": {
+   "uses": 1,
+   "defined": true
+  },
+  "submitFeedback": {
+   "uses": 1,
+   "defined": true
+  },
+  "switchCategory": {
+   "uses": 12,
+   "defined": true
+  },
+  "switchFbTab": {
+   "uses": 2,
+   "defined": true
+  },
+  "switchRowInsertTab": {
+   "uses": 2,
+   "defined": true
+  },
+  "switchTab": {
+   "uses": 21,
+   "defined": true
+  },
+  "switchUmTab": {
+   "uses": 2,
+   "defined": true
+  },
+  "toggleAllCsvCols": {
+   "uses": 1,
+   "defined": true
+  },
+  "toggleAutoSave": {
+   "uses": 1,
+   "defined": true
+  },
+  "toggleCalcWidget": {
+   "uses": 1,
+   "defined": true
+  },
+  "toggleCargoLawPanel": {
+   "uses": 1,
+   "defined": true
+  },
+  "toggleCargoUnknown": {
+   "uses": 1,
+   "defined": true
+  },
+  "toggleCloudAdvSearch": {
+   "uses": 1,
+   "defined": true
+  },
+  "toggleColVis": {
+   "uses": 3,
+   "defined": true
+  },
+  "toggleCsvZone": {
+   "uses": 1,
+   "defined": true
+  },
+  "toggleInsurance": {
+   "uses": 1,
+   "defined": true
+  },
+  "toggleMemoFloat": {
+   "uses": 1,
+   "defined": true
+  },
+  "togglePalCustom": {
+   "uses": 1,
+   "defined": true
+  },
+  "toggleQuoteBottomAccordion": {
+   "uses": 3,
+   "defined": true
+  },
+  "toggleQuoteSection": {
+   "uses": 4,
+   "defined": true
+  },
+  "toggleSelectAll": {
+   "uses": 1,
+   "defined": true
+  },
+  "toggleTbMenu": {
+   "uses": 1,
+   "defined": true
+  },
+  "toggleValidUntilSpot": {
+   "uses": 1,
+   "defined": true
+  },
+  "toggleZone": {
+   "uses": 2,
+   "defined": true
+  },
+  "toggleZoneCollapse": {
+   "uses": 3,
+   "defined": true
+  },
+  "toolbarInsertSubtotal": {
+   "uses": 1,
+   "defined": true
+  },
+  "umFilter": {
+   "uses": 2,
+   "defined": true
+  },
+  "umInvite": {
+   "uses": 1,
+   "defined": true
+  },
+  "umToggleInvite": {
+   "uses": 1,
+   "defined": true
+  },
+  "updateContainerSpec": {
+   "uses": 1,
+   "defined": true
+  },
+  "updateQuoteStatusUI": {
+   "uses": 1,
+   "defined": true
+  }
+ },
+ "classes": {
+  "active": {
+   "css": true,
+   "html": true
+  },
+  "actual-cost-btn": {
+   "css": true,
+   "html": true
+  },
+  "bm-carrier-locked": {
+   "css": true,
+   "html": false
+  },
+  "bm-carrier-suggest-apply": {
+   "css": true,
+   "html": false
+  },
+  "bm-carrier-suggest-dismiss": {
+   "css": true,
+   "html": false
+  },
+  "bm-cedit-card": {
+   "css": true,
+   "html": false
+  },
+  "bm-file-attach-removing": {
+   "css": true,
+   "html": false
+  },
+  "bp-base-hint": {
+   "css": true,
+   "html": true
+  },
+  "btn-row-del": {
+   "css": true,
+   "html": true
+  },
+  "btn-row-int": {
+   "css": true,
+   "html": true
+  },
+  "btn-row-rem": {
+   "css": true,
+   "html": true
+  },
+  "calc-h": {
+   "css": false,
+   "html": false
+  },
+  "calc-history-entry": {
+   "css": true,
+   "html": false
+  },
+  "calc-history-header": {
+   "css": true,
+   "html": false
+  },
+  "calc-history-num": {
+   "css": true,
+   "html": false
+  },
+  "calc-history-summary": {
+   "css": true,
+   "html": false
+  },
+  "calc-input-echo": {
+   "css": true,
+   "html": false
+  },
+  "calc-item": {
+   "css": true,
+   "html": false
+  },
+  "calc-item-label": {
+   "css": true,
+   "html": false
+  },
+  "calc-item-value": {
+   "css": true,
+   "html": false
+  },
+  "calc-kg": {
+   "css": false,
+   "html": false
+  },
+  "calc-l": {
+   "css": false,
+   "html": false
+  },
+  "calc-multi-row": {
+   "css": true,
+   "html": true
+  },
+  "calc-pcs": {
+   "css": false,
+   "html": false
+  },
+  "calc-pkg": {
+   "css": false,
+   "html": false
+  },
+  "calc-row-label": {
+   "css": true,
+   "html": false
+  },
+  "calc-stack": {
+   "css": false,
+   "html": false
+  },
+  "calc-w": {
+   "css": false,
+   "html": false
+  },
+  "calc-x": {
+   "css": true,
+   "html": true
+  },
+  "cargo-detail-actions": {
+   "css": true,
+   "html": true
+  },
+  "cargo-detail-scroll": {
+   "css": true,
+   "html": true
+  },
+  "cargo-ref-chip--law": {
+   "css": true,
+   "html": true
+  },
+  "cat-btn": {
+   "css": true,
+   "html": true
+  },
+  "cat-btn-featured": {
+   "css": true,
+   "html": true
+  },
+  "cat-nav": {
+   "css": true,
+   "html": true
+  },
+  "cbm-calc-details": {
+   "css": true,
+   "html": false
+  },
+  "cbm-result": {
+   "css": true,
+   "html": false
+  },
+  "cc-cat-tab": {
+   "css": true,
+   "html": true
+  },
+  "cc-chip": {
+   "css": true,
+   "html": true
+  },
+  "cc-chip-dims": {
+   "css": true,
+   "html": false
+  },
+  "cc-count": {
+   "css": true,
+   "html": true
+  },
+  "cc-label": {
+   "css": true,
+   "html": true
+  },
+  "cc-og-rowresult": {
+   "css": true,
+   "html": false
+  },
+  "cc-seg-btn": {
+   "css": true,
+   "html": true
+  },
+  "cc-sub-tab": {
+   "css": true,
+   "html": true
+  },
+  "ccc-count": {
+   "css": true,
+   "html": false
+  },
+  "ccc-has": {
+   "css": true,
+   "html": false
+  },
+  "ccc-input": {
+   "css": true,
+   "html": false
+  },
+  "ccc-list": {
+   "css": true,
+   "html": false
+  },
+  "ccc-open": {
+   "css": true,
+   "html": false
+  },
+  "ccc-panel": {
+   "css": true,
+   "html": false
+  },
+  "ccc-preview": {
+   "css": true,
+   "html": false
+  },
+  "ccc-send": {
+   "css": true,
+   "html": false
+  },
+  "cd-pkg": {
+   "css": true,
+   "html": true
+  },
+  "checked": {
+   "css": true,
+   "html": false
+  },
+  "cloud-card-chat": {
+   "css": true,
+   "html": false
+  },
+  "cloud-card-links": {
+   "css": true,
+   "html": false
+  },
+  "cloud-follow-date": {
+   "css": true,
+   "html": false
+  },
+  "cloud-follow-edit": {
+   "css": true,
+   "html": false
+  },
+  "cloud-follow-note": {
+   "css": true,
+   "html": false
+  },
+  "cmd-item": {
+   "css": true,
+   "html": false
+  },
+  "cmp-chk": {
+   "css": false,
+   "html": false
+  },
+  "cnt-link-btn": {
+   "css": true,
+   "html": true
+  },
+  "col": {
+   "css": false,
+   "html": false
+  },
+  "collapsed": {
+   "css": true,
+   "html": false
+  },
+  "cond-charge-btn": {
+   "css": true,
+   "html": true
+  },
+  "cond-field": {
+   "css": true,
+   "html": true
+  },
+  "cond-field-dragging": {
+   "css": true,
+   "html": false
+  },
+  "cond-field-over": {
+   "css": true,
+   "html": false
+  },
+  "cond-prim-btn": {
+   "css": true,
+   "html": true
+  },
+  "condition-section": {
+   "css": true,
+   "html": true
+  },
+  "container-chip-grid": {
+   "css": true,
+   "html": true
+  },
+  "copied": {
+   "css": true,
+   "html": false
+  },
+  "cp-chat-item": {
+   "css": true,
+   "html": false
+  },
+  "cp-chat-send": {
+   "css": true,
+   "html": true
+  },
+  "cp-chk": {
+   "css": false,
+   "html": false
+  },
+  "cp-group-chk": {
+   "css": false,
+   "html": false
+  },
+  "cp-row": {
+   "css": false,
+   "html": false
+  },
+  "cp-rtab--active": {
+   "css": true,
+   "html": true
+  },
+  "cpd-print-mode": {
+   "css": true,
+   "html": false
+  },
+  "csv-col-chk": {
+   "css": false,
+   "html": true
+  },
+  "customer-mode": {
+   "css": true,
+   "html": false
+  },
+  "dataset": {
+   "css": false,
+   "html": false
+  },
+  "display-field": {
+   "css": true,
+   "html": true
+  },
+  "drag-over-bottom": {
+   "css": true,
+   "html": false
+  },
+  "drag-over-left": {
+   "css": true,
+   "html": false
+  },
+  "drag-over-top": {
+   "css": true,
+   "html": false
+  },
+  "dragging": {
+   "css": true,
+   "html": false
+  },
+  "ei-chk": {
+   "css": false,
+   "html": false
+  },
+  "ei-group": {
+   "css": true,
+   "html": false
+  },
+  "ei-sv": {
+   "css": true,
+   "html": false
+  },
+  "ei-tax": {
+   "css": true,
+   "html": false
+  },
+  "escape": {
+   "css": false,
+   "html": false
+  },
+  "est-btn": {
+   "css": true,
+   "html": true
+  },
+  "fb-list-item": {
+   "css": true,
+   "html": false
+  },
+  "fb-radio": {
+   "css": true,
+   "html": true
+  },
+  "fb-status-badge": {
+   "css": true,
+   "html": false
+  },
+  "filter-active": {
+   "css": true,
+   "html": false
+  },
+  "flash-reflect": {
+   "css": true,
+   "html": false
+  },
+  "formula-editing": {
+   "css": true,
+   "html": false
+  },
+  "grp-dragging": {
+   "css": true,
+   "html": false
+  },
+  "grp-drop-before": {
+   "css": true,
+   "html": false
+  },
+  "grp-flash": {
+   "css": true,
+   "html": false
+  },
+  "grp-updated-input": {
+   "css": true,
+   "html": false
+  },
+  "grp-updated-mixed": {
+   "css": true,
+   "html": false
+  },
+  "grp-updated-today": {
+   "css": true,
+   "html": false
+  },
+  "has-img": {
+   "css": true,
+   "html": false
+  },
+  "has-sensitive": {
+   "css": true,
+   "html": false
+  },
+  "haz-chip": {
+   "css": true,
+   "html": true
+  },
+  "hazmat-panel": {
+   "css": false,
+   "html": true
+  },
+  "hide-pattern-linked": {
+   "css": true,
+   "html": false
+  },
+  "hide-pattern-needs-check": {
+   "css": true,
+   "html": false
+  },
+  "ins-on": {
+   "css": true,
+   "html": false
+  },
+  "internal-row-input": {
+   "css": true,
+   "html": false
+  },
+  "is-active": {
+   "css": true,
+   "html": true
+  },
+  "is-busy": {
+   "css": true,
+   "html": false
+  },
+  "is-cold": {
+   "css": true,
+   "html": false
+  },
+  "is-collapsed": {
+   "css": true,
+   "html": false
+  },
+  "is-current": {
+   "css": true,
+   "html": false
+  },
+  "is-dragging": {
+   "css": true,
+   "html": false
+  },
+  "is-excluded": {
+   "css": true,
+   "html": false
+  },
+  "is-heavy": {
+   "css": true,
+   "html": false
+  },
+  "is-linked": {
+   "css": true,
+   "html": false
+  },
+  "is-neg": {
+   "css": true,
+   "html": false
+  },
+  "is-on": {
+   "css": true,
+   "html": true
+  },
+  "is-open": {
+   "css": true,
+   "html": false
+  },
+  "is-other": {
+   "css": true,
+   "html": false
+  },
+  "is-pattern": {
+   "css": true,
+   "html": false
+  },
+  "is-pinned": {
+   "css": true,
+   "html": false
+  },
+  "is-row-dragging": {
+   "css": true,
+   "html": false
+  },
+  "is-sel": {
+   "css": true,
+   "html": false
+  },
+  "is-shown": {
+   "css": true,
+   "html": false
+  },
+  "jump-target-flash": {
+   "css": true,
+   "html": false
+  },
+  "kg-total-result": {
+   "css": true,
+   "html": false
+  },
+  "layout-doc": {
+   "css": true,
+   "html": false
+  },
+  "layout-scale-btn": {
+   "css": true,
+   "html": true
+  },
+  "lc-acc-h": {
+   "css": true,
+   "html": false
+  },
+  "lc-chip": {
+   "css": true,
+   "html": false
+  },
+  "lc-chip-entry": {
+   "css": true,
+   "html": true
+  },
+  "lc-chip-x": {
+   "css": true,
+   "html": false
+  },
+  "lc-dir-btn": {
+   "css": true,
+   "html": true
+  },
+  "lc-dragover": {
+   "css": true,
+   "html": false
+  },
+  "lc-modal-footer": {
+   "css": true,
+   "html": true
+  },
+  "lc-pick-chk": {
+   "css": true,
+   "html": false
+  },
+  "lc-pick-dir-btn": {
+   "css": false,
+   "html": false
+  },
+  "lc-rail-card--sel": {
+   "css": true,
+   "html": false
+  },
+  "lc-rail-chk": {
+   "css": true,
+   "html": false
+  },
+  "lc-rail-expired": {
+   "css": true,
+   "html": false
+  },
+  "lc-rail-expiring": {
+   "css": true,
+   "html": false
+  },
+  "lcrp-row": {
+   "css": false,
+   "html": false
+  },
+  "lcrp-tag-chip": {
+   "css": true,
+   "html": false
+  },
+  "lcrp-tag-entry": {
+   "css": true,
+   "html": true
+  },
+  "lcrp-tag-x": {
+   "css": true,
+   "html": false
+  },
+  "lcrp-w-name": {
+   "css": false,
+   "html": false
+  },
+  "master-detail-jump-btn": {
+   "css": true,
+   "html": true
+  },
+  "master-reg-btn": {
+   "css": true,
+   "html": true
+  },
+  "md-contact-email": {
+   "css": false,
+   "html": false
+  },
+  "md-contact-furi": {
+   "css": false,
+   "html": false
+  },
+  "md-contact-name": {
+   "css": true,
+   "html": false
+  },
+  "md-contact-other": {
+   "css": false,
+   "html": false
+  },
+  "md-contact-phone": {
+   "css": false,
+   "html": false
+  },
+  "md-contact-row": {
+   "css": true,
+   "html": false
+  },
+  "mk-disabled": {
+   "css": true,
+   "html": false
+  },
+  "mode-hidden": {
+   "css": true,
+   "html": false
+  },
+  "og-l": {
+   "css": false,
+   "html": false
+  },
+  "og-qty": {
+   "css": true,
+   "html": false
+  },
+  "on": {
+   "css": true,
+   "html": false
+  },
+  "open": {
+   "css": true,
+   "html": false
+  },
+  "pct-mode-btn": {
+   "css": true,
+   "html": true
+  },
+  "pq-pattern-linked": {
+   "css": true,
+   "html": false
+  },
+  "pq-pattern-needs-check": {
+   "css": true,
+   "html": false
+  },
+  "preset-btn": {
+   "css": true,
+   "html": false
+  },
+  "prof-color": {
+   "css": true,
+   "html": false
+  },
+  "prof-emoji": {
+   "css": true,
+   "html": false
+  },
+  "prof-save": {
+   "css": true,
+   "html": true
+  },
+  "profit-share-btn": {
+   "css": true,
+   "html": true
+  },
+  "pt-route-clear": {
+   "css": true,
+   "html": false
+  },
+  "pt-route-opt": {
+   "css": true,
+   "html": false
+  },
+  "pv-col-chk": {
+   "css": false,
+   "html": true
+  },
+  "pv-fit-print": {
+   "css": false,
+   "html": false
+  },
+  "pv-layout-btn": {
+   "css": true,
+   "html": true
+  },
+  "pv-neg": {
+   "css": true,
+   "html": false
+  },
+  "pv-pattern-header": {
+   "css": true,
+   "html": false
+  },
+  "pv-pattern-subtotal": {
+   "css": true,
+   "html": false
+  },
+  "pv-pts-label": {
+   "css": false,
+   "html": false
+  },
+  "pv-scs-cost": {
+   "css": true,
+   "html": false
+  },
+  "pv-scs-label": {
+   "css": true,
+   "html": false
+  },
+  "pv-scs-margin": {
+   "css": true,
+   "html": false
+  },
+  "pv-sec-chk": {
+   "css": false,
+   "html": true
+  },
+  "pv-subcon-header": {
+   "css": true,
+   "html": false
+  },
+  "pv-subcon-subtotal": {
+   "css": true,
+   "html": false
+  },
+  "pv-subtotal-sep": {
+   "css": true,
+   "html": false
+  },
+  "pv-subtotal-sep-label": {
+   "css": true,
+   "html": false
+  },
+  "pv-table-remark-row": {
+   "css": true,
+   "html": false
+  },
+  "pv-tax-cell": {
+   "css": false,
+   "html": false
+  },
+  "pv-tax-total": {
+   "css": false,
+   "html": false
+  },
+  "pv-total": {
+   "css": true,
+   "html": false
+  },
+  "pv-wg-item": {
+   "css": true,
+   "html": false
+  },
+  "qad-edit": {
+   "css": true,
+   "html": false
+  },
+  "qad-save": {
+   "css": true,
+   "html": true
+  },
+  "qd-page": {
+   "css": true,
+   "html": false
+  },
+  "qd-print-mode": {
+   "css": true,
+   "html": false
+  },
+  "qd-printing-ready": {
+   "css": false,
+   "html": false
+  },
+  "qf-expired": {
+   "css": true,
+   "html": false
+  },
+  "qf-mode-spot": {
+   "css": true,
+   "html": false
+  },
+  "qf-refurl-links": {
+   "css": true,
+   "html": true
+  },
+  "qf-status-btn": {
+   "css": true,
+   "html": true
+  },
+  "qmode-view": {
+   "css": true,
+   "html": false
+  },
+  "qp-dash": {
+   "css": true,
+   "html": false
+  },
+  "qp-dash-active": {
+   "css": true,
+   "html": false
+  },
+  "qpd-list--rows": {
+   "css": true,
+   "html": false
+  },
+  "qpd-rank-pane": {
+   "css": true,
+   "html": true
+  },
+  "qpd-rank-tab": {
+   "css": true,
+   "html": true
+  },
+  "qplc-act": {
+   "css": true,
+   "html": false
+  },
+  "qplc-cancel": {
+   "css": true,
+   "html": false
+  },
+  "qplc-discard": {
+   "css": true,
+   "html": false
+  },
+  "qplc-save": {
+   "css": true,
+   "html": false
+  },
+  "qrc-open": {
+   "css": false,
+   "html": false
+  },
+  "qrc-rail-badge": {
+   "css": true,
+   "html": false
+  },
+  "qrc-rail-btn": {
+   "css": true,
+   "html": false
+  },
+  "qrc-rail-dot": {
+   "css": true,
+   "html": false
+  },
+  "qsp-drop-bottom": {
+   "css": true,
+   "html": false
+  },
+  "qsp-drop-top": {
+   "css": true,
+   "html": false
+  },
+  "qsp-mod": {
+   "css": true,
+   "html": false
+  },
+  "qsp-row-dragging": {
+   "css": true,
+   "html": false
+  },
+  "quote-field-memo": {
+   "css": true,
+   "html": true
+  },
+  "quote-main": {
+   "css": true,
+   "html": true
+  },
+  "quote-right-col": {
+   "css": true,
+   "html": true
+  },
+  "quote-right-col--rail": {
+   "css": true,
+   "html": false
+  },
+  "quote-warn-field": {
+   "css": true,
+   "html": false
+  },
+  "qvm-customer": {
+   "css": true,
+   "html": false
+  },
+  "ref-info-btn": {
+   "css": true,
+   "html": true
+  },
+  "remark-internal": {
+   "css": true,
+   "html": false
+  },
+  "remark-row": {
+   "css": true,
+   "html": false
+  },
+  "remark-row-input": {
+   "css": true,
+   "html": false
+  },
+  "remark-row-marker": {
+   "css": true,
+   "html": false
+  },
+  "remark-scope-btn": {
+   "css": true,
+   "html": false
+  },
+  "replace": {
+   "css": false,
+   "html": false
+  },
+  "rfx-add": {
+   "css": true,
+   "html": false
+  },
+  "rn-plan-chk": {
+   "css": true,
+   "html": false
+  },
+  "rn-plan-row--sel": {
+   "css": true,
+   "html": false
+  },
+  "row-actual-cost": {
+   "css": true,
+   "html": false
+  },
+  "row-bc-indep": {
+   "css": true,
+   "html": false
+  },
+  "row-cmp-best": {
+   "css": true,
+   "html": false
+  },
+  "row-conditional": {
+   "css": true,
+   "html": false
+  },
+  "row-done-btn": {
+   "css": true,
+   "html": true
+  },
+  "row-estimate": {
+   "css": true,
+   "html": false
+  },
+  "row-excluded": {
+   "css": true,
+   "html": false
+  },
+  "row-hidden-quote": {
+   "css": true,
+   "html": false
+  },
+  "row-hidequote-btn": {
+   "css": true,
+   "html": true
+  },
+  "row-input-done": {
+   "css": true,
+   "html": false
+  },
+  "row-merge-badge": {
+   "css": true,
+   "html": false
+  },
+  "row-merged-child": {
+   "css": true,
+   "html": false
+  },
+  "row-move-down": {
+   "css": false,
+   "html": false
+  },
+  "row-move-up": {
+   "css": false,
+   "html": false
+  },
+  "row-num": {
+   "css": true,
+   "html": true
+  },
+  "row-out-of-range": {
+   "css": true,
+   "html": false
+  },
+  "row-pct-mode": {
+   "css": true,
+   "html": false
+  },
+  "row-pending": {
+   "css": true,
+   "html": false
+  },
+  "row-pending-btn": {
+   "css": false,
+   "html": true
+  },
+  "row-profit-share": {
+   "css": true,
+   "html": false
+  },
+  "row-ref-info": {
+   "css": true,
+   "html": false
+  },
+  "row-select-chk": {
+   "css": true,
+   "html": true
+  },
+  "row-sell-mode": {
+   "css": false,
+   "html": false
+  },
+  "row-unfilled": {
+   "css": true,
+   "html": false
+  },
+  "row-warn-price": {
+   "css": true,
+   "html": false
+  },
+  "rp-card": {
+   "css": true,
+   "html": false
+  },
+  "rp-edit-row": {
+   "css": true,
+   "html": false
+  },
+  "rp-er-name": {
+   "css": true,
+   "html": false
+  },
+  "rp-row-chk": {
+   "css": true,
+   "html": false
+  },
+  "rp-sc-card": {
+   "css": true,
+   "html": false
+  },
+  "rp-sc-chk": {
+   "css": false,
+   "html": false
+  },
+  "save-btn-menu": {
+   "css": true,
+   "html": true
+  },
+  "sc-add-btn": {
+   "css": true,
+   "html": true
+  },
+  "sc-entry": {
+   "css": true,
+   "html": true
+  },
+  "sc-input": {
+   "css": true,
+   "html": true
+  },
+  "sc-panel--collapsed": {
+   "css": true,
+   "html": false
+  },
+  "scale-": {
+   "css": false,
+   "html": false
+  },
+  "scale-sm": {
+   "css": true,
+   "html": false
+  },
+  "section-desc": {
+   "css": true,
+   "html": true
+  },
+  "section-desc-tip": {
+   "css": true,
+   "html": false
+  },
+  "section-help-wrap": {
+   "css": true,
+   "html": false
+  },
+  "selected": {
+   "css": true,
+   "html": false
+  },
+  "selection-mode": {
+   "css": true,
+   "html": false
+  },
+  "show": {
+   "css": true,
+   "html": false
+  },
+  "si-chk": {
+   "css": false,
+   "html": false
+  },
+  "si-drop-bottom": {
+   "css": true,
+   "html": false
+  },
+  "si-drop-top": {
+   "css": true,
+   "html": false
+  },
+  "si-item-dragging": {
+   "css": true,
+   "html": false
+  },
+  "si-pane": {
+   "css": true,
+   "html": true
+  },
+  "si-tab": {
+   "css": true,
+   "html": true
+  },
+  "sq-card": {
+   "css": true,
+   "html": false
+  },
+  "sq-collapse-arrow": {
+   "css": true,
+   "html": false
+  },
+  "sq-list": {
+   "css": true,
+   "html": false
+  },
+  "sq-mode-chip": {
+   "css": true,
+   "html": false
+  },
+  "sq-panel--collapsed": {
+   "css": true,
+   "html": false
+  },
+  "sq-search-bar": {
+   "css": true,
+   "html": false
+  },
+  "sq-search-toggle": {
+   "css": true,
+   "html": false
+  },
+  "sq-status-chip": {
+   "css": true,
+   "html": false
+  },
+  "stats-detail-row": {
+   "css": true,
+   "html": false
+  },
+  "stats-master-abbrev-add": {
+   "css": true,
+   "html": false
+  },
+  "stats-master-detail-btn": {
+   "css": true,
+   "html": false
+  },
+  "stats-master-jump-hl": {
+   "css": true,
+   "html": false
+  },
+  "stats-md-tag-chip": {
+   "css": true,
+   "html": false
+  },
+  "stats-pane": {
+   "css": true,
+   "html": true
+  },
+  "stats-refresh-btn": {
+   "css": true,
+   "html": true
+  },
+  "stats-syn-picker": {
+   "css": true,
+   "html": false
+  },
+  "stats-tab-btn": {
+   "css": true,
+   "html": true
+  },
+  "stp-amt": {
+   "css": false,
+   "html": false
+  },
+  "sub-nav": {
+   "css": true,
+   "html": true
+  },
+  "subcon-alias-input": {
+   "css": true,
+   "html": false
+  },
+  "subcon-child": {
+   "css": true,
+   "html": false
+  },
+  "subcon-group-add-btn": {
+   "css": true,
+   "html": false
+  },
+  "subcon-group-chk": {
+   "css": true,
+   "html": false
+  },
+  "subcon-group-excl": {
+   "css": true,
+   "html": false
+  },
+  "subcon-group-grip": {
+   "css": true,
+   "html": false
+  },
+  "subcon-group-header": {
+   "css": true,
+   "html": false
+  },
+  "subcon-group-label": {
+   "css": true,
+   "html": false
+  },
+  "subcon-group-sort-btn": {
+   "css": true,
+   "html": false
+  },
+  "subcon-group-sum": {
+   "css": true,
+   "html": false
+  },
+  "subcon-group-toggle": {
+   "css": true,
+   "html": false
+  },
+  "subcon-grp-member": {
+   "css": true,
+   "html": false
+  },
+  "subcon-grp-nested": {
+   "css": true,
+   "html": false
+  },
+  "subcon-pt-add-btn": {
+   "css": false,
+   "html": false
+  },
+  "subcon-remark-input": {
+   "css": true,
+   "html": false
+  },
+  "subcon-remark-toggle": {
+   "css": true,
+   "html": false
+  },
+  "subcon-subchild": {
+   "css": true,
+   "html": false
+  },
+  "subcon-subgroup-dup": {
+   "css": true,
+   "html": false
+  },
+  "subcon-subgroup-excl": {
+   "css": true,
+   "html": false
+  },
+  "subcon-subgroup-grip": {
+   "css": true,
+   "html": false
+  },
+  "subcon-subgroup-header": {
+   "css": true,
+   "html": false
+  },
+  "subcon-subgroup-leg": {
+   "css": true,
+   "html": false
+  },
+  "subcon-subgroup-rename": {
+   "css": true,
+   "html": false
+  },
+  "subcon-subgroup-toggle": {
+   "css": true,
+   "html": false
+  },
+  "subcon-subtotal-add-btn": {
+   "css": true,
+   "html": false
+  },
+  "subcon-subtotal-cost": {
+   "css": false,
+   "html": false
+  },
+  "subcon-subtotal-margin": {
+   "css": false,
+   "html": false
+  },
+  "subcon-subtotal-sum": {
+   "css": false,
+   "html": false
+  },
+  "subtotal-group-billing": {
+   "css": true,
+   "html": false
+  },
+  "subtotal-group-profit": {
+   "css": true,
+   "html": false
+  },
+  "subtotal-group-subtotal": {
+   "css": true,
+   "html": false
+  },
+  "subtotal-label": {
+   "css": true,
+   "html": false
+  },
+  "subtotal-move-down": {
+   "css": false,
+   "html": false
+  },
+  "subtotal-move-up": {
+   "css": false,
+   "html": false
+  },
+  "syn-suggest-apply": {
+   "css": true,
+   "html": false
+  },
+  "syn-suggest-dismiss": {
+   "css": true,
+   "html": false
+  },
+  "tab-btn": {
+   "css": true,
+   "html": true
+  },
+  "tab-content": {
+   "css": true,
+   "html": true
+  },
+  "taxed": {
+   "css": true,
+   "html": false
+  },
+  "tb-menu": {
+   "css": true,
+   "html": true
+  },
+  "tot-margin": {
+   "css": true,
+   "html": false
+  },
+  "twk-base-": {
+   "css": false,
+   "html": false
+  },
+  "twk-base-washi": {
+   "css": false,
+   "html": false
+  },
+  "twk-density-": {
+   "css": false,
+   "html": false
+  },
+  "twk-density-comfy": {
+   "css": false,
+   "html": false
+  },
+  "twk-grp": {
+   "css": false,
+   "html": false
+  },
+  "twk-hd": {
+   "css": false,
+   "html": false
+  },
+  "twk-x": {
+   "css": false,
+   "html": false
+  },
+  "ua-inline-picker": {
+   "css": true,
+   "html": false
+  },
+  "ud-chk": {
+   "css": true,
+   "html": false
+  },
+  "ud-qty-in": {
+   "css": true,
+   "html": false
+  },
+  "ud-row": {
+   "css": true,
+   "html": false
+  },
+  "ud-row--excluded": {
+   "css": true,
+   "html": false
+  },
+  "van3d-canvas": {
+   "css": true,
+   "html": false
+  },
+  "van3d-canvas-host": {
+   "css": true,
+   "html": false
+  },
+  "van3d-cont-select": {
+   "css": true,
+   "html": false
+  },
+  "van3d-legend": {
+   "css": true,
+   "html": false
+  },
+  "van3d-stats": {
+   "css": true,
+   "html": false
+  },
+  "van3d-view-btn": {
+   "css": true,
+   "html": false
+  },
+  "visible": {
+   "css": true,
+   "html": false
+  },
+  "w-pattern": {
+   "css": true,
+   "html": true
+  },
+  "w-ppref": {
+   "css": true,
+   "html": true
+  },
+  "z2-route-chip": {
+   "css": true,
+   "html": false
+  },
+  "zero-confirm-btn": {
+   "css": true,
+   "html": true
+  },
+  "zone-collapse-btn": {
+   "css": true,
+   "html": true
+  },
+  "zone-collapsed": {
+   "css": true,
+   "html": false
+  },
+  "zone-default-input": {
+   "css": true,
+   "html": true
+  },
+  "zone-default-sc": {
+   "css": true,
+   "html": true
+  },
+  "zone-off": {
+   "css": true,
+   "html": true
+  }
+ },
+ "data": {
+  "actual": {
+   "html": false,
+   "js": true
+  },
+  "auto": {
+   "html": false,
+   "js": true
+  },
+  "base": {
+   "html": true,
+   "js": true
+  },
+  "bc-indep": {
+   "html": false,
+   "js": true
+  },
+  "bm": {
+   "html": false,
+   "js": true
+  },
+  "bm-add": {
+   "html": false,
+   "js": true
+  },
+  "bm-carrier": {
+   "html": false,
+   "js": true
+  },
+  "bm-click": {
+   "html": false,
+   "js": true
+  },
+  "bm-contact-carrier": {
+   "html": false,
+   "js": true
+  },
+  "bm-rel-carrier": {
+   "html": false,
+   "js": true
+  },
+  "bm-rename": {
+   "html": false,
+   "js": true
+  },
+  "bm-tile": {
+   "html": false,
+   "js": true
+  },
+  "bm-type": {
+   "html": false,
+   "js": true
+  },
+  "c": {
+   "html": false,
+   "js": true
+  },
+  "cat": {
+   "html": true,
+   "js": true
+  },
+  "ccy": {
+   "html": false,
+   "js": true
+  },
+  "cid": {
+   "html": false,
+   "js": true
+  },
+  "cnt-link": {
+   "html": false,
+   "js": true
+  },
+  "cnt-type": {
+   "html": false,
+   "js": true
+  },
+  "col": {
+   "html": true,
+   "js": true
+  },
+  "cond": {
+   "html": false,
+   "js": true
+  },
+  "ctype": {
+   "html": true,
+   "js": true
+  },
+  "dir": {
+   "html": true,
+   "js": true
+  },
+  "done": {
+   "html": false,
+   "js": true
+  },
+  "drag-bound": {
+   "html": false,
+   "js": true
+  },
+  "drag-inited": {
+   "html": false,
+   "js": true
+  },
+  "dynamic": {
+   "html": false,
+   "js": true
+  },
+  "e": {
+   "html": false,
+   "js": true
+  },
+  "en": {
+   "html": false,
+   "js": true
+  },
+  "estimate": {
+   "html": false,
+   "js": true
+  },
+  "excluded": {
+   "html": false,
+   "js": true
+  },
+  "field": {
+   "html": true,
+   "js": true
+  },
+  "field-id": {
+   "html": true,
+   "js": true
+  },
+  "filled": {
+   "html": false,
+   "js": true
+  },
+  "formula-just-entered": {
+   "html": false,
+   "js": true
+  },
+  "formula-mode": {
+   "html": false,
+   "js": true
+  },
+  "ft-col": {
+   "html": false,
+   "js": true
+  },
+  "furi": {
+   "html": false,
+   "js": true
+  },
+  "gi": {
+   "html": false,
+   "js": true
+  },
+  "group": {
+   "html": false,
+   "js": true
+  },
+  "haz-value": {
+   "html": true,
+   "js": true
+  },
+  "hazmat-panel": {
+   "html": true,
+   "js": true
+  },
+  "hide-quote": {
+   "html": false,
+   "js": true
+  },
+  "id": {
+   "html": false,
+   "js": true
+  },
+  "ids": {
+   "html": false,
+   "js": true
+  },
+  "idx": {
+   "html": false,
+   "js": true
+  },
+  "ii": {
+   "html": false,
+   "js": true
+  },
+  "index": {
+   "html": false,
+   "js": true
+  },
+  "internal": {
+   "html": false,
+   "js": true
+  },
+  "issuer": {
+   "html": false,
+   "js": true
+  },
+  "key": {
+   "html": true,
+   "js": true
+  },
+  "label": {
+   "html": true,
+   "js": true
+  },
+  "lc-carrier": {
+   "html": false,
+   "js": true
+  },
+  "lc-dnd-ready": {
+   "html": false,
+   "js": true
+  },
+  "lc-label-bound": {
+   "html": false,
+   "js": true
+  },
+  "lc-ready": {
+   "html": false,
+   "js": true
+  },
+  "lcrp-ready": {
+   "html": false,
+   "js": true
+  },
+  "lid": {
+   "html": false,
+   "js": true
+  },
+  "listener-set": {
+   "html": false,
+   "js": true
+  },
+  "loaded": {
+   "html": false,
+   "js": true
+  },
+  "margin-pct": {
+   "html": false,
+   "js": true
+  },
+  "master": {
+   "html": false,
+   "js": true
+  },
+  "memo-title": {
+   "html": false,
+   "js": true
+  },
+  "merged-into": {
+   "html": false,
+   "js": true
+  },
+  "mfield": {
+   "html": false,
+   "js": true
+  },
+  "mod": {
+   "html": false,
+   "js": true
+  },
+  "mode": {
+   "html": false,
+   "js": true
+  },
+  "mvalue": {
+   "html": false,
+   "js": true
+  },
+  "name": {
+   "html": false,
+   "js": true
+  },
+  "nt-auto": {
+   "html": false,
+   "js": true
+  },
+  "og-row": {
+   "html": false,
+   "js": true
+  },
+  "out-range": {
+   "html": false,
+   "js": true
+  },
+  "parent-id": {
+   "html": false,
+   "js": true
+  },
+  "pdf-title": {
+   "html": false,
+   "js": true
+  },
+  "pending": {
+   "html": false,
+   "js": true
+  },
+  "pid": {
+   "html": false,
+   "js": true
+  },
+  "port-pair": {
+   "html": false,
+   "js": true
+  },
+  "prev-value": {
+   "html": false,
+   "js": true
+  },
+  "profit-share": {
+   "html": false,
+   "js": true
+  },
+  "pt": {
+   "html": false,
+   "js": true
+  },
+  "pt-key": {
+   "html": false,
+   "js": true
+  },
+  "pt-sum": {
+   "html": false,
+   "js": true
+  },
+  "pv-hidden": {
+   "html": false,
+   "js": true
+  },
+  "pv-warn-bound": {
+   "html": false,
+   "js": true
+  },
+  "pv-was-visible": {
+   "html": false,
+   "js": true
+  },
+  "pvl": {
+   "html": true,
+   "js": true
+  },
+  "qrc-ready": {
+   "html": false,
+   "js": true
+  },
+  "qsp-rowid": {
+   "html": false,
+   "js": true
+  },
+  "qvm": {
+   "html": false,
+   "js": true
+  },
+  "ranktab": {
+   "html": true,
+   "js": true
+  },
+  "raw": {
+   "html": true,
+   "js": true
+  },
+  "ref": {
+   "html": false,
+   "js": true
+  },
+  "ref-info": {
+   "html": false,
+   "js": true
+  },
+  "rendered": {
+   "html": false,
+   "js": true
+  },
+  "scale": {
+   "html": true,
+   "js": true
+  },
+  "scope-key": {
+   "html": true,
+   "js": true
+  },
+  "sec": {
+   "html": true,
+   "js": true
+  },
+  "si": {
+   "html": false,
+   "js": true
+  },
+  "sitab": {
+   "html": true,
+   "js": true
+  },
+  "sort-bound": {
+   "html": false,
+   "js": true
+  },
+  "state": {
+   "html": true,
+   "js": true
+  },
+  "status": {
+   "html": true,
+   "js": true
+  },
+  "sub": {
+   "html": true,
+   "js": true
+  },
+  "sub-group": {
+   "html": false,
+   "js": true
+  },
+  "sub-sum": {
+   "html": false,
+   "js": true
+  },
+  "sv": {
+   "html": false,
+   "js": true
+  },
+  "sv-key": {
+   "html": false,
+   "js": true
+  },
+  "sv-label": {
+   "html": false,
+   "js": true
+  },
+  "tab": {
+   "html": false,
+   "js": true
+  },
+  "tax-auto": {
+   "html": false,
+   "js": true
+  },
+  "taxed": {
+   "html": false,
+   "js": true
+  },
+  "tb-menu": {
+   "html": true,
+   "js": true
+  },
+  "tip": {
+   "html": false,
+   "js": true
+  },
+  "transport": {
+   "html": true,
+   "js": true
+  },
+  "tx-user-set": {
+   "html": false,
+   "js": true
+  },
+  "type": {
+   "html": false,
+   "js": true
+  },
+  "un-auto": {
+   "html": false,
+   "js": true
+  },
+  "user-edited": {
+   "html": false,
+   "js": true
+  },
+  "v": {
+   "html": false,
+   "js": true
+  },
+  "val": {
+   "html": true,
+   "js": true
+  },
+  "value": {
+   "html": false,
+   "js": true
+  },
+  "view": {
+   "html": false,
+   "js": true
+  },
+  "virtual": {
+   "html": false,
+   "js": true
+  },
+  "zone": {
+   "html": false,
+   "js": true
+  }
+ },
+ "scripts": [
+  "https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js",
+  "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js",
+  "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js",
+  "shared/supabase.js",
+  "shared/fx.js",
+  "shared/format.js",
+  "shared/storage.js",
+  "shared/ui-utils.js",
+  "shared/calc.js",
+  "data/carriers.js",
+  "data/incoterms.js",
+  "https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js",
+  "js/vanning3d.js",
+  "js/calculator.js",
+  "js/app.js",
+  "js/quote/constants.js",
+  "js/quote/row.js",
+  "js/quote/preview.js",
+  "js/quote/cargo.js",
+  "js/quote/conditions.js",
+  "js/quote/save.js",
+  "js/quote/ui.js",
+  "js/quote/quote-pdf.js",
+  "js/quote/quote-email.js",
+  "js/quote/select-mode.js",
+  "js/quote/cloud-config.js",
+  "js/quote/cloud.js",
+  "js/quote/users.js",
+  "js/quote/subcon-insert.js",
+  "js/quote/email-import.js",
+  "js/quote/subcon-request-mail.js",
+  "js/quote/memo-title.js",
+  "js/quote/packing-import.js",
+  "js/tweaks.js",
+  "js/bookmarks.js",
+  "js/calendar.js",
+  "js/similar-quotes.js",
+  "js/quote/scenario.js",
+  "js/quote/compare.js",
+  "js/quote/fcl-lcl.js",
+  "js/quote/right-rail.js",
+  "js/stats.js",
+  "js/alias-rules.js",
+  "js/local-charges.js",
+  "js/rate-notice.js",
+  "js/lc-row-pattern.js"
+ ]
+}
