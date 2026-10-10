@@ -116,21 +116,21 @@ function replaceSegment(seg, tk, counter) {
   }
   // サイト画面：font-size（--fs-*）。値は px の完全一致のみ
   if (PROFILE.kinds.includes('fs-site')) {
-    seg = seg.replace(/(^|[\s;{])font-size\s*:\s*([\d.]+px)(?=\s*(?:;|}|!important|$))/g, (m, pre, v) => {
+    seg = seg.replace(/(^|[\s;{])(font-size\s*:\s*)([\d.]+px)(?=\s*(?:;|}|!important|$))/g, (m, pre, head, v) => {
       const name = Object.keys(byName).find(k => k.startsWith('--fs-') && byName[k] === v);
-      if (!name) return m; counter.n++; return `${pre}font-size: var(${name})`;
+      if (!name) return m; counter.n++; return `${pre}${head}var(${name})`;   // 「font-size:」の書式（コロン前後の空白）は元のまま
     });
   }
   // border-radius（--r-*）・余白 padding/margin/gap（--sp-*）：宣言の値に含まれる長さを、1つずつ完全一致でトークンへ置き換える
   const lenSub = (propRe, prefix) => {
-    seg = seg.replace(new RegExp(`(^|[\\s;{])(${propRe})\\s*:\\s*([^;{}]+)`, 'g'), (m, pre, prop, val) => {
+    seg = seg.replace(new RegExp(`(^|[\\s;{])((?:${propRe})\\s*:\\s*)([^;{}]+)`, 'g'), (m, pre, prop, val) => {
       if (/calc\(|var\(|clamp\(|min\(|max\(/.test(val)) return m;   // 計算式・既に変数のものは対象外
       let changed = false;
       const nv = val.replace(/(^|[\s/])(-?[\d.]+(?:px|%)|0)(?=\s|$|!)/g, (mm, lead, len) => {
         const name = Object.keys(byName).find(k => k.startsWith(prefix) && byName[k] === len);
         if (!name || len === '0') return mm; counter.n++; changed = true; return `${lead}var(${name})`;
       });
-      return changed ? `${pre}${prop}: ${nv}` : m;
+      return changed ? `${pre}${prop}${nv}` : m;   // プロパティ名とコロンの書式は元のまま
     });
   };
   if (PROFILE.kinds.includes('radius')) lenSub('border(?:-top|-bottom)?(?:-left|-right)?-radius', '--r-');
