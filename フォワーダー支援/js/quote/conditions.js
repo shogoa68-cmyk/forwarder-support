@@ -2380,6 +2380,7 @@
     // サブコン・サブコン×パターン見出しの「含む/除外」も現状のまま確定させる
     if (!pat.groupExcludeLinks) pat.groupExcludeLinks = {};
     document.querySelectorAll('#tableBody tr[data-virtual]').forEach(tr => {
+      if (tr.dataset.catHeader) return;   // カテゴリ見出し（Industry テーマ）は対象外
       const svKey = tr.dataset.svKey;
       if (!svKey) return;
       if (tr.dataset.subGroup) {

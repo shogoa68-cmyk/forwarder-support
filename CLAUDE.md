@@ -49,6 +49,10 @@ github/202605_コード改修/
     └── *.bak ...              手動バックアップ群（運用上残置）
 ```
 
+## 🎨 Industry テーマ（Claude Design 案・既定オフ・元に戻せる）
+
+Design 製の Industry 版デザイン（鋼青のブループリント調）を、**現行 CSS を書き換えず**に切替式で載せている。入口はヘッダー「🎨 デザイン」（画面／御見積書を別々に切替）、`?theme=industry|classic` でも切替可。`<html class="theme-industry|theme-industry-doc">` のときだけ `css/theme-industry*.css`（`node scripts/build-industry-theme.js` が `docs/design-handoff/industry/css/` と現行の差分から生成。**手編集禁止**）が効く。Industry 時のみ `row.js _insertCatHeaders()` がカテゴリ見出し行（`tr.subcon-cat-header`・表示専用の仮想行）を挟む。詳細・戻し方は [docs/デザイン変更の安全手順.md](docs/デザイン変更の安全手順.md)。**現行 CSS（style/quote/quote-pdf/tokens）を変えたら `build-industry-theme.js` を再実行**（差分が変わるため）。
+
 ## ☁️ クラウド共有（チーム間でのプリセット共有）
 
 見積プリセットを複数ユーザーで共有する機能。プリセット管理モーダル内「☁️ チーム共有」セクションで操作。

@@ -1,0 +1,87 @@
+/* ==========================================================================
+   tokens-doc.css — 御見積書（PDF・プレビュー）のデザインルール
+   --------------------------------------------------------------------------
+   お客様に出す御見積書専用の「名前つきの決まり事」。サイト画面の配色（tokens.css）とは**独立**させてある。
+   サイトの見た目を変えても、御見積書は変わらない。御見積書のデザインを変えるときは、まずここの値を変える。
+
+   ・現状の値をそのまま名前にしたもの（見た目は変えていない）。
+   ・css/quote-pdf.css の「A4 御見積書本体」以降と、js/quote/quote-pdf.js が出力する HTML のインライン指定で使う。
+   ・名前の付け方：--doc-<種類>-<役割>（種類：色は役割名、font-family=font、font-size=fs、ページ寸法=page）
+   ========================================================================== */
+:root {
+  /* ----- 文字・罫線・面（無彩色） ----- */
+  --doc-paper:        #ffffff;   /* 用紙の白 */
+  --doc-ink:          #1d1f20;   /* 主な文字・太い罫線 */
+  --doc-ink-2:        #2b2b2d;   /* 比較表の見出し */
+  --doc-text:         #424244;   /* 本文・表見出しの罫線 */
+  --doc-text-note:    #424244;   /* 注記 */
+  --doc-text-sub:     #5d5d60;   /* 副次的な文字（項目名など） */
+  --doc-text-faint:   #5d5d60;   /* 薄い文字・説明・チップ背景 */
+  --doc-text-muted:   #7a7a7d;   /* さらに薄い文字（有効期間・カテゴリ見出し） */
+  --doc-line:         #b7b7ba;   /* 枠線（標準） */
+  --doc-line-soft:    #d4d4d7;   /* 明細表の罫線 */
+  --doc-line-strong:  #98989b;   /* 合計欄の罫線 */
+  --doc-line-faint:   #e7e7ea;   /* 薄い罫線 */
+  --doc-fill:         #e7e7ea;   /* 見出しの背景 */
+  --doc-fill-faint:   #f5f5f8;   /* 御見積額行の背景 */
+  --doc-head-bg:      #1d2d3d;   /* 表見出し・合計行の背景（濃） */
+
+  /* ----- 強調色 ----- */
+  --doc-amount:       #2c455d;   /* 御見積額 */
+  --doc-tax:          #8a5a2b;   /* 課税の印（＊） */
+  --doc-estimate:     #344d66;   /* 概算の印 */
+  --doc-alert:        #b0392e;   /* 未設定の注意・削除 */
+  --doc-pattern-label:#416180;   /* パターン併記の案名 */
+  --doc-mode-fcl:     #416180;   /* FCL のチップ */
+  --doc-mode-lcl:     #597ea3;   /* LCL のチップ */
+
+  /* ----- 明細表のツリー階層（サブコン › パターン › カテゴリ › 明細） ----- */
+  --doc-tree0-bg:     #d6ebff;   /* サブコン見出し */
+  --doc-tree0-text:   #2c455d;
+  --doc-tree0-bar:    #416180;   /* 左の太線 */
+  --doc-tree0-line:   #749dc4;   /* 上の罫線 */
+  --doc-tree0-sub-bg: #e3f0fd;   /* サブコン小計 */
+  --doc-tree1-bg:     #eef6ff;   /* パターン見出し */
+  --doc-tree1-text:   #416180;
+  --doc-tree1-bar:    #749dc4;
+  --doc-tree1-line:   #b5d9fd;
+  --doc-tree1-sub-bg: #eef6ff;   /* パターン小計 */
+  --doc-subtotal-bg:  #f5f5f8;   /* 小計行 */
+  --doc-remark-bg:    #f5f5f8;   /* 明細に付くリマーク行 */
+
+  /* ----- 前回提示分からの変更点 ----- */
+  --doc-rev-blue:     #416180;   /* 変更 */
+  --doc-rev-blue-bg:  #eef6ff;
+  --doc-rev-blue-line:#94bce3;
+  --doc-rev-green:    #344d66;   /* 追加 */
+  --doc-rev-green-bg: #eef2f5;
+
+  /* ----- 明細行の注記（インライン指定の置き換え先） ----- */
+  --doc-note-cond:    #8a5a2b;   /* 発生時のみ */
+  --doc-note-ref:     #416180;   /* 参考情報 */
+  --doc-note-ref-amt: #7a7a7d;   /* 参考情報の金額 */
+
+  /* ----- 書体 ----- */
+  --doc-font-body: "Barlow", "Noto Sans JP", "Hiragino Kaku Gothic ProN", "Yu Gothic", sans-serif;
+  --doc-font-title: "Barlow Condensed", "Noto Sans JP", "Yu Gothic", sans-serif;
+
+  /* ----- 文字の大きさ ----- */
+  --doc-fs-title:     26px;      /* 「御 見 積 書」 */
+  --doc-fs-amount:    20px;      /* 御見積額 */
+  --doc-fs-lead:      17px;      /* 宛名 */
+  --doc-fs-emph:      15px;      /* パターン併記の案名 */
+  --doc-fs-strong:    14px;      /* 発行元の会社名・合計・比較表の金額 */
+  --doc-fs-heading:   13px;      /* 件名・比較表の見出し */
+  --doc-fs-base:      12px;      /* 用紙の基本・備考の見出し */
+  --doc-fs-body-lg:   11.5px;
+  --doc-fs-body:      11px;      /* 本文・明細表 */
+  --doc-fs-small:     10.5px;
+  --doc-fs-caption:   10px;
+  --doc-fs-tiny-lg:   9.5px;
+  --doc-fs-tiny:      9px;
+
+  /* ----- 用紙（A4）の寸法 ----- */
+  --doc-page-width:       794px;
+  --doc-page-min-height:  1080px;
+  --doc-page-padding:     40px 42px;
+}

@@ -118,6 +118,7 @@ body:has(#tab-quote-make.active) .app {
   /* 極小画面：ロードマップはアイコンのみ */
   .hdr-roadmap { font-size: 0; padding: var(--sp-5) var(--sp-8); }
   .hdr-roadmap::before { content: "📣"; font-size: var(--fs-16); }
+  .hdr-roadmap.hdr-design::before { content: "🎨"; }
 }
 
 /* ===== Tab Navigation ===== */

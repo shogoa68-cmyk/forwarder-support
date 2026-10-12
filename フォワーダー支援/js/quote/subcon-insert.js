@@ -783,6 +783,7 @@
     let currentSv = null, currentPt = null;
 
     Array.from(tbody.querySelectorAll('tr')).forEach(function(tr) {
+      if (tr.dataset.catHeader) return;   // カテゴリ見出し（Industry テーマ）は透過
       if (tr.dataset.virtual) { currentSv = tr.dataset.svKey || ''; currentPt = null; return; }
       if (tr.dataset.subGroup) { currentPt = tr.dataset.ptKey || null; return; }
       if (tr.dataset.type || tr.dataset.ptSum || tr.dataset.subSum) return;

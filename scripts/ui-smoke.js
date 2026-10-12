@@ -3,6 +3,7 @@
 //
 //   node scripts/ui-smoke.js                         主要操作の動作確認だけを行う
 //   node scripts/ui-smoke.js --shots <dir>           動作確認に加え、主要画面のスクリーンショットを <dir> に保存
+//   node scripts/ui-smoke.js --theme <site|doc|both> ...  Industry テーマをオンにして実行（既定は現行デザイン）
 //   node scripts/ui-smoke.js --root <dir> ...       別のフォルダ（「フォワーダー支援/」を含む複製）を対象にする
 //   node scripts/ui-smoke.js --compare <dirA> <dirB> 2つのフォルダのスクリーンショットを比べ、差のある画面と割合を表示
 //                                                    （差分画像を <dirB>/diff/ に出力）
@@ -97,6 +98,10 @@ async function main() {
     // eslint-disable-next-line no-global-assign
     Date = class extends RealDate { constructor(...a) { if (a.length) super(...a); else super(FIXED); } static now() { return FIXED; } };
   });
+  if (opt('--theme')) {
+    const th = opt('--theme');
+    await ctx.addInitScript(v => { try { localStorage.setItem('forwarderTheme_v1', JSON.stringify(v)); } catch (e) {} }, { site: th === 'site' || th === 'both', doc: th === 'doc' || th === 'both' });
+  }
   await ctx.route(url => !url.href.startsWith('http://127.0.0.1'), r => r.abort());
   const page = await ctx.newPage();
   const errors = [];
