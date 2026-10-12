@@ -148,12 +148,36 @@ async function captureComponents(pw) {
       return out;
     }, c.picks);
   }
+  // 見積明細の表の構造（サブコン見出し・パターン見出し・小計行の実際のマークアップ）。パターンのある行を足して取り出す
+  await page.evaluate(() => { const f = document.getElementById('qf-multi-out'); if (f) f.value = '0'; });
+  const extra = [['CFS', 'A社', 'LCL案', 20000], ['書類作成料', 'B社', '', 8000]];
+  for (const r of extra) {
+    await page.evaluate(() => window.addRow()); await page.waitForTimeout(80);
+    const idx = await page.locator('#tableBody tr:not([data-virtual]):not([data-type]) [data-field="nm"]').count() - 1;
+    const f = n => page.locator(`#tableBody tr:not([data-virtual]):not([data-type]) [data-field="${n}"]`).nth(idx);
+    await f('nm').fill(r[0]); await f('un').fill('式'); await f('sv').fill(r[1]);
+    if (r[2]) { await f('pt').fill(r[2]); await f('pt').dispatchEvent('change'); }
+    await f('pq').fill('1'); await f('pp').fill(String(r[3])); await f('pp').blur();
+  }
+  await page.waitForTimeout(500);
+  const tableMarkup = await page.evaluate(() => {
+    const strip = el => { const c = el.cloneNode(true); c.querySelectorAll('input,select,textarea').forEach(x => x.removeAttribute('value')); return c.outerHTML.replace(/\s+/g, ' ').replace(/> </g, '>\n<'); };
+    const q = sel => [...document.querySelectorAll(sel)];
+    return {
+      order: q('#tableBody tr').map(t => (t.className || (t.id ? 'row(明細行)' : '')).split(' ')[0] + (t.dataset.virtual ? '（仮想行）' : '')),
+      subcon: q('#tableBody tr.subcon-group-header').slice(0, 1).map(strip)[0] || '',
+      pattern: q('#tableBody tr.subcon-subgroup-header.is-pattern').slice(0, 1).map(strip)[0] || '',
+      patternSum: q('#tableBody tr.subcon-pattern-subtotal').slice(0, 1).map(strip)[0] || '',
+      groupSum: q('#tableBody tr.subcon-group-subtotal').slice(0, 1).map(strip)[0] || '',
+      dataRow: q('#tableBody tr[id^="row-"]:not([data-virtual])').slice(0, 1).map(strip)[0] || '',
+    };
+  });
   // 御見積書（日本語・英語）
   const doc = await page.evaluate(() => { localStorage.setItem('quoteDocLangEn_v1', '0'); document.getElementById('qf-multi-out').value = '0'; return buildQuoteDocHTML(); });
   const docEn = await page.evaluate(() => { localStorage.setItem('quoteDocLangEn_v1', '1'); const h = buildQuoteDocHTML(); localStorage.setItem('quoteDocLangEn_v1', '0'); return h; });
   const docMulti = await page.evaluate(() => { document.getElementById('qf-multi-out').value = '1'; const h = buildQuoteDocHTML(); document.getElementById('qf-multi-out').value = '0'; return h; });
   await browser.close(); srv.close();
-  return { components: result, doc, docEn, docMulti };
+  return { components: result, doc, docEn, docMulti, tableMarkup };
 }
 
 function componentCard(c, htmls) {
@@ -170,6 +194,61 @@ function docCard(title, html, note) {
 <link rel="stylesheet" href="../css/tokens-doc.css"><link rel="stylesheet" href="../css/quote-pdf.css">
 <style>body{margin:0;padding:20px;background:#e9e6e0}.note{font:12px sans-serif;color:#555;margin:0 0 10px}</style></head><body>
 <p class="note">${esc(note)}</p>${html}</body></html>`;
+}
+
+function tableStructureDoc(m) {
+  const blk = h => '```html\n' + (h || '（取り出せませんでした）') + '\n```';
+  const seq = [];
+  m.order.forEach(x => { if (seq[seq.length - 1] !== x) seq.push(x); });
+  return `# 見積明細の表の構造（実際のマークアップ）
+
+見積入力画面の明細の表が、実際にどんな行・HTML で作られているかの説明です。表の見た目（特に見出し行）を改良するときの前提として読んでください。
+表は JavaScript が組み立てており、見出し行や小計行は**画面表示用の仮想行**（\`data-virtual="1"\`）です。
+
+## 行の並び（実際の例）
+サブコン A社（パターン「FCL案」「LCL案」）と B社（パターンなし）の例：
+
+\`\`\`
+${m.order.join('\n')}
+\`\`\`
+
+階層は **サブコン › パターン › 明細** の 3 段です。サブコンが 1 社だけでも、パターンがあれば同じ構造になります。
+**カテゴリ（海上運賃・通関 など）の見出し行は、入力画面の表には現在ありません**。カテゴリは各明細行の選択欄（\`cat-<行ID>\`）です。
+一方、御見積書（PDF）側には、サブコン › パターン › カテゴリ › 明細 の 4 段の階層があり、カテゴリ見出し行（\`.qd-cat-head\`）があります。
+
+## 各行のマークアップ
+### サブコン見出し行（\`tr.subcon-group-header\`）
+${blk(m.subcon)}
+
+### パターン見出し行（\`tr.subcon-subgroup-header.is-pattern\`）
+${blk(m.pattern)}
+
+### パターン小計行（\`tr.subcon-pattern-subtotal\`）
+${blk(m.patternSum)}
+
+### サブコン小計行（\`tr.subcon-group-subtotal\`）
+${blk(m.groupSum)}
+
+### 明細行（\`tr#row-<ID>\`、仮想行ではない）
+${blk(m.dataRow)}
+
+## 動作と制約（変えると機能が壊れるもの）
+- **見出し行・小計行は仮想行**です。保存データ・CSV/Excel/PDF には含まれません。表を再描画するたびに作り直されます。
+- 見出し行の操作：折りたたみ（▼/▶）、除外/含む（合計から外す）、名称変更（✎）、複製、グリップ（⠿）のドラッグによるブロックの並べ替え。
+  これらは \`data-sv-key\`・\`data-pt-key\` などの \`data-*\` と、ボタンの \`onclick\` で機能とつながっています。
+- 明細行の移動（ドラッグ・↑↓）は**同じグループ内のみ**です。
+- 折りたたみ・除外の状態は案件ごとに保存されます（物量パターンごとの記憶もあります）。
+- 見出し行の列は \`colspan="10"\` です（表の列数に合わせてあります）。
+
+## コードの場所（共有が必要な場合の目安）
+- \`js/quote/row.js\` の \`renderSubconGroups()\`：サブコン見出し行・パターン見出し行・各小計行を作る関数（HTML の文字列で組み立て）。
+- 見た目は \`css/quote.css\` の \`.subcon-group-header\`・\`.subcon-subgroup-header\`・\`.subcon-*\` 系のクラス。
+
+## 見出し行を変更・追加するときに決めておきたいこと（Claude Design へのお願い）
+1. 目的の見た目（HTML と CSS）。使うクラス名・\`data-*\` を指定してもらえれば、そのまま反映します。
+2. カテゴリ見出し行を追加する場合：表示のみか、折りたたみ・除外もできるか。同じカテゴリの明細を連続して並べる（並び順を変える）のか、現在の並びのまま、カテゴリが変わるところで見出しを挟むのか。
+3. 既存の \`id\`・\`onclick\`・\`data-*\` は残します（部品名の自動チェックで確認します）。
+`;
 }
 
 function readme() {
@@ -207,6 +286,9 @@ Claude Design で見た目を改良するときの出発点として共有しま
 3. 御見積書は印刷（A4・PDF）で使われます。用紙寸法・改ページ（\`break-inside\`）を壊さないでください。
 4. 英語出力・日本語出力の両方があります。文字数が増えても崩れないようにしてください。
 
+## 見積明細の表の構造（table-structure.md）
+実際の表の行の並び・マークアップ・動作の制約を説明しています。表の見出し行を改良するときに読んでください。
+
 ## 見本カード（cards/）
 - Colors：サイト画面の色／御見積書の色
 - Type：文字の大きさ・書体
@@ -234,6 +316,7 @@ async function main() {
   w('quote-document', docCard('御見積書（日本語）', cap.doc, '御見積書（日本語）。A4 縦。印刷・PDF で使われます。'));
   w('quote-document-en', docCard('御見積書（英語）', cap.docEn, '御見積書（英語出力）。固定ラベルのみ英語になります。'));
   w('quote-document-multi', docCard('御見積書（FCL案／LCL案の併記）', cap.docMulti, '物量パターンを併記した御見積書。比較表のあとに案ごとの明細が続きます。'));
+  fs.writeFileSync(path.join(OUT, 'table-structure.md'), tableStructureDoc(cap.tableMarkup));
   fs.writeFileSync(path.join(OUT, 'README.md'), readme());
   const n = fs.readdirSync(path.join(OUT, 'cards')).length;
   console.log(`docs/design-system/ を生成しました：カード ${n} 枚、CSS 5 本、README.md`);
