@@ -1,0 +1,101 @@
+/* quote-table-industry.css — 見積明細の表を整理する上書き。HTML・id・class は変更しない。quote.css の後に読み込む。
+   方針：罫線は横線のみ／入力欄は普段は枠なし／行の操作ボタンは行にカーソルを置いたときだけ表示／補助情報は編集中だけ展開 */
+#tab-quote-make #quoteTable { border-collapse: collapse; width: 100%; background: transparent; border: 1px solid var(--color-text, #1d1f20); }
+#tab-quote-make #quoteTable th, #tab-quote-make #quoteTable td { border-left: 0; border-right: 0; }
+#tab-quote-make #quoteTable thead th {
+  background: transparent; color: var(--color-neutral-800, #424244);
+  font-family: var(--font-heading); font-weight: 600; font-size: 12px; letter-spacing: .12em;
+  padding: 8px 6px; border-bottom: 1px solid var(--color-text, #1d1f20); vertical-align: bottom;
+}
+#tab-quote-make #quoteTable thead th .hd-sub { font-family: var(--font-body); font-weight: 400; letter-spacing: 0; color: var(--color-neutral-700, #5d5d60); }
+#tab-quote-make #quoteTable thead th.hd-bill { color: var(--color-accent-800, #2c455d); }
+#tab-quote-make #quoteTable tbody td { padding: 8px 6px; border-bottom: 1px solid var(--color-neutral-300, #d4d4d7); vertical-align: middle; background: transparent; }
+#tab-quote-make #quoteTable tbody tr.subcon-child:hover td, #tab-quote-make #quoteTable tbody tr.subcon-child:focus-within td { background: var(--color-accent-100, #eef6ff); }
+
+/* グループ見出し：1行・金額を主役に・操作は見出しにカーソルがあるときだけ */
+#tab-quote-make #quoteTable tr.subcon-group-header td { background: var(--color-neutral-200, #e7e7ea); border-bottom: 1px solid var(--color-neutral-400, #b7b7ba); padding: 0; }
+#tab-quote-make #quoteTable .subcon-group-header-inner { display: flex; align-items: center; gap: 12px; min-height: 40px; padding: 0 8px; flex-wrap: nowrap; }
+#tab-quote-make #quoteTable .subcon-group-label { font-weight: 700; font-size: 14px; }
+#tab-quote-make #quoteTable .subcon-group-count { font-size: 11px; color: var(--color-neutral-700, #5d5d60); }
+#tab-quote-make #quoteTable .subcon-group-sum { margin-left: auto; font-family: var(--font-heading); font-size: 18px; font-weight: 700; letter-spacing: .02em; }
+#tab-quote-make #quoteTable .subcon-group-header-inner > button:not(.subcon-group-toggle),
+#tab-quote-make #quoteTable .subcon-group-header-inner .grp-updated { opacity: 0; transition: opacity .12s; border-radius: 0; }
+#tab-quote-make #quoteTable tr.subcon-group-header:hover .subcon-group-header-inner > button,
+#tab-quote-make #quoteTable tr.subcon-group-header:hover .grp-updated,
+#tab-quote-make #quoteTable tr.subcon-group-header:focus-within .subcon-group-header-inner > button,
+#tab-quote-make #quoteTable tr.subcon-group-header:focus-within .grp-updated { opacity: 1; }
+
+/* 行の操作・モードボタン：普段は隠す（場所は確保してレイアウトを動かさない） */
+#tab-quote-make #quoteTable .row-acts, #tab-quote-make #quoteTable .row-mode-btns { opacity: 0; transition: opacity .12s; }
+#tab-quote-make #quoteTable tr:hover .row-acts, #tab-quote-make #quoteTable tr:focus-within .row-acts,
+#tab-quote-make #quoteTable tr:hover .row-mode-btns, #tab-quote-make #quoteTable tr:focus-within .row-mode-btns { opacity: 1; }
+#tab-quote-make #quoteTable .drag-handle, #tab-quote-make #quoteTable .subcon-group-grip { color: var(--color-neutral-500, #98989b); }
+
+/* 入力欄：枠なし・下線のみ。ホバーで薄く、フォーカスで鋼青 */
+#tab-quote-make #quoteTable tbody input:not([type=checkbox]):not([type=hidden]), #tab-quote-make #quoteTable tbody select {
+  background: transparent; border: 0; border-bottom: 1px solid transparent; border-radius: 0; box-shadow: none;
+  font-family: var(--font-body); font-size: 13px; padding: 3px 2px;
+}
+#tab-quote-make #quoteTable tbody input:not([type=checkbox]):hover, #tab-quote-make #quoteTable tbody select:hover { border-bottom-color: var(--color-neutral-400, #b7b7ba); }
+#tab-quote-make #quoteTable tbody input:not([type=checkbox]):focus, #tab-quote-make #quoteTable tbody select:focus { border-bottom: 2px solid var(--color-accent, #5980a6); background: var(--color-accent-100, #eef6ff); outline: none; }
+#tab-quote-make #quoteTable .w-name { font-weight: 600; }
+#tab-quote-make #quoteTable .w-note, #tab-quote-make #quoteTable .w-subcon, #tab-quote-make #quoteTable .w-pattern { font-size: 11px; color: var(--color-neutral-700, #5d5d60); }
+#tab-quote-make #quoteTable .display-field { color: var(--color-neutral-800, #424244); }
+#tab-quote-make #quoteTable .stk-tag { font-size: 10px; color: var(--color-neutral-600, #7a7a7d); border: 1px solid var(--color-neutral-400, #b7b7ba); border-radius: 0; background: transparent; }
+
+/* 補助情報（有効期間・更新日・参考値）は、その行を編集しているときだけ出す */
+#tab-quote-make #quoteTable .w-valid, #tab-quote-make #quoteTable .w-updated, #tab-quote-make #quoteTable .bq-mirror, #tab-quote-make #quoteTable .row-cd { display: none; }
+#tab-quote-make #quoteTable tr:focus-within .w-valid, #tab-quote-make #quoteTable tr:focus-within .w-updated, #tab-quote-make #quoteTable tr:focus-within .row-cd { display: flex; }
+
+/* quote.css の個別指定（見出し・小計・利益セルの塗り）を打ち消す */
+#tab-quote-make #quoteTable thead th.hd-base, #tab-quote-make #quoteTable thead th.hd-pay, #tab-quote-make #quoteTable thead th.hd-bill, #tab-quote-make #quoteTable thead th.hd-profit, #tab-quote-make #quoteTable thead th {
+  background: transparent; color: var(--color-neutral-800, #424244); border-color: var(--color-text, #1d1f20); }
+#tab-quote-make #quoteTable thead th.hd-bill { color: var(--color-accent-800, #2c455d); }
+#tab-quote-make #quoteTable tr.subcon-group-subtotal td, #tab-quote-make #quoteTable .subcon-group-subtotal-cell {
+  background: var(--color-bg, #f2f2f3); color: var(--color-text, #1d1f20); border-top: 1px solid var(--color-text, #1d1f20); font-weight: 700; }
+#tab-quote-make #quoteTable td.subtotal-cell, #tab-quote-make #quoteTable td.profit-cell { background: transparent; }
+
+/* 小計バー：濃色塗りをやめ、紙色地・罫線・墨文字に */
+#tab-quote-make #quoteTable .subcon-subtotal-inner, #tab-quote-make #quoteTable .subcon-subtotal-inner--pt { background: var(--color-bg, #f2f2f3); color: var(--color-text, #1d1f20); padding: 10px 12px; }
+#tab-quote-make #quoteTable .subcon-subtotal-inner--pt { padding-left: 28px; background: var(--color-neutral-100, #f5f5f8); }
+#tab-quote-make #quoteTable .subcon-subtotal-label, #tab-quote-make #quoteTable .subcon-subtotal-inner--pt .subcon-subtotal-label { color: var(--color-text, #1d1f20); }
+#tab-quote-make #quoteTable .subcon-subtotal-inner .st-metric i, #tab-quote-make #quoteTable .subcon-subtotal-inner--pt .st-metric i, #tab-quote-make #quoteTable .subcon-subtotal-inner .st-alias i, #tab-quote-make #quoteTable .subcon-subtotal-inner .st-remark i { color: var(--color-neutral-700, #5d5d60); }
+#tab-quote-make #quoteTable .subcon-subtotal-inner .st-metric b, #tab-quote-make #quoteTable .subcon-subtotal-inner .st-cost b, #tab-quote-make #quoteTable .subcon-subtotal-inner .st-sell b { color: var(--color-text, #1d1f20); }
+#tab-quote-make #quoteTable .subcon-subtotal-inner .st-margin b { color: var(--color-accent-700, #416180); }
+#tab-quote-make #quoteTable .subcon-subtotal-inner .st-margin b.is-neg { color: #b0392e; }
+#tab-quote-make #quoteTable .subcon-subtotal-inner .st-remark { border-top: 1px solid var(--color-neutral-300, #d4d4d7); }
+#tab-quote-make #quoteTable .subcon-subtotal-inner .st-remark .subcon-remark-toggle { color: var(--color-neutral-700, #5d5d60); }
+#tab-quote-make #quoteTable .subcon-subtotal-inner .st-remark .subcon-remark-toggle.is-shown { color: var(--color-bg, #f2f2f3); background: var(--color-accent-700, #416180); border-color: var(--color-accent-700, #416180); }
+
+/* セル内：カテゴリ／サブコンは横並び、パターンは空なら隠す。通貨・単価の仕/売は横並び */
+#tab-quote-make #quoteTable .stk { flex-direction: row; flex-wrap: wrap; gap: 4px 8px; align-items: center; }
+#tab-quote-make #quoteTable .qty-wrap { flex-direction: row; gap: 6px; }
+#tab-quote-make #quoteTable .qty-wrap .w-qty, #tab-quote-make #quoteTable .qty-wrap .w-unit { width: 50%; }
+#tab-quote-make #quoteTable .stk-sell .w-cur, #tab-quote-make #quoteTable .stk-sell .w-price { background: transparent; color: var(--color-text, #1d1f20); font-weight: 600; }
+
+/* 実セル構造：カテゴリ列は td.catsv-cell > div.stk */
+#tab-quote-make #quoteTable td.catsv-cell .stk { flex-direction: row; flex-wrap: wrap; gap: 4px 6px; align-items: center; }
+#tab-quote-make #quoteTable td.catsv-cell .w-cat, #tab-quote-make #quoteTable td.catsv-cell .w-subcon { flex: 1 1 calc(50% - 6px); width: auto; min-width: 0; }
+#tab-quote-make #quoteTable td.catsv-cell .w-pattern { flex: 1 1 100%; width: 100%; }
+#tab-quote-make #quoteTable td.catsv-cell:not(:focus-within) .w-pattern:placeholder-shown { display: none; }
+/* 仕/売：[ラベル][入力] を1行、ラベルは枠なしの小文字 */
+#tab-quote-make #quoteTable .stk-cost, #tab-quote-make #quoteTable .stk-sell { flex-wrap: nowrap; white-space: nowrap; gap: 4px; padding-left: 0; }
+#tab-quote-make #quoteTable .stk-tag { border: 0; background: transparent; padding: 0; width: auto; min-width: 12px; color: var(--color-neutral-700, #5d5d60); }
+#tab-quote-make #quoteTable .stk-cost .stk-tag, #tab-quote-make #quoteTable .stk-sell .stk-tag { background: transparent; color: var(--color-neutral-700, #5d5d60); }
+#tab-quote-make #quoteTable .stk-sell .w-cur, #tab-quote-make #quoteTable .stk-sell .w-price { background: transparent; color: var(--color-text, #1d1f20); font-weight: 600; }
+/* 狭い画面では表を横スクロール */
+#tab-quote-make .quote-main, #tab-quote-make #quoteTable { max-width: 100%; }
+#tab-quote-make .quote-main { overflow-x: auto; }
+
+/* モードボタン群：行の高さに含めず、行にカーソルを置いたとき下に重ねて表示 */
+#tab-quote-make #quoteTable td.price-cell { position: relative; }
+#tab-quote-make #quoteTable .row-mode-btns { position: absolute; right: 4px; top: calc(100% - 2px); z-index: 5; width: max-content; max-width: 280px; padding: 6px; background: var(--color-bg, #f2f2f3); border: 1px solid var(--color-text, #1d1f20); box-shadow: var(--shadow-md); pointer-events: none; }
+#tab-quote-make #quoteTable tr:hover .row-mode-btns, #tab-quote-make #quoteTable tr:focus-within .row-mode-btns { pointer-events: auto; }
+
+/* 入力欄は白地＋細い枠で、編集できる場所だと分かるように（読み取り専用は枠なしのまま） */
+#tab-quote-make #quoteTable tbody input:not([type=checkbox]):not([type=hidden]):not([readonly]), #tab-quote-make #quoteTable tbody select {
+  background: var(--color-surface-input, #fff); border: 1px solid var(--color-neutral-400, #b7b7ba); border-radius: 0; }
+#tab-quote-make #quoteTable tbody input:not([type=checkbox]):not([readonly]):hover, #tab-quote-make #quoteTable tbody select:hover { border-color: var(--color-neutral-700, #5d5d60); }
+#tab-quote-make #quoteTable tbody input:not([type=checkbox]):not([readonly]):focus, #tab-quote-make #quoteTable tbody select:focus { border: 1px solid var(--color-accent, #5980a6); box-shadow: inset 0 -2px 0 var(--color-accent, #5980a6); background: #fff; }
+#tab-quote-make #quoteTable tbody input[readonly], #tab-quote-make #quoteTable tbody .display-field { background: transparent; border-color: transparent; }
+#tab-quote-make #quoteTable .stk-sell .w-cur:not([readonly]), #tab-quote-make #quoteTable .stk-sell .w-price:not([readonly]) { background: #fff; }

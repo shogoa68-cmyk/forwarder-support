@@ -1,0 +1,21 @@
+/* blueprint-industry.css — 「+」登録マーク（Industry のブループリント枠）。HTML を変えずに疑似要素だけで描く。
+   マークは枠の内側の四隅に置く（overflow を持つ要素でも切れない）。対象は .card / .btn-primary / 見積明細の表の外枠。 */
+.card, .btn-primary, #tab-quote-make .quote-main { position: relative; }
+.card::after, .btn-primary::after, #tab-quote-make .quote-main::after {
+  content: ""; position: absolute; inset: 3px; pointer-events: none; color: color-mix(in srgb, currentColor 60%, transparent);
+  background:
+    linear-gradient(currentColor,currentColor) left top / 9px 1px,
+    linear-gradient(currentColor,currentColor) left top / 1px 9px,
+    linear-gradient(currentColor,currentColor) right top / 9px 1px,
+    linear-gradient(currentColor,currentColor) right top / 1px 9px,
+    linear-gradient(currentColor,currentColor) left bottom / 9px 1px,
+    linear-gradient(currentColor,currentColor) left bottom / 1px 9px,
+    linear-gradient(currentColor,currentColor) right bottom / 9px 1px,
+    linear-gradient(currentColor,currentColor) right bottom / 1px 9px;
+  background-repeat: no-repeat;
+}
+.card { color: var(--text); border-radius: 0; background: transparent; }
+.card::after { color: color-mix(in srgb, var(--text) 55%, transparent); }
+#tab-quote-make .quote-main::after { color: color-mix(in srgb, var(--text) 45%, transparent); z-index: 6; }
+.btn-primary { border-radius: 0; }
+.btn-primary::after { color: color-mix(in srgb, var(--surface) 80%, transparent); }

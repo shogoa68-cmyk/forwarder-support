@@ -20,6 +20,7 @@
       if (vt && vt.value) vt.value = '';
       if (tr) { delete tr.dataset.outRange; tr.classList.remove('row-out-of-range'); }
     }
+    _scheduleCatHeaderRefresh();   // Industry テーマのときだけカテゴリ見出しを更新
   }
 
   // サーチャージ有効期限：開始日だけ入れたとき、終了日が未入力ならその月の月末を自動セットする
@@ -2697,6 +2698,7 @@
   const _collapsedGroups   = new Set();
   const _excludedGroups    = new Set();
   const _collapsedPatterns = new Set(); // svKey + '\x00' + ptKey
+  const _collapsedCats     = new Set(); // svKey + '\x00' + ptKey + '\x00' + catKey（Industry テーマのカテゴリ見出し用）
   const _excludedPatterns  = new Set(); // svKey + '\x00' + ptKey
   // サブコン別小計の「客先用表示名」（sv キー → 置換テキスト）。客先向け出力でサブコン名を隠すために使う。
   const _subconAlias     = Object.create(null);
@@ -2773,6 +2775,7 @@
     const links = (pat && pat.groupExcludeLinks) || {};
     let changed = false;
     document.querySelectorAll('#tableBody tr[data-virtual]').forEach(tr => {
+      if (tr.dataset.catHeader) return;   // カテゴリ見出し（Industry テーマ）は対象外
       const svKey = tr.dataset.svKey;
       if (!svKey) return;
       const key = tr.dataset.subGroup ? (svKey + '\x00' + (tr.dataset.ptKey || '')) : svKey;
@@ -2809,6 +2812,7 @@
         currentCompKey = svKey && ptKey != null ? svKey + '\x00' + ptKey : null;
         return;
       }
+      if (tr.dataset.catHeader) return;   // カテゴリ見出し（Industry テーマ）は透過
       if (tr.dataset.virtual) { currentKey = tr.dataset.svKey || null; currentCompKey = null; return; }
       if (tr.dataset.type) {
         // 小計・リマーク・社内メモ行：直前のサブコングループに属する
@@ -2885,8 +2889,9 @@
     if (!tbody) return;
     // DOM 順に全行を走査し、直前の仮想ヘッダーのグループキーを引き継ぐ
     // → 小計・リマーク行は「直前のサブコングループ」に属するとして扱う
-    let currentKey = null, currentCompKey = null;
+    let currentKey = null, currentCompKey = null, currentCatCollapsed = false;
     Array.from(tbody.querySelectorAll('tr')).forEach(tr => {
+      if (tr.dataset.ptSum || tr.dataset.subSum || tr.dataset.subGroup) currentCatCollapsed = false;
       if (tr.dataset.ptSum) {
         // パターン小計行：所属サブコン折りたたみ OR パターン折りたたみに追従
         const svKey = tr.dataset.svKey || null;
@@ -2930,7 +2935,21 @@
         currentCompKey = compKey;
         return;
       }
+      if (tr.dataset.catHeader) {
+        // カテゴリ見出し（Industry テーマ）：サブコン／パターンの折りたたみに追従し、自身の折りたたみで配下の明細を隠す
+        const svKey = tr.dataset.svKey || '', ptKey = tr.dataset.ptKey || '';
+        const compKey = svKey && ptKey ? svKey + '\x00' + ptKey : null;
+        const hidden = (svKey && _collapsedGroups.has(svKey)) || (compKey && _collapsedPatterns.has(compKey));
+        const catCollapsed = _collapsedCats.has(svKey + '\x00' + ptKey + '\x00' + (tr.dataset.catKey || ''));
+        tr.style.display = hidden ? 'none' : '';
+        tr.classList.toggle('is-collapsed', catCollapsed);
+        const tg = tr.querySelector('.subcon-cat-toggle');
+        if (tg) tg.textContent = catCollapsed ? '▶' : '▼';
+        currentCatCollapsed = catCollapsed;
+        return;
+      }
       if (tr.dataset.virtual) {
+        currentCatCollapsed = false;
         currentKey = tr.dataset.svKey || null;
         currentCompKey = null; // サブコンヘッダーでパターン追跡をリセット
         if (!currentKey) return;
@@ -2955,7 +2974,7 @@
         const ptCollapsed = currentCompKey && _collapsedPatterns.has(currentCompKey);
         const scExcluded  = _excludedGroups.has(key);
         const ptExcluded  = currentCompKey && _excludedPatterns.has(currentCompKey);
-        const collapsed   = scCollapsed || ptCollapsed;
+        const collapsed   = scCollapsed || ptCollapsed || currentCatCollapsed;
         const excluded    = scExcluded  || ptExcluded;
         tr.style.display    = collapsed ? 'none' : '';
         tr.dataset.excluded = excluded ? '1' : '';
@@ -2967,7 +2986,7 @@
           const ptCollapsed = currentCompKey && _collapsedPatterns.has(currentCompKey);
           const scExcluded  = _excludedGroups.has(currentKey);
           const ptExcluded  = currentCompKey && _excludedPatterns.has(currentCompKey);
-          const collapsed   = scCollapsed || ptCollapsed;
+          const collapsed   = scCollapsed || ptCollapsed || currentCatCollapsed;
           const excluded    = scExcluded  || ptExcluded;
           tr.style.display    = collapsed ? 'none' : '';
           tr.dataset.excluded = excluded ? '1' : '';
@@ -3007,6 +3026,7 @@
   function expandAllGroups() {
     _collapsedGroups.clear();
     _collapsedPatterns.clear();
+    _collapsedCats.clear();
     _applyGroupStates();
     if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
     if (typeof window.renderQuoteSectionDigest === 'function') window.renderQuoteSectionDigest();
@@ -3026,11 +3046,14 @@
     excludedGroups:    Array.from(_excludedGroups),
     collapsedPatterns: Array.from(_collapsedPatterns).map(_splitPatternKey),
     excludedPatterns:  Array.from(_excludedPatterns).map(_splitPatternKey),
+    // カテゴリ見出し（Industry テーマ）の折りたたみ：[svKey, ptKey, catKey] の配列（空のときは出力しない＝現行の保存形式のまま）
+    ...(_collapsedCats.size ? { collapsedCats: Array.from(_collapsedCats).map(k => k.split('\x00')) } : {}),
   });
   window.setGroupDisplayState = (state) => {
     _collapsedGroups.clear(); _excludedGroups.clear();
-    _collapsedPatterns.clear(); _excludedPatterns.clear();
+    _collapsedPatterns.clear(); _excludedPatterns.clear(); _collapsedCats.clear();
     if (!state) return;
+    (state.collapsedCats || []).forEach(t => { if (Array.isArray(t) && t.length === 3) _collapsedCats.add(t.join('\x00')); });
     (state.collapsedGroups   || []).forEach(k => _collapsedGroups.add(k));
     (state.excludedGroups    || []).forEach(k => _excludedGroups.add(k));
     (state.collapsedPatterns || []).forEach(pair => {
@@ -3450,6 +3473,8 @@
         closeRun(null);   // 末尾グループを締める
       })();
 
+      _insertCatHeaders();   // Industry テーマのときだけ、カテゴリ見出し（L2）を挟む
+
       // 全行の折りたたみ・除外状態を適用（小計・リマーク行を含む）
       _applyGroupStates();
       _updateGroupSums();
@@ -3668,6 +3693,65 @@
     if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
   }
 
+  // ---- カテゴリ見出し（Industry テーマ限定・表示専用の仮想行） ----
+  // 3階層表示（サブコン › パターン › カテゴリ › 明細）の L2。現在の行順のまま、カテゴリが変わる所で見出しを挟む
+  // （行順は変えない。同じカテゴリが離れて複数回出れば、そのつど見出しを出す）。
+  // テーマが「現行」のときは何も挿入しない＝従来どおりの表。保存・CSV/Excel/PDF/メール出力には含まれない（data-virtual）。
+  function _catLabelPlain(cat) {
+    if (!cat) return '（カテゴリなし）';
+    const o = (typeof getAllCategories === 'function' ? getAllCategories() : []).find(c => c.value === cat);
+    const raw = o ? o.label : cat;
+    return raw.replace(/^[^\p{L}\p{N}]+/u, '').trim() || raw;   // 先頭の絵文字を除く
+  }
+  function _insertCatHeaders() {
+    if (!document.documentElement.classList.contains('theme-industry')) return;
+    const tbody = document.getElementById('tableBody');
+    if (!tbody) return;
+    const runs = [];   // { before, sv, pt, cat, count }
+    let sv = '', pt = '', last, cur = null;
+    Array.from(tbody.children).forEach(tr => {
+      if (tr.dataset.virtual) {
+        if (tr.dataset.ptSum || tr.dataset.subSum) { last = undefined; return; }
+        if (tr.dataset.subGroup) { pt = tr.dataset.ptKey || ''; last = undefined; return; }
+        sv = tr.dataset.svKey || ''; pt = ''; last = undefined; return;   // サブコンのグループ見出し
+      }
+      if (tr.dataset.type) return;                       // 小計・リマーク・社内メモ行は明細に付随
+      const cat = document.getElementById('cat-' + tr.id.replace('row-', ''))?.value || '';
+      if (cat !== last) { cur = { before: tr, sv, pt, cat, count: 0 }; runs.push(cur); last = cat; }
+      cur.count++;
+    });
+    runs.forEach(r => {
+      const hr = document.createElement('tr');
+      hr.dataset.virtual = '1';
+      hr.dataset.catHeader = '1';
+      hr.dataset.svKey = r.sv;
+      hr.dataset.ptKey = r.pt;
+      hr.dataset.catKey = r.cat;
+      hr.className = 'subcon-cat-header';
+      hr.innerHTML =
+        `<td colspan="10" class="subcon-cat-cell"><div class="subcon-cat-inner">` +
+        `<button type="button" class="subcon-cat-toggle" title="折りたたみ/展開">▼</button>` +
+        `<span class="subcon-cat-label">${_escHdr(_catLabelPlain(r.cat))}</span>` +
+        `<span class="subcon-cat-count">${r.count} 行</span>` +
+        `<span class="subcon-cat-sum"></span>` +
+        `</div></td>`;
+      const ck = r.sv + '\x00' + r.pt + '\x00' + r.cat;
+      hr.querySelector('.subcon-cat-toggle').addEventListener('click', e => {
+        e.stopPropagation();
+        if (_collapsedCats.has(ck)) _collapsedCats.delete(ck); else _collapsedCats.add(ck);
+        _applyGroupStates();
+        if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
+      });
+      tbody.insertBefore(hr, r.before);
+    });
+  }
+  // カテゴリを変えたとき、Industry テーマならカテゴリ見出しを引き直す（まとめて 1 回）
+  let _catHdrTimer = null;
+  function _scheduleCatHeaderRefresh() {
+    if (!document.documentElement.classList.contains('theme-industry') || _catHdrTimer) return;
+    _catHdrTimer = setTimeout(() => { _catHdrTimer = null; if (typeof renderSubconGroups === 'function') renderSubconGroups(); }, 0);
+  }
+
   // 各サブコングループヘッダーに、その配下データ行の請求小計合計（¥）を表示する。
   // DOM 順に走査し、仮想ヘッダーごとに直後のデータ行の billing 小計（bq×bp）を集計。
   // 非 JPY 行は toJPY があれば換算して合算（無ければ素の値）。
@@ -3699,7 +3783,19 @@
       if (scSubRow) writeSub(scSubRow, scSell, scCost, scMixed);
     };
     const resetPt = () => { ptSell = 0; ptCost = 0; ptMixed = false; };
+    // カテゴリ見出し（Industry テーマ）の売値小計
+    let catSumEl = null, catSell = 0, catMixed = false;
+    const flushCat = () => {
+      if (catSumEl) {
+        const s = Math.round(catSell);
+        catSumEl.textContent = s ? '¥' + fmt(s) + (catMixed ? '※' : '') : '';
+        catSumEl.title = catMixed ? '複数通貨を JPY 換算して合算（FX パネルのレート使用）' : '';
+      }
+      catSumEl = null; catSell = 0; catMixed = false;
+    };
     Array.from(tbody.querySelectorAll('tr')).forEach(tr => {
+      if (tr.dataset.catHeader) { flushCat(); catSumEl = tr.querySelector('.subcon-cat-sum'); return; }
+      if (tr.dataset.ptSum || tr.dataset.subSum || tr.dataset.subGroup || tr.dataset.virtual) flushCat();
       if (tr.dataset.ptSum) {                // パターン小計行：内側累計を書き込み、内側だけリセット
         writeSub(tr, ptSell, ptCost, ptMixed);
         resetPt();
@@ -3734,8 +3830,10 @@
       if (bc !== 'JPY') { mixed = true; if (typeof toJPY === 'function') sell = toJPY(sell, bc); }
       if (pc !== 'JPY') { mixed = true; if (typeof toJPY === 'function') cost = toJPY(cost, pc); }
       scSell += sell; scCost += cost; if (mixed) scMixed = true;
+      if (catSumEl) { catSell += sell; if (mixed) catMixed = true; }
       ptSell += sell; ptCost += cost; if (mixed) ptMixed = true;
     });
+    flushCat();
     flushSc();
   }
 

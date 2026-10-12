@@ -11,6 +11,32 @@
 <link rel="stylesheet" href="css/quote.css">
 <link rel="stylesheet" href="css/tokens-doc.css">
 <link rel="stylesheet" href="css/quote-pdf.css">
+<!-- Industry テーマ（Claude Design 案・既定オフ）。media="not all" の間は何も効かない。
+     下のスクリプトが localStorage の設定に応じて media を切り替える。無効にすれば現行デザインに戻る。
+     生成物：scripts/build-industry-theme.js → css/theme-industry*.css（手編集しない） -->
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@500;600;700&family=Noto+Sans+JP:wght@400;500;700&display=swap" media="not all" data-theme-css="fonts">
+<link rel="stylesheet" href="css/theme-industry.css" media="not all" data-theme-css="site">
+<link rel="stylesheet" href="css/theme-industry-doc.css" media="not all" data-theme-css="doc">
+<script>
+/* テーマ切替の早期適用（画面の描画前に実行して、ちらつきを防ぐ）。設定は js/tweaks.js のパネル「デザイン」で変更。
+   ?theme=industry / ?theme=classic のURLパラメータでも一時的に切替可（localStorage に保存される）。 */
+(function () {
+  var KEY = 'forwarderTheme_v1', t = { site: false, doc: false };
+  try { t = Object.assign(t, JSON.parse(localStorage.getItem(KEY) || '{}')); } catch (e) {}
+  try {
+    var q = new URLSearchParams(location.search).get('theme');
+    if (q === 'industry') { t.site = true; t.doc = true; } else if (q === 'classic') { t.site = false; t.doc = false; }
+    if (q) localStorage.setItem(KEY, JSON.stringify(t));
+  } catch (e) {}
+  var h = document.documentElement;
+  h.classList.toggle('theme-industry', !!t.site);
+  h.classList.toggle('theme-industry-doc', !!t.doc);
+  var on = { fonts: t.site || t.doc, site: t.site, doc: t.doc };
+  [].forEach.call(document.querySelectorAll('link[data-theme-css]'), function (l) {
+    l.media = on[l.getAttribute('data-theme-css')] ? 'all' : 'not all';
+  });
+})();
+</script>
 <!-- 見積タブで CSV/Excel/PDF 出力に使用（SheetJS） -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" defer></script>
 <!-- 荷姿・貨物明細のPDF一括取込（文字ベースPDFのテキスト位置抽出）に使用（PDF.js） -->
@@ -37,6 +63,7 @@
       <div class="subtitle">ブックマーク・知識・計算機・見積もりをひとまとめに &nbsp;｜&nbsp; 最終更新: <span id="last-updated">-</span></div>
     </div>
     <a class="hdr-roadmap" href="roadmap.html" title="改修予定・アイデア（ロードマップ）">📣 改修予定・アイデア</a>
+    <a class="hdr-roadmap hdr-design" href="#" id="hdrDesignBtn" onclick="openDesignSwitcher(); return false;" title="デザインの切替（現行／Industry 案）">🎨 デザイン</a>
     <div class="header-auth" id="cloudHeaderAuth" hidden>
       <button class="hdr-cloud-login" id="hdrCloudLogin" type="button" onclick="cloudLogin()" title="チーム共有にサインイン">
         <span class="hdr-g">G</span> Google でログイン

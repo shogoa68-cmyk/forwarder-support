@@ -1,0 +1,60 @@
+/* quote-hierarchy-industry.css — 見積明細の3階層（サブコン › パターン › カテゴリ › 明細）。quote.css と quote-table-industry.css の後に読み込む。
+   既存の id / onclick / data-* / class は変更しない。追加するのは tr.subcon-cat-header（仮想行）の class だけ。 */
+
+/* L0 サブコン見出し：濃い鋼青の帯 */
+#tab-quote-make #quoteTable tr.subcon-group-header td { background: var(--color-accent-900, #1d2d3d); color: var(--color-bg, #f2f2f3); border-bottom: 1px solid var(--color-text, #1d1f20); }
+#tab-quote-make #quoteTable tr.subcon-group-header .subcon-group-header-inner { min-height: 44px; }
+#tab-quote-make #quoteTable tr.subcon-group-header .subcon-group-label { font-size: 15px; color: var(--color-bg, #f2f2f3); }
+#tab-quote-make #quoteTable tr.subcon-group-header .subcon-group-count { color: var(--color-accent-300, #b5d9fd); }
+#tab-quote-make #quoteTable tr.subcon-group-header .subcon-group-sum { color: var(--color-bg, #f2f2f3); font-size: 20px; }
+#tab-quote-make #quoteTable tr.subcon-group-header .subcon-group-toggle, #tab-quote-make #quoteTable tr.subcon-group-header .subcon-group-grip { color: var(--color-accent-300, #b5d9fd); }
+#tab-quote-make #quoteTable tr.subcon-group-header button:not(.subcon-group-toggle) { color: var(--color-bg, #f2f2f3); background: transparent; border: 1px solid var(--color-accent-400, #94bce3); border-radius: 0; }
+#tab-quote-make #quoteTable tr.subcon-group-header button:not(.subcon-group-toggle):hover { background: var(--color-accent-800, #2c455d); }
+
+/* L1 パターン見出し：淡い鋼青の帯＋左線、32px 内側 */
+#tab-quote-make #quoteTable tr.subcon-subgroup-header td { background: var(--color-accent-200, #d6ebff); border-bottom: 1px solid var(--color-accent-400, #94bce3); padding: 0; box-shadow: inset 4px 0 0 var(--color-accent-600, #597ea3); }
+#tab-quote-make #quoteTable tr.subcon-subgroup-header .subcon-subgroup-inner { display: flex; align-items: center; gap: 12px; min-height: 38px; padding: 0 12px 0 32px; flex-wrap: nowrap; }
+#tab-quote-make #quoteTable tr.subcon-subgroup-header .subcon-subgroup-leg { font-weight: 700; font-size: 14px; color: var(--color-accent-900, #1d2d3d); }
+#tab-quote-make #quoteTable tr.subcon-subgroup-header .subcon-subgroup-leg::before { content: "パターン"; margin-right: 10px; font-family: var(--font-heading); font-weight: 600; font-size: 11px; letter-spacing: .2em; color: var(--color-accent-700, #416180); }
+#tab-quote-make #quoteTable tr.subcon-subgroup-header .subcon-subgroup-inner > button:not(.subcon-subgroup-toggle), #tab-quote-make #quoteTable tr.subcon-subgroup-header .grp-updated { opacity: 0; transition: opacity .12s; border-radius: 0; }
+#tab-quote-make #quoteTable tr.subcon-subgroup-header:hover .subcon-subgroup-inner > button, #tab-quote-make #quoteTable tr.subcon-subgroup-header:hover .grp-updated,
+#tab-quote-make #quoteTable tr.subcon-subgroup-header:focus-within .subcon-subgroup-inner > button, #tab-quote-make #quoteTable tr.subcon-subgroup-header:focus-within .grp-updated { opacity: 1; }
+
+/* L2 カテゴリ見出し（新規・仮想行）：グレーの細い帯、60px 内側 */
+#tab-quote-make #quoteTable tr.subcon-cat-header td { background: var(--color-neutral-200, #e7e7ea); border-bottom: 1px solid var(--color-neutral-300, #d4d4d7); padding: 0; box-shadow: inset 4px 0 0 var(--color-accent-400, #94bce3); }
+#tab-quote-make #quoteTable .subcon-cat-inner { display: flex; align-items: center; gap: 10px; min-height: 30px; padding: 0 12px 0 56px; }
+#tab-quote-make #quoteTable .subcon-cat-toggle { all: unset; cursor: pointer; width: 20px; text-align: center; font-size: 10px; color: var(--color-neutral-700, #5d5d60); }
+#tab-quote-make #quoteTable .subcon-cat-toggle:focus-visible { outline: 2px solid var(--color-accent, #5980a6); outline-offset: 2px; }
+#tab-quote-make #quoteTable .subcon-cat-label { font-weight: 600; font-size: 12px; color: var(--color-neutral-800, #424244); }
+#tab-quote-make #quoteTable .subcon-cat-label::before { content: "カテゴリ"; margin-right: 10px; font-family: var(--font-heading); font-weight: 600; font-size: 11px; letter-spacing: .2em; color: var(--color-neutral-600, #7a7a7d); }
+#tab-quote-make #quoteTable .subcon-cat-count { font-size: 11px; color: var(--color-neutral-700, #5d5d60); }
+#tab-quote-make #quoteTable .subcon-cat-sum { margin-left: auto; font-weight: 700; font-variant-numeric: tabular-nums; }
+
+/* 明細行：左に階層線、先頭セルを内側へ */
+#tab-quote-make #quoteTable tr.subcon-child td:first-child { box-shadow: inset 4px 0 0 var(--color-accent-200, #d6ebff); padding-left: 52px; }
+
+/* カテゴリ・サブコン・パターンの入力欄は、見出しで階層が分かるので普段は隠し、編集中だけ出す */
+#tab-quote-make #quoteTable td.catsv-cell .w-cat { display: none; }
+#tab-quote-make #quoteTable tr:focus-within td.catsv-cell .w-cat { display: block; }
+
+/* 見出し内の部品を階層デザインに合わせる */
+#tab-quote-make #quoteTable tr.subcon-group-header .subcon-group-count { background: transparent; border: 0; color: var(--color-accent-300, #b5d9fd); }
+#tab-quote-make #quoteTable tr.subcon-subgroup-header .subcon-subgroup-toggle { background: transparent; border: 0; border-radius: 0; color: var(--color-accent-800, #2c455d); }
+#tab-quote-make #quoteTable tr.subcon-subgroup-header button:not(.subcon-subgroup-toggle) { background: transparent; border: 1px solid var(--color-accent-600, #597ea3); color: var(--color-accent-900, #1d2d3d); border-radius: 0; }
+/* サブコン小計：旧い太い左バーとグレー地をやめ、階層線（鋼青）に揃える */
+#tab-quote-make #quoteTable tr.subcon-group-subtotal td { border-left: 0; box-shadow: inset 4px 0 0 var(--color-accent-900, #1d2d3d); background: var(--color-neutral-100, #f5f5f8); }
+#tab-quote-make #quoteTable tr.subcon-pattern-subtotal td { border-left: 0; box-shadow: inset 4px 0 0 var(--color-accent-600, #597ea3); }
+/* 列見出し：カテゴリ欄は隠したので、実際に入る内容に合わせた表記にする */
+#tab-quote-make #quoteTable thead th.hd-catsv { font-size: 0; }
+#tab-quote-make #quoteTable thead th.hd-catsv::after { content: "サブコン／パターン"; font-size: 12px; font-family: var(--font-heading); font-weight: 600; letter-spacing: .12em; }
+
+/* 根本原因：旧バーは td ではなく .subcon-subtotal-inner の border-left（--grp-accent 系） */
+#tab-quote-make #quoteTable .subcon-subtotal-inner { border-left: 4px solid var(--color-accent-900, #1d2d3d); }
+#tab-quote-make #quoteTable .subcon-subtotal-inner--pt { border-left: 4px solid var(--color-accent-600, #597ea3); }
+#tab-quote-make #quoteTable tr.subcon-group-subtotal td, #tab-quote-make #quoteTable tr.subcon-pattern-subtotal td { box-shadow: none; }
+/* 列見出し：元の文言（子要素の small を含む）を隠して置き換える */
+#tab-quote-make #quoteTable thead th.hd-catsv > * { display: none; }
+
+/* カテゴリ欄を隠した分、サブコン／パターン列を詰める */
+#tab-quote-make #quoteTable thead th.hd-catsv, #tab-quote-make #quoteTable td.catsv-cell { width: 96px !important; min-width: 0; }
+#tab-quote-make #quoteTable td.catsv-cell .w-subcon, #tab-quote-make #quoteTable td.catsv-cell .w-pattern { flex: 1 1 100%; width: 100%; }
