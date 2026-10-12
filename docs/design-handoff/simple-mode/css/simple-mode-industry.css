@@ -1,0 +1,52 @@
+/* simple-mode-industry.css — 「かんたん表示」。<html class="mode-simple"> のとき有効。詳細表示は mode-simple を外すだけ。
+   隠すものは display:none（DOM に残す。値の保存・計算は継続）。必須項目（data-tier="req"）は絶対に隠さない。
+   quote-hierarchy-industry.css の後に読み込む。 */
+
+/* ===== 区分の付け方 =====
+   data-tier="req"  必須     … 常に表示
+   data-tier="opt"  ときどき … かんたん：畳む（<details> の中）／詳細：開く
+   data-tier="adv"  上級     … かんたん：非表示／詳細：表示
+*/
+.mode-simple [data-tier="adv"] { display: none !important; }
+.mode-simple details[data-tier="opt"]:not([open]) > :not(summary) { display: none; }
+html:not(.mode-simple) details[data-tier="opt"] > :not(summary) { display: revert; }
+
+/* ===== 必須／任意の印 ===== */
+.tier-badge { display: inline-block; padding: 1px 6px; font-size: 11px; line-height: 1.5; font-weight: 700; margin-right: 6px; border-radius: 0; }
+.tier-badge.req { background: var(--color-accent-900, #1d2d3d); color: var(--color-bg, #f2f2f3); }
+.tier-badge.opt { border: 1px solid var(--color-neutral-500, #98989b); color: var(--color-neutral-700, #5d5d60); }
+
+/* ===== 畳み見出し（<details><summary>） ===== */
+details[data-tier="opt"] > summary { display: flex; align-items: center; gap: 12px; padding: 12px 0; cursor: pointer; list-style: none; border-bottom: 1px solid var(--color-neutral-300, #d4d4d7); }
+details[data-tier="opt"] > summary::-webkit-details-marker { display: none; }
+details[data-tier="opt"] > summary::before { content: "▶"; font-size: 10px; width: 16px; color: var(--color-neutral-700, #5d5d60); }
+details[data-tier="opt"][open] > summary::before { content: "▼"; }
+
+/* ===== 手順の道しるべ（既存 qp-* を流用する場合の見た目） ===== */
+.qp-steps { display: flex; }
+.qp-step { flex: 1; display: flex; align-items: center; gap: 12px; padding: 10px 16px; border: 1px solid var(--color-text, #1d1f20); margin-left: -1px; background: #fff; }
+.qp-step.is-current { background: var(--color-accent-900, #1d2d3d); color: var(--color-bg, #f2f2f3); }
+.qp-step .qp-n { font-family: var(--font-heading); font-weight: 700; font-size: 24px; }
+
+/* ===== 見積入力：右レール（かんたんは4つだけ、文字付き） ===== */
+.mode-simple .rail-btn:not([data-tier="req"]):not([data-rail-keep]) { display: none !important; }
+.rail-btn { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border: 1px solid var(--color-neutral-300, #d4d4d7); border-radius: 0; }
+.rail-btn .rail-label { display: inline; font-weight: 600; font-size: 13px; }  /* アイコンだけをやめ、文字を添える */
+
+/* ===== 見積入力：固定ツールバー（かんたんは主要4つ＋「その他 ⋯」） ===== */
+.mode-simple .toolbar-extra { display: none !important; }
+.mode-simple .toolbar-more { display: inline-flex; }
+html:not(.mode-simple) .toolbar-more { display: none; }
+
+/* ===== ダッシュボード：案件カード ===== */
+.mode-simple .dash-card .dash-title { font-size: 18px; font-weight: 700; }
+.mode-simple .dash-card .dash-cust { font-size: 13px; font-weight: 500; }           /* お客様名は主役にしない */
+.mode-simple .dash-card .dash-open { min-width: 88px; }                             /* 「開く」だけ primary */
+.mode-simple .dash-card .dash-sub-actions { display: none; }                        /* プレビュー/PDF/コピー/削除は「⋯」メニューへ */
+.mode-simple .dash-card .dash-memo-body { display: none; }                          /* 申し送りは畳み、件数バッジだけ */
+.mode-simple .dash-card .dash-memo-body.is-open { display: block; }
+.dash-progress { display: flex; gap: 2px; width: 120px; pointer-events: none; }     /* 進捗は表示専用：ボタンに見せない */
+.dash-progress > i { flex: 1; height: 4px; background: var(--color-neutral-300, #d4d4d7); }
+.dash-progress > i.on { background: var(--color-accent-700, #416180); }
+.mode-simple .dash-adv, .mode-simple .dash-ranking-tag, .mode-simple .dash-ranking-cust { display: none !important; }
+.dash-menu-danger { color: #b0392e; }

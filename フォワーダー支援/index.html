@@ -17,6 +17,8 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@500;600;700&family=Noto+Sans+JP:wght@400;500;700&display=swap" media="not all" data-theme-css="fonts">
 <link rel="stylesheet" href="css/theme-industry.css" media="not all" data-theme-css="site">
 <link rel="stylesheet" href="css/theme-industry-doc.css" media="not all" data-theme-css="doc">
+<!-- 「かんたん表示」（Claude Design 案）。<html class="mode-simple"> のときだけ効く。クラスが無ければ従来の「詳細表示」のまま。 -->
+<link rel="stylesheet" href="css/simple-mode.css">
 <script>
 /* テーマ切替の早期適用（画面の描画前に実行して、ちらつきを防ぐ）。設定は js/tweaks.js のパネル「デザイン」で変更。
    ?theme=industry / ?theme=classic のURLパラメータでも一時的に切替可（localStorage に保存される）。 */
@@ -32,6 +34,17 @@
   h.classList.toggle('theme-industry', !!t.site);
   h.classList.toggle('theme-industry-doc', !!t.doc);
   var on = { fonts: t.site || t.doc, site: t.site, doc: t.doc };
+  /* 表示モード（かんたん／詳細）。保存キー fwd.uiMode。既定は下の UI_MODE_DEFAULT（段階導入中は 'detail'＝従来どおり。
+     動作確認後に 'simple' へ）。?mode=simple|detail で切替（保存される）。切替UIは js/ui-mode.js。 */
+  var UI_MODE_DEFAULT = 'detail', mode = null;
+  try { mode = localStorage.getItem('fwd.uiMode'); } catch (e) {}
+  try {
+    var qm = new URLSearchParams(location.search).get('mode');
+    if (qm === 'simple' || qm === 'detail') { mode = qm; localStorage.setItem('fwd.uiMode', qm); }
+  } catch (e) {}
+  if (mode !== 'simple' && mode !== 'detail') mode = UI_MODE_DEFAULT;
+  h.classList.toggle('mode-simple', mode === 'simple');
+  h.setAttribute('data-ui-mode-default', UI_MODE_DEFAULT);
   [].forEach.call(document.querySelectorAll('link[data-theme-css]'), function (l) {
     l.media = on[l.getAttribute('data-theme-css')] ? 'all' : 'not all';
   });
@@ -2174,19 +2187,37 @@
       <div class="qpd-head">
         <h2 class="qpd-title">📊 見積ダッシュボード</h2>
         <div class="qpd-head-actions">
+          <div class="uim-switch" role="group" aria-label="表示モード">
+            <button type="button" data-uim="simple" onclick="setUiMode('simple')">かんたん表示</button>
+            <button type="button" data-uim="detail" onclick="setUiMode('detail')">詳細表示</button>
+          </div>
           <button type="button" class="qpd-new" onclick="qpNewQuote()">🆕 新規見積を作成</button>
-          <button type="button" class="qpd-resume" onclick="qpShowEditor()" title="編集中の見積画面に戻る">▶ 編集画面へ</button>
+          <button type="button" class="qpd-resume" onclick="qpShowEditor()" title="編集中の見積画面に戻る">▶ <span class="lbl-d">編集画面へ</span><span class="lbl-s">作業中の見積に戻る</span></button>
         </div>
       </div>
 
       <!-- 未ログイン：ログイン案内 -->
       <div class="qpd-login" id="qpdLogin" hidden>
-        <div class="qpd-login-card">
+        <div class="qpd-login-card qpd-login-card--detail">
           <div class="qpd-login-emoji">☁️</div>
           <h3>ログインすると見積もり機能が広がります</h3>
           <p>チーム共有・案件一覧・同時編集ロックなどのクラウド機能はログインが必要です。<br>ログインせずに、このブラウザ内だけで見積もりを作成することもできます。</p>
           <button type="button" class="qpd-login-btn" onclick="cloudLogin()">☁️ Google でログイン</button>
           <button type="button" class="qpd-local-link" onclick="qpNewQuote()">ログインせず新規作成（このブラウザ内のみ）</button>
+        </div>
+        <!-- かんたん表示：2択のカード（旧カードは詳細表示でのみ表示） -->
+        <div class="qpd-login2">
+          <div class="qpd-login2-card qpd-login2-card--rec">
+            <span class="qpd-login2-tag">おすすめ</span>
+            <h3>ログインして使う</h3>
+            <ul><li>チームの共有フォルダに保存されます</li><li>どのパソコンからでも続きができます</li><li>申し送りや集計が使えます</li></ul>
+            <button type="button" class="qpd-login-btn" onclick="cloudLogin()">☁️ Google でログイン</button>
+          </div>
+          <div class="qpd-login2-card">
+            <h3>ログインせずに使う</h3>
+            <ul><li>保存はこのパソコンだけです</li><li>ほかの人とは共有されません</li><li>ブラウザのデータを消すと、見積も消えます</li></ul>
+            <button type="button" class="qpd-local-btn" onclick="qpNewQuote()">ログインせずに始める</button>
+          </div>
         </div>
       </div>
 
@@ -2199,6 +2230,7 @@
             <button type="button" class="qpd-search-clear" id="qpdSearchClear" hidden onclick="qpdClearSearch()" title="検索をクリア">✕</button>
           </div>
           <div class="qpd-tools-row">
+            <button type="button" class="qpd-more-toggle" id="qpdMoreToggle" aria-expanded="false" onclick="qpdToggleMore()">🔎 詳しく絞り込む ▶</button>
             <button type="button" class="qpd-adv-toggle" id="qpdAdvToggle" onclick="qpdToggleAdv()">🔎 詳細検索 ▶</button>
             <button type="button" class="qpd-reset-all" id="qpdResetAll" hidden onclick="qpdResetAllFilters()" title="ステータス・検索・詳細検索・お客様・タグの絞り込みをすべて解除して全件表示に戻します">✕ 絞り込みをすべて解除</button>
             <label class="qpd-sort">並び替え
@@ -4649,6 +4681,7 @@
 <script src="js/quote/memo-title.js"></script>
 <script src="js/quote/packing-import.js"></script>
 <script src="js/tweaks.js"></script>
+<script src="js/ui-mode.js"></script>
 <script src="js/bookmarks.js"></script>
 <script src="js/calendar.js"></script>
 <script src="js/similar-quotes.js"></script>

@@ -842,7 +842,9 @@
       return;
     }
     // 1 案件カードの HTML を組み立てる（モーダル一覧・ダッシュボードの両方から使う）
-    function _cloudCardHtml(r) {
+    // simpleDash: ダッシュボード（#qpdListWrap）の「かんたん表示」用。チーム共有モーダルは常に従来の見た目。
+    function _cloudCardHtml(r, simpleDash) {
+      const sd = simpleDash === true && window.uiIsSimple && window.uiIsSimple();
       const ts = r.updated_at
         ? new Date(r.updated_at).toLocaleString('ja-JP',
             { month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit' })
@@ -900,6 +902,10 @@
         : '';
       // 🔔 料金更新フォロー（暫定提示→最新料金が出たら更新）。どのステータスでも付けられる
       const followCtl   = _followControl(r, idAttr, lockedBy);
+      // かんたん表示の見出し：メモ1行目 → ルート → REF#（「（無題）」とは出さない）
+      const _rt0 = (routeMeta.routes && routeMeta.routes[0]) || { pol: pol, pod: pod };
+      const _routePlain = [(_rt0.pol || '').trim(), (_rt0.pod || '').trim()].filter(Boolean).join(' → ');
+      const headline = memoLine || _routePlain || titleText;
       const prioRow     = (dueBadge || recvBadge || remindBadge || holdToggle || followCtl) ? '<div class="cloud-card-prio">' + dueBadge + recvBadge + remindBadge + holdToggle + followCtl + '</div>' : '';
 
       // サブコン（役割ラベル付き・5件目以降は +N）
@@ -959,14 +965,14 @@
       const _chatLoaded = _chatC && Array.isArray(_chatC.rows);
       const _chatListHtml = _chatLoaded ? _cardThreadHtml(_chatC.rows) : '<span class="cp-chat-loading">読み込み中…</span>';
       const chatFooter =
-        '<div class="cloud-card-chat ccc-open' + (_chatC && _chatC.count ? ' ccc-has' : '') + '" data-cid="' + escHtml(r.id) + '"' + (_chatLoaded ? ' data-loaded="1"' : '') + '>' +
+        '<div class="cloud-card-chat' + (sd ? '' : ' ccc-open') + (_chatC && _chatC.count ? ' ccc-has' : '') + '" data-cid="' + escHtml(r.id) + '"' + (_chatLoaded ? ' data-loaded="1"' : '') + '>' +
           '<button type="button" class="ccc-toggle" onclick="dashToggleCardChat(this)">' +
             '<span class="ccc-ico">💬</span>' +
             '<span class="ccc-count">' + (_chatC && _chatC.count ? '申し送り ' + _chatC.count : '申し送り') + '</span>' +
             '<span class="ccc-preview">' + (_chatC ? escHtml(_chatC.count ? _truncateChat(_chatC.body, 28) : '（まだありません）') : '') + '</span>' +
             '<span class="ccc-caret">▾</span>' +
           '</button>' +
-          '<div class="ccc-panel">' +
+          '<div class="ccc-panel"' + (sd ? ' hidden' : '') + '>' +
             '<div class="ccc-list">' + _chatListHtml + '</div>' +
             '<div class="ccc-compose">' +
               '<input type="text" class="ccc-input" placeholder="申し送りを入力…" onkeydown="dashCardChatKey(event,this)">' +
@@ -1000,17 +1006,20 @@
             '<span class="cloud-card-name" title="' + escHtml(r.name) + '">' + escHtml(titleText) + selfGenBadge + '</span>' +
             '<button class="btn-ref-copy" data-ref="' + escHtml(titleText) + '" onclick="copyRefNumber(this.dataset.ref,this)" title="管理番号をコピー（&quot;番号&quot;形式）"><svg class="icon-copy" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="1" width="9" height="9" rx="1.5"/><rect x="1" y="4" width="9" height="9" rx="1.5"/></svg></button>' +
           '</div>' +
+          // かんたん表示用：見出し（メモ1行目→ルート→REF#）とお客様名。詳細表示では CSS で非表示
+          '<div class="cloud-card-headline" title="' + escHtml(headline) + '">' + escHtml(headline) + '</div>' +
+          (custDd ? '<div class="cloud-card-cust">' + custDd + '</div>' : '') +
           prioRow +
           (memoLine ? '<div class="cloud-card-memo" title="' + escHtml(memoLine) + '">' + escHtml(memoLine) + '</div>' : '') +
           editBadge +
           progressHtml +
           '<dl class="cloud-kv">' +
-            (route    ? '<dt>ルート</dt><dd>' + route + '</dd>' : '') +
-            (condHtml ? '<dt>条件</dt><dd class="cloud-kv-tags">' + condHtml + '</dd>' : '') +
-            (carrier  ? '<dt>幹線</dt><dd>🚢 ' + escHtml(carrier) + '</dd>' : '') +
-            (subHtml  ? '<dt>サブコン</dt><dd class="cloud-kv-sub">' + subHtml + '</dd>' : '') +
-            (custDd   ? '<dt>お客様 / 担当</dt><dd class="cloud-kv-cust">' + custDd + '</dd>' : '') +
-            '<dt>作成 / 更新</dt><dd class="cloud-kv-who">' + whoDd + '</dd>' +
+            (route    ? '<dt data-kv="route">ルート</dt><dd data-kv="route">' + route + '</dd>' : '') +
+            (condHtml ? '<dt data-kv="cond">条件</dt><dd data-kv="cond" class="cloud-kv-tags">' + condHtml + '</dd>' : '') +
+            (carrier  ? '<dt data-kv="carrier">幹線</dt><dd data-kv="carrier">🚢 ' + escHtml(carrier) + '</dd>' : '') +
+            (subHtml  ? '<dt data-kv="sub">サブコン</dt><dd data-kv="sub" class="cloud-kv-sub">' + subHtml + '</dd>' : '') +
+            (custDd   ? '<dt data-kv="cust">お客様 / 担当</dt><dd data-kv="cust" class="cloud-kv-cust">' + custDd + '</dd>' : '') +
+            '<dt data-kv="who">作成 / 更新</dt><dd data-kv="who" class="cloud-kv-who">' + whoDd + '</dd>' +
           '</dl>' +
           tagsRowHtml +
           copiedFromHtml +
@@ -1020,11 +1029,12 @@
             '<div class="cloud-card-acts">' +
               '<button class="btn-preset-preview" onclick="cloudPreviewPreset(\'' + idAttr + '\')" title="内容をプレビュー">プレビュー</button>' +
               '<button class="btn-preset-pdf" onclick="cloudPdfPreset(\'' + idAttr + '\')" title="この案件を開いて御見積書PDFを出力">📄 PDF</button>' +
-              '<button class="btn-preset-load" onclick="cloudLoadPreset(\'' + idAttr + '\')">読込</button>' +
+              '<button class="btn-preset-load" onclick="cloudLoadPreset(\'' + idAttr + '\')"><span class="lbl-d">読込</span><span class="lbl-s">開く</span></button>' +
               '<button class="btn-preset-copy" onclick="cloudDuplicatePreset(\'' + idAttr + '\')" title="コピーして新規案件を作成">📋 コピー</button>' +
               (lockedBy
                 ? '<button class="btn-preset-del is-locked" disabled title="' + escHtml(_nameFor(lockedBy)) + ' さんが作業中のため削除できません">🔒</button>'
                 : '<button class="btn-preset-del"  onclick="cloudDeletePreset(\'' + idAttr + '\')" title="削除（全員から消えます）">✕</button>') +
+              _cardMenuHtml(idAttr, lockedBy) +
             '</div>' +
           '</div>' +
           '</div>' +
@@ -1036,7 +1046,7 @@
     const modalWrap = document.getElementById('cloudPresetListWrap');
     const dashWrap  = document.getElementById('qpdListWrap');
     const modalOpen = document.getElementById('presetMgrModal')?.classList.contains('open');
-    if (modalWrap && modalOpen) modalWrap.innerHTML = rows.map(_cloudCardHtml).join('');
+    if (modalWrap && modalOpen) modalWrap.innerHTML = rows.map(r => _cloudCardHtml(r)).join('');
     if (dashWrap) {
       _dashFilteredRows = rows;                       // 追加読み込み用に保持（絞り込み済み・ソート済み全件）
       const listMode = _cloudView === 'list';
@@ -1046,19 +1056,39 @@
         ? '<button type="button" class="qpd-load-more" onclick="qpdLoadMore()">さらに読み込む（残り ' + remain + ' 件）</button>'
         : '';
       dashWrap.classList.toggle('qpd-list--rows', listMode);
+      const simpleList = !!(window.uiIsSimple && window.uiIsSimple());   // かんたん表示：7列（状態／案件名／お客様／ルート／更新日／開く／⋯）
+      dashWrap.classList.toggle('qpd-list--simple', simpleList);
       dashWrap.innerHTML = listMode
-        ? ('<div class="qpd-rows-head' + (_cloudLinkMode ? ' qpd-row--linkmode' : '') + '">' +
+        ? ('<div class="qpd-rows-head' + (simpleList ? ' qpd-rows-head--simple' : '') + (_cloudLinkMode ? ' qpd-row--linkmode' : '') + '">' +
               (_cloudLinkMode ? '<span></span>' : '') +
-              '<span>状態</span><span>見積番号</span><span>お客様 / 担当</span><span>作業者</span><span>更新</span><span></span></div>'
-            + shown.map(_cloudListRow).join('') + moreBtn)
-        : (shown.map(_cloudCardHtml).join('') + moreBtn);
+              (simpleList
+                ? '<span>状態</span><span>案件名</span><span>お客様</span><span>ルート</span><span>更新日</span><span></span><span></span></div>'
+                : '<span>状態</span><span>見積番号</span><span>お客様 / 担当</span><span>作業者</span><span>更新</span><span></span></div>')
+            + shown.map(r => _cloudListRow(r, simpleList)).join('') + moreBtn)
+        : (shown.map(r => _cloudCardHtml(r, true)).join('') + moreBtn);
       if (!listMode) _loadDashChatSummaries(shown);   // 💬 申し送りの件数/最新は描画済みぶんだけ取得
       if (!listMode) _loadDashLinks(shown);           // 🔗 関連案件も描画済みぶんだけ一括取得
     }
   }
 
+  // 「⋯」メニュー（かんたん表示のみ表示。項目は従来のボタンと同じ処理を呼ぶ）。開閉は js/ui-mode.js
+  function _cardMenuHtml(idAttr, lockedBy) {
+    return '<span class="cloud-menu">' +
+      '<button type="button" class="cloud-menu-btn" aria-label="その他の操作" aria-haspopup="menu" aria-expanded="false" onclick="event.stopPropagation();uiToggleMenu(this)">⋯</button>' +
+      '<div class="cloud-menu-panel" role="menu" hidden onclick="event.stopPropagation()">' +
+        '<button type="button" role="menuitem" class="cloud-menu-item" onclick="uiCloseMenus();cloudPreviewPreset(\'' + idAttr + '\')">プレビュー</button>' +
+        '<button type="button" role="menuitem" class="cloud-menu-item" onclick="uiCloseMenus();cloudPdfPreset(\'' + idAttr + '\')">PDF を出力</button>' +
+        '<button type="button" role="menuitem" class="cloud-menu-item" onclick="uiCloseMenus();cloudDuplicatePreset(\'' + idAttr + '\')">コピーして新規作成</button>' +
+        '<div class="cloud-menu-sep" role="separator"></div>' +
+        (lockedBy
+          ? '<button type="button" role="menuitem" class="cloud-menu-item cloud-menu-danger is-locked" disabled>削除…<small>' + escHtml(_nameFor(lockedBy)) + ' さんが作業中のため削除できません</small></button>'
+          : '<button type="button" role="menuitem" class="cloud-menu-item cloud-menu-danger" onclick="uiCloseMenus();cloudDeletePreset(\'' + idAttr + '\')">削除…</button>') +
+      '</div>' +
+    '</span>';
+  }
+
   // ダッシュボード：リスト（行）表示の1行
-  function _cloudListRow(r) {
+  function _cloudListRow(r, simpleList) {
     const m = (window.quotePresetMeta && r.data) ? window.quotePresetMeta({ data: r.data }) : null;
     const title  = (m && m.ref) ? m.ref : r.name;
     const status = r.status || CLOUD_STATUS_DEFAULT;
@@ -1076,6 +1106,22 @@
       ? '<input type="checkbox" class="cloud-link-chk qpd-row-chk" onclick="event.stopPropagation();cloudToggleLinkSel(\'' + idAttr + '\')"' +
           (_cloudLinkSel.has(r.id) ? ' checked' : '') + ' title="この案件を選択して他の案件と関連付ける">'
       : '';
+    if (simpleList) {
+      const mem = (m && m.memo) ? m.memo : '';
+      const rt0 = (m && m.routes && m.routes[0]) || { pol: (m ? m.pol : r.pol), pod: (m ? m.pod : r.pod) };
+      const routePlain = [(rt0.pol || '').trim(), (rt0.pod || '').trim()].filter(Boolean).join(' → ');
+      const headline = mem || routePlain || title;
+      return '<div class="qpd-row qpd-row--simple' + (_cloudLinkMode ? ' qpd-row--linkmode' : '') + '" onclick="' + rowClick + '" title="' + (_cloudLinkMode ? 'クリックで選択' : 'クリックで開く') + '">' +
+        linkChk +
+        _statusSelect(idAttr, status, lockedBy, 'qpd-row-status') +
+        '<span class="qpd-row-title"><b class="qpd-row-headline">' + escHtml(headline) + '</b><small class="qpd-row-ref">' + escHtml(title) + '</small></span>' +
+        '<span class="qpd-row-cust">' + escHtml(cust) + (person ? ' <small>/ ' + escHtml(person) + '</small>' : '') + '</span>' +
+        '<span class="qpd-row-route">' + escHtml(routePlain) + '</span>' +
+        '<span class="qpd-row-ts">' + ts + '</span>' +
+        '<span class="qpd-row-open" onclick="event.stopPropagation()"><button type="button" class="btn-preset-load qpd-row-open-btn" onclick="cloudLoadPreset(\'' + idAttr + '\')">開く</button></span>' +
+        '<span class="qpd-row-menu" onclick="event.stopPropagation()">' + _cardMenuHtml(idAttr, lockedBy) + '</span>' +
+      '</div>';
+    }
     return '<div class="qpd-row' + (_cloudLinkMode ? ' qpd-row--linkmode' : '') + '" onclick="' + rowClick + '" title="' + (_cloudLinkMode ? 'クリックで選択' : 'クリックで開く') + '">' +
       linkChk +
       _statusSelect(idAttr, status, lockedBy, 'qpd-row-status') +
@@ -3626,6 +3672,7 @@
   window.qpDockAction      = qpDockAction;
   // ダッシュボード：詳細検索・並び替え・表示切替
   window.qpdToggleAdv   = qpdToggleAdv;
+  window.cloudRerenderDash = function () { try { _applyCloudFilter(); } catch (e) {} };   // 表示モード切替時に一覧を描き直す（js/ui-mode.js）
   window.qpdApplyAdv    = qpdApplyAdv;
   window.qpdClearAdv    = qpdClearAdv;
   window.qpdClearSearch = qpdClearSearch;
