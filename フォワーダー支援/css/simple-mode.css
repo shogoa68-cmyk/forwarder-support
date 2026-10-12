@@ -1,0 +1,113 @@
+/* ================================================================
+   かんたん表示（Claude Design 案 → 実アプリのセレクタ／トークンに合わせて実装）
+   ・<html class="mode-simple"> のときだけ効く。クラスが無ければ従来の「詳細表示」のまま（このファイルの
+     「常に効く」部分は、切替スイッチ・初回案内・かんたん専用要素の既定の非表示だけ）。
+   ・隠す項目も DOM には残す（display:none。値の保存・計算は継続）。
+   ・色・角・文字の大きさはサイトのトークン（tokens.css）を使う＝現行／Industry どちらのテーマでも調和する。
+   ・仕様：docs/design-handoff/simple-mode/css/SIMPLE-MODE-SPEC.md ／ SIMPLE-MODE-ADDENDUM.md
+   ================================================================ */
+
+/* ---- 常に効く：かんたん専用の要素は、詳細表示（および共有モーダル）では出さない ---- */
+.lbl-s { display: none; }
+.cloud-card-headline, .cloud-card-cust, .cloud-menu, .qpd-login2, .qpd-more-toggle { display: none; }
+html.mode-simple .lbl-d { display: none; }
+html.mode-simple .lbl-s { display: inline; }
+
+/* ---- 表示モード切替スイッチ（かんたん表示｜詳細表示。常に両方見える） ---- */
+.uim-switch { display: inline-flex; border: 1px solid var(--accent-dk); border-radius: var(--r-8); overflow: hidden; background: var(--surface); }
+#tab-quote-make .uim-switch button, .uim-switch button { appearance: none; border: 0; background: transparent; color: var(--accent-dk); padding: var(--sp-8) var(--sp-14); font: inherit; font-size: var(--fs-12-5); font-weight: 700; cursor: pointer; white-space: nowrap; }
+#tab-quote-make .uim-switch button + button, .uim-switch button + button { border-left: 1px solid var(--accent-dk); }
+#tab-quote-make .uim-switch button.is-on, .uim-switch button.is-on { background: var(--accent-dk); color: var(--surface); }
+.uim-switch button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+@media (max-width: 700px) {
+  #qpDashboard .qpd-head-actions .uim-switch { order: -1; flex: 1 1 100%; }
+  .uim-switch button { flex: 1; min-height: 48px; }
+}
+
+/* ---- 初回の案内（既定が「かんたん」のときだけ・1回） ---- */
+.uim-hint { position: absolute; z-index: 4000; width: 340px; box-sizing: border-box; background: var(--surface); color: var(--text);
+  border: 2px solid var(--accent-dk); border-radius: var(--r-8); padding: var(--sp-14) var(--sp-16); box-shadow: 0 8px 24px rgba(0,0,0,.18); font-size: var(--fs-12-5); line-height: 1.6; }
+.uim-hint b { display: block; font-size: var(--fs-14); margin-bottom: var(--sp-6); color: var(--accent-dk); }
+.uim-hint p { margin: 0 0 var(--sp-10); }
+.uim-hint-acts { display: flex; gap: var(--sp-8); justify-content: flex-end; }
+.uim-hint-acts button { appearance: none; padding: var(--sp-6) var(--sp-12); border: 1px solid var(--accent-dk); border-radius: var(--r-6); background: var(--surface); color: var(--accent-dk); font: inherit; font-size: var(--fs-12); font-weight: 700; cursor: pointer; }
+.uim-hint-acts .uim-hint-detail { background: var(--accent-dk); color: var(--surface); }
+
+/* ---- 「⋯」メニュー部品（案件カード／リスト行。かんたん表示のダッシュボードでだけ表示） ---- */
+.cloud-menu { position: relative; }
+.cloud-menu-btn { appearance: none; width: 36px; height: 36px; border: 1px solid var(--border-md); border-radius: var(--r-6); background: var(--surface); color: var(--accent-dk); font-size: var(--fs-16); line-height: 1; cursor: pointer; }
+.cloud-menu-btn:hover, .cloud-menu-btn[aria-expanded="true"] { background: var(--accent-lt); }
+.cloud-menu-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.cloud-menu-panel { z-index: 3000; min-width: 220px; box-sizing: border-box; background: var(--surface); border: 1px solid var(--border-md); border-radius: 0;
+  box-shadow: 0 6px 20px rgba(0,0,0,.16); padding: var(--sp-4) 0; }
+.cloud-menu-panel[hidden] { display: none !important; }
+.cloud-menu-item { display: block; width: 100%; box-sizing: border-box; min-height: 40px; padding: var(--sp-10) var(--sp-16); border: 0; background: transparent; color: var(--text); text-align: left; font: inherit; font-size: var(--fs-13); cursor: pointer; }
+.cloud-menu-item:hover, .cloud-menu-item:focus-visible { outline: none; background: var(--accent-lt); box-shadow: inset 3px 0 0 var(--accent); }
+.cloud-menu-sep { border-top: 1px solid var(--accent-dk); margin: var(--sp-4) 0; }
+.cloud-menu-danger { color: #b0392e; font-weight: 600; }
+.cloud-menu-item.is-locked { opacity: .55; cursor: not-allowed; }
+.cloud-menu-item.is-locked small { display: block; font-weight: 400; font-size: var(--fs-11); color: var(--text-muted); margin-top: 2px; }
+.cloud-menu-item.is-locked:hover { background: transparent; box-shadow: none; }
+
+/* ================================================================
+   ダッシュボード（かんたん）
+   ================================================================ */
+/* 上部：詳細検索・タグ・関連付け・ランキングは「詳しく絞り込む」を押したときだけ */
+html.mode-simple #qpDashboard .qpd-more-toggle { display: inline-flex; align-items: center; background: var(--surface); border: 1px solid var(--accent-dk); color: var(--accent-dk); border-radius: var(--r-7); padding: var(--sp-6) var(--sp-12); font-size: var(--fs-12); font-weight: 700; cursor: pointer; }
+html.mode-simple #qpDashboard:not(.qpd-more-open) :is(#qpdAdvToggle, #qpdAdv, .qpd-tag-quickfilter, #qpdTagChips, #qpdLinkModeBtn, .qpd-side) { display: none !important; }
+
+/* 案件カード */
+html.mode-simple #qpDashboard .cloud-card-headline { display: block; margin-top: var(--sp-6); font-size: 18px; font-weight: 700; line-height: 1.35; color: var(--text); overflow-wrap: anywhere; }
+html.mode-simple #qpDashboard .cloud-card-cust { display: block; margin-top: var(--sp-2); font-size: var(--fs-13); font-weight: 500; color: var(--text-muted); }
+html.mode-simple #qpDashboard .cloud-card-name { font-size: var(--fs-12); font-weight: 500; color: var(--text-muted); flex: 0 1 auto; }
+html.mode-simple #qpDashboard .cloud-card-memo,
+html.mode-simple #qpDashboard .btn-ref-copy,
+html.mode-simple #qpDashboard .cloud-preset-tags,
+html.mode-simple #qpDashboard .cloud-card-links,
+html.mode-simple #qpDashboard .cloud-copied-from,
+html.mode-simple #qpDashboard .cloud-kv [data-kv="cond"],
+html.mode-simple #qpDashboard .cloud-kv [data-kv="carrier"],
+html.mode-simple #qpDashboard .cloud-kv [data-kv="sub"],
+html.mode-simple #qpDashboard .cloud-kv [data-kv="cust"],
+html.mode-simple #qpDashboard .cloud-kv [data-kv="who"] { display: none; }
+/* 進捗は表示専用：ボタンに見える文字チップをやめ、細いバーだけにする */
+html.mode-simple #qpDashboard .quote-progress { pointer-events: none; }
+html.mode-simple #qpDashboard .quote-progress .qp-steps { display: none; }
+html.mode-simple #qpDashboard .quote-progress .qp-bar { width: 120px; max-width: 100%; height: 4px; }
+/* 操作：「開く」だけ primary。プレビュー／PDF／コピー／削除は「⋯」へ */
+html.mode-simple #qpDashboard .cloud-card-acts :is(.btn-preset-preview, .btn-preset-pdf, .btn-preset-copy, .btn-preset-del) { display: none; }
+html.mode-simple #qpDashboard .cloud-card-acts .cloud-menu { display: inline-flex; }
+html.mode-simple #qpDashboard .cloud-card-acts { align-items: center; gap: var(--sp-8); }
+html.mode-simple #qpDashboard .btn-preset-load { min-width: 88px; padding: var(--sp-8) var(--sp-16); background: var(--accent-dk); color: var(--surface); border: 1px solid var(--accent-dk); border-radius: var(--r-6); font-size: var(--fs-13); font-weight: 700; cursor: pointer; }
+html.mode-simple #qpDashboard .btn-preset-load:hover { filter: brightness(1.15); }
+/* 申し送り：既定で畳み、件数バッジだけ。カードの右カラムをやめて下段に */
+html.mode-simple #tab-quote-make #qpdListWrap .cloud-card { display: block; }
+html.mode-simple #tab-quote-make #qpdListWrap .cloud-card > .cloud-card-chat { margin-top: var(--sp-8); padding: var(--sp-6) 0 0; border-left: none; border-top: 1px dashed var(--border); }
+html.mode-simple #qpDashboard .cloud-card-chat .ccc-preview { display: none; }
+html.mode-simple #qpDashboard .cloud-card-chat .ccc-toggle { width: auto; }
+
+/* リスト表示（かんたん）：状態｜案件名｜お客様｜ルート｜更新日｜開く｜⋯ の7列 */
+html.mode-simple #qpDashboard .qpd-rows-head--simple,
+html.mode-simple #qpDashboard .qpd-row--simple { grid-template-columns: 96px minmax(160px, 2fr) minmax(110px, 1.2fr) minmax(120px, 1.2fr) 88px 72px 44px; }
+html.mode-simple #qpDashboard .qpd-rows-head--simple.qpd-row--linkmode,
+html.mode-simple #qpDashboard .qpd-row--simple.qpd-row--linkmode { grid-template-columns: 24px 96px minmax(160px, 2fr) minmax(110px, 1.2fr) minmax(120px, 1.2fr) 88px 72px 44px; }
+html.mode-simple #qpDashboard .qpd-row--simple:hover { background: var(--accent-lt); }
+html.mode-simple #qpDashboard .qpd-row-headline { display: block; font-size: var(--fs-13); font-weight: 700; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+html.mode-simple #qpDashboard .qpd-row-ref { display: block; font-size: var(--fs-10-5); font-weight: 500; color: var(--text-muted); }
+html.mode-simple #qpDashboard .qpd-row-route { color: var(--text-muted); font-size: var(--fs-11-5); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+html.mode-simple #qpDashboard .qpd-row-open { justify-self: end; }
+html.mode-simple #qpDashboard .qpd-row-open-btn { height: auto; padding: 4px 12px; background: var(--accent-dk); color: var(--surface); border: 1px solid var(--accent-dk); border-radius: var(--r-6); font-size: var(--fs-12); font-weight: 700; cursor: pointer; }
+html.mode-simple #qpDashboard .qpd-row-menu { display: inline-flex; justify-self: end; }
+html.mode-simple #qpDashboard .qpd-row-menu .cloud-menu { display: inline-flex; }
+html.mode-simple #qpDashboard .qpd-row-menu .cloud-menu-btn { width: 32px; height: 32px; }
+
+/* ログイン前：2択のカード */
+html.mode-simple #qpDashboard .qpd-login-card--detail { display: none; }
+html.mode-simple #qpDashboard .qpd-login2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--sp-16); width: 100%; max-width: 760px; }
+@media (max-width: 700px) { html.mode-simple #qpDashboard .qpd-login2 { grid-template-columns: 1fr; } }
+html.mode-simple #qpDashboard .qpd-login2-card { position: relative; box-sizing: border-box; background: var(--surface); border: 1px solid var(--border-md); border-radius: var(--r-8); padding: var(--sp-20) var(--sp-18, 18px) var(--sp-18, 18px); display: flex; flex-direction: column; gap: var(--sp-8); }
+html.mode-simple #qpDashboard .qpd-login2-card--rec { border: 2px solid var(--accent-dk); }
+html.mode-simple #qpDashboard .qpd-login2-tag { position: absolute; top: -11px; left: 14px; background: var(--accent-dk); color: var(--surface); font-size: var(--fs-11); font-weight: 700; padding: 1px 8px; }
+html.mode-simple #qpDashboard .qpd-login2-card h3 { margin: 0; font-size: var(--fs-16); color: var(--accent-dk); }
+html.mode-simple #qpDashboard .qpd-login2-card ul { margin: 0; padding-left: 1.2em; flex: 1; font-size: var(--fs-12-5); line-height: 1.7; color: var(--text); }
+html.mode-simple #qpDashboard .qpd-local-btn { appearance: none; padding: var(--sp-9) var(--sp-16); border: 1px solid var(--accent-dk); border-radius: var(--r-6); background: var(--surface); color: var(--accent-dk); font: inherit; font-size: var(--fs-13); font-weight: 700; cursor: pointer; }

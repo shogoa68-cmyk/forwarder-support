@@ -2,10 +2,14 @@
 // Design への依頼用に、架空データ入りの「ログイン後ダッシュボード」の画像を生成する（実サーバーには接続しない）。
 //   node scripts/sample-dashboard-shots.js            現行デザイン  → docs/design-handoff/requests/sample-dashboard-{top,full}.png
 //   THEME=1 node scripts/sample-dashboard-shots.js    Industry 適用 → 〜-industry.png
+//   MODE=simple node scripts/sample-dashboard-shots.js かんたん表示 → 〜-simple.png（THEME=1 と併用可）
+//   OUT_DIR=<dir> で出力先を変更
 // 偽の supabase（ログイン済み・架空の案件20件）を差し込んで描画する。Playwright と Chromium が必要。
 const { chromium } = (()=>{try{return require('playwright-core')}catch(e){return require('playwright')}})();
 const http=require('http'),fs=require('fs'),path=require('path');
-const OUT=path.resolve(__dirname,'..','docs','design-handoff','requests');
+const OUT=process.env.OUT_DIR||path.resolve(__dirname,'..','docs','design-handoff','requests');
+const MODE=process.env.MODE||'';   // MODE=simple でかんたん表示（ファイル名に -simple が付く）
+const SUF=(MODE==='simple'?'-simple':'')+(process.env.THEME?'-industry':'');
 (async()=>{
  const root=path.resolve(__dirname,'..');
  const srv=http.createServer((q,r)=>{const f=path.join(root,decodeURIComponent(q.url.split('?')[0]));if(!fs.existsSync(f)||fs.statSync(f).isDirectory()){r.writeHead(404);r.end();return;}r.writeHead(200,{'Content-Type':f.endsWith('.css')?'text/css':f.endsWith('.js')?'text/javascript':'text/html; charset=utf-8'});fs.createReadStream(f).pipe(r);});
@@ -79,6 +83,7 @@ const OUT=path.resolve(__dirname,'..','docs','design-handoff','requests');
    auth:{getSession:()=>Promise.resolve({data:{session:{user}}}),onAuthStateChange(){return{data:{subscription:{unsubscribe(){}}}}},signOut:()=>Promise.resolve({}),signInWithOAuth:()=>Promise.resolve({})}};
   window.supabase={createClient:()=>client};
  },{cases,comments,profiles});
+  if(MODE){await ctx.addInitScript(m=>{try{localStorage.setItem('fwd.uiMode',m)}catch(e){}},MODE);}
   if(process.env.THEME){await ctx.addInitScript(()=>{try{localStorage.setItem('forwarderTheme_v1',JSON.stringify({site:true,doc:true}))}catch(e){}});}
  await ctx.route(u=>!u.href.startsWith('http://127.0.0.1'),r=>r.abort());
  p=await ctx.newPage();const errs=[];p.on('pageerror',e=>errs.push(e.message));
@@ -86,7 +91,27 @@ const OUT=path.resolve(__dirname,'..','docs','design-handoff','requests');
  await p.addStyleTag({content:'*{caret-color:transparent!important;}'});
  await p.evaluate(()=>{const t=document.querySelector('[onclick*="quote-make"]');t&&t.click();});await p.waitForTimeout(2500);
  console.log('dash cards',await p.evaluate(()=>document.querySelectorAll('#qpdListWrap .cloud-preset-card, #qpdListWrap > *').length),'errors',JSON.stringify(errs.slice(0,3)));
- await p.screenshot({path:path.join(OUT,'sample-dashboard-top'+(process.env.THEME?'-industry':'')+'.png')});
- await p.screenshot({path:path.join(OUT,'sample-dashboard-full'+(process.env.THEME?'-industry':'')+'.png'),fullPage:true,clip:{x:0,y:0,width:1400,height:2600}});
+ await p.screenshot({path:path.join(OUT,'sample-dashboard-top'+SUF+'.png')});
+ await p.screenshot({path:path.join(OUT,'sample-dashboard-full'+SUF+'.png'),fullPage:true,clip:{x:0,y:0,width:1400,height:2600}});
+ if(MODE==='simple'){
+  // かんたん表示の追加画像：「詳しく絞り込む」を開いた状態／「⋯」メニュー／リスト表示／ログイン前
+  await p.click('#qpdMoreToggle');await p.waitForTimeout(400);
+  await p.screenshot({path:path.join(OUT,'sample-dashboard-more'+SUF+'.png')});
+  await p.click('#qpdMoreToggle');await p.waitForTimeout(200);
+  await p.locator('#qpdListWrap .cloud-menu-btn').first().click();await p.waitForTimeout(300);
+  await p.screenshot({path:path.join(OUT,'sample-dashboard-menu'+SUF+'.png'),clip:{x:0,y:380,width:1400,height:560}});
+  await p.keyboard.press('Escape');await p.waitForTimeout(200);
+  await p.click('#qpdViewList');await p.waitForTimeout(500);
+  await p.screenshot({path:path.join(OUT,'sample-dashboard-list'+SUF+'.png')});
+  // ログイン前（セッション無し）
+  const ctx2=await b.newContext({viewport:{width:1400,height:900},locale:'ja-JP'});
+  await ctx2.addInitScript(m=>{try{localStorage.setItem('fwd.uiMode',m);if(window.__T)localStorage.setItem('forwarderTheme_v1',window.__T)}catch(e){}},'simple');
+  if(process.env.THEME){await ctx2.addInitScript(()=>{try{localStorage.setItem('forwarderTheme_v1',JSON.stringify({site:true,doc:true}))}catch(e){}});}
+  await ctx2.route(u=>!u.href.startsWith('http://127.0.0.1'),r=>r.abort());
+  const p2=await ctx2.newPage();
+  await p2.goto(URL,{waitUntil:'domcontentloaded'});await p2.waitForTimeout(700);
+  await p2.evaluate(()=>{const t=document.querySelector('[onclick*="quote-make"]');t&&t.click();});await p2.waitForTimeout(900);
+  await p2.screenshot({path:path.join(OUT,'sample-dashboard-login'+SUF+'.png')});
+ }
  await b.close();srv.close();
 })();

@@ -53,6 +53,10 @@ github/202605_コード改修/
 
 Design 製の Industry 版デザイン（鋼青のブループリント調）を、**現行 CSS を書き換えず**に切替式で載せている。入口はヘッダー「🎨 デザイン」（画面／御見積書を別々に切替）、`?theme=industry|classic` でも切替可。`<html class="theme-industry|theme-industry-doc">` のときだけ `css/theme-industry*.css`（`node scripts/build-industry-theme.js` が `docs/design-handoff/industry/css/` と現行の差分から生成。**手編集禁止**）が効く。Industry 時のみ `row.js _insertCatHeaders()` がカテゴリ見出し行（`tr.subcon-cat-header`・表示専用の仮想行）を挟む。詳細・戻し方は [docs/デザイン変更の安全手順.md](docs/デザイン変更の安全手順.md)。**現行 CSS（style/quote/quote-pdf/tokens）を変えたら `build-industry-theme.js` を再実行**（差分が変わるため）。
 
+## 🟦 かんたん表示（新規ユーザー向け・既定は段階導入中）
+
+IT に不慣れな新規ユーザーにも分かりやすいよう、Design 案の「かんたん表示」を切替式で導入中。`<html class="mode-simple">`＝かんたん／無し＝従来の詳細（保存 `fwd.uiMode`、`?mode=simple|detail`）。**既定値は `index.html` の `UI_MODE_DEFAULT`（現在 `'detail'`。検証後に `'simple'` へ）**。実装：`js/ui-mode.js`・`css/simple-mode.css`・`cloud.js`（案件カード／リスト／「⋯」メニュー）。隠す項目は DOM に残す（保存・計算は継続）。ダッシュボードは実装済み、見積入力画面は未実装。引き渡し資料は `docs/design-handoff/simple-mode/`、手順は [docs/デザイン変更の安全手順.md](docs/デザイン変更の安全手順.md)。
+
 ## ☁️ クラウド共有（チーム間でのプリセット共有）
 
 見積プリセットを複数ユーザーで共有する機能。プリセット管理モーダル内「☁️ チーム共有」セクションで操作。
