@@ -2305,7 +2305,6 @@
         <h4>🗂️ 保存/読み込みツールバー（上部）</h4>
         <ul>
           <li><strong>プリセット/一時保存</strong>：現在の入力状態を名前付きで <strong>最大 50 件</strong>保存（同一ブラウザのみ）。「輸入案件用」「国内配送用」などのテンプレートや作業途中の退避に。<strong>50 件を超える長期保管・他端末／チーム共有には「📤 JSON」でバックアップを推奨</strong></li>
-          <li><strong>自動保存</strong>：チェックすると入力2秒後にブラウザへ自動保存（localStorage、同じブラウザ内のみ有効）。次回開いた時に復元バナーから戻せます</li>
           <li><strong>↶ 戻す / ↷ 進む（Undo / Redo）</strong>：見積タブ全体（行・条件・自由入力・特記事項など）の編集を最大 50 ステップ巻き戻し／やり直し。<kbd>Ctrl+Z</kbd>（macOS は <kbd>⌘+Z</kbd>）で戻す、<kbd>Ctrl+Y</kbd> もしくは <kbd>Ctrl+Shift+Z</kbd> で進む。連続タイピングは 1 ステップにまとめられます</li>
           <li><strong>📤 JSON / 📥 読込</strong>：JSON ファイルで端末間共有・バックアップが可能（CSV/Excel/PDF 出力は 📋 プレビューから）</li>
           <li><strong>📐 表示サイズ 大 / 中 / 小</strong>：見積タブ全体のレイアウトを 3 段階で拡縮。<strong>大＝スマホ向け、中＝タブレット向け（既定）、小＝デスクトップ向け</strong>。CSS <code>zoom</code> で全体（文字・余白・コントロール）を一括スケールします</li>
@@ -2380,7 +2379,7 @@
           <li><strong>DGD / MSDS / SDS</strong>：危険品申告書／製品安全データシート</li>
         </ul>
         <div class="help-tip">💡 略語の意味はテーブルヘッダー（CD・課税 等）にマウスホバーすると <code>title</code> でも表示されます。</div>
-        <div class="help-tip">💡 自動保存は<strong>同じブラウザ内のみ</strong>有効です。端末や OS をまたぐ場合は <strong>📤 JSON</strong> でバックアップを書き出し、別端末で <strong>📥 読込</strong>してください。</div>
+        <div class="help-tip">💡 「💾 ブラウザ保存」は<strong>同じブラウザ内のみ</strong>有効です。端末や OS をまたぐ場合は <strong>📤 JSON</strong> でバックアップを書き出し、別端末で <strong>📥 読込</strong>してください。</div>
       </div>
     </details>
 
@@ -2412,11 +2411,6 @@
       <!-- 保存/読込：ブラウザ保存とチーム共有の独立ボタン -->
       <span class="save-toolbar-label">保存</span>
       <button type="button" class="save-btn save-btn-preset" onclick="openPresetMgr('browser')" title="このブラウザに名前付きで保存・呼び出し（最大50件・同じブラウザのみ）">💾 ブラウザ保存</button>
-      <label class="save-btn save-toolbar-autosave" title="入力・変更から2秒後にブラウザへ自動保存します（同じブラウザ内のみ有効）">
-        <input type="checkbox" id="autoSaveChk" onchange="toggleAutoSave(this.checked)" />
-        <span>💾 自動保存</span>
-      </label>
-
       <span class="save-status" id="saveStatus"></span>
 
       <!-- 表示サイズ（上部バーに常時表示） -->
@@ -2443,13 +2437,6 @@
           </button>
         </div>
       </div>
-    </div>
-
-    <!-- ========== 自動保存 復元バナー ========== -->
-    <div id="autosave-restore-bar">
-      <span>💾 前回の自動保存データがあります</span>
-      <button class="autosave-restore-btn" onclick="restoreAutoSave()">↩ 復元する</button>
-      <button type="button" class="autosave-restore-close" onclick="dismissRestoreBar()" title="閉じる">✕</button>
     </div>
 
     <!-- フィードバックモーダル/FAB/トーストコンテナは Phase 2c-Step1 でサイト全体スコープに移動済み（</body> 直前を参照） -->

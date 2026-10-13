@@ -4632,13 +4632,6 @@ body.qp-dash-active #quoteActionDock { display: none !important; }
 #tab-quote-make .save-btn-import:hover { background:var(--green-olive); color:var(--surface); }
 #tab-quote-make .save-btn-cloud { border-color:var(--blue); color:var(--blue-25); }
 #tab-quote-make .save-btn-cloud:hover { background:var(--blue); color:var(--surface); }
-/* 自動保存：上部バー直置きトグル */
-#tab-quote-make .save-toolbar-autosave {
-  display: inline-flex; align-items: center; gap: var(--sp-5);
-  border-color: #b3a892; color: var(--accent);
-}
-#tab-quote-make .save-toolbar-autosave input { width: 13px; height: 13px; cursor: pointer; accent-color: var(--green-leaf); margin: 0; }
-#tab-quote-make .save-toolbar-autosave:has(input:checked) { background: #eef3e6; border-color: var(--green-leaf); color: #3e5a22; }
 #tab-quote-make .save-btn-preview { border-color:#d4a017; color:#7a5500; background:var(--amber-94); font-weight:700; }
 #tab-quote-make .save-btn-preview:hover { background:#d4a017; color:var(--surface); border-color:#d4a017; }
 #tab-quote-make .save-btn-compare { border-color:var(--blue-md); color:var(--blue-dk); background:var(--blue-95); font-weight:700; }
@@ -4718,48 +4711,6 @@ body.qp-dash-active #quoteActionDock { display: none !important; }
   cursor: help;
   line-height: 1;
 }
-/* 自動保存復元バナー（FABと重ならないよう bottom を FAB 高さ分上げる） */
-#tab-quote-make #autosave-restore-bar {
-  display: none;
-  position: fixed;
-  bottom: 80px;
-  left: 50%;
-  transform: translateX(-50%);
-  background: var(--accent-dk);
-  color: var(--accent-lt);
-  padding: var(--sp-10) var(--sp-18);
-  border-radius: var(--r-8);
-  font-size: var(--fs-12);
-  z-index: 4000;
-  box-shadow: 0 4px 16px rgba(0,0,0,.35);
-  align-items: center;
-  gap: var(--sp-10);
-  white-space: nowrap;
-}
-#tab-quote-make #autosave-restore-bar.show { display: flex; }
-#tab-quote-make .autosave-restore-btn {
-  background: var(--green-olive);
-  color: var(--surface);
-  border: none;
-  padding: var(--sp-4) var(--sp-12);
-  border-radius: var(--r-4);
-  font-size: var(--fs-11);
-  cursor: pointer;
-  font-family: inherit;
-}
-#tab-quote-make .autosave-restore-btn:hover { filter: brightness(1.2); }
-#tab-quote-make .autosave-restore-btn:active { filter: brightness(0.85); transform: scale(0.97); }
-#tab-quote-make .autosave-restore-close {
-  color: var(--text-muted);
-  cursor: pointer;
-  font-size: var(--fs-16);
-  line-height: 1;
-  padding: var(--sp-4) var(--sp-8);
-  background: none;
-  border: none;
-  font-family: inherit;
-}
-#tab-quote-make .autosave-restore-close:hover { color: var(--surface); }
 /* ========== ドラッグ並び替え ========== */
 #tab-quote-make .drag-handle {
   color: var(--text-muted);

@@ -1361,18 +1361,8 @@
     _legacyAddCalcRow();  // 旧サイズ計算行（#calcBody が無ければ何もしない）
     addRow();      // 見積もり：初期行
     initFormulaInputs();    // フォーミュラ評価初期化
-    // 自動保存の復元
-    const savedAutoSave = localStorage.getItem('autoSaveEnabled');
-    if (savedAutoSave === '1') {
-      autoSaveEnabled = true;
-      const chk = document.getElementById('autoSaveChk');
-      if (chk) chk.checked = true;
-    }
-    // 自動保存データがある場合、復元バナーを表示
-    if (localStorage.getItem('quoteData')) {
-      const bar = document.getElementById('autosave-restore-bar');
-      if (bar) setTimeout(() => bar.classList.add('show'), 600);
-    }
+    // 旧「自動保存」の残りデータを掃除（廃止済み。ブラウザに残った古いデータだけを消す）
+    try { localStorage.removeItem('quoteData'); localStorage.removeItem('autoSaveEnabled'); } catch (e) {}
     // carriers-dl datalist をモードに合わせて初期化（conditions.js）
     if (typeof _refreshCarrierDatalist === 'function') _refreshCarrierDatalist();
     // タグ入力のサジェスト（既知のタグ一覧）を先読み
@@ -4758,12 +4748,9 @@
   window.initQuoteTab = function() {
     if (window.__quoteInitialized) return;
     window.__quoteInitialized = true;
-    initQuoteState();            // ui.js：リマーク・初期行・自動保存復元・為替自動取得
+    initQuoteState();            // ui.js：リマーク・初期行・為替自動取得
     initQuoteKeyNav();           // row.js：↑↓キーで行間移動
     initQuoteUI();               // ui.js：貨物フィールド並び替え・フォントサイズ
-    if (typeof initQuoteAutoSaveListeners === 'function') {
-      initQuoteAutoSaveListeners();  // save.js：input/change の自動保存
-    }
     if (typeof initSimilarQuotes === 'function') initSimilarQuotes();
     if (typeof initScenarios    === 'function') initScenarios();
     maybeAutoFillRef();          // 新規（REF空）なら仮REF#を自動採番

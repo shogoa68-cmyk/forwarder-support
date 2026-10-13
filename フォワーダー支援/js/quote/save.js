@@ -207,9 +207,3 @@
     if (!user && _fbCurrentTab === 'list') switchFbTab('send');
   }
 
-  // 入力変化で自動保存をトリガー（Phase 2b：見積タブ内に限定）
-  function initQuoteAutoSaveListeners() {
-    const root = document.getElementById('tab-quote-make') || document;
-    root.addEventListener('input',  scheduleAutoSave);
-    root.addEventListener('change', scheduleAutoSave);
-  }

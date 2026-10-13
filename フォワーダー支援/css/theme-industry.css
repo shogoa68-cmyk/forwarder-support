@@ -4349,10 +4349,22 @@ html.theme-industry {
   font-family: var(--font-body,"Barlow"),"Noto Sans JP","Hiragino Kaku Gothic ProN",sans-serif;
 }
 :where(html.theme-industry) #tab-quote-make .save-toolbar-autosave {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-5);
   border-color: #9fa2a6;
+  color: var(--accent);
+}
+:where(html.theme-industry) #tab-quote-make .save-toolbar-autosave input {
+  width: 13px;
+  height: 13px;
+  cursor: pointer;
+  accent-color: var(--green-leaf);
+  margin: 0;
 }
 :where(html.theme-industry) #tab-quote-make .save-toolbar-autosave:has(input:checked) {
   background: #e7edf2;
+  border-color: var(--green-leaf);
   color: #2a3e52;
 }
 :where(html.theme-industry) #tab-quote-make .save-btn-preview {
@@ -4370,14 +4382,54 @@ html.theme-industry {
   border-radius: 0;
 }
 :where(html.theme-industry) #tab-quote-make #autosave-restore-bar {
+  display: none;
+  position: fixed;
+  bottom: 80px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--accent-dk);
+  color: var(--accent-lt);
+  padding: var(--sp-10) var(--sp-18);
   border-radius: 0;
+  font-size: var(--fs-12);
+  z-index: 4000;
+  box-shadow: 0 4px 16px rgba(0,0,0,.35);
+  align-items: center;
+  gap: var(--sp-10);
+  white-space: nowrap;
+}
+:where(html.theme-industry) #tab-quote-make #autosave-restore-bar.show {
+  display: flex;
 }
 :where(html.theme-industry) #tab-quote-make .autosave-restore-btn {
+  background: var(--green-olive);
+  color: var(--surface);
+  border: none;
+  padding: var(--sp-4) var(--sp-12);
   border-radius: 0;
+  font-size: var(--fs-11);
+  cursor: pointer;
   font-family: var(--font-body,"Barlow"),"Noto Sans JP","Hiragino Kaku Gothic ProN",sans-serif;
 }
+:where(html.theme-industry) #tab-quote-make .autosave-restore-btn:hover {
+  filter: brightness(1.2);
+}
+:where(html.theme-industry) #tab-quote-make .autosave-restore-btn:active {
+  filter: brightness(0.85);
+  transform: scale(0.97);
+}
 :where(html.theme-industry) #tab-quote-make .autosave-restore-close {
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: var(--fs-16);
+  line-height: 1;
+  padding: var(--sp-4) var(--sp-8);
+  background: none;
+  border: none;
   font-family: var(--font-body,"Barlow"),"Noto Sans JP","Hiragino Kaku Gothic ProN",sans-serif;
+}
+:where(html.theme-industry) #tab-quote-make .autosave-restore-close:hover {
+  color: var(--surface);
 }
 :where(html.theme-industry) .fb-fab {
   border-radius: 0;
