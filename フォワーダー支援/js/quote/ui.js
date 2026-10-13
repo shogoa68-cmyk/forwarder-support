@@ -1990,6 +1990,7 @@
     '</div>';
   }
   window.quoteProgressBarHtml = _progressBarHtml;
+  window.quoteCalcProgress = _calcQuoteProgress;   // かんたん表示の道しるべ（js/ui-mode.js）が現在の入力状況を判定するのに使う
 
   // 航路表示の整形：複数航路は POL ごとにまとめて「POL → POD / POD …」を行単位で表示。
   // 1本・未設定はフラットな pol/pod にフォールバック。両モーダル（ブラウザ保存／チーム共有）で共用。

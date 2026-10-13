@@ -4,6 +4,7 @@
 //   node scripts/ui-smoke.js                         主要操作の動作確認だけを行う
 //   node scripts/ui-smoke.js --shots <dir>           動作確認に加え、主要画面のスクリーンショットを <dir> に保存
 //   node scripts/ui-smoke.js --theme <site|doc|both> ...  Industry テーマをオンにして実行（既定は現行デザイン）
+//   node scripts/ui-smoke.js --mode simple ...      「かんたん表示」で実行（既定は詳細表示。画面操作の一部は詳細表示を前提とするため、画像の確認用）
 //   node scripts/ui-smoke.js --root <dir> ...       別のフォルダ（「フォワーダー支援/」を含む複製）を対象にする
 //   node scripts/ui-smoke.js --compare <dirA> <dirB> 2つのフォルダのスクリーンショットを比べ、差のある画面と割合を表示
 //                                                    （差分画像を <dirB>/diff/ に出力）
@@ -98,6 +99,7 @@ async function main() {
     // eslint-disable-next-line no-global-assign
     Date = class extends RealDate { constructor(...a) { if (a.length) super(...a); else super(FIXED); } static now() { return FIXED; } };
   });
+  if (opt('--mode')) await ctx.addInitScript(m => { try { localStorage.setItem('fwd.uiMode', m); } catch (e) {} }, opt('--mode'));
   if (opt('--theme')) {
     const th = opt('--theme');
     await ctx.addInitScript(v => { try { localStorage.setItem('forwarderTheme_v1', JSON.stringify(v)); } catch (e) {} }, { site: th === 'site' || th === 'both', doc: th === 'doc' || th === 'both' });

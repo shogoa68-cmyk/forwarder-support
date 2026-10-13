@@ -59,7 +59,7 @@ Design 製の Industry 版デザイン（鋼青のブループリント調）を
 
 ## 🟦 かんたん表示（新規ユーザー向け・既定は段階導入中）
 
-IT に不慣れな新規ユーザーにも分かりやすいよう、Design 案の「かんたん表示」を切替式で導入中。`<html class="mode-simple">`＝かんたん／無し＝従来の詳細（保存 `fwd.uiMode`、`?mode=simple|detail`）。**既定値は `index.html` の `UI_MODE_DEFAULT`（現在 `'detail'`。検証後に `'simple'` へ）**。実装：`js/ui-mode.js`・`css/simple-mode.css`・`cloud.js`（案件カード／リスト／「⋯」メニュー）。隠す項目は DOM に残す（保存・計算は継続）。ダッシュボードは実装済み、見積入力画面は未実装。引き渡し資料は `docs/design-handoff/simple-mode/`、手順は [docs/デザイン変更の安全手順.md](docs/デザイン変更の安全手順.md)。
+IT に不慣れな新規ユーザーにも分かりやすいよう、Design 案の「かんたん表示」を切替式で導入中。`<html class="mode-simple">`＝かんたん／無し＝従来の詳細（保存 `fwd.uiMode`、`?mode=simple|detail`）。**既定値は `index.html` の `UI_MODE_DEFAULT`（現在 `'detail'`。検証後に `'simple'` へ）**。実装：`js/ui-mode.js`・`css/simple-mode.css`・`cloud.js`（案件カード／リスト／「⋯」メニュー）。隠す項目は DOM に残す（保存・計算は継続）。ダッシュボード・見積入力画面とも実装済み（見積入力は `data-tier` で区分、上級機能を使っている案件は自動で項目を表示）。引き渡し資料は `docs/design-handoff/simple-mode/`、手順は [docs/デザイン変更の安全手順.md](docs/デザイン変更の安全手順.md)。
 
 ## ☁️ クラウド共有（チーム間でのプリセット共有）
 

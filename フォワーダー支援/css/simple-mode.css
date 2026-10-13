@@ -111,3 +111,77 @@ html.mode-simple #qpDashboard .qpd-login2-tag { position: absolute; top: -11px; 
 html.mode-simple #qpDashboard .qpd-login2-card h3 { margin: 0; font-size: var(--fs-16); color: var(--accent-dk); }
 html.mode-simple #qpDashboard .qpd-login2-card ul { margin: 0; padding-left: 1.2em; flex: 1; font-size: var(--fs-12-5); line-height: 1.7; color: var(--text); }
 html.mode-simple #qpDashboard .qpd-local-btn { appearance: none; padding: var(--sp-9) var(--sp-16); border: 1px solid var(--accent-dk); border-radius: var(--r-6); background: var(--surface); color: var(--accent-dk); font: inherit; font-size: var(--fs-13); font-weight: 700; cursor: pointer; }
+
+/* ================================================================
+   見積入力画面（かんたん）
+   区分：data-tier="req"（常に表示）／"opt"（畳む）／"adv"（かんたんでは隠す。使っている案件では data-adv-inuse で表示）
+   ================================================================ */
+/* 常に効く：かんたん専用の要素は詳細表示では出さない */
+.tier-badge, .qp-guide, .tier-opt-toggle, .qrc-more-btn, .tb-mi-simple { display: none; }
+.uim-advbar[hidden] { display: none; }
+.uim-switch--m { display: none; }
+@media (max-width: 700px) {
+  #tab-quote-make .uim-switch--tb { display: none; }
+  #tab-quote-make .uim-switch--m { display: flex; width: 100%; margin: 0 0 var(--sp-10); }
+}
+
+/* 必須／任意の印（見出しに表示。＊の .req-mark は従来どおり併用） */
+html.mode-simple #tab-quote-make .tier-badge { display: inline-block; flex-shrink: 0; margin-left: var(--sp-8); padding: 1px 6px; font-size: var(--fs-11); line-height: 1.5; font-weight: 700; border-radius: 0; }
+html.mode-simple #tab-quote-make .tier-badge.req { background: var(--accent-dk); color: var(--surface); }
+html.mode-simple #tab-quote-make .tier-badge.opt { border: 1px solid var(--border-md); color: var(--text-muted); background: var(--surface); }
+
+/* 区分の出し分け */
+html.mode-simple #tab-quote-make [data-tier="adv"]:not([data-adv-inuse]) { display: none !important; }
+html.mode-simple #tab-quote-make #refBody:not(.tier-opt-open) [data-tier="opt"]:not([data-adv-inuse]),
+html.mode-simple #tab-quote-make #cargoBody:not(.tier-opt-open) [data-tier="opt"]:not([data-adv-inuse]) { display: none !important; }
+html.mode-simple #tab-quote-make .tier-opt-toggle { display: flex; align-items: baseline; gap: var(--sp-8); width: 100%; box-sizing: border-box; grid-column: 1 / -1;
+  margin: var(--sp-6) 0; padding: var(--sp-10) var(--sp-12); border: 1px dashed var(--border-md); border-radius: var(--r-6); background: var(--surface); color: var(--accent-dk); font: inherit; font-size: var(--fs-13); font-weight: 700; text-align: left; cursor: pointer; }
+html.mode-simple #tab-quote-make .tier-opt-toggle small { font-size: var(--fs-11); font-weight: 400; color: var(--text-muted); }
+html.mode-simple #tab-quote-make .tier-opt-toggle:hover { background: var(--accent-lt); }
+html.mode-simple #tab-quote-make .tier-opt-caret { font-size: var(--fs-10); }
+
+/* 任意セクション（作業範囲・全体リマーク）：畳んで要約だけ。見出しクリックで開閉 */
+html.mode-simple #tab-quote-make .is-collapsible[data-tier="opt"] .section-caret { display: inline; font-size: var(--fs-11); color: var(--text-muted); }
+html.mode-simple #tab-quote-make .is-collapsible[data-tier="opt"] > .section-toggle-head { cursor: pointer; }
+html.mode-simple #tab-quote-make .is-collapsible[data-tier="opt"]:not(.collapsed) .section-collapsed-summary { display: none; }
+
+/* 手順の道しるべ */
+html.mode-simple #tab-quote-make .qp-guide { display: block; margin: 0 0 var(--sp-14); }
+html.mode-simple #tab-quote-make .qp-guide-steps { display: flex; list-style: none; margin: 0; padding: 0; }
+html.mode-simple #tab-quote-make .qp-guide-steps li { flex: 1; min-width: 0; }
+html.mode-simple #tab-quote-make .qp-guide-step { display: flex; align-items: center; justify-content: center; gap: var(--sp-8); width: 100%; box-sizing: border-box; margin-left: -1px;
+  padding: var(--sp-10) var(--sp-12); border: 1px solid var(--accent-dk); border-radius: 0; background: var(--surface); color: var(--accent-dk); font: inherit; font-weight: 700; cursor: pointer; }
+html.mode-simple #tab-quote-make .qp-guide-n { font-size: var(--fs-18); line-height: 1; }
+html.mode-simple #tab-quote-make .qp-guide-l { font-size: var(--fs-13); }
+html.mode-simple #tab-quote-make .qp-guide-step.is-done { background: var(--accent-lt); }
+html.mode-simple #tab-quote-make .qp-guide-step.is-done .qp-guide-n::after { content: "✓"; font-size: var(--fs-12); margin-left: 2px; }
+html.mode-simple #tab-quote-make .qp-guide-step.is-current { background: var(--accent-dk); color: var(--surface); }
+html.mode-simple #tab-quote-make .qp-hint { margin: var(--sp-8) 0 0; font-size: var(--fs-13); color: var(--text); line-height: 1.6; }
+
+/* 上級項目を表示している案件の帯 */
+html.mode-simple #tab-quote-make .uim-advbar { display: flex; align-items: center; gap: var(--sp-12); flex-wrap: wrap; margin: 0 0 var(--sp-12); padding: var(--sp-8) var(--sp-12);
+  background: var(--amber-94); border: 1px solid var(--amber-44); color: var(--text); font-size: var(--fs-12-5); }
+html.mode-simple #tab-quote-make .uim-advbar[hidden] { display: none; }
+html.mode-simple #tab-quote-make .uim-advbar-btn { margin-left: auto; padding: var(--sp-4) var(--sp-10); border: 1px solid var(--accent-dk); border-radius: var(--r-6); background: var(--surface); color: var(--accent-dk); font: inherit; font-size: var(--fs-12); font-weight: 700; cursor: pointer; }
+.uim-advbar { display: none; }
+
+/* 固定ツールバー：主要4つ＋「その他 ⋯」。取り込み／サブコン依頼メール／表示サイズは「⋯」の中へ */
+html.mode-simple #tab-quote-make #saveToolbar .toolbar-extra { display: none !important; }
+html.mode-simple #tab-quote-make #saveToolbar .tb-lbl { font-size: var(--fs-12); font-weight: 600; }
+html.mode-simple #tab-quote-make .tb-menu-panel .tb-mi-simple { display: flex; }
+html.mode-simple #tab-quote-make .tb-menu-panel .tb-menu-group.tb-mi-simple { display: block; padding: var(--sp-8) var(--sp-14) var(--sp-4); font-size: var(--fs-11); font-weight: 700; color: var(--text-muted); border-top: 1px solid var(--border); }
+html.mode-simple #tab-quote-make .tb-menu-panel .tb-menu-group.tb-mi-simple:first-child { border-top: none; }
+html.mode-simple #tab-quote-make .tb-mi-scale { cursor: default; }
+html.mode-simple #tab-quote-make .tb-mi-scale .tb-segrow { display: inline-flex; margin-top: var(--sp-4); }
+
+/* 右レール：かんたんは 3 つ（ジャンプ／金額／申し送り）。上級のツールは「その他」で展開（使っているものは常に表示） */
+html.mode-simple #tab-quote-make .qrc-rail:not(.qrc-more-open) .qrc-rail-btn:is([data-mod="compare"], [data-mod="fcllcl"], [data-mod="bookmark"], [data-mod="similar"], [data-mod="scenario"], [data-mod="subcon"], [data-mod="charges"], [data-mod="pattern"]):not([data-adv-inuse]) { display: none; }
+html.mode-simple #tab-quote-make .qrc-more-btn { display: flex; }
+
+/* 表：行見出しの上級操作（✎名称変更／📋複製／除外／⇅カテゴリ）は隠す。除外中の「含む」は残す */
+html.mode-simple #tab-quote-make #tableBody :is(.subcon-subgroup-rename, .subcon-subgroup-dup, .subcon-group-sort-btn) { display: none; }
+html.mode-simple #tab-quote-make #tableBody :is(.subcon-group-excl, .subcon-subgroup-excl):not(.is-excluded) { display: none; }
+
+/* ツールバー内のスイッチは、他のボタンと同じ高さに収める（行の高さを変えない） */
+#tab-quote-make #saveToolbar .uim-switch { align-self: center; }
+#tab-quote-make #saveToolbar .uim-switch button { padding: var(--sp-4) var(--sp-10); font-size: var(--fs-12); line-height: 1.4; }
