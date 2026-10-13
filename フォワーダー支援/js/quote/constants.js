@@ -296,8 +296,6 @@ let _inGroupRender = false; // renderSubconGroups 実行中フラグ（MutationO
 let calcRowCount  = 0;
 let _lastCalcResult = null;
 let _presetPendingScope = null;
-let autoSaveTimer   = null;
-let autoSaveEnabled = false;
 
 // ========== 為替レート管理 ==========
 // JPY以外の通貨のJPY換算レート（1単位 = XX JPY）
@@ -414,8 +412,6 @@ Object.defineProperties(QuoteApp.state, {
   calcRowCount:        { get: () => calcRowCount,        set: v => { calcRowCount = v; },        enumerable: true },
   lastCalcResult:      { get: () => _lastCalcResult,     set: v => { _lastCalcResult = v; },     enumerable: true },
   presetPendingScope:  { get: () => _presetPendingScope, set: v => { _presetPendingScope = v; }, enumerable: true },
-  autoSaveTimer:       { get: () => autoSaveTimer,       set: v => { autoSaveTimer = v; },       enumerable: true },
-  autoSaveEnabled:     { get: () => autoSaveEnabled,     set: v => { autoSaveEnabled = v; },     enumerable: true },
   insuranceOn:         { get: () => insuranceOn,         set: v => { insuranceOn = v; },         enumerable: true },
 });
 

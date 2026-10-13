@@ -3,8 +3,6 @@
  "ids": [
   "air-divisor",
   "air-rows-wrap",
-  "autoSaveChk",
-  "autosave-restore-bar",
   "backToQuoteFab",
   "bmAddBtn",
   "bmAddModal",
@@ -956,10 +954,6 @@
    "uses": 1,
    "defined": true
   },
-  "dismissRestoreBar": {
-   "uses": 1,
-   "defined": true
-  },
   "doAddUserCat": {
    "uses": 2,
    "defined": true
@@ -1496,10 +1490,6 @@
    "uses": 1,
    "defined": false
   },
-  "restoreAutoSave": {
-   "uses": 1,
-   "defined": true
-  },
   "rnClearCompose": {
    "uses": 1,
    "defined": true
@@ -1693,10 +1683,6 @@
    "defined": true
   },
   "toggleAllCsvCols": {
-   "uses": 1,
-   "defined": true
-  },
-  "toggleAutoSave": {
    "uses": 1,
    "defined": true
   },

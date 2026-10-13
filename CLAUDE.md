@@ -53,6 +53,10 @@ github/202605_コード改修/
 
 Design 製の Industry 版デザイン（鋼青のブループリント調）を、**現行 CSS を書き換えず**に切替式で載せている。入口はヘッダー「🎨 デザイン」（画面／御見積書を別々に切替）、`?theme=industry|classic` でも切替可。`<html class="theme-industry|theme-industry-doc">` のときだけ `css/theme-industry*.css`（`node scripts/build-industry-theme.js` が `docs/design-handoff/industry/css/` と現行の差分から生成。**手編集禁止**）が効く。Industry 時のみ `row.js _insertCatHeaders()` がカテゴリ見出し行（`tr.subcon-cat-header`・表示専用の仮想行）を挟む。詳細・戻し方は [docs/デザイン変更の安全手順.md](docs/デザイン変更の安全手順.md)。**現行 CSS（style/quote/quote-pdf/tokens）を変えたら `build-industry-theme.js` を再実行**（差分が変わるため）。
 
+## 🗑️ 自動保存は廃止（2026-10）
+
+旧「自動保存」（localStorage `quoteData` に1件・復元バナー）は、ページ再読込後に空の状態で上書きされて復元できない不具合があり、ブラウザ保存／チーム共有と役割も重なるため**廃止**。保存は「💾 ブラウザ保存」（名前付き・最大50件）とチーム共有、巻き戻しは Undo/Redo。`scheduleAutoSave()` は呼び出し元（約100か所）を変えないため**何もしない関数として残置**。起動時（`initQuoteState`）に旧データ（`quoteData`・`autoSaveEnabled`）を掃除する（後日削除可）。
+
 ## 🟦 かんたん表示（新規ユーザー向け・既定は段階導入中）
 
 IT に不慣れな新規ユーザーにも分かりやすいよう、Design 案の「かんたん表示」を切替式で導入中。`<html class="mode-simple">`＝かんたん／無し＝従来の詳細（保存 `fwd.uiMode`、`?mode=simple|detail`）。**既定値は `index.html` の `UI_MODE_DEFAULT`（現在 `'detail'`。検証後に `'simple'` へ）**。実装：`js/ui-mode.js`・`css/simple-mode.css`・`cloud.js`（案件カード／リスト／「⋯」メニュー）。隠す項目は DOM に残す（保存・計算は継続）。ダッシュボードは実装済み、見積入力画面は未実装。引き渡し資料は `docs/design-handoff/simple-mode/`、手順は [docs/デザイン変更の安全手順.md](docs/デザイン変更の安全手順.md)。
@@ -138,10 +142,10 @@ IT に不慣れな新規ユーザーにも分かりやすいよう、Design 案�
   cd "github/202605_コード改修" && python3 -m http.server 18765
   # http://localhost:18765/フォワーダー支援/index.html （ブラウザが URL エンコードする）
   ```
-- **見積タブの初期化は遅延実行**：`switchTab('quote-make', this)` が呼ばれた初回に `window.initQuoteTab()` が走り、`initQuoteState() → initQuoteKeyNav() → initQuoteUI() → initQuoteAutoSaveListeners()` の順で初期化。冪等（`window.__quoteInitialized` でガード）
+- **見積タブの初期化は遅延実行**：`switchTab('quote-make', this)` が呼ばれた初回に `window.initQuoteTab()` が走り、`initQuoteState() → initQuoteKeyNav() → initQuoteUI()` の順で初期化。冪等（`window.__quoteInitialized` でガード）
 - **CSS スコーピング**：見積タブ専用スタイルは全て `#tab-quote-make` プレフィックス付き（quote.css）。タグセレクタ（`*`/`body`/`h1`/`table`/`th, td`/`select` 等）もスコープ済みでポータル他タブに漏れない
 - **document.addEventListener('keydown')` のガード**：Ctrl+K と Esc は `#tab-quote-make.active` のときのみ発火（[js/quote/ui.js:884-887](フォワーダー支援/js/quote/ui.js:884)）
 - **`document.addEventListener('input'|'change'|'paste')` は見積タブ内に限定**：自動保存・数式評価ペーストは `#tab-quote-make` 配下でのみ動作
 - **バックアップファイル多数**（`*.bak` `*.bak2` `index_bak_*` 等）：ユーザーは手動バックアップを取る運用。整理は明示依頼があるまで触らない
 - **Netlify デプロイ**は親プロジェクト `netlify/` 配下を別経路で配信中。`フォワーダー支援/` `見積支援/` のリネームは Netlify に影響しない（`netlify.toml` `deploy.sh` 確認済み）
-- **localStorage キー**は `SharedStorage.KEYS`（`shared/storage.js`）に集約予定だが、見積支援由来コードは一部直書きキー（`autoSaveEnabled`, `quoteData`, `fxLastFetched_v1`, `stickyNote_v1`, `quoteFontSize` 等）混在。Phase 2c で統一予定
+- **localStorage キー**は `SharedStorage.KEYS`（`shared/storage.js`）に集約予定だが、見積支援由来コードは一部直書きキー（`fxLastFetched_v1`, `stickyNote_v1`, `quoteFontSize` 等）混在。Phase 2c で統一予定

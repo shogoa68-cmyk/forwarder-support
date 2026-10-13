@@ -211,20 +211,10 @@
   };
 
   // ========== データ保存・読み込み（localStorage）==========
-  // autoSaveTimer / autoSaveEnabled はapp-constants.jsで宣言済み
-
-  function toggleAutoSave(on) {
-    autoSaveEnabled = on;
-    if (on) { saveData(true); showSaveStatus('自動保存 ON'); }
-    else    { showSaveStatus('自動保存 OFF'); }
-    localStorage.setItem('autoSaveEnabled', on ? '1' : '0');
-  }
-
-  function scheduleAutoSave() {
-    if (!autoSaveEnabled) return;
-    clearTimeout(autoSaveTimer);
-    autoSaveTimer = setTimeout(() => saveData(true), 2000);
-  }
+  // ※ 旧「自動保存（localStorage の quoteData 1件）」は廃止。保存は「💾 ブラウザ保存」（名前付き・最大50件）と
+  //    チーム共有（クラウド）、操作の巻き戻しは Undo/Redo を使う。
+  //    scheduleAutoSave は呼び出し元（約100か所）を変えないため、何もしない関数として残している。
+  function scheduleAutoSave() { /* no-op（自動保存は廃止） */ }
 
   // ========== Undo / Redo（スナップショット履歴） ==========
   const _UNDO_MAX = 50;
@@ -1129,7 +1119,7 @@
     // フォーム値
     const fields = {};
     document.querySelectorAll('input[id], select[id], textarea[id]').forEach(el => {
-      if (['csvFileInput','importFileInput','rowPatternImportFile','autoSaveChk','qf-memo-pop','qf-memo-float-ta'].includes(el.id)) return;
+      if (['csvFileInput','importFileInput','rowPatternImportFile','qf-memo-pop','qf-memo-float-ta'].includes(el.id)) return;
       fields[el.id] = el.type === 'checkbox' ? el.checked : el.value;
     });
     // テーブル行（通常行 / 小計行 / リマーク行をすべて保存）
@@ -1199,114 +1189,6 @@
     });
     data._rowFormat = 'v3-mixed-rows';
     return data;
-  }
-
-  function saveData(silent = false) {
-    try {
-      localStorage.setItem('quoteData', JSON.stringify(gatherAllData()));
-      if (!silent) {
-        showSaveStatus('✅ 保存しました ' + new Date().toLocaleTimeString('ja-JP', {hour:'2-digit',minute:'2-digit'}));
-        quoteShowToast('💾 データを保存しました', 'success');
-      }
-    } catch(e) {
-      if (e.name === 'QuotaExceededError' || e.name === 'NS_ERROR_DOM_QUOTA_REACHED') {
-        showSaveStatus('⚠️ 保存失敗: ストレージ容量不足');
-        quoteShowToast('⚠️ ストレージ容量が上限に達しました。古いプリセットを削除するか、JSONファイルに書き出してください', 'warn', 7000);
-      } else {
-        showSaveStatus('⚠️ 保存失敗: ' + e.message);
-      }
-    }
-  }
-
-  /** 自動保存データをページロード時に復元 */
-  function restoreAutoSave() {
-    const raw = localStorage.getItem('quoteData');
-    if (!raw) return;
-    let data;
-    try { data = JSON.parse(raw); } catch(e) { return; }
-    data = migrateRowCells(data);
-    if (typeof setRemarkImages === 'function') setRemarkImages(data.remarkImages || []);
-    if (typeof setSubconAliases === 'function') setSubconAliases(data.subconAliases || {});
-    if (typeof setSubconRemarks === 'function') setSubconRemarks(data.subconRemarks || {});
-    if (typeof setSubconGroupNotes === 'function') setSubconGroupNotes(data.groupNotes || {});
-    if (typeof setGroupDisplayState === 'function') setGroupDisplayState(data.groupDisplayState || null);
-    // フォーム復元
-    Object.entries(data.fields || {}).forEach(([id, val]) => {
-      const el = document.getElementById(id);
-      if (!el) return;
-      if (el.type === 'checkbox') el.checked = val;
-      else el.value = val;
-    });
-    // テーブル行復元（通常行・小計行・リマーク行を含む）
-    // 保存時の為替レートを先に復元する（スナップショット）。
-    // 異通貨行の売単価は換算値を基準にするため、行を組み立てる前にレートを戻さないと
-    // 保存時と違うレートで基準額・乗せ幅が算出されてしまう。
-    if (data.fxSnapshot?.rates && Object.keys(data.fxSnapshot.rates).length) {
-      _fxRates = { ...DEFAULT_FX_RATES, ...data.fxSnapshot.rates };
-      saveFxRates();
-      if (data.fxSnapshot.ts) localStorage.setItem(SharedStorage.KEYS.FX_LAST_FETCHED, data.fxSnapshot.ts);
-    }
-    _rebuildTable(data);
-    _restoreUiState(data.fields);
-    updateTotals();
-    updateRouteModeIcon();
-    if (typeof syncHazmatPanel === 'function') syncHazmatPanel();
-    if (typeof syncMultiEntryFields === 'function') syncMultiEntryFields();
-    if (typeof window.updateSectionSummaries === 'function') window.updateSectionSummaries();
-    if (typeof window.renderQuoteMilestones === 'function') window.renderQuoteMilestones();
-    if (typeof window.qfRenderTagChips === 'function') window.qfRenderTagChips();
-    if (typeof window.renderRemarkImages === 'function') window.renderRemarkImages();
-    dismissRestoreBar();
-    const ts = data.ts ? new Date(data.ts).toLocaleString('ja-JP') : '';
-    quoteShowToast('↩ 自動保存データを復元しました' + (ts ? '（' + ts + '）' : ''), 'success', 3500);
-  }
-
-  function dismissRestoreBar() {
-    const bar = document.getElementById('autosave-restore-bar');
-    if (bar) bar.classList.remove('show');
-  }
-
-  function loadData() {
-    const raw = localStorage.getItem('quoteData');
-    if (!raw) { alert('保存データが見つかりません。'); return; }
-    let data;
-    try { data = JSON.parse(raw); } catch(e) { alert('データの読み込みに失敗しました。'); return; }
-    data = migrateRowCells(data);
-    const ts = data.ts ? new Date(data.ts).toLocaleString('ja-JP') : '不明';
-    if (!confirm(`保存日時: ${ts}\n\n現在のデータを上書きして読み込みますか？`)) return;
-    if (typeof setRemarkImages === 'function') setRemarkImages(data.remarkImages || []);
-    if (typeof setSubconAliases === 'function') setSubconAliases(data.subconAliases || {});
-    if (typeof setSubconRemarks === 'function') setSubconRemarks(data.subconRemarks || {});
-    if (typeof setSubconGroupNotes === 'function') setSubconGroupNotes(data.groupNotes || {});
-    if (typeof setGroupDisplayState === 'function') setGroupDisplayState(data.groupDisplayState || null);
-    // フォーム復元
-    Object.entries(data.fields || {}).forEach(([id, val]) => {
-      const el = document.getElementById(id);
-      if (!el) return;
-      if (el.type === 'checkbox') el.checked = val;
-      else el.value = val;
-    });
-    // テーブル行復元（通常行・小計行・リマーク行を含む）
-    // 保存時の為替レートを先に復元する（スナップショット）。
-    // 異通貨行の売単価は換算値を基準にするため、行を組み立てる前にレートを戻さないと
-    // 保存時と違うレートで基準額・乗せ幅が算出されてしまう。
-    if (data.fxSnapshot?.rates && Object.keys(data.fxSnapshot.rates).length) {
-      _fxRates = { ...DEFAULT_FX_RATES, ...data.fxSnapshot.rates };
-      saveFxRates();
-      if (data.fxSnapshot.ts) localStorage.setItem(SharedStorage.KEYS.FX_LAST_FETCHED, data.fxSnapshot.ts);
-    }
-    _rebuildTable(data);
-    _restoreUiState(data.fields);
-    updateTotals();
-    updateRouteModeIcon();
-    if (typeof window.renderRemarkImages === 'function') window.renderRemarkImages();
-    showSaveStatus('📂 読み込みました');
-  }
-
-  function clearSavedData() {
-    if (!confirm('保存データを削除しますか？\n（現在の画面の内容は変わりません）')) return;
-    localStorage.removeItem('quoteData');
-    showSaveStatus('🗑️ 保存データ削除');
   }
 
   function showSaveStatus(msg) {
