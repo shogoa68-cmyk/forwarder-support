@@ -851,7 +851,7 @@
    "defined": true
   },
   "closeTbMenus": {
-   "uses": 1,
+   "uses": 3,
    "defined": true
   },
   "closeUserMgr": {
@@ -1243,7 +1243,7 @@
    "defined": true
   },
   "openEmailImport": {
-   "uses": 1,
+   "uses": 2,
    "defined": true
   },
   "openFeedback": {
@@ -1283,7 +1283,7 @@
    "defined": true
   },
   "openSubconRequestMail": {
-   "uses": 1,
+   "uses": 2,
    "defined": true
   },
   "openUserMgr": {
@@ -1583,7 +1583,7 @@
    "defined": true
   },
   "setLayoutScale": {
-   "uses": 3,
+   "uses": 6,
    "defined": true
   },
   "setPreviewLayout": {
@@ -1603,7 +1603,7 @@
    "defined": true
   },
   "setUiMode": {
-   "uses": 2,
+   "uses": 7,
    "defined": true
   },
   "showIncotermsHint": {
@@ -1752,6 +1752,14 @@
   },
   "toolbarInsertSubtotal": {
    "uses": 1,
+   "defined": true
+  },
+  "uiGuideGo": {
+   "uses": 4,
+   "defined": true
+  },
+  "uiToggleOpt": {
+   "uses": 2,
    "defined": true
   },
   "umFilter": {
@@ -2264,6 +2272,10 @@
    "css": true,
    "html": false
   },
+  "is-done": {
+   "css": true,
+   "html": false
+  },
   "is-dragging": {
    "css": true,
    "html": false
@@ -2632,6 +2644,10 @@
    "css": true,
    "html": false
   },
+  "qp-guide-step": {
+   "css": true,
+   "html": true
+  },
   "qpd-list--rows": {
    "css": true,
    "html": false
@@ -2665,6 +2681,14 @@
    "html": false
   },
   "qplc-save": {
+   "css": true,
+   "html": false
+  },
+  "qrc-more-btn": {
+   "css": true,
+   "html": false
+  },
+  "qrc-more-open": {
    "css": true,
    "html": false
   },
@@ -3216,6 +3240,14 @@
    "css": true,
    "html": false
   },
+  "tier-opt-caret": {
+   "css": true,
+   "html": true
+  },
+  "tier-opt-open": {
+   "css": true,
+   "html": false
+  },
   "tot-margin": {
    "css": true,
    "html": false
@@ -3348,6 +3380,10 @@
  "data": {
   "actual": {
    "html": false,
+   "js": true
+  },
+  "adv-key": {
+   "html": true,
    "js": true
   },
   "auto": {

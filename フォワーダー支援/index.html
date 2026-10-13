@@ -2397,28 +2397,34 @@
       <!-- 主要アクション：プレビュー・比較は右下のフローティングドックへ移動 -->
 
       <!-- 履歴：アイコンのみで表示 -->
-      <button class="save-btn save-btn-icon save-btn-undo" id="btnQuoteUndo" onclick="quoteUndo()" disabled title="元に戻す (Ctrl+Z)">↶</button>
-      <button class="save-btn save-btn-icon save-btn-redo" id="btnQuoteRedo" onclick="quoteRedo()" disabled title="やり直す (Ctrl+Y / Ctrl+Shift+Z)">↷</button>
+      <button class="save-btn save-btn-icon save-btn-undo" id="btnQuoteUndo" onclick="quoteUndo()" disabled title="元に戻す (Ctrl+Z)">↶<span class="lbl-s tb-lbl"> 元に戻す</span></button>
+      <button class="save-btn save-btn-icon save-btn-redo" id="btnQuoteRedo" onclick="quoteRedo()" disabled title="やり直す (Ctrl+Y / Ctrl+Shift+Z)">↷<span class="lbl-s tb-lbl"> やり直す</span></button>
 
-      <span class="save-toolbar-sep"></span>
+      <span class="save-toolbar-sep toolbar-extra"></span>
 
       <!-- 📩 メール取込：開いている見積へ行を挿入 or 新規展開 -->
-      <button type="button" class="save-btn save-btn-import" onclick="openEmailImport()" title="メール本文を貼り付けて、この見積に行を挿入（または新規案件として展開）">📩 メール取込</button>
-      <button type="button" class="save-btn save-btn-import" onclick="openSubconRequestMail()" title="この見積の案件情報と、選んだサブコン宛ての明細から、見積・作業の依頼メール（定型文）を作成します。仕入単価・備考は載せません">✉️ サブコン依頼メール</button>
+      <button type="button" class="save-btn save-btn-import toolbar-extra" onclick="openEmailImport()" title="メール本文を貼り付けて、この見積に行を挿入（または新規案件として展開）">📩 メール取込</button>
+      <button type="button" class="save-btn save-btn-import toolbar-extra" onclick="openSubconRequestMail()" title="この見積の案件情報と、選んだサブコン宛ての明細から、見積・作業の依頼メール（定型文）を作成します。仕入単価・備考は載せません">✉️ サブコン依頼メール</button>
 
       <span class="save-toolbar-sep"></span>
 
       <!-- 保存/読込：ブラウザ保存とチーム共有の独立ボタン -->
       <span class="save-toolbar-label">保存</span>
-      <button type="button" class="save-btn save-btn-preset" onclick="openPresetMgr('browser')" title="このブラウザに名前付きで保存・呼び出し（最大50件・同じブラウザのみ）">💾 ブラウザ保存</button>
+      <button type="button" class="save-btn save-btn-preset" onclick="openPresetMgr('browser')" title="このブラウザに名前付きで保存・呼び出し（最大50件・同じブラウザのみ）">💾 <span class="lbl-d">ブラウザ保存</span><span class="lbl-s">この端末に保存</span></button>
       <span class="save-status" id="saveStatus"></span>
 
       <!-- 表示サイズ（上部バーに常時表示） -->
-      <span class="save-toolbar-label tb-scale-label">📐</span>
-      <div class="tb-segrow tb-segrow-inline" role="group" aria-label="表示サイズ">
+      <span class="save-toolbar-label tb-scale-label toolbar-extra">📐</span>
+      <div class="tb-segrow tb-segrow-inline toolbar-extra" role="group" aria-label="表示サイズ">
         <button type="button" class="tb-seg-btn layout-scale-btn" data-scale="lg" onclick="setLayoutScale('lg')" title="大（スマホ向け）">大</button>
         <button type="button" class="tb-seg-btn layout-scale-btn" data-scale="md" onclick="setLayoutScale('md')" title="中（タブレット向け）">中</button>
         <button type="button" class="tb-seg-btn layout-scale-btn" data-scale="sm" onclick="setLayoutScale('sm')" title="小（デスクトップ向け）">小</button>
+      </div>
+
+      <!-- 表示モード切替（かんたん表示｜詳細表示） -->
+      <div class="uim-switch uim-switch--tb" role="group" aria-label="表示モード">
+        <button type="button" data-uim="simple" onclick="setUiMode('simple')">かんたん表示</button>
+        <button type="button" data-uim="detail" onclick="setUiMode('detail')">詳細表示</button>
       </div>
 
       <!-- その他メニュー -->
@@ -2428,6 +2434,17 @@
           ⋯
         </button>
         <div class="tb-menu-panel" id="tbMenuMore">
+          <!-- かんたん表示のとき、ツールバーから外した項目をここへ集約（元のボタンと同じ処理を呼ぶ） -->
+          <div class="tb-menu-group tb-mi-simple">取り込み・送る</div>
+          <button type="button" class="tb-menu-item tb-mi-simple" onclick="openEmailImport(); closeTbMenus()">
+            <span class="tb-mi-icon">📩</span><span class="tb-mi-body"><span class="tb-mi-title">メール取込</span><span class="tb-mi-sub">メール本文から見積の行を作る</span></span>
+          </button>
+          <button type="button" class="tb-menu-item tb-mi-simple" onclick="openSubconRequestMail(); closeTbMenus()">
+            <span class="tb-mi-icon">✉️</span><span class="tb-mi-body"><span class="tb-mi-title">サブコン依頼メール</span><span class="tb-mi-sub">見積・作業の依頼メールを作る</span></span>
+          </button>
+          <div class="tb-menu-group tb-mi-simple">設定</div>
+          <div class="tb-menu-item tb-mi-simple tb-mi-scale"><span class="tb-mi-icon">📐</span><span class="tb-mi-body"><span class="tb-mi-title">表示の大きさ</span>
+            <span class="tb-segrow"><button type="button" class="tb-seg-btn layout-scale-btn" data-scale="lg" onclick="setLayoutScale('lg')">大</button><button type="button" class="tb-seg-btn layout-scale-btn" data-scale="md" onclick="setLayoutScale('md')">中</button><button type="button" class="tb-seg-btn layout-scale-btn" data-scale="sm" onclick="setLayoutScale('sm')">小</button></span></span></div>
           <button type="button" class="tb-menu-item" onclick="openQuoteTabHelp(); closeTbMenus()">
             <span class="tb-mi-icon">ℹ️</span>
             <span class="tb-mi-body">
@@ -2713,18 +2730,37 @@
     <div class="quote-workspace">
       <div class="quote-main">
 
+    <!-- かんたん表示：モバイル用の切替スイッチ／手順の道しるべ／「上級項目を表示中」の帯（詳細表示では非表示） -->
+    <div class="uim-switch uim-switch--m" role="group" aria-label="表示モード">
+      <button type="button" data-uim="simple" onclick="setUiMode('simple')">かんたん</button>
+      <button type="button" data-uim="detail" onclick="setUiMode('detail')">詳細</button>
+    </div>
+    <div class="uim-advbar" id="uimAdvBar" hidden>
+      <span id="uimAdvBarText"></span>
+      <button type="button" class="uim-advbar-btn" onclick="setUiMode('detail')">詳細表示で全部見る</button>
+    </div>
+    <nav class="qp-guide" id="qpGuide" aria-label="見積作成の手順">
+      <ol class="qp-guide-steps">
+        <li><button type="button" class="qp-guide-step" data-gstep="1" onclick="uiGuideGo(1)"><span class="qp-guide-n">①</span><span class="qp-guide-l">条件</span></button></li>
+        <li><button type="button" class="qp-guide-step" data-gstep="2" onclick="uiGuideGo(2)"><span class="qp-guide-n">②</span><span class="qp-guide-l">貨物</span></button></li>
+        <li><button type="button" class="qp-guide-step" data-gstep="3" onclick="uiGuideGo(3)"><span class="qp-guide-n">③</span><span class="qp-guide-l">費用</span></button></li>
+        <li><button type="button" class="qp-guide-step" data-gstep="4" onclick="uiGuideGo(4)"><span class="qp-guide-n">④</span><span class="qp-guide-l">出力</span></button></li>
+      </ol>
+      <p class="qp-hint" id="qpHint"></p>
+    </nav>
+
     <!-- ① 管理番号入力 -->
     <div class="condition-section is-collapsible" id="section-ref">
       <h2 class="section-toggle-head" onclick="toggleQuoteSection('section-ref')">
         <span class="section-caret">▼</span>
-        <span class="section-toggle-title">🗂️ 管理番号入力</span>
+        <span class="section-toggle-title">🗂️ 管理番号入力</span><span class="tier-badge req" aria-label="必須">必須</span>
         <span class="section-collapsed-summary" id="sumRef"></span>
       </h2>
       <div id="refBody">
         <p class="section-desc">案件を管理するための識別情報を入力します。<b>見積もり番号</b> は問い合わせ番号など任意の形式で OK。後でフィルタリングや整理に使えます。<br>
         <span style="font-size:11px;color:var(--text-md);">💡 <b>担当</b>は<strong>敬称略（呼び捨て）</strong>で入力してください。プレビュー・Excel・コピー出力時に自動で「様」が付与されます。</span></p>
         <div id="qfCopiedFromInfo" class="qf-copied-from-info" hidden></div>
-        <div class="quote-header">
+        <div class="quote-header" data-opt-host-id="refBody">
           <div class="quote-field">
             <label>見積もり番号 <span class="req-mark" aria-hidden="true">*</span></label>
             <div class="qf-ref-row">
@@ -2743,19 +2779,20 @@
             <label>お客様 ご担当者（敬称略） <span class="req-mark" aria-hidden="true">*</span></label>
             <input type="text" id="qf-person" placeholder="例）山田　※宛先（お客様側）の氏名。出力時に自動で「様」付与" title="お客様側（宛先）のご担当者名を入力します。社内の見積もり作成者ではありません。姓のみ／フルネームのみ（会社名は含めない）。客先向け出力（プレビュー・PDF）で会社名とともに宛先となり、自動で「様」が付きます。登録済みのお客様なら、マスターの担当者一覧から候補表示されます。" aria-required="true" list="qfPersonSuggestions" autocomplete="off" />
           </div>
-          <div class="quote-field">
+          <button type="button" class="tier-opt-toggle" data-opt-host="refBody" aria-expanded="false" onclick="uiToggleOpt(this)"><span class="tier-opt-caret">▶</span> 詳細（任意）<small>日付・ステータス・タグ・メモ・参照URL・添付など</small></button>
+          <div data-tier="opt" class="quote-field">
             <label>📥 依頼受信日 <span class="qf-memo-note">引き合いを受けた日（経過日数を表示）</span></label>
             <input type="date" id="qf-received" title="依頼を受信した日。ダッシュボードに経過日数を表示します" />
           </div>
-          <div class="quote-field">
+          <div data-tier="opt" class="quote-field">
             <label>⏰ 提出期限 <span class="qf-memo-note">回答の締切（残り日数で優先度表示）</span></label>
             <input type="date" id="qf-due" title="見積提出の期限。ダッシュボードに残り日数を表示します" />
           </div>
-          <div class="quote-field">
+          <div data-tier="opt" class="quote-field">
             <label>発行日</label>
             <input type="date" id="qf-date" title="見積書の発行日。出力・Excelに含まれます" onchange="window.updateTotals && window.updateTotals()" />
           </div>
-          <div class="quote-field">
+          <div data-tier="opt" class="quote-field">
             <label>有効期限</label>
             <div class="qf-valid-until-row">
               <input type="date" id="qf-valid-until" title="見積もりの有効期限。出力・Excelに含まれます。発行日〜有効期限の期間と重ならないサーチャージは適用期間外として非表示になります" onchange="checkValidUntilWarning(); window.updateTotals && window.updateTotals()" />
@@ -2764,7 +2801,7 @@
               <button type="button" class="qf-days-btn qf-spot-btn" id="qfSpotToggleBtn" onclick="toggleValidUntilSpot()" title="日付の代わりに「SPOT（提示した本船のみ）」など任意のテキストで表記します">SPOT</button>
             </div>
           </div>
-          <div class="quote-field quote-field-status">
+          <div data-tier="opt" class="quote-field quote-field-status">
             <label>ステータス</label>
             <div class="qf-status-btns" id="qf-status-btns">
               <button type="button" class="qf-status-btn active" data-status="下書き中"  onclick="setQuoteStatus('下書き中')">下書き中</button>
@@ -2798,13 +2835,13 @@
             <input type="hidden" id="qf-status" value="下書き中" />
             <input type="hidden" id="qf-revision-baseline" />
           </div>
-          <div class="quote-field quote-field-corerf">
+          <div data-tier="opt" class="quote-field quote-field-corerf">
             <label>🔗 基幹システム REF# <span class="qf-memo-note">受注・手配後に登録（英数字）。社内用で、見積書などの出力には含まれません</span></label>
             <input type="text" id="qf-core-ref" maxlength="40" autocomplete="off" spellcheck="false" inputmode="latin"
                    placeholder="例）EX2410-0123" onchange="normalizeCoreRef(this)"
                    title="この見積を使って実際に手配した案件の、基幹システム上の REF# を登録します。半角の英数字（とハイフン・アンダースコア・スラッシュ・ピリオド）が使えます。全角は半角に直します。" />
           </div>
-          <div class="quote-field quote-field-tags">
+          <div data-tier="opt" class="quote-field quote-field-tags">
             <label>🏷️ タグ <span class="qf-memo-note">分類・絞り込み用（複数可）</span></label>
             <div class="qf-tags-chips" id="qfTagsChips"></div>
             <div class="qf-tags-add-row">
@@ -2814,7 +2851,7 @@
             <datalist id="qfTagSuggestions"></datalist>
             <input type="hidden" id="qf-tags-data" value="[]" />
           </div>
-          <div class="quote-field quote-field-memo">
+          <div data-tier="opt" class="quote-field quote-field-memo">
             <label>📝 メモ <span class="qf-memo-note">出力・プレビューには含まれません</span>
               <button type="button" class="qf-memo-expand-btn" id="qfMemoFloatBtn" onclick="toggleMemoFloat()" title="メモ付箋を画面固定表示（スクロール追従・ドラッグ可）">📌 付箋</button>
               <button type="button" class="qf-memo-expand-btn" onclick="openMemoPopout()" title="メモを全画面で編集" style="margin-left:3px">⤢ 拡大</button>
@@ -2844,7 +2881,7 @@
               <textarea id="qf-memo-pop" class="qf-memo-popout-area" placeholder="担当者間の申し送り・注意事項など、案件内部メモを自由に記述できます。お客様向け出力には含まれません。"></textarea>
             </div>
           </div>
-          <div class="quote-field quote-field-refurl">
+          <div data-tier="opt" class="quote-field quote-field-refurl">
             <label>🔗 参照URL <span class="qf-memo-note">レート表・船社サイト等の参照リンク（複数可・改行区切り）。出力には含まれません</span></label>
             <textarea id="qf-refurl" rows="2" placeholder="URL を貼り付け（複数可・改行区切り）。フォーカスを外すとクリックできるリンクになります" onblur="renderRefUrlLinks()"></textarea>
             <div id="qf-refurl-view" class="qf-refurl-view" hidden>
@@ -2852,7 +2889,7 @@
               <button type="button" class="qf-refurl-edit" onclick="editRefUrl()" title="リンクを編集">✎ 編集</button>
             </div>
           </div>
-          <div class="quote-field quote-field-attach">
+          <div data-tier="opt" class="quote-field quote-field-attach">
             <label>📎 添付ファイル <span class="qf-memo-note">この案件に保存・チーム共有（ログイン必須）</span></label>
             <label class="qf-attach-drop" id="qfAttachDrop"
                    ondragover="event.preventDefault(); this.classList.add('is-drag');"
@@ -2873,7 +2910,7 @@
     <div class="condition-section is-collapsible" id="section-cond">
       <h2 class="section-toggle-head" onclick="toggleQuoteSection('section-cond')">
         <span class="section-caret">▼</span>
-        <span class="section-toggle-title">🚢 貿易条件・輸送モード</span>
+        <span class="section-toggle-title">🚢 貿易条件・輸送モード</span><span class="tier-badge req" aria-label="必須">必須</span>
         <span class="section-collapsed-summary" id="sumCond"></span>
       </h2>
 
@@ -2973,7 +3010,7 @@
         <span id="cond-incoterms-hint" class="cond-incoterms-hint"></span>
 
         <div class="zone-builder" id="zoneBuilder">
-          <div class="zone-card zone-origin zone-off" id="zone1Card">
+          <div class="zone-card zone-origin zone-off" id="zone1Card" data-tier="adv" data-adv-key="zone1" data-adv-label="出発地ゾーン（集荷など）">
             <div class="zone-card-header">
               <button class="zone-toggle-btn" id="zone1Btn" onclick="toggleZone(1)">OFF（無効）</button>
               <div class="zone-card-title">
@@ -3095,7 +3132,7 @@
             </div>
           </div>
 
-          <div class="zone-card zone-dest zone-off" id="zone3Card">
+          <div class="zone-card zone-dest zone-off" id="zone3Card" data-tier="adv" data-adv-key="zone3" data-adv-label="到着地ゾーン（配送など）">
             <div class="zone-card-header">
               <button class="zone-toggle-btn" id="zone3Btn" onclick="toggleZone(3)">OFF（無効）</button>
               <div class="zone-card-title">
@@ -3148,7 +3185,7 @@
       </div>
 
       <!-- サブセクション：ゾーン構成からプリセット適用（独立セクション） -->
-      <div class="zone-preset-section">
+      <div class="zone-preset-section" data-tier="adv">
         <div class="zone-preset-section-head">
           <span class="zone-preset-section-title">🔧 ゾーン構成から見積もり行を生成
             <span class="zps-help-wrap">
@@ -3167,7 +3204,7 @@
     <div class="condition-section is-collapsible" id="section-cargo">
       <h2 class="section-toggle-head" onclick="toggleQuoteSection('section-cargo')">
         <span class="section-caret">▼</span>
-        <span class="section-toggle-title">📦 貨物情報</span>
+        <span class="section-toggle-title">📦 貨物情報</span><span class="tier-badge req" aria-label="必須">必須</span>
         <span class="section-collapsed-summary" id="sumCargo"></span>
       </h2>
       <div id="cargoBody">
@@ -3187,7 +3224,7 @@
               <input type="text" id="cond-hs" placeholder="例）8544.42" maxlength="20" />
             </div>
           </div>
-          <div class="cond-rate-card">
+          <div class="cond-rate-card" data-tier="opt">
             <div class="cond-rate-card-head">関税率</div>
             <div class="hs-rate-row">
               <div class="hs-rate-field">
@@ -3204,8 +3241,10 @@
           </div>
         </div>
 
+        <button type="button" class="tier-opt-toggle" data-opt-host="cargoBody" aria-expanded="false" onclick="uiToggleOpt(this)"><span class="tier-opt-caret">▶</span> 詳細（任意）<small>関税率・関連知識リンク・危険品／特殊貨物</small></button>
+
         <!-- ▼ 関連知識・他法令（リンクチップ＋知識DB要約） -->
-        <div class="cond-sub">
+        <div class="cond-sub" data-tier="opt">
           <div class="cond-sub-label">📚 関連知識・他法令 <span class="cond-sub-note">輸出入に必要な規制・手続きの参照</span></div>
           <div class="cargo-ref-chips" id="cargoRefChips">
             <button type="button" class="cargo-ref-chip cargo-ref-chip--law" onclick="toggleCargoLawPanel()" title="輸入の他法令（11法令）の要約をその場で表示">📋 輸入 他法令（11法令）</button>
@@ -3225,7 +3264,7 @@
         </div>
 
         <!-- ▼ 危険品・特殊貨物グループ（区分チップ） -->
-        <div class="cond-sub">
+        <div class="cond-sub" data-tier="opt" data-adv-key="hazmat" data-adv-label="危険品・特殊貨物">
           <div class="cond-sub-label">☣️ 危険品・特殊貨物 <span class="cond-sub-note">該当する区分を選択</span></div>
 
           <!-- 区分チップ：#cond-hazmat セレクトを駆動する。セレクトは保存/復元・プレビュー・PDF が値を読むため残置し、視覚的にのみ非表示にする -->
@@ -3393,7 +3432,7 @@
     <div class="condition-section is-collapsible" id="section-volume">
       <h2 class="section-toggle-head" onclick="toggleQuoteSection('section-volume')">
         <span class="section-caret">▼</span>
-        <span class="section-toggle-title">📦 物量情報</span>
+        <span class="section-toggle-title">📦 物量情報</span><span class="tier-badge req" aria-label="必須">必須</span>
         <span class="section-collapsed-summary" id="sumVolume"></span>
       </h2>
       <div id="volumeBody">
@@ -3582,7 +3621,7 @@
                 <div class="cd-unknown-note" id="cdUnknownNoteWrap" hidden>
                   <input type="text" id="cond-cargo-unknown-note" placeholder="任意）分かっている範囲の情報（例：20FT×1本相当、総重量約3トン 等）" />
                 </div>
-                <div class="cd-pattern-tabs" id="cdPatternTabs" title="荷姿・貨物明細の想定パターンを複数作成し、切り替えて比較できます（合算ではなく代替シナリオ）"></div>
+                <div class="cd-pattern-tabs" id="cdPatternTabs" data-tier="adv" data-adv-key="patterns" data-adv-label="複数の荷姿パターン" title="荷姿・貨物明細の想定パターンを複数作成し、切り替えて比較できます（合算ではなく代替シナリオ）"></div>
                 <div class="cargo-detail-scroll">
                   <table class="cargo-detail-table" id="cargoDetailTable">
                     <thead>
@@ -3638,10 +3677,10 @@
     </div><!-- /section-volume -->
 
     <!-- 作業範囲（当面は自由入力） -->
-    <div class="condition-section is-collapsible" id="section-scope">
+    <div class="condition-section is-collapsible" id="section-scope" data-tier="opt">
       <h2 class="section-toggle-head" onclick="toggleQuoteBottomAccordion('section-scope')">
         <span class="section-caret">▼</span>
-        <span class="section-toggle-title">🛠️ 作業範囲・条件</span>
+        <span class="section-toggle-title">🛠️ 作業範囲・条件</span><span class="tier-badge opt" aria-label="任意">任意</span>
         <span class="section-collapsed-summary" id="sumScope"></span>
       </h2>
       <div class="scope-body">
@@ -3653,10 +3692,10 @@
     </div><!-- /section-scope -->
 
     <!-- ⑤ 全体リマーク -->
-    <div class="condition-section remark-section is-collapsible" id="section-remark">
+    <div class="condition-section remark-section is-collapsible" id="section-remark" data-tier="opt">
       <h2 class="section-toggle-head" onclick="toggleQuoteBottomAccordion('section-remark')">
         <span class="section-caret">▼</span>
-        <span class="section-toggle-title">📝 全体リマーク・免責事項</span>
+        <span class="section-toggle-title">📝 全体リマーク・免責事項</span><span class="tier-badge opt" aria-label="任意">任意</span>
         <span class="section-collapsed-summary" id="sumRemark"></span>
       </h2>
       <div id="remarkBody" class="remark-body">
@@ -3689,7 +3728,7 @@
     <div class="condition-section is-collapsible" id="section-table">
       <h2 class="section-toggle-head" onclick="toggleQuoteBottomAccordion('section-table')">
         <span class="section-caret">▼</span>
-        <span class="section-toggle-title">📋 見積もりテーブル</span>
+        <span class="section-toggle-title">📋 見積もりテーブル</span><span class="tier-badge req" aria-label="必須">必須</span>
         <span class="section-collapsed-summary" id="sumTable"></span>
       </h2>
       <div id="tableWrap">
@@ -3700,12 +3739,12 @@
           <!-- 統合コマンドバー：行操作・選択行・換算レート表示・⚙設定（為替/カテゴリ）を集約 -->
           <div class="quote-cmdbar">
             <div class="cmdbar-main">
-              <span class="btn-group-label">小計</span>
-              <button class="btn-ins-sub cmdbar-icon-btn" onclick="toolbarInsertSubtotal()" title="小計行を追加（出力にも含まれます。費用行・リマーク・社内メモの追加は各明細行の ➕📋🗑️💬🔒 アイコンから）">＝</button>
+              <span class="btn-group-label" data-tier="adv">小計</span>
+              <button data-tier="adv" class="btn-ins-sub cmdbar-icon-btn" onclick="toolbarInsertSubtotal()" title="小計行を追加（出力にも含まれます。費用行・リマーク・社内メモの追加は各明細行の ➕📋🗑️💬🔒 アイコンから）">＝</button>
               <button class="btn-bulk-pattern cmdbar-pattern-btn" onclick="openRowPatternMgr()" title="行パターン：チェックした行を保存／保存パターンを挿入">🗂️ 行パターン</button>
               <button class="cmdbar-lc-btn" onclick="lcOpenPicker()" title="諸チャージマスターから行を追加">📦 チャージ</button>
-              <span class="btn-group-label">挿入位置</span>
-              <select id="rowInsertPos" class="row-insert-pos" title="追加ボタンの挿入位置">
+              <span class="btn-group-label" data-tier="adv">挿入位置</span>
+              <select id="rowInsertPos" data-tier="adv" class="row-insert-pos" title="追加ボタンの挿入位置">
                 <option value="end">末尾に追加</option>
                 <option value="selected">選択行の下に挿入</option>
               </select>
@@ -3714,7 +3753,7 @@
               <button id="pendingIndicator" class="cmdbar-pending-indicator" hidden onclick="jumpToFirstPending()" title="要調査（後で記入）の行へ移動。クリックで順に巡回します。">🔍 要調査 <span id="pendingCount">0</span>件</button>
               <button id="doneIndicator" class="cmdbar-done-indicator" hidden onclick="jumpToNextUnfinished()" title="入力完了の進捗。クリックで未完了の最初の行（続きから作業する行）へ移動します。">✅ 完了 <span id="doneCount">0</span>/<span id="doneTotal">0</span></button>
               <button id="doneResetBtn" class="cmdbar-done-reset" hidden onclick="confirmClearAllDoneMarks()" title="入力完了マークを全行分まとめて解除します">↺ 一括解除</button>
-              <details class="cmdbar-more" id="cmdbarMore">
+              <details class="cmdbar-more" id="cmdbarMore" data-tier="adv">
                 <summary class="cmdbar-more-summary" title="その他の操作（配置は検討中）">⋯</summary>
                 <div class="cmdbar-more-pop">
                   <div class="more-grp">
