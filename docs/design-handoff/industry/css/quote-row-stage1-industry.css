@@ -1,0 +1,84 @@
+/* quote-row-stage1-industry.css（v3）— 第1段階
+   v2 からの変更：
+   ・対象を「通常の明細行」に変更：tr.subcon-child → #quoteTable > tbody > tr:not([data-virtual]):not([data-type])（グループ表示を切っても同じ見た目）
+   ・実構造（row-template-actual.html）に合わせ直し：.name-tiers を使わない／2段目は .w-note-row（備考＋💬🔒）／通貨・単価の仕/売ラベルは .stk-tag／.catsv-cell の中は .stk
+   ・通貨列を 76→96px（ラベル 16px＋選択欄）。小計・利益は子要素の div（.st-main 等）前提は変更なし
+   ・第1・第2段階は同じリリースで出す前提（補助欄は第2段階のパネルで使える） */
+
+/* ===== 行の骨格：3段固定 116px（付随行・見出し行は対象外＝可変） ===== */
+#tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) { height: 116px; }
+#tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) > td { vertical-align: top; padding: 8px 6px; height: 116px; box-sizing: border-box; }
+
+/* チェックの修正（原因：hierarchy の padding-left:52px。階層線は影だけ） */
+#tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) > td:first-child { padding: 8px 0 0; box-shadow: inset 4px 0 0 var(--color-accent-200, #d6ebff); }
+#tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) > td.check-cell { width: 44px; min-width: 44px; max-width: 44px; text-align: center; overflow: visible; }
+#tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) > td.check-cell input[type=checkbox], #tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) > td.tax-cell input[type=checkbox] { width: 16px !important; height: 16px !important; margin: 8px 0 0; }
+#tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) > td.handle-cell { width: 32px; min-width: 32px; padding: 8px 0 0; text-align: center; }
+#tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) > td.tax-cell { width: 44px; min-width: 44px; text-align: center; }
+
+/* 列幅（合計 1040px） */
+#tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) > td.catsv-cell { width: 120px; } #tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) > td.name-cell { width: 224px; } #tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) > td.qty-cell { width: 96px; min-width: 96px; }
+#tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) > td.ccy-cell { width: 96px; min-width: 96px; } #tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) > td.price-cell { width: 176px; } #tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) > td.subtotal-cell { width: 112px; } #tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) > td.profit-cell { width: 96px; }
+
+/* ===== サブコン／パターン／カテゴリ（.stk を3段のグリッドに。DOM 順は cat → sv → pt のままで、見た目は sv → pt → cat） =====
+   推奨：.catsv-cell の DOM 順を sv → pt → cat に並べ替えると、Tab の順も見た目と一致する（data-col の移動には影響しない）。 */
+#tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) > td.catsv-cell .stk { display: grid; grid-template-rows: repeat(3, 32px); row-gap: 4px; }
+#tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) > td.catsv-cell .w-subcon { grid-row: 1; }
+#tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) > td.catsv-cell .w-pattern, #tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) > td.catsv-cell .w-pattern:placeholder-shown { grid-row: 2; display: block !important; }   /* 既存の「空なら隠す」を明細行では打ち消す */
+#tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) > td.catsv-cell select.w-cat { grid-row: 3; display: block !important; }
+
+/* ===== 項目／備考（.name-tiers は使わない。td の子を、高さ固定の3段として並べる） =====
+   1段目 input.w-name／2段目 .w-note-row（備考入力＋💬 🔒 の 32px 角）／3段目 .master-actions（＋第2段階の「その他 ▾」） */
+#tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) > td.name-cell > .w-name { display: block; height: 32px; margin: 0 0 4px; font-weight: 700; }
+#tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) > td.name-cell > .w-note-row { display: grid; grid-template-columns: minmax(0, 1fr) 32px 32px; gap: 4px; height: 32px; margin: 0 0 4px; }
+#tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) > td.name-cell > .w-note-row > .w-note { width: 100%; min-width: 0; }
+#tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) > td.name-cell > .w-note-row > button { width: 32px; height: 32px; padding: 0; font-size: 14px; line-height: 1; border: 1px solid var(--color-neutral-400, #b7b7ba); background: #fff; border-radius: 0; }
+#tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) > td.name-cell > .master-actions { display: flex; align-items: center; gap: 6px; height: 32px; margin: 0; min-height: 0; }
+#tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) > td.name-cell .master-reg-btn, #tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) > td.name-cell .master-detail-jump-btn { visibility: visible; height: 28px; line-height: 1; white-space: nowrap; font-size: 12px; }
+#tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) > td.name-cell > .w-valid, #tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) > td.name-cell > .w-updated { display: none !important; }   /* 有効期間は第2段階のパネルで、更新日は非表示（DOM は残す） */
+
+/* ===== 数量／単位：2段（.qty-wrap の中が横並び→縦に） ===== */
+#tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) > td.qty-cell .qty-wrap { display: grid; grid-template-rows: 32px 32px; row-gap: 4px; }
+#tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) > td.qty-cell .w-qty { text-align: right; } #tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) > td.qty-cell .bq-mirror { display: none; }
+
+/* ===== 通貨：仕／売（ラベル 16px＋選択欄）／3段目＝CD あり ===== */
+#tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) > td.ccy-cell .stk { display: grid; grid-template-rows: repeat(3, 32px); row-gap: 4px; }
+#tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) > td.ccy-cell .stk-cost, #tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) > td.ccy-cell .stk-sell { display: grid; grid-template-columns: 16px minmax(0, 1fr); column-gap: 4px; align-items: center; }
+#tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) > td.ccy-cell .stk-cost { grid-row: 1; } #tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) > td.ccy-cell .stk-sell { grid-row: 2; }
+#tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) > td.ccy-cell .stk-tag { width: 16px; text-align: center; font-size: 12px; font-weight: 700; padding: 0; border: 0; background: transparent; }
+#tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) > td.ccy-cell select.w-cur { min-width: 0; padding: 0 4px; }
+#tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) > td.ccy-cell .cd-flag { grid-row: 3; display: none; font-size: 11px; line-height: 32px; color: var(--color-accent-700, #416180); white-space: nowrap; }  /* 前提：.stk の子として JS が追加 */
+#tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type])[data-ccy-diff="1"] > td.ccy-cell .cd-flag { display: block; }
+
+/* ===== 単価：仕（1段目）／＋乗せ幅（2段目）／売（3段目）。DOM 順は 仕→売→CD→＋ なので grid-row で並べ替え ===== */
+#tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) > td.price-cell .stk-price { display: grid; grid-template-rows: repeat(3, 32px); row-gap: 4px; }
+#tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) > td.price-cell .stk-cost, #tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) > td.price-cell .stk-sell, #tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) > td.price-cell .stk-mk { display: grid; grid-template-columns: 20px minmax(0, 1fr); column-gap: 6px; align-items: center; }
+#tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) > td.price-cell .stk-cost { grid-row: 1; } #tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) > td.price-cell .stk-mk { grid-row: 2; } #tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) > td.price-cell .stk-sell { grid-row: 3; }
+#tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) > td.price-cell .stk-tag, #tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) > td.price-cell .stk-mk-plus { width: 20px; text-align: center; font-size: 12px; font-weight: 700; padding: 0; border: 0; background: transparent; }
+#tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) > td.price-cell .bp-base-hint, #tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) > td.price-cell .row-cd, #tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) > td.price-cell .pct-group, #tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) > td.price-cell .row-mode-btns { display: none !important; }   /* パネルへ移す前の既定。パネル内では第2段階で再表示 */
+
+/* ===== 全入力欄の寸法 ===== */
+#tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) > td input:not([type=checkbox]):not([type=hidden]):not(.bq-mirror), #tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) > td select {
+  box-sizing: border-box; height: 32px; padding: 0 8px; font-size: 13px; line-height: 30px; width: 100%; min-width: 0;
+  border: 1px solid var(--color-neutral-400, #b7b7ba); background: #fff; border-radius: 0; }
+#tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) > td input.w-qty, #tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) > td input.w-price, #tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) > td input.w-mkup { text-align: right; font-variant-numeric: tabular-nums; }
+#tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) > td input:focus, #tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) > td select:focus { border-color: var(--color-accent, #5980a6); box-shadow: inset 0 -2px 0 var(--color-accent, #5980a6); outline: none; }
+#tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) > td.price-cell .w-price.display-field { height: 32px; line-height: 30px; border: 1px dashed var(--color-neutral-400, #b7b7ba); background: var(--color-neutral-100, #f5f5f8); font-weight: 700; text-align: right; }
+
+/* 更新日は表示しない（データ・仕組みは残す。見出しの「更新」「今日」も） */
+#tab-quote-make #quoteTable .w-updated, #tab-quote-make #quoteTable .row-updated, #tab-quote-make #quoteTable .grp-updated, #tab-quote-make #quoteTable .grp-today-btn { display: none !important; }
+
+/* ===== 小計・利益（JS が div を書き出す。旧構造のままだと 1段目だけ崩さないようにする） =====
+   小計 .st-main（金額）／.st-sub（2段目：外貨行＝円換算の目安、円行＝消費税の目安。両方あるときは円換算を優先し、消費税は title とパネルの内訳に）／.st-state（3段目＝状態チップ） */
+#tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) > td.subtotal-cell > .st-main, #tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) > td.profit-cell > .pr-main { height: 32px; line-height: 32px; margin-bottom: 4px; text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+#tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) > td.subtotal-cell > .st-main { font-size: 14px; font-weight: 700; } #tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) > td.profit-cell > .pr-main { font-size: 13px; }
+#tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) > td.subtotal-cell > .st-sub, #tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) > td.profit-cell > .pr-sub { height: 32px; line-height: 32px; margin-bottom: 4px; text-align: right; font-size: 11px; color: var(--color-neutral-700, #5d5d60); white-space: nowrap; font-variant-numeric: tabular-nums; overflow: hidden; text-overflow: ellipsis; }
+#tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) > td.profit-cell > .pr-sub { font-size: 12px; font-weight: 600; color: var(--color-accent-700, #416180); }
+#tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) > td.subtotal-cell > .st-state { height: 32px; display: flex; justify-content: flex-end; align-items: center; gap: 4px; overflow: hidden; cursor: pointer; }
+
+/* ===== 状態チップ：1つ（優先順）＋「＋n」。クリックで「その他 ▾」のパネルを開き、全状態を見せる ===== */
+#tab-quote-make #quoteTable .st-state .state-chip { flex: 0 1 auto; min-width: 0; max-width: 74px; overflow: hidden; text-overflow: ellipsis; height: 20px; line-height: 18px; box-sizing: border-box; padding: 0 5px; font-size: 11px; font-weight: 700; white-space: nowrap; border: 1px solid var(--color-accent-700, #416180); color: var(--color-accent-800, #2c455d); background: transparent; border-radius: 0; }
+#tab-quote-make #quoteTable .st-state .state-chip.is-solid { background: var(--color-accent-900, #1d2d3d); color: var(--color-bg, #f2f2f3); border-color: var(--color-accent-900, #1d2d3d); }
+#tab-quote-make #quoteTable .st-state .state-chip.is-warn { border-color: #8a5a2b; color: #8a5a2b; }
+#tab-quote-make #quoteTable .st-state .state-chip.is-done { border-style: dashed; }
+#tab-quote-make #quoteTable .st-state .state-more { flex: none; min-width: 20px; height: 20px; line-height: 18px; box-sizing: border-box; text-align: center; font-size: 11px; font-weight: 700; border: 1px solid var(--color-neutral-500, #98989b); color: var(--color-neutral-800, #424244); padding: 0 3px; }

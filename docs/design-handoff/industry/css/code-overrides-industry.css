@@ -5,13 +5,30 @@
    ・既存の .row-acts ボタンは width:17px・opacity:.55・border:transparent → 文字ラベル付きの大きさに直す
    ・全体合計行は、金額を広い領域（通貨〜小計の4列）に置き、売値を縦に大きく */
 
-/* ---- 列幅（th の inline width を上書き）：チェック36／つまみ32／数量・単位194 ---- */
+/* ---- 列幅（th の inline width を上書き）。行レイアウト v3（Design は合計 1040px）を、画面幅 1400px で表の領域（約 998px）に収まるよう縮めた版＝合計 992px
+        チェック36／つまみ32／サブコン112／品名216／数量104／通貨92／単価168／課税36／小計108／利益88 ---- */
 #tab-quote-make #quoteTable thead th:nth-child(1) { width: 36px !important; }
 #tab-quote-make #quoteTable thead th:nth-child(2) { width: 32px !important; }
-#tab-quote-make #quoteTable thead th:nth-child(5) { width: 194px !important; }
-#tab-quote-make #quoteTable thead th:nth-child(6) { width: 80px !important; }    /* 通貨：USD が切れない幅 */
-#tab-quote-make #quoteTable thead th:nth-child(7) { width: 150px !important; }   /* 単価：仕・＋・売を同じ大きさ（32px・100%）で置ける幅 */
-#tab-quote-make #quoteTable td.check-cell { padding: 0; text-align: center; }
+#tab-quote-make #quoteTable thead th.hd-catsv:nth-child(3) { width: 112px !important; }
+#tab-quote-make #quoteTable thead th:nth-child(4) { width: 216px !important; }
+#tab-quote-make #quoteTable thead th:nth-child(5) { width: 104px !important; }
+#tab-quote-make #quoteTable thead th:nth-child(6) { width: 92px !important; }
+#tab-quote-make #quoteTable thead th:nth-child(7) { width: 168px !important; }
+#tab-quote-make #quoteTable thead th:nth-child(8) { width: 36px !important; }
+#tab-quote-make #quoteTable thead th:nth-child(9) { width: 108px !important; }
+#tab-quote-make #quoteTable thead th:nth-child(10) { width: 88px !important; }
+/* td 側の幅（stage1 の min-width／max-width が th の幅を押し広げるため、上と同じ値に揃える） */
+#tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) > td.check-cell, #tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) > td.tax-cell { width: 36px; min-width: 36px; max-width: 36px; }
+#tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) > td.catsv-cell { width: 112px; min-width: 0; }
+#tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) > td.name-cell { width: 216px; }
+#tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) > td.qty-cell { width: 104px; min-width: 104px; }
+#tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) > td.ccy-cell { width: 92px; min-width: 92px; }
+#tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) > td.price-cell { width: 168px; }
+#tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) > td.subtotal-cell { width: 108px; }
+#tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) > td.profit-cell { width: 88px; }
+/* 行の高さ：3 段（32px×3＋段間 4px×2＝104px）＋上下余白 8px×2 ＝ 120px。Design の 116px は計算が合わず、実際は 121px になっていたため 120px に */
+#tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) { height: 120px; }
+#tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) > td { height: 120px; }
 
 /* ---- 行の操作ボタン（つまみの下に重ねて出す）：文字ラベル付きの大きさ ---- */
 #tab-quote-make #quoteTable td.handle-cell .row-acts { background: var(--bg, #f2f2f3); }
@@ -36,3 +53,40 @@
 #tab-quote-make #quoteTable tfoot tr.tot-row td#tot-profit.profit-neg { background: #b0392e !important; }
 #tab-quote-make #quoteTable tfoot tr.tot-row td#tot-profit .tot-margin { color: var(--accent-300, #b5d9fd) !important; }
 #tab-quote-make #quoteTable tfoot tr.tot-row td#tot-profit.profit-neg .tot-margin { color: #fff !important; }
+
+/* ---- 行レイアウト v3 の実装側の補正（quote-row-stage1/2 の「後」） ---- */
+/* 粗利率（classic では隠している .pr-rate を Industry では出す） */
+#tab-quote-make #quoteTable td.profit-cell .pr-rate { display: inline; font-size: 12px; font-weight: 600; }
+/* 小計の 2 段目は 1 つだけ：外貨行＝円換算を優先し、同時にある消費税の目安は出さない（title とパネルの内訳に回す） */
+#tab-quote-make #quoteTable td.subtotal-cell > .st-sub.jpy ~ .st-sub.tax { display: none; }
+/* CD の見出しは、通貨が違う行だけ（入力欄 .row-cd は stage2 が同じ条件で出す） */
+#tab-quote-make #quoteTable tr:not([data-ccy-diff="1"]) .row-detail-panel .rd-cd-group { display: none; }
+/* 「その他 ▾」のパネル内 */
+#tab-quote-make #quoteTable .row-detail-panel .rd-slot { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+#tab-quote-make #quoteTable .row-detail-panel .rd-slot:empty { display: none; }
+#tab-quote-make #quoteTable .row-detail-panel .rd-breakdown dt:only-child { color: var(--color-neutral-500, #98989b); }
+/* 表の最小幅：現行は 1010px。上の列幅の合計（992px）に合わせる */
+#tab-quote-make #quoteTable { min-width: 992px; }
+
+/* ---- 「その他 ▾」パネルの実装側の補正 ---- */
+#tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) .row-detail-panel { text-align: left; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); align-items: start; font-size: 13px; }
+#tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) .row-detail-panel .rd-group { align-items: flex-start; }
+/* パネル内の入力欄：stage1 の「全入力欄 width:100%」に勝って、内容に合う幅にする */
+#tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) .row-detail-panel .w-valid input { width: 140px !important; }
+#tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) .row-detail-panel .pct-group input, #tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) .row-detail-panel .pct-group select { width: 120px !important; }
+#tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) .row-detail-panel .row-cd input { width: 140px !important; }
+/* % の入力群は、% モードの行だけ（元の仕様：tr.row-pct-mode のときだけ表示） */
+#tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]):not(.row-pct-mode) .row-detail-panel .pct-group { display: none !important; }
+/* 状態チップ（パネル内。小計セル内の見た目は stage1 と同じ） */
+#tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) .rd-state .state-chip { height: 22px; line-height: 20px; box-sizing: border-box; padding: 0 8px; font-size: 12px; font-weight: 700; white-space: nowrap; border: 1px solid var(--color-accent-700, #416180); color: var(--color-accent-800, #2c455d); background: transparent; border-radius: 0; }
+#tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) .rd-state .state-chip.is-solid { background: var(--color-accent-900, #1d2d3d); color: var(--color-bg, #f2f2f3); border-color: var(--color-accent-900, #1d2d3d); }
+#tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) .rd-state .state-chip.is-warn { border-color: #8a5a2b; color: #8a5a2b; }
+#tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) .rd-state .state-chip.is-done { border-style: dashed; }
+#tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) .row-detail-panel .state-more { font-size: 12px; color: var(--color-neutral-700, #5d5d60); }
+
+/* ---- 客先モード（#quoteTable.customer-mode）：社内の情報（状態・その他・CD）は出さない。仕入・乗せ幅・サブコンを隠した分、売側を 1 段目に詰める ---- */
+#tab-quote-make #quoteTable.customer-mode .st-state, #tab-quote-make #quoteTable.customer-mode .row-detail-btn,
+#tab-quote-make #quoteTable.customer-mode .row-detail-panel, #tab-quote-make #quoteTable.customer-mode .cd-flag { display: none !important; }
+#tab-quote-make #quoteTable.customer-mode td.ccy-cell .stk-sell, #tab-quote-make #quoteTable.customer-mode td.price-cell .stk-sell,
+#tab-quote-make #quoteTable.customer-mode td.catsv-cell select.w-cat { grid-row: 1 !important; }
+#tab-quote-make #quoteTable.customer-mode > tbody > tr:not([data-virtual]):not([data-type]), #tab-quote-make #quoteTable.customer-mode > tbody > tr:not([data-virtual]):not([data-type]) > td { height: auto; }
