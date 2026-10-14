@@ -1636,6 +1636,12 @@
 }
 #tab-quote-make .master-detail-jump-btn:hover { border-color: #6a4a9a; color: #4a2a7a; background: #f1eafb; }
 #tab-quote-make .master-detail-jump-btn[hidden] { display: none; }
+/* マスター関連の操作（品名セルの下）。「マスターに登録」は行にカーソルがあるときだけ見せる（場所は確保して動かさない） */
+#tab-quote-make .master-actions { display: flex; align-items: center; flex-wrap: wrap; gap: var(--sp-6); min-height: 20px; }
+#tab-quote-make .master-actions .master-reg-btn { visibility: hidden; }
+#tab-quote-make tr:hover .master-actions .master-reg-btn, #tab-quote-make tr:focus-within .master-actions .master-reg-btn, #tab-quote-make tr.is-active .master-actions .master-reg-btn { visibility: visible; }
+/* 行の操作ボタンの文字ラベル（Industry 層でのみ表示。既定はアイコンだけ） */
+#tab-quote-make .row-act-label { display: none; }
 #tab-quote-make .pct-mode-btn.is-on { background: var(--amber-94); border-color: #d4892a; color: #8a4c00; font-weight: 700; }
 /* % モード ON の行：仕入れセルに amber アクセント */
 #tab-quote-make tr.row-pct-mode .stk-cost .stk-tag { background: #ffe8c0; color: #8a4c00; }

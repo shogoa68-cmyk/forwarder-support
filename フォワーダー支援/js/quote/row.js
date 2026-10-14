@@ -270,6 +270,15 @@
 
   // 行を「見積書（客先出力）に出さない」状態に切り替える。
   // 作業テーブル・社内プレビューには目印付きで残り、合計・PDF・Excel・CSV・客先プレビューからは除外。
+  // 「見積書に出さない」ボタンのアイコン（👁／🚫）と文字ラベルを切り替える。
+  // ラベル付きの表示（.row-act-ico／.row-act-label）が無い場合は、従来どおりボタンの文字そのものを書き換える。
+  function _setHideBtnIcon(btn, hidden) {
+    const ico = btn.querySelector('.row-act-ico'), lab = btn.querySelector('.row-act-label');
+    if (ico) { ico.textContent = hidden ? '🚫' : '👁'; if (lab) lab.textContent = hidden ? '見積書に出す' : '見積書に出さない'; }
+    else btn.textContent = hidden ? '🚫' : '👁';
+  }
+  window._setHideBtnIcon = _setHideBtnIcon;
+
   function toggleRowHideQuote(btn) {
     const tr = btn?.closest('tr');
     if (!tr) return;
@@ -278,13 +287,13 @@
       delete tr.dataset.hideQuote;
       tr.classList.remove('row-hidden-quote');
       btn.classList.remove('is-on');
-      btn.textContent = '👁';
+      _setHideBtnIcon(btn, false);
       btn.title = 'この行を見積書（プレビュー客先表示・PDF・Excel・CSV）に出力しない';
     } else {
       tr.dataset.hideQuote = '1';
       tr.classList.add('row-hidden-quote');
       btn.classList.add('is-on');
-      btn.textContent = '🚫';
+      _setHideBtnIcon(btn, true);
       btn.title = '見積書で非表示中（クリックで出力に戻す）';
     }
     _recordPatternHideState(tr, btn);
@@ -419,7 +428,7 @@
       tr.dataset.hideQuote  = '1';
       tr.classList.add('row-hidden-quote', 'row-merged-child');
       const hb = tr.querySelector('.row-hidequote-btn');
-      if (hb) { hb.classList.add('is-on'); hb.textContent = '🚫'; hb.title = '統合済み（クリックで統合を解除せず単に出力に戻すことも可能）'; }
+      if (hb) { hb.classList.add('is-on'); _setHideBtnIcon(hb, true); hb.title = '統合済み（クリックで統合を解除せず単に出力に戻すことも可能）'; }
       const chk = tr.querySelector('.row-select-chk');
       if (chk) chk.checked = false;   // 統合後は選択状態を解除（選択ツールバーの誤操作防止）
     });
@@ -444,7 +453,7 @@
     delete tr.dataset.hideQuote;
     tr.classList.remove('row-hidden-quote', 'row-merged-child');
     const hb = tr.querySelector('.row-hidequote-btn');
-    if (hb) { hb.classList.remove('is-on'); hb.textContent = '👁'; hb.title = 'この行を見積書（プレビュー客先表示・PDF・Excel・CSV）に出力しない'; }
+    if (hb) { hb.classList.remove('is-on'); _setHideBtnIcon(hb, false); hb.title = 'この行を見積書（プレビュー客先表示・PDF・Excel・CSV）に出力しない'; }
     refreshMergeBadges();
     updateTotals();
     if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
@@ -472,7 +481,7 @@
         delete tr.dataset.hideQuote;
         tr.classList.remove('row-hidden-quote', 'row-merged-child');
         const hb = tr.querySelector('.row-hidequote-btn');
-        if (hb) { hb.classList.remove('is-on'); hb.textContent = '👁'; }
+        if (hb) { hb.classList.remove('is-on'); _setHideBtnIcon(hb, false); }
         orphaned++;
       }
     });
@@ -921,6 +930,30 @@
     document.getElementById('tableBody').addEventListener('wheel', e => {
       if (e.target && e.target.type === 'number') e.preventDefault();
     }, { passive: false });
+
+    // ---- 見積テーブルの行まわり（Industry 層のレイアウトを支える小さな補助） ----
+    const _tb = document.getElementById('tableBody');
+    // 単位欄が狭くて名称が切れても全文が分かるよう、title に値を入れる
+    const _syncUnitTitle = e => { const u = e.target; if (u && u.classList && u.classList.contains('w-unit')) u.title = u.value || ''; };
+    ['input', 'focusin', 'mouseover'].forEach(ev => _tb.addEventListener(ev, _syncUnitTitle));
+    // 行の操作ボタン（つまみの下に重ねて出す）が、表の下端で切れないよう、足りないときだけ上向きにする（tr.is-flip）
+    _tb.addEventListener('mouseover', e => {
+      const tr = e.target.closest && e.target.closest('tr');
+      if (!tr || tr.dataset.virtual || tr.dataset.type || !tr.id) return;
+      const wrap = document.getElementById('tableScrollWrap'); if (!wrap) return;
+      const r = tr.getBoundingClientRect(), w = wrap.getBoundingClientRect();
+      const need = 150;   // 操作ボタン（3×2・文字付き）の高さの目安
+      const below = Math.min(w.bottom, window.innerHeight) - r.bottom;
+      const above = r.top - Math.max(w.top, 0);
+      tr.classList.toggle('is-flip', below < need && above > below);
+    });
+    // タッチ端末：行をタップしたら、その行の操作を出す（tr.is-active）。ほかの行は閉じる
+    _tb.addEventListener('pointerdown', e => {
+      if (e.pointerType !== 'touch') return;
+      const tr = e.target.closest && e.target.closest('tr');
+      _tb.querySelectorAll('tr.is-active').forEach(x => { if (x !== tr) x.classList.remove('is-active'); });
+      if (tr && tr.id && !tr.dataset.virtual && !tr.dataset.type) tr.classList.add('is-active');
+    });
 
     document.getElementById('tableBody').addEventListener('keydown', e => {
       if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown') return;
@@ -1630,7 +1663,7 @@
           stHTML = estPrefix + fmt(subtotal);
           if (taxed) stHTML += '<br><small class="tax-hint">（消費税：' + fmt(Math.ceil(subtotal * taxRate)) + '円）</small>';
         } else if (isZeroConfirmed) {
-          stHTML = '<span class="zero-confirmed-badge">¥0 ✓</span>';
+          stHTML = '<span class="zero-confirmed-badge">あえて¥0</span>';
         } else {
           stHTML = '—';
         }

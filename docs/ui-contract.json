@@ -507,6 +507,7 @@
   "tab-quote-make",
   "tab-stats",
   "tableBody",
+  "tableScrollWrap",
   "toast-container",
   "tot-billing",
   "tot-cost",
@@ -2284,6 +2285,10 @@
    "css": true,
    "html": false
   },
+  "is-flip": {
+   "css": true,
+   "html": false
+  },
   "is-heavy": {
    "css": true,
    "html": false
@@ -2787,6 +2792,14 @@
   "rn-plan-row--sel": {
    "css": true,
    "html": false
+  },
+  "row-act-ico": {
+   "css": true,
+   "html": true
+  },
+  "row-act-label": {
+   "css": true,
+   "html": true
   },
   "row-actual-cost": {
    "css": true,
@@ -3345,6 +3358,10 @@
    "html": true
   },
   "w-ppref": {
+   "css": true,
+   "html": true
+  },
+  "w-unit": {
    "css": true,
    "html": true
   },

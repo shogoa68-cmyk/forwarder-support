@@ -1,0 +1,38 @@
+/* code-overrides-industry.css — code 側で足す Industry 用の調整（Design の CSS を実アプリの構造に合わせるための補正）。
+   Design の quote-table-fb03.css の「後」に読み込む。手書き（build-industry-theme.js が :where(html.theme-industry) で包んで取り込む）。
+   補正の理由：
+   ・表は table-layout:fixed で、列幅は <th style="width:…"> のインライン指定が決める（CSS の td 幅では変わらない）→ !important で上書き
+   ・既存の .row-acts ボタンは width:17px・opacity:.55・border:transparent → 文字ラベル付きの大きさに直す
+   ・全体合計行は、金額を広い領域（通貨〜小計の4列）に置き、売値を縦に大きく */
+
+/* ---- 列幅（th の inline width を上書き）：チェック36／つまみ32／数量・単位194 ---- */
+#tab-quote-make #quoteTable thead th:nth-child(1) { width: 36px !important; }
+#tab-quote-make #quoteTable thead th:nth-child(2) { width: 32px !important; }
+#tab-quote-make #quoteTable thead th:nth-child(5) { width: 194px !important; }
+#tab-quote-make #quoteTable thead th:nth-child(6) { width: 80px !important; }    /* 通貨：USD が切れない幅 */
+#tab-quote-make #quoteTable thead th:nth-child(7) { width: 150px !important; }   /* 単価：仕・＋・売を同じ大きさ（32px・100%）で置ける幅 */
+#tab-quote-make #quoteTable td.check-cell { padding: 0; text-align: center; }
+
+/* ---- 行の操作ボタン（つまみの下に重ねて出す）：文字ラベル付きの大きさ ---- */
+#tab-quote-make #quoteTable td.handle-cell .row-acts { background: var(--bg, #f2f2f3); }
+#tab-quote-make #quoteTable td.handle-cell .row-acts > button {
+  width: auto; min-width: 0; height: 32px; padding: 0 10px; opacity: 1;
+  background: var(--surface, #fff); border: 1px solid var(--border-md, #b7b7ba); color: var(--text, #1d1f20); }
+#tab-quote-make #quoteTable td.handle-cell .row-acts > button:hover { background: var(--accent-lt, #eef6ff); border-color: var(--accent, #5980a6); }
+#tab-quote-make #quoteTable td.handle-cell .row-acts > button.row-del-btn { color: #b0392e; }
+#tab-quote-make #quoteTable .row-act-ico { font-size: 14px; line-height: 1; }
+
+/* ---- 全体合計：売値を最も強く。金額は通貨〜小計の4列にまたがる領域に右揃えで縦に並べる ---- */
+#tab-quote-make #quoteTable tfoot tr.tot-row td.tot-amt-cell { text-align: right; padding: 12px 14px; }
+#tab-quote-make #quoteTable tfoot tr.tot-row td.tot-amt-cell .stk { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; }
+#tab-quote-make #quoteTable tfoot tr.tot-row td.tot-amt-cell .stk-sell { order: 0; white-space: nowrap; }
+#tab-quote-make #quoteTable tfoot tr.tot-row td.tot-amt-cell .stk-cost { order: 1; white-space: nowrap; }
+#tab-quote-make #quoteTable tfoot tr.tot-row td.tot-amt-cell .t-sell, #tab-quote-make #quoteTable tfoot tr.tot-row td.tot-amt-cell .t-cost {
+  font-size: 12px !important; font-weight: 600 !important; letter-spacing: .1em; margin-right: 8px; color: var(--accent-300, #b5d9fd) !important; }
+#tab-quote-make #quoteTable tfoot tr.tot-row td#tot-profit { text-align: right; vertical-align: middle; }
+
+/* 粗利セル：Design の CSS は背景を透明にしてしまうため、濃い帯の続きとして濃色を戻す（マイナスは赤地） */
+#tab-quote-make #quoteTable tfoot tr.tot-row td#tot-profit { background: var(--accent-900, #1d2d3d) !important; }
+#tab-quote-make #quoteTable tfoot tr.tot-row td#tot-profit.profit-neg { background: #b0392e !important; }
+#tab-quote-make #quoteTable tfoot tr.tot-row td#tot-profit .tot-margin { color: var(--accent-300, #b5d9fd) !important; }
+#tab-quote-make #quoteTable tfoot tr.tot-row td#tot-profit.profit-neg .tot-margin { color: #fff !important; }

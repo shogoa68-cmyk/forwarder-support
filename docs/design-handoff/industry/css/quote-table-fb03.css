@@ -1,0 +1,107 @@
+/* quote-table-fb03.css — 見積テーブル フィードバック03（7件）への回答。
+   読み込み順：…→ quote-table-industry.css → quote-hierarchy-industry.css → quote-table-fb03.css（最後）
+   既存の id / onclick / data-* / JS が付け外しする class は変更しない。 */
+
+/* ===== 1. 数量・単位：単位列の幅を決める =====
+   数量 64px ＋ 単位 112px（"40'GP/…" が収まる）＋ 間 6px ＋ 左右 6px = 列幅 194px。
+   さらに長い自由入力は、欄を広げず title（全文）で補う（JS：入力時に title = value）。 */
+#tab-quote-make #quoteTable td.qty-cell { width: 194px; min-width: 194px; }
+#tab-quote-make #quoteTable td.qty-cell .qty-wrap { display: flex; flex-direction: row; gap: 6px; align-items: center; }
+#tab-quote-make #quoteTable td.qty-cell .w-qty { flex: 0 0 64px; width: 64px; text-align: right; }
+#tab-quote-make #quoteTable td.qty-cell .w-unit { flex: 1 1 112px; width: 112px; min-width: 112px; text-overflow: ellipsis; }
+#tab-quote-make #quoteTable td.qty-cell .w-unit:focus { text-overflow: clip; }
+
+/* ===== 2. 仕入・乗せ幅・売値：3つを同じ大きさに（v2：実セレクタ。% モードの .pct-group を崩さない） ===== */
+#tab-quote-make #quoteTable td.price-cell .stk-cost, #tab-quote-make #quoteTable td.price-cell .stk-sell, #tab-quote-make #quoteTable td.price-cell .stk:has(> .w-mkup) { display: grid; grid-template-columns: 20px minmax(0,1fr); align-items: center; column-gap: 6px; row-gap: 4px; }
+#tab-quote-make #quoteTable td.price-cell .stk-cost > .pct-group, #tab-quote-make #quoteTable td.price-cell .stk-cost > .w-pct { grid-column: 2; }
+#tab-quote-make #quoteTable td.price-cell .w-price, #tab-quote-make #quoteTable td.price-cell .w-mkup {
+  box-sizing: border-box; width: 100%; min-width: 96px; height: 32px; padding: 0 8px;
+  font-size: 13px; line-height: 32px; text-align: right; font-variant-numeric: tabular-nums; }
+#tab-quote-make #quoteTable td.price-cell .w-price.display-field {
+  height: 32px; line-height: 32px; font-size: 13px; font-weight: 700; padding: 0 8px;
+  background: var(--color-neutral-100, #f5f5f8); border: 1px dashed var(--color-neutral-400, #b7b7ba);
+  color: var(--color-text, #1d1f20); cursor: default; }
+#tab-quote-make #quoteTable td.price-cell .w-price.display-field:focus { outline: none; box-shadow: none; }
+
+/* ===== 3. フラグ群（.row-mode-btns）：文言が増えても崩れない ===== */
+#tab-quote-make #quoteTable .row-mode-btns { display: flex; flex-wrap: wrap; gap: 6px; max-width: 360px; }
+#tab-quote-make #quoteTable .row-mode-btns > button { flex: 0 0 auto; height: 28px; padding: 0 10px; white-space: nowrap; font-size: 12px; line-height: 1; border-radius: 0; }
+/* 登録／詳細はフラグ群から外し、品名の右に移す（下記）。フラグ群の中では非表示 */
+#tab-quote-make #quoteTable .row-mode-btns .master-reg-btn, #tab-quote-make #quoteTable .row-mode-btns .master-detail-jump-btn { display: none; }
+
+/* 登録／詳細：品名セル内（HTML 移動が必要。仕様書の「3b」参照） */
+#tab-quote-make #quoteTable td.name-cell .master-actions { display: flex; align-items: center; gap: 6px; margin-top: 4px; min-height: 24px; }
+#tab-quote-make #quoteTable td.name-cell .master-reg-btn { visibility: hidden; height: 24px; padding: 0 10px; font-size: 12px; border: 1px solid var(--color-accent-700, #416180); color: var(--color-accent-700, #416180); background: transparent; border-radius: 0; white-space: nowrap; }
+#tab-quote-make #quoteTable tr:hover td.name-cell .master-reg-btn, #tab-quote-make #quoteTable tr:focus-within td.name-cell .master-reg-btn { visibility: visible; }
+#tab-quote-make #quoteTable td.name-cell .master-reg-btn[hidden] { display: none; }
+#tab-quote-make #quoteTable td.name-cell .master-detail-jump-btn { height: 24px; padding: 0 10px; font-size: 12px; border: 0; background: var(--color-accent-200, #d6ebff); color: var(--color-accent-900, #1d2d3d); border-radius: 0; white-space: nowrap; }
+#tab-quote-make #quoteTable td.name-cell .master-detail-jump-btn[hidden] { display: none; }
+#tab-quote-make #quoteTable td.name-cell .master-detail-jump-btn::before { content: "マスター登録済み　"; }
+
+/* ===== 4. つまみ周り：つまみは動かさない・チェックと重ねない・操作は文字付き =====
+   check-cell 36px ／ handle-cell 32px（つまみだけ。常に同じ位置）。
+   .row-acts は行の左下に「重ねて」出す（行の高さを変えない＝ちらつかない）。 */
+#tab-quote-make #quoteTable td.check-cell { width: 36px; min-width: 36px; text-align: center; }
+#tab-quote-make #quoteTable td.handle-cell { position: relative; width: 32px; min-width: 32px; padding: 0; text-align: center; }
+#tab-quote-make #quoteTable td.handle-cell .drag-handle { position: static; display: inline-block; transform: none; margin: 0; }
+#tab-quote-make #quoteTable td.handle-cell .row-acts {
+  position: absolute; left: 0; top: calc(100% - 2px); z-index: 30;
+  display: grid; grid-template-columns: repeat(3, auto); gap: 4px; padding: 6px; width: max-content;
+  background: var(--color-bg, #f2f2f3); border: 1px solid var(--color-text, #1d1f20); box-shadow: var(--shadow-md);
+  opacity: 0; pointer-events: none; transition: opacity .12s; }
+#tab-quote-make #quoteTable tr:hover td.handle-cell .row-acts, #tab-quote-make #quoteTable tr:focus-within td.handle-cell .row-acts { opacity: 1; pointer-events: auto; }
+#tab-quote-make #quoteTable td.handle-cell .row-acts > button { display: inline-flex; align-items: center; gap: 4px; height: 32px; padding: 0 10px; white-space: nowrap; font-size: 12px; border-radius: 0; }
+/* ラベルは HTML で .row-act-label を追加（絵文字は残してよい）。CSS 単独では文字を足せないため */
+#tab-quote-make #quoteTable .row-act-label { display: inline; }
+#tab-quote-make #quoteTable .row-acts .row-del-btn, #tab-quote-make #quoteTable .row-acts [data-act="del"] { color: #b0392e; }
+
+/* ===== 5. サブコン入力欄にかぶる「└」線を消す ===== */
+#tab-quote-make #quoteTable tr.subcon-child td::before, #tab-quote-make #quoteTable tr.subcon-subchild td::before,
+#tab-quote-make #quoteTable tr.subcon-child .catsv-cell::before, #tab-quote-make #quoteTable tr.subcon-subchild .catsv-cell::before,
+#tab-quote-make #quoteTable tr.subcon-child td::after, #tab-quote-make #quoteTable tr.subcon-subchild td::after { content: none !important; display: none !important; border: 0 !important; }
+
+/* ===== 6. サブコン見出し：左（つまみ・矢印・チェック・名称・行数）／中（操作）／右（金額） =====
+   操作は名称のすぐ右に左寄せ。金額は行の右端。パターン・カテゴリ見出しも同じ並び順。 */
+#tab-quote-make #quoteTable tr.subcon-group-header .subcon-group-header-inner,
+#tab-quote-make #quoteTable tr.subcon-subgroup-header .subcon-subgroup-inner,
+#tab-quote-make #quoteTable tr.subcon-cat-header .subcon-cat-inner { display: flex; align-items: center; gap: 12px; }
+#tab-quote-make #quoteTable tr.subcon-group-header .subcon-group-header-inner > * { order: 5; }               /* 既定＝操作類（中） */
+#tab-quote-make #quoteTable tr.subcon-group-header .subcon-group-grip { order: 0; }
+#tab-quote-make #quoteTable tr.subcon-group-header .subcon-group-toggle { order: 1; }
+#tab-quote-make #quoteTable tr.subcon-group-header input[type=checkbox] { order: 2; }
+#tab-quote-make #quoteTable tr.subcon-group-header .subcon-group-label { order: 3; }
+#tab-quote-make #quoteTable tr.subcon-group-header .subcon-group-count { order: 4; }
+#tab-quote-make #quoteTable tr.subcon-group-header .subcon-group-header-inner > .subcon-group-sum { order: 9; margin-left: auto; text-align: right; min-width: 140px; }
+#tab-quote-make #quoteTable tr.subcon-group-header .subcon-group-header-inner > button:not(.subcon-group-toggle), #tab-quote-make #quoteTable tr.subcon-group-header .grp-updated { margin-left: 0; }
+#tab-quote-make #quoteTable tr.subcon-group-header .subcon-group-header-inner > button:first-of-type:not(.subcon-group-toggle) { margin-left: 8px; }
+/* 操作は見出しにカーソルがあるときだけ見える。場所は常に確保する（金額の位置が動かない） */
+#tab-quote-make #quoteTable tr.subcon-group-header .subcon-group-header-inner > button:not(.subcon-group-toggle), #tab-quote-make #quoteTable tr.subcon-group-header .grp-updated, #tab-quote-make #quoteTable tr.subcon-group-header .grp-updated * { opacity: 0; }
+#tab-quote-make #quoteTable tr.subcon-group-header:hover .subcon-group-header-inner > button, #tab-quote-make #quoteTable tr.subcon-group-header:hover .grp-updated, #tab-quote-make #quoteTable tr.subcon-group-header:hover .grp-updated *,
+#tab-quote-make #quoteTable tr.subcon-group-header:focus-within .subcon-group-header-inner > button, #tab-quote-make #quoteTable tr.subcon-group-header:focus-within .grp-updated, #tab-quote-make #quoteTable tr.subcon-group-header:focus-within .grp-updated * { opacity: 1; }
+/* 金額（※付き）は常に右端・等幅数字 */
+#tab-quote-make #quoteTable .subcon-group-sum { font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+/* ===== 7. 全体合計（v2：実セレクタ。インライン指定に勝つため !important。整理できるなら !important を外す） ===== */
+#tab-quote-make #quoteTable tfoot tr.tot-row td { background: var(--color-accent-900, #1d2d3d) !important; color: var(--color-bg, #f2f2f3) !important; border-top: 2px solid var(--color-text, #1d1f20); padding: 14px 12px; vertical-align: baseline; }
+#tab-quote-make #quoteTable #tot-row-label { font-family: var(--font-heading); font-size: 14px; letter-spacing: .2em; font-weight: 600; color: var(--color-bg, #f2f2f3) !important; }
+/* 売（#tot-subtotal）＝最大。仕（#tot-cost）・粗利（#tot-profit）＝副次 */
+#tab-quote-make #quoteTable td.tot-amt-cell .stk-sell, #tab-quote-make #quoteTable td.tot-amt-cell .stk-sell *, #tab-quote-make #quoteTable #tot-subtotal, #tab-quote-make #quoteTable #tot-subtotal * { font-family: var(--font-heading) !important; font-size: 28px !important; font-weight: 700 !important; letter-spacing: .02em; color: var(--color-bg, #f2f2f3) !important; background: transparent !important; border: 0 !important; }
+#tab-quote-make #quoteTable td.tot-amt-cell .stk-cost, #tab-quote-make #quoteTable td.tot-amt-cell .stk-cost *, #tab-quote-make #quoteTable #tot-cost, #tab-quote-make #quoteTable #tot-cost *, #tab-quote-make #quoteTable td#tot-profit { font-size: 16px !important; font-weight: 600 !important; color: var(--color-accent-300, #b5d9fd) !important; background: transparent !important; }
+#tab-quote-make #quoteTable td#tot-profit .tot-margin { font-size: 13px; font-weight: 600; }
+#tab-quote-make #quoteTable tfoot tr.tot-ccy-row td { background: var(--color-neutral-200, #e7e7ea) !important; color: var(--color-text, #1d1f20) !important; font-size: 12px; }
+/* マイナス：赤地・白字＋文字「赤字」（色だけに頼らない）。クラスは profit-neg */
+#tab-quote-make #quoteTable tfoot td#tot-profit.profit-neg { background: #b0392e !important; color: #fff !important; }
+#tab-quote-make #quoteTable tfoot td#tot-profit.profit-neg * { color: #fff !important; }
+#tab-quote-make #quoteTable tfoot td#tot-profit.profit-neg::before { content: "赤字　"; font-size: 11px; font-weight: 700; }
+
+/* ===== v2 追加：操作ボタンの切れ・タッチ対応 ===== */
+/* 最終行付近は上向きに出す（表がスクロール領域で、下が切れるため）。JS で .is-flip を付けられるなら、そちらを優先 */
+#tab-quote-make #quoteTable tbody tr:nth-last-child(-n+3) td.handle-cell .row-acts, #tab-quote-make #quoteTable tr.is-flip td.handle-cell .row-acts,
+#tab-quote-make #quoteTable tbody tr:nth-last-child(-n+3) .row-mode-btns, #tab-quote-make #quoteTable tr.is-flip .row-mode-btns { top: auto; bottom: calc(100% - 2px); }
+/* タッチ（hover が無い端末）：見出しの操作は常に見せ、行の操作は行をタップ（JS で tr.is-active）したときに出す */
+@media (hover: none) {
+  #tab-quote-make #quoteTable tr.subcon-group-header .subcon-group-header-inner > button, #tab-quote-make #quoteTable tr.subcon-group-header .grp-updated, #tab-quote-make #quoteTable tr.subcon-group-header .grp-updated *,
+  #tab-quote-make #quoteTable tr.subcon-subgroup-header .subcon-subgroup-inner > button { opacity: 1 !important; }
+  #tab-quote-make #quoteTable tr.is-active td.handle-cell .row-acts, #tab-quote-make #quoteTable tr.is-active .row-mode-btns { opacity: 1; pointer-events: auto; }
+  #tab-quote-make #quoteTable td.handle-cell .drag-handle, #tab-quote-make #quoteTable td.handle-cell .row-acts > button { min-height: 44px; min-width: 44px; }
+}
