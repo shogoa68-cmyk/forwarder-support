@@ -3887,10 +3887,9 @@
             <tbody id="tableBody"></tbody>
             <tfoot>
               <tr class="tot-row">
-                <td></td><td></td><td></td><td></td><td></td><td></td>
+                <td colspan="4"></td>
                 <td id="tot-row-label" style="text-align:right; color:#555; font-weight:bold;">合　計</td>
-                <td></td>
-                <td class="subtotal-cell tot-amt-cell" style="text-align:right; padding-right:8px; font-weight:bold; background:#eef5fb;">
+                <td colspan="4" class="subtotal-cell tot-amt-cell" style="text-align:right; padding-right:8px; font-weight:bold; background:#eef5fb;">
                   <div class="stk">
                     <span class="stk-cost"><span class="t-cost">仕</span> <span id="tot-cost">—</span></span>
                     <span class="stk-sell"><span class="t-sell">売</span> <span id="tot-subtotal">—</span></span>
@@ -3900,10 +3899,9 @@
                 <td class="profit-cell profit-zero pr-cell" id="tot-profit">—</td>
               </tr>
               <tr class="tot-row tot-ps-row" id="totPsRow" hidden>
-                <td></td><td></td><td></td><td></td><td></td><td></td>
+                <td colspan="4"></td>
                 <td style="text-align:right; color:#6b21a8; font-weight:bold;">社内利益<small style="font-weight:600;">（PS込み）</small></td>
-                <td></td>
-                <td class="tot-amt-cell" style="text-align:right; padding-right:8px; font-weight:bold; background:#f5edfb;">
+                <td colspan="4" class="tot-amt-cell" style="text-align:right; padding-right:8px; font-weight:bold; background:#f5edfb;">
                   <span class="t-sell">代理店収益</span> <span id="tot-ps-rev">—</span>
                 </td>
                 <td class="profit-cell pr-cell" id="tot-ps-profit">—</td>
@@ -4332,12 +4330,12 @@
              再表示する場合は以下のボタンを戻すこと：
         <button class="cnt-link-btn" onclick="window.toggleCntLink?.(this)" title="コンテナ本数に数量を連動（FCL）" tabindex="-1">⛓</button> -->
         <div class="row-acts">
-          <button class="row-hidequote-btn" onclick="window.toggleRowHideQuote?.(this)" title="この行を見積書（プレビュー客先表示・PDF・Excel・CSV）に出力しない" tabindex="-1">👁</button>
-          <button class="row-pending-btn" onclick="window.toggleRowPending?.(this)" title="後で調べて記入（要調査マーク）。サーチャージ等、最新情報を調べてから埋める項目に。" tabindex="-1">🔍</button>
-          <button class="row-done-btn" onclick="window.toggleRowDone?.(this)" title="入力完了の目印。作成を再開したとき、どこまで終わったか分かります（もう一度クリックで解除）。" tabindex="-1">✓</button>
-          <button class="row-add-btn" onclick="window.rowAddBelow?.(this)" title="この行の直下に新しい行を追加" tabindex="-1">➕</button>
-          <button class="row-dup-btn" onclick="window.rowDuplicate?.(this)" title="この行を複製して直下に挿入" tabindex="-1">📋</button>
-          <button class="row-del-btn" onclick="window.rowDelete?.(this)" title="この行を削除" tabindex="-1">🗑️</button>
+          <button class="row-hidequote-btn" onclick="window.toggleRowHideQuote?.(this)" title="この行を見積書（プレビュー客先表示・PDF・Excel・CSV）に出力しない" tabindex="-1"><span class="row-act-ico">👁</span><span class="row-act-label">見積書に出さない</span></button>
+          <button class="row-pending-btn" onclick="window.toggleRowPending?.(this)" title="後で調べて記入（要調査マーク）。サーチャージ等、最新情報を調べてから埋める項目に。" tabindex="-1"><span class="row-act-ico">🔍</span><span class="row-act-label">要調査</span></button>
+          <button class="row-done-btn" onclick="window.toggleRowDone?.(this)" title="入力完了の目印。作成を再開したとき、どこまで終わったか分かります（もう一度クリックで解除）。" tabindex="-1"><span class="row-act-ico">✓</span><span class="row-act-label">入力完了</span></button>
+          <button class="row-add-btn" onclick="window.rowAddBelow?.(this)" title="この行の直下に新しい行を追加" tabindex="-1"><span class="row-act-ico">➕</span><span class="row-act-label">直下に追加</span></button>
+          <button class="row-dup-btn" onclick="window.rowDuplicate?.(this)" title="この行を複製して直下に挿入" tabindex="-1"><span class="row-act-ico">📋</span><span class="row-act-label">複製</span></button>
+          <button class="row-del-btn" onclick="window.rowDelete?.(this)" title="この行を削除" tabindex="-1"><span class="row-act-ico">🗑️</span><span class="row-act-label">削除</span></button>
         </div>
       </td>
       <td class="catsv-cell stk-cell">
@@ -4363,6 +4361,11 @@
         <div class="w-updated" title="この行の最終更新日（社内管理用・客先出力には含まれません）。サブコン／パターン見出しからまとめて設定もできます。">
           <span class="w-updated-lbl">🕒 更新</span>
           <input type="date" data-field="lu" class="w-updated-date" />
+        </div>
+        <!-- マスター関連の操作（明細の種類を示すフラグとは性格が違うため、品名の下に置く） -->
+        <div class="master-actions">
+          <button type="button" class="master-reg-btn" tabindex="-1" title="この行をマスター登録：品名（単位・備考・カテゴリ・代表単価）＋サブコンを登録し、次回同名入力時に自動入力・参考価格として活用します。">マスターに登録</button>
+          <button type="button" class="master-detail-jump-btn" tabindex="-1" hidden title="この品名のマスター詳細を見る・マスター管理タブの該当行へジャンプ">詳細</button>
         </div>
       </td>
       <td class="qty-cell">
@@ -4404,15 +4407,13 @@
         <input type="hidden" data-field="ppref" value="">
         <input type="hidden" data-field="es" value="">
         <div class="row-mode-btns">
-          <button type="button" class="zero-confirm-btn" tabindex="-1" title="0円確認済みにする（もう一度クリックで解除）">¥0✓</button>
+          <button type="button" class="zero-confirm-btn" tabindex="-1" title="あえて0円にする（0円であることを確認済みの目印。もう一度クリックで解除）">あえて¥0</button>
           <button type="button" class="actual-cost-btn" tabindex="-1" title="実費（金額未確定・別途精算）。単価・金額に「実費」と表示し、合計から除外します（もう一度クリックで解除）。">実費</button>
           <button type="button" class="profit-share-btn" tabindex="-1" title="PROFIT SHARE（代理店収益）。客先見積もりには出さず、社内の利益・粗利率にのみ計上します（もう一度クリックで解除）。">PS</button>
-          <button type="button" class="cond-charge-btn" tabindex="-1" title="発生時のみ／必要時のみ請求。金額は客先にも表示しますが、見積もり合計には加算しません（もう一度クリックで解除）。">都度</button>
-          <button type="button" class="ref-info-btn" tabindex="-1" title="参考情報。金額は客先にも表示しますが、見積もり合計には加算しません。「都度（発生時のみ請求）」とは別に、参考として提示したい行に使用します（もう一度クリックで解除）。">参考</button>
+          <button type="button" class="cond-charge-btn" tabindex="-1" title="必要時のみ請求。金額は客先にも表示しますが、見積もり合計には加算しません（もう一度クリックで解除）。">必要時</button>
+          <button type="button" class="ref-info-btn" tabindex="-1" title="参考情報。金額は客先にも表示しますが、見積もり合計には加算しません。「必要時（必要なときだけ請求）」とは別に、参考として提示したい行に使用します（もう一度クリックで解除）。">参考</button>
           <button type="button" class="est-btn" tabindex="-1" title="概算（金額は目安）。単価・金額の前に「約」を付けて表示します。見積もり合計には通常どおり加算されます（もう一度クリックで解除）。">概算</button>
           <button type="button" class="pct-mode-btn" tabindex="-1" title="仕入単価を「○○の何%」として計算（%率と基準額を入力）。もう一度クリックで直接入力に戻す。">%</button>
-          <button type="button" class="master-reg-btn" tabindex="-1" title="この行をマスター登録：品名（単位・備考・カテゴリ・代表単価）＋サブコンを登録し、次回同名入力時に自動入力・参考価格として活用します。">📇 登録</button>
-          <button type="button" class="master-detail-jump-btn" tabindex="-1" hidden title="この品名のマスター詳細を見る・マスター管理タブの該当行へジャンプ">📇 詳細</button>
         </div>
         <span class="actual-cost-badge" aria-hidden="true">実費</span>
       </td>

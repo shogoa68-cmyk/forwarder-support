@@ -4307,7 +4307,7 @@
           ? SharedCalc.grossMarginPct(sell, cost) : ((sell - cost) / sell * 100);
       }
       const isHidden = tr.dataset.hideQuote === '1';
-      const suffix = (tr.dataset.cond === '1' ? '（都度）' : '') + (tr.dataset.refInfo === '1' ? '（参考）' : '');
+      const suffix = (tr.dataset.cond === '1' ? '（必要時）' : '') + (tr.dataset.refInfo === '1' ? '（参考）' : '');
       // 直前のパターン見出し（level1）に実際に属するか。renderSubconGroups() が
       // パターン配下の行にのみ付与する subcon-subchild クラスで判定する。
       // これが無いと、パターンの後に続く「パターン無し」の行まで見た目上その

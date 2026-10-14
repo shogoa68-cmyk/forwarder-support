@@ -505,7 +505,7 @@
         tr.dataset.hideQuote = '1';
         tr.classList.add('row-hidden-quote');
         const hb = tr.querySelector('.row-hidequote-btn');
-        if (hb) { hb.classList.add('is-on'); hb.textContent = '🚫'; hb.title = '見積書で非表示中（クリックで出力に戻す）'; }
+        if (hb) { hb.classList.add('is-on'); window._setHideBtnIcon(hb, true); hb.title = '見積書で非表示中（クリックで出力に戻す）'; }
       }
       // 行の統合フラグを復元（バッジ描画は全行復元後に refreshMergeBadges でまとめて行う）
       if (row.mergedInto) {
