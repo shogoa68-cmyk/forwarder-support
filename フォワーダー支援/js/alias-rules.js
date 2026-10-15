@@ -869,9 +869,22 @@
     return error && /relation|does not exist|schema cache|not find/i.test(error.message || '');
   }
 
+  // Supabase（PostgREST）は 1 回の取得が最大 1000 行。超える分は黙って切り捨てられ、
+  // 後から登録した項目（候補・マスター）が丸ごと欠けるため、range で全件を取り切る。
+  async function _selectAll(makeQuery) {
+    const PAGE = 1000, out = [];
+    for (let from = 0; ; from += PAGE) {
+      const { data, error } = await makeQuery().range(from, from + PAGE - 1);
+      if (error) return { data: null, error };
+      out.push(...(data || []));
+      if (!data || data.length < PAGE) break;
+    }
+    return { data: out, error: null };
+  }
+
   window.synLoadCloud = async function () {
     if (!_cloud() || _synTableMissing) { _synCloud = null; return false; }
-    const { data, error } = await _c().from(SYN_TABLE).select('id,field,canonical,aliases');
+    const { data, error } = await _selectAll(() => _c().from(SYN_TABLE).select('id,field,canonical,aliases').order('id'));
     if (error) { if (_synMissingErr(error)) _synTableMissing = true; _synCloud = null; return false; }
     _synCloud = (data || []).map(r => ({
       id: r.id, field: r.field, canonical: r.canonical,
@@ -1067,7 +1080,7 @@
 
   window.mdLoadCloud = async function () {
     if (!_cloud() || _mdTableMissing) { _mdCloud = null; return false; }
-    const { data, error } = await _c().from(MD_TABLE).select('field,value,details');
+    const { data, error } = await _selectAll(() => _c().from(MD_TABLE).select('field,value,details').order('field').order('value'));
     if (error) { if (_mdMissingErr(error)) _mdTableMissing = true; _mdCloud = null; return false; }
     _mdCloud = (data || []).map(r => ({ field: r.field, value: r.value, details: r.details || {} }));
     return true;

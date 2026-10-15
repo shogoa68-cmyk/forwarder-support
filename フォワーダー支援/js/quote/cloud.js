@@ -3002,6 +3002,7 @@
       _renderCloudAuth();
       if (_cloudUser) {
         _loadProfiles().then(_renderCloudAuth); _initPresence();
+        if (typeof window.statsLoadMasterCache === 'function') window.statsLoadMasterCache();   // クラウドのマスターを入力補完（品名・サブコン等）へ
         if (document.body.classList.contains('qp-dash-active')) cloudListPresets(true);
       }
     });
@@ -3013,6 +3014,7 @@
       if (_cloudUser) {
         _loadProfiles().then(_renderCloudAuth);   // 自分のアバター/名前を反映
         _initPresence();
+        if (typeof window.statsLoadMasterCache === 'function') window.statsLoadMasterCache();   // クラウドのマスターを入力補完へ
         const modal = document.getElementById('presetMgrModal');
         if (modal && modal.classList.contains('open')) cloudListPresets();
         if (document.body.classList.contains('qp-dash-active')) cloudListPresets(true);

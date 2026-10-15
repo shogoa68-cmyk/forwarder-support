@@ -17,10 +17,24 @@
   function _me()   { const u = typeof window.cloudCurrentUser === 'function' ? window.cloudCurrentUser() : null; return u ? (u.email || '') : ''; }
   function _cloud(){ return !!_c() && !!_me(); }
 
+  // Supabase（PostgREST）は 1 回の取得が最大 1000 行。超える分は黙って切り捨てられ、
+  // 後から登録した項目（候補・マスター）が丸ごと欠けるため、range で全件を取り切る。
+  async function _selectAll(makeQuery) {
+    const PAGE = 1000, out = [];
+    for (let from = 0; ; from += PAGE) {
+      const { data, error } = await makeQuery().range(from, from + PAGE - 1);
+      if (error) return { data: null, error };
+      out.push(...(data || []));
+      if (!data || data.length < PAGE) break;
+    }
+    return { data: out, error: null };
+  }
+
   async function _loadCloudVotes() {
     const c = _c();
     if (!c) { _cvMap = null; return; }
-    const { data, error } = await c.from(VOTES_TABLE).select('field,value,voter_email');
+    const { data, error } = await _selectAll(() => c.from(VOTES_TABLE).select('field,value,voter_email')
+      .order('field').order('value').order('voter_email'));
     if (error) { _cvMap = null; return; }
     _cvMap = new Map();
     const me = _me();
@@ -756,6 +770,7 @@
       await _loadCloudVotes();
       if (typeof window.synLoadCloud === 'function') await window.synLoadCloud();
       if (typeof window.mdLoadCloud === 'function') await window.mdLoadCloud();
+      if (typeof window.arRefreshDatalist === 'function') window.arRefreshDatalist();
     }
     if (typeof window.statsMasterSetFilter === 'function') window.statsMasterSetFilter(field);
     else _renderMaster();
@@ -2322,6 +2337,25 @@
 
   // === パブリック API ===
 
+  // ログイン後に、クラウドのマスター（投票）・同義グループ・マスター詳細を読み込み、入力補完（datalist）へ反映する。
+  // これをしないと、マスター管理／統計タブを開くまで、クラウド登録済みの項目が見積テーブルの候補に出ない
+  // （ローカルに登録した分しか出ない）。
+  let _mcLoading = null;
+  window.statsLoadMasterCache = function () {
+    if (!_cloud()) return Promise.resolve();
+    if (_mcLoading) return _mcLoading;
+    _mcLoading = (async () => {
+      try {
+        await _loadCloudVotes();
+        if (typeof window.synLoadCloud === 'function') await window.synLoadCloud();
+        if (typeof window.mdLoadCloud === 'function') await window.mdLoadCloud();
+        if (typeof window.arRefreshDatalist === 'function') window.arRefreshDatalist();
+      } catch (err) { console.warn('[statsLoadMasterCache]', err); }
+      finally { _mcLoading = null; }
+    })();
+    return _mcLoading;
+  };
+
   window.initStatsTab = async function () {
     _data  = null;
     _cvMap = null;
@@ -2338,6 +2372,7 @@
       await _loadCloudVotes();
       if (typeof window.synLoadCloud === 'function') await window.synLoadCloud();
       if (typeof window.mdLoadCloud === 'function') await window.mdLoadCloud();
+      if (typeof window.arRefreshDatalist === 'function') window.arRefreshDatalist();   // 読み込んだクラウドのマスターを入力補完へ
       _renderCloud();
       _renderActivePane();
     }
@@ -2369,6 +2404,7 @@
       await _loadCloudVotes();
       if (typeof window.synLoadCloud === 'function') await window.synLoadCloud();
       if (typeof window.mdLoadCloud === 'function') await window.mdLoadCloud();
+      if (typeof window.arRefreshDatalist === 'function') window.arRefreshDatalist();   // 読み込んだクラウドのマスターを入力補完へ
       // アクティブなマスタータブのペインを再描画
       const active = document.querySelector('#tab-master .stats-pane.is-active');
       if (active && active.id === 'statsPane-alias') _renderAlias(); else _renderMaster();
