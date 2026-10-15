@@ -2612,6 +2612,7 @@
         </div><!-- /.cp-columns -->
         <div class="cloud-preview-foot">
           <span id="cpSelCount" class="cp-sel-count"></span>
+          <label id="cpRemarkOpt" class="cp-remark-opt" hidden title="明細の直下に付いているリマーク（💬 見積書に表示／🔒 社内メモ）も、明細と一緒に追加します"><input type="checkbox" id="cpIncludeRemarks" checked> 💬 リマークも追加<span id="cpRemarkCnt"></span></label>
           <button class="cp-btn-import" onclick="cloudImportSelectedRows()">✅ 選択した行を追加</button>
           <button class="cp-btn-quote" id="cpQuoteBtn" onclick="cloudQuoteFromPreview()" title="この案件の内容（引き合い条件・貨物情報・見積もりテーブル・全体リマーク等）を、現在編集中の案件へ取り込みます。「管理番号入力」セクション（見積もり番号・お客様名称・担当・受信日・提出期限・ステータス・タグ・メモ等）は現在の値のまま維持されます。">📥 内容を引用（管理番号は現状維持）</button>
           <button class="cp-btn-load"   onclick="cloudPreviewLoadFull()" title="この案件をそのまま開きます。現在編集中の内容は閉じられ、管理番号入力を含めすべてこの案件の内容に切り替わります">📂 全体を読み込む</button>
@@ -3889,22 +3890,22 @@
               <tr class="tot-row">
                 <td colspan="4"></td>
                 <td id="tot-row-label" style="text-align:right; color:#555; font-weight:bold;">合　計</td>
-                <td colspan="4" class="subtotal-cell tot-amt-cell" style="text-align:right; padding-right:8px; font-weight:bold; background:#eef5fb;">
+                <td colspan="3" class="subtotal-cell tot-amt-cell" style="text-align:right; padding-right:8px; font-weight:bold; background:#eef5fb;">
                   <div class="stk">
                     <span class="stk-cost"><span class="t-cost">仕</span> <span id="tot-cost">—</span></span>
                     <span class="stk-sell"><span class="t-sell">売</span> <span id="tot-subtotal">—</span></span>
                   </div>
                   <span id="tot-billing" style="display:none;">—</span>
                 </td>
-                <td class="profit-cell profit-zero pr-cell" id="tot-profit">—</td>
+                <td colspan="2" class="profit-cell profit-zero pr-cell" id="tot-profit">—</td>
               </tr>
               <tr class="tot-row tot-ps-row" id="totPsRow" hidden>
                 <td colspan="4"></td>
                 <td style="text-align:right; color:#6b21a8; font-weight:bold;">社内利益<small style="font-weight:600;">（PS込み）</small></td>
-                <td colspan="4" class="tot-amt-cell" style="text-align:right; padding-right:8px; font-weight:bold; background:#f5edfb;">
+                <td colspan="3" class="tot-amt-cell" style="text-align:right; padding-right:8px; font-weight:bold; background:#f5edfb;">
                   <span class="t-sell">代理店収益</span> <span id="tot-ps-rev">—</span>
                 </td>
-                <td class="profit-cell pr-cell" id="tot-ps-profit">—</td>
+                <td colspan="2" class="profit-cell pr-cell" id="tot-ps-profit">—</td>
               </tr>
             </tfoot>
           </table>
@@ -4364,8 +4365,17 @@
         </div>
         <!-- マスター関連の操作（明細の種類を示すフラグとは性格が違うため、品名の下に置く） -->
         <div class="master-actions">
+          <button type="button" class="row-detail-btn" tabindex="-1" aria-expanded="false" title="有効期間・単価のオプション（あえて¥0／実費／PS／必要時／参考／概算／%）・CD・金額の内訳を開く">その他 ▾<span class="used-badge" data-n="0"></span></button>
           <button type="button" class="master-reg-btn" tabindex="-1" title="この行をマスター登録：品名（単位・備考・カテゴリ・代表単価）＋サブコンを登録し、次回同名入力時に自動入力・参考価格として活用します。">マスターに登録</button>
           <button type="button" class="master-detail-jump-btn" tabindex="-1" hidden title="この品名のマスター詳細を見る・マスター管理タブの該当行へジャンプ">詳細</button>
+        </div>
+        <!-- 「その他 ▾」パネル（Industry テーマのみ表示。有効期間・フラグ・%・CD は row-layout.js が Industry のときだけここへ移す。classic では元の場所のまま） -->
+        <div class="row-detail-panel" role="group" aria-label="この行のその他の設定">
+          <div class="rd-group"><div class="rd-title">有効期間</div><div class="rd-slot" data-rd-slot="valid"></div></div>
+          <div class="rd-group"><div class="rd-title">状態</div><div class="rd-state"></div></div>
+          <div class="rd-group wide"><div class="rd-title">単価のオプション</div><div class="rd-slot" data-rd-slot="mode"></div><div class="rd-slot" data-rd-slot="pct"></div></div>
+          <div class="rd-group rd-cd-group"><div class="rd-title">CD（通貨差調整値）</div><div class="rd-slot" data-rd-slot="cd"></div></div>
+          <div class="rd-group"><div class="rd-title">金額の内訳</div><dl class="rd-breakdown"></dl></div>
         </div>
       </td>
       <td class="qty-cell">
@@ -4379,6 +4389,7 @@
         <div class="stk">
           <span class="stk-cost"><span class="stk-tag t-cost">仕</span><select data-field="pc" class="w-cur" data-col="3"></select></span>
           <span class="stk-sell"><span class="stk-tag t-sell">売</span><select data-field="bc" class="w-cur w-cur-sell" data-col="3b" title="売値の通貨。仕入通貨と別にする場合はここで変更（売単価を直接入力できます）"></select></span>
+          <span class="cd-flag" title="仕入と売値の通貨が違う行です。CD（通貨差調整値）は「その他 ▾」で確認できます">CD</span>
         </div>
       </td>
       <td class="price-cell stk-cell">
@@ -4691,6 +4702,7 @@
 <!-- 見積タブ用：初期化は switchTab フックで遅延実行（js/app.js 内） -->
 <script src="js/quote/constants.js"></script>
 <script src="js/quote/row.js"></script>
+<script src="js/quote/row-layout.js"></script>
 <script src="js/quote/preview.js"></script>
 <script src="js/quote/cargo.js"></script>
 <script src="js/quote/conditions.js"></script>

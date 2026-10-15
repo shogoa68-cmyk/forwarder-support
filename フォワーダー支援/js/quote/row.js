@@ -940,6 +940,7 @@
     _tb.addEventListener('mouseover', e => {
       const tr = e.target.closest && e.target.closest('tr');
       if (!tr || tr.dataset.virtual || tr.dataset.type || !tr.id) return;
+      if (tr.classList.contains('is-detail-open')) return;   // 「その他 ▾」パネルを開いている間は、向きを動かさない
       const wrap = document.getElementById('tableScrollWrap'); if (!wrap) return;
       const r = tr.getBoundingClientRect(), w = wrap.getBoundingClientRect();
       const need = 150;   // 操作ボタン（3×2・文字付き）の高さの目安
@@ -1474,13 +1475,18 @@
     const tr = document.getElementById(`row-${id}`);
     const hint = tr?.querySelector('.bp-base-hint');
     if (!hint) return;
-    if (tr.dataset.bcIndep !== '1') { hint.hidden = true; return; }
+    const bpEl = document.getElementById(`bp-${id}`);
+    // Industry では .bp-base-hint 自体は隠す（行の高さを固定するため）。同じ情報を ①売単価欄の title ②「その他 ▾」パネルの内訳 に出す
+    const _bpTip = txt => { if (bpEl) { if (txt) bpEl.title = txt + '（これを下回る売単価は赤字）'; else bpEl.removeAttribute('title'); } };
+    if (tr.dataset.bcIndep !== '1') { hint.hidden = true; _bpTip(''); window._rowStateRefresh?.(tr); return; }
     const pp = val(`pp-${id}`);
     const pc = document.getElementById(`pc-${id}`)?.value || 'JPY';
     const bc = document.getElementById(`bc-${id}`)?.value || 'JPY';
     const trueCost = (typeof _convCur === 'function') ? _convCur(pp, pc, bc) : 0;
     hint.hidden = false;
     hint.textContent = '原価換算 ' + fmt(trueCost) + ' ' + bc;
+    _bpTip(hint.textContent);
+    window._rowStateRefresh?.(tr);
   }
 
   // 売通貨（bc）変更時：pc と一致なら連動モードへ戻し、異なれば独立モードへ
@@ -1641,34 +1647,37 @@
       let stHTML;
       const isZeroConfirmed = document.getElementById(`zc-${id}`)?.value === '1';
       if (isActualCost) {
-        stHTML = '<span class="actual-cost-badge actual-cost-badge--cell">実費</span>';
+        stHTML = '<div class="st-main"><span class="actual-cost-badge actual-cost-badge--cell">実費</span></div><div class="st-state"></div>';
         st.innerHTML = stHTML;
         st.className = 'subtotal-cell subtotal-actual';
         // 利益は算出不能 → —
         const prAc = document.getElementById(`pr-${id}`);
-        if (prAc) { prAc.textContent = '—'; prAc.className = 'profit-cell profit-zero'; }
+        if (prAc) { prAc.innerHTML = '<div class="pr-main">—</div>'; prAc.className = 'profit-cell profit-zero'; }
         // ¥0✓ とは排他：0円バッジ/ボタンの ON を解除
         const zcBtnA = trEl0?.querySelector('.zero-confirm-btn');
         if (zcBtnA) zcBtnA.classList.remove('is-on');
+        window._rowStateRefresh?.(trEl0);
         scheduleUpdateTotals();
         return;
       }
       const estPrefix = isEstimate ? '<span class="est-prefix" title="概算（目安の金額）">約</span>' : '';
+      // 構造：.st-main（金額）／.st-sub.jpy（円換算の目安）／.st-sub.tax（消費税の目安）／.st-state（状態チップ＝_rowStateRefresh が埋める）
+      // classic では .st-sub を縦に並べるだけ（従来の「文字＋br＋small」と同じ見た目）。Industry は 2 段目に 1 つだけ出す（円換算を優先）
       if (bc !== 'JPY' && canFx && subtotal) {
         const jpySub = Math.ceil(toJPY(subtotal, bc));
-        stHTML = estPrefix + fmt(subtotal) + '<br><small class="jpy-conv-hint">(≈¥' + fmt(jpySub) + ')</small>';
-        if (taxed) stHTML += '<br><small class="tax-hint">（消費税：≈¥' + fmt(Math.ceil(jpySub * taxRate)) + '）</small>';
+        stHTML = '<div class="st-main">' + estPrefix + fmt(subtotal) + '</div><div class="st-sub jpy"><small class="jpy-conv-hint">(≈¥' + fmt(jpySub) + ')</small></div>';
+        if (taxed) stHTML += '<div class="st-sub tax"><small class="tax-hint">（消費税：≈¥' + fmt(Math.ceil(jpySub * taxRate)) + '）</small></div>';
       } else {
         if (subtotal) {
-          stHTML = estPrefix + fmt(subtotal);
-          if (taxed) stHTML += '<br><small class="tax-hint">（消費税：' + fmt(Math.ceil(subtotal * taxRate)) + '円）</small>';
+          stHTML = '<div class="st-main">' + estPrefix + fmt(subtotal) + '</div>';
+          if (taxed) stHTML += '<div class="st-sub tax"><small class="tax-hint">（消費税：' + fmt(Math.ceil(subtotal * taxRate)) + '円）</small></div>';
         } else if (isZeroConfirmed) {
-          stHTML = '<span class="zero-confirmed-badge">あえて¥0</span>';
+          stHTML = '<div class="st-main"><span class="zero-confirmed-badge">あえて¥0</span></div>';
         } else {
-          stHTML = '—';
+          stHTML = '<div class="st-main">—</div>';
         }
       }
-      st.innerHTML = stHTML;
+      st.innerHTML = stHTML + '<div class="st-state"></div>';
       st.className = 'subtotal-cell' + (subtotal ? ' subtotal-has-value' : '');
       // ¥0✓ボタンの表示状態を同期
       const zcBtn = document.getElementById(`row-${id}`)?.querySelector('.zero-confirm-btn');
@@ -1683,17 +1692,20 @@
     const isFx = canFx && (bc !== 'JPY' || pc !== 'JPY') && (subtotal || profit);
     if (ccyMismatch && canFx) {
       const jpyProfit = Math.ceil(toJPY(subtotal, bc) - toJPY(pq * pp, pc));
-      pr.innerHTML = '≈¥' + fmt(jpyProfit) +
-        '<br><small class="jpy-conv-hint" title="仕入（' + pc + '）と売（' + bc + '）の通貨が異なるため、円換算後の差額のみを表示しています">円換算後</small>';
+      pr.innerHTML = '<div class="pr-main">≈¥' + fmt(jpyProfit) + '</div>' +
+        '<div class="pr-sub"><small class="jpy-conv-hint" title="仕入（' + pc + '）と売（' + bc + '）の通貨が異なるため、円換算後の差額のみを表示しています">円換算後</small></div>';
       pr.className = `profit-cell ${pClass(jpyProfit)}`;
     } else if (isFx) {
       const jpyProfit = Math.ceil(toJPY(subtotal, bc) - toJPY(pq * pp, pc));
-      pr.innerHTML = fmt(profit) + '<br><small class="jpy-conv-hint">(≈¥' + fmt(jpyProfit) + ')</small>';
+      pr.innerHTML = '<div class="pr-main">' + fmt(profit) + '</div><div class="pr-sub"><small class="jpy-conv-hint">(≈¥' + fmt(jpyProfit) + ')</small></div>';
       pr.className = `profit-cell ${pClass(profit)}`;
     } else {
-      pr.textContent = fmt(profit);
+      // 粗利率（Industry のみ表示。classic は .pr-rate を CSS で隠す）
+      const rate = subtotal > 0 ? ' <small class="pr-rate">粗利 ' + (profit / subtotal * 100).toFixed(1) + '%</small>' : '';
+      pr.innerHTML = '<div class="pr-main">' + fmt(profit) + '</div>' + (rate ? '<div class="pr-sub">' + rate + '</div>' : '');
       pr.className = `profit-cell ${pClass(profit)}`;
     }
+    window._rowStateRefresh?.(trEl0);
     scheduleUpdateTotals();
   }
 

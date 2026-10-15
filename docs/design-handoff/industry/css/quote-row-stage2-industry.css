@@ -1,0 +1,53 @@
+/* quote-row-stage2-industry.css（v3）— 第2段階：「その他 ▾」と拡張パネル
+   v2 からの変更：
+   ・入口の名前を「詳細 ▾」→「その他 ▾」（マスターの「詳細」ボタンと同じ言葉で紛らわしいため）
+   ・💬 🔒 はパネルに移さず、2段目に残す（パネルから外した）
+   ・パネルを開いている間は .row-acts を出さない（閉じれば出る）
+   ・パネルに「状態」と「金額の内訳」を追加（状態チップの「＋n」から開いたときの一覧／消費税の目安の置き場）
+   ・対象行のセレクタを v3 stage1 と同じ「通常の明細行」に */
+
+#tab-quote-make #quoteTable .row-detail-btn { height: 28px; padding: 0 10px; border: 1px solid var(--color-accent-700, #416180); background: transparent; color: var(--color-accent-800, #2c455d); font-size: 12px; white-space: nowrap; display: inline-flex; align-items: center; gap: 6px; border-radius: 0; cursor: pointer; }
+#tab-quote-make #quoteTable tr.is-detail-open .row-detail-btn { background: var(--color-accent-200, #d6ebff); }
+#tab-quote-make #quoteTable .row-detail-btn .used-badge { min-width: 16px; height: 16px; line-height: 16px; text-align: center; font-size: 11px; font-weight: 700; background: var(--color-accent-900, #1d2d3d); color: var(--color-bg, #f2f2f3); }
+#tab-quote-make #quoteTable .row-detail-btn .used-badge:empty, #tab-quote-make #quoteTable .row-detail-btn .used-badge[data-n="0"] { display: none; }
+@media (hover: none) { #tab-quote-make #quoteTable .row-detail-btn { height: 44px; min-width: 44px; } }
+
+/* 3段目：master-actions の先頭に「その他 ▾」。右にマスター登録／登録済み */
+#tab-quote-make #quoteTable td.name-cell > .master-actions > .row-detail-btn { order: -1; }
+
+/* ===== 第1案：行の下に重ねる（td.name-cell の内側。tr を基準に left:0; right:0。行の高さは変えない） ===== */
+#tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) { position: relative; }
+#tab-quote-make #quoteTable td.name-cell { position: static; }
+#tab-quote-make #quoteTable .row-detail-panel { display: none; }
+#tab-quote-make #quoteTable tr.is-detail-open .row-detail-panel {
+  display: grid; position: absolute; left: 0; right: 0; top: 100%; z-index: 40; box-sizing: border-box;
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 18px 28px; padding: 16px 20px 16px 80px;
+  background: #fff; border: 1px solid var(--color-text, #1d1f20); border-top: 0; box-shadow: var(--shadow-md); }
+#tab-quote-make #quoteTable tr.is-flip.is-detail-open .row-detail-panel { top: auto; bottom: 100%; border-top: 1px solid var(--color-text, #1d1f20); border-bottom: 0; }
+#tab-quote-make #quoteTable .row-detail-panel .rd-group { display: flex; flex-direction: column; gap: 6px; }
+#tab-quote-make #quoteTable .row-detail-panel .rd-group.wide { grid-column: 1 / -1; }
+#tab-quote-make #quoteTable .row-detail-panel .rd-title { font-family: var(--font-heading); font-weight: 600; font-size: 12px; letter-spacing: .14em; color: var(--color-accent-700, #416180); }
+#tab-quote-make #quoteTable .row-detail-panel .rd-flags { display: flex; flex-wrap: wrap; gap: 6px; }
+#tab-quote-make #quoteTable .row-detail-panel .rd-state { display: flex; flex-wrap: wrap; gap: 6px; }            /* 状態チップの全件（JS が生成。.state-chip を再利用） */
+#tab-quote-make #quoteTable .row-detail-panel .rd-state .state-chip { max-width: none; }
+#tab-quote-make #quoteTable .row-detail-panel .rd-breakdown { display: grid; grid-template-columns: auto auto; gap: 4px 16px; justify-content: start; font-size: 12px; font-variant-numeric: tabular-nums; }  /* 円換算・消費税の目安 */
+#tab-quote-make #quoteTable .row-detail-panel .rd-breakdown dt { color: var(--color-neutral-700, #5d5d60); } #tab-quote-make #quoteTable .row-detail-panel .rd-breakdown dd { margin: 0; text-align: right; font-weight: 600; }
+
+/* パネルを開いている間は、行の操作ボタン（.row-acts）を出さない。閉じれば元どおり */
+#tab-quote-make #quoteTable tr.is-detail-open td.handle-cell .row-acts { opacity: 0 !important; pointer-events: none !important; }
+
+/* ===== パネル内の再表示（stage1 の「隠す」指定に勝つ：詳細度＋!important）。要素は HTML でパネルへ移す ===== */
+#tab-quote-make #quoteTable .row-detail-panel .w-valid { display: flex !important; gap: 6px; align-items: center; }
+#tab-quote-make #quoteTable .row-detail-panel .w-valid input { width: 130px; }
+#tab-quote-make #quoteTable .row-detail-panel .row-mode-btns { display: flex !important; flex-wrap: wrap; gap: 6px; position: static; opacity: 1; pointer-events: auto; max-width: none; padding: 0; border: 0; box-shadow: none; background: transparent; }
+#tab-quote-make #quoteTable .row-detail-panel .row-mode-btns > button { height: 28px; padding: 0 10px; white-space: nowrap; font-size: 12px; border-radius: 0; }
+#tab-quote-make #quoteTable .row-detail-panel .pct-group { display: flex !important; flex-wrap: wrap; align-items: center; gap: 6px; }
+#tab-quote-make #quoteTable .row-detail-panel .pct-group input, #tab-quote-make #quoteTable .row-detail-panel .pct-group select { width: 110px; height: 32px; }
+#tab-quote-make #quoteTable .row-detail-panel .row-cd { display: none !important; }
+#tab-quote-make #quoteTable tr[data-ccy-diff="1"] .row-detail-panel .row-cd { display: flex !important; flex-direction: column; gap: 6px; }   /* CD は通貨が違う行だけ */
+#tab-quote-make #quoteTable .row-detail-panel .row-cd input { width: 110px; height: 32px; }
+
+/* ===== 第2案：行の中に縦に展開（html に class="row-detail-inline"）。td.name-cell の幅 224px のまま下に伸びる ===== */
+.row-detail-inline #tab-quote-make #quoteTable > tbody > tr.is-detail-open:not([data-virtual]):not([data-type]) { height: auto; }
+.row-detail-inline #tab-quote-make #quoteTable > tbody > tr.is-detail-open:not([data-virtual]):not([data-type]) > td { height: auto; }
+.row-detail-inline #tab-quote-make #quoteTable tr.is-detail-open .row-detail-panel { position: static; display: flex; flex-direction: column; gap: 12px; padding: 12px 0 0; border: 0; box-shadow: none; background: transparent; margin-top: 8px; border-top: 1px solid var(--color-neutral-300, #d4d4d7); }

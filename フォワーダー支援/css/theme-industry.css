@@ -8301,6 +8301,538 @@ html.theme-industry {
   }
 }
 
+/* ===== quote-row-stage1-industry.css（Design 追加分） ===== */
+:where(html.theme-industry) #tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) {
+  height: 116px;
+}
+:where(html.theme-industry) #tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) > td {
+  vertical-align: top;
+  padding: 8px 6px;
+  height: 116px;
+  box-sizing: border-box;
+}
+:where(html.theme-industry) #tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) > td:first-child {
+  padding: 8px 0 0;
+  box-shadow: inset 4px 0 0 var(--color-accent-200, #d6ebff);
+}
+:where(html.theme-industry) #tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) > td.check-cell {
+  width: 44px;
+  min-width: 44px;
+  max-width: 44px;
+  text-align: center;
+  overflow: visible;
+}
+:where(html.theme-industry) #tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) > td.check-cell input[type=checkbox],
+:where(html.theme-industry) #tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) > td.tax-cell input[type=checkbox] {
+  width: 16px !important;
+  height: 16px !important;
+  margin: 8px 0 0;
+}
+:where(html.theme-industry) #tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) > td.handle-cell {
+  width: 32px;
+  min-width: 32px;
+  padding: 8px 0 0;
+  text-align: center;
+}
+:where(html.theme-industry) #tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) > td.tax-cell {
+  width: 44px;
+  min-width: 44px;
+  text-align: center;
+}
+:where(html.theme-industry) #tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) > td.catsv-cell {
+  width: 120px;
+}
+:where(html.theme-industry) #tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) > td.name-cell {
+  width: 224px;
+}
+:where(html.theme-industry) #tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) > td.qty-cell {
+  width: 96px;
+  min-width: 96px;
+}
+:where(html.theme-industry) #tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) > td.ccy-cell {
+  width: 96px;
+  min-width: 96px;
+}
+:where(html.theme-industry) #tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) > td.price-cell {
+  width: 176px;
+}
+:where(html.theme-industry) #tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) > td.subtotal-cell {
+  width: 112px;
+}
+:where(html.theme-industry) #tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) > td.profit-cell {
+  width: 96px;
+}
+:where(html.theme-industry) #tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) > td.catsv-cell .stk {
+  display: grid;
+  grid-template-rows: repeat(3, 32px);
+  row-gap: 4px;
+}
+:where(html.theme-industry) #tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) > td.catsv-cell .w-subcon {
+  grid-row: 1;
+}
+:where(html.theme-industry) #tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) > td.catsv-cell .w-pattern,
+:where(html.theme-industry) #tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) > td.catsv-cell .w-pattern:placeholder-shown {
+  grid-row: 2;
+  display: block !important;
+}
+:where(html.theme-industry) #tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) > td.catsv-cell select.w-cat {
+  grid-row: 3;
+  display: block !important;
+}
+:where(html.theme-industry) #tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) > td.name-cell > .w-name {
+  display: block;
+  height: 32px;
+  margin: 0 0 4px;
+  font-weight: 700;
+}
+:where(html.theme-industry) #tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) > td.name-cell > .w-note-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 32px 32px;
+  gap: 4px;
+  height: 32px;
+  margin: 0 0 4px;
+}
+:where(html.theme-industry) #tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) > td.name-cell > .w-note-row > .w-note {
+  width: 100%;
+  min-width: 0;
+}
+:where(html.theme-industry) #tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) > td.name-cell > .w-note-row > button {
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  font-size: 14px;
+  line-height: 1;
+  border: 1px solid var(--color-neutral-400, #b7b7ba);
+  background: #fff;
+  border-radius: 0;
+}
+:where(html.theme-industry) #tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) > td.name-cell > .master-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  margin: 0;
+  min-height: 0;
+}
+:where(html.theme-industry) #tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) > td.name-cell .master-reg-btn,
+:where(html.theme-industry) #tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) > td.name-cell .master-detail-jump-btn {
+  visibility: visible;
+  height: 28px;
+  line-height: 1;
+  white-space: nowrap;
+  font-size: 12px;
+}
+:where(html.theme-industry) #tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) > td.name-cell > .w-valid,
+:where(html.theme-industry) #tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) > td.name-cell > .w-updated {
+  display: none !important;
+}
+:where(html.theme-industry) #tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) > td.qty-cell .qty-wrap {
+  display: grid;
+  grid-template-rows: 32px 32px;
+  row-gap: 4px;
+}
+:where(html.theme-industry) #tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) > td.qty-cell .w-qty {
+  text-align: right;
+}
+:where(html.theme-industry) #tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) > td.qty-cell .bq-mirror {
+  display: none;
+}
+:where(html.theme-industry) #tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) > td.ccy-cell .stk {
+  display: grid;
+  grid-template-rows: repeat(3, 32px);
+  row-gap: 4px;
+}
+:where(html.theme-industry) #tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) > td.ccy-cell .stk-cost,
+:where(html.theme-industry) #tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) > td.ccy-cell .stk-sell {
+  display: grid;
+  grid-template-columns: 16px minmax(0, 1fr);
+  column-gap: 4px;
+  align-items: center;
+}
+:where(html.theme-industry) #tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) > td.ccy-cell .stk-cost {
+  grid-row: 1;
+}
+:where(html.theme-industry) #tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) > td.ccy-cell .stk-sell {
+  grid-row: 2;
+}
+:where(html.theme-industry) #tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) > td.ccy-cell .stk-tag {
+  width: 16px;
+  text-align: center;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+:where(html.theme-industry) #tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) > td.ccy-cell select.w-cur {
+  min-width: 0;
+  padding: 0 4px;
+}
+:where(html.theme-industry) #tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) > td.ccy-cell .cd-flag {
+  grid-row: 3;
+  display: none;
+  font-size: 11px;
+  line-height: 32px;
+  color: var(--color-accent-700, #416180);
+  white-space: nowrap;
+}
+:where(html.theme-industry) #tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type])[data-ccy-diff="1"] > td.ccy-cell .cd-flag {
+  display: block;
+}
+:where(html.theme-industry) #tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) > td.price-cell .stk-price {
+  display: grid;
+  grid-template-rows: repeat(3, 32px);
+  row-gap: 4px;
+}
+:where(html.theme-industry) #tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) > td.price-cell .stk-cost,
+:where(html.theme-industry) #tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) > td.price-cell .stk-sell,
+:where(html.theme-industry) #tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) > td.price-cell .stk-mk {
+  display: grid;
+  grid-template-columns: 20px minmax(0, 1fr);
+  column-gap: 6px;
+  align-items: center;
+}
+:where(html.theme-industry) #tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) > td.price-cell .stk-cost {
+  grid-row: 1;
+}
+:where(html.theme-industry) #tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) > td.price-cell .stk-mk {
+  grid-row: 2;
+}
+:where(html.theme-industry) #tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) > td.price-cell .stk-sell {
+  grid-row: 3;
+}
+:where(html.theme-industry) #tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) > td.price-cell .stk-tag,
+:where(html.theme-industry) #tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) > td.price-cell .stk-mk-plus {
+  width: 20px;
+  text-align: center;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+:where(html.theme-industry) #tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) > td.price-cell .bp-base-hint,
+:where(html.theme-industry) #tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) > td.price-cell .row-cd,
+:where(html.theme-industry) #tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) > td.price-cell .pct-group,
+:where(html.theme-industry) #tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) > td.price-cell .row-mode-btns {
+  display: none !important;
+}
+:where(html.theme-industry) #tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) > td input:not([type=checkbox]):not([type=hidden]):not(.bq-mirror),
+:where(html.theme-industry) #tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) > td select {
+  box-sizing: border-box;
+  height: 32px;
+  padding: 0 8px;
+  font-size: 13px;
+  line-height: 30px;
+  width: 100%;
+  min-width: 0;
+  border: 1px solid var(--color-neutral-400, #b7b7ba);
+  background: #fff;
+  border-radius: 0;
+}
+:where(html.theme-industry) #tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) > td input.w-qty,
+:where(html.theme-industry) #tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) > td input.w-price,
+:where(html.theme-industry) #tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) > td input.w-mkup {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+:where(html.theme-industry) #tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) > td input:focus,
+:where(html.theme-industry) #tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) > td select:focus {
+  border-color: var(--color-accent, #5980a6);
+  box-shadow: inset 0 -2px 0 var(--color-accent, #5980a6);
+  outline: none;
+}
+:where(html.theme-industry) #tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) > td.price-cell .w-price.display-field {
+  height: 32px;
+  line-height: 30px;
+  border: 1px dashed var(--color-neutral-400, #b7b7ba);
+  background: var(--color-neutral-100, #f5f5f8);
+  font-weight: 700;
+  text-align: right;
+}
+:where(html.theme-industry) #tab-quote-make #quoteTable .w-updated,
+:where(html.theme-industry) #tab-quote-make #quoteTable .row-updated,
+:where(html.theme-industry) #tab-quote-make #quoteTable .grp-updated,
+:where(html.theme-industry) #tab-quote-make #quoteTable .grp-today-btn {
+  display: none !important;
+}
+:where(html.theme-industry) #tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) > td.subtotal-cell > .st-main,
+:where(html.theme-industry) #tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) > td.profit-cell > .pr-main {
+  height: 32px;
+  line-height: 32px;
+  margin-bottom: 4px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+:where(html.theme-industry) #tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) > td.subtotal-cell > .st-main {
+  font-size: 14px;
+  font-weight: 700;
+}
+:where(html.theme-industry) #tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) > td.profit-cell > .pr-main {
+  font-size: 13px;
+}
+:where(html.theme-industry) #tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) > td.subtotal-cell > .st-sub,
+:where(html.theme-industry) #tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) > td.profit-cell > .pr-sub {
+  height: 32px;
+  line-height: 32px;
+  margin-bottom: 4px;
+  text-align: right;
+  font-size: 11px;
+  color: var(--color-neutral-700, #5d5d60);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+:where(html.theme-industry) #tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) > td.profit-cell > .pr-sub {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-accent-700, #416180);
+}
+:where(html.theme-industry) #tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) > td.subtotal-cell > .st-state {
+  height: 32px;
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 4px;
+  overflow: hidden;
+  cursor: pointer;
+}
+:where(html.theme-industry) #tab-quote-make #quoteTable .st-state .state-chip {
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: 74px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  height: 20px;
+  line-height: 18px;
+  box-sizing: border-box;
+  padding: 0 5px;
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+  border: 1px solid var(--color-accent-700, #416180);
+  color: var(--color-accent-800, #2c455d);
+  background: transparent;
+  border-radius: 0;
+}
+:where(html.theme-industry) #tab-quote-make #quoteTable .st-state .state-chip.is-solid {
+  background: var(--color-accent-900, #1d2d3d);
+  color: var(--color-bg, #f2f2f3);
+  border-color: var(--color-accent-900, #1d2d3d);
+}
+:where(html.theme-industry) #tab-quote-make #quoteTable .st-state .state-chip.is-warn {
+  border-color: #8a5a2b;
+  color: #8a5a2b;
+}
+:where(html.theme-industry) #tab-quote-make #quoteTable .st-state .state-chip.is-done {
+  border-style: dashed;
+}
+:where(html.theme-industry) #tab-quote-make #quoteTable .st-state .state-more {
+  flex: none;
+  min-width: 20px;
+  height: 20px;
+  line-height: 18px;
+  box-sizing: border-box;
+  text-align: center;
+  font-size: 11px;
+  font-weight: 700;
+  border: 1px solid var(--color-neutral-500, #98989b);
+  color: var(--color-neutral-800, #424244);
+  padding: 0 3px;
+}
+
+/* ===== quote-row-stage2-industry.css（Design 追加分） ===== */
+:where(html.theme-industry) #tab-quote-make #quoteTable .row-detail-btn {
+  height: 28px;
+  padding: 0 10px;
+  border: 1px solid var(--color-accent-700, #416180);
+  background: transparent;
+  color: var(--color-accent-800, #2c455d);
+  font-size: 12px;
+  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border-radius: 0;
+  cursor: pointer;
+}
+:where(html.theme-industry) #tab-quote-make #quoteTable tr.is-detail-open .row-detail-btn {
+  background: var(--color-accent-200, #d6ebff);
+}
+:where(html.theme-industry) #tab-quote-make #quoteTable .row-detail-btn .used-badge {
+  min-width: 16px;
+  height: 16px;
+  line-height: 16px;
+  text-align: center;
+  font-size: 11px;
+  font-weight: 700;
+  background: var(--color-accent-900, #1d2d3d);
+  color: var(--color-bg, #f2f2f3);
+}
+:where(html.theme-industry) #tab-quote-make #quoteTable .row-detail-btn .used-badge:empty,
+:where(html.theme-industry) #tab-quote-make #quoteTable .row-detail-btn .used-badge[data-n="0"] {
+  display: none;
+}
+@media (hover: none) {
+  :where(html.theme-industry) #tab-quote-make #quoteTable .row-detail-btn {
+    height: 44px;
+    min-width: 44px;
+  }
+}
+:where(html.theme-industry) #tab-quote-make #quoteTable td.name-cell > .master-actions > .row-detail-btn {
+  order: -1;
+}
+:where(html.theme-industry) #tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) {
+  position: relative;
+}
+:where(html.theme-industry) #tab-quote-make #quoteTable td.name-cell {
+  position: static;
+}
+:where(html.theme-industry) #tab-quote-make #quoteTable .row-detail-panel {
+  display: none;
+}
+:where(html.theme-industry) #tab-quote-make #quoteTable tr.is-detail-open .row-detail-panel {
+  display: grid;
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 100%;
+  z-index: 40;
+  box-sizing: border-box;
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  gap: 18px 28px;
+  padding: 16px 20px 16px 80px;
+  background: #fff;
+  border: 1px solid var(--color-text, #1d1f20);
+  border-top: 0;
+  box-shadow: var(--shadow-md);
+}
+:where(html.theme-industry) #tab-quote-make #quoteTable tr.is-flip.is-detail-open .row-detail-panel {
+  top: auto;
+  bottom: 100%;
+  border-top: 1px solid var(--color-text, #1d1f20);
+  border-bottom: 0;
+}
+:where(html.theme-industry) #tab-quote-make #quoteTable .row-detail-panel .rd-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+:where(html.theme-industry) #tab-quote-make #quoteTable .row-detail-panel .rd-group.wide {
+  grid-column: 1 / -1;
+}
+:where(html.theme-industry) #tab-quote-make #quoteTable .row-detail-panel .rd-title {
+  font-family: var(--font-heading);
+  font-weight: 600;
+  font-size: 12px;
+  letter-spacing: .14em;
+  color: var(--color-accent-700, #416180);
+}
+:where(html.theme-industry) #tab-quote-make #quoteTable .row-detail-panel .rd-flags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+:where(html.theme-industry) #tab-quote-make #quoteTable .row-detail-panel .rd-state {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+:where(html.theme-industry) #tab-quote-make #quoteTable .row-detail-panel .rd-state .state-chip {
+  max-width: none;
+}
+:where(html.theme-industry) #tab-quote-make #quoteTable .row-detail-panel .rd-breakdown {
+  display: grid;
+  grid-template-columns: auto auto;
+  gap: 4px 16px;
+  justify-content: start;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+:where(html.theme-industry) #tab-quote-make #quoteTable .row-detail-panel .rd-breakdown dt {
+  color: var(--color-neutral-700, #5d5d60);
+}
+:where(html.theme-industry) #tab-quote-make #quoteTable .row-detail-panel .rd-breakdown dd {
+  margin: 0;
+  text-align: right;
+  font-weight: 600;
+}
+:where(html.theme-industry) #tab-quote-make #quoteTable tr.is-detail-open td.handle-cell .row-acts {
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+:where(html.theme-industry) #tab-quote-make #quoteTable .row-detail-panel .w-valid {
+  display: flex !important;
+  gap: 6px;
+  align-items: center;
+}
+:where(html.theme-industry) #tab-quote-make #quoteTable .row-detail-panel .w-valid input {
+  width: 130px;
+}
+:where(html.theme-industry) #tab-quote-make #quoteTable .row-detail-panel .row-mode-btns {
+  display: flex !important;
+  flex-wrap: wrap;
+  gap: 6px;
+  position: static;
+  opacity: 1;
+  pointer-events: auto;
+  max-width: none;
+  padding: 0;
+  border: 0;
+  box-shadow: none;
+  background: transparent;
+}
+:where(html.theme-industry) #tab-quote-make #quoteTable .row-detail-panel .row-mode-btns > button {
+  height: 28px;
+  padding: 0 10px;
+  white-space: nowrap;
+  font-size: 12px;
+  border-radius: 0;
+}
+:where(html.theme-industry) #tab-quote-make #quoteTable .row-detail-panel .pct-group {
+  display: flex !important;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+:where(html.theme-industry) #tab-quote-make #quoteTable .row-detail-panel .pct-group input,
+:where(html.theme-industry) #tab-quote-make #quoteTable .row-detail-panel .pct-group select {
+  width: 110px;
+  height: 32px;
+}
+:where(html.theme-industry) #tab-quote-make #quoteTable .row-detail-panel .row-cd {
+  display: none !important;
+}
+:where(html.theme-industry) #tab-quote-make #quoteTable tr[data-ccy-diff="1"] .row-detail-panel .row-cd {
+  display: flex !important;
+  flex-direction: column;
+  gap: 6px;
+}
+:where(html.theme-industry) #tab-quote-make #quoteTable .row-detail-panel .row-cd input {
+  width: 110px;
+  height: 32px;
+}
+:where(html.theme-industry) .row-detail-inline #tab-quote-make #quoteTable > tbody > tr.is-detail-open:not([data-virtual]):not([data-type]) {
+  height: auto;
+}
+:where(html.theme-industry) .row-detail-inline #tab-quote-make #quoteTable > tbody > tr.is-detail-open:not([data-virtual]):not([data-type]) > td {
+  height: auto;
+}
+:where(html.theme-industry) .row-detail-inline #tab-quote-make #quoteTable tr.is-detail-open .row-detail-panel {
+  position: static;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 12px 0 0;
+  border: 0;
+  box-shadow: none;
+  background: transparent;
+  margin-top: 8px;
+  border-top: 1px solid var(--color-neutral-300, #d4d4d7);
+}
+
 /* ===== code-overrides-industry.css（Design 追加分） ===== */
 :where(html.theme-industry) #tab-quote-make #quoteTable thead th:nth-child(1) {
   width: 36px !important;
@@ -8308,18 +8840,65 @@ html.theme-industry {
 :where(html.theme-industry) #tab-quote-make #quoteTable thead th:nth-child(2) {
   width: 32px !important;
 }
+:where(html.theme-industry) #tab-quote-make #quoteTable thead th.hd-catsv:nth-child(3) {
+  width: 112px !important;
+}
+:where(html.theme-industry) #tab-quote-make #quoteTable thead th:nth-child(4) {
+  width: 216px !important;
+}
 :where(html.theme-industry) #tab-quote-make #quoteTable thead th:nth-child(5) {
-  width: 194px !important;
+  width: 104px !important;
 }
 :where(html.theme-industry) #tab-quote-make #quoteTable thead th:nth-child(6) {
-  width: 80px !important;
+  width: 92px !important;
 }
 :where(html.theme-industry) #tab-quote-make #quoteTable thead th:nth-child(7) {
-  width: 150px !important;
+  width: 168px !important;
 }
-:where(html.theme-industry) #tab-quote-make #quoteTable td.check-cell {
-  padding: 0;
-  text-align: center;
+:where(html.theme-industry) #tab-quote-make #quoteTable thead th:nth-child(8) {
+  width: 36px !important;
+}
+:where(html.theme-industry) #tab-quote-make #quoteTable thead th:nth-child(9) {
+  width: 108px !important;
+}
+:where(html.theme-industry) #tab-quote-make #quoteTable thead th:nth-child(10) {
+  width: 88px !important;
+}
+:where(html.theme-industry) #tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) > td.check-cell,
+:where(html.theme-industry) #tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) > td.tax-cell {
+  width: 36px;
+  min-width: 36px;
+  max-width: 36px;
+}
+:where(html.theme-industry) #tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) > td.catsv-cell {
+  width: 112px;
+  min-width: 0;
+}
+:where(html.theme-industry) #tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) > td.name-cell {
+  width: 216px;
+}
+:where(html.theme-industry) #tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) > td.qty-cell {
+  width: 104px;
+  min-width: 104px;
+}
+:where(html.theme-industry) #tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) > td.ccy-cell {
+  width: 92px;
+  min-width: 92px;
+}
+:where(html.theme-industry) #tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) > td.price-cell {
+  width: 168px;
+}
+:where(html.theme-industry) #tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) > td.subtotal-cell {
+  width: 108px;
+}
+:where(html.theme-industry) #tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) > td.profit-cell {
+  width: 88px;
+}
+:where(html.theme-industry) #tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) {
+  height: 120px;
+}
+:where(html.theme-industry) #tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) > td {
+  height: 120px;
 }
 :where(html.theme-industry) #tab-quote-make #quoteTable td.handle-cell .row-acts {
   background: var(--bg, #f2f2f3);
@@ -8386,4 +8965,96 @@ html.theme-industry {
 }
 :where(html.theme-industry) #tab-quote-make #quoteTable tfoot tr.tot-row td#tot-profit.profit-neg .tot-margin {
   color: #fff !important;
+}
+:where(html.theme-industry) #tab-quote-make #quoteTable td.profit-cell .pr-rate {
+  display: inline;
+  font-size: 12px;
+  font-weight: 600;
+}
+:where(html.theme-industry) #tab-quote-make #quoteTable td.subtotal-cell > .st-sub.jpy ~ .st-sub.tax {
+  display: none;
+}
+:where(html.theme-industry) #tab-quote-make #quoteTable tr:not([data-ccy-diff="1"]) .row-detail-panel .rd-cd-group {
+  display: none;
+}
+:where(html.theme-industry) #tab-quote-make #quoteTable .row-detail-panel .rd-slot {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+:where(html.theme-industry) #tab-quote-make #quoteTable .row-detail-panel .rd-slot:empty {
+  display: none;
+}
+:where(html.theme-industry) #tab-quote-make #quoteTable .row-detail-panel .rd-breakdown dt:only-child {
+  color: var(--color-neutral-500, #98989b);
+}
+:where(html.theme-industry) #tab-quote-make #quoteTable {
+  min-width: 992px;
+}
+:where(html.theme-industry) #tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) .row-detail-panel {
+  text-align: left;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  align-items: start;
+  font-size: 13px;
+}
+:where(html.theme-industry) #tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) .row-detail-panel .rd-group {
+  align-items: flex-start;
+}
+:where(html.theme-industry) #tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) .row-detail-panel .w-valid input {
+  width: 140px !important;
+}
+:where(html.theme-industry) #tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) .row-detail-panel .pct-group input,
+:where(html.theme-industry) #tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) .row-detail-panel .pct-group select {
+  width: 120px !important;
+}
+:where(html.theme-industry) #tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) .row-detail-panel .row-cd input {
+  width: 140px !important;
+}
+:where(html.theme-industry) #tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]):not(.row-pct-mode) .row-detail-panel .pct-group {
+  display: none !important;
+}
+:where(html.theme-industry) #tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) .rd-state .state-chip {
+  height: 22px;
+  line-height: 20px;
+  box-sizing: border-box;
+  padding: 0 8px;
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+  border: 1px solid var(--color-accent-700, #416180);
+  color: var(--color-accent-800, #2c455d);
+  background: transparent;
+  border-radius: 0;
+}
+:where(html.theme-industry) #tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) .rd-state .state-chip.is-solid {
+  background: var(--color-accent-900, #1d2d3d);
+  color: var(--color-bg, #f2f2f3);
+  border-color: var(--color-accent-900, #1d2d3d);
+}
+:where(html.theme-industry) #tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) .rd-state .state-chip.is-warn {
+  border-color: #8a5a2b;
+  color: #8a5a2b;
+}
+:where(html.theme-industry) #tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) .rd-state .state-chip.is-done {
+  border-style: dashed;
+}
+:where(html.theme-industry) #tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) .row-detail-panel .state-more {
+  font-size: 12px;
+  color: var(--color-neutral-700, #5d5d60);
+}
+:where(html.theme-industry) #tab-quote-make #quoteTable.customer-mode .st-state,
+:where(html.theme-industry) #tab-quote-make #quoteTable.customer-mode .row-detail-btn,
+:where(html.theme-industry) #tab-quote-make #quoteTable.customer-mode .row-detail-panel,
+:where(html.theme-industry) #tab-quote-make #quoteTable.customer-mode .cd-flag {
+  display: none !important;
+}
+:where(html.theme-industry) #tab-quote-make #quoteTable.customer-mode td.ccy-cell .stk-sell,
+:where(html.theme-industry) #tab-quote-make #quoteTable.customer-mode td.price-cell .stk-sell,
+:where(html.theme-industry) #tab-quote-make #quoteTable.customer-mode td.catsv-cell select.w-cat {
+  grid-row: 1 !important;
+}
+:where(html.theme-industry) #tab-quote-make #quoteTable.customer-mode > tbody > tr:not([data-virtual]):not([data-type]),
+:where(html.theme-industry) #tab-quote-make #quoteTable.customer-mode > tbody > tr:not([data-virtual]):not([data-type]) > td {
+  height: auto;
 }

@@ -11178,3 +11178,23 @@ body.is-row-dragging { cursor: grabbing; user-select: none; }
 #tab-quote-make .rfx-txt { flex: 1; color: var(--accent); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 #tab-quote-make .rfx-del { border: none; background: none; color: #a04a35; cursor: pointer; font-size: var(--fs-13); }
 #tab-quote-make .rfx-add { margin-top: var(--sp-6); font-size: var(--fs-12); padding: var(--sp-3) var(--sp-8); border: 1px solid var(--c-d8c8a8); border-radius: var(--r-6); background: var(--surface); max-width: 100%; }
+
+/* ===== 行レイアウト再整理の部品（Industry テーマのときだけ表示。classic では隠す） =====
+   構造は js/quote/row-layout.js ／ row.js calc() が書き出す。Industry 側の見た目は css/theme-industry.css（quote-row-stage1/2）。 */
+#tab-quote-make .row-detail-btn,
+#tab-quote-make .row-detail-panel,
+#tab-quote-make td.subtotal-cell > .st-state,
+#tab-quote-make .cd-flag,
+#tab-quote-make .pr-rate { display: none; }
+/* classic の小計・利益：新しい div 構造（.st-main／.st-sub／.pr-main／.pr-sub）でも従来どおり縦に並ぶだけ */
+#tab-quote-make td.subtotal-cell > .st-sub,
+#tab-quote-make td.profit-cell > .pr-sub { line-height: 1.2; }
+
+/* ===== 案件プレビュー：明細に紐づくリマーク行（行インポートで一緒に追加できる） ===== */
+#tab-quote-make .cp-remark-row td { padding: var(--sp-2) var(--sp-8); border-top: 0; }
+#tab-quote-make .cp-remark-cell { font-size: var(--fs-11); color: var(--c-7a6040); padding-left: 34px !important; }
+#tab-quote-make .cp-remark-mark { font-weight: 700; color: #4f6230; margin-right: var(--sp-4); }
+#tab-quote-make .cp-remark-row.is-internal .cp-remark-mark { color: #8a5a2b; }
+#tab-quote-make .cp-remark-opt { display: inline-flex; align-items: center; gap: var(--sp-4); font-size: var(--fs-12); color: var(--c-7a6040); cursor: pointer; white-space: nowrap; }
+#tab-quote-make .cp-remark-opt[hidden] { display: none; }
+#tab-quote-make .cp-sel-count { white-space: nowrap; }

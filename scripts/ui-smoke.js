@@ -202,6 +202,28 @@ async function main() {
   check('品物別リマークの挿入', /薬機法/.test(rm), rm.slice(0, 30));
   await shot('05-remark-section', '.remark-section');
 
+  // ⑦b 行の「その他 ▾」（Industry＝3段固定の行。有効期間・フラグ・% をパネルへ移す／現行デザイン＝元の場所のまま）
+  const rd = await page.evaluate(() => {
+    const ind = document.documentElement.classList.contains('theme-industry');
+    const tr = [...document.querySelectorAll('#tableBody tr[id^="row-"]')].find(t => !t.dataset.virtual && !t.dataset.type);
+    if (!tr) return { skip: true };
+    const id = tr.id.replace('row-', '');
+    const out = { ind, inPanel: !!tr.querySelector('.row-detail-panel .row-mode-btns'), inCell: !!tr.querySelector('td.price-cell .row-mode-btns') };
+    if (ind) {
+      window.rowDetailToggle(tr, true);
+      out.open = tr.classList.contains('is-detail-open');
+      tr.querySelector('.row-detail-panel .cond-charge-btn').click();
+      out.co = document.getElementById('co-' + id).value;
+      out.chip = (tr.querySelector('td.subtotal-cell .state-chip') || {}).textContent;
+      tr.querySelector('.row-detail-panel .cond-charge-btn').click();   // 元に戻す
+      window.rowDetailToggle(tr, false);
+      out.closed = !tr.classList.contains('is-detail-open');
+    }
+    return out;
+  });
+  check(rd.ind ? '行の「その他 ▾」：パネルの開閉・フラグ操作・状態チップ' : '行の部品が元の場所にある（現行デザイン）',
+    rd.skip || (rd.ind ? rd.inPanel && !rd.inCell && rd.open && rd.co === '1' && rd.chip === '必要時' && rd.closed : !rd.inPanel && rd.inCell), JSON.stringify(rd));
+
   // ⑧ 御見積書プレビュー画面
   await page.evaluate(() => openQuoteDoc());
   await page.waitForTimeout(600);

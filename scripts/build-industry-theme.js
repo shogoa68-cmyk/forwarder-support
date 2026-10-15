@@ -187,7 +187,7 @@ function build() {
   const tok = diffNodes(rdoc('tokens.css', SITE), rdoc('tokens.css', SRC), 'tokens.css');
   const sty = diffNodes(rdoc('style.css', SITE), rdoc('style.css', SRC), 'style.css');
   const quo = diffNodes(rdoc('quote.css', SITE), rdoc('quote.css', SRC), 'quote.css');
-  const addons = ['quote-table-industry.css', 'quote-hierarchy-industry.css', 'blueprint-industry.css', 'quote-table-fb03.css', 'code-overrides-industry.css'];   // fb03＝見積テーブル改善7件／code-overrides＝code 側の補正（最後）
+  const addons = ['quote-table-industry.css', 'quote-hierarchy-industry.css', 'blueprint-industry.css', 'quote-table-fb03.css', 'quote-row-stage1-industry.css', 'quote-row-stage2-industry.css', 'code-overrides-industry.css'];   // fb03＝見積テーブル改善7件／row-stage1・2＝行レイアウト再整理（3段固定・「その他 ▾」パネル）／code-overrides＝code 側の補正（最後）
   let site = HEADER(T_SITE, 'サイト画面（ポータル／見積タブ）の Industry 版：鋼青のブループリント調');
   site += section('tokens（色・書体・角丸）', emit(tok, T_SITE));
   site += section('style.css 差分', emit(sty, T_SITE));
