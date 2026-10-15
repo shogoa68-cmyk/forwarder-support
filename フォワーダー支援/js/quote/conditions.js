@@ -3631,6 +3631,7 @@ window.appendQuoteRows = function(rowObjects) {
   const tbody = document.getElementById('tableBody');
   if (!tbody) return 0;
   const regularTrs = [];
+  let parentTr = null;   // 直前の明細行：続くリマーク行を「この明細の子」として紐づける（サブコン別グループ表示・並べ替え・複製で明細に付いて動く）
   data.rows.forEach(row => {
     if (!row) return;
     if (row._type === 'subtotal') {
@@ -3638,6 +3639,7 @@ window.appendQuoteRows = function(rowObjects) {
       const tr = tbody.lastElementChild;
       const lbl = tr?.querySelector('.subtotal-label');
       if (lbl) lbl.value = row.label || '';
+      parentTr = null;
       return;
     }
     if (row._type === 'remark') {
@@ -3645,6 +3647,7 @@ window.appendQuoteRows = function(rowObjects) {
       const tr = tbody.lastElementChild;
       const inp = tr?.querySelector('.remark-row-input');
       if (inp) inp.value = row.text || '';
+      if (tr && parentTr) tr.dataset.parentId = parentTr.id.replace('row-', '');
       return;
     }
     if (row._type === 'internal') {
@@ -3660,6 +3663,7 @@ window.appendQuoteRows = function(rowObjects) {
     const tr = tbody.lastElementChild;
     _applyCells(tr, cells);
     regularTrs.push(tr);
+    parentTr = tr;
   });
   _afterRestoreRows(regularTrs, {});
   if (typeof calcLiveUpdate === 'function') calcLiveUpdate();

@@ -11189,3 +11189,12 @@ body.is-row-dragging { cursor: grabbing; user-select: none; }
 /* classic の小計・利益：新しい div 構造（.st-main／.st-sub／.pr-main／.pr-sub）でも従来どおり縦に並ぶだけ */
 #tab-quote-make td.subtotal-cell > .st-sub,
 #tab-quote-make td.profit-cell > .pr-sub { line-height: 1.2; }
+
+/* ===== 案件プレビュー：明細に紐づくリマーク行（行インポートで一緒に追加できる） ===== */
+#tab-quote-make .cp-remark-row td { padding: var(--sp-2) var(--sp-8); border-top: 0; }
+#tab-quote-make .cp-remark-cell { font-size: var(--fs-11); color: var(--c-7a6040); padding-left: 34px !important; }
+#tab-quote-make .cp-remark-mark { font-weight: 700; color: #4f6230; margin-right: var(--sp-4); }
+#tab-quote-make .cp-remark-row.is-internal .cp-remark-mark { color: #8a5a2b; }
+#tab-quote-make .cp-remark-opt { display: inline-flex; align-items: center; gap: var(--sp-4); font-size: var(--fs-12); color: var(--c-7a6040); cursor: pointer; white-space: nowrap; }
+#tab-quote-make .cp-remark-opt[hidden] { display: none; }
+#tab-quote-make .cp-sel-count { white-space: nowrap; }

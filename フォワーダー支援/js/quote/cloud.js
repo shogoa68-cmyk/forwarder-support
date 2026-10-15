@@ -55,6 +55,7 @@
   // プレビュー
   let _cpId        = null;   // プレビュー中のプリセット ID
   let _cpRows      = [];     // プレビュー中の行データ（v3形式）
+  let _cpRemarksByIdx = {};  // 明細行（_cpRenderTable の dataRows の添字）→ 直下に紐づくリマーク行（💬／🔒）の配列
   let _cpFullName  = '';     // プレビュー中のプリセット名
   // #cloudPreviewModal は #tab-quote-make の子要素（display:none の祖先を持つと中身は
   // 見た目上どうやっても表示できない）。統計タブ等、見積タブ以外から開いた場合は
@@ -2443,6 +2444,25 @@
     const tbody = document.getElementById('cpTableBody');
     if (!tbody) return;
     const dataRows = rows.filter(r => r._type === 'data' && r.cells?.length);
+    // 明細行に紐づくリマーク行：保存形式（v3）では「明細行の直後に続くリマーク行」が子（小計行・次の明細行で切れる）
+    _cpRemarksByIdx = {};
+    {
+      let di = -1, cur = -1;
+      rows.forEach(r => {
+        if (r._type === 'data') { if (r.cells?.length) { di++; cur = di; } else cur = -1; }
+        else if (r._type === 'subtotal') cur = -1;
+        else if (r._type === 'remark' && cur >= 0) (_cpRemarksByIdx[cur] = _cpRemarksByIdx[cur] || []).push(r);
+      });
+    }
+    const remarkTotal = Object.values(_cpRemarksByIdx).reduce((n, a) => n + a.length, 0);
+    const remOpt = document.getElementById('cpRemarkOpt');
+    if (remOpt) {
+      remOpt.hidden = !remarkTotal;
+      const chk = document.getElementById('cpIncludeRemarks');
+      if (chk) chk.checked = true;
+      const cnt = document.getElementById('cpRemarkCnt');
+      if (cnt) cnt.textContent = remarkTotal ? '（' + remarkTotal + '件）' : '';
+    }
     if (!dataRows.length) {
       tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:#9bb;padding:16px;">行データがありません</td></tr>';
       return;
@@ -2512,7 +2532,9 @@
           <td class="cp-price cp-bp">${ac ? '実費' : _cpMoney(bp, bc)}</td>
           <td class="cp-price cp-margin ${mCls}">${mCell}</td>
           <td class="cp-nt">${escHtml(nt)}</td>
-        </tr>`;
+        </tr>` + (_cpRemarksByIdx[idx] || []).map(m =>
+          `<tr class="cp-remark-row${m.internal ? ' is-internal' : ''}" data-idx="${idx}" data-sv="${escHtml(g.sv)}">` +
+          `<td></td><td colspan="8" class="cp-remark-cell"><span class="cp-remark-mark">${m.internal ? '🔒 社内メモ' : '💬 リマーク'}</span> ${escHtml(m.text || '')}</td></tr>`).join('');
       }).join('');
       return header + rowHtml;
     }).join('');
@@ -2560,15 +2582,27 @@
 
   function cloudImportSelectedRows() {
     const dataRows = _cpRows.filter(r => r._type === 'data' && r.cells?.length);
-    const chks = [...document.querySelectorAll('#cpTableBody .cp-row .cp-chk')];
-    const selected = dataRows.filter((_, i) => chks[i]?.checked);
-    if (!selected.length) { quoteShowToast('⚠️ 行を選択してください', 'warn'); return; }
+    // チェックされた行は、表示順（サブコンごとにまとめた順）ではなく data-idx（dataRows の添字）で特定する
+    const checked = new Set([...document.querySelectorAll('#cpTableBody .cp-row .cp-chk:checked')]
+      .map(c => parseInt(c.closest('tr')?.dataset.idx, 10)));
+    const withRemarks = !!document.getElementById('cpIncludeRemarks')?.checked;
+    const selected = [];
+    let remarkN = 0;
+    dataRows.forEach((r, i) => {
+      if (!checked.has(i)) return;
+      selected.push(r);
+      // 明細に紐づくリマーク行（💬 見積書に表示／🔒 社内メモ）も、明細の直後へ一緒に追加する
+      if (withRemarks) (_cpRemarksByIdx[i] || []).forEach(m => { selected.push(m); remarkN++; });
+    });
+    const lineN = selected.length - remarkN;
+    if (!lineN) { quoteShowToast('⚠️ 行を選択してください', 'warn'); return; }
     if (typeof window.appendQuoteRows !== 'function') {
       quoteShowToast('⚠️ 行追加関数が未ロードです', 'warn'); return;
     }
-    const n = window.appendQuoteRows(selected);
+    window.appendQuoteRows(selected);
+    if (typeof renderSubconGroups === 'function') renderSubconGroups();   // 追加行をサブコン別グループ表示へ反映
     document.getElementById('cloudPreviewModal').style.display = 'none';
-    quoteShowToast(`✅ ${n} 行を見積テーブルに追加しました`, 'success', 3500);
+    quoteShowToast(`✅ ${lineN} 行を見積テーブルに追加しました` + (remarkN ? `（リマーク ${remarkN} 件を含む）` : ''), 'success', 3500);
   }
 
   function cloudPreviewLoadFull() {
