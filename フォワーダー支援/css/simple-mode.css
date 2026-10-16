@@ -45,6 +45,8 @@ html.mode-simple .lbl-s { display: inline; }
 .cloud-menu-item:hover, .cloud-menu-item:focus-visible { outline: none; background: var(--accent-lt); box-shadow: inset 3px 0 0 var(--accent); }
 .cloud-menu-sep { border-top: 1px solid var(--accent-dk); margin: var(--sp-4) 0; }
 .cloud-menu-danger { color: #b0392e; font-weight: 600; }
+.cloud-menu-admin { color: #8a6d1f; font-weight: 600; }
+.cloud-menu-admin small { display: block; font-weight: 400; font-size: var(--fs-11); color: var(--text-muted); margin-top: 2px; }
 .cloud-menu-item.is-locked { opacity: .55; cursor: not-allowed; }
 .cloud-menu-item.is-locked small { display: block; font-weight: 400; font-size: var(--fs-11); color: var(--text-muted); margin-top: 2px; }
 .cloud-menu-item.is-locked:hover { background: transparent; box-shadow: none; }
