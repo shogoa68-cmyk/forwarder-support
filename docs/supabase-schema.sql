@@ -231,6 +231,61 @@ create policy "lock_guard_update" on public.quote_presets
   using (locked_by is null or locked_by = auth.email() or locked_at < now() - interval '90 seconds');
 
 -- ============================================================
+-- 6b. 編集ロック：renew-only ハートビート ＋ 管理者強制解放
+-- ============================================================
+-- requires: get_my_role() security definer 関数（allowed_emails.role を返す・
+--           Supabase Dashboard で作成済み前提。users.js の get_my_role と同一）
+--
+-- 背景：quote_acquire_lock は null/自分/失効(90秒)のとき「取得」する。これは
+--       案件を開き直したときの再取得に必要だが、保持中のハートビートに使うと、
+--       管理者が強制解放した/他者が奪取したロックを掴み直してしまう。
+--       そこでハートビートは「更新のみ(renew)」に分離し、強制解放・奪取を
+--       クライアントが検知できるようにする。
+-- ------------------------------------------------------------
+
+-- ロック更新（本人が保持しているときだけ locked_at を更新）。
+-- 戻り値 true＝まだ自分が保持 ／ false＝保持していない（解放済み・奪取済み）
+create or replace function public.quote_renew_lock(p_id text)
+returns boolean
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  update public.quote_presets set locked_at = now()
+    where id::text = p_id and locked_by = auth.email();
+  return found;
+end; $$;
+
+-- 管理者による強制解放（他人のロックも解除できる唯一の経路）。
+-- 作業者がタブを開いたまま帰宅する等でロックが残り続け、他メンバーが
+-- 「作業中」状態から抜け出せなくなった案件を即時フリー化する。
+-- get_my_role()='admin' のときだけ実行可。security definer で RLS を迂回するが、
+-- 権限は関数内で明示判定する。戻り値は直前の保持者 email
+-- （保持者なし＝''／権限なし＝'DENIED'／案件なし＝'NOTFOUND'）。
+create or replace function public.quote_admin_release_lock(p_id text)
+returns text
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare prev_by text;
+begin
+  if coalesce(public.get_my_role(), 'member') <> 'admin' then
+    return 'DENIED';
+  end if;
+  select locked_by into prev_by from public.quote_presets
+    where id::text = p_id for update;
+  if not found then return 'NOTFOUND'; end if;
+  update public.quote_presets set locked_by = null, locked_at = null
+    where id::text = p_id;
+  return coalesce(prev_by, '');
+end; $$;
+
+grant execute on function public.quote_renew_lock(text) to authenticated;
+grant execute on function public.quote_admin_release_lock(text) to authenticated;
+
+-- ============================================================
 -- 7. 添付ファイル（案件への参考書類・14日で自動削除）
 -- ============================================================
 -- 案件(quote_presets)に PDF/画像等を添付してチームで保存・閲覧する。
