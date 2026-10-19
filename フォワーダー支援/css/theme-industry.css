@@ -9058,3 +9058,23 @@ html.theme-industry {
 :where(html.theme-industry) #tab-quote-make #quoteTable.customer-mode > tbody > tr:not([data-virtual]):not([data-type]) > td {
   height: auto;
 }
+:where(html.theme-industry) #tab-quote-make #quoteTable tr:hover td.handle-cell .row-acts,
+:where(html.theme-industry) #tab-quote-make #quoteTable tr:focus-within td.handle-cell .row-acts {
+  opacity: 0;
+  pointer-events: none;
+}
+:where(html.theme-industry) #tab-quote-make #quoteTable tr td.handle-cell:hover .row-acts {
+  opacity: 1;
+  pointer-events: auto;
+}
+@media (hover: none) {
+  :where(html.theme-industry) #tab-quote-make #quoteTable tr.is-active td.handle-cell .row-acts {
+    opacity: 1;
+    pointer-events: auto;
+  }
+}
+:where(html.theme-industry) #tab-quote-make #quoteTable thead th.hd-catsv::after {
+  content: "サブコン／パターン\A／カテゴリ";
+  white-space: pre;
+  letter-spacing: .04em;
+}

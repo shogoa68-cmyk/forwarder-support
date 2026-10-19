@@ -90,3 +90,17 @@
 #tab-quote-make #quoteTable.customer-mode td.ccy-cell .stk-sell, #tab-quote-make #quoteTable.customer-mode td.price-cell .stk-sell,
 #tab-quote-make #quoteTable.customer-mode td.catsv-cell select.w-cat { grid-row: 1 !important; }
 #tab-quote-make #quoteTable.customer-mode > tbody > tr:not([data-virtual]):not([data-type]), #tab-quote-make #quoteTable.customer-mode > tbody > tr:not([data-virtual]):not([data-type]) > td { height: auto; }
+
+/* ---- 行の操作ボタン（.row-acts）の出る条件：fb03 は「行のどこかにホバー／行の中で入力中」だが、ボタン群は行の下に重なって出るため、
+   入力中ずっと次の行・小計・見出しを隠し、押し間違いの元になる（UI レビューの指摘）。ボタンはすべて tabindex=-1 でキーボードからは
+   届かないので、つまみの列（td.handle-cell）にホバーしたときだけに絞る。タッチ端末は従来どおり行をタップ（tr.is-active）で出す ---- */
+#tab-quote-make #quoteTable tr:hover td.handle-cell .row-acts,
+#tab-quote-make #quoteTable tr:focus-within td.handle-cell .row-acts { opacity: 0; pointer-events: none; }
+#tab-quote-make #quoteTable tr td.handle-cell:hover .row-acts { opacity: 1; pointer-events: auto; }
+@media (hover: none) {
+  #tab-quote-make #quoteTable tr.is-active td.handle-cell .row-acts { opacity: 1; pointer-events: auto; }
+}
+
+/* ---- 列見出し：hierarchy は「カテゴリ欄を隠した」前提で「サブコン／パターン」としたが、行レイアウト v3 で 3 段目にカテゴリが戻ったため、
+   実際の並び（サブコン → パターン → カテゴリ）に合わせる（新人目線レビューの指摘：見出しと入力欄が食い違う） ---- */
+#tab-quote-make #quoteTable thead th.hd-catsv::after { content: "サブコン／パターン\A／カテゴリ"; white-space: pre; letter-spacing: .04em; }

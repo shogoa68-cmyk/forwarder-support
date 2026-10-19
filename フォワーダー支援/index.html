@@ -1935,7 +1935,7 @@
     <div class="card">
       <div class="section-title">📦 容積（CBM）・才数計算</div>
       <div style="padding:8px 12px;background:#e8f4f0;border-left:3px solid #5a8a52;border-radius:5px;margin-bottom:10px;font-size:11px;color:#1a5c45;line-height:1.6;">
-        💡 <strong>見積もり行へワンクリック反映したい場合は、こちらではなく</strong>「💼 見積もりタブ → ③ 貨物情報」内の同等計算機能をご利用ください（単位 R/T・CW・CBM・kg・pcs ごとに見積行へ「反映」ボタンで一括転記できます）。
+        💡 <strong>見積もり行へワンクリック反映したい場合は、こちらではなく</strong>「💼 見積もりタブ → 貨物情報」内の同等計算機能をご利用ください（単位 R/T・CW・CBM・kg・pcs ごとに見積行へ「反映」ボタンで一括転記できます）。
       </div>
       <p class="calc-desc">CBM（海上輸送の容積単位）と才数（国内運送の容積単位）を同時に算出します。<br>
         <span style="font-size:11px;">CBM = L×W×H(m)　／　才数 = L×W×H(cm) ÷ 27,826.5　／　各単位で自動換算</span><br>
@@ -2319,7 +2319,7 @@
           <li><strong>方向</strong>：📤 輸出 / 📥 輸入</li>
           <li><strong>輸送モード</strong>：🚢 Sea（FCL/LCL）/ ✈️ Air</li>
           <li><strong>オプション</strong>：🛡️ 保険付保 ON/OFF</li>
-          <li><strong>ゾーンビルダー</strong>：① 出発地側 → ② 幹線輸送 → ③ 到着地側 の3カードで作業ピース（集荷／梱包／通関／配送など）を組み立て</li>
+          <li><strong>ゾーンビルダー</strong>：出発地側 → 幹線輸送 → 到着地側 の3カードで作業ピース（集荷／梱包／通関／配送など）を組み立て</li>
           <li><strong>🔧 この構成でプリセット適用</strong>で見積もり表の行を一括生成</li>
         </ul>
 
@@ -2358,9 +2358,12 @@
           <li><strong>💬 フィードバック</strong>（FAB／各セクションのボタン）：改善要望・バグ報告を送信</li>
         </ul>
 
-        <h4>📖 用語集（業務略語）</h4>
+        <h4 id="quoteGlossary">📖 用語集（業務略語）</h4>
         <ul style="line-height:1.9;">
-          <li><strong>CD</strong>：Currency Difference（為替差・通貨間調整値、表示専用列）</li>
+          <li><strong>仕入 ＋ 乗せ幅 ＝ 売値</strong>（表の「仕」「＋」「売」）：<strong>仕</strong>＝仕入単価（サブコン・船会社などへ支払う額）、<strong>＋</strong>＝乗せ幅（上乗せする額）、<strong>売</strong>＝売値（お客様へ請求する額。仕入＋乗せ幅で自動計算）</li>
+          <li><strong>※</strong>（金額の後ろ）：外貨の金額を、表の上の「換算レート」で円にして合算した目安</li>
+          <li><strong>パターン</strong>：サブコンの中をさらに分ける名前（任意）。同じパターン名の行が、まとまり・小計になります</li>
+          <li><strong>CD</strong>：Currency Difference（為替差・通貨間調整値。仕入と売値の通貨が違う行で使う、表示専用の値）</li>
           <li><strong>W/M</strong>：Weight or Measurement（重量トンと容積 CBM の<strong>高い方</strong>で運賃計算するルール。主に LCL・混載貨物に適用。FCL はコンテナ本数単価が基本）</li>
           <li><strong>R/T</strong>：Revenue Ton（W/M で確定した課金単位、1 R/T = 1 CBM または 1 ton。LCL・混載の運賃計算単位）</li>
           <li><strong>C/W</strong>：Chargeable Weight（航空運賃の課金重量、容積重量 cm³÷6,000 と実重量の高い方）</li>
@@ -3015,7 +3018,7 @@
             <div class="zone-card-header">
               <button class="zone-toggle-btn" id="zone1Btn" onclick="toggleZone(1)">OFF（無効）</button>
               <div class="zone-card-title">
-                <span class="zone-num">① 出発地側</span>
+                <span class="zone-num">出発地側</span>
                 <span class="zone-subcon" id="zone1Subcon">日本協力会社</span>
               </div>
               <button type="button" class="zone-collapse-btn" onclick="toggleZoneCollapse(1)" title="折りたたむ/展開する">▼</button>
@@ -3063,7 +3066,7 @@
           <div class="zone-card zone-main" id="zone2Card">
             <div class="zone-card-header">
               <div class="zone-card-title">
-                <span class="zone-num">② 幹線輸送</span>
+                <span class="zone-num">幹線輸送</span>
                 <span class="zone-subcon">キャリア</span>
               </div>
               <button type="button" class="zone-collapse-btn" onclick="toggleZoneCollapse(2)" title="折りたたむ/展開する">▼</button>
@@ -3137,7 +3140,7 @@
             <div class="zone-card-header">
               <button class="zone-toggle-btn" id="zone3Btn" onclick="toggleZone(3)">OFF（無効）</button>
               <div class="zone-card-title">
-                <span class="zone-num">③ 到着地側</span>
+                <span class="zone-num">到着地側</span>
                 <span class="zone-subcon" id="zone3Subcon">現地代理店</span>
               </div>
               <button type="button" class="zone-collapse-btn" onclick="toggleZoneCollapse(3)" title="折りたたむ/展開する">▼</button>
@@ -3191,7 +3194,7 @@
           <span class="zone-preset-section-title">🔧 ゾーン構成から見積もり行を生成
             <span class="zps-help-wrap">
               <button type="button" class="section-help-btn" aria-label="この機能の説明">?</button>
-              <span class="zps-help-tip">上で組んだ ① 出発地 → ② 幹線 → ③ 到着地 の作業ピースをもとに、見積もりテーブルの行を一括作成します。</span>
+              <span class="zps-help-tip">上で組んだ 出発地側 → 幹線輸送 → 到着地側 の作業ピースをもとに、見積もりテーブルの行を一括作成します。</span>
             </span>
           </span>
         </div>
@@ -3731,9 +3734,10 @@
         <span class="section-caret">▼</span>
         <span class="section-toggle-title">📋 見積もりテーブル</span><span class="tier-badge req" aria-label="必須">必須</span>
         <span class="section-collapsed-summary" id="sumTable"></span>
+        <button type="button" class="q-glossary-btn" onclick="event.stopPropagation(); openQuoteGlossary()" title="仕入・乗せ幅・売値、※、CD、パターンなど、表の用語の説明を開きます">📖 用語の説明</button>
       </h2>
       <div id="tableWrap">
-        <p class="section-desc">費用項目ごとに <b>支払い（仕入）</b> と <b>請求</b> の数量・通貨・単価を入力します。<b>③ 乗せ幅</b> を入力すると請求単価に自動加算、<b>④ 利益</b> 欄で粗利をリアルタイム確認できます。CSV インポートやカテゴリ順並び替えも利用可能です。<br>
+        <p class="section-desc">費用項目ごとに <b>支払い（仕入）</b> と <b>請求</b> の数量・通貨・単価を入力します。<b>乗せ幅</b> を入力すると請求単価に自動加算、<b>利益</b> 欄で粗利をリアルタイム確認できます。CSV インポートやカテゴリ順並び替えも利用可能です。<br>
         <span style="font-size:11px;color:var(--text-md);">💡 <b>項目名の先頭にある <code style="background:#fff;padding:1px 4px;border-radius:3px;">*</code> は課税項目を示します</b>（課税欄のチェックで自動付与）。プレビュー画面では消費税列に税額（10% 固定）が表示されます。</span><br>
         <span style="font-size:11px;color:var(--text-md);">➕ <b>行を追加するには</b>：各明細行の左にある ➕（行追加）／📋（複製）／🗑️（削除）アイコン、最下行で ↓ キー、Ctrl+D（複製）、または Ctrl+K から「行を追加」を選択してください。リマーク・社内メモは各行の 💬／🔒 から、小計行はツールバーの ＝ から追加できます。</span></p>
         <div class="container">
@@ -3879,7 +3883,7 @@
                 <th class="hd-base" style="width:188px;">項目名<br><small class="hd-sub">／備考</small></th>
                 <th class="hd-base" style="width:65px;">数量·単位</th>
                 <th class="hd-base hd-stk" style="width:62px;" title="上段＝支払い（仕入）通貨、下段＝請求（売値）通貨">通貨<br><small class="hd-sub"><span class="t-cost">仕</span>／<span class="t-sell">売</span></small></th>
-                <th class="hd-base hd-stk" style="width:118px;" title="上段＝支払い単価（仕入）、中＝＋乗せ幅、下段＝請求単価（売値）。CD は通貨差調整値">単価<br><small class="hd-sub"><span class="t-cost">仕</span>＋<span class="hd-mk-tag">乗</span>／<span class="t-sell">売</span></small></th>
+                <th class="hd-base hd-stk" style="width:118px;" title="上段＝支払い単価（仕入）、中＝＋乗せ幅、下段＝請求単価（売値）。CD は通貨差調整値">単価<br><small class="hd-sub"><span class="t-cost">仕入</span>＋<span class="hd-mk-tag">乗せ幅</span>＝<span class="t-sell">売値</span></small></th>
                 <th class="hd-base" style="width:38px;" title="ON にすると消費税 10% が自動計算され、項目名先頭に「*」が付きます。免税（非課税）の行は OFF のままにしてください。">課税</th>
                 <th class="hd-bill" style="width:92px;">小計<br><small class="hd-sub t-sell">売</small></th>
                 <th class="hd-profit hd-pr" style="width:80px;">利益</th>
@@ -3888,7 +3892,7 @@
             <tbody id="tableBody"></tbody>
             <tfoot>
               <tr class="tot-row">
-                <td colspan="4"></td>
+                <td colspan="4" class="tot-fx-note" id="tot-fx-note"></td>
                 <td id="tot-row-label" style="text-align:right; color:#555; font-weight:bold;">合　計</td>
                 <td colspan="3" class="subtotal-cell tot-amt-cell" style="text-align:right; padding-right:8px; font-weight:bold; background:#eef5fb;">
                   <div class="stk">
@@ -4342,7 +4346,7 @@
       <td class="catsv-cell stk-cell">
         <div class="stk">
           <select class="w-cat" data-field="cat" data-col="0"></select>
-          <input type="text" data-field="sv" class="w-subcon" placeholder="サブコン" list="svSuggestions" />
+          <input type="text" data-field="sv" class="w-subcon" placeholder="サブコン（任意）" list="svSuggestions" />
           <input type="text" data-field="pt" class="w-pattern" placeholder="パターン（任意）" title="サブコン内をさらに分けるパターン名（任意）。同じパターン名の行がサブコン配下で入れ子のグループ・小計になります。" />
         </div>
       </td>
@@ -4424,6 +4428,7 @@
           <button type="button" class="cond-charge-btn" tabindex="-1" title="必要時のみ請求。金額は客先にも表示しますが、見積もり合計には加算しません（もう一度クリックで解除）。">必要時</button>
           <button type="button" class="ref-info-btn" tabindex="-1" title="参考情報。金額は客先にも表示しますが、見積もり合計には加算しません。「必要時（必要なときだけ請求）」とは別に、参考として提示したい行に使用します（もう一度クリックで解除）。">参考</button>
           <button type="button" class="est-btn" tabindex="-1" title="概算（金額は目安）。単価・金額の前に「約」を付けて表示します。見積もり合計には通常どおり加算されます（もう一度クリックで解除）。">概算</button>
+          <button type="button" class="sell-mode-btn" tabindex="-1" title="売値ベース：売単価を先に決め、仕入単価を入力すると乗せ幅（売−仕入）が自動算出されます。もう一度クリックで通常（仕入＋乗せ幅＝売値）に戻ります。">売値ベース</button>
           <button type="button" class="pct-mode-btn" tabindex="-1" title="仕入単価を「○○の何%」として計算（%率と基準額を入力）。もう一度クリックで直接入力に戻す。">%</button>
         </div>
         <span class="actual-cost-badge" aria-hidden="true">実費</span>

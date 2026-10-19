@@ -9,6 +9,7 @@ THEME=1 node scripts/design-tests/editor-test.js         # かんたん表示（
 node scripts/design-tests/mode-test.js                   # かんたん表示（ダッシュボード）18項目
 node scripts/design-tests/as-removed-test.js             # 自動保存の廃止
 node scripts/design-tests/remark-copy-test.js            # 類似見積→行追加（リマークも一緒に）
+THEME=1 node scripts/design-tests/sell-mode-test.js        # 売値ベースのオン／オフ
 ```
 
 - 末尾に `OK` が出れば全項目成功。失敗は `❌` / `FAIL` の行に出る。

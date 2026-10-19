@@ -3378,9 +3378,9 @@
 
     // モジュール定義（名称・担当ゾーン）
     const MODS = [
-      { z: 'z1', name: '① 出発地側', on: z1On },
-      { z: 'z2', name: '② 幹線輸送', on: true },
-      { z: 'z3', name: '③ 到着地側', on: z3On },
+      { z: 'z1', name: '出発地側', on: z1On },
+      { z: 'z2', name: '幹線輸送', on: true },
+      { z: 'z3', name: '到着地側', on: z3On },
     ];
     // サブコン情報を収集
     const subconOf = (z) => {
@@ -3542,7 +3542,7 @@
     z2: ['ocean', 'air', 'surcharge'],
     z3: ['import-local', 'overseas', 'customs-import', 'insurance', 'other'],
   };
-  const MODULE_LABEL = { z1: '① 出発地側（国内・海外費用）', z2: '② 幹線輸送費用', z3: '③ 到着地側（国内・海外費用）' };
+  const MODULE_LABEL = { z1: '出発地側（国内・海外費用）', z2: '幹線輸送費用', z3: '到着地側（国内・海外費用）' };
   window._activeModuleFilter = null;
 
   window.filterQuoteByModule = function (zone) {
@@ -3767,6 +3767,7 @@
     try { _savedTab = localStorage.getItem('quoteSummaryTab_v1') || 'digest'; } catch(e) {}
     if (typeof window.qspSetTab === 'function') window.qspSetTab(_savedTab);
     initSectionHelpTooltips(); // 各セクションの説明文を ? アイコンのツールチップ化
+    initSummaryLiveUpdate();   // 入力のたびにジャンプ欄の要約を更新
     if (typeof initPreviewWarningListeners === 'function') initPreviewWarningListeners();
     if (typeof syncHazmatPanel === 'function') syncHazmatPanel(); // 危険品パネルの初期表示
     if (typeof syncMultiEntryFields === 'function') syncMultiEntryFields(); // コンテナ・荷姿の複数エントリ復元
@@ -4069,6 +4070,21 @@
     if (typeof window.renderQuoteSectionDigest === 'function') window.renderQuoteSectionDigest();
   }
   window.updateSectionSummaries = updateSectionSummaries;
+
+  // 入力欄ごとに呼び出しを足さずに済むよう、タブ全体の入力・変更と、上部セクションのボタン（方向・輸送モード等）を拾う
+  function initSummaryLiveUpdate() {
+    const tab = document.getElementById('tab-quote-make');
+    if (!tab || tab._sumLive) return;
+    tab._sumLive = true;
+    let t = null;
+    const kick = () => { clearTimeout(t); t = setTimeout(updateSectionSummaries, 300); };
+    tab.addEventListener('input', kick);
+    tab.addEventListener('change', kick);
+    tab.addEventListener('click', e => {
+      const sec = e.target.closest && e.target.closest('[id^="section-"]');
+      if (sec && sec.id !== 'section-table' && e.target.closest('button')) kick();
+    });
+  }
 
   // ===== 見積サマリ：各入力セクションのダイジェスト =====
   // アコーディオンで各セクションが畳まれていても、右パネルで全体を一望できるようにする。
@@ -4690,6 +4706,13 @@
     const rect = el.getBoundingClientRect();
     const top = window.scrollY + rect.top - 80;
     window.scrollTo({ top, behavior: 'smooth' });
+  };
+
+  window.openQuoteGlossary = function() {
+    window.openQuoteTabHelp();
+    const g = document.getElementById('quoteGlossary');
+    if (!g) return;
+    setTimeout(() => window.scrollTo({ top: window.scrollY + g.getBoundingClientRect().top - 160, behavior: 'smooth' }), 50);
   };
 
   // ===== ステータスボタン =====

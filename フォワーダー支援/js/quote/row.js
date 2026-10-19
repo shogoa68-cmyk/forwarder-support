@@ -974,6 +974,8 @@
         const di = dataRows.indexOf(tr);
         const focusField = (rowEl, field) => {
           const t = rowEl && rowEl.querySelector(`[data-field="${field}"]`);
+          // Industry では % 率の欄が「その他 ▾」パネルの中にあり、閉じていると focus できない
+          if (t && !t.offsetParent && t.closest('.row-detail-panel') && window.rowDetailToggle) window.rowDetailToggle(rowEl, true);
           if (t) { t.focus(); if (t.select) t.select(); }
           return !!t;
         };
@@ -1291,6 +1293,8 @@
     if (esBtn) esBtn.onclick = () => toggleEstimate(id);
     const pctBtn = frag.querySelector('.pct-mode-btn');
     if (pctBtn) pctBtn.onclick = () => togglePctMode(id);
+    const sellBtn = frag.querySelector('.sell-mode-btn');
+    if (sellBtn) sellBtn.onclick = () => toggleSellMode(id);
     const mregBtn = frag.querySelector('.master-reg-btn');
     if (mregBtn) mregBtn.onclick = () => registerRowToMaster(id);
     const mdetBtn = frag.querySelector('.master-detail-jump-btn');
@@ -1692,12 +1696,16 @@
     const isFx = canFx && (bc !== 'JPY' || pc !== 'JPY') && (subtotal || profit);
     if (ccyMismatch && canFx) {
       const jpyProfit = Math.ceil(toJPY(subtotal, bc) - toJPY(pq * pp, pc));
+      const jpySub = toJPY(subtotal, bc);
+      // 粗利率（Industry のみ表示）は 3 段目に分ける（2 段目は 1 行で、並べると換算の注記が切れるため）
+      const rate = jpySub > 0 ? '<div class="pr-sub"><small class="pr-rate">粗利 ' + (jpyProfit / jpySub * 100).toFixed(1) + '%</small></div>' : '';
       pr.innerHTML = '<div class="pr-main">≈¥' + fmt(jpyProfit) + '</div>' +
-        '<div class="pr-sub"><small class="jpy-conv-hint" title="仕入（' + pc + '）と売（' + bc + '）の通貨が異なるため、円換算後の差額のみを表示しています">円換算後</small></div>';
+        '<div class="pr-sub"><small class="jpy-conv-hint" title="仕入（' + pc + '）と売（' + bc + '）の通貨が異なるため、円換算後の差額のみを表示しています">円換算後</small></div>' + rate;
       pr.className = `profit-cell ${pClass(jpyProfit)}`;
     } else if (isFx) {
       const jpyProfit = Math.ceil(toJPY(subtotal, bc) - toJPY(pq * pp, pc));
-      pr.innerHTML = '<div class="pr-main">' + fmt(profit) + '</div><div class="pr-sub"><small class="jpy-conv-hint">(≈¥' + fmt(jpyProfit) + ')</small></div>';
+      const rate = subtotal > 0 ? '<div class="pr-sub"><small class="pr-rate">粗利 ' + (profit / subtotal * 100).toFixed(1) + '%</small></div>' : '';
+      pr.innerHTML = '<div class="pr-main">' + fmt(profit) + '</div><div class="pr-sub"><small class="jpy-conv-hint">(≈¥' + fmt(jpyProfit) + ')</small></div>' + rate;
       pr.className = `profit-cell ${pClass(profit)}`;
     } else {
       // 粗利率（Industry のみ表示。classic は .pr-rate を CSS で隠す）
@@ -1798,6 +1806,7 @@
     if (on) {
       _calcPct(id);
       if (typeof quoteShowToast === 'function') quoteShowToast('% 計算モードをONにしました。%率と基準額を入力してください。', 'info');
+      setTimeout(() => { const r = document.getElementById(`pprate-${id}`); if (r && r.offsetParent) { r.focus(); r.select(); } }, 0);
     } else {
       // 直接入力モードに戻す：pp を再び編集可能に
       const ppEl = document.getElementById(`pp-${id}`);
@@ -1878,6 +1887,7 @@
     const tr = document.getElementById(`row-${id}`);
     if (!tr) return;
     tr.classList.toggle('row-sell-mode', on);
+    tr.querySelector('.sell-mode-btn')?.classList.toggle('is-on', on);
     const ppEl = document.getElementById(`pp-${id}`);
     const bpEl = document.getElementById(`bp-${id}`);
     const mkEl = document.getElementById(`mk-${id}`);
@@ -1918,6 +1928,45 @@
     }
     onPay(id);
   }
+
+  // 売値ベースのオン／オフ（行の「売値ベース」ボタン）。
+  //  オフ：売単価・乗せ幅は今の値のまま、通常の入力（仕入＋乗せ幅＝売値。乗せ幅が入力・売値は表示専用）に戻す。
+  //        仕入が空欄のままなら 仕入 0・乗せ幅＝売値 にして、売値が消えないようにする。
+  //  オン：売値を先に決める向きへ。乗せ幅は 売−仕入 の自動算出になり、今の売値は変わらない。
+  function toggleSellMode(id) {
+    const tr = document.getElementById(`row-${id}`);
+    const modeEl = document.getElementById(`ppmode-${id}`);
+    if (!tr || !modeEl) return;
+    const toast = (m, t) => { if (typeof quoteShowToast === 'function') quoteShowToast(m, t || 'info', 4500); };
+    if (_isSellMode(id)) {
+      const ppEl = document.getElementById(`pp-${id}`);
+      const mkEl = document.getElementById(`mk-${id}`);
+      const bp = val(`bp-${id}`);
+      if (ppEl && String(ppEl.value).trim() === '') {
+        const pc = document.getElementById(`pc-${id}`)?.value || 'JPY';
+        ppEl.value = 0;
+        if (mkEl) mkEl.value = pc === 'JPY' ? Math.round(bp) : Math.round(bp * 100) / 100;
+      }
+      modeEl.value = '';
+      _setSellModeUI(id, false);
+      onPay(id);   // 売単価＝仕入単価＋乗せ幅（売値は変わらない）
+      toast('売値ベースを解除しました（仕入＋乗せ幅＝売値の通常入力に戻りました）');
+    } else {
+      if (tr.classList.contains('row-pct-mode') || modeEl.value === 'pct') {
+        toast('⚠️ % 計算モードを解除してから、売値ベースにしてください', 'warn'); return;
+      }
+      if (tr.dataset.bcIndep === '1') {
+        toast('⚠️ 仕入と売値の通貨が違う行は、売値ベースにできません（通貨を同じにしてください）', 'warn'); return;
+      }
+      modeEl.value = 'sell';
+      _setSellModeUI(id, true);
+      _calcFromSell(id);
+      toast('売値ベースにしました。売値を決め、仕入単価を入力すると乗せ幅が自動で出ます');
+    }
+    modeEl.dispatchEvent(new Event('change', { bubbles: true }));   // 未保存の目印・バッジ更新
+    if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
+  }
+  window.toggleSellMode = toggleSellMode;
 
   // 保存データ復元時に conditions.js から呼び出す
   function _restoreSellMode(id) {
@@ -2020,6 +2069,8 @@
       document.getElementById('tot-profit').className = 'profit-cell profit-zero';
       const lbl0 = document.getElementById('tot-row-label');
       if (lbl0) lbl0.textContent = '合　計';
+      const fxn0 = document.getElementById('tot-fx-note');
+      if (fxn0) fxn0.textContent = '';
       window.renderQuoteFxBar?.();
       return;
     }
@@ -2074,6 +2125,8 @@
     const totPrJPY = totBillJPY - totCostJPY;
     const labelEl  = document.getElementById('tot-row-label');
     const pEl      = document.getElementById('tot-profit');
+    const fxNote   = document.getElementById('tot-fx-note');
+    if (fxNote) fxNote.textContent = hasFx ? '※ 外貨の金額は、換算レートで円にして合算しています' : '';
     if (hasFx) {
       // 外貨混在時：単純加算は無意味なので JPY 換算合計を「合計」行に表示
       if (labelEl) labelEl.innerHTML = '合計<small class="tot-jpy-note">（JPY換算）</small>';

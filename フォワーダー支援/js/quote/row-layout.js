@@ -47,7 +47,7 @@
   }
 
   // ===== 2. 状態チップ・内訳・バッジ =====
-  // 優先順：出力しない → 要調査 → あえて¥0 → 必要時 → 実費 → PS → 参考 → 概算 → 入力完了
+  // 優先順：出力しない → 要調査 → あえて¥0 → 必要時 → 実費 → PS → 参考 → 概算 → % 計算 → 入力完了
   const STATES = [
     { label: '出力しない', cls: 'is-solid', tip: '見積書（客先表示・PDF・Excel・CSV）に出さない行', on: tr => tr.classList.contains('row-hidden-quote') },
     { label: '要調査', cls: 'is-warn', tip: '後で調べて記入する行（要調査）', on: tr => tr.classList.contains('row-pending') },
@@ -57,6 +57,7 @@
     { label: 'PS', cls: '', tip: 'PROFIT SHARE（客先非表示・社内利益に計上）', on: (tr, id) => fv(id, 'ps') === '1' },
     { label: '参考', cls: '', tip: '参考情報（合計に加算しない）', on: (tr, id) => fv(id, 'ri') === '1' },
     { label: '概算', cls: '', tip: '概算（金額は目安）', on: (tr, id) => fv(id, 'es') === '1' },
+    { label: '% 計算', cls: '', tip: '仕入単価を「基準額 × %」で計算する行。率と基準額は「その他 ▾」で入力', on: tr => tr.classList.contains('row-pct-mode') },
     { label: '入力完了', cls: 'is-done', tip: '入力完了の目印', on: tr => tr.classList.contains('row-input-done') },
   ];
 

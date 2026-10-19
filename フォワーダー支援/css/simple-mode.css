@@ -185,3 +185,16 @@ html.mode-simple #tab-quote-make #tableBody :is(.subcon-group-excl, .subcon-subg
 /* ツールバー内のスイッチは、他のボタンと同じ高さに収める（行の高さを変えない） */
 #tab-quote-make #saveToolbar .uim-switch { align-self: center; }
 #tab-quote-make #saveToolbar .uim-switch button { padding: var(--sp-4) var(--sp-10); font-size: var(--fs-12); line-height: 1.4; }
+
+/* ---- 見積入力：新規ユーザーには不要な上級向けの部品を隠す（DOM には残す。詳細表示では従来どおり） ----
+   ・各セクションの「このセクションへのフィードバック」（右下の 💬 FAB から送れる。ボタンが次のセクション見出しの真上に来て紛らわしい）
+   ・ジャンプ欄のグループ操作のうち、折りたたみ（▼）・除外と「すべて折りたたむ／展開」。誤って除外すると見積から消えるため。
+     ただし、すでに除外中のグループは戻せるよう「含む」を出したままにする
+   ・行の「マスターに登録」、貨物欄の「バンニング／パレタイズ シミュレーターへ」 */
+html.mode-simple #tab-quote-make .fb-section-btn,
+html.mode-simple #tab-quote-make .qsp-dig-tree-actions,
+html.mode-simple #tab-quote-make .qsp-dig-grp-collapse,
+html.mode-simple #tab-quote-make .qsp-dig-grp-item:not(.is-excluded) > .qsp-dig-grp-excl,
+html.mode-simple #tab-quote-make .master-reg-btn,
+html.mode-simple #tab-quote-make .van-jump-btn,
+html.mode-simple #tab-quote-make .pal-jump-btn { display: none !important; }
