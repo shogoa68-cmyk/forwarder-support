@@ -3768,6 +3768,7 @@
     if (typeof window.qspSetTab === 'function') window.qspSetTab(_savedTab);
     initSectionHelpTooltips(); // 各セクションの説明文を ? アイコンのツールチップ化
     initSummaryLiveUpdate();   // 入力のたびにジャンプ欄の要約を更新
+    initTabOrder();            // Tab で止まる場所の整理（補助ボタンを外す・ボタン群は 1 回）
     if (typeof initPreviewWarningListeners === 'function') initPreviewWarningListeners();
     if (typeof syncHazmatPanel === 'function') syncHazmatPanel(); // 危険品パネルの初期表示
     if (typeof syncMultiEntryFields === 'function') syncMultiEntryFields(); // コンテナ・荷姿の複数エントリ復元
@@ -4070,6 +4071,70 @@
     if (typeof window.renderQuoteSectionDigest === 'function') window.renderQuoteSectionDigest();
   }
   window.updateSectionSummaries = updateSectionSummaries;
+
+  // ===== Tab 順の整理 =====
+  // Tab で止まらなくてよい部品（マウスや ↑↓、見出しのホバーで使える補助のボタン・参考リンク）。
+  // 入力欄の間に挟まって、見積もり番号から明細の品名まで Tab 170 回以上かかっていたため（UI レビュー）
+  const TAB_SKIP_SEL = [
+    '.cc-step',                 // コンテナ本数の −／＋（数値欄は ↑↓ で増減できる）
+    '.section-help-btn',        // 見出しの「?」（ホバーでも説明が出る）
+    '.fb-section-btn',          // セクションごとのフィードバック（右下の 💬 からも送れる）
+    '.cargo-ref-chip',          // 貨物欄の参考リンク（他法令・税関・各省庁）
+    '.hs-tariff-link',          // HS 欄の「WEBタリフ ↗」（参考リンクにも同じものがある）
+    '#presetBtns button',       // リマークの定型文・区切り線（本文欄へ直接入れられる）
+    '[data-field="lu"]',        // 行の更新日（自動で入る社内情報）
+  ].join(',');
+  // グループのボタン：Tab ではグループに 1 回だけ止まり、グループ内は矢印キーで移る（選ぶのは Enter／Space）
+  const ROVING_SEL = '#qf-status-btns, #dirBtns, #seaAirBtns, #hazChips, .cc-cat-tabs';
+  const ROVING_ON = '.active, .is-on, .is-active, [aria-checked="true"], [aria-pressed="true"], [aria-selected="true"]';
+
+  function _rovingBtns(g) { return [...g.querySelectorAll('button')].filter(b => !b.disabled && b.offsetParent !== null); }
+  function _rovingSync(g) {
+    const btns = _rovingBtns(g);
+    if (!btns.length) return null;
+    const cur = btns.find(b => b.matches(ROVING_ON)) || btns[0];
+    btns.forEach(b => { b.tabIndex = b === cur ? 0 : -1; });
+    return cur;
+  }
+
+  function initTabOrder() {
+    const tab = document.getElementById('tab-quote-make');
+    if (!tab || tab._tabOrder) return;
+    tab._tabOrder = true;
+    const apply = () => {
+      tab.querySelectorAll(TAB_SKIP_SEL).forEach(el => { if (el.getAttribute('tabindex') !== '-1') el.setAttribute('tabindex', '-1'); });
+      tab.querySelectorAll(ROVING_SEL).forEach(g => { if (!g.contains(document.activeElement)) _rovingSync(g); });
+    };
+    let raf = 0;
+    new MutationObserver(() => { if (!raf) raf = requestAnimationFrame(() => { raf = 0; apply(); }); })
+      .observe(tab, { childList: true, subtree: true });
+    apply();
+
+    tab.addEventListener('keydown', e => {
+      if (!['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(e.key)) return;
+      const g = e.target.closest && e.target.closest(ROVING_SEL);
+      if (!g || e.target.tagName !== 'BUTTON') return;
+      const btns = _rovingBtns(g), i = btns.indexOf(e.target);
+      if (i < 0) return;
+      e.preventDefault();
+      const next = btns[(i + (e.key === 'ArrowLeft' || e.key === 'ArrowUp' ? -1 : 1) + btns.length) % btns.length];
+      btns.forEach(b => { b.tabIndex = b === next ? 0 : -1; });
+      next.focus();
+    });
+    // グループへ外から Tab で入ったら、選ばれているボタンに止まる（マウスで押したときは、押したボタンのまま）。出たら、選ばれているボタンに戻す
+    let lastPointer = 0;
+    tab.addEventListener('pointerdown', () => { lastPointer = Date.now(); }, true);
+    tab.addEventListener('focusin', e => {
+      const g = e.target.closest && e.target.closest(ROVING_SEL);
+      if (!g || (e.relatedTarget && g.contains(e.relatedTarget)) || Date.now() - lastPointer < 600) return;
+      const cur = _rovingSync(g);
+      if (cur && cur !== e.target && e.target.tagName === 'BUTTON') cur.focus();
+    });
+    tab.addEventListener('focusout', e => {
+      const g = e.target.closest && e.target.closest(ROVING_SEL);
+      if (g && !(e.relatedTarget && g.contains(e.relatedTarget))) setTimeout(() => _rovingSync(g), 0);
+    });
+  }
 
   // 入力欄ごとに呼び出しを足さずに済むよう、タブ全体の入力・変更と、上部セクションのボタン（方向・輸送モード等）を拾う
   function initSummaryLiveUpdate() {

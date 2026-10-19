@@ -3006,7 +3006,7 @@
           <div class="cond-prim-group">
             <span class="cond-prim-label">オプション</span>
             <div class="cond-prim-btns">
-              <button class="wh-toggle-btn" id="insToggleBtn" onclick="toggleInsurance()">🛡️ 保険付保あり</button>
+              <button class="wh-toggle-btn" id="insToggleBtn" onclick="toggleInsurance()" title="クリックで保険付保を有効にします">🛡️ 保険付保（OFF）</button>
               <input type="text" id="insSubcon" class="ins-subcon-input" placeholder="🏢 保険会社（サブコン）" title="保険手配を依頼する保険会社・代理店名" style="display:none;" />
             </div>
           </div>
@@ -3121,7 +3121,6 @@
                   <input type="text" id="z2Pod" class="z2-input" list="portSuggestions"
                          placeholder="例）Shanghai">
                 </div>
-                <button type="button" class="z2-route-add" onclick="addRouteEntry()" title="このキャリア・POL・Via・PODを航路として追加（複数船会社・複数航路の比較見積に対応）">＋ 航路</button>
               </div>
               <div class="z2-row z2-tt-row">
                 <span class="z2-label" style="visibility:hidden">🚢</span>
@@ -3129,6 +3128,7 @@
                 <input type="text" id="z2Tt" class="z2-input z2-tt-input"
                        placeholder="輸送日数（任意）例）14日・約2週間・14 days"
                        title="この航路のおおよその所要日数。「＋ 航路」で航路ごとに保持されます">
+                <button type="button" class="z2-route-add" onclick="addRouteEntry()" title="このキャリア・POL・Via・PODを航路として追加（複数船会社・複数航路の比較見積に対応）">＋ 航路</button>
               </div>
               <div class="z2-route-list" id="z2RouteList"></div>
               <input type="hidden" id="z2-routes-data" />
