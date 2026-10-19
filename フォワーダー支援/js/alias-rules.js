@@ -216,14 +216,43 @@
     if (arr.find(p => p.field === field && p.abbrev === abbrev && p.full === full)) return;
     arr.unshift({ id: Date.now() + '_' + Math.random().toString(36).slice(2), field, abbrev, full, created_at: new Date().toISOString() });
     _saveAbbrevPairs(arr);
+    // 略称＝正式名称は「同義グループ」（正式名称が代表・略称が別名）と同じ意味なので、そちらにも登録してチームで共有する
+    // （略称辞書そのものはこのブラウザにしか保存されないため、同僚の画面では効かなかった）
+    if (typeof window.synAddAlias === 'function') await window.synAddAlias(field, abbrev, full);
     await _afterChange();
     if (typeof window.statsRefresh === 'function') await window.statsRefresh();
   };
 
   window.arDeleteAbbrevPair = async function (id) {
+    const pair = _loadAbbrevPairs().find(p => String(p.id) === String(id));
     _saveAbbrevPairs(_loadAbbrevPairs().filter(p => String(p.id) !== String(id)));
+    // 同義グループに同じ組があれば、別名からも外す
+    if (pair && typeof window.synRemoveAlias === 'function' && typeof window.synGetGroups === 'function' &&
+        window.synGetGroups(pair.field).some(g => g.canonical === pair.full && (g.aliases || []).includes(pair.abbrev))) {
+      await window.synRemoveAlias(pair.field, pair.abbrev, pair.full);
+    }
     await _afterChange();
     if (typeof window.statsRefresh === 'function') await window.statsRefresh();
+  };
+
+  // 同義グループにまだ載っていない（このブラウザにだけある）略称
+  function _abbrevUnshared(pairs) {
+    if (typeof window.synGetGroups !== 'function') return [];
+    return pairs.filter(p => !window.synGetGroups(p.field).some(g => g.canonical === p.full && (g.aliases || []).includes(p.abbrev)));
+  }
+  function _abbrevShareHtml(pairs) {
+    const n = _abbrevUnshared(pairs).length;
+    if (!n) return '';
+    return `<p class="ar-abbrev-desc">このブラウザにだけ保存されている略称が ${n} 件あります。` +
+      `<button class="ar-add-btn" onclick="arShareAbbrevPairs()" title="同義グループとして登録し、チームの全員の画面で効くようにします">☁️ チームに共有</button></p>`;
+  }
+  window.arShareAbbrevPairs = async function () {
+    const list = _abbrevUnshared(_loadAbbrevPairs());
+    if (!list.length || typeof window.synAddAlias !== 'function') return;
+    if (!confirm(`略称 ${list.length} 件を同義グループ（正式名称が代表）として登録し、チームで共有します。よろしいですか？`)) return;
+    for (const p of list) await window.synAddAlias(p.field, p.abbrev, p.full);
+    await _afterChange();
+    if (typeof window.quoteShowToast === 'function') window.quoteShowToast(`☁️ 略称 ${list.length} 件を共有しました`, 'success');
   };
 
   window.arSubmitAbbrevForm = async function () {
@@ -237,6 +266,75 @@
     const f = document.getElementById('arAbbrevFull');  if (f) f.value = '';
     if (typeof window.quoteShowToast === 'function') window.quoteShowToast('✅ 略称を登録しました', 'success');
   };
+
+  // === 名前の突き合わせ（全機能共通） ===
+  // 入力候補・ブックマーク・類似見積・自動入力・御見積書の英語名で、同じ会社／品名を同じものとして扱うための共通関数。
+  // 以前は機能ごとに照合のしかたが違い（完全一致／大小文字だけ無視／部分一致）、別名で入力するとつながらなかった。
+
+  // 表記の違いを無視した比較キー（stats.js の _normalize と同じ規則。お客様・サブコン・キャリアは法人格も除く）
+  const _CORP_RE = /株式会社|有限会社|合同会社|合資会社|\(株\)|\(有\)|\(合\)|\(同\)|\bco\.?,?\s*ltd\b\.?|\binc\b\.?|\bcorp\b\.?|\bllc\b/g;
+  function _nameKey(s, field) {
+    let t = String(s == null ? '' : s).normalize('NFKC').replace(/^\*+/, '').replace(/【[^】]*】/g, '').toLowerCase();
+    if (field === 'customer' || field === 'sv' || field === 'carrier') t = t.replace(_CORP_RE, '');
+    t = t.replace(/[\s　・ー―\-\/\\.,，、。()「」『』"'“”]+/g, '')
+         .replace(/[ァ-ン]/g, c => String.fromCharCode(c.charCodeAt(0) - 0x60));
+    return t || String(s == null ? '' : s).normalize('NFKC').toLowerCase();
+  }
+  window.nameKey = (field, s) => _nameKey(s, field);
+
+  // field ごとの「名前 → 代表名」の表（同義グループ ＞ 略称辞書 ＞ 統合ルール ＞ マスター）。短時間だけ使い回す
+  const _canonCache = {};
+  function _canonIndex(field) {
+    const c = _canonCache[field];
+    if (c && Date.now() - c.at < 2000) return c;
+    const exact = new Map(), byKey = new Map();
+    const put = (name, canon) => {
+      name = String(name || '').trim(); canon = String(canon || '').trim();
+      if (!name || !canon) return;
+      if (!exact.has(name)) exact.set(name, canon);
+      const k = _nameKey(name, field);
+      if (k && !byKey.has(k)) byKey.set(k, canon);
+    };
+    const groups = typeof window.synGetGroups === 'function' ? window.synGetGroups(field) : [];
+    groups.forEach(g => { put(g.canonical, g.canonical); (g.aliases || []).forEach(a => put(a, g.canonical)); });
+    _loadAbbrevPairs().filter(p => p.field === field).forEach(p => { put(p.full, p.full); put(p.abbrev, p.full); });
+    _loadLocal().filter(r => r.field === field).forEach(r => { put(r.to_value, r.to_value); put(r.from_value, r.to_value); });
+    const masters = typeof window.statsGetMasters === 'function' ? window.statsGetMasters() : [];
+    masters.filter(m => m.field === field).forEach(m => put(m.value, m.value));
+    // 代表名どうしが連鎖する場合（A→B、B→C）は最後まで辿る
+    const resolve = v => { let x = v, n = 0; while (exact.has(x) && exact.get(x) !== x && n++ < 5) x = exact.get(x); return x; };
+    exact.forEach((v, k) => exact.set(k, resolve(v)));
+    byKey.forEach((v, k) => byKey.set(k, resolve(v)));
+    return (_canonCache[field] = { at: Date.now(), exact, byKey });
+  }
+
+  // 入力された名前の代表名。登録が無ければ、そのまま（前後の空白と品名先頭の課税マーク * は除く）
+  window.nameCanon = function (field, raw) {
+    let v = String(raw == null ? '' : raw).trim();
+    if (field === 'nm') v = v.replace(/^\*\s?/, '');
+    if (!v) return v;
+    const ix = _canonIndex(field);
+    return ix.exact.get(v) || ix.byKey.get(_nameKey(v, field)) || v;
+  };
+  // 代表名とその別名（検索で別名側の登録も拾うため）。fields は 1 つまたは複数（ブックマークはサブコン・キャリア共通）
+  window.nameVariants = function (fields, raw) {
+    const out = new Set();
+    [].concat(fields).forEach(field => {
+      const v = String(raw == null ? '' : raw).trim();
+      if (!v) return;
+      out.add(v);
+      const canon = window.nameCanon(field, v);
+      out.add(canon);
+      _canonIndex(field).exact.forEach((c, name) => { if (c === canon) out.add(name); });
+    });
+    return [...out];
+  };
+  // 2 つの名前が同じ会社／品名か
+  window.nameSame = function (field, a, b) {
+    if (!a || !b) return false;
+    return _nameKey(window.nameCanon(field, a), field) === _nameKey(window.nameCanon(field, b), field);
+  };
+  window.nameCacheClear = function () { Object.keys(_canonCache).forEach(k => delete _canonCache[k]); };
 
   // === 入力補完用 ===
 
@@ -262,12 +360,25 @@
       const fromRules  = rules.filter(r => r.field === field).map(r => r.to_value);
       const fromMaster = masters.filter(m => m.field === field).map(m => m.value);
       const abbrevPairs = typeof window.arGetAbbrevPairs === 'function' ? window.arGetAbbrevPairs(field) : [];
-      const fromAbbrev = abbrevPairs.flatMap(p => [p.abbrev, p.full]);
-      const fromSyn = (typeof window.synGetGroups === 'function' ? window.synGetGroups(field) : [])
-        .flatMap(g => [g.canonical, ...(g.aliases || [])]);
+      const synGroups = typeof window.synGetGroups === 'function' ? window.synGetGroups(field) : [];
+      // 候補は代表名だけにする（以前は別名・略称も同じ並びに出て、選ぶたびに表記の揺れが増えていた）。
+      // 別名は option の label に入れるので、別名・略称で打っても代表名の候補が出る
+      if (typeof window.nameCacheClear === 'function') window.nameCacheClear();
+      const canonOf = v => (typeof window.nameCanon === 'function' ? window.nameCanon(field, v) : v);
+      const fromCanon = [
+        ...fromRules, ...fromMaster,
+        ...abbrevPairs.map(p => p.full),
+        ...synGroups.map(g => g.canonical),
+      ];
+      const isCanon = v => canonOf(v) === v;
       const all = masterOnly
-        ? [...new Set(fromMaster)]
-        : [...new Set([...fromRules, ...fromMaster, ...fromAbbrev, ...fromSyn])];
+        ? [...new Set(fromMaster.filter(isCanon))]
+        : [...new Set(fromCanon.filter(isCanon))];
+      const aliasesOf = {};
+      const addAlias = (canon, a) => { if (a && a !== canon) (aliasesOf[canon] = aliasesOf[canon] || new Set()).add(a); };
+      synGroups.forEach(g => (g.aliases || []).forEach(a => addAlias(g.canonical, a)));
+      abbrevPairs.forEach(p => addAlias(p.full, p.abbrev));
+      rules.filter(r => r.field === field).forEach(r => addAlias(canonOf(r.to_value), r.from_value));
       // マスター詳細のふりがな・英語名称を option label に反映（読みひらがな／英字入力でも候補にヒット）
       const furi = {}, eng = {};
       (typeof window.mdGetAll === 'function' ? window.mdGetAll(field) : []).forEach(m => {
@@ -277,6 +388,7 @@
         if (f) furi[m.value] = f;
         if (e) eng[m.value] = e;
       });
+      const aliasLabel = v => (aliasesOf[v] && aliasesOf[v].size ? '別名: ' + [...aliasesOf[v]].slice(0, 6).join('・') : '');
       // datalist 内の動的 option（data-master）だけを入れ替える
       dl.querySelectorAll('option[data-master]').forEach(o => o.remove());
       // 静的／別処理で作られた同名 option（内蔵DBのキャリア等）があれば重複追加せず、読み・英語名だけ付与する
@@ -285,18 +397,20 @@
       all.forEach(v => {
         const ex = existing.get(v);
         if (ex) {
-          const lab0 = [furi[v], eng[v]].filter(Boolean).join(' / ');
+          const lab0 = [furi[v], eng[v], aliasLabel(v)].filter(Boolean).join(' / ');
           if (lab0) ex.label = lab0;
           if (furi[v]) ex.dataset.furi = furi[v];
           if (eng[v])  ex.dataset.en   = eng[v];
+          if (aliasesOf[v]) ex.dataset.alias = [...aliasesOf[v]].join('|');
           return;
         }
         const o = document.createElement('option');
         o.value = v;
-        const lab = [furi[v], eng[v]].filter(Boolean).join(' / ');
+        const lab = [furi[v], eng[v], aliasLabel(v)].filter(Boolean).join(' / ');
         if (lab) o.label = lab;
         if (furi[v]) o.dataset.furi = furi[v];
         if (eng[v])  o.dataset.en   = eng[v];
+        if (aliasesOf[v]) o.dataset.alias = [...aliasesOf[v]].join('|');
         o.dataset.master = '1';
         dl.appendChild(o);
       });
@@ -469,10 +583,11 @@
     const abbrevFieldLabel = { sv: 'サブコン', carrier: 'キャリア', nm: '品名', un: '単位', customer: 'お客様', port: '港' };
     h += `<div class="ar-abbrev-section">
   <h4 class="ar-section-title">📖 略称辞書${abbrevPairs.length ? `（${abbrevPairs.length}件）` : ''}</h4>
-  <p class="ar-abbrev-desc">略称と正式名称を関連付けます。統計タブで同一グループとして表示されます（例：NTL ＝ NAIGAI TRANS LINE）。</p>
+  <p class="ar-abbrev-desc">略称と正式名称を関連付けます。統計タブで同一グループとして表示され、登録すると同義グループ（正式名称が代表）としてチームで共有されます（例：NTL ＝ NAIGAI TRANS LINES）。</p>${_abbrevShareHtml(abbrevPairs)}
   <div class="ar-add-form">
     <select id="arAbbrevField" class="ar-select">
       <option value="sv">サブコン</option>
+      <option value="carrier">キャリア</option>
       <option value="nm">品名</option>
       <option value="un">単位</option>
       <option value="customer">お客様</option>
@@ -480,7 +595,7 @@
     </select>
     <input id="arAbbrevShort" class="ar-input" type="text" placeholder="略称（例: NTL）">
     <span class="ar-arrow-label">=</span>
-    <input id="arAbbrevFull" class="ar-input" type="text" placeholder="正式名称（例: NAIGAI TRANS LINE）">
+    <input id="arAbbrevFull" class="ar-input" type="text" placeholder="正式名称（例: NAIGAI TRANS LINES）">
     <button class="ar-add-btn" onclick="arSubmitAbbrevForm()">登録</button>
   </div>`;
     if (abbrevPairs.length) {
@@ -570,7 +685,15 @@
     const map = (field === 'un')
       ? (typeof window.uaGetNormalizeMap === 'function' ? window.uaGetNormalizeMap() : {})
       : (typeof window.synGetNormalizeMap === 'function' ? window.synGetNormalizeMap(field) : {});
-    const canon = map[v];
+    let canon = map[v];
+    // 同義グループの完全一致に加え、略称辞書・統合ルール・表記の違い（全角半角・大小・記号・法人格）でも代表名を提案する
+    if (!canon && field !== 'un' && typeof window.nameCanon === 'function') {
+      // 品名先頭の課税マーク（*）は残したまま、名前の部分だけを比べる
+      const mark = field === 'nm' ? (v.match(/^\*\s?/) || [''])[0] : '';
+      const base = v.slice(mark.length);
+      const c = window.nameCanon(field, base);
+      if (c && c !== base) canon = mark + c;
+    }
     return (canon && canon !== v) ? canon : null;
   }
 
@@ -630,6 +753,8 @@
       `<button type="button" class="syn-suggest-dismiss" title="登録せずこのまま使う">このまま使う</button>`,
       el => el.querySelector('.syn-suggest-apply').addEventListener('click', async () => {
         _dismissSuggest();
+        // 誤字のまま登録されると、チーム全員の候補に出て表記の揺れの元になるため、ひと呼吸おく
+        if (!confirm('サブコン「' + value + '」をマスターに登録します。\nチーム全員の入力候補に出ます。表記（社名・略称・全角半角）に誤りがないか確認してください。\n\nよろしいですか？')) return;
         if (typeof window.statsEnsureMaster === 'function') await window.statsEnsureMaster('sv', value);
         const prev = (typeof window.mdGet === 'function' && window.mdGet('sv', value))?.details || {};
         if (typeof window.mdSave === 'function') await window.mdSave('sv', value, prev);
@@ -675,10 +800,34 @@
       return;
     }
     const canon = _canonicalFor(field, t.value);
+    _markUnregistered(t, field, !canon);
     if (canon) _showSynSuggest(t, canon);
     else if (field === 'sv') _checkSubconMaster(t);   // サブコンはマスター引用：未登録なら確認
     else _dismissSuggest();
   });
+
+  // 品名・港・お客様・キャリア：マスター（入力候補）に無い名前に、控えめな印を付ける（吹き出しは出さない＝入力の邪魔をしない）。
+  // そのまま使ってよいが、新人が「合っているのか」を確認できるように。マスターが 1 件も無い間（未整備・読込前）は付けない
+  const _UNREG_FIELDS = ['nm', 'port', 'customer', 'carrier'];
+  function _markUnregistered(input, field, check) {
+    if (!_UNREG_FIELDS.includes(field)) return;
+    let v = (input.value || '').trim();
+    if (field === 'nm') v = v.replace(/^\*\s?/, '');
+    let unreg = false;
+    if (check && v) {
+      const dl = document.getElementById(input.getAttribute('list'));
+      const known = new Set(dl ? Array.from(dl.children).map(o => o.value) : []);
+      const canon = typeof window.nameCanon === 'function' ? window.nameCanon(field, v) : v;
+      unreg = known.size > 0 && !known.has(v) && !known.has(canon);
+    }
+    input.classList.toggle('name-unregistered', unreg);
+    if (unreg) {
+      if (!input.dataset.titleOrig) input.dataset.titleOrig = input.getAttribute('title') || '';
+      input.title = '「' + v + '」は入力候補（マスター）にない名前です。そのまま使えますが、表記に誤りがないか確認してください。';
+    } else if (input.dataset.titleOrig !== undefined) {
+      input.title = input.dataset.titleOrig; delete input.dataset.titleOrig;
+    }
+  }
 
   // お客様ご担当者：読み（ひらがな／カタカナ）をそのまま確定したら、マスター登録の氏名へ変換
   document.addEventListener('change', function (e) {
@@ -713,8 +862,8 @@
     if (!q) return;
     const opts = Array.from(dl.children).filter(o => o.tagName === 'OPTION');
     const rank = o => {
-      // 候補の照合対象：値・ふりがな・英語名称（それぞれ単独で前方一致を判定）
-      const keys = [o.value, o.dataset.furi, o.dataset.en].filter(Boolean).map(norm);
+      // 候補の照合対象：値・ふりがな・英語名称・別名（それぞれ単独で前方一致を判定）
+      const keys = [o.value, o.dataset.furi, o.dataset.en, ...(o.dataset.alias ? o.dataset.alias.split('|') : [])].filter(Boolean).map(norm);
       if (keys.some(k => k.startsWith(q))) return 0;  // 前方一致
       if (keys.some(k => k.includes(q)))   return 1;  // 部分一致
       return 2;
@@ -1088,6 +1237,16 @@
 
   window.mdGet = function (field, value) {
     return _mdAll().find(m => m.field === field && m.value === value) || null;
+  };
+  // 入力側（自動入力・御見積書の英語名など）用：完全一致が無ければ代表名で探す（別名で入力しても詳細が効くように）。
+  // マスター管理画面は登録された名前そのものを扱うので、引き続き mdGet（完全一致）を使う
+  window.mdGetCanon = function (field, value) {
+    const v = String(value == null ? '' : value).trim();
+    if (!v) return null;
+    const hit = window.mdGet(field, v);
+    if (hit || typeof window.nameCanon !== 'function') return hit;
+    const canon = window.nameCanon(field, v);
+    return canon && canon !== v ? window.mdGet(field, canon) : null;
   };
   window.mdGetAll = function (field) {
     return _mdAll().filter(m => m.field === field);

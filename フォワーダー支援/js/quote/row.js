@@ -762,7 +762,7 @@
     const btn  = tr.querySelector('.master-detail-jump-btn');
     if (!nmEl || !btn) return;
     const value = (nmEl.value || '').replace(/^\*+/, '').trim();
-    const has = !!(value && typeof window.mdGet === 'function' && window.mdGet('nm', value));
+    const has = !!(value && typeof window.mdGet === 'function' && (window.mdGetCanon || window.mdGet)('nm', value));
     btn.hidden = !has;
   }
   function refreshAllRowMasterDetailBtns() {
@@ -780,7 +780,7 @@
       const value = (nmEl.value || '').replace(/^\*+/, '').trim();
       _refreshRowMasterDetailBtn(nmEl.closest('tr'));
       if (!value) return;
-      const rec = window.mdGet('nm', value);
+      const rec = (window.mdGetCanon || window.mdGet)('nm', value);   // 別名で入力しても代表名の詳細で補完
       if (!rec) return;
       const details = rec.details || {};
       const tr = nmEl.closest('tr');
@@ -849,14 +849,26 @@
       if (window.quoteShowToast) quoteShowToast('⚠️ マスター機能が利用できません', 'warn'); return;
     }
     const g = f => (document.getElementById(f + '-' + id)?.value || '').trim();
-    const nm = g('nm').replace(/^\*+/, '').trim();
+    let nm = g('nm').replace(/^\*+/, '').trim();
     if (!nm) {
       if (window.quoteShowToast) quoteShowToast('⚠️ 品名を入力してから登録してください', 'warn');
       document.getElementById('nm-' + id)?.focus();
       return;
     }
-    const un = g('un'), nt = g('nt'), cat = g('cat'), sv = g('sv');
+    const un = g('un'), nt = g('nt'), cat = g('cat');
+    let sv = g('sv');
     const pp = g('pp'), bp = g('bp'), bc = g('bc') || 'JPY';
+    // 別名として登録済みの名前は、代表名のマスターを更新する（別名がマスターとして増え、表記の揺れの元になるのを防ぐ）
+    const canonNm = typeof window.nameCanon === 'function' ? window.nameCanon('nm', nm) : nm;
+    const canonSv = sv && typeof window.nameCanon === 'function' ? window.nameCanon('sv', sv) : sv;
+    const aliasNote = [
+      canonNm !== nm && '品名「' + nm + '」は「' + canonNm + '」の別名です。',
+      canonSv !== sv && 'サブコン「' + sv + '」は「' + canonSv + '」の別名です。',
+    ].filter(Boolean);
+    if (aliasNote.length) {
+      if (!confirm(aliasNote.join('\n') + '\n\n代表名のほうのマスターに登録します。よろしいですか？')) return;
+      nm = canonNm; sv = canonSv;
+    }
     // 既存マスターとマージ（ふりがな等の既存項目を保持）
     const prev = (typeof window.mdGet === 'function' && window.mdGet('nm', nm))?.details || {};
     const details = Object.assign({}, prev);
@@ -867,6 +879,20 @@
     if (parseFloat(pp) > 0) details.refCost = pp;
     if (parseFloat(bp) > 0) details.refSell = bp;
     if (details.refCost || details.refSell) details.refCcy = bc;
+    // 登録前の確認：マスターはチーム共通の自動入力・参考単価に使われるため、上書きされる項目は変更前→変更後を見せる
+    const catSel = document.getElementById('cat-' + id);
+    const catLabel = v => (catSel && [...catSel.options].find(o => o.value === v)?.textContent.trim()) || v;
+    const LABELS = { defaultUnit: '単位', defaultNote: '備考', defaultCat: 'カテゴリ', refCost: '代表 仕入単価', refSell: '代表 売単価', refCcy: '単価の通貨' };
+    const show = (k, v) => (k === 'defaultCat' ? catLabel(v) : v);
+    const isNew = !(typeof window.mdGet === 'function' && window.mdGet('nm', nm));
+    const changes = Object.keys(LABELS).filter(k => prev[k] && details[k] && String(prev[k]) !== String(details[k]))
+      .map(k => '・' + LABELS[k] + '：' + show(k, prev[k]) + ' → ' + show(k, details[k]));
+    const msg = isNew
+      ? '品名「' + nm + '」を新しくマスターに登録します。\nチーム全員の入力候補・自動入力に使われます。よろしいですか？'
+      : changes.length
+        ? '品名「' + nm + '」のマスターを、この行の内容で更新します。\nチーム全員の自動入力・参考単価が変わります。\n\n' + changes.join('\n') + '\n\nよろしいですか？'
+        : '品名「' + nm + '」のマスターに、この行の内容を登録します（既存の値は変わりません）。よろしいですか？';
+    if (!confirm(msg)) return;
     // ① マスター一覧へ登録（マスター管理タブに出る本体。詳細ストアとは別）
     if (typeof window.statsEnsureMaster === 'function') await window.statsEnsureMaster('nm', nm);
     // ② 詳細（単位/備考/カテゴリ/代表単価）を保存

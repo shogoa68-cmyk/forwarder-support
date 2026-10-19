@@ -11229,3 +11229,5 @@ body.is-row-dragging { cursor: grabbing; user-select: none; }
 #tab-quote-make .q-glossary-btn:hover { background: var(--accent-lt); }
 /* 合計行の左：外貨を含むときの「※」の説明 */
 #tab-quote-make #quoteTable tfoot .tot-fx-note { font-size: var(--fs-11); font-weight: 400; color: var(--text-md); text-align: left; padding-left: var(--sp-8); }
+/* 入力候補（マスター）に無い名前の印（品名・港・お客様・キャリア）。そのまま使えるので控えめに：点線の枠のみ。説明は title */
+#tab-quote-make input.name-unregistered { outline: 1px dashed #c98a1b; outline-offset: -2px; }

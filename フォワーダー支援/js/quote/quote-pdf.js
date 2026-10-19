@@ -203,7 +203,7 @@
       const c = (window.synGetNormalizeMap(field) || {})[v];
       if (c) canon = c;
     }
-    const rec = window.mdGet(field, canon) || window.mdGet(field, v);
+    const rec = window.mdGet(field, canon) || window.mdGet(field, v) || (window.mdGetCanon ? window.mdGetCanon(field, v) : null);
     const en = rec && rec.details && String(rec.details.enName || '').trim();
     return en || value;
   }
@@ -215,7 +215,8 @@
     // それを使う。未登録の品名はそのまま日本語品名を出力する（品名ごとに個別マスター
     // 登録した分だけ段階的に英語化が進む設計。備考等の他の自由記述は対象外）
     if (_curLangEn) {
-      const rec = (typeof window.mdGet === 'function') ? window.mdGet('nm', jaName) : null;
+      // 別名で入力された品名も、代表名に英語品名があれば使う（以前は完全一致のみで英語化されなかった）
+      const rec = (typeof window.mdGet === 'function') ? (window.mdGetCanon || window.mdGet)('nm', jaName) : null;
       const en = rec && rec.details && rec.details.enName && String(rec.details.enName).trim();
       if (en) return en;
     }

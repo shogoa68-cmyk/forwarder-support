@@ -2375,7 +2375,12 @@
           <li><strong>S/I</strong>：Shipping Instruction（船積依頼書、B/L 作成元情報）</li>
           <li><strong>VGM</strong>：Verified Gross Mass（SOLAS 義務、コンテナ総重量の事前申告）</li>
           <li><strong>AMS / ISF / AFR / ENS / ACID</strong>：米国／米国 10+2／日本／EU／エジプトの<strong>事前申告制度</strong>。各国「ファイリングルール」タブ参照</li>
-          <li><strong>サブコン</strong>：Sub-Contractor（協力会社／下請輸送業者）</li>
+          <li><strong>サブコン</strong>：Sub-Contractor。見積の行ごとの<strong>費用の支払い先</strong>（協力会社・下請業者。集荷・通関・配送の業者、海上運賃なら船会社や NVOCC など）</li>
+          <li><strong>キャリア（契約先）</strong>：幹線輸送で運賃を契約・ブッキングする相手。船会社のほか、NVOCC やコローダーのこともある</li>
+          <li><strong>実運送人（実際の船）</strong>：実際に貨物を運ぶ船会社・航空会社。例：NVOCC の△△と契約しても、実際の船は ONE ＝ キャリア「△△」・役割「NVOCC」・実際の船「ONE」</li>
+          <li><strong>NVOCC</strong>：自社の船を持たず、船会社のスペースを使って運送を引き受ける事業者（LCL の混載業者など）</li>
+          <li><strong>コローダー</strong>：自社でコンテナを仕立てず、他の混載業者のコンテナに貨物を載せて運ぶ業者</li>
+          <li><strong>マスター／代表名・別名</strong>：チームで共通に使う正式な名前の一覧（入力候補）。同じ会社・品名の別の書き方（略称・カナ・英字）は「別名」として代表名にまとめる。入力欄に<strong>点線の枠</strong>が付いた名前は、候補にない（未登録の）名前</li>
           <li><strong>BAF / CAF / PSS / GRI</strong>：燃油／為替／繁忙期／一般運賃改定のサーチャージ</li>
           <li><strong>THC</strong>：Terminal Handling Charge（コンテナターミナル取扱料）</li>
           <li><strong>DEM / DET</strong>：Demurrage（CY 内保管料）／ Detention（CY 外滞留料）</li>
@@ -3076,7 +3081,7 @@
                 <span class="z2-label" id="z2ModeIcon">🚢</span>
                 <input type="text" id="z2Carrier" class="z2-input" list="carriers-dl"
                        placeholder="キャリア名（例：ONE）"
-                       title="data/carriers.js のマスタから候補を表示。表記揺れ防止に list 内の候補から選択を推奨。"
+                       title="運賃を契約・ブッキングする相手（契約先）。船会社のほか、NVOCC・コローダーのこともあります。表記がばらつかないよう、できるだけ候補から選んでください（略称・別名で打っても代表名の候補が出ます）。"
                        oninput="onZ2CarrierChange()">
                 <datalist id="carriers-dl"></datalist>
               </div>
@@ -3096,7 +3101,7 @@
                     <option value="coloader">コローダー</option>
                     <option value="direct">船社直</option>
                   </select>
-                  <span class="z2-relay-as">as</span>
+                  <span class="z2-relay-as" title="契約先が NVOCC・コローダー等のとき、実際に貨物を運ぶ船会社">実際の船：</span>
                   <input type="text" id="z2ActualCarrier" class="z2-input z2-relay-actual" list="carriers-dl"
                          placeholder="実運送人（実際の船会社）例）ONE, SJJ"
                          title="実際に船/スペースを提供する船会社（任意・蓄積用）">

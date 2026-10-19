@@ -262,7 +262,7 @@
     if (typeof window.mdGet !== 'function') return;
     const nm = (value || '').replace(/^\*+/, '').trim();
     if (!nm) return;
-    const rec = window.mdGet('nm', nm);
+    const rec = (window.mdGetCanon || window.mdGet)('nm', nm);
     if (!rec) return;
     const details = rec.details || {};
     const row = _edit.rows[i];
