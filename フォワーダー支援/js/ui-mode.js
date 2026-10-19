@@ -149,8 +149,18 @@
     const simple = window.uiIsSimple();
     OPT_SECS.forEach(id => {
       const el = $(id); if (!el) return;
-      if (!simple) { el.classList.remove('collapsed'); return; }
+      const head = el.querySelector(':scope > .section-toggle-head');
+      if (!simple) {
+        el.classList.remove('collapsed');
+        if (head) { head.removeAttribute('tabindex'); head.removeAttribute('role'); head.removeAttribute('aria-expanded'); }
+        return;
+      }
       if (!optInit.has(id)) { optInit.add(id); el.classList.add('collapsed'); }
+      // キーボードでも開閉できるように（見出しは h2 の onclick だけで、Tab で届かなかった）
+      if (head) {
+        head.tabIndex = 0; head.setAttribute('role', 'button');
+        head.setAttribute('aria-expanded', el.classList.contains('collapsed') ? 'false' : 'true');
+      }
     });
   }
   document.addEventListener('click', e => {
@@ -158,8 +168,16 @@
     const head = e.target.closest && e.target.closest('#tab-quote-make .section-toggle-head');
     if (!head || !OPT_SECS.includes(head.parentElement.id)) return;
     e.stopImmediatePropagation(); e.preventDefault();      // 既存の「スクロールのみ」処理より先に開閉する
-    head.parentElement.classList.toggle('collapsed');
+    const closed = head.parentElement.classList.toggle('collapsed');
+    head.setAttribute('aria-expanded', closed ? 'false' : 'true');
   }, true);
+  document.addEventListener('keydown', e => {
+    if (e.key !== 'Enter' && e.key !== ' ') return;
+    if (!window.uiIsSimple() || !e.target.matches || !e.target.matches('#tab-quote-make .section-toggle-head')) return;
+    if (!OPT_SECS.includes(e.target.parentElement.id)) return;
+    e.preventDefault();
+    e.target.click();
+  });
 
   // 上級機能を使っている案件：該当項目を自動で表示し、上部の帯で知らせる
   function scanAdv() {
@@ -201,7 +219,9 @@
     const arr = k => { try { const a = JSON.parse(f[k] || '[]'); return Array.isArray(a) ? a : []; } catch (e) { return []; } };
     // ① 条件：インコタームズ・輸送モード・航路（積み地／揚げ地）が入っている
     const hasRoute = !!((f['z2Pol'] || '').trim() || (f['z2Pod'] || '').trim() || arr('z2-routes-data').length);
-    const s1 = !!((f['cond-incoterms'] || '').trim() && (f['cond-incoterms'] || '').trim() !== '設定なし' && (f['cond-mode'] || '').trim() && hasRoute);
+    // 国内手配のみの案件は国際輸送が無い＝インコタームズ・航路は不要なので、輸送モードだけで ① を満たす
+    const domestic = (f['cond-mode'] || '').trim() === '国内手配のみ';
+    const s1 = domestic || !!((f['cond-incoterms'] || '').trim() && (f['cond-incoterms'] || '').trim() !== '設定なし' && (f['cond-mode'] || '').trim() && hasRoute);
     // ② 貨物：品名、またはコンテナ／荷姿が入っている
     const s2 = !!((f['cond-cargo'] || '').trim() || arr('cond-container-data').some(e => e && +e.count > 0) || arr('cond-packing-data').some(e => e && e.pkg));
     const done = [s1, s2, !!(st[2] && st[3]), !!st[4]];

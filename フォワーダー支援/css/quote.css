@@ -2595,6 +2595,9 @@
   background-position: right 10px center;
 }
 #tab-quote-make .cond-inco-select:focus { border-color: var(--accent); }
+/* hidden 属性（JS が付け外し）を、下の display:flex 等が上書きしないように：片道の案件で復路インコタームズ、
+   URL 未入力のときの参照 URL のリンク表示が出たままになっていた */
+#tab-quote-make #incoRetGroup[hidden], #tab-quote-make .qf-refurl-view[hidden], #tab-quote-make #qf-refurl[hidden] { display: none; }
 #tab-quote-make .cond-prim-group {
   display: flex;
   flex-direction: column;
