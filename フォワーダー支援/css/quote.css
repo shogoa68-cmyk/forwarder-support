@@ -1619,6 +1619,15 @@
   transition: all 0.15s; white-space: nowrap;
 }
 #tab-quote-make .pct-mode-btn:hover { border-color: #b0772f; color: #b0772f; }
+/* 売値ベース（売値を先に決め、仕入を入力して乗せ幅を割り出す行）：% モードのボタンと同じ見た目。ON は青系 */
+#tab-quote-make .sell-mode-btn {
+  display: inline-block; margin-top: var(--sp-3); padding: 1px var(--sp-6);
+  font-size: var(--fs-10); line-height: 1.5; border: 1px solid var(--border-md); border-radius: var(--r-3);
+  background: transparent; color: var(--border-md); cursor: pointer; font-family: inherit;
+  transition: all 0.15s; white-space: nowrap;
+}
+#tab-quote-make .sell-mode-btn:hover { border-color: #3a6a9a; color: #3a6a9a; }
+#tab-quote-make .sell-mode-btn.is-on { background: var(--blue-95); border-color: #5a8ab8; color: var(--blue-32); font-weight: 700; }
 /* 📇 マスター登録ボタン */
 #tab-quote-make .master-reg-btn {
   display: inline-block; margin-top: var(--sp-3); padding: 1px var(--sp-6);

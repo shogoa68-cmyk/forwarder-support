@@ -1291,6 +1291,8 @@
     if (esBtn) esBtn.onclick = () => toggleEstimate(id);
     const pctBtn = frag.querySelector('.pct-mode-btn');
     if (pctBtn) pctBtn.onclick = () => togglePctMode(id);
+    const sellBtn = frag.querySelector('.sell-mode-btn');
+    if (sellBtn) sellBtn.onclick = () => toggleSellMode(id);
     const mregBtn = frag.querySelector('.master-reg-btn');
     if (mregBtn) mregBtn.onclick = () => registerRowToMaster(id);
     const mdetBtn = frag.querySelector('.master-detail-jump-btn');
@@ -1878,6 +1880,7 @@
     const tr = document.getElementById(`row-${id}`);
     if (!tr) return;
     tr.classList.toggle('row-sell-mode', on);
+    tr.querySelector('.sell-mode-btn')?.classList.toggle('is-on', on);
     const ppEl = document.getElementById(`pp-${id}`);
     const bpEl = document.getElementById(`bp-${id}`);
     const mkEl = document.getElementById(`mk-${id}`);
@@ -1918,6 +1921,45 @@
     }
     onPay(id);
   }
+
+  // 売値ベースのオン／オフ（行の「売値ベース」ボタン）。
+  //  オフ：売単価・乗せ幅は今の値のまま、通常の入力（仕入＋乗せ幅＝売値。乗せ幅が入力・売値は表示専用）に戻す。
+  //        仕入が空欄のままなら 仕入 0・乗せ幅＝売値 にして、売値が消えないようにする。
+  //  オン：売値を先に決める向きへ。乗せ幅は 売−仕入 の自動算出になり、今の売値は変わらない。
+  function toggleSellMode(id) {
+    const tr = document.getElementById(`row-${id}`);
+    const modeEl = document.getElementById(`ppmode-${id}`);
+    if (!tr || !modeEl) return;
+    const toast = (m, t) => { if (typeof quoteShowToast === 'function') quoteShowToast(m, t || 'info', 4500); };
+    if (_isSellMode(id)) {
+      const ppEl = document.getElementById(`pp-${id}`);
+      const mkEl = document.getElementById(`mk-${id}`);
+      const bp = val(`bp-${id}`);
+      if (ppEl && String(ppEl.value).trim() === '') {
+        const pc = document.getElementById(`pc-${id}`)?.value || 'JPY';
+        ppEl.value = 0;
+        if (mkEl) mkEl.value = pc === 'JPY' ? Math.round(bp) : Math.round(bp * 100) / 100;
+      }
+      modeEl.value = '';
+      _setSellModeUI(id, false);
+      onPay(id);   // 売単価＝仕入単価＋乗せ幅（売値は変わらない）
+      toast('売値ベースを解除しました（仕入＋乗せ幅＝売値の通常入力に戻りました）');
+    } else {
+      if (tr.classList.contains('row-pct-mode') || modeEl.value === 'pct') {
+        toast('⚠️ % 計算モードを解除してから、売値ベースにしてください', 'warn'); return;
+      }
+      if (tr.dataset.bcIndep === '1') {
+        toast('⚠️ 仕入と売値の通貨が違う行は、売値ベースにできません（通貨を同じにしてください）', 'warn'); return;
+      }
+      modeEl.value = 'sell';
+      _setSellModeUI(id, true);
+      _calcFromSell(id);
+      toast('売値ベースにしました。売値を決め、仕入単価を入力すると乗せ幅が自動で出ます');
+    }
+    modeEl.dispatchEvent(new Event('change', { bubbles: true }));   // 未保存の目印・バッジ更新
+    if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
+  }
+  window.toggleSellMode = toggleSellMode;
 
   // 保存データ復元時に conditions.js から呼び出す
   function _restoreSellMode(id) {
