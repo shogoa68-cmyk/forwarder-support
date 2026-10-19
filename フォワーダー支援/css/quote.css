@@ -6197,6 +6197,14 @@ body.qp-dash-active #quoteActionDock { display: none !important; }
 }
 #tab-quote-make .help-tip:hover,
 #tab-quote-make .help-tip:focus { background: #c4ddec; outline: none; }
+/* 「このタブの使い方」の中の補足（style.css の .tab-help-body .help-tip）は ? アイコンではない。上の 16px 丸の指定が効いて
+   文字が縦に潰れていたため、補足欄の見た目に戻す */
+#tab-quote-make .tab-help-body .help-tip,
+#tab-quote-make .tab-help-body .help-tip:hover {
+  position: static; display: block; width: auto; height: auto; margin-left: 0;
+  font-weight: 400; line-height: 1.6; cursor: auto; user-select: auto; vertical-align: baseline;
+  color: #78350f; background: var(--amber-94); border: 1px solid #fcd34d; border-radius: var(--r-6);
+}
 #tab-quote-make .help-tip-text {
   position: absolute; top: calc(100% + 7px); left: 0;
   width: max-content; max-width: 240px;
@@ -11207,3 +11215,14 @@ body.is-row-dragging { cursor: grabbing; user-select: none; }
 #tab-quote-make .cp-remark-opt { display: inline-flex; align-items: center; gap: var(--sp-4); font-size: var(--fs-12); color: var(--c-7a6040); cursor: pointer; white-space: nowrap; }
 #tab-quote-make .cp-remark-opt[hidden] { display: none; }
 #tab-quote-make .cp-sel-count { white-space: nowrap; }
+
+/* 見積もりテーブル見出しの「📖 用語の説明」（このタブの使い方の用語集を開く） */
+#tab-quote-make .q-glossary-btn {
+  margin-left: var(--sp-8); padding: 2px 10px; vertical-align: middle;
+  font-size: var(--fs-12); font-weight: 600; font-family: inherit;
+  color: var(--accent-dk); background: var(--card-bg);
+  border: 1px solid var(--border-md); border-radius: var(--r-pill); cursor: pointer;
+}
+#tab-quote-make .q-glossary-btn:hover { background: var(--accent-lt); }
+/* 合計行の左：外貨を含むときの「※」の説明 */
+#tab-quote-make #quoteTable tfoot .tot-fx-note { font-size: var(--fs-11); font-weight: 400; color: var(--text-md); text-align: left; padding-left: var(--sp-8); }

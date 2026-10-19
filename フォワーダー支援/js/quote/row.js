@@ -974,6 +974,8 @@
         const di = dataRows.indexOf(tr);
         const focusField = (rowEl, field) => {
           const t = rowEl && rowEl.querySelector(`[data-field="${field}"]`);
+          // Industry では % 率の欄が「その他 ▾」パネルの中にあり、閉じていると focus できない
+          if (t && !t.offsetParent && t.closest('.row-detail-panel') && window.rowDetailToggle) window.rowDetailToggle(rowEl, true);
           if (t) { t.focus(); if (t.select) t.select(); }
           return !!t;
         };
@@ -1694,12 +1696,16 @@
     const isFx = canFx && (bc !== 'JPY' || pc !== 'JPY') && (subtotal || profit);
     if (ccyMismatch && canFx) {
       const jpyProfit = Math.ceil(toJPY(subtotal, bc) - toJPY(pq * pp, pc));
+      const jpySub = toJPY(subtotal, bc);
+      // 粗利率（Industry のみ表示）は 3 段目に分ける（2 段目は 1 行で、並べると換算の注記が切れるため）
+      const rate = jpySub > 0 ? '<div class="pr-sub"><small class="pr-rate">粗利 ' + (jpyProfit / jpySub * 100).toFixed(1) + '%</small></div>' : '';
       pr.innerHTML = '<div class="pr-main">≈¥' + fmt(jpyProfit) + '</div>' +
-        '<div class="pr-sub"><small class="jpy-conv-hint" title="仕入（' + pc + '）と売（' + bc + '）の通貨が異なるため、円換算後の差額のみを表示しています">円換算後</small></div>';
+        '<div class="pr-sub"><small class="jpy-conv-hint" title="仕入（' + pc + '）と売（' + bc + '）の通貨が異なるため、円換算後の差額のみを表示しています">円換算後</small></div>' + rate;
       pr.className = `profit-cell ${pClass(jpyProfit)}`;
     } else if (isFx) {
       const jpyProfit = Math.ceil(toJPY(subtotal, bc) - toJPY(pq * pp, pc));
-      pr.innerHTML = '<div class="pr-main">' + fmt(profit) + '</div><div class="pr-sub"><small class="jpy-conv-hint">(≈¥' + fmt(jpyProfit) + ')</small></div>';
+      const rate = subtotal > 0 ? '<div class="pr-sub"><small class="pr-rate">粗利 ' + (profit / subtotal * 100).toFixed(1) + '%</small></div>' : '';
+      pr.innerHTML = '<div class="pr-main">' + fmt(profit) + '</div><div class="pr-sub"><small class="jpy-conv-hint">(≈¥' + fmt(jpyProfit) + ')</small></div>' + rate;
       pr.className = `profit-cell ${pClass(profit)}`;
     } else {
       // 粗利率（Industry のみ表示。classic は .pr-rate を CSS で隠す）
@@ -1800,6 +1806,7 @@
     if (on) {
       _calcPct(id);
       if (typeof quoteShowToast === 'function') quoteShowToast('% 計算モードをONにしました。%率と基準額を入力してください。', 'info');
+      setTimeout(() => { const r = document.getElementById(`pprate-${id}`); if (r && r.offsetParent) { r.focus(); r.select(); } }, 0);
     } else {
       // 直接入力モードに戻す：pp を再び編集可能に
       const ppEl = document.getElementById(`pp-${id}`);
@@ -2062,6 +2069,8 @@
       document.getElementById('tot-profit').className = 'profit-cell profit-zero';
       const lbl0 = document.getElementById('tot-row-label');
       if (lbl0) lbl0.textContent = '合　計';
+      const fxn0 = document.getElementById('tot-fx-note');
+      if (fxn0) fxn0.textContent = '';
       window.renderQuoteFxBar?.();
       return;
     }
@@ -2116,6 +2125,8 @@
     const totPrJPY = totBillJPY - totCostJPY;
     const labelEl  = document.getElementById('tot-row-label');
     const pEl      = document.getElementById('tot-profit');
+    const fxNote   = document.getElementById('tot-fx-note');
+    if (fxNote) fxNote.textContent = hasFx ? '※ 外貨の金額は、換算レートで円にして合算しています' : '';
     if (hasFx) {
       // 外貨混在時：単純加算は無意味なので JPY 換算合計を「合計」行に表示
       if (labelEl) labelEl.innerHTML = '合計<small class="tot-jpy-note">（JPY換算）</small>';

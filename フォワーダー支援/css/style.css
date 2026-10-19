@@ -1090,6 +1090,12 @@ body:has(#tab-quote-make.active) .app { padding-bottom: var(--sp-8); }
   white-space: nowrap;
 }
 .cat-btn:hover { background: var(--accent-lt); color: var(--accent-dk); border-color: var(--accent); }
+/* スマホ幅：折り返すと 4 段（約 200px）になり、画面上部に固定されたまま入力欄を隠すため、1 段の横スクロールにする */
+@media (max-width: 680px) {
+  .cat-nav { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
+  .cat-nav::-webkit-scrollbar { display: none; }
+  .cat-btn { flex: 0 0 auto; min-width: 0; }
+}
 .cat-btn.active {
   background: var(--accent-dk);
   color: var(--accent-lt);
@@ -1404,6 +1410,12 @@ body:has(#compareOverlay.open) #quoteActionDock { display: none; }
 #quoteActionDock .qad-save:hover { background: #18683a; }
 #quoteActionDock .qad-edit { background: #1c6fa6; color: var(--surface); }
 #quoteActionDock .qad-edit:hover { background: var(--blue-32); }
+/* スマホ幅：ドックが画面幅いっぱいに並び、ページ末尾（ジャンプ欄など）を隠すため、ボタンを小さくし、ページ下にドックの分の余白を取る */
+@media (max-width: 680px) {
+  body:has(#tab-quote-make.active) { padding-bottom: var(--qad-dock-h); }
+  #quoteActionDock { right: 10px; bottom: 10px; gap: var(--sp-6); }
+  #quoteActionDock .qad-btn { padding: var(--sp-8) var(--sp-12); font-size: var(--fs-12); }
+}
 #quoteActionDock .qad-save:disabled { background: var(--c-d5c8b0); color: var(--surface); opacity: .75; cursor: not-allowed; transform: none; box-shadow: 0 4px 14px rgba(45,36,24,0.18); }
 
 /* ===========================================================
