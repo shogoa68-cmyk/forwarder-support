@@ -698,7 +698,10 @@ function _bmFindSimilarCarrier(input) {
   const norm = _bmNormCarrier(input);
   if (!norm) return null;
   const carriers = [...new Set(_bmRows.map(r => r.carrier).filter(Boolean))];
-  return carriers.find(c => c !== input && _bmNormCarrier(c) === norm) || null;
+  // 大小文字・空白に加え、全角半角・記号・法人格の違いや、登録済みの別名（同義グループ・略称辞書）も同じ会社とみなす
+  const same = c => _bmNormCarrier(c) === norm ||
+    (typeof window.nameSame === 'function' && (window.nameSame('carrier', c, input) || window.nameSame('sv', c, input)));
+  return carriers.find(c => c !== input && same(c)) || null;
 }
 
 let _bmCarrierSuggestEl = null;
@@ -1621,20 +1624,24 @@ window.fetchCarrierBmsForQSP = async function (carrierNames) {
   carrierNames.forEach(n => bmGetRelated(n).forEach(rel => {
     if (!expanded.includes(rel.counterpart)) expanded.push(rel.counterpart);
   }));
+  // 別名・代表名で登録されたブックマークも拾う（例：「Ocean Network Express」と入力しても「ONE」のリンクを出す）
+  const _BM_FIELDS = ['carrier', 'sv'];
+  const _variants = n => (typeof window.nameVariants === 'function' ? window.nameVariants(_BM_FIELDS, n) : [n]);
+  const _same = (a, b) => a === b || (typeof window.nameSame === 'function' && _BM_FIELDS.some(f => window.nameSame(f, a, b)));
+  const queryNames = [...new Set(expanded.flatMap(_variants))];
 
   const { data, error } = await db
     .from('bookmarks')
     .select('id, label, url, carrier, carrier_type, function, note, file_path, file_name, file_size, mime_type')
-    .in('carrier', expanded)
+    .in('carrier', queryNames)
     .or('url.not.is.null,file_path.not.is.null');
   if (error) return;
 
   const cache = {};
   expanded.forEach(n => { cache[n] = []; });
   (data || []).forEach(bm => {
-    if (bm.carrier && Object.prototype.hasOwnProperty.call(cache, bm.carrier)) {
-      cache[bm.carrier].push(bm);
-    }
+    if (!bm.carrier) return;
+    expanded.forEach(n => { if (_same(n, bm.carrier) && !cache[n].includes(bm)) cache[n].push(bm); });
   });
   window._qspBmCache = cache;
   if (typeof window.renderQuoteMilestones === 'function') window.renderQuoteMilestones();

@@ -554,7 +554,7 @@
     const inp = document.getElementById('qf-customer');
     if (!btn || !inp) return;
     const value = (inp.value || '').trim();
-    const has = !!(value && typeof window.mdGet === 'function' && window.mdGet('customer', value));
+    const has = !!(value && typeof window.mdGet === 'function' && (window.mdGetCanon || window.mdGet)('customer', value));
     btn.hidden = !has;
     window.qfRefreshPersonSuggestions();
   };
@@ -566,7 +566,7 @@
     if (!dl || !inp) return;
     dl.innerHTML = '';
     const value = (inp.value || '').trim();
-    const rec = value && typeof window.mdGet === 'function' ? window.mdGet('customer', value) : null;
+    const rec = value && typeof window.mdGet === 'function' ? (window.mdGetCanon || window.mdGet)('customer', value) : null;
     const contacts = rec && Array.isArray(rec.details?.contacts) ? rec.details.contacts : [];
     contacts.forEach(c => {
       const name = (c.name || '').trim();
@@ -583,7 +583,7 @@
 
   window.mdShowDetailPopup = function (field, value) {
     value = (value || '').trim();
-    const rec = value && typeof window.mdGet === 'function' ? window.mdGet(field, value) : null;
+    const rec = value && typeof window.mdGet === 'function' ? (window.mdGetCanon || window.mdGet)(field, value) : null;
     const body = document.getElementById('cdBody');
     const title = document.getElementById('cdTitle');
     const overlay = document.getElementById('customerDetailOverlay');
@@ -3513,7 +3513,9 @@
     const val  = (document.getElementById('z2Carrier')?.value || '').trim();
     const map  = _carrierMapForMode();
     const defs = _linkDefsForMode();
-    const c    = map[val];
+    // 内蔵の船会社 DB も、別名・表記ゆれ（例：「ＯＮＥ」「Ocean Network Express」）で引けるように
+    const c    = map[val] || (typeof window.nameSame === 'function'
+      ? map[Object.keys(map).find(k => window.nameSame('carrier', k, val))] : undefined);
     if (!c) { panel.style.display = 'none'; panel.innerHTML = ''; done(); return; }
 
     const links = defs

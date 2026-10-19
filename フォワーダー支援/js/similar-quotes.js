@@ -71,9 +71,11 @@ async function _sqFetch() {
   const orParts = [];
   if (p.inco)     orParts.push(`incoterms.eq.${p.inco}`);
   if (p.mode)     orParts.push(`transport_mode.eq.${p.mode}`);
-  if (p.pol)      orParts.push(`pol.ilike.%${p.pol}%`);
-  if (p.pod)      orParts.push(`pod.ilike.%${p.pod}%`);
-  if (p.customer) orParts.push(`customer.ilike.%${p.customer}%`);
+  // 港・お客様は、代表名と登録済みの別名でも探す（例：「横浜」と「Yokohama」）。PostgREST の or 構文を壊す文字を含む名前は除く
+  const _sqOrSafe = v => v && !/[,()%]/.test(v);
+  if (p.pol)      _sqVariants('port', p.pol).filter(_sqOrSafe).forEach(v => orParts.push(`pol.ilike.%${v}%`));
+  if (p.pod)      _sqVariants('port', p.pod).filter(_sqOrSafe).forEach(v => orParts.push(`pod.ilike.%${v}%`));
+  if (p.customer) _sqVariants('customer', p.customer).filter(_sqOrSafe).forEach(v => orParts.push(`customer.ilike.%${v}%`));
 
   let { data, error } = await db.from('quote_presets')
     .select('id,name,ref,status,customer,person,incoterms,transport_mode,pol,pod,carrier,updated_at')
@@ -103,14 +105,27 @@ async function _sqFetch() {
   _sqRender(_sqAllResults.slice(0, _sqShowCount), panel, p, _sqAllResults.length);
 }
 
+// 代表名と別名（多すぎると検索条件が長くなるため上限あり）
+function _sqVariants(field, v) {
+  const list = typeof window.nameVariants === 'function' ? window.nameVariants(field, v) : [v];
+  return list.filter(Boolean).slice(0, 6);
+}
+// 部分一致（従来どおり）に加え、別名・表記ゆれも同じとみなす
+function _sqMatch(field, rv, pv) {
+  if (!rv || !pv) return false;
+  const ci = v => (v || '').toLowerCase();
+  if (_sqVariants(field, pv).some(v => ci(rv).includes(ci(v)))) return true;
+  return typeof window.nameSame === 'function' && window.nameSame(field, rv, pv);
+}
+
 function _sqScore(r, p) {
   let s = 0;
   const ci = v => (v || '').toLowerCase();
   if (p.mode     && ci(r.transport_mode) === ci(p.mode))           s += _SQ_W.mode;
   if (p.inco     && ci(r.incoterms)      === ci(p.inco))           s += _SQ_W.inco;
-  if (p.pol      && ci(r.pol  || '').includes(ci(p.pol)))          s += _SQ_W.pol;
-  if (p.pod      && ci(r.pod  || '').includes(ci(p.pod)))          s += _SQ_W.pod;
-  if (p.customer && ci(r.customer || '').includes(ci(p.customer))) s += _SQ_W.customer;
+  if (p.pol      && _sqMatch('port', r.pol, p.pol))                s += _SQ_W.pol;
+  if (p.pod      && _sqMatch('port', r.pod, p.pod))                s += _SQ_W.pod;
+  if (p.customer && _sqMatch('customer', r.customer, p.customer))  s += _SQ_W.customer;
   return s;
 }
 
