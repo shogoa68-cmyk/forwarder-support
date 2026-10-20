@@ -48,9 +48,9 @@
   }
 
   function _voteInfo(field, value) {
+    // マスターはクラウド必須（このブラウザの保存分 masterCandidates_v1 は移行にだけ使う）
     if (_cloud() && _cvMap !== null) return _cvMap.get(field + '\x00' + value) || { total: 0, isMine: false };
-    const m = _getMasters().find(c => c.field === field && c.value === value);
-    return { total: m ? m.votes : 0, isMine: !!m };
+    return { total: 0, isMine: false };
   }
 
   // === データ取得 ===
@@ -246,33 +246,21 @@
   // === 投票 ===
 
   async function _promote(field, value) {
-    if (_cloud()) {
-      const c = _c(), me = _me();
-      await c.from(VOTES_TABLE).upsert({ field, value, voter_email: me }, { onConflict: 'field,value,voter_email' });
-      await _loadCloudVotes();
-    } else {
-      const arr = _getMasters();
-      const idx = arr.findIndex(c => c.field === field && c.value === value);
-      if (idx >= 0) arr[idx].votes = (arr[idx].votes || 0) + 1;
-      else arr.push({ field, value, votes: 1, ts: Date.now() });
-      _saveMasters(arr);
-    }
+    if (!_cloud()) { if (typeof window.masterNeedCloud === 'function') window.masterNeedCloud(); return; }
+    const c = _c(), me = _me();
+    await c.from(VOTES_TABLE).upsert({ field, value, voter_email: me }, { onConflict: 'field,value,voter_email' });
+    await _loadCloudVotes();
   }
 
   async function _demote(field, value) {
-    if (_cloud()) {
-      const c = _c(), me = _me();
-      await c.from(VOTES_TABLE).delete().match({ field, value, voter_email: me });
-      await _loadCloudVotes();
-    } else {
-      const arr = _getMasters();
-      const idx = arr.findIndex(c => c.field === field && c.value === value);
-      if (idx < 0) return;
-      arr[idx].votes = Math.max(0, arr[idx].votes - 1);
-      if (arr[idx].votes === 0) arr.splice(idx, 1);
-      _saveMasters(arr);
-    }
+    if (!_cloud()) { if (typeof window.masterNeedCloud === 'function') window.masterNeedCloud(); return; }
+    const c = _c(), me = _me();
+    await c.from(VOTES_TABLE).delete().match({ field, value, voter_email: me });
+    await _loadCloudVotes();
   }
+  // 移行用：このブラウザにだけ残っている昇格（masterCandidates_v1）
+  window.statsLocalMasters = function () { return _getMasters().filter(m => (m.votes || 0) >= 1).map(m => ({ field: m.field, value: m.value })); };
+  window.statsClearLocalMasters = function () { _saveMasters([]); localStorage.removeItem(LOCAL_KEY); _mastersCache = null; };
 
   // === レンダリングヘルパー ===
 
@@ -770,6 +758,7 @@
       await _loadCloudVotes();
       if (typeof window.synLoadCloud === 'function') await window.synLoadCloud();
       if (typeof window.mdLoadCloud === 'function') await window.mdLoadCloud();
+      if (typeof window.arLoadCloud === 'function') await window.arLoadCloud();
       if (typeof window.arRefreshDatalist === 'function') window.arRefreshDatalist();
     }
     if (typeof window.statsMasterSetFilter === 'function') window.statsMasterSetFilter(field);
@@ -1671,8 +1660,6 @@
         const value = key.substring(sep + 1);
         entries.push({ field, value, votes: total, isMine, promoted: true });
       });
-    } else {
-      entries = _getMasters().map(m => ({ ...m, isMine: true, promoted: true }));
     }
     const labels = { sv: 'サブコン', carrier: 'キャリア', nm: '品名', un: '単位', customer: 'お客様', port: '港' };
 
@@ -1759,7 +1746,7 @@
       const note = synFiltered.length
         ? '<p class="stats-empty">個別マスターはありません（同義グループの代表が下に「マスター」として表示されています）。</p>'
         : '<p class="stats-empty">マスター登録はまだありません。<br>各集計の ☆登録（個別）または ⭐代表（同義グループ）で追加できます。</p>';
-      e.innerHTML = formH + chipsH + note + synH;
+      e.innerHTML = (typeof window.masterTopNoticeHtml === 'function' ? window.masterTopNoticeHtml() : '') + formH + chipsH + note + synH;
       return;
     }
     const usageDesc = {
@@ -1771,7 +1758,6 @@
       port:     'POL / POD / Via 港欄で入力補完候補に表示されます。',
     };
     const sorted = entries.sort((a, b) => (labels[a.field] || a.field).localeCompare(labels[b.field] || b.field) || (a.value || '').localeCompare(b.value || ''));
-    const abbrevPairs = (typeof window.arGetAbbrevPairs === 'function') ? window.arGetAbbrevPairs() : [];
     let h = '<div class="stats-master-info">' +
             '<p class="stats-master-info-title">✅ 個別マスター（同義グループに属さない表記）の活用方法</p>' +
             '<ul class="stats-master-usage-list">' +
@@ -1780,21 +1766,14 @@
               .map(([f, desc]) => `<li><b>${labels[f] || f}</b>：${desc}</li>`).join('') +
             '<li><b>エイリアス是正</b>：表記ゆれを一括置換する際の「正規形」の候補として参照できます。</li>' +
             '</ul>' +
-            `<p class="stats-master-info-note">☆ 登録 ボタンで即時マスターに追加。再クリックで解除できます。${cloudOn ? '（チーム全員で共有）' : '（このブラウザにローカル保存）'}</p>` +
+            `<p class="stats-master-info-note">☆ 登録 ボタンで即時マスターに追加。再クリックで解除できます。（チーム全員で共有）</p>` +
             '</div>' +
             '<table class="stats-table"><thead><tr>' +
             '<th>種別</th><th>名称</th><th>略称</th><th></th>' +
             '</tr></thead><tbody>';
     sorted.forEach(m => {
-      const pair = abbrevPairs.find(p => p.field === m.field && (p.full === m.value || p.abbrev === m.value));
-      let abbrevCell;
-      if (pair) {
-        const abbrevDisplay = pair.full === m.value ? pair.abbrev : pair.full;
-        abbrevCell = `<span class="stats-master-abbrev-chip">${_esc(abbrevDisplay)}</span>` +
-                     `<button class="stats-master-abbrev-del" title="略称を削除" onclick="arDeleteAbbrevPair('${_ea(String(pair.id))}')">✕</button>`;
-      } else {
-        abbrevCell = `<button class="stats-master-abbrev-add" onclick="statsMasterAddAbbrev('${_ea(m.field)}','${_ea(m.value)}')">＋ 略称</button>`;
-      }
+      // 略称は同義グループ（正式名称が代表）として登録する。登録後は下の「同義グループ」に表示される
+      const abbrevCell = `<button class="stats-master-abbrev-add" onclick="statsMasterAddAbbrev('${_ea(m.field)}','${_ea(m.value)}')">＋ 略称</button>`;
       h += `<tr data-mfield="${_eav(m.field)}" data-mvalue="${_eav(m.value)}">` +
            `<td>${labels[m.field] || m.field}</td>` +
            `<td class="stats-val">${_esc(m.value)}${_mdBadge(m.field, m.value)}</td>` +
@@ -1802,7 +1781,7 @@
            `<td>${_mdDetailBtn(m.field, m.value)}${m.isMine ? `<button class="stats-demote-btn" onclick="statsToggleVote('${_ea(m.field)}','${_ea(m.value)}')">解除</button>` : '<span class="stats-empty-cell">他メンバー</span>'}</td>` +
            `</tr>`;
     });
-    e.innerHTML = formH + chipsH + h + '</tbody></table>' + synH;
+    e.innerHTML = (typeof window.masterTopNoticeHtml === 'function' ? window.masterTopNoticeHtml() : '') + formH + chipsH + h + '</tbody></table>' + synH;
   }
 
   // マスタータブから単位同義グループを操作した際、マスター画面も再描画する薄いラッパ
@@ -2086,7 +2065,7 @@
       .filter(g => g.variants.length > 1).length;
     set('statsBlurCount', blur);
     // マスター候補数
-    const masterCount = _cloud() && _cvMap ? _cvMap.size : _getMasters().length;
+    const masterCount = _cloud() && _cvMap ? _cvMap.size : 0;
     set('statsMasterCount', masterCount);
   }
 
@@ -2349,6 +2328,7 @@
         await _loadCloudVotes();
         if (typeof window.synLoadCloud === 'function') await window.synLoadCloud();
         if (typeof window.mdLoadCloud === 'function') await window.mdLoadCloud();
+        if (typeof window.arLoadCloud === 'function') await window.arLoadCloud();
         if (typeof window.arRefreshDatalist === 'function') window.arRefreshDatalist();
       } catch (err) { console.warn('[statsLoadMasterCache]', err); }
       finally { _mcLoading = null; }
@@ -2372,6 +2352,7 @@
       await _loadCloudVotes();
       if (typeof window.synLoadCloud === 'function') await window.synLoadCloud();
       if (typeof window.mdLoadCloud === 'function') await window.mdLoadCloud();
+      if (typeof window.arLoadCloud === 'function') await window.arLoadCloud();
       if (typeof window.arRefreshDatalist === 'function') window.arRefreshDatalist();   // 読み込んだクラウドのマスターを入力補完へ
       _renderCloud();
       _renderActivePane();
@@ -2404,6 +2385,7 @@
       await _loadCloudVotes();
       if (typeof window.synLoadCloud === 'function') await window.synLoadCloud();
       if (typeof window.mdLoadCloud === 'function') await window.mdLoadCloud();
+      if (typeof window.arLoadCloud === 'function') await window.arLoadCloud();
       if (typeof window.arRefreshDatalist === 'function') window.arRefreshDatalist();   // 読み込んだクラウドのマスターを入力補完へ
       // アクティブなマスタータブのペインを再描画
       const active = document.querySelector('#tab-master .stats-pane.is-active');
@@ -2426,7 +2408,7 @@
       });
       return res;
     }
-    return _getMasters().filter(m => (m.votes || 0) >= 1).map(m => ({ field: m.field, value: m.value }));
+    return [];   // マスターはクラウド必須（未ログイン・読込前は空）
   };
 
   window.statsRefresh = async function () {
@@ -2446,6 +2428,7 @@
         await _loadCloudVotes();
         if (typeof window.synLoadCloud === 'function') await window.synLoadCloud();
         if (typeof window.mdLoadCloud === 'function') await window.mdLoadCloud();
+        if (typeof window.arLoadCloud === 'function') await window.arLoadCloud();
       }
       _renderCloud();
       _renderActivePane();
