@@ -1534,7 +1534,15 @@
       // 10分以上 無操作なら「放置」とみなし、自分でロックを解放して閲覧モードへ
       if (Date.now() - _lastLockActivity > LOCK_IDLE_LIMIT_MS) { _onSelfIdleRelease(id); return; }
       const held = await _renewLock(id);     // 更新のみ
-      if (held === false) _onLockLost(id);   // 管理者強制解放／他者奪取で失った
+      if (held === false) {
+        // 更新できない＝ロックが自分名義でない。ただし「自分の別タブが放置/クローズで
+        // クリアしただけ」なら握り直せる。管理者が強制解放した場合は acquire が
+        // 'COOLDOWN' を返して拒否される（＝本当に失った）。
+        const r = await _acquireLock(id);
+        if (r === 'OK') return;              // 握り直せた（自分の別タブがクリア等）→ 継続
+        if (r === 'COOLDOWN' || (typeof r === 'string' && r.indexOf('@') >= 0)) _onLockLost(id);
+        // r === null / 'NOTFOUND' / 'DENIED' は不明 → 誤った閲覧モード化を避けて継続
+      }
     }, LOCK_HEARTBEAT_MS);
   }
   // ロックを失った（管理者が強制解放 or 他メンバーが引き継ぎ）→ 閲覧モードへ落とす
@@ -1554,13 +1562,16 @@
     _applyShareMode('view');
     quoteShowToast('💤 10分間操作がなかったため編集権を解放し、閲覧モードに切り替えました。続けるには「✏️ 編集」を押してください。', 'info', 8000);
   }
-  // 案件のロックを取得。{ok:true}=取得 ／ {ok:true,unmanaged:true}=ロック未適用 ／ {ok:false,by:email}=他者保持中
+  // 案件のロックを取得。{ok:true}=取得 ／ {ok:true,unmanaged:true}=ロック未適用
+  //   ／ {ok:false,cooldown:true}=管理者が強制解放した直後（数十秒は再取得不可）
+  //   ／ {ok:false,by:email}=他者保持中
   async function _takeLock(id) {
     if (_lockHeldId && _lockHeldId !== id) { await _releaseLock(_lockHeldId); _lockHeldId = null; _stopLockHeartbeat(); }
     const r = await _acquireLock(id);
     if (r === 'OK')               { _lockHeldId = id; _startLockHeartbeat(id); return { ok: true }; }
     if (r === null || r === 'NOTFOUND' || r === 'DENIED') { _lockHeldId = null; _stopLockHeartbeat(); return { ok: true, unmanaged: true }; }
     _lockHeldId = null; _stopLockHeartbeat();
+    if (r === 'COOLDOWN') return { ok: false, cooldown: true };
     return { ok: false, by: r };
   }
   function _dropLock() {
@@ -1621,7 +1632,11 @@
     if (!_loadedCloudId) { quoteShowToast('ℹ️ 先にチーム共有から案件を開いてください', 'info', 3000); return; }
     const lock = await _takeLock(_loadedCloudId);
     if (!lock.ok) {
-      quoteShowToast('🔒 ' + _nameFor(lock.by) + ' さんが作業中のため編集できません', 'warn', 6000);
+      if (lock.cooldown) {
+        quoteShowToast('⏳ 管理者がこの案件のロックを解放した直後です。数十秒おいてから「✏️ 編集」をお試しください。', 'warn', 6000);
+      } else {
+        quoteShowToast('🔒 ' + _nameFor(lock.by) + ' さんが作業中のため編集できません', 'warn', 6000);
+      }
       return;
     }
     _setEditing(_loadedCloudId);     // Presence：あなたが作業中
