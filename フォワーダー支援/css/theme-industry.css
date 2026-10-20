@@ -9868,3 +9868,47 @@ html.theme-industry {
 :where(html.theme-industry) #tab-quote-make #quoteTable > tbody > tr.is-detail-open > td {
   opacity: 1 !important;
 }
+:where(html.theme-industry) #tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]).has-valid-inline {
+  height: 156px;
+}
+:where(html.theme-industry) #tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]).has-valid-inline > td {
+  height: 156px;
+}
+:where(html.theme-industry) #tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]).has-valid-inline > td.name-cell > .w-valid {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  gap: 3px;
+  height: 32px;
+  margin: 0 0 4px;
+  padding: 0;
+}
+:where(html.theme-industry) #tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]).has-valid-inline > td.name-cell > .w-valid .w-valid-lbl {
+  display: none;
+}
+:where(html.theme-industry) #tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]).has-valid-inline > td.name-cell > .w-valid .w-valid-lbl::after {
+  content: none;
+}
+:where(html.theme-industry) #tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]).has-valid-inline > td.name-cell > .w-valid .w-valid-sep {
+  font-size: 11px;
+}
+:where(html.theme-industry) #tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]).has-valid-inline > td.name-cell > .w-valid input.w-valid-date {
+  min-width: 0;
+  padding: 0 2px;
+  font-size: 10.5px;
+  letter-spacing: -.2px;
+}
+:where(html.theme-industry) #tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]).has-valid-inline.row-out-of-range > td.name-cell > .w-valid .w-valid-lbl {
+  color: #b0392e;
+}
+:where(html.theme-industry) #tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]).has-valid-inline.row-out-of-range > td.name-cell > .w-valid input.w-valid-date {
+  border-color: #b0392e;
+}
+:where(html.theme-industry) #tab-quote-make #quoteTable .row-detail-panel .rd-group:has(> .rd-slot[data-rd-slot="valid"]:empty) {
+  display: none;
+}
+:where(html.theme-industry) #tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]).has-valid-inline > td.name-cell > .w-valid input.w-valid-date {
+  padding: 0 1px 0 3px;
+  font-size: 10px;
+  letter-spacing: 0;
+}

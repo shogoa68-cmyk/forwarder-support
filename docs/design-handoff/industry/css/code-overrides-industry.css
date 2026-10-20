@@ -199,3 +199,19 @@ body:has(#tab-master.active) #backToQuoteFab { display: none !important; }
 /* 期間外のサーチャージ・「見積書に出さない」行は、セル（td）ごと半透明（opacity）にしてある。パネルは品名セルの中なので、パネルまで半透明になり、
    セルが重ね合わせの単位になって次の行の下に隠れる（開いても中身が薄く、操作できない）。開いている間は、その行の半透明を戻す */
 #tab-quote-make #quoteTable > tbody > tr.is-detail-open > td { opacity: 1 !important; }
+
+/* ================= 有効期間（サーチャージ）を、「その他 ▾」を開かなくても行の中で見て直せるように =================
+   期間が入っている行・サーチャージの行は、品名セルの 3 段目の上に「有効 [開始] ～ [終了]」の 1 段を足す（行の高さ 120 → 156px）。
+   それ以外の行は、従来どおり行を 3 段（120px）に保ち、有効期間はパネルの中。 */
+#tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]).has-valid-inline { height: 156px; }
+#tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]).has-valid-inline > td { height: 156px; }
+#tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]).has-valid-inline > td.name-cell > .w-valid { display: grid !important; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; gap: 3px; height: 32px; margin: 0 0 4px; padding: 0; }
+#tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]).has-valid-inline > td.name-cell > .w-valid .w-valid-lbl { display: none; }   /* 「有効」の語は、幅を日付に回すため出さない（欄の title に説明がある）。期間外は赤い枠で示す */
+#tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]).has-valid-inline > td.name-cell > .w-valid .w-valid-lbl::after { content: none; }
+#tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]).has-valid-inline > td.name-cell > .w-valid .w-valid-sep { font-size: 11px; }
+#tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]).has-valid-inline > td.name-cell > .w-valid input.w-valid-date { min-width: 0; padding: 0 2px; font-size: 10.5px; letter-spacing: -.2px; }
+#tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]).has-valid-inline.row-out-of-range > td.name-cell > .w-valid .w-valid-lbl { color: #b0392e; }
+#tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]).has-valid-inline.row-out-of-range > td.name-cell > .w-valid input.w-valid-date { border-color: #b0392e; }
+/* パネルの「有効期間」は、行の中に出しているとき（中身が空）は見出しごと隠す */
+#tab-quote-make #quoteTable .row-detail-panel .rd-group:has(> .rd-slot[data-rd-slot="valid"]:empty) { display: none; }
+#tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]).has-valid-inline > td.name-cell > .w-valid input.w-valid-date { padding: 0 1px 0 3px; font-size: 10px; letter-spacing: 0; }

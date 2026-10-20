@@ -11,6 +11,7 @@ node scripts/design-tests/as-removed-test.js             # 自動保存の廃止
 node scripts/design-tests/remark-copy-test.js            # 類似見積→行追加（リマークも一緒に）
 THEME=1 node scripts/design-tests/sell-mode-test.js        # 売値ベースのオン／オフ
 THEME=1 node scripts/design-tests/panel-expired-test.js     # 期間外・見積書に出さない行でも「その他 ▾」が操作できる
+THEME=1 node scripts/design-tests/valid-inline-test.js      # 有効期間（サーチャージ）が行の中で見て直せる
 node scripts/design-tests/master-cloud-test.js             # マスターのクラウド必須化・名前の突き合わせ（偽の Supabase）
 node scripts/design-tests/min-charge-test.js               # ミニマム（最低料金：Min. $28.00 or $0.15/kg）。THEME=1 で Industry
 ```
