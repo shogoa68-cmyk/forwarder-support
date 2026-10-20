@@ -9865,3 +9865,6 @@ html.theme-industry {
     padding-bottom: 72px;
   }
 }
+:where(html.theme-industry) #tab-quote-make #quoteTable > tbody > tr.is-detail-open > td {
+  opacity: 1 !important;
+}

@@ -196,3 +196,6 @@ body:has(#tab-master.active) #backToQuoteFab { display: none !important; }
   #quoteActionDock .qad-save { background: var(--color-accent-900, #1d2d3d); color: var(--color-bg, #f2f2f3); border-right: 0; }
   body:has(#tab-quote-make.active) { padding-bottom: 72px; }
 }
+/* 期間外のサーチャージ・「見積書に出さない」行は、セル（td）ごと半透明（opacity）にしてある。パネルは品名セルの中なので、パネルまで半透明になり、
+   セルが重ね合わせの単位になって次の行の下に隠れる（開いても中身が薄く、操作できない）。開いている間は、その行の半透明を戻す */
+#tab-quote-make #quoteTable > tbody > tr.is-detail-open > td { opacity: 1 !important; }
