@@ -185,7 +185,7 @@
     return { customer, carrier };
   }
 
-  window.arApplyLocal = async function (rules) {
+  window.arApplyLocal = async function (rules, dryRun) {
     if (!rules || !rules.length) return 0;
     let presets;
     try { presets = JSON.parse(localStorage.getItem('quotePresets_v1') || '[]'); } catch { presets = []; }
@@ -195,11 +195,11 @@
       p.data = _applyToData(p.data, rules);
       if (JSON.stringify(p.data) !== before) count++;
     });
-    localStorage.setItem('quotePresets_v1', JSON.stringify(presets));
+    if (!dryRun) localStorage.setItem('quotePresets_v1', JSON.stringify(presets));
     return count;
   };
 
-  window.arApplyCloud = async function (rules) {
+  window.arApplyCloud = async function (rules, dryRun) {
     const c = _c();
     if (!c || !rules || !rules.length) return 0;
     const hasPort = rules.some(r => r.field === 'port');
@@ -212,6 +212,7 @@
       const before = JSON.stringify(p.data);
       const after  = _applyToData(p.data, rules);
       if (JSON.stringify(after) !== before) {
+        if (dryRun) { count++; continue; }   // 件数の事前確認だけ（書き込まない）
         const upd = { data: after };
         // 港の置換時は pol/pod 列も再導出して整合（クラウド一覧の航路フィルタ用）
         if (hasPort) { const { pol, pod } = _derivePortCols(after); upd.pol = pol; upd.pod = pod; }
@@ -689,18 +690,35 @@
 
   window.arApplyWithConfirm = async function (target) {
     const rules = await window.arGetRules();
-    if (!rules.length) { alert('ルールが登録されていません。'); return; }
-    const labels = { local: 'ローカルのプリセット', cloud: 'クラウドのプリセット', both: 'ローカル＋クラウドのプリセット' };
-    if (!confirm(`${rules.length} 件のルールで ${labels[target]} の表記を一括置換します。\nこの操作は元に戻せません。続けますか？`)) return;
+    if (!rules.length) {
+      if (typeof window.quoteShowToast === 'function') window.quoteShowToast('ルールが登録されていません', 'warn');
+      return;
+    }
+    const labels = { local: 'このブラウザのプリセット', cloud: 'クラウド（チーム共有）の案件', both: 'このブラウザ＋クラウドの案件' };
+    const doLocal = target === 'local' || target === 'both';
+    const doCloud = (target === 'cloud' || target === 'both') && _cloud();
+    // 書き込む前に「いくつの案件が書き換わるか」を数える（dryRun）
+    const nLocal = doLocal ? await window.arApplyLocal(rules, true) : 0;
+    const nCloud = doCloud ? await window.arApplyCloud(rules, true) : 0;
+    if (!nLocal && !nCloud) {
+      if (typeof window.quoteShowToast === 'function') window.quoteShowToast('置換の対象になる案件はありませんでした', 'info');
+      return;
+    }
+    const fl = { sv: 'サブコン', carrier: 'キャリア', customer: 'お客様', nm: '品名', un: '単位', port: '港' };
+    const ruleLines = rules.slice(0, 6).map(r => `・${fl[r.field] || r.field}：「${r.from_value}」→「${r.to_value}」`);
+    if (rules.length > 6) ruleLines.push(`　ほか ${rules.length - 6} 件のルール`);
+    const counts = [doLocal ? `ブラウザ ${nLocal} 件` : '', doCloud ? `クラウド ${nCloud} 件` : ''].filter(Boolean).join('／');
+    const ok = await (typeof window.uiConfirm === 'function' ? window.uiConfirm({
+      title: `${labels[target]}の表記を一括置換しますか？`,
+      lines: [`書き換わる案件：${counts}`, `適用するルール（${rules.length} 件）`, ...ruleLines],
+      irreversible: '元に戻せません。提示済み・受注済みの案件も書き換わります。必要なら先にバックアップを取ってください。',
+      okLabel: '置換する',
+      danger: true,
+    }) : Promise.resolve(confirm(`${counts} を書き換えます。元に戻せません。続けますか？`)));
+    if (!ok) return;
     let msg = '';
-    if (target === 'local' || target === 'both') {
-      const n = await window.arApplyLocal(rules);
-      msg += `ローカル: ${n} 件更新。`;
-    }
-    if ((target === 'cloud' || target === 'both') && _cloud()) {
-      const n = await window.arApplyCloud(rules);
-      msg += ` クラウド: ${n} 件更新。`;
-    }
+    if (doLocal) msg += `ブラウザ: ${await window.arApplyLocal(rules)} 件更新。`;
+    if (doCloud) msg += ` クラウド: ${await window.arApplyCloud(rules)} 件更新。`;
     if (typeof window.quoteShowToast === 'function') window.quoteShowToast('✅ ' + msg.trim(), 'success');
     if (typeof window.statsRefresh === 'function') await window.statsRefresh();
   };

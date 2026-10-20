@@ -3261,10 +3261,10 @@ a.bm-contact-item:hover { background: #2e6b3e; color: var(--surface); border-col
 
 /* 並び替えトグル（件数順／名前順）— 各集計タブ共通 */
 .stats-sort-toolbar {
-  display: flex; align-items: center; gap: var(--sp-6);
+  display: flex; align-items: center; flex-wrap: wrap; gap: var(--sp-6);
   margin: 0 0 var(--sp-8);
 }
-.stats-sort-label { font-size: var(--fs-12); color: #8a7656; font-weight: 700; }
+.stats-sort-label { font-size: var(--fs-12); color: #8a7656; font-weight: 700; white-space: nowrap; }
 .stats-sort-btn {
   font-size: var(--fs-12); border: 1px solid var(--c-d8c8a8); background: var(--surface-warm);
   color: var(--c-5a4a38); border-radius: var(--r-6); padding: var(--sp-3) var(--sp-11); cursor: pointer;
@@ -3286,6 +3286,11 @@ a.bm-contact-item:hover { background: #2e6b3e; color: var(--surface); border-col
   border-left: 1px solid var(--c-e0d4bc);
 }
 .stats-unorg-toggle input { cursor: pointer; }
+.stats-unorg-toggle { white-space: nowrap; }
+@media (max-width: 640px) {
+  /* 折り返した行頭に区切り線・余白が残らないようにする */
+  .stats-unorg-toggle { margin-left: 0; padding-left: 0; border-left: 0; }
+}
 
 /* 入力支援：代表表記への置換サジェスト（body 直下に fixed 配置） */
 .syn-suggest {

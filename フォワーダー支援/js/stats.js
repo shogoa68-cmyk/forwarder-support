@@ -2452,6 +2452,9 @@
   // === サブタブ切替 ===
 
   function statsSetPane(paneId) {
+    // 存在しないタブ ID（廃止したダッシュボード等）が渡されても、本文が空白になりタブが
+    // どれも選択されない状態にならないよう、先頭のサブタブへ退避する。
+    if (!document.getElementById('statsTabBtn-' + paneId) && !document.getElementById('statsPane-' + paneId)) paneId = 'sv';
     _listLimit = {};
     document.querySelectorAll('#tab-stats .stats-tab-btn').forEach(b => {
       b.classList.remove('is-active');
@@ -2515,7 +2518,7 @@
     _data  = _build(source);
     _updateSummary();
     _renderCloud();
-    statsSetPane('dashboard');
+    statsSetPane('sv');
     if (typeof window.arRefreshDatalist === 'function') window.arRefreshDatalist();
     if (_cloud()) {
       await _loadCloudVotes();
