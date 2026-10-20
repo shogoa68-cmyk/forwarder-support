@@ -56,6 +56,7 @@
   let _arCloud = [];   // クラウドの統合ルール（入力候補・代表名の読み替え用のキャッシュ）
   window.arLoadCloud = async function () {
     _arCloud = _cloud() ? await _fetchCloud() : [];
+    await _exclLoadCloud();
     return true;
   };
   window.arGetRules = async function (field) {
@@ -180,24 +181,49 @@
 
   // === 除外リスト管理 ===
 
-  window.arGetExclusions = function (field) {
-    const all = _loadExclusions();
-    return field ? all.filter(e => e.field === field) : all;
-  };
-
-  window.arAddExclusion = async function (field, value) {
-    if (!field || !value) return;
+  // 共有テーブル（docs/sql/stats-exclusions.sql）があれば、ログイン中はチーム共有の除外リストを使う。
+  // テーブルが無い間・未ログインのときは、従来どおりこのブラウザの保存分（statsExclusions_v1）を使う
+  const EXCL_TABLE = 'stats_exclusions';
+  let _exclCloud = null;   // null＝共有テーブルが使えない
+  async function _exclLoadCloud() {
+    if (!_cloud()) { _exclCloud = null; return; }
+    const { data, error } = await _c().from(EXCL_TABLE).select('field,value,created_at').order('created_at', { ascending: false });
+    _exclCloud = error ? null : (data || []);
+  }
+  const _exclOn = () => _cloud() && _exclCloud !== null;
+  function _exclAll() { return _exclOn() ? _exclCloud : _loadExclusions(); }
+  async function _exclAdd(field, value) {
+    if (_exclOn()) {
+      await _c().from(EXCL_TABLE).upsert({ field, value, created_by: _me() }, { onConflict: 'field,value' });
+      await _exclLoadCloud();
+      return;
+    }
     const arr = _loadExclusions();
     if (!arr.find(e => e.field === field && e.value === value)) {
       arr.unshift({ field, value, created_at: new Date().toISOString() });
       _saveExclusions(arr);
     }
+  }
+
+  window.arGetExclusions = function (field) {
+    const all = _exclAll();
+    return field ? all.filter(e => e.field === field) : all;
+  };
+
+  window.arAddExclusion = async function (field, value) {
+    if (!field || !value) return;
+    await _exclAdd(field, value);
     await _afterChange();
     if (typeof window.statsRefresh === 'function') await window.statsRefresh();
   };
 
   window.arRemoveExclusion = async function (field, value) {
-    _saveExclusions(_loadExclusions().filter(e => !(e.field === field && e.value === value)));
+    if (_exclOn()) {
+      await _c().from(EXCL_TABLE).delete().match({ field, value });
+      await _exclLoadCloud();
+    } else {
+      _saveExclusions(_loadExclusions().filter(e => !(e.field === field && e.value === value)));
+    }
     await _afterChange();
     if (typeof window.statsRefresh === 'function') await window.statsRefresh();
   };
@@ -438,11 +464,7 @@
     if (!_quickFill || idx >= _quickFill.nonCanonical.length) return;
     const from = _quickFill.nonCanonical[idx];
     const { field } = _quickFill;
-    const arr = _loadExclusions();
-    if (!arr.find(e => e.field === field && e.value === from)) {
-      arr.unshift({ field, value: from, created_at: new Date().toISOString() });
-      _saveExclusions(arr);
-    }
+    await _exclAdd(field, from);
     _quickFill.nonCanonical.splice(idx, 1);
     await _afterChange();
     if (typeof window.statsRefresh === 'function') await window.statsRefresh();
@@ -581,7 +603,7 @@
     h += '</div>';
 
     // 除外リスト
-    const excl = _loadExclusions();
+    const excl = _exclAll();
     if (excl.length > 0) {
       const fl = { sv: 'サブコン', carrier: 'キャリア', nm: '品名', un: '単位', port: '港', customer: 'お客様' };
       h += `<div class="ar-excl-section">
@@ -1116,7 +1138,8 @@
   // 以前は書き込みのたびにこのブラウザにも写しを保存していたため、クラウドに無いもの（＝このブラウザにだけあるもの）だけを数える。
   // ほかの人がクラウドで削除した古い写しも含まれうるので、移す前に件数と例を見せて選んでもらう（移す／移さずに使わない）
   // MD_KEY 等はこの後で定義されるため、使う時点で一覧にする
-  const _migKeys = () => ['masterCandidates_v1', SYN_KEY, MD_KEY, LOCAL_KEY, ABBREV_KEY];
+  // 除外リストは、共有テーブルがあるときだけ移行・削除の対象（無い間はこのブラウザの分を使い続けるため）
+  const _migKeys = () => ['masterCandidates_v1', SYN_KEY, MD_KEY, LOCAL_KEY, ABBREV_KEY].concat(_exclOn() ? [EXCL_KEY] : []);
   function _migInfo() {
     if (!_cloud()) return null;
     const k = (f, v) => f + '\x00' + v;
@@ -1134,8 +1157,10 @@
     const cloudR = new Set(_arCloud.map(r => k(r.field, r.from_value)));
     const rules = _loadLocal().filter(r => !cloudR.has(k(r.field, r.from_value)));
     const abbrev = _abbrevUnshared(_loadAbbrevPairs());
-    const total = masters.length + syn.length + md.length + rules.length + abbrev.length;
-    return { masters, syn, md, rules, abbrev, total };
+    const cloudX = new Set((_exclCloud || []).map(e => k(e.field, e.value)));
+    const excl = _exclOn() ? _loadExclusions().filter(e => !cloudX.has(k(e.field, e.value))) : [];
+    const total = masters.length + syn.length + md.length + rules.length + abbrev.length + excl.length;
+    return { masters, syn, md, rules, abbrev, excl, total };
   }
   function _migBackupAndClear() {
     const backup = { at: new Date().toISOString() };
@@ -1163,6 +1188,7 @@
       info.md.length && 'マスター詳細 ' + info.md.length + ' 件',
       info.rules.length && '統合ルール ' + info.rules.length + ' 件',
       info.abbrev.length && '略称 ' + info.abbrev.length + ' 件',
+      info.excl.length && '除外リスト ' + info.excl.length + ' 件',
     ].filter(Boolean).join('・');
     const ex = [...info.masters.map(m => m.value), ...info.syn.map(g => g.canonical), ...info.md.map(m => m.value),
                 ...info.rules.map(r => r.from_value + '→' + r.to_value), ...info.abbrev.map(p => p.abbrev + '=' + p.full)]
@@ -1185,6 +1211,7 @@
     for (const m of info.md) await window.mdSave(m.field, m.value, m.details || {});
     for (const r of info.rules) await _c().from(TABLE).upsert({ field: r.field, from_value: r.from_value, to_value: r.to_value, created_by: _me() }, { onConflict: 'field,from_value' });
     for (const p of info.abbrev) if (typeof window.synAddAlias === 'function') await window.synAddAlias(p.field, p.abbrev, p.full);
+    for (const e of info.excl) await _c().from(EXCL_TABLE).upsert({ field: e.field, value: e.value, created_by: _me() }, { onConflict: 'field,value' });
     _migBackupAndClear();
     await window.arLoadCloud();
     await _migAfter('☁️ ' + info.total + ' 件をチーム共有のマスターへ移しました');

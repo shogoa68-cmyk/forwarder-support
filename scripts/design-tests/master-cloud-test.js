@@ -41,6 +41,7 @@ const http = require('http'), fs = require('fs'), path = require('path');
     masterDetails_v1: [{ field: 'nm', value: 'ローカル品名', details: { defaultUnit: 'B/L' } }],
     aliasRules_v1: [{ id: 'l2', field: 'port', from_value: 'YKH', to_value: 'Yokohama' }],
     abbrevPairs_v1: [{ id: 'l3', field: 'carrier', abbrev: 'NTL', full: 'NAIGAI TRANS LINES' }],
+    statsExclusions_v1: [{ field: 'nm', value: 'ローカル除外', created_at: '2026-01-01T00:00:00Z' }],
   };
 
   // opts.approval：申請テーブル（master_requests）を用意する＝承認制、opts.role：get_my_role() の結果
@@ -54,6 +55,7 @@ const http = require('http'), fs = require('fs'), path = require('path');
       if (!loggedIn) return;
       const db = JSON.parse(JSON.stringify(seed));
       if (opts.approval) db.master_requests = [];
+      if (opts.excl) db.stats_exclusions = [];
       window.__db = db;
       const qb = t => {
         const st = { op: 'select', filters: [], payload: null, opts: null, one: false, range: null };
@@ -71,7 +73,7 @@ const http = require('http'), fs = require('fs'), path = require('path');
           single() { st.one = true; return api; }, maybeSingle() { st.one = true; return api; },
           then(res, rej) {
             // 申請テーブルは承認制の試験のときだけ存在する（無いときは未作成のエラー＝従来の動き）
-            if (t === 'master_requests' && !db.master_requests) return Promise.resolve({ data: null, error: { message: 'relation "master_requests" does not exist' } }).then(res, rej);
+            if ((t === 'master_requests' || t === 'stats_exclusions') && !db[t]) return Promise.resolve({ data: null, error: { message: 'relation "' + t + '" does not exist' } }).then(res, rej);
             const rows = (db[t] = db[t] || []);
             let data = null;
             if (st.op === 'upsert' || st.op === 'insert') {
@@ -172,12 +174,14 @@ const http = require('http'), fs = require('fs'), path = require('path');
       rule: window.__db.alias_rules.some(r => r.from_value === 'YKH'),
       abbrev: window.__db.synonym_groups.some(g => g.canonical === 'NAIGAI TRANS LINES' && g.aliases.includes('NTL')),
       cleared: ['masterCandidates_v1', 'synonymGroups_v1', 'masterDetails_v1', 'aliasRules_v1', 'abbrevPairs_v1'].every(k => localStorage.getItem(k) === null),
+      exclKept: !!localStorage.getItem('statsExclusions_v1'),
       backup: !!localStorage.getItem('masterLocalBackup_v1'),
       noticeAfter: window.masterTopNoticeHtml(),
       canon: nameCanon('sv', 'ﾛｰｶﾙ運送'),
     }));
     ok(L + '移行：マスター・同義グループ・詳細・統合ルール・略称がクラウドへ', r5.master && r5.syn && r5.md && r5.rule && r5.abbrev, r5);
     ok(L + '移行後：このブラウザの分を消し、バックアップを残す', r5.cleared && r5.backup, r5);
+    ok(L + '除外リストの共有テーブルが無い間は、このブラウザの除外リストを残す', r5.exclKept, r5);
     ok(L + '移行後：案内が消え、移した同義グループが効く', r5.noticeAfter === '' && r5.canon === 'ローカル運送', r5);
     ok(L + '移行の確認画面', dlg.some(m => m.includes('チーム共有のマスターへ移します')), dlg);
     ok(L + 'JS エラーなし', errs.length === 0, errs);
@@ -234,6 +238,32 @@ const http = require('http'), fs = require('fs'), path = require('path');
     // マスター管理タブを開いているため入力欄は見えない：値を直接入れて登録する
     await p.evaluate(id => { document.getElementById('nm-' + id).value = '管理者の費用'; registerRowToMaster(id); }, id); await p.waitForTimeout(400);
     ok(L + '管理者の登録は直接マスター（申請なし）', await p.evaluate(() => window.__db.master_votes.some(m => m.value === '管理者の費用') && !window.__db.master_requests.some(x => x.value === '管理者の費用')));
+    ok(L + 'JS エラーなし', errs.length === 0, errs);
+    await ctx.close();
+  }
+
+  // ===== 除外リストの共有（stats_exclusions あり）=====
+  {
+    const { ctx, p, errs } = await open(true, { excl: true });
+    const L = '[除外リスト共有] ';
+    await p.waitForTimeout(500);
+    await p.evaluate(async () => { await arAddExclusion('sv', '共有の除外'); });
+    await p.waitForTimeout(300);
+    const r = await p.evaluate(() => ({
+      db: window.__db.stats_exclusions.some(e => e.value === '共有の除外' && e.created_by),
+      local: (localStorage.getItem('statsExclusions_v1') || '').includes('共有の除外'),
+      get: arGetExclusions().map(e => e.value),
+      notice: window.masterTopNoticeHtml(),
+    }));
+    ok(L + '追加はクラウドへ（このブラウザには書かない）', r.db && !r.local, r);
+    ok(L + '読み出しはクラウドの除外リスト', r.get.includes('共有の除外') && !r.get.includes('ローカル除外'), r.get);
+    ok(L + '移行の案内に除外リストの件数', r.notice.includes('除外リスト 1 件'), r.notice);
+    await p.evaluate(async () => { await masterMigrateLocal(); });
+    await p.waitForTimeout(800);
+    const r2 = await p.evaluate(() => ({ db: window.__db.stats_exclusions.some(e => e.value === 'ローカル除外'), cleared: localStorage.getItem('statsExclusions_v1') === null }));
+    ok(L + '移行：このブラウザの除外リストをクラウドへ移して消す', r2.db && r2.cleared, r2);
+    await p.evaluate(async () => { await arRemoveExclusion('sv', '共有の除外'); });
+    ok(L + '解除はクラウドから', await p.evaluate(() => !window.__db.stats_exclusions.some(e => e.value === '共有の除外')));
     ok(L + 'JS エラーなし', errs.length === 0, errs);
     await ctx.close();
   }
