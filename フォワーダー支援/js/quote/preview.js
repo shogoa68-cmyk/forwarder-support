@@ -2127,19 +2127,18 @@
 
     rows.forEach(r => {
       const cells = r.cells || [];
-      // DOM 順: [0]=row-select-chk, [1]=cat, [2]=sv, [3]=tx, [4]=nm,
-      //         [5]=pq, [6]=un, [7]=pc, [8]=pp, [9]=cd(ro),
-      //         [10]=bq(ro), [11]=bc, [12]=bp(ro), [13]=mk, [14]=nt
+      // ROW_CELL_FIELDS 順（conditions.js・v3-mixed-rows）: [0]=row-select-chk, [1]=cat, [2]=sv, [3]=tx, [4]=nm,
+      //         [5]=pq, [6]=un, [7]=bq, [8]=pc, [9]=bc, [10]=pp, [11]=bp, [12]=cd, [13]=mk, [14]=nt
       const cat   = cells[1] || '';
       const sv    = cells[2] || '';
       const taxed = !!cells[3];
       const name  = cells[4] || '';
       const pq    = parseFloat(cells[5]) || 0;
-      const pc    = cells[7] || 'JPY';
-      const pp    = parseFloat(cells[8]) || 0;
-      const bq    = parseFloat(cells[10]) || 0;
-      const bc    = cells[11] || 'JPY';
-      const bp    = parseFloat(cells[12]) || 0;
+      const bq    = parseFloat(cells[7]) || 0;
+      const pc    = cells[8] || 'JPY';
+      const bc    = cells[9] || 'JPY';
+      const pp    = parseFloat(cells[10]) || 0;
+      const bp    = parseFloat(cells[11]) || 0;
       const mk    = parseFloat(cells[13]) || 0;
 
       const billOrig = minAmt(bq * bp, cells[31]);   // cells[30]=ppmin、[31]=bpmin（ミニマム）
