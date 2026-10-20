@@ -43,15 +43,17 @@ const http = require('http'), fs = require('fs'), path = require('path');
     abbrevPairs_v1: [{ id: 'l3', field: 'carrier', abbrev: 'NTL', full: 'NAIGAI TRANS LINES' }],
   };
 
-  async function open(loggedIn) {
+  // opts.approval：申請テーブル（master_requests）を用意する＝承認制、opts.role：get_my_role() の結果
+  async function open(loggedIn, opts = {}) {
     const ctx = await b.newContext({ viewport: { width: 1400, height: 900 }, locale: 'ja-JP' });
-    await ctx.addInitScript(({ seed, legacy, loggedIn, ME }) => {
+    await ctx.addInitScript(({ seed, legacy, loggedIn, ME, opts }) => {
       try {
         localStorage.setItem('fwd.uiMode', 'detail');
         Object.entries(legacy).forEach(([k, v]) => localStorage.setItem(k, JSON.stringify(v)));
       } catch (e) {}
       if (!loggedIn) return;
       const db = JSON.parse(JSON.stringify(seed));
+      if (opts.approval) db.master_requests = [];
       window.__db = db;
       const qb = t => {
         const st = { op: 'select', filters: [], payload: null, opts: null, one: false, range: null };
@@ -68,6 +70,8 @@ const http = require('http'), fs = require('fs'), path = require('path');
           delete() { st.op = 'delete'; return api; },
           single() { st.one = true; return api; }, maybeSingle() { st.one = true; return api; },
           then(res, rej) {
+            // 申請テーブルは承認制の試験のときだけ存在する（無いときは未作成のエラー＝従来の動き）
+            if (t === 'master_requests' && !db.master_requests) return Promise.resolve({ data: null, error: { message: 'relation "master_requests" does not exist' } }).then(res, rej);
             const rows = (db[t] = db[t] || []);
             let data = null;
             if (st.op === 'upsert' || st.op === 'insert') {
@@ -93,11 +97,11 @@ const http = require('http'), fs = require('fs'), path = require('path');
       const ch = { on() { return ch; }, subscribe(cb) { cb && cb('SUBSCRIBED'); return ch; }, track() { return Promise.resolve(); }, untrack() { return Promise.resolve(); }, presenceState() { return {}; }, unsubscribe() { return Promise.resolve(); }, send() { return Promise.resolve(); } };
       const user = { email: ME, user_metadata: { full_name: 'S' } };
       const client = {
-        from: qb, rpc: () => Promise.resolve({ data: null, error: null }), channel: () => ch, removeChannel() {}, storage: { from: () => ({}) },
+        from: qb, rpc: name => Promise.resolve({ data: name === 'get_my_role' ? (opts.role || 'member') : null, error: null }), channel: () => ch, removeChannel() {}, storage: { from: () => ({}) },
         auth: { getSession: () => Promise.resolve({ data: { session: { user } } }), onAuthStateChange() { return { data: { subscription: { unsubscribe() {} } } }; }, signOut: () => Promise.resolve({}), signInWithOAuth: () => Promise.resolve({}) },
       };
       window.supabase = { createClient: () => client };
-    }, { seed, legacy, loggedIn, ME });
+    }, { seed, legacy, loggedIn, ME, opts });
     await ctx.route(u => !u.href.startsWith('http://127.0.0.1'), r => r.abort());
     const p = await ctx.newPage();
     const errs = [], dlg = [];
@@ -176,6 +180,60 @@ const http = require('http'), fs = require('fs'), path = require('path');
     ok(L + '移行後：このブラウザの分を消し、バックアップを残す', r5.cleared && r5.backup, r5);
     ok(L + '移行後：案内が消え、移した同義グループが効く', r5.noticeAfter === '' && r5.canon === 'ローカル運送', r5);
     ok(L + '移行の確認画面', dlg.some(m => m.includes('チーム共有のマスターへ移します')), dlg);
+    ok(L + 'JS エラーなし', errs.length === 0, errs);
+    await ctx.close();
+  }
+
+  // ===== 承認制（申請テーブルあり）：メンバーは申請、管理者が承認 =====
+  {
+    const { ctx, p, errs, dlg } = await open(true, { approval: true, role: 'member' });
+    const L = '[承認制・メンバー] ';
+    await p.waitForTimeout(500);
+    const id = await rowId(p);
+    dlg.length = 0;
+    await p.fill('#nm-' + id, '申請する費用'); await p.evaluate(id => registerRowToMaster(id), id); await p.waitForTimeout(500);
+    const r = await p.evaluate(() => ({
+      req: window.__db.master_requests.find(x => x.value === '申請する費用'),
+      vote: window.__db.master_votes.some(m => m.value === '申請する費用'),
+      cand: [...document.getElementById('nmSuggestions').children].some(o => o.value === '申請する費用'),
+    }));
+    ok(L + '登録は「申請」になる（申請中・マスターにはならない）', r.req && r.req.status === 'pending' && !r.vote && !r.cand, r);
+    ok(L + '確認画面は「申請します」', dlg.some(m => m.includes('申請します')), dlg);
+    // 解除はできない
+    await p.evaluate(() => statsToggleVote('nm', 'THC')); await p.waitForTimeout(300);
+    ok(L + 'マスターの解除はできない', await p.evaluate(() => window.__db.master_votes.some(m => m.value === 'THC')));
+    const html = await p.evaluate(() => { switchCategory('master', document.querySelector('[onclick*="switchCategory(\'master"]')); return new Promise(r => setTimeout(() => r(document.getElementById('statsPane-master')?.innerHTML || ''), 1200)); });
+    ok(L + 'マスター管理画面に自分の申請（承認待ち・取り消し）', html.includes('あなたの申請') && html.includes('申請する費用') && html.includes('承認待ち') && html.includes('取り消し'), html.slice(0, 300));
+    ok(L + 'JS エラーなし', errs.length === 0, errs);
+    await ctx.close();
+  }
+  {
+    const { ctx, p, errs } = await open(true, { approval: true, role: 'admin' });
+    const L = '[承認制・管理者] ';
+    await p.waitForTimeout(500);
+    await p.evaluate(() => { window.__db.master_requests.push({ id: 'q1', field: 'nm', value: '承認待ち費用', requested_by: 'm@example.com', status: 'pending', created_at: new Date().toISOString() }); });
+    await p.evaluate(async () => { await statsLoadMasterCache(); switchCategory('master', document.querySelector('[onclick*="switchCategory(\'master"]')); });
+    await p.waitForTimeout(1200);
+    const html = await p.evaluate(() => document.getElementById('statsPane-master')?.innerHTML || '');
+    ok(L + '承認待ちの一覧（承認・却下）', html.includes('承認待ち 1 件') && html.includes('承認待ち費用') && html.includes('statsApproveRequest'), html.slice(0, 300));
+    if (process.env.OUT) { await p.evaluate(() => window.scrollTo(0, 0)); await p.screenshot({ path: path.join(process.env.OUT, 'master-approval.png') }); }
+    await p.evaluate(() => statsApproveRequest('q1')); await p.waitForTimeout(500);
+    const r = await p.evaluate(() => ({
+      req: window.__db.master_requests.find(x => x.id === 'q1'),
+      vote: window.__db.master_votes.some(m => m.value === '承認待ち費用'),
+      cand: [...document.getElementById('nmSuggestions').children].some(o => o.value === '承認待ち費用'),
+    }));
+    ok(L + '承認でマスターになり、候補に出る', r.req.status === 'approved' && r.req.decided_by && r.vote && r.cand, r);
+    // ほかの人の登録も解除できる
+    await p.evaluate(() => { window.__db.master_votes.push({ field: 'nm', value: '他人の品名', voter_email: 'x@example.com' }); });
+    await p.evaluate(async () => { await statsLoadMasterCache(); await statsToggleVote('nm', '他人の品名'); });
+    await p.waitForTimeout(300);
+    ok(L + 'ほかの人が登録したマスターも解除できる', await p.evaluate(() => !window.__db.master_votes.some(m => m.value === '他人の品名')));
+    // 管理者の登録は直接マスター
+    const id = await rowId(p);
+    // マスター管理タブを開いているため入力欄は見えない：値を直接入れて登録する
+    await p.evaluate(id => { document.getElementById('nm-' + id).value = '管理者の費用'; registerRowToMaster(id); }, id); await p.waitForTimeout(400);
+    ok(L + '管理者の登録は直接マスター（申請なし）', await p.evaluate(() => window.__db.master_votes.some(m => m.value === '管理者の費用') && !window.__db.master_requests.some(x => x.value === '管理者の費用')));
     ok(L + 'JS エラーなし', errs.length === 0, errs);
     await ctx.close();
   }

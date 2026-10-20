@@ -45,6 +45,88 @@
       v.total++;
       if (r.voter_email === me) v.isMine = true;
     });
+    await _loadRequests();
+  }
+
+  // ===== マスターの承認制（docs/sql/master-approval.sql）=====
+  // 申請テーブル（master_requests）があるときだけ有効：メンバーの登録は「申請」になり、管理者が承認するとマスターになる。
+  // 解除は管理者だけ（ほかの人の登録も解除できる）。テーブルが無い間は従来どおり（メンバーも直接登録・自分の票だけ解除）
+  const REQ_TABLE = 'master_requests';
+  let _reqs = [];              // 申請（新しい順）
+  let _reqOn = false;          // 申請テーブルが使える
+  async function _loadRequests() {
+    const c = _c();
+    if (!c) { _reqs = []; _reqOn = false; return; }
+    const { data, error } = await c.from(REQ_TABLE).select('id,field,value,requested_by,status,decided_by,decided_at,created_at')
+      .order('created_at', { ascending: false }).limit(300);
+    if (error) { _reqs = []; _reqOn = false; return; }
+    _reqs = data || []; _reqOn = true;
+  }
+  const _isAdmin = () => window._myRole === 'admin';
+  const _approvalOn = () => _cloud() && _reqOn;
+  const _pendingReq = (field, value) => _reqs.find(r => r.status === 'pending' && r.field === field && r.value === value);
+  const _FIELD_LABEL = { sv: 'サブコン', carrier: 'キャリア', nm: '品名', un: '単位', customer: 'お客様', port: '港' };
+  function _toast(msg, type, ms) { if (typeof window.quoteShowToast === 'function') window.quoteShowToast(msg, type || 'success', ms || 3200); }
+
+  async function _request(field, value) {
+    if (_pendingReq(field, value)) { _toast('「' + value + '」はすでに申請中です（管理者の承認待ち）', 'info'); return; }
+    const { error } = await _c().from(REQ_TABLE).insert({ field, value, requested_by: _me(), status: 'pending' });
+    if (error) { _toast('申請に失敗しました: ' + error.message, 'warn'); return; }
+    await _loadRequests();
+    _toast('📨 ' + (_FIELD_LABEL[field] || field) + '「' + value + '」をマスターに申請しました。管理者の承認後に入力候補に出ます', 'success', 4200);
+  }
+  async function _decide(id, approve) {
+    const r = _reqs.find(x => x.id === id);
+    if (!r || !_isAdmin()) return;
+    if (approve) {
+      const { error } = await _c().from(VOTES_TABLE).upsert({ field: r.field, value: r.value, voter_email: _me() }, { onConflict: 'field,value,voter_email' });
+      if (error) { _toast('承認に失敗しました: ' + error.message, 'warn'); return; }
+    }
+    const { error: e2 } = await _c().from(REQ_TABLE).update({ status: approve ? 'approved' : 'rejected', decided_by: _me(), decided_at: new Date().toISOString() }).eq('id', id);
+    if (e2) { _toast('更新に失敗しました: ' + e2.message, 'warn'); return; }
+    await _loadCloudVotes();
+    _rerenderMasters();
+    _toast((approve ? '✅ 承認しました：' : '却下しました：') + r.value, approve ? 'success' : 'info');
+  }
+  window.statsApproveRequest = id => _decide(id, true);
+  window.statsRejectRequest  = id => _decide(id, false);
+  window.statsCancelRequest  = async function (id) {
+    const { error } = await _c().from(REQ_TABLE).delete().eq('id', id);
+    if (error) { _toast('取り消しに失敗しました: ' + error.message, 'warn'); return; }
+    await _loadRequests();
+    _rerenderMasters();
+  };
+  function _rerenderMasters() {
+    try { _renderMaster(); } catch (e) {}
+    if (typeof window.arRefreshDatalist === 'function') window.arRefreshDatalist();
+  }
+  // マスター管理画面：申請の一覧（管理者は承認・却下、メンバーは自分の申請と状態）
+  function _requestsHtml() {
+    if (!_approvalOn()) return '';
+    const admin = _isAdmin(), me = _me();
+    const pending = _reqs.filter(r => r.status === 'pending');
+    const mine = _reqs.filter(r => r.requested_by === me).slice(0, 10);
+    const list = admin ? pending : mine;
+    const head = admin
+      ? '📨 マスターの申請（承認待ち ' + pending.length + ' 件）'
+      : '📨 あなたの申請（マスターへの登録は管理者が承認します）';
+    if (!list.length) {
+      return '<div class="stats-req-section"><p class="stats-master-info-title">' + head + '</p>' +
+        '<p class="stats-empty">' + (admin ? '承認待ちの申請はありません。' : '申請はありません。入力候補にない名前は「☆ 登録」や「マスターに登録」から申請できます。') + '</p></div>';
+    }
+    const ST = { pending: '承認待ち', approved: '承認済み', rejected: '却下' };
+    const rows = list.map(r => {
+      const who = (r.requested_by || '').split('@')[0];
+      const ops = admin
+        ? `<button class="stats-vote-btn" onclick="statsApproveRequest('${_ea(r.id)}')">承認</button>` +
+          `<button class="stats-demote-btn" onclick="statsRejectRequest('${_ea(r.id)}')">却下</button>`
+        : (r.status === 'pending' ? `<button class="stats-demote-btn" onclick="statsCancelRequest('${_ea(r.id)}')">取り消し</button>` : '');
+      return `<tr><td>${_esc(_FIELD_LABEL[r.field] || r.field)}</td><td class="stats-val">${_esc(r.value)}</td>` +
+             `<td>${_esc(admin ? who : ST[r.status] || r.status)}</td><td>${ops}</td></tr>`;
+    }).join('');
+    return '<div class="stats-req-section"><p class="stats-master-info-title">' + head + '</p>' +
+      '<table class="stats-table"><thead><tr><th>種別</th><th>名称</th><th>' + (admin ? '申請者' : '状態') + '</th><th></th></tr></thead>' +
+      '<tbody>' + rows + '</tbody></table></div>';
   }
 
   function _voteInfo(field, value) {
@@ -247,6 +329,7 @@
 
   async function _promote(field, value) {
     if (!_cloud()) { if (typeof window.masterNeedCloud === 'function') window.masterNeedCloud(); return; }
+    if (_approvalOn() && !_isAdmin()) { await _request(field, value); return; }   // メンバーは申請
     const c = _c(), me = _me();
     await c.from(VOTES_TABLE).upsert({ field, value, voter_email: me }, { onConflict: 'field,value,voter_email' });
     await _loadCloudVotes();
@@ -255,7 +338,12 @@
   async function _demote(field, value) {
     if (!_cloud()) { if (typeof window.masterNeedCloud === 'function') window.masterNeedCloud(); return; }
     const c = _c(), me = _me();
-    await c.from(VOTES_TABLE).delete().match({ field, value, voter_email: me });
+    if (_approvalOn()) {
+      if (!_isAdmin()) { _toast('マスターの解除は管理者が行います', 'info'); return; }
+      await c.from(VOTES_TABLE).delete().match({ field, value });   // 管理者：ほかの人の登録も含めて解除
+    } else {
+      await c.from(VOTES_TABLE).delete().match({ field, value, voter_email: me });
+    }
     await _loadCloudVotes();
   }
   // 移行用：このブラウザにだけ残っている昇格（masterCandidates_v1）
@@ -1746,7 +1834,7 @@
       const note = synFiltered.length
         ? '<p class="stats-empty">個別マスターはありません（同義グループの代表が下に「マスター」として表示されています）。</p>'
         : '<p class="stats-empty">マスター登録はまだありません。<br>各集計の ☆登録（個別）または ⭐代表（同義グループ）で追加できます。</p>';
-      e.innerHTML = (typeof window.masterTopNoticeHtml === 'function' ? window.masterTopNoticeHtml() : '') + formH + chipsH + note + synH;
+      e.innerHTML = (typeof window.masterTopNoticeHtml === 'function' ? window.masterTopNoticeHtml() : '') + _requestsHtml() + formH + chipsH + note + synH;
       return;
     }
     const usageDesc = {
@@ -1781,7 +1869,7 @@
            `<td>${_mdDetailBtn(m.field, m.value)}${m.isMine ? `<button class="stats-demote-btn" onclick="statsToggleVote('${_ea(m.field)}','${_ea(m.value)}')">解除</button>` : '<span class="stats-empty-cell">他メンバー</span>'}</td>` +
            `</tr>`;
     });
-    e.innerHTML = (typeof window.masterTopNoticeHtml === 'function' ? window.masterTopNoticeHtml() : '') + formH + chipsH + h + '</tbody></table>' + synH;
+    e.innerHTML = (typeof window.masterTopNoticeHtml === 'function' ? window.masterTopNoticeHtml() : '') + _requestsHtml() + formH + chipsH + h + '</tbody></table>' + synH;
   }
 
   // マスタータブから単位同義グループを操作した際、マスター画面も再描画する薄いラッパ
@@ -2438,8 +2526,10 @@
     }
   };
 
+  window.statsIsApprovalOn = () => _approvalOn() && !_isAdmin();   // メンバーの登録が「申請」になるか（確認画面の文言用）
   window.statsToggleVote = async function (field, value) {
-    const wasVoted = _voteInfo(field, value).isMine;
+    // 承認制では「マスターかどうか」で切り替える（管理者は解除、メンバーは申請）
+    const wasVoted = _approvalOn() ? _voteInfo(field, value).total > 0 : _voteInfo(field, value).isMine;
     try {
       if (wasVoted) await _demote(field, value);
       else          await _promote(field, value);
@@ -2467,11 +2557,17 @@
   // 統合（A案）: 同義グループの代表設定/統合から呼ぶ冪等ヘルパー。
   // 代表は自動マスター化、別名はマスター解除（自分の票のみ操作）。
   window.statsEnsureMaster = async function (field, value) {
-    try { if (!_voteInfo(field, value).isMine) await _promote(field, value); }
+    try {
+      const v = _voteInfo(field, value);
+      if (_approvalOn() ? v.total === 0 : !v.isMine) await _promote(field, value);
+    }
     catch (err) { console.error('[statsEnsureMaster]', err); }
   };
   window.statsEnsureNotMaster = async function (field, value) {
-    try { if (_voteInfo(field, value).isMine) await _demote(field, value); }
+    try {
+      if (_approvalOn()) { if (_isAdmin() && _voteInfo(field, value).total > 0) await _demote(field, value); }   // メンバーは何もしない（解除は管理者）
+      else if (_voteInfo(field, value).isMine) await _demote(field, value);
+    }
     catch (err) { console.error('[statsEnsureNotMaster]', err); }
   };
 

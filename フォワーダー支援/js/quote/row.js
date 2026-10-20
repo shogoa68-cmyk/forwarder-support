@@ -887,8 +887,12 @@
     const isNew = !(typeof window.mdGet === 'function' && window.mdGet('nm', nm));
     const changes = Object.keys(LABELS).filter(k => prev[k] && details[k] && String(prev[k]) !== String(details[k]))
       .map(k => '・' + LABELS[k] + '：' + show(k, prev[k]) + ' → ' + show(k, details[k]));
+    // 承認制（docs/sql/master-approval.sql 実行後）のメンバーは、マスターへの登録が「申請」になる
+    const asRequest = typeof window.statsIsApprovalOn === 'function' && window.statsIsApprovalOn();
     const msg = isNew
-      ? '品名「' + nm + '」を新しくマスターに登録します。\nチーム全員の入力候補・自動入力に使われます。よろしいですか？'
+      ? (asRequest
+        ? '品名「' + nm + '」のマスター登録を申請します（管理者の承認後に、チーム全員の入力候補に出ます）。\n単位・カテゴリなどの詳細は今すぐ保存されます。よろしいですか？'
+        : '品名「' + nm + '」を新しくマスターに登録します。\nチーム全員の入力候補・自動入力に使われます。よろしいですか？')
       : changes.length
         ? '品名「' + nm + '」のマスターを、この行の内容で更新します。\nチーム全員の自動入力・参考単価が変わります。\n\n' + changes.join('\n') + '\n\nよろしいですか？'
         : '品名「' + nm + '」のマスターに、この行の内容を登録します（既存の値は変わりません）。よろしいですか？';
@@ -910,7 +914,8 @@
     if (typeof window.arRefreshDatalist === 'function') window.arRefreshDatalist();
     const bits = [un && '単位', nt && '備考', cat && 'カテゴリ',
       (details.refCost || details.refSell) && '代表単価'].filter(Boolean).join('/');
-    if (window.quoteShowToast) {
+    const wasMaster = typeof window.statsGetMasters === 'function' && window.statsGetMasters().some(m => m.field === 'nm' && m.value === nm);
+    if (window.quoteShowToast && !(asRequest && !wasMaster)) {   // 申請になったときは申請の通知（stats.js）を残す
       quoteShowToast('📇 「' + nm + '」をマスター登録しました（' + (bits || '品名') + '）' + svMsg, 'success', 3200);
     }
   }
