@@ -21,6 +21,26 @@
   // ===== 1. 要素の置き場所（Industry のときだけパネルへ） =====
   const MOVES = [['.w-valid', 'valid'], ['.row-mode-btns', 'mode'], ['.pct-group', 'pct'], ['.min-group', 'min'], ['.row-cd', 'cd']];
 
+  // 有効期間（.w-valid）：期間が入っている行・サーチャージの行は、「その他 ▾」を開かなくても見て直せるよう、行の中（品名セルの 3 段目の上）に出す。
+  // それ以外の行は、従来どおりパネルの中。classic は常に元の場所（syncPlacement が戻す）
+  function validInline(tr, id) {
+    return !!(fv(id, 'vf') || fv(id, 'vt') || fv(id, 'cat') === 'surcharge');
+  }
+  function placeValid(tr, id) {
+    if (!isInd() || tr._rdPlaced !== true) return;
+    const el = tr.querySelector('.w-valid');
+    if (!el) return;
+    const inline = validInline(tr, id);
+    tr.classList.toggle('has-valid-inline', inline);
+    const slot = tr.querySelector('[data-rd-slot="valid"]');
+    const inSlot = !!slot && slot.contains(el);
+    if (inline === !inSlot) return;   // すでに望みの場所
+    const hadFocus = el.contains(document.activeElement) ? document.activeElement : null;   // 入力中に動かしても焦点を保つ
+    if (inline) { if (el._rdHome && el._rdHome.parentNode) el._rdHome.parentNode.insertBefore(el, el._rdHome); }
+    else if (slot) slot.appendChild(el);
+    if (hadFocus) { try { hadFocus.focus(); } catch (e) {} }
+  }
+
   function syncPlacement(tr) {
     const ind = isInd();
     if (tr._rdPlaced === ind) return;
@@ -43,7 +63,8 @@
     const stk = tr.querySelector('td.catsv-cell .stk'), cat = stk && stk.querySelector(':scope > .w-cat');
     if (cat) { if (ind) stk.appendChild(cat); else stk.insertBefore(cat, stk.firstChild); }
     tr._rdPlaced = ind;
-    if (!ind) closePanel(tr);
+    if (ind) { const rid = (tr.id || '').replace('row-', ''); if (rid) placeValid(tr, rid); }
+    else { tr.classList.remove('has-valid-inline'); closePanel(tr); }
   }
 
   // ===== 2. 状態チップ・内訳・バッジ =====
@@ -83,6 +104,7 @@
     const id = tr.id.replace('row-', '');
     // 仕入通貨≠売値通貨 → CD の出し分け（.cd-flag と、パネル内の .row-cd）
     const pc = fv(id, 'pc'), bc = fv(id, 'bc');
+    placeValid(tr, id);
     const diff = !!pc && !!bc && pc !== bc;
     if (diff) { if (tr.dataset.ccyDiff !== '1') tr.dataset.ccyDiff = '1'; } else if (tr.dataset.ccyDiff) delete tr.dataset.ccyDiff;
     const cdv = fv(id, 'cd').trim();
@@ -106,7 +128,7 @@
 
     // 使用中バッジ（パネルの中で値が入っている項目の数）
     let n = 0;
-    if (fv(id, 'vf') || fv(id, 'vt')) n++;
+    if ((fv(id, 'vf') || fv(id, 'vt')) && !(isInd() && validInline(tr, id))) n++;   // 有効期間を行の中に出しているときは、パネルの中身ではないので数えない
     ['zc', 'ac', 'ps', 'co', 'ri', 'es'].forEach(f => { if (fv(id, f) === '1') n++; });
     if (fv(id, 'ppmode')) n++;
     if ((parseFloat(fv(id, 'ppmin')) || 0) > 0 || (parseFloat(fv(id, 'bpmin')) || 0) > 0) n++;
