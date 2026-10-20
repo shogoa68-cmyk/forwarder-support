@@ -92,10 +92,21 @@ const http = require('http'), fs = require('fs'), path = require('path');
   });
   ok('メール本文に Min 表記（通貨・単位を重ねない）', mail.includes('Min. $28.00 or $0.15/kg') && !mail.includes('Min. $28.00 or $0.15/kg | kg'), mail.split('\n').filter(l => /Air/.test(l)));
 
+  // 御見積書：最低料金で請求している行に [MIN適用]
+  const docText = async () => {
+    await p.evaluate(() => window.openQuoteDoc && window.openQuoteDoc()); await p.waitForTimeout(1000);
+    const t = await p.evaluate(() => { const r = [...document.querySelectorAll('#quoteDocOverlay tr')].find(x => x.textContent.includes('Air Freight')); return r ? r.textContent.replace(/\s+/g, ' ') : ''; });
+    await p.evaluate(() => { const o = document.getElementById('quoteDocOverlay'); if (o) o.classList.remove('open'); });
+    return t;
+  };
+  const d1 = await docText();
+  ok('御見積書：最低料金の行に [MIN適用]', d1.includes('Min. $28.00 or $0.15/kg') && d1.includes('[MIN適用]'), d1);
   // 数量が増えて「数量 × 単価」が上回る：300 kg × 0.15 ＝ 45
   await p.fill('#pq-' + id, '300'); await p.dispatchEvent('#pq-' + id, 'input'); await p.waitForTimeout(300);
   const r3 = await p.evaluate(id => ({ sub: document.querySelector('#row-' + id + ' td.subtotal-cell .st-main').textContent.trim(), applied: document.getElementById('row-' + id).dataset.minApplied }), id);
   ok('数量 × 単価が上回る：小計＝45、MIN 適用なし', r3.sub === '45' && !r3.applied, r3);
+  const d2 = await docText();
+  ok('御見積書：数量 × 単価が上回る行には [MIN適用] を付けない', d2.includes('Air Freight') && !d2.includes('[MIN適用]'), d2);
 
   // 保存 → 復元
   await p.fill('#pq-' + id, '100'); await p.dispatchEvent('#pq-' + id, 'input'); await p.waitForTimeout(200);

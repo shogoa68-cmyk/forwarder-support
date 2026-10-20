@@ -349,3 +349,5 @@
 .qd-cmp-table th:nth-child(3) { width: 24%; }
 
 .qd-remark-fixed { margin-top: 10px; }
+/* ミニマム（最低料金）で請求している行の明記 */
+.qd-min-tag { font-weight: 700; white-space: nowrap; }

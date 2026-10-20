@@ -756,7 +756,8 @@
       const _acTxt   = '<span class="pv-actual-txt">実費</span>';
       const ppCell   = _ac ? _acTxt : (minPriceText(d.pp, d.ppmin, d.pc, d.un) || fmtMoney(d.pp));
       const cdCell   = _ac ? '' : fmtMoney(d.cd);
-      const bpCell   = _ac ? _acTxt : (minPriceText(d.bp, d.bpmin, d.bc, d.un) || fmtMoney(d.bp));
+      const bpCell   = _ac ? _acTxt : (minPriceText(d.bp, d.bpmin, d.bc, d.un) || fmtMoney(d.bp)) +
+        (d.bill > (d.bq || 0) * (d.bp || 0) ? ' <span class="pv-min-tag">[MIN適用]</span>' : '');   // 最低料金で請求している行
       const mkCell   = _ac ? '' : fmtMoney(d.mk);
       // 参考情報行の金額は括弧書き＋グレーで「合計外の参考値」であることを示す
       const subCell  = _ac ? _acTxt
