@@ -18,7 +18,6 @@
     try { return JSON.parse(localStorage.getItem(LOCAL_KEY) || '[]'); }
     catch (e) { return []; }
   }
-  function _saveLocal(arr) { localStorage.setItem(LOCAL_KEY, JSON.stringify(arr)); }
 
   function _loadExclusions() {
     try { return JSON.parse(localStorage.getItem(EXCL_KEY) || '[]'); }
@@ -30,13 +29,21 @@
     try { return JSON.parse(localStorage.getItem(ABBREV_KEY) || '[]'); }
     catch (e) { return []; }
   }
-  function _saveAbbrevPairs(arr) { localStorage.setItem(ABBREV_KEY, JSON.stringify(arr)); }
 
   // === Supabase ヘルパー ===
 
   function _c()    { return typeof window.cloudGetClient   === 'function' ? window.cloudGetClient()   : null; }
   function _me()   { const u = typeof window.cloudCurrentUser === 'function' ? window.cloudCurrentUser() : null; return u ? (u.email || '') : ''; }
   function _cloud(){ return !!_c() && !!_me(); }
+  // マスター関連（投票・同義グループ・統合ルール・略称・マスター詳細）はクラウド必須（2026-10）。
+  // このブラウザの保存分（*_v1）は読み書きに使わず、ログイン後の「チームへ移す」（masterMigrateLocal）にだけ使う
+  function _needCloud(what) {
+    if (_cloud()) return true;
+    if (typeof window.quoteShowToast === 'function')
+      window.quoteShowToast('🔒 ' + (what || 'マスター') + 'の登録・変更にはログインが必要です（チーム共有のマスターに保存します）', 'warn', 3600);
+    return false;
+  }
+  window.masterNeedCloud = _needCloud;
 
   // === ルール取得 ===
 
@@ -46,44 +53,36 @@
     return data || [];
   }
 
+  let _arCloud = [];   // クラウドの統合ルール（入力候補・代表名の読み替え用のキャッシュ）
+  window.arLoadCloud = async function () {
+    _arCloud = _cloud() ? await _fetchCloud() : [];
+    return true;
+  };
   window.arGetRules = async function (field) {
-    const local = _loadLocal().filter(r => !field || r.field === field);
-    if (!_cloud()) return local;
-    const cloud = (await _fetchCloud()).filter(r => !field || r.field === field);
-    const seen = new Set(cloud.map(r => r.field + ':::' + r.from_value));
-    return [...cloud, ...local.filter(r => !seen.has(r.field + ':::' + r.from_value))];
+    if (!_cloud()) return [];
+    _arCloud = await _fetchCloud();
+    return _arCloud.filter(r => !field || r.field === field);
   };
 
   // === ルール保存 ===
 
   window.arSaveRule = async function (field, from_value, to_value) {
     if (!field || !from_value || !to_value) return;
-    // 常にローカルにも保存（クラウド失敗時のフォールバック兼オフライン対応）
-    const arr = _loadLocal();
-    const idx = arr.findIndex(r => r.field === field && r.from_value === from_value);
-    const rec = { id: Date.now() + '_' + Math.random().toString(36).slice(2), field, from_value, to_value, created_at: new Date().toISOString() };
-    if (idx >= 0) arr[idx] = { ...arr[idx], ...rec }; else arr.unshift(rec);
-    _saveLocal(arr);
-    // クラウドにも同期（失敗しても続行）
-    if (_cloud()) {
-      const c = _c(), me = _me();
-      await c.from(TABLE).upsert(
-        { field, from_value, to_value, created_by: me },
-        { onConflict: 'field,from_value' }
-      );
-    }
+    if (!_needCloud('統合ルール')) return;
+    await _c().from(TABLE).upsert(
+      { field, from_value, to_value, created_by: _me() },
+      { onConflict: 'field,from_value' }
+    );
+    await window.arLoadCloud();
     await _afterChange();
   };
 
   // === ルール削除 ===
 
   window.arDeleteRule = async function (id) {
-    // ローカルから削除
-    _saveLocal(_loadLocal().filter(r => String(r.id) !== String(id)));
-    // クラウドからも削除（エラーは無視）
-    if (_cloud()) {
-      await _c().from(TABLE).delete().eq('id', id);
-    }
+    if (!_needCloud('統合ルール')) return;
+    await _c().from(TABLE).delete().eq('id', id);
+    await window.arLoadCloud();
     await _afterChange();
   };
 
@@ -205,35 +204,18 @@
 
   // === 略称辞書管理 ===
 
-  window.arGetAbbrevPairs = function (field) {
-    const all = _loadAbbrevPairs();
-    return field ? all.filter(p => p.field === field) : all;
-  };
+  // 略称は同義グループ（クラウド）で管理する。このブラウザの略称辞書（abbrevPairs_v1）は移行にだけ使う
+  window.arGetAbbrevPairs = function () { return []; };
 
   window.arAddAbbrevPair = async function (field, abbrev, full) {
     if (!field || !abbrev || !full || abbrev === full) return;
-    const arr = _loadAbbrevPairs();
-    if (arr.find(p => p.field === field && p.abbrev === abbrev && p.full === full)) return;
-    arr.unshift({ id: Date.now() + '_' + Math.random().toString(36).slice(2), field, abbrev, full, created_at: new Date().toISOString() });
-    _saveAbbrevPairs(arr);
-    // 略称＝正式名称は「同義グループ」（正式名称が代表・略称が別名）と同じ意味なので、そちらにも登録してチームで共有する
-    // （略称辞書そのものはこのブラウザにしか保存されないため、同僚の画面では効かなかった）
+    if (!_needCloud('略称')) return;
+    // 略称＝正式名称は「同義グループ」（正式名称が代表・略称が別名）として登録し、チームで共有する
     if (typeof window.synAddAlias === 'function') await window.synAddAlias(field, abbrev, full);
     await _afterChange();
     if (typeof window.statsRefresh === 'function') await window.statsRefresh();
   };
 
-  window.arDeleteAbbrevPair = async function (id) {
-    const pair = _loadAbbrevPairs().find(p => String(p.id) === String(id));
-    _saveAbbrevPairs(_loadAbbrevPairs().filter(p => String(p.id) !== String(id)));
-    // 同義グループに同じ組があれば、別名からも外す
-    if (pair && typeof window.synRemoveAlias === 'function' && typeof window.synGetGroups === 'function' &&
-        window.synGetGroups(pair.field).some(g => g.canonical === pair.full && (g.aliases || []).includes(pair.abbrev))) {
-      await window.synRemoveAlias(pair.field, pair.abbrev, pair.full);
-    }
-    await _afterChange();
-    if (typeof window.statsRefresh === 'function') await window.statsRefresh();
-  };
 
   // 同義グループにまだ載っていない（このブラウザにだけある）略称
   function _abbrevUnshared(pairs) {
@@ -297,8 +279,7 @@
     };
     const groups = typeof window.synGetGroups === 'function' ? window.synGetGroups(field) : [];
     groups.forEach(g => { put(g.canonical, g.canonical); (g.aliases || []).forEach(a => put(a, g.canonical)); });
-    _loadAbbrevPairs().filter(p => p.field === field).forEach(p => { put(p.full, p.full); put(p.abbrev, p.full); });
-    _loadLocal().filter(r => r.field === field).forEach(r => { put(r.to_value, r.to_value); put(r.from_value, r.to_value); });
+    _arCloud.filter(r => r.field === field).forEach(r => { put(r.to_value, r.to_value); put(r.from_value, r.to_value); });
     const masters = typeof window.statsGetMasters === 'function' ? window.statsGetMasters() : [];
     masters.filter(m => m.field === field).forEach(m => put(m.value, m.value));
     // 代表名どうしが連鎖する場合（A→B、B→C）は最後まで辿る
@@ -339,17 +320,15 @@
   // === 入力補完用 ===
 
   window.arGetCanonicals = function (field) {
-    return _loadLocal().filter(r => r.field === field).map(r => r.to_value);
+    return _arCloud.filter(r => r.field === field).map(r => r.to_value);
   };
 
   function _refreshDatalist() {
-    const rules   = _loadLocal();
+    const rules   = _arCloud;
     // マスター一覧（statsGetMasters があればクラウド投票も含む、なければ localStorage フォールバック）
     let masters = [];
     if (typeof window.statsGetMasters === 'function') {
       masters = window.statsGetMasters();
-    } else {
-      try { masters = JSON.parse(localStorage.getItem('masterCandidates_v1') || '[]'); } catch { masters = []; }
     }
 
     // masterOnly=true：候補をマスター登録済みの代表名だけにする（別名・略称・統合ルールは候補に出さない）。
@@ -598,19 +577,7 @@
     <input id="arAbbrevFull" class="ar-input" type="text" placeholder="正式名称（例: NAIGAI TRANS LINES）">
     <button class="ar-add-btn" onclick="arSubmitAbbrevForm()">登録</button>
   </div>`;
-    if (abbrevPairs.length) {
-      h += `<table class="ar-table ar-abbrev-table"><thead><tr><th>種別</th><th>略称</th><th></th><th>正式名称</th><th></th></tr></thead><tbody>`;
-      abbrevPairs.forEach(p => {
-        h += `<tr>
-  <td>${_esc(abbrevFieldLabel[p.field] || p.field)}</td>
-  <td class="ar-from">${_esc(p.abbrev)}</td>
-  <td class="ar-arrow-cell">=</td>
-  <td class="ar-to">${_esc(p.full)}</td>
-  <td><button class="ar-del-btn" onclick="arDeleteAbbrevPair('${_ea(String(p.id))}')">削除</button></td>
-</tr>`;
-      });
-      h += '</tbody></table>';
-    }
+    // 登録済みの略称は「同義グループ」（統計タブ・マスター）に表示される。このブラウザにだけある古い略称は上の「チームに共有」で移す
     h += '</div>';
 
     // 除外リスト
@@ -743,7 +710,6 @@
   function _masterValues(field) {
     let masters = [];
     if (typeof window.statsGetMasters === 'function') masters = window.statsGetMasters();
-    else { try { masters = JSON.parse(localStorage.getItem('masterCandidates_v1') || '[]'); } catch { masters = []; } }
     return masters.filter(m => m.field === field).map(m => m.value);
   }
   function _showMasterRegisterSuggest(input, value) {
@@ -1001,18 +967,9 @@
   let _synCloud = null;          // cloud キャッシュ（未ロード時 null）
   let _synTableMissing = false;  // テーブル未作成を検知したら以後ローカルにフォールバック
 
-  // 統計タブのレンダリング中（品名/サブコン/キャリア/港/お客様の行・チップ単位）に
-  // 繰り返し呼ばれるため、保存時のみ無効化するキャッシュで再パースを避ける。
-  let _synLocalCache = null;
-  function _synLoadLocal() {
-    if (_synLocalCache !== null) return _synLocalCache;
-    try { _synLocalCache = JSON.parse(localStorage.getItem(SYN_KEY) || '[]'); } catch (e) { _synLocalCache = []; }
-    return _synLocalCache;
-  }
-  function _synSaveLocal(arr) { _synLocalCache = arr; localStorage.setItem(SYN_KEY, JSON.stringify(arr)); }
   // 有効なソース（ログイン中でキャッシュ済みなら cloud、なければ local）
   function _synAll() {
-    return (_cloud() && _synCloud !== null) ? _synCloud : _synLoadLocal();
+    return (_cloud() && _synCloud !== null) ? _synCloud : [];   // クラウド必須（未ログイン・読込前は空）
   }
   function _synMissingErr(error) {
     return error && /relation|does not exist|schema cache|not find/i.test(error.message || '');
@@ -1053,23 +1010,25 @@
     return map;
   };
 
+  // 書き込みはクラウドだけ。続けて読む処理（synAddAlias 等）のため、成功したら手元のキャッシュも同じ内容に更新する
   async function _synUpsert(field, canonical, aliases) {
-    const arr = _synLoadLocal();
-    const idx = arr.findIndex(g => g.field === field && g.canonical === canonical);
-    if (idx >= 0) arr[idx].aliases = aliases;
-    else arr.unshift({ id: Date.now() + '_' + Math.random().toString(36).slice(2), field, canonical, aliases });
-    _synSaveLocal(arr);
-    if (_cloud() && !_synTableMissing) {
-      const { error } = await _c().from(SYN_TABLE).upsert(
-        { field, canonical, aliases, updated_by: _me(), updated_at: new Date().toISOString() },
-        { onConflict: 'field,canonical' }
-      );
-      if (_synMissingErr(error)) _synTableMissing = true;
-    }
+    if (!_needCloud('同義グループ') || _synTableMissing) return false;
+    const { error } = await _c().from(SYN_TABLE).upsert(
+      { field, canonical, aliases, updated_by: _me(), updated_at: new Date().toISOString() },
+      { onConflict: 'field,canonical' }
+    );
+    if (error) { if (_synMissingErr(error)) _synTableMissing = true; return false; }
+    if (_synCloud === null) _synCloud = [];
+    const g = _synCloud.find(x => x.field === field && x.canonical === canonical);
+    if (g) g.aliases = aliases; else _synCloud.push({ id: 'tmp_' + Date.now(), field, canonical, aliases });
+    return true;
   }
   async function _synDelete(field, canonical) {
-    _synSaveLocal(_synLoadLocal().filter(g => !(g.field === field && g.canonical === canonical)));
-    if (_cloud() && !_synTableMissing) await _c().from(SYN_TABLE).delete().match({ field, canonical });
+    if (!_needCloud('同義グループ') || _synTableMissing) return false;
+    const { error } = await _c().from(SYN_TABLE).delete().match({ field, canonical });
+    if (error) return false;
+    if (_synCloud) _synCloud = _synCloud.filter(g => !(g.field === field && g.canonical === canonical));
+    return true;
   }
 
   window.synSetCanonical = async function (field, value) {
@@ -1151,6 +1110,89 @@
     if (toast && typeof window.quoteShowToast === 'function') window.quoteShowToast(toast, 'success');
   }
 
+  // === このブラウザにだけあるマスターデータの移行（クラウド必須化） ===
+  // 以前は書き込みのたびにこのブラウザにも写しを保存していたため、クラウドに無いもの（＝このブラウザにだけあるもの）だけを数える。
+  // ほかの人がクラウドで削除した古い写しも含まれうるので、移す前に件数と例を見せて選んでもらう（移す／移さずに使わない）
+  // MD_KEY 等はこの後で定義されるため、使う時点で一覧にする
+  const _migKeys = () => ['masterCandidates_v1', SYN_KEY, MD_KEY, LOCAL_KEY, ABBREV_KEY];
+  function _migInfo() {
+    if (!_cloud()) return null;
+    const k = (f, v) => f + '\x00' + v;
+    const cloudM = new Set((typeof window.statsGetMasters === 'function' ? window.statsGetMasters() : []).map(m => k(m.field, m.value)));
+    const masters = (typeof window.statsLocalMasters === 'function' ? window.statsLocalMasters() : []).filter(m => !cloudM.has(k(m.field, m.value)));
+    const cloudSyn = _synCloud || [];
+    const syn = [];
+    (function () { try { return JSON.parse(localStorage.getItem(SYN_KEY) || '[]'); } catch (e) { return []; } })().forEach(g => {
+      const cg = cloudSyn.find(x => x.field === g.field && x.canonical === g.canonical);
+      const missing = (g.aliases || []).filter(a => !cg || !(cg.aliases || []).includes(a));
+      if (!cg || missing.length) syn.push({ field: g.field, canonical: g.canonical, aliases: missing, isNew: !cg });
+    });
+    const cloudMd = new Set((_mdCloud || []).map(m => k(m.field, m.value)));
+    const md = _mdLoadLocal().filter(m => !cloudMd.has(k(m.field, m.value)));
+    const cloudR = new Set(_arCloud.map(r => k(r.field, r.from_value)));
+    const rules = _loadLocal().filter(r => !cloudR.has(k(r.field, r.from_value)));
+    const abbrev = _abbrevUnshared(_loadAbbrevPairs());
+    const total = masters.length + syn.length + md.length + rules.length + abbrev.length;
+    return { masters, syn, md, rules, abbrev, total };
+  }
+  function _migBackupAndClear() {
+    const backup = { at: new Date().toISOString() };
+    _migKeys().forEach(key => { const v = localStorage.getItem(key); if (v !== null) backup[key] = v; });
+    try { localStorage.setItem('masterLocalBackup_v1', JSON.stringify(backup)); } catch (e) {}
+    _migKeys().forEach(key => localStorage.removeItem(key));
+    if (typeof window.statsClearLocalMasters === 'function') window.statsClearLocalMasters();
+  }
+  async function _migAfter(msg) {
+    if (typeof window.statsLoadMasterCache === 'function') await window.statsLoadMasterCache();
+    if (typeof window.statsRerenderActive === 'function') window.statsRerenderActive();
+    if (typeof window.arRenderPane === 'function') await window.arRenderPane();
+    if (msg && typeof window.quoteShowToast === 'function') window.quoteShowToast(msg, 'success', 3600);
+  }
+  // マスター管理画面の先頭に出す案内（未ログイン／このブラウザにだけあるデータ）
+  window.masterTopNoticeHtml = function () {
+    if (!_cloud()) {
+      return '<div class="master-cloud-notice">🔒 マスター（入力候補・同義グループ・マスター詳細）はチームで共有しています。表示・登録にはログインしてください。</div>';
+    }
+    const info = _migInfo();
+    if (!info || !info.total) return '';
+    const parts = [
+      info.masters.length && 'マスター ' + info.masters.length + ' 件',
+      info.syn.length && '同義グループ ' + info.syn.length + ' 件',
+      info.md.length && 'マスター詳細 ' + info.md.length + ' 件',
+      info.rules.length && '統合ルール ' + info.rules.length + ' 件',
+      info.abbrev.length && '略称 ' + info.abbrev.length + ' 件',
+    ].filter(Boolean).join('・');
+    const ex = [...info.masters.map(m => m.value), ...info.syn.map(g => g.canonical), ...info.md.map(m => m.value),
+                ...info.rules.map(r => r.from_value + '→' + r.to_value), ...info.abbrev.map(p => p.abbrev + '=' + p.full)]
+      .slice(0, 6).map(_esc).join('、');
+    return '<div class="master-cloud-notice is-migrate">📦 このブラウザにだけ保存されているマスターのデータがあります（' + _esc(parts) + '。例：' + ex + '）。' +
+      'マスターはチーム共有に一本化したため、このブラウザの分は使われません。' +
+      '<button type="button" class="ar-add-btn" onclick="masterMigrateLocal()">☁️ チームへ移す</button>' +
+      '<button type="button" class="ar-del-btn" onclick="masterDiscardLocal()" title="移さずに、このブラウザの分を使わないようにします（念のためバックアップは残します）">移さない</button></div>';
+  };
+  window.masterMigrateLocal = async function () {
+    const info = _migInfo();
+    if (!info || !info.total) return;
+    if (!confirm('このブラウザにだけあるマスターのデータ ' + info.total + ' 件を、チーム共有のマスターへ移します。\n' +
+      'ほかの人が削除した古いデータが含まれている場合は、それも戻ります。内容に心当たりがなければ「移さない」を選んでください。\n\nよろしいですか？')) return;
+    for (const m of info.masters) if (typeof window.statsEnsureMaster === 'function') await window.statsEnsureMaster(m.field, m.value);
+    for (const g of info.syn) {
+      const cg = (_synCloud || []).find(x => x.field === g.field && x.canonical === g.canonical);
+      await _synUpsert(g.field, g.canonical, [...new Set([...((cg && cg.aliases) || []), ...g.aliases])]);
+    }
+    for (const m of info.md) await window.mdSave(m.field, m.value, m.details || {});
+    for (const r of info.rules) await _c().from(TABLE).upsert({ field: r.field, from_value: r.from_value, to_value: r.to_value, created_by: _me() }, { onConflict: 'field,from_value' });
+    for (const p of info.abbrev) if (typeof window.synAddAlias === 'function') await window.synAddAlias(p.field, p.abbrev, p.full);
+    _migBackupAndClear();
+    await window.arLoadCloud();
+    await _migAfter('☁️ ' + info.total + ' 件をチーム共有のマスターへ移しました');
+  };
+  window.masterDiscardLocal = async function () {
+    if (!confirm('このブラウザにだけあるマスターのデータを、チームへ移さずに使わないようにします（念のためバックアップは残します）。よろしいですか？')) return;
+    _migBackupAndClear();
+    await _migAfter('このブラウザのマスターデータは使わないようにしました（バックアップ：masterLocalBackup_v1）');
+  };
+
   // === マスター詳細情報（種別ごとの追加項目・非破壊・クラウド共有 + ローカルフォールバック） ===
   //   対象フィールド: customer（ふりがな/担当/所在地/メイン商材/仕向国輸入国/傾向/社内メモ）
   //                 nm（ふりがな/デフォルト単位/デフォルト備考）
@@ -1219,9 +1261,8 @@
   function _mdLoadLocal() {
     try { return JSON.parse(localStorage.getItem(MD_KEY) || '[]'); } catch (e) { return []; }
   }
-  function _mdSaveLocal(arr) { localStorage.setItem(MD_KEY, JSON.stringify(arr)); }
   function _mdAll() {
-    return (_cloud() && _mdCloud !== null) ? _mdCloud : _mdLoadLocal();
+    return (_cloud() && _mdCloud !== null) ? _mdCloud : [];   // クラウド必須（未ログイン・読込前は空）
   }
   function _mdMissingErr(error) {
     return error && /relation|does not exist|schema cache|not find/i.test(error.message || '');
@@ -1254,24 +1295,18 @@
 
   window.mdSave = async function (field, value, details) {
     if (!field || !value) return;
-    const arr = _mdLoadLocal();
-    const idx = arr.findIndex(m => m.field === field && m.value === value);
-    if (idx >= 0) arr[idx].details = details;
-    else arr.unshift({ field, value, details });
-    _mdSaveLocal(arr);
-    if (_cloud() && !_mdTableMissing) {
-      const { error } = await _c().from(MD_TABLE).upsert(
-        { field, value, details, updated_by: _me(), updated_at: new Date().toISOString() },
-        { onConflict: 'field,value' }
-      );
-      if (_mdMissingErr(error)) _mdTableMissing = true;
-    }
+    if (!_needCloud('マスター詳細') || _mdTableMissing) return;
+    const { error } = await _c().from(MD_TABLE).upsert(
+      { field, value, details, updated_by: _me(), updated_at: new Date().toISOString() },
+      { onConflict: 'field,value' }
+    );
+    if (_mdMissingErr(error)) _mdTableMissing = true;
     await window.mdLoadCloud();
   };
 
   window.mdDelete = async function (field, value) {
-    _mdSaveLocal(_mdLoadLocal().filter(m => !(m.field === field && m.value === value)));
-    if (_cloud() && !_mdTableMissing) await _c().from(MD_TABLE).delete().match({ field, value });
+    if (!_needCloud('マスター詳細') || _mdTableMissing) return;
+    await _c().from(MD_TABLE).delete().match({ field, value });
     await window.mdLoadCloud();
   };
 
