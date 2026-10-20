@@ -104,3 +104,7 @@
 /* ---- 列見出し：hierarchy は「カテゴリ欄を隠した」前提で「サブコン／パターン」としたが、行レイアウト v3 で 3 段目にカテゴリが戻ったため、
    実際の並び（サブコン → パターン → カテゴリ）に合わせる（新人目線レビューの指摘：見出しと入力欄が食い違う） ---- */
 #tab-quote-make #quoteTable thead th.hd-catsv::after { content: "サブコン／パターン\A／カテゴリ"; white-space: pre; letter-spacing: .04em; }
+
+/* ---- ミニマム（最低料金）の入力欄：「その他 ▾」パネルの中では、MIN が ON の行だけ出す（% の入力群と同じ扱い） ---- */
+#tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]):not(.row-min-mode) .row-detail-panel .min-group { display: none !important; }
+#tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) .row-detail-panel .min-group .w-min { width: 120px !important; }

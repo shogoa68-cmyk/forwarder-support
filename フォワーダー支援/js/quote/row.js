@@ -383,7 +383,7 @@
       const id = tr.id.replace('row-', '');
       const pq = val(`pq-${id}`), pp = val(`pp-${id}`);
       const bq = val(`bq-${id}`), bp = val(`bp-${id}`);
-      const cost = pq * pp, bill = bq * bp;
+      const cost = applyRowMin(pq * pp, id, 'cost'), bill = applyRowMin(bq * bp, id, 'sell');
       if (sameCurrency) {
         totalCost += cost;
         totalBill += bill;
@@ -1104,7 +1104,7 @@
     const newId = addRowAfter(srcId);
 
     // テキスト・数値・日付フィールドをコピー（zc = 0円確認済みフラグ／vf・vt = 有効期限を含む）
-    ['nm','pq','un','pp','mk','nt','sv','pt','zc','ac','ps','co','vf','vt','lu','ppmode','pprate','ppbase','ppref'].forEach(f => {
+    ['nm','pq','un','pp','mk','nt','sv','pt','zc','ac','ps','co','vf','vt','lu','ppmode','pprate','ppbase','ppref','ppmin','bpmin'].forEach(f => {
       const srcEl = document.getElementById(`${f}-${srcId}`);
       const dstEl = document.getElementById(`${f}-${newId}`);
       if (srcEl && dstEl) dstEl.value = srcEl.value;
@@ -1303,7 +1303,7 @@
     const q    = f => frag.querySelector(`[data-field="${f}"]`);
 
     // IDs
-    ['cat','tx','nm','pq','un','pc','pp','cd','bq','bc','bp','mk','st','pr','nt','sv','pt','zc','ac','ps','co','ri','es','vf','vt','lu','ppmode','pprate','ppbase','uid','ppref']
+    ['cat','tx','nm','pq','un','pc','pp','cd','bq','bc','bp','mk','st','pr','nt','sv','pt','zc','ac','ps','co','ri','es','vf','vt','lu','ppmode','pprate','ppbase','uid','ppref','ppmin','bpmin']
       .forEach(f => { const el = q(f); if (el) el.id = `${f}-${id}`; });
     const zcBtn = frag.querySelector('.zero-confirm-btn');
     if (zcBtn) zcBtn.onclick = () => toggleZeroConfirmed(id);;
@@ -1321,6 +1321,9 @@
     if (pctBtn) pctBtn.onclick = () => togglePctMode(id);
     const sellBtn = frag.querySelector('.sell-mode-btn');
     if (sellBtn) sellBtn.onclick = () => toggleSellMode(id);
+    const minBtn = frag.querySelector('.min-mode-btn');
+    if (minBtn) minBtn.onclick = () => toggleMinMode(id);
+    ['ppmin', 'bpmin'].forEach(f => { const el = q(f); if (el) el.oninput = () => calc(id); });
     const mregBtn = frag.querySelector('.master-reg-btn');
     if (mregBtn) mregBtn.onclick = () => registerRowToMaster(id);
     const mdetBtn = frag.querySelector('.master-detail-jump-btn');
@@ -1599,18 +1602,21 @@
     } else if (!indep) {
       // 連動モード：売通貨＝仕入通貨、売単価＝仕入単価＋乗せ幅
       if (bcEl) bcEl.value = pc;
-      if (bpEl) { bpEl.dataset.base = pp; bpEl.value = pp + mk; }
+      if (bpEl) { bpEl.dataset.base = pp; bpEl.value = _addPrice(pp, mk); }
     } else if (bpEl) {
       // 独立モード：売通貨は保持したまま、基準額（換算後の仕入単価）を追随させる。
       // 売単価＝基準額＋乗せ幅（売通貨建て）
       const base = _indepBase(id);
       bpEl.dataset.base = base;
-      bpEl.value = base + mk;
+      bpEl.value = _addPrice(base, mk);
       _updateBpBaseHint(id);
     }
     calc(id);
     _recalcPctDependents(id);
   }
+
+  // 売単価＝基準額＋乗せ幅。小数の足し算の誤差（0.1 + 0.05 = 0.15000000000000002）を表示・計算に持ち込まない
+  function _addPrice(a, b) { return Math.round((a + b) * 1e6) / 1e6; }
 
   function calc(id) {
     const pq = val(`pq-${id}`);
@@ -1621,12 +1627,25 @@
     // 売単価＝基準額＋乗せ幅。基準額は連動モードなら仕入単価、
     // 独立モードなら仕入単価を売通貨へ換算し 10 単位で切り捨てた値。
     // 売値ベースモードでは売単価そのものが入力値のため上書きしない
-    if (bpEl && !_isSellMode(id)) bpEl.value = (parseFloat(bpEl.dataset.base) || 0) + mk;
+    if (bpEl && !_isSellMode(id)) bpEl.value = _addPrice(parseFloat(bpEl.dataset.base) || 0, mk);
     const bp = val(`bp-${id}`);
     const pc = document.getElementById(`pc-${id}`)?.value || 'JPY';
     const bc = document.getElementById(`bc-${id}`)?.value || 'JPY';
-    const subtotal = bq * bp;             // 行の請求小計（数量 × 単価）
-    const profit   = subtotal - pq * pp;  // 行の利益（小計 - 支払い合計）
+    // 行の請求小計・支払い合計（数量 × 単価。ミニマム＝最低料金があれば、それを下回らない）
+    const costAmt  = applyRowMin(pq * pp, id, 'cost');
+    const subtotal = applyRowMin(bq * bp, id, 'sell');
+    const profit   = subtotal - costAmt;  // 行の利益（小計 - 支払い合計）
+    {
+      const trM = document.getElementById(`row-${id}`);
+      const hasMin = (parseFloat(document.getElementById(`ppmin-${id}`)?.value) || 0) > 0 ||
+                     (parseFloat(document.getElementById(`bpmin-${id}`)?.value) || 0) > 0;
+      if (trM) {
+        if (hasMin) trM.classList.add('row-min-mode');
+        trM.querySelector('.min-mode-btn')?.classList.toggle('is-on', trM.classList.contains('row-min-mode'));
+        const applied = subtotal > bq * bp || costAmt > pq * pp;
+        if (applied) trM.dataset.minApplied = '1'; else delete trM.dataset.minApplied;
+      }
+    }
     const canFx = typeof toJPY === 'function';
     const taxed = document.getElementById(`tx-${id}`)?.checked;
     const taxRate = (typeof getEffectiveTaxRate === 'function') ? getEffectiveTaxRate() : 0.10;
@@ -1721,7 +1740,7 @@
     const ccyMismatch = pc !== bc;
     const isFx = canFx && (bc !== 'JPY' || pc !== 'JPY') && (subtotal || profit);
     if (ccyMismatch && canFx) {
-      const jpyProfit = Math.ceil(toJPY(subtotal, bc) - toJPY(pq * pp, pc));
+      const jpyProfit = Math.ceil(toJPY(subtotal, bc) - toJPY(costAmt, pc));
       const jpySub = toJPY(subtotal, bc);
       // 粗利率（Industry のみ表示）は 3 段目に分ける（2 段目は 1 行で、並べると換算の注記が切れるため）
       const rate = jpySub > 0 ? '<div class="pr-sub"><small class="pr-rate">粗利 ' + (jpyProfit / jpySub * 100).toFixed(1) + '%</small></div>' : '';
@@ -1729,7 +1748,7 @@
         '<div class="pr-sub"><small class="jpy-conv-hint" title="仕入（' + pc + '）と売（' + bc + '）の通貨が異なるため、円換算後の差額のみを表示しています">円換算後</small></div>' + rate;
       pr.className = `profit-cell ${pClass(jpyProfit)}`;
     } else if (isFx) {
-      const jpyProfit = Math.ceil(toJPY(subtotal, bc) - toJPY(pq * pp, pc));
+      const jpyProfit = Math.ceil(toJPY(subtotal, bc) - toJPY(costAmt, pc));
       const rate = subtotal > 0 ? '<div class="pr-sub"><small class="pr-rate">粗利 ' + (profit / subtotal * 100).toFixed(1) + '%</small></div>' : '';
       pr.innerHTML = '<div class="pr-main">' + fmt(profit) + '</div><div class="pr-sub"><small class="jpy-conv-hint">(≈¥' + fmt(jpyProfit) + ')</small></div>' + rate;
       pr.className = `profit-cell ${pClass(profit)}`;
@@ -1820,6 +1839,23 @@
     if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
   }
   window.toggleEstimate = toggleEstimate;
+
+  // ========== ミニマム（最低料金）==========
+  // ON：最低料金の入力欄を出す（Industry は「その他 ▾」の中）。OFF：最低料金を消して通常の「数量 × 単価」に戻す
+  function toggleMinMode(id) {
+    const tr = document.getElementById(`row-${id}`);
+    if (!tr) return;
+    const on = !tr.classList.contains('row-min-mode');
+    tr.classList.toggle('row-min-mode', on);
+    if (!on) ['ppmin', 'bpmin'].forEach(f => { const el = document.getElementById(`${f}-${id}`); if (el) el.value = ''; });
+    calc(id);
+    if (on) {
+      if (window.rowDetailToggle && !document.getElementById(`bpmin-${id}`)?.offsetParent) window.rowDetailToggle(tr, true);
+      setTimeout(() => { const el = document.getElementById(`bpmin-${id}`); if (el && el.offsetParent) el.focus(); }, 0);
+    }
+    if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
+  }
+  window.toggleMinMode = toggleMinMode;
 
   // ========== % 計算モード ==========
   function togglePctMode(id) {
@@ -2130,8 +2166,8 @@
       const bq  = val(`bq-${id}`);
       const bp  = val(`bp-${id}`);
       const taxed = document.getElementById(`tx-${id}`)?.checked || false;
-      const cost = pq * pp;
-      const sub  = bq * bp;
+      const cost = applyRowMin(pq * pp, id, 'cost');
+      const sub  = applyRowMin(bq * bp, id, 'sell');
       totCost += cost;
       totBill += sub;
       totSub  += sub;
@@ -2426,8 +2462,8 @@
         const pp = val(`pp-${id}`);
         const bc = document.getElementById(`bc-${id}`)?.value || 'JPY';
         const pc = document.getElementById(`pc-${id}`)?.value || 'JPY';
-        const billRaw = bq * bp;
-        const costRaw = pq * pp;
+        const billRaw = applyRowMin(bq * bp, id, 'sell');
+        const costRaw = applyRowMin(pq * pp, id, 'cost');
         // JPY 換算は行ごと ceil で積み上げ（小計セパレータの小数表示を排除・合計と整合）
         groupBillJPY += SharedCalc.jpyRound(toJPY(billRaw, bc));
         groupCostJPY += SharedCalc.jpyRound(toJPY(costRaw, pc));
@@ -2546,10 +2582,6 @@
   function _rowInnerKey(tr) {
     return _rowPattern(tr) || (tr.dataset.portPair || '').trim();
   }
-  function _rowInnerKind(tr) {
-    // 港ペアはパターンへ一本化したため、内側キーがあれば常にパターン扱い（小計付き・🔖）
-    return _rowInnerKey(tr) ? 'pattern' : '';
-  }
 
   // ===== 最終更新日（lu）：見出し⇄行の集約・伝播 =====
   function _isoToday() {
@@ -2564,7 +2596,7 @@
       .filter(tr => {
         const k = subconNormKey(_rowSubcon(tr) ?? '') || _UNSET_KEY;
         if (k !== svKey) return false;
-        return ptKey ? (_rowInnerKey(tr) === ptKey) : true;
+        return ptKey ? ((_rowInnerKey(tr) || _PT_UNSET) === ptKey) : true;
       });
   }
   // サブコン／パターン見出しのチェック：配下の全明細行の選択チェック（.row-select-chk）を一括で ON/OFF
@@ -2618,7 +2650,10 @@
   function renamePatternGroup(svKey, ptKey) {
     const members = _groupMemberRows(svKey, ptKey);
     if (!members.length) return;
-    const next = prompt('パターン名を変更します（配下の ' + members.length + ' 行すべてに反映されます）', ptKey);
+    const isUnset = ptKey === _PT_UNSET;
+    const next = prompt(isUnset
+      ? 'パターン名を付けます（パターン未設定の ' + members.length + ' 行すべてに反映されます）'
+      : 'パターン名を変更します（配下の ' + members.length + ' 行すべてに反映されます）', isUnset ? '' : ptKey);
     if (next === null) return;
     const trimmed = next.trim();
     if (!trimmed) {
@@ -2819,6 +2854,11 @@
   // サブコン別グループヘッダーを再描画する
   // ---- 折りたたみ・除外状態（セッション中保持・再描画後も維持） ----
   const _UNSET_KEY       = '￿';
+  // パターン未設定の行をまとめる内側グループのキー（表示専用。行のパターン欄は空のまま）。
+  // 空文字は「サブコン全体」を表す箇所（_groupMemberRows 等）があるため、別の値にする
+  const _PT_UNSET        = '\uFFFE';
+  const _PT_UNSET_LABEL  = '（パターン設定なし）';
+  window.PT_UNSET_KEY    = _PT_UNSET;
   const _collapsedGroups   = new Set();
   const _excludedGroups    = new Set();
   const _collapsedPatterns = new Set(); // svKey + '\x00' + ptKey
@@ -3457,8 +3497,16 @@
       //   ・パターンの内側グループには末尾に小計行（data-ptSum）も挿入し、入れ子テーブル化する。
       (function insertInnerGroups() {
         let curSvKey = null, curKey = null, curKind = null, runOpen = false;
+        // 名前付きのパターンがあるサブコン。パターン未設定のまとまりの小計は、そのサブコンに名前付きのパターンがあるときだけ出す
+        // （未設定だけのサブコンでは、サブコン小計と同じ内容が並ぶだけになるため）
+        const _svHasNamed = new Set();
+        Array.from(tbody.children).forEach(tr => {
+          if (tr.dataset.virtual || tr.dataset.type || !(tr.id || '').startsWith('row-')) return;
+          if (_rowInnerKey(tr)) _svHasNamed.add(subconNormKey(_rowSubcon(tr) ?? '') || _UNSET_KEY);
+        });
         const closeRun = (beforeNode) => {
-          if (runOpen && curKind === 'pattern' && curKey) {
+          if (runOpen && curKind === 'pattern' && curKey && !(curKey === _PT_UNSET && !_svHasNamed.has(curSvKey || _UNSET_KEY))) {
+            const _ptLabel = curKey === _PT_UNSET ? _PT_UNSET_LABEL : curKey;
             const sub = document.createElement('tr');
             sub.dataset.virtual = '1';
             sub.dataset.ptSum   = '1';
@@ -3471,13 +3519,13 @@
             sub.innerHTML =
               `<td colspan="10" class="subcon-pattern-subtotal-cell">` +
                 `<div class="subcon-subtotal-inner subcon-subtotal-inner--pt">` +
-                  `<span class="subcon-subtotal-label">↳ 🔖 ${_escHdr(curKey)} 小計</span>` +
+                  `<span class="subcon-subtotal-label">↳ 🔖 ${_escHdr(_ptLabel)} 小計</span>` +
                   `<span class="st-metric st-cost"><i>仕入合計</i><b class="subcon-subtotal-cost">¥0</b></span>` +
                   `<span class="st-metric st-sell"><i>売値合計</i><b class="subcon-subtotal-sum">¥0</b></span>` +
                   `<span class="st-metric st-margin"><i>粗利率</i><b class="subcon-subtotal-margin">—</b></span>` +
                   `<button type="button" class="subcon-subtotal-add-btn subcon-pt-add-btn" ` +
                     `data-sv="${_escAttr(_svLabel)}" data-pt="${_escAttr(curKey)}" ` +
-                    `title="${_escAttr(curKey)} に行を追加（このパターン末尾）">＋ 行追加</button>` +
+                    `title="${_escAttr(_ptLabel)} に行を追加（このパターン末尾）">＋ 行追加</button>` +
                   `<span class="st-remark" title="このパターンに関する注記。「見積書に表示」がONの間だけ客先向け出力（プレビュー・御見積書PDF・メール）にも表示されます。">` +
                     `<i>📝 パターン別リマーク</i>` +
                     `<input type="text" class="subcon-remark-input" placeholder="このパターンへの注記（任意）" value="${_escAttr(_remarkObj.text || '')}" />` +
@@ -3536,7 +3584,8 @@
             return;
           }
           if (tr.dataset.type) return;              // 付随行（リマーク等）は直前の内側グループに属する
-          const key = _rowInnerKey(tr), kind = _rowInnerKind(tr);
+          // パターン未設定の行も「（パターン設定なし）」のまとまりに入れ、サブコン → パターン → 明細のツリーをそろえる
+          const key = _rowInnerKey(tr) || _PT_UNSET, kind = 'pattern';
           if (key) {
             tr.classList.add('subcon-subchild');
             if (!runOpen || key !== curKey) {
@@ -3550,7 +3599,8 @@
               sh.dataset.subGroup = '1';
               sh.dataset.svKey    = _svK;
               sh.dataset.ptKey    = key;
-              sh.className = 'subcon-subgroup-header is-pattern' + (_ptExcluded ? ' is-excluded' : '');
+              const _isUnsetPt = key === _PT_UNSET;
+              sh.className = 'subcon-subgroup-header is-pattern' + (_isUnsetPt ? ' is-pt-unset' : '') + (_ptExcluded ? ' is-excluded' : '');
               const icon = '🔖';
               sh.innerHTML =
                 // 同上：flex は内側 div へ（td を flex 化すると colspan が潰れる）
@@ -3559,9 +3609,9 @@
                   `<span class="subcon-subgroup-grip" title="ドラッグでこのパターンを並び替え（同じサブコン内のみ）">⠿</span>` +
                   `<button type="button" class="subcon-subgroup-toggle" title="${_ptCollapsed ? '展開' : '折りたたみ/展開'}">${_ptCollapsed ? '▶' : '▼'}</button>` +
                   `<input type="checkbox" class="subcon-group-chk" title="このパターンの全明細を選択／解除（一部だけ選択中は中間表示）">` +
-                  `<span class="subcon-subgroup-leg">${icon} ${_escHdr(key)}</span>` +
-                  `<button type="button" class="subcon-subgroup-rename" title="このパターン名を変更（配下の行すべてに反映）">✎</button>` +
-                  `<button type="button" class="subcon-subgroup-dup" title="このパターンの明細行をすべて複製（新しいパターンとして「（2）」等が付きます）">📋</button>` +
+                  `<span class="subcon-subgroup-leg">${icon} ${_escHdr(_isUnsetPt ? _PT_UNSET_LABEL : key)}</span>` +
+                  `<button type="button" class="subcon-subgroup-rename" title="${_isUnsetPt ? 'パターン名を付ける（配下の行すべてに反映）' : 'このパターン名を変更（配下の行すべてに反映）'}">✎</button>` +
+                  (_isUnsetPt ? '' : `<button type="button" class="subcon-subgroup-dup" title="このパターンの明細行をすべて複製（新しいパターンとして「（2）」等が付きます）">📋</button>`) +
                   `<button type="button" class="subcon-subgroup-excl${_ptExcluded ? ' is-excluded' : ''}" title="見積もりへの含める/除外を切り替え">${_ptExcluded ? '含む' : '除外'}</button>` +
                   `<button type="button" class="subcon-group-sort-btn" title="このパターン内をカテゴリ順に並び替え">⇅カテゴリ</button>` +
                   _groupUpdatedHtml() +
@@ -3575,7 +3625,7 @@
                 e.stopPropagation();
                 renamePatternGroup(_svK, key);
               });
-              sh.querySelector('.subcon-subgroup-dup').addEventListener('click', e => {
+              sh.querySelector('.subcon-subgroup-dup')?.addEventListener('click', e => {
                 e.stopPropagation();
                 duplicatePatternGroup(_svK, key);
               });
@@ -3589,9 +3639,6 @@
               tbody.insertBefore(sh, tr);
               curKey = key; curKind = kind; runOpen = true;
             }
-          } else {
-            closeRun(tr);
-            tr.classList.remove('subcon-subchild');
           }
         });
         closeRun(null);   // 末尾グループを締める
@@ -3947,7 +3994,7 @@
       const bq = val(`bq-${id}`) || val(`pq-${id}`) || 0;
       const bp = val(`bp-${id}`) || 0;
       const pp = val(`pp-${id}`) || 0;
-      let sell = bq * bp, cost = bq * pp;
+      let sell = applyRowMin(bq * bp, id, 'sell'), cost = applyRowMin(bq * pp, id, 'cost');
       const bc = document.getElementById(`bc-${id}`)?.value || 'JPY';
       const pc = document.getElementById(`pc-${id}`)?.value || 'JPY';
       let mixed = false;
@@ -3975,12 +4022,15 @@
       .filter(tr => !tr.dataset.type);
     // pt 指定あり → パターン末尾（sv + pt 両方一致する最後の行）
     // pt 指定なし → サブコン末尾（sv 一致する最後の行）
+    // pt がパターン未設定のグループ（_PT_UNSET）→ パターン欄が空の行の末尾に、パターン欄は空のまま
     const targetKey = subconNormKey(sv);
+    const unsetPt = pt === _PT_UNSET;
+    if (unsetPt) pt = '';
     let lastInGroup = null;
     realRows.forEach(tr => {
       const rowSv = _rowSubcon(tr) ?? '';
       if (subconNormKey(rowSv) !== targetKey) return;
-      if (pt) {
+      if (pt || unsetPt) {
         const rowPt = tr.querySelector('[data-field="pt"]')?.value || '';
         if (rowPt !== pt) return;
       }
@@ -4142,7 +4192,7 @@
 
   function _gatherRowData(id) {
     const data = {};
-    ['nm','pq','un','pp','mk','nt','sv','pt','zc','ac','ps','co','vf','vt','lu','cat','pc','bc','bp','ppmode','pprate','ppbase','uid','ppref'].forEach(f => {
+    ['nm','pq','un','pp','mk','nt','sv','pt','zc','ac','ps','co','vf','vt','lu','cat','pc','bc','bp','ppmode','pprate','ppbase','uid','ppref','ppmin','bpmin'].forEach(f => {
       const el = document.getElementById(`${f}-${id}`);
       if (el) data[f] = el.value;
     });
@@ -4162,7 +4212,7 @@
     } else {
       tbody.appendChild(newTr);
     }
-    ['nm','pq','un','pp','mk','nt','pt','zc','ac','ps','co','vf','vt','lu','ppmode','pprate','ppbase','ppref'].forEach(f => {
+    ['nm','pq','un','pp','mk','nt','pt','zc','ac','ps','co','vf','vt','lu','ppmode','pprate','ppbase','ppref','ppmin','bpmin'].forEach(f => {
       const el = document.getElementById(`${f}-${newId}`);
       if (el && data[f] !== undefined) el.value = data[f];
     });

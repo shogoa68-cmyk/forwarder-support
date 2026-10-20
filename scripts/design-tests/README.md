@@ -11,6 +11,7 @@ node scripts/design-tests/as-removed-test.js             # 自動保存の廃止
 node scripts/design-tests/remark-copy-test.js            # 類似見積→行追加（リマークも一緒に）
 THEME=1 node scripts/design-tests/sell-mode-test.js        # 売値ベースのオン／オフ
 node scripts/design-tests/master-cloud-test.js             # マスターのクラウド必須化・名前の突き合わせ（偽の Supabase）
+node scripts/design-tests/min-charge-test.js               # ミニマム（最低料金：Min. $28.00 or $0.15/kg）。THEME=1 で Industry
 ```
 
 - 末尾に `OK` が出れば全項目成功。失敗は `❌` / `FAIL` の行に出る。

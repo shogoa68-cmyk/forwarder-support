@@ -85,7 +85,7 @@
       const isCond   = r._cond;     // 都度請求（発生時のみ・金額は表示・合計に加算しない）
       const isRef    = r._ref;      // 参考情報（金額は表示・合計に加算しない）
       const qty = r.bq || 0, price = r.bp || 0;
-      const sub = qty * price;
+      const sub = minAmt(qty * price, r.bpmin);   // ミニマム（最低料金）があれば、それを下回らない
       const jpy = isActual ? 0 : Math.ceil(toJPYx(sub, r.bc || 'JPY'));
       if (!isActual && !isCond && !isRef) {
         if (r.bc && r.bc !== 'JPY') hasFx = true;
@@ -96,7 +96,7 @@
       if (r.name || sub || isActual || isCond || isRef) {
         curItems.push({
           name: r.name || '', qty, unit: r.un || '', ccy: r.bc || 'JPY',
-          price, amount: sub, note: r.note || '', taxed: !!r.taxed, cat: r.cat || '',
+          price, minText: minPriceText(price, r.bpmin, r.bc || 'JPY', r.un || ''), amount: sub, note: r.note || '', taxed: !!r.taxed, cat: r.cat || '',
           pt: (r.pt || '').trim(),   // パターン（スポット/年間契約 等）。小見出しに使う
           actual: isActual, cond: isCond, ref: isRef, estimate: !!r._estimate,
         });
@@ -265,8 +265,9 @@
         if (run.pt) out.push(' 〔' + run.pt + '〕');
         run.items.forEach(it => {
           const ccy   = it.actual ? '' : (it.ccy || 'JPY');
-          const price = it.actual ? '実費' : (it.estimate ? '約' : '') + fmtNum(it.price, it.ccy);
-          out.push('  ' + [_itemLabel(it), ccy, price, it.unit].filter(Boolean).join(' | '));
+          const price = it.actual ? '実費' : (it.estimate ? '約' : '') + (it.minText || fmtNum(it.price, it.ccy));
+          // ミニマムの行は単価の文字に通貨・単位が入っている（Min. $28.00 or $0.15/kg）ので重ねて出さない
+          out.push('  ' + [_itemLabel(it), it.minText ? '' : ccy, price, it.minText ? '' : it.unit].filter(Boolean).join(' | '));
           if (it.note) out.push('    ※' + it.note);
         });
       });

@@ -550,7 +550,7 @@
         return;
       }
       // data
-      const sub = (r.bq || 0) * (r.bp || 0);                  // 請求通貨建ての金額
+      const sub = minAmt((r.bq || 0) * (r.bp || 0), r.bpmin);  // 請求通貨建ての金額（ミニマム＝最低料金があれば、それを下回らない）
       const jpy = Math.ceil(_toJPY(sub, r.bc || 'JPY'));      // JPY換算
       // 外貨建ては輸出免税が原則（Excel/プレビューと同一ポリシー）。課税は JPY 建て行のみ。
       // 消費税は行ごとに切り上げて積み上げ、各出力経路（御見積書/プレビュー/Excel）で一致させる。
@@ -572,7 +572,8 @@
       // JPY 単価は端数があるときだけ小数表示（単価×数量＝金額の検算が崩れないように）
       const unitDisp = isActual
         ? t('unpriced')
-        : estTag + (isNonJpy
+        : estTag + (minPriceText(r.bp, r.bpmin, r.bc || 'JPY', r.un || '') ? esc(minPriceText(r.bp, r.bpmin, r.bc || 'JPY', r.un || ''))
+          : isNonJpy
           ? `${fmtNum(r.bp, 2)} ${esc(r.bc)}`
           : `${Number.isInteger(r.bp) ? fmtInt(r.bp) : fmtNum(r.bp, 2)} JPY`);
       // 御見積書は客先向け公式文書のため、社内メモ(r.note)は出力しない（E-1 備考漏洩対策）

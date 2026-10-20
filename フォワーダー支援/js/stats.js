@@ -3,7 +3,7 @@
   'use strict';
 
   // cells 配列のインデックス（v3 format: [0]=selected [1]=cat [2]=sv [3]=tx [4]=nm [5]=pq [6]=un ...）
-  const CI = { cat: 1, sv: 2, nm: 4, un: 6, bq: 7, pc: 8, bc: 9, pp: 10, bp: 11, pt: 19 };
+  const CI = { cat: 1, sv: 2, nm: 4, un: 6, bq: 7, pc: 8, bc: 9, pp: 10, bp: 11, pt: 19, ppmin: 30, bpmin: 31 };
   const LOCAL_KEY    = 'masterCandidates_v1';
   const VOTES_TABLE  = 'master_votes';
 
@@ -879,8 +879,8 @@
         const g = map.get(key);
         g.count++;
         if (ts >= g.lastTs) { g.lastTs = ts; g.lastPp = pp; g.lastPc = pc; g.lastBp = bp; g.lastBc = bc; g.lastUn = un; }
-        if (pp != null) { const costJ = _toJ(pp * pq, pc); if (costJ != null) g.costSum += costJ; }
-        if (bp != null) { const billJ = _toJ(bp * bq, bc); if (billJ != null) g.billSum += billJ; }
+        if (pp != null) { const costJ = _toJ(minAmt(pp * pq, c[CI.ppmin]), pc); if (costJ != null) g.costSum += costJ; }
+        if (bp != null) { const billJ = _toJ(minAmt(bp * bq, c[CI.bpmin]), bc); if (billJ != null) g.billSum += billJ; }
       });
     };
     if (source !== 'cloud') _getLocalPresets().forEach(p => add(p, false));
@@ -988,8 +988,8 @@
         if (!g.creators.has(creatorEmail)) g.creators.set(creatorEmail, { email: creatorEmail, count: 0, costSum: 0, billSum: 0 });
         const cg = g.creators.get(creatorEmail);
         cg.count++;
-        if (pp != null) { const costJ = _toJ(pp * pq, pc); if (costJ != null) cg.costSum += costJ; }
-        if (bp != null) { const billJ = _toJ(bp * bq, bc); if (billJ != null) cg.billSum += billJ; }
+        if (pp != null) { const costJ = _toJ(minAmt(pp * pq, c[CI.ppmin]), pc); if (costJ != null) cg.costSum += costJ; }
+        if (bp != null) { const billJ = _toJ(minAmt(bp * bq, c[CI.bpmin]), bc); if (billJ != null) cg.billSum += billJ; }
       });
     });
     return [...map.values()];
@@ -1262,8 +1262,8 @@
       const pq = _num(c[5]) > 0 ? _num(c[5]) : 1;
       const bq = _num(c[7]) > 0 ? _num(c[7]) : 1;
       const pc = c[8] || 'JPY', bc = c[9] || 'JPY';
-      if (pp != null) { const cc = _toJ(pp * pq, pc); if (cc != null) { cost += cc; ok = true; } }
-      if (bp != null) { const bb = _toJ(bp * bq, bc); if (bb != null) { bill += bb; ok = true; } }
+      if (pp != null) { const cc = _toJ(minAmt(pp * pq, c[CI.ppmin]), pc); if (cc != null) { cost += cc; ok = true; } }
+      if (bp != null) { const bb = _toJ(minAmt(bp * bq, c[CI.bpmin]), bc); if (bb != null) { bill += bb; ok = true; } }
     });
     return ok ? { cost, bill } : null;
   }
@@ -2217,8 +2217,8 @@
         const bc = (cells[CI.bc] || 'JPY').trim();
         const pc = (cells[CI.pc] || 'JPY').trim();
         const o = perPat.get(k);
-        o.sell += toJ(bq * bp, bc);
-        o.cost += toJ(bq * pp, pc);
+        o.sell += toJ(minAmt(bq * bp, cells[CI.bpmin]), bc);   // ミニマム（最低料金）を反映
+        o.cost += toJ(minAmt(bq * pp, cells[CI.ppmin]), pc);
       });
       perPat.forEach((v, k) => {
         if (!map.has(k)) map.set(k, { label: v.label, cases: 0, won: 0, lost: 0, sent: 0, sell: 0, cost: 0 });

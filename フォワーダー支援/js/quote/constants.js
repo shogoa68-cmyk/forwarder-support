@@ -471,3 +471,28 @@ function dirLegName(direction, leg, en) {
   const isExport = (leg === 'out') === (first === 'export');
   return en ? (isExport ? 'Export' : 'Import') : (isExport ? '輸出' : '輸入');
 }
+
+// ===== ミニマム（最低料金）=====
+// 「Min. $28.00 or $0.15/kg」：金額は「数量 × 単価」と最低料金の高いほう。最低料金は仕入（ppmin）・売値（bpmin）で別々に持つ
+function minAmt(amount, min) {
+  const m = parseFloat(min) || 0;
+  return m > 0 ? Math.max(amount, m) : amount;
+}
+// 画面の行（id）から最低料金を読んで当てる。side：'cost'（仕入）／'sell'（売値）
+function applyRowMin(amount, id, side) {
+  const el = document.getElementById((side === 'cost' ? 'ppmin-' : 'bpmin-') + id);
+  return minAmt(amount, el ? el.value : 0);
+}
+// 単価の表示。最低料金があれば「Min. $28.00 or $0.15/kg」（記号の無い通貨は「SGD 28.00」）
+const _MIN_CCY_SYM = { USD: '$', EUR: '€', GBP: '£', JPY: '¥' };
+function minPriceText(price, min, ccy, unit) {
+  const m = parseFloat(min) || 0;
+  if (!(m > 0)) return null;
+  const c = ccy || 'JPY';
+  const f = n => Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: c === 'JPY' ? 0 : 2, maximumFractionDigits: c === 'JPY' ? 0 : 2 });
+  const money = n => (_MIN_CCY_SYM[c] ? _MIN_CCY_SYM[c] + f(n) : c + ' ' + f(n));
+  return 'Min. ' + money(m) + ' or ' + money(price) + (unit ? '/' + unit : '');
+}
+window.minAmt = minAmt;
+window.applyRowMin = applyRowMin;
+window.minPriceText = minPriceText;

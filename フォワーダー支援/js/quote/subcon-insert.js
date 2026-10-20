@@ -810,8 +810,9 @@
         ptGroup = { pt: ptKey, rows: [], sellTotal: 0, costTotal: 0, hasMixed: false };
         svGroup.ptMap.set(ptKey, ptGroup); svGroup.ptOrder.push(ptKey);
       }
-      const sellJPY = bc !== 'JPY' ? (typeof toJPY === 'function' ? toJPY(bq * bp, bc) : 0) : bq * bp;
-      const costJPY = pc !== 'JPY' ? (typeof toJPY === 'function' ? toJPY(bq * pp, pc) : 0) : bq * pp;
+      const sellAmt = applyRowMin(bq * bp, id, 'sell'), costAmt = applyRowMin(bq * pp, id, 'cost');   // ミニマムを反映
+      const sellJPY = bc !== 'JPY' ? (typeof toJPY === 'function' ? toJPY(sellAmt, bc) : 0) : sellAmt;
+      const costJPY = pc !== 'JPY' ? (typeof toJPY === 'function' ? toJPY(costAmt, pc) : 0) : costAmt;
       const mixed = bc !== 'JPY' || pc !== 'JPY';
       ptGroup.rows.push({ cat, nm, bq, un, pp, pc, bp, bc, excluded });
       if (!excluded) {

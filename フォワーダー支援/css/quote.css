@@ -11231,3 +11231,19 @@ body.is-row-dragging { cursor: grabbing; user-select: none; }
 #tab-quote-make #quoteTable tfoot .tot-fx-note { font-size: var(--fs-11); font-weight: 400; color: var(--text-md); text-align: left; padding-left: var(--sp-8); }
 /* 入力候補（マスター）に無い名前の印（品名・港・お客様・キャリア）。そのまま使えるので控えめに：点線の枠のみ。説明は title */
 #tab-quote-make input.name-unregistered { outline: 1px dashed #c98a1b; outline-offset: -2px; }
+/* パターン未設定の行のまとまり（「（パターン設定なし）」）：名前付きのパターンと見分けられるよう控えめに */
+#tab-quote-make tr.subcon-subgroup-header.is-pt-unset .subcon-subgroup-leg { color: var(--text-md); font-weight: 600; }
+/* ミニマム（最低料金）：MIN ボタンは % ボタンと同じ見た目。ON の行だけ最低料金の入力欄を出す（Industry は「その他 ▾」の中） */
+#tab-quote-make .min-mode-btn {
+  display: inline-block; margin-top: var(--sp-3); padding: 1px var(--sp-6);
+  font-size: var(--fs-10); line-height: 1.5; border: 1px solid var(--border-md); border-radius: var(--r-3);
+  background: transparent; color: var(--border-md); cursor: pointer; font-family: inherit;
+  transition: all 0.15s; white-space: nowrap;
+}
+#tab-quote-make .min-mode-btn:hover { border-color: #b0772f; color: #b0772f; }
+#tab-quote-make .min-mode-btn.is-on { background: var(--amber-94); border-color: #d4892a; color: #8a4c00; font-weight: 700; }
+#tab-quote-make .min-group { display: none; align-items: center; gap: var(--sp-3); flex-wrap: wrap; margin-top: var(--sp-3); }
+#tab-quote-make tr.row-min-mode .min-group { display: flex; }
+#tab-quote-make .min-group .min-lbl { font-size: var(--fs-10); font-weight: 700; color: #8a4c00; }
+#tab-quote-make .min-group .w-min { width: 76px; }
+#tab-quote-make .min-group .min-pair { display: inline-flex; align-items: center; gap: var(--sp-2); white-space: nowrap; }
