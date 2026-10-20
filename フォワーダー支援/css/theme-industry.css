@@ -9065,6 +9065,228 @@ html.theme-industry {
   font-weight: 700;
 }
 
+/* ===== master-admin-industry.css（Design 追加分） ===== */
+:where(html.theme-industry) #tab-master .role-badge {
+  display: inline-block;
+  padding: 2px 10px;
+  font-size: 12px;
+  font-weight: 700;
+  border: 1px solid var(--color-accent-900, #1d2d3d);
+  border-radius: 0;
+}
+:where(html.theme-industry) #tab-master .role-badge.is-admin {
+  background: var(--color-accent-900, #1d2d3d);
+  color: var(--color-bg, #f2f2f3);
+}
+:where(html.theme-industry) #tab-master .master-kpis {
+  display: flex;
+  flex-wrap: wrap;
+  border: 1px solid var(--color-text, #1d1f20);
+  background: #fff;
+}
+:where(html.theme-industry) #tab-master .master-kpis > * {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding: 12px 22px;
+  border-right: 1px solid var(--color-neutral-400, #b7b7ba);
+}
+:where(html.theme-industry) #tab-master .master-kpis > .is-primary {
+  background: var(--color-accent-900, #1d2d3d);
+  color: var(--color-bg, #f2f2f3);
+}
+:where(html.theme-industry) #tab-master .master-kpis .n {
+  font-family: var(--font-heading);
+  font-weight: 700;
+  font-size: 28px;
+}
+:where(html.theme-industry) #tab-master .master-cloud-notice.is-migrate {
+  position: relative;
+  border: 1px solid var(--color-text, #1d1f20);
+  background: #fff;
+  padding: 20px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+:where(html.theme-industry) #tab-master .master-cloud-notice.is-migrate .counts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  border: 1px solid var(--color-neutral-400, #b7b7ba);
+}
+:where(html.theme-industry) #tab-master .master-cloud-notice.is-migrate .counts > * {
+  padding: 8px 12px;
+  border-right: 1px solid var(--color-neutral-300, #d4d4d7);
+}
+:where(html.theme-industry) #tab-master .master-cloud-notice.is-migrate .btn-skip {
+  all: unset;
+  cursor: pointer;
+  color: var(--color-neutral-700, #5d5d60);
+  text-decoration: underline;
+}
+:where(html.theme-industry) #tab-master .master-cloud-notice.is-migrate .skip-warn {
+  font-size: 12px;
+  color: var(--color-neutral-700, #5d5d60);
+}
+:where(html.theme-industry) #tab-master .stats-req-section table {
+  width: 100%;
+  border-collapse: collapse;
+  background: #fff;
+  border: 1px solid var(--color-text, #1d1f20);
+}
+:where(html.theme-industry) #tab-master .stats-req-section th {
+  background: transparent;
+  border-bottom: 1px solid var(--color-text, #1d1f20);
+  font-family: var(--font-heading);
+  font-weight: 600;
+  font-size: 12px;
+  letter-spacing: .14em;
+  padding: 8px 14px;
+  text-align: left;
+}
+:where(html.theme-industry) #tab-master .stats-req-section td {
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--color-neutral-300, #d4d4d7);
+}
+:where(html.theme-industry) #tab-master .req-state {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 600;
+}
+:where(html.theme-industry) #tab-master .req-state::before {
+  display: inline-block;
+  width: 14px;
+  text-align: center;
+  font-weight: 700;
+}
+:where(html.theme-industry) #tab-master .req-state.is-wait::before {
+  content: "○";
+}
+:where(html.theme-industry) #tab-master .req-state.is-ok::before {
+  content: "■";
+  color: var(--color-accent-800, #2c455d);
+}
+:where(html.theme-industry) #tab-master .req-state.is-ok {
+  color: var(--color-accent-800, #2c455d);
+}
+:where(html.theme-industry) #tab-master .req-state.is-no::before {
+  content: "×";
+  color: #b0392e;
+}
+:where(html.theme-industry) #tab-master .req-state.is-no {
+  color: #b0392e;
+}
+:where(html.theme-industry) #tab-master .stats-req-section button {
+  min-height: 36px;
+  padding: 0 16px;
+  border-radius: 0;
+}
+:where(html.theme-industry) #tab-master .master-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: #fff;
+  border: 1px solid var(--color-text, #1d1f20);
+}
+:where(html.theme-industry) #tab-master .master-table th {
+  background: transparent;
+  border-bottom: 1px solid var(--color-text, #1d1f20);
+  font-family: var(--font-heading);
+  font-weight: 600;
+  font-size: 12px;
+  letter-spacing: .14em;
+  padding: 8px 14px;
+  text-align: left;
+}
+:where(html.theme-industry) #tab-master .master-table td {
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--color-neutral-300, #d4d4d7);
+  vertical-align: middle;
+}
+:where(html.theme-industry) #tab-master .master-table td.ops {
+  white-space: nowrap;
+  text-align: right;
+  min-width: 300px;
+}
+:where(html.theme-industry) #tab-master .master-table td.ops button {
+  white-space: nowrap;
+  min-height: 32px;
+  padding: 0 12px;
+  border-radius: 0;
+}
+:where(html.theme-industry) #tab-master .master-table td.ops .more {
+  width: 32px;
+  padding: 0;
+}
+:where(html.theme-industry) #tab-master .master-table td.ops .btn-remove {
+  color: #b0392e;
+}
+:where(html.theme-industry) #tab-master .alias-chip {
+  border: 1px solid var(--color-neutral-400, #b7b7ba);
+  padding: 2px 8px;
+  background: var(--color-neutral-100, #f5f5f8);
+}
+:where(html.theme-industry) #tab-master .alias-add {
+  border: 1px solid var(--color-accent-600, #597ea3);
+  color: var(--color-accent-800, #2c455d);
+  padding: 2px 10px;
+  background: transparent;
+  border-radius: 0;
+}
+:where(html.theme-industry) #tab-master .master-register {
+  display: none;
+}
+:where(html.theme-industry) #tab-master .master-register.is-open {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  align-items: center;
+  border: 1px solid var(--color-neutral-500, #98989b);
+  background: #fff;
+  padding: 12px 14px;
+}
+:where(html.theme-industry) #tab-master .master-help {
+  border: 1px solid var(--color-neutral-400, #b7b7ba);
+  background: #fff;
+  padding: 10px 14px;
+}
+:where(html.theme-industry) .confirm-dialog .btn-danger {
+  min-height: 40px;
+  padding: 0 18px;
+  border: 1px solid #b0392e;
+  background: #b0392e;
+  color: #fff;
+  font-weight: 700;
+  border-radius: 0;
+}
+:where(html.theme-industry) .confirm-dialog .irreversible {
+  color: #b0392e;
+  font-weight: 700;
+}
+:where(html.theme-industry) #tab-master #backToQuoteFab {
+  position: static !important;
+  box-shadow: none;
+  border: 1px solid var(--color-neutral-500, #98989b);
+  background: transparent;
+  color: var(--color-text, #1d1f20);
+  border-radius: 0;
+  min-height: 36px;
+  padding: 0 14px;
+}
+@media (max-width: 600px) {
+  :where(html.theme-industry) #tab-master #backToQuoteFab {
+    position: fixed !important;
+    left: 12px;
+    bottom: 12px;
+    background: var(--color-bg, #f2f2f3);
+    box-shadow: var(--shadow-md);
+    min-height: 44px;
+  }
+  :where(html.theme-industry) #tab-master {
+    padding-bottom: 72px;
+  }
+}
+
 /* ===== code-overrides-industry.css（Design 追加分） ===== */
 :where(html.theme-industry) #tab-quote-make #quoteTable thead th:nth-child(1) {
   width: 36px !important;
@@ -9374,4 +9596,160 @@ html.theme-industry {
 }
 :where(html.theme-industry) #tab-quote-make #quoteTable tr.subcon-subgroup-header .pt-cat-inline {
   flex: 1 1 auto;
+}
+:where(html.theme-industry) #tab-master .master-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 0 0 12px;
+}
+:where(html.theme-industry) #tab-master .master-title {
+  font-family: var(--font-heading);
+  font-size: 20px;
+  letter-spacing: .08em;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 0;
+}
+:where(html.theme-industry) #tab-master .master-back {
+  display: inline-flex;
+  align-items: center;
+  margin-left: auto;
+  min-height: 36px;
+  padding: 0 14px;
+  border: 1px solid var(--color-neutral-500, #98989b);
+  background: transparent;
+  color: var(--color-text, #1d1f20);
+  border-radius: 0;
+  cursor: pointer;
+}
+:where(html.theme-industry) body:has(#tab-master.active) #backToQuoteFab {
+  display: none !important;
+}
+:where(html.theme-industry) #tab-master .master-kpis {
+  margin: 0 0 16px;
+  border-radius: 0;
+  gap: 0;
+}
+:where(html.theme-industry) #tab-master .master-kpis .kpi {
+  border-radius: 0;
+  border: 0;
+  border-right: 1px solid var(--color-neutral-400, #b7b7ba);
+  padding: 12px 22px;
+}
+:where(html.theme-industry) #tab-master .master-kpis .kpi .l {
+  font-size: 12px;
+  letter-spacing: .1em;
+}
+:where(html.theme-industry) #tab-master .master-cloud-notice.is-migrate {
+  border-radius: 0;
+}
+:where(html.theme-industry) #tab-master .master-cloud-notice.is-migrate .notice-title {
+  font-family: var(--font-heading);
+  font-size: 16px;
+  font-weight: 700;
+  margin: 0;
+}
+:where(html.theme-industry) #tab-master .master-cloud-notice.is-migrate .counts > div {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  border-radius: 0;
+  background: transparent;
+  border: 0;
+  border-right: 1px solid var(--color-neutral-300, #d4d4d7);
+}
+:where(html.theme-industry) #tab-master .master-cloud-notice.is-migrate .counts b {
+  font-family: var(--font-heading);
+  font-size: 22px;
+}
+:where(html.theme-industry) #tab-master .master-cloud-notice.is-migrate .notice-actions {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  flex-wrap: wrap;
+}
+:where(html.theme-industry) #tab-master .master-cloud-notice.is-migrate .btn-primary,
+:where(html.theme-industry) #tab-master .stats-req-section .btn-primary {
+  min-height: 40px;
+  padding: 0 20px;
+  border: 1px solid var(--color-accent-900, #1d2d3d);
+  background: var(--color-accent-900, #1d2d3d);
+  color: var(--color-bg, #f2f2f3);
+  font-weight: 700;
+  border-radius: 0;
+  margin: 0;
+}
+:where(html.theme-industry) #tab-master .master-cloud-notice.is-migrate .btn-skip {
+  background: transparent !important;
+  border: 0 !important;
+  min-height: 0;
+}
+:where(html.theme-industry) #tab-master .stats-req-section .btn-secondary {
+  border: 1px solid var(--color-neutral-500, #98989b);
+  background: transparent;
+  color: var(--color-text, #1d1f20);
+  margin-left: 8px;
+}
+:where(html.theme-industry) #tab-master td.ops,
+:where(html.theme-industry) #tab-master th.ops {
+  text-align: right;
+}
+:where(html.theme-industry) #tab-master td.ops > * {
+  margin-left: 6px;
+}
+:where(html.theme-industry) #tab-master .master-ops-more.more {
+  min-height: 32px;
+  width: 32px;
+  padding: 0;
+  border-radius: 0;
+  border: 1px solid var(--color-neutral-500, #98989b);
+  background: transparent;
+}
+:where(html.theme-industry) .master-ops-menu {
+  border-radius: 0;
+  border: 1px solid var(--color-text, #1d1f20);
+  box-shadow: var(--shadow-md);
+}
+:where(html.theme-industry) .master-ops-menu .btn-remove {
+  color: #b0392e;
+}
+:where(html.theme-industry) #tab-master .master-register-toggle {
+  display: inline-flex;
+  align-items: center;
+  min-height: 36px;
+  padding: 0 16px;
+  border: 1px solid var(--color-accent-700, #416180);
+  background: transparent;
+  color: var(--color-accent-800, #2c455d);
+  font-weight: 600;
+  border-radius: 0;
+  cursor: pointer;
+  margin: 0 0 10px;
+}
+:where(html.theme-industry) #tab-master .master-help > summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+:where(html.theme-industry) .confirm-dialog {
+  border-radius: 0;
+  border: 1px solid var(--color-text, #1d1f20);
+}
+:where(html.theme-industry) .confirm-dialog .confirm-title {
+  font-family: var(--font-heading);
+  letter-spacing: .06em;
+}
+:where(html.theme-industry) .confirm-dialog .confirm-actions button {
+  border-radius: 0;
+}
+:where(html.theme-industry) .confirm-dialog .confirm-actions .btn-primary {
+  background: var(--color-accent-900, #1d2d3d);
+  border-color: var(--color-accent-900, #1d2d3d);
+  color: var(--color-bg, #f2f2f3);
+}
+:where(html.theme-industry) #tab-master .master-table td:first-child,
+:where(html.theme-industry) #tab-master .stats-req-section td:first-child,
+:where(html.theme-industry) #tab-master .master-table th:first-child {
+  white-space: nowrap;
 }

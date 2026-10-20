@@ -132,3 +132,38 @@
 /* A-1：パターン見出しのカテゴリ名は、名前のすぐ右に（見出しの名前が余白を取り切らないように） */
 #tab-quote-make #quoteTable tr.subcon-subgroup-header .subcon-subgroup-inner:has(.pt-cat-inline) .subcon-subgroup-leg { flex: 0 0 auto; }
 #tab-quote-make #quoteTable tr.subcon-subgroup-header .pt-cat-inline { flex: 1 1 auto; }
+
+/* ================= B マスター管理（master-admin-industry の実装側の補正） ================= */
+/* 見出し：役割バッジ・見積もりへ戻るボタン（現行は浮きボタン #backToQuoteFab を使うので、Industry のときだけ見出しの右に出し、浮きボタンは隠す） */
+#tab-master .master-head { display: flex; align-items: center; gap: 12px; margin: 0 0 12px; }
+#tab-master .master-title { font-family: var(--font-heading); font-size: 20px; letter-spacing: .08em; display: flex; align-items: center; gap: 12px; margin: 0; }
+#tab-master .master-back { display: inline-flex; align-items: center; margin-left: auto; min-height: 36px; padding: 0 14px; border: 1px solid var(--color-neutral-500, #98989b); background: transparent; color: var(--color-text, #1d1f20); border-radius: 0; cursor: pointer; }
+body:has(#tab-master.active) #backToQuoteFab { display: none !important; }
+/* 件数ストリップ（Design は .master-kpis > * に塗り・数字を指定。数字と名前を並べる） */
+#tab-master .master-kpis { margin: 0 0 16px; border-radius: 0; gap: 0; }
+#tab-master .master-kpis .kpi { border-radius: 0; border: 0; border-right: 1px solid var(--color-neutral-400, #b7b7ba); padding: 12px 22px; }
+#tab-master .master-kpis .kpi .l { font-size: 12px; letter-spacing: .1em; }
+/* 移行の案内：件数のセル（数字を大きく・名前を小さく） */
+#tab-master .master-cloud-notice.is-migrate { border-radius: 0; }
+#tab-master .master-cloud-notice.is-migrate .notice-title { font-family: var(--font-heading); font-size: 16px; font-weight: 700; margin: 0; }
+#tab-master .master-cloud-notice.is-migrate .counts > div { display: flex; flex-direction: column; align-items: flex-start; border-radius: 0; background: transparent; border: 0; border-right: 1px solid var(--color-neutral-300, #d4d4d7); }
+#tab-master .master-cloud-notice.is-migrate .counts b { font-family: var(--font-heading); font-size: 22px; }
+#tab-master .master-cloud-notice.is-migrate .notice-actions { display: flex; align-items: center; gap: 18px; flex-wrap: wrap; }
+#tab-master .master-cloud-notice.is-migrate .btn-primary, #tab-master .stats-req-section .btn-primary { min-height: 40px; padding: 0 20px; border: 1px solid var(--color-accent-900, #1d2d3d); background: var(--color-accent-900, #1d2d3d); color: var(--color-bg, #f2f2f3); font-weight: 700; border-radius: 0; margin: 0; }
+#tab-master .master-cloud-notice.is-migrate .btn-skip { background: transparent !important; border: 0 !important; min-height: 0; }
+#tab-master .stats-req-section .btn-secondary { border: 1px solid var(--color-neutral-500, #98989b); background: transparent; color: var(--color-text, #1d1f20); margin-left: 8px; }
+/* 操作列：ボタンを右に並べ、「⋯」のメニューは body に出る */
+#tab-master td.ops, #tab-master th.ops { text-align: right; }
+#tab-master td.ops > * { margin-left: 6px; }
+#tab-master .master-ops-more.more { min-height: 32px; width: 32px; padding: 0; border-radius: 0; border: 1px solid var(--color-neutral-500, #98989b); background: transparent; }
+.master-ops-menu { border-radius: 0; border: 1px solid var(--color-text, #1d1f20); box-shadow: var(--shadow-md); }
+.master-ops-menu .btn-remove { color: #b0392e; }
+/* 「代表を新規登録」：ボタンで開く（現行は常に表示） */
+#tab-master .master-register-toggle { display: inline-flex; align-items: center; min-height: 36px; padding: 0 16px; border: 1px solid var(--color-accent-700, #416180); background: transparent; color: var(--color-accent-800, #2c455d); font-weight: 600; border-radius: 0; cursor: pointer; margin: 0 0 10px; }
+#tab-master .master-help > summary { cursor: pointer; font-weight: 600; }
+/* 確認ダイアログ（取り消しにくい操作）：Industry の角・枠 */
+.confirm-dialog { border-radius: 0; border: 1px solid var(--color-text, #1d1f20); }
+.confirm-dialog .confirm-title { font-family: var(--font-heading); letter-spacing: .06em; }
+.confirm-dialog .confirm-actions button { border-radius: 0; }
+.confirm-dialog .confirm-actions .btn-primary { background: var(--color-accent-900, #1d2d3d); border-color: var(--color-accent-900, #1d2d3d); color: var(--color-bg, #f2f2f3); }
+#tab-master .master-table td:first-child, #tab-master .stats-req-section td:first-child, #tab-master .master-table th:first-child { white-space: nowrap; }

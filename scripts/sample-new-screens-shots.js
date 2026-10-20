@@ -3,7 +3,7 @@
 //   OUT=<dir> node scripts/sample-new-screens-shots.js          現行デザイン
 //   OUT=<dir> THEME=1 node scripts/sample-new-screens-shots.js  Industry
 // 出力：n1-table（明細テーブル：パターン設定なし・ミニマム・未登録の名前）／n2-min-panel（「その他 ▾」のミニマム欄）／n3-glossary（用語集）／
-//       n4-master-admin・n5-master-member（マスター管理：申請・移行の案内）／n6-mobile（390px 幅の上段）
+//       n4-master-admin・n5-master-member（マスター管理：申請・移行の案内）／n6-mobile（390px 幅の上段）／n7-ops-menu・n8-confirm（マスター管理の「⋯」メニューと確認画面）
 const { chromium } = (() => { try { return require('playwright-core'); } catch (e) { return require('playwright'); } })();
 const http = require('http'), fs = require('fs'), path = require('path');
 const OUT = process.env.OUT || path.resolve(__dirname, '..', 'docs', 'design-handoff', 'requests', 'new-screens');
@@ -186,6 +186,16 @@ fs.mkdirSync(OUT, { recursive: true });
     await p.evaluate(async () => { document.querySelector('.cat-btn[aria-controls="tab-master"]')?.click(); await window.initMasterTab(); });
     await p.waitForTimeout(1200);
     await p.locator('#tab-master').screenshot({ path: path.join(OUT, name + SUF + '.png') });
+    if (role === 'admin') {   // 取り消しにくい操作の確認（却下）と「⋯」メニュー
+      await p.evaluate(() => { window.scrollTo(0, 0); });
+      await p.click('#statsPane-master tr[data-mvalue="テスト運送"] .master-ops-more').catch(() => {});
+      await p.waitForTimeout(200);
+      await p.screenshot({ path: path.join(OUT, 'n7-ops-menu' + SUF + '.png'), clip: { x: 0, y: 0, width: 1368, height: 900 } });
+      await p.keyboard.press('Escape');
+      await p.evaluate(() => { statsRejectRequest('q1'); });
+      await p.waitForTimeout(400);
+      await p.screenshot({ path: path.join(OUT, 'n8-confirm' + SUF + '.png') });
+    }
     console.log(name, 'errors', JSON.stringify(errs));
     await ctx.close();
   }

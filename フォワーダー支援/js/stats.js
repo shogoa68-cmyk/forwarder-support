@@ -89,7 +89,17 @@
     _toast((approve ? '✅ 承認しました：' : '却下しました：') + r.value, approve ? 'success' : 'info');
   }
   window.statsApproveRequest = id => _decide(id, true);
-  window.statsRejectRequest  = id => _decide(id, false);
+  window.statsRejectRequest  = async function (id) {
+    const r = _reqs.find(x => x.id === id);
+    if (!r) return;
+    const ok = await window.uiConfirm({
+      title: '申請を却下しますか？',
+      lines: [(_FIELD_LABEL[r.field] || r.field) + '「' + r.value + '」の申請（' + (r.requested_by || '').split('@')[0] + '）を却下します。', '却下しても、申請者があらためて申請することはできます。'],
+      irreversible: '却下した記録は取り消せません。',
+      okLabel: '却下する', danger: true,
+    });
+    if (ok) await _decide(id, false);
+  };
   window.statsCancelRequest  = async function (id) {
     const { error } = await _c().from(REQ_TABLE).delete().eq('id', id);
     if (error) { _toast('取り消しに失敗しました: ' + error.message, 'warn'); return; }
@@ -100,7 +110,7 @@
     try { _renderMaster(); } catch (e) {}
     if (typeof window.arRefreshDatalist === 'function') window.arRefreshDatalist();
   }
-  // マスター管理画面：申請の一覧（管理者は承認・却下、メンバーは自分の申請と状態）
+  // マスター管理画面：申請の一覧（管理者は承認・却下、メンバーは自分の申請と状態）。状態は「記号＋文字」（○ 承認待ち／■ 承認済み／× 却下）
   function _requestsHtml() {
     if (!_approvalOn()) return '';
     const admin = _isAdmin(), me = _me();
@@ -114,19 +124,43 @@
       return '<div class="stats-req-section"><p class="stats-master-info-title">' + head + '</p>' +
         '<p class="stats-empty">' + (admin ? '承認待ちの申請はありません。' : '申請はありません。入力候補にない名前は「☆ 登録」や「マスターに登録」から申請できます。') + '</p></div>';
     }
-    const ST = { pending: '承認待ち', approved: '承認済み', rejected: '却下' };
+    const ST = { pending: ['is-wait', '承認待ち'], approved: ['is-ok', '承認済み'], rejected: ['is-no', '却下'] };
     const rows = list.map(r => {
       const who = (r.requested_by || '').split('@')[0];
       const ops = admin
-        ? `<button class="stats-vote-btn" onclick="statsApproveRequest('${_ea(r.id)}')">承認</button>` +
-          `<button class="stats-demote-btn" onclick="statsRejectRequest('${_ea(r.id)}')">却下</button>`
-        : (r.status === 'pending' ? `<button class="stats-demote-btn" onclick="statsCancelRequest('${_ea(r.id)}')">取り消し</button>` : '');
+        ? `<button class="stats-vote-btn btn-primary" onclick="statsApproveRequest('${_ea(r.id)}')">承認</button>` +
+          `<button class="stats-demote-btn btn-secondary" onclick="statsRejectRequest('${_ea(r.id)}')">却下…</button>`
+        : (r.status === 'pending' ? `<button class="stats-demote-btn btn-secondary" onclick="statsCancelRequest('${_ea(r.id)}')">取り消す</button>` : '');
+      const st = ST[r.status] || ['', r.status];
       return `<tr><td>${_esc(_FIELD_LABEL[r.field] || r.field)}</td><td class="stats-val">${_esc(r.value)}</td>` +
-             `<td>${_esc(admin ? who : ST[r.status] || r.status)}</td><td>${ops}</td></tr>`;
+             `<td>${admin ? _esc(who) : `<span class="req-state ${st[0]}">${st[1]}</span>`}</td><td class="ops">${ops}</td></tr>`;
     }).join('');
     return '<div class="stats-req-section"><p class="stats-master-info-title">' + head + '</p>' +
       '<table class="stats-table"><thead><tr><th>種別</th><th>名称</th><th>' + (admin ? '申請者' : '状態') + '</th><th></th></tr></thead>' +
       '<tbody>' + rows + '</tbody></table></div>';
+  }
+
+  // マスター管理の見出し：役割バッジ・件数ストリップ（管理者は承認待ちが最優先）・見積もりへ戻るボタン（Industry 用）
+  function _masterHeadHtml(nMasters, nGroups) {
+    const role = window._myRole;
+    const badge = _cloud() && role
+      ? `<span class="role-badge${role === 'admin' ? ' is-admin' : ''}" title="あなたの権限">${role === 'admin' ? '管理者' : role === 'viewer' ? '閲覧者' : 'メンバー'}</span>` : '';
+    const kpi = (n, label, primary) => `<div class="kpi${primary ? ' is-primary' : ''}"><span class="n">${n}</span><span class="l">${label}</span></div>`;
+    let kpis = '';
+    if (_approvalOn()) {
+      const me = _me();
+      if (_isAdmin()) {
+        kpis = kpi(_reqs.filter(r => r.status === 'pending').length, '承認待ち', true) + kpi(nMasters, 'マスター') + kpi(nGroups, '同義グループ');
+      } else {
+        const mine = _reqs.filter(r => r.requested_by === me);
+        kpis = kpi(mine.filter(r => r.status === 'pending').length, '承認待ち', true) + kpi(mine.filter(r => r.status === 'approved').length, '承認済み') + kpi(mine.filter(r => r.status === 'rejected').length, '却下');
+      }
+    } else {
+      kpis = kpi(nMasters, 'マスター', true) + kpi(nGroups, '同義グループ');
+    }
+    return '<div class="master-head"><h3 class="master-title">🗂 マスター管理' + badge + '</h3>' +
+      '<button type="button" class="master-back" onclick="switchCategory(\'quote\', document.querySelector(\'.cat-btn\'))">← 見積もりに戻る</button></div>' +
+      '<div class="master-kpis">' + kpis + '</div>';
   }
 
   function _voteInfo(field, value) {
@@ -1734,6 +1768,47 @@
     _renderMaster();
   };
 
+  let _regOpen = false;   // 「代表を新規登録」の開閉（Industry。再描画しても保つ）
+  window.statsMasterToggleRegister = function () {
+    _regOpen = !_regOpen;
+    document.querySelector('#statsPane-master .master-register')?.classList.toggle('is-open', _regOpen);
+    if (_regOpen) document.getElementById('masterNewValue')?.focus();
+  };
+  // 操作の「⋯」メニュー（解除など、取り消しにくい操作をここに置く）。本体は body へ出す（表の overflow に切られないように）
+  function _closeOpsMenu() { document.querySelectorAll('.master-ops-menu').forEach(m => m.remove()); }
+  window.statsOpsMenu = function (btn, kind, field, value) {
+    const open = document.querySelector('.master-ops-menu');
+    _closeOpsMenu();
+    if (open && open._owner === btn) return;
+    const m = document.createElement('div');
+    m.className = 'master-ops-menu'; m.setAttribute('role', 'menu'); m._owner = btn;
+    const it = document.createElement('button');
+    it.type = 'button'; it.className = 'btn-remove'; it.setAttribute('role', 'menuitem');
+    it.textContent = kind === 'group' ? 'グループを解除…' : 'マスターから解除…';
+    it.addEventListener('click', () => {
+      _closeOpsMenu();
+      if (kind === 'group') window.statsConfirmRemoveGroup(field, value); else window.statsMasterRemove(field, value);
+    });
+    m.appendChild(it);
+    document.body.appendChild(m);
+    const r = btn.getBoundingClientRect();
+    m.style.top = Math.round(r.bottom + window.scrollY + 4) + 'px';
+    m.style.left = Math.max(8, Math.round(r.right + window.scrollX - m.offsetWidth)) + 'px';
+    it.focus();
+  };
+  document.addEventListener('pointerdown', e => { if (!e.target.closest || (!e.target.closest('.master-ops-menu') && !e.target.closest('.master-ops-more'))) _closeOpsMenu(); });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') _closeOpsMenu(); });
+  // 個別マスターの解除（確認つき。入力候補から外れる）
+  window.statsMasterRemove = async function (field, value) {
+    const ok = await window.uiConfirm({
+      title: 'マスターから解除しますか？',
+      lines: [(_FIELD_LABEL[field] || field) + '「' + value + '」を、チーム共有のマスター（入力候補）から外します。', '見積データそのものは削除されません。'],
+      irreversible: '解除すると、入力候補から消えます（再び使うには、あらためて登録・申請が必要です）。',
+      okLabel: '解除する', danger: true,
+    });
+    if (ok) await window.statsToggleVote(field, value);
+  };
+
   function _renderMaster() {
     const e = document.getElementById('statsPane-master');
     if (!e) return;
@@ -1754,7 +1829,8 @@
     // --- 代表を新規登録するフォーム（実データに無い名称も登録可）---
     const fieldOpts = [['sv', 'サブコン'], ['carrier', 'キャリア'], ['nm', '品名'], ['customer', 'お客様'], ['port', '港'], ['un', '単位']]
       .map(([v, l]) => `<option value="${v}"${v === _masterFieldFilter ? ' selected' : ''}>${l}</option>`).join('');
-    const formH = '<div class="master-new-form">' +
+    const formH = '<div class="master-register-bar"><button type="button" class="master-register-toggle" onclick="statsMasterToggleRegister()">＋ 代表を新規登録</button></div>' +
+      '<div class="master-new-form master-register' + (_regOpen ? ' is-open' : '') + '">' +
       '<span class="master-new-label">➕ 代表を新規登録</span>' +
       `<select id="masterNewField" class="ar-select">${fieldOpts}</select>` +
       '<input id="masterNewValue" class="ar-input" type="text" placeholder="代表名称（例: ABC Corporation Ltd.）" onkeydown="if(event.key===\'Enter\')statsMasterAddCanonical()" />' +
@@ -1800,7 +1876,7 @@
     if (synFiltered.length) {
       synH = '<div class="stats-syn-section"><p class="stats-master-info-title">⭐ 同義グループ（代表＝マスター）</p>' +
         `<p class="stats-master-info-note">⭐代表は自動的にマスター登録され、統合した別名はマスターから外れます。集計タブの ☆代表 / ⤵統合 で作成。件数は合算され入力補完にも反映されます。${cloudOn ? '（チーム共有）' : '（このブラウザに保存）'}</p>` +
-        '<table class="stats-table"><thead><tr><th>種別</th><th>代表（マスター）</th><th>統合された表記</th><th>操作</th></tr></thead><tbody>';
+        '<table class="stats-table master-table"><thead><tr><th>種別</th><th>代表</th><th>別名・略称</th><th class="ops">操作</th></tr></thead><tbody>';
       synFiltered.forEach(g => {
         const isUnit  = g.field === 'un';
         const aliases = g.aliases || [];
@@ -1822,10 +1898,10 @@
         synH += `<tr data-mfield="${_eav(g.field)}" data-mvalue="${_eav(g.canonical)}"><td>${labels[g.field] || g.field}</td>` +
                 `<td class="stats-val"><span class="ua-star">⭐</span>${_esc(g.canonical)}${_mdBadge(g.field, g.canonical)}</td>` +
                 `<td>${chips}${addAliasHtml}</td>` +
-                `<td><button class="stats-master-merge" title="この代表を別の代表に統合（配下の別名ごと移動）" onclick="statsSynMergePicker('${_ea(g.field)}','${_ea(g.canonical)}',this)">⤵ 統合</button>` +
+                `<td class="ops"><button class="stats-master-merge" title="この代表を別の代表に統合（配下の別名ごと移動）" onclick="statsSynMergePicker('${_ea(g.field)}','${_ea(g.canonical)}',this)">⤵ 統合</button>` +
                 `<button class="stats-master-rename" title="代表名を変更（旧名称は別名として残ります）" onclick="statsMasterRename('${_ea(g.field)}','${_ea(g.canonical)}')">✏️ 名称変更</button>` +
-                `<button class="ua-remove-canon" title="グループを解除" onclick="${delGroup}">解除</button>` +
-                _mdDetailBtn(g.field, g.canonical) + `</td></tr>`;
+                _mdDetailBtn(g.field, g.canonical) +
+                `<button type="button" class="master-ops-more more" aria-haspopup="menu" title="その他の操作（グループの解除）" onclick="statsOpsMenu(this,'group','${_ea(g.field)}','${_ea(g.canonical)}')">⋯</button></td></tr>`;
       });
       synH += '</tbody></table></div>';
     }
@@ -1834,7 +1910,7 @@
       const note = synFiltered.length
         ? '<p class="stats-empty">個別マスターはありません（同義グループの代表が下に「マスター」として表示されています）。</p>'
         : '<p class="stats-empty">マスター登録はまだありません。<br>各集計の ☆登録（個別）または ⭐代表（同義グループ）で追加できます。</p>';
-      e.innerHTML = (typeof window.masterTopNoticeHtml === 'function' ? window.masterTopNoticeHtml() : '') + _requestsHtml() + formH + chipsH + note + synH;
+      e.innerHTML = _masterHeadHtml(totalCount, allSyn.length) + (typeof window.masterTopNoticeHtml === 'function' ? window.masterTopNoticeHtml() : '') + _requestsHtml() + formH + chipsH + note + synH;
       return;
     }
     const usageDesc = {
@@ -1846,8 +1922,9 @@
       port:     'POL / POD / Via 港欄で入力補完候補に表示されます。',
     };
     const sorted = entries.sort((a, b) => (labels[a.field] || a.field).localeCompare(labels[b.field] || b.field) || (a.value || '').localeCompare(b.value || ''));
-    let h = '<div class="stats-master-info">' +
-            '<p class="stats-master-info-title">✅ 個別マスター（同義グループに属さない表記）の活用方法</p>' +
+    const _indHelp = document.documentElement.classList.contains('theme-industry') ? '' : ' open';   // Industry は畳む（現行は従来どおり開く）
+    let h = '<details class="master-help"' + _indHelp + '><summary>✅ 個別マスター（同義グループに属さない表記）の活用方法</summary>' +
+            '<div class="stats-master-info">' +
             '<ul class="stats-master-usage-list">' +
             Object.entries(usageDesc)
               .filter(([f]) => _masterFieldFilter === 'all' || f === _masterFieldFilter)
@@ -1855,21 +1932,21 @@
             '<li><b>エイリアス是正</b>：表記ゆれを一括置換する際の「正規形」の候補として参照できます。</li>' +
             '</ul>' +
             `<p class="stats-master-info-note">☆ 登録 ボタンで即時マスターに追加。再クリックで解除できます。（チーム全員で共有）</p>` +
-            '</div>' +
-            '<table class="stats-table"><thead><tr>' +
-            '<th>種別</th><th>名称</th><th>略称</th><th></th>' +
+            '</div></details>' +
+            '<table class="stats-table master-table"><thead><tr>' +
+            '<th>種別</th><th>代表</th><th>別名・略称</th><th class="ops">操作</th>' +
             '</tr></thead><tbody>';
     sorted.forEach(m => {
       // 略称は同義グループ（正式名称が代表）として登録する。登録後は下の「同義グループ」に表示される
-      const abbrevCell = `<button class="stats-master-abbrev-add" onclick="statsMasterAddAbbrev('${_ea(m.field)}','${_ea(m.value)}')">＋ 略称</button>`;
+      const abbrevCell = `<button class="stats-master-abbrev-add" onclick="statsMasterAddAbbrev('${_ea(m.field)}','${_ea(m.value)}')">＋ 別名</button>`;
       h += `<tr data-mfield="${_eav(m.field)}" data-mvalue="${_eav(m.value)}">` +
            `<td>${labels[m.field] || m.field}</td>` +
            `<td class="stats-val">${_esc(m.value)}${_mdBadge(m.field, m.value)}</td>` +
            `<td class="stats-master-abbrev-cell">${abbrevCell}</td>` +
-           `<td>${_mdDetailBtn(m.field, m.value)}${m.isMine ? `<button class="stats-demote-btn" onclick="statsToggleVote('${_ea(m.field)}','${_ea(m.value)}')">解除</button>` : '<span class="stats-empty-cell">他メンバー</span>'}</td>` +
+           `<td class="ops">${_mdDetailBtn(m.field, m.value)}${(_approvalOn() ? _isAdmin() : m.isMine) ? `<button type="button" class="master-ops-more more" aria-haspopup="menu" title="その他の操作（解除）" onclick="statsOpsMenu(this,'master','${_ea(m.field)}','${_ea(m.value)}')">⋯</button>` : ''}</td>` +
            `</tr>`;
     });
-    e.innerHTML = (typeof window.masterTopNoticeHtml === 'function' ? window.masterTopNoticeHtml() : '') + _requestsHtml() + formH + chipsH + h + '</tbody></table>' + synH;
+    e.innerHTML = _masterHeadHtml(totalCount, allSyn.length) + (typeof window.masterTopNoticeHtml === 'function' ? window.masterTopNoticeHtml() : '') + _requestsHtml() + formH + chipsH + h + '</tbody></table>' + synH;
   }
 
   // マスタータブから単位同義グループを操作した際、マスター画面も再描画する薄いラッパ
@@ -1892,11 +1969,15 @@
     const aliasInfo = aliases.length
       ? `統合されている ${aliases.length} 件の表記（${aliases.slice(0, 5).join('、')}${aliases.length > 5 ? ' ほか' : ''}）の統合が外れ、`
       : '';
-    if (!confirm(
-      `⭐「${canonical}」の同義グループを解除しますか？\n\n` +
-      `${aliasInfo}件数の合算・入力補完への反映が無効になります。\n` +
-      `（見積データそのものは削除されません。再度 ⭐代表 / ⤵統合 で作り直せます）`
-    )) return;
+    const ok = await window.uiConfirm({
+      title: '同義グループを解除しますか？',
+      lines: [`⭐「${canonical}」の同義グループを解除します。`,
+              `${aliasInfo}件数の合算・入力補完への反映が無効になります。`,
+              '見積データそのものは削除されません。'],
+      irreversible: '解除したグループは元に戻りません（⭐代表 / ⤵統合 で作り直せます）。',
+      okLabel: '解除する', danger: true,
+    });
+    if (!ok) return;
     if (isUnit) {
       if (typeof window.uaRemoveGroup === 'function') window.uaRemoveGroup(canonical);
       if (typeof window.statsRerenderActive === 'function') window.statsRerenderActive();
