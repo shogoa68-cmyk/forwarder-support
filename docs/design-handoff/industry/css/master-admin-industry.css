@@ -1,0 +1,51 @@
+/* master-admin-industry.css — B マスター管理タブ
+   ルート要素は仮に #tab-master（実際の id/class を教えてください）。既存の id / onclick / data-* / class は変更しない。
+   読み込み：…→ quote-states-industry.css → master-admin-industry.css */
+
+/* 役割の表示：ヘッダーに .role-badge（管理者＝濃い塗り／メンバー＝枠のみ）、承認待ち件数を最優先に見せる .master-kpis */
+#tab-master .role-badge { display: inline-block; padding: 2px 10px; font-size: 12px; font-weight: 700; border: 1px solid var(--color-accent-900, #1d2d3d); border-radius: 0; }
+#tab-master .role-badge.is-admin { background: var(--color-accent-900, #1d2d3d); color: var(--color-bg, #f2f2f3); }
+#tab-master .master-kpis { display: flex; flex-wrap: wrap; border: 1px solid var(--color-text, #1d1f20); background: #fff; }
+#tab-master .master-kpis > * { display: flex; align-items: baseline; gap: 10px; padding: 12px 22px; border-right: 1px solid var(--color-neutral-400, #b7b7ba); }
+#tab-master .master-kpis > .is-primary { background: var(--color-accent-900, #1d2d3d); color: var(--color-bg, #f2f2f3); }
+#tab-master .master-kpis .n { font-family: var(--font-heading); font-weight: 700; font-size: 28px; }
+
+/* 移行の案内：黄色い帯をやめ、blueprint 枠のカード。「移す」＝primary、「移さない」＝文字リンク＋元に戻せない旨 */
+#tab-master .master-cloud-notice.is-migrate { position: relative; border: 1px solid var(--color-text, #1d1f20); background: #fff; padding: 20px 24px; display: flex; flex-direction: column; gap: 14px; }
+#tab-master .master-cloud-notice.is-migrate .counts { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); border: 1px solid var(--color-neutral-400, #b7b7ba); }
+#tab-master .master-cloud-notice.is-migrate .counts > * { padding: 8px 12px; border-right: 1px solid var(--color-neutral-300, #d4d4d7); }
+#tab-master .master-cloud-notice.is-migrate .btn-skip { all: unset; cursor: pointer; color: var(--color-neutral-700, #5d5d60); text-decoration: underline; }
+#tab-master .master-cloud-notice.is-migrate .skip-warn { font-size: 12px; color: var(--color-neutral-700, #5d5d60); }
+
+/* 申請の表：状態は「記号＋文字」（色だけに頼らない）。承認＝primary、却下＝secondary＋確認。ボタンは高さ 36px 以上 */
+#tab-master .stats-req-section table { width: 100%; border-collapse: collapse; background: #fff; border: 1px solid var(--color-text, #1d1f20); }
+#tab-master .stats-req-section th { background: transparent; border-bottom: 1px solid var(--color-text, #1d1f20); font-family: var(--font-heading); font-weight: 600; font-size: 12px; letter-spacing: .14em; padding: 8px 14px; text-align: left; }
+#tab-master .stats-req-section td { padding: 10px 14px; border-bottom: 1px solid var(--color-neutral-300, #d4d4d7); }
+#tab-master .req-state { display: inline-flex; align-items: center; gap: 6px; font-weight: 600; }
+#tab-master .req-state::before { display: inline-block; width: 14px; text-align: center; font-weight: 700; }
+#tab-master .req-state.is-wait::before { content: "○"; }
+#tab-master .req-state.is-ok::before { content: "■"; color: var(--color-accent-800, #2c455d); } #tab-master .req-state.is-ok { color: var(--color-accent-800, #2c455d); }
+#tab-master .req-state.is-no::before { content: "×"; color: #b0392e; } #tab-master .req-state.is-no { color: #b0392e; }
+#tab-master .stats-req-section button { min-height: 36px; padding: 0 16px; border-radius: 0; }
+
+/* マスター一覧：個別マスターと同義グループの表を、同じ列（種別｜代表｜別名・略称｜操作）に。操作は 統合／名称変更／詳細 ＋「⋯」（解除はここ） */
+#tab-master .master-table { width: 100%; border-collapse: collapse; background: #fff; border: 1px solid var(--color-text, #1d1f20); }
+#tab-master .master-table th { background: transparent; border-bottom: 1px solid var(--color-text, #1d1f20); font-family: var(--font-heading); font-weight: 600; font-size: 12px; letter-spacing: .14em; padding: 8px 14px; text-align: left; }
+#tab-master .master-table td { padding: 10px 14px; border-bottom: 1px solid var(--color-neutral-300, #d4d4d7); vertical-align: middle; }
+#tab-master .master-table td.ops { white-space: nowrap; text-align: right; min-width: 300px; }
+#tab-master .master-table td.ops button { white-space: nowrap; min-height: 32px; padding: 0 12px; border-radius: 0; }
+#tab-master .master-table td.ops .more { width: 32px; padding: 0; }
+#tab-master .master-table td.ops .btn-remove { color: #b0392e; }   /* 「⋯」メニューに移したあと、メニュー内の最下段・赤字 */
+#tab-master .alias-chip { border: 1px solid var(--color-neutral-400, #b7b7ba); padding: 2px 8px; background: var(--color-neutral-100, #f5f5f8); }
+#tab-master .alias-add { border: 1px solid var(--color-accent-600, #597ea3); color: var(--color-accent-800, #2c455d); padding: 2px 10px; background: transparent; border-radius: 0; }
+/* 「代表を新規登録」は普段は畳み、ボタンで開く。活用方法は <details> に */
+#tab-master .master-register { display: none; } #tab-master .master-register.is-open { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; border: 1px solid var(--color-neutral-500, #98989b); background: #fff; padding: 12px 14px; }
+#tab-master .master-help { border: 1px solid var(--color-neutral-400, #b7b7ba); background: #fff; padding: 10px 14px; }
+
+/* 取り消しにくい操作の確認（却下・解除・移さない）：初期の焦点は「やめる」。実行ボタンだけ赤の塗り */
+.confirm-dialog .btn-danger { min-height: 40px; padding: 0 18px; border: 1px solid #b0392e; background: #b0392e; color: #fff; font-weight: 700; border-radius: 0; }
+.confirm-dialog .irreversible { color: #b0392e; font-weight: 700; }
+
+/* 左下の浮きボタン：マスター管理タブでは浮かせず、見出しの右（static）に。スマホでは下余白を確保して重ならないように */
+#tab-master #backToQuoteFab { position: static !important; box-shadow: none; border: 1px solid var(--color-neutral-500, #98989b); background: transparent; color: var(--color-text, #1d1f20); border-radius: 0; min-height: 36px; padding: 0 14px; }
+@media (max-width: 600px) { #tab-master #backToQuoteFab { position: fixed !important; left: 12px; bottom: 12px; background: var(--color-bg, #f2f2f3); box-shadow: var(--shadow-md); min-height: 44px; } #tab-master { padding-bottom: 72px; } }

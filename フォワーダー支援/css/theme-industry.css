@@ -8833,6 +8833,460 @@ html.theme-industry {
   border-top: 1px solid var(--color-neutral-300, #d4d4d7);
 }
 
+/* ===== quote-states-industry.css（Design 追加分） ===== */
+:where(html.theme-industry) #tab-quote-make #quoteTable input.name-unregistered,
+:where(html.theme-industry) #tab-quote-make #quoteTable select.name-unregistered {
+  border: 1px solid var(--color-neutral-400, #b7b7ba) !important;
+  background-color: #fff;
+  background-image: linear-gradient(225deg, #8a5a2b 0 8px, transparent 8px);
+  background-repeat: no-repeat;
+}
+:where(html.theme-industry) #tab-quote-make #quoteTable input.name-unregistered:focus {
+  background-image: none;
+}
+:where(html.theme-industry) #tab-quote-make #quoteTable input.is-invalid,
+:where(html.theme-industry) #tab-quote-make #quoteTable select.is-invalid {
+  border: 2px solid #b0392e !important;
+  color: #b0392e;
+}
+:where(html.theme-industry) #tab-quote-make #quoteTable .field-msg {
+  color: #b0392e;
+  font-size: 11px;
+  font-weight: 600;
+}
+:where(html.theme-industry) #tab-quote-make #quoteTable .field-msg::before {
+  content: "! ";
+  font-weight: 700;
+}
+:where(html.theme-industry) #tab-quote-make #quoteTable tr.subcon-subgroup-header.is-pt-solo {
+  display: none;
+}
+:where(html.theme-industry) #tab-quote-make #quoteTable tr.subcon-cat-header.is-cat-solo {
+  display: none;
+}
+:where(html.theme-industry) #tab-quote-make #quoteTable tr.subcon-subgroup-header .pt-cat-inline {
+  font-size: 12px;
+  color: var(--color-accent-700, #416180);
+  margin-left: 6px;
+}
+:where(html.theme-industry) #tab-quote-make #quoteTable tr.subcon-subgroup-header .pt-cat-inline::before {
+  content: "· ";
+}
+:where(html.theme-industry) #tab-quote-make #quoteTable tr.subcon-subgroup-header.is-pt-unset td {
+  background: var(--color-neutral-200, #e7e7ea);
+  box-shadow: inset 4px 0 0 var(--color-neutral-500, #98989b);
+  border-bottom-color: var(--color-neutral-400, #b7b7ba);
+}
+:where(html.theme-industry) #tab-quote-make #quoteTable tr.subcon-subgroup-header.is-pt-unset .subcon-subgroup-leg {
+  color: var(--color-neutral-800, #424244);
+}
+:where(html.theme-industry) #tab-quote-make #quoteTable tr.subcon-subgroup-header.is-pt-unset .subcon-subgroup-leg::before {
+  color: var(--color-neutral-600, #7a7a7d);
+}
+:where(html.theme-industry) #tab-quote-make #quoteTable tr.subcon-cat-header .subcon-cat-inner {
+  min-height: 26px;
+}
+:where(html.theme-industry) #tab-quote-make #quoteTable tr.subcon-cat-header .subcon-cat-label::before {
+  content: none;
+}
+:where(html.theme-industry) #tab-quote-make #quoteTable tr.subcon-cat-header td {
+  background: var(--color-neutral-100, #f5f5f8);
+}
+:where(html.theme-industry) #tab-quote-make #quoteTable tr.subcon-group-subtotal .st-notes,
+:where(html.theme-industry) #tab-quote-make #quoteTable tr.subcon-pattern-subtotal .st-notes {
+  display: none;
+}
+:where(html.theme-industry) #tab-quote-make #quoteTable tr.subcon-group-subtotal.is-notes-open .st-notes,
+:where(html.theme-industry) #tab-quote-make #quoteTable tr.subcon-pattern-subtotal.is-notes-open .st-notes {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  align-items: center;
+  padding-top: 8px;
+  border-top: 1px solid var(--color-neutral-300, #d4d4d7);
+}
+:where(html.theme-industry) #tab-quote-make #quoteTable .st-notes-btn {
+  height: 30px;
+  padding: 0 12px;
+  border: 1px solid var(--color-neutral-500, #98989b);
+  background: transparent;
+  border-radius: 0;
+  font-size: 12px;
+  cursor: pointer;
+}
+:where(html.theme-industry) #tab-quote-make #quoteTable .st-notes-btn.has-value::after {
+  content: " ●";
+  color: var(--color-accent-700, #416180);
+  font-size: 9px;
+  vertical-align: middle;
+}
+:where(html.theme-industry) #tab-quote-make #quoteTable .min-mode-btn.is-on.is-empty::after {
+  content: "　未入力";
+  font-weight: 600;
+}
+:where(html.theme-industry) #tab-quote-make #quoteTable .row-detail-panel .min-group {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+:where(html.theme-industry) #tab-quote-make #quoteTable .row-detail-panel .min-group .min-hint {
+  font-size: 12px;
+  color: var(--color-neutral-700, #5d5d60);
+}
+:where(html.theme-industry) #tab-quote-make #quoteTable .row-detail-panel .min-group input.w-min {
+  width: 100px;
+  height: 32px;
+  text-align: right;
+}
+:where(html.theme-industry) #tab-quote-make #quoteTable .row-detail-panel .min-group .is-empty input.w-min,
+:where(html.theme-industry) #tab-quote-make #quoteTable .row-detail-panel .min-group input.w-min.is-empty {
+  border-color: #8a5a2b;
+}
+:where(html.theme-industry) #tab-quote-make #quoteTable tr[data-min-applied="1"] td.price-cell .stk-sell {
+  position: relative;
+}
+:where(html.theme-industry) #tab-quote-make #quoteTable tr[data-min-applied="1"] td.price-cell .stk-sell .min-note {
+  position: absolute;
+  left: 26px;
+  top: 6px;
+  height: 20px;
+  line-height: 18px;
+  box-sizing: border-box;
+  padding: 0 6px;
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+  border: 1px solid #8a5a2b;
+  color: #8a5a2b;
+  background: #fff;
+}
+:where(html.theme-industry) #tab-quote-make #quoteTable tr[data-min-applied="1"] td.price-cell .stk-sell .min-note::after {
+  content: "";
+}
+:where(html.theme-industry) #tab-quote-make #quoteTable td.price-cell .stk-sell .min-note {
+  display: none;
+}
+:where(html.theme-industry) #tab-quote-make #quoteTable .state-chip.is-min {
+  border-color: #8a5a2b;
+  color: #8a5a2b;
+}
+:where(html.theme-industry) .glossary-drawer {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 460px;
+  max-width: 100vw;
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  background: #fff;
+  border-left: 1px solid var(--color-text, #1d1f20);
+  box-shadow: var(--shadow-lg);
+}
+:where(html.theme-industry) .glossary-drawer[hidden] {
+  display: none;
+}
+:where(html.theme-industry) .glossary-drawer .gl-head {
+  display: flex;
+  align-items: center;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--color-text, #1d1f20);
+  font-family: var(--font-heading);
+  font-weight: 700;
+  font-size: 20px;
+  letter-spacing: .08em;
+}
+:where(html.theme-industry) .glossary-drawer .gl-search {
+  margin: 10px 16px;
+  height: 36px;
+  padding: 0 12px;
+  border: 1px solid var(--color-neutral-500, #98989b);
+  border-radius: 0;
+  box-sizing: border-box;
+}
+:where(html.theme-industry) .glossary-drawer .gl-groups {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 0 16px 10px;
+  border-bottom: 1px solid var(--color-neutral-300, #d4d4d7);
+}
+:where(html.theme-industry) .glossary-drawer .gl-groups button {
+  height: 30px;
+  padding: 0 12px;
+  border: 1px solid var(--color-text, #1d1f20);
+  background: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  border-radius: 0;
+}
+:where(html.theme-industry) .glossary-drawer .gl-groups button.is-on {
+  background: var(--color-text, #1d1f20);
+  color: var(--color-bg, #f2f2f3);
+}
+:where(html.theme-industry) .glossary-drawer .gl-list {
+  flex: 1;
+  overflow: auto;
+  padding: 0 16px 24px;
+}
+:where(html.theme-industry) .glossary-drawer .gl-item {
+  display: grid;
+  grid-template-columns: 96px 1fr;
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--color-neutral-300, #d4d4d7);
+  line-height: 1.7;
+}
+:where(html.theme-industry) .glossary-drawer .gl-term {
+  font-family: var(--font-heading);
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--color-accent-800, #2c455d);
+}
+:where(html.theme-industry) .glossary-drawer .gl-body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+:where(html.theme-industry) .glossary-drawer .gl-full {
+  font-weight: 700;
+}
+:where(html.theme-industry) .glossary-drawer .gl-full:empty {
+  display: none;
+}
+:where(html.theme-industry) #tab-quote-make #quoteTable #tot-fx-note {
+  font-size: 12px;
+  color: var(--color-accent-300, #b5d9fd);
+}
+:where(html.theme-industry) #tab-quote-make #quoteTable #tot-fx-note::first-letter {
+  color: var(--color-bg, #f2f2f3);
+  font-weight: 700;
+}
+
+/* ===== master-admin-industry.css（Design 追加分） ===== */
+:where(html.theme-industry) #tab-master .role-badge {
+  display: inline-block;
+  padding: 2px 10px;
+  font-size: 12px;
+  font-weight: 700;
+  border: 1px solid var(--color-accent-900, #1d2d3d);
+  border-radius: 0;
+}
+:where(html.theme-industry) #tab-master .role-badge.is-admin {
+  background: var(--color-accent-900, #1d2d3d);
+  color: var(--color-bg, #f2f2f3);
+}
+:where(html.theme-industry) #tab-master .master-kpis {
+  display: flex;
+  flex-wrap: wrap;
+  border: 1px solid var(--color-text, #1d1f20);
+  background: #fff;
+}
+:where(html.theme-industry) #tab-master .master-kpis > * {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding: 12px 22px;
+  border-right: 1px solid var(--color-neutral-400, #b7b7ba);
+}
+:where(html.theme-industry) #tab-master .master-kpis > .is-primary {
+  background: var(--color-accent-900, #1d2d3d);
+  color: var(--color-bg, #f2f2f3);
+}
+:where(html.theme-industry) #tab-master .master-kpis .n {
+  font-family: var(--font-heading);
+  font-weight: 700;
+  font-size: 28px;
+}
+:where(html.theme-industry) #tab-master .master-cloud-notice.is-migrate {
+  position: relative;
+  border: 1px solid var(--color-text, #1d1f20);
+  background: #fff;
+  padding: 20px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+:where(html.theme-industry) #tab-master .master-cloud-notice.is-migrate .counts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  border: 1px solid var(--color-neutral-400, #b7b7ba);
+}
+:where(html.theme-industry) #tab-master .master-cloud-notice.is-migrate .counts > * {
+  padding: 8px 12px;
+  border-right: 1px solid var(--color-neutral-300, #d4d4d7);
+}
+:where(html.theme-industry) #tab-master .master-cloud-notice.is-migrate .btn-skip {
+  all: unset;
+  cursor: pointer;
+  color: var(--color-neutral-700, #5d5d60);
+  text-decoration: underline;
+}
+:where(html.theme-industry) #tab-master .master-cloud-notice.is-migrate .skip-warn {
+  font-size: 12px;
+  color: var(--color-neutral-700, #5d5d60);
+}
+:where(html.theme-industry) #tab-master .stats-req-section table {
+  width: 100%;
+  border-collapse: collapse;
+  background: #fff;
+  border: 1px solid var(--color-text, #1d1f20);
+}
+:where(html.theme-industry) #tab-master .stats-req-section th {
+  background: transparent;
+  border-bottom: 1px solid var(--color-text, #1d1f20);
+  font-family: var(--font-heading);
+  font-weight: 600;
+  font-size: 12px;
+  letter-spacing: .14em;
+  padding: 8px 14px;
+  text-align: left;
+}
+:where(html.theme-industry) #tab-master .stats-req-section td {
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--color-neutral-300, #d4d4d7);
+}
+:where(html.theme-industry) #tab-master .req-state {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 600;
+}
+:where(html.theme-industry) #tab-master .req-state::before {
+  display: inline-block;
+  width: 14px;
+  text-align: center;
+  font-weight: 700;
+}
+:where(html.theme-industry) #tab-master .req-state.is-wait::before {
+  content: "○";
+}
+:where(html.theme-industry) #tab-master .req-state.is-ok::before {
+  content: "■";
+  color: var(--color-accent-800, #2c455d);
+}
+:where(html.theme-industry) #tab-master .req-state.is-ok {
+  color: var(--color-accent-800, #2c455d);
+}
+:where(html.theme-industry) #tab-master .req-state.is-no::before {
+  content: "×";
+  color: #b0392e;
+}
+:where(html.theme-industry) #tab-master .req-state.is-no {
+  color: #b0392e;
+}
+:where(html.theme-industry) #tab-master .stats-req-section button {
+  min-height: 36px;
+  padding: 0 16px;
+  border-radius: 0;
+}
+:where(html.theme-industry) #tab-master .master-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: #fff;
+  border: 1px solid var(--color-text, #1d1f20);
+}
+:where(html.theme-industry) #tab-master .master-table th {
+  background: transparent;
+  border-bottom: 1px solid var(--color-text, #1d1f20);
+  font-family: var(--font-heading);
+  font-weight: 600;
+  font-size: 12px;
+  letter-spacing: .14em;
+  padding: 8px 14px;
+  text-align: left;
+}
+:where(html.theme-industry) #tab-master .master-table td {
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--color-neutral-300, #d4d4d7);
+  vertical-align: middle;
+}
+:where(html.theme-industry) #tab-master .master-table td.ops {
+  white-space: nowrap;
+  text-align: right;
+  min-width: 300px;
+}
+:where(html.theme-industry) #tab-master .master-table td.ops button {
+  white-space: nowrap;
+  min-height: 32px;
+  padding: 0 12px;
+  border-radius: 0;
+}
+:where(html.theme-industry) #tab-master .master-table td.ops .more {
+  width: 32px;
+  padding: 0;
+}
+:where(html.theme-industry) #tab-master .master-table td.ops .btn-remove {
+  color: #b0392e;
+}
+:where(html.theme-industry) #tab-master .alias-chip {
+  border: 1px solid var(--color-neutral-400, #b7b7ba);
+  padding: 2px 8px;
+  background: var(--color-neutral-100, #f5f5f8);
+}
+:where(html.theme-industry) #tab-master .alias-add {
+  border: 1px solid var(--color-accent-600, #597ea3);
+  color: var(--color-accent-800, #2c455d);
+  padding: 2px 10px;
+  background: transparent;
+  border-radius: 0;
+}
+:where(html.theme-industry) #tab-master .master-register {
+  display: none;
+}
+:where(html.theme-industry) #tab-master .master-register.is-open {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  align-items: center;
+  border: 1px solid var(--color-neutral-500, #98989b);
+  background: #fff;
+  padding: 12px 14px;
+}
+:where(html.theme-industry) #tab-master .master-help {
+  border: 1px solid var(--color-neutral-400, #b7b7ba);
+  background: #fff;
+  padding: 10px 14px;
+}
+:where(html.theme-industry) .confirm-dialog .btn-danger {
+  min-height: 40px;
+  padding: 0 18px;
+  border: 1px solid #b0392e;
+  background: #b0392e;
+  color: #fff;
+  font-weight: 700;
+  border-radius: 0;
+}
+:where(html.theme-industry) .confirm-dialog .irreversible {
+  color: #b0392e;
+  font-weight: 700;
+}
+:where(html.theme-industry) #tab-master #backToQuoteFab {
+  position: static !important;
+  box-shadow: none;
+  border: 1px solid var(--color-neutral-500, #98989b);
+  background: transparent;
+  color: var(--color-text, #1d1f20);
+  border-radius: 0;
+  min-height: 36px;
+  padding: 0 14px;
+}
+@media (max-width: 600px) {
+  :where(html.theme-industry) #tab-master #backToQuoteFab {
+    position: fixed !important;
+    left: 12px;
+    bottom: 12px;
+    background: var(--color-bg, #f2f2f3);
+    box-shadow: var(--shadow-md);
+    min-height: 44px;
+  }
+  :where(html.theme-industry) #tab-master {
+    padding-bottom: 72px;
+  }
+}
+
 /* ===== code-overrides-industry.css（Design 追加分） ===== */
 :where(html.theme-industry) #tab-quote-make #quoteTable thead th:nth-child(1) {
   width: 36px !important;
@@ -9083,4 +9537,334 @@ html.theme-industry {
 }
 :where(html.theme-industry) #tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) .row-detail-panel .min-group .w-min {
   width: 120px !important;
+}
+:where(html.theme-industry) #tab-quote-make input.name-unregistered,
+:where(html.theme-industry) #tab-quote-make #quoteTable input.name-unregistered {
+  outline: none !important;
+}
+:where(html.theme-industry) #tab-quote-make #quoteTable .st-notes-btn {
+  display: inline-flex;
+  align-items: center;
+}
+:where(html.theme-industry) #tab-quote-make #quoteTable .st-notes {
+  display: none;
+}
+:where(html.theme-industry) #tab-quote-make #quoteTable tr.is-notes-open .st-notes {
+  display: flex;
+}
+:where(html.theme-industry) #tab-quote-make #quoteTable .subcon-subtotal-inner .st-alias,
+:where(html.theme-industry) #tab-quote-make #quoteTable .subcon-subtotal-inner .subcon-subtotal-add-btn,
+:where(html.theme-industry) #tab-quote-make #quoteTable .subcon-subtotal-inner .st-remark {
+  order: 0;
+}
+:where(html.theme-industry) #tab-quote-make #quoteTable .subcon-subtotal-inner .st-notes {
+  flex-basis: 100%;
+}
+:where(html.theme-industry) #tab-quote-make #quoteTable .subcon-subtotal-inner .st-sell b {
+  font-size: 17px;
+}
+:where(html.theme-industry) #tab-quote-make #quoteTable .subcon-subtotal-inner .st-cost b,
+:where(html.theme-industry) #tab-quote-make #quoteTable .subcon-subtotal-inner .st-margin b {
+  font-size: 13px;
+}
+:where(html.theme-industry) #tab-quote-make #quoteTable tr[data-min-applied="1"] td.price-cell .stk-sell .min-note {
+  display: block;
+}
+:where(html.theme-industry) #tab-quote-make #quoteTable tr[data-min-applied="1"] td.price-cell .stk-sell .min-note:empty {
+  display: none;
+}
+:where(html.theme-industry) #tab-quote-make #quoteTable .row-detail-panel .min-group .min-lbl {
+  font-size: 12px;
+}
+:where(html.theme-industry) #tab-quote-make #quoteTable .row-detail-panel .min-group .min-hint {
+  display: inline;
+}
+:where(html.theme-industry) #tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) > td input.name-unregistered:not(:focus) {
+  background-image: linear-gradient(225deg, #8a5a2b 0 8px, transparent 8px) !important;
+  background-repeat: no-repeat !important;
+}
+:where(html.theme-industry) #tab-quote-make #quoteTable tr[data-min-applied="1"] td.price-cell .stk-sell .min-note {
+  left: 28px;
+  top: 7px;
+  height: 18px;
+  line-height: 16px;
+  padding: 0 4px;
+  font-size: 10px;
+}
+:where(html.theme-industry) #tab-quote-make #quoteTable tr.subcon-subgroup-header .subcon-subgroup-inner:has(.pt-cat-inline) .subcon-subgroup-leg {
+  flex: 0 0 auto;
+}
+:where(html.theme-industry) #tab-quote-make #quoteTable tr.subcon-subgroup-header .pt-cat-inline {
+  flex: 1 1 auto;
+}
+:where(html.theme-industry) #tab-master .master-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 0 0 12px;
+}
+:where(html.theme-industry) #tab-master .master-title {
+  font-family: var(--font-heading);
+  font-size: 20px;
+  letter-spacing: .08em;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 0;
+}
+:where(html.theme-industry) #tab-master .master-back {
+  display: inline-flex;
+  align-items: center;
+  margin-left: auto;
+  min-height: 36px;
+  padding: 0 14px;
+  border: 1px solid var(--color-neutral-500, #98989b);
+  background: transparent;
+  color: var(--color-text, #1d1f20);
+  border-radius: 0;
+  cursor: pointer;
+}
+:where(html.theme-industry) body:has(#tab-master.active) #backToQuoteFab {
+  display: none !important;
+}
+:where(html.theme-industry) #tab-master .master-kpis {
+  margin: 0 0 16px;
+  border-radius: 0;
+  gap: 0;
+}
+:where(html.theme-industry) #tab-master .master-kpis .kpi {
+  border-radius: 0;
+  border: 0;
+  border-right: 1px solid var(--color-neutral-400, #b7b7ba);
+  padding: 12px 22px;
+}
+:where(html.theme-industry) #tab-master .master-kpis .kpi .l {
+  font-size: 12px;
+  letter-spacing: .1em;
+}
+:where(html.theme-industry) #tab-master .master-cloud-notice.is-migrate {
+  border-radius: 0;
+}
+:where(html.theme-industry) #tab-master .master-cloud-notice.is-migrate .notice-title {
+  font-family: var(--font-heading);
+  font-size: 16px;
+  font-weight: 700;
+  margin: 0;
+}
+:where(html.theme-industry) #tab-master .master-cloud-notice.is-migrate .counts > div {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  border-radius: 0;
+  background: transparent;
+  border: 0;
+  border-right: 1px solid var(--color-neutral-300, #d4d4d7);
+}
+:where(html.theme-industry) #tab-master .master-cloud-notice.is-migrate .counts b {
+  font-family: var(--font-heading);
+  font-size: 22px;
+}
+:where(html.theme-industry) #tab-master .master-cloud-notice.is-migrate .notice-actions {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  flex-wrap: wrap;
+}
+:where(html.theme-industry) #tab-master .master-cloud-notice.is-migrate .btn-primary,
+:where(html.theme-industry) #tab-master .stats-req-section .btn-primary {
+  min-height: 40px;
+  padding: 0 20px;
+  border: 1px solid var(--color-accent-900, #1d2d3d);
+  background: var(--color-accent-900, #1d2d3d);
+  color: var(--color-bg, #f2f2f3);
+  font-weight: 700;
+  border-radius: 0;
+  margin: 0;
+}
+:where(html.theme-industry) #tab-master .master-cloud-notice.is-migrate .btn-skip {
+  background: transparent !important;
+  border: 0 !important;
+  min-height: 0;
+}
+:where(html.theme-industry) #tab-master .stats-req-section .btn-secondary {
+  border: 1px solid var(--color-neutral-500, #98989b);
+  background: transparent;
+  color: var(--color-text, #1d1f20);
+  margin-left: 8px;
+}
+:where(html.theme-industry) #tab-master td.ops,
+:where(html.theme-industry) #tab-master th.ops {
+  text-align: right;
+}
+:where(html.theme-industry) #tab-master td.ops > * {
+  margin-left: 6px;
+}
+:where(html.theme-industry) #tab-master .master-ops-more.more {
+  min-height: 32px;
+  width: 32px;
+  padding: 0;
+  border-radius: 0;
+  border: 1px solid var(--color-neutral-500, #98989b);
+  background: transparent;
+}
+:where(html.theme-industry) .master-ops-menu {
+  border-radius: 0;
+  border: 1px solid var(--color-text, #1d1f20);
+  box-shadow: var(--shadow-md);
+}
+:where(html.theme-industry) .master-ops-menu .btn-remove {
+  color: #b0392e;
+}
+:where(html.theme-industry) #tab-master .master-register-toggle {
+  display: inline-flex;
+  align-items: center;
+  min-height: 36px;
+  padding: 0 16px;
+  border: 1px solid var(--color-accent-700, #416180);
+  background: transparent;
+  color: var(--color-accent-800, #2c455d);
+  font-weight: 600;
+  border-radius: 0;
+  cursor: pointer;
+  margin: 0 0 10px;
+}
+:where(html.theme-industry) #tab-master .master-help > summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+:where(html.theme-industry) .confirm-dialog {
+  border-radius: 0;
+  border: 1px solid var(--color-text, #1d1f20);
+}
+:where(html.theme-industry) .confirm-dialog .confirm-title {
+  font-family: var(--font-heading);
+  letter-spacing: .06em;
+}
+:where(html.theme-industry) .confirm-dialog .confirm-actions button {
+  border-radius: 0;
+}
+:where(html.theme-industry) .confirm-dialog .confirm-actions .btn-primary {
+  background: var(--color-accent-900, #1d2d3d);
+  border-color: var(--color-accent-900, #1d2d3d);
+  color: var(--color-bg, #f2f2f3);
+}
+:where(html.theme-industry) #tab-master .master-table td:first-child,
+:where(html.theme-industry) #tab-master .stats-req-section td:first-child,
+:where(html.theme-industry) #tab-master .master-table th:first-child {
+  white-space: nowrap;
+}
+:where(html.theme-industry) .glossary-drawer .gl-close {
+  margin-left: auto;
+  width: 36px;
+  height: 36px;
+  border: 1px solid var(--color-neutral-500, #98989b);
+  background: transparent;
+  border-radius: 0;
+  cursor: pointer;
+  font-size: 14px;
+}
+:where(html.theme-industry) .glossary-drawer .gl-desc {
+  font-size: 13px;
+  color: var(--color-neutral-800, #424244);
+}
+:where(html.theme-industry) .glossary-drawer .gl-empty {
+  padding: 24px 0;
+  color: var(--color-neutral-700, #5d5d60);
+}
+:where(html.theme-industry) .glossary-drawer .gl-search:focus,
+:where(html.theme-industry) .glossary-drawer .gl-groups button:focus-visible,
+:where(html.theme-industry) .glossary-drawer .gl-close:focus-visible {
+  outline: 2px solid var(--color-accent, #5980a6);
+  outline-offset: 1px;
+}
+:where(html.theme-industry) .glossary-drawer {
+  z-index: 10060;
+}
+:where(html.theme-industry) .glossary-drawer .gl-item {
+  grid-template-columns: 120px 1fr;
+}
+:where(html.theme-industry) .glossary-drawer .gl-term {
+  font-size: 15px;
+  overflow-wrap: anywhere;
+}
+@media (max-width: 600px) {
+  :where(html.theme-industry) #tab-quote-make #saveToolbar {
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+  }
+  :where(html.theme-industry) #tab-quote-make #saveToolbar .toolbar-extra,
+  :where(html.theme-industry) #tab-quote-make #saveToolbar .save-toolbar-label,
+  :where(html.theme-industry) #tab-quote-make #saveToolbar .save-btn-preset,
+  :where(html.theme-industry) #tab-quote-make #saveToolbar .save-status,
+  :where(html.theme-industry) #tab-quote-make #saveToolbar .save-toolbar-sep,
+  :where(html.theme-industry) #tab-quote-make #saveToolbar .tb-lbl,
+  :where(html.theme-industry) #tab-quote-make #saveToolbar .uim-switch--tb {
+    display: none !important;
+  }
+  :where(html.theme-industry) #tab-quote-make #saveToolbar .save-btn {
+    min-height: 44px;
+    min-width: 44px;
+    white-space: nowrap;
+    border-radius: 0;
+  }
+  :where(html.theme-industry) #tab-quote-make #saveToolbar .qm-group {
+    min-width: 0;
+  }
+  :where(html.theme-industry) #tab-quote-make #saveToolbar .tb-menu {
+    margin-left: auto;
+  }
+  :where(html.theme-industry) #tab-quote-make .tb-menu-panel .tb-mi-simple,
+  :where(html.theme-industry) #tab-quote-make .tb-menu-panel .tb-mi-mobile {
+    display: flex;
+  }
+  :where(html.theme-industry) #tab-quote-make .tb-menu-panel .tb-menu-group.tb-mi-simple {
+    display: block;
+    padding: 8px 14px 4px;
+    font-size: 11px;
+    font-weight: 700;
+    border-top: 1px solid var(--color-neutral-300, #d4d4d7);
+  }
+  :where(html.theme-industry) #tab-quote-make .tb-menu-panel .tb-menu-item {
+    min-height: 44px;
+  }
+  :where(html.theme-industry) #quoteActionDock {
+    left: 0;
+    right: 0;
+    bottom: 0;
+    gap: 0;
+    background: var(--color-bg, #f2f2f3);
+    border-top: 1px solid var(--color-text, #1d1f20);
+  }
+  :where(html.theme-industry) #quoteActionDock .qad-btn {
+    flex: 1 1 0;
+    justify-content: center;
+    min-height: 48px;
+    padding: 0 4px;
+    border: 0;
+    border-right: 1px solid var(--color-neutral-400, #b7b7ba);
+    border-radius: 0;
+    box-shadow: none;
+    background: transparent;
+    color: var(--color-text, #1d1f20);
+    font-size: 13px;
+    transform: none;
+  }
+  :where(html.theme-industry) #quoteActionDock .qad-btn:hover {
+    transform: none;
+    box-shadow: none;
+  }
+  :where(html.theme-industry) #quoteActionDock .qad-save {
+    background: var(--color-accent-900, #1d2d3d);
+    color: var(--color-bg, #f2f2f3);
+    border-right: 0;
+  }
+  :where(html.theme-industry) body:has(#tab-quote-make.active) {
+    padding-bottom: 72px;
+  }
+}
+:where(html.theme-industry) #tab-quote-make #quoteTable > tbody > tr.is-detail-open > td {
+  opacity: 1 !important;
 }

@@ -5484,3 +5484,40 @@ button.lc-attach-tbl-btn { background: none; border: none; padding: 0; cursor: p
 /* マスターの申請一覧（承認制） */
 .stats-req-section { margin: 0 0 var(--sp-12); }
 .stats-req-section td button + button { margin-left: var(--sp-6); }
+
+/* ===== マスター管理の見出し・件数・操作メニュー、確認ダイアログ（07 回答の部品）。Industry は master-admin-industry.css が上書き ===== */
+.master-head { display: flex; align-items: center; gap: 10px; margin: 0 0 8px; }
+.master-title { margin: 0; font-size: 16px; display: flex; align-items: center; gap: 10px; }
+.master-back { display: none; margin-left: auto; cursor: pointer; }
+.role-badge { display: inline-block; padding: 1px 10px; font-size: 12px; font-weight: 700; border: 1px solid #5a4a3a; border-radius: 10px; color: #5a4a3a; }
+.role-badge.is-admin { background: #5a4a3a; color: #fff; }
+.master-kpis { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 10px; }
+.master-kpis .kpi { display: flex; align-items: baseline; gap: 8px; padding: 6px 14px; border: 1px solid #d5c8b0; border-radius: 8px; background: #fff; }
+.master-kpis .kpi.is-primary { background: #5a4a3a; color: #fff; border-color: #5a4a3a; }
+.master-kpis .kpi .n { font-size: 20px; font-weight: 700; }
+.master-kpis .kpi .l { font-size: 12px; }
+.master-register-toggle { display: none; cursor: pointer; }
+.master-ops-more.more { min-width: 28px; cursor: pointer; }
+.master-ops-menu { position: absolute; z-index: 10090; min-width: 160px; background: #fff; border: 1px solid #5a4a3a; border-radius: 6px; box-shadow: 0 4px 14px rgba(0,0,0,.2); padding: 4px; display: flex; flex-direction: column; }
+.master-ops-menu button { text-align: left; padding: 8px 12px; border: 0; background: transparent; cursor: pointer; font-size: 13px; }
+.master-ops-menu button:hover, .master-ops-menu button:focus { background: #f5efe4; outline: none; }
+.master-ops-menu .btn-remove { color: #b0392e; font-weight: 600; }
+.master-cloud-notice .counts { display: flex; flex-wrap: wrap; gap: 10px; margin: 6px 0; }
+.master-cloud-notice .counts > div { display: flex; flex-direction: column; align-items: center; min-width: 78px; padding: 4px 10px; border: 1px solid #e8c77a; border-radius: 6px; background: #fff; }
+.master-cloud-notice .counts b { font-size: 18px; }
+.master-cloud-notice .counts span { font-size: 11px; }
+.master-cloud-notice .notice-title { margin: 0 0 4px; font-weight: 700; }
+.master-cloud-notice .notice-ex, .master-cloud-notice .skip-warn { font-size: 11px; color: #7a6a58; margin: 2px 0; }
+.master-cloud-notice .notice-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 6px; }
+.master-cloud-notice .notice-actions button { margin-left: 0; }
+.confirm-overlay { position: fixed; inset: 0; z-index: 10100; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,.45); }
+.confirm-dialog { width: min(480px, calc(100vw - 32px)); background: #fff; border: 1px solid #5a4a3a; border-radius: 8px; box-shadow: 0 12px 36px rgba(0,0,0,.3); padding: 20px 22px; display: flex; flex-direction: column; gap: 12px; }
+.confirm-dialog .confirm-title { margin: 0; font-size: 17px; }
+.confirm-dialog .confirm-body { display: flex; flex-direction: column; gap: 6px; font-size: 13px; line-height: 1.7; }
+.confirm-dialog .confirm-body p { margin: 0; }
+.confirm-dialog .irreversible { color: #b0392e; font-weight: 700; }
+.confirm-dialog .confirm-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 6px; }
+.confirm-dialog .confirm-actions button { min-height: 40px; padding: 0 18px; border-radius: 6px; font-size: 13px; cursor: pointer; border: 1px solid #5a4a3a; background: #fff; }
+.confirm-dialog .confirm-actions .btn-primary { background: #5a4a3a; color: #fff; font-weight: 700; }
+.confirm-dialog .confirm-actions .btn-danger { background: #b0392e; border-color: #b0392e; color: #fff; font-weight: 700; }
+.confirm-dialog .confirm-actions button:focus-visible { outline: 3px solid #5980a6; outline-offset: 2px; }

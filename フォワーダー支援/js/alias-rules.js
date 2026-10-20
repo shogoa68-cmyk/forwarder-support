@@ -1182,27 +1182,32 @@
     }
     const info = _migInfo();
     if (!info || !info.total) return '';
-    const parts = [
-      info.masters.length && 'マスター ' + info.masters.length + ' 件',
-      info.syn.length && '同義グループ ' + info.syn.length + ' 件',
-      info.md.length && 'マスター詳細 ' + info.md.length + ' 件',
-      info.rules.length && '統合ルール ' + info.rules.length + ' 件',
-      info.abbrev.length && '略称 ' + info.abbrev.length + ' 件',
-      info.excl.length && '除外リスト ' + info.excl.length + ' 件',
-    ].filter(Boolean).join('・');
+    const cells = [
+      ['マスター', info.masters.length], ['同義グループ', info.syn.length], ['マスター詳細', info.md.length],
+      ['統合ルール', info.rules.length], ['略称', info.abbrev.length], ['除外リスト', info.excl.length],
+    ].filter(c => c[1]).map(c => '<div><b>' + c[1] + '</b><span>' + c[0] + '</span></div>').join('');
     const ex = [...info.masters.map(m => m.value), ...info.syn.map(g => g.canonical), ...info.md.map(m => m.value),
                 ...info.rules.map(r => r.from_value + '→' + r.to_value), ...info.abbrev.map(p => p.abbrev + '=' + p.full)]
       .slice(0, 6).map(_esc).join('、');
-    return '<div class="master-cloud-notice is-migrate">📦 このブラウザにだけ保存されているマスターのデータがあります（' + _esc(parts) + '。例：' + ex + '）。' +
-      'マスターはチーム共有に一本化したため、このブラウザの分は使われません。' +
-      '<button type="button" class="ar-add-btn" onclick="masterMigrateLocal()">☁️ チームへ移す</button>' +
-      '<button type="button" class="ar-del-btn" onclick="masterDiscardLocal()" title="移さずに、このブラウザの分を使わないようにします（念のためバックアップは残します）">移さない</button></div>';
+    return '<div class="master-cloud-notice is-migrate"><p class="notice-title">📦 このブラウザにだけ保存されているマスターのデータがあります</p>' +
+      '<div class="counts">' + cells + '</div>' +
+      '<p class="notice-ex">例：' + ex + '</p>' +
+      '<p>マスターはチーム共有に一本化したため、このブラウザの分は使われません。チームへ移すと、ほかの人の入力候補にも出ます。</p>' +
+      '<div class="notice-actions">' +
+      '<button type="button" class="ar-add-btn btn-primary" onclick="masterMigrateLocal()">☁️ チームへ移す</button>' +
+      '<button type="button" class="ar-del-btn btn-skip" onclick="masterDiscardLocal()" title="移さずに、このブラウザの分を使わないようにします（念のためバックアップは残します）">移さない…</button>' +
+      '<span class="skip-warn">「移さない」は元に戻せません（バックアップだけ残ります）</span></div></div>';
   };
   window.masterMigrateLocal = async function () {
     const info = _migInfo();
     if (!info || !info.total) return;
-    if (!confirm('このブラウザにだけあるマスターのデータ ' + info.total + ' 件を、チーム共有のマスターへ移します。\n' +
-      'ほかの人が削除した古いデータが含まれている場合は、それも戻ります。内容に心当たりがなければ「移さない」を選んでください。\n\nよろしいですか？')) return;
+    const ok = await window.uiConfirm({
+      title: 'チームへ移しますか？',
+      lines: ['このブラウザにだけあるマスターのデータ ' + info.total + ' 件を、チーム共有のマスターへ移します。',
+              'ほかの人が削除した古いデータが含まれている場合は、それも戻ります。内容に心当たりがなければ「やめる」を選び、「移さない」を検討してください。'],
+      okLabel: 'チームへ移す',
+    });
+    if (!ok) return;
     for (const m of info.masters) if (typeof window.statsEnsureMaster === 'function') await window.statsEnsureMaster(m.field, m.value);
     for (const g of info.syn) {
       const cg = (_synCloud || []).find(x => x.field === g.field && x.canonical === g.canonical);
@@ -1217,7 +1222,13 @@
     await _migAfter('☁️ ' + info.total + ' 件をチーム共有のマスターへ移しました');
   };
   window.masterDiscardLocal = async function () {
-    if (!confirm('このブラウザにだけあるマスターのデータを、チームへ移さずに使わないようにします（念のためバックアップは残します）。よろしいですか？')) return;
+    const ok = await window.uiConfirm({
+      title: 'チームへ移さずに、使わないようにしますか？',
+      lines: ['このブラウザにだけあるマスターのデータを、チームへ移さずに使わないようにします。', '念のため、バックアップ（masterLocalBackup_v1）は残ります。'],
+      irreversible: 'このブラウザの分は、以後どの画面でも使われません（元に戻す操作はありません）。',
+      okLabel: '移さない', danger: true,
+    });
+    if (!ok) return;
     _migBackupAndClear();
     await _migAfter('このブラウザのマスターデータは使わないようにしました（バックアップ：masterLocalBackup_v1）');
   };

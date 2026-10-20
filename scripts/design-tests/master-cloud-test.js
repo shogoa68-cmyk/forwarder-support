@@ -116,6 +116,15 @@ const http = require('http'), fs = require('fs'), path = require('path');
     await p.evaluate(async () => { if (window.statsLoadMasterCache) await window.statsLoadMasterCache(); if (window.arRefreshDatalist) window.arRefreshDatalist(); });
     return { ctx, p, errs, dlg };
   }
+  // 取り消しにくい操作の確認画面（uiConfirm）：開くのを待ち、本文を返して、指定のボタンを押す（which：'ok'＝実行／'cancel'＝やめる）
+  const confirmDlg = async (p, which) => {
+    await p.waitForSelector('.confirm-dialog', { timeout: 5000 });
+    const text = await p.evaluate(() => document.querySelector('.confirm-dialog').textContent);
+    const focused = await p.evaluate(() => document.activeElement && document.activeElement.className);
+    await p.click(which === 'cancel' ? '.confirm-dialog .btn-cancel' : '.confirm-dialog .confirm-actions button:not(.btn-cancel)');
+    await p.waitForTimeout(150);
+    return { text, focused };
+  };
   const rowId = p => p.evaluate(() => document.querySelector('#tableBody tr[id^="row-"]:not([data-type]):not([data-virtual])').id.replace('row-', ''));
 
   // ===== ログイン中：クラウドだけを使う =====
@@ -157,7 +166,7 @@ const http = require('http'), fs = require('fs'), path = require('path');
     ok(L + '新規登録の確認', dlg.some(m => m.includes('新しくマスターに登録')), dlg);
     // 移行の案内と移行
     const notice = await p.evaluate(() => window.masterTopNoticeHtml());
-    ok(L + '移行の案内（このブラウザにだけあるデータ）', notice.includes('このブラウザにだけ保存されている') && notice.includes('マスター 1 件') && notice.includes('略称 1 件'), notice);
+    ok(L + '移行の案内（このブラウザにだけあるデータ）', notice.includes('このブラウザにだけ保存されている') && notice.includes('<b>1</b><span>マスター</span>') && notice.includes('<b>1</b><span>略称</span>'), notice);
     if (process.env.OUT) {   // OUT=<dir> でマスター管理画面（移行の案内）を撮る
       await p.evaluate(() => { switchCategory('master', document.querySelector('[onclick*="switchCategory(\'master"]')); });
       await p.waitForTimeout(1500);
@@ -166,7 +175,9 @@ const http = require('http'), fs = require('fs'), path = require('path');
       await p.screenshot({ path: path.join(process.env.OUT, 'master-migrate.png') });
     }
     dlg.length = 0;
-    await p.evaluate(() => masterMigrateLocal()); await p.waitForTimeout(800);
+    await p.evaluate(() => { window.__mig = masterMigrateLocal(); });
+    const migDlg = await confirmDlg(p, 'ok');
+    await p.evaluate(() => window.__mig); await p.waitForTimeout(500);
     const r5 = await p.evaluate(() => ({
       master: window.__db.master_votes.some(m => m.value === 'ローカル品名'),
       syn: window.__db.synonym_groups.some(g => g.canonical === 'ローカル運送' && g.aliases.includes('ﾛｰｶﾙ運送')),
@@ -183,7 +194,7 @@ const http = require('http'), fs = require('fs'), path = require('path');
     ok(L + '移行後：このブラウザの分を消し、バックアップを残す', r5.cleared && r5.backup, r5);
     ok(L + '除外リストの共有テーブルが無い間は、このブラウザの除外リストを残す', r5.exclKept, r5);
     ok(L + '移行後：案内が消え、移した同義グループが効く', r5.noticeAfter === '' && r5.canon === 'ローカル運送', r5);
-    ok(L + '移行の確認画面', dlg.some(m => m.includes('チーム共有のマスターへ移します')), dlg);
+    ok(L + '移行の確認画面（実行は「チームへ移す」。初期の焦点は「やめる」）', migDlg.text.includes('チーム共有のマスターへ移します') && migDlg.focused === 'btn-cancel', migDlg);
     ok(L + 'JS エラーなし', errs.length === 0, errs);
     await ctx.close();
   }
@@ -207,7 +218,7 @@ const http = require('http'), fs = require('fs'), path = require('path');
     await p.evaluate(() => statsToggleVote('nm', 'THC')); await p.waitForTimeout(300);
     ok(L + 'マスターの解除はできない', await p.evaluate(() => window.__db.master_votes.some(m => m.value === 'THC')));
     const html = await p.evaluate(() => { switchCategory('master', document.querySelector('[onclick*="switchCategory(\'master"]')); return new Promise(r => setTimeout(() => r(document.getElementById('statsPane-master')?.innerHTML || ''), 1200)); });
-    ok(L + 'マスター管理画面に自分の申請（承認待ち・取り消し）', html.includes('あなたの申請') && html.includes('申請する費用') && html.includes('承認待ち') && html.includes('取り消し'), html.slice(0, 300));
+    ok(L + 'マスター管理画面に自分の申請（承認待ち・取り消し）', html.includes('あなたの申請') && html.includes('申請する費用') && html.includes('承認待ち') && html.includes('取り消す') && html.includes('req-state is-wait'), html.slice(0, 300));
     ok(L + 'JS エラーなし', errs.length === 0, errs);
     await ctx.close();
   }
@@ -242,6 +253,89 @@ const http = require('http'), fs = require('fs'), path = require('path');
     await ctx.close();
   }
 
+  // ===== マスター管理の画面操作（07 回答）：役割・件数・却下／解除の確認・「⋯」メニュー =====
+  {
+    const { ctx, p, errs } = await open(true, { approval: true, role: 'admin', noLegacy: true });
+    const L = '[管理者の画面] ';
+    await p.waitForTimeout(500);
+    await p.evaluate(() => {
+      window.__db.master_requests.push({ id: 'q1', field: 'nm', value: '申請A', requested_by: 'm1@example.com', status: 'pending', created_at: new Date().toISOString() });
+      window.__db.master_requests.push({ id: 'q2', field: 'nm', value: '申請B', requested_by: 'm2@example.com', status: 'pending', created_at: new Date().toISOString() });
+    });
+    await p.evaluate(async () => { await statsLoadMasterCache(); switchCategory('master', document.querySelector('[onclick*="switchCategory(\'master"]')); });
+    await p.waitForTimeout(1200);
+    const head = await p.evaluate(() => ({
+      badge: document.querySelector('#statsPane-master .role-badge')?.textContent,
+      admin: !!document.querySelector('#statsPane-master .role-badge.is-admin'),
+      kpis: [...document.querySelectorAll('#statsPane-master .master-kpis .kpi')].map(k => k.textContent.replace(/\s+/g, '')),
+      primary: document.querySelector('#statsPane-master .master-kpis .kpi.is-primary')?.textContent.replace(/\s+/g, ''),
+    }));
+    ok(L + '役割バッジ（管理者）', head.badge === '管理者' && head.admin, head);
+    ok(L + '件数ストリップ：承認待ちが先頭・強調', head.primary === '2承認待ち' && head.kpis.length === 3, head);
+    // 却下：確認 → やめる で残り、実行で却下
+    await p.evaluate(() => { [...document.querySelectorAll('#statsPane-master .stats-req-section button')].find(b => b.textContent.includes('却下')).click(); });
+    const rj1 = await confirmDlg(p, 'cancel');
+    ok(L + '却下の確認（初期の焦点は「やめる」・取り消せない旨）', rj1.focused === 'btn-cancel' && rj1.text.includes('取り消せません') && rj1.text.includes('却下'), rj1);
+    ok(L + '「やめる」では却下されない', await p.evaluate(() => window.__db.master_requests.find(x => x.id === 'q1').status === 'pending'));
+    await p.evaluate(() => { [...document.querySelectorAll('#statsPane-master .stats-req-section button')].find(b => b.textContent.includes('却下')).click(); });
+    await confirmDlg(p, 'ok');
+    await p.waitForTimeout(400);
+    ok(L + '実行で却下される', await p.evaluate(() => window.__db.master_requests.filter(x => x.status === 'rejected').length === 1));
+    // Esc で「やめる」
+    await p.evaluate(() => { [...document.querySelectorAll('#statsPane-master .stats-req-section button')].find(b => b.textContent.includes('却下')).click(); });
+    await p.waitForSelector('.confirm-dialog'); await p.keyboard.press('Escape'); await p.waitForTimeout(150);
+    ok(L + 'Esc で閉じる（却下されない）', await p.evaluate(() => !document.querySelector('.confirm-dialog') && window.__db.master_requests.filter(x => x.status === 'rejected').length === 1));
+    // 「⋯」メニュー → 解除（個別マスター）
+    await p.evaluate(() => { window.__db.master_votes.push({ field: 'nm', value: '解除する品名', voter_email: 'x@example.com' }); });
+    await p.evaluate(async () => { await statsLoadMasterCache(); statsMasterSetFilter && statsMasterSetFilter('nm'); });
+    await p.waitForTimeout(500);
+    const rowSel = '#statsPane-master tr[data-mvalue="解除する品名"]';
+    await p.click(rowSel + ' .master-ops-more'); await p.waitForTimeout(150);
+    ok(L + '「⋯」で解除のメニュー（赤字）', await p.evaluate(() => !!document.querySelector('.master-ops-menu .btn-remove')));
+    await p.click('.master-ops-menu .btn-remove');
+    const rm1 = await confirmDlg(p, 'cancel');
+    ok(L + '解除の確認（取り消せない旨）→ やめるなら残る', rm1.text.includes('解除') && rm1.focused === 'btn-cancel' && await p.evaluate(() => window.__db.master_votes.some(m => m.value === '解除する品名')), rm1);
+    await p.click(rowSel + ' .master-ops-more'); await p.click('.master-ops-menu .btn-remove');
+    await confirmDlg(p, 'ok'); await p.waitForTimeout(500);
+    ok(L + '実行で解除される', await p.evaluate(() => !window.__db.master_votes.some(m => m.value === '解除する品名')));
+    // 同義グループの「⋯」→ グループを解除
+    await p.evaluate(() => { statsMasterSetFilter('port'); }); await p.waitForTimeout(300);
+    await p.click('#statsPane-master tr[data-mvalue="Yokohama"] .master-ops-more'); await p.click('.master-ops-menu .btn-remove');
+    const gr = await confirmDlg(p, 'ok'); await p.waitForTimeout(500);
+    ok(L + 'グループの解除も確認つき', gr.text.includes('同義グループを解除') && await p.evaluate(() => !window.__db.synonym_groups.some(g => g.canonical === 'Yokohama')), gr);
+    // 代表を新規登録の開閉
+    await p.evaluate(() => statsMasterToggleRegister());
+    ok(L + '「代表を新規登録」が開く', await p.evaluate(() => document.querySelector('#statsPane-master .master-register').classList.contains('is-open')));
+    // 表の列：個別マスターと同義グループが同じ列
+    const cols = await p.evaluate(() => [...document.querySelectorAll('#statsPane-master table.master-table')].map(t => [...t.querySelectorAll('thead th')].map(h => h.textContent.trim()).join('|')));
+    ok(L + '表の列がそろっている（種別｜代表｜別名・略称｜操作）', cols.length >= 1 && cols.every(c => c === '種別|代表|別名・略称|操作'), cols);
+    ok(L + 'JS エラーなし', errs.length === 0, errs);
+    await ctx.close();
+  }
+  {
+    const { ctx, p, errs } = await open(true, { approval: true, role: 'member', noLegacy: true });
+    const L = '[メンバーの画面] ';
+    await p.waitForTimeout(500);
+    await p.evaluate(() => {
+      window.__db.master_requests.push({ id: 'q1', field: 'nm', value: '私の申請', requested_by: 's@example.com', status: 'pending', created_at: new Date().toISOString() });
+      window.__db.master_requests.push({ id: 'q2', field: 'nm', value: '承認された', requested_by: 's@example.com', status: 'approved', created_at: new Date().toISOString() });
+      window.__db.master_requests.push({ id: 'q3', field: 'nm', value: '却下された', requested_by: 's@example.com', status: 'rejected', created_at: new Date().toISOString() });
+    });
+    await p.evaluate(async () => { await statsLoadMasterCache(); switchCategory('master', document.querySelector('[onclick*="switchCategory(\'master"]')); });
+    await p.waitForTimeout(1200);
+    const r = await p.evaluate(() => ({
+      badge: document.querySelector('#statsPane-master .role-badge')?.textContent, admin: !!document.querySelector('#statsPane-master .role-badge.is-admin'),
+      kpis: [...document.querySelectorAll('#statsPane-master .master-kpis .kpi')].map(k => k.textContent.replace(/\s+/g, '')),
+      states: [...document.querySelectorAll('#statsPane-master .req-state')].map(x => x.className + ':' + x.textContent),
+      ops: [...document.querySelectorAll('#statsPane-master .master-ops-more')].filter(b => (b.getAttribute('onclick') || '').includes("'master'")).length,
+    }));
+    ok(L + '役割バッジ（メンバー）・件数（承認待ち／承認済み／却下）', r.badge === 'メンバー' && !r.admin && r.kpis.join() === '1承認待ち,1承認済み,1却下', r);
+    ok(L + '申請の状態を記号用の class つきで表示', r.states.length === 3 && r.states.some(x => x.includes('is-wait')) && r.states.some(x => x.includes('is-ok')) && r.states.some(x => x.includes('is-no')), r.states);
+    ok(L + 'メンバーには個別マスターの解除（「⋯」）を出さない', r.ops === 0, r);
+    ok(L + 'JS エラーなし', errs.length === 0, errs);
+    await ctx.close();
+  }
+
   // ===== 除外リストの共有（stats_exclusions あり）=====
   {
     const { ctx, p, errs } = await open(true, { excl: true });
@@ -257,8 +351,10 @@ const http = require('http'), fs = require('fs'), path = require('path');
     }));
     ok(L + '追加はクラウドへ（このブラウザには書かない）', r.db && !r.local, r);
     ok(L + '読み出しはクラウドの除外リスト', r.get.includes('共有の除外') && !r.get.includes('ローカル除外'), r.get);
-    ok(L + '移行の案内に除外リストの件数', r.notice.includes('除外リスト 1 件'), r.notice);
-    await p.evaluate(async () => { await masterMigrateLocal(); });
+    ok(L + '移行の案内に除外リストの件数', r.notice.includes('<b>1</b><span>除外リスト</span>'), r.notice);
+    await p.evaluate(() => { window.__mig = masterMigrateLocal(); });
+    await confirmDlg(p, 'ok');
+    await p.evaluate(() => window.__mig);
     await p.waitForTimeout(800);
     const r2 = await p.evaluate(() => ({ db: window.__db.stats_exclusions.some(e => e.value === 'ローカル除外'), cleared: localStorage.getItem('statsExclusions_v1') === null }));
     ok(L + '移行：このブラウザの除外リストをクラウドへ移して消す', r2.db && r2.cleared, r2);

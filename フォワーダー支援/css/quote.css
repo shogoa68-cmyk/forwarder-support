@@ -11249,3 +11249,16 @@ body.is-row-dragging { cursor: grabbing; user-select: none; }
 #tab-quote-make .min-group .min-pair { display: inline-flex; align-items: center; gap: var(--sp-2); white-space: nowrap; }
 /* プレビュー：ミニマム（最低料金）で請求している行の明記 */
 .pv-min-tag { font-weight: 700; white-space: nowrap; color: #8a4c00; }
+
+/* ===== 新画面の整理（07 回答）の部品：現行デザインでは従来どおりの見た目にし、Industry だけで使う ===== */
+/* 小計行：客先表示名・リマークの入力は .st-notes で包んである。現行は包みを消して、従来の順（客先表示名 → 行追加 → リマーク）に並べる。「注記 ▾」は Industry 用 */
+#tab-quote-make .st-notes { display: contents; }
+#tab-quote-make .st-notes-btn { display: none; }
+#tab-quote-make .subcon-subtotal-inner .st-alias { order: 1; }
+#tab-quote-make .subcon-subtotal-inner .subcon-subtotal-add-btn { order: 2; }
+#tab-quote-make .subcon-subtotal-inner .st-remark { order: 3; }
+/* ミニマム：適用中の売値の注記・最低料金の通貨（Industry 用） */
+#tab-quote-make .min-note, #tab-quote-make .min-hint { display: none; }
+
+/* スマホ幅（Industry）のツールバー「⋯」に集約する項目（ブラウザ保存）。それ以外の幅・現行デザインでは出さない */
+#tab-quote-make .tb-menu-panel .tb-mi-mobile { display: none; }

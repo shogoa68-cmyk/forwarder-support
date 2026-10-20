@@ -108,3 +108,94 @@
 /* ---- ミニマム（最低料金）の入力欄：「その他 ▾」パネルの中では、MIN が ON の行だけ出す（% の入力群と同じ扱い） ---- */
 #tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]):not(.row-min-mode) .row-detail-panel .min-group { display: none !important; }
 #tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) .row-detail-panel .min-group .w-min { width: 120px !important; }
+
+/* ================= 新しい画面・部品の整理（07 回答）の実装側の補正（quote-states／master-admin／mobile の「後」） ================= */
+/* A-3 枠の言語：現行の橙の点線（outline）を消す。Design の CSS は border だけを実線に戻し、outline が残るため */
+#tab-quote-make input.name-unregistered, #tab-quote-make #quoteTable input.name-unregistered { outline: none !important; }
+/* A-1 小計行：「注記 ▾」ボタンは現行では隠している。Industry では表示（Design の .st-notes-btn の見た目は display を持たない） */
+#tab-quote-make #quoteTable .st-notes-btn { display: inline-flex; align-items: center; }
+#tab-quote-make #quoteTable .st-notes { display: none; }
+#tab-quote-make #quoteTable tr.is-notes-open .st-notes { display: flex; }
+#tab-quote-make #quoteTable .subcon-subtotal-inner .st-alias, #tab-quote-make #quoteTable .subcon-subtotal-inner .subcon-subtotal-add-btn, #tab-quote-make #quoteTable .subcon-subtotal-inner .st-remark { order: 0; }
+#tab-quote-make #quoteTable .subcon-subtotal-inner .st-notes { flex-basis: 100%; }
+#tab-quote-make #quoteTable .subcon-subtotal-inner .st-sell b { font-size: 17px; }   /* 売値合計を大きく */
+#tab-quote-make #quoteTable .subcon-subtotal-inner .st-cost b, #tab-quote-make #quoteTable .subcon-subtotal-inner .st-margin b { font-size: 13px; }
+/* A-2 ミニマム：Design の .min-note は、適用中の指定が display を持たず、既定の display:none が勝つため、適用中は表示する。空の文言（仕入側だけ適用）は出さない */
+#tab-quote-make #quoteTable tr[data-min-applied="1"] td.price-cell .stk-sell .min-note { display: block; }
+#tab-quote-make #quoteTable tr[data-min-applied="1"] td.price-cell .stk-sell .min-note:empty { display: none; }
+#tab-quote-make #quoteTable .row-detail-panel .min-group .min-lbl { font-size: 12px; }
+#tab-quote-make #quoteTable .row-detail-panel .min-group .min-hint { display: inline; }
+/* A-3：stage1 の「全入力欄 background:#fff」が三角（background-image）を消すため、三角は !important で当てる。入力中は出さない */
+#tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) > td input.name-unregistered:not(:focus) { background-image: linear-gradient(225deg, #8a5a2b 0 8px, transparent 8px) !important; background-repeat: no-repeat !important; }
+/* A-2：売値の欄の左に重ねる「Min. 28.00」は、数字と重ならないよう小さく */
+#tab-quote-make #quoteTable tr[data-min-applied="1"] td.price-cell .stk-sell .min-note { left: 28px; top: 7px; height: 18px; line-height: 16px; padding: 0 4px; font-size: 10px; }
+/* A-1：パターン見出しのカテゴリ名は、名前のすぐ右に（見出しの名前が余白を取り切らないように） */
+#tab-quote-make #quoteTable tr.subcon-subgroup-header .subcon-subgroup-inner:has(.pt-cat-inline) .subcon-subgroup-leg { flex: 0 0 auto; }
+#tab-quote-make #quoteTable tr.subcon-subgroup-header .pt-cat-inline { flex: 1 1 auto; }
+
+/* ================= B マスター管理（master-admin-industry の実装側の補正） ================= */
+/* 見出し：役割バッジ・見積もりへ戻るボタン（現行は浮きボタン #backToQuoteFab を使うので、Industry のときだけ見出しの右に出し、浮きボタンは隠す） */
+#tab-master .master-head { display: flex; align-items: center; gap: 12px; margin: 0 0 12px; }
+#tab-master .master-title { font-family: var(--font-heading); font-size: 20px; letter-spacing: .08em; display: flex; align-items: center; gap: 12px; margin: 0; }
+#tab-master .master-back { display: inline-flex; align-items: center; margin-left: auto; min-height: 36px; padding: 0 14px; border: 1px solid var(--color-neutral-500, #98989b); background: transparent; color: var(--color-text, #1d1f20); border-radius: 0; cursor: pointer; }
+body:has(#tab-master.active) #backToQuoteFab { display: none !important; }
+/* 件数ストリップ（Design は .master-kpis > * に塗り・数字を指定。数字と名前を並べる） */
+#tab-master .master-kpis { margin: 0 0 16px; border-radius: 0; gap: 0; }
+#tab-master .master-kpis .kpi { border-radius: 0; border: 0; border-right: 1px solid var(--color-neutral-400, #b7b7ba); padding: 12px 22px; }
+#tab-master .master-kpis .kpi .l { font-size: 12px; letter-spacing: .1em; }
+/* 移行の案内：件数のセル（数字を大きく・名前を小さく） */
+#tab-master .master-cloud-notice.is-migrate { border-radius: 0; }
+#tab-master .master-cloud-notice.is-migrate .notice-title { font-family: var(--font-heading); font-size: 16px; font-weight: 700; margin: 0; }
+#tab-master .master-cloud-notice.is-migrate .counts > div { display: flex; flex-direction: column; align-items: flex-start; border-radius: 0; background: transparent; border: 0; border-right: 1px solid var(--color-neutral-300, #d4d4d7); }
+#tab-master .master-cloud-notice.is-migrate .counts b { font-family: var(--font-heading); font-size: 22px; }
+#tab-master .master-cloud-notice.is-migrate .notice-actions { display: flex; align-items: center; gap: 18px; flex-wrap: wrap; }
+#tab-master .master-cloud-notice.is-migrate .btn-primary, #tab-master .stats-req-section .btn-primary { min-height: 40px; padding: 0 20px; border: 1px solid var(--color-accent-900, #1d2d3d); background: var(--color-accent-900, #1d2d3d); color: var(--color-bg, #f2f2f3); font-weight: 700; border-radius: 0; margin: 0; }
+#tab-master .master-cloud-notice.is-migrate .btn-skip { background: transparent !important; border: 0 !important; min-height: 0; }
+#tab-master .stats-req-section .btn-secondary { border: 1px solid var(--color-neutral-500, #98989b); background: transparent; color: var(--color-text, #1d1f20); margin-left: 8px; }
+/* 操作列：ボタンを右に並べ、「⋯」のメニューは body に出る */
+#tab-master td.ops, #tab-master th.ops { text-align: right; }
+#tab-master td.ops > * { margin-left: 6px; }
+#tab-master .master-ops-more.more { min-height: 32px; width: 32px; padding: 0; border-radius: 0; border: 1px solid var(--color-neutral-500, #98989b); background: transparent; }
+.master-ops-menu { border-radius: 0; border: 1px solid var(--color-text, #1d1f20); box-shadow: var(--shadow-md); }
+.master-ops-menu .btn-remove { color: #b0392e; }
+/* 「代表を新規登録」：ボタンで開く（現行は常に表示） */
+#tab-master .master-register-toggle { display: inline-flex; align-items: center; min-height: 36px; padding: 0 16px; border: 1px solid var(--color-accent-700, #416180); background: transparent; color: var(--color-accent-800, #2c455d); font-weight: 600; border-radius: 0; cursor: pointer; margin: 0 0 10px; }
+#tab-master .master-help > summary { cursor: pointer; font-weight: 600; }
+/* 確認ダイアログ（取り消しにくい操作）：Industry の角・枠 */
+.confirm-dialog { border-radius: 0; border: 1px solid var(--color-text, #1d1f20); }
+.confirm-dialog .confirm-title { font-family: var(--font-heading); letter-spacing: .06em; }
+.confirm-dialog .confirm-actions button { border-radius: 0; }
+.confirm-dialog .confirm-actions .btn-primary { background: var(--color-accent-900, #1d2d3d); border-color: var(--color-accent-900, #1d2d3d); color: var(--color-bg, #f2f2f3); }
+#tab-master .master-table td:first-child, #tab-master .stats-req-section td:first-child, #tab-master .master-table th:first-child { white-space: nowrap; }
+/* ================= A-4 用語の説明ドロワーの補正 ================= */
+.glossary-drawer .gl-close { margin-left: auto; width: 36px; height: 36px; border: 1px solid var(--color-neutral-500, #98989b); background: transparent; border-radius: 0; cursor: pointer; font-size: 14px; }
+.glossary-drawer .gl-desc { font-size: 13px; color: var(--color-neutral-800, #424244); }
+.glossary-drawer .gl-empty { padding: 24px 0; color: var(--color-neutral-700, #5d5d60); }
+.glossary-drawer .gl-search:focus, .glossary-drawer .gl-groups button:focus-visible, .glossary-drawer .gl-close:focus-visible { outline: 2px solid var(--color-accent, #5980a6); outline-offset: 1px; }
+.glossary-drawer { z-index: 10060; }   /* 右下のドック（PDF出力・プレビュー・保存）より前に出す */
+.glossary-drawer .gl-item { grid-template-columns: 120px 1fr; }
+.glossary-drawer .gl-term { font-size: 15px; overflow-wrap: anywhere; }
+
+/* ================= C スマホ幅（〜600px）：ツールバー 1 段・固定の 3 分割ドック（Design の mobile-industry.css を実際の id/class に合わせた版）
+   Design の明細テーブルのカード型は、つまみ列（行の操作）・課税・通貨の置き場所が決まるまで未実装（mobile-industry.css は取り込まない） ================= */
+@media (max-width: 600px) {
+  /* ツールバー：戻る／元に戻す／やり直す／「⋯」の 1 段。メール取込・サブコン依頼メール・ブラウザ保存・表示サイズは「⋯」の中へ。ボタンは 44px 以上 */
+  #tab-quote-make #saveToolbar { display: flex; flex-wrap: nowrap; align-items: center; gap: 8px; padding: 8px 12px; }
+  #tab-quote-make #saveToolbar .toolbar-extra, #tab-quote-make #saveToolbar .save-toolbar-label, #tab-quote-make #saveToolbar .save-btn-preset,
+  #tab-quote-make #saveToolbar .save-status, #tab-quote-make #saveToolbar .save-toolbar-sep, #tab-quote-make #saveToolbar .tb-lbl, #tab-quote-make #saveToolbar .uim-switch--tb { display: none !important; }
+  #tab-quote-make #saveToolbar .save-btn { min-height: 44px; min-width: 44px; white-space: nowrap; border-radius: 0; }
+  #tab-quote-make #saveToolbar .qm-group { min-width: 0; }
+  #tab-quote-make #saveToolbar .tb-menu { margin-left: auto; }
+  #tab-quote-make .tb-menu-panel .tb-mi-simple, #tab-quote-make .tb-menu-panel .tb-mi-mobile { display: flex; }
+  #tab-quote-make .tb-menu-panel .tb-menu-group.tb-mi-simple { display: block; padding: 8px 14px 4px; font-size: 11px; font-weight: 700; border-top: 1px solid var(--color-neutral-300, #d4d4d7); }
+  #tab-quote-make .tb-menu-panel .tb-menu-item { min-height: 44px; }
+  /* 右下のドック：浮かせず、画面下に固定の分割バー（PDF／プレビュー／保存）。ページ下に余白 */
+  #quoteActionDock { left: 0; right: 0; bottom: 0; gap: 0; background: var(--color-bg, #f2f2f3); border-top: 1px solid var(--color-text, #1d1f20); }
+  #quoteActionDock .qad-btn { flex: 1 1 0; justify-content: center; min-height: 48px; padding: 0 4px; border: 0; border-right: 1px solid var(--color-neutral-400, #b7b7ba); border-radius: 0; box-shadow: none; background: transparent; color: var(--color-text, #1d1f20); font-size: 13px; transform: none; }
+  #quoteActionDock .qad-btn:hover { transform: none; box-shadow: none; }
+  #quoteActionDock .qad-save { background: var(--color-accent-900, #1d2d3d); color: var(--color-bg, #f2f2f3); border-right: 0; }
+  body:has(#tab-quote-make.active) { padding-bottom: 72px; }
+}
+/* 期間外のサーチャージ・「見積書に出さない」行は、セル（td）ごと半透明（opacity）にしてある。パネルは品名セルの中なので、パネルまで半透明になり、
+   セルが重ね合わせの単位になって次の行の下に隠れる（開いても中身が薄く、操作できない）。開いている間は、その行の半透明を戻す */
+#tab-quote-make #quoteTable > tbody > tr.is-detail-open > td { opacity: 1 !important; }
