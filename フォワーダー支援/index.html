@@ -4384,7 +4384,7 @@
         <div class="row-detail-panel" role="group" aria-label="この行のその他の設定">
           <div class="rd-group"><div class="rd-title">有効期間</div><div class="rd-slot" data-rd-slot="valid"></div></div>
           <div class="rd-group"><div class="rd-title">状態</div><div class="rd-state"></div></div>
-          <div class="rd-group wide"><div class="rd-title">単価のオプション</div><div class="rd-slot" data-rd-slot="mode"></div><div class="rd-slot" data-rd-slot="pct"></div></div>
+          <div class="rd-group wide"><div class="rd-title">単価のオプション</div><div class="rd-slot" data-rd-slot="mode"></div><div class="rd-slot" data-rd-slot="pct"></div><div class="rd-slot" data-rd-slot="min"></div></div>
           <div class="rd-group rd-cd-group"><div class="rd-title">CD（通貨差調整値）</div><div class="rd-slot" data-rd-slot="cd"></div></div>
           <div class="rd-group"><div class="rd-title">金額の内訳</div><dl class="rd-breakdown"></dl></div>
         </div>
@@ -4437,7 +4437,13 @@
           <button type="button" class="est-btn" tabindex="-1" title="概算（金額は目安）。単価・金額の前に「約」を付けて表示します。見積もり合計には通常どおり加算されます（もう一度クリックで解除）。">概算</button>
           <button type="button" class="sell-mode-btn" tabindex="-1" title="売値ベース：売単価を先に決め、仕入単価を入力すると乗せ幅（売−仕入）が自動算出されます。もう一度クリックで通常（仕入＋乗せ幅＝売値）に戻ります。">売値ベース</button>
           <button type="button" class="pct-mode-btn" tabindex="-1" title="仕入単価を「○○の何%」として計算（%率と基準額を入力）。もう一度クリックで直接入力に戻す。">%</button>
+          <button type="button" class="min-mode-btn" tabindex="-1" title="ミニマム（最低料金）：金額を「数量 × 単価」と最低料金の高いほうにします（例：Min. $28.00 or $0.15/kg）。もう一度クリックで解除。">MIN</button>
         </div>
+        <span class="min-group" title="ミニマム（最低料金）：金額は「数量 × 単価」と最低料金の高いほうになります。仕入・売値それぞれに設定できます（空欄なら適用しない）">
+          <span class="min-lbl">MIN</span>
+          <span class="min-pair"><span class="t-cost">仕</span><input type="number" data-field="ppmin" class="w-min" min="0" step="0.01" placeholder="仕入の最低料金" /></span>
+          <span class="min-pair"><span class="t-sell">売</span><input type="number" data-field="bpmin" class="w-min" min="0" step="0.01" placeholder="売値の最低料金" /></span>
+        </span>
         <span class="actual-cost-badge" aria-hidden="true">実費</span>
       </td>
       <td class="tax-cell"><input type="checkbox" data-field="tx" title="ON にすると消費税 10% が自動計算され、項目名先頭に「*」が付きます。免税（非課税）の行は OFF のままにしてください。"></td>

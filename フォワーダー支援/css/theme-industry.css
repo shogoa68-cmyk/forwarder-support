@@ -9078,3 +9078,9 @@ html.theme-industry {
   white-space: pre;
   letter-spacing: .04em;
 }
+:where(html.theme-industry) #tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]):not(.row-min-mode) .row-detail-panel .min-group {
+  display: none !important;
+}
+:where(html.theme-industry) #tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) .row-detail-panel .min-group .w-min {
+  width: 120px !important;
+}

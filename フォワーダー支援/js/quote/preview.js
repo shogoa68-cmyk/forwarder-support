@@ -146,8 +146,8 @@
       const bc     = document.getElementById(`bc-${id}`)?.value || '';
       const bp     = val(`bp-${id}`);
       const mk     = val(`mk-${id}`);
-      const cost   = pq * pp;
-      const bill   = bq * bp;
+      const cost   = applyRowMin(pq * pp, id, 'cost');   // ミニマム（最低料金）があれば、それを下回らない
+      const bill   = applyRowMin(bq * bp, id, 'sell');
       const profit = _rowProfit(bill, cost, bc, pc);
       const note   = document.getElementById(`nt-${id}`)?.value || '';
       const sv     = document.getElementById(`sv-${id}`)?.value || '';
@@ -168,7 +168,7 @@
       // 客先出力・小計・PDF/Excel/CSV の除外は _hideQuote 一本で判定する（PROFIT SHARE も客先には出さない）。
       // 適用期間外は「参考」指定があれば例外的に出力する（金額は括弧書き・合計外のまま、客先へ参考提示したい場合）
       const _hideQuote  = _hideManual || (_outRange && !_ref) || _ps;
-      rows.push({ _type: 'data', taxed, cat, name, pq, un, pc, pp, cd, bq, bc, bp, mk, cost, bill, profit, note, sv, pt, vf, vt, zc, uid, _actual, _ps, _cond, _ref, _estimate, _hideQuote, _hideManual, _outRange });
+      rows.push({ _type: 'data', taxed, cat, name, pq, un, pc, pp, cd, bq, bc, bp, mk, cost, bill, profit, ppmin: val(`ppmin-${id}`), bpmin: val(`bpmin-${id}`), note, sv, pt, vf, vt, zc, uid, _actual, _ps, _cond, _ref, _estimate, _hideQuote, _hideManual, _outRange });
     });
     return rows;
   }
@@ -197,15 +197,15 @@
       const bc     = document.getElementById(`bc-${id}`)?.value || '';
       const bp     = val(`bp-${id}`);
       const mk     = val(`mk-${id}`);
-      const cost   = pq * pp;
-      const bill   = bq * bp;
+      const cost   = applyRowMin(pq * pp, id, 'cost');   // ミニマム（最低料金）があれば、それを下回らない
+      const bill   = applyRowMin(bq * bp, id, 'sell');
       const profit = _rowProfit(bill, cost, bc, pc);
       const note   = document.getElementById(`nt-${id}`)?.value || '';
       const sv     = document.getElementById(`sv-${id}`)?.value || '';
       const _actual = tr.dataset.actual === '1';   // 実費（金額未確定）
       const _cond   = tr.dataset.cond === '1';     // 都度請求（発生時のみ・合計外）
       const _ref    = tr.dataset.refInfo === '1';  // 参考情報（金額は表示・合計外）
-      data.push({ taxed, cat, name, pq, un, pc, pp, cd, bq, bc, bp, mk, cost, bill, profit, note, sv, _actual, _cond, _ref });
+      data.push({ taxed, cat, name, pq, un, pc, pp, cd, bq, bc, bp, mk, cost, bill, profit, ppmin: val(`ppmin-${id}`), bpmin: val(`bpmin-${id}`), note, sv, _actual, _cond, _ref });
     });
     return data;
   }
@@ -711,7 +711,7 @@
         return;
       }
       const nameCls = d.taxed ? 'pv-name pv-taxed' : 'pv-name';
-      const sub     = (d.bq || 0) * (d.bp || 0);
+      const sub     = minAmt((d.bq || 0) * (d.bp || 0), d.bpmin);
       const jpyAmt  = (typeof toJPY === 'function') ? Math.ceil(toJPY(sub, d.bc)) : sub;
       const taxAmt  = (d.taxed && !d._actual) ? sub * taxRate : 0;
       // 見積書非表示・実費の行は合計に一切含めない（実費は行は出すが金額未確定のため除外）
@@ -754,9 +754,9 @@
       // 実費行：単価・金額は「実費」表示（金額未確定・別途精算）。CD/乗せ幅/円換算/税は空、利益は —
       const _ac      = d._actual;
       const _acTxt   = '<span class="pv-actual-txt">実費</span>';
-      const ppCell   = _ac ? _acTxt : fmtMoney(d.pp);
+      const ppCell   = _ac ? _acTxt : (minPriceText(d.pp, d.ppmin, d.pc, d.un) || fmtMoney(d.pp));
       const cdCell   = _ac ? '' : fmtMoney(d.cd);
-      const bpCell   = _ac ? _acTxt : fmtMoney(d.bp);
+      const bpCell   = _ac ? _acTxt : (minPriceText(d.bp, d.bpmin, d.bc, d.un) || fmtMoney(d.bp));
       const mkCell   = _ac ? '' : fmtMoney(d.mk);
       // 参考情報行の金額は括弧書き＋グレーで「合計外の参考値」であることを示す
       const subCell  = _ac ? _acTxt
@@ -1464,13 +1464,13 @@
     { hdr: '数量',     fn: d => fmtRaw(d.pq),          pvGroup: 'pay',    role: 'pq'     },
     { hdr: '単位',     fn: d => d.un || '',            pvGroup: 'unit',   role: 'un'     },
     { hdr: '通貨',     fn: d => d.pc,                  pvGroup: 'pay',    role: 'pc'     },
-    { hdr: '単価',     fn: d => d._actual ? '実費' : fmtRaw(d.pp), pvGroup: 'pay',    role: 'pp'     },
+    { hdr: '単価',     fn: d => d._actual ? '実費' : (minPriceText(d.pp, d.ppmin, d.pc, d.un) || fmtRaw(d.pp)), pvGroup: 'pay',    role: 'pp'     },
     { hdr: 'CD',       fn: d => d._actual ? '' : fmtRaw(d.cd),     pvGroup: 'pay',    role: 'cd'     },
     { hdr: '数量',     fn: d => fmtRaw(d.bq),          pvGroup: 'bill',   role: 'bq'     },
     { hdr: '通貨',     fn: d => d.bc,                  pvGroup: 'bill',   role: 'bc'     },
-    { hdr: '単価',     fn: d => d._actual ? '実費' : fmtRaw(d.bp), pvGroup: 'bill',   role: 'bp'     },
+    { hdr: '単価',     fn: d => d._actual ? '実費' : (minPriceText(d.bp, d.bpmin, d.bc, d.un) || fmtRaw(d.bp)), pvGroup: 'bill',   role: 'bp'     },
     { hdr: '乗せ幅',       fn: d => d._actual ? '' : fmtRaw(d.mk),     pvGroup: 'mk',       role: 'mk'     },
-    { hdr: '円換算(JPY)', fn: d => { if (d._actual) return '実費'; const s = (d.bq||0)*(d.bp||0); return (d.bc && d.bc !== 'JPY') ? fmtRaw(typeof toJPY === 'function' ? Math.ceil(toJPY(s, d.bc)) : s) : '—'; }, pvGroup: 'jpy-conv', role: 'jpyConv' },
+    { hdr: '円換算(JPY)', fn: d => { if (d._actual) return '実費'; const s = minAmt((d.bq||0)*(d.bp||0), d.bpmin); return (d.bc && d.bc !== 'JPY') ? fmtRaw(typeof toJPY === 'function' ? Math.ceil(toJPY(s, d.bc)) : s) : '—'; }, pvGroup: 'jpy-conv', role: 'jpyConv' },
     { hdr: '利益',         fn: d => d._actual ? '—' : fmtRaw(d.profit), pvGroup: 'profit',   role: 'profit' },
     { hdr: '備考',         fn: d => d.note,                pvGroup: 'note',     role: 'note'   },
   ];
@@ -1700,9 +1700,9 @@
     { hdr: '通貨(請求)',   fn: d => d.bc,                  pvGroup: 'bill',   role: 'bc'     },
     { hdr: '単価(請求)',   fn: d => d._actual ? '実費' : d.bp, pvGroup: 'bill',   role: 'bp'     },
     { hdr: '乗せ幅',       fn: d => d._actual ? '' : d.mk, pvGroup: 'mk',     role: 'mk'     },
-    { hdr: '小計',         fn: d => d._actual ? '実費' : (d.bq || 0) * (d.bp || 0), pvGroup: null,      role: 'sub'     },
-    { hdr: '円換算(JPY)', fn: d => { if (d._actual) return '実費'; const s = (d.bq||0)*(d.bp||0); return (d.bc && d.bc !== 'JPY') ? (typeof toJPY === 'function' ? Math.ceil(toJPY(s, d.bc)) : '') : ''; }, pvGroup: 'jpy-conv', role: 'jpyConv' },
-    { hdr: '消費税',       fn: d => (d.taxed && !d._actual) ? (d.bq||0)*(d.bp||0)*getEffectiveTaxRate() : '', pvGroup: 'tax-col', role: 'taxAmt' },
+    { hdr: '小計',         fn: d => d._actual ? '実費' : minAmt((d.bq || 0) * (d.bp || 0), d.bpmin), pvGroup: null,      role: 'sub'     },
+    { hdr: '円換算(JPY)', fn: d => { if (d._actual) return '実費'; const s = minAmt((d.bq||0)*(d.bp||0), d.bpmin); return (d.bc && d.bc !== 'JPY') ? (typeof toJPY === 'function' ? Math.ceil(toJPY(s, d.bc)) : '') : ''; }, pvGroup: 'jpy-conv', role: 'jpyConv' },
+    { hdr: '消費税',       fn: d => (d.taxed && !d._actual) ? minAmt((d.bq||0)*(d.bp||0), d.bpmin)*getEffectiveTaxRate() : '', pvGroup: 'tax-col', role: 'taxAmt' },
     { hdr: '利益',         fn: d => d._actual ? '—' : d.profit, pvGroup: 'profit', role: 'profit' },
     { hdr: '備考',         fn: d => d.note,                pvGroup: 'note',   role: 'note'   },
   ];
@@ -1712,7 +1712,7 @@
     allRows.forEach(d => {
       if (d._type !== 'data') return;
       const bc  = d.bc || 'JPY';
-      const sub = (d.bq || 0) * (d.bp || 0);
+      const sub = minAmt((d.bq || 0) * (d.bp || 0), d.bpmin);
       if (!ccyData[bc]) ccyData[bc] = { sub: 0, taxedSub: 0, exemptSub: 0 };
       ccyData[bc].sub += sub;
       if (d.taxed) ccyData[bc].taxedSub += sub;
@@ -1818,7 +1818,7 @@
         aoaRows.push(row);
         return;
       }
-      const sub     = (d.bq || 0) * (d.bp || 0);
+      const sub     = minAmt((d.bq || 0) * (d.bp || 0), d.bpmin);
       const cost    = (d.pq || 0) * (d.pp || 0);
       const jpy     = typeof toJPY === 'function' ? Math.ceil(toJPY(sub, d.bc))  : sub;
       const costJpy = typeof toJPY === 'function' ? Math.ceil(toJPY(cost, d.pc)) : cost;
@@ -1897,13 +1897,13 @@
     { key: 'pq',     hdr: '数量',           fn: d => fmtRaw(d.pq) },
     { key: 'un',     hdr: '単位',           fn: d => d.un || '' },
     { key: 'pc',     hdr: '通貨',           fn: d => d.pc },
-    { key: 'pp',     hdr: '単価',           fn: d => d._actual ? '実費' : fmtRaw(d.pp) },
+    { key: 'pp',     hdr: '単価',           fn: d => d._actual ? '実費' : (minPriceText(d.pp, d.ppmin, d.pc, d.un) || fmtRaw(d.pp)) },
     { key: 'cd',     hdr: 'CD',             fn: d => d._actual ? '' : fmtRaw(d.cd) },
     { key: 'bq',     hdr: '数量(請求)',     fn: d => fmtRaw(d.bq) },
     { key: 'bc',     hdr: '通貨(請求)',     fn: d => d.bc },
-    { key: 'bp',     hdr: '単価(請求)',     fn: d => d._actual ? '実費' : fmtRaw(d.bp) },
+    { key: 'bp',     hdr: '単価(請求)',     fn: d => d._actual ? '実費' : (minPriceText(d.bp, d.bpmin, d.bc, d.un) || fmtRaw(d.bp)) },
     { key: 'mk',     hdr: '乗せ幅',         fn: d => d._actual ? '' : fmtRaw(d.mk) },
-    { key: 'sub',    hdr: '小計',           fn: d => d._actual ? '実費' : fmtRaw((d.bq||0)*(d.bp||0)) },
+    { key: 'sub',    hdr: '小計',           fn: d => d._actual ? '実費' : fmtRaw(minAmt((d.bq||0)*(d.bp||0), d.bpmin)) },
     { key: 'profit', hdr: '利益',           fn: d => d._actual ? '—' : fmtRaw(d.profit) },
     { key: 'note',   hdr: '備考',           fn: d => d.note },
   ];
@@ -2141,8 +2141,8 @@
       const bp    = parseFloat(cells[12]) || 0;
       const mk    = parseFloat(cells[13]) || 0;
 
-      const billOrig = bq * bp;
-      const costOrig = pq * pp;
+      const billOrig = minAmt(bq * bp, cells[31]);   // cells[30]=ppmin、[31]=bpmin（ミニマム）
+      const costOrig = minAmt(pq * pp, cells[30]);
       const conv = (amt, ccy) =>
         (typeof toJPY === 'function') ? toJPY(amt, ccy) : (ccy === 'JPY' ? amt : 0);
 

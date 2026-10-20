@@ -3645,8 +3645,8 @@
       const pp = parseFloat(document.getElementById(`pp-${id}`)?.value) || 0;
       const bq = parseFloat(document.getElementById(`bq-${id}`)?.value) || 0;
       const bp = parseFloat(document.getElementById(`bp-${id}`)?.value) || 0;
-      const billing = bq * bp;
-      const cost    = pq * pp;
+      const billing = applyRowMin(bq * bp, id, 'sell');
+      const cost    = applyRowMin(pq * pp, id, 'cost');
       // 通貨別請求小計：JPY は行ごと丸めで積み上げ（売上合計と一致させる）。外貨は native のまま。
       billByCur[bc] = (billByCur[bc] || 0) + (bc === 'JPY' ? SharedCalc.jpyRound(billing) : billing);
       // JPY換算は行ごとに SharedCalc.jpyRound で丸めてから合計（4経路統一・docs/バグ台帳）
@@ -3679,8 +3679,8 @@
       const bp = parseFloat(document.getElementById(`bp-${id}`)?.value) || 0;
       const pq = parseFloat(document.getElementById(`pq-${id}`)?.value) || 0;
       const pp = parseFloat(document.getElementById(`pp-${id}`)?.value) || 0;
-      psBillJPY += SharedCalc.jpyRound(toJPY(bq * bp, bc));
-      psCostJPY += SharedCalc.jpyRound(toJPY(pq * pp, pc));
+      psBillJPY += SharedCalc.jpyRound(toJPY(applyRowMin(bq * bp, id, 'sell'), bc));
+      psCostJPY += SharedCalc.jpyRound(toJPY(applyRowMin(pq * pp, id, 'cost'), pc));
     });
     const hasPs = psBillJPY || psCostJPY;
     const internalProfit = profit + (psBillJPY - psCostJPY);
@@ -4373,9 +4373,9 @@
       const pp = num('pp-' + id);
       const pc = document.getElementById('pc-' + id)?.value || 'JPY';
       const mkRaw = num('mk-' + id);   // 乗せ幅（請求通貨・単価加算分）
-      let sell = bq * bp, mark = '';
+      let sell = applyRowMin(bq * bp, id, 'sell'), mark = '';
       if (bc !== 'JPY' && typeof toJPY === 'function') { sell = toJPY(sell, bc); mark = '※'; }
-      let cost = pq * pp;
+      let cost = applyRowMin(pq * pp, id, 'cost');
       if (pc !== 'JPY' && typeof toJPY === 'function') cost = toJPY(cost, pc);
       const isActual = tr.dataset.actual === '1';
       const sum = sell ? '¥' + Math.round(sell).toLocaleString('ja-JP') + mark : '';

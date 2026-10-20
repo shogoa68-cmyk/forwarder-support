@@ -30,7 +30,8 @@
       const pc = document.getElementById('pc-' + id)?.value || 'JPY';
       const hidden = tr.dataset.hideQuote === '1';
       const unitCostJPY  = (typeof toJPY === 'function') ? toJPY(pp, pc) : pp;
-      const totalCostJPY = (typeof toJPY === 'function') ? toJPY(pq * pp, pc) : pq * pp;
+      const costAmt = applyRowMin(pq * pp, id, 'cost');   // ミニマム（最低料金）を反映
+      const totalCostJPY = (typeof toJPY === 'function') ? toJPY(costAmt, pc) : costAmt;
       rows.push({ id, nm, un, sv, pt, pq, pp, pc, hidden, unitCostJPY, totalCostJPY });
     });
     return rows;

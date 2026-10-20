@@ -383,7 +383,7 @@
       const id = tr.id.replace('row-', '');
       const pq = val(`pq-${id}`), pp = val(`pp-${id}`);
       const bq = val(`bq-${id}`), bp = val(`bp-${id}`);
-      const cost = pq * pp, bill = bq * bp;
+      const cost = applyRowMin(pq * pp, id, 'cost'), bill = applyRowMin(bq * bp, id, 'sell');
       if (sameCurrency) {
         totalCost += cost;
         totalBill += bill;
@@ -1104,7 +1104,7 @@
     const newId = addRowAfter(srcId);
 
     // テキスト・数値・日付フィールドをコピー（zc = 0円確認済みフラグ／vf・vt = 有効期限を含む）
-    ['nm','pq','un','pp','mk','nt','sv','pt','zc','ac','ps','co','vf','vt','lu','ppmode','pprate','ppbase','ppref'].forEach(f => {
+    ['nm','pq','un','pp','mk','nt','sv','pt','zc','ac','ps','co','vf','vt','lu','ppmode','pprate','ppbase','ppref','ppmin','bpmin'].forEach(f => {
       const srcEl = document.getElementById(`${f}-${srcId}`);
       const dstEl = document.getElementById(`${f}-${newId}`);
       if (srcEl && dstEl) dstEl.value = srcEl.value;
@@ -1303,7 +1303,7 @@
     const q    = f => frag.querySelector(`[data-field="${f}"]`);
 
     // IDs
-    ['cat','tx','nm','pq','un','pc','pp','cd','bq','bc','bp','mk','st','pr','nt','sv','pt','zc','ac','ps','co','ri','es','vf','vt','lu','ppmode','pprate','ppbase','uid','ppref']
+    ['cat','tx','nm','pq','un','pc','pp','cd','bq','bc','bp','mk','st','pr','nt','sv','pt','zc','ac','ps','co','ri','es','vf','vt','lu','ppmode','pprate','ppbase','uid','ppref','ppmin','bpmin']
       .forEach(f => { const el = q(f); if (el) el.id = `${f}-${id}`; });
     const zcBtn = frag.querySelector('.zero-confirm-btn');
     if (zcBtn) zcBtn.onclick = () => toggleZeroConfirmed(id);;
@@ -1321,6 +1321,9 @@
     if (pctBtn) pctBtn.onclick = () => togglePctMode(id);
     const sellBtn = frag.querySelector('.sell-mode-btn');
     if (sellBtn) sellBtn.onclick = () => toggleSellMode(id);
+    const minBtn = frag.querySelector('.min-mode-btn');
+    if (minBtn) minBtn.onclick = () => toggleMinMode(id);
+    ['ppmin', 'bpmin'].forEach(f => { const el = q(f); if (el) el.oninput = () => calc(id); });
     const mregBtn = frag.querySelector('.master-reg-btn');
     if (mregBtn) mregBtn.onclick = () => registerRowToMaster(id);
     const mdetBtn = frag.querySelector('.master-detail-jump-btn');
@@ -1599,18 +1602,21 @@
     } else if (!indep) {
       // 連動モード：売通貨＝仕入通貨、売単価＝仕入単価＋乗せ幅
       if (bcEl) bcEl.value = pc;
-      if (bpEl) { bpEl.dataset.base = pp; bpEl.value = pp + mk; }
+      if (bpEl) { bpEl.dataset.base = pp; bpEl.value = _addPrice(pp, mk); }
     } else if (bpEl) {
       // 独立モード：売通貨は保持したまま、基準額（換算後の仕入単価）を追随させる。
       // 売単価＝基準額＋乗せ幅（売通貨建て）
       const base = _indepBase(id);
       bpEl.dataset.base = base;
-      bpEl.value = base + mk;
+      bpEl.value = _addPrice(base, mk);
       _updateBpBaseHint(id);
     }
     calc(id);
     _recalcPctDependents(id);
   }
+
+  // 売単価＝基準額＋乗せ幅。小数の足し算の誤差（0.1 + 0.05 = 0.15000000000000002）を表示・計算に持ち込まない
+  function _addPrice(a, b) { return Math.round((a + b) * 1e6) / 1e6; }
 
   function calc(id) {
     const pq = val(`pq-${id}`);
@@ -1621,12 +1627,25 @@
     // 売単価＝基準額＋乗せ幅。基準額は連動モードなら仕入単価、
     // 独立モードなら仕入単価を売通貨へ換算し 10 単位で切り捨てた値。
     // 売値ベースモードでは売単価そのものが入力値のため上書きしない
-    if (bpEl && !_isSellMode(id)) bpEl.value = (parseFloat(bpEl.dataset.base) || 0) + mk;
+    if (bpEl && !_isSellMode(id)) bpEl.value = _addPrice(parseFloat(bpEl.dataset.base) || 0, mk);
     const bp = val(`bp-${id}`);
     const pc = document.getElementById(`pc-${id}`)?.value || 'JPY';
     const bc = document.getElementById(`bc-${id}`)?.value || 'JPY';
-    const subtotal = bq * bp;             // 行の請求小計（数量 × 単価）
-    const profit   = subtotal - pq * pp;  // 行の利益（小計 - 支払い合計）
+    // 行の請求小計・支払い合計（数量 × 単価。ミニマム＝最低料金があれば、それを下回らない）
+    const costAmt  = applyRowMin(pq * pp, id, 'cost');
+    const subtotal = applyRowMin(bq * bp, id, 'sell');
+    const profit   = subtotal - costAmt;  // 行の利益（小計 - 支払い合計）
+    {
+      const trM = document.getElementById(`row-${id}`);
+      const hasMin = (parseFloat(document.getElementById(`ppmin-${id}`)?.value) || 0) > 0 ||
+                     (parseFloat(document.getElementById(`bpmin-${id}`)?.value) || 0) > 0;
+      if (trM) {
+        if (hasMin) trM.classList.add('row-min-mode');
+        trM.querySelector('.min-mode-btn')?.classList.toggle('is-on', trM.classList.contains('row-min-mode'));
+        const applied = subtotal > bq * bp || costAmt > pq * pp;
+        if (applied) trM.dataset.minApplied = '1'; else delete trM.dataset.minApplied;
+      }
+    }
     const canFx = typeof toJPY === 'function';
     const taxed = document.getElementById(`tx-${id}`)?.checked;
     const taxRate = (typeof getEffectiveTaxRate === 'function') ? getEffectiveTaxRate() : 0.10;
@@ -1721,7 +1740,7 @@
     const ccyMismatch = pc !== bc;
     const isFx = canFx && (bc !== 'JPY' || pc !== 'JPY') && (subtotal || profit);
     if (ccyMismatch && canFx) {
-      const jpyProfit = Math.ceil(toJPY(subtotal, bc) - toJPY(pq * pp, pc));
+      const jpyProfit = Math.ceil(toJPY(subtotal, bc) - toJPY(costAmt, pc));
       const jpySub = toJPY(subtotal, bc);
       // 粗利率（Industry のみ表示）は 3 段目に分ける（2 段目は 1 行で、並べると換算の注記が切れるため）
       const rate = jpySub > 0 ? '<div class="pr-sub"><small class="pr-rate">粗利 ' + (jpyProfit / jpySub * 100).toFixed(1) + '%</small></div>' : '';
@@ -1729,7 +1748,7 @@
         '<div class="pr-sub"><small class="jpy-conv-hint" title="仕入（' + pc + '）と売（' + bc + '）の通貨が異なるため、円換算後の差額のみを表示しています">円換算後</small></div>' + rate;
       pr.className = `profit-cell ${pClass(jpyProfit)}`;
     } else if (isFx) {
-      const jpyProfit = Math.ceil(toJPY(subtotal, bc) - toJPY(pq * pp, pc));
+      const jpyProfit = Math.ceil(toJPY(subtotal, bc) - toJPY(costAmt, pc));
       const rate = subtotal > 0 ? '<div class="pr-sub"><small class="pr-rate">粗利 ' + (profit / subtotal * 100).toFixed(1) + '%</small></div>' : '';
       pr.innerHTML = '<div class="pr-main">' + fmt(profit) + '</div><div class="pr-sub"><small class="jpy-conv-hint">(≈¥' + fmt(jpyProfit) + ')</small></div>' + rate;
       pr.className = `profit-cell ${pClass(profit)}`;
@@ -1820,6 +1839,23 @@
     if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
   }
   window.toggleEstimate = toggleEstimate;
+
+  // ========== ミニマム（最低料金）==========
+  // ON：最低料金の入力欄を出す（Industry は「その他 ▾」の中）。OFF：最低料金を消して通常の「数量 × 単価」に戻す
+  function toggleMinMode(id) {
+    const tr = document.getElementById(`row-${id}`);
+    if (!tr) return;
+    const on = !tr.classList.contains('row-min-mode');
+    tr.classList.toggle('row-min-mode', on);
+    if (!on) ['ppmin', 'bpmin'].forEach(f => { const el = document.getElementById(`${f}-${id}`); if (el) el.value = ''; });
+    calc(id);
+    if (on) {
+      if (window.rowDetailToggle && !document.getElementById(`bpmin-${id}`)?.offsetParent) window.rowDetailToggle(tr, true);
+      setTimeout(() => { const el = document.getElementById(`bpmin-${id}`); if (el && el.offsetParent) el.focus(); }, 0);
+    }
+    if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
+  }
+  window.toggleMinMode = toggleMinMode;
 
   // ========== % 計算モード ==========
   function togglePctMode(id) {
@@ -2130,8 +2166,8 @@
       const bq  = val(`bq-${id}`);
       const bp  = val(`bp-${id}`);
       const taxed = document.getElementById(`tx-${id}`)?.checked || false;
-      const cost = pq * pp;
-      const sub  = bq * bp;
+      const cost = applyRowMin(pq * pp, id, 'cost');
+      const sub  = applyRowMin(bq * bp, id, 'sell');
       totCost += cost;
       totBill += sub;
       totSub  += sub;
@@ -2426,8 +2462,8 @@
         const pp = val(`pp-${id}`);
         const bc = document.getElementById(`bc-${id}`)?.value || 'JPY';
         const pc = document.getElementById(`pc-${id}`)?.value || 'JPY';
-        const billRaw = bq * bp;
-        const costRaw = pq * pp;
+        const billRaw = applyRowMin(bq * bp, id, 'sell');
+        const costRaw = applyRowMin(pq * pp, id, 'cost');
         // JPY 換算は行ごと ceil で積み上げ（小計セパレータの小数表示を排除・合計と整合）
         groupBillJPY += SharedCalc.jpyRound(toJPY(billRaw, bc));
         groupCostJPY += SharedCalc.jpyRound(toJPY(costRaw, pc));
@@ -3958,7 +3994,7 @@
       const bq = val(`bq-${id}`) || val(`pq-${id}`) || 0;
       const bp = val(`bp-${id}`) || 0;
       const pp = val(`pp-${id}`) || 0;
-      let sell = bq * bp, cost = bq * pp;
+      let sell = applyRowMin(bq * bp, id, 'sell'), cost = applyRowMin(bq * pp, id, 'cost');
       const bc = document.getElementById(`bc-${id}`)?.value || 'JPY';
       const pc = document.getElementById(`pc-${id}`)?.value || 'JPY';
       let mixed = false;
@@ -4156,7 +4192,7 @@
 
   function _gatherRowData(id) {
     const data = {};
-    ['nm','pq','un','pp','mk','nt','sv','pt','zc','ac','ps','co','vf','vt','lu','cat','pc','bc','bp','ppmode','pprate','ppbase','uid','ppref'].forEach(f => {
+    ['nm','pq','un','pp','mk','nt','sv','pt','zc','ac','ps','co','vf','vt','lu','cat','pc','bc','bp','ppmode','pprate','ppbase','uid','ppref','ppmin','bpmin'].forEach(f => {
       const el = document.getElementById(`${f}-${id}`);
       if (el) data[f] = el.value;
     });
@@ -4176,7 +4212,7 @@
     } else {
       tbody.appendChild(newTr);
     }
-    ['nm','pq','un','pp','mk','nt','pt','zc','ac','ps','co','vf','vt','lu','ppmode','pprate','ppbase','ppref'].forEach(f => {
+    ['nm','pq','un','pp','mk','nt','pt','zc','ac','ps','co','vf','vt','lu','ppmode','pprate','ppbase','ppref','ppmin','bpmin'].forEach(f => {
       const el = document.getElementById(`${f}-${newId}`);
       if (el && data[f] !== undefined) el.value = data[f];
     });

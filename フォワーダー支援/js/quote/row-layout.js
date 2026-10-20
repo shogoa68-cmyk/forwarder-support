@@ -3,7 +3,7 @@
  * 役割
  *  1. 状態チップ（.st-state）と「その他 ▾」パネルの状態一覧（.rd-state）・金額の内訳（.rd-breakdown）・使用中バッジを描く
  *  2. tr[data-ccy-diff="1"]（仕入通貨≠売値通貨）と .cd-flag を更新する
- *  3. Industry のときだけ、有効期間（.w-valid）・フラグ群（.row-mode-btns）・% 入力（.pct-group）・CD（.row-cd）を
+ *  3. Industry のときだけ、有効期間（.w-valid）・フラグ群（.row-mode-btns）・% 入力（.pct-group）・ミニマム（.min-group）・CD（.row-cd）を
  *     パネルの中へ「要素ごと」移す（id・onclick・data-* は変えない）。classic に戻すと元の場所へ戻す
  *  4. パネルの開閉（その他 ▾／状態チップのクリック／Esc／外側クリック）
  *
@@ -19,7 +19,7 @@
   const fv = (id, f) => document.getElementById(`${f}-${id}`)?.value || '';
 
   // ===== 1. 要素の置き場所（Industry のときだけパネルへ） =====
-  const MOVES = [['.w-valid', 'valid'], ['.row-mode-btns', 'mode'], ['.pct-group', 'pct'], ['.row-cd', 'cd']];
+  const MOVES = [['.w-valid', 'valid'], ['.row-mode-btns', 'mode'], ['.pct-group', 'pct'], ['.min-group', 'min'], ['.row-cd', 'cd']];
 
   function syncPlacement(tr) {
     const ind = isInd();
@@ -57,6 +57,7 @@
     { label: 'PS', cls: '', tip: 'PROFIT SHARE（客先非表示・社内利益に計上）', on: (tr, id) => fv(id, 'ps') === '1' },
     { label: '参考', cls: '', tip: '参考情報（合計に加算しない）', on: (tr, id) => fv(id, 'ri') === '1' },
     { label: '概算', cls: '', tip: '概算（金額は目安）', on: (tr, id) => fv(id, 'es') === '1' },
+    { label: 'MIN 適用', cls: 'is-warn', tip: '最低料金（ミニマム）が「数量 × 単価」を上回るため、最低料金で計算している行', on: tr => tr.dataset.minApplied === '1' },
     { label: '% 計算', cls: '', tip: '仕入単価を「基準額 × %」で計算する行。率と基準額は「その他 ▾」で入力', on: tr => tr.classList.contains('row-pct-mode') },
     { label: '入力完了', cls: 'is-done', tip: '入力完了の目印', on: tr => tr.classList.contains('row-input-done') },
   ];
@@ -108,6 +109,7 @@
     if (fv(id, 'vf') || fv(id, 'vt')) n++;
     ['zc', 'ac', 'ps', 'co', 'ri', 'es'].forEach(f => { if (fv(id, f) === '1') n++; });
     if (fv(id, 'ppmode')) n++;
+    if ((parseFloat(fv(id, 'ppmin')) || 0) > 0 || (parseFloat(fv(id, 'bpmin')) || 0) > 0) n++;
     if (diff && cdv) n++;
     const badge = tr.querySelector('.row-detail-btn .used-badge');
     if (badge) {
