@@ -3091,7 +3091,7 @@
     const ttEl = document.getElementById('z2Tt');
     if (ttEl) { ttEl.value = ''; }
     if (typeof onZ2CarrierChange === 'function') onZ2CarrierChange();
-    document.getElementById('z2Carrier')?.focus();
+    document.getElementById('z2Pol')?.focus();   // 欄の並び（POL → POD → キャリア）の先頭へ
     if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
     if (typeof scheduleSnapshot === 'function') scheduleSnapshot();
     _triggerCarrierBmFetch();
@@ -3180,7 +3180,7 @@
     _routeEntries.splice(i, 1);
     _renderRouteEntries();
     if (typeof onZ2CarrierChange === 'function') onZ2CarrierChange();
-    document.getElementById('z2Carrier')?.focus();
+    document.getElementById('z2Pol')?.focus();   // 欄の並び（POL → POD → キャリア）の先頭へ
     if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
     if (typeof scheduleSnapshot === 'function') scheduleSnapshot();
   }

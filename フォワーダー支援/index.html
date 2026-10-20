@@ -2376,6 +2376,7 @@
           <li><strong>VGM</strong>：Verified Gross Mass（SOLAS 義務、コンテナ総重量の事前申告）</li>
           <li><strong>AMS / ISF / AFR / ENS / ACID</strong>：米国／米国 10+2／日本／EU／エジプトの<strong>事前申告制度</strong>。各国「ファイリングルール」タブ参照</li>
           <li><strong>サブコン</strong>：Sub-Contractor。見積の行ごとの<strong>費用の支払い先</strong>（協力会社・下請業者。集荷・通関・配送の業者、海上運賃なら船会社や NVOCC など）</li>
+          <li><strong>ヨコヨコ提示</strong>：マージン（乗せ幅）を乗せず、買値（仕入）をそのまま提示すること。同業者向けの見積で多い</li>
           <li><strong>キャリア（契約先）</strong>：幹線輸送で運賃を契約・ブッキングする相手。船会社のほか、NVOCC やコローダーのこともある</li>
           <li><strong>実運送人（実際の船）</strong>：実際に貨物を運ぶ船会社・航空会社。例：NVOCC の△△と契約しても、実際の船は ONE ＝ キャリア「△△」・役割「NVOCC」・実際の船「ONE」</li>
           <li><strong>NVOCC</strong>：自社の船を持たず、船会社のスペースを使って運送を引き受ける事業者（LCL の混載業者など）</li>
@@ -2817,7 +2818,7 @@
               <button type="button" class="qf-status-btn"        data-status="提示済み" onclick="setQuoteStatus('提示済み')">提示済み</button>
               <button type="button" class="qf-status-btn"        data-status="改定中"   onclick="setQuoteStatus('改定中')">改定中</button>
               <button type="button" class="qf-status-btn"        data-status="情報待ち" onclick="setQuoteStatus('情報待ち')">情報待ち</button>
-              <button type="button" class="qf-status-btn"        data-status="ヨコヨコ提示" onclick="setQuoteStatus('ヨコヨコ提示')">ヨコヨコ提示</button>
+              <button type="button" class="qf-status-btn"        data-status="ヨコヨコ提示" onclick="setQuoteStatus('ヨコヨコ提示')" title="マージン（乗せ幅）を乗せず、買値をそのまま提示した見積（同業者向けで多い）">ヨコヨコ提示</button>
               <button type="button" class="qf-status-btn"        data-status="受注"    onclick="setQuoteStatus('受注')">受注</button>
               <button type="button" class="qf-status-btn"        data-status="失注"    onclick="setQuoteStatus('失注')">失注</button>
               <button type="button" class="qf-status-btn"        data-status="辞退"    onclick="setQuoteStatus('辞退')">辞退</button>
@@ -3077,6 +3078,26 @@
               <button type="button" class="zone-collapse-btn" onclick="toggleZoneCollapse(2)" title="折りたたむ/展開する">▼</button>
             </div>
             <div class="zone2-inputs">
+              <!-- 問い合わせで最初に分かる POL/POD を先に（キャリアはレート比較の後に決まることが多い） -->
+              <div class="z2-pol-pod-row">
+                <div class="z2-port">
+                  <span class="z2-port-label" title="Port of Loading（積み地港）：輸出港・出港地">📦 POL</span>
+                  <input type="text" id="z2Pol" class="z2-input" list="portSuggestions"
+                         placeholder="例）Yokohama">
+                </div>
+                <span class="z2-arrow">→</span>
+                <div class="z2-port z2-via-port">
+                  <span class="z2-port-label" title="経由地（トランシップ港など）。省略可">⚓ Via</span>
+                  <input type="text" id="z2Via" class="z2-input" list="portSuggestions"
+                         placeholder="経由地（任意）">
+                </div>
+                <span class="z2-arrow">→</span>
+                <div class="z2-port">
+                  <span class="z2-port-label" title="Port of Discharge（揚げ地港）：輸入港・入港地">🏁 POD</span>
+                  <input type="text" id="z2Pod" class="z2-input" list="portSuggestions"
+                         placeholder="例）Shanghai">
+                </div>
+              </div>
               <div class="z2-row">
                 <span class="z2-label" id="z2ModeIcon">🚢</span>
                 <input type="text" id="z2Carrier" class="z2-input" list="carriers-dl"
@@ -3108,25 +3129,6 @@
                 </div>
               </div>
               <div id="z2CarrierLinks" class="carrier-links-panel" style="display:none"></div>
-              <div class="z2-pol-pod-row">
-                <div class="z2-port">
-                  <span class="z2-port-label" title="Port of Loading（積み地港）：輸出港・出港地">📦 POL</span>
-                  <input type="text" id="z2Pol" class="z2-input" list="portSuggestions"
-                         placeholder="例）Yokohama">
-                </div>
-                <span class="z2-arrow">→</span>
-                <div class="z2-port z2-via-port">
-                  <span class="z2-port-label" title="経由地（トランシップ港など）。省略可">⚓ Via</span>
-                  <input type="text" id="z2Via" class="z2-input" list="portSuggestions"
-                         placeholder="経由地（任意）">
-                </div>
-                <span class="z2-arrow">→</span>
-                <div class="z2-port">
-                  <span class="z2-port-label" title="Port of Discharge（揚げ地港）：輸入港・入港地">🏁 POD</span>
-                  <input type="text" id="z2Pod" class="z2-input" list="portSuggestions"
-                         placeholder="例）Shanghai">
-                </div>
-              </div>
               <div class="z2-row z2-tt-row">
                 <span class="z2-label" style="visibility:hidden">🚢</span>
                 <span class="z2-tt-prefix" title="Transit Time（積地→揚地のおおよその所要日数）">⏱️ T/T</span>
