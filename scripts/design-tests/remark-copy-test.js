@@ -43,7 +43,8 @@ const http=require('http'),fs=require('fs'),path=require('path');
  await p.evaluate(()=>cloudImportSelectedRows());await p.waitForTimeout(800);
  const res=await p.evaluate(()=>[...document.querySelectorAll('#tableBody tr')].filter(t=>!t.dataset.virtual).map(t=>t.dataset.type==='remark'?{t:'remark',text:t.querySelector('.remark-row-input').value,internal:t.dataset.internal==='1',parent:t.dataset.parentId||null,prev:t.previousElementSibling?.id}:{t:'data',id:t.id,nm:t.querySelector('[data-field=nm]')?.value}));
  console.log(JSON.stringify(res));
- const data=res.filter(r=>r.t==='data'),rem=res.filter(r=>r.t==='remark');
+ // 新規見積に最初からある空行（品名なし）は appendQuoteRows が置き換えない仕様（#495 以来「末尾に追加」）なので比較から除く
+ const data=res.filter(r=>r.t==='data'&&(r.nm||'').trim()),rem=res.filter(r=>r.t==='remark');
  ok('選択した2行だけ追加（B・C）',data.length===2&&data.map(d=>d.nm).sort().join()==='運賃B,運賃C',JSON.stringify(data));
  ok('Bのリマーク2件が追加され、社内メモの種別も保持',rem.length===2&&rem.some(r=>r.text==='B社内メモ'&&r.internal)&&rem.some(r=>r.text==='Bのリマーク1'&&!r.internal),JSON.stringify(rem));
  const bId=data.find(d=>d.nm==='運賃B').id.replace('row-','');
