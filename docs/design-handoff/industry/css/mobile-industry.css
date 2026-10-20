@@ -1,0 +1,27 @@
+/* mobile-industry.css — C スマホ幅（〜600px）。読み込み：最後 */
+@media (max-width: 600px) {
+  /* ツールバー：1段（戻る／元に戻す／やり直す／⋯）。他は「⋯」へ。ボタンは 44px 以上 */
+  .tb-extra, .tb-text-size, #toolbarMail, #toolbarSubconMail, #toolbarBrowserSave { display: none !important; }   /* ⋯メニューの中には JS が出す */
+  .quote-toolbar { display: flex; flex-wrap: nowrap; align-items: center; gap: 8px; padding: 8px 12px; }
+  .quote-toolbar button { min-height: 44px; min-width: 44px; white-space: nowrap; border-radius: 0; }
+  .quote-toolbar .tb-spacer { flex: 1; }
+  /* かんたん／詳細：全幅の2分割（ツールバーの外、見出しの下） */
+  .mode-switch { display: flex; width: 100%; padding: 8px 12px; box-sizing: border-box; }
+  .mode-switch > * { flex: 1; text-align: center; min-height: 44px; line-height: 42px; border-radius: 0; }
+  /* 下のドック：浮かせず、固定の3分割バー。ページ下に 72px の余白 */
+  #quoteDock { position: sticky; bottom: 0; left: 0; right: 0; display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0; background: var(--color-bg, #f2f2f3); border-top: 1px solid var(--color-text, #1d1f20); box-shadow: none; }
+  #quoteDock > button { min-height: 48px; border: 0; border-right: 1px solid var(--color-neutral-400, #b7b7ba); border-radius: 0; font-size: 13px; background: transparent; }
+  #quoteDock > button:last-child { border-right: 0; background: var(--color-accent-900, #1d2d3d); color: var(--color-bg, #f2f2f3); font-weight: 700; }
+  #tab-quote-make { padding-bottom: 72px; }
+  /* 入力欄は 44px（タッチ）。ラベルは上 */
+  #tab-quote-make input:not([type=checkbox]), #tab-quote-make select { min-height: 44px; }
+
+  /* 明細テーブル：カード型（別案）。行レイアウト v3 の DOM をそのまま使い、tr を grid にする */
+  #quoteTable thead { display: none; }
+  #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) { display: grid; grid-template-columns: 28px minmax(0,1fr) auto; grid-template-areas: "chk name sub" "chk qty qty" "chk price price" "chk catsv catsv" "chk more more"; gap: 8px 10px; height: auto; padding: 12px 12px 12px 14px; border-bottom: 1px solid var(--color-neutral-300, #d4d4d7); box-shadow: inset 4px 0 0 var(--color-accent-200, #d6ebff); }
+  #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) > td { display: block; height: auto; width: auto; min-width: 0; padding: 0; box-shadow: none; }
+  #quoteTable td.check-cell { grid-area: chk; } #quoteTable td.handle-cell, #quoteTable td.tax-cell, #quoteTable td.profit-cell { display: none; }
+  #quoteTable td.name-cell { grid-area: name; } #quoteTable td.subtotal-cell { grid-area: sub; text-align: right; }
+  #quoteTable td.qty-cell { grid-area: qty; } #quoteTable td.price-cell { grid-area: price; } #quoteTable td.catsv-cell { grid-area: catsv; } #quoteTable td.ccy-cell { display: none; }
+  #quoteTable td.qty-cell .qty-wrap { grid-template-rows: none; grid-template-columns: 1fr 1fr; column-gap: 8px; }
+}

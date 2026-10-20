@@ -1,0 +1,66 @@
+/* quote-states-industry.css — A-1（見出しを減らす）／A-2（ミニマム）／A-3（枠の言語）
+   読み込み：…→ quote-row-stage2-industry.css → quote-states-industry.css（最後） */
+
+/* ===== A-3 枠の言語 =====
+   実線＝入力できる／点線＋灰地＝表示専用（これだけ）／右上の三角＝未登録の名前／太い赤枠＋「!」＝エラー */
+#tab-quote-make #quoteTable input.name-unregistered, #tab-quote-make #quoteTable select.name-unregistered {
+  border: 1px solid var(--color-neutral-400, #b7b7ba) !important;   /* 橙の点線をやめ、実線に戻す */
+  background-color: #fff;
+  background-image: linear-gradient(225deg, #8a5a2b 0 8px, transparent 8px);   /* 右上の角の三角（形でも伝える） */
+  background-repeat: no-repeat; }
+#tab-quote-make #quoteTable input.name-unregistered:focus { background-image: none; }   /* 入力中は出さない（JS は blur 後に class を付ける） */
+#tab-quote-make #quoteTable input.is-invalid, #tab-quote-make #quoteTable select.is-invalid { border: 2px solid #b0392e !important; color: #b0392e; }
+#tab-quote-make #quoteTable .field-msg { color: #b0392e; font-size: 11px; font-weight: 600; }
+#tab-quote-make #quoteTable .field-msg::before { content: "! "; font-weight: 700; }
+
+/* ===== A-1 見出しを減らす（JS が class を付ける。DOM は残す） =====
+   is-pt-solo : サブコンのパターンが「設定なし」1つだけ → パターン見出しを隠す
+   is-cat-solo: パターンのカテゴリが1つだけ → カテゴリ見出しを隠し、名前をパターン見出しの右に出す */
+#tab-quote-make #quoteTable tr.subcon-subgroup-header.is-pt-solo { display: none; }
+#tab-quote-make #quoteTable tr.subcon-cat-header.is-cat-solo { display: none; }
+#tab-quote-make #quoteTable tr.subcon-subgroup-header .pt-cat-inline { font-size: 12px; color: var(--color-accent-700, #416180); margin-left: 6px; }
+#tab-quote-make #quoteTable tr.subcon-subgroup-header .pt-cat-inline::before { content: "· "; }
+/* 「パターンなし」を名前付きと見分ける：灰色＋灰の左線、文言から 🔖 と括弧を外す（HTML） */
+#tab-quote-make #quoteTable tr.subcon-subgroup-header.is-pt-unset td { background: var(--color-neutral-200, #e7e7ea); box-shadow: inset 4px 0 0 var(--color-neutral-500, #98989b); border-bottom-color: var(--color-neutral-400, #b7b7ba); }
+#tab-quote-make #quoteTable tr.subcon-subgroup-header.is-pt-unset .subcon-subgroup-leg { color: var(--color-neutral-800, #424244); }
+#tab-quote-make #quoteTable tr.subcon-subgroup-header.is-pt-unset .subcon-subgroup-leg::before { color: var(--color-neutral-600, #7a7a7d); }
+/* カテゴリ見出しは細く（26px）、「カテゴリ」の語は付けない */
+#tab-quote-make #quoteTable tr.subcon-cat-header .subcon-cat-inner { min-height: 26px; }
+#tab-quote-make #quoteTable tr.subcon-cat-header .subcon-cat-label::before { content: none; }
+#tab-quote-make #quoteTable tr.subcon-cat-header td { background: var(--color-neutral-100, #f5f5f8); }
+/* 小計行：1行目＝売値合計（大）、補助（仕入・粗利率）は右に小さく。入力欄は「注記 ▾」に畳む（HTML：.st-notes で包む） */
+#tab-quote-make #quoteTable tr.subcon-group-subtotal .st-notes, #tab-quote-make #quoteTable tr.subcon-pattern-subtotal .st-notes { display: none; }
+#tab-quote-make #quoteTable tr.subcon-group-subtotal.is-notes-open .st-notes, #tab-quote-make #quoteTable tr.subcon-pattern-subtotal.is-notes-open .st-notes { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; padding-top: 8px; border-top: 1px solid var(--color-neutral-300, #d4d4d7); }
+#tab-quote-make #quoteTable .st-notes-btn { height: 30px; padding: 0 12px; border: 1px solid var(--color-neutral-500, #98989b); background: transparent; border-radius: 0; font-size: 12px; cursor: pointer; }
+#tab-quote-make #quoteTable .st-notes-btn.has-value::after { content: " ●"; color: var(--color-accent-700, #416180); font-size: 9px; vertical-align: middle; }
+
+/* ===== A-2 ミニマム ===== */
+/* オンなのに未入力：ボタンに「未入力」を書く（JS が .is-empty を付与。文字は ::after で足せる） */
+#tab-quote-make #quoteTable .min-mode-btn.is-on.is-empty::after { content: "　未入力"; font-weight: 600; }
+#tab-quote-make #quoteTable .row-detail-panel .min-group { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+#tab-quote-make #quoteTable .row-detail-panel .min-group .min-hint { font-size: 12px; color: var(--color-neutral-700, #5d5d60); }
+#tab-quote-make #quoteTable .row-detail-panel .min-group input.w-min { width: 100px; height: 32px; text-align: right; }
+#tab-quote-make #quoteTable .row-detail-panel .min-group .is-empty input.w-min, #tab-quote-make #quoteTable .row-detail-panel .min-group input.w-min.is-empty { border-color: #8a5a2b; }
+/* 適用中：売値の欄の左に「Min. 28.00 適用」を重ねる（HTML：.stk-sell に <span class="min-note">） */
+#tab-quote-make #quoteTable tr[data-min-applied="1"] td.price-cell .stk-sell { position: relative; }
+#tab-quote-make #quoteTable tr[data-min-applied="1"] td.price-cell .stk-sell .min-note { position: absolute; left: 26px; top: 6px; height: 20px; line-height: 18px; box-sizing: border-box; padding: 0 6px; font-size: 11px; font-weight: 700; white-space: nowrap; border: 1px solid #8a5a2b; color: #8a5a2b; background: #fff; }
+#tab-quote-make #quoteTable tr[data-min-applied="1"] td.price-cell .stk-sell .min-note::after { content: ""; }
+#tab-quote-make #quoteTable td.price-cell .stk-sell .min-note { display: none; }
+#tab-quote-make #quoteTable .state-chip.is-min { border-color: #8a5a2b; color: #8a5a2b; }
+
+/* ===== A-4 用語の説明：右ドロワー（#quoteGlossary の中身を .glossary-drawer に入れる） ===== */
+.glossary-drawer { position: fixed; top: 0; right: 0; bottom: 0; width: 460px; max-width: 100vw; z-index: 60; display: flex; flex-direction: column; background: #fff; border-left: 1px solid var(--color-text, #1d1f20); box-shadow: var(--shadow-lg); }
+.glossary-drawer[hidden] { display: none; }
+.glossary-drawer .gl-head { display: flex; align-items: center; padding: 12px 16px; border-bottom: 1px solid var(--color-text, #1d1f20); font-family: var(--font-heading); font-weight: 700; font-size: 20px; letter-spacing: .08em; }
+.glossary-drawer .gl-search { margin: 10px 16px; height: 36px; padding: 0 12px; border: 1px solid var(--color-neutral-500, #98989b); border-radius: 0; box-sizing: border-box; }
+.glossary-drawer .gl-groups { display: flex; flex-wrap: wrap; gap: 6px; padding: 0 16px 10px; border-bottom: 1px solid var(--color-neutral-300, #d4d4d7); }
+.glossary-drawer .gl-groups button { height: 30px; padding: 0 12px; border: 1px solid var(--color-text, #1d1f20); background: #fff; font-size: 12px; font-weight: 600; border-radius: 0; }
+.glossary-drawer .gl-groups button.is-on { background: var(--color-text, #1d1f20); color: var(--color-bg, #f2f2f3); }
+.glossary-drawer .gl-list { flex: 1; overflow: auto; padding: 0 16px 24px; }
+.glossary-drawer .gl-item { display: grid; grid-template-columns: 96px 1fr; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--color-neutral-300, #d4d4d7); line-height: 1.7; }
+.glossary-drawer .gl-term { font-family: var(--font-heading); font-size: 16px; font-weight: 700; color: var(--color-accent-800, #2c455d); }
+.glossary-drawer .gl-body { display: flex; flex-direction: column; gap: 2px; }
+.glossary-drawer .gl-full { font-weight: 700; }
+.glossary-drawer .gl-full:empty { display: none; }
+#tab-quote-make #quoteTable #tot-fx-note { font-size: 12px; color: var(--color-accent-300, #b5d9fd); }
+#tab-quote-make #quoteTable #tot-fx-note::first-letter { color: var(--color-bg, #f2f2f3); font-weight: 700; }

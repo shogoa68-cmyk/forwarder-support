@@ -108,3 +108,27 @@
 /* ---- ミニマム（最低料金）の入力欄：「その他 ▾」パネルの中では、MIN が ON の行だけ出す（% の入力群と同じ扱い） ---- */
 #tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]):not(.row-min-mode) .row-detail-panel .min-group { display: none !important; }
 #tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) .row-detail-panel .min-group .w-min { width: 120px !important; }
+
+/* ================= 新しい画面・部品の整理（07 回答）の実装側の補正（quote-states／master-admin／mobile の「後」） ================= */
+/* A-3 枠の言語：現行の橙の点線（outline）を消す。Design の CSS は border だけを実線に戻し、outline が残るため */
+#tab-quote-make input.name-unregistered, #tab-quote-make #quoteTable input.name-unregistered { outline: none !important; }
+/* A-1 小計行：「注記 ▾」ボタンは現行では隠している。Industry では表示（Design の .st-notes-btn の見た目は display を持たない） */
+#tab-quote-make #quoteTable .st-notes-btn { display: inline-flex; align-items: center; }
+#tab-quote-make #quoteTable .st-notes { display: none; }
+#tab-quote-make #quoteTable tr.is-notes-open .st-notes { display: flex; }
+#tab-quote-make #quoteTable .subcon-subtotal-inner .st-alias, #tab-quote-make #quoteTable .subcon-subtotal-inner .subcon-subtotal-add-btn, #tab-quote-make #quoteTable .subcon-subtotal-inner .st-remark { order: 0; }
+#tab-quote-make #quoteTable .subcon-subtotal-inner .st-notes { flex-basis: 100%; }
+#tab-quote-make #quoteTable .subcon-subtotal-inner .st-sell b { font-size: 17px; }   /* 売値合計を大きく */
+#tab-quote-make #quoteTable .subcon-subtotal-inner .st-cost b, #tab-quote-make #quoteTable .subcon-subtotal-inner .st-margin b { font-size: 13px; }
+/* A-2 ミニマム：Design の .min-note は、適用中の指定が display を持たず、既定の display:none が勝つため、適用中は表示する。空の文言（仕入側だけ適用）は出さない */
+#tab-quote-make #quoteTable tr[data-min-applied="1"] td.price-cell .stk-sell .min-note { display: block; }
+#tab-quote-make #quoteTable tr[data-min-applied="1"] td.price-cell .stk-sell .min-note:empty { display: none; }
+#tab-quote-make #quoteTable .row-detail-panel .min-group .min-lbl { font-size: 12px; }
+#tab-quote-make #quoteTable .row-detail-panel .min-group .min-hint { display: inline; }
+/* A-3：stage1 の「全入力欄 background:#fff」が三角（background-image）を消すため、三角は !important で当てる。入力中は出さない */
+#tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) > td input.name-unregistered:not(:focus) { background-image: linear-gradient(225deg, #8a5a2b 0 8px, transparent 8px) !important; background-repeat: no-repeat !important; }
+/* A-2：売値の欄の左に重ねる「Min. 28.00」は、数字と重ならないよう小さく */
+#tab-quote-make #quoteTable tr[data-min-applied="1"] td.price-cell .stk-sell .min-note { left: 28px; top: 7px; height: 18px; line-height: 16px; padding: 0 4px; font-size: 10px; }
+/* A-1：パターン見出しのカテゴリ名は、名前のすぐ右に（見出しの名前が余白を取り切らないように） */
+#tab-quote-make #quoteTable tr.subcon-subgroup-header .subcon-subgroup-inner:has(.pt-cat-inline) .subcon-subgroup-leg { flex: 0 0 auto; }
+#tab-quote-make #quoteTable tr.subcon-subgroup-header .pt-cat-inline { flex: 1 1 auto; }

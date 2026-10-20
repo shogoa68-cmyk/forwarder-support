@@ -4415,7 +4415,7 @@
               <input type="number" data-field="ppbase" class="w-pct-base" min="0" value="0" placeholder="基準額" title="基準金額（例: CIF価格・保険価格など。仕入通貨と同じ通貨で入力）" />
             </span>
           </span>
-          <span class="stk-sell"><span class="stk-tag t-sell">売</span><input type="number" data-field="bp" class="w-price display-field" value="0" tabindex="-1" readonly data-base="0" /><small class="bp-base-hint" hidden title="仕入単価を売通貨へ換算した正確な金額（端数切り捨て前）です。これを下回る売単価にすると赤字になります。※このライン自体が仕入通貨と売通貨の為替レートに基づく目安であり、実際のレートと差が出る場合があります"></small></span>
+          <span class="stk-sell"><span class="stk-tag t-sell">売</span><span class="min-note" aria-hidden="true"></span><input type="number" data-field="bp" class="w-price display-field" value="0" tabindex="-1" readonly data-base="0" /><small class="bp-base-hint" hidden title="仕入単価を売通貨へ換算した正確な金額（端数切り捨て前）です。これを下回る売単価にすると赤字になります。※このライン自体が仕入通貨と売通貨の為替レートに基づく目安であり、実際のレートと差が出る場合があります"></small></span>
           <span class="row-cd"><span class="row-cd-lbl" title="Currency Difference（通貨差調整値）">CD</span><input type="text" data-field="cd" class="w-cd display-field" value="" placeholder="—" tabindex="-1" readonly /></span>
           <span class="stk-mk"><span class="stk-mk-plus" title="乗せ幅（仕入単価に加算 → 売単価）">＋</span><input type="number" data-field="mk" class="w-mkup" min="0" value="0" data-col="5" title="乗せ幅：仕入単価に加算して売単価になります" /></span>
         </div>
@@ -4440,9 +4440,10 @@
           <button type="button" class="min-mode-btn" tabindex="-1" title="ミニマム（最低料金）：金額を「数量 × 単価」と最低料金の高いほうにします（例：Min. $28.00 or $0.15/kg）。もう一度クリックで解除。">MIN</button>
         </div>
         <span class="min-group" title="ミニマム（最低料金）：金額は「数量 × 単価」と最低料金の高いほうになります。仕入・売値それぞれに設定できます（空欄なら適用しない）">
-          <span class="min-lbl">MIN</span>
+          <span class="min-lbl">最低料金（MIN）</span>
           <span class="min-pair"><span class="t-cost">仕</span><input type="number" data-field="ppmin" class="w-min" min="0" step="0.01" placeholder="仕入の最低料金" /></span>
           <span class="min-pair"><span class="t-sell">売</span><input type="number" data-field="bpmin" class="w-min" min="0" step="0.01" placeholder="売値の最低料金" /></span>
+          <span class="min-hint"></span>
         </span>
         <span class="actual-cost-badge" aria-hidden="true">実費</span>
       </td>
