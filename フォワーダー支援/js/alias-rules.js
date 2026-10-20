@@ -720,13 +720,15 @@
       el => el.querySelector('.syn-suggest-apply').addEventListener('click', async () => {
         _dismissSuggest();
         // 誤字のまま登録されると、チーム全員の候補に出て表記の揺れの元になるため、ひと呼吸おく
-        if (!confirm('サブコン「' + value + '」をマスターに登録します。\nチーム全員の入力候補に出ます。表記（社名・略称・全角半角）に誤りがないか確認してください。\n\nよろしいですか？')) return;
+        const asRequest = typeof window.statsIsApprovalOn === 'function' && window.statsIsApprovalOn();
+        if (!confirm('サブコン「' + value + '」' + (asRequest ? 'のマスター登録を申請します（管理者の承認後に、チーム全員の入力候補に出ます）。' : 'をマスターに登録します。\nチーム全員の入力候補に出ます。') +
+          '\n表記（社名・略称・全角半角）に誤りがないか確認してください。\n\nよろしいですか？')) return;
         if (typeof window.statsEnsureMaster === 'function') await window.statsEnsureMaster('sv', value);
         const prev = (typeof window.mdGet === 'function' && window.mdGet('sv', value))?.details || {};
         if (typeof window.mdSave === 'function') await window.mdSave('sv', value, prev);
         _refreshDatalist();
         if (typeof window.statsRerenderActive === 'function') window.statsRerenderActive();
-        if (typeof window.quoteShowToast === 'function') window.quoteShowToast('📇 サブコン「' + value + '」をマスター登録しました', 'success', 2800);
+        if (!asRequest && typeof window.quoteShowToast === 'function') window.quoteShowToast('📇 サブコン「' + value + '」をマスター登録しました', 'success', 2800);
       }),
       12000);
   }
