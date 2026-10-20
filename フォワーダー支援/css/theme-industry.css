@@ -9753,3 +9753,37 @@ html.theme-industry {
 :where(html.theme-industry) #tab-master .master-table th:first-child {
   white-space: nowrap;
 }
+:where(html.theme-industry) .glossary-drawer .gl-close {
+  margin-left: auto;
+  width: 36px;
+  height: 36px;
+  border: 1px solid var(--color-neutral-500, #98989b);
+  background: transparent;
+  border-radius: 0;
+  cursor: pointer;
+  font-size: 14px;
+}
+:where(html.theme-industry) .glossary-drawer .gl-desc {
+  font-size: 13px;
+  color: var(--color-neutral-800, #424244);
+}
+:where(html.theme-industry) .glossary-drawer .gl-empty {
+  padding: 24px 0;
+  color: var(--color-neutral-700, #5d5d60);
+}
+:where(html.theme-industry) .glossary-drawer .gl-search:focus,
+:where(html.theme-industry) .glossary-drawer .gl-groups button:focus-visible,
+:where(html.theme-industry) .glossary-drawer .gl-close:focus-visible {
+  outline: 2px solid var(--color-accent, #5980a6);
+  outline-offset: 1px;
+}
+:where(html.theme-industry) .glossary-drawer {
+  z-index: 10060;
+}
+:where(html.theme-industry) .glossary-drawer .gl-item {
+  grid-template-columns: 120px 1fr;
+}
+:where(html.theme-industry) .glossary-drawer .gl-term {
+  font-size: 15px;
+  overflow-wrap: anywhere;
+}

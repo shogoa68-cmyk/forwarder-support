@@ -4773,7 +4773,73 @@
     window.scrollTo({ top, behavior: 'smooth' });
   };
 
+  // ===== 用語の説明：Industry は右からのドロワー（検索＋グループ）。現行は従来どおり、使い方の補足欄の用語集へスクロール =====
+  // 中身は #quoteGlossary 直後の <ul>（用語集）の <li> から作る（用語集の本文はここ 1 か所だけを直せばよい）
+  const _GL_GROUPS = [['all', '全部'], ['qty', '数量・重量'], ['fare', '運賃・チャージ'], ['doc', '書類・申告'], ['party', '取引・関係者'], ['sur', 'サーチャージ']];
+  function _glGroupOf(term) {
+    if (/BAF|CAF|PSS|GRI/.test(term)) return 'sur';
+    if (/D\/O|S\/I|VGM|AMS|ISF|DGD|MSDS/.test(term)) return 'doc';
+    if (/W\/M|R\/T|C\/W|GP|RF|FCL|POL/.test(term)) return 'qty';
+    if (/サブコン|キャリア|実運送人|NVOCC|コローダー|マスター/.test(term)) return 'party';
+    return 'fare';
+  }
+  function _glBuild() {
+    const ul = document.querySelector('#quoteGlossary + ul');
+    if (!ul) return [];
+    return Array.from(ul.children).map(li => {
+      const c = li.cloneNode(true);
+      const st = c.querySelector('strong');
+      const term = st ? st.textContent.trim() : '';
+      if (st) st.remove();
+      const rest = c.innerHTML.replace(/^\s*[：:]\s*/, '');
+      // 「正式名（説明）」の形だけ分ける。「A（a）／ B（b）」のように括弧が複数あるものは、そのまま本文に出す
+      const m = (rest.match(/[（(]/g) || []).length === 1 ? rest.match(/^([^（(<]*)[（(]([\s\S]*)[）)]\s*$/) : null;
+      return { term, full: m ? m[1].trim() : '', body: m ? m[2] : rest, group: _glGroupOf(term) };
+    });
+  }
+  let _glInit = false;
+  function _glRender(q, group) {
+    const list = document.querySelector('#glossaryDrawer .gl-list');
+    if (!list) return;
+    const needle = (q || '').trim().toLowerCase();
+    const items = _glBuild().filter(it => (group === 'all' || it.group === group) &&
+      (!needle || (it.term + ' ' + it.full + ' ' + it.body.replace(/<[^>]+>/g, '')).toLowerCase().includes(needle)));
+    const esc = t => String(t).replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
+    list.innerHTML = items.length ? items.map(it =>
+      '<div class="gl-item"><div class="gl-term">' + esc(it.term) + '</div><div class="gl-body">' +
+      '<div class="gl-full">' + esc(it.full) + '</div><div class="gl-desc">' + it.body + '</div></div></div>').join('')
+      : '<p class="gl-empty">該当する用語がありません。</p>';
+  }
+  function _glOpenDrawer() {
+    let d = document.getElementById('glossaryDrawer');
+    if (!d) {
+      d = document.createElement('aside');
+      d.id = 'glossaryDrawer'; d.className = 'glossary-drawer'; d.hidden = true;
+      d.setAttribute('role', 'dialog'); d.setAttribute('aria-label', '用語の説明');
+      d.innerHTML = '<div class="gl-head"><span>📖 用語の説明</span><button type="button" class="gl-close" aria-label="閉じる">✕</button></div>' +
+        '<input type="search" class="gl-search" placeholder="用語を検索（例：R/T、燃油）" aria-label="用語を検索">' +
+        '<div class="gl-groups">' + _GL_GROUPS.map(g => '<button type="button" data-g="' + g[0] + '"' + (g[0] === 'all' ? ' class="is-on"' : '') + '>' + g[1] + '</button>').join('') + '</div>' +
+        '<div class="gl-list"></div>';
+      document.body.appendChild(d);
+      let group = 'all';
+      const q = d.querySelector('.gl-search');
+      q.addEventListener('input', () => _glRender(q.value, group));
+      d.querySelector('.gl-groups').addEventListener('click', e => {
+        const b = e.target.closest('button[data-g]'); if (!b) return;
+        group = b.dataset.g;
+        d.querySelectorAll('.gl-groups button').forEach(x => x.classList.toggle('is-on', x === b));
+        _glRender(q.value, group);
+      });
+      d.querySelector('.gl-close').addEventListener('click', () => { d.hidden = true; });
+      document.addEventListener('keydown', e => { if (e.key === 'Escape' && !d.hidden) { d.hidden = true; } });
+      _glInit = true;
+    }
+    d.hidden = !d.hidden ? true : false;   // ボタンを押すたびに開閉
+    if (!d.hidden) { _glRender(d.querySelector('.gl-search').value, d.querySelector('.gl-groups .is-on')?.dataset.g || 'all'); d.querySelector('.gl-search').focus(); }
+  }
+
   window.openQuoteGlossary = function() {
+    if (document.documentElement.classList.contains('theme-industry') && document.querySelector('#quoteGlossary + ul')) { _glOpenDrawer(); return; }
     window.openQuoteTabHelp();
     const g = document.getElementById('quoteGlossary');
     if (!g) return;
