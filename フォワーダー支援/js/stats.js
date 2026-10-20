@@ -293,20 +293,31 @@
 
   // ゆらぎ判定用の正規化キー。NFKC で全角英数・半角カナ・㈱等の互換文字を統一し、
   // 記号・空白・長音等を除去、カタカナはひらがなへ寄せる。
-  // field==='customer' のときは「株式会社／(株)／㈱」等の法人格表記も除去する
-  // （「株式会社ハブネット」「ハブネット(株)」を同一視するため）。
-  const _CORP_RE = /株式会社|有限会社|合同会社|合資会社|\(株\)|\(有\)|\(合\)|\(同\)|\bco\.?,?\s*ltd\b\.?|\binc\b\.?|\bcorp\b\.?|\bllc\b/g;
+  // field==='customer' のときは日本の法人格（株式会社／(株)／㈱／有限会社／合同会社…）を
+  // 社名本体から切り離し、位置（前置・後置）の違いだけを吸収する（「株式会社ハブネット」＝「ハブネット(株)」）。
+  // 法人格の種類（株／有／合同…）はキーに残すので、「有限会社ABC」と「株式会社ABC」は別扱い。
+  // 英文の Co., Ltd / Inc / Corp は海外法人など別会社を取り違えやすいため、除去せず社名の一部として扱う。
+  // （法人格の無い表記を、種類が一意な表記へ寄せるのは _groupSimilar の後段で行う）
+  const _JP_FORMS = [['株式会社', '株'], ['(株)', '株'], ['有限会社', '有'], ['(有)', '有'],
+                     ['合同会社', '合同'], ['(合)', '合同'], ['(同)', '合同'], ['合資会社', '合資']];
+  const _FORM_SEP = '\x03';
   function _normalize(s, field) {
     let t = String(s == null ? '' : s)
       .normalize('NFKC')
       .replace(/^\*+/, '')                   // 課税マーク（品名先頭の *）を除去
       .replace(/【[^】]*】/g, '')
       .toLowerCase();
-    if (field === 'customer') t = t.replace(_CORP_RE, '');
+    let form = '';
+    if (field === 'customer') {
+      const forms = new Set();
+      _JP_FORMS.forEach(([tok, kind]) => { if (t.includes(tok)) { forms.add(kind); t = t.split(tok).join(''); } });
+      form = [...forms].sort().join('+');
+    }
     t = t
       .replace(/[\s　・ー―\-\/\\.,，、。()「」『』"'“”]+/g, '')
       .replace(/[ァ-ン]/g, c => String.fromCharCode(c.charCodeAt(0) - 0x60));
-    return t || String(s == null ? '' : s).normalize('NFKC').toLowerCase();   // 全文が除去対象でも空キーにしない
+    if (!t) return String(s == null ? '' : s).normalize('NFKC').toLowerCase();   // 全文が除去対象でも空キーにしない
+    return form ? t + _FORM_SEP + form : t;
   }
 
   function _groupSimilar(names, excl, field) {
@@ -334,6 +345,26 @@
       g.variants.push({ value, count });
       g.total += count;
     });
+    // お客様：法人格の無い表記は、同じ社名本体で法人格の種類が1つに決まるときだけそこへ寄せる。
+    // （「ハブネット」→「株式会社ハブネット」。「株式会社ABC」「有限会社ABC」のように種類が複数なら寄せない）
+    if (field === 'customer') {
+      const byCore = new Map();   // 社名本体 → { forms: [key...], none: key|null }
+      [...groups.keys()].forEach(k => {
+        if (k.charCodeAt(0) < 4) return;   // 除外(\x01)・略称(\x02)キーは対象外
+        const i = k.indexOf(_FORM_SEP);
+        const core = i < 0 ? k : k.slice(0, i);
+        if (!byCore.has(core)) byCore.set(core, { forms: [], none: null });
+        if (i < 0) byCore.get(core).none = k; else byCore.get(core).forms.push(k);
+      });
+      byCore.forEach(v => {
+        if (v.none && v.forms.length === 1) {
+          const tgt = groups.get(v.forms[0]), src = groups.get(v.none);
+          tgt.variants.push(...src.variants);
+          tgt.total += src.total;
+          groups.delete(v.none);
+        }
+      });
+    }
     // 略称グループは正式名称を先頭に
     groups.forEach(g => {
       if (g.isAbbrevGroup && g.canonical) {
@@ -975,6 +1006,22 @@
   // 「このお客様に・この品名を・いくらで仕入れ・いくらで売ったか」を明細行から集計する。
   // 品名は課税マーク * を除去して他タブと同じ正規化を適用。単価未入力の行は対象外。
   let _custItemBy = 'customer';   // 'customer' | 'nm'
+
+  // 明細1行の（仕入, 売）を JPY 換算で返す。粗利率に使えるのは「両方が入力済みで換算できる行」だけ。
+  // 片側だけ入力された行・為替レート未取得の行を混ぜると、売だけ／仕入だけが積まれて粗利率が
+  // 歪むため {skip} を返し、呼び出し側で除外行として数えて画面に注記する。
+  function _pairJ(c) {
+    const pp = _num(c[CI.pp]), bp = _num(c[CI.bp]);
+    if (pp == null || bp == null) return { skip: 'partial' };
+    const pq = _num(c[5]) > 0 ? _num(c[5]) : 1;
+    const bq = _num(c[CI.bq]) > 0 ? _num(c[CI.bq]) : 1;
+    const pc = (c[CI.pc] || 'JPY').trim() || 'JPY';
+    const bc = (c[CI.bc] || 'JPY').trim() || 'JPY';
+    const cost = _toJ(minAmt(pp * pq, c[CI.ppmin]), pc);
+    const bill = _toJ(minAmt(bp * bq, c[CI.bpmin]), bc);
+    if (cost == null || bill == null || !isFinite(cost) || !isFinite(bill)) return { skip: 'fx' };
+    return { cost, bill };
+  }
   function _buildCustItemStats(source) {
     const map = new Map();   // customer + '\x00' + nm → 集計
     const add = (p, isCloud) => {
@@ -989,20 +1036,18 @@
         const nm = (c[CI.nm] || '').replace(/^\*+/, '').trim();
         const pp = _num(c[10]), bp = _num(c[11]);
         if (!nm || (pp == null && bp == null)) return;   // 品名・単価どちらも無ければ対象外
-        const pq = _num(c[5]) > 0 ? _num(c[5]) : 1;
-        const bq = _num(c[7]) > 0 ? _num(c[7]) : 1;
         const pc = (c[8] || 'JPY').trim() || 'JPY';
         const bc = (c[9] || 'JPY').trim() || 'JPY';
         const un = (c[6] || '').trim();
         const key = customer + '\x00' + nm;
         if (!map.has(key)) {
-          map.set(key, { customer, nm, count: 0, lastTs: 0, lastPp: null, lastPc: 'JPY', lastBp: null, lastBc: 'JPY', lastUn: '', costSum: 0, billSum: 0 });
+          map.set(key, { customer, nm, count: 0, lastTs: 0, lastPp: null, lastPc: 'JPY', lastBp: null, lastBc: 'JPY', lastUn: '', costSum: 0, billSum: 0, pairs: 0, skipped: 0 });
         }
         const g = map.get(key);
         g.count++;
         if (ts >= g.lastTs) { g.lastTs = ts; g.lastPp = pp; g.lastPc = pc; g.lastBp = bp; g.lastBc = bc; g.lastUn = un; }
-        if (pp != null) { const costJ = _toJ(minAmt(pp * pq, c[CI.ppmin]), pc); if (costJ != null) g.costSum += costJ; }
-        if (bp != null) { const billJ = _toJ(minAmt(bp * bq, c[CI.bpmin]), bc); if (billJ != null) g.billSum += billJ; }
+        const pr = _pairJ(c);
+        if (pr.skip) g.skipped++; else { g.costSum += pr.cost; g.billSum += pr.bill; g.pairs++; }
       });
     };
     if (source !== 'cloud') _getLocalPresets().forEach(p => add(p, false));
@@ -1029,6 +1074,7 @@
       const c = (cur || 'JPY').trim() || 'JPY';
       return c === 'JPY' ? '¥' + Math.round(n).toLocaleString('ja-JP') : c + ' ' + n.toLocaleString('ja-JP', { maximumFractionDigits: 2 });
     };
+    const skippedRows = rows.reduce((n, r) => n + (r.skipped || 0), 0);
     const groups = new Map();
     rows.forEach(r => {
       const k = r[keyField];
@@ -1042,7 +1088,8 @@
     let h = '<div class="svp-toolbar"><span class="svp-by-label">グループ基準</span>' +
             `<button class="svp-by-btn${by === 'customer' ? ' is-active' : ''}" onclick="statsCustItemBy('customer')">👤 お客様別</button>` +
             `<button class="svp-by-btn${by === 'nm' ? ' is-active' : ''}" onclick="statsCustItemBy('nm')">📝 品名別</button></div>` +
-            '<p class="stats-syn-hint">案件の明細行から、お客様ごと・品名ごとの仕入単価と売単価を集計します。単価は直近使用時の値（通貨そのまま）、粗利率は全件JPY換算の合計から算出します。</p>';
+            '<p class="stats-syn-hint">案件の明細行から、お客様ごと・品名ごとの仕入単価と売単価を集計します。単価は直近使用時の値（通貨そのまま）、粗利率は仕入・売の両方が入力済みの行だけをJPY換算して合計から算出します' +
+            (skippedRows ? `（仕入・売の片方のみ、または為替未取得の ${skippedRows} 行は粗利率から除外）` : '') + '。</p>';
 
     list.slice(0, _limitOf('statsPane-custitem')).forEach(g => {
       const margin = (window.SharedCalc && g.bill > 0) ? SharedCalc.grossMarginPct(g.bill, g.cost) : null;
@@ -1083,12 +1130,18 @@
     }
     return (f['z2Pod'] || '').trim() || null;
   }
+  // 「提示後」＝見積が客先へ出た状態。下書き中・保留・辞退などの試算は実際の乗せ幅ではないため既定で除く。
+  const _SENT_STATUSES = ['提示済み', '提出済み', 'ヨコヨコ提示', '受注', '失注'];
+  let _mdStatusMode = 'sent';   // 'sent'（提示後のみ）| 'all'
+  let _mdMinCount   = 2;        // 作成者ごとの最小件数（これ未満は参考表示で、ばらつきの計算に使わない）
   function _buildMarginDiffStats() {
     const map = new Map();   // customer + '\x00' + nm + '\x00' + pod → { customer, nm, pod, creators: Map(email→集計) }
+    let skipped = 0, statusExcluded = 0;
     const rowsSrc = typeof window.cloudGetAllRows === 'function' ? window.cloudGetAllRows() : [];
     rowsSrc.forEach(p => {
       const creatorEmail = (p.created_by || '').trim();
       if (!creatorEmail) return;   // 作成者不明は比較対象外
+      if (_mdStatusMode === 'sent' && !_SENT_STATUSES.includes((p.status || '').trim())) { statusExcluded++; return; }
       const f = (p.data || {}).fields || {};
       const customer = (p.customer || '').trim() || '（未入力）';
       const pod = _podValFromFields(f) || '（未入力）';
@@ -1098,70 +1151,87 @@
         if (!r || r._type !== 'data' || !Array.isArray(r.cells)) return;
         const c  = r.cells;
         const nm = (c[CI.nm] || '').replace(/^\*+/, '').trim();
-        const pp = _num(c[10]), bp = _num(c[11]);
-        if (!nm || (pp == null && bp == null)) return;
-        const pq = _num(c[5]) > 0 ? _num(c[5]) : 1;
-        const bq = _num(c[7]) > 0 ? _num(c[7]) : 1;
-        const pc = (c[8] || 'JPY').trim() || 'JPY';
-        const bc = (c[9] || 'JPY').trim() || 'JPY';
+        if (!nm) return;
+        const pr = _pairJ(c);
+        if (pr.skip) { if (_num(c[CI.pp]) != null || _num(c[CI.bp]) != null) skipped++; return; }
         const key = customer + '\x00' + nm + '\x00' + pod;
         if (!map.has(key)) map.set(key, { customer, nm, pod, creators: new Map() });
         const g = map.get(key);
         if (!g.creators.has(creatorEmail)) g.creators.set(creatorEmail, { email: creatorEmail, count: 0, costSum: 0, billSum: 0 });
         const cg = g.creators.get(creatorEmail);
-        cg.count++;
-        if (pp != null) { const costJ = _toJ(minAmt(pp * pq, c[CI.ppmin]), pc); if (costJ != null) cg.costSum += costJ; }
-        if (bp != null) { const billJ = _toJ(minAmt(bp * bq, c[CI.bpmin]), bc); if (billJ != null) cg.billSum += billJ; }
+        cg.count++; cg.costSum += pr.cost; cg.billSum += pr.bill;
       });
     });
-    return [...map.values()];
+    return { groups: [...map.values()], skipped, statusExcluded };
   }
 
   function _creatorName(email) {
     return (typeof window.quoteDisplayName === 'function' ? window.quoteDisplayName(email) : null) || email;
   }
 
+  window.statsMdSet = function (key, val) {
+    if (key === 'status') _mdStatusMode = (val === 'all') ? 'all' : 'sent';
+    if (key === 'min') _mdMinCount = Math.max(1, parseInt(val, 10) || 1);
+    _listLimit = {};
+    _renderMarginDiff();
+  };
+
   function _renderMarginDiff() {
     const e = document.getElementById('statsPane-margindiff');
     if (!e) return;
-    const groups = _buildMarginDiffStats();
+    const built = _buildMarginDiffStats();
     let excluded = 0;
     const list = [];
-    groups.forEach(g => {
+    built.groups.forEach(g => {
       const creators = [...g.creators.values()].map(cg => ({
         ...cg,
         margin: (window.SharedCalc && cg.billSum > 0) ? SharedCalc.grossMarginPct(cg.billSum, cg.costSum) : null,
+        enough: cg.count >= _mdMinCount,
       }));
-      const withMargin = creators.filter(c => c.margin != null);
-      if (withMargin.length < 2) { excluded++; return; }
-      const spread = Math.max(...withMargin.map(c => c.margin)) - Math.min(...withMargin.map(c => c.margin));
+      // ばらつきは「件数が足りている作成者」同士でだけ比べる（1件対1件の偶然を拾わない）
+      const base = creators.filter(c => c.margin != null && c.enough);
+      if (base.length < 2) { excluded++; return; }
+      const spread = Math.max(...base.map(c => c.margin)) - Math.min(...base.map(c => c.margin));
       creators.sort((a, b) => (b.margin ?? -Infinity) - (a.margin ?? -Infinity));
       list.push({ customer: g.customer, nm: g.nm, pod: g.pod, creators, spread });
     });
+
+    const btn = (on, onclick, label) => `<button class="svp-by-btn${on ? ' is-active' : ''}" onclick="${onclick}">${label}</button>`;
+    const toolbar = '<div class="svp-toolbar"><span class="svp-by-label">対象の案件</span>' +
+      btn(_mdStatusMode === 'sent', "statsMdSet('status','sent')", '提示後のみ（提示済み・受注・失注）') +
+      btn(_mdStatusMode === 'all',  "statsMdSet('status','all')",  'すべて（下書き含む）') +
+      '<span class="svp-by-label">作成者ごとの最小件数</span>' +
+      [1, 2, 3].map(n => btn(_mdMinCount === n, `statsMdSet('min',${n})`, n + '件以上')).join('') + '</div>';
+
+    const notes = [];
+    if (built.statusExcluded) notes.push(`下書き中・保留・辞退などの案件 ${built.statusExcluded} 件は対象外`);
+    if (built.skipped) notes.push(`仕入・売の片方のみ／為替未取得の ${built.skipped} 行は粗利率から除外`);
+    if (excluded) notes.push(`比較できる作成者が2人未満の組み合わせ ${excluded} 件は非表示`);
+    const noteHtml = notes.length ? `<p class="stats-syn-hint">除外：${notes.join('、')}。</p>` : '';
+
     if (!list.length) {
-      e.innerHTML = '<p class="stats-empty">作成者間で比較できるデータがまだありません。<br>' +
-        '<small>同じお客様・品名・仕向地の案件を、2人以上の作成者がクラウドに保存すると、ここに集計されます' +
-        (excluded ? `（現在 ${excluded} 件の組み合わせは作成者が1人のみのため対象外）` : '') + '。</small></p>';
+      e.innerHTML = toolbar + '<p class="stats-empty">作成者間で比較できるデータがまだありません。<br>' +
+        `<small>同じお客様・品名・仕向地の案件を、${_mdMinCount}件以上ずつ2人以上の作成者がクラウドに保存すると、ここに集計されます。</small></p>` + noteHtml;
       return;
     }
     list.sort((a, b) => b.spread - a.spread);
 
-    let h = '<p class="stats-syn-hint">同じお客様・品名・仕向地の組み合わせについて、見積作成者ごとの平均粗利率を比較します。' +
-            '作成者情報があるクラウド共有案件のみが対象で、作成者が1人しかいない組み合わせは除外しています' +
-            (excluded ? `（除外 ${excluded} 件）` : '') + '。粗利率の差（ばらつき）が大きい順に表示します。</p>';
+    let h = toolbar +
+            '<p class="stats-syn-hint">同じお客様・品名・仕向地の組み合わせについて、見積作成者ごとの平均粗利率（仕入・売の両方が入った行をJPY換算した合計）を比較します。' +
+            '作成者情報があるクラウド共有案件のみが対象です。粗利率の差（ばらつき）が大きい順に表示し、件数が足りない作成者は「参考」としてばらつきの計算から外します。為替は現在のレートで換算しています。</p>' + noteHtml;
 
     list.slice(0, _limitOf('statsPane-margindiff')).forEach(g => {
       const rowsHtml = g.creators.map(cg => {
         const mCls = cg.margin == null ? '' : (cg.margin >= 0 ? 'sd-margin-pos' : 'sd-margin-neg');
         const avgBill = cg.count > 0 ? cg.billSum / cg.count : null;
-        return `<tr><td class="stats-val">${_esc(_creatorName(cg.email))}</td>` +
+        return `<tr${cg.enough ? '' : ' style="opacity:.55"'}><td class="stats-val">${_esc(_creatorName(cg.email))}${cg.enough ? '' : ' <small>（参考：件数不足）</small>'}</td>` +
                `<td class="stats-num-col">${cg.count}</td>` +
                `<td class="stats-num-col ${mCls}">${cg.margin == null ? '—' : cg.margin.toFixed(1) + '%'}</td>` +
                `<td class="stats-sv-price">${avgBill == null ? '—' : _jpy(avgBill)}</td></tr>`;
       }).join('');
       h += `<details class="stats-sv-detail">` +
            `<summary><b>${_usageSpan('customer', g.customer)} ・ ${_usageSpan('nm', g.nm)} ・ 仕向地 ${_esc(g.pod)}</b>` +
-           `<span class="stats-sv-detail-meta">作成者 ${g.creators.length}名 · 粗利率の差 <span class="sd-margin-neg">${g.spread.toFixed(1)}pt</span></span></summary>` +
+           `<span class="stats-sv-detail-meta">作成者 ${g.creators.length}名 · 粗利率の差 <span class="${g.spread >= 10 ? 'sd-margin-neg' : ''}">${g.spread.toFixed(1)}pt</span></span></summary>` +
            `<table class="stats-table sd-money-table stats-sv-charge-table"><thead><tr>` +
            `<th>作成者</th><th class="stats-num-col">件数</th><th class="stats-num-col">平均粗利率</th><th>平均売上/回</th>` +
            `</tr></thead><tbody>${rowsHtml}</tbody></table></details>`;
@@ -1638,7 +1708,7 @@
     // 正規化キー → グループ先頭名のマップ（ゆらぎバッジ用）
     const normToCanon = new Map();
     custGroups.forEach(cg => {
-      if (cg.variants.length > 1) normToCanon.set(_normalize(cg.variants[0].value, 'customer'), cg);
+      if (cg.variants.length > 1) cg.variants.forEach(v => normToCanon.set(_normalize(v.value, 'customer'), cg));
     });
 
     // 同義グループ状態（手動・⭐代表／統合）
@@ -2369,7 +2439,7 @@
     if (source !== 'local') (typeof window.cloudGetAllRows === 'function' ? window.cloudGetAllRows() : []).forEach(p => pushCase(p.status, p));
 
     const SENT = ['提示済み', '提出済み', '受注', '失注'];
-    const toJ = (amt, ccy) => (ccy && ccy !== 'JPY' && typeof window.toJPY === 'function') ? window.toJPY(amt, ccy) : amt;
+    let skippedRows = 0;
     // 正規化キー → { label, cases:Set index, won, lost, sent, sell, cost }
     const map = new Map();
     cases.forEach((c, ci) => {
@@ -2380,14 +2450,12 @@
         if (!pt) return;          // パターン未設定行はスキップ
         const k = _normalize(pt) || pt;
         if (!perPat.has(k)) perPat.set(k, { label: pt, sell: 0, cost: 0 });
-        const bq = parseFloat(cells[CI.bq]) || 0;
-        const bp = parseFloat(cells[CI.bp]) || 0;
-        const pp = parseFloat(cells[CI.pp]) || 0;
-        const bc = (cells[CI.bc] || 'JPY').trim();
-        const pc = (cells[CI.pc] || 'JPY').trim();
+        // 仕入・売の両方が入力済みで換算できる行だけを粗利率に使う（ミニマムは _pairJ 内で反映）
+        const pr = _pairJ(cells);
+        if (pr.skip) { skippedRows++; return; }
         const o = perPat.get(k);
-        o.sell += toJ(minAmt(bq * bp, cells[CI.bpmin]), bc);   // ミニマム（最低料金）を反映
-        o.cost += toJ(minAmt(bq * pp, cells[CI.ppmin]), pc);
+        o.sell += pr.bill;
+        o.cost += pr.cost;
       });
       perPat.forEach((v, k) => {
         if (!map.has(k)) map.set(k, { label: v.label, cases: 0, won: 0, lost: 0, sent: 0, sell: 0, cost: 0 });
@@ -2406,7 +2474,8 @@
       return;
     }
     const rows = Array.from(map.values()).sort((a, b) => b.cases - a.cases);
-    let h = '<p class="stats-syn-hint">明細の「パターン」を案件ステータスと紐付けて集計します。受注率＝受注 ÷（提示済み＋受注＋失注）、粗利率＝(売上−仕入)÷売上（JPY換算）。</p>';
+    let h = '<p class="stats-syn-hint">明細の「パターン」を案件ステータスと紐付けて集計します。受注率＝受注 ÷（提示済み＋受注＋失注）、粗利率＝(売上−仕入)÷売上（仕入・売の両方が入力済みの行をJPY換算）。' +
+      (skippedRows ? `仕入・売の片方のみ／為替未取得の ${skippedRows} 行は粗利率から除外しています。` : '') + '</p>';
     h += '<table class="stats-table"><thead><tr><th>パターン</th><th class="stats-num-col">案件数</th><th class="stats-num-col">提示</th><th class="stats-num-col">受注</th><th class="stats-num-col">失注</th><th class="stats-num-col">受注率</th><th class="stats-num-col">平均粗利率</th></tr></thead><tbody>';
     rows.forEach(g => {
       const wr = g.sent ? Math.round(g.won / g.sent * 100) : null;

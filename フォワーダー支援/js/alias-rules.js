@@ -554,6 +554,8 @@
     <span class="ar-quick-title">⚡ ゆらぎ是正ショートカット — <strong>${_esc(_quickFill.canonical)}</strong>（${fl}）</span>
     <button class="ar-quick-clear" onclick="arClearQuickFill()" title="クリア">✕</button>
   </div>
+  ${_quickFill.field === 'customer' ? '<p class="ar-quick-desc" style="color:#a04a00">⚠ 社名が似ていても別の会社の場合があります（有限会社と株式会社、海外法人など）。1件ずつ確認して登録してください。</p>' : ''}
+  ${_quickFill.field === 'un' ? '<p class="ar-quick-desc" style="color:#a04a00">⚠ 意味の違う単位（/CBM と /RT など）は統合しないでください。数量×単価の解釈が変わります。</p>' : ''}
   <p class="ar-quick-desc">以下の表記を <strong>"${_esc(_quickFill.canonical)}"</strong> に統一するルールをワンクリックで登録できます:</p>
   <div class="ar-quick-items">`;
       _quickFill.nonCanonical.forEach((from, idx) => {
@@ -698,8 +700,14 @@
     const doLocal = target === 'local' || target === 'both';
     const doCloud = (target === 'cloud' || target === 'both') && _cloud();
     // 書き込む前に「いくつの案件が書き換わるか」を数える（dryRun）
+    // 単位の置換は数量×単価の意味を変えうる（/CBM と /RT など）ため、チーム共有のクラウド案件へは
+    // 管理者だけが適用できる。メンバーのときは単位ルールを除いてクラウドへ適用する。
+    const unRules = rules.filter(r => r.field === 'un');
+    const isAdmin = window._myRole === 'admin';
+    const cloudRules = isAdmin ? rules : rules.filter(r => r.field !== 'un');
+    const unSkippedForCloud = doCloud && !isAdmin && unRules.length > 0;
     const nLocal = doLocal ? await window.arApplyLocal(rules, true) : 0;
-    const nCloud = doCloud ? await window.arApplyCloud(rules, true) : 0;
+    const nCloud = (doCloud && cloudRules.length) ? await window.arApplyCloud(cloudRules, true) : 0;
     if (!nLocal && !nCloud) {
       if (typeof window.quoteShowToast === 'function') window.quoteShowToast('置換の対象になる案件はありませんでした', 'info');
       return;
@@ -708,9 +716,12 @@
     const ruleLines = rules.slice(0, 6).map(r => `・${fl[r.field] || r.field}：「${r.from_value}」→「${r.to_value}」`);
     if (rules.length > 6) ruleLines.push(`　ほか ${rules.length - 6} 件のルール`);
     const counts = [doLocal ? `ブラウザ ${nLocal} 件` : '', doCloud ? `クラウド ${nCloud} 件` : ''].filter(Boolean).join('／');
+    const unLines = [];
+    if (unRules.length) unLines.push(`⚠ 単位の置換（${unRules.length} 件）を含みます。「/CBM」と「/RT」のように意味が違う単位を統合すると、数量×単価の解釈が変わります。同じ意味の表記ゆれ（KG と ｋｇ など）だけにしてください。`);
+    if (unSkippedForCloud) unLines.push('単位のルールは管理者だけがクラウドの案件へ適用できます。今回クラウドには単位のルールを適用しません。');
     const ok = await (typeof window.uiConfirm === 'function' ? window.uiConfirm({
       title: `${labels[target]}の表記を一括置換しますか？`,
-      lines: [`書き換わる案件：${counts}`, `適用するルール（${rules.length} 件）`, ...ruleLines],
+      lines: [`書き換わる案件：${counts}`, `適用するルール（${rules.length} 件）`, ...ruleLines, ...unLines],
       irreversible: '元に戻せません。提示済み・受注済みの案件も書き換わります。必要なら先にバックアップを取ってください。',
       okLabel: '置換する',
       danger: true,
@@ -718,7 +729,7 @@
     if (!ok) return;
     let msg = '';
     if (doLocal) msg += `ブラウザ: ${await window.arApplyLocal(rules)} 件更新。`;
-    if (doCloud) msg += ` クラウド: ${await window.arApplyCloud(rules)} 件更新。`;
+    if (doCloud) msg += ` クラウド: ${cloudRules.length ? await window.arApplyCloud(cloudRules) : 0} 件更新。`;
     if (typeof window.quoteShowToast === 'function') window.quoteShowToast('✅ ' + msg.trim(), 'success');
     if (typeof window.statsRefresh === 'function') await window.statsRefresh();
   };
