@@ -55,6 +55,8 @@ Design 製の Industry 版デザイン（鋼青のブループリント調）を
 
 **見積テーブルの行レイアウト（Industry・2026-10）**：明細行は「3段固定（高さ 120px）」。add-on は `quote-row-stage1-industry.css`／`quote-row-stage2-industry.css`（Design v3）→ `code-overrides-industry.css`（列幅 992px・実構造への補正・客先モード）の順。構造は `js/quote/row-layout.js`（状態チップ `.st-state`・「その他 ▾」パネル `.row-detail-panel`・`tr[data-ccy-diff]`・使用中バッジ）と `row.js calc()` の小計・利益（`.st-main/.st-sub/.st-state`、`.pr-main/.pr-sub`）。**Industry のときだけ**、有効期間 `.w-valid`・フラグ群 `.row-mode-btns`・`.pct-group`・`.row-cd` をパネルへ「要素ごと」移す（classic に戻すと元の場所へ戻す。id・onclick・data-* は不変）。更新日（`.w-updated`・`.grp-updated`）は CSS で隠すだけ（データ・機能は残置）。`.bp-base-hint`（原価換算＝赤字ライン）は Industry では行から隠し、売単価欄の `title` と「その他 ▾」の内訳に出す。仕様は `docs/design-handoff/industry/css/ROW-LAYOUT-SPEC.md`。
 
+**新しい画面・部品の整理（Design 07 回答・Industry・2026-10）**：add-on は `quote-states-industry.css`（A-1 見出しの省略・小計の「注記 ▾」・A-2 ミニマム・A-3 枠の言語・A-4 用語集ドロワー）→ `master-admin-industry.css`（マスター管理）→ `code-overrides-industry.css`（補正・スマホのツールバー／ドック）。見出しの省略は `row.js` が `is-pt-solo`／`is-cat-solo` を付ける（DOM は残し CSS で隠す。折りたたみ・除外中は隠さない）。マスター管理は `stats.js`（見出し・件数・申請・表・「⋯」）と `alias-rules.js`（移行の案内）。**取り消しにくい操作は標準の `confirm()` ではなく `uiConfirm()`（`js/ui-confirm.js`）**。用語集は `ui.js` の `openQuoteGlossary()`（Industry はドロワー）。Design の `mobile-industry.css` は取り込まず（明細のカード型は保留）、スマホ幅は `code-overrides` に実セレクタで実装。仕様は `docs/design-handoff/industry/css/NEW-SCREENS-SPEC.md`、実装との差は `docs/design-handoff/requests/08-…`。
+
 ## 🗑️ 自動保存は廃止（2026-10）
 
 旧「自動保存」（localStorage `quoteData` に1件・復元バナー）は、ページ再読込後に空の状態で上書きされて復元できない不具合があり、ブラウザ保存／チーム共有と役割も重なるため**廃止**。保存は「💾 ブラウザ保存」（名前付き・最大50件）とチーム共有、巻き戻しは Undo/Redo。`scheduleAutoSave()` は呼び出し元（約100か所）を変えないため**何もしない関数として残置**。起動時（`initQuoteState`）に旧データ（`quoteData`・`autoSaveEnabled`）を掃除する（後日削除可）。

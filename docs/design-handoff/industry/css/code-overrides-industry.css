@@ -175,3 +175,24 @@ body:has(#tab-master.active) #backToQuoteFab { display: none !important; }
 .glossary-drawer { z-index: 10060; }   /* 右下のドック（PDF出力・プレビュー・保存）より前に出す */
 .glossary-drawer .gl-item { grid-template-columns: 120px 1fr; }
 .glossary-drawer .gl-term { font-size: 15px; overflow-wrap: anywhere; }
+
+/* ================= C スマホ幅（〜600px）：ツールバー 1 段・固定の 3 分割ドック（Design の mobile-industry.css を実際の id/class に合わせた版）
+   Design の明細テーブルのカード型は、つまみ列（行の操作）・課税・通貨の置き場所が決まるまで未実装（mobile-industry.css は取り込まない） ================= */
+@media (max-width: 600px) {
+  /* ツールバー：戻る／元に戻す／やり直す／「⋯」の 1 段。メール取込・サブコン依頼メール・ブラウザ保存・表示サイズは「⋯」の中へ。ボタンは 44px 以上 */
+  #tab-quote-make #saveToolbar { display: flex; flex-wrap: nowrap; align-items: center; gap: 8px; padding: 8px 12px; }
+  #tab-quote-make #saveToolbar .toolbar-extra, #tab-quote-make #saveToolbar .save-toolbar-label, #tab-quote-make #saveToolbar .save-btn-preset,
+  #tab-quote-make #saveToolbar .save-status, #tab-quote-make #saveToolbar .save-toolbar-sep, #tab-quote-make #saveToolbar .tb-lbl, #tab-quote-make #saveToolbar .uim-switch--tb { display: none !important; }
+  #tab-quote-make #saveToolbar .save-btn { min-height: 44px; min-width: 44px; white-space: nowrap; border-radius: 0; }
+  #tab-quote-make #saveToolbar .qm-group { min-width: 0; }
+  #tab-quote-make #saveToolbar .tb-menu { margin-left: auto; }
+  #tab-quote-make .tb-menu-panel .tb-mi-simple, #tab-quote-make .tb-menu-panel .tb-mi-mobile { display: flex; }
+  #tab-quote-make .tb-menu-panel .tb-menu-group.tb-mi-simple { display: block; padding: 8px 14px 4px; font-size: 11px; font-weight: 700; border-top: 1px solid var(--color-neutral-300, #d4d4d7); }
+  #tab-quote-make .tb-menu-panel .tb-menu-item { min-height: 44px; }
+  /* 右下のドック：浮かせず、画面下に固定の分割バー（PDF／プレビュー／保存）。ページ下に余白 */
+  #quoteActionDock { left: 0; right: 0; bottom: 0; gap: 0; background: var(--color-bg, #f2f2f3); border-top: 1px solid var(--color-text, #1d1f20); }
+  #quoteActionDock .qad-btn { flex: 1 1 0; justify-content: center; min-height: 48px; padding: 0 4px; border: 0; border-right: 1px solid var(--color-neutral-400, #b7b7ba); border-radius: 0; box-shadow: none; background: transparent; color: var(--color-text, #1d1f20); font-size: 13px; transform: none; }
+  #quoteActionDock .qad-btn:hover { transform: none; box-shadow: none; }
+  #quoteActionDock .qad-save { background: var(--color-accent-900, #1d2d3d); color: var(--color-bg, #f2f2f3); border-right: 0; }
+  body:has(#tab-quote-make.active) { padding-bottom: 72px; }
+}

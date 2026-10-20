@@ -11259,3 +11259,6 @@ body.is-row-dragging { cursor: grabbing; user-select: none; }
 #tab-quote-make .subcon-subtotal-inner .st-remark { order: 3; }
 /* ミニマム：適用中の売値の注記・最低料金の通貨（Industry 用） */
 #tab-quote-make .min-note, #tab-quote-make .min-hint { display: none; }
+
+/* スマホ幅（Industry）のツールバー「⋯」に集約する項目（ブラウザ保存）。それ以外の幅・現行デザインでは出さない */
+#tab-quote-make .tb-menu-panel .tb-mi-mobile { display: none; }

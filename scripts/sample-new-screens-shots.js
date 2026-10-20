@@ -205,6 +205,11 @@ fs.mkdirSync(OUT, { recursive: true });
     const { ctx, p, errs } = await open(true, { approval: true, role: 'admin', theme: THEME, noLegacy: true, w: 390, h: 844 });
     await p.addStyleTag({ content: css });
     await p.screenshot({ path: path.join(OUT, 'n6-mobile' + SUF + '.png') });
+    await p.evaluate(() => toggleTbMenu('more', { stopPropagation() {} })); await p.waitForTimeout(300);
+    await p.screenshot({ path: path.join(OUT, 'n6b-mobile-menu' + SUF + '.png') });
+    await p.keyboard.press('Escape'); await p.mouse.click(5, 5);
+    await p.evaluate(() => window.scrollTo(0, 700)); await p.waitForTimeout(300);
+    await p.screenshot({ path: path.join(OUT, 'n6c-mobile-dock' + SUF + '.png') });
     console.log('mobile errors', JSON.stringify(errs));
     await ctx.close();
   }

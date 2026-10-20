@@ -9787,3 +9787,81 @@ html.theme-industry {
   font-size: 15px;
   overflow-wrap: anywhere;
 }
+@media (max-width: 600px) {
+  :where(html.theme-industry) #tab-quote-make #saveToolbar {
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+  }
+  :where(html.theme-industry) #tab-quote-make #saveToolbar .toolbar-extra,
+  :where(html.theme-industry) #tab-quote-make #saveToolbar .save-toolbar-label,
+  :where(html.theme-industry) #tab-quote-make #saveToolbar .save-btn-preset,
+  :where(html.theme-industry) #tab-quote-make #saveToolbar .save-status,
+  :where(html.theme-industry) #tab-quote-make #saveToolbar .save-toolbar-sep,
+  :where(html.theme-industry) #tab-quote-make #saveToolbar .tb-lbl,
+  :where(html.theme-industry) #tab-quote-make #saveToolbar .uim-switch--tb {
+    display: none !important;
+  }
+  :where(html.theme-industry) #tab-quote-make #saveToolbar .save-btn {
+    min-height: 44px;
+    min-width: 44px;
+    white-space: nowrap;
+    border-radius: 0;
+  }
+  :where(html.theme-industry) #tab-quote-make #saveToolbar .qm-group {
+    min-width: 0;
+  }
+  :where(html.theme-industry) #tab-quote-make #saveToolbar .tb-menu {
+    margin-left: auto;
+  }
+  :where(html.theme-industry) #tab-quote-make .tb-menu-panel .tb-mi-simple,
+  :where(html.theme-industry) #tab-quote-make .tb-menu-panel .tb-mi-mobile {
+    display: flex;
+  }
+  :where(html.theme-industry) #tab-quote-make .tb-menu-panel .tb-menu-group.tb-mi-simple {
+    display: block;
+    padding: 8px 14px 4px;
+    font-size: 11px;
+    font-weight: 700;
+    border-top: 1px solid var(--color-neutral-300, #d4d4d7);
+  }
+  :where(html.theme-industry) #tab-quote-make .tb-menu-panel .tb-menu-item {
+    min-height: 44px;
+  }
+  :where(html.theme-industry) #quoteActionDock {
+    left: 0;
+    right: 0;
+    bottom: 0;
+    gap: 0;
+    background: var(--color-bg, #f2f2f3);
+    border-top: 1px solid var(--color-text, #1d1f20);
+  }
+  :where(html.theme-industry) #quoteActionDock .qad-btn {
+    flex: 1 1 0;
+    justify-content: center;
+    min-height: 48px;
+    padding: 0 4px;
+    border: 0;
+    border-right: 1px solid var(--color-neutral-400, #b7b7ba);
+    border-radius: 0;
+    box-shadow: none;
+    background: transparent;
+    color: var(--color-text, #1d1f20);
+    font-size: 13px;
+    transform: none;
+  }
+  :where(html.theme-industry) #quoteActionDock .qad-btn:hover {
+    transform: none;
+    box-shadow: none;
+  }
+  :where(html.theme-industry) #quoteActionDock .qad-save {
+    background: var(--color-accent-900, #1d2d3d);
+    color: var(--color-bg, #f2f2f3);
+    border-right: 0;
+  }
+  :where(html.theme-industry) body:has(#tab-quote-make.active) {
+    padding-bottom: 72px;
+  }
+}
