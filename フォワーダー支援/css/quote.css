@@ -11231,3 +11231,5 @@ body.is-row-dragging { cursor: grabbing; user-select: none; }
 #tab-quote-make #quoteTable tfoot .tot-fx-note { font-size: var(--fs-11); font-weight: 400; color: var(--text-md); text-align: left; padding-left: var(--sp-8); }
 /* 入力候補（マスター）に無い名前の印（品名・港・お客様・キャリア）。そのまま使えるので控えめに：点線の枠のみ。説明は title */
 #tab-quote-make input.name-unregistered { outline: 1px dashed #c98a1b; outline-offset: -2px; }
+/* パターン未設定の行のまとまり（「（パターン設定なし）」）：名前付きのパターンと見分けられるよう控えめに */
+#tab-quote-make tr.subcon-subgroup-header.is-pt-unset .subcon-subgroup-leg { color: var(--text-md); font-weight: 600; }

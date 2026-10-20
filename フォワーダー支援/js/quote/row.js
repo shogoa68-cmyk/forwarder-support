@@ -2546,10 +2546,6 @@
   function _rowInnerKey(tr) {
     return _rowPattern(tr) || (tr.dataset.portPair || '').trim();
   }
-  function _rowInnerKind(tr) {
-    // 港ペアはパターンへ一本化したため、内側キーがあれば常にパターン扱い（小計付き・🔖）
-    return _rowInnerKey(tr) ? 'pattern' : '';
-  }
 
   // ===== 最終更新日（lu）：見出し⇄行の集約・伝播 =====
   function _isoToday() {
@@ -2564,7 +2560,7 @@
       .filter(tr => {
         const k = subconNormKey(_rowSubcon(tr) ?? '') || _UNSET_KEY;
         if (k !== svKey) return false;
-        return ptKey ? (_rowInnerKey(tr) === ptKey) : true;
+        return ptKey ? ((_rowInnerKey(tr) || _PT_UNSET) === ptKey) : true;
       });
   }
   // サブコン／パターン見出しのチェック：配下の全明細行の選択チェック（.row-select-chk）を一括で ON/OFF
@@ -2618,7 +2614,10 @@
   function renamePatternGroup(svKey, ptKey) {
     const members = _groupMemberRows(svKey, ptKey);
     if (!members.length) return;
-    const next = prompt('パターン名を変更します（配下の ' + members.length + ' 行すべてに反映されます）', ptKey);
+    const isUnset = ptKey === _PT_UNSET;
+    const next = prompt(isUnset
+      ? 'パターン名を付けます（パターン未設定の ' + members.length + ' 行すべてに反映されます）'
+      : 'パターン名を変更します（配下の ' + members.length + ' 行すべてに反映されます）', isUnset ? '' : ptKey);
     if (next === null) return;
     const trimmed = next.trim();
     if (!trimmed) {
@@ -2819,6 +2818,11 @@
   // サブコン別グループヘッダーを再描画する
   // ---- 折りたたみ・除外状態（セッション中保持・再描画後も維持） ----
   const _UNSET_KEY       = '￿';
+  // パターン未設定の行をまとめる内側グループのキー（表示専用。行のパターン欄は空のまま）。
+  // 空文字は「サブコン全体」を表す箇所（_groupMemberRows 等）があるため、別の値にする
+  const _PT_UNSET        = '\uFFFE';
+  const _PT_UNSET_LABEL  = '（パターン設定なし）';
+  window.PT_UNSET_KEY    = _PT_UNSET;
   const _collapsedGroups   = new Set();
   const _excludedGroups    = new Set();
   const _collapsedPatterns = new Set(); // svKey + '\x00' + ptKey
@@ -3457,8 +3461,16 @@
       //   ・パターンの内側グループには末尾に小計行（data-ptSum）も挿入し、入れ子テーブル化する。
       (function insertInnerGroups() {
         let curSvKey = null, curKey = null, curKind = null, runOpen = false;
+        // 名前付きのパターンがあるサブコン。パターン未設定のまとまりの小計は、そのサブコンに名前付きのパターンがあるときだけ出す
+        // （未設定だけのサブコンでは、サブコン小計と同じ内容が並ぶだけになるため）
+        const _svHasNamed = new Set();
+        Array.from(tbody.children).forEach(tr => {
+          if (tr.dataset.virtual || tr.dataset.type || !(tr.id || '').startsWith('row-')) return;
+          if (_rowInnerKey(tr)) _svHasNamed.add(subconNormKey(_rowSubcon(tr) ?? '') || _UNSET_KEY);
+        });
         const closeRun = (beforeNode) => {
-          if (runOpen && curKind === 'pattern' && curKey) {
+          if (runOpen && curKind === 'pattern' && curKey && !(curKey === _PT_UNSET && !_svHasNamed.has(curSvKey || _UNSET_KEY))) {
+            const _ptLabel = curKey === _PT_UNSET ? _PT_UNSET_LABEL : curKey;
             const sub = document.createElement('tr');
             sub.dataset.virtual = '1';
             sub.dataset.ptSum   = '1';
@@ -3471,13 +3483,13 @@
             sub.innerHTML =
               `<td colspan="10" class="subcon-pattern-subtotal-cell">` +
                 `<div class="subcon-subtotal-inner subcon-subtotal-inner--pt">` +
-                  `<span class="subcon-subtotal-label">↳ 🔖 ${_escHdr(curKey)} 小計</span>` +
+                  `<span class="subcon-subtotal-label">↳ 🔖 ${_escHdr(_ptLabel)} 小計</span>` +
                   `<span class="st-metric st-cost"><i>仕入合計</i><b class="subcon-subtotal-cost">¥0</b></span>` +
                   `<span class="st-metric st-sell"><i>売値合計</i><b class="subcon-subtotal-sum">¥0</b></span>` +
                   `<span class="st-metric st-margin"><i>粗利率</i><b class="subcon-subtotal-margin">—</b></span>` +
                   `<button type="button" class="subcon-subtotal-add-btn subcon-pt-add-btn" ` +
                     `data-sv="${_escAttr(_svLabel)}" data-pt="${_escAttr(curKey)}" ` +
-                    `title="${_escAttr(curKey)} に行を追加（このパターン末尾）">＋ 行追加</button>` +
+                    `title="${_escAttr(_ptLabel)} に行を追加（このパターン末尾）">＋ 行追加</button>` +
                   `<span class="st-remark" title="このパターンに関する注記。「見積書に表示」がONの間だけ客先向け出力（プレビュー・御見積書PDF・メール）にも表示されます。">` +
                     `<i>📝 パターン別リマーク</i>` +
                     `<input type="text" class="subcon-remark-input" placeholder="このパターンへの注記（任意）" value="${_escAttr(_remarkObj.text || '')}" />` +
@@ -3536,7 +3548,8 @@
             return;
           }
           if (tr.dataset.type) return;              // 付随行（リマーク等）は直前の内側グループに属する
-          const key = _rowInnerKey(tr), kind = _rowInnerKind(tr);
+          // パターン未設定の行も「（パターン設定なし）」のまとまりに入れ、サブコン → パターン → 明細のツリーをそろえる
+          const key = _rowInnerKey(tr) || _PT_UNSET, kind = 'pattern';
           if (key) {
             tr.classList.add('subcon-subchild');
             if (!runOpen || key !== curKey) {
@@ -3550,7 +3563,8 @@
               sh.dataset.subGroup = '1';
               sh.dataset.svKey    = _svK;
               sh.dataset.ptKey    = key;
-              sh.className = 'subcon-subgroup-header is-pattern' + (_ptExcluded ? ' is-excluded' : '');
+              const _isUnsetPt = key === _PT_UNSET;
+              sh.className = 'subcon-subgroup-header is-pattern' + (_isUnsetPt ? ' is-pt-unset' : '') + (_ptExcluded ? ' is-excluded' : '');
               const icon = '🔖';
               sh.innerHTML =
                 // 同上：flex は内側 div へ（td を flex 化すると colspan が潰れる）
@@ -3559,9 +3573,9 @@
                   `<span class="subcon-subgroup-grip" title="ドラッグでこのパターンを並び替え（同じサブコン内のみ）">⠿</span>` +
                   `<button type="button" class="subcon-subgroup-toggle" title="${_ptCollapsed ? '展開' : '折りたたみ/展開'}">${_ptCollapsed ? '▶' : '▼'}</button>` +
                   `<input type="checkbox" class="subcon-group-chk" title="このパターンの全明細を選択／解除（一部だけ選択中は中間表示）">` +
-                  `<span class="subcon-subgroup-leg">${icon} ${_escHdr(key)}</span>` +
-                  `<button type="button" class="subcon-subgroup-rename" title="このパターン名を変更（配下の行すべてに反映）">✎</button>` +
-                  `<button type="button" class="subcon-subgroup-dup" title="このパターンの明細行をすべて複製（新しいパターンとして「（2）」等が付きます）">📋</button>` +
+                  `<span class="subcon-subgroup-leg">${icon} ${_escHdr(_isUnsetPt ? _PT_UNSET_LABEL : key)}</span>` +
+                  `<button type="button" class="subcon-subgroup-rename" title="${_isUnsetPt ? 'パターン名を付ける（配下の行すべてに反映）' : 'このパターン名を変更（配下の行すべてに反映）'}">✎</button>` +
+                  (_isUnsetPt ? '' : `<button type="button" class="subcon-subgroup-dup" title="このパターンの明細行をすべて複製（新しいパターンとして「（2）」等が付きます）">📋</button>`) +
                   `<button type="button" class="subcon-subgroup-excl${_ptExcluded ? ' is-excluded' : ''}" title="見積もりへの含める/除外を切り替え">${_ptExcluded ? '含む' : '除外'}</button>` +
                   `<button type="button" class="subcon-group-sort-btn" title="このパターン内をカテゴリ順に並び替え">⇅カテゴリ</button>` +
                   _groupUpdatedHtml() +
@@ -3575,7 +3589,7 @@
                 e.stopPropagation();
                 renamePatternGroup(_svK, key);
               });
-              sh.querySelector('.subcon-subgroup-dup').addEventListener('click', e => {
+              sh.querySelector('.subcon-subgroup-dup')?.addEventListener('click', e => {
                 e.stopPropagation();
                 duplicatePatternGroup(_svK, key);
               });
@@ -3589,9 +3603,6 @@
               tbody.insertBefore(sh, tr);
               curKey = key; curKind = kind; runOpen = true;
             }
-          } else {
-            closeRun(tr);
-            tr.classList.remove('subcon-subchild');
           }
         });
         closeRun(null);   // 末尾グループを締める
@@ -3975,12 +3986,15 @@
       .filter(tr => !tr.dataset.type);
     // pt 指定あり → パターン末尾（sv + pt 両方一致する最後の行）
     // pt 指定なし → サブコン末尾（sv 一致する最後の行）
+    // pt がパターン未設定のグループ（_PT_UNSET）→ パターン欄が空の行の末尾に、パターン欄は空のまま
     const targetKey = subconNormKey(sv);
+    const unsetPt = pt === _PT_UNSET;
+    if (unsetPt) pt = '';
     let lastInGroup = null;
     realRows.forEach(tr => {
       const rowSv = _rowSubcon(tr) ?? '';
       if (subconNormKey(rowSv) !== targetKey) return;
-      if (pt) {
+      if (pt || unsetPt) {
         const rowPt = tr.querySelector('[data-field="pt"]')?.value || '';
         if (rowPt !== pt) return;
       }

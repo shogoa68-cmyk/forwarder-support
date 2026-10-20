@@ -4310,7 +4310,7 @@
             'onclick="window._qspGroupNoteEdit(' + i + ', event)" ' +
             'title="' + (note ? '申し送りを編集' : '申し送りを追加（進捗管理メモ）') + '">💬</button>' +
           '<button type="button" class="qsp-dig-grp-add" ' +
-            'onclick="window.addRowToSubconGroup(\'' + addSv + '\',\'' + addPt + '\')" ' +
+            'onclick="window.addRowToSubconGroup(\'' + addSv + '\',' + (g.pt === window.PT_UNSET_KEY ? 'window.PT_UNSET_KEY' : '\'' + addPt + '\'') + ')" ' +
             'title="このブランチの末尾に行を追加（サブコン/パターンを引き継ぎ）">＋</button>' +
           '<button type="button" class="qsp-dig-grp-collapse" ' +
             'onclick="window._qspGroupAction(' + i + ',\'collapse\')" ' +
