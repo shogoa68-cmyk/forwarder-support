@@ -9942,3 +9942,32 @@ html.theme-industry {
 :where(html.theme-industry) #tab-quote-make #quoteTable > tbody > tr.is-active > td.handle-cell {
   z-index: 35;
 }
+:where(html.theme-industry) #tab-quote-make #quoteTable td.handle-cell .row-acts {
+  visibility: hidden;
+  pointer-events: auto;
+  transition: opacity .15s .6s, visibility 0s .75s;
+}
+:where(html.theme-industry) #tab-quote-make #quoteTable tr td.handle-cell:hover .row-acts,
+:where(html.theme-industry) #tab-quote-make #quoteTable tr td.handle-cell .row-acts:hover {
+  visibility: visible;
+  opacity: 1;
+  transition: opacity .12s 0s, visibility 0s 0s;
+}
+:where(html.theme-industry) #tab-quote-make #quoteTable tr:hover td.handle-cell .row-acts,
+:where(html.theme-industry) #tab-quote-make #quoteTable tr:focus-within td.handle-cell .row-acts {
+  pointer-events: auto;
+}
+:where(html.theme-industry) #tab-quote-make #quoteTable tr td.handle-cell:hover .row-acts {
+  transition: opacity .12s 0s, visibility 0s 0s;
+}
+:where(html.theme-industry) #tab-quote-make #quoteTable tr.is-detail-open td.handle-cell .row-acts {
+  visibility: hidden !important;
+  transition: none;
+}
+@media (hover: none) {
+  :where(html.theme-industry) #tab-quote-make #quoteTable tr.is-active td.handle-cell .row-acts {
+    visibility: visible;
+    opacity: 1;
+    transition: none;
+  }
+}

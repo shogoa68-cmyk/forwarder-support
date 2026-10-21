@@ -223,3 +223,18 @@ body:has(#tab-master.active) #backToQuoteFab { display: none !important; }
 #tab-quote-make #quoteTable > tbody > tr:hover > td.handle-cell,
 #tab-quote-make #quoteTable > tbody > tr:focus-within > td.handle-cell,
 #tab-quote-make #quoteTable > tbody > tr.is-active > td.handle-cell { z-index: 35; }
+
+/* ---- 行の操作ボタン（つまみ列のホバー）に「あそび」：つまみから少し外れても、すぐには消えない ----
+   消えるのを 0.6 秒遅らせる（その間にカーソルが戻る／ボタンへ移れば残る）。ボタンの上にいる間は消えない（ボタンは td の子なので td:hover が続く）。
+   pointer-events ではなく visibility で隠す（pointer-events:none だと、遅らせている間にボタンへ移れず、移った途端に消えるため） */
+#tab-quote-make #quoteTable td.handle-cell .row-acts { visibility: hidden; pointer-events: auto; transition: opacity .15s .6s, visibility 0s .75s; }
+#tab-quote-make #quoteTable tr td.handle-cell:hover .row-acts,
+#tab-quote-make #quoteTable tr td.handle-cell .row-acts:hover { visibility: visible; opacity: 1; transition: opacity .12s 0s, visibility 0s 0s; }
+#tab-quote-make #quoteTable tr:hover td.handle-cell .row-acts,
+#tab-quote-make #quoteTable tr:focus-within td.handle-cell .row-acts { pointer-events: auto; }   /* 遅らせている間もクリックできる（opacity は上のルールで 0 に向かう） */
+#tab-quote-make #quoteTable tr td.handle-cell:hover .row-acts { transition: opacity .12s 0s, visibility 0s 0s; }
+/* 開いた「その他 ▾」のパネルの間は出さない（stage2 の指定。visibility でも確実に隠す） */
+#tab-quote-make #quoteTable tr.is-detail-open td.handle-cell .row-acts { visibility: hidden !important; transition: none; }
+@media (hover: none) {
+  #tab-quote-make #quoteTable tr.is-active td.handle-cell .row-acts { visibility: visible; opacity: 1; transition: none; }
+}
