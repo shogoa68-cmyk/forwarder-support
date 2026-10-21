@@ -215,3 +215,11 @@ body:has(#tab-master.active) #backToQuoteFab { display: none !important; }
 /* パネルの「有効期間」は、行の中に出しているとき（中身が空）は見出しごと隠す */
 #tab-quote-make #quoteTable .row-detail-panel .rd-group:has(> .rd-slot[data-rd-slot="valid"]:empty) { display: none; }
 #tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]).has-valid-inline > td.name-cell > .w-valid input.w-valid-date { padding: 0 1px 0 3px; font-size: 10px; letter-spacing: 0; }
+
+/* グレーアウトした行（見積書に出さない・期間外・入力完了・除外・未入力）はセルごと半透明（opacity）で、セルが重ね合わせの単位になる。
+   つまみ列の操作ボタン（行の下に重ねて出す）が次の行の入力欄の下に隠れ、押せなかった（見積書に出さないの解除・複製・削除ができない）。
+   ホバー・フォーカス中の行のつまみ列を前に出す */
+#tab-quote-make #quoteTable > tbody > tr > td.handle-cell { position: relative; }
+#tab-quote-make #quoteTable > tbody > tr:hover > td.handle-cell,
+#tab-quote-make #quoteTable > tbody > tr:focus-within > td.handle-cell,
+#tab-quote-make #quoteTable > tbody > tr.is-active > td.handle-cell { z-index: 35; }
