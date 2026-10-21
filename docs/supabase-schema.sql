@@ -175,26 +175,38 @@ create policy "own profile upsert"
 -- ロックの取得/更新/解放は security definer 関数で行い、90秒で自動失効。
 -- ============================================================
 
--- ロック列
+-- ロック列（force_released_* は管理者強制解放のクールダウン印。後述 6b 参照）
 alter table public.quote_presets
   add column if not exists locked_by text,
-  add column if not exists locked_at timestamptz;
+  add column if not exists locked_at timestamptz,
+  add column if not exists force_released_from text,       -- 管理者が強制解放した直前の保持者 email
+  add column if not exists force_released_at   timestamptz; -- その解放時刻
 
--- ロック取得/更新（本人のみ・null/自分/3分超過のときだけ取得可。for update で原子的）
+-- ロック取得/更新（本人のみ・null/自分/失効(90秒)のときだけ取得可。for update で原子的）
+-- クールダウン：管理者に強制解放された本人は、ロックが空いていても一定時間(60秒)は
+-- 再取得できない（放置タブのハートビートが即座に握り直すのを防ぐ）。取得できたら印は消す。
 create or replace function public.quote_acquire_lock(p_id text)
 returns text
 language plpgsql
 security definer
 set search_path = public
 as $$
-declare cur_by text; cur_at timestamptz;
+declare cur_by text; cur_at timestamptz; fr_from text; fr_at timestamptz;
 begin
   if not is_team_member() then return 'DENIED'; end if;
-  select locked_by, locked_at into cur_by, cur_at
+  select locked_by, locked_at, force_released_from, force_released_at
+    into cur_by, cur_at, fr_from, fr_at
     from public.quote_presets where id::text = p_id for update;
   if not found then return 'NOTFOUND'; end if;
+  -- 強制解放された本人のクールダウン中（ロックが空いていても拒否）
+  if cur_by is null and fr_from is not null and fr_from = auth.email()
+     and fr_at is not null and fr_at > now() - interval '60 seconds' then
+    return 'COOLDOWN';
+  end if;
   if cur_by is null or cur_by = auth.email() or cur_at < now() - interval '90 seconds' then
-    update public.quote_presets set locked_by = auth.email(), locked_at = now()
+    update public.quote_presets
+      set locked_by = auth.email(), locked_at = now(),
+          force_released_from = null, force_released_at = null   -- 取得できたらクールダウン印を解除
       where id::text = p_id;
     return 'OK';
   else
@@ -229,6 +241,67 @@ drop policy if exists "lock_guard_update" on public.quote_presets;
 create policy "lock_guard_update" on public.quote_presets
   as restrictive for update to authenticated
   using (locked_by is null or locked_by = auth.email() or locked_at < now() - interval '90 seconds');
+
+-- ============================================================
+-- 6b. 編集ロック：renew-only ハートビート ＋ 管理者強制解放
+-- ============================================================
+-- requires: get_my_role() security definer 関数（allowed_emails.role を返す・
+--           Supabase Dashboard で作成済み前提。users.js の get_my_role と同一）
+--
+-- 背景：quote_acquire_lock は null/自分/失効(90秒)のとき「取得」する。これは
+--       案件を開き直したときの再取得に必要だが、保持中のハートビートに使うと、
+--       管理者が強制解放した/他者が奪取したロックを掴み直してしまう。
+--       そこでハートビートは「更新のみ(renew)」に分離し、強制解放・奪取を
+--       クライアントが検知できるようにする。
+-- ------------------------------------------------------------
+
+-- ロック更新（本人が保持しているときだけ locked_at を更新）。
+-- 戻り値 true＝まだ自分が保持 ／ false＝保持していない（解放済み・奪取済み）
+create or replace function public.quote_renew_lock(p_id text)
+returns boolean
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  update public.quote_presets set locked_at = now()
+    where id::text = p_id and locked_by = auth.email();
+  return found;
+end; $$;
+
+-- 管理者による強制解放（他人のロックも解除できる唯一の経路）。
+-- 作業者がタブを開いたまま帰宅する等でロックが残り続け、他メンバーが
+-- 「作業中」状態から抜け出せなくなった案件を即時フリー化する。
+-- get_my_role()='admin' のときだけ実行可。security definer で RLS を迂回するが、
+-- 権限は関数内で明示判定する。戻り値は直前の保持者 email
+-- （保持者なし＝''／権限なし＝'DENIED'／案件なし＝'NOTFOUND'）。
+-- 解放と同時に force_released_from/at を記録し、直前保持者の即時再取得を
+-- quote_acquire_lock 側で 60秒だけ拒否する（クールダウン）。これにより、
+-- 放置タブのハートビートが握り直すのを防ぎつつ、解放した本人以外（および
+-- 本人の別タブでも、自分でクリアした場合は印が無いので）は影響を受けない。
+create or replace function public.quote_admin_release_lock(p_id text)
+returns text
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare prev_by text;
+begin
+  if coalesce(public.get_my_role(), 'member') <> 'admin' then
+    return 'DENIED';
+  end if;
+  select locked_by into prev_by from public.quote_presets
+    where id::text = p_id for update;
+  if not found then return 'NOTFOUND'; end if;
+  update public.quote_presets
+    set locked_by = null, locked_at = null,
+        force_released_from = prev_by, force_released_at = now()
+    where id::text = p_id;
+  return coalesce(prev_by, '');
+end; $$;
+
+grant execute on function public.quote_renew_lock(text) to authenticated;
+grant execute on function public.quote_admin_release_lock(text) to authenticated;
 
 -- ============================================================
 -- 7. 添付ファイル（案件への参考書類・14日で自動削除）

@@ -1082,7 +1082,10 @@
         '<button type="button" role="menuitem" class="cloud-menu-item" onclick="uiCloseMenus();cloudDuplicatePreset(\'' + idAttr + '\')">コピーして新規作成</button>' +
         '<div class="cloud-menu-sep" role="separator"></div>' +
         (lockedBy
-          ? '<button type="button" role="menuitem" class="cloud-menu-item cloud-menu-danger is-locked" disabled>削除…<small>' + escHtml(_nameFor(lockedBy)) + ' さんが作業中のため削除できません</small></button>'
+          ? '<button type="button" role="menuitem" class="cloud-menu-item cloud-menu-danger is-locked" disabled>削除…<small>' + escHtml(_nameFor(lockedBy)) + ' さんが作業中のため削除できません</small></button>' +
+            (window._myRole === 'admin'
+              ? '<button type="button" role="menuitem" class="cloud-menu-item cloud-menu-admin" onclick="uiCloseMenus();cloudAdminReleaseLock(\'' + idAttr + '\')">🔓 強制解放（管理者）<small>' + escHtml(_nameFor(lockedBy)) + ' さんの作業中を解除します</small></button>'
+              : '')
           : '<button type="button" role="menuitem" class="cloud-menu-item cloud-menu-danger" onclick="uiCloseMenus();cloudDeletePreset(\'' + idAttr + '\')">削除…</button>') +
       '</div>' +
     '</span>';
@@ -1479,10 +1482,13 @@
   }
 
   // ---------- 編集ロック（サーバ側 RLS で削除＋上書きを拒否） ----------
-  const LOCK_STALE_MS     = 90 * 1000;       // RLS と一致：90秒でフリー化（閉じ忘れ対策）
-  const LOCK_HEARTBEAT_MS = 30 * 1000;       // 保持中は30秒ごとに更新
+  const LOCK_STALE_MS     = 90 * 1000;       // RLS と一致：90秒でフリー化（クラッシュ/タブ閉じ対策）
+  const LOCK_HEARTBEAT_MS = 30 * 1000;       // 保持中は30秒ごとに更新（renew-only）
+  const LOCK_IDLE_LIMIT_MS = 10 * 60 * 1000; // 10分 無操作が続いたら「放置」とみなし自分でロックを解放（開きっぱなし対策）
   let _lockHeldId = null;                     // 自分がロック保持中の案件id
   let _lockTimer  = null;
+  let _lastLockActivity = 0;                  // 編集中の最終操作時刻（放置判定用）
+  let _lockActivityBound = false;             // 操作リスナー登録済みフラグ
 
   async function _acquireLock(id) {
     const c = _getClient();
@@ -1497,18 +1503,75 @@
     if (!c || !id) return;
     try { await c.rpc('quote_release_lock', { p_id: String(id) }); } catch (e) {}
   }
+  // ロック更新（保持の延命のみ）。true=まだ自分が保持／false=解放済み・奪取済み／null=不明。
+  // quote_renew_lock 未適用（スキーマ未反映）時は従来の acquire にフォールバックして延命する。
+  async function _renewLock(id) {
+    const c = _getClient();
+    if (!c || !id) return null;
+    try {
+      const { data, error } = await c.rpc('quote_renew_lock', { p_id: String(id) });
+      if (!error) return data === true;
+      // renew RPC 未適用 → 従来の acquire で延命（他者が email を保持中なら「失った」扱い）
+      const r = await _acquireLock(id);
+      return !(typeof r === 'string' && r.indexOf('@') >= 0);
+    } catch (e) { return null; }
+  }
   function _stopLockHeartbeat() { if (_lockTimer) { clearInterval(_lockTimer); _lockTimer = null; } }
+  // 編集中の操作を拾って放置判定をリセット（保持中のみ意味を持つ・1度だけ登録）
+  function _bindLockActivity() {
+    if (_lockActivityBound) return;
+    _lockActivityBound = true;
+    const tab = document.getElementById('tab-quote-make') || document;
+    const mark = () => { if (_lockHeldId) _lastLockActivity = Date.now(); };
+    ['pointerdown', 'keydown', 'input'].forEach(ev => tab.addEventListener(ev, mark, true));
+  }
   function _startLockHeartbeat(id) {
     _stopLockHeartbeat();
-    _lockTimer = setInterval(() => { if (_lockHeldId === id) _acquireLock(id); }, LOCK_HEARTBEAT_MS);
+    _lastLockActivity = Date.now();
+    _bindLockActivity();
+    _lockTimer = setInterval(async () => {
+      if (_lockHeldId !== id) return;
+      // 10分以上 無操作なら「放置」とみなし、自分でロックを解放して閲覧モードへ
+      if (Date.now() - _lastLockActivity > LOCK_IDLE_LIMIT_MS) { _onSelfIdleRelease(id); return; }
+      const held = await _renewLock(id);     // 更新のみ
+      if (held === false) {
+        // 更新できない＝ロックが自分名義でない。ただし「自分の別タブが放置/クローズで
+        // クリアしただけ」なら握り直せる。管理者が強制解放した場合は acquire が
+        // 'COOLDOWN' を返して拒否される（＝本当に失った）。
+        const r = await _acquireLock(id);
+        if (r === 'OK') return;              // 握り直せた（自分の別タブがクリア等）→ 継続
+        if (r === 'COOLDOWN' || (typeof r === 'string' && r.indexOf('@') >= 0)) _onLockLost(id);
+        // r === null / 'NOTFOUND' / 'DENIED' は不明 → 誤った閲覧モード化を避けて継続
+      }
+    }, LOCK_HEARTBEAT_MS);
   }
-  // 案件のロックを取得。{ok:true}=取得 ／ {ok:true,unmanaged:true}=ロック未適用 ／ {ok:false,by:email}=他者保持中
+  // ロックを失った（管理者が強制解放 or 他メンバーが引き継ぎ）→ 閲覧モードへ落とす
+  function _onLockLost(id) {
+    _stopLockHeartbeat();
+    if (_lockHeldId === id) _lockHeldId = null;
+    _setEditing(null);
+    _applyShareMode('view');
+    quoteShowToast('🔓 この案件の編集権が解放されました（管理者操作または他メンバーの引き継ぎ）。閲覧モードに切り替えました。', 'warn', 7000);
+  }
+  // 自分が長時間放置 → 自分でロックを解放して閲覧モードへ（他メンバーが編集できるように）
+  function _onSelfIdleRelease(id) {
+    _stopLockHeartbeat();
+    _releaseLock(id);
+    if (_lockHeldId === id) _lockHeldId = null;
+    _setEditing(null);
+    _applyShareMode('view');
+    quoteShowToast('💤 10分間操作がなかったため編集権を解放し、閲覧モードに切り替えました。続けるには「✏️ 編集」を押してください。', 'info', 8000);
+  }
+  // 案件のロックを取得。{ok:true}=取得 ／ {ok:true,unmanaged:true}=ロック未適用
+  //   ／ {ok:false,cooldown:true}=管理者が強制解放した直後（数十秒は再取得不可）
+  //   ／ {ok:false,by:email}=他者保持中
   async function _takeLock(id) {
     if (_lockHeldId && _lockHeldId !== id) { await _releaseLock(_lockHeldId); _lockHeldId = null; _stopLockHeartbeat(); }
     const r = await _acquireLock(id);
     if (r === 'OK')               { _lockHeldId = id; _startLockHeartbeat(id); return { ok: true }; }
     if (r === null || r === 'NOTFOUND' || r === 'DENIED') { _lockHeldId = null; _stopLockHeartbeat(); return { ok: true, unmanaged: true }; }
     _lockHeldId = null; _stopLockHeartbeat();
+    if (r === 'COOLDOWN') return { ok: false, cooldown: true };
     return { ok: false, by: r };
   }
   function _dropLock() {
@@ -1569,7 +1632,11 @@
     if (!_loadedCloudId) { quoteShowToast('ℹ️ 先にチーム共有から案件を開いてください', 'info', 3000); return; }
     const lock = await _takeLock(_loadedCloudId);
     if (!lock.ok) {
-      quoteShowToast('🔒 ' + _nameFor(lock.by) + ' さんが作業中のため編集できません', 'warn', 6000);
+      if (lock.cooldown) {
+        quoteShowToast('⏳ 管理者がこの案件のロックを解放した直後です。数十秒おいてから「✏️ 編集」をお試しください。', 'warn', 6000);
+      } else {
+        quoteShowToast('🔒 ' + _nameFor(lock.by) + ' さんが作業中のため編集できません', 'warn', 6000);
+      }
       return;
     }
     _setEditing(_loadedCloudId);     // Presence：あなたが作業中
@@ -2723,6 +2790,40 @@
     cloudListPresets();
   }
 
+  // ---------- 🔓 管理者による編集ロックの強制解放 ----------
+  // 作業者がタブを開いたまま帰宅する等でロックが残り、他メンバーが「作業中」
+  // 状態から抜け出せなくなった案件を、管理者が即時フリー化する。
+  // サーバ側 quote_admin_release_lock（get_my_role()='admin' 判定）で保護。
+  async function cloudAdminReleaseLock(rawId) {
+    const c = _getClient();
+    if (!c) return;
+    if (window._myRole !== 'admin') { quoteShowToast('⚠️ 管理者のみ実行できます', 'warn'); return; }
+    const id  = decodeURIComponent(rawId);
+    const row = _cloudRows.find(r => r.id === id);
+    const holder = (row && row.locked_by) ? _nameFor(row.locked_by) : '';
+    const label  = (row && row.name) ? '「' + row.name + '」' : '';
+    if (!confirm('🔓 管理者として' + label + 'の編集ロックを強制解放しますか？\n' +
+        (holder ? holder + ' さんの「作業中」状態が解除され、その人が保存していない変更は反映されません。'
+                : 'この案件の「作業中」状態を解除します。'))) return;
+    let res;
+    try {
+      res = await c.rpc('quote_admin_release_lock', { p_id: id });
+    } catch (e) { res = { error: e }; }
+    const error = res && res.error;
+    const data  = res && res.data;
+    if (error) {
+      // RPC 未適用（スキーマ未反映）の可能性 — データは変更されない安全な失敗
+      quoteShowToast('⚠️ 強制解放に失敗しました。docs/supabase-schema.sql の quote_admin_release_lock が未適用の可能性があります。', 'warn', 8000);
+      return;
+    }
+    if (data === 'DENIED')   { quoteShowToast('⚠️ 管理者権限がありません', 'warn'); return; }
+    if (data === 'NOTFOUND') { quoteShowToast('⚠️ 対象の案件が見つかりませんでした', 'warn'); return; }
+    quoteShowToast('🔓 編集ロックを解放しました' + (data ? '（' + _nameFor(data) + ' さんの作業中を解除）' : '（元々ロックなし）'), 'success', 4500);
+    // 自分がこの案件を開いていたら整合を取る（通常は他者ロックなので該当しない）
+    if (_lockHeldId === id) { _stopLockHeartbeat(); _lockHeldId = null; }
+    cloudListPresets();
+  }
+
   // ---------- 🔗 案件同士の関連付け（quote_preset_links・常に双方向） ----------
   // コピー（copiedFrom）とは別に、多レグ分割・代替提案・取引先の過去案件参照など、
   // 任意の2案件を手動でつなげる。テーブル未作成時は carrier_relations と同じ方針で
@@ -3662,6 +3763,7 @@
   window.qpdTagRankToggleAll  = qpdTagRankToggleAll;
   window.qpdResetAllFilters   = qpdResetAllFilters;
   window.cloudDeletePreset    = cloudDeletePreset;
+  window.cloudAdminReleaseLock = cloudAdminReleaseLock;
   window.cloudDuplicatePreset = cloudDuplicatePreset;
   window.cloudListPresets    = cloudListPresets;
   window.cloudGetAllRows     = () => (_cloudRows || []).slice();
