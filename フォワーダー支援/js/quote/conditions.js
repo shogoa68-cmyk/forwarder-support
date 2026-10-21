@@ -3633,6 +3633,16 @@ window.appendQuoteRows = function(rowObjects) {
   const data = migrateRowCells({ rows: rowObjects, _rowFormat: 'v3-mixed-rows' });
   const tbody = document.getElementById('tableBody');
   if (!tbody) return 0;
+  // 新規見積の初期行など「未入力の明細行だけ」のテーブルなら、その空行を片付けてから追加する
+  // （入力済みの行・小計・リマーク等が1つでもあれば何も消さない）
+  const realTrs = [...tbody.children].filter(tr => !tr.dataset.virtual);
+  const isBlankRow = tr => {
+    if (tr.dataset.type || tr.dataset.pending === '1') return false;
+    const id = tr.id.replace('row-', '');
+    const v = f => (document.getElementById(`${f}-${id}`)?.value || '').trim();
+    return !v('nm') && !v('sv') && !(parseFloat(v('pp')) || 0) && !(parseFloat(v('bp')) || 0);
+  };
+  if (realTrs.length && realTrs.every(isBlankRow)) realTrs.forEach(tr => tr.remove());
   const regularTrs = [];
   let parentTr = null;   // 直前の明細行：続くリマーク行を「この明細の子」として紐づける（サブコン別グループ表示・並べ替え・複製で明細に付いて動く）
   data.rows.forEach(row => {
