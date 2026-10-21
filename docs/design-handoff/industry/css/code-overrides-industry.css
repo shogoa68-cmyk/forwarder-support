@@ -113,7 +113,7 @@
 /* A-3 枠の言語：現行の橙の点線（outline）を消す。Design の CSS は border だけを実線に戻し、outline が残るため */
 #tab-quote-make input.name-unregistered, #tab-quote-make #quoteTable input.name-unregistered { outline: none !important; }
 /* A-1 小計行：「注記 ▾」ボタンは現行では隠している。Industry では表示（Design の .st-notes-btn の見た目は display を持たない） */
-#tab-quote-make #quoteTable .st-notes-btn { display: inline-flex; align-items: center; }
+#tab-quote-make #quoteTable .st-notes-btn { display: inline-flex; align-items: center; pointer-events: auto; }   /* 小計行は pointer-events:none（ドラッグの邪魔をしない既存設定）。このボタンだけ押せるように */
 #tab-quote-make #quoteTable .st-notes { display: none; }
 #tab-quote-make #quoteTable tr.is-notes-open .st-notes { display: flex; }
 #tab-quote-make #quoteTable .subcon-subtotal-inner .st-alias, #tab-quote-make #quoteTable .subcon-subtotal-inner .subcon-subtotal-add-btn, #tab-quote-make #quoteTable .subcon-subtotal-inner .st-remark { order: 0; }
@@ -215,3 +215,26 @@ body:has(#tab-master.active) #backToQuoteFab { display: none !important; }
 /* パネルの「有効期間」は、行の中に出しているとき（中身が空）は見出しごと隠す */
 #tab-quote-make #quoteTable .row-detail-panel .rd-group:has(> .rd-slot[data-rd-slot="valid"]:empty) { display: none; }
 #tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]).has-valid-inline > td.name-cell > .w-valid input.w-valid-date { padding: 0 1px 0 3px; font-size: 10px; letter-spacing: 0; }
+
+/* グレーアウトした行（見積書に出さない・期間外・入力完了・除外・未入力）はセルごと半透明（opacity）で、セルが重ね合わせの単位になる。
+   つまみ列の操作ボタン（行の下に重ねて出す）が次の行の入力欄の下に隠れ、押せなかった（見積書に出さないの解除・複製・削除ができない）。
+   ホバー・フォーカス中の行のつまみ列を前に出す */
+#tab-quote-make #quoteTable > tbody > tr > td.handle-cell { position: relative; }
+#tab-quote-make #quoteTable > tbody > tr:hover > td.handle-cell,
+#tab-quote-make #quoteTable > tbody > tr:focus-within > td.handle-cell,
+#tab-quote-make #quoteTable > tbody > tr.is-active > td.handle-cell { z-index: 35; }
+
+/* ---- 行の操作ボタン（つまみ列のホバー）に「あそび」：つまみから少し外れても、すぐには消えない ----
+   消えるのを 0.6 秒遅らせる（その間にカーソルが戻る／ボタンへ移れば残る）。ボタンの上にいる間は消えない（ボタンは td の子なので td:hover が続く）。
+   pointer-events ではなく visibility で隠す（pointer-events:none だと、遅らせている間にボタンへ移れず、移った途端に消えるため） */
+#tab-quote-make #quoteTable td.handle-cell .row-acts { visibility: hidden; pointer-events: auto; transition: opacity .15s .6s, visibility 0s .75s; }
+#tab-quote-make #quoteTable tr td.handle-cell:hover .row-acts,
+#tab-quote-make #quoteTable tr td.handle-cell .row-acts:hover { visibility: visible; opacity: 1; transition: opacity .12s 0s, visibility 0s 0s; }
+#tab-quote-make #quoteTable tr:hover td.handle-cell .row-acts,
+#tab-quote-make #quoteTable tr:focus-within td.handle-cell .row-acts { pointer-events: auto; }   /* 遅らせている間もクリックできる（opacity は上のルールで 0 に向かう） */
+#tab-quote-make #quoteTable tr td.handle-cell:hover .row-acts { transition: opacity .12s 0s, visibility 0s 0s; }
+/* 開いた「その他 ▾」のパネルの間は出さない（stage2 の指定。visibility でも確実に隠す） */
+#tab-quote-make #quoteTable tr.is-detail-open td.handle-cell .row-acts { visibility: hidden !important; transition: none; }
+@media (hover: none) {
+  #tab-quote-make #quoteTable tr.is-active td.handle-cell .row-acts { visibility: visible; opacity: 1; transition: none; }
+}

@@ -2081,6 +2081,18 @@ html.theme-industry {
 :where(html.theme-industry) .rn-op--del:hover {
   background: #f9efee;
 }
+@media (max-width: 640px) {
+  :where(html.theme-industry) .rn-compose-grid {
+    grid-template-columns: 1fr;
+  }
+  :where(html.theme-industry) .rn-plan-row {
+    flex-wrap: wrap;
+  }
+  :where(html.theme-industry) .rn-plan-amt {
+    text-align: left;
+    width: 100%;
+  }
+}
 :where(html.theme-industry) .ua-alias-chip {
   border-radius: 0;
 }
@@ -2182,6 +2194,16 @@ html.theme-industry {
 :where(html.theme-industry) .sd-bar-won {
   background: #3e5c79;
   border-radius: 0;
+}
+@media (max-width: 640px) {
+  :where(html.theme-industry) .sd-bar-row {
+    grid-template-columns: 90px 1fr auto;
+    gap: var(--sp-6);
+    font-size: var(--fs-11);
+  }
+  :where(html.theme-industry) .sd-trend-col .sd-bar-row {
+    grid-template-columns: 80px 1fr auto;
+  }
 }
 :where(html.theme-industry) #tab-local-charges .lcrp-box {
   border-radius: 0;
@@ -9545,6 +9567,7 @@ html.theme-industry {
 :where(html.theme-industry) #tab-quote-make #quoteTable .st-notes-btn {
   display: inline-flex;
   align-items: center;
+  pointer-events: auto;
 }
 :where(html.theme-industry) #tab-quote-make #quoteTable .st-notes {
   display: none;
@@ -9911,4 +9934,41 @@ html.theme-industry {
   padding: 0 1px 0 3px;
   font-size: 10px;
   letter-spacing: 0;
+}
+:where(html.theme-industry) #tab-quote-make #quoteTable > tbody > tr > td.handle-cell {
+  position: relative;
+}
+:where(html.theme-industry) #tab-quote-make #quoteTable > tbody > tr:hover > td.handle-cell,
+:where(html.theme-industry) #tab-quote-make #quoteTable > tbody > tr:focus-within > td.handle-cell,
+:where(html.theme-industry) #tab-quote-make #quoteTable > tbody > tr.is-active > td.handle-cell {
+  z-index: 35;
+}
+:where(html.theme-industry) #tab-quote-make #quoteTable td.handle-cell .row-acts {
+  visibility: hidden;
+  pointer-events: auto;
+  transition: opacity .15s .6s, visibility 0s .75s;
+}
+:where(html.theme-industry) #tab-quote-make #quoteTable tr td.handle-cell:hover .row-acts,
+:where(html.theme-industry) #tab-quote-make #quoteTable tr td.handle-cell .row-acts:hover {
+  visibility: visible;
+  opacity: 1;
+  transition: opacity .12s 0s, visibility 0s 0s;
+}
+:where(html.theme-industry) #tab-quote-make #quoteTable tr:hover td.handle-cell .row-acts,
+:where(html.theme-industry) #tab-quote-make #quoteTable tr:focus-within td.handle-cell .row-acts {
+  pointer-events: auto;
+}
+:where(html.theme-industry) #tab-quote-make #quoteTable tr td.handle-cell:hover .row-acts {
+  transition: opacity .12s 0s, visibility 0s 0s;
+}
+:where(html.theme-industry) #tab-quote-make #quoteTable tr.is-detail-open td.handle-cell .row-acts {
+  visibility: hidden !important;
+  transition: none;
+}
+@media (hover: none) {
+  :where(html.theme-industry) #tab-quote-make #quoteTable tr.is-active td.handle-cell .row-acts {
+    visibility: visible;
+    opacity: 1;
+    transition: none;
+  }
 }
