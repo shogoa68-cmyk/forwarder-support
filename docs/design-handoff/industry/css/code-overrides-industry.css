@@ -113,7 +113,7 @@
 /* A-3 枠の言語：現行の橙の点線（outline）を消す。Design の CSS は border だけを実線に戻し、outline が残るため */
 #tab-quote-make input.name-unregistered, #tab-quote-make #quoteTable input.name-unregistered { outline: none !important; }
 /* A-1 小計行：「注記 ▾」ボタンは現行では隠している。Industry では表示（Design の .st-notes-btn の見た目は display を持たない） */
-#tab-quote-make #quoteTable .st-notes-btn { display: inline-flex; align-items: center; }
+#tab-quote-make #quoteTable .st-notes-btn { display: inline-flex; align-items: center; pointer-events: auto; }   /* 小計行は pointer-events:none（ドラッグの邪魔をしない既存設定）。このボタンだけ押せるように */
 #tab-quote-make #quoteTable .st-notes { display: none; }
 #tab-quote-make #quoteTable tr.is-notes-open .st-notes { display: flex; }
 #tab-quote-make #quoteTable .subcon-subtotal-inner .st-alias, #tab-quote-make #quoteTable .subcon-subtotal-inner .subcon-subtotal-add-btn, #tab-quote-make #quoteTable .subcon-subtotal-inner .st-remark { order: 0; }

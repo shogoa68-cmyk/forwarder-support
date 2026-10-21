@@ -9567,6 +9567,7 @@ html.theme-industry {
 :where(html.theme-industry) #tab-quote-make #quoteTable .st-notes-btn {
   display: inline-flex;
   align-items: center;
+  pointer-events: auto;
 }
 :where(html.theme-industry) #tab-quote-make #quoteTable .st-notes {
   display: none;
