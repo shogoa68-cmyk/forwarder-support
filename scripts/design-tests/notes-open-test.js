@@ -45,6 +45,8 @@ const OUT=process.env.OUT||require('os').tmpdir()+'/design-tests-out';fs.mkdirSy
  const al=sub.locator('.subcon-alias-input');await al.fill('国内諸費用 一式');
  ok('客先表示名の欄に入力できる',(await al.inputValue())==='国内諸費用 一式');
  await sub.locator('.st-notes-btn').click();await p.waitForTimeout(200);
+ const g=await sub.evaluate(tr=>{const r=s=>tr.querySelector(s).getBoundingClientRect();const a=r('.st-alias'),m=r('.st-remark'),n=r('.st-notes');return{sameRow:Math.abs(a.top-m.top)<6,gap:Math.round(m.left-a.right),aLeft:Math.round(a.left-n.left)}});
+ ok('客先表示名とリマークが 1 行に並ぶ（左寄せ・間隔が 60px 以内）',g.sameRow&&g.gap<=60&&g.aLeft<=4);
  ok('もう一度押すと閉じる',!(await sub.evaluate(t=>t.classList.contains('is-notes-open'))));
  ok('入力済みなら ● が付く',await sub.locator('.st-notes-btn').evaluate(b=>b.classList.contains('has-value')));
  console.log('errors',JSON.stringify(errs));await b.close();srv.close();})();
