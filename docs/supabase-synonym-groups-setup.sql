@@ -18,6 +18,9 @@ CREATE TABLE IF NOT EXISTS synonym_groups (
 
 ALTER TABLE synonym_groups ENABLE ROW LEVEL SECURITY;
 
+-- テーブル権限（RLS とは別。無いと "permission denied for table synonym_groups" になり読み書きできない）
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.synonym_groups TO authenticated;
+
 CREATE POLICY "team members can read synonym_groups" ON synonym_groups
   FOR SELECT USING (is_team_member());
 
