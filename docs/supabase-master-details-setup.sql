@@ -22,6 +22,10 @@ CREATE TABLE IF NOT EXISTS master_details (
 
 ALTER TABLE master_details ENABLE ROW LEVEL SECURITY;
 
+-- テーブル権限（RLS とは別。これが無いと "permission denied for table master_details" になり、
+-- 読み込み・保存がすべて失敗する。SQL Editor で作ったテーブルは自動では付与されない環境がある）
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.master_details TO authenticated;
+
 DROP POLICY IF EXISTS "team members can read master_details" ON master_details;
 CREATE POLICY "team members can read master_details" ON master_details
   FOR SELECT USING (is_team_member());
