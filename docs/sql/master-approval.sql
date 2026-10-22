@@ -28,6 +28,10 @@ create index if not exists idx_master_requests_status on public.master_requests 
 
 alter table public.master_requests enable row level security;
 
+-- テーブル権限（RLS とは別。これが無いと "permission denied for table master_requests" になり、
+-- アプリは申請テーブルを使えないと判断して承認制を有効にしない）
+grant select, insert, update, delete on public.master_requests to authenticated;
+
 drop policy if exists "team members can read master requests" on public.master_requests;
 create policy "team members can read master requests" on public.master_requests
   for select using (is_team_member());

@@ -15,6 +15,10 @@ create table if not exists public.stats_exclusions (
 
 alter table public.stats_exclusions enable row level security;
 
+-- テーブル権限（RLS とは別。これが無いと "permission denied for table stats_exclusions" になり、
+-- アプリは共有テーブルを使えないと判断して、このブラウザだけの除外リストのままになる）
+grant select, insert, delete on public.stats_exclusions to authenticated;
+
 drop policy if exists "team members can read stats exclusions" on public.stats_exclusions;
 create policy "team members can read stats exclusions" on public.stats_exclusions
   for select using (is_team_member());
