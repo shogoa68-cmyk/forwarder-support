@@ -1287,6 +1287,8 @@
       '<div class="counts">' + cells + '</div>' +
       '<p class="notice-ex">例：' + ex + '</p>' +
       '<p>マスターはチーム共有に一本化したため、このブラウザの分は使われません。チームへ移すと、ほかの人の入力候補にも出ます。</p>' +
+      (_migLastFail && _migLastFail.msgs.length
+        ? '<p class="notice-fail" style="color:#a33;font-size:12px;line-height:1.6">⚠️ 前回の移行で移せなかったもの：<br>' + _migLastFail.msgs.map(_esc).join('<br>') + '</p>' : '') +
       '<div class="notice-actions">' +
       '<button type="button" class="ar-add-btn btn-primary" onclick="masterMigrateLocal()">☁️ チームへ移す</button>' +
       '<button type="button" class="ar-del-btn btn-skip" onclick="masterDiscardLocal()" title="移さずに、このブラウザの分を使わないようにします（念のためバックアップは残します）">移さない…</button>' +
@@ -1354,7 +1356,34 @@
     await window.masterMigrateLocal();
   };
 
+  // --- 移行（このブラウザの分をクラウドへ）---
+  let _migRunning = false;
+  let _migLastFail = null;   // 直近の移行で移せなかったものと理由（バナーに残す。通知を見逃しても分かるように）
+  // 移行中の表示：ボタンを無効化して進み具合を出す（件数が多いと時間がかかるため）
+  function _migProgress(text) {
+    document.querySelectorAll('.master-cloud-notice .notice-actions button').forEach(b => { b.disabled = true; });
+    const b = document.querySelector('.master-cloud-notice .notice-actions .btn-primary');
+    if (b && text) b.textContent = text;
+  }
+  // まとめて書く（1 回の通信で最大 100 件）。1 行でも不正だと全体が失敗するので、失敗したときは 1 件ずつに切り分けて、
+  // 書けない行だけを数える（理由は fails に積んで画面に出す）
+  async function _migUpsert(table, rows, onConflict, label, fails) {
+    for (let i = 0; i < rows.length; i += 100) {
+      const chunk = rows.slice(i, i + 100);
+      const r = await _c().from(table).upsert(chunk, { onConflict });
+      if (!r.error) continue;
+      const firstErr = r.error.message || String(r.error);
+      let bad = 0;
+      for (const row of chunk) {
+        const one = await _c().from(table).upsert(row, { onConflict });
+        if (one.error) bad++;
+      }
+      if (bad) fails.push(label + '：' + bad + ' 件を書き込めません（' + firstErr + '）');
+    }
+  }
+
   window.masterMigrateLocal = async function () {
+    if (_migRunning) return;
     const info = _migInfo();
     if (!info || !info.total) return;
     const ok = await window.uiConfirm({
@@ -1364,30 +1393,63 @@
       okLabel: 'チームへ移す',
     });
     if (!ok) return;
-    for (const m of info.masters) if (typeof window.statsEnsureMaster === 'function') await window.statsEnsureMaster(m.field, m.value);
-    for (const g of info.syn) {
-      const cg = (_synCloud || []).find(x => x.field === g.field && x.canonical === g.canonical);
-      await _synUpsert(g.field, g.canonical, [...new Set([...((cg && cg.aliases) || []), ...g.aliases])]);
+    _migRunning = true;
+    try {
+      const fails = [], now = new Date().toISOString();
+      _migProgress('移行中…');
+      for (const m of info.masters) if (typeof window.statsEnsureMaster === 'function') await window.statsEnsureMaster(m.field, m.value);
+      if (info.syn.length) {
+        _migProgress('移行中… 同義グループ ' + info.syn.length + ' 件');
+        if (_synTableMissing) fails.push('同義グループ：保存先（synonym_groups）が未作成です');
+        else {
+          const rows = info.syn.map(g => {
+            const cg = (_synCloud || []).find(x => x.field === g.field && x.canonical === g.canonical);
+            return { field: g.field, canonical: g.canonical, aliases: [...new Set([...((cg && cg.aliases) || []), ...g.aliases])], updated_by: _me(), updated_at: now };
+          });
+          await _migUpsert(SYN_TABLE, rows, 'field,canonical', '同義グループ', fails);
+          await window.synLoadCloud();
+        }
+      }
+      if (info.md.length) {
+        _migProgress('移行中… マスター詳細 ' + info.md.length + ' 件');
+        if (_mdTableMissing) fails.push('マスター詳細：保存先（master_details）が未作成です');
+        else {
+          const rows = info.md.map(m => ({ field: m.field, value: m.value, details: m.details || {}, updated_by: _me(), updated_at: now }));
+          await _migUpsert(MD_TABLE, rows, 'field,value', 'マスター詳細', fails);
+          await window.mdLoadCloud();
+        }
+      }
+      if (info.rules.length) {
+        _migProgress('移行中… 統合ルール ' + info.rules.length + ' 件');
+        await _migUpsert(TABLE, info.rules.map(r => ({ field: r.field, from_value: r.from_value, to_value: r.to_value, created_by: _me() })), 'field,from_value', '統合ルール', fails);
+      }
+      for (const p of info.abbrev) if (typeof window.synAddAlias === 'function') await window.synAddAlias(p.field, p.abbrev, p.full);
+      if (info.excl.length) {
+        await _migUpsert(EXCL_TABLE, info.excl.map(e => ({ field: e.field, value: e.value, created_by: _me() })), 'field,value', '除外リスト', fails);
+      }
+      // クラウドへ書けたかを読み直して確かめてから、このブラウザの分を消す（書き込みの失敗は黙って無視されるため、
+      // 確かめずに消すと、移せていないデータが失われる）。マスター（投票）は承認制だと「申請」になるので確認の対象にしない
+      await window.arLoadCloud();
+      if (typeof window.statsLoadMasterCache === 'function') await window.statsLoadMasterCache();
+      await _exclLoadCloud();
+      const left = _migInfo();
+      const leftN = left ? left.syn.length + left.md.length + left.rules.length + left.abbrev.length + left.excl.length : 0;
+      if (leftN) {
+        const parts = [['同義グループ', left.syn.map(g => g.canonical)], ['マスター詳細', left.md.map(m => m.value)],
+                       ['統合ルール', left.rules.map(r => r.from_value)], ['略称', left.abbrev.map(p => p.abbrev)], ['除外リスト', left.excl.map(e => e.value)]]
+          .filter(x => x[1].length).map(x => x[0] + ' ' + x[1].length + ' 件（例：' + x[1].slice(0, 3).join('、') + '）');
+        _migLastFail = { msgs: fails.concat(parts.length ? ['クラウドに反映されていないもの：' + parts.join(' / ')] : []) };
+        await _migAfter();
+        if (typeof window.quoteShowToast === 'function')
+          window.quoteShowToast('⚠️ ' + leftN + ' 件はクラウドへ移せませんでした。このブラウザには残してあります（理由はマスター管理画面の先頭に出しています）', 'warn', 8000);
+        return;
+      }
+      _migLastFail = null;
+      _migBackupAndClear();
+      await _migAfter('☁️ ' + info.total + ' 件をチーム共有のマスターへ移しました');
+    } finally {
+      _migRunning = false;
     }
-    for (const m of info.md) await window.mdSave(m.field, m.value, m.details || {});
-    for (const r of info.rules) await _c().from(TABLE).upsert({ field: r.field, from_value: r.from_value, to_value: r.to_value, created_by: _me() }, { onConflict: 'field,from_value' });
-    for (const p of info.abbrev) if (typeof window.synAddAlias === 'function') await window.synAddAlias(p.field, p.abbrev, p.full);
-    for (const e of info.excl) await _c().from(EXCL_TABLE).upsert({ field: e.field, value: e.value, created_by: _me() }, { onConflict: 'field,value' });
-    // クラウドへ書けたかを読み直して確かめてから、このブラウザの分を消す（書き込みの失敗は黙って無視されるため、
-    // 確かめずに消すと、移せていないデータが失われる）。マスター（投票）は承認制だと「申請」になるので確認の対象にしない
-    await window.arLoadCloud();
-    if (typeof window.statsLoadMasterCache === 'function') await window.statsLoadMasterCache();
-    await _exclLoadCloud();
-    const left = _migInfo();
-    const leftN = left ? left.syn.length + left.md.length + left.rules.length + left.abbrev.length + left.excl.length : 0;
-    if (leftN) {
-      await _migAfter();
-      if (typeof window.quoteShowToast === 'function')
-        window.quoteShowToast('⚠️ ' + leftN + ' 件はクラウドへ移せませんでした。このブラウザには残してあります（通信・権限を確認して、もう一度お試しください）', 'warn', 7000);
-      return;
-    }
-    _migBackupAndClear();
-    await _migAfter('☁️ ' + info.total + ' 件をチーム共有のマスターへ移しました');
   };
   window.masterDiscardLocal = async function () {
     const ok = await window.uiConfirm({

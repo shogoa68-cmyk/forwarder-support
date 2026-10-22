@@ -76,6 +76,8 @@ const http = require('http'), fs = require('fs'), path = require('path');
             // 申請テーブルは承認制の試験のときだけ存在する（無いときは未作成のエラー＝従来の動き）
             if ((t === 'master_requests' || t === 'stats_exclusions') && !db[t]) return Promise.resolve({ data: null, error: { message: 'relation "' + t + '" does not exist' } }).then(res, rej);
             const rows = (db[t] = db[t] || []);
+            // 1 行でも不正（制約違反）なら、まとめて書いた分も全体が失敗する（Postgres と同じ）
+            if (opts.badKey && (st.op === 'upsert' || st.op === 'insert') && [].concat(st.payload).some(o => [o.canonical, o.value, o.from_value].includes(opts.badKey))) return Promise.resolve({ data: null, error: { message: 'violates check constraint' } }).then(res, rej);
             if (opts.failDetailWrites && t === 'master_details' && st.op !== 'select') return Promise.resolve({ data: null, error: { message: 'new row violates row-level security policy' } }).then(res, rej);
             let data = null;
             if (st.op === 'upsert' || st.op === 'insert') {
@@ -440,6 +442,28 @@ const http = require('http'), fs = require('fs'), path = require('path');
     const r = await p.evaluate(() => ({ kept: (localStorage.getItem('masterDetails_v1') || '').includes('失敗する品名'), backup: !!localStorage.getItem('masterLocalBackup_v1'), toast: document.body.textContent.includes('移せませんでした') }));
     ok(L + '書けなかったときはこのブラウザの分を消さない', r.kept && !r.backup, r);
     ok(L + '移せなかった旨を画面に出す', r.toast, r);
+    ok(L + 'JS エラーなし', errs.length === 0, errs);
+    await ctx.close();
+  }
+
+  {
+    // 1 行だけ不正でも、ほかは移せる。移せなかった分と理由は画面に残る
+    const { ctx, p, errs } = await open(true, { badKey: 'BAD品名', legacy: { synonymGroups_v1: [
+      { id: 'x1', field: 'nm', canonical: '良い品名A', aliases: ['GOOD A'] },
+      { id: 'x2', field: 'nm', canonical: 'BAD品名', aliases: ['BAD B'] },
+      { id: 'x3', field: 'nm', canonical: '良い品名C', aliases: ['GOOD C'] }] } });
+    const L = '[移行の切り分け] ';
+    p.evaluate(() => window.masterMigrateLocal());
+    await confirmDlg(p, 'ok'); await p.waitForTimeout(1500);
+    const r = await p.evaluate(() => ({
+      good: ['良い品名A', '良い品名C'].every(c => window.__db.synonym_groups.some(g => g.canonical === c)),
+      bad: window.__db.synonym_groups.some(g => g.canonical === 'BAD品名'),
+      kept: (localStorage.getItem('synonymGroups_v1') || '').includes('BAD品名'),
+      notice: window.masterTopNoticeHtml(),
+    }));
+    ok(L + '不正な 1 件があっても、ほかの 2 件は移せる', r.good && !r.bad, r);
+    ok(L + '移せなかった分はこのブラウザに残す', r.kept, r);
+    ok(L + '案内に件数（1 件）と理由・前回の失敗が残る', r.notice.includes('<b>1</b><span>同義グループ</span>') && r.notice.includes('前回の移行で移せなかったもの') && r.notice.includes('violates check constraint'), r.notice);
     ok(L + 'JS エラーなし', errs.length === 0, errs);
     await ctx.close();
   }
