@@ -51,6 +51,7 @@ const http = require('http'), fs = require('fs'), path = require('path');
       try {
         localStorage.setItem('fwd.uiMode', 'detail');
         Object.entries(legacy).forEach(([k, v]) => localStorage.setItem(k, JSON.stringify(v)));
+        if (opts.backup) localStorage.setItem('masterLocalBackup_v1', JSON.stringify(opts.backup));
       } catch (e) {}
       if (!loggedIn) return;
       const db = JSON.parse(JSON.stringify(seed));
@@ -75,6 +76,7 @@ const http = require('http'), fs = require('fs'), path = require('path');
             // 申請テーブルは承認制の試験のときだけ存在する（無いときは未作成のエラー＝従来の動き）
             if ((t === 'master_requests' || t === 'stats_exclusions') && !db[t]) return Promise.resolve({ data: null, error: { message: 'relation "' + t + '" does not exist' } }).then(res, rej);
             const rows = (db[t] = db[t] || []);
+            if (opts.failDetailWrites && t === 'master_details' && st.op !== 'select') return Promise.resolve({ data: null, error: { message: 'new row violates row-level security policy' } }).then(res, rej);
             let data = null;
             if (st.op === 'upsert' || st.op === 'insert') {
               [].concat(st.payload).forEach(o => {
@@ -103,7 +105,7 @@ const http = require('http'), fs = require('fs'), path = require('path');
         auth: { getSession: () => Promise.resolve({ data: { session: { user } } }), onAuthStateChange() { return { data: { subscription: { unsubscribe() {} } } }; }, signOut: () => Promise.resolve({}), signInWithOAuth: () => Promise.resolve({}) },
       };
       window.supabase = { createClient: () => client };
-    }, { seed, legacy, loggedIn, ME, opts });
+    }, { seed, legacy: (opts.legacy !== undefined ? opts.legacy : legacy), loggedIn, ME, opts });
     await ctx.route(u => !u.href.startsWith('http://127.0.0.1'), r => r.abort());
     const p = await ctx.newPage();
     const errs = [], dlg = [];
@@ -381,6 +383,63 @@ const http = require('http'), fs = require('fs'), path = require('path');
     await p.fill('#nm-' + id, 'ログインなし費用'); await p.evaluate(id => registerRowToMaster(id), id); await p.waitForTimeout(400);
     const after = await p.evaluate(() => localStorage.getItem('masterDetails_v1'));
     ok(L + 'マスター登録はこのブラウザに保存しない', before === after, { before, after });
+    ok(L + 'JS エラーなし', errs.length === 0, errs);
+    await ctx.close();
+  }
+
+
+  // ===== バックアップからの復元・移行の安全確認・旧「担当」の表示 =====
+  {
+    const BK = { at: '2026-10-20T08:31:52.615Z',
+      masterDetails_v1: JSON.stringify([
+        { field: 'nm', value: 'AAA', details: {} },
+        { field: 'customer', value: 'テスト商事', details: { furigana: 'てすとしょうじ', contact: '鈴木' } },
+      ]),
+      synonymGroups_v1: JSON.stringify([{ id: 'b1', field: 'customer', canonical: 'テスト商事', aliases: ['TEST SHOJI'] }]) };
+    const { ctx, p, errs } = await open(true, { legacy: {}, backup: BK });
+    const L = '[バックアップ復元] ';
+    const n0 = await p.evaluate(() => window.masterTopNoticeHtml());
+    ok(L + '復元の案内（空の詳細は数えず、詳細1件・同義グループ1件）', n0.includes('バックアップに残っています') && n0.includes('<b>1</b><span>マスター詳細</span>') && n0.includes('<b>1</b><span>同義グループ</span>'), n0);
+    // 旧「担当」だけの詳細も、担当者として見える（一覧チップ・ポップアップ・サジェスト）
+    const c0 = await p.evaluate(() => window.mdContactsOf({ contact: '鈴木' }));
+    ok(L + '旧「担当」を担当者1名として扱う', c0.length === 1 && c0[0].name === '鈴木', c0);
+    await p.evaluate(() => { switchCategory('master', document.querySelector('[onclick*="switchCategory(\'master"]')); }); await p.waitForTimeout(800);
+    const btn = await p.evaluate(() => !!document.querySelector('[onclick*="masterRestoreBackup"]'));
+    ok(L + '画面に「戻してチームへ移す」ボタン', btn);
+    p.evaluate(() => window.masterRestoreBackup());
+    const d1 = await confirmDlg(p, 'ok');                 // バックアップを戻しますか？
+    ok(L + '戻す確認画面', d1.text.includes('バックアップを戻しますか') && d1.text.includes('1'), d1.text);
+    const d2 = await confirmDlg(p, 'ok');                 // チームへ移しますか？
+    ok(L + '続けて「チームへ移す」の確認', d2.text.includes('チーム共有のマスターへ移します'), d2.text);
+    await p.waitForTimeout(800);
+    const r = await p.evaluate(() => ({
+      md: (window.__db.master_details || []).find(m => m.value === 'テスト商事'),
+      emptyMd: (window.__db.master_details || []).some(m => m.value === 'AAA'),
+      syn: window.__db.synonym_groups.some(g => g.canonical === 'テスト商事' && g.aliases.includes('TEST SHOJI')),
+      notice: window.masterTopNoticeHtml(),
+      cleared: localStorage.getItem('masterDetails_v1') === null,
+      chip: !!mdGet('customer', 'テスト商事'),
+    }));
+    ok(L + 'マスター詳細（ふりがな・旧「担当」）がクラウドへ', r.md && r.md.details.furigana === 'てすとしょうじ' && r.md.details.contact === '鈴木', r);
+    ok(L + '同義グループもクラウドへ', r.syn, r);
+    ok(L + '空の詳細（AAA）は登録しない', !r.emptyMd, r);
+    ok(L + '移行後：案内が消え、このブラウザの分は空', r.notice === '' && r.cleared && r.chip, r);
+    // 詳細の表示（一覧のチップと、見積タブのポップアップ）に旧「担当」が出る
+    await p.evaluate(() => { statsSetPane && 0; }); 
+    const shown = await p.evaluate(() => { document.getElementById('qf-customer') && (document.getElementById('qf-customer').value = 'テスト商事'); mdShowDetailPopup('customer', 'テスト商事'); return document.getElementById('cdBody').textContent; });
+    ok(L + 'ポップアップに旧「担当」（鈴木）とふりがなが出る', shown.includes('鈴木') && shown.includes('てすとしょうじ'), shown);
+    ok(L + 'JS エラーなし', errs.length === 0, errs);
+    await ctx.close();
+  }
+  {
+    // クラウドへ書けなかった場合は、このブラウザの分を消さない（消すと移せていないデータが失われる）
+    const { ctx, p, errs } = await open(true, { legacy: { masterDetails_v1: [{ field: 'nm', value: '失敗する品名', details: { defaultUnit: 'B/L' } }] }, failDetailWrites: true });
+    const L = '[移行の安全確認] ';
+    p.evaluate(() => window.masterMigrateLocal());
+    await confirmDlg(p, 'ok'); await p.waitForTimeout(1000);
+    const r = await p.evaluate(() => ({ kept: (localStorage.getItem('masterDetails_v1') || '').includes('失敗する品名'), backup: !!localStorage.getItem('masterLocalBackup_v1'), toast: document.body.textContent.includes('移せませんでした') }));
+    ok(L + '書けなかったときはこのブラウザの分を消さない', r.kept && !r.backup, r);
+    ok(L + '移せなかった旨を画面に出す', r.toast, r);
     ok(L + 'JS エラーなし', errs.length === 0, errs);
     await ctx.close();
   }

@@ -568,7 +568,7 @@
     dl.innerHTML = '';
     const value = (inp.value || '').trim();
     const rec = value && typeof window.mdGet === 'function' ? (window.mdGetCanon || window.mdGet)('customer', value) : null;
-    const contacts = rec && Array.isArray(rec.details?.contacts) ? rec.details.contacts : [];
+    const contacts = rec && typeof window.mdContactsOf === 'function' ? window.mdContactsOf(rec.details) : [];
     contacts.forEach(c => {
       const name = (c.name || '').trim();
       if (!name) return;
@@ -596,8 +596,9 @@
       .map(s => {
         const raw = details[s.key];
         if (s.contacts) {
-          if (!Array.isArray(raw) || !raw.length) return '';
-          const items = raw.map(c => {
+          const list = typeof window.mdContactsOf === 'function' ? window.mdContactsOf(details) : (Array.isArray(raw) ? raw : []);
+          if (!list.length) return '';
+          const items = list.map(c => {
             const meta = [c.phone, c.email, c.other].filter(Boolean).join(' / ');
             return `<div class="cd-contact-item"><b>${_cdEsc(c.name || '（氏名未入力）')}</b>` +
               (meta ? `<span class="cd-contact-meta">${_cdEsc(meta)}</span>` : '') + `</div>`;
