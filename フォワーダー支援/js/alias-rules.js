@@ -1220,31 +1220,45 @@
   // MD_KEY 等はこの後で定義されるため、使う時点で一覧にする
   // 除外リストは、共有テーブルがあるときだけ移行・削除の対象（無い間はこのブラウザの分を使い続けるため）
   const _migKeys = () => ['masterCandidates_v1', SYN_KEY, MD_KEY, LOCAL_KEY, ABBREV_KEY].concat(_exclOn() ? [EXCL_KEY] : []);
-  function _migInfo() {
+  // bk を渡すと「このブラウザの現在の保存」ではなく「バックアップ（masterLocalBackup_v1）」の中身を対象にする
+  // （クラウドに無いものだけを数える点は同じ。バックアップからの復元の案内に使う）
+  function _bkArr(bk, key) {
+    try { const v = JSON.parse(bk[key] || '[]'); return Array.isArray(v) ? v : []; } catch (e) { return []; }
+  }
+  function _migInfo(bk) {
     if (!_cloud()) return null;
     const k = (f, v) => f + '\x00' + v;
     const cloudM = new Set((typeof window.statsGetMasters === 'function' ? window.statsGetMasters() : []).map(m => k(m.field, m.value)));
-    const masters = (typeof window.statsLocalMasters === 'function' ? window.statsLocalMasters() : []).filter(m => !cloudM.has(k(m.field, m.value)));
+    const localMasters = bk
+      ? _bkArr(bk, 'masterCandidates_v1').filter(m => (m.votes || 0) >= 1).map(m => ({ field: m.field, value: m.value }))
+      : (typeof window.statsLocalMasters === 'function' ? window.statsLocalMasters() : []);
+    const masters = localMasters.filter(m => !cloudM.has(k(m.field, m.value)));
     const cloudSyn = _synCloud || [];
     const syn = [];
-    (function () { try { return JSON.parse(localStorage.getItem(SYN_KEY) || '[]'); } catch (e) { return []; } })().forEach(g => {
+    (bk ? _bkArr(bk, SYN_KEY) : (function () { try { return JSON.parse(localStorage.getItem(SYN_KEY) || '[]'); } catch (e) { return []; } })()).forEach(g => {
       const cg = cloudSyn.find(x => x.field === g.field && x.canonical === g.canonical);
       const missing = (g.aliases || []).filter(a => !cg || !(cg.aliases || []).includes(a));
       if (!cg || missing.length) syn.push({ field: g.field, canonical: g.canonical, aliases: missing, isNew: !cg });
     });
     const cloudMd = new Set((_mdCloud || []).map(m => k(m.field, m.value)));
-    const md = _mdLoadLocal().filter(m => !cloudMd.has(k(m.field, m.value)));
+    // 中身が空の詳細（{}）は情報が無いので数えない
+    const md = (bk ? _bkArr(bk, MD_KEY) : _mdLoadLocal()).filter(m => !cloudMd.has(k(m.field, m.value)) && Object.keys(m.details || {}).length);
     const cloudR = new Set(_arCloud.map(r => k(r.field, r.from_value)));
-    const rules = _loadLocal().filter(r => !cloudR.has(k(r.field, r.from_value)));
-    const abbrev = _abbrevUnshared(_loadAbbrevPairs());
+    const rules = (bk ? _bkArr(bk, LOCAL_KEY) : _loadLocal()).filter(r => !cloudR.has(k(r.field, r.from_value)));
+    const abbrev = _abbrevUnshared(bk ? _bkArr(bk, ABBREV_KEY) : _loadAbbrevPairs());
     const cloudX = new Set((_exclCloud || []).map(e => k(e.field, e.value)));
-    const excl = _exclOn() ? _loadExclusions().filter(e => !cloudX.has(k(e.field, e.value))) : [];
+    const excl = _exclOn() ? (bk ? _bkArr(bk, EXCL_KEY) : _loadExclusions()).filter(e => !cloudX.has(k(e.field, e.value))) : [];
     const total = masters.length + syn.length + md.length + rules.length + abbrev.length + excl.length;
     return { masters, syn, md, rules, abbrev, excl, total };
   }
   function _migBackupAndClear() {
     const backup = { at: new Date().toISOString() };
     _migKeys().forEach(key => { const v = localStorage.getItem(key); if (v !== null) backup[key] = v; });
+    // 以前のバックアップがあれば、上書きして失わないよう1世代だけ退避しておく
+    try {
+      const prev = localStorage.getItem('masterLocalBackup_v1');
+      if (prev) localStorage.setItem('masterLocalBackup_prev_v1', prev);
+    } catch (e) {}
     try { localStorage.setItem('masterLocalBackup_v1', JSON.stringify(backup)); } catch (e) {}
     _migKeys().forEach(key => localStorage.removeItem(key));
     if (typeof window.statsClearLocalMasters === 'function') window.statsClearLocalMasters();
@@ -1255,13 +1269,13 @@
     if (typeof window.arRenderPane === 'function') await window.arRenderPane();
     if (msg && typeof window.quoteShowToast === 'function') window.quoteShowToast(msg, 'success', 3600);
   }
-  // マスター管理画面の先頭に出す案内（未ログイン／このブラウザにだけあるデータ）
+  // マスター管理画面の先頭に出す案内（未ログイン／このブラウザにだけあるデータ／消したはずのバックアップに未復元のデータ）
   window.masterTopNoticeHtml = function () {
     if (!_cloud()) {
       return '<div class="master-cloud-notice">🔒 マスター（入力候補・同義グループ・マスター詳細）はチームで共有しています。表示・登録にはログインしてください。</div>';
     }
     const info = _migInfo();
-    if (!info || !info.total) return '';
+    if (!info || !info.total) return _restoreNoticeHtml();
     const cells = [
       ['マスター', info.masters.length], ['同義グループ', info.syn.length], ['マスター詳細', info.md.length],
       ['統合ルール', info.rules.length], ['略称', info.abbrev.length], ['除外リスト', info.excl.length],
@@ -1278,6 +1292,68 @@
       '<button type="button" class="ar-del-btn btn-skip" onclick="masterDiscardLocal()" title="移さずに、このブラウザの分を使わないようにします（念のためバックアップは残します）">移さない…</button>' +
       '<span class="skip-warn">「移さない」は元に戻せません（バックアップだけ残ります）</span></div></div>';
   };
+
+  // === バックアップ（masterLocalBackup_v1）からの復元 ===
+  // 「チームへ移す」「移さない」のどちらも、このブラウザの分をバックアップへ退避してから消す。
+  // クラウドに移せていなかった・誤って「移さない」を選んだ場合でも、バックアップから戻して移し直せるようにする。
+  function _migBackup() {
+    try { const b = JSON.parse(localStorage.getItem('masterLocalBackup_v1') || 'null'); return b && typeof b === 'object' ? b : null; }
+    catch (e) { return null; }
+  }
+  function _restoreNoticeHtml() {
+    const bk = _migBackup();
+    const bi = bk && _migInfo(bk);
+    if (!bi || !bi.total) return '';   // バックアップの中身がすべてクラウドにある（復元不要）
+    const cells = [
+      ['マスター', bi.masters.length], ['同義グループ', bi.syn.length], ['マスター詳細', bi.md.length],
+      ['統合ルール', bi.rules.length], ['略称', bi.abbrev.length], ['除外リスト', bi.excl.length],
+    ].filter(c => c[1]).map(c => '<div><b>' + c[1] + '</b><span>' + c[0] + '</span></div>').join('');
+    const when = bk.at ? new Date(bk.at).toLocaleString('ja-JP') : '';
+    const ex = [...bi.masters.map(m => m.value), ...bi.syn.map(g => g.canonical), ...bi.md.map(m => m.value),
+                ...bi.rules.map(r => r.from_value + '→' + r.to_value), ...bi.abbrev.map(p => p.abbrev + '=' + p.full)]
+      .slice(0, 6).map(_esc).join('、');
+    return '<div class="master-cloud-notice is-migrate"><p class="notice-title">🗂 クラウドに無いマスターのデータが、このブラウザのバックアップに残っています</p>' +
+      '<div class="counts">' + cells + '</div>' +
+      '<p class="notice-ex">例：' + ex + '</p>' +
+      '<p>' + _esc(when) + ' に取ったバックアップです。「戻してチームへ移す」で、クラウドに無い分をチーム共有のマスターへ登録し直します。</p>' +
+      '<div class="notice-actions">' +
+      '<button type="button" class="ar-add-btn btn-primary" onclick="masterRestoreBackup()">♻️ 戻してチームへ移す</button></div></div>';
+  }
+  // バックアップの中身（配列）を、このブラウザの保存へ戻す。すでにあるものは重複させない
+  function _migRestoreFromBackup() {
+    const bk = _migBackup();
+    if (!bk) return 0;
+    let n = 0;
+    ['masterCandidates_v1', SYN_KEY, MD_KEY, LOCAL_KEY, ABBREV_KEY, EXCL_KEY].forEach(key => {
+      const old = _bkArr(bk, key);
+      if (!old.length) return;
+      let cur; try { cur = JSON.parse(localStorage.getItem(key) || '[]'); } catch (e) { cur = []; }
+      if (!Array.isArray(cur)) cur = [];
+      const have = new Set(cur.map(x => JSON.stringify(x)));
+      const add = old.filter(x => !have.has(JSON.stringify(x)));
+      if (!add.length) return;
+      try { localStorage.setItem(key, JSON.stringify(cur.concat(add))); n += add.length; } catch (e) {}
+    });
+    if (typeof window.statsResetLocalMastersCache === 'function') window.statsResetLocalMastersCache();
+    return n;
+  }
+  window.masterRestoreBackup = async function () {
+    const bk = _migBackup();
+    const bi = bk && _migInfo(bk);
+    if (!bi || !bi.total) return;
+    const ok = await window.uiConfirm({
+      title: 'バックアップを戻しますか？',
+      lines: [(bk.at ? new Date(bk.at).toLocaleString('ja-JP') + ' のバックアップのうち、' : 'バックアップのうち、') +
+              'クラウドに無い ' + bi.total + ' 件をこのブラウザに戻します。',
+              '続けて「チームへ移す」の確認が出ます。'],
+      okLabel: '戻す',
+    });
+    if (!ok) return;
+    _migRestoreFromBackup();
+    await _migAfter();
+    await window.masterMigrateLocal();
+  };
+
   window.masterMigrateLocal = async function () {
     const info = _migInfo();
     if (!info || !info.total) return;
@@ -1297,8 +1373,20 @@
     for (const r of info.rules) await _c().from(TABLE).upsert({ field: r.field, from_value: r.from_value, to_value: r.to_value, created_by: _me() }, { onConflict: 'field,from_value' });
     for (const p of info.abbrev) if (typeof window.synAddAlias === 'function') await window.synAddAlias(p.field, p.abbrev, p.full);
     for (const e of info.excl) await _c().from(EXCL_TABLE).upsert({ field: e.field, value: e.value, created_by: _me() }, { onConflict: 'field,value' });
-    _migBackupAndClear();
+    // クラウドへ書けたかを読み直して確かめてから、このブラウザの分を消す（書き込みの失敗は黙って無視されるため、
+    // 確かめずに消すと、移せていないデータが失われる）。マスター（投票）は承認制だと「申請」になるので確認の対象にしない
     await window.arLoadCloud();
+    if (typeof window.statsLoadMasterCache === 'function') await window.statsLoadMasterCache();
+    await _exclLoadCloud();
+    const left = _migInfo();
+    const leftN = left ? left.syn.length + left.md.length + left.rules.length + left.abbrev.length + left.excl.length : 0;
+    if (leftN) {
+      await _migAfter();
+      if (typeof window.quoteShowToast === 'function')
+        window.quoteShowToast('⚠️ ' + leftN + ' 件はクラウドへ移せませんでした。このブラウザには残してあります（通信・権限を確認して、もう一度お試しください）', 'warn', 7000);
+      return;
+    }
+    _migBackupAndClear();
     await _migAfter('☁️ ' + info.total + ' 件をチーム共有のマスターへ移しました');
   };
   window.masterDiscardLocal = async function () {
@@ -1388,10 +1476,19 @@
     return error && /relation|does not exist|schema cache|not find/i.test(error.message || '');
   }
 
+  // 読み込み・保存の失敗を黙って空にしない（失敗すると詳細が「消えたように」見えるため、理由を出す）
+  function _mdWarn(msg) {
+    if (typeof window.quoteShowToast === 'function') window.quoteShowToast('⚠️ ' + msg, 'warn', 7000);
+  }
+  let _mdLoadWarned = false;
   window.mdLoadCloud = async function () {
     if (!_cloud() || _mdTableMissing) { _mdCloud = null; return false; }
     const { data, error } = await _selectAll(() => _c().from(MD_TABLE).select('field,value,details').order('field').order('value'));
-    if (error) { if (_mdMissingErr(error)) _mdTableMissing = true; _mdCloud = null; return false; }
+    if (error) {
+      if (_mdMissingErr(error)) _mdTableMissing = true;
+      else if (!_mdLoadWarned) { _mdLoadWarned = true; _mdWarn('マスター詳細を読み込めませんでした：' + (error.message || error)); }
+      _mdCloud = null; return false;
+    }
     _mdCloud = (data || []).map(r => ({ field: r.field, value: r.value, details: r.details || {} }));
     return true;
   };
@@ -1412,16 +1509,30 @@
   window.mdGetAll = function (field) {
     return _mdAll().filter(m => m.field === field);
   };
+  // 担当者の一覧（新形式 details.contacts。旧・単一の「担当」details.contact だけのデータも1件として扱う）
+  window.mdContactsOf = function (details) {
+    const d = details || {};
+    if (Array.isArray(d.contacts) && d.contacts.length) return d.contacts;
+    const legacy = String(d.contact || '').trim();
+    return legacy ? [{ name: legacy, phone: '', email: '', other: '' }] : [];
+  };
 
+  // 戻り値：保存できたら true（できなかった理由は画面に出す）
   window.mdSave = async function (field, value, details) {
-    if (!field || !value) return;
-    if (!_needCloud('マスター詳細') || _mdTableMissing) return;
+    if (!field || !value) return false;
+    if (!_needCloud('マスター詳細')) return false;
+    if (_mdTableMissing) { _mdWarn('マスター詳細の保存先（master_details）が未作成のため保存できません'); return false; }
     const { error } = await _c().from(MD_TABLE).upsert(
       { field, value, details, updated_by: _me(), updated_at: new Date().toISOString() },
       { onConflict: 'field,value' }
     );
-    if (_mdMissingErr(error)) _mdTableMissing = true;
+    if (error) {
+      if (_mdMissingErr(error)) _mdTableMissing = true;
+      _mdWarn('マスター詳細を保存できませんでした：' + (error.message || error));
+      return false;
+    }
     await window.mdLoadCloud();
+    return true;
   };
 
   window.mdDelete = async function (field, value) {

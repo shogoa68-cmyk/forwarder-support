@@ -413,6 +413,7 @@
   }
   // 移行用：このブラウザにだけ残っている昇格（masterCandidates_v1）
   window.statsLocalMasters = function () { return _getMasters().filter(m => (m.votes || 0) >= 1).map(m => ({ field: m.field, value: m.value })); };
+  window.statsResetLocalMastersCache = function () { _mastersCache = null; };   // バックアップから戻した後に読み直す
   window.statsClearLocalMasters = function () { _saveMasters([]); localStorage.removeItem(LOCAL_KEY); _mastersCache = null; };
 
   // === レンダリングヘルパー ===
@@ -446,10 +447,11 @@
     schema.forEach(s => {
       const raw = details[s.key];
       if (s.contacts) {
-        if (!Array.isArray(raw) || !raw.length) return;
-        const names = raw.map(c => c.name).filter(Boolean);
-        const disp = names.length ? names.slice(0, 2).join('、') + (names.length > 2 ? ' 他' : '') : raw.length + '名';
-        chips.push(`<span class="stats-md-chip" title="${_eav(s.label + '：' + raw.length + '名')}"><b>${_esc(s.label)}</b>${_esc(disp)}</span>`);
+        const list = typeof window.mdContactsOf === 'function' ? window.mdContactsOf(details) : (Array.isArray(raw) ? raw : []);
+        if (!list.length) return;
+        const names = list.map(c => c.name).filter(Boolean);
+        const disp = names.length ? names.slice(0, 2).join('、') + (names.length > 2 ? ' 他' : '') : list.length + '名';
+        chips.push(`<span class="stats-md-chip" title="${_eav(s.label + '：' + list.length + '名')}"><b>${_esc(s.label)}</b>${_esc(disp)}</span>`);
         return;
       }
       if (s.tags) {
@@ -2156,8 +2158,7 @@
       if (s.contacts) {
         // 旧・単一担当者フィールド（details.contact）からの非破壊移行：
         // まだ新形式のデータが無ければ、1件目として表示するだけ（保存時に新形式へ統一）
-        let list = Array.isArray(details[s.key]) ? details[s.key].slice() : [];
-        if (!list.length && details.contact) list = [{ name: details.contact, phone: '', email: '', other: '' }];
+        let list = typeof window.mdContactsOf === 'function' ? window.mdContactsOf(details).slice() : (Array.isArray(details[s.key]) ? details[s.key].slice() : []);
         if (!list.length) list = [{}];
         return `<div class="master-detail-contacts">` +
           `<span class="master-detail-contacts-label">${s.label}</span>` +
@@ -2259,7 +2260,9 @@
       const v = (el.value || '').trim();
       if (v) details[s.key] = v;
     });
-    if (typeof window.mdSave === 'function') await window.mdSave(field, value, details);
+    // 保存できなかったときは（理由は mdSave が画面に出す）入力中のフォームを残し、「保存しました」とは出さない
+    const saved = typeof window.mdSave === 'function' ? await window.mdSave(field, value, details) : false;
+    if (!saved) return;
     if (typeof window.quoteShowToast === 'function') window.quoteShowToast('📇 詳細情報を保存しました', 'success');
     if (typeof window.mdRefreshCustomerBtn === 'function') window.mdRefreshCustomerBtn();
     if (typeof window.arRefreshDatalist === 'function') window.arRefreshDatalist();  // ふりがなを入力補完へ即反映
