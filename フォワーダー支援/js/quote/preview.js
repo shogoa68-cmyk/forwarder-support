@@ -2002,7 +2002,7 @@
 
         // 先頭列がカテゴリのraw値なら新フォーマット（cat, sv, name, pq, un, pc, pp, cd, bq, bc, bp, mk, sub, profit, note）
         // 旧フォーマット（name, pq, pc, pp, ...）は off=0 で扱う
-        const isNewFmt = CAT_VALUES.includes(dataRows[0][0]);
+        const isNewFmt = CAT_VALUES.includes(normCat(dataRows[0][0]));
         let added = 0;
         dataRows.forEach(cols => {
           rowCount++;
@@ -2056,6 +2056,7 @@
           if (un) document.getElementById(`un-${id}`).value = un;
           const pcEl = document.getElementById(`pc-${id}`);
           if (pcEl && CURRENCIES.includes(pc)) pcEl.value = pc;
+          if (cat) cat = normCat(cat);   // 廃止したカテゴリは「その他」へ
           if (cat && CAT_VALUES.includes(cat)) {
             document.getElementById(`cat-${id}`).value = cat;
             onCatChange(id);

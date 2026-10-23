@@ -2369,6 +2369,7 @@
     const cats = (window.QuoteApp?.data?.CATEGORIES) || [];
     const m = {};
     cats.forEach(c => { m[c.value] = c.label; });
+    Object.entries(window.LEGACY_CATEGORY_MAP || {}).forEach(([k, v]) => { if (m[v]) m[k] = m[v]; });   // 廃止したカテゴリは「その他」の表示
     return m;
   });
 
