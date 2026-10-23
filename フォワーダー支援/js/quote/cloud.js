@@ -3841,6 +3841,19 @@
   window.quoteCloudUser   = function () { return _cloudUser; };
   window.quoteCloudClient = function () { return _getClient(); };
   window.quoteCloudLoadedId = function () { return _loadedCloudId; };
+  // ブラウザ保存の案件を読み込んだとき（ui.js loadPreset）：直前に開いていたクラウド案件との紐づけを外す。
+  // 外さないと「💾 保存（チーム共有）」が前のクラウド案件を上書きし、申し送り・添付・関連付けも前の案件のままになる。
+  // 作業中状態（ロック・Presence）も解放し、新規案件と同じ編集モードに戻す。
+  window.quoteCloudDetach = function () {
+    if (!_loadedCloudId && _shareMode === 'edit' && !_lockHeldId) { _resetQspChat(); return; }
+    _exitShareEditing();
+    _loadedCloudId = null; _loadedCloudTs = null;
+    _resetQspChat();
+    _applyShareMode('edit');
+    if (typeof window.sqOnActivate === 'function') window.sqOnActivate();
+    qfRenderAttachments();
+    _resetQuoteDirty();
+  };
   window.quoteDisplayName = function (email) { return (email && _profileMap[email]) || email || '—'; };
   window.quoteLoadProfiles = _loadProfiles;
 

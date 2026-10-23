@@ -1815,6 +1815,8 @@
     const presets = getPresets();
     const preset  = presets[idx];
     if (!preset) return;
+    // 直前に開いていたクラウド案件との紐づけを外す（外さないと「💾 保存（チーム共有）」がその案件を上書きする）
+    if (typeof window.quoteCloudDetach === 'function') window.quoteCloudDetach();
     // _applyQuoteData でフォーム復元・行再構築（v3 mixed-rows 対応）・合計更新を一括処理
     // 保存内容どおりに復元する（仮REF/顧客名/担当者が空のプリセットでも、前に開いていた案件の値を残さない）
     _applyQuoteData(preset.data);
