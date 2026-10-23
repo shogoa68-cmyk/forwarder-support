@@ -243,6 +243,9 @@ body:has(#tab-master.active) #backToQuoteFab { display: none !important; }
 #tab-quote-make #quoteTable tr:hover td.handle-cell .row-acts,
 #tab-quote-make #quoteTable tr:focus-within td.handle-cell .row-acts { pointer-events: auto; }   /* 遅らせている間もクリックできる（opacity は上のルールで 0 に向かう） */
 #tab-quote-make #quoteTable tr td.handle-cell:hover .row-acts { transition: opacity .12s 0s, visibility 0s 0s; }
+/* 別の行のつまみへカーソルが移ったら、前の行のメニューは「あそび」なしで即座に消す（2 つ同時に出さない）。
+   カーソルがどのつまみ列にも乗っていない間だけ、上の「あそび」が働く */
+#tab-quote-make #quoteTable:has(td.handle-cell:hover) td.handle-cell:not(:hover) .row-acts:not(:hover) { visibility: hidden; opacity: 0; transition: none; }
 /* 開いた「その他 ▾」のパネルの間は出さない（stage2 の指定。visibility でも確実に隠す） */
 #tab-quote-make #quoteTable tr.is-detail-open td.handle-cell .row-acts { visibility: hidden !important; transition: none; }
 @media (hover: none) {

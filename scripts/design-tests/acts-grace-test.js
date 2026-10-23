@@ -30,6 +30,14 @@ const run=async(p,OUT)=>{
  const n0=await p.locator(rows).count();
  await btn.click();await p.waitForTimeout(400);
  ok('メニューのボタンが押せる（複製）',(await p.locator(rows).count())===n0+1);
+ // 別の行のつまみへ移ったら、前の行のメニューは「あそび」なしで即座に消える（2 つ同時に出ない）
+ await p.mouse.move(600,20);await p.waitForTimeout(1300);
+ await row(1).locator('td.handle-cell .drag-handle').hover();await p.waitForTimeout(300);
+ ok('（準備）1 つ目が出ている',await shown(1),await vis(1));
+ await row(3).locator('td.handle-cell .drag-handle').hover();await p.waitForTimeout(80);
+ ok('2 つ目が出た直後（0.08秒）、1 つ目はもう消えている',!(await shown(1)),await vis(1));
+ ok('2 つ目は出ている',await shown(3),await vis(3));
+ await p.mouse.move(600,20);await p.waitForTimeout(1300);
  // つまみ→斜めに外れる（メニューに入らず）→ 少し待つと消える
  await p.mouse.move(600,20);await p.waitForTimeout(1300);
  ok('離れて待てば消える',!(await shown(1)),await vis(1));
