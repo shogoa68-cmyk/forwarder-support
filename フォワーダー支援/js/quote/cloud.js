@@ -1660,6 +1660,7 @@
     _exitShareEditing();
     _clearQuoteForm();
     _loadedCloudId = null; _loadedCloudTs = null;
+    _resetQspChat();   // 右レールの「申し送り」に前の案件の内容を残さない
     if (typeof setCurrentQuoteName === 'function') setCurrentQuoteName('');
     _applyShareMode('edit');
     quoteShowToast('🆕 新規案件を作成しました', 'success');
@@ -1670,6 +1671,7 @@
     _exitShareEditing();
     _clearQuoteForm();
     _loadedCloudId = null; _loadedCloudTs = null;
+    _resetQspChat();   // 右レールの「申し送り」に前の案件の内容を残さない
     if (typeof setCurrentQuoteName === 'function') setCurrentQuoteName('');
     _applyShareMode('edit');
     _resetQuoteDirty();
@@ -1774,6 +1776,7 @@
     _exitShareEditing();
     _clearQuoteForm();
     _loadedCloudId = null; _loadedCloudTs = null;
+    _resetQspChat();   // 右レールの「申し送り」に前の案件の内容を残さない
     if (typeof setCurrentQuoteName === 'function') setCurrentQuoteName('');
     _applyShareMode('edit');
     qpShowEditor();
@@ -2242,6 +2245,7 @@
       if (!resp.error && resp.data) {   // 新規作成：競合検知の基準にも採用
         _loadedCloudId = resp.data.id;
         _loadedCloudTs = resp.data.updated_at || new Date().toISOString();
+        _resetQspChat();   // 保存した案件の申し送りに切り替える（まだ無ければ「まだコメントはありません」）
       }
     }
     if (resp.error) { quoteShowToast('⚠️ 保存に失敗：' + resp.error.message, 'warn', 5000); return; }
@@ -2369,6 +2373,7 @@
     const cats = (window.QuoteApp?.data?.CATEGORIES) || [];
     const m = {};
     cats.forEach(c => { m[c.value] = c.label; });
+    Object.entries(window.LEGACY_CATEGORY_MAP || {}).forEach(([k, v]) => { if (m[v]) m[k] = m[v]; });   // 廃止したカテゴリは「その他」の表示
     return m;
   });
 
@@ -2728,10 +2733,8 @@
       data.data.fields['qf-tags-data'] = JSON.stringify(data.tags);
     }
 
-    // チャットタブが開いていれば即時更新
-    if (document.getElementById('qspPane-chat')?.classList.contains('is-active')) {
-      _loadQspComments();
-    }
+    // 右レールの「申し送り」を、開いた案件のものに入れ替える（前の案件の内容・書きかけを残さない）
+    _resetQspChat();
 
     // 復元処理（開く＝閲覧モード：ロックも Presence も取得しない）
     // 保存内容どおりに復元する（お客様名・担当者等が空の案件でも、前に開いていた案件の値を残さない）
@@ -3241,6 +3244,17 @@
     }
     _renderQspComments(data || []);
     wrap.scrollTop = wrap.scrollHeight;
+  }
+
+  // 案件が切り替わった（新規・クリア・別の案件を開く・新規保存）とき、申し送りの表示を空にして作り直す。
+  // 一覧は案件ごとに取得して描画するため、そのままだと前の案件の申し送りと書きかけのメモが残る。
+  // 申し送りのタブが開いていれば、いまの案件のものを取得し直す（案件が無ければ案内文）。閉じていれば開いたときに取得される。
+  function _resetQspChat() {
+    const input = document.getElementById('qspChatInput');
+    if (input) input.value = '';
+    const wrap = document.getElementById('qspChatList');
+    if (wrap) wrap.innerHTML = '';
+    if (document.getElementById('qspPane-chat')?.classList.contains('is-active')) _loadQspComments();
   }
 
   function _renderQspComments(rows) {
@@ -3827,6 +3841,19 @@
   window.quoteCloudUser   = function () { return _cloudUser; };
   window.quoteCloudClient = function () { return _getClient(); };
   window.quoteCloudLoadedId = function () { return _loadedCloudId; };
+  // ブラウザ保存の案件を読み込んだとき（ui.js loadPreset）：直前に開いていたクラウド案件との紐づけを外す。
+  // 外さないと「💾 保存（チーム共有）」が前のクラウド案件を上書きし、申し送り・添付・関連付けも前の案件のままになる。
+  // 作業中状態（ロック・Presence）も解放し、新規案件と同じ編集モードに戻す。
+  window.quoteCloudDetach = function () {
+    if (!_loadedCloudId && _shareMode === 'edit' && !_lockHeldId) { _resetQspChat(); return; }
+    _exitShareEditing();
+    _loadedCloudId = null; _loadedCloudTs = null;
+    _resetQspChat();
+    _applyShareMode('edit');
+    if (typeof window.sqOnActivate === 'function') window.sqOnActivate();
+    qfRenderAttachments();
+    _resetQuoteDirty();
+  };
   window.quoteDisplayName = function (email) { return (email && _profileMap[email]) || email || '—'; };
   window.quoteLoadProfiles = _loadProfiles;
 

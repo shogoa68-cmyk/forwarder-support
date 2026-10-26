@@ -798,7 +798,7 @@
       }
       // カテゴリ：未選択のときだけマスターの既定カテゴリを補完
       if (details.defaultCat && catEl && !catEl.value) {
-        catEl.value = details.defaultCat; onCatChange(rid); updateTotals(); filled = true;
+        catEl.value = normCat(details.defaultCat); onCatChange(rid); updateTotals(); filled = true;
       }
       // 課税区分：ユーザーがこの行のチェックを一度でも手動操作したら（dataset.txUserSet）以後は追従しない
       if ((details.defaultTax === 'taxed' || details.defaultTax === 'nontaxed') && tr.dataset.txUserSet !== '1') {

@@ -274,7 +274,7 @@
       if (!el) return;
       // 旧形式では checkbox 値が文字列 "on" で保存されていた。boolean true と "on" 両方を受け入れる
       if (el.type === 'checkbox') el.checked = v === true || v === 'on';
-      else el.value = v;
+      else el.value = (f === 'cat') ? normCat(v) : v;   // 廃止したカテゴリ（国内配送・横持ち／倉庫保管／梱包）は「その他」へ
     });
   }
 

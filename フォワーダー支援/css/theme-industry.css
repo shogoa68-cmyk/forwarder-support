@@ -9985,6 +9985,11 @@ html.theme-industry {
 :where(html.theme-industry) #tab-quote-make #quoteTable tr td.handle-cell:hover .row-acts {
   transition: opacity .12s 0s, visibility 0s 0s;
 }
+:where(html.theme-industry) #tab-quote-make #quoteTable:has(td.handle-cell:hover) td.handle-cell:not(:hover) .row-acts:not(:hover) {
+  visibility: hidden;
+  opacity: 0;
+  transition: none;
+}
 :where(html.theme-industry) #tab-quote-make #quoteTable tr.is-detail-open td.handle-cell .row-acts {
   visibility: hidden !important;
   transition: none;

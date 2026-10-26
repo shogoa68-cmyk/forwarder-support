@@ -26,9 +26,6 @@
     { re: /輸入通関|IMPORT\s*CUSTOMS/i,                                            cat: 'customs-import' },
     { re: /通関|CUSTOMS|取扱料|保税/i,                                             cat: 'customs-export' },
     { re: /保険|INSURANCE/i,                                                       cat: 'insurance' },
-    { re: /配送|配達|DELIVERY|DRAYAGE|TRUCK|横持|陸送|チャーター/i,                cat: 'domestic-transport' },
-    { re: /倉庫|保管|WAREHOUSE|STORAGE/i,                                          cat: 'warehouse' },
-    { re: /梱包|PACKING|バンニング|VANNING/i,                                      cat: 'packing-cost' },
     { re: /THC|CFS|DOC|D\/O|DRS|SEAL|CML|WHARFAGE|HANDLING|B\/L\s*FEE|AMS|AFR|MANIFEST|ローカル|LOCAL/i, cat: 'export-local' },
   ];
 

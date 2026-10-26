@@ -17,9 +17,6 @@
     { value: 'ocean',          label: '🚢 海上運賃' },
     { value: 'surcharge',      label: '⚡ サーチャージ' },
     { value: 'overseas',       label: '🌏 海外作業' },
-    { value: 'domestic-transport', label: '🚚 国内配送・横持ち' },
-    { value: 'warehouse',      label: '📦 倉庫保管' },
-    { value: 'packing-cost',   label: '🎁 梱包' },
     { value: 'other',          label: '📋 その他' },
   ];
   const LC_CURRENCIES = ['JPY', 'USD', 'EUR', 'CNY', 'SGD', 'HKD', 'GBP', 'AUD'];
@@ -524,7 +521,7 @@
     set('lc_full_name',   charge?.full_name   || '');
     const descEl = document.getElementById('lc_description');
     if (descEl) descEl.value = charge?.description || '';
-    set('lc_cat',        charge?.cat        || (_dir === 'export' ? 'export-local' : 'import-local'));
+    set('lc_cat',        (window.normCat ? window.normCat(charge?.cat) : charge?.cat) || (_dir === 'export' ? 'export-local' : 'import-local'));
     set('lc_amount',     charge?.amount     ?? '');
     set('lc_currency',   charge?.currency   || 'JPY');
     set('lc_unit',       charge?.unit       || '');

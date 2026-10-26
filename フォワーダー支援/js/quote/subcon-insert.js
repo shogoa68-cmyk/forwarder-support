@@ -15,13 +15,16 @@
     'domestic':'国内作業', 'export-local':'輸出ローカル', 'ocean':'海上', 'air':'航空',
     'surcharge':'サーチャージ', 'import-local':'輸入ローカル', 'overseas':'海外作業',
     'customs-export':'通関(輸出)', 'customs-import':'通関(輸入)', 'insurance':'保険',
-    'domestic-transport':'国内配送', 'warehouse':'倉庫保管', 'packing-cost':'梱包', 'other':'その他',
+    'other':'その他',
+    // 廃止したカテゴリ（過去案件に残っている値）は「その他」として表示
+    'domestic-transport':'その他', 'warehouse':'その他', 'packing-cost':'その他',
   };
   const CAT_CLASS = {
     'domestic':'cat-domestic', 'export-local':'cat-export-local', 'ocean':'cat-ocean', 'air':'cat-air',
     'surcharge':'cat-surcharge', 'import-local':'cat-import-local', 'overseas':'cat-overseas',
     'customs-export':'cat-customs-export', 'customs-import':'cat-customs-import', 'insurance':'cat-insurance',
-    'domestic-transport':'cat-domestic-transport', 'warehouse':'cat-warehouse', 'packing-cost':'cat-packing-cost', 'other':'cat-other',
+    'other':'cat-other',
+    'domestic-transport':'cat-other', 'warehouse':'cat-other', 'packing-cost':'cat-other',
   };
 
   let _subcons   = [];   // モーダル用（全件集計）
