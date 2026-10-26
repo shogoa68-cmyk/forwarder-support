@@ -159,6 +159,7 @@
       const vt     = _isSur ? (document.getElementById(`vt-${id}`)?.value || '') : '';
       const zc     = document.getElementById(`zc-${id}`)?.value === '1';
       const _hideManual = _st ? !!_st.hidden : tr.dataset.hideQuote === '1';   // 手動の見積書非表示
+      const _outReason  = tr.dataset.outReason || '';        // 'incoterms'（いまの貿易条件に合わない）／'period'（サーチャージの適用期間外）
       const _outRange   = tr.dataset.outRange === '1';     // 適用期間外（自動・原則客先非表示＋合計除外）
       const _ps         = tr.dataset.profitShare === '1';  // PROFIT SHARE（客先非表示・社内利益に計上）
       const _actual     = tr.dataset.actual === '1';   // 実費（金額未確定・合計除外・単価/金額は「実費」表示）
@@ -168,7 +169,7 @@
       // 客先出力・小計・PDF/Excel/CSV の除外は _hideQuote 一本で判定する（PROFIT SHARE も客先には出さない）。
       // 適用期間外は「参考」指定があれば例外的に出力する（金額は括弧書き・合計外のまま、客先へ参考提示したい場合）
       const _hideQuote  = _hideManual || (_outRange && !_ref) || _ps;
-      rows.push({ _type: 'data', taxed, cat, name, pq, un, pc, pp, cd, bq, bc, bp, mk, cost, bill, profit, ppmin: val(`ppmin-${id}`), bpmin: val(`bpmin-${id}`), note, sv, pt, vf, vt, zc, uid, _actual, _ps, _cond, _ref, _estimate, _hideQuote, _hideManual, _outRange });
+      rows.push({ _type: 'data', taxed, cat, name, pq, un, pc, pp, cd, bq, bc, bp, mk, cost, bill, profit, ppmin: val(`ppmin-${id}`), bpmin: val(`bpmin-${id}`), note, sv, pt, vf, vt, zc, uid, _actual, _ps, _cond, _ref, _estimate, _hideQuote, _hideManual, _outRange, _outReason });
     });
     return rows;
   }
@@ -748,6 +749,8 @@
       const _hqCls = d._hideQuote ? ' pv-row-hidden-quote' : '';
       const _hqBadge = d._ps
         ? '<span class="pv-hq-badge pv-ps-badge" title="PROFIT SHARE（代理店収益）。客先見積もりには出さず、社内利益にのみ計上します">🤝 PROFIT SHARE</span> '
+        : d._outRange && d._outReason === 'incoterms'
+        ? '<span class="pv-hq-badge pv-oor-badge" title="いまの貿易条件には適用されない行のため、合計・PDF・CSV・Excel から除外されています（プレビューには打ち消し線で表示）">🏷️ 貿易条件外</span> '
         : d._outRange
         ? '<span class="pv-hq-badge pv-oor-badge" title="適用期間外のため合計・PDF・CSV・Excel から除外されています（プレビューには打ち消し線で表示）">📅 適用期間外</span> '
         : (d._hideManual ? '<span class="pv-hq-badge" title="この行は見積書（PDF・Excel・CSV・客先プレビュー）に出力されません">🚫見積書非表示</span> ' : '');

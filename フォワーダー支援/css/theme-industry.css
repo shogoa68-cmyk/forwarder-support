@@ -9567,6 +9567,12 @@ html.theme-industry {
 :where(html.theme-industry) #tab-quote-make .quote-main {
   overflow-x: visible;
 }
+:where(html.theme-industry) #tab-quote-make .row-detail-panel .ic-group .ic-lbl {
+  display: none;
+}
+:where(html.theme-industry) #tab-quote-make .row-detail-panel .ic-group .ic-chip {
+  border-radius: 0;
+}
 :where(html.theme-industry) #tab-quote-make #quoteTable .st-notes-btn {
   display: inline-flex;
   align-items: center;

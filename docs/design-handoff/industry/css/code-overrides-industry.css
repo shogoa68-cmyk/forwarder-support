@@ -116,6 +116,9 @@
    Design の `.quote-main { overflow-x: auto }` は、.quote-main を「スクロールの入れ物」にしてしまい、中の position:sticky
    （.quote-cmdbar）が表と一緒に流れてしまう。表の横スクロールは #tableScrollWrap が担っているので、ここでは外す */
 #tab-quote-make .quote-main { overflow-x: visible; }
+/* 適用する貿易条件：パネルの中ではグループの見出しがあるので、欄のラベルは出さない。ボタン・チップは角形（Industry の言語） */
+#tab-quote-make .row-detail-panel .ic-group .ic-lbl { display: none; }
+#tab-quote-make .row-detail-panel .ic-group .ic-chip { border-radius: 0; }
 /* A-1 小計行：「注記 ▾」ボタンは現行では隠している。Industry では表示（Design の .st-notes-btn の見た目は display を持たない） */
 #tab-quote-make #quoteTable .st-notes-btn { display: inline-flex; align-items: center; pointer-events: auto; }   /* 小計行は pointer-events:none（ドラッグの邪魔をしない既存設定）。このボタンだけ押せるように */
 #tab-quote-make #quoteTable .st-notes { display: none; }

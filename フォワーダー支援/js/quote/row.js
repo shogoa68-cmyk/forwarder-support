@@ -18,7 +18,7 @@
       const vt = document.getElementById(`vt-${id}`);
       if (vf && vf.value) vf.value = '';
       if (vt && vt.value) vt.value = '';
-      if (tr) { delete tr.dataset.outRange; tr.classList.remove('row-out-of-range'); }
+      if (tr && !rowIncotermsMismatch(tr)) { delete tr.dataset.outRange; delete tr.dataset.outReason; tr.classList.remove('row-out-of-range'); }   // 貿易条件による除外は、カテゴリに関係なく維持
     }
     _scheduleCatHeaderRefresh();   // Industry テーマのときだけカテゴリ見出しを更新
   }
@@ -59,7 +59,14 @@
   }
   // 行の適用期間が見積の生きている期間と一切重ならなければ true（期間未設定の行は常に有効＝false）。
   // 日付は ISO(YYYY-MM-DD) なので文字列比較で大小判定できる。
-  function isRowOutOfRange(tr) {
+  function isRowOutOfRange(tr) { return !!rowOutReason(tr); }
+  // 行が客先向けの出力・合計から外れる理由：'incoterms'（いまの貿易条件に合わない）／'period'（サーチャージの適用期間外）／''（対象）
+  function rowOutReason(tr) {
+    if (rowIncotermsMismatch(tr)) return 'incoterms';
+    return _rowOutOfPeriod(tr) ? 'period' : '';
+  }
+  window.rowOutReason = rowOutReason;
+  function _rowOutOfPeriod(tr) {
     if (!tr || !tr.id || !tr.id.startsWith('row-')) return false;
     const id = tr.id.replace('row-', '');
     // 有効期限はサーチャージ専用。他カテゴリの行は（値が残っていても）対象外
@@ -81,18 +88,117 @@
   function recomputeRowValidity() {
     let n = 0;
     document.querySelectorAll('#tableBody tr[id^="row-"]').forEach(tr => {
-      if (isRowOutOfRange(tr)) {
+      const reason = rowOutReason(tr);
+      if (reason) {
         tr.dataset.outRange = '1';
+        tr.dataset.outReason = reason;
         tr.classList.add('row-out-of-range');
         n++;
       } else {
         delete tr.dataset.outRange;
+        delete tr.dataset.outReason;
         tr.classList.remove('row-out-of-range');
       }
     });
     return n;
   }
   window.recomputeRowValidity = recomputeRowValidity;
+
+  // ===== 適用する貿易条件（行ごと・インコタームズ）=====
+  // 行の ic（カンマ区切りのコード。例 "EXW,FCA"）が空ならどの貿易条件でも有効。値があれば、見積の貿易条件（往復案件は往路＝cond-incoterms）が
+  // その中に無い行は「適用期間外」と同じ扱い（画面には薄く残り、客先向けの出力と合計から外れる）。貿易条件が未設定のときは判定しない。
+  function _incotermsCode(v) { return String(v || '').split('（')[0].split('(')[0].trim(); }
+  function currentIncotermsCode() {
+    const v = document.getElementById('cond-incoterms')?.value || '';
+    return (v === '設定なし') ? '' : _incotermsCode(v);
+  }
+  function _incotermsChoices() {
+    const sel = document.getElementById('cond-incoterms');
+    if (!sel) return [];
+    return [...sel.options].map(o => _incotermsCode(o.value)).filter(c => c && c !== '設定なし');
+  }
+  function rowIcList(id) {
+    return String(document.getElementById(`ic-${id}`)?.value || '').split(',').map(s => s.trim()).filter(Boolean);
+  }
+  function rowIncotermsMismatch(tr) {
+    if (!tr || !tr.id || !tr.id.startsWith('row-')) return false;
+    const list = rowIcList(tr.id.replace('row-', ''));
+    if (!list.length) return false;
+    const cur = currentIncotermsCode();
+    if (!cur) return false;
+    return !list.includes(cur);
+  }
+  window.rowIncotermsMismatch = rowIncotermsMismatch;
+  function renderIcChips(id) {
+    const wrap = document.querySelector(`#row-${id} .ic-chips`);
+    if (!wrap) return;
+    const sel = new Set(rowIcList(id));
+    wrap.replaceChildren(..._incotermsChoices().map(code => {
+      const b = document.createElement('button');
+      b.type = 'button'; b.className = 'ic-chip' + (sel.has(code) ? ' is-on' : ''); b.dataset.ic = code; b.textContent = code;
+      b.setAttribute('aria-pressed', sel.has(code) ? 'true' : 'false');
+      b.onclick = () => toggleIcCode(id, code);
+      return b;
+    }));
+  }
+  function toggleIcCode(id, code) {
+    const el = document.getElementById(`ic-${id}`);
+    if (!el) return;
+    const list = rowIcList(id);
+    const i = list.indexOf(code);
+    if (i >= 0) list.splice(i, 1); else list.push(code);
+    const order = _incotermsChoices();
+    list.sort((a, b) => order.indexOf(a) - order.indexOf(b));
+    el.value = list.join(',');
+    renderIcChips(id);
+    updateTotals();   // 適用の再判定（客先非表示・合計除外）を反映
+    if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
+  }
+  // 行の見た目（ボタンの ON/OFF・欄の開閉・説明）を値に合わせる。復元・複製・貿易条件の変更のたびに呼ばれる（軽い処理）
+  function syncIcUi(id) {
+    const tr = document.getElementById(`row-${id}`);
+    if (!tr) return;
+    const list = rowIcList(id);
+    if (list.length) tr.classList.add('row-ic-mode');
+    const on = tr.classList.contains('row-ic-mode');
+    tr.querySelector('.ic-mode-btn')?.classList.toggle('is-on', on);
+    tr.querySelector('.ic-mode-btn')?.classList.toggle('is-empty', on && !list.length);
+    if (on) {
+      const chips = tr.querySelector('.ic-chips');
+      if (chips && chips.children.length !== _incotermsChoices().length) renderIcChips(id);
+      const cur = currentIncotermsCode();
+      const hint = tr.querySelector('.ic-hint');
+      if (hint) {
+        const mm = rowIncotermsMismatch(tr);
+        hint.textContent = !list.length ? '選ぶと、その貿易条件のときだけ有効になります（未選択＝どの条件でも有効）'
+          : !cur ? '見積の貿易条件が未設定のため、判定していません'
+          : mm ? `いまの貿易条件（${cur}）には合わないため、出力と合計から外れています`
+          : `いまの貿易条件（${cur}）に合うため、出力に含まれます`;
+        hint.classList.toggle('is-out', mm);
+      }
+    }
+  }
+  function toggleIcMode(id) {
+    const tr = document.getElementById(`row-${id}`);
+    if (!tr) return;
+    const on = !tr.classList.contains('row-ic-mode');
+    tr.classList.toggle('row-ic-mode', on);
+    const el = document.getElementById(`ic-${id}`);
+    if (!on && el) el.value = '';
+    if (on) renderIcChips(id);
+    syncIcUi(id);
+    updateTotals();
+    if (on && window.rowDetailToggle && !tr.querySelector('.ic-group')?.offsetParent) window.rowDetailToggle(tr, true);
+    if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
+  }
+  window.toggleIcMode = toggleIcMode;
+  // 見積の貿易条件を変えたら、全行の適用を判定し直す
+  document.addEventListener('change', e => {
+    if (e.target && e.target.id === 'cond-incoterms') {
+      document.querySelectorAll('#tableBody tr[id^="row-"]').forEach(tr => syncIcUi(tr.id.replace('row-', '')));
+      if (typeof updateTotals === 'function') updateTotals();
+    }
+  });
 
   // ========== 未入力グレーアウト ==========
   function checkUnfilled(id) {
@@ -1109,7 +1215,7 @@
     const newId = addRowAfter(srcId);
 
     // テキスト・数値・日付フィールドをコピー（zc = 0円確認済みフラグ／vf・vt = 有効期限を含む）
-    ['nm','pq','un','pp','mk','nt','sv','pt','zc','ac','ps','co','vf','vt','lu','ppmode','pprate','ppbase','ppref','ppmin','bpmin'].forEach(f => {
+    ['nm','pq','un','pp','mk','nt','sv','pt','zc','ac','ps','co','vf','vt','lu','ppmode','pprate','ppbase','ppref','ppmin','bpmin','ic'].forEach(f => {
       const srcEl = document.getElementById(`${f}-${srcId}`);
       const dstEl = document.getElementById(`${f}-${newId}`);
       if (srcEl && dstEl) dstEl.value = srcEl.value;
@@ -1308,7 +1414,7 @@
     const q    = f => frag.querySelector(`[data-field="${f}"]`);
 
     // IDs
-    ['cat','tx','nm','pq','un','pc','pp','cd','bq','bc','bp','mk','st','pr','nt','sv','pt','zc','ac','ps','co','ri','es','vf','vt','lu','ppmode','pprate','ppbase','uid','ppref','ppmin','bpmin']
+    ['cat','tx','nm','pq','un','pc','pp','cd','bq','bc','bp','mk','st','pr','nt','sv','pt','zc','ac','ps','co','ri','es','vf','vt','lu','ppmode','pprate','ppbase','uid','ppref','ppmin','bpmin','ic']
       .forEach(f => { const el = q(f); if (el) el.id = `${f}-${id}`; });
     const zcBtn = frag.querySelector('.zero-confirm-btn');
     if (zcBtn) zcBtn.onclick = () => toggleZeroConfirmed(id);;
@@ -1328,6 +1434,8 @@
     if (sellBtn) sellBtn.onclick = () => toggleSellMode(id);
     const minBtn = frag.querySelector('.min-mode-btn');
     if (minBtn) minBtn.onclick = () => toggleMinMode(id);
+    const icBtn = frag.querySelector('.ic-mode-btn');
+    if (icBtn) icBtn.onclick = () => toggleIcMode(id);
     ['ppmin', 'bpmin'].forEach(f => { const el = q(f); if (el) el.oninput = () => calc(id); });
     const mregBtn = frag.querySelector('.master-reg-btn');
     if (mregBtn) mregBtn.onclick = () => registerRowToMaster(id);
@@ -1642,6 +1750,7 @@
     const profit   = subtotal - costAmt;  // 行の利益（小計 - 支払い合計）
     {
       const trM = document.getElementById(`row-${id}`);
+      syncIcUi(id);   // 適用する貿易条件の見た目（復元した行・貿易条件を変えた直後も）
       const hasMin = (parseFloat(document.getElementById(`ppmin-${id}`)?.value) || 0) > 0 ||
                      (parseFloat(document.getElementById(`bpmin-${id}`)?.value) || 0) > 0;
       if (trM) {
@@ -4268,7 +4377,7 @@
 
   function _gatherRowData(id) {
     const data = {};
-    ['nm','pq','un','pp','mk','nt','sv','pt','zc','ac','ps','co','vf','vt','lu','cat','pc','bc','bp','ppmode','pprate','ppbase','uid','ppref','ppmin','bpmin'].forEach(f => {
+    ['nm','pq','un','pp','mk','nt','sv','pt','zc','ac','ps','co','vf','vt','lu','cat','pc','bc','bp','ppmode','pprate','ppbase','uid','ppref','ppmin','bpmin','ic'].forEach(f => {
       const el = document.getElementById(`${f}-${id}`);
       if (el) data[f] = el.value;
     });
@@ -4288,7 +4397,7 @@
     } else {
       tbody.appendChild(newTr);
     }
-    ['nm','pq','un','pp','mk','nt','pt','zc','ac','ps','co','vf','vt','lu','ppmode','pprate','ppbase','ppref','ppmin','bpmin'].forEach(f => {
+    ['nm','pq','un','pp','mk','nt','pt','zc','ac','ps','co','vf','vt','lu','ppmode','pprate','ppbase','ppref','ppmin','bpmin','ic'].forEach(f => {
       const el = document.getElementById(`${f}-${newId}`);
       if (el && data[f] !== undefined) el.value = data[f];
     });

@@ -9976,6 +9976,28 @@ button.um-memberno--empty:hover { background: var(--accent-lt); border-color: #c
 /* 見積書非表示（手動・PROFIT SHARE）: 社内モードで薄表示、客先モードで非表示 */
 #tab-quote-make #previewTable tr.pv-row-hidden-quote:not(.pv-row-out-range) > td { opacity: 0.5; background: var(--card-bg); }
 #tab-quote-make #previewTableWrap:not(.has-sensitive) #previewTable tr.pv-row-hidden-quote:not(.pv-row-out-range) { display: none; }
+/* 適用する貿易条件（行ごと）：ボタンは MIN と同じ見た目。ON（または値がある）行だけ、貿易条件のチップを出す（Industry は「その他 ▾」の中）。
+   いまの貿易条件に合わない行は「適用期間外」と同じ扱い（row-out-of-range）で、客先向けの出力と合計から外れる */
+#tab-quote-make .ic-mode-btn {
+  display: inline-block; margin-top: var(--sp-3); padding: 1px var(--sp-6);
+  font-size: var(--fs-10); line-height: 1.5; border: 1px solid var(--border-md); border-radius: var(--r-3);
+  background: transparent; color: var(--border-md); cursor: pointer; font-family: inherit;
+  transition: all 0.15s; white-space: nowrap;
+}
+#tab-quote-make .ic-mode-btn:hover { border-color: #2c5d8f; color: #2c5d8f; }
+#tab-quote-make .ic-mode-btn.is-on { background: var(--blue-95); border-color: #5d7fae; color: #2c5d8f; font-weight: 700; }
+#tab-quote-make .ic-group { display: none; align-items: center; gap: var(--sp-4); flex-wrap: wrap; margin-top: var(--sp-3); }
+#tab-quote-make tr.row-ic-mode .ic-group { display: flex; }
+#tab-quote-make .ic-group .ic-lbl { font-size: var(--fs-10); font-weight: 700; color: #2c5d8f; }
+#tab-quote-make .ic-group .ic-chips { display: inline-flex; flex-wrap: wrap; gap: var(--sp-3); }
+#tab-quote-make .ic-group .ic-chip {
+  padding: 0 var(--sp-6); font-size: var(--fs-10); line-height: 1.7; font-family: inherit; cursor: pointer;
+  border: 1px solid var(--border-md); border-radius: var(--r-3); background: var(--surface); color: var(--text-md);
+}
+#tab-quote-make .ic-group .ic-chip:hover { border-color: #5d7fae; }
+#tab-quote-make .ic-group .ic-chip.is-on { background: #2c5d8f; border-color: #2c5d8f; color: var(--surface); font-weight: 700; }
+#tab-quote-make .ic-group .ic-hint { flex-basis: 100%; font-size: var(--fs-10); color: var(--text-md); }
+#tab-quote-make .ic-group .ic-hint.is-out { color: var(--red); font-weight: 700; }
 /* 適用期間外サーチャージ: 常に打ち消し線で表示（合計・出力には含めない） */
 #tab-quote-make #previewTable tr.pv-row-out-range > td {
   text-decoration: line-through !important;
