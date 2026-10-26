@@ -59,7 +59,7 @@ Design 製の Industry 版デザイン（鋼青のブループリント調）を
 
 ## 🗑️ 自動保存は廃止（2026-10）
 
-旧「自動保存」（localStorage `quoteData` に1件・復元バナー）は、ページ再読込後に空の状態で上書きされて復元できない不具合があり、ブラウザ保存／チーム共有と役割も重なるため**廃止**。保存は「💾 ブラウザ保存」（名前付き・最大50件）とチーム共有、巻き戻しは Undo/Redo。`scheduleAutoSave()` は呼び出し元（約100か所）を変えないため**何もしない関数として残置**。起動時（`initQuoteState`）に旧データ（`quoteData`・`autoSaveEnabled`）を掃除する（後日削除可）。
+旧「自動保存」（localStorage `quoteData` に1件・復元バナー）は、ページ再読込後に空の状態で上書きされて復元できない不具合があり、ブラウザ保存／チーム共有と役割も重なるため**廃止**。保存はチーム共有（旧「ブラウザ保存」は廃止）、巻き戻しは Undo/Redo。`scheduleAutoSave()` は呼び出し元（約100か所）を変えないため**何もしない関数として残置**。起動時（`initQuoteState`）に旧データ（`quoteData`・`autoSaveEnabled`）を掃除する（後日削除可）。
 
 ## 🟦 かんたん表示（新規ユーザー向け・既定は段階導入中）
 
@@ -79,7 +79,7 @@ IT に不慣れな新規ユーザーにも分かりやすいよう、Design 案�
 - **案件ステータス／検索**：`status`（下書き中/提示済み/受注/失注）を行ごとにプルダウン変更・色分けバッジ・チップで絞り込み。検索ボックスは名前・顧客名・担当者でクライアント側フィルタ（フェーズ1）。`customer`/`person` は保存時に `data.fields['qf-customer'/'qf-person']` から列へ昇格。`created_by`＝作成者、`owner_email`＝最終更新者
 - **件数**：クラウド側は実質ほぼ無制限（無料枠 500MB ÷ 約4KB/件 ≒ 約12万件）。ローカル localStorage のみ最大50件
 - **キー**：`cloud-config.js` の `publishableKey`（`sb_publishable_...`）はブラウザ公開前提・RLS で保護されるためコミット可。**`sb_secret_...`（service_role）は絶対にコミットしない**
-- **ローカル保存（localStorage）は併存**：従来の「最大50件・このブラウザのみ」のプリセットはそのまま
+- **ブラウザ保存は廃止（2026-10）**：保存・呼び出しはチーム共有（クラウド）に一本化。ツールバー／モバイルメニューの「💾 ブラウザ保存」、プリセット管理モーダルの左列、統計の「ローカル／クラウド」切替、`savePreset`/`loadPreset`/`deletePreset`/`getPresets` などを削除。**ログインしないと保存できない**（未ログインは入力・計算・プレビュー/PDF出力のみ）。Ctrl+S ＝ `cloudSaveCurrent()`。このブラウザの localStorage `quotePresets_v1` に残る旧データは、ダッシュボード先頭の案内（`#qpdLocalMigrate`、`cloudMigrateLocalPresets` / `cloudDiscardLocalPresets`、マスター移行と同じ見た目）から「チームへ移す」（同名は別案件として保存・元データは控え `quotePresets_v1_migrated` に残る）か「移さない（破棄）」。列の導出は `_presetColumns(data)`（保存と移行で共通）。見積の比較（`openCompare`）はチーム共有の案件（更新順 100 件）が対象
 - **未設定でも安全に no-op**：`cloud-config.js` がプレースホルダのままなら `cloudIsConfigured()` が false を返し「未設定」表示で停止
 - **OAuth リダイレクト**：`signInWithOAuth` の `redirectTo` は現在URL。Supabase の Authentication → URL Configuration の Redirect URLs に公開URL/ローカルURL（`http://localhost:PORT/**`）を登録しておくこと
 

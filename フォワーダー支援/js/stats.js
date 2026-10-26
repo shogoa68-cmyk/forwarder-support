@@ -171,10 +171,9 @@
 
   // === データ取得 ===
 
-  function _getLocalPresets() {
-    try { return JSON.parse(localStorage.getItem('quotePresets_v1') || '[]'); }
-    catch (e) { return []; }
-  }
+  // 旧「ブラウザ保存」は廃止（案件はチーム共有＝クラウドのみ）。残っている分はダッシュボードの案内から移す。
+  // 統計の集計経路（source: local/cloud/both）は残してあるが、ローカル側は常に空。
+  function _getLocalPresets() { return []; }
 
   function _extractRows(preset) {
     const d = preset.data || {};

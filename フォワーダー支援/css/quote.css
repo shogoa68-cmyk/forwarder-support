@@ -10130,6 +10130,16 @@ button.um-memberno--empty:hover { background: var(--accent-lt); border-color: #c
 #tab-quote-make .subcon-subtotal-inner .st-remark .subcon-remark-toggle.is-shown {
   color: var(--text); background: #7ee0a6; border-color: #4fae7a;
 }
+/* ダッシュボード：旧「ブラウザ保存」の案件をチーム共有へ移す案内（ある場合のみ。見た目は master-cloud-notice に揃える） */
+#tab-quote-make #qpdLocalMigrate { margin: 0 0 var(--sp-12); padding: var(--sp-10) var(--sp-14); }
+#tab-quote-make #qpdLocalMigrate[hidden] { display: none; }
+#tab-quote-make #qpdLocalMigrate .notice-actions { margin-top: var(--sp-8); }
+#tab-quote-make #qpdLocalMigrate .notice-actions button {
+  padding: var(--sp-6) var(--sp-14); border: 1px solid var(--border-md); border-radius: var(--r-5);
+  background: var(--surface); color: var(--text); font-size: var(--fs-12); font-weight: 700; cursor: pointer;
+}
+#tab-quote-make #qpdLocalMigrate .notice-actions .btn-primary { background: var(--accent-dk); border-color: var(--accent-dk); color: var(--surface); }
+#tab-quote-make #qpdLocalMigrate .notice-actions button:disabled { opacity: .6; cursor: default; }
 #tab-quote-make .subcon-group-subtotal.is-collapsed { display: none; }
 #tab-quote-make .subcon-group-subtotal.is-excluded .subcon-subtotal-inner {
   opacity: 0.4; text-decoration: line-through;
