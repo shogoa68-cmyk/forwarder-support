@@ -57,6 +57,8 @@ Design 製の Industry 版デザイン（鋼青のブループリント調）を
 
 **新しい画面・部品の整理（Design 07 回答・Industry・2026-10）**：add-on は `quote-states-industry.css`（A-1 見出しの省略・小計の「注記 ▾」・A-2 ミニマム・A-3 枠の言語・A-4 用語集ドロワー）→ `master-admin-industry.css`（マスター管理）→ `code-overrides-industry.css`（補正・スマホのツールバー／ドック）。見出しの省略は `row.js` が `is-pt-solo`／`is-cat-solo` を付ける（DOM は残し CSS で隠す。折りたたみ・除外中は隠さない）。マスター管理は `stats.js`（見出し・件数・申請・表・「⋯」）と `alias-rules.js`（移行の案内）。**取り消しにくい操作は標準の `confirm()` ではなく `uiConfirm()`（`js/ui-confirm.js`）**。用語集は `ui.js` の `openQuoteGlossary()`（Industry はドロワー）。Design の `mobile-industry.css` は取り込まず（明細のカード型は保留）、スマホ幅は `code-overrides` に実セレクタで実装。仕様は `docs/design-handoff/industry/css/NEW-SCREENS-SPEC.md`、実装との差は `docs/design-handoff/requests/08-…`。
 
+**適用する貿易条件（行ごと・2026-10）**：明細行に「貿易条件」ボタン（`.ic-mode-btn`・Industry は「その他 ▾」の中）→ 貿易条件のチップ（EXW〜CIF。`#cond-incoterms` の選択肢から生成）を選ぶと、**見積の貿易条件（往復案件は往路）がその中に無いとき**、行は「適用期間外」と同じ扱い（画面には薄く残り、客先向け出力・合計・小計から外れる）。実装は `row.js` の `rowOutReason(tr)`（`'incoterms'`／`'period'`）で、`dataset.outRange` に一本化しているため既存の除外処理（プレビュー・PDF・メール・CSV/Excel・合計）がそのまま効く。理由は `dataset.outReason`（プレビューのバッジ「🏷️ 貿易条件外」・Industry の状態チップ）。保存は行の保存配列の末尾 `ic`（32 番目・カンマ区切りのコード。空＝どの条件でも有効）。貿易条件が未設定のときは判定しない。
+
 ## 🗑️ 自動保存は廃止（2026-10）
 
 旧「自動保存」（localStorage `quoteData` に1件・復元バナー）は、ページ再読込後に空の状態で上書きされて復元できない不具合があり、ブラウザ保存／チーム共有と役割も重なるため**廃止**。保存はチーム共有（旧「ブラウザ保存」は廃止）、巻き戻しは Undo/Redo。`scheduleAutoSave()` は呼び出し元（約100か所）を変えないため**何もしない関数として残置**。起動時（`initQuoteState`）に旧データ（`quoteData`・`autoSaveEnabled`）を掃除する（後日削除可）。
