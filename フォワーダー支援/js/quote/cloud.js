@@ -5,7 +5,7 @@
 //   - 保護：RLS（allowed_emails に登録されたメンバーのみ読み書き可）
 //   - 保存先：quote_presets テーブル（{ id, name, data(jsonb), owner_email, updated_at }）
 //
-// 既存のローカル保存（localStorage 'quotePresets_v1'）はそのまま併存。
+// 旧「ブラウザ保存」（localStorage 'quotePresets_v1'）は廃止。残っている分はダッシュボードの案内から移せる（cloudMigrateLocalPresets）。
 // クラウド側はプリセット管理モーダル内の「☁️ チーム共有」セクションで操作する。
 //
 // 依存（全てグローバル関数）：
@@ -1770,7 +1770,105 @@
     const main  = document.getElementById('qpdMain');
     if (login) login.hidden = !!_cloudUser;
     if (main)  main.hidden  = !_cloudUser;
+    _renderLocalMigrateNotice();
   }
+
+  // ========== 旧「ブラウザ保存」（廃止）→ チーム共有への移行 ==========
+  // 保存は ☁️ チーム共有に一本化した。このブラウザ（localStorage）に残っている旧データは、ダッシュボードの案内から移せる。
+  // 移したあと、元データは控え（quotePresets_v1_migrated）として残す。「移さない」で破棄もできる。
+  const _LOCAL_PRESET_KEY = 'quotePresets_v1';
+  const _LOCAL_PRESET_BACKUP_KEY = 'quotePresets_v1_migrated';
+  function _legacyLocalPresets() {
+    try {
+      const a = JSON.parse(localStorage.getItem(_LOCAL_PRESET_KEY) || '[]');
+      return Array.isArray(a) ? a.filter(p => p && p.data && typeof p.data === 'object') : [];
+    } catch (e) { return []; }
+  }
+  function _renderLocalMigrateNotice() {
+    const el = document.getElementById('qpdLocalMigrate');
+    if (!el) return;
+    const list = _legacyLocalPresets();
+    if (!_cloudUser || !list.length) { el.hidden = true; el.innerHTML = ''; return; }
+    const names = list.slice(0, 3).map(p => escHtml(p.name || '（名称なし）')).join('、') + (list.length > 3 ? ' ほか' : '');
+    el.innerHTML =
+      '<p class="notice-title">📦 このブラウザに、旧「ブラウザ保存」の案件が残っています</p>' +
+      '<div class="counts"><div><b>' + list.length + '</b><span>案件</span></div></div>' +
+      '<p class="notice-ex">例：' + names + '</p>' +
+      '<p>保存は ☁️ チーム共有に一本化しました。チームへ移すと、チーム共有に新しい案件として保存されます（作成者はあなた）。</p>' +
+      '<div class="notice-actions">' +
+      '<button type="button" class="ar-add-btn btn-primary" id="qpdLocalMigrateBtn" onclick="cloudMigrateLocalPresets()">☁️ チームへ移す</button>' +
+      '<button type="button" class="ar-del-btn btn-skip" onclick="cloudDiscardLocalPresets()" title="移さずに、このブラウザの分を破棄します">移さない…</button>' +
+      '<span class="skip-warn">「移さない」は元に戻せません</span></div>';
+    el.hidden = false;
+  }
+  async function cloudMigrateLocalPresets() {
+    const c = _getClient();
+    if (!c || !_cloudUser) { quoteShowToast('⚠️ 先に Google でログインしてください', 'warn'); return; }
+    const list = _legacyLocalPresets();
+    if (!list.length) { _renderLocalMigrateNotice(); return; }
+    const ok = await uiConfirm({
+      title: 'このブラウザの案件をチーム共有へ移しますか？',
+      lines: [list.length + ' 件を、チーム共有に新しい案件として保存します。',
+              '同じ名前の案件がチーム共有にある場合は、名前の後ろに「（ブラウザ保存から移行）」を付けて別の案件にします（上書きはしません）。',
+              '移したあとも、このブラウザの元データは控えとして残ります。'],
+      okLabel: 'チームへ移す',
+    });
+    if (!ok) return;
+    const btn = document.getElementById('qpdLocalMigrateBtn');
+    if (btn) { btn.disabled = true; btn.textContent = '移しています…'; }
+    const names = new Set();
+    const { data: ex } = await c.from(_table()).select('name');
+    (ex || []).forEach(r => r && r.name && names.add(r.name));
+    const failed = [];
+    let done = 0;
+    for (const p of list) {
+      const base = ((p.name || '').trim() || '（名称なし）');
+      let name = base;
+      if (names.has(name)) name = base + '（ブラウザ保存から移行）';
+      for (let n = 2; names.has(name); n++) name = base + '（ブラウザ保存から移行）_' + n;
+      names.add(name);
+      const data = p.data;
+      const col = _presetColumns(data);
+      const resp = await _withOptionalCols(['ref', 'tags'], excluded => c.from(_table())
+        .insert(Object.assign(
+          { name, data, subcons: _extractSubcons(data), status: col.status, customer: col.customer, person: col.person,
+            incoterms: col.incoterms, transport_mode: col.transport_mode, pol: col.pol, pod: col.pod, carrier: col.carrier,
+            owner_email: _cloudUser.email, created_by: _cloudUser.email },
+          excluded.has('ref')  ? {} : { ref: col.ref },
+          excluded.has('tags') ? {} : { tags: col.tags }
+        )).select('id').single());
+      if (resp.error) failed.push(p); else done++;
+    }
+    // 控えを残してから、移せたものを元の置き場から外す（失敗したものは残して、もう一度移せるようにする）
+    try {
+      const prev = JSON.parse(localStorage.getItem(_LOCAL_PRESET_BACKUP_KEY) || '[]');
+      localStorage.setItem(_LOCAL_PRESET_BACKUP_KEY, JSON.stringify((Array.isArray(prev) ? prev : []).concat(list)));
+    } catch (e) { /* 容量不足などは控えを諦める（移せたぶんはクラウドにある） */ }
+    try {
+      if (failed.length) localStorage.setItem(_LOCAL_PRESET_KEY, JSON.stringify(failed));
+      else localStorage.removeItem(_LOCAL_PRESET_KEY);
+    } catch (e) {}
+    _renderLocalMigrateNotice();
+    cloudListPresets();
+    if (failed.length) quoteShowToast('⚠️ ' + done + ' 件を移しました。' + failed.length + ' 件は移せませんでした（もう一度お試しください）', 'warn', 7000);
+    else quoteShowToast('✅ ' + done + ' 件をチーム共有へ移しました', 'success', 5000);
+  }
+  async function cloudDiscardLocalPresets() {
+    const list = _legacyLocalPresets();
+    if (!list.length) { _renderLocalMigrateNotice(); return; }
+    const ok = await uiConfirm({
+      title: 'このブラウザの案件を破棄しますか？',
+      lines: ['旧「ブラウザ保存」の ' + list.length + ' 件を、チーム共有へ移さずに破棄します。'],
+      irreversible: '破棄した案件は元に戻せません。',
+      okLabel: '破棄する', danger: true,
+    });
+    if (!ok) return;
+    try { localStorage.removeItem(_LOCAL_PRESET_KEY); } catch (e) {}
+    _renderLocalMigrateNotice();
+    quoteShowToast('🗑️ このブラウザの旧「ブラウザ保存」を破棄しました', 'info', 3500);
+  }
+  window.cloudMigrateLocalPresets = cloudMigrateLocalPresets;
+  window.cloudDiscardLocalPresets = cloudDiscardLocalPresets;
   // 新規見積（ダッシュボード or 未ログインの「ログインせず作成」から）→ エディタへ
   function qpNewQuote() {
     _exitShareEditing();
@@ -2145,20 +2243,9 @@
     }
   }
 
-  // ---------- 保存（同名は上書き） ----------
-  async function cloudSaveCurrent() {
-    const c = _getClient();
-    if (!c || !_cloudUser) { quoteShowToast('⚠️ 先に Google でログインしてください', 'warn'); return; }
-    // 保存名：読込中の案件名を優先（コピー元と名前が被っても混同しない）。未ロードなら自動生成
-    const _loadedDisplayName = (document.getElementById('currentQuoteName')?.dataset.name || '').trim();
-    const name = _loadedDisplayName
-      || ((typeof _buildDefaultPresetName === 'function')
-          ? _buildDefaultPresetName()
-          : ('一時保存_' + new Date().toISOString().slice(0, 10).replace(/-/g, '')));
-
-    const data = gatherAllData();
-    const subcons = _extractSubcons(data);
-    // 検索・一覧用の主要項目を data から昇格（顧客名・担当者）
+  // 案件 data（gatherAllData() の出力）から、一覧・検索用に列へ昇格する値を取り出す。
+  // 保存（cloudSaveCurrent）とブラウザ保存からの移行（cloudMigrateLocalPresets）で共通。
+  function _presetColumns(data) {
     const f = (data && data.fields) || {};
     const customer       = (f['qf-customer']    || '').trim() || null;
     const person         = (f['qf-person']      || '').trim() || null;
@@ -2186,6 +2273,25 @@
       const parsed = JSON.parse(f['qf-tags-data'] || '[]');
       if (Array.isArray(parsed)) tags = parsed.map(t => String(t || '').trim()).filter(Boolean);
     } catch(e) {}
+
+    return { customer, person, ref, incoterms, transport_mode, status, pol, pod, carrier, tags };
+  }
+
+  // ---------- 保存（同名は上書き） ----------
+  async function cloudSaveCurrent() {
+    const c = _getClient();
+    if (!c || !_cloudUser) { quoteShowToast('⚠️ 先に Google でログインしてください', 'warn'); return; }
+    // 保存名：読込中の案件名を優先（コピー元と名前が被っても混同しない）。未ロードなら自動生成
+    const _loadedDisplayName = (document.getElementById('currentQuoteName')?.dataset.name || '').trim();
+    const name = _loadedDisplayName
+      || ((typeof _buildDefaultPresetName === 'function')
+          ? _buildDefaultPresetName()
+          : ('一時保存_' + new Date().toISOString().slice(0, 10).replace(/-/g, '')));
+
+    const data = gatherAllData();
+    const subcons = _extractSubcons(data);
+    // 検索・一覧用の主要項目を data から昇格（顧客名・担当者・航路・タグなど）
+    const { customer, person, ref, incoterms, transport_mode, status, pol, pod, carrier, tags } = _presetColumns(data);
 
     // ロード済みIDがある場合はID直接更新（コピー元と名前が被っても安全）。なければ同名チェック
     let existingId = _loadedCloudId || null;
@@ -3841,19 +3947,6 @@
   window.quoteCloudUser   = function () { return _cloudUser; };
   window.quoteCloudClient = function () { return _getClient(); };
   window.quoteCloudLoadedId = function () { return _loadedCloudId; };
-  // ブラウザ保存の案件を読み込んだとき（ui.js loadPreset）：直前に開いていたクラウド案件との紐づけを外す。
-  // 外さないと「💾 保存（チーム共有）」が前のクラウド案件を上書きし、申し送り・添付・関連付けも前の案件のままになる。
-  // 作業中状態（ロック・Presence）も解放し、新規案件と同じ編集モードに戻す。
-  window.quoteCloudDetach = function () {
-    if (!_loadedCloudId && _shareMode === 'edit' && !_lockHeldId) { _resetQspChat(); return; }
-    _exitShareEditing();
-    _loadedCloudId = null; _loadedCloudTs = null;
-    _resetQspChat();
-    _applyShareMode('edit');
-    if (typeof window.sqOnActivate === 'function') window.sqOnActivate();
-    qfRenderAttachments();
-    _resetQuoteDirty();
-  };
   window.quoteDisplayName = function (email) { return (email && _profileMap[email]) || email || '—'; };
   window.quoteLoadProfiles = _loadProfiles;
 

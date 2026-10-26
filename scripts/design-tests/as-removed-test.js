@@ -28,12 +28,9 @@ const http=require('http'),fs=require('fs'),path=require('path');
  const afterUndo=await p.evaluate(()=>document.getElementById('qf-person').value);
  await p.evaluate(()=>quoteRedo());await p.waitForTimeout(400);
  ok('Undo/Redo が動く',afterUndo===''&&await p.evaluate(()=>document.getElementById('qf-person').value)==='山田',afterUndo);
- // ブラウザ保存（プリセット）の往復
  const data=await p.evaluate(()=>gatherAllData());
  ok('gatherAllData に入力が含まれる',data.fields['qf-customer']==='入力テスト'&&data.fields['qf-person']==='山田');
- await p.evaluate(()=>{window.__fn=typeof openPresetMgr});
- ok('ブラウザ保存の画面関数が存在',await p.evaluate(()=>typeof openPresetMgr==='function'&&typeof saveQuotePreset==='function'||typeof openPresetMgr==='function'));
- ok('ツールバーに「ブラウザ保存」が残る',await p.evaluate(()=>[...document.querySelectorAll('#saveToolbar button')].some(b=>/ブラウザ保存/.test(b.textContent))));
+ ok('保存はチーム共有に一本化（ツールバーに「ブラウザ保存」は無い）',await p.evaluate(()=>typeof openPresetMgr==='function'&&typeof cloudSaveCurrent==='function'&&![...document.querySelectorAll('#saveToolbar button')].some(b=>/ブラウザ保存/.test(b.textContent))));
  ok('JSエラーなし',errs.length===0,JSON.stringify(errs));
  await p.screenshot({path:require('os').tmpdir()+'/toolbar-after.png',clip:{x:0,y:150,width:1400,height:80}});
  console.log(res.every(Boolean)?'\nOK':'\nNG');await b.close();srv.close();

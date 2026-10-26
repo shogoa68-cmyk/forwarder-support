@@ -2167,26 +2167,37 @@
     return { totBillJpy, totCostJpy, totProfit, totMk, profitRate, taxedBillJpy, byCategory, rowItems };
   }
 
-  function openCompare() {
-    const presets = getPresets();
+  // 比較の対象は ☁️ チーム共有の案件（更新が新しい順に最大 100 件）。開くたびに取得し直す。
+  let _cmpPresets = [];
+  async function openCompare() {
     const listEl  = document.getElementById('cmpPresetList');
     const resultEl = document.getElementById('cmpResult');
     if (!listEl) return;
-
-    if (!presets.length) {
-      listEl.innerHTML = '<p class="cmp-empty-msg">保存済みプリセットがありません。先にプリセットを保存してください。</p>';
+    _cmpPresets = [];
+    const c = (typeof window.quoteCloudClient === 'function') ? window.quoteCloudClient() : null;
+    const loggedIn = !!(c && typeof window.quoteCloudUser === 'function' && window.quoteCloudUser());
+    listEl.innerHTML = loggedIn
+      ? '<p class="cmp-empty-msg">読み込み中…</p>'
+      : '<p class="cmp-empty-msg">比較するには、右上の「Google でログイン」からログインしてください（チーム共有の案件を比べます）。</p>';
+    if (resultEl) resultEl.innerHTML = '';
+    const printBtn0 = document.getElementById('cmpPrintBtn');
+    if (printBtn0) printBtn0.style.display = 'none';
+    document.getElementById('compareOverlay').classList.add('open');
+    if (!loggedIn) return;
+    const { data, error } = await c.from('quote_presets').select('id,name,data,updated_at')
+      .order('updated_at', { ascending: false }).limit(100);
+    if (error) { listEl.innerHTML = '<p class="cmp-empty-msg">⚠️ 取得に失敗しました：' + escHtml(error.message || String(error)) + '</p>'; return; }
+    _cmpPresets = data || [];
+    if (!_cmpPresets.length) {
+      listEl.innerHTML = '<p class="cmp-empty-msg">チーム共有に保存された案件がありません。先に案件を保存してください。</p>';
     } else {
-      listEl.innerHTML = presets.map((p, i) =>
+      listEl.innerHTML = _cmpPresets.map((p, i) =>
         `<label class="cmp-preset-item" id="cmpItem-${i}">
           <input type="checkbox" class="cmp-chk" value="${i}" onchange="toggleCmpItem(this)">
-          ${escHtml(p.name || `プリセット ${i+1}`)}
+          ${escHtml(p.name || `案件 ${i+1}`)}
         </label>`
       ).join('');
     }
-    if (resultEl) resultEl.innerHTML = '';
-    const printBtn = document.getElementById('cmpPrintBtn');
-    if (printBtn) printBtn.style.display = 'none';
-    document.getElementById('compareOverlay').classList.add('open');
   }
 
   function toggleCmpItem(chk) {
@@ -2201,15 +2212,15 @@
   }
 
   function runCompare() {
-    const presets  = getPresets();
+    const presets  = _cmpPresets;
     const selected = [...document.querySelectorAll('.cmp-chk:checked')].map(c => parseInt(c.value, 10));
     if (selected.length < 2) {
-      alert('比較するプリセットを 2 件以上選択してください。');
+      alert('比較する案件を 2 件以上選択してください。');
       return;
     }
 
     const items = selected.map(i => ({
-      name:  presets[i].name || `プリセット ${i+1}`,
+      name:  presets[i].name || `案件 ${i+1}`,
       stats: _extractPresetStats(presets[i].data),
     }));
 

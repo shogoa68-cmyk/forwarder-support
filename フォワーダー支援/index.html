@@ -2201,9 +2201,9 @@
         <div class="qpd-login-card qpd-login-card--detail">
           <div class="qpd-login-emoji">☁️</div>
           <h3>ログインすると見積もり機能が広がります</h3>
-          <p>チーム共有・案件一覧・同時編集ロックなどのクラウド機能はログインが必要です。<br>ログインせずに、このブラウザ内だけで見積もりを作成することもできます。</p>
+          <p>案件の保存・チーム共有・案件一覧・同時編集ロックなどはログインが必要です。<br>ログインせずに、入力・計算・プレビュー／PDF 出力だけを試すこともできます（<b>保存はできません</b>）。</p>
           <button type="button" class="qpd-login-btn" onclick="cloudLogin()">☁️ Google でログイン</button>
-          <button type="button" class="qpd-local-link" onclick="qpNewQuote()">ログインせず新規作成（このブラウザ内のみ）</button>
+          <button type="button" class="qpd-local-link" onclick="qpNewQuote()">ログインせず試す（保存はできません）</button>
         </div>
         <!-- かんたん表示：2択のカード（旧カードは詳細表示でのみ表示） -->
         <div class="qpd-login2">
@@ -2215,14 +2215,16 @@
           </div>
           <div class="qpd-login2-card">
             <h3>ログインせずに使う</h3>
-            <ul><li>保存はこのパソコンだけです</li><li>ほかの人とは共有されません</li><li>ブラウザのデータを消すと、見積も消えます</li></ul>
-            <button type="button" class="qpd-local-btn" onclick="qpNewQuote()">ログインせずに始める</button>
+            <ul><li>入力・計算・プレビュー／PDF 出力ができます</li><li><b>保存はできません</b>（閉じると消えます）</li><li>ほかの人とは共有されません</li></ul>
+            <button type="button" class="qpd-local-btn" onclick="qpNewQuote()">ログインせずに試す</button>
           </div>
         </div>
       </div>
 
       <!-- ログイン後：統計＋検索＋案件一覧 -->
       <div class="qpd-main" id="qpdMain" hidden>
+        <!-- このブラウザに残っている旧「ブラウザ保存」の案件を、チーム共有へ移す案内（ある場合のみ表示） -->
+        <div class="master-cloud-notice is-migrate" id="qpdLocalMigrate" hidden></div>
         <div class="qpd-stats" id="qpdStats"></div>
         <div class="qpd-tools">
           <div class="qpd-search-wrap">
@@ -2304,9 +2306,8 @@
 
         <h4>🗂️ 保存/読み込みツールバー（上部）</h4>
         <ul>
-          <li><strong>プリセット/一時保存</strong>：現在の入力状態を名前付きで <strong>最大 50 件</strong>保存（同一ブラウザのみ）。「輸入案件用」「国内配送用」などのテンプレートや作業途中の退避に。<strong>50 件を超える長期保管・他端末／チーム共有には「📤 JSON」でバックアップを推奨</strong></li>
+          <li><strong>保存・呼び出し</strong>：案件はすべて <strong>☁️ チーム共有</strong>（Google ログインが必要）に保存します。右下の「💾 保存」で保存、見積ダッシュボードから開く・コピーします。以前の「ブラウザ保存」は廃止しました（このブラウザに残っている分は、ダッシュボードの案内から「チームへ移す」ことができます）</li>
           <li><strong>↶ 戻す / ↷ 進む（Undo / Redo）</strong>：見積タブ全体（行・条件・自由入力・特記事項など）の編集を最大 50 ステップ巻き戻し／やり直し。<kbd>Ctrl+Z</kbd>（macOS は <kbd>⌘+Z</kbd>）で戻す、<kbd>Ctrl+Y</kbd> もしくは <kbd>Ctrl+Shift+Z</kbd> で進む。連続タイピングは 1 ステップにまとめられます</li>
-          <li><strong>📤 JSON / 📥 読込</strong>：JSON ファイルで端末間共有・バックアップが可能（CSV/Excel/PDF 出力は 📋 プレビューから）</li>
           <li><strong>📐 表示サイズ 大 / 中 / 小</strong>：見積タブ全体のレイアウトを 3 段階で拡縮。<strong>大＝スマホ向け、中＝タブレット向け（既定）、小＝デスクトップ向け</strong>。CSS <code>zoom</code> で全体（文字・余白・コントロール）を一括スケールします</li>
         </ul>
 
@@ -2388,7 +2389,6 @@
           <li><strong>DGD / MSDS / SDS</strong>：危険品申告書／製品安全データシート</li>
         </ul>
         <div class="help-tip">💡 略語の意味はテーブルヘッダー（CD・課税 等）にマウスホバーすると <code>title</code> でも表示されます。</div>
-        <div class="help-tip">💡 「💾 ブラウザ保存」は<strong>同じブラウザ内のみ</strong>有効です。端末や OS をまたぐ場合は <strong>📤 JSON</strong> でバックアップを書き出し、別端末で <strong>📥 読込</strong>してください。</div>
       </div>
     </details>
 
@@ -2415,11 +2415,6 @@
       <button type="button" class="save-btn save-btn-import toolbar-extra" onclick="openEmailImport()" title="メール本文を貼り付けて、この見積に行を挿入（または新規案件として展開）">📩 メール取込</button>
       <button type="button" class="save-btn save-btn-import toolbar-extra" onclick="openSubconRequestMail()" title="この見積の案件情報と、選んだサブコン宛ての明細から、見積・作業の依頼メール（定型文）を作成します。仕入単価・備考は載せません">✉️ サブコン依頼メール</button>
 
-      <span class="save-toolbar-sep"></span>
-
-      <!-- 保存/読込：ブラウザ保存とチーム共有の独立ボタン -->
-      <span class="save-toolbar-label">保存</span>
-      <button type="button" class="save-btn save-btn-preset" onclick="openPresetMgr('browser')" title="このブラウザに名前付きで保存・呼び出し（最大50件・同じブラウザのみ）">💾 <span class="lbl-d">ブラウザ保存</span><span class="lbl-s">この端末に保存</span></button>
       <span class="save-status" id="saveStatus"></span>
 
       <!-- 表示サイズ（上部バーに常時表示） -->
@@ -2450,9 +2445,6 @@
           </button>
           <button type="button" class="tb-menu-item tb-mi-simple" onclick="openSubconRequestMail(); closeTbMenus()">
             <span class="tb-mi-icon">✉️</span><span class="tb-mi-body"><span class="tb-mi-title">サブコン依頼メール</span><span class="tb-mi-sub">見積・作業の依頼メールを作る</span></span>
-          </button>
-          <button type="button" class="tb-menu-item tb-mi-mobile" onclick="openPresetMgr('browser'); closeTbMenus()">
-            <span class="tb-mi-icon">💾</span><span class="tb-mi-body"><span class="tb-mi-title">ブラウザ保存</span><span class="tb-mi-sub">このブラウザに名前付きで保存・呼び出し</span></span>
           </button>
           <div class="tb-menu-group tb-mi-simple">設定</div>
           <div class="tb-menu-item tb-mi-simple tb-mi-scale"><span class="tb-mi-icon">📐</span><span class="tb-mi-body"><span class="tb-mi-title">表示の大きさ</span>
@@ -2487,19 +2479,6 @@
       <div class="preset-mgr-box">
         <div class="preset-mgr-inner">
 
-        <!-- 左列：ブラウザ保存 -->
-        <div class="preset-mgr-browser-col" id="presetBrowserSection">
-        <h3>💾 ブラウザ保存（プリセット/一時保存）<span class="help-tip" tabindex="0" role="button" aria-label="プリセット/一時保存の説明">?<span class="help-tip-text">現在の入力状態を名前付きで保存・呼び出し（<strong>最大50件・このブラウザのみ</strong>）。「輸入案件用」などのテンプレートや、作業途中の退避に使えます。<br>チーム全員での共有は「☁️ チーム共有」ボタンから。</span></span></h3>
-        <div class="preset-save-row">
-          <input type="text" class="preset-name-input" id="presetNameInput"
-                 placeholder="例）輸入案件用・国内配送用" maxlength="30"
-                 onkeydown="if(event.key==='Enter')savePreset()" />
-          <button class="btn-preset-save-new" onclick="savePreset()">💾 現在の状態を保存</button>
-        </div>
-        <div class="preset-list-wrap" id="presetListWrap">
-          <div class="preset-empty">保存済みのプリセットはありません</div>
-        </div>
-        </div><!-- /#presetBrowserSection -->
 
         <!-- 右列：☁️ チーム共有（クラウド／Supabase） -->
         <div class="preset-mgr-cloud-col cloud-share-section" id="cloudShareSection">
@@ -4474,11 +4453,6 @@
   <!-- ===================== Tab: 統計 ===================== -->
   <div class="tab-content" id="tab-stats">
     <div class="stats-toolbar">
-      <select id="statsSource" onchange="statsRefresh()">
-        <option value="both">ローカル＋クラウド</option>
-        <option value="local">ローカルのみ</option>
-        <option value="cloud">クラウドのみ</option>
-      </select>
       <select id="statsPeriod" class="stats-period-select" onchange="statsRefresh()">
         <option value="all">全期間</option>
         <option value="year">今年度</option>

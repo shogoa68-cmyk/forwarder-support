@@ -1,6 +1,6 @@
-// ブラウザ保存の案件を読み込んだとき、直前に開いていたクラウド案件との紐づけが外れること（チーム共有への保存で前の案件を上書きしない）。
+// 旧「ブラウザ保存」の廃止：UI から外れていること、このブラウザに残る旧データをチーム共有へ移せること（元データは控えに残る／破棄もできる）。
 // 偽の Supabase（メモリ上の表）を使う。実サーバーには接続しない。
-//   node scripts/design-tests/local-load-detach-test.js
+//   node scripts/design-tests/local-migrate-test.js
 const { chromium } = (() => { try { return require('playwright-core'); } catch (e) { return require('playwright'); } })();
 const http = require('http'), fs = require('fs'), path = require('path');
 
@@ -133,39 +133,83 @@ const http = require('http'), fs = require('fs'), path = require('path');
   const rowId = p => p.evaluate(() => document.querySelector('#tableBody tr[id^="row-"]:not([data-type]):not([data-virtual])').id.replace('row-', ''));
 
 
-  // ===== ブラウザ保存の案件を読み込んだら、直前に開いていたクラウド案件との紐づけが外れる =====
+  // ===== 旧「ブラウザ保存」の廃止と、チーム共有への移行 =====
+  const mkLocal = (name, cust) => ({ name, ts: new Date().toISOString(), data: { fields: { 'qf-customer': cust, 'qf-person': '担当', 'qf-ref': 'R-' + name, 'cond-mode': '海上', 'qf-status': '下書き中', 'qf-tags-data': '["台湾"]', 'z2Pol': 'TAIPEI', 'z2Pod': 'YOKOHAMA' }, rows: [], _rowFormat: 'v3-mixed-rows' } });
+  const confirmClick = async (p, which) => {
+    await p.waitForSelector('.confirm-dialog', { timeout: 5000 });
+    const text = await p.evaluate(() => document.querySelector('.confirm-dialog').textContent);
+    const focus = await p.evaluate(() => document.activeElement && document.activeElement.className);
+    await p.click(which === 'cancel' ? '.confirm-dialog .btn-cancel' : '.confirm-dialog .confirm-actions button:not(.btn-cancel)');
+    await p.waitForTimeout(200);
+    return { text, focus };
+  };
   {
-    const { ctx, p, errs } = await open(true, { legacy: {} });
-    // ブラウザ保存に 1 件（別の案件）
-    await p.evaluate(() => {
-      const d = gatherAllData();
-      d.fields['qf-customer'] = 'ブラウザ商事';
-      localStorage.setItem('quotePresets_v1', JSON.stringify([{ name: 'ブラウザ保存B', savedAt: new Date().toISOString(), data: d }]));
-    });
-    await p.evaluate(() => cloudLoadPreset('q1')); await p.waitForTimeout(800);
-    const a = await p.evaluate(() => ({ id: window.quoteCloudLoadedId(), view: document.getElementById('tab-quote-make').classList.contains('qmode-view') }));
-    ok('（準備）クラウド案件 A を開いている（閲覧モード）', a.id === 'q1' && a.view, a);
-    await p.evaluate(() => {   // 申し送りが表示されている状態
-      document.getElementById('qspChatList').innerHTML = '<div class="cp-chat-item">案件Aの申し送り</div>';
-    });
-    await p.evaluate(() => loadPreset(0)); await p.waitForTimeout(500);
-    const b = await p.evaluate(() => ({
-      id: window.quoteCloudLoadedId(), view: document.getElementById('tab-quote-make').classList.contains('qmode-view'),
-      inert: document.querySelector('#tab-quote-make .quote-main').inert, cust: document.getElementById('qf-customer').value,
-      chat: document.querySelectorAll('#qspChatList .cp-chat-item').length,
+    const { ctx, p, errs } = await open(true, { legacy: { quotePresets_v1: [mkLocal('旧案件1', '旧商事'), mkLocal('クラウド案件A', '旧商事2')] } });
+    const ui = await p.evaluate(() => ({
+      toolbarBtn: [...document.querySelectorAll('#saveToolbar button')].some(b => /ブラウザ保存/.test(b.textContent)),
+      browserCol: !!document.getElementById('presetBrowserSection'),
+      statsSrc: !!document.getElementById('statsSource'),
+      fns: ['savePreset', 'loadPreset', 'deletePreset', 'getPresets'].filter(n => typeof window[n] === 'function'),
     }));
-    ok('ブラウザ保存を読み込むと、クラウド案件との紐づけが外れる', b.id === null, b);
-    ok('編集モードに戻り、入力できる', !b.view && !b.inert, b);
-    ok('読み込んだ内容が入っている', b.cust === 'ブラウザ商事', b);
-    ok('案件 A の申し送りは残らない', b.chat === 0, b);
-    // 「💾 保存（チーム共有）」しても、案件 A は上書きされない
-    const before = await p.evaluate(() => JSON.stringify(window.__db.quote_presets.find(r => r.id === 'q1').data));
-    await p.evaluate(() => { window.confirm = () => true; return cloudSaveCurrent(); }); await p.waitForTimeout(1200);
-    const after = await p.evaluate(() => ({ a: JSON.stringify(window.__db.quote_presets.find(r => r.id === 'q1').data), n: window.__db.quote_presets.length }));
-    ok('チーム共有へ保存しても、クラウド案件 A は上書きされない', after.a === before, { n: after.n });
-    ok('別の案件として新しく保存される', after.n === 2, after);
+    ok('ツールバー・モーダル・統計からブラウザ保存が無い', !ui.toolbarBtn && !ui.browserCol && !ui.statsSrc, ui);
+    ok('旧ブラウザ保存の関数が残っていない', ui.fns.length === 0, ui);
+    const note = await p.evaluate(() => { const n = document.getElementById('qpdLocalMigrate'); return { hidden: n.hidden, text: n.textContent }; });
+    ok('旧データがあるとき、ダッシュボードに移行の案内が出る（2 件）', !note.hidden && /2案件/.test(note.text), note);
+    await p.evaluate(() => { cloudMigrateLocalPresets(); });
+    const { text: dlg } = await confirmClick(p, 'ok'); await p.waitForTimeout(1500);
+    const after = await p.evaluate(() => ({
+      cloud: window.__db.quote_presets.map(r => ({ name: r.name, customer: r.customer, ref: r.ref, pol: r.pol, tags: r.tags, owner: r.owner_email, status: r.status, hasSubcons: Array.isArray(r.subcons) })),
+      local: localStorage.getItem('quotePresets_v1'), backup: JSON.parse(localStorage.getItem('quotePresets_v1_migrated') || '[]').length,
+      noteHidden: document.getElementById('qpdLocalMigrate').hidden,
+    }));
+    ok('確認画面に件数と「上書きしない」旨が出る', /2 件/.test(dlg) && /上書きはしません/.test(dlg), dlg);
+    const names = after.cloud.map(r => r.name).sort();
+    ok('チーム共有に 3 件（既存 1＋移行 2）。同名は別の案件として保存', after.cloud.length === 3 && names.includes('旧案件1') && names.includes('クラウド案件A（ブラウザ保存から移行）') && names.includes('クラウド案件A'), names);
+    const m = after.cloud.find(r => r.name === '旧案件1') || {};
+    ok('顧客・REF・航路・タグ・状態・作成者が列に昇格している', m.customer === '旧商事' && m.ref === 'R-旧案件1' && m.pol === 'TAIPEI' && JSON.stringify(m.tags) === '["台湾"]' && m.status === '下書き中' && m.owner === ME && m.hasSubcons, m);
+    ok('移したあと、元の置き場は空・控えが 2 件残る・案内が消える', after.local === null && after.backup === 2 && after.noteHidden, after);
     ok('JS エラーなし', errs.length === 0, errs);
     await ctx.close();
+  }
+  // 破棄（移さない）
+  {
+    const { ctx, p, errs } = await open(true, { legacy: { quotePresets_v1: [mkLocal('破棄する案件', '破棄商事')] } });
+    await p.evaluate(() => { cloudDiscardLocalPresets(); });
+    const c1 = await confirmClick(p, 'cancel');
+    ok('破棄：やめるを押すと残る（初期の焦点は「やめる」・取り消せない旨）', (await p.evaluate(() => localStorage.getItem('quotePresets_v1'))) !== null && /元に戻せません/.test(c1.text) && /btn-cancel/.test(c1.focus), c1);
+    await p.evaluate(() => { cloudDiscardLocalPresets(); });
+    await confirmClick(p, 'ok');
+    ok('破棄：実行すると消え、クラウドには何も作られない', (await p.evaluate(() => localStorage.getItem('quotePresets_v1'))) === null && (await p.evaluate(() => window.__db.quote_presets.length)) === 1, null);
+    ok('JS エラーなし（破棄）', errs.length === 0, errs);
+    await ctx.close();
+  }
+  // 旧データが無いときは案内を出さない
+  {
+    const { ctx, p } = await open(true, { legacy: {} });
+    ok('旧データが無ければ案内は出ない', await p.evaluate(() => document.getElementById('qpdLocalMigrate').hidden), null);
+    await ctx.close();
+  }
+  // ===== 見積の比較：チーム共有の案件を比べる =====
+  {
+    const { ctx, p, errs } = await open(true, { legacy: {} });
+    await p.evaluate(() => {
+      const mk = (id, name, bp) => ({ id, name, status: '下書き中', owner_email: 's@example.com', created_by: 's@example.com', updated_at: '2026-10-2' + id.slice(1) + 'T00:00:00Z',
+        data: { fields: {}, rows: [{ _type: 'data', cells: [false, 'ocean', 'A海運', false, '海上運賃', '1', 'CNTR', '1', 'JPY', 'JPY', '1000', String(bp), '', '0'] }], _rowFormat: 'v3-mixed-rows' } });
+      window.__db.quote_presets.push(mk('q2', '比較用B', 2000), mk('q3', '比較用C', 3000));
+    });
+    await p.evaluate(() => openCompare()); await p.waitForTimeout(900);
+    const items = await p.evaluate(() => [...document.querySelectorAll('#cmpPresetList .cmp-chk')].length);
+    ok('比較の一覧にチーム共有の案件が出る（3 件）', items === 3, items);
+    await p.locator('#cmpPresetList .cmp-chk').nth(1).check(); await p.locator('#cmpPresetList .cmp-chk').nth(2).check();
+    await p.evaluate(() => runCompare()); await p.waitForTimeout(500);
+    const res = await p.evaluate(() => document.getElementById('cmpResult').textContent);
+    ok('2 件を選ぶと比較結果が出る', /売上合計/.test(res), res.slice(0, 80));
+    ok('JS エラーなし（比較）', errs.length === 0, errs);
+    await ctx.close();
+    const un = await open(false, {});
+    await un.p.evaluate(() => openCompare()); await un.p.waitForTimeout(300);
+    ok('未ログインでは、ログインを促す表示になる', /ログイン/.test(await un.p.evaluate(() => document.getElementById('cmpPresetList').textContent)), null);
+    await un.ctx.close();
   }
   await b.close(); srv.close();
   console.log(out.join('\n'));

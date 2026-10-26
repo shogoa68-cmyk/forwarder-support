@@ -130,7 +130,6 @@
   "cloudPresetListWrap",
   "cloudPreviewModal",
   "cloudShareBody",
-  "cloudShareSection",
   "cloudStatusChips",
   "cloudStorageInfo",
   "cmdInput",
@@ -163,9 +162,12 @@
   "cpChatInput",
   "cpChatList",
   "cpCondInfo",
+  "cpIncludeRemarks",
   "cpLinkBtn",
   "cpMeta",
   "cpQuoteBtn",
+  "cpRemarkCnt",
+  "cpRemarkOpt",
   "cpSelCount",
   "cpSelectAll",
   "cpTableBody",
@@ -306,11 +308,8 @@
   "pkiPdfFile",
   "pkiReviewWrap",
   "pkiText",
-  "presetBrowserSection",
   "presetBtns",
-  "presetListWrap",
   "presetMgrModal",
-  "presetNameInput",
   "previewBox",
   "previewDocWrap",
   "previewOverlay",
@@ -390,6 +389,7 @@
   "qpdLinkBarNote",
   "qpdLinkModeBtn",
   "qpdListWrap",
+  "qpdLocalMigrate",
   "qpdLogin",
   "qpdMain",
   "qpdMoreToggle",
@@ -416,6 +416,7 @@
   "qspTabBtn-fin",
   "qspTabBtn-flow",
   "quoteFxBar",
+  "quoteGlossary",
   "quoteSummaryPanel",
   "quoteTabHelp",
   "quoteTable",
@@ -496,7 +497,6 @@
   "statsPane-svport",
   "statsPane-un",
   "statsPeriod",
-  "statsSource",
   "subconListWrap",
   "subconSearchInput",
   "sumCargo",
@@ -511,6 +511,7 @@
   "toast-container",
   "tot-billing",
   "tot-cost",
+  "tot-fx-note",
   "tot-profit",
   "tot-ps-profit",
   "tot-ps-rev",
@@ -1259,10 +1260,6 @@
    "uses": 1,
    "defined": true
   },
-  "openPresetMgr": {
-   "uses": 1,
-   "defined": true
-  },
   "openPreview": {
    "uses": 1,
    "defined": true
@@ -1272,6 +1269,10 @@
    "defined": true
   },
   "openQuoteDoc": {
+   "uses": 1,
+   "defined": true
+  },
+  "openQuoteGlossary": {
    "uses": 1,
    "defined": true
   },
@@ -1539,10 +1540,6 @@
    "uses": 1,
    "defined": true
   },
-  "savePreset": {
-   "uses": 2,
-   "defined": true
-  },
   "saveProfile": {
    "uses": 1,
    "defined": true
@@ -1640,7 +1637,7 @@
    "defined": true
   },
   "statsRefresh": {
-   "uses": 3,
+   "uses": 2,
    "defined": true
   },
   "statsSetPane": {
@@ -1817,6 +1814,10 @@
    "css": true,
    "html": true
   },
+  "btn-primary": {
+   "css": true,
+   "html": true
+  },
   "btn-row-del": {
    "css": true,
    "html": true
@@ -1925,6 +1926,10 @@
    "css": true,
    "html": true
   },
+  "catsv-cell": {
+   "css": true,
+   "html": true
+  },
   "cbm-calc-details": {
    "css": true,
    "html": false
@@ -1996,6 +2001,10 @@
   "ccc-send": {
    "css": true,
    "html": false
+  },
+  "cd-flag": {
+   "css": true,
+   "html": true
   },
   "cd-pkg": {
    "css": true,
@@ -2197,6 +2206,22 @@
    "css": true,
    "html": false
   },
+  "gl-close": {
+   "css": true,
+   "html": false
+  },
+  "gl-groups": {
+   "css": true,
+   "html": false
+  },
+  "gl-list": {
+   "css": true,
+   "html": false
+  },
+  "gl-search": {
+   "css": true,
+   "html": false
+  },
   "grp-dragging": {
    "css": true,
    "html": false
@@ -2226,6 +2251,14 @@
    "html": false
   },
   "has-sensitive": {
+   "css": true,
+   "html": false
+  },
+  "has-valid-inline": {
+   "css": true,
+   "html": false
+  },
+  "has-value": {
    "css": true,
    "html": false
   },
@@ -2261,6 +2294,10 @@
    "css": true,
    "html": false
   },
+  "is-cat-solo": {
+   "css": true,
+   "html": false
+  },
   "is-cold": {
    "css": true,
    "html": false
@@ -2273,11 +2310,19 @@
    "css": true,
    "html": false
   },
+  "is-detail-open": {
+   "css": true,
+   "html": false
+  },
   "is-done": {
    "css": true,
    "html": false
   },
   "is-dragging": {
+   "css": true,
+   "html": false
+  },
+  "is-empty": {
    "css": true,
    "html": false
   },
@@ -2301,6 +2346,10 @@
    "css": true,
    "html": false
   },
+  "is-notes-open": {
+   "css": true,
+   "html": false
+  },
   "is-on": {
    "css": true,
    "html": true
@@ -2321,6 +2370,10 @@
    "css": true,
    "html": false
   },
+  "is-pt-solo": {
+   "css": true,
+   "html": false
+  },
   "is-row-dragging": {
    "css": true,
    "html": false
@@ -2330,6 +2383,10 @@
    "html": false
   },
   "is-shown": {
+   "css": true,
+   "html": false
+  },
+  "jpy-conv-hint": {
    "css": true,
    "html": false
   },
@@ -2421,13 +2478,25 @@
    "css": false,
    "html": false
   },
+  "master-cloud-notice": {
+   "css": true,
+   "html": true
+  },
   "master-detail-jump-btn": {
    "css": true,
    "html": true
   },
+  "master-ops-menu": {
+   "css": true,
+   "html": false
+  },
   "master-reg-btn": {
    "css": true,
    "html": true
+  },
+  "master-register": {
+   "css": true,
+   "html": false
   },
   "md-contact-email": {
    "css": false,
@@ -2453,6 +2522,18 @@
    "css": true,
    "html": false
   },
+  "min-hint": {
+   "css": true,
+   "html": true
+  },
+  "min-mode-btn": {
+   "css": true,
+   "html": true
+  },
+  "min-note": {
+   "css": true,
+   "html": true
+  },
   "mk-disabled": {
    "css": true,
    "html": false
@@ -2464,6 +2545,14 @@
   "mode-simple": {
    "css": true,
    "html": true
+  },
+  "name-unregistered": {
+   "css": true,
+   "html": false
+  },
+  "notice-actions": {
+   "css": true,
+   "html": false
   },
   "og-l": {
    "css": false,
@@ -2512,6 +2601,10 @@
   "profit-share-btn": {
    "css": true,
    "html": true
+  },
+  "pt-cat-inline": {
+   "css": true,
+   "html": false
   },
   "pt-route-clear": {
    "css": true,
@@ -2753,6 +2846,14 @@
    "css": true,
    "html": false
   },
+  "rd-breakdown": {
+   "css": true,
+   "html": true
+  },
+  "rd-state": {
+   "css": true,
+   "html": true
+  },
   "ref-info-btn": {
    "css": true,
    "html": true
@@ -2817,6 +2918,14 @@
    "css": true,
    "html": false
   },
+  "row-detail-btn": {
+   "css": true,
+   "html": true
+  },
+  "row-detail-panel": {
+   "css": true,
+   "html": true
+  },
   "row-done-btn": {
    "css": true,
    "html": true
@@ -2846,6 +2955,10 @@
    "html": false
   },
   "row-merged-child": {
+   "css": true,
+   "html": false
+  },
+  "row-min-mode": {
    "css": true,
    "html": false
   },
@@ -2965,6 +3078,10 @@
    "css": true,
    "html": false
   },
+  "section-toggle-head": {
+   "css": true,
+   "html": true
+  },
   "selected": {
    "css": true,
    "html": false
@@ -2972,6 +3089,10 @@
   "selection-mode": {
    "css": true,
    "html": false
+  },
+  "sell-mode-btn": {
+   "css": true,
+   "html": true
   },
   "show": {
    "css": true,
@@ -3033,6 +3154,18 @@
    "css": true,
    "html": false
   },
+  "st-notes": {
+   "css": true,
+   "html": false
+  },
+  "st-notes-btn": {
+   "css": true,
+   "html": false
+  },
+  "st-state": {
+   "css": true,
+   "html": false
+  },
   "stats-detail-row": {
    "css": true,
    "html": false
@@ -3066,6 +3199,10 @@
    "html": false
   },
   "stats-tab-btn": {
+   "css": true,
+   "html": true
+  },
+  "stk": {
    "css": true,
    "html": true
   },
@@ -3197,6 +3334,10 @@
    "css": false,
    "html": false
   },
+  "subtotal-cell": {
+   "css": true,
+   "html": true
+  },
   "subtotal-group-billing": {
    "css": true,
    "html": false
@@ -3236,6 +3377,10 @@
   "tab-content": {
    "css": true,
    "html": true
+  },
+  "tax-hint": {
+   "css": true,
+   "html": false
   },
   "taxed": {
    "css": true,
@@ -3325,6 +3470,10 @@
    "css": true,
    "html": true
   },
+  "used-badge": {
+   "css": true,
+   "html": true
+  },
   "van3d-canvas": {
    "css": true,
    "html": false
@@ -3353,6 +3502,10 @@
    "css": true,
    "html": false
   },
+  "w-cat": {
+   "css": true,
+   "html": true
+  },
   "w-pattern": {
    "css": true,
    "html": true
@@ -3362,6 +3515,10 @@
    "html": true
   },
   "w-unit": {
+   "css": true,
+   "html": true
+  },
+  "w-valid": {
    "css": true,
    "html": true
   },
@@ -3401,6 +3558,10 @@
   },
   "adv-key": {
    "html": true,
+   "js": true
+  },
+  "alias": {
+   "html": false,
    "js": true
   },
   "auto": {
@@ -3468,6 +3629,10 @@
    "js": true
   },
   "ccy": {
+   "html": false,
+   "js": true
+  },
+  "ccy-diff": {
    "html": false,
    "js": true
   },
@@ -3556,6 +3721,10 @@
    "js": true
   },
   "furi": {
+   "html": false,
+   "js": true
+  },
+  "g": {
    "html": false,
    "js": true
   },
@@ -3671,6 +3840,10 @@
    "html": false,
    "js": true
   },
+  "min-applied": {
+   "html": false,
+   "js": true
+  },
   "mod": {
    "html": false,
    "js": true
@@ -3681,6 +3854,10 @@
   },
   "mvalue": {
    "html": false,
+   "js": true
+  },
+  "n": {
+   "html": true,
    "js": true
   },
   "name": {
@@ -3776,6 +3953,10 @@
    "js": true
   },
   "raw": {
+   "html": true,
+   "js": true
+  },
+  "rd-slot": {
    "html": true,
    "js": true
   },
@@ -3875,6 +4056,10 @@
    "html": false,
    "js": true
   },
+  "title-orig": {
+   "html": false,
+   "js": true
+  },
   "transport": {
    "html": true,
    "js": true
@@ -3942,6 +4127,7 @@
   "js/app.js",
   "js/quote/constants.js",
   "js/quote/row.js",
+  "js/quote/row-layout.js",
   "js/quote/preview.js",
   "js/quote/cargo.js",
   "js/quote/conditions.js",
@@ -3967,6 +4153,7 @@
   "js/quote/compare.js",
   "js/quote/fcl-lcl.js",
   "js/quote/right-rail.js",
+  "js/ui-confirm.js",
   "js/stats.js",
   "js/alias-rules.js",
   "js/local-charges.js",

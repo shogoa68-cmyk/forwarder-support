@@ -1451,7 +1451,7 @@
     { icon:'📋', label:'選択行を上にコピー (Ctrl+Shift+D)', sub:'チェック行を選択行の直前にコピー', action:() => copySelectedRows('above') },
     { icon:'↕️', label:'カテゴリ順に並び替え',        sub:'カテゴリ種別でソート',            action:() => { sortByCategory(); quoteShowToast('✅ ソートしました', 'success'); } },
     { icon:'👁️', label:'プレビューを開く',            sub:'印刷・コピー用のプレビュー',      action: openPreview },
-    { icon:'🗂️', label:'プリセット/一時保存',         sub:'入力パターンの保存・呼び出し・一時退避', action: openPresetMgr },
+    { icon:'☁️', label:'チーム共有（保存・呼び出し）',  sub:'案件をチーム共有に保存・開く・コピー', action: openPresetMgr },
     { icon:'⬇',  label:'CSV ダウンロード',            sub:'見積もり行をCSVファイルとして保存', action: downloadCSV },
     { icon:'🔀', label:'カテゴリ順にソート',          sub:'カテゴリ種別でテーブルを並び替え', action: sortByCategory },
     { icon:'🗑️', label:'全行リセット',               sub:'見積もり表の全行を削除してリセット', action: resetAll },
@@ -1669,8 +1669,6 @@
   // (doneStates) は無視される。
 
   // ========== プリセット管理 ==========
-  const PRESET_KEY = 'quotePresets_v1';
-
   // 管理番号入力欄からデフォルトプリセット名を作る
   function _buildDefaultPresetName() {
     const ref      = (document.getElementById('qf-ref')?.value      || '').trim();
@@ -1740,90 +1738,17 @@
   window.fillQuoteRef     = fillQuoteRef;
   window.maybeAutoFillRef = maybeAutoFillRef;
 
-  function openPresetMgr(mode) {
-    // mode: 'browser'（ブラウザ保存）／'cloud'（チーム共有）。既定は browser。
-    if (mode !== 'cloud') mode = 'browser';
-    renderPresetList();
+  // 案件の保存・呼び出しは ☁️ チーム共有（クラウド）に一本化（ブラウザ保存は廃止）。
+  function openPresetMgr() {
     const modal = document.getElementById('presetMgrModal');
     modal.classList.add('open');
-    modal.dataset.mode = mode;
-    // セクションの表示切替（独立した2画面として見せる）
-    const browserSec = document.getElementById('presetBrowserSection');
-    const cloudSec   = document.getElementById('cloudShareSection');
-    if (browserSec) browserSec.style.display = (mode === 'cloud') ? 'none' : '';
-    if (cloudSec)   cloudSec.style.display   = (mode === 'cloud') ? '' : 'none';
+    modal.dataset.mode = 'cloud';
     // ☁️ チーム共有セクションの認証状態・一覧を反映（cloud.js）
-    if (mode === 'cloud' && typeof cloudOnPresetMgrOpen === 'function') cloudOnPresetMgrOpen();
-    // 名前欄：読込中のプリセット名を優先（コピー元の上書きを防ぐ）。未読込なら自動生成
-    const input = document.getElementById('presetNameInput');
-    if (input) {
-      const loadedName = (document.getElementById('currentQuoteName')?.dataset.name || '').trim();
-      input.value = loadedName || _buildDefaultPresetName();
-    }
-    if (mode === 'browser') setTimeout(() => { input?.focus(); input?.select(); }, 50);
+    if (typeof cloudOnPresetMgrOpen === 'function') cloudOnPresetMgrOpen();
   }
 
   function closePresetMgr() {
     document.getElementById('presetMgrModal').classList.remove('open');
-  }
-
-  function getPresets() {
-    try { return JSON.parse(localStorage.getItem(PRESET_KEY) || '[]'); }
-    catch(e) { return []; }
-  }
-
-  function savePresetsToStorage(presets) {
-    localStorage.setItem(PRESET_KEY, JSON.stringify(presets));
-  }
-
-  function savePreset() {
-    let name = document.getElementById('presetNameInput')?.value.trim();
-    if (!name) {
-      // 名前空なら自動生成
-      name = _buildDefaultPresetName();
-    }
-    const presets = getPresets();
-    const data    = gatherAllData();
-    // 同名プリセットの確認 → 上書き
-    const existingIdx = presets.findIndex(p => p.name === name);
-    if (existingIdx >= 0) {
-      if (!confirm(`「${name}」が既にあります。上書き保存しますか？`)) return;
-      presets[existingIdx] = { name, data, ts: new Date().toISOString() };
-      savePresetsToStorage(presets);
-      document.getElementById('presetNameInput').value = '';
-      renderPresetList();
-      setCurrentQuoteName(name);
-      quoteShowToast(`💾 「${name}」を上書き保存しました`, 'success');
-      return;
-    }
-    if (presets.length >= 50) {
-      quoteShowToast(
-        '⚠️ ブラウザ保存は最大 50 件です。不要なものを削除するか同名で上書きしてください。チーム全員で残すなら「☁️ チーム共有」もご利用ください',
-        'warning', 6000
-      );
-      return;
-    }
-    presets.unshift({ name, data, ts: new Date().toISOString() });
-    savePresetsToStorage(presets);
-    document.getElementById('presetNameInput').value = '';
-    renderPresetList();
-    setCurrentQuoteName(name);
-    quoteShowToast(`💾 「${name}」を保存しました`, 'success');
-  }
-
-  function loadPreset(idx) {
-    const presets = getPresets();
-    const preset  = presets[idx];
-    if (!preset) return;
-    // 直前に開いていたクラウド案件との紐づけを外す（外さないと「💾 保存（チーム共有）」がその案件を上書きする）
-    if (typeof window.quoteCloudDetach === 'function') window.quoteCloudDetach();
-    // _applyQuoteData でフォーム復元・行再構築（v3 mixed-rows 対応）・合計更新を一括処理
-    // 保存内容どおりに復元する（仮REF/顧客名/担当者が空のプリセットでも、前に開いていた案件の値を残さない）
-    _applyQuoteData(preset.data);
-    calcLiveUpdate();
-    closePresetMgr();
-    setCurrentQuoteName(preset.name);
-    quoteShowToast('📂 「' + preset.name + '」を読み込みました（Ctrl+Z で元に戻せます）', 'success');
   }
 
   // 保存ツールバーの「編集中の見積名」表示を更新
@@ -1832,45 +1757,6 @@
     if (!el) return;
     el.textContent = name ? '📝 ' + name : '📝 新規見積';
     el.dataset.name = name || '';
-  }
-
-  function deletePreset(idx) {
-    const presets = getPresets();
-    const name    = presets[idx]?.name || '';
-    if (!confirm('「' + name + '」を削除しますか？')) return;
-    presets.splice(idx, 1);
-    savePresetsToStorage(presets);
-    renderPresetList();
-    quoteShowToast('🗑️ 「' + name + '」を削除しました', 'info');
-  }
-
-  function duplicateLocalPreset(idx) {
-    const presets = getPresets();
-    const src = presets[idx];
-    if (!src) return;
-    const newData = JSON.parse(JSON.stringify(src.data || {}));
-    if (!newData.fields) newData.fields = {};
-    // 新規案件としてのコピーのため、コピー元の「入力完了」マークは引き継がない
-    if (Array.isArray(newData.rows)) newData.rows.forEach(r => { if (r) delete r.done; });
-    const srcRef = (newData.fields['qf-ref'] || '').trim();
-    const srcCf = src.data && src.data.copiedFrom;
-    newData.copiedFrom = {
-      name: src.name, ref: srcRef,
-      gen: (srcCf && srcCf.gen ? srcCf.gen : 1) + 1,
-      root: (srcCf && srcCf.root) || { name: src.name, ref: srcRef },
-    };
-    // 発番ID取得済みなら新REF#をコピー時点で採番（未取得の場合はコピー元番号を保持）
-    const newRef = typeof generateQuoteRefValue === 'function' ? generateQuoteRefValue() : null;
-    if (newRef) newData.fields['qf-ref'] = newRef;
-    delete newData.fields['qf-core-ref'];   // 基幹REF#は手配した案件に固有のため、コピーには引き継がない
-    let baseName = src.name + ' のコピー';
-    let copyName = baseName;
-    let n = 2;
-    while (presets.some(p => p.name === copyName)) copyName = baseName + '_' + (n++);
-    presets.unshift({ name: copyName, ts: new Date().toISOString(), data: newData });
-    savePresetsToStorage(presets);
-    renderPresetList();
-    quoteShowToast('📋 「' + src.name + '」をコピーしました → 「' + copyName + '」', 'success', 3500);
   }
 
   // 案件ステータス（qf-status）→ ドット色
@@ -2031,84 +1917,6 @@
     }).join('');
   }
   window.quoteRouteHtml = quoteRouteHtml;
-
-  function renderPresetList() {
-    const presets = getPresets();
-    const wrap    = document.getElementById('presetListWrap');
-    if (!wrap) return;
-    if (!presets.length) {
-      wrap.innerHTML = '<div class="preset-empty">保存済みのプリセットはありません<br><small style="color:#bbb;">上のフォームから保存できます</small></div>';
-      return;
-    }
-    // 現在読み込み中のプリセット名（ツールバーの dataset.name から取得）
-    const loadedName = (document.getElementById('currentQuoteName')?.dataset.name || '').trim();
-    wrap.innerHTML = presets.map((p, i) => {
-      const ts = p.ts
-        ? new Date(p.ts).toLocaleString('ja-JP', { month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit' })
-        : '';
-      const isLoaded = loadedName && p.name === loadedName;
-      const m = _presetMeta(p);
-
-      const route = quoteRouteHtml(m, 'preset-kv-arrow');
-      const condHtml =
-        ((m.incoterms && m.incoterms !== '設定なし') ? '<span class="preset-tag preset-tag-inco">' + escHtml(m.incoterms.split('（')[0]) + '</span>' : '') +
-        (m.mode      ? '<span class="preset-tag preset-tag-mode">' + escHtml(m.mode) + '</span>' : '');
-      const personH = m.person && (window.formatPersonWithHonorific ? window.formatPersonWithHonorific(m.person) : m.person);
-      const custDd = [m.customer && escHtml(m.customer), personH && escHtml(personH)].filter(Boolean).join('・');
-      const titleText = m.ref || p.name;   // カード見出しは仮REF#のみ（顧客/担当は下に別掲）
-
-      const subShown = m.subcons.slice(0, 4);
-      const subMore  = m.subcons.length - subShown.length;
-      const subHtml = subShown.map(s =>
-        '<span class="preset-sc-item">' +
-          (s.role ? '<span class="preset-sc-role">' + escHtml(s.role) + '</span>' : '') +
-          '<span class="preset-sc-name">' + escHtml(s.name) + '</span>' +
-        '</span>').join('') + (subMore > 0 ? '<span class="preset-sc-more">+' + subMore + '</span>' : '');
-
-      const statusHtml = m.status
-        ? '<span class="preset-status"><span class="preset-status-dot" style="background:' +
-            (_PRESET_STATUS_DOT[m.status] || '#9c8e78') + '"></span>' + escHtml(m.status) + '</span>'
-        : '';
-
-      const cf = p.data && p.data.copiedFrom;
-      const cfLabel = cf ? escHtml(cf.name || '不明') + (cf.ref ? ' <span class="preset-cf-ref">(' + escHtml(cf.ref) + ')</span>' : '') : '';
-      const selfGenBadge = (cf && cf.gen) ? '<span class="preset-cf-gen preset-cf-gen--self" title="この案件は、オリジナルから数えて' + cf.gen + '代目です（コピー元は ' + (cf.gen - 1) + '代目）">' + cf.gen + '代目</span>' : '';
-      const root = cf && cf.root;
-      const rootLabel = (root && cf.gen > 2)
-        ? '<div class="preset-copied-from preset-copied-from--root">🌱 オリジナル：<span class="preset-cf-name">' + escHtml(root.name || '不明') +
-            (root.ref ? ' <span class="preset-cf-ref">(' + escHtml(root.ref) + ')</span>' : '') + '</span></div>'
-        : '';
-      const copiedFromHtml = cf
-        ? '<div class="preset-copied-from">📋 コピー元：<span class="preset-cf-name">' + cfLabel + '</span></div>' + rootLabel
-        : '';
-
-      return '<div class="preset-list-item preset-item-rich' + (isLoaded ? ' preset-list-item--loaded' : '') + '">' +
-        '<div class="preset-rich-row1">' +
-          statusHtml +
-          '<span class="preset-list-name" title="' + escHtml(p.name) + '">' + escHtml(titleText) + selfGenBadge + '</span>' +
-          '<button class="btn-ref-copy" data-ref="' + escHtml(titleText) + '" onclick="copyRefNumber(this.dataset.ref,this)" title="管理番号をコピー（&quot;番号&quot;形式）"><svg class="icon-copy" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="1" width="9" height="9" rx="1.5"/><rect x="1" y="4" width="9" height="9" rx="1.5"/></svg></button>' +
-          (isLoaded ? '<span class="preset-loaded-badge">編集中</span>' : '') +
-        '</div>' +
-        _progressBarHtml(p.data) +
-        '<dl class="preset-rich-kv">' +
-          (route    ? '<dt>ルート</dt><dd>' + route + '</dd>' : '') +
-          (condHtml ? '<dt>条件</dt><dd class="preset-rich-tags">' + condHtml + '</dd>' : '') +
-          (m.carrier ? '<dt>幹線</dt><dd>🚢 ' + escHtml(m.carrier) + '</dd>' : '') +
-          (subHtml  ? '<dt>サブコン</dt><dd class="preset-rich-sub">' + subHtml + '</dd>' : '') +
-          (custDd   ? '<dt>お客様 / 担当</dt><dd>' + custDd + '</dd>' : '') +
-        '</dl>' +
-        copiedFromHtml +
-        '<div class="preset-rich-foot">' +
-          '<span class="preset-list-ts">' + (ts ? '💾 ' + ts : '') + '</span>' +
-          '<div class="preset-rich-acts">' +
-            '<button class="btn-preset-load" onclick="loadPreset(' + i + ')">読み込む</button>' +
-            '<button class="btn-preset-copy" onclick="duplicateLocalPreset(' + i + ')" title="コピーして新規案件を作成">📋 コピー</button>' +
-            '<button class="btn-preset-del"  onclick="deletePreset(' + i + ')" title="削除">✕</button>' +
-          '</div>' +
-        '</div>' +
-      '</div>';
-    }).join('');
-  }
 
   // ========== 行パターン（チェック行を保存・読込／Supabase チーム共有） ==========
   const ROW_PATTERN_KEY = 'quoteRowPatterns_v1';   // ← 旧localStorage（移行取り込み用に参照のみ）
@@ -2980,10 +2788,10 @@
       const pal = document.getElementById('cmdPalette');
       pal.classList.contains('open') ? closeCmdPalette() : openCmdPalette();
     }
-    // Ctrl+S → プリセット保存（クイック保存）
+    // Ctrl+S → チーム共有へ保存
     if (ctrl && !e.shiftKey && !e.altKey && e.key === 's') {
       e.preventDefault();
-      if (typeof savePreset === 'function') savePreset();
+      if (typeof cloudSaveCurrent === 'function') cloudSaveCurrent();
       return;
     }
     // Ctrl+P → プレビュー
