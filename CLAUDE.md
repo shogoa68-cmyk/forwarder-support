@@ -63,7 +63,7 @@ Design 製の Industry 版デザイン（鋼青のブループリント調）を
 
 **数量パターンの常時表示（2026-10）**：数量パターン（FCL案／LCL案など）を 2 つ以上使っているとき、見積テーブルの操作バー（sticky）の上段 `#qtyPatternBar` に、パターンの切替チップ（編集中は濃く・FCL＝緑／LCL＝青／指定なし＝茶）・「⚠ 要確認 N 行」（`.pq-pattern-needs-check` の数。押すと最初の行へ）・枠線の凡例を出す。表の数量の列見出し（`#hdQtyPat`）に編集中のパターン名、`#tab-quote-make[data-qpat]` で表の上端の線と列見出しの下線をパターンの色にする。描画は `conditions.js` の `renderQtyPatternBar()`（`_renderPackingPatternTabs`／`switchPackingPattern`／`_applyPatternQtyLinks`／`row.js _recordPatternQty` から更新）。保存データは変更なし。
 
-**左端のセクションナビ／右パネルは費用テーブルの縮小表示（2026-10）**：見積入力画面の左端に `#qSecNav`（管理番号・貿易条件・貨物情報・物量情報・作業範囲・リマーク・費用）を常設（`position:fixed`・押すと `openQuoteSectionFromDigest` でセクションを開いてスクロール・いま見ているセクションを強調・「入力済み」の印は `ui.js _updateSecNavMarks`＝`renderQuoteSectionDigest` の判定）。ダッシュボードでは出さない。幅 1100px 以上は本文に左余白 68px、未満は固定をやめて編集画面の上の横並びのリンク。右レールの「ジャンプ」は「費用」（`#qspPane-digest`）に改名し、中身は費用テーブルの合計行とサブコン・パターン・明細のツリーだけ（各セクションの要約は廃止）。ナビにはセクションの要約は出さない。
+**左端のセクションナビ／右パネルは費用テーブルの縮小表示（2026-10）**：見積入力画面の左端に `#qSecNav`（管理番号・貿易条件・貨物情報・物量情報・作業範囲・リマーク・費用）を常設（`.quote-workspace` の直前に置いた高さ 0 の `position:sticky` の入れ物の中の `.q-secnav-box` を左の余白に出す＝最上段では本文の先頭に並び、スクロールするとツールバーの下に付く。`fixed` だと最上段でヘッダー・タブ・ツールバーの下に潜った）・押すと `openQuoteSectionFromDigest` でセクションを開いてスクロール・いま見ているセクションを強調・「入力済み」の印は `ui.js _updateSecNavMarks`＝`renderQuoteSectionDigest` の判定）。ダッシュボードでは出さない。幅 1100px 以上は本文に左余白 68px、未満は固定をやめて編集画面の上の横並びのリンク。右レールの「ジャンプ」は「費用」（`#qspPane-digest`）に改名し、中身は費用テーブルの合計行とサブコン・パターン・明細のツリーだけ（各セクションの要約は廃止）。ナビにはセクションの要約は出さない。
 
 ## 🗑️ 自動保存は廃止（2026-10）
 

@@ -9935,7 +9935,11 @@ button.um-memberno--empty:hover { background: var(--accent-lt); border-color: #c
    幅の広い画面では左端に固定（本文は左に余白を取って重ならない）。幅が狭い画面では、上に付く横並びのリンクに切り替える。ダッシュボードでは出さない。
    印：塗り＝入力済み／白抜き＝未入力。いま見ているセクションは左の線で強調 */
 #tab-quote-make .q-secnav {
-  position: fixed; left: 6px; top: calc(var(--nav-cat-h, 56px) + 64px); z-index: 30;
+  /* 高さ 0 の sticky の入れ物：ページの最上段では本文（editor の先頭）の左の余白に並び、スクロールすると、ツールバーの下に付く（ヘッダーやタブの下に潜らない） */
+  position: sticky; top: calc(var(--nav-cat-h, 56px) + 64px); height: 0; z-index: 30;
+}
+#tab-quote-make .q-secnav-box {
+  position: absolute; left: -62px; top: var(--sp-8);
   display: flex; flex-direction: column; gap: var(--sp-3); width: 56px;
   padding: var(--sp-4); background: var(--surface); border: 1px solid var(--border-md); border-radius: var(--r-8);
   box-shadow: 0 2px 8px rgba(58, 42, 24, 0.10);
@@ -9959,8 +9963,9 @@ button.um-memberno--empty:hover { background: var(--accent-lt); border-color: #c
 }
 @media (max-width: 1099px) {
   /* 幅が狭い画面：左端に固定はせず、編集画面の上に横並びのリンクとして置く（固定のツールバー・操作バーと重ならないように、スクロールには付いてこない） */
-  #tab-quote-make .q-secnav {
-    position: static; width: auto; flex-direction: row; gap: var(--sp-2); margin: var(--sp-4) 0; overflow-x: auto;
+  #tab-quote-make .q-secnav { position: static; height: auto; margin: var(--sp-4) 0; }
+  #tab-quote-make .q-secnav-box {
+    position: static; width: auto; flex-direction: row; gap: var(--sp-2); overflow-x: auto;
   }
   #tab-quote-make .q-secnav-btn { flex: 1 0 auto; flex-direction: row; gap: var(--sp-4); padding: var(--sp-4) var(--sp-8); border-left: 0; border-bottom: 3px solid transparent; }
   #tab-quote-make .q-secnav-btn.is-current { border-left-color: transparent; border-bottom-color: var(--accent-dk); }

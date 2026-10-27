@@ -2182,16 +2182,6 @@
        初期化は js/app.js の switchTab() フックから window.initQuoteTab() を呼ぶ。 -->
   <div class="tab-content active" id="tab-quote-make">
 
-    <!-- 見積入力の各セクションへのジャンプ（左端に常設。ダッシュボードでは出ない）。押すとそのセクションを開いてスクロール。印＝入力済み -->
-    <nav class="q-secnav" id="qSecNav" aria-label="セクションへ移動">
-      <button type="button" class="q-secnav-btn" data-sec="section-ref"    title="管理番号"><span class="q-secnav-ico">🗂️</span><em>管理番号</em><i class="q-secnav-dot"></i></button>
-      <button type="button" class="q-secnav-btn" data-sec="section-cond"   title="貿易条件"><span class="q-secnav-ico">🚢</span><em>貿易条件</em><i class="q-secnav-dot"></i></button>
-      <button type="button" class="q-secnav-btn" data-sec="section-cargo"  title="貨物情報"><span class="q-secnav-ico">📦</span><em>貨物情報</em><i class="q-secnav-dot"></i></button>
-      <button type="button" class="q-secnav-btn" data-sec="section-volume" title="物量情報"><span class="q-secnav-ico">📊</span><em>物量情報</em><i class="q-secnav-dot"></i></button>
-      <button type="button" class="q-secnav-btn" data-sec="section-scope"  title="作業範囲"><span class="q-secnav-ico">🛠️</span><em>作業範囲</em><i class="q-secnav-dot"></i></button>
-      <button type="button" class="q-secnav-btn" data-sec="section-remark" title="全体リマーク"><span class="q-secnav-ico">📑</span><em>リマーク</em><i class="q-secnav-dot"></i></button>
-      <button type="button" class="q-secnav-btn" data-sec="section-table"  title="費用テーブル"><span class="q-secnav-ico">📋</span><em>費用</em><i class="q-secnav-dot"></i></button>
-    </nav>
 
     <!-- ========== ページ1：ダッシュボード（qp-dash 時に表示） ========== -->
     <div id="qpDashboard">
@@ -2730,6 +2720,16 @@
       </div>
     </div>
 
+    <!-- 見積入力の各セクションへのジャンプ（左端に常設。ダッシュボードでは出ない。高さ 0 の sticky の入れ物の中に置き、ページの最上段では本文の先頭に並び、スクロールすると操作バーの下に付く）。押すとそのセクションを開いてスクロール。印＝入力済み -->
+    <nav class="q-secnav" id="qSecNav" aria-label="セクションへ移動"><div class="q-secnav-box">
+      <button type="button" class="q-secnav-btn" data-sec="section-ref"    title="管理番号"><span class="q-secnav-ico">🗂️</span><em>管理番号</em><i class="q-secnav-dot"></i></button>
+      <button type="button" class="q-secnav-btn" data-sec="section-cond"   title="貿易条件"><span class="q-secnav-ico">🚢</span><em>貿易条件</em><i class="q-secnav-dot"></i></button>
+      <button type="button" class="q-secnav-btn" data-sec="section-cargo"  title="貨物情報"><span class="q-secnav-ico">📦</span><em>貨物情報</em><i class="q-secnav-dot"></i></button>
+      <button type="button" class="q-secnav-btn" data-sec="section-volume" title="物量情報"><span class="q-secnav-ico">📊</span><em>物量情報</em><i class="q-secnav-dot"></i></button>
+      <button type="button" class="q-secnav-btn" data-sec="section-scope"  title="作業範囲"><span class="q-secnav-ico">🛠️</span><em>作業範囲</em><i class="q-secnav-dot"></i></button>
+      <button type="button" class="q-secnav-btn" data-sec="section-remark" title="全体リマーク"><span class="q-secnav-ico">📑</span><em>リマーク</em><i class="q-secnav-dot"></i></button>
+      <button type="button" class="q-secnav-btn" data-sec="section-table"  title="費用テーブル"><span class="q-secnav-ico">📋</span><em>費用</em><i class="q-secnav-dot"></i></button>
+    </div></nav>
     <div class="quote-workspace">
       <div class="quote-main">
 
