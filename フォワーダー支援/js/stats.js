@@ -1292,6 +1292,7 @@
         const pr = _pairJ(c);
         out.push(Object.assign({}, c0, {
           cat: (c[CI.cat] || '').trim(), nm, sv, un: (c[CI.un] || '').trim(),
+          taxed: /^\*/.test(String(c[CI.nm] || '')), pq: _num(c[5]),
           bq: _num(c[CI.bq]), pp, pc: (c[CI.pc] || 'JPY').trim() || 'JPY', bp, bc: (c[CI.bc] || 'JPY').trim() || 'JPY',
           costJ: pr.skip ? null : pr.cost, billJ: pr.skip ? null : pr.bill,
           margin: (!pr.skip && pr.bill > 0 && window.SharedCalc) ? SharedCalc.grossMarginPct(pr.bill, pr.cost) : null,
@@ -1391,7 +1392,8 @@
       if (r.costJ != null) { g.cost += r.costJ; g.bill += r.billJ; }
     });
     const smList = [...sm.values()].sort((a, b) => b.n - a.n).slice(0, 8);
-    let h = `<p class="stats-syn-hint"><b>${rows.length}</b> 明細（${caseCount} 案件）</p>`;
+    let h = `<p class="stats-syn-hint"><b>${rows.length}</b> 明細（${caseCount} 案件）` +
+            ` <button class="stats-sort-btn" onclick="statsLedgerToPattern()" title="この絞り込み結果を、同じ仕入先・品名ごとにまとめて明細プリセットとして登録します">📦 この条件の明細をパターンに登録</button></p>`;
     if (smList.length) {
       h += '<table class="stats-table ldg-sum"><thead><tr><th>仕入先（同じ単位・通貨ごと）</th><th class="stats-num-col">件数</th><th>仕入単価（最安〜最高）</th><th>直近の仕入</th><th>直近の売</th><th class="stats-num-col">平均粗利率</th></tr></thead><tbody>' +
         smList.map(g => {
@@ -1430,6 +1432,140 @@
       }).join('') + '</tbody></table></div>' + _moreHtml('statsPane-ledger', rows.length);
     box.innerHTML = h;
   }
+
+
+  // ----- 台帳 → 明細プリセット（パターン）登録 -----
+  // 絞り込み結果を「同じ作業・仕入先・単位・通貨」ごとに1行へまとめた1セットとして、
+  // 既存の明細プリセット（row_patterns。諸チャージタブ／見積の「保存パターン」と共通）へ登録する。
+  let _pat = null;   // { groups:[{key,...,items:[entries]}], basis:'last'|'avg', chk:Set }
+  const _PAT_MAX = 100;
+
+  function _patPrice(g, field, ccyField) {
+    const vals = g.items.filter(r => r[field] != null);
+    if (!vals.length) return '';
+    if (_pat.basis === 'avg') {
+      const v = vals.reduce((a, r) => a + r[field], 0) / vals.length;
+      return String(Math.round(v * 100) / 100);
+    }
+    const last = vals.reduce((a, r) => (r.ts >= a.ts ? r : a), vals[0]);
+    return String(last[field]);
+  }
+  function _patQty(g) {
+    const cnt = new Map();
+    g.items.forEach(r => { if (r.bq != null) cnt.set(r.bq, (cnt.get(r.bq) || 0) + 1); });
+    let best = '', bc = 0;
+    cnt.forEach((n, q) => { if (n > bc) { bc = n; best = String(q); } });
+    return best;
+  }
+
+  window.statsLedgerToPattern = function () {
+    const rows = _ledgerFiltered();
+    if (!rows.length) return;
+    const map = new Map();
+    rows.forEach(r => {
+      const k = [r.cat, r.nm, r.sv, r.un, r.pc, r.bc].join('\x00');
+      if (!map.has(k)) map.set(k, { key: k, cat: r.cat, nm: r.nm, sv: r.sv, un: r.un, pc: r.pc, bc: r.bc, items: [] });
+      map.get(k).items.push(r);
+    });
+    const groups = [...map.values()].sort((a, b) => b.items.length - a.items.length);
+    if (groups.length > _PAT_MAX) {
+      if (typeof window.quoteShowToast === 'function') window.quoteShowToast(`作業・仕入先の組み合わせが ${groups.length} 種類あります。${_PAT_MAX} 種類以内になるよう、条件を絞ってください`, 'warn', 5000);
+      return;
+    }
+    _pat = { groups, basis: 'last', chk: new Set(groups.map(g => g.key)) };
+    // 既定の大分類・タグ・名前を、いまの絞り込み条件から用意する
+    const f = _ledgerF;
+    const dirs = rows.reduce((m, r) => { if (r.dir) m[r.dir] = (m[r.dir] || 0) + 1; return m; }, {});
+    const dir = f.dir || (Object.keys(dirs).length === 1 ? Object.keys(dirs)[0] : '');
+    const tags = [f.mode ? (_MODE_LABEL[f.mode] || f.mode) : '', f.route, f.cust].map(v => String(v || '').trim()).filter(Boolean);
+    const name = [f.cust, f.route, f.nm || f.sv].map(v => String(v || '').trim()).filter(Boolean).join(' ') || '';
+    const cond = [f.cust && 'お客様:' + f.cust, f.route && '航路:' + f.route, f.nm && '品名:' + f.nm, f.sv && '仕入先:' + f.sv,
+                  f.mode && 'モード:' + (_MODE_LABEL[f.mode] || f.mode), f.status === 'sent' ? '提示後のみ' : f.status === 'won' ? '受注のみ' : '']
+                 .filter(Boolean).join(' / ');
+    const caseCount = new Set(rows.map(r => r.caseId || r.caseName)).size;
+    const note = `明細台帳から登録（${rows.length}明細・${caseCount}案件${cond ? '／条件: ' + cond : ''}）`;
+
+    document.getElementById('ldgPatOverlay')?.remove();
+    const ov = document.createElement('div');
+    ov.id = 'ldgPatOverlay'; ov.className = 'ldg-pat-overlay';
+    ov.innerHTML =
+      '<div class="ldg-pat-dialog" role="dialog" aria-modal="true">' +
+        '<h3 class="ldg-pat-title">📦 明細プリセットに登録</h3>' +
+        '<p class="stats-syn-hint">絞り込んだ明細を、同じ作業・仕入先・単位・通貨ごとに1行へまとめた1セットとして登録します。登録後は、見積の「行を挿入」→「保存パターン」、または「諸チャージ」タブの明細プリセットで使えます（細かい調整もそちらで編集できます）。</p>' +
+        '<div class="ldg-pat-form">' +
+          `<label>パターン名<input id="ldgPatName" class="ldg-in" type="text" value="${_eav(name)}" placeholder="例）〇〇商事 YOKOHAMA LOS ANGELES 輸出"></label>` +
+          `<label>メモ<input id="ldgPatNote" class="ldg-in" type="text" value="${_eav(note)}"></label>` +
+          '<label>大分類<select id="ldgPatDir" class="ldg-in">' +
+            [['', '共通'], ['export', '輸出'], ['import', '輸入']].map(([v, l]) => `<option value="${v}"${dir === v ? ' selected' : ''}>${l}</option>`).join('') + '</select></label>' +
+          `<label>タグ（カンマ区切り）<input id="ldgPatTags" class="ldg-in" type="text" value="${_eav(tags.join(', '))}" placeholder="例）海上 FCL, YOKOHAMA"></label>` +
+          '<label>単価の採り方<select id="ldgPatBasis" class="ldg-in" onchange="statsPatBasis(this.value)"><option value="last">直近の単価</option><option value="avg">平均</option></select></label>' +
+        '</div>' +
+        '<div class="ldg-scroll"><table class="stats-table ldg-pat-table"><thead><tr>' +
+          '<th><input type="checkbox" checked onchange="statsPatToggleAll(this.checked)" title="すべて選択／解除"></th>' +
+          '<th>作業・品名</th><th>仕入先</th><th>数量</th><th>仕入単価</th><th>売単価</th><th class="stats-num-col">実績</th>' +
+        '</tr></thead><tbody id="ldgPatBody"></tbody></table></div>' +
+        '<div class="ldg-pat-actions"><span id="ldgPatCount" class="ldg-sub"></span>' +
+          '<button class="stats-sort-btn" onclick="statsPatClose()">やめる</button>' +
+          '<button class="btn-primary" onclick="statsPatSave()">登録する</button></div>' +
+      '</div>';
+    ov.addEventListener('mousedown', e => { if (e.target === ov) window.statsPatClose(); });
+    document.body.appendChild(ov);
+    _patRenderBody();
+    document.getElementById('ldgPatName')?.focus();
+  };
+
+  function _patRenderBody() {
+    const body = document.getElementById('ldgPatBody');
+    if (!body || !_pat) return;
+    body.innerHTML = _pat.groups.map((g, i) => {
+      const u = g.un ? ' /' + _esc(g.un) : '';
+      const pp = _patPrice(g, 'pp'), bp = _patPrice(g, 'bp');
+      return `<tr><td><input type="checkbox" ${_pat.chk.has(g.key) ? 'checked' : ''} onchange="statsPatToggle(${i},this.checked)"></td>` +
+             `<td class="stats-val">${g.cat ? `<small class="ldg-sub">${_esc(g.cat)}</small><br>` : ''}${_esc(g.nm || '—')}</td>` +
+             `<td class="stats-val">${_esc(g.sv || '—')}</td>` +
+             `<td>${_esc(_patQty(g) || '—')}${u}</td>` +
+             `<td>${pp === '' ? '—' : _fmtMoney(Number(pp), g.pc) + u}</td>` +
+             `<td>${bp === '' ? '—' : _fmtMoney(Number(bp), g.bc) + u}</td>` +
+             `<td class="stats-num-col">${g.items.length}回</td></tr>`;
+    }).join('');
+    const n = _pat.chk.size;
+    const cnt = document.getElementById('ldgPatCount');
+    if (cnt) cnt.textContent = `${n} / ${_pat.groups.length} 行を登録`;
+  }
+  window.statsPatBasis = v => { if (_pat) { _pat.basis = v === 'avg' ? 'avg' : 'last'; _patRenderBody(); } };
+  window.statsPatToggle = (i, on) => { if (!_pat) return; const k = _pat.groups[i].key; on ? _pat.chk.add(k) : _pat.chk.delete(k); _patRenderBody(); };
+  window.statsPatToggleAll = on => { if (!_pat) return; _pat.chk = on ? new Set(_pat.groups.map(g => g.key)) : new Set(); _patRenderBody(); };
+  window.statsPatClose = () => { document.getElementById('ldgPatOverlay')?.remove(); _pat = null; };
+
+  window.statsPatSave = async function () {
+    if (!_pat) return;
+    const toast = (m, t) => { if (typeof window.quoteShowToast === 'function') window.quoteShowToast(m, t || 'warn', 5000); else alert(m); };
+    const name = (document.getElementById('ldgPatName')?.value || '').trim();
+    const note = (document.getElementById('ldgPatNote')?.value || '').trim();
+    const direction = document.getElementById('ldgPatDir')?.value || null;
+    const tags = (document.getElementById('ldgPatTags')?.value || '').split(/[,、，]/).map(t => t.trim()).filter(Boolean);
+    if (!name) { toast('パターン名を入力してください'); document.getElementById('ldgPatName')?.focus(); return; }
+    const picked = _pat.groups.filter(g => _pat.chk.has(g.key));
+    if (!picked.length) { toast('登録する行を1つ以上選んでください'); return; }
+    const db = _c(), email = _me();
+    if (!db || !email) { toast('明細プリセットの登録にはログインが必要です'); return; }
+    const rows = picked.map(g => ({
+      _type: 'data', cat: g.cat, name: g.nm, taxed: !!g.items[0].taxed, pq: _patQty(g), un: g.un,
+      pc: g.pc, pp: _patPrice(g, 'pp'), bq: _patQty(g), bc: g.bc, bp: _patPrice(g, 'bp'), mk: '', note: '', sv: g.sv,
+    }));
+    const { data: exist } = await db.from('row_patterns').select('id').eq('name', name).limit(1);
+    if (exist && exist.length) { toast('同名の明細プリセットが既にあります。別の名前にしてください'); document.getElementById('ldgPatName')?.focus(); return; }
+    const base = { name, note, rows, created_by: email, updated_by: email };
+    let { error } = await db.from('row_patterns').insert(Object.assign({ direction: direction || null, tags }, base));
+    let fellBack = false;
+    if (error && /direction|tags/.test(error.message || '')) {   // 追加SQL未適用でも登録は通す
+      ({ error } = await db.from('row_patterns').insert(base));
+      fellBack = !error;
+    }
+    if (error) { toast('登録に失敗しました：' + error.message); return; }
+    window.statsPatClose();
+    toast(fellBack ? `📦 「${name}」を登録しました（大分類/タグは追加SQL適用後に保存されます）` : `📦 明細プリセット「${name}」を登録しました（${rows.length}行）`, fellBack ? 'warn' : 'success');
+  };
 
   function _renderUn() {
     const e = document.getElementById('statsPane-un');
