@@ -1102,6 +1102,30 @@ body:has(#tab-quote-make.active) .app { padding-bottom: var(--sp-8); }
   border-color: var(--accent-dk);
 }
 
+/* 「📂 その他」メニュー（頻度の低い 6 カテゴリを集約。開閉は js/cat-more.js） */
+.cat-more { flex: 1; min-width: 90px; display: flex; }
+.cat-more-btn { flex: 1; }
+.cat-more-caret { font-size: var(--fs-10, 10px); opacity: .7; transition: transform .15s; display: inline-block; }
+.cat-more.is-open .cat-more-caret { transform: rotate(180deg); }
+.cat-more-panel {
+  position: fixed;
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px;
+  background: var(--card-bg);
+  border: 1px solid var(--border-md);
+  border-radius: var(--r-8);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, .16);
+}
+.cat-more-panel[hidden] { display: none; }
+.cat-more-panel .cat-btn { flex: none; width: 100%; text-align: left; min-height: 40px; }
+@media (max-width: 680px) {
+  .cat-more { flex: 0 0 auto; }
+  .cat-more-btn { flex: 0 0 auto; }
+}
+
 /* 見積カテゴリの差し色（オレンジ系）＋NEWバッジ */
 .cat-btn-featured {
   position: relative;

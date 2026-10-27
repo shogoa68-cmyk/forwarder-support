@@ -65,6 +65,8 @@ Design 製の Industry 版デザイン（鋼青のブループリント調）を
 
 **左端のセクションナビ／右パネルは費用テーブルの縮小表示（2026-10）**：見積入力画面の左端に `#qSecNav`（管理番号・貿易条件・貨物情報・物量情報・作業範囲・リマーク・費用）を常設（`.quote-workspace` の直前に置いた高さ 0 の `position:sticky` の入れ物の中の `.q-secnav-box` を左の余白に出す＝最上段では本文の先頭に並び、スクロールするとツールバーの下に付く。`fixed` だと最上段でヘッダー・タブ・ツールバーの下に潜った）・押すと `openQuoteSectionFromDigest` でセクションを開いてスクロール・いま見ているセクションを強調・「入力済み」の印は `ui.js _updateSecNavMarks`＝`renderQuoteSectionDigest` の判定）。ダッシュボードでは出さない。幅 1100px 以上は本文に左余白 68px、未満は固定をやめて編集画面の上の横並びのリンク。右レールの「ジャンプ」は「費用」（`#qspPane-digest`）に改名し、中身は費用テーブルの合計行とサブコン・パターン・明細のツリーだけ（各セクションの要約は廃止）。ナビにはセクションの要約は出さない。
 
+**カテゴリナビの「📂 その他」メニュー（2026-10）**：上段のカテゴリは「見積・統計・マスター管理・諸チャージ・BOOKMARK」＋「📂 その他 ▾」の 6 つにし、頻度の低い 6 カテゴリ（カレンダー／本船・航路／Booking/SI／書類・通関／計算／知識・参考）は「その他」のメニューに集約（情報は減らさない）。メニュー内のボタンは従来の `.cat-btn` のまま（`onclick="switchCategory(...)"`・`aria-controls` 不変なので `calculator.js`／`conditions.js` の探し方もそのまま効く）。開閉・選択中の表示は `js/cat-more.js`（パネルは `position:fixed`＝スマホ幅の `.cat-nav` 横スクロールで切れない・Esc／外側クリック／スクロールで閉じる・メニュー内が選択中のとき「その他」ボタンが強調され名前が出る＝`.active` の変化を MutationObserver で追従）。CSS は `style.css` の `.cat-more*`（Industry も共通）。テストは `scripts/design-tests/cat-more-test.js`。
+
 ## 🗑️ 自動保存は廃止（2026-10）
 
 旧「自動保存」（localStorage `quoteData` に1件・復元バナー）は、ページ再読込後に空の状態で上書きされて復元できない不具合があり、ブラウザ保存／チーム共有と役割も重なるため**廃止**。保存はチーム共有（旧「ブラウザ保存」は廃止）、巻き戻しは Undo/Redo。`scheduleAutoSave()` は呼び出し元（約100か所）を変えないため**何もしない関数として残置**。起動時（`initQuoteState`）に旧データ（`quoteData`・`autoSaveEnabled`）を掃除する（後日削除可）。
