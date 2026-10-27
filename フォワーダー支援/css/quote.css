@@ -9971,6 +9971,8 @@ button.um-memberno--empty:hover { background: var(--accent-lt); border-color: #c
 #tab-quote-make .q-secnav-btn.is-current { border-left-color: var(--accent-dk); background: var(--accent-lt); color: var(--text); }
 @media (min-width: 1100px) {
   #tab-quote-make:not(.qp-dash) { padding-left: 68px; }
+  /* 上部ツールバーは、左のセクションナビ用の余白（68px）まで広げて、カテゴリの行と幅をそろえる */
+  #tab-quote-make:not(.qp-dash) > .save-toolbar { margin-left: -68px; }
 }
 @media (max-width: 1099px) {
   /* 幅が狭い画面：左端に固定はせず、編集画面の上に横並びのリンクとして置く（固定のツールバー・操作バーと重ならないように、スクロールには付いてこない） */
@@ -10015,6 +10017,15 @@ button.um-memberno--empty:hover { background: var(--accent-lt); border-color: #c
   height: 28px; padding: 0 var(--sp-8); font-family: inherit; font-size: var(--fs-11); font-weight: 700; cursor: pointer;
   border: 1px dashed #c98a1f; border-radius: var(--r-5); background: var(--amber-94); color: #8a4c00;
 }
+/* 上部ツールバー（#saveToolbar）の「⋯」の左の空きに置いたとき：高さはツールバーのまま（下の操作バーの位置がずれない）。長い名前は「…」で切り（全文は title）、多いときは横にスクロール */
+#tab-quote-make .save-toolbar > .cmdbar-qpat {
+  flex: 1 1 0; min-width: 0; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: thin;
+  margin: 0 var(--sp-8); padding: 0; border-bottom: 0;
+}
+#tab-quote-make .save-toolbar > .cmdbar-qpat > * { flex: none; }
+#tab-quote-make .save-toolbar > .cmdbar-qpat .qpat-chip, #tab-quote-make .save-toolbar > .cmdbar-qpat .qpat-need { height: 24px; }
+#tab-quote-make .cmdbar-qpat .qpat-chip .qpat-name { display: inline-block; max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; vertical-align: bottom; }
+@media (max-width: 1699px) { #tab-quote-make .save-toolbar > .cmdbar-qpat .qpat-legend { display: none; } }
 #tab-quote-make .cmdbar-qpat .qpat-legend { margin-left: auto; font-size: var(--fs-10-5); color: var(--text-md); white-space: nowrap; }
 #tab-quote-make .cmdbar-qpat .qpat-sw { display: inline-block; width: 22px; height: 11px; vertical-align: middle; margin: 0 var(--sp-3) 0 var(--sp-8); border-radius: var(--r-2); }
 #tab-quote-make .cmdbar-qpat .qpat-sw.is-linked { background: #f4f8ec; box-shadow: 0 0 0 1px var(--green-leaf) inset; }

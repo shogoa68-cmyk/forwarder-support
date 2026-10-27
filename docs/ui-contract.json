@@ -470,6 +470,7 @@
   "rpTabPattern",
   "rpTabSubcon",
   "saveStatus",
+  "saveToolbar",
   "scPanel",
   "scopePresetItems",
   "scopePresetModal",
@@ -2870,6 +2871,10 @@
   "qsp-row-dragging": {
    "css": true,
    "html": false
+  },
+  "quote-cmdbar": {
+   "css": true,
+   "html": true
   },
   "quote-field-memo": {
    "css": true,
