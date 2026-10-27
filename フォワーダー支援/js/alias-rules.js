@@ -1153,8 +1153,44 @@
     return true;
   }
 
+  // 承認制（master_requests）のとき、メンバーはマスター・別名を直接変えられない（別名の追加だけは申請できる）
+  function _synRestricted() {
+    return typeof window.statsAliasNeedsApproval === 'function' && window.statsAliasNeedsApproval();
+  }
+  function _synRestrictedToast() {
+    if (typeof window.quoteShowToast === 'function') window.quoteShowToast('マスター名・別名の変更は管理者が行います（別名の追加は「＋ 別名」から申請できます）', 'info', 5200);
+  }
+  // 別名を足したとき、別名側に入力済みの詳細を代表の詳細へ合流させる（空の項目だけ補う。担当者・タグは足し合わせる。別名側の記録は消さない）
+  function _mdMergeDetails(into, from) {
+    const out = Object.assign({}, into);
+    Object.keys(from || {}).forEach(k => {
+      const v = from[k], cur = out[k];
+      if (v == null || v === '' || (Array.isArray(v) && !v.length)) return;
+      if (k === 'contacts' || k === 'tags') {
+        const base = Array.isArray(cur) ? cur.slice() : [];
+        const seen = new Set(base.map(x => typeof x === 'string' ? x : (x && x.name) || JSON.stringify(x)));
+        (Array.isArray(v) ? v : []).forEach(x => { const key = typeof x === 'string' ? x : (x && x.name) || JSON.stringify(x); if (!seen.has(key)) { seen.add(key); base.push(x); } });
+        out[k] = base;
+      } else if (cur == null || cur === '' || (Array.isArray(cur) && !cur.length)) out[k] = v;
+    });
+    return out;
+  }
+  async function _mdAbsorbAliasDetails(field, canonical, aliases) {
+    if (typeof window.mdGet !== 'function' || typeof window.mdSave !== 'function') return;
+    let merged = null, cur = (window.mdGet(field, canonical) || {}).details || {};
+    for (const a of aliases) {
+      const rec = window.mdGet(field, a);
+      if (!rec || !rec.details || !Object.keys(rec.details).length) continue;
+      const next = _mdMergeDetails(merged || cur, rec.details);
+      if (JSON.stringify(next) !== JSON.stringify(merged || cur)) merged = next;
+    }
+    if (merged && await window.mdSave(field, canonical, merged) && typeof window.quoteShowToast === 'function')
+      window.quoteShowToast('📋 別名側に入力されていた詳細を「' + canonical + '」へまとめました', 'info', 3600);
+  }
+
   window.synSetCanonical = async function (field, value) {
     if (!field || !value) return;
+    if (_synRestricted()) return _synRestrictedToast();
     // value が他グループの alias なら外す
     for (const g of _synAll()) {
       if (g.field === field && (g.aliases || []).includes(value))
@@ -1169,6 +1205,8 @@
 
   window.synAddAlias = async function (field, alias, canonical) {
     if (!field || !alias || !canonical || alias === canonical) return;
+    // 承認制：メンバーの別名追加は申請になり、管理者が承認すると反映される
+    if (_synRestricted() && typeof window.statsRequestAlias === 'function') return window.statsRequestAlias(field, alias, canonical);
     // alias を他グループの alias リストから外す
     for (const g of _synAll()) {
       if (g.field === field && g.canonical !== canonical && (g.aliases || []).includes(alias))
@@ -1187,17 +1225,22 @@
       await window.statsEnsureNotMaster(field, alias);
       for (const a of absorbed) await window.statsEnsureNotMaster(field, a);
     }
-    await _synAfter('✅「' + alias + '」→「' + canonical + '」に統合しました');
+    await _mdAbsorbAliasDetails(field, canonical, [alias, ...absorbed]);
+    await _synAfter('✅「' + alias + '」を「' + canonical + '」の別名にしました');
   };
 
   window.synRemoveAlias = async function (field, alias, canonical) {
+    if (_synRestricted()) return _synRestrictedToast();
     const g = _synAll().find(x => x.field === field && x.canonical === canonical);
-    if (g) await _synUpsert(field, canonical, (g.aliases || []).filter(a => a !== alias));
-    await _synAfter();
+    const ok = g ? await _synUpsert(field, canonical, (g.aliases || []).filter(a => a !== alias)) : false;
+    await _synAfter(ok ? '別名「' + alias + '」を外しました（マスターには自動では戻りません。必要なら「＋ マスターを新規登録」から）' : '');
   };
   window.synRemoveGroup = async function (field, canonical) {
-    await _synDelete(field, canonical);
-    await _synAfter();
+    if (_synRestricted()) return _synRestrictedToast();
+    const g = _synAll().find(x => x.field === field && x.canonical === canonical);
+    const n = g ? (g.aliases || []).length : 0;
+    const ok = await _synDelete(field, canonical);
+    await _synAfter(ok && n ? '別名 ' + n + ' 件を外しました（外した名前はマスターには自動では戻りません。マスター「' + canonical + '」は残ります）' : '');
   };
 
   // 代表名の新規入力・編集（リネーム）。旧名称は別名として残す（実データの紐付けを維持）。
@@ -1205,6 +1248,7 @@
   window.synRenameCanonical = async function (field, oldCanon, newCanon) {
     oldCanon = (oldCanon || '').trim(); newCanon = (newCanon || '').trim();
     if (!field || !oldCanon || !newCanon || oldCanon === newCanon) return;
+    if (_synRestricted()) return _synRestrictedToast();
     const all = _synAll().filter(g => g.field === field);
     const old    = all.find(g => g.canonical === oldCanon);
     const target = all.find(g => g.canonical === newCanon);
@@ -1221,7 +1265,8 @@
     if (typeof window.statsEnsureNotMaster === 'function') {
       for (const a of merged) await window.statsEnsureNotMaster(field, a);
     }
-    await _synAfter('✏️ 代表名を「' + newCanon + '」に変更しました');
+    await _mdAbsorbAliasDetails(field, newCanon, [...merged]);
+    await _synAfter('✏️ マスター名を「' + newCanon + '」に変更しました');
   };
 
   async function _synAfter(toast) {
@@ -1630,11 +1675,16 @@
   const MA_BUCKET = () => (window.CLOUD_CONFIG && window.CLOUD_CONFIG.masterAttachmentBucket) || 'master-attachments';
   let _maTableMissing = false;
 
+  // マスターの添付は、別名側に付けたものも合わせて表示する（別名を足す前に添付してあったファイルが見えなくならないように）
+  function _maValuesOf(field, value) {
+    const g = _synAll().find(x => x.field === field && x.canonical === value);
+    return [value].concat(g ? (g.aliases || []) : []);
+  }
   window.mdListAttachments = async function (field, value) {
     if (!_cloud() || _maTableMissing || !field || !value) return [];
     const { data, error } = await _c().from(MA_TABLE)
       .select('id,file_name,file_size,mime_type,storage_path,uploaded_by,created_at')
-      .eq('field', field).eq('value', value)
+      .eq('field', field).in('value', _maValuesOf(field, value))
       .order('created_at', { ascending: false });
     if (error) { if (_mdMissingErr(error)) _maTableMissing = true; return []; }
     return data || [];

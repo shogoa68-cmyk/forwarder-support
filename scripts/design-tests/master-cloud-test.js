@@ -518,6 +518,65 @@ const http = require('http'), fs = require('fs'), path = require('path');
     await ctx.close();
   }
 
+  // ===== 承認制：別名の追加（メンバーは申請・管理者が承認）／詳細の合流／添付の集約 =====
+  {
+    const { ctx, p, errs } = await open(true, { approval: true, role: 'member', noLegacy: true });
+    const L = '[別名の申請(メンバー)] ';
+    const seed = async () => {
+      await p.evaluate(async () => {
+        window.__db.master_votes.push({ field: 'sv', value: 'テスト運送', voter_email: 'admin@example.com' });
+        await statsLoadMasterCache(); await synLoadCloud();
+        await synAddAlias('sv', 'テスト運輸', 'テスト運送');
+      });
+      await p.waitForTimeout(800);
+    };
+    await seed();
+    const r = await p.evaluate(() => ({
+      syn: window.__db.synonym_groups.filter(g => g.canonical === 'テスト運送' || (g.aliases || []).includes('テスト運輸')).length,
+      req: window.__db.master_requests.find(x => x.value === 'テスト運輸'),
+      toast: [...document.querySelectorAll('.toast')].some(e => e.textContent.includes('別名にする申請')),
+    }));
+    ok(L + '直接は別名にならず、申請が作られる', r.syn === 0 && r.req && r.req.alias_of === 'テスト運送' && r.req.status === 'pending', r);
+    ok(L + '申請したことが表示される', r.toast, r);
+    await p.evaluate(async () => { await synSetCanonical('sv', 'ABC'); });
+    ok(L + 'マスター名・別名の直接変更はできない', await p.evaluate(() => !window.__db.synonym_groups.some(g => g.canonical === 'ABC')));
+    ok(L + 'JS エラーなし', errs.length === 0, errs);
+    await ctx.close();
+  }
+  {
+    const { ctx, p, errs } = await open(true, { approval: true, role: 'admin', noLegacy: true });
+    const L = '[別名の承認(管理者)] ';
+    await p.evaluate(async () => {
+      window.__db.master_votes.push({ field: 'sv', value: 'テスト運送', voter_email: 'admin@example.com' });
+      window.__db.master_votes.push({ field: 'sv', value: 'テスト運輸', voter_email: 'admin@example.com' });
+      window.__db.master_details.push({ field: 'sv', value: 'テスト運輸', details: { furigana: 'てすとうんゆ', contacts: [{ name: '山田' }] } });
+      window.__db.master_details.push({ field: 'sv', value: 'テスト運送', details: { enName: 'TEST UNSO', contacts: [{ name: '佐藤' }] } });
+      window.__db.master_requests.push({ id: 'a1', field: 'sv', value: 'テスト運輸', alias_of: 'テスト運送', requested_by: 'm@example.com', status: 'pending', created_at: new Date().toISOString() });
+      await statsLoadMasterCache(); await synLoadCloud(); await mdLoadCloud(); await statsRefresh();
+    });
+    await p.evaluate(() => { switchCategory('master', document.querySelector('[onclick*="switchCategory(\'master"]')); }); await p.waitForTimeout(1200);
+    const shown = await p.evaluate(() => document.querySelector('#statsPane-master .stats-req-section')?.textContent || '');
+    ok(L + '申請に「→ 「テスト運送」の別名」と出る', shown.includes('テスト運送') && shown.includes('別名'), shown);
+    ok(L + '申請中の別名はマスター申請として数えない', await p.evaluate(() => statsMasterState('sv', 'テスト運輸') !== 'pending'));
+    await p.evaluate(() => statsApproveRequest('a1')); await p.waitForTimeout(1500);
+    const r = await p.evaluate(() => ({
+      syn: window.__db.synonym_groups.find(g => g.canonical === 'テスト運送'),
+      req: window.__db.master_requests.find(x => x.id === 'a1').status,
+      votes: window.__db.master_votes.filter(v => v.value === 'テスト運輸').length,
+      md: (window.__db.master_details.find(m => m.value === 'テスト運送') || {}).details,
+      mdAlias: !!window.__db.master_details.find(m => m.value === 'テスト運輸'),
+    }));
+    ok(L + '承認すると別名として入り、申請は承認済み', r.syn && r.syn.aliases.includes('テスト運輸') && r.req === 'approved', r);
+    ok(L + '別名側のマスター登録は外れる', r.votes === 0, r);
+    ok(L + '別名側の詳細が代表へ合流（空欄を補い、担当者は足し合わせ）', r.md && r.md.furigana === 'てすとうんゆ' && r.md.enName === 'TEST UNSO' && r.md.contacts.length === 2, r.md);
+    ok(L + '別名側の記録は消さない', r.mdAlias, r);
+    // 別名を外したときの案内
+    await p.evaluate(() => synRemoveAlias('sv', 'テスト運輸', 'テスト運送')); await p.waitForTimeout(800);
+    ok(L + '別名を外すと「マスターには自動では戻りません」と案内', await p.evaluate(() => [...document.querySelectorAll('.toast')].some(e => e.textContent.includes('自動では戻りません'))));
+    ok(L + 'JS エラーなし', errs.length === 0, errs);
+    await ctx.close();
+  }
+
   console.log(out.join('\n'));
   console.log(out.some(l => l.startsWith('FAIL')) ? 'NG' : 'OK');
   await b.close(); srv.close();

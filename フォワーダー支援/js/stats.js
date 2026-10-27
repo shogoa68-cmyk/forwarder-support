@@ -58,17 +58,24 @@
   const REQ_TABLE = 'master_requests';
   let _reqs = [];              // 申請（新しい順）
   let _reqOn = false;          // 申請テーブルが使える
+  let _aliasReqOn = false;     // 別名の追加申請（alias_of 列）も使える
   async function _loadRequests() {
     const c = _c();
     if (!c) { _reqs = []; _reqOn = false; return; }
-    const { data, error } = await c.from(REQ_TABLE).select('id,field,value,requested_by,status,decided_by,decided_at,created_at')
+    // alias_of（別名の追加申請）列は docs/sql/synonym-groups-approval.sql で追加。無い間は従来どおり（別名はメンバーも直接追加できる）
+    let res = await c.from(REQ_TABLE).select('id,field,value,alias_of,requested_by,status,decided_by,decided_at,created_at')
       .order('created_at', { ascending: false }).limit(300);
-    if (error) { _reqs = []; _reqOn = false; return; }
-    _reqs = data || []; _reqOn = true;
+    _aliasReqOn = !res.error;
+    if (res.error) res = await c.from(REQ_TABLE).select('id,field,value,requested_by,status,decided_by,decided_at,created_at')
+      .order('created_at', { ascending: false }).limit(300);
+    if (res.error) { _reqs = []; _reqOn = false; _aliasReqOn = false; return; }
+    _reqs = res.data || []; _reqOn = true;
   }
   const _isAdmin = () => window._myRole === 'admin';
   const _approvalOn = () => _cloud() && _reqOn;
-  const _pendingReq = (field, value) => _reqs.find(r => r.status === 'pending' && r.field === field && r.value === value);
+  const _pendingReq = (field, value) => _reqs.find(r => r.status === 'pending' && !r.alias_of && r.field === field && r.value === value);
+  // メンバーの別名追加・マスター名変更などは、承認制のとき管理者が行う（別名の追加だけは申請になる）
+  window.statsAliasNeedsApproval = () => _approvalOn() && !_isAdmin() && _aliasReqOn;
   const _FIELD_LABEL = { sv: 'サブコン', carrier: 'キャリア', nm: '品名', un: '単位', customer: 'お客様', port: '港' };
   function _toast(msg, type, ms) { if (typeof window.quoteShowToast === 'function') window.quoteShowToast(msg, type || 'success', ms || 3200); }
 
@@ -80,10 +87,25 @@
     if (typeof window.refreshAllRowSvChips === 'function') window.refreshAllRowSvChips();   // 行の「申請中」の印を反映
     _toast('📨 ' + (_FIELD_LABEL[field] || field) + '「' + value + '」をマスターに申請しました。管理者の承認後に入力候補に出ます', 'success', 4200);
   }
+  // 別名の追加を申請する（承認制のメンバー）。管理者が承認すると別名として反映される
+  window.statsRequestAlias = async function (field, alias, canonical) {
+    if (_reqs.some(r => r.status === 'pending' && r.field === field && r.value === alias)) { _toast('「' + alias + '」はすでに申請中です（管理者の承認待ち）', 'info'); return; }
+    const { error } = await _c().from(REQ_TABLE).insert({ field, value: alias, alias_of: canonical, requested_by: _me(), status: 'pending' });
+    if (error) { _toast('申請に失敗しました: ' + error.message, 'warn', 6000); return; }
+    await _loadRequests();
+    _rerenderMasters();
+    _toast('📨「' + alias + '」を「' + canonical + '」の別名にする申請を出しました。管理者の承認後に反映されます', 'success', 4600);
+  };
   async function _decide(id, approve) {
     const r = _reqs.find(x => x.id === id);
     if (!r || !_isAdmin()) return;
-    if (approve) {
+    if (approve && r.alias_of) {
+      // 別名の追加申請：管理者として別名を登録（マスター化・別名側のマスター解除・詳細の合流も同時に行われる）
+      if (typeof window.synAddAlias !== 'function') return;
+      await window.synAddAlias(r.field, r.value, r.alias_of);
+      const done = (typeof window.synGetGroups === 'function' ? window.synGetGroups(r.field) : []).some(g => g.canonical === r.alias_of && (g.aliases || []).includes(r.value));
+      if (!done) { _toast('承認できませんでした（別名を保存できていません）', 'warn', 5200); return; }
+    } else if (approve) {
       const { error } = await _c().from(VOTES_TABLE).upsert({ field: r.field, value: r.value, voter_email: _me() }, { onConflict: 'field,value,voter_email' });
       if (error) { _toast('承認に失敗しました: ' + error.message, 'warn'); return; }
     }
@@ -123,8 +145,8 @@
     const mine = _reqs.filter(r => r.requested_by === me).slice(0, 10);
     const list = admin ? pending : mine;
     const head = admin
-      ? '📨 マスターの申請（承認待ち ' + pending.length + ' 件）'
-      : '📨 あなたの申請（マスターへの登録は管理者が承認します）';
+      ? '📨 マスター・別名の申請（承認待ち ' + pending.length + ' 件）'
+      : '📨 あなたの申請（マスターへの登録・別名の追加は管理者が承認します）';
     if (!list.length) {
       return '<div class="stats-req-section"><p class="stats-master-info-title">' + head + '</p>' +
         '<p class="stats-empty">' + (admin ? '承認待ちの申請はありません。' : '申請はありません。入力候補にない名前は「☆ 登録」や「マスターに登録」から申請できます。') + '</p></div>';
@@ -137,7 +159,7 @@
           `<button class="stats-demote-btn btn-secondary" onclick="statsRejectRequest('${_ea(r.id)}')">却下…</button>`
         : (r.status === 'pending' ? `<button class="stats-demote-btn btn-secondary" onclick="statsCancelRequest('${_ea(r.id)}')">取り消す</button>` : '');
       const st = ST[r.status] || ['', r.status];
-      return `<tr><td>${_esc(_FIELD_LABEL[r.field] || r.field)}</td><td class="stats-val">${_esc(r.value)}</td>` +
+      return `<tr><td>${_esc(_FIELD_LABEL[r.field] || r.field)}</td><td class="stats-val">${_esc(r.value)}${r.alias_of ? ' <span class="req-alias-of">→ 「' + _esc(r.alias_of) + '」の別名</span>' : ''}</td>` +
              `<td>${admin ? _esc(who) : `<span class="req-state ${st[0]}">${st[1]}</span>`}</td><td class="ops">${ops}</td></tr>`;
     }).join('');
     return '<div class="stats-req-section"><p class="stats-master-info-title">' + head + '</p>' +
