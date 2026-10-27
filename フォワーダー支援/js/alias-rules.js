@@ -1123,23 +1123,32 @@
     return map;
   };
 
+  // 書き込みの失敗は黙って無視しない：理由を画面に出し、続く「統合しました」等の成功表示を止める（_synAfter が見る）
+  let _synWriteFailed = false;
+  function _synFail(error, hint) {
+    _synWriteFailed = true;
+    const msg = hint || (error && error.message) || String(error || '');
+    if (typeof window.quoteShowToast === 'function') window.quoteShowToast('⚠️ 同義グループを保存できませんでした：' + msg, 'warn', 8000);
+  }
   // 書き込みはクラウドだけ。続けて読む処理（synAddAlias 等）のため、成功したら手元のキャッシュも同じ内容に更新する
   async function _synUpsert(field, canonical, aliases) {
-    if (!_needCloud('同義グループ') || _synTableMissing) return false;
+    if (!_needCloud('同義グループ')) { _synWriteFailed = true; return false; }
+    if (_synTableMissing) { _synFail(null, '保存先（synonym_groups）が未作成です'); return false; }
     const { error } = await _c().from(SYN_TABLE).upsert(
       { field, canonical, aliases, updated_by: _me(), updated_at: new Date().toISOString() },
       { onConflict: 'field,canonical' }
     );
-    if (error) { if (_synMissingErr(error)) _synTableMissing = true; return false; }
+    if (error) { if (_synMissingErr(error)) _synTableMissing = true; _synFail(error); return false; }
     if (_synCloud === null) _synCloud = [];
     const g = _synCloud.find(x => x.field === field && x.canonical === canonical);
     if (g) g.aliases = aliases; else _synCloud.push({ id: 'tmp_' + Date.now(), field, canonical, aliases });
     return true;
   }
   async function _synDelete(field, canonical) {
-    if (!_needCloud('同義グループ') || _synTableMissing) return false;
+    if (!_needCloud('同義グループ')) { _synWriteFailed = true; return false; }
+    if (_synTableMissing) { _synFail(null, '保存先（synonym_groups）が未作成です'); return false; }
     const { error } = await _c().from(SYN_TABLE).delete().match({ field, canonical });
-    if (error) return false;
+    if (error) { _synFail(error); return false; }
     if (_synCloud) _synCloud = _synCloud.filter(g => !(g.field === field && g.canonical === canonical));
     return true;
   }
@@ -1149,10 +1158,10 @@
     // value が他グループの alias なら外す
     for (const g of _synAll()) {
       if (g.field === field && (g.aliases || []).includes(value))
-        await _synUpsert(field, g.canonical, g.aliases.filter(a => a !== value));
+        if (!(await _synUpsert(field, g.canonical, g.aliases.filter(a => a !== value)))) return _synAfter();
     }
     if (!_synAll().find(g => g.field === field && g.canonical === value))
-      await _synUpsert(field, value, []);
+      if (!(await _synUpsert(field, value, []))) return _synAfter();
     // 統合（A案）: 代表は自動的にマスター登録
     if (typeof window.statsEnsureMaster === 'function') await window.statsEnsureMaster(field, value);
     await _synAfter('⭐「' + value + '」を代表（マスター）に設定しました');
@@ -1163,15 +1172,15 @@
     // alias を他グループの alias リストから外す
     for (const g of _synAll()) {
       if (g.field === field && g.canonical !== canonical && (g.aliases || []).includes(alias))
-        await _synUpsert(field, g.canonical, g.aliases.filter(a => a !== alias));
+        if (!(await _synUpsert(field, g.canonical, g.aliases.filter(a => a !== alias)))) return _synAfter();
     }
     // alias 自体が別グループの代表なら、その配下を吸収して解体（チェーン化を防ぐ）
     let absorbed = [];
     const aliasGroup = _synAll().find(g => g.field === field && g.canonical === alias);
-    if (aliasGroup) { absorbed = aliasGroup.aliases || []; await _synDelete(field, alias); }
+    if (aliasGroup) { absorbed = aliasGroup.aliases || []; if (!(await _synDelete(field, alias))) return _synAfter(); }
     const g = _synAll().find(x => x.field === field && x.canonical === canonical);
     const aliases = [...new Set([...((g && g.aliases) || []), alias, ...absorbed])];
-    await _synUpsert(field, canonical, aliases);
+    if (!(await _synUpsert(field, canonical, aliases))) return _synAfter();   // 書けなかったら、別名側のマスター解除などは行わない
     // 統合（A案）: 代表は自動マスター化、統合した別名（および吸収した旧代表）はマスターから外す
     if (typeof window.statsEnsureMaster === 'function') await window.statsEnsureMaster(field, canonical);
     if (typeof window.statsEnsureNotMaster === 'function') {
@@ -1205,8 +1214,8 @@
       oldCanon,
     ]);
     merged.delete(newCanon);
+    if (!(await _synUpsert(field, newCanon, [...merged]))) return _synAfter();
     if (old) await _synDelete(field, oldCanon);
-    await _synUpsert(field, newCanon, [...merged]);
     // 統合（A案）: 新代表をマスター化、旧代表・別名はマスターから外す
     if (typeof window.statsEnsureMaster === 'function') await window.statsEnsureMaster(field, newCanon);
     if (typeof window.statsEnsureNotMaster === 'function') {
@@ -1220,7 +1229,8 @@
     _refreshDatalist();
     if (typeof window.statsRerenderActive === 'function') window.statsRerenderActive();
     else if (typeof window.statsRefresh === 'function') await window.statsRefresh();
-    if (toast && typeof window.quoteShowToast === 'function') window.quoteShowToast(toast, 'success');
+    const failed = _synWriteFailed; _synWriteFailed = false;   // 書き込みが失敗していたら成功表示は出さない（理由は _synFail が出している）
+    if (toast && !failed && typeof window.quoteShowToast === 'function') window.quoteShowToast(toast, 'success');
   }
 
   // === このブラウザにだけあるマスターデータの移行（クラウド必須化） ===
