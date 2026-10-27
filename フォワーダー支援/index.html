@@ -2182,6 +2182,17 @@
        初期化は js/app.js の switchTab() フックから window.initQuoteTab() を呼ぶ。 -->
   <div class="tab-content active" id="tab-quote-make">
 
+    <!-- 見積入力の各セクションへのジャンプ（左端に常設。ダッシュボードでは出ない）。押すとそのセクションを開いてスクロール。印＝入力済み -->
+    <nav class="q-secnav" id="qSecNav" aria-label="セクションへ移動">
+      <button type="button" class="q-secnav-btn" data-sec="section-ref"    title="管理番号"><span class="q-secnav-ico">🗂️</span><em>管理番号</em><i class="q-secnav-dot"></i></button>
+      <button type="button" class="q-secnav-btn" data-sec="section-cond"   title="貿易条件"><span class="q-secnav-ico">🚢</span><em>貿易条件</em><i class="q-secnav-dot"></i></button>
+      <button type="button" class="q-secnav-btn" data-sec="section-cargo"  title="貨物情報"><span class="q-secnav-ico">📦</span><em>貨物情報</em><i class="q-secnav-dot"></i></button>
+      <button type="button" class="q-secnav-btn" data-sec="section-volume" title="物量情報"><span class="q-secnav-ico">📊</span><em>物量情報</em><i class="q-secnav-dot"></i></button>
+      <button type="button" class="q-secnav-btn" data-sec="section-scope"  title="作業範囲"><span class="q-secnav-ico">🛠️</span><em>作業範囲</em><i class="q-secnav-dot"></i></button>
+      <button type="button" class="q-secnav-btn" data-sec="section-remark" title="全体リマーク"><span class="q-secnav-ico">📑</span><em>リマーク</em><i class="q-secnav-dot"></i></button>
+      <button type="button" class="q-secnav-btn" data-sec="section-table"  title="費用テーブル"><span class="q-secnav-ico">📋</span><em>費用</em><i class="q-secnav-dot"></i></button>
+    </nav>
+
     <!-- ========== ページ1：ダッシュボード（qp-dash 時に表示） ========== -->
     <div id="qpDashboard">
       <div class="qpd-head">
@@ -3926,12 +3937,12 @@
         </div>
         <!-- タブ切替：要約／輸送／金額 -->
         <div class="qsp-tabs" role="tablist">
-          <button class="qsp-tab" id="qspTabBtn-digest" role="tab" onclick="qspSetTab('digest')">🧭 ジャンプ</button>
+          <button class="qsp-tab" id="qspTabBtn-digest" role="tab" onclick="qspSetTab('digest')">📋 費用テーブル</button>
           <button class="qsp-tab" id="qspTabBtn-flow"   role="tab" onclick="qspSetTab('flow')">🚚 輸送</button>
           <button class="qsp-tab" id="qspTabBtn-fin"    role="tab" onclick="qspSetTab('fin')">💰 金額</button>
           <button class="qsp-tab" id="qspTabBtn-chat"   role="tab" onclick="qspSetTab('chat')">💬 チャット</button>
         </div>
-        <!-- 要約タブ：各入力セクションのダイジェスト -->
+        <!-- 費用テーブルの縮小表示：合計と、サブコン・パターン・明細のツリー（各セクションへのジャンプは、左端のナビに移した） -->
         <div class="qsp-pane" id="qspPane-digest">
           <div class="qsp-section-scroll">
             <div id="qspSectionDigest" class="qsp-digest"></div>

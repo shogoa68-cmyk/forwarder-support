@@ -212,6 +212,7 @@
   "fxRateGrid",
   "hazChips",
   "hazmatDetail",
+  "hdQtyPat",
   "hdrCloudAvatar",
   "hdrCloudLogin",
   "hdrCloudName",
@@ -340,6 +341,7 @@
   "pvWarnGuideList",
   "pvWarnGuideNextBtn",
   "pvWarnGuideTitle",
+  "qSecNav",
   "qadMode",
   "qf-customer",
   "qf-date",
@@ -415,6 +417,7 @@
   "qspSectionDigest",
   "qspTabBtn-fin",
   "qspTabBtn-flow",
+  "qtyPatternBar",
   "quoteFxBar",
   "quoteGlossary",
   "quoteSummaryPanel",
@@ -491,6 +494,7 @@
   "statsPane-customer",
   "statsPane-data",
   "statsPane-kpi",
+  "statsPane-ledger",
   "statsPane-margindiff",
   "statsPane-master",
   "statsPane-pattern",
@@ -1641,7 +1645,7 @@
    "defined": true
   },
   "statsSetPane": {
-   "uses": 12,
+   "uses": 13,
    "defined": true
   },
   "statsToggleHelp": {
@@ -2278,6 +2282,22 @@
    "css": true,
    "html": false
   },
+  "ic-chips": {
+   "css": true,
+   "html": true
+  },
+  "ic-group": {
+   "css": true,
+   "html": true
+  },
+  "ic-hint": {
+   "css": true,
+   "html": true
+  },
+  "ic-mode-btn": {
+   "css": true,
+   "html": true
+  },
   "ins-on": {
    "css": true,
    "html": false
@@ -2330,6 +2350,10 @@
    "css": true,
    "html": false
   },
+  "is-filled": {
+   "css": true,
+   "html": false
+  },
   "is-flip": {
    "css": true,
    "html": false
@@ -2344,6 +2368,10 @@
   },
   "is-neg": {
    "css": true,
+   "html": false
+  },
+  "is-none": {
+   "css": false,
    "html": false
   },
   "is-notes-open": {
@@ -2362,7 +2390,15 @@
    "css": true,
    "html": false
   },
+  "is-out": {
+   "css": true,
+   "html": false
+  },
   "is-pattern": {
+   "css": true,
+   "html": false
+  },
+  "is-pending": {
    "css": true,
    "html": false
   },
@@ -2694,6 +2730,10 @@
    "css": true,
    "html": false
   },
+  "q-secnav-btn": {
+   "css": true,
+   "html": true
+  },
   "qad-edit": {
    "css": true,
    "html": false
@@ -2945,6 +2985,10 @@
   "row-hidequote-btn": {
    "css": true,
    "html": true
+  },
+  "row-ic-mode": {
+   "css": true,
+   "html": false
   },
   "row-input-done": {
    "css": true,
@@ -3362,6 +3406,14 @@
    "css": false,
    "html": false
   },
+  "sv-detail-btn": {
+   "css": false,
+   "html": true
+  },
+  "sv-master-chip": {
+   "css": true,
+   "html": false
+  },
   "syn-suggest-apply": {
    "css": true,
    "html": false
@@ -3616,6 +3668,10 @@
    "html": false,
    "js": true
   },
+  "canon": {
+   "html": false,
+   "js": true
+  },
   "cat": {
    "html": true,
    "js": true
@@ -3752,6 +3808,10 @@
    "html": false,
    "js": true
   },
+  "ic": {
+   "html": false,
+   "js": true
+  },
   "id": {
    "html": false,
    "js": true
@@ -3876,6 +3936,10 @@
    "html": false,
    "js": true
   },
+  "out-reason": {
+   "html": false,
+   "js": true
+  },
   "parent-id": {
    "html": false,
    "js": true
@@ -3934,6 +3998,10 @@
   },
   "pvl": {
    "html": true,
+   "js": true
+  },
+  "qpat": {
+   "html": false,
    "js": true
   },
   "qrc-ready": {
@@ -4025,6 +4093,10 @@
    "js": true
   },
   "sv-label": {
+   "html": false,
+   "js": true
+  },
+  "sv-state": {
    "html": false,
    "js": true
   },
