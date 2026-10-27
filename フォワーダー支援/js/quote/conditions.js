@@ -2216,15 +2216,33 @@
       const on = i === _packingActiveIdx;
       const mode = pt.mode === 'fcl' || pt.mode === 'lcl' ? pt.mode : '';
       return `<button type="button" class="qpat-chip${on ? ' is-active' : ''}${mode ? ' is-' + mode : ''}" aria-pressed="${on}" onclick="switchPackingPattern(${i})" ` +
-        `title="${on ? '編集中の数量パターン' : 'クリックでこのパターンに切り替えて編集'}">` +
+        `title="${_escMulti(label(pt))}（${on ? '編集中の数量パターン' : 'クリックでこのパターンに切り替えて編集'}）">` +
         (mode ? `<span class="qpat-mode">${mode.toUpperCase()}</span>` : '') + `<span class="qpat-name">${_escMulti(label(pt))}</span></button>`;
     }).join('');
     const need = document.querySelectorAll('#tableBody .pq-pattern-needs-check').length;
-    bar.innerHTML = `<span class="qpat-lbl" title="見積もりテーブルの数量は、パターンごとに記憶されます">📦 数量パターン</span>${chips}` +
+    bar.innerHTML = `<span class="qpat-lbl" title="見積もりテーブルの数量は、パターンごとに記憶されます。枠線の見方：緑＝このパターン専用の数量／橙＝他のパターンだけに設定あり">📦 数量パターン</span>${chips}` +
       (need ? `<button type="button" class="qpat-need" onclick="jumpToQtyNeedsCheck()" title="他のパターンでは数量が設定されているのに、このパターンでは未設定の行（値は自動では変わらないので、必要なら入れ直してください）。クリックで最初の行へ">⚠ 要確認 ${need} 行</button>` : '') +
       `<span class="qpat-legend"><i class="qpat-sw is-linked"></i>このパターン専用の数量<i class="qpat-sw is-check"></i>他のパターンだけに設定あり</span>`;
   }
   window.renderQtyPatternBar = renderQtyPatternBar;
+  // 数量パターンのバーは、画面が広いとき上部ツールバー（「⋯」の左の空き）に置き、狭い画面（ツールバーが static になる 680px 以下）では表の操作バーの先頭に戻す。
+  // 要素は 1 つのまま移すだけ（id・中身の描画・onclick は不変）
+  function _placeQtyPatternBar() {
+    const bar = document.getElementById('qtyPatternBar');
+    if (!bar) return;
+    const narrow = window.matchMedia('(max-width: 680px)').matches;
+    const tb = document.getElementById('saveToolbar');
+    const menu = tb && tb.querySelector('.tb-menu');
+    const cmd = document.querySelector('#tab-quote-make .quote-cmdbar');
+    if (narrow) {
+      if (cmd && bar.parentElement !== cmd) cmd.insertBefore(bar, cmd.firstChild);
+    } else if (tb && menu && bar.parentElement !== tb) {
+      tb.insertBefore(bar, menu);
+    }
+  }
+  window._placeQtyPatternBar = _placeQtyPatternBar;
+  _placeQtyPatternBar();
+  try { window.matchMedia('(max-width: 680px)').addEventListener('change', _placeQtyPatternBar); } catch (e) { window.addEventListener('resize', _placeQtyPatternBar); }
   window.jumpToQtyNeedsCheck = function () {
     const el = document.querySelector('#tableBody .pq-pattern-needs-check');
     if (!el) return;
