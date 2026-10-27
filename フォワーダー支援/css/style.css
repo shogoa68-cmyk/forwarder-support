@@ -3285,6 +3285,22 @@ a.bm-contact-item:hover { background: #2e6b3e; color: var(--surface); border-col
 .ldg-sub { color: #8a7656; font-size: var(--fs-11); }
 .ldg-link { color: var(--accent); text-decoration: underline; cursor: pointer; }
 .ldg-sum { margin-bottom: var(--sp-12); }
+.ldg-pat-overlay {
+  position: fixed; inset: 0; z-index: 9000; background: rgba(40, 30, 20, .45);
+  display: flex; align-items: center; justify-content: center; padding: var(--sp-12);
+}
+.ldg-pat-dialog {
+  background: var(--surface); border-radius: var(--r-8, 10px); padding: var(--sp-16, 16px);
+  width: min(920px, 100%); max-height: 90vh; overflow: auto; box-shadow: 0 8px 32px rgba(0,0,0,.3);
+}
+.ldg-pat-title { margin: 0 0 var(--sp-8); font-size: var(--fs-16, 16px); }
+.ldg-pat-form { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: var(--sp-8); margin-bottom: var(--sp-10); }
+.ldg-pat-form label { display: flex; flex-direction: column; gap: var(--sp-3); font-size: var(--fs-12); color: #8a7656; font-weight: 700; }
+.ldg-pat-form .ldg-in { flex: none; font-weight: 400; color: inherit; }
+.ldg-pat-table { font-size: var(--fs-12); }
+.ldg-pat-table td, .ldg-pat-table th { vertical-align: top; }
+.ldg-pat-actions { display: flex; align-items: center; justify-content: flex-end; gap: var(--sp-8); margin-top: var(--sp-12); }
+.ldg-pat-actions .ldg-sub { margin-right: auto; }
 .stats-more-wrap { text-align: center; margin: var(--sp-12) 0 var(--sp-4); }
 .stats-more-btn {
   padding: var(--sp-6) var(--sp-18); border: 1px solid var(--border-md); border-radius: 16px;
