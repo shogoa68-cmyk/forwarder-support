@@ -469,7 +469,7 @@
   function _buildMultiPatternHTML(views) {
     const infos = [];
     const sections = views.map(v => {
-      const html = window.withPatternView(v.idx, () => _buildQuoteDocHTMLInner({ patternLabel: v.name }));
+      const html = window.withPatternView(v.idx, () => _buildQuoteDocHTMLInner({ patternLabel: v.name, omitRemarks: true }));   // リマーク類は案ごとには出さない（最後に 1 回）
       infos.push(Object.assign({}, v, _lastBuild));
       return `<div class="qd-pat-section">${_unwrapPage(html)}</div>`;
     });
@@ -486,7 +486,54 @@
     const compare = `<div class="qd-cmp"><div class="qd-cmp-ttl">${t('cmpTitle')}</div>` +
       `<table class="qd-items qd-cmp-table"><thead><tr><th class="qd-item">${t('cmpPlan')}</th><th>${t('cmpContent')}</th>${hideTotal ? '' : `<th>${t('cmpAmt')}</th>`}</tr></thead>` +
       `<tbody>${rowsHtml}</tbody></table><div class="qd-cmp-note">${t('cmpNote')}</div></div>`;
-    return `<div class="qd-page">${header}${compare}${sections.join('')}</div>`;
+    // リマーク（業務範囲・全体リマーク・常時付記・改訂履歴）は全案で共通なので、最後の案の後ろに 1 回だけ出す
+    const common = _commonBlocksHTML((typeof window.computeRevisionDiff === 'function') ? window.computeRevisionDiff() : null);
+    return `<div class="qd-page">${header}${compare}${sections.join('')}${common ? `<div class="qd-common-remarks">${common}</div>` : ''}</div>`;
+  }
+
+  // 御見積書の末尾に出す、案件全体の共通ブロック：業務範囲・全体リマーク（＋画像）・常時付記・改訂履歴。
+  // 物量パターンの併記（FCL案／LCL案など）では、案ごとには出さず、文書の最後に 1 回だけ出す（_buildMultiPatternHTML）
+  function _commonBlocksHTML(_revDiff) {
+    const cond = (typeof getConditions === 'function') ? getConditions() : null;
+    const parts = [];
+    parts.push((() => {
+        const sc = (document.getElementById('qf-scope')?.value || '').trim();
+        return sc ? `<div class="qd-remark-block qd-scope-block"><div class="qd-remark-ttl">${t('scopeTitle')}</div><div class="qd-remark-body">${nl2brLink(sc)}</div></div>` : '';
+    })());
+    parts.push((() => {
+        let rt = (typeof getRemarkText === 'function') ? getRemarkText() : (cond && cond.free) || '';
+        if (_curLangEn && typeof window.translateRemarkToEn === 'function') rt = window.translateRemarkToEn(rt);   // 定型文を英文に
+        const imgHtml = (typeof remarkImagesOutputHTML === 'function') ? remarkImagesOutputHTML('qd-remark-images') : '';
+        if (!rt && !imgHtml) return '';
+        const bodyHtml = rt ? `<div class="qd-remark-body">${nl2brLink(rt)}</div>` : '';
+        return `<div class="qd-remark-block"><div class="qd-remark-ttl">${t('remarksTitle')}</div>${bodyHtml}${imgHtml}</div>`;
+    })());
+    parts.push((() => {
+        // 常時付記：全体リマークの下に固定で出す（設定は「全体リマーク」欄の📎常時付記）
+        let fx = (typeof window.getFixedRemarkText === 'function') ? window.getFixedRemarkText() : '';
+        if (!fx) return '';
+        if (_curLangEn && typeof window.translateRemarkToEn === 'function') fx = window.translateRemarkToEn(fx);
+        return `<div class="qd-remark-block qd-remark-fixed"><div class="qd-remark-body">${nl2brLink(fx)}</div></div>`;
+    })());
+    parts.push((() => {
+        const diff = _revDiff;
+        if (!diff) return '';
+        const lines = [];
+        diff.added.forEach(r => lines.push(`<li class="qd-rev-add">＋ 追加：${esc(r.nm || '（品名未設定）')}</li>`));
+        diff.removed.forEach(r => lines.push(`<li class="qd-rev-del">－ 削除：${esc(r.nm || '（品名未設定）')}</li>`));
+        diff.changed.forEach(c => {
+          const parts = c.fields.map(f => `${esc(f.label)}：${esc(String(f.from || '—'))} → ${esc(String(f.to || '—'))}`).join('／');
+          lines.push(`<li class="qd-rev-chg">✎ 変更：${esc(c.name || '（品名未設定）')}（${parts}）</li>`);
+        });
+        const totalLine = (diff.showTotal !== false && diff.totalFrom !== diff.totalTo)
+          ? `<div class="qd-rev-total">合計金額：¥${esc(diff.totalFrom)} → ¥${esc(diff.totalTo)}</div>` : '';
+        return `<div class="qd-remark-block qd-revision-block">
+          <div class="qd-remark-ttl">${t('revisionTitle')}</div>
+          <ul class="qd-rev-list">${lines.join('')}</ul>
+          ${totalLine}
+        </div>`;
+    })());
+    return parts.join('');
   }
 
   function _buildQuoteDocHTMLInner(opts) {
@@ -769,43 +816,7 @@
           </table>
         </div>`}
       </div>
-      ${(() => {
-        const sc = (document.getElementById('qf-scope')?.value || '').trim();
-        return sc ? `<div class="qd-remark-block qd-scope-block"><div class="qd-remark-ttl">${t('scopeTitle')}</div><div class="qd-remark-body">${nl2brLink(sc)}</div></div>` : '';
-      })()}
-      ${(() => {
-        let rt = (typeof getRemarkText === 'function') ? getRemarkText() : (cond && cond.free) || '';
-        if (_curLangEn && typeof window.translateRemarkToEn === 'function') rt = window.translateRemarkToEn(rt);   // 定型文を英文に
-        const imgHtml = (typeof remarkImagesOutputHTML === 'function') ? remarkImagesOutputHTML('qd-remark-images') : '';
-        if (!rt && !imgHtml) return '';
-        const bodyHtml = rt ? `<div class="qd-remark-body">${nl2brLink(rt)}</div>` : '';
-        return `<div class="qd-remark-block"><div class="qd-remark-ttl">${t('remarksTitle')}</div>${bodyHtml}${imgHtml}</div>`;
-      })()}
-      ${(() => {
-        // 常時付記：全体リマークの下に固定で出す（設定は「全体リマーク」欄の📎常時付記）
-        let fx = (typeof window.getFixedRemarkText === 'function') ? window.getFixedRemarkText() : '';
-        if (!fx) return '';
-        if (_curLangEn && typeof window.translateRemarkToEn === 'function') fx = window.translateRemarkToEn(fx);
-        return `<div class="qd-remark-block qd-remark-fixed"><div class="qd-remark-body">${nl2brLink(fx)}</div></div>`;
-      })()}
-      ${(() => {
-        const diff = _revDiff;
-        if (!diff) return '';
-        const lines = [];
-        diff.added.forEach(r => lines.push(`<li class="qd-rev-add">＋ 追加：${esc(r.nm || '（品名未設定）')}</li>`));
-        diff.removed.forEach(r => lines.push(`<li class="qd-rev-del">－ 削除：${esc(r.nm || '（品名未設定）')}</li>`));
-        diff.changed.forEach(c => {
-          const parts = c.fields.map(f => `${esc(f.label)}：${esc(String(f.from || '—'))} → ${esc(String(f.to || '—'))}`).join('／');
-          lines.push(`<li class="qd-rev-chg">✎ 変更：${esc(c.name || '（品名未設定）')}（${parts}）</li>`);
-        });
-        const totalLine = (diff.showTotal !== false && diff.totalFrom !== diff.totalTo)
-          ? `<div class="qd-rev-total">合計金額：¥${esc(diff.totalFrom)} → ¥${esc(diff.totalTo)}</div>` : '';
-        return `<div class="qd-remark-block qd-revision-block">
-          <div class="qd-remark-ttl">${t('revisionTitle')}</div>
-          <ul class="qd-rev-list">${lines.join('')}</ul>
-          ${totalLine}
-        </div>`;
-      })()}
+      ${opts.omitRemarks ? '' : _commonBlocksHTML(_revDiff)}
     </div>`;
   }
 

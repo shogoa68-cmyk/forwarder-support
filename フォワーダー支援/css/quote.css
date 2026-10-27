@@ -9931,6 +9931,48 @@ button.um-memberno--empty:hover { background: var(--accent-lt); border-color: #c
   box-shadow: 0 0 0 1px var(--green-leaf) inset;
   background: #f4f8ec;
 }
+/* ===== 数量パターン（FCL案／LCL案など）：編集中のパターンの常時表示 =====
+   表の操作バー（sticky）の上段に、パターンの切替チップ・要確認の行数・枠線の凡例を出す。表の上端の線と数量の列見出しは、編集中のパターンの色にする。
+   色：FCL＝緑／LCL＝青（御見積書のチップと同じ）／モード指定なし＝茶 */
+#tab-quote-make { --qpat-fcl: #4e7a3a; --qpat-lcl: #3a6aa0; --qpat-other: #6a5745; }
+#tab-quote-make[data-qpat="fcl"]   { --qpat-color: var(--qpat-fcl); }
+#tab-quote-make[data-qpat="lcl"]   { --qpat-color: var(--qpat-lcl); }
+#tab-quote-make[data-qpat="other"] { --qpat-color: var(--qpat-other); }
+#tab-quote-make .cmdbar-qpat {
+  display: flex; align-items: center; flex-wrap: wrap; gap: var(--sp-6);
+  padding: var(--sp-5) var(--sp-4) var(--sp-7); margin-bottom: var(--sp-6); border-bottom: 1px dashed var(--border-md);
+}
+#tab-quote-make .cmdbar-qpat[hidden] { display: none; }
+#tab-quote-make .cmdbar-qpat .qpat-lbl { font-size: var(--fs-11); font-weight: 700; color: var(--text-md); margin-right: var(--sp-2); }
+#tab-quote-make .cmdbar-qpat .qpat-chip {
+  display: inline-flex; align-items: center; gap: var(--sp-4); height: 28px; padding: 0 var(--sp-10);
+  font-family: inherit; font-size: var(--fs-12); cursor: pointer;
+  border: 1px solid var(--border-md); border-radius: var(--r-14, 14px); background: var(--surface); color: var(--text);
+}
+#tab-quote-make .cmdbar-qpat .qpat-chip:hover { border-color: var(--text-md); }
+#tab-quote-make .cmdbar-qpat .qpat-chip .qpat-mode {
+  font-size: var(--fs-9-5); font-weight: 700; line-height: 1.5; padding: 0 var(--sp-4); border-radius: var(--r-3);
+  color: var(--surface); background: var(--qpat-other);
+}
+#tab-quote-make .cmdbar-qpat .qpat-chip.is-fcl .qpat-mode { background: var(--qpat-fcl); }
+#tab-quote-make .cmdbar-qpat .qpat-chip.is-lcl .qpat-mode { background: var(--qpat-lcl); }
+#tab-quote-make .cmdbar-qpat .qpat-chip.is-active { font-weight: 700; color: var(--surface); background: var(--qpat-other); border-color: var(--qpat-other); }
+#tab-quote-make .cmdbar-qpat .qpat-chip.is-active.is-fcl { background: var(--qpat-fcl); border-color: var(--qpat-fcl); }
+#tab-quote-make .cmdbar-qpat .qpat-chip.is-active.is-lcl { background: var(--qpat-lcl); border-color: var(--qpat-lcl); }
+#tab-quote-make .cmdbar-qpat .qpat-chip.is-active .qpat-mode { background: rgba(255,255,255,.28); }
+#tab-quote-make .cmdbar-qpat .qpat-need {
+  height: 28px; padding: 0 var(--sp-8); font-family: inherit; font-size: var(--fs-11); font-weight: 700; cursor: pointer;
+  border: 1px dashed #c98a1f; border-radius: var(--r-5); background: var(--amber-94); color: #8a4c00;
+}
+#tab-quote-make .cmdbar-qpat .qpat-legend { margin-left: auto; font-size: var(--fs-10-5); color: var(--text-md); white-space: nowrap; }
+#tab-quote-make .cmdbar-qpat .qpat-sw { display: inline-block; width: 22px; height: 11px; vertical-align: middle; margin: 0 var(--sp-3) 0 var(--sp-8); border-radius: var(--r-2); }
+#tab-quote-make .cmdbar-qpat .qpat-sw.is-linked { background: #f4f8ec; box-shadow: 0 0 0 1px var(--green-leaf) inset; }
+#tab-quote-make .cmdbar-qpat .qpat-sw.is-check { background: var(--amber-94); box-shadow: 0 0 0 1px #c98a1f inset; }
+/* 表の上端の線と、数量の列見出しに、編集中のパターンの色 */
+#tab-quote-make[data-qpat] #tableScrollWrap { border-top: 3px solid var(--qpat-color); }
+#tab-quote-make[data-qpat] #quoteTable th.hd-qty { box-shadow: inset 0 -3px 0 var(--qpat-color); }
+#tab-quote-make #quoteTable th.hd-qty .hd-qpat { display: block; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 700; color: var(--qpat-color); }
+#tab-quote-make #quoteTable th.hd-qty .hd-qpat[hidden] { display: none; }
 /* 他のパターンでは数量が紐付けられているのに、表示中のパターンでは未設定の行（要確認） */
 #tab-quote-make .pq-pattern-needs-check {
   border-color: #c98a1f !important;
@@ -11294,9 +11336,15 @@ body.is-row-dragging { cursor: grabbing; user-select: none; }
 /* 小計行：客先表示名・リマークの入力は .st-notes で包んである。現行は包みを消して、従来の順（客先表示名 → 行追加 → リマーク）に並べる。「注記 ▾」は Industry 用 */
 #tab-quote-make .st-notes { display: contents; }
 #tab-quote-make .st-notes-btn { display: none; }
-#tab-quote-make .subcon-subtotal-inner .st-alias { order: 1; }
-#tab-quote-make .subcon-subtotal-inner .subcon-subtotal-add-btn { order: 2; }
-#tab-quote-make .subcon-subtotal-inner .st-remark { order: 3; }
+/* 小計バー（パターン小計・サブコン小計）：ラベルと操作（＋行追加・客先表示名）は左、金額（仕入合計・売値合計・粗利率）は右端に右揃えで並べる。
+   金額は固定幅の欄にして、パターン小計とサブコン小計で縦の位置をそろえる。リマークの入力は下の行 */
+#tab-quote-make .subcon-subtotal-inner .subcon-subtotal-add-btn { order: 1; margin-left: 0; }
+#tab-quote-make .subcon-subtotal-inner .st-alias { order: 2; margin-left: 0; }
+#tab-quote-make .subcon-subtotal-inner .st-metric { order: 3; justify-content: flex-end; }
+#tab-quote-make .subcon-subtotal-inner .st-cost { margin-left: auto; min-width: 150px; }
+#tab-quote-make .subcon-subtotal-inner .st-sell { min-width: 170px; }
+#tab-quote-make .subcon-subtotal-inner .st-margin { min-width: 100px; }
+#tab-quote-make .subcon-subtotal-inner .st-remark { order: 4; }
 /* ミニマム：適用中の売値の注記・最低料金の通貨（Industry 用） */
 #tab-quote-make .min-note, #tab-quote-make .min-hint { display: none; }
 

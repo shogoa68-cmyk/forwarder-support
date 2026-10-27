@@ -1733,6 +1733,7 @@
     pqEl?.classList.add('pq-pattern-linked');
     pqEl?.classList.remove('pq-pattern-needs-check');
     if (pqEl) pqEl.title = '';
+    if (typeof window.renderQtyPatternBar === 'function') window.renderQtyPatternBar();   // 表の上の「要確認 N 行」を更新
   }
 
   function onPay(id) {

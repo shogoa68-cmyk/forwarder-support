@@ -3732,6 +3732,8 @@
         <div class="container">
           <!-- 統合コマンドバー：行操作・選択行・換算レート表示・⚙設定（為替/カテゴリ）を集約 -->
           <div class="quote-cmdbar">
+            <!-- 数量パターン（FCL案／LCL案など）の切替：パターンが 2 つ以上あるときだけ出る。編集中のパターンをここで常に確認・切替できる -->
+            <div class="cmdbar-qpat" id="qtyPatternBar" hidden></div>
             <div class="cmdbar-main">
               <span class="btn-group-label" data-tier="adv">小計</span>
               <button data-tier="adv" class="btn-ins-sub cmdbar-icon-btn" onclick="toolbarInsertSubtotal()" title="小計行を追加（出力にも含まれます。費用行・リマーク・社内メモの追加は各明細行の ➕📋🗑️💬🔒 アイコンから）">＝</button>
@@ -3870,7 +3872,7 @@
                 <th class="hd-base" style="width:44px;"></th>
                 <th class="hd-base hd-catsv" style="width:104px;" title="上段＝カテゴリ、下段＝サブコン（協力会社・下請け業者名）">カテゴリ<br><small class="hd-sub">／サブコン</small></th>
                 <th class="hd-base" style="width:188px;">項目名<br><small class="hd-sub">／備考</small></th>
-                <th class="hd-base" style="width:65px;">数量·単位</th>
+                <th class="hd-base hd-qty" style="width:65px;">数量·単位<small class="hd-sub hd-qpat" id="hdQtyPat" hidden></small></th>
                 <th class="hd-base hd-stk" style="width:62px;" title="上段＝支払い（仕入）通貨、下段＝請求（売値）通貨">通貨<br><small class="hd-sub"><span class="t-cost">仕</span>／<span class="t-sell">売</span></small></th>
                 <th class="hd-base hd-stk" style="width:118px;" title="上段＝支払い単価（仕入）、中＝＋乗せ幅、下段＝請求単価（売値）。CD は通貨差調整値">単価<br><small class="hd-sub"><span class="t-cost">仕入</span>＋<span class="hd-mk-tag">乗せ幅</span>＝<span class="t-sell">売値</span></small></th>
                 <th class="hd-base" style="width:38px;" title="ON にすると消費税 10% が自動計算され、項目名先頭に「*」が付きます。免税（非課税）の行は OFF のままにしてください。">課税</th>

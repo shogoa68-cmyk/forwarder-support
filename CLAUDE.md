@@ -61,6 +61,8 @@ Design 製の Industry 版デザイン（鋼青のブループリント調）を
 
 **サブコン欄のマスター状態の印（行ごと・2026-10）**：行の `.sv-master-chip`（品名の下の `.master-actions` に並ぶ）が、サブコン名のマスター状態を出す。マスターに無い名前は「⚠ サブコン未登録」（橙）、申請済みで承認待ちなら「📨 サブコン申請中」（青）。登録済み・サブコン未入力・別名で代表名が登録済み・未ログイン・サブコンのマスターが 1 件も無い間は出さない。状態の判定は `stats.js` の `statsMasterState(field, value)`（`'master'|'pending'|'none'|'unknown'`・O(1)）、行側は `row.js` の `refreshRowSvChip`／`refreshAllRowSvChips`（`calc()`・サブコン欄の確定・マスター読込（`arRefreshDatalist`）・申請の作成で更新）。印を押すと `alias-rules.js` の `arCheckSubconRow` が登録の確認（承認制のメンバーは「登録を申請」、管理者・従来は「マスター登録」）を出す。サブコン欄にも `name-unregistered` の印が付く。
 
+**数量パターンの常時表示（2026-10）**：数量パターン（FCL案／LCL案など）を 2 つ以上使っているとき、見積テーブルの操作バー（sticky）の上段 `#qtyPatternBar` に、パターンの切替チップ（編集中は濃く・FCL＝緑／LCL＝青／指定なし＝茶）・「⚠ 要確認 N 行」（`.pq-pattern-needs-check` の数。押すと最初の行へ）・枠線の凡例を出す。表の数量の列見出し（`#hdQtyPat`）に編集中のパターン名、`#tab-quote-make[data-qpat]` で表の上端の線と列見出しの下線をパターンの色にする。描画は `conditions.js` の `renderQtyPatternBar()`（`_renderPackingPatternTabs`／`switchPackingPattern`／`_applyPatternQtyLinks`／`row.js _recordPatternQty` から更新）。保存データは変更なし。
+
 ## 🗑️ 自動保存は廃止（2026-10）
 
 旧「自動保存」（localStorage `quoteData` に1件・復元バナー）は、ページ再読込後に空の状態で上書きされて復元できない不具合があり、ブラウザ保存／チーム共有と役割も重なるため**廃止**。保存はチーム共有（旧「ブラウザ保存」は廃止）、巻き戻しは Undo/Redo。`scheduleAutoSave()` は呼び出し元（約100か所）を変えないため**何もしない関数として残置**。起動時（`initQuoteState`）に旧データ（`quoteData`・`autoSaveEnabled`）を掃除する（後日削除可）。
