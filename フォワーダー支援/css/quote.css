@@ -688,6 +688,17 @@
   line-height: 1.35;
 }
 #tab-quote-make .tb-menu-item:hover { background: var(--accent-lt); }
+#tab-quote-make .tb-menu-item:disabled { opacity: .45; cursor: default; }
+#tab-quote-make .tb-menu-item:disabled:hover, #tab-quote-make .tb-mi-static:hover { background: transparent; }
+#tab-quote-make .tb-mi-static { cursor: default; }
+#tab-quote-make .tb-mi-static .tb-segrow, #tab-quote-make .tb-mi-static .uim-switch { display: inline-flex; margin-top: var(--sp-4); align-self: flex-start; }
+#tab-quote-make .tb-mi-static .uim-switch button { padding: var(--sp-4) var(--sp-10); font-size: var(--fs-12); }
+
+/* ツールバーは「戻る／作業中の表示」と右端の「⋯」だけ。元に戻す・やり直す／メール取込・サブコン依頼メール／表示サイズ／表示モードは「⋯」の中へ（かんたん・詳細・スマホ共通） */
+#tab-quote-make #saveToolbar .toolbar-extra { display: none !important; }
+#tab-quote-make .tb-menu-panel .tb-mi-simple { display: flex; }
+#tab-quote-make .tb-menu-panel .tb-menu-group.tb-mi-simple { display: block; padding: var(--sp-8) var(--sp-14) var(--sp-4); font-size: var(--fs-11); font-weight: 700; color: var(--text-muted); border-top: 1px solid var(--border); }
+#tab-quote-make .tb-menu-panel .tb-menu-group.tb-mi-simple:first-child { border-top: none; }
 #tab-quote-make .tb-mi-icon {
   font-size: var(--fs-14);
   width: 18px;

@@ -49,7 +49,9 @@
   "bmTypeChips",
   "btnPasteClipboard",
   "btnQuoteRedo",
+  "btnQuoteRedoMenu",
   "btnQuoteUndo",
+  "btnQuoteUndoMenu",
   "bulkCatSet",
   "bulkCurrencySet",
   "bulkMarkupSet",
@@ -98,6 +100,9 @@
   "cargoDetailBody",
   "cargoLawPanel",
   "carriers-dl",
+  "catMore",
+  "catMoreBtn",
+  "catMorePanel",
   "catOrderList",
   "cbm-rows-wrap",
   "cbm-unit",
@@ -857,7 +862,7 @@
    "defined": true
   },
   "closeTbMenus": {
-   "uses": 3,
+   "uses": 5,
    "defined": true
   },
   "closeUserMgr": {
@@ -1445,11 +1450,11 @@
    "defined": true
   },
   "quoteRedo": {
-   "uses": 1,
+   "uses": 2,
    "defined": true
   },
   "quoteUndo": {
-   "uses": 1,
+   "uses": 2,
    "defined": true
   },
   "recalcOverGauge": {
@@ -1605,7 +1610,7 @@
    "defined": true
   },
   "setUiMode": {
-   "uses": 7,
+   "uses": 9,
    "defined": true
   },
   "showIncotermsHint": {
@@ -1924,6 +1929,10 @@
   },
   "cat-btn-featured": {
    "css": true,
+   "html": true
+  },
+  "cat-more-label": {
+   "css": false,
    "html": true
   },
   "cat-nav": {
@@ -4226,6 +4235,7 @@
   "js/quote/fcl-lcl.js",
   "js/quote/right-rail.js",
   "js/ui-confirm.js",
+  "js/cat-more.js",
   "js/stats.js",
   "js/alias-rules.js",
   "js/local-charges.js",
