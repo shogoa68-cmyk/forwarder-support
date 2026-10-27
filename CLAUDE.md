@@ -67,6 +67,8 @@ Design 製の Industry 版デザイン（鋼青のブループリント調）を
 
 **カテゴリナビの「📂 その他」メニュー（2026-10）**：上段のカテゴリは「見積・統計・マスター管理・諸チャージ・BOOKMARK」＋「📂 その他 ▾」の 6 つにし、頻度の低い 6 カテゴリ（カレンダー／本船・航路／Booking/SI／書類・通関／計算／知識・参考）は「その他」のメニューに集約（情報は減らさない）。メニュー内のボタンは従来の `.cat-btn` のまま（`onclick="switchCategory(...)"`・`aria-controls` 不変なので `calculator.js`／`conditions.js` の探し方もそのまま効く）。開閉・選択中の表示は `js/cat-more.js`（パネルは `position:fixed`＝スマホ幅の `.cat-nav` 横スクロールで切れない・Esc／外側クリック／スクロールで閉じる・メニュー内が選択中のとき「その他」ボタンが強調され名前が出る＝`.active` の変化を MutationObserver で追従）。CSS は `style.css` の `.cat-more*`（Industry も共通）。テストは `scripts/design-tests/cat-more-test.js`。
 
+**見積入力ツールバーは「⋯」に集約（2026-10）**：上部ツールバー（`#saveToolbar`）には「ダッシュボードに戻る」と作業中の表示、右端の「⋯」だけを出す。元に戻す・やり直す（`#btnQuoteUndo/Redo`）／メール取込／サブコン依頼メール／表示サイズ／表示モード（かんたん｜詳細）は `.toolbar-extra` を付けて `quote.css` で常に隠し（DOM・id は残す）、同じ処理を「⋯」メニュー（`#tbMenuMore`）に並べた（操作／取り込み・送る／設定。メニューの元に戻す・やり直すは `#btnQuoteUndoMenu/RedoMenu`＝`conditions.js _updateHistoryButtonsUI` が元ボタンと同じ状態に更新。Ctrl+Z/Y は従来どおり）。かんたん表示・スマホ幅で行っていた「⋯」への集約を、詳細表示にも広げた形（`.tb-mi-simple` は常時表示）。テストは `scripts/design-tests/toolbar-more-test.js`。
+
 ## 🗑️ 自動保存は廃止（2026-10）
 
 旧「自動保存」（localStorage `quoteData` に1件・復元バナー）は、ページ再読込後に空の状態で上書きされて復元できない不具合があり、ブラウザ保存／チーム共有と役割も重なるため**廃止**。保存はチーム共有（旧「ブラウザ保存」は廃止）、巻き戻しは Undo/Redo。`scheduleAutoSave()` は呼び出し元（約100か所）を変えないため**何もしない関数として残置**。起動時（`initQuoteState`）に旧データ（`quoteData`・`autoSaveEnabled`）を掃除する（後日削除可）。

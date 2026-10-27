@@ -2412,9 +2412,9 @@
 
       <!-- 主要アクション：プレビュー・比較は右下のフローティングドックへ移動 -->
 
-      <!-- 履歴：アイコンのみで表示 -->
-      <button class="save-btn save-btn-icon save-btn-undo" id="btnQuoteUndo" onclick="quoteUndo()" disabled title="元に戻す (Ctrl+Z)">↶<span class="lbl-s tb-lbl"> 元に戻す</span></button>
-      <button class="save-btn save-btn-icon save-btn-redo" id="btnQuoteRedo" onclick="quoteRedo()" disabled title="やり直す (Ctrl+Y / Ctrl+Shift+Z)">↷<span class="lbl-s tb-lbl"> やり直す</span></button>
+      <!-- 履歴（ツールバーには出さず「⋯」メニューの「操作」へ集約。Ctrl+Z / Ctrl+Y は従来どおり。ボタン自体は id のまま残す） -->
+      <button class="save-btn save-btn-icon save-btn-undo toolbar-extra" id="btnQuoteUndo" onclick="quoteUndo()" disabled title="元に戻す (Ctrl+Z)">↶<span class="lbl-s tb-lbl"> 元に戻す</span></button>
+      <button class="save-btn save-btn-icon save-btn-redo toolbar-extra" id="btnQuoteRedo" onclick="quoteRedo()" disabled title="やり直す (Ctrl+Y / Ctrl+Shift+Z)">↷<span class="lbl-s tb-lbl"> やり直す</span></button>
 
       <span class="save-toolbar-sep toolbar-extra"></span>
 
@@ -2433,7 +2433,7 @@
       </div>
 
       <!-- 表示モード切替（かんたん表示｜詳細表示） -->
-      <div class="uim-switch uim-switch--tb" role="group" aria-label="表示モード">
+      <div class="uim-switch uim-switch--tb toolbar-extra" role="group" aria-label="表示モード">
         <button type="button" data-uim="simple" onclick="setUiMode('simple')">かんたん表示</button>
         <button type="button" data-uim="detail" onclick="setUiMode('detail')">詳細表示</button>
       </div>
@@ -2445,7 +2445,14 @@
           ⋯
         </button>
         <div class="tb-menu-panel" id="tbMenuMore">
-          <!-- かんたん表示のとき、ツールバーから外した項目をここへ集約（元のボタンと同じ処理を呼ぶ） -->
+          <!-- ツールバーから外した項目をここへ集約（元のボタンと同じ処理を呼ぶ。かんたん表示・詳細表示とも常に表示） -->
+          <div class="tb-menu-group tb-mi-simple">操作</div>
+          <button type="button" class="tb-menu-item tb-mi-simple" id="btnQuoteUndoMenu" onclick="quoteUndo(); closeTbMenus()" disabled>
+            <span class="tb-mi-icon">↶</span><span class="tb-mi-body"><span class="tb-mi-title">元に戻す</span><span class="tb-mi-sub">Ctrl+Z</span></span>
+          </button>
+          <button type="button" class="tb-menu-item tb-mi-simple" id="btnQuoteRedoMenu" onclick="quoteRedo(); closeTbMenus()" disabled>
+            <span class="tb-mi-icon">↷</span><span class="tb-mi-body"><span class="tb-mi-title">やり直す</span><span class="tb-mi-sub">Ctrl+Y / Ctrl+Shift+Z</span></span>
+          </button>
           <div class="tb-menu-group tb-mi-simple">取り込み・送る</div>
           <button type="button" class="tb-menu-item tb-mi-simple" onclick="openEmailImport(); closeTbMenus()">
             <span class="tb-mi-icon">📩</span><span class="tb-mi-body"><span class="tb-mi-title">メール取込</span><span class="tb-mi-sub">メール本文から見積の行を作る</span></span>
@@ -2454,8 +2461,10 @@
             <span class="tb-mi-icon">✉️</span><span class="tb-mi-body"><span class="tb-mi-title">サブコン依頼メール</span><span class="tb-mi-sub">見積・作業の依頼メールを作る</span></span>
           </button>
           <div class="tb-menu-group tb-mi-simple">設定</div>
-          <div class="tb-menu-item tb-mi-simple tb-mi-scale"><span class="tb-mi-icon">📐</span><span class="tb-mi-body"><span class="tb-mi-title">表示の大きさ</span>
+          <div class="tb-menu-item tb-mi-simple tb-mi-scale tb-mi-static"><span class="tb-mi-icon">📐</span><span class="tb-mi-body"><span class="tb-mi-title">表示の大きさ</span>
             <span class="tb-segrow"><button type="button" class="tb-seg-btn layout-scale-btn" data-scale="lg" onclick="setLayoutScale('lg')">大</button><button type="button" class="tb-seg-btn layout-scale-btn" data-scale="md" onclick="setLayoutScale('md')">中</button><button type="button" class="tb-seg-btn layout-scale-btn" data-scale="sm" onclick="setLayoutScale('sm')">小</button></span></span></div>
+          <div class="tb-menu-item tb-mi-simple tb-mi-static"><span class="tb-mi-icon">🟦</span><span class="tb-mi-body"><span class="tb-mi-title">表示モード</span>
+            <span class="uim-switch uim-switch--menu" role="group" aria-label="表示モード"><button type="button" data-uim="simple" onclick="setUiMode('simple')">かんたん表示</button><button type="button" data-uim="detail" onclick="setUiMode('detail')">詳細表示</button></span></span></div>
           <button type="button" class="tb-menu-item" onclick="openQuoteTabHelp(); closeTbMenus()">
             <span class="tb-mi-icon">ℹ️</span>
             <span class="tb-mi-body">

@@ -49,7 +49,9 @@
   "bmTypeChips",
   "btnPasteClipboard",
   "btnQuoteRedo",
+  "btnQuoteRedoMenu",
   "btnQuoteUndo",
+  "btnQuoteUndoMenu",
   "bulkCatSet",
   "bulkCurrencySet",
   "bulkMarkupSet",
@@ -860,7 +862,7 @@
    "defined": true
   },
   "closeTbMenus": {
-   "uses": 3,
+   "uses": 5,
    "defined": true
   },
   "closeUserMgr": {
@@ -1448,11 +1450,11 @@
    "defined": true
   },
   "quoteRedo": {
-   "uses": 1,
+   "uses": 2,
    "defined": true
   },
   "quoteUndo": {
-   "uses": 1,
+   "uses": 2,
    "defined": true
   },
   "recalcOverGauge": {
@@ -1608,7 +1610,7 @@
    "defined": true
   },
   "setUiMode": {
-   "uses": 7,
+   "uses": 9,
    "defined": true
   },
   "showIncotermsHint": {

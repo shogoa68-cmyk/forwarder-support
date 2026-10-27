@@ -836,8 +836,12 @@
   function _updateHistoryButtonsUI() {
     const u = document.getElementById('btnQuoteUndo');
     const r = document.getElementById('btnQuoteRedo');
+    const um = document.getElementById('btnQuoteUndoMenu');
+    const rm = document.getElementById('btnQuoteRedoMenu');
     if (u) u.disabled = _undoStack.length === 0;
     if (r) r.disabled = _redoStack.length === 0;
+    if (um) um.disabled = _undoStack.length === 0;
+    if (rm) rm.disabled = _redoStack.length === 0;
   }
 
   // 見積タブ表示時に初期化（initQuoteState から呼ぶ）
