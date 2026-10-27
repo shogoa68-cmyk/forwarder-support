@@ -306,13 +306,13 @@ const http = require('http'), fs = require('fs'), path = require('path');
     await p.evaluate(() => { statsMasterSetFilter('port'); }); await p.waitForTimeout(300);
     await p.click('#statsPane-master tr[data-mvalue="Yokohama"] .master-ops-more'); await p.click('.master-ops-menu .btn-remove');
     const gr = await confirmDlg(p, 'ok'); await p.waitForTimeout(500);
-    ok(L + 'グループの解除も確認つき', gr.text.includes('同義グループを解除') && await p.evaluate(() => !window.__db.synonym_groups.some(g => g.canonical === 'Yokohama')), gr);
+    ok(L + 'グループの解除も確認つき', gr.text.includes('別名をすべて外しますか') && await p.evaluate(() => !window.__db.synonym_groups.some(g => g.canonical === 'Yokohama')), gr);
     // 代表を新規登録の開閉
     await p.evaluate(() => statsMasterToggleRegister());
-    ok(L + '「代表を新規登録」が開く', await p.evaluate(() => document.querySelector('#statsPane-master .master-register').classList.contains('is-open')));
+    ok(L + '「マスターを新規登録」が開く', await p.evaluate(() => document.querySelector('#statsPane-master .master-register').classList.contains('is-open')));
     // 表の列：個別マスターと同義グループは 1 つの表（同じ列）
     const cols = await p.evaluate(() => [...document.querySelectorAll('#statsPane-master table.master-table')].map(t => [...t.querySelectorAll('thead th')].map(h => h.textContent.trim()).join('|')));
-    ok(L + '表は 1 つで、列は 種別｜代表｜別名・略称｜操作', cols.length === 1 && cols[0] === '種別|代表|別名・略称|操作', cols);
+    ok(L + '表は 1 つで、列は 種別｜マスター名｜別名・略称｜操作', cols.length === 1 && cols[0] === '種別|マスター名|別名・略称（英語表記・省略形）|操作', cols);
     ok(L + 'JS エラーなし', errs.length === 0, errs);
     await ctx.close();
   }

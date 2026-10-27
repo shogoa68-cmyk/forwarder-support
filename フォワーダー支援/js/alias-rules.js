@@ -302,12 +302,12 @@
     const n = _abbrevUnshared(pairs).length;
     if (!n) return '';
     return `<p class="ar-abbrev-desc">このブラウザにだけ保存されている略称が ${n} 件あります。` +
-      `<button class="ar-add-btn" onclick="arShareAbbrevPairs()" title="同義グループとして登録し、チームの全員の画面で効くようにします">☁️ チームに共有</button></p>`;
+      `<button class="ar-add-btn" onclick="arShareAbbrevPairs()" title="マスターの別名として登録し、チームの全員の画面で効くようにします">☁️ チームに共有</button></p>`;
   }
   window.arShareAbbrevPairs = async function () {
     const list = _abbrevUnshared(_loadAbbrevPairs());
     if (!list.length || typeof window.synAddAlias !== 'function') return;
-    if (!confirm(`略称 ${list.length} 件を同義グループ（正式名称が代表）として登録し、チームで共有します。よろしいですか？`)) return;
+    if (!confirm(`略称 ${list.length} 件をマスターの別名（正式名称がマスター）として登録し、チームで共有します。よろしいですか？`)) return;
     for (const p of list) await window.synAddAlias(p.field, p.abbrev, p.full);
     await _afterChange();
     if (typeof window.quoteShowToast === 'function') window.quoteShowToast(`☁️ 略称 ${list.length} 件を共有しました`, 'success');
@@ -584,7 +584,7 @@
     const preField = _quickFill ? _quickFill.field : 'sv';
     const preTo    = _quickFill ? _quickFill.canonical : '';
     h += `<div class="ar-add-section">
-  <h4 class="ar-section-title">＋ ルール追加</h4>
+  <h4 class="ar-section-title">＋ 過去データの一括置換ルール</h4>
   <div class="ar-add-form">
     <select id="arField" class="ar-select">
       <option value="sv"${preField==='sv'?' selected':''}>サブコン</option>
@@ -594,9 +594,9 @@
       <option value="un"${preField==='un'?' selected':''}>単位</option>
       <option value="port"${preField==='port'?' selected':''}>港</option>
     </select>
-    <input id="arFrom" class="ar-input" type="text" placeholder="元の表記（ゆらぎ）">
+    <input id="arFrom" class="ar-input" type="text" placeholder="古い表記（ゆらぎ）">
     <span class="ar-arrow-label">→</span>
-    <input id="arTo"   class="ar-input" type="text" placeholder="正規形（統一後）" value="${_eav(preTo)}">
+    <input id="arTo"   class="ar-input" type="text" placeholder="マスター名（統一後）" value="${_eav(preTo)}">
     <button class="ar-add-btn" onclick="arSubmitForm()">登録</button>
   </div>
 </div>`;
@@ -609,7 +609,7 @@
         if (!grouped[field].length) return;
         h += `<div class="ar-group">
   <div class="ar-group-title">${fieldLabel[field]}</div>
-  <table class="ar-table"><thead><tr><th>置換元</th><th></th><th>正規形</th><th></th></tr></thead><tbody>`;
+  <table class="ar-table"><thead><tr><th>古い表記</th><th></th><th>マスター名</th><th></th></tr></thead><tbody>`;
         grouped[field].forEach(r => {
           h += `<tr>
     <td class="ar-from">${_esc(r.from_value)}</td>
@@ -640,8 +640,8 @@
     const abbrevPairs = _loadAbbrevPairs();
     const abbrevFieldLabel = { sv: 'サブコン', carrier: 'キャリア', nm: '品名', un: '単位', customer: 'お客様', port: '港' };
     h += `<div class="ar-abbrev-section">
-  <h4 class="ar-section-title">📖 略称辞書${abbrevPairs.length ? `（${abbrevPairs.length}件）` : ''}</h4>
-  <p class="ar-abbrev-desc">略称と正式名称を関連付けます。統計タブで同一グループとして表示され、登録すると同義グループ（正式名称が代表）としてチームで共有されます（例：NTL ＝ NAIGAI TRANS LINES）。</p>${_abbrevShareHtml(abbrevPairs)}
+  <h4 class="ar-section-title">📖 略称・別名の登録${abbrevPairs.length ? `（${abbrevPairs.length}件）` : ''}</h4>
+  <p class="ar-abbrev-desc">略称・英語表記を、正式名称（マスター）の「別名」として登録します。マスター管理の「＋ 別名」と同じ登録で、チームで共有されます（例：NTL ＝ NAIGAI TRANS LINES）。</p>${_abbrevShareHtml(abbrevPairs)}
   <div class="ar-add-form">
     <select id="arAbbrevField" class="ar-select">
       <option value="sv">サブコン</option>
@@ -651,12 +651,12 @@
       <option value="un">単位</option>
       <option value="port">港</option>
     </select>
-    <input id="arAbbrevShort" class="ar-input" type="text" placeholder="略称（例: NTL）">
+    <input id="arAbbrevShort" class="ar-input" type="text" placeholder="別名・略称（例: NTL）">
     <span class="ar-arrow-label">=</span>
-    <input id="arAbbrevFull" class="ar-input" type="text" placeholder="正式名称（例: NAIGAI TRANS LINES）">
+    <input id="arAbbrevFull" class="ar-input" type="text" placeholder="マスター名（例: NAIGAI TRANS LINES）">
     <button class="ar-add-btn" onclick="arSubmitAbbrevForm()">登録</button>
   </div>`;
-    // 登録済みの略称は「同義グループ」（統計タブ・マスター）に表示される。このブラウザにだけある古い略称は上の「チームに共有」で移す
+    // 登録済みの略称は、マスター管理のマスターの行に「別名」として表示される。このブラウザにだけある古い略称は上の「チームに共有」で移す
     h += '</div>';
 
     // 除外リスト
@@ -685,8 +685,8 @@
     const field = document.getElementById('arField')?.value;
     const from  = (document.getElementById('arFrom')?.value || '').trim();
     const to    = (document.getElementById('arTo')?.value   || '').trim();
-    if (!from || !to) { alert('置換元と正規形の両方を入力してください。'); return; }
-    if (from === to)  { alert('置換元と正規形が同じです。'); return; }
+    if (!from || !to) { alert('古い表記とマスター名の両方を入力してください。'); return; }
+    if (from === to)  { alert('古い表記とマスター名が同じです。'); return; }
     await window.arSaveRule(field, from, to);
     const fEl = document.getElementById('arFrom'); if (fEl) fEl.value = '';
     const tEl = document.getElementById('arTo');   if (tEl) tEl.value = '';
@@ -1291,7 +1291,7 @@
   // マスター管理画面の先頭に出す案内（未ログイン／このブラウザにだけあるデータ／消したはずのバックアップに未復元のデータ）
   window.masterTopNoticeHtml = function () {
     if (!_cloud()) {
-      return '<div class="master-cloud-notice">🔒 マスター（入力候補・同義グループ・マスター詳細）はチームで共有しています。表示・登録にはログインしてください。</div>';
+      return '<div class="master-cloud-notice">🔒 マスター（入力候補・別名・マスター詳細）はチームで共有しています。表示・登録にはログインしてください。</div>';
     }
     const info = _migInfo();
     if (!info || !info.total) return _restoreNoticeHtml();
