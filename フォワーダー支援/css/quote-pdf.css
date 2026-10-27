@@ -333,6 +333,8 @@
 
 /* ===== 物量パターンの併記出力（FCL案／LCL案） ===== */
 .qd-pat-label { text-align: center; font-size: var(--doc-fs-emph); font-weight: 700; color: var(--doc-pattern-label); margin: -8px 0 12px; letter-spacing: 2px; }
+/* 併記（FCL案／LCL案）の末尾：全案共通のリマーク類を 1 回だけ出す。案の区切り線とは別に、少し間をあける */
+.qd-common-remarks { margin-top: 20px; }
 .qd-pat-section { margin-top: 36px; padding-top: 28px; border-top: 2px dashed var(--doc-line); }
 .qd-cmp { margin: 14px 0 10px; }
 .qd-cmp-ttl { font-size: var(--doc-fs-heading); font-weight: 700; margin-bottom: 6px; color: var(--doc-ink-2); }
