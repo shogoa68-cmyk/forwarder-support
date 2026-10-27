@@ -876,37 +876,39 @@
   }
   window.refreshAllRowMasterDetailBtns = refreshAllRowMasterDetailBtns;
 
-  // サブコンのマスター状態の印（行ごと）：マスターに無いサブコン名は「サブコン未登録」、申請済みで承認待ちなら「サブコン申請中」を、
-  // 品名の下のマスター操作の並びに出す。未登録の印を押すと、その場で登録（承認制のメンバーは申請）の確認が出る。
-  // マスター登録済み・サブコン未入力・マスターが未整備／読込前のときは出さない（入力の邪魔をしない）
-  function refreshRowSvChip(tr) {
-    if (!tr || !tr.id || !tr.id.startsWith('row-') || tr.dataset.type) return;
-    const chip = tr.querySelector('.sv-master-chip');
-    const inp  = tr.querySelector('[data-field="sv"]');
-    if (!chip || !inp) return;
-    const v = (inp.value || '').trim();
+  // サブコンのマスター状態の印（サブコン別明細グループの見出しに 1 つだけ）：マスターに無いサブコン名は「⚠ サブコン未登録」、
+  // 申請済みで承認待ちなら「📨 サブコン申請中」を、見出し（📦 サブコン名・行数の並び）に出す。行ごとには出さない。
+  // 未登録の印を押すと、その場で登録（承認制のメンバーは申請）の確認が出る。
+  // 登録済み・サブコン未設定・マスターが未整備／読込前・未ログインのときは出さない（入力の邪魔をしない）。
+  function _svChipState(v) {
     let st = (v && typeof window.statsMasterState === 'function') ? window.statsMasterState('sv', v) : 'unknown';
     if (st === 'none' && typeof window.nameCanon === 'function') {
       const canon = window.nameCanon('sv', v);   // 別名（統合表記）で入力された場合は、代表名が登録済みなら未登録扱いにしない
       if (canon && canon !== v && window.statsMasterState('sv', canon) === 'master') st = 'master';
     }
-    const show = st === 'none' || st === 'pending';
-    chip.hidden = !show;
-    chip.classList.toggle('is-none', st === 'none');
-    chip.classList.toggle('is-pending', st === 'pending');
-    if (show) {
-      const label = (window.statsIsApprovalOn && window.statsIsApprovalOn()) ? '登録を申請' : '登録';
-      chip.textContent = st === 'none' ? '⚠ サブコン未登録' : '📨 サブコン申請中';
-      chip.title = st === 'none'
-        ? '「' + v + '」はサブコンのマスターに未登録です。そのまま使えますが、押すと' + label + 'の確認が出ます（登録すると、チーム全員の入力候補に出ます）'
-        : '「' + v + '」は、マスターへの登録を申請済みです（管理者の承認待ち）';
-    }
-    tr.dataset.svState = show ? st : '';
+    return st;
   }
   function refreshAllRowSvChips() {
-    document.querySelectorAll('#tableBody tr[id^="row-"]:not([data-type]):not([data-virtual])').forEach(refreshRowSvChip);
+    document.querySelectorAll('#tableBody tr.subcon-group-header').forEach(hdr => {
+      const chip = hdr.querySelector('.sv-master-chip');
+      if (!chip) return;
+      const v = (hdr.dataset.svLabel || '').trim();
+      const st = v ? _svChipState(v) : 'unknown';
+      const show = st === 'none' || st === 'pending';
+      chip.hidden = !show;
+      chip.classList.toggle('is-none', st === 'none');
+      chip.classList.toggle('is-pending', st === 'pending');
+      hdr.dataset.svState = show ? st : '';
+      if (show) {
+        const label = (window.statsIsApprovalOn && window.statsIsApprovalOn()) ? '登録を申請' : '登録';
+        chip.textContent = st === 'none' ? '⚠ サブコン未登録' : '📨 サブコン申請中';
+        chip.title = st === 'none'
+          ? '「' + v + '」はサブコンのマスターに未登録です。そのまま使えますが、押すと' + label + 'の確認が出ます（登録すると、チーム全員の入力候補に出ます）'
+          : '「' + v + '」は、マスターへの登録を申請済みです（管理者の承認待ち）';
+      }
+    });
   }
-  window.refreshRowSvChip = refreshRowSvChip;
+  window.refreshRowSvChip = refreshAllRowSvChips;   // 互換（行単位の呼び出しは、見出しの更新に置き換え）
   window.refreshAllRowSvChips = refreshAllRowSvChips;
 
   function initNmAutofill() {
@@ -1470,12 +1472,6 @@
     const icBtn = frag.querySelector('.ic-mode-btn');
     if (icBtn) icBtn.onclick = () => toggleIcMode(id);
     ['ppmin', 'bpmin'].forEach(f => { const el = q(f); if (el) el.oninput = () => calc(id); });
-    const svChip = frag.querySelector('.sv-master-chip');
-    if (svChip) svChip.onclick = () => {
-      const tr = document.getElementById(`row-${id}`);
-      if (tr && tr.dataset.svState === 'pending') { if (window.quoteShowToast) quoteShowToast('📨 すでに申請済みです（管理者の承認待ち）', 'info', 2500); return; }
-      if (window.arCheckSubconRow) window.arCheckSubconRow(document.getElementById(`sv-${id}`));
-    };
     const mregBtn = frag.querySelector('.master-reg-btn');
     if (mregBtn) mregBtn.onclick = () => registerRowToMaster(id);
     const mdetBtn = frag.querySelector('.master-detail-jump-btn');
@@ -1790,7 +1786,6 @@
     const profit   = subtotal - costAmt;  // 行の利益（小計 - 支払い合計）
     {
       const trM = document.getElementById(`row-${id}`);
-      refreshRowSvChip(document.getElementById(`row-${id}`));   // サブコンのマスター状態の印
       syncIcUi(id);   // 適用する貿易条件の見た目（復元した行・貿易条件を変えた直後も）
       const hasMin = (parseFloat(document.getElementById(`ppmin-${id}`)?.value) || 0) > 0 ||
                      (parseFloat(document.getElementById(`bpmin-${id}`)?.value) || 0) > 0;
@@ -3552,6 +3547,7 @@
             `<input type="checkbox" class="subcon-group-chk" title="このサブコンの全明細を選択／解除（一部だけ選択中は中間表示）">` +
             `<span class="subcon-group-label">📦 ${_escHdr(label)}</span>` +
             `<span class="subcon-group-count">${count} 行</span>` +
+            `<button type="button" class="sv-master-chip" hidden></button>` +
             `<span class="subcon-group-sum"></span>` +
             `<button type="button" class="subcon-group-excl${excluded ? ' is-excluded' : ''}" ` +
               `title="見積もりへの含める/除外を切り替え">${excluded ? '含む' : '除外'}</button>` +
@@ -3566,6 +3562,12 @@
         { const gchk = hdr.querySelector('.subcon-group-chk');
           gchk.addEventListener('click', e => e.stopPropagation());
           gchk.addEventListener('change', () => selectGroupRows(key, '', gchk.checked)); }
+        hdr.querySelector('.sv-master-chip').addEventListener('click', e => {
+          e.stopPropagation();
+          if (hdr.dataset.svState === 'pending') { if (window.quoteShowToast) quoteShowToast('📨 すでに申請済みです（管理者の承認待ち）', 'info', 2500); return; }
+          const svInp = (groups[key][0] || document).querySelector('[data-field="sv"]');   // 登録の確認は、この見出しの下に出す
+          if (window.arCheckSubconRow && svInp) window.arCheckSubconRow(svInp, e.currentTarget);
+        });
         hdr.querySelector('.subcon-group-excl').addEventListener('click', () => toggleSubconExclude(key));
         hdr.querySelector('.subcon-group-add-btn').addEventListener('click', () => {
           addRowToSubconGroup(key === _UNSET_KEY ? '' : label);
@@ -3860,6 +3862,7 @@
       _updateGroupSums();
       _syncGroupSelectChecks();
       if (typeof refreshMergeBadges === 'function') refreshMergeBadges();
+      refreshAllRowSvChips();   // サブコン見出しの「サブコン未登録」の印
     } finally {
       _inGroupRender = false;
       // DOM 再構築後にスクロール位置を復元（パターン変更時のページトップへの強制移動を防ぐ）
