@@ -9931,6 +9931,41 @@ button.um-memberno--empty:hover { background: var(--accent-lt); border-color: #c
   box-shadow: 0 0 0 1px var(--green-leaf) inset;
   background: #f4f8ec;
 }
+/* ===== 左端のセクションナビ：管理番号〜費用テーブルへのジャンプを常設 =====
+   幅の広い画面では左端に固定（本文は左に余白を取って重ならない）。幅が狭い画面では、上に付く横並びのリンクに切り替える。ダッシュボードでは出さない。
+   印：塗り＝入力済み／白抜き＝未入力。いま見ているセクションは左の線で強調 */
+#tab-quote-make .q-secnav {
+  position: fixed; left: 6px; top: calc(var(--nav-cat-h, 56px) + 64px); z-index: 30;
+  display: flex; flex-direction: column; gap: var(--sp-3); width: 56px;
+  padding: var(--sp-4); background: var(--surface); border: 1px solid var(--border-md); border-radius: var(--r-8);
+  box-shadow: 0 2px 8px rgba(58, 42, 24, 0.10);
+}
+#tab-quote-make.qp-dash .q-secnav { display: none; }
+#tab-quote-make .q-secnav-btn {
+  position: relative; display: flex; flex-direction: column; align-items: center; gap: 1px; padding: var(--sp-5) var(--sp-2);
+  font-family: inherit; cursor: pointer; border: 0; border-left: 3px solid transparent; border-radius: var(--r-4); background: transparent; color: var(--text-md);
+}
+#tab-quote-make .q-secnav-btn:hover { background: var(--bg); color: var(--text); }
+#tab-quote-make .q-secnav-btn .q-secnav-ico { font-size: var(--fs-16, 16px); line-height: 1.2; }
+#tab-quote-make .q-secnav-btn em { font-style: normal; font-size: var(--fs-9-5); font-weight: 700; line-height: 1.2; white-space: nowrap; }
+#tab-quote-make .q-secnav-btn .q-secnav-dot {
+  position: absolute; top: 4px; right: 4px; width: 7px; height: 7px; border-radius: 50%; box-sizing: border-box;
+  border: 1.5px solid var(--border-md); background: transparent;
+}
+#tab-quote-make .q-secnav-btn.is-filled .q-secnav-dot { border-color: var(--green-leaf); background: var(--green-leaf); }
+#tab-quote-make .q-secnav-btn.is-current { border-left-color: var(--accent-dk); background: var(--accent-lt); color: var(--text); }
+@media (min-width: 1100px) {
+  #tab-quote-make:not(.qp-dash) { padding-left: 68px; }
+}
+@media (max-width: 1099px) {
+  /* 幅が狭い画面：左端に固定はせず、編集画面の上に横並びのリンクとして置く（固定のツールバー・操作バーと重ならないように、スクロールには付いてこない） */
+  #tab-quote-make .q-secnav {
+    position: static; width: auto; flex-direction: row; gap: var(--sp-2); margin: var(--sp-4) 0; overflow-x: auto;
+  }
+  #tab-quote-make .q-secnav-btn { flex: 1 0 auto; flex-direction: row; gap: var(--sp-4); padding: var(--sp-4) var(--sp-8); border-left: 0; border-bottom: 3px solid transparent; }
+  #tab-quote-make .q-secnav-btn.is-current { border-left-color: transparent; border-bottom-color: var(--accent-dk); }
+  #tab-quote-make .q-secnav-btn .q-secnav-dot { position: static; flex: none; }
+}
 /* ===== 数量パターン（FCL案／LCL案など）：編集中のパターンの常時表示 =====
    表の操作バー（sticky）の上段に、パターンの切替チップ・要確認の行数・枠線の凡例を出す。表の上端の線と数量の列見出しは、編集中のパターンの色にする。
    色：FCL＝緑／LCL＝青（御見積書のチップと同じ）／モード指定なし＝茶 */

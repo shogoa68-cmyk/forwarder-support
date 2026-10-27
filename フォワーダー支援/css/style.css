@@ -3354,6 +3354,9 @@ a.bm-contact-item:hover { background: #2e6b3e; color: var(--surface); border-col
   box-shadow: 0 6px 20px rgba(0,0,0,.2);
   font-size: var(--fs-12);
 }
+/* 明細行の「サブコン詳細」：登録状態・別名・マスター管理へのジャンプ（使用案件の一覧の上に出す） */
+.stats-usage-pop-info { padding: var(--sp-6) var(--sp-10); font-size: var(--fs-11-5); line-height: 1.7; border-bottom: 1px solid var(--border-md); }
+.stats-usage-pop-jump { margin-top: var(--sp-4); padding: var(--sp-3) var(--sp-8); font-family: inherit; font-size: var(--fs-11); cursor: pointer; border: 1px solid var(--border-md); border-radius: var(--r-4); background: var(--surface); color: var(--text); }
 .stats-usage-pop-head {
   display: flex; align-items: center; justify-content: space-between; gap: var(--sp-8);
   padding: var(--sp-8) var(--sp-10); border-bottom: 1px solid var(--c-e8d8c0);

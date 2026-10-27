@@ -3578,6 +3578,7 @@
     if (typeof window.qspSetTab === 'function') window.qspSetTab(_savedTab);
     initSectionHelpTooltips(); // 各セクションの説明文を ? アイコンのツールチップ化
     initSummaryLiveUpdate();   // 入力のたびにジャンプ欄の要約を更新
+    initSectionNav();          // 左端のセクションナビ（ジャンプ・現在地・入力済みの印）
     initTabOrder();            // Tab で止まる場所の整理（補助ボタンを外す・ボタン群は 1 回）
     if (typeof initPreviewWarningListeners === 'function') initPreviewWarningListeners();
     if (typeof syncHazmatPanel === 'function') syncHazmatPanel(); // 危険品パネルの初期表示
@@ -3961,6 +3962,44 @@
     });
   }
 
+  // ===== 左端のセクションナビ（#qSecNav）：管理番号〜費用テーブルの各セクションへのジャンプ =====
+  // 押すとそのセクションを開いてスクロール。印（●）＝入力済み（右パネルの要約と同じ判定）。いま見ているセクションを強調する。
+  function _updateSecNavMarks(rows) {
+    const nav = document.getElementById('qSecNav');
+    if (!nav) return;
+    nav.querySelectorAll('.q-secnav-btn').forEach(function(btn) {
+      const r = rows.find(function(x) { return x[0] === btn.dataset.sec; });
+      const filled = !!(r && r[3] && r[3] !== '未入力');
+      btn.classList.toggle('is-filled', filled);
+      const base = btn.getAttribute('title').replace(/（.*）$/, '');
+      btn.setAttribute('title', base + (filled ? '（入力済み）' : '（未入力）'));
+    });
+  }
+  function initSectionNav() {
+    const nav = document.getElementById('qSecNav');
+    if (!nav || nav._bound) return;
+    nav._bound = true;
+    nav.addEventListener('click', function(e) {
+      const btn = e.target.closest && e.target.closest('.q-secnav-btn');
+      if (btn) window.openQuoteSectionFromDigest(btn.dataset.sec);
+    });
+    // いま見ているセクション：画面の上端（操作バーの下）を過ぎた最後のセクション
+    let raf = 0;
+    const update = function() {
+      raf = 0;
+      if (!nav.offsetParent && getComputedStyle(nav).position !== 'fixed') return;
+      const ids = Array.from(nav.querySelectorAll('.q-secnav-btn')).map(function(b) { return b.dataset.sec; });
+      const line = 190;   // 操作バー・ツールバーの下あたり
+      let cur = ids[0];
+      ids.forEach(function(id) { const s = document.getElementById(id); if (s && s.getBoundingClientRect().top <= line) cur = id; });
+      nav.querySelectorAll('.q-secnav-btn').forEach(function(b) { b.classList.toggle('is-current', b.dataset.sec === cur); });
+    };
+    window.addEventListener('scroll', function() { if (!raf) raf = requestAnimationFrame(update); }, { passive: true });
+    window.addEventListener('resize', function() { if (!raf) raf = requestAnimationFrame(update); });
+    update();
+  }
+  window.initSectionNav = initSectionNav;
+
   // ===== 見積サマリ：各入力セクションのダイジェスト =====
   // アコーディオンで各セクションが畳まれていても、右パネルで全体を一望できるようにする。
   // クリックでそのセクションを展開（アコーディオン）してスクロール。
@@ -4001,7 +4040,9 @@
       ['section-remark', '📑', '全体リマーク', remarkSum],
       ['section-table',  '📋', '費用テーブル', tableSum],
     ];
-    let html = rows.map(function(r) {
+    _updateSecNavMarks(rows);   // 左端のナビの「入力済み」の印
+    // 右パネルは費用テーブルの縮小表示に一本化：各セクションへのジャンプは左端のナビに移したので、ここには費用テーブルの行（合計）とツリーだけを出す
+    let html = rows.filter(function(r) { return r[0] === 'section-table'; }).map(function(r) {
       const id = r[0], icon = r[1], label = r[2];
       const empty = !r[3] || r[3] === '未入力';
       const txt = empty ? '未入力' : r[3];

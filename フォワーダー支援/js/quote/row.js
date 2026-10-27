@@ -880,15 +880,17 @@
   // 申請済みで承認待ちなら「📨 サブコン申請中」を、見出し（📦 サブコン名・行数の並び）に出す。行ごとには出さない。
   // 未登録の印を押すと、その場で登録（承認制のメンバーは申請）の確認が出る。
   // 登録済み・サブコン未設定・マスターが未整備／読込前・未ログインのときは出さない（入力の邪魔をしない）。
-  function _svChipState(v) {
+  function _svResolve(v) {
     let st = (v && typeof window.statsMasterState === 'function') ? window.statsMasterState('sv', v) : 'unknown';
+    let canon = v;
     if (st === 'none' && typeof window.nameCanon === 'function') {
-      const canon = window.nameCanon('sv', v);   // 別名（統合表記）で入力された場合は、代表名が登録済みなら未登録扱いにしない
-      if (canon && canon !== v && window.statsMasterState('sv', canon) === 'master') st = 'master';
+      const c = window.nameCanon('sv', v);   // 別名（統合表記）で入力された場合は、代表名が登録済みなら未登録扱いにしない
+      if (c && c !== v && window.statsMasterState('sv', c) === 'master') { st = 'master'; canon = c; }
     }
-    return st;
+    return { st, canon };
   }
-  function refreshAllRowSvChips() {
+  function _svChipState(v) { return _svResolve(v).st; }
+  function _refreshSvHeaderChips() {
     document.querySelectorAll('#tableBody tr.subcon-group-header').forEach(hdr => {
       const chip = hdr.querySelector('.sv-master-chip');
       if (!chip) return;
@@ -908,8 +910,22 @@
       }
     });
   }
-  window.refreshRowSvChip = refreshAllRowSvChips;   // 互換（行単位の呼び出しは、見出しの更新に置き換え）
-  window.refreshAllRowSvChips = refreshAllRowSvChips;
+  // マスター登録済みのサブコンは、明細行の「サブコン詳細」から確認できる（別名で入力しても代表名の詳細）
+  function _refreshRowSvDetailBtns() {
+    const memo = {};
+    document.querySelectorAll('#tableBody tr[id^="row-"]:not([data-type]):not([data-virtual])').forEach(tr => {
+      const btn = tr.querySelector('.sv-detail-btn');
+      if (!btn) return;
+      const v = (tr.querySelector('[data-field="sv"]')?.value || '').trim();
+      const r = memo[v] || (memo[v] = v ? _svResolve(v) : { st: 'unknown', canon: '' });
+      const on = r.st === 'master';
+      btn.hidden = !on;
+      btn.dataset.canon = on ? r.canon : '';
+      if (on) btn.title = 'サブコン「' + r.canon + '」はマスター登録済みです。クリックで詳細（別名・使用している案件）を見る／マスター管理へ';
+    });
+  }
+  window.refreshAllRowSvChips = function () { _refreshSvHeaderChips(); _refreshRowSvDetailBtns(); };
+  window.refreshRowSvChip = window.refreshAllRowSvChips;   // 互換（行単位の呼び出しは、全体の更新に置き換え）
 
   function initNmAutofill() {
     const tbody = document.getElementById('tableBody');
@@ -1474,6 +1490,11 @@
     ['ppmin', 'bpmin'].forEach(f => { const el = q(f); if (el) el.oninput = () => calc(id); });
     const mregBtn = frag.querySelector('.master-reg-btn');
     if (mregBtn) mregBtn.onclick = () => registerRowToMaster(id);
+    const svDetBtn = frag.querySelector('.sv-detail-btn');
+    if (svDetBtn) svDetBtn.onclick = e => {
+      const canon = svDetBtn.dataset.canon || (document.getElementById('sv-' + id)?.value || '').trim();
+      if (canon && typeof window.statsShowUsage === 'function') window.statsShowUsage('sv', canon, e, { info: true });
+    };
     const mdetBtn = frag.querySelector('.master-detail-jump-btn');
     if (mdetBtn) mdetBtn.onclick = () => {
       const value = (document.getElementById('nm-' + id)?.value || '').replace(/^\*+/, '').trim();
@@ -3862,7 +3883,7 @@
       _updateGroupSums();
       _syncGroupSelectChecks();
       if (typeof refreshMergeBadges === 'function') refreshMergeBadges();
-      refreshAllRowSvChips();   // サブコン見出しの「サブコン未登録」の印
+      window.refreshAllRowSvChips();   // サブコン見出しの「サブコン未登録」の印・明細行の「サブコン詳細」
     } finally {
       _inGroupRender = false;
       // DOM 再構築後にスクロール位置を復元（パターン変更時のページトップへの強制移動を防ぐ）
