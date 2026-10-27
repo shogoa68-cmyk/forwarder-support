@@ -194,6 +194,8 @@
 .qd-meta { display: grid; grid-template-columns: auto 1fr; gap: 3px 12px; padding: 8px 12px; font-size: var(--doc-fs-body); }
 .qd-srow { display: contents; }
 .qd-sk { color: var(--doc-text-sub); white-space: nowrap; }
+/* 航路の行：船会社（実運送人）を目立たせる */
+.qd-carrier { font-weight: 700; color: var(--doc-ink); font-size: var(--doc-fs-strong); }
 .qd-amt-row { display: flex; justify-content: space-between; align-items: center; border-top: 1px solid var(--doc-line); padding: 8px 12px; background: var(--doc-fill-faint); }
 .qd-valid { font-size: var(--doc-fs-caption); color: var(--doc-text-faint); }
 .qd-amt { font-size: var(--doc-fs-amount); font-weight: 700; color: var(--doc-amount); }

@@ -369,7 +369,18 @@
           ? window.formatRouteCarrierLine(r)
           : [r.carrier, r.service ? `(${r.service})` : ''].filter(Boolean).join(' ');
         const tt = r.tt ? `T/T: ${r.tt}` : '';
-        if (rt || carrier || tt) push(label, [carrier, rt, tt].filter(Boolean).join('　'));
+        if (rt || carrier || tt) {
+          // 船会社（実運送人）を目立たせる：代理店・NVOCC などが「as ○○」で立ち回る航路は、○○（実運送人）を太字・濃色に。
+          // 船社直（または役割・実運送人の指定なし）の航路は、キャリア名そのものが船会社なので、そちらを太字に。
+          // 契約先だけで船会社が分からない航路（代理店・NVOCC・コローダーで実運送人が未入力）は強調しない。
+          const front = (typeof window.formatRouteCarrierLine === 'function') ? window.formatRouteCarrierLine({ ...r, actualCarrier: '' }) : carrier;
+          const emphCarrier = r.actualCarrier ? '' : (!r.carrierRole || r.carrierRole === 'direct') ? (r.carrier || '') : '';
+          let carrierHtml = esc(front);
+          if (emphCarrier && carrierHtml.includes(esc(emphCarrier))) carrierHtml = carrierHtml.replace(esc(emphCarrier), `<span class="qd-carrier">${esc(emphCarrier)}</span>`);
+          if (r.actualCarrier) carrierHtml += (carrierHtml ? ' ' : '') + `as <span class="qd-carrier">${esc(r.actualCarrier)}</span>`;
+          const html = [carrierHtml, esc(rt), esc(tt)].filter(Boolean).join('　');
+          meta.push([label, { html }]);
+        }
       });
     } else {
       push(t('pol'), _masterEn('port', cond.pol));
@@ -702,7 +713,7 @@
     ].filter(Boolean).join('<br>');
 
     const metaRows = subj.meta.map(([k, v]) =>
-      `<div class="qd-srow"><span class="qd-sk">${esc(k)}</span><span class="qd-sv">${nl2br(v)}</span></div>`
+      `<div class="qd-srow"><span class="qd-sk">${esc(k)}</span><span class="qd-sv">${(v && typeof v === 'object') ? v.html : nl2br(v)}</span></div>`
     ).join('');
 
     return `
