@@ -2282,45 +2282,17 @@
     }
     const synFiltered = _masterFieldFilter === 'all' ? allSyn : allSyn.filter(g => g.field === _masterFieldFilter);
 
-    let synH = '';
-    if (synFiltered.length) {
-      synH = '<div class="stats-syn-section"><p class="stats-master-info-title">⭐ 同義グループ（代表＝マスター）</p>' +
-        `<p class="stats-master-info-note">⭐代表は自動的にマスター登録され、統合した別名はマスターから外れます。集計タブの ☆代表 / ⤵統合 で作成。件数は合算され入力補完にも反映されます。${cloudOn ? '（チーム共有）' : '（このブラウザに保存）'}</p>` +
-        '<table class="stats-table master-table"><thead><tr><th>種別</th><th>代表</th><th>別名・略称</th><th class="ops">操作</th></tr></thead><tbody>';
-      synFiltered.forEach(g => {
-        const isUnit  = g.field === 'un';
-        const aliases = g.aliases || [];
-        const delAlias = (a) => isUnit
-          ? `statsUnitRemoveAlias('${_ea(a)}','${_ea(g.canonical)}')`
-          : `synRemoveAlias('${_ea(g.field)}','${_ea(a)}','${_ea(g.canonical)}')`;
-        const delGroup = `statsConfirmRemoveGroup('${_ea(g.field)}','${_ea(g.canonical)}')`;
-        const chips = aliases.length
-          ? aliases.map(a => `<span class="stats-syn-member">${_esc(a)}<button class="ua-chip-del" title="統合解除" onclick="${delAlias(a)}">✕</button></span>`).join('')
-          : '<span class="stats-empty-cell">—</span>';
-        const addAliasHtml =
-          `<span class="stats-syn-add-alias">` +
-            `<input type="text" class="stats-syn-add-input" placeholder="別名を追加（例: OCEAN FREIGHT）" ` +
-              `title="日本語・英語などどんな表記でも別名として追加できます。入力後 Enter か ＋ で確定。" ` +
-              `onkeydown="if(event.key==='Enter'){event.preventDefault();statsSynAddAliasInline('${_ea(g.field)}','${_ea(g.canonical)}',this);}">` +
-            `<button type="button" class="stats-syn-add-btn" title="別名として追加" ` +
-              `onclick="statsSynAddAliasInline('${_ea(g.field)}','${_ea(g.canonical)}',this.previousElementSibling)">＋</button>` +
-          `</span>`;
-        synH += `<tr data-mfield="${_eav(g.field)}" data-mvalue="${_eav(g.canonical)}"><td>${labels[g.field] || g.field}</td>` +
-                `<td class="stats-val"><span class="ua-star">⭐</span>${_esc(g.canonical)}${_mdBadge(g.field, g.canonical)}</td>` +
-                `<td>${chips}${addAliasHtml}</td>` +
-                `<td class="ops"><button class="stats-master-merge" title="この代表を別の代表に統合（配下の別名ごと移動）" onclick="statsSynMergePicker('${_ea(g.field)}','${_ea(g.canonical)}',this)">⤵ 統合</button>` +
-                `<button class="stats-master-rename" title="代表名を変更（旧名称は別名として残ります）" onclick="statsMasterRename('${_ea(g.field)}','${_ea(g.canonical)}')">✏️ 名称変更</button>` +
-                _mdDetailBtn(g.field, g.canonical) +
-                `<button type="button" class="master-ops-more more" aria-haspopup="menu" title="その他の操作（グループの解除）" onclick="statsOpsMenu(this,'group','${_ea(g.field)}','${_ea(g.canonical)}')">⋯</button></td></tr>`;
-      });
-      synH += '</tbody></table></div>';
-    }
+    // 個別マスターと同義グループを 1 つの表にまとめる。別名を足しても行が別の表へ移らず、
+    // 代表の行の「別名・略称」にそのまま付く（種別→名前の順なので、行の位置も変わらない）
+    const rowsAll = [
+      ...entries.map(m => ({ kind: 'ind', field: m.field, name: m.value, m })),
+      ...synFiltered.map(g => ({ kind: 'grp', field: g.field, name: g.canonical, g })),
+    ].sort((a, b) => (labels[a.field] || a.field).localeCompare(labels[b.field] || b.field) || (a.name || '').localeCompare(b.name || ''));
 
-    if (!entries.length) {
-      const note = synFiltered.length
-        ? '<p class="stats-empty">個別マスターはありません（同義グループの代表が下に「マスター」として表示されています）。</p>'
-        : '<p class="stats-empty">マスター登録はまだありません。<br>各集計の ☆登録（個別）または ⭐代表（同義グループ）で追加できます。</p>';
-      e.innerHTML = _masterHeadHtml(totalCount, allSyn.length) + (typeof window.masterTopNoticeHtml === 'function' ? window.masterTopNoticeHtml() : '') + _requestsHtml() + formH + chipsH + note + synH;
+    const headH = _masterHeadHtml(totalCount, allSyn.length) + (typeof window.masterTopNoticeHtml === 'function' ? window.masterTopNoticeHtml() : '') + _requestsHtml();
+    if (!rowsAll.length) {
+      e.innerHTML = headH + formH + chipsH +
+        '<p class="stats-empty">マスター登録はまだありません。<br>各集計の ☆登録（個別）または ⭐代表（同義グループ）で追加できます。</p>';
       return;
     }
     const usageDesc = {
@@ -2331,9 +2303,8 @@
       customer: 'お客様名欄で入力補完候補に表示されます。',
       port:     'POL / POD / Via 港欄で入力補完候補に表示されます。',
     };
-    const sorted = entries.sort((a, b) => (labels[a.field] || a.field).localeCompare(labels[b.field] || b.field) || (a.value || '').localeCompare(b.value || ''));
     const _indHelp = document.documentElement.classList.contains('theme-industry') ? '' : ' open';   // Industry は畳む（現行は従来どおり開く）
-    let h = '<details class="master-help"' + _indHelp + '><summary>✅ 個別マスター（同義グループに属さない表記）の活用方法</summary>' +
+    let h = '<details class="master-help"' + _indHelp + '><summary>✅ マスターの活用方法（⭐＝同義グループの代表）</summary>' +
             '<div class="stats-master-info">' +
             '<ul class="stats-master-usage-list">' +
             Object.entries(usageDesc)
@@ -2342,21 +2313,38 @@
             '<li><b>エイリアス是正</b>：表記ゆれを一括置換する際の「正規形」の候補として参照できます。</li>' +
             '</ul>' +
             `<p class="stats-master-info-note">☆ 登録 ボタンで即時マスターに追加。再クリックで解除できます。（チーム全員で共有）</p>` +
+            `<p class="stats-master-info-note">「＋ 別名」で、略称・英語表記などを代表の同義として登録できます（⭐の行）。別名の件数は代表に合算され、入力補完にも反映されます。別名はマスターの一覧からは外れ、代表の行に表示されます。${cloudOn ? '（チーム共有）' : '（このブラウザに保存）'}</p>` +
             '</div></details>' +
             '<table class="stats-table master-table"><thead><tr>' +
             '<th>種別</th><th>代表</th><th>別名・略称</th><th class="ops">操作</th>' +
             '</tr></thead><tbody>';
-    sorted.forEach(m => {
-      // 略称は同義グループ（正式名称が代表）として登録する。登録後は下の「同義グループ」に表示される
-      const abbrevCell = `<button class="stats-master-abbrev-add" onclick="statsMasterAddAbbrev('${_ea(m.field)}','${_ea(m.value)}')">＋ 別名</button>`;
-      h += `<tr data-mfield="${_eav(m.field)}" data-mvalue="${_eav(m.value)}">` +
-           `<td>${labels[m.field] || m.field}</td>` +
-           `<td class="stats-val">${_esc(m.value)}${_mdBadge(m.field, m.value)}</td>` +
-           `<td class="stats-master-abbrev-cell">${abbrevCell}</td>` +
-           `<td class="ops">${_mdDetailBtn(m.field, m.value)}${(_approvalOn() ? _isAdmin() : m.isMine) ? `<button type="button" class="master-ops-more more" aria-haspopup="menu" title="その他の操作（解除）" onclick="statsOpsMenu(this,'master','${_ea(m.field)}','${_ea(m.value)}')">⋯</button>` : ''}</td>` +
-           `</tr>`;
+    rowsAll.forEach(r => {
+      const addBtn = (f, v) => `<button class="stats-master-abbrev-add" onclick="statsMasterAddAbbrev('${_ea(f)}','${_ea(v)}')">＋ 別名</button>`;
+      if (r.kind === 'grp') {
+        const g = r.g;
+        const isUnit  = g.field === 'un';
+        const delAlias = (a) => isUnit
+          ? `statsUnitRemoveAlias('${_ea(a)}','${_ea(g.canonical)}')`
+          : `synRemoveAlias('${_ea(g.field)}','${_ea(a)}','${_ea(g.canonical)}')`;
+        const chips = (g.aliases || []).map(a => `<span class="stats-syn-member">${_esc(a)}<button class="ua-chip-del" title="統合解除" onclick="${delAlias(a)}">✕</button></span>`).join('');
+        h += `<tr class="stats-syn-row" data-mfield="${_eav(g.field)}" data-mvalue="${_eav(g.canonical)}"><td>${labels[g.field] || g.field}</td>` +
+             `<td class="stats-val"><span class="ua-star">⭐</span>${_esc(g.canonical)}${_mdBadge(g.field, g.canonical)}</td>` +
+             `<td class="stats-master-abbrev-cell">${chips}${addBtn(g.field, g.canonical)}</td>` +
+             `<td class="ops"><button class="stats-master-merge" title="この代表を別の代表に統合（配下の別名ごと移動）" onclick="statsSynMergePicker('${_ea(g.field)}','${_ea(g.canonical)}',this)">⤵ 統合</button>` +
+             `<button class="stats-master-rename" title="代表名を変更（旧名称は別名として残ります）" onclick="statsMasterRename('${_ea(g.field)}','${_ea(g.canonical)}')">✏️ 名称変更</button>` +
+             _mdDetailBtn(g.field, g.canonical) +
+             `<button type="button" class="master-ops-more more" aria-haspopup="menu" title="その他の操作（グループの解除）" onclick="statsOpsMenu(this,'group','${_ea(g.field)}','${_ea(g.canonical)}')">⋯</button></td></tr>`;
+      } else {
+        const m = r.m;
+        h += `<tr data-mfield="${_eav(m.field)}" data-mvalue="${_eav(m.value)}">` +
+             `<td>${labels[m.field] || m.field}</td>` +
+             `<td class="stats-val">${_esc(m.value)}${_mdBadge(m.field, m.value)}</td>` +
+             `<td class="stats-master-abbrev-cell">${addBtn(m.field, m.value)}</td>` +
+             `<td class="ops">${_mdDetailBtn(m.field, m.value)}${(_approvalOn() ? _isAdmin() : m.isMine) ? `<button type="button" class="master-ops-more more" aria-haspopup="menu" title="その他の操作（解除）" onclick="statsOpsMenu(this,'master','${_ea(m.field)}','${_ea(m.value)}')">⋯</button>` : ''}</td>` +
+             `</tr>`;
+      }
     });
-    e.innerHTML = _masterHeadHtml(totalCount, allSyn.length) + (typeof window.masterTopNoticeHtml === 'function' ? window.masterTopNoticeHtml() : '') + _requestsHtml() + formH + chipsH + h + '</tbody></table>' + synH;
+    e.innerHTML = headH + formH + chipsH + h + '</tbody></table>';
   }
 
   // マスタータブから単位同義グループを操作した際、マスター画面も再描画する薄いラッパ
@@ -2393,24 +2381,6 @@
       if (typeof window.statsRerenderActive === 'function') window.statsRerenderActive();
     } else if (typeof window.synRemoveGroup === 'function') {
       await window.synRemoveGroup(field, canonical);
-    }
-  };
-
-  // 同義グループへ任意の表記（日本語・英語など言語不問）を別名として直接追加。
-  // 実データに存在しない値でも登録可（既存の ⤵統合 は実データ由来の値しか選べないため、その簡易版）。
-  window.statsSynAddAliasInline = async function (field, canonical, inputEl) {
-    if (!inputEl) return;
-    const alias = (inputEl.value || '').trim();
-    if (!alias) return;
-    if (alias === canonical) {
-      if (typeof window.quoteShowToast === 'function') window.quoteShowToast('代表名と同じ表記です', 'warn');
-      return;
-    }
-    if (field === 'un') {
-      if (typeof window.uaAddAlias === 'function') window.uaAddAlias(alias, canonical);
-      if (typeof window.statsRerenderActive === 'function') window.statsRerenderActive();
-    } else if (typeof window.synAddAlias === 'function') {
-      await window.synAddAlias(field, alias, canonical);
     }
   };
 
@@ -3078,17 +3048,22 @@
   window.statsMasterAddAbbrev = function (field, value) {
     const labels = { sv: 'サブコン', carrier: 'キャリア', nm: '品名', un: '単位', customer: 'お客様', port: '港' };
     const safeId = 'abbrev-inline-' + Math.random().toString(36).slice(2, 7);
-    // 既存の「＋ 略称」ボタンを入力フォームに置換
-    const btn = document.querySelector(`.stats-master-abbrev-add[onclick*="${_ea(value)}"]`);
+    const tr = Array.from(document.querySelectorAll('#statsPane-master tr[data-mfield]'))
+      .find(r => r.dataset.mfield === field && r.dataset.mvalue === value);
+    const btn = tr && tr.querySelector('.stats-master-abbrev-add');
     if (!btn) return;
-    const cell = btn.parentElement;
-    cell.innerHTML = `<span class="stats-abbrev-inline-form">` +
-      `<input id="${safeId}" class="stats-abbrev-input" type="text" placeholder="略称を入力（${labels[field] || field}）" maxlength="30" autofocus>` +
+    // 既存の「＋ 別名」ボタンだけを入力フォームに置換（同じセルの別名チップは残す）
+    const form = document.createElement('span');
+    form.className = 'stats-abbrev-inline-form';
+    form.innerHTML =
+      `<input id="${safeId}" class="stats-abbrev-input" type="text" placeholder="別名・略称を入力（${labels[field] || field}）" maxlength="60">` +
       `<button class="stats-abbrev-ok" onclick="statsMasterAddAbbrevCommit('${_ea(field)}','${_ea(value)}','${safeId}')">追加</button>` +
-      `<button class="stats-abbrev-cancel" onclick="_renderMaster()">取消</button>` +
-      `</span>`;
-    document.getElementById(safeId)?.focus();
-    document.getElementById(safeId)?.addEventListener('keydown', e => {
+      `<button class="stats-abbrev-cancel" onclick="_renderMaster()">取消</button>`;
+    btn.replaceWith(form);
+    const inp = document.getElementById(safeId);
+    if (!inp) return;
+    inp.focus();
+    inp.addEventListener('keydown', e => {
       if (e.key === 'Enter') window.statsMasterAddAbbrevCommit(field, value, safeId);
       if (e.key === 'Escape') _renderMaster();
     });
@@ -3098,9 +3073,10 @@
     const input = document.getElementById(inputId);
     const abbrev = input ? input.value.trim() : '';
     if (!abbrev) { _renderMaster(); return; }
-    if (typeof window.arAddAbbrevPair === 'function') {
-      await window.arAddAbbrevPair(field, abbrev, value);
-    }
+    // 単位の同義グループはこのブラウザの単位グループ（uaGetGroups）に持つ。それ以外はクラウドの同義グループ
+    const unitGroup = field === 'un' && typeof window.uaGetGroups === 'function' && window.uaGetGroups().some(g => g.canonical === value);
+    if (unitGroup && typeof window.uaAddAlias === 'function') window.uaAddAlias(abbrev, value);
+    else if (typeof window.arAddAbbrevPair === 'function') await window.arAddAbbrevPair(field, abbrev, value);
     _renderMaster();
   };
 

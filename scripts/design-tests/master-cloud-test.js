@@ -310,9 +310,9 @@ const http = require('http'), fs = require('fs'), path = require('path');
     // 代表を新規登録の開閉
     await p.evaluate(() => statsMasterToggleRegister());
     ok(L + '「代表を新規登録」が開く', await p.evaluate(() => document.querySelector('#statsPane-master .master-register').classList.contains('is-open')));
-    // 表の列：個別マスターと同義グループが同じ列
+    // 表の列：個別マスターと同義グループは 1 つの表（同じ列）
     const cols = await p.evaluate(() => [...document.querySelectorAll('#statsPane-master table.master-table')].map(t => [...t.querySelectorAll('thead th')].map(h => h.textContent.trim()).join('|')));
-    ok(L + '表の列がそろっている（種別｜代表｜別名・略称｜操作）', cols.length >= 1 && cols.every(c => c === '種別|代表|別名・略称|操作'), cols);
+    ok(L + '表は 1 つで、列は 種別｜代表｜別名・略称｜操作', cols.length === 1 && cols[0] === '種別|代表|別名・略称|操作', cols);
     ok(L + 'JS エラーなし', errs.length === 0, errs);
     await ctx.close();
   }
@@ -473,17 +473,28 @@ const http = require('http'), fs = require('fs'), path = require('path');
     const { ctx, p, errs } = await open(true, { legacy: {} });
     const L = '[別名の追加] ';
     await p.evaluate(() => { switchCategory('master', document.querySelector('[onclick*="switchCategory(\'master"]')); }); await p.waitForTimeout(1200);
-    const has = await p.evaluate(() => !!document.querySelector('.stats-master-abbrev-add[onclick*="テスト運送"]'));
+    const has = await p.evaluate(() => !!document.querySelector('#statsPane-master tr[data-mvalue="テスト運送"] .stats-master-abbrev-add'));
     ok(L + '個別マスター（サブコン）の行に「＋ 別名」', has);
-    await p.click('.stats-master-abbrev-add[onclick*="テスト運送"]');
+    const rowIdx = () => p.evaluate(() => [...document.querySelectorAll('#statsPane-master tbody tr')].findIndex(r => r.dataset.mvalue === 'テスト運送'));
+    const idx0 = await rowIdx();
+    await p.click('#statsPane-master tr[data-mvalue="テスト運送"] .stats-master-abbrev-add');
     await p.fill('.stats-abbrev-input', 'テスト運輸'); await p.click('.stats-abbrev-ok'); await p.waitForTimeout(1200);
     const r = await p.evaluate(() => ({
       db: window.__db.synonym_groups.some(g => g.field === 'sv' && g.canonical === 'テスト運送' && (g.aliases || []).includes('テスト運輸')),
-      shown: [...document.querySelectorAll('.stats-syn-member')].some(e => e.textContent.includes('テスト運輸')),
+      // 代表の行（同じ行）に別名のチップが付く
+      shown: [...document.querySelectorAll('#statsPane-master tr[data-mvalue="テスト運送"] .stats-syn-member')].some(e => e.textContent.includes('テスト運輸')),
+      star: !!document.querySelector('#statsPane-master tr[data-mvalue="テスト運送"] .ua-star'),
+      tables: document.querySelectorAll('#statsPane-master table.master-table').length,
       cand: nameCanon('sv', 'テスト運輸'),
     }));
     ok(L + 'クラウドの同義グループに別名が入る', r.db, r);
-    ok(L + '画面（同義グループの「別名・略称」）に別名が出る', r.shown, r);
+    ok(L + '行の位置が変わらない（別の表へ移らない）', idx0 >= 0 && idx0 === await rowIdx() && r.tables === 1, { idx0, tables: r.tables });
+    ok(L + '代表の行の「別名・略称」に別名が付き、⭐になる', r.shown && r.star, r);
+    // 同義グループの行にも「＋ 別名」で足せる（先の別名のチップは残る）
+    await p.click('#statsPane-master tr[data-mvalue="テスト運送"] .stats-master-abbrev-add');
+    await p.fill('.stats-abbrev-input', 'TEST UNSO'); await p.click('.stats-abbrev-ok'); await p.waitForTimeout(1200);
+    const r2 = await p.evaluate(() => [...document.querySelectorAll('#statsPane-master tr[data-mvalue="テスト運送"] .stats-syn-member')].map(e => e.textContent.replace('✕', '')));
+    ok(L + '同義グループの行にも別名を追加でき、先の別名も残る', r2.includes('テスト運輸') && r2.includes('TEST UNSO'), r2);
     ok(L + '別名が代表名に読み替えられる', r.cand === 'テスト運送', r);
     ok(L + 'JS エラーなし', errs.length === 0, errs);
     await ctx.close();
@@ -493,7 +504,7 @@ const http = require('http'), fs = require('fs'), path = require('path');
     const { ctx, p, errs } = await open(true, { legacy: {}, badKey: 'テスト運輸' });
     const L = '[別名の追加・失敗] ';
     await p.evaluate(() => { switchCategory('master', document.querySelector('[onclick*="switchCategory(\'master"]')); }); await p.waitForTimeout(1200);
-    await p.click('.stats-master-abbrev-add[onclick*="テスト運送"]');
+    await p.click('#statsPane-master tr[data-mvalue="テスト運送"] .stats-master-abbrev-add');
     await p.fill('.stats-abbrev-input', 'テスト運輸'); await p.click('.stats-abbrev-ok'); await p.waitForTimeout(1200);
     const r = await p.evaluate(() => ({
       db: window.__db.synonym_groups.some(g => (g.aliases || []).includes('テスト運輸')),
