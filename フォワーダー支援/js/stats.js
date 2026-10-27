@@ -45,8 +45,12 @@
       v.total++;
       if (r.voter_email === me) v.isMine = true;
     });
+    // 項目ごとの「マスター登録件数」：その項目のマスターが 1 件も無い間（未整備・読込前）は、未登録の印を出さないため
+    _cvFieldCount = {};
+    _cvMap.forEach(({ total }, key) => { if (total >= 1) { const f = key.split('\x00')[0]; _cvFieldCount[f] = (_cvFieldCount[f] || 0) + 1; } });
     await _loadRequests();
   }
+  let _cvFieldCount = {};
 
   // ===== マスターの承認制（docs/sql/master-approval.sql）=====
   // 申請テーブル（master_requests）があるときだけ有効：メンバーの登録は「申請」になり、管理者が承認するとマスターになる。
@@ -73,6 +77,7 @@
     const { error } = await _c().from(REQ_TABLE).insert({ field, value, requested_by: _me(), status: 'pending' });
     if (error) { _toast('申請に失敗しました: ' + error.message, 'warn'); return; }
     await _loadRequests();
+    if (typeof window.refreshAllRowSvChips === 'function') window.refreshAllRowSvChips();   // 行の「申請中」の印を反映
     _toast('📨 ' + (_FIELD_LABEL[field] || field) + '「' + value + '」をマスターに申請しました。管理者の承認後に入力候補に出ます', 'success', 4200);
   }
   async function _decide(id, approve) {
@@ -2681,6 +2686,13 @@
     }
   };
 
+  // 入力欄の横の印用：この名称のマスター状態。'master'（登録済み）／'pending'（申請中・承認待ち）／'none'（未登録）／
+  // 'unknown'（ログインしていない・読込前・その項目のマスターが 1 件も無い＝判定しない）
+  window.statsMasterState = function (field, value) {
+    if (!_cloud() || _cvMap === null || !(_cvFieldCount[field] > 0)) return 'unknown';
+    if ((_cvMap.get(field + '\x00' + value) || { total: 0 }).total >= 1) return 'master';
+    return _pendingReq(field, value) ? 'pending' : 'none';
+  };
   window.statsIsApprovalOn = () => _approvalOn() && !_isAdmin();   // メンバーの登録が「申請」になるか（確認画面の文言用）
   window.statsToggleVote = async function (field, value) {
     // 承認制では「マスターかどうか」で切り替える（管理者は解除、メンバーは申請）

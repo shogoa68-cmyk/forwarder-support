@@ -491,7 +491,10 @@
       });
     }
   }
-  window.arRefreshDatalist = _refreshDatalist;
+  window.arRefreshDatalist = function () {
+    _refreshDatalist.apply(this, arguments);
+    if (typeof window.refreshAllRowSvChips === 'function') window.refreshAllRowSvChips();   // マスターが読み込まれた・変わったら、行の「サブコン未登録」の印も更新
+  };
 
   // === クイック登録ステート ===
 
@@ -817,7 +820,7 @@
   function _showMasterRegisterSuggest(input, value) {
     _openSuggest(input,
       `<span class="syn-suggest-msg">⚠️ 「<b>${_esc(value)}</b>」はサブコンのマスターに未登録です</span>` +
-      `<button type="button" class="syn-suggest-apply">マスター登録</button>` +
+      `<button type="button" class="syn-suggest-apply">${(typeof window.statsIsApprovalOn === 'function' && window.statsIsApprovalOn()) ? '登録を申請' : 'マスター登録'}</button>` +
       `<button type="button" class="syn-suggest-dismiss" title="登録せずこのまま使う">このまま使う</button>`,
       el => el.querySelector('.syn-suggest-apply').addEventListener('click', async () => {
         _dismissSuggest();
@@ -829,6 +832,7 @@
         const prev = (typeof window.mdGet === 'function' && window.mdGet('sv', value))?.details || {};
         if (typeof window.mdSave === 'function') await window.mdSave('sv', value, prev);
         _refreshDatalist();
+        if (typeof window.refreshAllRowSvChips === 'function') window.refreshAllRowSvChips();
         if (typeof window.statsRerenderActive === 'function') window.statsRerenderActive();
         if (!asRequest && typeof window.quoteShowToast === 'function') window.quoteShowToast('📇 サブコン「' + value + '」をマスター登録しました', 'success', 2800);
       }),
@@ -874,11 +878,14 @@
     if (canon) _showSynSuggest(t, canon);
     else if (field === 'sv') _checkSubconMaster(t);   // サブコンはマスター引用：未登録なら確認
     else _dismissSuggest();
+    if (field === 'sv' && typeof window.refreshRowSvChip === 'function') window.refreshRowSvChip(t.closest('tr'));
   });
+  // 行の「サブコン未登録」の印から：この行のサブコン名について、登録（承認制は申請）の確認を出す
+  window.arCheckSubconRow = function (input) { if (input) { _dismissSuggest(); _checkSubconMaster(input); } };
 
   // 品名・港・お客様・キャリア：マスター（入力候補）に無い名前に、控えめな印を付ける（吹き出しは出さない＝入力の邪魔をしない）。
   // そのまま使ってよいが、新人が「合っているのか」を確認できるように。マスターが 1 件も無い間（未整備・読込前）は付けない
-  const _UNREG_FIELDS = ['nm', 'port', 'customer', 'carrier'];
+  const _UNREG_FIELDS = ['nm', 'port', 'customer', 'carrier', 'sv'];
   function _markUnregistered(input, field, check) {
     if (!_UNREG_FIELDS.includes(field)) return;
     let v = (input.value || '').trim();

@@ -876,6 +876,39 @@
   }
   window.refreshAllRowMasterDetailBtns = refreshAllRowMasterDetailBtns;
 
+  // サブコンのマスター状態の印（行ごと）：マスターに無いサブコン名は「サブコン未登録」、申請済みで承認待ちなら「サブコン申請中」を、
+  // 品名の下のマスター操作の並びに出す。未登録の印を押すと、その場で登録（承認制のメンバーは申請）の確認が出る。
+  // マスター登録済み・サブコン未入力・マスターが未整備／読込前のときは出さない（入力の邪魔をしない）
+  function refreshRowSvChip(tr) {
+    if (!tr || !tr.id || !tr.id.startsWith('row-') || tr.dataset.type) return;
+    const chip = tr.querySelector('.sv-master-chip');
+    const inp  = tr.querySelector('[data-field="sv"]');
+    if (!chip || !inp) return;
+    const v = (inp.value || '').trim();
+    let st = (v && typeof window.statsMasterState === 'function') ? window.statsMasterState('sv', v) : 'unknown';
+    if (st === 'none' && typeof window.nameCanon === 'function') {
+      const canon = window.nameCanon('sv', v);   // 別名（統合表記）で入力された場合は、代表名が登録済みなら未登録扱いにしない
+      if (canon && canon !== v && window.statsMasterState('sv', canon) === 'master') st = 'master';
+    }
+    const show = st === 'none' || st === 'pending';
+    chip.hidden = !show;
+    chip.classList.toggle('is-none', st === 'none');
+    chip.classList.toggle('is-pending', st === 'pending');
+    if (show) {
+      const label = (window.statsIsApprovalOn && window.statsIsApprovalOn()) ? '登録を申請' : '登録';
+      chip.textContent = st === 'none' ? '⚠ サブコン未登録' : '📨 サブコン申請中';
+      chip.title = st === 'none'
+        ? '「' + v + '」はサブコンのマスターに未登録です。そのまま使えますが、押すと' + label + 'の確認が出ます（登録すると、チーム全員の入力候補に出ます）'
+        : '「' + v + '」は、マスターへの登録を申請済みです（管理者の承認待ち）';
+    }
+    tr.dataset.svState = show ? st : '';
+  }
+  function refreshAllRowSvChips() {
+    document.querySelectorAll('#tableBody tr[id^="row-"]:not([data-type]):not([data-virtual])').forEach(refreshRowSvChip);
+  }
+  window.refreshRowSvChip = refreshRowSvChip;
+  window.refreshAllRowSvChips = refreshAllRowSvChips;
+
   function initNmAutofill() {
     const tbody = document.getElementById('tableBody');
     if (!tbody) return;
@@ -1437,6 +1470,12 @@
     const icBtn = frag.querySelector('.ic-mode-btn');
     if (icBtn) icBtn.onclick = () => toggleIcMode(id);
     ['ppmin', 'bpmin'].forEach(f => { const el = q(f); if (el) el.oninput = () => calc(id); });
+    const svChip = frag.querySelector('.sv-master-chip');
+    if (svChip) svChip.onclick = () => {
+      const tr = document.getElementById(`row-${id}`);
+      if (tr && tr.dataset.svState === 'pending') { if (window.quoteShowToast) quoteShowToast('📨 すでに申請済みです（管理者の承認待ち）', 'info', 2500); return; }
+      if (window.arCheckSubconRow) window.arCheckSubconRow(document.getElementById(`sv-${id}`));
+    };
     const mregBtn = frag.querySelector('.master-reg-btn');
     if (mregBtn) mregBtn.onclick = () => registerRowToMaster(id);
     const mdetBtn = frag.querySelector('.master-detail-jump-btn');
@@ -1750,6 +1789,7 @@
     const profit   = subtotal - costAmt;  // 行の利益（小計 - 支払い合計）
     {
       const trM = document.getElementById(`row-${id}`);
+      refreshRowSvChip(document.getElementById(`row-${id}`));   // サブコンのマスター状態の印
       syncIcUi(id);   // 適用する貿易条件の見た目（復元した行・貿易条件を変えた直後も）
       const hasMin = (parseFloat(document.getElementById(`ppmin-${id}`)?.value) || 0) > 0 ||
                      (parseFloat(document.getElementById(`bpmin-${id}`)?.value) || 0) > 0;
