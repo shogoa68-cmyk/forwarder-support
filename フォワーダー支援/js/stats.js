@@ -583,7 +583,8 @@
     document.removeEventListener('mousedown', _usagePopOutsideClick, true);
   }
   window.statsHideUsage = _dismissUsagePop;
-  window.statsShowUsage = function (field, value, ev) {
+  // opts.info：マスター登録済みの名称の「詳細」として開く（登録状態・別名・マスター管理へのジャンプを添える）。明細行の「サブコン詳細」から
+  window.statsShowUsage = function (field, value, ev, opts) {
     if (ev && typeof ev.stopPropagation === 'function') ev.stopPropagation();
     _dismissUsagePop();
     const cases = _casesUsing(field, value);
@@ -610,9 +611,20 @@
                `</div>`;
       }).join('') + '</div>';
     }
+    let info = '';
+    if (opts && opts.info) {
+      const aliases = (typeof window.synGetGroups === 'function' ? window.synGetGroups(field) : [])
+        .filter(g => g.canonical === value).reduce((a, g) => a.concat(g.aliases || []), []);
+      const v = _voteInfo(field, value);
+      info = '<div class="stats-usage-pop-info">' +
+        `<div><b>${_esc(_FIELD_LABEL[field] || field)}マスター</b>：登録済み${v.total > 1 ? `（${v.total} 人が登録）` : ''}</div>` +
+        `<div><b>別名</b>：${aliases.length ? aliases.map(_esc).join('、') : 'なし'}</div>` +
+        `<button type="button" class="stats-usage-pop-jump" onclick="statsHideUsage();statsJumpToMaster('${_ea(field)}','${_ea(value)}')">🗂 マスター管理で開く（別名・略称を編集）</button>` +
+        '</div>';
+    }
     pop.innerHTML =
-      `<div class="stats-usage-pop-head"><span>📂 「${_esc(value)}」を使用している案件（${cases.length}件）</span>` +
-      `<button class="stats-usage-pop-close" onclick="statsHideUsage()">✕</button></div>` + body;
+      `<div class="stats-usage-pop-head"><span>${opts && opts.info ? '📇' : '📂'} 「${_esc(value)}」を使用している案件（${cases.length}件）</span>` +
+      `<button class="stats-usage-pop-close" onclick="statsHideUsage()">✕</button></div>` + info + body;
     pop.style.position = 'fixed';
     document.body.appendChild(pop);
     const target = (ev && (ev.currentTarget || ev.target));

@@ -140,6 +140,31 @@ const http = require('http'), fs = require('fs'), path = require('path');
   const bubble = p => p.evaluate(() => { const b = document.querySelector('.syn-suggest'); return b ? { text: b.textContent, apply: (b.querySelector('.syn-suggest-apply') || {}).textContent } : null; });
   const openDetail = async p => { const vis = await p.locator('#tableBody tr[id^="row-"]:not([data-type]) .sv-master-chip').first().isVisible(); return vis; };
 
+  // ===== マスター登録済みのサブコンは、明細行の「サブコン詳細」から確認できる =====
+  {
+    const { ctx, p, errs } = await open(true, { legacy: {}, approval: true, role: 'member' });
+    const detailBtn = () => p.evaluate(() => { const b = document.querySelector('#tableBody tr[id^="row-"]:not([data-type]):not([data-virtual]) .sv-detail-btn'); return { exists: !!b, shown: !!b && !b.hidden && b.offsetParent !== null, canon: b ? b.dataset.canon : '' }; });
+    await setSv(p, 'テスト運送');
+    let d = await detailBtn();
+    ok('マスター登録済みのサブコンの明細行に「サブコン詳細」が出る', d.exists && d.shown && d.canon === 'テスト運送', d);
+    await p.evaluate(() => { window.__db.synonym_groups.push({ id: 'g9', field: 'sv', canonical: 'テスト運送', aliases: ['テストウンソウ'] }); });
+    await p.evaluate(async () => { await window.synLoadCloud(); window.arRefreshDatalist(); });
+    await p.evaluate(() => document.querySelector('#tableBody tr[id^="row-"]:not([data-type]):not([data-virtual]) .sv-detail-btn').scrollIntoView({ block: 'center' }));
+    await p.evaluate(() => document.querySelector('#tableBody tr[id^="row-"]:not([data-type]):not([data-virtual]) .sv-detail-btn').click()); await p.waitForTimeout(500);
+    const pop = await p.evaluate(() => { const e = document.querySelector('.stats-usage-pop'); return e ? { text: e.textContent, jump: !!e.querySelector('.stats-usage-pop-jump') } : null; });
+    ok('押すと、登録状態・別名・マスター管理へのジャンプが出る', pop && /サブコンマスター：登録済み/.test(pop.text) && /テストウンソウ/.test(pop.text) && pop.jump, pop);
+    await p.evaluate(() => window.statsHideUsage());
+    await setSv(p, 'テストウンソウ');
+    d = await detailBtn();
+    ok('別名で入力しても、代表名（テスト運送）の詳細として出る', d.shown && d.canon === 'テスト運送', d);
+    await setSv(p, '未登録の運送会社');
+    d = await detailBtn();
+    ok('未登録のサブコンには「サブコン詳細」は出ない', d.exists && !d.shown, d);
+    await setSv(p, '');
+    ok('サブコンが空なら出ない', !(await detailBtn()).shown, null);
+    ok('JS エラーなし（サブコン詳細）', errs.length === 0, errs);
+    await ctx.close();
+  }
   // ===== 承認制のメンバー =====
   {
     const { ctx, p, errs, dlg } = await open(true, { legacy: {}, approval: true, role: 'member' });
