@@ -125,6 +125,11 @@
 #tab-quote-make #quoteTable tr.is-notes-open .st-notes { display: flex; }
 #tab-quote-make #quoteTable .subcon-subtotal-inner .st-alias, #tab-quote-make #quoteTable .subcon-subtotal-inner .subcon-subtotal-add-btn, #tab-quote-make #quoteTable .subcon-subtotal-inner .st-remark { order: 0; }
 #tab-quote-make #quoteTable .subcon-subtotal-inner .st-notes { flex-basis: 100%; }
+/* 小計バー：ラベル・＋行追加・注記 ▾ は左、金額（仕入合計・売値合計・粗利率）は右端に右揃え（現行と同じ並び。金額は固定幅でパターン小計とサブコン小計を縦にそろえる） */
+#tab-quote-make #quoteTable .subcon-subtotal-inner .subcon-subtotal-add-btn { order: 1; margin-left: 0; }
+#tab-quote-make #quoteTable .subcon-subtotal-inner .st-notes-btn { order: 2; }
+#tab-quote-make #quoteTable .subcon-subtotal-inner .st-metric { order: 3; }
+#tab-quote-make #quoteTable .subcon-subtotal-inner .st-notes { order: 4; }
 /* 「注記 ▾」を開いたとき：客先表示名とサブコン別リマークを 1 行に左から並べる（現行の「客先表示名は右寄せ・リマークは別の行」を解く）。
    幅が足りなければ折り返す。リマークは残りの幅いっぱいに伸びる */
 #tab-quote-make #quoteTable tr.is-notes-open .st-notes { column-gap: 32px; row-gap: 10px; align-items: center; }

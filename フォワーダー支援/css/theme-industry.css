@@ -9592,6 +9592,19 @@ html.theme-industry {
 :where(html.theme-industry) #tab-quote-make #quoteTable .subcon-subtotal-inner .st-notes {
   flex-basis: 100%;
 }
+:where(html.theme-industry) #tab-quote-make #quoteTable .subcon-subtotal-inner .subcon-subtotal-add-btn {
+  order: 1;
+  margin-left: 0;
+}
+:where(html.theme-industry) #tab-quote-make #quoteTable .subcon-subtotal-inner .st-notes-btn {
+  order: 2;
+}
+:where(html.theme-industry) #tab-quote-make #quoteTable .subcon-subtotal-inner .st-metric {
+  order: 3;
+}
+:where(html.theme-industry) #tab-quote-make #quoteTable .subcon-subtotal-inner .st-notes {
+  order: 4;
+}
 :where(html.theme-industry) #tab-quote-make #quoteTable tr.is-notes-open .st-notes {
   column-gap: 32px;
   row-gap: 10px;
