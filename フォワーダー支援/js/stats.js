@@ -1245,6 +1245,192 @@
     e.innerHTML = '<div class="stats-sv-charges-wrap">' + h + '</div>' + _moreHtml('statsPane-margindiff', list.length);
   }
 
+  // ===== 📒 明細台帳 =====
+  // 明細1行ずつを、案件の条件（お客様・航路・モード・輸出入）と並べて振り返る。
+  // 「この条件で、どこから・いくらで買って、どの客に・いくらで売ったか」を絞り込んで確認できる。
+  // 仕入・売の片方しか入っていない行も台帳には載せる（粗利率だけ「—」）。
+  let _ledgerCache = null;   // 台帳の全行（タブ表示時に1回だけ構築。条件変更では再構築しない）
+  const _ledgerF = { cust: '', sv: '', nm: '', route: '', mode: '', dir: '', status: 'all', sort: 'new' };
+  const _DIR_LABEL = { export: '輸出', import: '輸入' };
+  const _fold = s => String(s == null ? '' : s).normalize('NFKC').toLowerCase().replace(/\s+/g, '');
+  function _fmtMoney(n, cur) {
+    if (n == null) return '—';
+    const c = (cur || 'JPY').trim() || 'JPY';
+    return c === 'JPY' ? '¥' + Math.round(n).toLocaleString('ja-JP') : c + ' ' + n.toLocaleString('ja-JP', { maximumFractionDigits: 2 });
+  }
+
+  function _ledgerBuild(source) {
+    const period = document.getElementById('statsPeriod')?.value || 'all';
+    const now = Date.now();
+    const cutoff = { all: 0, month: now - 30 * 86400000, q3: now - 91 * 86400000, year: now - 365 * 86400000 }[period] || 0;
+    const out = [];
+    const add = (p, isCloud) => {
+      const d = p.data || {}, f = d.fields || {};
+      if (!Array.isArray(d.rows)) return;
+      const tsRaw = isCloud ? p.updated_at : (p.ts || p.updatedAt);
+      const ts = tsRaw ? new Date(tsRaw).getTime() : 0;
+      if (cutoff && ts && ts < cutoff) return;
+      const c0 = {
+        caseId: isCloud ? p.id : null,
+        caseName: p.name || '（名称なし）',
+        customer: ((isCloud ? p.customer : f['qf-customer']) || '').trim(),
+        status: ((isCloud ? p.status : f['qf-status']) || '').trim(),
+        mode: ((isCloud ? p.transport_mode : f['cond-mode']) || '').trim(),
+        dir: (f['cond-direction'] || '').trim(),
+        pol: isCloud ? (p.pol || '').trim() : _routeFromFields(f, 'pol'),
+        pod: isCloud ? (p.pod || '').trim() : _routeFromFields(f, 'pod'),
+        creator: isCloud && p.created_by ? _creatorName(p.created_by) : '',
+        ts,
+      };
+      d.rows.forEach(r => {
+        if (!r || r._type !== 'data' || !Array.isArray(r.cells)) return;
+        const c = r.cells;
+        const nm = (c[CI.nm] || '').replace(/^\*+/, '').trim();
+        const sv = (c[CI.sv] || '').trim();
+        const pp = _num(c[CI.pp]), bp = _num(c[CI.bp]);
+        if ((!nm && !sv) || (pp == null && bp == null)) return;
+        const pr = _pairJ(c);
+        out.push(Object.assign({}, c0, {
+          cat: (c[CI.cat] || '').trim(), nm, sv, un: (c[CI.un] || '').trim(),
+          bq: _num(c[CI.bq]), pp, pc: (c[CI.pc] || 'JPY').trim() || 'JPY', bp, bc: (c[CI.bc] || 'JPY').trim() || 'JPY',
+          costJ: pr.skip ? null : pr.cost, billJ: pr.skip ? null : pr.bill,
+          margin: (!pr.skip && pr.bill > 0 && window.SharedCalc) ? SharedCalc.grossMarginPct(pr.bill, pr.cost) : null,
+        }));
+      });
+    };
+    if (source !== 'cloud') _getLocalPresets().forEach(p => add(p, false));
+    if (source !== 'local') (typeof window.cloudGetAllRows === 'function' ? window.cloudGetAllRows() : []).forEach(p => add(p, true));
+    return out;
+  }
+
+  window.statsLedgerSet = function (key, val) {
+    _ledgerF[key] = val;
+    if (key !== 'status' && key !== 'sort' && key !== 'mode' && key !== 'dir') {
+      // 文字入力は打つたびに再描画しない（入力欄のフォーカスを保つため結果部分だけ更新）
+      clearTimeout(window.__ldgT);
+      window.__ldgT = setTimeout(() => { _listLimit = {}; _renderLedgerResult(); }, 160);
+      return;
+    }
+    _listLimit = {};
+    _renderLedgerResult();
+  };
+  window.statsLedgerClear = function () {
+    Object.assign(_ledgerF, { cust: '', sv: '', nm: '', route: '', mode: '', dir: '', status: 'all', sort: 'new' });
+    _listLimit = {};
+    _renderLedger(true);
+  };
+
+  function _ledgerFiltered() {
+    const f = _ledgerF;
+    const q = { cust: _fold(f.cust), sv: _fold(f.sv), nm: _fold(f.nm), route: _fold(f.route) };
+    let rows = (_ledgerCache || []).filter(r => {
+      if (q.cust && !_fold(r.customer).includes(q.cust)) return false;
+      if (q.sv && !_fold(r.sv).includes(q.sv)) return false;
+      if (q.nm && !_fold(r.nm + ' ' + r.cat).includes(q.nm)) return false;
+      if (q.route && !_fold([r.pol, r.pod].join(' ')).includes(q.route)) return false;
+      if (f.mode && r.mode !== f.mode) return false;
+      if (f.dir && r.dir !== f.dir) return false;
+      if (f.status === 'sent' && !_SENT_STATUSES.includes(r.status)) return false;
+      if (f.status === 'won' && r.status !== '受注') return false;
+      return true;
+    });
+    if (f.sort === 'mhigh') rows = rows.slice().sort((a, b) => (b.margin ?? -Infinity) - (a.margin ?? -Infinity));
+    else if (f.sort === 'mlow') rows = rows.slice().sort((a, b) => (a.margin ?? Infinity) - (b.margin ?? Infinity));
+    else rows = rows.slice().sort((a, b) => b.ts - a.ts);
+    return rows;
+  }
+
+  function _renderLedger(forceRebuild) {
+    const e = document.getElementById('statsPane-ledger');
+    if (!e) return;
+    const source = document.getElementById('statsSource')?.value || 'both';
+    if (_ledgerCache === null || forceRebuild === true) _ledgerCache = _ledgerBuild(source);
+    if (!_ledgerCache.length) {
+      e.innerHTML = '<p class="stats-empty">単価入力のある明細がありません。<br>' +
+        '<small>明細行に仕入単価・売単価を入れて案件を保存すると、ここに並びます。</small></p>';
+      return;
+    }
+    const uniq = fn => [...new Set(_ledgerCache.map(fn).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'ja'));
+    const dl = (id, arr) => `<datalist id="${id}">${arr.slice(0, 400).map(v => `<option value="${_eav(v)}">`).join('')}</datalist>`;
+    const ports = [...new Set(_ledgerCache.flatMap(r => [r.pol, r.pod]).flatMap(v => String(v || '').split(',')).map(v => v.trim()).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'ja'));
+    const modes = uniq(r => r.mode);
+    const inp = (key, ph, list) => `<input class="ldg-in" type="text" value="${_eav(_ledgerF[key])}" placeholder="${ph}" list="${list}" oninput="statsLedgerSet('${key}',this.value)">`;
+    const sel = (key, opts) => `<select class="ldg-in" onchange="statsLedgerSet('${key}',this.value)">` +
+      opts.map(([v, l]) => `<option value="${_eav(v)}"${_ledgerF[key] === v ? ' selected' : ''}>${_esc(l)}</option>`).join('') + '</select>';
+    e.innerHTML =
+      '<p class="stats-syn-hint">明細1行ずつを、案件の条件（お客様・航路・モード・輸出入）と並べて振り返ります。条件を入れて絞り込むと、「どの仕入先から・いくらで買って・どのお客様に・いくらで売ったか」を確認できます。仕入・売の片方しか入っていない行は粗利率が「—」です。</p>' +
+      '<div class="ldg-filter">' +
+        inp('cust', 'お客様', 'ldgCust') + inp('route', '航路（港名）', 'ldgPort') + inp('nm', '作業・品名', 'ldgNm') + inp('sv', '仕入先（サブコン）', 'ldgSv') +
+        sel('mode', [['', 'モード：すべて'], ...modes.map(m => [m, _MODE_LABEL[m] || m])]) +
+        sel('dir', [['', '輸出入：すべて'], ['export', '輸出'], ['import', '輸入']]) +
+        sel('status', [['all', '案件：すべて'], ['sent', '提示後のみ'], ['won', '受注のみ']]) +
+        sel('sort', [['new', '新しい順'], ['mhigh', '粗利率が高い順'], ['mlow', '粗利率が低い順']]) +
+        '<button class="stats-sort-btn" onclick="statsLedgerClear()">条件をクリア</button>' +
+      '</div>' +
+      dl('ldgCust', uniq(r => r.customer)) + dl('ldgSv', uniq(r => r.sv)) + dl('ldgNm', uniq(r => r.nm)) + dl('ldgPort', ports) +
+      '<div id="ldgResult"></div>';
+    _renderLedgerResult();
+  }
+
+  function _renderLedgerResult() {
+    const box = document.getElementById('ldgResult');
+    if (!box) return;
+    const rows = _ledgerFiltered();
+    if (!rows.length) { box.innerHTML = '<p class="stats-empty">条件に合う明細がありません。条件をゆるめてください。</p>'; return; }
+    const caseCount = new Set(rows.map(r => r.caseId || r.caseName)).size;
+
+    // 仕入先別のまとめ（同じ仕入先・単位・通貨ごと）。「いくらで買えたか」の相場感を見るための集計。
+    const sm = new Map();
+    rows.forEach(r => {
+      if (!r.sv || r.pp == null) return;
+      const k = r.sv + '\x00' + r.un + '\x00' + r.pc;
+      if (!sm.has(k)) sm.set(k, { sv: r.sv, un: r.un, pc: r.pc, n: 0, min: Infinity, max: -Infinity, lastTs: -1, last: null, lastBp: null, lastBc: 'JPY', cost: 0, bill: 0 });
+      const g = sm.get(k);
+      g.n++; g.min = Math.min(g.min, r.pp); g.max = Math.max(g.max, r.pp);
+      if (r.ts >= g.lastTs) { g.lastTs = r.ts; g.last = r.pp; g.lastBp = r.bp; g.lastBc = r.bc; }
+      if (r.costJ != null) { g.cost += r.costJ; g.bill += r.billJ; }
+    });
+    const smList = [...sm.values()].sort((a, b) => b.n - a.n).slice(0, 8);
+    let h = `<p class="stats-syn-hint"><b>${rows.length}</b> 明細（${caseCount} 案件）</p>`;
+    if (smList.length) {
+      h += '<table class="stats-table ldg-sum"><thead><tr><th>仕入先（同じ単位・通貨ごと）</th><th class="stats-num-col">件数</th><th>仕入単価（最安〜最高）</th><th>直近の仕入</th><th>直近の売</th><th class="stats-num-col">平均粗利率</th></tr></thead><tbody>' +
+        smList.map(g => {
+          const m = (window.SharedCalc && g.bill > 0) ? SharedCalc.grossMarginPct(g.bill, g.cost) : null;
+          const u = g.un ? ' /' + _esc(g.un) : '';
+          return `<tr><td class="stats-val">${_usageSpan('sv', g.sv)}</td><td class="stats-num-col">${g.n}</td>` +
+                 `<td>${_fmtMoney(g.min, g.pc)}${g.max !== g.min ? ' 〜 ' + _fmtMoney(g.max, g.pc) : ''}${u}</td>` +
+                 `<td>${_fmtMoney(g.last, g.pc)}${u}</td><td>${_fmtMoney(g.lastBp, g.lastBc)}${g.lastBp != null ? u : ''}</td>` +
+                 `<td class="stats-num-col ${m == null ? '' : (m >= 0 ? 'sd-margin-pos' : 'sd-margin-neg')}">${m == null ? '—' : m.toFixed(1) + '%'}</td></tr>`;
+        }).join('') + '</tbody></table>';
+    }
+
+    const lim = _limitOf('statsPane-ledger');
+    const fmtDate = ts => ts ? new Date(ts).toLocaleDateString('ja-JP', { year: '2-digit', month: '2-digit', day: '2-digit' }) : '—';
+    h += '<div class="ldg-scroll"><table class="stats-table ldg-table"><thead><tr>' +
+         '<th>日付</th><th>お客様</th><th>航路</th><th>作業・品名</th><th>仕入先</th><th class="stats-num-col">数量</th><th>仕入単価</th><th>売単価</th><th class="stats-num-col">粗利率</th><th>案件</th>' +
+         '</tr></thead><tbody>' +
+      rows.slice(0, lim).map(r => {
+        const u = r.un ? ' /' + _esc(r.un) : '';
+        const route = [r.pol, r.pod].filter(Boolean).join(' → ') || '—';
+        const modeTag = r.mode ? `<small class="ldg-sub">${_esc(_MODE_LABEL[r.mode] || r.mode)}${r.dir ? '・' + (_DIR_LABEL[r.dir] || r.dir) : ''}</small>` : '';
+        const mCls = r.margin == null ? '' : (r.margin >= 0 ? 'sd-margin-pos' : 'sd-margin-neg');
+        const link = r.caseId
+          ? `<a href="#" class="ldg-link" onclick="cloudPreviewPreset('${_ea(String(r.caseId))}');return false" title="案件の中身をプレビュー">${_esc(r.caseName)}</a>`
+          : `<span class="ldg-sub">${_esc(r.caseName)}（ローカル）</span>`;
+        return `<tr><td>${fmtDate(r.ts)}</td>` +
+               `<td class="stats-val">${_usageSpan('customer', r.customer) || '—'}</td>` +
+               `<td>${_esc(route)}${modeTag ? '<br>' + modeTag : ''}</td>` +
+               `<td class="stats-val">${r.cat ? `<small class="ldg-sub">${_esc(r.cat)}</small><br>` : ''}${_usageSpan('nm', r.nm) || '—'}</td>` +
+               `<td class="stats-val">${_usageSpan('sv', r.sv) || '—'}</td>` +
+               `<td class="stats-num-col">${r.bq != null ? r.bq : '—'}${u}</td>` +
+               `<td>${_fmtMoney(r.pp, r.pc)}${r.pp != null ? u : ''}</td>` +
+               `<td>${_fmtMoney(r.bp, r.bc)}${r.bp != null ? u : ''}</td>` +
+               `<td class="stats-num-col ${mCls}">${r.margin == null ? '—' : r.margin.toFixed(1) + '%'}</td>` +
+               `<td>${link}<br><small class="ldg-sub">${_esc(r.status || '')}${r.creator ? '・' + _esc(r.creator) : ''}</small></td></tr>`;
+      }).join('') + '</tbody></table></div>' + _moreHtml('statsPane-ledger', rows.length);
+    box.innerHTML = h;
+  }
+
   function _renderUn() {
     const e = document.getElementById('statsPane-un');
     if (!e || !_data) return;
@@ -2518,6 +2704,7 @@
     else if (id === 'svport')   _renderSvPort();
     else if (id === 'custitem') _renderCustItem();
     else if (id === 'margindiff') _renderMarginDiff();
+    else if (id === 'ledger')   _renderLedger();
     else if (id === 'charges')  _renderCharges();
     else if (id === 'master')   _renderMaster();
     else if (id === 'alias')    _renderAlias();
@@ -2554,6 +2741,7 @@
     else if (paneId === 'svport')   _renderSvPort();
     else if (paneId === 'custitem') _renderCustItem();
     else if (paneId === 'margindiff') _renderMarginDiff();
+    else if (paneId === 'ledger')   _renderLedger(true);
     else if (paneId === 'pattern')  _renderPattern();
     else if (paneId === 'charges')  _renderCharges();
     else if (paneId === 'master')   _renderMaster();
@@ -2664,6 +2852,7 @@
     if (btn) { btn.disabled = true; btn.textContent = '⌛ 更新中…'; }
     try {
       _data  = null;
+      _ledgerCache = null;
       _cvMap = null;
       const source = document.getElementById('statsSource')?.value || 'both';
       if (source !== 'local' && _cloud() && typeof window.cloudListPresets === 'function') {
