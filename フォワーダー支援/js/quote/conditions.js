@@ -1953,6 +1953,7 @@
   }
 
   function _renderPackingPatternTabs() {
+    renderQtyPatternBar();   // 見積もりテーブルの上の切替（編集中のパターンの表示）も合わせて更新
     const wrap = document.getElementById('cdPatternTabs');
     if (!wrap) return;
     // パターンが1件だけ（かつ無名）なら、まだ複数パターンを使っていない案件なので
@@ -2113,6 +2114,7 @@
     _applyPatternQtyLinks(i);
     _applyPatternRouteLinks(i);
     _renderRouteEntries();
+    renderQtyPatternBar();
     if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
     if (typeof scheduleSnapshot === 'function') scheduleSnapshot();
   };
@@ -2187,7 +2189,44 @@
     if (hideChanged && typeof updateTotals === 'function') updateTotals();
     // サブコン・サブコン×パターン見出しの「含む/除外」の紐付けを適用（row.js 側で定義）
     if (typeof _applyPatternGroupExcludeLinks === 'function') _applyPatternGroupExcludeLinks(i);
+    renderQtyPatternBar();   // 「要確認」の行数を更新
   }
+
+  // ===== 見積もりテーブルの上の「数量パターン」切替（FCL案／LCL案など） =====
+  // 数量パターンを 2 つ以上使っているときだけ、編集中のパターンを表の操作バー（スクロールしても上に付く）に常時出し、その場で切り替えられるようにする。
+  // あわせて、表の上端の線・数量の列見出しを、編集中のパターンの色（FCL＝緑／LCL＝青／指定なし＝茶）にする。
+  // 枠線の凡例（緑＝このパターン専用の数量／橙の点線＝他のパターンだけに設定があり、このパターンは未設定）と、要確認の行数・ジャンプも出す。
+  function renderQtyPatternBar() {
+    const bar = document.getElementById('qtyPatternBar');
+    const tab = document.getElementById('tab-quote-make');
+    const hd  = document.getElementById('hdQtyPat');
+    if (!bar) return;
+    const multi = _packingPatterns.length >= 2;
+    bar.hidden = !multi;
+    const act = _packingPatterns[_packingActiveIdx] || {};
+    const label = p => p.name || `パターン${_packingPatterns.indexOf(p) + 1}`;
+    if (tab) tab.dataset.qpat = multi ? (act.mode === 'fcl' || act.mode === 'lcl' ? act.mode : 'other') : '';
+    if (hd) { hd.hidden = !multi; hd.textContent = multi ? label(act) : ''; hd.title = multi ? '編集中の数量パターン：' + label(act) : ''; }
+    if (!multi) { bar.innerHTML = ''; return; }
+    const chips = _packingPatterns.map((pt, i) => {
+      const on = i === _packingActiveIdx;
+      const mode = pt.mode === 'fcl' || pt.mode === 'lcl' ? pt.mode : '';
+      return `<button type="button" class="qpat-chip${on ? ' is-active' : ''}${mode ? ' is-' + mode : ''}" aria-pressed="${on}" onclick="switchPackingPattern(${i})" ` +
+        `title="${on ? '編集中の数量パターン' : 'クリックでこのパターンに切り替えて編集'}">` +
+        (mode ? `<span class="qpat-mode">${mode.toUpperCase()}</span>` : '') + `<span class="qpat-name">${_escMulti(label(pt))}</span></button>`;
+    }).join('');
+    const need = document.querySelectorAll('#tableBody .pq-pattern-needs-check').length;
+    bar.innerHTML = `<span class="qpat-lbl" title="見積もりテーブルの数量は、パターンごとに記憶されます">📦 数量パターン</span>${chips}` +
+      (need ? `<button type="button" class="qpat-need" onclick="jumpToQtyNeedsCheck()" title="他のパターンでは数量が設定されているのに、このパターンでは未設定の行（値は自動では変わらないので、必要なら入れ直してください）。クリックで最初の行へ">⚠ 要確認 ${need} 行</button>` : '') +
+      `<span class="qpat-legend"><i class="qpat-sw is-linked"></i>このパターン専用の数量<i class="qpat-sw is-check"></i>他のパターンだけに設定あり</span>`;
+  }
+  window.renderQtyPatternBar = renderQtyPatternBar;
+  window.jumpToQtyNeedsCheck = function () {
+    const el = document.querySelector('#tableBody .pq-pattern-needs-check');
+    if (!el) return;
+    el.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    try { el.focus({ preventScroll: true }); } catch (e) {}
+  };
 
   // 幹線輸送：航路の有効/無効（✓/—）を、物量パターンに紐付けて適用する。
   // 紐付けが無い航路（そのパターンでまだ切り替えたことがない航路）は現状の enabled のまま触らない
