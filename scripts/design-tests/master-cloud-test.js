@@ -77,7 +77,7 @@ const http = require('http'), fs = require('fs'), path = require('path');
             if ((t === 'master_requests' || t === 'stats_exclusions') && !db[t]) return Promise.resolve({ data: null, error: { message: 'relation "' + t + '" does not exist' } }).then(res, rej);
             const rows = (db[t] = db[t] || []);
             // 1 行でも不正（制約違反）なら、まとめて書いた分も全体が失敗する（Postgres と同じ）
-            if (opts.badKey && (st.op === 'upsert' || st.op === 'insert') && [].concat(st.payload).some(o => [o.canonical, o.value, o.from_value].includes(opts.badKey))) return Promise.resolve({ data: null, error: { message: 'violates check constraint' } }).then(res, rej);
+            if (opts.badKey && (st.op === 'upsert' || st.op === 'insert') && [].concat(st.payload).some(o => [o.canonical, o.value, o.from_value].includes(opts.badKey) || (o.aliases || []).includes(opts.badKey))) return Promise.resolve({ data: null, error: { message: 'violates check constraint' } }).then(res, rej);
             if (opts.failDetailWrites && t === 'master_details' && st.op !== 'select') return Promise.resolve({ data: null, error: { message: 'new row violates row-level security policy' } }).then(res, rej);
             let data = null;
             if (st.op === 'upsert' || st.op === 'insert') {
@@ -464,6 +464,45 @@ const http = require('http'), fs = require('fs'), path = require('path');
     ok(L + '不正な 1 件があっても、ほかの 2 件は移せる', r.good && !r.bad, r);
     ok(L + '移せなかった分はこのブラウザに残す', r.kept, r);
     ok(L + '案内に件数（1 件）と理由・前回の失敗が残る', r.notice.includes('<b>1</b><span>同義グループ</span>') && r.notice.includes('前回の移行で移せなかったもの') && r.notice.includes('violates check constraint'), r.notice);
+    ok(L + 'JS エラーなし', errs.length === 0, errs);
+    await ctx.close();
+  }
+
+  // ===== 別名（略称）の追加：マスター管理の「＋ 別名」 =====
+  {
+    const { ctx, p, errs } = await open(true, { legacy: {} });
+    const L = '[別名の追加] ';
+    await p.evaluate(() => { switchCategory('master', document.querySelector('[onclick*="switchCategory(\'master"]')); }); await p.waitForTimeout(1200);
+    const has = await p.evaluate(() => !!document.querySelector('.stats-master-abbrev-add[onclick*="テスト運送"]'));
+    ok(L + '個別マスター（サブコン）の行に「＋ 別名」', has);
+    await p.click('.stats-master-abbrev-add[onclick*="テスト運送"]');
+    await p.fill('.stats-abbrev-input', 'テスト運輸'); await p.click('.stats-abbrev-ok'); await p.waitForTimeout(1200);
+    const r = await p.evaluate(() => ({
+      db: window.__db.synonym_groups.some(g => g.field === 'sv' && g.canonical === 'テスト運送' && (g.aliases || []).includes('テスト運輸')),
+      shown: [...document.querySelectorAll('.stats-syn-member')].some(e => e.textContent.includes('テスト運輸')),
+      cand: nameCanon('sv', 'テスト運輸'),
+    }));
+    ok(L + 'クラウドの同義グループに別名が入る', r.db, r);
+    ok(L + '画面（同義グループの「別名・略称」）に別名が出る', r.shown, r);
+    ok(L + '別名が代表名に読み替えられる', r.cand === 'テスト運送', r);
+    ok(L + 'JS エラーなし', errs.length === 0, errs);
+    await ctx.close();
+  }
+  {
+    // 書き込みに失敗したときは「統合しました」と出さず、理由を出す
+    const { ctx, p, errs } = await open(true, { legacy: {}, badKey: 'テスト運輸' });
+    const L = '[別名の追加・失敗] ';
+    await p.evaluate(() => { switchCategory('master', document.querySelector('[onclick*="switchCategory(\'master"]')); }); await p.waitForTimeout(1200);
+    await p.click('.stats-master-abbrev-add[onclick*="テスト運送"]');
+    await p.fill('.stats-abbrev-input', 'テスト運輸'); await p.click('.stats-abbrev-ok'); await p.waitForTimeout(1200);
+    const r = await p.evaluate(() => ({
+      db: window.__db.synonym_groups.some(g => (g.aliases || []).includes('テスト運輸')),
+      okToast: [...document.querySelectorAll('.toast')].some(e => e.textContent.includes('統合しました')),
+      warn: [...document.querySelectorAll('.toast')].map(e => e.textContent).find(t => t.includes('保存できませんでした') || t.includes('書き込め')) || '',
+    }));
+    ok(L + '書けなかった（DB には入らない）', !r.db, r);
+    ok(L + '「統合しました」とは出さない', !r.okToast, r);
+    ok(L + '失敗の理由を出す', /violates check constraint/.test(r.warn), r);
     ok(L + 'JS エラーなし', errs.length === 0, errs);
     await ctx.close();
   }
