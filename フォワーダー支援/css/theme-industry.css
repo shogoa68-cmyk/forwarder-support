@@ -9573,6 +9573,17 @@ html.theme-industry {
 :where(html.theme-industry) #tab-quote-make .row-detail-panel .ic-group .ic-chip {
   border-radius: 0;
 }
+:where(html.theme-industry) #tab-quote-make #quoteTable tr.subcon-group-header .subcon-group-header-inner > button.sv-master-chip {
+  opacity: 1;
+  margin-left: 0;
+  border-radius: 0;
+  height: 22px;
+  padding: 0 8px;
+  font-size: 11px;
+}
+:where(html.theme-industry) #tab-quote-make #quoteTable tr.subcon-group-header .subcon-group-header-inner > button.sv-master-chip[hidden] {
+  display: none;
+}
 :where(html.theme-industry) #tab-quote-make #quoteTable .st-notes-btn {
   display: inline-flex;
   align-items: center;

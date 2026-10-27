@@ -777,9 +777,10 @@
     window.removeEventListener('resize', _dismissSuggest);
   }
   // 入力欄の下に出す小さな提案ポップアップ（共通）。wire(el) でボタンの動作を結ぶ
+  let _suggestAnchor = null;
   function _openSuggest(input, innerHtml, wire, ms) {
     _dismissSuggest();
-    const r = input.getBoundingClientRect();
+    const r = (_suggestAnchor || input).getBoundingClientRect();
     const el = document.createElement('div');
     el.className = 'syn-suggest';
     el.innerHTML = innerHtml;
@@ -878,14 +879,15 @@
     if (canon) _showSynSuggest(t, canon);
     else if (field === 'sv') _checkSubconMaster(t);   // サブコンはマスター引用：未登録なら確認
     else _dismissSuggest();
-    if (field === 'sv' && typeof window.refreshRowSvChip === 'function') window.refreshRowSvChip(t.closest('tr'));
+    if (field === 'sv' && typeof window.refreshAllRowSvChips === 'function') window.refreshAllRowSvChips();
   });
   // 行の「サブコン未登録」の印から：この行のサブコン名について、登録（承認制は申請）の確認を出す
-  window.arCheckSubconRow = function (input) { if (input) { _dismissSuggest(); _checkSubconMaster(input); } };
+  // anchor：確認の吹き出しを出す位置の基準（サブコン見出しの印）。省略時は入力欄の下
+  window.arCheckSubconRow = function (input, anchor) { if (input) { _dismissSuggest(); _suggestAnchor = anchor || null; try { _checkSubconMaster(input); } finally { _suggestAnchor = null; } } };
 
   // 品名・港・お客様・キャリア：マスター（入力候補）に無い名前に、控えめな印を付ける（吹き出しは出さない＝入力の邪魔をしない）。
   // そのまま使ってよいが、新人が「合っているのか」を確認できるように。マスターが 1 件も無い間（未整備・読込前）は付けない
-  const _UNREG_FIELDS = ['nm', 'port', 'customer', 'carrier', 'sv'];
+  const _UNREG_FIELDS = ['nm', 'port', 'customer', 'carrier'];   // サブコンは行ごとには印を付けず、サブコン見出しに 1 つだけ出す（row.js refreshAllRowSvChips）
   function _markUnregistered(input, field, check) {
     if (!_UNREG_FIELDS.includes(field)) return;
     let v = (input.value || '').trim();
