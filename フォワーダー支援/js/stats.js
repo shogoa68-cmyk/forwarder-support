@@ -477,7 +477,8 @@
         if (!list.length) return;
         const names = list.map(c => c.name).filter(Boolean);
         const disp = names.length ? names.slice(0, 2).join('、') + (names.length > 2 ? ' 他' : '') : list.length + '名';
-        chips.push(`<span class="stats-md-chip" title="${_eav(s.label + '：' + list.length + '名')}"><b>${_esc(s.label)}</b>${_esc(disp)}</span>`);
+        const locs = list.filter(c => c.location || c.dept).map(c => (c.name || '（氏名未入力）') + '：' + [c.dept, c.location].filter(Boolean).join(' / '));
+        chips.push(`<span class="stats-md-chip" title="${_eav(s.label + '：' + list.length + '名' + (locs.length ? '\n' + locs.join('\n') : ''))}"><b>${_esc(s.label)}</b>${_esc(disp)}${locs.length ? ' 📍' : ''}</span>`);
         return;
       }
       if (s.tags) {
@@ -489,6 +490,16 @@
       }
       const v = String(raw || '').trim();
       if (!v) return;
+      if (s.link) {
+        // ウェブサイトはクリックで開けるリンクチップ（http/https のみ。それ以外の形式はリンクにしない）
+        const href = /^https?:\/\//i.test(v) ? v : (/^[a-z][a-z0-9+.\-]*:/i.test(v) ? '' : 'https://' + v);
+        const shown = v.replace(/^https?:\/\//i, '').replace(/\/$/, '');
+        const short = shown.length > 28 ? shown.slice(0, 28) + '…' : shown;
+        chips.push(href
+          ? `<a class="stats-md-chip stats-md-link" href="${_eav(href)}" target="_blank" rel="noopener noreferrer" title="${_eav(s.label + '：' + v + '（クリックで開く）')}"><b>${_esc(s.label)}</b>${_esc(short)} ↗</a>`
+          : `<span class="stats-md-chip" title="${_eav(s.label + '：' + v)}"><b>${_esc(s.label)}</b>${_esc(short)}</span>`);
+        return;
+      }
       const opt = s.options && s.options.find(o => o.value === v);
       const disp = opt ? opt.label : v;
       const short = disp.length > 14 ? disp.slice(0, 14) + '…' : disp;
@@ -2470,10 +2481,12 @@
     c = c || {};
     return `<div class="md-contact-row">` +
       `<input type="text" class="ar-input md-contact-name" placeholder="氏名" value="${_eav(c.name || '')}">` +
+      `<input type="text" class="ar-input md-contact-dept" placeholder="所属部署・課（例：海外営業部 第2課）" value="${_eav(c.dept || '')}">` +
       `<input type="text" class="ar-input md-contact-furi" placeholder="ふりがな（読みで入力補完）" title="ふりがな：見積の「ご担当者」欄で、読みのひらがなを入力すると氏名の候補に出ます" value="${_eav(c.furigana || '')}">` +
       `<input type="text" class="ar-input md-contact-phone" placeholder="電話番号" value="${_eav(c.phone || '')}">` +
       `<input type="text" class="ar-input md-contact-email" placeholder="E-MAIL" value="${_eav(c.email || '')}">` +
       `<input type="text" class="ar-input md-contact-other" placeholder="その他連絡手段" value="${_eav(c.other || '')}">` +
+      `<input type="text" class="ar-input md-contact-location" placeholder="この担当者の所在地（支店・拠点・部署など）" title="担当者ごとの所在地：代表の所在地と違う拠点の担当者の場合に入力します" value="${_eav(c.location || '')}">` +
       `<button type="button" class="md-contact-del" title="この担当者を削除" onclick="this.closest('.md-contact-row').remove()">✕</button>` +
       `</div>`;
   }
@@ -2620,7 +2633,9 @@
           phone: row.querySelector('.md-contact-phone')?.value.trim() || '',
           email: row.querySelector('.md-contact-email')?.value.trim() || '',
           other: row.querySelector('.md-contact-other')?.value.trim() || '',
-        })).filter(c => c.name || c.furigana || c.phone || c.email || c.other);
+          location: row.querySelector('.md-contact-location')?.value.trim() || '',
+          dept: row.querySelector('.md-contact-dept')?.value.trim() || '',
+        })).filter(c => c.name || c.furigana || c.phone || c.email || c.other || c.location || c.dept);
         if (rows.length) details[s.key] = rows;
         return;
       }
