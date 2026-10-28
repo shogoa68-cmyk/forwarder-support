@@ -38,6 +38,7 @@ const http = require('http'), fs = require('fs'), path = require('path');
   const legacy = {
     masterCandidates_v1: [{ field: 'nm', value: 'ローカル品名', votes: 1 }, { field: 'nm', value: 'THC', votes: 1 }],
     synonymGroups_v1: [{ id: 'l1', field: 'sv', canonical: 'ローカル運送', aliases: ['ﾛｰｶﾙ運送'] }],
+    unitAlias_v1: [{ id: 'u1', canonical: 'CONTAINER', aliases: ['CNTR'] }],
     masterDetails_v1: [{ field: 'nm', value: 'ローカル品名', details: { defaultUnit: 'B/L' } }],
     aliasRules_v1: [{ id: 'l2', field: 'port', from_value: 'YKH', to_value: 'Yokohama' }],
     abbrevPairs_v1: [{ id: 'l3', field: 'carrier', abbrev: 'NTL', full: 'NAIGAI TRANS LINES' }],
@@ -188,13 +189,15 @@ const http = require('http'), fs = require('fs'), path = require('path');
       md: window.__db.master_details.some(m => m.value === 'ローカル品名'),
       rule: window.__db.alias_rules.some(r => r.from_value === 'YKH'),
       abbrev: window.__db.synonym_groups.some(g => g.canonical === 'NAIGAI TRANS LINES' && g.aliases.includes('NTL')),
-      cleared: ['masterCandidates_v1', 'synonymGroups_v1', 'masterDetails_v1', 'aliasRules_v1', 'abbrevPairs_v1'].every(k => localStorage.getItem(k) === null),
+      unit: window.__db.synonym_groups.some(g => g.field === 'un' && g.canonical === 'CONTAINER' && g.aliases.includes('CNTR')),
+      cleared: ['masterCandidates_v1', 'synonymGroups_v1', 'unitAlias_v1', 'masterDetails_v1', 'aliasRules_v1', 'abbrevPairs_v1'].every(k => localStorage.getItem(k) === null),
       exclKept: !!localStorage.getItem('statsExclusions_v1'),
       backup: !!localStorage.getItem('masterLocalBackup_v1'),
       noticeAfter: window.masterTopNoticeHtml(),
       canon: nameCanon('sv', 'ﾛｰｶﾙ運送'),
     }));
     ok(L + '移行：マスター・同義グループ・詳細・統合ルール・略称がクラウドへ', r5.master && r5.syn && r5.md && r5.rule && r5.abbrev, r5);
+    ok(L + '移行：このブラウザの単位の別名もクラウドへ', r5.unit, r5);
     ok(L + '移行後：このブラウザの分を消し、バックアップを残す', r5.cleared && r5.backup, r5);
     ok(L + '除外リストの共有テーブルが無い間は、このブラウザの除外リストを残す', r5.exclKept, r5);
     ok(L + '移行後：案内が消え、移した同義グループが効く', r5.noticeAfter === '' && r5.canon === 'ローカル運送', r5);
@@ -514,6 +517,39 @@ const http = require('http'), fs = require('fs'), path = require('path');
     ok(L + '書けなかった（DB には入らない）', !r.db, r);
     ok(L + '「統合しました」とは出さない', !r.okToast, r);
     ok(L + '失敗の理由を出す', /violates check constraint/.test(r.warn), r);
+    ok(L + 'JS エラーなし', errs.length === 0, errs);
+    await ctx.close();
+  }
+
+  // ===== 単位の別名もクラウド共有／書き込みの順序（途中で失敗しても別名が消えない） =====
+  {
+    const { ctx, p, errs } = await open(true, { legacy: {}, noLegacy: true });
+    const L = '[単位・順序] ';
+    await p.evaluate(async () => { await synLoadCloud(); await uaAddAlias('CNTR', 'CONTAINER'); });
+    await p.waitForTimeout(800);
+    const r = await p.evaluate(() => ({
+      db: window.__db.synonym_groups.some(g => g.field === 'un' && g.canonical === 'CONTAINER' && g.aliases.includes('CNTR')),
+      local: localStorage.getItem('unitAlias_v1'),
+      map: uaGetNormalizeMap().CNTR,
+      groups: uaGetGroups().length,
+    }));
+    ok(L + '単位の別名はクラウドへ保存され、ブラウザには残さない', r.db && r.local === null, r);
+    ok(L + '単位の別名が代表単位に読み替えられる', r.map === 'CONTAINER' && r.groups === 1, r);
+    ok(L + 'JS エラーなし', errs.length === 0, errs);
+    await ctx.close();
+  }
+
+  {
+    // 付け替え先への書き込みに失敗しても、元の所属（別名）は消えない
+    const { ctx, p, errs } = await open(true, { legacy: {}, noLegacy: true, badKey: 'BADGROUP' });
+    const L = '[付け替えの失敗] ';
+    await p.evaluate(async () => {
+      window.__db.synonym_groups.push({ id: 'g1', field: 'sv', canonical: 'GROUP1', aliases: ['AAA'] });
+      await synLoadCloud();
+      await synAddAlias('sv', 'AAA', 'BADGROUP');
+    });
+    await p.waitForTimeout(800);
+    ok(L + '失敗しても、元のグループの別名が残る', await p.evaluate(() => window.__db.synonym_groups.some(g => g.canonical === 'GROUP1' && g.aliases.includes('AAA'))));
     ok(L + 'JS エラーなし', errs.length === 0, errs);
     await ctx.close();
   }

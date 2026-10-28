@@ -871,11 +871,9 @@
   // 単位(un)は ua* 機構の代表を対象にする。
   window.statsSynMergePicker = function (field, value, btn) {
     document.querySelectorAll('.stats-syn-picker').forEach(el => el.remove());
-    const canonSet = new Set(field === 'un'
-      ? (typeof window.uaGetGroups === 'function' ? window.uaGetGroups() : []).map(g => g.canonical)
-      : (typeof window.synGetGroups === 'function' ? window.synGetGroups(field) : []).map(g => g.canonical));
+    const canonSet = new Set((typeof window.synGetGroups === 'function' ? window.synGetGroups(field) : []).map(g => g.canonical));
     // 別名のまだ無いマスターも「まとめ先」にできる
-    if (field !== 'un' && _cvMap) _cvMap.forEach(({ total }, key) => {
+    if (_cvMap) _cvMap.forEach(({ total }, key) => {
       if (total < 1) return;
       const sep = key.indexOf('\x00');
       if (key.substring(0, sep) === field) canonSet.add(key.substring(sep + 1));
@@ -901,13 +899,7 @@
     if (!sel) return;
     const target = sel.value;
     if (!target || target === value) return;
-    if (field === 'un') {
-      // value（代表）を target（代表）へ統合：配下を吸収し target を代表に
-      if (typeof window.uaRenameCanonical === 'function') window.uaRenameCanonical(value, target);
-      if (typeof window.statsRerenderActive === 'function') window.statsRerenderActive();
-    } else if (typeof window.synAddAlias === 'function') {
-      await window.synAddAlias(field, value, target);
-    }
+    if (typeof window.synAddAlias === 'function') await window.synAddAlias(field, value, target);   // 配下の別名ごと target の別名になる（単位も同じ）
   };
 
   // 軽量再描画（クラウドプリセット/投票の再取得を伴わない。同義グループ更新時に使用）
@@ -2276,11 +2268,9 @@
       '<span class="master-new-hint">実際の入力値に無い名称でも登録できます。登録後、各マスターの「＋ 別名」で略称・英語表記を足せます。</span>' +
       '</div>';
 
-    // --- 同義グループ一覧（sv/nm/customer/port は syn*、un は ua* から集約）---
+    // --- マスター＋別名の一覧（単位も同じ synonym_groups）---
     const synGroups = (typeof window.synGetGroups === 'function' ? window.synGetGroups() : []).slice();
-    const unitGroups = (typeof window.uaGetGroups === 'function' ? window.uaGetGroups() : [])
-      .map(g => ({ field: 'un', canonical: g.canonical, aliases: g.aliases || [] }));
-    const allSyn = [...synGroups, ...unitGroups]
+    const allSyn = synGroups   // 単位（un）も他の種別と同じクラウドの別名（synonym_groups）
       .sort((a, b) => (labels[a.field] || a.field).localeCompare(labels[b.field] || b.field) || (a.canonical || '').localeCompare(b.canonical || ''));
     // 統合（A案）: 代表(canonical)は自動的にマスター扱い。個別マスター表からは除外し、
     // 下の「同義グループ（代表＝マスター）」欄に集約表示する（二重表示を避ける）。

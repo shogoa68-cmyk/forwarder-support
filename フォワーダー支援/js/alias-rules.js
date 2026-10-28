@@ -959,20 +959,18 @@
   });
 
 
+  // 単位の別名・マスター名も他の種別と同じクラウド（synonym_groups, field='un'）で共有する（2026-10）。
+  // 以前はこのブラウザだけ（localStorage unitAlias_v1）に持っていた。そのデータは移行の案内（チームへ移す）でクラウドへ移す。
+  // ua* は呼び出し元（統計・マスター管理）を変えないための薄い入口で、書き込みは syn* に任せる（再描画・通知も syn* が行う）。
   const UA_KEY = 'unitAlias_v1';
-  // 統計タブでは品名/サブコン/キャリア等の描画中に行・チップ単位で繰り返し呼ばれるため、
-  // 毎回 JSON.parse し直すとデータ量に比例して重くなる。保存時のみ無効化するキャッシュで
-  // 同一レンダリング内の再パースを避ける。
-  let _uaCache = null;
-  function _loadUA()  {
-    if (_uaCache !== null) return _uaCache;
-    try { _uaCache = JSON.parse(localStorage.getItem(UA_KEY) || '[]'); } catch(e) { _uaCache = []; }
-    return _uaCache;
+  function _loadUA() {
+    return _synAll().filter(g => g.field === 'un').map(g => ({ id: g.id, canonical: g.canonical, aliases: g.aliases || [] }));
   }
-  function _saveUA(a) { _uaCache = a; localStorage.setItem(UA_KEY, JSON.stringify(a)); }
-  function _notifyUA() {
-    _refreshDatalist();
-    if (typeof window.statsRefreshUnPane === 'function') window.statsRefreshUnPane();
+  function _localUA(bk) {
+    let arr;
+    if (bk) arr = _bkArr(bk, UA_KEY);
+    else { try { arr = JSON.parse(localStorage.getItem(UA_KEY) || '[]'); } catch (e) { arr = []; } }
+    return (Array.isArray(arr) ? arr : []).filter(g => g && g.canonical).map(g => ({ field: 'un', canonical: g.canonical, aliases: g.aliases || [] }));
   }
 
   window.uaGetGroups = function() { return _loadUA(); };
@@ -983,61 +981,11 @@
     return map;
   };
 
-  window.uaSetCanonical = function(unit) {
-    if (!unit) return;
-    const groups = _loadUA();
-    groups.forEach(g => { g.aliases = (g.aliases || []).filter(a => a !== unit); });
-    if (!groups.find(g => g.canonical === unit))
-      groups.push({ id: Date.now() + '_' + Math.random().toString(36).slice(2), canonical: unit, aliases: [] });
-    _saveUA(groups);
-    _notifyUA();
-    if (typeof window.quoteShowToast === 'function') window.quoteShowToast('⭐ 「' + unit + '」を代表単位に設定しました', 'success');
-  };
-
-  // 代表単位の新規入力・編集（リネーム）。旧名称は別名として残す。
-  window.uaRenameCanonical = function(oldCanon, newCanon) {
-    oldCanon = (oldCanon || '').trim(); newCanon = (newCanon || '').trim();
-    if (!oldCanon || !newCanon || oldCanon === newCanon) return;
-    const groups = _loadUA();
-    const old    = groups.find(g => g.canonical === oldCanon);
-    const target = groups.find(g => g.canonical === newCanon);
-    const merged = new Set([
-      ...(target ? (target.aliases || []) : []),
-      ...(old ? (old.aliases || []) : []),
-      oldCanon,
-    ]);
-    merged.delete(newCanon);
-    const out = groups.filter(g => g.canonical !== oldCanon && g.canonical !== newCanon);
-    out.push({ id: (old && old.id) || (Date.now() + '_' + Math.random().toString(36).slice(2)), canonical: newCanon, aliases: [...merged] });
-    _saveUA(out);
-    _notifyUA();
-    if (typeof window.quoteShowToast === 'function') window.quoteShowToast('✏️ 代表単位を「' + newCanon + '」に変更しました', 'success');
-  };
-
-  window.uaAddAlias = function(alias, canonical) {
-    if (!alias || !canonical || alias === canonical) return;
-    const groups = _loadUA();
-    groups.forEach(g => { g.aliases = (g.aliases || []).filter(a => a !== alias); });
-    let g = groups.find(g => g.canonical === canonical);
-    if (!g) { g = { id: Date.now() + '_' + Math.random().toString(36).slice(2), canonical, aliases: [] }; groups.push(g); }
-    if (!g.aliases.includes(alias)) g.aliases.push(alias);
-    _saveUA(groups);
-    _notifyUA();
-    if (typeof window.quoteShowToast === 'function') window.quoteShowToast('✅ 「' + alias + '」→「' + canonical + '」に統合しました', 'success');
-  };
-
-  window.uaRemoveAlias = function(alias, canonical) {
-    const groups = _loadUA();
-    const g = groups.find(g => g.canonical === canonical);
-    if (g) g.aliases = (g.aliases || []).filter(a => a !== alias);
-    _saveUA(groups);
-    _notifyUA();
-  };
-
-  window.uaRemoveGroup = function(canonical) {
-    _saveUA(_loadUA().filter(g => g.canonical !== canonical));
-    _notifyUA();
-  };
+  window.uaSetCanonical = function(unit) { return unit ? window.synSetCanonical('un', unit) : undefined; };
+  window.uaRenameCanonical = function(oldCanon, newCanon) { return window.synRenameCanonical('un', oldCanon, newCanon); };
+  window.uaAddAlias = function(alias, canonical) { return window.synAddAlias('un', alias, canonical); };
+  window.uaRemoveAlias = function(alias, canonical) { return window.synRemoveAlias('un', alias, canonical); };
+  window.uaRemoveGroup = function(canonical) { return window.synRemoveGroup('un', canonical); };
 
   window.uaShowMergePicker = function(unit, btn) {
     document.querySelectorAll('.ua-inline-picker').forEach(el => el.remove());
@@ -1191,13 +1139,14 @@
   window.synSetCanonical = async function (field, value) {
     if (!field || !value) return;
     if (_synRestricted()) return _synRestrictedToast();
-    // value が他グループの alias なら外す
-    for (const g of _synAll()) {
-      if (g.field === field && (g.aliases || []).includes(value))
-        if (!(await _synUpsert(field, g.canonical, g.aliases.filter(a => a !== value)))) return _synAfter();
-    }
+    // 書き込みは途中で失敗しても名前が消えない順にする：先に新しい形を書き、そのあと古い所属を外す
     if (!_synAll().find(g => g.field === field && g.canonical === value))
       if (!(await _synUpsert(field, value, []))) return _synAfter();
+    // value が他グループの alias なら外す
+    for (const g of _synAll()) {
+      if (g.field === field && g.canonical !== value && (g.aliases || []).includes(value))
+        if (!(await _synUpsert(field, g.canonical, g.aliases.filter(a => a !== value)))) return _synAfter();
+    }
     // 統合（A案）: 代表は自動的にマスター登録
     if (typeof window.statsEnsureMaster === 'function') await window.statsEnsureMaster(field, value);
     await _synAfter('⭐「' + value + '」を代表（マスター）に設定しました');
@@ -1207,18 +1156,20 @@
     if (!field || !alias || !canonical || alias === canonical) return;
     // 承認制：メンバーの別名追加は申請になり、管理者が承認すると反映される
     if (_synRestricted() && typeof window.statsRequestAlias === 'function') return window.statsRequestAlias(field, alias, canonical);
-    // alias を他グループの alias リストから外す
-    for (const g of _synAll()) {
-      if (g.field === field && g.canonical !== canonical && (g.aliases || []).includes(alias))
-        if (!(await _synUpsert(field, g.canonical, g.aliases.filter(a => a !== alias)))) return _synAfter();
-    }
-    // alias 自体が別グループの代表なら、その配下を吸収して解体（チェーン化を防ぐ）
+    // 書き込みは途中で失敗しても名前が消えない順にする：先に新しい所属（代表の別名リスト）を書き、そのあと古い所属を外す
+    // （途中で止まっても、最悪「二重に所属している」だけで、別名が失われることはない）
     let absorbed = [];
     const aliasGroup = _synAll().find(g => g.field === field && g.canonical === alias);
-    if (aliasGroup) { absorbed = aliasGroup.aliases || []; if (!(await _synDelete(field, alias))) return _synAfter(); }
+    if (aliasGroup) absorbed = aliasGroup.aliases || [];   // alias 自体が別グループの代表なら、その配下も吸収する（チェーン化を防ぐ）
     const g = _synAll().find(x => x.field === field && x.canonical === canonical);
     const aliases = [...new Set([...((g && g.aliases) || []), alias, ...absorbed])];
-    if (!(await _synUpsert(field, canonical, aliases))) return _synAfter();   // 書けなかったら、別名側のマスター解除などは行わない
+    if (!(await _synUpsert(field, canonical, aliases))) return _synAfter();   // 書けなかったら、何も変えない（別名側のマスター解除なども行わない）
+    // 他グループの alias リストから外す
+    for (const og of _synAll()) {
+      if (og.field === field && og.canonical !== canonical && (og.aliases || []).includes(alias))
+        if (!(await _synUpsert(field, og.canonical, og.aliases.filter(a => a !== alias)))) return _synAfter();
+    }
+    if (aliasGroup && !(await _synDelete(field, alias))) return _synAfter();
     // 統合（A案）: 代表は自動マスター化、統合した別名（および吸収した旧代表）はマスターから外す
     if (typeof window.statsEnsureMaster === 'function') await window.statsEnsureMaster(field, canonical);
     if (typeof window.statsEnsureNotMaster === 'function') {
@@ -1283,7 +1234,7 @@
   // ほかの人がクラウドで削除した古い写しも含まれうるので、移す前に件数と例を見せて選んでもらう（移す／移さずに使わない）
   // MD_KEY 等はこの後で定義されるため、使う時点で一覧にする
   // 除外リストは、共有テーブルがあるときだけ移行・削除の対象（無い間はこのブラウザの分を使い続けるため）
-  const _migKeys = () => ['masterCandidates_v1', SYN_KEY, MD_KEY, LOCAL_KEY, ABBREV_KEY].concat(_exclOn() ? [EXCL_KEY] : []);
+  const _migKeys = () => ['masterCandidates_v1', SYN_KEY, UA_KEY, MD_KEY, LOCAL_KEY, ABBREV_KEY].concat(_exclOn() ? [EXCL_KEY] : []);
   // bk を渡すと「このブラウザの現在の保存」ではなく「バックアップ（masterLocalBackup_v1）」の中身を対象にする
   // （クラウドに無いものだけを数える点は同じ。バックアップからの復元の案内に使う）
   function _bkArr(bk, key) {
@@ -1299,7 +1250,7 @@
     const masters = localMasters.filter(m => !cloudM.has(k(m.field, m.value)));
     const cloudSyn = _synCloud || [];
     const syn = [];
-    (bk ? _bkArr(bk, SYN_KEY) : (function () { try { return JSON.parse(localStorage.getItem(SYN_KEY) || '[]'); } catch (e) { return []; } })()).forEach(g => {
+    (bk ? _bkArr(bk, SYN_KEY) : (function () { try { return JSON.parse(localStorage.getItem(SYN_KEY) || '[]'); } catch (e) { return []; } })()).concat(_localUA(bk)).forEach(g => {
       const cg = cloudSyn.find(x => x.field === g.field && x.canonical === g.canonical);
       const missing = (g.aliases || []).filter(a => !cg || !(cg.aliases || []).includes(a));
       if (!cg || missing.length) syn.push({ field: g.field, canonical: g.canonical, aliases: missing, isNew: !cg });
@@ -1390,7 +1341,7 @@
     const bk = _migBackup();
     if (!bk) return 0;
     let n = 0;
-    ['masterCandidates_v1', SYN_KEY, MD_KEY, LOCAL_KEY, ABBREV_KEY, EXCL_KEY].forEach(key => {
+    ['masterCandidates_v1', SYN_KEY, UA_KEY, MD_KEY, LOCAL_KEY, ABBREV_KEY, EXCL_KEY].forEach(key => {
       const old = _bkArr(bk, key);
       if (!old.length) return;
       let cur; try { cur = JSON.parse(localStorage.getItem(key) || '[]'); } catch (e) { cur = []; }
