@@ -602,7 +602,8 @@
           const items = list.map(c => {
             const meta = [c.phone, c.email, c.other].filter(Boolean).join(' / ');
             return `<div class="cd-contact-item"><b>${_cdEsc(c.name || '（氏名未入力）')}</b>` +
-              (meta ? `<span class="cd-contact-meta">${_cdEsc(meta)}</span>` : '') + `</div>`;
+              (meta ? `<span class="cd-contact-meta">${_cdEsc(meta)}</span>` : '') +
+              (c.location ? `<span class="cd-contact-meta cd-contact-loc">📍 ${_cdEsc(c.location)}</span>` : '') + `</div>`;
           }).join('');
           return `<tr><th>${_cdEsc(s.label)}</th><td>${items}</td></tr>`;
         }

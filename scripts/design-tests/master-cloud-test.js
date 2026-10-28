@@ -615,6 +615,30 @@ const http = require('http'), fs = require('fs'), path = require('path');
     await ctx.close();
   }
 
+  // ===== お客様詳細：ウェブサイトのリンクチップ・担当者ごとの所在地 =====
+  {
+    const { ctx, p, errs } = await open(true, { legacy: {}, noLegacy: true });
+    const L = '[お客様詳細] ';
+    await p.evaluate(async () => {
+      window.__db.master_votes.push({ field: 'customer', value: 'リンク商事', voter_email: 's@example.com' });
+      window.__db.master_votes.push({ field: 'customer', value: '危険商事', voter_email: 's@example.com' });
+      window.__db.master_details.push({ field: 'customer', value: 'リンク商事', details: { website: 'www.example.com/top/', contacts: [{ name: '山田', location: '大阪支店' }] } });
+      window.__db.master_details.push({ field: 'customer', value: '危険商事', details: { website: 'javascript:alert(1)' } });
+      await statsLoadMasterCache(); await mdLoadCloud();
+    });
+    await p.evaluate(() => { switchCategory('master', document.querySelector('[onclick*="switchCategory(\'master"]')); }); await p.waitForTimeout(1200);
+    const a = await p.evaluate(() => { const e = document.querySelector('#statsPane-master tr[data-mvalue="リンク商事"] a.stats-md-link'); return e && { href: e.getAttribute('href'), target: e.target, rel: e.rel, text: e.textContent }; });
+    ok(L + 'ウェブサイトがリンクチップ（https を補い、新しいタブで開く）', a && a.href === 'https://www.example.com/top/' && a.target === '_blank' && /noopener/.test(a.rel), a);
+    ok(L + 'javascript: などはリンクにしない', await p.evaluate(() => !document.querySelector('#statsPane-master tr[data-mvalue="危険商事"] a.stats-md-link') && !!document.querySelector('#statsPane-master tr[data-mvalue="危険商事"] .stats-md-inline')));
+    ok(L + '担当者に所在地があると一覧に印（📍）', await p.evaluate(() => document.querySelector('#statsPane-master tr[data-mvalue="リンク商事"]').textContent.includes('📍')));
+    await p.evaluate(() => document.querySelector('#statsPane-master tr[data-mvalue="リンク商事"] .stats-master-detail-btn').click()); await p.waitForTimeout(300);
+    ok(L + '編集欄に担当者の所在地が入っている', await p.evaluate(() => document.querySelector('.md-contact-location').value === '大阪支店'));
+    await p.fill('.md-contact-location', '東京本社 3F'); await p.click('.master-detail-save'); await p.waitForTimeout(800);
+    ok(L + '担当者の所在地が保存される', await p.evaluate(() => window.__db.master_details.find(m => m.value === 'リンク商事').details.contacts[0].location === '東京本社 3F'));
+    ok(L + 'JS エラーなし', errs.length === 0, errs);
+    await ctx.close();
+  }
+
   // ===== 承認制：別名の追加（メンバーは申請・管理者が承認）／詳細の合流／添付の集約 =====
   {
     const { ctx, p, errs } = await open(true, { approval: true, role: 'member', noLegacy: true });

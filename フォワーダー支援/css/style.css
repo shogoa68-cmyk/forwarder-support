@@ -5605,3 +5605,10 @@ button.lc-attach-tbl-btn { background: none; border: none; padding: 0; cursor: p
 .sv-bm-pop-foot { margin-top: var(--sp-10); padding-top: var(--sp-8); border-top: 1px dashed var(--border-md); }
 .sv-bm-pop-add { border: 1px dashed var(--accent); background: transparent; color: var(--accent-dk); border-radius: var(--r-5); padding: var(--sp-3) var(--sp-10); font: inherit; font-size: var(--fs-11); cursor: pointer; }
 .sv-bm-pop-add:hover { background: var(--accent-lt); }
+
+/* マスター詳細：担当者ごとの所在地（行の下段いっぱいに） */
+.md-contact-row .md-contact-location { flex: 1 1 100%; }
+/* マスター管理の一覧：ウェブサイトのリンクチップ（クリックで新しいタブ） */
+a.stats-md-chip.stats-md-link { text-decoration: none; cursor: pointer; background: #e8f1fb; border-color: #a9c6e6; color: #1f4f86; }
+a.stats-md-chip.stats-md-link:hover { background: #d6e7f8; text-decoration: underline; }
+.cd-contact-loc { display: block; }
