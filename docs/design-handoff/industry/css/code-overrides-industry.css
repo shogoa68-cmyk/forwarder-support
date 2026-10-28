@@ -262,3 +262,8 @@ body:has(#tab-master.active) #backToQuoteFab { display: none !important; }
 @media (hover: none) {
   #tab-quote-make #quoteTable tr.is-active td.handle-cell .row-acts { visibility: visible; opacity: 1; transition: none; }
 }
+
+/* ================= 全タブ共通の画面幅（現行 style.css の .app と同じ） =================
+   Design の style.css は .app を max-width:1440px（1480px 以上は 65vw）にし、見積タブだけ解除していた。
+   見積タブのテーブル・左ナビ・右パネルが収まる幅にそろえ、タブを切り替えても幅が変わらないようにする。 */
+.app { max-width: none; padding: var(--sp-20) var(--sp-8); }

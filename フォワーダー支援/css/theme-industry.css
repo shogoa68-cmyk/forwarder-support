@@ -80,6 +80,15 @@ html.theme-industry {
 :where(html.theme-industry) body {
   font-family: var(--font-body,"Barlow"),"Noto Sans JP","Hiragino Kaku Gothic ProN",sans-serif;
 }
+:where(html.theme-industry) .app {
+  max-width: 1440px;
+  padding: var(--sp-20) var(--sp-16);
+}
+:where(html.theme-industry) body:has(#tab-quote-make.active) .app {
+  max-width: none;
+  padding-left: var(--sp-8);
+  padding-right: var(--sp-8);
+}
 :where(html.theme-industry) .header {
   border-radius: 0;
 }
@@ -250,8 +259,16 @@ html.theme-industry {
 :where(html.theme-industry) .footer {
   border-radius: 0;
 }
+:where(html.theme-industry) body:has(#tab-quote-make.active) .app {
+  padding-bottom: var(--sp-8);
+}
 :where(html.theme-industry) .footer-link {
   border-radius: 0;
+}
+@media (min-width: 1480px) {
+  :where(html.theme-industry) .app {
+    max-width: min(65vw, 1800px);
+  }
 }
 :where(html.theme-industry) .calc-input {
   border-radius: 0;
@@ -10030,4 +10047,8 @@ html.theme-industry {
     opacity: 1;
     transition: none;
   }
+}
+:where(html.theme-industry) .app {
+  max-width: none;
+  padding: var(--sp-20) var(--sp-8);
 }

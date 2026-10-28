@@ -18,14 +18,9 @@ body {
   min-height: 100vh;
 }
 
-.app { max-width: 1440px; margin: 0 auto; padding: var(--sp-20) var(--sp-16); }
-/* 見積タブ active 時は .app の幅制限を解除（テーブル min-width:1300px との衝突を解消）
-   :has() は Chrome 105+ / Firefox 121+ / Safari 15.4+ で対応 */
-body:has(#tab-quote-make.active) .app {
-  max-width: none;
-  padding-left: var(--sp-8);
-  padding-right: var(--sp-8);
-}
+/* 全タブ共通：画面幅いっぱいに使う（見積タブのテーブル min-width:1300px・左ナビ・右パネルが収まる幅にそろえる。
+   以前は見積タブ以外だけ max-width:1440px（1480px 以上の画面では 65vw）で、タブを切り替えるとヘッダー・タブの幅まで変わっていた） */
+.app { max-width: none; margin: 0 auto; padding: var(--sp-20) var(--sp-8); }
 
 /* ===== Header ===== */
 .header {
@@ -593,9 +588,6 @@ body:has(#tab-quote-make.active) .app { padding-bottom: var(--sp-8); }
   .portal-grid  { grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); }
   .blrules-grid { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
   .tab-btn      { font-size: var(--fs-11); padding: var(--sp-7) var(--sp-8); }
-}
-@media (min-width: 1480px) {
-  .app { max-width: min(65vw, 1800px); }
 }
 @media (max-width: 565px) {
   /* cat-nav が 2 行に折り返す端末でスティッキーオフセットを調整 */
