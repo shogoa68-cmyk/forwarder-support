@@ -637,6 +637,19 @@ const http = require('http'), fs = require('fs'), path = require('path');
     await p.fill('.md-contact-dept', '国際物流部 通関課');
     await p.fill('.md-contact-location', '東京本社 3F'); await p.click('.master-detail-save'); await p.waitForTimeout(800);
     ok(L + '担当者の所在地が保存される', await p.evaluate(() => window.__db.master_details.find(m => m.value === 'リンク商事').details.contacts[0].location === '東京本社 3F' && window.__db.master_details.find(m => m.value === 'リンク商事').details.contacts[0].dept === '国際物流部 通関課'));
+    // お客様：タグでの絞り込み・担当者の表示は「様」付き（入力は敬称略）
+    await p.evaluate(async () => {
+      window.__db.master_votes.push({ field: 'customer', value: 'タグ商事', voter_email: 's@example.com' });
+      window.__db.master_details.push({ field: 'customer', value: 'タグ商事', details: { tags: ['化学品', 'DG品'], contacts: [{ name: '幸崎' }] } });
+      await statsLoadMasterCache(); await mdLoadCloud(); statsMasterSetFilter('customer');
+    });
+    await p.waitForTimeout(300);
+    const tchips = await p.evaluate(() => [...document.querySelectorAll('.master-type-chip')].map(b => b.textContent));
+    ok(L + 'お客様のときはタグの絞り込みチップが出る', tchips.includes('化学品1') && tchips.includes('DG品1'), tchips);
+    await p.click('.master-type-chip:has-text("化学品")'); await p.waitForTimeout(300);
+    ok(L + 'タグで絞り込める', await p.evaluate(() => [...document.querySelectorAll('#statsPane-master tbody tr[data-mvalue]')].map(r => r.dataset.mvalue).join() === 'タグ商事'));
+    ok(L + '一覧の担当者は「様」付きで表示', await p.evaluate(() => document.querySelector('#statsPane-master tr[data-mvalue="タグ商事"]').textContent.includes('幸崎 様')));
+    ok(L + '保存される担当者名は敬称なしのまま', await p.evaluate(() => window.__db.master_details.find(m => m.value === 'タグ商事').details.contacts[0].name === '幸崎'));
     ok(L + 'JS エラーなし', errs.length === 0, errs);
     await ctx.close();
   }
