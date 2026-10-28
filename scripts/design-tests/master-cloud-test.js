@@ -38,6 +38,7 @@ const http = require('http'), fs = require('fs'), path = require('path');
   const legacy = {
     masterCandidates_v1: [{ field: 'nm', value: 'ローカル品名', votes: 1 }, { field: 'nm', value: 'THC', votes: 1 }],
     synonymGroups_v1: [{ id: 'l1', field: 'sv', canonical: 'ローカル運送', aliases: ['ﾛｰｶﾙ運送'] }],
+    unitAlias_v1: [{ id: 'u1', canonical: 'CONTAINER', aliases: ['CNTR'] }],
     masterDetails_v1: [{ field: 'nm', value: 'ローカル品名', details: { defaultUnit: 'B/L' } }],
     aliasRules_v1: [{ id: 'l2', field: 'port', from_value: 'YKH', to_value: 'Yokohama' }],
     abbrevPairs_v1: [{ id: 'l3', field: 'carrier', abbrev: 'NTL', full: 'NAIGAI TRANS LINES' }],
@@ -188,13 +189,15 @@ const http = require('http'), fs = require('fs'), path = require('path');
       md: window.__db.master_details.some(m => m.value === 'ローカル品名'),
       rule: window.__db.alias_rules.some(r => r.from_value === 'YKH'),
       abbrev: window.__db.synonym_groups.some(g => g.canonical === 'NAIGAI TRANS LINES' && g.aliases.includes('NTL')),
-      cleared: ['masterCandidates_v1', 'synonymGroups_v1', 'masterDetails_v1', 'aliasRules_v1', 'abbrevPairs_v1'].every(k => localStorage.getItem(k) === null),
+      unit: window.__db.synonym_groups.some(g => g.field === 'un' && g.canonical === 'CONTAINER' && g.aliases.includes('CNTR')),
+      cleared: ['masterCandidates_v1', 'synonymGroups_v1', 'unitAlias_v1', 'masterDetails_v1', 'aliasRules_v1', 'abbrevPairs_v1'].every(k => localStorage.getItem(k) === null),
       exclKept: !!localStorage.getItem('statsExclusions_v1'),
       backup: !!localStorage.getItem('masterLocalBackup_v1'),
       noticeAfter: window.masterTopNoticeHtml(),
       canon: nameCanon('sv', 'ﾛｰｶﾙ運送'),
     }));
     ok(L + '移行：マスター・同義グループ・詳細・統合ルール・略称がクラウドへ', r5.master && r5.syn && r5.md && r5.rule && r5.abbrev, r5);
+    ok(L + '移行：このブラウザの単位の別名もクラウドへ', r5.unit, r5);
     ok(L + '移行後：このブラウザの分を消し、バックアップを残す', r5.cleared && r5.backup, r5);
     ok(L + '除外リストの共有テーブルが無い間は、このブラウザの除外リストを残す', r5.exclKept, r5);
     ok(L + '移行後：案内が消え、移した同義グループが効く', r5.noticeAfter === '' && r5.canon === 'ローカル運送', r5);
@@ -306,13 +309,13 @@ const http = require('http'), fs = require('fs'), path = require('path');
     await p.evaluate(() => { statsMasterSetFilter('port'); }); await p.waitForTimeout(300);
     await p.click('#statsPane-master tr[data-mvalue="Yokohama"] .master-ops-more'); await p.click('.master-ops-menu .btn-remove');
     const gr = await confirmDlg(p, 'ok'); await p.waitForTimeout(500);
-    ok(L + 'グループの解除も確認つき', gr.text.includes('同義グループを解除') && await p.evaluate(() => !window.__db.synonym_groups.some(g => g.canonical === 'Yokohama')), gr);
+    ok(L + 'グループの解除も確認つき', gr.text.includes('別名をすべて外しますか') && await p.evaluate(() => !window.__db.synonym_groups.some(g => g.canonical === 'Yokohama')), gr);
     // 代表を新規登録の開閉
     await p.evaluate(() => statsMasterToggleRegister());
-    ok(L + '「代表を新規登録」が開く', await p.evaluate(() => document.querySelector('#statsPane-master .master-register').classList.contains('is-open')));
+    ok(L + '「マスターを新規登録」が開く', await p.evaluate(() => document.querySelector('#statsPane-master .master-register').classList.contains('is-open')));
     // 表の列：個別マスターと同義グループは 1 つの表（同じ列）
     const cols = await p.evaluate(() => [...document.querySelectorAll('#statsPane-master table.master-table')].map(t => [...t.querySelectorAll('thead th')].map(h => h.textContent.trim()).join('|')));
-    ok(L + '表は 1 つで、列は 種別｜代表｜別名・略称｜操作', cols.length === 1 && cols[0] === '種別|代表|別名・略称|操作', cols);
+    ok(L + '表は 1 つで、列は 種別｜マスター名｜別名・略称｜操作', cols.length === 1 && cols[0] === '種別|マスター名|別名・略称（英語表記・省略形）|操作', cols);
     ok(L + 'JS エラーなし', errs.length === 0, errs);
     await ctx.close();
   }
@@ -514,6 +517,98 @@ const http = require('http'), fs = require('fs'), path = require('path');
     ok(L + '書けなかった（DB には入らない）', !r.db, r);
     ok(L + '「統合しました」とは出さない', !r.okToast, r);
     ok(L + '失敗の理由を出す', /violates check constraint/.test(r.warn), r);
+    ok(L + 'JS エラーなし', errs.length === 0, errs);
+    await ctx.close();
+  }
+
+  // ===== 単位の別名もクラウド共有／書き込みの順序（途中で失敗しても別名が消えない） =====
+  {
+    const { ctx, p, errs } = await open(true, { legacy: {}, noLegacy: true });
+    const L = '[単位・順序] ';
+    await p.evaluate(async () => { await synLoadCloud(); await uaAddAlias('CNTR', 'CONTAINER'); });
+    await p.waitForTimeout(800);
+    const r = await p.evaluate(() => ({
+      db: window.__db.synonym_groups.some(g => g.field === 'un' && g.canonical === 'CONTAINER' && g.aliases.includes('CNTR')),
+      local: localStorage.getItem('unitAlias_v1'),
+      map: uaGetNormalizeMap().CNTR,
+      groups: uaGetGroups().length,
+    }));
+    ok(L + '単位の別名はクラウドへ保存され、ブラウザには残さない', r.db && r.local === null, r);
+    ok(L + '単位の別名が代表単位に読み替えられる', r.map === 'CONTAINER' && r.groups === 1, r);
+    ok(L + 'JS エラーなし', errs.length === 0, errs);
+    await ctx.close();
+  }
+
+  {
+    // 付け替え先への書き込みに失敗しても、元の所属（別名）は消えない
+    const { ctx, p, errs } = await open(true, { legacy: {}, noLegacy: true, badKey: 'BADGROUP' });
+    const L = '[付け替えの失敗] ';
+    await p.evaluate(async () => {
+      window.__db.synonym_groups.push({ id: 'g1', field: 'sv', canonical: 'GROUP1', aliases: ['AAA'] });
+      await synLoadCloud();
+      await synAddAlias('sv', 'AAA', 'BADGROUP');
+    });
+    await p.waitForTimeout(800);
+    ok(L + '失敗しても、元のグループの別名が残る', await p.evaluate(() => window.__db.synonym_groups.some(g => g.canonical === 'GROUP1' && g.aliases.includes('AAA'))));
+    ok(L + 'JS エラーなし', errs.length === 0, errs);
+    await ctx.close();
+  }
+
+  // ===== 承認制：別名の追加（メンバーは申請・管理者が承認）／詳細の合流／添付の集約 =====
+  {
+    const { ctx, p, errs } = await open(true, { approval: true, role: 'member', noLegacy: true });
+    const L = '[別名の申請(メンバー)] ';
+    const seed = async () => {
+      await p.evaluate(async () => {
+        window.__db.master_votes.push({ field: 'sv', value: 'テスト運送', voter_email: 'admin@example.com' });
+        await statsLoadMasterCache(); await synLoadCloud();
+        await synAddAlias('sv', 'テスト運輸', 'テスト運送');
+      });
+      await p.waitForTimeout(800);
+    };
+    await seed();
+    const r = await p.evaluate(() => ({
+      syn: window.__db.synonym_groups.filter(g => g.canonical === 'テスト運送' || (g.aliases || []).includes('テスト運輸')).length,
+      req: window.__db.master_requests.find(x => x.value === 'テスト運輸'),
+      toast: [...document.querySelectorAll('.toast')].some(e => e.textContent.includes('別名にする申請')),
+    }));
+    ok(L + '直接は別名にならず、申請が作られる', r.syn === 0 && r.req && r.req.alias_of === 'テスト運送' && r.req.status === 'pending', r);
+    ok(L + '申請したことが表示される', r.toast, r);
+    await p.evaluate(async () => { await synSetCanonical('sv', 'ABC'); });
+    ok(L + 'マスター名・別名の直接変更はできない', await p.evaluate(() => !window.__db.synonym_groups.some(g => g.canonical === 'ABC')));
+    ok(L + 'JS エラーなし', errs.length === 0, errs);
+    await ctx.close();
+  }
+  {
+    const { ctx, p, errs } = await open(true, { approval: true, role: 'admin', noLegacy: true });
+    const L = '[別名の承認(管理者)] ';
+    await p.evaluate(async () => {
+      window.__db.master_votes.push({ field: 'sv', value: 'テスト運送', voter_email: 'admin@example.com' });
+      window.__db.master_votes.push({ field: 'sv', value: 'テスト運輸', voter_email: 'admin@example.com' });
+      window.__db.master_details.push({ field: 'sv', value: 'テスト運輸', details: { furigana: 'てすとうんゆ', contacts: [{ name: '山田' }] } });
+      window.__db.master_details.push({ field: 'sv', value: 'テスト運送', details: { enName: 'TEST UNSO', contacts: [{ name: '佐藤' }] } });
+      window.__db.master_requests.push({ id: 'a1', field: 'sv', value: 'テスト運輸', alias_of: 'テスト運送', requested_by: 'm@example.com', status: 'pending', created_at: new Date().toISOString() });
+      await statsLoadMasterCache(); await synLoadCloud(); await mdLoadCloud(); await statsRefresh();
+    });
+    await p.evaluate(() => { switchCategory('master', document.querySelector('[onclick*="switchCategory(\'master"]')); }); await p.waitForTimeout(1200);
+    const shown = await p.evaluate(() => document.querySelector('#statsPane-master .stats-req-section')?.textContent || '');
+    ok(L + '申請に「→ 「テスト運送」の別名」と出る', shown.includes('テスト運送') && shown.includes('別名'), shown);
+    ok(L + '申請中の別名はマスター申請として数えない', await p.evaluate(() => statsMasterState('sv', 'テスト運輸') !== 'pending'));
+    await p.evaluate(() => statsApproveRequest('a1')); await p.waitForTimeout(1500);
+    const r = await p.evaluate(() => ({
+      syn: window.__db.synonym_groups.find(g => g.canonical === 'テスト運送'),
+      req: window.__db.master_requests.find(x => x.id === 'a1').status,
+      votes: window.__db.master_votes.filter(v => v.value === 'テスト運輸').length,
+      md: (window.__db.master_details.find(m => m.value === 'テスト運送') || {}).details,
+      mdAlias: !!window.__db.master_details.find(m => m.value === 'テスト運輸'),
+    }));
+    ok(L + '承認すると別名として入り、申請は承認済み', r.syn && r.syn.aliases.includes('テスト運輸') && r.req === 'approved', r);
+    ok(L + '別名側のマスター登録は外れる', r.votes === 0, r);
+    ok(L + '別名側の詳細が代表へ合流（空欄を補い、担当者は足し合わせ）', r.md && r.md.furigana === 'てすとうんゆ' && r.md.enName === 'TEST UNSO' && r.md.contacts.length === 2, r.md);
+    ok(L + '別名側の記録は消さない', r.mdAlias, r);
+    // 別名を外したときの案内
+    await p.evaluate(() => synRemoveAlias('sv', 'テスト運輸', 'テスト運送')); await p.waitForTimeout(800);
+    ok(L + '別名を外すと「マスターには自動では戻りません」と案内', await p.evaluate(() => [...document.querySelectorAll('.toast')].some(e => e.textContent.includes('自動では戻りません'))));
     ok(L + 'JS エラーなし', errs.length === 0, errs);
     await ctx.close();
   }

@@ -69,6 +69,8 @@ Design 製の Industry 版デザイン（鋼青のブループリント調）を
 
 **見積入力ツールバーは「⋯」に集約（2026-10）**：上部ツールバー（`#saveToolbar`）には「ダッシュボードに戻る」と作業中の表示、右端の「⋯」だけを出す。元に戻す・やり直す（`#btnQuoteUndo/Redo`）／メール取込／サブコン依頼メール／表示サイズ／表示モード（かんたん｜詳細）は `.toolbar-extra` を付けて `quote.css` で常に隠し（DOM・id は残す）、同じ処理を「⋯」メニュー（`#tbMenuMore`）に並べた（操作／取り込み・送る／設定。メニューの元に戻す・やり直すは `#btnQuoteUndoMenu/RedoMenu`＝`conditions.js _updateHistoryButtonsUI` が元ボタンと同じ状態に更新。Ctrl+Z/Y は従来どおり）。かんたん表示・スマホ幅で行っていた「⋯」への集約を、詳細表示にも広げた形（`.tb-mi-simple` は常時表示）。テストは `scripts/design-tests/toolbar-more-test.js`。
 
+**マスターの見せ方は「マスター＋別名」の 1 つ（2026-10）**：旧「同義グループ／代表／個別マスター／正規形／置換元」は画面から消し、「マスター（正しい名前）＋別名・略称」に統一（データは `master_votes` と `synonym_groups` の 2 テーブルのまま）。統計タブのボタンは「☆ マスターに登録」「→ 別名にする」、マスター管理は「＋ 別名」「他のマスターにまとめる」「別名をすべて外す」、エイリアス是正は「マスター名／古い表記／過去データの一括置換」。**承認制のとき**、メンバーの別名追加は `master_requests.alias_of` の申請になり、管理者の承認で `synAddAlias` が走る（`stats.js statsRequestAlias/_decide`）。マスター名・別名の直接変更は管理者のみ（`alias-rules.js _synRestricted`）。`docs/sql/synonym-groups-approval.sql` を実行するまでは従来どおり（メンバーも直接追加可）。別名を足すと別名側の詳細をマスターへ合流し（`_mdAbsorbAliasDetails`・別名側の記録は残す）、添付は別名側のものも合わせて表示（`_maValuesOf`）。**単位の別名もクラウド共有（段階 C）**：`uaGetGroups/uaAddAlias` 等は `synonym_groups`（field='un'）への薄い入口に変更（端末ローカルの `unitAlias_v1` は廃止し、移行の案内でクラウドへ移す）。別名の追加・マスター名変更は「先に新しい所属を書き、そのあと古い所属を外す」順にして、途中で失敗しても別名が消えない（最悪でも二重所属）。
+
 ## 🗑️ 自動保存は廃止（2026-10）
 
 旧「自動保存」（localStorage `quoteData` に1件・復元バナー）は、ページ再読込後に空の状態で上書きされて復元できない不具合があり、ブラウザ保存／チーム共有と役割も重なるため**廃止**。保存はチーム共有（旧「ブラウザ保存」は廃止）、巻き戻しは Undo/Redo。`scheduleAutoSave()` は呼び出し元（約100か所）を変えないため**何もしない関数として残置**。起動時（`initQuoteState`）に旧データ（`quoteData`・`autoSaveEnabled`）を掃除する（後日削除可）。

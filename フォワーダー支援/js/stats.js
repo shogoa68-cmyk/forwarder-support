@@ -58,17 +58,24 @@
   const REQ_TABLE = 'master_requests';
   let _reqs = [];              // 申請（新しい順）
   let _reqOn = false;          // 申請テーブルが使える
+  let _aliasReqOn = false;     // 別名の追加申請（alias_of 列）も使える
   async function _loadRequests() {
     const c = _c();
     if (!c) { _reqs = []; _reqOn = false; return; }
-    const { data, error } = await c.from(REQ_TABLE).select('id,field,value,requested_by,status,decided_by,decided_at,created_at')
+    // alias_of（別名の追加申請）列は docs/sql/synonym-groups-approval.sql で追加。無い間は従来どおり（別名はメンバーも直接追加できる）
+    let res = await c.from(REQ_TABLE).select('id,field,value,alias_of,requested_by,status,decided_by,decided_at,created_at')
       .order('created_at', { ascending: false }).limit(300);
-    if (error) { _reqs = []; _reqOn = false; return; }
-    _reqs = data || []; _reqOn = true;
+    _aliasReqOn = !res.error;
+    if (res.error) res = await c.from(REQ_TABLE).select('id,field,value,requested_by,status,decided_by,decided_at,created_at')
+      .order('created_at', { ascending: false }).limit(300);
+    if (res.error) { _reqs = []; _reqOn = false; _aliasReqOn = false; return; }
+    _reqs = res.data || []; _reqOn = true;
   }
   const _isAdmin = () => window._myRole === 'admin';
   const _approvalOn = () => _cloud() && _reqOn;
-  const _pendingReq = (field, value) => _reqs.find(r => r.status === 'pending' && r.field === field && r.value === value);
+  const _pendingReq = (field, value) => _reqs.find(r => r.status === 'pending' && !r.alias_of && r.field === field && r.value === value);
+  // メンバーの別名追加・マスター名変更などは、承認制のとき管理者が行う（別名の追加だけは申請になる）
+  window.statsAliasNeedsApproval = () => _approvalOn() && !_isAdmin() && _aliasReqOn;
   const _FIELD_LABEL = { sv: 'サブコン', carrier: 'キャリア', nm: '品名', un: '単位', customer: 'お客様', port: '港' };
   function _toast(msg, type, ms) { if (typeof window.quoteShowToast === 'function') window.quoteShowToast(msg, type || 'success', ms || 3200); }
 
@@ -80,10 +87,25 @@
     if (typeof window.refreshAllRowSvChips === 'function') window.refreshAllRowSvChips();   // 行の「申請中」の印を反映
     _toast('📨 ' + (_FIELD_LABEL[field] || field) + '「' + value + '」をマスターに申請しました。管理者の承認後に入力候補に出ます', 'success', 4200);
   }
+  // 別名の追加を申請する（承認制のメンバー）。管理者が承認すると別名として反映される
+  window.statsRequestAlias = async function (field, alias, canonical) {
+    if (_reqs.some(r => r.status === 'pending' && r.field === field && r.value === alias)) { _toast('「' + alias + '」はすでに申請中です（管理者の承認待ち）', 'info'); return; }
+    const { error } = await _c().from(REQ_TABLE).insert({ field, value: alias, alias_of: canonical, requested_by: _me(), status: 'pending' });
+    if (error) { _toast('申請に失敗しました: ' + error.message, 'warn', 6000); return; }
+    await _loadRequests();
+    _rerenderMasters();
+    _toast('📨「' + alias + '」を「' + canonical + '」の別名にする申請を出しました。管理者の承認後に反映されます', 'success', 4600);
+  };
   async function _decide(id, approve) {
     const r = _reqs.find(x => x.id === id);
     if (!r || !_isAdmin()) return;
-    if (approve) {
+    if (approve && r.alias_of) {
+      // 別名の追加申請：管理者として別名を登録（マスター化・別名側のマスター解除・詳細の合流も同時に行われる）
+      if (typeof window.synAddAlias !== 'function') return;
+      await window.synAddAlias(r.field, r.value, r.alias_of);
+      const done = (typeof window.synGetGroups === 'function' ? window.synGetGroups(r.field) : []).some(g => g.canonical === r.alias_of && (g.aliases || []).includes(r.value));
+      if (!done) { _toast('承認できませんでした（別名を保存できていません）', 'warn', 5200); return; }
+    } else if (approve) {
       const { error } = await _c().from(VOTES_TABLE).upsert({ field: r.field, value: r.value, voter_email: _me() }, { onConflict: 'field,value,voter_email' });
       if (error) { _toast('承認に失敗しました: ' + error.message, 'warn'); return; }
     }
@@ -123,8 +145,8 @@
     const mine = _reqs.filter(r => r.requested_by === me).slice(0, 10);
     const list = admin ? pending : mine;
     const head = admin
-      ? '📨 マスターの申請（承認待ち ' + pending.length + ' 件）'
-      : '📨 あなたの申請（マスターへの登録は管理者が承認します）';
+      ? '📨 マスター・別名の申請（承認待ち ' + pending.length + ' 件）'
+      : '📨 あなたの申請（マスターへの登録・別名の追加は管理者が承認します）';
     if (!list.length) {
       return '<div class="stats-req-section"><p class="stats-master-info-title">' + head + '</p>' +
         '<p class="stats-empty">' + (admin ? '承認待ちの申請はありません。' : '申請はありません。入力候補にない名前は「☆ 登録」や「マスターに登録」から申請できます。') + '</p></div>';
@@ -137,7 +159,7 @@
           `<button class="stats-demote-btn btn-secondary" onclick="statsRejectRequest('${_ea(r.id)}')">却下…</button>`
         : (r.status === 'pending' ? `<button class="stats-demote-btn btn-secondary" onclick="statsCancelRequest('${_ea(r.id)}')">取り消す</button>` : '');
       const st = ST[r.status] || ['', r.status];
-      return `<tr><td>${_esc(_FIELD_LABEL[r.field] || r.field)}</td><td class="stats-val">${_esc(r.value)}</td>` +
+      return `<tr><td>${_esc(_FIELD_LABEL[r.field] || r.field)}</td><td class="stats-val">${_esc(r.value)}${r.alias_of ? ' <span class="req-alias-of">→ 「' + _esc(r.alias_of) + '」の別名</span>' : ''}</td>` +
              `<td>${admin ? _esc(who) : `<span class="req-state ${st[0]}">${st[1]}</span>`}</td><td class="ops">${ops}</td></tr>`;
     }).join('');
     return '<div class="stats-req-section"><p class="stats-master-info-title">' + head + '</p>' +
@@ -155,13 +177,13 @@
     if (_approvalOn()) {
       const me = _me();
       if (_isAdmin()) {
-        kpis = kpi(_reqs.filter(r => r.status === 'pending').length, '承認待ち', true) + kpi(nMasters, 'マスター') + kpi(nGroups, '同義グループ');
+        kpis = kpi(_reqs.filter(r => r.status === 'pending').length, '承認待ち', true) + kpi(nMasters, 'マスター') + kpi(nGroups, 'うち別名あり');
       } else {
         const mine = _reqs.filter(r => r.requested_by === me);
         kpis = kpi(mine.filter(r => r.status === 'pending').length, '承認待ち', true) + kpi(mine.filter(r => r.status === 'approved').length, '承認済み') + kpi(mine.filter(r => r.status === 'rejected').length, '却下');
       }
     } else {
-      kpis = kpi(nMasters, 'マスター', true) + kpi(nGroups, '同義グループ');
+      kpis = kpi(nMasters, 'マスター', true) + kpi(nGroups, 'うち別名あり');
     }
     return '<div class="master-head"><h3 class="master-title">🗂 マスター管理' + badge + '</h3>' +
       '<button type="button" class="master-back" onclick="switchCategory(\'quote\', document.querySelector(\'.cat-btn\'))">← 見積もりに戻る</button></div>' +
@@ -482,19 +504,19 @@
     const canon   = aliasOf[value];
     let h = `<button class="stats-syn-star${isCanon ? ' on' : ''}" ` +
             `onclick="statsToggleSynCanonical('${_ea(field)}','${_ea(value)}')" ` +
-            `title="${isCanon ? '代表を解除' : '同義グループの代表に設定'}">${isCanon ? '⭐代表' : '☆代表'}</button>`;
+            `title="${isCanon ? 'マスターの設定を解除（別名もすべて外れます）' : 'この名前をマスター（正しい名前）として登録'}">${isCanon ? '⭐ マスター' : '☆ マスターに登録'}</button>`;
     if (isCanon) {
       const g = (typeof window.synGetGroups === 'function' ? window.synGetGroups(field) : []).find(x => x.canonical === value);
       const aliases = (g && g.aliases) || [];
       if (aliases.length) {
         const total = (cntMap[value] || 0) + aliases.reduce((s, a) => s + (cntMap[a] || 0), 0);
-        h += `<span class="stats-syn-total" title="統合した表記の合計件数（${aliases.length}件統合）">計${total}</span>`;
+        h += `<span class="stats-syn-total" title="別名を含めた合計件数（別名 ${aliases.length}件）">計${total}</span>`;
       }
     } else if (canon) {
-      h += `<span class="stats-syn-into" title="「${_eav(canon)}」に統合済み">→${_esc(canon)}</span>` +
-           `<button class="stats-syn-unmerge" onclick="statsSynUnmerge('${_ea(field)}','${_ea(value)}')" title="統合を解除">✕</button>`;
+      h += `<span class="stats-syn-into" title="「${_eav(canon)}」の別名になっています">→${_esc(canon)}</span>` +
+           `<button class="stats-syn-unmerge" onclick="statsSynUnmerge('${_ea(field)}','${_ea(value)}')" title="別名から外す">✕</button>`;
     } else if (canons.size) {
-      h += `<button class="stats-syn-merge" onclick="statsSynMergePicker('${_ea(field)}','${_ea(value)}',this)" title="既存の代表に統合">⤵統合</button>`;
+      h += `<button class="stats-syn-merge" onclick="statsSynMergePicker('${_ea(field)}','${_ea(value)}',this)" title="既存のマスターの別名にする（件数が合算されます）">→ 別名にする</button>`;
     }
     return h;
   }
@@ -695,7 +717,7 @@
     return '<div class="stats-sort-toolbar"><span class="stats-sort-label">並び替え</span>' +
            `<button class="stats-sort-btn${by === 'count' ? ' is-active' : ''}" onclick="statsSetSort('count')">件数順</button>` +
            `<button class="stats-sort-btn${by === 'name' ? ' is-active' : ''}" onclick="statsSetSort('name')">名前順（あ→ん）</button>` +
-           `<label class="stats-unorg-toggle" title="⭐同義グループ化済み・マスター登録済みの項目を隠し、未整理の項目だけ表示します">` +
+           `<label class="stats-unorg-toggle" title="⭐マスター登録済み・別名として整理済みの項目を隠し、未整理の項目だけ表示します">` +
            `<input type="checkbox" onchange="statsToggleUnorganized()"${_statsUnorganizedOnly ? ' checked' : ''}> 未整理のみ表示</label>` +
            `<label class="stats-unorg-toggle" title="表記ゆれ（同じ読みで複数の表記）がある項目だけ表示します">` +
            `<input type="checkbox" onchange="statsToggleFluct()"${_statsFluctOnly ? ' checked' : ''}> ゆらぎありのみ表示</label></div>`;
@@ -746,7 +768,7 @@
       e.innerHTML = _sortToolbar() + (synRows.length || restGroups.length
         ? (_statsFluctOnly
             ? '<p class="stats-empty">ゆらぎのある項目はありません。</p>'
-            : '<p class="stats-empty">🎉 未整理の項目はありません。すべて同義グループ化・マスター登録済みです。</p>')
+            : '<p class="stats-empty">🎉 未整理の項目はありません。すべてマスター登録済み（または別名として整理済み）です。</p>')
         : '<p class="stats-empty">データなし</p>');
       return;
     }
@@ -760,9 +782,9 @@
     const shownRest = visRestGroups.slice(0, Math.max(0, pageLimit - shownSyn.length));
 
     let h = _sortToolbar() +
-            '<p class="stats-syn-hint">☆代表 で同義グループの基準を決め、他の表記を ⤵統合 でまとめると、⭐行に集約され件数が合算されます（非破壊）。表記ゆれの一括置換は「ゆらぎ N種」バッジから。</p>' +
+            '<p class="stats-syn-hint">「☆ マスターに登録」で正しい名前を決め、他の表記を「→ 別名にする」でまとめると、⭐行に集約され件数が合算されます（非破壊）。表記ゆれの一括置換は「ゆらぎ N種」バッジから。</p>' +
             `<table class="stats-table stats-nm-table"><thead><tr>` +
-            `<th>${colLabel}</th><th class="stats-num-col">合計</th><th>同義グループ / バリアント</th>` +
+            `<th>${colLabel}</th><th class="stats-num-col">合計</th><th>別名・略称 / バリアント</th>` +
             `</tr></thead><tbody>`;
 
     // --- 同義グループ（統合表示）---
@@ -778,15 +800,15 @@
         chips += `<span class="stats-chip">` +
                  `<span class="stats-chip-text">${_usageSpan(field, a)}</span>` +
                  `<span class="stats-chip-cnt">×${cntMap[a] || 0}</span>` +
-                 `<button class="stats-syn-unmerge" onclick="statsSynUnmerge('${_ea(aliasField)}','${_ea(a)}')" title="統合を解除">✕</button>` +
+                 `<button class="stats-syn-unmerge" onclick="statsSynUnmerge('${_ea(aliasField)}','${_ea(a)}')" title="別名から外す">✕</button>` +
                  `</span>`;
       });
       h += `<tr class="stats-syn-row">` +
-           `<td class="stats-val"><span class="ua-star">⭐</span>${_usageSpan(field, g.canonical)} <span class="stats-syn-grp-badge" title="同義グループ（${members}種を集約）">同義 ${members}種</span></td>` +
+           `<td class="stats-val"><span class="ua-star">⭐</span>${_usageSpan(field, g.canonical)} <span class="stats-syn-grp-badge" title="マスター＋別名（${members}種を集約）">別名あり ${members-1}件</span></td>` +
            `<td class="stats-num-col"><div class="stats-bar-wrap"><div class="stats-bar" style="width:${Math.round(sr.total / maxTotal * 100)}%"></div><span class="stats-bar-label">${sr.total}</span></div>${sr.aliasCnt ? `<span class="ua-cnt-detail"> (${sr.own}+${sr.aliasCnt})</span>` : ''}</td>` +
            `<td class="stats-chips-cell">${chips}` +
-             `<button class="stats-syn-merge-canon" onclick="statsSynMergePicker('${_ea(aliasField)}','${_ea(g.canonical)}',this)" title="この代表を別の代表に統合">⤵ 統合</button>` +
-             `<button class="stats-syn-dissolve" onclick="statsToggleSynCanonical('${_ea(aliasField)}','${_ea(g.canonical)}')" title="同義グループを解除">グループ解除</button>` +
+             `<button class="stats-syn-merge-canon" onclick="statsSynMergePicker('${_ea(aliasField)}','${_ea(g.canonical)}',this)" title="このマスターを別のマスターの別名にまとめる">他のマスターにまとめる</button>` +
+             `<button class="stats-syn-dissolve" onclick="statsToggleSynCanonical('${_ea(aliasField)}','${_ea(g.canonical)}')" title="別名をすべて外す">別名をすべて外す</button>` +
            `</td></tr>`;
     });
 
@@ -799,7 +821,7 @@
       h += `<td class="stats-val">${_usageSpan(field, g.variants[0].value)}`;
       if (hasV) {
         if (g.isAbbrevGroup) {
-          h += ` <span class="stats-variant-badge stats-variant-badge--abbrev" title="略称辞書で関連付けられた表記">略称 ${g.variants.length}種</span>`;
+          h += ` <span class="stats-variant-badge stats-variant-badge--abbrev" title="別名として登録された表記">別名 ${g.variants.length}種</span>`;
         } else {
           h += ` <button class="stats-variant-badge stats-variant-badge--link" onclick="statsJumpToAlias('${gId}')" title="エイリアス是正タブで一括登録">ゆらぎ ${g.variants.length}種</button>`;
         }
@@ -849,12 +871,16 @@
   // 単位(un)は ua* 機構の代表を対象にする。
   window.statsSynMergePicker = function (field, value, btn) {
     document.querySelectorAll('.stats-syn-picker').forEach(el => el.remove());
-    const canons = (field === 'un'
-      ? (typeof window.uaGetGroups === 'function' ? window.uaGetGroups() : []).map(g => g.canonical)
-      : (typeof window.synGetGroups === 'function' ? window.synGetGroups(field) : []).map(g => g.canonical)
-    ).filter(c => c && c !== value);
+    const canonSet = new Set((typeof window.synGetGroups === 'function' ? window.synGetGroups(field) : []).map(g => g.canonical));
+    // 別名のまだ無いマスターも「まとめ先」にできる
+    if (_cvMap) _cvMap.forEach(({ total }, key) => {
+      if (total < 1) return;
+      const sep = key.indexOf('\x00');
+      if (key.substring(0, sep) === field) canonSet.add(key.substring(sep + 1));
+    });
+    const canons = Array.from(canonSet).filter(c => c && c !== value);
     if (!canons.length) {
-      if (typeof window.quoteShowToast === 'function') window.quoteShowToast('⭐ 先に統合先の代表を設定してください', 'warn');
+      if (typeof window.quoteShowToast === 'function') window.quoteShowToast('⭐ 先に、まとめ先のマスターを登録してください', 'warn');
       return;
     }
     const wrap = document.createElement('span');
@@ -864,7 +890,7 @@
       `<select class="stats-syn-sel">` +
       canons.map(c => `<option value="${_eav(c)}">${_esc(c)}</option>`).join('') +
       `</select>` +
-      `<button class="stats-syn-pick-ok" onclick="statsSynConfirmMerge('${_ea(field)}','${_ea(value)}',this)">統合</button>` +
+      `<button class="stats-syn-pick-ok" onclick="statsSynConfirmMerge('${_ea(field)}','${_ea(value)}',this)">別名にする</button>` +
       `<button class="stats-syn-pick-cancel" onclick="this.closest('.stats-syn-picker').remove()">✕</button>`;
     btn.after(wrap);
   };
@@ -873,13 +899,7 @@
     if (!sel) return;
     const target = sel.value;
     if (!target || target === value) return;
-    if (field === 'un') {
-      // value（代表）を target（代表）へ統合：配下を吸収し target を代表に
-      if (typeof window.uaRenameCanonical === 'function') window.uaRenameCanonical(value, target);
-      if (typeof window.statsRerenderActive === 'function') window.statsRerenderActive();
-    } else if (typeof window.synAddAlias === 'function') {
-      await window.synAddAlias(field, value, target);
-    }
+    if (typeof window.synAddAlias === 'function') await window.synAddAlias(field, value, target);   // 配下の別名ごと target の別名になる（単位も同じ）
   };
 
   // 軽量再描画（クラウドプリセット/投票の再取得を伴わない。同義グループ更新時に使用）
@@ -947,7 +967,7 @@
   // ===== 🔗 サブコン×港ペア =====
   // サブコンは明細行（cells[2]）、港は引き合い条件（z2Pol/z2Pod/z2Via・複数航路）にあるため、
   // 「案件単位で使われたサブコン × その案件の港」の共起を集計する。
-  // 同義グループの代表に正規化してから数える（件数＝両方を含む案件数）。
+  // マスター名に正規化してから数える（件数＝両方を含む案件数）。
   let _svPortBy = 'sv';   // 'sv' | 'port'
   function _buildSvPortPairs(source) {
     const svMap   = typeof window.synGetNormalizeMap === 'function' ? window.synGetNormalizeMap('sv')   : {};
@@ -1006,7 +1026,7 @@
             `<button class="svp-by-btn${by === 'sv' ? ' is-active' : ''}" onclick="statsSvPortBy('sv')">🏢 サブコン別</button>` +
             `<button class="svp-by-btn${by === 'port' ? ' is-active' : ''}" onclick="statsSvPortBy('port')">🛳 港別</button></div>` +
             _sortToolbar() +
-            '<p class="stats-syn-hint">案件単位で「使われたサブコン × その案件の港」を共起集計します。同義グループの代表に正規化し、件数＝両方を含む案件数です。</p>' +
+            '<p class="stats-syn-hint">案件単位で「使われたサブコン × その案件の港」を共起集計します。マスター名に正規化し、件数＝両方を含む案件数です。</p>' +
             `<table class="stats-table"><thead><tr><th>${keyLabel}</th><th class="stats-num-col">件数</th><th>${otherLabel}（×件数）</th></tr></thead><tbody>`;
     list.slice(0, _limitOf('statsPane-svport')).forEach(g => {
       const chips = g.items.map(it =>
@@ -1630,42 +1650,42 @@
     if (!visList.length) {
       e.innerHTML = _sortToolbar() + (_statsFluctOnly
         ? '<p class="stats-empty">ゆらぎのある単位はありません。</p>'
-        : '<p class="stats-empty">🎉 未整理の単位はありません。すべて代表に統合済みです。</p>');
+        : '<p class="stats-empty">🎉 未整理の単位はありません。すべてマスター登録・別名の整理済みです。</p>');
       return;
     }
 
     const shownList = visList.slice(0, _limitOf('statsPane-un'));
     let h = _sortToolbar() +
-      '<div class="ua-pane-hint">⭐ 代表に設定 → グループの基準単位として登録　　→ 統合 → 代表に紐付け（件数が合算されます）</div>' +
+      '<div class="ua-pane-hint">⭐ マスターに登録 → 正しい単位として登録　　→ 別名にする → マスターに紐付け（件数が合算されます）</div>' +
       '<table class="stats-table stats-un-table"><thead><tr>' +
-      '<th>単位</th><th class="stats-num-col">件数</th><th>同義グループ</th><th>操作</th>' +
+      '<th>単位</th><th class="stats-num-col">件数</th><th>別名・略称</th><th>操作</th>' +
       '</tr></thead><tbody>';
 
     shownList.forEach(item => {
       if (item.type === 'canonical') {
         const chips = item.aliases.map(a =>
           `<span class="ua-alias-chip">${_usageSpan('un', a)}<span class="ua-chip-cnt"> ×${countMap[a] || 0}</span>` +
-          `<button class="ua-chip-del" onclick="uaRemoveAlias('${_ea(a)}','${_ea(item.canonical)}')" title="統合解除">✕</button></span>`
+          `<button class="ua-chip-del" onclick="uaRemoveAlias('${_ea(a)}','${_ea(item.canonical)}')" title="別名から外す">✕</button></span>`
         ).join('');
         h += `<tr class="ua-canonical-row">` +
              `<td class="stats-val"><span class="ua-star">⭐</span>${_usageSpan('un', item.canonical)} ${_masterJumpBtn('un', item.canonical)}</td>` +
              `<td class="stats-num-col">${item.total}` +
              (item.aliasCount ? `<span class="ua-cnt-detail"> (${item.ownCount}+${item.aliasCount})</span>` : '') +
              `</td><td>${chips || '<span class="ua-no-alias">—</span>'}</td>` +
-             `<td><button class="stats-syn-merge-canon" onclick="statsSynMergePicker('un','${_ea(item.canonical)}',this)" title="この代表を別の代表に統合">⤵ 統合</button>` +
+             `<td><button class="stats-syn-merge-canon" onclick="statsSynMergePicker('un','${_ea(item.canonical)}',this)" title="このマスターを別のマスターの別名にまとめる">他のマスターにまとめる</button>` +
              `<button class="ua-remove-canon" onclick="uaRemoveGroup('${_ea(item.canonical)}')" title="グループを解除">解除</button></td>` +
              `</tr>`;
       } else {
         const badge = (item.fluct && item.first)
-          ? ` <span class="stats-variant-badge" title="読みが同じ表記が複数あります（${item.fluctN}種）。代表を決めて統合すると件数が合算されます">ゆらぎ ${item.fluctN}種</span>`
+          ? ` <span class="stats-variant-badge" title="読みが同じ表記が複数あります（${item.fluctN}種）。マスターを決めて別名にすると件数が合算されます">ゆらぎ ${item.fluctN}種</span>`
           : '';
         h += `<tr class="ua-ungrouped-row${item.fluct ? ' stats-has-variant' : ''}">` +
              `<td class="stats-val">${_usageSpan('un', item.value)}${badge}</td>` +
              `<td class="stats-num-col">${item.total}</td>` +
              `<td></td>` +
              `<td class="ua-ops">` +
-             `<button class="ua-set-canon" onclick="uaSetCanonical('${_ea(item.value)}')" title="この単位を代表として登録">⭐ 代表に</button>` +
-             `<button class="ua-merge-btn" onclick="uaShowMergePicker('${_ea(item.value)}',this)" title="既存代表に統合">→ 統合</button>` +
+             `<button class="ua-set-canon" onclick="uaSetCanonical('${_ea(item.value)}')" title="この単位をマスター（正しい名前）として登録">⭐ マスターに</button>` +
+             `<button class="ua-merge-btn" onclick="uaShowMergePicker('${_ea(item.value)}',this)" title="既存のマスターの別名にする">→ 別名にする</button>` +
              `</td></tr>`;
       }
     });
@@ -2076,7 +2096,7 @@
     const _renderedCustGroups = {};
     let gIdx = 0;
     let h = _sortToolbar() +
-            '<p class="stats-syn-hint">☆代表 で同義グループの基準を決め、他の表記を ⤵統合 でまとめると、⭐行に集約され件数・担当者・ステータスが合算されます（非破壊）。</p>' +
+            '<p class="stats-syn-hint">「☆ マスターに登録」で正しい名前を決め、他の表記を「→ 別名にする」でまとめると、⭐行に集約され件数・担当者・ステータスが合算されます（非破壊）。</p>' +
             '<table class="stats-table"><thead><tr>' +
             '<th>お客様名</th><th class="stats-num-col">件数</th><th>担当者</th><th>ステータス</th><th>操作</th>' +
             '</tr></thead><tbody>';
@@ -2105,17 +2125,17 @@
         `<span class="stats-chip-text">${i === 0 ? '⭐ ' : ''}${_usageSpan('customer', m)}</span>` +
         `<span class="stats-chip-cnt">×${sr.memberCounts[m] || 0}</span>` +
         (i === 0 ? _voteBtn('customer', m, synCanons)
-                 : `<button class="stats-syn-unmerge" onclick="statsSynUnmerge('customer','${_ea(m)}')" title="統合を解除">✕</button>`) +
+                 : `<button class="stats-syn-unmerge" onclick="statsSynUnmerge('customer','${_ea(m)}')" title="別名から外す">✕</button>`) +
         `</span>`
       ).join('');
       h += `<tr class="stats-syn-row">` +
-           `<td class="stats-val"><span class="ua-star">⭐</span>${_usageSpan('customer', sr.g.canonical)} <span class="stats-syn-grp-badge" title="同義グループ（${sr.members.length}種を集約）">同義 ${sr.members.length}種</span></td>` +
+           `<td class="stats-val"><span class="ua-star">⭐</span>${_usageSpan('customer', sr.g.canonical)} <span class="stats-syn-grp-badge" title="マスター＋別名（${sr.members.length}種を集約）">別名あり ${sr.members.length-1}件</span></td>` +
            `<td class="stats-num-col">${sr.count}</td>` +
            `<td>${[...sr.persons].join('、') || '—'}</td>` +
            `<td>${_stHtml(sr.statuses)}</td>` +
            `<td class="stats-chips-cell">${memberChips}` +
-             `<button class="stats-syn-merge-canon" onclick="statsSynMergePicker('customer','${_ea(sr.g.canonical)}',this)" title="この代表を別の代表に統合">⤵ 統合</button>` +
-             `<button class="stats-syn-dissolve" onclick="statsToggleSynCanonical('customer','${_ea(sr.g.canonical)}')" title="同義グループを解除">グループ解除</button></td>` +
+             `<button class="stats-syn-merge-canon" onclick="statsSynMergePicker('customer','${_ea(sr.g.canonical)}',this)" title="このマスターを別のマスターの別名にまとめる">他のマスターにまとめる</button>` +
+             `<button class="stats-syn-dissolve" onclick="statsToggleSynCanonical('customer','${_ea(sr.g.canonical)}')" title="別名をすべて外す">別名をすべて外す</button></td>` +
            `</tr>`;
     });
 
@@ -2145,7 +2165,7 @@
         _renderedCustGroups[gId] = { aliasField: 'customer', variants: cg.variants };
         _renderedGroups[gId] = { aliasField: 'customer', variants: cg.variants };
         variantBadge = cg.isAbbrevGroup
-          ? ` <span class="stats-variant-badge stats-variant-badge--abbrev" title="略称辞書で関連付けられた表記">略称 ${cg.variants.length}種</span>`
+          ? ` <span class="stats-variant-badge stats-variant-badge--abbrev" title="別名として登録された表記">別名 ${cg.variants.length}種</span>`
           : ` <button class="stats-variant-badge stats-variant-badge--link" onclick="statsJumpToAlias('${gId}')" title="エイリアス是正タブで一括登録">ゆらぎ ${cg.variants.length}種</button>`;
         gIdx++;
       }
@@ -2168,7 +2188,7 @@
       ? h + '</tbody></table>' + _moreHtml('statsPane-customer', shownRows)
       : _sortToolbar() + (_statsFluctOnly
           ? '<p class="stats-empty">ゆらぎのある項目はありません。</p>'
-          : '<p class="stats-empty">🎉 未整理の項目はありません。すべて同義グループ化・マスター登録済みです。</p>');
+          : '<p class="stats-empty">🎉 未整理の項目はありません。すべてマスター登録済み（または別名として整理済み）です。</p>');
   }
 
   // マスター一覧の種別絞り込み（'all' | sv/carrier/nm/customer/port/un）。再描画をまたいで保持。
@@ -2214,7 +2234,7 @@
       title: 'マスターから解除しますか？',
       lines: [(_FIELD_LABEL[field] || field) + '「' + value + '」を、チーム共有のマスター（入力候補）から外します。', '見積データそのものは削除されません。'],
       irreversible: '解除すると、入力候補から消えます（再び使うには、あらためて登録・申請が必要です）。',
-      okLabel: '解除する', danger: true,
+      okLabel: '外す', danger: true,
     });
     if (ok) await window.statsToggleVote(field, value);
   };
@@ -2236,23 +2256,21 @@
     }
     const labels = { sv: 'サブコン', carrier: 'キャリア', nm: '品名', un: '単位', customer: 'お客様', port: '港' };
 
-    // --- 代表を新規登録するフォーム（実データに無い名称も登録可）---
+    // --- マスターを新規登録するフォーム（実データに無い名称も登録可）---
     const fieldOpts = [['sv', 'サブコン'], ['carrier', 'キャリア'], ['nm', '品名'], ['customer', 'お客様'], ['port', '港'], ['un', '単位']]
       .map(([v, l]) => `<option value="${v}"${v === _masterFieldFilter ? ' selected' : ''}>${l}</option>`).join('');
-    const formH = '<div class="master-register-bar"><button type="button" class="master-register-toggle" onclick="statsMasterToggleRegister()">＋ 代表を新規登録</button></div>' +
+    const formH = '<div class="master-register-bar"><button type="button" class="master-register-toggle" onclick="statsMasterToggleRegister()">＋ マスターを新規登録</button></div>' +
       '<div class="master-new-form master-register' + (_regOpen ? ' is-open' : '') + '">' +
-      '<span class="master-new-label">➕ 代表を新規登録</span>' +
+      '<span class="master-new-label">➕ マスターを新規登録</span>' +
       `<select id="masterNewField" class="ar-select">${fieldOpts}</select>` +
-      '<input id="masterNewValue" class="ar-input" type="text" placeholder="代表名称（例: ABC Corporation Ltd.）" onkeydown="if(event.key===\'Enter\')statsMasterAddCanonical()" />' +
+      '<input id="masterNewValue" class="ar-input" type="text" placeholder="マスター名（例: ABC Corporation Ltd.）" onkeydown="if(event.key===\'Enter\')statsMasterAddCanonical()" />' +
       '<button class="master-new-btn" onclick="statsMasterAddCanonical()">登録</button>' +
-      '<span class="master-new-hint">実際の入力値に無い名称でも登録できます。登録後、集計タブの ⤵統合 で表記を束ねられます。</span>' +
+      '<span class="master-new-hint">実際の入力値に無い名称でも登録できます。登録後、各マスターの「＋ 別名」で略称・英語表記を足せます。</span>' +
       '</div>';
 
-    // --- 同義グループ一覧（sv/nm/customer/port は syn*、un は ua* から集約）---
+    // --- マスター＋別名の一覧（単位も同じ synonym_groups）---
     const synGroups = (typeof window.synGetGroups === 'function' ? window.synGetGroups() : []).slice();
-    const unitGroups = (typeof window.uaGetGroups === 'function' ? window.uaGetGroups() : [])
-      .map(g => ({ field: 'un', canonical: g.canonical, aliases: g.aliases || [] }));
-    const allSyn = [...synGroups, ...unitGroups]
+    const allSyn = synGroups   // 単位（un）も他の種別と同じクラウドの別名（synonym_groups）
       .sort((a, b) => (labels[a.field] || a.field).localeCompare(labels[b.field] || b.field) || (a.canonical || '').localeCompare(b.canonical || ''));
     // 統合（A案）: 代表(canonical)は自動的にマスター扱い。個別マスター表からは除外し、
     // 下の「同義グループ（代表＝マスター）」欄に集約表示する（二重表示を避ける）。
@@ -2292,7 +2310,7 @@
     const headH = _masterHeadHtml(totalCount, allSyn.length) + (typeof window.masterTopNoticeHtml === 'function' ? window.masterTopNoticeHtml() : '') + _requestsHtml();
     if (!rowsAll.length) {
       e.innerHTML = headH + formH + chipsH +
-        '<p class="stats-empty">マスター登録はまだありません。<br>各集計の ☆登録（個別）または ⭐代表（同義グループ）で追加できます。</p>';
+        '<p class="stats-empty">マスター登録はまだありません。<br>各集計の「☆ 登録」、または上の「登録」から追加できます。</p>';
       return;
     }
     const usageDesc = {
@@ -2304,19 +2322,20 @@
       port:     'POL / POD / Via 港欄で入力補完候補に表示されます。',
     };
     const _indHelp = document.documentElement.classList.contains('theme-industry') ? '' : ' open';   // Industry は畳む（現行は従来どおり開く）
-    let h = '<details class="master-help"' + _indHelp + '><summary>✅ マスターの活用方法（⭐＝同義グループの代表）</summary>' +
+    let h = '<details class="master-help"' + _indHelp + '><summary>✅ マスターとは？</summary>' +
             '<div class="stats-master-info">' +
             '<ul class="stats-master-usage-list">' +
             Object.entries(usageDesc)
               .filter(([f]) => _masterFieldFilter === 'all' || f === _masterFieldFilter)
               .map(([f, desc]) => `<li><b>${labels[f] || f}</b>：${desc}</li>`).join('') +
-            '<li><b>エイリアス是正</b>：表記ゆれを一括置換する際の「正規形」の候補として参照できます。</li>' +
+            '<li><b>エイリアス是正</b>：過去データの表記ゆれを一括置換する際の「マスター名」の候補として参照できます。</li>' +
             '</ul>' +
-            `<p class="stats-master-info-note">☆ 登録 ボタンで即時マスターに追加。再クリックで解除できます。（チーム全員で共有）</p>` +
-            `<p class="stats-master-info-note">「＋ 別名」で、略称・英語表記などを代表の同義として登録できます（⭐の行）。別名の件数は代表に合算され、入力補完にも反映されます。別名はマスターの一覧からは外れ、代表の行に表示されます。${cloudOn ? '（チーム共有）' : '（このブラウザに保存）'}</p>` +
+            `<p class="stats-master-info-note"><b>マスター＝チームで使う正しい名前。略称・英語表記・表記ゆれは「別名」として足すと、同じものとして集計・入力補完されます。</b>（チーム全員で共有）</p>` +
+            `<p class="stats-master-info-note">「☆ 登録」でマスターに追加、再クリックで解除できます。</p>` +
+            `<p class="stats-master-info-note">「＋ 別名」で、略称・英語表記などをマスターの別名として登録できます（⭐の行）。別名の件数はマスターに合算され、入力補完にも反映されます。別名は独立した行にはならず、マスターの行に表示されます。${cloudOn ? '（チーム共有）' : '（このブラウザに保存）'}</p>` +
             '</div></details>' +
             '<table class="stats-table master-table"><thead><tr>' +
-            '<th>種別</th><th>代表</th><th>別名・略称</th><th class="ops">操作</th>' +
+            '<th>種別</th><th>マスター名</th><th>別名・略称（英語表記・省略形）</th><th class="ops">操作</th>' +
             '</tr></thead><tbody>';
     rowsAll.forEach(r => {
       const addBtn = (f, v) => `<button class="stats-master-abbrev-add" onclick="statsMasterAddAbbrev('${_ea(f)}','${_ea(v)}')">＋ 別名</button>`;
@@ -2326,14 +2345,14 @@
         const delAlias = (a) => isUnit
           ? `statsUnitRemoveAlias('${_ea(a)}','${_ea(g.canonical)}')`
           : `synRemoveAlias('${_ea(g.field)}','${_ea(a)}','${_ea(g.canonical)}')`;
-        const chips = (g.aliases || []).map(a => `<span class="stats-syn-member">${_esc(a)}<button class="ua-chip-del" title="統合解除" onclick="${delAlias(a)}">✕</button></span>`).join('');
+        const chips = (g.aliases || []).map(a => `<span class="stats-syn-member">${_esc(a)}<button class="ua-chip-del" title="別名から外す" onclick="${delAlias(a)}">✕</button></span>`).join('');
         h += `<tr class="stats-syn-row" data-mfield="${_eav(g.field)}" data-mvalue="${_eav(g.canonical)}"><td>${labels[g.field] || g.field}</td>` +
              `<td class="stats-val"><span class="ua-star">⭐</span>${_esc(g.canonical)}${_mdBadge(g.field, g.canonical)}</td>` +
              `<td class="stats-master-abbrev-cell">${chips}${addBtn(g.field, g.canonical)}</td>` +
-             `<td class="ops"><button class="stats-master-merge" title="この代表を別の代表に統合（配下の別名ごと移動）" onclick="statsSynMergePicker('${_ea(g.field)}','${_ea(g.canonical)}',this)">⤵ 統合</button>` +
-             `<button class="stats-master-rename" title="代表名を変更（旧名称は別名として残ります）" onclick="statsMasterRename('${_ea(g.field)}','${_ea(g.canonical)}')">✏️ 名称変更</button>` +
+             `<td class="ops"><button class="stats-master-merge" title="このマスターを別のマスターの別名にまとめる（別名ごと移動）" onclick="statsSynMergePicker('${_ea(g.field)}','${_ea(g.canonical)}',this)">他のマスターにまとめる</button>` +
+             `<button class="stats-master-rename" title="マスター名を変更（旧名称は別名として残ります）" onclick="statsMasterRename('${_ea(g.field)}','${_ea(g.canonical)}')">✏️ 名称変更</button>` +
              _mdDetailBtn(g.field, g.canonical) +
-             `<button type="button" class="master-ops-more more" aria-haspopup="menu" title="その他の操作（グループの解除）" onclick="statsOpsMenu(this,'group','${_ea(g.field)}','${_ea(g.canonical)}')">⋯</button></td></tr>`;
+             `<button type="button" class="master-ops-more more" aria-haspopup="menu" title="その他の操作（別名をすべて外す）" onclick="statsOpsMenu(this,'group','${_ea(g.field)}','${_ea(g.canonical)}')">⋯</button></td></tr>`;
       } else {
         const m = r.m;
         h += `<tr data-mfield="${_eav(m.field)}" data-mvalue="${_eav(m.value)}">` +
@@ -2365,15 +2384,15 @@
       : (typeof window.synGetGroups === 'function' ? window.synGetGroups(field) : []).find(x => x.canonical === canonical);
     const aliases = (g && g.aliases) || [];
     const aliasInfo = aliases.length
-      ? `統合されている ${aliases.length} 件の表記（${aliases.slice(0, 5).join('、')}${aliases.length > 5 ? ' ほか' : ''}）の統合が外れ、`
+      ? `別名 ${aliases.length} 件（${aliases.slice(0, 5).join('、')}${aliases.length > 5 ? ' ほか' : ''}）が外れ、`
       : '';
     const ok = await window.uiConfirm({
-      title: '同義グループを解除しますか？',
-      lines: [`⭐「${canonical}」の同義グループを解除します。`,
+      title: '別名をすべて外しますか？',
+      lines: [`⭐「${canonical}」の別名の登録をすべて外します（マスター自体は残ります）。`,
               `${aliasInfo}件数の合算・入力補完への反映が無効になります。`,
               '見積データそのものは削除されません。'],
-      irreversible: '解除したグループは元に戻りません（⭐代表 / ⤵統合 で作り直せます）。',
-      okLabel: '解除する', danger: true,
+      irreversible: '外した別名は元に戻りません（「＋ 別名」で作り直せます）。',
+      okLabel: '外す', danger: true,
     });
     if (!ok) return;
     if (isUnit) {
@@ -2391,7 +2410,7 @@
     if (!fSel || !inp) return;
     const field = fSel.value;
     const value = (inp.value || '').trim();
-    if (!value) { if (typeof window.quoteShowToast === 'function') window.quoteShowToast('代表名称を入力してください', 'warn'); return; }
+    if (!value) { if (typeof window.quoteShowToast === 'function') window.quoteShowToast('マスター名を入力してください', 'warn'); return; }
     if (field === 'un') {
       if (typeof window.uaSetCanonical === 'function') window.uaSetCanonical(value);
     } else if (typeof window.synSetCanonical === 'function') {
@@ -2402,7 +2421,7 @@
   };
   // マスター管理: 代表名を編集（リネーム）。旧名称は別名として残る
   window.statsMasterRename = async function (field, canonical) {
-    const nv = window.prompt('新しい代表名を入力してください。\n（旧名称「' + canonical + '」は別名としてグループに残ります）', canonical);
+    const nv = window.prompt('新しいマスター名を入力してください。\n（旧名称「' + canonical + '」は別名として残ります）', canonical);
     if (nv == null) return;
     const v = nv.trim();
     if (!v || v === canonical) return;
