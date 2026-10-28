@@ -1,4 +1,4 @@
-// カテゴリナビ：頻度の低い 6 カテゴリを「📂 その他」メニューに集約。
+// カテゴリナビ：BOOKMARK・見積・統計・マスター管理の 4 つ（同じ色）＋「📂 その他」（諸チャージ含む 7 カテゴリ）。
 //   node scripts/design-tests/cat-more-test.js            （現行）
 //   THEME=1 node scripts/design-tests/cat-more-test.js    （Industry）
 const { chromium } = (()=>{try{return require('playwright-core')}catch(e){return require('playwright')}})();
@@ -18,12 +18,17 @@ const ok=(n,c,x)=>console.log((c?'PASS ':'FAIL ')+n+(c?'':' → '+JSON.stringify
  await p.goto(URL,{waitUntil:'domcontentloaded'});await p.waitForTimeout(800);
  const top=()=>p.evaluate(()=>[...document.querySelectorAll('.cat-nav > .cat-btn, .cat-nav > .cat-more > .cat-btn')].filter(b=>b.offsetParent!==null).map(b=>b.textContent.replace(/\s+/g,' ').trim()));
  const t0=await top();
- ok('上段は 5 カテゴリ＋「その他」だけ',t0.length===6&&/見積/.test(t0[0])&&/BOOKMARK/.test(t0[4])&&/その他/.test(t0[5]),t0);
- const vis=await p.evaluate(()=>['tab-calendar','tab-tracking','tab-booking-tab','tab-bldo','tab-calc','tab-incoterms'].map(id=>{const b=document.querySelector(`.cat-btn[aria-controls="${id}"]`);return !!b&&b.offsetParent===null;}));
- ok('6 カテゴリのボタンは DOM に残り（情報は残る）、閉じている間は見えない',vis.every(Boolean),vis);
+ ok('上段は BOOKMARK・見積・統計・マスター管理・「その他」の順',t0.length===5&&/BOOKMARK/.test(t0[0])&&/見積/.test(t0[1])&&/統計/.test(t0[2])&&/マスター管理/.test(t0[3])&&/その他/.test(t0[4]),t0);
+ const col=await p.evaluate(()=>[...document.querySelectorAll('.cat-nav > .cat-btn')].map(b=>({t:b.textContent.trim().slice(0,6),act:b.classList.contains('active'),bg:getComputedStyle(b).backgroundImage+getComputedStyle(b).backgroundColor,fg:getComputedStyle(b).color,bd:getComputedStyle(b).borderColor})));
+ const idle=col.filter(c=>!c.act&&!/その他/.test(c.t));
+ const actv=col.filter(c=>c.act);
+ ok('4 つのカテゴリは同じ色（選択中の見積だけ濃い）',idle.length===3&&idle.every(c=>c.bg===idle[0].bg&&c.fg===idle[0].fg&&c.bd===idle[0].bd)&&actv.length===1&&actv[0].bg!==idle[0].bg,col);
+ ok('「その他」は別の色（地味なまま）',await p.evaluate(()=>{const o=getComputedStyle(document.getElementById('catMoreBtn'));return o.backgroundImage+o.backgroundColor;})!==idle[0].bg,col);
+ const vis=await p.evaluate(()=>['tab-local-charges','tab-calendar','tab-tracking','tab-booking-tab','tab-bldo','tab-calc','tab-incoterms'].map(id=>{const b=document.querySelector(`.cat-btn[aria-controls="${id}"]`);return !!b&&b.offsetParent===null;}));
+ ok('7 カテゴリのボタンは DOM に残り（情報は残る）、閉じている間は見えない',vis.every(Boolean),vis);
  await p.click('#catMoreBtn');await p.waitForTimeout(200);
  const open=await p.evaluate(()=>{const pn=document.getElementById('catMorePanel');const r=pn.getBoundingClientRect();const items=[...pn.querySelectorAll('.cat-btn')];const bad=items.filter(b=>{const q=b.getBoundingClientRect();const e=document.elementFromPoint(q.left+q.width/2,q.top+q.height/2);return !(e&&(e===b||b.contains(e)));});return {hidden:pn.hidden,exp:document.getElementById('catMoreBtn').getAttribute('aria-expanded'),labels:items.map(b=>b.textContent.trim()),top:Math.round(r.top),covered:bad.length};});
- ok('開くと 6 項目が出る（隠れずに押せる）',!open.hidden&&open.exp==='true'&&open.labels.length===6&&open.covered===0,open);
+ ok('開くと 7 項目（先頭が諸チャージ）が出る（隠れずに押せる）',!open.hidden&&open.exp==='true'&&open.labels.length===7&&/諸チャージ/.test(open.labels[0])&&open.covered===0,open);
  await p.screenshot({path:OUT+'/cat-more-open.png',clip:{x:0,y:0,width:1400,height:420}});
  await p.click('.cat-btn[aria-controls="tab-calc"]');await p.waitForTimeout(500);
  const s1=await p.evaluate(()=>({hidden:document.getElementById('catMorePanel').hidden,label:document.querySelector('#catMoreBtn .cat-more-label').textContent,act:document.getElementById('catMoreBtn').classList.contains('active'),calc:document.getElementById('tab-calc').classList.contains('active'),sub:!!document.querySelector('#sub-calc.active'),quoteAct:document.querySelector('.cat-btn[aria-controls="tab-quote-make"]').classList.contains('active')}));
