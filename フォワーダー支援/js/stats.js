@@ -2453,6 +2453,24 @@
     tmp.innerHTML = _mdContactRowHtml({});
     wrap.appendChild(tmp.firstElementChild);
   };
+  let _mdEditField = 'sv';
+  // 種別などの「ひな形から選ぶ」ボタン列。ひな形のほか、チームの誰かが自由に追加した値も候補に出す（あとから種別を足せる）
+  function _mdPresetChips(id, s, current) {
+    const used = new Set();
+    (typeof window.mdGetAll === 'function' ? window.mdGetAll(_mdEditField) : []).forEach(m => {
+      const v = m.details && m.details[s.key];
+      if (Array.isArray(v)) v.forEach(t => { if (t) used.add(t); });
+    });
+    const all = [...s.presets, ...[...used].filter(t => !s.presets.includes(t)).sort()];
+    return `<div class="master-type-presets"><span class="master-type-presets-label">ひな形から選ぶ：</span>` +
+      all.map(t => `<button type="button" class="master-type-preset" onclick="statsAddTagPreset('${_ea(id)}','${_ea(t)}')">${_esc(t)}</button>`).join('') + `</div>`;
+  }
+  window.statsAddTagPreset = function (containerId, value) {
+    const inputEl = document.getElementById(containerId + '_input');
+    if (!inputEl) return;
+    inputEl.value = value;
+    window.statsAddTagChip(containerId);
+  };
   window.statsAddTagChip = function (containerId) {
     const inputEl = document.getElementById(containerId + '_input');
     const wrap = document.getElementById(containerId);
@@ -2478,6 +2496,7 @@
     if (next && next.classList.contains('stats-detail-row')) { next.remove(); return; }
     document.querySelectorAll('.stats-detail-row').forEach(r => r.remove());
     const schema = (window.MD_SCHEMA && window.MD_SCHEMA[field]) || [];
+    _mdEditField = field;
     const existing = (typeof window.mdGet === 'function') ? window.mdGet(field, value) : null;
     const details = (existing && existing.details) || {};
     const fieldsHtml = schema.map(s => {
@@ -2499,8 +2518,9 @@
         return `<div class="master-detail-tags">` +
           `<span class="master-detail-contacts-label">${s.label}</span>` +
           `<div id="${id}" class="master-tags-editor">${chips}</div>` +
+          (s.presets ? _mdPresetChips(id, s, list) : '') +
           `<span class="stats-syn-add-alias">` +
-            `<input type="text" class="stats-syn-add-input" id="${id}_input" placeholder="タグを追加" ` +
+            `<input type="text" class="stats-syn-add-input" id="${id}_input" placeholder="${_eav(s.addPlaceholder || 'タグを追加')}" ` +
               `onkeydown="if(event.key==='Enter'){event.preventDefault();statsAddTagChip('${id}');}">` +
             `<button type="button" class="stats-syn-add-btn" onclick="statsAddTagChip('${id}')">＋</button>` +
           `</span></div>`;

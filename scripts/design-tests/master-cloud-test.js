@@ -554,6 +554,32 @@ const http = require('http'), fs = require('fs'), path = require('path');
     await ctx.close();
   }
 
+  // ===== サブコン詳細：種別（複数選択・あとから追加できる） =====
+  {
+    const { ctx, p, errs } = await open(true, { legacy: {}, noLegacy: true });
+    const L = '[サブコン種別] ';
+    await p.evaluate(async () => {
+      window.__db.master_votes.push({ field: 'sv', value: 'テスト運送', voter_email: 's@example.com' });
+      window.__db.master_votes.push({ field: 'sv', value: '別の会社', voter_email: 's@example.com' });
+      window.__db.master_details.push({ field: 'sv', value: '別の会社', details: { svTypes: ['保税蔵置場'] } });
+      await statsLoadMasterCache(); await mdLoadCloud();
+    });
+    await p.evaluate(() => { switchCategory('master', document.querySelector('[onclick*="switchCategory(\'master"]')); }); await p.waitForTimeout(1200);
+    await p.evaluate(() => document.querySelector('#statsPane-master tr[data-mvalue="テスト運送"] .stats-master-detail-btn').click());
+    await p.waitForTimeout(300);
+    const presets = await p.evaluate(() => [...document.querySelectorAll('.master-type-preset')].map(b => b.textContent));
+    ok(L + 'ひな形 9 種が並ぶ', ['通関業者', '倉庫業者', '運送業者', 'FCL CARRIER', 'LCL CARRIER', 'AIR CARRIER', '海外代理店', '保険会社', 'サーベイヤー'].every(t => presets.includes(t)), presets);
+    ok(L + 'ほかの人が追加した種別も候補に出る', presets.includes('保税蔵置場'), presets);
+    await p.click('.master-type-preset:text("通関業者")'); await p.click('.master-type-preset:text("倉庫業者")');
+    await p.fill('#md_svTypes_input', 'トラック手配'); await p.keyboard.press('Enter');
+    await p.click('.master-detail-save'); await p.waitForTimeout(800);
+    const d = await p.evaluate(() => (window.__db.master_details.find(m => m.value === 'テスト運送') || {}).details);
+    ok(L + '複数の種別（ひな形＋自由入力）が保存される', d && JSON.stringify(d.svTypes) === JSON.stringify(['通関業者', '倉庫業者', 'トラック手配']), d);
+    ok(L + '一覧の名称欄にも種別が出る', await p.evaluate(() => document.querySelector('#statsPane-master tr[data-mvalue="テスト運送"]').textContent.includes('通関業者')));
+    ok(L + 'JS エラーなし', errs.length === 0, errs);
+    await ctx.close();
+  }
+
   // ===== 承認制：別名の追加（メンバーは申請・管理者が承認）／詳細の合流／添付の集約 =====
   {
     const { ctx, p, errs } = await open(true, { approval: true, role: 'member', noLegacy: true });

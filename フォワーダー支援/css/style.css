@@ -5581,3 +5581,9 @@ button.lc-attach-tbl-btn { background: none; border: none; padding: 0; cursor: p
 .confirm-dialog .confirm-actions .btn-primary { background: #5a4a3a; color: #fff; font-weight: 700; }
 .confirm-dialog .confirm-actions .btn-danger { background: #b0392e; border-color: #b0392e; color: #fff; font-weight: 700; }
 .confirm-dialog .confirm-actions button:focus-visible { outline: 3px solid #5980a6; outline-offset: 2px; }
+
+/* マスター詳細：種別などの「ひな形から選ぶ」ボタン列 */
+.master-type-presets { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; margin: 4px 0 6px; }
+.master-type-presets-label { font-size: 11px; color: #6b7a8c; margin-right: 2px; }
+.master-type-preset { font-size: 12px; padding: 2px 9px; border: 1px dashed #9db3c9; border-radius: 12px; background: #fff; color: #2a4d70; cursor: pointer; }
+.master-type-preset:hover { background: #eaf2fb; border-style: solid; }
