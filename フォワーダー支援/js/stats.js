@@ -475,9 +475,9 @@
       if (s.contacts) {
         const list = typeof window.mdContactsOf === 'function' ? window.mdContactsOf(details) : (Array.isArray(raw) ? raw : []);
         if (!list.length) return;
-        const names = list.map(c => c.name).filter(Boolean);
+        const names = list.map(c => _honor(c.name)).filter(Boolean);
         const disp = names.length ? names.slice(0, 2).join('、') + (names.length > 2 ? ' 他' : '') : list.length + '名';
-        const locs = list.filter(c => c.location || c.dept).map(c => (c.name || '（氏名未入力）') + '：' + [c.dept, c.location].filter(Boolean).join(' / '));
+        const locs = list.filter(c => c.location || c.dept).map(c => (c.name ? _honor(c.name) : '（氏名未入力）') + '：' + [c.dept, c.location].filter(Boolean).join(' / '));
         chips.push(`<span class="stats-md-chip" title="${_eav(s.label + '：' + list.length + '名' + (locs.length ? '\n' + locs.join('\n') : ''))}"><b>${_esc(s.label)}</b>${_esc(disp)}${locs.length ? ' 📍' : ''}</span>`);
         return;
       }
@@ -2213,11 +2213,16 @@
   let _masterSvType = '';
   const _SV_NONE = '\u0000none';
   window.statsMasterSetSvType = function (t) { _masterSvType = t || ''; _renderMaster(); };
-  const _svTypesOf = v => {
-    const rec = typeof window.mdGet === 'function' ? window.mdGet('sv', v) : null;
-    const t = rec && rec.details && rec.details.svTypes;
+  // 詳細の「種別・タグ」で絞り込める種別（サブコン＝サブコン種別、お客様＝タグ）
+  const _SUB_FILTER = { sv: { key: 'svTypes', label: '種別' }, customer: { key: 'tags', label: 'タグ' } };
+  const _svTypesOf = (v, field) => {
+    const f = _SUB_FILTER[field || _masterFieldFilter];
+    const rec = f && typeof window.mdGet === 'function' ? window.mdGet(field || _masterFieldFilter, v) : null;
+    const t = rec && rec.details && rec.details[f.key];
     return Array.isArray(t) ? t.filter(Boolean) : [];
   };
+  // 担当者名は入力では敬称略。表示するときは「様」を付ける（既に敬称があれば付けない）
+  const _honor = n => typeof window.formatPersonWithHonorific === 'function' ? window.formatPersonWithHonorific(n) : (n ? n + ' 様' : '');
 
   let _regOpen = false;   // 「代表を新規登録」の開閉（Industry。再描画しても保つ）
   window.statsMasterToggleRegister = function () {
@@ -2322,7 +2327,7 @@
     let synFiltered = _masterFieldFilter === 'all' ? allSyn : allSyn.filter(g => g.field === _masterFieldFilter);
 
     // サブコンのときだけ「種別」（通関業者・倉庫業者…）の絞り込みを出す。件数は種別を複数持つ会社を、それぞれに数える
-    if (_masterFieldFilter === 'sv') {
+    if (_SUB_FILTER[_masterFieldFilter]) {
       const typeCnt = new Map(); let noneCnt = 0;
       const svNames = [...entries.map(m => m.value), ...synFiltered.map(g => g.canonical)];
       svNames.forEach(n => { const t = _svTypesOf(n); if (!t.length) noneCnt++; t.forEach(x => typeCnt.set(x, (typeCnt.get(x) || 0) + 1)); });
@@ -2330,7 +2335,7 @@
       if (_masterSvType === _SV_NONE && !noneCnt) _masterSvType = '';
       const tchip = (t, label, n) => `<button class="master-filter-chip master-type-chip${_masterSvType === t ? ' is-active' : ''}" onclick="statsMasterSetSvType('${_ea(t)}')">${_esc(label)}<span class="master-filter-count">${n}</span></button>`;
       if (typeCnt.size) {
-        chipsH += '<div class="master-filter-chips master-type-chips"><span class="master-type-chips-label">種別：</span>' +
+        chipsH += '<div class="master-filter-chips master-type-chips"><span class="master-type-chips-label">' + _SUB_FILTER[_masterFieldFilter].label + '：</span>' +
           tchip('', 'すべて', svNames.length) +
           [...typeCnt.keys()].sort().map(t => tchip(t, t, typeCnt.get(t))).join('') +
           (noneCnt ? tchip(_SV_NONE, '未設定', noneCnt) : '') + '</div>';

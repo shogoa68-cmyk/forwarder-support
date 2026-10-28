@@ -577,7 +577,9 @@
       o.value = name;
       const furi = (c.furigana || '').trim();
       const meta = [furi, c.phone, c.email, c.other].filter(Boolean).join(' / ');
-      if (meta) o.label = meta;   // ふりがなも label に入れ、読み入力でも候補にヒットさせる
+      // 入力は敬称略（value）。候補の表示には「様」を付ける。ふりがなも label に入れ、読み入力でも候補にヒットさせる
+      const honor = window.formatPersonWithHonorific ? window.formatPersonWithHonorific(name) : name + ' 様';
+      o.label = meta ? honor + ' / ' + meta : honor;
       if (furi) o.dataset.furi = furi;
       dl.appendChild(o);
     });
@@ -601,7 +603,7 @@
           if (!list.length) return '';
           const items = list.map(c => {
             const meta = [c.phone, c.email, c.other].filter(Boolean).join(' / ');
-            return `<div class="cd-contact-item"><b>${_cdEsc(c.name || '（氏名未入力）')}</b>` +
+            return `<div class="cd-contact-item"><b>${_cdEsc(c.name ? (window.formatPersonWithHonorific ? window.formatPersonWithHonorific(c.name) : c.name + ' 様') : '（氏名未入力）')}</b>` +
               (c.dept ? `<span class="cd-contact-meta cd-contact-dept">${_cdEsc(c.dept)}</span>` : '') +
               (meta ? `<span class="cd-contact-meta">${_cdEsc(meta)}</span>` : '') +
               (c.location ? `<span class="cd-contact-meta cd-contact-loc">📍 ${_cdEsc(c.location)}</span>` : '') + `</div>`;
