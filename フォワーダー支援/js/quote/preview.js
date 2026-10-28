@@ -52,6 +52,20 @@
   }
   // プリセットカード（ブラウザ保存／チーム共有）でも敬称表示に使うため公開
   window.formatPersonWithHonorific = formatPersonWithHonorific;
+  // お客様マスターの担当者（氏名が一致する人）の所属部署・課と役職。ご担当者欄でマスターの候補を選ぶ（＝氏名がマスターの担当者と一致する）と
+  // 宛先に出す。敬称（様など）・空白の違いは無視して照合。見つからなければ null
+  function getRecipientExtra(company, person) {
+    const co = (company || '').trim(), pn = (person || '').trim();
+    if (!co || !pn || typeof window.mdGet !== 'function' || typeof window.mdContactsOf !== 'function') return null;
+    const rec = (window.mdGetCanon || window.mdGet)('customer', co);
+    if (!rec) return null;
+    const norm = s => String(s || '').replace(/[\s　]+/g, '').replace(/(様|さま|さん|殿)$/, '');
+    const key = norm(pn);
+    const c = window.mdContactsOf(rec.details).find(x => x && norm(x.name) === key);
+    if (!c || !(c.dept || c.title)) return null;
+    return { dept: (c.dept || '').trim(), title: (c.title || '').trim() };
+  }
+  window.getRecipientExtra = getRecipientExtra;
 
   // プレビュー上の発行日／有効期限編集 → フォーム(qf-date / qf-valid-until)へ同期
   window.pvSyncDate = function (which, val) {
@@ -523,7 +537,7 @@
     const metaHTML = [
       hdr.ref      ? `<div class="pv-meta-item"><span class="lbl">見積もり番号</span><span class="val">${escHtml(hdr.ref)}</span></div>` : '',
       hdr.customer ? `<div class="pv-meta-item"><span class="lbl">お客様</span><span class="val">${escHtml(hdr.customer)}</span></div>` : '',
-      hdr.person   ? `<div class="pv-meta-item"><span class="lbl">担当</span><span class="val">${escHtml(formatPersonWithHonorific(hdr.person))}</span></div>` : '',
+      hdr.person   ? `<div class="pv-meta-item"><span class="lbl">担当</span><span class="val">${escHtml((() => { const x = getRecipientExtra(hdr.customer, hdr.person); return (x && x.dept ? x.dept + ' ' : '') + (x && x.title ? x.title + ' ' : '') + formatPersonWithHonorific(hdr.person); })())}</span></div>` : '',
       `<div class="pv-meta-item pv-meta-edit"><span class="lbl">発行日</span><input type="date" class="pv-meta-date" value="${escHtml(hdr.date)}" onchange="pvSyncDate('date', this.value)" title="フォームの発行日と同期します" /></div>`,
       `<div class="pv-meta-item pv-meta-edit"><span class="lbl">有効期限</span><input type="${validInputType}" class="pv-meta-date" value="${escHtml(hdr.validUntil)}" onchange="pvSyncDate('valid', this.value)" title="フォームの有効期限と同期します" /></div>`,
     ].join('');
