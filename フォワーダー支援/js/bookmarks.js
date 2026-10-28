@@ -176,6 +176,28 @@ async function bmEnsureCarrierTypes(force) {
   if (error) return;
   _bmLightRows = data || [];
 }
+// 見積のサブコン見出し用：その名前（マスターの別名・代表名も含む）でブックマークが1件でも登録されているか。
+// 同期関数。会社名の一覧が未取得のときは裏で取得し、取得できたら見出しを再描画する（それまでは false）。
+let _bmHasLoading = false;
+function bmHasBookmarks(name) {
+  name = String(name || '').trim();
+  if (!name) return false;
+  const src = _bmRows.length ? _bmRows : _bmLightRows;
+  if (!src) {
+    if (!_bmHasLoading) {
+      _bmHasLoading = true;
+      bmEnsureCarrierTypes().then(() => {
+        _bmHasLoading = false;
+        if (_bmLightRows && typeof window.refreshAllRowSvChips === 'function') window.refreshAllRowSvChips();
+      }).catch(() => { _bmHasLoading = false; });
+    }
+    return false;
+  }
+  const fields = ['carrier', 'sv'];
+  const names = new Set([name, ...(typeof window.nameVariants === 'function' ? window.nameVariants(fields, name) : [])]);
+  return src.some(r => r.carrier && (names.has(r.carrier)
+    || (typeof window.nameSame === 'function' && fields.some(f => window.nameSame(f, name, r.carrier)))));
+}
 // 指定した種別のブックマークが登録されている会社名（BOOKMARK タブ読込済みならそちらを優先して最新を使う）
 function bmCarrierNamesForType(type) {
   const src = _bmRows.length ? _bmRows : (_bmLightRows || []);
@@ -251,6 +273,7 @@ async function _bmLoad() {
 
   _bmRenderTypeChips();
   _bmApply();
+  if (typeof window.refreshAllRowSvChips === 'function') window.refreshAllRowSvChips();
 }
 
 function _bmNameFor(email) {
@@ -1739,6 +1762,7 @@ window.bmDoAddRelation   = bmDoAddRelation;
 window.bmRemoveRelation  = bmRemoveRelation;
 window.bmGetContact       = bmGetContact;
 window.bmFnRank           = bmFnRank;
+window.bmHasBookmarks       = bmHasBookmarks;
 window.bmClickInfo         = bmClickInfo;
 window.bmClickTotal        = bmClickTotal;
 window.bmPopularIds        = bmPopularIds;

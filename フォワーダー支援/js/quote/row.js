@@ -915,9 +915,15 @@
         const rec = reg && typeof window.mdGetCanon === 'function' ? window.mdGetCanon('sv', v) : null;
         const types = rec && rec.details && Array.isArray(rec.details.svTypes) ? rec.details.svTypes : [];
         const isCarrier = types.some(t => /^\s*(FCL|LCL|AIR)\s*CARRIER\s*$/i.test(String(t)));
-        bmBtn.hidden = !isCarrier;
-        bmBtn.dataset.canon = isCarrier ? r.canon : '';
-        if (isCarrier) bmBtn.title = '「' + r.canon + '」のブックマーク（リンク）を見る・追加する';
+        // マスターの種別がキャリアでなくても、その名前（別名・代表名含む）でブックマークが登録されていれば出す
+        // （マスター未登録のサブコン名でも可）。種別がキャリアなら未登録でも出して「追加」できるようにする。
+        const hasBm = !!v && typeof window.bmHasBookmarks === 'function'
+          && (window.bmHasBookmarks(v) || (reg && r.canon !== v && window.bmHasBookmarks(r.canon)));
+        const showBm = isCarrier || hasBm;
+        const bmName = reg ? r.canon : v;
+        bmBtn.hidden = !showBm;
+        bmBtn.dataset.canon = showBm ? bmName : '';
+        if (showBm) bmBtn.title = '「' + bmName + '」のブックマーク（リンク）を見る・追加する';
       }
       if (show) {
         const label = (window.statsIsApprovalOn && window.statsIsApprovalOn()) ? '登録を申請' : '登録';
