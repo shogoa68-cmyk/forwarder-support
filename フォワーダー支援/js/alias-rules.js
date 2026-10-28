@@ -1521,7 +1521,13 @@
       { key: 'refSell',     label: '代表売単価（参考）' },
       { key: 'refCcy',      label: '代表単価の通貨' },
     ],
-    sv:      [_FURIGANA_FIELD, _EN_FIELD],
+    sv:      [
+      _FURIGANA_FIELD,
+      _EN_FIELD,
+      // 種別（複数選べる。ひな形のほか、自由に追加した種別はチーム内で候補に出る）
+      { key: 'svTypes', label: 'サブコン種別', tags: true, addPlaceholder: '種別を追加（例：トラック手配）',
+        presets: ['通関業者', '倉庫業者', '運送業者', 'FCL CARRIER', 'LCL CARRIER', 'AIR CARRIER', '海外代理店', '保険会社', 'サーベイヤー'] },
+    ],
     carrier: [_FURIGANA_FIELD, _EN_FIELD],
     port:    [_FURIGANA_FIELD, _EN_FIELD],
   };
