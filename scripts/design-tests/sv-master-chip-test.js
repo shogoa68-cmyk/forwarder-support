@@ -1,6 +1,6 @@
 // 行のサブコン欄：マスターに無い名前は「サブコン未登録」の印を出し、そこから登録（承認制のメンバーは申請）できる。
 // 偽の Supabase（メモリ上の表）を使う。実サーバーには接続しない。
-//   node scripts/design-tests/sv-master-chip-test.js
+//   node scripts/design-tests/sv-master-chip-test.js           （THEME=1 で Industry・SHOT=パス で「BOOKMARK」を開いた画面を保存）
 const { chromium } = (() => { try { return require('playwright-core'); } catch (e) { return require('playwright'); } })();
 const http = require('http'), fs = require('fs'), path = require('path');
 
@@ -24,14 +24,25 @@ const http = require('http'), fs = require('fs'), path = require('path');
     master_votes: [
       { field: 'carrier', value: 'ONE', voter_email: ME }, { field: 'nm', value: 'THC', voter_email: ME },
       { field: 'nm', value: '海上運賃', voter_email: ME }, { field: 'port', value: 'Yokohama', voter_email: ME },
-      { field: 'sv', value: 'テスト運送', voter_email: ME },
+      { field: 'sv', value: 'テスト運送', voter_email: ME }, { field: 'sv', value: 'ABCキャリア', voter_email: ME },
     ],
     synonym_groups: [
       { id: 'g1', field: 'carrier', canonical: 'ONE', aliases: ['Ocean Network Express'] },
       { id: 'g2', field: 'nm', canonical: 'THC', aliases: ['Terminal Handling Charge', 'ターミナルハンドリングチャージ'] },
       { id: 'g3', field: 'port', canonical: 'Yokohama', aliases: ['横浜'] },
+      { id: 'g4', field: 'sv', canonical: 'ABCキャリア', aliases: ['ABC Line'] },
     ],
-    master_details: [{ field: 'nm', value: 'THC', details: { defaultUnit: 'CNTR', defaultCat: 'export-local', enName: 'Terminal Handling Charge' } }],
+    master_details: [
+      { field: 'nm', value: 'THC', details: { defaultUnit: 'CNTR', defaultCat: 'export-local', enName: 'Terminal Handling Charge' } },
+      { field: 'sv', value: 'テスト運送', details: { svTypes: ['運送業者'], location: '横浜市' } },
+      { field: 'sv', value: 'ABCキャリア', details: { svTypes: ['FCL CARRIER', 'LCL CARRIER'], website: 'https://abc.example' } },
+    ],
+    bookmarks: [
+      { id: 'b1', label: 'ABC 公式サイト', url: 'https://abc.example', carrier: 'ABCキャリア', function: 'tracking' },
+      { id: 'b2', label: 'ABC 運賃表', file_path: 'x/rate.pdf', file_name: 'rate.pdf', carrier: 'ABCキャリア' },
+      { id: 'b3', label: '別名側で登録したリンク', url: 'https://abc2.example', carrier: 'ABC Line' },
+      { id: 'b4', label: '他社のリンク', url: 'https://other.example', carrier: '他社キャリア' },
+    ],
     alias_rules: [{ id: 'r1', field: 'nm', from_value: 'O/F', to_value: '海上運賃' }],
   };
   // このブラウザにだけ残っている古いデータ（移行の対象）
@@ -47,6 +58,7 @@ const http = require('http'), fs = require('fs'), path = require('path');
   // opts.approval：申請テーブル（master_requests）を用意する＝承認制、opts.role：get_my_role() の結果
   async function open(loggedIn, opts = {}) {
     const ctx = await b.newContext({ viewport: { width: 1400, height: 900 }, locale: 'ja-JP' });
+    if (process.env.THEME) await ctx.addInitScript(() => { try { localStorage.setItem('forwarderTheme_v1', JSON.stringify({ site: true, doc: true })); } catch (e) {} });
     await ctx.addInitScript(({ seed, legacy, loggedIn, ME, opts }) => {
       try {
         localStorage.setItem('fwd.uiMode', 'detail');
@@ -163,6 +175,37 @@ const http = require('http'), fs = require('fs'), path = require('path');
     await setSv(p, '');
     ok('サブコンが空なら出ない', !(await detailBtn()).shown, null);
     ok('JS エラーなし（サブコン詳細）', errs.length === 0, errs);
+    await ctx.close();
+  }
+  // ===== サブコン別明細の見出し：登録済みなら「詳細」、種別がキャリアなら「BOOKMARK」 =====
+  {
+    const { ctx, p, errs } = await open(true, { legacy: {}, approval: true, role: 'member' });
+    const hdr = () => p.evaluate(() => { const h = document.querySelector('#tableBody tr.subcon-group-header'); const v = s => { const e = h && h.querySelector(s); return !!e && !e.hidden && e.offsetParent !== null; }; return { exists: !!h, det: v('.sv-hdr-detail'), bm: v('.sv-hdr-bm'), detCanon: h && h.querySelector('.sv-hdr-detail').dataset.canon }; });
+    await setSv(p, 'テスト運送');
+    let h = await hdr();
+    ok('マスター登録済み（運送業者）のサブコン見出しに「詳細」が出て、「BOOKMARK」は出ない', h.det && !h.bm && h.detCanon === 'テスト運送', h);
+    await p.evaluate(() => document.querySelector('#tableBody tr.subcon-group-header .sv-hdr-detail').click()); await p.waitForTimeout(500);
+    const dp = await p.evaluate(() => ({ hidden: document.getElementById('customerDetailOverlay').hidden, title: document.getElementById('cdTitle').textContent, body: document.getElementById('cdBody').textContent }));
+    ok('「詳細」を押すと、マスターの詳細（サブコン種別・添付）が開く', !dp.hidden && /テスト運送/.test(dp.title) && /サブコン種別/.test(dp.body) && /運送業者/.test(dp.body) && /添付/.test(dp.body), dp);
+    await p.evaluate(() => qfCloseCustomerDetail());
+    await p.evaluate(async () => { await window.synLoadCloud(); window.arRefreshDatalist(); });
+    await setSv(p, 'ABCキャリア');
+    h = await hdr();
+    ok('種別が FCL／LCL CARRIER のサブコンには「詳細」と「BOOKMARK」の両方が出る', h.det && h.bm, h);
+    await p.evaluate(() => document.querySelector('#tableBody tr.subcon-group-header .sv-hdr-bm').click()); await p.waitForTimeout(700);
+    const bp = await p.evaluate(() => { const e = document.querySelector('.sv-bm-pop'); return e ? { text: e.textContent, chips: [...e.querySelectorAll('.sv-bm-chip')].map(c => c.textContent.trim()), links: [...e.querySelectorAll('a.sv-bm-chip')].map(a => a.href), add: !!e.querySelector('.sv-bm-pop-add'), inView: e.getBoundingClientRect().right <= innerWidth && e.getBoundingClientRect().bottom <= innerHeight } : null; });
+    ok('「BOOKMARK」を押すと、そのキャリアのリンクが出る（別名で登録したものも・他社のものは出ない）', bp && bp.chips.length === 3 && bp.chips.some(c => /公式サイト/.test(c)) && bp.chips.some(c => /運賃表/.test(c)) && bp.chips.some(c => /別名側/.test(c)) && !bp.chips.some(c => /他社/.test(c)), bp);
+    if (process.env.SHOT) await p.screenshot({ path: process.env.SHOT });
+    ok('リンクは新しいタブで開く・追加ボタンがあり・画面内に収まる', bp && bp.links.every(l => /^https:/.test(l)) && bp.add && bp.inView, bp);
+    await p.evaluate(() => bmHideForCarrier());
+    ok('閉じると消える', await p.evaluate(() => !document.querySelector('.sv-bm-pop')), null);
+    await setSv(p, '未登録の運送会社');
+    h = await hdr();
+    ok('未登録のサブコンには「詳細」も「BOOKMARK」も出ない', h.exists && !h.det && !h.bm, h);
+    await setSv(p, 'ABC Line');
+    h = await hdr();
+    ok('別名（ABC Line）で入力しても、代表名（ABCキャリア）の「詳細」「BOOKMARK」が出る', h.det && h.bm && h.detCanon === 'ABCキャリア', h);
+    ok('JS エラーなし（見出しの詳細・BOOKMARK）', errs.length === 0, errs);
     await ctx.close();
   }
   // ===== 承認制のメンバー =====

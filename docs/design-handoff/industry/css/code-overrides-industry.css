@@ -122,6 +122,9 @@
 /* サブコン見出しの「サブコン未登録／申請中」の印：見出しの操作ボタンはホバーまで隠れる（opacity:0）が、この印は常に見せる（未登録に気づけるように） */
 #tab-quote-make #quoteTable tr.subcon-group-header .subcon-group-header-inner > button.sv-master-chip { opacity: 1; margin-left: 0; border-radius: 0; height: 22px; padding: 0 8px; font-size: 11px; }
 #tab-quote-make #quoteTable tr.subcon-group-header .subcon-group-header-inner > button.sv-master-chip[hidden] { display: none; }
+/* マスター登録済みサブコンの「詳細」／キャリアの「BOOKMARK」も常時表示（見出しの操作ボタンはホバーまで隠れる設定だが、見つけられるように） */
+#tab-quote-make #quoteTable tr.subcon-group-header .subcon-group-header-inner > button.sv-hdr-btn { opacity: 1; margin-left: 0; border-radius: 0; height: 22px; padding: 0 8px; font-size: 11px; }
+#tab-quote-make #quoteTable tr.subcon-group-header .subcon-group-header-inner > button.sv-hdr-btn[hidden] { display: none; }
 /* A-1 小計行：「注記 ▾」ボタンは現行では隠している。Industry では表示（Design の .st-notes-btn の見た目は display を持たない） */
 #tab-quote-make #quoteTable .st-notes-btn { display: inline-flex; align-items: center; pointer-events: auto; }   /* 小計行は pointer-events:none（ドラッグの邪魔をしない既存設定）。このボタンだけ押せるように */
 #tab-quote-make #quoteTable .st-notes { display: none; }

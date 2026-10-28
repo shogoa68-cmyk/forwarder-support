@@ -901,6 +901,24 @@
       chip.classList.toggle('is-none', st === 'none');
       chip.classList.toggle('is-pending', st === 'pending');
       hdr.dataset.svState = show ? st : '';
+      // 登録済み（別名で入力しても代表名）なら「詳細」。種別がキャリアなら「BOOKMARK」も
+      const r = v ? _svResolve(v) : { st: 'unknown', canon: '' };
+      const reg = r.st === 'master';
+      const detBtn = hdr.querySelector('.sv-hdr-detail');
+      const bmBtn = hdr.querySelector('.sv-hdr-bm');
+      if (detBtn) {
+        detBtn.hidden = !reg;
+        detBtn.dataset.canon = reg ? r.canon : '';
+        if (reg) detBtn.title = 'サブコン「' + r.canon + '」のマスター詳細（種別・担当者・所在地・添付など）を見る';
+      }
+      if (bmBtn) {
+        const rec = reg && typeof window.mdGetCanon === 'function' ? window.mdGetCanon('sv', v) : null;
+        const types = rec && rec.details && Array.isArray(rec.details.svTypes) ? rec.details.svTypes : [];
+        const isCarrier = types.some(t => /^\s*(FCL|LCL|AIR)\s*CARRIER\s*$/i.test(String(t)));
+        bmBtn.hidden = !isCarrier;
+        bmBtn.dataset.canon = isCarrier ? r.canon : '';
+        if (isCarrier) bmBtn.title = '「' + r.canon + '」のブックマーク（リンク）を見る・追加する';
+      }
       if (show) {
         const label = (window.statsIsApprovalOn && window.statsIsApprovalOn()) ? '登録を申請' : '登録';
         chip.textContent = st === 'none' ? '⚠ サブコン未登録' : '📨 サブコン申請中';
@@ -3569,6 +3587,8 @@
             `<span class="subcon-group-label">📦 ${_escHdr(label)}</span>` +
             `<span class="subcon-group-count">${count} 行</span>` +
             `<button type="button" class="sv-master-chip" hidden></button>` +
+            `<button type="button" class="sv-hdr-btn sv-hdr-detail" hidden>📇 詳細</button>` +
+            `<button type="button" class="sv-hdr-btn sv-hdr-bm" hidden>🔖 BOOKMARK</button>` +
             `<span class="subcon-group-sum"></span>` +
             `<button type="button" class="subcon-group-excl${excluded ? ' is-excluded' : ''}" ` +
               `title="見積もりへの含める/除外を切り替え">${excluded ? '含む' : '除外'}</button>` +
@@ -3588,6 +3608,18 @@
           if (hdr.dataset.svState === 'pending') { if (window.quoteShowToast) quoteShowToast('📨 すでに申請済みです（管理者の承認待ち）', 'info', 2500); return; }
           const svInp = (groups[key][0] || document).querySelector('[data-field="sv"]');   // 登録の確認は、この見出しの下に出す
           if (window.arCheckSubconRow && svInp) window.arCheckSubconRow(svInp, e.currentTarget);
+        });
+        // マスター登録済みのサブコン：「詳細」でマスターの詳細（種別・担当者・所在地・添付など）を見る。
+        // 種別が FCL／LCL／AIR CARRIER のときは「BOOKMARK」で、そのキャリアのブックマーク（リンク）を見る
+        hdr.querySelector('.sv-hdr-detail').addEventListener('click', e => {
+          e.stopPropagation();
+          const canon = e.currentTarget.dataset.canon || label;
+          if (canon && typeof window.mdShowDetailPopup === 'function') window.mdShowDetailPopup('sv', canon);
+        });
+        hdr.querySelector('.sv-hdr-bm').addEventListener('click', e => {
+          e.stopPropagation();
+          const canon = e.currentTarget.dataset.canon || label;
+          if (canon && typeof window.bmShowForCarrier === 'function') window.bmShowForCarrier(canon, e);
         });
         hdr.querySelector('.subcon-group-excl').addEventListener('click', () => toggleSubconExclude(key));
         hdr.querySelector('.subcon-group-add-btn').addEventListener('click', () => {

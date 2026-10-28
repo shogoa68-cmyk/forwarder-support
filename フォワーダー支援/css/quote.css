@@ -1666,6 +1666,13 @@
 #tab-quote-make .subcon-group-header .sv-master-chip[hidden] { display: none; }
 #tab-quote-make .subcon-group-header .sv-master-chip:hover { background: #ffe9c9; }
 #tab-quote-make .subcon-group-header .sv-master-chip.is-pending { border-color: #5d7fae; background: var(--blue-95); color: #2c5d8f; cursor: default; }
+/* マスター登録済みサブコンの「詳細」／キャリア種別の「BOOKMARK」（サブコン見出し）。濃い見出しの上でも読める白地 */
+#tab-quote-make .subcon-group-header .sv-hdr-btn {
+  padding: 1px var(--sp-8); font-size: var(--fs-10-5); line-height: 1.5; font-family: inherit; cursor: pointer; white-space: nowrap;
+  border: 1px solid #b8c4d0; border-radius: var(--r-3); background: #fff; color: #2c3e50; font-weight: 700;
+}
+#tab-quote-make .subcon-group-header .sv-hdr-btn[hidden] { display: none; }
+#tab-quote-make .subcon-group-header .sv-hdr-btn:hover { background: #eef3f8; border-color: #6f8aa5; }
 #tab-quote-make .master-actions .master-reg-btn { visibility: hidden; }
 #tab-quote-make tr:hover .master-actions .master-reg-btn, #tab-quote-make tr:focus-within .master-actions .master-reg-btn, #tab-quote-make tr.is-active .master-actions .master-reg-btn { visibility: visible; }
 /* 行の操作ボタンの文字ラベル（Industry 層でのみ表示。既定はアイコンだけ） */
