@@ -4632,6 +4632,8 @@ body.qp-dash-active #quoteActionDock { display: none !important; }
 /* ========== 保存ツールバー ========== */
 #tab-quote-make .save-toolbar {
   display: flex;
+  min-height: 44px;            /* 下に固定する操作バー・道しるべの top（--nav-cat-h + 44px）の前提の高さ。ボタンを「⋯」へ集約して低くなっても、隙間ができないように */
+  box-sizing: border-box;
   align-items: center;
   gap: var(--sp-5);
   flex-wrap: wrap;

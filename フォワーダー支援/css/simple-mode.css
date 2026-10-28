@@ -119,7 +119,7 @@ html.mode-simple #qpDashboard .qpd-local-btn { appearance: none; padding: var(--
    区分：data-tier="req"（常に表示）／"opt"（畳む）／"adv"（かんたんでは隠す。使っている案件では data-adv-inuse で表示）
    ================================================================ */
 /* 常に効く：かんたん専用の要素は詳細表示では出さない */
-.tier-badge, .qp-guide, .tier-opt-toggle, .qrc-more-btn, .tb-mi-simple { display: none; }
+.tier-badge, .qp-guide, .qp-hint, .tier-opt-toggle, .qrc-more-btn, .tb-mi-simple { display: none; }
 .uim-advbar[hidden] { display: none; }
 .uim-switch--m { display: none; }
 @media (max-width: 700px) {
@@ -148,7 +148,19 @@ html.mode-simple #tab-quote-make .is-collapsible[data-tier="opt"] > .section-tog
 html.mode-simple #tab-quote-make .is-collapsible[data-tier="opt"]:not(.collapsed) .section-collapsed-summary { display: none; }
 
 /* 手順の道しるべ */
-html.mode-simple #tab-quote-make .qp-guide { display: block; margin: 0 0 var(--sp-14); }
+html.mode-simple #tab-quote-make .qp-guide { display: block; margin: 0 0 var(--sp-4); }
+/* 手順の道しるべはスクロールに付いてくる（上部ツールバーの下に固定）。下の操作バー・見出しへ飛ぶときの余白は、この高さ（--qp-guide-h）の分だけ下げる。
+   ひと言の案内（#qpHint）は道しるべの外に出してあるので、固定されるのはボタンの 1 行だけ */
+html.mode-simple #tab-quote-make { --qp-guide-h: 46px; }
+html.mode-simple #tab-quote-make .qp-guide { position: sticky; top: calc(var(--nav-cat-h, 56px) + 44px); z-index: 42; background: var(--bg); padding-bottom: var(--sp-4); }
+@media (max-width: 680px) {
+  html.mode-simple #tab-quote-make .qp-guide { top: var(--nav-cat-h, 108px); }
+  html.mode-simple #tab-quote-make .quote-cmdbar { top: calc(var(--nav-cat-h, 108px) + var(--qp-guide-h)); }
+}
+@media (min-width: 681px) {
+  html.mode-simple #tab-quote-make .quote-cmdbar { top: calc(var(--nav-cat-h, 56px) + 44px + var(--qp-guide-h)); }
+}
+html.mode-simple #tab-quote-make .condition-section { scroll-margin-top: calc(100px + var(--qp-guide-h)); }
 html.mode-simple #tab-quote-make .qp-guide-steps { display: flex; list-style: none; margin: 0; padding: 0; }
 html.mode-simple #tab-quote-make .qp-guide-steps li { flex: 1; min-width: 0; }
 html.mode-simple #tab-quote-make .qp-guide-step { display: flex; align-items: center; justify-content: center; gap: var(--sp-8); width: 100%; box-sizing: border-box; margin-left: -1px;
@@ -158,7 +170,7 @@ html.mode-simple #tab-quote-make .qp-guide-l { font-size: var(--fs-13); }
 html.mode-simple #tab-quote-make .qp-guide-step.is-done { background: var(--accent-lt); }
 html.mode-simple #tab-quote-make .qp-guide-step.is-done .qp-guide-n::after { content: "✓"; font-size: var(--fs-12); margin-left: 2px; }
 html.mode-simple #tab-quote-make .qp-guide-step.is-current { background: var(--accent-dk); color: var(--surface); }
-html.mode-simple #tab-quote-make .qp-hint { margin: var(--sp-8) 0 0; font-size: var(--fs-13); color: var(--text); line-height: 1.6; }
+html.mode-simple #tab-quote-make .qp-hint { display: block; margin: 0 0 var(--sp-10); font-size: var(--fs-13); color: var(--text); line-height: 1.6; }
 
 /* 上級項目を表示している案件の帯 */
 html.mode-simple #tab-quote-make .uim-advbar { display: flex; align-items: center; gap: var(--sp-12); flex-wrap: wrap; margin: 0 0 var(--sp-12); padding: var(--sp-8) var(--sp-12);

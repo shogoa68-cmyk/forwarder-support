@@ -208,6 +208,23 @@ const http = require('http'), fs = require('fs'), path = require('path');
     ok('JS エラーなし（見出しの詳細・BOOKMARK）', errs.length === 0, errs);
     await ctx.close();
   }
+  // ===== メール取込の画面：サブコン欄（一括設定・各行）も、マスターのサブコンを候補に出す =====
+  {
+    const { ctx, p, errs } = await open(true, { legacy: {}, approval: true, role: 'member' });
+    await p.evaluate(() => { openEmailImport(); document.getElementById('eiText').value = 'OCEANFREIGHT 1 20FT × 200 USD ＝ 200 USD\nDOCFEE 1 BL × 6,100 JPY ＝ 6,100 JPY'; eiParse(); });
+    await p.waitForTimeout(600);
+    const r = await p.evaluate(() => {
+      const opts = inp => { const l = inp && inp.list; return l ? [...l.options].map(o => o.value) : null; };
+      const bulk = document.getElementById('eiBulkSv');
+      const rows = [...document.querySelectorAll('#eiReviewWrap .ei-sv')];
+      return { bulk: opts(bulk), rows: rows.length, row0: opts(rows[0]), listId: bulk && bulk.getAttribute('list') };
+    });
+    ok('「サブコン一括設定」の候補に、マスターのサブコンが出る', r.bulk && r.bulk.includes('テスト運送') && r.bulk.includes('ABCキャリア'), r);
+    ok('各行のサブコン欄にも、同じ候補（マスターのサブコン）が出る', r.rows === 2 && r.row0 && r.row0.includes('テスト運送') && r.row0.includes('ABCキャリア'), r);
+    ok('マスターに無い名前は候補に出ない（候補はマスターのサブコンだけ）', r.bulk && !r.bulk.includes('他社キャリア'), r);
+    ok('JS エラーなし（メール取込の候補）', errs.length === 0, errs);
+    await ctx.close();
+  }
   // ===== 承認制のメンバー =====
   {
     const { ctx, p, errs, dlg } = await open(true, { legacy: {}, approval: true, role: 'member' });

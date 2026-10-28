@@ -83,6 +83,8 @@ Design 製の Industry 版デザイン（鋼青のブループリント調）を
 
 IT に不慣れな新規ユーザーにも分かりやすいよう、Design 案の「かんたん表示」を切替式で導入中。`<html class="mode-simple">`＝かんたん／無し＝従来の詳細（保存 `fwd.uiMode`、`?mode=simple|detail`）。**既定値は `index.html` の `UI_MODE_DEFAULT`（現在 `'detail'`。検証後に `'simple'` へ）**。実装：`js/ui-mode.js`・`css/simple-mode.css`・`cloud.js`（案件カード／リスト／「⋯」メニュー）。隠す項目は DOM に残す（保存・計算は継続）。ダッシュボード・見積入力画面とも実装済み（見積入力は `data-tier` で区分、上級機能を使っている案件は自動で項目を表示）。引き渡し資料は `docs/design-handoff/simple-mode/`、手順は [docs/デザイン変更の安全手順.md](docs/デザイン変更の安全手順.md)。
 
+**手順の道しるべは追従する（2026-10）**：かんたん表示の見積入力画面の上部 `#qpGuide`（①条件 ②貨物 ③費用 ④出力）は `position:sticky`（`simple-mode.css`・上部ツールバーの直下＝`top: nav-cat-h + 44px`）でスクロールに付いてくる。固定されるのはボタンの 1 行だけにするため、ひと言の案内 `#qpHint` は道しるべの外（直後）に出した（`ui-mode.js` は id で更新）。下の操作バー `.quote-cmdbar` の `top` と `.condition-section` の `scroll-margin-top` は、かんたん表示のときだけ道しるべの高さ（`--qp-guide-h:46px`）の分だけ下げる（詳細表示は従来どおり）。上部ツールバーは `min-height:44px`（ボタンを「⋯」へ集約して低くなっても、固定する各バーの `top` の前提＝44px に合わせて隙間を作らない）。スマホ幅（680px 以下・ツールバーが static）は `top: nav-cat-h`。テストは `scripts/design-tests/guide-sticky-test.js`。
+
 ## ☁️ クラウド共有（チーム間でのプリセット共有）
 
 見積プリセットを複数ユーザーで共有する機能。プリセット管理モーダル内「☁️ チーム共有」セクションで操作。
