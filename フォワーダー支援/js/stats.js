@@ -2195,7 +2195,17 @@
   let _masterFieldFilter = 'all';
   window.statsMasterSetFilter = function (f) {
     _masterFieldFilter = f || 'all';
+    _masterSvType = '';   // 種別が変わったらサブコン種別の絞り込みは解く
     _renderMaster();
+  };
+  // サブコン種別（詳細の svTypes）での絞り込み。''＝すべて、'\u0000none'＝種別が未設定
+  let _masterSvType = '';
+  const _SV_NONE = '\u0000none';
+  window.statsMasterSetSvType = function (t) { _masterSvType = t || ''; _renderMaster(); };
+  const _svTypesOf = v => {
+    const rec = typeof window.mdGet === 'function' ? window.mdGet('sv', v) : null;
+    const t = rec && rec.details && rec.details.svTypes;
+    return Array.isArray(t) ? t.filter(Boolean) : [];
   };
 
   let _regOpen = false;   // 「代表を新規登録」の開閉（Industry。再描画しても保つ）
@@ -2298,7 +2308,28 @@
     if (_masterFieldFilter !== 'all') {
       entries = entries.filter(m => m.field === _masterFieldFilter);
     }
-    const synFiltered = _masterFieldFilter === 'all' ? allSyn : allSyn.filter(g => g.field === _masterFieldFilter);
+    let synFiltered = _masterFieldFilter === 'all' ? allSyn : allSyn.filter(g => g.field === _masterFieldFilter);
+
+    // サブコンのときだけ「種別」（通関業者・倉庫業者…）の絞り込みを出す。件数は種別を複数持つ会社を、それぞれに数える
+    if (_masterFieldFilter === 'sv') {
+      const typeCnt = new Map(); let noneCnt = 0;
+      const svNames = [...entries.map(m => m.value), ...synFiltered.map(g => g.canonical)];
+      svNames.forEach(n => { const t = _svTypesOf(n); if (!t.length) noneCnt++; t.forEach(x => typeCnt.set(x, (typeCnt.get(x) || 0) + 1)); });
+      if (_masterSvType && _masterSvType !== _SV_NONE && !typeCnt.has(_masterSvType)) _masterSvType = '';
+      if (_masterSvType === _SV_NONE && !noneCnt) _masterSvType = '';
+      const tchip = (t, label, n) => `<button class="master-filter-chip master-type-chip${_masterSvType === t ? ' is-active' : ''}" onclick="statsMasterSetSvType('${_ea(t)}')">${_esc(label)}<span class="master-filter-count">${n}</span></button>`;
+      if (typeCnt.size) {
+        chipsH += '<div class="master-filter-chips master-type-chips"><span class="master-type-chips-label">種別：</span>' +
+          tchip('', 'すべて', svNames.length) +
+          [...typeCnt.keys()].sort().map(t => tchip(t, t, typeCnt.get(t))).join('') +
+          (noneCnt ? tchip(_SV_NONE, '未設定', noneCnt) : '') + '</div>';
+      }
+      if (_masterSvType) {
+        const keep = n => _masterSvType === _SV_NONE ? !_svTypesOf(n).length : _svTypesOf(n).includes(_masterSvType);
+        entries = entries.filter(m => keep(m.value));
+        synFiltered = synFiltered.filter(g => keep(g.canonical));
+      }
+    }
 
     // 個別マスターと同義グループを 1 つの表にまとめる。別名を足しても行が別の表へ移らず、
     // 代表の行の「別名・略称」にそのまま付く（種別→名前の順なので、行の位置も変わらない）
