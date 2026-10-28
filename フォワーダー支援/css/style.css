@@ -5584,3 +5584,24 @@ button.lc-attach-tbl-btn { background: none; border: none; padding: 0; cursor: p
 .master-type-chips { margin-top: 6px; align-items: center; }
 .master-type-chips-label { font-size: 12px; color: #6b7a8c; margin-right: 2px; }
 .master-type-chip { font-size: 12px; }
+
+/* ===== サブコン見出しの「BOOKMARK」ポップアップ（js/bookmarks.js bmShowForCarrier） ===== */
+.sv-bm-pop {
+  z-index: 10050; min-width: 260px; max-width: min(420px, calc(100vw - 16px));
+  background: var(--surface); border: 1px solid var(--border-md); border-radius: var(--r-8);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, .22); font-size: var(--fs-12); color: var(--text);
+}
+.sv-bm-pop-head { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-8); padding: var(--sp-8) var(--sp-12); border-bottom: 1px solid var(--border); font-weight: 700; }
+.sv-bm-pop-close { border: 0; background: transparent; cursor: pointer; color: var(--text-md); font-size: var(--fs-13); }
+.sv-bm-pop-body { padding: var(--sp-10) var(--sp-12); }
+.sv-bm-pop-note { color: var(--text-md); font-size: var(--fs-12); }
+.sv-bm-pop-chips { display: flex; flex-wrap: wrap; gap: var(--sp-6); }
+.sv-bm-chip {
+  display: inline-block; max-width: 100%; padding: var(--sp-4) var(--sp-10); border: 1px solid var(--border-md); border-radius: var(--r-14, 14px);
+  background: var(--accent-lt); color: var(--accent-dk); text-decoration: none; font-size: var(--fs-12); cursor: pointer;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.sv-bm-chip:hover { border-color: var(--accent); background: var(--card-bg); }
+.sv-bm-pop-foot { margin-top: var(--sp-10); padding-top: var(--sp-8); border-top: 1px dashed var(--border-md); }
+.sv-bm-pop-add { border: 1px dashed var(--accent); background: transparent; color: var(--accent-dk); border-radius: var(--r-5); padding: var(--sp-3) var(--sp-10); font: inherit; font-size: var(--fs-11); cursor: pointer; }
+.sv-bm-pop-add:hover { background: var(--accent-lt); }

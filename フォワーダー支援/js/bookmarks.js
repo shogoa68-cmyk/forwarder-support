@@ -1647,6 +1647,66 @@ window.fetchCarrierBmsForQSP = async function (carrierNames) {
   if (typeof window.renderQuoteMilestones === 'function') window.renderQuoteMilestones();
 };
 
+// ---------- サブコン見出しの「BOOKMARK」：そのキャリア／サブコンのブックマークを小さなポップアップで見る ----------
+// 見積のサブコン別明細の見出し（種別が FCL／LCL／AIR CARRIER のマスター登録済みサブコン）から開く。
+// 別名・代表名で登録されたブックマークも拾う。リンクのクリックは通常のチップと同じく記録される（data-bm-click）。
+let _svBmPop = null;
+function _svBmPopClose() {
+  if (_svBmPop) { _svBmPop.remove(); _svBmPop = null; }
+  document.removeEventListener('mousedown', _svBmPopOutside, true);
+}
+function _svBmPopOutside(e) { if (_svBmPop && !_svBmPop.contains(e.target)) _svBmPopClose(); }
+window.bmHideForCarrier = _svBmPopClose;
+window.bmShowForCarrier = async function (name, ev) {
+  if (ev && typeof ev.stopPropagation === 'function') ev.stopPropagation();
+  name = String(name || '').trim();
+  if (!name) return;
+  _svBmPopClose();
+  const pop = document.createElement('div');
+  pop.className = 'sv-bm-pop';
+  pop.innerHTML = `<div class="sv-bm-pop-head"><span>🔖 「${escHtml(name)}」のブックマーク</span>` +
+    `<button type="button" class="sv-bm-pop-close" onclick="bmHideForCarrier()" title="閉じる">✕</button></div>` +
+    `<div class="sv-bm-pop-body"><span class="sv-bm-pop-note">読み込み中…</span></div>`;
+  pop.style.position = 'fixed';
+  document.body.appendChild(pop);
+  const target = ev && (ev.currentTarget || ev.target);
+  const r = target && target.getBoundingClientRect ? target.getBoundingClientRect() : { bottom: 60, left: 20 };
+  const place = () => {
+    pop.style.top  = Math.max(8, Math.min(r.bottom + 6, window.innerHeight - pop.offsetHeight - 8)) + 'px';
+    pop.style.left = Math.max(8, Math.min(r.left, window.innerWidth - pop.offsetWidth - 8)) + 'px';
+  };
+  place();
+  _svBmPop = pop;
+  setTimeout(() => document.addEventListener('mousedown', _svBmPopOutside, true), 0);
+  const body = pop.querySelector('.sv-bm-pop-body');
+  const done = html => { if (_svBmPop !== pop) return; body.innerHTML = html; place(); };
+  const db = window.SupabaseClient;
+  let session = null;
+  try { session = db ? (await db.auth.getSession()).data.session : null; } catch (e) { /* 未ログイン扱い */ }
+  if (!session) { done('<span class="sv-bm-pop-note">ログインするとブックマークを見られます。</span>'); return; }
+  try { await bmEnsureClickCounts(); } catch (e) { /* クリック数は無くても表示できる */ }
+  const _BM_FIELDS = ['carrier', 'sv'];
+  const variants = typeof window.nameVariants === 'function' ? window.nameVariants(_BM_FIELDS, name) : [name];
+  const { data, error } = await db
+    .from('bookmarks')
+    .select('id, label, url, carrier, carrier_type, function, note, file_path, file_name')
+    .in('carrier', [...new Set([name, ...variants])])
+    .or('url.not.is.null,file_path.not.is.null');
+  if (error) { done('<span class="sv-bm-pop-note">⚠️ ブックマークを読み込めませんでした：' + escHtml(error.message || '') + '</span>'); return; }
+  const rank = b => (window.bmFnRank ? window.bmFnRank(b.function) : 0);
+  const clicks = b => (window.bmClickTotal ? window.bmClickTotal(b.id) : 0);
+  const rows = (data || []).slice().sort((a, b) => rank(a) - rank(b) || clicks(b) - clicks(a) || String(a.label || '').localeCompare(String(b.label || ''), 'ja'));
+  const chips = rows.map(b => {
+    const tip = escHtml(b.note || b.label || '');
+    return b.file_path
+      ? `<span class="sv-bm-chip is-file" data-bm-click="${escHtml(b.id)}" onclick="bmOpenFilePath('${encodeURIComponent(b.file_path)}')" title="${tip}">📎 ${escHtml(b.label || b.file_name || '')}</span>`
+      : `<a class="sv-bm-chip" data-bm-click="${escHtml(b.id)}" href="${escHtml(b.url)}" target="_blank" rel="noopener" title="${tip}">${escHtml(b.label || b.url)}</a>`;
+  }).join('');
+  done((chips ? `<div class="sv-bm-pop-chips">${chips}</div>` : '<span class="sv-bm-pop-note">まだブックマークがありません。</span>') +
+    `<div class="sv-bm-pop-foot"><button type="button" class="sv-bm-pop-add" ` +
+    `onclick="bmHideForCarrier();openAddBmModal({carrier:'${String(name).replace(/\\/g, '\\\\').replace(/'/g, "\\'")}'})">＋ ブックマークを追加</button></div>`);
+};
+
 // ---------- window 公開 ----------
 window.initBookmarkTab = initBookmarkTab;
 window.bmSetType       = bmSetType;
