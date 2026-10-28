@@ -576,7 +576,7 @@
       const o = document.createElement('option');
       o.value = name;
       const furi = (c.furigana || '').trim();
-      const meta = [furi, c.phone, c.email, c.other].filter(Boolean).join(' / ');
+      const meta = [furi, c.dept, c.title, c.phone, c.email, c.other].filter(Boolean).join(' / ');
       // 入力は敬称略（value）。候補の表示には「様」を付ける。ふりがなも label に入れ、読み入力でも候補にヒットさせる
       const honor = window.formatPersonWithHonorific ? window.formatPersonWithHonorific(name) : name + ' 様';
       o.label = meta ? honor + ' / ' + meta : honor;
@@ -604,7 +604,7 @@
           const items = list.map(c => {
             const meta = [c.phone, c.email, c.other].filter(Boolean).join(' / ');
             return `<div class="cd-contact-item"><b>${_cdEsc(c.name ? (window.formatPersonWithHonorific ? window.formatPersonWithHonorific(c.name) : c.name + ' 様') : '（氏名未入力）')}</b>` +
-              (c.dept ? `<span class="cd-contact-meta cd-contact-dept">${_cdEsc(c.dept)}</span>` : '') +
+              ((c.dept || c.title) ? `<span class="cd-contact-meta cd-contact-dept">${_cdEsc([c.dept, c.title].filter(Boolean).join(' '))}</span>` : '') +
               (meta ? `<span class="cd-contact-meta">${_cdEsc(meta)}</span>` : '') +
               (c.location ? `<span class="cd-contact-meta cd-contact-loc">📍 ${_cdEsc(c.location)}</span>` : '') + `</div>`;
           }).join('');

@@ -5614,3 +5614,4 @@ a.stats-md-chip.stats-md-link:hover { background: #d6e7f8; text-decoration: unde
 .cd-contact-loc { display: block; }
 .md-contact-row .md-contact-dept { flex-basis: 190px; }
 .cd-contact-dept { display: block; }
+.md-contact-row .md-contact-title { flex-basis: 110px; }

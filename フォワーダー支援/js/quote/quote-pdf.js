@@ -278,6 +278,9 @@
     if (_curLangEn) return [_masterEn('customer', co), pn].filter(Boolean).join('\n');
     if (pn) {
       const honor = _HONORIFIC_RE.test(pn) ? '' : ' 様';
+      // マスターの担当者候補と一致するとき、所属部署・課（1 行）と役職（氏名の前）も宛先に出す
+      const ex = typeof window.getRecipientExtra === 'function' ? window.getRecipientExtra(co, pn) : null;
+      if (ex) return [co, ex.dept, (ex.title ? ex.title + ' ' : '') + pn + honor].filter(Boolean).join('\n');
       // 会社名と担当者名は改行して分ける（同じ行に詰めると幅次第で
       // 担当者名の途中（例：「鈴木」→「鈴」「木」）で折り返されてしまうため）
       return [co, pn + honor].filter(Boolean).join('\n');
