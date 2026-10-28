@@ -75,6 +75,8 @@ Design 製の Industry 版デザイン（鋼青のブループリント調）を
 
 **全タブの画面幅は共通（2026-10）**：`.app`（ヘッダー・カテゴリの行・各タブの本文を包む）は全タブとも `max-width:none`・左右 8px（`style.css`）。以前は見積タブ以外だけ `max-width:1440px`（1480px 以上は `65vw`）で、タブを切り替えるとヘッダーやカテゴリの行の幅まで変わっていた。見積タブはテーブルの `min-width:1300px`・左のセクションナビ・右パネルがあるため、見積タブ以外の幅（1235px など）には合わせられず、全タブを画面幅いっぱいにそろえた。Industry は Design の `style.css` が旧い幅制限を持つため、`code-overrides-industry.css` 末尾の `.app{max-width:none}` で打ち消している（`build-industry-theme.js` を再実行しても残る）。テストは `scripts/design-tests/app-width-test.js`。
 
+**御見積書の為替注記（2026-10）**：為替の出典・取得日時・参考値の注記は、幅 140px のレート表の下（`.qd-rate`）ではなく、御見積書の下端（`.qd-foot` の直後）に横幅いっぱいの 1 行 `.qd-fxnote` で出す（`quote-pdf.js`・折り返しで読みにくくならないように）。文面は `preview.js getFxAuditMeta()` が 1 か所で作る：「為替：open.er-api.com 中値（YYYY/MM/DD HH:MM 取得）／参考値であり、実際の決済レート（TTS等）とは異なります。」（自動取得していないときは「為替：手動設定値（自動取得未実行・基準レート確認日…）／参考値であり…」）。PDF は末尾に「作成日：…」を続け、画面プレビュー・Excel・コピー用も同じ文面を使う。テストは `scripts/design-tests/fx-note-test.js`。
+
 ## 🗑️ 自動保存は廃止（2026-10）
 
 旧「自動保存」（localStorage `quoteData` に1件・復元バナー）は、ページ再読込後に空の状態で上書きされて復元できない不具合があり、ブラウザ保存／チーム共有と役割も重なるため**廃止**。保存はチーム共有（旧「ブラウザ保存」は廃止）、巻き戻しは Undo/Redo。`scheduleAutoSave()` は呼び出し元（約100か所）を変えないため**何もしない関数として残置**。起動時（`initQuoteState`）に旧データ（`quoteData`・`autoSaveEnabled`）を掃除する（後日削除可）。
