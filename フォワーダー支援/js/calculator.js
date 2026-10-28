@@ -233,7 +233,7 @@ function sendCalcResultToQuote(btn) {
   const text  = formatCalcResultAsText(entry);
 
   // 見積もりタブを表示状態にする（switchCategory が初回 sub-tab を click して initQuoteTab を呼ぶ）
-  const quoteCatBtn = document.querySelector('.cat-btn-featured');
+  const quoteCatBtn = document.querySelector('.cat-btn[aria-controls="tab-quote-make"]');
   if (quoteCatBtn && typeof switchCategory === 'function') {
     switchCategory('quote', quoteCatBtn);
   }
