@@ -741,8 +741,9 @@
       .map(c => `<tr><td class="qd-ctr">${esc(c)}</td><td class="qd-num">${c === 'JPY' ? '1.00' : (rates[c] != null ? fmtNum(rates[c], rates[c] < 0.1 ? 4 : 2) : '—')}</td></tr>`)
       .join('');
     const fxMeta = (typeof getFxAuditMeta === 'function') ? getFxAuditMeta() : null;
+    // 為替の出典・取得日時・参考値の注記は、幅の狭いレート表の下ではなく、御見積書の下端に横幅いっぱいの 1 行で出す（折り返しで読みにくくならないように）
     const fxMetaNote = fxMeta
-      ? `<div style="font-size:var(--doc-fs-tiny);color:var(--doc-text-faint);margin-top:4px;line-height:1.5;">${esc(fxMeta.fxLine)}<br>${esc(fxMeta.created)}</div>`
+      ? `<div class="qd-fxnote">${esc(fxMeta.fxLine)}　${esc(fxMeta.created)}</div>`
       : '';
 
     const dateStr  = _fmtJpDate(hdr.date || _todayIso());
@@ -808,7 +809,6 @@
             <tr><td class="qd-ctr qd-rh">${t('currency')}</td><td class="qd-ctr qd-rh">${t('rate')}</td></tr>
             ${rateRows}
           </table>
-          ${fxMetaNote}
         </div>
         ${hideTotal ? '' : `<div class="qd-sum">
           <table>
@@ -819,6 +819,7 @@
           </table>
         </div>`}
       </div>
+      ${fxMetaNote}
       ${opts.omitRemarks ? '' : _commonBlocksHTML(_revDiff)}
     </div>`;
   }

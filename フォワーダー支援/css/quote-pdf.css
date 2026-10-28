@@ -262,6 +262,8 @@
 .qd-foot { display: flex; gap: 14px; margin-top: 12px; align-items: flex-start; }
 .qd-notes { flex: 1; font-size: var(--doc-fs-caption); color: var(--doc-text-note); line-height: 1.7; }
 .qd-rate { width: 140px; font-size: var(--doc-fs-small); }
+/* 為替の出典・取得日時・参考値の注記（御見積書の下端・全幅 1 行） */
+.qd-fxnote { margin-top: 6px; font-size: var(--doc-fs-tiny); color: var(--doc-text-faint); line-height: 1.5; }
 .qd-rate table { width: 100%; border-collapse: collapse; }
 .qd-rate td { border: 1px solid var(--doc-line-soft); padding: 2px 6px; }
 .qd-rate .qd-rh { background: var(--doc-fill); font-weight: 600; }
