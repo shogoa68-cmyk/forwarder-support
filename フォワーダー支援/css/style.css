@@ -5579,3 +5579,8 @@ button.lc-attach-tbl-btn { background: none; border: none; padding: 0; cursor: p
 .master-type-presets-label { font-size: 11px; color: #6b7a8c; margin-right: 2px; }
 .master-type-preset { font-size: 12px; padding: 2px 9px; border: 1px dashed #9db3c9; border-radius: 12px; background: #fff; color: #2a4d70; cursor: pointer; }
 .master-type-preset:hover { background: #eaf2fb; border-style: solid; }
+
+/* マスター管理：サブコン種別の絞り込み（件数つきチップ）。種別の行は少し控えめに */
+.master-type-chips { margin-top: 6px; align-items: center; }
+.master-type-chips-label { font-size: 12px; color: #6b7a8c; margin-right: 2px; }
+.master-type-chip { font-size: 12px; }
