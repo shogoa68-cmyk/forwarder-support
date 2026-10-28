@@ -221,7 +221,7 @@ body:has(#tab-master.active) #backToQuoteFab { display: none !important; }
    セルが重ね合わせの単位になって次の行の下に隠れる（開いても中身が薄く、操作できない）。開いている間は、その行の半透明を戻す */
 #tab-quote-make #quoteTable > tbody > tr.is-detail-open > td { opacity: 1 !important; }
 
-/* ================= 有効期間（サーチャージ）を、「その他 ▾」を開かなくても行の中で見て直せるように =================
+/* ================= 有効期間（サーチャージ）を、「その他 ▾」を開かなくても行の中で見て直せるように ==========
    期間が入っている行・サーチャージの行は、品名セルの 3 段目の上に「有効 [開始] ～ [終了]」の 1 段を足す（行の高さ 120 → 156px）。
    それ以外の行は、従来どおり行を 3 段（120px）に保ち、有効期間はパネルの中。 */
 #tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]).has-valid-inline { height: 156px; }
@@ -262,6 +262,11 @@ body:has(#tab-master.active) #backToQuoteFab { display: none !important; }
 @media (hover: none) {
   #tab-quote-make #quoteTable tr.is-active td.handle-cell .row-acts { visibility: visible; opacity: 1; transition: none; }
 }
+
+/* ================= 全タブ共通の画面幅（現行 style.css の .app と同じ） ==========
+   Design の style.css は .app を max-width:1440px（1480px 以上は 65vw）にし、見積タブだけ解除していた。
+   見積タブのテーブル・左ナビ・右パネルが収まる幅にそろえ、タブを切り替えても幅が変わらないようにする。 */
+.app { max-width: none; padding: var(--sp-20) var(--sp-8); }
 
 /* マスター管理：操作ボタンが多い行（他のマスターにまとめる／名称変更／詳細／⋯）で、表が画面幅からはみ出さないようにする。
    操作列は折り返し可（ボタン単体は折り返さない）。幅の固定（min-width）は外し、表は常に枠の幅に収める */
