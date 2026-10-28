@@ -580,6 +580,41 @@ const http = require('http'), fs = require('fs'), path = require('path');
     await ctx.close();
   }
 
+  // ===== マスター管理：サブコン種別の絞り込み・画面幅からはみ出さない（Industry） =====
+  {
+    const { ctx, p, errs } = await open(true, { legacy: {}, noLegacy: true });
+    const L = '[種別絞り込み・幅] ';
+    await p.setViewportSize({ width: 1240, height: 900 });
+    await p.evaluate(() => { document.documentElement.classList.add('theme-industry'); document.querySelector('link[data-theme-css="site"]').media = 'all'; });
+    await p.evaluate(async () => {
+      const add = (v, t) => { window.__db.master_votes.push({ field: 'sv', value: v, voter_email: 's@example.com' }); if (t) window.__db.master_details.push({ field: 'sv', value: v, details: { svTypes: t } }); };
+      add('通関A', ['通関業者']); add('倉庫B', ['倉庫業者']); add('兼業C', ['通関業者', '倉庫業者']); add('未設定D');
+      window.__db.master_votes.push({ field: 'customer', value: '長い名前のお客様株式会社 東京営業所', voter_email: 's@example.com' });
+      window.__db.synonym_groups.push({ id: 'z1', field: 'customer', canonical: '長い名前のお客様株式会社 東京営業所', aliases: ['別名１', '別名２', 'VERYLONGALIASNAMEWITHOUTANYSPACEFORLAYOUTTESTING1234567890VERYLONGALIASNAMEWITHOUTANYSPACE', '長い別名の会社名株式会社東京営業所第二営業部門担当窓口サービスセンター'] });
+      await statsLoadMasterCache(); await mdLoadCloud(); await synLoadCloud();
+    });
+    await p.evaluate(() => { switchCategory('master', document.querySelector('[onclick*="switchCategory(\'master"]')); }); await p.waitForTimeout(1200);
+    const over = () => p.evaluate(() => { const t = document.querySelector('#statsPane-master table.master-table'); const c = document.querySelector('#tab-master'); return { t: Math.round(t.getBoundingClientRect().right), c: Math.round(c.getBoundingClientRect().right), vw: innerWidth, sw: document.documentElement.scrollWidth }; });
+    let o = await over();
+    ok(L + '表が枠（と画面）の幅をはみ出さない', o.t <= o.c + 1 && o.sw <= o.vw + 1, o);
+    // 他のマスターにまとめる（ピッカー展開）でもはみ出さない
+    await p.evaluate(() => document.querySelector('#statsPane-master tr[data-mvalue^="長い名前"] .stats-master-merge').click()); await p.waitForTimeout(300);
+    o = await over();
+    ok(L + 'ピッカー展開時もはみ出さない', o.t <= o.c + 1 && o.sw <= o.vw + 1, o);
+    await p.evaluate(() => statsMasterSetFilter('sv')); await p.waitForTimeout(300);
+    const chips = await p.evaluate(() => [...document.querySelectorAll('.master-type-chip')].map(b => b.textContent));
+    ok(L + 'サブコンのときだけ種別チップ（件数つき・未設定あり）', chips.includes('通関業者2') && chips.includes('倉庫業者2') && chips.some(c => c.startsWith('未設定')), chips);
+    await p.click('.master-type-chip:has-text("倉庫業者")'); await p.waitForTimeout(300);
+    const rows = await p.evaluate(() => [...document.querySelectorAll('#statsPane-master tbody tr[data-mvalue]')].map(r => r.dataset.mvalue).sort());
+    ok(L + '倉庫業者で絞り込み（兼業も含む）', JSON.stringify(rows) === JSON.stringify(['倉庫B', '兼業C']), rows);
+    await p.click('.master-type-chip:has-text("未設定")'); await p.waitForTimeout(300);
+    ok(L + '未設定で絞り込み（種別ありの会社は出ない）', await p.evaluate(() => [...document.querySelectorAll('#statsPane-master tbody tr[data-mvalue]')].map(r => r.dataset.mvalue).includes('未設定D')));
+    await p.evaluate(() => statsMasterSetFilter('customer')); await p.waitForTimeout(300);
+    ok(L + 'サブコン以外では種別チップを出さない', await p.evaluate(() => !document.querySelector('.master-type-chip')));
+    ok(L + 'JS エラーなし', errs.length === 0, errs);
+    await ctx.close();
+  }
+
   // ===== 承認制：別名の追加（メンバーは申請・管理者が承認）／詳細の合流／添付の集約 =====
   {
     const { ctx, p, errs } = await open(true, { approval: true, role: 'member', noLegacy: true });

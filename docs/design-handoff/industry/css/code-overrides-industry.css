@@ -262,3 +262,18 @@ body:has(#tab-master.active) #backToQuoteFab { display: none !important; }
 @media (hover: none) {
   #tab-quote-make #quoteTable tr.is-active td.handle-cell .row-acts { visibility: visible; opacity: 1; transition: none; }
 }
+
+/* マスター管理：操作ボタンが多い行（他のマスターにまとめる／名称変更／詳細／⋯）で、表が画面幅からはみ出さないようにする。
+   操作列は折り返し可（ボタン単体は折り返さない）。幅の固定（min-width）は外し、表は常に枠の幅に収める */
+#tab-master .master-table { table-layout: fixed; width: 100%; max-width: 100%; }
+#tab-master .master-table th:nth-child(1) { width: 88px; }
+#tab-master .master-table th:nth-child(2) { width: 30%; }
+#tab-master .master-table th.ops { width: 330px; }
+#tab-master .master-table .stats-syn-member,
+#tab-master .master-table .stats-md-chip { max-width: 100%; white-space: normal; overflow-wrap: anywhere; }
+#tab-master .master-table td.ops { white-space: normal; min-width: 0; }
+#tab-master .master-table td.ops > * { margin: 2px 0 2px 6px; vertical-align: middle; }
+#tab-master .master-table td.ops .stats-syn-picker { display: inline-flex; flex-wrap: wrap; gap: 4px; justify-content: flex-end; max-width: 100%; }
+#tab-master .master-table td.ops .stats-syn-picker .stats-syn-sel { max-width: 180px; }
+#tab-master .master-table td.stats-master-abbrev-cell { white-space: normal; overflow-wrap: anywhere; }
+#tab-master .master-table td.stats-val { overflow-wrap: anywhere; }
