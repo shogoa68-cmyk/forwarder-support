@@ -622,7 +622,7 @@ const http = require('http'), fs = require('fs'), path = require('path');
     await p.evaluate(async () => {
       window.__db.master_votes.push({ field: 'customer', value: 'リンク商事', voter_email: 's@example.com' });
       window.__db.master_votes.push({ field: 'customer', value: '危険商事', voter_email: 's@example.com' });
-      window.__db.master_details.push({ field: 'customer', value: 'リンク商事', details: { website: 'www.example.com/top/', contacts: [{ name: '山田', location: '大阪支店' }] } });
+      window.__db.master_details.push({ field: 'customer', value: 'リンク商事', details: { website: 'www.example.com/top/', contacts: [{ name: '山田', location: '大阪支店', dept: '海外営業部 第2課' }] } });
       window.__db.master_details.push({ field: 'customer', value: '危険商事', details: { website: 'javascript:alert(1)' } });
       await statsLoadMasterCache(); await mdLoadCloud();
     });
@@ -633,8 +633,10 @@ const http = require('http'), fs = require('fs'), path = require('path');
     ok(L + '担当者に所在地があると一覧に印（📍）', await p.evaluate(() => document.querySelector('#statsPane-master tr[data-mvalue="リンク商事"]').textContent.includes('📍')));
     await p.evaluate(() => document.querySelector('#statsPane-master tr[data-mvalue="リンク商事"] .stats-master-detail-btn').click()); await p.waitForTimeout(300);
     ok(L + '編集欄に担当者の所在地が入っている', await p.evaluate(() => document.querySelector('.md-contact-location').value === '大阪支店'));
+    ok(L + '編集欄に担当者の所属部署・課が入っている', await p.evaluate(() => document.querySelector('.md-contact-dept').value === '海外営業部 第2課'));
+    await p.fill('.md-contact-dept', '国際物流部 通関課');
     await p.fill('.md-contact-location', '東京本社 3F'); await p.click('.master-detail-save'); await p.waitForTimeout(800);
-    ok(L + '担当者の所在地が保存される', await p.evaluate(() => window.__db.master_details.find(m => m.value === 'リンク商事').details.contacts[0].location === '東京本社 3F'));
+    ok(L + '担当者の所在地が保存される', await p.evaluate(() => window.__db.master_details.find(m => m.value === 'リンク商事').details.contacts[0].location === '東京本社 3F' && window.__db.master_details.find(m => m.value === 'リンク商事').details.contacts[0].dept === '国際物流部 通関課'));
     ok(L + 'JS エラーなし', errs.length === 0, errs);
     await ctx.close();
   }

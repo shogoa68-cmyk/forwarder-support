@@ -5612,3 +5612,5 @@ button.lc-attach-tbl-btn { background: none; border: none; padding: 0; cursor: p
 a.stats-md-chip.stats-md-link { text-decoration: none; cursor: pointer; background: #e8f1fb; border-color: #a9c6e6; color: #1f4f86; }
 a.stats-md-chip.stats-md-link:hover { background: #d6e7f8; text-decoration: underline; }
 .cd-contact-loc { display: block; }
+.md-contact-row .md-contact-dept { flex-basis: 190px; }
+.cd-contact-dept { display: block; }
