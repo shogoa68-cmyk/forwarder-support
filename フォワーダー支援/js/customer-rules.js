@@ -209,12 +209,14 @@
     if (!el) return;
     const customer = (document.getElementById('qf-customer') || {}).value || '';
     const person = (document.getElementById('qf-person') || {}).value || '';
-    if (!customer.trim() || !_cloud()) { el.hidden = true; el.innerHTML = ''; return; }
+    const _host = el.parentElement;   // 帯が出ているときだけ、メモの高さを 1 行分広げる（quote.css .quote-header.has-cr）
+    const _show = on => { el.hidden = !on; if (_host) _host.classList.toggle('has-cr', !!on); };
+    if (!customer.trim() || !_cloud()) { _show(false); el.innerHTML = ''; return; }
     await window.crLoad();
-    if (_missing) { el.hidden = true; return; }
+    if (_missing) { _show(false); return; }
     const { list, otherContact } = window.crFor(customer, person);
     const n = k => list.filter(r => r.level === k).length;
-    el.hidden = false;
+    _show(true);
     const ref = ((document.getElementById('qf-ref') || {}).value || '').trim();
     el._cr = { customer: customer.trim(), person: person.trim(), editId: null, onChange: () => window.crRefreshBanner(), reasonDefault: ref ? '案件 ' + ref + ' で判明' : '' };
     const staleN = list.filter(_stale).length;
