@@ -559,6 +559,7 @@
     const has = !!(value && typeof window.mdGet === 'function' && (window.mdGetCanon || window.mdGet)('customer', value));
     btn.hidden = !has;
     window.qfRefreshPersonSuggestions();
+    if (typeof window.crRefreshBanner === 'function') window.crRefreshBanner();   // このお客様の取引ルール（customer-rules.js）
   };
 
   // お客様マスターに登録済みの担当者を「お客様 ご担当者」欄のサジェスト候補へ反映

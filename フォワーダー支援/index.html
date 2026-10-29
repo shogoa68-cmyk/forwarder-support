@@ -2798,6 +2798,7 @@
             <label>お客様 ご担当者（敬称略） <span class="req-mark" aria-hidden="true">*</span></label>
             <input type="text" id="qf-person" placeholder="例）山田　※宛先（お客様側）の氏名。出力時に自動で「様」付与" title="お客様側（宛先）のご担当者名を入力します。社内の見積もり作成者ではありません。姓のみ／フルネームのみ（会社名は含めない）。客先向け出力（プレビュー・PDF）で会社名とともに宛先となり、自動で「様」が付きます。登録済みのお客様なら、マスターの担当者一覧から候補表示されます。" aria-required="true" list="qfPersonSuggestions" autocomplete="off" />
           </div>
+          <div id="crBanner" class="cr-banner" hidden aria-live="polite"></div>
           <button type="button" class="tier-opt-toggle" data-opt-host="refBody" aria-expanded="false" onclick="uiToggleOpt(this)"><span class="tier-opt-caret">▶</span> 詳細（任意）<small>日付・ステータス・タグ・メモ・参照URL・添付など</small></button>
           <div data-tier="opt" class="quote-field">
             <label>📥 依頼受信日 <span class="qf-memo-note">引き合いを受けた日（経過日数を表示）</span></label>
@@ -4768,6 +4769,7 @@
 <script src="js/cat-more.js"></script>
 <script src="js/stats.js"></script>
 <script src="js/alias-rules.js"></script>
+<script src="js/customer-rules.js"></script>
 <script src="js/local-charges.js"></script>
 <script src="js/rate-notice.js"></script>
 <script src="js/lc-row-pattern.js"></script>
