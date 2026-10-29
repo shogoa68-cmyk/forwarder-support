@@ -654,6 +654,51 @@ const http = require('http'), fs = require('fs'), path = require('path');
     await ctx.close();
   }
 
+  // ===== 取引ルール（お客様・担当者ごと） =====
+  {
+    const { ctx, p, errs } = await open(true, { legacy: {}, noLegacy: true });
+    const L = '[取引ルール] ';
+    await p.evaluate(async () => {
+      window.__db.master_votes.push({ field: 'customer', value: 'ルール商事', voter_email: 's@example.com' });
+      window.__db.master_details.push({ field: 'customer', value: 'ルール商事', details: { contacts: [{ name: '幸崎' }, { name: '山田' }] } });
+      await statsLoadMasterCache(); await mdLoadCloud();
+    });
+    await p.evaluate(() => { switchCategory('master', document.querySelector('[onclick*="switchCategory(\'master"]')); }); await p.waitForTimeout(1200);
+    await p.evaluate(() => { statsMasterSetFilter('customer'); }); await p.waitForTimeout(300);
+    await p.evaluate(() => document.querySelector('#statsPane-master tr[data-mvalue="ルール商事"] .stats-master-detail-btn').click()); await p.waitForTimeout(600);
+    ok(L + 'お客様の詳細に取引ルール欄が出る', await p.evaluate(() => !!document.querySelector('#crPanel .cr-form')));
+    ok(L + '対象に「お客様全体」と担当者が選べる', await p.evaluate(() => [...document.querySelectorAll('#crPanel .cr-f-contact option')].map(o => o.textContent).join('|').includes('幸崎')));
+    // お客様全体の厳守ルールと、幸崎様だけの要確認ルールを登録
+    await p.selectOption('#crPanel .cr-f-level', 'strict'); await p.fill('#crPanel .cr-f-body', '請求書は月末締め・翌月10日必着');
+    await p.click('#crPanel [data-cr="save"]'); await p.waitForTimeout(600);
+    await p.selectOption('#crPanel .cr-f-contact', '幸崎'); await p.selectOption('#crPanel .cr-f-level', 'check'); await p.fill('#crPanel .cr-f-body', '見積はUSD建て併記'); await p.fill('#crPanel .cr-f-reason', '2026-10 案件で指摘');
+    await p.click('#crPanel [data-cr="save"]'); await p.waitForTimeout(600);
+    const rows = await p.evaluate(() => window.__db.customer_rules.map(r => ({ c: r.customer, p: r.contact, l: r.level, b: r.body, by: r.created_by })));
+    ok(L + '2 件がクラウドに保存される（お客様全体／担当者別）', rows.length === 2 && rows.some(r => r.l === 'strict' && !r.p) && rows.some(r => r.l === 'check' && r.p === '幸崎'), rows);
+    ok(L + '一覧に厳守・要確認のバッジが並ぶ', await p.evaluate(() => !!document.querySelector('#crPanel .cr-badge-strict') && !!document.querySelector('#crPanel .cr-badge-check')));
+    // 見積タブのバナー：お客様だけ → 全体ルールのみ（担当者別は件数だけ）／担当者を入れる → 担当者のルールも
+    await p.evaluate(async () => { document.getElementById('qf-customer').value = 'ルール商事'; document.getElementById('qf-person').value = ''; await crRefreshBanner(); });
+    let t = await p.evaluate(() => { const b = document.getElementById('crBanner'); return { hidden: b.hidden, text: b.textContent.replace(/\s+/g, ' ') }; });
+    ok(L + '見積：お客様を選ぶとバナーが出て、厳守は開いて表示', !t.hidden && t.text.includes('請求書は月末締め') && t.text.includes('担当者別 1件'), t);
+    ok(L + '見積：担当者別ルールは担当者未入力では本文を出さない', !t.text.includes('USD建て'), t);
+    await p.evaluate(async () => { document.getElementById('qf-person').value = '幸崎 様'; await crRefreshBanner(); });
+    t = await p.evaluate(() => document.getElementById('crBanner').textContent.replace(/\s+/g, ' '));
+    ok(L + '見積：担当者（敬称付きでも）を入れるとその担当者のルールも出る', t.includes('USD建て併記') && t.includes('請求書は月末締め'), t);
+    await p.evaluate(async () => { document.getElementById('qf-person').value = '山田'; await crRefreshBanner(); });
+    ok(L + '見積：別の担当者のルールは出ない', await p.evaluate(() => !document.getElementById('crBanner').textContent.includes('USD建て')));
+    // 見積タブからの追加
+    await p.evaluate(async () => { document.getElementById('qf-person').value = '幸崎'; await crRefreshBanner(); });
+    await p.evaluate(() => document.querySelector('#crBanner [data-cr="addtoggle"]').click()); await p.waitForTimeout(300);
+    await p.evaluate(() => { document.querySelector('#crBanner .cr-f-body').value = 'メールはCCに上司を入れる'; document.querySelector('#crBanner [data-cr="save"]').click(); }); await p.waitForTimeout(800);
+    ok(L + '見積タブからもルールを追加できる', await p.evaluate(() => window.__db.customer_rules.length === 3 && document.getElementById('crBanner').textContent.includes('CCに上司')));
+    // 廃止すると見積に出ない／出力（御見積書・プレビュー）には出ない
+    await p.evaluate(async () => { await crSetStatus(window.__db.customer_rules[0].id, 'retired'); });
+    ok(L + '廃止したルールは見積に出ない', await p.evaluate(() => crFor('ルール商事', '幸崎').list.every(r => r.status !== 'retired')));
+    ok(L + 'お客様向けの出力にはルールを入れない', await p.evaluate(() => typeof buildQuoteDocHTML !== 'function' || !buildQuoteDocHTML().includes('取引ルール')));
+    ok(L + 'JS エラーなし', errs.length === 0, errs);
+    await ctx.close();
+  }
+
   // ===== 承認制：別名の追加（メンバーは申請・管理者が承認）／詳細の合流／添付の集約 =====
   {
     const { ctx, p, errs } = await open(true, { approval: true, role: 'member', noLegacy: true });

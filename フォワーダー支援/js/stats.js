@@ -2598,9 +2598,13 @@
             `<input type="file" multiple hidden onchange="mdAttachUpload('${_ea(field)}','${_ea(value)}',this.files);this.value='';"></label>` +
         `</div>` +
         `<div class="master-attach-list" id="mdAttachList"><span class="master-attach-loading">読み込み中…</span></div>` +
-      `</div></td>`;
+      `</div>` +
+      // お客様：取引ルール（お客様・担当者ごとの決まりごと。customer-rules.js）
+      (field === 'customer' ? `<div class="cr-section"><div class="master-attach-hdr"><span>📌 取引ルール（お客様・担当者ごと／チーム共有）</span></div><div class="cr-panel" id="crPanel"></div></div>` : '') +
+      `</td>`;
     tr.after(row);
     window.statsRefreshMasterAttachments(field, value);
+    if (field === 'customer' && typeof window.crMountPanel === 'function') window.crMountPanel(document.getElementById('crPanel'), value);
   };
 
   // 添付ファイル一覧を再取得して #mdAttachList を再描画（アップロード／削除後にも呼ぶ）
