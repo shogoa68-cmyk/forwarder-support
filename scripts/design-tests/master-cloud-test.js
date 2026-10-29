@@ -1114,6 +1114,52 @@ const http = require('http'), fs = require('fs'), path = require('path');
     await ctx.close();
   }
 
+  // ===== 同業者のお客様の「先のお客様」（取引形態・経由する同業者・重複防止） =====
+  {
+    const { ctx, p, errs } = await open(true, { legacy: {}, noLegacy: true });
+    const L = '[同業者の先のお客様] ';
+    await p.evaluate(async () => {
+      ['同業A社', '同業B社', '荷主X', '荷主Y', '荷主Z'].forEach(n => window.__db.master_votes.push({ field: 'customer', value: n, voter_email: 's@example.com' }));
+      window.__db.master_details.push({ field: 'customer', value: '同業A社', details: { dealType: '同業者（フォワーダー・代理店）' } });
+      window.__db.master_details.push({ field: 'customer', value: '同業B社', details: { dealType: '同業者（フォワーダー・代理店）' } });
+      await statsLoadMasterCache(); await mdLoadCloud();
+    });
+    await p.evaluate(() => { switchCategory('master', document.querySelector('[onclick*="switchCategory(\'master"]')); }); await p.waitForTimeout(1200);
+    await p.evaluate(() => statsMasterSetFilter('customer')); await p.waitForTimeout(300);
+    const openDetail = async n => { await p.evaluate(v => document.querySelector('#statsPane-master tr[data-mvalue="' + v + '"] .stats-master-detail-btn').click(), n); await p.waitForTimeout(400); };
+    await openDetail('同業A社');
+    ok(L + '詳細に「取引形態」と「先のお客様」の欄がある', await p.evaluate(() => !!document.querySelector('#md_dealType') && !!document.querySelector('#md_viaChildren')));
+    await p.fill('#md_viaChildren_input', '荷主X'); await p.keyboard.press('Enter');
+    await p.fill('#md_viaChildren_input', '荷主Y'); await p.keyboard.press('Enter');
+    await p.click('.master-detail-save'); await p.waitForTimeout(900);
+    ok(L + '先のお客様の側に via（経由する同業者）が保存される', await p.evaluate(() => ['荷主X', '荷主Y'].every(n => (window.__db.master_details.find(m => m.value === n) || { details: {} }).details.via === '同業A社')));
+    ok(L + '一覧に「先のお客様 2社」が出る', await p.evaluate(() => /先のお客様\s*2社/.test((document.querySelector('#statsPane-master tr[data-mvalue="同業A社"]') || { textContent: '' }).textContent)));
+    // 重複防止：別の同業者の候補に出ない・入力しても付けられない
+    await openDetail('同業B社');
+    ok(L + 'すでに別の同業者に付いているお客様は候補に出ない', await p.evaluate(() => { const o = [...document.querySelectorAll('#md_viaChildren_list option')].map(x => x.value); return o.includes('荷主Z') && !o.includes('荷主X') && !o.includes('荷主Y'); }));
+    await p.fill('#md_viaChildren_input', '荷主X'); await p.keyboard.press('Enter'); await p.waitForTimeout(200);
+    ok(L + '付いているお客様を入力しても追加されず案内が出る', await p.evaluate(() => document.querySelectorAll('#md_viaChildren .stats-md-via-chip').length === 0 && [...document.querySelectorAll('.toast')].some(t => t.textContent.includes('すでに'))));
+    // 多段：同業A社を、同業B社の先のお客様にできる（同業者の先が同業者）。ただし逆（循環）は不可
+    await p.fill('#md_viaChildren_input', '同業A社'); await p.keyboard.press('Enter');
+    await p.click('.master-detail-save'); await p.waitForTimeout(900);
+    ok(L + '多段：同業者の先が同業者でもよい', await p.evaluate(() => (window.__db.master_details.find(m => m.value === '同業A社') || { details: {} }).details.via === '同業B社' && mdViaChain('荷主X').join() === '同業A社,同業B社'));
+    await openDetail('同業A社');
+    ok(L + '循環は候補・選択肢に出ない（上位の同業B社は先のお客様にできない）', await p.evaluate(() => !([...document.querySelectorAll('#md_viaChildren_list option')].map(x => x.value).includes('同業B社'))));
+    // 経由する同業者の選択（先のお客様の側）
+    await p.evaluate(() => statsCloseMasterDetail()); await p.waitForTimeout(200);
+    await openDetail('荷主Z');
+    ok(L + '「経由する同業者」の選択肢は同業者だけ', await p.evaluate(() => { const o = [...document.querySelectorAll('#md_via option')].map(x => x.value); return o.includes('同業A社') && o.includes('同業B社') && !o.includes('荷主X'); }));
+    await p.selectOption('#md_via', '同業B社'); await p.click('.master-detail-save'); await p.waitForTimeout(900);
+    ok(L + '先のお客様の側から経由する同業者を付けられる', await p.evaluate(() => mdViaChildren('同業B社').includes('荷主Z')));
+    // 外す
+    await openDetail('同業B社');
+    await p.evaluate(() => document.querySelector('#md_viaChildren .stats-md-via-chip[data-name="荷主Z"] button').click());
+    await p.click('.master-detail-save'); await p.waitForTimeout(900);
+    ok(L + '先のお客様を外すと via が消える', await p.evaluate(() => !mdViaChildren('同業B社').includes('荷主Z') && !(window.__db.master_details.find(m => m.value === '荷主Z') || { details: {} }).details.via));
+    ok(L + 'JS エラーなし', errs.length === 0, errs);
+    await ctx.close();
+  }
+
   console.log(out.join('\n'));
   console.log(out.some(l => l.startsWith('FAIL')) ? 'NG' : 'OK');
   await b.close(); srv.close();

@@ -611,6 +611,11 @@
           }).join('');
           return `<tr><th>${_cdEsc(s.label)}</th><td>${items}</td></tr>`;
         }
+        if (s.children) {
+          const kids = typeof window.mdViaChildren === 'function' ? window.mdViaChildren(value) : [];
+          if (!kids.length) return '';
+          return `<tr><th>${_cdEsc('先のお客様')}</th><td>${kids.map(k => `<span class="cd-tag-chip">🔗 ${_cdEsc(k)}</span>`).join('')}</td></tr>`;
+        }
         if (s.areas) {
           if (!Array.isArray(raw) || !raw.length) return '';
           return `<tr><th>${_cdEsc(s.label)}</th><td>${raw.map(k => `<span class="cd-tag-chip">📍 ${_cdEsc(window.areaLabel ? window.areaLabel(k) : k)}</span>`).join('')}</td></tr>`;

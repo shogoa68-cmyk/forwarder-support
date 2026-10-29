@@ -1548,10 +1548,45 @@
   const _CONTACTS_FIELD = { key: 'contacts', label: '担当者', contacts: true };
   // 得意エリア（複数）：国内業者は日本の地方、船会社・海外の業者は海外の小地域・国。国連の地理区分（UN M.49）。data/countries.js
   const _AREAS_FIELD = { key: 'areas', label: '得意エリア', areas: true };
+  // 取引形態・同業者の「先のお客様」（2026-10）：同業者であるお客様の先に、そのお客様のお客様（荷主）をつなぐ。
+  //   つなぎ方は「先のお客様の側に details.via＝経由する同業者（1 社だけ）」を持つ形＝1 社の先のお客様は 1 つの同業者にしか付けられない（重複しない）。
+  //   同業者の先がさらに同業者でもよい（何段でも）。children は仮想の項目（自分の詳細には保存せず、先のお客様側の via を書き換える）
+  const _DEAL_SHIPPER = '荷主（直接）', _DEAL_FWD = '同業者（フォワーダー・代理店）';
+  window.MD_DEAL_FWD = _DEAL_FWD;
+  const _DEAL_FIELD = { key: 'dealType', label: '取引形態', options: [
+    { value: '', label: '（未設定）' }, { value: _DEAL_SHIPPER, label: _DEAL_SHIPPER }, { value: _DEAL_FWD, label: _DEAL_FWD }, { value: 'その他', label: 'その他' },
+  ] };
+  const _VIA_FIELD = { key: 'via', label: '経由する同業者', via: true };
+  const _CHILDREN_FIELD = { key: 'viaChildren', label: '先のお客様（この同業者のお客様）', children: true };
+  // 先のお客様（直下）の名前一覧
+  window.mdViaChildren = function (parent) {
+    return window.mdGetAll('customer').filter(m => m.details && m.details.via === parent).map(m => m.value).sort((a, b) => a.localeCompare(b, 'ja'));
+  };
+  // 上位（経由する同業者を順にたどる。近い順・循環しても止まる）
+  window.mdViaChain = function (name) {
+    const out = [], seen = new Set([name]);
+    let cur = name;
+    for (let i = 0; i < 20; i++) {
+      const r = window.mdGet('customer', cur);
+      const v = r && r.details && r.details.via;
+      if (!v || seen.has(v)) break;
+      out.push(v); seen.add(v); cur = v;
+    }
+    return out;
+  };
+  // 下位すべて（先の先も含む）
+  window.mdViaDescendants = function (name) {
+    const out = [], seen = new Set([name]), q = [name];
+    while (q.length) { const c = q.shift(); window.mdViaChildren(c).forEach(x => { if (!seen.has(x)) { seen.add(x); out.push(x); q.push(x); } }); }
+    return out;
+  };
   window.MD_SCHEMA = {
     customer: [
       _FURIGANA_FIELD,
       _EN_FIELD,
+      _DEAL_FIELD,
+      _VIA_FIELD,
+      _CHILDREN_FIELD,
       { key: 'contacts',     label: '担当者', contacts: true },
       { key: 'location',     label: '所在地' },
       { key: 'mainGoods',    label: 'メイン商材' },

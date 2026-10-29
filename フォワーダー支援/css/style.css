@@ -5704,5 +5704,7 @@ body.md-modal-open { overflow: hidden; }
 .master-area-row { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; margin: 3px 0; }
 .master-area-btn.on { background: #1f5f99; border: 1px solid #1f5f99; color: #fff; font-weight: 700; }
 .master-area-btn.on:hover { background: #17507f; }
+.master-detail-hint { display: block; font-size: 11px; color: #6b7a8c; margin-top: 2px; font-weight: 400; }
+.stats-md-via { background: #eef6ee; }
 .master-area-label { font-size: 11px; color: #6b7a8c; min-width: 84px; }
 .master-area-title { font-size: 12px; font-weight: 700; margin-top: 6px; color: #3a4a5c; }
