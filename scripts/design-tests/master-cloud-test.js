@@ -945,13 +945,32 @@ const http = require('http'), fs = require('fs'), path = require('path');
     const heads = await p.evaluate(() => [...document.querySelectorAll('.master-tag-group-row')].map(r => r.textContent.replace(/\s+/g, ' ').trim()));
     ok(L + '「国ごとにまとめる」：見出しは国の日本語名', heads.some(h => h.includes('米国（US）')) && heads.some(h => h.includes('ベトナム（VN）')) && heads.some(h => h.includes('国なし')), heads);
     ok(L + '一覧のチップに国が出る', await p.evaluate(() => (document.querySelector('#statsPane-master tr[data-mvalue="LOS ANGELES"]') || { textContent: '' }).textContent.includes('米国')));
-    // 自動の提案
-    await p.evaluate(() => statsShowPortCountryAssist()); await p.waitForTimeout(900);
+    // 自動の提案（登録済みで国が無い港）
+    await p.evaluate(() => statsShowPortCountryAssist({ used: {} })); await p.waitForTimeout(900);
     const asst = await p.evaluate(() => document.querySelector('#pcAssistModal').textContent.replace(/\s+/g, ' '));
-    ok(L + '提案：HAIPHONG→ベトナム、YOKOHAMA→日本。国が付いている港は対象外', asst.includes('HAIPHONG') && asst.includes('ベトナム（VN）') && asst.includes('YOKOHAMA') && asst.includes('日本（JP）') && !/LOS ANGELES[^候]*提案/.test(asst), asst.slice(0, 400));
+    ok(L + '提案：HAIPHONG／YOKOHAMA が対象。国が付いている港（LOS ANGELES）は対象外', asst.includes('HAIPHONG') && asst.includes('YOKOHAMA') && !asst.includes('LOS ANGELES'), asst.slice(0, 300));
     await p.evaluate(() => document.getElementById('pcApplyBtn').click()); await p.waitForTimeout(1200);
     const after = await p.evaluate(() => Object.fromEntries(['HAIPHONG', 'HO CHI MINH', 'YOKOHAMA', 'LOS ANGELES'].map(n => [n, (window.__db.master_details.find(m => m.field === 'port' && m.value === n) || { details: {} }).details.country])));
     ok(L + '反映すると国が付く（すでにある国は変えない）', after['HAIPHONG'] === 'VN' && after['HO CHI MINH'] === 'VN' && after['YOKOHAMA'] === 'JP' && after['LOS ANGELES'] === 'US', after);
+    ok(L + 'JS エラーなし', errs.length === 0, errs);
+    await ctx.close();
+  }
+
+  // ===== 港のマスターが 0 件でも「港」を選べて、過去案件で使った港を国つきで一括登録できる =====
+  {
+    const { ctx, p, errs } = await open(true, { legacy: {}, noLegacy: true });
+    const L = '[港の一括登録] ';
+    await p.evaluate(() => { switchCategory('master', document.querySelector('[onclick*="switchCategory(\'master"]')); }); await p.waitForTimeout(1200);
+    ok(L + '港のマスターが無くても「港」の絞り込みが出る', await p.evaluate(() => [...document.querySelectorAll('.master-filter-chip')].some(b => b.textContent.startsWith('港'))));
+    await p.evaluate(() => statsMasterSetFilter('port')); await p.waitForTimeout(300);
+    ok(L + '港を選んだままで、一括登録の入口が出る', await p.evaluate(() => !!document.querySelector('.cm-entry-btn') && [...document.querySelectorAll('.master-filter-chip.is-active')].some(b => b.textContent.startsWith('港'))));
+    await p.evaluate(() => statsShowPortCountryAssist({ used: { HAIPHONG: 5, YOKOHAMA: 3, 'XYZ NO IDEA': 1 } })); await p.waitForTimeout(900);
+    const rows = await p.evaluate(() => [...document.querySelectorAll('#pcAssistModal tbody tr')].map(r => ({ t: r.textContent.replace(/\s+/g, ' '), chk: r.querySelector('.pc-chk').checked, val: r.querySelector('.pc-country').value })));
+    ok(L + '未登録の港が使用件数順に並び、推測できるものは国つきでチェック済み', rows[0].t.includes('HAIPHONG') && rows[0].chk && rows[0].val.includes('ベトナム') && rows.find(r => r.t.includes('YOKOHAMA')).val.includes('日本'), rows);
+    ok(L + '推測できない港はチェックなし・国は空欄', (() => { const x = rows.find(r => r.t.includes('XYZ NO IDEA')); return x && !x.chk && x.val === ''; })(), rows);
+    await p.evaluate(() => document.getElementById('pcApplyBtn').click()); await p.waitForTimeout(1500);
+    const st = await p.evaluate(() => ({ votes: window.__db.master_votes.filter(v => v.field === 'port').map(v => v.value).sort(), det: Object.fromEntries(window.__db.master_details.filter(d => d.field === 'port').map(d => [d.value, d.details.country])) }));
+    ok(L + 'チェックした港だけがマスターに登録され、国が付く', st.votes.includes('HAIPHONG') && st.votes.includes('YOKOHAMA') && !st.votes.includes('XYZ NO IDEA') && st.det.HAIPHONG === 'VN' && st.det.YOKOHAMA === 'JP', st);
     ok(L + 'JS エラーなし', errs.length === 0, errs);
     await ctx.close();
   }
