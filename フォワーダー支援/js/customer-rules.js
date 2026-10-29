@@ -65,6 +65,20 @@
     return { list: _sortRules(list), otherContact: mine.length - list.length };
   };
 
+  window.crIsLoaded = () => _loaded;
+  // マスター管理の一覧用：お客様ごとの有効なルール件数・厳守件数・再確認が必要な件数
+  window.crStats = function (customer) {
+    const co = _canon(customer);
+    const mine = _rules.filter(r => r.status !== 'retired' && _canon(r.customer) === co);
+    return { n: mine.length, strict: mine.filter(r => r.level === 'strict').length, stale: mine.filter(_stale).length };
+  };
+  // 再確認が必要なルールを持つお客様の一覧（件数の多い順）
+  window.crStaleSummary = function () {
+    const m = new Map();
+    _rules.filter(r => r.status !== 'retired' && _stale(r)).forEach(r => { const k = _canon(r.customer); m.set(k, (m.get(k) || 0) + 1); });
+    return [...m.entries()].map(([customer, stale]) => ({ customer, stale })).sort((a, b) => b.stale - a.stale || a.customer.localeCompare(b.customer));
+  };
+
   // ---- 保存・更新 ----
   async function _write(fn, okMsg) {
     if (!_cloud()) { _toast('🔒 ルールの登録にはログインが必要です', 'warn'); return false; }
@@ -98,7 +112,10 @@
     const meta = [target, r.reason ? '背景：' + _esc(r.reason) : '', '登録：' + _esc(_who(r.created_by)) + ' ' + _day(r.created_at),
       '最終確認：' + _day(r.confirmed_at || r.created_at)].filter(Boolean).join(' ／ ');
     const retired = r.status === 'retired';
-    const btns = opts.edit
+    const btns = (!opts.edit && opts.quick && stale && !retired)
+      ? `<button type="button" data-cr="confirm" data-id="${_esc(r.id)}" title="いまも有効であることを確認した日を更新します">いまも有効</button>` +
+        `<button type="button" data-cr="retire" data-id="${_esc(r.id)}">廃止</button>`
+      : opts.edit
       ? (retired
           ? `<button type="button" data-cr="restore" data-id="${_esc(r.id)}">復活</button>`
           : `<button type="button" data-cr="confirm" data-id="${_esc(r.id)}" title="いまも有効であることを確認した日を更新します">確認済み</button>` +
@@ -128,7 +145,7 @@
       `<div class="cr-form-row"><label>対象<select class="cr-f-contact">${opts}</select></label>` +
       `<label>重さ<select class="cr-f-level">${lvOpts}</select></label></div>` +
       `<textarea class="cr-f-body" rows="2" placeholder="ルールの内容（例：請求書は月末締め・翌月10日必着で原本を郵送／見積は必ずUSD建て併記）">${_esc(edit ? edit.body : '')}</textarea>` +
-      `<input type="text" class="cr-f-reason" placeholder="背景（任意：なぜそうなったか・元の案件など）" value="${_esc(edit ? edit.reason || '' : '')}">` +
+      `<input type="text" class="cr-f-reason" placeholder="背景（任意：なぜそうなったか・元の案件など）" value="${_esc(edit ? edit.reason || '' : (ctx.reasonDefault || ''))}">` +
       `<div class="cr-form-actions"><button type="button" class="cr-save" data-cr="save">${edit ? '💾 更新' : '＋ ルールを追加'}</button>` +
       (edit ? '<button type="button" data-cr="cancel">やめる</button>' : '') + `</div>` +
       `<div class="cr-hint">🔒 社内専用です。御見積書・メール・プレビューなど、お客様向けの出力には出ません。</div></div>`;
@@ -198,14 +215,17 @@
     const { list, otherContact } = window.crFor(customer, person);
     const n = k => list.filter(r => r.level === k).length;
     el.hidden = false;
-    el._cr = { customer: customer.trim(), person: person.trim(), editId: null, onChange: () => window.crRefreshBanner() };
+    const ref = ((document.getElementById('qf-ref') || {}).value || '').trim();
+    el._cr = { customer: customer.trim(), person: person.trim(), editId: null, onChange: () => window.crRefreshBanner(), reasonDefault: ref ? '案件 ' + ref + ' で判明' : '' };
+    const staleN = list.filter(_stale).length;
     const open = _bannerOpen === null ? n('strict') > 0 : _bannerOpen;
     const chips = ['strict', 'check', 'memo'].filter(k => n(k)).map(k => `<span class="cr-badge cr-badge-${k}">${LV[k].icon} ${LV[k].label} ${n(k)}</span>`).join('');
     let h = `<div class="cr-bar"><button type="button" class="cr-toggle" data-cr="toggle" aria-expanded="${open}">${open ? '▼' : '▶'} 📌 このお客様の取引ルール` +
       (list.length ? `（${list.length}件）` : '（なし）') + `</button>${chips}` +
       (otherContact ? `<span class="cr-other" title="ご担当者を入力すると、その担当者のルールも出ます">👤 担当者別 ${otherContact}件</span>` : '') +
-      `<button type="button" class="cr-add-btn" data-cr="addtoggle">＋ ルールを追加</button></div>`;
-    if (open && list.length) h += `<div class="cr-list">${list.map(r => _itemHtml(r, { edit: false })).join('')}</div>`;
+      (staleN ? `<span class="cr-stale" title="最終確認から半年以上たったルールがあります。開いて「いまも有効」か「廃止」を選んでください">⏳ 再確認 ${staleN}件</span>` : '') +
+      `<button type="button" class="cr-add-btn" data-cr="addtoggle" title="この案件で気づいた決まりごとを、このお客様（や担当者）のルールとして残します">📌 この案件で気づいたことをルールにする</button></div>`;
+    if (open && list.length) h += `<div class="cr-list">${list.map(r => _itemHtml(r, { edit: false, quick: true })).join('')}</div>`;
     if (_bannerAdd) h += _formHtml(el, el._cr);
     el.innerHTML = h;
     if (!el._crBound) {
@@ -215,6 +235,14 @@
         if (b.dataset.cr === 'toggle') { const cur = el.querySelector('.cr-toggle').getAttribute('aria-expanded') === 'true'; _bannerOpen = !cur; window.crRefreshBanner(); return; }
         if (b.dataset.cr === 'addtoggle') { _bannerAdd = !_bannerAdd; window.crRefreshBanner(); return; }
         if (b.dataset.cr === 'cancel') { _bannerAdd = false; window.crRefreshBanner(); return; }
+        if (b.dataset.cr === 'confirm') { window.crConfirm(b.dataset.id).then(() => window.crRefreshBanner()); return; }
+        if (b.dataset.cr === 'retire') {
+          const id = b.dataset.id, r = _rules.find(x => x.id === id);
+          const go = () => window.crSetStatus(id, 'retired').then(() => window.crRefreshBanner());
+          if (typeof window.uiConfirm === 'function') window.uiConfirm({ title: 'このルールを廃止しますか？', lines: ['「' + (r ? r.body.slice(0, 40) : '') + '」を、見積画面に出さないようにします。', '履歴には残り、マスター管理の「廃止したルール」から復活できます。'], okLabel: '廃止する', danger: true }).then(ok => { if (ok) go(); });
+          else if (confirm('このルールを廃止しますか？')) go();
+          return;
+        }
         if (b.dataset.cr === 'save') {
           const ctx = el._cr;
           window.crSave({ customer: ctx.customer, contact: el.querySelector('.cr-f-contact').value, level: el.querySelector('.cr-f-level').value,

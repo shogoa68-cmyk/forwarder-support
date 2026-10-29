@@ -699,6 +699,39 @@ const http = require('http'), fs = require('fs'), path = require('path');
     await ctx.close();
   }
 
+  // ===== 取引ルール：案件から作る（背景の自動入力）・再確認の運用 =====
+  {
+    const { ctx, p, errs } = await open(true, { legacy: {}, noLegacy: true });
+    const L = '[ルールの育て方] ';
+    const old = new Date(Date.now() - 200 * 86400000).toISOString();
+    await p.evaluate(async (old) => {
+      window.__db.master_votes.push({ field: 'customer', value: '古いルール商事', voter_email: 's@example.com' });
+      window.__db.customer_rules = [
+        { id: 'r1', customer: '古いルール商事', contact: null, level: 'strict', body: '古い決まりごと', status: 'active', created_by: 's@example.com', created_at: old, confirmed_at: old },
+        { id: 'r2', customer: '古いルール商事', contact: null, level: 'memo', body: '最近確認したメモ', status: 'active', created_by: 's@example.com', created_at: new Date().toISOString(), confirmed_at: new Date().toISOString() },
+      ];
+      await statsLoadMasterCache();
+    }, old);
+    await p.evaluate(() => { switchCategory('master', document.querySelector('[onclick*="switchCategory(\'master"]')); }); await p.waitForTimeout(1500);
+    await p.evaluate(() => statsMasterSetFilter('customer')); await p.waitForTimeout(500);
+    const m = await p.evaluate(() => ({ chip: (document.querySelector('#statsPane-master tr[data-mvalue="古いルール商事"] .cr-chip') || {}).textContent, notice: (document.querySelector('.cr-stale-notice') || {}).textContent }));
+    ok(L + 'マスター管理の一覧に「📌 ルール2件 ⛔1 ⏳1」の印', m.chip && m.chip.includes('ルール2件') && m.chip.includes('⛔1') && m.chip.includes('⏳1'), m);
+    ok(L + '再確認が必要なルールの案内が出る', m.notice && m.notice.includes('古いルール商事') && m.notice.includes('1件'), m);
+    // 見積タブ：背景に案件番号が入る・古いルールに「いまも有効」
+    await p.evaluate(async () => { document.getElementById('qf-ref').value = '2026-077'; document.getElementById('qf-customer').value = '古いルール商事'; document.getElementById('qf-person').value = ''; await crRefreshBanner(); });
+    let t = await p.evaluate(() => document.getElementById('crBanner').textContent.replace(/\s+/g, ' '));
+    ok(L + '見積：⏳ 再確認 1件 と「いまも有効」ボタン', t.includes('再確認 1件') && t.includes('いまも有効'), t);
+    ok(L + '見積：ボタンが「この案件で気づいたことをルールにする」', t.includes('この案件で気づいたことをルールにする'), t);
+    await p.evaluate(() => document.querySelector('#crBanner [data-cr="addtoggle"]').click()); await p.waitForTimeout(300);
+    ok(L + '見積：背景に「案件 2026-077 で判明」が入った状態で開く', await p.evaluate(() => document.querySelector('#crBanner .cr-f-reason').value === '案件 2026-077 で判明'));
+    await p.evaluate(() => document.querySelector('#crBanner [data-cr="addtoggle"]').click());
+    await p.evaluate(() => document.querySelector('#crBanner [data-cr="confirm"]').click()); await p.waitForTimeout(800);
+    const r1 = await p.evaluate(() => ({ at: window.__db.customer_rules.find(r => r.id === 'r1').confirmed_at, txt: document.getElementById('crBanner').textContent }));
+    ok(L + '「いまも有効」で最終確認日が今日になり、再確認の表示が消える', Date.now() - new Date(r1.at).getTime() < 3600000 && !r1.txt.includes('再確認'), r1);
+    ok(L + 'JS エラーなし', errs.length === 0, errs);
+    await ctx.close();
+  }
+
   // ===== 承認制：別名の追加（メンバーは申請・管理者が承認）／詳細の合流／添付の集約 =====
   {
     const { ctx, p, errs } = await open(true, { approval: true, role: 'member', noLegacy: true });
