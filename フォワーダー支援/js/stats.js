@@ -2708,10 +2708,15 @@
     wrap.appendChild(tmp.firstElementChild);
   };
   // 得意エリアの入力（国内の地方／海外の小地域をボタンで選び、個別の国は候補から追加）
-  function _mdAreaChipHtml(key) { return `<span class="stats-md-tag-chip stats-md-area-chip" data-area="${_eav(key)}">${_esc(window.areaLabel(key))}<button type="button" onclick="this.parentElement.remove()">✕</button></span>`; }
+  function _mdAreaChipHtml(key) { return `<span class="stats-md-tag-chip stats-md-area-chip" data-area="${_eav(key)}">${_esc(window.areaLabel(key))}<button type="button" onclick="var w=this.closest('.master-detail-areas');this.parentElement.remove();statsSyncAreas(w)">✕</button></span>`; }
+  window.statsSyncAreas = function (box) {
+    if (!box) return;
+    const sel = new Set(Array.from(box.querySelectorAll('.stats-md-area-chip')).map(c => c.dataset.area));
+    box.querySelectorAll('.master-area-btn').forEach(b => { const on = sel.has(b.dataset.area); b.classList.toggle('on', on); b.setAttribute('aria-pressed', on ? 'true' : 'false'); });
+  };
   function _mdAreasEditorHtml(id, s, selected) {
     if (!window.areaLabel) return '';
-    const btn = (k, l) => `<button type="button" class="master-type-preset master-area-btn" onclick="statsToggleArea('${_ea(id)}','${_ea(k)}')">${_esc(l)}</button>`;
+    const btn = (k, l) => `<button type="button" class="master-type-preset master-area-btn${selected.includes(k) ? ' on' : ''}" data-area="${_eav(k)}" aria-pressed="${selected.includes(k)}" onclick="statsToggleArea('${_ea(id)}','${_ea(k)}')">${_esc(l)}</button>`;
     const overseas = (window.COUNTRY_CONTINENTS || []).map(c => `<div class="master-area-row"><span class="master-area-label">${_esc(c.ja)}</span>` +
       (window.COUNTRY_SUBREGIONS || []).filter(x => x.continent === c.key).map(x => btn(x.key, x.ja)).join('') + '</div>').join('');
     const opts = (window.COUNTRY_LIST || []).map(c => `<option value="${_eav(c.ja + '（' + c.code + '）')}">`).join('');
@@ -2725,8 +2730,8 @@
   window.statsToggleArea = function (id, key) {
     const wrap = document.getElementById(id); if (!wrap) return;
     const ex = Array.from(wrap.querySelectorAll('.stats-md-area-chip')).find(c => c.dataset.area === key);
-    if (ex) { ex.remove(); return; }
-    wrap.insertAdjacentHTML('beforeend', _mdAreaChipHtml(key));
+    if (ex) ex.remove(); else wrap.insertAdjacentHTML('beforeend', _mdAreaChipHtml(key));
+    statsSyncAreas(wrap.closest('.master-detail-areas'));
   };
   window.statsAddAreaCountry = function (id) {
     const inp = document.getElementById(id + '_input'); if (!inp) return;
@@ -2734,6 +2739,7 @@
     if (!c) { if (inp.value.trim() && typeof window.quoteShowToast === 'function') window.quoteShowToast('「' + inp.value.trim() + '」は国の候補にありません', 'warn'); return; }
     const wrap = document.getElementById(id);
     if (!Array.from(wrap.querySelectorAll('.stats-md-area-chip')).some(x => x.dataset.area === c.code)) wrap.insertAdjacentHTML('beforeend', _mdAreaChipHtml(c.code));
+    statsSyncAreas(wrap.closest('.master-detail-areas'));
     inp.value = '';
   };
   let _mdEditField = 'sv';
