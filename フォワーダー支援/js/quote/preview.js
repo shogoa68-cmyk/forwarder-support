@@ -416,7 +416,7 @@
     const list = document.getElementById('pvWarnGuideList');
     if (list) {
       list.innerHTML = _pvWarnItems.map((item, i) =>
-        `<li class="pv-wg-item${item.focusEl ? '' : ' pv-wg-item-info'}${item.fxCurrencies ? ' pv-wg-item-fx' : ''}" data-idx="${i}">` +
+        `<li class="pv-wg-item${item.focusEl ? '' : ' pv-wg-item-info'}${item.fxCurrencies ? ' pv-wg-item-fx' : ''}${item.ruleLevel ? ' pv-wg-item-rule pv-wg-item-rule-' + item.ruleLevel : ''}" data-idx="${i}">` +
           (item.focusEl
             ? `<span class="pv-wg-item-num">${i + 1}</span>`
             : `<span class="pv-wg-item-icon">ℹ</span>`) +
@@ -461,6 +461,16 @@
 
     // フォーカス不可の情報系警告
     const infoItems = [];
+
+    // お客様・ご担当者の取引ルール（厳守・要確認）を、出力前の確認事項に載せる（メモは載せない）。社内向けの確認で、出力物には入らない
+    if (typeof window.crFor === 'function' && hdr.customer) {
+      window.crFor(hdr.customer, hdr.person).list
+        .filter(r => r.level === 'strict' || r.level === 'check')
+        .forEach(r => infoItems.push({
+          msg: (r.level === 'strict' ? '⛔ 厳守' : '⚠️ 要確認') + '（お客様ルール' + (r.contact ? '・' + r.contact + ' 様のみ' : '') + '）：' + r.body,
+          focusEl: null, ruleLevel: r.level,
+        }));
+    }
 
     if (!data.length) {
       infoItems.push({ msg: '見積もり行が 1 件もありません', focusEl: null });
