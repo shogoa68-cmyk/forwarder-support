@@ -5661,3 +5661,13 @@ a.stats-md-chip.stats-md-link:hover { background: #d6e7f8; text-decoration: unde
 .cr-chip.has-strict { background: #fdecea; color: #8e2a20; border-color: #e3a9a2; }
 .cr-chip.has-stale { box-shadow: inset 0 -2px 0 #e08a00; }
 .cr-stale-notice { margin: 6px 0; padding: 6px 10px; font-size: 12px; background: #fffaf0; border: 1px solid #e6c98a; border-radius: 6px; color: #6b4a00; }
+
+/* マスターの詳細：ポップアップ（モーダル）。画面いっぱいに広がらず、中だけスクロールする */
+.md-modal-overlay { position: fixed; inset: 0; z-index: 1100; background: rgba(20, 28, 38, .5); display: flex; align-items: center; justify-content: center; padding: 16px; }
+.md-modal { background: var(--card-bg, #fff); color: inherit; border-radius: 10px; box-shadow: 0 12px 40px rgba(0, 0, 0, .35); width: min(980px, 100%); max-height: calc(100vh - 32px); display: flex; flex-direction: column; overflow: hidden; }
+.md-modal-head { flex: none; display: flex; align-items: center; gap: 10px; padding: 10px 16px; border-bottom: 1px solid #d9dee5; background: #f3f6fa; }
+.md-modal-head h3 { margin: 0; font-size: 15px; flex: 1 1 auto; min-width: 0; overflow-wrap: anywhere; }
+.md-modal-close { flex: none; width: 30px; height: 30px; border: 1px solid #c3ccd6; border-radius: 6px; background: #fff; font-size: 14px; cursor: pointer; }
+.md-modal-close:hover { background: #eaf0f7; }
+.md-modal-body { flex: 1 1 auto; overflow-y: auto; padding: 12px 16px 16px; }
+body.md-modal-open { overflow: hidden; }

@@ -732,6 +732,33 @@ const http = require('http'), fs = require('fs'), path = require('path');
     await ctx.close();
   }
 
+  // ===== マスターの詳細はポップアップ（画面いっぱいに広がらない） =====
+  {
+    const { ctx, p, errs } = await open(true, { legacy: {}, noLegacy: true });
+    const L = '[詳細ポップアップ] ';
+    await p.setViewportSize({ width: 1400, height: 800 });
+    await p.evaluate(async () => {
+      window.__db.master_votes.push({ field: 'customer', value: 'ポップ商事', voter_email: 's@example.com' });
+      window.__db.master_details.push({ field: 'customer', value: 'ポップ商事', details: { contacts: [{ name: '幸崎', dept: '海外営業部', title: '課長', phone: '03-0000-0000', email: 'k@example.com', location: '大阪支店' }], tags: ['化学品'], website: 'example.com' } });
+      await statsLoadMasterCache(); await mdLoadCloud();
+    });
+    await p.evaluate(() => { switchCategory('master', document.querySelector('[onclick*="switchCategory(\'master"]')); }); await p.waitForTimeout(1200);
+    await p.evaluate(() => statsMasterSetFilter('customer')); await p.waitForTimeout(300);
+    await p.evaluate(() => document.querySelector('#statsPane-master tr[data-mvalue="ポップ商事"] .stats-master-detail-btn').click()); await p.waitForTimeout(600);
+    const g = await p.evaluate(() => { const m = document.querySelector('#mdDetailModal .md-modal'); const r = m.getBoundingClientRect(); return { x: Math.round(r.left), w: Math.round(r.width), h: Math.round(r.height), vw: innerWidth, vh: innerHeight, pos: getComputedStyle(document.getElementById('mdDetailModal')).position, title: m.querySelector('h3').textContent, inline: !!document.querySelector('.stats-detail-row') }; });
+    ok(L + '詳細がポップアップ（画面に固定・幅は画面いっぱいにならない・高さは画面内）', g.pos === 'fixed' && g.w <= 980 && g.w < g.vw && g.h <= g.vh && !g.inline, g);
+    ok(L + '見出しに種別と名前が出る', g.title.includes('お客様') && g.title.includes('ポップ商事'), g);
+    ok(L + '背景の画面はスクロールしない', await p.evaluate(() => document.body.classList.contains('md-modal-open')));
+    if (process.env.OUT) await p.screenshot({ path: require('path').join(process.env.OUT, 'master-detail-modal.png') });
+    await p.keyboard.press('Escape'); await p.waitForTimeout(200);
+    ok(L + 'Esc で閉じる', await p.evaluate(() => !document.getElementById('mdDetailModal') && !document.body.classList.contains('md-modal-open')));
+    await p.evaluate(() => document.querySelector('#statsPane-master tr[data-mvalue="ポップ商事"] .stats-master-detail-btn').click()); await p.waitForTimeout(400);
+    await p.fill('#md_furigana', 'ぽっぷしょうじ'); await p.click('.master-detail-save'); await p.waitForTimeout(800);
+    ok(L + '保存すると保存されて閉じる', await p.evaluate(() => !document.getElementById('mdDetailModal') && window.__db.master_details.find(m => m.value === 'ポップ商事').details.furigana === 'ぽっぷしょうじ'));
+    ok(L + 'JS エラーなし', errs.length === 0, errs);
+    await ctx.close();
+  }
+
   // ===== 承認制：別名の追加（メンバーは申請・管理者が承認）／詳細の合流／添付の集約 =====
   {
     const { ctx, p, errs } = await open(true, { approval: true, role: 'member', noLegacy: true });
