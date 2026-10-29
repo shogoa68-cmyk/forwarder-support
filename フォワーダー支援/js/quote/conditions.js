@@ -617,6 +617,7 @@
           return `<tr><th>${_cdEsc(s.label)}</th><td>${chips}</td></tr>`;
         }
         if (!raw) return '';
+        if (s.country) return `<tr><th>${_cdEsc(s.label)}</th><td>🌐 ${_cdEsc(window.countryLabel ? window.countryLabel(raw) : raw)}</td></tr>`;
         if (s.link) {
           const url = String(raw).trim();
           const href = /^https?:\/\//i.test(url) ? url : 'https://' + url;

@@ -917,6 +917,45 @@ const http = require('http'), fs = require('fs'), path = require('path');
     await ctx.close();
   }
 
+  // ===== 港の「国」（国コードで保存・日本語名で表示）・国ごとの整理・自動の提案 =====
+  {
+    const { ctx, p, errs } = await open(true, { legacy: {}, noLegacy: true });
+    const L = '[港の国] ';
+    await p.evaluate(async () => {
+      const v = n => window.__db.master_votes.push({ field: 'port', value: n, voter_email: 's@example.com' });
+      v('HAIPHONG'); v('HO CHI MINH'); v('YOKOHAMA'); v('LOS ANGELES'); v('XYZ UNKNOWN PORT');
+      window.__db.master_details.push({ field: 'port', value: 'LOS ANGELES', details: { country: 'US' } });
+      await statsLoadMasterCache(); await mdLoadCloud();
+    });
+    const lk = await p.evaluate(() => ({ n: COUNTRY_LIST.length, a: findCountry('ベトナム') && findCountry('ベトナム').code, b: findCountry('vn').code, c: findCountry('ベトナム（VN）').code, d: findCountry('United States').code, e: countryLabel('VN'), g1: guessPortCountry('HAIPHONG'), g2: guessPortCountry('YOKOHAMA, JAPAN'), g3: guessPortCountry('横浜'), g4: guessPortCountry('FOOBAR') }));
+    ok(L + '国の候補（国コード＋日本語名）を用意している', lk.n > 150 && lk.a === 'VN' && lk.b === 'VN' && lk.c === 'VN' && lk.d === 'US' && lk.e === 'ベトナム（VN）', lk);
+    ok(L + '港の名前から国を推測できる（分からなければ null）', lk.g1 === 'VN' && lk.g2 === 'JP' && lk.g3 === 'JP' && lk.g4 === null, lk);
+    await p.evaluate(() => { switchCategory('master', document.querySelector('[onclick*="switchCategory(\'master"]')); }); await p.waitForTimeout(1200);
+    await p.evaluate(() => statsMasterSetFilter('port')); await p.waitForTimeout(300);
+    ok(L + '港のときだけ「国を自動で付ける」ボタンが出る', await p.evaluate(() => !!document.querySelector('.cm-entry-btn')));
+    // 詳細の入力：国（日本語名で入力しても国コードで保存される）
+    await p.evaluate(() => document.querySelector('#statsPane-master tr[data-mvalue="XYZ UNKNOWN PORT"] .stats-master-detail-btn').click()); await p.waitForTimeout(500);
+    ok(L + '港の詳細に「国」の入力欄と候補がある', await p.evaluate(() => !!document.querySelector('#md_country') && document.querySelectorAll('#md_country_list option').length > 150));
+    await p.fill('#md_country', 'ベトナム'); await p.click('.master-detail-save'); await p.waitForTimeout(700);
+    ok(L + '日本語名で入力しても国コード（VN）で保存される', await p.evaluate(() => window.__db.master_details.find(m => m.value === 'XYZ UNKNOWN PORT').details.country === 'VN'));
+    // 国での整理
+    const chips = await p.evaluate(() => [...document.querySelectorAll('.master-type-chip')].map(b => b.textContent));
+    ok(L + '「国：」の絞り込みチップ（日本語名・件数つき）', chips.some(c => c.startsWith('米国（US）')) && chips.some(c => c.startsWith('ベトナム（VN）')) && chips.some(c => c.startsWith('未設定')), chips);
+    await p.evaluate(() => statsMasterSetSort('tag')); await p.waitForTimeout(300);
+    const heads = await p.evaluate(() => [...document.querySelectorAll('.master-tag-group-row')].map(r => r.textContent.replace(/\s+/g, ' ').trim()));
+    ok(L + '「国ごとにまとめる」：見出しは国の日本語名', heads.some(h => h.includes('米国（US）')) && heads.some(h => h.includes('ベトナム（VN）')) && heads.some(h => h.includes('国なし')), heads);
+    ok(L + '一覧のチップに国が出る', await p.evaluate(() => (document.querySelector('#statsPane-master tr[data-mvalue="LOS ANGELES"]') || { textContent: '' }).textContent.includes('米国')));
+    // 自動の提案
+    await p.evaluate(() => statsShowPortCountryAssist()); await p.waitForTimeout(900);
+    const asst = await p.evaluate(() => document.querySelector('#pcAssistModal').textContent.replace(/\s+/g, ' '));
+    ok(L + '提案：HAIPHONG→ベトナム、YOKOHAMA→日本。国が付いている港は対象外', asst.includes('HAIPHONG') && asst.includes('ベトナム（VN）') && asst.includes('YOKOHAMA') && asst.includes('日本（JP）') && !/LOS ANGELES[^候]*提案/.test(asst), asst.slice(0, 400));
+    await p.evaluate(() => document.getElementById('pcApplyBtn').click()); await p.waitForTimeout(1200);
+    const after = await p.evaluate(() => Object.fromEntries(['HAIPHONG', 'HO CHI MINH', 'YOKOHAMA', 'LOS ANGELES'].map(n => [n, (window.__db.master_details.find(m => m.field === 'port' && m.value === n) || { details: {} }).details.country])));
+    ok(L + '反映すると国が付く（すでにある国は変えない）', after['HAIPHONG'] === 'VN' && after['HO CHI MINH'] === 'VN' && after['YOKOHAMA'] === 'JP' && after['LOS ANGELES'] === 'US', after);
+    ok(L + 'JS エラーなし', errs.length === 0, errs);
+    await ctx.close();
+  }
+
   // ===== 承認制：別名の追加（メンバーは申請・管理者が承認）／詳細の合流／添付の集約 =====
   {
     const { ctx, p, errs } = await open(true, { approval: true, role: 'member', noLegacy: true });

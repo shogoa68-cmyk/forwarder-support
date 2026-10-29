@@ -1545,7 +1545,8 @@
       _GROUP_FIELD,
     ],
     carrier: [_FURIGANA_FIELD, _EN_FIELD, _GROUP_FIELD],
-    port:    [_FURIGANA_FIELD, _EN_FIELD],
+    // 港の「国」（国コードで保存・表示は日本語名。POL/POD の国ごとの情報の土台。data/countries.js の候補から選ぶ）
+    port:    [_FURIGANA_FIELD, _EN_FIELD, { key: 'country', label: '国', country: true, placeholder: '例）ベトナム（国名・国コード VN のどちらでも。候補から選べます）' }],
   };
 
   // カタカナ→ひらがな正規化（読み比較用）
