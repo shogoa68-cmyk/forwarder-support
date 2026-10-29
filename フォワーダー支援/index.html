@@ -3091,23 +3091,34 @@
               <!-- 問い合わせで最初に分かる POL/POD を先に（キャリアはレート比較の後に決まることが多い） -->
               <div class="z2-pol-pod-row">
                 <div class="z2-port">
-                  <span class="z2-port-label" title="Port of Loading（積み地港）：輸出港・出港地">📦 POL</span>
+                  <div class="z2-port-head">
+                    <span class="z2-port-label" title="Port of Loading（積み地港）：輸出港・出港地">📦 POL</span>
+                    <input type="text" id="z2PolCountry" class="z2-country" list="ptcCountryList" placeholder="🌐 国" autocomplete="off" aria-label="POL の国（候補を絞る）">
+                  </div>
                   <input type="text" id="z2Pol" class="z2-input" list="portSuggestions"
                          placeholder="例）Yokohama">
                 </div>
                 <span class="z2-arrow">→</span>
                 <div class="z2-port z2-via-port">
-                  <span class="z2-port-label" title="経由地（トランシップ港など）。省略可">⚓ Via</span>
+                  <div class="z2-port-head">
+                    <span class="z2-port-label" title="経由地（トランシップ港など）。省略可">⚓ Via</span>
+                    <input type="text" id="z2ViaCountry" class="z2-country" list="ptcCountryList" placeholder="🌐 国" autocomplete="off" aria-label="経由地の国（候補を絞る）">
+                  </div>
                   <input type="text" id="z2Via" class="z2-input" list="portSuggestions"
                          placeholder="経由地（任意）">
                 </div>
                 <span class="z2-arrow">→</span>
                 <div class="z2-port">
-                  <span class="z2-port-label" title="Port of Discharge（揚げ地港）：輸入港・入港地">🏁 POD</span>
+                  <div class="z2-port-head">
+                    <span class="z2-port-label" title="Port of Discharge（揚げ地港）：輸入港・入港地">🏁 POD</span>
+                    <input type="text" id="z2PodCountry" class="z2-country" list="ptcCountryList" placeholder="🌐 国" autocomplete="off" aria-label="POD の国（候補を絞る）">
+                  </div>
                   <input type="text" id="z2Pod" class="z2-input" list="portSuggestions"
                          placeholder="例）Shanghai">
                 </div>
               </div>
+              <div class="z2-country-note" id="z2PortCountryNote" hidden aria-live="polite"></div>
+              <datalist id="ptcCountryList"></datalist>
               <div class="z2-row">
                 <span class="z2-label" id="z2ModeIcon">🚢</span>
                 <input type="text" id="z2Carrier" class="z2-input" list="carriers-dl"
@@ -4770,6 +4781,7 @@
 <script src="js/cat-more.js"></script>
 <script src="js/stats.js"></script>
 <script src="js/alias-rules.js"></script>
+<script src="js/port-country.js"></script>
 <script src="js/customer-rules.js"></script>
 <script src="js/carrier-migration.js"></script>
 <script src="js/local-charges.js"></script>
