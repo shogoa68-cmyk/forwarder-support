@@ -5649,3 +5649,8 @@ a.stats-md-chip.stats-md-link:hover { background: #d6e7f8; text-decoration: unde
 .cr-form-actions { display: flex; gap: 6px; }
 .cr-save { background: #2a4d70 !important; color: #fff; border-color: #2a4d70 !important; }
 .cr-hint { font-size: 11px; color: #8a6d3b; }
+
+/* 出力前の確認：お客様の取引ルール（厳守・要確認） */
+.pv-wg-item-rule { white-space: pre-wrap; }
+.pv-wg-item-rule-strict { border-left: 4px solid #c0392b; background: #fff5f4; font-weight: 600; }
+.pv-wg-item-rule-check  { border-left: 4px solid #e08a00; background: #fffaf0; }
