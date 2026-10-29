@@ -494,6 +494,7 @@
   window.arRefreshDatalist = function () {
     _refreshDatalist.apply(this, arguments);
     if (typeof window.qfRefreshCarrierMasterCandidates === 'function') window.qfRefreshCarrierMasterCandidates();   // サブコンのマスター（種別がキャリア）を幹線輸送のキャリア候補へ
+    if (typeof window.ptcRefreshLists === 'function') window.ptcRefreshLists();   // 国で絞った港の候補（POL／経由地／POD）も作り直す
     if (typeof window.refreshAllRowSvChips === 'function') window.refreshAllRowSvChips();   // マスターが読み込まれた・変わったら、行の「サブコン未登録」の印も更新
   };
 
@@ -750,6 +751,7 @@
   const _LIST_FIELD = {
     svSuggestions: 'sv', nmSuggestions: 'nm', 'unit-list': 'un',
     custSuggestions: 'customer', portSuggestions: 'port', 'carriers-dl': 'carrier',
+    z2PolList: 'port', z2ViaList: 'port', z2PodList: 'port',   // 国で絞った港の候補（js/port-country.js）
   };
   // 入力値が「ある同義グループの統合表記（別名）」なら代表名を返す。代表名そのもの・未登録なら null。
   function _canonicalFor(field, value) {
@@ -853,6 +855,39 @@
     else _showMasterRegisterSuggest(input, v);
   }
 
+  // 港（POL／経由地／POD）：国を選んだうえで、マスターに無い港名を確定したとき、その国の港として登録（承認制は申請）するか確認する
+  //   国の選択は js/port-country.js（ptcCountryOf）。国を選んでいない・マスターが 1 件も無い間（未整備・読込前）は出さない
+  function _showPortRegisterSuggest(input, value, c) {
+    const asRequest = typeof window.statsIsApprovalOn === 'function' && window.statsIsApprovalOn();
+    _openSuggest(input,
+      `<span class="syn-suggest-msg">⚠️ 「<b>${_esc(value)}</b>」は港のマスターに未登録です</span>` +
+      `<button type="button" class="syn-suggest-apply">🌐 ${_esc(c.ja)}の港として${asRequest ? '登録を申請' : 'マスター登録'}</button>` +
+      `<button type="button" class="syn-suggest-dismiss" title="登録せずこのまま使う">このまま使う</button>`,
+      el => el.querySelector('.syn-suggest-apply').addEventListener('click', async () => {
+        _dismissSuggest();
+        // 誤字のまま登録されると、チーム全員の候補に出て表記の揺れの元になるため、ひと呼吸おく
+        if (!confirm('港「' + value + '」を、' + c.ja + '（' + c.code + '）の港として' + (asRequest ? 'マスター登録を申請します（管理者の承認後に、チーム全員の入力候補に出ます）。' : 'マスターに登録します。') +
+          '\n表記（スペル・大文字小文字）と国に誤りがないか確認してください。\n\nよろしいですか？')) return;
+        if (typeof window.statsRegisterWithCountry === 'function') {
+          const r = await window.statsRegisterWithCountry('port', value, c.code);
+          if (r && r.status === 'registered' && typeof window.quoteShowToast === 'function') window.quoteShowToast('📇 港「' + value + '」を' + c.ja + 'の港としてマスター登録しました', 'success', 2800);
+        }
+        _refreshDatalist();
+        if (typeof window.ptcRefreshLists === 'function') window.ptcRefreshLists();
+        _markUnregistered(input, 'port', true);
+        if (typeof window.statsRerenderActive === 'function') window.statsRerenderActive();
+      }),
+      12000);
+  }
+  function _checkPortMaster(input) {
+    const v = (input.value || '').trim();
+    const c = typeof window.ptcCountryOf === 'function' ? window.ptcCountryOf(input) : null;
+    if (!v || !c) { _dismissSuggest(); return; }
+    const masters = _masterValues('port');
+    if (!masters.length || masters.includes(v)) { _dismissSuggest(); return; }
+    _showPortRegisterSuggest(input, v, c);
+  }
+
   // 入力確定（change＝blur時など）で別名一致を判定して提案
   document.addEventListener('change', function (e) {
     const t = e.target;
@@ -879,6 +914,7 @@
     _markUnregistered(t, field, !canon);
     if (canon) _showSynSuggest(t, canon);
     else if (field === 'sv') _checkSubconMaster(t);   // サブコンはマスター引用：未登録なら確認
+    else if (field === 'port' && /^z2(Pol|Via|Pod)$/.test(t.id)) _checkPortMaster(t);   // 国を選んだ港は、その国の港として登録を促す
     else _dismissSuggest();
     if (field === 'sv' && typeof window.refreshAllRowSvChips === 'function') window.refreshAllRowSvChips();
   });
@@ -895,7 +931,7 @@
     if (field === 'nm') v = v.replace(/^\*\s?/, '');
     let unreg = false;
     if (check && v) {
-      const dl = document.getElementById(input.getAttribute('list'));
+      const dl = document.getElementById(field === 'port' ? 'portSuggestions' : input.getAttribute('list'));   // 港は、国で絞った候補ではなく全港で「登録済み」を判定
       const known = new Set(dl ? Array.from(dl.children).map(o => o.value) : []);
       const canon = typeof window.nameCanon === 'function' ? window.nameCanon(field, v) : v;
       unreg = known.size > 0 && !known.has(v) && !known.has(canon);

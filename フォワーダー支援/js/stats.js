@@ -59,16 +59,20 @@
   let _reqs = [];              // 申請（新しい順）
   let _reqOn = false;          // 申請テーブルが使える
   let _aliasReqOn = false;     // 別名の追加申請（alias_of 列）も使える
+  let _countryReqOn = false;   // 港の申請に国（country 列）を持たせられる（docs/sql/master-request-country.sql）
   async function _loadRequests() {
     const c = _c();
     if (!c) { _reqs = []; _reqOn = false; return; }
     // alias_of（別名の追加申請）列は docs/sql/synonym-groups-approval.sql で追加。無い間は従来どおり（別名はメンバーも直接追加できる）
-    let res = await c.from(REQ_TABLE).select('id,field,value,alias_of,requested_by,status,decided_by,decided_at,created_at')
+    let res = await c.from(REQ_TABLE).select('id,field,value,alias_of,country,requested_by,status,decided_by,decided_at,created_at')
+      .order('created_at', { ascending: false }).limit(300);
+    _countryReqOn = !res.error;   // country 列（港の申請に国を持たせる）は docs/sql/master-request-country.sql で追加。無い間は国なしの申請
+    if (res.error) res = await c.from(REQ_TABLE).select('id,field,value,alias_of,requested_by,status,decided_by,decided_at,created_at')
       .order('created_at', { ascending: false }).limit(300);
     _aliasReqOn = !res.error;
     if (res.error) res = await c.from(REQ_TABLE).select('id,field,value,requested_by,status,decided_by,decided_at,created_at')
       .order('created_at', { ascending: false }).limit(300);
-    if (res.error) { _reqs = []; _reqOn = false; _aliasReqOn = false; return; }
+    if (res.error) { _reqs = []; _reqOn = false; _aliasReqOn = false; _countryReqOn = false; return; }
     _reqs = res.data || []; _reqOn = true;
   }
   const _isAdmin = () => window._myRole === 'admin';
@@ -79,14 +83,37 @@
   const _FIELD_LABEL = { sv: 'サブコン', carrier: 'キャリア', nm: '品名', un: '単位', customer: 'お客様', port: '港' };
   function _toast(msg, type, ms) { if (typeof window.quoteShowToast === 'function') window.quoteShowToast(msg, type || 'success', ms || 3200); }
 
-  async function _request(field, value) {
+  async function _request(field, value, country) {
     if (_pendingReq(field, value)) { _toast('「' + value + '」はすでに申請中です（管理者の承認待ち）', 'info'); return; }
-    const { error } = await _c().from(REQ_TABLE).insert({ field, value, requested_by: _me(), status: 'pending' });
+    const row = { field, value, requested_by: _me(), status: 'pending' };
+    const withCountry = !!country && _countryReqOn;   // 国（港の申請）。country 列が無い間は国を持たせられない
+    if (withCountry) row.country = country;
+    const { error } = await _c().from(REQ_TABLE).insert(row);
     if (error) { _toast('申請に失敗しました: ' + error.message, 'warn'); return; }
     await _loadRequests();
     if (typeof window.refreshAllRowSvChips === 'function') window.refreshAllRowSvChips();   // 行の「申請中」の印を反映
-    _toast('📨 ' + (_FIELD_LABEL[field] || field) + '「' + value + '」をマスターに申請しました。管理者の承認後に入力候補に出ます', 'success', 4200);
+    const cj = country && typeof window.countryJa === 'function' ? window.countryJa(country) : '';
+    _toast('📨 ' + (_FIELD_LABEL[field] || field) + '「' + value + '」' + (withCountry && cj ? '（' + cj + '）' : '') + 'をマスターに申請しました。管理者の承認後に入力候補に出ます' +
+      (country && !withCountry ? '（国は申請に付けられませんでした。承認後にマスター管理で設定してください）' : ''), 'success', 4200);
   }
+  // 名称を、国つきでマスターに登録する（見積の POL／経由地／POD から）。承認制のメンバーは「申請」（国も一緒に申請）、管理者・従来の動きは直接登録して国を付ける
+  // 戻り値の status：'registered'（登録した）／'requested'（申請した）／'exists'（すでにマスター）／'failed'
+  window.statsRegisterWithCountry = async function (field, value, country) {
+    value = String(value || '').trim();
+    if (!value) return { status: 'failed' };
+    if (!_cloud()) { if (typeof window.masterNeedCloud === 'function') window.masterNeedCloud(); return { status: 'failed' }; }
+    if (_approvalOn() && !_isAdmin()) {
+      if (_voteInfo(field, value).total > 0) return { status: 'exists' };
+      await _request(field, value, country);
+      return { status: 'requested' };
+    }
+    await window.statsEnsureMaster(field, value);
+    if (country && typeof window.mdGet === 'function' && typeof window.mdSave === 'function') {
+      const prev = (window.mdGet(field, value) || {}).details || {};
+      if (!prev.country) await window.mdSave(field, value, Object.assign({}, prev, { country }));   // すでにある国は変えない
+    }
+    return { status: 'registered' };
+  };
   // 別名の追加を申請する（承認制のメンバー）。管理者が承認すると別名として反映される
   window.statsRequestAlias = async function (field, alias, canonical) {
     if (_reqs.some(r => r.status === 'pending' && r.field === field && r.value === alias)) { _toast('「' + alias + '」はすでに申請中です（管理者の承認待ち）', 'info'); return; }
@@ -108,6 +135,11 @@
     } else if (approve) {
       const { error } = await _c().from(VOTES_TABLE).upsert({ field: r.field, value: r.value, voter_email: _me() }, { onConflict: 'field,value,voter_email' });
       if (error) { _toast('承認に失敗しました: ' + error.message, 'warn'); return; }
+      // 国つきの申請（港）：承認と一緒に国を付ける（すでにある国は変えない）
+      if (r.country && typeof window.mdGet === 'function' && typeof window.mdSave === 'function') {
+        const prev = (window.mdGet(r.field, r.value) || {}).details || {};
+        if (!prev.country) await window.mdSave(r.field, r.value, Object.assign({}, prev, { country: r.country }));
+      }
     }
     const { error: e2 } = await _c().from(REQ_TABLE).update({ status: approve ? 'approved' : 'rejected', decided_by: _me(), decided_at: new Date().toISOString() }).eq('id', id);
     if (e2) { _toast('更新に失敗しました: ' + e2.message, 'warn'); return; }
@@ -159,7 +191,7 @@
           `<button class="stats-demote-btn btn-secondary" onclick="statsRejectRequest('${_ea(r.id)}')">却下…</button>`
         : (r.status === 'pending' ? `<button class="stats-demote-btn btn-secondary" onclick="statsCancelRequest('${_ea(r.id)}')">取り消す</button>` : '');
       const st = ST[r.status] || ['', r.status];
-      return `<tr><td>${_esc(_FIELD_LABEL[r.field] || r.field)}</td><td class="stats-val">${_esc(r.value)}${r.alias_of ? ' <span class="req-alias-of">→ 「' + _esc(r.alias_of) + '」の別名</span>' : ''}</td>` +
+      return `<tr><td>${_esc(_FIELD_LABEL[r.field] || r.field)}</td><td class="stats-val">${_esc(r.value)}${r.alias_of ? ' <span class="req-alias-of">→ 「' + _esc(r.alias_of) + '」の別名</span>' : ''}${r.country ? ' <span class="req-country" title="申請者が選んだ国">🌐 ' + _esc(typeof window.countryJa === 'function' ? window.countryJa(r.country) : r.country) + '</span>' : ''}</td>` +
              `<td>${admin ? _esc(who) : `<span class="req-state ${st[0]}">${st[1]}</span>`}</td><td class="ops">${ops}</td></tr>`;
     }).join('');
     return '<div class="stats-req-section"><p class="stats-master-info-title">' + head + '</p>' +

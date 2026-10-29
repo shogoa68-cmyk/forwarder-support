@@ -10,7 +10,7 @@
 
   function clearConditions() {
     if (!confirm('貨物情報・引き合い条件をクリアしますか？')) return;
-    ['z2Carrier','z2Service','z2CarrierRole','z2ActualCarrier','z2Pol','z2Via','z2Pod','z2Tt','cond-origin','cond-dest','cond-cargo','cond-hs','cond-hs-basic','cond-hs-pref','cond-hs-pref-note',
+    ['z2Carrier','z2Service','z2CarrierRole','z2ActualCarrier','z2Pol','z2Via','z2Pod','z2PolCountry','z2ViaCountry','z2PodCountry','z2Tt','cond-origin','cond-dest','cond-cargo','cond-hs','cond-hs-basic','cond-hs-pref','cond-hs-pref-note',
      'cond-packing','cond-packing-preset','condFreeText','cond-cargo-unknown-note',
      'cond-origin-country','cond-dest-country','z1Place','z1Country','z3Place','z3Country',
      'cond-container-count']

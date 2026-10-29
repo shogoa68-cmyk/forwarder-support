@@ -3156,7 +3156,18 @@
 #tab-quote-make .z2-pol-pod-row { display: flex; align-items: flex-end; gap: var(--sp-4); }
 #tab-quote-make .z2-port { display: flex; flex-direction: column; gap: var(--sp-2); flex: 1; min-width: 0; }
 #tab-quote-make .z2-via-port { flex: 0.75; }
-#tab-quote-make .z2-port-label { font-size: var(--fs-9); font-weight: 700; color: var(--accent); letter-spacing: .04em; }
+#tab-quote-make .z2-port-label { font-size: var(--fs-9); font-weight: 700; color: var(--accent); letter-spacing: .04em; flex: none; }
+/* 港の入力欄の上の見出し行：ラベル＋「🌐 国」（選ぶと、その国に設定済みの港だけが候補に出る） */
+#tab-quote-make .z2-port-head { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-4); min-width: 0; }
+#tab-quote-make .z2-country {
+  flex: 1 1 0; min-width: 0; max-width: 96px; box-sizing: border-box; padding: 0 var(--sp-4); height: 16px; font-size: var(--fs-9); font-family: inherit;
+  border: 1px solid var(--border-md); border-radius: var(--r-3); background: var(--surface); color: var(--text-md); text-align: right;
+}
+#tab-quote-make .z2-country:focus { border-color: var(--accent); outline: none; text-align: left; }
+#tab-quote-make .z2-country.is-set { border-color: var(--accent); background: var(--accent-lt); color: var(--accent-dk); font-weight: 700; }
+#tab-quote-make .z2-country.is-bad { border-color: #c0392b; }
+#tab-quote-make .z2-country-note { margin: 2px 0 var(--sp-4); font-size: var(--fs-10); color: var(--accent-dk); line-height: 1.5; }
+#tab-quote-make .z2-country-note[hidden] { display: none; }
 #tab-quote-make .z2-route-via { font-size: var(--fs-10); color: var(--c-8a7a64); font-style: italic; }
 #tab-quote-make .z2-route-service { font-size: var(--fs-10); color: #4a6035; background: var(--green-88); border-radius: var(--r-8); padding: 1px var(--sp-5); }
 #tab-quote-make .z2-route-tt { font-size: var(--fs-10); color: #6b4a2a; background: var(--accent-lt); border-radius: var(--r-8); padding: 1px var(--sp-5); white-space: nowrap; }

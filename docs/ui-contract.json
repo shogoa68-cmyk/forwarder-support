@@ -177,6 +177,7 @@
   "cpSelectAll",
   "cpTableBody",
   "cpTitle",
+  "crBanner",
   "csvColModal",
   "csvDropZone",
   "csvMsg",
@@ -1928,10 +1929,6 @@
    "css": true,
    "html": true
   },
-  "cat-btn-featured": {
-   "css": true,
-   "html": true
-  },
   "cat-more-label": {
    "css": false,
    "html": true
@@ -2104,6 +2101,10 @@
    "css": true,
    "html": true
   },
+  "confirm-dialog": {
+   "css": true,
+   "html": false
+  },
   "container-chip-grid": {
    "css": true,
    "html": true
@@ -2137,6 +2138,26 @@
    "html": true
   },
   "cpd-print-mode": {
+   "css": true,
+   "html": false
+  },
+  "cr-f-body": {
+   "css": false,
+   "html": false
+  },
+  "cr-f-contact": {
+   "css": false,
+   "html": false
+  },
+  "cr-f-level": {
+   "css": false,
+   "html": false
+  },
+  "cr-f-reason": {
+   "css": false,
+   "html": false
+  },
+  "cr-toggle": {
    "css": true,
    "html": false
   },
@@ -2260,6 +2281,10 @@
    "css": true,
    "html": false
   },
+  "has-cr": {
+   "css": true,
+   "html": false
+  },
   "has-img": {
    "css": true,
    "html": false
@@ -2319,6 +2344,10 @@
   "is-active": {
    "css": true,
    "html": true
+  },
+  "is-bad": {
+   "css": true,
+   "html": false
   },
   "is-busy": {
    "css": true,
@@ -2425,6 +2454,10 @@
    "html": false
   },
   "is-sel": {
+   "css": true,
+   "html": false
+  },
+  "is-set": {
    "css": true,
    "html": false
   },
@@ -2544,12 +2577,20 @@
    "css": true,
    "html": false
   },
+  "md-contact-dept": {
+   "css": true,
+   "html": false
+  },
   "md-contact-email": {
    "css": false,
    "html": false
   },
   "md-contact-furi": {
    "css": false,
+   "html": false
+  },
+  "md-contact-location": {
+   "css": true,
    "html": false
   },
   "md-contact-name": {
@@ -2565,6 +2606,18 @@
    "html": false
   },
   "md-contact-row": {
+   "css": true,
+   "html": false
+  },
+  "md-contact-title": {
+   "css": true,
+   "html": false
+  },
+  "md-modal-body": {
+   "css": true,
+   "html": false
+  },
+  "md-modal-open": {
    "css": true,
    "html": false
   },
@@ -2613,6 +2666,14 @@
    "html": false
   },
   "open": {
+   "css": true,
+   "html": false
+  },
+  "pc-chk": {
+   "css": false,
+   "html": false
+  },
+  "pc-country": {
    "css": true,
    "html": false
   },
@@ -3224,10 +3285,6 @@
    "css": true,
    "html": false
   },
-  "stats-detail-row": {
-   "css": true,
-   "html": false
-  },
   "stats-master-abbrev-add": {
    "css": true,
    "html": false
@@ -3420,9 +3477,25 @@
    "css": false,
    "html": false
   },
+  "sv-bm-pop-body": {
+   "css": true,
+   "html": false
+  },
   "sv-detail-btn": {
    "css": false,
    "html": true
+  },
+  "sv-hdr-bm": {
+   "css": false,
+   "html": false
+  },
+  "sv-hdr-detail": {
+   "css": false,
+   "html": false
+  },
+  "sv-hdr-group": {
+   "css": true,
+   "html": false
   },
   "sv-master-chip": {
    "css": true,
@@ -3522,6 +3595,10 @@
   },
   "ud-row--excluded": {
    "css": true,
+   "html": false
+  },
+  "ui-confirm-overlay": {
+   "css": false,
    "html": false
   },
   "uim-hint-close": {
@@ -3726,6 +3803,10 @@
    "html": false,
    "js": true
   },
+  "cr": {
+   "html": false,
+   "js": true
+  },
   "ctype": {
    "html": true,
    "js": true
@@ -3819,6 +3900,10 @@
    "js": true
   },
   "hide-quote": {
+   "html": false,
+   "js": true
+  },
+  "i": {
    "html": false,
    "js": true
   },
@@ -4206,6 +4291,7 @@
   "shared/ui-utils.js",
   "shared/calc.js",
   "data/carriers.js",
+  "data/countries.js",
   "data/incoterms.js",
   "https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js",
   "js/vanning3d.js",
@@ -4243,6 +4329,9 @@
   "js/cat-more.js",
   "js/stats.js",
   "js/alias-rules.js",
+  "js/port-country.js",
+  "js/customer-rules.js",
+  "js/carrier-migration.js",
   "js/local-charges.js",
   "js/rate-notice.js",
   "js/lc-row-pattern.js"
