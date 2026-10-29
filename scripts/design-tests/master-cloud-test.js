@@ -609,6 +609,21 @@ const http = require('http'), fs = require('fs'), path = require('path');
     ok(L + '倉庫業者で絞り込み（兼業も含む）', JSON.stringify(rows) === JSON.stringify(['倉庫B', '兼業C']), rows);
     await p.click('.master-type-chip:has-text("未設定")'); await p.waitForTimeout(300);
     ok(L + '未設定で絞り込み（種別ありの会社は出ない）', await p.evaluate(() => [...document.querySelectorAll('#statsPane-master tbody tr[data-mvalue]')].map(r => r.dataset.mvalue).includes('未設定D')));
+    // 並び順：種別ごとにまとめる（兼業は両方の下に出る・種別なしは最後）
+    await p.evaluate(() => { statsMasterSetSvType(''); statsMasterSetSort('tag'); }); await p.waitForTimeout(300);
+    const grp = await p.evaluate(() => {
+      const out = []; let cur = null;
+      document.querySelectorAll('#statsPane-master tbody tr').forEach(r => {
+        if (r.classList.contains('master-tag-group-row')) { cur = { head: r.textContent.replace(/\s+/g, ' ').trim(), rows: [] }; out.push(cur); }
+        else if (r.dataset.mvalue && cur) cur.rows.push(r.dataset.mvalue);
+      });
+      return out;
+    });
+    const byHead = k => grp.find(x => x.head.includes(k)) || { rows: [] };
+    ok(L + '種別ごとの見出しの下に並ぶ（兼業は両方に出る）', byHead('通関業者').rows.includes('通関A') && byHead('通関業者').rows.includes('兼業C') && byHead('倉庫業者').rows.includes('倉庫B') && byHead('倉庫業者').rows.includes('兼業C'), grp);
+    ok(L + '種別なしは最後にまとまる', grp.length > 2 && grp[grp.length - 1].head.includes('種別なし') && grp[grp.length - 1].rows.includes('未設定D'), grp);
+    await p.evaluate(() => statsMasterSetSort('name')); await p.waitForTimeout(200);
+    ok(L + '名前順に戻すと見出しは消える', await p.evaluate(() => !document.querySelector('.master-tag-group-row')));
     await p.evaluate(() => statsMasterSetFilter('customer')); await p.waitForTimeout(300);
     ok(L + 'サブコン以外では種別チップを出さない', await p.evaluate(() => !document.querySelector('.master-type-chip')));
     ok(L + 'JS エラーなし', errs.length === 0, errs);
@@ -755,6 +770,47 @@ const http = require('http'), fs = require('fs'), path = require('path');
     await p.evaluate(() => document.querySelector('#statsPane-master tr[data-mvalue="ポップ商事"] .stats-master-detail-btn').click()); await p.waitForTimeout(400);
     await p.fill('#md_furigana', 'ぽっぷしょうじ'); await p.click('.master-detail-save'); await p.waitForTimeout(800);
     ok(L + '保存すると保存されて閉じる', await p.evaluate(() => !document.getElementById('mdDetailModal') && window.__db.master_details.find(m => m.value === 'ポップ商事').details.furigana === 'ぽっぷしょうじ'));
+    ok(L + 'JS エラーなし', errs.length === 0, errs);
+    await ctx.close();
+  }
+
+  // ===== 所属グループ（グループ傘下の別会社をつなぐ） =====
+  {
+    const { ctx, p, errs } = await open(true, { legacy: {}, noLegacy: true });
+    const L = '[所属グループ] ';
+    await p.evaluate(async () => {
+      const add = (f, v, g) => { window.__db.master_votes.push({ field: f, value: v, voter_email: 's@example.com' }); if (g) window.__db.master_details.push({ field: f, value: v, details: { group: g } }); };
+      add('sv', 'CMA CGM', 'CMA CGM グループ'); add('sv', 'ANL', 'CMA CGM グループ'); add('sv', 'APL', 'CMA CGM グループ'); add('sv', 'ONE', 'ONE グループ'); add('sv', '単独社');
+      add('carrier', 'CNC', 'CMA CGM グループ'); add('carrier', 'CMA CGM', 'CMA CGM グループ');
+      await statsLoadMasterCache(); await mdLoadCloud();
+    });
+    await p.evaluate(() => { switchCategory('master', document.querySelector('[onclick*="switchCategory(\'master"]')); }); await p.waitForTimeout(1200);
+    await p.evaluate(() => statsMasterSetFilter('sv')); await p.waitForTimeout(300);
+    ok(L + 'サブコンのとき「所属グループごとにまとめる」が選べる', await p.evaluate(() => [...document.querySelectorAll('.master-sort-chip')].some(b => b.textContent.includes('所属グループ'))));
+    await p.evaluate(() => statsMasterSetSort('group')); await p.waitForTimeout(300);
+    const grp = await p.evaluate(() => {
+      const out = []; let cur = null;
+      document.querySelectorAll('#statsPane-master tbody tr').forEach(r => {
+        if (r.classList.contains('master-tag-group-row')) { cur = { head: r.textContent.replace(/\s+/g, ' ').trim(), rows: [] }; out.push(cur); }
+        else if (r.dataset.mvalue && cur) cur.rows.push(r.dataset.mvalue);
+      });
+      return out;
+    });
+    const cma = grp.find(x => x.head.includes('CMA CGM グループ')) || { rows: [] };
+    ok(L + 'グループの見出しの下に傘下の会社が並ぶ（3社）', cma.head && cma.head.includes('3社') && ['CMA CGM', 'ANL', 'APL'].every(n => cma.rows.includes(n)), grp);
+    ok(L + 'グループなしは最後', grp[grp.length - 1].head.includes('グループなし') && grp[grp.length - 1].rows.includes('単独社'), grp);
+    await p.evaluate(() => statsMasterSetFilter('carrier')); await p.waitForTimeout(300);
+    ok(L + 'キャリアでも選べる（種別チップは出ない）', await p.evaluate(() => [...document.querySelectorAll('.master-sort-chip')].some(b => b.textContent.includes('所属グループ')) && !document.querySelector('.master-type-chip')));
+    // 詳細の入力欄：グループ名の候補に、入力済みの名前が出る
+    await p.evaluate(() => statsMasterSetFilter('sv')); await p.waitForTimeout(300);
+    await p.evaluate(() => document.querySelector('#statsPane-master tr[data-mvalue="単独社"] .stats-master-detail-btn').click()); await p.waitForTimeout(500);
+    const opts = await p.evaluate(() => [...document.querySelectorAll('#md_group_list option')].map(o => o.value));
+    ok(L + '詳細の「所属グループ」欄に、入力済みのグループ名が候補で出る', opts.includes('CMA CGM グループ') && opts.includes('ONE グループ'), opts);
+    await p.fill('#md_group', 'ONE グループ'); await p.click('.master-detail-save'); await p.waitForTimeout(700);
+    ok(L + '所属グループが保存される', await p.evaluate(() => window.__db.master_details.find(m => m.value === '単独社').details.group === 'ONE グループ'));
+    // 統計タブ：グループ別の合計（使用件数を合算）
+    const sum = await p.evaluate(() => { const box = document.createElement('div'); box.innerHTML = statsGroupSummaryHtml('sv', { 'CMA CGM': 5, 'ANL': 3, 'APL': 2, 'APL JAPAN': 1, 'ONE': 4 }, { 'APL JAPAN': 'APL' }); return box.textContent.replace(/\s+/g, ' '); });
+    ok(L + '統計：グループ別の合計（別名の件数も傘下の会社に合算）', sum.includes('CMA CGM グループ') && sum.includes('3社') && sum.includes('11') && sum.includes('ANL 3') && sum.includes('APL 3'), sum);
     ok(L + 'JS エラーなし', errs.length === 0, errs);
     await ctx.close();
   }

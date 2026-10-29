@@ -910,6 +910,14 @@
         detBtn.hidden = !reg;
         detBtn.dataset.canon = reg ? r.canon : '';
         if (reg) detBtn.title = 'サブコン「' + r.canon + '」のマスター詳細（種別・担当者・所在地・添付など）を見る';
+        // 所属グループ（例：CMA CGM グループ）があれば、見出しに小さく出す
+        const grec = reg && typeof window.mdGet === 'function' ? window.mdGet('sv', r.canon) : null;
+        const grp = grec && grec.details && grec.details.group ? String(grec.details.group).trim() : '';
+        let gEl = hdr.querySelector('.sv-hdr-group');
+        if (grp) {
+          if (!gEl) { gEl = document.createElement('span'); gEl.className = 'sv-hdr-group'; detBtn.after(gEl); }
+          gEl.textContent = '🏢 ' + grp; gEl.title = '所属グループ：' + grp; gEl.hidden = false;
+        } else if (gEl) gEl.hidden = true;
       }
       if (bmBtn) {
         const rec = reg && typeof window.mdGetCanon === 'function' ? window.mdGetCanon('sv', v) : null;

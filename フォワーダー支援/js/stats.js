@@ -734,6 +734,27 @@
            `<input type="checkbox" onchange="statsToggleFluct()"${_statsFluctOnly ? ' checked' : ''}> ゆらぎありのみ表示</label></div>`;
   }
 
+  // サブコン・キャリア：「所属グループ」ごとの合計（グループ傘下の会社の件数を合算して内訳を出す）
+  function _groupSummaryHtml(field, cntMap, aliasOf) {
+    if (field !== 'sv' && field !== 'carrier') return '';
+    const byGroup = new Map();
+    const perCanon = {};
+    Object.keys(cntMap).forEach(v => { const c = aliasOf[v] || v; perCanon[c] = (perCanon[c] || 0) + cntMap[v]; });
+    Object.keys(perCanon).forEach(c => {
+      const g = _groupOfName(field, c);
+      if (!g) return;
+      if (!byGroup.has(g)) byGroup.set(g, { total: 0, members: [] });
+      const o = byGroup.get(g); o.total += perCanon[c]; o.members.push([c, perCanon[c]]);
+    });
+    if (!byGroup.size) return '';
+    const rows = [...byGroup.entries()].sort((a, b) => b[1].total - a[1].total || a[0].localeCompare(b[0])).map(([g, o]) =>
+      `<tr><td class="stats-val">🏢 ${_esc(g)}</td><td class="stats-num-col">${o.members.length}社</td><td class="stats-num-col"><b>${o.total}</b></td>` +
+      `<td class="stats-grp-members">${o.members.sort((a, b) => b[1] - a[1]).map(([c, n]) => `<span class="stats-grp-member">${_esc(c)} <b>${n}</b></span>`).join('')}</td></tr>`).join('');
+    return `<details class="stats-group-summary" open><summary>🏢 所属グループ別の合計（${byGroup.size}グループ）</summary>` +
+      `<table class="stats-table"><thead><tr><th>所属グループ</th><th class="stats-num-col">会社数</th><th class="stats-num-col">合計件数</th><th>内訳（会社ごと）</th></tr></thead><tbody>${rows}</tbody></table>` +
+      `<p class="stats-syn-hint">マスター管理の詳細で「所属グループ」を入れた会社を、グループごとに合算しています（件数＝別名を含む使用件数）。</p></details>`;
+  }
+  window.statsGroupSummaryHtml = _groupSummaryHtml;   // 試験用
   function _renderGrouped(groups, field, colLabel, paneId) {
     const e = document.getElementById(paneId);
     if (!e || !_data) return;
@@ -792,7 +813,7 @@
     const shownSyn  = visSynRows.slice(0, pageLimit);
     const shownRest = visRestGroups.slice(0, Math.max(0, pageLimit - shownSyn.length));
 
-    let h = _sortToolbar() +
+    let h = _sortToolbar() + _groupSummaryHtml(field, cntMap, synAliasOf) +
             '<p class="stats-syn-hint">「☆ マスターに登録」で正しい名前を決め、他の表記を「→ 別名にする」でまとめると、⭐行に集約され件数が合算されます（非破壊）。表記ゆれの一括置換は「ゆらぎ N種」バッジから。</p>' +
             `<table class="stats-table stats-nm-table"><thead><tr>` +
             `<th>${colLabel}</th><th class="stats-num-col">合計</th><th>別名・略称 / バリアント</th>` +
@@ -2207,10 +2228,20 @@
   window.statsMasterSetFilter = function (f) {
     _masterFieldFilter = f || 'all';
     _masterSvType = '';   // 種別が変わったらサブコン種別の絞り込みは解く
+    _masterSort = 'name';
     _renderMaster();
   };
   // サブコン種別（詳細の svTypes）での絞り込み。''＝すべて、'\u0000none'＝種別が未設定
   let _masterSvType = '';
+  // 並び順：'name'＝名前順（既定）／'tag'＝種別・タグごとにまとめて表示（サブコン・お客様のとき）
+  let _masterSort = 'name';
+  window.statsMasterSetSort = function (m) { _masterSort = (m === 'tag' || m === 'group') ? m : 'name'; _renderMaster(); };
+  // マスターの所属グループ（詳細の group）。別名で入力された名前でも代表名のグループを返す
+  const _groupOfName = (field, name) => {
+    const canon = typeof window.nameCanon === 'function' ? (window.nameCanon(field, name) || name) : name;
+    const rec = typeof window.mdGet === 'function' ? (window.mdGet(field, canon) || window.mdGet(field, name)) : null;
+    return rec && rec.details && rec.details.group ? String(rec.details.group).trim() : '';
+  };
   const _SV_NONE = '\u0000none';
   window.statsMasterSetSvType = function (t) { _masterSvType = t || ''; _renderMaster(); };
   // 詳細の「種別・タグ」で絞り込める種別（サブコン＝サブコン種別、お客様＝タグ）
@@ -2369,6 +2400,17 @@
       }
     }
 
+    // 並び順（名前順／種別・タグごと／所属グループごと）。サブコン・キャリアは「所属グループごと」も選べる
+    const _hasGroup = _masterFieldFilter === 'sv' || _masterFieldFilter === 'carrier';
+    if (_SUB_FILTER[_masterFieldFilter] || _hasGroup) {
+      if (_masterSort === 'tag' && !_SUB_FILTER[_masterFieldFilter]) _masterSort = 'name';
+      if (_masterSort === 'group' && !_hasGroup) _masterSort = 'name';
+      const sbtn = (m, label) => `<button class="master-filter-chip master-sort-chip${_masterSort === m ? ' is-active' : ''}" onclick="statsMasterSetSort('${m}')">${label}</button>`;
+      chipsH += '<div class="master-filter-chips master-sort-chips"><span class="master-type-chips-label">並び順：</span>' + sbtn('name', '名前順') +
+        (_SUB_FILTER[_masterFieldFilter] ? sbtn('tag', _SUB_FILTER[_masterFieldFilter].label + 'ごとにまとめる') : '') +
+        (_hasGroup ? sbtn('group', '🏢 所属グループごとにまとめる') : '') + '</div>';
+    }
+
     // 個別マスターと同義グループを 1 つの表にまとめる。別名を足しても行が別の表へ移らず、
     // 代表の行の「別名・略称」にそのまま付く（種別→名前の順なので、行の位置も変わらない）
     const rowsAll = [
@@ -2406,7 +2448,7 @@
             '<table class="stats-table master-table"><thead><tr>' +
             '<th>種別</th><th>マスター名</th><th>別名・略称（英語表記・省略形）</th><th class="ops">操作</th>' +
             '</tr></thead><tbody>';
-    rowsAll.forEach(r => {
+    const _emitRow = r => {
       const addBtn = (f, v) => `<button class="stats-master-abbrev-add" onclick="statsMasterAddAbbrev('${_ea(f)}','${_ea(v)}')">＋ 別名</button>`;
       if (r.kind === 'grp') {
         const g = r.g;
@@ -2431,7 +2473,26 @@
              `<td class="ops">${_mdDetailBtn(m.field, m.value)}${(_approvalOn() ? _isAdmin() : m.isMine) ? `<button type="button" class="master-ops-more more" aria-haspopup="menu" title="その他の操作（解除）" onclick="statsOpsMenu(this,'master','${_ea(m.field)}','${_ea(m.value)}')">⋯</button>` : ''}</td>` +
              `</tr>`;
       }
-    });
+    };
+    if (_masterSort === 'tag' && _SUB_FILTER[_masterFieldFilter]) {
+      // 種別・タグごとにまとめて表示。複数のタグを持つものは、それぞれのタグの下に出す（タグなしは最後）
+      const groups = new Map(); const none = [];
+      rowsAll.forEach(r => {
+        const t = _svTypesOf(r.name);
+        if (!t.length) { none.push(r); return; }
+        t.forEach(x => { if (_masterSvType && _masterSvType !== _SV_NONE && x !== _masterSvType) return; if (!groups.has(x)) groups.set(x, []); groups.get(x).push(r); });
+      });
+      const head = (label, n) => `<tr class="master-tag-group-row"><td colspan="4"><span class="mtg-name">🏷 ${_esc(label)}</span><span class="mtg-count">${n}件</span></td></tr>`;
+      [...groups.entries()].sort((a, b) => b[1].length - a[1].length || a[0].localeCompare(b[0])).forEach(([t, list]) => { h += head(t, list.length); list.forEach(_emitRow); });
+      if (none.length) { h += head(_SUB_FILTER[_masterFieldFilter].label + 'なし', none.length); none.forEach(_emitRow); }
+    } else if (_masterSort === 'group' && _hasGroup) {
+      // 所属グループごとにまとめる（傘下の会社を 1 つの見出しの下に。グループなしは最後）
+      const groups = new Map(); const none = [];
+      rowsAll.forEach(r => { const g = _groupOfName(_masterFieldFilter, r.name); if (!g) { none.push(r); return; } if (!groups.has(g)) groups.set(g, []); groups.get(g).push(r); });
+      const head = (label, n) => `<tr class="master-tag-group-row"><td colspan="4"><span class="mtg-name">🏢 ${_esc(label)}</span><span class="mtg-count">${n}社</span></td></tr>`;
+      [...groups.entries()].sort((a, b) => b[1].length - a[1].length || a[0].localeCompare(b[0])).forEach(([g, list]) => { h += head(g, list.length); list.forEach(_emitRow); });
+      if (none.length) { h += head('グループなし', none.length); none.forEach(_emitRow); }
+    } else rowsAll.forEach(_emitRow);
     e.innerHTML = headH + formH + chipsH + h + '</tbody></table>';
   }
 
@@ -2599,6 +2660,13 @@
         const opts = s.options.map(o =>
           `<option value="${_eav(o.value)}"${o.value === cur ? ' selected' : ''}>${_esc(o.label)}</option>`).join('');
         return `<label class="master-detail-label">${s.label}<select id="${id}" class="ar-select">${opts}</select></label>`;
+      }
+      if (s.suggest) {
+        // 入力済みの値を候補に出す（所属グループなど。表記ゆれを防ぐ）
+        const used = new Set();
+        (typeof window.mdGetAll === 'function' ? window.mdGetAll(field) : []).forEach(m => { const v = m.details && m.details[s.key]; if (v) used.add(String(v).trim()); });
+        return `<label class="master-detail-label">${s.label}<input id="${id}" class="ar-input" type="text" list="${id}_list" value="${_eav(details[s.key] || '')}"${s.placeholder ? ` placeholder="${_eav(s.placeholder)}"` : ''} autocomplete="off" />` +
+          `<datalist id="${id}_list">${[...used].sort().map(v => `<option value="${_eav(v)}">`).join('')}</datalist></label>`;
       }
       return s.textarea
         ? `<label class="master-detail-label">${s.label}<textarea id="${id}" class="ar-input master-detail-textarea" rows="2">${_esc(details[s.key] || '')}</textarea></label>`

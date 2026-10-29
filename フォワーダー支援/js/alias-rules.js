@@ -1493,6 +1493,8 @@
   const _FURIGANA_FIELD = { key: 'furigana', label: 'ふりがな', placeholder: '例）かいじょううんちん（読みで入力補完にヒットします）' };
   // 英語名称（全種別共通キー enName。品名は PDF 英語出力でも使う）
   const _EN_FIELD = { key: 'enName', label: '英語名称', placeholder: '例）ABC Trading Co., Ltd.（英字入力でも入力補完にヒットします）' };
+  // 所属グループ（グループ傘下の別会社をつなぐ。1 つだけ。入力済みのグループ名が候補に出る）：例）CMA CGM グループ
+  const _GROUP_FIELD = { key: 'group', label: '所属グループ', suggest: true, placeholder: '例）CMA CGM グループ（グループ傘下の会社を同じ名前でつなげます）' };
   window.MD_SCHEMA = {
     customer: [
       _FURIGANA_FIELD,
@@ -1527,8 +1529,9 @@
       // 種別（複数選べる。ひな形のほか、自由に追加した種別はチーム内で候補に出る）
       { key: 'svTypes', label: 'サブコン種別', tags: true, addPlaceholder: '種別を追加（例：トラック手配）',
         presets: ['通関業者', '倉庫業者', '運送業者', 'FCL CARRIER', 'LCL CARRIER', 'AIR CARRIER', '海外代理店', '保険会社', 'サーベイヤー'] },
+      _GROUP_FIELD,
     ],
-    carrier: [_FURIGANA_FIELD, _EN_FIELD],
+    carrier: [_FURIGANA_FIELD, _EN_FIELD, _GROUP_FIELD],
     port:    [_FURIGANA_FIELD, _EN_FIELD],
   };
 
