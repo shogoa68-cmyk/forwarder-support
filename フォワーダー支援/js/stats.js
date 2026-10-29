@@ -2370,13 +2370,13 @@
     allSyn.forEach(g => { counts[g.field] = (counts[g.field] || 0) + 1; });
     const totalCount = Object.values(counts).reduce((s, n) => s + n, 0);
     // 現在の絞り込み種別が0件になったら「すべて」に戻す（削除・解除で空になった場合）
-    if (_masterFieldFilter !== 'all' && !counts[_masterFieldFilter]) _masterFieldFilter = 'all';
+    if (_masterFieldFilter !== 'all' && !counts[_masterFieldFilter] && _masterFieldFilter !== 'port') _masterFieldFilter = 'all';   // 港は、マスターが 0 件でも選べる（一括登録の入口があるため）
     const chip = (f, label, n) =>
       `<button class="master-filter-chip${_masterFieldFilter === f ? ' is-active' : ''}" ` +
       `onclick="statsMasterSetFilter('${f}')">${label}<span class="master-filter-count">${n}</span></button>`;
     let chipsH = '<div class="master-filter-chips">' +
       chip('all', 'すべて', totalCount) +
-      fieldOrder.filter(f => counts[f] > 0).map(f => chip(f, labels[f], counts[f])).join('') +
+      fieldOrder.filter(f => counts[f] > 0 || f === 'port').map(f => chip(f, labels[f], counts[f])).join('') +
       '</div>';
 
     // 絞り込みを適用
@@ -2409,7 +2409,7 @@
     // キャリアを見ているときだけ：サブコンとの統合に向けた影響範囲の確認（読み取りのみ）
     if (_masterFieldFilter === 'carrier') chipsH += '<div class="cm-entry"><span>🔀 キャリアはサブコンに統合していく予定です。</span><button type="button" class="cm-entry-btn" onclick="statsShowCarrierMigrationReport()">影響範囲を確認する（読み取りのみ）</button></div>';
     // 港を見ているときだけ：国がまだ付いていない港へ、国の候補を提案する
-    if (_masterFieldFilter === 'port') chipsH += '<div class="cm-entry"><span>🌐 港に「国」を付けると、国ごとに整理できます（将来は国ごとのルールを見積で参照できるようにします）。</span><button type="button" class="cm-entry-btn" onclick="statsShowPortCountryAssist()">国を自動で付ける（候補を確認）</button></div>';
+    if (_masterFieldFilter === 'port') chipsH += '<div class="cm-entry"><span>🌐 過去の案件で使った港を、国つきで一括登録できます。登録済みの港には、国を自動で付けられます（将来は国ごとのルールを見積で参照できるようにします）。</span><button type="button" class="cm-entry-btn" onclick="statsShowPortCountryAssist()">港を一括登録・国を自動で付ける（候補を確認）</button></div>';
     // 並び順（名前順／種別・タグごと／所属グループごと）。サブコン・キャリアは「所属グループごと」も選べる
     const _hasGroup = _masterFieldFilter === 'sv' || _masterFieldFilter === 'carrier';
     if (_SUB_FILTER[_masterFieldFilter] || _hasGroup) {
@@ -3274,43 +3274,60 @@
       (typeof window.cmShowPlan === 'function' ? `<div class="cm-run"><button type="button" class="cm-plan-btn" onclick="cmShowPlan()">移行の変更一覧を見る（実行前の確認）</button></div>` : '');
   };
 
-  // 港の「国」を、港の名前から推測して提案する（確認してから反映。すでに国がある港は触らない）
-  window.statsShowPortCountryAssist = async function () {
+  // 港の一括登録と「国」の自動付与：過去の案件で使われた港（未登録）と、登録済みで国が無い港について、名前から国を推測して提案する。
+  // 確認（チェックと国の修正）してから反映する。すでに国がある港は変えない。承認制のメンバーは、マスター登録が「申請」になる
+  window.statsShowPortCountryAssist = async function (opts) {   // opts.used は試験用（港名→使用件数を直接渡す）
     if (typeof window.guessPortCountry !== 'function') return;
     const old = document.getElementById('pcAssistModal'); if (old) old.remove();
     const wrap = document.createElement('div');
     wrap.id = 'pcAssistModal'; wrap.className = 'md-modal-overlay'; wrap.setAttribute('role', 'dialog'); wrap.setAttribute('aria-modal', 'true');
-    wrap.innerHTML = '<div class="md-modal"><div class="md-modal-head"><h3>🌐 港の国を自動で付ける（候補）</h3><button type="button" class="md-modal-close" title="閉じる" onclick="document.getElementById(\'pcAssistModal\').remove()">✕</button></div><div class="md-modal-body"><p>確認中…</p></div></div>';
+    wrap.innerHTML = '<div class="md-modal"><div class="md-modal-head"><h3>🌐 港の一括登録・国の自動付与（候補）</h3><button type="button" class="md-modal-close" title="閉じる" onclick="document.getElementById(\'pcAssistModal\').remove()">✕</button></div><div class="md-modal-body"><p>集計中…（過去の案件を読み込んでいます）</p></div></div>';
     document.body.appendChild(wrap);
     const body = wrap.querySelector('.md-modal-body');
+    if (!(opts && opts.used) && !_data && typeof window.statsRefresh === 'function') await window.statsRefresh();
     if (typeof window.mdLoadCloud === 'function') await window.mdLoadCloud();
-    const names = new Set(window.statsGetMasters().filter(m => m.field === 'port').map(m => m.value));
-    (typeof window.synGetGroups === 'function' ? window.synGetGroups('port') : []).forEach(g => names.add(g.canonical));
-    const rows = [...names].sort((a, b) => a.localeCompare(b, 'ja')).map(n => {
+    const aliasOf = typeof window.synGetNormalizeMap === 'function' ? window.synGetNormalizeMap('port') : {};
+    const masterNames = new Set(window.statsGetMasters().filter(m => m.field === 'port').map(m => m.value));
+    (typeof window.synGetGroups === 'function' ? window.synGetGroups('port') : []).forEach(g => masterNames.add(g.canonical));
+    const used = new Map();   // 港名 → 使用件数（過去の案件）
+    ((_data && _data.portGroups) || []).forEach(g => g.variants.forEach(v => { if (!aliasOf[v.value]) used.set(v.value, (used.get(v.value) || 0) + v.count); }));
+    if (opts && opts.used) Object.keys(opts.used).forEach(n => used.set(n, opts.used[n]));
+    const names = new Set([...masterNames, ...used.keys()]);
+    const rows = [...names].map(n => {
       const d = (typeof window.mdGet === 'function' && window.mdGet('port', n)) || null;
       const have = d && d.details && d.details.country;
-      return { name: n, have: have || '', guess: have ? '' : (window.guessPortCountry(n) || '') };
-    });
-    const todo = rows.filter(r => r.guess), unknown = rows.filter(r => !r.have && !r.guess), done = rows.filter(r => r.have);
+      return { name: n, isMaster: masterNames.has(n), have: have || '', guess: have ? '' : (window.guessPortCountry(n) || ''), count: used.get(n) || 0 };
+    }).filter(r => !r.have)   // すでに国がある港は対象外
+      .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name, 'ja'));
+    const nNew = rows.filter(r => !r.isMaster).length, nHave = masterNames.size - rows.filter(r => r.isMaster).length;
+    const clist = '<datalist id="pcCountryList">' + (window.COUNTRY_LIST || []).map(c => `<option value="${_eav(c.ja + '（' + c.code + '）')}">`).join('') + '</datalist>';
     body.innerHTML =
-      `<p>港のマスター <b>${rows.length}</b> 件：国が付いている <b>${done.length}</b>／提案できる <b>${todo.length}</b>／候補なし（手動で付けてください）<b>${unknown.length}</b></p>` +
-      `<table class="stats-table cm-table"><thead><tr><th></th><th>港</th><th>提案する国</th></tr></thead><tbody>` +
-      (todo.map((r, i) => `<tr><td><input type="checkbox" class="pc-chk" data-i="${i}" checked></td><td>${_esc(r.name)}</td><td>${_esc(window.countryLabel(r.guess))}</td></tr>`).join('') || '<tr><td colspan="3">提案できる港はありません。</td></tr>') +
-      `</tbody></table>` +
-      (unknown.length ? `<p class="stats-syn-hint">候補なし：${unknown.map(r => _esc(r.name)).join('、')}</p>` : '') +
-      `<div class="cm-run"><button type="button" class="master-detail-save" id="pcApplyBtn"${todo.length ? '' : ' disabled'}>チェックした港に国を付ける</button><span id="pcApplyMsg"></span></div>` +
-      `<p class="stats-syn-hint">提案は港の名前からの推測です。違うものはチェックを外してください。反映後も、各港の「詳細」でいつでも変更できます。</p>`;
+      `<p>未登録の港 <b>${nNew}</b> 件（過去の案件で使用）／国が未設定の登録済みの港 <b>${rows.length - nNew}</b> 件／国が付いている港 <b>${nHave}</b> 件（対象外）</p>` +
+      `<p class="stats-syn-hint">チェックした港を、マスターに登録して国を付けます。国は、推測を直したり、空欄のまま（国なしで登録）にもできます。</p>` +
+      `<div class="pc-scroll"><table class="stats-table cm-table"><thead><tr><th><input type="checkbox" id="pcAll" title="すべて選ぶ／外す" checked></th><th>港</th><th>状態</th><th class="stats-num-col">使用</th><th>国</th></tr></thead><tbody>` +
+      (rows.map((r, i) => `<tr><td><input type="checkbox" class="pc-chk" data-i="${i}"${r.guess || r.isMaster ? ' checked' : ''}></td><td>${_esc(r.name)}</td><td>${r.isMaster ? '登録済み' : '未登録'}</td><td class="stats-num-col">${r.count || ''}</td>` +
+        `<td><input type="text" class="ar-input pc-country" data-i="${i}" list="pcCountryList" value="${_eav(r.guess ? window.countryLabel(r.guess) : '')}" placeholder="${r.guess ? '' : '候補なし（入力して指定）'}"></td></tr>`).join('') || '<tr><td colspan="5">対象の港はありません。</td></tr>') +
+      `</tbody></table></div>${clist}` +
+      `<div class="cm-run"><button type="button" class="master-detail-save" id="pcApplyBtn"${rows.length ? '' : ' disabled'}>チェックした港を登録して国を付ける</button><span id="pcApplyMsg"></span></div>`;
+    const all = body.querySelector('#pcAll');
+    if (all) all.addEventListener('change', () => body.querySelectorAll('.pc-chk').forEach(c => { c.checked = all.checked; }));
     const btn = body.querySelector('#pcApplyBtn');
     if (btn) btn.addEventListener('click', async () => {
       btn.disabled = true;
-      const picks = [...body.querySelectorAll('.pc-chk')].filter(c => c.checked).map(c => todo[+c.dataset.i]);
-      let ok = 0, ng = 0;
-      for (const r of picks) {
-        const cur = (window.mdGet('port', r.name) || {}).details || {};
-        if (cur.country) continue;
-        (await window.mdSave('port', r.name, Object.assign({}, cur, { country: r.guess }))) ? ok++ : ng++;
+      const picks = [...body.querySelectorAll('.pc-chk')].filter(c => c.checked).map(c => ({ r: rows[+c.dataset.i], text: body.querySelector('.pc-country[data-i="' + c.dataset.i + '"]').value.trim() }));
+      let reg = 0, set = 0, ng = 0, bad = 0;
+      for (const { r, text } of picks) {
+        if (!r.isMaster && typeof window.statsEnsureMaster === 'function') { await window.statsEnsureMaster('port', r.name); reg++; }
+        const c = text ? window.findCountry(text) : null;
+        if (text && !c) { bad++; continue; }
+        if (c) {
+          const cur = (window.mdGet('port', r.name) || {}).details || {};
+          if (!cur.country) (await window.mdSave('port', r.name, Object.assign({}, cur, { country: c.code }))) ? set++ : ng++;
+        }
       }
-      body.querySelector('#pcApplyMsg').textContent = '　✅ ' + ok + ' 件に国を付けました' + (ng ? '（失敗 ' + ng + ' 件）' : '');
+      body.querySelector('#pcApplyMsg').textContent = '　✅ 登録 ' + reg + ' 件／国を付けた ' + set + ' 件' + (bad ? '／国名が分からず飛ばした ' + bad + ' 件' : '') + (ng ? '／失敗 ' + ng + ' 件' : '');
+      if (typeof window.statsLoadMasterCache === 'function') await window.statsLoadMasterCache();
+      if (typeof window.arRefreshDatalist === 'function') window.arRefreshDatalist();
       if (typeof window.statsRerenderActive === 'function') window.statsRerenderActive();
     });
   };
