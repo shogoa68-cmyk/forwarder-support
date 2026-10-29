@@ -1011,6 +1011,50 @@ const http = require('http'), fs = require('fs'), path = require('path');
     await ctx.close();
   }
 
+  // ===== サブコン・キャリアの得意エリア（国内＝日本の地方／海外＝UN M.49 の小地域・国） =====
+  {
+    const { ctx, p, errs } = await open(true, { legacy: {}, noLegacy: true });
+    const L = '[得意エリア] ';
+    await p.evaluate(async () => {
+      const add = (n, a) => { window.__db.master_votes.push({ field: 'sv', value: n, voter_email: 's@example.com' }); if (a) window.__db.master_details.push({ field: 'sv', value: n, details: { areas: a } }); };
+      add('関東運送', ['JP-KAN']); add('全国便', ['JP']); add('アジア船社', ['SEA', 'VN']); add('欧州船社', ['WEU']); add('エリア無し運送');
+      await statsLoadMasterCache(); await mdLoadCloud();
+    });
+    ok(L + 'エリアの判定：日本全国は各地方を、小地域は国を含む', await p.evaluate(() => areaCovers(['JP'], 'JP-KIN') && areaCovers(['SEA'], 'VN') && areaCovers(['VN'], 'SEA') && !areaCovers(['JP-KAN'], 'JP-KIN') && !areaCovers(['WEU'], 'VN') && areaLabel('JP-KAN') === '関東' && areaLabel('SEA') === '東南アジア'));
+    await p.evaluate(() => { switchCategory('master', document.querySelector('[onclick*="switchCategory(\'master"]')); }); await p.waitForTimeout(1200);
+    await p.evaluate(() => statsMasterSetFilter('sv')); await p.waitForTimeout(300);
+    // 入力：ボタンで地方・小地域を選び、国は候補から追加
+    await p.evaluate(() => document.querySelector('#statsPane-master tr[data-mvalue="エリア無し運送"] .stats-master-detail-btn').click()); await p.waitForTimeout(500);
+    ok(L + '詳細に「得意エリア」（国内の地方・海外の小地域のボタン）がある', await p.evaluate(() => !!document.querySelector('#md_areas') && document.querySelectorAll('.master-area-btn').length > 25));
+    await p.evaluate(() => { [...document.querySelectorAll('.master-area-btn')].find(b => b.textContent === '関西' || b.textContent === '近畿').click(); [...document.querySelectorAll('.master-area-btn')].find(b => b.textContent === '東アジア').click(); });
+    await p.fill('#md_areas_input', 'ベトナム'); await p.keyboard.press('Enter'); await p.waitForTimeout(200);
+    ok(L + '選択中のエリアのボタンがハイライトされ、外すと戻る', await p.evaluate(() => { const on = [...document.querySelectorAll('.master-area-btn.on')].map(b => b.dataset.area); return on.includes('JP-KIN') && on.includes('EAS'); }));
+    await p.evaluate(() => document.querySelector('.master-area-btn[data-area="JP-KIN"]').click());
+    ok(L + 'もう一度押すとハイライトが消える', await p.evaluate(() => !document.querySelector('.master-area-btn[data-area="JP-KIN"]').classList.contains('on')));
+    await p.evaluate(() => document.querySelector('.master-area-btn[data-area="JP-KIN"]').click());
+    await p.click('.master-detail-save'); await p.waitForTimeout(800);
+    const saved = await p.evaluate(() => (window.__db.master_details.find(m => m.value === 'エリア無し運送') || { details: {} }).details.areas);
+    ok(L + '選んだエリアが保存される（近畿・東アジア・ベトナム）', Array.isArray(saved) && saved.includes('JP-KIN') && saved.includes('EAS') && saved.includes('VN'), saved);
+    ok(L + '一覧のチップに得意エリアが出る', await p.evaluate(() => (document.querySelector('#statsPane-master tr[data-mvalue="エリア無し運送"]') || { textContent: '' }).textContent.includes('近畿')));
+    // 一覧の絞り込み
+    const chips = await p.evaluate(() => [...document.querySelectorAll('.master-type-chip')].map(b => b.textContent));
+    ok(L + '「得意エリア：すべて／国内／海外」の絞り込み', chips.some(c => c.startsWith('🇯🇵 国内')) && chips.some(c => c.startsWith('🌏 海外')), chips);
+    await p.evaluate(() => statsMasterSetAreaKind('DOM')); await p.waitForTimeout(300);
+    let rows = await p.evaluate(() => [...document.querySelectorAll('#statsPane-master tbody tr[data-mvalue]')].map(r => r.dataset.mvalue));
+    ok(L + '国内：国内エリアを持つ会社だけ', rows.includes('関東運送') && rows.includes('全国便') && rows.includes('エリア無し運送') && !rows.includes('欧州船社'), rows);
+    await p.evaluate(() => statsMasterSetArea('JP-KIN')); await p.waitForTimeout(300);
+    rows = await p.evaluate(() => [...document.querySelectorAll('#statsPane-master tbody tr[data-mvalue]')].map(r => r.dataset.mvalue));
+    ok(L + '近畿：近畿を登録した会社と、日本全国の会社（関東だけの会社は出ない）', rows.includes('全国便') && rows.includes('エリア無し運送') && !rows.includes('関東運送'), rows);
+    await p.evaluate(() => { statsMasterSetAreaKind('OVS'); statsMasterSetArea('VN'); }); await p.waitForTimeout(300);
+    rows = await p.evaluate(() => [...document.querySelectorAll('#statsPane-master tbody tr[data-mvalue]')].map(r => r.dataset.mvalue));
+    ok(L + 'ベトナム：ベトナム・東南アジアを得意とする会社（欧州は出ない）', rows.includes('アジア船社') && !rows.includes('欧州船社'), rows);
+    await p.evaluate(() => { statsMasterSetAreaKind(''); statsMasterSetSort('area'); }); await p.waitForTimeout(300);
+    const heads = await p.evaluate(() => [...document.querySelectorAll('.master-tag-group-row')].map(r => r.textContent.replace(/\s+/g, ' ').trim()));
+    ok(L + '「得意エリアごとにまとめる」：国内の地方・海外の小地域の見出し（国内が先）', heads.some(h => h.includes('関東')) && heads.some(h => h.includes('日本全国')) && heads.some(h => h.includes('東南アジア')) && heads.some(h => h.includes('西ヨーロッパ')) && heads.findIndex(h => h.includes('関東')) < heads.findIndex(h => h.includes('東南アジア')), heads);
+    ok(L + 'JS エラーなし', errs.length === 0, errs);
+    await ctx.close();
+  }
+
   // ===== 承認制：別名の追加（メンバーは申請・管理者が承認）／詳細の合流／添付の集約 =====
   {
     const { ctx, p, errs } = await open(true, { approval: true, role: 'member', noLegacy: true });

@@ -1546,6 +1546,8 @@
   const _GROUP_FIELD = { key: 'group', label: '所属グループ', suggest: true, placeholder: '例）CMA CGM グループ（グループ傘下の会社を同じ名前でつなげます）' };
   // 担当者（複数。氏名・ふりがな・所属部署・役職・電話・E-MAIL・その他の連絡手段・所在地）。お客様と同じ入力欄をサブコン・キャリアでも使う
   const _CONTACTS_FIELD = { key: 'contacts', label: '担当者', contacts: true };
+  // 得意エリア（複数）：国内業者は日本の地方、船会社・海外の業者は海外の小地域・国。国連の地理区分（UN M.49）。data/countries.js
+  const _AREAS_FIELD = { key: 'areas', label: '得意エリア', areas: true };
   window.MD_SCHEMA = {
     customer: [
       _FURIGANA_FIELD,
@@ -1580,10 +1582,11 @@
       // 種別（複数選べる。ひな形のほか、自由に追加した種別はチーム内で候補に出る）
       { key: 'svTypes', label: 'サブコン種別', tags: true, addPlaceholder: '種別を追加（例：トラック手配）',
         presets: ['通関業者', '倉庫業者', '運送業者', 'FCL CARRIER', 'LCL CARRIER', 'AIR CARRIER', 'RORO CARRIER', '在来船 CARRIER', '海外代理店', '保険会社', 'サーベイヤー'] },
+      _AREAS_FIELD,
       _GROUP_FIELD,
       _CONTACTS_FIELD,
     ],
-    carrier: [_FURIGANA_FIELD, _EN_FIELD, _GROUP_FIELD, _CONTACTS_FIELD],
+    carrier: [_FURIGANA_FIELD, _EN_FIELD, _AREAS_FIELD, _GROUP_FIELD, _CONTACTS_FIELD],
     // 港の「国」（国コードで保存・表示は日本語名。POL/POD の国ごとの情報の土台。data/countries.js の候補から選ぶ）
     port:    [_FURIGANA_FIELD, _EN_FIELD, { key: 'country', label: '国', country: true, placeholder: '例）ベトナム（国名・国コード VN のどちらでも。候補から選べます）' }],
   };
