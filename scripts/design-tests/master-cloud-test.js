@@ -975,6 +975,33 @@ const http = require('http'), fs = require('fs'), path = require('path');
     await ctx.close();
   }
 
+  // ===== サブコン・キャリアにも担当者を複数登録できる（お客様と同じ入力欄） =====
+  {
+    const { ctx, p, errs } = await open(true, { legacy: {}, noLegacy: true });
+    const L = '[サブコンの担当者] ';
+    await p.evaluate(async () => {
+      window.__db.master_votes.push({ field: 'sv', value: '担当者テスト運輸', voter_email: 's@example.com' });
+      window.__db.master_votes.push({ field: 'carrier', value: 'TESTLINE', voter_email: 's@example.com' });
+      await statsLoadMasterCache(); await mdLoadCloud();
+    });
+    await p.evaluate(() => { switchCategory('master', document.querySelector('[onclick*="switchCategory(\'master"]')); }); await p.waitForTimeout(1200);
+    await p.evaluate(() => statsMasterSetFilter('sv')); await p.waitForTimeout(300);
+    await p.evaluate(() => document.querySelector('#statsPane-master tr[data-mvalue="担当者テスト運輸"] .stats-master-detail-btn').click()); await p.waitForTimeout(500);
+    ok(L + 'サブコンの詳細に担当者の入力欄がある（部署・役職・電話・メール・所在地つき）', await p.evaluate(() => !!document.querySelector('#md_contacts .md-contact-row') && !!document.querySelector('#md_contacts .md-contact-dept') && !!document.querySelector('#md_contacts .md-contact-title') && !!document.querySelector('#md_contacts .md-contact-location')));
+    await p.fill('#md_contacts .md-contact-name', '山田'); await p.fill('#md_contacts .md-contact-dept', '営業部'); await p.fill('#md_contacts .md-contact-phone', '03-1111-2222');
+    await p.click('.master-contact-add'); await p.waitForTimeout(200);
+    await p.evaluate(() => { const r = document.querySelectorAll('#md_contacts .md-contact-row')[1]; r.querySelector('.md-contact-name').value = '佐藤'; r.querySelector('.md-contact-email').value = 's@example.com'; });
+    await p.click('.master-detail-save'); await p.waitForTimeout(800);
+    const c = await p.evaluate(() => (window.__db.master_details.find(m => m.value === '担当者テスト運輸') || { details: {} }).details.contacts);
+    ok(L + '担当者を 2 名登録できる', Array.isArray(c) && c.length === 2 && c[0].name === '山田' && c[0].dept === '営業部' && c[1].email === 's@example.com', c);
+    ok(L + '一覧に担当者が「様」付きで出る', await p.evaluate(() => (document.querySelector('#statsPane-master tr[data-mvalue="担当者テスト運輸"]') || { textContent: '' }).textContent.includes('山田 様')));
+    await p.evaluate(() => statsMasterSetFilter('carrier')); await p.waitForTimeout(300);
+    await p.evaluate(() => document.querySelector('#statsPane-master tr[data-mvalue="TESTLINE"] .stats-master-detail-btn').click()); await p.waitForTimeout(500);
+    ok(L + 'キャリアの詳細にも担当者の入力欄がある', await p.evaluate(() => !!document.querySelector('#md_contacts .md-contact-row')));
+    ok(L + 'JS エラーなし', errs.length === 0, errs);
+    await ctx.close();
+  }
+
   // ===== 承認制：別名の追加（メンバーは申請・管理者が承認）／詳細の合流／添付の集約 =====
   {
     const { ctx, p, errs } = await open(true, { approval: true, role: 'member', noLegacy: true });
