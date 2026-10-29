@@ -3681,7 +3681,7 @@ a.bm-contact-item:hover { background: #2e6b3e; color: var(--surface); border-col
 .master-detail-del:hover { background: var(--bg); }
 
 /* マスター詳細：担当者（複数名・連絡先） */
-.master-detail-contacts, .master-detail-tags {
+.master-detail-contacts, .master-detail-tags, .master-detail-via, .master-detail-areas {
   flex: 1 1 100%;
   display: flex;
   flex-direction: column;
@@ -5706,5 +5706,8 @@ body.md-modal-open { overflow: hidden; }
 .master-area-btn.on:hover { background: #17507f; }
 .master-detail-hint { display: block; font-size: 11px; color: #6b7a8c; margin-top: 2px; font-weight: 400; }
 .stats-md-via { background: #eef6ee; }
+.master-via-child > td { background: #f6faf6; }
+.master-via-child > td.stats-val { padding-left: 14px; }
+.master-via-mark { color: #6b8f6b; margin-right: 6px; font-weight: 700; }
 .master-area-label { font-size: 11px; color: #6b7a8c; min-width: 84px; }
 .master-area-title { font-size: 12px; font-weight: 700; margin-top: 6px; color: #3a4a5c; }

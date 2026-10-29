@@ -1147,6 +1147,10 @@ const http = require('http'), fs = require('fs'), path = require('path');
     await p.fill('#md_viaChildren_input', '同業A社'); await p.keyboard.press('Enter');
     await p.click('.master-detail-save'); await p.waitForTimeout(900);
     ok(L + '多段：同業者の先が同業者でもよい', await p.evaluate(() => (window.__db.master_details.find(m => m.value === '同業A社') || { details: {} }).details.via === '同業B社' && mdViaChain('荷主X').join() === '同業A社,同業B社'));
+    await p.evaluate(() => statsCloseMasterDetail()); await p.waitForTimeout(200);
+    const order = await p.evaluate(() => [...document.querySelectorAll('#statsPane-master tbody tr[data-mvalue]')].map(r => r.dataset.mvalue + ':' + (r.dataset.viaDepth || 0)));
+    const iB = order.indexOf('同業B社:0');
+    ok(L + '一覧：先のお客様は同業者の直下に字下げして並ぶ（B→A→X・Y）', iB >= 0 && order[iB + 1] === '同業A社:1' && order[iB + 2].startsWith('荷主') && order[iB + 2].endsWith(':2') && order[iB + 3].endsWith(':2'), order);
     await openDetail('同業A社');
     ok(L + '循環は候補・選択肢に出ない（上位の同業B社は先のお客様にできない）', await p.evaluate(() => !([...document.querySelectorAll('#md_viaChildren_list option')].map(x => x.value).includes('同業B社'))));
     // 経由する同業者の選択（先のお客様の側）

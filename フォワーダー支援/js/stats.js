@@ -2589,8 +2589,8 @@
           ? `statsUnitRemoveAlias('${_ea(a)}','${_ea(g.canonical)}')`
           : `synRemoveAlias('${_ea(g.field)}','${_ea(a)}','${_ea(g.canonical)}')`;
         const chips = (g.aliases || []).map(a => `<span class="stats-syn-member">${_esc(a)}<button class="ua-chip-del" title="別名から外す" onclick="${delAlias(a)}">✕</button></span>`).join('');
-        h += `<tr class="stats-syn-row" data-mfield="${_eav(g.field)}" data-mvalue="${_eav(g.canonical)}"><td>${labels[g.field] || g.field}</td>` +
-             `<td class="stats-val"><span class="ua-star">⭐</span>${_esc(g.canonical)}${_crChip(g.field, g.canonical)}${_mdBadge(g.field, g.canonical)}</td>` +
+        h += `<tr class="stats-syn-row${r.viaDepth ? ' master-via-child' : ''}" data-mfield="${_eav(g.field)}" data-mvalue="${_eav(g.canonical)}"${r.viaDepth ? ` data-via-depth="${r.viaDepth}"` : ''}><td>${labels[g.field] || g.field}</td>` +
+             `<td class="stats-val">${_viaMark(r)}<span class="ua-star">⭐</span>${_esc(g.canonical)}${_crChip(g.field, g.canonical)}${_mdBadge(g.field, g.canonical)}</td>` +
              `<td class="stats-master-abbrev-cell">${chips}${addBtn(g.field, g.canonical)}</td>` +
              `<td class="ops"><button class="stats-master-merge" title="このマスターを別のマスターの別名にまとめる（別名ごと移動）" onclick="statsSynMergePicker('${_ea(g.field)}','${_ea(g.canonical)}',this)">他のマスターにまとめる</button>` +
              `<button class="stats-master-rename" title="マスター名を変更（旧名称は別名として残ります）" onclick="statsMasterRename('${_ea(g.field)}','${_ea(g.canonical)}')">✏️ 名称変更</button>` +
@@ -2598,9 +2598,9 @@
              `<button type="button" class="master-ops-more more" aria-haspopup="menu" title="その他の操作（別名をすべて外す）" onclick="statsOpsMenu(this,'group','${_ea(g.field)}','${_ea(g.canonical)}')">⋯</button></td></tr>`;
       } else {
         const m = r.m;
-        h += `<tr data-mfield="${_eav(m.field)}" data-mvalue="${_eav(m.value)}">` +
+        h += `<tr data-mfield="${_eav(m.field)}" data-mvalue="${_eav(m.value)}"${r.viaDepth ? ` class="master-via-child" data-via-depth="${r.viaDepth}"` : ''}>` +
              `<td>${labels[m.field] || m.field}</td>` +
-             `<td class="stats-val">${_esc(m.value)}${_crChip(m.field, m.value)}${_mdBadge(m.field, m.value)}</td>` +
+             `<td class="stats-val">${_viaMark(r)}${_esc(m.value)}${_crChip(m.field, m.value)}${_mdBadge(m.field, m.value)}</td>` +
              `<td class="stats-master-abbrev-cell">${addBtn(m.field, m.value)}</td>` +
              `<td class="ops">${_mdDetailBtn(m.field, m.value)}${(_approvalOn() ? _isAdmin() : m.isMine) ? `<button type="button" class="master-ops-more more" aria-haspopup="menu" title="その他の操作（解除）" onclick="statsOpsMenu(this,'master','${_ea(m.field)}','${_ea(m.value)}')">⋯</button>` : ''}</td>` +
              `</tr>`;
@@ -2651,7 +2651,26 @@
       const head = (label, n) => `<tr class="master-tag-group-row"><td colspan="4"><span class="mtg-name">🏢 ${_esc(label)}</span><span class="mtg-count">${n}社</span></td></tr>`;
       [...groups.entries()].sort((a, b) => b[1].length - a[1].length || a[0].localeCompare(b[0])).forEach(([g, list]) => { h += head(g, list.length); list.forEach(_emitRow); });
       if (none.length) { h += head('グループなし', none.length); none.forEach(_emitRow); }
-    } else rowsAll.forEach(_emitRow);
+    } else {
+      // お客様：同業者の先のお客様は、その同業者の行の直下に（字下げして）並べる。同業者が絞り込みで出ていないときは通常の行として出す
+      const isCust = r => r.field === 'customer';
+      const byName = new Map(rowsAll.filter(isCust).map(r => [r.name, r]));
+      const via = r => { const d = (window.mdGet('customer', r.name) || { details: {} }).details; return d && d.via; };
+      const kids = new Map();
+      rowsAll.forEach(r => { if (!isCust(r)) return; const v = via(r); if (v && v !== r.name && byName.has(v)) { if (!kids.has(v)) kids.set(v, []); kids.get(v).push(r); } });
+      if (!kids.size) rowsAll.forEach(_emitRow);
+      else {
+        const done = new Set();
+        const walk = (r, depth) => {
+          if (done.has(r.name) && isCust(r)) return;
+          if (isCust(r)) done.add(r.name);
+          r.viaDepth = depth; _emitRow(r);
+          (kids.get(r.name) || []).forEach(c => walk(c, depth + 1));
+        };
+        rowsAll.forEach(r => { if (isCust(r) && via(r) && byName.has(via(r)) && via(r) !== r.name) return; walk(r, 0); });
+        rowsAll.forEach(r => { if (isCust(r) && !done.has(r.name)) walk(r, 0); });   // 循環などで取りこぼした行
+      }
+    }
     e.innerHTML = headH + formH + chipsH + h + '</tbody></table>';
   }
 
@@ -2816,6 +2835,8 @@
     inputEl.focus();
   };
 
+  // 同業者の直下に出す行の目印（字下げ＋└）。深さ 1 つにつき 18px
+  const _viaMark = r => r && r.viaDepth ? `<span class="master-via-mark" style="margin-left:${(r.viaDepth - 1) * 18}px" title="同業者の先のお客様">└</span>` : '';
   // 経由する同業者（先のお客様の側で選ぶ・1 社だけ）。候補は取引形態が「同業者」のお客様（自分と自分の先のお客様は除く）
   function _mdViaSelectHtml(id, s, self, cur) {
     const banned = new Set([self].concat(typeof window.mdViaDescendants === 'function' ? window.mdViaDescendants(self) : []));
@@ -2825,8 +2846,7 @@
     if (cur && !names.includes(cur)) names.push(cur);
     names.sort((a, b) => a.localeCompare(b, 'ja'));
     const opts = '<option value="">（なし）</option>' + names.map(n => `<option value="${_eav(n)}"${n === cur ? ' selected' : ''}>${_esc(n)}</option>`).join('');
-    return `<label class="master-detail-label">${_esc(s.label)}<select id="${id}" class="ar-select" title="このお客様が、同業者（フォワーダー・代理店）のお客様のときに選びます。1 社だけ選べます">${opts}</select>` +
-      `<span class="master-detail-hint">同業者のお客様として登録されている会社だけが候補です（取引形態を「同業者」にしておきます）</span></label>`;
+    return `<label class="master-detail-label">${_esc(s.label)}<select id="${id}" class="ar-select" title="このお客様が、同業者（フォワーダー・代理店）のお客様のときに選びます。1 社だけ選べます。候補は、取引形態を「同業者」にしたお客様です">${opts}</select></label>`;
   }
   // 先のお客様（同業者の側で、その同業者のお客様を足す・外す）。すでに別の同業者に付いているお客様は候補に出さない（重複を防ぐ）
   function _mdViaChipHtml(name) { return `<span class="stats-md-tag-chip stats-md-via-chip" data-name="${_eav(name)}">${_esc(name)}<button type="button" onclick="this.parentElement.remove()">✕</button></span>`; }
