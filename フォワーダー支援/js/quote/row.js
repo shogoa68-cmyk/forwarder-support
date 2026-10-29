@@ -922,7 +922,7 @@
       if (bmBtn) {
         const rec = reg && typeof window.mdGetCanon === 'function' ? window.mdGetCanon('sv', v) : null;
         const types = rec && rec.details && Array.isArray(rec.details.svTypes) ? rec.details.svTypes : [];
-        const isCarrier = types.some(t => /^\s*(FCL|LCL|AIR)\s*CARRIER\s*$/i.test(String(t)));
+        const isCarrier = types.some(t => typeof window.mdIsCarrierType === 'function' ? window.mdIsCarrierType(t) : /^\s*(FCL|LCL|AIR)\s*CARRIER\s*$/i.test(String(t)));
         // マスターの種別がキャリアでなくても、その名前（別名・代表名含む）でブックマークが登録されていれば出す
         // （マスター未登録のサブコン名でも可）。種別がキャリアなら未登録でも出して「追加」できるようにする。
         const hasBm = !!v && typeof window.bmHasBookmarks === 'function'

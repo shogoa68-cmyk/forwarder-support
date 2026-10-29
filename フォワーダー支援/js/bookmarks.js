@@ -684,7 +684,8 @@ function openAddBmModal(presetData) {
   if (!lockCarrier) {
     const dl = document.getElementById('bmCarrierDatalist');
     if (dl) {
-      const carriers = [...new Set(_bmRows.map(r => r.carrier).filter(Boolean))].sort();
+      // 既存のブックマークの会社名に加え、サブコンのマスターで種別がキャリアの会社も候補に出す
+      const carriers = [...new Set([..._bmRows.map(r => r.carrier).filter(Boolean), ...(typeof window.mdCarrierNames === 'function' ? window.mdCarrierNames() : [])])].sort();
       dl.innerHTML = carriers.map(c => `<option value="${escHtml(c)}">`).join('');
     }
   }

@@ -3500,6 +3500,27 @@
   }
 
   /** carriers-dl datalist をモードに合わせて再生成 */
+  // 幹線輸送のキャリア候補（#carriers-dl）へ、ブックマークの会社とサブコンのマスター（種別がキャリア）を足す。
+  // マスターの読み込み後（arRefreshDatalist）にも呼ばれる。typeOverride は試験用（輸送モードに関係なく種別を指定）
+  window.qfRefreshCarrierMasterCandidates = function (typeOverride) {
+    const dl = document.getElementById('carriers-dl');
+    if (!dl) return;
+    const type = typeOverride || (typeof window.bmTypeForTransport === 'function' ? window.bmTypeForTransport(_currentTransport, _currentSeaSub) : null);
+    dl.querySelectorAll('option[data-bm]').forEach(o => o.remove());
+    if (!type || type === 'general') return;
+    const have = new Set(Array.from(dl.options).map(o => o.value));
+    const names = [
+      ...(typeof window.bmCarrierNamesForType === 'function' ? window.bmCarrierNamesForType(type) : []),
+      ...(typeof window.mdCarrierNames === 'function' ? window.mdCarrierNames(type) : []),
+    ];
+    names.forEach(n => {
+      if (have.has(n)) return;
+      have.add(n);
+      const o = document.createElement('option');
+      o.value = n; o.dataset.bm = '1';
+      dl.appendChild(o);
+    });
+  };
   function _refreshCarrierDatalist() {
     const dl = document.getElementById('carriers-dl');
     if (!dl) return;
@@ -3508,23 +3529,10 @@
     // 作り直しで消えたマスター登録のキャリア（過去案件・同義語・ふりがな等）を再反映
     if (typeof window.arRefreshDatalist === 'function') window.arRefreshDatalist();
 
-    // 現在の輸送モードと同じ「種別」のブックマークが登録されている会社を候補に追加
-    // （FCL→FCL / LCL→LCL / RORO→RO/RO 船 / 在来船→在来船 / Air→AIR）
-    const appendBmCarriers = () => {
-      if (typeof window.bmCarrierNamesForType !== 'function' || typeof window.bmTypeForTransport !== 'function') return;
-      const type = window.bmTypeForTransport(_currentTransport, _currentSeaSub);
-      dl.querySelectorAll('option[data-bm]').forEach(o => o.remove());
-      if (!type || type === 'general') return;
-      const have = new Set(Array.from(dl.options).map(o => o.value));
-      window.bmCarrierNamesForType(type).forEach(n => {
-        if (have.has(n)) return;
-        const o = document.createElement('option');
-        o.value = n; o.dataset.bm = '1';
-        dl.appendChild(o);
-      });
-    };
-    appendBmCarriers();
-    if (typeof window.bmEnsureCarrierTypes === 'function') window.bmEnsureCarrierTypes().then(appendBmCarriers);
+    // 現在の輸送モードと同じ「種別」のブックマークが登録されている会社、およびサブコンのマスターで種別がその
+    // キャリアの会社を候補に追加（FCL→FCL / LCL→LCL / RORO→RO/RO 船 / 在来船→在来船 / Air→AIR）
+    window.qfRefreshCarrierMasterCandidates();
+    if (typeof window.bmEnsureCarrierTypes === 'function') window.bmEnsureCarrierTypes().then(() => window.qfRefreshCarrierMasterCandidates());
 
     // z2 アイコン・プレースホルダーもモードに合わせて更新
     const icon  = document.getElementById('z2ModeIcon');
