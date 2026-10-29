@@ -840,6 +840,38 @@ const http = require('http'), fs = require('fs'), path = require('path');
     await ctx.close();
   }
 
+  // ===== サブコンとキャリアの統合・段階 2 の前：移行の影響範囲（読み取りのみ） =====
+  {
+    const { ctx, p, errs } = await open(true, { legacy: {}, noLegacy: true });
+    const L = '[統合の影響範囲] ';
+    await p.evaluate(async () => {
+      const v = (f, n) => window.__db.master_votes.push({ field: f, value: n, voter_email: 's@example.com' });
+      v('carrier', 'ONE'); v('carrier', 'Yang Ming'); v('carrier', 'MSC');
+      v('sv', 'YANG MING'); v('sv', 'Mediterranean'); v('sv', '通関X');
+      window.__db.synonym_groups.push({ id: 'c1', field: 'carrier', canonical: 'MSC', aliases: ['Mediterranean'] });
+      window.__db.master_details.push({ field: 'carrier', value: 'Yang Ming', details: { enName: 'Yang Ming Marine', group: 'YM' } });
+      window.__db.master_details.push({ field: 'sv', value: 'YANG MING', details: { enName: 'YML', svTypes: ['FCL CARRIER'] } });
+      await statsLoadMasterCache(); await synLoadCloud(); await mdLoadCloud();
+    });
+    const before = await p.evaluate(() => JSON.stringify([window.__db.master_votes, window.__db.master_details, window.__db.synonym_groups]));
+    const r = await p.evaluate(() => statsCarrierMigrationReport());
+    ok(L + '対象はキャリアのマスター 3 件（ONE／Yang Ming／MSC）', r.ok && r.total === 3, r);
+    ok(L + 'そのまま移せる 1（ONE）／合流が要る 1（Yang Ming＝YANG MING・表記違いでも同じ会社）／要判断 1（MSC の別名がサブコンと一致）', r.move === 1 && r.merge === 1 && r.decide === 1, { m: r.move, g: r.merge, d: r.decide });
+    const ym = r.items.find(i => i.name === 'Yang Ming');
+    ok(L + '合流の相手と、詳細の食い違い（英語名称）が分かる', ym.sameSv === 'YANG MING' && ym.conflictKeys.includes('enName'), ym);
+    ok(L + '要判断の理由（別名 Mediterranean がサブコンの名前と一致）', r.items.find(i => i.name === 'MSC').aliasHits.includes('Mediterranean'));
+    ok(L + 'データは変更しない（読み取りのみ）', before === await p.evaluate(() => JSON.stringify([window.__db.master_votes, window.__db.master_details, window.__db.synonym_groups])));
+    await p.evaluate(() => { switchCategory('master', document.querySelector('[onclick*="switchCategory(\'master"]')); }); await p.waitForTimeout(1000);
+    await p.evaluate(() => statsMasterSetFilter('carrier')); await p.waitForTimeout(300);
+    ok(L + 'キャリアを見ているときだけ「影響範囲を確認する」ボタンが出る', await p.evaluate(() => !!document.querySelector('.cm-entry-btn')));
+    await p.evaluate(() => statsShowCarrierMigrationReport()); await p.waitForTimeout(800);
+    ok(L + '画面に分類と件数が出る', await p.evaluate(() => { const t = document.querySelector('#cmReportModal').textContent; return t.includes('そのまま移せる') && t.includes('合流が要る') && t.includes('要判断'); }));
+    await p.evaluate(() => statsMasterSetFilter('sv')); await p.waitForTimeout(200);
+    ok(L + 'サブコンでは出ない', await p.evaluate(() => !document.querySelector('.cm-entry-btn')));
+    ok(L + 'JS エラーなし', errs.length === 0, errs);
+    await ctx.close();
+  }
+
   // ===== 承認制：別名の追加（メンバーは申請・管理者が承認）／詳細の合流／添付の集約 =====
   {
     const { ctx, p, errs } = await open(true, { approval: true, role: 'member', noLegacy: true });
