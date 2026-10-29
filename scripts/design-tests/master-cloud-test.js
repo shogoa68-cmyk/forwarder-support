@@ -938,12 +938,21 @@ const http = require('http'), fs = require('fs'), path = require('path');
     ok(L + '港の詳細に「国」の入力欄と候補がある', await p.evaluate(() => !!document.querySelector('#md_country') && document.querySelectorAll('#md_country_list option').length > 150));
     await p.fill('#md_country', 'ベトナム'); await p.click('.master-detail-save'); await p.waitForTimeout(700);
     ok(L + '日本語名で入力しても国コード（VN）で保存される', await p.evaluate(() => window.__db.master_details.find(m => m.value === 'XYZ UNKNOWN PORT').details.country === 'VN'));
-    // 国での整理
-    const chips = await p.evaluate(() => [...document.querySelectorAll('.master-type-chip')].map(b => b.textContent));
-    ok(L + '「国：」の絞り込みチップ（日本語名・件数つき）', chips.some(c => c.startsWith('米国（US）')) && chips.some(c => c.startsWith('ベトナム（VN）')) && chips.some(c => c.startsWith('未設定')), chips);
+    // 国での整理：国連の地理区分（UN M.49）で 地域 → 小地域 → 国 の順に絞り込む
+    const row1 = await p.evaluate(() => [...document.querySelectorAll('.master-type-chip')].map(b => b.textContent));
+    ok(L + '最初は「地域」だけが並ぶ（国は多くても画面がすっきり）', row1.some(c => c.startsWith('アジア')) && row1.some(c => c.startsWith('アメリカ')) && row1.some(c => c.startsWith('国なし')) && !row1.some(c => c.startsWith('ベトナム')), row1);
+    await p.evaluate(() => statsMasterSetRegion('AS')); await p.waitForTimeout(300);
+    const row2 = await p.evaluate(() => [...document.querySelectorAll('.master-type-chip')].map(b => b.textContent));
+    ok(L + '地域を選ぶと、その地域の「小地域」が出る（東南アジア。北米は出ない）', row2.some(c => c.startsWith('東南アジア')) && !row2.some(c => c.startsWith('北米')), row2);
+    await p.evaluate(() => statsMasterSetSub('SEA')); await p.waitForTimeout(300);
+    const row3 = await p.evaluate(() => [...document.querySelectorAll('.master-type-chip')].map(b => b.textContent));
+    ok(L + '小地域を選ぶと「国」が出る', row3.some(c => c.startsWith('ベトナム（VN）')), row3);
+    const only = await p.evaluate(() => [...document.querySelectorAll('#statsPane-master tbody tr[data-mvalue]')].map(r => r.dataset.mvalue));
+    ok(L + '東南アジアの港だけに絞られる（米国の港は出ない）', only.includes('XYZ UNKNOWN PORT') && !only.includes('LOS ANGELES'), only);
+    await p.evaluate(() => statsMasterSetRegion('')); await p.waitForTimeout(200);
     await p.evaluate(() => statsMasterSetSort('tag')); await p.waitForTimeout(300);
     const heads = await p.evaluate(() => [...document.querySelectorAll('.master-tag-group-row')].map(r => r.textContent.replace(/\s+/g, ' ').trim()));
-    ok(L + '「国ごとにまとめる」：見出しは国の日本語名', heads.some(h => h.includes('米国（US）')) && heads.some(h => h.includes('ベトナム（VN）')) && heads.some(h => h.includes('国なし')), heads);
+    ok(L + '「国ごとにまとめる」：小地域の見出しの下に、国の見出し', heads.some(h => h.includes('東南アジア（アジア）')) && heads.some(h => h.includes('北米（アメリカ）')) && heads.some(h => h.includes('米国（US）')) && heads.some(h => h.includes('ベトナム（VN）')) && heads.some(h => h.includes('国なし')), heads);
     ok(L + '一覧のチップに国が出る', await p.evaluate(() => (document.querySelector('#statsPane-master tr[data-mvalue="LOS ANGELES"]') || { textContent: '' }).textContent.includes('米国')));
     // 自動の提案（登録済みで国が無い港）
     await p.evaluate(() => statsShowPortCountryAssist({ used: {} })); await p.waitForTimeout(900);
