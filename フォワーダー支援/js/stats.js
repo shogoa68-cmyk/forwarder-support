@@ -426,6 +426,19 @@
     await _loadCloudVotes();
   }
 
+  // 多数の名称をまとめてマスターに登録する（1 回の書き込み＋1 回の読み直し）。承認制のメンバーは、1 件ずつ申請になる
+  window.statsEnsureMasterMany = async function (field, names) {
+    names = [...new Set((names || []).filter(Boolean))].filter(n => !(_voteInfo(field, n).total > 0));
+    if (!names.length) return { done: 0, requested: 0, failed: 0 };
+    if (!_cloud()) { if (typeof window.masterNeedCloud === 'function') window.masterNeedCloud(); return { done: 0, requested: 0, failed: names.length }; }
+    if (_approvalOn() && !_isAdmin()) { for (const n of names) await _request(field, n); return { done: 0, requested: names.length, failed: 0 }; }
+    const me = _me();
+    const { error } = await _c().from(VOTES_TABLE).upsert(names.map(value => ({ field, value, voter_email: me })), { onConflict: 'field,value,voter_email' });
+    if (error) { _toast('マスター登録に失敗しました: ' + error.message, 'warn', 7000); return { done: 0, requested: 0, failed: names.length }; }
+    await _loadCloudVotes();
+    return { done: names.length, requested: 0, failed: 0 };
+  };
+
   async function _demote(field, value) {
     if (!_cloud()) { if (typeof window.masterNeedCloud === 'function') window.masterNeedCloud(); return; }
     const c = _c(), me = _me();
@@ -2231,12 +2244,15 @@
   let _masterFieldFilter = 'all';
   window.statsMasterSetFilter = function (f) {
     _masterFieldFilter = f || 'all';
-    _masterSvType = '';   // 種別が変わったらサブコン種別の絞り込みは解く
+    _masterSvType = ''; _masterRegion = ''; _masterSub = '';   // 種別が変わったらサブコン種別・地域の絞り込みは解く
     _masterSort = 'name';
     _renderMaster();
   };
   // サブコン種別（詳細の svTypes）での絞り込み。''＝すべて、'\u0000none'＝種別が未設定
   let _masterSvType = '';
+  let _masterRegion = '', _masterSub = '';   // 国での絞り込み（UN M.49 の地域・小地域）
+  window.statsMasterSetRegion = function (k) { _masterRegion = k || ''; _masterSub = ''; _masterSvType = ''; _renderMaster(); };
+  window.statsMasterSetSub = function (k) { _masterSub = k || ''; _masterSvType = ''; _renderMaster(); };
   // 並び順：'name'＝名前順（既定）／'tag'＝種別・タグごとにまとめて表示（サブコン・お客様のとき）
   let _masterSort = 'name';
   window.statsMasterSetSort = function (m) { _masterSort = (m === 'tag' || m === 'group') ? m : 'name'; _renderMaster(); };
@@ -2247,7 +2263,7 @@
     return rec && rec.details && rec.details.group ? String(rec.details.group).trim() : '';
   };
   const _SV_NONE = '\u0000none';
-  window.statsMasterSetSvType = function (t) { _masterSvType = t || ''; _renderMaster(); };
+  window.statsMasterSetSvType = function (t) { _masterSvType = t || ''; if (t === _SV_NONE) { _masterRegion = ''; _masterSub = ''; } _renderMaster(); };
   // 詳細の「種別・タグ」で絞り込める種別（サブコン＝サブコン種別、お客様＝タグ）
   const _SUB_FILTER = { sv: { key: 'svTypes', label: '種別' }, customer: { key: 'tags', label: 'タグ' }, port: { key: 'country', label: '国', country: true } };
   const _subLabel = (field, t) => (_SUB_FILTER[field] && _SUB_FILTER[field].country && typeof window.countryLabel === 'function') ? window.countryLabel(t) : t;
@@ -2386,7 +2402,40 @@
     let synFiltered = _masterFieldFilter === 'all' ? allSyn : allSyn.filter(g => g.field === _masterFieldFilter);
 
     // サブコンのときだけ「種別」（通関業者・倉庫業者…）の絞り込みを出す。件数は種別を複数持つ会社を、それぞれに数える
-    if (_SUB_FILTER[_masterFieldFilter]) {
+    if (_SUB_FILTER[_masterFieldFilter] && _SUB_FILTER[_masterFieldFilter].country) {
+      // 国：国連の地理区分（UN M.49）で、地域 → 小地域 → 国 の順に絞り込む（国が多くても画面がすっきりする）
+      const names = [...entries.map(m => m.value), ...synFiltered.map(g => g.canonical)];
+      const info = new Map(names.map(n => { const code = (_svTypesOf(n)[0] || '').toUpperCase(); const r = code && window.countryRegion ? window.countryRegion(code) : null; return [n, { code, cont: code ? (r ? r.continent : 'ZZ') : '', sub: r ? r.sub : (code ? 'ZZ' : '') }]; }));
+      const cnt = (sel) => { const m = new Map(); names.forEach(n => { const k = sel(info.get(n)); if (k) m.set(k, (m.get(k) || 0) + 1); }); return m; };
+      const contCnt = cnt(i => i.cont), noneCnt = names.filter(n => !info.get(n).code).length;
+      if (_masterRegion && !contCnt.has(_masterRegion)) { _masterRegion = ''; _masterSub = ''; _masterSvType = ''; }
+      const inRegion = n => !_masterRegion || info.get(n).cont === _masterRegion;
+      const subCnt = new Map(); names.filter(inRegion).forEach(n => { const k = info.get(n).sub; if (k) subCnt.set(k, (subCnt.get(k) || 0) + 1); });
+      if (_masterSub && !subCnt.has(_masterSub)) { _masterSub = ''; _masterSvType = ''; }
+      const inSub = n => inRegion(n) && (!_masterSub || info.get(n).sub === _masterSub);
+      const ctyCnt = new Map(); names.filter(inSub).forEach(n => { const k = info.get(n).code; if (k) ctyCnt.set(k, (ctyCnt.get(k) || 0) + 1); });
+      if (_masterSvType && _masterSvType !== _SV_NONE && !ctyCnt.has(_masterSvType)) _masterSvType = '';
+      if (_masterSvType === _SV_NONE && !noneCnt) _masterSvType = '';
+      const chip = (active, fn, arg, label, n) => `<button class="master-filter-chip master-type-chip${active ? ' is-active' : ''}" onclick="${fn}('${_ea(arg)}')">${_esc(label)}<span class="master-filter-count">${n}</span></button>`;
+      const contName = k => k === 'ZZ' ? 'その他' : ((window.COUNTRY_CONTINENTS || []).find(c => c.key === k) || { ja: k }).ja;
+      const subName = k => k === 'ZZ' ? 'その他' : ((window.COUNTRY_SUBREGIONS || []).find(c => c.key === k) || { ja: k }).ja;
+      const order = arr => arr.slice().sort((a, b) => a[0].localeCompare(b[0]));
+      const contKeys = [...(window.COUNTRY_CONTINENTS || []).map(c => c.key), 'ZZ'].filter(k => contCnt.has(k));
+      const subKeys = [...(window.COUNTRY_SUBREGIONS || []).filter(x => !_masterRegion || x.continent === _masterRegion).map(x => x.key), 'ZZ'].filter(k => subCnt.has(k));
+      const row = (label, inner) => '<div class="master-filter-chips master-type-chips"><span class="master-type-chips-label">' + label + '：</span>' + inner + '</div>';
+      chipsH += row('地域',
+        chip(!_masterRegion && _masterSvType !== _SV_NONE, 'statsMasterSetRegion', '', 'すべて', names.length) +
+        contKeys.map(k => chip(_masterRegion === k, 'statsMasterSetRegion', k, contName(k), contCnt.get(k))).join('') +
+        (noneCnt ? chip(_masterSvType === _SV_NONE, 'statsMasterSetSvType', _SV_NONE, '国なし', noneCnt) : ''));
+      if (_masterRegion && subKeys.length) chipsH += row(contName(_masterRegion), chip(!_masterSub, 'statsMasterSetSub', '', 'すべて', [...subCnt.values()].reduce((a, b) => a + b, 0)) + subKeys.map(k => chip(_masterSub === k, 'statsMasterSetSub', k, subName(k), subCnt.get(k))).join(''));
+      if (_masterSub && ctyCnt.size) chipsH += row(subName(_masterSub), chip(!_masterSvType, 'statsMasterSetSvType', '', 'すべて', [...ctyCnt.values()].reduce((a, b) => a + b, 0)) +
+        [...ctyCnt.keys()].sort((a, b) => _subLabel(_masterFieldFilter, a).localeCompare(_subLabel(_masterFieldFilter, b), 'ja')).map(k => chip(_masterSvType === k, 'statsMasterSetSvType', k, _subLabel(_masterFieldFilter, k), ctyCnt.get(k))).join(''));
+      const keep = n => _masterSvType === _SV_NONE ? !info.get(n).code : (inSub(n) && (!_masterSvType || info.get(n).code === _masterSvType));
+      if (_masterSvType === _SV_NONE || _masterRegion || _masterSub || _masterSvType) {
+        entries = entries.filter(m => keep(m.value));
+        synFiltered = synFiltered.filter(g => keep(g.canonical));
+      }
+    } else if (_SUB_FILTER[_masterFieldFilter]) {
       const typeCnt = new Map(); let noneCnt = 0;
       const svNames = [...entries.map(m => m.value), ...synFiltered.map(g => g.canonical)];
       svNames.forEach(n => { const t = _svTypesOf(n); if (!t.length) noneCnt++; t.forEach(x => typeCnt.set(x, (typeCnt.get(x) || 0) + 1)); });
@@ -2493,7 +2542,22 @@
         t.forEach(x => { if (_masterSvType && _masterSvType !== _SV_NONE && x !== _masterSvType) return; if (!groups.has(x)) groups.set(x, []); groups.get(x).push(r); });
       });
       const head = (label, n) => `<tr class="master-tag-group-row"><td colspan="4"><span class="mtg-name">🏷 ${_esc(label)}</span><span class="mtg-count">${n}件</span></td></tr>`;
-      [...groups.entries()].sort((a, b) => b[1].length - a[1].length || a[0].localeCompare(b[0])).forEach(([t, list]) => { h += head(_subLabel(_masterFieldFilter, t), list.length); list.forEach(_emitRow); });
+      if (_SUB_FILTER[_masterFieldFilter].country) {
+        // 国ごと：小地域の見出し（UN M.49）の下に、国ごとの見出しと行を並べる（地域の並びは大陸→小地域の順）
+        const subOrder = (window.COUNTRY_SUBREGIONS || []).map(x => x.key), contOrder = (window.COUNTRY_CONTINENTS || []).map(x => x.key);
+        const regOf = code => window.countryRegion ? window.countryRegion(code) : null;
+        const keyOf = code => { const r = regOf(code); return r ? contOrder.indexOf(r.continent) * 100 + subOrder.indexOf(r.sub) : 9999; };
+        const subJa = k => ((window.COUNTRY_SUBREGIONS || []).find(x => x.key === k) || { ja: 'その他' }).ja;
+        const contJa = k => ((window.COUNTRY_CONTINENTS || []).find(x => x.key === k) || { ja: '' }).ja;
+        const arr = [...groups.entries()].sort((a, b) => keyOf(a[0]) - keyOf(b[0]) || _subLabel(_masterFieldFilter, a[0]).localeCompare(_subLabel(_masterFieldFilter, b[0]), 'ja'));
+        const subTotal = {}; arr.forEach(([c, list]) => { const r = regOf(c); const k = r ? r.sub : 'ZZ'; subTotal[k] = (subTotal[k] || 0) + list.length; });
+        let lastSub = null;
+        arr.forEach(([c, list]) => {
+          const r = regOf(c), k = r ? r.sub : 'ZZ';
+          if (k !== lastSub) { lastSub = k; h += `<tr class="master-tag-group-row mtg-region"><td colspan="4"><span class="mtg-name">🌏 ${_esc(subJa(k))}${r ? '（' + _esc(contJa(r.continent)) + '）' : ''}</span><span class="mtg-count">${subTotal[k]}件</span></td></tr>`; }
+          h += head(_subLabel(_masterFieldFilter, c), list.length); list.forEach(_emitRow);
+        });
+      } else [...groups.entries()].sort((a, b) => b[1].length - a[1].length || a[0].localeCompare(b[0])).forEach(([t, list]) => { h += head(_subLabel(_masterFieldFilter, t), list.length); list.forEach(_emitRow); });
       if (none.length) { h += head(_SUB_FILTER[_masterFieldFilter].label + 'なし', none.length); none.forEach(_emitRow); }
     } else if (_masterSort === 'group' && _hasGroup) {
       // 所属グループごとにまとめる（傘下の会社を 1 つの見出しの下に。グループなしは最後）
@@ -3313,19 +3377,28 @@
     if (all) all.addEventListener('change', () => body.querySelectorAll('.pc-chk').forEach(c => { c.checked = all.checked; }));
     const btn = body.querySelector('#pcApplyBtn');
     if (btn) btn.addEventListener('click', async () => {
-      btn.disabled = true;
-      const picks = [...body.querySelectorAll('.pc-chk')].filter(c => c.checked).map(c => ({ r: rows[+c.dataset.i], text: body.querySelector('.pc-country[data-i="' + c.dataset.i + '"]').value.trim() }));
-      let reg = 0, set = 0, ng = 0, bad = 0;
-      for (const { r, text } of picks) {
-        if (!r.isMaster && typeof window.statsEnsureMaster === 'function') { await window.statsEnsureMaster('port', r.name); reg++; }
-        const c = text ? window.findCountry(text) : null;
-        if (text && !c) { bad++; continue; }
-        if (c) {
+      const msg = body.querySelector('#pcApplyMsg');
+      btn.disabled = true; msg.textContent = '　登録中…（件数が多いと少し時間がかかります）';
+      try {
+        const picks = [...body.querySelectorAll('.pc-chk')].filter(c => c.checked).map(c => ({ r: rows[+c.dataset.i], text: body.querySelector('.pc-country[data-i="' + c.dataset.i + '"]').value.trim() }));
+        if (!picks.length) { msg.textContent = '　チェックした港がありません'; btn.disabled = false; return; }
+        // 1) マスター登録（まとめて 1 回）。2) 国の付与（まとめて 1 回）。1 件ずつだと、件数分だけ通信が重なって遅くなる
+        const newNames = picks.filter(x => !x.r.isMaster).map(x => x.r.name);
+        const reg = newNames.length && typeof window.statsEnsureMasterMany === 'function' ? await window.statsEnsureMasterMany('port', newNames) : { done: 0, requested: 0, failed: 0 };
+        let bad = 0; const items = [];
+        picks.forEach(({ r, text }) => {
+          const c = text ? window.findCountry(text) : null;
+          if (text && !c) { bad++; return; }
+          if (!c) return;
           const cur = (window.mdGet('port', r.name) || {}).details || {};
-          if (!cur.country) (await window.mdSave('port', r.name, Object.assign({}, cur, { country: c.code }))) ? set++ : ng++;
-        }
+          if (!cur.country) items.push({ value: r.name, details: Object.assign({}, cur, { country: c.code }) });
+        });
+        const res = items.length ? await window.mdSaveMany('port', items) : { ok: 0, ng: 0 };
+        msg.textContent = '　✅ 登録 ' + reg.done + ' 件' + (reg.requested ? '（承認待ちの申請 ' + reg.requested + ' 件）' : '') + '／国を付けた ' + res.ok + ' 件' + (bad ? '／国名が分からず飛ばした ' + bad + ' 件' : '') + ((res.ng || reg.failed) ? '／失敗 ' + (res.ng + reg.failed) + ' 件（理由は画面上部の通知）' : '');
+      } catch (e) {
+        msg.textContent = '　⚠ 実行できませんでした：' + (e && e.message || e);
       }
-      body.querySelector('#pcApplyMsg').textContent = '　✅ 登録 ' + reg + ' 件／国を付けた ' + set + ' 件' + (bad ? '／国名が分からず飛ばした ' + bad + ' 件' : '') + (ng ? '／失敗 ' + ng + ' 件' : '');
+      btn.disabled = false;
       if (typeof window.statsLoadMasterCache === 'function') await window.statsLoadMasterCache();
       if (typeof window.arRefreshDatalist === 'function') window.arRefreshDatalist();
       if (typeof window.statsRerenderActive === 'function') window.statsRerenderActive();

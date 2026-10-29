@@ -5696,3 +5696,4 @@ body.md-modal-open { overflow: hidden; }
 .stats-md-country { background: #eef6ee; border-color: #b5d3b5; color: #2f5d2f; }
 .pc-scroll { max-height: 52vh; overflow: auto; border: 1px solid #d5dde6; border-radius: 6px; }
 .pc-scroll .pc-country { min-width: 220px; }
+.master-tag-group-row.mtg-region td { background: #dfe9f3; color: #1d3a57; font-size: 13px; border-top: 3px solid #8fa9c4; }

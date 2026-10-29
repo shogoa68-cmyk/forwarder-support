@@ -1638,6 +1638,20 @@
     return true;
   };
 
+  // 多数の詳細をまとめて保存する（1 回の書き込み＋1 回の読み直し。items＝[{value, details}]）。一括登録など、1 件ずつ保存すると遅くなる用途向け
+  window.mdSaveMany = async function (field, items) {
+    items = (items || []).filter(x => x && x.value);
+    if (!field || !items.length) return { ok: 0, ng: 0 };
+    if (!_needCloud('マスター詳細')) return { ok: 0, ng: items.length };
+    if (_mdTableMissing) { _mdWarn('マスター詳細の保存先（master_details）が未作成のため保存できません'); return { ok: 0, ng: items.length }; }
+    const now = new Date().toISOString();
+    const rows = items.map(x => ({ field, value: x.value, details: x.details, updated_by: _me(), updated_at: now }));
+    const { error } = await _c().from(MD_TABLE).upsert(rows, { onConflict: 'field,value' });
+    if (error) { _mdWarn('マスター詳細を保存できませんでした：' + (error.message || error)); return { ok: 0, ng: items.length }; }
+    await window.mdLoadCloud();
+    return { ok: items.length, ng: 0 };
+  };
+
   window.mdDelete = async function (field, value) {
     if (!_needCloud('マスター詳細') || _mdTableMissing) return;
     await _c().from(MD_TABLE).delete().match({ field, value });
