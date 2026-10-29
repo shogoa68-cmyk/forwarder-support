@@ -5654,3 +5654,9 @@ a.stats-md-chip.stats-md-link:hover { background: #d6e7f8; text-decoration: unde
 .pv-wg-item-rule { white-space: pre-wrap; }
 .pv-wg-item-rule-strict { border-left: 4px solid #c0392b; background: #fff5f4; font-weight: 600; }
 .pv-wg-item-rule-check  { border-left: 4px solid #e08a00; background: #fffaf0; }
+
+/* 取引ルール：マスター管理の一覧の印・再確認の案内 */
+.cr-chip { display: inline-block; margin-left: 6px; font-size: 11px; padding: 1px 7px; border-radius: 10px; background: #eef2f7; color: #3a4a5c; border: 1px solid #c9d3df; white-space: nowrap; vertical-align: middle; }
+.cr-chip.has-strict { background: #fdecea; color: #8e2a20; border-color: #e3a9a2; }
+.cr-chip.has-stale { box-shadow: inset 0 -2px 0 #e08a00; }
+.cr-stale-notice { margin: 6px 0; padding: 6px 10px; font-size: 12px; background: #fffaf0; border: 1px solid #e6c98a; border-radius: 6px; color: #6b4a00; }

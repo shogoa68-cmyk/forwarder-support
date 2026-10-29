@@ -2265,9 +2265,31 @@
     if (ok) await window.statsToggleVote(field, value);
   };
 
+  // お客様の行に「📌 ルール N件（厳守 x／⏳ 再確認 y）」の印（取引ルール＝customer-rules.js）
+  function _crChip(field, value) {
+    if (field !== 'customer' || typeof window.crStats !== 'function') return '';
+    const s = window.crStats(value);
+    if (!s.n) return '';
+    return `<span class="cr-chip${s.strict ? ' has-strict' : ''}${s.stale ? ' has-stale' : ''}" title="お客様の「詳細」で内容を見られます">📌 ルール${s.n}件` +
+      (s.strict ? ` ⛔${s.strict}` : '') + (s.stale ? ` ⏳${s.stale}` : '') + `</span>`;
+  }
+  // 再確認が必要な取引ルールの案内（半年以上、確認されていないもの）
+  function _crStaleNotice() {
+    if (typeof window.crStaleSummary !== 'function') return '';
+    const list = window.crStaleSummary();
+    if (!list.length) return '';
+    const total = list.reduce((s, x) => s + x.stale, 0);
+    return `<div class="cr-stale-notice">⏳ 取引ルールの再確認：${total}件（${list.slice(0, 5).map(x => _esc(x.customer) + ' ' + x.stale + '件').join('、')}${list.length > 5 ? ' ほか' : ''}）。お客様の「詳細」→「取引ルール」で「確認済み」か「廃止」を選んでください。</div>`;
+  }
+  let _crLoadKicked = false;
   function _renderMaster() {
     const e = document.getElementById('statsPane-master');
     if (!e) return;
+    // 取引ルールを一度だけ読み込み、件数の印を出す（読み込めたら描き直す）
+    if (!_crLoadKicked && typeof window.crLoad === 'function' && _cloud()) {
+      _crLoadKicked = true;
+      window.crLoad().then(ok => { if (ok && document.getElementById('statsPane-master')) _renderMaster(); });
+    }
 
     const cloudOn = _cloud() && _cvMap !== null;
     let entries = [];
@@ -2354,7 +2376,7 @@
       ...synFiltered.map(g => ({ kind: 'grp', field: g.field, name: g.canonical, g })),
     ].sort((a, b) => (labels[a.field] || a.field).localeCompare(labels[b.field] || b.field) || (a.name || '').localeCompare(b.name || ''));
 
-    const headH = _masterHeadHtml(totalCount, allSyn.length) + (typeof window.masterTopNoticeHtml === 'function' ? window.masterTopNoticeHtml() : '') + _requestsHtml();
+    const headH = _masterHeadHtml(totalCount, allSyn.length) + _crStaleNotice() + (typeof window.masterTopNoticeHtml === 'function' ? window.masterTopNoticeHtml() : '') + _requestsHtml();
     if (!rowsAll.length) {
       e.innerHTML = headH + formH + chipsH +
         '<p class="stats-empty">マスター登録はまだありません。<br>各集計の「☆ 登録」、または上の「登録」から追加できます。</p>';
@@ -2394,7 +2416,7 @@
           : `synRemoveAlias('${_ea(g.field)}','${_ea(a)}','${_ea(g.canonical)}')`;
         const chips = (g.aliases || []).map(a => `<span class="stats-syn-member">${_esc(a)}<button class="ua-chip-del" title="別名から外す" onclick="${delAlias(a)}">✕</button></span>`).join('');
         h += `<tr class="stats-syn-row" data-mfield="${_eav(g.field)}" data-mvalue="${_eav(g.canonical)}"><td>${labels[g.field] || g.field}</td>` +
-             `<td class="stats-val"><span class="ua-star">⭐</span>${_esc(g.canonical)}${_mdBadge(g.field, g.canonical)}</td>` +
+             `<td class="stats-val"><span class="ua-star">⭐</span>${_esc(g.canonical)}${_crChip(g.field, g.canonical)}${_mdBadge(g.field, g.canonical)}</td>` +
              `<td class="stats-master-abbrev-cell">${chips}${addBtn(g.field, g.canonical)}</td>` +
              `<td class="ops"><button class="stats-master-merge" title="このマスターを別のマスターの別名にまとめる（別名ごと移動）" onclick="statsSynMergePicker('${_ea(g.field)}','${_ea(g.canonical)}',this)">他のマスターにまとめる</button>` +
              `<button class="stats-master-rename" title="マスター名を変更（旧名称は別名として残ります）" onclick="statsMasterRename('${_ea(g.field)}','${_ea(g.canonical)}')">✏️ 名称変更</button>` +
@@ -2404,7 +2426,7 @@
         const m = r.m;
         h += `<tr data-mfield="${_eav(m.field)}" data-mvalue="${_eav(m.value)}">` +
              `<td>${labels[m.field] || m.field}</td>` +
-             `<td class="stats-val">${_esc(m.value)}${_mdBadge(m.field, m.value)}</td>` +
+             `<td class="stats-val">${_esc(m.value)}${_crChip(m.field, m.value)}${_mdBadge(m.field, m.value)}</td>` +
              `<td class="stats-master-abbrev-cell">${addBtn(m.field, m.value)}</td>` +
              `<td class="ops">${_mdDetailBtn(m.field, m.value)}${(_approvalOn() ? _isAdmin() : m.isMine) ? `<button type="button" class="master-ops-more more" aria-haspopup="menu" title="その他の操作（解除）" onclick="statsOpsMenu(this,'master','${_ea(m.field)}','${_ea(m.value)}')">⋯</button>` : ''}</td>` +
              `</tr>`;
