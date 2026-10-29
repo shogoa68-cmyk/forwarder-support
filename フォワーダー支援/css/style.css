@@ -5674,3 +5674,11 @@ body.md-modal-open { overflow: hidden; }
 /* マスター管理：種別・タグごとにまとめて表示するときの見出し行 */
 .master-tag-group-row td { background: #eef3f8; font-weight: 700; font-size: 13px; padding: 6px 12px; border-top: 2px solid #b7c6d6; }
 .master-tag-group-row .mtg-count { margin-left: 8px; font-weight: 400; font-size: 12px; color: #6b7a8c; }
+
+/* 所属グループ：統計タブのグループ別合計 */
+.stats-group-summary { margin: 8px 0 12px; padding: 6px 10px; border: 1px solid #cfd9e4; border-radius: 6px; background: #f7fafc; }
+.stats-group-summary > summary { cursor: pointer; font-weight: 700; font-size: 13px; }
+.stats-grp-members { display: flex; flex-wrap: wrap; gap: 4px 8px; }
+.stats-grp-member { font-size: 12px; padding: 1px 8px; border-radius: 10px; background: #fff; border: 1px solid #d3dce6; white-space: nowrap; }
+.sv-hdr-group { margin-left: 6px; font-size: 11px; padding: 1px 8px; border-radius: 10px; background: #e8f1fb; color: #1f4f86; border: 1px solid #a9c6e6; white-space: nowrap; }
+.sv-hdr-group[hidden] { display: none; }
