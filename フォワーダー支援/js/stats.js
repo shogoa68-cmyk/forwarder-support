@@ -821,7 +821,9 @@
     const e = document.getElementById(paneId);
     if (!e || !_data) return;
     // alias rule / 同義グループのフィールド（sv/carrier/nm/port をそのまま使用）
-    const aliasField = field;
+    // 旧「キャリア」は廃止：幹線輸送のキャリア名の集計は残すが、マスター登録・別名・詳細はサブコンのマスターで行う
+    const mf = field === 'carrier' ? 'sv' : field;
+    const aliasField = mf;
     const synGroups  = typeof window.synGetGroups === 'function' ? window.synGetGroups(aliasField) : [];
     const synCanons  = new Set(synGroups.map(g => g.canonical));
     const synAliasOf = {};
@@ -854,7 +856,7 @@
     // 「ゆらぎありのみ」：同義グループ（整理済み）は隠し、複数表記のある自動ゆらぎグループだけ残す。
     const visSynRows  = (_statsUnorganizedOnly || _statsFluctOnly) ? [] : synRows;
     let visRestGroups = _statsUnorganizedOnly
-      ? restGroups.filter(g => g.variants.length > 1 || !_masterRegistered(field, g.variants[0].value, null, synCanons))
+      ? restGroups.filter(g => g.variants.length > 1 || !_masterRegistered(mf, g.variants[0].value, null, synCanons))
       : restGroups;
     if (_statsFluctOnly) visRestGroups = visRestGroups.filter(g => g.variants.length > 1);
 
@@ -875,8 +877,9 @@
     const shownSyn  = visSynRows.slice(0, pageLimit);
     const shownRest = visRestGroups.slice(0, Math.max(0, pageLimit - shownSyn.length));
 
-    let h = _sortToolbar() + _groupSummaryHtml(field, cntMap, synAliasOf) +
+    let h = _sortToolbar() + _groupSummaryHtml(mf, cntMap, synAliasOf) +
             '<p class="stats-syn-hint">「☆ マスターに登録」で正しい名前を決め、他の表記を「→ 別名にする」でまとめると、⭐行に集約され件数が合算されます（非破壊）。表記ゆれの一括置換は「ゆらぎ N種」バッジから。</p>' +
+            (field === 'carrier' ? '<p class="stats-syn-hint">🔀 キャリアはサブコンのマスターとして登録します（ここでの登録・別名は、マスター管理の「サブコン」に入ります。集計は幹線輸送の入力から数えます）。</p>' : '') +
             `<table class="stats-table stats-nm-table"><thead><tr>` +
             `<th>${colLabel}</th><th class="stats-num-col">合計</th><th>別名・略称 / バリアント</th>` +
             `</tr></thead><tbody>`;
@@ -888,7 +891,7 @@
       let chips = `<span class="stats-chip stats-chip--canon">` +
                   `<span class="stats-chip-text">⭐ ${_usageSpan(field, g.canonical)}</span>` +
                   `<span class="stats-chip-cnt">×${sr.own}</span>` +
-                  _voteBtn(field, g.canonical, synCanons) +
+                  _voteBtn(mf, g.canonical, synCanons) +
                   `</span>`;
       (g.aliases || []).forEach(a => {
         chips += `<span class="stats-chip">` +
@@ -910,7 +913,7 @@
     shownRest.forEach(g => {
       const hasV = g.variants.length > 1;
       const gId  = paneId + '-' + g.origIdx;
-      _renderedGroups[gId] = { aliasField, variants: g.variants };
+      _renderedGroups[gId] = { aliasField: field, variants: g.variants };
       h += `<tr${hasV ? ' class="stats-has-variant"' : ''}>`;
       h += `<td class="stats-val">${_usageSpan(field, g.variants[0].value)}`;
       if (hasV) {
@@ -930,8 +933,8 @@
         h += `<span class="stats-chip">` +
              `<span class="stats-chip-text">${_usageSpan(field, v.value)}</span>` +
              `<span class="stats-chip-cnt">×${v.count}</span>` +
-             _voteBtn(field, v.value, synCanons) +
-             (hasV ? `<button class="stats-excl-chip-btn" onclick="statsExcludeVariant('${_ea(aliasField)}','${_ea(v.value)}')" title="ゆらぎ判定から除外（別物として扱う）">≠</button>` : '') +
+             _voteBtn(mf, v.value, synCanons) +
+             (hasV ? `<button class="stats-excl-chip-btn" onclick="statsExcludeVariant('${_ea(field)}','${_ea(v.value)}')" title="ゆらぎ判定から除外（別物として扱う）">≠</button>` : '') +
              _synBtns(aliasField, v.value, synCanons, synAliasOf, cntMap) +
              `</span>`;
       });
@@ -2408,7 +2411,7 @@
     const labels = { sv: 'サブコン', carrier: 'キャリア', nm: '品名', un: '単位', customer: 'お客様', port: '港' };
 
     // --- マスターを新規登録するフォーム（実データに無い名称も登録可）---
-    const fieldOpts = [['sv', 'サブコン'], ['carrier', 'キャリア'], ['nm', '品名'], ['customer', 'お客様'], ['port', '港'], ['un', '単位']]
+    const fieldOpts = [['sv', 'サブコン'], ['nm', '品名'], ['customer', 'お客様'], ['port', '港'], ['un', '単位']]
       .map(([v, l]) => `<option value="${v}"${v === _masterFieldFilter ? ' selected' : ''}>${l}</option>`).join('');
     const formH = '<div class="master-register-bar"><button type="button" class="master-register-toggle" onclick="statsMasterToggleRegister()">＋ マスターを新規登録</button></div>' +
       '<div class="master-new-form master-register' + (_regOpen ? ' is-open' : '') + '">' +
@@ -2421,7 +2424,10 @@
 
     // --- マスター＋別名の一覧（単位も同じ synonym_groups）---
     const synGroups = (typeof window.synGetGroups === 'function' ? window.synGetGroups() : []).slice();
-    const allSyn = synGroups   // 単位（un）も他の種別と同じクラウドの別名（synonym_groups）
+    // 旧「キャリア」カテゴリは廃止（サブコンへ統合済み）。既存の carrier のマスター・別名・詳細は消さず、一覧には出さない（読み取り専用で残置）
+    if (_masterFieldFilter === 'carrier') _masterFieldFilter = 'all';
+    entries = entries.filter(m => m.field !== 'carrier');
+    const allSyn = synGroups.filter(g => g.field !== 'carrier')   // 単位（un）も他の種別と同じクラウドの別名（synonym_groups）
       .sort((a, b) => (labels[a.field] || a.field).localeCompare(labels[b.field] || b.field) || (a.canonical || '').localeCompare(b.canonical || ''));
     // 統合（A案）: 代表(canonical)は自動的にマスター扱い。個別マスター表からは除外し、
     // 下の「同義グループ（代表＝マスター）」欄に集約表示する（二重表示を避ける）。
@@ -2429,7 +2435,7 @@
     entries = entries.filter(m => !synCanonSet.has(m.field + '\x00' + m.value));
 
     // --- 種別絞り込みチップ（件数＝個別マスター＋同義グループの合算）---
-    const fieldOrder = ['sv', 'carrier', 'nm', 'customer', 'port', 'un'];
+    const fieldOrder = ['sv', 'nm', 'customer', 'port', 'un'];
     const counts = {};
     fieldOrder.forEach(f => { counts[f] = 0; });
     entries.forEach(m => { counts[m.field] = (counts[m.field] || 0) + 1; });
@@ -2528,8 +2534,8 @@
       }
     }
 
-    // キャリアを見ているときだけ：サブコンとの統合に向けた影響範囲の確認（読み取りのみ）
-    if (_masterFieldFilter === 'carrier') chipsH += '<div class="cm-entry"><span>🔀 キャリアはサブコンに統合していく予定です。</span><button type="button" class="cm-entry-btn" onclick="statsShowCarrierMigrationReport()">影響範囲を確認する（読み取りのみ）</button></div>';
+    // サブコンを見ているときだけ：旧「キャリア」から移行できているかの確認（読み取りのみ）
+    if (_masterFieldFilter === 'sv') chipsH += '<div class="cm-entry"><span>🔀 旧「キャリア」のマスターはサブコンに統合しました（元のデータは読み取り専用で残しています）。キャリアは、サブコンの種別（FCL／LCL／AIR／RORO／在来船 CARRIER）で見分けます。</span><button type="button" class="cm-entry-btn" onclick="statsShowCarrierMigrationReport()">移行の状況を確認する（読み取りのみ）</button></div>';
     // 港を見ているときだけ：国がまだ付いていない港へ、国の候補を提案する
     if (_masterFieldFilter === 'port') chipsH += '<div class="cm-entry"><span>🌐 過去の案件で使った港を、国つきで一括登録できます。登録済みの港には、国を自動で付けられます（将来は国ごとのルールを見積で参照できるようにします）。</span><button type="button" class="cm-entry-btn" onclick="statsShowPortCountryAssist()">港を一括登録・国を自動で付ける（候補を確認）</button></div>';
     // 並び順（名前順／種別・タグごと／所属グループごと）。サブコン・キャリアは「所属グループごと」も選べる
