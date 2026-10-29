@@ -2562,11 +2562,8 @@
   };
 
   window.statsToggleMasterDetail = function (field, value, btn) {
-    const tr = btn.closest('tr');
-    if (!tr) return;
-    const next = tr.nextElementSibling;
-    if (next && next.classList.contains('stats-detail-row')) { next.remove(); return; }
-    document.querySelectorAll('.stats-detail-row').forEach(r => r.remove());
+    // 詳細は画面いっぱいに広がらないよう、ポップアップ（モーダル）で開く（2026-10）
+    window.statsCloseMasterDetail();
     const schema = (window.MD_SCHEMA && window.MD_SCHEMA[field]) || [];
     _mdEditField = field;
     const existing = (typeof window.mdGet === 'function') ? window.mdGet(field, value) : null;
@@ -2607,9 +2604,13 @@
         ? `<label class="master-detail-label">${s.label}<textarea id="${id}" class="ar-input master-detail-textarea" rows="2">${_esc(details[s.key] || '')}</textarea></label>`
         : `<label class="master-detail-label">${s.label}<input id="${id}" class="ar-input" type="text" value="${_eav(details[s.key] || '')}"${s.placeholder ? ` placeholder="${_eav(s.placeholder)}"` : ''} /></label>`;
     }).join('');
-    const row = document.createElement('tr');
-    row.className = 'stats-detail-row';
-    row.innerHTML = `<td colspan="${tr.children.length}"><div class="master-detail-form">${fieldsHtml}` +
+    const row = document.createElement('div');
+    row.id = 'mdDetailModal';
+    row.className = 'md-modal-overlay';
+    row.setAttribute('role', 'dialog'); row.setAttribute('aria-modal', 'true');
+    row.innerHTML = `<div class="md-modal"><div class="md-modal-head"><h3>📇 ${_esc(_FIELD_LABEL[field] || field)}　${_esc(value)}</h3>` +
+      `<button type="button" class="md-modal-close" title="閉じる（Esc）" onclick="statsCloseMasterDetail()">✕</button></div>` +
+      `<div class="md-modal-body"><div class="master-detail-form">${fieldsHtml}` +
       `<div class="master-detail-actions">` +
       `<button class="master-detail-save" onclick="statsSaveMasterDetail('${_ea(field)}','${_ea(value)}')">💾 保存</button>` +
       (existing ? `<button class="master-detail-del" onclick="statsDeleteMasterDetail('${_ea(field)}','${_ea(value)}')">削除</button>` : '') +
@@ -2623,8 +2624,10 @@
       `</div>` +
       // お客様：取引ルール（お客様・担当者ごとの決まりごと。customer-rules.js）
       (field === 'customer' ? `<div class="cr-section"><div class="master-attach-hdr"><span>📌 取引ルール（お客様・担当者ごと／チーム共有）</span></div><div class="cr-panel" id="crPanel"></div></div>` : '') +
-      `</td>`;
-    tr.after(row);
+      `</div></div>`;
+    document.body.appendChild(row);
+    document.body.classList.add('md-modal-open');
+    const firstInput = row.querySelector('input,textarea,select'); if (firstInput) firstInput.focus();
     window.statsRefreshMasterAttachments(field, value);
     if (field === 'customer' && typeof window.crMountPanel === 'function') window.crMountPanel(document.getElementById('crPanel'), value);
   };
@@ -2651,6 +2654,15 @@
     }).join('');
   };
 
+  window.statsCloseMasterDetail = function () {
+    const m = document.getElementById('mdDetailModal');
+    if (m) m.remove();
+    document.body.classList.remove('md-modal-open');
+  };
+  // Esc で閉じる（確認ダイアログなど、ほかの前面の表示が出ているときは、そちらを優先）
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape' && document.getElementById('mdDetailModal') && !document.querySelector('.confirm-dialog, .ui-confirm-overlay')) window.statsCloseMasterDetail();
+  });
   window.statsSaveMasterDetail = async function (field, value) {
     const schema = (window.MD_SCHEMA && window.MD_SCHEMA[field]) || [];
     const details = {};
@@ -2692,6 +2704,7 @@
     if (typeof window.quoteShowToast === 'function') window.quoteShowToast('📇 詳細情報を保存しました', 'success');
     if (typeof window.mdRefreshCustomerBtn === 'function') window.mdRefreshCustomerBtn();
     if (typeof window.arRefreshDatalist === 'function') window.arRefreshDatalist();  // ふりがなを入力補完へ即反映
+    window.statsCloseMasterDetail();
     if (typeof window.statsRerenderActive === 'function') window.statsRerenderActive(); else _renderMaster();
   };
 
@@ -2701,6 +2714,7 @@
     if (typeof window.quoteShowToast === 'function') window.quoteShowToast('詳細情報を削除しました');
     if (typeof window.mdRefreshCustomerBtn === 'function') window.mdRefreshCustomerBtn();
     if (typeof window.arRefreshDatalist === 'function') window.arRefreshDatalist();
+    window.statsCloseMasterDetail();
     if (typeof window.statsRerenderActive === 'function') window.statsRerenderActive(); else _renderMaster();
   };
 
