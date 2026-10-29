@@ -526,6 +526,12 @@
         chips.push(`<span class="stats-md-chip" title="${_eav(s.label + '：' + list.length + '名' + (locs.length ? '\n' + locs.join('\n') : ''))}"><b>${_esc(s.label)}</b>${_esc(disp)}${locs.length ? ' 📍' : ''}</span>`);
         return;
       }
+      if (s.children) {
+        const kids = typeof window.mdViaChildren === 'function' ? window.mdViaChildren(value) : [];
+        if (!kids.length) return;
+        chips.push(`<span class="stats-md-chip stats-md-via" title="${_eav('先のお客様：' + kids.join('、'))}"><b>🔗 先のお客様</b>${kids.length}社</span>`);
+        return;
+      }
       if (s.areas) {
         if (!Array.isArray(raw) || !raw.length) return;
         const joined = raw.map(k => window.areaLabel ? window.areaLabel(k) : k).join('、');
@@ -2810,6 +2816,52 @@
     inputEl.focus();
   };
 
+  // 経由する同業者（先のお客様の側で選ぶ・1 社だけ）。候補は取引形態が「同業者」のお客様（自分と自分の先のお客様は除く）
+  function _mdViaSelectHtml(id, s, self, cur) {
+    const banned = new Set([self].concat(typeof window.mdViaDescendants === 'function' ? window.mdViaDescendants(self) : []));
+    const fwd = window.MD_DEAL_FWD;
+    const names = window.statsGetMasters().filter(m => m.field === 'customer').map(m => m.value)
+      .filter(n => !banned.has(n) && (n === cur || ((window.mdGet('customer', n) || { details: {} }).details.dealType === fwd)));
+    if (cur && !names.includes(cur)) names.push(cur);
+    names.sort((a, b) => a.localeCompare(b, 'ja'));
+    const opts = '<option value="">（なし）</option>' + names.map(n => `<option value="${_eav(n)}"${n === cur ? ' selected' : ''}>${_esc(n)}</option>`).join('');
+    return `<label class="master-detail-label">${_esc(s.label)}<select id="${id}" class="ar-select" title="このお客様が、同業者（フォワーダー・代理店）のお客様のときに選びます。1 社だけ選べます">${opts}</select>` +
+      `<span class="master-detail-hint">同業者のお客様として登録されている会社だけが候補です（取引形態を「同業者」にしておきます）</span></label>`;
+  }
+  // 先のお客様（同業者の側で、その同業者のお客様を足す・外す）。すでに別の同業者に付いているお客様は候補に出さない（重複を防ぐ）
+  function _mdViaChipHtml(name) { return `<span class="stats-md-tag-chip stats-md-via-chip" data-name="${_eav(name)}">${_esc(name)}<button type="button" onclick="this.parentElement.remove()">✕</button></span>`; }
+  function _mdViaChildrenHtml(id, s, self) {
+    const kids = typeof window.mdViaChildren === 'function' ? window.mdViaChildren(self) : [];
+    return `<div class="master-detail-via"><span class="master-detail-contacts-label">${_esc(s.label)}</span>` +
+      `<div id="${id}" class="master-tags-editor">${kids.map(_mdViaChipHtml).join('')}</div>` +
+      `<span class="stats-syn-add-alias"><input type="text" class="stats-syn-add-input" id="${id}_input" list="${id}_list" placeholder="お客様の名前を選んで追加" autocomplete="off" onkeydown="if(event.key==='Enter'){event.preventDefault();statsAddViaChild('${_ea(id)}','${_ea(self)}');}">` +
+      `<datalist id="${id}_list">${_viaCandidates(self).map(n => `<option value="${_eav(n)}">`).join('')}</datalist>` +
+      `<button type="button" class="stats-syn-add-btn" onclick="statsAddViaChild('${_ea(id)}','${_ea(self)}')">＋</button></span>` +
+      `<span class="master-detail-hint">先のお客様は 1 つの同業者にしか付けられません（すでに別の同業者に付いているお客様は出ません）。先がさらに同業者でも構いません</span></div>`;
+  }
+  function _viaCandidates(self) {
+    const chain = new Set(typeof window.mdViaChain === 'function' ? window.mdViaChain(self) : []);
+    return window.statsGetMasters().filter(m => m.field === 'customer').map(m => m.value).filter(n => {
+      if (n === self || chain.has(n)) return false;
+      const r = window.mdGet('customer', n); const v = r && r.details && r.details.via;
+      return !v || v === self;
+    }).sort((a, b) => a.localeCompare(b, 'ja'));
+  }
+  window.statsAddViaChild = function (id, self) {
+    const inp = document.getElementById(id + '_input'), wrap = document.getElementById(id);
+    if (!inp || !wrap) return;
+    const n = inp.value.trim(); if (!n) return;
+    const warn = m => { if (typeof window.quoteShowToast === 'function') window.quoteShowToast(m, 'warn', 5000); };
+    const known = window.statsGetMasters().some(m => m.field === 'customer' && m.value === n);
+    if (!known) { warn('「' + n + '」はお客様のマスターにありません。先にマスターへ登録してください'); return; }
+    if (n === self) { warn('自分自身は先のお客様にできません'); return; }
+    const r = window.mdGet('customer', n); const v = r && r.details && r.details.via;
+    if (v && v !== self) { warn('「' + n + '」はすでに「' + v + '」の先のお客様です（1 つの同業者にしか付けられません）'); return; }
+    if (window.mdViaChain(self).includes(n)) { warn('「' + n + '」は、この同業者の上位にあたるため先のお客様にできません'); return; }
+    if (!Array.from(wrap.querySelectorAll('.stats-md-via-chip')).some(c => c.dataset.name === n)) wrap.insertAdjacentHTML('beforeend', _mdViaChipHtml(n));
+    inp.value = '';
+  };
+
   window.statsToggleMasterDetail = function (field, value, btn) {
     // 詳細は画面いっぱいに広がらないよう、ポップアップ（モーダル）で開く（2026-10）
     window.statsCloseMasterDetail();
@@ -2831,6 +2883,8 @@
           `</div>`;
       }
       if (s.areas) return _mdAreasEditorHtml(id, s, Array.isArray(details[s.key]) ? details[s.key] : []);
+      if (s.via) return _mdViaSelectHtml(id, s, value, details[s.key] || '');
+      if (s.children) return _mdViaChildrenHtml(id, s, value);
       if (s.tags) {
         const list = Array.isArray(details[s.key]) ? details[s.key] : [];
         const chips = list.map(t => `<span class="stats-md-tag-chip">${_esc(t)}<button type="button" onclick="this.parentElement.remove()">✕</button></span>`).join('');
@@ -2948,6 +3002,7 @@
         if (rows.length) details[s.key] = rows;
         return;
       }
+      if (s.children) return;   // 先のお客様は、先のお客様の側（via）に保存する（下で反映）
       if (s.areas) {
         const keys = Array.from(document.querySelectorAll('#' + id + ' .stats-md-area-chip')).map(c => c.dataset.area).filter(Boolean);
         if (keys.length) details[s.key] = keys;
@@ -2972,9 +3027,31 @@
       }
       if (v) details[s.key] = v;
     });
+    // 先のお客様（同業者の側の編集）：先のお客様が 1 社でもいれば、取引形態が空なら「同業者」にする
+    let viaAdd = [], viaDel = [];
+    const viaWrap = field === 'customer' ? document.getElementById('md_viaChildren') : null;
+    if (viaWrap) {
+      const now = Array.from(viaWrap.querySelectorAll('.stats-md-via-chip')).map(c => c.dataset.name).filter(Boolean);
+      const old = window.mdViaChildren(value);
+      viaAdd = now.filter(n => !old.includes(n)); viaDel = old.filter(n => !now.includes(n));
+      if (now.length && !details.dealType) details.dealType = window.MD_DEAL_FWD;
+      if (details.via && now.includes(details.via)) { if (typeof window.quoteShowToast === 'function') window.quoteShowToast('「経由する同業者」と「先のお客様」が同じ会社になっています', 'warn', 5000); return; }
+    }
     // 保存できなかったときは（理由は mdSave が画面に出す）入力中のフォームを残し、「保存しました」とは出さない
     const saved = typeof window.mdSave === 'function' ? await window.mdSave(field, value, details) : false;
     if (!saved) return;
+    if (viaAdd.length || viaDel.length) {
+      const chain = window.mdViaChain(value);
+      const items = [], skipped = [];
+      viaAdd.forEach(n => {
+        const cur = (window.mdGet('customer', n) || { details: {} }).details || {};
+        if ((cur.via && cur.via !== value) || chain.includes(n)) { skipped.push(n); return; }   // 保存の直前に、ほかで付けられた・上位だった
+        items.push({ value: n, details: Object.assign({}, cur, { via: value }) });
+      });
+      viaDel.forEach(n => { const cur = Object.assign({}, (window.mdGet('customer', n) || { details: {} }).details || {}); delete cur.via; items.push({ value: n, details: cur }); });
+      if (items.length) await window.mdSaveMany('customer', items);
+      if (skipped.length && typeof window.quoteShowToast === 'function') window.quoteShowToast('⚠ ' + skipped.join('、') + ' は、ほかの同業者に付いている（または上位）のため付けませんでした', 'warn', 6000);
+    }
     if (typeof window.quoteShowToast === 'function') window.quoteShowToast('📇 詳細情報を保存しました', 'success');
     if (typeof window.mdRefreshCustomerBtn === 'function') window.mdRefreshCustomerBtn();
     if (typeof window.arRefreshDatalist === 'function') window.arRefreshDatalist();  // ふりがなを入力補完へ即反映
