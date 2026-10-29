@@ -490,6 +490,10 @@
       }
       const v = String(raw || '').trim();
       if (!v) return;
+      if (s.country) {
+        chips.push(`<span class="stats-md-chip stats-md-country" title="${_eav(s.label + '：' + (window.countryLabel ? window.countryLabel(v) : v))}"><b>🌐 ${_esc(s.label)}</b>${_esc(window.countryJa ? window.countryJa(v) : v)}</span>`);
+        return;
+      }
       if (s.link) {
         // ウェブサイトはクリックで開けるリンクチップ（http/https のみ。それ以外の形式はリンクにしない）
         const href = /^https?:\/\//i.test(v) ? v : (/^[a-z][a-z0-9+.\-]*:/i.test(v) ? '' : 'https://' + v);
@@ -2245,11 +2249,13 @@
   const _SV_NONE = '\u0000none';
   window.statsMasterSetSvType = function (t) { _masterSvType = t || ''; _renderMaster(); };
   // 詳細の「種別・タグ」で絞り込める種別（サブコン＝サブコン種別、お客様＝タグ）
-  const _SUB_FILTER = { sv: { key: 'svTypes', label: '種別' }, customer: { key: 'tags', label: 'タグ' } };
+  const _SUB_FILTER = { sv: { key: 'svTypes', label: '種別' }, customer: { key: 'tags', label: 'タグ' }, port: { key: 'country', label: '国', country: true } };
+  const _subLabel = (field, t) => (_SUB_FILTER[field] && _SUB_FILTER[field].country && typeof window.countryLabel === 'function') ? window.countryLabel(t) : t;
   const _svTypesOf = (v, field) => {
     const f = _SUB_FILTER[field || _masterFieldFilter];
     const rec = f && typeof window.mdGet === 'function' ? window.mdGet(field || _masterFieldFilter, v) : null;
     const t = rec && rec.details && rec.details[f.key];
+    if (typeof t === 'string') return t.trim() ? [t.trim().toUpperCase().length === 2 ? t.trim().toUpperCase() : t.trim()] : [];   // 国（1 つだけ・国コード）
     return Array.isArray(t) ? t.filter(Boolean) : [];
   };
   // 担当者名は入力では敬称略。表示するときは「様」を付ける（既に敬称があれば付けない）
@@ -2390,7 +2396,7 @@
       if (typeCnt.size) {
         chipsH += '<div class="master-filter-chips master-type-chips"><span class="master-type-chips-label">' + _SUB_FILTER[_masterFieldFilter].label + '：</span>' +
           tchip('', 'すべて', svNames.length) +
-          [...typeCnt.keys()].sort().map(t => tchip(t, t, typeCnt.get(t))).join('') +
+          [...typeCnt.keys()].sort((a, b) => _subLabel(_masterFieldFilter, a).localeCompare(_subLabel(_masterFieldFilter, b), 'ja')).map(t => tchip(t, _subLabel(_masterFieldFilter, t), typeCnt.get(t))).join('') +
           (noneCnt ? tchip(_SV_NONE, '未設定', noneCnt) : '') + '</div>';
       }
       if (_masterSvType) {
@@ -2402,6 +2408,8 @@
 
     // キャリアを見ているときだけ：サブコンとの統合に向けた影響範囲の確認（読み取りのみ）
     if (_masterFieldFilter === 'carrier') chipsH += '<div class="cm-entry"><span>🔀 キャリアはサブコンに統合していく予定です。</span><button type="button" class="cm-entry-btn" onclick="statsShowCarrierMigrationReport()">影響範囲を確認する（読み取りのみ）</button></div>';
+    // 港を見ているときだけ：国がまだ付いていない港へ、国の候補を提案する
+    if (_masterFieldFilter === 'port') chipsH += '<div class="cm-entry"><span>🌐 港に「国」を付けると、国ごとに整理できます（将来は国ごとのルールを見積で参照できるようにします）。</span><button type="button" class="cm-entry-btn" onclick="statsShowPortCountryAssist()">国を自動で付ける（候補を確認）</button></div>';
     // 並び順（名前順／種別・タグごと／所属グループごと）。サブコン・キャリアは「所属グループごと」も選べる
     const _hasGroup = _masterFieldFilter === 'sv' || _masterFieldFilter === 'carrier';
     if (_SUB_FILTER[_masterFieldFilter] || _hasGroup) {
@@ -2485,7 +2493,7 @@
         t.forEach(x => { if (_masterSvType && _masterSvType !== _SV_NONE && x !== _masterSvType) return; if (!groups.has(x)) groups.set(x, []); groups.get(x).push(r); });
       });
       const head = (label, n) => `<tr class="master-tag-group-row"><td colspan="4"><span class="mtg-name">🏷 ${_esc(label)}</span><span class="mtg-count">${n}件</span></td></tr>`;
-      [...groups.entries()].sort((a, b) => b[1].length - a[1].length || a[0].localeCompare(b[0])).forEach(([t, list]) => { h += head(t, list.length); list.forEach(_emitRow); });
+      [...groups.entries()].sort((a, b) => b[1].length - a[1].length || a[0].localeCompare(b[0])).forEach(([t, list]) => { h += head(_subLabel(_masterFieldFilter, t), list.length); list.forEach(_emitRow); });
       if (none.length) { h += head(_SUB_FILTER[_masterFieldFilter].label + 'なし', none.length); none.forEach(_emitRow); }
     } else if (_masterSort === 'group' && _hasGroup) {
       // 所属グループごとにまとめる（傘下の会社を 1 つの見出しの下に。グループなしは最後）
@@ -2663,6 +2671,13 @@
           `<option value="${_eav(o.value)}"${o.value === cur ? ' selected' : ''}>${_esc(o.label)}</option>`).join('');
         return `<label class="master-detail-label">${s.label}<select id="${id}" class="ar-select">${opts}</select></label>`;
       }
+      if (s.country) {
+        // 国：候補（国名＋国コード）から選ぶ。保存は国コード。表示は日本語名
+        const cur = details[s.key] || '';
+        const opts = (window.COUNTRY_LIST || []).map(c => `<option value="${_eav(c.ja + '（' + c.code + '）')}">${_esc(c.en)}</option>`).join('');
+        return `<label class="master-detail-label">${s.label}<input id="${id}" class="ar-input" type="text" list="${id}_list" value="${_eav(cur ? (window.countryLabel ? window.countryLabel(cur) : cur) : '')}"${s.placeholder ? ` placeholder="${_eav(s.placeholder)}"` : ''} autocomplete="off" />` +
+          `<datalist id="${id}_list">${opts}</datalist></label>`;
+      }
       if (s.suggest) {
         // 入力済みの値を候補に出す（所属グループなど。表記ゆれを防ぐ）
         const used = new Set();
@@ -2765,7 +2780,12 @@
       }
       const el = document.getElementById(id);
       if (!el) return;
-      const v = (el.value || '').trim();
+      let v = (el.value || '').trim();
+      if (v && s.country) {
+        const c = typeof window.findCountry === 'function' ? window.findCountry(v) : null;
+        if (c) v = c.code;
+        else if (typeof window.quoteShowToast === 'function') window.quoteShowToast('⚠️ 「' + v + '」は国の候補にありません。そのまま保存します（候補から選ぶと国ごとの整理に使えます）', 'warn', 6000);
+      }
       if (v) details[s.key] = v;
     });
     // 保存できなかったときは（理由は mdSave が画面に出す）入力中のフォームを残し、「保存しました」とは出さない
@@ -3252,6 +3272,47 @@
       `<table class="stats-table cm-table"><thead><tr><th>キャリア（マスター名）</th><th>分類</th><th class="stats-num-col">別名</th><th class="stats-num-col">使用</th><th>サブコン側との関係</th><th>種別の見込み</th></tr></thead><tbody>${r.items.map(line).join('') || '<tr><td colspan="6">キャリアのマスターはありません。</td></tr>'}</tbody></table>` +
       `<p class="stats-syn-hint">統計の集計軸（キャリア別／サブコン別）は、段階 3 で見直すまで変わりません。この画面は確認だけで、データは変更しません。</p>` +
       (typeof window.cmShowPlan === 'function' ? `<div class="cm-run"><button type="button" class="cm-plan-btn" onclick="cmShowPlan()">移行の変更一覧を見る（実行前の確認）</button></div>` : '');
+  };
+
+  // 港の「国」を、港の名前から推測して提案する（確認してから反映。すでに国がある港は触らない）
+  window.statsShowPortCountryAssist = async function () {
+    if (typeof window.guessPortCountry !== 'function') return;
+    const old = document.getElementById('pcAssistModal'); if (old) old.remove();
+    const wrap = document.createElement('div');
+    wrap.id = 'pcAssistModal'; wrap.className = 'md-modal-overlay'; wrap.setAttribute('role', 'dialog'); wrap.setAttribute('aria-modal', 'true');
+    wrap.innerHTML = '<div class="md-modal"><div class="md-modal-head"><h3>🌐 港の国を自動で付ける（候補）</h3><button type="button" class="md-modal-close" title="閉じる" onclick="document.getElementById(\'pcAssistModal\').remove()">✕</button></div><div class="md-modal-body"><p>確認中…</p></div></div>';
+    document.body.appendChild(wrap);
+    const body = wrap.querySelector('.md-modal-body');
+    if (typeof window.mdLoadCloud === 'function') await window.mdLoadCloud();
+    const names = new Set(window.statsGetMasters().filter(m => m.field === 'port').map(m => m.value));
+    (typeof window.synGetGroups === 'function' ? window.synGetGroups('port') : []).forEach(g => names.add(g.canonical));
+    const rows = [...names].sort((a, b) => a.localeCompare(b, 'ja')).map(n => {
+      const d = (typeof window.mdGet === 'function' && window.mdGet('port', n)) || null;
+      const have = d && d.details && d.details.country;
+      return { name: n, have: have || '', guess: have ? '' : (window.guessPortCountry(n) || '') };
+    });
+    const todo = rows.filter(r => r.guess), unknown = rows.filter(r => !r.have && !r.guess), done = rows.filter(r => r.have);
+    body.innerHTML =
+      `<p>港のマスター <b>${rows.length}</b> 件：国が付いている <b>${done.length}</b>／提案できる <b>${todo.length}</b>／候補なし（手動で付けてください）<b>${unknown.length}</b></p>` +
+      `<table class="stats-table cm-table"><thead><tr><th></th><th>港</th><th>提案する国</th></tr></thead><tbody>` +
+      (todo.map((r, i) => `<tr><td><input type="checkbox" class="pc-chk" data-i="${i}" checked></td><td>${_esc(r.name)}</td><td>${_esc(window.countryLabel(r.guess))}</td></tr>`).join('') || '<tr><td colspan="3">提案できる港はありません。</td></tr>') +
+      `</tbody></table>` +
+      (unknown.length ? `<p class="stats-syn-hint">候補なし：${unknown.map(r => _esc(r.name)).join('、')}</p>` : '') +
+      `<div class="cm-run"><button type="button" class="master-detail-save" id="pcApplyBtn"${todo.length ? '' : ' disabled'}>チェックした港に国を付ける</button><span id="pcApplyMsg"></span></div>` +
+      `<p class="stats-syn-hint">提案は港の名前からの推測です。違うものはチェックを外してください。反映後も、各港の「詳細」でいつでも変更できます。</p>`;
+    const btn = body.querySelector('#pcApplyBtn');
+    if (btn) btn.addEventListener('click', async () => {
+      btn.disabled = true;
+      const picks = [...body.querySelectorAll('.pc-chk')].filter(c => c.checked).map(c => todo[+c.dataset.i]);
+      let ok = 0, ng = 0;
+      for (const r of picks) {
+        const cur = (window.mdGet('port', r.name) || {}).details || {};
+        if (cur.country) continue;
+        (await window.mdSave('port', r.name, Object.assign({}, cur, { country: r.guess }))) ? ok++ : ng++;
+      }
+      body.querySelector('#pcApplyMsg').textContent = '　✅ ' + ok + ' 件に国を付けました' + (ng ? '（失敗 ' + ng + ' 件）' : '');
+      if (typeof window.statsRerenderActive === 'function') window.statsRerenderActive();
+    });
   };
 
   window.statsRefresh = async function () {

@@ -5693,3 +5693,4 @@ body.md-modal-open { overflow: hidden; }
 .cm-table .cm-decide td { background: #fdecea; }
 .cm-na { color: #9aa6b2; }
 .cm-run { margin: 12px 0 4px; display: flex; align-items: center; gap: 10px; }
+.stats-md-country { background: #eef6ee; border-color: #b5d3b5; color: #2f5d2f; }
