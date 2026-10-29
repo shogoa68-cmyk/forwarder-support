@@ -3250,7 +3250,8 @@
       `<li>過去案件での使用件数（キャリアとして）：<b>${r.usageKnown ? r.usageTotal : '未集計'}</b>　／　サブコンのマスター：<b>${r.svMasters}</b>件</li>` +
       `<li>サブコン種別を自動で付けられる見込み（ブックマークの種別から）：<b>${r.typeKnown}</b>社　／　判定できず手動：<b>${r.typeUnknown}</b>社</li></ul>` +
       `<table class="stats-table cm-table"><thead><tr><th>キャリア（マスター名）</th><th>分類</th><th class="stats-num-col">別名</th><th class="stats-num-col">使用</th><th>サブコン側との関係</th><th>種別の見込み</th></tr></thead><tbody>${r.items.map(line).join('') || '<tr><td colspan="6">キャリアのマスターはありません。</td></tr>'}</tbody></table>` +
-      `<p class="stats-syn-hint">統計の集計軸（キャリア別／サブコン別）は、段階 3 で見直すまで変わりません。この画面は確認だけで、データは変更しません。</p>`;
+      `<p class="stats-syn-hint">統計の集計軸（キャリア別／サブコン別）は、段階 3 で見直すまで変わりません。この画面は確認だけで、データは変更しません。</p>` +
+      (typeof window.cmShowPlan === 'function' ? `<div class="cm-run"><button type="button" class="cm-plan-btn" onclick="cmShowPlan()">移行の変更一覧を見る（実行前の確認）</button></div>` : '');
   };
 
   window.statsRefresh = async function () {

@@ -872,6 +872,51 @@ const http = require('http'), fs = require('fs'), path = require('path');
     await ctx.close();
   }
 
+  // ===== キャリア→サブコン統合・段階 2：変更一覧と移行の実行（管理者のみ・元のキャリアは残す・何度でも安全） =====
+  {
+    const { ctx, p, errs } = await open(true, { legacy: {}, noLegacy: true, role: 'admin' });
+    const L = '[キャリア移行] ';
+    await p.evaluate(async () => {
+      const v = (f, n) => window.__db.master_votes.push({ field: f, value: n, voter_email: 's@example.com' });
+      v('carrier', 'ONE'); v('carrier', 'Yang Ming'); v('carrier', 'MSC'); v('carrier', 'HMM');
+      v('sv', 'YANG MING'); v('sv', 'Mediterranean'); v('sv', '通関X'); v('sv', 'HMM');
+      window.__db.synonym_groups.push({ id: 'c1', field: 'carrier', canonical: 'MSC', aliases: ['Mediterranean'] });
+      window.__db.synonym_groups.push({ id: 'c2', field: 'carrier', canonical: 'ONE', aliases: ['Ocean Network Express'] });
+      window.__db.master_details.push({ field: 'carrier', value: 'Yang Ming', details: { enName: 'Yang Ming Marine', group: 'YM' } });
+      window.__db.master_details.push({ field: 'sv', value: 'YANG MING', details: { enName: 'YML', svTypes: ['FCL CARRIER'] } });
+      window.__db.master_details.push({ field: 'carrier', value: 'ONE', details: { enName: 'Ocean Network Express Pte' } });
+      window.bmCarrierNamesForType = t => t === 'FCL' ? ['ONE', 'Yang Ming', 'MSC', 'HMM'] : [];
+      await statsLoadMasterCache(); await synLoadCloud(); await mdLoadCloud();
+    });
+    const snap = () => p.evaluate(() => JSON.stringify(window.__db.master_votes.filter(x => x.field === 'carrier')));
+    const carrierBefore = await snap();
+    const plan = await p.evaluate(() => cmBuildPlan());
+    const by = n => plan.steps.find(x => x.carrier === n) || {};
+    ok(L + '変更一覧：ONE は新規登録・種別 FCL CARRIER・別名とその詳細を引き継ぐ', by('ONE').create && by('ONE').addTypes.includes('FCL CARRIER') && by('ONE').addAliases.includes('Ocean Network Express') && by('ONE').fillKeys.includes('enName'), by('ONE'));
+    ok(L + '変更一覧：Yang Ming は YANG MING へ合流（空欄のグループだけ補い、英語名称は食い違いでも上書きしない・別名を足す）', by('Yang Ming').target === 'YANG MING' && by('Yang Ming').fillKeys.join() === 'group' && by('Yang Ming').addAliases.includes('Yang Ming') && !by('Yang Ming').addTypes.length, by('Yang Ming'));
+    ok(L + '変更一覧：MSC は別名が一致する Mediterranean へ合流し、MSC を別名に足す', by('MSC').target === 'Mediterranean' && by('MSC').addAliases.includes('MSC'), by('MSC'));
+    ok(L + '変更一覧：サブコンに同じ HMM があれば新規は作らず、種別だけ足す', by('HMM').target === 'HMM' && !by('HMM').create && by('HMM').addTypes.includes('FCL CARRIER'), by('HMM'));
+    // 管理者でないと実行できない
+    const noAdmin = await p.evaluate(async () => { const keep = window._myRole; window._myRole = 'member'; const r = await cmExecute({ backup: false }); window._myRole = keep; return r; });
+    ok(L + '管理者でなければ実行できない', noAdmin.ok === false && noAdmin.reason === 'not-admin', noAdmin);
+    const run = await p.evaluate(() => cmExecute({ backup: false }));
+    ok(L + '実行できて、残りは 0', run.ok && run.applied === plan.steps.length && run.remaining === 0 && run.fail.length === 0, run);
+    const st = await p.evaluate(() => ({
+      svVotes: window.__db.master_votes.filter(x => x.field === 'sv').map(x => x.value),
+      one: (window.__db.master_details.find(d => d.field === 'sv' && d.value === 'ONE') || {}).details,
+      ym: (window.__db.master_details.find(d => d.field === 'sv' && d.value === 'YANG MING') || {}).details,
+      grp: window.__db.synonym_groups.filter(g => g.field === 'sv').map(g => g.canonical + ':' + (g.aliases || []).join('|')),
+    }));
+    ok(L + 'ONE がサブコンのマスターになり、種別・詳細が入る', st.svVotes.includes('ONE') && st.one && st.one.svTypes.includes('FCL CARRIER') && st.one.enName === 'Ocean Network Express Pte', st);
+    ok(L + 'YANG MING：グループを補い、英語名称は元のまま', st.ym && st.ym.group === 'YM' && st.ym.enName === 'YML', st.ym);
+    ok(L + '別名が入る（YANG MING←Yang Ming、Mediterranean←MSC、ONE←Ocean Network Express）', st.grp.some(g => g.startsWith('YANG MING:') && g.includes('Yang Ming')) && st.grp.some(g => g.startsWith('Mediterranean:') && g.includes('MSC')) && st.grp.some(g => g.startsWith('ONE:') && g.includes('Ocean Network Express')), st.grp);
+    ok(L + '元のキャリアのマスターは残る', await snap() === carrierBefore);
+    const again = await p.evaluate(() => cmExecute({ backup: false }));
+    ok(L + 'もう一度実行しても、変更なし（二重にならない）', again.ok && again.applied === 0 && again.remaining === 0, again);
+    ok(L + 'JS エラーなし', errs.length === 0, errs);
+    await ctx.close();
+  }
+
   // ===== 承認制：別名の追加（メンバーは申請・管理者が承認）／詳細の合流／添付の集約 =====
   {
     const { ctx, p, errs } = await open(true, { approval: true, role: 'member', noLegacy: true });
