@@ -493,6 +493,7 @@
   }
   window.arRefreshDatalist = function () {
     _refreshDatalist.apply(this, arguments);
+    if (typeof window.qfRefreshCarrierMasterCandidates === 'function') window.qfRefreshCarrierMasterCandidates();   // サブコンのマスター（種別がキャリア）を幹線輸送のキャリア候補へ
     if (typeof window.refreshAllRowSvChips === 'function') window.refreshAllRowSvChips();   // マスターが読み込まれた・変わったら、行の「サブコン未登録」の印も更新
   };
 
@@ -1493,6 +1494,18 @@
   const _FURIGANA_FIELD = { key: 'furigana', label: 'ふりがな', placeholder: '例）かいじょううんちん（読みで入力補完にヒットします）' };
   // 英語名称（全種別共通キー enName。品名は PDF 英語出力でも使う）
   const _EN_FIELD = { key: 'enName', label: '英語名称', placeholder: '例）ABC Trading Co., Ltd.（英字入力でも入力補完にヒットします）' };
+  // サブコン種別のうち「キャリア」にあたるものと、ブックマークの種別（bookmarks.carrier_type）の対応（統合の段階 1）。
+  // 幹線輸送のキャリア候補・ブックマークの会社名候補・「🔖 BOOKMARK」の表示を、サブコンのマスターから取るために使う
+  const _CARRIER_SVTYPE = { FCL: 'FCL CARRIER', LCL: 'LCL CARRIER', AIR: 'AIR CARRIER', RORO: 'RORO CARRIER', BREAKBULK: '在来船 CARRIER' };
+  const _normType = t => String(t || '').replace(/[\s　]+/g, ' ').trim().toUpperCase();
+  window.mdIsCarrierType = t => Object.values(_CARRIER_SVTYPE).some(v => _normType(v) === _normType(t));
+  // サブコンのマスターのうち、種別がキャリア系のもの（type を渡すと、そのブックマーク種別（FCL/LCL/AIR/RORO/BREAKBULK）に絞る）
+  window.mdCarrierNames = function (type) {
+    const want = type ? _normType(_CARRIER_SVTYPE[type]) : null;
+    if (type && !want) return [];
+    return _mdAll().filter(m => m.field === 'sv' && Array.isArray(m.details && m.details.svTypes) &&
+      m.details.svTypes.some(t => want ? _normType(t) === want : window.mdIsCarrierType(t))).map(m => m.value).sort((a, b) => a.localeCompare(b, 'ja'));
+  };
   // 所属グループ（グループ傘下の別会社をつなぐ。1 つだけ。入力済みのグループ名が候補に出る）：例）CMA CGM グループ
   const _GROUP_FIELD = { key: 'group', label: '所属グループ', suggest: true, placeholder: '例）CMA CGM グループ（グループ傘下の会社を同じ名前でつなげます）' };
   window.MD_SCHEMA = {
@@ -1528,7 +1541,7 @@
       _EN_FIELD,
       // 種別（複数選べる。ひな形のほか、自由に追加した種別はチーム内で候補に出る）
       { key: 'svTypes', label: 'サブコン種別', tags: true, addPlaceholder: '種別を追加（例：トラック手配）',
-        presets: ['通関業者', '倉庫業者', '運送業者', 'FCL CARRIER', 'LCL CARRIER', 'AIR CARRIER', '海外代理店', '保険会社', 'サーベイヤー'] },
+        presets: ['通関業者', '倉庫業者', '運送業者', 'FCL CARRIER', 'LCL CARRIER', 'AIR CARRIER', 'RORO CARRIER', '在来船 CARRIER', '海外代理店', '保険会社', 'サーベイヤー'] },
       _GROUP_FIELD,
     ],
     carrier: [_FURIGANA_FIELD, _EN_FIELD, _GROUP_FIELD],

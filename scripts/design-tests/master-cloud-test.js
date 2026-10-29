@@ -815,6 +815,31 @@ const http = require('http'), fs = require('fs'), path = require('path');
     await ctx.close();
   }
 
+  // ===== サブコンとキャリアの統合（段階 1）：サブコンのマスター（種別がキャリア）を、キャリア候補・ブックマークの会社名候補に出す =====
+  {
+    const { ctx, p, errs } = await open(true, { legacy: {}, noLegacy: true });
+    const L = '[キャリアの候補] ';
+    await p.evaluate(async () => {
+      const add = (v, t) => { window.__db.master_votes.push({ field: 'sv', value: v, voter_email: 's@example.com' }); window.__db.master_details.push({ field: 'sv', value: v, details: { svTypes: t } }); };
+      add('ABC LINE', ['FCL CARRIER']); add('山田海運', ['RORO CARRIER']); add('北星在来', ['在来船 CARRIER']); add('通関X', ['通関業者']); add('兼業社', ['通関業者', 'AIR CARRIER']);
+      await statsLoadMasterCache(); await mdLoadCloud();
+    });
+    const names = t => p.evaluate(x => mdCarrierNames(x), t);
+    const all = await names();
+    ok(L + '種別がキャリア系のサブコンだけが対象（通関業者は含まない）', all.includes('ABC LINE') && all.includes('山田海運') && all.includes('北星在来') && all.includes('兼業社') && !all.includes('通関X'), all);
+    ok(L + 'ブックマーク種別ごとに絞れる（FCL／RORO／在来船／AIR）', (await names('FCL')).join() === 'ABC LINE' && (await names('RORO')).join() === '山田海運' && (await names('BREAKBULK')).join() === '北星在来' && (await names('AIR')).join() === '兼業社');
+    ok(L + 'サブコン種別のひな形に RORO CARRIER と 在来船 CARRIER がある', await p.evaluate(() => { const s = MD_SCHEMA.sv.find(x => x.key === 'svTypes'); return s.presets.includes('RORO CARRIER') && s.presets.includes('在来船 CARRIER'); }));
+    await p.evaluate(() => qfRefreshCarrierMasterCandidates('RORO'));
+    let opts = await p.evaluate(() => [...document.querySelectorAll('#carriers-dl option')].map(o => o.value));
+    ok(L + '幹線輸送のキャリア候補（RORO のとき）にサブコンのマスターが出る', opts.includes('山田海運') && !opts.includes('ABC LINE'), opts.slice(-6));
+    await p.evaluate(() => qfRefreshCarrierMasterCandidates('FCL'));
+    opts = await p.evaluate(() => [...document.querySelectorAll('#carriers-dl option')].map(o => o.value));
+    ok(L + '輸送モードを変えると候補も入れ替わる（FCL のとき）', opts.includes('ABC LINE') && !opts.includes('山田海運'), opts.slice(-6));
+    ok(L + 'キャリア系の判定（在来船 CARRIER・大文字小文字）', await p.evaluate(() => mdIsCarrierType('在来船 CARRIER') && mdIsCarrierType('roro  carrier') && !mdIsCarrierType('通関業者')));
+    ok(L + 'JS エラーなし', errs.length === 0, errs);
+    await ctx.close();
+  }
+
   // ===== 承認制：別名の追加（メンバーは申請・管理者が承認）／詳細の合流／添付の集約 =====
   {
     const { ctx, p, errs } = await open(true, { approval: true, role: 'member', noLegacy: true });
