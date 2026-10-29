@@ -143,6 +143,8 @@ html.mode-simple #tab-quote-make .tier-opt-toggle:hover { background: var(--acce
 html.mode-simple #tab-quote-make .tier-opt-caret { font-size: var(--fs-10); }
 
 /* 任意セクション（作業範囲・全体リマーク）：畳んで要約だけ。見出しクリックで開閉 */
+/* メモが隠れているとき（かんたん表示・詳細（任意）を閉じている間）は、取引ルールの帯を全幅に（右が空くので）。メモが出ているときは左カラム（メモの左横） */
+html.mode-simple #tab-quote-make #refBody:not(.tier-opt-open) .quote-header:not(:has(.quote-field-memo[data-adv-inuse])) .cr-banner { grid-column: 1 / -1; }
 html.mode-simple #tab-quote-make .is-collapsible[data-tier="opt"] .section-caret { display: inline; font-size: var(--fs-11); color: var(--text-muted); }
 html.mode-simple #tab-quote-make .is-collapsible[data-tier="opt"] > .section-toggle-head { cursor: pointer; }
 html.mode-simple #tab-quote-make .is-collapsible[data-tier="opt"]:not(.collapsed) .section-collapsed-summary { display: none; }
