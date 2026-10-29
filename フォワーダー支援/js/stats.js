@@ -426,6 +426,19 @@
     await _loadCloudVotes();
   }
 
+  // 多数の名称をまとめてマスターに登録する（1 回の書き込み＋1 回の読み直し）。承認制のメンバーは、1 件ずつ申請になる
+  window.statsEnsureMasterMany = async function (field, names) {
+    names = [...new Set((names || []).filter(Boolean))].filter(n => !(_voteInfo(field, n).total > 0));
+    if (!names.length) return { done: 0, requested: 0, failed: 0 };
+    if (!_cloud()) { if (typeof window.masterNeedCloud === 'function') window.masterNeedCloud(); return { done: 0, requested: 0, failed: names.length }; }
+    if (_approvalOn() && !_isAdmin()) { for (const n of names) await _request(field, n); return { done: 0, requested: names.length, failed: 0 }; }
+    const me = _me();
+    const { error } = await _c().from(VOTES_TABLE).upsert(names.map(value => ({ field, value, voter_email: me })), { onConflict: 'field,value,voter_email' });
+    if (error) { _toast('マスター登録に失敗しました: ' + error.message, 'warn', 7000); return { done: 0, requested: 0, failed: names.length }; }
+    await _loadCloudVotes();
+    return { done: names.length, requested: 0, failed: 0 };
+  };
+
   async function _demote(field, value) {
     if (!_cloud()) { if (typeof window.masterNeedCloud === 'function') window.masterNeedCloud(); return; }
     const c = _c(), me = _me();
@@ -3313,19 +3326,28 @@
     if (all) all.addEventListener('change', () => body.querySelectorAll('.pc-chk').forEach(c => { c.checked = all.checked; }));
     const btn = body.querySelector('#pcApplyBtn');
     if (btn) btn.addEventListener('click', async () => {
-      btn.disabled = true;
-      const picks = [...body.querySelectorAll('.pc-chk')].filter(c => c.checked).map(c => ({ r: rows[+c.dataset.i], text: body.querySelector('.pc-country[data-i="' + c.dataset.i + '"]').value.trim() }));
-      let reg = 0, set = 0, ng = 0, bad = 0;
-      for (const { r, text } of picks) {
-        if (!r.isMaster && typeof window.statsEnsureMaster === 'function') { await window.statsEnsureMaster('port', r.name); reg++; }
-        const c = text ? window.findCountry(text) : null;
-        if (text && !c) { bad++; continue; }
-        if (c) {
+      const msg = body.querySelector('#pcApplyMsg');
+      btn.disabled = true; msg.textContent = '　登録中…（件数が多いと少し時間がかかります）';
+      try {
+        const picks = [...body.querySelectorAll('.pc-chk')].filter(c => c.checked).map(c => ({ r: rows[+c.dataset.i], text: body.querySelector('.pc-country[data-i="' + c.dataset.i + '"]').value.trim() }));
+        if (!picks.length) { msg.textContent = '　チェックした港がありません'; btn.disabled = false; return; }
+        // 1) マスター登録（まとめて 1 回）。2) 国の付与（まとめて 1 回）。1 件ずつだと、件数分だけ通信が重なって遅くなる
+        const newNames = picks.filter(x => !x.r.isMaster).map(x => x.r.name);
+        const reg = newNames.length && typeof window.statsEnsureMasterMany === 'function' ? await window.statsEnsureMasterMany('port', newNames) : { done: 0, requested: 0, failed: 0 };
+        let bad = 0; const items = [];
+        picks.forEach(({ r, text }) => {
+          const c = text ? window.findCountry(text) : null;
+          if (text && !c) { bad++; return; }
+          if (!c) return;
           const cur = (window.mdGet('port', r.name) || {}).details || {};
-          if (!cur.country) (await window.mdSave('port', r.name, Object.assign({}, cur, { country: c.code }))) ? set++ : ng++;
-        }
+          if (!cur.country) items.push({ value: r.name, details: Object.assign({}, cur, { country: c.code }) });
+        });
+        const res = items.length ? await window.mdSaveMany('port', items) : { ok: 0, ng: 0 };
+        msg.textContent = '　✅ 登録 ' + reg.done + ' 件' + (reg.requested ? '（承認待ちの申請 ' + reg.requested + ' 件）' : '') + '／国を付けた ' + res.ok + ' 件' + (bad ? '／国名が分からず飛ばした ' + bad + ' 件' : '') + ((res.ng || reg.failed) ? '／失敗 ' + (res.ng + reg.failed) + ' 件（理由は画面上部の通知）' : '');
+      } catch (e) {
+        msg.textContent = '　⚠ 実行できませんでした：' + (e && e.message || e);
       }
-      body.querySelector('#pcApplyMsg').textContent = '　✅ 登録 ' + reg + ' 件／国を付けた ' + set + ' 件' + (bad ? '／国名が分からず飛ばした ' + bad + ' 件' : '') + (ng ? '／失敗 ' + ng + ' 件' : '');
+      btn.disabled = false;
       if (typeof window.statsLoadMasterCache === 'function') await window.statsLoadMasterCache();
       if (typeof window.arRefreshDatalist === 'function') window.arRefreshDatalist();
       if (typeof window.statsRerenderActive === 'function') window.statsRerenderActive();
