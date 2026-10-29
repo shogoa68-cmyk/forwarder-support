@@ -608,7 +608,7 @@ const http = require('http'), fs = require('fs'), path = require('path');
     const rows = await p.evaluate(() => [...document.querySelectorAll('#statsPane-master tbody tr[data-mvalue]')].map(r => r.dataset.mvalue).sort());
     ok(L + '倉庫業者で絞り込み（兼業も含む）', JSON.stringify(rows) === JSON.stringify(['倉庫B', '兼業C']), rows);
     await p.click('.master-type-chip:has-text("未設定")'); await p.waitForTimeout(300);
-    ok(L + '未設定で絞り込み（種別ありの会社は出ない）', await p.evaluate(() => [...document.querySelectorAll('#statsPane-master tbody tr[data-mvalue]')].map(r => r.dataset.mvalue).includes('未設定D')));
+    ok(L + '未設定で絞り込み（種別ありの会社は出ない）', await p.evaluate(() => { const v = [...document.querySelectorAll('#statsPane-master tbody tr[data-mvalue]')].map(r => r.dataset.mvalue); return v.includes('未設定D') && !v.includes('通関A') && !v.includes('倉庫B'); }));
     // 並び順：種別ごとにまとめる（兼業は両方の下に出る・種別なしは最後）
     await p.evaluate(() => { statsMasterSetSvType(''); statsMasterSetSort('tag'); }); await p.waitForTimeout(300);
     const grp = await p.evaluate(() => {
@@ -1023,6 +1023,10 @@ const http = require('http'), fs = require('fs'), path = require('path');
     ok(L + 'エリアの判定：日本全国は各地方を、小地域は国を含む', await p.evaluate(() => areaCovers(['JP'], 'JP-KIN') && areaCovers(['SEA'], 'VN') && areaCovers(['VN'], 'SEA') && !areaCovers(['JP-KAN'], 'JP-KIN') && !areaCovers(['WEU'], 'VN') && areaLabel('JP-KAN') === '関東' && areaLabel('SEA') === '東南アジア'));
     await p.evaluate(() => { switchCategory('master', document.querySelector('[onclick*="switchCategory(\'master"]')); }); await p.waitForTimeout(1200);
     await p.evaluate(() => statsMasterSetFilter('sv')); await p.waitForTimeout(300);
+    // 得意エリア「未設定」で絞り込める（押しても効かない不具合の再発防止）
+    await p.click('.master-type-chip:has-text("未設定")'); await p.waitForTimeout(300);
+    ok(L + '得意エリア「未設定」で、エリアの無い会社だけに絞れる', await p.evaluate(() => { const v = [...document.querySelectorAll('#statsPane-master tbody tr[data-mvalue]')].map(r => r.dataset.mvalue); return v.includes('エリア無し運送') && !v.includes('関東運送') && !v.includes('全国便'); }));
+    await p.evaluate(() => statsMasterSetAreaKind('')); await p.waitForTimeout(200);
     // 入力：ボタンで地方・小地域を選び、国は候補から追加
     await p.evaluate(() => document.querySelector('#statsPane-master tr[data-mvalue="エリア無し運送"] .stats-master-detail-btn').click()); await p.waitForTimeout(500);
     ok(L + '詳細に「得意エリア」（国内の地方・海外の小地域のボタン）がある', await p.evaluate(() => !!document.querySelector('#md_areas') && document.querySelectorAll('.master-area-btn').length > 25));

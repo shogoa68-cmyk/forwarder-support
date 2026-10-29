@@ -2312,7 +2312,7 @@
     const rec = typeof window.mdGet === 'function' ? (window.mdGet(field, canon) || window.mdGet(field, name)) : null;
     return rec && rec.details && rec.details.group ? String(rec.details.group).trim() : '';
   };
-  const _SV_NONE = '\u0000none';
+  const _SV_NONE = '__none__';   // 未設定の絞り込みの目印（onclick の属性に埋め込むため、NUL 文字は使わない＝HTML の読み込みで別の文字に置き換わり、押しても効かなかった）
   window.statsMasterSetSvType = function (t) { _masterSvType = t || ''; if (t === _SV_NONE) { _masterRegion = ''; _masterSub = ''; } _renderMaster(); };
   // 詳細の「種別・タグ」で絞り込める種別（サブコン＝サブコン種別、お客様＝タグ）
   const _SUB_FILTER = { sv: { key: 'svTypes', label: '種別' }, customer: { key: 'tags', label: 'タグ' }, port: { key: 'country', label: '国', country: true } };
