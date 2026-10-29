@@ -2207,10 +2207,14 @@
   window.statsMasterSetFilter = function (f) {
     _masterFieldFilter = f || 'all';
     _masterSvType = '';   // 種別が変わったらサブコン種別の絞り込みは解く
+    _masterSort = 'name';
     _renderMaster();
   };
   // サブコン種別（詳細の svTypes）での絞り込み。''＝すべて、'\u0000none'＝種別が未設定
   let _masterSvType = '';
+  // 並び順：'name'＝名前順（既定）／'tag'＝種別・タグごとにまとめて表示（サブコン・お客様のとき）
+  let _masterSort = 'name';
+  window.statsMasterSetSort = function (m) { _masterSort = m === 'tag' ? 'tag' : 'name'; _renderMaster(); };
   const _SV_NONE = '\u0000none';
   window.statsMasterSetSvType = function (t) { _masterSvType = t || ''; _renderMaster(); };
   // 詳細の「種別・タグ」で絞り込める種別（サブコン＝サブコン種別、お客様＝タグ）
@@ -2362,6 +2366,9 @@
           [...typeCnt.keys()].sort().map(t => tchip(t, t, typeCnt.get(t))).join('') +
           (noneCnt ? tchip(_SV_NONE, '未設定', noneCnt) : '') + '</div>';
       }
+      const sbtn = (m, label) => `<button class="master-filter-chip master-sort-chip${_masterSort === m ? ' is-active' : ''}" onclick="statsMasterSetSort('${m}')">${label}</button>`;
+      chipsH += '<div class="master-filter-chips master-sort-chips"><span class="master-type-chips-label">並び順：</span>' +
+        sbtn('name', '名前順') + sbtn('tag', _SUB_FILTER[_masterFieldFilter].label + 'ごとにまとめる') + '</div>';
       if (_masterSvType) {
         const keep = n => _masterSvType === _SV_NONE ? !_svTypesOf(n).length : _svTypesOf(n).includes(_masterSvType);
         entries = entries.filter(m => keep(m.value));
@@ -2406,7 +2413,7 @@
             '<table class="stats-table master-table"><thead><tr>' +
             '<th>種別</th><th>マスター名</th><th>別名・略称（英語表記・省略形）</th><th class="ops">操作</th>' +
             '</tr></thead><tbody>';
-    rowsAll.forEach(r => {
+    const _emitRow = r => {
       const addBtn = (f, v) => `<button class="stats-master-abbrev-add" onclick="statsMasterAddAbbrev('${_ea(f)}','${_ea(v)}')">＋ 別名</button>`;
       if (r.kind === 'grp') {
         const g = r.g;
@@ -2431,7 +2438,19 @@
              `<td class="ops">${_mdDetailBtn(m.field, m.value)}${(_approvalOn() ? _isAdmin() : m.isMine) ? `<button type="button" class="master-ops-more more" aria-haspopup="menu" title="その他の操作（解除）" onclick="statsOpsMenu(this,'master','${_ea(m.field)}','${_ea(m.value)}')">⋯</button>` : ''}</td>` +
              `</tr>`;
       }
-    });
+    };
+    if (_masterSort === 'tag' && _SUB_FILTER[_masterFieldFilter]) {
+      // 種別・タグごとにまとめて表示。複数のタグを持つものは、それぞれのタグの下に出す（タグなしは最後）
+      const groups = new Map(); const none = [];
+      rowsAll.forEach(r => {
+        const t = _svTypesOf(r.name);
+        if (!t.length) { none.push(r); return; }
+        t.forEach(x => { if (_masterSvType && _masterSvType !== _SV_NONE && x !== _masterSvType) return; if (!groups.has(x)) groups.set(x, []); groups.get(x).push(r); });
+      });
+      const head = (label, n) => `<tr class="master-tag-group-row"><td colspan="4"><span class="mtg-name">🏷 ${_esc(label)}</span><span class="mtg-count">${n}件</span></td></tr>`;
+      [...groups.entries()].sort((a, b) => b[1].length - a[1].length || a[0].localeCompare(b[0])).forEach(([t, list]) => { h += head(t, list.length); list.forEach(_emitRow); });
+      if (none.length) { h += head(_SUB_FILTER[_masterFieldFilter].label + 'なし', none.length); none.forEach(_emitRow); }
+    } else rowsAll.forEach(_emitRow);
     e.innerHTML = headH + formH + chipsH + h + '</tbody></table>';
   }
 

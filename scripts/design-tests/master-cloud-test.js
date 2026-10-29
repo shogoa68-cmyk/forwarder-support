@@ -609,6 +609,21 @@ const http = require('http'), fs = require('fs'), path = require('path');
     ok(L + '倉庫業者で絞り込み（兼業も含む）', JSON.stringify(rows) === JSON.stringify(['倉庫B', '兼業C']), rows);
     await p.click('.master-type-chip:has-text("未設定")'); await p.waitForTimeout(300);
     ok(L + '未設定で絞り込み（種別ありの会社は出ない）', await p.evaluate(() => [...document.querySelectorAll('#statsPane-master tbody tr[data-mvalue]')].map(r => r.dataset.mvalue).includes('未設定D')));
+    // 並び順：種別ごとにまとめる（兼業は両方の下に出る・種別なしは最後）
+    await p.evaluate(() => { statsMasterSetSvType(''); statsMasterSetSort('tag'); }); await p.waitForTimeout(300);
+    const grp = await p.evaluate(() => {
+      const out = []; let cur = null;
+      document.querySelectorAll('#statsPane-master tbody tr').forEach(r => {
+        if (r.classList.contains('master-tag-group-row')) { cur = { head: r.textContent.replace(/\s+/g, ' ').trim(), rows: [] }; out.push(cur); }
+        else if (r.dataset.mvalue && cur) cur.rows.push(r.dataset.mvalue);
+      });
+      return out;
+    });
+    const byHead = k => grp.find(x => x.head.includes(k)) || { rows: [] };
+    ok(L + '種別ごとの見出しの下に並ぶ（兼業は両方に出る）', byHead('通関業者').rows.includes('通関A') && byHead('通関業者').rows.includes('兼業C') && byHead('倉庫業者').rows.includes('倉庫B') && byHead('倉庫業者').rows.includes('兼業C'), grp);
+    ok(L + '種別なしは最後にまとまる', grp.length > 2 && grp[grp.length - 1].head.includes('種別なし') && grp[grp.length - 1].rows.includes('未設定D'), grp);
+    await p.evaluate(() => statsMasterSetSort('name')); await p.waitForTimeout(200);
+    ok(L + '名前順に戻すと見出しは消える', await p.evaluate(() => !document.querySelector('.master-tag-group-row')));
     await p.evaluate(() => statsMasterSetFilter('customer')); await p.waitForTimeout(300);
     ok(L + 'サブコン以外では種別チップを出さない', await p.evaluate(() => !document.querySelector('.master-type-chip')));
     ok(L + 'JS エラーなし', errs.length === 0, errs);
