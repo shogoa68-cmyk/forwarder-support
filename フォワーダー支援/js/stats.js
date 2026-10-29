@@ -494,6 +494,13 @@
         chips.push(`<span class="stats-md-chip" title="${_eav(s.label + '：' + list.length + '名' + (locs.length ? '\n' + locs.join('\n') : ''))}"><b>${_esc(s.label)}</b>${_esc(disp)}${locs.length ? ' 📍' : ''}</span>`);
         return;
       }
+      if (s.areas) {
+        if (!Array.isArray(raw) || !raw.length) return;
+        const joined = raw.map(k => window.areaLabel ? window.areaLabel(k) : k).join('、');
+        const short = joined.length > 16 ? joined.slice(0, 16) + '…' : joined;
+        chips.push(`<span class="stats-md-chip stats-md-country" title="${_eav(s.label + '：' + joined)}"><b>📍 ${_esc(s.label)}</b>${_esc(short)}</span>`);
+        return;
+      }
       if (s.tags) {
         if (!Array.isArray(raw) || !raw.length) return;
         const joined = raw.join('、');
@@ -2244,18 +2251,23 @@
   let _masterFieldFilter = 'all';
   window.statsMasterSetFilter = function (f) {
     _masterFieldFilter = f || 'all';
-    _masterSvType = ''; _masterRegion = ''; _masterSub = '';   // 種別が変わったらサブコン種別・地域の絞り込みは解く
+    _masterSvType = ''; _masterRegion = ''; _masterSub = ''; _masterAreaKind = ''; _masterArea = '';   // 種別が変わったらサブコン種別・地域の絞り込みは解く
     _masterSort = 'name';
     _renderMaster();
   };
   // サブコン種別（詳細の svTypes）での絞り込み。''＝すべて、'\u0000none'＝種別が未設定
   let _masterSvType = '';
+  // 得意エリア（サブコン・キャリア）での絞り込み：'' すべて／'DOM' 国内／'OVS' 海外／_SV_NONE 未設定／エリアのキー（JP-KAN・SEA・VN など）
+  let _masterAreaKind = '', _masterArea = '';
+  window.statsMasterSetAreaKind = function (k) { _masterAreaKind = k || ''; _masterArea = ''; _renderMaster(); };
+  window.statsMasterSetArea = function (k) { _masterArea = k || ''; _renderMaster(); };
+  const _areasOf = (field, n) => { const r = typeof window.mdGet === 'function' ? window.mdGet(field, n) : null; const a = r && r.details && r.details.areas; return Array.isArray(a) ? a.filter(Boolean) : []; };
   let _masterRegion = '', _masterSub = '';   // 国での絞り込み（UN M.49 の地域・小地域）
   window.statsMasterSetRegion = function (k) { _masterRegion = k || ''; _masterSub = ''; _masterSvType = ''; _renderMaster(); };
   window.statsMasterSetSub = function (k) { _masterSub = k || ''; _masterSvType = ''; _renderMaster(); };
   // 並び順：'name'＝名前順（既定）／'tag'＝種別・タグごとにまとめて表示（サブコン・お客様のとき）
   let _masterSort = 'name';
-  window.statsMasterSetSort = function (m) { _masterSort = (m === 'tag' || m === 'group') ? m : 'name'; _renderMaster(); };
+  window.statsMasterSetSort = function (m) { _masterSort = (m === 'tag' || m === 'group' || m === 'area') ? m : 'name'; _renderMaster(); };
   // マスターの所属グループ（詳細の group）。別名で入力された名前でも代表名のグループを返す
   const _groupOfName = (field, name) => {
     const canon = typeof window.nameCanon === 'function' ? (window.nameCanon(field, name) || name) : name;
@@ -2455,6 +2467,29 @@
       }
     }
 
+    // サブコン・キャリア：得意エリア（国内＝日本の地方／海外＝UN M.49 の小地域・国）での絞り込み
+    if ((_masterFieldFilter === 'sv' || _masterFieldFilter === 'carrier') && typeof window.areaLabel === 'function') {
+      const anames = [...entries.map(m => m.value), ...synFiltered.map(g => g.canonical)];
+      const amap = new Map(anames.map(n => [n, _areasOf(_masterFieldFilter, n)]));
+      const nDom = anames.filter(n => amap.get(n).some(k => window.areaKind(k) === 'DOM')).length;
+      const nOvs = anames.filter(n => amap.get(n).some(k => window.areaKind(k) === 'OVS')).length;
+      const nNone = anames.filter(n => !amap.get(n).length).length;
+      if (nDom + nOvs > 0) {
+        const ch = (active, fn, arg, label, n) => `<button class="master-filter-chip master-type-chip${active ? ' is-active' : ''}" onclick="${fn}('${_ea(arg)}')">${_esc(label)}<span class="master-filter-count">${n}</span></button>`;
+        const row = (label, inner) => '<div class="master-filter-chips master-type-chips"><span class="master-type-chips-label">' + label + '：</span>' + inner + '</div>';
+        chipsH += row('得意エリア', ch(!_masterAreaKind, 'statsMasterSetAreaKind', '', 'すべて', anames.length) + ch(_masterAreaKind === 'DOM', 'statsMasterSetAreaKind', 'DOM', '🇯🇵 国内', nDom) + ch(_masterAreaKind === 'OVS', 'statsMasterSetAreaKind', 'OVS', '🌏 海外', nOvs) + (nNone ? ch(_masterAreaKind === _SV_NONE, 'statsMasterSetAreaKind', _SV_NONE, '未設定', nNone) : ''));
+        if (_masterAreaKind === 'DOM' || _masterAreaKind === 'OVS') {
+          const keys = new Map();
+          anames.forEach(n => amap.get(n).forEach(k => { if (window.areaKind(k) !== _masterAreaKind) return; const g = _masterAreaKind === 'OVS' ? window.areaGroupKey(k) : k; (keys.get(g) || keys.set(g, new Set()).get(g)).add(n); }));
+          const order = (window.AREA_JP || []).map(a => a.key).concat((window.COUNTRY_SUBREGIONS || []).map(x => x.key), ['JP', 'ZZ']);
+          const ks = [...keys.keys()].sort((a, b) => order.indexOf(a) - order.indexOf(b));
+          chipsH += row(_masterAreaKind === 'DOM' ? '国内エリア' : '海外エリア', ch(!_masterArea, 'statsMasterSetArea', '', 'すべて', keys.size ? new Set([...keys.values()].flatMap(x => [...x])).size : 0) + ks.map(k => ch(_masterArea === k, 'statsMasterSetArea', k, k === 'ZZ' ? 'その他' : window.areaLabel(k), keys.get(k).size)).join(''));
+        }
+        const keepA = n => { const a = amap.get(n); if (_masterAreaKind === _SV_NONE) return !a.length; if (_masterArea) return window.areaCovers(a, _masterArea); if (_masterAreaKind) return a.some(k => window.areaKind(k) === _masterAreaKind); return true; };
+        if (_masterAreaKind || _masterArea) { entries = entries.filter(m => keepA(m.value)); synFiltered = synFiltered.filter(g => keepA(g.canonical)); }
+      }
+    }
+
     // キャリアを見ているときだけ：サブコンとの統合に向けた影響範囲の確認（読み取りのみ）
     if (_masterFieldFilter === 'carrier') chipsH += '<div class="cm-entry"><span>🔀 キャリアはサブコンに統合していく予定です。</span><button type="button" class="cm-entry-btn" onclick="statsShowCarrierMigrationReport()">影響範囲を確認する（読み取りのみ）</button></div>';
     // 港を見ているときだけ：国がまだ付いていない港へ、国の候補を提案する
@@ -2463,11 +2498,11 @@
     const _hasGroup = _masterFieldFilter === 'sv' || _masterFieldFilter === 'carrier';
     if (_SUB_FILTER[_masterFieldFilter] || _hasGroup) {
       if (_masterSort === 'tag' && !_SUB_FILTER[_masterFieldFilter]) _masterSort = 'name';
-      if (_masterSort === 'group' && !_hasGroup) _masterSort = 'name';
+      if ((_masterSort === 'group' || _masterSort === 'area') && !_hasGroup) _masterSort = 'name';
       const sbtn = (m, label) => `<button class="master-filter-chip master-sort-chip${_masterSort === m ? ' is-active' : ''}" onclick="statsMasterSetSort('${m}')">${label}</button>`;
       chipsH += '<div class="master-filter-chips master-sort-chips"><span class="master-type-chips-label">並び順：</span>' + sbtn('name', '名前順') +
         (_SUB_FILTER[_masterFieldFilter] ? sbtn('tag', _SUB_FILTER[_masterFieldFilter].label + 'ごとにまとめる') : '') +
-        (_hasGroup ? sbtn('group', '🏢 所属グループごとにまとめる') : '') + '</div>';
+        (_hasGroup ? sbtn('group', '🏢 所属グループごとにまとめる') + sbtn('area', '📍 得意エリアごとにまとめる') : '') + '</div>';
     }
 
     // 個別マスターと同義グループを 1 つの表にまとめる。別名を足しても行が別の表へ移らず、
@@ -2559,6 +2594,18 @@
         });
       } else [...groups.entries()].sort((a, b) => b[1].length - a[1].length || a[0].localeCompare(b[0])).forEach(([t, list]) => { h += head(_subLabel(_masterFieldFilter, t), list.length); list.forEach(_emitRow); });
       if (none.length) { h += head(_SUB_FILTER[_masterFieldFilter].label + 'なし', none.length); none.forEach(_emitRow); }
+    } else if (_masterSort === 'area' && _hasGroup) {
+      // 得意エリアごとにまとめる（国内は日本の地方、海外は小地域の見出し。複数のエリアを持つ会社は、それぞれの下に出す。エリア未設定は最後）
+      const groups = new Map(); const none = [];
+      rowsAll.forEach(r => {
+        const ks = _areasOf(_masterFieldFilter, r.name);
+        if (!ks.length) { none.push(r); return; }
+        [...new Set(ks.map(k => window.areaGroupKey(k)))].forEach(g => { if (!groups.has(g)) groups.set(g, []); groups.get(g).push(r); });
+      });
+      const order = ['JP'].concat((window.AREA_JP || []).map(a => a.key), (window.COUNTRY_SUBREGIONS || []).map(x => x.key), ['ZZ']);
+      const head = (g, n) => `<tr class="master-tag-group-row"><td colspan="4"><span class="mtg-name">${window.areaKind(g) === 'DOM' ? '🇯🇵' : '🌏'} ${_esc(g === 'ZZ' ? 'その他の海外' : window.areaLabel(g))}</span><span class="mtg-count">${n}社</span></td></tr>`;
+      [...groups.entries()].sort((a, b) => order.indexOf(a[0]) - order.indexOf(b[0])).forEach(([g, list]) => { h += head(g, list.length); list.forEach(_emitRow); });
+      if (none.length) { h += `<tr class="master-tag-group-row"><td colspan="4"><span class="mtg-name">📍 エリア未設定</span><span class="mtg-count">${none.length}社</span></td></tr>`; none.forEach(_emitRow); }
     } else if (_masterSort === 'group' && _hasGroup) {
       // 所属グループごとにまとめる（傘下の会社を 1 つの見出しの下に。グループなしは最後）
       const groups = new Map(); const none = [];
@@ -2660,6 +2707,35 @@
     tmp.innerHTML = _mdContactRowHtml({});
     wrap.appendChild(tmp.firstElementChild);
   };
+  // 得意エリアの入力（国内の地方／海外の小地域をボタンで選び、個別の国は候補から追加）
+  function _mdAreaChipHtml(key) { return `<span class="stats-md-tag-chip stats-md-area-chip" data-area="${_eav(key)}">${_esc(window.areaLabel(key))}<button type="button" onclick="this.parentElement.remove()">✕</button></span>`; }
+  function _mdAreasEditorHtml(id, s, selected) {
+    if (!window.areaLabel) return '';
+    const btn = (k, l) => `<button type="button" class="master-type-preset master-area-btn" onclick="statsToggleArea('${_ea(id)}','${_ea(k)}')">${_esc(l)}</button>`;
+    const overseas = (window.COUNTRY_CONTINENTS || []).map(c => `<div class="master-area-row"><span class="master-area-label">${_esc(c.ja)}</span>` +
+      (window.COUNTRY_SUBREGIONS || []).filter(x => x.continent === c.key).map(x => btn(x.key, x.ja)).join('') + '</div>').join('');
+    const opts = (window.COUNTRY_LIST || []).map(c => `<option value="${_eav(c.ja + '（' + c.code + '）')}">`).join('');
+    return `<div class="master-detail-areas"><span class="master-detail-contacts-label">${_esc(s.label)}（国内業者は日本のエリア、船会社・海外の業者は海外のエリアを選びます）</span>` +
+      `<div id="${id}" class="master-tags-editor">${selected.map(_mdAreaChipHtml).join('')}</div>` +
+      `<div class="master-area-group"><div class="master-area-row"><span class="master-area-label">🇯🇵 国内</span>${btn('JP', '日本全国')}${(window.AREA_JP || []).map(a => btn(a.key, a.ja)).join('')}</div>` +
+      `<div class="master-area-title">🌏 海外（国連の地理区分）</div>${overseas}</div>` +
+      `<span class="stats-syn-add-alias"><input type="text" class="stats-syn-add-input" id="${id}_input" list="${id}_list" placeholder="国を個別に追加（例：ベトナム）" autocomplete="off" onkeydown="if(event.key==='Enter'){event.preventDefault();statsAddAreaCountry('${_ea(id)}');}">` +
+      `<datalist id="${id}_list">${opts}</datalist><button type="button" class="stats-syn-add-btn" onclick="statsAddAreaCountry('${_ea(id)}')">＋</button></span></div>`;
+  }
+  window.statsToggleArea = function (id, key) {
+    const wrap = document.getElementById(id); if (!wrap) return;
+    const ex = Array.from(wrap.querySelectorAll('.stats-md-area-chip')).find(c => c.dataset.area === key);
+    if (ex) { ex.remove(); return; }
+    wrap.insertAdjacentHTML('beforeend', _mdAreaChipHtml(key));
+  };
+  window.statsAddAreaCountry = function (id) {
+    const inp = document.getElementById(id + '_input'); if (!inp) return;
+    const c = typeof window.findCountry === 'function' ? window.findCountry(inp.value) : null;
+    if (!c) { if (inp.value.trim() && typeof window.quoteShowToast === 'function') window.quoteShowToast('「' + inp.value.trim() + '」は国の候補にありません', 'warn'); return; }
+    const wrap = document.getElementById(id);
+    if (!Array.from(wrap.querySelectorAll('.stats-md-area-chip')).some(x => x.dataset.area === c.code)) wrap.insertAdjacentHTML('beforeend', _mdAreaChipHtml(c.code));
+    inp.value = '';
+  };
   let _mdEditField = 'sv';
   // 種別などの「ひな形から選ぶ」ボタン列。ひな形のほか、チームの誰かが自由に追加した値も候補に出す（あとから種別を足せる）
   function _mdPresetChips(id, s, current) {
@@ -2716,6 +2792,7 @@
           `<button type="button" class="master-contact-add" onclick="statsAddContactRow('${id}')">＋ 担当者を追加</button>` +
           `</div>`;
       }
+      if (s.areas) return _mdAreasEditorHtml(id, s, Array.isArray(details[s.key]) ? details[s.key] : []);
       if (s.tags) {
         const list = Array.isArray(details[s.key]) ? details[s.key] : [];
         const chips = list.map(t => `<span class="stats-md-tag-chip">${_esc(t)}<button type="button" onclick="this.parentElement.remove()">✕</button></span>`).join('');
@@ -2831,6 +2908,11 @@
           title: row.querySelector('.md-contact-title')?.value.trim() || '',
         })).filter(c => c.name || c.furigana || c.phone || c.email || c.other || c.location || c.dept || c.title);
         if (rows.length) details[s.key] = rows;
+        return;
+      }
+      if (s.areas) {
+        const keys = Array.from(document.querySelectorAll('#' + id + ' .stats-md-area-chip')).map(c => c.dataset.area).filter(Boolean);
+        if (keys.length) details[s.key] = keys;
         return;
       }
       if (s.tags) {

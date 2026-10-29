@@ -611,6 +611,10 @@
           }).join('');
           return `<tr><th>${_cdEsc(s.label)}</th><td>${items}</td></tr>`;
         }
+        if (s.areas) {
+          if (!Array.isArray(raw) || !raw.length) return '';
+          return `<tr><th>${_cdEsc(s.label)}</th><td>${raw.map(k => `<span class="cd-tag-chip">📍 ${_cdEsc(window.areaLabel ? window.areaLabel(k) : k)}</span>`).join('')}</td></tr>`;
+        }
         if (s.tags) {
           if (!Array.isArray(raw) || !raw.length) return '';
           const chips = raw.map(t => `<span class="cd-tag-chip">${_cdEsc(t)}</span>`).join('');
