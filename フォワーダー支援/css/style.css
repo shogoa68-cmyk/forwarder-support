@@ -5683,3 +5683,12 @@ body.md-modal-open { overflow: hidden; }
 .stats-grp-member { font-size: 12px; padding: 1px 8px; border-radius: 10px; background: #fff; border: 1px solid #d3dce6; white-space: nowrap; }
 .sv-hdr-group { margin-left: 6px; font-size: 11px; padding: 1px 8px; border-radius: 10px; background: #e8f1fb; color: #1f4f86; border: 1px solid #a9c6e6; white-space: nowrap; }
 .sv-hdr-group[hidden] { display: none; }
+
+/* キャリア→サブコン統合：影響範囲の確認 */
+.cm-entry { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin: 6px 0; padding: 6px 10px; border: 1px dashed #9db3c9; border-radius: 6px; background: #f5f9fd; font-size: 12px; }
+.cm-entry-btn { font-size: 12px; padding: 3px 10px; border: 1px solid #2a4d70; background: #fff; color: #2a4d70; border-radius: 4px; cursor: pointer; }
+.cm-facts { margin: 8px 0; padding-left: 18px; font-size: 13px; line-height: 1.8; }
+.cm-note { font-size: 12px; color: #8a6d3b; background: #fffaf0; border: 1px solid #e6c98a; border-radius: 4px; padding: 4px 8px; }
+.cm-table .cm-merge td { background: #fffaf0; }
+.cm-table .cm-decide td { background: #fdecea; }
+.cm-na { color: #9aa6b2; }

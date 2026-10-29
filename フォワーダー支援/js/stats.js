@@ -2400,6 +2400,8 @@
       }
     }
 
+    // キャリアを見ているときだけ：サブコンとの統合に向けた影響範囲の確認（読み取りのみ）
+    if (_masterFieldFilter === 'carrier') chipsH += '<div class="cm-entry"><span>🔀 キャリアはサブコンに統合していく予定です。</span><button type="button" class="cm-entry-btn" onclick="statsShowCarrierMigrationReport()">影響範囲を確認する（読み取りのみ）</button></div>';
     // 並び順（名前順／種別・タグごと／所属グループごと）。サブコン・キャリアは「所属グループごと」も選べる
     const _hasGroup = _masterFieldFilter === 'sv' || _masterFieldFilter === 'carrier';
     if (_SUB_FILTER[_masterFieldFilter] || _hasGroup) {
@@ -3163,6 +3165,92 @@
       return res;
     }
     return [];   // マスターはクラウド必須（未ログイン・読込前は空）
+  };
+
+
+  // === サブコンとキャリアの統合・段階 2 の前に：移行の影響範囲を数える（読み取りだけ。何も変更しない） ===
+  // 「キャリアのマスター」を「サブコンのマスター」へ移すとき、そのまま移せるもの／サブコンに同じ会社があって合流が要るもの／
+  // 別名が別のサブコンとぶつかる要判断のもの、を分けて数える。件数・使用件数・詳細の衝突・種別の自動判定の見込みも出す。
+  const _cmKey = v => String(v || '').normalize('NFKC').toLowerCase().replace(/[\s　.,()（）・\-_'"’]/g, '').replace(/(株式会社|有限会社|co\.?ltd|ltd|inc|corp|kk)$/g, '');
+  window.statsCarrierMigrationReport = async function () {
+    const rep = { ok: true, notes: [] };
+    if (!_cloud()) return { ok: false, notes: ['ログインしていないため、チーム共有のマスターを読めません。'] };
+    if (_cvMap === null) await _loadCloudVotes();
+    if (typeof window.synLoadCloud === 'function') await window.synLoadCloud();
+    if (typeof window.mdLoadCloud === 'function') await window.mdLoadCloud();
+    const masters = window.statsGetMasters();
+    const syn = f => (typeof window.synGetGroups === 'function' ? window.synGetGroups(f) : []);
+    const det = (f, v) => { const r = typeof window.mdGet === 'function' ? window.mdGet(f, v) : null; return (r && r.details) || {}; };
+    const nonEmpty = d => Object.keys(d).filter(k => { const v = d[k]; return !(v == null || v === '' || (Array.isArray(v) && !v.length)); });
+    // サブコン側の索引：名前（代表名・別名）→ 代表名
+    const svIndex = new Map();
+    masters.filter(m => m.field === 'sv').forEach(m => svIndex.set(_cmKey(m.value), m.value));
+    syn('sv').forEach(g => { svIndex.set(_cmKey(g.canonical), g.canonical); (g.aliases || []).forEach(a => svIndex.set(_cmKey(a), g.canonical)); });
+    // キャリア側：マスター（票あり）＋別名のグループの代表
+    const carriers = new Map();   // 代表名 → { aliases }
+    masters.filter(m => m.field === 'carrier').forEach(m => carriers.set(m.value, { aliases: [] }));
+    syn('carrier').forEach(g => { const o = carriers.get(g.canonical) || { aliases: [] }; o.aliases = (g.aliases || []).slice(); carriers.set(g.canonical, o); });
+    // 使用件数（統計の集計。読み込み前なら注意を出す）
+    const usage = new Map();
+    if (_data && _data.carrierGroups) _data.carrierGroups.forEach(g => g.variants.forEach(v => usage.set(v.value, (usage.get(v.value) || 0) + v.count)));
+    else rep.notes.push('使用件数は、統計タブの「🔄 集計」を押したあとに出ます（案件データの集計が未読込です）。');
+    const svUsageNames = new Set(); if (_data && _data.svGroups) _data.svGroups.forEach(g => g.variants.forEach(v => svUsageNames.add(v.value)));
+    // ブックマークの種別（種別の自動判定の見込み）
+    const bmTypes = {};
+    if (typeof window.bmCarrierNamesForType === 'function') ['FCL', 'LCL', 'AIR', 'RORO', 'BREAKBULK'].forEach(t => window.bmCarrierNamesForType(t).forEach(n => { (bmTypes[_cmKey(n)] = bmTypes[_cmKey(n)] || []).push(t); }));
+    const rules = typeof window.arGetRules === 'function' ? await window.arGetRules('carrier') : [];
+    const pending = (_reqs || []).filter(r => r.status === 'pending' && r.field === 'carrier').length;
+    const items = [];
+    carriers.forEach((o, name) => {
+      const names = [name, ...o.aliases];
+      const keyHit = names.map(n => svIndex.get(_cmKey(n))).filter(Boolean);
+      const sameSv = svIndex.get(_cmKey(name)) || null;          // 代表名どうしが同じ
+      const aliasHits = [...new Set(o.aliases.map(a => svIndex.get(_cmKey(a))).filter(Boolean))].filter(x => x !== sameSv);
+      const dc = nonEmpty(det('carrier', name)), ds = sameSv ? nonEmpty(det('sv', sameSv)) : [];
+      const conflictKeys = sameSv ? dc.filter(k => ds.includes(k) && JSON.stringify(det('carrier', name)[k]) !== JSON.stringify(det('sv', sameSv)[k])) : [];
+      let kind = 'move';
+      if (aliasHits.length) kind = 'decide';           // 別名が別のサブコンの名前とぶつかる
+      else if (sameSv) kind = 'merge';                 // 同じ会社がサブコンにもある
+      const u = names.reduce((sum, n) => sum + (usage.get(n) || 0), 0);
+      const types = [...new Set(names.flatMap(n => bmTypes[_cmKey(n)] || []))];
+      items.push({ name, aliases: o.aliases, kind, sameSv, aliasHits, detailKeys: dc, conflictKeys, usage: u, bmTypes: types, votes: (_cvMap.get('carrier\x00' + name) || { total: 0 }).total, alsoInSvUsage: names.some(n => svUsageNames.has(n)) });
+    });
+    items.sort((a, b) => a.name.localeCompare(b.name, 'ja'));
+    const count = k => items.filter(i => i.kind === k).length;
+    Object.assign(rep, {
+      total: items.length, move: count('move'), merge: count('merge'), decide: count('decide'),
+      withAliases: items.filter(i => i.aliases.length).length, withDetails: items.filter(i => i.detailKeys.length).length,
+      detailConflicts: items.filter(i => i.conflictKeys.length).length, rules: rules.length, pending,
+      usageTotal: items.reduce((s, i) => s + i.usage, 0), usageKnown: !!(_data && _data.carrierGroups),
+      typeKnown: items.filter(i => i.bmTypes.length).length, typeUnknown: items.filter(i => !i.bmTypes.length).length,
+      svMasters: masters.filter(m => m.field === 'sv').length, items,
+    });
+    return rep;
+  };
+  window.statsShowCarrierMigrationReport = async function () {
+    window.statsCloseMasterDetail && window.statsCloseMasterDetail();
+    const old = document.getElementById('cmReportModal'); if (old) old.remove();
+    const wrap = document.createElement('div');
+    wrap.id = 'cmReportModal'; wrap.className = 'md-modal-overlay'; wrap.setAttribute('role', 'dialog'); wrap.setAttribute('aria-modal', 'true');
+    wrap.innerHTML = '<div class="md-modal"><div class="md-modal-head"><h3>🔀 キャリア → サブコン 統合の影響範囲（読み取りのみ・何も変更しません）</h3><button type="button" class="md-modal-close" title="閉じる" onclick="document.getElementById(\'cmReportModal\').remove()">✕</button></div><div class="md-modal-body"><p>集計中…</p></div></div>';
+    document.body.appendChild(wrap);
+    const body = wrap.querySelector('.md-modal-body');
+    const r = await window.statsCarrierMigrationReport();
+    if (!r.ok) { body.innerHTML = '<p class="stats-empty">' + _esc(r.notes.join(' ')) + '</p>'; return; }
+    const kindLabel = { move: 'そのまま移せる', merge: '合流が要る（サブコンに同じ会社）', decide: '要判断（別名が別のサブコンとぶつかる）' };
+    const line = i => `<tr class="cm-${i.kind}"><td>${_esc(i.name)}</td><td>${kindLabel[i.kind].split('（')[0]}</td><td class="stats-num-col">${i.aliases.length}</td><td class="stats-num-col">${i.usage}</td>` +
+      `<td>${i.sameSv ? '↔ ' + _esc(i.sameSv) : ''}${i.aliasHits.length ? ' ⚠別名が ' + i.aliasHits.map(_esc).join('、') + ' と一致' : ''}${i.conflictKeys.length ? ' ⚠詳細が食い違う：' + i.conflictKeys.map(_esc).join('、') : ''}</td>` +
+      `<td>${i.bmTypes.length ? i.bmTypes.join('／') : '<span class="cm-na">判定不可</span>'}</td></tr>`;
+    const kpi = (n, l, cls) => `<div class="kpi ${cls || ''}"><span class="n">${n}</span><span class="l">${l}</span></div>`;
+    body.innerHTML =
+      (r.notes.length ? `<p class="cm-note">ℹ ${r.notes.map(_esc).join('<br>')}</p>` : '') +
+      `<div class="master-kpis">${kpi(r.total, '移行の対象（キャリアのマスター）')}${kpi(r.move, 'そのまま移せる')}${kpi(r.merge, '合流が要る')}${kpi(r.decide, '要判断')}</div>` +
+      `<ul class="cm-facts"><li>別名を持つキャリア：<b>${r.withAliases}</b>社　／　詳細が入力済み：<b>${r.withDetails}</b>社（うち、サブコン側の詳細と食い違う：<b>${r.detailConflicts}</b>社）</li>` +
+      `<li>キャリアの統合ルール（過去データの一括置換）：<b>${r.rules}</b>件　／　承認待ちの申請（キャリア）：<b>${r.pending}</b>件</li>` +
+      `<li>過去案件での使用件数（キャリアとして）：<b>${r.usageKnown ? r.usageTotal : '未集計'}</b>　／　サブコンのマスター：<b>${r.svMasters}</b>件</li>` +
+      `<li>サブコン種別を自動で付けられる見込み（ブックマークの種別から）：<b>${r.typeKnown}</b>社　／　判定できず手動：<b>${r.typeUnknown}</b>社</li></ul>` +
+      `<table class="stats-table cm-table"><thead><tr><th>キャリア（マスター名）</th><th>分類</th><th class="stats-num-col">別名</th><th class="stats-num-col">使用</th><th>サブコン側との関係</th><th>種別の見込み</th></tr></thead><tbody>${r.items.map(line).join('') || '<tr><td colspan="6">キャリアのマスターはありません。</td></tr>'}</tbody></table>` +
+      `<p class="stats-syn-hint">統計の集計軸（キャリア別／サブコン別）は、段階 3 で見直すまで変わりません。この画面は確認だけで、データは変更しません。</p>`;
   };
 
   window.statsRefresh = async function () {
