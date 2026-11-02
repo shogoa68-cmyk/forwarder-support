@@ -800,7 +800,7 @@ const http = require('http'), fs = require('fs'), path = require('path');
     ok(L + 'グループの見出しの下に傘下の会社が並ぶ（3社）', cma.head && cma.head.includes('3社') && ['CMA CGM', 'ANL', 'APL'].every(n => cma.rows.includes(n)), grp);
     ok(L + 'グループなしは最後', grp[grp.length - 1].head.includes('グループなし') && grp[grp.length - 1].rows.includes('単独社'), grp);
     await p.evaluate(() => statsMasterSetFilter('carrier')); await p.waitForTimeout(300);
-    ok(L + 'キャリアでも選べる（種別チップは出ない）', await p.evaluate(() => [...document.querySelectorAll('.master-sort-chip')].some(b => b.textContent.includes('所属グループ')) && !document.querySelector('.master-type-chip')));
+    ok(L + '旧キャリアのカテゴリは廃止（選んでも「すべて」に戻り、キャリアの行は出ない）', await p.evaluate(() => !document.querySelector('.master-filter-chip[onclick*="carrier"]') && !document.querySelector('#statsPane-master tr[data-mfield="carrier"]')));
     // 詳細の入力欄：グループ名の候補に、入力済みの名前が出る
     await p.evaluate(() => statsMasterSetFilter('sv')); await p.waitForTimeout(300);
     await p.evaluate(() => document.querySelector('#statsPane-master tr[data-mvalue="単独社"] .stats-master-detail-btn').click()); await p.waitForTimeout(500);
@@ -862,12 +862,12 @@ const http = require('http'), fs = require('fs'), path = require('path');
     ok(L + '要判断の理由（別名 Mediterranean がサブコンの名前と一致）', r.items.find(i => i.name === 'MSC').aliasHits.includes('Mediterranean'));
     ok(L + 'データは変更しない（読み取りのみ）', before === await p.evaluate(() => JSON.stringify([window.__db.master_votes, window.__db.master_details, window.__db.synonym_groups])));
     await p.evaluate(() => { switchCategory('master', document.querySelector('[onclick*="switchCategory(\'master"]')); }); await p.waitForTimeout(1000);
-    await p.evaluate(() => statsMasterSetFilter('carrier')); await p.waitForTimeout(300);
-    ok(L + 'キャリアを見ているときだけ「影響範囲を確認する」ボタンが出る', await p.evaluate(() => !!document.querySelector('.cm-entry-btn')));
+    await p.evaluate(() => statsMasterSetFilter('sv')); await p.waitForTimeout(300);
+    ok(L + 'サブコンを見ているときだけ「移行の状況を確認する」ボタンが出る', await p.evaluate(() => !!document.querySelector('.cm-entry-btn')));
     await p.evaluate(() => statsShowCarrierMigrationReport()); await p.waitForTimeout(800);
     ok(L + '画面に分類と件数が出る', await p.evaluate(() => { const t = document.querySelector('#cmReportModal').textContent; return t.includes('そのまま移せる') && t.includes('合流が要る') && t.includes('要判断'); }));
-    await p.evaluate(() => statsMasterSetFilter('sv')); await p.waitForTimeout(200);
-    ok(L + 'サブコンでは出ない', await p.evaluate(() => !document.querySelector('.cm-entry-btn')));
+    await p.evaluate(() => statsMasterSetFilter('nm')); await p.waitForTimeout(200);
+    ok(L + '品名では出ない', await p.evaluate(() => !document.querySelector('.cm-entry-btn')));
     ok(L + 'JS エラーなし', errs.length === 0, errs);
     await ctx.close();
   }
@@ -1004,9 +1004,6 @@ const http = require('http'), fs = require('fs'), path = require('path');
     const c = await p.evaluate(() => (window.__db.master_details.find(m => m.value === '担当者テスト運輸') || { details: {} }).details.contacts);
     ok(L + '担当者を 2 名登録できる', Array.isArray(c) && c.length === 2 && c[0].name === '山田' && c[0].dept === '営業部' && c[1].email === 's@example.com', c);
     ok(L + '一覧に担当者が「様」付きで出る', await p.evaluate(() => (document.querySelector('#statsPane-master tr[data-mvalue="担当者テスト運輸"]') || { textContent: '' }).textContent.includes('山田 様')));
-    await p.evaluate(() => statsMasterSetFilter('carrier')); await p.waitForTimeout(300);
-    await p.evaluate(() => document.querySelector('#statsPane-master tr[data-mvalue="TESTLINE"] .stats-master-detail-btn').click()); await p.waitForTimeout(500);
-    ok(L + 'キャリアの詳細にも担当者の入力欄がある', await p.evaluate(() => !!document.querySelector('#md_contacts .md-contact-row')));
     ok(L + 'JS エラーなし', errs.length === 0, errs);
     await ctx.close();
   }
@@ -1114,6 +1111,24 @@ const http = require('http'), fs = require('fs'), path = require('path');
     // 別名を外したときの案内
     await p.evaluate(() => synRemoveAlias('sv', 'テスト運輸', 'テスト運送')); await p.waitForTimeout(800);
     ok(L + '別名を外すと「マスターには自動では戻りません」と案内', await p.evaluate(() => [...document.querySelectorAll('.toast')].some(e => e.textContent.includes('自動では戻りません'))));
+    ok(L + 'JS エラーなし', errs.length === 0, errs);
+    await ctx.close();
+  }
+
+  // ===== キャリアとサブコンの統合・段階 3：キャリア名の寄せ方はサブコンのマスター基準／統計のキャリアはサブコンのマスターとして登録 =====
+  {
+    const { ctx, p, errs } = await open(true, { legacy: {}, noLegacy: true });
+    const L = '[統合・段階3] ';
+    await p.evaluate(async () => {
+      window.__db.master_votes.push({ field: 'sv', value: '段階3船社', voter_email: 's@example.com' });
+      window.__db.synonym_groups.push({ id: 's3', field: 'sv', canonical: '段階3船社', aliases: ['S3 Line'] });
+      await statsLoadMasterCache(); await synLoadCloud(); await mdLoadCloud(); nameCacheClear();
+    });
+    ok(L + 'キャリア名の代表名は、サブコンのマスター・別名で決まる', await p.evaluate(() => nameCanon('carrier', 'S3 Line') === '段階3船社' && nameSame('carrier', 'S3 Line', '段階3船社')));
+    ok(L + '旧キャリアのマスターの別名も、これまでどおり効く', await p.evaluate(() => nameCanon('carrier', 'Ocean Network Express') === 'ONE'));
+    await p.evaluate(() => { switchCategory('master', document.querySelector('[onclick*="switchCategory(\'master"]')); }); await p.waitForTimeout(1000);
+    ok(L + 'マスター管理に「キャリア」の絞り込み・行は出ない（旧データは残る）', await p.evaluate(() => !document.querySelector('.master-filter-chip[onclick*="\'carrier\'"]') && !document.querySelector('#statsPane-master tr[data-mfield="carrier"]') && window.__db.master_votes.some(v => v.field === 'carrier')));
+    ok(L + '新規登録の種別にキャリアは無い', await p.evaluate(() => ![...document.querySelectorAll('#masterNewField option')].some(o => o.value === 'carrier')));
     ok(L + 'JS エラーなし', errs.length === 0, errs);
     await ctx.close();
   }

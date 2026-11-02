@@ -353,11 +353,14 @@
       const k = _nameKey(name, field);
       if (k && !byKey.has(k)) byKey.set(k, canon);
     };
-    const groups = typeof window.synGetGroups === 'function' ? window.synGetGroups(field) : [];
-    groups.forEach(g => { put(g.canonical, g.canonical); (g.aliases || []).forEach(a => put(a, g.canonical)); });
-    _arCloud.filter(r => r.field === field).forEach(r => { put(r.to_value, r.to_value); put(r.from_value, r.to_value); });
+    // 旧「キャリア」はサブコンに統合：キャリア名の代表名は、まずサブコンのマスター・別名で決める（先に登録した方が優先＝サブコン）。旧キャリアのデータは、サブコンに無い名前の補いとして残す
     const masters = typeof window.statsGetMasters === 'function' ? window.statsGetMasters() : [];
-    masters.filter(m => m.field === field).forEach(m => put(m.value, m.value));
+    (field === 'carrier' ? ['sv', 'carrier'] : [field]).forEach(f => {
+      const groups = typeof window.synGetGroups === 'function' ? window.synGetGroups(f) : [];
+      groups.forEach(g => { put(g.canonical, g.canonical); (g.aliases || []).forEach(a => put(a, g.canonical)); });
+      _arCloud.filter(r => r.field === f).forEach(r => { put(r.to_value, r.to_value); put(r.from_value, r.to_value); });
+      masters.filter(m => m.field === f).forEach(m => put(m.value, m.value));
+    });
     // 代表名どうしが連鎖する場合（A→B、B→C）は最後まで辿る
     const resolve = v => { let x = v, n = 0; while (exact.has(x) && exact.get(x) !== x && n++ < 5) x = exact.get(x); return x; };
     exact.forEach((v, k) => exact.set(k, resolve(v)));
