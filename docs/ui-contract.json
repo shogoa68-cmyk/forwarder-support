@@ -196,11 +196,9 @@
   "duty-rate",
   "eiActions",
   "eiDesc",
+  "eiFreePanel",
   "eiInsertTarget",
-  "eiPendingBanner",
   "eiReviewWrap",
-  "eiS-customer",
-  "eiS-memo",
   "eiText",
   "eiTitle",
   "emailImportBox",
@@ -357,6 +355,7 @@
   "qadMode",
   "qf-customer",
   "qf-date",
+  "qf-free-entries",
   "qf-import-src",
   "qf-memo",
   "qf-memo-float-ta",
@@ -870,7 +869,7 @@
    "defined": true
   },
   "closeTbMenus": {
-   "uses": 5,
+   "uses": 6,
    "defined": true
   },
   "closeUserMgr": {
@@ -1001,11 +1000,11 @@
    "uses": 1,
    "defined": true
   },
-  "eiOpenStoreFromDashboard": {
-   "uses": 1,
+  "eiOpenStoreForCurrent": {
+   "uses": 2,
    "defined": true
   },
-  "eiOpenStored": {
+  "eiOpenStoreFromDashboard": {
    "uses": 1,
    "defined": true
   },
@@ -2215,13 +2214,29 @@
    "css": false,
    "html": false
   },
+  "ei-fe-row": {
+   "css": true,
+   "html": false
+  },
+  "ei-fp-list": {
+   "css": true,
+   "html": true
+  },
+  "ei-fp-sum": {
+   "css": true,
+   "html": true
+  },
+  "ei-from-entry": {
+   "css": true,
+   "html": false
+  },
   "ei-group": {
    "css": true,
    "html": false
   },
-  "ei-pb-excerpt": {
+  "ei-store-case": {
    "css": true,
-   "html": true
+   "html": false
   },
   "ei-store-only": {
    "css": true,
@@ -4270,6 +4285,10 @@
    "js": true
   },
   "title-orig": {
+   "html": false,
+   "js": true
+  },
+  "touched": {
    "html": false,
    "js": true
   },

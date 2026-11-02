@@ -5588,21 +5588,52 @@ body.qp-dash-active #quoteActionDock { display: none !important; }
 #tab-quote-make #emailImportBox.ei-store-only #eiActions { display: none !important; }
 #tab-quote-make #emailImportBox.ei-store-only .ei-store-btn { margin-left: 0; background: #3f6a3f; color: var(--surface); border-color: #3f6a3f; }
 #tab-quote-make #emailImportBox.ei-store-only .ei-store-btn:hover { background: #2f5a2f; }
-/* 📩 未取込の帯（原文だけ保管された案件を開いたとき） */
-#tab-quote-make .ei-pending-banner {
-  display: flex; align-items: center; gap: var(--sp-10); flex-wrap: wrap;
-  margin: var(--sp-8) 0; padding: var(--sp-8) var(--sp-14); border-radius: var(--r-8);
+/* 📝 保管した自由入力の欄（案件ごとに複数件・未取込／取込済み） */
+#tab-quote-make .ei-free-panel {
+  margin: var(--sp-8) 0; border-radius: var(--r-8);
   background: #fff4dc; border: 1px solid #e3b95a; color: #6b4a00; font-size: var(--fs-13);
 }
-#tab-quote-make .ei-pending-banner[hidden] { display: none; }
-#tab-quote-make.qp-dash > .ei-pending-banner { display: none !important; }   /* ダッシュボードでは出さない（編集画面だけ） */
-#tab-quote-make .ei-pb-text { flex: 1 1 260px; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
-#tab-quote-make .ei-pb-excerpt { color: #8a6a1f; }
-#tab-quote-make .ei-pb-btn {
-  cursor: pointer; font-family: inherit; font-size: var(--fs-13); font-weight: 700;
-  color: var(--surface); background: #b8860b; border: none; border-radius: var(--r-6); padding: var(--sp-6) var(--sp-16);
+#tab-quote-make .ei-free-panel[hidden] { display: none; }
+#tab-quote-make.qp-dash > .ei-free-panel { display: none !important; }   /* ダッシュボードでは出さない（編集画面だけ） */
+#tab-quote-make .ei-fp-sum { cursor: pointer; padding: var(--sp-8) var(--sp-14); font-weight: 600; }
+#tab-quote-make .ei-fp-pend { color: #8a5a00; font-weight: 700; margin-left: var(--sp-8); }
+#tab-quote-make .ei-fp-alldone { color: #3f6a3f; margin-left: var(--sp-8); }
+#tab-quote-make .ei-fp-list { padding: 0 var(--sp-14) var(--sp-4); }
+#tab-quote-make .ei-fe-row {
+  display: flex; align-items: center; flex-wrap: wrap; gap: var(--sp-8); padding: var(--sp-6) 0; border-top: 1px dashed #e3b95a;
 }
-#tab-quote-make .ei-pb-btn:hover { background: #9a6f08; }
+#tab-quote-make .ei-fe-row.is-done { opacity: .7; }
+#tab-quote-make .ei-fe-chip { font-size: var(--fs-11-5); font-weight: 700; border-radius: 999px; padding: 1px var(--sp-8); white-space: nowrap; }
+#tab-quote-make .ei-fe-chip.pending { background: #ffe9b8; border: 1px solid #e3b95a; color: #6b4a00; }
+#tab-quote-make .ei-fe-chip.done { background: #e4f1e4; border: 1px solid #9fc79f; color: #2f5a2f; }
+#tab-quote-make .ei-fe-label { flex: 1 1 200px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#tab-quote-make .ei-fe-meta { color: #8a6a1f; font-size: var(--fs-11-5); white-space: nowrap; }
+#tab-quote-make .ei-fe-btns { display: inline-flex; gap: var(--sp-6); flex-wrap: wrap; }
+#tab-quote-make .ei-fe-btn {
+  cursor: pointer; font-family: inherit; font-size: var(--fs-12); font-weight: 600;
+  color: #6b4a00; background: var(--surface); border: 1px solid #d9b56a; border-radius: var(--r-6); padding: 2px var(--sp-10);
+}
+#tab-quote-make .ei-fe-btn:hover { background: #fff0cc; }
+#tab-quote-make .ei-fe-import { color: var(--surface); background: #b8860b; border-color: #b8860b; }
+#tab-quote-make .ei-fe-import:hover { background: #9a6f08; }
+#tab-quote-make .ei-fe-del { color: #a33; }
+#tab-quote-make .ei-fe-text {
+  flex: 1 1 100%; margin: var(--sp-4) 0 0; padding: var(--sp-8) var(--sp-10); max-height: 220px; overflow: auto;
+  white-space: pre-wrap; word-break: break-word; background: var(--surface); border: 1px solid var(--c-d8c9ad); border-radius: var(--r-6);
+  font-family: ui-monospace, Consolas, monospace; font-size: var(--fs-12); color: var(--text);
+}
+#tab-quote-make .ei-fp-foot { padding: var(--sp-4) var(--sp-14) var(--sp-10); }
+#tab-quote-make .ei-fp-add {
+  cursor: pointer; font-family: inherit; font-size: var(--fs-12); font-weight: 700;
+  color: #6b4a00; background: var(--surface); border: 1px dashed #b8933e; border-radius: var(--r-6); padding: var(--sp-4) var(--sp-12);
+}
+#tab-quote-make .ei-fp-add:hover { background: #fff0cc; }
+/* 保管した原文から取り込むときは「新規案件として展開」を出さない（案件の保管データが消えるため） */
+#tab-quote-make #emailImportBox.ei-from-entry .ei-act-new { display: none; }
+/* 既存の案件へ保管：お客様・件名の欄は出さず、保管のメモだけ */
+#tab-quote-make .ei-store-meta .ei-sm-case { display: none; }
+#tab-quote-make #emailImportBox.ei-store-case .ei-sm-new { display: none; }
+#tab-quote-make #emailImportBox.ei-store-case .ei-sm-case { display: flex; }
 #tab-quote-make .ei-fields { display: flex; flex-wrap: wrap; gap: var(--sp-10); margin-bottom: var(--sp-8); }
 #tab-quote-make .ei-fields label { font-size: var(--fs-11); font-weight: 600; color: var(--accent); display: flex; align-items: center; gap: var(--sp-5); }
 #tab-quote-make .ei-fields input {

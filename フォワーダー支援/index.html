@@ -2459,6 +2459,9 @@
           <button type="button" class="tb-menu-item tb-mi-simple" onclick="openEmailImport(); closeTbMenus()">
             <span class="tb-mi-icon">📩</span><span class="tb-mi-body"><span class="tb-mi-title">メール取込</span><span class="tb-mi-sub">メール本文から見積の行を作る</span></span>
           </button>
+          <button type="button" class="tb-menu-item tb-mi-simple" onclick="eiOpenStoreForCurrent(); closeTbMenus()">
+            <span class="tb-mi-icon">📝</span><span class="tb-mi-body"><span class="tb-mi-title">自由入力を保管</span><span class="tb-mi-sub">提示した見積の原文をこの案件に残す（あとで取り込む）</span></span>
+          </button>
           <button type="button" class="tb-menu-item tb-mi-simple" onclick="openSubconRequestMail(); closeTbMenus()">
             <span class="tb-mi-icon">✉️</span><span class="tb-mi-body"><span class="tb-mi-title">サブコン依頼メール</span><span class="tb-mi-sub">見積・作業の依頼メールを作る</span></span>
           </button>
@@ -2747,12 +2750,12 @@
       <button type="button" class="q-secnav-btn" data-sec="section-remark" title="全体リマーク"><span class="q-secnav-ico">📑</span><em>リマーク</em><i class="q-secnav-dot"></i></button>
       <button type="button" class="q-secnav-btn" data-sec="section-table"  title="費用テーブル"><span class="q-secnav-ico">📋</span><em>費用</em><i class="q-secnav-dot"></i></button>
     </div></nav>
-    <!-- 📩 未取込：自由入力で保管した原文があって、明細がまだ無い案件に出す帯（閲覧モードでも押せるよう .quote-main の外） -->
-    <div class="ei-pending-banner" id="eiPendingBanner" hidden role="status">
-      <span class="ei-pb-ico">📩</span>
-      <span class="ei-pb-text"><b>未取込</b>　自由入力で保管した原文があります：<span class="ei-pb-excerpt"></span></span>
-      <button type="button" class="ei-pb-btn" onclick="eiOpenStored()" title="保管した原文を解析して、この見積の表に取り込みます">取り込む</button>
-    </div>
+    <!-- 📝 保管した自由入力（案件ごとに複数件・未取込／取込済み）。閲覧モードでも押せるよう .quote-main の外 -->
+    <details class="ei-free-panel" id="eiFreePanel" hidden ontoggle="this.dataset.touched='1'">
+      <summary class="ei-fp-sum"></summary>
+      <div class="ei-fp-list"></div>
+      <div class="ei-fp-foot"><button type="button" class="ei-fp-add" onclick="eiOpenStoreForCurrent()" title="自由入力で提示した見積を、この案件にもう 1 件保管します">＋ 自由入力を追加</button></div>
+    </details>
     <div class="quote-workspace">
       <div class="quote-main">
 
@@ -2886,6 +2889,8 @@
             <textarea id="qf-memo" rows="6" placeholder="担当者間の申し送り・注意事項など、案件内部メモを自由に記述できます。お客様向け出力には含まれません。"></textarea>
             <!-- 📩 メール取込の原文（監査・再パース用。fields 経由で案件データに永続化） -->
             <input type="hidden" id="qf-import-src" />
+            <!-- 📝 保管した自由入力（案件ごとに複数件の JSON。fields 経由で案件データに永続化） -->
+            <input type="hidden" id="qf-free-entries" />
           </div>
           <!-- 📌 メモ フロート付箋（スクロール追従・ドラッグ可）。#qf-memo と双方向同期 -->
           <div id="qfMemoFloat" class="qf-memo-float" hidden>
@@ -4173,8 +4178,9 @@
         </details>
         <textarea id="eiText" rows="7" placeholder="ここにメール本文を貼り付け…&#10;例）&#10;《東京 → PENANG》&#10;  ・海上運賃20  1 20'GP × 475 USD ＝ 475 USD&#10;  ・THC  1 CNTR × ¥34,900 ＝ ¥34,900"></textarea>
         <div class="ei-store-meta" id="eiStoreMeta">
-          <label>お客様 <input type="text" id="eiS-customer" list="custSuggestions" placeholder="任意"></label>
-          <label>件名・メモ <input type="text" id="eiS-memo" placeholder="任意（例：○○向け 横浜→PENANG 暫定提示）"></label>
+          <label class="ei-sm-new">お客様 <input type="text" id="eiS-customer" list="custSuggestions" placeholder="任意"></label>
+          <label class="ei-sm-new">件名・メモ <input type="text" id="eiS-memo" placeholder="任意（例：○○向け 横浜→PENANG 暫定提示）"></label>
+          <label class="ei-sm-case">この保管のメモ <input type="text" id="eiS-label" placeholder="任意（例：○○社 改定見積 11/2 受領）"></label>
         </div>
         <div class="ei-parse-bar">
           <button type="button" class="ei-parse-btn" onclick="eiParse()">🔍 解析する</button>

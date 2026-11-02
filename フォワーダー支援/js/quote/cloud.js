@@ -757,7 +757,7 @@
 
   // 🔔 料金更新フォロー（暫定料金で提示し、最新料金が出たら更新したい案件）
   function _priceFollow(r) { return (r && r.data && r.data.priceFollow) || null; }
-  // 📩 未取込（自由入力で保管した原文があり、品名のある明細がまだ無い）。判定は email-import.js の eiPendingOf
+  // 📩 未取込（自由入力で保管した原文のうち、まだ表に取り込んでいないもの＝配列・無ければ null）。判定は email-import.js の eiPendingOf
   function _pendingImport(r) { return (r && r.data && typeof window.eiPendingOf === 'function') ? window.eiPendingOf(r.data) : null; }
   function _mmdd(dateStr) {
     var d = new Date(dateStr); if (isNaN(d.getTime())) return escHtml(dateStr);
@@ -914,7 +914,7 @@
       const headline = memoLine || _routePlain || titleText;
       const pendBadge   = _pendingImport(r)
         ? '<button type="button" class="cloud-pend-badge" onclick="event.stopPropagation();cloudOpenPendingImport(\'' + idAttr + '\')" ' +
-          'title="自由入力で保管したままの案件です。クリックで開いて、保管した原文を表に取り込みます">📩 未取込 · 取り込む</button>'
+          'title="自由入力で保管したまま、まだ表に取り込んでいない原文があります。クリックで案件を開いて取り込みます">📩 未取込 ' + _pendingImport(r).length + '件 · 取り込む</button>'
         : '';
       const prioRow     = (pendBadge || dueBadge || recvBadge || remindBadge || holdToggle || followCtl) ? '<div class="cloud-card-prio">' + pendBadge + dueBadge + recvBadge + remindBadge + holdToggle + followCtl + '</div>' : '';
 
@@ -1089,6 +1089,7 @@
         '<button type="button" role="menuitem" class="cloud-menu-item" onclick="uiCloseMenus();cloudPreviewPreset(\'' + idAttr + '\')">プレビュー</button>' +
         '<button type="button" role="menuitem" class="cloud-menu-item" onclick="uiCloseMenus();cloudPdfPreset(\'' + idAttr + '\')">PDF を出力</button>' +
         '<button type="button" role="menuitem" class="cloud-menu-item" onclick="uiCloseMenus();cloudDuplicatePreset(\'' + idAttr + '\')">コピーして新規作成</button>' +
+        '<button type="button" role="menuitem" class="cloud-menu-item" onclick="uiCloseMenus();eiOpenStoreForCard(\'' + idAttr + '\')">📝 自由入力を追加<small>この案件に、提示した見積の原文を保管します</small></button>' +
         '<div class="cloud-menu-sep" role="separator"></div>' +
         (lockedBy
           ? '<button type="button" role="menuitem" class="cloud-menu-item cloud-menu-danger is-locked" disabled>削除…<small>' + escHtml(_nameFor(lockedBy)) + ' さんが作業中のため削除できません</small></button>' +
@@ -1127,7 +1128,7 @@
       return '<div class="qpd-row qpd-row--simple' + (_cloudLinkMode ? ' qpd-row--linkmode' : '') + '" onclick="' + rowClick + '" title="' + (_cloudLinkMode ? 'クリックで選択' : 'クリックで開く') + '">' +
         linkChk +
         _statusSelect(idAttr, status, lockedBy, 'qpd-row-status') +
-        '<span class="qpd-row-title">' + (_pendingImport(r) ? '<span class="qpd-pend-mark" title="自由入力で保管したまま（未取込）">📩 未取込</span>' : '') + '<b class="qpd-row-headline">' + escHtml(headline) + '</b><small class="qpd-row-ref">' + escHtml(title) + '</small></span>' +
+        '<span class="qpd-row-title">' + (_pendingImport(r) ? '<span class="qpd-pend-mark" title="自由入力で保管したまま、まだ表に取り込んでいない原文があります">📩 未取込 ' + _pendingImport(r).length + '件</span>' : '') + '<b class="qpd-row-headline">' + escHtml(headline) + '</b><small class="qpd-row-ref">' + escHtml(title) + '</small></span>' +
         '<span class="qpd-row-cust">' + escHtml(cust) + (person ? ' <small>/ ' + escHtml(person) + '</small>' : '') + '</span>' +
         '<span class="qpd-row-route">' + escHtml(routePlain) + '</span>' +
         '<span class="qpd-row-ts">' + ts + '</span>' +
@@ -1138,7 +1139,7 @@
     return '<div class="qpd-row' + (_cloudLinkMode ? ' qpd-row--linkmode' : '') + '" onclick="' + rowClick + '" title="' + (_cloudLinkMode ? 'クリックで選択' : 'クリックで開く') + '">' +
       linkChk +
       _statusSelect(idAttr, status, lockedBy, 'qpd-row-status') +
-      '<span class="qpd-row-title">' + (_pendingImport(r) ? '<span class="qpd-pend-mark" title="自由入力で保管したまま（未取込）">📩 未取込</span>' : '') + escHtml(title) + '</span>' +
+      '<span class="qpd-row-title">' + (_pendingImport(r) ? '<span class="qpd-pend-mark" title="自由入力で保管したまま、まだ表に取り込んでいない原文があります">📩 未取込 ' + _pendingImport(r).length + '件</span>' : '') + escHtml(title) + '</span>' +
       '<span class="qpd-row-cust">' + escHtml(cust) + (person ? ' <small>/ ' + escHtml(person) + '</small>' : '') + '</span>' +
       '<span class="qpd-row-who" title="' + escHtml(_whoTitle(r)) + '">' + escHtml(who) +
         (others > 0 ? '<span class="cloud-card-edn">+' + others + '</span>' : '') + '</span>' +
@@ -2211,12 +2212,42 @@
     const setV = (id, v) => { const e = document.getElementById(id); if (e && v) e.value = v; };
     setV('qf-customer', o.customer);
     setV('qf-memo', o.memo);
-    const src = document.getElementById('qf-import-src');
-    if (src) src.value = JSON.stringify({ type: 'email-paste', stored: true, importedAt: new Date().toISOString(), rawText: String(o.rawText || '').slice(0, 20000) });
+    // 原文は「保管した自由入力」の 1 件目として持たせる（件名があれば、その保管のメモにも）
+    const fe = document.getElementById('qf-free-entries');
+    if (fe && typeof window.eiMakeEntry === 'function') fe.value = JSON.stringify([window.eiMakeEntry({ text: o.rawText, label: o.memo })]);
     if (typeof window.eiRefreshPendingBanner === 'function') window.eiRefreshPendingBanner();
     const before = _loadedCloudId;
     await cloudSaveCurrent({ toDashboard: true });
     return !!_loadedCloudId && _loadedCloudId !== before;
+  }
+  // 既存の案件へ「保管した自由入力」を 1 件足す（案件は開かない・ダッシュボードのカードの「⋯」から）。
+  // 案件データだけを更新する（編集ロックで他メンバーが作業中のときは RLS で拒否＝0 行）
+  async function cloudAddFreeEntry(rawId, entry) {
+    const c = _getClient();
+    if (!c || !_cloudUser) { quoteShowToast('⚠️ 保管するには先に Google でログインしてください', 'warn'); return false; }
+    const id = decodeURIComponent(rawId);
+    const { data: cur, error } = await c.from(_table()).select('data,updated_at').eq('id', id).single();
+    if (error || !cur) { quoteShowToast('⚠️ 案件を読み込めませんでした' + (error ? '：' + error.message : ''), 'warn', 5000); return false; }
+    const newData = Object.assign({}, cur.data || {});
+    newData.fields = Object.assign({}, newData.fields);
+    const list = (typeof window.eiFreeEntriesOf === 'function') ? window.eiFreeEntriesOf(cur.data) : [];   // 旧形式の原文も 1 件として引き継ぐ
+    list.push(entry);
+    newData.fields['qf-free-entries'] = JSON.stringify(list);
+    const nowIso = new Date().toISOString();
+    const { data: upd, error: e2 } = await c.from(_table())
+      .update({ data: newData, owner_email: _cloudUser.email, updated_at: nowIso }).eq('id', id).select('id');
+    if (e2) { quoteShowToast('⚠️ 保管に失敗：' + e2.message, 'warn', 5000); return false; }
+    if (!upd || !upd.length) { quoteShowToast('🔒 他メンバーが編集中のため保管できません（作業が終わってからお試しください）', 'warn', 6500); return false; }
+    // この案件を画面で開いている場合は、画面側にも反映（あとの保存で消さない）
+    if (_loadedCloudId === id) {
+      const el = document.getElementById('qf-free-entries');
+      if (el) el.value = JSON.stringify(list);
+      _loadedCloudTs = nowIso;
+      if (typeof window.eiRefreshPendingBanner === 'function') window.eiRefreshPendingBanner();
+    }
+    quoteShowToast('📝 自由入力を保管しました（📩 未取込）', 'success', 3500);
+    cloudListPresets(true);
+    return true;
   }
   // ダッシュボードの「📩 未取込」から、その案件を開いて保管した原文の取り込みを始める
   async function cloudOpenPendingImport(rawId) {
@@ -2421,7 +2452,8 @@
     quoteShowToast('💾 「' + name + '」を保存して作業終了しました', 'success', 3500);
     cloudListPresets();
     // 保存後の遷移はユーザーに選ばせる（OK＝ダッシュボードへ／キャンセル＝この見積に留まる）
-    // 自由入力の保管（cloudStoreRawQuote）は確認なしでダッシュボードへ戻る
+    // 自由入力の保管：stay＝確認なしでこの案件に留まる／toDashboard＝確認なしでダッシュボードへ戻る
+    if (opts && opts.stay === true) return;
     if (opts && opts.toDashboard === true) { qpShowDashboard(); return; }
     setTimeout(() => {
       if (confirm('💾 保存しました。\n📊 ダッシュボードに戻りますか？\n（キャンセル＝この見積を表示したまま）')) {
@@ -3962,6 +3994,9 @@
   window.cloudOpenPendingImport = cloudOpenPendingImport;
   window.cloudIsLoggedIn = () => !!_cloudUser;
   window.cloudConfirmLeaveUnsaved = _confirmLeaveUnsaved;
+  window.cloudAddFreeEntry = cloudAddFreeEntry;
+  window.cloudCurrentEmail = () => (_cloudUser && _cloudUser.email) || '';
+  window.cloudNameFor = e => _nameFor(e);
   window.toggleCloudAdvSearch  = toggleCloudAdvSearch;
   window.cloudFilterAdvanced   = cloudFilterAdvanced;
   window.clearCloudAdvSearch   = clearCloudAdvSearch;

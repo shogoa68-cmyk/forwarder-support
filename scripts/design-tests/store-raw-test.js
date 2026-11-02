@@ -1,4 +1,4 @@
-// 📝 自由入力で保管 → 📩 未取込 → 取り込み。偽の Supabase（メモリ上の表）を使う。実サーバーには接続しない。
+// 📝 自由入力で保管（新規案件・既存案件に複数件）→ 📩 未取込 → 取り込み／取込済み／削除。偽の Supabase（メモリ上の表）を使う。実サーバーには接続しない。
 //   node scripts/design-tests/store-raw-test.js           （THEME=1 で Industry）
 //   node scripts/design-tests/port-country-test.js           （THEME=1 で Industry）
 const { chromium } = (() => { try { return require('playwright-core'); } catch (e) { return require('playwright'); } })();
@@ -94,30 +94,35 @@ const http = require('http'), fs = require('fs'), path = require('path');
   // 空のまま保管 → 警告
   await p.click('#emailImportBox .ei-store-btn'); await p.waitForTimeout(300);
   ok('何も貼らずに保管しても案件は作られない', (await p.evaluate(() => window.__db.quote_presets.length)) === 0);
-  // 2) 保管
+  // 2) 新しい案件として保管
   const RAW = 'PENANG向け 暫定提示\n海上運賃 20FT 1本 USD 475\nTHC 34,900円 + 税\nドレージ 実費';
   await p.fill('#eiText', RAW); await p.fill('#eiS-customer', '株式会社テスト商事'); await p.fill('#eiS-memo', '横浜→PENANG 暫定提示');
   const dlgBefore = dlg.length;
   await p.click('#emailImportBox .ei-store-btn'); await p.waitForTimeout(1500);
   const row = await p.evaluate(() => window.__db.quote_presets[0] || null);
   ok('案件が 1 件保存される', !!row, row);
-  const srcObj = row && (() => { try { return JSON.parse(row.data.fields['qf-import-src']); } catch (e) { return null; } })();
-  ok('原文が案件データ（qf-import-src）に入る', srcObj && srcObj.rawText === RAW && srcObj.stored === true, srcObj);
+  const ents = row && (() => { try { return JSON.parse(row.data.fields['qf-free-entries']); } catch (e) { return null; } })();
+  ok('原文が「保管した自由入力」の 1 件目（未取込・メモ・保管者・日時つき）として入る', ents && ents.length === 1 && ents[0].text === RAW && ents[0].status === 'pending' && ents[0].label === '横浜→PENANG 暫定提示' && ents[0].by === 's@example.com' && !!ents[0].at && !!ents[0].id, ents);
   ok('お客様名が列に昇格し、件名がメモに入る', row && row.customer === '株式会社テスト商事' && row.data.fields['qf-memo'] === '横浜→PENANG 暫定提示', row && { c: row.customer, m: row.data.fields['qf-memo'] });
   ok('保存後は確認ダイアログなしでダッシュボードに戻り、モーダルは閉じる', await p.evaluate(() => document.getElementById('tab-quote-make').classList.contains('qp-dash')) && !(await vis('#emailImportModal.open')) && dlg.length === dlgBefore, dlg);
   ok('明細の品名は 0 件（原文だけの案件）', row && !row.data.rows.some(r => r._type === 'data' && String(r.cells[4] || '').trim()), row && row.data.rows);
-  ok('ダッシュボードには「未取込」の帯を出さない（編集画面だけ）', !(await vis('#eiPendingBanner')));
-  // 3) 未取込の判定（eiPendingOf）
-  ok('eiPendingOf：原文あり＋明細なし → 未取込', await p.evaluate(d => !!window.eiPendingOf(d), row.data));
-  ok('eiPendingOf：明細の品名があれば取込済み（null）', await p.evaluate(d => { const c = JSON.parse(JSON.stringify(d)); const cells = c.rows.find(r => r._type === 'data').cells; cells[4] = 'THC'; return window.eiPendingOf(c) === null; }, row.data));
-  ok('eiPendingOf：原文が無ければ null', await p.evaluate(d => { const c = JSON.parse(JSON.stringify(d)); c.fields['qf-import-src'] = ''; return window.eiPendingOf(c) === null; }, row.data));
+  ok('ダッシュボードには保管欄を出さない（編集画面だけ）', !(await vis('#eiFreePanel')));
+  // 3) 未取込の判定
+  ok('eiPendingOf：未取込の保管が 1 件 → 1 件の配列', await p.evaluate(d => { const r = window.eiPendingOf(d); return Array.isArray(r) && r.length === 1; }, row.data));
+  ok('eiPendingOf：すべて取込済みなら null（明細が無くても）', await p.evaluate(d => { const c = JSON.parse(JSON.stringify(d)); const e = JSON.parse(c.fields['qf-free-entries']); e.forEach(x => x.status = 'done'); c.fields['qf-free-entries'] = JSON.stringify(e); return window.eiPendingOf(c) === null; }, row.data));
+  ok('eiPendingOf：保管が無ければ null', await p.evaluate(d => { const c = JSON.parse(JSON.stringify(d)); c.fields['qf-free-entries'] = ''; return window.eiPendingOf(c) === null; }, row.data));
+  ok('旧形式（原文だけ・明細なし）は 1 件の未取込として読む／明細があれば null', await p.evaluate(() => {
+    const mk = rows => ({ fields: { 'qf-import-src': JSON.stringify({ type: 'email-paste', rawText: '旧形式の原文', importedAt: '2026-11-02T00:00:00Z' }) }, rows });
+    const a = window.eiPendingOf(mk([{ _type: 'data', cells: [false, '', '', false, ''] }]));
+    const b = window.eiPendingOf(mk([{ _type: 'data', cells: [false, '', '', false, 'THC'] }]));
+    return a && a.length === 1 && a[0].id === 'legacy' && b === null;
+  }));
   // 4) ダッシュボードの印・タイル・絞り込み
   await p.evaluate(() => window.cloudListPresets && window.cloudListPresets(true)); await p.waitForTimeout(1000);
   const tile = await p.evaluate(() => { const e = document.querySelector('#qpdStats .qpd-stat--pend'); return e ? e.textContent : null; });
   ok('統計タイルに「📩 1 未取込」が出る', tile && /1/.test(tile) && /未取込/.test(tile), tile);
-  const badge = await p.evaluate(() => document.querySelectorAll('#qpDashboard .cloud-pend-badge, #qpDashboard .qpd-pend-mark').length);
-  ok('案件カード/行に「📩 未取込」の印が出る', badge >= 1, badge);
-  // もう 1 件（通常の案件）を足して絞り込みを確認
+  const badgeT = await p.evaluate(() => (document.querySelector('#qpDashboard .cloud-pend-badge, #qpDashboard .qpd-pend-mark') || {}).textContent);
+  ok('案件カード/行に「📩 未取込 1件」の印が出る', /未取込\s*1件/.test(badgeT || ''), badgeT);
   await p.evaluate(() => { window.__db.quote_presets.push({ id: 'plain1', name: '通常案件', status: '下書き中', customer: 'X社', data: { fields: { 'qf-ref': 'R1' }, rows: [{ _type: 'data', cells: [false, '', '', false, 'THC'] }] }, updated_at: new Date().toISOString(), owner_email: 's@example.com', created_by: 's@example.com' }); });
   await p.evaluate(() => window.cloudListPresets(true)); await p.waitForTimeout(800);
   const allN = await p.evaluate(() => document.querySelectorAll('#qpDashboard .qpd-card, #qpDashboard .cloud-card, #qpDashboard .qpd-row').length);
@@ -125,43 +130,95 @@ const http = require('http'), fs = require('fs'), path = require('path');
   const pendN = await p.evaluate(() => document.querySelectorAll('#qpDashboard .cloud-card, #qpDashboard .qpd-row').length);
   ok('「未取込」タイルで絞り込める（通常案件は除かれる）', pendN === 1 && allN >= 2, { allN, pendN });
   ok('通常案件には未取込の印が付かない', await p.evaluate(() => !window.eiPendingOf(window.__db.quote_presets[1].data)));
+  await p.click('#qpdStats .qpd-stat--pend'); await p.waitForTimeout(300);   // 絞り込みを戻す
 
   // 5) 取り込む（バッジ → 案件を開く → 編集開始 → 解析画面）
   await p.evaluate(() => document.querySelector('#qpDashboard .cloud-pend-badge') && document.querySelector('#qpDashboard .cloud-pend-badge').click()); await p.waitForTimeout(1500);
   ok('案件が開く（エディタ画面）', await p.evaluate(() => !document.getElementById('tab-quote-make').classList.contains('qp-dash')));
-  ok('編集を開始し（閲覧モードでない）、保管した原文でメール取込画面が開く', await vis('#emailImportModal.open') && !(await p.evaluate(() => document.getElementById('tab-quote-make').classList.contains('qmode-view'))));
-  ok('保管した原文が貼り付け欄に入り、自動で解析される（明細候補が出る）', (await p.inputValue('#eiText')) === RAW && (await p.evaluate(() => document.querySelectorAll('#eiReviewWrap .ei-row').length)) >= 2);
-  ok('「📩 未取込」の帯が出ている（原文あり・明細なし）', await vis('#eiPendingBanner'));
-  // 挿入
+  ok('未取込が 1 件なので、編集を開始して保管した原文でメール取込画面が開く', await vis('#emailImportModal.open') && !(await p.evaluate(() => document.getElementById('tab-quote-make').classList.contains('qmode-view'))));
+  ok('原文が貼り付け欄に入り、自動で解析される（明細候補が出る）', (await p.inputValue('#eiText')) === RAW && (await p.evaluate(() => document.querySelectorAll('#eiReviewWrap .ei-row').length)) >= 2);
+  ok('保管欄に 1 件（📩 未取込）が出る', await vis('#eiFreePanel') && (await p.evaluate(() => document.querySelectorAll('#eiFreePanel .ei-fe-row').length)) === 1 && /未取込/.test(await p.textContent('#eiFreePanel .ei-fe-chip')));
+  ok('保管した原文からの取り込みでは「新規案件として展開」を出さない', !(await vis('#eiActions .ei-act-new')));
   await p.click('#eiActions .ei-act-insert'); await p.waitForTimeout(800);
   const nm = await p.evaluate(() => [...document.querySelectorAll('#tableBody tr:not([data-virtual]) [data-field="nm"]')].map(i => i.value).filter(Boolean));
   ok('表に取り込まれる（海上運賃／THC／ドレージ）', nm.length >= 3 && nm.some(n => /海上運賃/.test(n)) && nm.some(n => /THC/.test(n)), nm);
-  ok('取り込み後は帯が消える（取込済み）', !(await vis('#eiPendingBanner')));
-  ok('原文は案件に残る', await p.evaluate(() => { try { return !!JSON.parse(document.getElementById('qf-import-src').value).rawText; } catch (e) { return false; } }));
-  // 保存 → 一覧で未取込でなくなる
+  ok('取り込んだ 1 件は「✅ 取込済み」になる（原文は残る）', await p.evaluate(() => { const e = JSON.parse(document.getElementById('qf-free-entries').value); return e.length === 1 && e[0].status === 'done' && !!e[0].text; }) && /すべて取込済み/.test(await p.textContent('#eiFreePanel .ei-fp-sum')));
   await p.evaluate(() => window.cloudSaveCurrent({ toDashboard: true })); await p.waitForTimeout(1500);
-  const after = await p.evaluate(() => window.__db.quote_presets.filter(r => window.eiPendingOf(r.data)).length);
-  ok('保存後は未取込 0 件（印・タイルが消える）', after === 0, after);
+  ok('保存後は未取込 0 件（印・タイルが消える）', (await p.evaluate(() => window.__db.quote_presets.filter(r => window.eiPendingOf(r.data)).length)) === 0);
   await p.evaluate(() => window.cloudListPresets(true)); await p.waitForTimeout(800);
   ok('タイルも消える', !(await vis('#qpdStats .qpd-stat--pend')));
+  const caseId = await p.evaluate(() => window.__db.quote_presets[0].id);
 
-  // 6) 編集画面から「原文のまま保管」
+  // 6) 既存の案件へ、カードの「⋯」から保管を足す（案件は開かない）
+  const dl6 = dlg.length;
+  await p.evaluate(id => window.eiOpenStoreForCard(encodeURIComponent(id)), caseId); await p.waitForTimeout(400);
+  ok('既存案件への保管は、メモ欄だけ（お客様・件名の欄は出ない）', await vis('#emailImportModal.open') && await vis('#eiS-label') && !(await vis('#eiS-customer')) && !(await vis('#eiS-memo')));
+  const RAW2 = '改定見積（○○社 11/2 受領）\n海上運賃 20FT USD 520';
+  await p.fill('#eiText', RAW2); await p.fill('#eiS-label', '○○社 改定見積 11/2 受領');
+  await p.click('#emailImportBox .ei-store-btn'); await p.waitForTimeout(1500);
+  const c6 = await p.evaluate(id => window.__db.quote_presets.find(r => r.id === id), caseId);
+  const e6 = JSON.parse(c6.data.fields['qf-free-entries']);
+  ok('既存案件に 2 件目が足される（1 件目は取込済みのまま・2 件目は未取込）', e6.length === 2 && e6[0].status === 'done' && e6[1].status === 'pending' && e6[1].text === RAW2 && e6[1].label === '○○社 改定見積 11/2 受領', e6);
+  ok('案件の明細・ステータス・お客様は変わらない', c6.status === '下書き中' && c6.customer === '株式会社テスト商事' && c6.data.rows.some(r => r._type === 'data' && /海上運賃/.test(String(r.cells[4] || ''))), { s: c6.status });
+  ok('ダッシュボードのまま・確認ダイアログなし・モーダルは閉じる', await p.evaluate(() => document.getElementById('tab-quote-make').classList.contains('qp-dash')) && !(await vis('#emailImportModal.open')) && dlg.length === dl6, dlg.slice(dl6));
+  await p.waitForTimeout(800);
+  ok('明細があっても、未取込の保管があれば一覧に「📩 未取込 1件」が出る', await vis('#qpdStats .qpd-stat--pend') && /未取込\s*1件/.test(await p.evaluate(() => (document.querySelector('#qpDashboard .cloud-pend-badge, #qpDashboard .qpd-pend-mark') || {}).textContent || '')));
+  ok('カードの「⋯」メニューに「📝 自由入力を追加」がある', await p.evaluate(() => !!document.querySelector('#qpDashboard .cloud-menu-item[onclick*="eiOpenStoreForCard"]')));
+
+  // 7) 案件を開く → 保管欄（閲覧モードでも操作でき、必要なら編集を開始）
+  await p.evaluate(id => window.cloudLoadPreset(encodeURIComponent(id)), caseId); await p.waitForTimeout(1200);
+  ok('閲覧モードで開いても保管欄が出る（.quote-main の外）・2 件・未取込 1 件', await vis('#eiFreePanel') && await p.evaluate(() => !document.getElementById('eiFreePanel').closest('.quote-main') && document.querySelectorAll('#eiFreePanel .ei-fe-row').length === 2 && document.querySelectorAll('#eiFreePanel .ei-fe-chip.pending').length === 1));
+  ok('未取込があるので保管欄は開いている', await p.evaluate(() => document.getElementById('eiFreePanel').open));
+  ok('閲覧モードである', await p.evaluate(() => document.getElementById('tab-quote-make').classList.contains('qmode-view')));
+  // 「原文」で本文を見る
+  await p.click('#eiFreePanel .ei-fe-row:nth-child(2) .ei-fe-btn:nth-child(2)'); await p.waitForTimeout(200);
+  ok('「原文」で保管した本文が見える', await p.evaluate(() => { const pre = document.querySelectorAll('#eiFreePanel .ei-fe-text')[1]; return !pre.hidden && /改定見積/.test(pre.textContent); }));
+  // 取込済みにする（閲覧中 → 自動で編集を開始）
+  await p.click('#eiFreePanel .ei-fe-row:nth-child(2) .ei-fe-btn:nth-child(3)'); await p.waitForTimeout(900);
+  ok('「取込済みにする」で編集を開始し、2 件目が取込済みになる', await p.evaluate(() => !document.getElementById('tab-quote-make').classList.contains('qmode-view') && document.querySelectorAll('#eiFreePanel .ei-fe-chip.done').length === 2));
+  await p.click('#eiFreePanel .ei-fe-row:nth-child(2) .ei-fe-btn:nth-child(3)'); await p.waitForTimeout(300);
+  ok('「未取込に戻す」で戻せる', await p.evaluate(() => document.querySelectorAll('#eiFreePanel .ei-fe-chip.pending').length === 1));
+  // 取り込む（2 件目）
+  await p.click('#eiFreePanel .ei-fe-row:nth-child(2) .ei-fe-import'); await p.waitForTimeout(700);
+  ok('2 件目の原文でメール取込画面が開き、解析される', (await p.inputValue('#eiText')) === RAW2 && (await p.evaluate(() => document.querySelectorAll('#eiReviewWrap .ei-row').length)) >= 1);
+  await p.click('#eiActions .ei-act-insert'); await p.waitForTimeout(600);
+  ok('取り込むと、その 1 件だけが取込済みになる', await p.evaluate(() => document.querySelectorAll('#eiFreePanel .ei-fe-chip.done').length === 2));
+  // 編集画面から追加（⋯ メニュー）→ 確認なしで保存・この案件に留まる
+  const dl7 = dlg.length;
+  await p.evaluate(() => window.eiOpenStoreForCurrent()); await p.waitForTimeout(500);
+  ok('編集画面からの追加も、メモ欄だけの保管専用表示', await vis('#emailImportModal.open') && await vis('#eiS-label') && !(await vis('#eiS-customer')));
+  await p.fill('#eiText', '編集画面から足した原文\nTHC 30000円'); await p.fill('#eiS-label', '編集画面から');
+  await p.click('#emailImportBox .ei-store-btn'); await p.waitForTimeout(1500);
+  const c7 = await p.evaluate(id => window.__db.quote_presets.find(r => r.id === id), caseId);
+  const e7 = JSON.parse(c7.data.fields['qf-free-entries']);
+  ok('編集画面からの追加で 3 件目が保存される（未取込）', e7.length === 3 && e7[2].status === 'pending' && /編集画面から足した原文/.test(e7[2].text) && e7[2].label === '編集画面から', e7.map(x => x.status));
+  ok('保存後も、この案件の画面に留まり・確認ダイアログも出ない', await p.evaluate(() => !document.getElementById('tab-quote-make').classList.contains('qp-dash')) && dlg.length === dl7, dlg.slice(dl7));
+  ok('保管欄に 3 件・未取込 1 件', await p.evaluate(() => document.querySelectorAll('#eiFreePanel .ei-fe-row').length === 3 && document.querySelectorAll('#eiFreePanel .ei-fe-chip.pending').length === 1));
+  // 削除（確認 → 編集中に）
+  await p.click('#eiFreePanel .ei-fe-row:nth-child(3) .ei-fe-del'); await p.waitForTimeout(400);
+  ok('削除は確認画面が出る（やめる＝残る）', await vis('.confirm-dialog'));
+  await p.click('.confirm-dialog .btn-cancel'); await p.waitForTimeout(300);
+  ok('「やめる」では消えない', (await p.evaluate(() => document.querySelectorAll('#eiFreePanel .ei-fe-row').length)) === 3);
+  await p.click('#eiFreePanel .ei-fe-row:nth-child(3) .ei-fe-del'); await p.waitForTimeout(300);
+  await p.click('.confirm-dialog .btn-danger'); await p.waitForTimeout(500);
+  ok('「削除する」で 3 件目が消える', (await p.evaluate(() => document.querySelectorAll('#eiFreePanel .ei-fe-row').length)) === 2);
+  await p.evaluate(() => window.cloudSaveCurrent({ toDashboard: true })); await p.waitForTimeout(1500);
+  const c8 = await p.evaluate(id => window.__db.quote_presets.find(r => r.id === id), caseId);
+  ok('保存すると削除が反映され、未取込は 0 件', JSON.parse(c8.data.fields['qf-free-entries']).length === 2 && !(await p.evaluate(r => window.eiPendingOf(r.data), c8)));
+
+  // 8) 新しい見積の編集画面から「原文のまま保管」（メール取込の画面）
   await p.evaluate(() => window.qpNewQuote()); await p.waitForTimeout(600);
-  ok('新規見積では帯は出ない', !(await vis('#eiPendingBanner')));
+  ok('新規見積では保管欄は出ない', !(await vis('#eiFreePanel')));
   await p.evaluate(() => { const c = document.getElementById('qf-customer'); c.value = '編集画面から保管社'; });
   await p.evaluate(() => window.openEmailImport()); await p.waitForTimeout(300);
-  ok('編集画面から開くと通常表示（解析ボタンあり・お客様欄なし）', await vis('#emailImportBox .ei-parse-btn') && !(await vis('#eiS-customer')) && /メール取込/.test(await p.textContent('#eiTitle')));
+  ok('メール取込として開くと通常表示（解析ボタンあり・お客様欄なし）', await vis('#emailImportBox .ei-parse-btn') && !(await vis('#eiS-customer')) && /メール取込/.test(await p.textContent('#eiTitle')));
   await p.fill('#eiText', '編集画面からの自由入力\nTHC 30000円');
   const n0 = await p.evaluate(() => window.__db.quote_presets.length);
   await p.click('#emailImportBox .ei-store-btn'); await p.waitForTimeout(1500);
-  const n1 = await p.evaluate(() => window.__db.quote_presets.length);
   const last = await p.evaluate(() => window.__db.quote_presets[window.__db.quote_presets.length - 1]);
-  ok('編集画面からの保管で案件が保存され、原文が入る', n1 === n0 + 1 && last.customer === '編集画面から保管社' && /編集画面からの自由入力/.test(last.data.fields['qf-import-src']), { n0, n1 });
+  ok('新しい案件として保存され、保管が 1 件入る', (await p.evaluate(() => window.__db.quote_presets.length)) === n0 + 1 && last.customer === '編集画面から保管社' && JSON.parse(last.data.fields['qf-free-entries']).length === 1, { n0 });
   ok('その案件は未取込として判定される', await p.evaluate(r => !!window.eiPendingOf(r.data), last));
-
-  // 7) 閲覧モードでは挿入できない
-  await p.evaluate(id => window.cloudLoadPreset(encodeURIComponent(id)), last.id); await p.waitForTimeout(1200);
-  ok('閲覧モードで開いた未取込の案件にも帯が出る（帯は閲覧中でも押せる位置）', await vis('#eiPendingBanner') && await p.evaluate(() => !document.getElementById('eiPendingBanner').closest('.quote-main')));
+  ok('保存後も保管欄が出ている（閲覧モードでも）', await vis('#eiFreePanel'));
 
   ok('JS エラーなし', errs.length === 0, errs);
   await ctx.close(); await b.close(); srv.close();
