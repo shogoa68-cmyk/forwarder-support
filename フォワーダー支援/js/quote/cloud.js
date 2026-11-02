@@ -42,6 +42,7 @@
   let _cloudFilterCustomer = '';  // お客様別ランキングからの絞り込み（正規化キー）
   let _cloudFilterTag     = '';   // タグ絞り込み（'' = すべて）
   let _cloudFollowFilter  = false; // 🔔 料金更新フォロー（要フォロー）だけに絞り込む
+  let _cloudPendingFilter = false; // 📩 未取込（自由入力で保管・まだ表に取り込んでいない）だけに絞り込む
   let _followEditId       = null;  // 料金フォローのインライン編集中の案件ID
   let _cloudAdvOpen       = false;
   // ダッシュボード：並び替え・表示形式
@@ -428,6 +429,7 @@
     const pod = _cloudFilterPod.trim().toLowerCase();
     const car = _cloudFilterCarrier.trim().toLowerCase();
     if (_cloudFollowFilter && !_priceFollow(r)) return false;   // 🔔 要フォローのみ
+    if (_cloudPendingFilter && !_pendingImport(r)) return false; // 📩 未取込のみ
     if (_cloudStatusFilter) {
       const st = _normalizeStatus(r.status) || CLOUD_STATUS_DEFAULT;
       const matchesStatus = (_cloudStatusFilter === DRAFT_GROUP_FILTER)
@@ -452,7 +454,7 @@
     // 絞り込み・並び替えが変わったときだけ先頭ページに戻す（ステータス変更や Presence 等の
     // 付随的な再描画では表示件数を保つ＝スクロール位置・展開状態を崩さない）
     const sig = JSON.stringify([_cloudSearch, _cloudStatusFilter, _cloudFilterCustomer, _cloudFilterTag,
-      _cloudFilterMode, _cloudFilterInco, _cloudFilterPol, _cloudFilterPod, _cloudFilterCarrier, _cloudSort, _cloudView, _cloudFollowFilter]);
+      _cloudFilterMode, _cloudFilterInco, _cloudFilterPol, _cloudFilterPod, _cloudFilterCarrier, _cloudSort, _cloudView, _cloudFollowFilter, _cloudPendingFilter]);
     if (sig !== _dashFilterSig) { _dashFilterSig = sig; _dashLimit = DASH_PAGE; }
     _renderCloudList(rows);
     _renderTagChips();        // タグチップは現在の絞り込み（ステータス等）に連動して件数・顔ぶれを更新
@@ -469,7 +471,7 @@
   // 何らかの絞り込みが効いているか（「すべて解除」ボタンの出し分けに使う）
   function _anyFilterActive() {
     return !!(_cloudSearch.trim() || _cloudStatusFilter || _cloudFilterCustomer || _cloudFilterTag ||
-              _cloudFilterMode || _cloudFilterInco || _cloudFollowFilter ||
+              _cloudFilterMode || _cloudFilterInco || _cloudFollowFilter || _cloudPendingFilter ||
               _cloudFilterPol.trim() || _cloudFilterPod.trim() || _cloudFilterCarrier.trim());
   }
   function _syncResetAllBtn() {
@@ -486,6 +488,7 @@
     _cloudFilterCustomer = '';
     _cloudFilterTag = '';
     _cloudFollowFilter = false;
+    _cloudPendingFilter = false;
     _cloudFilterMode = _cloudFilterInco = _cloudFilterPol = _cloudFilterPod = _cloudFilterCarrier = '';
     ['qpdSearch', 'cloudSearchInput'].forEach(id => { const e = document.getElementById(id); if (e) e.value = ''; });
     ['qpdFilterMode','qpdFilterInco','qpdFilterPol','qpdFilterPod','qpdFilterCarrier']
@@ -754,6 +757,8 @@
 
   // 🔔 料金更新フォロー（暫定料金で提示し、最新料金が出たら更新したい案件）
   function _priceFollow(r) { return (r && r.data && r.data.priceFollow) || null; }
+  // 📩 未取込（自由入力で保管した原文があり、品名のある明細がまだ無い）。判定は email-import.js の eiPendingOf
+  function _pendingImport(r) { return (r && r.data && typeof window.eiPendingOf === 'function') ? window.eiPendingOf(r.data) : null; }
   function _mmdd(dateStr) {
     var d = new Date(dateStr); if (isNaN(d.getTime())) return escHtml(dateStr);
     return (d.getMonth() + 1) + '/' + d.getDate();
@@ -907,7 +912,11 @@
       const _rt0 = (routeMeta.routes && routeMeta.routes[0]) || { pol: pol, pod: pod };
       const _routePlain = [(_rt0.pol || '').trim(), (_rt0.pod || '').trim()].filter(Boolean).join(' → ');
       const headline = memoLine || _routePlain || titleText;
-      const prioRow     = (dueBadge || recvBadge || remindBadge || holdToggle || followCtl) ? '<div class="cloud-card-prio">' + dueBadge + recvBadge + remindBadge + holdToggle + followCtl + '</div>' : '';
+      const pendBadge   = _pendingImport(r)
+        ? '<button type="button" class="cloud-pend-badge" onclick="event.stopPropagation();cloudOpenPendingImport(\'' + idAttr + '\')" ' +
+          'title="自由入力で保管したままの案件です。クリックで開いて、保管した原文を表に取り込みます">📩 未取込 · 取り込む</button>'
+        : '';
+      const prioRow     = (pendBadge || dueBadge || recvBadge || remindBadge || holdToggle || followCtl) ? '<div class="cloud-card-prio">' + pendBadge + dueBadge + recvBadge + remindBadge + holdToggle + followCtl + '</div>' : '';
 
       // サブコン（役割ラベル付き・5件目以降は +N）
       const subShown = subcons.slice(0, 4);
@@ -1118,7 +1127,7 @@
       return '<div class="qpd-row qpd-row--simple' + (_cloudLinkMode ? ' qpd-row--linkmode' : '') + '" onclick="' + rowClick + '" title="' + (_cloudLinkMode ? 'クリックで選択' : 'クリックで開く') + '">' +
         linkChk +
         _statusSelect(idAttr, status, lockedBy, 'qpd-row-status') +
-        '<span class="qpd-row-title"><b class="qpd-row-headline">' + escHtml(headline) + '</b><small class="qpd-row-ref">' + escHtml(title) + '</small></span>' +
+        '<span class="qpd-row-title">' + (_pendingImport(r) ? '<span class="qpd-pend-mark" title="自由入力で保管したまま（未取込）">📩 未取込</span>' : '') + '<b class="qpd-row-headline">' + escHtml(headline) + '</b><small class="qpd-row-ref">' + escHtml(title) + '</small></span>' +
         '<span class="qpd-row-cust">' + escHtml(cust) + (person ? ' <small>/ ' + escHtml(person) + '</small>' : '') + '</span>' +
         '<span class="qpd-row-route">' + escHtml(routePlain) + '</span>' +
         '<span class="qpd-row-ts">' + ts + '</span>' +
@@ -1129,7 +1138,7 @@
     return '<div class="qpd-row' + (_cloudLinkMode ? ' qpd-row--linkmode' : '') + '" onclick="' + rowClick + '" title="' + (_cloudLinkMode ? 'クリックで選択' : 'クリックで開く') + '">' +
       linkChk +
       _statusSelect(idAttr, status, lockedBy, 'qpd-row-status') +
-      '<span class="qpd-row-title">' + escHtml(title) + '</span>' +
+      '<span class="qpd-row-title">' + (_pendingImport(r) ? '<span class="qpd-pend-mark" title="自由入力で保管したまま（未取込）">📩 未取込</span>' : '') + escHtml(title) + '</span>' +
       '<span class="qpd-row-cust">' + escHtml(cust) + (person ? ' <small>/ ' + escHtml(person) + '</small>' : '') + '</span>' +
       '<span class="qpd-row-who" title="' + escHtml(_whoTitle(r)) + '">' + escHtml(who) +
         (others > 0 ? '<span class="cloud-card-edn">+' + others + '</span>' : '') + '</span>' +
@@ -1169,6 +1178,13 @@
       html += '<button type="button" class="qpd-stat qpd-stat--follow' + (_cloudFollowFilter ? ' is-active' : '') +
         (overdue ? ' qpd-stat--follow-over' : '') + '" onclick="cloudToggleFollowFilter()" title="最新料金が出たら更新したい案件（料金更新フォロー）だけに絞り込み">' +
         '<span class="qpd-stat-n">🔔 ' + follows.length + '</span><span class="qpd-stat-l">' + escHtml(lbl) + '</span></button>';
+    }
+    // 📩 未取込（自由入力で保管・まだ表に取り込んでいない案件）タイル
+    const pends = _cloudRows.filter(_pendingImport);
+    if (pends.length) {
+      html += '<button type="button" class="qpd-stat qpd-stat--pend' + (_cloudPendingFilter ? ' is-active' : '') +
+        '" onclick="cloudTogglePendingFilter()" title="自由入力で保管したまま、まだ表に取り込んでいない案件だけに絞り込み">' +
+        '<span class="qpd-stat-n">📩 ' + pends.length + '</span><span class="qpd-stat-l">未取込</span></button>';
     }
     box.innerHTML = html;
   }
@@ -1694,6 +1710,7 @@
     });
     _applyQuoteData({ fields: emptyFields, rows: [], _rowFormat: 'v3-mixed-rows' });
     if (typeof addRow === 'function') addRow();   // 空の入力行を1行用意
+    if (typeof window.eiRefreshPendingBanner === 'function') window.eiRefreshPendingBanner();   // 📩 未取込の帯を消す
   }
 
   // ========== ページ切替（ダッシュボード／エディタ） ==========
@@ -2171,6 +2188,42 @@
     _renderQpdStats();
     _applyCloudFilter();
   }
+  function cloudTogglePendingFilter() {
+    _cloudPendingFilter = !_cloudPendingFilter;
+    _renderQpdStats();
+    _applyCloudFilter();
+  }
+
+  // ---------- 📝 自由入力で保管 → 📩 未取込 ----------
+  // 自由入力で提示した見積の原文を、明細なしの新しい案件として保存してダッシュボードへ戻る。
+  // 原文は #qf-import-src（案件データ fields）に持たせるだけで、列の追加（SQL）は不要。
+  // 「未取込」は原文あり＋品名のある明細が 0 件の自動判定（email-import.js eiPendingOf）。
+  async function cloudStoreRawQuote(o) {
+    o = o || {};
+    if (!_getClient() || !_cloudUser) { quoteShowToast('⚠️ 保管するには先に Google でログインしてください', 'warn'); return false; }
+    // 未保存の確認は、モーダルを開く前（eiOpenStoreFromDashboard → cloudConfirmLeaveUnsaved）に済んでいる
+    _exitShareEditing();
+    _clearQuoteForm();
+    _loadedCloudId = null; _loadedCloudTs = null;
+    _resetQspChat();
+    if (typeof setCurrentQuoteName === 'function') setCurrentQuoteName('');
+    _applyShareMode('edit');
+    const setV = (id, v) => { const e = document.getElementById(id); if (e && v) e.value = v; };
+    setV('qf-customer', o.customer);
+    setV('qf-memo', o.memo);
+    const src = document.getElementById('qf-import-src');
+    if (src) src.value = JSON.stringify({ type: 'email-paste', stored: true, importedAt: new Date().toISOString(), rawText: String(o.rawText || '').slice(0, 20000) });
+    if (typeof window.eiRefreshPendingBanner === 'function') window.eiRefreshPendingBanner();
+    const before = _loadedCloudId;
+    await cloudSaveCurrent({ toDashboard: true });
+    return !!_loadedCloudId && _loadedCloudId !== before;
+  }
+  // ダッシュボードの「📩 未取込」から、その案件を開いて保管した原文の取り込みを始める
+  async function cloudOpenPendingImport(rawId) {
+    if (!(await _confirmLeaveUnsaved('別の案件を開く'))) return;
+    await cloudLoadPreset(rawId);
+    if (typeof window.eiOpenStored === 'function') window.eiOpenStored();
+  }
 
   // ---------- 🏷️ 案件タグ（ダッシュボードから直接編集） ----------
   async function _cloudUpdateTags(rawId, nextTags) {
@@ -2278,7 +2331,7 @@
   }
 
   // ---------- 保存（同名は上書き） ----------
-  async function cloudSaveCurrent() {
+  async function cloudSaveCurrent(opts) {
     const c = _getClient();
     if (!c || !_cloudUser) { quoteShowToast('⚠️ 先に Google でログインしてください', 'warn'); return; }
     // 保存名：読込中の案件名を優先（コピー元と名前が被っても混同しない）。未ロードなら自動生成
@@ -2368,6 +2421,8 @@
     quoteShowToast('💾 「' + name + '」を保存して作業終了しました', 'success', 3500);
     cloudListPresets();
     // 保存後の遷移はユーザーに選ばせる（OK＝ダッシュボードへ／キャンセル＝この見積に留まる）
+    // 自由入力の保管（cloudStoreRawQuote）は確認なしでダッシュボードへ戻る
+    if (opts && opts.toDashboard === true) { qpShowDashboard(); return; }
     setTimeout(() => {
       if (confirm('💾 保存しました。\n📊 ダッシュボードに戻りますか？\n（キャンセル＝この見積を表示したまま）')) {
         qpShowDashboard();
@@ -2850,6 +2905,7 @@
     if (typeof closePresetMgr === 'function') closePresetMgr();
     _applyShareMode('view');   // 読み取り専用。編集するには「✏️ 編集」
     qpShowEditor();            // ダッシュボードからエディタ画面へ
+    if (typeof window.eiRefreshPendingBanner === 'function') window.eiRefreshPendingBanner();   // 📩 未取込の帯
     qfRenderAttachments();     // この案件の添付一覧を表示
     _resetQuoteDirty();        // 読込直後は未保存なし
     const lk = _cloudRows.find(r => r.id === id);
@@ -3199,7 +3255,9 @@
     _applyShareMode('edit');
     // 未保存検知：編集中のユーザー入力で dirty フラグを立てる
     var _qtab = document.getElementById('tab-quote-make');
-    if (_qtab) { _qtab.addEventListener('input', _markQuoteDirty); _qtab.addEventListener('change', _markQuoteDirty); }
+    // メール取込モーダルの入力欄（原文・お客様名など）は案件の内容ではないので、未保存の変更とは数えない
+    const _markUnlessImportModal = e => { if (e.target && e.target.closest && e.target.closest('#emailImportModal')) return; _markQuoteDirty(); };
+    if (_qtab) { _qtab.addEventListener('input', _markUnlessImportModal); _qtab.addEventListener('change', _markUnlessImportModal); }
     // タブを閉じる/離れる時はロックを即時解放（best-effort。失敗しても90秒で自動失効）
     window.addEventListener('pagehide', () => { if (_lockHeldId) _dropLock(); });
     window.addEventListener('beforeunload', () => { if (_lockHeldId) _dropLock(); });
@@ -3899,6 +3957,11 @@
   window.cloudSaveFollow        = cloudSaveFollow;
   window.cloudClearFollow       = cloudClearFollow;
   window.cloudToggleFollowFilter = cloudToggleFollowFilter;
+  window.cloudTogglePendingFilter = cloudTogglePendingFilter;
+  window.cloudStoreRawQuote = cloudStoreRawQuote;
+  window.cloudOpenPendingImport = cloudOpenPendingImport;
+  window.cloudIsLoggedIn = () => !!_cloudUser;
+  window.cloudConfirmLeaveUnsaved = _confirmLeaveUnsaved;
   window.toggleCloudAdvSearch  = toggleCloudAdvSearch;
   window.cloudFilterAdvanced   = cloudFilterAdvanced;
   window.clearCloudAdvSearch   = clearCloudAdvSearch;
