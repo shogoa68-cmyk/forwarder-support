@@ -195,9 +195,15 @@
   "duty-low-mode",
   "duty-rate",
   "eiActions",
+  "eiDesc",
   "eiInsertTarget",
+  "eiPendingBanner",
   "eiReviewWrap",
+  "eiS-customer",
+  "eiS-memo",
   "eiText",
+  "eiTitle",
+  "emailImportBox",
   "emailImportModal",
   "fbBody",
   "fbForm",
@@ -995,7 +1001,19 @@
    "uses": 1,
    "defined": true
   },
+  "eiOpenStoreFromDashboard": {
+   "uses": 1,
+   "defined": true
+  },
+  "eiOpenStored": {
+   "uses": 1,
+   "defined": true
+  },
   "eiParse": {
+   "uses": 1,
+   "defined": true
+  },
+  "eiStoreRaw": {
    "uses": 1,
    "defined": true
   },
@@ -2201,6 +2219,14 @@
    "css": true,
    "html": false
   },
+  "ei-pb-excerpt": {
+   "css": true,
+   "html": true
+  },
+  "ei-store-only": {
+   "css": true,
+   "html": false
+  },
   "ei-sv": {
    "css": true,
    "html": false
@@ -2555,6 +2581,10 @@
   },
   "lcrp-w-name": {
    "css": false,
+   "html": false
+  },
+  "master-area-btn": {
+   "css": true,
    "html": false
   },
   "master-cloud-notice": {
@@ -3297,8 +3327,16 @@
    "css": true,
    "html": false
   },
+  "stats-md-area-chip": {
+   "css": false,
+   "html": false
+  },
   "stats-md-tag-chip": {
    "css": true,
+   "html": false
+  },
+  "stats-md-via-chip": {
+   "css": false,
    "html": false
   },
   "stats-pane": {
@@ -3704,6 +3742,10 @@
    "js": true
   },
   "alias": {
+   "html": false,
+   "js": true
+  },
+  "area": {
    "html": false,
    "js": true
   },

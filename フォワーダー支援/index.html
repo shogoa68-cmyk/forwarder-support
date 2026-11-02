@@ -2200,6 +2200,7 @@
             <button type="button" data-uim="detail" onclick="setUiMode('detail')">詳細表示</button>
           </div>
           <button type="button" class="qpd-new" onclick="qpNewQuote()">🆕 新規見積を作成</button>
+          <button type="button" class="qpd-store" onclick="eiOpenStoreFromDashboard()" title="自由入力で提示した見積の原文をそのまま案件として保管し、あとで時間のあるときにメール取込で表に落とします">📝 自由入力で保管</button>
           <button type="button" class="qpd-resume" onclick="qpShowEditor()" title="編集中の見積画面に戻る">▶ <span class="lbl-d">編集画面へ</span><span class="lbl-s">作業中の見積に戻る</span></button>
         </div>
       </div>
@@ -2746,6 +2747,12 @@
       <button type="button" class="q-secnav-btn" data-sec="section-remark" title="全体リマーク"><span class="q-secnav-ico">📑</span><em>リマーク</em><i class="q-secnav-dot"></i></button>
       <button type="button" class="q-secnav-btn" data-sec="section-table"  title="費用テーブル"><span class="q-secnav-ico">📋</span><em>費用</em><i class="q-secnav-dot"></i></button>
     </div></nav>
+    <!-- 📩 未取込：自由入力で保管した原文があって、明細がまだ無い案件に出す帯（閲覧モードでも押せるよう .quote-main の外） -->
+    <div class="ei-pending-banner" id="eiPendingBanner" hidden role="status">
+      <span class="ei-pb-ico">📩</span>
+      <span class="ei-pb-text"><b>未取込</b>　自由入力で保管した原文があります：<span class="ei-pb-excerpt"></span></span>
+      <button type="button" class="ei-pb-btn" onclick="eiOpenStored()" title="保管した原文を解析して、この見積の表に取り込みます">取り込む</button>
+    </div>
     <div class="quote-workspace">
       <div class="quote-main">
 
@@ -4137,10 +4144,10 @@
     <div id="emailImportModal" onclick="if(event.target===this)closeEmailImport()">
       <div id="emailImportBox">
         <div class="ei-head">
-          <h3>📩 メール取込（見積データ化）</h3>
+          <h3 id="eiTitle">📩 メール取込（見積データ化）</h3>
           <button type="button" class="ei-close" onclick="closeEmailImport()" title="閉じる">✕</button>
         </div>
-        <p class="ei-desc">メールで提示した見積の本文を貼り付けて「解析」を押してください。自アプリのメール形式は高精度で復元でき、自由文も金額を含む行から明細候補を抽出します。</p>
+        <p class="ei-desc" id="eiDesc">メールで提示した見積の本文を貼り付けて「解析」を押してください。自アプリのメール形式は高精度で復元でき、自由文も金額を含む行から明細候補を抽出します。</p>
         <button type="button" class="ei-ai-prompt-btn" onclick="eiCopyAiPrompt()" title="業者からの見積（メール本文・PDFのテキスト・表など）をGemini/Copilot/Claude/ChatGPT等に貼り付けて、この画面が高精度で読み取れる書式へ変換させるためのプロンプトをコピーします">🤖 AI整形用プロンプトをコピー</button>
         <details class="ei-format-help">
           <summary>💡 高精度で読み取れる書き方を見る（推奨フォーマット）</summary>
@@ -4165,8 +4172,13 @@
           </div>
         </details>
         <textarea id="eiText" rows="7" placeholder="ここにメール本文を貼り付け…&#10;例）&#10;《東京 → PENANG》&#10;  ・海上運賃20  1 20'GP × 475 USD ＝ 475 USD&#10;  ・THC  1 CNTR × ¥34,900 ＝ ¥34,900"></textarea>
+        <div class="ei-store-meta" id="eiStoreMeta">
+          <label>お客様 <input type="text" id="eiS-customer" list="custSuggestions" placeholder="任意"></label>
+          <label>件名・メモ <input type="text" id="eiS-memo" placeholder="任意（例：○○向け 横浜→PENANG 暫定提示）"></label>
+        </div>
         <div class="ei-parse-bar">
           <button type="button" class="ei-parse-btn" onclick="eiParse()">🔍 解析する</button>
+          <button type="button" class="ei-store-btn" onclick="eiStoreRaw()" title="解析せず、貼り付けた原文のまま案件として保管します（あとで「📩 未取込」から表に取り込めます）">📝 原文のまま保管（あとで取り込む）</button>
         </div>
         <div id="eiReviewWrap"></div>
         <div id="eiActions" class="ei-actions" hidden>

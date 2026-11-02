@@ -4416,6 +4416,14 @@ body.qp-dash-active #quoteActionDock { display: none !important; }
 #qpDashboard .qpd-head-actions { display: flex; gap: var(--sp-8); flex-wrap: wrap; }
 #qpDashboard .qpd-new { background: var(--green-ok); color: var(--surface); border: none; border-radius: var(--r-8); padding: var(--sp-8) var(--sp-16); font-size: var(--fs-13); font-weight: 700; cursor: pointer; }
 #qpDashboard .qpd-new:hover { background: #18683a; }
+#qpDashboard .qpd-store { background: var(--surface); color: var(--accent-dk); border: 1px solid #b8933e; border-radius: var(--r-8); padding: var(--sp-8) var(--sp-16); font-size: var(--fs-13); font-weight: 700; cursor: pointer; }
+#qpDashboard .qpd-store:hover { background: #fbf3df; }
+/* 📩 未取込（自由入力で保管・まだ表に取り込んでいない案件）の印・タイル */
+#qpDashboard .cloud-pend-badge { cursor: pointer; font-family: inherit; font-size: var(--fs-11-5); font-weight: 700; color: #6b4a00; background: #fff4dc; border: 1px solid #e3b95a; border-radius: 999px; padding: 2px var(--sp-10); }
+#qpDashboard .cloud-pend-badge:hover { background: #ffe9b8; }
+#qpDashboard .qpd-pend-mark { font-size: var(--fs-11-5); font-weight: 700; color: #6b4a00; background: #fff4dc; border: 1px solid #e3b95a; border-radius: 999px; padding: 1px var(--sp-8); margin-right: var(--sp-6); white-space: nowrap; }
+#qpDashboard .qpd-stat--pend .qpd-stat-n { color: #8a6a1f; }
+#qpDashboard .qpd-stat--pend.is-active { border-color: #b8860b; background: #fff4dc; }
 #qpDashboard .qpd-resume { background: var(--accent-lt); color: var(--accent); border: 1px solid var(--c-d5c8b0); border-radius: var(--r-8); padding: var(--sp-8) var(--sp-14); font-size: var(--fs-12-5); font-weight: 700; cursor: pointer; }
 #qpDashboard .qpd-resume:hover { background: var(--c-e8d8c0); }
 /* 未ログイン：ログイン案内 */
@@ -5563,6 +5571,38 @@ body.qp-dash-active #quoteActionDock { display: none !important; }
   color: var(--surface); background: #3f6a3f; border: none; border-radius: var(--r-6); padding: var(--sp-7) var(--sp-20);
 }
 #tab-quote-make .ei-parse-btn:hover { background: #2f5a2f; }
+#tab-quote-make .ei-store-btn {
+  cursor: pointer; font-family: inherit; font-size: var(--fs-13); font-weight: 700; margin-left: var(--sp-8);
+  color: var(--accent-dk); background: var(--surface); border: 1px solid #b8933e; border-radius: var(--r-6); padding: var(--sp-7) var(--sp-16);
+}
+#tab-quote-make .ei-store-btn:hover { background: #fbf3df; }
+/* 📝 自由入力で保管（ダッシュボードから）：解析・挿入まわりを隠し、お客様名・件名の欄を出す */
+#tab-quote-make .ei-store-meta { display: none; gap: var(--sp-10); flex-wrap: wrap; margin: var(--sp-8) 0 0; }
+#tab-quote-make .ei-store-meta label { display: flex; flex-direction: column; gap: 2px; font-size: var(--fs-11-5); color: var(--text-muted); flex: 1 1 220px; }
+#tab-quote-make .ei-store-meta input { font-family: inherit; font-size: var(--fs-13); padding: var(--sp-6) var(--sp-8); border: 1px solid var(--c-d8c9ad); border-radius: var(--r-6); background: var(--surface); }
+#tab-quote-make #emailImportBox.ei-store-only .ei-store-meta { display: flex; }
+#tab-quote-make #emailImportBox.ei-store-only .ei-ai-prompt-btn,
+#tab-quote-make #emailImportBox.ei-store-only .ei-format-help,
+#tab-quote-make #emailImportBox.ei-store-only .ei-parse-btn,
+#tab-quote-make #emailImportBox.ei-store-only #eiReviewWrap,
+#tab-quote-make #emailImportBox.ei-store-only #eiActions { display: none !important; }
+#tab-quote-make #emailImportBox.ei-store-only .ei-store-btn { margin-left: 0; background: #3f6a3f; color: var(--surface); border-color: #3f6a3f; }
+#tab-quote-make #emailImportBox.ei-store-only .ei-store-btn:hover { background: #2f5a2f; }
+/* 📩 未取込の帯（原文だけ保管された案件を開いたとき） */
+#tab-quote-make .ei-pending-banner {
+  display: flex; align-items: center; gap: var(--sp-10); flex-wrap: wrap;
+  margin: var(--sp-8) 0; padding: var(--sp-8) var(--sp-14); border-radius: var(--r-8);
+  background: #fff4dc; border: 1px solid #e3b95a; color: #6b4a00; font-size: var(--fs-13);
+}
+#tab-quote-make .ei-pending-banner[hidden] { display: none; }
+#tab-quote-make.qp-dash > .ei-pending-banner { display: none !important; }   /* ダッシュボードでは出さない（編集画面だけ） */
+#tab-quote-make .ei-pb-text { flex: 1 1 260px; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+#tab-quote-make .ei-pb-excerpt { color: #8a6a1f; }
+#tab-quote-make .ei-pb-btn {
+  cursor: pointer; font-family: inherit; font-size: var(--fs-13); font-weight: 700;
+  color: var(--surface); background: #b8860b; border: none; border-radius: var(--r-6); padding: var(--sp-6) var(--sp-16);
+}
+#tab-quote-make .ei-pb-btn:hover { background: #9a6f08; }
 #tab-quote-make .ei-fields { display: flex; flex-wrap: wrap; gap: var(--sp-10); margin-bottom: var(--sp-8); }
 #tab-quote-make .ei-fields label { font-size: var(--fs-11); font-weight: 600; color: var(--accent); display: flex; align-items: center; gap: var(--sp-5); }
 #tab-quote-make .ei-fields input {
