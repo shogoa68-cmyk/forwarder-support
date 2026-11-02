@@ -84,7 +84,7 @@ if (!window._bmClickDelegated) {
 const BM_FN_ORDER = [
   'スケジュール', '航路', 'コンテナ追跡', 'CY OPEN/CUT', 'ブッキング', 'レート',
   '輸出サーチャージ', '輸入サーチャージ', 'ローカルチャージ（輸出）', 'ローカルチャージ（輸入）',
-  '書類', 'お知らせ', 'その他', '未分類',
+  '書類', '危険品', 'お知らせ', 'その他', '未分類',
 ];
 function bmFnRank(fn) {
   const i = BM_FN_ORDER.indexOf(fn || '未分類');
@@ -366,7 +366,7 @@ const _BM_FN_ICON = {
   'スケジュール':'📅','航路':'🛣️','コンテナ追跡':'📍','CY OPEN/CUT':'🗓️',
   'ローカルチャージ（輸出）':'💴','ローカルチャージ（輸入）':'💴',
   '輸出サーチャージ':'⚡','輸入サーチャージ':'⚡','ブッキング':'📦',
-  'レート':'💱','書類':'📄','お知らせ':'📣',
+  'レート':'💱','書類':'📄','危険品':'⚠️','お知らせ':'📣',
 };
 function _bmFnIcon(fn) { return _BM_FN_ICON[fn] || '🔗'; }
 
@@ -628,6 +628,7 @@ function _inferBmFunction(chipLabel) {
     if (t.includes('輸入') || t.includes('import')) return 'ローカルチャージ（輸入）';
     return 'ローカルチャージ（輸出）';
   }
+  if (t.includes('危険品') || t.includes('危険物') || t.includes('IMDG') || /\bDG\b/.test(t)) return '危険品';
   if (t.includes('お知らせ') || t.includes('アナウンス') || t.includes('通知')) return 'お知らせ';
   if (t.includes('スケジュール') || t.includes('フライト')) return 'スケジュール';
   if (t.includes('追跡')) return 'コンテナ追跡';
