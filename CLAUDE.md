@@ -113,6 +113,18 @@ IT に不慣れな新規ユーザーにも分かりやすいよう、Design 案�
 - **未設定でも安全に no-op**：`cloud-config.js` がプレースホルダのままなら `cloudIsConfigured()` が false を返し「未設定」表示で停止
 - **OAuth リダイレクト**：`signInWithOAuth` の `redirectTo` は現在URL。Supabase の Authentication → URL Configuration の Redirect URLs に公開URL/ローカルURL（`http://localhost:PORT/**`）を登録しておくこと
 
+## 🐞 不具合報告（フィードバック拡張・常駐ボタン／スクショ・録画／対応状況）
+
+既存のフィードバック送信（`save.js` の `openFeedback/submitFeedback`・`feedbacks` テーブル）を拡張。ロジックは `js/feedback.js`、AI 用の整形は `js/feedback-md.js`（ブラウザと Node 共用の純粋関数）、見た目は `css/feedback.css`。
+
+- **入口**：どのタブでも右下（見積ドックの真上）に小さな **🐞 常駐ボタン**（`#fbQuickFab`・`feedback.js` が `body` へ追加）。ヘッダー「🐞 不具合報告」から報告ページ（`#tab-bugreports`・`switchCategory('bugreports')`、`app.js` に分岐を追加）を開く
+- **添付**：「📸 画面を撮る」（`getDisplayMedia` の1コマ）・「🎥 画面を録画」（`MediaRecorder`・最長60秒・1本まで）・貼り付け/ドラッグ/ファイル選択。画像は最大5枚（JPEG 化・長辺1920px）、1ファイル45MBまで。**ログイン必須**（画面に顧客名が写るため）。非公開バケット `feedback-attachments`（署名URLで閲覧）。90日で自動削除（本文・対応状況は残る）。iOS 等 `getDisplayMedia` 非対応端末は「ファイルを選ぶ」のみ
+- **自動で付く情報**：報告時のURL・開いていたタブ・表示サイズ・ブラウザ・テーマ・版・直近のコンソールエラー（`feedbacks.context`）。`error`/`unhandledrejection`/`console.error` を `feedback.js` が控える
+- **対応状況**：`open`未対応／`in_progress`対応中／`resolved`解決済み／`wontfix`対応しない ＋ 対応メモ（`response`・記入者/時刻はトリガーで自動）。**一覧と対応状況はログイン済みメンバー全員が閲覧可、更新もメンバー（既存ポリシーと同じ）**。報告自体は従来どおり未ログインでも可（添付なし）
+- **AI が読む方法（公開リポジトリのため報告内容はリポジトリに書き出さない）**：①ページの「📋 AI用にコピー」→ Claude に貼る（メールは出力しない）。②任意：`docs/sql/feedback-ai-export.sql`（トークン付き読み取り専用 RPC `feedback_export`）を実行し、環境変数 `SUPABASE_URL`/`SUPABASE_ANON_KEY`/`FEEDBACK_EXPORT_TOKEN` を Claude のセッション環境に登録すると、`node scripts/fetch-feedback.js [--status open]` で直接取得できる。**スクショ・動画の中身は AI には渡らない**（本文・環境情報・コンソールエラーのみ）
+- **スキーマ**：`docs/sql/feedback-reports.sql`（列追加・バケット・ポリシー・トリガー・90日削除）を Supabase で実行する前提。**未実行でも動く**（新しい列が無いときは `fbIsMissingColumn` で検知して従来どおりテキストのみで送信し、対応メモは保存不可・ステータスのみ更新）
+- **E2E 確認**：Chromium で撮影・録画（`getDisplayMedia` をスタブ）・送信・一覧・対応保存・AI コピー・列なしフォールバックを通し確認済み（29項目）
+
 ## 🔖 チームブックマーク（全面クラウド移行・編集履歴）
 
 船会社／サブコンのリンクを `bookmarks` テーブルで一元管理（`js/bookmarks.js`・`#tab-bookmark`）。見積タブ右カラムの「🔖 ブックマーク」タブ（`renderQuoteBookmarkRail` / `#bmRailPanel`）に案件連動で表示。

@@ -1024,6 +1024,30 @@
    "uses": 1,
    "defined": true
   },
+  "fbCaptureScreenshot": {
+   "uses": 1,
+   "defined": true
+  },
+  "fbOnFilesPicked": {
+   "uses": 1,
+   "defined": true
+  },
+  "fbOpenQuick": {
+   "uses": 1,
+   "defined": true
+  },
+  "fbRecordStart": {
+   "uses": 1,
+   "defined": true
+  },
+  "fbrCopyForAI": {
+   "uses": 1,
+   "defined": true
+  },
+  "fbrReload": {
+   "uses": 1,
+   "defined": true
+  },
   "fillQuoteRef": {
    "uses": 1,
    "defined": true
@@ -1689,7 +1713,7 @@
    "defined": true
   },
   "switchCategory": {
-   "uses": 12,
+   "uses": 13,
    "defined": true
   },
   "switchFbTab": {
@@ -2270,6 +2294,14 @@
    "css": true,
    "html": false
   },
+  "fbr-card": {
+   "css": true,
+   "html": false
+  },
+  "fbr-card-body": {
+   "css": true,
+   "html": false
+  },
   "filter-active": {
    "css": true,
    "html": false
@@ -2414,6 +2446,10 @@
    "css": true,
    "html": false
   },
+  "is-disabled": {
+   "css": true,
+   "html": false
+  },
   "is-done": {
    "css": true,
    "html": false
@@ -2506,7 +2542,15 @@
    "css": true,
    "html": false
   },
+  "is-warn": {
+   "css": true,
+   "html": false
+  },
   "jpy-conv-hint": {
+   "css": true,
+   "html": false
+  },
+  "js": {
    "css": true,
    "html": false
   },
@@ -3748,6 +3792,10 @@
   }
  },
  "data": {
+  "act": {
+   "html": false,
+   "js": true
+  },
   "actual": {
    "html": false,
    "js": true
@@ -3761,6 +3809,10 @@
    "js": true
   },
   "area": {
+   "html": false,
+   "js": true
+  },
+  "atts": {
    "html": false,
    "js": true
   },
@@ -3809,6 +3861,10 @@
    "js": true
   },
   "bm-type": {
+   "html": false,
+   "js": true
+  },
+  "bound": {
    "html": false,
    "js": true
   },
@@ -3913,6 +3969,10 @@
    "js": true
   },
   "filled": {
+   "html": false,
+   "js": true
+  },
+  "fld": {
    "html": false,
    "js": true
   },
@@ -4220,6 +4280,10 @@
    "html": false,
    "js": true
   },
+  "st": {
+   "html": false,
+   "js": true
+  },
   "state": {
    "html": true,
    "js": true
@@ -4387,6 +4451,8 @@
   "js/quote/fcl-lcl.js",
   "js/quote/right-rail.js",
   "js/ui-confirm.js",
+  "js/feedback-md.js",
+  "js/feedback.js",
   "js/cat-more.js",
   "js/stats.js",
   "js/alias-rules.js",

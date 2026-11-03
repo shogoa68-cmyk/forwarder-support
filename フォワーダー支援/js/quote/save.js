@@ -32,6 +32,7 @@
     document.getElementById('fbHeadTitle').textContent =
       sec === '全体' ? '💬 フィードバック（ページ全体）' : `💬 フィードバック（${sec}）`;
     _fbClearForm();
+    if (typeof window.fbOnOpen === 'function') window.fbOnOpen();   // 添付の初期化・ログイン状態の反映（js/feedback.js）
     _fbExtraContext = null;
     const secSel = document.getElementById('fbSection');
     if (secSel) {
@@ -75,16 +76,28 @@
     const bodyFinal = _fbExtraContext ? `【${_fbExtraContext}】\n${body}` : body;
     try {
       const { data: { session } } = await db.auth.getSession();
-      const row = {
+      const baseRow = {
         category,
         section,
         body: bodyFinal,
         ...(session?.user?.id ? { user_id: session.user.id } : {}),
       };
-      const { error } = await db.from('feedbacks').insert(row);
+      // 添付・画面情報・要約（js/feedback.js）。添付のアップロード失敗はここで例外になり、送信は止まる
+      const extra = (typeof window.fbBuildExtra === 'function') ? await window.fbBuildExtra() : {};
+      let { error } = await db.from('feedbacks').insert({ ...baseRow, ...extra });
+      // 新しい列がまだ無い（docs/sql/feedback-reports.sql 未適用）ときは、従来どおりテキストだけで送る
+      if (error && typeof window.fbIsMissingColumn === 'function' && window.fbIsMissingColumn(error)) {
+        const note = (extra.attachments && extra.attachments.length)
+          ? `\n\n（添付 ${extra.attachments.length} 件は保存先が未設定のため送れませんでした）` : '';
+        if (extra.attachments && extra.attachments.length) {   // 宙に浮いた添付ファイルを片付ける
+          try { await db.storage.from('feedback-attachments').remove(extra.attachments.map(a => a.path)); } catch (e) {}
+        }
+        ({ error } = await db.from('feedbacks').insert({ ...baseRow, body: bodyFinal + note }));
+      }
       if (error) throw error;
-      quoteShowToast('✅ フィードバックを送信しました。ありがとうございます！', 'success', 5000);
+      quoteShowToast('✅ 送信しました。ありがとうございます！ 対応状況は「🐞 不具合報告」で確認できます', 'success', 6000);
       _fbClearForm();
+      if (typeof window.fbAfterSubmit === 'function') window.fbAfterSubmit();
       document.getElementById('fbOverlay').classList.remove('open');
     } catch (err) {
       const msg = err?.message || err?.error_description || JSON.stringify(err);
@@ -98,7 +111,7 @@
 
   // ========== フィードバック受信一覧（チームメンバー向け管理UI） ==========
 
-  const FB_STATUS_LABELS = { open: '未対応', resolved: '解決済み', wontfix: '対応しない' };
+  const FB_STATUS_LABELS = { open: '未対応', in_progress: '対応中', resolved: '解決済み', wontfix: '対応しない' };
   const FB_CAT_ICONS     = { 'バグ報告': '🐛', '改善要望': '💡', '質問': '❓', 'その他': '📌' };
 
   let _fbCurrentTab  = 'send';
