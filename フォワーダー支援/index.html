@@ -19,6 +19,7 @@
 <link rel="stylesheet" href="css/theme-industry-doc.css" media="not all" data-theme-css="doc">
 <!-- 「かんたん表示」（Claude Design 案）。<html class="mode-simple"> のときだけ効く。クラスが無ければ従来の「詳細表示」のまま。 -->
 <link rel="stylesheet" href="css/simple-mode.css">
+<link rel="stylesheet" href="css/feedback.css">
 <script>
 /* テーマ切替の早期適用（画面の描画前に実行して、ちらつきを防ぐ）。設定は js/tweaks.js のパネル「デザイン」で変更。
    ?theme=industry / ?theme=classic のURLパラメータでも一時的に切替可（localStorage に保存される）。 */
@@ -76,6 +77,7 @@
       <div class="subtitle">ブックマーク・知識・計算機・見積もりをひとまとめに &nbsp;｜&nbsp; 最終更新: <span id="last-updated">-</span></div>
     </div>
     <a class="hdr-roadmap" href="roadmap.html" title="改修予定・アイデア（ロードマップ）">📣 改修予定・アイデア</a>
+    <a class="hdr-roadmap hdr-bugreports" href="#" id="hdrBugReportsBtn" onclick="switchCategory('bugreports'); return false;" title="不具合報告の一覧と対応状況">🐞 不具合報告</a>
     <a class="hdr-roadmap hdr-design" href="#" id="hdrDesignBtn" onclick="openDesignSwitcher(); return false;" title="デザインの切替（現行／Industry 案）">🎨 デザイン</a>
     <div class="header-auth" id="cloudHeaderAuth" hidden>
       <button class="hdr-cloud-login" id="hdrCloudLogin" type="button" onclick="cloudLogin()" title="チーム共有にサインイン">
@@ -4518,6 +4520,36 @@
 
   </div><!-- /#tab-quote-make -->
 
+  <!-- ===================== Tab: 不具合報告 ===================== -->
+  <!-- 一覧・対応状況・対応メモ。ロジックは js/feedback.js（initBugReportsTab）。ヘッダーの「🐞 不具合報告」から開く -->
+  <div class="tab-content" role="tabpanel" id="tab-bugreports" aria-hidden="true">
+    <div class="fbr-root" id="fbrRoot">
+      <div class="fbr-head">
+        <h2>🐞 不具合報告</h2>
+        <p class="fbr-lead">使っていて「おかしい」と思ったら、画面右下の 🐞 からすぐ報告できます（画面の撮影・録画も添付できます）。報告はここに溜まり、対応状況をチーム全員が確認できます。担当者から確認の質問が届いたときは、ここ（と 🐞 の赤いバッジ）でお知らせします。</p>
+        <div class="fbr-head-actions">
+          <button type="button" class="fbr-btn fbr-btn-primary" onclick="fbOpenQuick()">＋ 不具合を報告する</button>
+          <button type="button" class="fbr-btn" onclick="fbrReload()" title="最新の状態に更新">↺ 更新</button>
+          <button type="button" class="fbr-btn" onclick="fbrCopyForAI()" title="いま表示している報告を Markdown にコピー（Claude に貼り付けて渡せます。メールアドレスは含みません）">📋 AI用にコピー</button>
+        </div>
+      </div>
+      <div class="fbr-banner" id="fbrBanner" hidden></div>
+      <div class="fbr-filters">
+        <div class="fbr-chips" id="fbrChips"></div>
+        <select id="fbrCat" aria-label="種別で絞り込み">
+          <option value="">種別：すべて</option>
+          <option value="バグ報告">🐛 バグ報告</option>
+          <option value="改善要望">💡 改善要望</option>
+          <option value="質問">❓ 質問</option>
+          <option value="その他">📌 その他</option>
+        </select>
+        <label><input type="checkbox" id="fbrMine"> 自分の報告のみ</label>
+        <input type="search" id="fbrSearch" placeholder="キーワードで検索" aria-label="キーワードで検索">
+      </div>
+      <div id="fbrList"></div>
+    </div>
+  </div><!-- /#tab-bugreports -->
+
   <!-- ===================== Tab: 統計 ===================== -->
   <div class="tab-content" id="tab-stats">
     <div class="stats-toolbar">
@@ -4796,6 +4828,9 @@
 <script src="js/quote/fcl-lcl.js"></script>
 <script src="js/quote/right-rail.js"></script>
 <script src="js/ui-confirm.js"></script>
+<script src="js/feedback-md.js"></script>
+<script src="js/feedback-annotate.js"></script>
+<script src="js/feedback.js"></script>
 <script src="js/cat-more.js"></script>
 <script src="js/stats.js"></script>
 <script src="js/alias-rules.js"></script>
@@ -5170,8 +5205,9 @@
           </div>
         </div>
         <div class="fb-field">
-          <label class="fb-label" for="fbSection">該当セクション <span class="fb-required">必須</span></label>
-          <select id="fbSection" name="fbSection" required>
+          <label class="fb-label" for="fbSection">該当セクション <span class="fb-optional">任意 — わからなければそのままで大丈夫です（開いていた画面は自動で記録されます）</span></label>
+          <select id="fbSection" name="fbSection">
+            <option value="わからない">わからない・指定しない</option>
             <option value="全体">全体</option>
             <option value="管理番号入力">管理番号入力</option>
             <option value="貿易条件・輸送モード">貿易条件・輸送モード</option>
@@ -5184,9 +5220,23 @@
           </select>
         </div>
         <div class="fb-field">
+          <label class="fb-label" for="fbTitle">ひとこと要約 <span class="fb-optional">任意</span></label>
+          <input type="text" id="fbTitle" name="fbTitle" maxlength="120" placeholder="例）見積テーブルで単価が反映されない">
+        </div>
+        <div class="fb-field">
           <label class="fb-label" for="fbBody">内容 <span class="fb-required">必須</span></label>
           <textarea id="fbBody" name="fbBody" rows="5" required
-            placeholder="例）〇〇のとき動作がおかしい / 〇〇機能を追加してほしい など"></textarea>
+            placeholder="例）〇〇のとき動作がおかしい / 〇〇機能を追加してほしい など。何をしたら、どうなったか（期待は何か）を書くと直しやすくなります"></textarea>
+        </div>
+        <div class="fb-field" id="fbAttachField">
+          <label class="fb-label">スクリーンショット・動画 <span class="fb-optional">任意</span></label>
+          <div class="fb-att-actions">
+            <button type="button" class="fb-att-btn" id="fbBtnShot" onclick="fbCaptureScreenshot()" title="画面を共有して1コマを撮影します">📸 画面を撮る</button>
+            <button type="button" class="fb-att-btn" id="fbBtnRec" onclick="fbRecordStart()" title="画面を共有して録画します（最長60秒）。再現手順を見せるのに便利です">🎥 画面を録画</button>
+            <label class="fb-att-btn" id="fbBtnPick">📎 ファイルを選ぶ<input type="file" id="fbFileInput" accept="image/*,video/*" multiple hidden onchange="fbOnFilesPicked(this)"></label>
+          </div>
+          <div class="fb-att-hint" id="fbAttHint"></div>
+          <div class="fb-att-list" id="fbAttList"></div>
         </div>
         <div class="fb-foot">
           <button type="button" class="fb-btn-close" onclick="closeFeedback()">キャンセル</button>
@@ -5199,6 +5249,7 @@
         <select id="fbListFilter" class="fb-list-filter" onchange="filterFbList()" title="ステータスで絞り込み">
           <option value="">すべて</option>
           <option value="open">未対応</option>
+          <option value="in_progress">対応中</option>
           <option value="resolved">解決済み</option>
           <option value="wontfix">対応しない</option>
         </select>

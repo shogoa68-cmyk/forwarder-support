@@ -1024,6 +1024,30 @@
    "uses": 1,
    "defined": true
   },
+  "fbCaptureScreenshot": {
+   "uses": 1,
+   "defined": true
+  },
+  "fbOnFilesPicked": {
+   "uses": 1,
+   "defined": true
+  },
+  "fbOpenQuick": {
+   "uses": 1,
+   "defined": true
+  },
+  "fbRecordStart": {
+   "uses": 1,
+   "defined": true
+  },
+  "fbrCopyForAI": {
+   "uses": 1,
+   "defined": true
+  },
+  "fbrReload": {
+   "uses": 1,
+   "defined": true
+  },
   "fillQuoteRef": {
    "uses": 1,
    "defined": true
@@ -1689,7 +1713,7 @@
    "defined": true
   },
   "switchCategory": {
-   "uses": 12,
+   "uses": 13,
    "defined": true
   },
   "switchFbTab": {
@@ -2270,6 +2294,30 @@
    "css": true,
    "html": false
   },
+  "fba-swatch": {
+   "css": true,
+   "html": false
+  },
+  "fba-tool": {
+   "css": false,
+   "html": false
+  },
+  "fba-w": {
+   "css": false,
+   "html": false
+  },
+  "fbr-card": {
+   "css": true,
+   "html": false
+  },
+  "fbr-card-body": {
+   "css": true,
+   "html": false
+  },
+  "fbr-composer-btns": {
+   "css": true,
+   "html": false
+  },
   "filter-active": {
    "css": true,
    "html": false
@@ -2322,6 +2370,10 @@
    "css": true,
    "html": false
   },
+  "has-badge": {
+   "css": true,
+   "html": false
+  },
   "has-cr": {
    "css": true,
    "html": false
@@ -2349,6 +2401,10 @@
   "hazmat-panel": {
    "css": false,
    "html": true
+  },
+  "hdr-fb-badge": {
+   "css": true,
+   "html": false
   },
   "hide-pattern-linked": {
    "css": true,
@@ -2411,6 +2467,10 @@
    "html": false
   },
   "is-detail-open": {
+   "css": true,
+   "html": false
+  },
+  "is-disabled": {
    "css": true,
    "html": false
   },
@@ -2506,7 +2566,15 @@
    "css": true,
    "html": false
   },
+  "is-warn": {
+   "css": true,
+   "html": false
+  },
   "jpy-conv-hint": {
+   "css": true,
+   "html": false
+  },
+  "js": {
    "css": true,
    "html": false
   },
@@ -3748,6 +3816,10 @@
   }
  },
  "data": {
+  "act": {
+   "html": false,
+   "js": true
+  },
   "actual": {
    "html": false,
    "js": true
@@ -3761,6 +3833,10 @@
    "js": true
   },
   "area": {
+   "html": false,
+   "js": true
+  },
+  "atts": {
    "html": false,
    "js": true
   },
@@ -3812,6 +3888,10 @@
    "html": false,
    "js": true
   },
+  "bound": {
+   "html": false,
+   "js": true
+  },
   "c": {
    "html": false,
    "js": true
@@ -3854,6 +3934,10 @@
   },
   "col": {
    "html": true,
+   "js": true
+  },
+  "color": {
+   "html": false,
    "js": true
   },
   "cond": {
@@ -3913,6 +3997,10 @@
    "js": true
   },
   "filled": {
+   "html": false,
+   "js": true
+  },
+  "fld": {
    "html": false,
    "js": true
   },
@@ -4000,6 +4088,10 @@
    "html": true,
    "js": true
   },
+  "kind": {
+   "html": false,
+   "js": true
+  },
   "label": {
    "html": true,
    "js": true
@@ -4081,6 +4173,10 @@
    "js": true
   },
   "nt-auto": {
+   "html": false,
+   "js": true
+  },
+  "off": {
    "html": false,
    "js": true
   },
@@ -4220,6 +4316,10 @@
    "html": false,
    "js": true
   },
+  "st": {
+   "html": false,
+   "js": true
+  },
   "state": {
    "html": true,
    "js": true
@@ -4280,11 +4380,19 @@
    "html": true,
    "js": true
   },
+  "thread": {
+   "html": false,
+   "js": true
+  },
   "tip": {
    "html": false,
    "js": true
   },
   "title-orig": {
+   "html": false,
+   "js": true
+  },
+  "tool": {
    "html": false,
    "js": true
   },
@@ -4333,6 +4441,18 @@
    "js": true
   },
   "virtual": {
+   "html": false,
+   "js": true
+  },
+  "w": {
+   "html": false,
+   "js": true
+  },
+  "x": {
+   "html": false,
+   "js": true
+  },
+  "y": {
    "html": false,
    "js": true
   },
@@ -4387,6 +4507,9 @@
   "js/quote/fcl-lcl.js",
   "js/quote/right-rail.js",
   "js/ui-confirm.js",
+  "js/feedback-md.js",
+  "js/feedback-annotate.js",
+  "js/feedback.js",
   "js/cat-more.js",
   "js/stats.js",
   "js/alias-rules.js",
