@@ -1326,17 +1326,52 @@ function calcVanning() {
   });
 
   const ok  = contRows.filter(r => !r.overW);
-  const rec = (ok.length ? ok : contRows).reduce((b, r) => r.need < b.need ? r : b);
+  let rec = (ok.length ? ok : contRows).reduce((b, r) => r.need < b.need ? r : b);
+
+  // 3D 積み付けで検証：CBM の割り算では分からない、箱の形・向きによる積み残しを反映する。
+  // 箱型のコンテナ（Dry／HC）だけが対象（Open Top・Flat Rack ははみ出し前提のため対象外）。
+  // 推奨が 3D でも収まれば何もしない。収まらなければ、箱型の各コンテナを 3D で試して、
+  // いちばん少ない本数（同数なら CBM 上の本数が少ない方→小さい方）に推奨を切り替える。
+  let recNote = '';
+  const V3 = window.Vanning3D;
+  if (V3 && V3.estimateContainers) {
+    const boxy = contRows.filter(r => !r.c.openAxes);
+    const check = r => {
+      if (r.need3d !== undefined) return;
+      const e = V3.estimateContainers(cargo, r.c, { timeBudgetMs: 2500 });
+      r.need3d = e.complete ? e.count : null;   // null＝入らない箱がある等で数えられない
+    };
+    if (!rec.c.openAxes) {
+      check(rec);
+      if (rec.need3d === null || rec.need3d > rec.need) {
+        const firstRec = rec;
+        boxy.filter(r => !r.overW || !ok.length).forEach(check);
+        const score = r => r.need3d === null ? Infinity : r.need3d;
+        const best = boxy.filter(r => !r.overW || !ok.length)
+          .reduce((b, r) => (score(r) < score(b) || (score(r) === score(b) && (r.need < b.need || (r.need === b.need && r.contCBM < b.contCBM)))) ? r : b, firstRec);
+        if (best !== firstRec) {
+          rec = best;
+          recNote = `<p style="font-size:11px;color:#b45309;margin-top:6px;">⚠️ CBM 上は ${firstRec.c.label} ${firstRec.need} 本でも、3D 積み付けで検証すると${firstRec.need3d === null ? '入りきらない箱があり' : ` ${firstRec.need3d} 本必要`}でした。3D の結果が少ない <b>${rec.c.label}（${rec.need3d} 本）</b>を推奨にしています。</p>`;
+        } else if (firstRec.need3d !== null && firstRec.need3d > firstRec.need) {
+          recNote = `<p style="font-size:11px;color:#b45309;margin-top:6px;">⚠️ CBM 上は ${firstRec.need} 本でも、3D 積み付けで検証すると <b>${firstRec.need3d} 本</b>必要でした（箱の形・向きにより積み残しが出ます）。</p>`;
+        }
+      }
+    }
+  }
 
   const cardsHtml = contRows.map(r => {
     const isRec = r.key===rec.key;
     const badge = isRec ? '<span style="background:#d4edda;color:#155724;font-size:10px;font-weight:700;padding:2px 6px;border-radius:4px;margin-left:6px;">✅ 推奨</span>' : '';
-    const kgLine= totalKg>0 ? `概算 ${totalKg.toLocaleString()} kg／上限 ${(r.c.maxPay*r.need).toLocaleString()} kg` : '';
+    const showN = (r.need3d !== undefined && r.need3d !== null) ? r.need3d : r.need;   // 3D で検証した本数があればそれを表示
+    const kgLine= totalKg>0 ? `概算 ${totalKg.toLocaleString()} kg／上限 ${(r.c.maxPay*showN).toLocaleString()} kg` : '';
     const warn  = r.overW ? ' <span style="color:#e53e3e;font-size:10px;">⚠️ 重量超過</span>' : '';
+    const diff  = (r.need3d !== undefined && r.need3d !== null && r.need3d !== r.need)
+      ? `<div style="font-size:11px;color:#b45309;margin-top:2px;">🧊 3D積み付け ${r.need3d} 本（CBM上の目安は ${r.need} 本）</div>`
+      : (r.need3d === null ? '<div style="font-size:11px;color:#b45309;margin-top:2px;">🧊 3D積み付け：入りきらない箱があります</div>' : '');
     return `<div class="calc-item ${isRec?'hl':''}">
       <div class="calc-item-label">${r.c.label}${badge}</div>
-      <div class="calc-item-value" style="font-size:14px;">${r.need} 本必要${warn}</div>
-      <div style="font-size:11px;color:#718096;margin-top:3px;">CBM充填率 ${r.util}%　${kgLine}</div>
+      <div class="calc-item-value" style="font-size:14px;">${showN} 本必要${warn}</div>
+      <div style="font-size:11px;color:#718096;margin-top:3px;">CBM充填率 ${r.util}%　${kgLine}</div>${diff}
     </div>`;
   }).join('');
 
@@ -1352,8 +1387,9 @@ function calcVanning() {
       ${detailHtml}
     </div>
     <div class="calc-row">${cardsHtml}</div>
+    ${recNote}
     ${stackNote}
-    <p style="font-size:11px;color:#718096;margin-top:10px;">※ CBMベースの理論値。混載バンニングは積み合わせ次第で変わります。実際の積み付けは現場でご確認ください。</p>
+    <p style="font-size:11px;color:#718096;margin-top:10px;">※ 本数は CBM ベースの理論値を 3D 積み付けで検証したものです（箱型コンテナのみ）。混載バンニングは積み合わせ次第で変わります。実際の積み付けは現場でご確認ください。</p>
     <div style="margin-top:12px;font-size:11px;font-weight:700;color:var(--text-md);">🧊 3D積み付けプレビュー（推奨コンテナ：${rec.c.label}）</div>
     <div id="${van3dId}"></div>`,
     `${cargo.length}品種 / 合計${totalCBM.toFixed(3)}CBM${globalNoStack?' / 全行段積み不可':noStackCount>0?' / 一部段積み不可':''}`,
