@@ -1200,7 +1200,7 @@
     // （途中で止まっても、最悪「二重に所属している」だけで、別名が失われることはない）
     let absorbed = [];
     const aliasGroup = _synAll().find(g => g.field === field && g.canonical === alias);
-    if (aliasGroup) absorbed = aliasGroup.aliases || [];   // alias 自体が別グループの代表なら、その配下も吸収する（チェーン化を防ぐ）
+    if (aliasGroup) absorbed = (aliasGroup.aliases || []).filter(x => x !== canonical);   // 新しい代表自身が旧配下に居ても、自分を別名にしない   // alias 自体が別グループの代表なら、その配下も吸収する（チェーン化を防ぐ）
     const g = _synAll().find(x => x.field === field && x.canonical === canonical);
     const aliases = [...new Set([...((g && g.aliases) || []), alias, ...absorbed])];
     if (!(await _synUpsert(field, canonical, aliases))) return _synAfter();   // 書けなかったら、何も変えない（別名側のマスター解除なども行わない）
