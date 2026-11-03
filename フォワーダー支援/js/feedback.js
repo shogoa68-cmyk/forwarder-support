@@ -90,8 +90,9 @@
         ? '<video src="' + a.url + '" muted preload="metadata" class="fb-att-thumb"></video>'
         : '<img src="' + a.url + '" alt="" class="fb-att-thumb">';
       return '<div class="fb-att-item" data-id="' + a.id + '">' + th +
-        '<div class="fb-att-info"><span class="fb-att-name">' + (a.kind === 'video' ? '🎥 ' : '🖼 ') + esc(a.name) + '</span>' +
+        '<div class="fb-att-info"><span class="fb-att-name">' + (a.kind === 'video' ? '🎥 ' : '🖼 ') + esc(a.name) + (a.ops && a.ops.length ? ' <em class="fb-att-marked">書き込み済み</em>' : '') + '</span>' +
         '<span class="fb-att-size">' + _fmtSize(a.size) + '</span></div>' +
+        (a.kind === 'image' && window.FeedbackAnnotate ? '<button type="button" class="fb-att-edit" onclick="fbAnnotate(' + a.id + ')" title="矢印・丸・文字などを書き込む">✏️ 書き込む</button>' : '') +
         '<button type="button" class="fb-att-del" onclick="fbRemoveAtt(' + a.id + ')" title="この添付を外す" aria-label="添付を外す">✕</button></div>';
     }).join('');
   }
@@ -142,9 +143,25 @@
     if (out.size > MAX_BYTES) { toast('⚠️ ファイルが大きすぎます（' + _fmtSize(out.size) + '／上限 ' + _fmtSize(MAX_BYTES) + '）。録画は短めにしてください', 'warn', 6000); return false; }
     const ext = isVideo ? ((out.type || '').includes('mp4') ? 'mp4' : (out.type || '').includes('quicktime') ? 'mov' : 'webm') : (out.type === 'image/gif' ? 'gif' : 'jpg');
     const base = (name || (isVideo ? 'rec' : 'shot')).replace(/\.[^.]+$/, '').replace(/[^\w\-]/g, '_').slice(0, 40) || 'file';
-    _pending.push({ id: ++_seq, blob: out, name: base + '.' + ext, type: out.type || (isVideo ? 'video/webm' : 'image/jpeg'), size: out.size, kind: isVideo ? 'video' : 'image', url: URL.createObjectURL(out) });
+    const att = { id: ++_seq, blob: out, name: base + '.' + ext, type: out.type || (isVideo ? 'video/webm' : 'image/jpeg'), size: out.size, kind: isVideo ? 'video' : 'image', url: URL.createObjectURL(out), orig: null, ops: null };
+    _pending.push(att);
     renderAttachments();
-    return true;
+    return att.id;
+  }
+
+  // 書き込みエディタを開く。結果は元画像を残したまま差し替える（開き直せば前の書き込みから続きを編集できる）
+  async function fbAnnotate(id) {
+    const a = _pending.find(x => x.id === id);
+    if (!a || a.kind !== 'image' || !window.FeedbackAnnotate) return;
+    const src = a.orig || a.blob;
+    const res = await window.FeedbackAnnotate.open(src, a.ops || []);
+    if (!res || res.unchanged) return;
+    a.orig = src;
+    a.ops = res.ops;
+    try { URL.revokeObjectURL(a.url); } catch (e) {}
+    a.blob = res.blob; a.type = 'image/jpeg'; a.size = res.blob.size;
+    a.url = URL.createObjectURL(res.blob);
+    renderAttachments();
   }
   async function addFiles(files) {
     for (const f of Array.from(files || [])) { await addBlob(f, f.name); }
@@ -185,7 +202,7 @@
       const blob = await new Promise(r => c.toBlob(r, 'image/png'));
       stream.getTracks().forEach(t => t.stop()); stream = null;
       _showModal();
-      if (blob) await addBlob(blob, 'screenshot');
+      if (blob) { const id = await addBlob(blob, 'screenshot'); if (id) fbAnnotate(id); }   // 撮ったらすぐ書き込める（そのまま「完了」で書き込みなしも可）
     } catch (e) {
       if (stream) stream.getTracks().forEach(t => t.stop());
       _showModal();
@@ -314,6 +331,7 @@
   function fbOpenQuick() {
     if (typeof window.openFeedback !== 'function') return;
     window.openFeedback('全体');
+    const secSel = $('fbSection'); if (secSel) secSel.value = 'わからない';     // 該当セクションは任意（開いていた画面は自動で記録される）
     const r = document.querySelector('#fbForm input[name="fbCategory"][value="バグ報告"]');
     if (r) { r.checked = true; const lab = r.closest('.fb-radio'); if (lab) { document.querySelectorAll('#fbForm .fb-radio').forEach(x => x.classList.remove('checked')); lab.classList.add('checked'); } }
     refreshAttachAvailability();
@@ -322,16 +340,25 @@
   // ================================================================
   // 4. 不具合報告ページ
   // ================================================================
-  const ST = (window.FeedbackMd && window.FeedbackMd.ST_LABEL) || { open: '未対応', in_progress: '対応中', resolved: '解決済み', wontfix: '対応しない' };
-  const ST_KEYS = ['open', 'in_progress', 'resolved', 'wontfix'];
+  const ST = (window.FeedbackMd && window.FeedbackMd.ST_LABEL) || { open: '未対応', need_info: '確認待ち', in_progress: '対応中', resolved: '解決済み', wontfix: '対応しない' };
+  const ST_KEYS = ['open', 'need_info', 'in_progress', 'resolved', 'wontfix'];
+  const KIND_LABEL = { question: '❓ 質問', answer: '↩ 返信', comment: '💬 コメント' };
   const CAT = { 'バグ報告': '🐛', '改善要望': '💡', '質問': '❓', 'その他': '📌' };
   const fmt = iso => (window.FeedbackMd ? window.FeedbackMd.fmtDate(iso) : String(iso || ''));
 
   let _rows = [];
-  let _flt = { status: 'open+', cat: '', mine: false, q: '' };    // 'open+' = 未対応＋対応中
+  let _flt = { status: 'open+', cat: '', mine: false, q: '' };    // 'open+' = 未対応＋確認待ち＋対応中
+  let _comments = {};    // 報告id → コメント配列（開いたときに読む）
   let _open = new Set();
   let _loaded = false;
 
+  // チームメンバーか（ロールが取れていればそれで、取れなければ「他人の報告が見えている＝メンバー」で判定）
+  function _isStaff() { return !!window._myRole || _rows.some(r => !_isMine(r)); }
+  function _secLabel(r) {
+    const ctx = r.context || {};
+    if (!r.section || r.section === 'わからない') return ctx.nav ? '画面: ' + ctx.nav : '場所の指定なし';
+    return r.section;
+  }
   function _isMine(r) { const u = me(); return !!u && (r.user_id === u.id || (r.reporter_email && r.reporter_email === u.email)); }
   function _noOf(r) { return r.report_no != null ? '#' + r.report_no : '#' + String(r.id).slice(0, 6); }
   function _titleOf(r) { const t = r.title || String(r.body || '').split('\n')[0]; return t.length > 70 ? t.slice(0, 70) + '…' : t; }
@@ -357,7 +384,7 @@
       if (q && !((r.title || '') + ' ' + (r.body || '') + ' ' + (r.section || '') + ' ' + (r.response || '')).toLowerCase().includes(q)) return false;
       if (!ignoreStatus) {
         const st = r.status || 'open';
-        if (_flt.status === 'open+') { if (st !== 'open' && st !== 'in_progress') return false; }
+        if (_flt.status === 'open+') { if (st !== 'open' && st !== 'need_info' && st !== 'in_progress') return false; }
         else if (_flt.status && st !== _flt.status) return false;
       }
       return true;
@@ -370,12 +397,13 @@
     if (!list) return;
     const base = _filtered(true);
     const cnt = {}; base.forEach(r => { const k = r.status || 'open'; cnt[k] = (cnt[k] || 0) + 1; });
-    const open2 = (cnt.open || 0) + (cnt.in_progress || 0);
+    const open2 = (cnt.open || 0) + (cnt.need_info || 0) + (cnt.in_progress || 0);
     const defs = [['open+', 'これから対応（' + open2 + '）'], ['', 'すべて（' + base.length + '）']]
       .concat(ST_KEYS.map(k => [k, ST[k] + '（' + (cnt[k] || 0) + '）']));
     if (chips) {
       chips.innerHTML = defs.map(d => '<button type="button" class="fbr-chip' + (_flt.status === d[0] ? ' is-on' : '') + '" data-st="' + d[0] + '">' + esc(d[1]) + '</button>').join('');
     }
+    renderBanner();
     const rows = _filtered(false);
     if (!me()) {
       list.innerHTML = '<p class="fbr-empty">🔒 ログインすると、チームの不具合報告と対応状況を確認できます。右上の「Google でログイン」からどうぞ。<br>ログインしなくても「＋ 不具合を報告する」から報告はできます。</p>';
@@ -386,6 +414,15 @@
     rows.forEach(r => { if (_open.has(r.id)) _fillDetail(r.id); });
   }
 
+  // 「あなたの報告に質問が届いています」の案内（報告者本人にだけ出る）
+  function renderBanner() {
+    const el = $('fbrBanner');
+    if (!el) return;
+    const n = me() ? _rows.filter(r => r.status === 'need_info' && _isMine(r)).length : 0;
+    el.hidden = !n;
+    el.innerHTML = n ? '<span>💬 あなたの報告 <b>' + n + '</b> 件に、確認の質問が届いています。</span><button type="button" class="fbr-btn fbr-btn-primary" data-act="banner">質問を見て返信する</button>' : '';
+  }
+
   function cardHtml(r) {
     const st = r.status || 'open';
     const attN = Array.isArray(r.attachments) ? r.attachments.length : 0;
@@ -394,8 +431,9 @@
       '<div class="fbr-card-head" data-act="toggle" tabindex="0" role="button" aria-expanded="' + opened + '">' +
         '<span class="fbr-no">' + esc(_noOf(r)) + '</span>' +
         '<span class="fbr-status fbr-badge-' + st + '">' + esc(ST[st] || st) + '</span>' +
+        (st === 'need_info' && _isMine(r) ? '<span class="fbr-ask">あなたへの質問</span>' : '') +
         '<span class="fbr-ttl">' + (CAT[r.category] || '📌') + ' ' + esc(_titleOf(r)) + '</span>' +
-        '<span class="fbr-meta">📍' + esc(r.section || '全体') + ' ・ ' + esc(r.reporter_email ? nameOf(r.reporter_email) : '匿名') + ' ・ ' + esc(fmt(r.created_at)) +
+        '<span class="fbr-meta">📍' + esc(_secLabel(r)) + ' ・ ' + esc(r.reporter_email ? nameOf(r.reporter_email) : '匿名') + ' ・ ' + esc(fmt(r.created_at)) +
           (attN ? ' ・ 📎' + attN : '') + (r.response ? ' ・ 💬対応メモあり' : '') + '</span>' +
       '</div>' +
       '<div class="fbr-card-body"' + (opened ? '' : ' hidden') + '></div>' +
@@ -414,17 +452,82 @@
     const errs = Array.isArray(ctx.errors) && ctx.errors.length
       ? '<details class="fbr-ctx"><summary>コンソールエラー（直近 ' + ctx.errors.length + ' 件）</summary><pre>' + esc(ctx.errors.join('\n')) + '</pre></details>' : '';
     const opts = ST_KEYS.map(k => '<option value="' + k + '"' + ((r.status || 'open') === k ? ' selected' : '') + '>' + esc(ST[k]) + '</option>').join('');
+    const respTtl = '<div class="fbr-resp-ttl">💬 対応状況・メモ' + (r.responded_at ? '<small>（' + esc(r.responded_by ? nameOf(r.responded_by) : '') + ' ' + esc(fmt(r.responded_at)) + '）</small>' : '') + '</div>';
+    const resp = _isStaff()
+      ? '<div class="fbr-resp">' + respTtl +
+          '<div class="fbr-resp-row"><select data-fld="status" class="fbr-sel">' + opts + '</select>' +
+          '<button type="button" class="fbr-btn fbr-btn-primary" data-act="save">保存</button></div>' +
+          '<textarea data-fld="response" class="fbr-ta" rows="3" placeholder="対応の状況や、直した内容・今後の予定など（報告者とチーム全員に表示されます）">' + esc(r.response || '') + '</textarea>' +
+        '</div>'
+      : '<div class="fbr-resp">' + respTtl + '<div class="fbr-text">' + (r.response ? esc(r.response) : '<span class="fbr-dim">まだ対応メモはありません</span>') + '</div></div>';
     body.innerHTML =
       '<div class="fbr-text">' + esc(r.body || '') + '</div>' +
       '<div class="fbr-atts" data-atts></div>' +
       (ctxLine ? '<div class="fbr-ctxline">🧭 ' + esc(ctxLine) + '</div>' : '') + errs +
-      '<div class="fbr-resp">' +
-        '<div class="fbr-resp-ttl">💬 対応状況・メモ' + (r.responded_at ? '<small>（' + esc(r.responded_by ? nameOf(r.responded_by) : '') + ' ' + esc(fmt(r.responded_at)) + '）</small>' : '') + '</div>' +
-        '<div class="fbr-resp-row"><select data-fld="status" class="fbr-sel">' + opts + '</select>' +
-        '<button type="button" class="fbr-btn fbr-btn-primary" data-act="save">保存</button></div>' +
-        '<textarea data-fld="response" class="fbr-ta" rows="3" placeholder="対応の状況や、直した内容・今後の予定など（報告者とチーム全員に表示されます）">' + esc(r.response || '') + '</textarea>' +
-      '</div>';
+      '<div class="fbr-thread" data-thread></div>' +
+      resp;
     _loadAtts(r, body.querySelector('[data-atts]'));
+    _loadThread(r, body.querySelector('[data-thread]'));
+  }
+
+  // ---------- やりとり（管理者→報告者の質問・報告者の返信・コメント） ----------
+  async function _loadThread(r, box) {
+    if (!box) return;
+    box.innerHTML = '<div class="fbr-thread-ttl">💬 やりとり</div><span class="fbr-dim">読み込み中…</span>';
+    try {
+      const { data, error } = await db().from('feedback_comments').select('*').eq('feedback_id', r.id).order('created_at', { ascending: true });
+      if (error) throw error;
+      _comments[r.id] = data || [];
+      _renderThread(r, box);
+    } catch (e) { box.innerHTML = ''; box.dataset.off = '1'; }     // SQL 未適用など：やりとり欄は出さない（報告本文・対応メモは使える）
+  }
+  function _renderThread(r, box) {
+    const list = _comments[r.id] || [];
+    const mine = _isMine(r), staff = _isStaff(), waiting = r.status === 'need_info';
+    const items = list.map(c =>
+      '<div class="fbr-cm fbr-cm-' + esc(c.kind) + '"><div class="fbr-cm-head"><b>' + esc(nameOf(c.author_email || '')) + '</b>' +
+      '<span class="fbr-cm-kind">' + esc(KIND_LABEL[c.kind] || '💬') + '</span><small>' + esc(fmt(c.created_at)) + '</small></div>' +
+      '<div class="fbr-cm-body">' + esc(c.body) + '</div></div>').join('');
+    const callout = (waiting && mine)
+      ? '<div class="fbr-callout">💬 確認のための質問が届いています。下の欄に返信してください（返信すると「未対応」に戻り、担当者に伝わります）。</div>'
+      : (waiting ? '<div class="fbr-callout fbr-callout-wait">⏳ 報告者への質問を送り、返信待ちです。</div>' : '');
+    const canQuestion = staff && !mine;
+    const noReply = canQuestion && !r.user_id;
+    const btns =
+      (mine && waiting ? '<button type="button" class="fbr-btn fbr-btn-primary" data-act="post" data-kind="answer">↩ 返信する</button>' : '') +
+      (canQuestion ? '<button type="button" class="fbr-btn fbr-btn-primary" data-act="post" data-kind="question"' + (noReply ? ' disabled title="ログインせずに報告されたため、返信を受け取れません"' : '') + '>❓ 報告者に質問する</button>' : '') +
+      '<button type="button" class="fbr-btn" data-act="post" data-kind="comment">💬 コメントする</button>';
+    box.innerHTML = '<div class="fbr-thread-ttl">💬 やりとり</div>' + callout +
+      (items || '<div class="fbr-dim fbr-thread-empty">まだやりとりはありません</div>') +
+      '<textarea data-fld="comment" class="fbr-ta" rows="2" placeholder="' + (canQuestion ? 'わからない点があれば、ここに質問を書いて「報告者に質問する」を押してください（報告者に通知バッジが出ます）' : 'コメントを書く') + '"></textarea>' +
+      (noReply ? '<div class="fbr-dim">※ この報告はログインせずに送られたため、質問しても返信は受け取れません（コメントは残せます）</div>' : '') +
+      '<div class="fbr-composer-btns">' + btns + '</div>';
+  }
+  async function _postComment(card, kind) {
+    const id = card.dataset.id;
+    const r = _rows.find(x => x.id === id);
+    const u = me();
+    if (!r || !u) { toast('🔒 ログインしてください', 'warn'); return; }
+    const ta = card.querySelector('[data-fld="comment"]');
+    const text = (ta.value || '').trim();
+    if (!text) { toast('内容を入力してください', 'warn', 2500); ta.focus(); return; }
+    const btns = card.querySelectorAll('.fbr-composer-btns button'); btns.forEach(b => b.disabled = true);
+    const client = db();
+    const { error } = await client.from('feedback_comments').insert({ feedback_id: id, kind, body: text, author_id: u.id, author_email: u.email });
+    if (error) {
+      btns.forEach(b => b.disabled = false);
+      toast('⚠️ 送信できませんでした：' + error.message, 'warn', 6000);
+      return;
+    }
+    // トリガーで状態が変わる（質問→確認待ち／返信→未対応）ので取り直す
+    const st = await client.from('feedbacks').select('id,status').eq('id', id);
+    if (!st.error && st.data && st.data[0]) r.status = st.data[0].status;
+    _comments[id] = null;
+    // 状態が変わって今の絞り込みから外れる場合は「これから対応」に切り替え、いま操作したカードが消えないようにする
+    if (_flt.status && _flt.status !== 'open+' && _flt.status !== (r.status || 'open')) _flt.status = 'open+';
+    toast(kind === 'question' ? '✅ 質問を送りました（報告者に通知バッジが出ます）' : kind === 'answer' ? '✅ 返信しました' : '✅ コメントしました', 'success', 3500);
+    renderReports();
+    refreshBadge();
   }
 
   async function _loadAtts(r, box) {
@@ -486,14 +589,49 @@
       if (willOpen) { _open.add(id); _fillDetail(id); } else { _open.delete(id); }
     } else if (act === 'save') {
       _saveResp(card);
+    } else if (act === 'post') {
+      _postComment(card, actEl.dataset.kind);
     }
+  }
+  function _onBannerClick(e) {
+    if (!e.target.closest('[data-act="banner"]')) return;
+    _flt.status = 'need_info'; _flt.mine = true;
+    const m = $('fbrMine'); if (m) m.checked = true;
+    renderReports();
+  }
+
+  // 報告者への通知バッジ（ヘッダーのリンクと常駐ボタン）：自分の報告で「確認待ち」の件数
+  let _badgeAt = 0;
+  async function refreshBadge() {
+    _badgeAt = Date.now();
+    const u = me(), client = db();
+    let n = 0;
+    if (u && client) {
+      try {
+        const res = await client.from('feedbacks').select('id', { count: 'exact', head: true }).eq('status', 'need_info').eq('user_id', u.id);
+        if (!res.error) n = res.count || 0;
+      } catch (e) {}
+    }
+    const link = $('hdrBugReportsBtn');
+    if (link) {
+      let b = link.querySelector('.hdr-fb-badge');
+      if (n && !b) { b = document.createElement('span'); b.className = 'hdr-fb-badge'; link.appendChild(b); }
+      if (b) { if (n) { b.textContent = String(n); b.title = '確認の質問が届いています'; } else b.remove(); }
+    }
+    const fab = $('fbQuickFab');
+    if (fab) { fab.classList.toggle('has-badge', n > 0); if (n) fab.dataset.n = String(n); else delete fab.dataset.n; }
   }
 
   async function fbrCopyForAI() {
     if (!window.FeedbackMd) return;
     const rows = _filtered(false);
     if (!rows.length) { toast('コピーする報告がありません', 'info'); return; }
-    const md = window.FeedbackMd.toMarkdown(rows.slice(0, 80), { nameOf, title: '不具合報告一覧（フォワーダー支援）' });
+    let list = rows.slice(0, 80);
+    try {                       // やりとり（質問・返信）も一緒に渡す。取れなければ本文だけ
+      const cr = await db().from('feedback_comments').select('*').in('feedback_id', list.map(r => r.id)).order('created_at', { ascending: true });
+      if (!cr.error && cr.data) { const g = {}; cr.data.forEach(c => { (g[c.feedback_id] = g[c.feedback_id] || []).push(c); }); list = list.map(r => Object.assign({}, r, { comments: g[r.id] || [] })); }
+    } catch (e) {}
+    const md = window.FeedbackMd.toMarkdown(list, { nameOf, title: '不具合報告一覧（フォワーダー支援）' });
     try { await navigator.clipboard.writeText(md); }
     catch (e) {
       const ta = document.createElement('textarea'); ta.value = md; ta.style.position = 'fixed'; ta.style.opacity = '0';
@@ -508,12 +646,14 @@
       root.dataset.bound = '1';
       $('fbrList').addEventListener('click', _onListClick);
       $('fbrList').addEventListener('keydown', e => { if ((e.key === 'Enter' || e.key === ' ') && e.target.matches('[data-act="toggle"]')) { e.preventDefault(); _onListClick(e); } });
+      $('fbrBanner').addEventListener('click', _onBannerClick);
       $('fbrChips').addEventListener('click', e => { const b = e.target.closest('.fbr-chip'); if (!b) return; _flt.status = b.dataset.st; renderReports(); });
       $('fbrCat').addEventListener('change', e => { _flt.cat = e.target.value; renderReports(); });
       $('fbrMine').addEventListener('change', e => { _flt.mine = e.target.checked; renderReports(); });
       $('fbrSearch').addEventListener('input', e => { _flt.q = e.target.value; renderReports(); });
     }
     loadReports();
+    refreshBadge();
   }
 
   // ================================================================
@@ -532,12 +672,17 @@
     document.body.appendChild(b);
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', mountFab); else mountFab();
+  // 通知バッジは、読み込み後・画面に戻ってきたとき（1分以上あいていれば）・5分ごとに更新
+  setTimeout(refreshBadge, 3000);
+  window.addEventListener('focus', () => { if (Date.now() - _badgeAt > 60000) refreshBadge(); });
+  setInterval(() => { if (!document.hidden) refreshBadge(); }, 5 * 60 * 1000);
 
   // ---------- 公開（onclick 用） ----------
   window.fbCaptureScreenshot = fbCaptureScreenshot;
   window.fbRecordStart = fbRecordStart;
   window.fbOnFilesPicked = fbOnFilesPicked;
   window.fbRemoveAtt = fbRemoveAtt;
+  window.fbAnnotate = fbAnnotate;
   window.fbResetAttachments = fbResetAttachments;
   window.fbOnOpen = fbOnOpen;
   window.fbBuildExtra = fbBuildExtra;
@@ -545,6 +690,7 @@
   window.fbAfterSubmit = fbAfterSubmit;
   window.fbOpenQuick = fbOpenQuick;
   window.fbrReload = loadReports;
+  window.fbRefreshBadge = refreshBadge;
   window.fbrCopyForAI = fbrCopyForAI;
   window.initBugReportsTab = initBugReportsTab;
 })();

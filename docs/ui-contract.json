@@ -2294,11 +2294,27 @@
    "css": true,
    "html": false
   },
+  "fba-swatch": {
+   "css": true,
+   "html": false
+  },
+  "fba-tool": {
+   "css": false,
+   "html": false
+  },
+  "fba-w": {
+   "css": false,
+   "html": false
+  },
   "fbr-card": {
    "css": true,
    "html": false
   },
   "fbr-card-body": {
+   "css": true,
+   "html": false
+  },
+  "fbr-composer-btns": {
    "css": true,
    "html": false
   },
@@ -2354,6 +2370,10 @@
    "css": true,
    "html": false
   },
+  "has-badge": {
+   "css": true,
+   "html": false
+  },
   "has-cr": {
    "css": true,
    "html": false
@@ -2381,6 +2401,10 @@
   "hazmat-panel": {
    "css": false,
    "html": true
+  },
+  "hdr-fb-badge": {
+   "css": true,
+   "html": false
   },
   "hide-pattern-linked": {
    "css": true,
@@ -3912,6 +3936,10 @@
    "html": true,
    "js": true
   },
+  "color": {
+   "html": false,
+   "js": true
+  },
   "cond": {
    "html": false,
    "js": true
@@ -4060,6 +4088,10 @@
    "html": true,
    "js": true
   },
+  "kind": {
+   "html": false,
+   "js": true
+  },
   "label": {
    "html": true,
    "js": true
@@ -4141,6 +4173,10 @@
    "js": true
   },
   "nt-auto": {
+   "html": false,
+   "js": true
+  },
+  "off": {
    "html": false,
    "js": true
   },
@@ -4344,11 +4380,19 @@
    "html": true,
    "js": true
   },
+  "thread": {
+   "html": false,
+   "js": true
+  },
   "tip": {
    "html": false,
    "js": true
   },
   "title-orig": {
+   "html": false,
+   "js": true
+  },
+  "tool": {
    "html": false,
    "js": true
   },
@@ -4397,6 +4441,18 @@
    "js": true
   },
   "virtual": {
+   "html": false,
+   "js": true
+  },
+  "w": {
+   "html": false,
+   "js": true
+  },
+  "x": {
+   "html": false,
+   "js": true
+  },
+  "y": {
    "html": false,
    "js": true
   },
@@ -4452,6 +4508,7 @@
   "js/quote/right-rail.js",
   "js/ui-confirm.js",
   "js/feedback-md.js",
+  "js/feedback-annotate.js",
   "js/feedback.js",
   "js/cat-more.js",
   "js/stats.js",

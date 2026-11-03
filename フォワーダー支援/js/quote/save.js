@@ -111,7 +111,7 @@
 
   // ========== フィードバック受信一覧（チームメンバー向け管理UI） ==========
 
-  const FB_STATUS_LABELS = { open: '未対応', in_progress: '対応中', resolved: '解決済み', wontfix: '対応しない' };
+  const FB_STATUS_LABELS = { open: '未対応', need_info: '確認待ち', in_progress: '対応中', resolved: '解決済み', wontfix: '対応しない' };
   const FB_CAT_ICONS     = { 'バグ報告': '🐛', '改善要望': '💡', '質問': '❓', 'その他': '📌' };
 
   let _fbCurrentTab  = 'send';

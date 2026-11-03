@@ -9,8 +9,9 @@
 (function (root) {
   'use strict';
 
-  var ST_LABEL = { open: '未対応', in_progress: '対応中', resolved: '解決済み', wontfix: '対応しない' };
-  var ST_ORDER = ['open', 'in_progress', 'resolved', 'wontfix'];
+  var ST_LABEL = { open: '未対応', need_info: '確認待ち', in_progress: '対応中', resolved: '解決済み', wontfix: '対応しない' };
+  var ST_ORDER = ['open', 'need_info', 'in_progress', 'resolved', 'wontfix'];
+  var KIND_LABEL = { question: '❓質問', answer: '↩返信', comment: '💬' };
   var CAT_ICON = { 'バグ報告': '🐛', '改善要望': '💡', '質問': '❓', 'その他': '📌' };
 
   // YYYY-MM-DD HH:mm（日本時間。ブラウザ/Node どちらでも同じ表記になるよう sv-SE を使う）
@@ -37,7 +38,8 @@
     var st = ST_LABEL[r.status] || r.status || '不明';
     var icon = CAT_ICON[r.category] || '📌';
     var lines = [];
-    lines.push('### ' + noOf(r) + ' [' + st + '] ' + icon + ' ' + (r.category || '') + '｜' + (r.section || '全体') + '｜' + titleOf(r));
+    var sec = (!r.section || r.section === 'わからない') ? '場所の指定なし' : r.section;
+    lines.push('### ' + noOf(r) + ' [' + st + '] ' + icon + ' ' + (r.category || '') + '｜' + sec + '｜' + titleOf(r));
     lines.push('- 報告: ' + fmtDate(r.created_at) + ' / ' + who(r, opts.nameOf));
     var ctx = r.context || {};
     var env = [];
@@ -59,6 +61,14 @@
       lines.push('');
       lines.push('コンソールエラー（直近）:');
       ctx.errors.slice(-5).forEach(function (e) { lines.push('- `' + oneLine(e, 200).replace(/`/g, "'") + '`'); });
+    }
+    if (Array.isArray(r.comments) && r.comments.length) {
+      lines.push('');
+      lines.push('やりとり:');
+      r.comments.forEach(function (c) {
+        var by = c.author_email ? (typeof opts.nameOf === 'function' ? (opts.nameOf(c.author_email) || String(c.author_email).split('@')[0]) : String(c.author_email).split('@')[0]) : '';
+        lines.push('- ' + fmtDate(c.created_at) + ' ' + (KIND_LABEL[c.kind] || '💬') + '（' + by + '）: ' + oneLine(c.body, 400));
+      });
     }
     if (r.response) {
       lines.push('');

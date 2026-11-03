@@ -4526,13 +4526,14 @@
     <div class="fbr-root" id="fbrRoot">
       <div class="fbr-head">
         <h2>🐞 不具合報告</h2>
-        <p class="fbr-lead">使っていて「おかしい」と思ったら、画面右下の 🐞 からすぐ報告できます（画面の撮影・録画も添付できます）。報告はここに溜まり、対応状況をチーム全員が確認できます。</p>
+        <p class="fbr-lead">使っていて「おかしい」と思ったら、画面右下の 🐞 からすぐ報告できます（画面の撮影・録画も添付できます）。報告はここに溜まり、対応状況をチーム全員が確認できます。担当者から確認の質問が届いたときは、ここ（と 🐞 の赤いバッジ）でお知らせします。</p>
         <div class="fbr-head-actions">
           <button type="button" class="fbr-btn fbr-btn-primary" onclick="fbOpenQuick()">＋ 不具合を報告する</button>
           <button type="button" class="fbr-btn" onclick="fbrReload()" title="最新の状態に更新">↺ 更新</button>
           <button type="button" class="fbr-btn" onclick="fbrCopyForAI()" title="いま表示している報告を Markdown にコピー（Claude に貼り付けて渡せます。メールアドレスは含みません）">📋 AI用にコピー</button>
         </div>
       </div>
+      <div class="fbr-banner" id="fbrBanner" hidden></div>
       <div class="fbr-filters">
         <div class="fbr-chips" id="fbrChips"></div>
         <select id="fbrCat" aria-label="種別で絞り込み">
@@ -4828,6 +4829,7 @@
 <script src="js/quote/right-rail.js"></script>
 <script src="js/ui-confirm.js"></script>
 <script src="js/feedback-md.js"></script>
+<script src="js/feedback-annotate.js"></script>
 <script src="js/feedback.js"></script>
 <script src="js/cat-more.js"></script>
 <script src="js/stats.js"></script>
@@ -5203,8 +5205,9 @@
           </div>
         </div>
         <div class="fb-field">
-          <label class="fb-label" for="fbSection">該当セクション <span class="fb-required">必須</span></label>
-          <select id="fbSection" name="fbSection" required>
+          <label class="fb-label" for="fbSection">該当セクション <span class="fb-optional">任意 — わからなければそのままで大丈夫です（開いていた画面は自動で記録されます）</span></label>
+          <select id="fbSection" name="fbSection">
+            <option value="わからない">わからない・指定しない</option>
             <option value="全体">全体</option>
             <option value="管理番号入力">管理番号入力</option>
             <option value="貿易条件・輸送モード">貿易条件・輸送モード</option>

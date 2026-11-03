@@ -3,7 +3,7 @@
 -- 公開リポジトリには報告内容を書き出さない方針のため、トークン付きの RPC で提供する。
 -- Supabase の SQL Editor で実行。実行前に下の '<長いランダム文字列>' を必ず置き換えること
 -- （32文字以上。例：ブラウザの crypto.randomUUID() を2つつなげる）。
--- ・返すのは feedbacks のみ・メールアドレスは含めない・最新200件まで。
+-- ・返すのは feedbacks とそのやりとり（先に feedback-comments.sql を実行しておくこと）・最新200件まで。メールは報告者のものは含めず、やりとりの発言者のみ含む（AI 側の整形で表示名に変換して出力）。
 -- ・トークンはこの SQL に書いた値だけが有効。漏れたら下の update で差し替えれば即無効。
 -- ・Claude のセッション側には、同じ値を環境変数 FEEDBACK_EXPORT_TOKEN（と SUPABASE_URL、
 --   SUPABASE_ANON_KEY=publishable key）として登録する（コミットしない）。
@@ -36,7 +36,10 @@ begin
     from (
       select report_no, id, created_at, updated_at, category, section, title, body, status,
              response, responded_at, page_url, context,
-             jsonb_array_length(coalesce(attachments, '[]'::jsonb)) as attachment_count
+             jsonb_array_length(coalesce(attachments, '[]'::jsonb)) as attachment_count,
+             (select coalesce(jsonb_agg(jsonb_build_object('kind', c.kind, 'body', c.body,
+                       'author_email', c.author_email, 'created_at', c.created_at) order by c.created_at), '[]'::jsonb)
+                from public.feedback_comments c where c.feedback_id = feedbacks.id) as comments   -- やりとり（feedback-comments.sql 適用後）
       from public.feedbacks
       order by created_at desc
       limit greatest(1, least(coalesce(p_limit, 200), 500))
