@@ -211,7 +211,7 @@
   }
 
   // 画面録画（MediaRecorder）。録画中は小さなバーを出し、止めるとモーダルに戻る
-  let _rec = null, _recTimer = null, _recBar = null;
+  let _rec = null, _recTimer = null, _recBar = null, _recStarting = false;
   function _pickMime() {
     const list = ['video/webm;codecs=vp9', 'video/webm;codecs=vp8', 'video/webm', 'video/mp4'];
     return list.find(m => window.MediaRecorder && MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported(m)) || '';
@@ -220,15 +220,19 @@
     if (!_canCapture() || !window.MediaRecorder) { toast('⚠️ この端末では画面の録画ができません。端末の画面収録で撮影し、「ファイルを選ぶ」から添付してください', 'warn', 6000); return; }
     if (!_loggedIn()) { toast('🔒 添付するには Google でログインしてください', 'warn'); return; }
     if (_pending.some(a => a.kind === 'video')) { toast('⚠️ 動画は1本までです（外してから録画してください）', 'warn', 4500); return; }
+    if (_rec || _recBar || _recStarting) return;   // 録画中・開始待ちの二重起動を防ぐ（タイマーや画面共有が残るため）
+    _recStarting = true;
     _hideModal();
     let stream;
     try {
       stream = await navigator.mediaDevices.getDisplayMedia({ video: { frameRate: 15 }, audio: false, preferCurrentTab: true });
     } catch (e) {
+      _recStarting = false;
       _showModal();
       if (e && e.name !== 'NotAllowedError' && e.name !== 'AbortError') toast('⚠️ 録画を開始できませんでした：' + (e.message || e), 'warn', 5000);
       return;
     }
+    _recStarting = false;
     const mime = _pickMime();
     const chunks = [];
     try { _rec = new MediaRecorder(stream, mime ? { mimeType: mime, videoBitsPerSecond: 1500000 } : { videoBitsPerSecond: 1500000 }); }
