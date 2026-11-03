@@ -77,7 +77,8 @@
       <div class="subtitle">ブックマーク・知識・計算機・見積もりをひとまとめに &nbsp;｜&nbsp; 最終更新: <span id="last-updated">-</span></div>
     </div>
     <a class="hdr-roadmap" href="roadmap.html" title="改修予定・アイデア（ロードマップ）">📣 改修予定・アイデア</a>
-    <a class="hdr-roadmap hdr-bugreports" href="#" id="hdrBugReportsBtn" onclick="switchCategory('bugreports'); return false;" title="不具合報告の一覧と対応状況">🐞 不具合報告</a>
+    <a class="hdr-roadmap hdr-bugreports" href="#" id="hdrBugReportsBtn" onclick="switchCategory('bugreports'); fbrSetMode('bug'); return false;" title="不具合報告の一覧と対応状況">🐞 不具合報告</a>
+    <a class="hdr-roadmap hdr-ideas" href="#" id="hdrIdeasBtn" onclick="switchCategory('bugreports'); fbrSetMode('idea'); return false;" title="アイデアを送る・みんなのアイデアに 👍 する">💡 アイデア</a>
     <a class="hdr-roadmap hdr-design" href="#" id="hdrDesignBtn" onclick="openDesignSwitcher(); return false;" title="デザインの切替（現行／Industry 案）">🎨 デザイン</a>
     <div class="header-auth" id="cloudHeaderAuth" hidden>
       <button class="hdr-cloud-login" id="hdrCloudLogin" type="button" onclick="cloudLogin()" title="チーム共有にサインイン">
@@ -4524,13 +4525,18 @@
   <!-- 一覧・対応状況・対応メモ。ロジックは js/feedback.js（initBugReportsTab）。ヘッダーの「🐞 不具合報告」から開く -->
   <div class="tab-content" role="tabpanel" id="tab-bugreports" aria-hidden="true">
     <div class="fbr-root" id="fbrRoot">
+      <div class="fbr-modes" id="fbrModes" role="tablist" aria-label="表示の切り替え">
+        <button type="button" class="fbr-mode is-on" data-mode="bug" role="tab" onclick="fbrSetMode('bug')">🐞 不具合報告 <span class="fbr-mode-n" data-n="bug"></span></button>
+        <button type="button" class="fbr-mode" data-mode="idea" role="tab" onclick="fbrSetMode('idea')">💡 アイデア <span class="fbr-mode-n" data-n="idea"></span></button>
+      </div>
       <div class="fbr-head">
-        <h2>🐞 不具合報告</h2>
-        <p class="fbr-lead">使っていて「おかしい」と思ったら、画面右下の 🐞 からすぐ報告できます（画面の撮影・録画も添付できます）。報告はここに溜まり、対応状況をチーム全員が確認できます。担当者から確認の質問が届いたときは、ここ（と 🐞 の赤いバッジ）でお知らせします。</p>
+        <h2 id="fbrTitle">🐞 不具合報告</h2>
+        <p class="fbr-lead" id="fbrLead">使っていて「おかしい」と思ったら、画面右下の 🐞 からすぐ報告できます（画面の撮影・録画も添付できます）。報告はここに溜まり、対応状況をチーム全員が確認できます。担当者から確認の質問が届いたときは、ここ（と 🐞 の赤いバッジ）でお知らせします。</p>
         <div class="fbr-head-actions">
-          <button type="button" class="fbr-btn fbr-btn-primary" onclick="fbOpenQuick()">＋ 不具合を報告する</button>
+          <button type="button" class="fbr-btn fbr-btn-primary" id="fbrBtnBug" onclick="fbOpenQuick()">＋ 不具合を報告する</button>
+          <button type="button" class="fbr-btn fbr-btn-primary" id="fbrBtnIdea" onclick="fbOpenIdea()" hidden>＋ アイデアを送る</button>
           <button type="button" class="fbr-btn" onclick="fbrReload()" title="最新の状態に更新">↺ 更新</button>
-          <button type="button" class="fbr-btn" onclick="fbrCopyForAI()" title="いま表示している報告を Markdown にコピー（Claude に貼り付けて渡せます。メールアドレスは含みません）">📋 AI用にコピー</button>
+          <button type="button" class="fbr-btn" onclick="fbrCopyForAI()" title="いま表示している内容を Markdown にコピー（Claude に貼り付けて渡せます。メールアドレスは含みません）">📋 AI用にコピー</button>
         </div>
       </div>
       <div class="fbr-banner" id="fbrBanner" hidden></div>
@@ -4539,11 +4545,17 @@
         <select id="fbrCat" aria-label="種別で絞り込み">
           <option value="">種別：すべて</option>
           <option value="バグ報告">🐛 バグ報告</option>
-          <option value="改善要望">💡 改善要望</option>
           <option value="質問">❓ 質問</option>
           <option value="その他">📌 その他</option>
         </select>
-        <label><input type="checkbox" id="fbrMine"> 自分の報告のみ</label>
+        <select id="fbrIdeaType" aria-label="アイデアの種類で絞り込み" hidden>
+          <option value="">種類：すべて</option>
+          <option value="改善案">🔧 改善案</option>
+          <option value="つなげたい">🔗 つなげたい</option>
+          <option value="新機能">✨ 新機能</option>
+          <option value="その他">📌 その他</option>
+        </select>
+        <label><input type="checkbox" id="fbrMine"> <span id="fbrMineLbl">自分の報告のみ</span></label>
         <input type="search" id="fbrSearch" placeholder="キーワードで検索" aria-label="キーワードで検索">
       </div>
       <div id="fbrList"></div>
@@ -5195,7 +5207,24 @@
     </div>
     <div id="fbSendPane">
       <form id="fbForm" onsubmit="submitFeedback(event)" autocomplete="off">
-        <div class="fb-field">
+        <div class="fb-field fb-idea-only fb-idea-types">
+          <label class="fb-label">どんなアイデアですか？ <span class="fb-required">必須</span></label>
+          <div class="fb-radios" id="fbIdeaTypeRadios">
+            <label class="fb-radio checked"><input type="radio" name="fbIdeaType" value="改善案" checked><span>🔧 ここをこうしたい</span></label>
+            <label class="fb-radio"><input type="radio" name="fbIdeaType" value="つなげたい"><span>🔗 情報と情報をつなげたい</span></label>
+            <label class="fb-radio"><input type="radio" name="fbIdeaType" value="新機能"><span>✨ こんな機能がほしい</span></label>
+            <label class="fb-radio"><input type="radio" name="fbIdeaType" value="その他"><span>📌 その他</span></label>
+          </div>
+        </div>
+        <div class="fb-field fb-idea-only fb-idea-link" id="fbIdeaLinkField" hidden>
+          <label class="fb-label">どの情報とどの情報？ <span class="fb-optional">わかる範囲で</span></label>
+          <div class="fb-idea-pair">
+            <input type="text" id="fbIdeaFrom" maxlength="80" placeholder="例）見積の仕入れ先" aria-label="つなげたい情報A">
+            <span aria-hidden="true">⇄</span>
+            <input type="text" id="fbIdeaTo" maxlength="80" placeholder="例）過去の受注実績" aria-label="つなげたい情報B">
+          </div>
+        </div>
+        <div class="fb-field fb-field-cat">
           <label class="fb-label">カテゴリ <span class="fb-required">必須</span></label>
           <div class="fb-radios" id="fbCategoryRadios">
             <label class="fb-radio"><input type="radio" name="fbCategory" value="バグ報告" required><span>🐛 バグ報告</span></label>
@@ -5204,7 +5233,7 @@
             <label class="fb-radio"><input type="radio" name="fbCategory" value="その他"><span>📌 その他</span></label>
           </div>
         </div>
-        <div class="fb-field">
+        <div class="fb-field fb-field-sec">
           <label class="fb-label" for="fbSection">該当セクション <span class="fb-optional">任意 — わからなければそのままで大丈夫です（開いていた画面は自動で記録されます）</span></label>
           <select id="fbSection" name="fbSection">
             <option value="わからない">わからない・指定しない</option>
@@ -5223,8 +5252,12 @@
           <label class="fb-label" for="fbTitle">ひとこと要約 <span class="fb-optional">任意</span></label>
           <input type="text" id="fbTitle" name="fbTitle" maxlength="120" placeholder="例）見積テーブルで単価が反映されない">
         </div>
+        <div class="fb-field fb-idea-only">
+          <label class="fb-label" for="fbIdeaWhy">いま困っていること・きっかけ <span class="fb-optional">任意</span></label>
+          <textarea id="fbIdeaWhy" rows="2" maxlength="1000" placeholder="例）毎回、前回の見積を探して金額を見比べている"></textarea>
+        </div>
         <div class="fb-field">
-          <label class="fb-label" for="fbBody">内容 <span class="fb-required">必須</span></label>
+          <label class="fb-label" for="fbBody"><span id="fbBodyLbl">内容</span> <span class="fb-required">必須</span></label>
           <textarea id="fbBody" name="fbBody" rows="5" required
             placeholder="例）〇〇のとき動作がおかしい / 〇〇機能を追加してほしい など。何をしたら、どうなったか（期待は何か）を書くと直しやすくなります"></textarea>
         </div>

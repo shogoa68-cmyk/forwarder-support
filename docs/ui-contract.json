@@ -204,8 +204,10 @@
   "emailImportBox",
   "emailImportModal",
   "fbBody",
+  "fbCategoryRadios",
   "fbForm",
   "fbHeadTitle",
+  "fbIdeaTypeRadios",
   "fbListContent",
   "fbListFilter",
   "fbListPane",
@@ -215,6 +217,7 @@
   "fbSubmitBtn",
   "fbTabList",
   "fbTabSend",
+  "fbrModes",
   "flPanel",
   "fxAutoModeChk",
   "fxFetchBtn",
@@ -1032,6 +1035,10 @@
    "uses": 1,
    "defined": true
   },
+  "fbOpenIdea": {
+   "uses": 1,
+   "defined": true
+  },
   "fbOpenQuick": {
    "uses": 1,
    "defined": true
@@ -1046,6 +1053,10 @@
   },
   "fbrReload": {
    "uses": 1,
+   "defined": true
+  },
+  "fbrSetMode": {
+   "uses": 4,
    "defined": true
   },
   "fillQuoteRef": {
@@ -1713,7 +1724,7 @@
    "defined": true
   },
   "switchCategory": {
-   "uses": 13,
+   "uses": 14,
    "defined": true
   },
   "switchFbTab": {
@@ -2064,7 +2075,7 @@
   },
   "checked": {
    "css": true,
-   "html": false
+   "html": true
   },
   "cloud-card-chat": {
    "css": true,
@@ -2318,6 +2329,14 @@
    "css": true,
    "html": false
   },
+  "fbr-mode": {
+   "css": true,
+   "html": true
+  },
+  "fbr-vote": {
+   "css": true,
+   "html": false
+  },
   "filter-active": {
    "css": true,
    "html": false
@@ -2499,6 +2518,10 @@
    "html": false
   },
   "is-heavy": {
+   "css": true,
+   "html": false
+  },
+  "is-idea": {
    "css": true,
    "html": false
   },
@@ -4157,7 +4180,7 @@
    "js": true
   },
   "mode": {
-   "html": false,
+   "html": true,
    "js": true
   },
   "mvalue": {

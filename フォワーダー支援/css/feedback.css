@@ -175,3 +175,37 @@
 .fba-text-input { position: absolute; min-width: 140px; max-width: 70%; padding: 1px 4px; border: 2px dashed #fff; border-radius: 4px; background: rgba(0,0,0,.25); font-family: inherit; font-weight: 700; line-height: 1.25; resize: none; outline: none; text-shadow: 0 0 3px #fff, 0 0 3px #fff; }
 .fba-hint { padding: var(--sp-6, 6px) var(--sp-14, 14px); background: #2b2b2b; color: #bbb; font-size: var(--fs-11, 11px); text-align: center; }
 @media (max-width: 640px) { .fba-bar { gap: var(--sp-6, 6px) var(--sp-10, 10px); } .fba-spacer { display: none; } }
+
+/* ================================================================
+   💡 アイデア（不具合報告ページの「アイデア」表示・アイデア投稿フォーム）
+   ================================================================ */
+/* 表示の切り替えタブ */
+.fbr-modes { display: flex; gap: var(--sp-4, 4px); margin-bottom: var(--sp-12, 12px); border-bottom: 2px solid var(--border-md, #ddd); }
+.fbr-mode { border: 0; background: transparent; font: inherit; font-size: var(--fs-14, 14px); font-weight: 700; color: var(--text-muted, #777); padding: var(--sp-8, 8px) var(--sp-16, 16px); cursor: pointer; border-bottom: 3px solid transparent; margin-bottom: -2px; }
+.fbr-mode:hover { color: var(--text, #333); }
+.fbr-mode.is-on { color: var(--accent, #8a6d3b); border-bottom-color: var(--accent, #8a6d3b); }
+.fbr-mode-n { display: inline-block; min-width: 18px; margin-left: 4px; padding: 0 6px; border-radius: 999px; background: var(--border-md, #e4e4e4); color: var(--text, #333); font-size: 11px; font-weight: 700; line-height: 18px; text-align: center; }
+.fbr-mode-n:empty { display: none; }
+.fbr-mode.is-on .fbr-mode-n { background: var(--accent, #8a6d3b); color: #fff; }
+
+/* 👍 投票 */
+.fbr-vote { display: inline-flex; align-items: center; gap: 4px; border: 1px solid var(--border-md, #ccc); background: var(--surface, #fff); border-radius: 999px; padding: 2px 10px; font: inherit; font-size: var(--fs-12, 12px); cursor: pointer; color: var(--text, #333); flex: none; }
+.fbr-vote:hover { border-color: var(--accent, #8a6d3b); background: var(--accent-lt, #faf6ea); }
+.fbr-vote.is-on { background: var(--accent, #8a6d3b); border-color: var(--accent, #8a6d3b); color: #fff; font-weight: 700; }
+.fbr-vote b { font-variant-numeric: tabular-nums; }
+.fbr-idea .fbr-card-head { border-left: 3px solid #e0b34a; }
+
+/* アイデア投稿フォーム：入力欄を出し入れ（フォームに .is-idea が付いているときだけ） */
+#fbForm .fb-idea-only { display: none; }
+#fbForm.is-idea .fb-idea-only { display: block; }
+#fbForm .fb-idea-only[hidden] { display: none !important; }
+#fbForm.is-idea .fb-field-cat, #fbForm.is-idea .fb-field-sec { display: none; }
+.fb-idea-pair { display: flex; align-items: center; gap: var(--sp-8, 8px); }
+.fb-idea-pair input { flex: 1; min-width: 0; }
+.fb-idea-pair span { color: var(--text-muted, #888); font-weight: 700; }
+#fbIdeaWhy { width: 100%; box-sizing: border-box; resize: vertical; font: inherit; }
+@media (max-width: 680px) { .fb-idea-pair { flex-direction: column; align-items: stretch; } .fb-idea-pair span { text-align: center; } }
+@media (max-width: 400px) {   /* 極小画面でヘッダーのリンクがアイコンだけになるとき、📣 ではなく中身に合う絵にする */
+  .hdr-roadmap.hdr-bugreports::before { content: "🐞"; }
+  .hdr-roadmap.hdr-ideas::before { content: "💡"; }
+}
