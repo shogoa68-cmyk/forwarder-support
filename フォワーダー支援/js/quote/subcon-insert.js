@@ -797,7 +797,7 @@
       const nm = val('nm'); if (!nm) return;
       const sv = currentSv !== null ? currentSv : (val('sv') || '');
       const svLabel = sv || '（未設定）';
-      const cat = val('cat'), bq = parseFloat(val('bq')) || 0, un = val('un');
+      const cat = val('cat'), bq = parseFloat(val('bq')) || 0, pq = parseFloat(val('pq')) || bq, un = val('un');
       const pp = parseFloat(val('pp')) || 0, pc = val('pc') || 'JPY';
       const bp = parseFloat(val('bp')) || 0, bc = val('bc') || 'JPY';
       const excluded = tr.dataset.excluded === '1';
@@ -813,7 +813,7 @@
         ptGroup = { pt: ptKey, rows: [], sellTotal: 0, costTotal: 0, hasMixed: false };
         svGroup.ptMap.set(ptKey, ptGroup); svGroup.ptOrder.push(ptKey);
       }
-      const sellAmt = applyRowMin(bq * bp, id, 'sell'), costAmt = applyRowMin(bq * pp, id, 'cost');   // ミニマムを反映
+      const sellAmt = applyRowMin(bq * bp, id, 'sell'), costAmt = applyRowMin(pq * pp, id, 'cost');   // ミニマムを反映
       const sellJPY = bc !== 'JPY' ? (typeof toJPY === 'function' ? toJPY(sellAmt, bc) : 0) : sellAmt;
       const costJPY = pc !== 'JPY' ? (typeof toJPY === 'function' ? toJPY(costAmt, pc) : 0) : costAmt;
       const mixed = bc !== 'JPY' || pc !== 'JPY';
