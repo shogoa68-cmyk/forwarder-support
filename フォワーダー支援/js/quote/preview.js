@@ -1511,8 +1511,18 @@
     if (!sensitiveColumnsGate('クリップボードコピー')) return;
     const hdr = getQuoteHeader();
     let totCost = 0, totBill = 0, totMk = 0;
-    data.forEach(d => { if (d._actual || d._cond || d._ref) return; totCost += d.cost; totBill += d.bill; totMk += d.mk; });
-    const totPr = totBill - totCost;
+    // 外貨が混じるときは通貨の違う数値をそのまま足さず、JPY 換算で集計する（Excel 出力・プレビューと同じ考え方）
+    let totPrJpy = 0, totMkJpy = 0, hasFxTsv = false;
+    const _toJ = (a, c) => (c && c !== 'JPY' && typeof toJPY === 'function') ? toJPY(a, c) : a;
+    data.forEach(d => {
+      if (d._actual || d._cond || d._ref) return;
+      totCost += d.cost; totBill += d.bill; totMk += d.mk;
+      totPrJpy += Math.ceil(_toJ(d.bill, d.bc)) - Math.ceil(_toJ(d.cost, d.pc));
+      totMkJpy += _toJ(d.mk, d.bc);
+      if ((d.bc && d.bc !== 'JPY') || (d.pc && d.pc !== 'JPY')) hasFxTsv = true;
+    });
+    const totPr = hasFxTsv ? totPrJpy : totBill - totCost;
+    if (hasFxTsv) totMk = Math.ceil(totMkJpy);
     const vis = getPreviewVisibility();
     const visCols = TSV_COL_DEFS.filter(c => !c.pvGroup || vis[c.pvGroup]);
     const idxOf = role => visCols.findIndex(c => c.role === role);
@@ -1532,7 +1542,7 @@
     data.forEach(d => lines.push(visCols.map(c => c.fn(d)).join('\t')));
     // 合計行（先頭セルに「合計」、利益／乗せ幅列に値、CD/通貨は「—」または空）
     const totalRow = visCols.map(c => {
-      if (c.role === 'cat')    return '合計';
+      if (c.role === 'cat')    return hasFxTsv ? '合計（≈JPY換算）' : '合計';
       if (c.role === 'cd')     return '—';
       if (c.role === 'mk')     return fmtRaw(totMk);
       if (c.role === 'profit') return fmtRaw(totPr);
@@ -1847,7 +1857,7 @@
         return;
       }
       const sub     = minAmt((d.bq || 0) * (d.bp || 0), d.bpmin);
-      const cost    = (d.pq || 0) * (d.pp || 0);
+      const cost    = d.cost;   // 最低料金（ミニマム）適用後の仕入。行の利益(d.profit)と同じ基準にそろえる
       const jpy     = typeof toJPY === 'function' ? Math.ceil(toJPY(sub, d.bc))  : sub;
       const costJpy = typeof toJPY === 'function' ? Math.ceil(toJPY(cost, d.pc)) : cost;
       const taxAmt  = (d.taxed && !d._actual) ? sub * getEffectiveTaxRate() : 0;

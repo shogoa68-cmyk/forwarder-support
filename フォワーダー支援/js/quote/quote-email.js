@@ -60,7 +60,7 @@
     const taxRate = (typeof getEffectiveTaxRate === 'function') ? getEffectiveTaxRate() : 0.10;
     const issuer = loadIssuer();
 
-    let taxableSub = 0, exemptSub = 0, hasFx = false;
+    let taxableSub = 0, exemptSub = 0, taxSum = 0, hasFx = false;
     const zones = [];
     let zoneSum = 0;
     const remarks = [];
@@ -89,7 +89,10 @@
       const jpy = isActual ? 0 : Math.ceil(toJPYx(sub, r.bc || 'JPY'));
       if (!isActual && !isCond && !isRef) {
         if (r.bc && r.bc !== 'JPY') hasFx = true;
-        if (r.taxed) taxableSub += jpy; else exemptSub += jpy;
+        // 外貨建ては輸出免税が原則（御見積書PDF・Excel・プレビューと同一ポリシー）。課税は JPY 建て行のみ、
+        // 消費税は行ごとに切り上げて積み上げる（一括 floor だと御見積書と数円ズレるため）
+        if (r.taxed && (r.bc || 'JPY') === 'JPY') { taxableSub += jpy; taxSum += Math.ceil(jpy * taxRate); }
+        else exemptSub += jpy;
         zoneSum += jpy;
       }
       // 明細行（名前か金額があるもの、または実費・都度・参考行）
@@ -121,7 +124,7 @@
       }
     }
 
-    const tax = Math.floor(taxableSub * taxRate);
+    const tax = taxSum;
     const total = taxableSub + exemptSub + tax;
 
     // 注記の組み立て：先頭の「※」重複を除去。為替に言及するリマークがあれば自動FX注記は省く。
