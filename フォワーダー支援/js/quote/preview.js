@@ -1749,6 +1749,7 @@
     const ccyData = {};
     allRows.forEach(d => {
       if (d._type !== 'data') return;
+      if (d._actual || d._cond || d._ref) return;   // 実費・都度請求・参考情報は合計に含めない（本体の合計行と同じ）
       const bc  = d.bc || 'JPY';
       const sub = minAmt((d.bq || 0) * (d.bp || 0), d.bpmin);
       if (!ccyData[bc]) ccyData[bc] = { sub: 0, taxedSub: 0, exemptSub: 0 };
