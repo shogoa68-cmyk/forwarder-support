@@ -4720,6 +4720,7 @@
       hidden.dispatchEvent(new Event('change', { bubbles: true }));
     }
     updateQuoteStatusUI();
+    if (typeof window.qvOnStatus === 'function') window.qvOnStatus(status);   // 提示済みにした時点の内容を版として記録（quote-versions.js）
     if (typeof window.updateSectionSummaries === 'function') window.updateSectionSummaries();
   }
   function updateQuoteStatusUI() {
@@ -4739,6 +4740,7 @@
     // 種類フィルタは「表示する」設定のときだけ意味があるので、非表示設定中は畳んで隠す
     const revFilters = document.getElementById('qfRevisionFilters');
     if (revFilters) revFilters.hidden = !!document.getElementById('qf-revision-hide-diff')?.checked;
+    if (typeof window.qvRender === 'function') window.qvRender();   // 提示履歴（版）の一覧を更新
   }
   window.setQuoteStatus = setQuoteStatus;
   window.updateQuoteStatusUI = updateQuoteStatusUI;
@@ -4753,6 +4755,7 @@
       return;
     }
     if (!confirm('現在の内容を「前回提示分」として記録し、改定中にして編集を再開します。よろしいですか？')) return;
+    if (typeof window.qvOnStatus === 'function') window.qvOnStatus(status);   // 提示履歴に未記録なら、提示した内容を版として残してから改定に入る
     const snap = (typeof window.buildRevisionSnapshot === 'function') ? window.buildRevisionSnapshot() : null;
     const hid = document.getElementById('qf-revision-baseline');
     if (hid) {

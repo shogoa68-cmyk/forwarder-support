@@ -1028,6 +1028,7 @@
             '<button class="btn-ref-copy" data-ref="' + escHtml(titleText) + '" onclick="copyRefNumber(this.dataset.ref,this)" title="管理番号をコピー（&quot;番号&quot;形式）"><svg class="icon-copy" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="1" width="9" height="9" rx="1.5"/><rect x="1" y="4" width="9" height="9" rx="1.5"/></svg></button>' +
           '</div>' +
           relRowHtml +
+          ((window.qvCardBadge && m) ? window.qvCardBadge(r.data) : '') +
           // かんたん表示用：見出し（メモ1行目→ルート→REF#）とお客様名。詳細表示では CSS で非表示
           '<div class="cloud-card-headline" title="' + escHtml(headline) + '">' + escHtml(headline) + '</div>' +
           (custDd ? '<div class="cloud-card-cust">' + custDd + '</div>' : '') +
@@ -2105,6 +2106,11 @@
     const newData = (row && row.data) ? Object.assign({}, row.data, {
       fields: Object.assign({}, row.data.fields, { 'qf-status': status }),
     }) : undefined;
+    // 提示済み／ヨコヨコ提示にしたとき、その時点の客先向け内容を提示履歴（版）に積む（quote-versions.js）
+    if (newData && typeof window.qvOnPresentedData === 'function') {
+      const vj = window.qvOnPresentedData(newData, status, _cloudUser.email);
+      if (vj) newData.fields['qf-versions'] = vj;
+    }
     const updatePayload = { status, owner_email: _cloudUser.email, updated_at: new Date().toISOString() };
     if (newData) updatePayload.data = newData;
     const { error } = await c.from(_table())
@@ -3221,6 +3227,7 @@
     const newRef = typeof generateQuoteRefValue === 'function' ? generateQuoteRefValue() : null;
     if (newRef) newData.fields['qf-ref'] = newRef;
     delete newData.fields['qf-core-ref'];   // 基幹REF#は手配した案件に固有のため、コピーには引き継がない
+    delete newData.fields['qf-versions'];   // 提示履歴（版）はコピー元の案件のものなので引き継がない
     delete newData.fields['qf-related-data'];   // 関連番号・メール件名も元の引き合いに固有のため引き継がない
     const existingNames = _cloudRows.map(r => r.name);
     let baseName = src.name + ' のコピー';
@@ -4059,6 +4066,7 @@
   // ---------- 他モジュール（行パターン等）からのログイン情報参照用 ----------
   window.quoteCloudUser   = function () { return _cloudUser; };
   window.quoteCloudClient = function () { return _getClient(); };
+  window.quoteCurrentUserEmail = function () { return (_cloudUser && _cloudUser.email) || ''; };   // 提示履歴（quote-versions.js）等が使う
   window.quoteCloudLoadedId = function () { return _loadedCloudId; };
   window.quoteDisplayName = function (email) { return (email && _profileMap[email]) || email || '—'; };
   window.quoteLoadProfiles = _loadProfiles;
