@@ -3155,6 +3155,25 @@
   display: inline-flex; align-items: center; justify-content: center;
 }
 #tab-quote-make .hz-entry-edit:hover { background: #f6dcd2; border-color: #c0654a; }
+/* 危険品：AI（NotebookLM 等）で資料から読み取って取り込む */
+#tab-quote-make .hz-entry-ai {
+  flex-shrink: 0; border: 1px solid #e0a030; border-radius: var(--r-14); background: #fff4d6; color: #8a5a00;
+  font-size: var(--fs-10, 10px); font-weight: 700; padding: 0 6px; line-height: 16px; cursor: pointer; font-family: inherit;
+}
+#tab-quote-make .hz-entry-ai:hover { background: #ffe9b0; }
+#tab-quote-make .hz-ai-import { margin-top: var(--sp-10); border: 1px dashed #d8b8a8; border-radius: var(--r-6); padding: var(--sp-6) var(--sp-10); background: var(--surface); }
+#tab-quote-make .hz-ai-import > summary { cursor: pointer; font-size: var(--fs-12); font-weight: 700; color: #6b3d2e; }
+#tab-quote-make .hz-ai-import > summary small { font-weight: 400; color: #a8927f; }
+#tab-quote-make .hz-ai-steps { margin: var(--sp-6) 0 var(--sp-6) var(--sp-12); padding: 0; font-size: var(--fs-11-5); color: #6b5a42; }
+#tab-quote-make .hz-ai-row { display: flex; align-items: center; gap: var(--sp-8); margin: var(--sp-6) 0; flex-wrap: wrap; }
+#tab-quote-make .hz-ai-btn { border: 1px solid #c8b8a8; border-radius: var(--r-5); background: var(--card-bg); color: #6b3d2e; padding: var(--sp-5) var(--sp-12); font-size: var(--fs-12); font-weight: 600; cursor: pointer; font-family: inherit; }
+#tab-quote-make .hz-ai-btn:hover { background: #f6dcd2; }
+#tab-quote-make .hz-ai-btn.hz-ai-go { background: #c0654a; border-color: #a8442a; color: var(--surface); }
+#tab-quote-make .hz-ai-btn.hz-ai-go:hover { background: #a8442a; }
+#tab-quote-make .hz-ai-import textarea { width: 100%; box-sizing: border-box; font-size: var(--fs-11-5); font-family: ui-monospace, Menlo, Consolas, monospace; border: 1px solid var(--border); border-radius: var(--r-6); padding: var(--sp-5) var(--sp-8); background: var(--surface); }
+#tab-quote-make .hz-ai-msg { font-size: var(--fs-11-5); color: #2e7d32; }
+#tab-quote-make .hz-ai-msg.is-bad { color: #c0392b; }
+#tab-quote-make .hz-ai-warn { margin: var(--sp-4) 0 0; font-size: var(--fs-11); color: #a8442a; }
 #tab-quote-make .btn-zone-preset:active { filter: brightness(0.85); transform: scale(0.97); }
 /* ── Zone② 幹線輸送入力 ── */
 #tab-quote-make .zone2-inputs { padding: var(--sp-10) var(--sp-10) var(--sp-8); }
@@ -11523,3 +11542,22 @@ body.is-row-dragging { cursor: grabbing; user-select: none; }
 
 /* スマホ幅（Industry）のツールバー「⋯」に集約する項目（ブラウザ保存）。それ以外の幅・現行デザインでは出さない */
 #tab-quote-make .tb-menu-panel .tb-mi-mobile { display: none; }
+
+/* ===== 作成者の変更（管理者・一時機能）。やめるときはこのブロックごと削除（docs/sql/admin-edit-creator.sql 参照） ===== */
+#tab-quote-make .cloud-card-crt-edit {
+  border: none; background: none; cursor: pointer; padding: 0 3px; margin-left: 2px;
+  font-size: var(--fs-12); color: var(--text-md); opacity: .55; line-height: 1;
+}
+#tab-quote-make .cloud-card-crt-edit:hover { opacity: 1; color: var(--accent); }
+.admin-creator-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.4); z-index: 10050; display: flex; align-items: center; justify-content: center; }
+.admin-creator-box { background: #fff; color: #222; border-radius: 10px; padding: 18px 20px; width: min(440px, 92vw); box-shadow: 0 10px 40px rgba(0,0,0,.3); }
+.admin-creator-title { font-weight: 700; font-size: 15px; margin-bottom: 6px; }
+.admin-creator-title small { font-weight: 400; font-size: 11px; color: #a33; margin-left: 6px; }
+.admin-creator-case { font-size: 13px; font-weight: 600; margin-bottom: 2px; word-break: break-all; }
+.admin-creator-now { font-size: 12px; color: #666; margin-bottom: 10px; word-break: break-all; }
+.admin-creator-lbl { display: block; font-size: 12px; margin-bottom: 4px; }
+.admin-creator-box input { width: 100%; box-sizing: border-box; padding: 7px 9px; border: 1px solid #bbb; border-radius: 6px; font-size: 13px; }
+.admin-creator-note { font-size: 11px; color: #777; margin: 8px 0 12px; }
+.admin-creator-actions { display: flex; justify-content: flex-end; gap: 8px; }
+.admin-creator-actions button { padding: 6px 14px; border-radius: 6px; border: 1px solid #bbb; background: #f3f3f3; cursor: pointer; font-size: 13px; }
+.admin-creator-actions .admin-creator-ok { background: #2e6fd0; border-color: #2e6fd0; color: #fff; font-weight: 600; }

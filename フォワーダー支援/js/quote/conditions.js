@@ -740,7 +740,7 @@
     // ヘッダー項目（_HEADER_FIELD_IDS）は keepHeaderIfEmpty 指定時のみ対象外（現在値を保持）。
     // 案件を開く経路は指定せず、保存内容どおりに復元する（空の項目に前の案件の値を残さない）。
     // 一時的な UI 操作用フィールドも _clearQuoteForm と同じ SKIP で対象外にする。
-    const _SKIP_FIELDS = ['rowInsertPos', 'rowPatternInsertPos', 'bulkCatSet', 'bulkSubconSet', 'selectAllChk', 'qfRelKind', 'qfRelInput'];
+    const _SKIP_FIELDS = ['rowInsertPos', 'rowPatternInsertPos', 'bulkCatSet', 'bulkSubconSet', 'selectAllChk', 'qfRelKind', 'qfRelInput', 'hzAiReply'];
     document.querySelectorAll(
       '#tab-quote-make .quote-main input[id], #tab-quote-make .quote-main select[id], #tab-quote-make .quote-main textarea[id]'
     ).forEach(el => {
@@ -1142,7 +1142,7 @@
     // フォーム値
     const fields = {};
     document.querySelectorAll('input[id], select[id], textarea[id]').forEach(el => {
-      if (['csvFileInput','importFileInput','rowPatternImportFile','qf-memo-pop','qf-memo-float-ta','qfRelKind','qfRelInput'].includes(el.id)) return;
+      if (['csvFileInput','importFileInput','rowPatternImportFile','qf-memo-pop','qf-memo-float-ta','qfRelKind','qfRelInput','hzAiReply'].includes(el.id)) return;
       fields[el.id] = el.type === 'checkbox' ? el.checked : el.value;
     });
     // テーブル行（通常行 / 小計行 / リマーク行をすべて保存）
@@ -3007,6 +3007,7 @@
         + `<span class="hz-entry-idx">${i + 1}</span>`
         + `<span class="hz-entry-label">${_escMulti(e.name || e.psn || e.un || label)}</span>`
         + `<span class="hz-entry-sub">${_escMulti(label)}</span>`
+        + (e.ai ? `<button type="button" class="hz-entry-ai" onclick="confirmHazEntry(${i})" title="AIから取り込んだ内容です。SDS・IMDG等と照合してください。押すと「照合済み」にします${e.src ? '（出典：' + _escMulti(e.src) + '）' : ''}">🤖要確認</button>` : '')
         + `<button type="button" class="hz-entry-edit" onclick="editHazEntry(${i})" title="編集（フォームに書き戻す）">✎</button>`
         + `<button type="button" class="me-chip-del" onclick="removeHazEntry(${i})" title="削除">×</button></span>`;
     }).join('');
@@ -3041,6 +3042,23 @@
     if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
     if (typeof scheduleSnapshot === 'function') scheduleSnapshot();
   }
+  // AI（Gemini / NotebookLM 等）の回答から取り込んだ危険品を追加する（hazmat-ai-import.js から呼ぶ）。
+  // 取り込み分には ai:true を付け、チップに「🤖要確認」を出す（SDS・IMDG との照合を促す）。
+  window.importHazEntries = function (list) {
+    if (!Array.isArray(list) || !list.length) return 0;
+    list.forEach(e => _hazEntries.push(Object.assign({}, e, { ai: true })));
+    _renderHazEntries();
+    if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
+    if (typeof scheduleSnapshot === 'function') scheduleSnapshot();
+    return list.length;
+  };
+  window.confirmHazEntry = function (i) {
+    const e = _hazEntries[i];
+    if (!e) return;
+    delete e.ai;
+    _renderHazEntries();
+    if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
+  };
   window.addHazEntry    = addHazEntry;
   window.removeHazEntry = removeHazEntry;
   window.editHazEntry   = editHazEntry;

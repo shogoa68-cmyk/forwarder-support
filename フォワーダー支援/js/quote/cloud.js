@@ -862,7 +862,8 @@
       // 最終更新者以外に何名が触ったか（＋N バッジ用）
       const edOthers = _editorsOf(r).filter(e => e.email !== r.owner_email).length;
       const whoDd =
-        '<span class="cloud-card-crt" title="作成者">👤 ' + escHtml(crtWho || '—') + '</span>' +
+        '<span class="cloud-card-crt" title="作成者">👤 ' + escHtml(crtWho || '—') +
+          (window.adminCreatorEditBtn ? window.adminCreatorEditBtn(r.id) : '') + '</span>' +   // 管理者の一時機能（admin-creator-edit.js）
         '<span class="cloud-card-upd" title="' + escHtml(_whoTitle(r)) + '">✏️ ' + escHtml(updWho || '—') +
           (edOthers > 0 ? '<span class="cloud-card-edn" title="ほかに ' + edOthers + ' 名が更新">+' + edOthers + '</span>' : '') +
         '</span>';
