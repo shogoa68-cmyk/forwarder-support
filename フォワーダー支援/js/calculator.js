@@ -866,10 +866,13 @@ function calcPalletize() {
   if (cargo.length === 0) { quoteShowToast('⚠️ 箱の寸法を入力してください', 'warning'); return; }
   if (!window.Vanning3D) { quoteShowToast('⚠️ 3D計算モジュールを読み込めませんでした', 'error'); return; }
 
-  const { bins, leftoverByOrig } = _packPalletsLayered(cargo, pw, pd, maxH);
+  const { bins, leftoverByOrig } = _packPalletsLayered(cargo, pw, pd, maxH, undefined, { maxWeight });
 
   if (bins.length === 0) {
-    quoteShowToast('⚠️ パレットサイズ・高さ上限に対して箱が大きすぎます', 'warning');
+    const tooHeavy = maxWeight > 0 && cargo.some(r => r.weight > maxWeight);
+    quoteShowToast(tooHeavy
+      ? '⚠️ 1個の重量がパレットの最大積載重量を超えている品種があります（最大重量を見直してください）'
+      : '⚠️ パレットサイズ・高さ上限に対して箱が大きすぎます', 'warning', 5000);
     return;
   }
 
@@ -910,7 +913,7 @@ function calcPalletize() {
   }).join('');
 
   const leftoverWarn = leftoverTotal > 0
-    ? `<p style="font-size:11px;color:#c53030;margin-top:8px;">⚠️ ${leftoverTotal}個は配置できませんでした。パレットサイズ・高さ上限に対して寸法が大きすぎる品種がある可能性があります。</p>`
+    ? `<p style="font-size:11px;color:#c53030;margin-top:8px;">⚠️ ${leftoverTotal}個は配置できませんでした。パレットサイズ・高さ上限に対して寸法が大きすぎる品種、または 1個の重量が最大積載重量を超える品種がある可能性があります。</p>`
     : '';
 
   const inputLine = formatRowInputSummary([
@@ -947,7 +950,7 @@ function calcPalletize() {
         <div class="calc-item hl" style="flex:1;"><div class="calc-item-label">合計必要パレット数</div><div class="calc-item-value">${bins.length} パレット</div></div>
       </div>
     </div>
-    <p style="font-size:11px;color:#718096;margin-top:10px;">※ 3Dビンパッキング（床面支持率80%以上を配置条件）による理論値。実際の積み付けは現場でご確認ください。</p>
+    <p style="font-size:11px;color:#718096;margin-top:10px;">※ 段ごとの敷き詰め（複数のやり方を試して最も少ないパレット数を採用。箱を縦横互い違いに組む配置を含む）による理論値${maxWeight > 0 ? `。1パレットの重量が ${maxWeight.toLocaleString()}kg 以内になるようパレットを分けています` : ''}。互い違いの配置は荷崩れしにくいか現場でご確認ください。実際の積み付けは現場でご確認ください。</p>
     ${preview3dOmitNote}
     ${preview3dHtml}`,
     inputLine, { pdfTitle: 'パレタイズ計算結果' });
@@ -980,7 +983,7 @@ function calcPalletize() {
 
 // 1段分の床面（pw×pd）へ、候補品種（footprint l×w、各qty）を敷き詰める。
 // candidates: [{l,w,qty,...}]。返り値 placements の ci は candidates 内のインデックス。
-function _fillLayerFootprint(candidates, pw, pd) {
+function _fillLayerGuillotine(candidates, pw, pd) {
   const EPS = 1e-6;
   const remainingQty = candidates.map(c => c.qty);
   const placements = [];
@@ -1022,6 +1025,88 @@ function _fillLayerFootprint(candidates, pw, pd) {
   return { placements, consumed: remainingQty.map((rq, i) => candidates[i].qty - rq) };
 }
 
+// 非ギロチンの敷き詰め（MaxRects）：空き矩形を重なりを許して持ち、箱を置くたびに交差する空きを分割する。
+// 縦横を互い違いに組む（風車状など）配置が作れるため、ギロチン分割では置けない隙間にも入る。
+// heur：'bssf'＝短い余りが最小／'blsf'＝長い余りが最小／'baf'＝空き面積が最小／'bl'＝左上から（y→x の順）
+function _fillLayerMaxRects(candidates, pw, pd, heur) {
+  const EPS = 1e-6;
+  const qty = candidates.map(c => c.qty);
+  const placements = [];
+  let free = [{ x: 0, y: 0, w: pw, d: pd }];
+  const order = candidates.map((c, i) => i).sort((a, b) => (candidates[b].l * candidates[b].w) - (candidates[a].l * candidates[a].w));
+  const score = (r, w, d) => {
+    const lw = r.w - w, ld = r.d - d, ss = Math.min(lw, ld), ls = Math.max(lw, ld);
+    if (heur === 'bssf') return [ss, ls];
+    if (heur === 'blsf') return [ls, ss];
+    if (heur === 'baf')  return [r.w * r.d - w * d, ss];
+    return [r.y + d, r.x];
+  };
+  while (true) {
+    let best = null;
+    for (const ci of order) {                       // 床面積の大きい品種から（置ければその品種を採用）
+      if (qty[ci] <= 0) continue;
+      const c = candidates[ci];
+      for (const r of free) {
+        for (const [w, d] of [[c.l, c.w], [c.w, c.l]]) {
+          if (w > r.w + EPS || d > r.d + EPS) continue;
+          const sc = score(r, w, d);
+          if (!best || sc[0] < best.sc[0] - 1e-9 || (Math.abs(sc[0] - best.sc[0]) < 1e-9 && sc[1] < best.sc[1] - 1e-9)) best = { ci, x: r.x, y: r.y, w, d, sc };
+        }
+      }
+      if (best) break;
+    }
+    if (!best) break;
+    placements.push({ x: best.x, y: best.y, w: best.w, d: best.d, ci: best.ci });
+    qty[best.ci]--;
+    const next = [];
+    for (const r of free) {
+      if (best.x >= r.x + r.w - EPS || best.x + best.w <= r.x + EPS || best.y >= r.y + r.d - EPS || best.y + best.d <= r.y + EPS) { next.push(r); continue; }
+      if (best.x > r.x + EPS) next.push({ x: r.x, y: r.y, w: best.x - r.x, d: r.d });
+      if (best.x + best.w < r.x + r.w - EPS) next.push({ x: best.x + best.w, y: r.y, w: r.x + r.w - best.x - best.w, d: r.d });
+      if (best.y > r.y + EPS) next.push({ x: r.x, y: r.y, w: r.w, d: best.y - r.y });
+      if (best.y + best.d < r.y + r.d - EPS) next.push({ x: r.x, y: best.y + best.d, w: r.w, d: r.y + r.d - best.y - best.d });
+    }
+    // 他の空き矩形に完全に含まれるものは捨てる（同じ大きさは 1 つだけ残す）
+    free = next.filter((r, i) => !next.some((q, j) => j !== i &&
+      r.x >= q.x - EPS && r.y >= q.y - EPS && r.x + r.w <= q.x + q.w + EPS && r.y + r.d <= q.y + q.d + EPS &&
+      (q.w * q.d > r.w * r.d + EPS || (Math.abs(q.w * q.d - r.w * r.d) < EPS && j < i))));
+  }
+  return { placements, consumed: qty.map((rq, i) => candidates[i].qty - rq) };
+}
+
+// 1 段分の敷き詰め：ギロチン（従来）と MaxRects 4 通りを試し、いちばん床面積を使えたものを採用（同じなら従来のやり方）。
+// mode='guillotine' は従来どおりのやり方だけ（パレット全体の比較用）。
+function _fillLayerFootprint(candidates, pw, pd, mode) {
+  let best = _fillLayerGuillotine(candidates, pw, pd);
+  if (mode === 'guillotine') return best;
+  const area = r => r.placements.reduce((sum, p) => sum + p.w * p.d, 0);
+  let bestArea = area(best);
+  for (const h of ['bssf', 'baf', 'bl', 'blsf']) {
+    const r = _fillLayerMaxRects(candidates, pw, pd, h);
+    const a = area(r);
+    if (a > bestArea + 1e-9) { best = r; bestArea = a; }
+  }
+  return best;
+}
+
+// パレットの最大積載重量を超えないよう、敷き詰めた配置の後ろ（後から置いた箱）から外す。
+// budget.left（残りの許容重量）を更新し、外した分を差し引いた consumed を返す。重量が無い品種は 0kg 扱い。
+function _trimLayerByWeight(layerCandidates, fill, budget) {
+  if (!(budget && isFinite(budget.left))) return fill;
+  const kept = [];
+  const consumed = layerCandidates.map(() => 0);
+  let left = budget.left;
+  for (const pl of fill.placements) {
+    const wt = layerCandidates[pl.ci].weight || 0;
+    if (wt > left + 1e-9) continue;       // この箱は入らないが、軽い箱なら後ろに続けて入る
+    left -= wt;
+    kept.push(pl);
+    consumed[pl.ci]++;
+  }
+  budget.left = left;
+  return { placements: kept, consumed };
+}
+
 // 段の高さの選び方：入る高さの中で最も個数（総量）が多いものを採用する。
 // 段数を減らして床効率を優先するため、潤沢にある品種を軸に床を敷き詰めやすい。
 // _packGreedyContinue（1手先読みの「続き」シミュレーション）で使う単純な貪欲ロジック。
@@ -1034,7 +1119,7 @@ function _heightPickByQty(avail) {
 // 単純な貪欲法で、ある高さ（zStart）から上限（maxH）まで最後まで詰める。
 // 1手先読み（_packPalletLayered）の「この手を選んだ場合に最終的に何個入るか」を
 // 見積もるための補助関数。remainingTypes を直接消費する（副作用あり）。
-function _packGreedyContinue(remainingTypes, pw, pd, maxH, zStart) {
+function _packGreedyContinue(remainingTypes, pw, pd, maxH, zStart, mode, budget) {
   const EPS = 1e-6;
   const placed = [];
   let z = zStart;
@@ -1049,7 +1134,7 @@ function _packGreedyContinue(remainingTypes, pw, pd, maxH, zStart) {
       if (noStackMaxH > layerH) layerH = noStackMaxH;
     }
     const layerCandidates = avail.filter(r => r.h <= layerH + EPS);
-    const { placements, consumed } = _fillLayerFootprint(layerCandidates, pw, pd);
+    const { placements, consumed } = _trimLayerByWeight(layerCandidates, _fillLayerFootprint(layerCandidates, pw, pd, mode), budget);
     if (!placements.length) break;
     placements.forEach(pl => {
       const type = layerCandidates[pl.ci];
@@ -1074,9 +1159,10 @@ function _packGreedyContinue(remainingTypes, pw, pd, maxH, zStart) {
 // （過去に試したが、高さ上限から逆算して積み方を決める不自然なロジックになるため
 // 撤去した）。本関数が天井に近づくことがあるとすれば、それは「より多くの箱が
 // 実際に入る」という結果に過ぎず、高さ上限を目標にした計算ではない。
-function _packPalletLayered(remainingTypes, pw, pd, maxH) {
+function _packPalletLayered(remainingTypes, pw, pd, maxH, mode, maxWeight) {
   const EPS = 1e-6;
   const placed = [];
+  const budget = { left: maxWeight > 0 ? maxWeight : Infinity };   // このパレットの残り許容重量
   let z = 0;
   while (true) {
     const headroom = maxH - z;
@@ -1095,7 +1181,8 @@ function _packPalletLayered(remainingTypes, pw, pd, maxH) {
         if (noStackMaxH > layerH) layerH = noStackMaxH;
       }
       const layerCandidates = avail.filter(r => r.h <= layerH + EPS).map(r => ({ ...r }));
-      const { placements, consumed } = _fillLayerFootprint(layerCandidates, pw, pd);
+      const trialBudget = { left: budget.left };
+      const { placements, consumed } = _trimLayerByWeight(layerCandidates, _fillLayerFootprint(layerCandidates, pw, pd, mode), trialBudget);
       if (!placements.length) continue;
 
       const trialRemaining = remainingTypes.map(r => ({ ...r }));
@@ -1110,31 +1197,32 @@ function _packPalletLayered(remainingTypes, pw, pd, maxH) {
       // 比較用の見積もりシミュレーションは別クローンで行い、実際に採用する
       // trialRemaining（＝この1段だけ消費した状態）には影響させない
       const lookaheadRemaining = trialRemaining.map(r => ({ ...r }));
-      const restPlaced = _packGreedyContinue(lookaheadRemaining, pw, pd, maxH, z + layerH);
+      const restPlaced = _packGreedyContinue(lookaheadRemaining, pw, pd, maxH, z + layerH, mode, { left: trialBudget.left });
       const total = thisLayerPlaced.length + restPlaced.length;
 
       if (!best || total > best.total) {
-        best = { total, layerH, thisLayerPlaced, trialRemaining };
+        best = { total, layerH, thisLayerPlaced, trialRemaining, budgetLeft: trialBudget.left };
       }
     }
 
     if (!best) break; // どの高さを試しても1個も入らない→無限ループ防止で打ち切り
     placed.push(...best.thisLayerPlaced);
     remainingTypes.forEach((r, i) => { r.qty = best.trialRemaining.find(x => x.idx === r.idx).qty; });
+    budget.left = best.budgetLeft;
     z += best.layerH;
   }
   return placed;
 }
 
 // 複数品種・複数個数の貨物を、1パレット分ずつ _packPalletLayered で詰め切るまで
-// パレットを積み増していく。
-function _packPalletsLayered(cargo, pw, pd, maxH, maxBins) {
+// パレットを積み増していく（1 つのやり方 mode での全体の計算）。
+function _packPalletsOnce(cargo, pw, pd, maxH, maxBins, mode, maxWeight) {
   maxBins = maxBins || 60;
-  const remaining = cargo.map((r, i) => ({ idx: i, l: r.bl, w: r.bw, h: r.bh, qty: Math.max(1, parseInt(r.qty, 10) || 1), noStack: r.rowNoStack }));
+  const remaining = cargo.map((r, i) => ({ idx: i, l: r.bl, w: r.bw, h: r.bh, weight: r.weight || 0, qty: Math.max(1, parseInt(r.qty, 10) || 1), noStack: r.rowNoStack }));
   const bins = [];
   while (remaining.some(r => r.qty > 0) && bins.length < maxBins) {
-    const placed = _packPalletLayered(remaining, pw, pd, maxH);
-    if (!placed.length) break; // どの個体も1つも入らない（単体でサイズ超過）→無限ループ防止
+    const placed = _packPalletLayered(remaining, pw, pd, maxH, mode, maxWeight);
+    if (!placed.length) break; // どの個体も1つも入らない（単体でサイズ・重量超過）→無限ループ防止
     const countByOrig = {};
     let binWeight = 0;
     let usedVolume = 0;
@@ -1152,6 +1240,24 @@ function _packPalletsLayered(cargo, pw, pd, maxH, maxBins) {
   const leftoverByOrig = {};
   remaining.forEach(r => { if (r.qty > 0) leftoverByOrig[r.idx] = r.qty; });
   return { bins, leftoverByOrig };
+}
+
+// パレット全体の計算：段の敷き詰め方を変えた複数のやり方（従来のギロチンのみ／ギロチン＋MaxRects…）でそれぞれ
+// 最後まで詰め、積み残しが少なく・パレット数が少ないものを採用する（先頭は従来のやり方なので、従来より悪くならない）。
+// opts.maxWeight：1 パレットの最大積載重量 kg（0／未指定＝制限なし。超えないようにパレットを分ける）
+// opts.legacy：従来のやり方だけ（比較・試験用）
+const _PALLET_EXTRA_BUDGET_MS = 2500;   // 2 つ目以降のやり方を試す時間の目安（大量の貨物で重くならないように）
+function _packPalletsLayered(cargo, pw, pd, maxH, maxBins, opts) {
+  opts = opts || {};
+  const maxWeight = opts.maxWeight > 0 ? opts.maxWeight : 0;
+  const t0 = Date.now();
+  let best = _packPalletsOnce(cargo, pw, pd, maxH, maxBins, 'guillotine', maxWeight);
+  if (opts.legacy) return best;
+  const unplaced = r => Object.values(r.leftoverByOrig).reduce((a, b) => a + b, 0);
+  const lastMs = Date.now() - t0;
+  const r2 = (Date.now() - t0) + lastMs * 3 <= _PALLET_EXTRA_BUDGET_MS ? _packPalletsOnce(cargo, pw, pd, maxH, maxBins, 'best', maxWeight) : null;
+  if (r2 && (unplaced(r2) < unplaced(best) || (unplaced(r2) === unplaced(best) && r2.bins.length < best.bins.length))) best = r2;
+  return best;
 }
 
 // ================================================================
