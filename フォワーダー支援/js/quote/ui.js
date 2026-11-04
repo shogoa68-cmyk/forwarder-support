@@ -1701,6 +1701,9 @@
     return raw.slice(0, 2) + '-' + raw.slice(2, 8) + '-' + raw.slice(8);
   }
   function generateQuoteRefValue() {
+    // 管理者の一時機能（admin-creator-edit.js）：作成者を指定中は、その人の発番IDで採番する
+    const ov = window.adminCreatorRefOverride && window.adminCreatorRefOverride();
+    if (ov) return ov;
     const no = window._myMemberNo;
     if (no == null) return null;                       // 発番ID未取得（未ログイン or 未登録）
     const id2 = String(no).padStart(2, '0');
@@ -1736,6 +1739,7 @@
     if (v) _setRefValue(v);
   }
   window.fillQuoteRef     = fillQuoteRef;
+  window.generateQuoteRefValue = generateQuoteRefValue;   // 管理者の一時機能（admin-creator-edit.js）からも使う
   window.maybeAutoFillRef = maybeAutoFillRef;
 
   // 案件の保存・呼び出しは ☁️ チーム共有（クラウド）に一本化（ブラウザ保存は廃止）。
