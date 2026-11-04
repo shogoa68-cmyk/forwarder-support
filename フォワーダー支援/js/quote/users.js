@@ -42,6 +42,7 @@
     const btn = document.getElementById('hdrUserMgrBtn');
     if (!user) {
       _myRole = null;
+      window._myRole = null;        // ログアウト後に管理者の権限表示（強制解放など）が残らないように
       window._myMemberNo = null;
       if (btn) btn.hidden = true;
       return;
@@ -185,7 +186,7 @@
     const db = _db();
     if (!db) return;
     const { error } = await db.from('allowed_emails').update({ role }).eq('email', email);
-    if (error) { _toast('⚠️ ロール変更に失敗：' + error.message, 'warn'); return; }
+    if (error) { _toast('⚠️ ロール変更に失敗：' + error.message, 'warn'); _applyFilters(); return; }   // 一覧を描き直して選択を元の値に戻す
     const m = _members.find(x => x.email === email);
     if (m) m.role = role;
     _toast('✅ ' + _displayName(email) + ' を「' + (ROLE_LABEL[role] || role) + '」に変更しました', 'success', 2200);

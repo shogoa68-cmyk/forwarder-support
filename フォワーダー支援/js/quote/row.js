@@ -1125,6 +1125,11 @@
     if (dir < 0) {
       let prev = tr.previousElementSibling;
       while (prev?.dataset?.virtual) prev = prev.previousElementSibling;
+      // 直前が別の明細行にぶら下がるリマークなら、その親行ごと飛び越える（親とリマークを引き離さない）
+      if (rowId && prev?.dataset?.type === 'remark' && prev.dataset.parentId) {
+        const pRow = document.getElementById(`row-${prev.dataset.parentId}`);
+        if (pRow && pRow !== tr) prev = pRow;
+      }
       if (prev) {
         tbody.insertBefore(tr, prev);
         reattachChildren();
@@ -1135,7 +1140,10 @@
       while (next && children.includes(next)) next = next.nextElementSibling;
       while (next?.dataset?.virtual) next = next.nextElementSibling;
       if (next) {
+        // 次の行にぶら下がるリマークも一緒に上へ運ぶ（置き去りにすると親と離れてしまう）
+        const nextKids = (next.dataset.type || !next.id) ? [] : getChildRemarks(next.id.replace('row-', ''));
         tbody.insertBefore(next, tr);
+        nextKids.forEach(k => tbody.insertBefore(k, tr));
         reattachChildren();
       }
     }
@@ -1298,7 +1306,7 @@
     const newId = addRowAfter(srcId);
 
     // テキスト・数値・日付フィールドをコピー（zc = 0円確認済みフラグ／vf・vt = 有効期限を含む）
-    ['nm','pq','un','pp','mk','nt','sv','pt','zc','ac','ps','co','vf','vt','lu','ppmode','pprate','ppbase','ppref','ppmin','bpmin','ic'].forEach(f => {
+    ['nm','pq','un','pp','mk','nt','sv','pt','zc','ac','ps','co','ri','es','vf','vt','lu','ppmode','pprate','ppbase','ppref','ppmin','bpmin','ic'].forEach(f => {
       const srcEl = document.getElementById(`${f}-${srcId}`);
       const dstEl = document.getElementById(`${f}-${newId}`);
       if (srcEl && dstEl) dstEl.value = srcEl.value;
@@ -2370,8 +2378,8 @@
         const pid = tr.id.replace('row-', '');
         const ppc = document.getElementById(`pc-${pid}`)?.value || 'JPY';
         const pbc = document.getElementById(`bc-${pid}`)?.value || 'JPY';
-        psBillJPY += SharedCalc.jpyRound(toJPY(val(`bq-${pid}`) * val(`bp-${pid}`), pbc));
-        psCostJPY += SharedCalc.jpyRound(toJPY(val(`pq-${pid}`) * val(`pp-${pid}`), ppc));
+        psBillJPY += SharedCalc.jpyRound(toJPY(applyRowMin(val(`bq-${pid}`) * val(`bp-${pid}`), pid, 'sell'), pbc));
+        psCostJPY += SharedCalc.jpyRound(toJPY(applyRowMin(val(`pq-${pid}`) * val(`pp-${pid}`), pid, 'cost'), ppc));
         return;
       }
       const id  = tr.id.replace('row-', '');
@@ -2669,8 +2677,8 @@
         groupBillRaw = 0; groupCostRaw = 0;
         groupBillCurrencies = new Set(); groupCostCurrencies = new Set();
       } else {
-        // 見積書非表示・適用期間外の行は小計セパレータの集計に含めない
-        if (tr.dataset.hideQuote === '1' || tr.dataset.outRange === '1' || tr.dataset.actual === '1' || tr.dataset.profitShare === '1' || tr.dataset.cond === '1' || tr.dataset.refInfo === '1') return;
+        // 見積書非表示・適用期間外の行は小計セパレータの集計に含めない（除外グループも総合計・プレビューと同じく含めない）
+        if (tr.dataset.excluded === '1' || tr.dataset.hideQuote === '1' || tr.dataset.outRange === '1' || tr.dataset.actual === '1' || tr.dataset.profitShare === '1' || tr.dataset.cond === '1' || tr.dataset.refInfo === '1') return;
         const id = tr.id.replace('row-', '');
         const bq = val(`bq-${id}`);
         const bp = val(`bp-${id}`);
@@ -4290,7 +4298,8 @@
       const bq = val(`bq-${id}`) || val(`pq-${id}`) || 0;
       const bp = val(`bp-${id}`) || 0;
       const pp = val(`pp-${id}`) || 0;
-      let sell = applyRowMin(bq * bp, id, 'sell'), cost = applyRowMin(bq * pp, id, 'cost');
+      const pq = val(`pq-${id}`) || bq;   // 仕入数量（calc/総合計と同じく仕入は pq × pp）
+      let sell = applyRowMin(bq * bp, id, 'sell'), cost = applyRowMin(pq * pp, id, 'cost');
       const bc = document.getElementById(`bc-${id}`)?.value || 'JPY';
       const pc = document.getElementById(`pc-${id}`)?.value || 'JPY';
       let mixed = false;
@@ -4381,7 +4390,7 @@
     }
     if (!newId) return null;
     // 値フィールド＋行フラグ（実費/PROFIT SHARE/都度/0円確認）を複製。sv/pt はコピー先の値
-    const COPY_VALS = ['cat','nm','pq','un','bq','pc','bc','pp','bp','mk','nt','vf','vt','ac','ps','co','ri','zc'];
+    const COPY_VALS = ['cat','nm','pq','un','bq','pc','bc','pp','bp','mk','nt','vf','vt','ac','ps','co','ri','es','zc','ppmin','bpmin','ic'];
     COPY_VALS.forEach(f => {
       const s = document.getElementById(`${f}-${sid}`);
       const d = document.getElementById(`${f}-${newId}`);
@@ -4488,7 +4497,7 @@
 
   function _gatherRowData(id) {
     const data = {};
-    ['nm','pq','un','pp','mk','nt','sv','pt','zc','ac','ps','co','vf','vt','lu','cat','pc','bc','bp','ppmode','pprate','ppbase','uid','ppref','ppmin','bpmin','ic'].forEach(f => {
+    ['nm','pq','un','pp','mk','nt','sv','pt','zc','ac','ps','co','ri','es','vf','vt','lu','cat','pc','bc','bp','ppmode','pprate','ppbase','uid','ppref','ppmin','bpmin','ic'].forEach(f => {
       const el = document.getElementById(`${f}-${id}`);
       if (el) data[f] = el.value;
     });
@@ -4508,7 +4517,7 @@
     } else {
       tbody.appendChild(newTr);
     }
-    ['nm','pq','un','pp','mk','nt','pt','zc','ac','ps','co','vf','vt','lu','ppmode','pprate','ppbase','ppref','ppmin','bpmin','ic'].forEach(f => {
+    ['nm','pq','un','pp','mk','nt','pt','zc','ac','ps','co','ri','es','vf','vt','lu','ppmode','pprate','ppbase','ppref','ppmin','bpmin','ic'].forEach(f => {
       const el = document.getElementById(`${f}-${newId}`);
       if (el && data[f] !== undefined) el.value = data[f];
     });
