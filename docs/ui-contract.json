@@ -2143,6 +2143,30 @@
    "css": false,
    "html": false
   },
+  "cn-between": {
+   "css": true,
+   "html": false
+  },
+  "cn-ctrl": {
+   "css": true,
+   "html": true
+  },
+  "cn-group": {
+   "css": true,
+   "html": true
+  },
+  "cn-hint": {
+   "css": true,
+   "html": true
+  },
+  "cn-mode-btn": {
+   "css": true,
+   "html": true
+  },
+  "cn-unknown": {
+   "css": false,
+   "html": false
+  },
   "cnt-link-btn": {
    "css": true,
    "html": true
@@ -3195,6 +3219,10 @@
    "css": true,
    "html": false
   },
+  "row-cn-mode": {
+   "css": true,
+   "html": false
+  },
   "row-conditional": {
    "css": true,
    "html": false
@@ -3974,6 +4002,10 @@
    "js": true
   },
   "cid": {
+   "html": false,
+   "js": true
+  },
+  "cn-unknown": {
    "html": false,
    "js": true
   },

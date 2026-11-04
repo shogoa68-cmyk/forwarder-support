@@ -472,6 +472,16 @@
         }));
     }
 
+    // 行の「表示条件」：条件に合わず客先向け・合計から外れる行と、条件に使う値が未入力で判定できない行（表示のまま）を知らせる
+    {
+      const nm = tr => (tr.querySelector('[data-field="nm"]')?.value || '').trim() || '（品名未入力）';
+      const list = arr => arr.slice(0, 5).join('、') + (arr.length > 5 ? ` ほか${arr.length - 5}件` : '');
+      const outs = [...document.querySelectorAll('#tableBody tr[data-out-reason="condition"]')].map(nm);
+      const unk  = [...document.querySelectorAll('#tableBody tr[data-cn-unknown="1"]')].map(nm);
+      if (outs.length) infoItems.push({ msg: `表示条件に合わず、客先向けの出力と合計から外れる行が ${outs.length} 件あります：${list(outs)}`, focusEl: null });
+      if (unk.length)  infoItems.push({ msg: `表示条件を判定できない行が ${unk.length} 件あります（値が未入力のため表示のまま）：${list(unk)}`, focusEl: null });
+    }
+
     if (!data.length) {
       infoItems.push({ msg: '見積もり行が 1 件もありません', focusEl: null });
     } else {
@@ -775,6 +785,8 @@
         ? '<span class="pv-hq-badge pv-ps-badge" title="PROFIT SHARE（代理店収益）。客先見積もりには出さず、社内利益にのみ計上します">🤝 PROFIT SHARE</span> '
         : d._outRange && d._outReason === 'incoterms'
         ? '<span class="pv-hq-badge pv-oor-badge" title="いまの貿易条件には適用されない行のため、合計・PDF・CSV・Excel から除外されています（プレビューには打ち消し線で表示）">🏷️ 貿易条件外</span> '
+        : d._outRange && d._outReason === 'condition'
+        ? '<span class="pv-hq-badge pv-oor-badge" title="表示条件に合わない行のため、合計・PDF・CSV・Excel から除外されています（プレビューには打ち消し線で表示）">🔀 表示条件外</span> '
         : d._outRange
         ? '<span class="pv-hq-badge pv-oor-badge" title="適用期間外のため合計・PDF・CSV・Excel から除外されています（プレビューには打ち消し線で表示）">📅 適用期間外</span> '
         : (d._hideManual ? '<span class="pv-hq-badge" title="この行は見積書（PDF・Excel・CSV・客先プレビュー）に出力されません">🚫見積書非表示</span> ' : '');

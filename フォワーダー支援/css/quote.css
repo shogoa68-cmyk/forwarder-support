@@ -10223,6 +10223,31 @@ button.um-memberno--empty:hover { background: var(--accent-lt); border-color: #c
 #tab-quote-make .ic-group .ic-chip.is-on { background: #2c5d8f; border-color: #2c5d8f; color: var(--surface); font-weight: 700; }
 #tab-quote-make .ic-group .ic-hint { flex-basis: 100%; font-size: var(--fs-10); color: var(--text-md); }
 #tab-quote-make .ic-group .ic-hint.is-out { color: var(--red); font-weight: 700; }
+/* 表示条件（行ごと・if 構文）：ボタンは貿易条件と同じ見た目（紫系）。ON の行だけ、条件の入力欄（項目・値・比較）を出す（Industry は「その他 ▾」の中）。
+   条件に合わない行は「適用期間外」と同じ扱い（row-out-of-range）で、客先向けの出力と合計から外れる。値が未入力で判定できない行は表示のまま注意を出す */
+#tab-quote-make .cn-mode-btn {
+  display: inline-block; margin-top: var(--sp-3); padding: 1px var(--sp-6);
+  font-size: var(--fs-10); line-height: 1.5; border: 1px solid var(--border-md); border-radius: var(--r-3);
+  background: transparent; color: var(--border-md); cursor: pointer; font-family: inherit;
+  transition: all 0.15s; white-space: nowrap;
+}
+#tab-quote-make .cn-mode-btn:hover { border-color: #6b4a9a; color: #6b4a9a; }
+#tab-quote-make .cn-mode-btn.is-on { background: #f1eaf8; border-color: #8a6ab5; color: #6b4a9a; font-weight: 700; }
+#tab-quote-make .cn-group { display: none; align-items: center; gap: var(--sp-4); flex-wrap: wrap; margin-top: var(--sp-3); }
+#tab-quote-make tr.row-cn-mode .cn-group { display: flex; }
+#tab-quote-make .cn-group .cn-lbl { font-size: var(--fs-10); font-weight: 700; color: #6b4a9a; }
+#tab-quote-make .cn-group .cn-ctrl { display: inline-flex; align-items: center; flex-wrap: wrap; gap: var(--sp-3); }
+#tab-quote-make .cn-group select, #tab-quote-make .cn-group input {
+  font-size: var(--fs-11); font-family: inherit; padding: 1px var(--sp-4); height: auto; width: auto; min-width: 0;
+  border: 1px solid var(--border-md); border-radius: var(--r-3); background: var(--surface); color: var(--text);
+}
+#tab-quote-make .cn-group input.cn-a, #tab-quote-make .cn-group input.cn-b { width: 64px; }
+#tab-quote-make .cn-group .cn-to, #tab-quote-make .cn-group .cn-unit { font-size: var(--fs-10); color: var(--text-md); }
+#tab-quote-make tr:not(.cn-between) .cn-group .cn-to, #tab-quote-make tr:not(.cn-between) .cn-group input.cn-b { display: none; }
+#tab-quote-make tr.cn-between .cn-group .cn-unit { display: none; }
+#tab-quote-make .cn-group .cn-hint { flex-basis: 100%; font-size: var(--fs-10); color: var(--text-md); }
+#tab-quote-make .cn-group .cn-hint.is-out { color: var(--red); font-weight: 700; }
+#tab-quote-make .cn-group .cn-hint.is-warn { color: #b45309; font-weight: 700; }
 /* 適用期間外サーチャージ: 常に打ち消し線で表示（合計・出力には含めない） */
 #tab-quote-make #previewTable tr.pv-row-out-range > td {
   text-decoration: line-through !important;

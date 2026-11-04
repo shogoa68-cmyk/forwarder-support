@@ -18,7 +18,7 @@
       const vt = document.getElementById(`vt-${id}`);
       if (vf && vf.value) vf.value = '';
       if (vt && vt.value) vt.value = '';
-      if (tr && !rowIncotermsMismatch(tr)) { delete tr.dataset.outRange; delete tr.dataset.outReason; tr.classList.remove('row-out-of-range'); }   // 貿易条件による除外は、カテゴリに関係なく維持
+      if (tr && !rowIncotermsMismatch(tr) && !rowCondMismatch(tr)) { delete tr.dataset.outRange; delete tr.dataset.outReason; tr.classList.remove('row-out-of-range'); }   // 貿易条件による除外は、カテゴリに関係なく維持
     }
     _scheduleCatHeaderRefresh();   // Industry テーマのときだけカテゴリ見出しを更新
   }
@@ -60,9 +60,10 @@
   // 行の適用期間が見積の生きている期間と一切重ならなければ true（期間未設定の行は常に有効＝false）。
   // 日付は ISO(YYYY-MM-DD) なので文字列比較で大小判定できる。
   function isRowOutOfRange(tr) { return !!rowOutReason(tr); }
-  // 行が客先向けの出力・合計から外れる理由：'incoterms'（いまの貿易条件に合わない）／'period'（サーチャージの適用期間外）／''（対象）
+  // 行が客先向けの出力・合計から外れる理由：'incoterms'（いまの貿易条件に合わない）／'condition'（表示条件に合わない）／'period'（サーチャージの適用期間外）／''（対象）
   function rowOutReason(tr) {
     if (rowIncotermsMismatch(tr)) return 'incoterms';
+    if (rowCondMismatch(tr)) return 'condition';
     return _rowOutOfPeriod(tr) ? 'period' : '';
   }
   window.rowOutReason = rowOutReason;
@@ -195,10 +196,218 @@
   // 見積の貿易条件を変えたら、全行の適用を判定し直す
   document.addEventListener('change', e => {
     if (e.target && e.target.id === 'cond-incoterms') {
-      document.querySelectorAll('#tableBody tr[id^="row-"]').forEach(tr => syncIcUi(tr.id.replace('row-', '')));
+      document.querySelectorAll('#tableBody tr[id^="row-"]').forEach(tr => { syncIcUi(tr.id.replace('row-', '')); syncCnUi(tr.id.replace('row-', '')); });
       if (typeof updateTotals === 'function') updateTotals();
     }
   });
+
+  // ===== 表示条件（行ごと・if 構文）=====
+  // 行の cn（JSON {k:項目, o:比較, a:値, b:範囲の上限}。空＝常に表示）。条件に合わない行は「適用期間外」「貿易条件外」と同じ扱い
+  // （画面には薄く残り、客先向けの出力と合計から外れる＝dataset.outReason='condition'）。条件は 1 行に 1 つ。
+  // 条件に使う値が空（数量が未入力・コンテナ未選択・輸送モード未選択など）のときは判定できないため表示のままにして、注意を出す。
+  //   項目：qty＝この行の数量／pcs＝総個数／cnt＝コンテナ本数（合計）／cnt:<種別>＝その種別の本数／mode＝輸送モード／inco＝貿易条件
+  //   比較（数値）：ge 以上／gt 超／le 以下／lt 未満／eq 等しい／ne 等しくない／between 範囲（a 以上 b 以下）　（文字）：eq／ne
+  const CN_NUM_OPS = [['between', '範囲（以上〜以下）'], ['ge', '以上'], ['le', '以下'], ['gt', '超'], ['lt', '未満'], ['eq', 'と等しい'], ['ne', 'と等しくない']];
+  const CN_TXT_OPS = [['eq', 'である'], ['ne', 'ではない']];
+  function _cnItems(extraKey) {
+    const items = [
+      { k: 'qty', label: 'この行の数量', kind: 'num', unit: '' },
+      { k: 'pcs', label: '総個数', kind: 'num', unit: '個' },
+      { k: 'cnt', label: 'コンテナ本数（合計）', kind: 'num', unit: '本' },
+    ];
+    const seen = new Set();
+    const add = t => { if (t && !seen.has(t)) { seen.add(t); items.push({ k: 'cnt:' + t, label: 'コンテナ本数（' + t + '）', kind: 'num', unit: '本' }); } };
+    (typeof window.getContainerEntries === 'function' ? window.getContainerEntries() : []).forEach(e => add(e.type));
+    if (extraKey && extraKey.startsWith('cnt:')) add(extraKey.slice(4));   // 保存済みの条件の種別が、いまの案件に無くても選択肢に残す
+    items.push({ k: 'mode', label: '輸送モード', kind: 'text' }, { k: 'inco', label: '貿易条件', kind: 'text' });
+    return items;
+  }
+  function _cnChoices(k) {
+    if (k === 'mode') {
+      const sel = document.getElementById('cond-mode');
+      const base = sel ? [...sel.options].map(o => o.value).filter(Boolean).map(v => [v, v]) : [];
+      return [['海上*', '海上（すべて）'], ['航空*', '航空（すべて）'], ...base];
+    }
+    if (k === 'inco') return _incotermsChoices().map(c => [c, c]);
+    return [];
+  }
+  function rowCnGet(id) {
+    const raw = document.getElementById(`cn-${id}`)?.value || '';
+    if (!raw) return null;
+    try { const o = JSON.parse(raw); return (o && typeof o === 'object' && o.k) ? o : null; } catch (e) { return null; }
+  }
+  // 条件に使う「いまの値」。null＝まだ分からない（判定できない）
+  function _cnCurrent(k, id) {
+    const m = (typeof window.getCargoMetrics === 'function') ? window.getCargoMetrics() : {};
+    const entries = (typeof window.getContainerEntries === 'function') ? window.getContainerEntries() : [];
+    const num = v => { const n = parseFloat(v); return isNaN(n) ? null : n; };
+    if (k === 'qty') { const p = document.getElementById(`pq-${id}`)?.value, b = document.getElementById(`bq-${id}`)?.value; return num(p !== '' && p != null ? p : b); }   // 画面の数量欄（pq）。bq は連動する読み取り用
+    if (k === 'pcs') return (m.qty > 0) ? m.qty : null;
+    if (k === 'cnt') return entries.length ? entries.reduce((a, e) => a + e.count, 0) : null;
+    if (k.startsWith('cnt:')) { if (!entries.length) return null; const e = entries.find(x => x.type === k.slice(4)); return e ? e.count : 0; }
+    if (k === 'mode') { const v = (document.getElementById('cond-mode')?.value || '').trim(); return v || null; }
+    if (k === 'inco') return currentIncotermsCode() || null;
+    return null;
+  }
+  function _cnLabel(k) { const it = _cnItems(k).find(x => x.k === k); return it ? it.label : k; }
+  function _cnOpLabel(kind, o) { return ((kind === 'num' ? CN_NUM_OPS : CN_TXT_OPS).find(x => x[0] === o) || [o, o])[1]; }
+  function _cnCondText(c) {
+    const it = _cnItems(c.k).find(x => x.k === c.k) || { kind: 'num', unit: '' };
+    if (it.kind === 'text') { const ch = _cnChoices(c.k).find(x => x[0] === c.a); return `${_cnLabel(c.k)}が ${ch ? ch[1] : c.a} ${_cnOpLabel('text', c.o)}`; }
+    const u = it.unit || '';
+    if (c.o === 'between') return `${_cnLabel(c.k)}が ${c.a}${u} 以上 ${c.b}${u} 以下`;
+    return `${_cnLabel(c.k)}が ${c.a}${u} ${_cnOpLabel('num', c.o)}`;
+  }
+  // 行の表示条件の判定。status：none（条件なし）／ok（合う）／out（合わない）／unknown（値が未入力で判定できない）／incomplete（条件の入力が途中）
+  function rowCondEval(tr) {
+    if (!tr || !tr.id || !tr.id.startsWith('row-')) return { status: 'none' };
+    const id = tr.id.replace('row-', '');
+    const c = rowCnGet(id);
+    if (!c) return { status: 'none' };
+    const it = _cnItems(c.k).find(x => x.k === c.k);
+    if (!it) return { status: 'incomplete', cond: c };
+    const cur = _cnCurrent(c.k, id);
+    if (it.kind === 'text') {
+      if (!c.a) return { status: 'incomplete', cond: c, cur };
+      if (cur === null) return { status: 'unknown', cond: c, cur };
+      const hit = String(c.a).endsWith('*') ? String(cur).startsWith(String(c.a).slice(0, -1)) : String(cur) === String(c.a);
+      return { status: (c.o === 'ne' ? !hit : hit) ? 'ok' : 'out', cond: c, cur };
+    }
+    const a = parseFloat(c.a), b = parseFloat(c.b);
+    if (isNaN(a) || (c.o === 'between' && isNaN(b))) return { status: 'incomplete', cond: c, cur };
+    if (cur === null) return { status: 'unknown', cond: c, cur };
+    let ok;
+    switch (c.o) {
+      case 'ge': ok = cur >= a; break;
+      case 'gt': ok = cur > a; break;
+      case 'le': ok = cur <= a; break;
+      case 'lt': ok = cur < a; break;
+      case 'eq': ok = cur === a; break;
+      case 'ne': ok = cur !== a; break;
+      default:   ok = cur >= Math.min(a, b) && cur <= Math.max(a, b);   // between（上下が逆でも範囲として扱う）
+    }
+    return { status: ok ? 'ok' : 'out', cond: c, cur };
+  }
+  function rowCondMismatch(tr) { return rowCondEval(tr).status === 'out'; }
+  window.rowCondEval = rowCondEval;
+  window.rowCondMismatch = rowCondMismatch;
+
+  function _cnSave(id, c) {
+    const el = document.getElementById(`cn-${id}`);
+    if (el) el.value = c ? JSON.stringify(c) : '';
+  }
+  // 条件の入力欄（項目・比較・値）を作る。項目・比較を変えたときだけ作り直し、値の入力中は作り直さない（入力欄の焦点を保つ）
+  function renderCnUi(id) {
+    const tr = document.getElementById(`row-${id}`);
+    const box = tr && tr.querySelector('.cn-ctrl');
+    if (!box) return;
+    const c = rowCnGet(id) || { k: 'qty', o: 'between', a: '', b: '' };
+    const items = _cnItems(c.k);
+    const it = items.find(x => x.k === c.k) || items[0];
+    const mk = (tag, cls) => { const e = document.createElement(tag); e.className = cls; return e; };
+    const keySel = mk('select', 'cn-key');
+    items.forEach(x => { const o = document.createElement('option'); o.value = x.k; o.textContent = x.label; if (x.k === it.k) o.selected = true; keySel.appendChild(o); });
+    const opSel = mk('select', 'cn-op');
+    (it.kind === 'num' ? CN_NUM_OPS : CN_TXT_OPS).forEach(([v, l]) => { const o = document.createElement('option'); o.value = v; o.textContent = l; if (v === c.o) o.selected = true; opSel.appendChild(o); });
+    const parts = [keySel];
+    let aEl, bEl;
+    if (it.kind === 'num') {
+      aEl = mk('input', 'cn-a'); aEl.type = 'number'; aEl.step = 'any'; aEl.placeholder = '値'; aEl.value = c.a ?? '';
+      parts.push(aEl);
+      const to = mk('span', 'cn-to'); to.textContent = it.unit ? it.unit + ' 〜' : '〜';
+      bEl = mk('input', 'cn-b'); bEl.type = 'number'; bEl.step = 'any'; bEl.placeholder = '上限'; bEl.value = c.b ?? '';
+      const unit = mk('span', 'cn-unit'); unit.textContent = it.unit || '';
+      parts.push(to, bEl, unit, opSel);
+    } else {
+      aEl = mk('select', 'cn-a');
+      const blank = document.createElement('option'); blank.value = ''; blank.textContent = '— 選択 —'; aEl.appendChild(blank);
+      _cnChoices(it.k).forEach(([v, l]) => { const o = document.createElement('option'); o.value = v; o.textContent = l; if (v === c.a) o.selected = true; aEl.appendChild(o); });
+      parts.push(aEl, opSel);
+    }
+    box.replaceChildren(...parts);
+    tr.classList.toggle('cn-between', it.kind === 'num' && opSel.value === 'between');
+    const read = () => {
+      const k = keySel.value, cur = items.find(x => x.k === k) || it;
+      const o = opSel.value;
+      _cnSave(id, { k, o, a: aEl.value, b: (cur.kind === 'num' && o === 'between') ? (bEl ? bEl.value : '') : '' });
+    };
+    // 項目を変えたら（数値⇔文字で比較・値の形が変わるため）既定の比較で作り直す。比較を変えたら（範囲の上限欄の出し入れのため）値を保って作り直す
+    keySel.onchange = () => {
+      const k = keySel.value, nit = _cnItems(k).find(x => x.k === k);
+      _cnSave(id, { k, o: nit.kind === 'num' ? 'between' : 'eq', a: '', b: '' });
+      renderCnUi(id); syncCnUi(id); updateTotals(); if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
+    };
+    opSel.onchange = () => { read(); renderCnUi(id); syncCnUi(id); updateTotals(); if (typeof scheduleAutoSave === 'function') scheduleAutoSave(); };
+    const onVal = () => { read(); syncCnUi(id); updateTotals(); if (typeof scheduleAutoSave === 'function') scheduleAutoSave(); };
+    aEl.oninput = onVal; aEl.onchange = onVal;
+    if (bEl) { bEl.oninput = onVal; bEl.onchange = onVal; }
+    tr._cnSig = c.k + '|' + c.o;
+    tr._cnItemsSig = items.map(x => x.k).join('|');   // 項目の選択肢（コンテナ種別）が変わったら作り直すための目印
+    if (!rowCnGet(id)) _cnSave(id, { k: it.k, o: opSel.value, a: aEl.value, b: bEl ? bEl.value : '' });
+  }
+  // 行の見た目（ボタンの ON/OFF・説明・判定）を値に合わせる。復元・複製・値の変更のたびに呼ばれる（軽い処理）
+  function syncCnUi(id) {
+    const tr = document.getElementById(`row-${id}`);
+    if (!tr) return;
+    const c = rowCnGet(id);
+    if (c) tr.classList.add('row-cn-mode');
+    const on = tr.classList.contains('row-cn-mode');
+    tr.querySelector('.cn-mode-btn')?.classList.toggle('is-on', on);
+    const ev = rowCondEval(tr);
+    tr.classList.toggle('cn-unknown', ev.status === 'unknown' || ev.status === 'incomplete');
+    if (ev.status === 'unknown' || ev.status === 'incomplete') tr.dataset.cnUnknown = '1'; else delete tr.dataset.cnUnknown;
+    if (!on) return;
+    const sig = c ? c.k + '|' + c.o : '';
+    const isig = _cnItems(c && c.k).map(x => x.k).join('|');
+    if (!tr._cnSig || (c && tr._cnSig !== sig) || tr._cnItemsSig !== isig || !tr.querySelector('.cn-ctrl')?.children.length) renderCnUi(id);
+    const hint = tr.querySelector('.cn-hint');
+    if (hint) {
+      const it = c ? _cnItems(c.k).find(x => x.k === c.k) : null;
+      const curTxt = (ev.cur === null || ev.cur === undefined) ? '' : (it && it.kind === 'text' ? String(ev.cur) : String(ev.cur) + (it && it.unit ? it.unit : ''));
+      hint.textContent = !c ? '条件を選ぶと、条件に合うときだけこの行が有効になります（解除は「表示条件」をもう一度押す）'
+        : ev.status === 'incomplete' ? '条件の値が未入力です（判定していません・表示のまま）'
+        : ev.status === 'unknown' ? `⚠ 判定できません：${_cnLabel(c.k)}が未入力・未選択のため、表示のままにしています`
+        : ev.status === 'out' ? `いまの${_cnLabel(c.k)}（${curTxt}）は条件に合わないため、出力と合計から外れています`
+        : `いまの${_cnLabel(c.k)}（${curTxt}）は条件に合うため、出力に含まれます`;
+      hint.classList.toggle('is-out', ev.status === 'out');
+      hint.classList.toggle('is-warn', ev.status === 'unknown' || ev.status === 'incomplete');
+    }
+  }
+  function toggleCnMode(id) {
+    const tr = document.getElementById(`row-${id}`);
+    if (!tr) return;
+    const on = !tr.classList.contains('row-cn-mode');
+    tr.classList.toggle('row-cn-mode', on);
+    const el = document.getElementById(`cn-${id}`);
+    if (!on) { if (el) el.value = ''; delete tr._cnSig; }
+    if (on) renderCnUi(id);
+    syncCnUi(id);
+    updateTotals();
+    if (on && window.rowDetailToggle && !tr.querySelector('.cn-group')?.offsetParent) window.rowDetailToggle(tr, true);
+    if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
+  }
+  window.toggleCnMode = toggleCnMode;
+  // 条件に使う値（物量・輸送モード・貿易条件・コンテナ）が変わったとき、表示条件のある行だけ判定し直す。結果が変わった行があるときだけ再集計する
+  let _cnRefreshTimer = null;
+  function refreshRowConditions() {
+    clearTimeout(_cnRefreshTimer);
+    _cnRefreshTimer = setTimeout(() => {
+      let changed = false;
+      document.querySelectorAll('#tableBody tr[id^="row-"]').forEach(tr => {
+        const id = tr.id.replace('row-', '');
+        if (!document.getElementById(`cn-${id}`)?.value) return;
+        const ev = rowCondEval(tr);
+        const wasOut = tr.dataset.outReason === 'condition';
+        const wasUnk = tr.dataset.cnUnknown === '1';
+        const isUnk = ev.status === 'unknown' || ev.status === 'incomplete';
+        syncCnUi(id);
+        if ((ev.status === 'out') !== wasOut || isUnk !== wasUnk) changed = true;
+      });
+      if (changed && typeof updateTotals === 'function') updateTotals();
+    }, 60);
+  }
+  window.refreshRowConditions = refreshRowConditions;
+  document.addEventListener('change', e => { if (e.target && e.target.id === 'cond-mode') refreshRowConditions(); });
 
   // ========== 未入力グレーアウト ==========
   function checkUnfilled(id) {
@@ -1298,7 +1507,7 @@
     const newId = addRowAfter(srcId);
 
     // テキスト・数値・日付フィールドをコピー（zc = 0円確認済みフラグ／vf・vt = 有効期限を含む）
-    ['nm','pq','un','pp','mk','nt','sv','pt','zc','ac','ps','co','vf','vt','lu','ppmode','pprate','ppbase','ppref','ppmin','bpmin','ic'].forEach(f => {
+    ['nm','pq','un','pp','mk','nt','sv','pt','zc','ac','ps','co','vf','vt','lu','ppmode','pprate','ppbase','ppref','ppmin','bpmin','ic','cn'].forEach(f => {
       const srcEl = document.getElementById(`${f}-${srcId}`);
       const dstEl = document.getElementById(`${f}-${newId}`);
       if (srcEl && dstEl) dstEl.value = srcEl.value;
@@ -1497,7 +1706,7 @@
     const q    = f => frag.querySelector(`[data-field="${f}"]`);
 
     // IDs
-    ['cat','tx','nm','pq','un','pc','pp','cd','bq','bc','bp','mk','st','pr','nt','sv','pt','zc','ac','ps','co','ri','es','vf','vt','lu','ppmode','pprate','ppbase','uid','ppref','ppmin','bpmin','ic']
+    ['cat','tx','nm','pq','un','pc','pp','cd','bq','bc','bp','mk','st','pr','nt','sv','pt','zc','ac','ps','co','ri','es','vf','vt','lu','ppmode','pprate','ppbase','uid','ppref','ppmin','bpmin','ic','cn']
       .forEach(f => { const el = q(f); if (el) el.id = `${f}-${id}`; });
     const zcBtn = frag.querySelector('.zero-confirm-btn');
     if (zcBtn) zcBtn.onclick = () => toggleZeroConfirmed(id);;
@@ -1519,6 +1728,8 @@
     if (minBtn) minBtn.onclick = () => toggleMinMode(id);
     const icBtn = frag.querySelector('.ic-mode-btn');
     if (icBtn) icBtn.onclick = () => toggleIcMode(id);
+    const cnBtn = frag.querySelector('.cn-mode-btn');
+    if (cnBtn) cnBtn.onclick = () => toggleCnMode(id);
     ['ppmin', 'bpmin'].forEach(f => { const el = q(f); if (el) el.oninput = () => calc(id); });
     const mregBtn = frag.querySelector('.master-reg-btn');
     if (mregBtn) mregBtn.onclick = () => registerRowToMaster(id);
@@ -1840,6 +2051,7 @@
     {
       const trM = document.getElementById(`row-${id}`);
       syncIcUi(id);   // 適用する貿易条件の見た目（復元した行・貿易条件を変えた直後も）
+      syncCnUi(id);   // 表示条件の見た目・判定の説明
       const hasMin = (parseFloat(document.getElementById(`ppmin-${id}`)?.value) || 0) > 0 ||
                      (parseFloat(document.getElementById(`bpmin-${id}`)?.value) || 0) > 0;
       if (trM) {
@@ -4488,7 +4700,7 @@
 
   function _gatherRowData(id) {
     const data = {};
-    ['nm','pq','un','pp','mk','nt','sv','pt','zc','ac','ps','co','vf','vt','lu','cat','pc','bc','bp','ppmode','pprate','ppbase','uid','ppref','ppmin','bpmin','ic'].forEach(f => {
+    ['nm','pq','un','pp','mk','nt','sv','pt','zc','ac','ps','co','vf','vt','lu','cat','pc','bc','bp','ppmode','pprate','ppbase','uid','ppref','ppmin','bpmin','ic','cn'].forEach(f => {
       const el = document.getElementById(`${f}-${id}`);
       if (el) data[f] = el.value;
     });
@@ -4508,7 +4720,7 @@
     } else {
       tbody.appendChild(newTr);
     }
-    ['nm','pq','un','pp','mk','nt','pt','zc','ac','ps','co','vf','vt','lu','ppmode','pprate','ppbase','ppref','ppmin','bpmin','ic'].forEach(f => {
+    ['nm','pq','un','pp','mk','nt','pt','zc','ac','ps','co','vf','vt','lu','ppmode','pprate','ppbase','ppref','ppmin','bpmin','ic','cn'].forEach(f => {
       const el = document.getElementById(`${f}-${newId}`);
       if (el && data[f] !== undefined) el.value = data[f];
     });
