@@ -877,6 +877,27 @@ async function saveBm() {
   // 機能カテゴリは任意。未選択は「未分類」で登録し、後から整理できるようにする。
   const fnVal = fn || '未分類';
 
+  // 新規追加のとき、同じ会社・同じURLが登録済みなら知らせて、続けるか選んでもらう
+  // （機能ラベルを変えて同じURLを登録する運用もあるため、止めずに確認だけする）。
+  // 調べるのに失敗しても保存は止めない。
+  if (!id && url) {
+    try {
+      let q = db.from('bookmarks').select('id, label, function').eq('url', url);
+      q = carrier ? q.eq('carrier', carrier) : q.is('carrier', null);
+      const { data: dups } = await q.limit(5);
+      if (dups && dups.length && typeof uiConfirm === 'function') {
+        const names = dups.map(d => '「' + (d.label || '') + '」（' + (d.function || '未分類') + '）');
+        const ok = await uiConfirm({
+          title: '同じ会社・同じURLのブックマークがあります',
+          lines: ['すでに登録されています：' + names.join('、'),
+                  'それでも新しく追加しますか？（あとから「重複の統合」で整理もできます）'],
+          okLabel: 'それでも追加',
+        });
+        if (!ok) return;
+      }
+    } catch (e) { /* 重複確認に失敗しても保存は続ける */ }
+  }
+
   const btn = document.getElementById('bmSaveBtn');
   if (btn) { btn.disabled = true; btn.textContent = '保存中…'; }
 
