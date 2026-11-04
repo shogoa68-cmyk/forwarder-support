@@ -3630,19 +3630,23 @@
 
   /** z2Carrier 入力時：一致するキャリアのリンクパネルを表示 */
   // A-1: z2 キャリア名を収集して QSP 用ブックマームを非同期フェッチ
+  // 幹線（z2）のブックマーク判定に使う会社名：実運送人（実際の船会社）があればそれ、
+  // 無ければ契約先のキャリアで判定する（例：契約先 INNEX・実運送人 EVERGREEN → EVERGREEN の
+  // ブックマークを表示）。登録済みの有効航路＋現在の入力欄が対象。
+  function _z2BmCarrierNames() {
+    const names = [];
+    const add = n => { n = (n || '').trim(); if (n && !names.includes(n)) names.push(n); };
+    if (_routeEntries && _routeEntries.length) {
+      _routeEntries.filter(r => r.enabled !== false).forEach(r => add(r.actualCarrier || r.carrier));
+    }
+    const g = id => (document.getElementById(id)?.value || '').trim();
+    add(g('z2ActualCarrier') || g('z2Carrier'));
+    return names;
+  }
+
   function _triggerCarrierBmFetch() {
     if (typeof window.fetchCarrierBmsForQSP !== 'function') return;
-    const names = [];
-    // z2: 幹線キャリア（有効航路のみ）。契約先（carrier）に加え、
-    // 実運送人（actualCarrier＝「as ○○」）が別会社の場合はそちらのブックマークも対象にする
-    if (_routeEntries && _routeEntries.length) {
-      _routeEntries.filter(r => r.enabled !== false).forEach(r => {
-        if (r.carrier && !names.includes(r.carrier)) names.push(r.carrier);
-        if (r.actualCarrier && !names.includes(r.actualCarrier)) names.push(r.actualCarrier);
-      });
-    }
-    const cur = (document.getElementById('z2Carrier')?.value || '').trim();
-    if (cur && !names.includes(cur)) names.push(cur);
+    const names = _z2BmCarrierNames();
     // z1/z3: デフォルトサブコン（複数登録分すべて）
     _getAllScValues('z1DefaultScArea').forEach(sc => { if (!names.includes(sc)) names.push(sc); });
     _getAllScValues('z3DefaultScArea').forEach(sc => { if (!names.includes(sc)) names.push(sc); });
@@ -3690,17 +3694,8 @@
   window.getCarrierLinkData = function () {
     const map  = _carrierMapForMode();
     const defs = _linkDefsForMode();
-    const names = [];
-    // 契約先（carrier）に加え、実運送人（actualCarrier＝「as ○○」）が別会社の場合は
-    // そちらのブックマークも別ブロックとして表示する（実際に船を運航するのは実運送人のため）
-    if (_routeEntries && _routeEntries.length) {
-      _routeEntries.filter(r => r.enabled !== false).forEach(r => {
-        if (r.carrier && !names.includes(r.carrier)) names.push(r.carrier);
-        if (r.actualCarrier && !names.includes(r.actualCarrier)) names.push(r.actualCarrier);
-      });
-    }
-    const cur = (document.getElementById('z2Carrier')?.value || '').trim();
-    if (cur && !names.includes(cur)) names.push(cur);
+    // 実運送人があればそれ、無ければキャリアで判定（_z2BmCarrierNames）
+    const names = _z2BmCarrierNames();
     const bmCache = window._qspBmCache || {};
     const getRelated = typeof window.bmGetRelated === 'function' ? window.bmGetRelated : () => [];
     // 全面クラウド移行（フェーズ3）：内蔵DBの静的リンクは廃止し、クラウドの
