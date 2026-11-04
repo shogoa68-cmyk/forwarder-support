@@ -1381,56 +1381,11 @@
   let _myEditingId = null;
 
   // ---------- 非アクティブ自動解放 ----------
-  const INACTIVITY_TIMEOUT_MS = 5 * 60 * 1000; // 5分
-  const INACTIVITY_RECOVERY_KEY = 'cloudEditRecovery_v1';
-  let _inactivityTimer = null;
-
-  function _releaseOnInactivity() {
-    if (!_myEditingId) return;
-    // 入力中データをブラウザに保存
-    try {
-      if (typeof gatherAllData === 'function') {
-        const snapshot = gatherAllData();
-        localStorage.setItem(INACTIVITY_RECOVERY_KEY, JSON.stringify({
-          data: snapshot,
-          savedAt: Date.now(),
-          presetId: _myEditingId,
-        }));
-      }
-    } catch (e) {}
-    _setEditing(null);
-    quoteShowToast(
-      '⏱️ 未操作状態が続いたため閲覧モードに戻りました。入力データはブラウザに保存済みです（プリセット保存ボタンで復元できます）。',
-      'warn', 8000
-    );
-  }
-
-  function _resetInactivityTimer() {
-    if (!_myEditingId) return;
-    clearTimeout(_inactivityTimer);
-    _inactivityTimer = setTimeout(_releaseOnInactivity, INACTIVITY_TIMEOUT_MS);
-  }
-
-  function _startInactivityWatch() {
-    clearTimeout(_inactivityTimer);
-    _inactivityTimer = setTimeout(_releaseOnInactivity, INACTIVITY_TIMEOUT_MS);
-    ['mousemove', 'keydown', 'mousedown', 'touchstart', 'scroll', 'input', 'change'].forEach(evt =>
-      document.addEventListener(evt, _onUserActivity, { passive: true })
-    );
-  }
-
-  function _stopInactivityWatch() {
-    clearTimeout(_inactivityTimer);
-    _inactivityTimer = null;
-    ['mousemove', 'keydown', 'mousedown', 'touchstart', 'scroll', 'input', 'change'].forEach(evt =>
-      document.removeEventListener(evt, _onUserActivity)
-    );
-  }
-
-  function _onUserActivity() {
-    if (_myEditingId) _resetInactivityTimer();
-    else _stopInactivityWatch();
-  }
+  // 放置の解放は、下の「編集ロック」側の 10 分タイマー（LOCK_IDLE_LIMIT_MS・_onSelfIdleRelease）に一本化。
+  // 以前ここにあった 5 分タイマーは「閲覧モードに戻りました」と出すだけで、実際はロックも編集画面も
+  // そのままだった（表示と実際がずれていた）ため廃止した。
+  function _startInactivityWatch() {}
+  function _stopInactivityWatch() {}
 
   function _presenceOthers(presetId) {
     const arr = _presence[presetId] || [];
