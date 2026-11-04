@@ -740,7 +740,7 @@
     // ヘッダー項目（_HEADER_FIELD_IDS）は keepHeaderIfEmpty 指定時のみ対象外（現在値を保持）。
     // 案件を開く経路は指定せず、保存内容どおりに復元する（空の項目に前の案件の値を残さない）。
     // 一時的な UI 操作用フィールドも _clearQuoteForm と同じ SKIP で対象外にする。
-    const _SKIP_FIELDS = ['rowInsertPos', 'rowPatternInsertPos', 'bulkCatSet', 'bulkSubconSet', 'selectAllChk'];
+    const _SKIP_FIELDS = ['rowInsertPos', 'rowPatternInsertPos', 'bulkCatSet', 'bulkSubconSet', 'selectAllChk', 'qfRelKind', 'qfRelInput'];
     document.querySelectorAll(
       '#tab-quote-make .quote-main input[id], #tab-quote-make .quote-main select[id], #tab-quote-make .quote-main textarea[id]'
     ).forEach(el => {
@@ -800,6 +800,7 @@
     _triggerCarrierBmFetch();
     if (typeof window.renderQuoteMilestones === 'function') window.renderQuoteMilestones();
     if (typeof window.qfRenderTagChips === 'function') window.qfRenderTagChips();
+    if (typeof window.qfRenderRelChips === 'function') window.qfRenderRelChips();
     if (typeof window.updateRemarkChar === 'function') window.updateRemarkChar();
     if (typeof window.syncRemarkChips === 'function') window.syncRemarkChips();
     if (typeof window.renderRemarkImages === 'function') window.renderRemarkImages();
@@ -1141,7 +1142,7 @@
     // フォーム値
     const fields = {};
     document.querySelectorAll('input[id], select[id], textarea[id]').forEach(el => {
-      if (['csvFileInput','importFileInput','rowPatternImportFile','qf-memo-pop','qf-memo-float-ta'].includes(el.id)) return;
+      if (['csvFileInput','importFileInput','rowPatternImportFile','qf-memo-pop','qf-memo-float-ta','qfRelKind','qfRelInput'].includes(el.id)) return;
       fields[el.id] = el.type === 'checkbox' ? el.checked : el.value;
     });
     // テーブル行（通常行 / 小計行 / リマーク行をすべて保存）
@@ -1453,6 +1454,7 @@
     applyZoneState();
     if (typeof window.renderQuoteMilestones === 'function') window.renderQuoteMilestones();
     if (typeof window.qfRenderTagChips === 'function') window.qfRenderTagChips();
+    if (typeof window.qfRenderRelChips === 'function') window.qfRenderRelChips();
   }
 
   /** インコタームズ選択時のヒント表示（index.html の onchange="showIncotermsHint()" から呼ばれる） */
@@ -2764,6 +2766,64 @@
   window.qfTagsKeydown = function (e) {
     if (e.key === 'Enter') { e.preventDefault(); window.qfAddTagFromInput(); }
   };
+  // ========== 🔖 関連番号・メール件名 ==========
+  // 管理番号を取らずに見積対応を始めた案件を後からフォローするため、案件ごとに複数の
+  // 識別子（問い合わせ番号・メール件名など）を登録する。#qf-related-data（hidden・JSON配列
+  // [{k:'num'|'mail'|'other', v:'…'}]）が実データ。保存/復元は他の qf-* 項目と同じ汎用ループ任せ。
+  // ダッシュボードの検索対象・カード表示にも載る（ui.js _presetMeta().related）。
+  const _QF_REL_ICON = { num: '🔢', mail: '✉️', other: '📎' };
+  function _qfRelArr() {
+    try {
+      const a = JSON.parse(document.getElementById('qf-related-data')?.value || '[]');
+      return Array.isArray(a)
+        ? a.map(e => ({ k: (e && _QF_REL_ICON[e.k]) ? e.k : 'other', v: String((e && e.v) || '').trim() })).filter(e => e.v)
+        : [];
+    } catch (e) { return []; }
+  }
+  function _qfSetRelArr(arr) {
+    const el = document.getElementById('qf-related-data');
+    if (el) el.value = JSON.stringify(arr);
+    window.qfRenderRelChips();
+    if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
+  }
+  window.qfRenderRelChips = function () {
+    const box = document.getElementById('qfRelChips');
+    if (!box) return;
+    box.innerHTML = _qfRelArr().map((e, i) =>
+      '<span class="qf-tag-chip qf-rel-chip" title="クリックでコピー">' +
+        '<span class="qf-rel-text" onclick="qfCopyRel(' + i + ')">' + _QF_REL_ICON[e.k] + ' ' + escHtml(e.v) + '</span>' +
+        '<button type="button" onclick="qfRemoveRel(' + i + ')" title="この登録を外す">×</button></span>'
+    ).join('');
+  };
+  window.qfAddRelFromInput = function () {
+    const inp = document.getElementById('qfRelInput');
+    const v = (inp?.value || '').trim();
+    if (!v) return;
+    const k = document.getElementById('qfRelKind')?.value || 'num';
+    const cur = _qfRelArr();
+    if (cur.some(e => e.v === v)) {
+      if (typeof quoteShowToast === 'function') quoteShowToast('ℹ️ すでに登録されています', 'info', 2000);
+      inp.value = '';
+      return;
+    }
+    _qfSetRelArr([...cur, { k, v }]);
+    inp.value = '';
+    inp.focus();
+  };
+  window.qfRemoveRel = function (idx) {
+    _qfSetRelArr(_qfRelArr().filter((_, i) => i !== idx));
+  };
+  window.qfCopyRel = function (idx) {
+    const e = _qfRelArr()[idx];
+    if (!e) return;
+    const done = () => { if (typeof quoteShowToast === 'function') quoteShowToast('コピーしました：' + e.v, 'success', 2000); };
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(e.v).then(done, () => {});
+  };
+  window.qfRelKeydown = function (ev) {
+    // IME 変換確定の Enter では追加しない
+    if (ev.key === 'Enter' && !ev.isComposing) { ev.preventDefault(); window.qfAddRelFromInput(); }
+  };
+
   // タグ入力欄のサジェスト（全案件で使われている既知のタグ。取得はチーム共有ログイン時のみ）
   window.qfLoadTagSuggestions = async function () {
     const dl = document.getElementById('qfTagSuggestions');

@@ -445,6 +445,13 @@
   border: 1px solid var(--c-d5c8b0); border-radius: var(--r-6); padding: var(--sp-5) var(--sp-12); cursor: pointer; white-space: nowrap;
 }
 #tab-quote-make .qf-tags-add-btn:hover { background: var(--c-e8d8c0); }
+/* 🔖 関連番号・メール件名（タグ入力と同じ見た目。種類セレクトとコピー可能なチップ文言） */
+#tab-quote-make .qf-rel-kind {
+  flex: 0 0 auto; width: auto; font-size: var(--fs-12); padding: var(--sp-5) var(--sp-6);
+  border: 1px solid var(--border); border-radius: var(--r-6); background: var(--surface);
+}
+#tab-quote-make .qf-rel-chip .qf-rel-text { cursor: copy; word-break: break-all; }
+#tab-quote-make .qf-rel-chip { max-width: 100%; }
 
 /* 「提示済み」の案件を再編集するための更新ボタン（提示済み時のみ表示） */
 #tab-quote-make .qf-revision-btn:not([hidden]) {
@@ -6512,6 +6519,9 @@ body.qp-dash-active #quoteActionDock { display: none !important; }
   font-size: var(--fs-12); line-height: 1; padding: 0 var(--sp-3);
 }
 #tab-quote-make .cloud-tag-chip button:hover { color: var(--red); }
+/* ダッシュボードカード：関連番号・メール件名（クリックで検索） */
+#tab-quote-make .cloud-preset-rel { display: flex; flex-wrap: wrap; gap: var(--sp-4); margin-top: var(--sp-6); }
+#tab-quote-make .cloud-rel-chip { cursor: pointer; max-width: 100%; text-align: left; word-break: break-all; }
 #tab-quote-make .cloud-tag-add-btn {
   font-size: var(--fs-10-5); color: var(--accent); background: var(--bg); border: 1px dashed var(--border);
   border-radius: var(--r-10); padding: var(--sp-2) var(--sp-8); cursor: pointer;
