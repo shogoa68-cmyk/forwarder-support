@@ -445,6 +445,13 @@
   border: 1px solid var(--c-d5c8b0); border-radius: var(--r-6); padding: var(--sp-5) var(--sp-12); cursor: pointer; white-space: nowrap;
 }
 #tab-quote-make .qf-tags-add-btn:hover { background: var(--c-e8d8c0); }
+/* 🔖 関連番号・メール件名（タグ入力と同じ見た目。種類セレクトとコピー可能なチップ文言） */
+#tab-quote-make .qf-rel-kind {
+  flex: 0 0 auto; width: auto; font-size: var(--fs-12); padding: var(--sp-5) var(--sp-6);
+  border: 1px solid var(--border); border-radius: var(--r-6); background: var(--surface);
+}
+#tab-quote-make .qf-rel-chip .qf-rel-text { cursor: copy; word-break: break-all; }
+#tab-quote-make .qf-rel-chip { max-width: 100%; }
 
 /* 「提示済み」の案件を再編集するための更新ボタン（提示済み時のみ表示） */
 #tab-quote-make .qf-revision-btn:not([hidden]) {
@@ -3148,6 +3155,25 @@
   display: inline-flex; align-items: center; justify-content: center;
 }
 #tab-quote-make .hz-entry-edit:hover { background: #f6dcd2; border-color: #c0654a; }
+/* 危険品：AI（NotebookLM 等）で資料から読み取って取り込む */
+#tab-quote-make .hz-entry-ai {
+  flex-shrink: 0; border: 1px solid #e0a030; border-radius: var(--r-14); background: #fff4d6; color: #8a5a00;
+  font-size: var(--fs-10, 10px); font-weight: 700; padding: 0 6px; line-height: 16px; cursor: pointer; font-family: inherit;
+}
+#tab-quote-make .hz-entry-ai:hover { background: #ffe9b0; }
+#tab-quote-make .hz-ai-import { margin-top: var(--sp-10); border: 1px dashed #d8b8a8; border-radius: var(--r-6); padding: var(--sp-6) var(--sp-10); background: var(--surface); }
+#tab-quote-make .hz-ai-import > summary { cursor: pointer; font-size: var(--fs-12); font-weight: 700; color: #6b3d2e; }
+#tab-quote-make .hz-ai-import > summary small { font-weight: 400; color: #a8927f; }
+#tab-quote-make .hz-ai-steps { margin: var(--sp-6) 0 var(--sp-6) var(--sp-12); padding: 0; font-size: var(--fs-11-5); color: #6b5a42; }
+#tab-quote-make .hz-ai-row { display: flex; align-items: center; gap: var(--sp-8); margin: var(--sp-6) 0; flex-wrap: wrap; }
+#tab-quote-make .hz-ai-btn { border: 1px solid #c8b8a8; border-radius: var(--r-5); background: var(--card-bg); color: #6b3d2e; padding: var(--sp-5) var(--sp-12); font-size: var(--fs-12); font-weight: 600; cursor: pointer; font-family: inherit; }
+#tab-quote-make .hz-ai-btn:hover { background: #f6dcd2; }
+#tab-quote-make .hz-ai-btn.hz-ai-go { background: #c0654a; border-color: #a8442a; color: var(--surface); }
+#tab-quote-make .hz-ai-btn.hz-ai-go:hover { background: #a8442a; }
+#tab-quote-make .hz-ai-import textarea { width: 100%; box-sizing: border-box; font-size: var(--fs-11-5); font-family: ui-monospace, Menlo, Consolas, monospace; border: 1px solid var(--border); border-radius: var(--r-6); padding: var(--sp-5) var(--sp-8); background: var(--surface); }
+#tab-quote-make .hz-ai-msg { font-size: var(--fs-11-5); color: #2e7d32; }
+#tab-quote-make .hz-ai-msg.is-bad { color: #c0392b; }
+#tab-quote-make .hz-ai-warn { margin: var(--sp-4) 0 0; font-size: var(--fs-11); color: #a8442a; }
 #tab-quote-make .btn-zone-preset:active { filter: brightness(0.85); transform: scale(0.97); }
 /* ── Zone② 幹線輸送入力 ── */
 #tab-quote-make .zone2-inputs { padding: var(--sp-10) var(--sp-10) var(--sp-8); }
@@ -6512,6 +6538,15 @@ body.qp-dash-active #quoteActionDock { display: none !important; }
   font-size: var(--fs-12); line-height: 1; padding: 0 var(--sp-3);
 }
 #tab-quote-make .cloud-tag-chip button:hover { color: var(--red); }
+/* ダッシュボードカード：関連番号・メール件名（クリックで検索） */
+#tab-quote-make .cloud-ref-tree { display: flex; flex-direction: column; align-items: flex-start; margin: 2px 0 var(--sp-6) 2px; }
+#tab-quote-make .cloud-ref-tree-line {
+  border: none; background: none; padding: 1px 4px; border-radius: 4px; cursor: copy;
+  font: inherit; font-size: var(--fs-12); color: inherit; text-align: left; word-break: break-all;
+}
+#tab-quote-make .cloud-ref-tree-line:hover { background: rgba(0,0,0,.06); }
+#tab-quote-make .cloud-ref-tree-line.copied { background: rgba(60,160,90,.22); }
+#tab-quote-make .cloud-ref-tree-br { opacity: .55; font-family: ui-monospace, Menlo, Consolas, monospace; }
 #tab-quote-make .cloud-tag-add-btn {
   font-size: var(--fs-10-5); color: var(--accent); background: var(--bg); border: 1px dashed var(--border);
   border-radius: var(--r-10); padding: var(--sp-2) var(--sp-8); cursor: pointer;
@@ -11507,3 +11542,52 @@ body.is-row-dragging { cursor: grabbing; user-select: none; }
 
 /* スマホ幅（Industry）のツールバー「⋯」に集約する項目（ブラウザ保存）。それ以外の幅・現行デザインでは出さない */
 #tab-quote-make .tb-menu-panel .tb-mi-mobile { display: none; }
+
+/* ===== 作成者の変更（管理者・一時機能）。やめるときはこのブロックごと削除（docs/sql/admin-edit-creator.sql 参照） ===== */
+#tab-quote-make .cloud-card-crt-edit {
+  border: none; background: none; cursor: pointer; padding: 0 3px; margin-left: 2px;
+  font-size: var(--fs-12); color: var(--text-md); opacity: .55; line-height: 1;
+}
+#tab-quote-make .cloud-card-crt-edit:hover { opacity: 1; color: var(--accent); }
+.admin-creator-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.4); z-index: 10050; display: flex; align-items: center; justify-content: center; }
+.admin-creator-box { background: #fff; color: #222; border-radius: 10px; padding: 18px 20px; width: min(440px, 92vw); box-shadow: 0 10px 40px rgba(0,0,0,.3); }
+.admin-creator-title { font-weight: 700; font-size: 15px; margin-bottom: 6px; }
+.admin-creator-title small { font-weight: 400; font-size: 11px; color: #a33; margin-left: 6px; }
+.admin-creator-case { font-size: 13px; font-weight: 600; margin-bottom: 2px; word-break: break-all; }
+.admin-creator-now { font-size: 12px; color: #666; margin-bottom: 10px; word-break: break-all; }
+.admin-creator-lbl { display: block; font-size: 12px; margin-bottom: 4px; }
+.admin-creator-box input { width: 100%; box-sizing: border-box; padding: 7px 9px; border: 1px solid #bbb; border-radius: 6px; font-size: 13px; }
+.admin-creator-note { font-size: 11px; color: #777; margin: 8px 0 12px; }
+.admin-creator-actions { display: flex; justify-content: flex-end; gap: 8px; }
+.admin-creator-actions button { padding: 6px 14px; border-radius: 6px; border: 1px solid #bbb; background: #f3f3f3; cursor: pointer; font-size: 13px; }
+.admin-creator-actions .admin-creator-ok { background: #2e6fd0; border-color: #2e6fd0; color: #fff; font-weight: 600; }
+#tab-quote-make .admin-creator-new { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: 0 0 8px; padding: 6px 10px; border: 1px dashed #c9a0a0; border-radius: 6px; background: #fff6f6; }
+#tab-quote-make .admin-creator-new[hidden] { display: none; }
+#tab-quote-make .admin-creator-new-lbl { font-size: var(--fs-12); font-weight: 700; color: #7a3030; }
+#tab-quote-make .admin-creator-new-lbl small { font-weight: 400; color: #a33; margin-left: 4px; }
+#tab-quote-make .admin-creator-new input { flex: 1; min-width: 220px; font-size: var(--fs-12); padding: 4px 8px; border: 1px solid #bbb; border-radius: 6px; background: #fff; }
+
+/* ===== 📜 提示履歴（版管理） ===== */
+#tab-quote-make .qv-panel { margin-top: 8px; border: 1px solid var(--border); border-radius: 6px; background: var(--surface); padding: 6px 8px; font-size: var(--fs-12); }
+#tab-quote-make .qv-head { font-weight: 700; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 4px; }
+#tab-quote-make .qv-head small { font-weight: 400; color: #888; }
+#tab-quote-make .qv-rec { margin-left: auto; font-size: var(--fs-11-5); padding: 2px 8px; border: 1px solid #c8b8a8; border-radius: 5px; background: var(--card-bg); cursor: pointer; font-family: inherit; }
+#tab-quote-make .qv-item { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 3px 0; border-top: 1px dashed #e6ddd0; }
+#tab-quote-make .qv-v { color: #2e6fd0; min-width: 28px; }
+#tab-quote-make .qv-meta { color: #666; }
+#tab-quote-make .qv-acts { margin-left: auto; display: inline-flex; gap: 4px; flex-wrap: wrap; }
+#tab-quote-make .qv-acts button { font-size: var(--fs-11); padding: 1px 7px; border: 1px solid #c8b8a8; border-radius: 4px; background: var(--card-bg); cursor: pointer; font-family: inherit; }
+#tab-quote-make .qv-acts button:hover { background: #eef3fb; }
+#tab-quote-make .qv-acts .qv-restore { border-color: #c9a06a; color: #7a4a10; }
+#tab-quote-make .qv-acts .qv-restore.is-off { opacity: .45; }
+#tab-quote-make .cloud-card-ver { font-size: var(--fs-11-5); color: #2e6fd0; margin: 2px 0 var(--sp-6) 2px; cursor: default; }
+.qv-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.4); z-index: 10050; display: flex; align-items: center; justify-content: center; }
+.qv-box { background: #fff; color: #222; border-radius: 10px; width: min(640px, 94vw); max-height: 82vh; display: flex; flex-direction: column; box-shadow: 0 10px 40px rgba(0,0,0,.3); }
+.qv-title { font-weight: 700; font-size: 14px; padding: 12px 16px; border-bottom: 1px solid #eee; display: flex; align-items: center; gap: 8px; }
+.qv-title small { font-weight: 400; color: #777; }
+.qv-close { margin-left: auto; border: none; background: none; cursor: pointer; font-size: 16px; }
+.qv-body { padding: 10px 16px 14px; overflow: auto; font-size: 13px; line-height: 1.6; }
+.qv-body .qv-sec { margin: 6px 0; padding: 4px 8px; border-radius: 6px; }
+.qv-add { background: #eef8ee; } .qv-del { background: #fdeeee; } .qv-chg { background: #fff8e6; }
+.qv-body .qv-none, .qv-body .qv-hint { color: #777; }
+.qv-body s { color: #a33; }

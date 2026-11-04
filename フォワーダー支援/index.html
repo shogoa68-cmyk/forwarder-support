@@ -2791,6 +2791,12 @@
       <div id="refBody">
         <p class="section-desc">案件を管理するための識別情報を入力します。<b>見積もり番号</b> は問い合わせ番号など任意の形式で OK。後でフィルタリングや整理に使えます。<br>
         <span style="font-size:11px;color:var(--text-md);">💡 <b>担当</b>は<strong>敬称略（呼び捨て）</strong>で入力してください。プレビュー・Excel・コピー出力時に自動で「様」が付与されます。</span></p>
+        <!-- 【一時機能】管理者が、新規案件の作成者を指定して保存（admin-creator-edit.js。やめるときは docs/sql/admin-edit-creator.sql 参照） -->
+        <div id="adminCreatorNew" class="admin-creator-new" hidden>
+          <span class="admin-creator-new-lbl">👤 作成者を指定して保存 <small>管理者・一時機能</small></span>
+          <input type="text" list="adminCreatorNewList" autocomplete="off" placeholder="空欄＝自分（メンバーから選ぶ／メールを入力）" title="この新規案件を最初に保存するとき、作成者がここで指定した人になります（空欄なら自分）">
+          <datalist id="adminCreatorNewList"></datalist>
+        </div>
         <div id="qfCopiedFromInfo" class="qf-copied-from-info" hidden></div>
         <div class="quote-header" data-opt-host-id="refBody">
           <div class="quote-field">
@@ -2810,6 +2816,20 @@
           <div class="quote-field">
             <label>お客様 ご担当者（敬称略） <span class="req-mark" aria-hidden="true">*</span></label>
             <input type="text" id="qf-person" placeholder="例）山田　※宛先（お客様側）の氏名。出力時に自動で「様」付与" title="お客様側（宛先）のご担当者名を入力します。社内の見積もり作成者ではありません。姓のみ／フルネームのみ（会社名は含めない）。客先向け出力（プレビュー・PDF）で会社名とともに宛先となり、自動で「様」が付きます。登録済みのお客様なら、マスターの担当者一覧から候補表示されます。" aria-required="true" list="qfPersonSuggestions" autocomplete="off" />
+          </div>
+          <div class="quote-field quote-field-related">
+            <label>🔖 関連番号・メール件名 <span class="qf-memo-note">管理番号を取る前に始めた案件のフォロー用（複数可）。社内用で、見積書などの出力には含まれません</span></label>
+            <div class="qf-tags-chips" id="qfRelChips"></div>
+            <div class="qf-tags-add-row">
+              <select id="qfRelKind" class="qf-rel-kind" title="登録する種類">
+                <option value="num">🔢 番号</option>
+                <option value="mail">✉️ メール件名</option>
+                <option value="other">📎 その他</option>
+              </select>
+              <input type="text" id="qfRelInput" placeholder="番号・メール件名を入力してEnter（例：RE: 横浜→ノーフォーク FCL お見積依頼）" autocomplete="off" onkeydown="qfRelKeydown(event)" />
+              <button type="button" class="qf-tags-add-btn" onclick="qfAddRelFromInput()">＋ 追加</button>
+            </div>
+            <input type="hidden" id="qf-related-data" value="[]" />
           </div>
           <div id="crBanner" class="cr-banner" hidden aria-live="polite"></div>
           <button type="button" class="tier-opt-toggle" data-opt-host="refBody" aria-expanded="false" onclick="uiToggleOpt(this)"><span class="tier-opt-caret">▶</span> 詳細（任意）<small>日付・ステータス・タグ・メモ・参照URL・添付など</small></button>
@@ -2866,6 +2886,8 @@
               </div>
             </div>
             <input type="hidden" id="qf-status" value="下書き中" />
+            <input type="hidden" id="qf-versions" value="[]" />
+            <div class="qv-panel" id="qvPanel" hidden></div>
             <input type="hidden" id="qf-revision-baseline" />
           </div>
           <div data-tier="opt" class="quote-field quote-field-corerf">
@@ -3161,7 +3183,7 @@
                   <span class="z2-relay-as" title="契約先が NVOCC・コローダー等のとき、実際に貨物を運ぶ船会社">実際の船：</span>
                   <input type="text" id="z2ActualCarrier" class="z2-input z2-relay-actual" list="carriers-dl"
                          placeholder="実運送人（実際の船会社）例）ONE, SJJ"
-                         title="実際に船/スペースを提供する船会社（任意・蓄積用）">
+                         title="実際に船/スペースを提供する船会社。入力すると右のブックマークはこの会社で表示します（空なら上のキャリアで判定）" oninput="onZ2CarrierChange()">
                 </div>
               </div>
               <div id="z2CarrierLinks" class="carrier-links-panel" style="display:none"></div>
@@ -3340,6 +3362,10 @@
               <div class="hazmat-panel-note">⚠️ 危険物申告に必要な情報を入力してください（IMDG / IATA・国内消防法）</div>
               <div class="condition-grid">
                 <div class="cond-field">
+                  <label><span class="cond-icon">📦</span> 製品名 <span class="cond-opt">任意</span></label>
+                  <input type="text" id="hz-name" placeholder="例）○○塗料 ブラック 16L缶（正式品名とは別・社内外で呼ぶ製品名）" maxlength="80" />
+                </div>
+                <div class="cond-field">
                   <label><span class="cond-icon">🔢</span> UN番号</label>
                   <input type="text" id="hz-un" placeholder="例）UN1263" maxlength="10" />
                 </div>
@@ -3406,6 +3432,22 @@
               </div>
               <div class="hz-entry-list" id="hzEntryList"></div>
               <input type="hidden" id="hz-entries-data" />
+              <details class="hz-ai-import">
+                <summary>🤖 SDS などの資料を AI に読ませて取り込む <small>（Gemini の NotebookLM など）</small></summary>
+                <ol class="hz-ai-steps">
+                  <li>NotebookLM などに SDS（安全データシート）等の資料を入れ、「📋 プロンプトをコピー」したものをチャットに貼り付けて実行します</li>
+                  <li>AI の回答（JSON）をそのまま下の欄に貼り付けて「⬇ 取り込む」を押します</li>
+                </ol>
+                <div class="hz-ai-row">
+                  <button type="button" class="hz-ai-btn" onclick="hzAiCopyPrompt()" title="資料から危険品情報を JSON で読み取らせるためのプロンプトをコピーします（製品名を入力済みなら、その製品に絞る一文を添えます）">📋 プロンプトをコピー</button>
+                </div>
+                <textarea id="hzAiReply" rows="5" placeholder="AI の回答（JSON）をここに貼り付け。コードブロックや出典番号［1］が混じっていても読み取ります"></textarea>
+                <div class="hz-ai-row">
+                  <button type="button" class="hz-ai-btn hz-ai-go" onclick="hzAiImport()">⬇ 取り込む</button>
+                  <span class="hz-ai-msg" id="hzAiMsg" role="status"></span>
+                </div>
+                <p class="hz-ai-warn">⚠️ AI の読み取りは誤りがあり得ます。取り込んだ内容には「🤖要確認」の印が付くので、SDS・IMDG と照合してから押して「照合済み」にしてください。</p>
+              </details>
             </div>
 
             <!-- 温度管理品（冷蔵） -->
@@ -4825,6 +4867,9 @@
 <script src="js/quote/cloud-config.js"></script>
 <script src="js/quote/cloud.js"></script>
 <script src="js/quote/users.js"></script>
+<script src="js/quote/hazmat-ai-import.js"></script>
+<script src="js/quote/quote-versions.js"></script>
+<script src="js/quote/admin-creator-edit.js"></script>   <!-- 【一時機能】管理者が作成者を変更（やめるときは docs/sql/admin-edit-creator.sql 参照） -->
 <script src="js/quote/subcon-insert.js"></script>
 <script src="js/quote/email-import.js"></script>
 <script src="js/quote/subcon-request-mail.js"></script>

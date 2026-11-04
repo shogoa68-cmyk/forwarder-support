@@ -387,6 +387,7 @@
         r.name, r.customer, r.person, r.owner_email, r.created_by,
         m && m.ref, m && m.customer, m && m.person, m && m.memo,
         m && Array.isArray(m.subcons) && m.subcons.map(s => s.name).join(' '),
+        m && Array.isArray(m.related) && m.related.map(e => e.v).join(' '),   // 関連番号・メール件名
       ].filter(Boolean).join(' ').toLowerCase();
     }
     // 表示名（プロフィール）は後追いロードされるためキャッシュに含めず毎回付加
@@ -861,7 +862,8 @@
       // 最終更新者以外に何名が触ったか（＋N バッジ用）
       const edOthers = _editorsOf(r).filter(e => e.email !== r.owner_email).length;
       const whoDd =
-        '<span class="cloud-card-crt" title="作成者">👤 ' + escHtml(crtWho || '—') + '</span>' +
+        '<span class="cloud-card-crt" title="作成者">👤 ' + escHtml(crtWho || '—') +
+          (window.adminCreatorEditBtn ? window.adminCreatorEditBtn(r.id) : '') + '</span>' +   // 管理者の一時機能（admin-creator-edit.js）
         '<span class="cloud-card-upd" title="' + escHtml(_whoTitle(r)) + '">✏️ ' + escHtml(updWho || '—') +
           (edOthers > 0 ? '<span class="cloud-card-edn" title="ほかに ' + edOthers + ' 名が更新">+' + edOthers + '</span>' : '') +
         '</span>';
@@ -991,6 +993,15 @@
           '</div>' +
         '</div>';
 
+      // 🔖 関連番号・メール件名：管理番号の直下にツリー表示（クリックでその値をコピー。メーラーでの検索用）
+      const relRowHtml = (m && Array.isArray(m.related) && m.related.length)
+        ? '<div class="cloud-ref-tree">' + m.related.map(e =>
+            '<button type="button" class="cloud-ref-tree-line" data-v="' + escHtml(e.v) + '" ' +
+              'onclick="event.stopPropagation();copyRelValue(this)" title="クリックでコピー">' +
+              '<span class="cloud-ref-tree-br">|_</span> ' + escHtml(e.v) + '</button>'
+          ).join('') + '</div>'
+        : '';
+
       // 🏷️ 案件タグ（ダッシュボードから直接追加/削除できる）
       const rowTags = Array.isArray(r.tags) ? r.tags : [];
       const tagsRowHtml =
@@ -1016,6 +1027,8 @@
             '<span class="cloud-card-name" title="' + escHtml(r.name) + '">' + escHtml(titleText) + selfGenBadge + '</span>' +
             '<button class="btn-ref-copy" data-ref="' + escHtml(titleText) + '" onclick="copyRefNumber(this.dataset.ref,this)" title="管理番号をコピー（&quot;番号&quot;形式）"><svg class="icon-copy" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="1" width="9" height="9" rx="1.5"/><rect x="1" y="4" width="9" height="9" rx="1.5"/></svg></button>' +
           '</div>' +
+          relRowHtml +
+          ((window.qvCardBadge && m) ? window.qvCardBadge(r.data) : '') +
           // かんたん表示用：見出し（メモ1行目→ルート→REF#）とお客様名。詳細表示では CSS で非表示
           '<div class="cloud-card-headline" title="' + escHtml(headline) + '">' + escHtml(headline) + '</div>' +
           (custDd ? '<div class="cloud-card-cust">' + custDd + '</div>' : '') +
@@ -2093,6 +2106,11 @@
     const newData = (row && row.data) ? Object.assign({}, row.data, {
       fields: Object.assign({}, row.data.fields, { 'qf-status': status }),
     }) : undefined;
+    // 提示済み／ヨコヨコ提示にしたとき、その時点の客先向け内容を提示履歴（版）に積む（quote-versions.js）
+    if (newData && typeof window.qvOnPresentedData === 'function') {
+      const vj = window.qvOnPresentedData(newData, status, _cloudUser.email);
+      if (vj) newData.fields['qf-versions'] = vj;
+    }
     const updatePayload = { status, owner_email: _cloudUser.email, updated_at: new Date().toISOString() };
     if (newData) updatePayload.data = newData;
     const { error } = await c.from(_table())
@@ -2436,6 +2454,7 @@
         _loadedCloudId = resp.data.id;
         _loadedCloudTs = resp.data.updated_at || new Date().toISOString();
         _resetQspChat();   // 保存した案件の申し送りに切り替える（まだ無ければ「まだコメントはありません」）
+        if (window.adminApplyCreatorToNew) await window.adminApplyCreatorToNew(resp.data.id);   // 管理者の一時機能：指定した作成者に付け替え（admin-creator-edit.js）
       }
     }
     if (resp.error) { quoteShowToast('⚠️ 保存に失敗：' + resp.error.message, 'warn', 5000); return; }
@@ -3208,6 +3227,8 @@
     const newRef = typeof generateQuoteRefValue === 'function' ? generateQuoteRefValue() : null;
     if (newRef) newData.fields['qf-ref'] = newRef;
     delete newData.fields['qf-core-ref'];   // 基幹REF#は手配した案件に固有のため、コピーには引き継がない
+    delete newData.fields['qf-versions'];   // 提示履歴（版）はコピー元の案件のものなので引き継がない
+    delete newData.fields['qf-related-data'];   // 関連番号・メール件名も元の引き合いに固有のため引き継がない
     const existingNames = _cloudRows.map(r => r.name);
     let baseName = src.name + ' のコピー';
     let copyName = baseName;
@@ -4024,6 +4045,7 @@
   window.qpShowDashboard   = qpShowDashboard;
   window.qpBackToDashboard = qpBackToDashboard;
   window.qpShowEditor      = qpShowEditor;
+  window.cloudIsUnsavedNew = () => !_loadedCloudId;   // 管理者の一時機能（admin-creator-edit.js）：未保存の新規案件か
   window.qpNewQuote        = qpNewQuote;
   window.qpDockAction      = qpDockAction;
   // ダッシュボード：詳細検索・並び替え・表示切替
@@ -4044,6 +4066,7 @@
   // ---------- 他モジュール（行パターン等）からのログイン情報参照用 ----------
   window.quoteCloudUser   = function () { return _cloudUser; };
   window.quoteCloudClient = function () { return _getClient(); };
+  window.quoteCurrentUserEmail = function () { return (_cloudUser && _cloudUser.email) || ''; };   // 提示履歴（quote-versions.js）等が使う
   window.quoteCloudLoadedId = function () { return _loadedCloudId; };
   window.quoteDisplayName = function (email) { return (email && _profileMap[email]) || email || '—'; };
   window.quoteLoadProfiles = _loadProfiles;

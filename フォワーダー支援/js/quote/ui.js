@@ -1701,6 +1701,9 @@
     return raw.slice(0, 2) + '-' + raw.slice(2, 8) + '-' + raw.slice(8);
   }
   function generateQuoteRefValue() {
+    // 管理者の一時機能（admin-creator-edit.js）：作成者を指定中は、その人の発番IDで採番する
+    const ov = window.adminCreatorRefOverride && window.adminCreatorRefOverride();
+    if (ov) return ov;
     const no = window._myMemberNo;
     if (no == null) return null;                       // 発番ID未取得（未ログイン or 未登録）
     const id2 = String(no).padStart(2, '0');
@@ -1736,6 +1739,7 @@
     if (v) _setRefValue(v);
   }
   window.fillQuoteRef     = fillQuoteRef;
+  window.generateQuoteRefValue = generateQuoteRefValue;   // 管理者の一時機能（admin-creator-edit.js）からも使う
   window.maybeAutoFillRef = maybeAutoFillRef;
 
   // 案件の保存・呼び出しは ☁️ チーム共有（クラウド）に一本化（ブラウザ保存は廃止）。
@@ -1784,7 +1788,17 @@
       pod     = routes.map(r => r.pod).filter(Boolean).join(', ');
       carrier = routes.map(r => r.carrier).filter(Boolean).join(', ');
     }
+    // 🔖 関連番号・メール件名（管理番号を取る前に始めた案件のフォロー用）
+    let related = [];
+    try {
+      const rl = JSON.parse(f['qf-related-data'] || '[]');
+      if (Array.isArray(rl)) {
+        related = rl.map(e => ({ k: (e && (e.k === 'num' || e.k === 'mail')) ? e.k : 'other', v: String((e && e.v) || '').trim() }))
+                    .filter(e => e.v);
+      }
+    } catch (e) {}
     return {
+      related,
       ref:       (f['qf-ref']         || '').trim(),
       customer:  (f['qf-customer']    || '').trim(),
       person:    (f['qf-person']      || '').trim(),
@@ -4706,6 +4720,7 @@
       hidden.dispatchEvent(new Event('change', { bubbles: true }));
     }
     updateQuoteStatusUI();
+    if (typeof window.qvOnStatus === 'function') window.qvOnStatus(status);   // 提示済みにした時点の内容を版として記録（quote-versions.js）
     if (typeof window.updateSectionSummaries === 'function') window.updateSectionSummaries();
   }
   function updateQuoteStatusUI() {
@@ -4725,6 +4740,7 @@
     // 種類フィルタは「表示する」設定のときだけ意味があるので、非表示設定中は畳んで隠す
     const revFilters = document.getElementById('qfRevisionFilters');
     if (revFilters) revFilters.hidden = !!document.getElementById('qf-revision-hide-diff')?.checked;
+    if (typeof window.qvRender === 'function') window.qvRender();   // 提示履歴（版）の一覧を更新
   }
   window.setQuoteStatus = setQuoteStatus;
   window.updateQuoteStatusUI = updateQuoteStatusUI;
@@ -4739,6 +4755,7 @@
       return;
     }
     if (!confirm('現在の内容を「前回提示分」として記録し、改定中にして編集を再開します。よろしいですか？')) return;
+    if (typeof window.qvOnStatus === 'function') window.qvOnStatus(status);   // 提示履歴に未記録なら、提示した内容を版として残してから改定に入る
     const snap = (typeof window.buildRevisionSnapshot === 'function') ? window.buildRevisionSnapshot() : null;
     const hid = document.getElementById('qf-revision-baseline');
     if (hid) {
@@ -4762,6 +4779,19 @@
     maybeAutoFillRef();          // 新規（REF空）なら仮REF#を自動採番
     // 初回はダッシュボード（ページ1）を表示。以降のタブ切替では現在ページを維持
     if (typeof window.qpShowDashboard === 'function') window.qpShowDashboard();
+  };
+
+  // 関連番号・メール件名（ダッシュボードのツリー行）を引用符で囲んでコピー（メーラー検索用）
+  window.copyRelValue = function(el) {
+    const raw = (el && el.dataset && el.dataset.v) || '';
+    if (!raw) return;
+    const text = '”' + raw + '”';   // 管理番号コピーと同じ引用符で囲む（Outlook のフレーズ検索の精度向上）
+    navigator.clipboard.writeText(text).then(() => {
+      if (el) { el.classList.add('copied'); setTimeout(() => el.classList.remove('copied'), 1200); }
+      if (typeof quoteShowToast === 'function') quoteShowToast('コピーしました：' + text, 'success', 2000);
+    }).catch(() => {
+      if (typeof quoteShowToast === 'function') quoteShowToast('⚠️ コピーに失敗しました', 'warn', 2000);
+    });
   };
 
   // 管理番号を "番号" 形式でクリップボードにコピー

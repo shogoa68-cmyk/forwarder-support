@@ -463,6 +463,18 @@
     try { _rebuildTableRows(data); } finally { window.endQuoteBulkUpdate(); }
   }
 
+  // 明細（rows）だけを丸ごと置き換える（提示履歴 quote-versions.js の「この版に戻す」用）。
+  // 条件・貨物情報などの項目は現在のまま。置き換え前の状態を元に戻す（Ctrl+Z）の履歴へ積む。
+  window.quoteReplaceRows = function (rows) {
+    if (!Array.isArray(rows) || !rows.length) return false;
+    snapshotNow();                                   // 置き換え前の状態を確定（Ctrl+Z の戻り先）
+    const cur = gatherAllData();
+    cur.rows = JSON.parse(JSON.stringify(rows));
+    _applyQuoteData(cur);
+    scheduleSnapshot();                              // 置き換え後の状態を履歴へ
+    return true;
+  };
+
   function _rebuildTableRows(data) {
     document.getElementById('tableBody').innerHTML = '';
     rowCount = 0;
@@ -740,7 +752,7 @@
     // ヘッダー項目（_HEADER_FIELD_IDS）は keepHeaderIfEmpty 指定時のみ対象外（現在値を保持）。
     // 案件を開く経路は指定せず、保存内容どおりに復元する（空の項目に前の案件の値を残さない）。
     // 一時的な UI 操作用フィールドも _clearQuoteForm と同じ SKIP で対象外にする。
-    const _SKIP_FIELDS = ['rowInsertPos', 'rowPatternInsertPos', 'bulkCatSet', 'bulkSubconSet', 'selectAllChk'];
+    const _SKIP_FIELDS = ['rowInsertPos', 'rowPatternInsertPos', 'bulkCatSet', 'bulkSubconSet', 'selectAllChk', 'qfRelKind', 'qfRelInput', 'hzAiReply'];
     document.querySelectorAll(
       '#tab-quote-make .quote-main input[id], #tab-quote-make .quote-main select[id], #tab-quote-make .quote-main textarea[id]'
     ).forEach(el => {
@@ -800,6 +812,7 @@
     _triggerCarrierBmFetch();
     if (typeof window.renderQuoteMilestones === 'function') window.renderQuoteMilestones();
     if (typeof window.qfRenderTagChips === 'function') window.qfRenderTagChips();
+    if (typeof window.qfRenderRelChips === 'function') window.qfRenderRelChips();
     if (typeof window.updateRemarkChar === 'function') window.updateRemarkChar();
     if (typeof window.syncRemarkChips === 'function') window.syncRemarkChips();
     if (typeof window.renderRemarkImages === 'function') window.renderRemarkImages();
@@ -1141,7 +1154,7 @@
     // フォーム値
     const fields = {};
     document.querySelectorAll('input[id], select[id], textarea[id]').forEach(el => {
-      if (['csvFileInput','importFileInput','rowPatternImportFile','qf-memo-pop','qf-memo-float-ta'].includes(el.id)) return;
+      if (['csvFileInput','importFileInput','rowPatternImportFile','qf-memo-pop','qf-memo-float-ta','qfRelKind','qfRelInput','hzAiReply'].includes(el.id)) return;
       fields[el.id] = el.type === 'checkbox' ? el.checked : el.value;
     });
     // テーブル行（通常行 / 小計行 / リマーク行をすべて保存）
@@ -1453,6 +1466,7 @@
     applyZoneState();
     if (typeof window.renderQuoteMilestones === 'function') window.renderQuoteMilestones();
     if (typeof window.qfRenderTagChips === 'function') window.qfRenderTagChips();
+    if (typeof window.qfRenderRelChips === 'function') window.qfRenderRelChips();
   }
 
   /** インコタームズ選択時のヒント表示（index.html の onchange="showIncotermsHint()" から呼ばれる） */
@@ -2764,6 +2778,64 @@
   window.qfTagsKeydown = function (e) {
     if (e.key === 'Enter') { e.preventDefault(); window.qfAddTagFromInput(); }
   };
+  // ========== 🔖 関連番号・メール件名 ==========
+  // 管理番号を取らずに見積対応を始めた案件を後からフォローするため、案件ごとに複数の
+  // 識別子（問い合わせ番号・メール件名など）を登録する。#qf-related-data（hidden・JSON配列
+  // [{k:'num'|'mail'|'other', v:'…'}]）が実データ。保存/復元は他の qf-* 項目と同じ汎用ループ任せ。
+  // ダッシュボードの検索対象・カード表示にも載る（ui.js _presetMeta().related）。
+  const _QF_REL_ICON = { num: '🔢', mail: '✉️', other: '📎' };
+  function _qfRelArr() {
+    try {
+      const a = JSON.parse(document.getElementById('qf-related-data')?.value || '[]');
+      return Array.isArray(a)
+        ? a.map(e => ({ k: (e && _QF_REL_ICON[e.k]) ? e.k : 'other', v: String((e && e.v) || '').trim() })).filter(e => e.v)
+        : [];
+    } catch (e) { return []; }
+  }
+  function _qfSetRelArr(arr) {
+    const el = document.getElementById('qf-related-data');
+    if (el) el.value = JSON.stringify(arr);
+    window.qfRenderRelChips();
+    if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
+  }
+  window.qfRenderRelChips = function () {
+    const box = document.getElementById('qfRelChips');
+    if (!box) return;
+    box.innerHTML = _qfRelArr().map((e, i) =>
+      '<span class="qf-tag-chip qf-rel-chip" title="クリックでコピー">' +
+        '<span class="qf-rel-text" onclick="qfCopyRel(' + i + ')">' + _QF_REL_ICON[e.k] + ' ' + escHtml(e.v) + '</span>' +
+        '<button type="button" onclick="qfRemoveRel(' + i + ')" title="この登録を外す">×</button></span>'
+    ).join('');
+  };
+  window.qfAddRelFromInput = function () {
+    const inp = document.getElementById('qfRelInput');
+    const v = (inp?.value || '').trim();
+    if (!v) return;
+    const k = document.getElementById('qfRelKind')?.value || 'num';
+    const cur = _qfRelArr();
+    if (cur.some(e => e.v === v)) {
+      if (typeof quoteShowToast === 'function') quoteShowToast('ℹ️ すでに登録されています', 'info', 2000);
+      inp.value = '';
+      return;
+    }
+    _qfSetRelArr([...cur, { k, v }]);
+    inp.value = '';
+    inp.focus();
+  };
+  window.qfRemoveRel = function (idx) {
+    _qfSetRelArr(_qfRelArr().filter((_, i) => i !== idx));
+  };
+  window.qfCopyRel = function (idx) {
+    const e = _qfRelArr()[idx];
+    if (!e) return;
+    const done = () => { if (typeof quoteShowToast === 'function') quoteShowToast('コピーしました：' + e.v, 'success', 2000); };
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(e.v).then(done, () => {});
+  };
+  window.qfRelKeydown = function (ev) {
+    // IME 変換確定の Enter では追加しない
+    if (ev.key === 'Enter' && !ev.isComposing) { ev.preventDefault(); window.qfAddRelFromInput(); }
+  };
+
   // タグ入力欄のサジェスト（全案件で使われている既知のタグ。取得はチーム共有ログイン時のみ）
   window.qfLoadTagSuggestions = async function () {
     const dl = document.getElementById('qfTagSuggestions');
@@ -2904,26 +2976,27 @@
   }
 
   // ========== 危険品・特殊貨物：複数件登録 ==========
-  // 入力欄（UN番号／クラス／PG／PI／消防法／PSN／引火点）を「1件分のフォーム」として使い、
+  // 入力欄（製品名／UN番号／クラス／PG／PI／消防法／PSN／引火点）を「1件分のフォーム」として使い、
   // ＋ 追加のたびに _hazEntries へ積んでフォームをクリアする（幹線輸送の航路チップと同じ設計）。
   // 後方互換：1件も追加せずフォームに直接入力しただけの旧来の使い方は、_hazEntries が空のまま
   // 残るため、PDF側（quote-pdf.js の _hazmatDetail）がフォームの値をフォールバックとして拾う。
-  let _hazEntries = [];   // [{ un, cls, pg, pi, fireLaw, psn, flash }, ...]
+  let _hazEntries = [];   // [{ name(製品名), un, cls, pg, pi, fireLaw, psn, flash }, ...]
 
   function _hazFormGet() {
     const v = id => (document.getElementById(id)?.value || '').trim();
-    return { un: v('hz-un'), cls: v('hz-class'), pg: v('hz-pg'), pi: v('hz-pi'),
+    return { name: v('hz-name'), un: v('hz-un'), cls: v('hz-class'), pg: v('hz-pg'), pi: v('hz-pi'),
              fireLaw: v('hz-fire-law'), psn: v('hz-psn'), flash: v('hz-flash') };
   }
   function _hazFormSet(e) {
     const set = (id, val) => { const el = document.getElementById(id); if (el) el.value = val || ''; };
-    set('hz-un', e.un); set('hz-class', e.cls); set('hz-pg', e.pg); set('hz-pi', e.pi);
+    set('hz-name', e.name); set('hz-un', e.un); set('hz-class', e.cls); set('hz-pg', e.pg); set('hz-pi', e.pi);
     set('hz-fire-law', e.fireLaw); set('hz-psn', e.psn); set('hz-flash', e.flash);
   }
   function _hazFormClear() { _hazFormSet({}); }
   // 表示用の要約テキスト（チップ・PDF共通）
   function _hazEntryLabel(e) {
     const parts = [];
+    if (e.name)    parts.push(e.name);   // 製品名（正式品名 PSN とは別）を先頭に
     if (e.un)      parts.push('UN' + e.un.replace(/^UN/i, ''));
     if (e.cls)     parts.push(e.cls);
     if (e.pg)      parts.push(e.pg);
@@ -2944,8 +3017,9 @@
       const label = _hazEntryLabel(e) || '（未入力）';
       return `<span class="hz-entry-chip">`
         + `<span class="hz-entry-idx">${i + 1}</span>`
-        + `<span class="hz-entry-label">${_escMulti(e.psn || e.un || label)}</span>`
+        + `<span class="hz-entry-label">${_escMulti(e.name || e.psn || e.un || label)}</span>`
         + `<span class="hz-entry-sub">${_escMulti(label)}</span>`
+        + (e.ai ? `<button type="button" class="hz-entry-ai" onclick="confirmHazEntry(${i})" title="AIから取り込んだ内容です。SDS・IMDG等と照合してください。押すと「照合済み」にします${e.src ? '（出典：' + _escMulti(e.src) + '）' : ''}">🤖要確認</button>` : '')
         + `<button type="button" class="hz-entry-edit" onclick="editHazEntry(${i})" title="編集（フォームに書き戻す）">✎</button>`
         + `<button type="button" class="me-chip-del" onclick="removeHazEntry(${i})" title="削除">×</button></span>`;
     }).join('');
@@ -2953,14 +3027,14 @@
 
   function addHazEntry() {
     const e = _hazFormGet();
-    if (!e.un && !e.psn) {
-      if (typeof quoteShowToast === 'function') quoteShowToast('⚠️ UN番号または正式品名（PSN）を入力してください', 'warn', 1800);
+    if (!e.name && !e.un && !e.psn) {
+      if (typeof quoteShowToast === 'function') quoteShowToast('⚠️ 製品名・UN番号・正式品名（PSN）のいずれかを入力してください', 'warn', 1800);
       return;
     }
     _hazEntries.push(e);
     _hazFormClear();
     _renderHazEntries();
-    document.getElementById('hz-un')?.focus();
+    document.getElementById('hz-name')?.focus();
     if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
     if (typeof scheduleSnapshot === 'function') scheduleSnapshot();
   }
@@ -2976,10 +3050,27 @@
     _hazFormSet(e);
     _hazEntries.splice(i, 1);
     _renderHazEntries();
-    document.getElementById('hz-un')?.focus();
+    document.getElementById('hz-name')?.focus();
     if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
     if (typeof scheduleSnapshot === 'function') scheduleSnapshot();
   }
+  // AI（Gemini / NotebookLM 等）の回答から取り込んだ危険品を追加する（hazmat-ai-import.js から呼ぶ）。
+  // 取り込み分には ai:true を付け、チップに「🤖要確認」を出す（SDS・IMDG との照合を促す）。
+  window.importHazEntries = function (list) {
+    if (!Array.isArray(list) || !list.length) return 0;
+    list.forEach(e => _hazEntries.push(Object.assign({}, e, { ai: true })));
+    _renderHazEntries();
+    if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
+    if (typeof scheduleSnapshot === 'function') scheduleSnapshot();
+    return list.length;
+  };
+  window.confirmHazEntry = function (i) {
+    const e = _hazEntries[i];
+    if (!e) return;
+    delete e.ai;
+    _renderHazEntries();
+    if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
+  };
   window.addHazEntry    = addHazEntry;
   window.removeHazEntry = removeHazEntry;
   window.editHazEntry   = editHazEntry;
@@ -3570,19 +3661,23 @@
 
   /** z2Carrier 入力時：一致するキャリアのリンクパネルを表示 */
   // A-1: z2 キャリア名を収集して QSP 用ブックマームを非同期フェッチ
+  // 幹線（z2）のブックマーク判定に使う会社名：実運送人（実際の船会社）があればそれ、
+  // 無ければ契約先のキャリアで判定する（例：契約先 INNEX・実運送人 EVERGREEN → EVERGREEN の
+  // ブックマークを表示）。登録済みの有効航路＋現在の入力欄が対象。
+  function _z2BmCarrierNames() {
+    const names = [];
+    const add = n => { n = (n || '').trim(); if (n && !names.includes(n)) names.push(n); };
+    if (_routeEntries && _routeEntries.length) {
+      _routeEntries.filter(r => r.enabled !== false).forEach(r => add(r.actualCarrier || r.carrier));
+    }
+    const g = id => (document.getElementById(id)?.value || '').trim();
+    add(g('z2ActualCarrier') || g('z2Carrier'));
+    return names;
+  }
+
   function _triggerCarrierBmFetch() {
     if (typeof window.fetchCarrierBmsForQSP !== 'function') return;
-    const names = [];
-    // z2: 幹線キャリア（有効航路のみ）。契約先（carrier）に加え、
-    // 実運送人（actualCarrier＝「as ○○」）が別会社の場合はそちらのブックマークも対象にする
-    if (_routeEntries && _routeEntries.length) {
-      _routeEntries.filter(r => r.enabled !== false).forEach(r => {
-        if (r.carrier && !names.includes(r.carrier)) names.push(r.carrier);
-        if (r.actualCarrier && !names.includes(r.actualCarrier)) names.push(r.actualCarrier);
-      });
-    }
-    const cur = (document.getElementById('z2Carrier')?.value || '').trim();
-    if (cur && !names.includes(cur)) names.push(cur);
+    const names = _z2BmCarrierNames();
     // z1/z3: デフォルトサブコン（複数登録分すべて）
     _getAllScValues('z1DefaultScArea').forEach(sc => { if (!names.includes(sc)) names.push(sc); });
     _getAllScValues('z3DefaultScArea').forEach(sc => { if (!names.includes(sc)) names.push(sc); });
@@ -3630,17 +3725,8 @@
   window.getCarrierLinkData = function () {
     const map  = _carrierMapForMode();
     const defs = _linkDefsForMode();
-    const names = [];
-    // 契約先（carrier）に加え、実運送人（actualCarrier＝「as ○○」）が別会社の場合は
-    // そちらのブックマークも別ブロックとして表示する（実際に船を運航するのは実運送人のため）
-    if (_routeEntries && _routeEntries.length) {
-      _routeEntries.filter(r => r.enabled !== false).forEach(r => {
-        if (r.carrier && !names.includes(r.carrier)) names.push(r.carrier);
-        if (r.actualCarrier && !names.includes(r.actualCarrier)) names.push(r.actualCarrier);
-      });
-    }
-    const cur = (document.getElementById('z2Carrier')?.value || '').trim();
-    if (cur && !names.includes(cur)) names.push(cur);
+    // 実運送人があればそれ、無ければキャリアで判定（_z2BmCarrierNames）
+    const names = _z2BmCarrierNames();
     const bmCache = window._qspBmCache || {};
     const getRelated = typeof window.bmGetRelated === 'function' ? window.bmGetRelated : () => [];
     // 全面クラウド移行（フェーズ3）：内蔵DBの静的リンクは廃止し、クラウドの
