@@ -112,10 +112,65 @@
     if (box.hidden === show) box.hidden = !show;
     if (show) _loadMembers();
   }
+  // ---- 見積もり番号も、指定した作成者の発番ID（メンバー番号）で採番する ----
+  // 番号は「発番ID2桁-YYMMDD-連番3桁」。連番は端末ごとの数え方なので、指定した作成者の分は
+  // クラウドに保存済みの「その人・その日」の最大連番＋1 とする（重複を避ける）。
+  let _refOv = null;   // { id2, ymd, next }
+  const _ymd = () => new Date().toLocaleDateString('sv', { timeZone: 'Asia/Tokyo' }).slice(2).replace(/-/g, '');
+  async function _prepareRefFor(email) {
+    const db = (typeof window.quoteCloudClient === 'function') ? window.quoteCloudClient() : null;
+    if (!db) return { error: 'db' };
+    const { data: m } = await db.from('allowed_emails').select('member_no').eq('email', email).maybeSingle();
+    if (!m || m.member_no == null) return { error: 'member' };
+    const id2 = String(m.member_no).padStart(2, '0'), ymd = _ymd();
+    const { data: rows, error } = await db.from('quote_presets').select('ref')
+      .like('ref', id2 + '-' + ymd + '-%').order('ref', { ascending: false }).limit(1);
+    if (error) return { error: 'ref' };
+    const mm = rows && rows[0] && String(rows[0].ref || '').match(/-(\d{3})$/);
+    return { id2, ymd, next: (mm ? parseInt(mm[1], 10) : 0) + 1 };
+  }
+  // ui.js の generateQuoteRefValue から呼ばれる：指定中なら次の番号を返す（無ければ null＝通常の採番）
+  window.adminCreatorRefOverride = function () {
+    if (!_refOv) return null;
+    return _refOv.id2 + '-' + _refOv.ymd + '-' + String(_refOv.next++).padStart(3, '0');
+  };
+  function _setRef(v) {
+    const el = document.getElementById('qf-ref');
+    if (!el || !v) return;
+    el.value = v;
+    el.dispatchEvent(new Event('input', { bubbles: true }));
+    if (typeof window.updateQuoteRefEmpty === 'function') window.updateQuoteRefEmpty();
+  }
+  async function _onCreatorChange() {
+    const email = _resolve(_newInput() && _newInput().value);
+    const cur = (document.getElementById('qf-ref')?.value || '').trim();
+    const autoLike = !cur || /^\d{2}-\d{6}-\d{3}$/.test(cur);   // 手入力した番号は触らない
+    if (!email) {                                      // 指定を外した＝自分の発番IDに戻す
+      _refOv = null;
+      if (cur && autoLike && typeof window.generateQuoteRefValue === 'function') _setRef(window.generateQuoteRefValue());
+      return;
+    }
+    const r = await _prepareRefFor(email);
+    if (r.error) {
+      _refOv = null;
+      toast(r.error === 'member' ? '⚠️ ' + nameOf(email) + ' には発番IDがありません（見積もり番号は変わりません）'
+                                  : '⚠️ 見積もり番号を採番できませんでした（番号は変わりません）', 'warn', 6000);
+      return;
+    }
+    _refOv = r;
+    if (autoLike) {
+      const v = window.adminCreatorRefOverride();
+      _setRef(v);
+      toast('🔢 見積もり番号を ' + nameOf(email) + ' の発番IDで ' + v + ' に採番しました', 'success', 4500);
+    }
+  }
+  document.addEventListener('change', e => { if (e.target && e.target.closest && e.target.closest('#adminCreatorNew') && e.target.tagName === 'INPUT') _onCreatorChange(); });
+
   setInterval(_refresh, 1000);   // 一時機能のため、画面の遷移・保存に追従する簡易な方式
 
   window.adminApplyCreatorToNew = async function (newId) {
     const inp = _newInput();
+    _refOv = null;
     const email = _resolve(inp && inp.value);
     if (!email || !isAdmin()) return;
     const db = (typeof window.quoteCloudClient === 'function') ? window.quoteCloudClient() : null;

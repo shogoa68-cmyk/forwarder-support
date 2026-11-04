@@ -14,6 +14,8 @@
 --   2) フォワーダー支援/js/quote/admin-creator-edit.js を削除
 --   3) フォワーダー支援/index.html の <script src="js/quote/admin-creator-edit.js"> の 1 行を削除
 --   4) フォワーダー支援/js/quote/cloud.js の「adminCreatorEditBtn」「adminApplyCreatorToNew」「cloudIsUnsavedNew」を使う 3 行を削除
+--      フォワーダー支援/js/quote/ui.js の「adminCreatorRefOverride」を呼ぶ 3 行（generateQuoteRefValue の先頭）と、
+--      「window.generateQuoteRefValue = …」の 1 行を削除
 --   5) フォワーダー支援/index.html の <div id="adminCreatorNew"> ブロック（新規案件の作成者を指定する欄）を削除
 --   6) フォワーダー支援/css/quote.css の「作成者の変更（管理者・一時機能）」ブロックを削除
 -- ============================================================
