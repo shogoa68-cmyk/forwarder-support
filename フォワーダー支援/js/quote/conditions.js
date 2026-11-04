@@ -2093,6 +2093,7 @@
   // 今の内容を土台に FCL案／LCL案 の2パターンを作る（現在のモードが LCL なら LCL案が土台）
   window.createFclLclPatterns = function () {
     if (_packingPatterns.some(pt => pt.mode)) return;
+    _syncActivePatternContainers();   // 複製の元になる、いまのコンテナ指定を確定してから読む
     const baseMode  = (_currentTransport === 'sea' && _currentSeaSub === 'lcl') ? 'lcl' : 'fcl';
     const otherMode = baseMode === 'fcl' ? 'lcl' : 'fcl';
     const label = m => m.toUpperCase() + '案';
@@ -2397,6 +2398,7 @@
 
   // 表示中のパターンを複製して新しいパターンを作る（似た構成から差分だけ直したい場合向け）
   window.duplicatePackingPattern = function () {
+    _syncActivePatternContainers();   // 複製の元になる、いまのコンテナ指定を確定してから読む
     const src = _packingPatterns[_packingActiveIdx];
     if (!src) return;
     const srcLabel = src.name || `パターン${_packingActiveIdx + 1}`;
