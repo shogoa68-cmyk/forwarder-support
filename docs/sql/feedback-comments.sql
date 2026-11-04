@@ -34,6 +34,7 @@ drop policy if exists "fbc insert" on public.feedback_comments;
 create policy "fbc insert" on public.feedback_comments for insert to authenticated
   with check (
     author_id = auth.uid()
+    and (author_email is null or author_email = auth.email())   -- 他人のメールを名乗れないように
     and (
       (kind = 'question' and is_team_member())
       or (kind = 'answer'   and exists (select 1 from public.feedbacks f where f.id = feedback_id and f.user_id = auth.uid()))

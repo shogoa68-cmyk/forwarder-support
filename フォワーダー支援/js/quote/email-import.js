@@ -363,7 +363,11 @@
       : Promise.resolve(confirm('保管した自由入力を削除しますか？'));
     if (!(await ask)) return;
     if (!(await _ensureEdit())) return;
-    _saveLiveEntries(_liveEntries().filter(x => x.id !== id));
+    const rest = _liveEntries().filter(x => x.id !== id);
+    // 保管が 0 件になったとき、旧形式の取込元メモ（#qf-import-src）が残っていると、
+    // 読み込みのたびに「旧形式の 1 件」として復活し、削除したはずの原文が消えない。メモも空にする。
+    if (!rest.length) { const src = document.getElementById('qf-import-src'); if (src) src.value = ''; }
+    _saveLiveEntries(rest);
   }
   // 未取込が 1 件ならそのまま取り込みを始め、複数なら一覧を開いて選んでもらう（ダッシュボードのカードから）
   async function eiOpenStored() {

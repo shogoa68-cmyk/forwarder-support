@@ -1551,11 +1551,14 @@
       // 10分以上 無操作なら「放置」とみなし、自分でロックを解放して閲覧モードへ
       if (Date.now() - _lastLockActivity > LOCK_IDLE_LIMIT_MS) { _onSelfIdleRelease(id); return; }
       const held = await _renewLock(id);     // 更新のみ
+      // 通信中に自分で保存・解放・放置解放した場合は何もしない（解放済みのロックを握り直さない）
+      if (_lockHeldId !== id) return;
       if (held === false) {
         // 更新できない＝ロックが自分名義でない。ただし「自分の別タブが放置/クローズで
         // クリアしただけ」なら握り直せる。管理者が強制解放した場合は acquire が
         // 'COOLDOWN' を返して拒否される（＝本当に失った）。
         const r = await _acquireLock(id);
+        if (_lockHeldId !== id) { if (r === 'OK') _releaseLock(id); return; }   // 通信中に解放済み→握ったロックを返す
         if (r === 'OK') return;              // 握り直せた（自分の別タブがクリア等）→ 継続
         if (r === 'COOLDOWN' || (typeof r === 'string' && r.indexOf('@') >= 0)) _onLockLost(id);
         // r === null / 'NOTFOUND' / 'DENIED' は不明 → 誤った閲覧モード化を避けて継続
@@ -2071,6 +2074,18 @@
     _applyCloudFilter();
   }
 
+  // 一覧のキャッシュ（_cloudRows）は読込後に他メンバーが保存していると古い。そのまま data 全体を
+  // 書き戻すと相手の保存を巻き戻してしまうため、書く直前に最新の data を取り直す。
+  // 取得に失敗したときは、従来どおりキャッシュの data を使う。
+  async function _freshRowData(id, row) {
+    try {
+      const c = _getClient();
+      const { data, error } = await c.from(_table()).select('data').eq('id', id).single();
+      if (!error && data && data.data) return data.data;
+    } catch (e) {}
+    return (row && row.data) || undefined;
+  }
+
   // 行のステータス変更
   async function cloudSetStatus(rawId, status) {
     const c = _getClient();
@@ -2090,8 +2105,9 @@
     // status 列だけでなく data.fields['qf-status'] も一緒に更新する。ここを揃えて
     // おかないと、次にこの案件を開いたとき（_applyQuoteData が data.fields から
     // 復元する）古いステータスに戻って見えてしまう（例：「🔄 更新」ボタンが出ない）。
-    const newData = (row && row.data) ? Object.assign({}, row.data, {
-      fields: Object.assign({}, row.data.fields, { 'qf-status': status }),
+    const baseData = row ? await _freshRowData(id, row) : undefined;
+    const newData = baseData ? Object.assign({}, baseData, {
+      fields: Object.assign({}, baseData.fields, { 'qf-status': status }),
     }) : undefined;
     const updatePayload = { status, owner_email: _cloudUser.email, updated_at: new Date().toISOString() };
     if (newData) updatePayload.data = newData;
@@ -2135,7 +2151,7 @@
       quoteShowToast('🔒 ' + _nameFor(lockedBy) + ' さんが作業中のため変更できません', 'warn', 4000);
       return;
     }
-    const newData = Object.assign({}, row.data, { holdReminderOff: !!off });
+    const newData = Object.assign({}, await _freshRowData(id, row), { holdReminderOff: !!off });
     const { error } = await c.from(_table()).update({ data: newData }).eq('id', id);
     if (error) {
       quoteShowToast('⚠️ 更新に失敗：' + error.message, 'warn', 5000);
@@ -2163,7 +2179,7 @@
     if (!row) return false;
     const lockedBy = _lockedByOther(row);
     if (lockedBy) { quoteShowToast('🔒 ' + _nameFor(lockedBy) + ' さんが作業中のため変更できません', 'warn', 4000); return false; }
-    const newData = Object.assign({}, row.data);
+    const newData = Object.assign({}, await _freshRowData(id, row));
     if (pf) newData.priceFollow = pf; else delete newData.priceFollow;
     const { error } = await c.from(_table()).update({ data: newData }).eq('id', id);
     if (error) { quoteShowToast('⚠️ 更新に失敗：' + error.message, 'warn', 5000); return false; }
@@ -2362,7 +2378,15 @@
   }
 
   // ---------- 保存（同名は上書き） ----------
+  // 保存中の二重実行（Ctrl+S 連打・ボタン連打）を防ぐ。新規案件だと同名の行が2件できてしまうため。
+  let _saveInFlight = false;
   async function cloudSaveCurrent(opts) {
+    if (_saveInFlight) return;
+    _saveInFlight = true;
+    try { return await _cloudSaveCurrentImpl(opts); }
+    finally { _saveInFlight = false; }
+  }
+  async function _cloudSaveCurrentImpl(opts) {
     const c = _getClient();
     if (!c || !_cloudUser) { quoteShowToast('⚠️ 先に Google でログインしてください', 'warn'); return; }
     // 保存名：読込中の案件名を優先（コピー元と名前が被っても混同しない）。未ロードなら自動生成
@@ -2983,6 +3007,9 @@
       return;
     }
     if (_lockHeldId === id) _dropLock();
+    // 画面に開いている案件を消した場合、読込済みIDを残すと次の保存が「存在しない行の更新」になり
+    // 0行＝「他メンバーが編集中」と誤表示されて保存できなくなる。新規扱いに戻す。
+    if (_loadedCloudId === id) { _loadedCloudId = null; _loadedCloudTs = null; if (_shareMode === 'view') _applyShareMode('edit'); }
     quoteShowToast('🗑️ 共有プリセットを削除しました', 'info');
     cloudListPresets();
   }
