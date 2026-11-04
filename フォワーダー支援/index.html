@@ -3423,6 +3423,22 @@
               </div>
               <div class="hz-entry-list" id="hzEntryList"></div>
               <input type="hidden" id="hz-entries-data" />
+              <details class="hz-ai-import">
+                <summary>🤖 SDS などの資料を AI に読ませて取り込む <small>（Gemini の NotebookLM など）</small></summary>
+                <ol class="hz-ai-steps">
+                  <li>NotebookLM などに SDS（安全データシート）等の資料を入れ、「📋 プロンプトをコピー」したものをチャットに貼り付けて実行します</li>
+                  <li>AI の回答（JSON）をそのまま下の欄に貼り付けて「⬇ 取り込む」を押します</li>
+                </ol>
+                <div class="hz-ai-row">
+                  <button type="button" class="hz-ai-btn" onclick="hzAiCopyPrompt()" title="資料から危険品情報を JSON で読み取らせるためのプロンプトをコピーします（製品名を入力済みなら、その製品に絞る一文を添えます）">📋 プロンプトをコピー</button>
+                </div>
+                <textarea id="hzAiReply" rows="5" placeholder="AI の回答（JSON）をここに貼り付け。コードブロックや出典番号［1］が混じっていても読み取ります"></textarea>
+                <div class="hz-ai-row">
+                  <button type="button" class="hz-ai-btn hz-ai-go" onclick="hzAiImport()">⬇ 取り込む</button>
+                  <span class="hz-ai-msg" id="hzAiMsg" role="status"></span>
+                </div>
+                <p class="hz-ai-warn">⚠️ AI の読み取りは誤りがあり得ます。取り込んだ内容には「🤖要確認」の印が付くので、SDS・IMDG と照合してから押して「照合済み」にしてください。</p>
+              </details>
             </div>
 
             <!-- 温度管理品（冷蔵） -->
@@ -4831,6 +4847,7 @@
 <script src="js/quote/cloud-config.js"></script>
 <script src="js/quote/cloud.js"></script>
 <script src="js/quote/users.js"></script>
+<script src="js/quote/hazmat-ai-import.js"></script>
 <script src="js/quote/admin-creator-edit.js"></script>   <!-- 【一時機能】管理者が作成者を変更（やめるときは docs/sql/admin-edit-creator.sql 参照） -->
 <script src="js/quote/subcon-insert.js"></script>
 <script src="js/quote/email-import.js"></script>

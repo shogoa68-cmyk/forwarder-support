@@ -3155,6 +3155,25 @@
   display: inline-flex; align-items: center; justify-content: center;
 }
 #tab-quote-make .hz-entry-edit:hover { background: #f6dcd2; border-color: #c0654a; }
+/* 危険品：AI（NotebookLM 等）で資料から読み取って取り込む */
+#tab-quote-make .hz-entry-ai {
+  flex-shrink: 0; border: 1px solid #e0a030; border-radius: var(--r-14); background: #fff4d6; color: #8a5a00;
+  font-size: var(--fs-10, 10px); font-weight: 700; padding: 0 6px; line-height: 16px; cursor: pointer; font-family: inherit;
+}
+#tab-quote-make .hz-entry-ai:hover { background: #ffe9b0; }
+#tab-quote-make .hz-ai-import { margin-top: var(--sp-10); border: 1px dashed #d8b8a8; border-radius: var(--r-6); padding: var(--sp-6) var(--sp-10); background: var(--surface); }
+#tab-quote-make .hz-ai-import > summary { cursor: pointer; font-size: var(--fs-12); font-weight: 700; color: #6b3d2e; }
+#tab-quote-make .hz-ai-import > summary small { font-weight: 400; color: #a8927f; }
+#tab-quote-make .hz-ai-steps { margin: var(--sp-6) 0 var(--sp-6) var(--sp-12); padding: 0; font-size: var(--fs-11-5); color: #6b5a42; }
+#tab-quote-make .hz-ai-row { display: flex; align-items: center; gap: var(--sp-8); margin: var(--sp-6) 0; flex-wrap: wrap; }
+#tab-quote-make .hz-ai-btn { border: 1px solid #c8b8a8; border-radius: var(--r-5); background: var(--card-bg); color: #6b3d2e; padding: var(--sp-5) var(--sp-12); font-size: var(--fs-12); font-weight: 600; cursor: pointer; font-family: inherit; }
+#tab-quote-make .hz-ai-btn:hover { background: #f6dcd2; }
+#tab-quote-make .hz-ai-btn.hz-ai-go { background: #c0654a; border-color: #a8442a; color: var(--surface); }
+#tab-quote-make .hz-ai-btn.hz-ai-go:hover { background: #a8442a; }
+#tab-quote-make .hz-ai-import textarea { width: 100%; box-sizing: border-box; font-size: var(--fs-11-5); font-family: ui-monospace, Menlo, Consolas, monospace; border: 1px solid var(--border); border-radius: var(--r-6); padding: var(--sp-5) var(--sp-8); background: var(--surface); }
+#tab-quote-make .hz-ai-msg { font-size: var(--fs-11-5); color: #2e7d32; }
+#tab-quote-make .hz-ai-msg.is-bad { color: #c0392b; }
+#tab-quote-make .hz-ai-warn { margin: var(--sp-4) 0 0; font-size: var(--fs-11); color: #a8442a; }
 #tab-quote-make .btn-zone-preset:active { filter: brightness(0.85); transform: scale(0.97); }
 /* ── Zone② 幹線輸送入力 ── */
 #tab-quote-make .zone2-inputs { padding: var(--sp-10) var(--sp-10) var(--sp-8); }
