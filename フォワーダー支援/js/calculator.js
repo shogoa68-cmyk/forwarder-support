@@ -115,6 +115,11 @@ function getUnitConversion(selectId, targetUnit) {
   return { unit, factor: from / to };
 }
 
+// 寸法として使えない値（空・NaN・0・負数）が1つでもあれば true。負の CBM/CW や 0 割りを防ぐ
+function _badDims(a, b, c) { return [a, b, c].some(v => !(v > 0)); }
+// 個数の読み取り：空・0・負数は 1 個扱い
+function _qtyOr1(v) { const n = parseInt(v, 10); return n > 0 ? n : 1; }
+
 // 結果表示用の入力情報サマリー文字列（例：60×40×30cm / 5kg / ダンボール / 段積み可 × 10個）
 function formatRowInputSummary(parts) {
   return parts.filter(Boolean).join(' / ');
@@ -586,8 +591,8 @@ function calcAirCW() {
     const wInput = parseFloat(row.querySelector('[data-key="w"]').value);
     const hInput = parseFloat(row.querySelector('[data-key="h"]').value);
     const weight = parseFloat(row.querySelector('[data-key="weight"]').value);
-    const qty    = parseInt(row.querySelector('[data-key="qty"]').value) || 1;
-    if ([lInput,wInput,hInput,weight].some(isNaN)) continue;
+    const qty    = _qtyOr1(row.querySelector('[data-key="qty"]').value);
+    if (_badDims(lInput,wInput,hInput) || !(weight >= 0)) continue;
     const meta  = getRowMeta(row);
     // cm 換算で計算式に投入。divisor は IATA 6000 / Express 5000 / Courier 4000 から選択
     const divisor = parseInt(document.getElementById('air-divisor')?.value, 10) || 6000;
@@ -657,8 +662,8 @@ function calcLclRT() {
     const wInput = parseFloat(row.querySelector('[data-key="w"]').value);
     const hInput = parseFloat(row.querySelector('[data-key="h"]').value);
     const weight = parseFloat(row.querySelector('[data-key="weight"]').value);
-    const qty    = parseInt(row.querySelector('[data-key="qty"]').value) || 1;
-    if ([lInput,wInput,hInput,weight].some(isNaN)) continue;
+    const qty    = _qtyOr1(row.querySelector('[data-key="qty"]').value);
+    if (_badDims(lInput,wInput,hInput) || !(weight >= 0)) continue;
     const meta  = getRowMeta(row);
     // cm 換算で計算式に投入（CBM = L*W*H[cm] / 1e6）
     const l = lInput * factor, w = wInput * factor, h = hInput * factor;
@@ -734,8 +739,8 @@ function calcCBMSai() {
     const l   = parseFloat(row.querySelector('[data-key="l"]').value);
     const w   = parseFloat(row.querySelector('[data-key="w"]').value);
     const h   = parseFloat(row.querySelector('[data-key="h"]').value);
-    const qty = parseInt(row.querySelector('[data-key="qty"]').value) || 1;
-    if ([l,w,h].some(isNaN)) continue;
+    const qty = _qtyOr1(row.querySelector('[data-key="qty"]').value);
+    if (_badDims(l,w,h)) continue;
     const meta = getRowMeta(row);
     const cbm1 = l*F * w*F * h*F;
     const sai1 = (l*Fcm * w*Fcm * h*Fcm) / 27826.5;
@@ -857,7 +862,7 @@ function calcPalletize() {
     const weight  = parseFloat(row.querySelector('[data-key="weight"]').value) || 0;
     const totInput = parseInt(row.querySelector('[data-key="total"]').value, 10);
     const tot = isNaN(totInput) ? 0 : totInput;
-    if ([blInput,bwInput,bhInput].some(isNaN)) continue;
+    if (_badDims(blInput,bwInput,bhInput)) continue;
     const meta = getRowMeta(row);
     // mm 換算で計算式に投入
     const bl = blInput * factor, bw = bwInput * factor, bh = bhInput * factor;
@@ -1190,8 +1195,8 @@ function calcVanning() {
     const bwInput = parseFloat(row.querySelector('[data-key="w"]').value);
     const bhInput = parseFloat(row.querySelector('[data-key="h"]').value);
     const bkg     = parseFloat(row.querySelector('[data-key="weight"]').value) || 0;
-    const qty     = parseInt(row.querySelector('[data-key="qty"]').value) || 0;
-    if ([blInput,bwInput,bhInput].some(isNaN)) continue;
+    const qty     = Math.max(0, parseInt(row.querySelector('[data-key="qty"]').value) || 0);
+    if (_badDims(blInput,bwInput,bhInput)) continue;
     const meta = getRowMeta(row);
     const rowNoStack = globalNoStack || meta.stack === 'ng';
     const bl = blInput * factor, bw = bwInput * factor, bh = bhInput * factor;
@@ -1213,7 +1218,8 @@ function calcVanning() {
         const q = Math.floor(c.l/dims[p[0]])*Math.floor(c.w/dims[p[1]])*vLayers;
         if (q>maxPer) maxPer=q;
       });
-      const need    = qty>0 ? Math.ceil(qty/maxPer) : null;
+      // 1個も入らない（箱がコンテナより大きい）ときは本数を計算せず Infinity にして「積載不可」と表示する
+      const need    = qty>0 ? (maxPer>0 ? Math.ceil(qty/maxPer) : Infinity) : null;
       const used    = Math.min(maxPer, qty||maxPer);
       const util    = (cCBM*used/contCBM*100).toFixed(1);
       const totalKg = bkg>0&&qty>0 ? qty*bkg : bkg>0 ? maxPer*bkg : null;
@@ -1232,8 +1238,9 @@ function calcVanning() {
     const cardsHtml = contRows.map(r => {
       const isRec = r.key===rec.key;
       const badge = isRec ? '<span style="background:#d4edda;color:#155724;font-size:10px;font-weight:700;padding:2px 6px;border-radius:4px;margin-left:6px;">✅ 推奨</span>' : '';
-      const main  = r.need ? `${r.need} 本必要` : `最大 ${r.maxPer.toLocaleString()} 個/本`;
-      const kgLine= r.totalKg ? `概算 ${r.totalKg.toLocaleString()} kg／上限 ${(r.c.maxPay*(r.need||1)).toLocaleString()} kg` : '';
+      const noFit = r.maxPer <= 0;
+      const main  = noFit ? '積載不可（箱がコンテナより大きい）' : r.need ? `${r.need} 本必要` : `最大 ${r.maxPer.toLocaleString()} 個/本`;
+      const kgLine= (r.totalKg && !noFit) ? `概算 ${r.totalKg.toLocaleString()} kg／上限 ${(r.c.maxPay*(r.need||1)).toLocaleString()} kg` : '';
       const warn  = r.overW ? ' <span style="color:#e53e3e;font-size:10px;">⚠️ 重量超過</span>' : '';
       return `<div class="calc-item ${isRec?'hl':''}">
         <div class="calc-item-label">${r.c.label}${badge}</div>
