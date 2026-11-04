@@ -11561,3 +11561,8 @@ body.is-row-dragging { cursor: grabbing; user-select: none; }
 .admin-creator-actions { display: flex; justify-content: flex-end; gap: 8px; }
 .admin-creator-actions button { padding: 6px 14px; border-radius: 6px; border: 1px solid #bbb; background: #f3f3f3; cursor: pointer; font-size: 13px; }
 .admin-creator-actions .admin-creator-ok { background: #2e6fd0; border-color: #2e6fd0; color: #fff; font-weight: 600; }
+#tab-quote-make .admin-creator-new { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: 0 0 8px; padding: 6px 10px; border: 1px dashed #c9a0a0; border-radius: 6px; background: #fff6f6; }
+#tab-quote-make .admin-creator-new[hidden] { display: none; }
+#tab-quote-make .admin-creator-new-lbl { font-size: var(--fs-12); font-weight: 700; color: #7a3030; }
+#tab-quote-make .admin-creator-new-lbl small { font-weight: 400; color: #a33; margin-left: 4px; }
+#tab-quote-make .admin-creator-new input { flex: 1; min-width: 220px; font-size: var(--fs-12); padding: 4px 8px; border: 1px solid #bbb; border-radius: 6px; background: #fff; }

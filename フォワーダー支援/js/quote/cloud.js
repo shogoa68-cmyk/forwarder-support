@@ -2448,6 +2448,7 @@
         _loadedCloudId = resp.data.id;
         _loadedCloudTs = resp.data.updated_at || new Date().toISOString();
         _resetQspChat();   // 保存した案件の申し送りに切り替える（まだ無ければ「まだコメントはありません」）
+        if (window.adminApplyCreatorToNew) await window.adminApplyCreatorToNew(resp.data.id);   // 管理者の一時機能：指定した作成者に付け替え（admin-creator-edit.js）
       }
     }
     if (resp.error) { quoteShowToast('⚠️ 保存に失敗：' + resp.error.message, 'warn', 5000); return; }
@@ -4037,6 +4038,7 @@
   window.qpShowDashboard   = qpShowDashboard;
   window.qpBackToDashboard = qpBackToDashboard;
   window.qpShowEditor      = qpShowEditor;
+  window.cloudIsUnsavedNew = () => !_loadedCloudId;   // 管理者の一時機能（admin-creator-edit.js）：未保存の新規案件か
   window.qpNewQuote        = qpNewQuote;
   window.qpDockAction      = qpDockAction;
   // ダッシュボード：詳細検索・並び替え・表示切替
