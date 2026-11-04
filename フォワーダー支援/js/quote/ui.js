@@ -4774,10 +4774,11 @@
     if (typeof window.qpShowDashboard === 'function') window.qpShowDashboard();
   };
 
-  // 関連番号・メール件名（ダッシュボードのツリー行）をそのままコピー（メーラー検索用）
+  // 関連番号・メール件名（ダッシュボードのツリー行）を引用符で囲んでコピー（メーラー検索用）
   window.copyRelValue = function(el) {
-    const text = (el && el.dataset && el.dataset.v) || '';
-    if (!text) return;
+    const raw = (el && el.dataset && el.dataset.v) || '';
+    if (!raw) return;
+    const text = '”' + raw + '”';   // 管理番号コピーと同じ引用符で囲む（Outlook のフレーズ検索の精度向上）
     navigator.clipboard.writeText(text).then(() => {
       if (el) { el.classList.add('copied'); setTimeout(() => el.classList.remove('copied'), 1200); }
       if (typeof quoteShowToast === 'function') quoteShowToast('コピーしました：' + text, 'success', 2000);
