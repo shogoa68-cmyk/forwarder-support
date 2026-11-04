@@ -6520,8 +6520,14 @@ body.qp-dash-active #quoteActionDock { display: none !important; }
 }
 #tab-quote-make .cloud-tag-chip button:hover { color: var(--red); }
 /* ダッシュボードカード：関連番号・メール件名（クリックで検索） */
-#tab-quote-make .cloud-preset-rel { display: flex; flex-wrap: wrap; gap: var(--sp-4); margin-top: var(--sp-6); }
-#tab-quote-make .cloud-rel-chip { cursor: pointer; max-width: 100%; text-align: left; word-break: break-all; }
+#tab-quote-make .cloud-ref-tree { display: flex; flex-direction: column; align-items: flex-start; margin: 2px 0 var(--sp-6) 2px; }
+#tab-quote-make .cloud-ref-tree-line {
+  border: none; background: none; padding: 1px 4px; border-radius: 4px; cursor: copy;
+  font: inherit; font-size: var(--fs-12); color: inherit; text-align: left; word-break: break-all;
+}
+#tab-quote-make .cloud-ref-tree-line:hover { background: rgba(0,0,0,.06); }
+#tab-quote-make .cloud-ref-tree-line.copied { background: rgba(60,160,90,.22); }
+#tab-quote-make .cloud-ref-tree-br { opacity: .55; font-family: ui-monospace, Menlo, Consolas, monospace; }
 #tab-quote-make .cloud-tag-add-btn {
   font-size: var(--fs-10-5); color: var(--accent); background: var(--bg); border: 1px dashed var(--border);
   border-radius: var(--r-10); padding: var(--sp-2) var(--sp-8); cursor: pointer;

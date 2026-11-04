@@ -992,13 +992,12 @@
           '</div>' +
         '</div>';
 
-      // 🔖 関連番号・メール件名（クリックでその値を検索＝同じ番号を登録した他案件もまとめて確認できる）
-      const relIco = { num: '🔢', mail: '✉️', other: '📎' };
+      // 🔖 関連番号・メール件名：管理番号の直下にツリー表示（クリックでその値をコピー。メーラーでの検索用）
       const relRowHtml = (m && Array.isArray(m.related) && m.related.length)
-        ? '<div class="cloud-preset-rel">' + m.related.map(e =>
-            '<button type="button" class="cloud-tag-chip cloud-rel-chip" data-v="' + escHtml(e.v) + '" ' +
-              'onclick="event.stopPropagation();cloudSearchInput(this.dataset.v)" title="クリックで同じ番号・件名の案件を検索">' +
-              relIco[e.k] + ' ' + escHtml(e.v) + '</button>'
+        ? '<div class="cloud-ref-tree">' + m.related.map(e =>
+            '<button type="button" class="cloud-ref-tree-line" data-v="' + escHtml(e.v) + '" ' +
+              'onclick="event.stopPropagation();copyRelValue(this)" title="クリックでコピー">' +
+              '<span class="cloud-ref-tree-br">|_</span> ' + escHtml(e.v) + '</button>'
           ).join('') + '</div>'
         : '';
 
@@ -1027,12 +1026,12 @@
             '<span class="cloud-card-name" title="' + escHtml(r.name) + '">' + escHtml(titleText) + selfGenBadge + '</span>' +
             '<button class="btn-ref-copy" data-ref="' + escHtml(titleText) + '" onclick="copyRefNumber(this.dataset.ref,this)" title="管理番号をコピー（&quot;番号&quot;形式）"><svg class="icon-copy" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="1" width="9" height="9" rx="1.5"/><rect x="1" y="4" width="9" height="9" rx="1.5"/></svg></button>' +
           '</div>' +
+          relRowHtml +
           // かんたん表示用：見出し（メモ1行目→ルート→REF#）とお客様名。詳細表示では CSS で非表示
           '<div class="cloud-card-headline" title="' + escHtml(headline) + '">' + escHtml(headline) + '</div>' +
           (custDd ? '<div class="cloud-card-cust">' + custDd + '</div>' : '') +
           prioRow +
           (memoLine ? '<div class="cloud-card-memo" title="' + escHtml(memoLine) + '">' + escHtml(memoLine) + '</div>' : '') +
-          relRowHtml +
           editBadge +
           progressHtml +
           '<dl class="cloud-kv">' +
