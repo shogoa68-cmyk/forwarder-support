@@ -4774,6 +4774,18 @@
     if (typeof window.qpShowDashboard === 'function') window.qpShowDashboard();
   };
 
+  // 関連番号・メール件名（ダッシュボードのツリー行）をそのままコピー（メーラー検索用）
+  window.copyRelValue = function(el) {
+    const text = (el && el.dataset && el.dataset.v) || '';
+    if (!text) return;
+    navigator.clipboard.writeText(text).then(() => {
+      if (el) { el.classList.add('copied'); setTimeout(() => el.classList.remove('copied'), 1200); }
+      if (typeof quoteShowToast === 'function') quoteShowToast('コピーしました：' + text, 'success', 2000);
+    }).catch(() => {
+      if (typeof quoteShowToast === 'function') quoteShowToast('⚠️ コピーに失敗しました', 'warn', 2000);
+    });
+  };
+
   // 管理番号を "番号" 形式でクリップボードにコピー
   window.copyRefNumber = function(ref, btn) {
     const text = '”' + ref + '”'; // “番号”（二重引用符）
