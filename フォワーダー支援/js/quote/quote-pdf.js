@@ -297,7 +297,7 @@
     const fmt = (typeof window.getHazEntryLabel === 'function') ? window.getHazEntryLabel : (() => '');
     const entries = (typeof window.getHazEntries === 'function') ? window.getHazEntries() : [];
     if (entries.length) return entries.map(fmt).filter(Boolean);
-    const single = fmt({ un: v('hz-un'), cls: v('hz-class'), pg: v('hz-pg'), pi: v('hz-pi'),
+    const single = fmt({ name: v('hz-name'), un: v('hz-un'), cls: v('hz-class'), pg: v('hz-pg'), pi: v('hz-pi'),
                           fireLaw: v('hz-fire-law'), psn: v('hz-psn'), flash: v('hz-flash') });
     return single ? [single] : [];
   }

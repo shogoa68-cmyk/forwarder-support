@@ -2964,26 +2964,27 @@
   }
 
   // ========== 危険品・特殊貨物：複数件登録 ==========
-  // 入力欄（UN番号／クラス／PG／PI／消防法／PSN／引火点）を「1件分のフォーム」として使い、
+  // 入力欄（製品名／UN番号／クラス／PG／PI／消防法／PSN／引火点）を「1件分のフォーム」として使い、
   // ＋ 追加のたびに _hazEntries へ積んでフォームをクリアする（幹線輸送の航路チップと同じ設計）。
   // 後方互換：1件も追加せずフォームに直接入力しただけの旧来の使い方は、_hazEntries が空のまま
   // 残るため、PDF側（quote-pdf.js の _hazmatDetail）がフォームの値をフォールバックとして拾う。
-  let _hazEntries = [];   // [{ un, cls, pg, pi, fireLaw, psn, flash }, ...]
+  let _hazEntries = [];   // [{ name(製品名), un, cls, pg, pi, fireLaw, psn, flash }, ...]
 
   function _hazFormGet() {
     const v = id => (document.getElementById(id)?.value || '').trim();
-    return { un: v('hz-un'), cls: v('hz-class'), pg: v('hz-pg'), pi: v('hz-pi'),
+    return { name: v('hz-name'), un: v('hz-un'), cls: v('hz-class'), pg: v('hz-pg'), pi: v('hz-pi'),
              fireLaw: v('hz-fire-law'), psn: v('hz-psn'), flash: v('hz-flash') };
   }
   function _hazFormSet(e) {
     const set = (id, val) => { const el = document.getElementById(id); if (el) el.value = val || ''; };
-    set('hz-un', e.un); set('hz-class', e.cls); set('hz-pg', e.pg); set('hz-pi', e.pi);
+    set('hz-name', e.name); set('hz-un', e.un); set('hz-class', e.cls); set('hz-pg', e.pg); set('hz-pi', e.pi);
     set('hz-fire-law', e.fireLaw); set('hz-psn', e.psn); set('hz-flash', e.flash);
   }
   function _hazFormClear() { _hazFormSet({}); }
   // 表示用の要約テキスト（チップ・PDF共通）
   function _hazEntryLabel(e) {
     const parts = [];
+    if (e.name)    parts.push(e.name);   // 製品名（正式品名 PSN とは別）を先頭に
     if (e.un)      parts.push('UN' + e.un.replace(/^UN/i, ''));
     if (e.cls)     parts.push(e.cls);
     if (e.pg)      parts.push(e.pg);
@@ -3004,7 +3005,7 @@
       const label = _hazEntryLabel(e) || '（未入力）';
       return `<span class="hz-entry-chip">`
         + `<span class="hz-entry-idx">${i + 1}</span>`
-        + `<span class="hz-entry-label">${_escMulti(e.psn || e.un || label)}</span>`
+        + `<span class="hz-entry-label">${_escMulti(e.name || e.psn || e.un || label)}</span>`
         + `<span class="hz-entry-sub">${_escMulti(label)}</span>`
         + `<button type="button" class="hz-entry-edit" onclick="editHazEntry(${i})" title="編集（フォームに書き戻す）">✎</button>`
         + `<button type="button" class="me-chip-del" onclick="removeHazEntry(${i})" title="削除">×</button></span>`;
@@ -3013,14 +3014,14 @@
 
   function addHazEntry() {
     const e = _hazFormGet();
-    if (!e.un && !e.psn) {
-      if (typeof quoteShowToast === 'function') quoteShowToast('⚠️ UN番号または正式品名（PSN）を入力してください', 'warn', 1800);
+    if (!e.name && !e.un && !e.psn) {
+      if (typeof quoteShowToast === 'function') quoteShowToast('⚠️ 製品名・UN番号・正式品名（PSN）のいずれかを入力してください', 'warn', 1800);
       return;
     }
     _hazEntries.push(e);
     _hazFormClear();
     _renderHazEntries();
-    document.getElementById('hz-un')?.focus();
+    document.getElementById('hz-name')?.focus();
     if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
     if (typeof scheduleSnapshot === 'function') scheduleSnapshot();
   }
@@ -3036,7 +3037,7 @@
     _hazFormSet(e);
     _hazEntries.splice(i, 1);
     _renderHazEntries();
-    document.getElementById('hz-un')?.focus();
+    document.getElementById('hz-name')?.focus();
     if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
     if (typeof scheduleSnapshot === 'function') scheduleSnapshot();
   }
