@@ -10,6 +10,7 @@
   'use strict';
 
   const MAX_VERSIONS = 30;
+  const MAX_FULL = 5;   // 明細の全項目（full）を持つのは直近この版数まで（案件データの肥大化を防ぐ）
   const PRESENTED = ['提示済み', '提出済み', 'ヨコヨコ提示'];
   const FIELDS = ['nm', 'bq', 'un', 'bc', 'bp', 'nt'];
   const LABELS = { nm: '品名', bq: '数量', un: '単位', bc: '通貨', bp: '単価', nt: '備考' };
@@ -46,22 +47,28 @@
   }
   // 現在の画面の客先向け内容
   const currentSnap = () => (typeof window.buildRevisionSnapshot === 'function' ? window.buildRevisionSnapshot() : null);
+  const currentFull = () => { try { return (typeof gatherAllData === 'function') ? gatherAllData().rows : null; } catch (e) { return null; } };
 
   // 版を 1 つ積んだ配列を返す（積まない＝内容が前の版と同じ／明細なし のときは null）
-  function appended(list, snap, status, by) {
+  // full：明細の全項目（gatherAllData().rows）。「この版に戻す」に使う。無ければ閲覧・差分のみ
+  function appended(list, snap, status, by, full) {
     if (!snap || !Array.isArray(snap.rows) || !snap.rows.length) return null;
     const last = list[list.length - 1];
     if (last && sameContent(last, snap)) return null;
     const v = (last ? last.v : 0) + 1;
-    const next = list.concat([{ v, ts: snap.ts || new Date().toISOString(), by: by || '', status: status || '', total: snap.total || '', rows: snap.rows }]);
-    return next.length > MAX_VERSIONS ? next.slice(next.length - MAX_VERSIONS) : next;
+    const entry = { v, ts: snap.ts || new Date().toISOString(), by: by || '', status: status || '', total: snap.total || '', rows: snap.rows };
+    if (Array.isArray(full) && full.length) entry.full = JSON.parse(JSON.stringify(full));
+    let next = list.concat([entry]);
+    if (next.length > MAX_VERSIONS) next = next.slice(next.length - MAX_VERSIONS);
+    next.forEach((e, i) => { if (e.full && i < next.length - MAX_FULL) delete e.full; });   // 古い版は全項目を手放す
+    return next;
   }
 
   // ---- 編集画面：ステータスが提示済みになった（setQuoteStatus から） ----
   window.qvOnStatus = function (status) {
     if (!isPresented(status)) return;
     const user = (window._cloudUserEmail || (typeof window.quoteCurrentUserEmail === 'function' ? window.quoteCurrentUserEmail() : '')) || '';
-    const next = appended(getList(), currentSnap(), status, user);
+    const next = appended(getList(), currentSnap(), status, user, currentFull());
     if (!next) return;
     setList(next);
     toast('📜 提示 v' + next[next.length - 1].v + ' を履歴に記録しました', 'success', 3000);
@@ -72,7 +79,7 @@
   window.qvOnPresentedData = function (newData, status, by) {
     if (!isPresented(status) || !newData || !newData.fields) return null;
     const snap = (typeof window.buildRevisionSnapshotFromRowsData === 'function') ? window.buildRevisionSnapshotFromRowsData(newData.rows) : null;
-    const next = appended(parseList(newData.fields['qf-versions']), snap, status, by);
+    const next = appended(parseList(newData.fields['qf-versions']), snap, status, by, newData.rows);
     return next ? JSON.stringify(next) : null;
   };
 
@@ -140,10 +147,22 @@
     if (typeof window.updateQuoteStatusUI === 'function') window.updateQuoteStatusUI();
     toast('📜 v' + v + ' を比較元にしました。PDF・メールには v' + v + ' からの変更点が出ます', 'success', 4500);
   };
+  // この版の明細に戻す（明細を丸ごと置き換え。条件・貨物情報は現在のまま。Ctrl+Z で取り消せる）
+  window.qvRestore = function (v) {
+    const e = getList().find(x => x.v === v); if (!e) return;
+    if (!e.full) { toast('ℹ️ v' + v + ' は古いため明細の詳細（仕入・乗せ幅など）を保持しておらず、戻せません（内容・差分の確認のみ可能）。戻せるのは直近 ' + MAX_FULL + ' 版です', 'info', 6000); return; }
+    const cur = currentSnap();
+    const last = getList()[getList().length - 1];
+    const unrecorded = cur && last && !sameContent(last, cur);
+    if (!confirm('v' + v + ' の明細に戻します。現在の明細は置き換わります（Ctrl+Z で元に戻せます）。\n条件・貨物情報などの明細以外は変わりません。' +
+        (unrecorded ? '\n\n⚠️ 現在の編集内容は、まだ提示版として記録されていません。' : '') + '\nよろしいですか？')) return;
+    if (typeof window.quoteReplaceRows !== 'function' || !window.quoteReplaceRows(e.full)) { toast('⚠️ 戻せませんでした', 'warn'); return; }
+    toast('📜 v' + v + ' の明細に戻しました（Ctrl+Z で取り消せます）。このまま提示済みにすると、新しい版として記録されます', 'success', 6000);
+  };
   window.qvRecordNow = function () {
     const st = ($('qf-status') && $('qf-status').value) || '';
     const user = (window._cloudUserEmail || (typeof window.quoteCurrentUserEmail === 'function' ? window.quoteCurrentUserEmail() : '')) || '';
-    const next = appended(getList(), currentSnap(), st, user);
+    const next = appended(getList(), currentSnap(), st, user, currentFull());
     if (!next) { toast('ℹ️ 内容が直前の版と同じ（または明細なし）のため、版は追加しません', 'info', 3500); return; }
     setList(next);
     toast('📜 提示 v' + next[next.length - 1].v + ' を記録しました', 'success', 3000);
@@ -161,7 +180,8 @@
         '<span class="qv-acts"><button type="button" onclick="qvShow(' + e.v + ')">内容</button>' +
         '<button type="button" onclick="qvDiffPrev(' + e.v + ')">前の版との差</button>' +
         '<button type="button" onclick="qvDiffNow(' + e.v + ')">現在との差</button>' +
-        '<button type="button" onclick="qvUseAsBase(' + e.v + ')" title="PDF・メールの「変更点」の比較元をこの版にします">比較元にする</button></span></div>').join('');
+        '<button type="button" onclick="qvUseAsBase(' + e.v + ')" title="PDF・メールの「変更点」の比較元をこの版にします">比較元にする</button>' +
+        '<button type="button" class="qv-restore' + (e.full ? '' : ' is-off') + '" onclick="qvRestore(' + e.v + ')" title="' + (e.full ? 'この版の明細に戻します（Ctrl+Z で取り消せます）' : '古い版のため明細の詳細を保持しておらず戻せません（直近 ' + MAX_FULL + ' 版のみ）') + '">この版に戻す</button></span></div>').join('');
     box.innerHTML = '<div class="qv-head">📜 提示履歴 <small>' + (list.length ? list.length + '版' : 'まだありません') + '</small>' +
       '<button type="button" class="qv-rec" onclick="qvRecordNow()" title="現在の内容を提示した版として記録します（提示済みにしたときは自動で記録されます）">＋ 現在の内容を提示版として記録</button></div>' + rows;
   }

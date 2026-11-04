@@ -11578,6 +11578,8 @@ body.is-row-dragging { cursor: grabbing; user-select: none; }
 #tab-quote-make .qv-acts { margin-left: auto; display: inline-flex; gap: 4px; flex-wrap: wrap; }
 #tab-quote-make .qv-acts button { font-size: var(--fs-11); padding: 1px 7px; border: 1px solid #c8b8a8; border-radius: 4px; background: var(--card-bg); cursor: pointer; font-family: inherit; }
 #tab-quote-make .qv-acts button:hover { background: #eef3fb; }
+#tab-quote-make .qv-acts .qv-restore { border-color: #c9a06a; color: #7a4a10; }
+#tab-quote-make .qv-acts .qv-restore.is-off { opacity: .45; }
 #tab-quote-make .cloud-card-ver { font-size: var(--fs-11-5); color: #2e6fd0; margin: 2px 0 var(--sp-6) 2px; cursor: default; }
 .qv-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.4); z-index: 10050; display: flex; align-items: center; justify-content: center; }
 .qv-box { background: #fff; color: #222; border-radius: 10px; width: min(640px, 94vw); max-height: 82vh; display: flex; flex-direction: column; box-shadow: 0 10px 40px rgba(0,0,0,.3); }

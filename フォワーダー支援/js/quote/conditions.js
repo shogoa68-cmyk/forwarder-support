@@ -463,6 +463,18 @@
     try { _rebuildTableRows(data); } finally { window.endQuoteBulkUpdate(); }
   }
 
+  // 明細（rows）だけを丸ごと置き換える（提示履歴 quote-versions.js の「この版に戻す」用）。
+  // 条件・貨物情報などの項目は現在のまま。置き換え前の状態を元に戻す（Ctrl+Z）の履歴へ積む。
+  window.quoteReplaceRows = function (rows) {
+    if (!Array.isArray(rows) || !rows.length) return false;
+    snapshotNow();                                   // 置き換え前の状態を確定（Ctrl+Z の戻り先）
+    const cur = gatherAllData();
+    cur.rows = JSON.parse(JSON.stringify(rows));
+    _applyQuoteData(cur);
+    scheduleSnapshot();                              // 置き換え後の状態を履歴へ
+    return true;
+  };
+
   function _rebuildTableRows(data) {
     document.getElementById('tableBody').innerHTML = '';
     rowCount = 0;
