@@ -3407,6 +3407,7 @@
 
   // ===== 物量情報を見積サマリに表示 =====
   window.renderQuoteCargoInfo = function () {
+    if (typeof window.refreshRowConditions === 'function') window.refreshRowConditions();   // 行の表示条件（コンテナ本数・総個数など）を判定し直す
     const el = document.getElementById('qspCargoInfo');
     if (!el) return;
     if (typeof window.renderFclLcl === 'function') window.renderFclLcl();   // FCL/LCL 損益分岐パネルの物量を追随
