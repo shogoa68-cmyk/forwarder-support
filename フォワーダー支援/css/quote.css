@@ -4838,23 +4838,6 @@ body.qp-dash-active #quoteActionDock { display: none !important; }
   text-align: center;
 }
 .fb-fab:hover { background: var(--accent-dk); transform: scale(1.08); }
-/* セクション末尾の小さめフィードバックボタン（見積タブ内のセクション末尾のみで使用） */
-.fb-section-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--sp-5);
-  margin-top: var(--sp-12);
-  background: var(--surface);
-  color: var(--accent);
-  border: 1px solid var(--accent);
-  border-radius: var(--r-5);
-  cursor: pointer;
-  padding: var(--sp-5) var(--sp-12);
-  font-size: var(--fs-11);
-  font-family: inherit;
-  transition: background .15s, color .15s;
-}
-.fb-section-btn:hover { background: var(--accent); color: var(--surface); }
 /* モーダル（独自フォーム → 裏でGoogle Form POST） */
 #fbOverlay {
   position: fixed;

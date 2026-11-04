@@ -4483,8 +4483,23 @@ html.theme-industry {
   border-radius: 0;
 }
 :where(html.theme-industry) .fb-section-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-5);
+  margin-top: var(--sp-12);
+  background: var(--surface);
+  color: var(--accent);
+  border: 1px solid var(--accent);
   border-radius: 0;
+  cursor: pointer;
+  padding: var(--sp-5) var(--sp-12);
+  font-size: var(--fs-11);
   font-family: var(--font-body,"Barlow"),"Noto Sans JP","Hiragino Kaku Gothic ProN",sans-serif;
+  transition: background .15s, color .15s;
+}
+:where(html.theme-industry) .fb-section-btn:hover {
+  background: var(--accent);
+  color: var(--surface);
 }
 :where(html.theme-industry) #fbBox {
   border-radius: 0;

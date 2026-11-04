@@ -1,6 +1,8 @@
 {
  "note": "デザイン変更で壊してはいけない、画面（HTML/CSS）と機能（JS）のつなぎ目の基準。node scripts/check-ui-contract.js --update で再生成。",
  "ids": [
+  "adminCreatorNew",
+  "adminCreatorNewList",
   "air-divisor",
   "air-rows-wrap",
   "backToQuoteFab",
@@ -232,7 +234,7 @@
   "hdrCloudUser",
   "hdrUserMgrBtn",
   "hz-entries-data",
-  "hz-un",
+  "hz-name",
   "hzEntryList",
   "incoLabel",
   "incoRetGroup",
@@ -368,6 +370,7 @@
   "qf-ref",
   "qf-refurl",
   "qf-refurl-view",
+  "qf-related-data",
   "qf-revision-baseline",
   "qf-revision-hide-diff",
   "qf-scope",
@@ -384,6 +387,9 @@
   "qfMemoFloatHead",
   "qfMemoPopout",
   "qfPersonSuggestions",
+  "qfRelChips",
+  "qfRelInput",
+  "qfRelKind",
   "qfRevisionBtn",
   "qfRevisionFilters",
   "qfRevisionOptions",
@@ -1083,6 +1089,14 @@
    "uses": 1,
    "defined": true
   },
+  "hzAiCopyPrompt": {
+   "uses": 1,
+   "defined": true
+  },
+  "hzAiImport": {
+   "uses": 1,
+   "defined": true
+  },
   "importRowPatternsFile": {
    "uses": 1,
    "defined": true
@@ -1272,7 +1286,7 @@
    "defined": true
   },
   "onZ2CarrierChange": {
-   "uses": 1,
+   "uses": 2,
    "defined": true
   },
   "onZonePiecesInput": {
@@ -1309,10 +1323,6 @@
   },
   "openEmailImport": {
    "uses": 2,
-   "defined": true
-  },
-  "openFeedback": {
-   "uses": 8,
    "defined": true
   },
   "openMemoPopout": {
@@ -1403,6 +1413,10 @@
    "uses": 1,
    "defined": true
   },
+  "qfAddRelFromInput": {
+   "uses": 1,
+   "defined": true
+  },
   "qfAddTagFromInput": {
    "uses": 1,
    "defined": true
@@ -1416,6 +1430,10 @@
    "defined": true
   },
   "qfEditCustomerDetail": {
+   "uses": 1,
+   "defined": true
+  },
+  "qfRelKeydown": {
    "uses": 1,
    "defined": true
   },
@@ -1852,6 +1870,14 @@
   "actual-cost-btn": {
    "css": true,
    "html": true
+  },
+  "admin-creator-cancel": {
+   "css": false,
+   "html": false
+  },
+  "admin-creator-ok": {
+   "css": true,
+   "html": false
   },
   "bm-carrier-locked": {
    "css": true,
@@ -3090,6 +3116,10 @@
    "html": false
   },
   "quote-warn-field": {
+   "css": true,
+   "html": false
+  },
+  "qv-close": {
    "css": true,
    "html": false
   },
@@ -4515,6 +4545,9 @@
   "js/quote/cloud-config.js",
   "js/quote/cloud.js",
   "js/quote/users.js",
+  "js/quote/hazmat-ai-import.js",
+  "js/quote/quote-versions.js",
+  "js/quote/admin-creator-edit.js",
   "js/quote/subcon-insert.js",
   "js/quote/email-import.js",
   "js/quote/subcon-request-mail.js",

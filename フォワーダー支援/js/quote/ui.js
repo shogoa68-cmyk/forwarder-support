@@ -3903,7 +3903,6 @@
   const TAB_SKIP_SEL = [
     '.cc-step',                 // コンテナ本数の −／＋（数値欄は ↑↓ で増減できる）
     '.section-help-btn',        // 見出しの「?」（ホバーでも説明が出る）
-    '.fb-section-btn',          // セクションごとのフィードバック（右下の 💬 からも送れる）
     '.cargo-ref-chip',          // 貨物欄の参考リンク（他法令・税関・各省庁）
     '.hs-tariff-link',          // HS 欄の「WEBタリフ ↗」（参考リンクにも同じものがある）
     '#presetBtns button',       // リマークの定型文・区切り線（本文欄へ直接入れられる）
