@@ -387,6 +387,7 @@
         r.name, r.customer, r.person, r.owner_email, r.created_by,
         m && m.ref, m && m.customer, m && m.person, m && m.memo,
         m && Array.isArray(m.subcons) && m.subcons.map(s => s.name).join(' '),
+        m && Array.isArray(m.related) && m.related.map(e => e.v).join(' '),   // 関連番号・メール件名
       ].filter(Boolean).join(' ').toLowerCase();
     }
     // 表示名（プロフィール）は後追いロードされるためキャッシュに含めず毎回付加
@@ -991,6 +992,16 @@
           '</div>' +
         '</div>';
 
+      // 🔖 関連番号・メール件名（クリックでその値を検索＝同じ番号を登録した他案件もまとめて確認できる）
+      const relIco = { num: '🔢', mail: '✉️', other: '📎' };
+      const relRowHtml = (m && Array.isArray(m.related) && m.related.length)
+        ? '<div class="cloud-preset-rel">' + m.related.map(e =>
+            '<button type="button" class="cloud-tag-chip cloud-rel-chip" data-v="' + escHtml(e.v) + '" ' +
+              'onclick="event.stopPropagation();cloudSearchInput(this.dataset.v)" title="クリックで同じ番号・件名の案件を検索">' +
+              relIco[e.k] + ' ' + escHtml(e.v) + '</button>'
+          ).join('') + '</div>'
+        : '';
+
       // 🏷️ 案件タグ（ダッシュボードから直接追加/削除できる）
       const rowTags = Array.isArray(r.tags) ? r.tags : [];
       const tagsRowHtml =
@@ -1021,6 +1032,7 @@
           (custDd ? '<div class="cloud-card-cust">' + custDd + '</div>' : '') +
           prioRow +
           (memoLine ? '<div class="cloud-card-memo" title="' + escHtml(memoLine) + '">' + escHtml(memoLine) + '</div>' : '') +
+          relRowHtml +
           editBadge +
           progressHtml +
           '<dl class="cloud-kv">' +
@@ -3208,6 +3220,7 @@
     const newRef = typeof generateQuoteRefValue === 'function' ? generateQuoteRefValue() : null;
     if (newRef) newData.fields['qf-ref'] = newRef;
     delete newData.fields['qf-core-ref'];   // 基幹REF#は手配した案件に固有のため、コピーには引き継がない
+    delete newData.fields['qf-related-data'];   // 関連番号・メール件名も元の引き合いに固有のため引き継がない
     const existingNames = _cloudRows.map(r => r.name);
     let baseName = src.name + ' のコピー';
     let copyName = baseName;

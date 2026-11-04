@@ -1784,7 +1784,17 @@
       pod     = routes.map(r => r.pod).filter(Boolean).join(', ');
       carrier = routes.map(r => r.carrier).filter(Boolean).join(', ');
     }
+    // 🔖 関連番号・メール件名（管理番号を取る前に始めた案件のフォロー用）
+    let related = [];
+    try {
+      const rl = JSON.parse(f['qf-related-data'] || '[]');
+      if (Array.isArray(rl)) {
+        related = rl.map(e => ({ k: (e && (e.k === 'num' || e.k === 'mail')) ? e.k : 'other', v: String((e && e.v) || '').trim() }))
+                    .filter(e => e.v);
+      }
+    } catch (e) {}
     return {
+      related,
       ref:       (f['qf-ref']         || '').trim(),
       customer:  (f['qf-customer']    || '').trim(),
       person:    (f['qf-person']      || '').trim(),
