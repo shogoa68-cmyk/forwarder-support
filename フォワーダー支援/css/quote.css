@@ -11523,3 +11523,22 @@ body.is-row-dragging { cursor: grabbing; user-select: none; }
 
 /* スマホ幅（Industry）のツールバー「⋯」に集約する項目（ブラウザ保存）。それ以外の幅・現行デザインでは出さない */
 #tab-quote-make .tb-menu-panel .tb-mi-mobile { display: none; }
+
+/* ===== 作成者の変更（管理者・一時機能）。やめるときはこのブロックごと削除（docs/sql/admin-edit-creator.sql 参照） ===== */
+#tab-quote-make .cloud-card-crt-edit {
+  border: none; background: none; cursor: pointer; padding: 0 3px; margin-left: 2px;
+  font-size: var(--fs-12); color: var(--text-md); opacity: .55; line-height: 1;
+}
+#tab-quote-make .cloud-card-crt-edit:hover { opacity: 1; color: var(--accent); }
+.admin-creator-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.4); z-index: 10050; display: flex; align-items: center; justify-content: center; }
+.admin-creator-box { background: #fff; color: #222; border-radius: 10px; padding: 18px 20px; width: min(440px, 92vw); box-shadow: 0 10px 40px rgba(0,0,0,.3); }
+.admin-creator-title { font-weight: 700; font-size: 15px; margin-bottom: 6px; }
+.admin-creator-title small { font-weight: 400; font-size: 11px; color: #a33; margin-left: 6px; }
+.admin-creator-case { font-size: 13px; font-weight: 600; margin-bottom: 2px; word-break: break-all; }
+.admin-creator-now { font-size: 12px; color: #666; margin-bottom: 10px; word-break: break-all; }
+.admin-creator-lbl { display: block; font-size: 12px; margin-bottom: 4px; }
+.admin-creator-box input { width: 100%; box-sizing: border-box; padding: 7px 9px; border: 1px solid #bbb; border-radius: 6px; font-size: 13px; }
+.admin-creator-note { font-size: 11px; color: #777; margin: 8px 0 12px; }
+.admin-creator-actions { display: flex; justify-content: flex-end; gap: 8px; }
+.admin-creator-actions button { padding: 6px 14px; border-radius: 6px; border: 1px solid #bbb; background: #f3f3f3; cursor: pointer; font-size: 13px; }
+.admin-creator-actions .admin-creator-ok { background: #2e6fd0; border-color: #2e6fd0; color: #fff; font-weight: 600; }
