@@ -13,8 +13,9 @@
 --   1) Supabase で:  drop function if exists public.quote_admin_set_creator(text, text);
 --   2) フォワーダー支援/js/quote/admin-creator-edit.js を削除
 --   3) フォワーダー支援/index.html の <script src="js/quote/admin-creator-edit.js"> の 1 行を削除
---   4) フォワーダー支援/js/quote/cloud.js の「adminCreatorEditBtn」を呼ぶ 1 行を削除
---   5) フォワーダー支援/css/quote.css の「作成者の変更（管理者・一時機能）」ブロックを削除
+--   4) フォワーダー支援/js/quote/cloud.js の「adminCreatorEditBtn」「adminApplyCreatorToNew」「cloudIsUnsavedNew」を使う 3 行を削除
+--   5) フォワーダー支援/index.html の <div id="adminCreatorNew"> ブロック（新規案件の作成者を指定する欄）を削除
+--   6) フォワーダー支援/css/quote.css の「作成者の変更（管理者・一時機能）」ブロックを削除
 -- ============================================================
 create or replace function public.quote_admin_set_creator(p_id text, p_email text)
 returns text

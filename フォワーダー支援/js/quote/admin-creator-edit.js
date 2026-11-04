@@ -80,4 +80,53 @@
     inp.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.isComposing) { e.preventDefault(); submit(); } if (e.key === 'Escape') _close(); });
     inp.focus(); inp.select();
   };
+
+  // ---------- 新規案件を「作成者を指定して」保存する ----------
+  // 編集画面の管理番号入力に、管理者で未保存の新規案件のときだけ「作成者を指定して保存」欄を出す。
+  // 最初の保存（insert）の直後に cloud.js から adminApplyCreatorToNew が呼ばれ、同じ RPC で作成者を付け替える。
+  let _nameToEmail = {};
+  let _loaded = false;
+  async function _loadMembers() {
+    if (_loaded) return;
+    const db = (typeof window.quoteCloudClient === 'function') ? window.quoteCloudClient() : null;
+    if (!db) return;
+    _loaded = true;
+    const members = await _members(db);
+    _nameToEmail = {};
+    const dl = document.getElementById('adminCreatorNewList');
+    if (dl) dl.innerHTML = members.map(m => { _nameToEmail[nameOf(m)] = m; return '<option value="' + esc(m) + '" label="' + esc(nameOf(m)) + '"></option>'; }).join('');
+  }
+  const _newInput = () => document.querySelector('#adminCreatorNew input');
+  function _resolve(v) {
+    v = (v || '').trim();
+    if (!v) return '';
+    if (_nameToEmail[v]) return _nameToEmail[v];   // 表示名で入力されたらメールに直す
+    return v.toLowerCase();
+  }
+  function _refresh() {
+    const box = document.getElementById('adminCreatorNew');
+    if (!box) return;
+    const tab = document.getElementById('tab-quote-make');
+    const inEditor = !!tab && !tab.classList.contains('qp-dash') && tab.classList.contains('active');
+    const show = isAdmin() && inEditor && typeof window.cloudIsUnsavedNew === 'function' && window.cloudIsUnsavedNew();
+    if (box.hidden === show) box.hidden = !show;
+    if (show) _loadMembers();
+  }
+  setInterval(_refresh, 1000);   // 一時機能のため、画面の遷移・保存に追従する簡易な方式
+
+  window.adminApplyCreatorToNew = async function (newId) {
+    const inp = _newInput();
+    const email = _resolve(inp && inp.value);
+    if (!email || !isAdmin()) return;
+    const db = (typeof window.quoteCloudClient === 'function') ? window.quoteCloudClient() : null;
+    if (!db) return;
+    let res;
+    try { res = await db.rpc('quote_admin_set_creator', { p_id: newId, p_email: email }); } catch (e) { res = { error: e }; }
+    if (res && !res.error && res.data === 'OK') {
+      toast('✅ 作成者を ' + nameOf(email) + ' に設定しました', 'success');
+      if (inp) inp.value = '';
+    } else {
+      toast('⚠️ 作成者の指定に失敗しました（案件は自分の名義で保存されています）。一覧の ✎ から変更できます', 'warn', 8000);
+    }
+  };
 })();
