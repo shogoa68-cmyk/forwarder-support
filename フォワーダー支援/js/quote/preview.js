@@ -220,7 +220,7 @@
       const _actual = tr.dataset.actual === '1';   // 実費（金額未確定）
       const _cond   = tr.dataset.cond === '1';     // 都度請求（発生時のみ・合計外）
       const _ref    = tr.dataset.refInfo === '1';  // 参考情報（金額は表示・合計外）
-      data.push({ taxed, cat, name, pq, un, pc, pp, cd, bq, bc, bp, mk, cost, bill, profit, ppmin: val(`ppmin-${id}`), bpmin: val(`bpmin-${id}`), note, sv, _actual, _cond, _ref });
+      data.push({ taxed, cat, name, pq, un, pc, pp, cd, bq, bc, bp, mk, cost, bill, profit, ppmin: val(`ppmin-${id}`), bpmin: val(`bpmin-${id}`), note, sv, _actual, _cond, _ref, zc: document.getElementById(`zc-${id}`)?.value === '1' });
     });
     return data;
   }
@@ -1504,7 +1504,7 @@
   ];
 
   function copyTSV() {
-    const data = collectData();
+    const data = collectData().filter(d => !d.zc);   // 0円確認済み行はプレビューと同じく出力しない
     if (!data.length) return;
     if (!_pvBypassed && !preOutputValidationGate('クリップボードコピー', copyTSV)) return;
     _pvBypassed = false;
@@ -1791,7 +1791,7 @@
     if (!_pvBypassed && !preOutputValidationGate('Excel 出力', exportExcel)) return;
     _pvBypassed = false;
     if (!sensitiveColumnsGate('Excel 出力')) return;
-    const allRows = collectAllRows().filter(r => !r._hideQuote);  // 見積書非表示の行は出力しない
+    const allRows = collectAllRows().filter(r => !r._hideQuote && !r.zc);  // 見積書非表示・0円確認済みの行は出力しない（プレビューと同じ）
     const data = allRows.filter(r => r._type === 'data');
     if (!data.length) { alert('行がありません。'); return; }
     const hdr = getQuoteHeader();
