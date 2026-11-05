@@ -24,9 +24,6 @@ import { createClient } from 'npm:@supabase/supabase-js@2';
 const SB_URL = Deno.env.get('SUPABASE_URL')!;
 const SB_ANON = Deno.env.get('SUPABASE_ANON_KEY')!;
 const SB_SERVICE = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-const G_ID = Deno.env.get('GOOGLE_CLIENT_ID') ?? '';
-const G_SECRET = Deno.env.get('GOOGLE_CLIENT_SECRET') ?? '';
-const G_REFRESH = Deno.env.get('GOOGLE_REFRESH_TOKEN') ?? '';
 const ORIGINS = (Deno.env.get('WF_ALLOWED_ORIGINS') ?? '').split(',').map((s) => s.trim()).filter(Boolean);
 const MAX_FILE = Number(Deno.env.get('WF_MAX_FILE_BYTES') ?? 2 * 1024 * 1024 * 1024);
 
@@ -67,11 +64,15 @@ async function authUser(req: Request): Promise<{ email: string } | null> {
 let _tok: { v: string; exp: number } | null = null;
 async function driveToken(): Promise<string> {
   if (_tok && _tok.exp > Date.now() + 60_000) return _tok.v;
-  if (!G_ID || !G_SECRET || !G_REFRESH) throw new Error('drive_not_configured');
+  // 鍵は毎回読む（`supabase secrets set` で更新したとき、起動済みのインスタンスが古い鍵を持ち続けないように）
+  const gId = Deno.env.get('GOOGLE_CLIENT_ID') ?? '';
+  const gSecret = Deno.env.get('GOOGLE_CLIENT_SECRET') ?? '';
+  const gRefresh = Deno.env.get('GOOGLE_REFRESH_TOKEN') ?? '';
+  if (!gId || !gSecret || !gRefresh) throw new Error('drive_not_configured');
   const r = await fetch('https://oauth2.googleapis.com/token', {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: new URLSearchParams({ client_id: G_ID, client_secret: G_SECRET, refresh_token: G_REFRESH, grant_type: 'refresh_token' }),
+    body: new URLSearchParams({ client_id: gId, client_secret: gSecret, refresh_token: gRefresh, grant_type: 'refresh_token' }),
   });
   const j = await r.json().catch(() => ({}));
   if (!r.ok || !j.access_token) throw new Error('drive_auth_failed:' + (j.error ?? r.status));
@@ -247,6 +248,11 @@ Deno.serve(async (req) => {
   } catch (e) {
     const m = String((e as Error)?.message ?? e);
     if (m.startsWith('drive_not_configured')) return fail(req, 503, 'not_configured', '管理者のドライブの接続が未設定です');
+    // 鍵の期限切れ（Google の「テスト中」のアプリは、鍵が 7 日で切れる）。メンバーには管理者へ知らせるよう案内する
+    if (m.startsWith('drive_auth_failed')) {
+      console.error('[workfolder] drive token problem:', m);
+      return fail(req, 503, 'token_expired', '管理者のドライブとの接続が切れています。管理者に「作業フォルダの鍵の更新」を依頼してください。');
+    }
     console.error('[workfolder]', m);
     return fail(req, 500, 'server_error', 'サーバーでエラーが起きました');
   }
