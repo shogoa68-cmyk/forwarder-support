@@ -3452,26 +3452,6 @@
   const _collapsedGroups   = new Set();
   const _excludedGroups    = new Set();
   const _collapsedPatterns = new Set(); // svKey + '\x00' + ptKey
-  // 小計行の「注記 ▾」（客先表示名・リマークの入力欄の開閉。Industry 用。現行デザインは常に並べて表示）
-  const _openNotes = new Set();   // svKey + '\x00' + ptKey（再描画しても開閉を保つ）
-  function _syncNotesBtn(sub) {
-    const btn = sub.querySelector('.st-notes-btn');
-    if (!btn) return;
-    const has = Array.from(sub.querySelectorAll('.st-notes input[type="text"]')).some(i => i.value.trim());
-    btn.classList.toggle('has-value', has);
-  }
-  function _wireNotes(sub, nkey) {
-    const btn = sub.querySelector('.st-notes-btn');
-    if (!btn) return;
-    sub.classList.toggle('is-notes-open', _openNotes.has(nkey));
-    btn.addEventListener('click', e => {
-      e.stopPropagation();
-      if (_openNotes.has(nkey)) _openNotes.delete(nkey); else _openNotes.add(nkey);
-      sub.classList.toggle('is-notes-open', _openNotes.has(nkey));
-    });
-    sub.addEventListener('input', () => _syncNotesBtn(sub));
-    _syncNotesBtn(sub);
-  }
   const _collapsedCats     = new Set(); // svKey + '\x00' + ptKey + '\x00' + catKey（Industry テーマのカテゴリ見出し用）
   const _excludedPatterns  = new Set(); // svKey + '\x00' + ptKey
   // サブコン別小計の「客先用表示名」（sv キー → 置換テキスト）。客先向け出力でサブコン名を隠すために使う。
@@ -3977,6 +3957,20 @@
             `<button type="button" class="sv-master-chip" hidden></button>` +
             `<button type="button" class="sv-hdr-btn sv-hdr-detail" hidden>📇 詳細</button>` +
             `<button type="button" class="sv-hdr-btn sv-hdr-bm" hidden>🔖 BOOKMARK</button>` +
+            // 客先表示名・サブコン別リマークの入力は、この見出しの行内に置く（以前はグループ末尾の小計行にあった）
+            `<span class="hdr-notes">` +
+              `<span class="hdr-note hdr-note-alias" title="客先向け出力（プレビュー・御見積書PDF）で、このサブコンの小計の「${_escAttr(label)}」をここに入力した名前へ置換します。空欄ならサブコン名のまま。">` +
+                `<i>客先表示名</i>` +
+                `<input type="text" class="subcon-alias-input" placeholder="例）国内諸費用 一式（任意）" value="${_escAttr(_subconAlias[key] || '')}" />` +
+              `</span>` +
+              `<span class="hdr-note hdr-note-remark" title="このサブコンに関する注記。「見積書に表示」がONの間だけ客先向け出力（プレビュー・御見積書PDF）にも表示されます。">` +
+                `<i>📝 サブコン別リマーク</i>` +
+                `<input type="text" class="subcon-remark-input" placeholder="このサブコンへの注記（任意）" value="${_escAttr((_subconRemark[key] || {}).text || '')}" />` +
+                `<button type="button" class="subcon-remark-toggle${(_subconRemark[key] || { show: true }).show ? ' is-shown' : ''}" ` +
+                  `title="${(_subconRemark[key] || { show: true }).show ? 'クリックで見積書には表示しない（社内用）にする' : 'クリックで見積書にも表示する'}">` +
+                  `${(_subconRemark[key] || { show: true }).show ? '📄 見積書に表示' : '🔒 非表示'}</button>` +
+              `</span>` +
+            `</span>` +
             `<span class="subcon-group-sum"></span>` +
             `<button type="button" class="subcon-group-excl${excluded ? ' is-excluded' : ''}" ` +
               `title="見積もりへの含める/除外を切り替え">${excluded ? '含む' : '除外'}</button>` +
@@ -4018,6 +4012,48 @@
           sortGroupByCategory(key, '');
         });
         _attachGroupUpdatedControl(hdr, key, '');
+        // 客先表示名・サブコン別リマーク（見出しの行内の入力欄）
+        { const aliasInp = hdr.querySelector('.subcon-alias-input');
+          if (aliasInp) {
+            aliasInp.addEventListener('input', () => {
+              const v = aliasInp.value.trim();
+              if (v) _subconAlias[key] = v; else delete _subconAlias[key];
+              if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
+            });
+            // 入力欄クリックで折りたたみ等の親ハンドラに伝播しないように
+            aliasInp.addEventListener('click', e => e.stopPropagation());
+          }
+          const remarkInp    = hdr.querySelector('.subcon-remark-input');
+          const remarkToggle = hdr.querySelector('.subcon-remark-toggle');
+          if (remarkInp) {
+            remarkInp.addEventListener('input', () => {
+              const t = remarkInp.value;
+              if (t.trim()) {
+                const cur = _subconRemark[key] || { show: true };
+                cur.text = t;
+                _subconRemark[key] = cur;
+              } else {
+                delete _subconRemark[key];
+              }
+              if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
+            });
+            remarkInp.addEventListener('click', e => e.stopPropagation());
+          }
+          if (remarkToggle) {
+            remarkToggle.addEventListener('click', e => {
+              e.stopPropagation();
+              const t = remarkInp ? remarkInp.value : '';
+              const cur = _subconRemark[key] || { text: t, show: true };
+              cur.show = !cur.show;
+              cur.text = t;
+              if (t.trim()) _subconRemark[key] = cur; else delete _subconRemark[key];
+              remarkToggle.classList.toggle('is-shown', cur.show);
+              remarkToggle.textContent = cur.show ? '📄 見積書に表示' : '🔒 非表示';
+              remarkToggle.title = cur.show ? 'クリックで見積書には表示しない（社内用）にする' : 'クリックで見積書にも表示する';
+              if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
+            });
+          }
+        }
         initGroupHeaderDrag(hdr, key);
         // 案B：グループ別アクセント色をヘッダー＋配下データ行に伝播（左スパイン／ティント用）
         const _accent = _groupAccent(key);
@@ -4042,7 +4078,6 @@
         sub.dataset.svKey   = key;
         sub.dataset.subSum  = '1';
         sub.className = 'subcon-group-subtotal';
-        const remarkObj = _subconRemark[key] || { text: '', show: true };
         sub.innerHTML =
           `<td colspan="10" class="subcon-group-subtotal-cell">` +
             `<div class="subcon-subtotal-inner">` +
@@ -4052,69 +4087,14 @@
               `<span class="st-metric st-margin"><i>粗利率</i><b class="subcon-subtotal-margin">—</b></span>` +
               `<button type="button" class="subcon-subtotal-add-btn" ` +
                 `title="${_escAttr(label)} に行を追加（このサブコン末尾）">＋ 行追加</button>` +
-              // 客先表示名・リマークの入力は .st-notes で包む（現行は並べて表示。Industry は「注記 ▾」で開閉）
-              `<button type="button" class="st-notes-btn" title="客先表示名・サブコン別リマークの入力を開閉">注記 ▾</button>` +
-              `<span class="st-notes">` +
-                `<span class="st-alias" title="客先向け出力（プレビュー・御見積書PDF）で、この小計の「${_escAttr(label)}」をここに入力した名前へ置換します。空欄ならサブコン名のまま。">` +
-                  `<i>客先表示名</i>` +
-                  `<input type="text" class="subcon-alias-input" placeholder="例）国内諸費用 一式（任意）" value="${_escAttr(_subconAlias[key] || '')}" />` +
-                `</span>` +
-                `<span class="st-remark" title="このサブコンに関する注記。「見積書に表示」がONの間だけ客先向け出力（プレビュー・御見積書PDF）にも表示されます。">` +
-                  `<i>📝 サブコン別リマーク</i>` +
-                  `<input type="text" class="subcon-remark-input" placeholder="このサブコンへの注記（任意）" value="${_escAttr(remarkObj.text || '')}" />` +
-                  `<button type="button" class="subcon-remark-toggle${remarkObj.show ? ' is-shown' : ''}" ` +
-                    `title="${remarkObj.show ? 'クリックで見積書には表示しない（社内用）にする' : 'クリックで見積書にも表示する'}">` +
-                    `${remarkObj.show ? '📄 見積書に表示' : '🔒 非表示'}</button>` +
-                `</span>` +
-              `</span>` +
             `</div>` +
           `</td>`;
         // 末尾行の次（既存の小計・リマーク行があればその手前）に挿入
-        const aliasInp = sub.querySelector('.subcon-alias-input');
-        if (aliasInp) {
-          aliasInp.addEventListener('input', () => {
-            const v = aliasInp.value.trim();
-            if (v) _subconAlias[key] = v; else delete _subconAlias[key];
-            if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
-          });
-          // 入力欄クリックで折りたたみ等の親ハンドラに伝播しないように
-          aliasInp.addEventListener('click', e => e.stopPropagation());
-        }
         const addBtn = sub.querySelector('.subcon-subtotal-add-btn');
         if (addBtn) {
           addBtn.addEventListener('click', e => {
             e.stopPropagation();
             addRowToSubconGroup(key === _UNSET_KEY ? '' : label, '');
-          });
-        }
-        const remarkInp    = sub.querySelector('.subcon-remark-input');
-        const remarkToggle = sub.querySelector('.subcon-remark-toggle');
-        if (remarkInp) {
-          remarkInp.addEventListener('input', () => {
-            const t = remarkInp.value;
-            if (t.trim()) {
-              const cur = _subconRemark[key] || { show: true };
-              cur.text = t;
-              _subconRemark[key] = cur;
-            } else {
-              delete _subconRemark[key];
-            }
-            if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
-          });
-          remarkInp.addEventListener('click', e => e.stopPropagation());
-        }
-        if (remarkToggle) {
-          remarkToggle.addEventListener('click', e => {
-            e.stopPropagation();
-            const t = remarkInp ? remarkInp.value : '';
-            const cur = _subconRemark[key] || { text: t, show: true };
-            cur.show = !cur.show;
-            cur.text = t;
-            if (t.trim()) _subconRemark[key] = cur; else delete _subconRemark[key];
-            remarkToggle.classList.toggle('is-shown', cur.show);
-            remarkToggle.textContent = cur.show ? '📄 見積書に表示' : '🔒 非表示';
-            remarkToggle.title = cur.show ? 'クリックで見積書には表示しない（社内用）にする' : 'クリックで見積書にも表示する';
-            if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
           });
         }
         // lastRow の直後に付随する typed 行（社内メモ・備考等）をスキップして小計を挿入
@@ -4125,7 +4105,6 @@
           nextSib = lastGroupRow.nextSibling;
         }
         sub.style.setProperty('--grp-accent', _groupAccent(key));
-        _wireNotes(sub, key + '\x00');
         tbody.insertBefore(sub, lastGroupRow.nextSibling);
       });
       // 内側グループ（サブコン配下のパターン／港ペア）を挿入：
@@ -4150,8 +4129,6 @@
             sub.dataset.ptKey   = curKey || '';
             sub.className = 'subcon-pattern-subtotal';
             const _svLabel = curSvKey === _UNSET_KEY ? '' : (groupLabel[curSvKey] || '');
-            const _rmKey = _remarkKey(curSvKey || _UNSET_KEY, curKey);
-            const _remarkObj = _subconRemark[_rmKey] || { text: '', show: true };
             sub.innerHTML =
               `<td colspan="10" class="subcon-pattern-subtotal-cell">` +
                 `<div class="subcon-subtotal-inner subcon-subtotal-inner--pt">` +
@@ -4162,16 +4139,6 @@
                   `<button type="button" class="subcon-subtotal-add-btn subcon-pt-add-btn" ` +
                     `data-sv="${_escAttr(_svLabel)}" data-pt="${_escAttr(curKey)}" ` +
                     `title="${_escAttr(_ptLabel)} に行を追加（このパターン末尾）">＋ 行追加</button>` +
-                  `<button type="button" class="st-notes-btn" title="パターン別リマークの入力を開閉">注記 ▾</button>` +
-                  `<span class="st-notes">` +
-                    `<span class="st-remark" title="このパターンに関する注記。「見積書に表示」がONの間だけ客先向け出力（プレビュー・御見積書PDF・メール）にも表示されます。">` +
-                      `<i>📝 パターン別リマーク</i>` +
-                      `<input type="text" class="subcon-remark-input" placeholder="このパターンへの注記（任意）" value="${_escAttr(_remarkObj.text || '')}" />` +
-                      `<button type="button" class="subcon-remark-toggle${_remarkObj.show ? ' is-shown' : ''}" ` +
-                        `title="${_remarkObj.show ? 'クリックで見積書には表示しない（社内用）にする' : 'クリックで見積書にも表示する'}">` +
-                        `${_remarkObj.show ? '📄 見積書に表示' : '🔒 非表示'}</button>` +
-                    `</span>` +
-                  `</span>` +
                 `</div>` +
               `</td>`;
             sub.querySelector('.subcon-pt-add-btn')?.addEventListener('click', (e => {
@@ -4180,37 +4147,6 @@
               const pt = sub.querySelector('.subcon-pt-add-btn').dataset.pt;
               addRowToSubconGroup(sv, pt);
             }));
-            const _ptRemarkInp    = sub.querySelector('.subcon-remark-input');
-            const _ptRemarkToggle = sub.querySelector('.subcon-remark-toggle');
-            if (_ptRemarkInp) {
-              _ptRemarkInp.addEventListener('input', () => {
-                const t = _ptRemarkInp.value;
-                if (t.trim()) {
-                  const cur = _subconRemark[_rmKey] || { show: true };
-                  cur.text = t;
-                  _subconRemark[_rmKey] = cur;
-                } else {
-                  delete _subconRemark[_rmKey];
-                }
-                if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
-              });
-              _ptRemarkInp.addEventListener('click', e => e.stopPropagation());
-            }
-            if (_ptRemarkToggle) {
-              _ptRemarkToggle.addEventListener('click', e => {
-                e.stopPropagation();
-                const t = _ptRemarkInp ? _ptRemarkInp.value : '';
-                const cur = _subconRemark[_rmKey] || { text: t, show: true };
-                cur.show = !cur.show;
-                cur.text = t;
-                if (t.trim()) _subconRemark[_rmKey] = cur; else delete _subconRemark[_rmKey];
-                _ptRemarkToggle.classList.toggle('is-shown', cur.show);
-                _ptRemarkToggle.textContent = cur.show ? '📄 見積書に表示' : '🔒 非表示';
-                _ptRemarkToggle.title = cur.show ? 'クリックで見積書には表示しない（社内用）にする' : 'クリックで見積書にも表示する';
-                if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
-              });
-            }
-            _wireNotes(sub, (curSvKey || _UNSET_KEY) + '\x00' + curKey);
             tbody.insertBefore(sub, beforeNode);
           }
           runOpen = false; curKey = null; curKind = null;
@@ -4242,6 +4178,21 @@
               const _isUnsetPt = key === _PT_UNSET;
               sh.className = 'subcon-subgroup-header is-pattern' + (_isUnsetPt ? ' is-pt-unset' : '') + (_ptExcluded ? ' is-excluded' : '');
               const icon = '🔖';
+              // パターン別リマークの入力は、このパターン見出しの行内に置く（以前はパターン末尾の小計行にあった）。
+              // 小計行を出す条件（名前付きのパターンがあるサブコン）と同じ場合だけ出す
+              const _ptHasNotes = !(key === _PT_UNSET && !_svHasNamed.has(_svK));
+              const _rmKey = _remarkKey(_svK, key);
+              const _remarkObj = _subconRemark[_rmKey] || { text: '', show: true };
+              const _ptNotesHtml = !_ptHasNotes ? '' :
+                `<span class="hdr-notes hdr-notes--pt">` +
+                  `<span class="hdr-note hdr-note-remark" title="このパターンに関する注記。「見積書に表示」がONの間だけ客先向け出力（プレビュー・御見積書PDF・メール）にも表示されます。">` +
+                    `<i>📝 パターン別リマーク</i>` +
+                    `<input type="text" class="subcon-remark-input" placeholder="このパターンへの注記（任意）" value="${_escAttr(_remarkObj.text || '')}" />` +
+                    `<button type="button" class="subcon-remark-toggle${_remarkObj.show ? ' is-shown' : ''}" ` +
+                      `title="${_remarkObj.show ? 'クリックで見積書には表示しない（社内用）にする' : 'クリックで見積書にも表示する'}">` +
+                      `${_remarkObj.show ? '📄 見積書に表示' : '🔒 非表示'}</button>` +
+                  `</span>` +
+                `</span>`;
               sh.innerHTML =
                 // 同上：flex は内側 div へ（td を flex 化すると colspan が潰れる）
                 `<td colspan="10" class="subcon-subgroup-cell">` +
@@ -4255,9 +4206,41 @@
                   `<button type="button" class="subcon-subgroup-excl${_ptExcluded ? ' is-excluded' : ''}" title="見積もりへの含める/除外を切り替え">${_ptExcluded ? '含む' : '除外'}</button>` +
                   `<button type="button" class="subcon-group-sort-btn" title="このパターン内をカテゴリ順に並び替え">⇅カテゴリ</button>` +
                   _groupUpdatedHtml() +
+                  _ptNotesHtml +
                   `</div>` +
                 `</td>`;
               sh.querySelector('.subcon-subgroup-toggle').addEventListener('click', () => togglePatternGroup(_compK));
+              { const _ptRemarkInp    = sh.querySelector('.subcon-remark-input');
+                const _ptRemarkToggle = sh.querySelector('.subcon-remark-toggle');
+                if (_ptRemarkInp) {
+                  _ptRemarkInp.addEventListener('input', () => {
+                    const t = _ptRemarkInp.value;
+                    if (t.trim()) {
+                      const cur = _subconRemark[_rmKey] || { show: true };
+                      cur.text = t;
+                      _subconRemark[_rmKey] = cur;
+                    } else {
+                      delete _subconRemark[_rmKey];
+                    }
+                    if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
+                  });
+                  _ptRemarkInp.addEventListener('click', e => e.stopPropagation());
+                }
+                if (_ptRemarkToggle) {
+                  _ptRemarkToggle.addEventListener('click', e => {
+                    e.stopPropagation();
+                    const t = _ptRemarkInp ? _ptRemarkInp.value : '';
+                    const cur = _subconRemark[_rmKey] || { text: t, show: true };
+                    cur.show = !cur.show;
+                    cur.text = t;
+                    if (t.trim()) _subconRemark[_rmKey] = cur; else delete _subconRemark[_rmKey];
+                    _ptRemarkToggle.classList.toggle('is-shown', cur.show);
+                    _ptRemarkToggle.textContent = cur.show ? '📄 見積書に表示' : '🔒 非表示';
+                    _ptRemarkToggle.title = cur.show ? 'クリックで見積書には表示しない（社内用）にする' : 'クリックで見積書にも表示する';
+                    if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
+                  });
+                }
+              }
               { const gchk = sh.querySelector('.subcon-group-chk');
                 gchk.addEventListener('click', e => e.stopPropagation());
                 gchk.addEventListener('change', () => selectGroupRows(_svK, key, gchk.checked)); }

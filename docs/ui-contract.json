@@ -1742,7 +1742,7 @@
    "defined": true
   },
   "switchCategory": {
-   "uses": 14,
+   "uses": 15,
    "defined": true
   },
   "switchFbTab": {
@@ -2479,10 +2479,6 @@
    "css": true,
    "html": false
   },
-  "has-value": {
-   "css": true,
-   "html": false
-  },
   "haz-chip": {
    "css": true,
    "html": true
@@ -2571,11 +2567,19 @@
    "css": true,
    "html": false
   },
+  "is-drop": {
+   "css": true,
+   "html": false
+  },
   "is-empty": {
    "css": true,
    "html": false
   },
   "is-excluded": {
+   "css": true,
+   "html": false
+  },
+  "is-filedrop": {
    "css": true,
    "html": false
   },
@@ -2607,10 +2611,6 @@
    "css": false,
    "html": false
   },
-  "is-notes-open": {
-   "css": true,
-   "html": false
-  },
   "is-on": {
    "css": true,
    "html": true
@@ -2637,6 +2637,10 @@
   },
   "is-pinned": {
    "css": true,
+   "html": false
+  },
+  "is-pos": {
+   "css": false,
    "html": false
   },
   "is-pt-solo": {
@@ -2911,6 +2915,14 @@
    "css": true,
    "html": true
   },
+  "profit-neg": {
+   "css": true,
+   "html": false
+  },
+  "profit-pos": {
+   "css": true,
+   "html": false
+  },
   "profit-share-btn": {
    "css": true,
    "html": true
@@ -3171,6 +3183,14 @@
    "css": true,
    "html": false
   },
+  "range-hint": {
+   "css": true,
+   "html": true
+  },
+  "range-mode-btn": {
+   "css": true,
+   "html": true
+  },
   "rd-breakdown": {
    "css": true,
    "html": true
@@ -3324,6 +3344,10 @@
    "html": true
   },
   "row-profit-share": {
+   "css": true,
+   "html": false
+  },
+  "row-range-mode": {
    "css": true,
    "html": false
   },
@@ -3484,14 +3508,6 @@
    "html": false
   },
   "sq-status-chip": {
-   "css": true,
-   "html": false
-  },
-  "st-notes": {
-   "css": true,
-   "html": false
-  },
-  "st-notes-btn": {
    "css": true,
    "html": false
   },
@@ -3751,6 +3767,10 @@
    "css": true,
    "html": true
   },
+  "tf-profit": {
+   "css": true,
+   "html": false
+  },
   "theme-industry": {
    "css": true,
    "html": false
@@ -3887,6 +3907,22 @@
    "css": true,
    "html": true
   },
+  "wf-menu": {
+   "css": true,
+   "html": false
+  },
+  "wf-pv-body": {
+   "css": true,
+   "html": false
+  },
+  "wf-rename": {
+   "css": true,
+   "html": false
+  },
+  "wf-tree": {
+   "css": true,
+   "html": false
+  },
   "z2-route-chip": {
    "css": true,
    "html": false
@@ -4001,6 +4037,10 @@
    "html": false,
    "js": true
   },
+  "caret": {
+   "html": false,
+   "js": true
+  },
   "cat": {
    "html": true,
    "js": true
@@ -4053,6 +4093,10 @@
    "html": false,
    "js": true
   },
+  "crumb": {
+   "html": false,
+   "js": true
+  },
   "ctype": {
    "html": true,
    "js": true
@@ -4070,6 +4114,10 @@
    "js": true
   },
   "drag-inited": {
+   "html": false,
+   "js": true
+  },
+  "drop": {
    "html": false,
    "js": true
   },
@@ -4341,6 +4389,10 @@
    "html": false,
    "js": true
   },
+  "pv": {
+   "html": false,
+   "js": true
+  },
   "pv-hidden": {
    "html": false,
    "js": true
@@ -4373,6 +4425,10 @@
    "html": false,
    "js": true
   },
+  "range": {
+   "html": false,
+   "js": true
+  },
   "ranktab": {
    "html": true,
    "js": true
@@ -4390,6 +4446,10 @@
    "js": true
   },
   "ref-info": {
+   "html": false,
+   "js": true
+  },
+  "rename": {
    "html": false,
    "js": true
   },
@@ -4415,6 +4475,10 @@
   },
   "sitab": {
    "html": true,
+   "js": true
+  },
+  "sort": {
+   "html": false,
    "js": true
   },
   "sort-bound": {
@@ -4509,6 +4573,10 @@
    "html": true,
    "js": true
   },
+  "tree": {
+   "html": false,
+   "js": true
+  },
   "tx-user-set": {
    "html": false,
    "js": true
@@ -4598,6 +4666,7 @@
   "js/quote/cloud.js",
   "js/quote/users.js",
   "js/quote/hazmat-ai-import.js",
+  "js/quote/total-float.js",
   "js/quote/quote-versions.js",
   "js/quote/admin-creator-edit.js",
   "js/quote/subcon-insert.js",
@@ -4618,6 +4687,7 @@
   "js/feedback-md.js",
   "js/feedback-annotate.js",
   "js/feedback.js",
+  "js/workfolder.js",
   "js/cat-more.js",
   "js/stats.js",
   "js/alias-rules.js",
