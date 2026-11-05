@@ -985,6 +985,7 @@
             '<span class="ccc-caret">▾</span>' +
           '</button>' +
           '<div class="ccc-panel"' + (sd ? ' hidden' : '') + '>' +
+            '<div class="ccc-panelbar"><button type="button" class="ccc-expand" onclick="event.stopPropagation();dashExpandCardChat(this)" title="申し送りを大きく表示">⤢ 拡大</button></div>' +
             '<div class="ccc-list">' + _chatListHtml + '</div>' +
             '<div class="ccc-compose">' +
               '<input type="text" class="ccc-input" placeholder="申し送りを入力…" onkeydown="dashCardChatKey(event,this)">' +
@@ -3597,12 +3598,13 @@
     if (error) { listEl.innerHTML = '<span class="cp-chat-err">⚠️ 取得失敗</span>'; return; }
     box.dataset.loaded = '1';
     _renderCardThread(listEl, data || []);
-    listEl.scrollTop = listEl.scrollHeight;
+    listEl.scrollTop = 0;   // 新しい順なので先頭（最新）へ
   }
 
   function _cardThreadHtml(rows) {
     if (!rows || !rows.length) return '<span class="cp-chat-empty">まだ申し送りはありません</span>';
-    return rows.map(r => {
+    // ダッシュボードのカードは「新しい投稿が上」（取得・キャッシュは古い順のまま、表示のときだけ反転）
+    return rows.slice().reverse().map(r => {
       const isMine = _cloudUser && r.created_by === _cloudUser.email;
       const rawName = _nameFor(r.created_by);
       const name = escHtml(rawName);
@@ -3615,6 +3617,34 @@
   function _renderCardThread(listEl, rows) {
     listEl.innerHTML = _cardThreadHtml(rows);
   }
+
+  // 申し送りの拡大表示（モーダル）。投稿・新しい順の表示はカードと同じ（キャッシュ _dashChatCache を共有）
+  window.dashExpandCardChat = function (btn) {
+    const box = btn.closest('.cloud-card-chat'); if (!box) return;
+    const id = box.dataset.cid;
+    const title = (box.closest('.cloud-card') && box.closest('.cloud-card').querySelector('.cloud-card-name')?.textContent) || '';
+    const s = _dashChatCache[id] || { rows: [] };
+    document.getElementById('cccModal')?.remove();
+    const w = document.createElement('div');
+    w.id = 'cccModal'; w.className = 'ccc-overlay';
+    w.innerHTML =
+      '<div class="ccc-modal-box" role="dialog" aria-label="申し送り">' +
+        '<div class="ccc-modal-head"><span>💬 申し送り <small>' + escHtml(title) + '（新しい順）</small></span>' +
+          '<button type="button" class="ccc-modal-close" title="閉じる（Esc）">✕</button></div>' +
+        '<div class="cloud-card-chat ccc-open" data-cid="' + escHtml(id) + '">' +
+          '<div class="ccc-list ccc-list--big">' + _cardThreadHtml(s.rows) + '</div>' +
+          '<div class="ccc-compose"><input type="text" class="ccc-input" placeholder="申し送りを入力…" onkeydown="dashCardChatKey(event,this)">' +
+            '<button type="button" class="ccc-send" onclick="dashPostCardComment(this)">送信</button></div>' +
+        '</div>' +
+      '</div>';
+    (document.getElementById('tab-quote-make') || document.body).appendChild(w);   // 見積タブ内のスタイル（チャットの見た目）を使うためタブ内に置く
+    const close = () => { w.remove(); document.removeEventListener('keydown', onKey, true); };
+    const onKey = e => { if (e.key === 'Escape') { e.stopPropagation(); close(); } };
+    document.addEventListener('keydown', onKey, true);
+    w.addEventListener('click', e => { if (e.target === w) close(); });
+    w.querySelector('.ccc-modal-close').onclick = close;
+    w.querySelector('.ccc-input').focus();
+  };
 
   window.dashCardChatKey = function (ev, input) {
     if (ev.key === 'Enter' && !ev.shiftKey) { ev.preventDefault(); window.dashPostCardComment(input); }
@@ -3642,7 +3672,9 @@
       s.rows.push({ id: 'local-' + Date.now(), body, created_by: _cloudUser.email, created_at: new Date().toISOString() });
       _applyDashChatSummary(id);          // キャッシュから件数・プレビュー・スレッドを再描画（追加クエリなし）
       const listEl = box.querySelector('.ccc-list');
-      if (listEl) listEl.scrollTop = listEl.scrollHeight;
+      if (listEl) listEl.scrollTop = 0;   // 新しい順なので先頭（最新）へ
+      const big = document.querySelector('#cccModal .ccc-list');   // 拡大表示を開いていれば、そちらも更新
+      if (big) { _renderCardThread(big, s.rows); big.scrollTop = 0; }
     } catch (e) {
       quoteShowToast('⚠️ 送信失敗：' + (e.message || e), 'warn', 5000);
     } finally {
