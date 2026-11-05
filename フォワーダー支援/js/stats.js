@@ -1157,6 +1157,31 @@
     if (cost == null || bill == null || !isFinite(cost) || !isFinite(bill)) return { skip: 'fx' };
     return { cost, bill };
   }
+  // 案件の幹線輸送（キャリア・航路）を「ONE：YOKOHAMA→LOS ANGELES」形式で返す。複数航路は ＋ でつなぐ。
+  // 未入力なら ''。
+  function _trunkLabel(p, f, isCloud) {
+    let legs = [], carriers = [];
+    try {
+      const rts = JSON.parse(f['z2-routes-data'] || '[]');
+      if (Array.isArray(rts)) rts.forEach(r => {
+        const leg = [r.pol, r.via, r.pod].map(v => (v || '').trim()).filter(Boolean).join('→');
+        if (leg) legs.push(leg);
+        const cr = (r.carrier || '').trim(); if (cr && !carriers.includes(cr)) carriers.push(cr);
+      });
+    } catch (e) {}
+    if (!legs.length) {
+      const pol = (f['z2Pol'] || (isCloud ? p.pol : '') || '').trim(), pod = (f['z2Pod'] || (isCloud ? p.pod : '') || '').trim();
+      const via = (f['z2Via'] || '').trim();
+      const leg = [pol, via, pod].filter(Boolean).join('→');
+      if (leg) legs.push(leg);
+      const cr = (f['z2Carrier'] || (isCloud ? p.carrier : '') || '').trim();
+      if (cr) carriers.push(cr);
+    }
+    const route = legs.join(' ＋ ');
+    const cr = carriers.join(' / ');
+    return cr && route ? cr + '：' + route : (cr || route);
+  }
+
   function _buildCustItemStats(source) {
     const map = new Map();   // customer + '\x00' + nm → 集計
     const add = (p, isCloud) => {
@@ -1165,6 +1190,7 @@
       const rows = (p.data || {}).rows;
       if (!Array.isArray(rows)) return;
       const ts = isCloud ? (p.updated_at ? new Date(p.updated_at).getTime() : 0) : (p.ts ? new Date(p.ts).getTime() : 0);
+      const trunk = _trunkLabel(p, f, isCloud);
       rows.forEach(r => {
         if (!r || r._type !== 'data' || !Array.isArray(r.cells)) return;
         const c  = r.cells;
@@ -1176,11 +1202,14 @@
         const un = (c[6] || '').trim();
         const key = customer + '\x00' + nm;
         if (!map.has(key)) {
-          map.set(key, { customer, nm, count: 0, lastTs: 0, lastPp: null, lastPc: 'JPY', lastBp: null, lastBc: 'JPY', lastUn: '', costSum: 0, billSum: 0, pairs: 0, skipped: 0 });
+          map.set(key, { customer, nm, count: 0, lastTs: 0, lastPp: null, lastPc: 'JPY', lastBp: null, lastBc: 'JPY', lastUn: '', costSum: 0, billSum: 0, pairs: 0, skipped: 0, lastTrunk: '', trunks: new Map(), patterns: new Map() });
         }
         const g = map.get(key);
         g.count++;
-        if (ts >= g.lastTs) { g.lastTs = ts; g.lastPp = pp; g.lastPc = pc; g.lastBp = bp; g.lastBc = bc; g.lastUn = un; }
+        if (ts >= g.lastTs) { g.lastTs = ts; g.lastPp = pp; g.lastPc = pc; g.lastBp = bp; g.lastBc = bc; g.lastUn = un; if (trunk) g.lastTrunk = trunk; }
+        if (trunk) g.trunks.set(trunk, (g.trunks.get(trunk) || 0) + 1);
+        const pt = (c[CI.pt] || '').trim();
+        if (pt) g.patterns.set(pt, (g.patterns.get(pt) || 0) + 1);
         const pr = _pairJ(c);
         if (pr.skip) g.skipped++; else { g.costSum += pr.cost; g.billSum += pr.bill; g.pairs++; }
       });
@@ -1209,6 +1238,21 @@
       const c = (cur || 'JPY').trim() || 'JPY';
       return c === 'JPY' ? '¥' + Math.round(n).toLocaleString('ja-JP') : c + ' ' + n.toLocaleString('ja-JP', { maximumFractionDigits: 2 });
     };
+    // 幹線輸送：直近の案件のキャリア・航路。他にも使われていれば「ほか N 種」（ホバーで内訳）。
+    const trunkCell = it => {
+      if (!it.lastTrunk) return '<span class="ldg-sub">—</span>';
+      const others = it.trunks.size - 1;
+      const tip = [...it.trunks.entries()].sort((a, b) => b[1] - a[1]).map(([k, n]) => `${k} ×${n}`).join('\n');
+      return `<span title="${_eav(tip)}">${_esc(it.lastTrunk)}</span>` + (others > 0 ? ` <small class="ldg-sub" title="${_eav(tip)}">ほか ${others} 種</small>` : '');
+    };
+    // パターン：この品名に付いていたパターン名（件数の多い順に最大3つ）。
+    const patternCell = it => {
+      if (!it.patterns.size) return '<span class="ldg-sub">—</span>';
+      const list = [...it.patterns.entries()].sort((a, b) => b[1] - a[1]);
+      const tip = list.map(([k, n]) => `${k} ×${n}`).join('\n');
+      return list.slice(0, 3).map(([k, n]) => `<span class="stats-chip" title="${_eav(tip)}"><span class="stats-chip-text">🔖 ${_esc(k)}</span><span class="stats-chip-cnt">×${n}</span></span>`).join('') +
+             (list.length > 3 ? ` <small class="ldg-sub" title="${_eav(tip)}">ほか ${list.length - 3} 種</small>` : '');
+    };
     const skippedRows = rows.reduce((n, r) => n + (r.skipped || 0), 0);
     const groups = new Map();
     rows.forEach(r => {
@@ -1223,7 +1267,7 @@
     let h = '<div class="svp-toolbar"><span class="svp-by-label">グループ基準</span>' +
             `<button class="svp-by-btn${by === 'customer' ? ' is-active' : ''}" onclick="statsCustItemBy('customer')">👤 お客様別</button>` +
             `<button class="svp-by-btn${by === 'nm' ? ' is-active' : ''}" onclick="statsCustItemBy('nm')">📝 品名別</button></div>` +
-            '<p class="stats-syn-hint">案件の明細行から、お客様ごと・品名ごとの仕入単価と売単価を集計します。単価は直近使用時の値（通貨そのまま）、粗利率は仕入・売の両方が入力済みの行だけをJPY換算して合計から算出します' +
+            '<p class="stats-syn-hint">案件の明細行から、お客様ごと・品名ごとの仕入単価と売単価を集計します。単価は直近使用時の値（通貨そのまま）、粗利率は仕入・売の両方が入力済みの行だけをJPY換算して合計から算出します。幹線輸送は直近の案件のキャリア・航路、パターンは明細の「パターン」欄の名前です' +
             (skippedRows ? `（仕入・売の片方のみ、または為替未取得の ${skippedRows} 行は粗利率から除外）` : '') + '。</p>';
 
     list.slice(0, _limitOf('statsPane-custitem')).forEach(g => {
@@ -1239,13 +1283,14 @@
                `<td class="stats-num-col">${it.count}</td>` +
                `<td class="stats-sv-price">${ppStr}</td>` +
                `<td class="stats-sv-price">${bpStr}</td>` +
-               `<td class="stats-num-col ${itMCls}">${itMargin == null ? '—' : itMargin.toFixed(1) + '%'}</td></tr>`;
+               `<td class="stats-num-col ${itMCls}">${itMargin == null ? '—' : itMargin.toFixed(1) + '%'}</td>` +
+               `<td>${trunkCell(it)}</td><td>${patternCell(it)}</td></tr>`;
       }).join('');
       h += `<details class="stats-sv-detail">` +
            `<summary><b>${_usageSpan(keyField, g.key)}</b>` +
            `<span class="stats-sv-detail-meta">${g.items.length}品目 · 売上 ${_jpy(g.bill)} · 粗利率 <span class="${mCls}">${margin == null ? '—' : margin.toFixed(1) + '%'}</span></span></summary>` +
            `<table class="stats-table sd-money-table stats-sv-charge-table"><thead><tr>` +
-           `<th>${otherLabel}</th><th class="stats-num-col">回数</th><th>直近仕入単価</th><th>直近売単価</th><th class="stats-num-col">粗利率</th>` +
+           `<th>${otherLabel}</th><th class="stats-num-col">回数</th><th>直近仕入単価</th><th>直近売単価</th><th class="stats-num-col">粗利率</th><th>幹線輸送（直近）</th><th>パターン</th>` +
            `</tr></thead><tbody>${rowsHtml}</tbody></table></details>`;
     });
     e.innerHTML = '<div class="stats-sv-charges-wrap">' + h + '</div>' + _moreHtml('statsPane-custitem', list.length);
