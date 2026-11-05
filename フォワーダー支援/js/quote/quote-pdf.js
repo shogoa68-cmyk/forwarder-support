@@ -601,6 +601,7 @@
         lineHTML.push(`<tr class="qd-subcon-sub"><td colspan="4">↳ ${esc(_scHeadLabel || '')} ${t('subtotal')}</td><td class="qd-num">¥${fmtInt(_scJpy)}</td></tr>`);
       }
     };
+    let _hasRangeRow = false;   // 幅（〜）で示した行があるか（あれば合計の注記を出す）
     rows.forEach(r => {
       if (r._type === 'remark') {
         if (r.internal) return; // 社内メモは PDF に出力しない
@@ -613,6 +614,10 @@
       }
       // data
       const sub = minAmt((r.bq || 0) * (r.bp || 0), r.bpmin);  // 請求通貨建ての金額（ミニマム＝最低料金があれば、それを下回らない）
+      // 幅（売単価〜上限）：単価・金額を「1,000〜2,500」と示す。合計・小計は売単価（下限）で計算する
+      const _rg    = r._actual ? null : rowRange(r.bp, r.bphi);
+      const _rgAmt = _rg ? rowRangeAmt(r.bq, r.bp, r.bphi, r.bpmin) : null;
+      if (_rg) _hasRangeRow = true;
       const jpy = Math.ceil(_toJPY(sub, r.bc || 'JPY'));      // JPY換算
       // 外貨建ては輸出免税が原則（Excel/プレビューと同一ポリシー）。課税は JPY 建て行のみ。
       // 消費税は行ごとに切り上げて積み上げ、各出力経路（御見積書/プレビュー/Excel）で一致させる。
@@ -634,7 +639,9 @@
       // JPY 単価は端数があるときだけ小数表示（単価×数量＝金額の検算が崩れないように）
       const unitDisp = isActual
         ? t('unpriced')
-        : estTag + (minPriceText(r.bp, r.bpmin, r.bc || 'JPY', r.un || '') ? esc(minPriceText(r.bp, r.bpmin, r.bc || 'JPY', r.un || ''))
+        : estTag + (_rg ? (isNonJpy ? `${fmtNum(_rg.lo, 2)}〜${fmtNum(_rg.hi, 2)} ${esc(r.bc)}`
+                                    : `${Number.isInteger(_rg.lo) && Number.isInteger(_rg.hi) ? fmtInt(_rg.lo) + '〜' + fmtInt(_rg.hi) : fmtNum(_rg.lo, 2) + '〜' + fmtNum(_rg.hi, 2)} JPY`)
+          : minPriceText(r.bp, r.bpmin, r.bc || 'JPY', r.un || '') ? esc(minPriceText(r.bp, r.bpmin, r.bc || 'JPY', r.un || ''))
           : isNonJpy
           ? `${fmtNum(r.bp, 2)} ${esc(r.bc)}`
           : `${Number.isInteger(r.bp) ? fmtInt(r.bp) : fmtNum(r.bp, 2)} JPY`)
@@ -725,11 +732,14 @@
           <td class="qd-num">${qtyDisp}</td>
           <td class="qd-ctr">${esc(r.un || '')}</td>
           <td class="qd-num">${unitDisp}</td>
-          <td class="qd-num">${isActual ? t('unpriced') : isCond ? '' : isRef ? '<span style="color:var(--doc-note-ref-amt);">(¥' + fmtInt(jpy) + ')</span>' : estTag + '¥' + fmtInt(jpy)}</td>
+          <td class="qd-num">${isActual ? t('unpriced') : isCond ? '' : isRef ? '<span style="color:var(--doc-note-ref-amt);">(¥' + fmtInt(jpy) + ')</span>' : estTag + (_rgAmt ? '¥' + fmtInt(Math.ceil(_toJPY(_rgAmt.lo, r.bc || 'JPY'))) + '〜¥' + fmtInt(Math.ceil(_toJPY(_rgAmt.hi, r.bc || 'JPY'))) : '¥' + fmtInt(jpy))}</td>
         </tr>`
       );
     });
     _scPush();   // 末尾グループの売値小計
+    if (_hasRangeRow) {   // 幅のある項目の合計の扱いを明記（誤解防止）
+      lineHTML.push(`<tr class="qd-remark"><td colspan="5">※ ${_curLangEn ? 'Totals include items quoted as a range at the lower amount.' : '「〜」で幅を示した項目の合計は、幅の下限の金額で算出しています。'}</td></tr>`);
+    }
 
     const tax   = taxSum;   // 行ごと切り上げの合計（Math.floor 一括計算からの修正）
     const total = taxableSub + exemptSub + tax;

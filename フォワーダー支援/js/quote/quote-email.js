@@ -96,7 +96,7 @@
       if (r.name || sub || isActual || isCond || isRef) {
         curItems.push({
           name: r.name || '', qty, unit: r.un || '', ccy: r.bc || 'JPY',
-          price, minText: (minPriceText(price, r.bpmin, r.bc || 'JPY', r.un || '') || '') + (sub > qty * price ? ' [MIN適用]' : '') || null, amount: sub, note: r.note || '', taxed: !!r.taxed, cat: r.cat || '',
+          price, minText: (() => { const rg = (typeof rowRange === 'function') ? rowRange(price, r.bphi) : null; return rg ? fmtNum(rg.lo, r.bc) + '〜' + fmtNum(rg.hi, r.bc) + ' ' + (r.bc || 'JPY') + (r.un ? '/' + r.un : '') : null; })() || ((minPriceText(price, r.bpmin, r.bc || 'JPY', r.un || '') || '') + (sub > qty * price ? ' [MIN適用]' : '')) || null, amount: sub, note: r.note || '', taxed: !!r.taxed, cat: r.cat || '',
           pt: (r.pt || '').trim(),   // パターン（スポット/年間契約 等）。小見出しに使う
           actual: isActual, cond: isCond, ref: isRef, estimate: !!r._estimate,
         });
