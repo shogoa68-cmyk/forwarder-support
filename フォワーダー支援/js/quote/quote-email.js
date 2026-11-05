@@ -61,8 +61,9 @@
     const issuer = loadIssuer();
 
     let taxableSub = 0, exemptSub = 0, hasFx = false;
+    let taxableSubHi = 0, exemptSubHi = 0, hasRange = false;   // 幅（〜）のある行を上限で数えた合計（下限＝上記）
     const zones = [];
-    let zoneSum = 0;
+    let zoneSum = 0, zoneSumHi = 0;
     const remarks = [];
 
     // 明細グループ（区間＝小計行で区切る）。小計行が無い場合は後段でカテゴリ別に再編成。
@@ -75,8 +76,8 @@
     rows.forEach(r => {
       if (r._type === 'remark') { if (r.text && !r.internal) remarks.push(r.text); return; }
       if (r._type === 'subtotal') {
-        zones.push({ label: r.label || '小計', jpy: zoneSum });
-        zoneSum = 0;
+        zones.push({ label: r.label || '小計', jpy: zoneSum, jpyHi: zoneSumHi });
+        zoneSum = 0; zoneSumHi = 0;
         flushGroup(r.label || '小計');
         return;
       }
@@ -89,8 +90,11 @@
       const jpy = isActual ? 0 : Math.ceil(toJPYx(sub, r.bc || 'JPY'));
       if (!isActual && !isCond && !isRef) {
         if (r.bc && r.bc !== 'JPY') hasFx = true;
-        if (r.taxed) taxableSub += jpy; else exemptSub += jpy;
-        zoneSum += jpy;
+        const rgA = (typeof rowRangeAmt === 'function') ? rowRangeAmt(qty, price, r.bphi, r.bpmin) : null;   // 幅（売単価〜上限）
+        const jpyHi = rgA ? Math.ceil(toJPYx(rgA.hi, r.bc || 'JPY')) : jpy;
+        if (rgA) hasRange = true;
+        if (r.taxed) { taxableSub += jpy; taxableSubHi += jpyHi; } else { exemptSub += jpy; exemptSubHi += jpyHi; }
+        zoneSum += jpy; zoneSumHi += jpyHi;
       }
       // 明細行（名前か金額があるもの、または実費・都度・参考行）
       if (r.name || sub || isActual || isCond || isRef) {
@@ -123,6 +127,8 @@
 
     const tax = Math.floor(taxableSub * taxRate);
     const total = taxableSub + exemptSub + tax;
+    const taxHi = Math.floor(taxableSubHi * taxRate);
+    const totalHi = taxableSubHi + exemptSubHi + taxHi;
 
     // 注記の組み立て：先頭の「※」重複を除去。為替に言及するリマークがあれば自動FX注記は省く。
     const cleanRemarks = remarks
@@ -166,7 +172,7 @@
     return {
       to: honorific(hdr.customer, hdr.person),
       ref: hdr.ref, validUntil: hdr.validUntil,
-      subject, zones, detailGroups, exemptSub, taxableSub, tax, total, taxRate, hasFx, notes, issuer,
+      subject, zones, detailGroups, exemptSub, taxableSub, tax, total, exemptSubHi, taxableSubHi, taxHi, totalHi, hasRange, taxRate, hasFx, notes, issuer,
       scope: (document.getElementById('qf-scope')?.value || '').trim(),
       packing, billing, revision,
     };
@@ -208,13 +214,16 @@
   function _plainSummaryLines(m) {
     const rule = '─'.repeat(PLAIN_W / 2); // 全角罫線（dw=2）でおおよそ W 幅
     const out = [rule];
-    m.zones.forEach(z => out.push(_plainLine('　' + z.label, yen(z.jpy))));
+    // 幅（〜）のある項目を含むときは、金額を「下限〜上限」で表示する
+    const yenR = (lo, hi) => (m.hasRange && hi !== lo) ? yen(lo) + '〜' + yen(hi) : yen(lo);
+    m.zones.forEach(z => out.push(_plainLine('　' + z.label, yenR(z.jpy, z.jpyHi))));
     if (m.zones.length) out.push(rule);
-    out.push(_plainLine('　小計（免税分）', yen(m.exemptSub)));
-    out.push(_plainLine('　課税対象小計', yen(m.taxableSub)));
-    out.push(_plainLine('　消費税（' + Math.round(m.taxRate * 100) + '%）', yen(m.tax)));
+    out.push(_plainLine('　小計（免税分）', yenR(m.exemptSub, m.exemptSubHi)));
+    out.push(_plainLine('　課税対象小計', yenR(m.taxableSub, m.taxableSubHi)));
+    out.push(_plainLine('　消費税（' + Math.round(m.taxRate * 100) + '%）', yenR(m.tax, m.taxHi)));
     out.push(rule);
-    out.push(_plainLine('　御見積額', yen(m.total)));
+    out.push(_plainLine('　御見積額', yenR(m.total, m.totalHi)));
+    if (m.hasRange) out.push('※ 「〜」で幅を示した項目を含むため、合計も下限〜上限の幅で表示しています。');
     out.push('═'.repeat(PLAIN_W / 2));
     return out;
   }

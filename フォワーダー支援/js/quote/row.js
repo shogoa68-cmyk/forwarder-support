@@ -2697,6 +2697,7 @@
     let totCostJPY = 0, totBillJPY = 0, totSubJPY = 0;
     let psBillJPY = 0, psCostJPY = 0;   // PROFIT SHARE（代理店収益）社内計上分（JPY）
     let hasFx = false;
+    let rangeAny = false, rangeExtraBill = 0, rangeExtraJPY = 0;   // 幅（売単価〜上限）のある行の上限分（合計の「下限〜上限」表示用）
     // 通貨別集計: { bc: { sub, taxedSub, exemptSub } }
     const ccyData = {};
     rows.forEach(tr => {
@@ -2729,6 +2730,8 @@
       totBill += sub;
       totSub  += sub;
       totMk   += val(`mk-${id}`);
+      { const rgT = rowRangeAmt(bq, bp, val(`bphi-${id}`), document.getElementById(`bpmin-${id}`)?.value);
+        if (rgT) { rangeAny = true; rangeExtraBill += rgT.hi - sub; rangeExtraJPY += SharedCalc.jpyRound(toJPY(rgT.hi, bc)) - SharedCalc.jpyRound(toJPY(sub, bc)); } }
       // JPY換算（行ごとに SharedCalc.jpyRound で丸めてから合計・4経路統一）
       totCostJPY += SharedCalc.jpyRound(toJPY(cost, pc));
       totBillJPY += SharedCalc.jpyRound(toJPY(sub, bc));
@@ -2745,22 +2748,26 @@
     const labelEl  = document.getElementById('tot-row-label');
     const pEl      = document.getElementById('tot-profit');
     const fxNote   = document.getElementById('tot-fx-note');
-    if (fxNote) fxNote.textContent = hasFx ? '※ 外貨の金額は、換算レートで円にして合算しています' : '';
+    if (fxNote) fxNote.textContent = [hasFx ? '※ 外貨の金額は、換算レートで円にして合算しています' : '', rangeAny ? '※ 幅（〜）のある項目を含むため、売上・利益は下限〜上限で表示しています' : ''].filter(Boolean).join('　');
+    // 幅のある項目を含むときは、売上・利益を「下限〜上限」で表示する（下限＝売単価で計算した合計）
+    const rgTxt = (lo, hi, pre) => (rangeAny && Math.round(hi) !== Math.round(lo)) ? pre + fmt(Math.round(lo)) + '〜' + pre + fmt(Math.round(hi)) : pre + fmt(Math.round(lo));
     if (hasFx) {
       // 外貨混在時：単純加算は無意味なので JPY 換算合計を「合計」行に表示
       if (labelEl) labelEl.innerHTML = '合計<small class="tot-jpy-note">（JPY換算）</small>';
       document.getElementById('tot-cost').textContent     = '¥' + fmt(Math.round(totCostJPY));
-      document.getElementById('tot-subtotal').textContent = '¥' + fmt(Math.round(totSubJPY));
+      document.getElementById('tot-subtotal').textContent = rgTxt(totSubJPY, totSubJPY + rangeExtraJPY, '¥');
       const mkPctJpy = (window.SharedCalc ? SharedCalc.grossMarginPct(totBillJPY, totCostJPY) : 0);
-      pEl.innerHTML = '¥' + fmt(Math.round(totPrJPY)) + `<small class="tot-margin">粗利 ${mkPctJpy.toFixed(1)}%</small>`;
+      const mkPctJpyHi = (rangeAny && window.SharedCalc) ? SharedCalc.grossMarginPct(totBillJPY + rangeExtraJPY, totCostJPY) : mkPctJpy;
+      pEl.innerHTML = rgTxt(totPrJPY, totPrJPY + rangeExtraJPY, '¥') + `<small class="tot-margin">粗利 ${rangeAny && mkPctJpyHi.toFixed(1) !== mkPctJpy.toFixed(1) ? mkPctJpy.toFixed(1) + '〜' + mkPctJpyHi.toFixed(1) : mkPctJpy.toFixed(1)}%</small>`;
       pEl.className = `profit-cell ${pClass(totPrJPY)}`;
     } else {
       if (labelEl) labelEl.textContent = '合　計';
       document.getElementById('tot-cost').textContent     = fmt(Math.round(totCost));
       document.getElementById('tot-billing').textContent  = fmt(Math.round(totBill));
-      document.getElementById('tot-subtotal').textContent = fmt(Math.round(totSub));
+      document.getElementById('tot-subtotal').textContent = rgTxt(totSub, totSub + rangeExtraBill, '');
       const mkPct = (window.SharedCalc ? SharedCalc.grossMarginPct(totBill, totCost) : 0);
-      pEl.innerHTML = fmt(Math.round(totPr)) + `<small class="tot-margin">粗利 ${mkPct.toFixed(1)}%</small>`;
+      const mkPctHi = (rangeAny && window.SharedCalc) ? SharedCalc.grossMarginPct(totBill + rangeExtraBill, totCost) : mkPct;
+      pEl.innerHTML = rgTxt(totPr, totPr + rangeExtraBill, '') + `<small class="tot-margin">粗利 ${rangeAny && mkPctHi.toFixed(1) !== mkPct.toFixed(1) ? mkPct.toFixed(1) + '〜' + mkPctHi.toFixed(1) : mkPct.toFixed(1)}%</small>`;
       pEl.className = `profit-cell ${pClass(totPr)}`;
     }
     // 社内利益（PROFIT SHARE 込み）行：PS 行があるときだけ表示
