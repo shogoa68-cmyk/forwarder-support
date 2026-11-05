@@ -11620,3 +11620,15 @@ body.is-row-dragging { cursor: grabbing; user-select: none; }
 #tab-quote-make #cccModal .ccc-send { padding: var(--sp-6) var(--sp-12); border: none; border-radius: var(--r-6); background: var(--text-muted); color: var(--surface); font-size: var(--fs-13, 13px); cursor: pointer; white-space: nowrap; }
 #tab-quote-make #cccModal .ccc-send:hover { background: var(--accent); }
 #tab-quote-make #cccModal .ccc-send:disabled { opacity: .5; cursor: default; }
+
+/* 別のサブコン／パターンのグループへドラッグ中の目印（ドロップすると確認ダイアログ） */
+#tab-quote-make #tableBody tr.drag-over-cross { outline: 2px dashed #e0a030; outline-offset: -2px; }
+#tab-quote-make .cross-move-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.4); z-index: 10060; display: flex; align-items: center; justify-content: center; }
+#tab-quote-make .cross-move-box { background: var(--surface, #fff); color: var(--text, #222); border-radius: 10px; padding: 16px 20px; width: min(440px, 92vw); box-shadow: 0 10px 40px rgba(0,0,0,.3); }
+#tab-quote-make .cross-move-title { font-weight: 700; font-size: 15px; margin-bottom: 8px; }
+#tab-quote-make .cross-move-body { font-size: 13px; line-height: 1.7; }
+#tab-quote-make .cross-move-diff { margin: 8px 0; padding: 6px 10px; background: #fff8e6; border: 1px solid #f0dca0; border-radius: 6px; word-break: break-all; }
+#tab-quote-make .cross-move-skip { display: flex; align-items: center; gap: 6px; font-size: 12px; color: #666; margin: 10px 0 12px; cursor: pointer; }
+#tab-quote-make .cross-move-actions { display: flex; justify-content: flex-end; gap: 8px; }
+#tab-quote-make .cross-move-actions button { padding: 6px 16px; border-radius: 6px; border: 1px solid #bbb; background: #f3f3f3; cursor: pointer; font-size: 13px; font-family: inherit; }
+#tab-quote-make .cross-move-actions .cross-move-ok { background: #2e6fd0; border-color: #2e6fd0; color: #fff; font-weight: 600; }
