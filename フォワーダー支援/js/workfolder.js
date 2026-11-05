@@ -2,9 +2,10 @@
 // 📁 作業フォルダ（js/workfolder.js）
 //   メンバーごとの個人フォルダ。見た目・操作はファイルエクスプローラー風。
 //   ・「どのフォルダに何があるか」は Supabase の wf_nodes 表（docs/sql/work-folders.sql）
-//   ・ファイルの中身は管理者の Google ドライブ（Edge Function `workfolder` が出し入れ）
+//   ・ファイルの中身の置き場は 2 通り（wf_config の backend で切り替え。画面は同じ）：
+//       storage … Supabase の保存領域（標準。画面から直接アップロード。予約→送信→確定の 3 段階）
+//       drive   … 管理者の Google ドライブ（Edge Function `workfolder` が出し入れ）
 //   ・フォルダの作成／名前変更／移動／ゴミ箱は表を書き換えるだけ（RLS で自分の行だけ）
-//   ・アップロード／ダウンロード／完全削除だけ Edge Function を通す
 //   セットアップは docs/作業フォルダ-セットアップ.md
 // ============================================================
 (function () {
@@ -22,7 +23,9 @@
     mode: 'list',            // 'list'（詳細）| 'grid'（アイコン）
     sort: { key: 'name', dir: 1 },
     q: '',                   // 検索語
-    usage: { quota: 5 * 1024 * 1024 * 1024 },
+    usage: { quota: 50 * 1024 * 1024 },
+    backend: 'storage',      // 'storage' | 'drive'（DB の wf_config から読む）
+    fileLimit: 50 * 1024 * 1024,
     expanded: new Set(),     // ツリーで開いているフォルダ
     renaming: null,          // 名前変更中の id
     cut: [],                 // 「切り取り」した id（貼り付けで移動）
@@ -32,6 +35,7 @@
     uploads: [],             // アップロードの進み具合
     loading: false,
   };
+  var BUCKET = 'work-folders';   // Supabase の保存領域のバケット名
   var UP_PARALLEL = 2;       // 同時にアップロードする数
   var PREVIEW_MAX = 30 * 1024 * 1024;
 
@@ -143,7 +147,9 @@
   function dbErrMsg(e) {
     if (!e) return '';
     if (e.code === '23505') return '同じ名前がすでにあります';
-    return e.message || String(e);
+    var m = e.message || String(e);
+    if (e.code === 'PGRST202' || /Could not find the function/i.test(m)) return 'サーバー側の準備が未完了です（docs/sql/work-folders-storage.sql を実行してください）';
+    return m.replace(/^wf:\s*/, '');       // SQL 関数が返す「wf: …」の日本語メッセージだけを見せる
   }
 
   // ---------- 読み込み ----------
@@ -162,7 +168,11 @@
       }
       S.nodes = new Map(all.map(function (n) { return [n.id, n]; }));
       var u = await c.rpc('wf_my_usage');
-      if (!u.error && u.data && u.data.length) S.usage.quota = Number(u.data[0].quota) || S.usage.quota;
+      if (!u.error && u.data && u.data.length) {
+        S.usage.quota = Number(u.data[0].quota) || S.usage.quota;
+        S.fileLimit = Number(u.data[0].file_limit) || S.fileLimit;
+        S.backend = u.data[0].backend === 'drive' ? 'drive' : 'storage';
+      }
       if (S.cwd && !S.nodes.has(S.cwd)) S.cwd = null;
     } catch (e) {
       var m = String(e && (e.message || e.code) || e);
@@ -275,9 +285,10 @@
     return h;
   }
 
+  function pendTag(n) { return n.upload_state === 'pending' ? ' <span class="wf-pend" title="アップロードが完了していません。削除してやり直してください">⚠ 未完了</span>' : ''; }
   function nameCell(n, grid) {
     if (S.renaming === n.id) return '<input class="wf-rename" data-rename="' + n.id + '" value="' + esc(n.name) + '" maxlength="255" aria-label="新しい名前">';
-    return grid ? '<span class="wf-cname">' + esc(n.name) + '</span>' : '<b>' + esc(n.name) + '</b>';
+    return grid ? '<span class="wf-cname">' + esc(n.name) + pendTag(n) + '</span>' : '<b>' + esc(n.name) + '</b>' + pendTag(n);
   }
   function listHtml(items) {
     if (!items.length) {
@@ -330,6 +341,7 @@
     if (!n) return;
     if (n.kind === 'folder') { if (S.view === 'trash') { toast('ゴミ箱の中のフォルダは、元に戻すと開けます', 'info'); return; } go(n.id); }
     else if (S.view === 'trash') toast('ゴミ箱の中のファイルは、元に戻すと開けます', 'info');
+    else if (n.upload_state === 'pending') toast('アップロードが完了していないファイルです。削除してやり直してください', 'warn', 4000);
     else previewNode(n);
   }
 
@@ -439,10 +451,24 @@
     });
     if (!ok) return;
     try {
-      await fnPost({ action: 'purge', ids: ids });
+      await purgeBackend(ids);
       ids.forEach(function (id) { (function drop(x) { childrenOf(x).slice().forEach(function (k) { drop(k.id); }); S.nodes.delete(x); })(id); });
       S.sel.clear(); toast('完全に削除しました', 'ok'); render();
     } catch (e) { toast('⚠️ 削除できませんでした：' + e.message, 'warn', 6000); }
+  }
+  // 置き場ごとの完全削除。どちらも「中身のファイルを先に消し、成功してから行を消す」（取り残しを防ぐ）
+  async function purgeBackend(ids) {
+    if (S.backend === 'drive') { await fnPost({ action: 'purge', ids: ids }); return; }
+    var c = client();
+    var t = await c.rpc('wf_my_tree', { p_ids: ids });
+    if (t.error) throw mkErr('db', dbErrMsg(t.error));
+    var paths = (t.data || []).map(function (r) { return r.storage_path; }).filter(Boolean);
+    for (var i = 0; i < paths.length; i += 100) {
+      var rm = await c.storage.from(BUCKET).remove(paths.slice(i, i + 100));
+      if (rm.error) throw mkErr('storage', '保存領域からの削除に失敗しました：' + (rm.error.message || rm.error));
+    }
+    var del = await c.rpc('wf_my_delete', { p_ids: ids });
+    if (del.error) throw mkErr('db', dbErrMsg(del.error));
   }
   function emptyTrash() {
     var ids = []; S.nodes.forEach(function (n) { if (n.trashed_at && !trashedAncestor(n)) ids.push(n.id); });
@@ -451,11 +477,17 @@
 
   // ---------- ダウンロード・プレビュー ----------
   async function fetchBlob(n) {
+    if (n.upload_state === 'pending') throw mkErr('pending', 'アップロードが完了していないファイルです（削除してやり直してください）');
+    if (S.backend === 'storage') {
+      var d = await client().storage.from(BUCKET).download(n.storage_path);
+      if (d.error) throw mkErr('storage', 'ファイルを取得できませんでした：' + (d.error.message || d.error));
+      return d.data;
+    }
     var res = await fnPost({ action: 'download', id: n.id }, true);
     return res.blob();
   }
   async function downloadNodes(ids) {
-    var files = ids.map(function (id) { return S.nodes.get(id); }).filter(function (n) { return n && n.kind === 'file'; });
+    var files = ids.map(function (id) { return S.nodes.get(id); }).filter(function (n) { return n && n.kind === 'file' && n.upload_state !== 'pending'; });
     for (var i = 0; i < files.length; i++) {
       try {
         toast('⬇ ' + files[i].name + ' を取得しています…', 'info', 1800);
@@ -510,10 +542,55 @@
       x.send(item.file);
     });
   }
+  // Supabase の保存領域へ直接送る（進み具合を出すため XHR。supabase-js の upload と同じ形式＝FormData）
+  async function putStorage(item, path, mime) {
+    var h = await authHeaders();
+    var url = String(window.CLOUD_CONFIG.url).replace(/\/$/, '') + '/storage/v1/object/' + BUCKET + '/' + path.split('/').map(encodeURIComponent).join('/');
+    return new Promise(function (resolve, reject) {
+      var x = new XMLHttpRequest();
+      x.open('POST', url);
+      x.setRequestHeader('Authorization', h.Authorization);
+      x.setRequestHeader('apikey', h.apikey);
+      x.setRequestHeader('x-upsert', 'false');                 // 上書きしない
+      x.upload.onprogress = function (ev) { if (ev.lengthComputable) { item.loaded = ev.loaded; renderUploads(); } };
+      x.onload = function () {
+        if (x.status >= 200 && x.status < 300) { resolve(); return; }
+        var msg = ''; try { var j = JSON.parse(x.responseText); msg = j.message || j.error || ''; } catch (e) {}
+        reject(new Error('保存領域への送信に失敗しました（' + x.status + (msg ? '：' + msg : '') + '）'));
+      };
+      x.onerror = function () { reject(new Error('保存領域へ送信できませんでした（通信エラー）')); };
+      var fd = new FormData(); fd.append('cacheControl', '3600'); fd.append('', item.file, item.file.name);
+      x.send(fd);
+    });
+  }
+  // 予約（容量・名前・場所の確認）→ 送信 → 確定（実際の大きさの確認）。途中で失敗したら後始末をして行を消す
+  async function uploadStorage(item) {
+    var c = client(), mime = item.file.type || 'application/octet-stream';
+    var rs = await c.rpc('wf_storage_reserve', { p_parent: item.parentId, p_name: item.name, p_size: item.file.size, p_mime: mime });
+    if (rs.error) throw mkErr('db', dbErrMsg(rs.error));
+    var node = rs.data;
+    try {
+      await putStorage(item, node.storage_path, mime);
+      var fin = await c.rpc('wf_storage_finalize', { p_id: node.id });
+      if (fin.error) throw mkErr('db', dbErrMsg(fin.error));
+      return fin.data;
+    } catch (e) {
+      try { await c.storage.from(BUCKET).remove([node.storage_path]); } catch (e2) {}       // 先に中身を消し（行が残っているうちに）…
+      try { await c.rpc('wf_storage_abort', { p_id: node.id }); } catch (e3) {}               // …そのあと予約の行を消す
+      throw e;
+    }
+  }
   async function uploadOne(item) {
     item.status = 'run'; renderUploads();
     try {
       var mime = item.file.type || 'application/octet-stream';
+      if (item.file.size > S.fileLimit) throw new Error('1 ファイルの上限（' + fmtSize(S.fileLimit) + '）を超えています');
+      if (S.backend === 'storage') {
+        var node = await uploadStorage(item);
+        S.nodes.set(node.id, node); item.status = 'done'; item.loaded = item.file.size;
+        if (S.ready && $('wfMain')) render(); else renderUploads();
+        return;
+      }
       var init = await fnPost({ action: 'init', parent_id: item.parentId, name: item.name, size: item.file.size, mime: mime });
       var done = await putFile(item, init.upload_url);
       var r = await fnPost({ action: 'complete', parent_id: item.parentId, name: item.name, drive_file_id: done.id, mime: mime });

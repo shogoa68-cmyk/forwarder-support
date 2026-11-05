@@ -1,4 +1,5 @@
-// 📁 作業フォルダ（ファイルエクスプローラー風）の画面テスト。
+// 📁 作業フォルダ（ファイルエクスプローラー風）の画面テスト【Google ドライブ版（backend='drive'）】。
+//   Supabase 保存領域版は workfolder-storage-test.js。
 //   node scripts/design-tests/workfolder-test.js
 // Supabase（表・RPC・Edge Function）とドライブは、ページの中でモックに差し替える（本物には接続しない）。
 // ＝ここで確かめるのは「画面の操作と、サーバーへ渡す内容」。本物のドライブ接続は docs/作業フォルダ-セットアップ.md の手順で別途確認する。
@@ -57,7 +58,7 @@ const ok=(n,c,x)=>{if(!c)fails++;console.log((c?'PASS ':'FAIL ')+n+(c?'':' → '
    }
    window.__rows=rows;
    window.cloudCurrentEmail=()=>window.__mockEmail;
-   window.cloudGetClient=()=>({from:()=>builder(),rpc:async()=>({data:[{used:0,quota:5368709120}],error:null}),
+   window.cloudGetClient=()=>({from:()=>builder(),rpc:async()=>({data:[{used:0,quota:5368709120,file_limit:2147483648,backend:'drive'}],error:null}),
      auth:{getSession:async()=>({data:{session:{access_token:'tok'}}}),onAuthStateChange(){}}});
    // Edge Function（POST /functions/v1/workfolder）のふりをする
    const realFetch=window.fetch.bind(window);

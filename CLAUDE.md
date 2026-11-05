@@ -142,16 +142,17 @@ IT に不慣れな新規ユーザーにも分かりやすいよう、Design 案�
 
 ## 📁 作業フォルダ（メンバーごとの個人フォルダ・エクスプローラー風／2026-11）
 
-管理者の Google ドライブの容量を分け合い、メンバーごとに自由に使える作業フォルダ（「📂 その他 → 📁 作業フォルダ」）。**共有なし（自分の行だけ見える）・1 人 5GB・管理者用の画面なし**が現在の仕様。セットアップ手順（管理者向け）は [docs/作業フォルダ-セットアップ.md](docs/作業フォルダ-セットアップ.md)。
+メンバーごとに自由に使える作業フォルダ（「📂 その他 → 📁 作業フォルダ」）。**共有なし（自分の行だけ見える）・管理者用の画面なし**。セットアップ手順（管理者向け）は [docs/作業フォルダ-セットアップ.md](docs/作業フォルダ-セットアップ.md)。
 
-- **構成**：画面 `js/workfolder.js`＋`css/workfolder.css`（`#tab-workfolder`・`initWorkFolderTab()` は `app.js switchTab` から）／整理の情報は Supabase `wf_nodes`（`docs/sql/work-folders.sql`）／ファイルの中身は管理者のドライブ（Edge Function `supabase/functions/workfolder/index.ts`）。
-- **ファイルの持ち主は常に管理者**（共有フォルダ方式だと作成者の容量に入ってしまうため、Edge Function が管理者の鍵で出し入れする）。権限は `drive.file`（このアプリが作ったファイルだけ）。**鍵（リフレッシュトークン）は Supabase secrets のみ・リポジトリ／ブラウザには絶対に置かない**。
-- **フォルダ構造は表（`wf_nodes`）で持ち、ドライブ上は 1 フォルダにフラット**。作成・名前変更・移動・ゴミ箱は表の書き換えだけ（RLS＝自分の行だけ。列の権限で `name/parent_id/trashed_at` 以外は変更不可・画面から作れるのはフォルダだけ）。**ファイル行の追加と完全削除は Edge Function のみ**（画面が偽のサイズや他人のドライブ ID を書いて容量制限・他人のファイル取得をすり抜けないように）。トリガー `wf_nodes_guard` が自分の子孫への移動・他人のフォルダへの移動を拒否。
-- **アップロード**：画面→Edge Function `init`（入口 URL を作る・容量／同名／上限を検査・`Origin` を添えて再開可能アップロードを開始）→**ブラウザからドライブへ直接 PUT**→`complete`（ドライブ側で実在・持ち主・サイズを再確認してから表に登録）。ダウンロード／プレビューは `download`（ストリーム）→ブラウザで Blob 化（30MB 超は直接ダウンロード）。完全削除は `purge`（ドライブを先に消し、1 つでも失敗したら表は消さない）。
-- **ゴミ箱の扱い**：ゴミ箱に入れた最上位だけ `trashed_at` を付ける（中身は表示で隠れる）。復元先が無い／ゴミ箱の中なら一番上へ戻し、同名は連番。使用量はゴミ箱の中身も数える（ドライブの容量を使うため）。
+- **ファイルの置き場は 2 通りで、DB の設定 1 つで切り替える**（`wf_config` の `backend`＝`'storage'`｜`'drive'`。画面は `wf_my_usage()` の返す `backend` を読む＝コードの変更不要。画面・フォルダ構造・操作は共通）。**標準は `storage`（Supabase の保存領域・Free プラン前提で 1 人 50MB／1 ファイル 50MB。Free の保存領域は全体 1GB で他機能と共用）**。`drive`（管理者の Google ドライブ・1 人 5GB）は容量が足りなくなったときの切り替え先。上限は `quota_bytes_storage／file_limit_storage／quota_bytes_drive／file_limit_drive`。**切り替えても既存ファイルは自動では移らない**。
+- **構成**：画面 `js/workfolder.js`＋`css/workfolder.css`（`#tab-workfolder`・`initWorkFolderTab()` は `app.js switchTab` から）／整理の情報は Supabase `wf_nodes`（`docs/sql/work-folders.sql`＝共通）／保存領域版は `docs/sql/work-folders-storage.sql`（バケット `work-folders`・RLS・予約／確定／取り消し／削除の関数）／ドライブ版は Edge Function `supabase/functions/workfolder/index.ts`。
+- **フォルダ構造は表（`wf_nodes`）で持つ**。作成・名前変更・移動・ゴミ箱は表の書き換えだけ（RLS＝自分の行だけ。列の権限で `name/parent_id/trashed_at` 以外は変更不可・画面から作れるのはフォルダだけ）。**ファイル行の追加と完全削除は決まった入口（保存領域版＝SQL 関数、ドライブ版＝Edge Function）のみ**（画面が偽のサイズや他人のファイルの場所を書いて容量制限・他人のファイル取得をすり抜けないように）。トリガー `wf_nodes_guard` が自分の子孫への移動・他人のフォルダへの移動を拒否し、size／storage_path／upload_state は内部関数（`wf.internal`）以外から変更不可。
+- **保存領域版のアップロード（Edge Function なし）**：`wf_storage_reserve`（容量・名前・場所を確認して `pending` の行を作り、保存場所 `{auth.uid()}/{行ID}` を決める）→ブラウザから保存領域へ直接 POST（XHR・FormData・`x-upsert:false`・進み具合つき。RLS は「自分の `pending` の保存場所」にだけ書ける＝予約なし・確定後の上書きは不可）→`wf_storage_finalize`（**実際に保存された大きさ `storage.objects.metadata.size` を確認**して `ready` に。容量超過なら失敗）。失敗時は画面が「保存領域のファイル削除→`wf_storage_abort`（予約の行を削除）」の順に後始末。**容量は申告ではなく実際の大きさで数える**（`wf_used_calc`・pending は申告サイズ）。ブラウザを閉じて残った `pending` は一覧に「⚠ 未完了」と出る（開けない・削除でやり直す。10 件で新規予約を止める）。ダウンロード／プレビューは `storage.download`。完全削除は `wf_my_tree`（中身の場所）→`storage.remove`→`wf_my_delete`（行）。
+- **ドライブ版のアップロード**：画面→Edge Function `init`（入口 URL・容量／同名／上限を検査・`Origin` を添えて再開可能アップロードを開始）→ブラウザからドライブへ直接 PUT→`complete`（ドライブ側で実在・持ち主・サイズを再確認して登録）。`download`（ストリーム）・`purge`（ドライブを先に消し、1 つでも失敗したら表は消さない）。ファイルの持ち主は常に管理者（`drive.file` 権限）。**鍵（リフレッシュトークン）は Supabase secrets のみ・リポジトリ／ブラウザには絶対に置かない**。Google の「テスト中」のまま運用するため**鍵は 7 日で切れ、週 1 回 `supabase secrets set GOOGLE_REFRESH_TOKEN=…` で更新**（切れると `token_expired`（503）＝画面に「管理者のドライブとの接続が切れています」。鍵は呼び出しのたびに読むので再デプロイ不要）。
+- **ゴミ箱の扱い**：ゴミ箱に入れた最上位だけ `trashed_at` を付ける（中身は表示で隠れる）。復元先が無い／ゴミ箱の中なら一番上へ戻し、同名は連番。使用量はゴミ箱の中身も数える（容量を使うため）。
 - **操作（エクスプローラー風）**：ツリー＋一覧（詳細／アイコン）＋パンくず・戻る／進む／上へ・複数選択（Ctrl／Shift）・ドラッグ移動・OS からのファイル／フォルダのドロップ・右クリックメニュー・F2／Delete／Enter／Backspace／Ctrl+A／Ctrl+X／Ctrl+V／Ctrl+Shift+N・名前で検索・列で並べ替え・使用量バー。**ダブルクリックは 2 回目の `click`（`e.detail===2`）で判定**（1 回目で全体を描き直すため `dblclick` は当てにできない）。
-- **運用は Google の「テスト中」のまま（2026-11・ユーザー判断）**：管理者は Gmail（個人）で、本番公開には追加の準備が要るため。**鍵（リフレッシュトークン）は 7 日で切れる＝週 1 回 `supabase secrets set GOOGLE_REFRESH_TOKEN=…` で更新**（手順は [docs/作業フォルダ-セットアップ.md](docs/作業フォルダ-セットアップ.md)「毎週の鍵の更新」）。切れると Edge Function が `token_expired`（503）を返し、画面に「管理者のドライブとの接続が切れています」と出る（フォルダの作成・名前変更・移動・ゴミ箱は表だけなので使える）。鍵は呼び出しのたびに `Deno.env` から読む（更新後の再デプロイ不要）。「本番環境」にできれば更新は不要。
-- **未実施**：コピー（ドライブ側の複製が要る）／共有／管理者の使用量画面／共有ドライブ対応（`supportsAllDrives`）。**本物のドライブ・Edge Function との接続は未確認**（テストは両方をモック）。テストは `scripts/design-tests/workfolder-test.js`（ヘッドレス Chromium は日本語名の `download` 属性を「download」と報告する癖があるため、リンクに設定した名前を直接確認している）。
+- **テスト**：`scripts/design-tests/workfolder-storage-test.js`（保存領域版の画面）・`workfolder-test.js`（ドライブ版の画面。ヘッダレス Chromium は日本語名の `download` 属性を「download」と報告する癖があるため、リンクに設定した名前を直接確認）・**`scripts/sql-tests/work-folders-sql-test.sh`（SQL の論理を、使い捨ての PostgreSQL に Supabase の簡易再現を作って実際に流す。41 項目：RLS・列の権限・予約→確定・申告ごまかし・他人のアクセス・冪等・旧版への上書き）**。いずれも本物の Supabase／ドライブへは接続していない。
+- **未実施**：コピー／共有／管理者の使用量画面／共有ドライブ対応（`supportsAllDrives`）／保存領域の 6MB 超ファイルの再開可能アップロード（TUS）／**本物の Supabase 保存領域・ドライブでの実機確認**。
 
 ## 🔖 チームブックマーク（全面クラウド移行・編集履歴）
 

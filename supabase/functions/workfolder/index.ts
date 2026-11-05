@@ -102,7 +102,7 @@ async function rootFolderId(): Promise<string> {
 }
 
 async function quotaBytes(): Promise<number> {
-  const { data } = await admin.from('wf_config').select('value').eq('key', 'quota_bytes').maybeSingle();
+  const { data } = await admin.from('wf_config').select('value').eq('key', 'quota_bytes_drive').maybeSingle();
   return Number(data?.value ?? 5 * 1024 * 1024 * 1024);
 }
 async function usedBytes(email: string): Promise<number> {
