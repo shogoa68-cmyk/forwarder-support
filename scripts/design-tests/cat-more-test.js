@@ -1,4 +1,4 @@
-// カテゴリナビ：BOOKMARK・見積・統計・マスター管理の 4 つ（同じ色）＋「📂 その他」（諸チャージ含む 7 カテゴリ）。
+// カテゴリナビ：BOOKMARK・見積・統計・マスター管理の 4 つ（同じ色）＋「📂 その他」（諸チャージ・作業フォルダ含む 8 カテゴリ）。
 //   node scripts/design-tests/cat-more-test.js            （現行）
 //   THEME=1 node scripts/design-tests/cat-more-test.js    （Industry）
 const { chromium } = (()=>{try{return require('playwright-core')}catch(e){return require('playwright')}})();
@@ -28,7 +28,7 @@ const ok=(n,c,x)=>console.log((c?'PASS ':'FAIL ')+n+(c?'':' → '+JSON.stringify
  ok('7 カテゴリのボタンは DOM に残り（情報は残る）、閉じている間は見えない',vis.every(Boolean),vis);
  await p.click('#catMoreBtn');await p.waitForTimeout(200);
  const open=await p.evaluate(()=>{const pn=document.getElementById('catMorePanel');const r=pn.getBoundingClientRect();const items=[...pn.querySelectorAll('.cat-btn')];const bad=items.filter(b=>{const q=b.getBoundingClientRect();const e=document.elementFromPoint(q.left+q.width/2,q.top+q.height/2);return !(e&&(e===b||b.contains(e)));});return {hidden:pn.hidden,exp:document.getElementById('catMoreBtn').getAttribute('aria-expanded'),labels:items.map(b=>b.textContent.trim()),top:Math.round(r.top),covered:bad.length};});
- ok('開くと 7 項目（先頭が諸チャージ）が出る（隠れずに押せる）',!open.hidden&&open.exp==='true'&&open.labels.length===7&&/諸チャージ/.test(open.labels[0])&&open.covered===0,open);
+ ok('開くと 8 項目（先頭が諸チャージ・作業フォルダを含む）が出る（隠れずに押せる）',!open.hidden&&open.exp==='true'&&open.labels.length===8&&/諸チャージ/.test(open.labels[0])&&open.covered===0,open);
  await p.screenshot({path:OUT+'/cat-more-open.png',clip:{x:0,y:0,width:1400,height:420}});
  await p.click('.cat-btn[aria-controls="tab-calc"]');await p.waitForTimeout(500);
  const s1=await p.evaluate(()=>({hidden:document.getElementById('catMorePanel').hidden,label:document.querySelector('#catMoreBtn .cat-more-label').textContent,act:document.getElementById('catMoreBtn').classList.contains('active'),calc:document.getElementById('tab-calc').classList.contains('active'),sub:!!document.querySelector('#sub-calc.active'),quoteAct:document.querySelector('.cat-btn[aria-controls="tab-quote-make"]').classList.contains('active')}));

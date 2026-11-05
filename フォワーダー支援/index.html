@@ -20,6 +20,7 @@
 <!-- 「かんたん表示」（Claude Design 案）。<html class="mode-simple"> のときだけ効く。クラスが無ければ従来の「詳細表示」のまま。 -->
 <link rel="stylesheet" href="css/simple-mode.css">
 <link rel="stylesheet" href="css/feedback.css">
+<link rel="stylesheet" href="css/workfolder.css">
 <script>
 /* テーマ切替の早期適用（画面の描画前に実行して、ちらつきを防ぐ）。設定は js/tweaks.js のパネル「デザイン」で変更。
    ?theme=industry / ?theme=classic のURLパラメータでも一時的に切替可（localStorage に保存される）。 */
@@ -105,10 +106,11 @@
     <button class="cat-btn cat-btn-bookmark"        role="tab" aria-selected="false" aria-controls="tab-master"        onclick="switchCategory('master',  this)">🗂 マスター管理</button>
     <!-- 日常で使う頻度の低い 7 カテゴリ（諸チャージ含む）は「その他」メニューに集約（ボタン・id・onclick は不変。js/cat-more.js が開閉と選択中の表示を担当） -->
     <div class="cat-more" id="catMore">
-      <button type="button" class="cat-btn cat-more-btn" id="catMoreBtn" aria-haspopup="true" aria-expanded="false" aria-controls="catMorePanel" title="諸チャージ・カレンダー・本船・航路・Booking/SI・書類・通関・計算・知識・参考">📂 <span class="cat-more-label">その他</span> <span class="cat-more-caret" aria-hidden="true">▾</span></button>
+      <button type="button" class="cat-btn cat-more-btn" id="catMoreBtn" aria-haspopup="true" aria-expanded="false" aria-controls="catMorePanel" title="諸チャージ・カレンダー・作業フォルダ・本船・航路・Booking/SI・書類・通関・計算・知識・参考">📂 <span class="cat-more-label">その他</span> <span class="cat-more-caret" aria-hidden="true">▾</span></button>
       <div class="cat-more-panel" id="catMorePanel" role="tablist" aria-label="その他のカテゴリ" hidden>
         <button class="cat-btn"        role="tab" aria-selected="false" aria-controls="tab-local-charges" onclick="switchCategory('cost', this)">💴 諸チャージ</button>
         <button class="cat-btn"        role="tab" aria-selected="false" aria-controls="tab-calendar"     onclick="switchCategory('calendar', this)">📅 カレンダー</button>
+        <button class="cat-btn"        role="tab" aria-selected="false" aria-controls="tab-workfolder"   onclick="switchCategory('workfolder', this)">📁 作業フォルダ</button>
         <button class="cat-btn"        role="tab" aria-selected="false" aria-controls="tab-tracking"     onclick="switchCategory('vessel', this)">🚢 本船・航路</button>
         <button class="cat-btn"        role="tab" aria-selected="false" aria-controls="tab-booking-tab"  title="Booking（船腹予約）と S/I（Shipping Instruction：船積指図書）の手続き" onclick="switchCategory('booking', this)">📋 Booking/SI</button>
         <button class="cat-btn"        role="tab" aria-selected="false" aria-controls="tab-bldo"         onclick="switchCategory('docs',   this)">📄 書類・通関</button>
@@ -4800,6 +4802,11 @@
   </div>
 
   <!-- ===================== Tab: CALENDAR ===================== -->
+  <!-- 📁 作業フォルダ（個人フォルダ・エクスプローラー風）。ロジックは js/workfolder.js、SQL は docs/sql/work-folders.sql -->
+  <div class="tab-content" id="tab-workfolder">
+    <div class="wf-root" id="wfRoot"><div class="wf-empty">読み込み中…</div></div>
+  </div><!-- /#tab-workfolder -->
+
   <div class="tab-content" id="tab-calendar">
     <div class="cal-page-head">
       <h2 class="cal-page-title">📅 カレンダー</h2>
@@ -4897,6 +4904,7 @@
 <script src="js/feedback-md.js"></script>
 <script src="js/feedback-annotate.js"></script>
 <script src="js/feedback.js"></script>
+<script src="js/workfolder.js"></script>
 <script src="js/cat-more.js"></script>
 <script src="js/stats.js"></script>
 <script src="js/alias-rules.js"></script>
