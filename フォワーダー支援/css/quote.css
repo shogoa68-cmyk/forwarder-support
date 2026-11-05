@@ -11632,3 +11632,20 @@ body.is-row-dragging { cursor: grabbing; user-select: none; }
 #tab-quote-make .cross-move-actions { display: flex; justify-content: flex-end; gap: 8px; }
 #tab-quote-make .cross-move-actions button { padding: 6px 16px; border-radius: 6px; border: 1px solid #bbb; background: #f3f3f3; cursor: pointer; font-size: 13px; font-family: inherit; }
 #tab-quote-make .cross-move-actions .cross-move-ok { background: #2e6fd0; border-color: #2e6fd0; color: #fff; font-weight: 600; }
+
+/* 幅（金額の範囲：売単価〜上限）。MIN と同じ並び（モードボタン＋ONのときだけ出る入力） */
+#tab-quote-make .range-mode-btn {
+  border: 1px solid var(--border); border-radius: var(--r-5); background: var(--card-bg); color: var(--text-md);
+  padding: 1px 8px; font-size: var(--fs-11); cursor: pointer; font-family: inherit;
+}
+#tab-quote-make .range-mode-btn:hover { border-color: #3b7ea1; color: #3b7ea1; }
+#tab-quote-make .range-mode-btn.is-on { background: #e8f3fa; border-color: #3b7ea1; color: #1f5a7a; font-weight: 700; }
+#tab-quote-make .range-group { display: none; align-items: center; gap: var(--sp-6); flex-wrap: wrap; margin-top: var(--sp-3); }
+#tab-quote-make tr.row-range-mode .range-group { display: flex; }
+#tab-quote-make .range-group .range-lbl { font-size: var(--fs-10); font-weight: 700; color: #1f5a7a; }
+#tab-quote-make .range-group .w-range { width: 100px; text-align: right; }
+#tab-quote-make .range-group .w-range.is-empty { border-color: #8a5a2b; }
+#tab-quote-make .range-group .range-hint { font-size: var(--fs-11); color: var(--text-md); }
+#tab-quote-make #quoteTable .row-detail-panel .range-group input.w-range { width: 120px !important; height: 32px; text-align: right; flex: 0 0 auto; }
+#tab-quote-make #quoteTable .row-detail-panel .range-group .range-lbl { font-size: 12px; }
+#tab-quote-make #quoteTable .row-detail-panel .range-group .range-hint { font-size: 12px; }

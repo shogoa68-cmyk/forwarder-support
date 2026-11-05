@@ -119,6 +119,15 @@
     return prefix + (parts.length ? parts.join('_') : '見積もり_' + today) + '.' + ext;
   }
 
+  // 幅（売単価〜上限）の単価文字列（Excel/CSV 用。「1,000〜2,500」）。幅なしなら null
+  function _rgRaw(d) {
+    const rg = (typeof rowRange === 'function') ? rowRange(d.bp, d.bphi) : null;
+    if (!rg) return null;
+    const dec = (d.bc && d.bc !== 'JPY') ? 2 : 0;
+    const f = n => Number(n).toLocaleString('en-US', { minimumFractionDigits: dec, maximumFractionDigits: dec });
+    return f(rg.lo) + '〜' + f(rg.hi);
+  }
+
   function collectAllRows() {
     const rows = [];
     // 物量パターン別の出力（FCL案／LCL案の併記）：window._outputPatternView が設定されている間は、
@@ -183,7 +192,7 @@
       // 客先出力・小計・PDF/Excel/CSV の除外は _hideQuote 一本で判定する（PROFIT SHARE も客先には出さない）。
       // 適用期間外は「参考」指定があれば例外的に出力する（金額は括弧書き・合計外のまま、客先へ参考提示したい場合）
       const _hideQuote  = _hideManual || (_outRange && !_ref) || _ps;
-      rows.push({ _type: 'data', taxed, cat, name, pq, un, pc, pp, cd, bq, bc, bp, mk, cost, bill, profit, ppmin: val(`ppmin-${id}`), bpmin: val(`bpmin-${id}`), note, sv, pt, vf, vt, zc, uid, _actual, _ps, _cond, _ref, _estimate, _hideQuote, _hideManual, _outRange, _outReason });
+      rows.push({ _type: 'data', taxed, cat, name, pq, un, pc, pp, cd, bq, bc, bp, mk, cost, bill, profit, ppmin: val(`ppmin-${id}`), bpmin: val(`bpmin-${id}`), bphi: val(`bphi-${id}`), note, sv, pt, vf, vt, zc, uid, _actual, _ps, _cond, _ref, _estimate, _hideQuote, _hideManual, _outRange, _outReason });
     });
     return rows;
   }
@@ -220,7 +229,7 @@
       const _actual = tr.dataset.actual === '1';   // 実費（金額未確定）
       const _cond   = tr.dataset.cond === '1';     // 都度請求（発生時のみ・合計外）
       const _ref    = tr.dataset.refInfo === '1';  // 参考情報（金額は表示・合計外）
-      data.push({ taxed, cat, name, pq, un, pc, pp, cd, bq, bc, bp, mk, cost, bill, profit, ppmin: val(`ppmin-${id}`), bpmin: val(`bpmin-${id}`), note, sv, _actual, _cond, _ref });
+      data.push({ taxed, cat, name, pq, un, pc, pp, cd, bq, bc, bp, mk, cost, bill, profit, ppmin: val(`ppmin-${id}`), bpmin: val(`bpmin-${id}`), bphi: val(`bphi-${id}`), note, sv, _actual, _cond, _ref });
     });
     return data;
   }
@@ -795,13 +804,15 @@
       const _acTxt   = '<span class="pv-actual-txt">実費</span>';
       const ppCell   = _ac ? _acTxt : (minPriceText(d.pp, d.ppmin, d.pc, d.un) || fmtMoney(d.pp));
       const cdCell   = _ac ? '' : fmtMoney(d.cd);
-      const bpCell   = _ac ? _acTxt : (minPriceText(d.bp, d.bpmin, d.bc, d.un) || fmtMoney(d.bp)) +
+      const _rg      = _ac ? null : rowRange(d.bp, d.bphi);   // 幅（売単価〜上限）
+      const _rgAmt   = _rg ? rowRangeAmt(d.bq, d.bp, d.bphi, d.bpmin) : null;
+      const bpCell   = _ac ? _acTxt : (_rg ? fmtMoney(_rg.lo) + '〜' + fmtMoney(_rg.hi) : (minPriceText(d.bp, d.bpmin, d.bc, d.un) || fmtMoney(d.bp))) +
         (d.bill > (d.bq || 0) * (d.bp || 0) ? ' <span class="pv-min-tag">[MIN適用]</span>' : '');   // 最低料金で請求している行
       const mkCell   = _ac ? '' : fmtMoney(d.mk);
       // 参考情報行の金額は括弧書き＋グレーで「合計外の参考値」であることを示す
       const subCell  = _ac ? _acTxt
         : d._ref ? `<span class="pv-ref-amt">(${fmtMoney(sub)})</span>${subJpyHint}`
-        : (fmtMoney(sub) + subJpyHint);
+        : (_rgAmt ? fmtMoney(_rgAmt.lo) + '〜' + fmtMoney(_rgAmt.hi) + ' <span class="pv-min-tag" title="合計は売単価（' + fmtMoney(sub) + '）で計算しています">幅</span>' + subJpyHint : fmtMoney(sub) + subJpyHint);
       const jpyCell2 = _ac ? ''
         : (d._ref && jpyCellText !== '—') ? `<span class="pv-ref-amt">(${jpyCellText})</span>`
         : jpyCellText;
@@ -1508,7 +1519,7 @@
     { hdr: 'CD',       fn: d => d._actual ? '' : fmtRaw(d.cd),     pvGroup: 'pay',    role: 'cd'     },
     { hdr: '数量',     fn: d => fmtRaw(d.bq),          pvGroup: 'bill',   role: 'bq'     },
     { hdr: '通貨',     fn: d => d.bc,                  pvGroup: 'bill',   role: 'bc'     },
-    { hdr: '単価',     fn: d => d._actual ? '実費' : (minPriceText(d.bp, d.bpmin, d.bc, d.un) || fmtRaw(d.bp)), pvGroup: 'bill',   role: 'bp'     },
+    { hdr: '単価',     fn: d => d._actual ? '実費' : (_rgRaw(d) || minPriceText(d.bp, d.bpmin, d.bc, d.un) || fmtRaw(d.bp)), pvGroup: 'bill',   role: 'bp'     },
     { hdr: '乗せ幅',       fn: d => d._actual ? '' : fmtRaw(d.mk),     pvGroup: 'mk',       role: 'mk'     },
     { hdr: '円換算(JPY)', fn: d => { if (d._actual) return '実費'; const s = minAmt((d.bq||0)*(d.bp||0), d.bpmin); return (d.bc && d.bc !== 'JPY') ? fmtRaw(typeof toJPY === 'function' ? Math.ceil(toJPY(s, d.bc)) : s) : '—'; }, pvGroup: 'jpy-conv', role: 'jpyConv' },
     { hdr: '利益',         fn: d => d._actual ? '—' : fmtRaw(d.profit), pvGroup: 'profit',   role: 'profit' },
@@ -1941,7 +1952,7 @@
     { key: 'cd',     hdr: 'CD',             fn: d => d._actual ? '' : fmtRaw(d.cd) },
     { key: 'bq',     hdr: '数量(請求)',     fn: d => fmtRaw(d.bq) },
     { key: 'bc',     hdr: '通貨(請求)',     fn: d => d.bc },
-    { key: 'bp',     hdr: '単価(請求)',     fn: d => d._actual ? '実費' : (minPriceText(d.bp, d.bpmin, d.bc, d.un) || fmtRaw(d.bp)) },
+    { key: 'bp',     hdr: '単価(請求)',     fn: d => d._actual ? '実費' : (_rgRaw(d) || minPriceText(d.bp, d.bpmin, d.bc, d.un) || fmtRaw(d.bp)) },
     { key: 'mk',     hdr: '乗せ幅',         fn: d => d._actual ? '' : fmtRaw(d.mk) },
     { key: 'sub',    hdr: '小計',           fn: d => d._actual ? '実費' : fmtRaw(minAmt((d.bq||0)*(d.bp||0), d.bpmin)) },
     { key: 'profit', hdr: '利益',           fn: d => d._actual ? '—' : fmtRaw(d.profit) },
