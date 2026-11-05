@@ -11599,3 +11599,24 @@ body.is-row-dragging { cursor: grabbing; user-select: none; }
 .qv-add { background: #eef8ee; } .qv-del { background: #fdeeee; } .qv-chg { background: #fff8e6; }
 .qv-body .qv-none, .qv-body .qv-hint { color: #777; }
 .qv-body s { color: #a33; }
+
+/* ダッシュボードカード：申し送りの拡大表示（見積タブ内に置くモーダル。チャットの見た目は #qpdListWrap 版に揃える） */
+#tab-quote-make .ccc-panelbar { display: flex; justify-content: flex-end; margin: 0 0 2px; }
+#tab-quote-make .ccc-expand { font-size: var(--fs-11); padding: 1px 8px; border: 1px solid var(--border); border-radius: 4px; background: var(--card-bg); color: var(--text-md); cursor: pointer; font-family: inherit; }
+#tab-quote-make .ccc-expand:hover { background: #eef3fb; color: var(--accent); }
+#tab-quote-make #cccModal { position: fixed; inset: 0; background: rgba(0,0,0,.4); z-index: 10040; display: flex; align-items: center; justify-content: center; }
+#tab-quote-make #cccModal .ccc-modal-box { background: var(--surface, #fff); color: var(--text, #222); border-radius: 10px; width: min(760px, 94vw); height: min(80vh, 760px); display: flex; flex-direction: column; box-shadow: 0 10px 40px rgba(0,0,0,.3); overflow: hidden; }
+#tab-quote-make #cccModal .ccc-modal-head { display: flex; align-items: center; gap: 8px; padding: 12px 16px; border-bottom: 1px solid var(--border, #eee); font-weight: 700; font-size: 14px; }
+#tab-quote-make #cccModal .ccc-modal-head small { font-weight: 400; color: #777; margin-left: 4px; word-break: break-all; }
+#tab-quote-make #cccModal .ccc-modal-close { margin-left: auto; border: none; background: none; cursor: pointer; font-size: 16px; color: inherit; }
+#tab-quote-make #cccModal .cloud-card-chat { flex: 1; min-height: 0; display: flex; flex-direction: column; padding: 10px 16px 14px; margin: 0; border: none; }
+#tab-quote-make #cccModal .ccc-list { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: var(--sp-8); padding: var(--sp-8); background: var(--card-bg); border-radius: var(--r-6); font-size: 14px; }
+#tab-quote-make #cccModal .ccc-list .cp-chat-item { font-size: var(--fs-13, 13px); }
+#tab-quote-make #cccModal .ccc-list .cp-chat-meta { font-size: var(--fs-11); color: var(--c-8a7a64); margin-bottom: 2px; }
+#tab-quote-make #cccModal .ccc-list .cp-chat-body { color: var(--text); white-space: pre-wrap; word-break: break-word; }
+#tab-quote-make #cccModal .ccc-list .cp-chat-item--mine .cp-chat-body { background: var(--amber-94); border-radius: var(--r-5); padding: var(--sp-3) var(--sp-6); }
+#tab-quote-make #cccModal .ccc-compose { display: flex; gap: var(--sp-6); margin-top: var(--sp-8); }
+#tab-quote-make #cccModal .ccc-input { flex: 1; min-width: 0; padding: var(--sp-6) var(--sp-8); border: 1px solid var(--c-d5c8b0); border-radius: var(--r-6); font-size: var(--fs-13, 13px); }
+#tab-quote-make #cccModal .ccc-send { padding: var(--sp-6) var(--sp-12); border: none; border-radius: var(--r-6); background: var(--text-muted); color: var(--surface); font-size: var(--fs-13, 13px); cursor: pointer; white-space: nowrap; }
+#tab-quote-make #cccModal .ccc-send:hover { background: var(--accent); }
+#tab-quote-make #cccModal .ccc-send:disabled { opacity: .5; cursor: default; }
