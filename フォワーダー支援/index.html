@@ -3095,6 +3095,7 @@
                   </div>
                 </div>
               </div>
+              <div class="zone-sc-note" id="z1ScNote" hidden aria-live="polite"></div>
               <div class="piece-row">
                 <label class="piece-item"><input type="checkbox" id="piece-pickup" disabled onchange="applyZoneState();onPieceCheck(this,'sc-pickup')"> 🚚 集荷</label>
                 <div class="piece-subcon-area" id="sc-pickup">
@@ -3229,6 +3230,7 @@
                   </div>
                 </div>
               </div>
+              <div class="zone-sc-note" id="z3ScNote" hidden aria-live="polite"></div>
               <div class="piece-row">
                 <label class="piece-item"><input type="checkbox" id="piece-customs-i" disabled onchange="applyZoneState();onPieceCheck(this,'sc-customs-i')"> 🛃 通関（輸入）</label>
                 <div class="piece-subcon-area" id="sc-customs-i">
@@ -4467,6 +4469,7 @@
           <div class="rd-group"><div class="rd-title">状態</div><div class="rd-state"></div></div>
           <div class="rd-group wide"><div class="rd-title">単価のオプション</div><div class="rd-slot" data-rd-slot="mode"></div><div class="rd-slot" data-rd-slot="pct"></div><div class="rd-slot" data-rd-slot="min"></div></div>
           <div class="rd-group wide"><div class="rd-title">適用する貿易条件</div><div class="rd-slot" data-rd-slot="ic"></div></div>
+          <div class="rd-group wide"><div class="rd-title">表示する条件</div><div class="rd-slot" data-rd-slot="cn"></div></div>
           <div class="rd-group rd-cd-group"><div class="rd-title">CD（通貨差調整値）</div><div class="rd-slot" data-rd-slot="cd"></div></div>
           <div class="rd-group"><div class="rd-title">金額の内訳</div><dl class="rd-breakdown"></dl></div>
         </div>
@@ -4511,6 +4514,7 @@
         <input type="hidden" data-field="ppref" value="">
         <input type="hidden" data-field="es" value="">
         <input type="hidden" data-field="ic" value="">
+        <input type="hidden" data-field="cn" value="">
         <div class="row-mode-btns">
           <button type="button" class="zero-confirm-btn" tabindex="-1" title="あえて0円にする（0円であることを確認済みの目印。もう一度クリックで解除）">あえて¥0</button>
           <button type="button" class="actual-cost-btn" tabindex="-1" title="実費（金額未確定・別途精算）。単価・金額に「実費」と表示し、合計から除外します（もう一度クリックで解除）。">実費</button>
@@ -4521,7 +4525,9 @@
           <button type="button" class="sell-mode-btn" tabindex="-1" title="売値ベース：売単価を先に決め、仕入単価を入力すると乗せ幅（売−仕入）が自動算出されます。もう一度クリックで通常（仕入＋乗せ幅＝売値）に戻ります。">売値ベース</button>
           <button type="button" class="pct-mode-btn" tabindex="-1" title="仕入単価を「○○の何%」として計算（%率と基準額を入力）。もう一度クリックで直接入力に戻す。">%</button>
           <button type="button" class="ic-mode-btn" tabindex="-1" title="適用する貿易条件：選んだ貿易条件（インコタームズ）のときだけ、この行を見積書・合計に含めます（例：EXW・FCA のときだけ有効）。いまの貿易条件に合わない行は画面に薄く残り、客先向けの出力と合計から外れます。もう一度クリックで解除。">貿易条件</button>
+          <button type="button" class="cn-mode-btn" tabindex="-1" title="表示条件：数量・総個数・コンテナ本数・輸送モード・貿易条件などが条件に合うときだけ、この行を見積書・合計に含めます（例：数量 20 以上 40 以下のときだけ有効）。合わない行は画面に薄く残り、客先向けの出力と合計から外れます。もう一度クリックで解除。">表示条件</button>
           <button type="button" class="min-mode-btn" tabindex="-1" title="ミニマム（最低料金）：金額を「数量 × 単価」と最低料金の高いほうにします（例：Min. $28.00 or $0.15/kg）。もう一度クリックで解除。">MIN</button>
+          <button type="button" class="range-mode-btn" tabindex="-1" title="幅（金額の範囲）：売単価を「1,000〜2,500」のように幅で示します（上限を入力）。客先向けの出力は単価・金額を「〜」で表示し、合計・小計は売単価で計算します。もう一度クリックで解除。">幅</button>
         </div>
         <span class="min-group" title="ミニマム（最低料金）：金額は「数量 × 単価」と最低料金の高いほうになります。仕入・売値それぞれに設定できます（空欄なら適用しない）">
           <span class="min-lbl">最低料金（MIN）</span>
@@ -4529,10 +4535,20 @@
           <span class="min-pair"><span class="t-sell">売</span><input type="number" data-field="bpmin" class="w-min" min="0" step="0.01" placeholder="売値の最低料金" /></span>
           <span class="min-hint"></span>
         </span>
+        <span class="range-group" title="幅（金額の範囲）：売単価〜上限を「1,000〜2,500」のように客先向けに示します。合計・小計は売単価で計算します（空欄なら幅なし）">
+          <span class="range-lbl">幅（上限）</span>
+          <input type="number" data-field="bphi" class="w-range" min="0" step="0.01" placeholder="売単価の上限" />
+          <span class="range-hint"></span>
+        </span>
         <span class="ic-group" title="選んだ貿易条件（インコタームズ）のときだけ、この行を見積書・合計に含めます。何も選ばなければ、どの貿易条件でも有効です。判定は見積の貿易条件（往復案件は往路）で行い、貿易条件が未設定のときは判定しません。">
           <span class="ic-lbl">適用する貿易条件</span>
           <span class="ic-chips"></span>
           <span class="ic-hint"></span>
+        </span>
+        <span class="cn-group" title="条件に合うときだけ、この行を見積書・合計に含めます。条件に使う値が未入力のときは判定できないため、表示のままにして注意を出します。">
+          <span class="cn-lbl">表示する条件</span>
+          <span class="cn-ctrl"></span>
+          <span class="cn-hint"></span>
         </span>
         <span class="actual-cost-badge" aria-hidden="true">実費</span>
       </td>
@@ -4867,6 +4883,7 @@
 <script src="js/quote/cloud.js"></script>
 <script src="js/quote/users.js"></script>
 <script src="js/quote/hazmat-ai-import.js"></script>
+<script src="js/quote/total-float.js"></script>
 <script src="js/quote/quote-versions.js"></script>
 <script src="js/quote/admin-creator-edit.js"></script>   <!-- 【一時機能】管理者が作成者を変更（やめるときは docs/sql/admin-edit-creator.sql 参照） -->
 <script src="js/quote/subcon-insert.js"></script>
@@ -4892,6 +4909,7 @@
 <script src="js/stats.js"></script>
 <script src="js/alias-rules.js"></script>
 <script src="js/port-country.js"></script>
+<script src="js/zone-subcon.js"></script>
 <script src="js/customer-rules.js"></script>
 <script src="js/carrier-migration.js"></script>
 <script src="js/local-charges.js"></script>

@@ -188,7 +188,8 @@
     const m = s.match(/^([^\d\-]*)(.*)$/);     // 先頭の記号（≈ 等）を分離
     const prefix = m ? m[1] : '';
     const rest   = m ? m[2] : s;
-    return esc(prefix) + '¥' + esc(rest);
+    // 幅（「下限〜上限」）は両端に ¥ を付ける
+    return esc(prefix) + rest.split('〜').map(x => '¥' + esc(x)).join('〜');
   }
 
   // 課税行の品名から先頭の課税マーク * を1つ除去（表示直前）。
@@ -567,6 +568,7 @@
 
     // 集計
     let taxableSub = 0, exemptSub = 0, taxSum = 0;
+    let taxableSubHi = 0, exemptSubHi = 0, taxSumHi = 0;   // 幅（〜）のある行を上限で数えた場合の合計（下限＝上記）
     const lineHTML = [];
     // サブコン別グループが有効（2+ サブコン）なら、グループ境界に売値小計を挿入（顧客向けのため金額のみ）
     // 揺らぎ吸収：境界判定・エイリアス参照は正規化キーで、表示は元の綴りで行う
@@ -601,6 +603,7 @@
         lineHTML.push(`<tr class="qd-subcon-sub"><td colspan="4">↳ ${esc(_scHeadLabel || '')} ${t('subtotal')}</td><td class="qd-num">¥${fmtInt(_scJpy)}</td></tr>`);
       }
     };
+    let _hasRangeRow = false;   // 幅（〜）で示した行があるか（あれば合計の注記を出す）
     rows.forEach(r => {
       if (r._type === 'remark') {
         if (r.internal) return; // 社内メモは PDF に出力しない
@@ -613,6 +616,10 @@
       }
       // data
       const sub = minAmt((r.bq || 0) * (r.bp || 0), r.bpmin);  // 請求通貨建ての金額（ミニマム＝最低料金があれば、それを下回らない）
+      // 幅（売単価〜上限）：単価・金額を「1,000〜2,500」と示す。合計・小計は売単価（下限）で計算する
+      const _rg    = r._actual ? null : rowRange(r.bp, r.bphi);
+      const _rgAmt = _rg ? rowRangeAmt(r.bq, r.bp, r.bphi, r.bpmin) : null;
+      if (_rg) _hasRangeRow = true;
       const jpy = Math.ceil(_toJPY(sub, r.bc || 'JPY'));      // JPY換算
       // 外貨建ては輸出免税が原則（Excel/プレビューと同一ポリシー）。課税は JPY 建て行のみ。
       // 消費税は行ごとに切り上げて積み上げ、各出力経路（御見積書/プレビュー/Excel）で一致させる。
@@ -620,11 +627,15 @@
       const isCond   = r._cond;     // 都度請求（発生時のみ・金額は表示・合計に加算しない）
       const isRef    = r._ref;      // 参考情報（金額は表示・合計に加算しない）
       if (!isActual && !isCond && !isRef) {
+        const jpyHi = _rgAmt ? Math.ceil(_toJPY(_rgAmt.hi, r.bc || 'JPY')) : jpy;   // 幅のある行の上限（JPY）
         if (r.taxed && (r.bc || 'JPY') === 'JPY') {
           taxableSub += jpy;
           taxSum += Math.ceil(jpy * taxRate);
+          taxableSubHi += jpyHi;
+          taxSumHi += Math.ceil(jpyHi * taxRate);
         } else {
           exemptSub += jpy;
+          exemptSubHi += jpyHi;
         }
       }
       const isNonJpy = r.bc && r.bc !== 'JPY';
@@ -634,7 +645,9 @@
       // JPY 単価は端数があるときだけ小数表示（単価×数量＝金額の検算が崩れないように）
       const unitDisp = isActual
         ? t('unpriced')
-        : estTag + (minPriceText(r.bp, r.bpmin, r.bc || 'JPY', r.un || '') ? esc(minPriceText(r.bp, r.bpmin, r.bc || 'JPY', r.un || ''))
+        : estTag + (_rg ? (isNonJpy ? `${fmtNum(_rg.lo, 2)}〜${fmtNum(_rg.hi, 2)} ${esc(r.bc)}`
+                                    : `${Number.isInteger(_rg.lo) && Number.isInteger(_rg.hi) ? fmtInt(_rg.lo) + '〜' + fmtInt(_rg.hi) : fmtNum(_rg.lo, 2) + '〜' + fmtNum(_rg.hi, 2)} JPY`)
+          : minPriceText(r.bp, r.bpmin, r.bc || 'JPY', r.un || '') ? esc(minPriceText(r.bp, r.bpmin, r.bc || 'JPY', r.un || ''))
           : isNonJpy
           ? `${fmtNum(r.bp, 2)} ${esc(r.bc)}`
           : `${Number.isInteger(r.bp) ? fmtInt(r.bp) : fmtNum(r.bp, 2)} JPY`)
@@ -725,14 +738,20 @@
           <td class="qd-num">${qtyDisp}</td>
           <td class="qd-ctr">${esc(r.un || '')}</td>
           <td class="qd-num">${unitDisp}</td>
-          <td class="qd-num">${isActual ? t('unpriced') : isCond ? '' : isRef ? '<span style="color:var(--doc-note-ref-amt);">(¥' + fmtInt(jpy) + ')</span>' : estTag + '¥' + fmtInt(jpy)}</td>
+          <td class="qd-num">${isActual ? t('unpriced') : isCond ? '' : isRef ? '<span style="color:var(--doc-note-ref-amt);">(¥' + fmtInt(jpy) + ')</span>' : estTag + (_rgAmt ? '¥' + fmtInt(Math.ceil(_toJPY(_rgAmt.lo, r.bc || 'JPY'))) + '〜¥' + fmtInt(Math.ceil(_toJPY(_rgAmt.hi, r.bc || 'JPY'))) : '¥' + fmtInt(jpy))}</td>
         </tr>`
       );
     });
     _scPush();   // 末尾グループの売値小計
+    if (_hasRangeRow) {   // 幅のある項目の合計の扱いを明記（誤解防止）
+      lineHTML.push(`<tr class="qd-remark"><td colspan="5">※ ${_curLangEn ? 'Totals are shown as a range because some items are quoted as a range (lower to upper amount).' : '「〜」で幅を示した項目を含むため、合計も下限〜上限の幅で表示しています。'}</td></tr>`);
+    }
 
     const tax   = taxSum;   // 行ごと切り上げの合計（Math.floor 一括計算からの修正）
     const total = taxableSub + exemptSub + tax;
+    const totalHi = taxableSubHi + exemptSubHi + taxSumHi;   // 幅（〜）のある行を上限で数えた合計
+    // 幅のある行を含むときは、合計を「下限〜上限」で表示する
+    const rgY = (lo, hi, sp) => (_hasRangeRow && hi !== lo) ? `¥${sp || ''}${fmtInt(lo)}〜¥${sp || ''}${fmtInt(hi)}` : `¥${sp || ''}${fmtInt(lo)}`;
 
     const subj = opts.compare ? { title: '', meta: [] } : buildSubject(cond);   // 比較ページは案ごとの内容を持たない
     _lastBuild = { total, tax, subjTitle: opts.compare ? '' : subj.title, container: opts.compare ? '' : (cond && cond.container) || '' };
@@ -789,7 +808,7 @@
         ${metaRows ? `<div class="qd-meta">${metaRows}</div>` : ''}
         ${(!hideTotal || validStr) ? `<div class="qd-amt-row">
           <span>${hideTotal ? '' : t('totalAmount')}${validStr ? `　<span class="qd-valid">${t('validUntil')}：${esc(validStr)}</span>` : ''}</span>
-          ${hideTotal ? '' : `<span class="qd-amt">¥ ${fmtInt(total)} <span class="qd-jpy">(JPY)</span></span>`}
+          ${hideTotal ? '' : `<span class="qd-amt">${rgY(total, totalHi, ' ')} <span class="qd-jpy">(JPY)</span></span>`}
         </div>` : ''}
       </div>
 
@@ -812,10 +831,10 @@
         </div>
         ${hideTotal ? '' : `<div class="qd-sum">
           <table>
-            <tr><td class="qd-sk2">${t('exemptSub')}</td><td class="qd-num">¥${fmtInt(exemptSub)}</td></tr>
-            <tr><td class="qd-sk2">${t('taxableSub')}</td><td class="qd-num">¥${fmtInt(taxableSub)}</td></tr>
-            <tr><td class="qd-sk2">${t('tax')}（${Math.round(taxRate * 100)}%）</td><td class="qd-num">¥${fmtInt(tax)}</td></tr>
-            <tr class="qd-total"><td>${t('grandTotal')}</td><td class="qd-num">¥${fmtInt(total)}</td></tr>
+            <tr><td class="qd-sk2">${t('exemptSub')}</td><td class="qd-num">${rgY(exemptSub, exemptSubHi)}</td></tr>
+            <tr><td class="qd-sk2">${t('taxableSub')}</td><td class="qd-num">${rgY(taxableSub, taxableSubHi)}</td></tr>
+            <tr><td class="qd-sk2">${t('tax')}（${Math.round(taxRate * 100)}%）</td><td class="qd-num">${rgY(tax, taxSumHi)}</td></tr>
+            <tr class="qd-total"><td>${t('grandTotal')}</td><td class="qd-num">${rgY(total, totalHi)}</td></tr>
           </table>
         </div>`}
       </div>

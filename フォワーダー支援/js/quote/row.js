@@ -18,7 +18,7 @@
       const vt = document.getElementById(`vt-${id}`);
       if (vf && vf.value) vf.value = '';
       if (vt && vt.value) vt.value = '';
-      if (tr && !rowIncotermsMismatch(tr)) { delete tr.dataset.outRange; delete tr.dataset.outReason; tr.classList.remove('row-out-of-range'); }   // 貿易条件による除外は、カテゴリに関係なく維持
+      if (tr && !rowIncotermsMismatch(tr) && !rowCondMismatch(tr)) { delete tr.dataset.outRange; delete tr.dataset.outReason; tr.classList.remove('row-out-of-range'); }   // 貿易条件による除外は、カテゴリに関係なく維持
     }
     _scheduleCatHeaderRefresh();   // Industry テーマのときだけカテゴリ見出しを更新
   }
@@ -60,9 +60,10 @@
   // 行の適用期間が見積の生きている期間と一切重ならなければ true（期間未設定の行は常に有効＝false）。
   // 日付は ISO(YYYY-MM-DD) なので文字列比較で大小判定できる。
   function isRowOutOfRange(tr) { return !!rowOutReason(tr); }
-  // 行が客先向けの出力・合計から外れる理由：'incoterms'（いまの貿易条件に合わない）／'period'（サーチャージの適用期間外）／''（対象）
+  // 行が客先向けの出力・合計から外れる理由：'incoterms'（いまの貿易条件に合わない）／'condition'（表示条件に合わない）／'period'（サーチャージの適用期間外）／''（対象）
   function rowOutReason(tr) {
     if (rowIncotermsMismatch(tr)) return 'incoterms';
+    if (rowCondMismatch(tr)) return 'condition';
     return _rowOutOfPeriod(tr) ? 'period' : '';
   }
   window.rowOutReason = rowOutReason;
@@ -195,10 +196,218 @@
   // 見積の貿易条件を変えたら、全行の適用を判定し直す
   document.addEventListener('change', e => {
     if (e.target && e.target.id === 'cond-incoterms') {
-      document.querySelectorAll('#tableBody tr[id^="row-"]').forEach(tr => syncIcUi(tr.id.replace('row-', '')));
+      document.querySelectorAll('#tableBody tr[id^="row-"]').forEach(tr => { syncIcUi(tr.id.replace('row-', '')); syncCnUi(tr.id.replace('row-', '')); });
       if (typeof updateTotals === 'function') updateTotals();
     }
   });
+
+  // ===== 表示条件（行ごと・if 構文）=====
+  // 行の cn（JSON {k:項目, o:比較, a:値, b:範囲の上限}。空＝常に表示）。条件に合わない行は「適用期間外」「貿易条件外」と同じ扱い
+  // （画面には薄く残り、客先向けの出力と合計から外れる＝dataset.outReason='condition'）。条件は 1 行に 1 つ。
+  // 条件に使う値が空（数量が未入力・コンテナ未選択・輸送モード未選択など）のときは判定できないため表示のままにして、注意を出す。
+  //   項目：qty＝この行の数量／pcs＝総個数／cnt＝コンテナ本数（合計）／cnt:<種別>＝その種別の本数／mode＝輸送モード／inco＝貿易条件
+  //   比較（数値）：ge 以上／gt 超／le 以下／lt 未満／eq 等しい／ne 等しくない／between 範囲（a 以上 b 以下）　（文字）：eq／ne
+  const CN_NUM_OPS = [['between', '範囲（以上〜以下）'], ['ge', '以上'], ['le', '以下'], ['gt', '超'], ['lt', '未満'], ['eq', 'と等しい'], ['ne', 'と等しくない']];
+  const CN_TXT_OPS = [['eq', 'である'], ['ne', 'ではない']];
+  function _cnItems(extraKey) {
+    const items = [
+      { k: 'qty', label: 'この行の数量', kind: 'num', unit: '' },
+      { k: 'pcs', label: '総個数', kind: 'num', unit: '個' },
+      { k: 'cnt', label: 'コンテナ本数（合計）', kind: 'num', unit: '本' },
+    ];
+    const seen = new Set();
+    const add = t => { if (t && !seen.has(t)) { seen.add(t); items.push({ k: 'cnt:' + t, label: 'コンテナ本数（' + t + '）', kind: 'num', unit: '本' }); } };
+    (typeof window.getContainerEntries === 'function' ? window.getContainerEntries() : []).forEach(e => add(e.type));
+    if (extraKey && extraKey.startsWith('cnt:')) add(extraKey.slice(4));   // 保存済みの条件の種別が、いまの案件に無くても選択肢に残す
+    items.push({ k: 'mode', label: '輸送モード', kind: 'text' }, { k: 'inco', label: '貿易条件', kind: 'text' });
+    return items;
+  }
+  function _cnChoices(k) {
+    if (k === 'mode') {
+      const sel = document.getElementById('cond-mode');
+      const base = sel ? [...sel.options].map(o => o.value).filter(Boolean).map(v => [v, v]) : [];
+      return [['海上*', '海上（すべて）'], ['航空*', '航空（すべて）'], ...base];
+    }
+    if (k === 'inco') return _incotermsChoices().map(c => [c, c]);
+    return [];
+  }
+  function rowCnGet(id) {
+    const raw = document.getElementById(`cn-${id}`)?.value || '';
+    if (!raw) return null;
+    try { const o = JSON.parse(raw); return (o && typeof o === 'object' && o.k) ? o : null; } catch (e) { return null; }
+  }
+  // 条件に使う「いまの値」。null＝まだ分からない（判定できない）
+  function _cnCurrent(k, id) {
+    const m = (typeof window.getCargoMetrics === 'function') ? window.getCargoMetrics() : {};
+    const entries = (typeof window.getContainerEntries === 'function') ? window.getContainerEntries() : [];
+    const num = v => { const n = parseFloat(v); return isNaN(n) ? null : n; };
+    if (k === 'qty') { const p = document.getElementById(`pq-${id}`)?.value, b = document.getElementById(`bq-${id}`)?.value; return num(p !== '' && p != null ? p : b); }   // 画面の数量欄（pq）。bq は連動する読み取り用
+    if (k === 'pcs') return (m.qty > 0) ? m.qty : null;
+    if (k === 'cnt') return entries.length ? entries.reduce((a, e) => a + e.count, 0) : null;
+    if (k.startsWith('cnt:')) { if (!entries.length) return null; const e = entries.find(x => x.type === k.slice(4)); return e ? e.count : 0; }
+    if (k === 'mode') { const v = (document.getElementById('cond-mode')?.value || '').trim(); return v || null; }
+    if (k === 'inco') return currentIncotermsCode() || null;
+    return null;
+  }
+  function _cnLabel(k) { const it = _cnItems(k).find(x => x.k === k); return it ? it.label : k; }
+  function _cnOpLabel(kind, o) { return ((kind === 'num' ? CN_NUM_OPS : CN_TXT_OPS).find(x => x[0] === o) || [o, o])[1]; }
+  function _cnCondText(c) {
+    const it = _cnItems(c.k).find(x => x.k === c.k) || { kind: 'num', unit: '' };
+    if (it.kind === 'text') { const ch = _cnChoices(c.k).find(x => x[0] === c.a); return `${_cnLabel(c.k)}が ${ch ? ch[1] : c.a} ${_cnOpLabel('text', c.o)}`; }
+    const u = it.unit || '';
+    if (c.o === 'between') return `${_cnLabel(c.k)}が ${c.a}${u} 以上 ${c.b}${u} 以下`;
+    return `${_cnLabel(c.k)}が ${c.a}${u} ${_cnOpLabel('num', c.o)}`;
+  }
+  // 行の表示条件の判定。status：none（条件なし）／ok（合う）／out（合わない）／unknown（値が未入力で判定できない）／incomplete（条件の入力が途中）
+  function rowCondEval(tr) {
+    if (!tr || !tr.id || !tr.id.startsWith('row-')) return { status: 'none' };
+    const id = tr.id.replace('row-', '');
+    const c = rowCnGet(id);
+    if (!c) return { status: 'none' };
+    const it = _cnItems(c.k).find(x => x.k === c.k);
+    if (!it) return { status: 'incomplete', cond: c };
+    const cur = _cnCurrent(c.k, id);
+    if (it.kind === 'text') {
+      if (!c.a) return { status: 'incomplete', cond: c, cur };
+      if (cur === null) return { status: 'unknown', cond: c, cur };
+      const hit = String(c.a).endsWith('*') ? String(cur).startsWith(String(c.a).slice(0, -1)) : String(cur) === String(c.a);
+      return { status: (c.o === 'ne' ? !hit : hit) ? 'ok' : 'out', cond: c, cur };
+    }
+    const a = parseFloat(c.a), b = parseFloat(c.b);
+    if (isNaN(a) || (c.o === 'between' && isNaN(b))) return { status: 'incomplete', cond: c, cur };
+    if (cur === null) return { status: 'unknown', cond: c, cur };
+    let ok;
+    switch (c.o) {
+      case 'ge': ok = cur >= a; break;
+      case 'gt': ok = cur > a; break;
+      case 'le': ok = cur <= a; break;
+      case 'lt': ok = cur < a; break;
+      case 'eq': ok = cur === a; break;
+      case 'ne': ok = cur !== a; break;
+      default:   ok = cur >= Math.min(a, b) && cur <= Math.max(a, b);   // between（上下が逆でも範囲として扱う）
+    }
+    return { status: ok ? 'ok' : 'out', cond: c, cur };
+  }
+  function rowCondMismatch(tr) { return rowCondEval(tr).status === 'out'; }
+  window.rowCondEval = rowCondEval;
+  window.rowCondMismatch = rowCondMismatch;
+
+  function _cnSave(id, c) {
+    const el = document.getElementById(`cn-${id}`);
+    if (el) el.value = c ? JSON.stringify(c) : '';
+  }
+  // 条件の入力欄（項目・比較・値）を作る。項目・比較を変えたときだけ作り直し、値の入力中は作り直さない（入力欄の焦点を保つ）
+  function renderCnUi(id) {
+    const tr = document.getElementById(`row-${id}`);
+    const box = tr && tr.querySelector('.cn-ctrl');
+    if (!box) return;
+    const c = rowCnGet(id) || { k: 'qty', o: 'between', a: '', b: '' };
+    const items = _cnItems(c.k);
+    const it = items.find(x => x.k === c.k) || items[0];
+    const mk = (tag, cls) => { const e = document.createElement(tag); e.className = cls; return e; };
+    const keySel = mk('select', 'cn-key');
+    items.forEach(x => { const o = document.createElement('option'); o.value = x.k; o.textContent = x.label; if (x.k === it.k) o.selected = true; keySel.appendChild(o); });
+    const opSel = mk('select', 'cn-op');
+    (it.kind === 'num' ? CN_NUM_OPS : CN_TXT_OPS).forEach(([v, l]) => { const o = document.createElement('option'); o.value = v; o.textContent = l; if (v === c.o) o.selected = true; opSel.appendChild(o); });
+    const parts = [keySel];
+    let aEl, bEl;
+    if (it.kind === 'num') {
+      aEl = mk('input', 'cn-a'); aEl.type = 'number'; aEl.step = 'any'; aEl.placeholder = '値'; aEl.value = c.a ?? '';
+      parts.push(aEl);
+      const to = mk('span', 'cn-to'); to.textContent = it.unit ? it.unit + ' 〜' : '〜';
+      bEl = mk('input', 'cn-b'); bEl.type = 'number'; bEl.step = 'any'; bEl.placeholder = '上限'; bEl.value = c.b ?? '';
+      const unit = mk('span', 'cn-unit'); unit.textContent = it.unit || '';
+      parts.push(to, bEl, unit, opSel);
+    } else {
+      aEl = mk('select', 'cn-a');
+      const blank = document.createElement('option'); blank.value = ''; blank.textContent = '— 選択 —'; aEl.appendChild(blank);
+      _cnChoices(it.k).forEach(([v, l]) => { const o = document.createElement('option'); o.value = v; o.textContent = l; if (v === c.a) o.selected = true; aEl.appendChild(o); });
+      parts.push(aEl, opSel);
+    }
+    box.replaceChildren(...parts);
+    tr.classList.toggle('cn-between', it.kind === 'num' && opSel.value === 'between');
+    const read = () => {
+      const k = keySel.value, cur = items.find(x => x.k === k) || it;
+      const o = opSel.value;
+      _cnSave(id, { k, o, a: aEl.value, b: (cur.kind === 'num' && o === 'between') ? (bEl ? bEl.value : '') : '' });
+    };
+    // 項目を変えたら（数値⇔文字で比較・値の形が変わるため）既定の比較で作り直す。比較を変えたら（範囲の上限欄の出し入れのため）値を保って作り直す
+    keySel.onchange = () => {
+      const k = keySel.value, nit = _cnItems(k).find(x => x.k === k);
+      _cnSave(id, { k, o: nit.kind === 'num' ? 'between' : 'eq', a: '', b: '' });
+      renderCnUi(id); syncCnUi(id); updateTotals(); if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
+    };
+    opSel.onchange = () => { read(); renderCnUi(id); syncCnUi(id); updateTotals(); if (typeof scheduleAutoSave === 'function') scheduleAutoSave(); };
+    const onVal = () => { read(); syncCnUi(id); updateTotals(); if (typeof scheduleAutoSave === 'function') scheduleAutoSave(); };
+    aEl.oninput = onVal; aEl.onchange = onVal;
+    if (bEl) { bEl.oninput = onVal; bEl.onchange = onVal; }
+    tr._cnSig = c.k + '|' + c.o;
+    tr._cnItemsSig = items.map(x => x.k).join('|');   // 項目の選択肢（コンテナ種別）が変わったら作り直すための目印
+    if (!rowCnGet(id)) _cnSave(id, { k: it.k, o: opSel.value, a: aEl.value, b: bEl ? bEl.value : '' });
+  }
+  // 行の見た目（ボタンの ON/OFF・説明・判定）を値に合わせる。復元・複製・値の変更のたびに呼ばれる（軽い処理）
+  function syncCnUi(id) {
+    const tr = document.getElementById(`row-${id}`);
+    if (!tr) return;
+    const c = rowCnGet(id);
+    if (c) tr.classList.add('row-cn-mode');
+    const on = tr.classList.contains('row-cn-mode');
+    tr.querySelector('.cn-mode-btn')?.classList.toggle('is-on', on);
+    const ev = rowCondEval(tr);
+    tr.classList.toggle('cn-unknown', ev.status === 'unknown' || ev.status === 'incomplete');
+    if (ev.status === 'unknown' || ev.status === 'incomplete') tr.dataset.cnUnknown = '1'; else delete tr.dataset.cnUnknown;
+    if (!on) return;
+    const sig = c ? c.k + '|' + c.o : '';
+    const isig = _cnItems(c && c.k).map(x => x.k).join('|');
+    if (!tr._cnSig || (c && tr._cnSig !== sig) || tr._cnItemsSig !== isig || !tr.querySelector('.cn-ctrl')?.children.length) renderCnUi(id);
+    const hint = tr.querySelector('.cn-hint');
+    if (hint) {
+      const it = c ? _cnItems(c.k).find(x => x.k === c.k) : null;
+      const curTxt = (ev.cur === null || ev.cur === undefined) ? '' : (it && it.kind === 'text' ? String(ev.cur) : String(ev.cur) + (it && it.unit ? it.unit : ''));
+      hint.textContent = !c ? '条件を選ぶと、条件に合うときだけこの行が有効になります（解除は「表示条件」をもう一度押す）'
+        : ev.status === 'incomplete' ? '条件の値が未入力です（判定していません・表示のまま）'
+        : ev.status === 'unknown' ? `⚠ 判定できません：${_cnLabel(c.k)}が未入力・未選択のため、表示のままにしています`
+        : ev.status === 'out' ? `いまの${_cnLabel(c.k)}（${curTxt}）は条件に合わないため、出力と合計から外れています`
+        : `いまの${_cnLabel(c.k)}（${curTxt}）は条件に合うため、出力に含まれます`;
+      hint.classList.toggle('is-out', ev.status === 'out');
+      hint.classList.toggle('is-warn', ev.status === 'unknown' || ev.status === 'incomplete');
+    }
+  }
+  function toggleCnMode(id) {
+    const tr = document.getElementById(`row-${id}`);
+    if (!tr) return;
+    const on = !tr.classList.contains('row-cn-mode');
+    tr.classList.toggle('row-cn-mode', on);
+    const el = document.getElementById(`cn-${id}`);
+    if (!on) { if (el) el.value = ''; delete tr._cnSig; }
+    if (on) renderCnUi(id);
+    syncCnUi(id);
+    updateTotals();
+    if (on && window.rowDetailToggle && !tr.querySelector('.cn-group')?.offsetParent) window.rowDetailToggle(tr, true);
+    if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
+  }
+  window.toggleCnMode = toggleCnMode;
+  // 条件に使う値（物量・輸送モード・貿易条件・コンテナ）が変わったとき、表示条件のある行だけ判定し直す。結果が変わった行があるときだけ再集計する
+  let _cnRefreshTimer = null;
+  function refreshRowConditions() {
+    clearTimeout(_cnRefreshTimer);
+    _cnRefreshTimer = setTimeout(() => {
+      let changed = false;
+      document.querySelectorAll('#tableBody tr[id^="row-"]').forEach(tr => {
+        const id = tr.id.replace('row-', '');
+        if (!document.getElementById(`cn-${id}`)?.value) return;
+        const ev = rowCondEval(tr);
+        const wasOut = tr.dataset.outReason === 'condition';
+        const wasUnk = tr.dataset.cnUnknown === '1';
+        const isUnk = ev.status === 'unknown' || ev.status === 'incomplete';
+        syncCnUi(id);
+        if ((ev.status === 'out') !== wasOut || isUnk !== wasUnk) changed = true;
+      });
+      if (changed && typeof updateTotals === 'function') updateTotals();
+    }, 60);
+  }
+  window.refreshRowConditions = refreshRowConditions;
+  document.addEventListener('change', e => { if (e.target && e.target.id === 'cond-mode') refreshRowConditions(); });
 
   // ========== 未入力グレーアウト ==========
   function checkUnfilled(id) {
@@ -227,11 +436,11 @@
 
     const clearMarks = () => {
       if (_lastDragOverRow) {
-        _lastDragOverRow.classList.remove('drag-over-top', 'drag-over-bottom');
+        _lastDragOverRow.classList.remove('drag-over-top', 'drag-over-bottom', 'drag-over-cross');
         _lastDragOverRow = null;
       }
-      tbody.querySelectorAll('tr.drag-over-top, tr.drag-over-bottom')
-        .forEach(r => r.classList.remove('drag-over-top', 'drag-over-bottom'));
+      tbody.querySelectorAll('tr.drag-over-top, tr.drag-over-bottom, tr.drag-over-cross')
+        .forEach(r => r.classList.remove('drag-over-top', 'drag-over-bottom', 'drag-over-cross'));
     };
     const resetDrag = () => {
       tbody.querySelectorAll('tr.dragging').forEach(r => r.classList.remove('dragging'));
@@ -245,6 +454,7 @@
     // - 通常行／小計・リマーク行 … その行の前後へ挿入
     // - グループ見出し（仮想行）  … そのグループの先頭へ挿入（最上段へ移動する導線）
     // 戻り値 null は「ドロップ不可」。
+    // - 別のサブコン／パターンのグループへ（データ行）… 移動の確認ダイアログを出し、承諾されたら移動先のサブコン・パターンの明細にする（cross）
     function resolveTarget(x, y) {
       if (!dragSrcRows || !dragSrcRows.length) return null;
       const el = document.elementFromPoint(x, y);
@@ -252,30 +462,110 @@
       if (!tr) return null;
       const src = dragSrcRows[0];
       const srcSv = _rowSubcon(src);
+      const dataSrcs = dragSrcRows.filter(r => !r.dataset.type);
+      const norm = v => subconNormKey(v || '') || '';
+      // 移動先の行（destRow＝そのグループの明細）に対し、ドラッグ中のデータ行のサブコン・パターンが違えば cross 情報を返す
+      const crossFor = (destRow) => {
+        if (srcSv === null || !destRow) return null;
+        const dsv = _rowSubcon(destRow) ?? '', dpt = _rowInnerKey(destRow);
+        const differs = dataSrcs.some(r => norm(_rowSubcon(r)) !== norm(dsv) || norm(_rowInnerKey(r)) !== norm(dpt));
+        return differs ? { sv: dsv, pt: dpt, fromSv: _rowSubcon(src) ?? '', fromPt: _rowInnerKey(src) } : null;
+      };
 
-      if (tr.classList.contains('subcon-group-header')) {
-        // データ行のみグループ見出しへドロップ可。同じサブコングループのときだけ。
-        if (srcSv === null) return null;
-        if ((subconNormKey(srcSv) || _UNSET_KEY) !== tr.dataset.svKey) return null;
+      // グループ見出し（サブコン見出し／パターン見出し）… そのグループの先頭へ
+      if (tr.classList.contains('subcon-group-header') || tr.classList.contains('subcon-subgroup-header')) {
+        if (srcSv === null) return null;   // データ行のみ見出しへドロップ可
         // 見出し直後の最初の実行行を探す（配下にパターン見出し等の仮想行が挟まる）
         let first = tr.nextSibling;
         while (first && first.dataset && first.dataset.virtual) first = first.nextSibling;
         if (!first || dragSrcRows.includes(first)) return null;
-        return { mark: tr, markCls: 'drag-over-bottom', insertBefore: first };
+        const destRow = first.dataset.type ? null : first;
+        const cross = crossFor(destRow);
+        if (!cross && tr.classList.contains('subcon-group-header') &&
+            (subconNormKey(srcSv) || _UNSET_KEY) !== tr.dataset.svKey) return null;   // destRow が取れないときの保険
+        return { mark: tr, markCls: 'drag-over-bottom', insertBefore: first, cross };
       }
 
-      if (tr.dataset.virtual) return null;              // 小計・パターン見出し等は対象外
+      if (tr.dataset.virtual) return null;              // 小計等は対象外
       if (dragSrcRows.includes(tr)) return null;        // ドラッグ中の行の上には出さない
-      // データ行同士のときだけ、異なるサブコングループへのドロップを禁止（正規化キーで判定）。
-      // リマーク・社内メモ・小計行（dataset.type 付き＝_rowSubcon が null）は自由に移動可。
-      if (srcSv !== null && subconNormKey(srcSv) !== subconNormKey(_rowSubcon(tr))) return null;
+      // 移動先の「グループの明細」＝その行（データ行）、または備考・小計行ならその直前のデータ行
+      let destRow = tr;
+      if (tr.dataset.type) {
+        destRow = tr.previousElementSibling;
+        while (destRow && !destRow.dataset.virtual && destRow.dataset.type) destRow = destRow.previousElementSibling;
+        if (destRow && destRow.dataset.virtual) destRow = null;
+      }
+      let cross = null;
+      if (srcSv !== null) {
+        cross = crossFor(destRow);
+        if (!destRow) return null;
+      }
       const rect = tr.getBoundingClientRect();
       const after = y >= rect.top + rect.height / 2;
       let insertBefore = after ? tr.nextSibling : tr;
       while (insertBefore && insertBefore.dataset && insertBefore.dataset.virtual) {
         insertBefore = insertBefore.nextSibling;
       }
-      return { mark: tr, markCls: after ? 'drag-over-bottom' : 'drag-over-top', insertBefore };
+      return { mark: tr, markCls: after ? 'drag-over-bottom' : 'drag-over-top', insertBefore, cross };
+    }
+
+    // ---- 別グループへ移動するときの確認ダイアログ（「今後は確認しない」で省略可）----
+    const CROSS_SKIP_KEY = 'fwd.dragMoveNoConfirm';
+    const crossSkipped = () => { try { return localStorage.getItem(CROSS_SKIP_KEY) === '1'; } catch (e) { return false; } };
+    function confirmCrossMove(cross, count) {
+      if (crossSkipped()) return Promise.resolve({ ok: true, skipped: true });
+      return new Promise(resolve => {
+        const esc = v => String(v == null ? '' : v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        const svLbl = v => v || '（サブコン未設定）', ptLbl = v => v || '（パターンなし）';
+        const lines = [];
+        if ((subconNormKey(cross.fromSv) || '') !== (subconNormKey(cross.sv) || '')) lines.push('サブコン：<b>' + esc(svLbl(cross.fromSv)) + '</b> → <b>' + esc(svLbl(cross.sv)) + '</b>');
+        if ((subconNormKey(cross.fromPt) || '') !== (subconNormKey(cross.pt) || '')) lines.push('パターン：<b>' + esc(ptLbl(cross.fromPt)) + '</b> → <b>' + esc(ptLbl(cross.pt)) + '</b>');
+        const w = document.createElement('div');
+        w.id = 'crossMoveDlg'; w.className = 'cross-move-overlay';
+        w.innerHTML = '<div class="cross-move-box" role="dialog" aria-label="別のグループへ移動">' +
+          '<div class="cross-move-title">↔ 別のグループへ移動します</div>' +
+          '<div class="cross-move-body">' + (count > 1 ? count + ' 行' : 'この行') + 'を、ドロップ先のグループの明細として移動します。<br>' +
+            '<div class="cross-move-diff">' + lines.join('<br>') + '</div></div>' +
+          '<label class="cross-move-skip"><input type="checkbox"> 今後は確認せずに移動する</label>' +
+          '<div class="cross-move-actions"><button type="button" class="cross-move-cancel">キャンセル</button><button type="button" class="cross-move-ok">移動する</button></div></div>';
+        (document.getElementById('tab-quote-make') || document.body).appendChild(w);
+        const done = ok => { const skip = w.querySelector('input').checked; w.remove(); document.removeEventListener('keydown', onKey, true);
+          if (ok && skip) { try { localStorage.setItem(CROSS_SKIP_KEY, '1'); } catch (e) {} }
+          resolve({ ok, skipped: ok && skip }); };
+        const onKey = e => { if (e.key === 'Escape') { e.stopPropagation(); done(false); } else if (e.key === 'Enter' && document.activeElement?.tagName !== 'BUTTON') { e.preventDefault(); done(true); } };
+        document.addEventListener('keydown', onKey, true);
+        w.addEventListener('click', e => { if (e.target === w) done(false); });
+        w.querySelector('.cross-move-cancel').onclick = () => done(false);
+        w.querySelector('.cross-move-ok').onclick = () => done(true);
+        w.querySelector('.cross-move-ok').focus();
+      });
+    }
+
+    // 承諾された別グループへの移動：行のサブコン・パターンをドロップ先に合わせ、位置へ入れる
+    function applyCrossMove(moving, t, skipNow) {
+      if (t.insertBefore && t.insertBefore.parentNode !== tbody) {
+        if (typeof quoteShowToast === 'function') quoteShowToast('⚠️ 表が更新されたため移動できませんでした。もう一度ドラッグしてください', 'warn', 4000);
+        return;
+      }
+      moving.forEach(srcTr => {
+        if (!srcTr.dataset.type) {   // データ行：サブコン・パターンを移動先に合わせる（備考等の付随行は位置だけ運ぶ）
+          const id = srcTr.id.replace('row-', '');
+          const svEl = document.getElementById('sv-' + id), ptEl = document.getElementById('pt-' + id);
+          if (svEl) svEl.value = t.cross.sv;
+          if (ptEl) ptEl.value = t.cross.pt;
+          delete srcTr.dataset.portPair;   // 旧データの港ペアはパターンへ統合済み扱い（移動先に合わせる）
+        }
+        tbody.insertBefore(srcTr, t.insertBefore);
+      });
+      updateTotals();
+      renderSubconGroups();
+      if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
+      if (typeof scheduleSnapshot === 'function') scheduleSnapshot();   // 元に戻す（Ctrl+Z）の履歴へ
+      if (typeof quoteShowToast === 'function') {
+        const msg = '↔ 移動先のグループの明細に移しました（Ctrl+Z で元に戻せます）' + (skipNow ? '／今後は確認せずに移動します' : '');
+        if (crossSkipped()) quoteShowToast(msg, 'success', 6000, { label: '確認を再開', fn: () => { try { localStorage.removeItem(CROSS_SKIP_KEY); } catch (e) {} quoteShowToast('別グループへ移動するときに確認を出します', 'info', 2500); } });
+        else quoteShowToast(msg, 'success', 3500);
+      }
     }
 
     // 行ドラッグを開始する（ハンドル列の pointerdown から呼ぶ）
@@ -308,6 +598,7 @@
       }
       const moving = dragSrcRows;
       let moved = false;
+      const crossSkippedBefore = crossSkipped();   // このドラッグの開始時点で「確認しない」設定だったか（トースト文面用）
 
       window.startPointerDrag(ev, {
         onStart() { moving.forEach(r => r.classList.add('dragging')); },
@@ -317,19 +608,27 @@
           if (!t) { clearMarks(); return; }
           if (_lastDragOverRow === t.mark && t.mark.classList.contains(t.markCls)) return;
           if (_lastDragOverRow && _lastDragOverRow !== t.mark) {
-            _lastDragOverRow.classList.remove('drag-over-top', 'drag-over-bottom');
+            _lastDragOverRow.classList.remove('drag-over-top', 'drag-over-bottom', 'drag-over-cross');
           }
-          t.mark.classList.remove('drag-over-top', 'drag-over-bottom');
+          t.mark.classList.remove('drag-over-top', 'drag-over-bottom', 'drag-over-cross');
           t.mark.classList.add(t.markCls);
+          if (t.cross) t.mark.classList.add('drag-over-cross');   // 別グループへ（確認あり）の目印
           _lastDragOverRow = t.mark;
         },
         onDrop(x, y) {
           const t = resolveTarget(x, y);
+          if (t && t.cross) {
+            // 別のサブコン／パターンへ：確認（省略設定なら即移動）してから、移動先のグループの明細にする。
+            // 確認は非同期のため、ここでは何も動かさない（onEnd は moved=false で何も再描画しない）
+            const nData = moving.filter(r => !r.dataset.type).length;
+            confirmCrossMove(t.cross, nData).then(r => { if (r.ok) applyCrossMove(moving, t, r.skipped && !crossSkippedBefore); });
+            return;
+          }
           if (t) {
             moving.forEach(srcTr => { tbody.insertBefore(srcTr, t.insertBefore); });
             moved = true;
           } else if (typeof quoteShowToast === 'function') {
-            quoteShowToast('⚠️ 並び替えは同じサブコン内でのみ可能です', 'warn', 2400);
+            quoteShowToast('⚠️ この位置には移動できません', 'warn', 2400);
           }
         },
         onEnd() {
@@ -1298,7 +1597,7 @@
     const newId = addRowAfter(srcId);
 
     // テキスト・数値・日付フィールドをコピー（zc = 0円確認済みフラグ／vf・vt = 有効期限を含む）
-    ['nm','pq','un','pp','mk','nt','sv','pt','zc','ac','ps','co','vf','vt','lu','ppmode','pprate','ppbase','ppref','ppmin','bpmin','ic'].forEach(f => {
+    ['nm','pq','un','pp','mk','nt','sv','pt','zc','ac','ps','co','vf','vt','lu','ppmode','pprate','ppbase','ppref','ppmin','bpmin','ic','cn','bphi'].forEach(f => {
       const srcEl = document.getElementById(`${f}-${srcId}`);
       const dstEl = document.getElementById(`${f}-${newId}`);
       if (srcEl && dstEl) dstEl.value = srcEl.value;
@@ -1497,7 +1796,7 @@
     const q    = f => frag.querySelector(`[data-field="${f}"]`);
 
     // IDs
-    ['cat','tx','nm','pq','un','pc','pp','cd','bq','bc','bp','mk','st','pr','nt','sv','pt','zc','ac','ps','co','ri','es','vf','vt','lu','ppmode','pprate','ppbase','uid','ppref','ppmin','bpmin','ic']
+    ['cat','tx','nm','pq','un','pc','pp','cd','bq','bc','bp','mk','st','pr','nt','sv','pt','zc','ac','ps','co','ri','es','vf','vt','lu','ppmode','pprate','ppbase','uid','ppref','ppmin','bpmin','ic','cn','bphi']
       .forEach(f => { const el = q(f); if (el) el.id = `${f}-${id}`; });
     const zcBtn = frag.querySelector('.zero-confirm-btn');
     if (zcBtn) zcBtn.onclick = () => toggleZeroConfirmed(id);;
@@ -1519,7 +1818,12 @@
     if (minBtn) minBtn.onclick = () => toggleMinMode(id);
     const icBtn = frag.querySelector('.ic-mode-btn');
     if (icBtn) icBtn.onclick = () => toggleIcMode(id);
+    const cnBtn = frag.querySelector('.cn-mode-btn');
+    if (cnBtn) cnBtn.onclick = () => toggleCnMode(id);
     ['ppmin', 'bpmin'].forEach(f => { const el = q(f); if (el) el.oninput = () => calc(id); });
+    const rangeBtn = frag.querySelector('.range-mode-btn');
+    if (rangeBtn) rangeBtn.onclick = () => toggleRangeMode(id);
+    { const el = q('bphi'); if (el) el.oninput = () => calc(id); }   // 幅（売単価の上限）
     const mregBtn = frag.querySelector('.master-reg-btn');
     if (mregBtn) mregBtn.onclick = () => registerRowToMaster(id);
     const svDetBtn = frag.querySelector('.sv-detail-btn');
@@ -1840,6 +2144,7 @@
     {
       const trM = document.getElementById(`row-${id}`);
       syncIcUi(id);   // 適用する貿易条件の見た目（復元した行・貿易条件を変えた直後も）
+      syncCnUi(id);   // 表示条件の見た目・判定の説明
       const hasMin = (parseFloat(document.getElementById(`ppmin-${id}`)?.value) || 0) > 0 ||
                      (parseFloat(document.getElementById(`bpmin-${id}`)?.value) || 0) > 0;
       if (trM) {
@@ -1860,6 +2165,23 @@
         }
         const mhint = trM.querySelector('.min-hint');
         if (mhint) mhint.textContent = pc === bc ? bc : '仕 ' + pc + ' ／ 売 ' + bc;
+      }
+      // 幅（売単価の上限）：売単価〜上限を「1,000〜2,500」と客先向けに示す。合計・小計は売単価（主）で計算する
+      if (trM) {
+        const hi = parseFloat(document.getElementById(`bphi-${id}`)?.value) || 0;
+        const hasRange = hi > 0;
+        if (hasRange) trM.classList.add('row-range-mode');
+        const rangeOn = trM.classList.contains('row-range-mode');
+        trM.querySelector('.range-mode-btn')?.classList.toggle('is-on', rangeOn);
+        trM.querySelector('.range-mode-btn')?.classList.toggle('is-empty', rangeOn && !hasRange);
+        document.getElementById(`bphi-${id}`)?.classList.toggle('is-empty', rangeOn && !hasRange);
+        const rg = typeof rowRange === 'function' ? rowRange(bp, hi) : null;
+        if (rg) trM.dataset.range = '1'; else delete trM.dataset.range;
+        const rhint = trM.querySelector('.range-hint');
+        if (rhint) {
+          const dec = bc === 'JPY' ? 0 : 2, f = n => Number(n).toLocaleString('en-US', { minimumFractionDigits: dec, maximumFractionDigits: dec });
+          rhint.textContent = rg ? f(rg.lo) + '〜' + f(rg.hi) + ' ' + bc + '（合計は ' + f(bp) + ' で計算）' : (rangeOn && hasRange ? '上限は売単価（' + f(bp) + '）より大きい値にしてください' : '');
+        }
       }
     }
     const canFx = typeof toJPY === 'function';
@@ -2072,6 +2394,25 @@
     if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
   }
   window.toggleMinMode = toggleMinMode;
+
+  // ========== 幅（金額の範囲：売単価〜上限） ==========
+  // ON：上限の入力欄を出す（Industry は「その他 ▾」の中）。OFF：上限を消して通常の単価に戻す。
+  // 客先向けの出力は単価・金額を「1,000〜2,500」と示し、合計・小計は売単価（主）で計算する
+  function toggleRangeMode(id) {
+    const tr = document.getElementById(`row-${id}`);
+    if (!tr) return;
+    const on = !tr.classList.contains('row-range-mode');
+    tr.classList.toggle('row-range-mode', on);
+    const el = document.getElementById(`bphi-${id}`);
+    if (!on && el) el.value = '';
+    calc(id);
+    if (on) {
+      if (window.rowDetailToggle && !el?.offsetParent) window.rowDetailToggle(tr, true);
+      setTimeout(() => { const e2 = document.getElementById(`bphi-${id}`); if (e2 && e2.offsetParent) e2.focus(); }, 0);
+    }
+    if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
+  }
+  window.toggleRangeMode = toggleRangeMode;
 
   // ========== % 計算モード ==========
   function togglePctMode(id) {
@@ -2356,6 +2697,7 @@
     let totCostJPY = 0, totBillJPY = 0, totSubJPY = 0;
     let psBillJPY = 0, psCostJPY = 0;   // PROFIT SHARE（代理店収益）社内計上分（JPY）
     let hasFx = false;
+    let rangeAny = false, rangeExtraBill = 0, rangeExtraJPY = 0;   // 幅（売単価〜上限）のある行の上限分（合計の「下限〜上限」表示用）
     // 通貨別集計: { bc: { sub, taxedSub, exemptSub } }
     const ccyData = {};
     rows.forEach(tr => {
@@ -2388,6 +2730,8 @@
       totBill += sub;
       totSub  += sub;
       totMk   += val(`mk-${id}`);
+      { const rgT = rowRangeAmt(bq, bp, val(`bphi-${id}`), document.getElementById(`bpmin-${id}`)?.value);
+        if (rgT) { rangeAny = true; rangeExtraBill += rgT.hi - sub; rangeExtraJPY += SharedCalc.jpyRound(toJPY(rgT.hi, bc)) - SharedCalc.jpyRound(toJPY(sub, bc)); } }
       // JPY換算（行ごとに SharedCalc.jpyRound で丸めてから合計・4経路統一）
       totCostJPY += SharedCalc.jpyRound(toJPY(cost, pc));
       totBillJPY += SharedCalc.jpyRound(toJPY(sub, bc));
@@ -2404,22 +2748,26 @@
     const labelEl  = document.getElementById('tot-row-label');
     const pEl      = document.getElementById('tot-profit');
     const fxNote   = document.getElementById('tot-fx-note');
-    if (fxNote) fxNote.textContent = hasFx ? '※ 外貨の金額は、換算レートで円にして合算しています' : '';
+    if (fxNote) fxNote.textContent = [hasFx ? '※ 外貨の金額は、換算レートで円にして合算しています' : '', rangeAny ? '※ 幅（〜）のある項目を含むため、売上・利益は下限〜上限で表示しています' : ''].filter(Boolean).join('　');
+    // 幅のある項目を含むときは、売上・利益を「下限〜上限」で表示する（下限＝売単価で計算した合計）
+    const rgTxt = (lo, hi, pre) => (rangeAny && Math.round(hi) !== Math.round(lo)) ? pre + fmt(Math.round(lo)) + '〜' + pre + fmt(Math.round(hi)) : pre + fmt(Math.round(lo));
     if (hasFx) {
       // 外貨混在時：単純加算は無意味なので JPY 換算合計を「合計」行に表示
       if (labelEl) labelEl.innerHTML = '合計<small class="tot-jpy-note">（JPY換算）</small>';
       document.getElementById('tot-cost').textContent     = '¥' + fmt(Math.round(totCostJPY));
-      document.getElementById('tot-subtotal').textContent = '¥' + fmt(Math.round(totSubJPY));
+      document.getElementById('tot-subtotal').textContent = rgTxt(totSubJPY, totSubJPY + rangeExtraJPY, '¥');
       const mkPctJpy = (window.SharedCalc ? SharedCalc.grossMarginPct(totBillJPY, totCostJPY) : 0);
-      pEl.innerHTML = '¥' + fmt(Math.round(totPrJPY)) + `<small class="tot-margin">粗利 ${mkPctJpy.toFixed(1)}%</small>`;
+      const mkPctJpyHi = (rangeAny && window.SharedCalc) ? SharedCalc.grossMarginPct(totBillJPY + rangeExtraJPY, totCostJPY) : mkPctJpy;
+      pEl.innerHTML = rgTxt(totPrJPY, totPrJPY + rangeExtraJPY, '¥') + `<small class="tot-margin">粗利 ${rangeAny && mkPctJpyHi.toFixed(1) !== mkPctJpy.toFixed(1) ? mkPctJpy.toFixed(1) + '〜' + mkPctJpyHi.toFixed(1) : mkPctJpy.toFixed(1)}%</small>`;
       pEl.className = `profit-cell ${pClass(totPrJPY)}`;
     } else {
       if (labelEl) labelEl.textContent = '合　計';
       document.getElementById('tot-cost').textContent     = fmt(Math.round(totCost));
       document.getElementById('tot-billing').textContent  = fmt(Math.round(totBill));
-      document.getElementById('tot-subtotal').textContent = fmt(Math.round(totSub));
+      document.getElementById('tot-subtotal').textContent = rgTxt(totSub, totSub + rangeExtraBill, '');
       const mkPct = (window.SharedCalc ? SharedCalc.grossMarginPct(totBill, totCost) : 0);
-      pEl.innerHTML = fmt(Math.round(totPr)) + `<small class="tot-margin">粗利 ${mkPct.toFixed(1)}%</small>`;
+      const mkPctHi = (rangeAny && window.SharedCalc) ? SharedCalc.grossMarginPct(totBill + rangeExtraBill, totCost) : mkPct;
+      pEl.innerHTML = rgTxt(totPr, totPr + rangeExtraBill, '') + `<small class="tot-margin">粗利 ${rangeAny && mkPctHi.toFixed(1) !== mkPct.toFixed(1) ? mkPct.toFixed(1) + '〜' + mkPctHi.toFixed(1) : mkPct.toFixed(1)}%</small>`;
       pEl.className = `profit-cell ${pClass(totPr)}`;
     }
     // 社内利益（PROFIT SHARE 込み）行：PS 行があるときだけ表示
@@ -2607,6 +2955,12 @@
     if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
   };
 
+  // 幅（「下限〜上限」）の金額は、桁が多いと狭い小計セルから溢れる。「〜」の後ろに改行できる位置（<wbr>）を入れ、
+  // 上限を次の行へ送れるようにする（textContent は変わらないので、プレビュー・Excel・PDF が読む値はそのまま）
+  function _wbrRange(el) {
+    if (el && el.textContent.indexOf('〜') >= 0) el.innerHTML = el.innerHTML.replace(/〜/g, '〜<wbr>');
+  }
+
   function updateSubtotalRows() {
     if (_quoteBulkUpdate) return;   // 一括更新中はまとめて後で 1 回だけ実行する
     const tbody = document.getElementById('tableBody');
@@ -2619,6 +2973,8 @@
     let groupCostRaw = 0;     // 原通貨の支払い合計（単一通貨グループ用）
     let groupBillCurrencies = new Set();  // 請求通貨セット（単一通貨判定用）
     let groupCostCurrencies = new Set();  // 支払い通貨セット
+    // 幅（売単価〜上限）のある行の「上限ぶんの上乗せ」。小計は下限（売単価）で計算し、上乗せを足した値を上限として「下限〜上限」で示す
+    let groupRange = false, groupBillJPYHi = 0, groupBillRawHi = 0;
     allRows.forEach(tr => {
       if (tr.dataset.type === 'subtotal') {
         const billingEl  = tr.querySelector('.subtotal-group-billing');
@@ -2637,27 +2993,37 @@
         const profit   = billAmt - costAmt;
         const prefix   = pureSame ? '' : '≈ ';
         const curSuffix = (billCur && billCur !== 'JPY') ? ' ' + billCur : '';
+        // 幅のある行を含むグループは「下限〜上限」で示す（合計行と同じ考え方。下限＝売単価で計算した小計）
+        const billHi   = billAmt + (pureSame ? groupBillRawHi : groupBillJPYHi);
+        const hasRg    = groupRange && fmt(billHi) !== fmt(billAmt);
+        const rgFmt    = (lo, hi) => hasRg ? fmt(lo) + '〜' + fmt(hi) : fmt(lo);
+        const profitHi = billHi - costAmt;
 
         if (billingEl) {
-          billingEl.textContent = billAmt ? prefix + fmt(billAmt) + curSuffix : '—';
+          billingEl.textContent = billAmt ? prefix + rgFmt(billAmt, billHi) + curSuffix : '—';
+          _wbrRange(billingEl);
           billingEl.title = pureSame ? '' : '通貨を JPY に換算して合計（FX パネルのレート使用）';
         }
         if (subtotalEl) {
-          subtotalEl.textContent = billAmt ? prefix + fmt(billAmt) + curSuffix : '—';
-          subtotalEl.className   = 'subtotal-group-subtotal subtotal-cell' + (billAmt ? ' subtotal-has-value' : '');
-          subtotalEl.title = pureSame ? '' : '通貨を JPY に換算して合計（FX パネルのレート使用）';
+          subtotalEl.textContent = billAmt ? prefix + rgFmt(billAmt, billHi) + curSuffix : '—';
+          _wbrRange(subtotalEl);
+          subtotalEl.className   = 'subtotal-group-subtotal subtotal-cell' + (billAmt ? ' subtotal-has-value' : '') + (hasRg ? ' subtotal-has-range' : '');
+          subtotalEl.title = (pureSame ? '' : '通貨を JPY に換算して合計（FX パネルのレート使用）') + (hasRg ? (pureSame ? '' : '\n') + '幅（〜）のある項目を含むため、下限〜上限で表示しています（下限は売単価で計算した小計）' : '');
         }
         if (profitEl) {
           const amtEl = profitEl.querySelector('.stp-amt') || profitEl;
-          amtEl.textContent = (billAmt || costAmt) ? prefix + fmt(profit) + curSuffix : '—';
-          // 粗利率（売上ベース）を総合計と同じ書式で併記。プレビューは dataset から読む
+          amtEl.textContent = (billAmt || costAmt) ? prefix + rgFmt(profit, profitHi) + curSuffix : '—';
+          _wbrRange(amtEl);
+          // 粗利率（売上ベース）を総合計と同じ書式で併記。プレビューは dataset から読む（幅があるときは「下限〜上限」）
           const mPct = (billAmt && window.SharedCalc) ? SharedCalc.grossMarginPct(billAmt, costAmt) : null;
+          const mPctHi = (billAmt && window.SharedCalc && hasRg) ? SharedCalc.grossMarginPct(billHi, costAmt) : mPct;
+          const mTxt = (mPct !== null && hasRg && mPctHi.toFixed(1) !== mPct.toFixed(1)) ? mPct.toFixed(1) + '〜' + mPctHi.toFixed(1) : (mPct !== null ? mPct.toFixed(1) : '');
           let mEl = profitEl.querySelector('.tot-margin');
           if (mPct !== null) {
             if (!mEl) { mEl = document.createElement('small'); mEl.className = 'tot-margin'; profitEl.appendChild(mEl); }
-            mEl.textContent = `粗利 ${mPct.toFixed(1)}%`;
+            mEl.textContent = `粗利 ${mTxt}%`;
             mEl.classList.toggle('pv-neg', mPct < 0);
-            tr.dataset.marginPct = mPct.toFixed(1);
+            tr.dataset.marginPct = mTxt;
           } else {
             if (mEl) mEl.remove();
             delete tr.dataset.marginPct;
@@ -2668,6 +3034,7 @@
         groupBillJPY = 0; groupCostJPY = 0;
         groupBillRaw = 0; groupCostRaw = 0;
         groupBillCurrencies = new Set(); groupCostCurrencies = new Set();
+        groupRange = false; groupBillJPYHi = 0; groupBillRawHi = 0;
       } else {
         // 見積書非表示・適用期間外の行は小計セパレータの集計に含めない
         if (tr.dataset.hideQuote === '1' || tr.dataset.outRange === '1' || tr.dataset.actual === '1' || tr.dataset.profitShare === '1' || tr.dataset.cond === '1' || tr.dataset.refInfo === '1') return;
@@ -2688,6 +3055,13 @@
         groupCostRaw += (pc === 'JPY' ? Math.ceil(costRaw) : costRaw);
         if (billRaw && bc) groupBillCurrencies.add(bc);
         if (costRaw && pc) groupCostCurrencies.add(pc);
+        // 幅（売単価〜上限）：上限との差を別に積む（下限の積み上げ方は上と同じ丸め）
+        const rg = rowRangeAmt(bq, bp, val(`bphi-${id}`), document.getElementById(`bpmin-${id}`)?.value);
+        if (rg) {
+          groupRange = true;
+          groupBillJPYHi += SharedCalc.jpyRound(toJPY(rg.hi, bc)) - SharedCalc.jpyRound(toJPY(billRaw, bc));
+          groupBillRawHi += (bc === 'JPY' ? Math.ceil(rg.hi) - Math.ceil(billRaw) : rg.hi - billRaw);
+        }
       }
     });
   }
@@ -4226,45 +4600,49 @@
     const tbody = document.getElementById('tableBody');
     if (!tbody) return;
     // サブコン小計（外側）とパターン小計（内側）の2階層を同時集計する
-    let scSumEl = null, scSubRow = null, scSell = 0, scCost = 0, scMixed = false;
-    let ptSell = 0, ptCost = 0, ptMixed = false;
-    const writeSub = (row, sell, cost, mixed) => {
+    let scSumEl = null, scSubRow = null, scSell = 0, scCost = 0, scMixed = false, scHi = 0;
+    let ptSell = 0, ptCost = 0, ptMixed = false, ptHi = 0;
+    // 幅（売単価〜上限）のある行の上限ぶんの上乗せ（hi）。売値の小計は「下限〜上限」で示す（粗利率も同様）
+    const rgYen = (lo, hi, mark) => (Math.round(hi) !== Math.round(lo) ? '¥' + fmt(Math.round(lo)) + '〜¥' + fmt(Math.round(hi)) : '¥' + fmt(Math.round(lo))) + mark;
+    const writeSub = (row, sell, cost, mixed, hi) => {
       const mark = mixed ? '※' : '';
       const ttl = mixed ? '複数通貨を JPY 換算して合算（FX パネルのレート使用）' : '';
       const cEl = row.querySelector('.subcon-subtotal-cost');
       const sEl = row.querySelector('.subcon-subtotal-sum');
       const mEl = row.querySelector('.subcon-subtotal-margin');
       if (cEl) { cEl.textContent = '¥' + fmt(Math.round(cost)) + mark; cEl.title = ttl; }
-      if (sEl) { sEl.textContent = '¥' + fmt(Math.round(sell)) + mark; sEl.title = ttl; }
+      if (sEl) { sEl.textContent = rgYen(sell, sell + (hi || 0), mark); _wbrRange(sEl); sEl.title = ttl; }
       if (mEl) {
         if (Math.round(sell) > 0) {
           const m = (sell - cost) / sell * 100;
-          mEl.textContent = m.toFixed(1) + '%';
+          const mHi = (hi && Math.round(hi) > 0) ? (sell + hi - cost) / (sell + hi) * 100 : m;
+          mEl.textContent = (hi && mHi.toFixed(1) !== m.toFixed(1)) ? m.toFixed(1) + '〜' + mHi.toFixed(1) + '%' : m.toFixed(1) + '%';
           mEl.classList.toggle('is-neg', m < 0);
         } else { mEl.textContent = '—'; mEl.classList.remove('is-neg'); }
       }
     };
     const flushSc = () => {
       const ttl = scMixed ? '複数通貨を JPY 換算して合算（FX パネルのレート使用）' : '';
-      if (scSumEl) { const s = Math.round(scSell); scSumEl.textContent = s ? '¥' + fmt(s) + (scMixed ? '※' : '') : ''; scSumEl.title = ttl; }
-      if (scSubRow) writeSub(scSubRow, scSell, scCost, scMixed);
+      if (scSumEl) { const s = Math.round(scSell); scSumEl.textContent = s ? rgYen(scSell, scSell + scHi, scMixed ? '※' : '') : ''; _wbrRange(scSumEl); scSumEl.title = ttl; }
+      if (scSubRow) writeSub(scSubRow, scSell, scCost, scMixed, scHi);
     };
-    const resetPt = () => { ptSell = 0; ptCost = 0; ptMixed = false; };
+    const resetPt = () => { ptSell = 0; ptCost = 0; ptMixed = false; ptHi = 0; };
     // カテゴリ見出し（Industry テーマ）の売値小計
-    let catSumEl = null, catSell = 0, catMixed = false;
+    let catSumEl = null, catSell = 0, catMixed = false, catHi = 0;
     const flushCat = () => {
       if (catSumEl) {
         const s = Math.round(catSell);
-        catSumEl.textContent = s ? '¥' + fmt(s) + (catMixed ? '※' : '') : '';
+        catSumEl.textContent = s ? rgYen(catSell, catSell + catHi, catMixed ? '※' : '') : '';
+        _wbrRange(catSumEl);
         catSumEl.title = catMixed ? '複数通貨を JPY 換算して合算（FX パネルのレート使用）' : '';
       }
-      catSumEl = null; catSell = 0; catMixed = false;
+      catSumEl = null; catSell = 0; catMixed = false; catHi = 0;
     };
     Array.from(tbody.querySelectorAll('tr')).forEach(tr => {
       if (tr.dataset.catHeader) { flushCat(); catSumEl = tr.querySelector('.subcon-cat-sum'); return; }
       if (tr.dataset.ptSum || tr.dataset.subSum || tr.dataset.subGroup || tr.dataset.virtual) flushCat();
       if (tr.dataset.ptSum) {                // パターン小計行：内側累計を書き込み、内側だけリセット
-        writeSub(tr, ptSell, ptCost, ptMixed);
+        writeSub(tr, ptSell, ptCost, ptMixed, ptHi);
         resetPt();
         return;
       }
@@ -4275,7 +4653,7 @@
       if (tr.dataset.virtual) {              // サブコングループ見出し
         flushSc();
         scSumEl = tr.querySelector('.subcon-group-sum');
-        scSubRow = null; scSell = 0; scCost = 0; scMixed = false; resetPt();
+        scSubRow = null; scSell = 0; scCost = 0; scMixed = false; scHi = 0; resetPt();
         return;
       }
       if (tr.dataset.type) return;           // 小計・リマーク・社内メモ行は除外
@@ -4296,9 +4674,13 @@
       let mixed = false;
       if (bc !== 'JPY') { mixed = true; if (typeof toJPY === 'function') sell = toJPY(sell, bc); }
       if (pc !== 'JPY') { mixed = true; if (typeof toJPY === 'function') cost = toJPY(cost, pc); }
-      scSell += sell; scCost += cost; if (mixed) scMixed = true;
-      if (catSumEl) { catSell += sell; if (mixed) catMixed = true; }
-      ptSell += sell; ptCost += cost; if (mixed) ptMixed = true;
+      // 幅（売単価〜上限）：上限との差（円換算）を別に積む
+      let hiX = 0;
+      { const rgG = rowRangeAmt(bq, bp, val(`bphi-${id}`), document.getElementById(`bpmin-${id}`)?.value);
+        if (rgG) { hiX = rgG.hi - applyRowMin(bq * bp, id, 'sell'); if (bc !== 'JPY' && typeof toJPY === 'function') hiX = toJPY(rgG.hi, bc) - toJPY(applyRowMin(bq * bp, id, 'sell'), bc); } }
+      scSell += sell; scCost += cost; scHi += hiX; if (mixed) scMixed = true;
+      if (catSumEl) { catSell += sell; catHi += hiX; if (mixed) catMixed = true; }
+      ptSell += sell; ptCost += cost; ptHi += hiX; if (mixed) ptMixed = true;
     });
     flushCat();
     flushSc();
@@ -4488,7 +4870,7 @@
 
   function _gatherRowData(id) {
     const data = {};
-    ['nm','pq','un','pp','mk','nt','sv','pt','zc','ac','ps','co','vf','vt','lu','cat','pc','bc','bp','ppmode','pprate','ppbase','uid','ppref','ppmin','bpmin','ic'].forEach(f => {
+    ['nm','pq','un','pp','mk','nt','sv','pt','zc','ac','ps','co','vf','vt','lu','cat','pc','bc','bp','ppmode','pprate','ppbase','uid','ppref','ppmin','bpmin','ic','cn','bphi'].forEach(f => {
       const el = document.getElementById(`${f}-${id}`);
       if (el) data[f] = el.value;
     });
@@ -4508,7 +4890,7 @@
     } else {
       tbody.appendChild(newTr);
     }
-    ['nm','pq','un','pp','mk','nt','pt','zc','ac','ps','co','vf','vt','lu','ppmode','pprate','ppbase','ppref','ppmin','bpmin','ic'].forEach(f => {
+    ['nm','pq','un','pp','mk','nt','pt','zc','ac','ps','co','vf','vt','lu','ppmode','pprate','ppbase','ppref','ppmin','bpmin','ic','cn','bphi'].forEach(f => {
       const el = document.getElementById(`${f}-${newId}`);
       if (el && data[f] !== undefined) el.value = data[f];
     });

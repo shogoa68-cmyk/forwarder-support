@@ -2075,6 +2075,10 @@
    "css": true,
    "html": false
   },
+  "ccc-modal-close": {
+   "css": true,
+   "html": false
+  },
   "ccc-open": {
    "css": true,
    "html": false
@@ -2111,6 +2115,10 @@
    "css": true,
    "html": false
   },
+  "cloud-card-name": {
+   "css": true,
+   "html": false
+  },
   "cloud-follow-date": {
    "css": true,
    "html": false
@@ -2140,6 +2148,30 @@
    "html": false
   },
   "cmp-chk": {
+   "css": false,
+   "html": false
+  },
+  "cn-between": {
+   "css": true,
+   "html": false
+  },
+  "cn-ctrl": {
+   "css": true,
+   "html": true
+  },
+  "cn-group": {
+   "css": true,
+   "html": true
+  },
+  "cn-hint": {
+   "css": true,
+   "html": true
+  },
+  "cn-mode-btn": {
+   "css": true,
+   "html": true
+  },
+  "cn-unknown": {
    "css": false,
    "html": false
   },
@@ -2239,6 +2271,14 @@
    "css": true,
    "html": false
   },
+  "cross-move-cancel": {
+   "css": false,
+   "html": false
+  },
+  "cross-move-ok": {
+   "css": true,
+   "html": false
+  },
   "csv-col-chk": {
    "css": false,
    "html": true
@@ -2256,6 +2296,10 @@
    "html": true
   },
   "drag-over-bottom": {
+   "css": true,
+   "html": false
+  },
+  "drag-over-cross": {
    "css": true,
    "html": false
   },
@@ -3195,6 +3239,10 @@
    "css": true,
    "html": false
   },
+  "row-cn-mode": {
+   "css": true,
+   "html": false
+  },
   "row-conditional": {
    "css": true,
    "html": false
@@ -3977,6 +4025,10 @@
    "html": false,
    "js": true
   },
+  "cn-unknown": {
+   "html": false,
+   "js": true
+  },
   "cnt-link": {
    "html": false,
    "js": true
@@ -4570,6 +4622,7 @@
   "js/stats.js",
   "js/alias-rules.js",
   "js/port-country.js",
+  "js/zone-subcon.js",
   "js/customer-rules.js",
   "js/carrier-migration.js",
   "js/local-charges.js",
