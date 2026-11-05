@@ -2955,6 +2955,12 @@
     if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
   };
 
+  // 幅（「下限〜上限」）の金額は、桁が多いと狭い小計セルから溢れる。「〜」の後ろに改行できる位置（<wbr>）を入れ、
+  // 上限を次の行へ送れるようにする（textContent は変わらないので、プレビュー・Excel・PDF が読む値はそのまま）
+  function _wbrRange(el) {
+    if (el && el.textContent.indexOf('〜') >= 0) el.innerHTML = el.innerHTML.replace(/〜/g, '〜<wbr>');
+  }
+
   function updateSubtotalRows() {
     if (_quoteBulkUpdate) return;   // 一括更新中はまとめて後で 1 回だけ実行する
     const tbody = document.getElementById('tableBody');
@@ -2967,6 +2973,8 @@
     let groupCostRaw = 0;     // 原通貨の支払い合計（単一通貨グループ用）
     let groupBillCurrencies = new Set();  // 請求通貨セット（単一通貨判定用）
     let groupCostCurrencies = new Set();  // 支払い通貨セット
+    // 幅（売単価〜上限）のある行の「上限ぶんの上乗せ」。小計は下限（売単価）で計算し、上乗せを足した値を上限として「下限〜上限」で示す
+    let groupRange = false, groupBillJPYHi = 0, groupBillRawHi = 0;
     allRows.forEach(tr => {
       if (tr.dataset.type === 'subtotal') {
         const billingEl  = tr.querySelector('.subtotal-group-billing');
@@ -2985,27 +2993,37 @@
         const profit   = billAmt - costAmt;
         const prefix   = pureSame ? '' : '≈ ';
         const curSuffix = (billCur && billCur !== 'JPY') ? ' ' + billCur : '';
+        // 幅のある行を含むグループは「下限〜上限」で示す（合計行と同じ考え方。下限＝売単価で計算した小計）
+        const billHi   = billAmt + (pureSame ? groupBillRawHi : groupBillJPYHi);
+        const hasRg    = groupRange && fmt(billHi) !== fmt(billAmt);
+        const rgFmt    = (lo, hi) => hasRg ? fmt(lo) + '〜' + fmt(hi) : fmt(lo);
+        const profitHi = billHi - costAmt;
 
         if (billingEl) {
-          billingEl.textContent = billAmt ? prefix + fmt(billAmt) + curSuffix : '—';
+          billingEl.textContent = billAmt ? prefix + rgFmt(billAmt, billHi) + curSuffix : '—';
+          _wbrRange(billingEl);
           billingEl.title = pureSame ? '' : '通貨を JPY に換算して合計（FX パネルのレート使用）';
         }
         if (subtotalEl) {
-          subtotalEl.textContent = billAmt ? prefix + fmt(billAmt) + curSuffix : '—';
-          subtotalEl.className   = 'subtotal-group-subtotal subtotal-cell' + (billAmt ? ' subtotal-has-value' : '');
-          subtotalEl.title = pureSame ? '' : '通貨を JPY に換算して合計（FX パネルのレート使用）';
+          subtotalEl.textContent = billAmt ? prefix + rgFmt(billAmt, billHi) + curSuffix : '—';
+          _wbrRange(subtotalEl);
+          subtotalEl.className   = 'subtotal-group-subtotal subtotal-cell' + (billAmt ? ' subtotal-has-value' : '') + (hasRg ? ' subtotal-has-range' : '');
+          subtotalEl.title = (pureSame ? '' : '通貨を JPY に換算して合計（FX パネルのレート使用）') + (hasRg ? (pureSame ? '' : '\n') + '幅（〜）のある項目を含むため、下限〜上限で表示しています（下限は売単価で計算した小計）' : '');
         }
         if (profitEl) {
           const amtEl = profitEl.querySelector('.stp-amt') || profitEl;
-          amtEl.textContent = (billAmt || costAmt) ? prefix + fmt(profit) + curSuffix : '—';
-          // 粗利率（売上ベース）を総合計と同じ書式で併記。プレビューは dataset から読む
+          amtEl.textContent = (billAmt || costAmt) ? prefix + rgFmt(profit, profitHi) + curSuffix : '—';
+          _wbrRange(amtEl);
+          // 粗利率（売上ベース）を総合計と同じ書式で併記。プレビューは dataset から読む（幅があるときは「下限〜上限」）
           const mPct = (billAmt && window.SharedCalc) ? SharedCalc.grossMarginPct(billAmt, costAmt) : null;
+          const mPctHi = (billAmt && window.SharedCalc && hasRg) ? SharedCalc.grossMarginPct(billHi, costAmt) : mPct;
+          const mTxt = (mPct !== null && hasRg && mPctHi.toFixed(1) !== mPct.toFixed(1)) ? mPct.toFixed(1) + '〜' + mPctHi.toFixed(1) : (mPct !== null ? mPct.toFixed(1) : '');
           let mEl = profitEl.querySelector('.tot-margin');
           if (mPct !== null) {
             if (!mEl) { mEl = document.createElement('small'); mEl.className = 'tot-margin'; profitEl.appendChild(mEl); }
-            mEl.textContent = `粗利 ${mPct.toFixed(1)}%`;
+            mEl.textContent = `粗利 ${mTxt}%`;
             mEl.classList.toggle('pv-neg', mPct < 0);
-            tr.dataset.marginPct = mPct.toFixed(1);
+            tr.dataset.marginPct = mTxt;
           } else {
             if (mEl) mEl.remove();
             delete tr.dataset.marginPct;
@@ -3016,6 +3034,7 @@
         groupBillJPY = 0; groupCostJPY = 0;
         groupBillRaw = 0; groupCostRaw = 0;
         groupBillCurrencies = new Set(); groupCostCurrencies = new Set();
+        groupRange = false; groupBillJPYHi = 0; groupBillRawHi = 0;
       } else {
         // 見積書非表示・適用期間外の行は小計セパレータの集計に含めない
         if (tr.dataset.hideQuote === '1' || tr.dataset.outRange === '1' || tr.dataset.actual === '1' || tr.dataset.profitShare === '1' || tr.dataset.cond === '1' || tr.dataset.refInfo === '1') return;
@@ -3036,6 +3055,13 @@
         groupCostRaw += (pc === 'JPY' ? Math.ceil(costRaw) : costRaw);
         if (billRaw && bc) groupBillCurrencies.add(bc);
         if (costRaw && pc) groupCostCurrencies.add(pc);
+        // 幅（売単価〜上限）：上限との差を別に積む（下限の積み上げ方は上と同じ丸め）
+        const rg = rowRangeAmt(bq, bp, val(`bphi-${id}`), document.getElementById(`bpmin-${id}`)?.value);
+        if (rg) {
+          groupRange = true;
+          groupBillJPYHi += SharedCalc.jpyRound(toJPY(rg.hi, bc)) - SharedCalc.jpyRound(toJPY(billRaw, bc));
+          groupBillRawHi += (bc === 'JPY' ? Math.ceil(rg.hi) - Math.ceil(billRaw) : rg.hi - billRaw);
+        }
       }
     });
   }
@@ -4574,45 +4600,49 @@
     const tbody = document.getElementById('tableBody');
     if (!tbody) return;
     // サブコン小計（外側）とパターン小計（内側）の2階層を同時集計する
-    let scSumEl = null, scSubRow = null, scSell = 0, scCost = 0, scMixed = false;
-    let ptSell = 0, ptCost = 0, ptMixed = false;
-    const writeSub = (row, sell, cost, mixed) => {
+    let scSumEl = null, scSubRow = null, scSell = 0, scCost = 0, scMixed = false, scHi = 0;
+    let ptSell = 0, ptCost = 0, ptMixed = false, ptHi = 0;
+    // 幅（売単価〜上限）のある行の上限ぶんの上乗せ（hi）。売値の小計は「下限〜上限」で示す（粗利率も同様）
+    const rgYen = (lo, hi, mark) => (Math.round(hi) !== Math.round(lo) ? '¥' + fmt(Math.round(lo)) + '〜¥' + fmt(Math.round(hi)) : '¥' + fmt(Math.round(lo))) + mark;
+    const writeSub = (row, sell, cost, mixed, hi) => {
       const mark = mixed ? '※' : '';
       const ttl = mixed ? '複数通貨を JPY 換算して合算（FX パネルのレート使用）' : '';
       const cEl = row.querySelector('.subcon-subtotal-cost');
       const sEl = row.querySelector('.subcon-subtotal-sum');
       const mEl = row.querySelector('.subcon-subtotal-margin');
       if (cEl) { cEl.textContent = '¥' + fmt(Math.round(cost)) + mark; cEl.title = ttl; }
-      if (sEl) { sEl.textContent = '¥' + fmt(Math.round(sell)) + mark; sEl.title = ttl; }
+      if (sEl) { sEl.textContent = rgYen(sell, sell + (hi || 0), mark); _wbrRange(sEl); sEl.title = ttl; }
       if (mEl) {
         if (Math.round(sell) > 0) {
           const m = (sell - cost) / sell * 100;
-          mEl.textContent = m.toFixed(1) + '%';
+          const mHi = (hi && Math.round(hi) > 0) ? (sell + hi - cost) / (sell + hi) * 100 : m;
+          mEl.textContent = (hi && mHi.toFixed(1) !== m.toFixed(1)) ? m.toFixed(1) + '〜' + mHi.toFixed(1) + '%' : m.toFixed(1) + '%';
           mEl.classList.toggle('is-neg', m < 0);
         } else { mEl.textContent = '—'; mEl.classList.remove('is-neg'); }
       }
     };
     const flushSc = () => {
       const ttl = scMixed ? '複数通貨を JPY 換算して合算（FX パネルのレート使用）' : '';
-      if (scSumEl) { const s = Math.round(scSell); scSumEl.textContent = s ? '¥' + fmt(s) + (scMixed ? '※' : '') : ''; scSumEl.title = ttl; }
-      if (scSubRow) writeSub(scSubRow, scSell, scCost, scMixed);
+      if (scSumEl) { const s = Math.round(scSell); scSumEl.textContent = s ? rgYen(scSell, scSell + scHi, scMixed ? '※' : '') : ''; _wbrRange(scSumEl); scSumEl.title = ttl; }
+      if (scSubRow) writeSub(scSubRow, scSell, scCost, scMixed, scHi);
     };
-    const resetPt = () => { ptSell = 0; ptCost = 0; ptMixed = false; };
+    const resetPt = () => { ptSell = 0; ptCost = 0; ptMixed = false; ptHi = 0; };
     // カテゴリ見出し（Industry テーマ）の売値小計
-    let catSumEl = null, catSell = 0, catMixed = false;
+    let catSumEl = null, catSell = 0, catMixed = false, catHi = 0;
     const flushCat = () => {
       if (catSumEl) {
         const s = Math.round(catSell);
-        catSumEl.textContent = s ? '¥' + fmt(s) + (catMixed ? '※' : '') : '';
+        catSumEl.textContent = s ? rgYen(catSell, catSell + catHi, catMixed ? '※' : '') : '';
+        _wbrRange(catSumEl);
         catSumEl.title = catMixed ? '複数通貨を JPY 換算して合算（FX パネルのレート使用）' : '';
       }
-      catSumEl = null; catSell = 0; catMixed = false;
+      catSumEl = null; catSell = 0; catMixed = false; catHi = 0;
     };
     Array.from(tbody.querySelectorAll('tr')).forEach(tr => {
       if (tr.dataset.catHeader) { flushCat(); catSumEl = tr.querySelector('.subcon-cat-sum'); return; }
       if (tr.dataset.ptSum || tr.dataset.subSum || tr.dataset.subGroup || tr.dataset.virtual) flushCat();
       if (tr.dataset.ptSum) {                // パターン小計行：内側累計を書き込み、内側だけリセット
-        writeSub(tr, ptSell, ptCost, ptMixed);
+        writeSub(tr, ptSell, ptCost, ptMixed, ptHi);
         resetPt();
         return;
       }
@@ -4623,7 +4653,7 @@
       if (tr.dataset.virtual) {              // サブコングループ見出し
         flushSc();
         scSumEl = tr.querySelector('.subcon-group-sum');
-        scSubRow = null; scSell = 0; scCost = 0; scMixed = false; resetPt();
+        scSubRow = null; scSell = 0; scCost = 0; scMixed = false; scHi = 0; resetPt();
         return;
       }
       if (tr.dataset.type) return;           // 小計・リマーク・社内メモ行は除外
@@ -4644,9 +4674,13 @@
       let mixed = false;
       if (bc !== 'JPY') { mixed = true; if (typeof toJPY === 'function') sell = toJPY(sell, bc); }
       if (pc !== 'JPY') { mixed = true; if (typeof toJPY === 'function') cost = toJPY(cost, pc); }
-      scSell += sell; scCost += cost; if (mixed) scMixed = true;
-      if (catSumEl) { catSell += sell; if (mixed) catMixed = true; }
-      ptSell += sell; ptCost += cost; if (mixed) ptMixed = true;
+      // 幅（売単価〜上限）：上限との差（円換算）を別に積む
+      let hiX = 0;
+      { const rgG = rowRangeAmt(bq, bp, val(`bphi-${id}`), document.getElementById(`bpmin-${id}`)?.value);
+        if (rgG) { hiX = rgG.hi - applyRowMin(bq * bp, id, 'sell'); if (bc !== 'JPY' && typeof toJPY === 'function') hiX = toJPY(rgG.hi, bc) - toJPY(applyRowMin(bq * bp, id, 'sell'), bc); } }
+      scSell += sell; scCost += cost; scHi += hiX; if (mixed) scMixed = true;
+      if (catSumEl) { catSell += sell; catHi += hiX; if (mixed) catMixed = true; }
+      ptSell += sell; ptCost += cost; ptHi += hiX; if (mixed) ptMixed = true;
     });
     flushCat();
     flushSc();

@@ -188,7 +188,8 @@
     const m = s.match(/^([^\d\-]*)(.*)$/);     // 先頭の記号（≈ 等）を分離
     const prefix = m ? m[1] : '';
     const rest   = m ? m[2] : s;
-    return esc(prefix) + '¥' + esc(rest);
+    // 幅（「下限〜上限」）は両端に ¥ を付ける
+    return esc(prefix) + rest.split('〜').map(x => '¥' + esc(x)).join('〜');
   }
 
   // 課税行の品名から先頭の課税マーク * を1つ除去（表示直前）。
