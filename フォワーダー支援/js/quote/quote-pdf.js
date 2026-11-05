@@ -567,6 +567,7 @@
 
     // 集計
     let taxableSub = 0, exemptSub = 0, taxSum = 0;
+    let taxableSubHi = 0, exemptSubHi = 0, taxSumHi = 0;   // 幅（〜）のある行を上限で数えた場合の合計（下限＝上記）
     const lineHTML = [];
     // サブコン別グループが有効（2+ サブコン）なら、グループ境界に売値小計を挿入（顧客向けのため金額のみ）
     // 揺らぎ吸収：境界判定・エイリアス参照は正規化キーで、表示は元の綴りで行う
@@ -625,11 +626,15 @@
       const isCond   = r._cond;     // 都度請求（発生時のみ・金額は表示・合計に加算しない）
       const isRef    = r._ref;      // 参考情報（金額は表示・合計に加算しない）
       if (!isActual && !isCond && !isRef) {
+        const jpyHi = _rgAmt ? Math.ceil(_toJPY(_rgAmt.hi, r.bc || 'JPY')) : jpy;   // 幅のある行の上限（JPY）
         if (r.taxed && (r.bc || 'JPY') === 'JPY') {
           taxableSub += jpy;
           taxSum += Math.ceil(jpy * taxRate);
+          taxableSubHi += jpyHi;
+          taxSumHi += Math.ceil(jpyHi * taxRate);
         } else {
           exemptSub += jpy;
+          exemptSubHi += jpyHi;
         }
       }
       const isNonJpy = r.bc && r.bc !== 'JPY';
@@ -738,11 +743,14 @@
     });
     _scPush();   // 末尾グループの売値小計
     if (_hasRangeRow) {   // 幅のある項目の合計の扱いを明記（誤解防止）
-      lineHTML.push(`<tr class="qd-remark"><td colspan="5">※ ${_curLangEn ? 'Totals include items quoted as a range at the lower amount.' : '「〜」で幅を示した項目の合計は、幅の下限の金額で算出しています。'}</td></tr>`);
+      lineHTML.push(`<tr class="qd-remark"><td colspan="5">※ ${_curLangEn ? 'Totals are shown as a range because some items are quoted as a range (lower to upper amount).' : '「〜」で幅を示した項目を含むため、合計も下限〜上限の幅で表示しています。'}</td></tr>`);
     }
 
     const tax   = taxSum;   // 行ごと切り上げの合計（Math.floor 一括計算からの修正）
     const total = taxableSub + exemptSub + tax;
+    const totalHi = taxableSubHi + exemptSubHi + taxSumHi;   // 幅（〜）のある行を上限で数えた合計
+    // 幅のある行を含むときは、合計を「下限〜上限」で表示する
+    const rgY = (lo, hi, sp) => (_hasRangeRow && hi !== lo) ? `¥${sp || ''}${fmtInt(lo)}〜¥${sp || ''}${fmtInt(hi)}` : `¥${sp || ''}${fmtInt(lo)}`;
 
     const subj = opts.compare ? { title: '', meta: [] } : buildSubject(cond);   // 比較ページは案ごとの内容を持たない
     _lastBuild = { total, tax, subjTitle: opts.compare ? '' : subj.title, container: opts.compare ? '' : (cond && cond.container) || '' };
@@ -799,7 +807,7 @@
         ${metaRows ? `<div class="qd-meta">${metaRows}</div>` : ''}
         ${(!hideTotal || validStr) ? `<div class="qd-amt-row">
           <span>${hideTotal ? '' : t('totalAmount')}${validStr ? `　<span class="qd-valid">${t('validUntil')}：${esc(validStr)}</span>` : ''}</span>
-          ${hideTotal ? '' : `<span class="qd-amt">¥ ${fmtInt(total)} <span class="qd-jpy">(JPY)</span></span>`}
+          ${hideTotal ? '' : `<span class="qd-amt">${rgY(total, totalHi, ' ')} <span class="qd-jpy">(JPY)</span></span>`}
         </div>` : ''}
       </div>
 
@@ -822,10 +830,10 @@
         </div>
         ${hideTotal ? '' : `<div class="qd-sum">
           <table>
-            <tr><td class="qd-sk2">${t('exemptSub')}</td><td class="qd-num">¥${fmtInt(exemptSub)}</td></tr>
-            <tr><td class="qd-sk2">${t('taxableSub')}</td><td class="qd-num">¥${fmtInt(taxableSub)}</td></tr>
-            <tr><td class="qd-sk2">${t('tax')}（${Math.round(taxRate * 100)}%）</td><td class="qd-num">¥${fmtInt(tax)}</td></tr>
-            <tr class="qd-total"><td>${t('grandTotal')}</td><td class="qd-num">¥${fmtInt(total)}</td></tr>
+            <tr><td class="qd-sk2">${t('exemptSub')}</td><td class="qd-num">${rgY(exemptSub, exemptSubHi)}</td></tr>
+            <tr><td class="qd-sk2">${t('taxableSub')}</td><td class="qd-num">${rgY(taxableSub, taxableSubHi)}</td></tr>
+            <tr><td class="qd-sk2">${t('tax')}（${Math.round(taxRate * 100)}%）</td><td class="qd-num">${rgY(tax, taxSumHi)}</td></tr>
+            <tr class="qd-total"><td>${t('grandTotal')}</td><td class="qd-num">${rgY(total, totalHi)}</td></tr>
           </table>
         </div>`}
       </div>
