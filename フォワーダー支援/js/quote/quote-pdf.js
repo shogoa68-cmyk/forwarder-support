@@ -583,24 +583,26 @@
       scPatternSets[sk].add(_ptNorm(d));
     });
     const _scActive = (new Set(data.map(_scNorm)).size >= 2);
-    let _scKey = null, _scLabel = null, _scHeadLabel = null, _scJpy = 0, _scHas = false;
+    let _scKey = null, _scLabel = null, _scHeadLabel = null, _scJpy = 0, _scJpyHi = 0, _scHas = false;   // …Hi＝幅（〜）のある行を上限で数えた小計
     let _catKey = null;   // サブコン内の現在カテゴリ（サブコンが変わると null にリセット）
-    let _ptActive = false, _ptSubOn = false, _ptKey = null, _ptJpy = 0, _ptHas = false;
+    let _ptActive = false, _ptSubOn = false, _ptKey = null, _ptJpy = 0, _ptJpyHi = 0, _ptHas = false;
+    // 小計の金額表示：上限が下限と違うときは「¥下限〜¥上限」（合計・手動の小計行と同じ書式）
+    const _subYen = (lo, hi) => (hi !== lo) ? `¥${fmtInt(lo)}〜¥${fmtInt(hi)}` : `¥${fmtInt(lo)}`;
     const _ptPush = () => {
       // パターン小計はサブコン内に2パターン以上あるときだけ出す
       // （1パターンのみだと直後のサブコン小計と同額の小計行が2行並び冗長）
       if (_ptActive && _ptSubOn && _ptHas) {
         // パターン名は見出し行に表示済みのため、小計行では繰り返さず「小計」のみ
-        lineHTML.push(`<tr class="qd-pattern-sub"><td colspan="4">↳ ${t('subtotal')}</td><td class="qd-num">¥${fmtInt(_ptJpy)}</td></tr>`);
+        lineHTML.push(`<tr class="qd-pattern-sub"><td colspan="4">↳ ${t('subtotal')}</td><td class="qd-num">${_subYen(_ptJpy, _ptJpyHi)}</td></tr>`);
       }
-      _ptJpy = 0; _ptHas = false;
+      _ptJpy = 0; _ptJpyHi = 0; _ptHas = false;
     };
     const _scPush = () => {
       _ptPush(); // サブコン小計前にパターン小計をフラッシュ
       if (_scActive && _scHas) {
         // サブコン小計はページが分かれると見出し行が前ページに残り会社名が分からなくなるため、
         // 「小計」だけでなくサブコン名も併記する（例：「SEABRIDGE 小計」）
-        lineHTML.push(`<tr class="qd-subcon-sub"><td colspan="4">↳ ${esc(_scHeadLabel || '')} ${t('subtotal')}</td><td class="qd-num">¥${fmtInt(_scJpy)}</td></tr>`);
+        lineHTML.push(`<tr class="qd-subcon-sub"><td colspan="4">↳ ${esc(_scHeadLabel || '')} ${t('subtotal')}</td><td class="qd-num">${_subYen(_scJpy, _scJpyHi)}</td></tr>`);
       }
     };
     let _hasRangeRow = false;   // 幅（〜）で示した行があるか（あれば合計の注記を出す）
@@ -621,6 +623,7 @@
       const _rgAmt = _rg ? rowRangeAmt(r.bq, r.bp, r.bphi, r.bpmin) : null;
       if (_rg) _hasRangeRow = true;
       const jpy = Math.ceil(_toJPY(sub, r.bc || 'JPY'));      // JPY換算
+      const _jpyHi = _rgAmt ? Math.ceil(_toJPY(_rgAmt.hi, r.bc || 'JPY')) : jpy;   // 幅のある行の上限（JPY）。サブコン・パターン小計の「下限〜上限」用
       // 外貨建ては輸出免税が原則（Excel/プレビューと同一ポリシー）。課税は JPY 建て行のみ。
       // 消費税は行ごとに切り上げて積み上げ、各出力経路（御見積書/プレビュー/Excel）で一致させる。
       const isActual = r._actual;   // 実費（金額未確定・合計除外・単価/金額は「実費」表示）
@@ -660,7 +663,7 @@
       if (_scActive) {
         const k = _scNorm(r);
         if (_scHas && k !== _scKey) {
-          _scPush(); _scJpy = 0; _scHas = false; _catKey = null;
+          _scPush(); _scJpy = 0; _scJpyHi = 0; _scHas = false; _catKey = null;
           _ptActive = false; _ptKey = null;
         }
         if (!_scHas) {
@@ -678,9 +681,9 @@
           const ps = scPatternSets[k] || new Set();
           _ptActive = ps.size >= 2 || (ps.size === 1 && !ps.has(''));
           _ptSubOn  = ps.size >= 2;
-          _ptKey = null; _ptJpy = 0; _ptHas = false;
+          _ptKey = null; _ptJpy = 0; _ptJpyHi = 0; _ptHas = false;
         }
-        _scJpy += ((isActual || isCond || isRef) ? 0 : jpy); _scHas = true;   // 実費・都度請求・参考情報は小計に含めない
+        _scJpy += ((isActual || isCond || isRef) ? 0 : jpy); _scJpyHi += ((isActual || isCond || isRef) ? 0 : _jpyHi); _scHas = true;   // 実費・都度請求・参考情報は小計に含めない
       } else {
         // サブコンが1社のみの場合もパターン表示を判定（初回のみ）
         if (_ptKey === null) {
@@ -706,7 +709,7 @@
           }
           _catKey = null;
         }
-        if (!isActual && !isCond && !isRef) _ptJpy += jpy;
+        if (!isActual && !isCond && !isRef) { _ptJpy += jpy; _ptJpyHi += _jpyHi; }
         _ptHas = true;
       }
       // カテゴリー境界：サブコン配下でカテゴリが変わったら見出し行を挿入（ツリー第2階層）
