@@ -497,6 +497,22 @@ function minPriceText(price, min, ccy, unit) {
   const money = n => (_MIN_CCY_SYM[c] ? _MIN_CCY_SYM[c] + f(n) : c + ' ' + f(n));
   return 'Min. ' + money(m) + ' or ' + money(price) + (unit ? '/' + unit : '');
 }
+// 幅（金額の範囲）：売単価 bp〜上限 bphi。上限が売単価より大きいときだけ幅あり（未入力・0・以下は null）。
+// 売単価 bp が下限で、合計・小計はこの売単価で計算する（出力の注記「合計は幅の下限で算出」と一致）
+function rowRange(bp, bphi) {
+  const hi = parseFloat(bphi) || 0, lo = Number(bp) || 0;
+  if (!(hi > lo)) return null;
+  return { lo, hi };
+}
+window.rowRange = rowRange;
+// 幅の金額（数量×単価の範囲。最低料金があれば各端に適用）。幅なしなら null
+function rowRangeAmt(bq, bp, bphi, bpmin) {
+  const rg = rowRange(bp, bphi);
+  if (!rg) return null;
+  const q = Number(bq) || 0;
+  return { lo: minAmt(q * rg.lo, bpmin), hi: minAmt(q * rg.hi, bpmin) };
+}
+window.rowRangeAmt = rowRangeAmt;
 window.minAmt = minAmt;
 window.applyRowMin = applyRowMin;
 window.minPriceText = minPriceText;

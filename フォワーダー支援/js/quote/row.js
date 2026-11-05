@@ -1597,7 +1597,7 @@
     const newId = addRowAfter(srcId);
 
     // テキスト・数値・日付フィールドをコピー（zc = 0円確認済みフラグ／vf・vt = 有効期限を含む）
-    ['nm','pq','un','pp','mk','nt','sv','pt','zc','ac','ps','co','vf','vt','lu','ppmode','pprate','ppbase','ppref','ppmin','bpmin','ic','cn'].forEach(f => {
+    ['nm','pq','un','pp','mk','nt','sv','pt','zc','ac','ps','co','vf','vt','lu','ppmode','pprate','ppbase','ppref','ppmin','bpmin','ic','cn','bphi'].forEach(f => {
       const srcEl = document.getElementById(`${f}-${srcId}`);
       const dstEl = document.getElementById(`${f}-${newId}`);
       if (srcEl && dstEl) dstEl.value = srcEl.value;
@@ -1796,7 +1796,7 @@
     const q    = f => frag.querySelector(`[data-field="${f}"]`);
 
     // IDs
-    ['cat','tx','nm','pq','un','pc','pp','cd','bq','bc','bp','mk','st','pr','nt','sv','pt','zc','ac','ps','co','ri','es','vf','vt','lu','ppmode','pprate','ppbase','uid','ppref','ppmin','bpmin','ic','cn']
+    ['cat','tx','nm','pq','un','pc','pp','cd','bq','bc','bp','mk','st','pr','nt','sv','pt','zc','ac','ps','co','ri','es','vf','vt','lu','ppmode','pprate','ppbase','uid','ppref','ppmin','bpmin','ic','cn','bphi']
       .forEach(f => { const el = q(f); if (el) el.id = `${f}-${id}`; });
     const zcBtn = frag.querySelector('.zero-confirm-btn');
     if (zcBtn) zcBtn.onclick = () => toggleZeroConfirmed(id);;
@@ -1821,6 +1821,9 @@
     const cnBtn = frag.querySelector('.cn-mode-btn');
     if (cnBtn) cnBtn.onclick = () => toggleCnMode(id);
     ['ppmin', 'bpmin'].forEach(f => { const el = q(f); if (el) el.oninput = () => calc(id); });
+    const rangeBtn = frag.querySelector('.range-mode-btn');
+    if (rangeBtn) rangeBtn.onclick = () => toggleRangeMode(id);
+    { const el = q('bphi'); if (el) el.oninput = () => calc(id); }   // 幅（売単価の上限）
     const mregBtn = frag.querySelector('.master-reg-btn');
     if (mregBtn) mregBtn.onclick = () => registerRowToMaster(id);
     const svDetBtn = frag.querySelector('.sv-detail-btn');
@@ -2163,6 +2166,23 @@
         const mhint = trM.querySelector('.min-hint');
         if (mhint) mhint.textContent = pc === bc ? bc : '仕 ' + pc + ' ／ 売 ' + bc;
       }
+      // 幅（売単価の上限）：売単価〜上限を「1,000〜2,500」と客先向けに示す。合計・小計は売単価（主）で計算する
+      if (trM) {
+        const hi = parseFloat(document.getElementById(`bphi-${id}`)?.value) || 0;
+        const hasRange = hi > 0;
+        if (hasRange) trM.classList.add('row-range-mode');
+        const rangeOn = trM.classList.contains('row-range-mode');
+        trM.querySelector('.range-mode-btn')?.classList.toggle('is-on', rangeOn);
+        trM.querySelector('.range-mode-btn')?.classList.toggle('is-empty', rangeOn && !hasRange);
+        document.getElementById(`bphi-${id}`)?.classList.toggle('is-empty', rangeOn && !hasRange);
+        const rg = typeof rowRange === 'function' ? rowRange(bp, hi) : null;
+        if (rg) trM.dataset.range = '1'; else delete trM.dataset.range;
+        const rhint = trM.querySelector('.range-hint');
+        if (rhint) {
+          const dec = bc === 'JPY' ? 0 : 2, f = n => Number(n).toLocaleString('en-US', { minimumFractionDigits: dec, maximumFractionDigits: dec });
+          rhint.textContent = rg ? f(rg.lo) + '〜' + f(rg.hi) + ' ' + bc + '（合計は ' + f(bp) + ' で計算）' : (rangeOn && hasRange ? '上限は売単価（' + f(bp) + '）より大きい値にしてください' : '');
+        }
+      }
     }
     const canFx = typeof toJPY === 'function';
     const taxed = document.getElementById(`tx-${id}`)?.checked;
@@ -2374,6 +2394,25 @@
     if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
   }
   window.toggleMinMode = toggleMinMode;
+
+  // ========== 幅（金額の範囲：売単価〜上限） ==========
+  // ON：上限の入力欄を出す（Industry は「その他 ▾」の中）。OFF：上限を消して通常の単価に戻す。
+  // 客先向けの出力は単価・金額を「1,000〜2,500」と示し、合計・小計は売単価（主）で計算する
+  function toggleRangeMode(id) {
+    const tr = document.getElementById(`row-${id}`);
+    if (!tr) return;
+    const on = !tr.classList.contains('row-range-mode');
+    tr.classList.toggle('row-range-mode', on);
+    const el = document.getElementById(`bphi-${id}`);
+    if (!on && el) el.value = '';
+    calc(id);
+    if (on) {
+      if (window.rowDetailToggle && !el?.offsetParent) window.rowDetailToggle(tr, true);
+      setTimeout(() => { const e2 = document.getElementById(`bphi-${id}`); if (e2 && e2.offsetParent) e2.focus(); }, 0);
+    }
+    if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
+  }
+  window.toggleRangeMode = toggleRangeMode;
 
   // ========== % 計算モード ==========
   function togglePctMode(id) {
@@ -2658,6 +2697,7 @@
     let totCostJPY = 0, totBillJPY = 0, totSubJPY = 0;
     let psBillJPY = 0, psCostJPY = 0;   // PROFIT SHARE（代理店収益）社内計上分（JPY）
     let hasFx = false;
+    let rangeAny = false, rangeExtraBill = 0, rangeExtraJPY = 0;   // 幅（売単価〜上限）のある行の上限分（合計の「下限〜上限」表示用）
     // 通貨別集計: { bc: { sub, taxedSub, exemptSub } }
     const ccyData = {};
     rows.forEach(tr => {
@@ -2690,6 +2730,8 @@
       totBill += sub;
       totSub  += sub;
       totMk   += val(`mk-${id}`);
+      { const rgT = rowRangeAmt(bq, bp, val(`bphi-${id}`), document.getElementById(`bpmin-${id}`)?.value);
+        if (rgT) { rangeAny = true; rangeExtraBill += rgT.hi - sub; rangeExtraJPY += SharedCalc.jpyRound(toJPY(rgT.hi, bc)) - SharedCalc.jpyRound(toJPY(sub, bc)); } }
       // JPY換算（行ごとに SharedCalc.jpyRound で丸めてから合計・4経路統一）
       totCostJPY += SharedCalc.jpyRound(toJPY(cost, pc));
       totBillJPY += SharedCalc.jpyRound(toJPY(sub, bc));
@@ -2706,22 +2748,26 @@
     const labelEl  = document.getElementById('tot-row-label');
     const pEl      = document.getElementById('tot-profit');
     const fxNote   = document.getElementById('tot-fx-note');
-    if (fxNote) fxNote.textContent = hasFx ? '※ 外貨の金額は、換算レートで円にして合算しています' : '';
+    if (fxNote) fxNote.textContent = [hasFx ? '※ 外貨の金額は、換算レートで円にして合算しています' : '', rangeAny ? '※ 幅（〜）のある項目を含むため、売上・利益は下限〜上限で表示しています' : ''].filter(Boolean).join('　');
+    // 幅のある項目を含むときは、売上・利益を「下限〜上限」で表示する（下限＝売単価で計算した合計）
+    const rgTxt = (lo, hi, pre) => (rangeAny && Math.round(hi) !== Math.round(lo)) ? pre + fmt(Math.round(lo)) + '〜' + pre + fmt(Math.round(hi)) : pre + fmt(Math.round(lo));
     if (hasFx) {
       // 外貨混在時：単純加算は無意味なので JPY 換算合計を「合計」行に表示
       if (labelEl) labelEl.innerHTML = '合計<small class="tot-jpy-note">（JPY換算）</small>';
       document.getElementById('tot-cost').textContent     = '¥' + fmt(Math.round(totCostJPY));
-      document.getElementById('tot-subtotal').textContent = '¥' + fmt(Math.round(totSubJPY));
+      document.getElementById('tot-subtotal').textContent = rgTxt(totSubJPY, totSubJPY + rangeExtraJPY, '¥');
       const mkPctJpy = (window.SharedCalc ? SharedCalc.grossMarginPct(totBillJPY, totCostJPY) : 0);
-      pEl.innerHTML = '¥' + fmt(Math.round(totPrJPY)) + `<small class="tot-margin">粗利 ${mkPctJpy.toFixed(1)}%</small>`;
+      const mkPctJpyHi = (rangeAny && window.SharedCalc) ? SharedCalc.grossMarginPct(totBillJPY + rangeExtraJPY, totCostJPY) : mkPctJpy;
+      pEl.innerHTML = rgTxt(totPrJPY, totPrJPY + rangeExtraJPY, '¥') + `<small class="tot-margin">粗利 ${rangeAny && mkPctJpyHi.toFixed(1) !== mkPctJpy.toFixed(1) ? mkPctJpy.toFixed(1) + '〜' + mkPctJpyHi.toFixed(1) : mkPctJpy.toFixed(1)}%</small>`;
       pEl.className = `profit-cell ${pClass(totPrJPY)}`;
     } else {
       if (labelEl) labelEl.textContent = '合　計';
       document.getElementById('tot-cost').textContent     = fmt(Math.round(totCost));
       document.getElementById('tot-billing').textContent  = fmt(Math.round(totBill));
-      document.getElementById('tot-subtotal').textContent = fmt(Math.round(totSub));
+      document.getElementById('tot-subtotal').textContent = rgTxt(totSub, totSub + rangeExtraBill, '');
       const mkPct = (window.SharedCalc ? SharedCalc.grossMarginPct(totBill, totCost) : 0);
-      pEl.innerHTML = fmt(Math.round(totPr)) + `<small class="tot-margin">粗利 ${mkPct.toFixed(1)}%</small>`;
+      const mkPctHi = (rangeAny && window.SharedCalc) ? SharedCalc.grossMarginPct(totBill + rangeExtraBill, totCost) : mkPct;
+      pEl.innerHTML = rgTxt(totPr, totPr + rangeExtraBill, '') + `<small class="tot-margin">粗利 ${rangeAny && mkPctHi.toFixed(1) !== mkPct.toFixed(1) ? mkPct.toFixed(1) + '〜' + mkPctHi.toFixed(1) : mkPct.toFixed(1)}%</small>`;
       pEl.className = `profit-cell ${pClass(totPr)}`;
     }
     // 社内利益（PROFIT SHARE 込み）行：PS 行があるときだけ表示
@@ -4790,7 +4836,7 @@
 
   function _gatherRowData(id) {
     const data = {};
-    ['nm','pq','un','pp','mk','nt','sv','pt','zc','ac','ps','co','vf','vt','lu','cat','pc','bc','bp','ppmode','pprate','ppbase','uid','ppref','ppmin','bpmin','ic','cn'].forEach(f => {
+    ['nm','pq','un','pp','mk','nt','sv','pt','zc','ac','ps','co','vf','vt','lu','cat','pc','bc','bp','ppmode','pprate','ppbase','uid','ppref','ppmin','bpmin','ic','cn','bphi'].forEach(f => {
       const el = document.getElementById(`${f}-${id}`);
       if (el) data[f] = el.value;
     });
@@ -4810,7 +4856,7 @@
     } else {
       tbody.appendChild(newTr);
     }
-    ['nm','pq','un','pp','mk','nt','pt','zc','ac','ps','co','vf','vt','lu','ppmode','pprate','ppbase','ppref','ppmin','bpmin','ic','cn'].forEach(f => {
+    ['nm','pq','un','pp','mk','nt','pt','zc','ac','ps','co','vf','vt','lu','ppmode','pprate','ppbase','ppref','ppmin','bpmin','ic','cn','bphi'].forEach(f => {
       const el = document.getElementById(`${f}-${newId}`);
       if (el && data[f] !== undefined) el.value = data[f];
     });

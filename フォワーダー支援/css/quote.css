@@ -11635,3 +11635,41 @@ body.is-row-dragging { cursor: grabbing; user-select: none; }
 #tab-quote-make .cross-move-actions { display: flex; justify-content: flex-end; gap: 8px; }
 #tab-quote-make .cross-move-actions button { padding: 6px 16px; border-radius: 6px; border: 1px solid #bbb; background: #f3f3f3; cursor: pointer; font-size: 13px; font-family: inherit; }
 #tab-quote-make .cross-move-actions .cross-move-ok { background: #2e6fd0; border-color: #2e6fd0; color: #fff; font-weight: 600; }
+
+/* 幅（金額の範囲：売単価〜上限）。MIN と同じ並び（モードボタン＋ONのときだけ出る入力） */
+#tab-quote-make .range-mode-btn {
+  border: 1px solid var(--border); border-radius: var(--r-5); background: var(--card-bg); color: var(--text-md);
+  padding: 1px 8px; font-size: var(--fs-11); cursor: pointer; font-family: inherit;
+}
+#tab-quote-make .range-mode-btn:hover { border-color: #3b7ea1; color: #3b7ea1; }
+#tab-quote-make .range-mode-btn.is-on { background: #e8f3fa; border-color: #3b7ea1; color: #1f5a7a; font-weight: 700; }
+#tab-quote-make .range-group { display: none; align-items: center; gap: var(--sp-6); flex-wrap: wrap; margin-top: var(--sp-3); }
+#tab-quote-make tr.row-range-mode .range-group { display: flex; }
+#tab-quote-make .range-group .range-lbl { font-size: var(--fs-10); font-weight: 700; color: #1f5a7a; }
+#tab-quote-make .range-group .w-range { width: 100px; text-align: right; }
+#tab-quote-make .range-group .w-range.is-empty { border-color: #8a5a2b; }
+#tab-quote-make .range-group .range-hint { font-size: var(--fs-11); color: var(--text-md); }
+#tab-quote-make #quoteTable .row-detail-panel .range-group input.w-range { width: 120px !important; height: 32px; text-align: right; flex: 0 0 auto; }
+#tab-quote-make #quoteTable .row-detail-panel .range-group .range-lbl { font-size: 12px; }
+#tab-quote-make #quoteTable .row-detail-panel .range-group .range-hint { font-size: 12px; }
+
+/* ===== 合計バーの画面下固定（見積もりテーブルを見ていて、本物の合計行が画面の下に隠れているときだけ）===== */
+#tab-quote-make #totFloat {
+  position: fixed; bottom: 0; z-index: 900; box-sizing: border-box;
+  display: flex; align-items: center; gap: 18px; padding: 8px 18px;
+  background: #1f2d3d; color: #fff; border-radius: 8px 8px 0 0;
+  box-shadow: 0 -4px 14px rgba(0,0,0,.28);
+}
+#tab-quote-make #totFloat[hidden] { display: none; }
+#tab-quote-make #totFloat .tf-note { flex: 1; min-width: 0; font-size: 11px; color: #c9d4e0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#tab-quote-make #totFloat .tf-label { font-weight: 700; font-size: 13px; white-space: nowrap; }
+#tab-quote-make #totFloat .tf-label small { font-weight: 400; font-size: 10px; letter-spacing: .06em; color: #aab8c8; margin-left: 4px; }
+#tab-quote-make #totFloat .tf-amts { display: flex; flex-direction: column; align-items: flex-end; line-height: 1.25; }
+#tab-quote-make #totFloat .tf-sell-v { font-size: 20px; letter-spacing: .02em; }
+#tab-quote-make #totFloat .tf-cost { font-size: 12px; color: #c9d4e0; }
+#tab-quote-make #totFloat .tf-tag { font-size: 10px; font-weight: 700; color: #8fb6e0; margin-right: 6px; }
+#tab-quote-make #totFloat .tf-profit { font-weight: 700; font-size: 14px; text-align: right; color: #b8d4f2; white-space: nowrap; min-width: 150px; }
+#tab-quote-make #totFloat .tf-profit.is-neg { color: #ffb4a8; }
+#tab-quote-make #totFloat .tf-profit small { display: block; font-size: 11px; font-weight: 600; color: #8fb6e0; }
+#tab-quote-make #totFloat .tf-profit.is-neg small { color: #ffb4a8; }
+@media print { #tab-quote-make #totFloat { display: none !important; } }
