@@ -2075,6 +2075,10 @@
    "css": true,
    "html": false
   },
+  "ccc-modal-close": {
+   "css": true,
+   "html": false
+  },
   "ccc-open": {
    "css": true,
    "html": false
@@ -2108,6 +2112,10 @@
    "html": false
   },
   "cloud-card-links": {
+   "css": true,
+   "html": false
+  },
+  "cloud-card-name": {
    "css": true,
    "html": false
   },
@@ -2263,6 +2271,14 @@
    "css": true,
    "html": false
   },
+  "cross-move-cancel": {
+   "css": false,
+   "html": false
+  },
+  "cross-move-ok": {
+   "css": true,
+   "html": false
+  },
   "csv-col-chk": {
    "css": false,
    "html": true
@@ -2280,6 +2296,10 @@
    "html": true
   },
   "drag-over-bottom": {
+   "css": true,
+   "html": false
+  },
+  "drag-over-cross": {
    "css": true,
    "html": false
   },
@@ -4602,6 +4622,7 @@
   "js/stats.js",
   "js/alias-rules.js",
   "js/port-country.js",
+  "js/zone-subcon.js",
   "js/customer-rules.js",
   "js/carrier-migration.js",
   "js/local-charges.js",

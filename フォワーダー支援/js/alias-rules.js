@@ -497,6 +497,7 @@
   window.arRefreshDatalist = function () {
     _refreshDatalist.apply(this, arguments);
     if (typeof window.qfRefreshCarrierMasterCandidates === 'function') window.qfRefreshCarrierMasterCandidates();   // サブコンのマスター（種別がキャリア）を幹線輸送のキャリア候補へ
+    if (typeof window.zscRefreshLists === 'function') window.zscRefreshLists();   // 出発地側・到着地側のデフォルトサブコンの候補（得意エリアで絞る）
     if (typeof window.ptcRefreshLists === 'function') window.ptcRefreshLists();   // 国で絞った港の候補（POL／経由地／POD）も作り直す
     if (typeof window.refreshAllRowSvChips === 'function') window.refreshAllRowSvChips();   // マスターが読み込まれた・変わったら、行の「サブコン未登録」の印も更新
   };
@@ -755,6 +756,7 @@
     svSuggestions: 'sv', nmSuggestions: 'nm', 'unit-list': 'un',
     custSuggestions: 'customer', portSuggestions: 'port', 'carriers-dl': 'carrier',
     z2PolList: 'port', z2ViaList: 'port', z2PodList: 'port',   // 国で絞った港の候補（js/port-country.js）
+    z1ScList: 'sv', z3ScList: 'sv',   // 出発地側・到着地側のデフォルトサブコンを、その国を得意エリアとするサブコンに絞った候補（js/zone-subcon.js）
   };
   // 入力値が「ある同義グループの統合表記（別名）」なら代表名を返す。代表名そのもの・未登録なら null。
   function _canonicalFor(field, value) {
@@ -877,6 +879,7 @@
         }
         _refreshDatalist();
         if (typeof window.ptcRefreshLists === 'function') window.ptcRefreshLists();
+        if (typeof window.zscRefreshLists === 'function') window.zscRefreshLists();
         _markUnregistered(input, 'port', true);
         if (typeof window.statsRerenderActive === 'function') window.statsRerenderActive();
       }),
