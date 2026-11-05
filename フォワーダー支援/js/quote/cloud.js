@@ -3461,7 +3461,7 @@
       return;
     }
     _renderQspComments(data || []);
-    wrap.scrollTop = wrap.scrollHeight;
+    wrap.scrollTop = 0;   // 新しい順なので先頭（最新）へ
   }
 
   // 案件が切り替わった（新規・クリア・別の案件を開く・新規保存）とき、申し送りの表示を空にして作り直す。
@@ -3479,7 +3479,8 @@
     const wrap = document.getElementById('qspChatList');
     if (!wrap) return;
     if (!rows.length) { wrap.innerHTML = '<span class="cp-chat-empty">まだコメントはありません</span>'; return; }
-    wrap.innerHTML = rows.map(r => {
+    // 編集画面の右レールは「新しい投稿が上」（取得は古い順のまま、表示のときだけ反転）
+    wrap.innerHTML = rows.slice().reverse().map(r => {
       const isMine = _cloudUser && r.created_by === _cloudUser.email;
       const rawName = _nameFor(r.created_by);
       const name = escHtml(rawName);
