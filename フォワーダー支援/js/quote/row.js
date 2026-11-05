@@ -436,11 +436,11 @@
 
     const clearMarks = () => {
       if (_lastDragOverRow) {
-        _lastDragOverRow.classList.remove('drag-over-top', 'drag-over-bottom');
+        _lastDragOverRow.classList.remove('drag-over-top', 'drag-over-bottom', 'drag-over-cross');
         _lastDragOverRow = null;
       }
-      tbody.querySelectorAll('tr.drag-over-top, tr.drag-over-bottom')
-        .forEach(r => r.classList.remove('drag-over-top', 'drag-over-bottom'));
+      tbody.querySelectorAll('tr.drag-over-top, tr.drag-over-bottom, tr.drag-over-cross')
+        .forEach(r => r.classList.remove('drag-over-top', 'drag-over-bottom', 'drag-over-cross'));
     };
     const resetDrag = () => {
       tbody.querySelectorAll('tr.dragging').forEach(r => r.classList.remove('dragging'));
@@ -454,6 +454,7 @@
     // - 通常行／小計・リマーク行 … その行の前後へ挿入
     // - グループ見出し（仮想行）  … そのグループの先頭へ挿入（最上段へ移動する導線）
     // 戻り値 null は「ドロップ不可」。
+    // - 別のサブコン／パターンのグループへ（データ行）… 移動の確認ダイアログを出し、承諾されたら移動先のサブコン・パターンの明細にする（cross）
     function resolveTarget(x, y) {
       if (!dragSrcRows || !dragSrcRows.length) return null;
       const el = document.elementFromPoint(x, y);
@@ -461,30 +462,110 @@
       if (!tr) return null;
       const src = dragSrcRows[0];
       const srcSv = _rowSubcon(src);
+      const dataSrcs = dragSrcRows.filter(r => !r.dataset.type);
+      const norm = v => subconNormKey(v || '') || '';
+      // 移動先の行（destRow＝そのグループの明細）に対し、ドラッグ中のデータ行のサブコン・パターンが違えば cross 情報を返す
+      const crossFor = (destRow) => {
+        if (srcSv === null || !destRow) return null;
+        const dsv = _rowSubcon(destRow) ?? '', dpt = _rowInnerKey(destRow);
+        const differs = dataSrcs.some(r => norm(_rowSubcon(r)) !== norm(dsv) || norm(_rowInnerKey(r)) !== norm(dpt));
+        return differs ? { sv: dsv, pt: dpt, fromSv: _rowSubcon(src) ?? '', fromPt: _rowInnerKey(src) } : null;
+      };
 
-      if (tr.classList.contains('subcon-group-header')) {
-        // データ行のみグループ見出しへドロップ可。同じサブコングループのときだけ。
-        if (srcSv === null) return null;
-        if ((subconNormKey(srcSv) || _UNSET_KEY) !== tr.dataset.svKey) return null;
+      // グループ見出し（サブコン見出し／パターン見出し）… そのグループの先頭へ
+      if (tr.classList.contains('subcon-group-header') || tr.classList.contains('subcon-subgroup-header')) {
+        if (srcSv === null) return null;   // データ行のみ見出しへドロップ可
         // 見出し直後の最初の実行行を探す（配下にパターン見出し等の仮想行が挟まる）
         let first = tr.nextSibling;
         while (first && first.dataset && first.dataset.virtual) first = first.nextSibling;
         if (!first || dragSrcRows.includes(first)) return null;
-        return { mark: tr, markCls: 'drag-over-bottom', insertBefore: first };
+        const destRow = first.dataset.type ? null : first;
+        const cross = crossFor(destRow);
+        if (!cross && tr.classList.contains('subcon-group-header') &&
+            (subconNormKey(srcSv) || _UNSET_KEY) !== tr.dataset.svKey) return null;   // destRow が取れないときの保険
+        return { mark: tr, markCls: 'drag-over-bottom', insertBefore: first, cross };
       }
 
-      if (tr.dataset.virtual) return null;              // 小計・パターン見出し等は対象外
+      if (tr.dataset.virtual) return null;              // 小計等は対象外
       if (dragSrcRows.includes(tr)) return null;        // ドラッグ中の行の上には出さない
-      // データ行同士のときだけ、異なるサブコングループへのドロップを禁止（正規化キーで判定）。
-      // リマーク・社内メモ・小計行（dataset.type 付き＝_rowSubcon が null）は自由に移動可。
-      if (srcSv !== null && subconNormKey(srcSv) !== subconNormKey(_rowSubcon(tr))) return null;
+      // 移動先の「グループの明細」＝その行（データ行）、または備考・小計行ならその直前のデータ行
+      let destRow = tr;
+      if (tr.dataset.type) {
+        destRow = tr.previousElementSibling;
+        while (destRow && !destRow.dataset.virtual && destRow.dataset.type) destRow = destRow.previousElementSibling;
+        if (destRow && destRow.dataset.virtual) destRow = null;
+      }
+      let cross = null;
+      if (srcSv !== null) {
+        cross = crossFor(destRow);
+        if (!destRow) return null;
+      }
       const rect = tr.getBoundingClientRect();
       const after = y >= rect.top + rect.height / 2;
       let insertBefore = after ? tr.nextSibling : tr;
       while (insertBefore && insertBefore.dataset && insertBefore.dataset.virtual) {
         insertBefore = insertBefore.nextSibling;
       }
-      return { mark: tr, markCls: after ? 'drag-over-bottom' : 'drag-over-top', insertBefore };
+      return { mark: tr, markCls: after ? 'drag-over-bottom' : 'drag-over-top', insertBefore, cross };
+    }
+
+    // ---- 別グループへ移動するときの確認ダイアログ（「今後は確認しない」で省略可）----
+    const CROSS_SKIP_KEY = 'fwd.dragMoveNoConfirm';
+    const crossSkipped = () => { try { return localStorage.getItem(CROSS_SKIP_KEY) === '1'; } catch (e) { return false; } };
+    function confirmCrossMove(cross, count) {
+      if (crossSkipped()) return Promise.resolve({ ok: true, skipped: true });
+      return new Promise(resolve => {
+        const esc = v => String(v == null ? '' : v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        const svLbl = v => v || '（サブコン未設定）', ptLbl = v => v || '（パターンなし）';
+        const lines = [];
+        if ((subconNormKey(cross.fromSv) || '') !== (subconNormKey(cross.sv) || '')) lines.push('サブコン：<b>' + esc(svLbl(cross.fromSv)) + '</b> → <b>' + esc(svLbl(cross.sv)) + '</b>');
+        if ((subconNormKey(cross.fromPt) || '') !== (subconNormKey(cross.pt) || '')) lines.push('パターン：<b>' + esc(ptLbl(cross.fromPt)) + '</b> → <b>' + esc(ptLbl(cross.pt)) + '</b>');
+        const w = document.createElement('div');
+        w.id = 'crossMoveDlg'; w.className = 'cross-move-overlay';
+        w.innerHTML = '<div class="cross-move-box" role="dialog" aria-label="別のグループへ移動">' +
+          '<div class="cross-move-title">↔ 別のグループへ移動します</div>' +
+          '<div class="cross-move-body">' + (count > 1 ? count + ' 行' : 'この行') + 'を、ドロップ先のグループの明細として移動します。<br>' +
+            '<div class="cross-move-diff">' + lines.join('<br>') + '</div></div>' +
+          '<label class="cross-move-skip"><input type="checkbox"> 今後は確認せずに移動する</label>' +
+          '<div class="cross-move-actions"><button type="button" class="cross-move-cancel">キャンセル</button><button type="button" class="cross-move-ok">移動する</button></div></div>';
+        (document.getElementById('tab-quote-make') || document.body).appendChild(w);
+        const done = ok => { const skip = w.querySelector('input').checked; w.remove(); document.removeEventListener('keydown', onKey, true);
+          if (ok && skip) { try { localStorage.setItem(CROSS_SKIP_KEY, '1'); } catch (e) {} }
+          resolve({ ok, skipped: ok && skip }); };
+        const onKey = e => { if (e.key === 'Escape') { e.stopPropagation(); done(false); } else if (e.key === 'Enter' && document.activeElement?.tagName !== 'BUTTON') { e.preventDefault(); done(true); } };
+        document.addEventListener('keydown', onKey, true);
+        w.addEventListener('click', e => { if (e.target === w) done(false); });
+        w.querySelector('.cross-move-cancel').onclick = () => done(false);
+        w.querySelector('.cross-move-ok').onclick = () => done(true);
+        w.querySelector('.cross-move-ok').focus();
+      });
+    }
+
+    // 承諾された別グループへの移動：行のサブコン・パターンをドロップ先に合わせ、位置へ入れる
+    function applyCrossMove(moving, t, skipNow) {
+      if (t.insertBefore && t.insertBefore.parentNode !== tbody) {
+        if (typeof quoteShowToast === 'function') quoteShowToast('⚠️ 表が更新されたため移動できませんでした。もう一度ドラッグしてください', 'warn', 4000);
+        return;
+      }
+      moving.forEach(srcTr => {
+        if (!srcTr.dataset.type) {   // データ行：サブコン・パターンを移動先に合わせる（備考等の付随行は位置だけ運ぶ）
+          const id = srcTr.id.replace('row-', '');
+          const svEl = document.getElementById('sv-' + id), ptEl = document.getElementById('pt-' + id);
+          if (svEl) svEl.value = t.cross.sv;
+          if (ptEl) ptEl.value = t.cross.pt;
+          delete srcTr.dataset.portPair;   // 旧データの港ペアはパターンへ統合済み扱い（移動先に合わせる）
+        }
+        tbody.insertBefore(srcTr, t.insertBefore);
+      });
+      updateTotals();
+      renderSubconGroups();
+      if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
+      if (typeof scheduleSnapshot === 'function') scheduleSnapshot();   // 元に戻す（Ctrl+Z）の履歴へ
+      if (typeof quoteShowToast === 'function') {
+        const msg = '↔ 移動先のグループの明細に移しました（Ctrl+Z で元に戻せます）' + (skipNow ? '／今後は確認せずに移動します' : '');
+        if (crossSkipped()) quoteShowToast(msg, 'success', 6000, { label: '確認を再開', fn: () => { try { localStorage.removeItem(CROSS_SKIP_KEY); } catch (e) {} quoteShowToast('別グループへ移動するときに確認を出します', 'info', 2500); } });
+        else quoteShowToast(msg, 'success', 3500);
+      }
     }
 
     // 行ドラッグを開始する（ハンドル列の pointerdown から呼ぶ）
@@ -517,6 +598,7 @@
       }
       const moving = dragSrcRows;
       let moved = false;
+      const crossSkippedBefore = crossSkipped();   // このドラッグの開始時点で「確認しない」設定だったか（トースト文面用）
 
       window.startPointerDrag(ev, {
         onStart() { moving.forEach(r => r.classList.add('dragging')); },
@@ -526,19 +608,27 @@
           if (!t) { clearMarks(); return; }
           if (_lastDragOverRow === t.mark && t.mark.classList.contains(t.markCls)) return;
           if (_lastDragOverRow && _lastDragOverRow !== t.mark) {
-            _lastDragOverRow.classList.remove('drag-over-top', 'drag-over-bottom');
+            _lastDragOverRow.classList.remove('drag-over-top', 'drag-over-bottom', 'drag-over-cross');
           }
-          t.mark.classList.remove('drag-over-top', 'drag-over-bottom');
+          t.mark.classList.remove('drag-over-top', 'drag-over-bottom', 'drag-over-cross');
           t.mark.classList.add(t.markCls);
+          if (t.cross) t.mark.classList.add('drag-over-cross');   // 別グループへ（確認あり）の目印
           _lastDragOverRow = t.mark;
         },
         onDrop(x, y) {
           const t = resolveTarget(x, y);
+          if (t && t.cross) {
+            // 別のサブコン／パターンへ：確認（省略設定なら即移動）してから、移動先のグループの明細にする。
+            // 確認は非同期のため、ここでは何も動かさない（onEnd は moved=false で何も再描画しない）
+            const nData = moving.filter(r => !r.dataset.type).length;
+            confirmCrossMove(t.cross, nData).then(r => { if (r.ok) applyCrossMove(moving, t, r.skipped && !crossSkippedBefore); });
+            return;
+          }
           if (t) {
             moving.forEach(srcTr => { tbody.insertBefore(srcTr, t.insertBefore); });
             moved = true;
           } else if (typeof quoteShowToast === 'function') {
-            quoteShowToast('⚠️ 並び替えは同じサブコン内でのみ可能です', 'warn', 2400);
+            quoteShowToast('⚠️ この位置には移動できません', 'warn', 2400);
           }
         },
         onEnd() {
