@@ -10405,6 +10405,39 @@ button.um-memberno--empty:hover { background: var(--accent-lt); border-color: #c
 #tab-quote-make .subcon-subtotal-inner .st-remark .subcon-remark-toggle.is-shown {
   color: var(--text); background: #7ee0a6; border-color: #4fae7a;
 }
+/* グループ見出し・パターン見出しの行内の注記（客先表示名・サブコン別／パターン別リマーク）。以前はグループ末尾の小計行にあった。
+   見出しの金額・操作ボタンより左の空きに入り、足りないときだけ折り返す。折りたたんでいても見出しは見えるので、注記も常に見える */
+#tab-quote-make .hdr-notes {
+  display: flex; align-items: center; flex-wrap: wrap; gap: var(--sp-4) var(--sp-12);
+  flex: 1 1 360px; min-width: 0; margin: 0 var(--sp-6) 0 var(--sp-8);
+}
+#tab-quote-make .hdr-note { display: inline-flex; align-items: center; gap: var(--sp-6); min-width: 0; }
+#tab-quote-make .hdr-note i { font-style: normal; font-size: var(--fs-10); font-weight: 700; color: #8a7255; white-space: nowrap; }
+#tab-quote-make .hdr-note-alias .subcon-alias-input { width: 170px; max-width: 30vw; }
+#tab-quote-make .hdr-note-remark { flex: 1 1 260px; }
+#tab-quote-make .hdr-note-remark .subcon-remark-input { flex: 1 1 160px; min-width: 100px; }
+#tab-quote-make .hdr-note .subcon-alias-input,
+#tab-quote-make .hdr-note .subcon-remark-input {
+  pointer-events: auto; user-select: text; -webkit-user-select: text;
+  font-size: var(--fs-12); color: var(--text); background: var(--surface);
+  border: 1px solid var(--c-d8c9ad); border-radius: var(--r-4); padding: var(--sp-2) var(--sp-8);
+}
+#tab-quote-make .hdr-note .subcon-alias-input::placeholder,
+#tab-quote-make .hdr-note .subcon-remark-input::placeholder { color: var(--c-9a8a70); }
+#tab-quote-make .hdr-note .subcon-alias-input:focus,
+#tab-quote-make .hdr-note .subcon-remark-input:focus {
+  outline: none; border-color: #c9a55f; box-shadow: 0 0 0 2px rgba(201,165,95,.35);
+}
+#tab-quote-make .hdr-note .subcon-remark-toggle {
+  pointer-events: auto; flex: none;
+  font-size: var(--fs-11); font-weight: 700; color: #8a7255;
+  background: var(--surface); border: 1px solid var(--c-d8c9ad); border-radius: var(--r-4); padding: var(--sp-2) var(--sp-8);
+  cursor: pointer; white-space: nowrap;
+}
+#tab-quote-make .hdr-note .subcon-remark-toggle.is-shown { color: var(--text); background: #7ee0a6; border-color: #4fae7a; }
+/* パターン見出しは、名前が余白を取っていた（flex:1）。注記があるときは名前は内容の幅にして、余白は注記に回す */
+#tab-quote-make .subcon-subgroup-inner:has(.hdr-notes) .subcon-subgroup-leg { flex: 0 1 auto; }
+#tab-quote-make .subcon-subgroup-inner .hdr-notes--pt { margin-left: var(--sp-12); }
 /* ダッシュボード：旧「ブラウザ保存」の案件をチーム共有へ移す案内（ある場合のみ。見た目は master-cloud-notice に揃える） */
 #tab-quote-make #qpdLocalMigrate { margin: 0 0 var(--sp-12); padding: var(--sp-10) var(--sp-14); }
 #tab-quote-make #qpdLocalMigrate[hidden] { display: none; }
