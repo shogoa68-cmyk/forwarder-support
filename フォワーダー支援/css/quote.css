@@ -11723,3 +11723,9 @@ body.is-row-dragging { cursor: grabbing; user-select: none; }
 #tab-quote-make #totFloat[data-compact] .tf-cost { grid-area: cost; font-size: 11px; white-space: nowrap; }
 #tab-quote-make #totFloat[data-compact] .tf-profit { grid-area: profit; justify-self: end; min-width: 0; font-size: 12px; white-space: normal; text-align: right; overflow-wrap: anywhere; }
 #tab-quote-make #totFloat[data-compact] .tf-profit small { display: inline; margin-left: 6px; font-size: 10px; }
+
+/* 緊急タグの案件（ダッシュボードの先頭に固定表示。タグを外すと通常の並びに戻る） */
+#tab-quote-make .cloud-card.is-urgent { border-left: 4px solid #d94a3d; background-image: linear-gradient(90deg, rgba(217,74,61,.07), transparent 38%); }
+#tab-quote-make .qpd-row.is-urgent { border-left: 4px solid #d94a3d; background-image: linear-gradient(90deg, rgba(217,74,61,.08), transparent 38%); }
+#tab-quote-make .cloud-tag-chip.is-urgent { background: #d94a3d; border-color: #b53328; color: #fff; font-weight: 700; }
+#tab-quote-make .cloud-tag-chip.is-urgent button { color: #fff; }
