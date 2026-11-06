@@ -711,7 +711,20 @@
     const box = document.getElementById('qfCopiedFromInfo');
     if (!box) return;
     const cf = _loadedCopiedFrom;
-    if (!cf) { box.hidden = true; box.innerHTML = ''; return; }
+    // ログイン中は、代替わり元をあとから紐づけ・変更・解除できるボタンを出す（succession-link.js）
+    const loggedIn = typeof window.quoteCurrentUserEmail === 'function' && !!window.quoteCurrentUserEmail();
+    if (!cf) {
+      if (!loggedIn) { box.hidden = true; box.innerHTML = ''; return; }
+      box.innerHTML = '<div class="qf-copied-from-main qf-cf-empty">🧬 <button type="button" class="qf-cf-link-btn" onclick="qfPickPredecessor()" ' +
+        'title="前の案件を選んで、この案件をその次の代（代替わり）として管理します">代替わり元（前の案件）を紐づける</button>' +
+        '<span class="qf-cf-hint">前の案件を選ぶと、この案件はその次の代として管理されます</span></div>';
+      box.hidden = false;
+      return;
+    }
+    const cfActions = loggedIn
+      ? ' <span class="qf-cf-actions"><button type="button" class="qf-cf-btn" onclick="qfPickPredecessor()" title="代替わり元を別の案件に変更">変更</button>' +
+        '<button type="button" class="qf-cf-btn" onclick="qfClearPredecessor()" title="代替わり元の設定を解除（オリジナルに戻す）">解除</button></span>'
+      : '';
     const rows = (typeof _cloudRows !== 'undefined' && Array.isArray(_cloudRows)) ? _cloudRows : [];
     const origExists = cf.id && rows.some(row => row.id === cf.id);
     const cfRefBadge = cf.ref ? ' <span class="preset-cf-ref">(' + escHtml(cf.ref) + ')</span>' : '';
@@ -728,9 +741,20 @@
     box.innerHTML =
       '<div class="qf-copied-from-main">' + selfGenBadge + '📋 コピー元：<span class="cloud-cf-name">' + escHtml(cf.name || '不明') + cfRefBadge + '</span>' +
       (origExists ? ' <button type="button" class="btn-cf-preview" onclick="cloudPreviewPreset(\'' + encodeURIComponent(cf.id) + '\')" title="コピー元をプレビュー">プレビュー</button>' : '') +
-      '</div>' + rootHtml;
+      cfActions + '</div>' + rootHtml;
     box.hidden = false;
   }
+  window.qfRefreshCopiedFromInfo = _renderCopiedFromInfo;
+  // 代替わり元（copiedFrom）を設定・解除する。保存済みの案件は cloud.js の cloudSetPredecessor が DB を更新して呼ぶ（fromDb）。
+  // 新規で未保存の案件は、ここで保持して、通常の保存で一緒に保存される（gatherAllData が copiedFrom を付ける）
+  window.qfSetCopiedFrom = function (cf, opts) {
+    _loadedCopiedFrom = cf || null;
+    _renderCopiedFromInfo();
+    if (!(opts && opts.fromDb)) {
+      document.getElementById('qf-import-src')?.dispatchEvent(new Event('input', { bubbles: true }));   // 変更ありの印（未保存の確認・自動の履歴）
+      if (typeof scheduleSnapshot === 'function') scheduleSnapshot();
+    }
+  };
 
   // データを画面に適用（restoreAutoSave と同等。トースト・restoreBar 操作なし）
   function _applyQuoteData(data, { keepHeaderIfEmpty = false } = {}) {
