@@ -11729,3 +11729,22 @@ body.is-row-dragging { cursor: grabbing; user-select: none; }
 #tab-quote-make .qpd-row.is-urgent { border-left: 4px solid #d94a3d; background-image: linear-gradient(90deg, rgba(217,74,61,.08), transparent 38%); }
 #tab-quote-make .cloud-tag-chip.is-urgent { background: #d94a3d; border-color: #b53328; color: #fff; font-weight: 700; }
 #tab-quote-make .cloud-tag-chip.is-urgent button { color: #fff; }
+
+/* 客先表示名：サブコン名のクリックで変更（見出しの入力欄をやめてスッキリ）。設定済みなら名前の右に「→ 客先表示名」を出す */
+#tab-quote-make .subcon-group-header .subcon-alias-trigger { pointer-events: auto; cursor: pointer; }
+#tab-quote-make .subcon-group-header .subcon-group-label.subcon-alias-trigger { border-bottom: 1px dashed transparent; }
+#tab-quote-make .subcon-group-header .subcon-group-label.subcon-alias-trigger:hover,
+#tab-quote-make .subcon-group-header .subcon-group-label.subcon-alias-trigger:focus-visible { border-bottom-color: currentColor; outline: none; }
+#tab-quote-make .subcon-group-header .subcon-alias-view { font-size: var(--fs-12); white-space: nowrap; max-width: 28ch; overflow: hidden; text-overflow: ellipsis; opacity: .92; }
+#tab-quote-make .subcon-group-header .subcon-alias-view b { font-weight: 700; }
+#tab-quote-make .subcon-group-header .subcon-alias-view:hover { text-decoration: underline; }
+#tab-quote-make .subcon-group-header .subcon-alias-input {
+  pointer-events: auto; user-select: text; -webkit-user-select: text; width: 240px; max-width: 40vw;
+  font-size: var(--fs-12); color: var(--text); background: var(--surface);
+  border: 1px solid #c9a55f; border-radius: var(--r-4); padding: var(--sp-2) var(--sp-8); box-shadow: 0 0 0 2px rgba(201,165,95,.35);
+}
+#tab-quote-make .subcon-group-header .subcon-alias-input:focus { outline: none; }
+#tab-quote-make .subcon-group-header .subcon-alias-input[hidden], #tab-quote-make .subcon-group-header .subcon-alias-view[hidden], #tab-quote-make .subcon-group-header .subcon-group-label[hidden] { display: none; }
+/* Industry の見出しは order で並べている（名前＝3・行数＝4）。客先表示名は名前のすぐ右（同じ 3＝DOM 順で名前の後ろ） */
+#tab-quote-make #quoteTable tr.subcon-group-header .subcon-group-header-inner > .subcon-alias-view,
+#tab-quote-make #quoteTable tr.subcon-group-header .subcon-group-header-inner > .subcon-alias-input { order: 3; }

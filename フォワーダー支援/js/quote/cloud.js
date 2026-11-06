@@ -504,10 +504,14 @@
 
   // ダッシュボードの並び替え
   const _STATUS_ORDER = { '下書き中': 0, '提出済み': 1, '改定中': 2, '情報待ち': 3, 'ヨコヨコ提示': 4, '受注': 5, '失注': 6, '辞退': 7, '保留': 8 };
-  // 「緊急」タグが付いた案件は、並び替えの設定にかかわらず、タグを外すまでダッシュボードの一番上に出す
-  const URGENT_TAG = '緊急';
+  // 「緊急」「至急」「URGENT」のいずれかのタグが付いた案件は、並び替えの設定にかかわらず、タグを外すまでダッシュボードの一番上に出す
+  // （全角・半角、大文字・小文字の違いは同じタグとみなす）
+  const URGENT_TAGS = ['緊急', '至急', 'urgent'];
+  function _isUrgentTag(t) {
+    return URGENT_TAGS.indexOf(String(t == null ? '' : t).normalize('NFKC').trim().toLowerCase()) >= 0;
+  }
   function _isUrgent(r) {
-    return !!(r && Array.isArray(r.tags) && r.tags.some(t => String(t == null ? '' : t).trim() === URGENT_TAG));
+    return !!(r && Array.isArray(r.tags) && r.tags.some(_isUrgentTag));
   }
   function _sortCloudRows(rows) {
     const s = _cloudSort || 'updated';
@@ -1014,7 +1018,7 @@
       const tagsRowHtml =
         '<div class="cloud-preset-tags">' +
           rowTags.map((t, ti) =>
-            '<span class="cloud-tag-chip' + (String(t).trim() === URGENT_TAG ? ' is-urgent' : '') + '">' + (String(t).trim() === URGENT_TAG ? '🚨 ' : '🏷️ ') + escHtml(t) +
+            '<span class="cloud-tag-chip' + (_isUrgentTag(t) ? ' is-urgent' : '') + '">' + (_isUrgentTag(t) ? '🚨 ' : '🏷️ ') + escHtml(t) +
               '<button type="button" onclick="event.stopPropagation();cloudRemoveTag(\'' + idAttr + '\',' + ti + ')" title="このタグを外す">×</button>' +
             '</span>'
           ).join('') +
