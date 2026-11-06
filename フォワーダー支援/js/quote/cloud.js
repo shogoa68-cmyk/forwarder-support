@@ -145,6 +145,7 @@
     return m.display_name || m.full_name || m.name || m.user_name || u.email || 'ログイン中';
   }
   function _renderCloudAuth() {
+    if (typeof window.qfRefreshCopiedFromInfo === 'function') window.qfRefreshCopiedFromInfo();   // 代替わり元の紐づけボタン（ログイン中だけ）
     if (typeof _renderQpdAuth === 'function') _renderQpdAuth();   // ダッシュボードのログイン出し分けも同期
     const stateEl   = document.getElementById('cloudAuthState');
     const hint      = document.getElementById('cloudLoginHint');
@@ -1113,6 +1114,7 @@
         '<button type="button" role="menuitem" class="cloud-menu-item" onclick="uiCloseMenus();cloudPreviewPreset(\'' + idAttr + '\')">プレビュー</button>' +
         '<button type="button" role="menuitem" class="cloud-menu-item" onclick="uiCloseMenus();cloudPdfPreset(\'' + idAttr + '\')">PDF を出力</button>' +
         '<button type="button" role="menuitem" class="cloud-menu-item" onclick="uiCloseMenus();cloudDuplicatePreset(\'' + idAttr + '\')">コピーして新規作成</button>' +
+        '<button type="button" role="menuitem" class="cloud-menu-item" onclick="uiCloseMenus();cloudPickPredecessor(\'' + idAttr + '\')">🧬 代替わり元を設定…<small>前の案件を選んで、代替わり（世代）をつなぐ</small></button>' +
         '<button type="button" role="menuitem" class="cloud-menu-item" onclick="uiCloseMenus();eiOpenStoreForCard(\'' + idAttr + '\')">📝 自由入力を追加<small>この案件に、提示した見積の原文を保管します</small></button>' +
         '<div class="cloud-menu-sep" role="separator"></div>' +
         (lockedBy
@@ -3279,6 +3281,108 @@
     quoteShowToast('📋 「' + src.name + '」をコピーしました → 「' + copyName + '」', 'success', 3500);
     cloudListPresets();
   }
+
+  // ---------- 🧬 代替わり元（前の案件）をあとから紐づける ----------
+  // 代替わりは、新しい案件の data.copiedFrom（コピー元・世代 gen・オリジナル root）で持つ。
+  // 「コピーして新規作成」以外にも、新規作成した案件へ、あとから前の案件を紐づけて代替わりを設定できる。
+  const _succRef  = r => ((r.data && r.data.fields && r.data.fields['qf-ref']) || r.ref || '').trim();
+  const _succGen  = r => ((r.data && r.data.copiedFrom && r.data.copiedFrom.gen) || 1);
+  const _succRoot = r => ((r.data && r.data.copiedFrom && r.data.copiedFrom.root) || { id: r.id, name: r.name, ref: _succRef(r) });
+  // この案件から代替わりした案件（子・孫…）の id。選べない候補（循環を防ぐ）と世代の再計算に使う
+  function _succDescendants(id) {
+    const out = new Set(), queue = [id];
+    while (queue.length) {
+      const cur = queue.shift();
+      _cloudRows.forEach(r => {
+        const cf = r.data && r.data.copiedFrom;
+        if (cf && cf.id === cur && !out.has(r.id) && r.id !== id) { out.add(r.id); queue.push(r.id); }
+      });
+    }
+    return out;
+  }
+  function _makeCopiedFrom(pred) {
+    return { id: pred.id, name: pred.name, ref: _succRef(pred), gen: _succGen(pred) + 1, root: _succRoot(pred) };
+  }
+  // 紐づけ先に選べる案件の一覧（自分自身・自分から代替わりした案件は除く）
+  window.cloudSuccessionCandidates = function (selfId) {
+    const ex = new Set();
+    if (selfId) { ex.add(selfId); _succDescendants(selfId).forEach(x => ex.add(x)); }
+    return _cloudRows.filter(r => !ex.has(r.id)).map(r => ({
+      id: r.id, name: r.name, ref: _succRef(r), customer: r.customer || '', person: r.person || '',
+      status: r.status || '', updated_at: r.updated_at || '', gen: _succGen(r),
+    }));
+  };
+  window.cloudSuccessionDescendantCount = id => _succDescendants(id).size;
+  window.cloudMakeCopiedFrom = function (predId) {
+    const pred = _cloudRows.find(r => r.id === predId);
+    return pred ? _makeCopiedFrom(pred) : null;
+  };
+  window.cloudLoadedId = () => _loadedCloudId;
+  window.cloudHasRows = () => _cloudRows.length > 0;
+  // この案件から代替わりした案件の「世代」「オリジナル」を、新しいつながりに合わせて数え直す
+  async function _cascadeSuccession(parent) {
+    const c = _getClient();
+    let n = 0, failed = 0;
+    const seen = new Set([parent.id]), queue = [parent];
+    while (queue.length) {
+      const p = queue.shift();
+      const kids = _cloudRows.filter(r => r.data && r.data.copiedFrom && r.data.copiedFrom.id === p.id && !seen.has(r.id));
+      for (const k of kids) {
+        seen.add(k.id);
+        const { data: cur } = await c.from(_table()).select('data').eq('id', k.id).single();
+        if (!cur || !cur.data || !cur.data.copiedFrom) continue;
+        const nd = Object.assign({}, cur.data);
+        nd.copiedFrom = Object.assign({}, nd.copiedFrom, { gen: p.gen + 1, root: p.root });
+        const { data: u, error } = await c.from(_table()).update({ data: nd }).eq('id', k.id).select('id');   // 最終更新者・日時は変えない（世代の数え直しだけ）
+        if (error || !u || !u.length) { failed++; continue; }
+        k.data = nd; n++;
+        queue.push({ id: k.id, gen: p.gen + 1, root: p.root });
+      }
+    }
+    return { updated: n, failed };
+  }
+  // predId を代替わり元（前の案件）に設定する。null で解除。案件を開かずに、案件データだけ更新する
+  async function cloudSetPredecessor(rawId, predId) {
+    const c = _getClient();
+    if (!c || !_cloudUser) { quoteShowToast('⚠️ 先に Google でログインしてください', 'warn'); return false; }
+    const id = decodeURIComponent(rawId);
+    const row = _cloudRows.find(r => r.id === id);
+    if (!row) { quoteShowToast('⚠️ 案件が見つかりません', 'warn'); return false; }
+    const lockedBy = _lockedByOther(row);
+    if (lockedBy) { quoteShowToast('🔒 ' + _nameFor(lockedBy) + ' さんが作業中のため変更できません', 'warn', 4000); return false; }
+    let cf = null;
+    if (predId) {
+      const pred = _cloudRows.find(r => r.id === predId);
+      if (!pred) { quoteShowToast('⚠️ 選んだ案件が見つかりません', 'warn'); return false; }
+      if (predId === id || _succDescendants(id).has(predId)) { quoteShowToast('⚠️ 自分自身や、自分から代替わりした案件は選べません', 'warn', 4000); return false; }
+      cf = _makeCopiedFrom(pred);
+    }
+    const { data: cur, error } = await c.from(_table()).select('data').eq('id', id).single();
+    if (error || !cur) { quoteShowToast('⚠️ 案件を読み込めませんでした' + (error ? '：' + error.message : ''), 'warn', 5000); return false; }
+    const newData = Object.assign({}, cur.data || {});
+    if (cf) newData.copiedFrom = cf; else delete newData.copiedFrom;
+    const nowIso = new Date().toISOString();
+    const { data: upd, error: e2 } = await c.from(_table())
+      .update({ data: newData, owner_email: _cloudUser.email, updated_at: nowIso }).eq('id', id).select('id');
+    if (e2) { quoteShowToast('⚠️ 設定に失敗：' + e2.message, 'warn', 5000); return false; }
+    if (!upd || !upd.length) { quoteShowToast('🔒 他メンバーが編集中のため設定できません（作業が終わってからお試しください）', 'warn', 6500); return false; }
+    row.data = newData; row.owner_email = _cloudUser.email; row.updated_at = nowIso;
+    // この案件から代替わりした案件の世代・オリジナルを数え直す
+    const self = { id, gen: cf ? cf.gen : 1, root: cf ? cf.root : { id, name: row.name, ref: _succRef(row) } };
+    const cas = await _cascadeSuccession(self);
+    // 画面で開いている案件なら、画面側にも反映（あとの保存で消さない・競合検知の基準も更新）
+    if (_loadedCloudId === id) {
+      _loadedCloudTs = nowIso;
+      if (typeof window.qfSetCopiedFrom === 'function') window.qfSetCopiedFrom(cf, { fromDb: true });
+    }
+    quoteShowToast(cf ? '🧬 「' + (row.name || '') + '」を ' + cf.gen + ' 代目として、「' + (cf.name || '') + '」の代替わりに設定しました'
+                      : '🧬 代替わり元の設定を解除しました（オリジナルに戻しました）', 'success', 4500);
+    if (cas.updated) quoteShowToast('🔁 この案件から代替わりした ' + cas.updated + ' 件の世代も数え直しました', 'info', 3500);
+    if (cas.failed) quoteShowToast('⚠️ 編集中などで ' + cas.failed + ' 件の世代は更新できませんでした', 'warn', 6000);
+    cloudListPresets(true);
+    return true;
+  }
+  window.cloudSetPredecessor = cloudSetPredecessor;
 
   // プリセット管理モーダルが開かれたとき ui.js の openPresetMgr から呼ばれる
   function cloudOnPresetMgrOpen() {

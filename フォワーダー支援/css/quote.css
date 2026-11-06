@@ -11748,3 +11748,30 @@ body.is-row-dragging { cursor: grabbing; user-select: none; }
 /* Industry の見出しは order で並べている（名前＝3・行数＝4）。客先表示名は名前のすぐ右（同じ 3＝DOM 順で名前の後ろ） */
 #tab-quote-make #quoteTable tr.subcon-group-header .subcon-group-header-inner > .subcon-alias-view,
 #tab-quote-make #quoteTable tr.subcon-group-header .subcon-group-header-inner > .subcon-alias-input { order: 3; }
+
+/* ===== 🧬 代替わり元（前の案件）をあとから紐づける ===== */
+#tab-quote-make .qf-cf-empty { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+#tab-quote-make .qf-cf-link-btn { font-size: var(--fs-12); font-weight: 600; padding: 3px 10px; border: 1px dashed #8aa0b8; border-radius: 6px; background: transparent; color: #2e5a86; cursor: pointer; font-family: inherit; }
+#tab-quote-make .qf-cf-link-btn:hover { background: #eef3fb; }
+#tab-quote-make .qf-cf-hint { font-size: var(--fs-11); color: var(--text-md); }
+#tab-quote-make .qf-cf-actions { margin-left: 8px; display: inline-flex; gap: 4px; }
+#tab-quote-make .qf-cf-btn { font-size: var(--fs-11); padding: 1px 8px; border: 1px solid var(--border); border-radius: 4px; background: var(--card-bg); cursor: pointer; font-family: inherit; }
+#tab-quote-make .qf-cf-btn:hover { background: #eef3fb; }
+#tab-quote-make .succ-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.4); z-index: 10040; display: flex; align-items: center; justify-content: center; }
+#tab-quote-make .succ-box { background: var(--surface, #fff); color: var(--text, #222); border-radius: 10px; width: min(680px, 94vw); max-height: 84vh; display: flex; flex-direction: column; box-shadow: 0 10px 40px rgba(0,0,0,.3); overflow: hidden; }
+#tab-quote-make .succ-head { display: flex; align-items: center; padding: 12px 16px; border-bottom: 1px solid var(--border, #eee); font-weight: 700; font-size: 14px; }
+#tab-quote-make .succ-x { margin-left: auto; border: none; background: none; cursor: pointer; font-size: 16px; color: inherit; }
+#tab-quote-make .succ-sub { padding: 8px 16px 0; font-size: 12px; color: var(--text-md, #666); line-height: 1.6; }
+#tab-quote-make .succ-search { margin: 8px 16px; padding: 7px 10px; border: 1px solid var(--border, #bbb); border-radius: 6px; font-size: 13px; background: var(--surface, #fff); }
+#tab-quote-make .succ-list { flex: 1; min-height: 120px; overflow: auto; padding: 0 16px 8px; display: flex; flex-direction: column; gap: 4px; }
+#tab-quote-make .succ-item { display: grid; grid-template-columns: auto auto auto 1fr auto; align-items: center; gap: 8px; text-align: left; padding: 7px 10px; border: 1px solid var(--border, #ddd); border-radius: 6px; background: var(--card-bg, #fafafa); cursor: pointer; font-family: inherit; font-size: 12.5px; }
+#tab-quote-make .succ-item:hover, #tab-quote-make .succ-item:focus-visible { background: #eef3fb; border-color: #8aa0b8; outline: none; }
+#tab-quote-make .succ-ref { font-weight: 700; }
+#tab-quote-make .succ-badge { font-size: 10px; font-weight: 700; color: #1f6a3a; background: #dff3e6; border-radius: 8px; padding: 1px 6px; }
+#tab-quote-make .succ-gen { font-size: 10px; font-weight: 700; color: #7a4a10; background: #fbeccf; border-radius: 8px; padding: 1px 6px; }
+#tab-quote-make .succ-cust { color: var(--text-md, #555); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; grid-column: 4; }
+#tab-quote-make .succ-meta { font-size: 11px; color: #888; white-space: nowrap; grid-column: 5; }
+#tab-quote-make .succ-none { padding: 24px; text-align: center; color: #888; font-size: 13px; }
+#tab-quote-make .succ-foot { display: flex; align-items: center; gap: 8px; padding: 10px 16px; border-top: 1px solid var(--border, #eee); }
+#tab-quote-make .succ-count { font-size: 12px; color: #888; margin-right: auto; }
+#tab-quote-make .succ-cancel { padding: 5px 14px; border: 1px solid var(--border, #bbb); border-radius: 6px; background: var(--card-bg, #f3f3f3); cursor: pointer; font-family: inherit; }
