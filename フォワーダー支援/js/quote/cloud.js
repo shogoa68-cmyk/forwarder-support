@@ -504,6 +504,15 @@
 
   // ダッシュボードの並び替え
   const _STATUS_ORDER = { '下書き中': 0, '提出済み': 1, '改定中': 2, '情報待ち': 3, 'ヨコヨコ提示': 4, '受注': 5, '失注': 6, '辞退': 7, '保留': 8 };
+  // 「緊急」「至急」「URGENT」のいずれかのタグが付いた案件は、並び替えの設定にかかわらず、タグを外すまでダッシュボードの一番上に出す
+  // （全角・半角、大文字・小文字の違いは同じタグとみなす）
+  const URGENT_TAGS = ['緊急', '至急', 'urgent'];
+  function _isUrgentTag(t) {
+    return URGENT_TAGS.indexOf(String(t == null ? '' : t).normalize('NFKC').trim().toLowerCase()) >= 0;
+  }
+  function _isUrgent(r) {
+    return !!(r && Array.isArray(r.tags) && r.tags.some(_isUrgentTag));
+  }
   function _sortCloudRows(rows) {
     const s = _cloudSort || 'updated';
     const upd = e => e.updated_at || '';
@@ -523,7 +532,8 @@
       r.sort((a, b) => tagKey(a).localeCompare(tagKey(b), 'ja') || upd(b).localeCompare(upd(a)));
     }
     else                       r.sort((a, b) => upd(b).localeCompare(upd(a)));   // updated（既定）
-    return r;
+    // 緊急タグの案件を先頭へ（それぞれの中は、上で並べた順のまま＝安定した振り分け）
+    return r.filter(_isUrgent).concat(r.filter(e => !_isUrgent(e)));
   }
 
   // 詳細検索ドロップダウンをロード済みデータから生成（モーダル＋ダッシュボード両方）
@@ -1008,7 +1018,7 @@
       const tagsRowHtml =
         '<div class="cloud-preset-tags">' +
           rowTags.map((t, ti) =>
-            '<span class="cloud-tag-chip">🏷️ ' + escHtml(t) +
+            '<span class="cloud-tag-chip' + (_isUrgentTag(t) ? ' is-urgent' : '') + '">' + (_isUrgentTag(t) ? '🚨 ' : '🏷️ ') + escHtml(t) +
               '<button type="button" onclick="event.stopPropagation();cloudRemoveTag(\'' + idAttr + '\',' + ti + ')" title="このタグを外す">×</button>' +
             '</span>'
           ).join('') +
@@ -1020,7 +1030,7 @@
             (_cloudLinkSel.has(r.id) ? ' checked' : '') + ' title="この案件を選択して他の案件と関連付ける">'
         : '';
       return '' +
-        '<div class="cloud-card cloud-card-labeled' + (others.length ? ' is-editing' : '') + (_cloudLinkMode ? ' cloud-card--linkmode' : '') + '">' +
+        '<div class="cloud-card cloud-card-labeled' + (others.length ? ' is-editing' : '') + (_cloudLinkMode ? ' cloud-card--linkmode' : '') + (_isUrgent(r) ? ' is-urgent' : '') + '">' +
           '<div class="cloud-card-main">' +
           '<div class="cloud-card-row1">' +
             linkChk +
@@ -1139,7 +1149,7 @@
       const rt0 = (m && m.routes && m.routes[0]) || { pol: (m ? m.pol : r.pol), pod: (m ? m.pod : r.pod) };
       const routePlain = [(rt0.pol || '').trim(), (rt0.pod || '').trim()].filter(Boolean).join(' → ');
       const headline = mem || routePlain || title;
-      return '<div class="qpd-row qpd-row--simple' + (_cloudLinkMode ? ' qpd-row--linkmode' : '') + '" onclick="' + rowClick + '" title="' + (_cloudLinkMode ? 'クリックで選択' : 'クリックで開く') + '">' +
+      return '<div class="qpd-row qpd-row--simple' + (_cloudLinkMode ? ' qpd-row--linkmode' : '') + (_isUrgent(r) ? ' is-urgent' : '') + '" onclick="' + rowClick + '" title="' + (_cloudLinkMode ? 'クリックで選択' : 'クリックで開く') + '">' +
         linkChk +
         _statusSelect(idAttr, status, lockedBy, 'qpd-row-status') +
         '<span class="qpd-row-title">' + (_pendingImport(r) ? '<span class="qpd-pend-mark" title="自由入力で保管したまま、まだ表に取り込んでいない原文があります">📩 未取込 ' + _pendingImport(r).length + '件</span>' : '') + '<b class="qpd-row-headline">' + escHtml(headline) + '</b><small class="qpd-row-ref">' + escHtml(title) + '</small></span>' +
@@ -1150,7 +1160,7 @@
         '<span class="qpd-row-menu" onclick="event.stopPropagation()">' + _cardMenuHtml(idAttr, lockedBy) + '</span>' +
       '</div>';
     }
-    return '<div class="qpd-row' + (_cloudLinkMode ? ' qpd-row--linkmode' : '') + '" onclick="' + rowClick + '" title="' + (_cloudLinkMode ? 'クリックで選択' : 'クリックで開く') + '">' +
+    return '<div class="qpd-row' + (_cloudLinkMode ? ' qpd-row--linkmode' : '') + (_isUrgent(r) ? ' is-urgent' : '') + '" onclick="' + rowClick + '" title="' + (_cloudLinkMode ? 'クリックで選択' : 'クリックで開く') + '">' +
       linkChk +
       _statusSelect(idAttr, status, lockedBy, 'qpd-row-status') +
       '<span class="qpd-row-title">' + (_pendingImport(r) ? '<span class="qpd-pend-mark" title="自由入力で保管したまま、まだ表に取り込んでいない原文があります">📩 未取込 ' + _pendingImport(r).length + '件</span>' : '') + escHtml(title) + '</span>' +

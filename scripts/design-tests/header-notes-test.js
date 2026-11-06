@@ -41,7 +41,8 @@ const run=async(p)=>{
  ok('「見積書に表示」を押すと「🔒 非表示」になり、見積書には出さない設定になる',rm[A.key].show===false&&/非表示/.test(await hdr('A海運').locator('.subcon-remark-toggle').textContent()),rm);
  // 客先表示名
  const alias=hdr('A海運').locator('.subcon-alias-input');
- await alias.fill('海上輸送費 一式');await wait(300);
+ await hdr('A海運').locator('.subcon-group-label').click();await wait(150);   // サブコン名をクリックすると、客先表示名の入力欄が出る
+ await alias.fill('海上輸送費 一式');await alias.press('Enter');await wait(300);
  ok('客先表示名を入力すると保持される',(await p.evaluate(()=>window.getSubconAliases()))[A.key]==='海上輸送費 一式',await p.evaluate(()=>window.getSubconAliases()));
  // 再描画しても入力と状態が残る
  await p.evaluate(()=>{window.renderSubconGroups&&window.renderSubconGroups();window.updateTotals&&window.updateTotals();});await wait(700);

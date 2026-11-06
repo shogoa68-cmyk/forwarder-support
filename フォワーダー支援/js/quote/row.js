@@ -3952,17 +3952,17 @@
             `<span class="subcon-group-grip" title="ドラッグでグループ（ブロック）を並び替え">⠿</span>` +
             `<button type="button" class="subcon-group-toggle" title="折りたたみ/展開">${collapsed ? '▶' : '▼'}</button>` +
             `<input type="checkbox" class="subcon-group-chk" title="このサブコンの全明細を選択／解除（一部だけ選択中は中間表示）">` +
-            `<span class="subcon-group-label">📦 ${_escHdr(label)}</span>` +
+            // サブコン名をクリックすると、客先表示名（客先向け出力の小計に出る名前）をその場で変更できる。
+            // 設定済みのときは名前の右に「→ 客先表示名」を出す（これもクリックで変更）。入力欄は編集中だけ出す
+            `<span class="subcon-group-label subcon-alias-trigger" role="button" tabindex="0" title="クリックで客先表示名を設定・変更（客先向けの出力で、このサブコンの小計に出る名前。空欄ならサブコン名のまま）">📦 ${_escHdr(label)}</span>` +
+            `<span class="subcon-alias-view subcon-alias-trigger" role="button" tabindex="0" hidden title="客先向けの出力に出る名前。クリックで変更"></span>` +
+            `<input type="text" class="subcon-alias-input" hidden placeholder="客先表示名（空欄＝サブコン名のまま）" value="${_escAttr(_subconAlias[key] || '')}" />` +
             `<span class="subcon-group-count">${count} 行</span>` +
             `<button type="button" class="sv-master-chip" hidden></button>` +
             `<button type="button" class="sv-hdr-btn sv-hdr-detail" hidden>📇 詳細</button>` +
             `<button type="button" class="sv-hdr-btn sv-hdr-bm" hidden>🔖 BOOKMARK</button>` +
             // 客先表示名・サブコン別リマークの入力は、この見出しの行内に置く（以前はグループ末尾の小計行にあった）
             `<span class="hdr-notes">` +
-              `<span class="hdr-note hdr-note-alias" title="客先向け出力（プレビュー・御見積書PDF）で、このサブコンの小計の「${_escAttr(label)}」をここに入力した名前へ置換します。空欄ならサブコン名のまま。">` +
-                `<i>客先表示名</i>` +
-                `<input type="text" class="subcon-alias-input" placeholder="例）国内諸費用 一式（任意）" value="${_escAttr(_subconAlias[key] || '')}" />` +
-              `</span>` +
               `<span class="hdr-note hdr-note-remark" title="このサブコンに関する注記。「見積書に表示」がONの間だけ客先向け出力（プレビュー・御見積書PDF）にも表示されます。">` +
                 `<i>📝 サブコン別リマーク</i>` +
                 `<input type="text" class="subcon-remark-input" placeholder="このサブコンへの注記（任意）" value="${_escAttr((_subconRemark[key] || {}).text || '')}" />` +
@@ -4014,14 +4014,46 @@
         _attachGroupUpdatedControl(hdr, key, '');
         // 客先表示名・サブコン別リマーク（見出しの行内の入力欄）
         { const aliasInp = hdr.querySelector('.subcon-alias-input');
+          const aliasLbl  = hdr.querySelector('.subcon-group-label');
+          const aliasView = hdr.querySelector('.subcon-alias-view');
           if (aliasInp) {
+            // 見た目の更新：設定済みなら「→ 客先表示名」を名前の右に出す
+            const paintAlias = () => {
+              const v = (_subconAlias[key] || '').trim();
+              if (aliasView) { aliasView.hidden = !v || !aliasInp.hidden; aliasView.innerHTML = v ? '→ <b>' + _escHdr(v) + '</b>' : ''; }
+              hdr.classList.toggle('has-alias', !!v);
+            };
+            let before = '';
+            const open = () => {
+              before = aliasInp.value;
+              aliasInp.hidden = false;           // サブコン名は残したまま、その右に入力欄を出す（どのサブコンの名前を決めているか分かるように）
+              if (aliasView) aliasView.hidden = true;
+              aliasInp.focus(); aliasInp.select();
+            };
+            const close = (cancel) => {
+              if (cancel) { aliasInp.value = before; const v = before.trim(); if (v) _subconAlias[key] = v; else delete _subconAlias[key]; }
+              aliasInp.hidden = true;
+              paintAlias();
+              if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
+            };
             aliasInp.addEventListener('input', () => {
               const v = aliasInp.value.trim();
               if (v) _subconAlias[key] = v; else delete _subconAlias[key];
               if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
             });
+            aliasInp.addEventListener('keydown', e => {
+              if (e.isComposing) return;   // IME 変換中の Enter では確定しない
+              if (e.key === 'Enter') { e.preventDefault(); close(false); }
+              else if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); close(true); }
+            });
+            aliasInp.addEventListener('blur', () => { if (!aliasInp.hidden) close(false); });
+            hdr.querySelectorAll('.subcon-alias-trigger').forEach(el => {
+              el.addEventListener('click', e => { e.stopPropagation(); open(); });
+              el.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); open(); } });
+            });
             // 入力欄クリックで折りたたみ等の親ハンドラに伝播しないように
             aliasInp.addEventListener('click', e => e.stopPropagation());
+            paintAlias();
           }
           const remarkInp    = hdr.querySelector('.subcon-remark-input');
           const remarkToggle = hdr.querySelector('.subcon-remark-toggle');
