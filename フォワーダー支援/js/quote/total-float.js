@@ -33,12 +33,15 @@
   function mirror() {
     if (!ensure()) return;
     const set = (sel, html) => { const el = bar.querySelector(sel); if (el && el.innerHTML !== html) el.innerHTML = html; };
-    set('.tf-note', ($('tot-fx-note') && $('tot-fx-note').innerHTML) || '');
+    const wbr = h => String(h).replace(/〜(?!<wbr>)/g, '〜<wbr>');   // 幅（下限〜上限）は狭いバーでは「〜」の後ろで折り返せるように
+    const note = ($('tot-fx-note') && $('tot-fx-note').innerHTML) || '';
+    set('.tf-note', note);
+    bar.classList.toggle('has-range', /幅/.test(note));   // 狭い表示では注記を隠すので、幅を含むことは小さな印で示す
     set('.tf-label', ($('tot-row-label') && $('tot-row-label').innerHTML) || '合　計');
-    set('.tf-sell-v', ($('tot-subtotal') && $('tot-subtotal').innerHTML) || '—');
+    set('.tf-sell-v', wbr(($('tot-subtotal') && $('tot-subtotal').innerHTML) || '—'));
     set('.tf-cost-v', ($('tot-cost') && $('tot-cost').innerHTML) || '—');
     const p = $('tot-profit');
-    set('.tf-profit', (p && p.innerHTML) || '—');
+    set('.tf-profit', wbr((p && p.innerHTML) || '—'));
     const pc = bar.querySelector('.tf-profit');
     if (pc && p) { pc.classList.toggle('is-neg', p.classList.contains('profit-neg')); pc.classList.toggle('is-pos', p.classList.contains('profit-pos')); }
   }
@@ -51,13 +54,35 @@
     const inEditor = !!tab && tab.classList.contains('active') && !tab.classList.contains('qp-dash') && !document.body.classList.contains('qp-dash-active');
     let show = false;
     if (inEditor && wrap && table && foot) {
-      const vh = window.innerHeight || document.documentElement.clientHeight;
+      // いま見えている範囲（visual viewport）。スマホでは、横に広い表のせいでレイアウトの幅が画面より広くなったり、
+      // 拡大・縮小・横スクロールで見える範囲が動いたりするため、fixed の基準（レイアウトの範囲）ではなく見えている範囲に合わせる
+      const vv = window.visualViewport;
+      const vL = vv ? vv.offsetLeft : 0, vT = vv ? vv.offsetTop : 0;
+      const vW = vv ? vv.width : (window.innerWidth || document.documentElement.clientWidth);
+      const vH = vv ? vv.height : (window.innerHeight || document.documentElement.clientHeight);
+      const layoutH = window.innerHeight || document.documentElement.clientHeight;   // fixed の基準（レイアウトの高さ）
+      const visBottom = vT + vH;
       const t = table.getBoundingClientRect(), f = foot.getBoundingClientRect(), w = wrap.getBoundingClientRect();
       const hasTotal = ($('tot-subtotal') && $('tot-subtotal').textContent.trim() && $('tot-subtotal').textContent.trim() !== '—');
-      const tableInView = t.top < vh - 160 && t.bottom > 120;     // 表が画面にそれなりに出ている（＝表を見ている）
-      const footHidden = f.bottom > vh;                            // 本物の合計行は画面の下に隠れている
-      show = hasTotal && tableInView && footHidden && w.width > 0;
-      if (show) { bar.style.left = Math.max(0, Math.round(w.left)) + 'px'; bar.style.width = Math.round(Math.min(w.width, window.innerWidth - Math.max(0, w.left))) + 'px'; }
+      const tableInView = t.top < visBottom - 160 && t.bottom > vT + 120;   // 表が画面にそれなりに出ている（＝表を見ている）
+      const footHidden = f.bottom > visBottom;                              // 本物の合計行は画面の下に隠れている
+      const L = Math.max(w.left, vL), R = Math.min(w.right, vL + vW);       // 表の幅を、見えている範囲に収める
+      show = hasTotal && tableInView && footHidden && R - L > 0;
+      if (show) {
+        const width = Math.round(R - L);
+        bar.style.left = Math.max(0, Math.round(L)) + 'px';
+        bar.style.width = width + 'px';
+        if (width < 720) bar.setAttribute('data-compact', ''); else bar.removeAttribute('data-compact');   // 狭いときは 2 段表示
+        // 画面下に固定した見積アクションドック（PDF出力／プレビュー／保存）のボタンと重なるときは、その上に持ち上げる
+        let bottom = Math.max(0, layoutH - visBottom);
+        const dock = $('quoteActionDock');
+        if (dock && getComputedStyle(dock).display !== 'none') {
+          let minTop = Infinity;
+          dock.querySelectorAll('.qad-btn').forEach(b => { const r = b.getBoundingClientRect(); if (r.width && r.right > L && r.left < R && r.bottom > visBottom - 140) minTop = Math.min(minTop, r.top); });
+          if (isFinite(minTop)) bottom = Math.max(bottom, layoutH - minTop + 6);
+        }
+        bar.style.bottom = Math.round(bottom) + 'px';
+      }
     }
     if (bar.hidden === show) bar.hidden = !show;
   }
@@ -77,6 +102,10 @@
     new MutationObserver(schedule).observe(document.body, { attributes: true, attributeFilter: ['class'] });
     window.addEventListener('scroll', schedule, { passive: true, capture: true });
     window.addEventListener('resize', schedule, { passive: true });
+    if (window.visualViewport) {   // スマホの拡大・縮小・アドレスバーの出入りで見える範囲が変わるとき
+      window.visualViewport.addEventListener('resize', schedule);
+      window.visualViewport.addEventListener('scroll', schedule);
+    }
     // 行の増減・折りたたみで表の高さが変わるとき（スクロールを伴わない）にも判定し直す
     const body = $('tableBody');
     if (body) new MutationObserver(schedule).observe(body, { childList: true, subtree: false });

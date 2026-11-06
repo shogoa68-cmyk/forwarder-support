@@ -11706,3 +11706,20 @@ body.is-row-dragging { cursor: grabbing; user-select: none; }
 #tab-quote-make #totFloat .tf-profit small { display: block; font-size: 11px; font-weight: 600; color: #8fb6e0; }
 #tab-quote-make #totFloat .tf-profit.is-neg small { color: #ffb4a8; }
 @media print { #tab-quote-make #totFloat { display: none !important; } }
+
+/* 合計バー：幅が狭いとき（スマホ・小さい画面。JS が幅 720px 未満で data-compact を付ける）は 2 段にして、注記を隠し、折り返せるようにする */
+#tab-quote-make #totFloat[data-compact] {
+  display: grid; grid-template-columns: auto minmax(0, 1fr); grid-template-areas: "label sell" "cost profit";
+  align-items: center; gap: 2px 10px;
+  padding: 6px 54px calc(6px + env(safe-area-inset-bottom, 0px)) 12px;   /* 右は常駐の 🐞 ボタン（右下）を避ける */
+}
+#tab-quote-make #totFloat[data-compact] .tf-note { display: none; }
+#tab-quote-make #totFloat[data-compact] .tf-label { grid-area: label; font-size: 12px; align-self: center; }
+#tab-quote-make #totFloat[data-compact] .tf-label small { display: block; margin: 0; font-size: 9px; }
+#tab-quote-make #totFloat[data-compact].has-range .tf-label::after { content: "幅あり"; display: block; margin-top: 1px; font-size: 9px; font-weight: 700; color: #ffd48a; }
+#tab-quote-make #totFloat[data-compact] .tf-amts { display: contents; }
+#tab-quote-make #totFloat[data-compact] .tf-sell { grid-area: sell; justify-self: end; text-align: right; min-width: 0; }
+#tab-quote-make #totFloat[data-compact] .tf-sell-v { font-size: 17px; line-height: 1.2; overflow-wrap: anywhere; }
+#tab-quote-make #totFloat[data-compact] .tf-cost { grid-area: cost; font-size: 11px; white-space: nowrap; }
+#tab-quote-make #totFloat[data-compact] .tf-profit { grid-area: profit; justify-self: end; min-width: 0; font-size: 12px; white-space: normal; text-align: right; overflow-wrap: anywhere; }
+#tab-quote-make #totFloat[data-compact] .tf-profit small { display: inline; margin-left: 6px; font-size: 10px; }
