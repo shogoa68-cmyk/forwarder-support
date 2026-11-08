@@ -11921,3 +11921,12 @@ body.qp-dash-active .qf-memo-fab, body:has(#qfMemoFloat:not([hidden])) .qf-memo-
 #tab-quote-make #hazChips .haz-chip[data-haz-value^="温度管理品"] { display: none; }
 /* 「詳細（任意）」の畳みは使わない（任意の項目はそれぞれのボタンの裏へ移した） */
 #tab-quote-make #cargoBody > .tier-opt-toggle { display: none !important; }
+
+/* ===== 全体リマーク（Design 回答 2026-11・案1）：定型文をタブで分ける ===== */
+#tab-quote-make .rm-tabs { display: flex; flex-wrap: wrap; gap: 4px; padding-left: 2px; margin-top: 6px; }
+#tab-quote-make .rm-tabs:empty { display: none; }
+#tab-quote-make .rm-tab { padding: 8px 14px; border: 1px solid var(--border-md, #bbb); border-bottom-color: transparent; background: var(--surface-alt, #f3f5f8); color: var(--text, #222); font: inherit; font-size: 13px; font-weight: 700; cursor: pointer; }
+#tab-quote-make .rm-tab.is-on { background: var(--surface, #fff); border-top: 3px solid #416180; margin-bottom: -1px; position: relative; z-index: 1; border-bottom-color: var(--surface, #fff); }
+#tab-quote-make .rm-count { font-weight: 400; font-size: 11px; color: var(--text-md, #666); }
+#tab-quote-make .remark-presets.rm-tabbed { border: 1px solid var(--border-md, #bbb); padding: 14px 16px; min-height: 62px; align-content: flex-start; }
+#tab-quote-make .remark-presets.rm-tabbed > :not(.rt-on) { display: none; }

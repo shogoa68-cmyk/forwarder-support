@@ -3005,6 +3005,14 @@
    "css": true,
    "html": false
   },
+  "preset-btn-add": {
+   "css": true,
+   "html": false
+  },
+  "preset-tier-label": {
+   "css": true,
+   "html": false
+  },
   "prof-color": {
    "css": true,
    "html": false
@@ -3353,6 +3361,14 @@
    "css": true,
    "html": false
   },
+  "rm-tab": {
+   "css": true,
+   "html": false
+  },
+  "rm-tabbed": {
+   "css": true,
+   "html": false
+  },
   "rn-plan-chk": {
    "css": true,
    "html": false
@@ -3515,6 +3531,14 @@
   },
   "rp-sc-chk": {
    "css": false,
+   "html": false
+  },
+  "rt-label": {
+   "css": false,
+   "html": false
+  },
+  "rt-on": {
+   "css": true,
    "html": false
   },
   "save-btn-menu": {
@@ -4663,6 +4687,14 @@
    "html": false,
    "js": true
   },
+  "rt": {
+   "html": false,
+   "js": true
+  },
+  "rt-init": {
+   "html": false,
+   "js": true
+  },
   "scale": {
    "html": true,
    "js": true
@@ -4893,6 +4925,7 @@
   "js/quote/cond-flow.js",
   "js/quote/route-flow.js",
   "js/quote/cargo-flow.js",
+  "js/quote/remark-tabs.js",
   "js/quote/packing-import.js",
   "js/tweaks.js",
   "js/ui-mode.js",
