@@ -2582,7 +2582,8 @@
     // サブコンを見ているときだけ：旧「キャリア」から移行できているかの確認（読み取りのみ）
     if (_masterFieldFilter === 'sv') chipsH += '<div class="cm-entry"><span>🔀 旧「キャリア」のマスターはサブコンに統合しました（元のデータは読み取り専用で残しています）。キャリアは、サブコンの種別（FCL／LCL／AIR／RORO／在来船 CARRIER）で見分けます。</span><button type="button" class="cm-entry-btn" onclick="statsShowCarrierMigrationReport()">移行の状況を確認する（読み取りのみ）</button></div>';
     // 港を見ているときだけ：国がまだ付いていない港へ、国の候補を提案する
-    if (_masterFieldFilter === 'port') chipsH += '<div class="cm-entry"><span>🌐 過去の案件で使った港を、国つきで一括登録できます。登録済みの港には、国を自動で付けられます（将来は国ごとのルールを見積で参照できるようにします）。</span><button type="button" class="cm-entry-btn" onclick="statsShowPortCountryAssist()">港を一括登録・国を自動で付ける（候補を確認）</button></div>';
+    if (_masterFieldFilter === 'port') chipsH += '<div class="cm-entry"><span>🌐 過去の案件で使った港を、国つきで一括登録できます。登録済みの港には、国を自動で付けられます（将来は国ごとのルールを見積で参照できるようにします）。</span><button type="button" class="cm-entry-btn" onclick="statsShowPortCountryAssist()">港を一括登録・国を自動で付ける（候補を確認）</button></div>' +
+      '<div class="cm-entry"><span>📦 主要な港（日本・アジア・欧米など約 430 件）を、国ごとに選んでまとめて登録できます（英語名＋日本語の別名＋国）。</span><button type="button" class="cm-entry-btn" onclick="statsShowPortPreset()">港名のプリセットを登録</button></div>';
     // 並び順（名前順／種別・タグごと／所属グループごと）。サブコン・キャリアは「所属グループごと」も選べる
     const _hasGroup = _masterFieldFilter === 'sv' || _masterFieldFilter === 'carrier';
     if (_SUB_FILTER[_masterFieldFilter] || _hasGroup) {
@@ -3670,6 +3671,69 @@
       if (typeof window.statsLoadMasterCache === 'function') await window.statsLoadMasterCache();
       if (typeof window.arRefreshDatalist === 'function') window.arRefreshDatalist();
       if (typeof window.statsRerenderActive === 'function') window.statsRerenderActive();
+    });
+  };
+
+  // 港名のプリセット（data/port-presets.js）：主要な港を、国ごとに選んでまとめてマスターへ登録する。英語名＝マスター名・日本語名＝別名・国を付ける
+  window.statsShowPortPreset = async function () {
+    const list = window.PORT_PRESETS || [];
+    const old = document.getElementById('ppModal'); if (old) old.remove();
+    const wrap = document.createElement('div');
+    wrap.id = 'ppModal'; wrap.className = 'md-modal-overlay'; wrap.setAttribute('role', 'dialog'); wrap.setAttribute('aria-modal', 'true');
+    wrap.innerHTML = '<div class="md-modal"><div class="md-modal-head"><h3>📦 港名のプリセットを登録</h3><button type="button" class="md-modal-close" title="閉じる" onclick="document.getElementById(\'ppModal\').remove()">✕</button></div><div class="md-modal-body"><p>読み込み中…</p></div></div>';
+    document.body.appendChild(wrap);
+    const body = wrap.querySelector('.md-modal-body');
+    if (!list.length) { body.innerHTML = '<p class="stats-empty">プリセットのデータが読み込まれていません。</p>'; return; }
+    if (typeof window.mdLoadCloud === 'function') await window.mdLoadCloud();
+    const masterNames = new Set(window.statsGetMasters().filter(m => m.field === 'port').map(m => m.value));
+    const aliasTaken = new Set();
+    (typeof window.synGetGroups === 'function' ? window.synGetGroups('port') : []).forEach(g => { masterNames.add(g.canonical); (g.aliases || []).forEach(a => aliasTaken.add(a)); });
+    const rows = list.map(p => ({ p, state: masterNames.has(p.name) ? 'have' : (aliasTaken.has(p.name) ? 'alias' : 'new') }));
+    const byCc = new Map(); rows.forEach(r => { if (!byCc.has(r.p.cc)) byCc.set(r.p.cc, []); byCc.get(r.p.cc).push(r); });
+    const contOrder = (window.COUNTRY_CONTINENTS || []).map(x => x.key), subOrder = (window.COUNTRY_SUBREGIONS || []).map(x => x.key);
+    const ccKey = cc => { if (cc === 'JP') return -1; const r = window.countryRegion ? window.countryRegion(cc) : null; return r ? contOrder.indexOf(r.continent) * 100 + subOrder.indexOf(r.sub) : 9999; };   // 日本が先頭、そのあと大陸→小地域の順
+    const ccs = [...byCc.keys()].sort((x, y) => ccKey(x) - ccKey(y) || x.localeCompare(y));
+    const nNew = rows.filter(r => r.state === 'new').length;
+    const asia = new Set((window.COUNTRY_LIST || []).filter(c => { const r = window.countryRegion ? window.countryRegion(c.code) : null; return r && r.continent === 'AS'; }).map(c => c.code));
+    const admin = typeof _isAdmin === 'function' ? _isAdmin() : false;
+    const restricted = typeof window.statsAliasNeedsApproval === 'function' && window.statsAliasNeedsApproval();
+    const sec = cc => {
+      const rs = byCc.get(cc), nn = rs.filter(r => r.state === 'new').length;
+      return `<details class="pp-country" data-cc="${_eav(cc)}"${cc === 'JP' ? ' open' : ''}><summary><label><input type="checkbox" class="pp-ccchk" data-cc="${_eav(cc)}"${cc === 'JP' && nn ? ' checked' : ''}${nn ? '' : ' disabled'}> <b>${_esc(window.countryJa ? window.countryJa(cc) : cc)}</b>（${cc}）</label> <span class="pp-cnt">新規 ${nn} ／ 全 ${rs.length}</span></summary>` +
+        `<div class="pp-ports">${rs.map(r => `<label class="pp-port${r.state === 'new' ? '' : ' is-have'}"><input type="checkbox" class="pp-chk" data-name="${_eav(r.p.name)}"${r.state === 'new' && cc === 'JP' ? ' checked' : ''}${r.state === 'new' ? '' : ' disabled'}> ${_esc(r.p.name)}${r.p.ja ? `<span class="pp-ja">${_esc(r.p.ja)}</span>` : ''}${r.state === 'new' ? '' : '<span class="pp-state">' + (r.state === 'have' ? '登録済み' : '別名で登録済み') + '</span>'}</label>`).join('')}</div></details>`;
+    };
+    body.innerHTML =
+      `<p>プリセットの港 <b>${rows.length}</b> 件のうち、未登録は <b>${nNew}</b> 件です。登録したい港を選んでください（国ごとにまとめて選べます）。</p>` +
+      `<ul class="cm-facts"><li>英語名（大文字）がマスター名、日本語名は別名（横浜で入力しても YOKOHAMA になる）、国も付きます。</li><li>すでに登録済みの港は、選べません（変更しません）。</li>` +
+      (restricted && !admin ? '<li>承認制のため、登録は管理者への申請になります（日本語の別名は、承認後に管理者が追加します）。</li>' : '') + '</ul>' +
+      `<div class="pp-quick"><button type="button" class="master-type-preset" data-q="jp">日本だけ</button><button type="button" class="master-type-preset" data-q="asia">日本とアジア</button><button type="button" class="master-type-preset" data-q="all">すべて</button><button type="button" class="master-type-preset" data-q="none">すべて解除</button><span id="ppSel" class="pp-cnt"></span></div>` +
+      `<div class="pc-scroll">${ccs.map(sec).join('')}</div>` +
+      `<div class="cm-run"><button type="button" class="master-detail-save" id="ppApplyBtn">選んだ港を登録する</button><span id="ppMsg"></span></div>`;
+    const chks = () => [...body.querySelectorAll('.pp-chk:not(:disabled)')];
+    const upd = () => { const n = chks().filter(c => c.checked).length; body.querySelector('#ppSel').textContent = '　選択中 ' + n + ' 件'; const b = body.querySelector('#ppApplyBtn'); b.disabled = !n; b.textContent = n ? '選んだ ' + n + ' 件の港を登録する' : '選んだ港を登録する'; };
+    const setCc = (cc, on) => { body.querySelectorAll('.pp-chk').forEach(c => { const r = rows.find(x => x.p.name === c.dataset.name); if (r && r.p.cc === cc && !c.disabled) c.checked = on; }); const k = body.querySelector('.pp-ccchk[data-cc="' + cc + '"]'); if (k && !k.disabled) k.checked = on; };
+    body.addEventListener('change', e => { const t = e.target; if (t.classList.contains('pp-ccchk')) setCc(t.dataset.cc, t.checked); upd(); });
+    body.querySelectorAll('.pp-quick [data-q]').forEach(btn => btn.addEventListener('click', () => { const q = btn.dataset.q; ccs.forEach(cc => setCc(cc, q === 'all' || (q === 'jp' && cc === 'JP') || (q === 'asia' && (cc === 'JP' || asia.has(cc))))); upd(); }));
+    upd();
+    body.querySelector('#ppApplyBtn').addEventListener('click', async () => {
+      const btn = body.querySelector('#ppApplyBtn'), msg = body.querySelector('#ppMsg');
+      const picks = chks().filter(c => c.checked).map(c => rows.find(x => x.p.name === c.dataset.name).p);
+      if (!picks.length) return;
+      btn.disabled = true; msg.textContent = '　登録中…（件数が多いと少し時間がかかります）';
+      try {
+        const reg = await window.statsEnsureMasterMany('port', picks.map(p => p.name));
+        const items = [];
+        picks.forEach(p => { const cur = (window.mdGet('port', p.name) || {}).details || {}; if (!cur.country) items.push({ value: p.name, details: Object.assign({}, cur, { country: p.cc }) }); });
+        const res = reg.done && items.length ? await window.mdSaveMany('port', items) : { ok: 0, ng: 0 };
+        const al = reg.done ? await window.synAddAliasesMany('port', picks.filter(p => p.ja).map(p => ({ canonical: p.name, aliases: [p.ja] }))) : { added: 0, skipped: 0 };
+        msg.textContent = '　✅ 登録 ' + reg.done + ' 件' + (reg.requested ? '（承認待ちの申請 ' + reg.requested + ' 件）' : '') + '／国を付けた ' + res.ok + ' 件／日本語の別名 ' + al.added + ' 件' + (al.restricted ? '（承認制のため別名は管理者が追加）' : '') + (reg.failed ? '／失敗 ' + reg.failed + ' 件' : '');
+      } catch (e) {
+        msg.textContent = '　⚠ 実行できませんでした：' + (e && e.message || e);
+      }
+      if (typeof window.statsLoadMasterCache === 'function') await window.statsLoadMasterCache();
+      if (typeof window.arRefreshDatalist === 'function') window.arRefreshDatalist();
+      if (typeof window.statsRerenderActive === 'function') window.statsRerenderActive();
+      btn.disabled = false;
     });
   };
 

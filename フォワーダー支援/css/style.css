@@ -5709,5 +5709,14 @@ body.md-modal-open { overflow: hidden; }
 .master-via-child > td { background: #f6faf6; }
 .master-via-child > td.stats-val { padding-left: 14px; }
 .master-via-mark { color: #6b8f6b; margin-right: 6px; font-weight: 700; }
+.pp-quick { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 6px 0; }
+.pp-country { border: 1px solid #d9e2ec; border-radius: 6px; margin: 4px 0; background: #fff; }
+.pp-country > summary { cursor: pointer; padding: 5px 8px; font-size: 13px; }
+.pp-cnt { font-size: 11px; color: #6b7a8c; margin-left: 8px; }
+.pp-ports { display: flex; flex-wrap: wrap; gap: 4px 14px; padding: 4px 10px 8px 26px; }
+.pp-port { font-size: 12px; white-space: nowrap; }
+.pp-port.is-have { color: #8a97a6; }
+.pp-ja { color: #6b7a8c; margin-left: 4px; }
+.pp-state { font-size: 10px; margin-left: 4px; color: #8a97a6; }
 .master-area-label { font-size: 11px; color: #6b7a8c; min-width: 84px; }
 .master-area-title { font-size: 12px; font-weight: 700; margin-top: 6px; color: #3a4a5c; }

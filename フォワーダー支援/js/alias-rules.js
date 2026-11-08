@@ -1195,6 +1195,33 @@
     await _synAfter('⭐「' + value + '」を代表（マスター）に設定しました');
   };
 
+  // 別名をまとめて足す（1 回の書き込み・1 回の読み直し）。items＝[{canonical, aliases}]。管理者・従来（承認制でない）だけ。
+  //   すでに別のマスター・別名になっている名前、マスター名と同じ名前は足さない。戻り値＝{added, skipped}
+  window.synAddAliasesMany = async function (field, items) {
+    items = (items || []).filter(x => x && x.canonical && Array.isArray(x.aliases) && x.aliases.length);
+    if (!items.length) return { added: 0, skipped: 0 };
+    if (_synRestricted()) return { added: 0, skipped: items.reduce((s, x) => s + x.aliases.length, 0), restricted: true };
+    if (!_needCloud('同義グループ')) return { added: 0, skipped: items.reduce((s, x) => s + x.aliases.length, 0) };
+    const taken = new Set();
+    _synAll().filter(g => g.field === field).forEach(g => { taken.add(g.canonical); (g.aliases || []).forEach(a => taken.add(a)); });
+    (typeof window.statsGetMasters === 'function' ? window.statsGetMasters() : []).filter(m => m.field === field).forEach(m => taken.add(m.value));
+    let added = 0, skipped = 0; const rows = [];
+    const now = new Date().toISOString();
+    items.forEach(x => {
+      const g = _synAll().find(y => y.field === field && y.canonical === x.canonical);
+      const cur = (g && g.aliases) || [];
+      const add = [];
+      x.aliases.forEach(a => { if (!a || a === x.canonical || cur.includes(a) || taken.has(a)) { skipped++; return; } taken.add(a); add.push(a); });
+      if (!add.length) return;
+      added += add.length;
+      rows.push({ field, canonical: x.canonical, aliases: [...cur, ...add], updated_by: _me(), updated_at: now });
+    });
+    if (!rows.length) return { added, skipped };
+    const { error } = await _c().from(SYN_TABLE).upsert(rows, { onConflict: 'field,canonical' });
+    if (error) { if (_synMissingErr(error)) _synTableMissing = true; _synFail(error); return { added: 0, skipped: skipped + added, failed: true }; }
+    await window.synLoadCloud();
+    return { added, skipped };
+  };
   window.synAddAlias = async function (field, alias, canonical) {
     if (!field || !alias || !canonical || alias === canonical) return;
     // 承認制：メンバーの別名追加は申請になり、管理者が承認すると反映される
