@@ -11834,3 +11834,19 @@ body.qp-dash-active .qf-memo-fab, body:has(#qfMemoFloat:not([hidden])) .qf-memo-
 #tab-quote-make .cf-arrow { color: var(--text-md, #888); }
 #tab-quote-make .cf-opt { background: none; border: 1px dashed var(--border, #bbb); border-radius: 6px; padding: 5px 10px; font-size: 12px; color: var(--text-md, #555); cursor: pointer; }
 #tab-quote-make .cf-opt:hover { border-color: #35506e; color: #35506e; }
+
+/* ===== 幹線輸送（Design 回答 2026-11）：POL／POD を縦の流れ（左のレールと点）、経由地・キャリア等は「＋」の奥 ===== */
+#tab-quote-make .zone-main.rf-flow .z2-pol-pod-row { display: flex; flex-direction: column; align-items: stretch; gap: 14px; position: relative; }
+#tab-quote-make .zone-main.rf-flow .z2-arrow { display: none; }
+#tab-quote-make .zone-main.rf-flow .z2-port { position: relative; padding-left: 28px; }
+#tab-quote-make .zone-main.rf-flow .z2-port::before { content: ''; position: absolute; left: 3px; top: 6px; width: 12px; height: 12px; border-radius: 50%; background: #fff; border: 3px solid #35506e; box-sizing: border-box; z-index: 1; }
+#tab-quote-make .zone-main.rf-flow .z2-port:not(:last-child)::after { content: ''; position: absolute; left: 8px; top: 20px; bottom: -22px; width: 2px; background: #9db2c8; }
+#tab-quote-make .zone-main.rf-flow .z2-port.rf-hide, #tab-quote-make .zone-main.rf-flow .z2-arrow.rf-hide { display: none; }
+#tab-quote-make .zone-main.rf-flow .z2-port:last-of-type::before { background: #35506e; }
+#tab-quote-make .rf-opt { align-self: flex-start; background: none; border: 1px dashed var(--border, #bbb); border-radius: 6px; padding: 5px 10px; margin: 0 0 8px 28px; font-size: 12px; color: var(--text-md, #555); cursor: pointer; text-align: left; }
+#tab-quote-make .rf-opt:hover { border-color: #35506e; color: #35506e; }
+#tab-quote-make .rf-opt[hidden], #tab-quote-make .rf-carrier-opt[hidden], #tab-quote-make .z2-relay-fields.rf-hide { display: none; }
+#tab-quote-make .rf-carrier-btn { margin-left: 0; margin-top: 6px; }
+#tab-quote-make .rf-relay-btn { margin-left: 0; }
+#tab-quote-make .rf-chip { display: inline-block; margin-left: 8px; font-size: 10.5px; font-weight: 600; padding: 1px 7px; border-radius: 9px; background: #e8eef5; color: #35506e; }
+#tab-quote-make .rf-chip[hidden] { display: none; }

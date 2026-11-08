@@ -4,7 +4,7 @@
 (function () {
   'use strict';
   const $ = id => document.getElementById(id);
-  let sync = () => {};
+  let sync = () => {}; let reset = () => {};
   function init() {
     const bar = document.querySelector('#section-cond .cond-primary-bar');
     if (!bar || bar.dataset.cfInit) return; bar.dataset.cfInit = '1';
@@ -32,7 +32,6 @@
 
     sync = function () {
       const iD = !!incoVal(), dD = !!dirVal(), mD = !!modeVal();
-      if (!iD && !dD && !mD) { edit.inco = edit.dir = edit.mode = edit.opt = false; }   // 新規に戻したら最初の状態へ
       const show = {
         inco: !iD || edit.inco,
         dir: (iD || dD) && (!dD || edit.dir),
@@ -63,6 +62,7 @@
       crumbs.hidden = !crumbs.children.length;
       const hint = $('cond-incoterms-hint'); if (hint) hint.classList.toggle('cf-hint-top', !iD);
     };
+    reset = () => { edit.inco = edit.dir = edit.mode = edit.opt = false; };
     // 選んだら要約へ戻す（選び直しの途中は開いたまま）
     gInco.addEventListener('change', () => { edit.inco = false; setTimeout(sync, 0); });
     gDir.addEventListener('click', e => { if (e.target.closest('.cond-prim-btn')) { edit.dir = false; setTimeout(sync, 0); } });
@@ -73,7 +73,8 @@
     ['cond-incoterms', 'cond-mode'].forEach(id => $(id)?.addEventListener('change', () => setTimeout(sync, 0)));
     sync();
   }
-  window.cfSync = () => sync();
+  // 読み込み・新規作成のあとに呼ぶ：手で開いた状態をやめる
+  window.cfSync = () => { reset(); sync(); };
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init); else init();
   window.addEventListener('load', init);
 })();

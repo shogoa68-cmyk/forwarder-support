@@ -843,6 +843,7 @@
     if (typeof window.qfRenderRelChips === 'function') window.qfRenderRelChips();
     if (typeof window.ciSync === 'function') window.ciSync();
     if (typeof window.cfSync === 'function') window.cfSync();
+    if (typeof window.rfSync === 'function') window.rfSync();
     if (typeof window.updateRemarkChar === 'function') window.updateRemarkChar();
     if (typeof window.syncRemarkChips === 'function') window.syncRemarkChips();
     if (typeof window.renderRemarkImages === 'function') window.renderRemarkImages();

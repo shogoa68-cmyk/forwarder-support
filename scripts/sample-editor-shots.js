@@ -25,7 +25,7 @@ fs.mkdirSync(OUT,{recursive:true});
  await p.fill('#qf-ref','10-261013-001');await p.fill('#qf-customer','サンプル商事株式会社');await p.fill('#qf-person','山田');
  await p.selectOption('#cond-incoterms',{label:'FOB（本船渡し）'});await p.click('#dirBtns [data-dir="export"]');await p.evaluate(()=>setTransport('fcl'));
  
- await p.fill('#z2Carrier','Maersk');await p.fill('#z2Pol','YOKOHAMA');await p.fill('#z2Pod','BANGKOK');await p.evaluate(()=>addRouteEntry());
+ await p.evaluate(() => window.rfOpenCarrier && window.rfOpenCarrier()); await p.fill('#z2Carrier','Maersk');await p.fill('#z2Pol','YOKOHAMA');await p.fill('#z2Pod','BANGKOK');await p.evaluate(()=>addRouteEntry());
  await p.waitForTimeout(1800);
  await p.screenshot({path:OUT+'/02-top-filled.png'});
  await p.evaluate(()=>document.getElementById('section-cargo').scrollIntoView());await p.waitForTimeout(400);
