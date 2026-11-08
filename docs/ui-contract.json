@@ -382,6 +382,7 @@
   "qfAttachMeter",
   "qfCopiedFromInfo",
   "qfCustomerDetailBtn",
+  "qfMemoFab",
   "qfMemoFloat",
   "qfMemoFloatBtn",
   "qfMemoFloatHead",
@@ -759,6 +760,10 @@
    "uses": 2,
    "defined": true
   },
+  "ciToggleMemoFab": {
+   "uses": 1,
+   "defined": true
+  },
   "clearCalcResult": {
    "uses": 8,
    "defined": true
@@ -884,7 +889,7 @@
    "defined": true
   },
   "closeTbMenus": {
-   "uses": 6,
+   "uses": 8,
    "defined": true
   },
   "closeUserMgr": {
@@ -1800,7 +1805,7 @@
    "defined": true
   },
   "toggleMemoFloat": {
-   "uses": 2,
+   "uses": 3,
    "defined": true
   },
   "togglePalCustom": {
@@ -2933,6 +2938,10 @@
    "css": true,
    "html": false
   },
+  "memo-fab-off": {
+   "css": true,
+   "html": false
+  },
   "min-hint": {
    "css": true,
    "html": true
@@ -3198,6 +3207,10 @@
    "html": true
   },
   "qf-status-btn": {
+   "css": true,
+   "html": true
+  },
+  "qmf-x": {
    "css": true,
    "html": true
   },

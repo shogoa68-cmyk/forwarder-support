@@ -2459,6 +2459,12 @@
           <button type="button" class="tb-menu-item tb-mi-simple" id="btnQuoteRedoMenu" onclick="quoteRedo(); closeTbMenus()" disabled>
             <span class="tb-mi-icon">↷</span><span class="tb-mi-body"><span class="tb-mi-title">やり直す</span><span class="tb-mi-sub">Ctrl+Y / Ctrl+Shift+Z</span></span>
           </button>
+          <button type="button" class="tb-menu-item tb-mi-simple" onclick="toggleMemoFloat(); closeTbMenus()">
+            <span class="tb-mi-icon">📝</span><span class="tb-mi-body"><span class="tb-mi-title">案件名・社内メモ（付箋）を開く／閉じる</span><span class="tb-mi-sub">右下のボタンを隠していても、ここから開けます</span></span>
+          </button>
+          <button type="button" class="tb-menu-item tb-mi-simple" id="qfMemoFabMenu" onclick="ciToggleMemoFab(); closeTbMenus()">
+            <span class="tb-mi-icon">📌</span><span class="tb-mi-body"><span class="tb-mi-title">付箋ボタンを右下に表示する／隠す</span><span class="tb-mi-sub" id="qfMemoFabMenuSub"></span></span>
+          </button>
           <div class="tb-menu-group tb-mi-simple">取り込み・送る</div>
           <button type="button" class="tb-menu-item tb-mi-simple" onclick="openEmailImport(); closeTbMenus()">
             <span class="tb-mi-icon">📩</span><span class="tb-mi-body"><span class="tb-mi-title">メール取込</span><span class="tb-mi-sub">メール本文から見積の行を作る</span></span>
@@ -5042,7 +5048,7 @@
 </div>
 
 <!-- 見積アクションドック（右下フローティング・見積タブのみ表示） -->
-<button type="button" id="qfMemoFab" class="qf-memo-fab" onclick="toggleMemoFloat()" aria-label="案件名・社内メモ" title="案件名・社内メモ（1行目が案件名になります。お客様向け出力には含まれません）"><span class="qmf-i">📝</span><span class="qmf-t"> 案件名・社内メモ</span></button>
+<button type="button" id="qfMemoFab" class="qf-memo-fab" onclick="toggleMemoFloat()" aria-label="案件名・社内メモ" title="案件名・社内メモ（1行目が案件名になります。お客様向け出力には含まれません）"><span class="qmf-i">📝</span><span class="qmf-t"> 案件名・社内メモ</span><span class="qmf-x" role="button" tabindex="0" aria-label="このボタンを隠す" title="このボタンを隠す（「⋯」メニューからいつでも付箋を開けます）">✕</span></button>
 <div id="quoteActionDock">
   <button class="qad-btn qad-pdf" onclick="quickQuotePdf()" title="御見積書PDFをそのまま出力（A4縦）。ファイル名・発行元は前回の設定を使います。設定を変えたいときはプレビュー →「📄 御見積書」から">📄 PDF出力</button>
   <button class="qad-btn qad-preview" onclick="openPreview()" title="見積をプレビュー表示・CSV/Excel/PDF出力はここから（Ctrl+P）">📋 プレビュー</button>
