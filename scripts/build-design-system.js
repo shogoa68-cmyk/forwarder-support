@@ -125,8 +125,8 @@ async function captureComponents(pw) {
   await page.evaluate(() => window.qpShowEditor && window.qpShowEditor());
   // サンプルデータ（部品が空にならないように）
   await page.fill('#qf-ref', '99-2601150-001'); await page.fill('#qf-customer', 'サンプル商事株式会社'); await page.fill('#qf-person', '山田');
-  await page.click('#dirBtns [data-dir="export"]'); await page.evaluate(() => setTransport('fcl'));
-  await page.selectOption('#cond-incoterms', { label: 'FOB（本船渡し）' });
+  await page.selectOption('#cond-incoterms',{label:'FOB（本船渡し）'});await page.click('#dirBtns [data-dir="export"]'); await page.evaluate(() => setTransport('fcl'));
+  
   await page.fill('#z2Carrier', 'Maersk'); await page.fill('#z2Pol', 'NAGOYA'); await page.fill('#z2Pod', 'XIAMEN'); await page.evaluate(() => addRouteEntry());
   const rows = [['海上運賃', 'A社', 100000, 20000], ['THC', 'B社', 30000, 5000]];
   for (let i = 0; i < rows.length; i++) {

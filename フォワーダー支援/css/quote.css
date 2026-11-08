@@ -11811,7 +11811,7 @@ body.is-row-dragging { cursor: grabbing; user-select: none; }
 #tab-quote-make .ci-layout .qf-status-btns:not(.ci-more-open) .qf-status-btn[data-more]:not(.active) { display: none; }
 /* 社内メモは右下の付箋に集約（欄は保存の値の保持役として残し、画面からは隠す） */
 #tab-quote-make .ci-layout ~ .quote-field-memo, #tab-quote-make .quote-field-memo { display: none; }
-.qf-memo-fab { position: fixed; right: 16px; bottom: 74px; z-index: 55; display: none; padding: 8px 14px; border: 1px solid #d9b96a; border-radius: 18px; background: #fff3c4; color: #5a3a10; font-size: 12.5px; font-weight: 700; cursor: pointer; box-shadow: 0 3px 10px rgba(0,0,0,.16); }
+.qf-memo-fab { position: fixed; right: 72px; bottom: 74px; z-index: 55; display: none; padding: 8px 14px; border: 1px solid #d9b96a; border-radius: 18px; background: #fff3c4; color: #5a3a10; font-size: 12.5px; font-weight: 700; cursor: pointer; box-shadow: 0 3px 10px rgba(0,0,0,.16); }
 body:has(#tab-quote-make.active) .qf-memo-fab { display: block; }
 body.qp-dash-active .qf-memo-fab, body:has(#qfMemoFloat:not([hidden])) .qf-memo-fab { display: none; }
 @media (max-width: 680px) {
@@ -11821,3 +11821,16 @@ body.qp-dash-active .qf-memo-fab, body:has(#qfMemoFloat:not([hidden])) .qf-memo-
 /* SPOT 中も「変更 ▾」のメニューは全項目出す（旧 SPOT 表示の隠し方を打ち消す） */
 #tab-quote-make .ci-valid-menu .qf-days-btn { display: block !important; }
 #tab-quote-make .ci-auto[hidden], #tab-quote-make .ci-chip[hidden] { display: none; }
+
+/* ===== 貿易条件・輸送モード（Design 回答 2026-11・案2）：選んだ項目は 1 行の要約、いま入れる項目だけ開く ===== */
+#tab-quote-make .cond-primary-bar.cf-flow .cond-prim-group.cf-hide { display: none; }
+#tab-quote-make .cf-crumbs { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 8px; margin: 0 0 10px; }
+#tab-quote-make .cf-crumbs[hidden] { display: none; }
+#tab-quote-make .cf-crumb { display: inline-flex; align-items: baseline; gap: 6px; min-height: 36px; padding: 4px 12px; border: 1px solid var(--border, #bbb); border-radius: 6px; background: var(--surface, #fff); cursor: pointer; font-size: 13px; }
+#tab-quote-make .cf-crumb small { color: var(--text-md, #666); font-size: 11px; }
+#tab-quote-make .cf-crumb b { font-weight: 700; }
+#tab-quote-make .cf-crumb i { font-style: normal; color: var(--text-md, #888); font-size: 11px; }
+#tab-quote-make .cf-crumb:hover { border-color: #35506e; }
+#tab-quote-make .cf-arrow { color: var(--text-md, #888); }
+#tab-quote-make .cf-opt { background: none; border: 1px dashed var(--border, #bbb); border-radius: 6px; padding: 5px 10px; font-size: 12px; color: var(--text-md, #555); cursor: pointer; }
+#tab-quote-make .cf-opt:hover { border-color: #35506e; color: #35506e; }

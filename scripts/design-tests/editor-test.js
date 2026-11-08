@@ -69,7 +69,7 @@ fs.mkdirSync(OUT,{recursive:true});
  ok('⋯メニューの項目が元と同じ処理を呼ぶ',JSON.stringify(await p.evaluate(()=>window.__c))==='["mail","sub"]');
  // j. 道しるべ
  await p.evaluate(()=>setUiMode('simple'));
- await p.fill('#qf-customer','テスト商事');await p.click('#dirBtns [data-dir="export"]');await p.evaluate(()=>setTransport('fcl'));await p.selectOption('#cond-incoterms',{label:'FOB（本船渡し）'});
+ await p.fill('#qf-customer','テスト商事');await p.selectOption('#cond-incoterms',{label:'FOB（本船渡し）'});await p.click('#dirBtns [data-dir="export"]');await p.evaluate(()=>setTransport('fcl'));
  await p.fill('#z2Pol','YOKOHAMA');await p.fill('#z2Pod','BANGKOK');await p.evaluate(()=>addRouteEntry());await sleep(2000);
  const cur1=await p.evaluate(()=>document.querySelector('.qp-guide-step.is-current')?.dataset.gstep);
  await p.fill('#cond-cargo','自動車部品');await sleep(2000);
