@@ -681,6 +681,7 @@ const http = require('http'), fs = require('fs'), path = require('path');
     await p.evaluate(() => { switchCategory('master', document.querySelector('[onclick*="switchCategory(\'master"]')); }); await p.waitForTimeout(1200);
     await p.evaluate(() => { statsMasterSetFilter('customer'); }); await p.waitForTimeout(300);
     await p.evaluate(() => document.querySelector('#statsPane-master tr[data-mvalue="ルール商事"] .stats-master-detail-btn').click()); await p.waitForTimeout(600);
+    await p.evaluate(() => { const t = document.querySelector('#mdDetailModal .mt-tab[data-mt="rules"]'); t && t.click(); });
     ok(L + 'お客様の詳細に取引ルール欄が出る', await p.evaluate(() => !!document.querySelector('#crPanel .cr-form')));
     ok(L + '対象に「お客様全体」と担当者が選べる', await p.evaluate(() => [...document.querySelectorAll('#crPanel .cr-f-contact option')].map(o => o.textContent).join('|').includes('幸崎')));
     // お客様全体の厳守ルールと、幸崎様だけの要確認ルールを登録
@@ -693,6 +694,7 @@ const http = require('http'), fs = require('fs'), path = require('path');
     ok(L + '一覧に厳守・要確認のバッジが並ぶ', await p.evaluate(() => !!document.querySelector('#crPanel .cr-badge-strict') && !!document.querySelector('#crPanel .cr-badge-check')));
     // 見積タブのバナー：お客様だけ → 全体ルールのみ（担当者別は件数だけ）／担当者を入れる → 担当者のルールも
     await p.evaluate(async () => { document.getElementById('qf-customer').value = 'ルール商事'; document.getElementById('qf-person').value = ''; await crRefreshBanner(); });
+    await p.evaluate(() => { const b = document.querySelector('#crBanner [data-cr="toggle"]'); if (b && b.getAttribute('aria-expanded') !== 'true') b.click(); });   // 取引ルール帯は閉じたまま始まる（開くのは手動）
     let t = await p.evaluate(() => { const b = document.getElementById('crBanner'); return { hidden: b.hidden, text: b.textContent.replace(/\s+/g, ' ') }; });
     ok(L + '見積：お客様を選ぶとバナーが出て、厳守は開いて表示', !t.hidden && t.text.includes('請求書は月末締め') && t.text.includes('担当者別 1件'), t);
     ok(L + '見積：担当者別ルールは担当者未入力では本文を出さない', !t.text.includes('USD建て'), t);
@@ -734,6 +736,7 @@ const http = require('http'), fs = require('fs'), path = require('path');
     ok(L + '再確認が必要なルールの案内が出る', m.notice && m.notice.includes('古いルール商事') && m.notice.includes('1件'), m);
     // 見積タブ：背景に案件番号が入る・古いルールに「いまも有効」
     await p.evaluate(async () => { document.getElementById('qf-ref').value = '2026-077'; document.getElementById('qf-customer').value = '古いルール商事'; document.getElementById('qf-person').value = ''; await crRefreshBanner(); });
+    await p.evaluate(() => { const b = document.querySelector('#crBanner [data-cr="toggle"]'); if (b && b.getAttribute('aria-expanded') !== 'true') b.click(); });
     let t = await p.evaluate(() => document.getElementById('crBanner').textContent.replace(/\s+/g, ' '));
     ok(L + '見積：⏳ 再確認 1件 と「いまも有効」ボタン', t.includes('再確認 1件') && t.includes('いまも有効'), t);
     ok(L + '見積：ボタンが「この案件で気づいたことをルールにする」', t.includes('この案件で気づいたことをルールにする'), t);
