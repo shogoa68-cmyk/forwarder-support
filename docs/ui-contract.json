@@ -2210,6 +2210,10 @@
    "css": true,
    "html": true
   },
+  "cn-end": {
+   "css": true,
+   "html": false
+  },
   "cn-group": {
    "css": true,
    "html": true
@@ -2894,6 +2898,26 @@
    "css": true,
    "html": false
   },
+  "mc-flash": {
+   "css": true,
+   "html": false
+  },
+  "mc-on": {
+   "css": true,
+   "html": false
+  },
+  "mc-table-on": {
+   "css": true,
+   "html": false
+  },
+  "mcs-nav": {
+   "css": true,
+   "html": false
+  },
+  "mcs-open": {
+   "css": true,
+   "html": false
+  },
   "md-contact-dept": {
    "css": true,
    "html": false
@@ -3422,6 +3446,10 @@
    "css": true,
    "html": false
   },
+  "row-add-btn": {
+   "css": false,
+   "html": true
+  },
   "row-bc-indep": {
    "css": true,
    "html": false
@@ -3437,6 +3465,10 @@
   "row-conditional": {
    "css": true,
    "html": false
+  },
+  "row-del-btn": {
+   "css": true,
+   "html": true
   },
   "row-detail-btn": {
    "css": true,
@@ -4196,6 +4228,14 @@
    "html": false,
    "js": true
   },
+  "add": {
+   "html": false,
+   "js": true
+  },
+  "addrow": {
+   "html": false,
+   "js": true
+  },
   "adv-key": {
    "html": true,
    "js": true
@@ -4221,6 +4261,10 @@
    "js": true
   },
   "bc-indep": {
+   "html": false,
+   "js": true
+  },
+  "bind": {
    "html": false,
    "js": true
   },
@@ -4588,6 +4632,10 @@
    "html": false,
    "js": true
   },
+  "nav": {
+   "html": false,
+   "js": true
+  },
   "nt-auto": {
    "html": false,
    "js": true
@@ -4728,6 +4776,10 @@
    "html": false,
    "js": true
   },
+  "row": {
+   "html": false,
+   "js": true
+  },
   "rt": {
    "html": false,
    "js": true
@@ -4837,6 +4889,10 @@
    "js": true
   },
   "title-orig": {
+   "html": false,
+   "js": true
+  },
+  "tmode": {
    "html": false,
    "js": true
   },
@@ -4967,6 +5023,8 @@
   "js/quote/route-flow.js",
   "js/quote/cargo-flow.js",
   "js/quote/remark-tabs.js",
+  "js/quote/mobile-cost.js",
+  "js/quote/mobile-sheet.js",
   "js/quote/packing-import.js",
   "js/tweaks.js",
   "js/ui-mode.js",

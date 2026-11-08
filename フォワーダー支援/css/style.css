@@ -5734,3 +5734,19 @@ body.md-modal-open { overflow: hidden; }
 .md-modal .mt-panel[hidden] { display: none; }
 .md-modal .mt-foot { flex: none; padding: 10px 16px; border-top: 1px solid #d9dee5; background: #f3f6fa; }
 .md-modal .mt-foot .master-detail-actions { margin: 0; }
+
+/* ===== スマホ（〜600px）の崩れ修正（Design 2026-11-09・mobile-fixes.css） ===== */
+@media (max-width: 600px) {
+  /* ヘッダー：タイトルが 1 文字ずつ縦に割れ、ボタンが右にはみ出す → 折り返しを許可し、タイトルは 1 行を独占 */
+  .header { flex-wrap: wrap; row-gap: var(--sp-8); }
+  .header-main { flex: 1 0 100%; }
+  .header-auth { margin-left: auto; min-width: 0; }
+  .hdr-cloud-user { min-width: 0; flex-wrap: wrap; justify-content: flex-end; }
+  /* 画面下の固定ボタン（PDF／プレビュー／保存）と付箋に「合計」バーが隠れない余白 */
+  body { padding-bottom: calc(64px + 72px + env(safe-area-inset-bottom)); }
+}
+/* 上段のタブ列：右に続きがあるときだけ、右端に薄いグラデーション（js/cat-more.js が cn-end を付け外し） */
+@media (max-width: 680px) {
+  .cat-nav::after { content: ''; position: sticky; right: 0; flex: 0 0 28px; margin-left: -28px; pointer-events: none; background: linear-gradient(to right, rgba(255,255,255,0), var(--bg, #f5ede0) 80%); }
+  .cat-nav.cn-end::after { display: none; }
+}

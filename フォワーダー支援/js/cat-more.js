@@ -41,4 +41,11 @@
   // 選択中の印は switchCategory や他のコードが .active を付け外しするので、クラスの変化を見て追従する
   new MutationObserver(sync).observe(panel, { subtree: true, attributes: true, attributeFilter: ['class'] });
   sync();
+
+  // スマホ幅：上段のタブ列が横スクロールのとき、右に続きがある間だけ右端に薄いグラデーションを出す（style.css の .cat-nav::after）
+  var nav = document.querySelector('.cat-nav');
+  if (nav) {
+    var edge = function () { nav.classList.toggle('cn-end', nav.scrollLeft + nav.clientWidth >= nav.scrollWidth - 2); };
+    nav.addEventListener('scroll', edge, { passive: true }); window.addEventListener('resize', edge); edge();
+  }
 })();
