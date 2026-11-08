@@ -11933,3 +11933,9 @@ body.qp-dash-active .qf-memo-fab, body:has(#qfMemoFloat:not([hidden])) .qf-memo-
 /* 案件名の入力（管理番号入力「まず入れるもの」。ご担当者の下・全幅） */
 #tab-quote-make .ci-layout .ci-grid > .ci-cell.ci-cell-case { grid-column: 1 / -1; grid-row: 3; }
 @media (max-width: 680px) { #tab-quote-make .ci-layout .ci-grid > .ci-cell.ci-cell-case { grid-column: 1 !important; grid-row: auto !important; } }
+
+/* 付箋ボタンは隠せる（✕。「⋯」メニューから開ける） */
+.qf-memo-fab .qmf-x { margin-left: 8px; padding: 0 4px; font-size: 11px; color: #8a6a2b; border-radius: 50%; cursor: pointer; }
+.qf-memo-fab .qmf-x:hover { background: rgba(0,0,0,.12); color: #5a3a10; }
+body.memo-fab-off .qf-memo-fab { display: none !important; }
+@media (max-width: 680px) { .qf-memo-fab .qmf-x { position: absolute; top: -6px; left: -6px; width: 20px; height: 20px; line-height: 18px; margin: 0; padding: 0; background: #fff; border: 1px solid #d9b96a; font-size: 10px; text-align: center; } }

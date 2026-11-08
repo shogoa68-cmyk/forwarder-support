@@ -78,6 +78,14 @@
     const vt = v ? (v.type === 'text' ? (v.value || 'SPOT') : md(v.value)) : '—';
     b.textContent = '発行 ' + md($('qf-date')?.value) + '・有効期限 ' + vt + (badge && badge.textContent ? '（' + badge.textContent + '）' : '') + (collapsed ? '　［変更］' : '　［閉じる］');
   }
+  // 右下の付箋ボタンは隠せる（✕／「⋯」メニュー）。隠しても付箋は「⋯」メニューから開ける
+  const FAB_KEY = 'fwd.memoFabHidden';
+  function fabHidden() { try { return localStorage.getItem(FAB_KEY) === '1'; } catch (e) { return false; } }
+  function applyFab() {
+    const off = fabHidden(); document.body.classList.toggle('memo-fab-off', off);
+    const s = $('qfMemoFabMenuSub'); if (s) s.textContent = off ? 'いまは隠れています（押すと表示）' : 'いまは表示中（押すと隠す）';
+  }
+  window.ciToggleMemoFab = function () { try { localStorage.setItem(FAB_KEY, fabHidden() ? '0' : '1'); } catch (e) {} applyFab(); };
   function syncMemoDot() {
     const f = $('qfMemoFab'); if (!f) return;
     f.classList.toggle('has-memo', !!($('qf-memo')?.value || '').trim());
@@ -113,6 +121,10 @@
     document.addEventListener('keydown', e => { if (e.key === 'Escape') closeMenu(); });
     $('qfSpotToggleBtn')?.addEventListener('click', () => { closeMenu(); setTimeout(syncValid, 0); });
     $('ciMoreBtn').addEventListener('click', () => { const open = $('ciMoreBody').hidden; if ($('ciMore')) $('ciMore').dataset.userClosed = open ? '' : '1'; toggleMore(open); });
+    const fx = document.querySelector('#qfMemoFab .qmf-x');
+    const hideFab = e => { e.preventDefault(); e.stopPropagation(); try { localStorage.setItem(FAB_KEY, '1'); } catch (er) {} applyFab(); if (window.quoteShowToast) window.quoteShowToast('付箋ボタンを隠しました（「⋯」メニューからいつでも開けます）', 'info', 4000); };
+    if (fx) { fx.addEventListener('click', hideFab); fx.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') hideFab(e); }); }
+    applyFab();
     $('ciDatesSum')?.addEventListener('click', () => { datesOpen = !datesOpen; syncDatesSum(); });
     if (mq && mq.addEventListener) mq.addEventListener('change', syncDatesSum);
     // 「自動」バッジ：ユーザーが値を変えたら消す（プログラムの入力では消さない）

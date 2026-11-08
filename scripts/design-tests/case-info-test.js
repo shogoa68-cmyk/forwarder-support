@@ -44,6 +44,14 @@ const http = require('http'), fs = require('fs'), path = require('path');
   ok('社内メモの欄は画面に出ない・付箋ボタンが出る', !(await vis('#qf-memo')) && await vis('#qfMemoFab'));
   await p.click('#qfMemoFab'); ok('付箋が開く（案件名・社内メモ）', await vis('#qfMemoFloat') && (await p.textContent('.qf-memo-float-title')) === '案件名・社内メモ');
   ok('取引ルール帯は自動では開かない（バナー要素のみ）', true);
+  // 付箋ボタンは隠せる
+  await p.evaluate(() => closeMemoFloat()); await p.waitForTimeout(150);
+  await p.click('#qfMemoFab .qmf-x'); await p.waitForTimeout(200);
+  ok('付箋ボタンの ✕ で隠れる', !(await vis('#qfMemoFab')) && !(await vis('#qfMemoFloat')));
+  await p.evaluate(() => { document.querySelector('#saveToolbar [aria-label*="その他"], #saveToolbar .tb-menu-btn') ; });
+  await p.evaluate(() => toggleMemoFloat()); ok('隠していても付箋は開ける（「⋯」メニューの項目と同じ処理）', await vis('#qfMemoFloat'));
+  await p.evaluate(() => closeMemoFloat()); await p.evaluate(() => ciToggleMemoFab()); await p.waitForTimeout(150);
+  ok('メニューの項目で付箋ボタンを再表示できる', await vis('#qfMemoFab'));
   // 案件名の付け方 2 通り（案件名欄／付箋の 1 行目）
   const nameOf = (fields) => p.evaluate(f => window.quotePresetMeta({ data: { fields: f } }).memo, fields);
   ok('案件名欄がある（任意）', await vis('#qf-case-name'));
