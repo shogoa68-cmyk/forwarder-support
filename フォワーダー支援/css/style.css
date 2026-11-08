@@ -5720,3 +5720,17 @@ body.md-modal-open { overflow: hidden; }
 .pp-state { font-size: 10px; margin-left: 4px; color: #8a97a6; }
 .master-area-label { font-size: 11px; color: #6b7a8c; min-width: 84px; }
 .master-area-title { font-size: 12px; font-weight: 700; margin-top: 6px; color: #3a4a5c; }
+
+/* ===== お客様マスター詳細のタブ化（Design 回答 2026-11・案1）：基本情報＋タブ＋下に常時表示の保存バー ===== */
+.md-modal .mt-basic { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 10px 14px; margin-bottom: 14px; }
+.md-modal .mt-basic .master-detail-via { grid-column: 1 / -1; }
+.md-modal .mt-basic [hidden] { display: none; }
+.md-modal .mt-tabs { display: flex; flex-wrap: wrap; gap: 4px; border-bottom: 1px solid var(--border-md, #bbb); }
+.md-modal .mt-tab { padding: 9px 16px; border: 1px solid var(--border-md, #bbb); border-bottom: 0; background: #f3f5f8; font: inherit; font-size: 13px; font-weight: 700; cursor: pointer; }
+.md-modal .mt-tab.is-on { background: #fff; border-top: 3px solid #416180; margin-bottom: -1px; position: relative; }
+.md-modal .mt-sum { font-weight: 400; font-size: 11px; color: #5d5d60; margin-left: 4px; }
+.md-modal .mt-sum[hidden] { display: none; }
+.md-modal .mt-panel { padding: 14px 4px 4px; display: flex; flex-direction: column; gap: 12px; }
+.md-modal .mt-panel[hidden] { display: none; }
+.md-modal .mt-foot { flex: none; padding: 10px 16px; border-top: 1px solid #d9dee5; background: #f3f6fa; }
+.md-modal .mt-foot .master-detail-actions { margin: 0; }

@@ -681,6 +681,7 @@ const http = require('http'), fs = require('fs'), path = require('path');
     await p.evaluate(() => { switchCategory('master', document.querySelector('[onclick*="switchCategory(\'master"]')); }); await p.waitForTimeout(1200);
     await p.evaluate(() => { statsMasterSetFilter('customer'); }); await p.waitForTimeout(300);
     await p.evaluate(() => document.querySelector('#statsPane-master tr[data-mvalue="ルール商事"] .stats-master-detail-btn').click()); await p.waitForTimeout(600);
+    await p.evaluate(() => { const t = document.querySelector('#mdDetailModal .mt-tab[data-mt="rules"]'); t && t.click(); });
     ok(L + 'お客様の詳細に取引ルール欄が出る', await p.evaluate(() => !!document.querySelector('#crPanel .cr-form')));
     ok(L + '対象に「お客様全体」と担当者が選べる', await p.evaluate(() => [...document.querySelectorAll('#crPanel .cr-f-contact option')].map(o => o.textContent).join('|').includes('幸崎')));
     // お客様全体の厳守ルールと、幸崎様だけの要確認ルールを登録
@@ -693,6 +694,7 @@ const http = require('http'), fs = require('fs'), path = require('path');
     ok(L + '一覧に厳守・要確認のバッジが並ぶ', await p.evaluate(() => !!document.querySelector('#crPanel .cr-badge-strict') && !!document.querySelector('#crPanel .cr-badge-check')));
     // 見積タブのバナー：お客様だけ → 全体ルールのみ（担当者別は件数だけ）／担当者を入れる → 担当者のルールも
     await p.evaluate(async () => { document.getElementById('qf-customer').value = 'ルール商事'; document.getElementById('qf-person').value = ''; await crRefreshBanner(); });
+    await p.evaluate(() => { const b = document.querySelector('#crBanner [data-cr="toggle"]'); if (b && b.getAttribute('aria-expanded') !== 'true') b.click(); });   // 取引ルール帯は閉じたまま始まる（開くのは手動）
     let t = await p.evaluate(() => { const b = document.getElementById('crBanner'); return { hidden: b.hidden, text: b.textContent.replace(/\s+/g, ' ') }; });
     ok(L + '見積：お客様を選ぶとバナーが出て、厳守は開いて表示', !t.hidden && t.text.includes('請求書は月末締め') && t.text.includes('担当者別 1件'), t);
     ok(L + '見積：担当者別ルールは担当者未入力では本文を出さない', !t.text.includes('USD建て'), t);
@@ -734,6 +736,7 @@ const http = require('http'), fs = require('fs'), path = require('path');
     ok(L + '再確認が必要なルールの案内が出る', m.notice && m.notice.includes('古いルール商事') && m.notice.includes('1件'), m);
     // 見積タブ：背景に案件番号が入る・古いルールに「いまも有効」
     await p.evaluate(async () => { document.getElementById('qf-ref').value = '2026-077'; document.getElementById('qf-customer').value = '古いルール商事'; document.getElementById('qf-person').value = ''; await crRefreshBanner(); });
+    await p.evaluate(() => { const b = document.querySelector('#crBanner [data-cr="toggle"]'); if (b && b.getAttribute('aria-expanded') !== 'true') b.click(); });
     let t = await p.evaluate(() => document.getElementById('crBanner').textContent.replace(/\s+/g, ' '));
     ok(L + '見積：⏳ 再確認 1件 と「いまも有効」ボタン', t.includes('再確認 1件') && t.includes('いまも有効'), t);
     ok(L + '見積：ボタンが「この案件で気づいたことをルールにする」', t.includes('この案件で気づいたことをルールにする'), t);
@@ -764,6 +767,18 @@ const http = require('http'), fs = require('fs'), path = require('path');
     ok(L + '詳細がポップアップ（画面に固定・幅は画面いっぱいにならない・高さは画面内）', g.pos === 'fixed' && g.w <= 980 && g.w < g.vw && g.h <= g.vh && !g.inline, g);
     ok(L + '見出しに種別と名前が出る', g.title.includes('お客様') && g.title.includes('ポップ商事'), g);
     ok(L + '背景の画面はスクロールしない', await p.evaluate(() => document.body.classList.contains('md-modal-open')));
+    // タブ化（Design 回答 2026-11・案1）
+    const vis2 = sel => p.evaluate(x => { const e = document.querySelector(x); if (!e) return false; const r = e.getBoundingClientRect(); return r.width > 0 && r.height > 0; }, sel);
+    ok(L + '[タブ] 上に基本情報（ふりがな・英語名称・取引形態）が常に見える', await vis2('#mdDetailModal #md_furigana') && await vis2('#mdDetailModal #md_enName') && await vis2('#mdDetailModal #md_dealType'));
+    ok(L + '[タブ] 4 つのタブ（担当者／会社の詳細・タグ／取引ルール／メモ・添付）', (await p.$$eval('#mdDetailModal .mt-tab', els => els.map(e => e.textContent.replace(/\s+/g, ' ').trim().replace(/\s*\d.*$/, '')))).join('|').startsWith('担当者|会社の詳細・タグ|取引ルール|メモ・添付'));
+    ok(L + '[タブ] 最初は担当者タブ（担当者の入力欄が見え、メモ欄は見えない）', await vis2('#mdDetailModal .md-contact-name') && !(await vis2('#mdDetailModal #md_memo')));
+    ok(L + '[タブ] 担当者タブの要約に「1名」', (await p.textContent('#mdDetailModal .mt-tab[data-mt="people"] .mt-sum')).includes('1名'));
+    ok(L + '[タブ] 保存バーは本文のスクロールの外に常時表示', await p.evaluate(() => { const f = document.querySelector('#mdDetailModal .mt-foot'); const b = document.querySelector('#mdDetailModal .md-modal-body'); return !!f && !b.contains(f) && !!f.querySelector('.master-detail-save') && f.getBoundingClientRect().bottom <= innerHeight; }));
+    await p.click('#mdDetailModal .mt-tab[data-mt="memo"]'); ok(L + '[タブ] メモ・添付タブ：メモ欄と添付が見える・担当者は隠れる', await vis2('#mdDetailModal #md_memo') && await vis2('#mdDetailModal .master-attach-box') && !(await vis2('#mdDetailModal .md-contact-name')));
+    ok(L + '[タブ] どのタブでも保存ボタンが見える', await vis2('#mdDetailModal .mt-foot .master-detail-save'));
+    await p.click('#mdDetailModal .mt-tab[data-mt="company"]'); ok(L + '[タブ] 会社の詳細・タグタブ：所在地・タグが見える', await vis2('#mdDetailModal #md_location') && await vis2('#mdDetailModal .master-detail-tags'));
+    await p.click('#mdDetailModal .mt-tab[data-mt="rules"]'); ok(L + '[タブ] 取引ルールタブ：ルール欄が見える', await vis2('#mdDetailModal #crPanel'));
+    await p.click('#mdDetailModal .mt-tab[data-mt="people"]');
     if (process.env.OUT) await p.screenshot({ path: require('path').join(process.env.OUT, 'master-detail-modal.png') });
     await p.keyboard.press('Escape'); await p.waitForTimeout(200);
     ok(L + 'Esc で閉じる', await p.evaluate(() => !document.getElementById('mdDetailModal') && !document.body.classList.contains('md-modal-open')));
