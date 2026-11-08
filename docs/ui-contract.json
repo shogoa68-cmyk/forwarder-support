@@ -2910,6 +2910,14 @@
    "css": true,
    "html": false
   },
+  "mcs-nav": {
+   "css": true,
+   "html": false
+  },
+  "mcs-open": {
+   "css": true,
+   "html": false
+  },
   "md-contact-dept": {
    "css": true,
    "html": false
@@ -3457,6 +3465,10 @@
   "row-conditional": {
    "css": true,
    "html": false
+  },
+  "row-del-btn": {
+   "css": true,
+   "html": true
   },
   "row-detail-btn": {
    "css": true,
@@ -4252,6 +4264,10 @@
    "html": false,
    "js": true
   },
+  "bind": {
+   "html": false,
+   "js": true
+  },
   "bm": {
    "html": false,
    "js": true
@@ -4616,6 +4632,10 @@
    "html": false,
    "js": true
   },
+  "nav": {
+   "html": false,
+   "js": true
+  },
   "nt-auto": {
    "html": false,
    "js": true
@@ -4872,6 +4892,10 @@
    "html": false,
    "js": true
   },
+  "tmode": {
+   "html": false,
+   "js": true
+  },
   "tone": {
    "html": true,
    "js": true
@@ -5000,6 +5024,7 @@
   "js/quote/cargo-flow.js",
   "js/quote/remark-tabs.js",
   "js/quote/mobile-cost.js",
+  "js/quote/mobile-sheet.js",
   "js/quote/packing-import.js",
   "js/tweaks.js",
   "js/ui-mode.js",

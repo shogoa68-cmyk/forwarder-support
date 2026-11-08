@@ -59,12 +59,54 @@ const http = require('http'), fs = require('fs'), path = require('path');
     ok('[スマホ] 「＋ 行を追加」で行が増える', (await p.$$eval('#mcList .mc-row', e => e.length)) === n0 + 1);
     await p.click('#mcList .mc-sv >> nth=1 >> button.mc-add'); await p.waitForTimeout(500);
     ok('[スマホ] サブコン見出しの「＋」でそのサブコンに行が増える', (await p.$$eval('#mcList .mc-row', e => e.length)) === n0 + 2);
-    // タップ → 表
-    await p.click('#mcList .mc-row >> nth=0'); await p.waitForTimeout(500);
-    ok('[スマホ] 行をタップすると実際の表がその行まで開く', await vis(p, '#quoteTable'));
+    // 行タップ → 編集シート
+    await p.click('#mcList .mc-row >> nth=0'); await p.waitForTimeout(400);
+    ok('[シート] 行をタップすると編集シートが開く', await vis(p, '#mcSheet .mcs-box'));
+    ok('[シート] 「n / 全体 行目」', /^1 \/ \d+ 行目$/.test(await p.textContent('#mcsPos')), await p.textContent('#mcsPos'));
+    ok('[シート] 行の値が入っている（品名・サブコン・パターン・数量・仕入）', await p.evaluate(() => ['nm','sv','pt','pq','pp'].map(k => document.getElementById('mcs-' + k).value).join('|') === '海上運賃|サンプル運送|FCL案|2|2000'));
+    ok('[シート] カテゴリ・通貨の選択肢が行と同じ', await p.evaluate(() => document.getElementById('mcs-cat').options.length > 5 && document.getElementById('mcs-bc').options.length > 2));
+    ok('[シート] 売金額（自動）', (await p.textContent('#mcs-st')).includes('4,400'), await p.textContent('#mcs-st'));
+    ok('[シート] 入力欄は高さ 44px 以上', await p.evaluate(() => document.getElementById('mcs-nm').getBoundingClientRect().height >= 44));
+    // 編集 → 行の欄・計算に反映
+    await p.fill('#mcs-nm', '海上運賃（改）'); await p.fill('#mcs-pp', '3000'); await p.waitForTimeout(300);
+    const rowVals = await p.evaluate(() => { const tr = document.querySelector('#tableBody tr[id^="row-"]:not([data-type]):not([data-virtual])'); return { nm: tr.querySelector('[data-field="nm"]').value, pp: tr.querySelector('[data-field="pp"]').value, st: tr.querySelector('[data-field="st"]').textContent }; });
+    ok('[シート] 入力が行の欄に書き込まれ、行の計算が走る（3,000+200=3,200×2=6,400）', rowVals.nm === '海上運賃（改）' && rowVals.pp === '3000' && rowVals.st.includes('6,400'), rowVals);
+    ok('[シート] シート上の売金額も更新', (await p.textContent('#mcs-st')).includes('6,400'), await p.textContent('#mcs-st'));
+    // 状態ボタン → 既存ボタンの関数
+    await p.click('#mcsState [data-state="done"]'); await p.waitForTimeout(200);
+    ok('[シート] 「入力完了」は行の既存ボタンの処理（dataset.done）', await p.evaluate(() => document.querySelector('#tableBody tr[id^="row-"]:not([data-type]):not([data-virtual])').dataset.done === '1') && await p.evaluate(() => document.querySelector('#mcsState [data-state="done"]').classList.contains('is-on')));
+    // 備考行を下に挿入
+    const nrows0 = await p.evaluate(() => document.querySelectorAll('#tableBody tr').length);
+    await p.fill('#mcs-nt', '要確認'); await p.click('#mcSheet [data-act="rem"]'); await p.waitForTimeout(300);
+    ok('[シート] 備考行を下に挿入（既存の 💬 ボタンの処理）', (await p.evaluate(() => document.querySelectorAll('#tableBody tr').length)) > nrows0);
+    // 前後移動
+    await p.click('#mcSheet [data-nav="1"]'); await p.waitForTimeout(250);
+    ok('[シート] ›で次の行へ（2 / n 行目・品名 THC）', /^2 \//.test(await p.textContent('#mcsPos')) && (await p.inputValue('#mcs-nm')) === 'THC', await p.textContent('#mcsPos'));
+    ok('[シート] 前の行ボタンが効く', (await p.evaluate(() => !document.querySelector('#mcSheet [data-nav="-1"]').disabled)));
+    // 直下に追加 → 新しい行が開く
+    const n1 = await p.evaluate(() => document.querySelectorAll('#tableBody tr[id^="row-"]:not([data-type]):not([data-virtual])').length);
+    await p.click('#mcSheet [data-act="add"]'); await p.waitForTimeout(400);
+    ok('[シート] 直下に追加すると新しい行が増え、その行のシートに切り替わる', (await p.evaluate(() => document.querySelectorAll('#tableBody tr[id^="row-"]:not([data-type]):not([data-virtual])').length)) === n1 + 1 && (await p.inputValue('#mcs-nm')) === '', await p.textContent('#mcsPos'));
+    await p.click('#mcSheet [data-act="dup"]'); await p.waitForTimeout(400);
+    ok('[シート] 複製で行が増える', (await p.evaluate(() => document.querySelectorAll('#tableBody tr[id^="row-"]:not([data-type]):not([data-virtual])').length)) === n1 + 2);
+    await p.click('#mcSheet [data-act="del"]'); await p.waitForTimeout(500);
+    ok('[シート] 削除（確認ダイアログを承諾）で行が減る', (await p.evaluate(() => document.querySelectorAll('#tableBody tr[id^="row-"]:not([data-type]):not([data-virtual])').length)) === n1 + 1);
+    // その他
+    const moreVis = await p.evaluate(() => getComputedStyle(document.getElementById('mcsMore')).display !== 'none');
+    ok('[シート] 「その他」は' + (process.env.MODE === 'simple' ? 'かんたん表示では出ない' : '畳んで出る'), process.env.MODE === 'simple' ? !moreVis : moreVis);
+    if (process.env.MODE !== 'simple') { await p.click('#mcsMore > summary'); ok('[シート] その他：有効期間・更新日・単価のオプション', await vis(p, '#mcs-vf') && await vis(p, '#mcs-lu') && (await p.$$('#mcsModes .mcs-tg')).length >= 5); }
+    // 完了で閉じる → 一覧に反映
+    await p.click('#mcsDone'); await p.waitForTimeout(400);
+    ok('[シート] 「完了」で閉じ、一覧に反映（品名・入力完了の札）', !(await vis(p, '#mcSheet .mcs-box')) && (await p.textContent('#mcList')).includes('海上運賃（改）') && !!(await p.$('#mcList .t-done')));
+    // 背景タップ・Esc
+    await p.click('#mcList .mc-row >> nth=0'); await p.waitForTimeout(300); await p.keyboard.press('Escape'); await p.waitForTimeout(200);
+    ok('[シート] Esc で閉じる', !(await vis(p, '#mcSheet .mcs-box')));
+    await p.click('#mcList .mc-row >> nth=0'); await p.waitForTimeout(300); await p.mouse.click(195, 30); await p.waitForTimeout(200);
+    ok('[シート] 背景をタップして閉じる', !(await vis(p, '#mcSheet .mcs-box')));
+    // 「表で編集する」へ
     await p.click('#mcModeBtn'); await p.waitForTimeout(300);
-    ok('[スマホ] 「一覧に戻る」で一覧へ', await vis(p, '#mcList .mc-row') && !(await vis(p, '#quoteTable')));
-    if (process.env.OUT) { await p.evaluate(() => document.getElementById('section-table').scrollIntoView()); await p.waitForTimeout(200); await p.screenshot({ path: path.join(process.env.OUT, 'mobile-cost.png') }); }
+    ok('[スマホ] 「表で編集する」で実際の表（PC と同じ）に切り替わり、「一覧に戻る」で戻る', await vis(p, '#quoteTable')); await p.click('#mcModeBtn'); await p.waitForTimeout(200); ok('[スマホ] 一覧へ戻る', await vis(p, '#mcList .mc-row') && !(await vis(p, '#quoteTable')));
+    if (process.env.OUT) { await p.evaluate(() => document.getElementById('section-table').scrollIntoView()); await p.waitForTimeout(200); await p.screenshot({ path: path.join(process.env.OUT, 'mobile-cost.png') }); await p.click('#mcList .mc-row >> nth=0'); await p.waitForTimeout(300); await p.screenshot({ path: path.join(process.env.OUT, 'mobile-sheet.png') }); await p.click('#mcsMore > summary').catch(() => {}); await p.evaluate(() => { document.querySelector('#mcSheet .mcs-body').scrollTop = 9999; }); await p.waitForTimeout(200); await p.screenshot({ path: path.join(process.env.OUT, 'mobile-sheet2.png') }); }
     ok('[スマホ] JS エラーなし', errs.length === 0, errs); await ctx.close(); }
   console.log(out.join('\n')); console.log(out.some(l => l.startsWith('FAIL')) ? 'NG' : 'OK');
   await b.close(); srv.close(); process.exit(out.some(l => l.startsWith('FAIL')) ? 1 : 0);

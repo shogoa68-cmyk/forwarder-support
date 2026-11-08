@@ -66,6 +66,7 @@
   }
   // 段階 1：行をタップしたら、実際の表をその行まで開く（編集シートは段階 2）
   function openRow(id) {
+    if (window.mcSheetOpen) { window.mcSheetOpen(id); return; }   // 段階 2：編集シート
     document.body.classList.add('mc-table-on'); setMode();
     const tr = $(id); if (!tr) return;
     setTimeout(() => { tr.scrollIntoView({ block: 'center', behavior: 'smooth' }); tr.classList.add('mc-flash'); setTimeout(() => tr.classList.remove('mc-flash'), 1600); }, 50);
@@ -95,6 +96,7 @@
     if (mq) (mq.addEventListener ? mq.addEventListener('change', apply) : mq.addListener(apply));
     apply();
   }
+  window.mcSetMode = setMode;
   window.mcRefresh = () => { if (mq && mq.matches) render(); };
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init); else init();
   window.addEventListener('load', init);
