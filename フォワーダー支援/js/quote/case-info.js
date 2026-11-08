@@ -64,7 +64,25 @@
     body.hidden = !open; b.setAttribute('aria-expanded', open ? 'true' : 'false');
     const a = b.querySelector('.ci-fold-arrow'); if (a) a.textContent = open ? '▾' : '▸';
   }
-  function sync() { syncStatus(); syncRel(); syncDates(); syncMore(); }
+  // スマホ：日付を 1 行の要約に畳む（Design 回答）。PC 幅では要約を出さない
+  const mq = window.matchMedia ? window.matchMedia('(max-width: 680px)') : null;
+  let datesOpen = false;
+  function md(s) { const m = /^\d{4}-(\d{2})-(\d{2})$/.exec(s || ''); return m ? m[1] + '/' + m[2] : (s || '—'); }
+  function syncDatesSum() {
+    const blk = document.querySelector('#section-ref .ci-dates'), b = $('ciDatesSum'); if (!blk || !b) return;
+    const mobile = !!(mq && mq.matches);
+    const collapsed = mobile && !datesOpen;
+    blk.classList.toggle('ci-collapsed', collapsed);
+    b.hidden = !mobile; b.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+    const v = $('qf-valid-until'), badge = $('ciValidBadge');
+    const vt = v ? (v.type === 'text' ? (v.value || 'SPOT') : md(v.value)) : '—';
+    b.textContent = '発行 ' + md($('qf-date')?.value) + '・有効期限 ' + vt + (badge && badge.textContent ? '（' + badge.textContent + '）' : '') + (collapsed ? '　［変更］' : '　［閉じる］');
+  }
+  function syncMemoDot() {
+    const f = $('qfMemoFab'); if (!f) return;
+    f.classList.toggle('has-memo', !!($('qf-memo')?.value || '').trim());
+  }
+  function sync() { syncStatus(); syncRel(); syncDates(); syncMore(); syncDatesSum(); syncMemoDot(); }
 
   window.ciSync = sync;
   window.ciSetValidEom = function (plus) {
@@ -81,6 +99,7 @@
     if (d && !d.value) { d.value = today(); changed(d); $('ciAutoDate') && ($('ciAutoDate').hidden = false); }
     if (v && v.type === 'date' && !v.value) { v.value = eom(d?.value || '', 0); changed(v); }
     sync();
+    if (window.cfSync) window.cfSync(); if (window.rfSync) window.rfSync();
   };
 
   function init() {
@@ -94,6 +113,11 @@
     document.addEventListener('keydown', e => { if (e.key === 'Escape') closeMenu(); });
     $('qfSpotToggleBtn')?.addEventListener('click', () => { closeMenu(); setTimeout(syncValid, 0); });
     $('ciMoreBtn').addEventListener('click', () => { const open = $('ciMoreBody').hidden; if ($('ciMore')) $('ciMore').dataset.userClosed = open ? '' : '1'; toggleMore(open); });
+    $('ciDatesSum')?.addEventListener('click', () => { datesOpen = !datesOpen; syncDatesSum(); });
+    if (mq && mq.addEventListener) mq.addEventListener('change', syncDatesSum);
+    // 「自動」バッジ：ユーザーが値を変えたら消す（プログラムの入力では消さない）
+    [['qf-received', 'ciAutoRecv'], ['qf-date', 'ciAutoDate']].forEach(([i, b]) => $(i)?.addEventListener('input', e => { if (e.isTrusted && $(b)) $(b).hidden = true; }));
+    $('qf-memo')?.addEventListener('input', syncMemoDot); $('qf-memo-float-ta')?.addEventListener('input', () => setTimeout(syncMemoDot, 0));
     const sec = $('section-ref');
     ['input', 'change', 'click'].forEach(t => sec.addEventListener(t, () => setTimeout(sync, 0)));
     sync();

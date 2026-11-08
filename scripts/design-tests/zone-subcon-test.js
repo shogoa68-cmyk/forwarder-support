@@ -165,6 +165,7 @@ const http = require('http'), fs = require('fs'), path = require('path');
   ok('国欄を空にすると、港名からの推測（米国）に戻る', JSON.stringify((await opts(p, 'z3DefaultSc')).opts) === JSON.stringify(['PHILA CUSTOMS', '北米物流'].sort()));
 
   // 「＋」で足した欄にも同じ候補
+  await p.evaluate(() => { if (document.getElementById('zone1Card').classList.contains('zone-off')) window.toggleZone(1); });
   await p.evaluate(() => window.addDefaultScEntry(1)); await p.waitForTimeout(300);
   const add = await p.evaluate(() => { const ins = document.querySelectorAll('#z1DefaultScArea .sc-input'); const last = ins[ins.length - 1]; return { n: ins.length, list: last.getAttribute('list') }; });
   ok('「＋」で足したサブコン欄にも、同じ絞り込みの候補が付く', add.n === 2 && add.list === 'z1ScList', add);

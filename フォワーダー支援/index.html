@@ -2842,7 +2842,7 @@
           </div>
           <!-- まず入れるもの：見積もり番号・依頼受信日・お客様・ご担当者 -->
           <div class="ci-block ci-first">
-            <div class="ci-head"><b>まず入れるもの</b><span>* の3つが必須です。番号と受信日は自動で入っています。</span></div>
+            <div class="ci-head"><b>まず入れるもの</b><span>＊ が付いた3つが必須です。番号と受信日は自動で入っています。</span></div>
             <div class="ci-grid">
           <div class="ci-cell ci-cell-ref">
           <div class="quote-field">
@@ -2897,7 +2897,8 @@
           <!-- 日付：発行日・有効期限（標準は発行日の月末）。提出期限は任意 -->
           <div class="ci-block ci-dates">
             <div class="ci-head"><b>日付</b></div>
-            <div class="ci-grid">
+            <button type="button" class="ci-dates-sum" id="ciDatesSum" aria-expanded="false" aria-controls="ciDatesGrid" hidden></button>
+            <div class="ci-grid" id="ciDatesGrid">
           <div class="ci-cell">
           <div class="quote-field">
             <label>発行日 <span class="ci-auto" id="ciAutoDate" hidden>自動</span></label>
@@ -4943,6 +4944,8 @@
 <script src="js/quote/subcon-request-mail.js"></script>
 <script src="js/quote/memo-title.js"></script>
 <script src="js/quote/case-info.js"></script>
+<script src="js/quote/cond-flow.js"></script>
+<script src="js/quote/route-flow.js"></script>
 <script src="js/quote/packing-import.js"></script>
 <script src="js/tweaks.js"></script>
 <script src="js/ui-mode.js"></script>
@@ -5029,7 +5032,7 @@
 </div>
 
 <!-- 見積アクションドック（右下フローティング・見積タブのみ表示） -->
-<button type="button" id="qfMemoFab" class="qf-memo-fab" onclick="toggleMemoFloat()" title="案件名・社内メモ（1行目が案件名になります。お客様向け出力には含まれません）">📝 案件名・社内メモ</button>
+<button type="button" id="qfMemoFab" class="qf-memo-fab" onclick="toggleMemoFloat()" aria-label="案件名・社内メモ" title="案件名・社内メモ（1行目が案件名になります。お客様向け出力には含まれません）"><span class="qmf-i">📝</span><span class="qmf-t"> 案件名・社内メモ</span></button>
 <div id="quoteActionDock">
   <button class="qad-btn qad-pdf" onclick="quickQuotePdf()" title="御見積書PDFをそのまま出力（A4縦）。ファイル名・発行元は前回の設定を使います。設定を変えたいときはプレビュー →「📄 御見積書」から">📄 PDF出力</button>
   <button class="qad-btn qad-preview" onclick="openPreview()" title="見積をプレビュー表示・CSV/Excel/PDF出力はここから（Ctrl+P）">📋 プレビュー</button>
