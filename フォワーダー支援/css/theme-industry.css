@@ -2412,6 +2412,11 @@ html.theme-industry {
   border-radius: 0;
 }
 :where(html.theme-industry) .qf-memo-float {
+  width: 280px;
+  min-width: 160px;
+  min-height: 100px;
+  max-width: min(480px, 90vw);
+  max-height: 50vh;
   background: #faf9f3;
   border: 1.5px solid #bfa055;
   border-radius: 0;

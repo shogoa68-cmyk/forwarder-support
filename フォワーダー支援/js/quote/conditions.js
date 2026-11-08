@@ -1164,8 +1164,9 @@
       });
     }
 
-    // IntersectionObserver：メモ欄が画面外に出たら自動表示
-    const memoField = document.querySelector('.quote-field-memo');
+    // IntersectionObserver：メモ欄が画面外に出たら自動表示（メモ欄を画面から隠した今は使わない。付箋は右下の「案件名・社内メモ」ボタンで開く。
+    //   開く度に勝手に出てきて「消せない」ように見えるため、自動表示は廃止）
+    const memoField = null;
     if (memoField && window.IntersectionObserver) {
       const obs = new IntersectionObserver(entries => {
         entries.forEach(entry => {
