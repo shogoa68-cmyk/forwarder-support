@@ -50,10 +50,29 @@
     card.addEventListener('input', () => setTimeout(sync, 0));
     card.addEventListener('change', () => setTimeout(sync, 0));
     card.addEventListener('click', () => setTimeout(sync, 0));   // 航路の追加・削除
+    // 出発地側／到着地側：スイッチ化（案B）。要約チップ（場所・選んだピース）を見出しに出す
+    const builder = $('zoneBuilder'); if (builder) builder.classList.add('rf-stack');
+    [[1, '集荷地'], [3, '配送地']].forEach(([n, label]) => {
+      const c = $('zone' + n + 'Card'), btn = $('zone' + n + 'Btn'); if (!c || !btn) return;
+      btn.setAttribute('role', 'switch'); btn.setAttribute('aria-label', label + 'を使う');
+      const chip = document.createElement('span'); chip.className = 'rf-end-sum'; chip.hidden = true;
+      c.querySelector('.zone-card-title')?.after(chip);
+      const upd = () => {
+        const on = !c.classList.contains('zone-off');
+        btn.setAttribute('aria-checked', on ? 'true' : 'false');
+        const place = ($('z' + n + 'Place')?.value || '').trim();
+        const pcs = [...c.querySelectorAll('.piece-item')].filter(l => l.querySelector('input:checked')).map(l => l.textContent.replace(/\s+/g, ' ').replace(/^[^\wぁ-んァ-ヶ一-龥]+/, '').trim());
+        const t = [place, ...pcs].filter(Boolean).join('・');
+        chip.hidden = !on || !t; chip.textContent = t;
+      };
+      new MutationObserver(upd).observe(c, { attributes: true, attributeFilter: ['class'] });
+      ['input', 'change'].forEach(ev => c.addEventListener(ev, upd));
+      window['rfEnd' + n] = upd; upd();
+    });
     sync();
   }
   // 読み込み・新規作成のあとに呼ぶ：手で開いた状態をやめ、値のあるものだけ開く
-  window.rfSync = () => { reset(); sync(); };
+  window.rfSync = () => { reset(); sync(); if (window.rfEnd1) window.rfEnd1(); if (window.rfEnd3) window.rfEnd3(); };
   window.rfOpenCarrier = () => { const b = $('z2CarrierOptBtn'); if (b && !b.hidden) b.click(); };
   window.rfOpenVia = () => { const b = $('z2ViaBtn'); if (b && !b.hidden) b.click(); };
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init); else init();

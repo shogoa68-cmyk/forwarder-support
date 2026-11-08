@@ -11811,7 +11811,7 @@ body.is-row-dragging { cursor: grabbing; user-select: none; }
 #tab-quote-make .ci-layout .qf-status-btns:not(.ci-more-open) .qf-status-btn[data-more]:not(.active) { display: none; }
 /* 社内メモは右下の付箋に集約（欄は保存の値の保持役として残し、画面からは隠す） */
 #tab-quote-make .ci-layout ~ .quote-field-memo, #tab-quote-make .quote-field-memo { display: none; }
-.qf-memo-fab { position: fixed; right: 72px; bottom: 74px; z-index: 55; display: none; padding: 8px 14px; border: 1px solid #d9b96a; border-radius: 18px; background: #fff3c4; color: #5a3a10; font-size: 12.5px; font-weight: 700; cursor: pointer; box-shadow: 0 3px 10px rgba(0,0,0,.16); }
+.qf-memo-fab { position: fixed; right: 72px; bottom: 74px; box-sizing: border-box; z-index: 55; display: none; padding: 8px 14px; border: 1px solid #d9b96a; border-radius: 18px; background: #fff3c4; color: #5a3a10; font-size: 12.5px; font-weight: 700; cursor: pointer; box-shadow: 0 3px 10px rgba(0,0,0,.16); }
 body:has(#tab-quote-make.active) .qf-memo-fab { display: block; }
 body.qp-dash-active .qf-memo-fab, body:has(#qfMemoFloat:not([hidden])) .qf-memo-fab { display: none; }
 @media (max-width: 680px) {
@@ -11850,3 +11850,46 @@ body.qp-dash-active .qf-memo-fab, body:has(#qfMemoFloat:not([hidden])) .qf-memo-
 #tab-quote-make .rf-relay-btn { margin-left: 0; }
 #tab-quote-make .rf-chip { display: inline-block; margin-left: 8px; font-size: 10.5px; font-weight: 600; padding: 1px 7px; border-radius: 9px; background: #e8eef5; color: #35506e; }
 #tab-quote-make .rf-chip[hidden] { display: none; }
+
+/* Design 回答（2026-11）：見出し下の空の帯を消す（hidden でも display が効いていた） */
+#tab-quote-make .qf-copied-from-info[hidden] { display: none; }
+/* 付箋ボタン：案件名かメモが入っているとき、角に小さな点 */
+.qf-memo-fab { position: fixed; }
+.qf-memo-fab.has-memo::after { content: ''; position: absolute; top: 2px; right: 2px; width: 9px; height: 9px; border-radius: 50%; background: #d9534f; border: 1px solid #fff; }
+.ci-dates-sum { display: none; }
+@media (max-width: 680px) {
+  /* スマホ：付箋は丸い 📝 だけ（48px）。🐞 とともに下のドックの上へ、縦に 12px あけて並べる */
+  .qf-memo-fab { right: 12px; bottom: calc(var(--dock-h, 52px) + 12px + 36px + 12px + env(safe-area-inset-bottom)); width: 48px; height: 48px; padding: 0; border-radius: 50%; font-size: 22px; line-height: 46px; text-align: center; }
+  .qf-memo-fab .qmf-t { display: none; }
+  .fb-quick-fab { right: 18px; bottom: calc(var(--dock-h, 52px) + 12px + env(safe-area-inset-bottom)); }
+  /* スマホ：日付は 1 行の要約に畳む（押すと 2 つの日付欄が開く） */
+  #tab-quote-make .ci-dates .ci-dates-sum { display: block; width: 100%; text-align: left; padding: 9px 12px; border: 1px solid var(--border, #ccc); border-radius: 8px; background: var(--surface, #fff); font-size: 13px; cursor: pointer; }
+  #tab-quote-make .ci-dates .ci-dates-sum[hidden] { display: none; }
+  #tab-quote-make .ci-dates.ci-collapsed .ci-grid { display: none; }
+}
+
+/* ===== 案B（Design 回答 2026-11）：出発地側／幹線輸送／到着地側の 3 枚を縦に並べ、使わない側は ON/OFF スイッチ付きの薄い帯に ===== */
+#tab-quote-make .zone-builder.rf-stack { flex-direction: column; flex-wrap: nowrap; align-items: stretch; gap: 12px; }
+#tab-quote-make .zone-builder.rf-stack > .zone-card { flex: none; width: 100%; min-width: 0; max-width: none; border-width: 1px; border-left-width: 5px; border-radius: 0; }
+#tab-quote-make .zone-builder.rf-stack .zone-card.zone-off { opacity: 1; filter: none; border-color: #d4d4d7; border-left-color: #98989b; }
+#tab-quote-make .zone-builder.rf-stack .zone-card.zone-off > *:not(.zone-card-header) { display: none; }
+#tab-quote-make .zone-builder.rf-stack .zone-card.zone-off .zone-card-header { background: #f5f5f8; border-bottom: 0; }
+#tab-quote-make .zone-builder.rf-stack .zone-card.zone-off .zone-collapse-btn, #tab-quote-make .zone-builder.rf-stack .zone-card.zone-off .zone-subcon { display: none; }
+#tab-quote-make .zone-builder.rf-stack .zone-card.zone-off .zone-card-title::after { content: '使わない'; margin-left: 10px; font-weight: 400; font-size: 12px; color: #5d5d60; }
+#tab-quote-make .zone-builder.rf-stack .zone-card.zone-origin:not(.zone-off) { border-color: #bcd0e4; border-left-color: #416180; }
+#tab-quote-make .zone-builder.rf-stack .zone-card.zone-dest:not(.zone-off) { border-color: #bcd0e4; border-left-color: #416180; }
+#tab-quote-make .zone-builder.rf-stack .zone-card:not(.zone-off) .zone-card-header { background: #eef6ff; }
+#tab-quote-make .zone-builder.rf-stack .zone-origin .zone-num::after { content: '（集荷地）'; font-weight: 400; }
+#tab-quote-make .zone-builder.rf-stack .zone-dest .zone-num::after { content: '（配送地）'; font-weight: 400; }
+/* ON/OFF はスイッチの見た目（ボタン本体・id・onclick は同じ） */
+#tab-quote-make .zone-builder.rf-stack .zone-toggle-btn { position: relative; width: 44px; height: 24px; padding: 0; font-size: 0; color: transparent; border: 1px solid #98989b; background: #d4d4d7; border-radius: 12px; box-shadow: none; flex: none; }
+#tab-quote-make .zone-builder.rf-stack .zone-toggle-btn::before { left: 2px; top: 2px; transform: none; width: 18px; height: 18px; background: #fff; }
+#tab-quote-make .zone-builder.rf-stack .zone-toggle-btn.on { background: #416180; border-color: #2c455d; padding: 0; }
+#tab-quote-make .zone-builder.rf-stack .zone-toggle-btn.on::before { left: 22px; background: #fff; }
+/* 畳むは横の帯のまま（縦書きにしない） */
+#tab-quote-make .zone-builder.rf-stack .zone-card.zone-collapsed { flex: none; width: 100%; min-width: 0; max-width: none; flex-direction: column; }
+#tab-quote-make .zone-builder.rf-stack .zone-card.zone-collapsed .zone-card-header { flex: none; flex-direction: row; align-items: center; padding: 8px 12px; }
+#tab-quote-make .zone-builder.rf-stack .zone-card.zone-collapsed .zone-card-title { flex: 1; display: flex; writing-mode: horizontal-tb; white-space: normal; }
+#tab-quote-make .zone-builder.rf-stack .zone-card.zone-collapsed .zone-toggle-btn { writing-mode: horizontal-tb; padding: 0; }
+#tab-quote-make .rf-end-sum { margin-left: auto; margin-right: 6px; background: #fff; border: 1px solid #bcd0e4; padding: 2px 10px; font-size: 12px; max-width: 60%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#tab-quote-make .rf-end-sum[hidden] { display: none; }
