@@ -11776,3 +11776,48 @@ body.is-row-dragging { cursor: grabbing; user-select: none; }
 #tab-quote-make .succ-foot { display: flex; align-items: center; gap: 8px; padding: 10px 16px; border-top: 1px solid var(--border, #eee); }
 #tab-quote-make .succ-count { font-size: 12px; color: #888; margin-right: auto; }
 #tab-quote-make .succ-cancel { padding: 5px 14px; border: 1px solid var(--border, #bbb); border-radius: 6px; background: var(--card-bg, #f3f3f3); cursor: pointer; font-family: inherit; }
+
+/* ===== 管理番号入力（Design 回答 2026-11）：1 カラム・まず入れるもの・日付・必要なときだけ開く ===== */
+#tab-quote-make .quote-header.ci-layout { display: flex; flex-direction: column; gap: 14px; max-width: 760px; }
+#tab-quote-make .ci-layout .ci-block { display: flex; flex-direction: column; gap: 8px; }
+#tab-quote-make .ci-layout .ci-head { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; font-size: var(--fs-12, 12px); color: var(--text-md, #555); }
+#tab-quote-make .ci-layout .ci-head b { color: var(--text, #222); font-size: var(--fs-13, 13px); }
+#tab-quote-make .ci-layout .ci-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 14px; }
+#tab-quote-make .ci-layout .ci-grid > .ci-cell { min-width: 0; grid-column: auto; grid-row: auto; }
+#tab-quote-make .ci-layout .ci-cell-ref, #tab-quote-make .ci-layout .ci-cell-cust { grid-column: 1; }
+#tab-quote-make .ci-layout .ci-cell-recv { grid-column: 2; grid-row: 1; }
+#tab-quote-make .ci-layout .ci-cell-person { grid-column: 2; }
+#tab-quote-make .ci-layout .ci-cell-cust { grid-row: 2; }
+#tab-quote-make .ci-layout .ci-cell-person { grid-row: 2; }
+#tab-quote-make .ci-layout .quote-field { grid-column: auto; grid-row: auto; margin: 0; }
+#tab-quote-make .ci-auto, #tab-quote-make .ci-chip { display: inline-block; font-size: 10.5px; font-weight: 600; padding: 1px 7px; border-radius: 9px; background: #e8eef5; color: #35506e; vertical-align: middle; }
+#tab-quote-make .ci-auto.is-std { background: #e6f1e9; color: #2d6a3f; }
+#tab-quote-make .ci-hint { font-size: 11px; color: var(--text-md, #666); min-height: 0; margin-top: 3px; }
+#tab-quote-make .ci-hint:empty { display: none; }
+#tab-quote-make .ci-opt-btn, #tab-quote-make .ci-link-btn { background: none; border: 1px dashed var(--border, #bbb); border-radius: 6px; padding: 5px 10px; font-size: 12px; color: var(--text-md, #555); cursor: pointer; text-align: left; margin-top: 6px; }
+#tab-quote-make .ci-opt-btn:hover, #tab-quote-make .ci-link-btn:hover { border-color: #35506e; color: #35506e; }
+#tab-quote-make .ci-link-btn { border-style: solid; margin-top: 0; }
+#tab-quote-make .ci-opt-panel, #tab-quote-make .ci-due-panel { margin-top: 6px; padding: 8px 10px; border: 1px solid var(--border, #ddd); border-radius: 8px; background: rgba(0,0,0,.015); }
+#tab-quote-make .ci-due-panel { display: flex; align-items: flex-end; gap: 10px; }
+#tab-quote-make .ci-due-panel[hidden], #tab-quote-make .ci-opt-panel[hidden], #tab-quote-make .ci-valid-menu[hidden], #tab-quote-make .ci-more-body[hidden], #tab-quote-make .ci-opt-btn[hidden] { display: none; }
+#tab-quote-make .ci-valid-field .qf-valid-until-row { position: relative; display: flex; gap: 8px; align-items: center; }
+#tab-quote-make .ci-valid-field .qf-valid-until-row > input { flex: 1; min-width: 0; }
+#tab-quote-make .ci-valid-change { margin-top: 0; white-space: nowrap; }
+#tab-quote-make .ci-valid-menu { position: absolute; top: 100%; right: 0; z-index: 30; margin-top: 4px; display: flex; flex-direction: column; gap: 2px; min-width: 190px; padding: 6px; background: var(--surface, #fff); border: 1px solid var(--border, #ccc); border-radius: 8px; box-shadow: 0 6px 18px rgba(0,0,0,.14); }
+#tab-quote-make .ci-valid-menu .qf-days-btn { text-align: left; width: 100%; }
+#tab-quote-make .ci-fold { display: flex; align-items: center; gap: 8px; width: 100%; background: none; border: 1px solid var(--border, #ddd); border-radius: 8px; padding: 8px 12px; cursor: pointer; font-size: 13px; text-align: left; }
+#tab-quote-make .ci-more-body { display: flex; flex-direction: column; gap: 12px; padding: 12px 4px 2px; }
+/* ステータス：下書き中／提示済み／その他 ▾ */
+#tab-quote-make .ci-layout .qf-status-btns:not(.ci-more-open) .qf-status-btn[data-more]:not(.active) { display: none; }
+/* 社内メモは右下の付箋に集約（欄は保存の値の保持役として残し、画面からは隠す） */
+#tab-quote-make .ci-layout ~ .quote-field-memo, #tab-quote-make .quote-field-memo { display: none; }
+.qf-memo-fab { position: fixed; right: 16px; bottom: 74px; z-index: 55; display: none; padding: 8px 14px; border: 1px solid #d9b96a; border-radius: 18px; background: #fff3c4; color: #5a3a10; font-size: 12.5px; font-weight: 700; cursor: pointer; box-shadow: 0 3px 10px rgba(0,0,0,.16); }
+body:has(#tab-quote-make.active) .qf-memo-fab { display: block; }
+body.qp-dash-active .qf-memo-fab, body:has(#qfMemoFloat:not([hidden])) .qf-memo-fab { display: none; }
+@media (max-width: 680px) {
+  #tab-quote-make .ci-layout .ci-grid { grid-template-columns: 1fr; }
+  #tab-quote-make .ci-layout .ci-grid > .ci-cell { grid-column: 1 !important; grid-row: auto !important; }
+}
+/* SPOT 中も「変更 ▾」のメニューは全項目出す（旧 SPOT 表示の隠し方を打ち消す） */
+#tab-quote-make .ci-valid-menu .qf-days-btn { display: block !important; }
+#tab-quote-make .ci-auto[hidden], #tab-quote-make .ci-chip[hidden] { display: none; }

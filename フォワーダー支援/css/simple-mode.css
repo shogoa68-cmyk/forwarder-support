@@ -238,3 +238,6 @@ html.mode-simple #tab-quote-make .pal-jump-btn { display: none !important; }
 #qpDashboard .qpd-welcome-btn span { font-size: 24px; line-height: 1; font-weight: 500; }
 #qpDashboard .qpd-welcome-btn:hover { filter: brightness(1.12); }
 #qpDashboard .qpd-welcome small { color: var(--text-md); font-size: var(--fs-12); }
+
+/* 管理番号入力：かんたん表示では管理者の一時機能・空の「前の案件」案内を出さない（DOM は残す） */
+html.mode-simple #adminCreatorNew, html.mode-simple #qfCopiedFromInfo:has(.qf-cf-empty) { display: none !important; }

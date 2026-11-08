@@ -362,11 +362,13 @@
 
   function _addDaysToValidUntil(n) {
     const el = document.getElementById('qf-valid-until');
-    if (!el || el.type !== 'date') return;
-    const base = el.value ? new Date(el.value + 'T00:00:00') : new Date();
+    if (!el) return;
+    if (el.type === 'text') _toggleValidUntilSpot();   // SPOT 表記から日付入力へ戻す
+    const base = new Date();   // 「今日から」n 日後（メニューの表記どおり）
     base.setDate(base.getDate() + n);
     el.value = base.toLocaleDateString('sv', { timeZone: 'Asia/Tokyo' }); // "YYYY-MM-DD" JST
     _checkValidUntil();
+    el.dispatchEvent(new Event('change', { bubbles: true }));
     if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
   }
 
@@ -839,6 +841,7 @@
     if (typeof window.renderQuoteMilestones === 'function') window.renderQuoteMilestones();
     if (typeof window.qfRenderTagChips === 'function') window.qfRenderTagChips();
     if (typeof window.qfRenderRelChips === 'function') window.qfRenderRelChips();
+    if (typeof window.ciSync === 'function') window.ciSync();
     if (typeof window.updateRemarkChar === 'function') window.updateRemarkChar();
     if (typeof window.syncRemarkChips === 'function') window.syncRemarkChips();
     if (typeof window.renderRemarkImages === 'function') window.renderRemarkImages();
