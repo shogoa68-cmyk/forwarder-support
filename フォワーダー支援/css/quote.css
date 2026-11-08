@@ -4443,9 +4443,10 @@ body.qp-dash-active #quoteActionDock { display: none !important; }
 #qpDashboard .qpd-head { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-12); flex-wrap: wrap; margin: var(--sp-6) 0 var(--sp-16); }
 #qpDashboard .qpd-title { font-size: var(--fs-18); font-weight: 800; color: var(--brown-21); margin: 0; }
 #qpDashboard .qpd-head-actions { display: flex; gap: var(--sp-8); flex-wrap: wrap; }
-#qpDashboard .qpd-new { background: var(--green-ok); color: var(--surface); border: none; border-radius: var(--r-8); padding: var(--sp-8) var(--sp-16); font-size: var(--fs-13); font-weight: 700; cursor: pointer; }
-#qpDashboard .qpd-new:hover { background: #18683a; }
-#qpDashboard .qpd-store { background: var(--surface); color: var(--accent-dk); border: 1px solid #b8933e; border-radius: var(--r-8); padding: var(--sp-8) var(--sp-16); font-size: var(--fs-13); font-weight: 700; cursor: pointer; }
+/* 新しい見積を始めるボタンは、ダッシュボードの主役（1 つだけ・大きく・アクセント色）。ほかの操作は枠だけに下げる（Design 回答 2026-11） */
+#qpDashboard .qpd-new { background: var(--accent-dk); color: var(--surface); border: none; border-radius: var(--r-8); min-height: 48px; padding: 0 24px; font-size: var(--fs-14); font-weight: 700; letter-spacing: .03em; cursor: pointer; box-shadow: 0 2px 6px rgba(60,46,30,.18); }
+#qpDashboard .qpd-new:hover { filter: brightness(1.12); }
+#qpDashboard .qpd-store { background: var(--surface); color: var(--text-md); border: 1px solid var(--c-d5c8b0); border-radius: var(--r-8); padding: var(--sp-8) var(--sp-16); font-size: var(--fs-13); font-weight: 700; cursor: pointer; }
 #qpDashboard .qpd-store:hover { background: #fbf3df; }
 /* 📩 未取込（自由入力で保管・まだ表に取り込んでいない案件）の印・タイル */
 #qpDashboard .cloud-pend-badge { cursor: pointer; font-family: inherit; font-size: var(--fs-11-5); font-weight: 700; color: #6b4a00; background: #fff4dc; border: 1px solid #e3b95a; border-radius: 999px; padding: 2px var(--sp-10); }

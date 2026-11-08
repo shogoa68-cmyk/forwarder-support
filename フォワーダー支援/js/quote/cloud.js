@@ -842,6 +842,23 @@
   // ブラウザ保存（ui.js renderPresetList）からも共通利用する
   window.quoteExtractSubcons = _extractSubcons;
 
+  // 新しい見積を始める入口（かんたん表示）：案件の先頭の点線カード／0 件のときの案内。どちらも qpNewQuote() を呼ぶだけ
+  function _newCaseCardHtml() {
+    return '<button type="button" class="qpd-newcard" onclick="qpNewQuote()">'
+      + '<span class="qpd-newcard-plus" aria-hidden="true">＋</span>'
+      + '<span class="qpd-newcard-text"><b>新しい見積を作る</b><small>お客様名とご担当者を入れるところから始めます</small></span></button>';
+  }
+  function _newCaseWelcomeHtml() {
+    const steps = ['条件', '貨物', '費用', '出力'].map((t, i) => '<span class="qpd-welcome-step"><i>' + (i + 1) + '</i>' + t + '</span>').join('');
+    return '<div class="qpd-welcome">'
+      + '<h3>最初の見積を作ってみましょう</h3>'
+      + '<p>お客様の名前と担当者を入れるところから始まります。あとからいつでも直せるので、まずは1件作ってみてください。</p>'
+      + '<div class="qpd-welcome-steps">' + steps + '</div>'
+      + '<button type="button" class="qpd-welcome-btn" onclick="qpNewQuote()"><span aria-hidden="true">＋</span>新しい見積を作る</button>'
+      + '<small>メールの文面を貼って始めたい場合は、右上の「自由入力で保管」から。</small>'
+      + '</div>';
+  }
+
   function _renderCloudList(rows) {
     // チーム共有モーダルの一覧と、ダッシュボードの一覧の両方へ描画
     const wraps = [document.getElementById('cloudPresetListWrap'), document.getElementById('qpdListWrap')].filter(Boolean);
@@ -850,7 +867,9 @@
     if (!_cloudRows.length) {
       html = '<div class="preset-empty">共有案件はまだありません<br>'
         + '<small style="color:#9bb;">「🆕 新規見積を作成」から保存できます</small></div>';
-      wraps.forEach(w => w.innerHTML = html);
+      // かんたん表示のダッシュボードは、0 件のとき「ここから始める」の大きな案内を出す（モーダルは従来の文言のまま）
+      const simpleDash0 = !!(window.uiIsSimple && window.uiIsSimple());
+      wraps.forEach(w => { w.innerHTML = (simpleDash0 && w.id === 'qpdListWrap') ? _newCaseWelcomeHtml() : html; });
       return;
     }
     if (!rows.length) {
@@ -1100,7 +1119,7 @@
                 ? '<span>状態</span><span>案件名</span><span>お客様</span><span>ルート</span><span>更新日</span><span></span><span></span></div>'
                 : '<span>状態</span><span>見積番号</span><span>お客様 / 担当</span><span>作業者</span><span>更新</span><span></span></div>')
             + shown.map(r => _cloudListRow(r, simpleList)).join('') + moreBtn)
-        : (shown.map(r => _cloudCardHtml(r, true)).join('') + moreBtn);
+        : ((simpleList ? _newCaseCardHtml() : '') + shown.map(r => _cloudCardHtml(r, true)).join('') + moreBtn);
       if (!listMode) _loadDashChatSummaries(shown);   // 💬 申し送りの件数/最新は描画済みぶんだけ取得
       if (!listMode) _loadDashLinks(shown);           // 🔗 関連案件も描画済みぶんだけ一括取得
     }
