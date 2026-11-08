@@ -1133,6 +1133,43 @@ const http = require('http'), fs = require('fs'), path = require('path');
     await ctx.close();
   }
 
+  // ===== 港名のプリセット登録（英語名＝マスター・日本語名＝別名・国） =====
+  {
+    const { ctx, p, errs } = await open(true, { legacy: {}, noLegacy: true, role: 'admin' });
+    const L = '[港名プリセット] ';
+    await p.evaluate(async () => {
+      window.__db.master_votes.push({ field: 'port', value: 'YOKOHAMA', voter_email: 's@example.com' });
+      await statsLoadMasterCache(); await mdLoadCloud(); await synLoadCloud();
+    });
+    ok(L + 'プリセットのデータが読み込まれている（400 件以上・重複なし）', await p.evaluate(() => PORT_PRESETS.length > 400 && new Set(PORT_PRESETS.map(x => x.name)).size === PORT_PRESETS.length));
+    await p.evaluate(() => { switchCategory('master', document.querySelector('[onclick*="switchCategory(\'master"]')); }); await p.waitForTimeout(1000);
+    await p.evaluate(() => statsMasterSetFilter('port')); await p.waitForTimeout(300);
+    ok(L + '港を見ているとき「港名のプリセットを登録」ボタンが出る', await p.evaluate(() => [...document.querySelectorAll('.cm-entry-btn')].some(b => b.textContent.includes('港名のプリセット'))));
+    await p.evaluate(() => statsShowPortPreset()); await p.waitForTimeout(800);
+    ok(L + '日本が先頭・次にアジアの国', await p.evaluate(() => { const c = [...document.querySelectorAll('.pp-country')].map(d => d.dataset.cc); return c[0] === 'JP' && ['KR', 'CN', 'HK', 'TW'].includes(c[1]) && c.indexOf('VN') < c.indexOf('NL') && c.indexOf('NL') < c.indexOf('US'); }));
+    ok(L + '国ごとの一覧が出る・登録済みの港（YOKOHAMA）は選べない', await p.evaluate(() => document.querySelectorAll('.pp-country').length > 50 && document.querySelector('.pp-chk[data-name="YOKOHAMA"]').disabled));
+    ok(L + '初期状態は日本の未登録だけが選ばれている', await p.evaluate(() => { const on = [...document.querySelectorAll('.pp-chk:checked')].map(c => c.dataset.name); return on.includes('TOKYO') && !on.includes('SHANGHAI') && !on.includes('YOKOHAMA'); }));
+    await p.evaluate(() => document.querySelector('.pp-quick [data-q="asia"]').click());
+    ok(L + '「日本とアジア」で中国・ベトナムも選ばれる', await p.evaluate(() => { const on = new Set([...document.querySelectorAll('.pp-chk:checked')].map(c => c.dataset.name)); return on.has('SHANGHAI') && on.has('HAIPHONG') && !on.has('ROTTERDAM'); }));
+    await p.evaluate(() => document.querySelector('.pp-quick [data-q="none"]').click());
+    await p.evaluate(() => { document.querySelector('.pp-chk[data-name="TOKYO"]').click(); document.querySelector('.pp-chk[data-name="HAIPHONG"]').click(); });
+    await p.click('#ppApplyBtn'); await p.waitForTimeout(1500);
+    const st = await p.evaluate(() => ({
+      votes: window.__db.master_votes.filter(v => v.field === 'port').map(v => v.value),
+      cn: ['TOKYO', 'HAIPHONG'].map(n => ((window.__db.master_details.find(m => m.field === 'port' && m.value === n) || { details: {} }).details || {}).country),
+      al: (window.__db.synonym_groups.filter(g => g.field === 'port').find(g => g.canonical === 'TOKYO') || { aliases: [] }).aliases,
+      msg: document.querySelector('#ppMsg').textContent,
+    }));
+    ok(L + '選んだ 2 件だけがマスターに登録される', st.votes.includes('TOKYO') && st.votes.includes('HAIPHONG') && !st.votes.includes('SHANGHAI'), st);
+    ok(L + '国（JP・VN）が付く', st.cn[0] === 'JP' && st.cn[1] === 'VN', st.cn);
+    ok(L + '日本語名が別名になる（東京→TOKYO）', st.al.includes('東京'), st.al);
+    ok(L + '日本語名で入力しても代表名になる', await p.evaluate(() => { nameCacheClear(); return nameCanon('port', '東京') === 'TOKYO'; }));
+    await p.evaluate(() => statsShowPortPreset()); await p.waitForTimeout(600);
+    ok(L + '登録した港は次回から選べない（登録済み）', await p.evaluate(() => document.querySelector('.pp-chk[data-name="TOKYO"]').disabled));
+    ok(L + 'JS エラーなし', errs.length === 0, errs);
+    await ctx.close();
+  }
+
   // ===== 同業者のお客様の「先のお客様」（取引形態・経由する同業者・重複防止） =====
   {
     const { ctx, p, errs } = await open(true, { legacy: {}, noLegacy: true });
