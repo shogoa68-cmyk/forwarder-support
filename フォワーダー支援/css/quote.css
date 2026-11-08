@@ -11893,3 +11893,31 @@ body.qp-dash-active .qf-memo-fab, body:has(#qfMemoFloat:not([hidden])) .qf-memo-
 #tab-quote-make .zone-builder.rf-stack .zone-card.zone-collapsed .zone-toggle-btn { writing-mode: horizontal-tb; padding: 0; }
 #tab-quote-make .rf-end-sum { margin-left: auto; margin-right: 6px; background: #fff; border: 1px solid #bcd0e4; padding: 2px 10px; font-size: 12px; max-width: 60%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 #tab-quote-make .rf-end-sum[hidden] { display: none; }
+
+/* ===== 貨物情報（Design 回答 2026-11・案2）：貨物名・HS コードの右隣のオプションボタン→詳細が下に開く ===== */
+#tab-quote-make #cargoCondGrid.cg-flow { display: flex; flex-direction: column; gap: 14px; max-width: 1000px; }
+#tab-quote-make #cargoCondGrid.cg-flow > .cond-field { width: 100%; }
+#tab-quote-make .cg-row { display: flex; align-items: stretch; flex-wrap: wrap; }
+#tab-quote-make .cg-row > input { flex: 1 1 240px; width: auto; min-width: 0; height: 44px; }
+#tab-quote-make .cg-opt { display: inline-flex; align-items: center; gap: 6px; height: 44px; padding: 0 14px; border: 1px solid var(--border-md, #98989b); border-left-width: 0; background: var(--surface, #fff); color: var(--text, #222); font: inherit; font-size: 13px; font-weight: 700; cursor: pointer; text-decoration: none; box-sizing: border-box; white-space: nowrap; }
+#tab-quote-make .cg-row > input + .cg-opt { border-left-width: 1px; }
+#tab-quote-make .cg-opt:hover { background: var(--accent-lt, #eef6ff); }
+#tab-quote-make .cg-opt[aria-expanded="true"] { background: var(--accent-lt, #eef6ff); }
+#tab-quote-make .cg-opt.has-kind { color: #35506e; }
+#tab-quote-make .cg-opt.has-haz { background: #fbf4e6; color: #7a3622; border-color: #c9a96a; }
+#tab-quote-make .cg-link { color: #35506e; }
+#tab-quote-make .cg-badge { background: #8a5a2b; color: #fff; font-size: 11px; padding: 0 6px; }
+#tab-quote-make .cg-arrow { font-size: 10px; }
+#tab-quote-make .cg-panel { margin: -8px 0 0; padding: 14px; border: 1px solid var(--border-md, #98989b); border-top: 0; background: var(--surface-alt, #f7f9fb); }
+#tab-quote-make .cg-panel[hidden] { display: none; }
+#tab-quote-make .cg-temp-switch { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 10px; }
+#tab-quote-make .cg-temp-switch[hidden] { display: none; }
+#tab-quote-make .cg-temp-switch small { font-size: 11px; color: var(--text-md, #666); }
+#tab-quote-make .cg-seg { display: inline-flex; }
+#tab-quote-make .cg-seg button { height: 34px; padding: 0 16px; border: 1px solid var(--text, #222); background: #fff; font: inherit; font-weight: 700; cursor: pointer; }
+#tab-quote-make .cg-seg button + button { border-left: 0; }
+#tab-quote-make .cg-seg button.is-on { background: var(--text, #222); color: #fff; }
+/* 冷蔵・冷凍の 2 チップは「温度管理」の 1 つにまとめる（要素・値は残す） */
+#tab-quote-make #hazChips .haz-chip[data-haz-value^="温度管理品"] { display: none; }
+/* 「詳細（任意）」の畳みは使わない（任意の項目はそれぞれのボタンの裏へ移した） */
+#tab-quote-make #cargoBody > .tier-opt-toggle { display: none !important; }

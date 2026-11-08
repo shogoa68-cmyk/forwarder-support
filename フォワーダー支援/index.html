@@ -3346,7 +3346,7 @@
               <input type="text" id="cond-hs" placeholder="例）8544.42" maxlength="20" />
             </div>
           </div>
-          <div class="cond-rate-card" data-tier="opt">
+          <div class="cond-rate-card">
             <div class="cond-rate-card-head">関税率</div>
             <div class="hs-rate-row">
               <div class="hs-rate-field">
@@ -3366,7 +3366,7 @@
         <button type="button" class="tier-opt-toggle" data-opt-host="cargoBody" aria-expanded="false" onclick="uiToggleOpt(this)"><span class="tier-opt-caret">▶</span> 詳細（任意）<small>関税率・関連知識リンク・危険品／特殊貨物</small></button>
 
         <!-- ▼ 関連知識・他法令（リンクチップ＋知識DB要約） -->
-        <div class="cond-sub" data-tier="opt">
+        <div class="cond-sub" id="cargoLawSub">
           <div class="cond-sub-label">📚 関連知識・他法令 <span class="cond-sub-note">輸出入に必要な規制・手続きの参照</span></div>
           <div class="cargo-ref-chips" id="cargoRefChips">
             <button type="button" class="cargo-ref-chip cargo-ref-chip--law" onclick="toggleCargoLawPanel()" title="輸入の他法令（11法令）の要約をその場で表示">📋 輸入 他法令（11法令）</button>
@@ -3386,7 +3386,7 @@
         </div>
 
         <!-- ▼ 危険品・特殊貨物グループ（区分チップ） -->
-        <div class="cond-sub" data-tier="opt" data-adv-key="hazmat" data-adv-label="危険品・特殊貨物">
+        <div class="cond-sub" id="cargoKindSub" data-adv-key="hazmat" data-adv-label="危険品・特殊貨物">
           <div class="cond-sub-label">☣️ 危険品・特殊貨物 <span class="cond-sub-note">該当する区分を選択</span></div>
 
           <!-- 区分チップ：#cond-hazmat セレクトを駆動する。セレクトは保存/復元・プレビュー・PDF が値を読むため残置し、視覚的にのみ非表示にする -->
@@ -4947,6 +4947,7 @@
 <script src="js/quote/case-info.js"></script>
 <script src="js/quote/cond-flow.js"></script>
 <script src="js/quote/route-flow.js"></script>
+<script src="js/quote/cargo-flow.js"></script>
 <script src="js/quote/packing-import.js"></script>
 <script src="js/tweaks.js"></script>
 <script src="js/ui-mode.js"></script>

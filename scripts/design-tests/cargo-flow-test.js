@@ -1,0 +1,47 @@
+// 貨物情報（Design 回答 2026-11・案2）の試験。  node scripts/design-tests/cargo-flow-test.js （OUT=<dir>, MODE=simple, THEME=1）
+const { chromium } = (() => { try { return require('playwright-core'); } catch (e) { return require('playwright'); } })();
+const http = require('http'), fs = require('fs'), path = require('path');
+(async () => {
+  const root = path.resolve(__dirname, '..', '..');
+  const srv = http.createServer((q, r) => { const f = path.join(root, decodeURIComponent(q.url.split('?')[0])); if (!fs.existsSync(f) || fs.statSync(f).isDirectory()) { r.writeHead(404); r.end(); return; } r.writeHead(200, { 'Content-Type': f.endsWith('.css') ? 'text/css' : f.endsWith('.js') ? 'text/javascript' : 'text/html; charset=utf-8' }); fs.createReadStream(f).pipe(r); });
+  await new Promise(r => srv.listen(0, '127.0.0.1', r));
+  const URL = `http://127.0.0.1:${srv.address().port}/${encodeURIComponent('フォワーダー支援')}/index.html`;
+  const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', args: ['--no-sandbox'] });
+  const out = []; const ok = (n, c, d) => out.push((c ? 'PASS ' : 'FAIL ') + n + (c ? '' : ' → ' + JSON.stringify(d)));
+  const ctx = await b.newContext({ viewport: { width: 1400, height: 1000 }, locale: 'ja-JP' });
+  await ctx.addInitScript((mode) => { try { localStorage.setItem('fwd.uiMode', mode); } catch (e) {} }, process.env.MODE || 'detail');
+  if (process.env.THEME) await ctx.addInitScript(() => { try { localStorage.setItem('forwarderTheme_v1', JSON.stringify({ site: true, doc: true })); } catch (e) {} });
+  await ctx.route(u => !u.href.startsWith('http://127.0.0.1'), r => r.abort());
+  const p = await ctx.newPage(); const errs = []; p.on('pageerror', e => errs.push(e.message)); p.on('dialog', d => d.accept()); p.setDefaultTimeout(8000);
+  await p.goto(URL, { waitUntil: 'domcontentloaded' }); await p.waitForTimeout(700);
+  await p.evaluate(() => { const t = document.querySelector('[onclick*="quote-make"]'); t && t.click(); }); await p.waitForTimeout(1500);
+  await p.evaluate(() => { try { window.qpNewQuote(); } catch (e) {} }); await p.waitForTimeout(600);
+  const vis = s => p.evaluate(x => { const e = document.querySelector(x); if (!e) return false; const r = e.getBoundingClientRect(); return r.width > 0 && r.height > 0; }, s);
+  await p.evaluate(() => document.getElementById('section-cargo').scrollIntoView());
+  ok('貨物名・HS コードは最初から見える', await vis('#cond-cargo') && await vis('#cond-hs'));
+  ok('危険品・特殊貨物／関税率／他法令は閉じている', !(await vis('#hazChips')) && !(await vis('#cond-hs-basic')) && !(await vis('#cargoLawPanel')) && !(await vis('#cargoRefChips')));
+  ok('3 つのボタンが貨物名・HS の右隣にある', await vis('#cargoKindBtn') && await vis('#cargoTaxBtn') && await vis('#cargoLawBtn') && await vis('.hs-tariff-link'));
+  ok('「関連知識・他法令」に件数 11', (await p.textContent('#cargoLawBtn')).includes('11'));
+  await p.click('#cargoKindBtn'); ok('危険品・特殊貨物を開くと区分チップ', await vis('#hazChips'));
+  ok('冷蔵・冷凍は「温度管理」の 1 チップにまとまる', await vis('#hazTempChip') && !(await vis('#hazChips [data-haz-value="温度管理品（冷蔵）"]')) && !(await vis('#hazChips [data-haz-value="温度管理品（冷凍）"]')));
+  await p.click('#hazChips [data-haz-value="危険品あり（クラス要確認）"]'); await p.waitForTimeout(200);
+  ok('危険品を選ぶと詳細（UN番号など）が出てボタンが茶色', await vis('#hz-un') && await p.evaluate(() => document.getElementById('cargoKindBtn').classList.contains('has-haz')) && (await p.textContent('#cargoKindBtn')).includes('危険品'));
+  await p.click('#hazTempChip'); await p.waitForTimeout(200);
+  ok('温度管理を選ぶと冷蔵の詳細と切替が出る（保存値は冷蔵）', await vis('#hazTempSwitch') && await vis('#hz-temp-chill') && (await p.evaluate(() => document.getElementById('cond-hazmat').value)) === '温度管理品（冷蔵）');
+  await p.click('#hazTempSwitch button[data-cold="温度管理品（冷凍）"]'); await p.waitForTimeout(200);
+  ok('冷凍に切り替えると冷凍の詳細（保存値は冷凍）', await vis('#hz-temp-frozen') && !(await vis('#hz-temp-chill')) && (await p.evaluate(() => document.getElementById('cond-hazmat').value)) === '温度管理品（冷凍）');
+  ok('ボタンに「温度管理（冷凍）」', (await p.textContent('#cargoKindBtn')).includes('温度管理（冷凍）'));
+  await p.click('#hazChips [data-haz-value="重量物・大型貨物"]'); await p.waitForTimeout(150);
+  ok('重量物の詳細（重量・寸法・荷役）', await vis('#hz-heavy-weight') && await vis('#hz-heavy-dim'));
+  await p.click('#hazChips [data-haz-value="なし（一般貨物）"]'); await p.waitForTimeout(150);
+  ok('一般貨物に戻すと詳細が消える', !(await vis('#hazmatDetail')));
+  await p.click('#cargoTaxBtn'); ok('関税率を開く', await vis('#cond-hs-basic') && await vis('#cond-hs-pref'));
+  await p.fill('#cond-hs-basic', '3.3%'); await p.click('#cargoTaxBtn'); await p.click('#cargoTaxBtn'); ok('値があると開いたまま・閉じ直しもできる', await vis('#cond-hs-basic'));
+  await p.click('#cargoLawBtn'); ok('他法令を開く', await vis('#cargoRefChips'));
+  await p.evaluate(() => window.qpNewQuote()); await p.waitForTimeout(500);
+  ok('新規に戻すと最初の状態', !(await vis('#hazChips')) && !(await vis('#cond-hs-basic')) && !(await vis('#cargoRefChips')));
+  if (process.env.OUT) { await p.click('#cargoKindBtn'); await p.click('#hazChips [data-haz-value=\"危険品あり（クラス要確認）\"]'); await p.evaluate(() => document.getElementById('section-cargo').scrollIntoView()); await p.waitForTimeout(300); await p.screenshot({ path: path.join(process.env.OUT, 'cargo-flow.png') }); }
+  ok('JS エラーなし', errs.length === 0, errs);
+  console.log(out.join('\n')); console.log(out.some(l => l.startsWith('FAIL')) ? 'NG' : 'OK');
+  await b.close(); srv.close(); process.exit(out.some(l => l.startsWith('FAIL')) ? 1 : 0);
+})();
