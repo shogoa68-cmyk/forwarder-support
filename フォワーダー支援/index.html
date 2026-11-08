@@ -2799,74 +2799,22 @@
           <datalist id="adminCreatorNewList"></datalist>
         </div>
         <div id="qfCopiedFromInfo" class="qf-copied-from-info" hidden></div>
-        <div class="quote-header" data-opt-host-id="refBody">
-          <div class="quote-field">
-            <label>見積もり番号 <span class="req-mark" aria-hidden="true">*</span></label>
-            <div class="qf-ref-row">
-              <input type="text" id="qf-ref" placeholder="例）2024-001（🔢で自動採番）" aria-required="true" />
-              <button type="button" id="qfRefAuto" class="qf-ref-auto-btn" onclick="fillQuoteRef()" title="発番ID（2桁）＋年月日＋連番で自動採番">🔢 自動採番</button>
-            </div>
-          </div>
-          <div class="quote-field">
-            <label>お客様名称 <span class="req-mark" aria-hidden="true">*</span></label>
-            <div class="qf-customer-row">
-              <input type="text" id="qf-customer" placeholder="例）○○商事" aria-required="true" list="custSuggestions" autocomplete="off" />
-              <button type="button" id="qfCustomerDetailBtn" class="qf-customer-detail-btn" onclick="qfShowCustomerDetail()" hidden title="登録済みの詳細情報を表示">📇 詳細</button>
-            </div>
-          </div>
-          <div class="quote-field">
-            <label>お客様 ご担当者（敬称略） <span class="req-mark" aria-hidden="true">*</span></label>
-            <input type="text" id="qf-person" placeholder="例）山田　※宛先（お客様側）の氏名。出力時に自動で「様」付与" title="お客様側（宛先）のご担当者名を入力します。社内の見積もり作成者ではありません。姓のみ／フルネームのみ（会社名は含めない）。客先向け出力（プレビュー・PDF）で会社名とともに宛先となり、自動で「様」が付きます。登録済みのお客様なら、マスターの担当者一覧から候補表示されます。" aria-required="true" list="qfPersonSuggestions" autocomplete="off" />
-          </div>
-          <div class="quote-field quote-field-related">
-            <label>🔖 関連番号・メール件名 <span class="qf-memo-note">管理番号を取る前に始めた案件のフォロー用（複数可）。社内用で、見積書などの出力には含まれません</span></label>
-            <div class="qf-tags-chips" id="qfRelChips"></div>
-            <div class="qf-tags-add-row">
-              <select id="qfRelKind" class="qf-rel-kind" title="登録する種類">
-                <option value="num">🔢 番号</option>
-                <option value="mail">✉️ メール件名</option>
-                <option value="other">📎 その他</option>
-              </select>
-              <input type="text" id="qfRelInput" placeholder="番号・メール件名を入力してEnter（例：RE: 横浜→ノーフォーク FCL お見積依頼）" autocomplete="off" onkeydown="qfRelKeydown(event)" />
-              <button type="button" class="qf-tags-add-btn" onclick="qfAddRelFromInput()">＋ 追加</button>
-            </div>
-            <input type="hidden" id="qf-related-data" value="[]" />
-          </div>
-          <div id="crBanner" class="cr-banner" hidden aria-live="polite"></div>
-          <button type="button" class="tier-opt-toggle" data-opt-host="refBody" aria-expanded="false" onclick="uiToggleOpt(this)"><span class="tier-opt-caret">▶</span> 詳細（任意）<small>日付・ステータス・タグ・メモ・参照URL・添付など</small></button>
-          <div data-tier="opt" class="quote-field">
-            <label>📥 依頼受信日 <span class="qf-memo-note">引き合いを受けた日（経過日数を表示）</span></label>
-            <input type="date" id="qf-received" title="依頼を受信した日。ダッシュボードに経過日数を表示します" />
-          </div>
-          <div data-tier="opt" class="quote-field">
-            <label>⏰ 提出期限 <span class="qf-memo-note">回答の締切（残り日数で優先度表示）</span></label>
-            <input type="date" id="qf-due" title="見積提出の期限。ダッシュボードに残り日数を表示します" />
-          </div>
-          <div data-tier="opt" class="quote-field">
-            <label>発行日</label>
-            <input type="date" id="qf-date" title="見積書の発行日。出力・Excelに含まれます" onchange="window.updateTotals && window.updateTotals()" />
-          </div>
-          <div data-tier="opt" class="quote-field">
-            <label>有効期限</label>
-            <div class="qf-valid-until-row">
-              <input type="date" id="qf-valid-until" title="見積もりの有効期限。出力・Excelに含まれます。発行日〜有効期限の期間と重ならないサーチャージは適用期間外として非表示になります" onchange="checkValidUntilWarning(); window.updateTotals && window.updateTotals()" />
-              <button type="button" class="qf-days-btn" onclick="addDaysToValidUntil(7)"  title="今日から7日後">+7日</button>
-              <button type="button" class="qf-days-btn" onclick="addDaysToValidUntil(30)" title="今日から30日後">+30日</button>
-              <button type="button" class="qf-days-btn qf-spot-btn" id="qfSpotToggleBtn" onclick="toggleValidUntilSpot()" title="日付の代わりに「SPOT（提示した本船のみ）」など任意のテキストで表記します">SPOT</button>
-            </div>
-          </div>
-          <div data-tier="opt" class="quote-field quote-field-status">
+        <div class="quote-header ci-layout" data-opt-host-id="refBody">
+          <!-- ステータス（常時表示。下書き中／提示済み／その他 ▾） -->
+          <div class="ci-block ci-status-block">
+          <div class="quote-field quote-field-status">
             <label>ステータス</label>
             <div class="qf-status-btns" id="qf-status-btns">
               <button type="button" class="qf-status-btn active" data-status="下書き中"  onclick="setQuoteStatus('下書き中')">下書き中</button>
               <button type="button" class="qf-status-btn"        data-status="提示済み" onclick="setQuoteStatus('提示済み')">提示済み</button>
-              <button type="button" class="qf-status-btn"        data-status="改定中"   onclick="setQuoteStatus('改定中')">改定中</button>
-              <button type="button" class="qf-status-btn"        data-status="情報待ち" onclick="setQuoteStatus('情報待ち')">情報待ち</button>
-              <button type="button" class="qf-status-btn"        data-status="ヨコヨコ提示" onclick="setQuoteStatus('ヨコヨコ提示')" title="マージン（乗せ幅）を乗せず、買値をそのまま提示した見積（同業者向けで多い）">ヨコヨコ提示</button>
-              <button type="button" class="qf-status-btn"        data-status="受注"    onclick="setQuoteStatus('受注')">受注</button>
-              <button type="button" class="qf-status-btn"        data-status="失注"    onclick="setQuoteStatus('失注')">失注</button>
-              <button type="button" class="qf-status-btn"        data-status="辞退"    onclick="setQuoteStatus('辞退')">辞退</button>
-              <button type="button" class="qf-status-btn"        data-status="保留"    onclick="setQuoteStatus('保留')">保留</button>
+              <button type="button" class="qf-status-btn"        data-status="改定中" data-more="1"   onclick="setQuoteStatus('改定中')">改定中</button>
+              <button type="button" class="qf-status-btn"        data-status="情報待ち" data-more="1" onclick="setQuoteStatus('情報待ち')">情報待ち</button>
+              <button type="button" class="qf-status-btn"        data-status="ヨコヨコ提示" data-more="1" onclick="setQuoteStatus('ヨコヨコ提示')" title="マージン（乗せ幅）を乗せず、買値をそのまま提示した見積（同業者向けで多い）">ヨコヨコ提示</button>
+              <button type="button" class="qf-status-btn"        data-status="受注" data-more="1"    onclick="setQuoteStatus('受注')">受注</button>
+              <button type="button" class="qf-status-btn"        data-status="失注" data-more="1"    onclick="setQuoteStatus('失注')">失注</button>
+              <button type="button" class="qf-status-btn"        data-status="辞退" data-more="1"    onclick="setQuoteStatus('辞退')">辞退</button>
+              <button type="button" class="qf-status-btn"        data-status="保留" data-more="1"    onclick="setQuoteStatus('保留')">保留</button>
+              <button type="button" class="qf-status-btn ci-status-more-btn" id="ciStatusMore" aria-expanded="false" title="そのほかのステータス（改定中・情報待ち・ヨコヨコ提示・受注・失注・辞退・保留）">その他 ▾</button>
             </div>
             <button type="button" class="qf-revision-btn" id="qfRevisionBtn" hidden onclick="startQuoteRevision()"
                     title="現在の内容を「前回提示分」として記録し、改定中にして編集を再開します。次にPDF・メール本文を出力すると前回からの変更点が自動表示されます">
@@ -2891,13 +2839,106 @@
             <div class="qv-panel" id="qvPanel" hidden></div>
             <input type="hidden" id="qf-revision-baseline" />
           </div>
-          <div data-tier="opt" class="quote-field quote-field-corerf">
-            <label>🔗 基幹システム REF# <span class="qf-memo-note">受注・手配後に登録（英数字）。社内用で、見積書などの出力には含まれません</span></label>
-            <input type="text" id="qf-core-ref" maxlength="40" autocomplete="off" spellcheck="false" inputmode="latin"
-                   placeholder="例）EX2410-0123" onchange="normalizeCoreRef(this)"
-                   title="この見積を使って実際に手配した案件の、基幹システム上の REF# を登録します。半角の英数字（とハイフン・アンダースコア・スラッシュ・ピリオド）が使えます。全角は半角に直します。" />
           </div>
-          <div data-tier="opt" class="quote-field quote-field-tags">
+          <!-- まず入れるもの：見積もり番号・依頼受信日・お客様・ご担当者 -->
+          <div class="ci-block ci-first">
+            <div class="ci-head"><b>まず入れるもの</b><span>* の3つが必須です。番号と受信日は自動で入っています。</span></div>
+            <div class="ci-grid">
+          <div class="ci-cell ci-cell-ref">
+          <div class="quote-field">
+            <label>見積もり番号 <span class="req-mark" aria-hidden="true">*</span></label>
+            <div class="qf-ref-row">
+              <input type="text" id="qf-ref" placeholder="例）2024-001（🔢で自動採番）" aria-required="true" />
+              <button type="button" id="qfRefAuto" class="qf-ref-auto-btn" onclick="fillQuoteRef()" title="発番ID（2桁）＋年月日＋連番で自動採番">🔢 自動採番</button>
+            </div>
+          </div>
+          <button type="button" class="ci-opt-btn" id="ciRelBtn" aria-expanded="false" aria-controls="ciRelPanel">＋ 関連番号・メール件名を追加（任意）<span class="ci-chip" id="ciRelCount" hidden></span></button>
+          <div class="ci-opt-panel" id="ciRelPanel" hidden>
+          <div class="quote-field quote-field-related">
+            <label>🔖 関連番号・メール件名 <span class="qf-memo-note">管理番号を取る前に始めた案件のフォロー用（複数可）。社内用で、見積書などの出力には含まれません</span></label>
+            <div class="qf-tags-chips" id="qfRelChips"></div>
+            <div class="qf-tags-add-row">
+              <select id="qfRelKind" class="qf-rel-kind" title="登録する種類">
+                <option value="num">🔢 番号</option>
+                <option value="mail">✉️ メール件名</option>
+                <option value="other">📎 その他</option>
+              </select>
+              <input type="text" id="qfRelInput" placeholder="番号・メール件名を入力してEnter（例：RE: 横浜→ノーフォーク FCL お見積依頼）" autocomplete="off" onkeydown="qfRelKeydown(event)" />
+              <button type="button" class="qf-tags-add-btn" onclick="qfAddRelFromInput()">＋ 追加</button>
+            </div>
+            <input type="hidden" id="qf-related-data" value="[]" />
+          </div>
+          </div>
+          </div>
+          <div class="ci-cell ci-cell-recv">
+          <div class="quote-field">
+            <label>📥 依頼受信日 <span class="ci-auto" id="ciAutoRecv" hidden>自動</span> <span class="qf-memo-note">引き合いを受けた日（経過日数を表示）</span></label>
+            <input type="date" id="qf-received" title="依頼を受信した日。ダッシュボードに経過日数を表示します" />
+          </div>
+          </div>
+          <div class="ci-cell ci-cell-cust">
+          <div class="quote-field">
+            <label>お客様名称 <span class="req-mark" aria-hidden="true">*</span></label>
+            <div class="qf-customer-row">
+              <input type="text" id="qf-customer" placeholder="例）○○商事" aria-required="true" list="custSuggestions" autocomplete="off" />
+              <button type="button" id="qfCustomerDetailBtn" class="qf-customer-detail-btn" onclick="qfShowCustomerDetail()" hidden title="登録済みの詳細情報を表示">📇 詳細</button>
+            </div>
+          </div>
+          <div id="crBanner" class="cr-banner" hidden aria-live="polite"></div>
+          </div>
+          <div class="ci-cell ci-cell-person">
+          <div class="quote-field">
+            <label>お客様 ご担当者（敬称略） <span class="req-mark" aria-hidden="true">*</span></label>
+            <input type="text" id="qf-person" placeholder="例）山田　※宛先（お客様側）の氏名。出力時に自動で「様」付与" title="お客様側（宛先）のご担当者名を入力します。社内の見積もり作成者ではありません。姓のみ／フルネームのみ（会社名は含めない）。客先向け出力（プレビュー・PDF）で会社名とともに宛先となり、自動で「様」が付きます。登録済みのお客様なら、マスターの担当者一覧から候補表示されます。" aria-required="true" list="qfPersonSuggestions" autocomplete="off" />
+          </div>
+          </div>
+            </div>
+          </div>
+          <!-- 日付：発行日・有効期限（標準は発行日の月末）。提出期限は任意 -->
+          <div class="ci-block ci-dates">
+            <div class="ci-head"><b>日付</b></div>
+            <div class="ci-grid">
+          <div class="ci-cell">
+          <div class="quote-field">
+            <label>発行日 <span class="ci-auto" id="ciAutoDate" hidden>自動</span></label>
+            <input type="date" id="qf-date" title="見積書の発行日。出力・Excelに含まれます" onchange="window.updateTotals && window.updateTotals()" />
+          </div>
+            <div class="ci-hint" id="ciDateHint"></div>
+          </div>
+          <div class="ci-cell">
+          <div class="quote-field ci-valid-field">
+            <label>有効期限 <span class="ci-auto" id="ciValidBadge">標準</span></label>
+            <div class="qf-valid-until-row">
+              <input type="date" id="qf-valid-until" title="見積もりの有効期限。出力・Excelに含まれます。発行日〜有効期限の期間と重ならないサーチャージは適用期間外として客先出力から除外されます" onchange="checkValidUntilWarning(); window.updateTotals && window.updateTotals()" />
+              <button type="button" class="ci-opt-btn ci-valid-change" id="ciValidChange" aria-expanded="false" aria-controls="ciValidMenu">変更 ▾</button>
+              <div class="ci-valid-menu" id="ciValidMenu" hidden role="menu">
+                <button type="button" class="qf-days-btn" role="menuitem" onclick="ciSetValidEom(0)" title="発行日の属する月の末日（標準）">発行日の月末（標準）</button>
+                <button type="button" class="qf-days-btn" role="menuitem" onclick="ciSetValidEom(1)" title="発行日の翌月の末日">翌月末</button>
+                <button type="button" class="qf-days-btn" role="menuitem" onclick="addDaysToValidUntil(30)" title="今日から30日後">今日から ＋30日</button>
+                <button type="button" class="qf-days-btn" role="menuitem" onclick="addDaysToValidUntil(7)" title="今日から7日後">今日から ＋7日</button>
+                <button type="button" class="qf-days-btn qf-spot-btn" role="menuitem" id="qfSpotToggleBtn" onclick="toggleValidUntilSpot()" title="日付の代わりに「SPOT（提示した本船のみ）」など任意のテキストで表記します">SPOT（文字で入力）</button>
+              </div>
+            </div>
+            <div class="ci-hint" id="ciValidHint"></div>
+          </div>
+          </div>
+            </div>
+          <button type="button" class="ci-opt-btn" id="ciDueBtn" aria-expanded="false" aria-controls="ciDuePanel">＋ 提出期限を追加（任意）</button>
+          <div class="ci-due-panel" id="ciDuePanel" hidden>
+          <div class="quote-field">
+            <label>⏰ 提出期限 <span class="qf-memo-note">回答の締切（残り日数で優先度表示）</span></label>
+            <input type="date" id="qf-due" title="見積提出の期限。ダッシュボードに残り日数を表示します" />
+          </div>
+            <button type="button" class="ci-link-btn" id="ciDueRemove" title="提出期限を外します（入力済みの日付は消えます）">外す</button>
+          </div>
+          </div>
+          <!-- 必要なときだけ開く -->
+          <div class="ci-block ci-more-block">
+            <div class="ci-head"><b>必要なときだけ開く</b></div>
+          <div class="ci-more" id="ciMore">
+            <button type="button" class="ci-fold" id="ciMoreBtn" aria-expanded="false" aria-controls="ciMoreBody"><span class="ci-fold-arrow" aria-hidden="true">▸</span><b>🏷️ タグ・REF#・参照URL・添付</b><span class="ci-chip" id="ciMoreSum" hidden></span></button>
+            <div class="ci-more-body" id="ciMoreBody" hidden>
+          <div class="quote-field quote-field-tags">
             <label>🏷️ タグ <span class="qf-memo-note">分類・絞り込み用（複数可）</span></label>
             <div class="qf-tags-chips" id="qfTagsChips"></div>
             <div class="qf-tags-add-row">
@@ -2907,7 +2948,37 @@
             <datalist id="qfTagSuggestions"></datalist>
             <input type="hidden" id="qf-tags-data" value="[]" />
           </div>
-          <div data-tier="opt" class="quote-field quote-field-memo">
+          <div class="quote-field quote-field-corerf">
+            <label>🔗 基幹システム REF# <span class="qf-memo-note">受注・手配後に登録（英数字）。社内用で、見積書などの出力には含まれません</span></label>
+            <input type="text" id="qf-core-ref" maxlength="40" autocomplete="off" spellcheck="false" inputmode="latin"
+                   placeholder="例）EX2410-0123" onchange="normalizeCoreRef(this)"
+                   title="この見積を使って実際に手配した案件の、基幹システム上の REF# を登録します。半角の英数字（とハイフン・アンダースコア・スラッシュ・ピリオド）が使えます。全角は半角に直します。" />
+          </div>
+          <div class="quote-field quote-field-refurl">
+            <label>🔗 参照URL <span class="qf-memo-note">レート表・船社サイト等の参照リンク（複数可・改行区切り）。出力には含まれません</span></label>
+            <textarea id="qf-refurl" rows="2" placeholder="URL を貼り付け（複数可・改行区切り）。フォーカスを外すとクリックできるリンクになります" onblur="renderRefUrlLinks()"></textarea>
+            <div id="qf-refurl-view" class="qf-refurl-view" hidden>
+              <span class="qf-refurl-links"></span>
+              <button type="button" class="qf-refurl-edit" onclick="editRefUrl()" title="リンクを編集">✎ 編集</button>
+            </div>
+          </div>
+          <div class="quote-field quote-field-attach">
+            <label>📎 添付ファイル <span class="qf-memo-note">この案件に保存・チーム共有（ログイン必須）</span></label>
+            <label class="qf-attach-drop" id="qfAttachDrop"
+                   ondragover="event.preventDefault(); this.classList.add('is-drag');"
+                   ondragleave="this.classList.remove('is-drag');"
+                   ondrop="event.preventDefault(); this.classList.remove('is-drag'); qfAttachUpload(event.dataTransfer.files);">
+              <input type="file" id="qfAttachInput" multiple style="display:none" onchange="qfAttachUpload(this.files); this.value='';" />
+              <span class="qf-attach-hint">📥 ここにドラッグ＆ドロップ、またはクリックして選択<br><small>※ 添付は14日間で自動削除されます</small></span>
+            </label>
+            <div id="qfAttachMeter" class="qf-attach-meter"></div>
+            <div id="qfAttachList" class="qf-attach-list"></div>
+          </div>
+            </div>
+          </div>
+          </div>
+          <!-- 社内メモは右下の付箋（案件名・社内メモ）に集約。欄は値の保持役として残す（CSS で非表示） -->
+          <div class="quote-field quote-field-memo">
             <label>📝 メモ <span class="qf-memo-note">出力・プレビューには含まれません</span>
               <button type="button" class="qf-memo-expand-btn" id="qfMemoFloatBtn" onclick="toggleMemoFloat()" title="メモ付箋を画面固定表示（スクロール追従・ドラッグ可）">📌 付箋</button>
               <button type="button" class="qf-memo-expand-btn" onclick="openMemoPopout()" title="メモを全画面で編集" style="margin-left:3px">⤢ 拡大</button>
@@ -2922,11 +2993,11 @@
           <div id="qfMemoFloat" class="qf-memo-float" hidden>
             <div class="qf-memo-float-head" id="qfMemoFloatHead">
               <span class="qf-memo-float-icon">📝</span>
-              <span class="qf-memo-float-title">メモ付箋</span>
+              <span class="qf-memo-float-title">案件名・社内メモ</span>
               <button type="button" class="qf-memo-float-btn" onclick="openMemoPopout()" title="全画面で編集">⤢</button>
               <button type="button" class="qf-memo-float-btn" onclick="closeMemoFloat()" title="付箋を閉じる">✕</button>
             </div>
-            <textarea id="qf-memo-float-ta" class="qf-memo-float-area" placeholder="メモなし（上のメモ欄に入力すると表示されます）"></textarea>
+            <textarea id="qf-memo-float-ta" class="qf-memo-float-area" placeholder="1行目が案件名になります。担当者間の申し送り・注意事項など（お客様向け出力には含まれません）"></textarea>
           </div>
           <!-- 📝 メモ ポップアウト（全画面・サイズ可変）。#qf-memo と双方向同期 -->
           <div id="qfMemoPopout" class="qf-memo-popout-overlay" hidden onclick="if(event.target===this)closeMemoPopout()">
@@ -2938,26 +3009,6 @@
               </div>
               <textarea id="qf-memo-pop" class="qf-memo-popout-area" placeholder="担当者間の申し送り・注意事項など、案件内部メモを自由に記述できます。お客様向け出力には含まれません。"></textarea>
             </div>
-          </div>
-          <div data-tier="opt" class="quote-field quote-field-refurl">
-            <label>🔗 参照URL <span class="qf-memo-note">レート表・船社サイト等の参照リンク（複数可・改行区切り）。出力には含まれません</span></label>
-            <textarea id="qf-refurl" rows="2" placeholder="URL を貼り付け（複数可・改行区切り）。フォーカスを外すとクリックできるリンクになります" onblur="renderRefUrlLinks()"></textarea>
-            <div id="qf-refurl-view" class="qf-refurl-view" hidden>
-              <span class="qf-refurl-links"></span>
-              <button type="button" class="qf-refurl-edit" onclick="editRefUrl()" title="リンクを編集">✎ 編集</button>
-            </div>
-          </div>
-          <div data-tier="opt" class="quote-field quote-field-attach">
-            <label>📎 添付ファイル <span class="qf-memo-note">この案件に保存・チーム共有（ログイン必須）</span></label>
-            <label class="qf-attach-drop" id="qfAttachDrop"
-                   ondragover="event.preventDefault(); this.classList.add('is-drag');"
-                   ondragleave="this.classList.remove('is-drag');"
-                   ondrop="event.preventDefault(); this.classList.remove('is-drag'); qfAttachUpload(event.dataTransfer.files);">
-              <input type="file" id="qfAttachInput" multiple style="display:none" onchange="qfAttachUpload(this.files); this.value='';" />
-              <span class="qf-attach-hint">📥 ここにドラッグ＆ドロップ、またはクリックして選択<br><small>※ 添付は14日間で自動削除されます</small></span>
-            </label>
-            <div id="qfAttachMeter" class="qf-attach-meter"></div>
-            <div id="qfAttachList" class="qf-attach-list"></div>
           </div>
         </div>
       </div>
@@ -4891,6 +4942,7 @@
 <script src="js/quote/email-import.js"></script>
 <script src="js/quote/subcon-request-mail.js"></script>
 <script src="js/quote/memo-title.js"></script>
+<script src="js/quote/case-info.js"></script>
 <script src="js/quote/packing-import.js"></script>
 <script src="js/tweaks.js"></script>
 <script src="js/ui-mode.js"></script>
@@ -4977,6 +5029,7 @@
 </div>
 
 <!-- 見積アクションドック（右下フローティング・見積タブのみ表示） -->
+<button type="button" id="qfMemoFab" class="qf-memo-fab" onclick="toggleMemoFloat()" title="案件名・社内メモ（1行目が案件名になります。お客様向け出力には含まれません）">📝 案件名・社内メモ</button>
 <div id="quoteActionDock">
   <button class="qad-btn qad-pdf" onclick="quickQuotePdf()" title="御見積書PDFをそのまま出力（A4縦）。ファイル名・発行元は前回の設定を使います。設定を変えたいときはプレビュー →「📄 御見積書」から">📄 PDF出力</button>
   <button class="qad-btn qad-preview" onclick="openPreview()" title="見積をプレビュー表示・CSV/Excel/PDF出力はここから（Ctrl+P）">📋 プレビュー</button>

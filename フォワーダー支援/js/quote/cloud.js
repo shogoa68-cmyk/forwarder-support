@@ -1942,6 +1942,7 @@
     _applyShareMode('edit');
     qpShowEditor();
     qfRenderAttachments();
+    if (typeof window.ciApplyNewCaseDefaults === 'function') window.ciApplyNewCaseDefaults();
     _resetQuoteDirty();
     quoteShowToast('🆕 新規見積を作成します', 'success', 2500);
   }

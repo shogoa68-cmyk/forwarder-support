@@ -753,6 +753,10 @@
    "uses": 1,
    "defined": true
   },
+  "ciSetValidEom": {
+   "uses": 2,
+   "defined": true
+  },
   "clearCalcResult": {
    "uses": 8,
    "defined": true
@@ -1794,7 +1798,7 @@
    "defined": true
   },
   "toggleMemoFloat": {
-   "uses": 1,
+   "uses": 2,
    "defined": true
   },
   "togglePalCustom": {
@@ -1838,7 +1842,7 @@
    "defined": true
   },
   "uiToggleOpt": {
-   "uses": 2,
+   "uses": 1,
    "defined": true
   },
   "umFilter": {
@@ -2106,6 +2110,14 @@
   "checked": {
    "css": true,
    "html": true
+  },
+  "ci-fold-arrow": {
+   "css": false,
+   "html": true
+  },
+  "ci-more-open": {
+   "css": true,
+   "html": false
   },
   "cloud-card-chat": {
    "css": true,
@@ -2459,6 +2471,10 @@
    "css": true,
    "html": false
   },
+  "has-alias": {
+   "css": false,
+   "html": false
+  },
   "has-badge": {
    "css": true,
    "html": false
@@ -2468,6 +2484,10 @@
    "html": false
   },
   "has-img": {
+   "css": true,
+   "html": false
+  },
+  "has-range": {
    "css": true,
    "html": false
   },
@@ -2660,6 +2680,10 @@
    "html": false
   },
   "is-shown": {
+   "css": true,
+   "html": false
+  },
+  "is-std": {
    "css": true,
    "html": false
   },
@@ -3023,6 +3047,10 @@
    "css": true,
    "html": true
   },
+  "qad-btn": {
+   "css": true,
+   "html": true
+  },
   "qad-edit": {
    "css": true,
    "html": false
@@ -3041,6 +3069,10 @@
   },
   "qd-printing-ready": {
    "css": false,
+   "html": false
+  },
+  "qf-attach-item": {
+   "css": true,
    "html": false
   },
   "qf-expired": {
@@ -3571,6 +3603,14 @@
    "css": true,
    "html": false
   },
+  "subcon-alias-trigger": {
+   "css": true,
+   "html": false
+  },
+  "subcon-alias-view": {
+   "css": true,
+   "html": false
+  },
   "subcon-cat-sum": {
    "css": true,
    "html": false
@@ -3713,6 +3753,30 @@
   },
   "subtotal-move-up": {
    "css": false,
+   "html": false
+  },
+  "succ-cancel": {
+   "css": true,
+   "html": false
+  },
+  "succ-count": {
+   "css": true,
+   "html": false
+  },
+  "succ-item": {
+   "css": true,
+   "html": false
+  },
+  "succ-list": {
+   "css": true,
+   "html": false
+  },
+  "succ-search": {
+   "css": true,
+   "html": false
+  },
+  "succ-x": {
+   "css": true,
    "html": false
   },
   "sv-bm-pop-body": {
@@ -4593,6 +4657,10 @@
    "html": false,
    "js": true
   },
+  "user-closed": {
+   "html": false,
+   "js": true
+  },
   "user-edited": {
    "html": false,
    "js": true
@@ -4667,12 +4735,14 @@
   "js/quote/users.js",
   "js/quote/hazmat-ai-import.js",
   "js/quote/total-float.js",
+  "js/quote/succession-link.js",
   "js/quote/quote-versions.js",
   "js/quote/admin-creator-edit.js",
   "js/quote/subcon-insert.js",
   "js/quote/email-import.js",
   "js/quote/subcon-request-mail.js",
   "js/quote/memo-title.js",
+  "js/quote/case-info.js",
   "js/quote/packing-import.js",
   "js/tweaks.js",
   "js/ui-mode.js",

@@ -220,13 +220,14 @@
     const ref = ((document.getElementById('qf-ref') || {}).value || '').trim();
     el._cr = { customer: customer.trim(), person: person.trim(), editId: null, onChange: () => window.crRefreshBanner(), reasonDefault: ref ? '案件 ' + ref + ' で判明' : '' };
     const staleN = list.filter(_stale).length;
-    const open = _bannerOpen === null ? n('strict') > 0 : _bannerOpen;
+    // 自動で読み込み、閉じたまま要約（件数・厳守）だけ見せる。開くのは手動（Design 回答 2026-11）。追加フォームを開いているときは開いたまま
+    const open = _bannerOpen === true || _bannerAdd;
     const chips = ['strict', 'check', 'memo'].filter(k => n(k)).map(k => `<span class="cr-badge cr-badge-${k}">${LV[k].icon} ${LV[k].label} ${n(k)}</span>`).join('');
-    let h = `<div class="cr-bar"><button type="button" class="cr-toggle" data-cr="toggle" aria-expanded="${open}">${open ? '▼' : '▶'} 📌 このお客様の取引ルール` +
-      (list.length ? `（${list.length}件）` : '（なし）') + `</button>${chips}` +
+    let h = `<div class="cr-bar"><button type="button" class="cr-toggle" data-cr="toggle" aria-expanded="${open}">${open ? '▼' : '▶'} 📌 取引ルール` +
+      (list.length ? `（${list.length}件${n('strict') ? '・厳守' + n('strict') : ''}）` : '（なし）') + `</button>${chips}` +
       (otherContact ? `<span class="cr-other" title="ご担当者を入力すると、その担当者のルールも出ます">👤 担当者別 ${otherContact}件</span>` : '') +
       (staleN ? `<span class="cr-stale" title="最終確認から半年以上たったルールがあります。開いて「いまも有効」か「廃止」を選んでください">⏳ 再確認 ${staleN}件</span>` : '') +
-      `<button type="button" class="cr-add-btn" data-cr="addtoggle" title="この案件で気づいた決まりごとを、このお客様（や担当者）のルールとして残します">📌 この案件で気づいたことをルールにする</button></div>`;
+      (open ? `<button type="button" class="cr-add-btn" data-cr="addtoggle" title="この案件で気づいた決まりごとを、このお客様（や担当者）のルールとして残します">📌 この案件で気づいたことをルールにする</button>` : '') + `</div>`;
     if (open && list.length) h += `<div class="cr-list">${list.map(r => _itemHtml(r, { edit: false, quick: true })).join('')}</div>`;
     if (_bannerAdd) h += _formHtml(el, el._cr);
     el.innerHTML = h;
