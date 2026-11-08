@@ -165,8 +165,8 @@
 /* 📌 メモ フロート付箋（スクロール追従・ドラッグ可） */
 .qf-memo-float {
   position: fixed; right: 20px; bottom: 80px;
-  width: 280px; min-width: 160px; min-height: 100px;
-  max-width: min(480px, 90vw); max-height: 50vh;
+  width: 360px; height: 240px; min-width: 200px; min-height: 150px;
+  max-width: min(640px, 92vw); max-height: 70vh;
   z-index: 9100;
   display: flex; flex-direction: column;
   background: #fffbee; border: 1.5px solid #d4a940;
@@ -11930,3 +11930,6 @@ body.qp-dash-active .qf-memo-fab, body:has(#qfMemoFloat:not([hidden])) .qf-memo-
 #tab-quote-make .rm-count { font-weight: 400; font-size: 11px; color: var(--text-md, #666); }
 #tab-quote-make .remark-presets.rm-tabbed { border: 1px solid var(--border-md, #bbb); padding: 14px 16px; min-height: 62px; align-content: flex-start; }
 #tab-quote-make .remark-presets.rm-tabbed > :not(.rt-on) { display: none; }
+/* 案件名の入力（管理番号入力「まず入れるもの」。ご担当者の下・全幅） */
+#tab-quote-make .ci-layout .ci-grid > .ci-cell.ci-cell-case { grid-column: 1 / -1; grid-row: 3; }
+@media (max-width: 680px) { #tab-quote-make .ci-layout .ci-grid > .ci-cell.ci-cell-case { grid-column: 1 !important; grid-row: auto !important; } }

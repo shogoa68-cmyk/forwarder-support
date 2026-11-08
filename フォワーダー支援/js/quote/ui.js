@@ -1809,7 +1809,8 @@
       received:  (f['qf-received']    || '').trim(),
       due:       (f['qf-due']         || '').trim(),
       subcons:   (window.quoteExtractSubcons ? window.quoteExtractSubcons(p.data) : []),
-      memo:      (f['qf-memo']        || '').trim().split('\n')[0].trim(),
+      // 案件名：「案件名」欄があればそれ、無ければ付箋（社内メモ）の1行目（2 通りの付け方）
+      memo:      (f['qf-case-name']   || '').trim() || (f['qf-memo']        || '').trim().split('\n')[0].trim(),
     };
   }
   // チーム共有カードでも同じ表示にするため公開

@@ -44,6 +44,12 @@ const http = require('http'), fs = require('fs'), path = require('path');
   ok('社内メモの欄は画面に出ない・付箋ボタンが出る', !(await vis('#qf-memo')) && await vis('#qfMemoFab'));
   await p.click('#qfMemoFab'); ok('付箋が開く（案件名・社内メモ）', await vis('#qfMemoFloat') && (await p.textContent('.qf-memo-float-title')) === '案件名・社内メモ');
   ok('取引ルール帯は自動では開かない（バナー要素のみ）', true);
+  // 案件名の付け方 2 通り（案件名欄／付箋の 1 行目）
+  const nameOf = (fields) => p.evaluate(f => window.quotePresetMeta({ data: { fields: f } }).memo, fields);
+  ok('案件名欄がある（任意）', await vis('#qf-case-name'));
+  ok('案件名：案件名欄が空なら付箋（メモ）の1行目', (await nameOf({ 'qf-memo': 'メモの題名\n本文' })) === 'メモの題名');
+  ok('案件名：案件名欄に入れたらそれが優先', (await nameOf({ 'qf-case-name': '別途入力の案件名', 'qf-memo': 'メモの題名\n本文' })) === '別途入力の案件名');
+  ok('案件名：どちらも空なら空', (await nameOf({})) === '');
   ok('JS エラーなし', errs.length === 0, errs);
   if (process.env.OUT) { await p.evaluate(() => document.getElementById('section-ref').scrollIntoView()); await p.screenshot({ path: path.join(process.env.OUT, 'case-info.png') }); }
   console.log(out.join('\n')); console.log(out.some(l => l.startsWith('FAIL')) ? 'NG' : 'OK');

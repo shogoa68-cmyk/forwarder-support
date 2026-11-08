@@ -2325,6 +2325,14 @@
    "css": false,
    "html": false
   },
+  "cr-item": {
+   "css": true,
+   "html": false
+  },
+  "cr-lv-strict": {
+   "css": true,
+   "html": false
+  },
   "cr-toggle": {
    "css": true,
    "html": false
@@ -2729,6 +2737,10 @@
    "css": true,
    "html": false
   },
+  "is-retired": {
+   "css": true,
+   "html": false
+  },
   "is-row-dragging": {
    "css": true,
    "html": false
@@ -2853,6 +2865,10 @@
    "css": true,
    "html": false
   },
+  "master-attach-item": {
+   "css": true,
+   "html": false
+  },
   "master-cloud-notice": {
    "css": true,
    "html": true
@@ -2940,6 +2956,14 @@
   "mode-simple": {
    "css": true,
    "html": true
+  },
+  "mt-body": {
+   "css": false,
+   "html": false
+  },
+  "mt-tab": {
+   "css": true,
+   "html": false
   },
   "name-unregistered": {
    "css": true,
@@ -3270,10 +3294,6 @@
    "html": false
   },
   "quote-cmdbar": {
-   "css": true,
-   "html": true
-  },
-  "quote-field-memo": {
    "css": true,
    "html": true
   },
@@ -4535,6 +4555,14 @@
    "html": true,
    "js": true
   },
+  "mt": {
+   "html": false,
+   "js": true
+  },
+  "mt-done": {
+   "html": false,
+   "js": true
+  },
   "mvalue": {
    "html": false,
    "js": true
@@ -4947,6 +4975,7 @@
   "js/port-country.js",
   "js/zone-subcon.js",
   "js/customer-rules.js",
+  "js/master-tabs.js",
   "js/carrier-migration.js",
   "js/local-charges.js",
   "js/rate-notice.js",
