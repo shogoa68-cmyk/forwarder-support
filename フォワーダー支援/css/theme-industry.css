@@ -4205,7 +4205,10 @@ html.theme-industry {
   color: #324a62;
 }
 :where(html.theme-industry) #qpDashboard .qpd-new {
+  background: var(--green-ok);
   border-radius: 0;
+  padding: var(--sp-8) var(--sp-16);
+  font-size: var(--fs-13);
 }
 :where(html.theme-industry) #qpDashboard .qpd-new:hover {
   background: #2c4054;

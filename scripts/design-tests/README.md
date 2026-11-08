@@ -16,6 +16,7 @@ THEME=1 node scripts/design-tests/gray-rows-test.js        # グレーアウト�
 THEME=1 node scripts/design-tests/acts-grace-test.js       # つまみのメニューの「あそび」（アニメーション有効で試す）
 node scripts/design-tests/master-cloud-test.js             # マスターのクラウド必須化・名前の突き合わせ（偽の Supabase）
 node scripts/design-tests/min-charge-test.js               # ミニマム（最低料金：Min. $28.00 or $0.15/kg）。THEME=1 で Industry
+node scripts/design-tests/new-case-entry-test.js           # ダッシュボードの「新しい見積を作る」入口（点線カード・0 件の案内）。THEME=1 で Industry
 ```
 
 - 末尾に `OK` が出れば全項目成功。失敗は `❌` / `FAIL` の行に出る。
