@@ -767,6 +767,18 @@ const http = require('http'), fs = require('fs'), path = require('path');
     ok(L + '詳細がポップアップ（画面に固定・幅は画面いっぱいにならない・高さは画面内）', g.pos === 'fixed' && g.w <= 980 && g.w < g.vw && g.h <= g.vh && !g.inline, g);
     ok(L + '見出しに種別と名前が出る', g.title.includes('お客様') && g.title.includes('ポップ商事'), g);
     ok(L + '背景の画面はスクロールしない', await p.evaluate(() => document.body.classList.contains('md-modal-open')));
+    // タブ化（Design 回答 2026-11・案1）
+    const vis2 = sel => p.evaluate(x => { const e = document.querySelector(x); if (!e) return false; const r = e.getBoundingClientRect(); return r.width > 0 && r.height > 0; }, sel);
+    ok(L + '[タブ] 上に基本情報（ふりがな・英語名称・取引形態）が常に見える', await vis2('#mdDetailModal #md_furigana') && await vis2('#mdDetailModal #md_enName') && await vis2('#mdDetailModal #md_dealType'));
+    ok(L + '[タブ] 4 つのタブ（担当者／会社の詳細・タグ／取引ルール／メモ・添付）', (await p.$$eval('#mdDetailModal .mt-tab', els => els.map(e => e.textContent.replace(/\s+/g, ' ').trim().replace(/\s*\d.*$/, '')))).join('|').startsWith('担当者|会社の詳細・タグ|取引ルール|メモ・添付'));
+    ok(L + '[タブ] 最初は担当者タブ（担当者の入力欄が見え、メモ欄は見えない）', await vis2('#mdDetailModal .md-contact-name') && !(await vis2('#mdDetailModal #md_memo')));
+    ok(L + '[タブ] 担当者タブの要約に「1名」', (await p.textContent('#mdDetailModal .mt-tab[data-mt="people"] .mt-sum')).includes('1名'));
+    ok(L + '[タブ] 保存バーは本文のスクロールの外に常時表示', await p.evaluate(() => { const f = document.querySelector('#mdDetailModal .mt-foot'); const b = document.querySelector('#mdDetailModal .md-modal-body'); return !!f && !b.contains(f) && !!f.querySelector('.master-detail-save') && f.getBoundingClientRect().bottom <= innerHeight; }));
+    await p.click('#mdDetailModal .mt-tab[data-mt="memo"]'); ok(L + '[タブ] メモ・添付タブ：メモ欄と添付が見える・担当者は隠れる', await vis2('#mdDetailModal #md_memo') && await vis2('#mdDetailModal .master-attach-box') && !(await vis2('#mdDetailModal .md-contact-name')));
+    ok(L + '[タブ] どのタブでも保存ボタンが見える', await vis2('#mdDetailModal .mt-foot .master-detail-save'));
+    await p.click('#mdDetailModal .mt-tab[data-mt="company"]'); ok(L + '[タブ] 会社の詳細・タグタブ：所在地・タグが見える', await vis2('#mdDetailModal #md_location') && await vis2('#mdDetailModal .master-tags-editor, #mdDetailModal #md_tags'));
+    await p.click('#mdDetailModal .mt-tab[data-mt="rules"]'); ok(L + '[タブ] 取引ルールタブ：ルール欄が見える', await vis2('#mdDetailModal #crPanel'));
+    await p.click('#mdDetailModal .mt-tab[data-mt="people"]');
     if (process.env.OUT) await p.screenshot({ path: require('path').join(process.env.OUT, 'master-detail-modal.png') });
     await p.keyboard.press('Escape'); await p.waitForTimeout(200);
     ok(L + 'Esc で閉じる', await p.evaluate(() => !document.getElementById('mdDetailModal') && !document.body.classList.contains('md-modal-open')));
