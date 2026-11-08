@@ -776,7 +776,7 @@ const http = require('http'), fs = require('fs'), path = require('path');
     ok(L + '[タブ] 保存バーは本文のスクロールの外に常時表示', await p.evaluate(() => { const f = document.querySelector('#mdDetailModal .mt-foot'); const b = document.querySelector('#mdDetailModal .md-modal-body'); return !!f && !b.contains(f) && !!f.querySelector('.master-detail-save') && f.getBoundingClientRect().bottom <= innerHeight; }));
     await p.click('#mdDetailModal .mt-tab[data-mt="memo"]'); ok(L + '[タブ] メモ・添付タブ：メモ欄と添付が見える・担当者は隠れる', await vis2('#mdDetailModal #md_memo') && await vis2('#mdDetailModal .master-attach-box') && !(await vis2('#mdDetailModal .md-contact-name')));
     ok(L + '[タブ] どのタブでも保存ボタンが見える', await vis2('#mdDetailModal .mt-foot .master-detail-save'));
-    await p.click('#mdDetailModal .mt-tab[data-mt="company"]'); ok(L + '[タブ] 会社の詳細・タグタブ：所在地・タグが見える', await vis2('#mdDetailModal #md_location') && await vis2('#mdDetailModal .master-tags-editor, #mdDetailModal #md_tags'));
+    await p.click('#mdDetailModal .mt-tab[data-mt="company"]'); ok(L + '[タブ] 会社の詳細・タグタブ：所在地・タグが見える', await vis2('#mdDetailModal #md_location') && await vis2('#mdDetailModal .master-detail-tags'));
     await p.click('#mdDetailModal .mt-tab[data-mt="rules"]'); ok(L + '[タブ] 取引ルールタブ：ルール欄が見える', await vis2('#mdDetailModal #crPanel'));
     await p.click('#mdDetailModal .mt-tab[data-mt="people"]');
     if (process.env.OUT) await p.screenshot({ path: require('path').join(process.env.OUT, 'master-detail-modal.png') });
