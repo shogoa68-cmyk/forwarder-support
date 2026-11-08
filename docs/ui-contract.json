@@ -2210,6 +2210,10 @@
    "css": true,
    "html": true
   },
+  "cn-end": {
+   "css": true,
+   "html": false
+  },
   "cn-group": {
    "css": true,
    "html": true
@@ -2894,6 +2898,18 @@
    "css": true,
    "html": false
   },
+  "mc-flash": {
+   "css": true,
+   "html": false
+  },
+  "mc-on": {
+   "css": true,
+   "html": false
+  },
+  "mc-table-on": {
+   "css": true,
+   "html": false
+  },
   "md-contact-dept": {
    "css": true,
    "html": false
@@ -3421,6 +3437,10 @@
   "row-actual-cost": {
    "css": true,
    "html": false
+  },
+  "row-add-btn": {
+   "css": false,
+   "html": true
   },
   "row-bc-indep": {
    "css": true,
@@ -4196,6 +4216,14 @@
    "html": false,
    "js": true
   },
+  "add": {
+   "html": false,
+   "js": true
+  },
+  "addrow": {
+   "html": false,
+   "js": true
+  },
   "adv-key": {
    "html": true,
    "js": true
@@ -4728,6 +4756,10 @@
    "html": false,
    "js": true
   },
+  "row": {
+   "html": false,
+   "js": true
+  },
   "rt": {
    "html": false,
    "js": true
@@ -4967,6 +4999,7 @@
   "js/quote/route-flow.js",
   "js/quote/cargo-flow.js",
   "js/quote/remark-tabs.js",
+  "js/quote/mobile-cost.js",
   "js/quote/packing-import.js",
   "js/tweaks.js",
   "js/ui-mode.js",

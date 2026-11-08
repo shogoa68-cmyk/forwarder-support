@@ -11959,3 +11959,39 @@ body.memo-fab-off .qf-memo-fab { display: none !important; }
   /* 幹線輸送：国コード欄の 🌐 が枠に重なる → 左に十分な余白、高さも確保 */
   #tab-quote-make .z2-country { max-width: 130px; height: 24px; padding-inline: 8px; font-size: var(--fs-11); }
 }
+
+/* ===== スマホ（〜600px）の見積もりテーブル：段階 1＝一覧（Design 2026-11-09）。PC の表は変えない ===== */
+.mc-host { display: none; }
+@media (max-width: 600px) {
+  body.mc-on #tab-quote-make .mc-host { display: block; }
+  body.mc-on:not(.mc-table-on) #tab-quote-make #tableScrollWrap { display: none; }
+  #tab-quote-make .mc-list { display: flex; flex-direction: column; border: 1px solid var(--border-md, #bbb); background: var(--surface, #fff); }
+  #tab-quote-make .mc-sv { display: flex; align-items: center; gap: 8px; padding: 10px 12px; background: #2c455d; color: #fff; font-weight: 700; font-size: 14px; position: sticky; top: 0; z-index: 2; }
+  #tab-quote-make .mc-sv-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #tab-quote-make .mc-sv-sum { font-weight: 400; font-size: 12px; white-space: nowrap; }
+  #tab-quote-make .mc-add { flex: none; width: 36px; height: 36px; border: 1px solid rgba(255,255,255,.6); background: transparent; color: #fff; font-size: 20px; line-height: 1; cursor: pointer; }
+  #tab-quote-make .mc-pt { padding: 6px 12px 6px 24px; background: #eef2f6; color: #35506e; font-size: 12px; font-weight: 700; border-bottom: 1px solid #d4d4d7; }
+  #tab-quote-make .mc-row { display: flex; align-items: center; gap: 8px; width: 100%; min-height: 56px; padding: 8px 12px 8px 14px; border: 0; border-bottom: 1px solid #e3e6ea; border-left: 5px solid #c9ccd1; background: #fff; text-align: left; font: inherit; cursor: pointer; box-sizing: border-box; }
+  #tab-quote-make .mc-row.is-done { border-left-color: #3f8f55; }
+  #tab-quote-make .mc-row.is-pending { border-left-color: #d9a21b; }
+  #tab-quote-make .mc-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+  #tab-quote-make .mc-nm { font-weight: 700; font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #tab-quote-make .mc-nm i { font-weight: 400; color: #8a8a8d; }
+  #tab-quote-make .mc-row.is-hidden .mc-nm { text-decoration: line-through; color: #8a8a8d; }
+  #tab-quote-make .mc-row.is-out { opacity: .6; }
+  #tab-quote-make .mc-sub { font-size: 12px; color: #5d5d60; }
+  #tab-quote-make .mc-tags { display: flex; flex-wrap: wrap; gap: 4px; }
+  #tab-quote-make .mc-tag { font-size: 10.5px; padding: 0 6px; border: 1px solid #c9ccd1; color: #5d5d60; background: #f5f5f8; font-weight: 600; }
+  #tab-quote-make .mc-tag.t-pend { background: #fbf1d3; border-color: #d9a21b; color: #6b4e00; }
+  #tab-quote-make .mc-tag.t-done { background: #e3f3e8; border-color: #3f8f55; color: #1f5a31; }
+  #tab-quote-make .mc-amt { flex: none; text-align: right; font-weight: 700; font-size: 14px; display: flex; flex-direction: column; }
+  #tab-quote-make .mc-amt small { font-weight: 400; font-size: 10px; color: #5d5d60; }
+  #tab-quote-make .mc-go { flex: none; color: #8a8a8d; font-size: 18px; }
+  #tab-quote-make .mc-addrow { margin: 10px 12px; height: 44px; border: 1px dashed #5d5d60; background: #fff; font: inherit; font-weight: 700; cursor: pointer; }
+  #tab-quote-make .mc-total { position: sticky; bottom: calc(var(--dock-h, 52px) + env(safe-area-inset-bottom)); display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; padding: 10px 12px; background: #eef6ff; border-top: 2px solid #416180; font-weight: 700; z-index: 2; }
+  #tab-quote-make .mc-total small { flex-basis: 100%; font-weight: 400; color: #5d5d60; }
+  #tab-quote-make .mc-empty { padding: 18px 12px 4px; color: #5d5d60; font-size: 13px; }
+  #tab-quote-make .mc-mode-btn { display: block; margin: 8px 0 0; width: 100%; height: 40px; border: 1px solid var(--border-md, #bbb); background: #fff; font: inherit; font-size: 13px; cursor: pointer; }
+  #tab-quote-make tr.mc-flash { outline: 3px solid #d9a21b; outline-offset: -3px; }
+}
+@media (max-width: 600px) { body.mc-on:not(.mc-table-on) #totFloat { display: none !important; } }
