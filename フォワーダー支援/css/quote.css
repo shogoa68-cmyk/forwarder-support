@@ -11939,3 +11939,23 @@ body.qp-dash-active .qf-memo-fab, body:has(#qfMemoFloat:not([hidden])) .qf-memo-
 .qf-memo-fab .qmf-x:hover { background: rgba(0,0,0,.12); color: #5a3a10; }
 body.memo-fab-off .qf-memo-fab { display: none !important; }
 @media (max-width: 680px) { .qf-memo-fab .qmf-x { position: absolute; top: -6px; left: -6px; width: 20px; height: 20px; line-height: 18px; margin: 0; padding: 0; background: #fff; border: 1px solid #d9b96a; font-size: 10px; text-align: center; } }
+
+/* ===== スマホ（〜600px）の崩れ修正（Design 2026-11-09・mobile-fixes.css） ===== */
+@media (max-width: 600px) {
+  /* 物量情報：コンテナのタブ・カードが枠の右へはみ出す（min-width:auto が原因）→ min-width:0、タブは半分ずつ、カードは 2 列（未定は横いっぱい） */
+  #tab-quote-make .condition-grid { grid-template-columns: minmax(0, 1fr); }
+  #tab-quote-make .cond-field, #tab-quote-make .multi-entry { min-width: 0; max-width: 100%; }
+  #tab-quote-make .cc-cat-tabs { flex-wrap: nowrap; }
+  #tab-quote-make .cc-cat-tab { flex: 1 1 0; min-width: 0; padding-inline: var(--sp-6); }
+  #tab-quote-make .container-chip-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  #tab-quote-make .cc-chip--tbd { grid-column: 1 / -1; }
+  /* 貿易条件：インコタームズは選択欄を横いっぱいにし、右の点線の仕切りを消す */
+  #tab-quote-make .cond-prim-group-inco { min-width: 0; width: 100%; border-right: 0; padding-right: 0; margin-right: 0; }
+  #tab-quote-make .cond-prim-group-inco .cond-inco-select { width: 100%; }
+  /* 貨物名・HS のオプションボタン：折り返しで枠線が切れるので、入力欄の下に縦に並べて横いっぱいに */
+  #tab-quote-make .cg-row { flex-direction: column; align-items: stretch; }
+  #tab-quote-make .cg-row > input { flex: none; width: 100%; }
+  #tab-quote-make .cg-row .cg-opt { width: 100%; justify-content: space-between; border-left-width: 1px; border-top-width: 0; }
+  /* 幹線輸送：国コード欄の 🌐 が枠に重なる → 左に十分な余白、高さも確保 */
+  #tab-quote-make .z2-country { max-width: 130px; height: 24px; padding-inline: 8px; font-size: var(--fs-11); }
+}
