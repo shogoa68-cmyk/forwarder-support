@@ -5750,3 +5750,9 @@ body.md-modal-open { overflow: hidden; }
   .cat-nav::after { content: ''; position: sticky; right: 0; flex: 0 0 28px; margin-left: -28px; pointer-events: none; background: linear-gradient(to right, rgba(255,255,255,0), var(--bg, #f5ede0) 80%); }
   .cat-nav.cn-end::after { display: none; }
 }
+/* お客様マスター詳細のタブ化：元の .master-detail-form（横に折り返す flex）のままだと、タブ・パネルが横に並び崩れる／
+   縦並びのパネルの中で .master-detail-label の flex-basis(160px) が高さになって入力欄が縦に伸びる。縦に積み、ラベルは中身の高さにする */
+.md-modal .master-detail-form.mt-form, .md-modal .md-modal-body.mt-body .master-detail-form { display: block; }
+.md-modal .mt-panel > .master-detail-label, .md-modal .mt-panel .master-detail-label { flex: 0 0 auto; min-width: 0; }
+.md-modal .mt-basic > .master-detail-label { flex: none; min-width: 0; }
+.md-modal .mt-panel .master-detail-textarea { min-height: 60px; }

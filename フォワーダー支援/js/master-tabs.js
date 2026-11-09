@@ -10,7 +10,7 @@
     if (!form || !body || !box || modal.dataset.mtDone) return; modal.dataset.mtDone = '1';
     const actions = $(form, '.master-detail-actions'), attach = $(modal, '.master-attach-box'), cr = $(modal, '.cr-section');
     const L = (id) => holder(form, id, '.master-detail-label');
-    const basic = [L('md_furigana'), L('md_enName'), L('md_dealType'), holder(form, 'md_via', '.master-detail-via') || L('md_via'), holder(form, 'md_viaChildren', '.master-detail-via')].filter(Boolean);
+    const basic = [L('md_furigana'), L('md_enName'), L('md_dealType'), L('md_via'), holder(form, 'md_viaChildren', '.master-detail-via')].filter(Boolean);
     const people = [holder(form, 'md_contacts', '.master-detail-contacts')].filter(Boolean);
     const company = [L('md_location'), L('md_mainGoods'), L('md_destCountry'), L('md_tendency'), L('md_website'), holder(form, 'md_tags', '.master-detail-tags')].filter(Boolean);
     const memo = [L('md_memo')].filter(Boolean);
