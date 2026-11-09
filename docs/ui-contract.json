@@ -2991,7 +2991,7 @@
    "html": true
   },
   "mt-body": {
-   "css": false,
+   "css": true,
    "html": false
   },
   "mt-tab": {
@@ -3233,6 +3233,10 @@
   "qf-status-btn": {
    "css": true,
    "html": true
+  },
+  "qm-2col": {
+   "css": true,
+   "html": false
   },
   "qmf-x": {
    "css": true,
@@ -4556,6 +4560,10 @@
    "html": false,
    "js": true
   },
+  "lc-init": {
+   "html": false,
+   "js": true
+  },
   "lc-label-bound": {
    "html": false,
    "js": true
@@ -5025,6 +5033,7 @@
   "js/quote/remark-tabs.js",
   "js/quote/mobile-cost.js",
   "js/quote/mobile-sheet.js",
+  "js/quote/layout-cols.js",
   "js/quote/packing-import.js",
   "js/tweaks.js",
   "js/ui-mode.js",
