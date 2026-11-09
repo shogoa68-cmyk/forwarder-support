@@ -5569,6 +5569,16 @@ body.qp-dash-active #quoteActionDock { display: none !important; }
   padding: var(--sp-16) var(--sp-20) var(--sp-18); width: min(96vw, 1080px); max-height: 92vh;
   overflow-y: auto; box-shadow: 0 8px 32px rgba(0,0,0,.25);
 }
+/* 📝 リマーク候補（メール取込の確認画面） */
+#tab-quote-make .ei-remarks { margin-top: var(--sp-12); border: 1px solid var(--border); border-radius: var(--r-8); background: var(--card-bg); padding: var(--sp-8) var(--sp-10); }
+#tab-quote-make .ei-rem-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--sp-8); margin-bottom: var(--sp-6); }
+#tab-quote-make .ei-rem-hint { font-size: var(--fs-11); color: var(--text-muted); }
+#tab-quote-make .ei-rem-table { width: 100%; border-collapse: collapse; }
+#tab-quote-make .ei-rem-table th { text-align: left; font-size: var(--fs-11); color: var(--text-muted); font-weight: 700; padding: var(--sp-3) var(--sp-6); }
+#tab-quote-make .ei-rem-table td { padding: var(--sp-3) var(--sp-6); border-top: 1px solid var(--border); vertical-align: middle; }
+#tab-quote-make .ei-rem-table .ei-rem-to { width: 100%; max-width: 240px; }
+#tab-quote-make .ei-rem-table .ei-rem-text { width: 100%; min-width: 260px; }
+#tab-quote-make .ei-rem-only { margin: var(--sp-6) 0; font-size: var(--fs-12); color: var(--text-muted); }
 #tab-quote-make .ei-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: var(--sp-4); }
 #tab-quote-make .ei-head h3 { margin: 0; font-size: var(--fs-15); color: var(--accent-dk); }
 #tab-quote-make .ei-close {
