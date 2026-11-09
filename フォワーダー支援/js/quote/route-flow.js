@@ -16,8 +16,11 @@
     // 経由地：「＋ 経由地」（POL と POD の間）
     const arrows = [...row.querySelectorAll(':scope > .z2-arrow')];
     const viaArrow = arrows[1] || null;   // 経由地の後ろの矢印
-    const viaBtn = mkBtn('z2ViaBtn', 'rf-opt rf-via-btn', '＋ 経由地を追加（任意）');
-    row.insertBefore(viaBtn, via);
+    // 経由地を出していないときは、POL と POD を縦のレールで直接つなぎ、その途中に小さな「＋ 経由地」を置く（POD の行の上端・レール上）
+    const podPort = [...row.querySelectorAll(':scope > .z2-port')].pop();
+    const viaBtn = mkBtn('z2ViaBtn', 'rf-opt rf-via-btn', '経由地を追加');
+    viaBtn.title = '経由地（トランシップ港など）を追加します（任意）';
+    if (podPort) podPort.insertBefore(viaBtn, podPort.firstChild); else row.insertBefore(viaBtn, via);
     // キャリア等：奥へ
     const wrap = document.createElement('div'); wrap.className = 'rf-carrier-opt'; wrap.id = 'z2CarrierOpt'; wrap.hidden = true;
     carrierRow.parentNode.insertBefore(wrap, carrierRow);
@@ -37,6 +40,7 @@
       const carHas = !!(val('z2Carrier') || val('z2Service') || val('z2Tt') || relHas) || hasRoutes();
       const viaOpen = viaHas || st.via, carOpen = carHas || st.car, relOpen = relHas || st.rel;
       via.classList.toggle('rf-hide', !viaOpen); if (viaArrow) viaArrow.classList.toggle('rf-hide', !viaOpen);
+      row.classList.toggle('rf-via-off', !viaOpen);
       viaBtn.hidden = viaOpen; viaBtn.setAttribute('aria-expanded', viaOpen ? 'true' : 'false');
       wrap.hidden = !carOpen; cBtn.hidden = carOpen; cBtn.setAttribute('aria-expanded', carOpen ? 'true' : 'false');
       relay.classList.toggle('rf-hide', !relOpen); rBtn.hidden = relOpen || !carOpen;

@@ -12103,3 +12103,13 @@ body.qm-2col #tab-quote-make .qm-col .zone-builder { flex-direction: column; }
 #tab-quote-make .ci-memo-dot { display: none; width: 8px; height: 8px; border-radius: 50%; background: #d9534f; }
 #tab-quote-make .ci-memo-btn.has-memo .ci-memo-dot { display: inline-block; }
 @media (max-width: 680px) { #tab-quote-make .ci-memo-btn { padding: 0 10px; } }
+
+/* 経由地を出していないとき：POL と POD をレールで直接つなぎ、途中の「＋ 経由地」はレール上の小さなボタンにする（間延び・レールの途切れをなくす） */
+#tab-quote-make .zone-main.rf-flow .z2-pol-pod-row.rf-via-off { gap: 30px; }
+#tab-quote-make .zone-main.rf-flow .z2-pol-pod-row.rf-via-off .z2-port:not(:last-child)::after { bottom: -48px; }
+#tab-quote-make .zone-main.rf-flow .z2-port > .rf-via-btn { position: absolute; left: 0; top: -26px; width: auto; margin: 0; padding: 0 8px 0 0; height: 20px; line-height: 18px; display: inline-flex; align-items: center; gap: 4px; border: 0; background: transparent; color: #35506e; font-size: 11px; font-weight: 600; text-align: left; z-index: 2; }
+#tab-quote-make .zone-main.rf-flow .z2-port > .rf-via-btn::before { content: '+'; display: inline-flex; align-items: center; justify-content: center; width: 17px; height: 17px; margin-left: 0; border-radius: 50%; border: 1px solid #35506e; background: #fff; font-size: 13px; line-height: 1; }
+#tab-quote-make .zone-main.rf-flow .z2-port > .rf-via-btn:hover { color: #1d2f43; }
+#tab-quote-make .zone-main.rf-flow .z2-port > .rf-via-btn:hover::before { background: #35506e; color: #fff; }
+#tab-quote-make .zone-main.rf-flow .z2-port > .rf-via-btn[hidden] { display: none; }
+#tab-quote-make .zone-main.rf-flow .rf-carrier-btn { margin-left: 28px; }
