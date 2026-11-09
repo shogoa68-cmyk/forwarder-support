@@ -5774,3 +5774,14 @@ body.md-modal-open { overflow: hidden; }
 .cr-chip-stale { background: #fbf1d3; border-color: #d9a21b; color: #6b4e00; }
 .cr-modal { width: min(760px, 100%); }
 .cr-modal-note { margin: 0 0 8px; font-size: 12px; color: #5d5d60; }
+
+/* ヘッダー（スマホ）：ボタンを左から詰めて並べ、ログイン欄は右（入りきらなければ次の行）。間延びさせない */
+@media (max-width: 600px) {
+  .header { justify-content: flex-start; align-items: center; gap: 8px; padding: 12px 14px; }
+  .header-main { flex: 1 0 100%; }
+  .header .subtitle { display: none; }
+  .hdr-roadmap { flex: none; }
+  .header-auth { margin-left: auto; max-width: 100%; }
+  .hdr-cloud-user { flex-wrap: nowrap; gap: 6px; max-width: 100%; }
+  .hdr-cloud-name { max-width: 7em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+}
