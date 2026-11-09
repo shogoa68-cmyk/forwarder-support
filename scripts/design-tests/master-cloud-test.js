@@ -49,6 +49,7 @@ const http = require('http'), fs = require('fs'), path = require('path');
   async function open(loggedIn, opts = {}) {
     const ctx = await b.newContext({ viewport: { width: +(process.env.W || 1400), height: +(process.env.H || 900) }, locale: 'ja-JP' });
     if (process.env.THEME) await ctx.addInitScript(() => { try { localStorage.setItem('forwarderTheme_v1', JSON.stringify({ site: true, doc: true })); } catch (e) {} });
+    if (process.env.QUIET) await ctx.addInitScript(() => { try { localStorage.setItem('forwarderTheme_v1', JSON.stringify({ quiet: true })); } catch (e) {} });
     await ctx.addInitScript(({ seed, legacy, loggedIn, ME, opts }) => {
       try {
         localStorage.setItem('fwd.uiMode', 'detail');
