@@ -188,7 +188,8 @@
     const m = s.match(/^([^\d\-]*)(.*)$/);     // 先頭の記号（≈ 等）を分離
     const prefix = m ? m[1] : '';
     const rest   = m ? m[2] : s;
-    return esc(prefix) + '¥' + esc(rest);
+    // 幅（「下限〜上限」）は両端に ¥ を付ける
+    return esc(prefix) + rest.split('〜').map(x => '¥' + esc(x)).join('〜');
   }
 
   // 課税行の品名から先頭の課税マーク * を1つ除去（表示直前）。
@@ -278,6 +279,9 @@
     if (_curLangEn) return [_masterEn('customer', co), pn].filter(Boolean).join('\n');
     if (pn) {
       const honor = _HONORIFIC_RE.test(pn) ? '' : ' 様';
+      // マスターの担当者候補と一致するとき、所属部署・課（1 行）と役職（氏名の前）も宛先に出す
+      const ex = typeof window.getRecipientExtra === 'function' ? window.getRecipientExtra(co, pn) : null;
+      if (ex) return [co, ex.dept, (ex.title ? ex.title + ' ' : '') + pn + honor].filter(Boolean).join('\n');
       // 会社名と担当者名は改行して分ける（同じ行に詰めると幅次第で
       // 担当者名の途中（例：「鈴木」→「鈴」「木」）で折り返されてしまうため）
       return [co, pn + honor].filter(Boolean).join('\n');
@@ -294,7 +298,7 @@
     const fmt = (typeof window.getHazEntryLabel === 'function') ? window.getHazEntryLabel : (() => '');
     const entries = (typeof window.getHazEntries === 'function') ? window.getHazEntries() : [];
     if (entries.length) return entries.map(fmt).filter(Boolean);
-    const single = fmt({ un: v('hz-un'), cls: v('hz-class'), pg: v('hz-pg'), pi: v('hz-pi'),
+    const single = fmt({ name: v('hz-name'), un: v('hz-un'), cls: v('hz-class'), pg: v('hz-pg'), pi: v('hz-pi'),
                           fireLaw: v('hz-fire-law'), psn: v('hz-psn'), flash: v('hz-flash') });
     return single ? [single] : [];
   }
@@ -369,7 +373,18 @@
           ? window.formatRouteCarrierLine(r)
           : [r.carrier, r.service ? `(${r.service})` : ''].filter(Boolean).join(' ');
         const tt = r.tt ? `T/T: ${r.tt}` : '';
-        if (rt || carrier || tt) push(label, [carrier, rt, tt].filter(Boolean).join('　'));
+        if (rt || carrier || tt) {
+          // 船会社（実運送人）を目立たせる：代理店・NVOCC などが「as ○○」で立ち回る航路は、○○（実運送人）を太字・濃色に。
+          // 船社直（または役割・実運送人の指定なし）の航路は、キャリア名そのものが船会社なので、そちらを太字に。
+          // 契約先だけで船会社が分からない航路（代理店・NVOCC・コローダーで実運送人が未入力）は強調しない。
+          const front = (typeof window.formatRouteCarrierLine === 'function') ? window.formatRouteCarrierLine({ ...r, actualCarrier: '' }) : carrier;
+          const emphCarrier = r.actualCarrier ? '' : (!r.carrierRole || r.carrierRole === 'direct') ? (r.carrier || '') : '';
+          let carrierHtml = esc(front);
+          if (emphCarrier && carrierHtml.includes(esc(emphCarrier))) carrierHtml = carrierHtml.replace(esc(emphCarrier), `<span class="qd-carrier">${esc(emphCarrier)}</span>`);
+          if (r.actualCarrier) carrierHtml += (carrierHtml ? ' ' : '') + `as <span class="qd-carrier">${esc(r.actualCarrier)}</span>`;
+          const html = [carrierHtml, esc(rt), esc(tt)].filter(Boolean).join('　');
+          meta.push([label, { html }]);
+        }
       });
     } else {
       push(t('pol'), _masterEn('port', cond.pol));
@@ -458,7 +473,7 @@
   function _buildMultiPatternHTML(views) {
     const infos = [];
     const sections = views.map(v => {
-      const html = window.withPatternView(v.idx, () => _buildQuoteDocHTMLInner({ patternLabel: v.name }));
+      const html = window.withPatternView(v.idx, () => _buildQuoteDocHTMLInner({ patternLabel: v.name, omitRemarks: true }));   // リマーク類は案ごとには出さない（最後に 1 回）
       infos.push(Object.assign({}, v, _lastBuild));
       return `<div class="qd-pat-section">${_unwrapPage(html)}</div>`;
     });
@@ -475,7 +490,54 @@
     const compare = `<div class="qd-cmp"><div class="qd-cmp-ttl">${t('cmpTitle')}</div>` +
       `<table class="qd-items qd-cmp-table"><thead><tr><th class="qd-item">${t('cmpPlan')}</th><th>${t('cmpContent')}</th>${hideTotal ? '' : `<th>${t('cmpAmt')}</th>`}</tr></thead>` +
       `<tbody>${rowsHtml}</tbody></table><div class="qd-cmp-note">${t('cmpNote')}</div></div>`;
-    return `<div class="qd-page">${header}${compare}${sections.join('')}</div>`;
+    // リマーク（業務範囲・全体リマーク・常時付記・改訂履歴）は全案で共通なので、最後の案の後ろに 1 回だけ出す
+    const common = _commonBlocksHTML((typeof window.computeRevisionDiff === 'function') ? window.computeRevisionDiff() : null);
+    return `<div class="qd-page">${header}${compare}${sections.join('')}${common ? `<div class="qd-common-remarks">${common}</div>` : ''}</div>`;
+  }
+
+  // 御見積書の末尾に出す、案件全体の共通ブロック：業務範囲・全体リマーク（＋画像）・常時付記・改訂履歴。
+  // 物量パターンの併記（FCL案／LCL案など）では、案ごとには出さず、文書の最後に 1 回だけ出す（_buildMultiPatternHTML）
+  function _commonBlocksHTML(_revDiff) {
+    const cond = (typeof getConditions === 'function') ? getConditions() : null;
+    const parts = [];
+    parts.push((() => {
+        const sc = (document.getElementById('qf-scope')?.value || '').trim();
+        return sc ? `<div class="qd-remark-block qd-scope-block"><div class="qd-remark-ttl">${t('scopeTitle')}</div><div class="qd-remark-body">${nl2brLink(sc)}</div></div>` : '';
+    })());
+    parts.push((() => {
+        let rt = (typeof getRemarkText === 'function') ? getRemarkText() : (cond && cond.free) || '';
+        if (_curLangEn && typeof window.translateRemarkToEn === 'function') rt = window.translateRemarkToEn(rt);   // 定型文を英文に
+        const imgHtml = (typeof remarkImagesOutputHTML === 'function') ? remarkImagesOutputHTML('qd-remark-images') : '';
+        if (!rt && !imgHtml) return '';
+        const bodyHtml = rt ? `<div class="qd-remark-body">${nl2brLink(rt)}</div>` : '';
+        return `<div class="qd-remark-block"><div class="qd-remark-ttl">${t('remarksTitle')}</div>${bodyHtml}${imgHtml}</div>`;
+    })());
+    parts.push((() => {
+        // 常時付記：全体リマークの下に固定で出す（設定は「全体リマーク」欄の📎常時付記）
+        let fx = (typeof window.getFixedRemarkText === 'function') ? window.getFixedRemarkText() : '';
+        if (!fx) return '';
+        if (_curLangEn && typeof window.translateRemarkToEn === 'function') fx = window.translateRemarkToEn(fx);
+        return `<div class="qd-remark-block qd-remark-fixed"><div class="qd-remark-body">${nl2brLink(fx)}</div></div>`;
+    })());
+    parts.push((() => {
+        const diff = _revDiff;
+        if (!diff) return '';
+        const lines = [];
+        diff.added.forEach(r => lines.push(`<li class="qd-rev-add">＋ 追加：${esc(r.nm || '（品名未設定）')}</li>`));
+        diff.removed.forEach(r => lines.push(`<li class="qd-rev-del">－ 削除：${esc(r.nm || '（品名未設定）')}</li>`));
+        diff.changed.forEach(c => {
+          const parts = c.fields.map(f => `${esc(f.label)}：${esc(String(f.from || '—'))} → ${esc(String(f.to || '—'))}`).join('／');
+          lines.push(`<li class="qd-rev-chg">✎ 変更：${esc(c.name || '（品名未設定）')}（${parts}）</li>`);
+        });
+        const totalLine = (diff.showTotal !== false && diff.totalFrom !== diff.totalTo)
+          ? `<div class="qd-rev-total">合計金額：¥${esc(diff.totalFrom)} → ¥${esc(diff.totalTo)}</div>` : '';
+        return `<div class="qd-remark-block qd-revision-block">
+          <div class="qd-remark-ttl">${t('revisionTitle')}</div>
+          <ul class="qd-rev-list">${lines.join('')}</ul>
+          ${totalLine}
+        </div>`;
+    })());
+    return parts.join('');
   }
 
   function _buildQuoteDocHTMLInner(opts) {
@@ -506,6 +568,7 @@
 
     // 集計
     let taxableSub = 0, exemptSub = 0, taxSum = 0;
+    let taxableSubHi = 0, exemptSubHi = 0, taxSumHi = 0;   // 幅（〜）のある行を上限で数えた場合の合計（下限＝上記）
     const lineHTML = [];
     // サブコン別グループが有効（2+ サブコン）なら、グループ境界に売値小計を挿入（顧客向けのため金額のみ）
     // 揺らぎ吸収：境界判定・エイリアス参照は正規化キーで、表示は元の綴りで行う
@@ -520,26 +583,29 @@
       scPatternSets[sk].add(_ptNorm(d));
     });
     const _scActive = (new Set(data.map(_scNorm)).size >= 2);
-    let _scKey = null, _scLabel = null, _scHeadLabel = null, _scJpy = 0, _scHas = false;
+    let _scKey = null, _scLabel = null, _scHeadLabel = null, _scJpy = 0, _scJpyHi = 0, _scHas = false;   // …Hi＝幅（〜）のある行を上限で数えた小計
     let _catKey = null;   // サブコン内の現在カテゴリ（サブコンが変わると null にリセット）
-    let _ptActive = false, _ptSubOn = false, _ptKey = null, _ptJpy = 0, _ptHas = false;
+    let _ptActive = false, _ptSubOn = false, _ptKey = null, _ptJpy = 0, _ptJpyHi = 0, _ptHas = false;
+    // 小計の金額表示：上限が下限と違うときは「¥下限〜¥上限」（合計・手動の小計行と同じ書式）
+    const _subYen = (lo, hi) => (hi !== lo) ? `¥${fmtInt(lo)}〜¥${fmtInt(hi)}` : `¥${fmtInt(lo)}`;
     const _ptPush = () => {
       // パターン小計はサブコン内に2パターン以上あるときだけ出す
       // （1パターンのみだと直後のサブコン小計と同額の小計行が2行並び冗長）
       if (_ptActive && _ptSubOn && _ptHas) {
         // パターン名は見出し行に表示済みのため、小計行では繰り返さず「小計」のみ
-        lineHTML.push(`<tr class="qd-pattern-sub"><td colspan="4">↳ ${t('subtotal')}</td><td class="qd-num">¥${fmtInt(_ptJpy)}</td></tr>`);
+        lineHTML.push(`<tr class="qd-pattern-sub"><td colspan="4">↳ ${t('subtotal')}</td><td class="qd-num">${_subYen(_ptJpy, _ptJpyHi)}</td></tr>`);
       }
-      _ptJpy = 0; _ptHas = false;
+      _ptJpy = 0; _ptJpyHi = 0; _ptHas = false;
     };
     const _scPush = () => {
       _ptPush(); // サブコン小計前にパターン小計をフラッシュ
       if (_scActive && _scHas) {
         // サブコン小計はページが分かれると見出し行が前ページに残り会社名が分からなくなるため、
         // 「小計」だけでなくサブコン名も併記する（例：「SEABRIDGE 小計」）
-        lineHTML.push(`<tr class="qd-subcon-sub"><td colspan="4">↳ ${esc(_scHeadLabel || '')} ${t('subtotal')}</td><td class="qd-num">¥${fmtInt(_scJpy)}</td></tr>`);
+        lineHTML.push(`<tr class="qd-subcon-sub"><td colspan="4">↳ ${esc(_scHeadLabel || '')} ${t('subtotal')}</td><td class="qd-num">${_subYen(_scJpy, _scJpyHi)}</td></tr>`);
       }
     };
+    let _hasRangeRow = false;   // 幅（〜）で示した行があるか（あれば合計の注記を出す）
     rows.forEach(r => {
       if (r._type === 'remark') {
         if (r.internal) return; // 社内メモは PDF に出力しない
@@ -552,18 +618,27 @@
       }
       // data
       const sub = minAmt((r.bq || 0) * (r.bp || 0), r.bpmin);  // 請求通貨建ての金額（ミニマム＝最低料金があれば、それを下回らない）
+      // 幅（売単価〜上限）：単価・金額を「1,000〜2,500」と示す。合計・小計は売単価（下限）で計算する
+      const _rg    = r._actual ? null : rowRange(r.bp, r.bphi);
+      const _rgAmt = _rg ? rowRangeAmt(r.bq, r.bp, r.bphi, r.bpmin) : null;
+      if (_rg) _hasRangeRow = true;
       const jpy = Math.ceil(_toJPY(sub, r.bc || 'JPY'));      // JPY換算
+      const _jpyHi = _rgAmt ? Math.ceil(_toJPY(_rgAmt.hi, r.bc || 'JPY')) : jpy;   // 幅のある行の上限（JPY）。サブコン・パターン小計の「下限〜上限」用
       // 外貨建ては輸出免税が原則（Excel/プレビューと同一ポリシー）。課税は JPY 建て行のみ。
       // 消費税は行ごとに切り上げて積み上げ、各出力経路（御見積書/プレビュー/Excel）で一致させる。
       const isActual = r._actual;   // 実費（金額未確定・合計除外・単価/金額は「実費」表示）
       const isCond   = r._cond;     // 都度請求（発生時のみ・金額は表示・合計に加算しない）
       const isRef    = r._ref;      // 参考情報（金額は表示・合計に加算しない）
       if (!isActual && !isCond && !isRef) {
+        const jpyHi = _rgAmt ? Math.ceil(_toJPY(_rgAmt.hi, r.bc || 'JPY')) : jpy;   // 幅のある行の上限（JPY）
         if (r.taxed && (r.bc || 'JPY') === 'JPY') {
           taxableSub += jpy;
           taxSum += Math.ceil(jpy * taxRate);
+          taxableSubHi += jpyHi;
+          taxSumHi += Math.ceil(jpyHi * taxRate);
         } else {
           exemptSub += jpy;
+          exemptSubHi += jpyHi;
         }
       }
       const isNonJpy = r.bc && r.bc !== 'JPY';
@@ -573,7 +648,9 @@
       // JPY 単価は端数があるときだけ小数表示（単価×数量＝金額の検算が崩れないように）
       const unitDisp = isActual
         ? t('unpriced')
-        : estTag + (minPriceText(r.bp, r.bpmin, r.bc || 'JPY', r.un || '') ? esc(minPriceText(r.bp, r.bpmin, r.bc || 'JPY', r.un || ''))
+        : estTag + (_rg ? (isNonJpy ? `${fmtNum(_rg.lo, 2)}〜${fmtNum(_rg.hi, 2)} ${esc(r.bc)}`
+                                    : `${Number.isInteger(_rg.lo) && Number.isInteger(_rg.hi) ? fmtInt(_rg.lo) + '〜' + fmtInt(_rg.hi) : fmtNum(_rg.lo, 2) + '〜' + fmtNum(_rg.hi, 2)} JPY`)
+          : minPriceText(r.bp, r.bpmin, r.bc || 'JPY', r.un || '') ? esc(minPriceText(r.bp, r.bpmin, r.bc || 'JPY', r.un || ''))
           : isNonJpy
           ? `${fmtNum(r.bp, 2)} ${esc(r.bc)}`
           : `${Number.isInteger(r.bp) ? fmtInt(r.bp) : fmtNum(r.bp, 2)} JPY`)
@@ -586,7 +663,7 @@
       if (_scActive) {
         const k = _scNorm(r);
         if (_scHas && k !== _scKey) {
-          _scPush(); _scJpy = 0; _scHas = false; _catKey = null;
+          _scPush(); _scJpy = 0; _scJpyHi = 0; _scHas = false; _catKey = null;
           _ptActive = false; _ptKey = null;
         }
         if (!_scHas) {
@@ -604,9 +681,9 @@
           const ps = scPatternSets[k] || new Set();
           _ptActive = ps.size >= 2 || (ps.size === 1 && !ps.has(''));
           _ptSubOn  = ps.size >= 2;
-          _ptKey = null; _ptJpy = 0; _ptHas = false;
+          _ptKey = null; _ptJpy = 0; _ptJpyHi = 0; _ptHas = false;
         }
-        _scJpy += ((isActual || isCond || isRef) ? 0 : jpy); _scHas = true;   // 実費・都度請求・参考情報は小計に含めない
+        _scJpy += ((isActual || isCond || isRef) ? 0 : jpy); _scJpyHi += ((isActual || isCond || isRef) ? 0 : _jpyHi); _scHas = true;   // 実費・都度請求・参考情報は小計に含めない
       } else {
         // サブコンが1社のみの場合もパターン表示を判定（初回のみ）
         if (_ptKey === null) {
@@ -632,7 +709,7 @@
           }
           _catKey = null;
         }
-        if (!isActual && !isCond && !isRef) _ptJpy += jpy;
+        if (!isActual && !isCond && !isRef) { _ptJpy += jpy; _ptJpyHi += _jpyHi; }
         _ptHas = true;
       }
       // カテゴリー境界：サブコン配下でカテゴリが変わったら見出し行を挿入（ツリー第2階層）
@@ -664,14 +741,20 @@
           <td class="qd-num">${qtyDisp}</td>
           <td class="qd-ctr">${esc(r.un || '')}</td>
           <td class="qd-num">${unitDisp}</td>
-          <td class="qd-num">${isActual ? t('unpriced') : isCond ? '' : isRef ? '<span style="color:var(--doc-note-ref-amt);">(¥' + fmtInt(jpy) + ')</span>' : estTag + '¥' + fmtInt(jpy)}</td>
+          <td class="qd-num">${isActual ? t('unpriced') : isCond ? '' : isRef ? '<span style="color:var(--doc-note-ref-amt);">(¥' + fmtInt(jpy) + ')</span>' : estTag + (_rgAmt ? '¥' + fmtInt(Math.ceil(_toJPY(_rgAmt.lo, r.bc || 'JPY'))) + '〜¥' + fmtInt(Math.ceil(_toJPY(_rgAmt.hi, r.bc || 'JPY'))) : '¥' + fmtInt(jpy))}</td>
         </tr>`
       );
     });
     _scPush();   // 末尾グループの売値小計
+    if (_hasRangeRow) {   // 幅のある項目の合計の扱いを明記（誤解防止）
+      lineHTML.push(`<tr class="qd-remark"><td colspan="5">※ ${_curLangEn ? 'Totals are shown as a range because some items are quoted as a range (lower to upper amount).' : '「〜」で幅を示した項目を含むため、合計も下限〜上限の幅で表示しています。'}</td></tr>`);
+    }
 
     const tax   = taxSum;   // 行ごと切り上げの合計（Math.floor 一括計算からの修正）
     const total = taxableSub + exemptSub + tax;
+    const totalHi = taxableSubHi + exemptSubHi + taxSumHi;   // 幅（〜）のある行を上限で数えた合計
+    // 幅のある行を含むときは、合計を「下限〜上限」で表示する
+    const rgY = (lo, hi, sp) => (_hasRangeRow && hi !== lo) ? `¥${sp || ''}${fmtInt(lo)}〜¥${sp || ''}${fmtInt(hi)}` : `¥${sp || ''}${fmtInt(lo)}`;
 
     const subj = opts.compare ? { title: '', meta: [] } : buildSubject(cond);   // 比較ページは案ごとの内容を持たない
     _lastBuild = { total, tax, subjTitle: opts.compare ? '' : subj.title, container: opts.compare ? '' : (cond && cond.container) || '' };
@@ -680,8 +763,9 @@
       .map(c => `<tr><td class="qd-ctr">${esc(c)}</td><td class="qd-num">${c === 'JPY' ? '1.00' : (rates[c] != null ? fmtNum(rates[c], rates[c] < 0.1 ? 4 : 2) : '—')}</td></tr>`)
       .join('');
     const fxMeta = (typeof getFxAuditMeta === 'function') ? getFxAuditMeta() : null;
+    // 為替の出典・取得日時・参考値の注記は、幅の狭いレート表の下ではなく、御見積書の下端に横幅いっぱいの 1 行で出す（折り返しで読みにくくならないように）
     const fxMetaNote = fxMeta
-      ? `<div style="font-size:var(--doc-fs-tiny);color:var(--doc-text-faint);margin-top:4px;line-height:1.5;">${esc(fxMeta.fxLine)}<br>${esc(fxMeta.created)}</div>`
+      ? `<div class="qd-fxnote">${esc(fxMeta.fxLine)}　${esc(fxMeta.created)}</div>`
       : '';
 
     const dateStr  = _fmtJpDate(hdr.date || _todayIso());
@@ -702,7 +786,7 @@
     ].filter(Boolean).join('<br>');
 
     const metaRows = subj.meta.map(([k, v]) =>
-      `<div class="qd-srow"><span class="qd-sk">${esc(k)}</span><span class="qd-sv">${nl2br(v)}</span></div>`
+      `<div class="qd-srow"><span class="qd-sk">${esc(k)}</span><span class="qd-sv">${(v && typeof v === 'object') ? v.html : nl2br(v)}</span></div>`
     ).join('');
 
     return `
@@ -727,7 +811,7 @@
         ${metaRows ? `<div class="qd-meta">${metaRows}</div>` : ''}
         ${(!hideTotal || validStr) ? `<div class="qd-amt-row">
           <span>${hideTotal ? '' : t('totalAmount')}${validStr ? `　<span class="qd-valid">${t('validUntil')}：${esc(validStr)}</span>` : ''}</span>
-          ${hideTotal ? '' : `<span class="qd-amt">¥ ${fmtInt(total)} <span class="qd-jpy">(JPY)</span></span>`}
+          ${hideTotal ? '' : `<span class="qd-amt">${rgY(total, totalHi, ' ')} <span class="qd-jpy">(JPY)</span></span>`}
         </div>` : ''}
       </div>
 
@@ -747,54 +831,18 @@
             <tr><td class="qd-ctr qd-rh">${t('currency')}</td><td class="qd-ctr qd-rh">${t('rate')}</td></tr>
             ${rateRows}
           </table>
-          ${fxMetaNote}
         </div>
         ${hideTotal ? '' : `<div class="qd-sum">
           <table>
-            <tr><td class="qd-sk2">${t('exemptSub')}</td><td class="qd-num">¥${fmtInt(exemptSub)}</td></tr>
-            <tr><td class="qd-sk2">${t('taxableSub')}</td><td class="qd-num">¥${fmtInt(taxableSub)}</td></tr>
-            <tr><td class="qd-sk2">${t('tax')}（${Math.round(taxRate * 100)}%）</td><td class="qd-num">¥${fmtInt(tax)}</td></tr>
-            <tr class="qd-total"><td>${t('grandTotal')}</td><td class="qd-num">¥${fmtInt(total)}</td></tr>
+            <tr><td class="qd-sk2">${t('exemptSub')}</td><td class="qd-num">${rgY(exemptSub, exemptSubHi)}</td></tr>
+            <tr><td class="qd-sk2">${t('taxableSub')}</td><td class="qd-num">${rgY(taxableSub, taxableSubHi)}</td></tr>
+            <tr><td class="qd-sk2">${t('tax')}（${Math.round(taxRate * 100)}%）</td><td class="qd-num">${rgY(tax, taxSumHi)}</td></tr>
+            <tr class="qd-total"><td>${t('grandTotal')}</td><td class="qd-num">${rgY(total, totalHi)}</td></tr>
           </table>
         </div>`}
       </div>
-      ${(() => {
-        const sc = (document.getElementById('qf-scope')?.value || '').trim();
-        return sc ? `<div class="qd-remark-block qd-scope-block"><div class="qd-remark-ttl">${t('scopeTitle')}</div><div class="qd-remark-body">${nl2brLink(sc)}</div></div>` : '';
-      })()}
-      ${(() => {
-        let rt = (typeof getRemarkText === 'function') ? getRemarkText() : (cond && cond.free) || '';
-        if (_curLangEn && typeof window.translateRemarkToEn === 'function') rt = window.translateRemarkToEn(rt);   // 定型文を英文に
-        const imgHtml = (typeof remarkImagesOutputHTML === 'function') ? remarkImagesOutputHTML('qd-remark-images') : '';
-        if (!rt && !imgHtml) return '';
-        const bodyHtml = rt ? `<div class="qd-remark-body">${nl2brLink(rt)}</div>` : '';
-        return `<div class="qd-remark-block"><div class="qd-remark-ttl">${t('remarksTitle')}</div>${bodyHtml}${imgHtml}</div>`;
-      })()}
-      ${(() => {
-        // 常時付記：全体リマークの下に固定で出す（設定は「全体リマーク」欄の📎常時付記）
-        let fx = (typeof window.getFixedRemarkText === 'function') ? window.getFixedRemarkText() : '';
-        if (!fx) return '';
-        if (_curLangEn && typeof window.translateRemarkToEn === 'function') fx = window.translateRemarkToEn(fx);
-        return `<div class="qd-remark-block qd-remark-fixed"><div class="qd-remark-body">${nl2brLink(fx)}</div></div>`;
-      })()}
-      ${(() => {
-        const diff = _revDiff;
-        if (!diff) return '';
-        const lines = [];
-        diff.added.forEach(r => lines.push(`<li class="qd-rev-add">＋ 追加：${esc(r.nm || '（品名未設定）')}</li>`));
-        diff.removed.forEach(r => lines.push(`<li class="qd-rev-del">－ 削除：${esc(r.nm || '（品名未設定）')}</li>`));
-        diff.changed.forEach(c => {
-          const parts = c.fields.map(f => `${esc(f.label)}：${esc(String(f.from || '—'))} → ${esc(String(f.to || '—'))}`).join('／');
-          lines.push(`<li class="qd-rev-chg">✎ 変更：${esc(c.name || '（品名未設定）')}（${parts}）</li>`);
-        });
-        const totalLine = (diff.showTotal !== false && diff.totalFrom !== diff.totalTo)
-          ? `<div class="qd-rev-total">合計金額：¥${esc(diff.totalFrom)} → ¥${esc(diff.totalTo)}</div>` : '';
-        return `<div class="qd-remark-block qd-revision-block">
-          <div class="qd-remark-ttl">${t('revisionTitle')}</div>
-          <ul class="qd-rev-list">${lines.join('')}</ul>
-          ${totalLine}
-        </div>`;
-      })()}
+      ${fxMetaNote}
+      ${opts.omitRemarks ? '' : _commonBlocksHTML(_revDiff)}
     </div>`;
   }
 

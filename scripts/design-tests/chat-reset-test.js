@@ -1,10 +1,33 @@
-// 小計行の「注記 ▾」（見積書に出さない・期間外・入力完了・要調査）でも、つまみ列の操作ボタン（解除・複製・削除など）が押せること（Industry）。
-//   THEME=1 node scripts/design-tests/gray-rows-test.js
+// 新規見積・クリアのとき、右レールの「申し送り」に別件の内容が残らないこと
+//   THEME=1 node scripts/design-tests/chat-reset-test.js
 const { chromium } = (()=>{try{return require('playwright-core')}catch(e){return require('playwright')}})();
 const http=require('http'),fs=require('fs'),path=require('path');
 const OUT=process.env.OUT||require('os').tmpdir()+'/design-tests-out';fs.mkdirSync(OUT,{recursive:true});
+const run=async(p)=>{
+ const ok=(n,c,x)=>console.log((c?'PASS ':'FAIL ')+n+(c?'':' → '+JSON.stringify(x)));
+ // 別の案件の申し送り（右レールの「申し送り」）が表示されている状態を作る
+ const seed=()=>p.evaluate(()=>{
+  document.getElementById('qspChatList').innerHTML='<div class="cp-chat-item"><div class="cp-chat-body">別件の申し送り（YML: O/F USD120）</div></div>';
+  document.getElementById('qspChatInput').value='書きかけの別件メモ';
+  window.qspTab&&0;
+  const pane=document.getElementById('qspPane-chat');document.querySelectorAll('.qsp-pane').forEach(e=>e.classList.remove('is-active'));pane.classList.add('is-active');
+ });
+ const state=()=>p.evaluate(()=>({items:document.querySelectorAll('#qspChatList .cp-chat-item').length,text:document.getElementById('qspChatList').textContent.trim().slice(0,40),input:document.getElementById('qspChatInput').value}));
+ await seed();
+ let s0=await state();ok('（準備）別件の申し送りが出ている',s0.items===1,s0);
+ await p.evaluate(()=>qpNewQuote());await p.waitForTimeout(300);
+ let s=await state();
+ ok('新規見積を作成すると、別件の申し送りは消える',s.items===0&&!/別件/.test(s.text),s);
+ ok('書きかけの申し送りメモも消える',s.input==='',s);
+ await seed();
+ await p.evaluate(()=>{window.confirm=()=>true;quoteModeNew()});await p.waitForTimeout(300);
+ s=await state();ok('「新規」ボタンでも消える',s.items===0&&s.input==='',s);
+ await seed();
+ await p.evaluate(()=>{window.confirm=()=>true;quoteModeClear()});await p.waitForTimeout(300);
+ s=await state();ok('「クリア」でも消える',s.items===0&&s.input==='',s);
+};
 (async()=>{
- const root='/home/user/forwarder-support';
+ const root=path.resolve(__dirname,'..','..');
  const srv=http.createServer((q,r)=>{const f=path.join(root,decodeURIComponent(q.url.split('?')[0]));if(!fs.existsSync(f)||fs.statSync(f).isDirectory()){r.writeHead(404);r.end();return;}r.writeHead(200,{'Content-Type':f.endsWith('.css')?'text/css':f.endsWith('.js')?'text/javascript':'text/html; charset=utf-8'});fs.createReadStream(f).pipe(r);});
  await new Promise(r=>srv.listen(0,'127.0.0.1',r));
  const URL=`http://127.0.0.1:${srv.address().port}/${encodeURIComponent('フォワーダー支援')}/index.html`;
@@ -15,7 +38,6 @@ const OUT=process.env.OUT||require('os').tmpdir()+'/design-tests-out';fs.mkdirSy
  await ctx.route(u=>!u.href.startsWith('http://127.0.0.1'),r=>r.abort());
  const p=await ctx.newPage();const errs=[];p.on('pageerror',e=>errs.push(e.message));p.on('dialog',d=>d.accept());p.setDefaultTimeout(8000);
  await p.goto(URL,{waitUntil:'domcontentloaded'});await p.waitForTimeout(600);
- await p.addStyleTag({content:'*{caret-color:transparent!important;} *,*::before,*::after{animation:none!important;transition:none!important;}'});
  await p.evaluate(()=>{const t=document.querySelector('[onclick*="quote-make"]');t&&t.click();});await p.waitForTimeout(1000);
  await p.evaluate(()=>window.qpShowEditor&&window.qpShowEditor());await p.waitForTimeout(500);
  await p.evaluate(()=>{setTransport('fcl')});
@@ -32,21 +54,5 @@ const OUT=process.env.OUT||require('os').tmpdir()+'/design-tests-out';fs.mkdirSy
  }
  await p.waitForTimeout(1500);
  await p.evaluate(()=>document.getElementById('section-table').scrollIntoView());await p.waitForTimeout(300);
- 
- const sub=p.locator('#tableBody tr.subcon-group-subtotal').first();
- const info=async(t)=>console.log(t,JSON.stringify(await sub.evaluate(tr=>{const b=tr.querySelector('.st-notes-btn');const n=tr.querySelector('.st-notes');const r=b.getBoundingClientRect();const e=document.elementFromPoint(r.left+r.width/2,r.top+r.height/2);return{open:tr.classList.contains('is-notes-open'),btnDisp:getComputedStyle(b).display,notesDisp:getComputedStyle(n).display,hit:e&&(e===b||b.contains(e))?'btn':(e&&(e.tagName+'.'+e.className+' #'+e.id+' in '+(e.closest('tr')||{}).className)),rect:[r.left,r.top],vis:getComputedStyle(tr).visibility,pe:getComputedStyle(b).pointerEvents,anc:getComputedStyle(b.parentElement).pointerEvents,vh:innerHeight,w:r.width,h:r.height}})));
- await sub.scrollIntoViewIfNeeded();
- await info('before');
- await sub.locator('.st-notes-btn').click({timeout:3000}).catch(e=>console.log('click err',e.message.split('\n')[0]));
- await p.waitForTimeout(300);
- await info('after');
- const ok=(n,c)=>console.log((c?'PASS ':'FAIL ')+n);
- ok('サブコン小計：注記▾で開く',await sub.evaluate(t=>t.classList.contains('is-notes-open')));
- const al=sub.locator('.subcon-alias-input');await al.fill('国内諸費用 一式');
- ok('客先表示名の欄に入力できる',(await al.inputValue())==='国内諸費用 一式');
- await sub.locator('.st-notes-btn').click();await p.waitForTimeout(200);
- const g=await sub.evaluate(tr=>{const r=s=>tr.querySelector(s).getBoundingClientRect();const a=r('.st-alias'),m=r('.st-remark'),n=r('.st-notes');return{sameRow:Math.abs(a.top-m.top)<6,gap:Math.round(m.left-a.right),aLeft:Math.round(a.left-n.left)}});
- ok('客先表示名とリマークが 1 行に並ぶ（左寄せ・間隔が 60px 以内）',g.sameRow&&g.gap<=60&&g.aLeft<=4);
- ok('もう一度押すと閉じる',!(await sub.evaluate(t=>t.classList.contains('is-notes-open'))));
- ok('入力済みなら ● が付く',await sub.locator('.st-notes-btn').evaluate(b=>b.classList.contains('has-value')));
+ await run(p);
  console.log('errors',JSON.stringify(errs));await b.close();srv.close();})();

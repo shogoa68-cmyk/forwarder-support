@@ -10,7 +10,7 @@
 
   function clearConditions() {
     if (!confirm('貨物情報・引き合い条件をクリアしますか？')) return;
-    ['z2Carrier','z2Service','z2CarrierRole','z2ActualCarrier','z2Pol','z2Via','z2Pod','z2Tt','cond-origin','cond-dest','cond-cargo','cond-hs','cond-hs-basic','cond-hs-pref','cond-hs-pref-note',
+    ['z2Carrier','z2Service','z2CarrierRole','z2ActualCarrier','z2Pol','z2Via','z2Pod','z2PolCountry','z2ViaCountry','z2PodCountry','z2Tt','cond-origin','cond-dest','cond-cargo','cond-hs','cond-hs-basic','cond-hs-pref','cond-hs-pref-note',
      'cond-packing','cond-packing-preset','condFreeText','cond-cargo-unknown-note',
      'cond-origin-country','cond-dest-country','z1Place','z1Country','z3Place','z3Country',
      'cond-container-count']
@@ -259,9 +259,12 @@
   // 既存の保存データ（localStorage / JSON / クラウド）との互換のため、この順序は変更しないこと。
   // ※ 列の見た目の並び替えは row-tpl / thead 側だけで行い、ここは触らない。
   // 末尾の ppmin/bpmin（ミニマム＝最低料金：仕入／売値）も後方追加（保存配列の 30・31 番目）。
+  // さらに末尾の bphi（幅＝売単価の上限。例：1,000〜2,500 の 2,500）も後方追加（34 番目）。
+  // その後ろの ic（適用する貿易条件：カンマ区切りのコード。空＝どの貿易条件でも有効）も後方追加（32 番目）。
+  // cn（表示条件：JSON {k,o,a,b}。空＝常に表示）は 33 番目。
   // 末尾の vf/vt（サーチャージ有効期限：開始/終了）は後方追加。既存保存データには無いが
   // _applyCells が undefined セルをスキップするため互換。順序は末尾以外変更しないこと。
-  const ROW_CELL_FIELDS = ['cat','sv','tx','nm','pq','un','bq','pc','bc','pp','bp','cd','mk','nt','zc','vf','vt','ac','pt','ps','co','lu','ppmode','pprate','ppbase','uid','ppref','ri','es','ppmin','bpmin'];
+  const ROW_CELL_FIELDS = ['cat','sv','tx','nm','pq','un','bq','pc','bc','pp','bp','cd','mk','nt','zc','vf','vt','ac','pt','ps','co','lu','ppmode','pprate','ppbase','uid','ppref','ri','es','ppmin','bpmin','ic','cn','bphi'];
 
   function _applyCells(tr, cells) {
     // cells[0] = 選択チェック、cells[1..] = ROW_CELL_FIELDS 順（DOM 列順に依存しない）
@@ -274,7 +277,7 @@
       if (!el) return;
       // 旧形式では checkbox 値が文字列 "on" で保存されていた。boolean true と "on" 両方を受け入れる
       if (el.type === 'checkbox') el.checked = v === true || v === 'on';
-      else el.value = v;
+      else el.value = (f === 'cat') ? normCat(v) : v;   // 廃止したカテゴリ（国内配送・横持ち／倉庫保管／梱包）は「その他」へ
     });
   }
 
@@ -359,11 +362,13 @@
 
   function _addDaysToValidUntil(n) {
     const el = document.getElementById('qf-valid-until');
-    if (!el || el.type !== 'date') return;
-    const base = el.value ? new Date(el.value + 'T00:00:00') : new Date();
+    if (!el) return;
+    if (el.type === 'text') _toggleValidUntilSpot();   // SPOT 表記から日付入力へ戻す
+    const base = new Date();   // 「今日から」n 日後（メニューの表記どおり）
     base.setDate(base.getDate() + n);
     el.value = base.toLocaleDateString('sv', { timeZone: 'Asia/Tokyo' }); // "YYYY-MM-DD" JST
     _checkValidUntil();
+    el.dispatchEvent(new Event('change', { bubbles: true }));
     if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
   }
 
@@ -462,6 +467,18 @@
     try { _rebuildTableRows(data); } finally { window.endQuoteBulkUpdate(); }
   }
 
+  // 明細（rows）だけを丸ごと置き換える（提示履歴 quote-versions.js の「この版に戻す」用）。
+  // 条件・貨物情報などの項目は現在のまま。置き換え前の状態を元に戻す（Ctrl+Z）の履歴へ積む。
+  window.quoteReplaceRows = function (rows) {
+    if (!Array.isArray(rows) || !rows.length) return false;
+    snapshotNow();                                   // 置き換え前の状態を確定（Ctrl+Z の戻り先）
+    const cur = gatherAllData();
+    cur.rows = JSON.parse(JSON.stringify(rows));
+    _applyQuoteData(cur);
+    scheduleSnapshot();                              // 置き換え後の状態を履歴へ
+    return true;
+  };
+
   function _rebuildTableRows(data) {
     document.getElementById('tableBody').innerHTML = '';
     rowCount = 0;
@@ -558,6 +575,7 @@
     const has = !!(value && typeof window.mdGet === 'function' && (window.mdGetCanon || window.mdGet)('customer', value));
     btn.hidden = !has;
     window.qfRefreshPersonSuggestions();
+    if (typeof window.crRefreshBanner === 'function') window.crRefreshBanner();   // このお客様の取引ルール（customer-rules.js）
   };
 
   // お客様マスターに登録済みの担当者を「お客様 ご担当者」欄のサジェスト候補へ反映
@@ -575,8 +593,10 @@
       const o = document.createElement('option');
       o.value = name;
       const furi = (c.furigana || '').trim();
-      const meta = [furi, c.phone, c.email, c.other].filter(Boolean).join(' / ');
-      if (meta) o.label = meta;   // ふりがなも label に入れ、読み入力でも候補にヒットさせる
+      const meta = [furi, c.dept, c.title, c.phone, c.email, c.other].filter(Boolean).join(' / ');
+      // 入力は敬称略（value）。候補の表示には「様」を付ける。ふりがなも label に入れ、読み入力でも候補にヒットさせる
+      const honor = window.formatPersonWithHonorific ? window.formatPersonWithHonorific(name) : name + ' 様';
+      o.label = meta ? honor + ' / ' + meta : honor;
       if (furi) o.dataset.furi = furi;
       dl.appendChild(o);
     });
@@ -600,10 +620,21 @@
           if (!list.length) return '';
           const items = list.map(c => {
             const meta = [c.phone, c.email, c.other].filter(Boolean).join(' / ');
-            return `<div class="cd-contact-item"><b>${_cdEsc(c.name || '（氏名未入力）')}</b>` +
-              (meta ? `<span class="cd-contact-meta">${_cdEsc(meta)}</span>` : '') + `</div>`;
+            return `<div class="cd-contact-item"><b>${_cdEsc(c.name ? (window.formatPersonWithHonorific ? window.formatPersonWithHonorific(c.name) : c.name + ' 様') : '（氏名未入力）')}</b>` +
+              ((c.dept || c.title) ? `<span class="cd-contact-meta cd-contact-dept">${_cdEsc([c.dept, c.title].filter(Boolean).join(' '))}</span>` : '') +
+              (meta ? `<span class="cd-contact-meta">${_cdEsc(meta)}</span>` : '') +
+              (c.location ? `<span class="cd-contact-meta cd-contact-loc">📍 ${_cdEsc(c.location)}</span>` : '') + `</div>`;
           }).join('');
           return `<tr><th>${_cdEsc(s.label)}</th><td>${items}</td></tr>`;
+        }
+        if (s.children) {
+          const kids = typeof window.mdViaChildren === 'function' ? window.mdViaChildren(value) : [];
+          if (!kids.length) return '';
+          return `<tr><th>${_cdEsc('先のお客様')}</th><td>${kids.map(k => `<span class="cd-tag-chip">🔗 ${_cdEsc(k)}</span>`).join('')}</td></tr>`;
+        }
+        if (s.areas) {
+          if (!Array.isArray(raw) || !raw.length) return '';
+          return `<tr><th>${_cdEsc(s.label)}</th><td>${raw.map(k => `<span class="cd-tag-chip">📍 ${_cdEsc(window.areaLabel ? window.areaLabel(k) : k)}</span>`).join('')}</td></tr>`;
         }
         if (s.tags) {
           if (!Array.isArray(raw) || !raw.length) return '';
@@ -611,6 +642,7 @@
           return `<tr><th>${_cdEsc(s.label)}</th><td>${chips}</td></tr>`;
         }
         if (!raw) return '';
+        if (s.country) return `<tr><th>${_cdEsc(s.label)}</th><td>🌐 ${_cdEsc(window.countryLabel ? window.countryLabel(raw) : raw)}</td></tr>`;
         if (s.link) {
           const url = String(raw).trim();
           const href = /^https?:\/\//i.test(url) ? url : 'https://' + url;
@@ -681,7 +713,20 @@
     const box = document.getElementById('qfCopiedFromInfo');
     if (!box) return;
     const cf = _loadedCopiedFrom;
-    if (!cf) { box.hidden = true; box.innerHTML = ''; return; }
+    // ログイン中は、代替わり元をあとから紐づけ・変更・解除できるボタンを出す（succession-link.js）
+    const loggedIn = typeof window.quoteCurrentUserEmail === 'function' && !!window.quoteCurrentUserEmail();
+    if (!cf) {
+      if (!loggedIn) { box.hidden = true; box.innerHTML = ''; return; }
+      box.innerHTML = '<div class="qf-copied-from-main qf-cf-empty">🧬 <button type="button" class="qf-cf-link-btn" onclick="qfPickPredecessor()" ' +
+        'title="前の案件を選んで、この案件をその次の代（代替わり）として管理します">代替わり元（前の案件）を紐づける</button>' +
+        '<span class="qf-cf-hint">前の案件を選ぶと、この案件はその次の代として管理されます</span></div>';
+      box.hidden = false;
+      return;
+    }
+    const cfActions = loggedIn
+      ? ' <span class="qf-cf-actions"><button type="button" class="qf-cf-btn" onclick="qfPickPredecessor()" title="代替わり元を別の案件に変更">変更</button>' +
+        '<button type="button" class="qf-cf-btn" onclick="qfClearPredecessor()" title="代替わり元の設定を解除（オリジナルに戻す）">解除</button></span>'
+      : '';
     const rows = (typeof _cloudRows !== 'undefined' && Array.isArray(_cloudRows)) ? _cloudRows : [];
     const origExists = cf.id && rows.some(row => row.id === cf.id);
     const cfRefBadge = cf.ref ? ' <span class="preset-cf-ref">(' + escHtml(cf.ref) + ')</span>' : '';
@@ -698,9 +743,20 @@
     box.innerHTML =
       '<div class="qf-copied-from-main">' + selfGenBadge + '📋 コピー元：<span class="cloud-cf-name">' + escHtml(cf.name || '不明') + cfRefBadge + '</span>' +
       (origExists ? ' <button type="button" class="btn-cf-preview" onclick="cloudPreviewPreset(\'' + encodeURIComponent(cf.id) + '\')" title="コピー元をプレビュー">プレビュー</button>' : '') +
-      '</div>' + rootHtml;
+      cfActions + '</div>' + rootHtml;
     box.hidden = false;
   }
+  window.qfRefreshCopiedFromInfo = _renderCopiedFromInfo;
+  // 代替わり元（copiedFrom）を設定・解除する。保存済みの案件は cloud.js の cloudSetPredecessor が DB を更新して呼ぶ（fromDb）。
+  // 新規で未保存の案件は、ここで保持して、通常の保存で一緒に保存される（gatherAllData が copiedFrom を付ける）
+  window.qfSetCopiedFrom = function (cf, opts) {
+    _loadedCopiedFrom = cf || null;
+    _renderCopiedFromInfo();
+    if (!(opts && opts.fromDb)) {
+      document.getElementById('qf-import-src')?.dispatchEvent(new Event('input', { bubbles: true }));   // 変更ありの印（未保存の確認・自動の履歴）
+      if (typeof scheduleSnapshot === 'function') scheduleSnapshot();
+    }
+  };
 
   // データを画面に適用（restoreAutoSave と同等。トースト・restoreBar 操作なし）
   function _applyQuoteData(data, { keepHeaderIfEmpty = false } = {}) {
@@ -724,7 +780,7 @@
     // ヘッダー項目（_HEADER_FIELD_IDS）は keepHeaderIfEmpty 指定時のみ対象外（現在値を保持）。
     // 案件を開く経路は指定せず、保存内容どおりに復元する（空の項目に前の案件の値を残さない）。
     // 一時的な UI 操作用フィールドも _clearQuoteForm と同じ SKIP で対象外にする。
-    const _SKIP_FIELDS = ['rowInsertPos', 'rowPatternInsertPos', 'bulkCatSet', 'bulkSubconSet', 'selectAllChk'];
+    const _SKIP_FIELDS = ['rowInsertPos', 'rowPatternInsertPos', 'bulkCatSet', 'bulkSubconSet', 'selectAllChk', 'qfRelKind', 'qfRelInput', 'hzAiReply'];
     document.querySelectorAll(
       '#tab-quote-make .quote-main input[id], #tab-quote-make .quote-main select[id], #tab-quote-make .quote-main textarea[id]'
     ).forEach(el => {
@@ -784,6 +840,11 @@
     _triggerCarrierBmFetch();
     if (typeof window.renderQuoteMilestones === 'function') window.renderQuoteMilestones();
     if (typeof window.qfRenderTagChips === 'function') window.qfRenderTagChips();
+    if (typeof window.qfRenderRelChips === 'function') window.qfRenderRelChips();
+    if (typeof window.ciSync === 'function') window.ciSync();
+    if (typeof window.cfSync === 'function') window.cfSync();
+    if (typeof window.rfSync === 'function') window.rfSync();
+    if (typeof window.cgSync === 'function') window.cgSync();
     if (typeof window.updateRemarkChar === 'function') window.updateRemarkChar();
     if (typeof window.syncRemarkChips === 'function') window.syncRemarkChips();
     if (typeof window.renderRemarkImages === 'function') window.renderRemarkImages();
@@ -835,8 +896,12 @@
   function _updateHistoryButtonsUI() {
     const u = document.getElementById('btnQuoteUndo');
     const r = document.getElementById('btnQuoteRedo');
+    const um = document.getElementById('btnQuoteUndoMenu');
+    const rm = document.getElementById('btnQuoteRedoMenu');
     if (u) u.disabled = _undoStack.length === 0;
     if (r) r.disabled = _redoStack.length === 0;
+    if (um) um.disabled = _undoStack.length === 0;
+    if (rm) rm.disabled = _redoStack.length === 0;
   }
 
   // 見積タブ表示時に初期化（initQuoteState から呼ぶ）
@@ -1099,8 +1164,9 @@
       });
     }
 
-    // IntersectionObserver：メモ欄が画面外に出たら自動表示
-    const memoField = document.querySelector('.quote-field-memo');
+    // IntersectionObserver：メモ欄が画面外に出たら自動表示（メモ欄を画面から隠した今は使わない。付箋は右下の「案件名・社内メモ」ボタンで開く。
+    //   開く度に勝手に出てきて「消せない」ように見えるため、自動表示は廃止）
+    const memoField = null;
     if (memoField && window.IntersectionObserver) {
       const obs = new IntersectionObserver(entries => {
         entries.forEach(entry => {
@@ -1121,7 +1187,7 @@
     // フォーム値
     const fields = {};
     document.querySelectorAll('input[id], select[id], textarea[id]').forEach(el => {
-      if (['csvFileInput','importFileInput','rowPatternImportFile','qf-memo-pop','qf-memo-float-ta'].includes(el.id)) return;
+      if (['csvFileInput','importFileInput','rowPatternImportFile','qf-memo-pop','qf-memo-float-ta','qfRelKind','qfRelInput','hzAiReply'].includes(el.id)) return;
       fields[el.id] = el.type === 'checkbox' ? el.checked : el.value;
     });
     // テーブル行（通常行 / 小計行 / リマーク行をすべて保存）
@@ -1433,6 +1499,7 @@
     applyZoneState();
     if (typeof window.renderQuoteMilestones === 'function') window.renderQuoteMilestones();
     if (typeof window.qfRenderTagChips === 'function') window.qfRenderTagChips();
+    if (typeof window.qfRenderRelChips === 'function') window.qfRenderRelChips();
   }
 
   /** インコタームズ選択時のヒント表示（index.html の onchange="showIncotermsHint()" から呼ばれる） */
@@ -1952,6 +2019,7 @@
   }
 
   function _renderPackingPatternTabs() {
+    renderQtyPatternBar();   // 見積もりテーブルの上の切替（編集中のパターンの表示）も合わせて更新
     const wrap = document.getElementById('cdPatternTabs');
     if (!wrap) return;
     // パターンが1件だけ（かつ無名）なら、まだ複数パターンを使っていない案件なので
@@ -2112,6 +2180,7 @@
     _applyPatternQtyLinks(i);
     _applyPatternRouteLinks(i);
     _renderRouteEntries();
+    renderQtyPatternBar();
     if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
     if (typeof scheduleSnapshot === 'function') scheduleSnapshot();
   };
@@ -2186,7 +2255,62 @@
     if (hideChanged && typeof updateTotals === 'function') updateTotals();
     // サブコン・サブコン×パターン見出しの「含む/除外」の紐付けを適用（row.js 側で定義）
     if (typeof _applyPatternGroupExcludeLinks === 'function') _applyPatternGroupExcludeLinks(i);
+    renderQtyPatternBar();   // 「要確認」の行数を更新
   }
+
+  // ===== 見積もりテーブルの上の「数量パターン」切替（FCL案／LCL案など） =====
+  // 数量パターンを 2 つ以上使っているときだけ、編集中のパターンを表の操作バー（スクロールしても上に付く）に常時出し、その場で切り替えられるようにする。
+  // あわせて、表の上端の線・数量の列見出しを、編集中のパターンの色（FCL＝緑／LCL＝青／指定なし＝茶）にする。
+  // 枠線の凡例（緑＝このパターン専用の数量／橙の点線＝他のパターンだけに設定があり、このパターンは未設定）と、要確認の行数・ジャンプも出す。
+  function renderQtyPatternBar() {
+    const bar = document.getElementById('qtyPatternBar');
+    const tab = document.getElementById('tab-quote-make');
+    const hd  = document.getElementById('hdQtyPat');
+    if (!bar) return;
+    const multi = _packingPatterns.length >= 2;
+    bar.hidden = !multi;
+    const act = _packingPatterns[_packingActiveIdx] || {};
+    const label = p => p.name || `パターン${_packingPatterns.indexOf(p) + 1}`;
+    if (tab) tab.dataset.qpat = multi ? (act.mode === 'fcl' || act.mode === 'lcl' ? act.mode : 'other') : '';
+    if (hd) { hd.hidden = !multi; hd.textContent = multi ? label(act) : ''; hd.title = multi ? '編集中の数量パターン：' + label(act) : ''; }
+    if (!multi) { bar.innerHTML = ''; return; }
+    const chips = _packingPatterns.map((pt, i) => {
+      const on = i === _packingActiveIdx;
+      const mode = pt.mode === 'fcl' || pt.mode === 'lcl' ? pt.mode : '';
+      return `<button type="button" class="qpat-chip${on ? ' is-active' : ''}${mode ? ' is-' + mode : ''}" aria-pressed="${on}" onclick="switchPackingPattern(${i})" ` +
+        `title="${_escMulti(label(pt))}（${on ? '編集中の数量パターン' : 'クリックでこのパターンに切り替えて編集'}）">` +
+        (mode ? `<span class="qpat-mode">${mode.toUpperCase()}</span>` : '') + `<span class="qpat-name">${_escMulti(label(pt))}</span></button>`;
+    }).join('');
+    const need = document.querySelectorAll('#tableBody .pq-pattern-needs-check').length;
+    bar.innerHTML = `<span class="qpat-lbl" title="見積もりテーブルの数量は、パターンごとに記憶されます。枠線の見方：緑＝このパターン専用の数量／橙＝他のパターンだけに設定あり">📦 数量パターン</span>${chips}` +
+      (need ? `<button type="button" class="qpat-need" onclick="jumpToQtyNeedsCheck()" title="他のパターンでは数量が設定されているのに、このパターンでは未設定の行（値は自動では変わらないので、必要なら入れ直してください）。クリックで最初の行へ">⚠ 要確認 ${need} 行</button>` : '') +
+      `<span class="qpat-legend"><i class="qpat-sw is-linked"></i>このパターン専用の数量<i class="qpat-sw is-check"></i>他のパターンだけに設定あり</span>`;
+  }
+  window.renderQtyPatternBar = renderQtyPatternBar;
+  // 数量パターンのバーは、画面が広いとき上部ツールバー（「⋯」の左の空き）に置き、狭い画面（ツールバーが static になる 680px 以下）では表の操作バーの先頭に戻す。
+  // 要素は 1 つのまま移すだけ（id・中身の描画・onclick は不変）
+  function _placeQtyPatternBar() {
+    const bar = document.getElementById('qtyPatternBar');
+    if (!bar) return;
+    const narrow = window.matchMedia('(max-width: 680px)').matches;
+    const tb = document.getElementById('saveToolbar');
+    const menu = tb && tb.querySelector('.tb-menu');
+    const cmd = document.querySelector('#tab-quote-make .quote-cmdbar');
+    if (narrow) {
+      if (cmd && bar.parentElement !== cmd) cmd.insertBefore(bar, cmd.firstChild);
+    } else if (tb && menu && bar.parentElement !== tb) {
+      tb.insertBefore(bar, menu);
+    }
+  }
+  window._placeQtyPatternBar = _placeQtyPatternBar;
+  _placeQtyPatternBar();
+  try { window.matchMedia('(max-width: 680px)').addEventListener('change', _placeQtyPatternBar); } catch (e) { window.addEventListener('resize', _placeQtyPatternBar); }
+  window.jumpToQtyNeedsCheck = function () {
+    const el = document.querySelector('#tableBody .pq-pattern-needs-check');
+    if (!el) return;
+    el.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    try { el.focus({ preventScroll: true }); } catch (e) {}
+  };
 
   // 幹線輸送：航路の有効/無効（✓/—）を、物量パターンに紐付けて適用する。
   // 紐付けが無い航路（そのパターンでまだ切り替えたことがない航路）は現状の enabled のまま触らない
@@ -2454,11 +2578,17 @@
     // 重量・容積（概算）欄は廃止。明細合計を直接保持してプレビュー等で参照
     // hidden に R/T・CW も保持（プレビュー等で参照可能に）
     _lastCargoMetrics = { cbm: totCbm, kg: totKg, rt, cw, qty: totQty };
+    if (typeof window.refreshRowConditions === 'function') setTimeout(window.refreshRowConditions, 0);   // 行の表示条件を判定し直す
     if (typeof window.renderQuoteCargoInfo === 'function') window.renderQuoteCargoInfo();
     // 右カラム「数量」メニューのパターン選択欄（ud-pattern-select）も同期
     if (typeof window.udRefresh === 'function') window.udRefresh();
   }
   let _lastCargoMetrics = { cbm: 0, kg: 0, rt: 0, cw: 0, qty: 0 };
+
+  // 行の「表示条件」が参照できるよう、コンテナの種別・本数を公開（[{type, count}]）
+  window.getContainerEntries = function () {
+    return (_containerEntries || []).filter(e => e && e.type).map(e => ({ type: e.type, count: parseFloat(e.count) || 0 }));
+  };
 
   // 物量情報を見積サマリ等から参照できるよう公開
   window.getCargoMetrics = function () {
@@ -2687,6 +2817,64 @@
   window.qfTagsKeydown = function (e) {
     if (e.key === 'Enter') { e.preventDefault(); window.qfAddTagFromInput(); }
   };
+  // ========== 🔖 関連番号・メール件名 ==========
+  // 管理番号を取らずに見積対応を始めた案件を後からフォローするため、案件ごとに複数の
+  // 識別子（問い合わせ番号・メール件名など）を登録する。#qf-related-data（hidden・JSON配列
+  // [{k:'num'|'mail'|'other', v:'…'}]）が実データ。保存/復元は他の qf-* 項目と同じ汎用ループ任せ。
+  // ダッシュボードの検索対象・カード表示にも載る（ui.js _presetMeta().related）。
+  const _QF_REL_ICON = { num: '🔢', mail: '✉️', other: '📎' };
+  function _qfRelArr() {
+    try {
+      const a = JSON.parse(document.getElementById('qf-related-data')?.value || '[]');
+      return Array.isArray(a)
+        ? a.map(e => ({ k: (e && _QF_REL_ICON[e.k]) ? e.k : 'other', v: String((e && e.v) || '').trim() })).filter(e => e.v)
+        : [];
+    } catch (e) { return []; }
+  }
+  function _qfSetRelArr(arr) {
+    const el = document.getElementById('qf-related-data');
+    if (el) el.value = JSON.stringify(arr);
+    window.qfRenderRelChips();
+    if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
+  }
+  window.qfRenderRelChips = function () {
+    const box = document.getElementById('qfRelChips');
+    if (!box) return;
+    box.innerHTML = _qfRelArr().map((e, i) =>
+      '<span class="qf-tag-chip qf-rel-chip" title="クリックでコピー">' +
+        '<span class="qf-rel-text" onclick="qfCopyRel(' + i + ')">' + _QF_REL_ICON[e.k] + ' ' + escHtml(e.v) + '</span>' +
+        '<button type="button" onclick="qfRemoveRel(' + i + ')" title="この登録を外す">×</button></span>'
+    ).join('');
+  };
+  window.qfAddRelFromInput = function () {
+    const inp = document.getElementById('qfRelInput');
+    const v = (inp?.value || '').trim();
+    if (!v) return;
+    const k = document.getElementById('qfRelKind')?.value || 'num';
+    const cur = _qfRelArr();
+    if (cur.some(e => e.v === v)) {
+      if (typeof quoteShowToast === 'function') quoteShowToast('ℹ️ すでに登録されています', 'info', 2000);
+      inp.value = '';
+      return;
+    }
+    _qfSetRelArr([...cur, { k, v }]);
+    inp.value = '';
+    inp.focus();
+  };
+  window.qfRemoveRel = function (idx) {
+    _qfSetRelArr(_qfRelArr().filter((_, i) => i !== idx));
+  };
+  window.qfCopyRel = function (idx) {
+    const e = _qfRelArr()[idx];
+    if (!e) return;
+    const done = () => { if (typeof quoteShowToast === 'function') quoteShowToast('コピーしました：' + e.v, 'success', 2000); };
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(e.v).then(done, () => {});
+  };
+  window.qfRelKeydown = function (ev) {
+    // IME 変換確定の Enter では追加しない
+    if (ev.key === 'Enter' && !ev.isComposing) { ev.preventDefault(); window.qfAddRelFromInput(); }
+  };
+
   // タグ入力欄のサジェスト（全案件で使われている既知のタグ。取得はチーム共有ログイン時のみ）
   window.qfLoadTagSuggestions = async function () {
     const dl = document.getElementById('qfTagSuggestions');
@@ -2827,26 +3015,27 @@
   }
 
   // ========== 危険品・特殊貨物：複数件登録 ==========
-  // 入力欄（UN番号／クラス／PG／PI／消防法／PSN／引火点）を「1件分のフォーム」として使い、
+  // 入力欄（製品名／UN番号／クラス／PG／PI／消防法／PSN／引火点）を「1件分のフォーム」として使い、
   // ＋ 追加のたびに _hazEntries へ積んでフォームをクリアする（幹線輸送の航路チップと同じ設計）。
   // 後方互換：1件も追加せずフォームに直接入力しただけの旧来の使い方は、_hazEntries が空のまま
   // 残るため、PDF側（quote-pdf.js の _hazmatDetail）がフォームの値をフォールバックとして拾う。
-  let _hazEntries = [];   // [{ un, cls, pg, pi, fireLaw, psn, flash }, ...]
+  let _hazEntries = [];   // [{ name(製品名), un, cls, pg, pi, fireLaw, psn, flash }, ...]
 
   function _hazFormGet() {
     const v = id => (document.getElementById(id)?.value || '').trim();
-    return { un: v('hz-un'), cls: v('hz-class'), pg: v('hz-pg'), pi: v('hz-pi'),
+    return { name: v('hz-name'), un: v('hz-un'), cls: v('hz-class'), pg: v('hz-pg'), pi: v('hz-pi'),
              fireLaw: v('hz-fire-law'), psn: v('hz-psn'), flash: v('hz-flash') };
   }
   function _hazFormSet(e) {
     const set = (id, val) => { const el = document.getElementById(id); if (el) el.value = val || ''; };
-    set('hz-un', e.un); set('hz-class', e.cls); set('hz-pg', e.pg); set('hz-pi', e.pi);
+    set('hz-name', e.name); set('hz-un', e.un); set('hz-class', e.cls); set('hz-pg', e.pg); set('hz-pi', e.pi);
     set('hz-fire-law', e.fireLaw); set('hz-psn', e.psn); set('hz-flash', e.flash);
   }
   function _hazFormClear() { _hazFormSet({}); }
   // 表示用の要約テキスト（チップ・PDF共通）
   function _hazEntryLabel(e) {
     const parts = [];
+    if (e.name)    parts.push(e.name);   // 製品名（正式品名 PSN とは別）を先頭に
     if (e.un)      parts.push('UN' + e.un.replace(/^UN/i, ''));
     if (e.cls)     parts.push(e.cls);
     if (e.pg)      parts.push(e.pg);
@@ -2867,8 +3056,9 @@
       const label = _hazEntryLabel(e) || '（未入力）';
       return `<span class="hz-entry-chip">`
         + `<span class="hz-entry-idx">${i + 1}</span>`
-        + `<span class="hz-entry-label">${_escMulti(e.psn || e.un || label)}</span>`
+        + `<span class="hz-entry-label">${_escMulti(e.name || e.psn || e.un || label)}</span>`
         + `<span class="hz-entry-sub">${_escMulti(label)}</span>`
+        + (e.ai ? `<button type="button" class="hz-entry-ai" onclick="confirmHazEntry(${i})" title="AIから取り込んだ内容です。SDS・IMDG等と照合してください。押すと「照合済み」にします${e.src ? '（出典：' + _escMulti(e.src) + '）' : ''}">🤖要確認</button>` : '')
         + `<button type="button" class="hz-entry-edit" onclick="editHazEntry(${i})" title="編集（フォームに書き戻す）">✎</button>`
         + `<button type="button" class="me-chip-del" onclick="removeHazEntry(${i})" title="削除">×</button></span>`;
     }).join('');
@@ -2876,14 +3066,14 @@
 
   function addHazEntry() {
     const e = _hazFormGet();
-    if (!e.un && !e.psn) {
-      if (typeof quoteShowToast === 'function') quoteShowToast('⚠️ UN番号または正式品名（PSN）を入力してください', 'warn', 1800);
+    if (!e.name && !e.un && !e.psn) {
+      if (typeof quoteShowToast === 'function') quoteShowToast('⚠️ 製品名・UN番号・正式品名（PSN）のいずれかを入力してください', 'warn', 1800);
       return;
     }
     _hazEntries.push(e);
     _hazFormClear();
     _renderHazEntries();
-    document.getElementById('hz-un')?.focus();
+    document.getElementById('hz-name')?.focus();
     if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
     if (typeof scheduleSnapshot === 'function') scheduleSnapshot();
   }
@@ -2899,10 +3089,27 @@
     _hazFormSet(e);
     _hazEntries.splice(i, 1);
     _renderHazEntries();
-    document.getElementById('hz-un')?.focus();
+    document.getElementById('hz-name')?.focus();
     if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
     if (typeof scheduleSnapshot === 'function') scheduleSnapshot();
   }
+  // AI（Gemini / NotebookLM 等）の回答から取り込んだ危険品を追加する（hazmat-ai-import.js から呼ぶ）。
+  // 取り込み分には ai:true を付け、チップに「🤖要確認」を出す（SDS・IMDG との照合を促す）。
+  window.importHazEntries = function (list) {
+    if (!Array.isArray(list) || !list.length) return 0;
+    list.forEach(e => _hazEntries.push(Object.assign({}, e, { ai: true })));
+    _renderHazEntries();
+    if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
+    if (typeof scheduleSnapshot === 'function') scheduleSnapshot();
+    return list.length;
+  };
+  window.confirmHazEntry = function (i) {
+    const e = _hazEntries[i];
+    if (!e) return;
+    delete e.ai;
+    _renderHazEntries();
+    if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
+  };
   window.addHazEntry    = addHazEntry;
   window.removeHazEntry = removeHazEntry;
   window.editHazEntry   = editHazEntry;
@@ -3433,6 +3640,27 @@
   }
 
   /** carriers-dl datalist をモードに合わせて再生成 */
+  // 幹線輸送のキャリア候補（#carriers-dl）へ、ブックマークの会社とサブコンのマスター（種別がキャリア）を足す。
+  // マスターの読み込み後（arRefreshDatalist）にも呼ばれる。typeOverride は試験用（輸送モードに関係なく種別を指定）
+  window.qfRefreshCarrierMasterCandidates = function (typeOverride) {
+    const dl = document.getElementById('carriers-dl');
+    if (!dl) return;
+    const type = typeOverride || (typeof window.bmTypeForTransport === 'function' ? window.bmTypeForTransport(_currentTransport, _currentSeaSub) : null);
+    dl.querySelectorAll('option[data-bm]').forEach(o => o.remove());
+    if (!type || type === 'general') return;
+    const have = new Set(Array.from(dl.options).map(o => o.value));
+    const names = [
+      ...(typeof window.bmCarrierNamesForType === 'function' ? window.bmCarrierNamesForType(type) : []),
+      ...(typeof window.mdCarrierNames === 'function' ? window.mdCarrierNames(type) : []),
+    ];
+    names.forEach(n => {
+      if (have.has(n)) return;
+      have.add(n);
+      const o = document.createElement('option');
+      o.value = n; o.dataset.bm = '1';
+      dl.appendChild(o);
+    });
+  };
   function _refreshCarrierDatalist() {
     const dl = document.getElementById('carriers-dl');
     if (!dl) return;
@@ -3441,23 +3669,10 @@
     // 作り直しで消えたマスター登録のキャリア（過去案件・同義語・ふりがな等）を再反映
     if (typeof window.arRefreshDatalist === 'function') window.arRefreshDatalist();
 
-    // 現在の輸送モードと同じ「種別」のブックマークが登録されている会社を候補に追加
-    // （FCL→FCL / LCL→LCL / RORO→RO/RO 船 / 在来船→在来船 / Air→AIR）
-    const appendBmCarriers = () => {
-      if (typeof window.bmCarrierNamesForType !== 'function' || typeof window.bmTypeForTransport !== 'function') return;
-      const type = window.bmTypeForTransport(_currentTransport, _currentSeaSub);
-      dl.querySelectorAll('option[data-bm]').forEach(o => o.remove());
-      if (!type || type === 'general') return;
-      const have = new Set(Array.from(dl.options).map(o => o.value));
-      window.bmCarrierNamesForType(type).forEach(n => {
-        if (have.has(n)) return;
-        const o = document.createElement('option');
-        o.value = n; o.dataset.bm = '1';
-        dl.appendChild(o);
-      });
-    };
-    appendBmCarriers();
-    if (typeof window.bmEnsureCarrierTypes === 'function') window.bmEnsureCarrierTypes().then(appendBmCarriers);
+    // 現在の輸送モードと同じ「種別」のブックマークが登録されている会社、およびサブコンのマスターで種別がその
+    // キャリアの会社を候補に追加（FCL→FCL / LCL→LCL / RORO→RO/RO 船 / 在来船→在来船 / Air→AIR）
+    window.qfRefreshCarrierMasterCandidates();
+    if (typeof window.bmEnsureCarrierTypes === 'function') window.bmEnsureCarrierTypes().then(() => window.qfRefreshCarrierMasterCandidates());
 
     // z2 アイコン・プレースホルダーもモードに合わせて更新
     const icon  = document.getElementById('z2ModeIcon');
@@ -3485,19 +3700,23 @@
 
   /** z2Carrier 入力時：一致するキャリアのリンクパネルを表示 */
   // A-1: z2 キャリア名を収集して QSP 用ブックマームを非同期フェッチ
+  // 幹線（z2）のブックマーク判定に使う会社名：実運送人（実際の船会社）があればそれ、
+  // 無ければ契約先のキャリアで判定する（例：契約先 INNEX・実運送人 EVERGREEN → EVERGREEN の
+  // ブックマークを表示）。登録済みの有効航路＋現在の入力欄が対象。
+  function _z2BmCarrierNames() {
+    const names = [];
+    const add = n => { n = (n || '').trim(); if (n && !names.includes(n)) names.push(n); };
+    if (_routeEntries && _routeEntries.length) {
+      _routeEntries.filter(r => r.enabled !== false).forEach(r => add(r.actualCarrier || r.carrier));
+    }
+    const g = id => (document.getElementById(id)?.value || '').trim();
+    add(g('z2ActualCarrier') || g('z2Carrier'));
+    return names;
+  }
+
   function _triggerCarrierBmFetch() {
     if (typeof window.fetchCarrierBmsForQSP !== 'function') return;
-    const names = [];
-    // z2: 幹線キャリア（有効航路のみ）。契約先（carrier）に加え、
-    // 実運送人（actualCarrier＝「as ○○」）が別会社の場合はそちらのブックマークも対象にする
-    if (_routeEntries && _routeEntries.length) {
-      _routeEntries.filter(r => r.enabled !== false).forEach(r => {
-        if (r.carrier && !names.includes(r.carrier)) names.push(r.carrier);
-        if (r.actualCarrier && !names.includes(r.actualCarrier)) names.push(r.actualCarrier);
-      });
-    }
-    const cur = (document.getElementById('z2Carrier')?.value || '').trim();
-    if (cur && !names.includes(cur)) names.push(cur);
+    const names = _z2BmCarrierNames();
     // z1/z3: デフォルトサブコン（複数登録分すべて）
     _getAllScValues('z1DefaultScArea').forEach(sc => { if (!names.includes(sc)) names.push(sc); });
     _getAllScValues('z3DefaultScArea').forEach(sc => { if (!names.includes(sc)) names.push(sc); });
@@ -3545,17 +3764,8 @@
   window.getCarrierLinkData = function () {
     const map  = _carrierMapForMode();
     const defs = _linkDefsForMode();
-    const names = [];
-    // 契約先（carrier）に加え、実運送人（actualCarrier＝「as ○○」）が別会社の場合は
-    // そちらのブックマークも別ブロックとして表示する（実際に船を運航するのは実運送人のため）
-    if (_routeEntries && _routeEntries.length) {
-      _routeEntries.filter(r => r.enabled !== false).forEach(r => {
-        if (r.carrier && !names.includes(r.carrier)) names.push(r.carrier);
-        if (r.actualCarrier && !names.includes(r.actualCarrier)) names.push(r.actualCarrier);
-      });
-    }
-    const cur = (document.getElementById('z2Carrier')?.value || '').trim();
-    if (cur && !names.includes(cur)) names.push(cur);
+    // 実運送人があればそれ、無ければキャリアで判定（_z2BmCarrierNames）
+    const names = _z2BmCarrierNames();
     const bmCache = window._qspBmCache || {};
     const getRelated = typeof window.bmGetRelated === 'function' ? window.bmGetRelated : () => [];
     // 全面クラウド移行（フェーズ3）：内蔵DBの静的リンクは廃止し、クラウドの

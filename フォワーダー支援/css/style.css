@@ -18,14 +18,9 @@ body {
   min-height: 100vh;
 }
 
-.app { max-width: 1440px; margin: 0 auto; padding: var(--sp-20) var(--sp-16); }
-/* 見積タブ active 時は .app の幅制限を解除（テーブル min-width:1300px との衝突を解消）
-   :has() は Chrome 105+ / Firefox 121+ / Safari 15.4+ で対応 */
-body:has(#tab-quote-make.active) .app {
-  max-width: none;
-  padding-left: var(--sp-8);
-  padding-right: var(--sp-8);
-}
+/* 全タブ共通：画面幅いっぱいに使う（見積タブのテーブル min-width:1300px・左ナビ・右パネルが収まる幅にそろえる。
+   以前は見積タブ以外だけ max-width:1440px（1480px 以上の画面では 65vw）で、タブを切り替えるとヘッダー・タブの幅まで変わっていた） */
+.app { max-width: none; margin: 0 auto; padding: var(--sp-20) var(--sp-8); }
 
 /* ===== Header ===== */
 .header {
@@ -594,9 +589,6 @@ body:has(#tab-quote-make.active) .app { padding-bottom: var(--sp-8); }
   .blrules-grid { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
   .tab-btn      { font-size: var(--fs-11); padding: var(--sp-7) var(--sp-8); }
 }
-@media (min-width: 1480px) {
-  .app { max-width: min(65vw, 1800px); }
-}
 @media (max-width: 565px) {
   /* cat-nav が 2 行に折り返す端末でスティッキーオフセットを調整 */
   :root { --nav-cat-h: 108px; }
@@ -1100,6 +1092,30 @@ body:has(#tab-quote-make.active) .app { padding-bottom: var(--sp-8); }
   background: var(--accent-dk);
   color: var(--accent-lt);
   border-color: var(--accent-dk);
+}
+
+/* 「📂 その他」メニュー（頻度の低い 6 カテゴリを集約。開閉は js/cat-more.js） */
+.cat-more { flex: 1; min-width: 90px; display: flex; }
+.cat-more-btn { flex: 1; }
+.cat-more-caret { font-size: var(--fs-10, 10px); opacity: .7; transition: transform .15s; display: inline-block; }
+.cat-more.is-open .cat-more-caret { transform: rotate(180deg); }
+.cat-more-panel {
+  position: fixed;
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px;
+  background: var(--card-bg);
+  border: 1px solid var(--border-md);
+  border-radius: var(--r-8);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, .16);
+}
+.cat-more-panel[hidden] { display: none; }
+.cat-more-panel .cat-btn { flex: none; width: 100%; text-align: left; min-height: 40px; }
+@media (max-width: 680px) {
+  .cat-more { flex: 0 0 auto; }
+  .cat-more-btn { flex: 0 0 auto; }
 }
 
 /* 見積カテゴリの差し色（オレンジ系）＋NEWバッジ */
@@ -3273,6 +3289,34 @@ a.bm-contact-item:hover { background: #2e6b3e; color: var(--surface); border-col
 .stats-sort-btn.is-active {
   background: #f7eccb; border-color: #e0b84a; color: #6b4f10; font-weight: 700;
 }
+.ldg-filter { display: flex; flex-wrap: wrap; gap: var(--sp-6); margin: 0 0 var(--sp-10); }
+.ldg-in {
+  font-size: var(--fs-12); padding: var(--sp-4) var(--sp-8); min-width: 120px; flex: 1 1 140px;
+  border: 1px solid var(--c-d8c8a8); border-radius: var(--r-6); background: var(--surface);
+}
+.ldg-scroll { overflow-x: auto; }
+.ldg-table { font-size: var(--fs-12); min-width: 980px; }
+.ldg-table td, .ldg-table th { vertical-align: top; }
+.ldg-table td:nth-child(1), .ldg-table td:nth-child(6), .ldg-table td:nth-child(7), .ldg-table td:nth-child(8), .ldg-table td:nth-child(9) { white-space: nowrap; }
+.ldg-sub { color: #8a7656; font-size: var(--fs-11); }
+.ldg-link { color: var(--accent); text-decoration: underline; cursor: pointer; }
+.ldg-sum { margin-bottom: var(--sp-12); }
+.ldg-pat-overlay {
+  position: fixed; inset: 0; z-index: 9000; background: rgba(40, 30, 20, .45);
+  display: flex; align-items: center; justify-content: center; padding: var(--sp-12);
+}
+.ldg-pat-dialog {
+  background: var(--surface); border-radius: var(--r-8, 10px); padding: var(--sp-16, 16px);
+  width: min(920px, 100%); max-height: 90vh; overflow: auto; box-shadow: 0 8px 32px rgba(0,0,0,.3);
+}
+.ldg-pat-title { margin: 0 0 var(--sp-8); font-size: var(--fs-16, 16px); }
+.ldg-pat-form { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: var(--sp-8); margin-bottom: var(--sp-10); }
+.ldg-pat-form label { display: flex; flex-direction: column; gap: var(--sp-3); font-size: var(--fs-12); color: #8a7656; font-weight: 700; }
+.ldg-pat-form .ldg-in { flex: none; font-weight: 400; color: inherit; }
+.ldg-pat-table { font-size: var(--fs-12); }
+.ldg-pat-table td, .ldg-pat-table th { vertical-align: top; }
+.ldg-pat-actions { display: flex; align-items: center; justify-content: flex-end; gap: var(--sp-8); margin-top: var(--sp-12); }
+.ldg-pat-actions .ldg-sub { margin-right: auto; }
 .stats-more-wrap { text-align: center; margin: var(--sp-12) 0 var(--sp-4); }
 .stats-more-btn {
   padding: var(--sp-6) var(--sp-18); border: 1px solid var(--border-md); border-radius: 16px;
@@ -3326,6 +3370,9 @@ a.bm-contact-item:hover { background: #2e6b3e; color: var(--surface); border-col
   box-shadow: 0 6px 20px rgba(0,0,0,.2);
   font-size: var(--fs-12);
 }
+/* 明細行の「サブコン詳細」：登録状態・別名・マスター管理へのジャンプ（使用案件の一覧の上に出す） */
+.stats-usage-pop-info { padding: var(--sp-6) var(--sp-10); font-size: var(--fs-11-5); line-height: 1.7; border-bottom: 1px solid var(--border-md); }
+.stats-usage-pop-jump { margin-top: var(--sp-4); padding: var(--sp-3) var(--sp-8); font-family: inherit; font-size: var(--fs-11); cursor: pointer; border: 1px solid var(--border-md); border-radius: var(--r-4); background: var(--surface); color: var(--text); }
 .stats-usage-pop-head {
   display: flex; align-items: center; justify-content: space-between; gap: var(--sp-8);
   padding: var(--sp-8) var(--sp-10); border-bottom: 1px solid var(--c-e8d8c0);
@@ -3634,7 +3681,7 @@ a.bm-contact-item:hover { background: #2e6b3e; color: var(--surface); border-col
 .master-detail-del:hover { background: var(--bg); }
 
 /* マスター詳細：担当者（複数名・連絡先） */
-.master-detail-contacts, .master-detail-tags {
+.master-detail-contacts, .master-detail-tags, .master-detail-via, .master-detail-areas {
   flex: 1 1 100%;
   display: flex;
   flex-direction: column;
@@ -5526,3 +5573,192 @@ button.lc-attach-tbl-btn { background: none; border: none; padding: 0; cursor: p
 .confirm-dialog .confirm-actions .btn-primary { background: #5a4a3a; color: #fff; font-weight: 700; }
 .confirm-dialog .confirm-actions .btn-danger { background: #b0392e; border-color: #b0392e; color: #fff; font-weight: 700; }
 .confirm-dialog .confirm-actions button:focus-visible { outline: 3px solid #5980a6; outline-offset: 2px; }
+
+/* マスター詳細：種別などの「ひな形から選ぶ」ボタン列 */
+.master-type-presets { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; margin: 4px 0 6px; }
+.master-type-presets-label { font-size: 11px; color: #6b7a8c; margin-right: 2px; }
+.master-type-preset { font-size: 12px; padding: 2px 9px; border: 1px dashed #9db3c9; border-radius: 12px; background: #fff; color: #2a4d70; cursor: pointer; }
+.master-type-preset:hover { background: #eaf2fb; border-style: solid; }
+
+/* マスター管理：サブコン種別の絞り込み（件数つきチップ）。種別の行は少し控えめに */
+.master-type-chips { margin-top: 6px; align-items: center; }
+.master-type-chips-label { font-size: 12px; color: #6b7a8c; margin-right: 2px; }
+.master-type-chip { font-size: 12px; }
+
+/* ===== サブコン見出しの「BOOKMARK」ポップアップ（js/bookmarks.js bmShowForCarrier） ===== */
+.sv-bm-pop {
+  z-index: 10050; min-width: 260px; max-width: min(420px, calc(100vw - 16px));
+  background: var(--surface); border: 1px solid var(--border-md); border-radius: var(--r-8);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, .22); font-size: var(--fs-12); color: var(--text);
+}
+.sv-bm-pop-head { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-8); padding: var(--sp-8) var(--sp-12); border-bottom: 1px solid var(--border); font-weight: 700; }
+.sv-bm-pop-close { border: 0; background: transparent; cursor: pointer; color: var(--text-md); font-size: var(--fs-13); }
+.sv-bm-pop-body { padding: var(--sp-10) var(--sp-12); }
+.sv-bm-pop-note { color: var(--text-md); font-size: var(--fs-12); }
+.sv-bm-pop-chips { display: flex; flex-wrap: wrap; gap: var(--sp-6); }
+.sv-bm-chip {
+  display: inline-block; max-width: 100%; padding: var(--sp-4) var(--sp-10); border: 1px solid var(--border-md); border-radius: var(--r-14, 14px);
+  background: var(--accent-lt); color: var(--accent-dk); text-decoration: none; font-size: var(--fs-12); cursor: pointer;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.sv-bm-chip:hover { border-color: var(--accent); background: var(--card-bg); }
+.sv-bm-pop-foot { margin-top: var(--sp-10); padding-top: var(--sp-8); border-top: 1px dashed var(--border-md); }
+.sv-bm-pop-add { border: 1px dashed var(--accent); background: transparent; color: var(--accent-dk); border-radius: var(--r-5); padding: var(--sp-3) var(--sp-10); font: inherit; font-size: var(--fs-11); cursor: pointer; }
+.sv-bm-pop-add:hover { background: var(--accent-lt); }
+
+/* マスター詳細：担当者ごとの所在地（行の下段いっぱいに） */
+.md-contact-row .md-contact-location { flex: 1 1 100%; }
+/* マスター管理の一覧：ウェブサイトのリンクチップ（クリックで新しいタブ） */
+a.stats-md-chip.stats-md-link { text-decoration: none; cursor: pointer; background: #e8f1fb; border-color: #a9c6e6; color: #1f4f86; }
+a.stats-md-chip.stats-md-link:hover { background: #d6e7f8; text-decoration: underline; }
+.cd-contact-loc { display: block; }
+.md-contact-row .md-contact-dept { flex-basis: 190px; }
+.cd-contact-dept { display: block; }
+.md-contact-row .md-contact-title { flex-basis: 110px; }
+
+/* ===== 取引ルール（お客様・担当者ごと／customer-rules.js） ===== */
+/* 見積入力の「管理番号入力」：見積もり番号・お客様・ご担当者の下（メモの左横）の左カラムに置く。内容の高さのまま（メモの高さに引き伸ばさない） */
+.cr-banner { grid-column: 1; align-self: start; min-width: 0; margin: 4px 0 2px; border: 1px solid #d9c9a3; background: #fffaf0; border-radius: 6px; padding: 6px 10px; font-size: 13px; }
+.cr-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; }
+.cr-toggle { border: 0; background: none; font-weight: 700; color: #5a4a1f; cursor: pointer; padding: 2px 0; font-size: 13px; }
+.cr-other { font-size: 12px; color: #7a6a3a; }
+.cr-add-btn { margin-left: auto; white-space: nowrap; line-height: 1.5; font-size: 12px; padding: 2px 10px; border: 1px dashed #b8a574; background: #fff; color: #5a4a1f; border-radius: 12px; cursor: pointer; }
+.cr-list, .cr-panel { display: flex; flex-direction: column; gap: 6px; margin-top: 6px; }
+.cr-section { margin-top: 12px; }
+.cr-item { display: flex; align-items: flex-start; gap: 8px; border: 1px solid #e4e4e8; border-left-width: 4px; background: #fff; border-radius: 5px; padding: 6px 8px; }
+.cr-item.cr-lv-strict { border-left-color: #c0392b; background: #fff5f4; }
+.cr-item.cr-lv-check  { border-left-color: #e08a00; background: #fffaf0; }
+.cr-item.cr-lv-memo   { border-left-color: #7a8fa6; }
+.cr-item.is-retired { opacity: .6; }
+.cr-badge { flex: none; font-size: 11px; font-weight: 700; padding: 1px 8px; border-radius: 10px; white-space: nowrap; }
+.cr-badge-strict { background: #c0392b; color: #fff; }
+.cr-badge-check  { background: #f6d59a; color: #5b3b00; }
+.cr-badge-memo   { background: #e6ebf1; color: #3a4a5c; }
+.cr-main { flex: 1 1 auto; min-width: 0; }
+.cr-body { white-space: pre-wrap; overflow-wrap: anywhere; font-size: 13px; }
+.cr-meta { margin-top: 2px; font-size: 11px; color: #6b7a8c; }
+.cr-stale { color: #b36b00; font-weight: 700; }
+.cr-btns { flex: none; display: flex; gap: 4px; }
+.cr-btns button, .cr-form-actions button { font-size: 12px; padding: 2px 8px; border: 1px solid #b7c3d0; background: #fff; border-radius: 4px; cursor: pointer; }
+.cr-empty { font-size: 12px; color: #6b7a8c; padding: 6px 2px; }
+.cr-retired summary { cursor: pointer; font-size: 12px; color: #6b7a8c; margin-top: 4px; }
+.cr-form { margin-top: 8px; padding: 8px; border: 1px dashed #b7c3d0; border-radius: 6px; background: #fafbfc; display: flex; flex-direction: column; gap: 6px; }
+.cr-form-row { display: flex; flex-wrap: wrap; gap: 8px; }
+.cr-form-row label { font-size: 12px; display: flex; flex-direction: column; gap: 2px; }
+.cr-form textarea, .cr-form input[type="text"], .cr-form select { font-size: 13px; padding: 4px 6px; border: 1px solid #b7c3d0; border-radius: 4px; width: 100%; box-sizing: border-box; }
+.cr-form-row select { width: auto; min-width: 150px; }
+.cr-form-actions { display: flex; gap: 6px; }
+.cr-save { background: #2a4d70 !important; color: #fff; border-color: #2a4d70 !important; }
+.cr-hint { font-size: 11px; color: #8a6d3b; }
+
+/* 出力前の確認：お客様の取引ルール（厳守・要確認） */
+.pv-wg-item-rule { white-space: pre-wrap; }
+.pv-wg-item-rule-strict { border-left: 4px solid #c0392b; background: #fff5f4; font-weight: 600; }
+.pv-wg-item-rule-check  { border-left: 4px solid #e08a00; background: #fffaf0; }
+
+/* 取引ルール：マスター管理の一覧の印・再確認の案内 */
+.cr-chip { display: inline-block; margin-left: 6px; font-size: 11px; padding: 1px 7px; border-radius: 10px; background: #eef2f7; color: #3a4a5c; border: 1px solid #c9d3df; white-space: nowrap; vertical-align: middle; }
+.cr-chip.has-strict { background: #fdecea; color: #8e2a20; border-color: #e3a9a2; }
+.cr-chip.has-stale { box-shadow: inset 0 -2px 0 #e08a00; }
+.cr-stale-notice { margin: 6px 0; padding: 6px 10px; font-size: 12px; background: #fffaf0; border: 1px solid #e6c98a; border-radius: 6px; color: #6b4a00; }
+
+/* マスターの詳細：ポップアップ（モーダル）。画面いっぱいに広がらず、中だけスクロールする */
+.md-modal-overlay { position: fixed; inset: 0; z-index: 1100; background: rgba(20, 28, 38, .5); display: flex; align-items: center; justify-content: center; padding: 16px; }
+.md-modal { background: var(--card-bg, #fff); color: inherit; border-radius: 10px; box-shadow: 0 12px 40px rgba(0, 0, 0, .35); width: min(980px, 100%); max-height: calc(100vh - 32px); display: flex; flex-direction: column; overflow: hidden; }
+.md-modal-head { flex: none; display: flex; align-items: center; gap: 10px; padding: 10px 16px; border-bottom: 1px solid #d9dee5; background: #f3f6fa; }
+.md-modal-head h3 { margin: 0; font-size: 15px; flex: 1 1 auto; min-width: 0; overflow-wrap: anywhere; }
+.md-modal-close { flex: none; width: 30px; height: 30px; border: 1px solid #c3ccd6; border-radius: 6px; background: #fff; font-size: 14px; cursor: pointer; }
+.md-modal-close:hover { background: #eaf0f7; }
+.md-modal-body { flex: 1 1 auto; overflow-y: auto; padding: 12px 16px 16px; }
+body.md-modal-open { overflow: hidden; }
+
+/* マスター管理：種別・タグごとにまとめて表示するときの見出し行 */
+.master-tag-group-row td { background: #eef3f8; font-weight: 700; font-size: 13px; padding: 6px 12px; border-top: 2px solid #b7c6d6; }
+.master-tag-group-row .mtg-count { margin-left: 8px; font-weight: 400; font-size: 12px; color: #6b7a8c; }
+
+/* 所属グループ：統計タブのグループ別合計 */
+.stats-group-summary { margin: 8px 0 12px; padding: 6px 10px; border: 1px solid #cfd9e4; border-radius: 6px; background: #f7fafc; }
+.stats-group-summary > summary { cursor: pointer; font-weight: 700; font-size: 13px; }
+.stats-grp-members { display: flex; flex-wrap: wrap; gap: 4px 8px; }
+.stats-grp-member { font-size: 12px; padding: 1px 8px; border-radius: 10px; background: #fff; border: 1px solid #d3dce6; white-space: nowrap; }
+.sv-hdr-group { margin-left: 6px; font-size: 11px; padding: 1px 8px; border-radius: 10px; background: #e8f1fb; color: #1f4f86; border: 1px solid #a9c6e6; white-space: nowrap; }
+.sv-hdr-group[hidden] { display: none; }
+
+/* キャリア→サブコン統合：影響範囲の確認 */
+.cm-entry { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin: 6px 0; padding: 6px 10px; border: 1px dashed #9db3c9; border-radius: 6px; background: #f5f9fd; font-size: 12px; }
+.cm-entry-btn, .cm-plan-btn { font-size: 12px; padding: 3px 10px; border: 1px solid #2a4d70; background: #fff; color: #2a4d70; border-radius: 4px; cursor: pointer; }
+.cm-facts { margin: 8px 0; padding-left: 18px; font-size: 13px; line-height: 1.8; }
+.cm-note { font-size: 12px; color: #8a6d3b; background: #fffaf0; border: 1px solid #e6c98a; border-radius: 4px; padding: 4px 8px; }
+.cm-table .cm-merge td { background: #fffaf0; }
+.cm-table .cm-decide td { background: #fdecea; }
+.cm-na { color: #9aa6b2; }
+.cm-run { margin: 12px 0 4px; display: flex; align-items: center; gap: 10px; }
+.stats-md-country { background: #eef6ee; border-color: #b5d3b5; color: #2f5d2f; }
+.pc-scroll { max-height: 52vh; overflow: auto; border: 1px solid #d5dde6; border-radius: 6px; }
+.pc-scroll .pc-country { min-width: 220px; }
+.master-tag-group-row.mtg-region td { background: #dfe9f3; color: #1d3a57; font-size: 13px; border-top: 3px solid #8fa9c4; }
+
+/* 得意エリアの入力 */
+.master-detail-areas { margin: 6px 0; display: flex; flex-direction: column; gap: 6px; }
+.master-area-group { border: 1px solid #d9e2ec; border-radius: 6px; padding: 6px 8px; background: #fafcfe; max-height: 240px; overflow-y: auto; }
+.master-area-row { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; margin: 3px 0; }
+.master-area-btn.on { background: #1f5f99; border: 1px solid #1f5f99; color: #fff; font-weight: 700; }
+.master-area-btn.on:hover { background: #17507f; }
+.master-detail-hint { display: block; font-size: 11px; color: #6b7a8c; margin-top: 2px; font-weight: 400; }
+.stats-md-via { background: #eef6ee; }
+.master-via-child > td { background: #f6faf6; }
+.master-via-child > td.stats-val { padding-left: 14px; }
+.master-via-mark { color: #6b8f6b; margin-right: 6px; font-weight: 700; }
+.pp-quick { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 6px 0; }
+.pp-country { border: 1px solid #d9e2ec; border-radius: 6px; margin: 4px 0; background: #fff; }
+.pp-country > summary { cursor: pointer; padding: 5px 8px; font-size: 13px; }
+.pp-cnt { font-size: 11px; color: #6b7a8c; margin-left: 8px; }
+.pp-ports { display: flex; flex-wrap: wrap; gap: 4px 14px; padding: 4px 10px 8px 26px; }
+.pp-port { font-size: 12px; white-space: nowrap; }
+.pp-port.is-have { color: #8a97a6; }
+.pp-ja { color: #6b7a8c; margin-left: 4px; }
+.pp-state { font-size: 10px; margin-left: 4px; color: #8a97a6; }
+.master-search { display: flex; align-items: center; gap: 6px; margin: 8px 0 4px; }
+.master-search-ico { font-size: 14px; }
+.master-search-input { flex: 1 1 auto; max-width: 640px; min-width: 200px; }
+.master-search-count { font-size: 12px; color: #2f6b3a; font-weight: 700; white-space: nowrap; }
+.master-area-label { font-size: 11px; color: #6b7a8c; min-width: 84px; }
+.master-area-title { font-size: 12px; font-weight: 700; margin-top: 6px; color: #3a4a5c; }
+
+/* ===== お客様マスター詳細のタブ化（Design 回答 2026-11・案1）：基本情報＋タブ＋下に常時表示の保存バー ===== */
+/* タブのあるお客様の詳細は高さを固定する（タブを切り替えても、ポップアップの大きさが変わらないように。内容が多いときは本文の中だけスクロール） */
+#mdDetailModal .md-modal:has(.mt-body) { height: min(740px, calc(100vh - 32px)); }
+.md-modal .mt-basic { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 10px 14px; margin-bottom: 14px; }
+.md-modal .mt-basic .master-detail-via { grid-column: 1 / -1; }
+.md-modal .mt-basic [hidden] { display: none; }
+.md-modal .mt-tabs { display: flex; flex-wrap: wrap; gap: 4px; border-bottom: 1px solid var(--border-md, #bbb); }
+.md-modal .mt-tab { padding: 9px 16px; border: 1px solid var(--border-md, #bbb); border-bottom: 0; background: #f3f5f8; font: inherit; font-size: 13px; font-weight: 700; cursor: pointer; }
+.md-modal .mt-tab.is-on { background: #fff; border-top: 3px solid #416180; margin-bottom: -1px; position: relative; }
+.md-modal .mt-sum { font-weight: 400; font-size: 11px; color: #5d5d60; margin-left: 4px; }
+.md-modal .mt-sum[hidden] { display: none; }
+.md-modal .mt-panel { padding: 14px 4px 4px; display: flex; flex-direction: column; gap: 12px; }
+.md-modal .mt-panel[hidden] { display: none; }
+.md-modal .mt-foot { flex: none; padding: 10px 16px; border-top: 1px solid #d9dee5; background: #f3f6fa; }
+.md-modal .mt-foot .master-detail-actions { margin: 0; }
+
+/* ===== スマホ（〜600px）の崩れ修正（Design 2026-11-09・mobile-fixes.css） ===== */
+@media (max-width: 600px) {
+  /* ヘッダー：タイトルが 1 文字ずつ縦に割れ、ボタンが右にはみ出す → 折り返しを許可し、タイトルは 1 行を独占 */
+  .header { flex-wrap: wrap; row-gap: var(--sp-8); }
+  .header-main { flex: 1 0 100%; }
+  .header-auth { margin-left: auto; min-width: 0; }
+  .hdr-cloud-user { min-width: 0; flex-wrap: wrap; justify-content: flex-end; }
+  /* 画面下の固定ボタン（PDF／プレビュー／保存）と付箋に「合計」バーが隠れない余白 */
+  body { padding-bottom: calc(64px + 72px + env(safe-area-inset-bottom)); }
+}
+/* 上段のタブ列：右に続きがあるときだけ、右端に薄いグラデーション（js/cat-more.js が cn-end を付け外し） */
+@media (max-width: 680px) {
+  .cat-nav::after { content: ''; position: sticky; right: 0; flex: 0 0 28px; margin-left: -28px; pointer-events: none; background: linear-gradient(to right, rgba(255,255,255,0), var(--bg, #f5ede0) 80%); }
+  .cat-nav.cn-end::after { display: none; }
+}
+/* お客様マスター詳細のタブ化：元の .master-detail-form（横に折り返す flex）のままだと、タブ・パネルが横に並び崩れる／
+   縦並びのパネルの中で .master-detail-label の flex-basis(160px) が高さになって入力欄が縦に伸びる。縦に積み、ラベルは中身の高さにする */
+.md-modal .master-detail-form.mt-form, .md-modal .md-modal-body.mt-body .master-detail-form { display: block; }
+.md-modal .mt-panel > .master-detail-label, .md-modal .mt-panel .master-detail-label { flex: 0 0 auto; min-width: 0; }
+.md-modal .mt-basic > .master-detail-label { flex: none; min-width: 0; }
+.md-modal .mt-panel .master-detail-textarea { min-height: 60px; }

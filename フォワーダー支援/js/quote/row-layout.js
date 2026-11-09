@@ -19,7 +19,7 @@
   const fv = (id, f) => document.getElementById(`${f}-${id}`)?.value || '';
 
   // ===== 1. 要素の置き場所（Industry のときだけパネルへ） =====
-  const MOVES = [['.w-valid', 'valid'], ['.row-mode-btns', 'mode'], ['.pct-group', 'pct'], ['.min-group', 'min'], ['.row-cd', 'cd']];
+  const MOVES = [['.w-valid', 'valid'], ['.row-mode-btns', 'mode'], ['.pct-group', 'pct'], ['.min-group', 'min'], ['.range-group', 'min'], ['.ic-group', 'ic'], ['.cn-group', 'cn'], ['.row-cd', 'cd']];
 
   // 有効期間（.w-valid）：期間が入っている行・サーチャージの行は、「その他 ▾」を開かなくても見て直せるよう、行の中（品名セルの 3 段目の上）に出す。
   // それ以外の行は、従来どおりパネルの中。classic は常に元の場所（syncPlacement が戻す）
@@ -78,6 +78,10 @@
     { label: 'PS', cls: '', tip: 'PROFIT SHARE（客先非表示・社内利益に計上）', on: (tr, id) => fv(id, 'ps') === '1' },
     { label: '参考', cls: '', tip: '参考情報（合計に加算しない）', on: (tr, id) => fv(id, 'ri') === '1' },
     { label: '概算', cls: '', tip: '概算（金額は目安）', on: (tr, id) => fv(id, 'es') === '1' },
+    { label: '貿易条件外', cls: 'is-warn', tip: 'いまの貿易条件では適用されない行（客先向けの出力と合計から外れます）', on: tr => tr.dataset.outReason === 'incoterms' },
+    { label: '表示条件外', cls: 'is-warn', tip: '表示条件に合わない行（客先向けの出力と合計から外れます）', on: tr => tr.dataset.outReason === 'condition' },
+    { label: '条件を判定できません', cls: 'is-warn', tip: '表示条件に使う値が未入力のため判定できません（表示のままです）', on: tr => tr.dataset.cnUnknown === '1' },
+    { label: '幅あり', cls: '', tip: '売単価〜上限の幅で示す行（客先向けの単価・金額は「〜」で表示。合計は売単価で計算）', on: tr => tr.dataset.range === '1' },
     { label: 'MIN 適用', cls: 'is-warn', tip: '最低料金（ミニマム）が「数量 × 単価」を上回るため、最低料金で計算している行', on: tr => tr.dataset.minApplied === '1' },
     { label: '% 計算', cls: '', tip: '仕入単価を「基準額 × %」で計算する行。率と基準額は「その他 ▾」で入力', on: tr => tr.classList.contains('row-pct-mode') },
     { label: '入力完了', cls: 'is-done', tip: '入力完了の目印', on: tr => tr.classList.contains('row-input-done') },
@@ -131,7 +135,10 @@
     if ((fv(id, 'vf') || fv(id, 'vt')) && !(isInd() && validInline(tr, id))) n++;   // 有効期間を行の中に出しているときは、パネルの中身ではないので数えない
     ['zc', 'ac', 'ps', 'co', 'ri', 'es'].forEach(f => { if (fv(id, f) === '1') n++; });
     if (fv(id, 'ppmode')) n++;
+    if (fv(id, 'ic')) n++;
+    if (fv(id, 'cn')) n++;
     if ((parseFloat(fv(id, 'ppmin')) || 0) > 0 || (parseFloat(fv(id, 'bpmin')) || 0) > 0) n++;
+    if ((parseFloat(fv(id, 'bphi')) || 0) > 0) n++;
     if (diff && cdv) n++;
     const badge = tr.querySelector('.row-detail-btn .used-badge');
     if (badge) {

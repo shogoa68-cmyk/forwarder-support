@@ -5,6 +5,8 @@
 //  ・自アプリ形式（quote-email.js の明細行）は高精度で逆変換
 //  ・一般の自由文は金額・数量×単価パターンで抽出（低確度マーク付き）
 //  ・原文は qf-import-src（hidden）に保存され案件データと一緒に永続化
+//  ・「📝 原文のまま保管」：自由入力で提示した見積の原文を、新しい案件にも既存の案件にも複数件保管し、
+//    あとで「📩 未取込」の一覧から 1 件ずつ取り込める（案件データ fields['qf-free-entries']・1 件ごとに未取込／取込済み）
 //  依存（window 経由）：appendQuoteRows, _applyQuoteData, qpNewQuote,
 //                       getAllCategories, quoteShowToast, qpShowEditor
 // ================================================================
@@ -12,7 +14,7 @@
   'use strict';
 
   // conditions.js の ROW_CELL_FIELDS と同順（cells[0]=選択チェック）。変更時は要同期
-  const CELL_FIELDS = ['cat','sv','tx','nm','pq','un','bq','pc','bc','pp','bp','cd','mk','nt','zc','vf','vt','ac','pt','ps','co','lu','ppmode','pprate','ppbase','uid','ppref','ri','es','ppmin','bpmin'];
+  const CELL_FIELDS = ['cat','sv','tx','nm','pq','un','bq','pc','bc','pp','bp','cd','mk','nt','zc','vf','vt','ac','pt','ps','co','lu','ppmode','pprate','ppbase','uid','ppref','ri','es','ppmin','bpmin','ic','cn','bphi'];
 
   const CCY_LIST = ['USD','EUR','CNY','KRW','THB','SGD','GBP','AUD','HKD','TWD','VND','IDR','MYR','PHP','INR','JPY'];
   const CCY_RE = CCY_LIST.join('|');
@@ -26,9 +28,6 @@
     { re: /輸入通関|IMPORT\s*CUSTOMS/i,                                            cat: 'customs-import' },
     { re: /通関|CUSTOMS|取扱料|保税/i,                                             cat: 'customs-export' },
     { re: /保険|INSURANCE/i,                                                       cat: 'insurance' },
-    { re: /配送|配達|DELIVERY|DRAYAGE|TRUCK|横持|陸送|チャーター/i,                cat: 'domestic-transport' },
-    { re: /倉庫|保管|WAREHOUSE|STORAGE/i,                                          cat: 'warehouse' },
-    { re: /梱包|PACKING|バンニング|VANNING/i,                                      cat: 'packing-cost' },
     { re: /THC|CFS|DOC|D\/O|DRS|SEAL|CML|WHARFAGE|HANDLING|B\/L\s*FEE|AMS|AFR|MANIFEST|ローカル|LOCAL/i, cat: 'export-local' },
   ];
 
@@ -196,11 +195,274 @@
   let _parsed = null;   // { fields, entries }
 
   function openEmailImport() {
+    _setStoreOnly(false);
+    _curEntryId = null;
+    _fromEntry(false);
     document.getElementById('emailImportModal')?.classList.add('open');
     setTimeout(() => document.getElementById('eiText')?.focus(), 60);
   }
   function closeEmailImport() {
     document.getElementById('emailImportModal')?.classList.remove('open');
+    _setStoreOnly(false);
+    _curEntryId = null;
+    _fromEntry(false);
+  }
+
+  // ====== 📝 保管した自由入力（案件ごとに複数件）／📩 未取込 ======
+  // 案件データの fields['qf-free-entries']（hidden #qf-free-entries・JSON 配列）に持つ（列追加・SQL 不要）。
+  //   1 件 = { id, text, label, at(ISO), by(email), status:'pending'|'done' }
+  // 旧形式（#qf-import-src の原文のみ・明細なしの案件）は、読むときに 1 件の未取込として扱う（id:'legacy'）。
+  const _NM_IDX = CELL_FIELDS.indexOf('nm') + 1;   // 品名のある明細行の列位置（cells[0] は選択チェック）
+
+  function _rowsHaveName(rows) {
+    return (Array.isArray(rows) ? rows : []).some(r => Array.isArray(r) ||
+      (r && r._type === 'data' && Array.isArray(r.cells) && String(r.cells[_NM_IDX] ?? '').trim() !== ''));
+  }
+  function _parseEntries(json) {
+    try {
+      const a = JSON.parse(json || '[]');
+      return Array.isArray(a) ? a.filter(e => e && String(e.text || '').trim()) : [];
+    } catch (e) { return []; }
+  }
+  // 旧形式の原文（明細が無いときだけ）
+  function _legacyEntry(src, hasRows) {
+    try {
+      if (!src || hasRows) return null;
+      const o = JSON.parse(src);
+      if (!o || !String(o.rawText || '').trim()) return null;
+      return { id: 'legacy', text: String(o.rawText), label: '', at: o.importedAt || '', by: '', status: 'pending' };
+    } catch (e) { return null; }
+  }
+
+  // 案件データ（保存形式）の保管済み自由入力すべて
+  function eiFreeEntriesOf(data) {
+    const f = (data && data.fields) || {};
+    const list = _parseEntries(f['qf-free-entries']);
+    if (!list.length) {
+      const lg = _legacyEntry(f['qf-import-src'], _rowsHaveName(data && data.rows));
+      if (lg) list.push(lg);
+    }
+    return list;
+  }
+  // 未取込のもの（無ければ null）。ダッシュボードの印・タイル・絞り込みが使う
+  function eiPendingOf(data) {
+    const p = eiFreeEntriesOf(data).filter(e => e.status !== 'done');
+    return p.length ? p : null;
+  }
+
+  function _liveEntryEl() { return document.getElementById('qf-free-entries'); }
+  function _liveRowsHaveName() {
+    return Array.from(document.querySelectorAll('#tableBody tr:not([data-virtual]):not([data-type]) [data-field="nm"]'))
+      .some(i => String(i.value || '').trim() !== '');
+  }
+  // いま画面に開いている見積の保管済み自由入力。旧形式は 1 件へ移して持たせる（変更扱いにはしない）
+  function _liveEntries() {
+    const el = _liveEntryEl();
+    if (!el) return [];
+    let list = _parseEntries(el.value);
+    if (!list.length) {
+      const lg = _legacyEntry(document.getElementById('qf-import-src')?.value, _liveRowsHaveName());
+      if (lg) { list = [lg]; el.value = JSON.stringify(list); }
+    }
+    return list;
+  }
+  function _saveLiveEntries(list) {
+    const el = _liveEntryEl();
+    if (el) el.value = JSON.stringify(list);
+    _markDirty();
+    eiRefreshPendingBanner();
+  }
+  function eiMakeEntry(o) {
+    return {
+      id: 'fe' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+      text: String(o.text || '').slice(0, 20000),
+      label: String(o.label || '').trim().slice(0, 80),
+      at: new Date().toISOString(),
+      by: (typeof window.cloudCurrentEmail === 'function' && window.cloudCurrentEmail()) || '',
+      status: 'pending',
+    };
+  }
+
+  function _isViewMode() {
+    return !!document.getElementById('tab-quote-make')?.classList.contains('qmode-view');
+  }
+  // 閲覧モードで開いた案件なら、先に編集を開始（ロック取得）する。編集できる状態なら true
+  async function _ensureEdit() {
+    if (_isViewMode() && typeof window.quoteModeEdit === 'function') await window.quoteModeEdit();
+    return !_isViewMode();
+  }
+
+  const _fmtAt = iso => {
+    if (!iso) return '';
+    const d = new Date(iso);
+    return isNaN(d) ? '' : (d.getMonth() + 1) + '/' + d.getDate() + ' ' + String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
+  };
+  const _whoName = em => (em && typeof window.cloudNameFor === 'function') ? window.cloudNameFor(em) : (em || '');
+  const _firstLine = t => {
+    const l = String(t || '').split(/\r?\n/).map(x => x.trim()).find(Boolean) || '';
+    return l.length > 40 ? l.slice(0, 40) + '…' : l;
+  };
+
+  // 編集画面の「📝 保管した自由入力」欄（.quote-main の外＝閲覧モードでも押せる）
+  function eiRefreshPendingBanner() {
+    const box = document.getElementById('eiFreePanel');
+    if (!box) return;
+    const list = _liveEntries();
+    box.hidden = !list.length;
+    if (!list.length) return;
+    const pend = list.filter(e => e.status !== 'done').length;
+    const keepOpen = box.open;
+    const sum = box.querySelector('.ei-fp-sum');
+    if (sum) sum.innerHTML = '📝 保管した自由入力 <b>' + list.length + '件</b>' +
+      (pend ? ' <span class="ei-fp-pend">📩 未取込 ' + pend + '件</span>' : ' <span class="ei-fp-alldone">✅ すべて取込済み</span>');
+    const body = box.querySelector('.ei-fp-list');
+    if (body) body.innerHTML = list.map(e => {
+      const done = e.status === 'done';
+      const id = _esc(e.id);
+      return '<div class="ei-fe-row' + (done ? ' is-done' : '') + '" data-id="' + id + '">' +
+        '<span class="ei-fe-chip ' + (done ? 'done' : 'pending') + '">' + (done ? '✅ 取込済み' : '📩 未取込') + '</span>' +
+        '<span class="ei-fe-label">' + _esc(e.label || _firstLine(e.text)) + '</span>' +
+        '<span class="ei-fe-meta">' + _esc([_whoName(e.by), _fmtAt(e.at)].filter(Boolean).join('・')) + '</span>' +
+        '<span class="ei-fe-btns">' +
+          '<button type="button" class="ei-fe-btn ei-fe-import" onclick="eiFeImport(\'' + id + '\')" title="この原文を解析して、表に取り込みます">取り込む</button>' +
+          '<button type="button" class="ei-fe-btn" onclick="eiFeView(\'' + id + '\')">原文</button>' +
+          '<button type="button" class="ei-fe-btn" onclick="eiFeToggle(\'' + id + '\')">' + (done ? '未取込に戻す' : '取込済みにする') + '</button>' +
+          '<button type="button" class="ei-fe-btn ei-fe-del" onclick="eiFeDelete(\'' + id + '\')">削除</button>' +
+        '</span>' +
+        '<pre class="ei-fe-text" hidden>' + _esc(e.text) + '</pre>' +
+      '</div>';
+    }).join('');
+    // 未取込があれば開いておく（開閉は利用者の操作を優先して、再描画では変えない）
+    if (!keepOpen && pend && !box.dataset.touched) box.open = true;
+  }
+
+  async function eiFeImport(id) {
+    const e = _liveEntries().find(x => x.id === id);
+    if (!e) return;
+    if (!(await _ensureEdit())) return;   // 他メンバーが作業中など、編集できなければ中止
+    _setStoreOnly(false);
+    _curEntryId = id;
+    _fromEntry(true);
+    document.getElementById('eiText').value = e.text;
+    document.getElementById('emailImportModal')?.classList.add('open');
+    eiParse();
+  }
+  function eiFeView(id) {
+    const pre = document.querySelector('#eiFreePanel .ei-fe-row[data-id="' + id + '"] .ei-fe-text');
+    if (pre) pre.hidden = !pre.hidden;
+  }
+  async function eiFeToggle(id) {
+    if (!(await _ensureEdit())) return;
+    _saveLiveEntries(_liveEntries().map(e => e.id === id ? Object.assign({}, e, { status: e.status === 'done' ? 'pending' : 'done' }) : e));
+  }
+  async function eiFeDelete(id) {
+    const e = _liveEntries().find(x => x.id === id);
+    if (!e) return;
+    const ask = (typeof window.uiConfirm === 'function')
+      ? window.uiConfirm({ title: '保管した自由入力を削除しますか？', lines: ['「' + (e.label || _firstLine(e.text)) + '」を削除します。'], irreversible: '保存すると元に戻せません。', okLabel: '削除する', danger: true })
+      : Promise.resolve(confirm('保管した自由入力を削除しますか？'));
+    if (!(await ask)) return;
+    if (!(await _ensureEdit())) return;
+    _saveLiveEntries(_liveEntries().filter(x => x.id !== id));
+  }
+  // 未取込が 1 件ならそのまま取り込みを始め、複数なら一覧を開いて選んでもらう（ダッシュボードのカードから）
+  async function eiOpenStored() {
+    const pend = _liveEntries().filter(e => e.status !== 'done');
+    if (!pend.length) { if (window.quoteShowToast) quoteShowToast('ℹ️ 取り込める保管済みの原文がありません', 'info'); return; }
+    if (pend.length === 1) { await eiFeImport(pend[0].id); return; }
+    const box = document.getElementById('eiFreePanel');
+    if (box) { box.open = true; box.scrollIntoView({ block: 'center' }); }
+  }
+
+  // 取り込み元の表示（保管した原文から取り込むときは「新規案件として展開」を隠す）
+  let _curEntryId = null;
+  function _fromEntry(on) {
+    document.getElementById('emailImportBox')?.classList.toggle('ei-from-entry', !!on);
+  }
+
+  // 保管専用表示（解析・挿入まわりを隠す）。mode：'new'＝新しい案件（お客様・件名）／'case'＝既存の案件（メモだけ）
+  let _storeTarget = null;   // { kind:'new' } | { kind:'current' } | { kind:'card', id }
+  function _setStoreOnly(on, target) {
+    const box = document.getElementById('emailImportBox');
+    if (box) {
+      box.classList.toggle('ei-store-only', !!on);
+      box.classList.toggle('ei-store-case', !!on && !!target && target.kind !== 'new');
+    }
+    _storeTarget = on ? (target || { kind: 'new' }) : null;
+    const h = document.getElementById('eiTitle');
+    if (h) h.textContent = on ? '📝 自由入力で保管（あとで取り込む）' : '📩 メール取込（見積データ化）';
+    const d = document.getElementById('eiDesc');
+    if (d) d.textContent = on
+      ? ((target && target.kind !== 'new')
+          ? '提示した見積の内容（メール本文・メモ・金額など、書式は自由）をそのまま貼り付けて、この案件に保管します。案件を開くと一覧に出て、あとで表に取り込めます。'
+          : '提示した見積の内容（メール本文・メモ・金額など、書式は自由）をそのまま貼り付けて保管します。保管した案件は「📩 未取込」として一覧に出るので、あとで開いて表に取り込めます。')
+      : 'メールで提示した見積の本文を貼り付けて「解析」を押してください。自アプリのメール形式は高精度で復元でき、自由文も金額を含む行から明細候補を抽出します。';
+  }
+  function _openStoreModal(target) {
+    const t = document.getElementById('eiText'); if (t) t.value = '';
+    ['eiS-customer', 'eiS-memo', 'eiS-label'].forEach(id => { const e = document.getElementById(id); if (e) e.value = ''; });
+    _parsed = null; _curEntryId = null; _fromEntry(false);
+    const w = document.getElementById('eiReviewWrap'); if (w) w.innerHTML = '';
+    const a = document.getElementById('eiActions'); if (a) a.hidden = true;
+    _setStoreOnly(true, target);
+    document.getElementById('emailImportModal')?.classList.add('open');
+    setTimeout(() => document.getElementById('eiText')?.focus(), 60);
+  }
+
+  // ダッシュボードの「📝 自由入力で保管」：新しい案件として保管
+  async function eiOpenStoreFromDashboard() {
+    if (typeof window.cloudIsLoggedIn === 'function' && !window.cloudIsLoggedIn()) {
+      if (window.quoteShowToast) quoteShowToast('⚠️ 保管するには先に Google でログインしてください', 'warn');
+      return;
+    }
+    // 保管は新しい案件として保存する。編集画面に未保存の変更が残っていれば、先に保存／破棄を選んでもらう
+    if (typeof window.cloudConfirmLeaveUnsaved === 'function' && !(await window.cloudConfirmLeaveUnsaved('自由入力の見積を保管する'))) return;
+    _openStoreModal({ kind: 'new' });
+  }
+  // ダッシュボードのカードの「⋯」→「📝 自由入力を追加」：案件を開かずに、既存の案件へ保管
+  function eiOpenStoreForCard(rawId) {
+    if (typeof window.cloudIsLoggedIn === 'function' && !window.cloudIsLoggedIn()) {
+      if (window.quoteShowToast) quoteShowToast('⚠️ 保管するには先に Google でログインしてください', 'warn');
+      return;
+    }
+    _openStoreModal({ kind: 'card', id: rawId });
+  }
+  // 編集画面（⋯ メニュー・保管欄の「＋ 追加」）：開いている案件へ保管
+  async function eiOpenStoreForCurrent() {
+    if (!(await _ensureEdit())) return;
+    _openStoreModal({ kind: 'current' });
+  }
+
+  // 案件に変更があったことを知らせる（モーダルの入力欄は未保存の数に入れないため、取り込み・保管の確定時に伝える）
+  function _markDirty() {
+    (_liveEntryEl() || document.getElementById('qf-import-src'))?.dispatchEvent(new Event('input', { bubbles: true }));
+  }
+
+  // 「📝 原文のまま保管」
+  //  ・新しい案件（ダッシュボード）：お客様名・件名つきで保存してダッシュボードへ戻る
+  //  ・既存の案件のカード（ダッシュボード）：案件を開かずに保管を 1 件足す
+  //  ・開いている案件（編集画面・メール取込の画面から）：保管を 1 件足して保存する
+  async function eiStoreRaw() {
+    const text = (document.getElementById('eiText')?.value || '').trim();
+    if (!text) { if (window.quoteShowToast) quoteShowToast('⚠️ 保管する内容を貼り付けてください', 'warn'); return; }
+    const tg = _storeTarget || { kind: 'current' };
+    const val = id => document.getElementById(id)?.value.trim() || '';
+    if (tg.kind === 'new') {
+      if (typeof window.cloudStoreRawQuote !== 'function') return;
+      const ok = await window.cloudStoreRawQuote({ customer: val('eiS-customer'), memo: val('eiS-memo'), rawText: text });
+      if (ok) closeEmailImport();
+      return;
+    }
+    if (tg.kind === 'card') {
+      if (typeof window.cloudAddFreeEntry !== 'function') return;
+      const ok = await window.cloudAddFreeEntry(tg.id, eiMakeEntry({ text, label: val('eiS-label') }));
+      if (ok) closeEmailImport();
+      return;
+    }
+    if (!(await _ensureEdit())) return;
+    _saveLiveEntries(_liveEntries().concat(eiMakeEntry({ text, label: val('eiS-label') })));
+    closeEmailImport();
+    if (typeof window.cloudSaveCurrent === 'function') await window.cloudSaveCurrent({ stay: true });
   }
 
   function eiParse() {
@@ -459,12 +721,13 @@ THC 1 40FT × 20,000 JPY ＝ 20,000 JPY
     };
   }
 
-  function _stampImportSource() {
+  function _stampImportSource(stored) {
     const el = document.getElementById('qf-import-src');
     if (el) {
       el.value = JSON.stringify({
         type: 'email-paste',
         importedAt: new Date().toISOString(),
+        ...(stored ? { stored: true } : {}),
         rawText: (document.getElementById('eiText')?.value || '').slice(0, 20000),
       });
     }
@@ -475,12 +738,20 @@ THC 1 40FT × 20,000 JPY ＝ 20,000 JPY
     const rows = _gatherReviewRows();
     if (!rows.length) { if (window.quoteShowToast) quoteShowToast('⚠️ 挿入する行にチェックを入れてください', 'warn'); return; }
     if (typeof window.appendQuoteRows !== 'function') return;
+    if (_isViewMode()) { if (window.quoteShowToast) quoteShowToast('🔒 閲覧モードです。「✏️ 編集」を押してから挿入してください', 'warn'); return; }
     const n = window.appendQuoteRows(rows);
+    // 保管した自由入力から取り込んだときは、その 1 件を取込済みにする（原文は案件に残る）。
+    // それ以外（貼り付けから直接）は、原文を案件の取込元メモ（#qf-import-src）に残す
+    const doneId = _curEntryId;
+    if (doneId) _saveLiveEntries(_liveEntries().map(e => e.id === doneId ? Object.assign({}, e, { status: 'done' }) : e));
+    else _stampImportSource();
+    _markDirty();
     // appendQuoteRows() 自体はサブコン／パターンの入れ子グループ（見出し・小計の仮想行）を
     // 再描画しないため、ここで明示的に呼ぶ。呼ばないと pt（パターン）へ登録したグループが
     // 画面上には反映されず、他の操作で偶然再描画されるまで見えないままになる。
     if (typeof renderSubconGroups === 'function') renderSubconGroups();
     closeEmailImport();
+    eiRefreshPendingBanner();
     if (typeof window.qpShowEditor === 'function') window.qpShowEditor();
     if (window.quoteShowToast) quoteShowToast('📩 メールから ' + n + ' 行を挿入しました', 'success');
   }
@@ -502,6 +773,7 @@ THC 1 40FT × 20,000 JPY ＝ 20,000 JPY
       window.appendQuoteRows(rows);
     }
     _stampImportSource();
+    _markDirty();
     // 内部メモに取込記録を残す
     const memo = document.getElementById('qf-memo');
     if (memo) {
@@ -509,12 +781,15 @@ THC 1 40FT × 20,000 JPY ＝ 20,000 JPY
       memo.value = memo.value ? memo.value + '\n' + stamp : stamp;
     }
     closeEmailImport();
+    eiRefreshPendingBanner();
     if (typeof window.qpShowEditor === 'function') window.qpShowEditor();
     if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
     if (window.quoteShowToast) quoteShowToast('📩 取込内容を新規案件として展開しました。内容を確認して保存してください', 'success', 4000);
   }
 
   Object.assign(window, {
+    eiPendingOf, eiFreeEntriesOf, eiMakeEntry, eiRefreshPendingBanner, eiOpenStoreFromDashboard, eiOpenStoreForCard, eiOpenStoreForCurrent,
+    eiOpenStored, eiStoreRaw, eiFeImport, eiFeView, eiFeToggle, eiFeDelete,
     openEmailImport, closeEmailImport, eiParse, eiToggleAll, eiToggleAllTax, eiInsertRows, eiApplyAsNew,
     eiSaveGroupAsPattern, eiApplyBulkSv, eiCopyAiPrompt,
     parseQuoteEmail,   // テスト・将来の AI パーサー差し替え用に公開

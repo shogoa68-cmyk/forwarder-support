@@ -302,12 +302,12 @@
     const n = _abbrevUnshared(pairs).length;
     if (!n) return '';
     return `<p class="ar-abbrev-desc">このブラウザにだけ保存されている略称が ${n} 件あります。` +
-      `<button class="ar-add-btn" onclick="arShareAbbrevPairs()" title="同義グループとして登録し、チームの全員の画面で効くようにします">☁️ チームに共有</button></p>`;
+      `<button class="ar-add-btn" onclick="arShareAbbrevPairs()" title="マスターの別名として登録し、チームの全員の画面で効くようにします">☁️ チームに共有</button></p>`;
   }
   window.arShareAbbrevPairs = async function () {
     const list = _abbrevUnshared(_loadAbbrevPairs());
     if (!list.length || typeof window.synAddAlias !== 'function') return;
-    if (!confirm(`略称 ${list.length} 件を同義グループ（正式名称が代表）として登録し、チームで共有します。よろしいですか？`)) return;
+    if (!confirm(`略称 ${list.length} 件をマスターの別名（正式名称がマスター）として登録し、チームで共有します。よろしいですか？`)) return;
     for (const p of list) await window.synAddAlias(p.field, p.abbrev, p.full);
     await _afterChange();
     if (typeof window.quoteShowToast === 'function') window.quoteShowToast(`☁️ 略称 ${list.length} 件を共有しました`, 'success');
@@ -353,11 +353,14 @@
       const k = _nameKey(name, field);
       if (k && !byKey.has(k)) byKey.set(k, canon);
     };
-    const groups = typeof window.synGetGroups === 'function' ? window.synGetGroups(field) : [];
-    groups.forEach(g => { put(g.canonical, g.canonical); (g.aliases || []).forEach(a => put(a, g.canonical)); });
-    _arCloud.filter(r => r.field === field).forEach(r => { put(r.to_value, r.to_value); put(r.from_value, r.to_value); });
+    // 旧「キャリア」はサブコンに統合：キャリア名の代表名は、まずサブコンのマスター・別名で決める（先に登録した方が優先＝サブコン）。旧キャリアのデータは、サブコンに無い名前の補いとして残す
     const masters = typeof window.statsGetMasters === 'function' ? window.statsGetMasters() : [];
-    masters.filter(m => m.field === field).forEach(m => put(m.value, m.value));
+    (field === 'carrier' ? ['sv', 'carrier'] : [field]).forEach(f => {
+      const groups = typeof window.synGetGroups === 'function' ? window.synGetGroups(f) : [];
+      groups.forEach(g => { put(g.canonical, g.canonical); (g.aliases || []).forEach(a => put(a, g.canonical)); });
+      _arCloud.filter(r => r.field === f).forEach(r => { put(r.to_value, r.to_value); put(r.from_value, r.to_value); });
+      masters.filter(m => m.field === f).forEach(m => put(m.value, m.value));
+    });
     // 代表名どうしが連鎖する場合（A→B、B→C）は最後まで辿る
     const resolve = v => { let x = v, n = 0; while (exact.has(x) && exact.get(x) !== x && n++ < 5) x = exact.get(x); return x; };
     exact.forEach((v, k) => exact.set(k, resolve(v)));
@@ -491,7 +494,13 @@
       });
     }
   }
-  window.arRefreshDatalist = _refreshDatalist;
+  window.arRefreshDatalist = function () {
+    _refreshDatalist.apply(this, arguments);
+    if (typeof window.qfRefreshCarrierMasterCandidates === 'function') window.qfRefreshCarrierMasterCandidates();   // サブコンのマスター（種別がキャリア）を幹線輸送のキャリア候補へ
+    if (typeof window.zscRefreshLists === 'function') window.zscRefreshLists();   // 出発地側・到着地側のデフォルトサブコンの候補（得意エリアで絞る）
+    if (typeof window.ptcRefreshLists === 'function') window.ptcRefreshLists();   // 国で絞った港の候補（POL／経由地／POD）も作り直す
+    if (typeof window.refreshAllRowSvChips === 'function') window.refreshAllRowSvChips();   // マスターが読み込まれた・変わったら、行の「サブコン未登録」の印も更新
+  };
 
   // === クイック登録ステート ===
 
@@ -581,7 +590,7 @@
     const preField = _quickFill ? _quickFill.field : 'sv';
     const preTo    = _quickFill ? _quickFill.canonical : '';
     h += `<div class="ar-add-section">
-  <h4 class="ar-section-title">＋ ルール追加</h4>
+  <h4 class="ar-section-title">＋ 過去データの一括置換ルール</h4>
   <div class="ar-add-form">
     <select id="arField" class="ar-select">
       <option value="sv"${preField==='sv'?' selected':''}>サブコン</option>
@@ -591,9 +600,9 @@
       <option value="un"${preField==='un'?' selected':''}>単位</option>
       <option value="port"${preField==='port'?' selected':''}>港</option>
     </select>
-    <input id="arFrom" class="ar-input" type="text" placeholder="元の表記（ゆらぎ）">
+    <input id="arFrom" class="ar-input" type="text" placeholder="古い表記（ゆらぎ）">
     <span class="ar-arrow-label">→</span>
-    <input id="arTo"   class="ar-input" type="text" placeholder="正規形（統一後）" value="${_eav(preTo)}">
+    <input id="arTo"   class="ar-input" type="text" placeholder="マスター名（統一後）" value="${_eav(preTo)}">
     <button class="ar-add-btn" onclick="arSubmitForm()">登録</button>
   </div>
 </div>`;
@@ -606,7 +615,7 @@
         if (!grouped[field].length) return;
         h += `<div class="ar-group">
   <div class="ar-group-title">${fieldLabel[field]}</div>
-  <table class="ar-table"><thead><tr><th>置換元</th><th></th><th>正規形</th><th></th></tr></thead><tbody>`;
+  <table class="ar-table"><thead><tr><th>古い表記</th><th></th><th>マスター名</th><th></th></tr></thead><tbody>`;
         grouped[field].forEach(r => {
           h += `<tr>
     <td class="ar-from">${_esc(r.from_value)}</td>
@@ -637,8 +646,8 @@
     const abbrevPairs = _loadAbbrevPairs();
     const abbrevFieldLabel = { sv: 'サブコン', carrier: 'キャリア', nm: '品名', un: '単位', customer: 'お客様', port: '港' };
     h += `<div class="ar-abbrev-section">
-  <h4 class="ar-section-title">📖 略称辞書${abbrevPairs.length ? `（${abbrevPairs.length}件）` : ''}</h4>
-  <p class="ar-abbrev-desc">略称と正式名称を関連付けます。統計タブで同一グループとして表示され、登録すると同義グループ（正式名称が代表）としてチームで共有されます（例：NTL ＝ NAIGAI TRANS LINES）。</p>${_abbrevShareHtml(abbrevPairs)}
+  <h4 class="ar-section-title">📖 略称・別名の登録${abbrevPairs.length ? `（${abbrevPairs.length}件）` : ''}</h4>
+  <p class="ar-abbrev-desc">略称・英語表記を、正式名称（マスター）の「別名」として登録します。マスター管理の「＋ 別名」と同じ登録で、チームで共有されます（例：NTL ＝ NAIGAI TRANS LINES）。</p>${_abbrevShareHtml(abbrevPairs)}
   <div class="ar-add-form">
     <select id="arAbbrevField" class="ar-select">
       <option value="sv">サブコン</option>
@@ -648,12 +657,12 @@
       <option value="un">単位</option>
       <option value="port">港</option>
     </select>
-    <input id="arAbbrevShort" class="ar-input" type="text" placeholder="略称（例: NTL）">
+    <input id="arAbbrevShort" class="ar-input" type="text" placeholder="別名・略称（例: NTL）">
     <span class="ar-arrow-label">=</span>
-    <input id="arAbbrevFull" class="ar-input" type="text" placeholder="正式名称（例: NAIGAI TRANS LINES）">
+    <input id="arAbbrevFull" class="ar-input" type="text" placeholder="マスター名（例: NAIGAI TRANS LINES）">
     <button class="ar-add-btn" onclick="arSubmitAbbrevForm()">登録</button>
   </div>`;
-    // 登録済みの略称は「同義グループ」（統計タブ・マスター）に表示される。このブラウザにだけある古い略称は上の「チームに共有」で移す
+    // 登録済みの略称は、マスター管理のマスターの行に「別名」として表示される。このブラウザにだけある古い略称は上の「チームに共有」で移す
     h += '</div>';
 
     // 除外リスト
@@ -682,8 +691,8 @@
     const field = document.getElementById('arField')?.value;
     const from  = (document.getElementById('arFrom')?.value || '').trim();
     const to    = (document.getElementById('arTo')?.value   || '').trim();
-    if (!from || !to) { alert('置換元と正規形の両方を入力してください。'); return; }
-    if (from === to)  { alert('置換元と正規形が同じです。'); return; }
+    if (!from || !to) { alert('古い表記とマスター名の両方を入力してください。'); return; }
+    if (from === to)  { alert('古い表記とマスター名が同じです。'); return; }
     await window.arSaveRule(field, from, to);
     const fEl = document.getElementById('arFrom'); if (fEl) fEl.value = '';
     const tEl = document.getElementById('arTo');   if (tEl) tEl.value = '';
@@ -746,6 +755,8 @@
   const _LIST_FIELD = {
     svSuggestions: 'sv', nmSuggestions: 'nm', 'unit-list': 'un',
     custSuggestions: 'customer', portSuggestions: 'port', 'carriers-dl': 'carrier',
+    z2PolList: 'port', z2ViaList: 'port', z2PodList: 'port',   // 国で絞った港の候補（js/port-country.js）
+    z1ScList: 'sv', z3ScList: 'sv',   // 出発地側・到着地側のデフォルトサブコンを、その国を得意エリアとするサブコンに絞った候補（js/zone-subcon.js）
   };
   // 入力値が「ある同義グループの統合表記（別名）」なら代表名を返す。代表名そのもの・未登録なら null。
   function _canonicalFor(field, value) {
@@ -774,9 +785,10 @@
     window.removeEventListener('resize', _dismissSuggest);
   }
   // 入力欄の下に出す小さな提案ポップアップ（共通）。wire(el) でボタンの動作を結ぶ
+  let _suggestAnchor = null;
   function _openSuggest(input, innerHtml, wire, ms) {
     _dismissSuggest();
-    const r = input.getBoundingClientRect();
+    const r = (_suggestAnchor || input).getBoundingClientRect();
     const el = document.createElement('div');
     el.className = 'syn-suggest';
     el.innerHTML = innerHtml;
@@ -817,7 +829,7 @@
   function _showMasterRegisterSuggest(input, value) {
     _openSuggest(input,
       `<span class="syn-suggest-msg">⚠️ 「<b>${_esc(value)}</b>」はサブコンのマスターに未登録です</span>` +
-      `<button type="button" class="syn-suggest-apply">マスター登録</button>` +
+      `<button type="button" class="syn-suggest-apply">${(typeof window.statsIsApprovalOn === 'function' && window.statsIsApprovalOn()) ? '登録を申請' : 'マスター登録'}</button>` +
       `<button type="button" class="syn-suggest-dismiss" title="登録せずこのまま使う">このまま使う</button>`,
       el => el.querySelector('.syn-suggest-apply').addEventListener('click', async () => {
         _dismissSuggest();
@@ -829,6 +841,7 @@
         const prev = (typeof window.mdGet === 'function' && window.mdGet('sv', value))?.details || {};
         if (typeof window.mdSave === 'function') await window.mdSave('sv', value, prev);
         _refreshDatalist();
+        if (typeof window.refreshAllRowSvChips === 'function') window.refreshAllRowSvChips();
         if (typeof window.statsRerenderActive === 'function') window.statsRerenderActive();
         if (!asRequest && typeof window.quoteShowToast === 'function') window.quoteShowToast('📇 サブコン「' + value + '」をマスター登録しました', 'success', 2800);
       }),
@@ -845,6 +858,40 @@
     const near = masters.find(m => ((typeof window.subconNormKey === 'function') ? window.subconNormKey(m) : m.toLowerCase()) === key);
     if (near) _showSynSuggest(input, near);
     else _showMasterRegisterSuggest(input, v);
+  }
+
+  // 港（POL／経由地／POD）：国を選んだうえで、マスターに無い港名を確定したとき、その国の港として登録（承認制は申請）するか確認する
+  //   国の選択は js/port-country.js（ptcCountryOf）。国を選んでいない・マスターが 1 件も無い間（未整備・読込前）は出さない
+  function _showPortRegisterSuggest(input, value, c) {
+    const asRequest = typeof window.statsIsApprovalOn === 'function' && window.statsIsApprovalOn();
+    _openSuggest(input,
+      `<span class="syn-suggest-msg">⚠️ 「<b>${_esc(value)}</b>」は港のマスターに未登録です</span>` +
+      `<button type="button" class="syn-suggest-apply">🌐 ${_esc(c.ja)}の港として${asRequest ? '登録を申請' : 'マスター登録'}</button>` +
+      `<button type="button" class="syn-suggest-dismiss" title="登録せずこのまま使う">このまま使う</button>`,
+      el => el.querySelector('.syn-suggest-apply').addEventListener('click', async () => {
+        _dismissSuggest();
+        // 誤字のまま登録されると、チーム全員の候補に出て表記の揺れの元になるため、ひと呼吸おく
+        if (!confirm('港「' + value + '」を、' + c.ja + '（' + c.code + '）の港として' + (asRequest ? 'マスター登録を申請します（管理者の承認後に、チーム全員の入力候補に出ます）。' : 'マスターに登録します。') +
+          '\n表記（スペル・大文字小文字）と国に誤りがないか確認してください。\n\nよろしいですか？')) return;
+        if (typeof window.statsRegisterWithCountry === 'function') {
+          const r = await window.statsRegisterWithCountry('port', value, c.code);
+          if (r && r.status === 'registered' && typeof window.quoteShowToast === 'function') window.quoteShowToast('📇 港「' + value + '」を' + c.ja + 'の港としてマスター登録しました', 'success', 2800);
+        }
+        _refreshDatalist();
+        if (typeof window.ptcRefreshLists === 'function') window.ptcRefreshLists();
+        if (typeof window.zscRefreshLists === 'function') window.zscRefreshLists();
+        _markUnregistered(input, 'port', true);
+        if (typeof window.statsRerenderActive === 'function') window.statsRerenderActive();
+      }),
+      12000);
+  }
+  function _checkPortMaster(input) {
+    const v = (input.value || '').trim();
+    const c = typeof window.ptcCountryOf === 'function' ? window.ptcCountryOf(input) : null;
+    if (!v || !c) { _dismissSuggest(); return; }
+    const masters = _masterValues('port');
+    if (!masters.length || masters.includes(v)) { _dismissSuggest(); return; }
+    _showPortRegisterSuggest(input, v, c);
   }
 
   // 入力確定（change＝blur時など）で別名一致を判定して提案
@@ -873,19 +920,24 @@
     _markUnregistered(t, field, !canon);
     if (canon) _showSynSuggest(t, canon);
     else if (field === 'sv') _checkSubconMaster(t);   // サブコンはマスター引用：未登録なら確認
+    else if (field === 'port' && /^z2(Pol|Via|Pod)$/.test(t.id)) _checkPortMaster(t);   // 国を選んだ港は、その国の港として登録を促す
     else _dismissSuggest();
+    if (field === 'sv' && typeof window.refreshAllRowSvChips === 'function') window.refreshAllRowSvChips();
   });
+  // 行の「サブコン未登録」の印から：この行のサブコン名について、登録（承認制は申請）の確認を出す
+  // anchor：確認の吹き出しを出す位置の基準（サブコン見出しの印）。省略時は入力欄の下
+  window.arCheckSubconRow = function (input, anchor) { if (input) { _dismissSuggest(); _suggestAnchor = anchor || null; try { _checkSubconMaster(input); } finally { _suggestAnchor = null; } } };
 
   // 品名・港・お客様・キャリア：マスター（入力候補）に無い名前に、控えめな印を付ける（吹き出しは出さない＝入力の邪魔をしない）。
   // そのまま使ってよいが、新人が「合っているのか」を確認できるように。マスターが 1 件も無い間（未整備・読込前）は付けない
-  const _UNREG_FIELDS = ['nm', 'port', 'customer', 'carrier'];
+  const _UNREG_FIELDS = ['nm', 'port', 'customer', 'carrier'];   // サブコンは行ごとには印を付けず、サブコン見出しに 1 つだけ出す（row.js refreshAllRowSvChips）
   function _markUnregistered(input, field, check) {
     if (!_UNREG_FIELDS.includes(field)) return;
     let v = (input.value || '').trim();
     if (field === 'nm') v = v.replace(/^\*\s?/, '');
     let unreg = false;
     if (check && v) {
-      const dl = document.getElementById(input.getAttribute('list'));
+      const dl = document.getElementById(field === 'port' ? 'portSuggestions' : input.getAttribute('list'));   // 港は、国で絞った候補ではなく全港で「登録済み」を判定
       const known = new Set(dl ? Array.from(dl.children).map(o => o.value) : []);
       const canon = typeof window.nameCanon === 'function' ? window.nameCanon(field, v) : v;
       unreg = known.size > 0 && !known.has(v) && !known.has(canon);
@@ -950,20 +1002,18 @@
   });
 
 
+  // 単位の別名・マスター名も他の種別と同じクラウド（synonym_groups, field='un'）で共有する（2026-10）。
+  // 以前はこのブラウザだけ（localStorage unitAlias_v1）に持っていた。そのデータは移行の案内（チームへ移す）でクラウドへ移す。
+  // ua* は呼び出し元（統計・マスター管理）を変えないための薄い入口で、書き込みは syn* に任せる（再描画・通知も syn* が行う）。
   const UA_KEY = 'unitAlias_v1';
-  // 統計タブでは品名/サブコン/キャリア等の描画中に行・チップ単位で繰り返し呼ばれるため、
-  // 毎回 JSON.parse し直すとデータ量に比例して重くなる。保存時のみ無効化するキャッシュで
-  // 同一レンダリング内の再パースを避ける。
-  let _uaCache = null;
-  function _loadUA()  {
-    if (_uaCache !== null) return _uaCache;
-    try { _uaCache = JSON.parse(localStorage.getItem(UA_KEY) || '[]'); } catch(e) { _uaCache = []; }
-    return _uaCache;
+  function _loadUA() {
+    return _synAll().filter(g => g.field === 'un').map(g => ({ id: g.id, canonical: g.canonical, aliases: g.aliases || [] }));
   }
-  function _saveUA(a) { _uaCache = a; localStorage.setItem(UA_KEY, JSON.stringify(a)); }
-  function _notifyUA() {
-    _refreshDatalist();
-    if (typeof window.statsRefreshUnPane === 'function') window.statsRefreshUnPane();
+  function _localUA(bk) {
+    let arr;
+    if (bk) arr = _bkArr(bk, UA_KEY);
+    else { try { arr = JSON.parse(localStorage.getItem(UA_KEY) || '[]'); } catch (e) { arr = []; } }
+    return (Array.isArray(arr) ? arr : []).filter(g => g && g.canonical).map(g => ({ field: 'un', canonical: g.canonical, aliases: g.aliases || [] }));
   }
 
   window.uaGetGroups = function() { return _loadUA(); };
@@ -974,61 +1024,11 @@
     return map;
   };
 
-  window.uaSetCanonical = function(unit) {
-    if (!unit) return;
-    const groups = _loadUA();
-    groups.forEach(g => { g.aliases = (g.aliases || []).filter(a => a !== unit); });
-    if (!groups.find(g => g.canonical === unit))
-      groups.push({ id: Date.now() + '_' + Math.random().toString(36).slice(2), canonical: unit, aliases: [] });
-    _saveUA(groups);
-    _notifyUA();
-    if (typeof window.quoteShowToast === 'function') window.quoteShowToast('⭐ 「' + unit + '」を代表単位に設定しました', 'success');
-  };
-
-  // 代表単位の新規入力・編集（リネーム）。旧名称は別名として残す。
-  window.uaRenameCanonical = function(oldCanon, newCanon) {
-    oldCanon = (oldCanon || '').trim(); newCanon = (newCanon || '').trim();
-    if (!oldCanon || !newCanon || oldCanon === newCanon) return;
-    const groups = _loadUA();
-    const old    = groups.find(g => g.canonical === oldCanon);
-    const target = groups.find(g => g.canonical === newCanon);
-    const merged = new Set([
-      ...(target ? (target.aliases || []) : []),
-      ...(old ? (old.aliases || []) : []),
-      oldCanon,
-    ]);
-    merged.delete(newCanon);
-    const out = groups.filter(g => g.canonical !== oldCanon && g.canonical !== newCanon);
-    out.push({ id: (old && old.id) || (Date.now() + '_' + Math.random().toString(36).slice(2)), canonical: newCanon, aliases: [...merged] });
-    _saveUA(out);
-    _notifyUA();
-    if (typeof window.quoteShowToast === 'function') window.quoteShowToast('✏️ 代表単位を「' + newCanon + '」に変更しました', 'success');
-  };
-
-  window.uaAddAlias = function(alias, canonical) {
-    if (!alias || !canonical || alias === canonical) return;
-    const groups = _loadUA();
-    groups.forEach(g => { g.aliases = (g.aliases || []).filter(a => a !== alias); });
-    let g = groups.find(g => g.canonical === canonical);
-    if (!g) { g = { id: Date.now() + '_' + Math.random().toString(36).slice(2), canonical, aliases: [] }; groups.push(g); }
-    if (!g.aliases.includes(alias)) g.aliases.push(alias);
-    _saveUA(groups);
-    _notifyUA();
-    if (typeof window.quoteShowToast === 'function') window.quoteShowToast('✅ 「' + alias + '」→「' + canonical + '」に統合しました', 'success');
-  };
-
-  window.uaRemoveAlias = function(alias, canonical) {
-    const groups = _loadUA();
-    const g = groups.find(g => g.canonical === canonical);
-    if (g) g.aliases = (g.aliases || []).filter(a => a !== alias);
-    _saveUA(groups);
-    _notifyUA();
-  };
-
-  window.uaRemoveGroup = function(canonical) {
-    _saveUA(_loadUA().filter(g => g.canonical !== canonical));
-    _notifyUA();
-  };
+  window.uaSetCanonical = function(unit) { return unit ? window.synSetCanonical('un', unit) : undefined; };
+  window.uaRenameCanonical = function(oldCanon, newCanon) { return window.synRenameCanonical('un', oldCanon, newCanon); };
+  window.uaAddAlias = function(alias, canonical) { return window.synAddAlias('un', alias, canonical); };
+  window.uaRemoveAlias = function(alias, canonical) { return window.synRemoveAlias('un', alias, canonical); };
+  window.uaRemoveGroup = function(canonical) { return window.synRemoveGroup('un', canonical); };
 
   window.uaShowMergePicker = function(unit, btn) {
     document.querySelectorAll('.ua-inline-picker').forEach(el => el.remove());
@@ -1114,72 +1114,154 @@
     return map;
   };
 
+  // 書き込みの失敗は黙って無視しない：理由を画面に出し、続く「統合しました」等の成功表示を止める（_synAfter が見る）
+  let _synWriteFailed = false;
+  function _synFail(error, hint) {
+    _synWriteFailed = true;
+    const msg = hint || (error && error.message) || String(error || '');
+    if (typeof window.quoteShowToast === 'function') window.quoteShowToast('⚠️ 同義グループを保存できませんでした：' + msg, 'warn', 8000);
+  }
   // 書き込みはクラウドだけ。続けて読む処理（synAddAlias 等）のため、成功したら手元のキャッシュも同じ内容に更新する
   async function _synUpsert(field, canonical, aliases) {
-    if (!_needCloud('同義グループ') || _synTableMissing) return false;
+    if (!_needCloud('同義グループ')) { _synWriteFailed = true; return false; }
+    if (_synTableMissing) { _synFail(null, '保存先（synonym_groups）が未作成です'); return false; }
     const { error } = await _c().from(SYN_TABLE).upsert(
       { field, canonical, aliases, updated_by: _me(), updated_at: new Date().toISOString() },
       { onConflict: 'field,canonical' }
     );
-    if (error) { if (_synMissingErr(error)) _synTableMissing = true; return false; }
+    if (error) { if (_synMissingErr(error)) _synTableMissing = true; _synFail(error); return false; }
     if (_synCloud === null) _synCloud = [];
     const g = _synCloud.find(x => x.field === field && x.canonical === canonical);
     if (g) g.aliases = aliases; else _synCloud.push({ id: 'tmp_' + Date.now(), field, canonical, aliases });
     return true;
   }
   async function _synDelete(field, canonical) {
-    if (!_needCloud('同義グループ') || _synTableMissing) return false;
+    if (!_needCloud('同義グループ')) { _synWriteFailed = true; return false; }
+    if (_synTableMissing) { _synFail(null, '保存先（synonym_groups）が未作成です'); return false; }
     const { error } = await _c().from(SYN_TABLE).delete().match({ field, canonical });
-    if (error) return false;
+    if (error) { _synFail(error); return false; }
     if (_synCloud) _synCloud = _synCloud.filter(g => !(g.field === field && g.canonical === canonical));
     return true;
   }
 
+  // 承認制（master_requests）のとき、メンバーはマスター・別名を直接変えられない（別名の追加だけは申請できる）
+  function _synRestricted() {
+    return typeof window.statsAliasNeedsApproval === 'function' && window.statsAliasNeedsApproval();
+  }
+  function _synRestrictedToast() {
+    if (typeof window.quoteShowToast === 'function') window.quoteShowToast('マスター名・別名の変更は管理者が行います（別名の追加は「＋ 別名」から申請できます）', 'info', 5200);
+  }
+  // 別名を足したとき、別名側に入力済みの詳細を代表の詳細へ合流させる（空の項目だけ補う。担当者・タグは足し合わせる。別名側の記録は消さない）
+  function _mdMergeDetails(into, from) {
+    const out = Object.assign({}, into);
+    Object.keys(from || {}).forEach(k => {
+      const v = from[k], cur = out[k];
+      if (v == null || v === '' || (Array.isArray(v) && !v.length)) return;
+      if (k === 'contacts' || k === 'tags') {
+        const base = Array.isArray(cur) ? cur.slice() : [];
+        const seen = new Set(base.map(x => typeof x === 'string' ? x : (x && x.name) || JSON.stringify(x)));
+        (Array.isArray(v) ? v : []).forEach(x => { const key = typeof x === 'string' ? x : (x && x.name) || JSON.stringify(x); if (!seen.has(key)) { seen.add(key); base.push(x); } });
+        out[k] = base;
+      } else if (cur == null || cur === '' || (Array.isArray(cur) && !cur.length)) out[k] = v;
+    });
+    return out;
+  }
+  async function _mdAbsorbAliasDetails(field, canonical, aliases) {
+    if (typeof window.mdGet !== 'function' || typeof window.mdSave !== 'function') return;
+    let merged = null, cur = (window.mdGet(field, canonical) || {}).details || {};
+    for (const a of aliases) {
+      const rec = window.mdGet(field, a);
+      if (!rec || !rec.details || !Object.keys(rec.details).length) continue;
+      const next = _mdMergeDetails(merged || cur, rec.details);
+      if (JSON.stringify(next) !== JSON.stringify(merged || cur)) merged = next;
+    }
+    if (merged && await window.mdSave(field, canonical, merged) && typeof window.quoteShowToast === 'function')
+      window.quoteShowToast('📋 別名側に入力されていた詳細を「' + canonical + '」へまとめました', 'info', 3600);
+  }
+
   window.synSetCanonical = async function (field, value) {
     if (!field || !value) return;
+    if (_synRestricted()) return _synRestrictedToast();
+    // 書き込みは途中で失敗しても名前が消えない順にする：先に新しい形を書き、そのあと古い所属を外す
+    if (!_synAll().find(g => g.field === field && g.canonical === value))
+      if (!(await _synUpsert(field, value, []))) return _synAfter();
     // value が他グループの alias なら外す
     for (const g of _synAll()) {
-      if (g.field === field && (g.aliases || []).includes(value))
-        await _synUpsert(field, g.canonical, g.aliases.filter(a => a !== value));
+      if (g.field === field && g.canonical !== value && (g.aliases || []).includes(value))
+        if (!(await _synUpsert(field, g.canonical, g.aliases.filter(a => a !== value)))) return _synAfter();
     }
-    if (!_synAll().find(g => g.field === field && g.canonical === value))
-      await _synUpsert(field, value, []);
     // 統合（A案）: 代表は自動的にマスター登録
     if (typeof window.statsEnsureMaster === 'function') await window.statsEnsureMaster(field, value);
     await _synAfter('⭐「' + value + '」を代表（マスター）に設定しました');
   };
 
+  // 別名をまとめて足す（1 回の書き込み・1 回の読み直し）。items＝[{canonical, aliases}]。管理者・従来（承認制でない）だけ。
+  //   すでに別のマスター・別名になっている名前、マスター名と同じ名前は足さない。戻り値＝{added, skipped}
+  window.synAddAliasesMany = async function (field, items) {
+    items = (items || []).filter(x => x && x.canonical && Array.isArray(x.aliases) && x.aliases.length);
+    if (!items.length) return { added: 0, skipped: 0 };
+    if (_synRestricted()) return { added: 0, skipped: items.reduce((s, x) => s + x.aliases.length, 0), restricted: true };
+    if (!_needCloud('同義グループ')) return { added: 0, skipped: items.reduce((s, x) => s + x.aliases.length, 0) };
+    const taken = new Set();
+    _synAll().filter(g => g.field === field).forEach(g => { taken.add(g.canonical); (g.aliases || []).forEach(a => taken.add(a)); });
+    (typeof window.statsGetMasters === 'function' ? window.statsGetMasters() : []).filter(m => m.field === field).forEach(m => taken.add(m.value));
+    let added = 0, skipped = 0; const rows = [];
+    const now = new Date().toISOString();
+    items.forEach(x => {
+      const g = _synAll().find(y => y.field === field && y.canonical === x.canonical);
+      const cur = (g && g.aliases) || [];
+      const add = [];
+      x.aliases.forEach(a => { if (!a || a === x.canonical || cur.includes(a) || taken.has(a)) { skipped++; return; } taken.add(a); add.push(a); });
+      if (!add.length) return;
+      added += add.length;
+      rows.push({ field, canonical: x.canonical, aliases: [...cur, ...add], updated_by: _me(), updated_at: now });
+    });
+    if (!rows.length) return { added, skipped };
+    const { error } = await _c().from(SYN_TABLE).upsert(rows, { onConflict: 'field,canonical' });
+    if (error) { if (_synMissingErr(error)) _synTableMissing = true; _synFail(error); return { added: 0, skipped: skipped + added, failed: true }; }
+    await window.synLoadCloud();
+    return { added, skipped };
+  };
   window.synAddAlias = async function (field, alias, canonical) {
     if (!field || !alias || !canonical || alias === canonical) return;
-    // alias を他グループの alias リストから外す
-    for (const g of _synAll()) {
-      if (g.field === field && g.canonical !== canonical && (g.aliases || []).includes(alias))
-        await _synUpsert(field, g.canonical, g.aliases.filter(a => a !== alias));
-    }
-    // alias 自体が別グループの代表なら、その配下を吸収して解体（チェーン化を防ぐ）
+    // 承認制：メンバーの別名追加は申請になり、管理者が承認すると反映される
+    if (_synRestricted() && typeof window.statsRequestAlias === 'function') return window.statsRequestAlias(field, alias, canonical);
+    // 書き込みは途中で失敗しても名前が消えない順にする：先に新しい所属（代表の別名リスト）を書き、そのあと古い所属を外す
+    // （途中で止まっても、最悪「二重に所属している」だけで、別名が失われることはない）
     let absorbed = [];
     const aliasGroup = _synAll().find(g => g.field === field && g.canonical === alias);
-    if (aliasGroup) { absorbed = aliasGroup.aliases || []; await _synDelete(field, alias); }
+    if (aliasGroup) absorbed = aliasGroup.aliases || [];   // alias 自体が別グループの代表なら、その配下も吸収する（チェーン化を防ぐ）
     const g = _synAll().find(x => x.field === field && x.canonical === canonical);
     const aliases = [...new Set([...((g && g.aliases) || []), alias, ...absorbed])];
-    await _synUpsert(field, canonical, aliases);
+    if (!(await _synUpsert(field, canonical, aliases))) return _synAfter();   // 書けなかったら、何も変えない（別名側のマスター解除なども行わない）
+    // 他グループの alias リストから外す
+    for (const og of _synAll()) {
+      if (og.field === field && og.canonical !== canonical && (og.aliases || []).includes(alias))
+        if (!(await _synUpsert(field, og.canonical, og.aliases.filter(a => a !== alias)))) return _synAfter();
+    }
+    if (aliasGroup && !(await _synDelete(field, alias))) return _synAfter();
     // 統合（A案）: 代表は自動マスター化、統合した別名（および吸収した旧代表）はマスターから外す
     if (typeof window.statsEnsureMaster === 'function') await window.statsEnsureMaster(field, canonical);
     if (typeof window.statsEnsureNotMaster === 'function') {
       await window.statsEnsureNotMaster(field, alias);
       for (const a of absorbed) await window.statsEnsureNotMaster(field, a);
     }
-    await _synAfter('✅「' + alias + '」→「' + canonical + '」に統合しました');
+    await _mdAbsorbAliasDetails(field, canonical, [alias, ...absorbed]);
+    await _synAfter('✅「' + alias + '」を「' + canonical + '」の別名にしました');
   };
 
   window.synRemoveAlias = async function (field, alias, canonical) {
+    if (_synRestricted()) return _synRestrictedToast();
     const g = _synAll().find(x => x.field === field && x.canonical === canonical);
-    if (g) await _synUpsert(field, canonical, (g.aliases || []).filter(a => a !== alias));
-    await _synAfter();
+    const ok = g ? await _synUpsert(field, canonical, (g.aliases || []).filter(a => a !== alias)) : false;
+    await _synAfter(ok ? '別名「' + alias + '」を外しました（マスターには自動では戻りません。必要なら「＋ マスターを新規登録」から）' : '');
   };
   window.synRemoveGroup = async function (field, canonical) {
-    await _synDelete(field, canonical);
-    await _synAfter();
+    if (_synRestricted()) return _synRestrictedToast();
+    const g = _synAll().find(x => x.field === field && x.canonical === canonical);
+    const n = g ? (g.aliases || []).length : 0;
+    const ok = await _synDelete(field, canonical);
+    await _synAfter(ok && n ? '別名 ' + n + ' 件を外しました（外した名前はマスターには自動では戻りません。マスター「' + canonical + '」は残ります）' : '');
   };
 
   // 代表名の新規入力・編集（リネーム）。旧名称は別名として残す（実データの紐付けを維持）。
@@ -1187,6 +1269,7 @@
   window.synRenameCanonical = async function (field, oldCanon, newCanon) {
     oldCanon = (oldCanon || '').trim(); newCanon = (newCanon || '').trim();
     if (!field || !oldCanon || !newCanon || oldCanon === newCanon) return;
+    if (_synRestricted()) return _synRestrictedToast();
     const all = _synAll().filter(g => g.field === field);
     const old    = all.find(g => g.canonical === oldCanon);
     const target = all.find(g => g.canonical === newCanon);
@@ -1196,14 +1279,15 @@
       oldCanon,
     ]);
     merged.delete(newCanon);
+    if (!(await _synUpsert(field, newCanon, [...merged]))) return _synAfter();
     if (old) await _synDelete(field, oldCanon);
-    await _synUpsert(field, newCanon, [...merged]);
     // 統合（A案）: 新代表をマスター化、旧代表・別名はマスターから外す
     if (typeof window.statsEnsureMaster === 'function') await window.statsEnsureMaster(field, newCanon);
     if (typeof window.statsEnsureNotMaster === 'function') {
       for (const a of merged) await window.statsEnsureNotMaster(field, a);
     }
-    await _synAfter('✏️ 代表名を「' + newCanon + '」に変更しました');
+    await _mdAbsorbAliasDetails(field, newCanon, [...merged]);
+    await _synAfter('✏️ マスター名を「' + newCanon + '」に変更しました');
   };
 
   async function _synAfter(toast) {
@@ -1211,7 +1295,8 @@
     _refreshDatalist();
     if (typeof window.statsRerenderActive === 'function') window.statsRerenderActive();
     else if (typeof window.statsRefresh === 'function') await window.statsRefresh();
-    if (toast && typeof window.quoteShowToast === 'function') window.quoteShowToast(toast, 'success');
+    const failed = _synWriteFailed; _synWriteFailed = false;   // 書き込みが失敗していたら成功表示は出さない（理由は _synFail が出している）
+    if (toast && !failed && typeof window.quoteShowToast === 'function') window.quoteShowToast(toast, 'success');
   }
 
   // === このブラウザにだけあるマスターデータの移行（クラウド必須化） ===
@@ -1219,7 +1304,7 @@
   // ほかの人がクラウドで削除した古い写しも含まれうるので、移す前に件数と例を見せて選んでもらう（移す／移さずに使わない）
   // MD_KEY 等はこの後で定義されるため、使う時点で一覧にする
   // 除外リストは、共有テーブルがあるときだけ移行・削除の対象（無い間はこのブラウザの分を使い続けるため）
-  const _migKeys = () => ['masterCandidates_v1', SYN_KEY, MD_KEY, LOCAL_KEY, ABBREV_KEY].concat(_exclOn() ? [EXCL_KEY] : []);
+  const _migKeys = () => ['masterCandidates_v1', SYN_KEY, UA_KEY, MD_KEY, LOCAL_KEY, ABBREV_KEY].concat(_exclOn() ? [EXCL_KEY] : []);
   // bk を渡すと「このブラウザの現在の保存」ではなく「バックアップ（masterLocalBackup_v1）」の中身を対象にする
   // （クラウドに無いものだけを数える点は同じ。バックアップからの復元の案内に使う）
   function _bkArr(bk, key) {
@@ -1235,7 +1320,7 @@
     const masters = localMasters.filter(m => !cloudM.has(k(m.field, m.value)));
     const cloudSyn = _synCloud || [];
     const syn = [];
-    (bk ? _bkArr(bk, SYN_KEY) : (function () { try { return JSON.parse(localStorage.getItem(SYN_KEY) || '[]'); } catch (e) { return []; } })()).forEach(g => {
+    (bk ? _bkArr(bk, SYN_KEY) : (function () { try { return JSON.parse(localStorage.getItem(SYN_KEY) || '[]'); } catch (e) { return []; } })()).concat(_localUA(bk)).forEach(g => {
       const cg = cloudSyn.find(x => x.field === g.field && x.canonical === g.canonical);
       const missing = (g.aliases || []).filter(a => !cg || !(cg.aliases || []).includes(a));
       if (!cg || missing.length) syn.push({ field: g.field, canonical: g.canonical, aliases: missing, isNew: !cg });
@@ -1272,7 +1357,7 @@
   // マスター管理画面の先頭に出す案内（未ログイン／このブラウザにだけあるデータ／消したはずのバックアップに未復元のデータ）
   window.masterTopNoticeHtml = function () {
     if (!_cloud()) {
-      return '<div class="master-cloud-notice">🔒 マスター（入力候補・同義グループ・マスター詳細）はチームで共有しています。表示・登録にはログインしてください。</div>';
+      return '<div class="master-cloud-notice">🔒 マスター（入力候補・別名・マスター詳細）はチームで共有しています。表示・登録にはログインしてください。</div>';
     }
     const info = _migInfo();
     if (!info || !info.total) return _restoreNoticeHtml();
@@ -1326,7 +1411,7 @@
     const bk = _migBackup();
     if (!bk) return 0;
     let n = 0;
-    ['masterCandidates_v1', SYN_KEY, MD_KEY, LOCAL_KEY, ABBREV_KEY, EXCL_KEY].forEach(key => {
+    ['masterCandidates_v1', SYN_KEY, UA_KEY, MD_KEY, LOCAL_KEY, ABBREV_KEY, EXCL_KEY].forEach(key => {
       const old = _bkArr(bk, key);
       if (!old.length) return;
       let cur; try { cur = JSON.parse(localStorage.getItem(key) || '[]'); } catch (e) { cur = []; }
@@ -1478,10 +1563,63 @@
   const _FURIGANA_FIELD = { key: 'furigana', label: 'ふりがな', placeholder: '例）かいじょううんちん（読みで入力補完にヒットします）' };
   // 英語名称（全種別共通キー enName。品名は PDF 英語出力でも使う）
   const _EN_FIELD = { key: 'enName', label: '英語名称', placeholder: '例）ABC Trading Co., Ltd.（英字入力でも入力補完にヒットします）' };
+  // サブコン種別のうち「キャリア」にあたるものと、ブックマークの種別（bookmarks.carrier_type）の対応（統合の段階 1）。
+  // 幹線輸送のキャリア候補・ブックマークの会社名候補・「🔖 BOOKMARK」の表示を、サブコンのマスターから取るために使う
+  const _CARRIER_SVTYPE = { FCL: 'FCL CARRIER', LCL: 'LCL CARRIER', AIR: 'AIR CARRIER', RORO: 'RORO CARRIER', BREAKBULK: '在来船 CARRIER' };
+  const _normType = t => String(t || '').replace(/[\s　]+/g, ' ').trim().toUpperCase();
+  window.mdIsCarrierType = t => Object.values(_CARRIER_SVTYPE).some(v => _normType(v) === _normType(t));
+  // サブコンのマスターのうち、種別がキャリア系のもの（type を渡すと、そのブックマーク種別（FCL/LCL/AIR/RORO/BREAKBULK）に絞る）
+  window.mdCarrierNames = function (type) {
+    const want = type ? _normType(_CARRIER_SVTYPE[type]) : null;
+    if (type && !want) return [];
+    return _mdAll().filter(m => m.field === 'sv' && Array.isArray(m.details && m.details.svTypes) &&
+      m.details.svTypes.some(t => want ? _normType(t) === want : window.mdIsCarrierType(t))).map(m => m.value).sort((a, b) => a.localeCompare(b, 'ja'));
+  };
+  // 所属グループ（グループ傘下の別会社をつなぐ。1 つだけ。入力済みのグループ名が候補に出る）：例）CMA CGM グループ
+  const _GROUP_FIELD = { key: 'group', label: '所属グループ', suggest: true, placeholder: '例）CMA CGM グループ（グループ傘下の会社を同じ名前でつなげます）' };
+  // 担当者（複数。氏名・ふりがな・所属部署・役職・電話・E-MAIL・その他の連絡手段・所在地）。お客様と同じ入力欄をサブコン・キャリアでも使う
+  const _CONTACTS_FIELD = { key: 'contacts', label: '担当者', contacts: true };
+  // 得意エリア（複数）：国内業者は日本の地方、船会社・海外の業者は海外の小地域・国。国連の地理区分（UN M.49）。data/countries.js
+  const _AREAS_FIELD = { key: 'areas', label: '得意エリア', areas: true };
+  // 取引形態・同業者の「先のお客様」（2026-10）：同業者であるお客様の先に、そのお客様のお客様（荷主）をつなぐ。
+  //   つなぎ方は「先のお客様の側に details.via＝経由する同業者（1 社だけ）」を持つ形＝1 社の先のお客様は 1 つの同業者にしか付けられない（重複しない）。
+  //   同業者の先がさらに同業者でもよい（何段でも）。children は仮想の項目（自分の詳細には保存せず、先のお客様側の via を書き換える）
+  const _DEAL_SHIPPER = '荷主（直接）', _DEAL_FWD = '同業者（フォワーダー・代理店）';
+  window.MD_DEAL_FWD = _DEAL_FWD;
+  const _DEAL_FIELD = { key: 'dealType', label: '取引形態', options: [
+    { value: '', label: '（未設定）' }, { value: _DEAL_SHIPPER, label: _DEAL_SHIPPER }, { value: _DEAL_FWD, label: _DEAL_FWD }, { value: 'その他', label: 'その他' },
+  ] };
+  const _VIA_FIELD = { key: 'via', label: '経由する同業者', via: true };
+  const _CHILDREN_FIELD = { key: 'viaChildren', label: '先のお客様（この同業者のお客様）', children: true };
+  // 先のお客様（直下）の名前一覧
+  window.mdViaChildren = function (parent) {
+    return window.mdGetAll('customer').filter(m => m.details && m.details.via === parent).map(m => m.value).sort((a, b) => a.localeCompare(b, 'ja'));
+  };
+  // 上位（経由する同業者を順にたどる。近い順・循環しても止まる）
+  window.mdViaChain = function (name) {
+    const out = [], seen = new Set([name]);
+    let cur = name;
+    for (let i = 0; i < 20; i++) {
+      const r = window.mdGet('customer', cur);
+      const v = r && r.details && r.details.via;
+      if (!v || seen.has(v)) break;
+      out.push(v); seen.add(v); cur = v;
+    }
+    return out;
+  };
+  // 下位すべて（先の先も含む）
+  window.mdViaDescendants = function (name) {
+    const out = [], seen = new Set([name]), q = [name];
+    while (q.length) { const c = q.shift(); window.mdViaChildren(c).forEach(x => { if (!seen.has(x)) { seen.add(x); out.push(x); q.push(x); } }); }
+    return out;
+  };
   window.MD_SCHEMA = {
     customer: [
       _FURIGANA_FIELD,
       _EN_FIELD,
+      _DEAL_FIELD,
+      _VIA_FIELD,
+      _CHILDREN_FIELD,
       { key: 'contacts',     label: '担当者', contacts: true },
       { key: 'location',     label: '所在地' },
       { key: 'mainGoods',    label: 'メイン商材' },
@@ -1506,9 +1644,19 @@
       { key: 'refSell',     label: '代表売単価（参考）' },
       { key: 'refCcy',      label: '代表単価の通貨' },
     ],
-    sv:      [_FURIGANA_FIELD, _EN_FIELD],
-    carrier: [_FURIGANA_FIELD, _EN_FIELD],
-    port:    [_FURIGANA_FIELD, _EN_FIELD],
+    sv:      [
+      _FURIGANA_FIELD,
+      _EN_FIELD,
+      // 種別（複数選べる。ひな形のほか、自由に追加した種別はチーム内で候補に出る）
+      { key: 'svTypes', label: 'サブコン種別', tags: true, addPlaceholder: '種別を追加（例：トラック手配）',
+        presets: ['通関業者', '倉庫業者', '運送業者', 'FCL CARRIER', 'LCL CARRIER', 'AIR CARRIER', 'RORO CARRIER', '在来船 CARRIER', '海外代理店', '保険会社', 'サーベイヤー'] },
+      _AREAS_FIELD,
+      _GROUP_FIELD,
+      _CONTACTS_FIELD,
+    ],
+    carrier: [_FURIGANA_FIELD, _EN_FIELD, _AREAS_FIELD, _GROUP_FIELD, _CONTACTS_FIELD],
+    // 港の「国」（国コードで保存・表示は日本語名。POL/POD の国ごとの情報の土台。data/countries.js の候補から選ぶ）
+    port:    [_FURIGANA_FIELD, _EN_FIELD, { key: 'country', label: '国', country: true, placeholder: '例）ベトナム（国名・国コード VN のどちらでも。候補から選べます）' }],
   };
 
   // カタカナ→ひらがな正規化（読み比較用）
@@ -1597,6 +1745,20 @@
     return true;
   };
 
+  // 多数の詳細をまとめて保存する（1 回の書き込み＋1 回の読み直し。items＝[{value, details}]）。一括登録など、1 件ずつ保存すると遅くなる用途向け
+  window.mdSaveMany = async function (field, items) {
+    items = (items || []).filter(x => x && x.value);
+    if (!field || !items.length) return { ok: 0, ng: 0 };
+    if (!_needCloud('マスター詳細')) return { ok: 0, ng: items.length };
+    if (_mdTableMissing) { _mdWarn('マスター詳細の保存先（master_details）が未作成のため保存できません'); return { ok: 0, ng: items.length }; }
+    const now = new Date().toISOString();
+    const rows = items.map(x => ({ field, value: x.value, details: x.details, updated_by: _me(), updated_at: now }));
+    const { error } = await _c().from(MD_TABLE).upsert(rows, { onConflict: 'field,value' });
+    if (error) { _mdWarn('マスター詳細を保存できませんでした：' + (error.message || error)); return { ok: 0, ng: items.length }; }
+    await window.mdLoadCloud();
+    return { ok: items.length, ng: 0 };
+  };
+
   window.mdDelete = async function (field, value) {
     if (!_needCloud('マスター詳細') || _mdTableMissing) return;
     await _c().from(MD_TABLE).delete().match({ field, value });
@@ -1611,11 +1773,16 @@
   const MA_BUCKET = () => (window.CLOUD_CONFIG && window.CLOUD_CONFIG.masterAttachmentBucket) || 'master-attachments';
   let _maTableMissing = false;
 
+  // マスターの添付は、別名側に付けたものも合わせて表示する（別名を足す前に添付してあったファイルが見えなくならないように）
+  function _maValuesOf(field, value) {
+    const g = _synAll().find(x => x.field === field && x.canonical === value);
+    return [value].concat(g ? (g.aliases || []) : []);
+  }
   window.mdListAttachments = async function (field, value) {
     if (!_cloud() || _maTableMissing || !field || !value) return [];
     const { data, error } = await _c().from(MA_TABLE)
       .select('id,file_name,file_size,mime_type,storage_path,uploaded_by,created_at')
-      .eq('field', field).eq('value', value)
+      .eq('field', field).in('value', _maValuesOf(field, value))
       .order('created_at', { ascending: false });
     if (error) { if (_mdMissingErr(error)) _maTableMissing = true; return []; }
     return data || [];

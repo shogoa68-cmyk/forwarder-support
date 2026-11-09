@@ -52,6 +52,20 @@
   }
   // プリセットカード（ブラウザ保存／チーム共有）でも敬称表示に使うため公開
   window.formatPersonWithHonorific = formatPersonWithHonorific;
+  // お客様マスターの担当者（氏名が一致する人）の所属部署・課と役職。ご担当者欄でマスターの候補を選ぶ（＝氏名がマスターの担当者と一致する）と
+  // 宛先に出す。敬称（様など）・空白の違いは無視して照合。見つからなければ null
+  function getRecipientExtra(company, person) {
+    const co = (company || '').trim(), pn = (person || '').trim();
+    if (!co || !pn || typeof window.mdGet !== 'function' || typeof window.mdContactsOf !== 'function') return null;
+    const rec = (window.mdGetCanon || window.mdGet)('customer', co);
+    if (!rec) return null;
+    const norm = s => String(s || '').replace(/[\s　]+/g, '').replace(/(様|さま|さん|殿)$/, '');
+    const key = norm(pn);
+    const c = window.mdContactsOf(rec.details).find(x => x && norm(x.name) === key);
+    if (!c || !(c.dept || c.title)) return null;
+    return { dept: (c.dept || '').trim(), title: (c.title || '').trim() };
+  }
+  window.getRecipientExtra = getRecipientExtra;
 
   // プレビュー上の発行日／有効期限編集 → フォーム(qf-date / qf-valid-until)へ同期
   window.pvSyncDate = function (which, val) {
@@ -103,6 +117,15 @@
     const parts = [hdr.ref, hdr.customer, mode, hdr.person, patternName].map(safe).filter(Boolean);
     const prefix = isSensitiveOn() ? '[社内用]_' : '[客先]_';
     return prefix + (parts.length ? parts.join('_') : '見積もり_' + today) + '.' + ext;
+  }
+
+  // 幅（売単価〜上限）の単価文字列（Excel/CSV 用。「1,000〜2,500」）。幅なしなら null
+  function _rgRaw(d) {
+    const rg = (typeof rowRange === 'function') ? rowRange(d.bp, d.bphi) : null;
+    if (!rg) return null;
+    const dec = (d.bc && d.bc !== 'JPY') ? 2 : 0;
+    const f = n => Number(n).toLocaleString('en-US', { minimumFractionDigits: dec, maximumFractionDigits: dec });
+    return f(rg.lo) + '〜' + f(rg.hi);
   }
 
   function collectAllRows() {
@@ -159,6 +182,7 @@
       const vt     = _isSur ? (document.getElementById(`vt-${id}`)?.value || '') : '';
       const zc     = document.getElementById(`zc-${id}`)?.value === '1';
       const _hideManual = _st ? !!_st.hidden : tr.dataset.hideQuote === '1';   // 手動の見積書非表示
+      const _outReason  = tr.dataset.outReason || '';        // 'incoterms'（いまの貿易条件に合わない）／'period'（サーチャージの適用期間外）
       const _outRange   = tr.dataset.outRange === '1';     // 適用期間外（自動・原則客先非表示＋合計除外）
       const _ps         = tr.dataset.profitShare === '1';  // PROFIT SHARE（客先非表示・社内利益に計上）
       const _actual     = tr.dataset.actual === '1';   // 実費（金額未確定・合計除外・単価/金額は「実費」表示）
@@ -168,7 +192,7 @@
       // 客先出力・小計・PDF/Excel/CSV の除外は _hideQuote 一本で判定する（PROFIT SHARE も客先には出さない）。
       // 適用期間外は「参考」指定があれば例外的に出力する（金額は括弧書き・合計外のまま、客先へ参考提示したい場合）
       const _hideQuote  = _hideManual || (_outRange && !_ref) || _ps;
-      rows.push({ _type: 'data', taxed, cat, name, pq, un, pc, pp, cd, bq, bc, bp, mk, cost, bill, profit, ppmin: val(`ppmin-${id}`), bpmin: val(`bpmin-${id}`), note, sv, pt, vf, vt, zc, uid, _actual, _ps, _cond, _ref, _estimate, _hideQuote, _hideManual, _outRange });
+      rows.push({ _type: 'data', taxed, cat, name, pq, un, pc, pp, cd, bq, bc, bp, mk, cost, bill, profit, ppmin: val(`ppmin-${id}`), bpmin: val(`bpmin-${id}`), bphi: val(`bphi-${id}`), note, sv, pt, vf, vt, zc, uid, _actual, _ps, _cond, _ref, _estimate, _hideQuote, _hideManual, _outRange, _outReason });
     });
     return rows;
   }
@@ -205,7 +229,7 @@
       const _actual = tr.dataset.actual === '1';   // 実費（金額未確定）
       const _cond   = tr.dataset.cond === '1';     // 都度請求（発生時のみ・合計外）
       const _ref    = tr.dataset.refInfo === '1';  // 参考情報（金額は表示・合計外）
-      data.push({ taxed, cat, name, pq, un, pc, pp, cd, bq, bc, bp, mk, cost, bill, profit, ppmin: val(`ppmin-${id}`), bpmin: val(`bpmin-${id}`), note, sv, _actual, _cond, _ref });
+      data.push({ taxed, cat, name, pq, un, pc, pp, cd, bq, bc, bp, mk, cost, bill, profit, ppmin: val(`ppmin-${id}`), bpmin: val(`bpmin-${id}`), bphi: val(`bphi-${id}`), note, sv, _actual, _cond, _ref });
     });
     return data;
   }
@@ -219,11 +243,11 @@
     const last = localStorage.getItem(SharedStorage.KEYS.FX_LAST_FETCHED);
     let fxLine;
     if (last) {
-      fxLine = `為替出典：open.er-api.com 中値（Mid Rate）（取得日時 ${new Date(last).toLocaleString('ja-JP', {year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'})}）※ 実際の決済レート（TTS等）とは異なる参考値`;
+      fxLine = `為替：open.er-api.com 中値（${new Date(last).toLocaleString('ja-JP', {year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'})} 取得）／参考値であり、実際の決済レート（TTS等）とは異なります。`;
     } else {
       // フォールバック（自動取得未実行）。デフォルト値の確認日を必ず明記し、根拠を追えるようにする（台帳 D）
       const asof = (typeof QuoteApp !== 'undefined' && QuoteApp.fx && QuoteApp.fx.DEFAULT_RATES_ASOF) || '';
-      fxLine = `為替出典：手動設定値（自動取得未実行${asof ? ` / 基準レート確認日 ${asof}` : ''}）※ 参考値・実際の決済レート（TTS等）とは異なります`;
+      fxLine = `為替：手動設定値（自動取得未実行${asof ? `・基準レート確認日 ${asof}` : ''}）／参考値であり、実際の決済レート（TTS等）とは異なります。`;
     }
     const created = `作成日：${new Date().toLocaleString('ja-JP', {year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'})}`;
     return { fxLine, created, hasFresh: !!last };
@@ -401,7 +425,7 @@
     const list = document.getElementById('pvWarnGuideList');
     if (list) {
       list.innerHTML = _pvWarnItems.map((item, i) =>
-        `<li class="pv-wg-item${item.focusEl ? '' : ' pv-wg-item-info'}${item.fxCurrencies ? ' pv-wg-item-fx' : ''}" data-idx="${i}">` +
+        `<li class="pv-wg-item${item.focusEl ? '' : ' pv-wg-item-info'}${item.fxCurrencies ? ' pv-wg-item-fx' : ''}${item.ruleLevel ? ' pv-wg-item-rule pv-wg-item-rule-' + item.ruleLevel : ''}" data-idx="${i}">` +
           (item.focusEl
             ? `<span class="pv-wg-item-num">${i + 1}</span>`
             : `<span class="pv-wg-item-icon">ℹ</span>`) +
@@ -446,6 +470,26 @@
 
     // フォーカス不可の情報系警告
     const infoItems = [];
+
+    // お客様・ご担当者の取引ルール（厳守・要確認）を、出力前の確認事項に載せる（メモは載せない）。社内向けの確認で、出力物には入らない
+    if (typeof window.crFor === 'function' && hdr.customer) {
+      window.crFor(hdr.customer, hdr.person).list
+        .filter(r => r.level === 'strict' || r.level === 'check')
+        .forEach(r => infoItems.push({
+          msg: (r.level === 'strict' ? '⛔ 厳守' : '⚠️ 要確認') + '（お客様ルール' + (r.contact ? '・' + r.contact + ' 様のみ' : '') + '）：' + r.body,
+          focusEl: null, ruleLevel: r.level,
+        }));
+    }
+
+    // 行の「表示条件」：条件に合わず客先向け・合計から外れる行と、条件に使う値が未入力で判定できない行（表示のまま）を知らせる
+    {
+      const nm = tr => (tr.querySelector('[data-field="nm"]')?.value || '').trim() || '（品名未入力）';
+      const list = arr => arr.slice(0, 5).join('、') + (arr.length > 5 ? ` ほか${arr.length - 5}件` : '');
+      const outs = [...document.querySelectorAll('#tableBody tr[data-out-reason="condition"]')].map(nm);
+      const unk  = [...document.querySelectorAll('#tableBody tr[data-cn-unknown="1"]')].map(nm);
+      if (outs.length) infoItems.push({ msg: `表示条件に合わず、客先向けの出力と合計から外れる行が ${outs.length} 件あります：${list(outs)}`, focusEl: null });
+      if (unk.length)  infoItems.push({ msg: `表示条件を判定できない行が ${unk.length} 件あります（値が未入力のため表示のまま）：${list(unk)}`, focusEl: null });
+    }
 
     if (!data.length) {
       infoItems.push({ msg: '見積もり行が 1 件もありません', focusEl: null });
@@ -522,7 +566,7 @@
     const metaHTML = [
       hdr.ref      ? `<div class="pv-meta-item"><span class="lbl">見積もり番号</span><span class="val">${escHtml(hdr.ref)}</span></div>` : '',
       hdr.customer ? `<div class="pv-meta-item"><span class="lbl">お客様</span><span class="val">${escHtml(hdr.customer)}</span></div>` : '',
-      hdr.person   ? `<div class="pv-meta-item"><span class="lbl">担当</span><span class="val">${escHtml(formatPersonWithHonorific(hdr.person))}</span></div>` : '',
+      hdr.person   ? `<div class="pv-meta-item"><span class="lbl">担当</span><span class="val">${escHtml((() => { const x = getRecipientExtra(hdr.customer, hdr.person); return (x && x.dept ? x.dept + ' ' : '') + (x && x.title ? x.title + ' ' : '') + formatPersonWithHonorific(hdr.person); })())}</span></div>` : '',
       `<div class="pv-meta-item pv-meta-edit"><span class="lbl">発行日</span><input type="date" class="pv-meta-date" value="${escHtml(hdr.date)}" onchange="pvSyncDate('date', this.value)" title="フォームの発行日と同期します" /></div>`,
       `<div class="pv-meta-item pv-meta-edit"><span class="lbl">有効期限</span><input type="${validInputType}" class="pv-meta-date" value="${escHtml(hdr.validUntil)}" onchange="pvSyncDate('valid', this.value)" title="フォームの有効期限と同期します" /></div>`,
     ].join('');
@@ -748,6 +792,10 @@
       const _hqCls = d._hideQuote ? ' pv-row-hidden-quote' : '';
       const _hqBadge = d._ps
         ? '<span class="pv-hq-badge pv-ps-badge" title="PROFIT SHARE（代理店収益）。客先見積もりには出さず、社内利益にのみ計上します">🤝 PROFIT SHARE</span> '
+        : d._outRange && d._outReason === 'incoterms'
+        ? '<span class="pv-hq-badge pv-oor-badge" title="いまの貿易条件には適用されない行のため、合計・PDF・CSV・Excel から除外されています（プレビューには打ち消し線で表示）">🏷️ 貿易条件外</span> '
+        : d._outRange && d._outReason === 'condition'
+        ? '<span class="pv-hq-badge pv-oor-badge" title="表示条件に合わない行のため、合計・PDF・CSV・Excel から除外されています（プレビューには打ち消し線で表示）">🔀 表示条件外</span> '
         : d._outRange
         ? '<span class="pv-hq-badge pv-oor-badge" title="適用期間外のため合計・PDF・CSV・Excel から除外されています（プレビューには打ち消し線で表示）">📅 適用期間外</span> '
         : (d._hideManual ? '<span class="pv-hq-badge" title="この行は見積書（PDF・Excel・CSV・客先プレビュー）に出力されません">🚫見積書非表示</span> ' : '');
@@ -756,13 +804,15 @@
       const _acTxt   = '<span class="pv-actual-txt">実費</span>';
       const ppCell   = _ac ? _acTxt : (minPriceText(d.pp, d.ppmin, d.pc, d.un) || fmtMoney(d.pp));
       const cdCell   = _ac ? '' : fmtMoney(d.cd);
-      const bpCell   = _ac ? _acTxt : (minPriceText(d.bp, d.bpmin, d.bc, d.un) || fmtMoney(d.bp)) +
+      const _rg      = _ac ? null : rowRange(d.bp, d.bphi);   // 幅（売単価〜上限）
+      const _rgAmt   = _rg ? rowRangeAmt(d.bq, d.bp, d.bphi, d.bpmin) : null;
+      const bpCell   = _ac ? _acTxt : (_rg ? fmtMoney(_rg.lo) + '〜' + fmtMoney(_rg.hi) : (minPriceText(d.bp, d.bpmin, d.bc, d.un) || fmtMoney(d.bp))) +
         (d.bill > (d.bq || 0) * (d.bp || 0) ? ' <span class="pv-min-tag">[MIN適用]</span>' : '');   // 最低料金で請求している行
       const mkCell   = _ac ? '' : fmtMoney(d.mk);
       // 参考情報行の金額は括弧書き＋グレーで「合計外の参考値」であることを示す
       const subCell  = _ac ? _acTxt
         : d._ref ? `<span class="pv-ref-amt">(${fmtMoney(sub)})</span>${subJpyHint}`
-        : (fmtMoney(sub) + subJpyHint);
+        : (_rgAmt ? fmtMoney(_rgAmt.lo) + '〜' + fmtMoney(_rgAmt.hi) + ' <span class="pv-min-tag" title="合計は売単価（' + fmtMoney(sub) + '）で計算しています">幅</span>' + subJpyHint : fmtMoney(sub) + subJpyHint);
       const jpyCell2 = _ac ? ''
         : (d._ref && jpyCellText !== '—') ? `<span class="pv-ref-amt">(${jpyCellText})</span>`
         : jpyCellText;
@@ -1469,7 +1519,7 @@
     { hdr: 'CD',       fn: d => d._actual ? '' : fmtRaw(d.cd),     pvGroup: 'pay',    role: 'cd'     },
     { hdr: '数量',     fn: d => fmtRaw(d.bq),          pvGroup: 'bill',   role: 'bq'     },
     { hdr: '通貨',     fn: d => d.bc,                  pvGroup: 'bill',   role: 'bc'     },
-    { hdr: '単価',     fn: d => d._actual ? '実費' : (minPriceText(d.bp, d.bpmin, d.bc, d.un) || fmtRaw(d.bp)), pvGroup: 'bill',   role: 'bp'     },
+    { hdr: '単価',     fn: d => d._actual ? '実費' : (_rgRaw(d) || minPriceText(d.bp, d.bpmin, d.bc, d.un) || fmtRaw(d.bp)), pvGroup: 'bill',   role: 'bp'     },
     { hdr: '乗せ幅',       fn: d => d._actual ? '' : fmtRaw(d.mk),     pvGroup: 'mk',       role: 'mk'     },
     { hdr: '円換算(JPY)', fn: d => { if (d._actual) return '実費'; const s = minAmt((d.bq||0)*(d.bp||0), d.bpmin); return (d.bc && d.bc !== 'JPY') ? fmtRaw(typeof toJPY === 'function' ? Math.ceil(toJPY(s, d.bc)) : s) : '—'; }, pvGroup: 'jpy-conv', role: 'jpyConv' },
     { hdr: '利益',         fn: d => d._actual ? '—' : fmtRaw(d.profit), pvGroup: 'profit',   role: 'profit' },
@@ -1902,7 +1952,7 @@
     { key: 'cd',     hdr: 'CD',             fn: d => d._actual ? '' : fmtRaw(d.cd) },
     { key: 'bq',     hdr: '数量(請求)',     fn: d => fmtRaw(d.bq) },
     { key: 'bc',     hdr: '通貨(請求)',     fn: d => d.bc },
-    { key: 'bp',     hdr: '単価(請求)',     fn: d => d._actual ? '実費' : (minPriceText(d.bp, d.bpmin, d.bc, d.un) || fmtRaw(d.bp)) },
+    { key: 'bp',     hdr: '単価(請求)',     fn: d => d._actual ? '実費' : (_rgRaw(d) || minPriceText(d.bp, d.bpmin, d.bc, d.un) || fmtRaw(d.bp)) },
     { key: 'mk',     hdr: '乗せ幅',         fn: d => d._actual ? '' : fmtRaw(d.mk) },
     { key: 'sub',    hdr: '小計',           fn: d => d._actual ? '実費' : fmtRaw(minAmt((d.bq||0)*(d.bp||0), d.bpmin)) },
     { key: 'profit', hdr: '利益',           fn: d => d._actual ? '—' : fmtRaw(d.profit) },
@@ -2002,7 +2052,7 @@
 
         // 先頭列がカテゴリのraw値なら新フォーマット（cat, sv, name, pq, un, pc, pp, cd, bq, bc, bp, mk, sub, profit, note）
         // 旧フォーマット（name, pq, pc, pp, ...）は off=0 で扱う
-        const isNewFmt = CAT_VALUES.includes(dataRows[0][0]);
+        const isNewFmt = CAT_VALUES.includes(normCat(dataRows[0][0]));
         let added = 0;
         dataRows.forEach(cols => {
           rowCount++;
@@ -2056,6 +2106,7 @@
           if (un) document.getElementById(`un-${id}`).value = un;
           const pcEl = document.getElementById(`pc-${id}`);
           if (pcEl && CURRENCIES.includes(pc)) pcEl.value = pc;
+          if (cat) cat = normCat(cat);   // 廃止したカテゴリは「その他」へ
           if (cat && CAT_VALUES.includes(cat)) {
             document.getElementById(`cat-${id}`).value = cat;
             onCatChange(id);
@@ -2166,26 +2217,37 @@
     return { totBillJpy, totCostJpy, totProfit, totMk, profitRate, taxedBillJpy, byCategory, rowItems };
   }
 
-  function openCompare() {
-    const presets = getPresets();
+  // 比較の対象は ☁️ チーム共有の案件（更新が新しい順に最大 100 件）。開くたびに取得し直す。
+  let _cmpPresets = [];
+  async function openCompare() {
     const listEl  = document.getElementById('cmpPresetList');
     const resultEl = document.getElementById('cmpResult');
     if (!listEl) return;
-
-    if (!presets.length) {
-      listEl.innerHTML = '<p class="cmp-empty-msg">保存済みプリセットがありません。先にプリセットを保存してください。</p>';
+    _cmpPresets = [];
+    const c = (typeof window.quoteCloudClient === 'function') ? window.quoteCloudClient() : null;
+    const loggedIn = !!(c && typeof window.quoteCloudUser === 'function' && window.quoteCloudUser());
+    listEl.innerHTML = loggedIn
+      ? '<p class="cmp-empty-msg">読み込み中…</p>'
+      : '<p class="cmp-empty-msg">比較するには、右上の「Google でログイン」からログインしてください（チーム共有の案件を比べます）。</p>';
+    if (resultEl) resultEl.innerHTML = '';
+    const printBtn0 = document.getElementById('cmpPrintBtn');
+    if (printBtn0) printBtn0.style.display = 'none';
+    document.getElementById('compareOverlay').classList.add('open');
+    if (!loggedIn) return;
+    const { data, error } = await c.from('quote_presets').select('id,name,data,updated_at')
+      .order('updated_at', { ascending: false }).limit(100);
+    if (error) { listEl.innerHTML = '<p class="cmp-empty-msg">⚠️ 取得に失敗しました：' + escHtml(error.message || String(error)) + '</p>'; return; }
+    _cmpPresets = data || [];
+    if (!_cmpPresets.length) {
+      listEl.innerHTML = '<p class="cmp-empty-msg">チーム共有に保存された案件がありません。先に案件を保存してください。</p>';
     } else {
-      listEl.innerHTML = presets.map((p, i) =>
+      listEl.innerHTML = _cmpPresets.map((p, i) =>
         `<label class="cmp-preset-item" id="cmpItem-${i}">
           <input type="checkbox" class="cmp-chk" value="${i}" onchange="toggleCmpItem(this)">
-          ${escHtml(p.name || `プリセット ${i+1}`)}
+          ${escHtml(p.name || `案件 ${i+1}`)}
         </label>`
       ).join('');
     }
-    if (resultEl) resultEl.innerHTML = '';
-    const printBtn = document.getElementById('cmpPrintBtn');
-    if (printBtn) printBtn.style.display = 'none';
-    document.getElementById('compareOverlay').classList.add('open');
   }
 
   function toggleCmpItem(chk) {
@@ -2200,15 +2262,15 @@
   }
 
   function runCompare() {
-    const presets  = getPresets();
+    const presets  = _cmpPresets;
     const selected = [...document.querySelectorAll('.cmp-chk:checked')].map(c => parseInt(c.value, 10));
     if (selected.length < 2) {
-      alert('比較するプリセットを 2 件以上選択してください。');
+      alert('比較する案件を 2 件以上選択してください。');
       return;
     }
 
     const items = selected.map(i => ({
-      name:  presets[i].name || `プリセット ${i+1}`,
+      name:  presets[i].name || `案件 ${i+1}`,
       stats: _extractPresetStats(presets[i].data),
     }));
 

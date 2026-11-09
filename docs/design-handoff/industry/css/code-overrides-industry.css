@@ -116,12 +116,26 @@
    Design の `.quote-main { overflow-x: auto }` は、.quote-main を「スクロールの入れ物」にしてしまい、中の position:sticky
    （.quote-cmdbar）が表と一緒に流れてしまう。表の横スクロールは #tableScrollWrap が担っているので、ここでは外す */
 #tab-quote-make .quote-main { overflow-x: visible; }
+/* 適用する貿易条件：パネルの中ではグループの見出しがあるので、欄のラベルは出さない。ボタン・チップは角形（Industry の言語） */
+#tab-quote-make .row-detail-panel .ic-group .ic-lbl { display: none; }
+#tab-quote-make .row-detail-panel .ic-group .ic-chip { border-radius: 0; }
+/* サブコン見出しの「サブコン未登録／申請中」の印：見出しの操作ボタンはホバーまで隠れる（opacity:0）が、この印は常に見せる（未登録に気づけるように） */
+#tab-quote-make #quoteTable tr.subcon-group-header .subcon-group-header-inner > button.sv-master-chip { opacity: 1; margin-left: 0; border-radius: 0; height: 22px; padding: 0 8px; font-size: 11px; }
+#tab-quote-make #quoteTable tr.subcon-group-header .subcon-group-header-inner > button.sv-master-chip[hidden] { display: none; }
+/* マスター登録済みサブコンの「詳細」／キャリアの「BOOKMARK」も常時表示（見出しの操作ボタンはホバーまで隠れる設定だが、見つけられるように） */
+#tab-quote-make #quoteTable tr.subcon-group-header .subcon-group-header-inner > button.sv-hdr-btn { opacity: 1; margin-left: 0; border-radius: 0; height: 22px; padding: 0 8px; font-size: 11px; }
+#tab-quote-make #quoteTable tr.subcon-group-header .subcon-group-header-inner > button.sv-hdr-btn[hidden] { display: none; }
 /* A-1 小計行：「注記 ▾」ボタンは現行では隠している。Industry では表示（Design の .st-notes-btn の見た目は display を持たない） */
 #tab-quote-make #quoteTable .st-notes-btn { display: inline-flex; align-items: center; pointer-events: auto; }   /* 小計行は pointer-events:none（ドラッグの邪魔をしない既存設定）。このボタンだけ押せるように */
 #tab-quote-make #quoteTable .st-notes { display: none; }
 #tab-quote-make #quoteTable tr.is-notes-open .st-notes { display: flex; }
 #tab-quote-make #quoteTable .subcon-subtotal-inner .st-alias, #tab-quote-make #quoteTable .subcon-subtotal-inner .subcon-subtotal-add-btn, #tab-quote-make #quoteTable .subcon-subtotal-inner .st-remark { order: 0; }
 #tab-quote-make #quoteTable .subcon-subtotal-inner .st-notes { flex-basis: 100%; }
+/* 小計バー：ラベル・＋行追加・注記 ▾ は左、金額（仕入合計・売値合計・粗利率）は右端に右揃え（現行と同じ並び。金額は固定幅でパターン小計とサブコン小計を縦にそろえる） */
+#tab-quote-make #quoteTable .subcon-subtotal-inner .subcon-subtotal-add-btn { order: 1; margin-left: 0; }
+#tab-quote-make #quoteTable .subcon-subtotal-inner .st-notes-btn { order: 2; }
+#tab-quote-make #quoteTable .subcon-subtotal-inner .st-metric { order: 3; }
+#tab-quote-make #quoteTable .subcon-subtotal-inner .st-notes { order: 4; }
 /* 「注記 ▾」を開いたとき：客先表示名とサブコン別リマークを 1 行に左から並べる（現行の「客先表示名は右寄せ・リマークは別の行」を解く）。
    幅が足りなければ折り返す。リマークは残りの幅いっぱいに伸びる */
 #tab-quote-make #quoteTable tr.is-notes-open .st-notes { column-gap: 32px; row-gap: 10px; align-items: center; }
@@ -210,7 +224,7 @@ body:has(#tab-master.active) #backToQuoteFab { display: none !important; }
    セルが重ね合わせの単位になって次の行の下に隠れる（開いても中身が薄く、操作できない）。開いている間は、その行の半透明を戻す */
 #tab-quote-make #quoteTable > tbody > tr.is-detail-open > td { opacity: 1 !important; }
 
-/* ================= 有効期間（サーチャージ）を、「その他 ▾」を開かなくても行の中で見て直せるように =================
+/* ================= 有効期間（サーチャージ）を、「その他 ▾」を開かなくても行の中で見て直せるように ==========
    期間が入っている行・サーチャージの行は、品名セルの 3 段目の上に「有効 [開始] ～ [終了]」の 1 段を足す（行の高さ 120 → 156px）。
    それ以外の行は、従来どおり行を 3 段（120px）に保ち、有効期間はパネルの中。 */
 #tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]).has-valid-inline { height: 156px; }
@@ -243,8 +257,31 @@ body:has(#tab-master.active) #backToQuoteFab { display: none !important; }
 #tab-quote-make #quoteTable tr:hover td.handle-cell .row-acts,
 #tab-quote-make #quoteTable tr:focus-within td.handle-cell .row-acts { pointer-events: auto; }   /* 遅らせている間もクリックできる（opacity は上のルールで 0 に向かう） */
 #tab-quote-make #quoteTable tr td.handle-cell:hover .row-acts { transition: opacity .12s 0s, visibility 0s 0s; }
+/* 別の行のつまみへカーソルが移ったら、前の行のメニューは「あそび」なしで即座に消す（2 つ同時に出さない）。
+   カーソルがどのつまみ列にも乗っていない間だけ、上の「あそび」が働く */
+#tab-quote-make #quoteTable:has(td.handle-cell:hover) td.handle-cell:not(:hover) .row-acts:not(:hover) { visibility: hidden; opacity: 0; transition: none; }
 /* 開いた「その他 ▾」のパネルの間は出さない（stage2 の指定。visibility でも確実に隠す） */
 #tab-quote-make #quoteTable tr.is-detail-open td.handle-cell .row-acts { visibility: hidden !important; transition: none; }
 @media (hover: none) {
   #tab-quote-make #quoteTable tr.is-active td.handle-cell .row-acts { visibility: visible; opacity: 1; transition: none; }
 }
+
+/* ================= 全タブ共通の画面幅（現行 style.css の .app と同じ） ==========
+   Design の style.css は .app を max-width:1440px（1480px 以上は 65vw）にし、見積タブだけ解除していた。
+   見積タブのテーブル・左ナビ・右パネルが収まる幅にそろえ、タブを切り替えても幅が変わらないようにする。 */
+.app { max-width: none; padding: var(--sp-20) var(--sp-8); }
+
+/* マスター管理：操作ボタンが多い行（他のマスターにまとめる／名称変更／詳細／⋯）で、表が画面幅からはみ出さないようにする。
+   操作列は折り返し可（ボタン単体は折り返さない）。幅の固定（min-width）は外し、表は常に枠の幅に収める */
+#tab-master .master-table { table-layout: fixed; width: 100%; max-width: 100%; }
+#tab-master .master-table th:nth-child(1) { width: 88px; }
+#tab-master .master-table th:nth-child(2) { width: 30%; }
+#tab-master .master-table th.ops { width: 330px; }
+#tab-master .master-table .stats-syn-member,
+#tab-master .master-table .stats-md-chip { max-width: 100%; white-space: normal; overflow-wrap: anywhere; }
+#tab-master .master-table td.ops { white-space: normal; min-width: 0; }
+#tab-master .master-table td.ops > * { margin: 2px 0 2px 6px; vertical-align: middle; }
+#tab-master .master-table td.ops .stats-syn-picker { display: inline-flex; flex-wrap: wrap; gap: 4px; justify-content: flex-end; max-width: 100%; }
+#tab-master .master-table td.ops .stats-syn-picker .stats-syn-sel { max-width: 180px; }
+#tab-master .master-table td.stats-master-abbrev-cell { white-space: normal; overflow-wrap: anywhere; }
+#tab-master .master-table td.stats-val { overflow-wrap: anywhere; }

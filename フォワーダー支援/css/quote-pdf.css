@@ -194,6 +194,8 @@
 .qd-meta { display: grid; grid-template-columns: auto 1fr; gap: 3px 12px; padding: 8px 12px; font-size: var(--doc-fs-body); }
 .qd-srow { display: contents; }
 .qd-sk { color: var(--doc-text-sub); white-space: nowrap; }
+/* 航路の行：船会社（実運送人）を目立たせる */
+.qd-carrier { font-weight: 700; color: var(--doc-ink); font-size: var(--doc-fs-strong); }
 .qd-amt-row { display: flex; justify-content: space-between; align-items: center; border-top: 1px solid var(--doc-line); padding: 8px 12px; background: var(--doc-fill-faint); }
 .qd-valid { font-size: var(--doc-fs-caption); color: var(--doc-text-faint); }
 .qd-amt { font-size: var(--doc-fs-amount); font-weight: 700; color: var(--doc-amount); }
@@ -260,6 +262,8 @@
 .qd-foot { display: flex; gap: 14px; margin-top: 12px; align-items: flex-start; }
 .qd-notes { flex: 1; font-size: var(--doc-fs-caption); color: var(--doc-text-note); line-height: 1.7; }
 .qd-rate { width: 140px; font-size: var(--doc-fs-small); }
+/* 為替の出典・取得日時・参考値の注記（御見積書の下端・全幅 1 行） */
+.qd-fxnote { margin-top: 6px; font-size: var(--doc-fs-tiny); color: var(--doc-text-faint); line-height: 1.5; }
 .qd-rate table { width: 100%; border-collapse: collapse; }
 .qd-rate td { border: 1px solid var(--doc-line-soft); padding: 2px 6px; }
 .qd-rate .qd-rh { background: var(--doc-fill); font-weight: 600; }
@@ -331,6 +335,8 @@
 
 /* ===== 物量パターンの併記出力（FCL案／LCL案） ===== */
 .qd-pat-label { text-align: center; font-size: var(--doc-fs-emph); font-weight: 700; color: var(--doc-pattern-label); margin: -8px 0 12px; letter-spacing: 2px; }
+/* 併記（FCL案／LCL案）の末尾：全案共通のリマーク類を 1 回だけ出す。案の区切り線とは別に、少し間をあける */
+.qd-common-remarks { margin-top: 20px; }
 .qd-pat-section { margin-top: 36px; padding-top: 28px; border-top: 2px dashed var(--doc-line); }
 .qd-cmp { margin: 14px 0 10px; }
 .qd-cmp-ttl { font-size: var(--doc-fs-heading); font-weight: 700; margin-bottom: 6px; color: var(--doc-ink-2); }

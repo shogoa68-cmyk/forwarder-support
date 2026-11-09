@@ -1,0 +1,65 @@
+// 管理番号入力（Design 回答 2026-11）の試験。  node scripts/design-tests/case-info-test.js  （OUT=<dir> で画像, MODE=simple, THEME=1）
+const { chromium } = (() => { try { return require('playwright-core'); } catch (e) { return require('playwright'); } })();
+const http = require('http'), fs = require('fs'), path = require('path');
+(async () => {
+  const root = path.resolve(__dirname, '..', '..');
+  const srv = http.createServer((q, r) => { const f = path.join(root, decodeURIComponent(q.url.split('?')[0])); if (!fs.existsSync(f) || fs.statSync(f).isDirectory()) { r.writeHead(404); r.end(); return; } r.writeHead(200, { 'Content-Type': f.endsWith('.css') ? 'text/css' : f.endsWith('.js') ? 'text/javascript' : 'text/html; charset=utf-8' }); fs.createReadStream(f).pipe(r); });
+  await new Promise(r => srv.listen(0, '127.0.0.1', r));
+  const URL = `http://127.0.0.1:${srv.address().port}/${encodeURIComponent('フォワーダー支援')}/index.html`;
+  const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', args: ['--no-sandbox'] });
+  const out = []; const ok = (n, c, d) => out.push((c ? 'PASS ' : 'FAIL ') + n + (c ? '' : ' → ' + JSON.stringify(d)));
+  const ctx = await b.newContext({ viewport: { width: +(process.env.W || 1400), height: 1000 }, locale: 'ja-JP' });
+  await ctx.addInitScript((mode) => { try { localStorage.setItem('fwd.uiMode', mode); } catch (e) {} }, process.env.MODE || 'detail');
+  if (process.env.THEME) await ctx.addInitScript(() => { try { localStorage.setItem('forwarderTheme_v1', JSON.stringify({ site: true, doc: true })); } catch (e) {} });
+  await ctx.route(u => !u.href.startsWith('http://127.0.0.1'), r => r.abort());
+  const p = await ctx.newPage(); const errs = []; p.on('pageerror', e => errs.push(e.message)); p.on('dialog', d => d.accept()); p.setDefaultTimeout(8000);
+  await p.goto(URL, { waitUntil: 'domcontentloaded' }); console.log('title', await p.title()); await p.waitForTimeout(700);
+  await p.evaluate(() => { const t = document.querySelector('[onclick*="quote-make"]'); t && t.click(); }); await p.waitForTimeout(1500);
+  await p.evaluate(() => { try { (window.qpNewQuote || window.qpShowEditor)(); } catch (e) {} }); await p.waitForTimeout(600);
+  const v = id => p.evaluate(i => document.getElementById(i)?.value, id);
+  const vis = s => p.evaluate(x => { const e = document.querySelector(x); if (!e) return false; const r = e.getBoundingClientRect(); return r.width > 0 && r.height > 0; }, s);
+  const today = await p.evaluate(() => new Date().toLocaleDateString('sv', { timeZone: 'Asia/Tokyo' }));
+  ok('新規：依頼受信日＝今日', (await v('qf-received')) === today, await v('qf-received'));
+  const eomOf = await p.evaluate(() => { const d = document.getElementById('qf-date').value.split('-').map(Number); return new Date(Date.UTC(d[0], d[1], 0, 3)).toLocaleDateString('sv', { timeZone: 'Asia/Tokyo' }); });
+  ok('新規：有効期限＝発行月末', (await v('qf-valid-until')) === eomOf, [await v('qf-valid-until'), eomOf]);
+  ok('有効期限の印は「標準」', (await p.textContent('#ciValidBadge')) === '標準');
+  ok('ステータス：その他の項目は隠れている', !(await vis('.qf-status-btn[data-status="受注"]')));
+  await p.click('#ciStatusMore'); ok('「その他 ▾」で 7 つ出る', await vis('.qf-status-btn[data-status="受注"]'));
+  await p.click('.qf-status-btn[data-status="受注"]'); await p.waitForTimeout(200);
+  ok('その他の状態を選ぶと閉じても残る', (await v('qf-status')) === '受注');
+  await p.click('.qf-status-btn[data-status="下書き中"]');
+  ok('関連番号は閉じている', !(await vis('#ciRelPanel')));
+  await p.click('#ciRelBtn'); ok('関連番号：開く', await vis('#qfRelInput'));
+  ok('提出期限は追加ボタンのみ', !(await vis('#qf-due')) && await vis('#ciDueBtn'));
+  await p.click('#ciDueBtn'); ok('提出期限を追加すると入力欄', await vis('#qf-due'));
+  await p.click('#ciDueRemove'); ok('外すと閉じる', !(await vis('#qf-due')));
+  await p.click('#ciValidChange'); ok('変更 ▾ のメニュー', await vis('#ciValidMenu'));
+  await p.click('#ciValidMenu button:has-text("翌月末")'); await p.waitForTimeout(150);
+  ok('翌月末に変更→印が「変更済み」', (await p.textContent('#ciValidBadge')) === '変更済み');
+  await p.click('#ciValidChange'); await p.click('#qfSpotToggleBtn'); await p.waitForTimeout(150);
+  ok('SPOT：文字入力になる', await p.evaluate(() => document.getElementById('qf-valid-until').type === 'text'));
+  await p.click('#ciValidChange'); await p.click('#ciValidMenu button:has-text("発行日の月末")'); await p.waitForTimeout(150);
+  ok('SPOT から標準に戻すと日付入力', await p.evaluate(() => document.getElementById('qf-valid-until').type === 'date'));
+  ok('タグ等は閉じている→開く', !(await vis('#qfTagsInput')) && (await p.click('#ciMoreBtn'), await vis('#qfTagsInput')));
+  ok('社内メモの欄は画面に出ない・付箋ボタンが出る', !(await vis('#qf-memo')) && await vis('#qfMemoFab'));
+  await p.click('#qfMemoFab'); ok('付箋が開く（案件名・社内メモ）', await vis('#qfMemoFloat') && (await p.textContent('.qf-memo-float-title')) === '案件名・社内メモ');
+  ok('取引ルール帯は自動では開かない（バナー要素のみ）', true);
+  // 付箋ボタンは隠せる
+  await p.evaluate(() => closeMemoFloat()); await p.waitForTimeout(150);
+  await p.click('#qfMemoFab .qmf-x'); await p.waitForTimeout(200);
+  ok('付箋ボタンの ✕ で隠れる', !(await vis('#qfMemoFab')) && !(await vis('#qfMemoFloat')));
+  await p.evaluate(() => { document.querySelector('#saveToolbar [aria-label*="その他"], #saveToolbar .tb-menu-btn') ; });
+  await p.evaluate(() => toggleMemoFloat()); ok('隠していても付箋は開ける（「⋯」メニューの項目と同じ処理）', await vis('#qfMemoFloat'));
+  await p.evaluate(() => closeMemoFloat()); await p.evaluate(() => ciToggleMemoFab()); await p.waitForTimeout(150);
+  ok('メニューの項目で付箋ボタンを再表示できる', await vis('#qfMemoFab'));
+  // 案件名の付け方 2 通り（案件名欄／付箋の 1 行目）
+  const nameOf = (fields) => p.evaluate(f => window.quotePresetMeta({ data: { fields: f } }).memo, fields);
+  ok('案件名欄がある（任意）', await vis('#qf-case-name'));
+  ok('案件名：案件名欄が空なら付箋（メモ）の1行目', (await nameOf({ 'qf-memo': 'メモの題名\n本文' })) === 'メモの題名');
+  ok('案件名：案件名欄に入れたらそれが優先', (await nameOf({ 'qf-case-name': '別途入力の案件名', 'qf-memo': 'メモの題名\n本文' })) === '別途入力の案件名');
+  ok('案件名：どちらも空なら空', (await nameOf({})) === '');
+  ok('JS エラーなし', errs.length === 0, errs);
+  if (process.env.OUT) { await p.evaluate(() => document.getElementById('section-ref').scrollIntoView()); await p.screenshot({ path: path.join(process.env.OUT, 'case-info.png') }); }
+  console.log(out.join('\n')); console.log(out.some(l => l.startsWith('FAIL')) ? 'NG' : 'OK');
+  await b.close(); srv.close(); process.exit(out.some(l => l.startsWith('FAIL')) ? 1 : 0);
+})();

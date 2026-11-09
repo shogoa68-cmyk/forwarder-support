@@ -84,7 +84,7 @@ if (!window._bmClickDelegated) {
 const BM_FN_ORDER = [
   'スケジュール', '航路', 'コンテナ追跡', 'CY OPEN/CUT', 'ブッキング', 'レート',
   '輸出サーチャージ', '輸入サーチャージ', 'ローカルチャージ（輸出）', 'ローカルチャージ（輸入）',
-  '書類', 'お知らせ', 'その他', '未分類',
+  '書類', '危険品', 'お知らせ', 'その他', '未分類',
 ];
 function bmFnRank(fn) {
   const i = BM_FN_ORDER.indexOf(fn || '未分類');
@@ -176,6 +176,28 @@ async function bmEnsureCarrierTypes(force) {
   if (error) return;
   _bmLightRows = data || [];
 }
+// 見積のサブコン見出し用：その名前（マスターの別名・代表名も含む）でブックマークが1件でも登録されているか。
+// 同期関数。会社名の一覧が未取得のときは裏で取得し、取得できたら見出しを再描画する（それまでは false）。
+let _bmHasLoading = false;
+function bmHasBookmarks(name) {
+  name = String(name || '').trim();
+  if (!name) return false;
+  const src = _bmRows.length ? _bmRows : _bmLightRows;
+  if (!src) {
+    if (!_bmHasLoading) {
+      _bmHasLoading = true;
+      bmEnsureCarrierTypes().then(() => {
+        _bmHasLoading = false;
+        if (_bmLightRows && typeof window.refreshAllRowSvChips === 'function') window.refreshAllRowSvChips();
+      }).catch(() => { _bmHasLoading = false; });
+    }
+    return false;
+  }
+  const fields = ['carrier', 'sv'];
+  const names = new Set([name, ...(typeof window.nameVariants === 'function' ? window.nameVariants(fields, name) : [])]);
+  return src.some(r => r.carrier && (names.has(r.carrier)
+    || (typeof window.nameSame === 'function' && fields.some(f => window.nameSame(f, name, r.carrier)))));
+}
 // 指定した種別のブックマークが登録されている会社名（BOOKMARK タブ読込済みならそちらを優先して最新を使う）
 function bmCarrierNamesForType(type) {
   const src = _bmRows.length ? _bmRows : (_bmLightRows || []);
@@ -251,6 +273,7 @@ async function _bmLoad() {
 
   _bmRenderTypeChips();
   _bmApply();
+  if (typeof window.refreshAllRowSvChips === 'function') window.refreshAllRowSvChips();
 }
 
 function _bmNameFor(email) {
@@ -343,7 +366,7 @@ const _BM_FN_ICON = {
   'スケジュール':'📅','航路':'🛣️','コンテナ追跡':'📍','CY OPEN/CUT':'🗓️',
   'ローカルチャージ（輸出）':'💴','ローカルチャージ（輸入）':'💴',
   '輸出サーチャージ':'⚡','輸入サーチャージ':'⚡','ブッキング':'📦',
-  'レート':'💱','書類':'📄','お知らせ':'📣',
+  'レート':'💱','書類':'📄','危険品':'⚠️','お知らせ':'📣',
 };
 function _bmFnIcon(fn) { return _BM_FN_ICON[fn] || '🔗'; }
 
@@ -605,6 +628,7 @@ function _inferBmFunction(chipLabel) {
     if (t.includes('輸入') || t.includes('import')) return 'ローカルチャージ（輸入）';
     return 'ローカルチャージ（輸出）';
   }
+  if (t.includes('危険品') || t.includes('危険物') || t.includes('IMDG') || /\bDG\b/.test(t)) return '危険品';
   if (t.includes('お知らせ') || t.includes('アナウンス') || t.includes('通知')) return 'お知らせ';
   if (t.includes('スケジュール') || t.includes('フライト')) return 'スケジュール';
   if (t.includes('追跡')) return 'コンテナ追跡';
@@ -661,7 +685,8 @@ function openAddBmModal(presetData) {
   if (!lockCarrier) {
     const dl = document.getElementById('bmCarrierDatalist');
     if (dl) {
-      const carriers = [...new Set(_bmRows.map(r => r.carrier).filter(Boolean))].sort();
+      // 既存のブックマークの会社名に加え、サブコンのマスターで種別がキャリアの会社も候補に出す
+      const carriers = [...new Set([..._bmRows.map(r => r.carrier).filter(Boolean), ...(typeof window.mdCarrierNames === 'function' ? window.mdCarrierNames() : [])])].sort();
       dl.innerHTML = carriers.map(c => `<option value="${escHtml(c)}">`).join('');
     }
   }
@@ -1647,6 +1672,66 @@ window.fetchCarrierBmsForQSP = async function (carrierNames) {
   if (typeof window.renderQuoteMilestones === 'function') window.renderQuoteMilestones();
 };
 
+// ---------- サブコン見出しの「BOOKMARK」：そのキャリア／サブコンのブックマークを小さなポップアップで見る ----------
+// 見積のサブコン別明細の見出し（種別が FCL／LCL／AIR CARRIER のマスター登録済みサブコン）から開く。
+// 別名・代表名で登録されたブックマークも拾う。リンクのクリックは通常のチップと同じく記録される（data-bm-click）。
+let _svBmPop = null;
+function _svBmPopClose() {
+  if (_svBmPop) { _svBmPop.remove(); _svBmPop = null; }
+  document.removeEventListener('mousedown', _svBmPopOutside, true);
+}
+function _svBmPopOutside(e) { if (_svBmPop && !_svBmPop.contains(e.target)) _svBmPopClose(); }
+window.bmHideForCarrier = _svBmPopClose;
+window.bmShowForCarrier = async function (name, ev) {
+  if (ev && typeof ev.stopPropagation === 'function') ev.stopPropagation();
+  name = String(name || '').trim();
+  if (!name) return;
+  _svBmPopClose();
+  const pop = document.createElement('div');
+  pop.className = 'sv-bm-pop';
+  pop.innerHTML = `<div class="sv-bm-pop-head"><span>🔖 「${escHtml(name)}」のブックマーク</span>` +
+    `<button type="button" class="sv-bm-pop-close" onclick="bmHideForCarrier()" title="閉じる">✕</button></div>` +
+    `<div class="sv-bm-pop-body"><span class="sv-bm-pop-note">読み込み中…</span></div>`;
+  pop.style.position = 'fixed';
+  document.body.appendChild(pop);
+  const target = ev && (ev.currentTarget || ev.target);
+  const r = target && target.getBoundingClientRect ? target.getBoundingClientRect() : { bottom: 60, left: 20 };
+  const place = () => {
+    pop.style.top  = Math.max(8, Math.min(r.bottom + 6, window.innerHeight - pop.offsetHeight - 8)) + 'px';
+    pop.style.left = Math.max(8, Math.min(r.left, window.innerWidth - pop.offsetWidth - 8)) + 'px';
+  };
+  place();
+  _svBmPop = pop;
+  setTimeout(() => document.addEventListener('mousedown', _svBmPopOutside, true), 0);
+  const body = pop.querySelector('.sv-bm-pop-body');
+  const done = html => { if (_svBmPop !== pop) return; body.innerHTML = html; place(); };
+  const db = window.SupabaseClient;
+  let session = null;
+  try { session = db ? (await db.auth.getSession()).data.session : null; } catch (e) { /* 未ログイン扱い */ }
+  if (!session) { done('<span class="sv-bm-pop-note">ログインするとブックマークを見られます。</span>'); return; }
+  try { await bmEnsureClickCounts(); } catch (e) { /* クリック数は無くても表示できる */ }
+  const _BM_FIELDS = ['carrier', 'sv'];
+  const variants = typeof window.nameVariants === 'function' ? window.nameVariants(_BM_FIELDS, name) : [name];
+  const { data, error } = await db
+    .from('bookmarks')
+    .select('id, label, url, carrier, carrier_type, function, note, file_path, file_name')
+    .in('carrier', [...new Set([name, ...variants])])
+    .or('url.not.is.null,file_path.not.is.null');
+  if (error) { done('<span class="sv-bm-pop-note">⚠️ ブックマークを読み込めませんでした：' + escHtml(error.message || '') + '</span>'); return; }
+  const rank = b => (window.bmFnRank ? window.bmFnRank(b.function) : 0);
+  const clicks = b => (window.bmClickTotal ? window.bmClickTotal(b.id) : 0);
+  const rows = (data || []).slice().sort((a, b) => rank(a) - rank(b) || clicks(b) - clicks(a) || String(a.label || '').localeCompare(String(b.label || ''), 'ja'));
+  const chips = rows.map(b => {
+    const tip = escHtml(b.note || b.label || '');
+    return b.file_path
+      ? `<span class="sv-bm-chip is-file" data-bm-click="${escHtml(b.id)}" onclick="bmOpenFilePath('${encodeURIComponent(b.file_path)}')" title="${tip}">📎 ${escHtml(b.label || b.file_name || '')}</span>`
+      : `<a class="sv-bm-chip" data-bm-click="${escHtml(b.id)}" href="${escHtml(b.url)}" target="_blank" rel="noopener" title="${tip}">${escHtml(b.label || b.url)}</a>`;
+  }).join('');
+  done((chips ? `<div class="sv-bm-pop-chips">${chips}</div>` : '<span class="sv-bm-pop-note">まだブックマークがありません。</span>') +
+    `<div class="sv-bm-pop-foot"><button type="button" class="sv-bm-pop-add" ` +
+    `onclick="bmHideForCarrier();openAddBmModal({carrier:'${String(name).replace(/\\/g, '\\\\').replace(/'/g, "\\'")}'})">＋ ブックマークを追加</button></div>`);
+};
+
 // ---------- window 公開 ----------
 window.initBookmarkTab = initBookmarkTab;
 window.bmSetType       = bmSetType;
@@ -1679,6 +1764,7 @@ window.bmDoAddRelation   = bmDoAddRelation;
 window.bmRemoveRelation  = bmRemoveRelation;
 window.bmGetContact       = bmGetContact;
 window.bmFnRank           = bmFnRank;
+window.bmHasBookmarks       = bmHasBookmarks;
 window.bmClickInfo         = bmClickInfo;
 window.bmClickTotal        = bmClickTotal;
 window.bmPopularIds        = bmPopularIds;

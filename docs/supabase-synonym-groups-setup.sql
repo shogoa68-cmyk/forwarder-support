@@ -54,7 +54,7 @@ CREATE INDEX IF NOT EXISTS idx_synonym_groups_field ON synonym_groups(field);
 -- ============================================================
 ALTER TABLE alias_rules DROP CONSTRAINT IF EXISTS alias_rules_field_check;
 ALTER TABLE alias_rules
-  ADD CONSTRAINT alias_rules_field_check CHECK (field IN ('sv', 'nm', 'un', 'port', 'carrier'));
+  ADD CONSTRAINT alias_rules_field_check CHECK (field IN ('sv', 'nm', 'un', 'port', 'carrier', 'customer'));
 
 -- ============================================================
 -- 既存 synonym_groups テーブルの CHECK 制約に 'carrier' を追加

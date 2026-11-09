@@ -44,7 +44,7 @@
   // 共有し、tab（digest/flow/fin/chat）で内部ペインを出し分ける。レール側で
   // それぞれ独立アイコンとして並べ、押下時に qspSetTab(tab) で切替える。
   const MODS = [
-    { id: 'digest',   icon: '🧭', label: 'ジャンプ', title: 'ジャンプ',     panel: 'quoteSummaryPanel', tab: 'digest' },
+    { id: 'digest',   icon: '📋', label: '費用', title: '費用テーブル（縮小表示）', panel: 'quoteSummaryPanel', tab: 'digest' },
     { id: 'compare',  icon: '⚖️', label: '比較',    title: '同一項目の最安値比較', panel: 'cmpRailPanel' },
     { id: 'fcllcl',   icon: '🆚', label: 'FCL/LCL', title: 'FCL/LCL 損益分岐', panel: 'flPanel' },
     { id: 'bookmark', icon: '🔖', label: 'ブク',    title: 'ブックマーク',  panel: 'bmRailPanel' },

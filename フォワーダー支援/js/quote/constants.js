@@ -25,12 +25,15 @@ window.QuoteApp = window.QuoteApp || { state: {}, data: {}, fx: {} };
     { value: 'customs-export', label: '🛃 通関諸費用（輸出）', cls: 'cat-customs-export' },
     { value: 'customs-import', label: '🛃 通関諸費用（輸入）', cls: 'cat-customs-import' },
     { value: 'insurance',  label: '🛡️ 保険料',            cls: 'cat-insurance'  },
-    { value: 'domestic-transport', label: '🚚 国内配送・横持ち', cls: 'cat-domestic-transport' },
-    { value: 'warehouse',  label: '📦 倉庫保管', cls: 'cat-warehouse'  },
-    { value: 'packing-cost', label: '🎁 梱包',   cls: 'cat-packing-cost' },
     { value: 'other',      label: '📋 その他',             cls: 'cat-other'      },
   ];
   const CAT_VALUES = CATEGORIES.map(c => c.value);
+  // 廃止したカテゴリ（国内配送・横持ち／倉庫保管／梱包）。保存済みの見積・過去案件・CSV・諸チャージに残っている値は「その他」として扱う
+  // （品名はそのまま残るので内容は失われない）。行を開く（catOpts）・CSV 取込・諸チャージの編集で normCat を通す。
+  const LEGACY_CATEGORY_MAP = { 'domestic-transport': 'other', 'warehouse': 'other', 'packing-cost': 'other' };
+  const normCat = v => LEGACY_CATEGORY_MAP[v] || v;
+  window.LEGACY_CATEGORY_MAP = LEGACY_CATEGORY_MAP;
+  window.normCat = normCat;
 
   // ---- サブコン名の「揺らぎ」吸収（Phase A：軽い正規化） ----
   // グルーピング・小計の同一判定に使う「正規化キー」を返す。表示名そのものは変えない。
@@ -152,6 +155,7 @@ window.QuoteApp = window.QuoteApp || { state: {}, data: {}, fx: {} };
   }
 
   function catOpts(sel) {
+    sel = normCat(sel);
     const userCats = getUserCategories();
     let html = CATEGORIES.map(c =>
       `<option value="${c.value}"${c.value === sel ? ' selected' : ''}>${c.label}</option>`
@@ -493,6 +497,22 @@ function minPriceText(price, min, ccy, unit) {
   const money = n => (_MIN_CCY_SYM[c] ? _MIN_CCY_SYM[c] + f(n) : c + ' ' + f(n));
   return 'Min. ' + money(m) + ' or ' + money(price) + (unit ? '/' + unit : '');
 }
+// 幅（金額の範囲）：売単価 bp〜上限 bphi。上限が売単価より大きいときだけ幅あり（未入力・0・以下は null）。
+// 売単価 bp が下限で、合計・小計はこの売単価で計算する（出力の注記「合計は幅の下限で算出」と一致）
+function rowRange(bp, bphi) {
+  const hi = parseFloat(bphi) || 0, lo = Number(bp) || 0;
+  if (!(hi > lo)) return null;
+  return { lo, hi };
+}
+window.rowRange = rowRange;
+// 幅の金額（数量×単価の範囲。最低料金があれば各端に適用）。幅なしなら null
+function rowRangeAmt(bq, bp, bphi, bpmin) {
+  const rg = rowRange(bp, bphi);
+  if (!rg) return null;
+  const q = Number(bq) || 0;
+  return { lo: minAmt(q * rg.lo, bpmin), hi: minAmt(q * rg.hi, bpmin) };
+}
+window.rowRangeAmt = rowRangeAmt;
 window.minAmt = minAmt;
 window.applyRowMin = applyRowMin;
 window.minPriceText = minPriceText;

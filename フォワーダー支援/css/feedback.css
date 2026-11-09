@@ -1,0 +1,211 @@
+/* feedback.css — 不具合報告（常駐ボタン・添付 UI・録画バー・不具合報告ページ）
+ * 既存の .fb-* モーダルの見た目（quote.css）には手を入れず、追加分だけをここに置く。 */
+
+/* ---------- 常駐ボタン（右下ドックの真上・小さく） ---------- */
+.fb-quick-fab {
+  position: fixed;
+  right: max(18px, calc(18px + env(safe-area-inset-right)));
+  bottom: max(72px, calc(72px + env(safe-area-inset-bottom)));
+  width: 36px; height: 36px; padding: 0;
+  border-radius: 50%;
+  border: 1px solid var(--border-md, #c9bfa9);
+  background: var(--surface, #fff);
+  color: var(--text, #333);
+  font-size: 17px; line-height: 34px; text-align: center;
+  cursor: pointer;
+  opacity: .72;
+  box-shadow: 0 2px 8px rgba(0,0,0,.18);
+  z-index: 1150;
+  transition: opacity .15s, transform .1s, box-shadow .15s;
+}
+.fb-quick-fab:hover, .fb-quick-fab:focus-visible { opacity: 1; transform: scale(1.08); box-shadow: 0 4px 14px rgba(0,0,0,.28); outline: none; }
+.fb-quick-fab[hidden] { display: none; }
+@media print { .fb-quick-fab, .fb-rec-bar { display: none !important; } }
+
+/* ---------- 送信モーダル内：添付 ---------- */
+.fb-optional { color: var(--text-muted, #888); font-size: var(--fs-10, 10px); font-weight: 400; }
+.fb-att-actions { display: flex; flex-wrap: wrap; gap: var(--sp-8, 8px); }
+.fb-att-btn {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: var(--sp-6, 6px) var(--sp-12, 12px);
+  border: 1px solid var(--accent, #8a6d3b); border-radius: var(--r-8, 8px);
+  background: var(--surface, #fff); color: var(--accent-dk, #6b5429);
+  font: inherit; font-size: var(--fs-12, 12px); font-weight: 600; cursor: pointer;
+}
+.fb-att-btn:hover:not(:disabled):not(.is-disabled) { background: var(--accent-lt, #f4ecd8); }
+.fb-att-btn:disabled, .fb-att-btn.is-disabled { opacity: .45; cursor: not-allowed; }
+.fb-att-btn[hidden] { display: none; }
+.fb-att-hint { font-size: var(--fs-11, 11px); color: var(--text-muted, #777); line-height: 1.5; }
+.fb-att-hint.is-warn { color: #8a5a00; background: #fff4dc; border: 1px solid #e3b95a; border-radius: var(--r-8, 8px); padding: var(--sp-6, 6px) var(--sp-10, 10px); }
+.fb-att-list { display: flex; flex-direction: column; gap: var(--sp-6, 6px); }
+.fb-att-list:empty { display: none; }
+.fb-att-item { display: flex; align-items: center; gap: var(--sp-10, 10px); border: 1px solid var(--border-md, #ddd); border-radius: var(--r-8, 8px); padding: var(--sp-4, 4px) var(--sp-8, 8px); background: var(--surface, #fff); }
+.fb-att-thumb { width: 64px; height: 44px; object-fit: cover; border-radius: 4px; background: #000; flex: none; }
+.fb-att-info { display: flex; flex-direction: column; min-width: 0; flex: 1; }
+.fb-att-name { font-size: var(--fs-12, 12px); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fb-att-size { font-size: var(--fs-10, 10px); color: var(--text-muted, #888); }
+.fb-att-del { border: 0; background: transparent; cursor: pointer; font-size: 14px; color: var(--text-muted, #888); padding: 4px 6px; }
+.fb-att-del:hover { color: #b0392e; }
+#fbTitle { width: 100%; box-sizing: border-box; }
+
+/* ---------- 録画中バー ---------- */
+.fb-rec-bar {
+  position: fixed; left: 50%; bottom: 20px; transform: translateX(-50%);
+  display: flex; align-items: center; gap: var(--sp-10, 10px);
+  background: #2b2b2b; color: #fff; border-radius: 999px;
+  padding: var(--sp-6, 6px) var(--sp-8, 8px) var(--sp-6, 6px) var(--sp-16, 16px);
+  font-size: var(--fs-13, 13px); box-shadow: 0 6px 20px rgba(0,0,0,.4); z-index: 100000;
+}
+.fb-rec-dot { width: 10px; height: 10px; border-radius: 50%; background: #e5484d; animation: fbRecBlink 1s infinite; }
+@keyframes fbRecBlink { 50% { opacity: .25; } }
+.fb-rec-stop { border: 0; border-radius: 999px; background: #e5484d; color: #fff; font: inherit; font-weight: 700; padding: var(--sp-4, 4px) var(--sp-12, 12px); cursor: pointer; }
+
+/* ---------- 不具合報告ページ ---------- */
+.fbr-root { max-width: 980px; margin: 0 auto; padding: var(--sp-6, 6px) var(--sp-4, 4px) 48px; }
+.fbr-head h2 { margin: var(--sp-6, 6px) 0 var(--sp-4, 4px); font-size: var(--fs-18, 18px); font-weight: 800; color: var(--brown-21, #3a2c14); }
+.fbr-lead { margin: 0 0 var(--sp-10, 10px); font-size: var(--fs-12, 12px); color: var(--text-muted, #777); line-height: 1.6; }
+.fbr-head-actions { display: flex; flex-wrap: wrap; gap: var(--sp-8, 8px); margin-bottom: var(--sp-12, 12px); }
+.fbr-btn {
+  border: 1px solid var(--border-md, #ccc); background: var(--surface, #fff); color: var(--text, #333);
+  border-radius: var(--r-8, 8px); padding: var(--sp-6, 6px) var(--sp-14, 14px); font: inherit; font-size: var(--fs-13, 13px); font-weight: 600; cursor: pointer;
+}
+.fbr-btn:hover:not(:disabled) { background: var(--accent-lt, #f4ecd8); }
+.fbr-btn:disabled { opacity: .5; cursor: default; }
+.fbr-btn-primary { background: var(--accent, #8a6d3b); border-color: var(--accent, #8a6d3b); color: #fff; }
+.fbr-btn-primary:hover:not(:disabled) { background: var(--accent-dk, #6b5429); }
+.fbr-filters { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-8, 8px); margin-bottom: var(--sp-12, 12px); }
+.fbr-chips { display: flex; flex-wrap: wrap; gap: var(--sp-6, 6px); }
+.fbr-chip { border: 1px solid var(--border-md, #ccc); background: var(--surface, #fff); border-radius: 999px; padding: 3px var(--sp-12, 12px); font: inherit; font-size: var(--fs-12, 12px); cursor: pointer; color: var(--text, #333); }
+.fbr-chip.is-on { background: var(--accent, #8a6d3b); border-color: var(--accent, #8a6d3b); color: #fff; font-weight: 700; }
+.fbr-filters select, .fbr-filters input[type="search"] { border: 1px solid var(--border-md, #ccc); border-radius: var(--r-8, 8px); padding: var(--sp-4, 4px) var(--sp-8, 8px); font: inherit; font-size: var(--fs-12, 12px); background: var(--surface, #fff); }
+.fbr-filters label { font-size: var(--fs-12, 12px); display: inline-flex; align-items: center; gap: 4px; cursor: pointer; }
+.fbr-empty { padding: var(--sp-24, 24px) var(--sp-12, 12px); text-align: center; color: var(--text-muted, #888); font-size: var(--fs-13, 13px); line-height: 1.8; }
+
+.fbr-card { border: 1px solid var(--border-md, #ddd); border-left-width: 4px; border-radius: var(--r-8, 8px); background: var(--surface, #fff); margin-bottom: var(--sp-8, 8px); }
+.fbr-card.fbr-st-open { border-left-color: #c0392b; }
+.fbr-card.fbr-st-in_progress { border-left-color: #d68910; }
+.fbr-card.fbr-st-resolved { border-left-color: #1e8449; }
+.fbr-card.fbr-st-wontfix { border-left-color: #95a5a6; }
+.fbr-card-head { display: flex; flex-wrap: wrap; gap: var(--sp-4, 4px) var(--sp-10, 10px); align-items: center; padding: var(--sp-10, 10px) var(--sp-12, 12px); cursor: pointer; }
+.fbr-card-head:hover { background: var(--accent-lt, #faf6ea); }
+.fbr-card-head:focus-visible { outline: 2px solid var(--accent, #8a6d3b); outline-offset: -2px; }
+.fbr-no { font-weight: 800; color: var(--text-muted, #777); font-size: var(--fs-12, 12px); }
+.fbr-status { font-size: var(--fs-11, 11px); font-weight: 700; border-radius: 999px; padding: 1px var(--sp-10, 10px); white-space: nowrap; }
+.fbr-badge-open { background: #fdecea; color: #a93226; }
+.fbr-badge-in_progress { background: #fef5e7; color: #9c640c; }
+.fbr-badge-resolved { background: #e8f6ee; color: #1e7e44; }
+.fbr-badge-wontfix { background: #eef0f1; color: #5d6d6e; }
+.fbr-ttl { flex: 1 1 220px; font-weight: 700; font-size: var(--fs-14, 14px); min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.fbr-meta { flex: 1 0 100%; font-size: var(--fs-11, 11px); color: var(--text-muted, #888); }
+.fbr-card-body { padding: var(--sp-4, 4px) var(--sp-14, 14px) var(--sp-14, 14px); border-top: 1px dashed var(--border-md, #ddd); }
+.fbr-text { white-space: pre-wrap; word-break: break-word; font-size: var(--fs-13, 13px); line-height: 1.7; margin: var(--sp-10, 10px) 0; }
+.fbr-atts { display: flex; flex-wrap: wrap; gap: var(--sp-10, 10px); margin-bottom: var(--sp-10, 10px); }
+.fbr-att { display: flex; flex-direction: column; gap: 4px; max-width: 100%; }
+.fbr-att img, .fbr-att video { max-width: min(100%, 420px); max-height: 280px; border: 1px solid var(--border-md, #ddd); border-radius: 6px; background: #000; display: block; }
+.fbr-att small { color: var(--text-muted, #888); font-size: var(--fs-10, 10px); }
+.fbr-att-gone { border: 1px dashed var(--border-md, #ccc); border-radius: 6px; padding: var(--sp-10, 10px); color: var(--text-muted, #888); font-size: var(--fs-12, 12px); }
+.fbr-dim { color: var(--text-muted, #888); font-size: var(--fs-12, 12px); }
+.fbr-ctxline { font-size: var(--fs-11, 11px); color: var(--text-muted, #777); margin-bottom: var(--sp-6, 6px); }
+.fbr-ctx { font-size: var(--fs-11, 11px); margin-bottom: var(--sp-8, 8px); }
+.fbr-ctx pre { margin: 4px 0 0; padding: var(--sp-6, 6px) var(--sp-8, 8px); background: #f6f3ec; border-radius: 6px; white-space: pre-wrap; word-break: break-all; }
+.fbr-resp { margin-top: var(--sp-10, 10px); padding: var(--sp-10, 10px) var(--sp-12, 12px); background: #faf7ef; border: 1px solid #e8dfc8; border-radius: var(--r-8, 8px); }
+.fbr-resp-ttl { font-size: var(--fs-12, 12px); font-weight: 700; margin-bottom: var(--sp-6, 6px); }
+.fbr-resp-ttl small { font-weight: 400; color: var(--text-muted, #888); margin-left: 6px; }
+.fbr-resp-row { display: flex; gap: var(--sp-8, 8px); margin-bottom: var(--sp-6, 6px); }
+.fbr-sel { border: 1px solid var(--border-md, #ccc); border-radius: var(--r-8, 8px); padding: var(--sp-4, 4px) var(--sp-8, 8px); font: inherit; font-size: var(--fs-12, 12px); background: var(--surface, #fff); }
+.fbr-ta { width: 100%; box-sizing: border-box; border: 1px solid var(--border-md, #ccc); border-radius: var(--r-8, 8px); padding: var(--sp-6, 6px) var(--sp-8, 8px); font: inherit; font-size: var(--fs-13, 13px); resize: vertical; background: var(--surface, #fff); }
+
+@media (max-width: 640px) {
+  .fb-quick-fab { bottom: max(64px, calc(64px + env(safe-area-inset-bottom))); }
+  .fbr-ttl { flex-basis: 100%; }
+}
+
+/* 従来の受信一覧（モーダル内）に「対応中」バッジを追加 */
+.fb-status-in_progress { background: #fef5e7; color: #9c640c; }
+
+/* ---------- 確認待ち（管理者→報告者への質問）・通知 ---------- */
+.fb-status-need_info { background: #e8f1fb; color: #1b5fa8; }
+.fbr-card.fbr-st-need_info { border-left-color: #2e86de; }
+.fbr-badge-need_info { background: #e8f1fb; color: #1b5fa8; }
+.fbr-ask { font-size: var(--fs-11, 11px); font-weight: 700; color: #fff; background: #2e86de; border-radius: 999px; padding: 1px var(--sp-10, 10px); white-space: nowrap; animation: fbrAskPulse 2s ease-in-out infinite; }
+@keyframes fbrAskPulse { 50% { box-shadow: 0 0 0 4px rgba(46,134,222,.22); } }
+.fbr-banner { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-12, 12px); flex-wrap: wrap; margin-bottom: var(--sp-12, 12px); padding: var(--sp-10, 10px) var(--sp-14, 14px); background: #e8f1fb; border: 1px solid #9cc4ee; border-radius: var(--r-8, 8px); font-size: var(--fs-13, 13px); color: #174f8c; }
+.fbr-banner[hidden] { display: none; }
+.hdr-fb-badge { display: inline-block; min-width: 16px; margin-left: 6px; padding: 0 5px; border-radius: 999px; background: #e5484d; color: #fff; font-size: 11px; font-weight: 800; line-height: 16px; text-align: center; vertical-align: 1px; }
+.fb-quick-fab.has-badge { opacity: 1; box-shadow: 0 0 0 2px #e5484d, 0 2px 10px rgba(0,0,0,.3); }
+.fb-quick-fab.has-badge::after { content: attr(data-n); position: absolute; top: -6px; right: -6px; min-width: 16px; padding: 0 4px; border-radius: 999px; background: #e5484d; color: #fff; font-size: 11px; font-weight: 800; line-height: 16px; }
+
+/* ---------- やりとり（スレッド） ---------- */
+.fbr-thread { margin-top: var(--sp-10, 10px); padding: var(--sp-10, 10px) var(--sp-12, 12px); background: #f3f8fe; border: 1px solid #cfe1f5; border-radius: var(--r-8, 8px); }
+.fbr-thread:empty { display: none; }
+.fbr-thread-ttl { font-size: var(--fs-12, 12px); font-weight: 700; margin-bottom: var(--sp-6, 6px); }
+.fbr-thread-empty { margin-bottom: var(--sp-6, 6px); }
+.fbr-callout { margin: 0 0 var(--sp-8, 8px); padding: var(--sp-8, 8px) var(--sp-12, 12px); background: #fff7e0; border: 1px solid #f0cf72; border-radius: var(--r-8, 8px); font-size: var(--fs-12, 12px); line-height: 1.6; }
+.fbr-callout-wait { background: #eef3f8; border-color: #cfdbe8; }
+.fbr-cm { margin-bottom: var(--sp-6, 6px); padding: var(--sp-6, 6px) var(--sp-10, 10px); background: var(--surface, #fff); border: 1px solid #dbe6f2; border-radius: var(--r-8, 8px); }
+.fbr-cm-question { border-left: 3px solid #2e86de; }
+.fbr-cm-answer { border-left: 3px solid #27ae60; }
+.fbr-cm-head { display: flex; align-items: baseline; gap: var(--sp-8, 8px); font-size: var(--fs-12, 12px); }
+.fbr-cm-kind { font-size: var(--fs-11, 11px); color: var(--text-muted, #777); }
+.fbr-cm-head small { margin-left: auto; color: var(--text-muted, #888); }
+.fbr-cm-body { white-space: pre-wrap; word-break: break-word; font-size: var(--fs-13, 13px); line-height: 1.6; margin-top: 2px; }
+.fbr-composer-btns { display: flex; flex-wrap: wrap; gap: var(--sp-8, 8px); margin-top: var(--sp-6, 6px); }
+
+/* ---------- 添付の「書き込む」ボタン ---------- */
+.fb-att-edit { border: 1px solid var(--accent, #8a6d3b); background: var(--surface, #fff); color: var(--accent-dk, #6b5429); border-radius: var(--r-8, 8px); padding: var(--sp-4, 4px) var(--sp-10, 10px); font: inherit; font-size: var(--fs-12, 12px); font-weight: 700; cursor: pointer; white-space: nowrap; }
+.fb-att-edit:hover { background: var(--accent-lt, #f4ecd8); }
+.fb-att-marked { font-style: normal; font-size: var(--fs-10, 10px); font-weight: 700; color: #fff; background: #27ae60; border-radius: 999px; padding: 0 6px; margin-left: 4px; }
+
+/* ---------- 書き込みエディタ ---------- */
+.fba-overlay { position: fixed; inset: 0; z-index: 100002; background: rgba(20,20,20,.82); display: flex; flex-direction: column; }
+.fba-bar { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-8, 8px) var(--sp-16, 16px); padding: var(--sp-8, 8px) var(--sp-14, 14px); background: #2b2b2b; color: #fff; }
+.fba-group { display: flex; align-items: center; gap: var(--sp-4, 4px); }
+.fba-spacer { flex: 1; }
+.fba-btn { border: 1px solid #555; background: #3a3a3a; color: #fff; border-radius: var(--r-8, 8px); padding: var(--sp-6, 6px) var(--sp-10, 10px); font: inherit; font-size: var(--fs-12, 12px); cursor: pointer; white-space: nowrap; }
+.fba-btn:hover:not(:disabled) { background: #4a4a4a; }
+.fba-btn:disabled { opacity: .4; cursor: default; }
+.fba-btn.is-on { background: var(--accent, #8a6d3b); border-color: #d8b86a; font-weight: 700; }
+.fba-done { background: #27ae60; border-color: #27ae60; font-weight: 700; }
+.fba-done:hover:not(:disabled) { background: #1f9a52; }
+.fba-swatch { width: 24px; height: 24px; border-radius: 50%; border: 2px solid #777; cursor: pointer; padding: 0; }
+.fba-swatch.is-on { border-color: #fff; box-shadow: 0 0 0 2px #2b2b2b, 0 0 0 4px #fff; }
+.fba-stage { flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center; padding: var(--sp-10, 10px); overflow: auto; }
+.fba-wrap { position: relative; line-height: 0; max-width: 100%; max-height: 100%; }
+.fba-wrap canvas { display: block; max-width: calc(100vw - 24px); max-height: calc(100vh - 130px); width: auto; height: auto; background: #fff; box-shadow: 0 4px 24px rgba(0,0,0,.5); touch-action: none; }
+.fba-text-input { position: absolute; min-width: 140px; max-width: 70%; padding: 1px 4px; border: 2px dashed #fff; border-radius: 4px; background: rgba(0,0,0,.25); font-family: inherit; font-weight: 700; line-height: 1.25; resize: none; outline: none; text-shadow: 0 0 3px #fff, 0 0 3px #fff; }
+.fba-hint { padding: var(--sp-6, 6px) var(--sp-14, 14px); background: #2b2b2b; color: #bbb; font-size: var(--fs-11, 11px); text-align: center; }
+@media (max-width: 640px) { .fba-bar { gap: var(--sp-6, 6px) var(--sp-10, 10px); } .fba-spacer { display: none; } }
+
+/* ================================================================
+   💡 アイデア（不具合報告ページの「アイデア」表示・アイデア投稿フォーム）
+   ================================================================ */
+/* 表示の切り替えタブ */
+.fbr-modes { display: flex; gap: var(--sp-4, 4px); margin-bottom: var(--sp-12, 12px); border-bottom: 2px solid var(--border-md, #ddd); }
+.fbr-mode { border: 0; background: transparent; font: inherit; font-size: var(--fs-14, 14px); font-weight: 700; color: var(--text-muted, #777); padding: var(--sp-8, 8px) var(--sp-16, 16px); cursor: pointer; border-bottom: 3px solid transparent; margin-bottom: -2px; }
+.fbr-mode:hover { color: var(--text, #333); }
+.fbr-mode.is-on { color: var(--accent, #8a6d3b); border-bottom-color: var(--accent, #8a6d3b); }
+.fbr-mode-n { display: inline-block; min-width: 18px; margin-left: 4px; padding: 0 6px; border-radius: 999px; background: var(--border-md, #e4e4e4); color: var(--text, #333); font-size: 11px; font-weight: 700; line-height: 18px; text-align: center; }
+.fbr-mode-n:empty { display: none; }
+.fbr-mode.is-on .fbr-mode-n { background: var(--accent, #8a6d3b); color: #fff; }
+
+/* 👍 投票 */
+.fbr-vote { display: inline-flex; align-items: center; gap: 4px; border: 1px solid var(--border-md, #ccc); background: var(--surface, #fff); border-radius: 999px; padding: 2px 10px; font: inherit; font-size: var(--fs-12, 12px); cursor: pointer; color: var(--text, #333); flex: none; }
+.fbr-vote:hover { border-color: var(--accent, #8a6d3b); background: var(--accent-lt, #faf6ea); }
+.fbr-vote.is-on { background: var(--accent, #8a6d3b); border-color: var(--accent, #8a6d3b); color: #fff; font-weight: 700; }
+.fbr-vote b { font-variant-numeric: tabular-nums; }
+.fbr-idea .fbr-card-head { border-left: 3px solid #e0b34a; }
+
+/* アイデア投稿フォーム：入力欄を出し入れ（フォームに .is-idea が付いているときだけ） */
+#fbForm .fb-idea-only { display: none; }
+#fbForm.is-idea .fb-idea-only { display: block; }
+#fbForm .fb-idea-only[hidden] { display: none !important; }
+#fbForm.is-idea .fb-field-cat, #fbForm.is-idea .fb-field-sec { display: none; }
+.fb-idea-pair { display: flex; align-items: center; gap: var(--sp-8, 8px); }
+.fb-idea-pair input { flex: 1; min-width: 0; }
+.fb-idea-pair span { color: var(--text-muted, #888); font-weight: 700; }
+#fbIdeaWhy { width: 100%; box-sizing: border-box; resize: vertical; font: inherit; }
+@media (max-width: 680px) { .fb-idea-pair { flex-direction: column; align-items: stretch; } .fb-idea-pair span { text-align: center; } }
+@media (max-width: 400px) {   /* 極小画面でヘッダーのリンクがアイコンだけになるとき、📣 ではなく中身に合う絵にする */
+  .hdr-roadmap.hdr-bugreports::before { content: "🐞"; }
+  .hdr-roadmap.hdr-ideas::before { content: "💡"; }
+}

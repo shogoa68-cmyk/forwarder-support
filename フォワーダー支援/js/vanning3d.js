@@ -11,6 +11,7 @@
   const EPS = 1e-6;
   const MAX_PIECES = 1500;       // これを超える個体数は上位（体積の大きい順）のみ実シミュレーション
   const TIME_BUDGET_MS = 3000;   // 計算に費やす実時間の上限（応答性を保証するための安全弁）
+  const EXTRA_BUDGET_MS = 3500;  // 並びを変えた再試行まで含めた、1 回の packContainer 全体の実時間の上限
   const SUPPORT_RATIO = 0.8;     // 底面がこの割合以上支持されていれば配置可
   const PALETTE = [0x4f8ef7, 0xf76b4f, 0x4ff7a1, 0xf7d94f, 0xa14ff7, 0xf74fbe, 0x4fd0f7, 0x8cf74f];
 
@@ -34,10 +35,50 @@
   //  container: { l, w, h }（内寸cm）
   //  戻り値: { placed, overflowByType, uncimulatedByType,
   //            totalRequested, totalPlaced, usedVolume, containerVolume, utilization }
+  //
+  //  置き場所の候補（Extreme Point）をどの軸の順に試すか／箱を何の順に並べるかで、
+  //  積める数が変わる（幅方向から埋めると長さ方向に隙間が残る、など）。そこで下の
+  //  STRATEGIES を順に試し、いちばん多く配置できた結果を採用する（先頭は従来どおりの
+  //  やり方なので、従来より少なくなることはない）。全部入った時点・時間切れ時点で打ち切る。
   // ================================================================
+  const STRATEGIES = [
+    { axes: ['z', 'y', 'x'], sort: 'vol'  },   // 従来：底→幅→長さ／体積の大きい順
+    { axes: ['z', 'x', 'y'], sort: 'vol'  },   // 底→長さ→幅（奥の壁から長さ方向に詰める）
+    { axes: ['z', 'y', 'x'], sort: 'base' },   // 底面積（体積÷最短辺）の大きい順
+    { axes: ['z', 'x', 'y'], sort: 'base' },
+    { axes: ['z', 'x', 'y'], sort: 'long' },   // 最長辺の長い順
+    { axes: ['z', 'y', 'x'], sort: 'long' },
+    { axes: ['x', 'z', 'y'], sort: 'vol'  },   // 長さ方向の壁を先に作る
+    { axes: ['y', 'z', 'x'], sort: 'vol'  },   // 幅方向の壁を先に作る
+  ];
+
   function packContainer(cargoRows, container, opts) {
     opts = opts || {};
+    const t0 = Date.now();
+    let best = packOnce(cargoRows, container, opts, STRATEGIES[0]);
+    const unfinished = r => Object.values(r.overflowByType).some(n => n > 0);
+    const truncated = r => Object.values(r.uncimulatedByType).some(n => n > 0);
+    if (opts.singleStrategy || !unfinished(best) || truncated(best)) return best;   // 全部入った／個数が多く概算のとき
+
+    let lastMs = Date.now() - t0;
+    for (let si = 1; si < STRATEGIES.length; si++) {
+      const spent = Date.now() - t0;
+      // 次の 1 回が予算内に収まりそうなときだけ試す（直前の所要時間の 1.5 倍で見積もる）
+      if (spent + lastMs * 1.5 > EXTRA_BUDGET_MS) break;
+      const s0 = Date.now();
+      const r = packOnce(cargoRows, container, opts, STRATEGIES[si]);
+      lastMs = Date.now() - s0;
+      if (truncated(r)) break;
+      if (r.totalPlaced > best.totalPlaced) best = r;
+      if (!unfinished(best)) break;
+    }
+    return best;
+  }
+
+  function packOnce(cargoRows, container, opts, strategy) {
+    opts = opts || {};
     const maxPieces = opts.maxPieces || MAX_PIECES;
+    const epAxes = strategy.axes;
 
     let totalRequested = 0;
     const allPieces = [];
@@ -49,7 +90,10 @@
         allPieces.push({ typeIndex, l: row.bl, w: row.bw, h: row.bh, noStack: !!row.rowNoStack, volume });
       }
     });
-    allPieces.sort((a, b) => b.volume - a.volume);
+    const minSide = p => Math.min(p.l, p.w, p.h) || 1;
+    if (strategy.sort === 'base')      allPieces.sort((a, b) => (b.volume / minSide(b)) - (a.volume / minSide(a)) || b.volume - a.volume);
+    else if (strategy.sort === 'long') allPieces.sort((a, b) => Math.max(b.l, b.w, b.h) - Math.max(a.l, a.w, a.h) || b.volume - a.volume);
+    else                               allPieces.sort((a, b) => b.volume - a.volume);
 
     const uncimulatedByType = {};
     let toSimulate = allPieces;
@@ -108,7 +152,7 @@
         continue;
       }
 
-      eps.sort((p1, p2) => (p1.z - p2.z) || (p1.y - p2.y) || (p1.x - p2.x));
+      eps.sort((p1, p2) => (p1[epAxes[0]] - p2[epAxes[0]]) || (p1[epAxes[1]] - p2[epAxes[1]]) || (p1[epAxes[2]] - p2[epAxes[2]]));
       let placedBox = null;
 
       epLoop:
@@ -455,5 +499,37 @@
     }
   }
 
-  window.Vanning3D = { packContainer, mountPreview };
+  // ================================================================
+  //  必要本数の 3D 検証：同じ種類のコンテナへ、入りきらなかった分を次の 1 本、さらに次の 1 本…と
+  //  順に積んで何本かかるかを数える（CBM の割り算では分からない、形・向きによる積み残しを反映）。
+  //  戻り値：{ count, perContainer:[配置数…], complete, leftover }
+  //    complete=false：1 個も入らない箱がある（コンテナより大きい）／本数の上限（maxContainers）に達した
+  // ================================================================
+  function estimateContainers(cargoRows, container, opts) {
+    opts = opts || {};
+    const maxContainers = opts.maxContainers || 12;
+    const deadline = Date.now() + (opts.timeBudgetMs || 4000);
+    let rest = cargoRows.map(r => Object.assign({}, r, { qty: Math.max(1, parseInt(r.qty, 10) || 1) }));
+    const perContainer = [];
+    for (let n = 0; n < maxContainers; n++) {
+      const active = rest.map((r, i) => ({ r, i })).filter(x => x.r.qty > 0);
+      if (!active.length) return { count: perContainer.length, perContainer, complete: true, leftover: 0 };
+      if (Date.now() > deadline) break;
+      const res = packContainer(active.map(x => x.r), container);
+      const placedBy = {};
+      res.placed.forEach(b => { placedBy[b.typeIndex] = (placedBy[b.typeIndex] || 0) + 1; });
+      let any = 0;
+      active.forEach((x, k) => {
+        const got = placedBy[k] || 0;
+        any += got;
+        rest[x.i] = Object.assign({}, x.r, { qty: x.r.qty - got });
+      });
+      if (!any) break;   // 1 個も入らない（コンテナより大きい箱）
+      perContainer.push(any);
+    }
+    const leftover = rest.reduce((a, r) => a + Math.max(0, r.qty), 0);
+    return { count: perContainer.length, perContainer, complete: leftover === 0, leftover };
+  }
+
+  window.Vanning3D = { packContainer, estimateContainers, mountPreview };
 })();
