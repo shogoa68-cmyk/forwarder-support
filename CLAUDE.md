@@ -112,6 +112,10 @@ Design 提案 `16-Quietテーマ提案`（白地・薄い 1px 線・色は意味
 
 スマホ・タブレット（`(pointer: coarse)`）では、「経由地を追加」「提出期限を追加」「資料を追加」「行追加」など**ボタンのタップで欄・ダイアログを開く／追加するとき**に、プログラムが文字入力欄へ `.focus()` してキーボードが勝手に出るのを止める（欄の展開だけ行い、入力は利用者が欄をタップして始める）。`HTMLElement.prototype.focus` を包み、**直前 0.8 秒以内の操作が「入力欄以外へのタップ」で、文字入力欄（text／search／email／url／tel／number／password／textarea／contenteditable）へのフォーカスだったときだけ**無視する（入力欄そのものをタップしたときのブラウザ標準のフォーカスは通る。PC のマウス操作は変えない。残したい欄は `data-allow-focus`）。個別の呼び出し（`route-flow.js`／`case-info.js` ほか）は変えず、この 1 か所で全体に効かせている。
 
+## ❔ 欄ごとの説明書きは「？」にしまう（2026-11・`js/hint-fold.js`・`css/style.css` 末尾 `.hint-q`／`.hint-pop`）
+
+見積入力の欄ラベルに添えていた小さな補足文（`.qf-memo-note`・`.cond-sub-note`・`.rfx-sub`・`.remark-img-hint`・`.ci-head > span`・日付の補足 `.ci-hint`）を、**説明の要素は DOM に残したまま `.hint-folded` で隠し、位置に「？」ボタン（`.hint-q`）を挿入**して、マウスを乗せる（0.25 秒）／押す・タップすると吹き出し（`#hintPop`・`.hint-pop`）で読めるようにした（外側のクリック・Esc・スクロールで閉じる・キーボードのフォーカスでも開く・タッチ端末は 24px のボタン）。文言を動的に更新する説明（`#ciDateHint`／`#ciValidHint`）は MutationObserver で追従し、空のときは「？」も出さない。全テーマ共通。対象を増やすときは `hint-fold.js` の `SELECTORS`（`[セレクタ, 'inline'|'field']`）に足す（`field`＝欄の先頭ラベルの末尾へ置く）。既存のセクション見出しの「？」（`.section-help-wrap`）とは別物。
+
 ## 🗑️ 自動保存は廃止（2026-10）
 
 旧「自動保存」（localStorage `quoteData` に1件・復元バナー）は、ページ再読込後に空の状態で上書きされて復元できない不具合があり、ブラウザ保存／チーム共有と役割も重なるため**廃止**。保存はチーム共有（旧「ブラウザ保存」は廃止）、巻き戻しは Undo/Redo。`scheduleAutoSave()` は呼び出し元（約100か所）を変えないため**何もしない関数として残置**。起動時（`initQuoteState`）に旧データ（`quoteData`・`autoSaveEnabled`）を掃除する（後日削除可）。

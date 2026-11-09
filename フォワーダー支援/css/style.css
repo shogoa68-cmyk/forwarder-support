@@ -5785,3 +5785,21 @@ body.md-modal-open { overflow: hidden; }
   .hdr-cloud-user { flex-wrap: nowrap; gap: 6px; max-width: 100%; }
   .hdr-cloud-name { max-width: 7em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 }
+
+/* ===== 説明書きの「？」化（js/hint-fold.js）：補足文は隠し、「？」にマウスを乗せる／タップすると読める ===== */
+.hint-folded { display: none !important; }
+.hint-q {
+  display: inline-flex; align-items: center; justify-content: center; vertical-align: middle;
+  width: 18px; height: 18px; margin-left: 6px; padding: 0; border-radius: 50%;
+  border: 1px solid var(--border-md); background: var(--surface); color: var(--text-md);
+  font: 700 12px/1 inherit; font-family: inherit; cursor: help; flex: none;
+}
+.hint-q[hidden] { display: none; }
+.hint-q:hover, .hint-q:focus-visible, .hint-q[aria-expanded="true"] { background: var(--accent-lt); color: var(--accent); border-color: var(--accent); outline: none; }
+@media (pointer: coarse) { .hint-q { width: 24px; height: 24px; font-size: 13px; } }
+.hint-pop {
+  position: fixed; z-index: 2147483000; max-width: 320px; padding: 8px 10px; border-radius: 8px;
+  background: var(--accent-dk); color: #fff; font-size: 12.5px; line-height: 1.55; box-shadow: 0 6px 20px rgba(0,0,0,.25);
+  pointer-events: none; white-space: normal;
+}
+.hint-pop[hidden] { display: none; }
