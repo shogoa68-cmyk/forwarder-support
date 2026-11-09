@@ -2488,6 +2488,9 @@
             <span class="tb-segrow"><button type="button" class="tb-seg-btn layout-scale-btn" data-scale="lg" onclick="setLayoutScale('lg')">大</button><button type="button" class="tb-seg-btn layout-scale-btn" data-scale="md" onclick="setLayoutScale('md')">中</button><button type="button" class="tb-seg-btn layout-scale-btn" data-scale="sm" onclick="setLayoutScale('sm')">小</button></span></span></div>
           <div class="tb-menu-item tb-mi-simple tb-mi-static"><span class="tb-mi-icon">🟦</span><span class="tb-mi-body"><span class="tb-mi-title">表示モード</span>
             <span class="uim-switch uim-switch--menu" role="group" aria-label="表示モード"><button type="button" data-uim="simple" onclick="setUiMode('simple')">かんたん表示</button><button type="button" data-uim="detail" onclick="setUiMode('detail')">詳細表示</button></span></span></div>
+          <button type="button" class="tb-menu-item tb-mi-quiet-only" onclick="quickQuotePdf(); closeTbMenus()">
+            <span class="tb-mi-icon">📄</span><span class="tb-mi-body"><span class="tb-mi-title">PDF出力</span><span class="tb-mi-sub">御見積書 PDF をそのまま出力（A4縦）</span></span>
+          </button>
           <button type="button" class="tb-menu-item" onclick="openQuoteTabHelp(); closeTbMenus()">
             <span class="tb-mi-icon">ℹ️</span>
             <span class="tb-mi-body">
@@ -5019,6 +5022,8 @@
 <script src="js/feedback-md.js"></script>
 <script src="js/feedback-annotate.js"></script>
 <script src="js/feedback.js"></script>
+<!-- Quiet テーマの置き場所変更（ヘッダーのボタンまとめ・見出しの絵文字）。html.theme-quiet のときだけ働く -->
+<script src="js/theme-quiet.js"></script>
 <script src="js/workfolder.js"></script>
 <script src="js/cp-test.js"></script>
 <script src="js/cat-more.js"></script>

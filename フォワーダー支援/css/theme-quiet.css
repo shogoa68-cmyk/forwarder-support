@@ -220,3 +220,48 @@ html.theme-quiet .md-contact-row { background: var(--q-sunken); border: 1px soli
 html.theme-quiet .master-contact-add { border-radius: var(--q-r); }
 html.theme-quiet .md-modal .mt-tab { background: var(--q-surface); color: var(--q-ink-2); border-radius: var(--q-r) var(--q-r) 0 0; }
 html.theme-quiet .md-modal .mt-tab.is-on, html.theme-quiet .md-modal .mt-tab[aria-selected="true"] { color: var(--q-accent-hover); background: var(--q-accent-50); border-color: var(--q-accent); }
+
+/* ==========================================================================
+   段階 4：ヘッダーのまとめ・見出しの絵文字・文字 6 段階・スマホの固定ボタン
+   ========================================================================== */
+/* 見出しの絵文字は Quiet では隠す（js/theme-quiet.js が .q-emoji で包む。状態の札の 🔍・✓ は対象外） */
+html.theme-quiet .q-emoji { display: none; }
+/* Quiet 以外では出さない項目（⋯メニューの PDF 出力はスマホ幅の Quiet でだけ使う） */
+.tb-mi-quiet-only { display: none; }
+@media (max-width: 600px) { html.theme-quiet .tb-mi-quiet-only { display: flex; } }
+
+/* ヘッダー：ヘルプ・フィードバック ▾ */
+.hdr-help { position: relative; display: none; }
+html.theme-quiet .hdr-help:not([hidden]) { display: block; }
+html.theme-quiet .hdr-help-btn {
+  background: var(--q-surface); color: var(--q-ink); border: 1px solid var(--q-line-strong); border-radius: var(--q-r);
+  font: inherit; font-size: var(--q-fs-13); font-weight: 600; padding: 8px 12px; cursor: pointer;
+}
+html.theme-quiet .hdr-help-btn:hover { background: var(--q-accent-50); border-color: var(--q-accent); }
+html.theme-quiet .hdr-help-panel {
+  position: absolute; right: 0; top: calc(100% + 6px); z-index: 60; min-width: 220px; padding: 6px;
+  background: var(--q-surface); border: 1px solid var(--q-line); border-radius: var(--q-r-lg); box-shadow: var(--q-sh-lg);
+  display: flex; flex-direction: column; gap: 2px;
+}
+html.theme-quiet .hdr-help-panel[hidden] { display: none; }
+html.theme-quiet .hdr-help-panel > a.hdr-roadmap {
+  display: block; background: transparent; border: 0; border-radius: var(--q-r); padding: 10px 12px;
+  color: var(--q-ink); font-size: var(--q-fs-14); text-decoration: none; position: relative;
+}
+html.theme-quiet .hdr-help-panel > a.hdr-roadmap:hover { background: var(--q-accent-50); color: var(--q-accent-hover); }
+/* 確認待ちの赤いバッジは、まとめたボタンにも点で出す（見落とさない） */
+html.theme-quiet .hdr-help:has(.hdr-fb-badge) .hdr-help-btn { position: relative; }
+html.theme-quiet .hdr-help:has(.hdr-fb-badge) .hdr-help-btn::after {
+  content: ""; position: absolute; top: -4px; right: -4px; width: 10px; height: 10px; border-radius: 50%; background: var(--q-danger); border: 2px solid var(--q-surface);
+}
+html.theme-quiet .hdr-help-panel .hdr-fb-badge { position: static; margin-left: 8px; }
+
+/* 文字は 6 段階（12／13／14／16／18／28）へ：既存の文字サイズのトークンを寄せる */
+html.theme-quiet {
+  --fs-9: 12px; --fs-10: 12px; --fs-11: 12px; --fs-12: 12px; --fs-13: 13px; --fs-14: 14px; --fs-15: 14px; --fs-16: 16px; --fs-18: 18px;
+}
+
+/* スマホ：固定ボタンは下の 1 か所（合計＋プレビュー＋保存）。PDF 出力は上の ⋯ メニューへ */
+@media (max-width: 600px) {
+  html.theme-quiet #quoteActionDock .qad-pdf { display: none; }
+}
