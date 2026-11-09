@@ -2013,8 +2013,8 @@
     var wrap = document.getElementById('qfAttachList');
     if (!wrap) return;
     var c = _getClient();
-    if (!c || !_cloudUser) { wrap.innerHTML = '<div class="qf-attach-empty">ログインすると添付の保存・閲覧ができます</div>'; return; }
-    if (!_loadedCloudId)   { wrap.innerHTML = '<div class="qf-attach-empty">案件を保存すると添付できます（💾 保存）</div>'; return; }
+    if (!c || !_cloudUser) { wrap.innerHTML = '<div class="qf-attach-empty">ファイルはログインすると保存・閲覧できます</div>'; if (window.srcSyncEmpty) window.srcSyncEmpty(); return; }
+    if (!_loadedCloudId)   { wrap.innerHTML = '<div class="qf-attach-empty">ファイルは案件を保存すると添付できます（💾 保存）</div>'; if (window.srcSyncEmpty) window.srcSyncEmpty(); return; }
     var res = await c.from('quote_attachments').select('id,file_name,file_size,mime_type,storage_path,uploaded_by,created_at').eq('preset_id', _loadedCloudId).order('created_at', { ascending: false });
     if (res.error) { wrap.innerHTML = '<div class="qf-attach-empty">⚠️ 取得失敗：' + escHtml(res.error.message) + '</div>'; return; }
     var now = Date.now();
@@ -2022,7 +2022,8 @@
       return !a.created_at || (now - new Date(a.created_at).getTime()) < ATT_TTL_DAYS * 86400000;
     });
     qfRenderStorageMeter();
-    if (!data.length) { wrap.innerHTML = '<div class="qf-attach-empty">添付はまだありません</div>'; return; }
+    if (window.srcSyncEmpty) setTimeout(window.srcSyncEmpty, 0);
+    if (!data.length) { wrap.innerHTML = ''; if (window.srcSyncEmpty) window.srcSyncEmpty(); return; }   // 「資料はまだありません」は資料カード側（sources.js）が URL と合わせて判定する
     wrap.innerHTML = data.map(function (a) {
       var who = _nameFor(a.uploaded_by);
       var ts = a.created_at ? new Date(a.created_at).toLocaleDateString('ja-JP', { month: '2-digit', day: '2-digit' }) : '';
@@ -2037,6 +2038,7 @@
         '<button type="button" class="qf-att-del" onclick="qfAttachDelete(\'' + a.id + '\',\'' + encodeURIComponent(a.storage_path) + '\')" title="削除">✕</button>' +
       '</div>';
     }).join('');
+    if (window.srcSyncEmpty) window.srcSyncEmpty();
   }
   // ストレージ残量インジケーター（チーム全体の添付合計 ÷ 目安容量）
   async function qfRenderStorageMeter() {
@@ -4229,6 +4231,9 @@
   window.qfAttachOpen       = qfAttachOpen;
   window.qfAttachDelete     = qfAttachDelete;
   window.qfRenderAttachments = qfRenderAttachments;
+  window.qfRenderStorageMeter = qfRenderStorageMeter;
+  // 資料を追加ダイアログ（sources.js）が、ファイルを添付できる状態かを知るための読み取り口
+  window.qfAttachState = function () { return { loggedIn: !!_cloudUser, saved: !!_loadedCloudId, configured: !!_getClient() }; };
 
   // ---------- 他モジュール（行パターン等）からのログイン情報参照用 ----------
   window.quoteCloudUser   = function () { return _cloudUser; };

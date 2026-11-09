@@ -2963,31 +2963,24 @@
             <datalist id="qfTagSuggestions"></datalist>
             <input type="hidden" id="qf-tags-data" value="[]" />
           </div>
-          <div class="quote-field quote-field-corerf">
+          <div class="quote-field quote-field-corerf" id="qfCoreRefField" hidden>
             <label>🔗 基幹システム REF# <span class="qf-memo-note">受注・手配後に登録（英数字）。社内用で、見積書などの出力には含まれません</span></label>
             <input type="text" id="qf-core-ref" maxlength="40" autocomplete="off" spellcheck="false" inputmode="latin"
                    placeholder="例）EX2410-0123" onchange="normalizeCoreRef(this)"
                    title="この見積を使って実際に手配した案件の、基幹システム上の REF# を登録します。半角の英数字（とハイフン・アンダースコア・スラッシュ・ピリオド）が使えます。全角は半角に直します。" />
           </div>
-          <div class="quote-field quote-field-refurl">
-            <label>🔗 参照URL <span class="qf-memo-note">レート表・船社サイト等の参照リンク（複数可・改行区切り）。出力には含まれません</span></label>
-            <textarea id="qf-refurl" rows="2" placeholder="URL を貼り付け（複数可・改行区切り）。フォーカスを外すとクリックできるリンクになります" onblur="renderRefUrlLinks()"></textarea>
-            <div id="qf-refurl-view" class="qf-refurl-view" hidden>
-              <span class="qf-refurl-links"></span>
-              <button type="button" class="qf-refurl-edit" onclick="editRefUrl()" title="リンクを編集">✎ 編集</button>
+          <div class="quote-field quote-field-sources" id="qfSources">
+            <label>📚 参照資料 <span class="qf-memo-note">レート表・船社サイト等のURLと、この案件に保存・チーム共有するファイル。出力には含まれません</span></label>
+            <!-- 参照URLの保存用（URL を改行区切りで保持。案件データには従来どおりこの欄の値が入る） -->
+            <textarea id="qf-refurl" hidden></textarea>
+            <div class="src-card">
+              <div class="src-list" id="qfSrcList">
+                <div id="qfSrcUrls" class="qf-attach-list"></div>
+                <div id="qfAttachList" class="qf-attach-list"></div>
+                <div class="qf-attach-empty" id="qfSrcEmpty">資料はまだありません</div>
+              </div>
+              <button type="button" class="src-add-btn" id="srcAddBtn" onclick="srcAddOpen()">＋ 資料を追加</button>
             </div>
-          </div>
-          <div class="quote-field quote-field-attach">
-            <label>📎 添付ファイル <span class="qf-memo-note">この案件に保存・チーム共有（ログイン必須）</span></label>
-            <label class="qf-attach-drop" id="qfAttachDrop"
-                   ondragover="event.preventDefault(); this.classList.add('is-drag');"
-                   ondragleave="this.classList.remove('is-drag');"
-                   ondrop="event.preventDefault(); this.classList.remove('is-drag'); qfAttachUpload(event.dataTransfer.files);">
-              <input type="file" id="qfAttachInput" multiple style="display:none" onchange="qfAttachUpload(this.files); this.value='';" />
-              <span class="qf-attach-hint">📥 ここにドラッグ＆ドロップ、またはクリックして選択<br><small>※ 添付は14日間で自動削除されます</small></span>
-            </label>
-            <div id="qfAttachMeter" class="qf-attach-meter"></div>
-            <div id="qfAttachList" class="qf-attach-list"></div>
           </div>
             </div>
           </div>
@@ -4252,6 +4245,32 @@
     </div>
 
     <!-- ========== CSV列選択モーダル ========== -->
+    <!-- 📚 資料を追加ダイアログ（URL・ファイル）。Gemini NotebookLM の「ソースを追加」風。js/quote/sources.js -->
+    <div id="srcAddModal" onclick="if(event.target===this)srcAddClose()">
+      <div id="srcAddBox" role="dialog" aria-modal="true" aria-labelledby="srcAddTitle">
+        <button type="button" class="src-close" onclick="srcAddClose()" title="閉じる（Esc）">✕</button>
+        <h3 id="srcAddTitle">この案件の<em>参照資料</em>を追加する</h3>
+        <div class="src-urlbox">
+          <textarea id="srcUrlInput" rows="1" placeholder="URL を貼り付け（複数可・改行区切り）" aria-label="追加する URL" autocomplete="off" spellcheck="false"></textarea>
+          <button type="button" class="src-url-go" id="srcUrlGo" onclick="srcAddUrlsFromInput()" title="URL を追加（Enter）" aria-label="URL を追加">→</button>
+        </div>
+        <div class="src-url-msg" id="srcUrlMsg" aria-live="polite"></div>
+        <div class="src-pills">
+          <button type="button" class="src-pill" onclick="document.getElementById('qfAttachInput').click()"><span aria-hidden="true">📤</span> ファイルをアップロード</button>
+          <button type="button" class="src-pill" onclick="srcFocusUrl()"><span aria-hidden="true">🔗</span> ウェブサイト（URL）</button>
+        </div>
+        <label class="qf-attach-drop" id="qfAttachDrop"
+               ondragover="event.preventDefault(); this.classList.add('is-drag');"
+               ondragleave="this.classList.remove('is-drag');"
+               ondrop="event.preventDefault(); this.classList.remove('is-drag'); qfAttachUpload(event.dataTransfer.files);">
+          <input type="file" id="qfAttachInput" multiple style="display:none" onchange="qfAttachUpload(this.files); this.value='';" />
+          <span class="qf-attach-hint"><span class="src-drop-ic" aria-hidden="true">⬆</span>ファイルをドラッグ＆ドロップしてアップロードします。<br>PDF・画像・Excel・Word など（1 ファイル 25MB まで）<br><small>※ 添付は14日間で自動削除されます</small></span>
+        </label>
+        <div class="src-note" id="srcAddNote" aria-live="polite"></div>
+        <div id="qfAttachMeter" class="qf-attach-meter"></div>
+      </div>
+    </div>
+
     <!-- 📩 メール取込モーダル（貼り付け→解析→レビュー→挿入/新規展開） -->
     <div id="emailImportModal" onclick="if(event.target===this)closeEmailImport()">
       <div id="emailImportBox">
@@ -4964,6 +4983,7 @@
 <script src="js/quote/subcon-request-mail.js"></script>
 <script src="js/quote/memo-title.js"></script>
 <script src="js/quote/case-info.js"></script>
+<script src="js/quote/sources.js"></script>
 <script src="js/quote/cond-flow.js"></script>
 <script src="js/quote/route-flow.js"></script>
 <script src="js/quote/cargo-flow.js"></script>

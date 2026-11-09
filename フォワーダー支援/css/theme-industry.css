@@ -2378,6 +2378,9 @@ html.theme-industry {
 :where(html.theme-industry) #tab-quote-make .quote-field input[type="date"] {
   font-family: var(--font-body,"Barlow"),"Noto Sans JP","Hiragino Kaku Gothic ProN",sans-serif;
 }
+:where(html.theme-industry) #tab-quote-make .quote-field-attach {
+  grid-column: 1 / -1;
+}
 :where(html.theme-industry) #tab-quote-make .qf-memo-expand-btn {
   color: #424447;
   border: 1px solid #b6b9bc;
@@ -2481,36 +2484,111 @@ html.theme-industry {
   background: #ebf0f4;
   border-color: #a5bbd0;
 }
+:where(html.theme-industry) #tab-quote-make .quote-field-refurl {
+  grid-column: 1 / -1;
+  margin-top: var(--sp-6);
+}
 :where(html.theme-industry) #tab-quote-make #qf-refurl {
+  width: 100%;
+  resize: vertical;
   font-family: var(--font-body,"Barlow"),"Noto Sans JP","Hiragino Kaku Gothic ProN",sans-serif;
+  font-size: var(--fs-12);
+  padding: var(--sp-6) var(--sp-8);
+  border: 1px solid var(--border-md, var(--border-md));
   border-radius: 0;
+  background: var(--surface);
+  color: var(--accent-dk);
+  box-sizing: border-box;
+}
+:where(html.theme-industry) #tab-quote-make #qf-refurl:focus {
+  border-color: var(--gold);
+  outline: none;
+}
+:where(html.theme-industry) #tab-quote-make #qf-refurl::placeholder {
+  color: var(--c-9a8878);
+  font-size: var(--fs-11);
 }
 :where(html.theme-industry) #tab-quote-make .qf-refurl-view {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-8);
+  padding: var(--sp-7) var(--sp-9);
+  border: 1px solid var(--border);
   border-radius: 0;
+  background: var(--card-bg);
+}
+:where(html.theme-industry) #tab-quote-make .qf-refurl-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-6);
+  flex: 1;
+  min-width: 0;
 }
 :where(html.theme-industry) #tab-quote-make .qf-refurl-link {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  max-width: 100%;
+  font-size: var(--fs-12);
+  color: var(--blue-dk);
+  text-decoration: none;
+  background: var(--blue-95);
   border: 1px solid #d5e0ea;
   border-radius: 0;
+  padding: var(--sp-2) var(--sp-9);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 :where(html.theme-industry) #tab-quote-make .qf-refurl-link:hover {
   background: #e4ebf1;
+  text-decoration: underline;
 }
 :where(html.theme-industry) #tab-quote-make .qf-refurl-edit {
+  font-size: var(--fs-11);
   font-family: var(--font-body,"Barlow"),"Noto Sans JP","Hiragino Kaku Gothic ProN",sans-serif;
+  cursor: pointer;
+  white-space: nowrap;
+  color: var(--accent);
+  background: var(--surface);
+  border: 1px solid var(--border-md);
   border-radius: 0;
+  padding: var(--sp-3) var(--sp-9);
+}
+:where(html.theme-industry) #tab-quote-make .qf-refurl-edit:hover {
+  background: var(--accent-lt);
 }
 :where(html.theme-industry) #tab-quote-make #qf-scope {
   font-family: var(--font-body,"Barlow"),"Noto Sans JP","Hiragino Kaku Gothic ProN",sans-serif;
   border-radius: 0;
 }
+:where(html.theme-industry) #tab-quote-make .quote-field-attach {
+  margin-top: var(--sp-6);
+}
 :where(html.theme-industry) #tab-quote-make .qf-attach-drop {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  border: 1.5px dashed var(--c-d5c8b0);
   border-radius: 0;
+  background: var(--card-bg);
+  padding: var(--sp-12);
+  cursor: pointer;
+  transition: background .12s, border-color .12s;
 }
 :where(html.theme-industry) #tab-quote-make .qf-attach-drop:hover {
+  background: var(--accent-lt);
   border-color: #a0a3a7;
 }
 :where(html.theme-industry) #tab-quote-make .qf-attach-drop.is-drag {
   background: #e7edf3;
+  border-color: var(--green-leaf);
+}
+:where(html.theme-industry) #tab-quote-make .qf-attach-hint {
+  font-size: var(--fs-11-5);
+  line-height: 1.5;
 }
 :where(html.theme-industry) #tab-quote-make .qf-meter-bar {
   border-radius: 0;
@@ -2817,6 +2895,11 @@ html.theme-industry {
 :where(html.theme-industry) #tab-quote-make .quote-cmdbar {
   border-radius: 0;
   box-shadow: 0 3px 10px rgba(39,41,43, 0.10);
+}
+@media (max-width: 680px) {
+  :where(html.theme-industry) #tab-quote-make .quote-cmdbar {
+    top: var(--nav-cat-h, 108px);
+  }
 }
 :where(html.theme-industry) #tab-quote-make .cmdbar-gear > summary.cmdbar-gear-summary {
   border-radius: 0;
@@ -5422,6 +5505,90 @@ html.theme-industry {
 }
 :where(html.theme-industry) #tab-quote-make .done-btn {
   border-radius: 0;
+}
+@media (max-width: 680px) {
+  :where(html.theme-industry) #tab-quote-make {
+    padding: var(--sp-10);
+  }
+  :where(html.theme-industry) #tab-quote-make .save-toolbar {
+    position: static;
+    padding: var(--sp-6) var(--sp-10);
+    gap: var(--sp-5);
+    flex-wrap: wrap;
+    box-shadow: none;
+  }
+  :where(html.theme-industry) #tab-quote-make .save-btn {
+    padding: var(--sp-4) var(--sp-9);
+    font-size: var(--fs-11);
+  }
+  :where(html.theme-industry) #tab-quote-make h1 {
+    font-size: var(--fs-15);
+  }
+  :where(html.theme-industry) #tab-quote-make .container {
+    padding: var(--sp-10);
+    overflow: visible;
+  }
+  :where(html.theme-industry) #tab-quote-make .condition-grid {
+    grid-template-columns: 1fr;
+  }
+  :where(html.theme-industry) #tab-quote-make .scope-btns {
+    gap: var(--sp-5);
+  }
+  :where(html.theme-industry) #tab-quote-make .scope-btn {
+    padding: var(--sp-5) var(--sp-10);
+    font-size: var(--fs-11);
+  }
+  :where(html.theme-industry) #tab-quote-make #previewBox {
+    padding: 0;
+    flex-direction: column;
+    max-height: 94vh;
+  }
+  :where(html.theme-industry) #tab-quote-make #previewBox .pv-rail {
+    width: 100%;
+    flex-basis: auto;
+    flex-direction: row;
+    flex-wrap: wrap;
+    border-right: none;
+    border-bottom: 1px solid var(--bg);
+  }
+  :where(html.theme-industry) #tab-quote-make .pv-rail-customize {
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: var(--sp-14);
+  }
+  :where(html.theme-industry) #tab-quote-make .quote-header {
+    grid-template-columns: 1fr;
+    gap: var(--sp-8);
+  }
+  :where(html.theme-industry) #tab-quote-make .quote-field-memo {
+    grid-column: 1;
+    grid-row: auto;
+    height: auto;
+    margin-top: var(--sp-4);
+  }
+  :where(html.theme-industry) #tab-quote-make #qf-ref,
+  :where(html.theme-industry) #tab-quote-make #qf-customer,
+  :where(html.theme-industry) #tab-quote-make #qf-person {
+    width: 100%;
+  }
+  :where(html.theme-industry) #tab-quote-make .pv-btns {
+    flex-wrap: wrap;
+  }
+  :where(html.theme-industry) #tab-quote-make td.check-cell,
+  :where(html.theme-industry) #tab-quote-make td.handle-cell,
+  :where(html.theme-industry) #tab-quote-make td.cat-cell,
+  :where(html.theme-industry) #tab-quote-make td.sv-cell,
+  :where(html.theme-industry) #tab-quote-make td.tax-cell,
+  :where(html.theme-industry) #tab-quote-make td.name-cell {
+    position: static !important;
+  }
+  :where(html.theme-industry) #tab-quote-make .action-cell .done-btn,
+  :where(html.theme-industry) #tab-quote-make .action-cell .btn-del,
+  :where(html.theme-industry) #tab-quote-make .action-cell .btn-ins {
+    width: 28px;
+    height: 28px;
+    font-size: var(--fs-13);
+  }
 }
 :where(html.theme-industry) #tab-quote-make .btn-bulk-copy {
   border-radius: 0;
