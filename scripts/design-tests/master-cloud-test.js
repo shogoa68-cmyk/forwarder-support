@@ -1240,6 +1240,9 @@ const http = require('http'), fs = require('fs'), path = require('path');
     await p.evaluate(() => statsMasterSetFilter('customer')); await p.waitForTimeout(300);
     const openDetail = async n => { await p.evaluate(v => document.querySelector('#statsPane-master tr[data-mvalue="' + v + '"] .stats-master-detail-btn').click(), n); await p.waitForTimeout(400); };
     await openDetail('同業A社');
+    const hs = []; for (const k of ['people', 'company', 'rules', 'memo']) { await p.evaluate(kk => document.querySelector('.mt-tab[data-mt="' + kk + '"]').click(), k); await p.waitForTimeout(150); hs.push(await p.evaluate(() => Math.round(document.querySelector('#mdDetailModal .md-modal').getBoundingClientRect().height))); }
+    ok(L + 'タブを切り替えても詳細ポップアップの高さが変わらない（固定）', hs.every(h => h === hs[0]) && hs[0] > 400, hs);
+    ok(L + '保存バーが常に見える（下に固定）', await p.evaluate(() => { const f = document.querySelector('#mdDetailModal .mt-foot').getBoundingClientRect(), m = document.querySelector('#mdDetailModal .md-modal').getBoundingClientRect(); return f.bottom <= m.bottom + 1 && f.height > 20; }));
     ok(L + '詳細に「取引形態」と「先のお客様」の欄がある', await p.evaluate(() => !!document.querySelector('#md_dealType') && !!document.querySelector('#md_viaChildren')));
     await p.fill('#md_viaChildren_input', '荷主X'); await p.keyboard.press('Enter');
     await p.fill('#md_viaChildren_input', '荷主Y'); await p.keyboard.press('Enter');
