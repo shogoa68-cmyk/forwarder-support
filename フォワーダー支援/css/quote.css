@@ -12118,3 +12118,17 @@ body.qm-2col #tab-quote-make .qm-col .zone-builder { flex-direction: column; }
 
 /* 「作業範囲・条件」は全体リマークとの使い分けが曖昧なため、一旦非表示（セクション・入力欄・保存・左ナビの項目は残す。CSS の下の 1 行を消すと戻る） */
 #tab-quote-make #section-scope, #tab-quote-make .q-secnav-btn[data-sec="section-scope"] { display: none !important; }
+
+/* 幹線輸送：POD とキャリア情報の間をあける／役割・実運送人はキャリアの直下のオプション／サービス名と T/T は横並び */
+#tab-quote-make .zone-main.rf-flow .rf-carrier-btn { margin-top: 22px; }
+#tab-quote-make .zone-main.rf-flow .rf-carrier-opt { margin-top: 22px; }
+#tab-quote-make .zone-main.rf-flow .rf-carrier-opt .z2-label { display: none; }
+#tab-quote-make .zone-main.rf-flow .rf-relay-btn { margin: 0 0 8px; }
+#tab-quote-make .zone-main.rf-flow .rf-svc-tt { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 8px; }
+#tab-quote-make .zone-main.rf-flow .rf-svc-tt > .z2-row { margin: 0; min-width: 0; flex: 1 1 120px; }
+#tab-quote-make .zone-main.rf-flow .rf-svc-tt .z2-service-input, #tab-quote-make .zone-main.rf-flow .rf-svc-tt .z2-tt-input { width: 100%; min-width: 0; }
+#tab-quote-make .zone-main.rf-flow .rf-svc-tt .z2-tt-row { gap: 6px; }
+#tab-quote-make .zone-main.rf-flow .rf-route-add-row { display: flex; justify-content: flex-end; margin: 0 0 6px; }
+#tab-quote-make .zone-main.rf-flow .rf-carrier-opt .z2-relay-fields { margin-bottom: 8px; }
+#tab-quote-make .zone-main.rf-flow .rf-svc-tt .z2-tt-prefix { white-space: nowrap; font-size: 11px; }
+#tab-quote-make .zone-main.rf-flow .rf-svc-tt .z2-tt-input::placeholder, #tab-quote-make .zone-main.rf-flow .rf-svc-tt .z2-service-input::placeholder { font-size: 12px; }

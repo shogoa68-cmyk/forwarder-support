@@ -27,7 +27,12 @@
     const cBtn = mkBtn('z2CarrierOptBtn', 'rf-opt rf-carrier-btn', '＋ キャリア・サービス名・T/T（任意）');
     const cSum = document.createElement('span'); cSum.className = 'rf-chip'; cSum.hidden = true; cBtn.appendChild(cSum);
     wrap.parentNode.insertBefore(cBtn, wrap);
-    [carrierRow, svcRow, relay, ttRow].forEach(el => wrap.appendChild(el));
+    // 並び：キャリア名 → （役割・実運送人＝オプション）→ サービス名と T/T を横並び → ＋ 航路
+    const svcTt = document.createElement('div'); svcTt.className = 'rf-svc-tt';
+    const addRow = document.createElement('div'); addRow.className = 'rf-route-add-row';
+    wrap.appendChild(carrierRow); wrap.appendChild(relay); wrap.appendChild(svcTt); wrap.appendChild(addRow);
+    svcTt.appendChild(svcRow); svcTt.appendChild(ttRow);
+    const routeAdd = ttRow.querySelector('.z2-route-add'); if (routeAdd) addRow.appendChild(routeAdd);
     const rBtn = mkBtn('z2RelayBtn', 'rf-opt rf-relay-btn', '＋ 役割・実運送人（任意）');
     relay.parentNode.insertBefore(rBtn, relay);
     const st = { via: false, car: false, rel: false };
