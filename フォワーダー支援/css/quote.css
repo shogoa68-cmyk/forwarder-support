@@ -12113,3 +12113,5 @@ body.qm-2col #tab-quote-make .qm-col .zone-builder { flex-direction: column; }
 #tab-quote-make .zone-main.rf-flow .z2-port > .rf-via-btn:hover::before { background: #35506e; color: #fff; }
 #tab-quote-make .zone-main.rf-flow .z2-port > .rf-via-btn[hidden] { display: none; }
 #tab-quote-make .zone-main.rf-flow .rf-carrier-btn { margin-left: 28px; }
+/* 「貼り付けで一括登録」は一旦非表示（ボタン・モーダル・処理は残す。hidden を外すと戻る） */
+.pki-open-btn[hidden] { display: none !important; }
