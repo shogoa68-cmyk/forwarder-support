@@ -47,7 +47,8 @@ const http = require('http'), fs = require('fs'), path = require('path');
 
   // opts.approval：申請テーブル（master_requests）を用意する＝承認制、opts.role：get_my_role() の結果
   async function open(loggedIn, opts = {}) {
-    const ctx = await b.newContext({ viewport: { width: 1400, height: 900 }, locale: 'ja-JP' });
+    const ctx = await b.newContext({ viewport: { width: +(process.env.W || 1400), height: +(process.env.H || 900) }, locale: 'ja-JP' });
+    if (process.env.THEME) await ctx.addInitScript(() => { try { localStorage.setItem('forwarderTheme_v1', JSON.stringify({ site: true, doc: true })); } catch (e) {} });
     await ctx.addInitScript(({ seed, legacy, loggedIn, ME, opts }) => {
       try {
         localStorage.setItem('fwd.uiMode', 'detail');
@@ -675,7 +676,7 @@ const http = require('http'), fs = require('fs'), path = require('path');
     const L = '[取引ルール] ';
     await p.evaluate(async () => {
       window.__db.master_votes.push({ field: 'customer', value: 'ルール商事', voter_email: 's@example.com' });
-      window.__db.master_details.push({ field: 'customer', value: 'ルール商事', details: { contacts: [{ name: '幸崎' }, { name: '山田' }] } });
+      window.__db.master_details.push({ field: 'customer', value: 'ルール商事', details: { dealType: '同業者（フォワーダー・代理店）', contacts: [{ name: '幸崎' }, { name: '山田' }] } });
       await statsLoadMasterCache(); await mdLoadCloud();
     });
     await p.evaluate(() => { switchCategory('master', document.querySelector('[onclick*="switchCategory(\'master"]')); }); await p.waitForTimeout(1200);
@@ -779,6 +780,7 @@ const http = require('http'), fs = require('fs'), path = require('path');
     await p.click('#mdDetailModal .mt-tab[data-mt="company"]'); ok(L + '[タブ] 会社の詳細・タグタブ：所在地・タグが見える', await vis2('#mdDetailModal #md_location') && await vis2('#mdDetailModal .master-detail-tags'));
     await p.click('#mdDetailModal .mt-tab[data-mt="rules"]'); ok(L + '[タブ] 取引ルールタブ：ルール欄が見える', await vis2('#mdDetailModal #crPanel'));
     await p.click('#mdDetailModal .mt-tab[data-mt="people"]');
+    if (process.env.OUT) { for (const k of ['people', 'company', 'rules', 'memo']) { await p.click('#mdDetailModal .mt-tab[data-mt="' + k + '"]'); await p.waitForTimeout(300); await p.screenshot({ path: require('path').join(process.env.OUT, 'master-detail-' + k + '.png') }); } await p.click('#mdDetailModal .mt-tab[data-mt="people"]'); }
     if (process.env.OUT) await p.screenshot({ path: require('path').join(process.env.OUT, 'master-detail-modal.png') });
     await p.keyboard.press('Escape'); await p.waitForTimeout(200);
     ok(L + 'Esc で閉じる', await p.evaluate(() => !document.getElementById('mdDetailModal') && !document.body.classList.contains('md-modal-open')));
