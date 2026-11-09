@@ -181,3 +181,32 @@ html.theme-quiet #tab-quote-make .cmdbar-lc-btn {
   background: var(--q-surface) !important; color: var(--q-ink) !important; border: 1px solid var(--q-line-strong) !important; border-radius: var(--q-r);
 }
 html.theme-quiet #tab-quote-make .cmdbar-lc-btn:hover { background: var(--q-accent-50) !important; border-color: var(--q-accent) !important; }
+
+/* ==========================================================================
+   段階 3c：ダッシュボード／マスター管理／統計（見積タブの外）
+   茶（要確認）以外の色の塗りを抑える。主ボタンは青、完了系の「承認」は緑のまま。
+   ========================================================================== */
+html.theme-quiet .master-kpis .kpi, html.theme-quiet .sd-kpi, html.theme-quiet .stats-kpi-card {
+  background: var(--q-surface); color: var(--q-ink); border: 1px solid var(--q-line); border-radius: var(--q-r-lg); box-shadow: none;
+}
+html.theme-quiet .master-kpis .kpi.is-primary { background: var(--q-accent-50); color: var(--q-accent-hover); border-color: var(--q-accent); }
+html.theme-quiet .master-new-btn { background: var(--q-accent); color: #fff; border: 1px solid var(--q-accent); border-radius: var(--q-r); }
+html.theme-quiet .master-new-btn:hover { background: var(--q-accent-hover); }
+html.theme-quiet .master-new-label { color: var(--q-ink); }
+html.theme-quiet .master-new-form { background: var(--q-sunken); border: 1px solid var(--q-line); border-radius: var(--q-r-lg); }
+html.theme-quiet .master-new-hint { color: var(--q-ink-3); }
+html.theme-quiet .master-cloud-notice, html.theme-quiet .master-cloud-notice.is-migrate {
+  background: var(--q-warn-bg); border: 1px solid var(--q-warn-line); color: var(--q-warn); border-radius: var(--q-r-lg);
+}
+html.theme-quiet .btn-primary { background: var(--q-accent); color: #fff; border: 1px solid var(--q-accent); border-radius: var(--q-r); }
+html.theme-quiet .btn-primary:hover { background: var(--q-accent-hover); }
+html.theme-quiet .btn-secondary { background: var(--q-surface); color: var(--q-ink); border: 1px solid var(--q-line-strong); border-radius: var(--q-r); }
+html.theme-quiet .btn-secondary:hover { background: var(--q-accent-50); border-color: var(--q-accent); }
+html.theme-quiet #backToQuoteFab { background: var(--q-ink); color: #fff; border-radius: var(--q-r); box-shadow: var(--q-sh-lg); }
+html.theme-quiet #backToQuoteFab:hover { background: #000; }
+/* 表（マスター・申請・統計）：見出しは薄いグレー、行は薄い線 */
+html.theme-quiet table th { background: var(--q-sunken); color: var(--q-ink-2); border-bottom: 1px solid var(--q-line-strong); }
+html.theme-quiet table td { border-color: var(--q-line); }
+/* 小タブ（マスター管理／エイリアス是正 など） */
+html.theme-quiet .tab-btn { background: var(--q-surface); color: var(--q-ink-2); border-radius: var(--q-r) var(--q-r) 0 0; }
+html.theme-quiet .tab-btn.active, html.theme-quiet .tab-btn[aria-selected="true"] { color: var(--q-accent-hover); background: var(--q-accent-50); border-color: var(--q-accent); font-weight: 700; }
