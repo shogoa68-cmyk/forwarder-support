@@ -1150,6 +1150,45 @@ const http = require('http'), fs = require('fs'), path = require('path');
     await ctx.close();
   }
 
+  // ===== マスター管理の検索 =====
+  {
+    const { ctx, p, errs } = await open(true, { legacy: {}, noLegacy: true });
+    const L = '[マスター検索] ';
+    await p.evaluate(async () => {
+      const V = (f, v) => window.__db.master_votes.push({ field: f, value: v, voter_email: 's@example.com' });
+      const D = (f, v, d) => window.__db.master_details.push({ field: f, value: v, details: d });
+      V('sv', '検索テスト運輸'); D('sv', '検索テスト運輸', { furigana: 'けんさくてすとうんゆ', areas: ['JP-KAN'], contacts: [{ name: '田中', phone: '03-0000-0000' }] });
+      V('sv', '別の運送'); D('sv', '別の運送', { areas: ['JP-KIN'] });
+      V('customer', '検索荷主'); D('customer', '検索荷主', { tags: ['自動車部品'], memo: '月末締め' });
+      V('port', 'HAIPHONG'); D('port', 'HAIPHONG', { country: 'VN' });
+      window.__db.synonym_groups.push({ id: 'sq1', field: 'sv', canonical: '検索テスト運輸', aliases: ['KENSAKU TEST'] });
+      await statsLoadMasterCache(); await mdLoadCloud(); await synLoadCloud();
+    });
+    await p.evaluate(() => { switchCategory('master', document.querySelector('[onclick*="switchCategory(\'master"]')); }); await p.waitForTimeout(1000);
+    const rows = () => p.evaluate(() => [...document.querySelectorAll('#statsPane-master tbody tr[data-mvalue]')].map(r => r.dataset.mvalue));
+    const q = async t => { await p.fill('#masterSearch', t); await p.waitForTimeout(500); return rows(); };
+    ok(L + '検索ボックスが出る', await p.evaluate(() => !!document.querySelector('#masterSearch')));
+    let r = await q('検索テスト');
+    ok(L + '名前で絞れる（全種別から）', r.includes('検索テスト運輸') && !r.includes('別の運送') && !r.includes('検索荷主'), r);
+    r = await q('KENSAKU'); ok(L + '別名で見つかる（大文字小文字を問わない・kensaku）', r.includes('検索テスト運輸') && r.length === 1, r);
+    r = await q('ケンサク'); ok(L + 'ふりがな：カタカナで入力しても、ひらがなの登録に当たる', r.includes('検索テスト運輸') && r.length === 1, r);
+    r = await q('田中'); ok(L + '担当者名で見つかる', r.includes('検索テスト運輸') && r.length === 1, r);
+    r = await q('自動車'); ok(L + 'タグで見つかる', r.includes('検索荷主') && r.length === 1, r);
+    r = await q('月末'); ok(L + 'メモの中身でも見つかる', r.includes('検索荷主'), r);
+    r = await q('ベトナム'); ok(L + '国名（日本語）で見つかる', r.includes('HAIPHONG'), r);
+    r = await q('関東'); ok(L + '得意エリア名で見つかる（関東だけ・近畿は出ない）', r.includes('検索テスト運輸') && !r.includes('別の運送'), r);
+    r = await q('検索 運輸'); ok(L + 'スペース区切りは、すべてを含むものだけ（AND）', r.includes('検索テスト運輸') && !r.includes('検索荷主'), r);
+    ok(L + '件数が出る', await p.evaluate(() => /件ヒット/.test(document.querySelector('#masterSearchCount').textContent)));
+    r = await q('存在しない名前xyz'); ok(L + '一致なしの案内が出る', r.length === 0 && await p.evaluate(() => document.querySelector('#statsPane-master').textContent.includes('一致するマスターはありません')));
+    ok(L + '描き直しても検索ボックスの入力は残り、操作できる', await p.evaluate(() => document.querySelector('#masterSearch').value === '存在しない名前xyz'));
+    await p.evaluate(() => statsMasterClearQuery()); await p.waitForTimeout(300);
+    r = await rows(); ok(L + 'クリアすると全部に戻る', r.length > 4, r);
+    await p.evaluate(() => statsMasterSetFilter('sv')); await p.waitForTimeout(200);
+    r = await q('検索'); ok(L + '種別の絞り込み（サブコン）と併用できる（お客様は出ない）', r.includes('検索テスト運輸') && !r.includes('検索荷主'), r);
+    ok(L + 'JS エラーなし', errs.length === 0, errs);
+    await ctx.close();
+  }
+
   // ===== 港名のプリセット登録（英語名＝マスター・日本語名＝別名・国） =====
   {
     const { ctx, p, errs } = await open(true, { legacy: {}, noLegacy: true, role: 'admin' });

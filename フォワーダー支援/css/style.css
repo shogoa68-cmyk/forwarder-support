@@ -5718,6 +5718,10 @@ body.md-modal-open { overflow: hidden; }
 .pp-port.is-have { color: #8a97a6; }
 .pp-ja { color: #6b7a8c; margin-left: 4px; }
 .pp-state { font-size: 10px; margin-left: 4px; color: #8a97a6; }
+.master-search { display: flex; align-items: center; gap: 6px; margin: 8px 0 4px; }
+.master-search-ico { font-size: 14px; }
+.master-search-input { flex: 1 1 auto; max-width: 640px; min-width: 200px; }
+.master-search-count { font-size: 12px; color: #2f6b3a; font-weight: 700; white-space: nowrap; }
 .master-area-label { font-size: 11px; color: #6b7a8c; min-width: 84px; }
 .master-area-title { font-size: 12px; font-weight: 700; margin-top: 6px; color: #3a4a5c; }
 
