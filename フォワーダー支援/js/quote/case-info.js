@@ -87,9 +87,22 @@
   }
   window.ciToggleMemoFab = function () { try { localStorage.setItem(FAB_KEY, fabHidden() ? '0' : '1'); } catch (e) {} applyFab(); };
   function syncMemoDot() {
-    const f = $('qfMemoFab'); if (!f) return;
-    f.classList.toggle('has-memo', !!($('qf-memo')?.value || '').trim());
+    const has = !!($('qf-memo')?.value || '').trim();
+    ['qfMemoFab', 'ciMemoBtn'].forEach(id => { const f = $(id); if (f) f.classList.toggle('has-memo', has); });
+    const fl = $('qfMemoFloat'); const b = $('ciMemoBtn'); if (b) { const open = !!fl && !fl.hidden; b.classList.toggle('is-open', open); b.setAttribute('aria-expanded', open ? 'true' : 'false'); }
   }
+  // 案件名欄の「📝 社内メモ」：付箋を開く／閉じる。開くときは、まだ動かしていなければボタンの近くに出す
+  window.ciToggleMemo = function (e) {
+    if (e) e.preventDefault();
+    const fl = $('qfMemoFloat'), btn = $('ciMemoBtn'); if (!fl || typeof window.toggleMemoFloat !== 'function') return;
+    const wasHidden = fl.hasAttribute('hidden'); window.toggleMemoFloat();
+    if (wasHidden && btn && !fl.dataset.placed) {
+      const r = btn.getBoundingClientRect(), w = fl.offsetWidth || 360, h = fl.offsetHeight || 240;
+      const left = Math.max(8, Math.min(window.innerWidth - w - 8, r.right - w)), top = Math.max(8, Math.min(window.innerHeight - h - 8, r.bottom + 6));
+      fl.style.left = left + 'px'; fl.style.top = top + 'px'; fl.style.right = 'auto'; fl.style.bottom = 'auto'; fl.dataset.placed = '1';
+    }
+    setTimeout(syncMemoDot, 0);
+  };
   function sync() { syncStatus(); syncRel(); syncDates(); syncMore(); syncDatesSum(); syncMemoDot(); }
 
   window.ciSync = sync;
@@ -129,6 +142,7 @@
     if (mq && mq.addEventListener) mq.addEventListener('change', syncDatesSum);
     // 「自動」バッジ：ユーザーが値を変えたら消す（プログラムの入力では消さない）
     [['qf-received', 'ciAutoRecv'], ['qf-date', 'ciAutoDate']].forEach(([i, b]) => $(i)?.addEventListener('input', e => { if (e.isTrusted && $(b)) $(b).hidden = true; }));
+    { const fl = $('qfMemoFloat'); if (fl) new MutationObserver(syncMemoDot).observe(fl, { attributes: true, attributeFilter: ['hidden'] }); }
     $('qf-memo')?.addEventListener('input', syncMemoDot); $('qf-memo-float-ta')?.addEventListener('input', () => setTimeout(syncMemoDot, 0));
     const sec = $('section-ref');
     ['input', 'change', 'click'].forEach(t => sec.addEventListener(t, () => setTimeout(sync, 0)));
