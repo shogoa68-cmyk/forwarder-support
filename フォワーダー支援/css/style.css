@@ -5762,3 +5762,15 @@ body.md-modal-open { overflow: hidden; }
 .md-modal .mt-panel > .master-detail-label, .md-modal .mt-panel .master-detail-label { flex: 0 0 auto; min-width: 0; }
 .md-modal .mt-basic > .master-detail-label { flex: none; min-width: 0; }
 .md-modal .mt-panel .master-detail-textarea { min-height: 60px; }
+
+/* 取引ルール：見積入力ではチップ形式（押すとモーダルで閲覧・追加・編集）。枠・背景のバナーはやめる */
+.cr-banner { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; border: 0; background: none; padding: 0; margin: 6px 0 2px; }
+.cr-banner[hidden] { display: none; }
+.cr-chip { display: inline-flex; align-items: center; gap: 4px; min-height: 28px; padding: 2px 12px; border: 1px solid #d9c9a3; border-radius: 14px; background: #fffaf0; color: #5a4a1f; font: inherit; font-size: 12.5px; font-weight: 700; cursor: pointer; }
+.cr-chip:hover { background: #fff3d6; border-color: #b8a574; }
+.cr-chip.has-rules { border-color: #b8a574; }
+.cr-chip.has-strict { background: #f6e8d3; border-color: #8a5a2b; color: #6b4519; }
+.cr-chip-sub { cursor: default; font-weight: 400; color: #7a6a3a; background: transparent; }
+.cr-chip-stale { background: #fbf1d3; border-color: #d9a21b; color: #6b4e00; }
+.cr-modal { width: min(760px, 100%); }
+.cr-modal-note { margin: 0 0 8px; font-size: 12px; color: #5d5d60; }

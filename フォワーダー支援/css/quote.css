@@ -12046,3 +12046,13 @@ body.qm-2col #tab-quote-make .qm-col .zone-builder { flex-direction: column; }
 #tab-quote-make .quote-main > .condition-section:not(#section-table) { max-width: 1000px; }
 #tab-quote-make .qm-col > .condition-section { max-width: none; }
 #tab-quote-make .quote-header.ci-layout { max-width: none; }
+
+/* 案件名の入力に統合した「📝 社内メモ」（付箋を開く）。右下の付箋ボタンは出さない */
+.qf-memo-fab { display: none !important; }
+#tab-quote-make .ci-case-row { display: flex; gap: 8px; align-items: stretch; }
+#tab-quote-make .ci-case-row > input { flex: 1 1 auto; min-width: 0; }
+#tab-quote-make .ci-memo-btn { position: relative; flex: none; display: inline-flex; align-items: center; gap: 4px; padding: 0 14px; border: 1px solid #d9b96a; background: #fff3c4; color: #5a3a10; font: inherit; font-size: 13px; font-weight: 700; cursor: pointer; white-space: nowrap; }
+#tab-quote-make .ci-memo-btn:hover, #tab-quote-make .ci-memo-btn.is-open { background: #f5e19a; }
+#tab-quote-make .ci-memo-dot { display: none; width: 8px; height: 8px; border-radius: 50%; background: #d9534f; }
+#tab-quote-make .ci-memo-btn.has-memo .ci-memo-dot { display: inline-block; }
+@media (max-width: 680px) { #tab-quote-make .ci-memo-btn { padding: 0 10px; } }

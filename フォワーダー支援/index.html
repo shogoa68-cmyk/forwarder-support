@@ -2460,12 +2460,9 @@
             <span class="tb-mi-icon">↷</span><span class="tb-mi-body"><span class="tb-mi-title">やり直す</span><span class="tb-mi-sub">Ctrl+Y / Ctrl+Shift+Z</span></span>
           </button>
           <button type="button" class="tb-menu-item tb-mi-simple" onclick="toggleMemoFloat(); closeTbMenus()">
-            <span class="tb-mi-icon">📝</span><span class="tb-mi-body"><span class="tb-mi-title">案件名・社内メモ（付箋）を開く／閉じる</span><span class="tb-mi-sub">右下のボタンを隠していても、ここから開けます</span></span>
+            <span class="tb-mi-icon">📝</span><span class="tb-mi-body"><span class="tb-mi-title">社内メモ（付箋）を開く／閉じる</span><span class="tb-mi-sub">案件名欄の「📝 社内メモ」と同じ</span></span>
           </button>
-          <button type="button" class="tb-menu-item tb-mi-simple" id="qfMemoFabMenu" onclick="ciToggleMemoFab(); closeTbMenus()">
-            <span class="tb-mi-icon">📌</span><span class="tb-mi-body"><span class="tb-mi-title">付箋ボタンを右下に表示する／隠す</span><span class="tb-mi-sub" id="qfMemoFabMenuSub"></span></span>
-          </button>
-          <div class="tb-menu-group tb-mi-simple">取り込み・送る</div>
+                    <div class="tb-menu-group tb-mi-simple">取り込み・送る</div>
           <button type="button" class="tb-menu-item tb-mi-simple" onclick="openEmailImport(); closeTbMenus()">
             <span class="tb-mi-icon">📩</span><span class="tb-mi-body"><span class="tb-mi-title">メール取込</span><span class="tb-mi-sub">メール本文から見積の行を作る</span></span>
           </button>
@@ -2894,8 +2891,11 @@
           </div>
           <div class="ci-cell ci-cell-case">
           <div class="quote-field">
-            <label>案件名 <span class="qf-memo-note">任意。一覧・カードに出る名前（空欄なら右下の付箋の1行目が案件名になります）</span></label>
-            <input type="text" id="qf-case-name" maxlength="80" autocomplete="off" placeholder="例）○○商事 横浜→ロサンゼルス FCL 見積" title="案件の名前。入力するとダッシュボードのカードの案件名になります。空欄のときは、右下の付箋「案件名・社内メモ」の1行目が案件名になります。お客様向けの出力には出ません。" />
+            <label>案件名 <span class="qf-memo-note">任意。一覧・カードに出る名前（空欄なら「社内メモ」の1行目が案件名になります）</span></label>
+            <div class="ci-case-row">
+            <input type="text" id="qf-case-name" maxlength="80" autocomplete="off" placeholder="例）○○商事 横浜→ロサンゼルス FCL 見積" title="案件の名前。入力するとダッシュボードのカードの案件名になります。空欄のときは、「社内メモ」（付箋）の1行目が案件名になります。お客様向けの出力には出ません。" />
+            <button type="button" class="ci-memo-btn" id="ciMemoBtn" onclick="ciToggleMemo(event)" aria-haspopup="dialog" title="この案件の社内メモ（付箋）を開く／閉じる。1行目は、案件名欄が空のとき案件名になります。お客様向け出力には含まれません。">📝 社内メモ<span class="ci-memo-dot" aria-hidden="true"></span></button>
+            </div>
           </div>
           </div>
           <div class="ci-cell ci-cell-person">

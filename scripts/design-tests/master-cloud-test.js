@@ -695,20 +695,23 @@ const http = require('http'), fs = require('fs'), path = require('path');
     ok(L + '一覧に厳守・要確認のバッジが並ぶ', await p.evaluate(() => !!document.querySelector('#crPanel .cr-badge-strict') && !!document.querySelector('#crPanel .cr-badge-check')));
     // 見積タブのバナー：お客様だけ → 全体ルールのみ（担当者別は件数だけ）／担当者を入れる → 担当者のルールも
     await p.evaluate(async () => { document.getElementById('qf-customer').value = 'ルール商事'; document.getElementById('qf-person').value = ''; await crRefreshBanner(); });
-    await p.evaluate(() => { const b = document.querySelector('#crBanner [data-cr="toggle"]'); if (b && b.getAttribute('aria-expanded') !== 'true') b.click(); });   // 取引ルール帯は閉じたまま始まる（開くのは手動）
-    let t = await p.evaluate(() => { const b = document.getElementById('crBanner'); return { hidden: b.hidden, text: b.textContent.replace(/\s+/g, ' ') }; });
-    ok(L + '見積：お客様を選ぶとバナーが出て、厳守は開いて表示', !t.hidden && t.text.includes('請求書は月末締め') && t.text.includes('担当者別 1件'), t);
-    ok(L + '見積：担当者別ルールは担当者未入力では本文を出さない', !t.text.includes('USD建て'), t);
+    const chipT = () => p.evaluate(() => document.getElementById('crBanner').textContent.replace(/\s+/g, ' '));
+    const modalT = () => p.evaluate(() => { const m = document.getElementById('crModalBody'); return m ? m.textContent.replace(/\s+/g, ' ') : ''; });
+    let t = { hidden: await p.evaluate(() => document.getElementById('crBanner').hidden), text: await chipT() };
+    ok(L + '見積：お客様を選ぶと取引ルールのチップが出る（件数・厳守・担当者別）', !t.hidden && t.text.includes('取引ルール（1件・厳守1）') && t.text.includes('担当者別 1件'), t);
+    ok(L + '見積：チップには本文を出さない（押したときのモーダルで見る）', !t.text.includes('請求書は月末締め') && !(await p.evaluate(() => !!document.getElementById('crModal'))), t);
+    await p.evaluate(() => document.querySelector('#crBanner [data-cr="open"]').click()); await p.waitForTimeout(300);
+    ok(L + '見積：チップを押すとモーダルが開き、ルール本文を見られる（追加フォームもある）', (await modalT()).includes('請求書は月末締め') && await p.evaluate(() => !!document.querySelector('#crModal .cr-f-body')));
     await p.evaluate(async () => { document.getElementById('qf-person').value = '幸崎 様'; await crRefreshBanner(); });
-    t = await p.evaluate(() => document.getElementById('crBanner').textContent.replace(/\s+/g, ' '));
-    ok(L + '見積：担当者（敬称付きでも）を入れるとその担当者のルールも出る', t.includes('USD建て併記') && t.includes('請求書は月末締め'), t);
+    ok(L + '見積：担当者（敬称付きでも）を入れるとチップの件数が増える（2件）', (await chipT()).includes('取引ルール（2件') && (await modalT()).includes('USD建て併記'));
     await p.evaluate(async () => { document.getElementById('qf-person').value = '山田'; await crRefreshBanner(); });
-    ok(L + '見積：別の担当者のルールは出ない', await p.evaluate(() => !document.getElementById('crBanner').textContent.includes('USD建て')));
-    // 見積タブからの追加
+    ok(L + '見積：別の担当者のルールは件数に入らない（1件）', (await chipT()).includes('取引ルール（1件'));
+    // 見積タブのモーダルからの追加
     await p.evaluate(async () => { document.getElementById('qf-person').value = '幸崎'; await crRefreshBanner(); });
-    await p.evaluate(() => document.querySelector('#crBanner [data-cr="addtoggle"]').click()); await p.waitForTimeout(300);
-    await p.evaluate(() => { document.querySelector('#crBanner .cr-f-body').value = 'メールはCCに上司を入れる'; document.querySelector('#crBanner [data-cr="save"]').click(); }); await p.waitForTimeout(800);
-    ok(L + '見積タブからもルールを追加できる', await p.evaluate(() => window.__db.customer_rules.length === 3 && document.getElementById('crBanner').textContent.includes('CCに上司')));
+    await p.evaluate(() => { document.querySelector('#crModal .cr-f-body').value = 'メールはCCに上司を入れる'; document.querySelector('#crModal [data-cr="save"]').click(); }); await p.waitForTimeout(800);
+    ok(L + '見積タブのモーダルからもルールを追加できる', await p.evaluate(() => window.__db.customer_rules.length === 3) && (await modalT()).includes('CCに上司') && (await chipT()).includes('3件'));
+    await p.keyboard.press('Escape'); await p.waitForTimeout(200);
+    ok(L + 'Esc でモーダルが閉じる', !(await p.evaluate(() => !!document.getElementById('crModal'))));
     // 廃止すると見積に出ない／出力（御見積書・プレビュー）には出ない
     await p.evaluate(async () => { await crSetStatus(window.__db.customer_rules[0].id, 'retired'); });
     ok(L + '廃止したルールは見積に出ない', await p.evaluate(() => crFor('ルール商事', '幸崎').list.every(r => r.status !== 'retired')));
@@ -737,16 +740,17 @@ const http = require('http'), fs = require('fs'), path = require('path');
     ok(L + '再確認が必要なルールの案内が出る', m.notice && m.notice.includes('古いルール商事') && m.notice.includes('1件'), m);
     // 見積タブ：背景に案件番号が入る・古いルールに「いまも有効」
     await p.evaluate(async () => { document.getElementById('qf-ref').value = '2026-077'; document.getElementById('qf-customer').value = '古いルール商事'; document.getElementById('qf-person').value = ''; await crRefreshBanner(); });
-    await p.evaluate(() => { const b = document.querySelector('#crBanner [data-cr="toggle"]'); if (b && b.getAttribute('aria-expanded') !== 'true') b.click(); });
-    let t = await p.evaluate(() => document.getElementById('crBanner').textContent.replace(/\s+/g, ' '));
-    ok(L + '見積：⏳ 再確認 1件 と「いまも有効」ボタン', t.includes('再確認 1件') && t.includes('いまも有効'), t);
-    ok(L + '見積：ボタンが「この案件で気づいたことをルールにする」', t.includes('この案件で気づいたことをルールにする'), t);
-    await p.evaluate(() => document.querySelector('#crBanner [data-cr="addtoggle"]').click()); await p.waitForTimeout(300);
-    ok(L + '見積：背景に「案件 2026-077 で判明」が入った状態で開く', await p.evaluate(() => document.querySelector('#crBanner .cr-f-reason').value === '案件 2026-077 で判明'));
-    await p.evaluate(() => document.querySelector('#crBanner [data-cr="addtoggle"]').click());
-    await p.evaluate(() => document.querySelector('#crBanner [data-cr="confirm"]').click()); await p.waitForTimeout(800);
+    const chipT = () => p.evaluate(() => document.getElementById('crBanner').textContent.replace(/\s+/g, ' '));
+    let t = await chipT();
+    ok(L + '見積：チップに「⏳ 再確認 1件」', t.includes('再確認 1件'), t);
+    await p.evaluate(() => document.querySelector('#crBanner [data-cr="open"]').click()); await p.waitForTimeout(300);
+    const mt = await p.evaluate(() => document.getElementById('crModalBody').textContent.replace(/\s+/g, ' '));
+    ok(L + '見積：モーダルに「いまも有効」ボタンと追加フォーム', await p.evaluate(() => !!document.querySelector('#crModal [data-cr="confirm"]') && !!document.querySelector('#crModal .cr-f-body')));
+    ok(L + '見積：背景に「案件 2026-077 で判明」が入った状態でフォームが開く', await p.evaluate(() => document.querySelector('#crModal .cr-f-reason').value === '案件 2026-077 で判明'));
+    await p.evaluate(() => document.querySelector('#crModal [data-cr="confirm"]').click()); await p.waitForTimeout(800);
     const r1 = await p.evaluate(() => ({ at: window.__db.customer_rules.find(r => r.id === 'r1').confirmed_at, txt: document.getElementById('crBanner').textContent }));
     ok(L + '「いまも有効」で最終確認日が今日になり、再確認の表示が消える', Date.now() - new Date(r1.at).getTime() < 3600000 && !r1.txt.includes('再確認'), r1);
+    await p.click('#crModal .md-modal-close'); await p.waitForTimeout(150);
     ok(L + 'JS エラーなし', errs.length === 0, errs);
     await ctx.close();
   }

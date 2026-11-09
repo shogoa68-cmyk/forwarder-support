@@ -41,17 +41,13 @@ const http = require('http'), fs = require('fs'), path = require('path');
   await p.click('#ciValidChange'); await p.click('#ciValidMenu button:has-text("発行日の月末")'); await p.waitForTimeout(150);
   ok('SPOT から標準に戻すと日付入力', await p.evaluate(() => document.getElementById('qf-valid-until').type === 'date'));
   ok('タグ等は閉じている→開く', !(await vis('#qfTagsInput')) && (await p.click('#ciMoreBtn'), await vis('#qfTagsInput')));
-  ok('社内メモの欄は画面に出ない・付箋ボタンが出る', !(await vis('#qf-memo')) && await vis('#qfMemoFab'));
-  await p.click('#qfMemoFab'); ok('付箋が開く（案件名・社内メモ）', await vis('#qfMemoFloat') && (await p.textContent('.qf-memo-float-title')) === '案件名・社内メモ');
-  ok('取引ルール帯は自動では開かない（バナー要素のみ）', true);
-  // 付箋ボタンは隠せる
+  ok('社内メモの欄は画面に出ない・案件名欄の「📝 社内メモ」ボタンがあり、右下の付箋ボタンは出ない', !(await vis('#qf-memo')) && await vis('#ciMemoBtn') && !(await vis('#qfMemoFab')));
+  ok('「📝 社内メモ」は案件名欄と同じ行にある', await p.evaluate(() => document.getElementById('ciMemoBtn').closest('.ci-case-row') === document.getElementById('qf-case-name').closest('.ci-case-row')));
+  await p.click('#ciMemoBtn'); await p.waitForTimeout(200); ok('ボタンで付箋が開く（案件名・社内メモ）・ボタンの近くに出る', await vis('#qfMemoFloat') && (await p.textContent('.qf-memo-float-title')) === '案件名・社内メモ' && await p.evaluate(() => { const b = document.getElementById('ciMemoBtn').getBoundingClientRect(), f = document.getElementById('qfMemoFloat').getBoundingClientRect(); return f.top >= b.bottom - 2 && f.top < b.bottom + 40; }));
+  await p.evaluate(() => { const t = document.querySelector('#qfMemoFloat .qm-title'); t.value = 'メモの題名'; t.dispatchEvent(new Event('input', { bubbles: true })); }); await p.waitForTimeout(200);
+  ok('メモが入るとボタンに点が付く', await p.evaluate(() => document.getElementById('ciMemoBtn').classList.contains('has-memo')));
   await p.evaluate(() => closeMemoFloat()); await p.waitForTimeout(150);
-  await p.click('#qfMemoFab .qmf-x'); await p.waitForTimeout(200);
-  ok('付箋ボタンの ✕ で隠れる', !(await vis('#qfMemoFab')) && !(await vis('#qfMemoFloat')));
-  await p.evaluate(() => { document.querySelector('#saveToolbar [aria-label*="その他"], #saveToolbar .tb-menu-btn') ; });
-  await p.evaluate(() => toggleMemoFloat()); ok('隠していても付箋は開ける（「⋯」メニューの項目と同じ処理）', await vis('#qfMemoFloat'));
-  await p.evaluate(() => closeMemoFloat()); await p.evaluate(() => ciToggleMemoFab()); await p.waitForTimeout(150);
-  ok('メニューの項目で付箋ボタンを再表示できる', await vis('#qfMemoFab'));
+  ok('付箋を閉じるとボタンの開いた表示が戻る', !(await p.evaluate(() => document.getElementById('ciMemoBtn').classList.contains('is-open'))));
   // 案件名の付け方 2 通り（案件名欄／付箋の 1 行目）
   const nameOf = (fields) => p.evaluate(f => window.quotePresetMeta({ data: { fields: f } }).memo, fields);
   ok('案件名欄がある（任意）', await vis('#qf-case-name'));
