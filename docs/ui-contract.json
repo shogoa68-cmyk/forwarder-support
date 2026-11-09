@@ -760,7 +760,7 @@
    "uses": 2,
    "defined": true
   },
-  "ciToggleMemoFab": {
+  "ciToggleMemo": {
    "uses": 1,
    "defined": true
   },
@@ -889,7 +889,7 @@
    "defined": true
   },
   "closeTbMenus": {
-   "uses": 8,
+   "uses": 7,
    "defined": true
   },
   "closeUserMgr": {
@@ -2342,10 +2342,6 @@
    "css": true,
    "html": false
   },
-  "cr-toggle": {
-   "css": true,
-   "html": false
-  },
   "cross-move-cancel": {
    "css": false,
    "html": false
@@ -2955,6 +2951,10 @@
    "html": false
   },
   "md-modal-body": {
+   "css": true,
+   "html": false
+  },
+  "md-modal-head": {
    "css": true,
    "html": false
   },
@@ -4681,6 +4681,10 @@
    "js": true
   },
   "pid": {
+   "html": false,
+   "js": true
+  },
+  "placed": {
    "html": false,
    "js": true
   },
