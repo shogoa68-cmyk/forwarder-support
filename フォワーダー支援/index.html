@@ -21,6 +21,7 @@
 <link rel="stylesheet" href="css/simple-mode.css">
 <link rel="stylesheet" href="css/feedback.css">
 <link rel="stylesheet" href="css/workfolder.css">
+<link rel="stylesheet" href="css/cp-test.css">
 <script>
 /* テーマ切替の早期適用（画面の描画前に実行して、ちらつきを防ぐ）。設定は js/tweaks.js のパネル「デザイン」で変更。
    ?theme=industry / ?theme=classic のURLパラメータでも一時的に切替可（localStorage に保存される）。 */
@@ -111,6 +112,7 @@
         <button class="cat-btn"        role="tab" aria-selected="false" aria-controls="tab-local-charges" onclick="switchCategory('cost', this)">💴 諸チャージ</button>
         <button class="cat-btn"        role="tab" aria-selected="false" aria-controls="tab-calendar"     onclick="switchCategory('calendar', this)">📅 カレンダー</button>
         <button class="cat-btn"        role="tab" aria-selected="false" aria-controls="tab-workfolder"   onclick="switchCategory('workfolder', this)">📁 作業フォルダ</button>
+        <button class="cat-btn"        role="tab" aria-selected="false" aria-controls="tab-cptest"       title="サイバーポート連携の画面テスト（サンプル表示・未接続）" onclick="switchCategory('cptest', this)">🧪 CP(TEST)</button>
         <button class="cat-btn"        role="tab" aria-selected="false" aria-controls="tab-tracking"     onclick="switchCategory('vessel', this)">🚢 本船・航路</button>
         <button class="cat-btn"        role="tab" aria-selected="false" aria-controls="tab-booking-tab"  title="Booking（船腹予約）と S/I（Shipping Instruction：船積指図書）の手続き" onclick="switchCategory('booking', this)">📋 Booking/SI</button>
         <button class="cat-btn"        role="tab" aria-selected="false" aria-controls="tab-bldo"         onclick="switchCategory('docs',   this)">📄 書類・通関</button>
@@ -4871,6 +4873,11 @@
     <div class="wf-root" id="wfRoot"><div class="wf-empty">読み込み中…</div></div>
   </div><!-- /#tab-workfolder -->
 
+  <!-- 🧪 CP(TEST)：サイバーポート連携の画面テスト（サンプル表示・未接続）。ロジックは js/cp-test.js、設計は docs/サイバーポート連携_設計案.md -->
+  <div class="tab-content" id="tab-cptest">
+    <div class="cpt-root" id="cptRoot"></div>
+  </div><!-- /#tab-cptest -->
+
   <div class="tab-content" id="tab-calendar">
     <div class="cal-page-head">
       <h2 class="cal-page-title">📅 カレンダー</h2>
@@ -4978,6 +4985,7 @@
 <script src="js/feedback-annotate.js"></script>
 <script src="js/feedback.js"></script>
 <script src="js/workfolder.js"></script>
+<script src="js/cp-test.js"></script>
 <script src="js/cat-more.js"></script>
 <script src="js/stats.js"></script>
 <script src="js/alias-rules.js"></script>
