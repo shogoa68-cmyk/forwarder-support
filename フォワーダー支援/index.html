@@ -68,6 +68,8 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js" defer></script>
 <!-- Supabase JS v2（UMDビルド・defer なし：body スクリプトより先に評価が必要） -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<!-- タッチ端末では、ボタンで欄を開いたときに自動でキーボードを出さない（js/no-autofocus-touch.js） -->
+<script src="js/no-autofocus-touch.js"></script>
 </head>
 <body>
 <!-- #clipboard-toast は Phase 2c-Step2 で削除（callers ゼロ、quoteShowToast に統一） -->
@@ -5024,6 +5026,8 @@
 <script src="js/feedback.js"></script>
 <!-- Quiet テーマの置き場所変更（ヘッダーのボタンまとめ・見出しの絵文字）。html.theme-quiet のときだけ働く -->
 <script src="js/theme-quiet.js"></script>
+<!-- 欄ごとの説明書きを「？」にしまう（マウスを乗せる／タップで読める） -->
+<script src="js/hint-fold.js"></script>
 <script src="js/workfolder.js"></script>
 <script src="js/cp-test.js"></script>
 <script src="js/cat-more.js"></script>
