@@ -68,6 +68,8 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js" defer></script>
 <!-- Supabase JS v2（UMDビルド・defer なし：body スクリプトより先に評価が必要） -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<!-- タッチ端末では、ボタンで欄を開いたときに自動でキーボードを出さない（js/no-autofocus-touch.js） -->
+<script src="js/no-autofocus-touch.js"></script>
 </head>
 <body>
 <!-- #clipboard-toast は Phase 2c-Step2 で削除（callers ゼロ、quoteShowToast に統一） -->
