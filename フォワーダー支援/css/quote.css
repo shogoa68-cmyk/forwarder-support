@@ -12115,3 +12115,6 @@ body.qm-2col #tab-quote-make .qm-col .zone-builder { flex-direction: column; }
 #tab-quote-make .zone-main.rf-flow .rf-carrier-btn { margin-left: 28px; }
 /* 「貼り付けで一括登録」は一旦非表示（ボタン・モーダル・処理は残す。hidden を外すと戻る） */
 .pki-open-btn[hidden] { display: none !important; }
+
+/* 「作業範囲・条件」は全体リマークとの使い分けが曖昧なため、一旦非表示（セクション・入力欄・保存・左ナビの項目は残す。CSS の下の 1 行を消すと戻る） */
+#tab-quote-make #section-scope, #tab-quote-make .q-secnav-btn[data-sec="section-scope"] { display: none !important; }
