@@ -5726,6 +5726,8 @@ body.md-modal-open { overflow: hidden; }
 .master-area-title { font-size: 12px; font-weight: 700; margin-top: 6px; color: #3a4a5c; }
 
 /* ===== お客様マスター詳細のタブ化（Design 回答 2026-11・案1）：基本情報＋タブ＋下に常時表示の保存バー ===== */
+/* タブのあるお客様の詳細は高さを固定する（タブを切り替えても、ポップアップの大きさが変わらないように。内容が多いときは本文の中だけスクロール） */
+#mdDetailModal .md-modal:has(.mt-body) { height: min(740px, calc(100vh - 32px)); }
 .md-modal .mt-basic { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 10px 14px; margin-bottom: 14px; }
 .md-modal .mt-basic .master-detail-via { grid-column: 1 / -1; }
 .md-modal .mt-basic [hidden] { display: none; }
