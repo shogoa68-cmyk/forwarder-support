@@ -1,0 +1,74 @@
+/* ==========================================================================
+   Quiet テーマ（Claude Design 案・3つ目のデザイン）— 段階 1〜2
+   <html class="theme-quiet" data-theme="quiet"> のときだけ効く（切替は js/tweaks.js／index.html 先頭の早期スクリプト）。
+   クラスを外せば現行のデザインにそのまま戻る。id／onclick／data-*／機能は変えない（見た目だけ）。
+   トークンは css/design-tokens-quiet.css（--q-*）。ここでは既存の色の名前（--bg など）を Quiet の値に付け替え、
+   共通部品（ボタン・入力欄・チップ・カード）の角・影・文字を 3 つの原則に合わせる。客先向け出力（御見積書）は対象外。
+   画面ごとの当てはめ（管理番号入力 → … → マスター）は段階 3 で、このファイルへ順に足す。
+   ========================================================================== */
+html.theme-quiet {
+  /* 既存トークンの付け替え（色のルール：青＝押せる・選択中／緑＝完了／茶＝厳守・要調査／赤＝エラー） */
+  --bg: var(--q-canvas); --card-bg: var(--q-surface); --surface: var(--q-surface); --surface-warm: var(--q-sunken);
+  --border: var(--q-line); --border-md: var(--q-line-strong);
+  --accent: var(--q-accent); --accent-dk: var(--q-ink); --accent-lt: var(--q-accent-50);
+  --text: var(--q-ink); --text-md: var(--q-ink-2); --text-lt: var(--q-ink-2); --text-muted: var(--q-ink-3);
+  --red: var(--q-danger);
+  --green-ok: var(--q-ok);
+  --gold: var(--q-warn);
+}
+html.theme-quiet body {
+  font-family: 'Noto Sans JP', Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: var(--q-canvas); color: var(--q-ink);
+  font-size: var(--q-fs-14); line-height: 1.6;
+}
+/* 金額・数量は桁をそろえる */
+html.theme-quiet input[type="number"], html.theme-quiet .num, html.theme-quiet td, html.theme-quiet .subtotal-cell {
+  font-variant-numeric: tabular-nums;
+}
+
+/* ----- ヘッダー：白地に薄い線（操作ボタン群のまとめは段階 3） ----- */
+html.theme-quiet .header {
+  background: var(--q-surface); color: var(--q-ink);
+  border: 1px solid var(--q-line); border-radius: var(--q-r-lg); box-shadow: var(--q-sh);
+}
+html.theme-quiet .header h1 { font-size: var(--q-fs-18); color: var(--q-ink); }
+html.theme-quiet .header .subtitle { color: var(--q-ink-3); font-size: var(--q-fs-12); }
+html.theme-quiet .header a, html.theme-quiet .header button { color: var(--q-ink); }
+
+/* ----- ボタン（白＋細い枠が通常。青は選択中・次へ進む操作） ----- */
+html.theme-quiet button, html.theme-quiet .btn { font-family: inherit; }
+html.theme-quiet .cat-btn {
+  background: var(--q-surface); color: var(--q-ink-2);
+  border: 1px solid var(--q-line); border-radius: var(--q-r); box-shadow: none;
+}
+html.theme-quiet .cat-btn:hover { background: var(--q-accent-50); color: var(--q-accent); border-color: var(--q-line-strong); }
+html.theme-quiet .cat-btn.active, html.theme-quiet .cat-btn[aria-selected="true"] {
+  background: var(--q-accent-50); color: var(--q-accent-hover); border-color: var(--q-accent); font-weight: 700;
+}
+
+/* ----- 入力欄：角 6px・薄い枠・フォーカスは青 ----- */
+html.theme-quiet input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]),
+html.theme-quiet select, html.theme-quiet textarea {
+  border: 1px solid var(--q-line-strong); border-radius: var(--q-r);
+  background: var(--q-surface); color: var(--q-ink); font-family: inherit;
+}
+html.theme-quiet input:focus, html.theme-quiet select:focus, html.theme-quiet textarea:focus {
+  outline: 2px solid var(--q-accent-100); outline-offset: 0; border-color: var(--q-accent);
+}
+html.theme-quiet input::placeholder, html.theme-quiet textarea::placeholder { color: var(--q-ink-3); }
+@media (max-width: 600px) {
+  /* スマホは 44px・文字 16px（iOS の自動拡大を防ぐ） */
+  html.theme-quiet input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]),
+  html.theme-quiet select, html.theme-quiet textarea { font-size: var(--q-fs-16); }
+}
+
+/* ----- カード（条件セクションなど）：角 10px・影は 1 種類・直角とコーナー印はやめる ----- */
+html.theme-quiet #tab-quote-make .condition-section {
+  background: var(--q-surface); border: 1px solid var(--q-line);
+  border-radius: var(--q-r-lg); box-shadow: var(--q-sh);
+}
+html.theme-quiet #tab-quote-make .condition-section::before,
+html.theme-quiet #tab-quote-make .condition-section::after { display: none; }
+
+/* ----- 注記は 12px 未満にしない ----- */
+html.theme-quiet small, html.theme-quiet .hint, html.theme-quiet .subtitle { font-size: max(12px, 1em); }

@@ -104,6 +104,10 @@ Design 製の Industry 版デザイン（鋼青のブループリント調）を
 
 **御見積書の為替注記（2026-10）**：為替の出典・取得日時・参考値の注記は、幅 140px のレート表の下（`.qd-rate`）ではなく、御見積書の下端（`.qd-foot` の直後）に横幅いっぱいの 1 行 `.qd-fxnote` で出す（`quote-pdf.js`・折り返しで読みにくくならないように）。文面は `preview.js getFxAuditMeta()` が 1 か所で作る：「為替：open.er-api.com 中値（YYYY/MM/DD HH:MM 取得）／参考値であり、実際の決済レート（TTS等）とは異なります。」（自動取得していないときは「為替：手動設定値（自動取得未実行・基準レート確認日…）／参考値であり…」）。PDF は末尾に「作成日：…」を続け、画面プレビュー・Excel・コピー用も同じ文面を使う。テストは `scripts/design-tests/fx-note-test.js`。
 
+## 🎨 Quiet テーマ（Design 案 v5・3つ目のデザイン・既定オフ・2026-11・段階 1〜2）
+
+Design 提案 `16-Quietテーマ提案`（白地・薄い 1px 線・色は意味があるときだけ）。`<html class="theme-quiet" data-theme="quiet">` のときだけ `css/design-tokens-quiet.css`（`--q-*` トークン・Design 提供のまま）と `css/theme-quiet.css`（手書き）が効く。切替＝ヘッダー「🎨 デザイン」の Tweaks に「デザイン（Quiet）」、または `?theme=quiet`（`classic` で戻る）。**Industry とは同時に使わない**（どちらかを入れると他方が切れる）。Quiet 中は Tweaks のアクセント／基調は無効。実装は既存の色トークン（`--bg`／`--text`／`--accent` 等）を Quiet の値へ付け替え、ヘッダー・カテゴリ・入力欄・カードの角／影／枠を当てた段階（**段階 3＝画面ごとの当てはめ・ヘッダーのボタンまとめ・スマホ下部の固定ボタンの 1 か所化は未着手**）。客先向け出力（御見積書・メール）は対象外。
+
 ## 🗑️ 自動保存は廃止（2026-10）
 
 旧「自動保存」（localStorage `quoteData` に1件・復元バナー）は、ページ再読込後に空の状態で上書きされて復元できない不具合があり、ブラウザ保存／チーム共有と役割も重なるため**廃止**。保存はチーム共有（旧「ブラウザ保存」は廃止）、巻き戻しは Undo/Redo。`scheduleAutoSave()` は呼び出し元（約100か所）を変えないため**何もしない関数として残置**。起動時（`initQuoteState`）に旧データ（`quoteData`・`autoSaveEnabled`）を掃除する（後日削除可）。
