@@ -111,3 +111,73 @@ html.theme-quiet #tab-quote-make .ci-memo-btn { background: var(--q-surface); bo
 html.theme-quiet #quoteActionDock .qad-pdf:hover { background: var(--q-accent-50); }
 html.theme-quiet #quoteActionDock .qad-save:hover { background: #000; }
 html.theme-quiet #tab-quote-make .ci-memo-btn:hover, html.theme-quiet #tab-quote-make .ci-memo-btn.is-open { background: var(--q-accent-50); }
+
+/* ==========================================================================
+   段階 3b：貿易条件／ゾーン／貨物・物量／リマーク／見積テーブル
+   色が意味を持たない所（緑・紫・橙・茶・黒の塗り）を、白／薄いグレー＋細い枠へ。青＝選択中・押せる、にそろえる。
+   ========================================================================== */
+html.theme-quiet #tab-quote-make {
+  --q-neutral-btn-bg: var(--q-surface);
+}
+/* 補助ボタン類（色の塗りをやめる） */
+html.theme-quiet #tab-quote-make .me-add-btn,
+html.theme-quiet #tab-quote-make .btn-zone-preset,
+html.theme-quiet #tab-quote-make .btn-ins-sub,
+html.theme-quiet #tab-quote-make .btn-bulk-pattern,
+html.theme-quiet #tab-quote-make .btn-clean-empty,
+html.theme-quiet #tab-quote-make .btn-csv-import,
+html.theme-quiet #tab-quote-make .user-cat-add-btn,
+html.theme-quiet #tab-quote-make .fx-fetch-btn,
+html.theme-quiet #tab-quote-make .zone-toggle-btn {
+  background: var(--q-surface) !important; color: var(--q-ink) !important;
+  border: 1px solid var(--q-line-strong) !important; border-radius: var(--q-r);
+}
+html.theme-quiet #tab-quote-make .me-add-btn:hover,
+html.theme-quiet #tab-quote-make .btn-zone-preset:hover,
+html.theme-quiet #tab-quote-make .btn-ins-sub:hover,
+html.theme-quiet #tab-quote-make .btn-bulk-pattern:hover,
+html.theme-quiet #tab-quote-make .user-cat-add-btn:hover,
+html.theme-quiet #tab-quote-make .fx-fetch-btn:hover { background: var(--q-accent-50) !important; border-color: var(--q-accent) !important; color: var(--q-accent-hover) !important; }
+/* 危険な操作（赤）は文字と枠だけ赤。ほかの色は付けない */
+html.theme-quiet #tab-quote-make .btn-reset { background: var(--q-surface) !important; color: var(--q-danger) !important; border: 1px solid var(--q-danger-bg) !important; border-radius: var(--q-r); }
+html.theme-quiet #tab-quote-make .btn-reset:hover { background: var(--q-danger-bg) !important; }
+/* ゾーン（出発地側／到着地側／プリセット）：薄いグレーの面と細い枠 */
+html.theme-quiet #tab-quote-make .zone-card-header,
+html.theme-quiet #tab-quote-make .zone-preset-section,
+html.theme-quiet #tab-quote-make .cond-primary-bar,
+html.theme-quiet #tab-quote-make .cf-flow { background: var(--q-sunken) !important; border-color: var(--q-line) !important; }
+html.theme-quiet #tab-quote-make .zone-card { border-radius: var(--q-r-lg); border-color: var(--q-line); box-shadow: none; }
+/* 面の薄い青（--accent-lt の付け替え）は、操作バー・表の見出し等では薄いグレーへ */
+html.theme-quiet #tab-quote-make .quote-cmdbar, html.theme-quiet #tab-quote-make .btn-group-label,
+html.theme-quiet #tab-quote-make .cmdbar-more-summary, html.theme-quiet #tab-quote-make .cd-pkg, html.theme-quiet #tab-quote-make th[class^="cd-"] {
+  background: var(--q-sunken) !important; color: var(--q-ink-2);
+}
+html.theme-quiet #tab-quote-make .cd-qty, html.theme-quiet #tab-quote-make .cd-dim { background: var(--q-sunken); }
+/* 全体リマークのタブ・ボタン */
+html.theme-quiet #tab-quote-make .rm-tab { background: var(--q-surface); border: 1px solid var(--q-line); color: var(--q-ink-2); border-radius: var(--q-r) var(--q-r) 0 0; }
+html.theme-quiet #tab-quote-make .rm-tab.is-on, html.theme-quiet #tab-quote-make .rm-tab[aria-selected="true"] { color: var(--q-accent-hover); border-color: var(--q-accent); background: var(--q-accent-50); font-weight: 700; }
+html.theme-quiet #tab-quote-make .preset-btn, html.theme-quiet #tab-quote-make .btn-remark-clear, html.theme-quiet #tab-quote-make .btn-cond-clear, html.theme-quiet #tab-quote-make .btn-remark-img-add {
+  background: var(--q-surface); color: var(--q-ink); border: 1px solid var(--q-line-strong); border-radius: var(--q-r);
+}
+html.theme-quiet #tab-quote-make .preset-btn:hover { background: var(--q-accent-50); border-color: var(--q-accent); }
+html.theme-quiet #tab-quote-make .preset-btn.rt-on { background: var(--q-accent-50) !important; border-color: var(--q-accent); color: var(--q-accent-hover); }
+
+/* 見積テーブル：見出しは濃い塗り・緑・茶をやめ、薄いグレー地に濃い文字＋下に強めの線。
+   小計・利益の列は、意味の色を付けずに文字の太さで目立たせる */
+html.theme-quiet #tab-quote-make table thead th, html.theme-quiet #tab-quote-make th.hd-base,
+html.theme-quiet #tab-quote-make th.hd-bill, html.theme-quiet #tab-quote-make th.hd-profit {
+  background: var(--q-sunken) !important; color: var(--q-ink-2) !important;
+  border-bottom: 1px solid var(--q-line-strong) !important; font-weight: 600; font-size: var(--q-fs-12);
+}
+html.theme-quiet #tab-quote-make td.subtotal-cell { background: var(--q-sunken) !important; font-weight: 700; color: var(--q-ink); }
+html.theme-quiet #tab-quote-make td.profit-cell { background: var(--q-surface) !important; }
+html.theme-quiet #tab-quote-make td.tot-amt-cell, html.theme-quiet #tab-quote-make #tot-row-label { background: var(--q-sunken) !important; }
+html.theme-quiet #tab-quote-make td.check-cell, html.theme-quiet #tab-quote-make td.handle-cell { background: var(--q-surface) !important; }
+html.theme-quiet #tab-quote-make table td { border-color: var(--q-line); }
+/* 右の費用テーブル（縮小表示）・サイドレール */
+html.theme-quiet #tab-quote-make .qrc-rail, html.theme-quiet #tab-quote-make .qrc-drawer-head { background: var(--q-surface) !important; border-color: var(--q-line); }
+html.theme-quiet #tab-quote-make .qsp-dig-row.is-open, html.theme-quiet #tab-quote-make .qrc-rail-btn.is-on { background: var(--q-accent-50) !important; }
+html.theme-quiet #tab-quote-make .cmdbar-lc-btn {
+  background: var(--q-surface) !important; color: var(--q-ink) !important; border: 1px solid var(--q-line-strong) !important; border-radius: var(--q-r);
+}
+html.theme-quiet #tab-quote-make .cmdbar-lc-btn:hover { background: var(--q-accent-50) !important; border-color: var(--q-accent) !important; }
