@@ -12173,7 +12173,9 @@ body.qm-2col #tab-quote-make .qm-col .zone-builder { flex-direction: column; }
   #tab-quote-make #qmDash { font-size: 0; padding: 0 14px; min-width: 44px; }
   #tab-quote-make #qmDash::before { content: "←"; font-size: 20px; font-weight: 700; line-height: 1; }
 }
-#tab-quote-make #saveToolbar .qm-btn, #tab-quote-make #saveToolbar .qm-banner, #tab-quote-make #saveToolbar .tb-menu-btn { min-height: 44px; box-sizing: border-box; display: inline-flex; align-items: center; }
+@media (max-width: 680px) {
+  #tab-quote-make #saveToolbar .qm-btn, #tab-quote-make #saveToolbar .qm-banner, #tab-quote-make #saveToolbar .tb-menu-btn { min-height: 44px; box-sizing: border-box; display: inline-flex; align-items: center; }
+}
 @media (max-width: 600px) {
   #tab-quote-make .cc-spec--og > *, #tab-quote-make .cc-og-head, #tab-quote-make .cc-og-controls, #tab-quote-make .cc-og-list, #tab-quote-make .cc-og-row, #tab-quote-make .cc-og-sim { min-width: 0; max-width: 100%; box-sizing: border-box; }
   #tab-quote-make .cc-og-ctn select { max-width: 100%; text-overflow: ellipsis; }
