@@ -2433,7 +2433,56 @@
     return `<div class="cr-stale-notice">⏳ 取引ルールの再確認：${total}件（${list.slice(0, 5).map(x => _esc(x.customer) + ' ' + x.stale + '件').join('、')}${list.length > 5 ? ' ほか' : ''}）。お客様の「詳細」→「取引ルール」で「確認済み」か「廃止」を選んでください。</div>`;
   }
   let _crLoadKicked = false;
+  // === マスター管理の検索（2026-11） ===
+  //   名前・別名・詳細の中身（ふりがな・英語名・国・得意エリア・担当者・タグ・メモなど）を、スペース区切り（すべて含む＝AND）で絞り込む。
+  //   カタカナ・ひらがな・全角半角・大文字小文字の違いは無視。種別の絞り込みと併用でき、「すべて」のときは全種別から探す
+  let _masterQuery = '', _masterHitCount = null, _masterSearchTimer = null, _masterComposing = false;
+  const _qNorm = s => String(s == null ? '' : s).normalize('NFKC').toLowerCase().replace(/[ァ-ヶ]/g, c => String.fromCharCode(c.charCodeAt(0) - 0x60));
+  function _qFlatten(v, out) {
+    if (v == null || v === '') return;
+    if (Array.isArray(v)) { v.forEach(x => _qFlatten(x, out)); return; }
+    if (typeof v === 'object') { Object.keys(v).forEach(k => _qFlatten(v[k], out)); return; }
+    out.push(String(v));
+  }
+  function _masterSearchText(field, name, aliases) {
+    const parts = [name].concat(aliases || []);
+    const rec = typeof window.mdGet === 'function' ? window.mdGet(field, name) : null;
+    const d = (rec && rec.details) || {};
+    Object.keys(d).forEach(k => {
+      const v = d[k];
+      if (k === 'country' && v) { parts.push(window.countryLabel ? window.countryLabel(v) : v, v); return; }
+      if (k === 'areas' && Array.isArray(v)) { v.forEach(a => parts.push(window.areaLabel ? window.areaLabel(a) : a)); return; }
+      _qFlatten(v, parts);
+    });
+    if (field === 'customer' && typeof window.mdViaChildren === 'function') { parts.push.apply(parts, window.mdViaChildren(name)); }
+    return _qNorm(parts.join(' \n '));
+  }
+  function _masterSearchHtml() {
+    return '<div class="master-search"><span class="master-search-ico">🔍</span>' +
+      `<input id="masterSearch" type="search" class="ar-input master-search-input" autocomplete="off" placeholder="マスターを検索（名前・別名・ふりがな・国・担当者・タグなど。スペースで区切ると、すべてを含むものだけに絞ります）" value="${_eav(_masterQuery)}" ` +
+      `oninput="statsMasterSetQuery(this.value)" oncompositionstart="statsMasterCompose(true)" oncompositionend="statsMasterCompose(false, this.value)">` +
+      '<span class="master-search-count" id="masterSearchCount"></span></div>';
+  }
+  window.statsMasterCompose = function (on, v) { _masterComposing = on; if (!on) window.statsMasterSetQuery(v); };
+  window.statsMasterSetQuery = function (q) {
+    _masterQuery = String(q || '');
+    if (_masterComposing) return;   // 変換中は描き直さない（入力が途切れないように）
+    clearTimeout(_masterSearchTimer);
+    _masterSearchTimer = setTimeout(() => { _renderMaster(); }, 120);
+  };
+  window.statsMasterClearQuery = function () { _masterQuery = ''; _renderMaster(); };
+
+  // 検索ボックスに入力中の描き直しでも、入力の位置を保つ
   function _renderMaster() {
+    const act = document.activeElement;
+    const keep = act && act.id === 'masterSearch' ? { s: act.selectionStart, e: act.selectionEnd } : null;
+    _renderMasterInner();
+    const inp = document.getElementById('masterSearch');
+    if (inp && keep) { inp.focus(); try { inp.setSelectionRange(keep.s, keep.e); } catch (e) { /* 無視 */ } }
+    const c = document.getElementById('masterSearchCount');
+    if (c) c.textContent = _masterQuery.trim() && _masterHitCount != null ? '　' + _masterHitCount + ' 件ヒット' : '';
+  }
+  function _renderMasterInner() {
     const e = document.getElementById('statsPane-master');
     if (!e) return;
     // 取引ルールを一度だけ読み込み、件数の印を出す（読み込めたら描き直す）
@@ -2491,7 +2540,7 @@
     const chip = (f, label, n) =>
       `<button class="master-filter-chip${_masterFieldFilter === f ? ' is-active' : ''}" ` +
       `onclick="statsMasterSetFilter('${f}')">${label}<span class="master-filter-count">${n}</span></button>`;
-    let chipsH = '<div class="master-filter-chips">' +
+    let chipsH = _masterSearchHtml() + '<div class="master-filter-chips">' +
       chip('all', 'すべて', totalCount) +
       fieldOrder.filter(f => counts[f] > 0 || f === 'port').map(f => chip(f, labels[f], counts[f])).join('') +
       '</div>';
@@ -2597,15 +2646,23 @@
 
     // 個別マスターと同義グループを 1 つの表にまとめる。別名を足しても行が別の表へ移らず、
     // 代表の行の「別名・略称」にそのまま付く（種別→名前の順なので、行の位置も変わらない）
-    const rowsAll = [
+    let rowsAll = [
       ...entries.map(m => ({ kind: 'ind', field: m.field, name: m.value, m })),
       ...synFiltered.map(g => ({ kind: 'grp', field: g.field, name: g.canonical, g })),
     ].sort((a, b) => (labels[a.field] || a.field).localeCompare(labels[b.field] || b.field) || (a.name || '').localeCompare(b.name || ''));
+    // 検索（種別の絞り込みのあとに、さらに絞る）
+    const _terms = _qNorm(_masterQuery).split(/\s+/).filter(Boolean);
+    _masterHitCount = null;
+    if (_terms.length) {
+      rowsAll = rowsAll.filter(r => { const t = _masterSearchText(r.field, r.name, r.kind === 'grp' ? (r.g.aliases || []) : []); return _terms.every(x => t.includes(x)); });
+      _masterHitCount = rowsAll.length;
+    }
 
     const headH = _masterHeadHtml(totalCount, allSyn.length) + _crStaleNotice() + (typeof window.masterTopNoticeHtml === 'function' ? window.masterTopNoticeHtml() : '') + _requestsHtml();
     if (!rowsAll.length) {
-      e.innerHTML = headH + formH + chipsH +
-        '<p class="stats-empty">マスター登録はまだありません。<br>各集計の「☆ 登録」、または上の「登録」から追加できます。</p>';
+      e.innerHTML = headH + formH + chipsH + (_terms.length
+        ? '<p class="stats-empty">「' + _esc(_masterQuery.trim()) + '」に一致するマスターはありません。<br><button type="button" class="master-type-preset" onclick="statsMasterClearQuery()">検索をクリア</button>（種別の絞り込みも確認してください）</p>'
+        : '<p class="stats-empty">マスター登録はまだありません。<br>各集計の「☆ 登録」、または上の「登録」から追加できます。</p>');
       return;
     }
     const usageDesc = {
