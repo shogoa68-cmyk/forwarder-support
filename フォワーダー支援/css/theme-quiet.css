@@ -210,3 +210,13 @@ html.theme-quiet table td { border-color: var(--q-line); }
 /* 小タブ（マスター管理／エイリアス是正 など） */
 html.theme-quiet .tab-btn { background: var(--q-surface); color: var(--q-ink-2); border-radius: var(--q-r) var(--q-r) 0 0; }
 html.theme-quiet .tab-btn.active, html.theme-quiet .tab-btn[aria-selected="true"] { color: var(--q-accent-hover); background: var(--q-accent-50); border-color: var(--q-accent); font-weight: 700; }
+
+/* マスター詳細ポップアップ：保存は青（次へ進む）・担当者の行は薄いグレー・枠は 10px */
+html.theme-quiet .md-modal { border-radius: var(--q-r-lg); box-shadow: var(--q-sh-lg); }
+html.theme-quiet .md-modal .mt-foot { background: var(--q-sunken); border-top-color: var(--q-line); }
+html.theme-quiet .master-detail-save { background: var(--q-accent); color: #fff; border: 1px solid var(--q-accent); border-radius: var(--q-r); }
+html.theme-quiet .master-detail-save:hover { background: var(--q-accent-hover); }
+html.theme-quiet .md-contact-row { background: var(--q-sunken); border: 1px solid var(--q-line); border-radius: var(--q-r); }
+html.theme-quiet .master-contact-add { border-radius: var(--q-r); }
+html.theme-quiet .md-modal .mt-tab { background: var(--q-surface); color: var(--q-ink-2); border-radius: var(--q-r) var(--q-r) 0 0; }
+html.theme-quiet .md-modal .mt-tab.is-on, html.theme-quiet .md-modal .mt-tab[aria-selected="true"] { color: var(--q-accent-hover); background: var(--q-accent-50); border-color: var(--q-accent); }
