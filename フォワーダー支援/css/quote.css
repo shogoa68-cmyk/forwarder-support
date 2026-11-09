@@ -12118,3 +12118,65 @@ body.qm-2col #tab-quote-make .qm-col .zone-builder { flex-direction: column; }
 
 /* 「作業範囲・条件」は全体リマークとの使い分けが曖昧なため、一旦非表示（セクション・入力欄・保存・左ナビの項目は残す。CSS の下の 1 行を消すと戻る） */
 #tab-quote-make #section-scope, #tab-quote-make .q-secnav-btn[data-sec="section-scope"] { display: none !important; }
+
+/* 幹線輸送：POD とキャリア情報の間をあける／役割・実運送人はキャリアの直下のオプション／サービス名と T/T は横並び */
+#tab-quote-make .zone-main.rf-flow .rf-carrier-btn { margin-top: 22px; }
+#tab-quote-make .zone-main.rf-flow .rf-carrier-opt { margin-top: 22px; }
+#tab-quote-make .zone-main.rf-flow .rf-carrier-opt .z2-label { display: none; }
+#tab-quote-make .zone-main.rf-flow .rf-relay-btn { margin: 0 0 8px; }
+#tab-quote-make .zone-main.rf-flow .rf-svc-tt { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 8px; }
+#tab-quote-make .zone-main.rf-flow .rf-svc-tt > .z2-row { margin: 0; min-width: 0; flex: 1 1 120px; }
+#tab-quote-make .zone-main.rf-flow .rf-svc-tt .z2-service-input, #tab-quote-make .zone-main.rf-flow .rf-svc-tt .z2-tt-input { width: 100%; min-width: 0; }
+#tab-quote-make .zone-main.rf-flow .rf-svc-tt .z2-tt-row { gap: 6px; }
+#tab-quote-make .zone-main.rf-flow .rf-route-add-row { display: flex; justify-content: flex-end; margin: 0 0 6px; }
+#tab-quote-make .zone-main.rf-flow .rf-carrier-opt .z2-relay-fields { margin-bottom: 8px; }
+#tab-quote-make .zone-main.rf-flow .rf-svc-tt .z2-tt-prefix { white-space: nowrap; font-size: 11px; }
+#tab-quote-make .zone-main.rf-flow .rf-svc-tt .z2-tt-input::placeholder, #tab-quote-make .zone-main.rf-flow .rf-svc-tt .z2-service-input::placeholder { font-size: 12px; }
+
+/* 幹線輸送：港名と国の枠は 1 行にまとめる（ラベル行の下に「港名｜🌐 国」を横並び）。経由地・POL・POD とも */
+#tab-quote-make .zone-main.rf-flow .z2-port { display: grid; grid-template-columns: minmax(0, 1fr) minmax(96px, 150px); column-gap: 8px; row-gap: 4px; align-items: stretch; }
+#tab-quote-make .zone-main.rf-flow .z2-port > .z2-port-head { display: contents; }
+#tab-quote-make .zone-main.rf-flow .z2-port .z2-port-label { grid-column: 1 / -1; grid-row: 1; }
+#tab-quote-make .zone-main.rf-flow .z2-port > .z2-input { grid-column: 1; grid-row: 2; min-width: 0; }
+#tab-quote-make .zone-main.rf-flow .z2-port .z2-country { grid-column: 2; grid-row: 2; height: auto; max-width: none; width: auto; min-width: 0; padding: 0 8px; font-size: var(--fs-12, 12px); text-align: left; box-sizing: border-box; }
+#tab-quote-make .zone-main.rf-flow .z2-port > .rf-via-btn { grid-column: 1 / -1; grid-row: 0; }
+
+/* ===== 特殊コンテナ（RF／OT・FR）の入力部分のレイアウト崩れの修正 ===== */
+/* RF／OT・FR の切替は、同じ幅で横に並べる（ボタンの大きさが凸凹しない） */
+#tab-quote-make .cc-sub-tabs { flex-wrap: nowrap; }
+#tab-quote-make .cc-sub-tab { flex: 1 1 0; min-width: 0; text-align: center; white-space: normal; }
+#tab-quote-make .cc-og-qtylbl { display: none; font-size: 11px; color: var(--text-md, #666); }
+@media (max-width: 600px) {
+  #tab-quote-make .cc-spec { padding: 10px; gap: 10px 12px; }
+  #tab-quote-make .cc-spec-field { flex: 1 1 100%; min-width: 0; }
+  #tab-quote-make .cc-spec-input { width: 100%; min-width: 0; box-sizing: border-box; }
+  #tab-quote-make .cc-spec-field .cc-seg { display: flex; width: 100%; }
+  #tab-quote-make .cc-spec-field .cc-seg-btn { flex: 1 1 0; min-width: 0; }
+  /* OT/FR のはみ出しシミュレーション：項目を縦に積み、入力欄は幅いっぱい・行は折り返す */
+  #tab-quote-make .cc-og-head { flex-direction: column; align-items: stretch; }
+  #tab-quote-make .cc-og-controls { flex-direction: column; align-items: stretch; gap: 10px; }
+  #tab-quote-make .cc-og-ctn { flex-direction: column; align-items: stretch; gap: 4px; }
+  #tab-quote-make .cc-og-ctn .cc-spec-input, #tab-quote-make .cc-og-cols { min-width: 0; width: 100%; height: 36px; }
+  #tab-quote-make .cc-og-add { width: 100%; height: 36px; }
+  #tab-quote-make .cc-og-listhead { display: none; }
+  #tab-quote-make .cc-og-row { gap: 8px; }
+  #tab-quote-make .cc-og-row .cc-dims { display: flex; align-items: center; gap: 4px; width: 100%; min-width: 0; }
+  #tab-quote-make .cc-og-row .cc-dims .cc-dim { flex: 1 1 0; min-width: 0; width: auto; }
+  #tab-quote-make .cc-og-row .cc-dims .cc-dim-x, #tab-quote-make .cc-og-row .cc-dims .cc-dim-unit { flex: none; }
+  #tab-quote-make .cc-og-qtylbl { display: inline; }
+  #tab-quote-make .cc-og-row .og-qty { width: 64px; min-width: 64px; }
+  #tab-quote-make .cc-og-rowresult { flex: 1 1 0; min-width: 0; white-space: normal; }
+}
+
+/* 見積入力ツールバー：狭い幅では「ダッシュボードに戻る」を「←」だけにし、ボタンの高さをそろえる */
+@media (max-width: 680px) {
+  #tab-quote-make #qmDash { font-size: 0; padding: 0 14px; min-width: 44px; }
+  #tab-quote-make #qmDash::before { content: "←"; font-size: 20px; font-weight: 700; line-height: 1; }
+}
+@media (max-width: 680px) {
+  #tab-quote-make #saveToolbar .qm-btn, #tab-quote-make #saveToolbar .qm-banner, #tab-quote-make #saveToolbar .tb-menu-btn { min-height: 44px; box-sizing: border-box; display: inline-flex; align-items: center; }
+}
+@media (max-width: 600px) {
+  #tab-quote-make .cc-spec--og > *, #tab-quote-make .cc-og-head, #tab-quote-make .cc-og-controls, #tab-quote-make .cc-og-list, #tab-quote-make .cc-og-row, #tab-quote-make .cc-og-sim { min-width: 0; max-width: 100%; box-sizing: border-box; }
+  #tab-quote-make .cc-og-ctn select { max-width: 100%; text-overflow: ellipsis; }
+}
