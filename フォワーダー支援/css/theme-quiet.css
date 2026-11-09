@@ -72,3 +72,42 @@ html.theme-quiet #tab-quote-make .condition-section::after { display: none; }
 
 /* ----- 注記は 12px 未満にしない ----- */
 html.theme-quiet small, html.theme-quiet .hint, html.theme-quiet .subtitle { font-size: max(12px, 1em); }
+
+/* ==========================================================================
+   段階 3a：見積入力画面（管理番号入力 → 貿易条件 → 貨物・物量）
+   原則：面は白と薄い線／色は意味があるときだけ／主ボタン（黒）は 1 画面に 1 つ（保存）
+   ========================================================================== */
+/* 見出し：大きさと太さで大事さを出す（色は付けない） */
+html.theme-quiet #tab-quote-make .section-toggle-head,
+html.theme-quiet #tab-quote-make .condition-section h2 {
+  font-size: var(--q-fs-18); font-weight: 700; color: var(--q-ink); letter-spacing: 0;
+}
+html.theme-quiet #tab-quote-make .condition-section { padding: 20px; margin-bottom: var(--q-sp-24); }
+/* 管理番号入力の内側の枠：カードの中にカードを作らない（余白だけで区切る） */
+html.theme-quiet #tab-quote-make .quote-header.ci-layout { background: transparent; border: 0; box-shadow: none; padding: 0; }
+/* 上部ツールバー・左のセクションナビ */
+html.theme-quiet #saveToolbar { background: var(--q-surface); border-bottom: 1px solid var(--q-line); box-shadow: none; }
+html.theme-quiet #tab-quote-make .qm-btn, html.theme-quiet #tab-quote-make .save-btn {
+  background: var(--q-surface); color: var(--q-ink); border: 1px solid var(--q-line-strong); border-radius: var(--q-r);
+}
+html.theme-quiet #tab-quote-make .qm-btn:hover, html.theme-quiet #tab-quote-make .save-btn:hover { background: var(--q-accent-50); border-color: var(--q-accent); }
+
+/* 下の固定ドック：保存＝黒（主）／プレビュー＝青（次へ進む）／PDF 出力＝白＋細い枠 */
+html.theme-quiet #quoteActionDock .qad-btn { border-radius: var(--q-r); box-shadow: var(--q-sh); font-weight: 600; }
+html.theme-quiet #quoteActionDock .qad-pdf { background: var(--q-surface); color: var(--q-ink); border: 1px solid var(--q-line-strong); }
+html.theme-quiet #quoteActionDock .qad-preview { background: var(--q-accent); color: #fff; border: 1px solid var(--q-accent); }
+html.theme-quiet #quoteActionDock .qad-preview:hover { background: var(--q-accent-hover); }
+html.theme-quiet #quoteActionDock .qad-save { background: var(--q-ink); color: #fff; border: 1px solid var(--q-ink); }
+
+/* 色のついた補助ボタン（紫・緑）は白＋細い枠へ（機能の目印は文字と絵文字で足りる） */
+html.theme-quiet .me-add-btn, html.theme-quiet .van-jump-btn, html.theme-quiet .pal-jump-btn {
+  background: var(--q-surface); color: var(--q-ink); border: 1px solid var(--q-line-strong); border-radius: var(--q-r);
+}
+html.theme-quiet .van-jump-btn:hover, html.theme-quiet .pal-jump-btn:hover, html.theme-quiet .me-add-btn:hover {
+  background: var(--q-accent-50); border-color: var(--q-accent); color: var(--q-accent-hover);
+}
+/* 付箋ボタン「社内メモ」：黄色をやめて白＋細い枠 */
+html.theme-quiet #tab-quote-make .ci-memo-btn { background: var(--q-surface); border: 1px solid var(--q-line-strong); color: var(--q-ink); border-radius: var(--q-r); }
+html.theme-quiet #quoteActionDock .qad-pdf:hover { background: var(--q-accent-50); }
+html.theme-quiet #quoteActionDock .qad-save:hover { background: #000; }
+html.theme-quiet #tab-quote-make .ci-memo-btn:hover, html.theme-quiet #tab-quote-make .ci-memo-btn.is-open { background: var(--q-accent-50); }
