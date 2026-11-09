@@ -12132,3 +12132,11 @@ body.qm-2col #tab-quote-make .qm-col .zone-builder { flex-direction: column; }
 #tab-quote-make .zone-main.rf-flow .rf-carrier-opt .z2-relay-fields { margin-bottom: 8px; }
 #tab-quote-make .zone-main.rf-flow .rf-svc-tt .z2-tt-prefix { white-space: nowrap; font-size: 11px; }
 #tab-quote-make .zone-main.rf-flow .rf-svc-tt .z2-tt-input::placeholder, #tab-quote-make .zone-main.rf-flow .rf-svc-tt .z2-service-input::placeholder { font-size: 12px; }
+
+/* 幹線輸送：港名と国の枠は 1 行にまとめる（ラベル行の下に「港名｜🌐 国」を横並び）。経由地・POL・POD とも */
+#tab-quote-make .zone-main.rf-flow .z2-port { display: grid; grid-template-columns: minmax(0, 1fr) minmax(96px, 150px); column-gap: 8px; row-gap: 4px; align-items: stretch; }
+#tab-quote-make .zone-main.rf-flow .z2-port > .z2-port-head { display: contents; }
+#tab-quote-make .zone-main.rf-flow .z2-port .z2-port-label { grid-column: 1 / -1; grid-row: 1; }
+#tab-quote-make .zone-main.rf-flow .z2-port > .z2-input { grid-column: 1; grid-row: 2; min-width: 0; }
+#tab-quote-make .zone-main.rf-flow .z2-port .z2-country { grid-column: 2; grid-row: 2; height: auto; max-width: none; width: auto; min-width: 0; padding: 0 8px; font-size: var(--fs-12, 12px); text-align: left; box-sizing: border-box; }
+#tab-quote-make .zone-main.rf-flow .z2-port > .rf-via-btn { grid-column: 1 / -1; grid-row: 0; }
