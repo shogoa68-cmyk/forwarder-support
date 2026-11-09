@@ -12,8 +12,24 @@
     ['.rfx-sub', 'inline'],
     ['.remark-img-hint', 'inline'],
     ['.ci-head > span', 'inline'],
-    ['.ci-hint', 'field']
+    ['.ci-hint', 'field'],
+    // ほかの画面（フォーム・計算・マスター・取込など）
+    ['.lc-form-hint', 'inline'],
+    ['.hz-entry-hint', 'inline'],
+    ['.bm-carrier-hint', 'inline'],
+    // 段落・ブロックの説明：直前の見出し（見出し・タイトル・ラベル）の末尾へ「？」を置く。見出しが無いときは隠さずそのまま
+    ['.calc-desc', 'prev'],
+    ['.rn-hint', 'prev'],
+    ['.fl-hint', 'prev'],
+    ['.qpd-side-note', 'prev'],
+    ['.preset-mgr-desc', 'prev'],
+    ['.ei-desc', 'prev'],
+    ['.lcrp-desc', 'prev'],
+    ['.um-invite-desc', 'prev'],
+    ['.pv-hint', 'prev'],
+    ['.hazmat-panel-note', 'prev']
   ];
+  var HEADING = /^(H[1-6]|LABEL|SUMMARY)$/;
   var pop = null, openFor = null, timer = null;
 
   function ensurePop() {
@@ -54,12 +70,26 @@
     b.addEventListener('blur', function () { if (openFor === b) hide(); });
     return b;
   }
-  function sync(note, btn) { btn.hidden = !textOf(note); }
+  function sync(note, btn) {
+    // 文言が空のとき・説明そのものを一時的に隠しているとき（動的に出し入れする補足）は「？」も出さない
+    btn.hidden = !textOf(note) || note.hidden || note.style.display === 'none';
+  }
+  function headingBefore(note) {
+    var p = note.previousElementSibling;
+    if (!p) return null;
+    if (HEADING.test(p.tagName) || /(^|[\s-_])(title|head|heading|label)([\s-_]|$)/i.test(p.className || '')) return p;
+    return null;
+  }
 
   function fold(note, mode) {
-    if (note._hintBtn) return;
+    if (note._hintBtn || note._hintSkip) return;
+    if (textOf(note).length < 8 && mode !== 'field') return; // 短い語（通貨など）は説明ではない
+    var head = null;
+    if (mode === 'prev') { head = headingBefore(note); if (!head) { note._hintSkip = true; return; } }
     var btn = makeBtn(note); note._hintBtn = btn; note.classList.add('hint-folded');
-    if (mode === 'field') {
+    if (mode === 'prev') {
+      head.appendChild(btn);
+    } else if (mode === 'field') {
       var host = note.closest('.quote-field, .ci-field, .ci-col') || note.parentElement;
       var label = host && host.querySelector('label, .ci-head b');
       if (label) label.appendChild(btn); else note.parentNode.insertBefore(btn, note);
@@ -67,7 +97,7 @@
       note.parentNode.insertBefore(btn, note);
     }
     sync(note, btn);
-    new MutationObserver(function () { sync(note, btn); }).observe(note, { childList: true, characterData: true, subtree: true });
+    new MutationObserver(function () { sync(note, btn); }).observe(note, { childList: true, characterData: true, subtree: true, attributes: true, attributeFilter: ['style', 'hidden'] });
   }
 
   function scan(root) {

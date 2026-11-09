@@ -114,7 +114,7 @@ Design 提案 `16-Quietテーマ提案`（白地・薄い 1px 線・色は意味
 
 ## ❔ 欄ごとの説明書きは「？」にしまう（2026-11・`js/hint-fold.js`・`css/style.css` 末尾 `.hint-q`／`.hint-pop`）
 
-見積入力の欄ラベルに添えていた小さな補足文（`.qf-memo-note`・`.cond-sub-note`・`.rfx-sub`・`.remark-img-hint`・`.ci-head > span`・日付の補足 `.ci-hint`）を、**説明の要素は DOM に残したまま `.hint-folded` で隠し、位置に「？」ボタン（`.hint-q`）を挿入**して、マウスを乗せる（0.25 秒）／押す・タップすると吹き出し（`#hintPop`・`.hint-pop`）で読めるようにした（外側のクリック・Esc・スクロールで閉じる・キーボードのフォーカスでも開く・タッチ端末は 24px のボタン）。文言を動的に更新する説明（`#ciDateHint`／`#ciValidHint`）は MutationObserver で追従し、空のときは「？」も出さない。全テーマ共通。対象を増やすときは `hint-fold.js` の `SELECTORS`（`[セレクタ, 'inline'|'field']`）に足す（`field`＝欄の先頭ラベルの末尾へ置く）。既存のセクション見出しの「？」（`.section-help-wrap`）とは別物。
+見積入力の欄ラベルに添えていた小さな補足文（`.qf-memo-note`・`.cond-sub-note`・`.rfx-sub`・`.remark-img-hint`・`.ci-head > span`・日付の補足 `.ci-hint`）を、**説明の要素は DOM に残したまま `.hint-folded` で隠し、位置に「？」ボタン（`.hint-q`）を挿入**して、マウスを乗せる（0.25 秒）／押す・タップすると吹き出し（`#hintPop`・`.hint-pop`）で読めるようにした（外側のクリック・Esc・スクロールで閉じる・キーボードのフォーカスでも開く・タッチ端末は 24px のボタン）。文言を動的に更新する説明（`#ciDateHint`／`#ciValidHint`）は MutationObserver で追従し、空のときは「？」も出さない。全テーマ共通。対象を増やすときは `hint-fold.js` の `SELECTORS`（`[セレクタ, 'inline'|'field']`）に足す（`field`＝欄の先頭ラベルの末尾へ置く）。既存のセクション見出しの「？」（`.section-help-wrap`）とは別物。**ほかの画面へも拡大（同日）**：欄ラベルの補足（`.lc-form-hint`・`.hz-entry-hint`・`.bm-carrier-hint`）は `inline`、段落・ブロックの説明（`.calc-desc`・`.rn-hint`・`.fl-hint`・`.qpd-side-note`・`.preset-mgr-desc`・`.ei-desc`・`.lcrp-desc`・`.um-invite-desc`・`.pv-hint`・`.hazmat-panel-note`）は `prev`＝**直前の兄弟が見出し（H1〜6・LABEL・SUMMARY・class に title／head／label を含む要素）のときだけ**その末尾に「？」を置く（見出しが無いものは隠さずそのまま）。8 文字未満の短い語は対象外。動的に出し入れする補足（`style.display='none'`／`hidden`）は「？」も連動して消える。各タブの先頭の折りたたみ `details.tab-help`（使い方）や 💡 `.help-tip`・表の中身などの参照情報、ドロップ領域の案内（`.qf-attach-hint`・`.lc-attach-hint`）は対象外。
 
 ## 🗑️ 自動保存は廃止（2026-10）
 
