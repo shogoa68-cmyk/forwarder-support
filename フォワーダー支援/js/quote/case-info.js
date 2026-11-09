@@ -50,6 +50,13 @@
     if (chip) { chip.hidden = n === 0; chip.textContent = n + '件'; }
     if (n > 0 && $('ciRelPanel')?.hidden) setOpen($('ciRelBtn'), $('ciRelPanel'), true);
   }
+  // 基幹システム REF#：ステータスが「受注」のときだけ出す。受注以外でも値が入っていれば出し続ける
+  // （入力済みの値を気づかないまま隠さない）。入力中（フォーカスがある間）は消さない
+  function syncCoreRef() {
+    const f = $('qfCoreRefField'), inp = $('qf-core-ref'); if (!f || !inp) return;
+    const show = ($('qf-status')?.value || '') === '受注' || !!inp.value.trim() || document.activeElement === inp;
+    if (f.hidden === show) f.hidden = !show;
+  }
   function syncMore() {
     const parts = [];
     const t = tagCount(); if (t) parts.push('タグ' + t);
@@ -103,7 +110,7 @@
     }
     setTimeout(syncMemoDot, 0);
   };
-  function sync() { syncStatus(); syncRel(); syncDates(); syncMore(); syncDatesSum(); syncMemoDot(); }
+  function sync() { syncStatus(); syncCoreRef(); syncRel(); syncDates(); syncMore(); syncDatesSum(); syncMemoDot(); }
 
   window.ciSync = sync;
   window.ciSetValidEom = function (plus) {
@@ -144,6 +151,8 @@
     [['qf-received', 'ciAutoRecv'], ['qf-date', 'ciAutoDate']].forEach(([i, b]) => $(i)?.addEventListener('input', e => { if (e.isTrusted && $(b)) $(b).hidden = true; }));
     { const fl = $('qfMemoFloat'); if (fl) new MutationObserver(syncMemoDot).observe(fl, { attributes: true, attributeFilter: ['hidden'] }); }
     $('qf-memo')?.addEventListener('input', syncMemoDot); $('qf-memo-float-ta')?.addEventListener('input', () => setTimeout(syncMemoDot, 0));
+    // REF# 欄の入力が終わったとき（空にしたまま他へ移った場合）に、受注以外なら隠す
+    $('qf-core-ref')?.addEventListener('blur', () => setTimeout(sync, 0));
     const sec = $('section-ref');
     ['input', 'change', 'click'].forEach(t => sec.addEventListener(t, () => setTimeout(sync, 0)));
     sync();

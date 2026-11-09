@@ -4723,6 +4723,7 @@
     updateQuoteStatusUI();
     if (typeof window.qvOnStatus === 'function') window.qvOnStatus(status);   // 提示済みにした時点の内容を版として記録（quote-versions.js）
     if (typeof window.updateSectionSummaries === 'function') window.updateSectionSummaries();
+    if (typeof window.ciSync === 'function') window.ciSync();   // 受注のときだけ基幹システム REF# を出す（case-info.js）
   }
   function updateQuoteStatusUI() {
     const status = document.getElementById('qf-status')?.value || '下書き中';

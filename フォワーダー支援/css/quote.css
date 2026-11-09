@@ -105,7 +105,7 @@
   flex-direction: column;
 }
 /* 添付ファイルは常に全幅で下段に */
-#tab-quote-make .quote-field-attach { grid-column: 1 / -1; }
+#tab-quote-make .quote-field-sources { grid-column: 1 / -1; }
 /* 取引ルールの帯（#crBanner）が出ているときは、左カラムが 1 行増えるので、メモの高さもその分（9 行）に合わせる */
 @media (min-width: 681px) {
   #tab-quote-make .quote-header.has-cr .quote-field-memo { grid-row: 1 / span 9; }
@@ -238,32 +238,6 @@
 }
 .pt-route-opt:hover { background: #e4eefb; border-color: #9fb6d6; }
 .pt-route-clear { color: var(--c-8a7a64); background: var(--bg); border-color: var(--border); }
-/* ===== 参照URL（自動リンク化） ===== */
-#tab-quote-make .quote-field-refurl { grid-column: 1 / -1; margin-top: var(--sp-6); }
-#tab-quote-make #qf-refurl {
-  width: 100%; resize: vertical; font-family: inherit; font-size: var(--fs-12);
-  padding: var(--sp-6) var(--sp-8); border: 1px solid var(--border-md, var(--border-md)); border-radius: var(--r-6);
-  background: var(--surface); color: var(--accent-dk); box-sizing: border-box;
-}
-#tab-quote-make #qf-refurl:focus { border-color: var(--gold); outline: none; }
-#tab-quote-make #qf-refurl::placeholder { color: var(--c-9a8878); font-size: var(--fs-11); }
-#tab-quote-make .qf-refurl-view {
-  display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-8);
-  padding: var(--sp-7) var(--sp-9); border: 1px solid var(--border); border-radius: var(--r-6); background: var(--card-bg);
-}
-#tab-quote-make .qf-refurl-links { display: flex; flex-wrap: wrap; gap: var(--sp-6); flex: 1; min-width: 0; }
-#tab-quote-make .qf-refurl-link {
-  display: inline-flex; align-items: center; gap: var(--sp-2); max-width: 100%;
-  font-size: var(--fs-12); color: var(--blue-dk); text-decoration: none;
-  background: var(--blue-95); border: 1px solid #cfdcf0; border-radius: var(--r-pill); padding: var(--sp-2) var(--sp-9);
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-}
-#tab-quote-make .qf-refurl-link:hover { background: #dde9f8; text-decoration: underline; }
-#tab-quote-make .qf-refurl-edit {
-  font-size: var(--fs-11); font-family: inherit; cursor: pointer; white-space: nowrap;
-  color: var(--accent); background: var(--surface); border: 1px solid var(--border-md); border-radius: var(--r-6); padding: var(--sp-3) var(--sp-9);
-}
-#tab-quote-make .qf-refurl-edit:hover { background: var(--accent-lt); }
 /* ===== 作業範囲（自由入力） ===== */
 #tab-quote-make .scope-body { padding: var(--sp-4) var(--sp-2) var(--sp-2); }
 #tab-quote-make #qf-scope {
@@ -274,17 +248,80 @@
 }
 #tab-quote-make #qf-scope:focus { border-color: var(--gold); outline: none; }
 #tab-quote-make #qf-scope::placeholder { color: var(--c-9a8878); font-size: var(--fs-12); }
-/* ===== 添付ファイル ===== */
-#tab-quote-make .quote-field-attach { margin-top: var(--sp-6); }
-#tab-quote-make .qf-attach-drop {
-  display: flex; align-items: center; justify-content: center; text-align: center;
-  border: 1.5px dashed var(--c-d5c8b0); border-radius: var(--r-8); background: var(--card-bg);
-  padding: var(--sp-12); cursor: pointer; transition: background .12s, border-color .12s;
+/* ===== 参照資料（URL・ファイルを 1 つの一覧に。追加はダイアログ）===== */
+#tab-quote-make .quote-field-sources { margin-top: var(--sp-6); }
+#tab-quote-make .src-card { border: 1px solid var(--border); border-radius: var(--r-8); background: var(--card-bg); padding: var(--sp-8) var(--sp-10); }
+#tab-quote-make .src-list .qf-attach-list { margin-top: 0; }
+#tab-quote-make .src-list .qf-attach-list:empty { display: none; }
+#tab-quote-make .src-list .qf-attach-list + .qf-attach-list { margin-top: var(--sp-5); }
+#tab-quote-make .src-list .qf-attach-empty[hidden] { display: none; }
+#tab-quote-make .src-url-link { text-decoration: none; }
+#tab-quote-make .src-url-link:hover { text-decoration: underline; }
+#tab-quote-make .src-add-btn {
+  margin-top: var(--sp-8); font-family: inherit; font-size: var(--fs-12); font-weight: 700; cursor: pointer;
+  color: var(--accent); background: var(--surface); border: 1px dashed var(--border-md); border-radius: var(--r-pill); padding: var(--sp-5) var(--sp-14);
 }
-#tab-quote-make .qf-attach-drop:hover { background: var(--accent-lt); border-color: #b8a98f; }
-#tab-quote-make .qf-attach-drop.is-drag { background: #eef4e6; border-color: var(--green-leaf); }
-#tab-quote-make .qf-attach-hint { font-size: var(--fs-11-5); color: var(--text-muted); line-height: 1.5; }
+#tab-quote-make .src-add-btn:hover { background: var(--accent-lt); }
+/* 資料を追加ダイアログ（Gemini NotebookLM の「ソースを追加」風） */
+#tab-quote-make #srcAddModal {
+  display: none; position: fixed; inset: 0; background: rgba(0,0,0,.45); z-index: 9000;
+  align-items: center; justify-content: center; padding: var(--sp-12);
+}
+#tab-quote-make #srcAddModal.open { display: flex; }
+#tab-quote-make #srcAddBox {
+  position: relative; width: min(94vw, 640px); max-height: 92vh; overflow-y: auto; box-sizing: border-box;
+  background: var(--surface); border-radius: 24px; padding: 28px 28px 22px; box-shadow: 0 12px 40px rgba(0,0,0,.28);
+}
+#tab-quote-make #srcAddBox .src-close {
+  position: absolute; top: 14px; right: 16px; width: 32px; height: 32px; border: none; border-radius: 50%;
+  background: transparent; font-size: var(--fs-16); color: var(--text-muted); cursor: pointer; line-height: 1;
+}
+#tab-quote-make #srcAddBox .src-close:hover { background: var(--accent-lt); color: var(--text); }
+#tab-quote-make #srcAddBox h3 { margin: 4px 0 18px; text-align: center; font-size: var(--fs-18, 18px); font-weight: 700; line-height: 1.5; color: var(--text); }
+#tab-quote-make #srcAddBox h3 em { font-style: normal; color: var(--blue-dk, #2a5db0); }
+#tab-quote-make .src-urlbox {
+  display: flex; align-items: flex-end; gap: var(--sp-8); background: var(--card-bg); border: 1px solid var(--border);
+  border-radius: 18px; padding: 12px 12px 12px 18px;
+}
+#tab-quote-make .src-urlbox:focus-within { border-color: var(--gold); box-shadow: 0 0 0 2px rgba(201,165,95,.25); }
+#tab-quote-make #srcUrlInput {
+  flex: 1; min-width: 0; resize: none; border: none; outline: none; background: transparent; font-family: inherit;
+  font-size: var(--fs-14, 14px); line-height: 1.5; color: var(--text); padding: 4px 0; min-height: 28px; max-height: 132px;
+}
+#tab-quote-make #srcUrlInput::placeholder { color: var(--c-9a8878); }
+#tab-quote-make .src-url-go {
+  flex: none; width: 34px; height: 34px; border-radius: 50%; border: none; cursor: pointer; font-size: var(--fs-16);
+  background: var(--accent); color: var(--surface); line-height: 1;
+}
+#tab-quote-make .src-url-go:hover { filter: brightness(1.1); }
+#tab-quote-make .src-url-msg { min-height: 20px; margin: 6px 6px 0; font-size: var(--fs-11-5); color: var(--green-leaf); }
+#tab-quote-make .src-url-msg.is-err { color: #c0492b; }
+#tab-quote-make .src-pills { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; margin: 10px 0 18px; }
+#tab-quote-make .src-pill {
+  font-family: inherit; font-size: var(--fs-13); color: var(--text); cursor: pointer; background: var(--surface);
+  border: 1px solid var(--border-md); border-radius: var(--r-pill); padding: 8px 18px; display: inline-flex; align-items: center; gap: 6px;
+}
+#tab-quote-make .src-pill:hover { background: var(--accent-lt); }
+#tab-quote-make #srcAddBox .qf-attach-drop {
+  display: flex; align-items: center; justify-content: center; text-align: center; min-height: 140px;
+  border: 1.5px dashed var(--c-d5c8b0); border-radius: 20px; background: var(--surface);
+  padding: var(--sp-18); cursor: pointer; transition: background .12s, border-color .12s;
+}
+#tab-quote-make #srcAddBox .qf-attach-drop:hover { background: var(--accent-lt); border-color: #b8a98f; }
+#tab-quote-make #srcAddBox .qf-attach-drop.is-drag { background: #eef4e6; border-color: var(--green-leaf); }
+#tab-quote-make #srcAddBox .qf-attach-drop.is-disabled { opacity: .55; }
+#tab-quote-make .qf-attach-hint { font-size: var(--fs-12); color: var(--text-muted); line-height: 1.7; }
 #tab-quote-make .qf-attach-hint small { color: var(--c-9a8a70); }
+#tab-quote-make .src-drop-ic { display: block; font-size: 22px; line-height: 1; margin-bottom: 8px; color: var(--text-muted); }
+#tab-quote-make .src-note { margin: 10px 4px 0; font-size: var(--fs-11-5); color: #8a5a00; background: #fff6e0; border-radius: var(--r-6); padding: 6px 10px; }
+#tab-quote-make .src-note[hidden] { display: none; }
+#tab-quote-make #srcAddBox .qf-attach-meter { margin: 16px 2px 0; }
+#tab-quote-make #srcAddBox .qf-meter-bar { height: 10px; border-radius: 999px; }
+#tab-quote-make #srcAddBox .qf-meter-fill { border-radius: 999px; min-width: 6px; }
+@media (max-width: 680px) {
+  #tab-quote-make #srcAddBox { padding: 22px 16px 16px; border-radius: 18px; }
+  #tab-quote-make #srcAddBox h3 { font-size: var(--fs-16); }
+}
 /* ストレージ残量メーター */
 #tab-quote-make .qf-attach-meter { margin: var(--sp-8) 0 var(--sp-4); }
 #tab-quote-make .qf-meter-row { display: flex; justify-content: space-between; font-size: var(--fs-10-5); color: var(--text-muted); margin-bottom: var(--sp-3); }
@@ -2634,7 +2671,7 @@
 #tab-quote-make .cond-inco-select:focus { border-color: var(--accent); }
 /* hidden 属性（JS が付け外し）を、下の display:flex 等が上書きしないように：片道の案件で復路インコタームズ、
    URL 未入力のときの参照 URL のリンク表示が出たままになっていた */
-#tab-quote-make #incoRetGroup[hidden], #tab-quote-make .qf-refurl-view[hidden], #tab-quote-make #qf-refurl[hidden] { display: none; }
+#tab-quote-make #incoRetGroup[hidden], #tab-quote-make #qf-refurl[hidden], #tab-quote-make .quote-field-corerf[hidden] { display: none; }
 #tab-quote-make .cond-prim-group {
   display: flex;
   flex-direction: column;

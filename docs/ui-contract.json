@@ -179,6 +179,7 @@
   "cpSelectAll",
   "cpTableBody",
   "cpTitle",
+  "cptRoot",
   "crBanner",
   "csvColModal",
   "csvDropZone",
@@ -369,7 +370,6 @@
   "qf-person",
   "qf-ref",
   "qf-refurl",
-  "qf-refurl-view",
   "qf-related-data",
   "qf-revision-baseline",
   "qf-revision-hide-diff",
@@ -394,6 +394,7 @@
   "qfRevisionBtn",
   "qfRevisionFilters",
   "qfRevisionOptions",
+  "qfSrcUrls",
   "qfTagSuggestions",
   "qfTagsChips",
   "qfTagsInput",
@@ -1004,10 +1005,6 @@
    "uses": 1,
    "defined": true
   },
-  "editRefUrl": {
-   "uses": 1,
-   "defined": true
-  },
   "eiApplyAsNew": {
    "uses": 1,
    "defined": true
@@ -1564,10 +1561,6 @@
    "uses": 2,
    "defined": true
   },
-  "renderRefUrlLinks": {
-   "uses": 1,
-   "defined": true
-  },
   "renderUserCatPanel": {
    "uses": 1,
    "defined": true
@@ -1720,6 +1713,22 @@
    "uses": 1,
    "defined": true
   },
+  "srcAddClose": {
+   "uses": 2,
+   "defined": true
+  },
+  "srcAddOpen": {
+   "uses": 1,
+   "defined": true
+  },
+  "srcAddUrlsFromInput": {
+   "uses": 1,
+   "defined": true
+  },
+  "srcFocusUrl": {
+   "uses": 1,
+   "defined": true
+  },
   "startQuoteRevision": {
    "uses": 1,
    "defined": true
@@ -1753,7 +1762,7 @@
    "defined": true
   },
   "switchCategory": {
-   "uses": 15,
+   "uses": 16,
    "defined": true
   },
   "switchFbTab": {
@@ -2670,6 +2679,10 @@
    "css": true,
    "html": false
   },
+  "is-err": {
+   "css": true,
+   "html": false
+  },
   "is-excluded": {
    "css": true,
    "html": false
@@ -3214,6 +3227,10 @@
    "css": false,
    "html": false
   },
+  "qf-attach-empty": {
+   "css": true,
+   "html": true
+  },
   "qf-attach-item": {
    "css": true,
    "html": false
@@ -3225,10 +3242,6 @@
   "qf-mode-spot": {
    "css": true,
    "html": false
-  },
-  "qf-refurl-links": {
-   "css": true,
-   "html": true
   },
   "qf-status-btn": {
    "css": true,
@@ -4944,6 +4957,10 @@
    "html": false,
    "js": true
   },
+  "url": {
+   "html": false,
+   "js": true
+  },
   "user-closed": {
    "html": false,
    "js": true
@@ -5031,6 +5048,7 @@
   "js/quote/subcon-request-mail.js",
   "js/quote/memo-title.js",
   "js/quote/case-info.js",
+  "js/quote/sources.js",
   "js/quote/cond-flow.js",
   "js/quote/route-flow.js",
   "js/quote/cargo-flow.js",
@@ -5053,6 +5071,7 @@
   "js/feedback-annotate.js",
   "js/feedback.js",
   "js/workfolder.js",
+  "js/cp-test.js",
   "js/cat-more.js",
   "js/stats.js",
   "js/alias-rules.js",
