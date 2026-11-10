@@ -1,7 +1,6 @@
-/* cp-test.js — 🧪 CP(TEST)：サイバーポート連携の画面テスト。
- * 「（サンプル）」と書いた欄（動静・チャット）は サイバーポートに接続せず、サンプルを表示するだけ。
- * 「🔌 実接続テスト」の欄だけが、js/integrations/cyberport.js → Edge Function「cp-proxy」経由で
- * 読み取り専用の API を呼ぶ（接続情報が未設定・関数が未配置のときは、その旨をエラーとして表示する）。
+/* cp-test.js — 🚢 サイバーポート：サイバーポート連携の画面（読み取りのみ）。
+ * js/integrations/cyberport.js → Edge Function「cp-proxy」経由で読み取り専用の API を呼ぶ
+ * （接続情報が未設定・関数が未配置のときは、その旨をエラーとして表示する）。
  * 設計は docs/サイバーポート連携_設計案.md。
  * 初期化は js/app.js の switchTab() から window.initCpTestTab() が呼ばれる（冪等）。 */
 (function () {
@@ -13,25 +12,6 @@
     return String(raw == null ? '' : raw).replace(/[\s　]+/g, '').toUpperCase();
   }
 
-  // ---- サンプルデータ（本物ではない）----
-  var SAMPLE_MOVEMENT = [
-    { at: '2026-11-02 10:30', label: 'ブッキング確認', note: 'B/L番号は照会時に入力した番号' },
-    { at: '2026-11-05 14:00', label: '搬入（CY）', note: 'サンプルターミナル' },
-    { at: '2026-11-06 09:15', label: '本船 出港', note: 'SAMPLE MARU 001E' },
-    { at: '2026-11-18 08:00', label: '本船 入港予定（ETA）', note: '予定。変更されることがある' }
-  ];
-  var SAMPLE_CHAT = [
-    { from: 'サンプル港運（相手先）', at: '2026-11-06 10:02', body: 'CY搬入は予定どおりです。' },
-    { from: '自社', at: '2026-11-06 10:20', body: '了解しました。ありがとうございます。' },
-    { from: 'サンプル港運（相手先）', at: '2026-11-07 16:45', body: 'ETAが1日遅れる見込みです。' }
-  ];
-
-  var STATES = {
-    ok:   { label: '成功（サンプル）' },
-    eta:  { label: 'NACCS未登録（ETA前）' },
-    err:  { label: '通信エラー' }
-  };
-
   function esc(s) {
     return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
       return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
@@ -40,9 +20,9 @@
 
   function statusRows() {
     // 確かめていないことは「未確認」と正直に表示する（接続済みに見せない）。
-    // 「実接続テスト」の① が成功したら、上 3 行を「確認済み」にする（setLinkStatus）。
+    // 「① 接続情報の確認」が成功したら、上 3 行を「確認済み」にする（setLinkStatus）。
     return [
-      ['cptStApi', 'サイバーポートAPI', '未確認（下の「実接続テスト」で確認）', 'is-off'],
+      ['cptStApi', 'サイバーポートAPI', '未確認（下の「① 接続情報の確認」で確認）', 'is-off'],
       ['cptStFn', '中継役（Supabase Edge Function）', '未確認', 'is-off'],
       ['cptStAuth', '認証（システム用＋橋渡しユーザーの2つのトークン）', '未確認', 'is-off'],
       ['', '書き込み（送信・返信・編集・削除）', '使いません（読み取り専用）', 'is-ok']
@@ -54,7 +34,7 @@
 
   function setLinkStatus(ok, apiHost) {
     var rows = {
-      cptStApi: ok ? (apiHost ? '接続先を確認（' + apiHost + '）' : '接続できています（データを取得できました）') : '未確認（下の「実接続テスト」で確認）',
+      cptStApi: ok ? (apiHost ? '接続先を確認（' + apiHost + '）' : '接続できています（データを取得できました）') : '未確認（下の「① 接続情報の確認」で確認）',
       cptStFn: ok ? '動いています' : '未確認',
       cptStAuth: ok ? '2つのトークンを取得できました' : '未確認'
     };
@@ -66,7 +46,7 @@
     });
   }
 
-  // ---------- 実接続テスト（読み取りのみ・cp-proxy 経由） ----------
+  // ---------- 接続・照会（読み取りのみ・cp-proxy 経由） ----------
   function liveBox() { return document.getElementById('cptLive'); }
   function liveBusy(on) {
     ['cptPing', 'cptSearch', 'cptColinsV', 'cptColinsC'].forEach(function (id) { var b = document.getElementById(id); if (b) b.disabled = !!on; });
@@ -363,16 +343,11 @@
   function render() {
     var root = document.getElementById('cptRoot');
     if (!root) return;
-    var stateOpts = Object.keys(STATES).map(function (k) {
-      return '<option value="' + k + '">' + esc(STATES[k].label) + '</option>';
-    }).join('');
     root.innerHTML =
       '<div class="cpt-head"><h2 class="cpt-title">🚢 サイバーポート</h2>' +
-      '<span class="cpt-sub">サイバーポート連携の画面テスト（読み取りのみ）</span></div>' +
-      '<div class="cpt-banner" role="note">⚠️ これは<strong>テスト画面</strong>です。「（サンプル）」と書いた欄は<strong>サンプル</strong>で、実際の案件のデータではありません。' +
-      '「🔌 実接続テスト」の欄だけが、サイバーポートに<strong>読み取りで</strong>接続します（書き込みはしません）。</div>' +
+      '<span class="cpt-sub">読み取りのみ（書き込みはしません）</span></div>' +
       '<div class="cpt-card"><div class="cpt-card-h">接続状態</div><ul class="cpt-stlist">' + statusRows() + '</ul></div>' +
-      '<div class="cpt-card"><div class="cpt-card-h">🔌 実接続テスト（読み取りのみ）</div>' +
+      '<div class="cpt-card"><div class="cpt-card-h">🔌 接続・照会</div>' +
       '<div class="cpt-form"><button type="button" class="cpt-btn is-primary" id="cptPing">① 接続情報の確認</button>' +
       '<span class="cpt-hint">2つのトークン（システム用・橋渡しユーザー）が取れるかだけを確かめます（データは取りません）</span></div>' +
       '<div class="cpt-form"><input type="text" id="cptKw" class="cpt-input" maxlength="45" autocomplete="off" ' +
@@ -385,27 +360,8 @@
       '<button type="button" class="cpt-btn" id="cptColinsV">③ COLINS 本船の動静</button></div>' +
       '<div class="cpt-form"><input type="text" id="cptCtn" class="cpt-input" maxlength="40" autocomplete="off" placeholder="コンテナ番号／B/L番号（輸入）／ブッキング番号（輸出）">' +
       '<button type="button" class="cpt-btn" id="cptColinsC">④ COLINS コンテナの状況</button></div>' +
-      '<div id="cptLive" class="cpt-live" aria-live="polite"></div></div>' +
-      '<div class="cpt-card"><div class="cpt-card-h">照会</div>' +
-      '<div class="cpt-form">' +
-      '<input type="text" id="cptNo" class="cpt-input" placeholder="B/L番号・搬入確認番号・JOB番号（例: ONEY TYOGF8748400）" autocomplete="off">' +
-      '<select id="cptState" class="cpt-select" aria-label="サンプルの状態">' + stateOpts + '</select>' +
-      '<button type="button" class="cpt-btn is-primary" id="cptRun">照会（サンプル）</button></div>' +
-      '<div class="cpt-norm" id="cptNorm" aria-live="polite"></div></div>' +
-      '<div class="cpt-cols">' +
-      '<section class="cpt-card" aria-labelledby="cptMvH"><div class="cpt-card-h" id="cptMvH">🚢 動静（サンプル）</div><div id="cptMv" class="cpt-body"></div></section>' +
-      '<section class="cpt-card" aria-labelledby="cptChH"><div class="cpt-card-h" id="cptChH">💬 取引内チャット（サンプル・読み取り専用）</div><div id="cptCh" class="cpt-body"></div></section>' +
-      '</div>';
+      '<div id="cptLive" class="cpt-live" aria-live="polite"></div></div>';
 
-    var no = document.getElementById('cptNo');
-    var norm = document.getElementById('cptNorm');
-    function showNorm() {
-      var raw = no.value, n = normalizeNo(raw);
-      norm.textContent = raw && n !== raw ? '照会に使う番号：' + n + '（空白を除き、大文字にそろえました）' : '';
-    }
-    no.addEventListener('input', showNorm);
-    document.getElementById('cptRun').addEventListener('click', run);
-    no.addEventListener('keydown', function (e) { if (e.key === 'Enter') run(); });
     document.getElementById('cptPing').addEventListener('click', livePing);
     document.getElementById('cptSearch').addEventListener('click', liveSearch);
     document.getElementById('cptKw').addEventListener('keydown', function (e) { if (e.key === 'Enter') liveSearch(); });
@@ -413,34 +369,10 @@
     document.getElementById('cptColinsC').addEventListener('click', liveColinsContainers);
     document.getElementById('cptPort').addEventListener('keydown', function (e) { if (e.key === 'Enter') liveColinsVessels(); });
     document.getElementById('cptCtn').addEventListener('keydown', function (e) { if (e.key === 'Enter') liveColinsContainers(); });
-    run();
   }
 
   function msg(cls, text) {
     return '<div class="cpt-msg ' + cls + '">' + esc(text) + '</div>';
-  }
-
-  function run() {
-    var st = (document.getElementById('cptState') || {}).value || 'ok';
-    var mv = document.getElementById('cptMv'), ch = document.getElementById('cptCh');
-    if (!mv || !ch) return;
-    if (st === 'eta') {
-      var t = 'NACCS側にまだ情報がありません（入港予定日の前は、登録されていないことがあります）。日をおいて、もう一度試してください。';
-      mv.innerHTML = msg('is-info', t); ch.innerHTML = msg('is-info', t); return;
-    }
-    if (st === 'err') {
-      var e = '通信かシステムのエラーです。少し待って再試行してください（本番では最大3回、間隔をあけて自動で再試行します）。';
-      mv.innerHTML = msg('is-error', e); ch.innerHTML = msg('is-error', e); return;
-    }
-    mv.innerHTML = '<ol class="cpt-tl">' + SAMPLE_MOVEMENT.map(function (m) {
-      return '<li><span class="cpt-tl-at">' + esc(m.at) + '</span><span class="cpt-tl-l">' + esc(m.label) +
-        '</span><span class="cpt-tl-n">' + esc(m.note) + '</span></li>';
-    }).join('') + '</ol>';
-    ch.innerHTML = SAMPLE_CHAT.map(function (c) {
-      var mine = c.from === '自社';
-      return '<div class="cpt-bubble' + (mine ? ' is-mine' : '') + '"><div class="cpt-bubble-h">' + esc(c.from) +
-        ' <span>' + esc(c.at) + '</span></div><div>' + esc(c.body) + '</div></div>';
-    }).join('') + '<div class="cpt-note">送信・返信はできません（第1段階は読み取りのみ）。</div>';
   }
 
   var _inited = false;
