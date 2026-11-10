@@ -890,7 +890,7 @@
    "defined": true
   },
   "closeTbMenus": {
-   "uses": 7,
+   "uses": 8,
    "defined": true
   },
   "closeUserMgr": {
@@ -1526,7 +1526,7 @@
    "defined": false
   },
   "quickQuotePdf": {
-   "uses": 1,
+   "uses": 2,
    "defined": true
   },
   "quoteRedo": {
@@ -2055,13 +2055,17 @@
    "css": true,
    "html": true
   },
-  "cc-chip-dims": {
-   "css": true,
-   "html": false
-  },
   "cc-count": {
    "css": true,
    "html": true
+  },
+  "cc-info": {
+   "css": true,
+   "html": false
+  },
+  "cc-info-wrap": {
+   "css": true,
+   "html": false
   },
   "cc-label": {
    "css": true,
@@ -2161,6 +2165,10 @@
   },
   "ci-fold-arrow": {
    "css": false,
+   "html": true
+  },
+  "ci-head": {
+   "css": true,
    "html": true
   },
   "ci-more-open": {
@@ -2419,6 +2427,22 @@
    "css": true,
    "html": false
   },
+  "ei-rem-chk": {
+   "css": false,
+   "html": false
+  },
+  "ei-rem-text": {
+   "css": true,
+   "html": false
+  },
+  "ei-rem-to": {
+   "css": true,
+   "html": false
+  },
+  "ei-remarks": {
+   "css": true,
+   "html": false
+  },
   "ei-store-case": {
    "css": true,
    "html": false
@@ -2428,6 +2452,10 @@
    "html": false
   },
   "ei-sv": {
+   "css": true,
+   "html": false
+  },
+  "ei-table": {
    "css": true,
    "html": false
   },
@@ -2591,11 +2619,27 @@
    "css": true,
    "html": false
   },
+  "hdr-roadmap": {
+   "css": true,
+   "html": true
+  },
+  "header": {
+   "css": true,
+   "html": true
+  },
+  "header-auth": {
+   "css": true,
+   "html": true
+  },
   "hide-pattern-linked": {
    "css": true,
    "html": false
   },
   "hide-pattern-needs-check": {
+   "css": true,
+   "html": false
+  },
+  "hint-folded": {
    "css": true,
    "html": false
   },
@@ -2879,6 +2923,10 @@
    "css": false,
    "html": false
   },
+  "master-admin-title": {
+   "css": false,
+   "html": false
+  },
   "master-area-btn": {
    "css": true,
    "html": false
@@ -2973,6 +3021,10 @@
   },
   "md-modal-open": {
    "css": true,
+   "html": false
+  },
+  "md-modal-title": {
+   "css": false,
    "html": false
   },
   "memo-fab-off": {
@@ -3431,6 +3483,10 @@
    "css": true,
    "html": false
   },
+  "rf-via-off": {
+   "css": true,
+   "html": false
+  },
   "rfx-add": {
    "css": true,
    "html": false
@@ -3664,6 +3720,10 @@
    "html": false
   },
   "section-toggle-head": {
+   "css": true,
+   "html": true
+  },
+  "section-toggle-title": {
    "css": true,
    "html": true
   },
@@ -4039,6 +4099,10 @@
    "css": true,
    "html": false
   },
+  "theme-quiet": {
+   "css": true,
+   "html": true
+  },
   "tier-opt-caret": {
    "css": true,
    "html": true
@@ -4188,6 +4252,14 @@
    "html": true
   },
   "z2-pol-pod-row": {
+   "css": true,
+   "html": true
+  },
+  "z2-port": {
+   "css": true,
+   "html": true
+  },
+  "z2-route-add": {
    "css": true,
    "html": true
   },
@@ -4898,7 +4970,7 @@
    "js": true
   },
   "theme": {
-   "html": false,
+   "html": true,
    "js": true
   },
   "theme-css": {
@@ -5010,6 +5082,7 @@
   "https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js",
   "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js",
   "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js",
+  "js/no-autofocus-touch.js",
   "shared/supabase.js",
   "shared/fx.js",
   "shared/format.js",
@@ -5070,6 +5143,8 @@
   "js/feedback-md.js",
   "js/feedback-annotate.js",
   "js/feedback.js",
+  "js/theme-quiet.js",
+  "js/hint-fold.js",
   "js/workfolder.js",
   "js/cp-test.js",
   "js/cat-more.js",

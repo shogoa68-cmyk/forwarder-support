@@ -3369,12 +3369,32 @@ html.theme-industry {
 :where(html.theme-industry) #tab-quote-make .cc-chip.is-active {
   box-shadow: 0 1px 5px rgba(74,109,144,.14);
 }
+:where(html.theme-industry) #tab-quote-make .cc-chip-dims {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  margin: -2px 0 1px;
+  min-width: 0;
+}
 :where(html.theme-industry) #tab-quote-make .cc-chip-dim {
   font-size: var(--fs-9);
+  line-height: 1.4;
   color: #5f6266;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  letter-spacing: -.2px;
+  max-width: 100%;
 }
 :where(html.theme-industry) #tab-quote-make .cc-chip-dim-in {
   color: #344d65;
+  font-weight: 600;
+}
+:where(html.theme-industry) #tab-quote-make .cc-chip-dim-ex {
+  color: var(--c-7a6040);
+}
+:where(html.theme-industry) #tab-quote-make .cc-chip-dim-cap {
+  color: var(--c-9a8a70);
 }
 :where(html.theme-industry) #tab-quote-make .cc-chip.is-active .cc-chip-dim-in {
   color: #2e4358;
@@ -3597,6 +3617,11 @@ html.theme-industry {
 :where(html.theme-industry) #tab-quote-make .hs-tariff-link:hover {
   background: #3f5d7b;
   border-color: #3f5d7b;
+}
+@media (max-width: 600px) {
+  :where(html.theme-industry) #tab-quote-make .hs-rate-row {
+    grid-template-columns: 1fr;
+  }
 }
 :where(html.theme-industry) #tab-quote-make .hs-rate-field input {
   border-radius: 0;
@@ -6080,6 +6105,11 @@ html.theme-industry {
 }
 :where(html.theme-industry) #tab-quote-make .pv-customize-toggle:hover {
   background: #f0f3f7;
+}
+@media (max-width: 600px) {
+  :where(html.theme-industry) #tab-quote-make .zone-builder {
+    flex-direction: column;
+  }
 }
 :where(html.theme-industry) #tab-quote-make .cond-incoterms-hint {
   border-radius: 0;
