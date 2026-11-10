@@ -360,9 +360,40 @@
         var note = g(x, 'shipmentAvailability') === false ? '船積できない' : (em.slip || fi.slip) ? '予定を過ぎている' : has(sdt) ? '船積 ' + fmtDt(sdt).slice(5) : NODATA_C_S;
         r = { i: i, title: g(x, 'container.containerNo') || '（番号なし）', sub: size2 + (size2 ? '　' : '') + note, dot: le || 'none', chip: le === 'warn' ? '要確認' : le === 'ok' ? '順調' : LV_CHIP.none, cls: le === 'warn' ? 'is-warn' : le === 'ok' ? 'is-ok' : 'is-nodata', lv: le };
       }
+      r.k = sortKeys(k, x, meta, now, r);
       out.push(r);
     });
     return out;
+  }
+  // ---- 並び替え：行ごとの並べ替えの値（日時は ms・無い物は null＝いつも最後） ----
+  function msOf(v) { var q = parseDt(v); return q ? q.d.getTime() : null; }
+  var LV_RANK = { over: 0, warn: 1, ok: 2 };
+  function sortKeys(k, x, meta, now, r) {
+    var rank = r.lv == null ? 3 : LV_RANK[r.lv];
+    if (k === 'trade') return { no: String(g(x, 'tradeNo') || ''), upd: msOf(g(x, 'updatedAt')), rank: rank };
+    if (k.indexOf('vessel:') === 0) { var at = atPort(x, meta.port, meta.dir); return { name: vesselTitle(x), eta: msOf(g(at, 'actualTimeOfArrival')) != null ? msOf(g(at, 'actualTimeOfArrival')) : msOf(g(at, 'estimatedTimeOfArrival')), etd: msOf(g(at, 'actualTimeOfDeparture')) != null ? msOf(g(at, 'actualTimeOfDeparture')) : msOf(g(at, 'estimatedTimeOfDeparture')), cyc: msOf(g(x, 'cargoTransfer.cyCutAt')), cfs: msOf(g(x, 'cargoTransfer.cfsCutAt')), rank: rank }; }
+    if (k === 'ctn:import') return { no: String(g(x, 'container.containerNo') || ''), pick: msOf(g(x, 'loadedContainerPickup.dueAt')), ret: msOf(g(x, 'emptyContainerReturn.dueAt')), rank: rank };
+    return { no: String(g(x, 'container.containerNo') || ''), ship: msOf(g(x, 'shipmentDate')), gin: msOf(g(x, 'gateInDate')), rank: rank };
+  }
+  // 並べ替えの選択肢：[値, 表示, 並べ替えのキー, 昇順(1)／降順(-1)]。先頭の 'default' は取得した順（本船は入港予定の早い順）
+  function sortOptions(k) {
+    if (k === 'trade') return [['default', '取得した順'], ['upd-desc', '更新日時が新しい順', 'upd', -1], ['upd-asc', '更新日時が古い順', 'upd', 1], ['no-asc', '取引番号順', 'no', 1]];
+    if (k.indexOf('vessel:') === 0) return [['default', '入港予定の早い順'], ['eta-desc', '入港予定の遅い順', 'eta', -1], ['cyc-asc', 'CYカットが近い順', 'cyc', 1], ['cfs-asc', 'CFSカットが近い順', 'cfs', 1], ['etd-asc', '出港予定の早い順', 'etd', 1], ['name-asc', '本船名順', 'name', 1], ['rank-asc', '要注意が先', 'rank', 1]];
+    if (k === 'ctn:import') return [['default', '取得した順'], ['rank-asc', '要注意が先', 'rank', 1], ['pick-asc', '搬出期限が近い順', 'pick', 1], ['ret-asc', '返却期限が近い順', 'ret', 1], ['no-asc', 'コンテナ番号順', 'no', 1]];
+    return [['default', '取得した順'], ['rank-asc', '要注意が先', 'rank', 1], ['ship-asc', '船積日が早い順', 'ship', 1], ['gin-asc', 'ゲートインが新しい順', 'gin', -1], ['no-asc', 'コンテナ番号順', 'no', 1]];
+  }
+  function sortRows(k, rows, sortVal) {
+    var opt = sortOptions(k).filter(function (o) { return o[0] === sortVal; })[0];
+    if (!opt || !opt[2]) return rows;
+    var key = opt[2], dir = opt[3];
+    return rows.slice().sort(function (a, b) {
+      var x = a.k[key], y = b.k[key];
+      if (x == null && y == null) return a.i - b.i;
+      if (x == null) return 1;           // 値の無いものはいつも最後
+      if (y == null) return -1;
+      var c = typeof x === 'string' ? x.localeCompare(y, 'ja') : x - y;
+      return (c * dir) || (a.i - b.i);
+    });
   }
   function caution(k, now) { // タブの札：期限が危ないコンテナ
     var s = ST.store[k]; if (!s || !Array.isArray(s.items)) return 0;
@@ -423,7 +454,13 @@
     var replace = m && (m.kind === 'error' || m.kind === 'invalid' || m.kind === 'empty');
     var main = $id('cptMain'); main.hidden = !!replace;
     if (replace) { paintDev(); return; }
-    var rows = rowsFor(k, now), has0 = Array.isArray(s.items);
+    var has0 = Array.isArray(s.items), rows = sortRows(k, rowsFor(k, now), s.sort || 'default');
+    var sb = $id('cptSortBar');
+    if (sb) {
+      var opts = sortOptions(k), showS = has0 && s.items.length > 1;
+      sb.hidden = !showS;
+      if (showS) { var cur0 = s.sort || 'default'; sb.innerHTML = '<label for="cptSort">並び順</label><select id="cptSort" class="cpt-select is-s">' + opts.map(function (o) { return '<option value="' + o[0] + '"' + (o[0] === cur0 ? ' selected' : '') + '>' + esc(o[1]) + '</option>'; }).join('') + '</select>'; }
+    }
     // 絞り込み（コンテナ）
     var fbar = $id('cptFilter');
     var showF = isCtn && has0 && rows.length;
@@ -630,7 +667,7 @@
       '<button type="button" class="cpt-btn is-primary" id="cptColinsC" data-for="ctn">コンテナの状況を調べる</button>' +
       '<div class="cpt-hint" id="cptDirHintV" data-for="vessel">港コードは UN/LOCODE の5桁（例：JPTYO＝東京、JPYOK＝横浜）。「輸入／輸出」はコンテナの照会と共通です。動静は、照会した日の前後2週間のものを表示します。</div></div>' +
       '<div id="cptLive" class="cpt-live" aria-live="polite" hidden></div>' +
-      '<div id="cptMain" class="cpt-main"><div class="cpt-split" id="cptSplit" data-mv="list"><div class="cpt-listpane"><div id="cptNote" class="cpt-note" hidden></div><div id="cptFilter" class="cpt-filter"></div><div id="cptList"></div></div><div class="cpt-detailpane" id="cptDetail"></div></div></div></div>' +
+      '<div id="cptMain" class="cpt-main"><div class="cpt-split" id="cptSplit" data-mv="list"><div class="cpt-listpane"><div id="cptSortBar" class="cpt-sortbar" hidden></div><div id="cptNote" class="cpt-note" hidden></div><div id="cptFilter" class="cpt-filter"></div><div id="cptList"></div></div><div class="cpt-detailpane" id="cptDetail"></div></div></div></div>' +
       '<div class="cpt-devwrap"><button type="button" class="cpt-btn is-g is-s" id="cptDevBtn" aria-expanded="false">▸ 開発者向け情報（普段は閉じておきます）</button><div id="cptDev" class="cpt-card cpt-dev" hidden></div></div>';
 
     $id('cptPing').addEventListener('click', livePing);
@@ -643,6 +680,7 @@
     $id('cptCtn').addEventListener('keydown', function (e) { if (e.key === 'Enter') liveColinsContainers(); });
     $id('cptDir').addEventListener('change', function () { ST.dir = this.value === 'export' ? 'export' : 'import'; ST.mv = 'list'; paint(); });
     $id('cptDevBtn').addEventListener('click', function () { ST.devOpen = !ST.devOpen; paintDev(); });
+    r.addEventListener('change', function (e) { if (e.target && e.target.id === 'cptSort') { slot().sort = e.target.value; paint(); } });
     r.addEventListener('click', function (e) {
       var t = e.target.closest ? e.target : null; if (!t) return;
       var tab = t.closest('.cpt-tab'); if (tab) { ST.tab = tab.getAttribute('data-tab'); ST.mv = 'list'; ST.allOpen = false; paint(); return; }
@@ -661,7 +699,7 @@
     render();
   };
   window.CpTest = {
-    inVesselWindow: inVesselWindow,
+    inVesselWindow: inVesselWindow, sortOptions: sortOptions,
     normalizeNo: normalizeNo, fmtDt: fmtDt, dueClass: dueClass, resetTerminalNames: function () { _termNames = null; },
     levelOf: levelOf, remainText: remainText, slipped: slipped,
     stepsImportContainer: stepsImportContainer, stepsExportContainer: stepsExportContainer, stepsVessel: stepsVessel

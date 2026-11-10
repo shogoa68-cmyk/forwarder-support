@@ -141,6 +141,21 @@ function eq(a, b, name) { ok(JSON.stringify(a) === JSON.stringify(b), name, ' �
   ok(/COLINSに情報なし/.test(await txt('#cptDetail')), '本船：「すべての項目」でも情報が無い項目に「COLINSに情報なし」');
   await p.click('#cptList .cpt-row >> nth=0'); await p.click('[data-act="all"]');
   ok(/青海|大井2号/.test(await txt('#cptDetail')) && /備考テスト/.test(await txt('#cptDetail')), '本船：すべての項目に ターミナル名・備考 が入っている');
+  // 並び替え（本船）
+  const titles = () => p.$$eval('#cptList .cpt-row b', (e) => e.map((x) => x.textContent));
+  eq(await p.$$eval('#cptSort option', (o) => o.map((x) => x.textContent)), ['入港予定の早い順', '入港予定の遅い順', 'CYカットが近い順', 'CFSカットが近い順', '出港予定の早い順', '本船名順', '要注意が先'], '並び替え（本船）：選択肢');
+  await p.selectOption('#cptSort', 'eta-desc');
+  eq(await titles(), ['VESSEL-A / A1', 'VESSEL-B / B1', 'VESSEL-C / C1'], '並び替え（本船）：入港予定の遅い順（日時なしは最後）');
+  await p.selectOption('#cptSort', 'name-asc');
+  eq(await titles(), ['VESSEL-A / A1', 'VESSEL-B / B1', 'VESSEL-C / C1'], '並び替え（本船）：本船名順');
+  await p.selectOption('#cptSort', 'cyc-asc');
+  eq((await titles())[0], 'VESSEL-B / B1', '並び替え（本船）：CYカットが近い順（カットの無いものは最後）');
+  await p.selectOption('#cptSort', 'rank-asc');
+  eq((await titles())[0], 'VESSEL-B / B1', '並び替え（本船）：要注意が先');
+  await p.click('#cptList .cpt-row >> nth=0');
+  ok(/VESSEL-B/.test(await txt('#cptDetail')), '並び替え後も、押した行の詳細が出る');
+  await p.selectOption('#cptSort', 'default');
+  eq(await titles(), ['VESSEL-B / B1', 'VESSEL-A / A1', 'VESSEL-C / C1'], '並び替え：「入港予定の早い順」に戻る');
   // 全部が範囲外のとき
   respond = router({ '/API/v2/Terminals/GetList': () => okBody('Terminals/GetList', []), '/API/v2/ColinsViewers/GetImportVessels': () => okBody('ColinsViewers/Vessels', [vessels[3], vessels[4]]) });
   await p.click('#cptColinsV'); await p.waitForSelector('#cptLive .cpt-msg.is-empty');
@@ -189,6 +204,12 @@ function eq(a, b, name) { ok(JSON.stringify(a) === JSON.stringify(b), name, ' �
   const st1 = await p.$$eval('#cptDetail .cpt-step', (els) => els.map((e) => e.querySelector('b').textContent + '|' + e.querySelector('.cpt-chip').textContent));
   eq(st1.map((s) => s.split('|')[0]), ['CY搬入', '通関', 'DO入手', '搬出可否', '搬出期限', '返却期限'], 'コンテナ（輸入）：流れは CY搬入→通関→DO入手→搬出可否→搬出期限→返却期限');
   ok(st1[4].endsWith('超過') && /超過 \d+時間/.test(await txt('#cptDetail')), 'コンテナ：搬出期限を過ぎていれば「超過」と経過時間');
+  await p.selectOption('#cptSort', 'pick-asc');
+  eq((await p.$$eval('#cptList .cpt-row b', (e) => e.map((x) => x.textContent))), ['AAAA0000001', 'BBBB0000002', 'CCCC0000003', 'DDDD0000004'], '並び替え（コンテナ）：搬出期限が近い順（期限の無いものは最後）');
+  await p.selectOption('#cptSort', 'no-asc');
+  await p.selectOption('#cptSort', 'rank-asc');
+  eq((await p.$$eval('#cptList .cpt-row b', (e) => e.map((x) => x.textContent)))[0], 'AAAA0000001', '並び替え（コンテナ）：要注意（超過）が先');
+  await p.selectOption('#cptSort', 'default');
   await p.click('#cptList .cpt-row >> nth=3'); // 情報の無いコンテナ
   ok((await p.locator('#cptDetail .cpt-step-v.is-nodata').count()) === 6, 'コンテナ：情報が無いコンテナは、6 段すべてが「COLINSに情報がありません」');
   await p.click('[data-act="all"]');
