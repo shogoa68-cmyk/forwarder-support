@@ -132,3 +132,5 @@
 }
 #tab-cptest .cpt-detailpane > .cpt-btn.is-g { align-self: flex-start; }
 #tab-cptest .cpt-note { padding: 8px 14px; font-size: var(--text-xs, 12px); color: var(--cpt-ink3); border-bottom: 1px solid var(--cpt-line); line-height: 1.6; }
+#tab-cptest .cpt-sortbar { padding: 8px 14px; display: flex; gap: 8px; align-items: center; border-bottom: 1px solid var(--cpt-line); font-size: var(--text-xs, 12px); color: var(--cpt-ink3); }
+#tab-cptest .cpt-select.is-s { height: 30px; font-size: var(--text-sm, 13px); padding: 0 6px; }
