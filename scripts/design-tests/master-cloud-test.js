@@ -1155,6 +1155,21 @@ const http = require('http'), fs = require('fs'), path = require('path');
     await ctx.close();
   }
 
+  // ===== マスター管理の種別チップの並び：すべて｜サブコン｜お客様｜港｜品名｜単位 =====
+  {
+    const { ctx, p, errs } = await open(true, { legacy: {}, noLegacy: true });
+    const L = '[種別チップの並び] ';
+    await p.evaluate(async () => {
+      ['sv', 'customer', 'port', 'nm', 'un'].forEach(f => window.__db.master_votes.push({ field: f, value: 'テスト' + f, voter_email: 's@example.com' }));
+      await statsLoadMasterCache();
+    });
+    await p.evaluate(() => { switchCategory('master', document.querySelector('[onclick*="switchCategory(\'master"]')); }); await p.waitForTimeout(1000);
+    const names = await p.evaluate(() => [...document.querySelector('#statsPane-master .master-filter-chips').querySelectorAll('.master-filter-chip')].map(c => c.firstChild.textContent.trim()));
+    ok(L + 'すべて｜サブコン｜お客様｜港｜品名｜単位 の順', names.join('|') === 'すべて|サブコン|お客様|港|品名|単位', names);
+    ok(L + 'JS エラーなし', errs.length === 0, errs);
+    await ctx.close();
+  }
+
   // ===== マスター管理の検索 =====
   {
     const { ctx, p, errs } = await open(true, { legacy: {}, noLegacy: true });
@@ -1231,6 +1246,13 @@ const http = require('http'), fs = require('fs'), path = require('path');
     await p.evaluate(() => document.querySelector('#statsPane-master tr[data-mvalue="荷主甲"] .master-name-toggle').click()); await p.waitForTimeout(150);
     ok(L + 'もう一度クリックすると閉じる', await p.evaluate(() => !document.querySelector('#statsPane-master tr[data-mvalue="荷主甲"]').classList.contains('is-open')));
     await p.evaluate(() => statsMasterClearQuery()); await p.waitForTimeout(200);
+    // 港・品名・単位・すべては従来のリスト表示（カードはサブコン・お客様だけ）
+    for (const f of ['port', 'nm', 'un', 'all']) {
+      await p.evaluate(ff => statsMasterSetFilter(ff), f); await p.waitForTimeout(250);
+      ok(L + f + 'はリスト表示（カードではない）', await p.evaluate(() => { const t = document.querySelector('#statsPane-master table.master-table'); return !t || (!t.classList.contains('master-grid') && getComputedStyle(t.querySelector('tbody')).display !== 'grid'); }));
+    }
+    await p.evaluate(() => statsMasterSetFilter('sv')); await p.waitForTimeout(250);
+    ok(L + 'サブコンはカード表示', await p.evaluate(() => !!document.querySelector('#statsPane-master table.master-grid')));
     await p.evaluate(() => statsMasterSetFilter('sv')); await p.waitForTimeout(300);
     ok(L + 'サブコンでは「取引形態ごと」は出ない', await p.evaluate(() => ![...document.querySelectorAll('.master-sort-chip')].some(c => c.textContent.includes('取引形態ごと'))));
     ok(L + 'JS エラーなし', errs.length === 0, errs);
