@@ -1,5 +1,6 @@
 // cp-proxy（Supabase Edge Function）の試験。サイバーポートへは接続しない（通信は偽物に差し替える）。
 // 使い方：node scripts/cp-tests/cp-proxy-test.mjs   （Node 22.13 以上）
+//        CP_TARGET=single node scripts/cp-tests/cp-proxy-test.mjs   （貼り付け用の 1 枚版を試験）
 //   ① logic.ts の純粋関数（許可リスト・クエリ・番号の正規化・応答の分類 など）
 //   ② index.ts の入口を、Deno と fetch と Supabase を偽物にして動かす（認証・再試行・秘密が漏れないこと）
 import { readFileSync } from 'node:fs';
@@ -85,7 +86,9 @@ function makeEnv(extra = {}) {
 }
 
 function load(env, fetchImpl, { member = true, user = 'taro@example.com' } = {}) {
-  const src = readFileSync(path.join(dir, 'index.ts'), 'utf8').replace(/^import .*$/gm, '');
+  // CP_TARGET=single … ダッシュボード貼り付け用の 1 枚版（supabase/cp-proxy-single/index.ts）を試験する
+  const entry = process.env.CP_TARGET === 'single' ? path.join(dir, '../../cp-proxy-single/index.ts') : path.join(dir, 'index.ts');
+  const src = readFileSync(entry, 'utf8').replace(/^import .*$/gm, '');
   const js = stripTypeScriptTypes(src);
   let handler = null;
   const DenoFake = { env: { get: (k) => env[k] }, serve: (h) => { handler = h; } };
