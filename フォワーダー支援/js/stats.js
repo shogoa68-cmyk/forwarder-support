@@ -518,7 +518,8 @@
     el.setAttribute('aria-expanded', on ? 'true' : 'false');
   };
   // 会社名（詳細があるときは、クリックで詳細を開閉する）。badge は _mdBadge の結果
-  const _nameToggle = (name, badge, key) => badge.indexOf('md-fold-chip') >= 0
+  let _cardMode = false;   // カード表示（サブコン・お客様のときだけ。港・品名・単位・すべては従来のリスト）
+  const _nameToggle = (name, badge, key) => _cardMode && badge.indexOf('md-fold-chip') >= 0
     ? `<span class="master-name-toggle" role="button" tabindex="0" aria-expanded="${_openCards.has(key) ? 'true' : 'false'}" title="クリックで詳細情報を表示／非表示" onclick="statsToggleMasterCard(this)" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();statsToggleMasterCard(this)}">${_esc(name)}</span>`
     : _esc(name);
   function _mdBadge(field, value) {
@@ -2677,6 +2678,7 @@
 
     // 個別マスターと同義グループを 1 つの表にまとめる。別名を足しても行が別の表へ移らず、
     // 代表の行の「別名・略称」にそのまま付く（種別→名前の順なので、行の位置も変わらない）
+    _cardMode = _masterFieldFilter === 'sv' || _masterFieldFilter === 'customer';
     let rowsAll = [
       ...entries.map(m => ({ kind: 'ind', field: m.field, name: m.value, m })),
       ...synFiltered.map(g => ({ kind: 'grp', field: g.field, name: g.canonical, g })),
@@ -2717,7 +2719,7 @@
             `<p class="stats-master-info-note">「☆ 登録」でマスターに追加、再クリックで解除できます。</p>` +
             `<p class="stats-master-info-note">「＋ 別名」で、略称・英語表記などをマスターの別名として登録できます（⭐の行）。別名の件数はマスターに合算され、入力補完にも反映されます。別名は独立した行にはならず、マスターの行に表示されます。${cloudOn ? '（チーム共有）' : '（このブラウザに保存）'}</p>` +
             '</div></details>' +
-            '<table class="stats-table master-table master-grid"><thead><tr>' +
+            '<table class="stats-table master-table' + (_cardMode ? ' master-grid' : '') + '"><thead><tr>' +
             '<th>種別</th><th>マスター名</th><th>別名・略称（英語表記・省略形）</th><th class="ops">操作</th>' +
             '</tr></thead><tbody>';
     const _emitRow = r => {
