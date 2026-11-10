@@ -2558,7 +2558,7 @@
     entries = entries.filter(m => !synCanonSet.has(m.field + '\x00' + m.value));
 
     // --- 種別絞り込みチップ（件数＝個別マスター＋同義グループの合算）---
-    const fieldOrder = ['sv', 'nm', 'customer', 'port', 'un'];
+    const fieldOrder = ['sv', 'customer', 'port', 'nm', 'un'];   // すべて｜サブコン｜お客様｜港｜品名｜単位
     const counts = {};
     fieldOrder.forEach(f => { counts[f] = 0; });
     entries.forEach(m => { counts[m.field] = (counts[m.field] || 0) + 1; });
