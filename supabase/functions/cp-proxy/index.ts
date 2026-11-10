@@ -14,7 +14,7 @@
 //   CP_CLIENT_ID / CP_CLIENT_SECRET … サイバーポートから払い出された接続情報
 //   CP_ALLOWED_ORIGINS … 画面を公開している URL（カンマ区切り。例：https://example.github.io。余計な引用符・空白・末尾の / は無視する）
 //   CP_BASE_URL   … 省略時 https://api.cyber-port.net
-//   CP_TOKEN_URL  … 省略時 <CP_BASE_URL>/vendor-auth/token（トークンの取得先が違うと分かったときだけ設定）
+//   CP_TOKEN_URL  … 省略時 https://swagger.cyber-port.net/vendor-auth/token（取得先が変わったときだけ設定）
 //   ※ SUPABASE_URL / SUPABASE_ANON_KEY は Supabase が自動で渡す
 // 手順は docs/サイバーポート連携-セットアップ.md
 // ============================================================
@@ -69,7 +69,8 @@ function cfg() {
     id: Deno.env.get('CP_CLIENT_ID') ?? '',
     secret: Deno.env.get('CP_CLIENT_SECRET') ?? '',
     base,
-    tokenUrl: Deno.env.get('CP_TOKEN_URL') ?? base + '/vendor-auth/token',
+    // 実際に確かめた取得先（偽の値で試すと invalid_client の JSON が返る）。api 側の同名パスはウェブページが返るだけだった。
+    tokenUrl: Deno.env.get('CP_TOKEN_URL') ?? 'https://swagger.cyber-port.net/vendor-auth/token',
   };
 }
 
@@ -98,13 +99,21 @@ async function getToken(force = false): Promise<string> {
     throw new CpError('token_network', 502, 'トークンの取得先に接続できませんでした（CP_TOKEN_URL を確認してください）');
   }
   const text = await r.text().catch(() => '');
+  const ctype = r.headers.get('content-type') ?? '';
   let j: Record<string, unknown> = {};
   try { j = JSON.parse(text); } catch (_e) { /* 本文が JSON でないとき */ }
   const token = typeof j.token === 'string' ? j.token : '';
+  if (!token && (/html/i.test(ctype) || /^\s*</.test(text))) {
+    // 取得先が API ではなくウェブページだった（接続情報の間違いではない）
+    throw new CpError('token_wrong_endpoint', 502, 'トークンの取得先がAPIではありません（ウェブページが返りました）。取得先（CP_TOKEN_URL）を確認してください', { upstreamStatus: r.status });
+  }
   if (!r.ok || !token) {
     // 秘密（client_secret）は送り返さない。相手先の説明（detail）だけを短く添える。
     const detail = typeof j.detail === 'string' ? truncate(j.detail, 200) : truncate(text, 120);
-    throw new CpError('token_failed', 502, 'トークンを取得できませんでした（' + r.status + '）。client_id / client_secret を確認してください', { upstreamStatus: r.status, detail });
+    const msg = j.detail === 'invalid_client'
+      ? 'client_id / client_secret が正しくありません（invalid_client）。ID とシークレットが同じ組（本番どうし・検証環境どうし）か確認してください'
+      : 'トークンを取得できませんでした（' + r.status + '）。client_id / client_secret を確認してください';
+    throw new CpError('token_failed', 502, msg, { upstreamStatus: r.status, detail });
   }
   _tok = { v: token, exp: tokenExpiryMs(token, Date.now()) };
   return token;

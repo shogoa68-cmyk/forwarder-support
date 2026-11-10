@@ -189,14 +189,31 @@ const R = (status, body) => new Response(typeof body === 'string' ? body : JSON.
   const r = await call(h, { action: 'ping' });
   eq(r.status, 200, 'ping 成功'); eq(r.j.ok, true, 'ping ok');
   eq(calls.length, 1, 'ping：通信は 1 回（トークン取得のみ）');
-  eq(calls[0].url, 'https://api.cyber-port.net/vendor-auth/token', 'ping：既定のトークン取得先');
+  eq(calls[0].url, 'https://swagger.cyber-port.net/vendor-auth/token', 'ping：既定のトークン取得先（実際に確かめた取得口）');
   eq(JSON.parse(calls[0].init.body), { clientId: CID, clientSecret: SECRET }, 'ping：clientId / clientSecret を JSON で送る');
-  eq(r.j.apiHost, 'api.cyber-port.net', 'ping：接続先のホスト名だけ返す');
+  eq([r.j.apiHost, r.j.tokenHost], ['api.cyber-port.net', 'swagger.cyber-port.net'], 'ping：API 接続先とトークン取得先のホスト名だけ返す');
   // CP_TOKEN_URL の上書き
   const calls2 = [];
   const h2 = load(makeEnv({ CP_TOKEN_URL: 'https://swagger.example/vendor-auth/token' }), async (u) => { calls2.push(String(u)); return R(200, { token: TOKEN }); });
   await call(h2, { action: 'ping' });
   eq(calls2[0], 'https://swagger.example/vendor-auth/token', 'CP_TOKEN_URL で取得先を変えられる');
+}
+// ping 失敗：取得先がウェブページだった（実際に起きた事象：200 の HTML）
+{
+  const html = () => new Response('<!DOCTYPE html><html lang="en"><head><!-- Global site tag (gtag.js) --></head></html>', { status: 200, headers: { 'content-type': 'text/html; charset=utf-8' } });
+  const h = load(makeEnv(), async () => html());
+  const r = await call(h, { action: 'ping' });
+  eq([r.status, r.j.error, r.j.upstreamStatus], [502, 'token_wrong_endpoint', 200], 'ping：取得先が HTML → token_wrong_endpoint');
+  ok(/CP_TOKEN_URL/.test(r.j.message) && !/client_id/.test(r.j.message), 'ping：HTML のときは接続情報のせいにしない');
+  const h2 = load(makeEnv(), async () => new Response('<html>', { status: 200, headers: { 'content-type': 'application/octet-stream' } }));
+  eq((await call(h2, { action: 'ping' })).j.error, 'token_wrong_endpoint', 'ping：content-type が違っても < で始まれば取得先違い');
+}
+// ping 失敗：偽のIDに対する実際の応答（problem+json の invalid_client）
+{
+  const h = load(makeEnv(), async () => new Response(JSON.stringify({ type: 'about:blank', title: 'Vendor authentication failed', status: 400, detail: 'invalid_client', instance: '/vendor-auth/token' }), { status: 400, headers: { 'content-type': 'application/problem+json' } }));
+  const r = await call(h, { action: 'ping' });
+  eq([r.status, r.j.error, r.j.upstreamStatus, r.j.detail], [502, 'token_failed', 400, 'invalid_client'], 'ping：invalid_client → token_failed');
+  ok(/invalid_client/.test(r.j.message) && /同じ組/.test(r.j.message), 'ping：invalid_client の案内（同じ組か確認）');
 }
 // ping 失敗（接続情報が違う）
 {
