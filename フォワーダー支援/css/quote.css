@@ -2093,17 +2093,36 @@
 #tab-quote-make .cc-label b { font-size: var(--fs-13-5); font-weight: 700; color: var(--accent-dk); letter-spacing: .01em; }
 #tab-quote-make .cc-chip.is-active .cc-label b { color: var(--blue-25); }
 #tab-quote-make .cc-label small { font-size: var(--fs-10); color: var(--c-9a8a70); }
-/* コンテナチップの内寸・外寸（＋容積/最大重量）表示（OT/FR 寸法入力の .cc-dim* とは別系統） */
-#tab-quote-make .cc-chip-dims { display: flex; flex-direction: column; gap: 0; margin: -2px 0 1px; min-width: 0; }
-#tab-quote-make .cc-chip-dim {
-  font-size: var(--text-2xs); line-height: 1.4; color: #6f6456;
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-  letter-spacing: -.2px; max-width: 100%;
+/* コンテナチップの寸法・容積・最大重量は「ⓘ」にしまい、ホバー／焦点／押下で吹き出し表示（OT/FR 寸法入力の .cc-dim* とは別系統） */
+#tab-quote-make .cc-info-wrap { position: relative; display: inline-flex; margin-left: auto; align-self: center; }
+#tab-quote-make .cc-info {
+  width: 16px; height: 16px; padding: 0; border-radius: 50%;
+  border: 1px solid var(--c-9a8a70); background: transparent; color: var(--c-7a6040);
+  font: italic 700 10px/1 Georgia, 'Times New Roman', serif; cursor: help;
+  display: inline-flex; align-items: center; justify-content: center;
 }
-#tab-quote-make .cc-chip-dim-in { color: #2f6a44; font-weight: 600; }
-#tab-quote-make .cc-chip-dim-ex { color: var(--c-7a6040); }
-#tab-quote-make .cc-chip-dim-cap { color: var(--c-9a8a70); }
-#tab-quote-make .cc-chip.is-active .cc-chip-dim-in { color: #1c6a4a; }
+#tab-quote-make .cc-info:hover, #tab-quote-make .cc-info:focus-visible,
+#tab-quote-make .cc-info-wrap.is-open .cc-info { background: var(--accent); border-color: var(--accent); color: #fff; outline: none; }
+#tab-quote-make .cc-info-pop {
+  display: none; position: absolute; z-index: 40; top: calc(100% + 4px); right: -8px;
+  min-width: 190px; max-width: 280px; padding: 8px 10px;
+  background: var(--surface, #fff); color: var(--text, #3a3226);
+  border: 1px solid var(--border); border-radius: var(--r-7); box-shadow: 0 4px 14px rgba(0,0,0,.18);
+  font-size: var(--fs-11-5, 11.5px); line-height: 1.5; text-align: left; white-space: normal;
+}
+/* ⓘ からポップアップへカーソルを移しても閉じないよう、間の隙間を埋める */
+#tab-quote-make .cc-info-pop::before { content: ''; position: absolute; left: 0; right: 0; top: -6px; height: 6px; }
+#tab-quote-make .cc-info-wrap:hover .cc-info-pop,
+#tab-quote-make .cc-info:focus-visible + .cc-info-pop,
+#tab-quote-make .cc-info-wrap.is-open .cc-info-pop { display: block; }
+#tab-quote-make .cc-info-ttl { display: block; margin-bottom: 4px; font-size: var(--fs-12, 12px); color: var(--accent-dk); }
+#tab-quote-make .cc-info-row { display: flex; gap: 8px; justify-content: space-between; }
+#tab-quote-make .cc-info-k { color: var(--c-9a8a70); flex: none; }
+#tab-quote-make .cc-info-v { text-align: right; font-variant-numeric: tabular-nums; }
+#tab-quote-make .cc-info-in .cc-info-v { color: #2f6a44; font-weight: 600; }
+#tab-quote-make .cc-info-link { display: block; margin-top: 6px; padding-top: 5px; border-top: 1px dashed var(--border); color: var(--accent); font-weight: 600; text-decoration: none; }
+#tab-quote-make .cc-info-link:hover { text-decoration: underline; }
+@media (max-width: 600px) { #tab-quote-make .cc-info-pop { min-width: 170px; max-width: 220px; } }
 #tab-quote-make .cc-stepper {
   display: grid; grid-template-columns: 26px 1fr 26px; align-items: stretch;
   border: 1px solid var(--border); border-radius: var(--r-7); overflow: hidden; background: var(--surface);
@@ -12082,7 +12101,7 @@ html.mode-simple .mcs-more { display: none; }
 @media (min-width: 601px) { .mcs-overlay { display: none !important; } }
 .mcs-f > .mcs-tag { align-self: flex-start; }
 
-/* ===== 見積入力の 2 カラム配置（広い画面・js/quote/layout-cols.js）：左＝① 条件、右＝② 貨物。入力欄はコンパクトに ===== */
+/* ===== 見積入力の 2 カラム配置（広い画面・js/quote/layout-cols.js）：1 段目＝管理番号｜貿易条件、2 段目＝貨物｜物量。全体リマークは見積もりテーブルの下。入力欄はコンパクトに ===== */
 #tab-quote-make .qm-cols { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 0 20px; align-items: start; }
 #tab-quote-make .qm-col { display: flex; flex-direction: column; min-width: 0; }
 #tab-quote-make .qm-col > .condition-section { margin-left: 0; margin-right: 0; }
