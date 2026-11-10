@@ -20,10 +20,19 @@
     first.before(wrap);
     Object.keys(CELLS).forEach(c => CELLS[c].forEach(id => { const e = $(id); e && $(c).appendChild(e); }));
     const rm = $('section-remark'), tb = $('section-table'); if (rm && tb) tb.after(rm);   // 全体リマークは見積もりテーブルの下（1 カラム）
+    navOrder(true);
     on = true; document.body.classList.add('qm-2col');
+  }
+  // 左端のセクションナビも画面の並びに合わせる：広い画面＝…→費用→リマーク、縦並び＝…→リマーク→費用（ボタンを入れ替えるだけ）
+  function navOrder(wide) {
+    const nav = $('qSecNav'); if (!nav) return;
+    const rm = nav.querySelector('[data-sec="section-remark"]'), tb = nav.querySelector('[data-sec="section-table"]');
+    if (!rm || !tb) return;
+    if (wide) tb.after(rm); else tb.before(rm);
   }
   function one() {
     if (!on) return;
+    navOrder(false);
     const anchor = wrap; ALL.forEach(id => { const e = $(id); e && anchor.before(e); });   // 元の並び（上から順）で wrap の前へ
     wrap.remove(); on = false; document.body.classList.remove('qm-2col');
   }

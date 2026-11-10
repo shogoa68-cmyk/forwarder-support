@@ -24,6 +24,9 @@ const http = require('http'), fs = require('fs'), path = require('path');
   const g = await p.evaluate(() => { const r = id => document.getElementById(id).getBoundingClientRect(); const A = r('section-ref'), B = r('section-cond'), C = r('section-cargo'), D = r('section-volume'), T = r('section-table'), R = r('section-remark'); return { aLeftOfB: A.right <= B.left + 1, cLeftOfD: C.right <= D.left + 1, aSameRowB: Math.abs(A.top - B.top) < 4, cSameRowD: Math.abs(C.top - D.top) < 4, row2BelowRow1: C.top >= Math.max(A.bottom, B.bottom) - 1, tableBelowRow2: T.top >= Math.max(C.bottom, D.bottom) - 1, remarkBelowTable: R.top >= T.bottom - 1, widths: [Math.round(A.width), Math.round(B.width), Math.round(C.width), Math.round(D.width)] }; });
   ok('[広い画面] 配置：A｜B と C｜D が同じ段で左右に並び、その下に表・リマーク', g.aLeftOfB && g.cLeftOfD && g.aSameRowB && g.cSameRowD && g.row2BelowRow1 && g.tableBelowRow2 && g.remarkBelowTable, g);
   ok('[広い画面] 左右の列の幅がそろう', Math.abs(g.widths[0] - g.widths[1]) <= 2 && Math.abs(g.widths[2] - g.widths[3]) <= 2 && Math.abs(g.widths[0] - g.widths[2]) <= 2, g.widths);
+  const nav = () => p.evaluate(() => [...document.querySelectorAll('#qSecNav .q-secnav-btn')].map(b => b.dataset.sec.replace('section-', '')).join(','));
+  ok('[広い画面] 左端のナビの並び：…→作業範囲→費用→リマーク', (await nav()) === 'ref,cond,cargo,volume,scope,table,remark', await nav());
+  ok('[広い画面] ナビのリマークを押すと全体リマークへ移動できる', await p.evaluate(async () => { document.querySelector('#qSecNav [data-sec="section-remark"]').click(); await new Promise(r => setTimeout(r, 700)); const r = document.getElementById('section-remark').getBoundingClientRect(); return r.top < innerHeight && r.bottom > 0; }));
   ok('[広い画面] 横にはみ出さない', await p.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1));
   // 入力・保存の動きは変わらない
   await p.fill('#qf-customer', 'テスト商事'); await p.selectOption('#cond-incoterms', { label: 'FOB（本船渡し）' }); await p.waitForTimeout(200);
@@ -32,6 +35,7 @@ const http = require('http'), fs = require('fs'), path = require('path');
   await p.setViewportSize({ width: 1300, height: 900 }); await p.waitForTimeout(500);
   i = await info();
   ok('[狭い画面] 1 カラムに戻る（元の並び：管理番号→貿易条件→貨物→物量→作業範囲→リマーク→テーブル）', !i.on && /section-ref,section-cond,section-cargo,section-volume,section-scope,section-remark,section-table/.test(i.order), i.order);
+  ok('[狭い画面] ナビの並びも元（…→作業範囲→リマーク→費用）に戻る', (await nav()) === 'ref,cond,cargo,volume,scope,remark,table', await nav());
   ok('[狭い画面] 値は残っている', await p.evaluate(() => document.getElementById('qf-customer').value === 'テスト商事'));
   await p.setViewportSize({ width: 1920, height: 1032 }); await p.waitForTimeout(500);
   ok('[広い画面へ戻す] もう一度 2 カラム', (await info()).on);
