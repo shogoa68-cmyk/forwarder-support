@@ -1194,6 +1194,35 @@ const http = require('http'), fs = require('fs'), path = require('path');
     await ctx.close();
   }
 
+  // ===== お客様マスター：取引形態ごとの色分け・まとめ表示 =====
+  {
+    const { ctx, p, errs } = await open(true, { legacy: {}, noLegacy: true });
+    const L = '[取引形態の色] ';
+    await p.evaluate(async () => {
+      const V = n => window.__db.master_votes.push({ field: 'customer', value: n, voter_email: 's@example.com' });
+      const D = (n, t) => window.__db.master_details.push({ field: 'customer', value: n, details: t ? { dealType: t } : {} });
+      V('荷主甲'); D('荷主甲', '荷主（直接）'); V('荷主乙'); D('荷主乙', '荷主（直接）');
+      V('同業丙'); D('同業丙', '同業者（フォワーダー・代理店）');
+      V('その他丁'); D('その他丁', 'その他'); V('未設定戊');
+      await statsLoadMasterCache(); await mdLoadCloud();
+    });
+    await p.evaluate(() => { switchCategory('master', document.querySelector('[onclick*="switchCategory(\'master"]')); }); await p.waitForTimeout(1000);
+    await p.evaluate(() => statsMasterSetFilter('customer')); await p.waitForTimeout(300);
+    const deal = n => p.evaluate(v => (document.querySelector('#statsPane-master tr[data-mvalue="' + v + '"]') || { dataset: {} }).dataset.deal || '', n);
+    ok(L + '行に取引形態の印が付く（荷主＝ship／同業者＝fwd／その他＝other／未設定＝none）', [await deal('荷主甲'), await deal('同業丙'), await deal('その他丁'), await deal('未設定戊')].join() === 'ship,fwd,other,none');
+    const bg = n => p.evaluate(v => getComputedStyle(document.querySelector('#statsPane-master tr[data-mvalue="' + v + '"] > td')).backgroundColor, n);
+    const cs = [await bg('荷主甲'), await bg('同業丙'), await bg('その他丁')];
+    ok(L + '取引形態ごとに行の色が違う（荷主・同業者・その他）', new Set(cs).size === 3, cs);
+    ok(L + '「取引形態ごとにまとめる」のボタンが出る（お客様のときだけ）', await p.evaluate(() => [...document.querySelectorAll('.master-sort-chip')].some(c => c.textContent.includes('取引形態ごと'))));
+    await p.evaluate(() => statsMasterSetSort('deal')); await p.waitForTimeout(300);
+    const seq = await p.evaluate(() => [...document.querySelectorAll('#statsPane-master tbody tr')].filter(r => r.classList.contains('mtg-deal') || r.dataset.mvalue).map(r => r.classList.contains('mtg-deal') ? '#' + r.dataset.deal + ':' + r.querySelector('.mtg-count').textContent : r.dataset.mvalue).filter(x => x.startsWith('#') || /^(荷主|同業|その他|未設定)/.test(x)));
+    ok(L + '荷主→同業者→その他→未設定の順に見出しと件数つきで並ぶ', seq.join('|') === '#ship:2社|荷主乙|荷主甲|#fwd:1社|同業丙|#other:1社|その他丁|#none:1社|未設定戊', seq);
+    await p.evaluate(() => statsMasterSetFilter('sv')); await p.waitForTimeout(300);
+    ok(L + 'サブコンでは「取引形態ごと」は出ない', await p.evaluate(() => ![...document.querySelectorAll('.master-sort-chip')].some(c => c.textContent.includes('取引形態ごと'))));
+    ok(L + 'JS エラーなし', errs.length === 0, errs);
+    await ctx.close();
+  }
+
   // ===== 港名のプリセット登録（英語名＝マスター・日本語名＝別名・国） =====
   {
     const { ctx, p, errs } = await open(true, { legacy: {}, noLegacy: true, role: 'admin' });
