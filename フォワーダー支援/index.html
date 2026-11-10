@@ -126,7 +126,7 @@
         <button class="cat-btn"        role="tab" aria-selected="false" aria-controls="tab-local-charges" onclick="switchCategory('cost', this)">💴 諸チャージ</button>
         <button class="cat-btn"        role="tab" aria-selected="false" aria-controls="tab-calendar"     onclick="switchCategory('calendar', this)">📅 カレンダー</button>
         <button class="cat-btn"        role="tab" aria-selected="false" aria-controls="tab-workfolder"   onclick="switchCategory('workfolder', this)">📁 作業フォルダ</button>
-        <button class="cat-btn"        role="tab" aria-selected="false" aria-controls="tab-cptest"       title="サイバーポート連携の画面テスト（サンプル表示・未接続）" onclick="switchCategory('cptest', this)">🧪 CP(TEST)</button>
+        <button class="cat-btn"        role="tab" aria-selected="false" aria-controls="tab-cptest"       title="サイバーポート連携の画面テスト（サンプル表示と、読み取りのみの実接続テスト）" onclick="switchCategory('cptest', this)">🧪 CP(TEST)</button>
         <button class="cat-btn"        role="tab" aria-selected="false" aria-controls="tab-tracking"     onclick="switchCategory('vessel', this)">🚢 本船・航路</button>
         <button class="cat-btn"        role="tab" aria-selected="false" aria-controls="tab-booking-tab"  title="Booking（船腹予約）と S/I（Shipping Instruction：船積指図書）の手続き" onclick="switchCategory('booking', this)">📋 Booking/SI</button>
         <button class="cat-btn"        role="tab" aria-selected="false" aria-controls="tab-bldo"         onclick="switchCategory('docs',   this)">📄 書類・通関</button>
@@ -4914,7 +4914,7 @@
     <div class="wf-root" id="wfRoot"><div class="wf-empty">読み込み中…</div></div>
   </div><!-- /#tab-workfolder -->
 
-  <!-- 🧪 CP(TEST)：サイバーポート連携の画面テスト（サンプル表示・未接続）。ロジックは js/cp-test.js、設計は docs/サイバーポート連携_設計案.md -->
+  <!-- 🧪 CP(TEST)：サイバーポート連携の画面テスト（サンプル表示＋読み取りのみの実接続テスト）。ロジックは js/cp-test.js・js/integrations/cyberport.js、設計は docs/サイバーポート連携_設計案.md -->
   <div class="tab-content" id="tab-cptest">
     <div class="cpt-root" id="cptRoot"></div>
   </div><!-- /#tab-cptest -->
@@ -5032,6 +5032,7 @@
 <!-- 欄ごとの説明書きを「？」にしまう（マウスを乗せる／タップで読める） -->
 <script src="js/hint-fold.js"></script>
 <script src="js/workfolder.js"></script>
+<script src="js/integrations/cyberport.js"></script>
 <script src="js/cp-test.js"></script>
 <script src="js/cat-more.js"></script>
 <script src="js/stats.js"></script>
