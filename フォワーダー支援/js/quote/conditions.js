@@ -782,7 +782,7 @@
     // 一時的な UI 操作用フィールドも _clearQuoteForm と同じ SKIP で対象外にする。
     const _SKIP_FIELDS = ['rowInsertPos', 'rowPatternInsertPos', 'bulkCatSet', 'bulkSubconSet', 'selectAllChk', 'qfRelKind', 'qfRelInput', 'hzAiReply'];
     document.querySelectorAll(
-      '#tab-quote-make .quote-main input[id], #tab-quote-make .quote-main select[id], #tab-quote-make .quote-main textarea[id]'
+      '#tab-quote-make .quote-main input[id], #tab-quote-make .quote-main select[id], #tab-quote-make .quote-main textarea[id], #rmSheet input[id], #rmSheet select[id], #rmSheet textarea[id]'   // #rmSheet＝画面下の全体リマーク（引き出し）
     ).forEach(el => {
       if (_SKIP_FIELDS.includes(el.id) || (keepHeaderIfEmpty && _HEADER_FIELD_IDS.includes(el.id))) return;
       if (el.closest('.quote-cmdbar')) return;

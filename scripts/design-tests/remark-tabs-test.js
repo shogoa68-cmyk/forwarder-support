@@ -16,7 +16,7 @@ const http = require('http'), fs = require('fs'), path = require('path');
   await p.goto(URL, { waitUntil: 'domcontentloaded' }); await p.waitForTimeout(700);
   await p.evaluate(() => { const t = document.querySelector('[onclick*="quote-make"]'); t && t.click(); }); await p.waitForTimeout(1500);
   await p.evaluate(() => window.qpNewQuote()); await p.waitForTimeout(600);
-  await p.evaluate(() => { const s = document.getElementById('section-remark'); s.classList.remove('collapsed'); s.scrollIntoView(); }); await p.waitForTimeout(300);
+  await p.evaluate(() => window.rmsOpen()); await p.waitForTimeout(500);   // 全体リマークは画面下の引き出しの中
   const vis = s => p.evaluate(x => { const e = document.querySelector(x); if (!e) return false; const r = e.getBoundingClientRect(); return r.width > 0 && r.height > 0; }, s);
   const tabs = await p.$$eval('#remarkTabs .rm-tab', els => els.map(e => e.textContent.replace(/\s+/g, ' ').trim()));
   ok('タブ：定型文／区切り線／チーム共有／個人（品物別・人気は区分を選ぶ／該当があるときだけ…）', tabs[0].startsWith('定型文') && tabs.some(t => t.startsWith('区切り線')) && tabs.some(t => t.startsWith('個人')), tabs);
@@ -38,7 +38,7 @@ const http = require('http'), fs = require('fs'), path = require('path');
   await p.click('.btn-remark-clear'); await p.waitForTimeout(150);
   ok('クリアで点灯が消える', !(await p.evaluate(() => !!document.querySelector('#presetBtns .preset-btn.active'))));
   ok('JS エラーなし', errs.length === 0, errs);
-  if (process.env.OUT) { await p.evaluate(() => document.getElementById('section-remark').scrollIntoView()); await p.screenshot({ path: path.join(process.env.OUT, 'remark-tabs.png') }); }
+  if (process.env.OUT) { await p.evaluate(() => window.rmsOpen()); await p.screenshot({ path: path.join(process.env.OUT, 'remark-tabs.png') }); }
   console.log(out.join('\n')); console.log(out.some(l => l.startsWith('FAIL')) ? 'NG' : 'OK');
   await b.close(); srv.close(); process.exit(out.some(l => l.startsWith('FAIL')) ? 1 : 0);
 })();

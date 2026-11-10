@@ -497,6 +497,9 @@ html.theme-industry {
 :where(html.theme-industry) #backToQuoteFab:hover {
   background: #6f3f2a;
 }
+:where(html.theme-industry) #quoteActionDock {
+  bottom: 18px;
+}
 :where(html.theme-industry) #quoteActionDock .qad-btn {
   border-radius: 0;
   font-family: var(--font-body,"Barlow"),"Noto Sans JP","Hiragino Kaku Gothic ProN",sans-serif;
@@ -2429,6 +2432,7 @@ html.theme-industry {
   border-radius: 0;
 }
 :where(html.theme-industry) .qf-memo-float {
+  bottom: 80px;
   width: 280px;
   min-width: 160px;
   min-height: 100px;

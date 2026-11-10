@@ -1388,7 +1388,7 @@ button:focus-visible {
   display: none;
   position: fixed;
   right: 18px;
-  bottom: 18px;
+  bottom: calc(18px + var(--rms-lift, 0px));   /* 画面下の全体リマーク（引き出し）の上へ避ける */
   z-index: 1200;
   gap: var(--sp-10);
 }
@@ -1429,7 +1429,7 @@ body:has(#compareOverlay.open) #quoteActionDock { display: none; }
 /* スマホ幅：ドックが画面幅いっぱいに並び、ページ末尾（ジャンプ欄など）を隠すため、ボタンを小さくし、ページ下にドックの分の余白を取る */
 @media (max-width: 680px) {
   body:has(#tab-quote-make.active) { padding-bottom: var(--qad-dock-h); }
-  #quoteActionDock { right: 10px; bottom: 10px; gap: var(--sp-6); }
+  #quoteActionDock { right: 10px; bottom: calc(10px + var(--rms-lift, 0px)); gap: var(--sp-6); }
   #quoteActionDock .qad-btn { padding: var(--sp-8) var(--sp-12); font-size: var(--fs-12); }
 }
 #quoteActionDock .qad-save:disabled { background: var(--c-d5c8b0); color: var(--surface); opacity: .75; cursor: not-allowed; transform: none; box-shadow: 0 4px 14px rgba(45,36,24,0.18); }

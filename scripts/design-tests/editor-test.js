@@ -30,7 +30,7 @@ fs.mkdirSync(OUT,{recursive:true});
  ok('かんたん：任意の欄・上級ゾーンは隠れるが DOM には残る',await p.evaluate(()=>['qf-due','qf-core-ref','qf-received'].every(id=>document.getElementById(id)&&document.getElementById(id).offsetParent===null)&&document.getElementById('zone1Card')&&document.getElementById('zone1Card').offsetParent===null));
  ok('かんたん：必須3項目は見える',(await vis('#qf-ref'))&&(await vis('#qf-customer'))&&(await vis('#qf-person')));
  ok('かんたん：メール取込ボタンはツールバーから消える',!(await vis('#saveToolbar .save-btn-import')));
- ok('かんたん：作業範囲・全体リマークは畳まれる',await p.evaluate(()=>['section-scope','section-remark'].every(i=>document.getElementById(i).classList.contains('collapsed'))));
+ ok('かんたん：作業範囲は畳まれる（全体リマークは画面下の引き出し）',await p.evaluate(()=>['section-scope'].every(i=>document.getElementById(i).classList.contains('collapsed'))));
  // c. 隠した欄の値は保存・計算で読まれる
  await p.evaluate(()=>{const m=document.getElementById('qf-memo');m.value='隠したメモ';m.dispatchEvent(new Event('input',{bubbles:true}));const c=document.getElementById('qf-core-ref');c.value='CORE-1';});
  const dat=await p.evaluate(()=>gatherAllData().fields);
