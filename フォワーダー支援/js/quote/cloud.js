@@ -1260,6 +1260,8 @@
   const QPD_RANK_TOP = 8;      // 既定の表示件数（残りは「すべて表示」で展開）
   let _qpdRankExpanded = false;
 
+  // 受注率の分母になる「提示後」のステータス（統計タブの _SENT_STATUSES と同じ。提示済みは提出済みに正規化される）
+  const _QPD_SENT = ['提出済み', 'ヨコヨコ提示', '受注', '失注'];
   function _qpdCustomerRanking() {
     const map = new Map();   // key -> { key, label, total, won, lost }
     _cloudRows.forEach(r => {
@@ -1268,20 +1270,20 @@
       const key = _custKey(raw);
       if (!key) return;                       // お客様名が未入力の案件は集計対象外
       let e = map.get(key);
-      if (!e) { e = { key, label: raw, total: 0, won: 0, lost: 0, labels: {} }; map.set(key, e); }
+      if (!e) { e = { key, label: raw, total: 0, sent: 0, won: 0, lost: 0, labels: {} }; map.set(key, e); }
       e.total++;
       e.labels[raw] = (e.labels[raw] || 0) + 1;   // 表記ゆれは最頻の綴りで表示する
       const st = _normalizeStatus(r.status || CLOUD_STATUS_DEFAULT);
       if (st === _normalizeStatus('受注')) e.won++;
       else if (st === _normalizeStatus('失注')) e.lost++;
+      if (_QPD_SENT.includes(st)) e.sent++;
     });
     const list = [...map.values()];
     list.forEach(e => {
       e.label = Object.keys(e.labels).sort((a, b) => e.labels[b] - e.labels[a] || a.localeCompare(b, 'ja'))[0] || e.label;
-      // 受注率の分母は「そのお客様の総件数」。
-      // 受注 ÷（受注＋失注）にすると、失注は「はっきり失注と分かるタイミングが無く」
-      // 実務ではほとんど記録されないため、分母が受注だけになって必ず 100% になってしまう。
-      e.winRate = e.total ? Math.round(e.won / e.total * 100) : 0;
+      // 受注率の定義は統計タブと共通：受注 ÷ 提示後の案件（提出済み・ヨコヨコ提示・受注・失注）。
+      // 受注 ÷（受注＋失注）だと失注がほとんど記録されず 100% になり、総件数だと下書きで薄まる。
+      e.winRate = e.sent ? Math.round(e.won / e.sent * 100) : 0;
     });
     list.sort((a, b) => b.total - a.total || a.label.localeCompare(b.label, 'ja'));
     return list;
@@ -1312,7 +1314,7 @@
       // 受注が 1 件も無いお客様には出さない（0% を並べても読み取れる情報が無いため）。
       // ステータス絞り込み中は分母が絞り込み後の件数になり比率の意味が変わるので出さない
       // （例：「受注」で絞ると全社 100% になり読み取れる情報が無い）。
-      const rate = (e.won && !_cloudStatusFilter) ? '<span class="qpd-rank-rate" title="全 ' + e.total + ' 件のうち受注 ' + e.won +
+      const rate = (e.won && !_cloudStatusFilter) ? '<span class="qpd-rank-rate" title="提示後 ' + e.sent + ' 件のうち受注 ' + e.won +
         ' 件（' + e.winRate + '%）' + (e.lost ? '／失注 ' + e.lost + ' 件' : '') + '">受注 ' +
         e.won + '（' + e.winRate + '%）</span>' : '';
       return '<button type="button" class="qpd-rank-item' + (on ? ' is-active' : '') + '" ' +

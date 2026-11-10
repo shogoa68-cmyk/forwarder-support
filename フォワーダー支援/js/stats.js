@@ -1312,6 +1312,12 @@
   }
   // 「提示後」＝見積が客先へ出た状態。下書き中・保留・辞退などの試算は実際の乗せ幅ではないため既定で除く。
   const _SENT_STATUSES = ['提示済み', '提出済み', 'ヨコヨコ提示', '受注', '失注'];
+  // 受注率の定義（全画面で共通）：受注 ÷ 提示後の案件（提示済み・提出済み・ヨコヨコ提示・受注・失注）。
+  // 下書き・改定中・情報待ち・辞退・保留は、客先へ出していない／結果が出ない案件として分母に入れない。
+  // （受注÷(受注＋失注) だと失注がほとんど記録されず100%近くになり、総件数だと下書きで薄まるため）
+  const _isSent = st => _SENT_STATUSES.includes(st);
+  const _winRatePct = (won, sent) => sent > 0 ? Math.round(won / sent * 100) : null;
+  const _WIN_RATE_NOTE = '受注率＝受注 ÷ 提示後の案件（提示済み・提出済み・ヨコヨコ提示・受注・失注）';
   let _mdStatusMode = 'sent';   // 'sent'（提示後のみ）| 'all'
   let _mdMinCount   = 2;        // 作成者ごとの最小件数（これ未満は参考表示で、ばらつきの計算に使わない）
   function _buildMarginDiffStats() {
@@ -2052,8 +2058,8 @@
     cases.forEach(c => { const s = c.status || '（未設定）'; stCount[s] = (stCount[s] || 0) + 1; });
     const won  = stCount['受注'] || 0;
     const lost = stCount['失注'] || 0;
-    const decided  = won + lost;
-    const winRate  = decided > 0 ? Math.round(won / decided * 100) : null;
+    const sentCnt  = cases.filter(c => _isSent(c.status)).length;
+    const winRate  = _winRatePct(won, sentCnt);
     const stItems = Object.keys(stCount)
       .sort((a, b) => {
         const ia = _STATUS_ORDER.indexOf(a), ib = _STATUS_ORDER.indexOf(b);
@@ -2067,7 +2073,7 @@
         _kpi(cases.length, '総案件') +
         _kpi(won,  '受注', 'sd-kpi--won') +
         _kpi(lost, '失注', 'sd-kpi--lost') +
-        _kpi(winRate == null ? '—' : winRate + '%', '受注率（決着ベース）', 'sd-kpi--rate') +
+        _kpi(winRate == null ? '—' : winRate + '%', '受注率（提示後ベース）', 'sd-kpi--rate') +
       '</div>' + _barRows(stItems, stMax) + '</section>';
 
     // --- B. 金額・粗利 ---
@@ -3289,8 +3295,8 @@
     // 全体KPI
     const won    = metas.filter(m => m.status === '受注').length;
     const lost   = metas.filter(m => m.status === '失注').length;
-    const sent   = metas.filter(m => ['提示済み','提出済み','受注','失注'].includes(m.status)).length;
-    const winRate = sent ? Math.round(won / sent * 100) : null;
+    const sent   = metas.filter(m => _isSent(m.status)).length;
+    const winRate = _winRatePct(won, sent);
 
     // 担当者別KPI
     const personMap = {};
@@ -3298,7 +3304,7 @@
       const k = m.person || '（未入力）';
       if (!personMap[k]) personMap[k] = { total: 0, won: 0, lost: 0, sent: 0 };
       personMap[k].total++;
-      if (['提示済み','提出済み','受注','失注'].includes(m.status)) personMap[k].sent++;
+      if (_isSent(m.status)) personMap[k].sent++;
       if (m.status === '受注') personMap[k].won++;
       if (m.status === '失注') personMap[k].lost++;
     });
@@ -3313,13 +3319,15 @@
 
     let h = '<div class="stats-kpi-cards">' +
       kpiCards.map(k => `<div class="stats-kpi-card"><div class="stats-kpi-value">${_esc(String(k.value))}</div><div class="stats-kpi-label">${_esc(k.label)}</div></div>`).join('') +
-      '</div>';
+      '</div>' +
+      `<p class="stats-syn-hint">${_WIN_RATE_NOTE}。下書き・改定中・情報待ち・辞退・保留は分母に入れません。</p>`;
 
     h += '<h3 class="stats-kpi-section-title">見積作成者別成績</h3>';
-    h += '<table class="stats-table"><thead><tr><th>作成者</th><th class="stats-num-col">総件数</th><th class="stats-num-col">提示済</th><th class="stats-num-col">受注</th><th class="stats-num-col">失注</th><th class="stats-num-col">受注率</th></tr></thead><tbody>';
+    h += '<table class="stats-table"><thead><tr><th>作成者</th><th class="stats-num-col">総件数</th><th class="stats-num-col">提示後</th><th class="stats-num-col">受注</th><th class="stats-num-col">失注</th><th class="stats-num-col">受注率</th></tr></thead><tbody>';
     persons.forEach(([person, d]) => {
-      const wr = d.sent ? Math.round(d.won / d.sent * 100) + '%' : '—';
-      const barW = d.sent ? Math.round(d.won / d.sent * 100) : 0;
+      const wrN = _winRatePct(d.won, d.sent);
+      const wr = wrN == null ? '—' : wrN + '%';
+      const barW = wrN == null ? 0 : wrN;
       h += `<tr>` +
         `<td class="stats-val">${_esc(person)}</td>` +
         `<td class="stats-num-col">${d.total}</td>` +
@@ -3346,7 +3354,7 @@
 
   // === 🔖 パターン別：受注率・粗利率 ===
   // パターンは明細行の属性（cells[CI.pt]）。案件ステータスを各パターンに紐付けて集計する。
-  //   受注率＝受注 ÷（提示済み/提出済み/受注/失注）… KPI と同じ「提示ベース」
+  //   受注率の定義は全画面共通（_WIN_RATE_NOTE）
   //   粗利率＝そのパターンの全行の (売上−仕入) ÷ 売上（JPY換算・加重平均）
   function _renderPattern() {
     const e = document.getElementById('statsPane-pattern');
@@ -3361,7 +3369,7 @@
     if (source !== 'cloud') _getLocalPresets().forEach(p => pushCase(((p.data || {}).fields || {})['qf-status'], p));
     if (source !== 'local') (typeof window.cloudGetAllRows === 'function' ? window.cloudGetAllRows() : []).forEach(p => pushCase(p.status, p));
 
-    const SENT = ['提示済み', '提出済み', '受注', '失注'];
+    const SENT = _SENT_STATUSES;
     let skippedRows = 0;
     // 正規化キー → { label, cases:Set index, won, lost, sent, sell, cost }
     const map = new Map();
@@ -3397,11 +3405,11 @@
       return;
     }
     const rows = Array.from(map.values()).sort((a, b) => b.cases - a.cases);
-    let h = '<p class="stats-syn-hint">明細の「パターン」を案件ステータスと紐付けて集計します。受注率＝受注 ÷（提示済み＋受注＋失注）、粗利率＝(売上−仕入)÷売上（仕入・売の両方が入力済みの行をJPY換算）。' +
+    let h = '<p class="stats-syn-hint">明細の「パターン」を案件ステータスと紐付けて集計します。受注率の定義は「📊 データ」と共通（受注 ÷ 提示後の案件）、粗利率＝(売上−仕入)÷売上（仕入・売の両方が入力済みの行をJPY換算）。' +
       (skippedRows ? `仕入・売の片方のみ／為替未取得の ${skippedRows} 行は粗利率から除外しています。` : '') + '</p>';
-    h += '<table class="stats-table"><thead><tr><th>パターン</th><th class="stats-num-col">案件数</th><th class="stats-num-col">提示</th><th class="stats-num-col">受注</th><th class="stats-num-col">失注</th><th class="stats-num-col">受注率</th><th class="stats-num-col">平均粗利率</th></tr></thead><tbody>';
+    h += '<table class="stats-table"><thead><tr><th>パターン</th><th class="stats-num-col">案件数</th><th class="stats-num-col">提示後</th><th class="stats-num-col">受注</th><th class="stats-num-col">失注</th><th class="stats-num-col">受注率</th><th class="stats-num-col">平均粗利率</th></tr></thead><tbody>';
     rows.forEach(g => {
-      const wr = g.sent ? Math.round(g.won / g.sent * 100) : null;
+      const wr = _winRatePct(g.won, g.sent);
       const barW = wr == null ? 0 : wr;
       const margin = g.sell > 0 ? ((g.sell - g.cost) / g.sell * 100) : null;
       const mCls = margin == null ? '' : (margin < 0 ? ' stats-neg' : '');
