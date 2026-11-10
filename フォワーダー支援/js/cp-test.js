@@ -69,7 +69,7 @@
   // ---------- 実接続テスト（読み取りのみ・cp-proxy 経由） ----------
   function liveBox() { return document.getElementById('cptLive'); }
   function liveBusy(on) {
-    ['cptPing', 'cptSearch'].forEach(function (id) { var b = document.getElementById(id); if (b) b.disabled = !!on; });
+    ['cptPing', 'cptSearch', 'cptColinsV', 'cptColinsC'].forEach(function (id) { var b = document.getElementById(id); if (b) b.disabled = !!on; });
   }
   function errHtml(e) {
     var extra = [];
@@ -116,6 +116,117 @@
     } finally { liveBusy(false); }
   }
 
+  // ---------- COLINS（本船の動静・コンテナの状況） ----------
+  // 入れ子の項目を安全に取り出す（途中が無くても落ちない）
+  function g(o, path) {
+    var v = o;
+    String(path).split('.').forEach(function (k) { v = v == null ? undefined : v[k]; });
+    return v;
+  }
+  // 日時は UTC（YYYY-MM-DDThh:mm:ssZ）で届く。日本時間にして「月/日 時:分」で見せる。読めない値はそのまま。
+  function fmtDt(v) {
+    if (v == null || v === '') return '';
+    var d = new Date(v);
+    if (isNaN(d.getTime())) return String(v);
+    var p = new Intl.DateTimeFormat('ja-JP', { timeZone: 'Asia/Tokyo', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false }).formatToParts(d);
+    var m = {}; p.forEach(function (x) { m[x.type] = x.value; });
+    return m.year + '/' + m.month + '/' + m.day + ' ' + m.hour + ':' + m.minute;
+  }
+  function yn(v) { return v === true ? '○' : v === false ? '×' : (v == null ? '' : String(v)); }
+
+  function rawHtml(data) {
+    return '<details class="cpt-raw"><summary>返ってきたデータそのもの（確認用）</summary><pre>' + esc(JSON.stringify(data, null, 2).slice(0, 8000)) + '</pre></details>';
+  }
+  // 配列の応答を、列の定義どおりの表にする（最大 50 行）
+  function listTable(data, cols, emptyText, label) {
+    var list = Array.isArray(data) ? data : null;
+    if (!list) return msg('is-info', '想定と違う形のデータが返りました。下の「返ってきたデータそのもの」を確認してください。') + rawHtml(data);
+    if (!list.length) return msg('is-info', emptyText) + rawHtml(data);
+    var head = '<tr>' + cols.map(function (c) { return '<th>' + esc(c[0]) + '</th>'; }).join('') + '</tr>';
+    var rows = list.slice(0, 50).map(function (it) {
+      return '<tr>' + cols.map(function (c) { return '<td>' + esc(c[1](it || {})) + '</td>'; }).join('') + '</tr>';
+    }).join('');
+    return '<div class="cpt-live-x">実データ（' + esc(label) + '）：' + list.length + ' 件' + (list.length > 50 ? '（先頭50件を表示）' : '') + '</div>' +
+      '<div class="cpt-tablewrap"><table class="cpt-table"><thead>' + head + '</thead><tbody>' + rows + '</tbody></table></div>' + rawHtml(data);
+  }
+
+  var VESSEL_COLS = [
+    ['ターミナル', function (x) { return g(x, 'terminalCode'); }],
+    ['本船名', function (x) { return g(x, 'vessel.vesselName'); }],
+    ['航海番号', function (x) { return g(x, 'vessel.voyageNo'); }],
+    ['IMO', function (x) { return g(x, 'vessel.imoNo'); }],
+    ['荷役 予定', function (x) { return fmtDt(g(x, 'cargoHandling.scheduleAt')); }],
+    ['荷役 実績', function (x) { return fmtDt(g(x, 'cargoHandling.actualAt')); }],
+    ['搬入 予定', function (x) { return fmtDt(g(x, 'cargoIn.scheduleAt')); }],
+    ['搬入 実績', function (x) { return fmtDt(g(x, 'cargoIn.actualAt')); }],
+    ['CYオープン', function (x) { return fmtDt(g(x, 'cargoTransfer.cyOpenAt')); }],
+    ['CYカット', function (x) { return fmtDt(g(x, 'cargoTransfer.cyCutAt')); }]
+  ];
+  function containerCols(dir) {
+    var common = [
+      ['ターミナル', function (x) { return g(x, 'terminalCode'); }],
+      ['コンテナ', function (x) { return g(x, 'container.containerNo'); }],
+      ['サイズ・種類', function (x) { return [g(x, 'container.lengthName'), g(x, 'container.containerTypeName')].filter(Boolean).join(' '); }],
+      ['本船／航海', function (x) { return [g(x, 'vessel.vesselName'), g(x, 'vessel.voyageNo')].filter(Boolean).join(' / '); }],
+      ['実入り/空', function (x) { return g(x, 'containerStatus.fullOrEmpty'); }]
+    ];
+    if (dir === 'export') {
+      return common.concat([
+        ['船積可否', function (x) { return yn(g(x, 'shipmentAvailability')); }],
+        ['ゲートイン', function (x) { return fmtDt(g(x, 'gateInDate')); }],
+        ['船積日', function (x) { return fmtDt(g(x, 'shipmentDate')); }]
+      ]);
+    }
+    return common.concat([
+      ['通関', function (x) { return g(x, 'containerStatus.customClearanceStatus'); }],
+      ['搬出可否', function (x) { return yn(g(x, 'outboundAvailability')); }],
+      ['CY搬入', function (x) { return fmtDt(g(x, 'cyCarryInDate')); }],
+      ['ゲートイン', function (x) { return fmtDt(g(x, 'gateInDate')); }],
+      ['ゲートアウト', function (x) { return fmtDt(g(x, 'gateOutDate')); }],
+      ['DO', function (x) { return yn(g(x, 'doAcquisition')); }]
+    ]);
+  }
+
+  async function liveColinsVessels() {
+    if (!needApi()) return;
+    var dir = (document.getElementById('cptDir') || {}).value === 'export' ? 'export' : 'import';
+    var port = window.CyberPort.normalizeNo((document.getElementById('cptPort') || {}).value);
+    if (!/^[A-Z]{2}[A-Z0-9]{3}$/.test(port)) {
+      liveBox().innerHTML = msg('is-error', '港コードは、英字2文字＋英数字3文字の5桁で入力してください（例：JPTYO＝東京、JPYOK＝横浜）。');
+      return;
+    }
+    var vn = ((document.getElementById('cptVessel') || {}).value || '').trim();
+    var q = vn ? { vesselName: vn } : {};
+    liveBusy(true);
+    liveBox().innerHTML = msg('is-info', 'COLINS の本船の動静を取得しています…（' + (dir === 'export' ? '輸出' : '輸入') + '・' + port + (vn ? '・' + vn : '') + '）');
+    try {
+      var r = await window.CyberPort.colinsVessels(dir, port, q);
+      setLinkStatus(true, '');
+      liveBox().innerHTML = listTable(r.data, VESSEL_COLS, port + ' の本船の動静は見つかりませんでした（0件）。', 'COLINS・本船の動静');
+    } catch (e) {
+      liveBox().innerHTML = errHtml(e);
+    } finally { liveBusy(false); }
+  }
+
+  async function liveColinsContainers() {
+    if (!needApi()) return;
+    var dir = (document.getElementById('cptDir') || {}).value === 'export' ? 'export' : 'import';
+    var no = window.CyberPort.normalizeNo((document.getElementById('cptCtn') || {}).value);
+    if (!no) {
+      liveBox().innerHTML = msg('is-error', 'コンテナ番号か、' + (dir === 'export' ? 'ブッキング番号' : 'B/L番号') + 'を入力してください。');
+      return;
+    }
+    liveBusy(true);
+    liveBox().innerHTML = msg('is-info', 'COLINS のコンテナの状況を取得しています…（' + (dir === 'export' ? '輸出' : '輸入') + '・' + no + '）');
+    try {
+      var r = await window.CyberPort.colinsContainers(dir, no, {});
+      setLinkStatus(true, '');
+      liveBox().innerHTML = listTable(r.data, containerCols(dir), '「' + no + '」のコンテナは見つかりませんでした（0件）。', 'COLINS・コンテナの状況');
+    } catch (e) {
+      liveBox().innerHTML = errHtml(e);
+    } finally { liveBusy(false); }
+  }
+
   function tradesHtml(data, kw) {
     var list = Array.isArray(data) ? data : (data && Array.isArray(data.items) ? data.items : null);
     var raw = '<details class="cpt-raw"><summary>返ってきたデータそのもの（確認用）</summary><pre>' +
@@ -152,6 +263,13 @@
       '<div class="cpt-form"><input type="text" id="cptKw" class="cpt-input" maxlength="45" autocomplete="off" ' +
       'placeholder="取引番号・B/L・ブッキング・社内管理番号（空なら直近30日の更新）">' +
       '<button type="button" class="cpt-btn" id="cptSearch">② 取引を検索</button></div>' +
+      '<div class="cpt-sep"></div>' +
+      '<div class="cpt-form"><select id="cptDir" class="cpt-select" aria-label="輸入・輸出"><option value="import">輸入</option><option value="export">輸出</option></select>' +
+      '<input type="text" id="cptPort" class="cpt-input cpt-input-s" maxlength="12" value="JPTYO" autocomplete="off" placeholder="港コード（例 JPTYO）" aria-label="港コード（UN/LOCODE 5桁）">' +
+      '<input type="text" id="cptVessel" class="cpt-input cpt-input-s" maxlength="60" autocomplete="off" placeholder="本船名（任意）" aria-label="本船名">' +
+      '<button type="button" class="cpt-btn" id="cptColinsV">③ COLINS 本船の動静</button></div>' +
+      '<div class="cpt-form"><input type="text" id="cptCtn" class="cpt-input" maxlength="40" autocomplete="off" placeholder="コンテナ番号／B/L番号（輸入）／ブッキング番号（輸出）">' +
+      '<button type="button" class="cpt-btn" id="cptColinsC">④ COLINS コンテナの状況</button></div>' +
       '<div id="cptLive" class="cpt-live" aria-live="polite"></div></div>' +
       '<div class="cpt-card"><div class="cpt-card-h">照会</div>' +
       '<div class="cpt-form">' +
@@ -176,6 +294,10 @@
     document.getElementById('cptPing').addEventListener('click', livePing);
     document.getElementById('cptSearch').addEventListener('click', liveSearch);
     document.getElementById('cptKw').addEventListener('keydown', function (e) { if (e.key === 'Enter') liveSearch(); });
+    document.getElementById('cptColinsV').addEventListener('click', liveColinsVessels);
+    document.getElementById('cptColinsC').addEventListener('click', liveColinsContainers);
+    document.getElementById('cptPort').addEventListener('keydown', function (e) { if (e.key === 'Enter') liveColinsVessels(); });
+    document.getElementById('cptCtn').addEventListener('keydown', function (e) { if (e.key === 'Enter') liveColinsContainers(); });
     run();
   }
 
