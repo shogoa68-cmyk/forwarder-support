@@ -448,6 +448,7 @@
   "rate-amount",
   "rate-from",
   "rate-status",
+  "remarkBody",
   "remarkCargoDel",
   "remarkCargoSel",
   "remarkChar",
@@ -2575,6 +2576,10 @@
    "css": true,
    "html": false
   },
+  "has-content": {
+   "css": false,
+   "html": false
+  },
   "has-cr": {
    "css": true,
    "html": false
@@ -3447,6 +3452,10 @@
    "css": true,
    "html": true
   },
+  "remark-img-item": {
+   "css": false,
+   "html": false
+  },
   "remark-internal": {
    "css": true,
    "html": false
@@ -3497,6 +3506,10 @@
   },
   "rm-tabbed": {
    "css": true,
+   "html": false
+  },
+  "rms-open": {
+   "css": false,
    "html": false
   },
   "rn-plan-chk": {
@@ -4741,6 +4754,10 @@
    "html": false,
    "js": true
   },
+  "open": {
+   "html": false,
+   "js": true
+  },
   "out-range": {
    "html": false,
    "js": true
@@ -5057,6 +5074,10 @@
    "html": false,
    "js": true
   },
+  "view-only": {
+   "html": false,
+   "js": true
+  },
   "virtual": {
    "html": false,
    "js": true
@@ -5129,6 +5150,7 @@
   "js/quote/mobile-cost.js",
   "js/quote/mobile-sheet.js",
   "js/quote/layout-cols.js",
+  "js/quote/remark-sheet.js",
   "js/quote/packing-import.js",
   "js/tweaks.js",
   "js/ui-mode.js",

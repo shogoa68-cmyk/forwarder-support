@@ -1536,6 +1536,7 @@
   function scrollToSection(sectionId) {
     const el = document.getElementById(sectionId);
     if (!el) return;
+    if (sectionId === 'section-remark' && typeof window.rmsOpen === 'function') { window.rmsOpen(true); return; }   // 全体リマークは画面下の引き出し
     el.scrollIntoView({ behavior:'smooth', block:'start' });
     const prev = el.style.outline;
     el.style.transition = 'outline .2s';
@@ -3826,6 +3827,7 @@
   window.toggleQuoteSection = function(id) {
     const sec = document.getElementById(id);
     if (!sec) return;
+    if (id === 'section-remark' && typeof window.rmsToggle === 'function') { window.rmsToggle(); return; }
     sec.classList.remove('collapsed');   // 念のため常に展開
     sec.scrollIntoView({ block: 'start' });
   };
@@ -4445,6 +4447,7 @@
   window.openQuoteSectionFromDigest = function(id) {
     const sec = document.getElementById(id);
     if (!sec) return;
+    if (id === 'section-remark' && typeof window.rmsOpen === 'function') { window.rmsOpen(); return; }   // 全体リマークは画面下の引き出しを開く
     if (sec.classList.contains('collapsed') && typeof toggleQuoteSection === 'function') toggleQuoteSection(id);
     sec.scrollIntoView({ block: 'start' });
   };

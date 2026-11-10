@@ -252,8 +252,8 @@ function sendCalcResultToQuote(btn) {
   ta.dispatchEvent(new Event('change', { bubbles: true }));
 
   // リマーク欄へスクロール＋ハイライト
-  const section = document.getElementById('section-remark') || ta;
-  section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  if (typeof window.rmsOpen === 'function') window.rmsOpen();   // 全体リマークは画面下の引き出し
+  else (document.getElementById('section-remark') || ta).scrollIntoView({ behavior: 'smooth', block: 'start' });
   ta.classList.add('flash-reflect');
   setTimeout(() => ta.classList.remove('flash-reflect'), 1200);
 

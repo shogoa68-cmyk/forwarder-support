@@ -164,7 +164,7 @@
 }
 /* 📌 メモ フロート付箋（スクロール追従・ドラッグ可） */
 .qf-memo-float {
-  position: fixed; right: 20px; bottom: 80px;
+  position: fixed; right: 20px; bottom: calc(80px + var(--rms-lift, 0px));
   width: 360px; height: 240px; min-width: 200px; min-height: 150px;
   max-width: min(640px, 92vw); max-height: 70vh;
   z-index: 9100;
@@ -11877,7 +11877,7 @@ body.is-row-dragging { cursor: grabbing; user-select: none; }
 #tab-quote-make .ci-layout .qf-status-btns:not(.ci-more-open) .qf-status-btn[data-more]:not(.active) { display: none; }
 /* 社内メモは右下の付箋に集約（欄は保存の値の保持役として残し、画面からは隠す） */
 #tab-quote-make .ci-layout ~ .quote-field-memo, #tab-quote-make .quote-field-memo { display: none; }
-.qf-memo-fab { position: fixed; right: 72px; bottom: 74px; box-sizing: border-box; z-index: 55; display: none; padding: 8px 14px; border: 1px solid #d9b96a; border-radius: 18px; background: #fff3c4; color: #5a3a10; font-size: 13px; font-weight: 700; cursor: pointer; box-shadow: 0 3px 10px rgba(0,0,0,.16); }
+.qf-memo-fab { position: fixed; right: 72px; bottom: calc(74px + var(--rms-lift, 0px)); box-sizing: border-box; z-index: 55; display: none; padding: 8px 14px; border: 1px solid #d9b96a; border-radius: 18px; background: #fff3c4; color: #5a3a10; font-size: 13px; font-weight: 700; cursor: pointer; box-shadow: 0 3px 10px rgba(0,0,0,.16); }
 body:has(#tab-quote-make.active) .qf-memo-fab { display: block; }
 body.qp-dash-active .qf-memo-fab, body:has(#qfMemoFloat:not([hidden])) .qf-memo-fab { display: none; }
 @media (max-width: 680px) {
@@ -12199,3 +12199,49 @@ body.qm-2col #tab-quote-make .qm-col .zone-builder { flex-direction: column; }
   #tab-quote-make .cc-spec--og > *, #tab-quote-make .cc-og-head, #tab-quote-make .cc-og-controls, #tab-quote-make .cc-og-list, #tab-quote-make .cc-og-row, #tab-quote-make .cc-og-sim { min-width: 0; max-width: 100%; box-sizing: border-box; }
   #tab-quote-make .cc-og-ctn select { max-width: 100%; text-overflow: ellipsis; }
 }
+
+/* ===== 全体リマーク・免責事項：画面下の引き出し（ボトムシート・js/quote/remark-sheet.js）=====
+   閉じているときは細い取っ手バーだけ。上へドラッグ／スワイプ（または押す）で開き、つまみのドラッグで高さを変えられる。背景は操作可（モーダルにしない）。
+   中身は既存の #section-remark を要素ごと移したもの。--rms-lift（出ている高さ）の分、合計バー・保存ドック・🐞・付箋は上へ避ける。 */
+#tab-quote-make { margin-bottom: var(--rms-lift, 0px); }
+#tab-quote-make #rmSheet {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 1000;
+  pointer-events: none; padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+body.qp-dash-active #rmSheet,
+body:has(#previewOverlay.open) #rmSheet,
+body:has(#quoteDocOverlay.open) #rmSheet,
+body:has(#compareOverlay.open) #rmSheet { display: none !important; }
+#tab-quote-make #rmSheet > .rms-panel {
+  pointer-events: auto; max-width: 1100px; margin: 0 auto; box-sizing: border-box;
+  background: var(--surface, #fff); border: 1px solid var(--border-md, #c9bfa9); border-bottom: 0;
+  border-radius: 12px 12px 0 0; box-shadow: 0 -6px 22px rgba(0,0,0,.18); overflow: hidden;
+}
+#tab-quote-make #rmSheet .rms-handle {
+  position: relative; display: flex; align-items: center; gap: 10px; width: 100%; height: 36px; box-sizing: border-box;
+  padding: 8px 16px 0; border: 0; background: var(--surface-warm, #f7f1e3); color: var(--text, #333);
+  font: inherit; font-size: var(--fs-13, 13px); cursor: grab; touch-action: none; user-select: none; -webkit-user-select: none; text-align: left;
+}
+#tab-quote-make #rmSheet .rms-handle:active { cursor: grabbing; }
+#tab-quote-make #rmSheet .rms-handle:focus-visible { outline: 2px solid var(--accent, #2a7ab0); outline-offset: -2px; }
+#tab-quote-make #rmSheet .rms-grab { position: absolute; left: 50%; top: 5px; width: 44px; height: 4px; border-radius: 2px; background: var(--border-md, #b8ad95); transform: translateX(-50%); }
+#tab-quote-make #rmSheet .rms-handle:hover .rms-grab { background: var(--accent, #2a7ab0); }
+#tab-quote-make #rmSheet .rms-title { font-weight: 700; }
+#tab-quote-make #rmSheet .rms-meta { margin-left: auto; display: inline-flex; align-items: center; gap: 6px; color: var(--text-md, #6f6456); font-size: var(--fs-12, 12px); font-variant-numeric: tabular-nums; }
+#tab-quote-make #rmSheet .rms-empty { color: var(--text-muted, #999); }
+#tab-quote-make #rmSheet .rms-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent, #2a7ab0); display: inline-block; }
+#tab-quote-make #rmSheet .rms-chev { font-size: var(--fs-14, 14px); line-height: 1; transition: transform .2s; }
+#tab-quote-make #rmSheet[data-open="1"] .rms-chev { transform: rotate(180deg); }
+#tab-quote-make #rmSheet .rms-body { height: 0; overflow: auto; overscroll-behavior: contain; background: var(--bg, #fff); transition: height .22s ease; }
+#tab-quote-make #rmSheet.is-dragging .rms-body { transition: none; }
+#tab-quote-make #rmSheet .rms-body[inert] { visibility: hidden; }
+/* 引き出しの中では、セクションの枠・見出しを外して中身だけを出す */
+#tab-quote-make #rmSheet .condition-section { margin: 0; max-width: none; border: 0; border-radius: 0; box-shadow: none; background: transparent; padding: 8px 16px 16px; }
+#tab-quote-make #rmSheet #section-remark > h2.section-toggle-head { display: none; }
+#tab-quote-make #rmSheet #section-remark #remarkBody { display: block !important; }
+@media (max-width: 680px) {
+  #tab-quote-make #rmSheet .rms-handle { height: 42px; padding-top: 10px; }
+  #tab-quote-make #rmSheet .rms-grab { top: 6px; }
+}
+@media (prefers-reduced-motion: reduce) { #tab-quote-make #rmSheet .rms-body, #tab-quote-make #rmSheet .rms-chev { transition: none; } }
+@media print { #rmSheet { display: none !important; } }

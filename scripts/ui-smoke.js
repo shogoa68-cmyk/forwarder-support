@@ -196,6 +196,7 @@ async function main() {
   await page.evaluate(() => setDirection('export'));
 
   // ⑦ 全体リマーク（品物別・常時付記）
+  await page.evaluate(() => window.rmsOpen && window.rmsOpen()); await page.waitForTimeout(500);   // 全体リマークは画面下の引き出し
   await page.selectOption('#remarkCargoSel', '医療機器・健康効果');
   await page.locator('#presetBtns button', { hasText: '薬機法' }).click();
   const rm = await page.inputValue('#remarkTextarea');

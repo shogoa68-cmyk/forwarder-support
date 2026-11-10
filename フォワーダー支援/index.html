@@ -2773,8 +2773,8 @@
       <button type="button" class="q-secnav-btn" data-sec="section-cargo"  title="貨物情報"><span class="q-secnav-ico">📦</span><em>貨物情報</em><i class="q-secnav-dot"></i></button>
       <button type="button" class="q-secnav-btn" data-sec="section-volume" title="物量情報"><span class="q-secnav-ico">📊</span><em>物量情報</em><i class="q-secnav-dot"></i></button>
       <button type="button" class="q-secnav-btn" data-sec="section-scope"  title="作業範囲"><span class="q-secnav-ico">🛠️</span><em>作業範囲</em><i class="q-secnav-dot"></i></button>
-      <button type="button" class="q-secnav-btn" data-sec="section-remark" title="全体リマーク"><span class="q-secnav-ico">📑</span><em>リマーク</em><i class="q-secnav-dot"></i></button>
       <button type="button" class="q-secnav-btn" data-sec="section-table"  title="費用テーブル"><span class="q-secnav-ico">📋</span><em>費用</em><i class="q-secnav-dot"></i></button>
+      <button type="button" class="q-secnav-btn" data-sec="section-remark" title="全体リマーク"><span class="q-secnav-ico">📑</span><em>リマーク</em><i class="q-secnav-dot"></i></button>
     </div></nav>
     <!-- 📝 保管した自由入力（案件ごとに複数件・未取込／取込済み）。閲覧モードでも押せるよう .quote-main の外 -->
     <details class="ei-free-panel" id="eiFreePanel" hidden ontoggle="this.dataset.touched='1'">
@@ -3855,7 +3855,7 @@
     </div><!-- /section-scope -->
 
     <!-- ⑤ 全体リマーク -->
-    <div class="condition-section remark-section is-collapsible" id="section-remark" data-tier="opt">
+    <div class="condition-section remark-section is-collapsible" id="section-remark">
       <h2 class="section-toggle-head" onclick="toggleQuoteBottomAccordion('section-remark')">
         <span class="section-caret">▼</span>
         <span class="section-toggle-title">📝 全体リマーク・免責事項</span><span class="tier-badge opt" aria-label="任意">任意</span>
@@ -5013,6 +5013,7 @@
 <script src="js/quote/mobile-cost.js"></script>
 <script src="js/quote/mobile-sheet.js"></script>
 <script src="js/quote/layout-cols.js"></script>
+<script src="js/quote/remark-sheet.js"></script>
 <script src="js/quote/packing-import.js"></script>
 <script src="js/tweaks.js"></script>
 <script src="js/ui-mode.js"></script>

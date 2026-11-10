@@ -11,7 +11,7 @@ const run=async(p)=>{
  let n0=await nav();
  const covTop=await p.evaluate(()=>{const bs=[...document.querySelectorAll('#qSecNav .q-secnav-btn')];return bs.filter(b=>{const r=b.getBoundingClientRect();const e=document.elementFromPoint(r.left+r.width/2,r.top+r.height/2);return !(e&&(e===b||b.contains(e)));}).map(b=>b.dataset.sec);});
  ok('ページの最上段でも、7 項目すべてが隠れずに押せる（ヘッダー・タブ・ツールバーの下に潜らない）',covTop.length===0,covTop);
- ok('左端にナビがある（7 項目）',n0.pos==='absolute'&&n0.left<=24&&n0.n===7&&n0.labels.join()==='管理番号,貿易条件,貨物情報,物量情報,作業範囲,リマーク,費用',n0);
+ ok('左端にナビがある（7 項目）',n0.pos==='absolute'&&n0.left<=24&&n0.n===7&&n0.labels.join()==='管理番号,貿易条件,貨物情報,物量情報,作業範囲,費用,リマーク',n0);
  ok('本文はナビと重ならない（ナビの右端より右から始まる）',n0.mainLeft>=n0.right-2,n0);
  ok('費用テーブルに明細があるので「入力済み」の印が付く',n0.filled.includes('section-table'),n0);
  // クリックでそのセクションへ（畳まれていれば開く）
