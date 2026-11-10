@@ -26,7 +26,7 @@
 
 /* ---- 場所の表示（パンくず） ---- */
 .wf-pathbar { display: flex; align-items: center; gap: 4px; padding: 4px 6px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-8, 8px); }
-.wf-nav { padding: 3px 8px; border: 0; background: transparent; font-size: 15px; cursor: pointer; border-radius: 6px; color: var(--text-md); }
+.wf-nav { padding: 3px 8px; border: 0; background: transparent; font-size: 14px; cursor: pointer; border-radius: 6px; color: var(--text-md); }
 .wf-nav:hover:not(:disabled) { background: var(--accent-lt); }
 .wf-nav:disabled { opacity: .35; cursor: default; }
 .wf-crumbs { display: flex; align-items: center; flex-wrap: wrap; gap: 2px; font-size: 13px; min-width: 0; }
@@ -41,7 +41,7 @@
 .wf-tnode { display: flex; align-items: center; gap: 2px; padding: 3px 4px; border-radius: 5px; cursor: pointer; white-space: nowrap; border: 1px solid transparent; }
 .wf-tnode:hover { background: var(--accent-lt); }
 .wf-tnode.is-cur { background: var(--accent-lt); font-weight: 600; border-color: var(--border-md); }
-.wf-tcaret { display: inline-block; width: 16px; text-align: center; color: var(--text-muted); font-size: 10px; flex: none; }
+.wf-tcaret { display: inline-block; width: 16px; text-align: center; color: var(--text-muted); font-size: 12px; flex: none; }
 .wf-tlabel { overflow: hidden; text-overflow: ellipsis; }
 .wf-tsep { height: 1px; background: var(--border); margin: 6px 2px; }
 
@@ -62,10 +62,10 @@
 .wf-row.is-drop, .wf-card.is-drop, .wf-tnode.is-drop, .wf-crumb.is-drop { background: #d9e8c8 !important; border-color: var(--green-olive) !important; }
 .wf-name { display: flex; align-items: center; gap: 6px; min-width: 0; }
 .wf-name > b { font-weight: 400; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.wf-pend { margin-left: 6px; padding: 0 6px; font-size: 11px; color: #8a5a00; background: #fff1cf; border: 1px solid #e3c06a; border-radius: 9px; white-space: nowrap; }
+.wf-pend { margin-left: 6px; padding: 0 6px; font-size: 12px; color: #8a5a00; background: #fff1cf; border: 1px solid #e3c06a; border-radius: 9px; white-space: nowrap; }
 .wf-ico { flex: none; font-size: 16px; width: 20px; text-align: center; }
 .wf-dim { color: var(--text-muted); font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.wf-path { display: block; font-size: 11px; color: var(--text-muted); }
+.wf-path { display: block; font-size: 12px; color: var(--text-muted); }
 .wf-rename { width: 100%; font: inherit; padding: 1px 4px; border: 1px solid var(--accent); border-radius: 4px; background: #fff; }
 
 /* ---- アイコン表示 ---- */

@@ -124,7 +124,7 @@
       width: 24px; height: 24px; border-radius: 7px; cursor: pointer; font-size: 15px; line-height: 1; }
     .twk-x:hover { background: rgba(0,0,0,.06); color: #2d2418; }
     .twk-body { padding: 4px 15px 16px; display: flex; flex-direction: column; gap: 15px; }
-    .twk-sect { font-size: 10px; font-weight: 700; letter-spacing: .06em;
+    .twk-sect { font-size: 12px; font-weight: 700; letter-spacing: .06em;
       color: rgba(45,36,24,.5); margin-bottom: 7px; }
     .twk-sect small { font-weight: 400; letter-spacing: 0; }
     .twk-seg { display: flex; gap: 3px; padding: 3px; border-radius: 9px; background: rgba(0,0,0,.06); }
@@ -140,7 +140,7 @@
     .twk-sw button:hover { background: rgba(0,0,0,.04); }
     .twk-sw button.on { border-color: rgba(45,36,24,.55); background: rgba(255,255,255,.55); }
     .twk-sw .dot { width: 26px; height: 26px; border-radius: 50%; box-shadow: 0 1px 3px rgba(0,0,0,.2); }
-    .twk-sw .nm { font-size: 11px; font-weight: 600; color: rgba(45,36,24,.75); }
+    .twk-sw .nm { font-size: 12px; font-weight: 600; color: rgba(45,36,24,.75); }
     @media print { .twk-panel { display: none !important; } }
   `;
 

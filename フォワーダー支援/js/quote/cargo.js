@@ -190,7 +190,7 @@
     const quoteRows = document.querySelectorAll('#tableBody tr');
     if (!quoteRows.length) {
       document.getElementById('calcReflectRows').innerHTML =
-        '<p style="font-size:11px;color:#aaa;margin:4px 0;">見積もり行がありません</p>';
+        '<p style="font-size:12px;color:#aaa;margin:4px 0;">見積もり行がありません</p>';
       return;
     }
 
@@ -201,8 +201,8 @@
         return document.getElementById(`un-${id}`)?.value === targetUnit;
       }).length;
       const badge = matchCount > 0
-        ? `<span style="font-size:10px;color:#27ae60;margin-left:4px;">（単位「${targetUnit}」の行 ${matchCount}件）</span>`
-        : `<span style="font-size:10px;color:#aaa;margin-left:4px;">（単位「${targetUnit}」の行なし）</span>`;
+        ? `<span style="font-size:12px;color:#27ae60;margin-left:4px;">（単位「${targetUnit}」の行 ${matchCount}件）</span>`
+        : `<span style="font-size:12px;color:#aaa;margin-left:4px;">（単位「${targetUnit}」の行なし）</span>`;
       return `
         <div class="calc-reflect-row">
           <span class="calc-reflect-lbl">${label}：<strong>${value} ${unit}</strong>${badge}</span>
