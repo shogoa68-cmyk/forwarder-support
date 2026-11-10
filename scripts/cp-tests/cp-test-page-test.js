@@ -107,8 +107,6 @@ function eq(a, b, name) { ok(JSON.stringify(a) === JSON.stringify(b), name, ' �
   await p.click('#cptDevBtn');
 
   // ===== 本船の動静 =====
-  await p.evaluate(() => window.CpTest.resetTerminalNames());
-  await p.click('.cpt-tab[data-tab="vessel"]');
   const portObj = (code, berth, eta, etd, ata) => ({ portCode: code, berthName: berth, estimatedTimeOfArrival: eta, actualTimeOfArrival: ata || null, estimatedTimeOfDeparture: etd, actualTimeOfDeparture: null });
   const vessels = [
     { terminalCode: 'TYOAJ00C', vessel: { vesselName: 'VESSEL-A', voyageNo: 'A1', imoNo: '1', portOfDischarge: portObj('JPTYO', '青海A1', iso(100 * H), iso(120 * H)) } },
@@ -117,14 +115,48 @@ function eq(a, b, name) { ok(JSON.stringify(a) === JSON.stringify(b), name, ' �
     { terminalCode: 'XXXXX99C', vessel: { vesselName: 'VESSEL-C', voyageNo: 'C1' } },
     { terminalCode: 'TYOAJ00C', vessel: { vesselName: 'VESSEL-FAR', voyageNo: 'F1', portOfDischarge: portObj('JPTYO', 'F', iso(30 * 24 * H), iso(31 * 24 * H)) } },
     { terminalCode: 'TYOAJ00C', vessel: { vesselName: 'VESSEL-OLD', voyageNo: 'O1', portOfDischarge: portObj('JPTYO', 'O', iso(-30 * 24 * H), iso(-29 * 24 * H)) } }];
+  const setPortOther = async (code) => { await p.selectOption('#cptPortSel', '__other'); await p.fill('#cptPort', code); };
+  const portOpts = () => p.$$eval('#cptPortSel option', (o) => o.map((x) => x.value + '|' + x.textContent));
+  const terminalsCalls = () => sent.filter((x) => x.body.path === '/API/v2/Terminals/GetList').length;
+  const termList = [
+    { terminalCode: 'TYOAJ00C', terminalNameAb: '青海A', portLocation: { portCode: 'JPTYO', portName: '東京', displayOrder: 1 } },
+    { terminalCode: 'TYOAK02C', terminalName: '大井2号', portLocation: { portCode: 'JPTYO', portName: '東京', displayOrder: 1 } },
+    { terminalCode: 'YOKAA01C', terminalName: '本牧', portLocation: { portCode: 'JPYOK', portName: '横浜', displayOrder: 2 } },
+    { terminalCode: 'SDJAA01C', terminalName: '仙台港', portLocation: { portCode: 'JPSDJ', portName: '仙台塩釜', displayOrder: 12 } }];
   respond = router({
-    '/API/v2/Terminals/GetList': () => okBody('Terminals/GetList', [{ terminalCode: 'TYOAJ00C', terminalNameAb: '青海A' }, { terminalCode: 'TYOAK02C', terminalName: '大井2号' }]),
+    '/API/v2/Terminals/GetList': () => okBody('Terminals/GetList', termList),
     '/API/v2/ColinsViewers/GetImportVessels': () => okBody('ColinsViewers/Vessels', vessels) });
+
+  // ===== 港は選択式（自由入力から） =====
+  await p.evaluate(() => window.CpTest.resetTerminalNames());
+  const t0 = terminalsCalls();
+  await p.click('.cpt-tab[data-tab="vessel"]');
+  await p.waitForFunction(() => document.querySelectorAll('#cptPortSel option').length === 4);
+  eq(terminalsCalls() - t0, 1, '港：本船タブを開くと、港の一覧（ターミナル一覧）をこっそり 1 回だけ取る');
+  eq(await portOpts(), ['JPTYO|東京（JPTYO）', 'JPYOK|横浜（JPYOK）', 'JPSDJ|仙台塩釜（JPSDJ）', '__other|その他（港コードを入力）'], '港：サイバーポートの港の一覧（表示順・港ごとに 1 つ）＋「その他」');
+  eq(await p.$eval('#cptPortSel', (e) => e.value), 'JPTYO', '港：初期値は東京（JPTYO）');
+  ok(await p.locator('#cptPortSel').isVisible() && !(await p.locator('#cptPort').isVisible()), '港：通常は選択だけ（コードの入力欄は隠れている）');
+  await p.click('.cpt-tab[data-tab="trade"]'); await p.click('.cpt-tab[data-tab="vessel"]');
+  eq(terminalsCalls() - t0, 1, '港：タブを切り替えても、一覧は取り直さない');
+  await p.selectOption('#cptPortSel', '__other');
+  ok(await p.locator('#cptPort').isVisible(), '港：「その他」を選ぶと、コードの入力欄が出る');
+  await p.selectOption('#cptPortSel', 'JPYOK');
+  eq(await p.$eval('#cptPort', (e) => e.value), 'JPYOK', '港：選ぶと、照会に使うコードに入る');
+  ok(!(await p.locator('#cptPort').isVisible()), '港：選ぶと、入力欄はまた隠れる');
+  await p.selectOption('#cptPortSel', 'JPTYO');
+  // 港の一覧の組み立て（重複・不正・並び順）
+  eq(await p.evaluate(() => window.CpTest.portsFromTerminals([
+    { portLocation: { portCode: 'jpyok', portName: '横浜', displayOrder: 2 } }, { portLocation: { portCode: 'JPTYO', portName: '東京', displayOrder: 1 } },
+    { portLocation: { portCode: 'JPYOK', portName: '横浜（重複）', displayOrder: 2 } }, { portLocation: { portCode: 'XX', portName: '短すぎる' } },
+    { portLocation: { portCode: 'JPNGO', portName: '名古屋' } }, { terminalCode: 'NOPORT' }, null]).map((x) => x.code + ':' + x.name)),
+    ['JPTYO:東京', 'JPYOK:横浜', 'JPNGO:名古屋'], '港：一覧の組み立て（コードを整える・重複と不正は除く・表示順・表示順なしは最後）');
+  eq(await p.evaluate(() => window.CpTest.portsFromTerminals(null)), [], '港：一覧が無いときは空（固定リストを使う）');
+
   const n0 = sent.length;
-  await p.fill('#cptPort', ' jp tyo');
+  await setPortOther(' jp tyo');
   await p.click('#cptColinsV');
   await p.waitForSelector('#cptList .cpt-row');
-  eq(sent.slice(n0).map((x) => x.body.path), ['/API/v2/Terminals/GetList', '/API/v2/ColinsViewers/GetImportVessels/JPTYO'], '本船：ターミナル一覧を先に取り、続けて本船を取る（港コードは整える）');
+  eq(sent.slice(n0).map((x) => x.body.path), ['/API/v2/ColinsViewers/GetImportVessels/JPTYO'], '本船：港の一覧は先に取ってあるので、本船だけを取る（入力したコードは整えて送る）');
   eq(await p.$$eval('#cptList .cpt-row b', (e) => e.map((x) => x.textContent)), ['VESSEL-B / B1', 'VESSEL-A / A1', 'VESSEL-C / C1'], '本船：入港予定の早い順（日時なしは最後）');
   ok(/前後 2 週間/.test(await txt('#cptNote')) && /範囲外の 2 件は除きました/.test(await txt('#cptNote')), '本船：照会の日の前後2週間だけを表示（範囲外の件数をお知らせ）', await txt('#cptNote'));
   ok(!/VESSEL-FAR|VESSEL-OLD/.test(await txt('#cptList')), '本船：前後2週間の外（30日先・30日前）は一覧に出さない');
@@ -171,16 +203,36 @@ function eq(a, b, name) { ok(JSON.stringify(a) === JSON.stringify(b), name, ' �
   eq(await p.locator('#cptList .cpt-row').count(), 3, '本船：輸入に戻すと、前の結果が残っている');
   eq(await p.evaluate(() => document.getElementById('cptDir').value), 'import', '#cptDir（輸入／輸出）の値は切替ボタンと連動する');
   const nv = sent.length;
-  await p.fill('#cptPort', 'XX'); await p.click('#cptColinsV');
+  await setPortOther('XX'); await p.click('#cptColinsV');
   await p.waitForSelector('#cptLive .cpt-msg.is-invalid');
   ok(/港コードは/.test(await txt('#cptLive')), '本船：港コードが不正なら入力の誤りを表示'); eq(sent.length, nv, '本船：不正なら通信しない');
-  await p.fill('#cptPort', 'jpyok'); await p.fill('#cptVessel', 'ONE HARMONY'); await p.click('.cpt-seg [data-dir="export"]');
+  await p.selectOption('#cptPortSel', 'JPYOK'); await p.fill('#cptVessel', 'ONE HARMONY'); await p.click('.cpt-seg [data-dir="export"]');
   respond = () => okBody('ColinsViewers/Vessels', []);
   await p.click('#cptColinsV');
   await p.waitForSelector('#cptLive .cpt-msg.is-empty');
   eq(sent.at(-1).body, { action: 'get', path: '/API/v2/ColinsViewers/GetExportVessels/JPYOK', query: { vesselName: 'ONE HARMONY' } }, '本船：輸出・本船名つき');
   ok(/COLINS に情報がありません/.test(await txt('#cptLive')), '本船：0 件は「COLINS に情報がありません」');
-  await p.fill('#cptPort', 'JPTYO'); await p.fill('#cptVessel', '');
+  await p.selectOption('#cptPortSel', 'JPTYO'); await p.fill('#cptVessel', '');
+
+  // 港の一覧が取れないとき：よく使う港の固定リストを出す（「その他」でコードも入力できる）
+  {
+    respond = router({ '/API/v2/Terminals/GetList': () => ({ status: 502, body: { ok: false, error: 'upstream_network', message: 'つながりません' } }) });
+    await p.evaluate(() => window.CpTest.resetTerminalNames());
+    await p.click('.cpt-tab[data-tab="trade"]'); await p.click('.cpt-tab[data-tab="vessel"]');
+    await p.waitForFunction(() => document.querySelectorAll('#cptPortSel option').length === 12);
+    const o = await portOpts();
+    eq([o.length, o.slice(0, 3), o.at(-1)], [12, ['JPTYO|東京（JPTYO）', 'JPYOK|横浜（JPYOK）', 'JPKWS|川崎（JPKWS）'], '__other|その他（港コードを入力）'], '港：一覧が取れないときは、よく使う港 11 件の固定リスト＋「その他」');
+    ok(await p.locator('#cptPortSel').isVisible(), '港：一覧が取れなくても、選択は使える');
+    // 「その他」で入力中に一覧が届いても、入力したコードと選択は変わらない
+    await p.selectOption('#cptPortSel', '__other'); await p.fill('#cptPort', 'USLAX');
+    respond = router({ '/API/v2/Terminals/GetList': () => okBody('Terminals/GetList', termList) });   // 一覧が取れる状態に戻す
+    await p.evaluate(() => window.CpTest.resetTerminalNames());
+    await p.selectOption('#cptPortSel', '__other'); await p.fill('#cptPort', 'USLAX');
+    await p.click('.cpt-tab[data-tab="trade"]'); await p.click('.cpt-tab[data-tab="vessel"]');
+    await p.waitForFunction(() => document.querySelectorAll('#cptPortSel option').length === 4);
+    eq([await p.$eval('#cptPortSel', (e) => e.value), await p.$eval('#cptPort', (e) => e.value), await p.locator('#cptPort').isVisible()], ['__other', 'USLAX', true], '港：「その他」で入力したコードは、一覧が届いても消えない');
+    await p.selectOption('#cptPortSel', 'JPTYO');
+  }
 
   // ===== コンテナ（輸入） =====
   await p.click('.cpt-tab[data-tab="ctn"]'); await p.click('.cpt-seg [data-dir="import"]');

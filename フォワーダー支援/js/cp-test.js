@@ -71,19 +71,75 @@
       '<div class="cpt-tablewrap"><table class="cpt-table"><thead>' + head + '</thead><tbody>' + rows + '</tbody></table></div>';
   }
 
-  // ターミナル名（コード→名前）。最初の 1 回だけ取って使い回す。取れなくても表はコードのまま出す。
-  var _termNames = null;
+  // ターミナル一覧（コード→名前・港の選択肢の元）。最初の 1 回だけ取って使い回す。取れなくても表はコードのまま出す。
+  var _termNames = null, _termList = null, _ports = null, _portsTriedAt = 0;
+  async function loadTerminals() {
+    if (_termList) return _termList;
+    var r = await window.CyberPort.terminals('');
+    _termList = Array.isArray(r.data) ? r.data : [];
+    return _termList;
+  }
   async function ensureTerminalNames() {
     if (_termNames) return _termNames;
     var map = {};
     try {
-      var r = await window.CyberPort.terminals('');
-      (Array.isArray(r.data) ? r.data : []).forEach(function (x) {
+      (await loadTerminals()).forEach(function (x) {
         if (x && x.terminalCode) map[x.terminalCode] = x.terminalNameAb || x.terminalName || x.terminalNameEn || '';
       });
       _termNames = map;
+      _ports = portsFromTerminals(_termList);
+      renderPortSelect();                 // 港の選択肢を、サイバーポートの港の一覧に置き換える
     } catch (e) { return map; } // 今回は名前なしで表示（次回また試す）
     return _termNames;
+  }
+  // 港の一覧をこっそり先に取っておく（失敗しても何も出さない。60 秒に 1 回まで）
+  function prefetchPorts() {
+    if (_termList || !window.CyberPort) return;
+    var t = Date.now(); if (t - _portsTriedAt < 60000) return; _portsTriedAt = t;
+    ensureTerminalNames();
+  }
+
+  // ---- 港の選択（自由入力から選択式へ） ----
+  // 「港」は UN/LOCODE の 5 桁コード。ターミナルの一覧（Terminals/GetList）の portLocation から、港ごとに 1 つ作る。
+  // 一覧が取れていないあいだは、よく使う港（下の固定リスト）を出す。一覧に無い港は「その他」でコードを入力できる。
+  var BASE_PORTS = [['JPTYO', '東京'], ['JPYOK', '横浜'], ['JPKWS', '川崎'], ['JPNGO', '名古屋'], ['JPOSA', '大阪'], ['JPUKB', '神戸'],
+    ['JPHKT', '博多'], ['JPTMK', '苫小牧'], ['JPNIG', '新潟'], ['JPYKK', '四日市'], ['JPTAK', '高松']];
+  var PORT_OTHER = '__other';
+  function portsFromTerminals(list) {
+    var seen = {}, out = [];
+    (Array.isArray(list) ? list : []).forEach(function (t, i) {
+      var pl = t && t.portLocation;
+      var code = pl && String(pl.portCode || '').replace(/[\s\u3000]+/g, '').toUpperCase();
+      if (!code || !/^[A-Z]{2}[A-Z0-9]{3}$/.test(code) || seen[code]) return;
+      seen[code] = true;
+      var ord = Number(pl.displayOrder);
+      out.push({ code: code, name: pl.portName || pl.portNameAb || pl.portNameEn || '', order: isFinite(ord) && pl.displayOrder != null && pl.displayOrder !== '' ? ord : 1e9, i: i });
+    });
+    out.sort(function (a, b) { return (a.order - b.order) || (a.i - b.i); });
+    return out;
+  }
+  function portListNow() {
+    return (_ports && _ports.length) ? _ports : BASE_PORTS.map(function (b) { return { code: b[0], name: b[1] }; });
+  }
+  function portLabel(c) { return (c.name ? c.name + '（' + c.code + '）' : c.code); }
+  var _portOther = false;
+  function renderPortSelect() {
+    var sel = document.getElementById('cptPortSel'), inp = document.getElementById('cptPort');
+    if (!sel || !inp) return;
+    var cur = String(inp.value || '').replace(/[\s\u3000]+/g, '').toUpperCase();
+    var list = portListNow();
+    var inList = list.some(function (c) { return c.code === cur; });
+    sel.innerHTML = list.map(function (c) { return '<option value="' + esc(c.code) + '">' + esc(portLabel(c)) + '</option>'; }).join('') +
+      '<option value="' + PORT_OTHER + '">その他（港コードを入力）</option>';
+    // いまの値が一覧に無い（または「その他」を選んでいる）ときは、「その他」のまま入力欄を出しておく
+    if (_portOther || !inList) { _portOther = true; sel.value = PORT_OTHER; } else { sel.value = cur; }
+    inp.classList.toggle('is-off', !_portOther);
+  }
+  function onPortSelect() {
+    var sel = document.getElementById('cptPortSel'), inp = document.getElementById('cptPort');
+    if (!sel || !inp) return;
+    if (sel.value === PORT_OTHER) { _portOther = true; inp.classList.remove('is-off'); try { inp.focus(); inp.select(); } catch (e) { /* 何もしない */ } }
+    else { _portOther = false; inp.value = sel.value; inp.classList.add('is-off'); }
   }
   function termCell(names) {
     return function (x) {
@@ -559,7 +615,7 @@
     busy(true); setMsg({ kind: 'info', title: 'サイバーポートに接続情報でトークンを取りに行っています…' }); paint();
     try {
       var r = await window.CyberPort.ping();
-      ST.devErr = ''; ST.conn = 'ok'; ST.connHost = r.apiHost || '';
+      ST.devErr = ''; ST.conn = 'ok'; ST.connHost = r.apiHost || ''; _portsTriedAt = 0; if (ST.tab === 'vessel') prefetchPorts();   // 接続できたので、本船タブを見ているなら港の一覧を取り直す（ほかのタブなら、本船タブを開いたときに取る）
       setMsg({ kind: 'ok', title: r.message || '接続情報でトークンを取得できました。', body: '' + (r.tokenHost ? 'トークン取得先：' + r.tokenHost + ' ／ API 接続先：' + (r.apiHost || '') : '') });
     } catch (e) { ST.conn = 'none'; ST.connHost = ''; setMsg(failMsg(e)); }
     busy(false); paint();
@@ -660,12 +716,13 @@
       '<input type="text" id="cptKw" class="cpt-input" data-for="trade" maxlength="45" autocomplete="off" placeholder="取引番号・B/L・ブッキング・社内管理番号（空なら直近30日の更新）" aria-label="取引の検索">' +
       '<button type="button" class="cpt-btn is-primary" id="cptSearch" data-for="trade">取引を検索</button>' +
       '<div class="cpt-seg" data-for="vessel ctn" role="group" aria-label="輸入か輸出か"><button type="button" data-dir="import" aria-pressed="true">輸入</button><button type="button" data-dir="export" aria-pressed="false">輸出</button></div>' +
-      '<input type="text" id="cptPort" class="cpt-input cpt-input-s" data-for="vessel" maxlength="12" value="JPTYO" autocomplete="off" placeholder="港コード（例 JPTYO）" aria-label="港コード（UN/LOCODE 5桁）">' +
+      '<select id="cptPortSel" class="cpt-select cpt-port-sel" data-for="vessel" aria-label="港を選ぶ"></select>' +
+      '<input type="text" id="cptPort" class="cpt-input cpt-input-s is-off" data-for="vessel" maxlength="12" value="JPTYO" autocomplete="off" placeholder="港コード（例 JPTYO）" aria-label="港コード（UN/LOCODE 5桁）">' +
       '<input type="text" id="cptVessel" class="cpt-input cpt-input-m" data-for="vessel" maxlength="60" autocomplete="off" placeholder="本船名（任意）" aria-label="本船名">' +
       '<button type="button" class="cpt-btn is-primary" id="cptColinsV" data-for="vessel">本船の動静を調べる</button>' +
       '<input type="text" id="cptCtn" class="cpt-input" data-for="ctn" maxlength="40" autocomplete="off" placeholder="コンテナ番号／B/L番号（輸入）／ブッキング番号（輸出）" aria-label="コンテナの検索">' +
       '<button type="button" class="cpt-btn is-primary" id="cptColinsC" data-for="ctn">コンテナの状況を調べる</button>' +
-      '<div class="cpt-hint" id="cptDirHintV" data-for="vessel">港コードは UN/LOCODE の5桁（例：JPTYO＝東京、JPYOK＝横浜）。「輸入／輸出」はコンテナの照会と共通です。動静は、照会した日の前後2週間のものを表示します。</div></div>' +
+      '<div class="cpt-hint" id="cptDirHintV" data-for="vessel">港は一覧から選びます（一覧に無い港は「その他」を選んで、UN/LOCODE の5桁コードを入力します。例：JPTYO＝東京）。「輸入／輸出」はコンテナの照会と共通です。動静は、照会した日の前後2週間のものを表示します。</div></div>' +
       '<div id="cptLive" class="cpt-live" aria-live="polite" hidden></div>' +
       '<div id="cptMain" class="cpt-main"><div class="cpt-split" id="cptSplit" data-mv="list"><div class="cpt-listpane"><div id="cptSortBar" class="cpt-sortbar" hidden></div><div id="cptNote" class="cpt-note" hidden></div><div id="cptFilter" class="cpt-filter"></div><div id="cptList"></div></div><div class="cpt-detailpane" id="cptDetail"></div></div></div></div>' +
       '<div class="cpt-devwrap"><button type="button" class="cpt-btn is-g is-s" id="cptDevBtn" aria-expanded="false">▸ 開発者向け情報（普段は閉じておきます）</button><div id="cptDev" class="cpt-card cpt-dev" hidden></div></div>';
@@ -676,6 +733,8 @@
     $id('cptColinsC').addEventListener('click', liveColinsContainers);
     $id('cptKw').addEventListener('keydown', function (e) { if (e.key === 'Enter') liveSearch(); });
     $id('cptPort').addEventListener('keydown', function (e) { if (e.key === 'Enter') liveColinsVessels(); });
+    $id('cptPortSel').addEventListener('change', onPortSelect);
+    renderPortSelect();
     $id('cptVessel').addEventListener('keydown', function (e) { if (e.key === 'Enter') liveColinsVessels(); });
     $id('cptCtn').addEventListener('keydown', function (e) { if (e.key === 'Enter') liveColinsContainers(); });
     $id('cptDir').addEventListener('change', function () { ST.dir = this.value === 'export' ? 'export' : 'import'; ST.mv = 'list'; paint(); });
@@ -683,7 +742,7 @@
     r.addEventListener('change', function (e) { if (e.target && e.target.id === 'cptSort') { slot().sort = e.target.value; paint(); } });
     r.addEventListener('click', function (e) {
       var t = e.target.closest ? e.target : null; if (!t) return;
-      var tab = t.closest('.cpt-tab'); if (tab) { ST.tab = tab.getAttribute('data-tab'); ST.mv = 'list'; ST.allOpen = false; paint(); return; }
+      var tab = t.closest('.cpt-tab'); if (tab) { ST.tab = tab.getAttribute('data-tab'); ST.mv = 'list'; ST.allOpen = false; paint(); if (ST.tab === 'vessel') prefetchPorts(); return; }
       var sg = t.closest('.cpt-seg [data-dir]'); if (sg) { ST.dir = sg.getAttribute('data-dir'); ST.mv = 'list'; ST.allOpen = false; paint(); return; }
       var gb = t.closest('.cpt-gb'); if (gb) { var s = slot(); var f = gb.getAttribute('data-f'); s.filter = (f !== 'all' && s.filter === f) ? 'all' : f; paint(); return; }
       var row = t.closest('.cpt-row'); if (row) { slot().sel = +row.getAttribute('data-i'); ST.mv = 'detail'; ST.allOpen = false; paint(); return; }
@@ -700,7 +759,8 @@
   };
   window.CpTest = {
     inVesselWindow: inVesselWindow, sortOptions: sortOptions,
-    normalizeNo: normalizeNo, fmtDt: fmtDt, dueClass: dueClass, resetTerminalNames: function () { _termNames = null; },
+    normalizeNo: normalizeNo, fmtDt: fmtDt, dueClass: dueClass, resetTerminalNames: function () { _termNames = null; _termList = null; _ports = null; _portsTriedAt = 0; _portOther = false; renderPortSelect(); },
+    portsFromTerminals: portsFromTerminals,
     levelOf: levelOf, remainText: remainText, slipped: slipped,
     stepsImportContainer: stepsImportContainer, stepsExportContainer: stepsExportContainer, stepsVessel: stepsVessel
   };
