@@ -131,3 +131,4 @@
   #tab-cptest .cpt-btn.is-s { height: 36px; }
 }
 #tab-cptest .cpt-detailpane > .cpt-btn.is-g { align-self: flex-start; }
+#tab-cptest .cpt-note { padding: 8px 14px; font-size: var(--text-xs, 12px); color: var(--cpt-ink3); border-bottom: 1px solid var(--cpt-line); line-height: 1.6; }

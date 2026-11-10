@@ -114,7 +114,9 @@ function eq(a, b, name) { ok(JSON.stringify(a) === JSON.stringify(b), name, ' �
     { terminalCode: 'TYOAJ00C', vessel: { vesselName: 'VESSEL-A', voyageNo: 'A1', imoNo: '1', portOfDischarge: portObj('JPTYO', '青海A1', iso(100 * H), iso(120 * H)) } },
     { terminalCode: 'TYOAK02C', vessel: { vesselName: 'VESSEL-B', voyageNo: 'B1', imoNo: '2', portOfLoading: portObj('CNSHA', '上海', iso(-500 * H), iso(-480 * H)), portOfDischarge: portObj('JPTYO', '大井2号', iso(10 * H), iso(30 * H)) },
       cargoTransfer: { cyOpenAt: iso(-20 * H), cfsCutAt: iso(-2 * H), cyCutAt: iso(20 * H) }, cargoIn: { scheduleAt: '20261109' }, remark: '備考テスト' },
-    { terminalCode: 'XXXXX99C', vessel: { vesselName: 'VESSEL-C', voyageNo: 'C1' } }];
+    { terminalCode: 'XXXXX99C', vessel: { vesselName: 'VESSEL-C', voyageNo: 'C1' } },
+    { terminalCode: 'TYOAJ00C', vessel: { vesselName: 'VESSEL-FAR', voyageNo: 'F1', portOfDischarge: portObj('JPTYO', 'F', iso(30 * 24 * H), iso(31 * 24 * H)) } },
+    { terminalCode: 'TYOAJ00C', vessel: { vesselName: 'VESSEL-OLD', voyageNo: 'O1', portOfDischarge: portObj('JPTYO', 'O', iso(-30 * 24 * H), iso(-29 * 24 * H)) } }];
   respond = router({
     '/API/v2/Terminals/GetList': () => okBody('Terminals/GetList', [{ terminalCode: 'TYOAJ00C', terminalNameAb: '青海A' }, { terminalCode: 'TYOAK02C', terminalName: '大井2号' }]),
     '/API/v2/ColinsViewers/GetImportVessels': () => okBody('ColinsViewers/Vessels', vessels) });
@@ -124,6 +126,8 @@ function eq(a, b, name) { ok(JSON.stringify(a) === JSON.stringify(b), name, ' �
   await p.waitForSelector('#cptList .cpt-row');
   eq(sent.slice(n0).map((x) => x.body.path), ['/API/v2/Terminals/GetList', '/API/v2/ColinsViewers/GetImportVessels/JPTYO'], '本船：ターミナル一覧を先に取り、続けて本船を取る（港コードは整える）');
   eq(await p.$$eval('#cptList .cpt-row b', (e) => e.map((x) => x.textContent)), ['VESSEL-B / B1', 'VESSEL-A / A1', 'VESSEL-C / C1'], '本船：入港予定の早い順（日時なしは最後）');
+  ok(/前後 2 週間/.test(await txt('#cptNote')) && /範囲外の 2 件は除きました/.test(await txt('#cptNote')), '本船：照会の日の前後2週間だけを表示（範囲外の件数をお知らせ）', await txt('#cptNote'));
+  ok(!/VESSEL-FAR|VESSEL-OLD/.test(await txt('#cptList')), '本船：前後2週間の外（30日先・30日前）は一覧に出さない');
   eq((await p.$$eval('#cptList .cpt-chip', (e) => e.map((x) => x.textContent)))[0], 'カット超過', '本船：CFSカットを過ぎていれば「カット超過」');
   const steps = await p.$$eval('#cptDetail .cpt-step', (els) => els.map((e) => e.querySelector('b').textContent + '|' + e.querySelector('.cpt-chip').textContent));
   eq(steps.map((s) => s.split('|')[0]), ['入港', '荷役', '搬入', 'CYオープン', 'CFSカット', 'CYカット', '出港'], '本船：流れは 入港→荷役→搬入→CYオープン→CFSカット→CYカット→出港');
@@ -137,6 +141,14 @@ function eq(a, b, name) { ok(JSON.stringify(a) === JSON.stringify(b), name, ' �
   ok(/COLINSに情報なし/.test(await txt('#cptDetail')), '本船：「すべての項目」でも情報が無い項目に「COLINSに情報なし」');
   await p.click('#cptList .cpt-row >> nth=0'); await p.click('[data-act="all"]');
   ok(/青海|大井2号/.test(await txt('#cptDetail')) && /備考テスト/.test(await txt('#cptDetail')), '本船：すべての項目に ターミナル名・備考 が入っている');
+  // 全部が範囲外のとき
+  respond = router({ '/API/v2/Terminals/GetList': () => okBody('Terminals/GetList', []), '/API/v2/ColinsViewers/GetImportVessels': () => okBody('ColinsViewers/Vessels', [vessels[3], vessels[4]]) });
+  await p.click('#cptColinsV'); await p.waitForSelector('#cptLive .cpt-msg.is-empty');
+  ok(/2 件ありますが/.test(await txt('#cptLive')) && /2 週間の範囲に入るものはありません/.test(await txt('#cptLive')), '本船：全部が範囲外なら、その旨を表示');
+  respond = router({ '/API/v2/Terminals/GetList': () => okBody('Terminals/GetList', []), '/API/v2/ColinsViewers/GetImportVessels': () => okBody('ColinsViewers/Vessels', vessels) });
+  await p.click('#cptColinsV'); await p.waitForSelector('#cptList .cpt-row');
+  const wf = await p.evaluate(() => { const T = window.CpTest, n = Date.parse('2026-11-10T00:00:00Z'), o = (eta) => ({ vessel: { portOfDischarge: { portCode: 'JPTYO', estimatedTimeOfArrival: eta } } }); return [T.inVesselWindow(o('2026-11-24T00:00:00Z'), 'JPTYO', 'import', n), T.inVesselWindow(o('2026-11-25T00:00:00Z'), 'JPTYO', 'import', n), T.inVesselWindow(o('2026-10-27T00:00:00Z'), 'JPTYO', 'import', n), T.inVesselWindow(o('2026-10-26T00:00:00Z'), 'JPTYO', 'import', n), T.inVesselWindow({}, 'JPTYO', 'import', n)]; });
+  eq(wf, [true, false, true, false, true], '範囲の境目：ちょうど14日先・前は入る／それより外は除く／日時が無いものは残す');
   // 輸出に切り替えると別の結果（取り直し）。戻すと前の結果が残っている
   await p.click('.cpt-seg [data-dir="export"]');
   ok(await p.locator('#cptList .cpt-empty').count() === 1, '本船：輸出はまだ検索していないので案内');
