@@ -7,6 +7,7 @@
  *   CyberPort.ping()                      → {ok, message, tokenHost, apiHost}  接続情報でトークンが取れるかの確認
  *   CyberPort.get(path, query)            → {ok, api, status, data}            許可された読み取り API を 1 回呼ぶ
  *   CyberPort.tradesSearch(query)         取引の検索（keyword に取引番号・B/L・ブッキング・社内管理番号・インボイス）
+ *   CyberPort.colinsVessels(dir, 港コード, query) / colinsContainers(dir, 番号, query)   COLINS の本船の動静・コンテナの状況
  *   CyberPort.normalizeNo(s)              番号の整え（空白除去・大文字化）
  * 失敗は Error（code と message が日本語）。code：login／network／nofunction／cp_not_configured／token_failed／
  *   upstream_auth／not_found／upstream_error／upstream_network／rate_limited／path_not_allowed … */
@@ -36,7 +37,7 @@
       res = await fetch(fnUrl(), { method: 'POST', headers: await headers(), body: JSON.stringify(body) });
     } catch (e) {
       if (e && e.code) throw e;
-      throw mkErr('network', '通信できませんでした（インターネット接続、または Edge Function の許可するアクセス元 CP_ALLOWED_ORIGINS を確認してください）');
+      throw mkErr('network', '通信できませんでした。インターネット接続を確認し、Edge Function の CP_ALLOWED_ORIGINS に「' + (window.location && window.location.origin) + '」が入っているかも確認してください');
     }
     var j = await res.json().catch(function () { return {}; });
     // 関数そのものが無いとき（未デプロイ）は 404。サイバーポート側のエラーは cp-proxy が 502 で返す。
@@ -55,6 +56,22 @@
     tradesSearch: function (query) { return this.get('/API/v2/Trades/Search', query); },
     tradeHistories: function (query) { return this.get('/API/v2/Trades/Histories/GetList', query); },
     messageDetails: function (historyId) { return this.get('/API/v2/Trades/Messages/GetDetails/' + encodeURIComponent(historyId)); },
+    // COLINS（コンテナ物流情報）：direction は 'import'（輸入）／'export'（輸出）。
+    //   本船の動静：港コード（UN/LOCODE 5桁・例 JPTYO）必須。query に vesselName・voyageNo・scacCode・callsign（任意）
+    colinsVessels: function (direction, portCode, query) {
+      var port = String(portCode == null ? '' : portCode).replace(/[\s\u3000]+/g, '').toUpperCase();
+      return this.get('/API/v2/ColinsViewers/Get' + (direction === 'export' ? 'Export' : 'Import') + 'Vessels/' + encodeURIComponent(port), query);
+    },
+    //   コンテナの状況：コンテナ番号、または 輸入＝B/L番号／輸出＝ブッキング番号 のどれかで探す（番号は整えてから送る）
+    colinsContainers: function (direction, no, query) {
+      var n = normalizeNo(no), q = Object.assign({}, query || {});
+      if (n) {
+        if (/^[A-Z]{4}\d{7}$/.test(n)) q.containerNo = n;
+        else if (direction === 'export') q.bookingNoList = [n];
+        else q.blNoList = [n];
+      }
+      return this.get('/API/v2/ColinsViewers/Get' + (direction === 'export' ? 'Export' : 'Import') + 'Containers', q);
+    },
     colinsImportContainers: function (query) { return this.get('/API/v2/ColinsViewers/GetImportContainers', query); },
     colinsExportContainers: function (query) { return this.get('/API/v2/ColinsViewers/GetExportContainers', query); }
   };

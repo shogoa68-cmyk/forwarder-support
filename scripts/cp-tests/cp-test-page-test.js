@@ -107,6 +107,67 @@ function eq(a, b, name) { ok(JSON.stringify(a) === JSON.stringify(b), name, ' �
   await p.waitForFunction(() => /ETA前/.test(document.getElementById('cptLive').innerText));
   ok(!/サーバー側が未設定/.test(await p.locator('#cptLive').innerText()), 'サイバーポートの 404 を「関数が無い」と取り違えない');
 
+  // ③ COLINS 本船の動静
+  const vesselData = [{ terminalCode: 'JPTYO01', vessel: { vesselName: '<b>TEST</b> MARU', voyageNo: '001E', imoNo: '9999999' },
+    cargoHandling: { scheduleAt: '2026-11-12T00:00:00Z', actualAt: null }, cargoIn: { scheduleAt: '2026-11-11T15:30:00Z' }, cargoTransfer: { cyOpenAt: '2026-11-10T00:00:00Z' } }];
+  respond = () => ({ status: 200, body: { ok: true, api: 'ColinsViewers/Vessels', status: 200, data: vesselData } });
+  await p.fill('#cptPort', ' jp tyo');
+  await p.click('#cptColinsV');
+  await p.waitForSelector('#cptLive .cpt-table');
+  eq(sent.at(-1).body, { action: 'get', path: '/API/v2/ColinsViewers/GetImportVessels/JPTYO', query: {} }, 'COLINS 本船：港コードを整えて、輸入の API を呼ぶ');
+  let tb = await p.locator('#cptLive .cpt-table tbody tr').first().innerText();
+  ok(/JPTYO01/.test(tb) && /001E/.test(tb) && /9999999/.test(tb), 'COLINS 本船：ターミナル・航海番号・IMO を表示');
+  ok(await p.evaluate(() => window.__xss === undefined) && (await p.locator('#cptLive .cpt-table').innerHTML()).includes('&lt;b&gt;TEST'), 'COLINS 本船：本船名の HTML は実行されず文字として表示');
+  ok(/2026\/11\/12 00:30/.test(tb), 'COLINS 本船：UTC の日時を日本時間で表示（搬入予定 15:30Z → 翌日 00:30）');
+  ok(/2026\/11\/12 09:00/.test(tb), 'COLINS 本船：UTC の日時を日本時間で表示（荷役予定 00:00Z → 09:00）');
+  ok(/2026\/11\/10 09:00/.test(tb), 'COLINS 本船：CYオープンも日本時間');
+  await p.selectOption('#cptDir', 'export'); await p.fill('#cptPort', 'jpyok'); await p.fill('#cptVessel', 'ONE HARMONY');
+  await p.click('#cptColinsV');
+  await p.waitForSelector('#cptLive .cpt-table');
+  eq(sent.at(-1).body, { action: 'get', path: '/API/v2/ColinsViewers/GetExportVessels/JPYOK', query: { vesselName: 'ONE HARMONY' } }, 'COLINS 本船：輸出・本船名つき');
+  const beforeV = sent.length;
+  await p.fill('#cptPort', 'XX');
+  await p.click('#cptColinsV');
+  await p.waitForFunction(() => /港コードは/.test(document.getElementById('cptLive').innerText));
+  eq(sent.length, beforeV, 'COLINS 本船：港コードが不正なら通信しない');
+  respond = () => ({ status: 200, body: { ok: true, api: 'ColinsViewers/Vessels', status: 200, data: [] } });
+  await p.fill('#cptPort', 'JPTYO'); await p.fill('#cptVessel', '');
+  await p.click('#cptColinsV');
+  await p.waitForFunction(() => /0件/.test(document.getElementById('cptLive').innerText));
+  ok(true, 'COLINS 本船：0 件の表示');
+
+  // ④ COLINS コンテナの状況
+  const ctnData = [{ terminalCode: 'JPTYO01', container: { containerNo: 'MSKU1234567', lengthName: '40ft', containerTypeName: 'ドライ' }, vessel: { vesselName: 'TEST MARU', voyageNo: '001E' },
+    containerStatus: { fullOrEmpty: 'FULL', customClearanceStatus: 'PERMITTED' }, outboundAvailability: true, doAcquisition: false, cyCarryInDate: '2026-11-11T01:00:00Z', gateInDate: null, gateOutDate: null }];
+  respond = () => ({ status: 200, body: { ok: true, api: 'ColinsViewers/Containers', status: 200, data: ctnData } });
+  await p.selectOption('#cptDir', 'import'); await p.fill('#cptCtn', 'oney tyogf8748400');
+  await p.click('#cptColinsC');
+  await p.waitForSelector('#cptLive .cpt-table');
+  eq(sent.at(-1).body, { action: 'get', path: '/API/v2/ColinsViewers/GetImportContainers', query: { blNoList: ['ONEYTYOGF8748400'] } }, 'COLINS コンテナ：輸入は B/L 番号を blNoList に（整えて）');
+  tb = await p.locator('#cptLive .cpt-table tbody tr').first().innerText();
+  ok(/MSKU1234567/.test(tb) && /40ft/.test(tb) && /FULL/.test(tb) && /PERMITTED/.test(tb), 'COLINS コンテナ：番号・サイズ・実入り・通関を表示');
+  ok(/○/.test(tb) && /×/.test(tb), 'COLINS コンテナ：搬出可否は ○、DO 未入手は ×');
+  ok(/2026\/11\/11 10:00/.test(tb), 'COLINS コンテナ：CY搬入を日本時間で表示');
+  await p.fill('#cptCtn', 'msku 1234567'); await p.click('#cptColinsC');
+  await p.waitForFunction(() => document.querySelector('#cptLive .cpt-table'));
+  eq(sent.at(-1).body.query, { containerNo: 'MSKU1234567' }, 'COLINS コンテナ：コンテナ番号の形なら containerNo で探す');
+  await p.selectOption('#cptDir', 'export'); await p.fill('#cptCtn', 'abc 123');
+  respond = () => ({ status: 200, body: { ok: true, api: 'ColinsViewers/Containers', status: 200, data: [{ terminalCode: 'T', container: { containerNo: 'X' }, shipmentAvailability: true }] } });
+  await p.click('#cptColinsC');
+  await p.waitForSelector('#cptLive .cpt-table');
+  eq([sent.at(-1).body.path, sent.at(-1).body.query], ['/API/v2/ColinsViewers/GetExportContainers', { bookingNoList: ['ABC123'] }], 'COLINS コンテナ：輸出はブッキング番号を bookingNoList に');
+  ok(/船積可否/.test(await p.locator('#cptLive .cpt-table thead').innerText()), 'COLINS コンテナ：輸出は列が違う（船積可否）');
+  const beforeC = sent.length;
+  await p.fill('#cptCtn', '  ');
+  await p.click('#cptColinsC');
+  await p.waitForFunction(() => /ブッキング番号を入力/.test(document.getElementById('cptLive').innerText));
+  eq(sent.length, beforeC, 'COLINS コンテナ：番号が空なら通信しない');
+  respond = () => ({ status: 502, body: { ok: false, error: 'upstream_auth', message: 'サイバーポートに認証を拒否されました', upstreamStatus: 403 } });
+  await p.fill('#cptCtn', 'ABC1'); await p.click('#cptColinsC');
+  await p.waitForSelector('#cptLive .cpt-msg.is-error');
+  ok(/403/.test(await p.locator('#cptLive').innerText()), 'COLINS：エラーは応答コードつきで表示');
+  await p.selectOption('#cptDir', 'import');
+
   // エラー：ログインしていない
   await p.evaluate(() => { window.__noSession = true; });
   const before = sent.length;

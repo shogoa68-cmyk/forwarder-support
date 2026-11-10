@@ -12,11 +12,17 @@
 //   {action:'ping'}                              → 接続情報でトークンが取れるかだけ確かめる（API は呼ばない）
 //   {action:'get', path:'/API/v2/…', query:{…}}  → 許可された読み取り API を 1 回呼ぶ
 //
+// 認証は「2 つのトークン」（Ver.2 API利用ガイダンス Ver.1.0 P.14・16〜24）
+//   ① システム用：POST <base>/Token（client_credentials）→ X-Authorization ヘッダー
+//   ② 利用者用：B2C の token（grant_type=password・橋渡しユーザーのメール/パスワード）→ Authorization: Bearer ヘッダー
+//
 // 必要な「秘密の設定」（supabase secrets set …・リポジトリには絶対に書かない）
-//   CP_CLIENT_ID / CP_CLIENT_SECRET … サイバーポートから払い出された接続情報
-//   CP_ALLOWED_ORIGINS … 画面を公開している URL（カンマ区切り。例：https://example.github.io）
-//   CP_BASE_URL   … 省略時 https://api.cyber-port.net
-//   CP_TOKEN_URL  … 省略時 <CP_BASE_URL>/vendor-auth/token（トークンの取得先が違うと分かったときだけ設定）
+//   CP_CLIENT_ID / CP_CLIENT_SECRET … システム用の接続情報（管理者の「会社を管理する」＞「API接続」タブ）
+//   CP_APP_ID                       … アプリケーションID（同じタブ。OpenID 認証の client_id）
+//   CP_USER_EMAIL / CP_USER_PASSWORD … 橋渡し用「API接続用ユーザー」のメールアドレスとパスワード
+//   CP_ALLOWED_ORIGINS … 画面を公開している URL（カンマ区切り。例：https://example.github.io。余計な引用符・空白・末尾の / は無視する）
+//   CP_ENV        … sandbox にすると検証環境（省略時は本番）。接続情報は同じ環境どうしの組を使う
+//   CP_BASE_URL / CP_TOKEN_URL / CP_OPENID_URL / CP_OPENID_SCOPE … 通常は設定しない（環境ごとの公式の既定値を使う）
 //   ※ SUPABASE_URL / SUPABASE_ANON_KEY は Supabase が自動で渡す
 // 手順は docs/サイバーポート連携-セットアップ.md
 // ============================================================
@@ -129,19 +135,106 @@ function allowRate(hits: Map<string, number[]>, who: string, nowMs: number, max 
   hits.set(who, arr);
   return true;
 }
+
+// ---------- ブラウザからの呼び出しを許す「アクセス元」 ----------
+// CP_ALLOWED_ORIGINS（カンマ・空白・改行区切り）を整える。貼り付けで混ざりがちな
+// 引用符（" ' “ ” ‘ ’）・前後の空白・末尾の / を取り除き、小文字にそろえる（アクセス元は大文字小文字を区別しない）。
+function parseOrigins(raw: unknown): string[] {
+  return String(raw == null ? '' : raw)
+    .split(/[\s,]+/)
+    .map((x) => x.replace(/^["'\u2018\u2019\u201c\u201d]+|["'\u2018\u2019\u201c\u201d]+$/g, '').replace(/\/+$/, '').trim().toLowerCase())
+    .filter(Boolean);
+}
+
+// 許可リストが空のときは localhost だけ通す（うっかり全世界に開けない）。
+function isOriginAllowed(origin: string, list: string[]): boolean {
+  const o = String(origin || '').trim().replace(/\/+$/, '').toLowerCase();
+  if (!o) return false;
+  return list.length ? list.includes(o) : /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(o);
+}
+
+// ---------- 接続設定（本番／検証環境）と、2 種類のトークン ----------
+// 根拠：「Ver.2 API利用ガイダンス Ver.1.0」P.14・P.16〜24（引き継ぎ書 第6章）。
+//   ① システム用（X-Authorization）：POST <base>/Token（x-www-form-urlencoded・grant_type=client_credentials）→ access_token
+//   ② 利用者用（Authorization: Bearer）：POST <B2C の token>（grant_type=password・橋渡しユーザーのメール/パスワード）→ access_token
+type CpEnvName = 'production' | 'sandbox';
+const ENV_PRESETS: Record<CpEnvName, { base: string; openidUrl: string; scopeBase: string }> = {
+  production: {
+    base: 'https://api.cyber-port.net',
+    openidUrl: 'https://mlitcyberport.b2clogin.com/mlitcyberport.onmicrosoft.com/oauth2/v2.0/token?p=b2c_1_cyberport_ropc_auth',
+    scopeBase: 'https://mlitcyberport.onmicrosoft.com/cyberport.api',
+  },
+  sandbox: {
+    base: 'https://api-sandbox.cyber-port.net',
+    openidUrl: 'https://mlitcyberport.b2clogin.com/mlitcyberport.onmicrosoft.com/oauth2/v2.0/token?p=b2c_1_sandboxcp_ropc_auth',
+    scopeBase: 'https://mlitcyberport.onmicrosoft.com/sandboxcp.api',
+  },
+};
+
+type CpConfig = {
+  env: CpEnvName; base: string; clientTokenUrl: string; openidUrl: string; openidScope: string;
+  clientId: string; clientSecret: string; appId: string; userEmail: string; userPassword: string;
+};
+
+// 貼り付けで混ざりがちな前後の空白・引用符を取り除く（ID・URL 用）。
+function cleanVal(v: unknown): string {
+  return String(v == null ? '' : v).trim().replace(/^["'‘’“”]+|["'‘’“”]+$/g, '').trim();
+}
+
+// secrets（環境変数）から設定を作る。省略したものは、環境（CP_ENV）に応じた公式の既定値になる。
+//   CP_ENV=sandbox で検証環境。CP_BASE_URL / CP_TOKEN_URL / CP_OPENID_URL / CP_OPENID_SCOPE で個別に上書きできる。
+//   スコープの既定は「読み取り（read）」だけ（write は要求しない＝万一トークンが漏れても読み取りまで）。
+function resolveConfig(get: (k: string) => string | undefined): CpConfig {
+  const env: CpEnvName = cleanVal(get('CP_ENV')).toLowerCase() === 'sandbox' ? 'sandbox' : 'production';
+  const pre = ENV_PRESETS[env];
+  const base = (cleanVal(get('CP_BASE_URL')) || pre.base).replace(/\/+$/, '');
+  return {
+    env,
+    base,
+    clientTokenUrl: cleanVal(get('CP_TOKEN_URL')) || base + '/Token',
+    openidUrl: cleanVal(get('CP_OPENID_URL')) || pre.openidUrl,
+    openidScope: cleanVal(get('CP_OPENID_SCOPE')) || 'openid ' + pre.scopeBase + '/read',
+    clientId: cleanVal(get('CP_CLIENT_ID')),
+    clientSecret: cleanVal(get('CP_CLIENT_SECRET')),
+    appId: cleanVal(get('CP_APP_ID')),
+    userEmail: cleanVal(get('CP_USER_EMAIL')),
+    userPassword: String(get('CP_USER_PASSWORD') ?? '').replace(/^\s+|\s+$/g, ''), // パスワードは前後の空白だけ除く（引用符は中身かもしれない）
+  };
+}
+
+// x-www-form-urlencoded の本文（空白は + に・記号は %XX に）
+function formBody(o: Record<string, string>): string {
+  const sp = new URLSearchParams();
+  for (const [k, v] of Object.entries(o)) sp.append(k, v);
+  return sp.toString();
+}
+
+// トークン応答から、使うトークンと有効期限を取り出す（access_token、または旧来の token）。
+// 期限は expires_in（秒）→ JWT の exp → 既定 5 分 の順。1 分早めに切れたことにする。
+function tokenFromResponse(j: Record<string, unknown>, nowMs: number): { token: string; exp: number } | null {
+  const token = typeof j.access_token === 'string' && j.access_token ? j.access_token : typeof j.token === 'string' ? j.token : '';
+  if (!token) return null;
+  const ei = Number(j.expires_in);
+  const exp = Number.isFinite(ei) && ei > 0 ? nowMs + Math.max(ei * 1000 - 60_000, ei * 500) : tokenExpiryMs(token, nowMs);
+  return { token, exp };
+}
 // ======== logic.ts ここまで ========
 
 const SB_URL = Deno.env.get('SUPABASE_URL')!;
 const SB_ANON = Deno.env.get('SUPABASE_ANON_KEY')!;
-const ORIGINS = (Deno.env.get('CP_ALLOWED_ORIGINS') ?? '').split(',').map((s) => s.trim()).filter(Boolean);
 const MAX_BODY = 1_000_000; // 相手の応答は 1MB まで（大きすぎる応答は返さない）
 const MAX_ATTEMPTS = 3;     // 通信エラー／相手先のエラーは最大 3 回まで（指数バックオフ）
 
 // ---------- 共通：CORS ----------
+// 許可するアクセス元は、呼び出しのたびに読む（起動時の 1 回だけだと、あとから secrets を直しても反映されないため）。
+// 余計な引用符・空白・末尾の / は parseOrigins が取り除く。許可されないときは、記録（ログ）に理由を残す。
 function corsFor(req: Request): Record<string, string> {
   const origin = req.headers.get('origin') ?? '';
-  // 許可リストが空のときは localhost だけ通す（うっかり全世界に開けない）
-  const ok = ORIGINS.length ? ORIGINS.includes(origin) : /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin);
+  const list = parseOrigins(Deno.env.get('CP_ALLOWED_ORIGINS'));
+  const ok = isOriginAllowed(origin, list);
+  if (origin && !ok) {
+    console.warn(JSON.stringify({ event: 'cors_blocked', origin, allowed: list.length ? list : '(未設定: localhostだけ許可)' }));
+  }
   return {
     'Access-Control-Allow-Origin': ok ? origin : 'null',
     'Access-Control-Allow-Headers': 'authorization, apikey, content-type, x-client-info',
@@ -169,15 +262,7 @@ async function authUser(req: Request): Promise<{ email: string } | null> {
 }
 
 // ---------- 設定（鍵は呼び出しのたびに読む＝secrets を更新しても再デプロイ不要） ----------
-function cfg() {
-  const base = (Deno.env.get('CP_BASE_URL') ?? 'https://api.cyber-port.net').replace(/\/$/, '');
-  return {
-    id: Deno.env.get('CP_CLIENT_ID') ?? '',
-    secret: Deno.env.get('CP_CLIENT_SECRET') ?? '',
-    base,
-    tokenUrl: Deno.env.get('CP_TOKEN_URL') ?? base + '/vendor-auth/token',
-  };
-}
+const cfg = () => resolveConfig((k) => Deno.env.get(k));
 
 class CpError extends Error {
   code: string; status: number; extra: Record<string, unknown>;
@@ -186,34 +271,94 @@ class CpError extends Error {
   }
 }
 
-// ---------- トークン（ベンダー/システム認証） ----------
-let _tok: { v: string; exp: number } | null = null;
-async function getToken(force = false): Promise<string> {
-  if (!force && _tok && _tok.exp > Date.now()) return _tok.v;
+// 相手先の応答を読む共通処理（JSON でなくても落ちない）
+async function readJson(r: Response): Promise<{ j: Record<string, unknown>; text: string; ctype: string }> {
+  const text = await r.text().catch(() => '');
+  const ctype = r.headers.get('content-type') ?? '';
+  let j: Record<string, unknown> = {};
+  try { const x = JSON.parse(text); if (x && typeof x === 'object') j = x as Record<string, unknown>; } catch (_e) { /* JSON でないとき */ }
+  return { j, text, ctype };
+}
+const looksLikeHtml = (ctype: string, text: string) => /html/i.test(ctype) || /^\s*</.test(text);
+
+// ---------- ① システム用トークン（X-Authorization）：client_id / client_secret ----------
+//   公式：POST <base>/Token（x-www-form-urlencoded・grant_type=client_credentials）→ access_token（Bearer は付けずにそのまま使う）。
+//   CP_TOKEN_URL が旧来の Swagger 用の取得口（…/vendor-auth/token）のときだけ、JSON（clientId/clientSecret）で送り token を受け取る。
+let _clientTok: { v: string; exp: number } | null = null;
+async function getClientToken(force = false): Promise<string> {
+  if (!force && _clientTok && _clientTok.exp > Date.now()) return _clientTok.v;
   const c = cfg();
-  if (!c.id || !c.secret) throw new CpError('cp_not_configured', 503, 'サイバーポートの接続情報が未設定です（CP_CLIENT_ID / CP_CLIENT_SECRET）');
+  if (!c.clientId || !c.clientSecret) throw new CpError('cp_not_configured', 503, 'サイバーポートの接続情報が未設定です（CP_CLIENT_ID / CP_CLIENT_SECRET）');
+  const legacy = /\/vendor-auth\/token\/?$/.test(c.clientTokenUrl);
   let r: Response;
   try {
-    r = await fetch(c.tokenUrl, {
+    r = await fetch(c.clientTokenUrl, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-      body: JSON.stringify({ clientId: c.id, clientSecret: c.secret }),
+      headers: { 'Content-Type': legacy ? 'application/json' : 'application/x-www-form-urlencoded', Accept: 'application/json' },
+      body: legacy ? JSON.stringify({ clientId: c.clientId, clientSecret: c.clientSecret })
+        : formBody({ grant_type: 'client_credentials', client_id: c.clientId, client_secret: c.clientSecret }),
       signal: AbortSignal.timeout(20_000),
     });
   } catch (_e) {
-    throw new CpError('token_network', 502, 'トークンの取得先に接続できませんでした（CP_TOKEN_URL を確認してください）');
+    throw new CpError('token_network', 502, 'システム用トークンの取得先に接続できませんでした（CP_TOKEN_URL・接続先を確認してください）');
   }
-  const text = await r.text().catch(() => '');
-  let j: Record<string, unknown> = {};
-  try { j = JSON.parse(text); } catch (_e) { /* 本文が JSON でないとき */ }
-  const token = typeof j.token === 'string' ? j.token : '';
-  if (!r.ok || !token) {
-    // 秘密（client_secret）は送り返さない。相手先の説明（detail）だけを短く添える。
-    const detail = typeof j.detail === 'string' ? truncate(j.detail, 200) : truncate(text, 120);
-    throw new CpError('token_failed', 502, 'トークンを取得できませんでした（' + r.status + '）。client_id / client_secret を確認してください', { upstreamStatus: r.status, detail });
+  const { j, text, ctype } = await readJson(r);
+  const got = r.ok ? tokenFromResponse(j, Date.now()) : null;
+  if (!got && looksLikeHtml(ctype, text)) {
+    // 取得先が API ではなくウェブページだった（接続情報の間違いではない）
+    throw new CpError('token_wrong_endpoint', 502, 'システム用トークンの取得先がAPIではありません（ウェブページが返りました）。取得先（CP_TOKEN_URL）を確認してください', { upstreamStatus: r.status });
   }
-  _tok = { v: token, exp: tokenExpiryMs(token, Date.now()) };
-  return token;
+  if (!got) {
+    // 秘密（client_secret）は送り返さない。相手先の説明（detail / error）だけを短く添える。
+    const raw = typeof j.detail === 'string' ? j.detail : typeof j.error === 'string' ? j.error : '';
+    const detail = raw ? truncate(raw, 200) : truncate(text, 120);
+    const bad = raw === 'invalid_client' || raw === 'invalid_client_credentials';
+    const msg = bad
+      ? 'client_id / client_secret が正しくありません（invalid_client）。ID とシークレットが同じ組（本番どうし・検証環境どうし）か確認してください'
+      : 'システム用トークンを取得できませんでした（' + r.status + '）。client_id / client_secret を確認してください';
+    throw new CpError('token_failed', 502, msg, { upstreamStatus: r.status, detail });
+  }
+  _clientTok = { v: got.token, exp: got.exp };
+  return got.token;
+}
+
+// ---------- ② 利用者用トークン（Authorization: Bearer）：橋渡しユーザーのメール・パスワード ----------
+//   公式：POST <B2C の token>（grant_type=password・client_id＝アプリケーションID・scope）→ access_token。
+//   スコープは既定で読み取り（read）だけ（logic.ts resolveConfig）。
+let _userTok: { v: string; exp: number } | null = null;
+async function getUserToken(force = false): Promise<string> {
+  if (!force && _userTok && _userTok.exp > Date.now()) return _userTok.v;
+  const c = cfg();
+  if (!c.appId || !c.userEmail || !c.userPassword) {
+    throw new CpError('cp_user_not_configured', 503, 'API接続用ユーザーの情報が未設定です（CP_APP_ID / CP_USER_EMAIL / CP_USER_PASSWORD）');
+  }
+  let r: Response;
+  try {
+    r = await fetch(c.openidUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded', Accept: 'application/json' },
+      body: formBody({ grant_type: 'password', client_id: c.appId, username: c.userEmail, password: c.userPassword, response_type: 'token id_token', scope: c.openidScope }),
+      signal: AbortSignal.timeout(20_000),
+    });
+  } catch (_e) {
+    throw new CpError('user_token_network', 502, '利用者用トークンの取得先に接続できませんでした（CP_OPENID_URL を確認してください）');
+  }
+  const { j, text, ctype } = await readJson(r);
+  const got = r.ok ? tokenFromResponse(j, Date.now()) : null;
+  if (!got && looksLikeHtml(ctype, text)) {
+    throw new CpError('user_token_wrong_endpoint', 502, '利用者用トークンの取得先がAPIではありません（ウェブページが返りました）。CP_OPENID_URL を確認してください', { upstreamStatus: r.status });
+  }
+  if (!got) {
+    // B2C のエラー（error と、AADB2C で始まる説明）。パスワードは相手先も返さないが、念のため短く切る。
+    const err = typeof j.error === 'string' ? j.error : '';
+    const desc = typeof j.error_description === 'string' ? truncate(j.error_description.split(/\r?\n/)[0], 200) : '';
+    const detail = [err, desc].filter(Boolean).join(': ') || truncate(text, 120);
+    throw new CpError('user_token_failed', 502,
+      'API接続用ユーザーのトークンを取得できませんでした（' + r.status + '）。アプリケーションID・メールアドレス・パスワードと、そのユーザーがAPI用に登録されているかを確認してください',
+      { upstreamStatus: r.status, detail });
+  }
+  _userTok = { v: got.token, exp: got.exp };
+  return got.token;
 }
 
 // ---------- 読み取り API を 1 回呼ぶ（認証切れ 1 回・通信/5xx は最大 3 回まで再試行） ----------
@@ -222,12 +367,14 @@ async function callGet(pathAndQuery: string): Promise<{ status: number; data: un
   let refreshed = false;
   let lastErr: CpError | null = null;
   for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
-    const token = await getToken();
+    const clientToken = await getClientToken();
+    const userToken = await getUserToken();
     let r: Response;
     try {
       r = await fetch(c.base + pathAndQuery, {
         method: 'GET',
-        headers: { 'X-Authorization': token, Accept: 'application/json' },
+        // 2 つのヘッダーが両方必要：X-Authorization（システム用・Bearer なし）と Authorization（利用者用・Bearer ＋ 空白 1 つ）
+        headers: { 'X-Authorization': clientToken, Authorization: 'Bearer ' + userToken, Accept: 'application/json' },
         signal: AbortSignal.timeout(20_000),
       });
     } catch (_e) {
@@ -243,7 +390,7 @@ async function callGet(pathAndQuery: string): Promise<{ status: number; data: un
       return { status: r.status, data };
     }
     // 認証が切れたかもしれない：トークンを取り直して 1 回だけやり直す（回数は消費しない）
-    if ((r.status === 401) && !refreshed) { refreshed = true; _tok = null; attempt--; continue; }
+    if ((r.status === 401) && !refreshed) { refreshed = true; _clientTok = null; _userTok = null; attempt--; continue; }
     const cls = classifyStatus(r.status);
     // 相手先のエラーは常に 502 で返す（404 を返すと、ブラウザ側が「この関数が無い」と取り違えるため）。
     // 本当の状態は error（種類）と upstreamStatus で伝える。
@@ -271,9 +418,14 @@ Deno.serve(async (req: Request) => {
   try {
     if (body.action === 'ping') {
       const c = cfg();
-      await getToken(true); // 取り直して、いまの接続情報で本当に通るか確かめる
+      await getClientToken(true); // 取り直して、いまの接続情報で本当に通るか確かめる
+      await getUserToken(true);
       console.log(JSON.stringify({ at: new Date().toISOString(), who: user.email, action: 'ping', ok: true }));
-      return json(req, { ok: true, message: 'トークンを取得できました（接続情報は有効です）', tokenHost: new URL(c.tokenUrl).host, apiHost: new URL(c.base).host });
+      return json(req, {
+        ok: true,
+        message: 'システム用と利用者用の両方のトークンを取得できました（接続情報・API接続用ユーザーは有効です）',
+        env: c.env, apiHost: new URL(c.base).host, tokenHost: new URL(c.clientTokenUrl).host, openidHost: new URL(c.openidUrl).host,
+      });
     }
     if (body.action === 'get') {
       const name = matchAllowed(body.path);

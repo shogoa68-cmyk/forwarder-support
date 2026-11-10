@@ -56,3 +56,5 @@
 #tab-cptest .cpt-raw { margin-top: 8px; font-size: 12px; }
 #tab-cptest .cpt-raw summary { cursor: pointer; color: var(--text-md); }
 #tab-cptest .cpt-raw pre { max-height: 260px; overflow: auto; margin: 6px 0 0; padding: 8px; font-size: 12px; background: var(--surface-warm); border: 1px solid var(--border); border-radius: 6px; white-space: pre-wrap; word-break: break-all; }
+#tab-cptest .cpt-sep { height: 1px; margin: 10px 0 2px; background: var(--border); }
+#tab-cptest .cpt-input.cpt-input-s { flex: 0 1 190px; min-width: 120px; }
