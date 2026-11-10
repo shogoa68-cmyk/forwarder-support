@@ -5722,6 +5722,20 @@ body.md-modal-open { overflow: hidden; }
 .master-search-ico { font-size: 14px; }
 .master-search-input { flex: 1 1 auto; max-width: 640px; min-width: 200px; }
 .master-search-count { font-size: 12px; color: #2f6b3a; font-weight: 700; white-space: nowrap; }
+/* お客様の取引形態ごとの色（一覧の行・見出し・チップ）：荷主＝青／同業者＝橙／その他＝灰 */
+#statsPane-master tr[data-deal="ship"] > td { background: #eef5fc; }
+#statsPane-master tr[data-deal="fwd"] > td { background: #fff4e6; }
+#statsPane-master tr[data-deal="other"] > td { background: #f1f2f4; }
+#statsPane-master tr[data-deal="ship"] > td:first-child { box-shadow: inset 4px 0 0 #3b7bbf; }
+#statsPane-master tr[data-deal="fwd"] > td:first-child { box-shadow: inset 4px 0 0 #e08a2c; }
+#statsPane-master tr[data-deal="other"] > td:first-child { box-shadow: inset 4px 0 0 #9aa5b1; }
+#statsPane-master tr.mtg-deal[data-deal="ship"] > td { background: #d9e8f7; color: #1f4f82; }
+#statsPane-master tr.mtg-deal[data-deal="fwd"] > td { background: #fde3c2; color: #8a4b0a; }
+#statsPane-master tr.mtg-deal[data-deal="other"] > td { background: #e1e4e8; color: #4a5561; }
+#statsPane-master tr.mtg-deal[data-deal="none"] > td { background: #f3ede2; color: #6b5a3c; }
+.stats-md-deal-ship { background: #d9e8f7; border-color: #3b7bbf; }
+.stats-md-deal-fwd { background: #fde3c2; border-color: #e08a2c; }
+.stats-md-deal-other { background: #e1e4e8; border-color: #9aa5b1; }
 .master-area-label { font-size: 12px; color: #6b7a8c; min-width: 84px; }
 .master-area-title { font-size: 12px; font-weight: 700; margin-top: 6px; color: #3a4a5c; }
 

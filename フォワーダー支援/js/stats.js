@@ -565,7 +565,8 @@
       const opt = s.options && s.options.find(o => o.value === v);
       const disp = opt ? opt.label : v;
       const short = disp.length > 14 ? disp.slice(0, 14) + '…' : disp;
-      chips.push(`<span class="stats-md-chip" title="${_eav(s.label + '：' + disp)}"><b>${_esc(s.label)}</b>${_esc(short)}</span>`);
+      const dk = s.key === 'dealType' ? (_DEAL_DEFS.find(x => x[1] === v) || [])[0] : '';
+      chips.push(`<span class="stats-md-chip${dk ? ' stats-md-deal stats-md-deal-' + dk : ''}" title="${_eav(s.label + '：' + disp)}"><b>${_esc(s.label)}</b>${_esc(short)}</span>`);
     });
     if (!chips.length) return '';
     return `<div class="stats-md-inline">${chips.join('')}</div>`;
@@ -2359,7 +2360,15 @@
   window.statsMasterSetSub = function (k) { _masterSub = k || ''; _masterSvType = ''; _renderMaster(); };
   // 並び順：'name'＝名前順（既定）／'tag'＝種別・タグごとにまとめて表示（サブコン・お客様のとき）
   let _masterSort = 'name';
-  window.statsMasterSetSort = function (m) { _masterSort = (m === 'tag' || m === 'group' || m === 'area') ? m : 'name'; _renderMaster(); };
+  window.statsMasterSetSort = function (m) { _masterSort = (m === 'tag' || m === 'group' || m === 'area' || m === 'deal') ? m : 'name'; _renderMaster(); };
+  // お客様の取引形態（荷主／同業者／その他／未設定）。一覧の行の色・見出しの色・「取引形態ごとにまとめる」に使う
+  const _DEAL_DEFS = [['ship', '荷主（直接）', '🏭'], ['fwd', '同業者（フォワーダー・代理店）', '🤝'], ['other', 'その他', '📁'], ['none', '取引形態 未設定', '❔']];
+  const _dealKeyOf = (field, name) => {
+    if (field !== 'customer') return '';
+    const d = ((typeof window.mdGet === 'function' && window.mdGet('customer', name)) || { details: {} }).details || {};
+    const f = _DEAL_DEFS.find(x => x[1] === d.dealType);
+    return f ? f[0] : 'none';
+  };
   // マスターの所属グループ（詳細の group）。別名で入力された名前でも代表名のグループを返す
   const _groupOfName = (field, name) => {
     const canon = typeof window.nameCanon === 'function' ? (window.nameCanon(field, name) || name) : name;
@@ -2644,9 +2653,11 @@
     if (_SUB_FILTER[_masterFieldFilter] || _hasGroup) {
       if (_masterSort === 'tag' && !_SUB_FILTER[_masterFieldFilter]) _masterSort = 'name';
       if ((_masterSort === 'group' || _masterSort === 'area') && !_hasGroup) _masterSort = 'name';
+      if (_masterSort === 'deal' && _masterFieldFilter !== 'customer') _masterSort = 'name';
       const sbtn = (m, label) => `<button class="master-filter-chip master-sort-chip${_masterSort === m ? ' is-active' : ''}" onclick="statsMasterSetSort('${m}')">${label}</button>`;
       chipsH += '<div class="master-filter-chips master-sort-chips"><span class="master-type-chips-label">並び順：</span>' + sbtn('name', '名前順') +
         (_SUB_FILTER[_masterFieldFilter] ? sbtn('tag', _SUB_FILTER[_masterFieldFilter].label + 'ごとにまとめる') : '') +
+        (_masterFieldFilter === 'customer' ? sbtn('deal', '🤝 取引形態ごとにまとめる') : '') +
         (_hasGroup ? sbtn('group', '🏢 所属グループごとにまとめる') + sbtn('area', '📍 得意エリアごとにまとめる') : '') + '</div>';
     }
 
@@ -2704,7 +2715,7 @@
           ? `statsUnitRemoveAlias('${_ea(a)}','${_ea(g.canonical)}')`
           : `synRemoveAlias('${_ea(g.field)}','${_ea(a)}','${_ea(g.canonical)}')`;
         const chips = (g.aliases || []).map(a => `<span class="stats-syn-member">${_esc(a)}<button class="ua-chip-del" title="別名から外す" onclick="${delAlias(a)}">✕</button></span>`).join('');
-        h += `<tr class="stats-syn-row${r.viaDepth ? ' master-via-child' : ''}" data-mfield="${_eav(g.field)}" data-mvalue="${_eav(g.canonical)}"${r.viaDepth ? ` data-via-depth="${r.viaDepth}"` : ''}><td>${labels[g.field] || g.field}</td>` +
+        h += `<tr class="stats-syn-row${r.viaDepth ? ' master-via-child' : ''}" data-mfield="${_eav(g.field)}" data-mvalue="${_eav(g.canonical)}"${_dealKeyOf(g.field, g.canonical) ? ` data-deal="${_dealKeyOf(g.field, g.canonical)}"` : ''}${r.viaDepth ? ` data-via-depth="${r.viaDepth}"` : ''}><td>${labels[g.field] || g.field}</td>` +
              `<td class="stats-val">${_viaMark(r)}<span class="ua-star">⭐</span>${_esc(g.canonical)}${_crChip(g.field, g.canonical)}${_mdBadge(g.field, g.canonical)}</td>` +
              `<td class="stats-master-abbrev-cell">${chips}${addBtn(g.field, g.canonical)}</td>` +
              `<td class="ops"><button class="stats-master-merge" title="このマスターを別のマスターの別名にまとめる（別名ごと移動）" onclick="statsSynMergePicker('${_ea(g.field)}','${_ea(g.canonical)}',this)">他のマスターにまとめる</button>` +
@@ -2713,7 +2724,7 @@
              `<button type="button" class="master-ops-more more" aria-haspopup="menu" title="その他の操作（別名をすべて外す）" onclick="statsOpsMenu(this,'group','${_ea(g.field)}','${_ea(g.canonical)}')">⋯</button></td></tr>`;
       } else {
         const m = r.m;
-        h += `<tr data-mfield="${_eav(m.field)}" data-mvalue="${_eav(m.value)}"${r.viaDepth ? ` class="master-via-child" data-via-depth="${r.viaDepth}"` : ''}>` +
+        h += `<tr data-mfield="${_eav(m.field)}" data-mvalue="${_eav(m.value)}"${_dealKeyOf(m.field, m.value) ? ` data-deal="${_dealKeyOf(m.field, m.value)}"` : ''}${r.viaDepth ? ` class="master-via-child" data-via-depth="${r.viaDepth}"` : ''}>` +
              `<td>${labels[m.field] || m.field}</td>` +
              `<td class="stats-val">${_viaMark(r)}${_esc(m.value)}${_crChip(m.field, m.value)}${_mdBadge(m.field, m.value)}</td>` +
              `<td class="stats-master-abbrev-cell">${addBtn(m.field, m.value)}</td>` +
@@ -2721,7 +2732,15 @@
              `</tr>`;
       }
     };
-    if (_masterSort === 'tag' && _SUB_FILTER[_masterFieldFilter]) {
+    if (_masterSort === 'deal' && _masterFieldFilter === 'customer') {
+      // 取引形態ごとにまとめる（荷主→同業者→その他→未設定の順。件数つきの見出し行）
+      _DEAL_DEFS.forEach(([k, label, ico]) => {
+        const list = rowsAll.filter(x => _dealKeyOf(x.field, x.name) === k);
+        if (!list.length) return;
+        h += `<tr class="master-tag-group-row mtg-deal" data-deal="${k}"><td colspan="4"><span class="mtg-name">${ico} ${_esc(label)}</span><span class="mtg-count">${list.length}社</span></td></tr>`;
+        list.forEach(_emitRow);
+      });
+    } else if (_masterSort === 'tag' && _SUB_FILTER[_masterFieldFilter]) {
       // 種別・タグごとにまとめて表示。複数のタグを持つものは、それぞれのタグの下に出す（タグなしは最後）
       const groups = new Map(); const none = [];
       rowsAll.forEach(r => {
