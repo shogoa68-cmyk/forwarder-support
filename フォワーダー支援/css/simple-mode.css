@@ -251,9 +251,9 @@ html.mode-simple #tab-quote-make .qp-guide-l, html.mode-simple #tab-quote-make .
   html.mode-simple #tab-quote-make .qp-guide-step { gap: 4px; padding: var(--sp-10) 2px; }
   html.mode-simple #tab-quote-make .qp-guide-n { font-size: var(--fs-15, 15px); }
   html.mode-simple #tab-quote-make .qp-guide-l { font-size: var(--fs-12, 12px); }
-  html.mode-simple #tab-quote-make .qp-guide-step.is-done .qp-guide-n::after { font-size: 10px; margin-left: 1px; }
+  html.mode-simple #tab-quote-make .qp-guide-step.is-done .qp-guide-n::after { font-size: 12px; margin-left: 1px; }
 }
 @media (max-width: 400px) {
   html.mode-simple #tab-quote-make .qp-guide-n { font-size: 14px; }
-  html.mode-simple #tab-quote-make .qp-guide-l { font-size: 11px; }
+  html.mode-simple #tab-quote-make .qp-guide-l { font-size: 12px; }
 }

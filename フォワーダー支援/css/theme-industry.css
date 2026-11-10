@@ -61,6 +61,20 @@ html.theme-industry {
   --amber-52: #bb814d;
   --amber-44: #a2733d;
   --gray-60: #95989d;
+  --fs-9: 9px;
+  --fs-9-5: 9.5px;
+  --fs-10: 10px;
+  --fs-10-5: 10.5px;
+  --fs-11: 11px;
+  --fs-11-5: 11.5px;
+  --fs-12: 12px;
+  --fs-12-5: 12.5px;
+  --fs-13: 13px;
+  --fs-13-5: 13.5px;
+  --fs-14: 14px;
+  --fs-15: 15px;
+  --fs-16: 16px;
+  --fs-18: 18px;
   --r-2: 0;
   --r-3: 0;
   --r-4: 0;
@@ -2946,6 +2960,9 @@ html.theme-industry {
 :where(html.theme-industry) #tab-quote-make .stk-sell .w-price {
   border-color: #cfd9e3;
 }
+:where(html.theme-industry) #tab-quote-make .row-cd-lbl {
+  font-size: 8px;
+}
 :where(html.theme-industry) #tab-quote-make .catsv-cell .w-pattern {
   border: 1px dashed #c4d2e0;
   border-radius: 0;
@@ -3353,6 +3370,7 @@ html.theme-industry {
   box-shadow: 0 1px 5px rgba(74,109,144,.14);
 }
 :where(html.theme-industry) #tab-quote-make .cc-chip-dim {
+  font-size: var(--fs-9);
   color: #5f6266;
 }
 :where(html.theme-industry) #tab-quote-make .cc-chip-dim-in {
@@ -6161,6 +6179,9 @@ html.theme-industry {
 :where(html.theme-industry) #tab-quote-make .qsp-dig-row-hide.is-on {
   border-color: #dfc1a9;
 }
+:where(html.theme-industry) #tab-quote-make .qsp-dig-row-meta {
+  font-size: 8.5px;
+}
 :where(html.theme-industry) #tab-quote-make .qsp-dig-row-mk {
   color: #595c61;
 }
@@ -7214,6 +7235,9 @@ html.theme-industry {
 :where(html.theme-industry) #tab-quote-make .qp-sub {
   border-radius: 0;
 }
+:where(html.theme-industry) #tab-quote-make .qp-sub-more {
+  font-size: 8px;
+}
 :where(html.theme-industry) #tab-quote-make .sc-panel {
   border-radius: 0;
 }
@@ -7487,6 +7511,7 @@ html.theme-industry {
   border-radius: 0;
 }
 :where(html.theme-industry) #tab-quote-make .qrc-rail-btn em {
+  font-size: 8.5px;
   color: #6c7076;
 }
 :where(html.theme-industry) #tab-quote-make .qrc-rail-btn:hover {
@@ -7499,6 +7524,7 @@ html.theme-industry {
   color: #31485f;
 }
 :where(html.theme-industry) #tab-quote-make .qrc-rail-badge {
+  font-size: 8.5px;
   border-radius: 0;
 }
 :where(html.theme-industry) #tab-quote-make .qrc-rail-dot {

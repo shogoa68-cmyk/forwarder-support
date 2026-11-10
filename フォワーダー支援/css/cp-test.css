@@ -39,6 +39,6 @@
 
 #tab-cptest .cpt-bubble { max-width: 90%; margin: 0 0 8px; padding: 6px 10px; font-size: 13px; line-height: 1.6; background: var(--surface-warm); border: 1px solid var(--border); border-radius: 10px; }
 #tab-cptest .cpt-bubble.is-mine { margin-left: auto; background: var(--accent-lt); }
-#tab-cptest .cpt-bubble-h { font-size: 11px; color: var(--text-muted); }
+#tab-cptest .cpt-bubble-h { font-size: 12px; color: var(--text-muted); }
 #tab-cptest .cpt-bubble-h span { margin-left: 6px; }
 #tab-cptest .cpt-note { font-size: 12px; color: var(--text-muted); }

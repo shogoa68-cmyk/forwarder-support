@@ -254,7 +254,7 @@
 
       <div style="margin-top:16px;padding-top:14px;border-top:1px dashed var(--border);">
         <div style="font-size:12px;font-weight:700;color:var(--text-md);margin-bottom:4px;letter-spacing:0.3px;">📍 VSS移行済み船会社（直接リンク）</div>
-        <p style="font-size:11px;color:var(--text-lt);margin-bottom:10px;">クリックで各社の本船スケジュール画面（VSS）へ直接ジャンプします。</p>
+        <p style="font-size:12px;color:var(--text-lt);margin-bottom:10px;">クリックで各社の本船スケジュール画面（VSS）へ直接ジャンプします。</p>
         <div class="carrier-grid" id="vss-carrier-grid"></div>
       </div>
     </div>
@@ -711,8 +711,8 @@
     <div class="card">
       <div class="section-title">📋 インコタームズ別 作業範囲一覧表</div>
       <p style="font-size:12px;color:var(--text-md);margin-bottom:10px;">
-        <span style="display:inline-block;background:#bbf7d0;color:#14532d;font-weight:700;padding:1px 7px;border-radius:3px;font-size:10px;">売</span>＝売り手負担　
-        <span style="display:inline-block;background:var(--bg);color:var(--text-lt);padding:1px 7px;border-radius:3px;font-size:10px;border:1px solid var(--border);">買</span>＝買い手負担
+        <span style="display:inline-block;background:#bbf7d0;color:#14532d;font-weight:700;padding:1px 7px;border-radius:3px;font-size:12px;">売</span>＝売り手負担　
+        <span style="display:inline-block;background:var(--bg);color:var(--text-lt);padding:1px 7px;border-radius:3px;font-size:12px;border:1px solid var(--border);">買</span>＝買い手負担
       </p>
       <div class="inco-table-wrap">
         <table class="inco-table" id="inco-table"></table>
@@ -733,7 +733,7 @@
         <div style="background:#e8f4f0;border-radius:9px;padding:14px 16px;border:1px solid #b2dfdb;">
           <div style="font-size:12px;font-weight:800;color:#1a5c45;margin-bottom:8px;">📤 輸出通関の申告価格</div>
           <div style="font-size:22px;font-weight:900;color:#1a5c45;text-align:center;margin:10px 0;">FOB価格</div>
-          <p style="font-size:11px;color:#2d6a4f;line-height:1.6;margin:0;">
+          <p style="font-size:12px;color:#2d6a4f;line-height:1.6;margin:0;">
             売買条件がCIFやCFRであっても、輸出申告書には<strong>FOB価格（本船積込渡し価格）</strong>で申告します。<br>
             運賃・保険料が含まれている場合は差し引いてFOBに換算します。
           </p>
@@ -743,7 +743,7 @@
         <div style="background:#fef3e8;border-radius:9px;padding:14px 16px;border:1px solid #f9c784;">
           <div style="font-size:12px;font-weight:800;color:#7c3a0e;margin-bottom:8px;">📥 輸入通関の申告価格</div>
           <div style="font-size:22px;font-weight:900;color:#7c3a0e;text-align:center;margin:10px 0;">CIF価格</div>
-          <p style="font-size:11px;color:#92400e;line-height:1.6;margin:0;">
+          <p style="font-size:12px;color:#92400e;line-height:1.6;margin:0;">
             売買条件がFOBやEXWであっても、課税標準は<strong>CIF価格（運賃・保険料込み価格）</strong>です。<br>
             運賃・保険料が含まれていない場合は加算してCIFに換算します。
           </p>
@@ -752,9 +752,9 @@
       </div>
 
       <!-- 換算早見表 -->
-      <div style="font-size:11px;font-weight:700;color:var(--text-md);margin-bottom:8px;letter-spacing:0.5px;">📐 よく使う換算パターン</div>
+      <div style="font-size:12px;font-weight:700;color:var(--text-md);margin-bottom:8px;letter-spacing:0.5px;">📐 よく使う換算パターン</div>
       <div style="overflow-x:auto;">
-        <table style="border-collapse:collapse;width:100%;min-width:480px;font-size:11px;">
+        <table style="border-collapse:collapse;width:100%;min-width:480px;font-size:12px;">
           <thead>
             <tr style="background:var(--accent-lt);">
               <th style="padding:7px 10px;border:1px solid var(--border);text-align:left;color:var(--accent-dk);">売買条件</th>
@@ -793,8 +793,8 @@
       </div>
 
       <div style="margin-top:12px;padding:10px 14px;background:#fffbeb;border-radius:7px;border:1px solid #fcd34d;">
-        <span style="font-size:11px;font-weight:700;color:#92400e;">⚠️ 注意点</span>
-        <p style="font-size:11px;color:#78350f;margin:4px 0 0;line-height:1.6;">
+        <span style="font-size:12px;font-weight:700;color:#92400e;">⚠️ 注意点</span>
+        <p style="font-size:12px;color:#78350f;margin:4px 0 0;line-height:1.6;">
           日本の輸入関税はCIF価格を課税標準とします（関税定率法第4条）。<br>
           FOB建て取引で輸入する際、インボイスにFOB価格しか記載がない場合でも、
           通関申告時に運賃・保険料を加算したCIF価格を申告する必要があります。<br>
@@ -828,22 +828,22 @@
       <div class="section-title">📦 コンテナ 種類・サイズ</div>
       <p style="font-size:12px;color:var(--text-md);margin-bottom:12px;">※内寸・重量はメーカーにより若干異なる場合があります。</p>
 
-      <div style="font-size:11px;font-weight:700;color:var(--accent-dk);margin:0 0 6px;">🟫 ドライコンテナ（汎用）</div>
+      <div style="font-size:12px;font-weight:700;color:var(--accent-dk);margin:0 0 6px;">🟫 ドライコンテナ（汎用）</div>
       <div style="overflow-x:auto;margin-bottom:14px;">
         <table class="inco-table" style="min-width:600px;">
           <thead><tr>
             <th>種類</th><th>外寸 L×W×H</th><th>内寸 L×W×H</th><th>内容積</th><th>最大積載</th><th>備考</th>
           </tr></thead>
           <tbody>
-            <tr><td class="code-cell">20ft</td><td>6.06×2.44×2.59m</td><td>5.90×2.35×2.39m</td><td>33.2m³</td><td>21,700kg</td><td style="font-size:10px;color:var(--text-lt);">最も一般的。スペース効率◎</td></tr>
-            <tr><td class="code-cell">40ft</td><td>12.19×2.44×2.59m</td><td>12.03×2.35×2.39m</td><td>67.6m³</td><td>26,680kg</td><td style="font-size:10px;color:var(--text-lt);">20ft×2より容積大</td></tr>
-            <tr><td class="code-cell">40ft HC</td><td>12.19×2.44×2.90m</td><td>12.03×2.35×2.70m</td><td>76.4m³</td><td>26,460kg</td><td style="font-size:10px;color:var(--text-lt);">High Cube。かさ高貨物に最適</td></tr>
-            <tr><td class="code-cell">45ft HC</td><td>13.72×2.44×2.90m</td><td>13.56×2.35×2.70m</td><td>86.1m³</td><td>27,600kg</td><td style="font-size:10px;color:var(--text-lt);">欧州・北米航路で使用多い</td></tr>
+            <tr><td class="code-cell">20ft</td><td>6.06×2.44×2.59m</td><td>5.90×2.35×2.39m</td><td>33.2m³</td><td>21,700kg</td><td style="font-size:12px;color:var(--text-lt);">最も一般的。スペース効率◎</td></tr>
+            <tr><td class="code-cell">40ft</td><td>12.19×2.44×2.59m</td><td>12.03×2.35×2.39m</td><td>67.6m³</td><td>26,680kg</td><td style="font-size:12px;color:var(--text-lt);">20ft×2より容積大</td></tr>
+            <tr><td class="code-cell">40ft HC</td><td>12.19×2.44×2.90m</td><td>12.03×2.35×2.70m</td><td>76.4m³</td><td>26,460kg</td><td style="font-size:12px;color:var(--text-lt);">High Cube。かさ高貨物に最適</td></tr>
+            <tr><td class="code-cell">45ft HC</td><td>13.72×2.44×2.90m</td><td>13.56×2.35×2.70m</td><td>86.1m³</td><td>27,600kg</td><td style="font-size:12px;color:var(--text-lt);">欧州・北米航路で使用多い</td></tr>
           </tbody>
         </table>
       </div>
 
-      <div style="font-size:11px;font-weight:700;color:var(--accent-dk);margin:0 0 6px;">🧊 リーファーコンテナ（温度管理）</div>
+      <div style="font-size:12px;font-weight:700;color:var(--accent-dk);margin:0 0 6px;">🧊 リーファーコンテナ（温度管理）</div>
       <div style="overflow-x:auto;margin-bottom:14px;">
         <table class="inco-table" style="min-width:600px;">
           <thead><tr>
@@ -856,7 +856,7 @@
         </table>
       </div>
 
-      <div style="font-size:11px;font-weight:700;color:var(--accent-dk);margin:0 0 6px;">⚙️ 特殊コンテナ</div>
+      <div style="font-size:12px;font-weight:700;color:var(--accent-dk);margin:0 0 6px;">⚙️ 特殊コンテナ</div>
       <div style="overflow-x:auto;">
         <table class="inco-table" style="min-width:500px;">
           <thead><tr><th>種類</th><th>構造の特徴</th><th>主な対象貨物</th></tr></thead>
@@ -900,7 +900,7 @@
 
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px;">
         <div style="overflow-x:auto;">
-          <div style="font-size:11px;font-weight:700;color:var(--accent-dk);margin-bottom:6px;">📏 寸法・重量の一般制限値</div>
+          <div style="font-size:12px;font-weight:700;color:var(--accent-dk);margin-bottom:6px;">📏 寸法・重量の一般制限値</div>
           <table class="inco-table" style="min-width:280px;">
             <thead><tr><th>制限項目</th><th>一般制限値</th><th>高さ指定道路</th></tr></thead>
             <tbody>
@@ -914,7 +914,7 @@
           </table>
         </div>
         <div style="overflow-x:auto;">
-          <div style="font-size:11px;font-weight:700;color:var(--accent-dk);margin-bottom:6px;">🚢 コンテナ輸送での注意点</div>
+          <div style="font-size:12px;font-weight:700;color:var(--accent-dk);margin-bottom:6px;">🚢 コンテナ輸送での注意点</div>
           <table class="inco-table" style="min-width:280px;">
             <thead><tr><th>コンテナ</th><th>全長目安</th><th>要許可</th></tr></thead>
             <tbody>
@@ -923,15 +923,15 @@
               <tr><td class="code-cell">40ft HC</td><td>約15〜16m<br>高さ4.1m超も</td><td style="color:#b91c1c;font-weight:700;">要</td></tr>
             </tbody>
           </table>
-          <p style="font-size:10px;color:var(--text-lt);margin-top:6px;line-height:1.5;">
+          <p style="font-size:12px;color:var(--text-lt);margin-top:6px;line-height:1.5;">
             コンテナトレーラーはほぼすべて全長12m超となるため、特殊車両通行許可が必要です。輸送会社が事前に許可を取得しているのが一般的です。
           </p>
         </div>
       </div>
 
       <div style="padding:10px 14px;background:#fffbeb;border-radius:7px;border:1px solid #fcd34d;">
-        <span style="font-size:11px;font-weight:700;color:#92400e;">⚠️ 特殊車両通行許可について</span>
-        <p style="font-size:11px;color:#78350f;margin:4px 0 0;line-height:1.6;">
+        <span style="font-size:12px;font-weight:700;color:#92400e;">⚠️ 特殊車両通行許可について</span>
+        <p style="font-size:12px;color:#78350f;margin:4px 0 0;line-height:1.6;">
           一般制限値を超える車両は、通行する経路ごとに<strong>道路管理者（国道事務所・都道府県・市区町村）</strong>への許可申請が必要です（道路法第47条の2）。<br>
           申請はオンライン（特車申請システム）でも可能。許可には条件（夜間通行、誘導車の配置等）が付される場合があります。
         </p>
@@ -1001,7 +1001,7 @@
           </tbody>
         </table>
       </div>
-      <p style="font-size:11px;color:var(--text-lt);margin-top:8px;">
+      <p style="font-size:12px;color:var(--text-lt);margin-top:8px;">
         ※ 旧約款名：ICC(C)≒FPA（単独海損不担保）、ICC(B)≒WA（分損担保）、ICC(A)≒AR（全危険担保）
       </p>
     </div>
@@ -1011,7 +1011,7 @@
       <div class="section-title">⚠️ 共通の免責事項（A・B・C すべて不担保）</div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
         <div>
-          <ul style="font-size:11px;color:var(--text);line-height:2;margin:0;padding-left:16px;">
+          <ul style="font-size:12px;color:var(--text);line-height:2;margin:0;padding-left:16px;">
             <li>被保険者の故意または重大な過失</li>
             <li>通常の漏損・目減り・自然消耗</li>
             <li>不適切な梱包・荷造りによる損害</li>
@@ -1020,7 +1020,7 @@
           </ul>
         </div>
         <div>
-          <ul style="font-size:11px;color:var(--text);line-height:2;margin:0;padding-left:16px;">
+          <ul style="font-size:12px;color:var(--text);line-height:2;margin:0;padding-left:16px;">
             <li>原子力・放射線・核反応による損害</li>
             <li>戦争・内乱（別途 戦争条項で追加可）</li>
             <li>ストライキ・暴動（別途 ストライキ条項で追加可）</li>
@@ -1037,14 +1037,14 @@
         <div style="background:#e8f4f0;border-radius:9px;padding:14px 16px;border:1px solid #b2dfdb;">
           <div style="font-size:12px;font-weight:800;color:#1a5c45;margin-bottom:8px;">📐 保険価額（慣行）</div>
           <div style="font-size:18px;font-weight:900;color:#1a5c45;text-align:center;margin:8px 0;">CIF価格 × 110%</div>
-          <p style="font-size:11px;color:#2d6a4f;line-height:1.6;margin:0;">
+          <p style="font-size:12px;color:#2d6a4f;line-height:1.6;margin:0;">
             貨物のCIF価格に10%の希望利益を上乗せした金額が一般的。インボイス価格がFOBの場合は運賃・保険料を加算してからCIFを算出します。
           </p>
         </div>
         <div style="background:#fef3e8;border-radius:9px;padding:14px 16px;border:1px solid #f9c784;">
           <div style="font-size:12px;font-weight:800;color:#7c3a0e;margin-bottom:8px;">💴 保険料の計算</div>
           <div style="font-size:18px;font-weight:900;color:#7c3a0e;text-align:center;margin:8px 0;">保険価額 × 保険料率</div>
-          <p style="font-size:11px;color:#92400e;line-height:1.6;margin:0;">
+          <p style="font-size:12px;color:#92400e;line-height:1.6;margin:0;">
             料率は品目・航路・条件により異なります。付保はCIF建て取引では売り手（輸出者）が行い、FOB建てでは買い手（輸入者）が手配するのが通例です。
           </p>
         </div>
@@ -1059,23 +1059,23 @@
           <thead><tr><th>ステップ</th><th>内容</th><th>ポイント</th></tr></thead>
           <tbody>
             <tr><td style="text-align:center;font-weight:700;">①</td>
-              <td style="font-size:11px;">損害の発見・確認</td>
-              <td style="font-size:10px;color:var(--text-lt);">本船・港湾・倉庫で損害を発見したらその場で記録（写真必須）</td></tr>
+              <td style="font-size:12px;">損害の発見・確認</td>
+              <td style="font-size:12px;color:var(--text-lt);">本船・港湾・倉庫で損害を発見したらその場で記録（写真必須）</td></tr>
             <tr style="background:#fafaf8;"><td style="text-align:center;font-weight:700;">②</td>
-              <td style="font-size:11px;">運送人・保管業者への損害通知（クレームレター）</td>
-              <td style="font-size:10px;color:var(--text-lt);">B/L上の運送人に書面で通知。受取時は清潔でも発見次第速やかに</td></tr>
+              <td style="font-size:12px;">運送人・保管業者への損害通知（クレームレター）</td>
+              <td style="font-size:12px;color:var(--text-lt);">B/L上の運送人に書面で通知。受取時は清潔でも発見次第速やかに</td></tr>
             <tr><td style="text-align:center;font-weight:700;">③</td>
-              <td style="font-size:11px;">保険会社へ事故通知</td>
-              <td style="font-size:10px;color:var(--text-lt);">保険証券記載の保険会社・代理店へ連絡。サーベイヤー（検定人）の手配を依頼</td></tr>
+              <td style="font-size:12px;">保険会社へ事故通知</td>
+              <td style="font-size:12px;color:var(--text-lt);">保険証券記載の保険会社・代理店へ連絡。サーベイヤー（検定人）の手配を依頼</td></tr>
             <tr style="background:#fafaf8;"><td style="text-align:center;font-weight:700;">④</td>
-              <td style="font-size:11px;">サーベイレポートの取得</td>
-              <td style="font-size:10px;color:var(--text-lt);">保険会社指定のサーベイヤーが損害を調査・鑑定し報告書を作成</td></tr>
+              <td style="font-size:12px;">サーベイレポートの取得</td>
+              <td style="font-size:12px;color:var(--text-lt);">保険会社指定のサーベイヤーが損害を調査・鑑定し報告書を作成</td></tr>
             <tr><td style="text-align:center;font-weight:700;">⑤</td>
-              <td style="font-size:11px;">クレーム書類の提出</td>
-              <td style="font-size:10px;color:var(--text-lt);">保険証券・B/L・インボイス・パッキングリスト・サーベイレポート・損害明細</td></tr>
+              <td style="font-size:12px;">クレーム書類の提出</td>
+              <td style="font-size:12px;color:var(--text-lt);">保険証券・B/L・インボイス・パッキングリスト・サーベイレポート・損害明細</td></tr>
             <tr style="background:#fafaf8;"><td style="text-align:center;font-weight:700;">⑥</td>
-              <td style="font-size:11px;">保険金の受取</td>
-              <td style="font-size:10px;color:var(--text-lt);">書類審査後に保険会社から支払い。求償権（運送人への追求権）は保険会社へ移転</td></tr>
+              <td style="font-size:12px;">保険金の受取</td>
+              <td style="font-size:12px;color:var(--text-lt);">書類審査後に保険会社から支払い。求償権（運送人への追求権）は保険会社へ移転</td></tr>
           </tbody>
         </table>
       </div>
@@ -1111,34 +1111,34 @@
           <tbody>
             <tr>
               <td style="text-align:left;padding:6px 10px;font-weight:700;" rowspan="2">積み込み状態</td>
-              <td class="code-cell" style="font-size:11px;">Shipped B/L<br>（船積式）</td>
-              <td style="font-size:11px;">本船への積み込み完了後に発行。信用状取引で最も一般的に求められる。</td>
+              <td class="code-cell" style="font-size:12px;">Shipped B/L<br>（船積式）</td>
+              <td style="font-size:12px;">本船への積み込み完了後に発行。信用状取引で最も一般的に求められる。</td>
             </tr>
             <tr style="background:#fafaf8;">
-              <td class="code-cell" style="font-size:11px;">Received B/L<br>（受取式）</td>
-              <td style="font-size:11px;">CYやCFSへの搬入時点で発行。On Board Notation（船積み注記）を追記することで Shipped B/L として扱える。</td>
+              <td class="code-cell" style="font-size:12px;">Received B/L<br>（受取式）</td>
+              <td style="font-size:12px;">CYやCFSへの搬入時点で発行。On Board Notation（船積み注記）を追記することで Shipped B/L として扱える。</td>
             </tr>
             <tr>
               <td style="text-align:left;padding:6px 10px;font-weight:700;" rowspan="2">貨物状態</td>
-              <td class="code-cell" style="font-size:11px;">Clean B/L<br>（無故障）</td>
-              <td style="font-size:11px;">貨物の外観に異常なし。信用状決済に必須。</td>
+              <td class="code-cell" style="font-size:12px;">Clean B/L<br>（無故障）</td>
+              <td style="font-size:12px;">貨物の外観に異常なし。信用状決済に必須。</td>
             </tr>
             <tr style="background:#fafaf8;">
-              <td class="code-cell" style="font-size:11px;">Claused/Dirty B/L<br>（故障付）</td>
-              <td style="font-size:11px;">破損・汚損等の留保文言（Remarks）あり。L/C決済では原則使用不可。</td>
+              <td class="code-cell" style="font-size:12px;">Claused/Dirty B/L<br>（故障付）</td>
+              <td style="font-size:12px;">破損・汚損等の留保文言（Remarks）あり。L/C決済では原則使用不可。</td>
             </tr>
             <tr>
               <td style="text-align:left;padding:6px 10px;font-weight:700;" rowspan="3">流通性</td>
-              <td class="code-cell" style="font-size:11px;">Negotiable B/L<br>（流通式）</td>
-              <td style="font-size:11px;">裏書（Endorsement）により第三者へ権利譲渡が可能。L/C決済・船積み書類で主流。</td>
+              <td class="code-cell" style="font-size:12px;">Negotiable B/L<br>（流通式）</td>
+              <td style="font-size:12px;">裏書（Endorsement）により第三者へ権利譲渡が可能。L/C決済・船積み書類で主流。</td>
             </tr>
             <tr style="background:#fafaf8;">
-              <td class="code-cell" style="font-size:11px;">Surrender B/L<br>（サレンダー）</td>
-              <td style="font-size:11px;">輸出地で原本を返却（サレンダー）し、テレックスリリースで荷渡し。近距離・信頼取引で使用。</td>
+              <td class="code-cell" style="font-size:12px;">Surrender B/L<br>（サレンダー）</td>
+              <td style="font-size:12px;">輸出地で原本を返却（サレンダー）し、テレックスリリースで荷渡し。近距離・信頼取引で使用。</td>
             </tr>
             <tr>
-              <td class="code-cell" style="font-size:11px;">Sea Waybill<br>（海上貨物運送状）</td>
-              <td style="font-size:11px;">非流通式。権利証券ではなく受取証。原本不要で荷渡し可能。グループ間取引・電子化に向く。</td>
+              <td class="code-cell" style="font-size:12px;">Sea Waybill<br>（海上貨物運送状）</td>
+              <td style="font-size:12px;">非流通式。権利証券ではなく受取証。原本不要で荷渡し可能。グループ間取引・電子化に向く。</td>
             </tr>
           </tbody>
         </table>
@@ -1157,62 +1157,62 @@
           </tr></thead>
           <tbody>
             <tr>
-              <td class="code-cell" style="font-size:11px;">Said to Contain<br>（STC条項）</td>
-              <td style="font-size:11px;">「荷送人の申告による」という意味。コンテナ内容物は船社が確認していない。</td>
-              <td style="font-size:11px;color:var(--text-lt);">コンテナバンニングの内容は荷主責任。申告と実際の相違は荷主負担。</td>
+              <td class="code-cell" style="font-size:12px;">Said to Contain<br>（STC条項）</td>
+              <td style="font-size:12px;">「荷送人の申告による」という意味。コンテナ内容物は船社が確認していない。</td>
+              <td style="font-size:12px;color:var(--text-lt);">コンテナバンニングの内容は荷主責任。申告と実際の相違は荷主負担。</td>
             </tr>
             <tr style="background:#fafaf8;">
-              <td class="code-cell" style="font-size:11px;">Shipper's Load<br>& Count（SL&C）</td>
-              <td style="font-size:11px;">貨物の数量・重量はすべて荷送人の申告値。船社は検証していない。</td>
-              <td style="font-size:11px;color:var(--text-lt);">数量違いのクレームは荷主間で解決。船社免責。</td>
+              <td class="code-cell" style="font-size:12px;">Shipper's Load<br>& Count（SL&C）</td>
+              <td style="font-size:12px;">貨物の数量・重量はすべて荷送人の申告値。船社は検証していない。</td>
+              <td style="font-size:12px;color:var(--text-lt);">数量違いのクレームは荷主間で解決。船社免責。</td>
             </tr>
             <tr>
-              <td class="code-cell" style="font-size:11px;">ヒマラヤ条項<br>（Himalaya）</td>
-              <td style="font-size:11px;">船社の免責・責任制限（ヘーグ・ヴィスビールール）を、使用人・代理人・下請け運送人にも適用拡大。</td>
-              <td style="font-size:11px;color:var(--text-lt);">港運業者・NVOCC等への求償も制限される場合がある。</td>
+              <td class="code-cell" style="font-size:12px;">ヒマラヤ条項<br>（Himalaya）</td>
+              <td style="font-size:12px;">船社の免責・責任制限（ヘーグ・ヴィスビールール）を、使用人・代理人・下請け運送人にも適用拡大。</td>
+              <td style="font-size:12px;color:var(--text-lt);">港運業者・NVOCC等への求償も制限される場合がある。</td>
             </tr>
             <tr style="background:#fafaf8;">
-              <td class="code-cell" style="font-size:11px;">責任制限条項<br>（ヘーグ・ヴィスビー）</td>
-              <td style="font-size:11px;">運送人の賠償責任上限を、貨物 1 package・unit につき <strong>666.67 SDR</strong> または 1kg あたり <strong>2 SDR</strong> の<strong>高い方</strong>に制限（ヘーグ・ヴィスビー Art.IV r.5）。日本国際海上物品運送法も同等。コンテナ単位の上限は B/L 約款に明記がある場合のみ適用される個別ルール。</td>
-              <td style="font-size:11px;color:var(--text-lt);">高額貨物は申告価額（Declared Value）を別途記載し責任額を引き上げること。</td>
+              <td class="code-cell" style="font-size:12px;">責任制限条項<br>（ヘーグ・ヴィスビー）</td>
+              <td style="font-size:12px;">運送人の賠償責任上限を、貨物 1 package・unit につき <strong>666.67 SDR</strong> または 1kg あたり <strong>2 SDR</strong> の<strong>高い方</strong>に制限（ヘーグ・ヴィスビー Art.IV r.5）。日本国際海上物品運送法も同等。コンテナ単位の上限は B/L 約款に明記がある場合のみ適用される個別ルール。</td>
+              <td style="font-size:12px;color:var(--text-lt);">高額貨物は申告価額（Declared Value）を別途記載し責任額を引き上げること。</td>
             </tr>
             <tr>
-              <td class="code-cell" style="font-size:11px;">自由裁量条項<br>（Liberty Clause）</td>
-              <td style="font-size:11px;">船社は航路変更・寄港地変更・積替・迂回等を行う自由を持つ。</td>
-              <td style="font-size:11px;color:var(--text-lt);">船社による迂回・延着は免責になる場合が多い。契約書等で到着日を保証させることは困難。</td>
+              <td class="code-cell" style="font-size:12px;">自由裁量条項<br>（Liberty Clause）</td>
+              <td style="font-size:12px;">船社は航路変更・寄港地変更・積替・迂回等を行う自由を持つ。</td>
+              <td style="font-size:12px;color:var(--text-lt);">船社による迂回・延着は免責になる場合が多い。契約書等で到着日を保証させることは困難。</td>
             </tr>
             <tr style="background:#fafaf8;">
-              <td class="code-cell" style="font-size:11px;">共同海損条項<br>（GA Clause）</td>
-              <td style="font-size:11px;">共同海損（GA）発生時、荷主はGAアジャスターへの供託（Security）提出が必要。</td>
-              <td style="font-size:11px;color:var(--text-lt);">供託しないと貨物が留置される。貨物保険でGAは通常カバーされる。</td>
+              <td class="code-cell" style="font-size:12px;">共同海損条項<br>（GA Clause）</td>
+              <td style="font-size:12px;">共同海損（GA）発生時、荷主はGAアジャスターへの供託（Security）提出が必要。</td>
+              <td style="font-size:12px;color:var(--text-lt);">供託しないと貨物が留置される。貨物保険でGAは通常カバーされる。</td>
             </tr>
             <tr>
-              <td class="code-cell" style="font-size:11px;">留置権条項<br>（Lien Clause）</td>
-              <td style="font-size:11px;">運賃・料金未払いの場合、船社は貨物を留置・売却する権利を持つ。</td>
-              <td style="font-size:11px;color:var(--text-lt);">着払い（Freight Collect）取引では荷受人の支払いが荷渡しの前提。</td>
+              <td class="code-cell" style="font-size:12px;">留置権条項<br>（Lien Clause）</td>
+              <td style="font-size:12px;">運賃・料金未払いの場合、船社は貨物を留置・売却する権利を持つ。</td>
+              <td style="font-size:12px;color:var(--text-lt);">着払い（Freight Collect）取引では荷受人の支払いが荷渡しの前提。</td>
             </tr>
             <tr style="background:#fafaf8;">
-              <td class="code-cell" style="font-size:11px;">裁判管轄条項<br>（Jurisdiction）</td>
-              <td style="font-size:11px;">紛争は船社本店所在地（多くは本船の旗国）の裁判所で解決する旨を規定。</td>
-              <td style="font-size:11px;color:var(--text-lt);">日本の荷主が欧州船社に提訴する場合、現地での対応が必要になる場合あり。</td>
+              <td class="code-cell" style="font-size:12px;">裁判管轄条項<br>（Jurisdiction）</td>
+              <td style="font-size:12px;">紛争は船社本店所在地（多くは本船の旗国）の裁判所で解決する旨を規定。</td>
+              <td style="font-size:12px;color:var(--text-lt);">日本の荷主が欧州船社に提訴する場合、現地での対応が必要になる場合あり。</td>
             </tr>
             <tr>
-              <td class="code-cell" style="font-size:11px;">危険物条項<br>（Dangerous Goods）</td>
-              <td style="font-size:11px;">IMDG Codeに基づく危険物の申告義務・梱包要件・積付け制限を規定。</td>
-              <td style="font-size:11px;color:var(--text-lt);">未申告・虚偽申告は船社が輸送を拒否でき、損害は荷送人全額負担。</td>
+              <td class="code-cell" style="font-size:12px;">危険物条項<br>（Dangerous Goods）</td>
+              <td style="font-size:12px;">IMDG Codeに基づく危険物の申告義務・梱包要件・積付け制限を規定。</td>
+              <td style="font-size:12px;color:var(--text-lt);">未申告・虚偽申告は船社が輸送を拒否でき、損害は荷送人全額負担。</td>
             </tr>
             <tr style="background:#fafaf8;">
-              <td class="code-cell" style="font-size:11px;">提訴期限条項<br>（Time Bar）</td>
-              <td style="font-size:11px;">損害賠償請求の時効は貨物引渡しから1年（ヘーグ・ヴィスビー準拠）。</td>
-              <td style="font-size:11px;color:var(--text-lt);">1年を超えると原則クレーム不可。損害発見後は速やかに手続きを開始すること。</td>
+              <td class="code-cell" style="font-size:12px;">提訴期限条項<br>（Time Bar）</td>
+              <td style="font-size:12px;">損害賠償請求の時効は貨物引渡しから1年（ヘーグ・ヴィスビー準拠）。</td>
+              <td style="font-size:12px;color:var(--text-lt);">1年を超えると原則クレーム不可。損害発見後は速やかに手続きを開始すること。</td>
             </tr>
           </tbody>
         </table>
       </div>
 
       <div style="margin-top:12px;padding:10px 14px;background:#fffbeb;border-radius:7px;border:1px solid #fcd34d;">
-        <span style="font-size:11px;font-weight:700;color:#92400e;">💡 実務ポイント</span>
-        <p style="font-size:11px;color:#78350f;margin:4px 0 0;line-height:1.6;">
+        <span style="font-size:12px;font-weight:700;color:#92400e;">💡 実務ポイント</span>
+        <p style="font-size:12px;color:#78350f;margin:4px 0 0;line-height:1.6;">
           B/Lの約款は船社ごとに内容が異なります。輸送条件の確認はB/L裏面（Back Clause）または各船社のウェブサイト上の約款ページで行ってください。<br>
           高価な貨物・精密機器の輸送では、B/Lへの<strong>申告価額（Declared Value）記載</strong>による責任額引き上げと、<strong>ICC(A)条件の貨物保険</strong>の付保を強く推奨します。
         </p>
@@ -1253,81 +1253,81 @@
           </thead>
           <tbody>
             <tr>
-              <td class="code-cell" style="font-size:11px;">食品衛生法</td>
-              <td style="font-size:10px;">厚生労働省<br>検疫所（FAMS）</td>
-              <td style="font-size:10px;">食品、飲料、添加物、食器・包装容器</td>
-              <td style="font-size:10px;">輸入届出書提出→検査（書類/現物）→食品等輸入届出済証の取得</td>
-              <td style="font-size:10px;color:#b91c1c;">届出済証の取得が輸入許可の前提。違反品は廃棄・積戻し。</td>
+              <td class="code-cell" style="font-size:12px;">食品衛生法</td>
+              <td style="font-size:12px;">厚生労働省<br>検疫所（FAMS）</td>
+              <td style="font-size:12px;">食品、飲料、添加物、食器・包装容器</td>
+              <td style="font-size:12px;">輸入届出書提出→検査（書類/現物）→食品等輸入届出済証の取得</td>
+              <td style="font-size:12px;color:#b91c1c;">届出済証の取得が輸入許可の前提。違反品は廃棄・積戻し。</td>
             </tr>
             <tr style="background:#fafaf8;">
-              <td class="code-cell" style="font-size:11px;">植物防疫法</td>
-              <td style="font-size:10px;">農林水産省<br>植物防疫所</td>
-              <td style="font-size:10px;">植物・種子・土壌・木材梱包材（ISPM15非対応）</td>
-              <td style="font-size:10px;">輸出国発行の植物検疫証明書。木材梱包材はIPPC/ISPM15マーク確認。くん蒸処理が必要な場合あり。</td>
-              <td style="font-size:10px;color:#b91c1c;">検疫所の合格証明なしに搬出不可。輸入禁止品目あり。</td>
+              <td class="code-cell" style="font-size:12px;">植物防疫法</td>
+              <td style="font-size:12px;">農林水産省<br>植物防疫所</td>
+              <td style="font-size:12px;">植物・種子・土壌・木材梱包材（ISPM15非対応）</td>
+              <td style="font-size:12px;">輸出国発行の植物検疫証明書。木材梱包材はIPPC/ISPM15マーク確認。くん蒸処理が必要な場合あり。</td>
+              <td style="font-size:12px;color:#b91c1c;">検疫所の合格証明なしに搬出不可。輸入禁止品目あり。</td>
             </tr>
             <tr>
-              <td class="code-cell" style="font-size:11px;">家畜伝染病<br>予防法</td>
-              <td style="font-size:10px;">農林水産省<br>動物検疫所</td>
-              <td style="font-size:10px;">動物・畜産物（肉・乳・卵）、飼料、ペット</td>
-              <td style="font-size:10px;">輸出国政府発行の衛生証明書。動物検疫所での検査・隔離。</td>
-              <td style="font-size:10px;color:#b91c1c;">検査・隔離期間は輸入スケジュールに影響大。</td>
+              <td class="code-cell" style="font-size:12px;">家畜伝染病<br>予防法</td>
+              <td style="font-size:12px;">農林水産省<br>動物検疫所</td>
+              <td style="font-size:12px;">動物・畜産物（肉・乳・卵）、飼料、ペット</td>
+              <td style="font-size:12px;">輸出国政府発行の衛生証明書。動物検疫所での検査・隔離。</td>
+              <td style="font-size:12px;color:#b91c1c;">検査・隔離期間は輸入スケジュールに影響大。</td>
             </tr>
             <tr style="background:#fafaf8;">
-              <td class="code-cell" style="font-size:11px;">薬機法<br>（医薬品医療<br>機器等法）</td>
-              <td style="font-size:10px;">厚生労働省<br>都道府県</td>
-              <td style="font-size:10px;">医薬品、医薬部外品、化粧品、医療機器、再生医療等製品</td>
-              <td style="font-size:10px;">輸入業者登録（医薬品輸入販売業等）。品目ごとに製造販売承認・認証・届出が必要。</td>
-              <td style="font-size:10px;color:#b91c1c;">未承認品・個人使用目的以外は原則輸入不可。</td>
+              <td class="code-cell" style="font-size:12px;">薬機法<br>（医薬品医療<br>機器等法）</td>
+              <td style="font-size:12px;">厚生労働省<br>都道府県</td>
+              <td style="font-size:12px;">医薬品、医薬部外品、化粧品、医療機器、再生医療等製品</td>
+              <td style="font-size:12px;">輸入業者登録（医薬品輸入販売業等）。品目ごとに製造販売承認・認証・届出が必要。</td>
+              <td style="font-size:12px;color:#b91c1c;">未承認品・個人使用目的以外は原則輸入不可。</td>
             </tr>
             <tr>
-              <td class="code-cell" style="font-size:11px;">電気用品<br>安全法（PSE）</td>
-              <td style="font-size:10px;">経済産業省</td>
-              <td style="font-size:10px;">電気用品（電源コード・ACアダプター・電気機器等）</td>
-              <td style="font-size:10px;">特定電気用品（◇PSE）：登録検査機関による適合性検査。<br>特定外（○PSE）：自己確認・届出。</td>
-              <td style="font-size:10px;color:#b91c1c;">PSEマーク未取得品は国内販売・配布禁止。</td>
+              <td class="code-cell" style="font-size:12px;">電気用品<br>安全法（PSE）</td>
+              <td style="font-size:12px;">経済産業省</td>
+              <td style="font-size:12px;">電気用品（電源コード・ACアダプター・電気機器等）</td>
+              <td style="font-size:12px;">特定電気用品（◇PSE）：登録検査機関による適合性検査。<br>特定外（○PSE）：自己確認・届出。</td>
+              <td style="font-size:12px;color:#b91c1c;">PSEマーク未取得品は国内販売・配布禁止。</td>
             </tr>
             <tr style="background:#fafaf8;">
-              <td class="code-cell" style="font-size:11px;">電波法<br>（技適）</td>
-              <td style="font-size:10px;">総務省<br>総合通信局</td>
-              <td style="font-size:10px;">無線設備を内蔵する機器（Wi-Fi・Bluetooth・携帯等）</td>
-              <td style="font-size:10px;">技術基準適合証明（技適マーク）の取得または確認。海外認証品は国内では原則使用不可。</td>
-              <td style="font-size:10px;color:#b91c1c;">技適なし機器の国内使用は電波法違反。輸入自体は可能だが使用・販売は不可。</td>
+              <td class="code-cell" style="font-size:12px;">電波法<br>（技適）</td>
+              <td style="font-size:12px;">総務省<br>総合通信局</td>
+              <td style="font-size:12px;">無線設備を内蔵する機器（Wi-Fi・Bluetooth・携帯等）</td>
+              <td style="font-size:12px;">技術基準適合証明（技適マーク）の取得または確認。海外認証品は国内では原則使用不可。</td>
+              <td style="font-size:12px;color:#b91c1c;">技適なし機器の国内使用は電波法違反。輸入自体は可能だが使用・販売は不可。</td>
             </tr>
             <tr>
-              <td class="code-cell" style="font-size:11px;">消費生活用<br>製品安全法<br>（PSC）</td>
-              <td style="font-size:10px;">経済産業省</td>
-              <td style="font-size:10px;">乗車用ヘルメット、登山用ロープ、石油給湯機、児童用ベッド等</td>
-              <td style="font-size:10px;">特別特定製品（菱形PSC）：第三者機関認証。<br>特定製品（丸形PSC）：自己確認。</td>
-              <td style="font-size:10px;color:#b91c1c;">PSCマーク未取得品は販売禁止。</td>
+              <td class="code-cell" style="font-size:12px;">消費生活用<br>製品安全法<br>（PSC）</td>
+              <td style="font-size:12px;">経済産業省</td>
+              <td style="font-size:12px;">乗車用ヘルメット、登山用ロープ、石油給湯機、児童用ベッド等</td>
+              <td style="font-size:12px;">特別特定製品（菱形PSC）：第三者機関認証。<br>特定製品（丸形PSC）：自己確認。</td>
+              <td style="font-size:12px;color:#b91c1c;">PSCマーク未取得品は販売禁止。</td>
             </tr>
             <tr style="background:#fafaf8;">
-              <td class="code-cell" style="font-size:11px;">化審法<br>（化学物質<br>審査規制法）</td>
-              <td style="font-size:10px;">経産省・環境省<br>厚生労働省</td>
-              <td style="font-size:10px;">新規化学物質、特定化学物質、優先評価化学物質</td>
-              <td style="font-size:10px;">新規化学物質は製造・輸入前に届出・審査が必要。年間1t超が対象（少量・低懸念は簡易手続き）。</td>
-              <td style="font-size:10px;color:#b91c1c;">事前審査なしに輸入した場合は違法。審査期間は数ヶ月かかる場合あり。</td>
+              <td class="code-cell" style="font-size:12px;">化審法<br>（化学物質<br>審査規制法）</td>
+              <td style="font-size:12px;">経産省・環境省<br>厚生労働省</td>
+              <td style="font-size:12px;">新規化学物質、特定化学物質、優先評価化学物質</td>
+              <td style="font-size:12px;">新規化学物質は製造・輸入前に届出・審査が必要。年間1t超が対象（少量・低懸念は簡易手続き）。</td>
+              <td style="font-size:12px;color:#b91c1c;">事前審査なしに輸入した場合は違法。審査期間は数ヶ月かかる場合あり。</td>
             </tr>
             <tr>
-              <td class="code-cell" style="font-size:11px;">毒物劇物<br>取締法</td>
-              <td style="font-size:10px;">厚生労働省<br>都道府県</td>
-              <td style="font-size:10px;">毒物・劇物に指定された化学物質（塩酸・硫酸・農薬原体等）</td>
-              <td style="font-size:10px;">毒物劇物輸入業登録（都道府県知事への申請）。保管・管理基準の遵守。</td>
-              <td style="font-size:10px;color:#b91c1c;">登録なしの輸入は禁止。輸入時に通関書類へ記載必要。</td>
+              <td class="code-cell" style="font-size:12px;">毒物劇物<br>取締法</td>
+              <td style="font-size:12px;">厚生労働省<br>都道府県</td>
+              <td style="font-size:12px;">毒物・劇物に指定された化学物質（塩酸・硫酸・農薬原体等）</td>
+              <td style="font-size:12px;">毒物劇物輸入業登録（都道府県知事への申請）。保管・管理基準の遵守。</td>
+              <td style="font-size:12px;color:#b91c1c;">登録なしの輸入は禁止。輸入時に通関書類へ記載必要。</td>
             </tr>
             <tr style="background:#fafaf8;">
-              <td class="code-cell" style="font-size:11px;">ワシントン<br>条約（CITES）</td>
-              <td style="font-size:10px;">経済産業省<br>動植物検疫</td>
-              <td style="font-size:10px;">絶滅危惧種の動植物・毛皮・象牙・サンゴ・木材等</td>
-              <td style="font-size:10px;">輸出国のCITES輸出許可書＋日本の輸入許可書（経産省）が必要。</td>
-              <td style="font-size:10px;color:#b91c1c;">許可書なしは没収・刑事罰。古物・加工品も対象になる場合あり。</td>
+              <td class="code-cell" style="font-size:12px;">ワシントン<br>条約（CITES）</td>
+              <td style="font-size:12px;">経済産業省<br>動植物検疫</td>
+              <td style="font-size:12px;">絶滅危惧種の動植物・毛皮・象牙・サンゴ・木材等</td>
+              <td style="font-size:12px;">輸出国のCITES輸出許可書＋日本の輸入許可書（経産省）が必要。</td>
+              <td style="font-size:12px;color:#b91c1c;">許可書なしは没収・刑事罰。古物・加工品も対象になる場合あり。</td>
             </tr>
             <tr>
-              <td class="code-cell" style="font-size:11px;">外為法<br>輸入承認<br>（IQ等）</td>
-              <td style="font-size:10px;">経済産業省<br>財務省</td>
-              <td style="font-size:10px;">輸入割当品目（IQ）、輸入公表品目（武器・核燃料等）</td>
-              <td style="font-size:10px;">輸入承認申請（経産省）→輸入承認書の取得。IQ品目は割当数量の範囲内で輸入可。</td>
-              <td style="font-size:10px;color:#b91c1c;">承認書なしの通関申告は受理されない。</td>
+              <td class="code-cell" style="font-size:12px;">外為法<br>輸入承認<br>（IQ等）</td>
+              <td style="font-size:12px;">経済産業省<br>財務省</td>
+              <td style="font-size:12px;">輸入割当品目（IQ）、輸入公表品目（武器・核燃料等）</td>
+              <td style="font-size:12px;">輸入承認申請（経産省）→輸入承認書の取得。IQ品目は割当数量の範囲内で輸入可。</td>
+              <td style="font-size:12px;color:#b91c1c;">承認書なしの通関申告は受理されない。</td>
             </tr>
           </tbody>
         </table>
@@ -1345,14 +1345,14 @@
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;">
         <div style="background:#e8f4f0;border-radius:9px;padding:14px 16px;border:1px solid #b2dfdb;">
           <div style="font-size:12px;font-weight:800;color:#1a5c45;margin-bottom:8px;">📋 リスト規制</div>
-          <p style="font-size:11px;color:#2d6a4f;line-height:1.6;margin:0;">
+          <p style="font-size:12px;color:#2d6a4f;line-height:1.6;margin:0;">
             輸出令別表第1に掲げられた品目（武器・核・化学兵器・ミサイル・汎用品等）は、<strong>仕向地・需要者に関わらず</strong>輸出許可が必要。<br>
             品目は <strong>16 のカテゴリー（1〜16 項）</strong> に分類されます（第 16 項はその他キャッチオール）。
           </p>
         </div>
         <div style="background:#fef3e8;border-radius:9px;padding:14px 16px;border:1px solid #f9c784;">
           <div style="font-size:12px;font-weight:800;color:#7c3a0e;margin-bottom:8px;">🌐 キャッチオール規制</div>
-          <p style="font-size:11px;color:#92400e;line-height:1.6;margin:0;">
+          <p style="font-size:12px;color:#92400e;line-height:1.6;margin:0;">
             リスト非該当品でも、<strong>大量破壊兵器等の開発・製造・使用に用いられるおそれ</strong>がある場合は許可申請が必要。<br>
             グループA国（旧「ホワイト国」、2019年8月改称）向けは適用除外。
           </p>
@@ -1360,30 +1360,30 @@
       </div>
 
       <!-- リスト規制カテゴリー表 -->
-      <div style="font-size:11px;font-weight:700;color:var(--accent-dk);margin-bottom:8px;">📑 輸出令別表第1 規制カテゴリー</div>
+      <div style="font-size:12px;font-weight:700;color:var(--accent-dk);margin-bottom:8px;">📑 輸出令別表第1 規制カテゴリー</div>
       <div style="overflow-x:auto;margin-bottom:16px;">
         <table class="inco-table" style="min-width:520px;">
           <thead><tr><th style="width:8%;">項番</th><th style="width:32%;">カテゴリー</th><th>主な品目例</th></tr></thead>
           <tbody>
-            <tr><td style="text-align:center;font-weight:700;">1</td><td>武器</td><td style="font-size:10px;">銃砲・火薬・戦車・軍用機・軍用船舶</td></tr>
-            <tr style="background:#fafaf8;"><td style="text-align:center;font-weight:700;">2〜4</td><td>核兵器・核関連品</td><td style="font-size:10px;">核物質、原子炉、ウラン濃縮設備、核爆発装置関連</td></tr>
-            <tr><td style="text-align:center;font-weight:700;">5・6</td><td>化学・生物兵器関連</td><td style="font-size:10px;">特定有毒物質、発酵・合成装置、防護装備</td></tr>
-            <tr style="background:#fafaf8;"><td style="text-align:center;font-weight:700;">7</td><td>ミサイル関連</td><td style="font-size:10px;">推進システム、ロケット、無人機（特定用途）</td></tr>
-            <tr><td style="text-align:center;font-weight:700;">8〜15</td><td>汎用品（デュアルユース）</td><td style="font-size:10px;">先端材料、材料加工機械、電子部品、コンピュータ、通信機器、センサー、航法装置、海洋機器、推進装置</td></tr>
-            <tr><td style="text-align:center;font-weight:700;">16</td><td>その他（キャッチオール対象）</td><td style="font-size:10px;">大量破壊兵器・通常兵器の開発・製造・使用への転用懸念がある汎用品。仕向地・需要者・用途を見て判断（インフォーム要件）</td></tr>
+            <tr><td style="text-align:center;font-weight:700;">1</td><td>武器</td><td style="font-size:12px;">銃砲・火薬・戦車・軍用機・軍用船舶</td></tr>
+            <tr style="background:#fafaf8;"><td style="text-align:center;font-weight:700;">2〜4</td><td>核兵器・核関連品</td><td style="font-size:12px;">核物質、原子炉、ウラン濃縮設備、核爆発装置関連</td></tr>
+            <tr><td style="text-align:center;font-weight:700;">5・6</td><td>化学・生物兵器関連</td><td style="font-size:12px;">特定有毒物質、発酵・合成装置、防護装備</td></tr>
+            <tr style="background:#fafaf8;"><td style="text-align:center;font-weight:700;">7</td><td>ミサイル関連</td><td style="font-size:12px;">推進システム、ロケット、無人機（特定用途）</td></tr>
+            <tr><td style="text-align:center;font-weight:700;">8〜15</td><td>汎用品（デュアルユース）</td><td style="font-size:12px;">先端材料、材料加工機械、電子部品、コンピュータ、通信機器、センサー、航法装置、海洋機器、推進装置</td></tr>
+            <tr><td style="text-align:center;font-weight:700;">16</td><td>その他（キャッチオール対象）</td><td style="font-size:12px;">大量破壊兵器・通常兵器の開発・製造・使用への転用懸念がある汎用品。仕向地・需要者・用途を見て判断（インフォーム要件）</td></tr>
           </tbody>
         </table>
       </div>
 
       <!-- 非該当証明 -->
-      <div style="font-size:11px;font-weight:700;color:var(--accent-dk);margin-bottom:8px;">📄 非該当証明（Non-Subject Certificate）</div>
+      <div style="font-size:12px;font-weight:700;color:var(--accent-dk);margin-bottom:8px;">📄 非該当証明（Non-Subject Certificate）</div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;">
-        <div style="font-size:11px;color:var(--text);line-height:1.7;">
+        <div style="font-size:12px;color:var(--text);line-height:1.7;">
           <strong>目的：</strong>輸出品がリスト規制の対象外であることを証明する書類。<br>
           <strong>発行者：</strong>メーカーまたは輸出者が自己判断で発行。<br>
           <strong>求められる場面：</strong>輸入国税関・輸入者から提出を要求された場合、または社内規程による自主確認。
         </div>
-        <div style="font-size:11px;color:var(--text);line-height:1.7;">
+        <div style="font-size:12px;color:var(--text);line-height:1.7;">
           <strong>記載内容：</strong>品名・型番・HSコード・輸出令別表の非該当根拠・確認者情報。<br>
           <strong>注意：</strong>非該当証明はあくまで<em>自社判断</em>の確認書。虚偽記載は外為法違反となる。<br>
           <strong>用途確認：</strong>大量破壊兵器への転用可能性も含めて確認が必要。
@@ -1391,24 +1391,24 @@
       </div>
 
       <!-- 輸出許可申請フロー -->
-      <div style="font-size:11px;font-weight:700;color:var(--accent-dk);margin-bottom:8px;">🔄 輸出許可申請フロー</div>
+      <div style="font-size:12px;font-weight:700;color:var(--accent-dk);margin-bottom:8px;">🔄 輸出許可申請フロー</div>
       <div style="overflow-x:auto;margin-bottom:16px;">
         <table class="inco-table" style="min-width:600px;">
           <thead><tr><th>ステップ</th><th>内容</th><th>担当</th><th>目安期間</th></tr></thead>
           <tbody>
-            <tr><td style="text-align:center;font-weight:700;">①</td><td style="font-size:10px;">品目の該非判定（リスト規制・キャッチオール確認）</td><td style="font-size:10px;">輸出者・メーカー</td><td style="font-size:10px;">数日〜数週間</td></tr>
-            <tr style="background:#fafaf8;"><td style="text-align:center;font-weight:700;">②</td><td style="font-size:10px;">輸出許可申請書・添付書類の作成（用途証明書、需要者証明書等）</td><td style="font-size:10px;">輸出者</td><td style="font-size:10px;">数日</td></tr>
-            <tr><td style="text-align:center;font-weight:700;">③</td><td style="font-size:10px;">管轄の経済産業局へ申請（電子申請可）</td><td style="font-size:10px;">輸出者</td><td style="font-size:10px;">申請日当日</td></tr>
-            <tr style="background:#fafaf8;"><td style="text-align:center;font-weight:700;">④</td><td style="font-size:10px;">経産局による審査・照会対応</td><td style="font-size:10px;">経産局</td><td style="font-size:10px;">通常2〜4週間</td></tr>
-            <tr><td style="text-align:center;font-weight:700;">⑤</td><td style="font-size:10px;">輸出許可証（Export License）受領</td><td style="font-size:10px;">経産局→輸出者</td><td style="font-size:10px;">—</td></tr>
-            <tr style="background:#fafaf8;"><td style="text-align:center;font-weight:700;">⑥</td><td style="font-size:10px;">輸出許可証を添付して税関へ輸出申告</td><td style="font-size:10px;">通関業者</td><td style="font-size:10px;">—</td></tr>
+            <tr><td style="text-align:center;font-weight:700;">①</td><td style="font-size:12px;">品目の該非判定（リスト規制・キャッチオール確認）</td><td style="font-size:12px;">輸出者・メーカー</td><td style="font-size:12px;">数日〜数週間</td></tr>
+            <tr style="background:#fafaf8;"><td style="text-align:center;font-weight:700;">②</td><td style="font-size:12px;">輸出許可申請書・添付書類の作成（用途証明書、需要者証明書等）</td><td style="font-size:12px;">輸出者</td><td style="font-size:12px;">数日</td></tr>
+            <tr><td style="text-align:center;font-weight:700;">③</td><td style="font-size:12px;">管轄の経済産業局へ申請（電子申請可）</td><td style="font-size:12px;">輸出者</td><td style="font-size:12px;">申請日当日</td></tr>
+            <tr style="background:#fafaf8;"><td style="text-align:center;font-weight:700;">④</td><td style="font-size:12px;">経産局による審査・照会対応</td><td style="font-size:12px;">経産局</td><td style="font-size:12px;">通常2〜4週間</td></tr>
+            <tr><td style="text-align:center;font-weight:700;">⑤</td><td style="font-size:12px;">輸出許可証（Export License）受領</td><td style="font-size:12px;">経産局→輸出者</td><td style="font-size:12px;">—</td></tr>
+            <tr style="background:#fafaf8;"><td style="text-align:center;font-weight:700;">⑥</td><td style="font-size:12px;">輸出許可証を添付して税関へ輸出申告</td><td style="font-size:12px;">通関業者</td><td style="font-size:12px;">—</td></tr>
           </tbody>
         </table>
       </div>
 
       <div style="padding:10px 14px;background:#fffbeb;border-radius:7px;border:1px solid #fcd34d;">
-        <span style="font-size:11px;font-weight:700;color:#92400e;">⚠️ 罰則と社内管理体制</span>
-        <p style="font-size:11px;color:#78350f;margin:4px 0 0;line-height:1.6;">
+        <span style="font-size:12px;font-weight:700;color:#92400e;">⚠️ 罰則と社内管理体制</span>
+        <p style="font-size:12px;color:#78350f;margin:4px 0 0;line-height:1.6;">
           無許可輸出は<strong>外為法違反</strong>。2017 年改正以降、罰則は <strong>個人：10 年以下の懲役・3,000 万円以下の罰金（目的物価額の 5 倍が上回る場合は当該額）／法人：10 億円以下の罰金又は目的物価額の 5 倍の高い方</strong> に強化されました。<br>
           多くの企業では社内管理プログラム（CP: Compliance Program）を整備し、取引審査・役職員教育・帳票管理を体系的に実施しています。<br>
           輸出管理違反が発覚した場合、輸出禁止措置（行政制裁）が科されることもあります。
@@ -1438,7 +1438,7 @@
       <div class="section-title">🛳️ 船会社 e-Booking ページ</div>
       <p style="font-size:12px;color:var(--text-md);margin-bottom:16px;">
         各船会社の e-Booking（オンライン予約）ページへのリンクです。<br>
-        <span style="font-size:11px;">🔐 = ログインが必要 ／ ⚠️ = URL未確認・要確認</span>
+        <span style="font-size:12px;">🔐 = ログインが必要 ／ ⚠️ = URL未確認・要確認</span>
       </p>
       <div class="carrier-grid" id="booking-grid"></div>
     </div>  </div><!-- /tab-booking-tab -->
@@ -1466,7 +1466,7 @@
       <div style="padding:18px;background:var(--accent-lt);border-radius:10px;border:1px dashed var(--border-md);text-align:center;color:var(--text-md);">
         <div style="font-size:28px;margin-bottom:8px;">🚧</div>
         <div style="font-size:13px;font-weight:700;color:var(--accent-dk);">仕向地別BL記載事項を順次追加予定</div>
-        <div style="font-size:11px;margin-top:6px;line-height:1.8;">
+        <div style="font-size:12px;margin-top:6px;line-height:1.8;">
           Egypt（ACID番号必須）/ USA（Ultimate Consignee）/ India（IEC番号）など<br>
           追加すべき仕向地があればフィードバックからお知らせください。
         </div>
@@ -1479,7 +1479,7 @@
         エジプト輸入者が取得した <strong>ACID番号</strong> をB/L・Invoice・Packing Listに必ず記載します。
         詳細はファイリングルールタブのエジプトセクションを参照してください。
       </p>
-      <div style="padding:10px 14px;background:#e8f5e9;border-radius:7px;border:1px solid #a5d6a7;font-size:11px;color:#1b5e20;">
+      <div style="padding:10px 14px;background:#e8f5e9;border-radius:7px;border:1px solid #a5d6a7;font-size:12px;color:#1b5e20;">
         <strong>記載例：</strong> Description of Goods 欄の末尾に <code style="background:#fff;padding:1px 5px;border-radius:3px;">ACID: 1234567890123456</code> を追記
       </div>
     </div>  </div><!-- /tab-si -->
@@ -1513,7 +1513,7 @@
       <p style="font-size:12px;color:var(--text-md);margin-bottom:12px;">
         各国の税関は貨物の安全管理のため、本船出港前に貨物情報の事前申告を義務付けています。提出遅延・不備はリレース拒否・罰則の対象となります。
       </p>
-      <div style="margin-bottom:12px;padding:10px 14px;background:#fff3cd;border:1px solid #e8c870;border-radius:6px;font-size:11px;color:#7a5500;line-height:1.6;">
+      <div style="margin-bottom:12px;padding:10px 14px;background:#fff3cd;border:1px solid #e8c870;border-radius:6px;font-size:12px;color:#7a5500;line-height:1.6;">
         <strong>⚠️ 「24 時間前」の基準点は制度ごとに異なります</strong><br>
         ・<strong>積出港出港 24h 前基準</strong>：AFR（日本）／AMS（米国）／ISF 10+2（米国）／ACI（カナダ）／UK S&amp;S（英国）<br>
         ・<strong>入港 24h 前基準</strong>：ENS（EU・ICS2、コンテナ船以外は別ルール）／UAE 事前申告<br>
@@ -1534,92 +1534,92 @@
           </thead>
           <tbody>
             <tr>
-              <td class="code-cell" style="font-size:11px;">AFR<br><span style="font-weight:400;font-size:10px;">事前報告制度（日本）</span></td>
-              <td style="font-size:10px;">日本<b>宛て</b>輸入貨物（海上）</td>
-              <td style="font-size:10px;">船社・NVOCC</td>
-              <td style="font-size:10px;font-weight:700;color:#b91c1c;">積出港出港<b>24時間前</b></td>
-              <td style="font-size:10px;">日本税関（NACCS）</td>
-              <td style="font-size:10px;color:#b91c1c;">過料（最大50万円）・荷揚げ禁止</td>
+              <td class="code-cell" style="font-size:12px;">AFR<br><span style="font-weight:400;font-size:12px;">事前報告制度（日本）</span></td>
+              <td style="font-size:12px;">日本<b>宛て</b>輸入貨物（海上）</td>
+              <td style="font-size:12px;">船社・NVOCC</td>
+              <td style="font-size:12px;font-weight:700;color:#b91c1c;">積出港出港<b>24時間前</b></td>
+              <td style="font-size:12px;">日本税関（NACCS）</td>
+              <td style="font-size:12px;color:#b91c1c;">過料（最大50万円）・荷揚げ禁止</td>
             </tr>
             <tr style="background:#fafaf8;">
-              <td class="code-cell" style="font-size:11px;">AMS<br><span style="font-weight:400;font-size:10px;">Automated Manifest System</span></td>
-              <td style="font-size:10px;">米国<b>宛て</b>輸入貨物（海上）</td>
-              <td style="font-size:10px;">船社（NVOCC含む）</td>
-              <td style="font-size:10px;font-weight:700;color:#b91c1c;">積出港出港<b>24時間前</b></td>
-              <td style="font-size:10px;">米国CBP（AMS/ABI）</td>
-              <td style="font-size:10px;color:#b91c1c;">DO NOT LOAD命令・罰金</td>
+              <td class="code-cell" style="font-size:12px;">AMS<br><span style="font-weight:400;font-size:12px;">Automated Manifest System</span></td>
+              <td style="font-size:12px;">米国<b>宛て</b>輸入貨物（海上）</td>
+              <td style="font-size:12px;">船社（NVOCC含む）</td>
+              <td style="font-size:12px;font-weight:700;color:#b91c1c;">積出港出港<b>24時間前</b></td>
+              <td style="font-size:12px;">米国CBP（AMS/ABI）</td>
+              <td style="font-size:12px;color:#b91c1c;">DO NOT LOAD命令・罰金</td>
             </tr>
             <tr>
-              <td class="code-cell" style="font-size:11px;">ISF<br><span style="font-weight:400;font-size:10px;">Importer Security Filing（10+2）</span></td>
-              <td style="font-size:10px;">米国<b>宛て</b>輸入貨物（海上）</td>
-              <td style="font-size:10px;">輸入者<br>（CBカスタムスブローカーが代行）</td>
-              <td style="font-size:10px;font-weight:700;color:#b91c1c;">積出港出港<b>24時間前</b></td>
-              <td style="font-size:10px;">米国CBP（ABI経由）</td>
-              <td style="font-size:10px;color:#b91c1c;">最大$5,000/違反 · 貨物検査</td>
+              <td class="code-cell" style="font-size:12px;">ISF<br><span style="font-weight:400;font-size:12px;">Importer Security Filing（10+2）</span></td>
+              <td style="font-size:12px;">米国<b>宛て</b>輸入貨物（海上）</td>
+              <td style="font-size:12px;">輸入者<br>（CBカスタムスブローカーが代行）</td>
+              <td style="font-size:12px;font-weight:700;color:#b91c1c;">積出港出港<b>24時間前</b></td>
+              <td style="font-size:12px;">米国CBP（ABI経由）</td>
+              <td style="font-size:12px;color:#b91c1c;">最大$5,000/違反 · 貨物検査</td>
             </tr>
             <tr style="background:#fafaf8;">
-              <td class="code-cell" style="font-size:11px;">ENS<br><span style="font-weight:400;font-size:10px;">Entry Summary Declaration</span></td>
-              <td style="font-size:10px;">EU<b>宛て</b>輸入貨物（海上）</td>
-              <td style="font-size:10px;">First Carrier（最初の運送人）</td>
-              <td style="font-size:10px;font-weight:700;color:#b91c1c;">EU入港<b>24時間前</b>（積出港基準ではなく入港基準）</td>
-              <td style="font-size:10px;">EU加盟国税関（ICS2）</td>
-              <td style="font-size:10px;color:#b91c1c;">入港拒否・積み直し指示</td>
+              <td class="code-cell" style="font-size:12px;">ENS<br><span style="font-weight:400;font-size:12px;">Entry Summary Declaration</span></td>
+              <td style="font-size:12px;">EU<b>宛て</b>輸入貨物（海上）</td>
+              <td style="font-size:12px;">First Carrier（最初の運送人）</td>
+              <td style="font-size:12px;font-weight:700;color:#b91c1c;">EU入港<b>24時間前</b>（積出港基準ではなく入港基準）</td>
+              <td style="font-size:12px;">EU加盟国税関（ICS2）</td>
+              <td style="font-size:12px;color:#b91c1c;">入港拒否・積み直し指示</td>
             </tr>
             <tr>
-              <td class="code-cell" style="font-size:11px;">ACI<br><span style="font-weight:400;font-size:10px;">Advance Commercial Information</span></td>
-              <td style="font-size:10px;">カナダ<b>宛て</b>輸入貨物（海上）</td>
-              <td style="font-size:10px;">船社</td>
-              <td style="font-size:10px;font-weight:700;color:#b91c1c;">積出港出港<b>24時間前</b></td>
-              <td style="font-size:10px;">カナダ国境サービス庁（CBSA）</td>
-              <td style="font-size:10px;color:#b91c1c;">貨物の荷揚げ拒否</td>
+              <td class="code-cell" style="font-size:12px;">ACI<br><span style="font-weight:400;font-size:12px;">Advance Commercial Information</span></td>
+              <td style="font-size:12px;">カナダ<b>宛て</b>輸入貨物（海上）</td>
+              <td style="font-size:12px;">船社</td>
+              <td style="font-size:12px;font-weight:700;color:#b91c1c;">積出港出港<b>24時間前</b></td>
+              <td style="font-size:12px;">カナダ国境サービス庁（CBSA）</td>
+              <td style="font-size:12px;color:#b91c1c;">貨物の荷揚げ拒否</td>
             </tr>
             <tr style="background:#fafaf8;">
-              <td class="code-cell" style="font-size:11px;">UK Safety &amp;<br>Security<br><span style="font-weight:400;font-size:10px;">（Brexit後）</span></td>
-              <td style="font-size:10px;">英国<b>宛て</b>輸入貨物（海上）</td>
-              <td style="font-size:10px;">First Carrier</td>
-              <td style="font-size:10px;font-weight:700;color:#b91c1c;">積出港出港<b>24時間前</b></td>
-              <td style="font-size:10px;">英国HMRC（CDS）</td>
-              <td style="font-size:10px;color:#b91c1c;">入港拒否・罰則</td>
+              <td class="code-cell" style="font-size:12px;">UK Safety &amp;<br>Security<br><span style="font-weight:400;font-size:12px;">（Brexit後）</span></td>
+              <td style="font-size:12px;">英国<b>宛て</b>輸入貨物（海上）</td>
+              <td style="font-size:12px;">First Carrier</td>
+              <td style="font-size:12px;font-weight:700;color:#b91c1c;">積出港出港<b>24時間前</b></td>
+              <td style="font-size:12px;">英国HMRC（CDS）</td>
+              <td style="font-size:12px;color:#b91c1c;">入港拒否・罰則</td>
             </tr>
             <tr>
-              <td class="code-cell" style="font-size:11px;">SOLAS VGM<br><span style="font-weight:400;font-size:10px;">（厳密にはファイリングではないが必須）</span></td>
-              <td style="font-size:10px;">全世界向け輸出コンテナ</td>
-              <td style="font-size:10px;">荷送人（Shipper）<br><span style="color:#6b7280;">※NVOCC/フォワーダーによる代行提出も可</span></td>
-              <td style="font-size:10px;font-weight:700;color:#b91c1c;">船社締め切り前<br>（CY搬入前が一般的）</td>
-              <td style="font-size:10px;">船社へ提出（書面/電子）</td>
-              <td style="font-size:10px;color:#b91c1c;">VGM未提出コンテナは船積み不可</td>
+              <td class="code-cell" style="font-size:12px;">SOLAS VGM<br><span style="font-weight:400;font-size:12px;">（厳密にはファイリングではないが必須）</span></td>
+              <td style="font-size:12px;">全世界向け輸出コンテナ</td>
+              <td style="font-size:12px;">荷送人（Shipper）<br><span style="color:#6b7280;">※NVOCC/フォワーダーによる代行提出も可</span></td>
+              <td style="font-size:12px;font-weight:700;color:#b91c1c;">船社締め切り前<br>（CY搬入前が一般的）</td>
+              <td style="font-size:12px;">船社へ提出（書面/電子）</td>
+              <td style="font-size:12px;color:#b91c1c;">VGM未提出コンテナは船積み不可</td>
             </tr>
             <tr style="background:#fafaf8;">
-              <td class="code-cell" style="font-size:11px;">NAFEZA / ACID<br><span style="font-weight:400;font-size:10px;">（エジプト）</span></td>
-              <td style="font-size:10px;">エジプト<b>宛て</b>輸入貨物</td>
-              <td style="font-size:10px;">輸入者（ACID取得）<br>船社・NVOCC（B/L記載）</td>
-              <td style="font-size:10px;font-weight:700;color:#b91c1c;">積出港出港<b>48時間前</b></td>
-              <td style="font-size:10px;">NAFEZA（nafeza.gov.eg）</td>
-              <td style="font-size:10px;color:#b91c1c;">港湾留め置き・通関不可</td>
+              <td class="code-cell" style="font-size:12px;">NAFEZA / ACID<br><span style="font-weight:400;font-size:12px;">（エジプト）</span></td>
+              <td style="font-size:12px;">エジプト<b>宛て</b>輸入貨物</td>
+              <td style="font-size:12px;">輸入者（ACID取得）<br>船社・NVOCC（B/L記載）</td>
+              <td style="font-size:12px;font-weight:700;color:#b91c1c;">積出港出港<b>48時間前</b></td>
+              <td style="font-size:12px;">NAFEZA（nafeza.gov.eg）</td>
+              <td style="font-size:12px;color:#b91c1c;">港湾留め置き・通関不可</td>
             </tr>
             <tr>
-              <td class="code-cell" style="font-size:11px;">UAE 事前申告<br><span style="font-weight:400;font-size:10px;">（Dubai/Abu Dhabi）</span></td>
-              <td style="font-size:10px;">UAE<b>宛て</b>輸入貨物</td>
-              <td style="font-size:10px;">船社・フォワーダー</td>
-              <td style="font-size:10px;font-weight:700;color:#b91c1c;">入港<b>24時間前</b>（目安）</td>
-              <td style="font-size:10px;">Dubai: Mirsal2<br>Abu Dhabi: ADCUSTOMSGATE</td>
-              <td style="font-size:10px;color:#b91c1c;">クリアランス遅延・留め置き</td>
+              <td class="code-cell" style="font-size:12px;">UAE 事前申告<br><span style="font-weight:400;font-size:12px;">（Dubai/Abu Dhabi）</span></td>
+              <td style="font-size:12px;">UAE<b>宛て</b>輸入貨物</td>
+              <td style="font-size:12px;">船社・フォワーダー</td>
+              <td style="font-size:12px;font-weight:700;color:#b91c1c;">入港<b>24時間前</b>（目安）</td>
+              <td style="font-size:12px;">Dubai: Mirsal2<br>Abu Dhabi: ADCUSTOMSGATE</td>
+              <td style="font-size:12px;color:#b91c1c;">クリアランス遅延・留め置き</td>
             </tr>
             <tr style="background:#fafaf8;">
-              <td class="code-cell" style="font-size:11px;">Saudi Customs<br><span style="font-weight:400;font-size:10px;">（サウジアラビア）</span></td>
-              <td style="font-size:10px;">サウジ<b>宛て</b>輸入貨物</td>
-              <td style="font-size:10px;">輸入者・船社</td>
-              <td style="font-size:10px;">入港前（FASAH経由）</td>
-              <td style="font-size:10px;">FASAH（国家物流窓口）</td>
-              <td style="font-size:10px;color:#b91c1c;">貨物留め置き</td>
+              <td class="code-cell" style="font-size:12px;">Saudi Customs<br><span style="font-weight:400;font-size:12px;">（サウジアラビア）</span></td>
+              <td style="font-size:12px;">サウジ<b>宛て</b>輸入貨物</td>
+              <td style="font-size:12px;">輸入者・船社</td>
+              <td style="font-size:12px;">入港前（FASAH経由）</td>
+              <td style="font-size:12px;">FASAH（国家物流窓口）</td>
+              <td style="font-size:12px;color:#b91c1c;">貨物留め置き</td>
             </tr>
             <tr>
-              <td class="code-cell" style="font-size:11px;">India IGM<br><span style="font-weight:400;font-size:10px;">（インド）</span></td>
-              <td style="font-size:10px;">インド<b>宛て</b>輸入貨物</td>
-              <td style="font-size:10px;">船社（Arrival Agent経由）</td>
-              <td style="font-size:10px;">入港<b>24時間前</b></td>
-              <td style="font-size:10px;">インド税関 ICEGATE</td>
-              <td style="font-size:10px;color:#b91c1c;">入港許可遅延</td>
+              <td class="code-cell" style="font-size:12px;">India IGM<br><span style="font-weight:400;font-size:12px;">（インド）</span></td>
+              <td style="font-size:12px;">インド<b>宛て</b>輸入貨物</td>
+              <td style="font-size:12px;">船社（Arrival Agent経由）</td>
+              <td style="font-size:12px;">入港<b>24時間前</b></td>
+              <td style="font-size:12px;">インド税関 ICEGATE</td>
+              <td style="font-size:12px;color:#b91c1c;">入港許可遅延</td>
             </tr>
           </tbody>
         </table>
@@ -1634,24 +1634,24 @@
       </p>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;">
         <div>
-          <div style="font-size:11px;font-weight:700;color:var(--accent-dk);margin-bottom:6px;">📋 提出が必要な情報（主要項目）</div>
+          <div style="font-size:12px;font-weight:700;color:var(--accent-dk);margin-bottom:6px;">📋 提出が必要な情報（主要項目）</div>
           <table class="inco-table">
             <thead><tr><th>項目</th><th>内容</th></tr></thead>
             <tbody>
-              <tr><td style="text-align:left;padding:4px 8px;font-size:10px;font-weight:600;">B/L番号</td><td style="font-size:10px;">MBL・HBL両方</td></tr>
-              <tr style="background:#fafaf8;"><td style="text-align:left;padding:4px 8px;font-size:10px;font-weight:600;">品名（英語）</td><td style="font-size:10px;">一般的品名。FAKは不可</td></tr>
-              <tr><td style="text-align:left;padding:4px 8px;font-size:10px;font-weight:600;">重量・数量</td><td style="font-size:10px;">総重量・コンテナ数</td></tr>
-              <tr style="background:#fafaf8;"><td style="text-align:left;padding:4px 8px;font-size:10px;font-weight:600;">荷送人（Shipper）</td><td style="font-size:10px;">名称・住所</td></tr>
-              <tr><td style="text-align:left;padding:4px 8px;font-size:10px;font-weight:600;">荷受人（Consignee）</td><td style="font-size:10px;">名称・住所</td></tr>
-              <tr style="background:#fafaf8;"><td style="text-align:left;padding:4px 8px;font-size:10px;font-weight:600;">Notify Party</td><td style="font-size:10px;">着荷通知先</td></tr>
-              <tr><td style="text-align:left;padding:4px 8px;font-size:10px;font-weight:600;">積出港・仕向港</td><td style="font-size:10px;">港コード（UNLOC）</td></tr>
-              <tr style="background:#fafaf8;"><td style="text-align:left;padding:4px 8px;font-size:10px;font-weight:600;">コンテナ番号</td><td style="font-size:10px;">全コンテナ</td></tr>
+              <tr><td style="text-align:left;padding:4px 8px;font-size:12px;font-weight:600;">B/L番号</td><td style="font-size:12px;">MBL・HBL両方</td></tr>
+              <tr style="background:#fafaf8;"><td style="text-align:left;padding:4px 8px;font-size:12px;font-weight:600;">品名（英語）</td><td style="font-size:12px;">一般的品名。FAKは不可</td></tr>
+              <tr><td style="text-align:left;padding:4px 8px;font-size:12px;font-weight:600;">重量・数量</td><td style="font-size:12px;">総重量・コンテナ数</td></tr>
+              <tr style="background:#fafaf8;"><td style="text-align:left;padding:4px 8px;font-size:12px;font-weight:600;">荷送人（Shipper）</td><td style="font-size:12px;">名称・住所</td></tr>
+              <tr><td style="text-align:left;padding:4px 8px;font-size:12px;font-weight:600;">荷受人（Consignee）</td><td style="font-size:12px;">名称・住所</td></tr>
+              <tr style="background:#fafaf8;"><td style="text-align:left;padding:4px 8px;font-size:12px;font-weight:600;">Notify Party</td><td style="font-size:12px;">着荷通知先</td></tr>
+              <tr><td style="text-align:left;padding:4px 8px;font-size:12px;font-weight:600;">積出港・仕向港</td><td style="font-size:12px;">港コード（UNLOC）</td></tr>
+              <tr style="background:#fafaf8;"><td style="text-align:left;padding:4px 8px;font-size:12px;font-weight:600;">コンテナ番号</td><td style="font-size:12px;">全コンテナ</td></tr>
             </tbody>
           </table>
         </div>
         <div>
-          <div style="font-size:11px;font-weight:700;color:var(--accent-dk);margin-bottom:6px;">⚠️ AFRの注意点</div>
-          <ul style="font-size:11px;color:var(--text);line-height:2;margin:0;padding-left:16px;">
+          <div style="font-size:12px;font-weight:700;color:var(--accent-dk);margin-bottom:6px;">⚠️ AFRの注意点</div>
+          <ul style="font-size:12px;color:var(--text);line-height:2;margin:0;padding-left:16px;">
             <li><b>報告義務者は船社またはNVOCC</b>（フォワーダーは船社経由で情報提供）</li>
             <li>品名は具体的に記載。「Freight All Kinds（FAK）」「General Cargo」等は不可</li>
             <li>NVOCCは<b>HBL情報</b>を別途船社経由でNACCSへ報告</li>
@@ -1671,13 +1671,13 @@
         <!-- AMS -->
         <div style="background:#e8f4f0;border-radius:9px;padding:14px;border:1px solid #b2dfdb;">
           <div style="font-size:12px;font-weight:800;color:#1a5c45;margin-bottom:8px;">📤 AMS（Automated Manifest System）</div>
-          <p style="font-size:11px;color:#2d6a4f;line-height:1.7;margin:0 0 8px;">
+          <p style="font-size:12px;color:#2d6a4f;line-height:1.7;margin:0 0 8px;">
             <b>義務者：</b>船社・NVOCC（HBL発行者）<br>
             <b>期限：</b>積出港出港24時間前<br>
             <b>システム：</b>CBP AMS / ABI
           </p>
-          <div style="font-size:11px;font-weight:700;color:#1a5c45;margin-bottom:4px;">主な記載項目</div>
-          <ul style="font-size:10px;color:#2d6a4f;line-height:1.8;margin:0;padding-left:14px;">
+          <div style="font-size:12px;font-weight:700;color:#1a5c45;margin-bottom:4px;">主な記載項目</div>
+          <ul style="font-size:12px;color:#2d6a4f;line-height:1.8;margin:0;padding-left:14px;">
             <li>B/L番号（MBL / HBL）</li>
             <li>品名（具体的な一般名称。FAK不可）</li>
             <li>重量・数量・コンテナ番号</li>
@@ -1689,13 +1689,13 @@
         <!-- ISF -->
         <div style="background:#fef3e8;border-radius:9px;padding:14px;border:1px solid #f9c784;">
           <div style="font-size:12px;font-weight:800;color:#7c3a0e;margin-bottom:8px;">📥 ISF 10+2（Importer Security Filing）</div>
-          <p style="font-size:11px;color:#92400e;line-height:1.7;margin:0 0 8px;">
+          <p style="font-size:12px;color:#92400e;line-height:1.7;margin:0 0 8px;">
             <b>義務者：</b>米国輸入者（カスタムスブローカーが代行）<br>
             <b>期限：</b>積出港出港24時間前<br>
             <b>罰則：</b>最大$5,000/違反
           </p>
-          <div style="font-size:11px;font-weight:700;color:#7c3a0e;margin-bottom:4px;">10項目（輸入者が提出）</div>
-          <ol style="font-size:10px;color:#92400e;line-height:1.8;margin:0;padding-left:16px;">
+          <div style="font-size:12px;font-weight:700;color:#7c3a0e;margin-bottom:4px;">10項目（輸入者が提出）</div>
+          <ol style="font-size:12px;color:#92400e;line-height:1.8;margin:0;padding-left:16px;">
             <li>製造者（Manufacturer）</li>
             <li>販売者（Seller）</li>
             <li>買い手（Buyer）</li>
@@ -1707,13 +1707,13 @@
             <li>HSコード（米国HTS 6桁）</li>
             <li>原産国（Country of Origin）</li>
           </ol>
-          <div style="font-size:10px;color:#92400e;margin-top:6px;">＋2項目（船社が提出）：コンテナ番号・船積み状況</div>
+          <div style="font-size:12px;color:#92400e;margin-top:6px;">＋2項目（船社が提出）：コンテナ番号・船積み状況</div>
         </div>
       </div>
 
       <div style="padding:10px 14px;background:#fffbeb;border-radius:7px;border:1px solid #fcd34d;">
-        <span style="font-size:11px;font-weight:700;color:#92400e;">⚠️ 品名記載の注意（AMS・AFR共通）</span>
-        <p style="font-size:11px;color:#78350f;margin:4px 0 0;line-height:1.6;">
+        <span style="font-size:12px;font-weight:700;color:#92400e;">⚠️ 品名記載の注意（AMS・AFR共通）</span>
+        <p style="font-size:12px;color:#78350f;margin:4px 0 0;line-height:1.6;">
           <b>「FAK（Freight All Kinds）」「General Cargo」「Various」「Parts」等の汎用品名は各国税関で拒否されます。</b><br>
           「Automobile Parts」→「Brake Pads for Automobiles」、「Machinery」→「Industrial Sewing Machines」のように具体的な品名を記載してください。<br>
           不適切品名は Do Not Load（積み込み禁止）命令の原因となります。
@@ -1729,24 +1729,24 @@
       </p>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
         <div>
-          <div style="font-size:11px;font-weight:700;color:var(--accent-dk);margin-bottom:6px;">Method 1（計量方式）</div>
-          <p style="font-size:11px;color:var(--text);line-height:1.7;">
+          <div style="font-size:12px;font-weight:700;color:var(--accent-dk);margin-bottom:6px;">Method 1（計量方式）</div>
+          <p style="font-size:12px;color:var(--text);line-height:1.7;">
             コンテナ全体を計量機器で計測。<br>
             <b>VGM ＝ コンテナ総重量（貨物＋梱包＋コンテナ自体の風袋）</b><br>
             最も正確。大型計量機のある港頭地区で対応。
           </p>
         </div>
         <div>
-          <div style="font-size:11px;font-weight:700;color:var(--accent-dk);margin-bottom:6px;">Method 2（計算方式）</div>
-          <p style="font-size:11px;color:var(--text);line-height:1.7;">
+          <div style="font-size:12px;font-weight:700;color:var(--accent-dk);margin-bottom:6px;">Method 2（計算方式）</div>
+          <p style="font-size:12px;color:var(--text);line-height:1.7;">
             個々の貨物・梱包材・パレットの重量を合計し、コンテナの風袋重量（Tare Weight）を加算。<br>
             <b>VGM ＝ 貨物合計重量 ＋ 梱包重量 ＋ コンテナ風袋重量</b>
           </p>
         </div>
       </div>
       <div style="margin-top:10px;padding:10px 14px;background:#f0f9ff;border-radius:7px;border:1px solid #bae6fd;">
-        <span style="font-size:11px;font-weight:700;color:#0c4a6e;">💡 VGM提出のポイント</span>
-        <p style="font-size:11px;color:#0e7490;margin:4px 0 0;line-height:1.6;">
+        <span style="font-size:12px;font-weight:700;color:#0c4a6e;">💡 VGM提出のポイント</span>
+        <p style="font-size:12px;color:#0e7490;margin:4px 0 0;line-height:1.6;">
           提出期限は船社のSI（Shipping Instruction）締め切りと同タイミングが一般的。VGM未提出コンテナは本船に積み込めません。<br>
           提出方法は船社ポータル・EDI・メール等。フォワーダーが荷主に代わって提出代行することも多い。
         </p>
@@ -1765,7 +1765,7 @@
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;">
         <div style="background:#e8f5e9;border-radius:9px;padding:14px;border:1px solid #a5d6a7;">
           <div style="font-size:12px;font-weight:800;color:#1b5e20;margin-bottom:8px;">📋 ACID取得フロー</div>
-          <ol style="font-size:11px;color:#2e7d32;line-height:2;margin:0;padding-left:16px;">
+          <ol style="font-size:12px;color:#2e7d32;line-height:2;margin:0;padding-left:16px;">
             <li>エジプト輸入者がNAFEZAポータルに登録</li>
             <li>貨物情報（品名・HSコード・重量・価額・Shipper/Consignee）を入力</li>
             <li>ACID番号が発行される</li>
@@ -1774,22 +1774,22 @@
           </ol>
         </div>
         <div>
-          <div style="font-size:11px;font-weight:700;color:var(--accent-dk);margin-bottom:6px;">📄 B/Lへの記載方法</div>
+          <div style="font-size:12px;font-weight:700;color:var(--accent-dk);margin-bottom:6px;">📄 B/Lへの記載方法</div>
           <table class="inco-table">
             <thead><tr><th>記載箇所</th><th>内容</th></tr></thead>
             <tbody>
-              <tr><td style="font-size:10px;">Description of Goods</td><td style="font-size:10px;">品名末尾に「ACID: XXXXXXXXXXXXXXXX」を追記</td></tr>
-              <tr style="background:#fafaf8;"><td style="font-size:10px;">Marks &amp; Numbers</td><td style="font-size:10px;">ACIDを記載する船社もあり（船社指示に従う）</td></tr>
-              <tr><td style="font-size:10px;">Invoice・P/L</td><td style="font-size:10px;">必ず同じACID番号を記載</td></tr>
+              <tr><td style="font-size:12px;">Description of Goods</td><td style="font-size:12px;">品名末尾に「ACID: XXXXXXXXXXXXXXXX」を追記</td></tr>
+              <tr style="background:#fafaf8;"><td style="font-size:12px;">Marks &amp; Numbers</td><td style="font-size:12px;">ACIDを記載する船社もあり（船社指示に従う）</td></tr>
+              <tr><td style="font-size:12px;">Invoice・P/L</td><td style="font-size:12px;">必ず同じACID番号を記載</td></tr>
             </tbody>
           </table>
-          <div style="margin-top:10px;padding:8px 12px;background:#fff8e1;border-radius:7px;border:1px solid #ffe082;font-size:11px;color:#e65100;">
+          <div style="margin-top:10px;padding:8px 12px;background:#fff8e1;border-radius:7px;border:1px solid #ffe082;font-size:12px;color:#e65100;">
             ⚠️ <strong>申告情報との不一致</strong>（品名・数量・HSコードなど）があると、アレキサンドリア港等で<strong>貨物が留め置き</strong>になります。
             輸入者から正確なACIDを受領してから船積みすること。
           </div>
         </div>
       </div>
-      <div style="padding:8px 14px;background:#e3f2fd;border-radius:7px;border:1px solid #90caf9;font-size:11px;color:#1565c0;">
+      <div style="padding:8px 14px;background:#e3f2fd;border-radius:7px;border:1px solid #90caf9;font-size:12px;color:#1565c0;">
         ⏱️ 期限：積出港出港の <strong>48時間前</strong> までにACID番号をB/Lに反映　／　
         🌐 <a href="https://www.nafeza.gov.eg" target="_blank" style="color:#1565c0;">nafeza.gov.eg</a>
       </div>
@@ -1805,7 +1805,7 @@
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;">
         <div style="background:#e3f2fd;border-radius:9px;padding:14px;border:1px solid #90caf9;">
           <div style="font-size:12px;font-weight:800;color:#0d47a1;margin-bottom:8px;">🏙️ Dubai Customs — Mirsal2</div>
-          <ul style="font-size:11px;color:#1565c0;line-height:2;margin:0;padding-left:14px;">
+          <ul style="font-size:12px;color:#1565c0;line-height:2;margin:0;padding-left:14px;">
             <li>申告システム：<strong>Mirsal2</strong>（Dubai Trade Portal経由）</li>
             <li>義務者：船社・フォワーダー（NVOCC）</li>
             <li>期限：<strong>入港24時間前</strong>（目安）</li>
@@ -1815,7 +1815,7 @@
         </div>
         <div style="background:#f3e5f5;border-radius:9px;padding:14px;border:1px solid #ce93d8;">
           <div style="font-size:12px;font-weight:800;color:#4a148c;margin-bottom:8px;">🏛️ Abu Dhabi Customs — ADCUSTOMSGATE</div>
-          <ul style="font-size:11px;color:#6a1b9a;line-height:2;margin:0;padding-left:14px;">
+          <ul style="font-size:12px;color:#6a1b9a;line-height:2;margin:0;padding-left:14px;">
             <li>申告システム：<strong>ADCUSTOMSGATE</strong></li>
             <li>義務者：船社・フォワーダー（Clearing Agent経由が一般的）</li>
             <li>期限：<strong>入港前</strong></li>
@@ -1824,7 +1824,7 @@
           </ul>
         </div>
       </div>
-      <div style="padding:10px 14px;background:#fff8e1;border-radius:7px;border:1px solid #ffe082;font-size:11px;color:#e65100;">
+      <div style="padding:10px 14px;background:#fff8e1;border-radius:7px;border:1px solid #ffe082;font-size:12px;color:#e65100;">
         ⚠️ <strong>新ルール情報：</strong> UAEは通関制度を継続的に更新中です。最新情報は各船社・現地エージェントへ必ず確認してください。
       </div>
     </div>  </div><!-- /tab-filing -->
@@ -1884,7 +1884,7 @@
     <div class="card">
       <div class="section-title">✈️ 航空チャージャブルウェイト計算</div>
       <p class="calc-desc">実重量と容積重量を比較し、大きい方がチャージャブルウェイト（請求対象重量）になります。<br>
-        <span style="font-size:11px;">容積重量(kg) = L × W × H(cm) ÷ divisor（IATA = 6,000 ／ Express = 5,000）</span></p>
+        <span style="font-size:12px;">容積重量(kg) = L × W × H(cm) ÷ divisor（IATA = 6,000 ／ Express = 5,000）</span></p>
       <div class="calc-shared-opts">
         <div class="calc-field"><span class="calc-label">体積換算 divisor</span>
           <select id="air-divisor" class="calc-unit-select" title="IATA 標準 6000／Express（DHL/FedEx/UPS）5000／Courier 任意" style="min-width:160px;">
@@ -1925,7 +1925,7 @@
     <div class="card">
       <div class="section-title">🚢 LCL RT（W/M）計算</div>
       <p class="calc-desc">LCL運賃は <strong>RT（Revenue Ton）</strong>= CBM と 重量(ton) の大きい方（W/M）で計算されます。<br>
-        <span style="font-size:11px;">W（Weight）= 実重量(kg) ÷ 1,000　／　M（Measurement）= CBM　／　大きい方を1RTとして運賃計算</span></p>
+        <span style="font-size:12px;">W（Weight）= 実重量(kg) ÷ 1,000　／　M（Measurement）= CBM　／　大きい方を1RTとして運賃計算</span></p>
       <div class="calc-shared-opts">
         <div class="calc-field"><span class="calc-label">単位（全行共通）</span>
           <select id="lcl-unit" class="calc-unit-select">
@@ -1958,12 +1958,12 @@
     <!-- 3. 容積（CBM）・才数計算 統合 -->
     <div class="card">
       <div class="section-title">📦 容積（CBM）・才数計算</div>
-      <div style="padding:8px 12px;background:#e8f4f0;border-left:3px solid #5a8a52;border-radius:5px;margin-bottom:10px;font-size:11px;color:#1a5c45;line-height:1.6;">
+      <div style="padding:8px 12px;background:#e8f4f0;border-left:3px solid #5a8a52;border-radius:5px;margin-bottom:10px;font-size:12px;color:#1a5c45;line-height:1.6;">
         💡 <strong>見積もり行へワンクリック反映したい場合は、こちらではなく</strong>「💼 見積もりタブ → 貨物情報」内の同等計算機能をご利用ください（単位 R/T・CW・CBM・kg・pcs ごとに見積行へ「反映」ボタンで一括転記できます）。
       </div>
       <p class="calc-desc">CBM（海上輸送の容積単位）と才数（国内運送の容積単位）を同時に算出します。<br>
-        <span style="font-size:11px;">CBM = L×W×H(m)　／　才数 = L×W×H(cm) ÷ 27,826.5　／　各単位で自動換算</span><br>
-        <span style="font-size:11px;line-height:1.9;">🚛 トラック積載目安：軽バン <strong>〜40才</strong>　／　2t <strong>〜120才</strong>　／　4t <strong>〜250才</strong>　／　10t <strong>〜580才</strong></span></p>
+        <span style="font-size:12px;">CBM = L×W×H(m)　／　才数 = L×W×H(cm) ÷ 27,826.5　／　各単位で自動換算</span><br>
+        <span style="font-size:12px;line-height:1.9;">🚛 トラック積載目安：軽バン <strong>〜40才</strong>　／　2t <strong>〜120才</strong>　／　4t <strong>〜250才</strong>　／　10t <strong>〜580才</strong></span></p>
       <div class="calc-shared-opts">
         <div class="calc-field"><span class="calc-label">単位（全行共通）</span>
           <select id="cbm-unit" class="calc-unit-select">
@@ -1996,7 +1996,7 @@
     <div class="card">
       <div class="section-title">🔲 パレタイズシミュレーション</div>
       <p class="calc-desc">サイズ・重量が異なる複数品種を登録すると、3Dビンパッキングで効率よく混載できる配分（何をどのパレットに何個積むか）を自動提案し、3Dプレビューで確認できます。<br>
-        <span style="font-size:11px;line-height:1.9;">📦 標準パレットサイズ：T11（日本標準） <strong>1100×1100mm</strong>　／　ISO/EUR-2 <strong>1200×1000mm</strong>　／　EUR pallet <strong>1200×800mm</strong>　／　北米標準 <strong>1219×1016mm</strong>（48×40インチ）</span></p>
+        <span style="font-size:12px;line-height:1.9;">📦 標準パレットサイズ：T11（日本標準） <strong>1100×1100mm</strong>　／　ISO/EUR-2 <strong>1200×1000mm</strong>　／　EUR pallet <strong>1200×800mm</strong>　／　北米標準 <strong>1219×1016mm</strong>（48×40インチ）</span></p>
       <div class="calc-shared-opts">
         <div class="calc-field"><span class="calc-label">単位（全行共通／カスタムパレット含む）</span>
           <select id="pal-unit" class="calc-unit-select" onchange="onPalUnitChange()">
@@ -2102,7 +2102,7 @@
       <div class="section-title">💱 通貨レート換算</div>
       <p class="calc-desc">
         リアルタイムレート（open.er-api.com）を使用します。ページを開いた後、初回換算時に自動取得します。<br>
-        <span style="font-size:11px;">
+        <span style="font-size:12px;">
           📋 税関公示レート（輸出入申告用・月次）は
           <a href="https://www.customs.go.jp/tetsuzuki/kawase/index.htm"
              target="_blank" style="color:#2b6cb0;font-weight:600;">税関ホームページ ↗</a> でご確認ください。
@@ -2163,7 +2163,7 @@
       <div class="section-title">🏛️ 関税・消費税計算（輸入）</div>
       <p class="calc-desc">
         課税価格（CIF建て円換算）をもとに関税・消費税・地方消費税を試算します。<br>
-        <span style="font-size:11px;">
+        <span style="font-size:12px;">
           📋 HSコード別の関税率は
           <a href="https://www.kanzei.or.jp/statistical/tariff/top/index/j/" target="_blank" style="color:#2b6cb0;font-weight:600;">
             実行関税率表（税関） ↗</a> で確認してください。
@@ -2181,7 +2181,7 @@
         </div>
         <div class="calc-field"><span class="calc-label">追加関税率（%）</span>
           <input type="number" class="calc-input" id="duty-extra" value="0" step="0.1" min="0" style="width:90px;">
-          <span style="font-size:11px;color:var(--text-md);margin-top:3px;">※対中制裁等</span>
+          <span style="font-size:12px;color:var(--text-md);margin-top:3px;">※対中制裁等</span>
         </div>
         <div class="calc-field"><span class="calc-label">少額モード</span>
           <select id="duty-low-mode" class="calc-unit-select" title="課税価格 ≤ 1 万円なら全額免除（個人輸入除く）、≤ 20 万円なら簡易税率の概算ガイド表示" style="min-width:200px;">
@@ -2193,7 +2193,7 @@
         <button class="btn-primary" onclick="calcDuty()">計算 →</button>
         <button class="btn-clear" onclick="clearCalcResult('duty-result')">クリア</button>
       </div>
-      <p style="font-size:11px;color:var(--text-md);margin:8px 0 0 0;">
+      <p style="font-size:12px;color:var(--text-md);margin:8px 0 0 0;">
         ⚠️ 試算値です。実際の税額は品目・原産地・適用協定等により異なります。輸入申告は通関士にご相談ください。<br>
         💡 <strong>少額免税</strong>：課税価格 ≤ 10,000 円なら関税・消費税ともに免税（関税定率法第 14 条 18 号）。ただし法人による輸入には原則不適用。<br>
         💡 <strong>簡易税率</strong>：課税価格 ≤ 200,000 円の少額貨物に対し、HS 詳細不要の概算税率（一般 3%／15%／20% など）を適用可。実適用時は税関の最新ルール確認。
@@ -2810,7 +2810,7 @@
       </h2>
       <div id="refBody">
         <p class="section-desc">案件を管理するための識別情報を入力します。<b>見積もり番号</b> は問い合わせ番号など任意の形式で OK。後でフィルタリングや整理に使えます。<br>
-        <span style="font-size:11px;color:var(--text-md);">💡 <b>担当</b>は<strong>敬称略（呼び捨て）</strong>で入力してください。プレビュー・Excel・コピー出力時に自動で「様」が付与されます。</span></p>
+        <span style="font-size:12px;color:var(--text-md);">💡 <b>担当</b>は<strong>敬称略（呼び捨て）</strong>で入力してください。プレビュー・Excel・コピー出力時に自動で「様」が付与されます。</span></p>
         <!-- 【一時機能】管理者が、新規案件の作成者を指定して保存（admin-creator-edit.js。やめるときは docs/sql/admin-edit-creator.sql 参照） -->
         <div id="adminCreatorNew" class="admin-creator-new" hidden>
           <span class="admin-creator-new-lbl">👤 作成者を指定して保存 <small>管理者・一時機能</small></span>
@@ -3893,8 +3893,8 @@
       </h2>
       <div id="tableWrap">
         <p class="section-desc">費用項目ごとに <b>支払い（仕入）</b> と <b>請求</b> の数量・通貨・単価を入力します。<b>乗せ幅</b> を入力すると請求単価に自動加算、<b>利益</b> 欄で粗利をリアルタイム確認できます。CSV インポートやカテゴリ順並び替えも利用可能です。<br>
-        <span style="font-size:11px;color:var(--text-md);">💡 <b>項目名の先頭にある <code style="background:#fff;padding:1px 4px;border-radius:3px;">*</code> は課税項目を示します</b>（課税欄のチェックで自動付与）。プレビュー画面では消費税列に税額（10% 固定）が表示されます。</span><br>
-        <span style="font-size:11px;color:var(--text-md);">➕ <b>行を追加するには</b>：各明細行の左にある ➕（行追加）／📋（複製）／🗑️（削除）アイコン、最下行で ↓ キー、Ctrl+D（複製）、または Ctrl+K から「行を追加」を選択してください。リマーク・社内メモは各行の 💬／🔒 から、小計行はツールバーの ＝ から追加できます。</span></p>
+        <span style="font-size:12px;color:var(--text-md);">💡 <b>項目名の先頭にある <code style="background:#fff;padding:1px 4px;border-radius:3px;">*</code> は課税項目を示します</b>（課税欄のチェックで自動付与）。プレビュー画面では消費税列に税額（10% 固定）が表示されます。</span><br>
+        <span style="font-size:12px;color:var(--text-md);">➕ <b>行を追加するには</b>：各明細行の左にある ➕（行追加）／📋（複製）／🗑️（削除）アイコン、最下行で ↓ キー、Ctrl+D（複製）、または Ctrl+K から「行を追加」を選択してください。リマーク・社内メモは各行の 💬／🔒 から、小計行はツールバーの ＝ から追加できます。</span></p>
         <div class="container">
           <!-- 統合コマンドバー：行操作・選択行・換算レート表示・⚙設定（為替/カテゴリ）を集約 -->
           <div class="quote-cmdbar">
@@ -3964,7 +3964,7 @@
                           <span id="fxLastFetched" class="fx-last-fetched"></span>
                         </div>
                         <div id="fxRateGrid"></div>
-                        <div style="margin-top:6px; font-size:11px; color:#888;">※ 合計行にJPY換算額を表示します。自動取得はopen.er-api.comを使用します。</div>
+                        <div style="margin-top:6px; font-size:12px; color:#888;">※ 合計行にJPY換算額を表示します。自動取得はopen.er-api.comを使用します。</div>
                       </details>
                     </div>
                     <div id="userCatPanel">
@@ -3978,7 +3978,7 @@
                                  onkeydown="if(event.key==='Enter')doAddUserCat()" />
                           <button type="button" class="user-cat-add-btn" onclick="doAddUserCat()">＋ 追加</button>
                         </div>
-                        <div style="margin-top:5px; font-size:11px; color:#888;">※ カテゴリ削除後、そのカテゴリが設定された行は「未設定」になります。<br>※ カスタムカテゴリはブラウザの localStorage に保存されます（同じブラウザ内のみ有効）。</div>
+                        <div style="margin-top:5px; font-size:12px; color:#888;">※ カテゴリ削除後、そのカテゴリが設定された行は「未設定」になります。<br>※ カスタムカテゴリはブラウザの localStorage に保存されます（同じブラウザ内のみ有効）。</div>
                       </details>
                     </div>
                     <div id="catOrderPanel">
@@ -3988,7 +3988,7 @@
                         <div class="cat-order-actions">
                           <button type="button" class="cat-order-reset-btn" onclick="resetCatOrder()">既定の順序に戻す</button>
                         </div>
-                        <div style="margin-top:5px; font-size:11px; color:#888;">※ ドラッグで並べ替えると「⇅カテゴリ」ボタンの並び順に反映されます。</div>
+                        <div style="margin-top:5px; font-size:12px; color:#888;">※ ドラッグで並べ替えると「⇅カテゴリ」ボタンの並び順に反映されます。</div>
                       </details>
                     </div>
                   </div>
@@ -4369,7 +4369,7 @@
     <div id="csvColModal" onclick="if(event.target===this)closeCsvColModal()">
       <div id="csvColBox">
         <h3>⬇ CSV出力：列を選択してください</h3>
-        <p style="font-size:11px;color:#7d6b56;margin:-4px 0 8px;line-height:1.5;">
+        <p style="font-size:12px;color:#7d6b56;margin:-4px 0 8px;line-height:1.5;">
           ℹ️ プレビュー（表計算形式）の表示カスタマイズを初期反映済みです。必要に応じてここで再編集できます。
         </p>
         <div class="csv-col-presets">
@@ -5584,7 +5584,7 @@
       </div>
       <div class="bm-form-row" id="rpDestRow" hidden>
         <label class="bm-form-label"><input type="checkbox" id="rpFormPersonal"> 自分だけに保存する（個人・この端末のみ）</label>
-        <div style="font-size:11px;color:#8a7a5c;margin-top:2px;">チェックなし＝チーム共有（ログイン必須）として保存します。</div>
+        <div style="font-size:12px;color:#8a7a5c;margin-top:2px;">チェックなし＝チーム共有（ログイン必須）として保存します。</div>
       </div>
       <div class="bm-modal-foot">
         <button type="button" class="bm-btn-cancel" onclick="document.getElementById('remarkPresetModal').classList.remove('open')">キャンセル</button>
