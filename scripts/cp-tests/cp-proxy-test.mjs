@@ -23,6 +23,7 @@ for (const p of [
   '/API/v2/Trades/Messages/GetDetails/abc-123', '/API/v2/Trades/Messages/GetHistories/abc-123',
   '/API/v2/ColinsViewers/GetImportContainers', '/API/v2/ColinsViewers/GetExportContainers',
   '/API/v2/ColinsViewers/GetImportVessels/JPTYO', '/API/v2/ColinsViewers/GetExportVessels/JPYOK',
+  '/API/v2/Terminals/GetList', '/API/v2/Terminals/Get/TYOAJ00C',
 ]) ok(L.matchAllowed(p) !== null, '許可される: ' + p);
 // 不許可：書き込み系・別の API・すり抜けの工夫
 for (const p of [
@@ -31,6 +32,8 @@ for (const p of [
   '/API/v2/Webhooks/Register', '/API/v2/Organizations/UsedWebhooks/Delete/1', '/vendor-auth/token',
   '/API/v2/Trades/Get/../Delete/x', '/API/v2/Trades/Get/%2e%2e', '/API/v2/Trades/Get/a/b', '/API/v2/Trades/Search?x=1',
   '/API/v2/Trades/Get/', 'API/v2/Trades/Search', '/api/v2/trades/search', '', null, undefined, 123,
+  '/API/v2/Terminals/VesselSchedules/GetList', '/API/v2/Terminals/VesselSchedules/Register', '/API/v2/Terminals/DemurrageSettings/GetList',
+  '/API/v2/Terminals/GateOpenWindows/GetList/JPTYO', '/API/v2/Terminals/TerminalNotices/GetList', '/API/v2/Terminals/Register', '/API/v2/Terminals/GetList/x',
 ]) ok(L.matchAllowed(p) === null, '不許可: ' + String(p));
 ok(L.ALLOWED_GET.every((a) => !/Send|Reply|Edit|Delete|Create|Register|Update|Set|Submit|Lock/.test(a.name)), '許可リストに書き込み系の名前が無い');
 

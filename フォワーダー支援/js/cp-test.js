@@ -123,68 +123,177 @@
     String(path).split('.').forEach(function (k) { v = v == null ? undefined : v[k]; });
     return v;
   }
-  // 日時は UTC（YYYY-MM-DDThh:mm:ssZ）で届く。日本時間にして「月/日 時:分」で見せる。読めない値はそのまま。
+  // 日時の読み取り。届く形は 2 通り：UTC の ISO（2026-11-12T00:00:00Z）と、日付だけ（20261109 / 2026-11-09）。
+  // 日付だけのものは日本の日付としてそのまま見せる（時刻は付けない）。読めない値は null（元の文字のまま見せる）。
+  function parseDt(v) {
+    if (v == null || v === '') return null;
+    var s = String(v).trim(), m;
+    if ((m = /^(\d{4})(\d{2})(\d{2})$/.exec(s)) || (m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s))) {
+      return { d: new Date(m[1] + '-' + m[2] + '-' + m[3] + 'T00:00:00+09:00'), dateOnly: true };
+    }
+    var d = new Date(s);
+    return isNaN(d.getTime()) ? null : { d: d, dateOnly: false };
+  }
   function fmtDt(v) {
     if (v == null || v === '') return '';
-    var d = new Date(v);
-    if (isNaN(d.getTime())) return String(v);
-    var p = new Intl.DateTimeFormat('ja-JP', { timeZone: 'Asia/Tokyo', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false }).formatToParts(d);
-    var m = {}; p.forEach(function (x) { m[x.type] = x.value; });
-    return m.year + '/' + m.month + '/' + m.day + ' ' + m.hour + ':' + m.minute;
+    var p = parseDt(v);
+    if (!p) return String(v);
+    var f = new Intl.DateTimeFormat('ja-JP', { timeZone: 'Asia/Tokyo', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false }).formatToParts(p.d);
+    var m = {}; f.forEach(function (x) { m[x.type] = x.value; });
+    return m.year + '/' + m.month + '/' + m.day + (p.dateOnly ? '' : ' ' + m.hour + ':' + m.minute);
+  }
+  // 期限の色分け：過ぎている＝over、あと 48 時間以内＝warn。日付だけの期限は、その日の終わりまでを期限とみなす。
+  function dueClass(v, now) {
+    var p = parseDt(v);
+    if (!p) return '';
+    var endMs = p.d.getTime() + (p.dateOnly ? 24 * 3600 * 1000 : 0);
+    var diffH = (endMs - (now == null ? Date.now() : now)) / 3600000;
+    return diffH < 0 ? 'cpt-due-over' : diffH <= 48 ? 'cpt-due-warn' : '';
   }
   function yn(v) { return v === true ? '○' : v === false ? '×' : (v == null ? '' : String(v)); }
+  function num(v) { return v == null ? '' : String(v); }
 
   function rawHtml(data) {
     return '<details class="cpt-raw"><summary>返ってきたデータそのもの（確認用）</summary><pre>' + esc(JSON.stringify(data, null, 2).slice(0, 8000)) + '</pre></details>';
   }
-  // 配列の応答を、列の定義どおりの表にする（最大 50 行）
-  function listTable(data, cols, emptyText, label) {
-    var list = Array.isArray(data) ? data : null;
-    if (!list) return msg('is-info', '想定と違う形のデータが返りました。下の「返ってきたデータそのもの」を確認してください。') + rawHtml(data);
-    if (!list.length) return msg('is-info', emptyText) + rawHtml(data);
+  // 配列の応答を、列の定義どおりの表にする（最大 50 行）。列＝[見出し, 値を返す関数, （任意）色の class を返す関数]
+  function listTable(list, cols, label, note) {
     var head = '<tr>' + cols.map(function (c) { return '<th>' + esc(c[0]) + '</th>'; }).join('') + '</tr>';
     var rows = list.slice(0, 50).map(function (it) {
-      return '<tr>' + cols.map(function (c) { return '<td>' + esc(c[1](it || {})) + '</td>'; }).join('') + '</tr>';
+      return '<tr>' + cols.map(function (c) {
+        var cls = c[2] ? c[2](it || {}) : '';
+        return '<td' + (cls ? ' class="' + cls + '"' : '') + '>' + esc(c[1](it || {})) + '</td>';
+      }).join('') + '</tr>';
     }).join('');
-    return '<div class="cpt-live-x">実データ（' + esc(label) + '）：' + list.length + ' 件' + (list.length > 50 ? '（先頭50件を表示）' : '') + '</div>' +
-      '<div class="cpt-tablewrap"><table class="cpt-table"><thead>' + head + '</thead><tbody>' + rows + '</tbody></table></div>' + rawHtml(data);
+    return '<div class="cpt-live-x">実データ（' + esc(label) + '）：' + list.length + ' 件' + (list.length > 50 ? '（先頭50件を表示）' : '') + (note ? '　' + esc(note) : '') + '</div>' +
+      '<div class="cpt-tablewrap"><table class="cpt-table"><thead>' + head + '</thead><tbody>' + rows + '</tbody></table></div>';
   }
 
-  var VESSEL_COLS = [
-    ['ターミナル', function (x) { return g(x, 'terminalCode'); }],
-    ['本船名', function (x) { return g(x, 'vessel.vesselName'); }],
-    ['航海番号', function (x) { return g(x, 'vessel.voyageNo'); }],
-    ['IMO', function (x) { return g(x, 'vessel.imoNo'); }],
-    ['荷役 予定', function (x) { return fmtDt(g(x, 'cargoHandling.scheduleAt')); }],
-    ['荷役 実績', function (x) { return fmtDt(g(x, 'cargoHandling.actualAt')); }],
-    ['搬入 予定', function (x) { return fmtDt(g(x, 'cargoIn.scheduleAt')); }],
-    ['搬入 実績', function (x) { return fmtDt(g(x, 'cargoIn.actualAt')); }],
-    ['CYオープン', function (x) { return fmtDt(g(x, 'cargoTransfer.cyOpenAt')); }],
-    ['CYカット', function (x) { return fmtDt(g(x, 'cargoTransfer.cyCutAt')); }]
-  ];
-  function containerCols(dir) {
+  // ターミナル名（コード→名前）。最初の 1 回だけ取って使い回す。取れなくても表はコードのまま出す。
+  var _termNames = null;
+  async function ensureTerminalNames() {
+    if (_termNames) return _termNames;
+    var map = {};
+    try {
+      var r = await window.CyberPort.terminals('');
+      (Array.isArray(r.data) ? r.data : []).forEach(function (x) {
+        if (x && x.terminalCode) map[x.terminalCode] = x.terminalNameAb || x.terminalName || x.terminalNameEn || '';
+      });
+      _termNames = map;
+    } catch (e) { return map; } // 今回は名前なしで表示（次回また試す）
+    return _termNames;
+  }
+  function termCell(names) {
+    return function (x) {
+      var c = g(x, 'terminalCode') || '';
+      return names[c] ? names[c] + '（' + c + '）' : c;
+    };
+  }
+
+  // 本船が「いまの港」に着く／出る日時とバース。港のオブジェクトのうち、問い合わせた港コードと一致するものを使う。
+  function atPort(x, port, dir) {
+    var keys = ['portOfLoading', 'portOfTranshipment', 'portOfDischarge'];
+    for (var i = 0; i < keys.length; i++) {
+      var o = g(x, 'vessel.' + keys[i]);
+      if (o && o.portCode === port) return o;
+    }
+    return g(x, 'vessel.' + (dir === 'export' ? 'portOfLoading' : 'portOfDischarge')) || {};
+  }
+  function vesselCols(dir, port, names) {
+    var at = function (x) { return atPort(x, port, dir); };
+    return [
+      ['ターミナル', termCell(names)],
+      ['本船名', function (x) { return g(x, 'vessel.vesselName'); }],
+      ['航海番号', function (x) { return g(x, 'vessel.voyageNo'); }],
+      ['IMO', function (x) { return g(x, 'vessel.imoNo'); }],
+      ['バース', function (x) { return g(at(x), 'berthName') || g(at(x), 'berthCode'); }],
+      ['入港 予定(ETA)', function (x) { return fmtDt(g(at(x), 'estimatedTimeOfArrival')); }],
+      ['入港 実績(ATA)', function (x) { return fmtDt(g(at(x), 'actualTimeOfArrival')); }],
+      ['出港 予定(ETD)', function (x) { return fmtDt(g(at(x), 'estimatedTimeOfDeparture')); }],
+      ['出港 実績(ATD)', function (x) { return fmtDt(g(at(x), 'actualTimeOfDeparture')); }],
+      ['荷役 予定', function (x) { return fmtDt(g(x, 'cargoHandling.scheduleAt')); }],
+      ['荷役 実績', function (x) { return fmtDt(g(x, 'cargoHandling.actualAt')); }],
+      ['搬入 予定', function (x) { return fmtDt(g(x, 'cargoIn.scheduleAt') || g(x, 'cargoIn.cargoInDate')); }],
+      ['搬入 実績', function (x) { return fmtDt(g(x, 'cargoIn.actualAt')); }],
+      ['CYオープン', function (x) { return fmtDt(g(x, 'cargoTransfer.cyOpenAt')); }],
+      ['CYカット', function (x) { return fmtDt(g(x, 'cargoTransfer.cyCutAt')); }, function (x) { return dueClass(g(x, 'cargoTransfer.cyCutAt')); }],
+      ['CFSカット', function (x) { return fmtDt(g(x, 'cargoTransfer.cfsCutAt')); }, function (x) { return dueClass(g(x, 'cargoTransfer.cfsCutAt')); }],
+      ['備考', function (x) { return g(x, 'remark'); }]
+    ];
+  }
+  // 入港の予定が早い順（日時の無いものは最後）。同じなら荷役の予定の早い順。
+  function sortVessels(list, port, dir) {
+    var key = function (x) {
+      var a = parseDt(g(atPort(x, port, dir), 'estimatedTimeOfArrival')), h = parseDt(g(x, 'cargoHandling.scheduleAt'));
+      return [a ? a.d.getTime() : Infinity, h ? h.d.getTime() : Infinity];
+    };
+    return list.map(function (x, i) { return { x: x, k: key(x), i: i }; })
+      .sort(function (p, q) { return (p.k[0] - q.k[0]) || (p.k[1] - q.k[1]) || (p.i - q.i); })
+      .map(function (o) { return o.x; });
+  }
+
+  function containerCols(dir, names) {
+    var place = function (x, k) { return g(x, k + '.placeName') || g(x, k + '.placeCode'); };
     var common = [
-      ['ターミナル', function (x) { return g(x, 'terminalCode'); }],
+      ['ターミナル', termCell(names)],
       ['コンテナ', function (x) { return g(x, 'container.containerNo'); }],
       ['サイズ・種類', function (x) { return [g(x, 'container.lengthName'), g(x, 'container.containerTypeName')].filter(Boolean).join(' '); }],
-      ['本船／航海', function (x) { return [g(x, 'vessel.vesselName'), g(x, 'vessel.voyageNo')].filter(Boolean).join(' / '); }],
-      ['実入り/空', function (x) { return g(x, 'containerStatus.fullOrEmpty'); }]
+      ['本船／航海', function (x) { return [g(x, 'vessel.vesselName'), g(x, 'vessel.voyageNo')].filter(Boolean).join(' / '); }]
     ];
     if (dir === 'export') {
       return common.concat([
+        ['実入り/空', function (x) { return g(x, 'containerStatus.fullOrEmpty'); }],
+        ['通関', function (x) { return g(x, 'containerStatus.customClearanceStatus'); }],
         ['船積可否', function (x) { return yn(g(x, 'shipmentAvailability')); }],
+        ['空搬出 場所', function (x) { return place(x, 'emptyContainerPickup.pickupPlace'); }],
+        ['空搬出 予定', function (x) { return fmtDt(g(x, 'emptyContainerPickup.scheduledAt')); }],
+        ['空搬出 実績', function (x) { return fmtDt(g(x, 'emptyContainerPickup.actualAt')); }],
+        ['実入り搬入 場所', function (x) { return place(x, 'loadedContainerDelivery.deliveryPlace'); }],
+        ['実入り搬入 予定', function (x) { return fmtDt(g(x, 'loadedContainerDelivery.scheduledAt')); }],
+        ['実入り搬入 実績', function (x) { return fmtDt(g(x, 'loadedContainerDelivery.actualAt')); }],
         ['ゲートイン', function (x) { return fmtDt(g(x, 'gateInDate')); }],
-        ['船積日', function (x) { return fmtDt(g(x, 'shipmentDate')); }]
+        ['荷役日', function (x) { return fmtDt(g(x, 'loadingUnloadingDate')); }],
+        ['船積日', function (x) { return fmtDt(g(x, 'shipmentDate')); }],
+        ['備考', function (x) { return g(x, 'emptyContainerPickup.remark') || g(x, 'loadedContainerDelivery.remark'); }]
       ]);
     }
+    var pk = 'loadedContainerPickup', rt = 'emptyContainerReturn';
     return common.concat([
+      ['B/L', function (x) { return g(x, 'billOfLadingDetail.blNo'); }],
+      ['実入り/空', function (x) { return g(x, 'containerStatus.fullOrEmpty'); }],
       ['通関', function (x) { return g(x, 'containerStatus.customClearanceStatus'); }],
+      ['検査対象', function (x) { return yn(g(x, 'inspectionTarget')); }],
+      ['検査状況', function (x) { return yn(g(x, 'inspectionStatus')); }],
+      ['DO入手', function (x) { return yn(g(x, 'doAcquisition')); }],
       ['搬出可否', function (x) { return yn(g(x, 'outboundAvailability')); }],
+      ['搬出可能', function (x) { return fmtDt(g(x, pk + '.availableAt')); }],
+      ['搬出期限', function (x) { return fmtDt(g(x, pk + '.dueAt')); }, function (x) { return dueClass(g(x, pk + '.dueAt')); }],
+      ['ﾃﾞﾏﾚｰｼﾞFT(日)', function (x) { return num(g(x, pk + '.demurrageFreeTime')); }],
+      ['搬出 場所', function (x) { return place(x, pk + '.pickupPlace'); }],
       ['CY搬入', function (x) { return fmtDt(g(x, 'cyCarryInDate')); }],
       ['ゲートイン', function (x) { return fmtDt(g(x, 'gateInDate')); }],
       ['ゲートアウト', function (x) { return fmtDt(g(x, 'gateOutDate')); }],
-      ['DO', function (x) { return yn(g(x, 'doAcquisition')); }]
+      ['返却期限', function (x) { return fmtDt(g(x, rt + '.dueAt')); }, function (x) { return dueClass(g(x, rt + '.dueAt')); }],
+      ['ﾃﾞｨﾃﾝｼｮﾝFT(日)', function (x) { return num(g(x, rt + '.detentionFreeTime')); }],
+      ['返却 場所', function (x) { return place(x, rt + '.deliveryPlace'); }],
+      ['危険品', function (x) { return yn(g(x, 'isDangerousGoods')); }],
+      ['備考', function (x) { return g(x, 'remark'); }]
     ]);
+  }
+  // 期限が「過ぎた／48時間以内」のコンテナの数（表の上の案内）
+  function dueNote(list) {
+    var keys = [['搬出期限', 'loadedContainerPickup.dueAt'], ['返却期限', 'emptyContainerReturn.dueAt']];
+    var parts = [];
+    keys.forEach(function (k) {
+      var over = 0, warn = 0;
+      list.forEach(function (x) { var c = dueClass(g(x, k[1])); if (c === 'cpt-due-over') over++; else if (c === 'cpt-due-warn') warn++; });
+      if (over || warn) parts.push(k[0] + '：超過 ' + over + ' 件・48時間以内 ' + warn + ' 件');
+    });
+    return parts.length ? '⚠ ' + parts.join(' ／ ') : '';
+  }
+
+  function notArray(data) {
+    return msg('is-info', '想定と違う形のデータが返りました。下の「返ってきたデータそのもの」を確認してください。') + rawHtml(data);
   }
 
   async function liveColinsVessels() {
@@ -200,9 +309,12 @@
     liveBusy(true);
     liveBox().innerHTML = msg('is-info', 'COLINS の本船の動静を取得しています…（' + (dir === 'export' ? '輸出' : '輸入') + '・' + port + (vn ? '・' + vn : '') + '）');
     try {
+      var names = await ensureTerminalNames();
       var r = await window.CyberPort.colinsVessels(dir, port, q);
       setLinkStatus(true, '');
-      liveBox().innerHTML = listTable(r.data, VESSEL_COLS, port + ' の本船の動静は見つかりませんでした（0件）。', 'COLINS・本船の動静');
+      if (!Array.isArray(r.data)) { liveBox().innerHTML = notArray(r.data); return; }
+      if (!r.data.length) { liveBox().innerHTML = msg('is-info', port + ' の本船の動静は見つかりませんでした（0件）。') + rawHtml(r.data); return; }
+      liveBox().innerHTML = listTable(sortVessels(r.data, port, dir), vesselCols(dir, port, names), 'COLINS・本船の動静', '入港予定の早い順') + rawHtml(r.data);
     } catch (e) {
       liveBox().innerHTML = errHtml(e);
     } finally { liveBusy(false); }
@@ -219,9 +331,12 @@
     liveBusy(true);
     liveBox().innerHTML = msg('is-info', 'COLINS のコンテナの状況を取得しています…（' + (dir === 'export' ? '輸出' : '輸入') + '・' + no + '）');
     try {
+      var names = await ensureTerminalNames();
       var r = await window.CyberPort.colinsContainers(dir, no, {});
       setLinkStatus(true, '');
-      liveBox().innerHTML = listTable(r.data, containerCols(dir), '「' + no + '」のコンテナは見つかりませんでした（0件）。', 'COLINS・コンテナの状況');
+      if (!Array.isArray(r.data)) { liveBox().innerHTML = notArray(r.data); return; }
+      if (!r.data.length) { liveBox().innerHTML = msg('is-info', '「' + no + '」のコンテナは見つかりませんでした（0件）。') + rawHtml(r.data); return; }
+      liveBox().innerHTML = listTable(r.data, containerCols(dir, names), 'COLINS・コンテナの状況', dir === 'import' ? dueNote(r.data) : '') + rawHtml(r.data);
     } catch (e) {
       liveBox().innerHTML = errHtml(e);
     } finally { liveBusy(false); }
@@ -334,5 +449,5 @@
     _inited = true;
     render();
   };
-  window.CpTest = { normalizeNo: normalizeNo };
+  window.CpTest = { normalizeNo: normalizeNo, fmtDt: fmtDt, dueClass: dueClass, resetTerminalNames: function () { _termNames = null; } };
 })();
