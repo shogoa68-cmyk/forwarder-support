@@ -44,7 +44,7 @@
     return [
       ['cptStApi', 'サイバーポートAPI', '未確認（下の「実接続テスト」で確認）', 'is-off'],
       ['cptStFn', '中継役（Supabase Edge Function）', '未確認', 'is-off'],
-      ['cptStAuth', '認証（接続情報でトークン取得）', '未確認', 'is-off'],
+      ['cptStAuth', '認証（システム用＋橋渡しユーザーの2つのトークン）', '未確認', 'is-off'],
       ['', '書き込み（送信・返信・編集・削除）', '使いません（読み取り専用）', 'is-ok']
     ].map(function (r) {
       return '<li class="cpt-st ' + r[3] + '"' + (r[0] ? ' id="' + r[0] + '"' : '') + '><span class="cpt-st-k">' + esc(r[1]) +
@@ -56,7 +56,7 @@
     var rows = {
       cptStApi: ok ? (apiHost ? '接続先を確認（' + apiHost + '）' : '接続できています（データを取得できました）') : '未確認（下の「実接続テスト」で確認）',
       cptStFn: ok ? '動いています' : '未確認',
-      cptStAuth: ok ? 'トークンを取得できました' : '未確認'
+      cptStAuth: ok ? '2つのトークンを取得できました' : '未確認'
     };
     Object.keys(rows).forEach(function (id) {
       var li = document.getElementById(id);
@@ -148,7 +148,7 @@
       '<div class="cpt-card"><div class="cpt-card-h">接続状態</div><ul class="cpt-stlist">' + statusRows() + '</ul></div>' +
       '<div class="cpt-card"><div class="cpt-card-h">🔌 実接続テスト（読み取りのみ）</div>' +
       '<div class="cpt-form"><button type="button" class="cpt-btn is-primary" id="cptPing">① 接続情報の確認</button>' +
-      '<span class="cpt-hint">トークンが取れるかだけを確かめます（データは取りません）</span></div>' +
+      '<span class="cpt-hint">2つのトークン（システム用・橋渡しユーザー）が取れるかだけを確かめます（データは取りません）</span></div>' +
       '<div class="cpt-form"><input type="text" id="cptKw" class="cpt-input" maxlength="45" autocomplete="off" ' +
       'placeholder="取引番号・B/L・ブッキング・社内管理番号（空なら直近30日の更新）">' +
       '<button type="button" class="cpt-btn" id="cptSearch">② 取引を検索</button></div>' +

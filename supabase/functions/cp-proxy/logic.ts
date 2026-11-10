@@ -121,3 +121,69 @@ export function isOriginAllowed(origin: string, list: string[]): boolean {
   if (!o) return false;
   return list.length ? list.includes(o) : /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(o);
 }
+
+// ---------- 接続設定（本番／検証環境）と、2 種類のトークン ----------
+// 根拠：「Ver.2 API利用ガイダンス Ver.1.0」P.14・P.16〜24（引き継ぎ書 第6章）。
+//   ① システム用（X-Authorization）：POST <base>/Token（x-www-form-urlencoded・grant_type=client_credentials）→ access_token
+//   ② 利用者用（Authorization: Bearer）：POST <B2C の token>（grant_type=password・橋渡しユーザーのメール/パスワード）→ access_token
+export type CpEnvName = 'production' | 'sandbox';
+const ENV_PRESETS: Record<CpEnvName, { base: string; openidUrl: string; scopeBase: string }> = {
+  production: {
+    base: 'https://api.cyber-port.net',
+    openidUrl: 'https://mlitcyberport.b2clogin.com/mlitcyberport.onmicrosoft.com/oauth2/v2.0/token?p=b2c_1_cyberport_ropc_auth',
+    scopeBase: 'https://mlitcyberport.onmicrosoft.com/cyberport.api',
+  },
+  sandbox: {
+    base: 'https://api-sandbox.cyber-port.net',
+    openidUrl: 'https://mlitcyberport.b2clogin.com/mlitcyberport.onmicrosoft.com/oauth2/v2.0/token?p=b2c_1_sandboxcp_ropc_auth',
+    scopeBase: 'https://mlitcyberport.onmicrosoft.com/sandboxcp.api',
+  },
+};
+
+export type CpConfig = {
+  env: CpEnvName; base: string; clientTokenUrl: string; openidUrl: string; openidScope: string;
+  clientId: string; clientSecret: string; appId: string; userEmail: string; userPassword: string;
+};
+
+// 貼り付けで混ざりがちな前後の空白・引用符を取り除く（ID・URL 用）。
+function cleanVal(v: unknown): string {
+  return String(v == null ? '' : v).trim().replace(/^["'‘’“”]+|["'‘’“”]+$/g, '').trim();
+}
+
+// secrets（環境変数）から設定を作る。省略したものは、環境（CP_ENV）に応じた公式の既定値になる。
+//   CP_ENV=sandbox で検証環境。CP_BASE_URL / CP_TOKEN_URL / CP_OPENID_URL / CP_OPENID_SCOPE で個別に上書きできる。
+//   スコープの既定は「読み取り（read）」だけ（write は要求しない＝万一トークンが漏れても読み取りまで）。
+export function resolveConfig(get: (k: string) => string | undefined): CpConfig {
+  const env: CpEnvName = cleanVal(get('CP_ENV')).toLowerCase() === 'sandbox' ? 'sandbox' : 'production';
+  const pre = ENV_PRESETS[env];
+  const base = (cleanVal(get('CP_BASE_URL')) || pre.base).replace(/\/+$/, '');
+  return {
+    env,
+    base,
+    clientTokenUrl: cleanVal(get('CP_TOKEN_URL')) || base + '/Token',
+    openidUrl: cleanVal(get('CP_OPENID_URL')) || pre.openidUrl,
+    openidScope: cleanVal(get('CP_OPENID_SCOPE')) || 'openid ' + pre.scopeBase + '/read',
+    clientId: cleanVal(get('CP_CLIENT_ID')),
+    clientSecret: cleanVal(get('CP_CLIENT_SECRET')),
+    appId: cleanVal(get('CP_APP_ID')),
+    userEmail: cleanVal(get('CP_USER_EMAIL')),
+    userPassword: String(get('CP_USER_PASSWORD') ?? '').replace(/^\s+|\s+$/g, ''), // パスワードは前後の空白だけ除く（引用符は中身かもしれない）
+  };
+}
+
+// x-www-form-urlencoded の本文（空白は + に・記号は %XX に）
+export function formBody(o: Record<string, string>): string {
+  const sp = new URLSearchParams();
+  for (const [k, v] of Object.entries(o)) sp.append(k, v);
+  return sp.toString();
+}
+
+// トークン応答から、使うトークンと有効期限を取り出す（access_token、または旧来の token）。
+// 期限は expires_in（秒）→ JWT の exp → 既定 5 分 の順。1 分早めに切れたことにする。
+export function tokenFromResponse(j: Record<string, unknown>, nowMs: number): { token: string; exp: number } | null {
+  const token = typeof j.access_token === 'string' && j.access_token ? j.access_token : typeof j.token === 'string' ? j.token : '';
+  if (!token) return null;
+  const ei = Number(j.expires_in);
+  const exp = Number.isFinite(ei) && ei > 0 ? nowMs + Math.max(ei * 1000 - 60_000, ei * 500) : tokenExpiryMs(token, nowMs);
+  return { token, exp };
+}

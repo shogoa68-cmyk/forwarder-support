@@ -87,14 +87,51 @@ eq([L.backoffMs(0), L.backoffMs(1), L.backoffMs(2)], [500, 1000, 2000], '指数�
   ok(L.allowRate(m, 'a@x', 1000 + 61_000), '制限：1 分たてば再開');
 }
 
+// 接続設定（本番／検証環境・公式の既定値）
+{
+  const mk = (o) => L.resolveConfig((k) => o[k]);
+  const p = mk({});
+  eq([p.env, p.base, p.clientTokenUrl], ['production', 'https://api.cyber-port.net', 'https://api.cyber-port.net/Token'], '設定：本番の既定（接続先・システム用トークンの取得先）');
+  eq(p.openidUrl, 'https://mlitcyberport.b2clogin.com/mlitcyberport.onmicrosoft.com/oauth2/v2.0/token?p=b2c_1_cyberport_ropc_auth', '設定：本番の利用者トークン取得先（B2C）');
+  eq(p.openidScope, 'openid https://mlitcyberport.onmicrosoft.com/cyberport.api/read', '設定：スコープの既定は読み取り（read）だけ');
+  ok(!/write/.test(p.openidScope), '設定：既定のスコープに write を含まない');
+  const sb = mk({ CP_ENV: ' Sandbox ' });
+  eq([sb.env, sb.base, sb.clientTokenUrl], ['sandbox', 'https://api-sandbox.cyber-port.net', 'https://api-sandbox.cyber-port.net/Token'], '設定：検証環境（CP_ENV=sandbox）の接続先');
+  eq(sb.openidUrl, 'https://mlitcyberport.b2clogin.com/mlitcyberport.onmicrosoft.com/oauth2/v2.0/token?p=b2c_1_sandboxcp_ropc_auth', '設定：検証環境の利用者トークン取得先');
+  eq(sb.openidScope, 'openid https://mlitcyberport.onmicrosoft.com/sandboxcp.api/read', '設定：検証環境のスコープ（read）');
+  eq(mk({ CP_ENV: 'nonsense' }).env, 'production', '設定：sandbox 以外の値は本番の既定（検証環境の ID を本番へ送っても、認証で弾かれるだけ）');
+  const ov = mk({ CP_BASE_URL: 'https://x.example/', CP_TOKEN_URL: 'https://t.example/vendor-auth/token', CP_OPENID_URL: 'https://o.example/tok', CP_OPENID_SCOPE: 'openid a b' });
+  eq([ov.base, ov.clientTokenUrl, ov.openidUrl, ov.openidScope], ['https://x.example', 'https://t.example/vendor-auth/token', 'https://o.example/tok', 'openid a b'], '設定：個別に上書きできる（末尾の/は除く）');
+  eq(mk({ CP_BASE_URL: 'https://x.example', CP_ENV: 'sandbox' }).clientTokenUrl, 'https://x.example/Token', '設定：接続先を上書きするとシステム用トークンの取得先も追従');
+  const q = mk({ CP_CLIENT_ID: ' "abc" ', CP_CLIENT_SECRET: "'sec'\n", CP_APP_ID: '“appid”', CP_USER_EMAIL: ' a@b.c ', CP_USER_PASSWORD: '  pa ss"w\'d\r\n' });
+  eq([q.clientId, q.clientSecret, q.appId, q.userEmail], ['abc', 'sec', 'appid', 'a@b.c'], '設定：ID・メールの前後の空白と引用符を除く');
+  eq(q.userPassword, 'pa ss"w\'d', '設定：パスワードは前後の空白だけ除く（中の空白・引用符は残す）');
+}
+// フォーム本文・トークン応答
+eq(L.formBody({ grant_type: 'password', scope: 'openid https://a/b', password: 'p&=+ %' }), 'grant_type=password&scope=openid+https%3A%2F%2Fa%2Fb&password=p%26%3D%2B+%25', 'フォーム本文：記号を正しくエンコード');
+eq(new URLSearchParams(L.formBody({ response_type: 'token id_token' })).get('response_type'), 'token id_token', 'フォーム本文：戻すと元の値');
+{
+  const t0 = 1_800_000_000_000;
+  eq(L.tokenFromResponse({ access_token: 'A', expires_in: 3600 }, t0), { token: 'A', exp: t0 + 3_540_000 }, 'トークン応答：access_token と expires_in（1分早め）');
+  eq(L.tokenFromResponse({ access_token: 'A', expires_in: '3600' }, t0)?.exp, t0 + 3_540_000, 'トークン応答：expires_in が文字列でも');
+  eq(L.tokenFromResponse({ access_token: 'A', expires_in: 30 }, t0)?.exp, t0 + 15_000, 'トークン応答：短い期限は半分に');
+  eq(L.tokenFromResponse({ token: 'T' }, t0), { token: 'T', exp: t0 + 300_000 }, 'トークン応答：旧来の token・期限なしは5分');
+  eq(L.tokenFromResponse({ access_token: '' }, t0), null, 'トークン応答：空は失敗');
+  eq(L.tokenFromResponse({}, t0), null, 'トークン応答：何も無ければ失敗');
+}
+
 // ============ ② index.ts（偽の Deno / fetch / Supabase で動かす） ============
 const SECRET = 'SUPER-SECRET-VALUE-12345';
 const CID = 'client-id-abc';
-const TOKEN = 'tok-xyz-789';
+const CTOK = 'client-token-AAA';
+const UTOK = 'user-token-BBB';
+const PASS = 'p@ss word&1';
+const APPID = 'app-id-123';
+const EMAIL = 'bridge@example.com';
 
 const warnings = [];
 function makeEnv(extra = {}) {
-  const env = { SUPABASE_URL: 'https://x.supabase.co', SUPABASE_ANON_KEY: 'anon', CP_CLIENT_ID: CID, CP_CLIENT_SECRET: SECRET, ...extra };
+  const env = { SUPABASE_URL: 'https://x.supabase.co', SUPABASE_ANON_KEY: 'anon', CP_CLIENT_ID: CID, CP_CLIENT_SECRET: SECRET, CP_APP_ID: APPID, CP_USER_EMAIL: EMAIL, CP_USER_PASSWORD: PASS, ...extra };
   return env;
 }
 
@@ -109,9 +146,9 @@ function load(env, fetchImpl, { member = true, user = 'taro@example.com' } = {})
     auth: { getUser: async () => (user ? { data: { user: { email: user } }, error: null } : { data: null, error: { message: 'x' } }) },
     rpc: async () => ({ data: member, error: null }),
   });
-  const fn = new Function('Deno', 'createClient', 'allowRate', 'backoffMs', 'buildQuery', 'classifyStatus', 'matchAllowed', 'tokenExpiryMs', 'truncate', 'isOriginAllowed', 'parseOrigins', 'fetch', 'setTimeout', 'console', js);
+  const fn = new Function('Deno', 'createClient', 'allowRate', 'backoffMs', 'buildQuery', 'classifyStatus', 'matchAllowed', 'truncate', 'isOriginAllowed', 'parseOrigins', 'formBody', 'resolveConfig', 'tokenFromResponse', 'fetch', 'setTimeout', 'console', js);
   const noWait = (cb) => { cb(); return 0; };
-  fn(DenoFake, createClient, L.allowRate, L.backoffMs, L.buildQuery, L.classifyStatus, L.matchAllowed, L.tokenExpiryMs, L.truncate, L.isOriginAllowed, L.parseOrigins, fetchImpl, noWait, { log() {}, error() {}, warn(m) { warnings.push(String(m)); } });
+  fn(DenoFake, createClient, L.allowRate, L.backoffMs, L.buildQuery, L.classifyStatus, L.matchAllowed, L.truncate, L.isOriginAllowed, L.parseOrigins, L.formBody, L.resolveConfig, L.tokenFromResponse, fetchImpl, noWait, { log() {}, error() {}, warn(m) { warnings.push(String(m)); } });
   return handler;
 }
 
@@ -123,8 +160,10 @@ const mkReq = (body, { auth = 'Bearer jwt', method = 'POST', origin = 'http://lo
 async function call(handler, body, opts) {
   const res = await handler(mkReq(body, opts));
   const text = await res.text();
-  ok(!text.includes(SECRET), '応答に client_secret が含まれない（' + JSON.stringify(body).slice(0, 40) + '）');
-  ok(!text.includes(TOKEN) || body.action === 'x', '応答にトークンが含まれない（' + JSON.stringify(body).slice(0, 40) + '）');
+  const tag = JSON.stringify(body).slice(0, 40);
+  ok(!text.includes(SECRET), '応答に client_secret が含まれない（' + tag + '）');
+  ok(!text.includes(PASS) && !text.includes(encodeURIComponent(PASS)), '応答にパスワードが含まれない（' + tag + '）');
+  ok(!text.includes(CTOK) && !text.includes(UTOK), '応答にトークンが含まれない（' + tag + '）');
   let j = null; try { j = JSON.parse(text); } catch { /* 本文なし */ }
   return { status: res.status, j, res };
 }
@@ -175,137 +214,201 @@ const R = (status, body) => new Response(typeof body === 'string' ? body : JSON.
   eq((await pre(h, PAGES + '.evil.example')).headers.get('access-control-allow-origin'), 'null', 'CORS：似たアドレスは拒否');
 }
 
+// ---- 偽のネットワーク（システム用トークン・B2C・API を見分けて返す）
+const isClientTok = (u) => u.endsWith('/Token') || u.endsWith('/vendor-auth/token');
+const isUserTok = (u) => u.includes('b2clogin.com');
+function net(h = {}) {
+  const calls = [];
+  const f = async (url, init) => {
+    const u = String(url); calls.push({ url: u, init });
+    if (isClientTok(u)) return (h.client || (() => R(200, { access_token: CTOK, expires_in: 3600 })))(init, u);
+    if (isUserTok(u)) return (h.user || (() => R(200, { access_token: UTOK, expires_in: 3600, token_type: 'Bearer' })))(init, u);
+    return (h.api || (() => R(200, [])))(init, u);
+  };
+  f.calls = calls;
+  f.api = () => calls.filter((c) => !isClientTok(c.url) && !isUserTok(c.url));
+  f.client = () => calls.filter((c) => isClientTok(c.url));
+  f.user = () => calls.filter((c) => isUserTok(c.url));
+  return f;
+}
+const form = (init) => Object.fromEntries(new URLSearchParams(String(init.body)));
+
 // ---- 未設定
 {
-  const h = load(makeEnv({ CP_CLIENT_ID: '', CP_CLIENT_SECRET: '' }), async () => { throw new Error('通信されないはず'); });
-  const r = await call(h, { action: 'ping' });
-  eq([r.status, r.j.error], [503, 'cp_not_configured'], '未設定 → 503 cp_not_configured');
+  let f = net();
+  let h = load(makeEnv({ CP_CLIENT_ID: '', CP_CLIENT_SECRET: '' }), f);
+  let r = await call(h, { action: 'ping' });
+  eq([r.status, r.j.error, f.calls.length], [503, 'cp_not_configured', 0], '未設定（システム用）→ 503 cp_not_configured・通信しない');
+  f = net();
+  h = load(makeEnv({ CP_APP_ID: '', CP_USER_EMAIL: '', CP_USER_PASSWORD: '' }), f);
+  r = await call(h, { action: 'ping' });
+  eq([r.status, r.j.error], [503, 'cp_user_not_configured'], '未設定（API接続用ユーザー）→ 503 cp_user_not_configured');
+  ok(/CP_APP_ID/.test(r.j.message) && /CP_USER_EMAIL/.test(r.j.message) && /CP_USER_PASSWORD/.test(r.j.message), '未設定：足りない項目名を案内');
+  for (const k of ['CP_APP_ID', 'CP_USER_EMAIL', 'CP_USER_PASSWORD']) {
+    h = load(makeEnv({ [k]: '' }), net());
+    eq((await call(h, { action: 'ping' })).j.error, 'cp_user_not_configured', '未設定：1 つでも欠ければ未設定扱い ' + k);
+  }
 }
 
-// ---- ping
+// ---- ping（2 つのトークンを、公式の方法で取る）
 {
-  const calls = [];
-  const h = load(makeEnv(), async (url, init) => { calls.push({ url: String(url), init }); return R(200, { token: TOKEN }); });
+  const f = net();
+  const h = load(makeEnv(), f);
   const r = await call(h, { action: 'ping' });
-  eq(r.status, 200, 'ping 成功'); eq(r.j.ok, true, 'ping ok');
-  eq(calls.length, 1, 'ping：通信は 1 回（トークン取得のみ）');
-  eq(calls[0].url, 'https://swagger.cyber-port.net/vendor-auth/token', 'ping：既定のトークン取得先（実際に確かめた取得口）');
-  eq(JSON.parse(calls[0].init.body), { clientId: CID, clientSecret: SECRET }, 'ping：clientId / clientSecret を JSON で送る');
-  eq([r.j.apiHost, r.j.tokenHost], ['api.cyber-port.net', 'swagger.cyber-port.net'], 'ping：API 接続先とトークン取得先のホスト名だけ返す');
-  // CP_TOKEN_URL の上書き
-  const calls2 = [];
-  const h2 = load(makeEnv({ CP_TOKEN_URL: 'https://swagger.example/vendor-auth/token' }), async (u) => { calls2.push(String(u)); return R(200, { token: TOKEN }); });
-  await call(h2, { action: 'ping' });
-  eq(calls2[0], 'https://swagger.example/vendor-auth/token', 'CP_TOKEN_URL で取得先を変えられる');
+  eq([r.status, r.j.ok, r.j.env], [200, true, 'production'], 'ping 成功（本番）');
+  eq(f.calls.length, 2, 'ping：通信は 2 回（システム用トークン＋利用者トークン）。API は呼ばない');
+  const c = f.client()[0], u = f.user()[0];
+  eq(c.url, 'https://api.cyber-port.net/Token', 'システム用トークン：公式の取得先');
+  eq(c.init.method, 'POST', 'システム用トークン：POST');
+  eq(c.init.headers['Content-Type'], 'application/x-www-form-urlencoded', 'システム用トークン：form 形式');
+  eq(form(c.init), { grant_type: 'client_credentials', client_id: CID, client_secret: SECRET }, 'システム用トークン：本文（client_credentials）');
+  eq(u.url, 'https://mlitcyberport.b2clogin.com/mlitcyberport.onmicrosoft.com/oauth2/v2.0/token?p=b2c_1_cyberport_ropc_auth', '利用者トークン：公式の取得先（B2C・本番）');
+  eq(u.init.headers['Content-Type'], 'application/x-www-form-urlencoded', '利用者トークン：form 形式');
+  eq(form(u.init), { grant_type: 'password', client_id: APPID, username: EMAIL, password: PASS, response_type: 'token id_token', scope: 'openid https://mlitcyberport.onmicrosoft.com/cyberport.api/read' },
+    '利用者トークン：本文（password・アプリケーションID・メール・パスワード・読み取りスコープだけ）');
+  eq([r.j.apiHost, r.j.tokenHost, r.j.openidHost], ['api.cyber-port.net', 'api.cyber-port.net', 'mlitcyberport.b2clogin.com'], 'ping：ホスト名だけ返す');
 }
-// ping 失敗：取得先がウェブページだった（実際に起きた事象：200 の HTML）
+// 検証環境（CP_ENV=sandbox）
+{
+  const f = net();
+  const h = load(makeEnv({ CP_ENV: 'sandbox' }), f);
+  const r = await call(h, { action: 'ping' });
+  eq(r.j.env, 'sandbox', 'ping：検証環境');
+  eq(f.client()[0].url, 'https://api-sandbox.cyber-port.net/Token', '検証環境：システム用トークンの取得先');
+  eq(f.user()[0].url, 'https://mlitcyberport.b2clogin.com/mlitcyberport.onmicrosoft.com/oauth2/v2.0/token?p=b2c_1_sandboxcp_ropc_auth', '検証環境：利用者トークンの取得先');
+  eq(form(f.user()[0].init).scope, 'openid https://mlitcyberport.onmicrosoft.com/sandboxcp.api/read', '検証環境：スコープ');
+  await call(h, { action: 'get', path: '/API/v2/Trades/Search' });
+  eq(f.api()[0].url, 'https://api-sandbox.cyber-port.net/API/v2/Trades/Search', '検証環境：API の接続先');
+}
+// 貼り付けの混入・スコープの上書き・旧来の取得口
+{
+  const f = net();
+  const h = load(makeEnv({ CP_CLIENT_ID: ` "${CID}" `, CP_USER_EMAIL: ` ${EMAIL}\n`, CP_USER_PASSWORD: PASS + '\r\n', CP_OPENID_SCOPE: 'openid https://x/read https://x/write' }), f);
+  await call(h, { action: 'ping' });
+  eq(form(f.client()[0].init).client_id, CID, '混入：ID の引用符・空白を除く');
+  eq(form(f.user()[0].init).username, EMAIL, '混入：メールの空白を除く');
+  eq(form(f.user()[0].init).password, PASS, '混入：パスワードの末尾の改行を除く・中の空白は残す');
+  eq(form(f.user()[0].init).scope, 'openid https://x/read https://x/write', 'CP_OPENID_SCOPE で、スコープを上書きできる');
+}
+{
+  const f = net({ client: () => R(200, { token: CTOK }) });
+  const h = load(makeEnv({ CP_TOKEN_URL: 'https://swagger.cyber-port.net/vendor-auth/token' }), f);
+  const r = await call(h, { action: 'ping' });
+  eq(r.status, 200, '旧来の取得口（vendor-auth/token）でも取れる');
+  eq([f.client()[0].init.headers['Content-Type'], JSON.parse(f.client()[0].init.body)], ['application/json', { clientId: CID, clientSecret: SECRET }], '旧来の取得口：JSON（clientId / clientSecret）で送る');
+  await call(h, { action: 'get', path: '/API/v2/Trades/Search' });
+  eq(f.api()[0].init.headers['X-Authorization'], CTOK, '旧来の取得口：token をそのまま X-Authorization に使う');
+}
+
+// ---- ping 失敗（システム用トークン）
 {
   const html = () => new Response('<!DOCTYPE html><html lang="en"><head><!-- Global site tag (gtag.js) --></head></html>', { status: 200, headers: { 'content-type': 'text/html; charset=utf-8' } });
-  const h = load(makeEnv(), async () => html());
-  const r = await call(h, { action: 'ping' });
-  eq([r.status, r.j.error, r.j.upstreamStatus], [502, 'token_wrong_endpoint', 200], 'ping：取得先が HTML → token_wrong_endpoint');
-  ok(/CP_TOKEN_URL/.test(r.j.message) && !/client_id/.test(r.j.message), 'ping：HTML のときは接続情報のせいにしない');
-  const h2 = load(makeEnv(), async () => new Response('<html>', { status: 200, headers: { 'content-type': 'application/octet-stream' } }));
-  eq((await call(h2, { action: 'ping' })).j.error, 'token_wrong_endpoint', 'ping：content-type が違っても < で始まれば取得先違い');
+  let r = await call(load(makeEnv(), net({ client: html })), { action: 'ping' });
+  eq([r.status, r.j.error, r.j.upstreamStatus], [502, 'token_wrong_endpoint', 200], 'システム用：取得先が HTML → token_wrong_endpoint');
+  ok(/CP_TOKEN_URL/.test(r.j.message) && !/client_id/.test(r.j.message), 'システム用：HTML のときは接続情報のせいにしない');
+  r = await call(load(makeEnv(), net({ client: () => new Response('<html>', { status: 200, headers: { 'content-type': 'application/octet-stream' } }) })), { action: 'ping' });
+  eq(r.j.error, 'token_wrong_endpoint', 'システム用：content-type が違っても < で始まれば取得先違い');
+  for (const body of [{ detail: 'invalid_client' }, { error: 'invalid_client' }]) {
+    r = await call(load(makeEnv(), net({ client: () => new Response(JSON.stringify(body), { status: 400, headers: { 'content-type': 'application/problem+json' } }) })), { action: 'ping' });
+    eq([r.status, r.j.error, r.j.upstreamStatus], [502, 'token_failed', 400], 'システム用：invalid_client → token_failed ' + JSON.stringify(body));
+    ok(/invalid_client/.test(r.j.message) && /同じ組/.test(r.j.message), 'システム用：invalid_client の案内');
+  }
+  r = await call(load(makeEnv(), net({ client: () => R(401, { detail: 'invalid client' }) })), { action: 'ping' });
+  eq([r.j.error, r.j.upstreamStatus], ['token_failed', 401], 'システム用：401 → token_failed');
+  r = await call(load(makeEnv(), net({ client: () => R(200, { notoken: 1 }) })), { action: 'ping' });
+  eq(r.j.error, 'token_failed', 'システム用：token が無い応答');
+  r = await call(load(makeEnv(), async () => { throw new Error('net'); }), { action: 'ping' });
+  eq(r.j.error, 'token_network', 'システム用：取得先に届かない');
 }
-// ping 失敗：偽のIDに対する実際の応答（problem+json の invalid_client）
+// ---- ping 失敗（利用者トークン：B2C）
 {
-  const h = load(makeEnv(), async () => new Response(JSON.stringify({ type: 'about:blank', title: 'Vendor authentication failed', status: 400, detail: 'invalid_client', instance: '/vendor-auth/token' }), { status: 400, headers: { 'content-type': 'application/problem+json' } }));
-  const r = await call(h, { action: 'ping' });
-  eq([r.status, r.j.error, r.j.upstreamStatus, r.j.detail], [502, 'token_failed', 400, 'invalid_client'], 'ping：invalid_client → token_failed');
-  ok(/invalid_client/.test(r.j.message) && /同じ組/.test(r.j.message), 'ping：invalid_client の案内（同じ組か確認）');
-}
-// ping 失敗（接続情報が違う）
-{
-  const h = load(makeEnv(), async () => R(401, { detail: 'invalid client' }));
-  const r = await call(h, { action: 'ping' });
-  eq([r.status, r.j.error, r.j.upstreamStatus], [502, 'token_failed', 401], 'ping 失敗 → token_failed');
-  ok(r.j.message.includes('client_id'), 'ping 失敗：確認すべき項目を案内');
-  const h2 = load(makeEnv(), async () => { throw new Error('net'); });
-  eq((await call(h2, { action: 'ping' })).j.error, 'token_network', 'ping：トークン取得先に届かない');
-  const h3 = load(makeEnv(), async () => R(200, { notoken: 1 }));
-  eq((await call(h3, { action: 'ping' })).j.error, 'token_failed', 'ping：token が無い応答');
+  const f = net({ user: () => R(400, { error: 'invalid_grant', error_description: `AADB2C90225: The username or password provided in the request are invalid.\r\nCorrelation ID: abc\r\nTimestamp: 2026-11-10` }) });
+  const h = load(makeEnv(), f);
+  let r = await call(h, { action: 'ping' });
+  eq([r.status, r.j.error, r.j.upstreamStatus], [502, 'user_token_failed', 400], '利用者：パスワード違い → user_token_failed');
+  ok(/invalid_grant/.test(r.j.detail) && /AADB2C90225/.test(r.j.detail), '利用者：相手先の理由（error と AADB2C の番号）を詳細に出す');
+  ok(!/Correlation/.test(r.j.detail), '利用者：説明は 1 行目だけ（追跡番号などは出さない）');
+  ok(/アプリケーションID/.test(r.j.message) && /パスワード/.test(r.j.message), '利用者：確認すべき項目を案内');
+  r = await call(load(makeEnv(), net({ user: () => new Response('<html></html>', { status: 200, headers: { 'content-type': 'text/html' } }) })), { action: 'ping' });
+  eq(r.j.error, 'user_token_wrong_endpoint', '利用者：取得先が HTML');
+  r = await call(load(makeEnv(), net({ user: () => { throw new Error('net'); } })), { action: 'ping' });
+  eq(r.j.error, 'user_token_network', '利用者：取得先に届かない');
+  // 利用者トークンが取れなければ、API は呼ばない
+  const f2 = net({ user: () => R(400, { error: 'invalid_grant' }) });
+  r = await call(load(makeEnv(), f2), { action: 'get', path: '/API/v2/Trades/Search' });
+  eq([r.j.error, f2.api().length], ['user_token_failed', 0], '利用者トークンが取れなければ、API は呼ばない');
 }
 
-// ---- get
+// ---- get（2 つのヘッダー）
 {
-  const calls = [];
-  const h = load(makeEnv(), async (url, init) => {
-    calls.push({ url: String(url), init });
-    if (String(url).endsWith('/vendor-auth/token')) return R(200, { token: TOKEN });
-    return R(200, [{ tradeNo: 'EXP_1' }]);
-  });
+  const f = net({ api: () => R(200, [{ tradeNo: 'EXP_1' }]) });
+  const h = load(makeEnv(), f);
   const r = await call(h, { action: 'get', path: '/API/v2/Trades/Search', query: { blNo: 'ONEYTYOGF8748400' } });
   eq([r.status, r.j.ok, r.j.api, r.j.status], [200, true, 'Trades/Search', 200], 'get 成功');
   eq(r.j.data, [{ tradeNo: 'EXP_1' }], 'get：データを返す');
-  const api = calls.find((c) => !c.url.endsWith('/vendor-auth/token'));
+  const api = f.api()[0];
   eq(api.url, 'https://api.cyber-port.net/API/v2/Trades/Search?blNo=ONEYTYOGF8748400', 'get：URL（クエリ付き）');
   eq(api.init.method, 'GET', 'get：メソッドは GET');
-  eq(api.init.headers['X-Authorization'], TOKEN, 'get：X-Authorization にトークン（Bearer なし）');
-  // 2 回目はトークンを使い回す
+  eq(api.init.headers['X-Authorization'], CTOK, 'get：X-Authorization にシステム用トークン（Bearer なし）');
+  eq(api.init.headers['Authorization'], 'Bearer ' + UTOK, 'get：Authorization に「Bearer ＋ 空白 1 つ ＋ 利用者トークン」');
   await call(h, { action: 'get', path: '/API/v2/Trades/Histories/GetList' });
-  eq(calls.filter((c) => c.url.endsWith('/vendor-auth/token')).length, 1, 'トークンは使い回す（取得は 1 回だけ）');
+  eq([f.client().length, f.user().length], [1, 1], 'トークンは使い回す（どちらも取得は 1 回だけ）');
 }
 // 許可されない API は、相手先に届かない
 {
-  let n = 0;
-  const h = load(makeEnv(), async () => { n++; return R(200, { token: TOKEN }); });
-  for (const p of ['/API/v2/Trades/Messages/Send', '/API/v2/Trades/Messages/Reply', '/API/v2/Trades/Delete/EXP_1', '/vendor-auth/token', '/API/v2/Trades/Get/../Delete/x']) {
+  const f = net();
+  const h = load(makeEnv(), f);
+  for (const p of ['/API/v2/Trades/Messages/Send', '/API/v2/Trades/Messages/Reply', '/API/v2/Trades/Delete/EXP_1', '/vendor-auth/token', '/Token', '/API/v2/Trades/Get/../Delete/x']) {
     const r = await call(h, { action: 'get', path: p });
     eq([r.status, r.j.error], [403, 'path_not_allowed'], '拒否: ' + p);
   }
-  eq(n, 0, '拒否した API では、相手先に一度も通信しない');
   eq((await call(h, { action: 'get', path: '/API/v2/Trades/Search', query: { 'a b': 1 } })).j.error, 'bad_query', '不正なクエリは拒否');
   eq((await call(h, { action: 'delete' })).j.error, 'bad_action', '不明な操作は拒否');
-  eq(n, 0, '不正な要求でも、相手先に通信しない');
+  eq(f.calls.length, 0, '拒否・不正な要求では、相手先に一度も通信しない（トークンも取らない）');
 }
-// 401 → トークンを取り直して 1 回やり直す
+// 401 → 2 つのトークンを取り直して 1 回だけやり直す
 {
-  const seq = []; let apiCalls = 0, tokCalls = 0;
-  const h = load(makeEnv(), async (url) => {
-    if (String(url).endsWith('/vendor-auth/token')) { tokCalls++; return R(200, { token: tokCalls === 1 ? 'old' : 'new' }); }
-    apiCalls++; seq.push(apiCalls);
-    return apiCalls === 1 ? R(401, { detail: 'expired' }) : R(200, { ok: 1 });
+  let n = 0;
+  const f = net({
+    client: () => R(200, { access_token: 'c' + (++n), expires_in: 3600 }),
+    api: (init) => (init.headers['X-Authorization'] === 'c1' ? R(401, { detail: 'expired' }) : R(200, { ok: 1 })),
   });
-  const r = await call(h, { action: 'get', path: '/API/v2/Trades/Search' }, {});
+  const r = await call(load(makeEnv(), f), { action: 'get', path: '/API/v2/Trades/Search' });
   eq([r.status, r.j.ok], [200, true], '401 → 取り直して成功');
-  eq([tokCalls, apiCalls], [2, 2], '401：トークンを 1 回取り直し、API を 2 回呼ぶ');
+  eq([f.client().length, f.user().length, f.api().length], [2, 2, 2], '401：トークンを両方取り直し、API を 2 回呼ぶ');
 }
 // 5xx は最大 3 回まで再試行
 {
   let api = 0;
-  const h = load(makeEnv(), async (url) => String(url).endsWith('/vendor-auth/token') ? R(200, { token: TOKEN }) : (++api < 3 ? R(503, 'busy') : R(200, { done: true })));
-  const r = await call(h, { action: 'get', path: '/API/v2/Trades/Search' });
+  const f = net({ api: () => (++api < 3 ? R(503, 'busy') : R(200, { done: true })) });
+  const r = await call(load(makeEnv(), f), { action: 'get', path: '/API/v2/Trades/Search' });
   eq([r.status, r.j.ok, api], [200, true, 3], '503 が 2 回続いても、3 回目で成功');
+  eq([f.client().length, f.user().length], [1, 1], '再試行でもトークンは取り直さない');
 }
 {
-  let api = 0;
-  const h = load(makeEnv(), async (url) => String(url).endsWith('/vendor-auth/token') ? R(200, { token: TOKEN }) : (api++, R(500, 'boom')));
-  const r = await call(h, { action: 'get', path: '/API/v2/Trades/Search' });
-  eq([r.status, r.j.error, r.j.upstreamStatus, api], [502, 'upstream_error', 500, 3], '500 が続く → 3 回で諦めて upstream_error');
+  const f = net({ api: () => R(500, 'boom') });
+  const r = await call(load(makeEnv(), f), { action: 'get', path: '/API/v2/Trades/Search' });
+  eq([r.status, r.j.error, r.j.upstreamStatus, f.api().length], [502, 'upstream_error', 500, 3], '500 が続く → 3 回で諦めて upstream_error');
 }
 // 404 は再試行しない・ブラウザが「関数が無い」と取り違えない（502）
 {
-  let api = 0;
-  const h = load(makeEnv(), async (url) => String(url).endsWith('/vendor-auth/token') ? R(200, { token: TOKEN }) : (api++, R(404, { detail: 'none' })));
-  const r = await call(h, { action: 'get', path: '/API/v2/Trades/Get/EXP_9' });
-  eq([r.status, r.j.error, r.j.upstreamStatus, api], [502, 'not_found', 404, 1], '404 → 再試行せず not_found（HTTP は 502）');
+  const f = net({ api: () => R(404, { detail: 'none' }) });
+  const r = await call(load(makeEnv(), f), { action: 'get', path: '/API/v2/Trades/Get/EXP_9' });
+  eq([r.status, r.j.error, r.j.upstreamStatus, f.api().length], [502, 'not_found', 404, 1], '404 → 再試行せず not_found（HTTP は 502）');
 }
 // 403・通信エラー・大きすぎる応答
 {
-  const h = load(makeEnv(), async (url) => String(url).endsWith('/vendor-auth/token') ? R(200, { token: TOKEN }) : R(403, { detail: 'forbidden' }));
-  const r = await call(h, { action: 'get', path: '/API/v2/Trades/Search' });
+  const r = await call(load(makeEnv(), net({ api: () => R(403, { detail: 'forbidden' }) })), { action: 'get', path: '/API/v2/Trades/Search' });
   eq([r.status, r.j.error, r.j.upstreamStatus], [502, 'upstream_auth', 403], '403 → upstream_auth');
   let api = 0;
-  const h2 = load(makeEnv(), async (url) => { if (String(url).endsWith('/vendor-auth/token')) return R(200, { token: TOKEN }); api++; throw new Error('net'); });
-  const r2 = await call(h2, { action: 'get', path: '/API/v2/Trades/Search' });
+  const r2 = await call(load(makeEnv(), net({ api: () => { api++; throw new Error('net'); } })), { action: 'get', path: '/API/v2/Trades/Search' });
   eq([r2.j.error, api], ['upstream_network', 3], '通信エラー → 3 回再試行して upstream_network');
-  const h3 = load(makeEnv(), async (url) => String(url).endsWith('/vendor-auth/token') ? R(200, { token: TOKEN }) : R(200, 'x'.repeat(1_000_001)));
-  eq((await call(h3, { action: 'get', path: '/API/v2/Trades/Search' })).j.error, 'too_large', '大きすぎる応答は返さない');
+  const r3 = await call(load(makeEnv(), net({ api: () => R(200, 'x'.repeat(1_000_001)) })), { action: 'get', path: '/API/v2/Trades/Search' });
+  eq(r3.j.error, 'too_large', '大きすぎる応答は返さない');
 }
 // 呼び出し回数の制限（30 回/分）
 {
-  const h = load(makeEnv(), async (url) => String(url).endsWith('/vendor-auth/token') ? R(200, { token: TOKEN }) : R(200, []));
+  const h = load(makeEnv(), net());
   let last = 0;
   for (let i = 0; i < 31; i++) last = (await call(h, { action: 'get', path: '/API/v2/Trades/Search' })).status;
   eq(last, 429, '1 分に 30 回を超えると 429');
