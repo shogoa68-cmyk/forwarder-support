@@ -1,7 +1,8 @@
-/* cp-test.js — 🧪 CP(TEST)：サイバーポート連携の「画面の試作」。
- * 重要：この画面は サイバーポートに接続しません。表示はすべて「サンプル」です。
- * 設計は docs/サイバーポート連携_設計案.md。本物のAPI呼び出し（Supabase Edge Function 経由）は
- * 公式APIの仕様を確認してから、この画面の「接続状態」と入れ替える。
+/* cp-test.js — 🧪 CP(TEST)：サイバーポート連携の画面テスト。
+ * 「（サンプル）」と書いた欄（動静・チャット）は サイバーポートに接続せず、サンプルを表示するだけ。
+ * 「🔌 実接続テスト」の欄だけが、js/integrations/cyberport.js → Edge Function「cp-proxy」経由で
+ * 読み取り専用の API を呼ぶ（接続情報が未設定・関数が未配置のときは、その旨をエラーとして表示する）。
+ * 設計は docs/サイバーポート連携_設計案.md。
  * 初期化は js/app.js の switchTab() から window.initCpTestTab() が呼ばれる（冪等）。 */
 (function () {
   'use strict';
@@ -38,16 +39,99 @@
   }
 
   function statusRows() {
-    // 「未接続」を正直に表示する（接続済みに見せない）
+    // 確かめていないことは「未確認」と正直に表示する（接続済みに見せない）。
+    // 「実接続テスト」の① が成功したら、上 3 行を「確認済み」にする（setLinkStatus）。
     return [
-      ['サイバーポートAPI', '未接続（この画面はサンプル表示）', 'is-off'],
-      ['中継役（Supabase Edge Function）', '未作成', 'is-off'],
-      ['認証（連携専用アカウント）', '未設定', 'is-off'],
-      ['書き込み（送信・返信・編集・削除）', '使いません（読み取り専用）', 'is-ok']
+      ['cptStApi', 'サイバーポートAPI', '未確認（下の「実接続テスト」で確認）', 'is-off'],
+      ['cptStFn', '中継役（Supabase Edge Function）', '未確認', 'is-off'],
+      ['cptStAuth', '認証（接続情報でトークン取得）', '未確認', 'is-off'],
+      ['', '書き込み（送信・返信・編集・削除）', '使いません（読み取り専用）', 'is-ok']
     ].map(function (r) {
-      return '<li class="cpt-st ' + r[2] + '"><span class="cpt-st-k">' + esc(r[0]) +
-        '</span><span class="cpt-st-v">' + esc(r[1]) + '</span></li>';
+      return '<li class="cpt-st ' + r[3] + '"' + (r[0] ? ' id="' + r[0] + '"' : '') + '><span class="cpt-st-k">' + esc(r[1]) +
+        '</span><span class="cpt-st-v">' + esc(r[2]) + '</span></li>';
     }).join('');
+  }
+
+  function setLinkStatus(ok, apiHost) {
+    var rows = {
+      cptStApi: ok ? (apiHost ? '接続先を確認（' + apiHost + '）' : '接続できています（データを取得できました）') : '未確認（下の「実接続テスト」で確認）',
+      cptStFn: ok ? '動いています' : '未確認',
+      cptStAuth: ok ? 'トークンを取得できました' : '未確認'
+    };
+    Object.keys(rows).forEach(function (id) {
+      var li = document.getElementById(id);
+      if (!li) return;
+      li.className = 'cpt-st ' + (ok ? 'is-ok' : 'is-off');
+      li.querySelector('.cpt-st-v').textContent = rows[id];
+    });
+  }
+
+  // ---------- 実接続テスト（読み取りのみ・cp-proxy 経由） ----------
+  function liveBox() { return document.getElementById('cptLive'); }
+  function liveBusy(on) {
+    ['cptPing', 'cptSearch'].forEach(function (id) { var b = document.getElementById(id); if (b) b.disabled = !!on; });
+  }
+  function errHtml(e) {
+    var extra = [];
+    if (e && e.upstreamStatus) extra.push('サイバーポートの応答コード：' + e.upstreamStatus);
+    if (e && e.detail) extra.push('詳細：' + e.detail);
+    if (e && e.code) extra.push('種類：' + e.code);
+    return '<div class="cpt-msg is-error"><strong>' + esc((e && e.message) || '失敗しました') + '</strong>' +
+      (extra.length ? '<div class="cpt-live-x">' + extra.map(esc).join('<br>') + '</div>' : '') + '</div>';
+  }
+  function needApi() {
+    if (window.CyberPort) return true;
+    liveBox().innerHTML = errHtml({ message: 'cyberport.js が読み込まれていません' });
+    return false;
+  }
+
+  async function livePing() {
+    if (!needApi()) return;
+    liveBusy(true);
+    liveBox().innerHTML = msg('is-info', 'サイバーポートに接続情報でトークンを取りに行っています…');
+    try {
+      var r = await window.CyberPort.ping();
+      setLinkStatus(true, r.apiHost || '');
+      liveBox().innerHTML = '<div class="cpt-msg is-ok">✅ ' + esc(r.message) + '<div class="cpt-live-x">トークン取得先：' + esc(r.tokenHost || '') + ' ／ API 接続先：' + esc(r.apiHost || '') + '</div></div>';
+    } catch (e) {
+      setLinkStatus(false);
+      liveBox().innerHTML = errHtml(e);
+    } finally { liveBusy(false); }
+  }
+
+  // 取引の検索（Trades/Search）。番号があれば keyword（取引番号・B/L・ブッキング・社内管理番号・インボイスの完全一致）、
+  // 空なら「直近 30 日に更新された取引」。
+  async function liveSearch() {
+    if (!needApi()) return;
+    var kw = window.CyberPort.normalizeNo((document.getElementById('cptKw') || {}).value);
+    var q = kw ? { keyword: kw } : { updatedAtRange: 30, updatedAtRangeUnit: 'D' };
+    liveBusy(true);
+    liveBox().innerHTML = msg('is-info', '取引を検索しています…（' + (kw ? '番号：' + kw : '直近30日に更新された取引') + '）');
+    try {
+      var r = await window.CyberPort.tradesSearch(q);
+      setLinkStatus(true, '');
+      liveBox().innerHTML = tradesHtml(r.data, kw);
+    } catch (e) {
+      liveBox().innerHTML = errHtml(e);
+    } finally { liveBusy(false); }
+  }
+
+  function tradesHtml(data, kw) {
+    var list = Array.isArray(data) ? data : (data && Array.isArray(data.items) ? data.items : null);
+    var raw = '<details class="cpt-raw"><summary>返ってきたデータそのもの（確認用）</summary><pre>' +
+      esc(JSON.stringify(data, null, 2).slice(0, 6000)) + '</pre></details>';
+    if (!list) return msg('is-info', '想定と違う形のデータが返りました。下の「返ってきたデータそのもの」を確認してください。') + raw;
+    if (!list.length) {
+      return msg('is-info', (kw ? '番号「' + kw + '」' : '直近30日') + 'に該当する取引はありません（0件）。') + raw;
+    }
+    var rows = list.slice(0, 50).map(function (t) {
+      t = t || {};
+      return '<tr><td>' + esc(t.tradeNo) + '</td><td>' + esc(t.tradeType) + '</td><td>' + esc(t.tradeStatus) + '</td><td>' +
+        esc(t.tradeName) + '</td><td>' + esc(t.blNo) + '</td><td>' + esc(t.updatedAt) + '</td></tr>';
+    }).join('');
+    return '<div class="cpt-live-x">実データ（サイバーポート）：' + list.length + ' 件' + (list.length > 50 ? '（先頭50件を表示）' : '') + '</div>' +
+      '<div class="cpt-tablewrap"><table class="cpt-table"><thead><tr><th>取引番号</th><th>種別</th><th>状態</th><th>取引名</th><th>B/L</th><th>更新日時</th></tr></thead><tbody>' +
+      rows + '</tbody></table></div>' + raw;
   }
 
   function render() {
@@ -59,9 +143,16 @@
     root.innerHTML =
       '<div class="cpt-head"><h2 class="cpt-title">🧪 CP(TEST)</h2>' +
       '<span class="cpt-sub">サイバーポート連携の画面テスト（読み取りのみ）</span></div>' +
-      '<div class="cpt-banner" role="note">⚠️ これは<strong>テスト画面</strong>です。サイバーポートには接続していません。' +
-      '表示される動静・チャットは<strong>すべてサンプル</strong>で、実際の案件のデータではありません。</div>' +
+      '<div class="cpt-banner" role="note">⚠️ これは<strong>テスト画面</strong>です。「（サンプル）」と書いた欄は<strong>サンプル</strong>で、実際の案件のデータではありません。' +
+      '「🔌 実接続テスト」の欄だけが、サイバーポートに<strong>読み取りで</strong>接続します（書き込みはしません）。</div>' +
       '<div class="cpt-card"><div class="cpt-card-h">接続状態</div><ul class="cpt-stlist">' + statusRows() + '</ul></div>' +
+      '<div class="cpt-card"><div class="cpt-card-h">🔌 実接続テスト（読み取りのみ）</div>' +
+      '<div class="cpt-form"><button type="button" class="cpt-btn is-primary" id="cptPing">① 接続情報の確認</button>' +
+      '<span class="cpt-hint">トークンが取れるかだけを確かめます（データは取りません）</span></div>' +
+      '<div class="cpt-form"><input type="text" id="cptKw" class="cpt-input" maxlength="45" autocomplete="off" ' +
+      'placeholder="取引番号・B/L・ブッキング・社内管理番号（空なら直近30日の更新）">' +
+      '<button type="button" class="cpt-btn" id="cptSearch">② 取引を検索</button></div>' +
+      '<div id="cptLive" class="cpt-live" aria-live="polite"></div></div>' +
       '<div class="cpt-card"><div class="cpt-card-h">照会</div>' +
       '<div class="cpt-form">' +
       '<input type="text" id="cptNo" class="cpt-input" placeholder="B/L番号・搬入確認番号・JOB番号（例: ONEY TYOGF8748400）" autocomplete="off">' +
@@ -82,6 +173,9 @@
     no.addEventListener('input', showNorm);
     document.getElementById('cptRun').addEventListener('click', run);
     no.addEventListener('keydown', function (e) { if (e.key === 'Enter') run(); });
+    document.getElementById('cptPing').addEventListener('click', livePing);
+    document.getElementById('cptSearch').addEventListener('click', liveSearch);
+    document.getElementById('cptKw').addEventListener('keydown', function (e) { if (e.key === 'Enter') liveSearch(); });
     run();
   }
 
