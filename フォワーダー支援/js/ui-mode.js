@@ -131,7 +131,7 @@
   //  ・隠した項目も DOM に残す（値の保存・計算は継続）。上級機能を使っている案件では、その項目を自動で表示する
   // ================================================================
   const $ = id => document.getElementById(id);
-  const OPT_SECS = ['section-scope', 'section-remark'];     // かんたんでは畳む任意セクション
+  const OPT_SECS = ['section-scope'];     // かんたんでは畳む任意セクション
   const optInit = new Set();                                  // かんたん中に初期の畳みを済ませたセクション
 
   // 「詳細（任意）」の開閉（#refBody／#cargoBody などの host に tier-opt-open を付け外し）

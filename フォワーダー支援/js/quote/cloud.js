@@ -1657,6 +1657,7 @@
     _shareMode = mode;
     const main = document.querySelector('#tab-quote-make .quote-main');
     if (main) main.inert = (mode === 'view');   // 閲覧中はフォーム全体を操作不可（マウス・キーボード）
+    if (typeof window.rmsApplyMode === 'function') window.rmsApplyMode(mode === 'view');   // 画面下の全体リマーク（引き出し）も閲覧中は読むだけ
     const tab = document.getElementById('tab-quote-make');
     if (tab) tab.classList.toggle('qmode-view', mode === 'view');
     const banner = document.getElementById('qmBanner');
@@ -1752,7 +1753,7 @@
     const SKIP = ['rowInsertPos','rowPatternInsertPos','bulkCatSet','bulkSubconSet','selectAllChk'];
     const emptyFields = {};
     // フォーム本体（.quote-main）配下のみ対象。ツールバー/コマンドバーは除外
-    document.querySelectorAll('#tab-quote-make .quote-main input[id], #tab-quote-make .quote-main select[id], #tab-quote-make .quote-main textarea[id]').forEach(el => {
+    document.querySelectorAll('#tab-quote-make .quote-main input[id], #tab-quote-make .quote-main select[id], #tab-quote-make .quote-main textarea[id], #rmSheet input[id], #rmSheet select[id], #rmSheet textarea[id]').forEach(el => {   // #rmSheet＝画面下の全体リマーク（引き出し）
       if (SKIP.includes(el.id) || el.closest('.quote-cmdbar')) return;
       emptyFields[el.id] = (el.type === 'checkbox') ? false : '';
     });

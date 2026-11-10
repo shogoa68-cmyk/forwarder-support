@@ -782,7 +782,7 @@
     // 一時的な UI 操作用フィールドも _clearQuoteForm と同じ SKIP で対象外にする。
     const _SKIP_FIELDS = ['rowInsertPos', 'rowPatternInsertPos', 'bulkCatSet', 'bulkSubconSet', 'selectAllChk', 'qfRelKind', 'qfRelInput', 'hzAiReply'];
     document.querySelectorAll(
-      '#tab-quote-make .quote-main input[id], #tab-quote-make .quote-main select[id], #tab-quote-make .quote-main textarea[id]'
+      '#tab-quote-make .quote-main input[id], #tab-quote-make .quote-main select[id], #tab-quote-make .quote-main textarea[id], #rmSheet input[id], #rmSheet select[id], #rmSheet textarea[id]'   // #rmSheet＝画面下の全体リマーク（引き出し）
     ).forEach(el => {
       if (_SKIP_FIELDS.includes(el.id) || (keepHeaderIfEmpty && _HEADER_FIELD_IDS.includes(el.id))) return;
       if (el.closest('.quote-cmdbar')) return;
@@ -1617,9 +1617,14 @@
     ).join('');
   }
 
-  // 各コンテナチップ（ドライ／RF／OT／FR）に内寸・外寸（＋容積/最大重量）を表示。
+  // 各コンテナチップ（ドライ／RF／OT／FR）の内寸・外寸（＋容積/最大重量）は、ラベル横の「ⓘ」にしまい、
+  // カーソルを乗せる（キーボードは焦点・タッチは押す）と小さな吹き出しで出す（チップ本体はすっきり保つ）。
   // ドライは SharedCalc.containerSpecs、RF/OT/FRは SPECIAL_CONTAINER_SPECS を情報源として m 換算表示。
   // FR（フラットラック）は高さ制限が無いため h が null になる想定で、その場合は「床面」表記にする。
+  // ゆくゆくはコンテナ解説ページへリンクする想定：CONTAINER_GUIDE_LINKS に { "20'GP": "https://…" } を足すと、
+  // 吹き出しの末尾に「📖 くわしく見る」を出す（空のうちは何も出さない）。
+  const CONTAINER_GUIDE_LINKS = {};
+  window.CONTAINER_GUIDE_LINKS = CONTAINER_GUIDE_LINKS;
   window.renderContainerChipDims = function () {
     const byName = {};
     if (window.SharedCalc && Array.isArray(SharedCalc.containerSpecs)) {
@@ -1627,38 +1632,43 @@
     }
     Object.assign(byName, SPECIAL_CONTAINER_SPECS);
     const m = v => (v / 100).toFixed(2);
+    const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
     document.querySelectorAll('.container-chip-grid .cc-chip[data-ctype]').forEach(chip => {
       const spec = byName[chip.dataset.ctype];
       if (!spec) return;
-      if (chip.querySelector('.cc-chip-dims')) return;   // 二重挿入防止
+      if (chip.querySelector('.cc-info-wrap')) return;   // 二重挿入防止
       const hasHeight = spec.dims && spec.dims.h != null;
-      const inn = !spec.dims ? ''
-        : hasHeight ? `内 ${m(spec.dims.l)}×${m(spec.dims.w)}×${m(spec.dims.h)}m`
-        : `床 ${m(spec.dims.l)}×${m(spec.dims.w)}m（高さ制限なし）`;
-      const ext = !spec.ext ? ''
-        : (spec.ext.h != null) ? `外 ${m(spec.ext.l)}×${m(spec.ext.w)}×${m(spec.ext.h)}m`
-        : `外 ${m(spec.ext.l)}×${m(spec.ext.w)}m`;
-      const cap = [spec.cbm ? `${spec.cbm}m³` : '', spec.maxKg ? `${(Number(spec.maxKg) / 1000).toFixed(1)}t` : '']
-        .filter(Boolean).join(' / ');
-      // ホバーで内寸・外寸・容積/最大重量のフル情報を表示
-      const full = [
-        !spec.dims ? '' : hasHeight ? `内寸 ${m(spec.dims.l)}×${m(spec.dims.w)}×${m(spec.dims.h)}m`
-          : `床面 ${m(spec.dims.l)}×${m(spec.dims.w)}m（高さ制限なし）`,
-        spec.ext ? (spec.ext.h != null ? `外寸 ${m(spec.ext.l)}×${m(spec.ext.w)}×${m(spec.ext.h)}m` : `外寸 ${m(spec.ext.l)}×${m(spec.ext.w)}m`) : '',
-        spec.cbm ? `容積 約${spec.cbm}m³` : '',
-        spec.maxKg ? `最大 ${Number(spec.maxKg).toLocaleString()}kg` : '',
-      ].filter(Boolean).join('\n');
-      const el = document.createElement('div');
-      el.className = 'cc-chip-dims';
-      el.title = full;
-      el.innerHTML =
-        (inn ? `<span class="cc-chip-dim cc-chip-dim-in" title="${full}">${inn}</span>` : '') +
-        (ext ? `<span class="cc-chip-dim cc-chip-dim-ex" title="${full}">${ext}</span>` : '') +
-        (cap ? `<span class="cc-chip-dim cc-chip-dim-cap" title="${full}">${cap}</span>` : '');
+      const rows = [];
+      if (spec.dims) rows.push(['内寸', hasHeight ? `${m(spec.dims.l)}×${m(spec.dims.w)}×${m(spec.dims.h)} m` : `${m(spec.dims.l)}×${m(spec.dims.w)} m（床面・高さ制限なし）`, 'in']);
+      if (spec.ext) rows.push(['外寸', spec.ext.h != null ? `${m(spec.ext.l)}×${m(spec.ext.w)}×${m(spec.ext.h)} m` : `${m(spec.ext.l)}×${m(spec.ext.w)} m`, 'ex']);
+      if (spec.cbm) rows.push(['容積', `約 ${spec.cbm} m³`, 'cap']);
+      if (spec.maxKg) rows.push(['最大重量', `${Number(spec.maxKg).toLocaleString()} kg（${(Number(spec.maxKg) / 1000).toFixed(1)} t）`, 'cap']);
+      if (!rows.length) return;
+      const name = (chip.querySelector('.cc-label b') || {}).textContent || chip.dataset.ctype;
+      const link = CONTAINER_GUIDE_LINKS[chip.dataset.ctype];
+      const wrap = document.createElement('span');
+      wrap.className = 'cc-info-wrap';
+      wrap.innerHTML =
+        `<button type="button" class="cc-info" aria-label="${esc(name)} の寸法・容積を見る" aria-haspopup="true">i</button>` +
+        `<span class="cc-info-pop" role="tooltip"><b class="cc-info-ttl">${esc(name)} の目安</b>` +
+        rows.map(r => `<span class="cc-info-row cc-info-${r[2]}"><span class="cc-info-k">${r[0]}</span><span class="cc-info-v">${esc(r[1])}</span></span>`).join('') +
+        (link ? `<a class="cc-info-link" href="${esc(link)}" target="_blank" rel="noopener">📖 くわしく見る ↗</a>` : '') +
+        `</span>`;
       const label = chip.querySelector('.cc-label');
-      if (label) label.insertAdjacentElement('afterend', el); else chip.insertBefore(el, chip.firstChild);
+      if (label) label.appendChild(wrap); else chip.insertBefore(wrap, chip.firstChild);
     });
   };
+  // タッチ端末など、ホバーできないときは「ⓘ」を押して開閉（外側を押す・Esc で閉じる）。ステップ操作とは干渉しない。
+  document.addEventListener('click', e => {
+    const btn = e.target.closest && e.target.closest('.cc-info');
+    document.querySelectorAll('.cc-info-wrap.is-open').forEach(w => { if (!btn || w !== btn.parentNode) w.classList.remove('is-open'); });
+    if (btn) { e.preventDefault(); btn.parentNode.classList.toggle('is-open'); }
+  });
+  document.addEventListener('keydown', e => {
+    if (e.key !== 'Escape') return;
+    document.querySelectorAll('.cc-info-wrap.is-open').forEach(w => w.classList.remove('is-open'));
+    const a = document.activeElement; if (a && a.classList && a.classList.contains('cc-info')) a.blur();   // 焦点で開いている吹き出しも閉じる
+  });
 
   // チップの本数入力（0以下で解除）。データ形は従来どおり _containerEntries=[{type,count}]
   window.setContainerChip = function (type, raw) {
