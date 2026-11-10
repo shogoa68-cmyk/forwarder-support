@@ -104,3 +104,20 @@ export function allowRate(hits: Map<string, number[]>, who: string, nowMs: numbe
   hits.set(who, arr);
   return true;
 }
+
+// ---------- ブラウザからの呼び出しを許す「アクセス元」 ----------
+// CP_ALLOWED_ORIGINS（カンマ・空白・改行区切り）を整える。貼り付けで混ざりがちな
+// 引用符（" ' “ ” ‘ ’）・前後の空白・末尾の / を取り除き、小文字にそろえる（アクセス元は大文字小文字を区別しない）。
+export function parseOrigins(raw: unknown): string[] {
+  return String(raw == null ? '' : raw)
+    .split(/[\s,]+/)
+    .map((x) => x.replace(/^["'\u2018\u2019\u201c\u201d]+|["'\u2018\u2019\u201c\u201d]+$/g, '').replace(/\/+$/, '').trim().toLowerCase())
+    .filter(Boolean);
+}
+
+// 許可リストが空のときは localhost だけ通す（うっかり全世界に開けない）。
+export function isOriginAllowed(origin: string, list: string[]): boolean {
+  const o = String(origin || '').trim().replace(/\/+$/, '').toLowerCase();
+  if (!o) return false;
+  return list.length ? list.includes(o) : /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(o);
+}

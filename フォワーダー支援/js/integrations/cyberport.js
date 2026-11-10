@@ -36,7 +36,7 @@
       res = await fetch(fnUrl(), { method: 'POST', headers: await headers(), body: JSON.stringify(body) });
     } catch (e) {
       if (e && e.code) throw e;
-      throw mkErr('network', '通信できませんでした（インターネット接続、または Edge Function の許可するアクセス元 CP_ALLOWED_ORIGINS を確認してください）');
+      throw mkErr('network', '通信できませんでした。インターネット接続を確認し、Edge Function の CP_ALLOWED_ORIGINS に「' + (window.location && window.location.origin) + '」が入っているかも確認してください');
     }
     var j = await res.json().catch(function () { return {}; });
     // 関数そのものが無いとき（未デプロイ）は 404。サイバーポート側のエラーは cp-proxy が 502 で返す。

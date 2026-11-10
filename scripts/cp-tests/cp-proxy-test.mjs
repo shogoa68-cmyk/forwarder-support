@@ -50,6 +50,18 @@ eq(L.normalizeNo(' ecu1 4089549　'), 'ECU14089549', '正規化：全角空白�
 eq(L.normalizeNo('OCL1 HKG-H26OR1E'), 'OCL1HKG-H26OR1E', '正規化：ハイフンは残す');
 eq(L.normalizeNo(null), '', '正規化：null');
 
+// アクセス元（CORS）の読み方：貼り付けで混ざりがちな引用符・空白・末尾の / に強い
+eq(L.parseOrigins('https://a.github.io'), ['https://a.github.io'], 'アクセス元：そのまま');
+eq(L.parseOrigins(' https://a.github.io/ , "http://localhost:18765" '), ['https://a.github.io', 'http://localhost:18765'], 'アクセス元：空白・引用符・末尾の/を除く');
+eq(L.parseOrigins('https://A.GitHub.io\nhttp://localhost:1'), ['https://a.github.io', 'http://localhost:1'], 'アクセス元：改行区切り・小文字化');
+eq(L.parseOrigins('\u201chttps://a.github.io\u201d'), ['https://a.github.io'], 'アクセス元：全角の引用符');
+eq(L.parseOrigins(undefined), [], 'アクセス元：未設定');
+ok(L.isOriginAllowed('https://shogoa68-cmyk.github.io', ['https://shogoa68-cmyk.github.io']), 'アクセス元：一致');
+ok(!L.isOriginAllowed('https://evil.example', ['https://shogoa68-cmyk.github.io']), 'アクセス元：リスト外は拒否');
+ok(!L.isOriginAllowed('https://shogoa68-cmyk.github.io.evil.example', ['https://shogoa68-cmyk.github.io']), 'アクセス元：前方一致ではすり抜けられない');
+ok(!L.isOriginAllowed('', ['https://a.github.io']), 'アクセス元：空は拒否');
+ok(L.isOriginAllowed('http://localhost:18765', []) && !L.isOriginAllowed('https://a.github.io', []), 'アクセス元：未設定なら localhost だけ');
+
 // トークンの有効期限
 const now = 1_800_000_000_000;
 eq(L.tokenExpiryMs('opaque-token', now), now + 300_000, '期限：JWT でなければ 5 分');
@@ -80,6 +92,7 @@ const SECRET = 'SUPER-SECRET-VALUE-12345';
 const CID = 'client-id-abc';
 const TOKEN = 'tok-xyz-789';
 
+const warnings = [];
 function makeEnv(extra = {}) {
   const env = { SUPABASE_URL: 'https://x.supabase.co', SUPABASE_ANON_KEY: 'anon', CP_CLIENT_ID: CID, CP_CLIENT_SECRET: SECRET, ...extra };
   return env;
@@ -96,9 +109,9 @@ function load(env, fetchImpl, { member = true, user = 'taro@example.com' } = {})
     auth: { getUser: async () => (user ? { data: { user: { email: user } }, error: null } : { data: null, error: { message: 'x' } }) },
     rpc: async () => ({ data: member, error: null }),
   });
-  const fn = new Function('Deno', 'createClient', 'allowRate', 'backoffMs', 'buildQuery', 'classifyStatus', 'matchAllowed', 'tokenExpiryMs', 'truncate', 'fetch', 'setTimeout', 'console', js);
+  const fn = new Function('Deno', 'createClient', 'allowRate', 'backoffMs', 'buildQuery', 'classifyStatus', 'matchAllowed', 'tokenExpiryMs', 'truncate', 'isOriginAllowed', 'parseOrigins', 'fetch', 'setTimeout', 'console', js);
   const noWait = (cb) => { cb(); return 0; };
-  fn(DenoFake, createClient, L.allowRate, L.backoffMs, L.buildQuery, L.classifyStatus, L.matchAllowed, L.tokenExpiryMs, L.truncate, fetchImpl, noWait, { log() {}, error() {} });
+  fn(DenoFake, createClient, L.allowRate, L.backoffMs, L.buildQuery, L.classifyStatus, L.matchAllowed, L.tokenExpiryMs, L.truncate, L.isOriginAllowed, L.parseOrigins, fetchImpl, noWait, { log() {}, error() {}, warn(m) { warnings.push(String(m)); } });
   return handler;
 }
 
@@ -133,6 +146,33 @@ const R = (status, body) => new Response(typeof body === 'string' ? body : JSON.
   eq((await call(h, { action: 'ping' })).status, 401, 'メンバーでない人 → 401');
   const h2 = load(makeEnv(), async () => { throw new Error('通信されないはず'); }, { user: null });
   eq((await call(h2, { action: 'ping' })).status, 401, '不正なトークン → 401');
+}
+
+// ---- CORS：公開サイトのアクセス元（実際に起きた不具合の再現）
+{
+  const PAGES = 'https://shogoa68-cmyk.github.io';
+  const pre = (h, origin) => h(new Request('https://x/y', { method: 'OPTIONS', headers: { origin } }));
+  // 正しく入っていれば許可
+  let h = load(makeEnv({ CP_ALLOWED_ORIGINS: PAGES }), async () => { throw new Error('通信されないはず'); });
+  eq((await pre(h, PAGES)).headers.get('access-control-allow-origin'), PAGES, 'CORS：公開サイトのアクセス元を許可');
+  // 貼り付けの混入（引用符・空白・末尾の/・複数）でも許可
+  for (const v of [`"${PAGES}"`, ` ${PAGES}/ `, `${PAGES}/,http://localhost:18765`, `'${PAGES}'\n`]) {
+    h = load(makeEnv({ CP_ALLOWED_ORIGINS: v }), async () => { throw new Error('通信されないはず'); });
+    eq((await pre(h, PAGES)).headers.get('access-control-allow-origin'), PAGES, 'CORS：貼り付けの混入に強い ' + JSON.stringify(v));
+  }
+  // 未設定：公開サイトは拒否（null）・理由をログに残す
+  warnings.length = 0;
+  h = load(makeEnv(), async () => { throw new Error('通信されないはず'); });
+  eq((await pre(h, PAGES)).headers.get('access-control-allow-origin'), 'null', 'CORS：未設定なら公開サイトは拒否');
+  ok(warnings.some((w) => w.includes('cors_blocked') && w.includes(PAGES)), 'CORS：拒否した理由（アクセス元）をログに残す');
+  // 起動後に secrets を直しても、次の呼び出しから反映される
+  const env = makeEnv(); h = load(env, async () => { throw new Error('通信されないはず'); });
+  eq((await pre(h, PAGES)).headers.get('access-control-allow-origin'), 'null', 'CORS：直す前は拒否');
+  env.CP_ALLOWED_ORIGINS = PAGES;
+  eq((await pre(h, PAGES)).headers.get('access-control-allow-origin'), PAGES, 'CORS：直したあとの呼び出しから反映（再起動不要）');
+  // 似たアドレスはすり抜けられない
+  h = load(makeEnv({ CP_ALLOWED_ORIGINS: PAGES }), async () => { throw new Error('通信されないはず'); });
+  eq((await pre(h, PAGES + '.evil.example')).headers.get('access-control-allow-origin'), 'null', 'CORS：似たアドレスは拒否');
 }
 
 // ---- 未設定

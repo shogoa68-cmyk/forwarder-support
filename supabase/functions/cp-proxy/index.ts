@@ -12,26 +12,30 @@
 //
 // 必要な「秘密の設定」（supabase secrets set …・リポジトリには絶対に書かない）
 //   CP_CLIENT_ID / CP_CLIENT_SECRET … サイバーポートから払い出された接続情報
-//   CP_ALLOWED_ORIGINS … 画面を公開している URL（カンマ区切り。例：https://example.github.io）
+//   CP_ALLOWED_ORIGINS … 画面を公開している URL（カンマ区切り。例：https://example.github.io。余計な引用符・空白・末尾の / は無視する）
 //   CP_BASE_URL   … 省略時 https://api.cyber-port.net
 //   CP_TOKEN_URL  … 省略時 <CP_BASE_URL>/vendor-auth/token（トークンの取得先が違うと分かったときだけ設定）
 //   ※ SUPABASE_URL / SUPABASE_ANON_KEY は Supabase が自動で渡す
 // 手順は docs/サイバーポート連携-セットアップ.md
 // ============================================================
 import { createClient } from 'npm:@supabase/supabase-js@2';
-import { allowRate, backoffMs, buildQuery, classifyStatus, matchAllowed, tokenExpiryMs, truncate } from './logic.ts';
+import { allowRate, backoffMs, buildQuery, classifyStatus, isOriginAllowed, matchAllowed, parseOrigins, tokenExpiryMs, truncate } from './logic.ts';
 
 const SB_URL = Deno.env.get('SUPABASE_URL')!;
 const SB_ANON = Deno.env.get('SUPABASE_ANON_KEY')!;
-const ORIGINS = (Deno.env.get('CP_ALLOWED_ORIGINS') ?? '').split(',').map((s) => s.trim()).filter(Boolean);
 const MAX_BODY = 1_000_000; // 相手の応答は 1MB まで（大きすぎる応答は返さない）
 const MAX_ATTEMPTS = 3;     // 通信エラー／相手先のエラーは最大 3 回まで（指数バックオフ）
 
 // ---------- 共通：CORS ----------
+// 許可するアクセス元は、呼び出しのたびに読む（起動時の 1 回だけだと、あとから secrets を直しても反映されないため）。
+// 余計な引用符・空白・末尾の / は parseOrigins が取り除く。許可されないときは、記録（ログ）に理由を残す。
 function corsFor(req: Request): Record<string, string> {
   const origin = req.headers.get('origin') ?? '';
-  // 許可リストが空のときは localhost だけ通す（うっかり全世界に開けない）
-  const ok = ORIGINS.length ? ORIGINS.includes(origin) : /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin);
+  const list = parseOrigins(Deno.env.get('CP_ALLOWED_ORIGINS'));
+  const ok = isOriginAllowed(origin, list);
+  if (origin && !ok) {
+    console.warn(JSON.stringify({ event: 'cors_blocked', origin, allowed: list.length ? list : '(未設定: localhostだけ許可)' }));
+  }
   return {
     'Access-Control-Allow-Origin': ok ? origin : 'null',
     'Access-Control-Allow-Headers': 'authorization, apikey, content-type, x-client-info',
