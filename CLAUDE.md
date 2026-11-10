@@ -79,7 +79,7 @@ Design 製の Industry 版デザイン（鋼青のブループリント調）を
 
 **左端のセクションナビ／右パネルは費用テーブルの縮小表示（2026-10）**：見積入力画面の左端に `#qSecNav`（管理番号・貿易条件・貨物情報・物量情報・作業範囲・リマーク・費用）を常設（`.quote-workspace` の直前に置いた高さ 0 の `position:sticky` の入れ物の中の `.q-secnav-box` を左の余白に出す＝最上段では本文の先頭に並び、スクロールするとツールバーの下に付く。`fixed` だと最上段でヘッダー・タブ・ツールバーの下に潜った）・押すと `openQuoteSectionFromDigest` でセクションを開いてスクロール・いま見ているセクションを強調・「入力済み」の印は `ui.js _updateSecNavMarks`＝`renderQuoteSectionDigest` の判定）。ダッシュボードでは出さない。幅 1100px 以上は本文に左余白 68px、未満は固定をやめて編集画面の上の横並びのリンク。右レールの「ジャンプ」は「費用」（`#qspPane-digest`）に改名し、中身は費用テーブルの合計行とサブコン・パターン・明細のツリーだけ（各セクションの要約は廃止）。ナビにはセクションの要約は出さない。
 
-**サイバーポート連携の画面テストは上段のタブ「🧪 CPテスト」（2026-11）**：旧「CP(TEST)」（その他メニュー内）を、名前を「CPテスト」に改めて上段へ移した（`aria-controls="tab-cptest"`・`onclick="switchCategory('cptest', this)"` は不変。画面見出しも「🧪 CPテスト」）。
+**サイバーポート連携の画面は上段のタブ「🚢 サイバーポート」（2026-11・旧「CPテスト」→改名）**：旧「CP(TEST)」（その他メニュー内）を上段へ移し、名前を「サイバーポート」に改めた（`aria-controls="tab-cptest"`・`onclick="switchCategory('cptest', this)"` は不変。画面見出しも「🚢 サイバーポート」）。
 
 **カテゴリナビの「📂 その他」メニュー（2026-10）**：上段のカテゴリは「BOOKMARK・見積・統計・マスター管理」（この順・4 つとも `cat-btn-bookmark`＝BOOKMARK のティール系の色に統一。選択中は濃いティール）＋「📂 その他 ▾」の 5 つにし、残りの 8 カテゴリ（諸チャージ／カレンダー／📁 作業フォルダ／本船・航路／Booking/SI／書類・通関／計算／知識・参考）は「その他」のメニューに集約（情報は減らさない）。`cat-btn-featured`（旧・橙系）はマークアップでは使わなくなった（CSS は残置）。見積ボタンなどを探すときは `.cat-btn[aria-controls="tab-quote-make"]` のように `aria-controls` で探す（`calculator.js`・BOOKMARK 管理ボタンもそう）。メニュー内のボタンは従来の `.cat-btn` のまま（`onclick="switchCategory(...)"`・`aria-controls` 不変なので `calculator.js`／`conditions.js` の探し方もそのまま効く）。開閉・選択中の表示は `js/cat-more.js`（パネルは `position:fixed`＝スマホ幅の `.cat-nav` 横スクロールで切れない・Esc／外側クリック／スクロールで閉じる・メニュー内が選択中のとき「その他」ボタンが強調され名前が出る＝`.active` の変化を MutationObserver で追従）。CSS は `style.css` の `.cat-more*`（Industry も共通）。テストは `scripts/design-tests/cat-more-test.js`。
 

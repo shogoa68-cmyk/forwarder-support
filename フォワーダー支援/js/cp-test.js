@@ -367,7 +367,7 @@
       return '<option value="' + k + '">' + esc(STATES[k].label) + '</option>';
     }).join('');
     root.innerHTML =
-      '<div class="cpt-head"><h2 class="cpt-title">🧪 CPテスト</h2>' +
+      '<div class="cpt-head"><h2 class="cpt-title">🚢 サイバーポート</h2>' +
       '<span class="cpt-sub">サイバーポート連携の画面テスト（読み取りのみ）</span></div>' +
       '<div class="cpt-banner" role="note">⚠️ これは<strong>テスト画面</strong>です。「（サンプル）」と書いた欄は<strong>サンプル</strong>で、実際の案件のデータではありません。' +
       '「🔌 実接続テスト」の欄だけが、サイバーポートに<strong>読み取りで</strong>接続します（書き込みはしません）。</div>' +
