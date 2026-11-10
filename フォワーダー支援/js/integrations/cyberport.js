@@ -72,6 +72,11 @@
       }
       return this.get('/API/v2/ColinsViewers/Get' + (direction === 'export' ? 'Export' : 'Import') + 'Containers', q);
     },
+    // ターミナルの一覧（コード→名前）。portCode（UN/LOCODE）で絞れる。応答は [{terminalCode, terminalName, terminalNameAb, terminalNameEn, …}]
+    terminals: function (portCode) {
+      var port = String(portCode == null ? '' : portCode).replace(/[\s\u3000]+/g, '').toUpperCase();
+      return this.get('/API/v2/Terminals/GetList', port ? { portCode: port } : {});
+    },
     colinsImportContainers: function (query) { return this.get('/API/v2/ColinsViewers/GetImportContainers', query); },
     colinsExportContainers: function (query) { return this.get('/API/v2/ColinsViewers/GetExportContainers', query); }
   };

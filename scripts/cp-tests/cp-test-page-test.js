@@ -168,6 +168,95 @@ function eq(a, b, name) { ok(JSON.stringify(a) === JSON.stringify(b), name, ' �
   ok(/403/.test(await p.locator('#cptLive').innerText()), 'COLINS：エラーは応答コードつきで表示');
   await p.selectOption('#cptDir', 'import');
 
+  // ===== COLINS の表の強化（ETA/ETD/バース・期限の色・ターミナル名・日付の形式） =====
+  // 日付の形式と期限の判定（純粋な関数）
+  const fx = await p.evaluate(() => {
+    const T = window.CpTest, now = Date.parse('2026-11-10T00:00:00Z');
+    return {
+      d1: T.fmtDt('20261109'), d2: T.fmtDt('2026-11-09'), d3: T.fmtDt('2026-11-11T15:30:00Z'), d4: T.fmtDt(null), d5: T.fmtDt('abc'),
+      c: ['2026-11-09T00:00:00Z', '2026-11-11T00:00:00Z', '2026-11-13T00:00:00Z', '20261110', '20261109', 'zzz', null].map((v) => T.dueClass(v, now)),
+    };
+  });
+  eq([fx.d1, fx.d2, fx.d3, fx.d4, fx.d5], ['2026/11/09', '2026/11/09', '2026/11/12 00:30', '', 'abc'], '日付：YYYYMMDD・YYYY-MM-DD は日付だけ／UTC は日本時間／読めない値はそのまま');
+  eq(fx.c, ['cpt-due-over', 'cpt-due-warn', '', 'cpt-due-warn', 'cpt-due-over', '', ''], '期限の色：過ぎた＝over・48時間以内＝warn・日付だけの期限はその日の終わりまで');
+
+  // 本船：ターミナル名・ETA/ETD/バース（問い合わせた港のもの）・入港予定の早い順
+  await p.evaluate(() => window.CpTest.resetTerminalNames());
+  const portObj = (code, berth, eta, etd) => ({ portCode: code, berthName: berth, estimatedTimeOfArrival: eta, actualTimeOfArrival: null, estimatedTimeOfDeparture: etd, actualTimeOfDeparture: null });
+  const v3 = [
+    { terminalCode: 'TYOAJ00C', vessel: { vesselName: 'VESSEL-A', voyageNo: 'A1', imoNo: '1', portOfDischarge: portObj('JPTYO', '青海A1', '2026-11-15T00:00:00Z', '2026-11-16T00:00:00Z') } },
+    { terminalCode: 'TYOAK02C', vessel: { vesselName: 'VESSEL-B', voyageNo: 'B1', imoNo: '2',
+      portOfLoading: portObj('CNSHA', '上海バース', '2026-11-01T00:00:00Z', '2026-11-02T00:00:00Z'), portOfDischarge: portObj('JPTYO', '大井2号', '2026-11-12T03:00:00Z', '2026-11-13T09:00:00Z') },
+      cargoIn: { scheduleAt: '20261109' }, cargoTransfer: { cfsCutAt: '2026-11-11T00:00:00Z' }, remark: '備考テスト' },
+    { terminalCode: 'XXXXX99C', vessel: { vesselName: 'VESSEL-C', voyageNo: 'C1', imoNo: '3' } },
+  ];
+  const router = (map) => (body) => { const k = Object.keys(map).find((x) => (body.path || '').startsWith(x)); return map[k] ? map[k]() : { status: 200, body: { ok: true, status: 200, data: [] } }; };
+  const okBody = (api, data) => ({ status: 200, body: { ok: true, api, status: 200, data } });
+  respond = router({
+    '/API/v2/Terminals/GetList': () => okBody('Terminals/GetList', [{ terminalCode: 'TYOAJ00C', terminalNameAb: '青海A', terminalName: '東京青海A' }, { terminalCode: 'TYOAK02C', terminalName: '大井2号' }]),
+    '/API/v2/ColinsViewers/GetImportVessels': () => okBody('ColinsViewers/Vessels', v3),
+  });
+  const n0 = sent.length;
+  await p.selectOption('#cptDir', 'import'); await p.fill('#cptPort', 'JPTYO'); await p.fill('#cptVessel', '');
+  await p.click('#cptColinsV');
+  await p.waitForSelector('#cptLive .cpt-table');
+  eq(sent.slice(n0).map((x) => x.body.path), ['/API/v2/Terminals/GetList', '/API/v2/ColinsViewers/GetImportVessels/JPTYO'], '本船：ターミナル一覧を先に取り、続けて本船を取る');
+  eq(sent[n0].body.query, {}, '本船：ターミナル一覧は絞らず全部取る');
+  const rowsV = await p.$$eval('#cptLive .cpt-table tbody tr', (trs) => trs.map((tr) => Array.from(tr.children).map((td) => td.innerText)));
+  const headV = await p.$$eval('#cptLive .cpt-table thead th', (ths) => ths.map((th) => th.innerText));
+  const iv = (h) => headV.indexOf(h);
+  eq(rowsV.map((r) => r[iv('本船名')]), ['VESSEL-B', 'VESSEL-A', 'VESSEL-C'], '本船：入港予定の早い順（日時なしは最後）');
+  eq(rowsV[0][iv('ターミナル')], '大井2号（TYOAK02C）', '本船：ターミナル名（コード）。略称が無ければ正式名');
+  eq(rowsV[1][iv('ターミナル')], '青海A（TYOAJ00C）', '本船：略称があれば略称');
+  eq(rowsV[2][iv('ターミナル')], 'XXXXX99C', '本船：名前が無いターミナルはコードだけ');
+  eq([rowsV[0][iv('バース')], rowsV[0][iv('入港 予定(ETA)')], rowsV[0][iv('出港 予定(ETD)')]], ['大井2号', '2026/11/12 12:00', '2026/11/13 18:00'], '本船：問い合わせた港（JPTYO）のバース・ETA・ETD を使う（積み地の上海ではなく）');
+  eq(rowsV[0][iv('搬入 予定')], '2026/11/09', '本船：搬入予定が日付だけ（20261109）でも読める');
+  eq([rowsV[0][iv('CFSカット')], rowsV[0][iv('備考')]], ['2026/11/11 09:00', '備考テスト'], '本船：CFSカットと備考');
+  ok(/入港予定の早い順/.test(await p.locator('#cptLive .cpt-live-x').first().innerText()), '本船：並び順の説明');
+  if (process.argv[4]) await p.locator('#cptLive').screenshot({ path: process.argv[4] });
+  // 2 回目はターミナル一覧を取り直さない
+  const n1 = sent.length;
+  await p.click('#cptColinsV');
+  await p.waitForSelector('#cptLive .cpt-table');
+  eq(sent.slice(n1).map((x) => x.body.path), ['/API/v2/ColinsViewers/GetImportVessels/JPTYO'], '本船：2 回目はターミナル一覧を再取得しない（使い回す）');
+
+  // コンテナ：期限の色・フリータイム・場所・検査・DO
+  const H = 3600 * 1000, iso = (ms) => new Date(Date.now() + ms).toISOString();
+  const c3 = (no, pick, ret) => ({ terminalCode: 'TYOAJ00C', container: { containerNo: no, lengthName: '40ft', containerTypeName: 'HC' }, vessel: { vesselName: 'V', voyageNo: '1' },
+    billOfLadingDetail: { blNo: 'BL' + no }, containerStatus: { fullOrEmpty: 'FULL', customClearanceStatus: 'PERMITTED' }, inspectionTarget: true, inspectionStatus: false, doAcquisition: true, outboundAvailability: true,
+    loadedContainerPickup: { availableAt: iso(-48 * H), dueAt: pick, demurrageFreeTime: 7, pickupPlace: { placeName: '東京CY' } },
+    emptyContainerReturn: { dueAt: ret, detentionFreeTime: 5, deliveryPlace: { placeName: '大井返却' } }, isDangerousGoods: false });
+  respond = router({ '/API/v2/ColinsViewers/GetImportContainers': () => okBody('ColinsViewers/Containers', [c3('AAAA0000001', iso(-3 * H), iso(10 * 24 * H)), c3('BBBB0000002', iso(24 * H), iso(-5 * H)), c3('CCCC0000003', iso(10 * 24 * H), iso(10 * 24 * H))]) });
+  await p.selectOption('#cptDir', 'import'); await p.fill('#cptCtn', 'BLX');
+  await p.click('#cptColinsC');
+  await p.waitForSelector('#cptLive .cpt-table');
+  eq(await p.locator('#cptLive td.cpt-due-over').count(), 2, 'コンテナ：期限を過ぎたセルは赤（搬出1・返却1）');
+  eq(await p.locator('#cptLive td.cpt-due-warn').count(), 1, 'コンテナ：48時間以内のセルは黄');
+  const noteC = await p.locator('#cptLive .cpt-live-x').first().innerText();
+  ok(/搬出期限：超過 1 件・48時間以内 1 件/.test(noteC) && /返却期限：超過 1 件・48時間以内 0 件/.test(noteC), 'コンテナ：表の上に期限の件数の案内', noteC);
+  const headC = await p.$$eval('#cptLive .cpt-table thead th', (ths) => ths.map((th) => th.innerText));
+  const rowC = await p.$$eval('#cptLive .cpt-table tbody tr', (trs) => Array.from(trs[0].children).map((td) => td.innerText));
+  const ic = (h) => headC.indexOf(h);
+  eq([rowC[ic('B/L')], rowC[ic('検査対象')], rowC[ic('検査状況')], rowC[ic('DO入手')], rowC[ic('搬出可否')]], ['BLAAAA0000001', '○', '×', '○', '○'], 'コンテナ：B/L・検査・DO・搬出可否');
+  eq([rowC[ic('ﾃﾞﾏﾚｰｼﾞFT(日)')], rowC[ic('ﾃﾞｨﾃﾝｼｮﾝFT(日)')], rowC[ic('搬出 場所')], rowC[ic('返却 場所')], rowC[ic('危険品')]], ['7', '5', '東京CY', '大井返却', '×'], 'コンテナ：フリータイム（日）・搬出と返却の場所・危険品');
+  if (process.argv[3]) await p.screenshot({ path: process.argv[3], fullPage: true });
+  // 期限がどれも先なら案内を出さない
+  respond = router({ '/API/v2/ColinsViewers/GetImportContainers': () => okBody('ColinsViewers/Containers', [c3('DDDD0000004', iso(10 * 24 * H), iso(10 * 24 * H))]) });
+  await p.click('#cptColinsC');
+  await p.waitForFunction(() => document.querySelectorAll('#cptLive .cpt-table tbody tr').length === 1);
+  ok(!/⚠/.test(await p.locator('#cptLive .cpt-live-x').first().innerText()), 'コンテナ：期限が先なら案内を出さない');
+
+  // ターミナル一覧が取れなくても、表はコードのまま出る
+  await p.evaluate(() => window.CpTest.resetTerminalNames());
+  respond = router({
+    '/API/v2/Terminals/GetList': () => ({ status: 502, body: { ok: false, error: 'upstream_auth', message: '拒否', upstreamStatus: 403 } }),
+    '/API/v2/ColinsViewers/GetImportVessels': () => okBody('ColinsViewers/Vessels', v3),
+  });
+  await p.click('#cptColinsV');
+  await p.waitForSelector('#cptLive .cpt-table');
+  eq((await p.$$eval('#cptLive .cpt-table tbody tr', (trs) => trs.map((tr) => tr.children[0].innerText))).slice(0, 2), ['TYOAK02C', 'TYOAJ00C'], 'ターミナル一覧が取れなくても、表はコードで表示される');
+  await p.evaluate(() => window.CpTest.resetTerminalNames());
+
   // エラー：ログインしていない
   await p.evaluate(() => { window.__noSession = true; });
   const before = sent.length;

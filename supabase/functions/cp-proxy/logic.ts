@@ -18,6 +18,9 @@ export const ALLOWED_GET: { name: string; re: RegExp }[] = [
   { name: 'Trades/Messages/GetHistories', re: new RegExp('^/API/v2/Trades/Messages/GetHistories/' + SEG + '$') },
   { name: 'ColinsViewers/Containers', re: /^\/API\/v2\/ColinsViewers\/Get(Import|Export)Containers$/ },
   { name: 'ColinsViewers/Vessels', re: new RegExp('^/API/v2/ColinsViewers/Get(Import|Export)Vessels/' + SEG + '$') },
+  // ターミナルの一覧（コードから名前を引くため・読み取りだけ。VesselSchedules 等の別系統は含めない）
+  { name: 'Terminals/GetList', re: /^\/API\/v2\/Terminals\/GetList$/ },
+  { name: 'Terminals/Get', re: new RegExp('^/API/v2/Terminals/Get/' + SEG + '$') },
 ];
 
 export function matchAllowed(path: unknown): string | null {
