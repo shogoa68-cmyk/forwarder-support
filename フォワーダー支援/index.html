@@ -19,7 +19,10 @@
 <link rel="stylesheet" href="css/theme-industry-doc.css" media="not all" data-theme-css="doc">
 <!-- Quiet テーマ（Claude Design 案・3つ目のデザイン・既定オフ）。<html data-theme="quiet" class="theme-quiet"> のときだけ効く。
      トークン：css/design-tokens-quiet.css／部品・画面：css/theme-quiet.css（Industry と同時には使わない） -->
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+JP:wght@400;500;700&display=swap" media="not all" data-theme-css="quiet-fonts">
+<!-- 全テーマ共通の書体（Inter＋Noto Sans JP・display=swap：読み込み中は標準書体で先に表示）。読み込めない環境では --font-sans の予備（ヒラギノ等）で表示 -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+JP:wght@400;500;700&display=swap">
 <link rel="stylesheet" href="css/design-tokens-quiet.css" media="not all" data-theme-css="quiet">
 <link rel="stylesheet" href="css/theme-quiet.css" media="not all" data-theme-css="quiet">
 <!-- 「かんたん表示」（Claude Design 案）。<html class="mode-simple"> のときだけ効く。クラスが無ければ従来の「詳細表示」のまま。 -->

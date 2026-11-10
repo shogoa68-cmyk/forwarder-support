@@ -17,7 +17,7 @@ html.theme-quiet {
   --gold: var(--q-warn);
 }
 html.theme-quiet body {
-  font-family: 'Noto Sans JP', Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-family: var(--font-sans);
   background: var(--q-canvas); color: var(--q-ink);
   font-size: var(--q-fs-14); line-height: 1.6;
 }

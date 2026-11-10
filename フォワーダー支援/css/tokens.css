@@ -95,6 +95,13 @@
   --text-lg: 16px;   /* 小見出し・強調（スマホの入力欄は 16px で自動拡大を防ぐ） */
   --text-xl: 18px;   /* 見出し */
   --text-2xl: 28px;  /* 大きな数字・ページの主見出し */
+  /* 書体：欧文を先・日本語を後に並べ、欧文は Inter・日本語は Noto Sans JP（Windows で游ゴシックが細く見える問題を避ける）。
+     最後の sans-serif は、どれも無い端末の予備 */
+  --font-sans: 'Inter', 'Noto Sans JP', -apple-system, BlinkMacSystemFont, 'Hiragino Kaku Gothic ProN', 'Hiragino Sans', 'Segoe UI', Meiryo, sans-serif;
+  /* 行間：読ませる文章は 1.7、表・ラベルなど詰めて使う所は 1.4〜1.5 */
+  --lh-body: 1.7;
+  --lh-ui: 1.5;
+  --lh-tight: 1.4;
   --fs-9: var(--text-xs);
   --fs-9-5: var(--text-xs);
   --fs-10: var(--text-xs);
@@ -144,4 +151,18 @@
   --sp-16: 16px;
   --sp-18: 18px;
   --sp-20: 20px;
+}
+
+/* スマホ（〜600px）：読ませる文字は PC より一段大きく（本文・入力欄 16px、補足も 13px 以上。小さな補足でも 14px 近くを下限の目安に）。
+   参考：本文は 16px が基準・スマホで 16px 以上が推奨・補足の下限は 14px、読ませない飾りの字だけ 11〜12px でよい（ノベルティ「Webサイトのおすすめフォントと最適サイズ」）。
+   名前（--fs-*）はそのままで、値の段だけ上げる（12→13／13→14／14→16／16→17／18→20）。 */
+@media (max-width: 600px) {
+  :root {
+    --text-xs: 13px;
+    --text-sm: 14px;
+    --text-base: 16px;
+    --text-lg: 17px;
+    --text-xl: 20px;
+    --text-2xs: 12px;
+  }
 }

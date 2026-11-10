@@ -10,7 +10,7 @@
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
 body {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', sans-serif;
+  font-family: var(--font-sans);
   background: var(--bg);
   color: var(--text);
   font-size: var(--fs-14);
@@ -5803,3 +5803,10 @@ body.md-modal-open { overflow: hidden; }
   pointer-events: none; white-space: normal;
 }
 .hint-pop[hidden] { display: none; }
+
+/* ===== 読ませる文章の行間（本文 1.7）。表・ラベル・ボタンは詰めたまま ===== */
+.section-desc, .calc-desc, .rn-hint, .fl-hint, .ei-desc, .lcrp-desc, .um-invite-desc, .preset-mgr-desc, .tab-help p, .tab-help li, .help-tip, .hint-pop {
+  line-height: var(--lh-body);
+}
+/* 数字は桁をそろえる（金額・数量の列が揃って読める） */
+input[type="number"], .num, td, th { font-variant-numeric: tabular-nums; }
