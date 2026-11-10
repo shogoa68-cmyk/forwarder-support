@@ -60,3 +60,13 @@
 #tab-cptest .cpt-input.cpt-input-s { flex: 0 1 190px; min-width: 120px; }
 #tab-cptest .cpt-table td.cpt-due-over { background: #fde8e8; color: var(--red); font-weight: 700; }
 #tab-cptest .cpt-table td.cpt-due-warn { background: #fff4d6; font-weight: 700; }
+/* ---- 📨 受信した通知（Webhook） ---- */
+#tab-cptest .cpt-ev-status { font-size: 12px; color: var(--text-md); display: inline-flex; align-items: center; gap: 6px; }
+#tab-cptest .cpt-live-dot { display: inline-block; width: 8px; height: 8px; margin-right: 4px; border-radius: 50%; background: #b9b3a8; }
+#tab-cptest .cpt-live-dot.is-on { background: #2f9e44; box-shadow: 0 0 0 3px rgba(47, 158, 68, .2); }
+#tab-cptest .cpt-mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12px; }
+#tab-cptest .cpt-ev-new td { animation: cptEvFlash 3s ease-out; }
+@keyframes cptEvFlash { from { background: #fff4d6; } to { background: transparent; } }
+#tab-cptest .cpt-ev-detail td { white-space: normal; background: var(--surface-warm); }
+#tab-cptest .cpt-ev-detail pre { max-height: 320px; overflow: auto; margin: 0 0 6px; padding: 8px; font-size: 12px; background: var(--surface); border: 1px solid var(--border); border-radius: 6px; white-space: pre-wrap; word-break: break-all; }
+#tab-cptest .cpt-ev-table .cpt-btn { padding: 2px 8px; font-size: 12px; }

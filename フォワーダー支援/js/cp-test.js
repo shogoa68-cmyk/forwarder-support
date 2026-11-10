@@ -342,6 +342,134 @@
     } finally { liveBusy(false); }
   }
 
+  // ---------- ⑤ 通知できる操作の一覧（Webhook で何を知らせてもらえるか） ----------
+  var _ops = null, _opsShown = false;
+  function opsTable(list) {
+    var f = (((document.getElementById('cptOpFilter') || {}).value) || '').trim().toLowerCase();
+    var rows = list.filter(function (o) { return !f || JSON.stringify(o).toLowerCase().indexOf(f) >= 0; });
+    var edi = list.filter(function (o) { return /edifact/i.test(JSON.stringify(o)); }).length;
+    var cols = [
+      ['コード', function (x) { return g(x, 'notifiableOperationCode'); }],
+      ['操作', function (x) { return g(x, 'operationType.operationTypeName') || g(x, 'operationType.operationTypeCode'); }],
+      ['帳票', function (x) { return g(x, 'reportType.reportName'); }],
+      ['プロセス', function (x) { return g(x, 'process.processName'); }]
+    ];
+    var note = 'EDIFACT に関する操作：' + edi + ' 件' + (f ? '／「' + f + '」に一致：' + rows.length + ' 件' : '');
+    if (!rows.length) return '<div class="cpt-live-x">実データ（通知できる操作）：全 ' + list.length + ' 件　' + esc(note) + '</div>' + msg('is-info', '一致する操作がありません。');
+    return listTable(rows.slice(0, 200), cols, '通知できる操作・全 ' + list.length + ' 件中', note + (rows.length > 200 ? '（先頭200件を表示）' : ''));
+  }
+  function renderOps() {
+    if (!Array.isArray(_ops)) return;
+    liveBox().innerHTML = opsTable(_ops) + rawHtml(_ops.slice(0, 20));
+  }
+  async function liveOps() {
+    if (!needApi()) return;
+    liveBusy(true);
+    liveBox().innerHTML = msg('is-info', '通知できる操作の一覧を取得しています…');
+    try {
+      if (!_ops) {
+        var r = await window.CyberPort.notifiableOperations();
+        if (!Array.isArray(r.data)) { liveBox().innerHTML = notArray(r.data); return; }
+        _ops = r.data;
+      }
+      setLinkStatus(true, '');
+      _opsShown = true;
+      renderOps();
+    } catch (e) {
+      _opsShown = false;
+      liveBox().innerHTML = errHtml(e);
+    } finally { liveBusy(false); }
+  }
+
+  // ---------- 📨 受信した通知（Webhook：Supabase の表 cp_events を読むだけ） ----------
+  var _evKind = '', _evRows = [], _evOpen = {}, _evPayload = {}, _evUnsub = null, _evNew = {}, _evRetry = false;
+  var KIND_LABEL = { message: '💬 チャット', report: '📄 帳票', naccs: '🛃 NACCS', trade: '📦 取引', task: '☑ タスク', process: '⚙ プロセス', other: 'その他' };
+  function evBodyEl() { return document.getElementById('cptEvBody'); }
+  function evStatus(html) { var el = document.getElementById('cptEvStatus'); if (el) el.innerHTML = html || ''; }
+  function evLiveDot(status) {
+    return status === 'SUBSCRIBED' ? '<span class="cpt-live-dot is-on" title="リアルタイムで受信待機中"></span>受信待機中'
+      : status ? '<span class="cpt-live-dot" title="リアルタイム接続が確立できていません（再読み込みで更新できます）"></span>手動更新のみ' : '';
+  }
+  function evRender() {
+    var box = evBodyEl(); if (!box) return;
+    var n = _evRows.length;
+    if (!n) { box.innerHTML = msg('is-info', '通知はまだありません。サイバーポート側で Webhook を設定し、操作が行われると、ここに増えます（設定の手順は docs/サイバーポート連携-Webhook.md）。'); return; }
+    var head = '<tr><th>受信</th><th>種類</th><th>操作</th><th>取引番号</th><th>B/L</th><th>帳票</th><th>コンテナ</th><th>履歴ID</th><th></th></tr>';
+    var rows = _evRows.map(function (x) {
+      var open = !!_evOpen[x.id];
+      var main = '<tr class="' + (_evNew[x.id] ? 'cpt-ev-new' : '') + '"><td>' + esc(fmtDt(x.received_at)) + '</td><td>' + esc(KIND_LABEL[x.kind] || x.kind) + '</td><td>' +
+        esc(x.operation_name || x.operation_code || '') + '</td><td>' + esc(x.trade_no || '') + '</td><td>' + esc(x.bl_no || '') + '</td><td>' + esc(x.report_name || x.report_code || '') +
+        '</td><td>' + esc(x.container_no || '') + '</td><td class="cpt-mono">' + esc(x.history_id || '') + '</td><td><button type="button" class="cpt-btn cpt-ev-detail-btn" data-id="' + esc(x.id) + '">' + (open ? '閉じる' : '詳細') + '</button></td></tr>';
+      if (!open) return main;
+      var p = _evPayload[x.id];
+      var det = '<tr class="cpt-ev-detail"><td colspan="9">' +
+        (p === undefined ? '<div class="cpt-hint">読み込み中…</div>' : '<pre>' + esc(JSON.stringify(p, null, 2).slice(0, 12000)) + '</pre>') +
+        (x.history_id ? '<div class="cpt-form"><button type="button" class="cpt-btn cpt-ev-hist-btn" data-id="' + esc(x.id) + '" data-hid="' + esc(x.history_id) + '">この操作の履歴を取得（読み取り）</button></div><div class="cpt-ev-hist" id="cptEvHist' + esc(x.id) + '"></div>' : '') +
+        '</td></tr>';
+      return main + det;
+    }).join('');
+    box.innerHTML = '<div class="cpt-tablewrap"><table class="cpt-table cpt-ev-table"><thead>' + head + '</thead><tbody>' + rows + '</tbody></table></div>';
+  }
+  function evStatusLine(status) {
+    evStatus('<span>' + _evRows.length + ' 件（新しい順）</span> ' + evLiveDot(status));
+  }
+  function evFail(e) {
+    var box = evBodyEl(); if (!box) return;
+    box.innerHTML = e && e.code === 'notready' ? msg('is-info', e.message) : errHtml(e);
+    evStatus('');
+  }
+  var _evLast = '';
+  async function evLoad(first) {
+    if (!window.CpEvents) { var b = evBodyEl(); if (b) b.innerHTML = errHtml({ message: 'cp-events.js が読み込まれていません' }); return; }
+    evStatus('読み込み中…');
+    try {
+      _evRows = await window.CpEvents.fetchRecent({ limit: 50, kind: _evKind });
+      _evRows.forEach(function (x) { delete _evNew[x.id]; });
+      evRender(); evStatusLine(_evLast);
+      if (!_evUnsub) {
+        _evUnsub = window.CpEvents.subscribe(function (row) {
+          if (_evKind && row.kind !== _evKind) return;
+          if (_evRows.some(function (x) { return x.id === row.id; })) return;
+          if (row.payload !== undefined) _evPayload[row.id] = row.payload;
+          var light = Object.assign({}, row); delete light.payload;
+          _evNew[row.id] = true;
+          _evRows.unshift(light); _evRows = _evRows.slice(0, 100);
+          evRender(); evStatusLine(_evLast);
+        }, function (status) { _evLast = status; evStatusLine(status); });
+      }
+    } catch (e) {
+      // 起動直後は、ログイン情報の復元が間に合わないことがある。1 度だけ、少し待ってやり直す。
+      if (first && e && e.code === 'login' && !_evRetry) { _evRetry = true; evStatus('ログインを確認しています…'); setTimeout(function () { evLoad(); }, 2000); return; }
+      evFail(e);
+    }
+  }
+  async function evClick(ev) {
+    var t = ev.target;
+    if (!t || !t.closest) return;
+    var d = t.closest('.cpt-ev-detail-btn');
+    if (d) {
+      var id = d.getAttribute('data-id');
+      _evOpen[id] = !_evOpen[id];
+      evRender();
+      if (_evOpen[id] && _evPayload[id] === undefined) {
+        try { _evPayload[id] = await window.CpEvents.fetchPayload(id); } catch (e) { _evPayload[id] = { error: (e && e.message) || '読み込めませんでした' }; }
+        evRender();
+      }
+      return;
+    }
+    var h = t.closest('.cpt-ev-hist-btn');
+    if (h && window.CyberPort) {
+      var out = document.getElementById('cptEvHist' + h.getAttribute('data-id'));
+      if (!out) return;
+      h.disabled = true; out.innerHTML = msg('is-info', '操作の履歴を取得しています…');
+      try {
+        var r = await window.CyberPort.tradeHistory(h.getAttribute('data-hid'));
+        out.innerHTML = '<pre>' + esc(JSON.stringify(r.data, null, 2).slice(0, 12000)) + '</pre>';
+      } catch (e) { out.innerHTML = errHtml(e); }
+      h.disabled = false;
+    }
+  }
+
   function tradesHtml(data, kw) {
     var list = Array.isArray(data) ? data : (data && Array.isArray(data.items) ? data.items : null);
     var raw = '<details class="cpt-raw"><summary>返ってきたデータそのもの（確認用）</summary><pre>' +
@@ -385,7 +513,18 @@
       '<button type="button" class="cpt-btn" id="cptColinsV">③ COLINS 本船の動静</button></div>' +
       '<div class="cpt-form"><input type="text" id="cptCtn" class="cpt-input" maxlength="40" autocomplete="off" placeholder="コンテナ番号／B/L番号（輸入）／ブッキング番号（輸出）">' +
       '<button type="button" class="cpt-btn" id="cptColinsC">④ COLINS コンテナの状況</button></div>' +
+      '<div class="cpt-form"><input type="text" id="cptOpFilter" class="cpt-input" maxlength="40" autocomplete="off" placeholder="絞り込み（例：EDIFACT・メッセージ・帳票名）" aria-label="通知できる操作の絞り込み">' +
+      '<button type="button" class="cpt-btn" id="cptOps">⑤ 通知できる操作の一覧</button></div>' +
       '<div id="cptLive" class="cpt-live" aria-live="polite"></div></div>' +
+      // ---- 📨 受信した通知（Webhook）
+      '<div class="cpt-card" id="cptEvCard"><div class="cpt-card-h">📨 受信した通知（Webhook）</div>' +
+      '<p class="cpt-hint">サイバーポートから届いた通知（取引・帳票・チャット・NACCS電文の操作）です。新しく届くと自動で先頭に増えます。表示だけで、書き込みはしません。</p>' +
+      '<div class="cpt-form"><select id="cptEvKind" class="cpt-select" aria-label="通知の種類で絞り込み">' +
+      '<option value="">すべての種類</option><option value="message">💬 チャット</option><option value="report">📄 帳票</option><option value="naccs">🛃 NACCS</option>' +
+      '<option value="trade">📦 取引</option><option value="task">☑ タスク</option><option value="process">⚙ プロセス</option><option value="other">その他</option></select>' +
+      '<button type="button" class="cpt-btn" id="cptEvReload">再読み込み</button>' +
+      '<span class="cpt-ev-status" id="cptEvStatus" aria-live="polite"></span></div>' +
+      '<div id="cptEvBody" class="cpt-live"></div></div>' +
       '<div class="cpt-card"><div class="cpt-card-h">照会</div>' +
       '<div class="cpt-form">' +
       '<input type="text" id="cptNo" class="cpt-input" placeholder="B/L番号・搬入確認番号・JOB番号（例: ONEY TYOGF8748400）" autocomplete="off">' +
@@ -413,7 +552,14 @@
     document.getElementById('cptColinsC').addEventListener('click', liveColinsContainers);
     document.getElementById('cptPort').addEventListener('keydown', function (e) { if (e.key === 'Enter') liveColinsVessels(); });
     document.getElementById('cptCtn').addEventListener('keydown', function (e) { if (e.key === 'Enter') liveColinsContainers(); });
+    document.getElementById('cptOps').addEventListener('click', liveOps);
+    document.getElementById('cptOpFilter').addEventListener('input', function () { if (_opsShown) renderOps(); });
+    document.getElementById('cptOpFilter').addEventListener('keydown', function (e) { if (e.key === 'Enter') liveOps(); });
+    document.getElementById('cptEvReload').addEventListener('click', function () { evLoad(); });
+    document.getElementById('cptEvKind').addEventListener('change', function () { _evKind = this.value; evLoad(); });
+    document.getElementById('cptEvBody').addEventListener('click', evClick);
     run();
+    evLoad(true);
   }
 
   function msg(cls, text) {

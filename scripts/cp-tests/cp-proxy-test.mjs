@@ -24,6 +24,7 @@ for (const p of [
   '/API/v2/ColinsViewers/GetImportContainers', '/API/v2/ColinsViewers/GetExportContainers',
   '/API/v2/ColinsViewers/GetImportVessels/JPTYO', '/API/v2/ColinsViewers/GetExportVessels/JPYOK',
   '/API/v2/Terminals/GetList', '/API/v2/Terminals/Get/TYOAJ00C',
+  '/API/v2/Master/NotifiableOperations/GetList', '/API/v2/Master/NotifiableOperations/Get/OP-001',
 ]) ok(L.matchAllowed(p) !== null, '許可される: ' + p);
 // 不許可：書き込み系・別の API・すり抜けの工夫
 for (const p of [
@@ -34,6 +35,12 @@ for (const p of [
   '/API/v2/Trades/Get/', 'API/v2/Trades/Search', '/api/v2/trades/search', '', null, undefined, 123,
   '/API/v2/Terminals/VesselSchedules/GetList', '/API/v2/Terminals/VesselSchedules/Register', '/API/v2/Terminals/DemurrageSettings/GetList',
   '/API/v2/Terminals/GateOpenWindows/GetList/JPTYO', '/API/v2/Terminals/TerminalNotices/GetList', '/API/v2/Terminals/Register', '/API/v2/Terminals/GetList/x',
+  // Webhook の設定は、シークレットトークンが返るので許可しない（登録・更新・削除も当然ふくむ）
+  '/API/v2/Webhooks/GetList', '/API/v2/Webhooks/Get/W1', '/API/v2/Webhooks/Register', '/API/v2/Webhooks/Update/W1', '/API/v2/Webhooks/Delete/W1',
+  '/API/v2/Organizations/UsedWebhooks/GetList', '/API/v2/Organizations/UsedWebhooks/Get/U1', '/API/v2/Organizations/UsedWebhooks/Register',
+  '/API/v2/Organizations/UsedWebhooks/NotifyOperations/GetList/U1', '/API/v2/Organizations/UsedWebhooks/NotifyOperations/Register',
+  '/API/v2/Master/NotifiableOperations/Register', '/API/v2/Master/NotifiableOperations/GetList/x',
+  '/API/v2/Trades/Histories/GetNotifyOperationByWebhooksAdmin/H1', '/API/v2/Trades/Histories/MarkAsRead',
 ]) ok(L.matchAllowed(p) === null, '不許可: ' + String(p));
 ok(L.ALLOWED_GET.every((a) => !/Send|Reply|Edit|Delete|Create|Register|Update|Set|Submit|Lock/.test(a.name)), '許可リストに書き込み系の名前が無い');
 

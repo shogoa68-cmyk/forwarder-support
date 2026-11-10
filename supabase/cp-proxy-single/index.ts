@@ -1,4 +1,4 @@
-// ※ このファイルは scripts/cp-tests/build-cp-proxy-single.mjs が自動で作った「貼り付け用の 1 枚版」です。
+// ※ このファイルは scripts/cp-tests/build-edge-single.mjs が自動で作った「貼り付け用の 1 枚版」です。
 //    元は supabase/functions/cp-proxy/{index.ts, logic.ts}。手で直さず、元を直してから作り直してください。
 // ============================================================
 // 🧪 サイバーポート（Cyber Port Ver.2）用 Edge Function（Supabase / Deno）— 読み取り専用
@@ -52,6 +52,10 @@ const ALLOWED_GET: { name: string; re: RegExp }[] = [
   // ターミナルの一覧（コードから名前を引くため・読み取りだけ。VesselSchedules 等の別系統は含めない）
   { name: 'Terminals/GetList', re: /^\/API\/v2\/Terminals\/GetList$/ },
   { name: 'Terminals/Get', re: new RegExp('^/API/v2/Terminals/Get/' + SEG + '$') },
+  // 通知できる操作の一覧（マスター・読み取りだけ）。Webhook の設定（Webhooks/*・Organizations/UsedWebhooks/*）は
+  // シークレットトークンを含むため、意図して許可しない。
+  { name: 'Master/NotifiableOperations/GetList', re: /^\/API\/v2\/Master\/NotifiableOperations\/GetList$/ },
+  { name: 'Master/NotifiableOperations/Get', re: new RegExp('^/API/v2/Master/NotifiableOperations/Get/' + SEG + '$') },
 ];
 
 function matchAllowed(path: unknown): string | null {
