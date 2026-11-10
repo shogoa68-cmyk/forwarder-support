@@ -12101,7 +12101,7 @@ html.mode-simple .mcs-more { display: none; }
 @media (min-width: 601px) { .mcs-overlay { display: none !important; } }
 .mcs-f > .mcs-tag { align-self: flex-start; }
 
-/* ===== 見積入力の 2 カラム配置（広い画面・js/quote/layout-cols.js）：左＝① 条件、右＝② 貨物。入力欄はコンパクトに ===== */
+/* ===== 見積入力の 2 カラム配置（広い画面・js/quote/layout-cols.js）：1 段目＝管理番号｜貿易条件、2 段目＝貨物｜物量。全体リマークは見積もりテーブルの下。入力欄はコンパクトに ===== */
 #tab-quote-make .qm-cols { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 0 20px; align-items: start; }
 #tab-quote-make .qm-col { display: flex; flex-direction: column; min-width: 0; }
 #tab-quote-make .qm-col > .condition-section { margin-left: 0; margin-right: 0; }
