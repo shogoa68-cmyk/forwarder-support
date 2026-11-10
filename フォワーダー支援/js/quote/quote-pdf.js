@@ -599,7 +599,11 @@
     };
     const _scPush = () => {
       _ptPush(); // サブコン小計前にパターン小計をフラッシュ
-      if (_scActive && _scHas) {
+      // 「合計・税サマリを非表示」（パターン比較用）のとき、サブコン内に複数パターンがあれば、サブコン小計は
+      // 案どうしの合算（比較用の案を足した意味のない金額）になるので出さない。パターンごとの小計だけを残す。
+      // この時点の _ptSubOn は、いま閉じようとしているサブコンのもの（次のサブコンの判定は境界の後）
+      const _scSumMeaningless = hideTotal && _ptSubOn;
+      if (_scActive && _scHas && !_scSumMeaningless) {
         // サブコン小計はページが分かれると見出し行が前ページに残り会社名が分からなくなるため、
         // 「小計」だけでなくサブコン名も併記する（例：「SEABRIDGE 小計」）
         lineHTML.push(`<tr class="qd-subcon-sub"><td colspan="4">↳ ${esc(_scHeadLabel || '')} ${t('subtotal')}</td><td class="qd-num">${_subYen(_scJpy, _scJpyHi)}</td></tr>`);
@@ -903,7 +907,7 @@
                 <span class="qd-toggle-l">🌐 英語で出力<small>固定ラベルのみ</small></span>
                 <input type="checkbox" id="qdLangEn"><span class="qd-toggle-sw"></span>
               </label>
-              <label class="qd-toggle" title="ONにすると上部の御見積額・下部の合計／税サマリを非表示にします。小計行でパターンA/B比較を行う用途向け。">
+              <label class="qd-toggle" title="ONにすると上部の御見積額・下部の合計／税サマリを非表示にします。小計行でパターンA/B比較を行う用途向け。複数のパターン（FCL案／LCL案など）があるサブコンでは、案どうしを足したサブコン小計も出しません（パターンごとの小計は残ります）。">
                 <span class="qd-toggle-l">合計・税サマリを非表示<small>パターン比較用</small></span>
                 <input type="checkbox" id="qdHideTotal"><span class="qd-toggle-sw"></span>
               </label>
