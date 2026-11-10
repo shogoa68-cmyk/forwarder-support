@@ -5736,6 +5736,38 @@ body.md-modal-open { overflow: hidden; }
 .stats-md-deal-ship { background: #d9e8f7; border-color: #3b7bbf; }
 .stats-md-deal-fwd { background: #fde3c2; border-color: #e08a2c; }
 .stats-md-deal-other { background: #e1e4e8; border-color: #9aa5b1; }
+/* マスター管理：カード表示（最大 3 カラム・BOOKMARK タブと同じ見た目）。表の DOM はそのまま、CSS で並べ替える */
+#statsPane-master table.master-grid { display: block; width: 100%; border: 0; background: transparent; }
+#statsPane-master table.master-grid > thead { display: none; }
+#statsPane-master table.master-grid > tbody { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; align-items: start; }
+@media (max-width: 1180px) { #statsPane-master table.master-grid > tbody { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 760px) { #statsPane-master table.master-grid > tbody { grid-template-columns: minmax(0, 1fr); } }
+#statsPane-master table.master-grid > tbody > tr { display: flex; flex-direction: column; gap: 4px; background: var(--surface, #fff); border: 1px solid var(--border, #d9dee5); border-radius: 12px; padding: 10px 12px; box-shadow: 0 1px 3px rgba(60, 46, 30, .05); transition: box-shadow .14s; min-width: 0; }
+#statsPane-master table.master-grid > tbody > tr:hover { box-shadow: 0 6px 18px rgba(60, 46, 30, .12); }
+#statsPane-master table.master-grid > tbody > tr > td { display: block; padding: 0; border: 0; background: transparent !important; box-shadow: none !important; text-align: left; min-width: 0; width: auto; }
+#statsPane-master table.master-grid > tbody > tr > td:first-child { order: -1; font-size: 11px; color: #6b7a8c; }
+#statsPane-master table.master-grid > tbody > tr > td.stats-val { font-size: 14px; font-weight: 700; overflow-wrap: anywhere; padding-left: 0; }
+#statsPane-master table.master-grid > tbody > tr > td.ops { white-space: normal; text-align: left; min-width: 0; display: flex; flex-wrap: wrap; gap: 4px; padding-top: 6px; margin-top: 2px; border-top: 1px dashed #e2e6ec; }
+#statsPane-master table.master-grid > tbody > tr > td.stats-master-abbrev-cell { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
+#statsPane-master table.master-grid > tbody > tr.master-tag-group-row { grid-column: 1 / -1; display: block; padding: 0; border: 0; border-radius: 6px; box-shadow: none; background: transparent; }
+#statsPane-master table.master-grid > tbody > tr.master-tag-group-row > td { display: block; padding: 6px 10px; border-radius: 6px; background: #f1f3f6 !important; }
+#statsPane-master table.master-grid > tbody > tr.mtg-deal[data-deal="ship"] > td { background: #d9e8f7 !important; }
+#statsPane-master table.master-grid > tbody > tr.mtg-deal[data-deal="fwd"] > td { background: #fde3c2 !important; }
+#statsPane-master table.master-grid > tbody > tr.mtg-deal[data-deal="other"] > td { background: #e1e4e8 !important; }
+#statsPane-master table.master-grid > tbody > tr.mtg-deal[data-deal="none"] > td { background: #f3ede2 !important; }
+/* 取引形態の色：カード全体に（左の太い帯＋薄い背景） */
+#statsPane-master table.master-grid > tbody > tr[data-deal="ship"] { background: #eef5fc; border-left: 5px solid #3b7bbf; }
+#statsPane-master table.master-grid > tbody > tr[data-deal="fwd"] { background: #fff4e6; border-left: 5px solid #e08a2c; }
+#statsPane-master table.master-grid > tbody > tr[data-deal="other"] { background: #f1f2f4; border-left: 5px solid #9aa5b1; }
+/* 詳細情報は、会社名をクリックしたときだけ表示（取引形態のチップは常に表示） */
+#statsPane-master table.master-grid .md-fold-chip { display: none; }
+#statsPane-master table.master-grid tr.is-open .md-fold-chip { display: inline-flex; }
+.master-name-toggle { cursor: pointer; border-bottom: 1px dotted #8a97a6; }
+.master-name-toggle::before { content: "▸ "; font-size: 11px; color: #6b7a8c; }
+tr.is-open .master-name-toggle::before { content: "▾ "; }
+.master-name-toggle:hover { color: #1f5f99; }
+.master-name-toggle:focus-visible { outline: 2px solid #1f5f99; outline-offset: 2px; }
+#statsPane-master table.master-grid > tbody > tr.master-via-child { margin-left: 0; }
 .master-area-label { font-size: 12px; color: #6b7a8c; min-width: 84px; }
 .master-area-title { font-size: 12px; font-weight: 700; margin-top: 6px; color: #3a4a5c; }
 
