@@ -1,4 +1,4 @@
-// CP(TEST) 画面の「実接続テスト」の試験（Chromium）。cp-proxy は偽の応答に差し替える（サイバーポートへは接続しない）。
+// 「サイバーポート」画面の接続・照会の試験（Chromium）。cp-proxy は偽の応答に差し替える（サイバーポートへは接続しない）。
 // 使い方：サーバーを起動してから
 //   (リポジトリ直下) python3 -m http.server 18765 &
 //   node scripts/cp-tests/cp-test-page-test.js [スクリーンショットの保存先.png]
@@ -39,7 +39,7 @@ function eq(a, b, name) { ok(JSON.stringify(a) === JSON.stringify(b), name, ' �
   const st0 = await p.$$eval('#cptRoot .cpt-st', (els) => els.map((e) => e.className + '|' + e.querySelector('.cpt-st-v').textContent));
   ok(st0[0].includes('is-off') && st0[0].includes('未確認'), '初期：APIは未確認');
   ok(st0[3].includes('is-ok') && st0[3].includes('読み取り専用'), '初期：書き込みは使わない');
-  ok(await p.locator('.cpt-banner').innerText().then((t) => /サンプル/.test(t) && /読み取り/.test(t)), '注意書きにサンプルと読み取りの説明');
+  ok(await p.locator('.cpt-banner, #cptRun, #cptMv, #cptCh').count() === 0, 'テスト用の注意書き・サンプル欄が無い');
 
   // ① ping 成功
   respond = () => ({ status: 200, body: { ok: true, message: 'トークンを取得できました（接続情報は有効です）', tokenHost: 'api.cyber-port.net', apiHost: 'api.cyber-port.net' } });
@@ -275,12 +275,8 @@ function eq(a, b, name) { ok(JSON.stringify(a) === JSON.stringify(b), name, ' �
   // ボタンは処理中だけ無効、終わったら戻る
   ok(await p.locator('#cptPing').isEnabled() && await p.locator('#cptSearch').isEnabled(), '処理後はボタンが戻る');
 
-  // サンプル欄は従来どおり動く
-  await p.selectOption('#cptState', 'eta'); await p.click('#cptRun');
-  ok(/ETA前|NACCS側/.test(await p.locator('#cptMv').innerText()), 'サンプル欄は従来どおり動く');
-
   ok(errs.length === 0, 'ページのエラーなし', errs.join(' | '));
-  console.log(`\nCP(TEST) 実接続画面 試験：${pass} 件合格 / ${failN} 件失敗`);
+  console.log(`\nサイバーポート画面 試験：${pass} 件合格 / ${failN} 件失敗`);
   await b.close();
   process.exit(failN ? 1 : 0);
 })();

@@ -1,7 +1,7 @@
 /* cyberport.js — サイバーポート（Cyber Port Ver.2）連携の「ブラウザ側の窓口」。
  * 通信はすべて Supabase の Edge Function「cp-proxy」を通す（接続情報・トークンはブラウザに置かない）。
  * 第1段階は読み取り専用：cp-proxy が通すのは許可された GET だけ（supabase/functions/cp-proxy/logic.ts）。
- * 画面側（CP(TEST) など）は、このファイルの CyberPort.* だけを呼ぶ＝連携先が変わってもここだけ直せばよい。
+ * 画面側（サイバーポート画面など）は、このファイルの CyberPort.* だけを呼ぶ＝連携先が変わってもここだけ直せばよい。
  * 設計は docs/サイバーポート連携_設計案.md、手順は docs/サイバーポート連携-セットアップ.md。
  *
  *   CyberPort.ping()                      → {ok, message, tokenHost, apiHost}  接続情報でトークンが取れるかの確認

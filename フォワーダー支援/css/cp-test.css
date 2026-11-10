@@ -1,4 +1,4 @@
-/* cp-test.css — 🧪 CP(TEST)（サイバーポート連携の画面テスト）。
+/* cp-test.css — 🚢 サイバーポート（連携の画面）。
  * すべて #tab-cptest / .cpt-* の中だけに効く。色は css/tokens.css の変数を使う。 */
 
 #tab-cptest .cpt-root { display: flex; flex-direction: column; gap: 10px; }
@@ -6,12 +6,9 @@
 #tab-cptest .cpt-title { margin: 0; font-size: 18px; color: var(--accent-dk); }
 #tab-cptest .cpt-sub { font-size: 12px; color: var(--text-muted); }
 
-#tab-cptest .cpt-banner { padding: 8px 12px; font-size: 13px; line-height: 1.6; background: #fff4d6; border: 1px solid #e0b84a; border-radius: var(--r-8, 8px); color: var(--text); }
 
 #tab-cptest .cpt-card { padding: 10px 12px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-8, 8px); }
 #tab-cptest .cpt-card-h { margin-bottom: 8px; font-weight: 700; font-size: 14px; color: var(--accent-dk); }
-#tab-cptest .cpt-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-@media (max-width: 760px) { #tab-cptest .cpt-cols { grid-template-columns: 1fr; } }
 
 #tab-cptest .cpt-stlist { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
 #tab-cptest .cpt-st { display: flex; gap: 10px; flex-wrap: wrap; font-size: 13px; }
@@ -25,25 +22,14 @@
 #tab-cptest .cpt-btn { padding: 6px 12px; font-size: 13px; border: 1px solid var(--border-md); border-radius: 6px; background: var(--surface); color: var(--text); cursor: pointer; }
 #tab-cptest .cpt-btn.is-primary { background: var(--green-olive); border-color: var(--green-olive); color: #fff; }
 #tab-cptest .cpt-btn.is-primary:hover { background: var(--green-forest); }
-#tab-cptest .cpt-norm { min-height: 1.2em; margin-top: 6px; font-size: 12px; color: var(--text-md); }
 
 #tab-cptest .cpt-msg { padding: 8px 10px; font-size: 13px; line-height: 1.6; border-radius: 6px; }
 #tab-cptest .cpt-msg.is-info { background: var(--accent-lt); border: 1px solid var(--border-md); }
 #tab-cptest .cpt-msg.is-error { background: #fde8e8; border: 1px solid var(--red); color: var(--red); }
 
-#tab-cptest .cpt-tl { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
-#tab-cptest .cpt-tl li { display: grid; grid-template-columns: 9.5em 1fr; gap: 2px 10px; padding-left: 10px; border-left: 3px solid var(--green-leaf); }
-#tab-cptest .cpt-tl-at { font-size: 12px; color: var(--text-muted); }
-#tab-cptest .cpt-tl-l { font-weight: 600; font-size: 13px; }
-#tab-cptest .cpt-tl-n { grid-column: 2; font-size: 12px; color: var(--text-md); }
 
-#tab-cptest .cpt-bubble { max-width: 90%; margin: 0 0 8px; padding: 6px 10px; font-size: 13px; line-height: 1.6; background: var(--surface-warm); border: 1px solid var(--border); border-radius: 10px; }
-#tab-cptest .cpt-bubble.is-mine { margin-left: auto; background: var(--accent-lt); }
-#tab-cptest .cpt-bubble-h { font-size: 12px; color: var(--text-muted); }
-#tab-cptest .cpt-bubble-h span { margin-left: 6px; }
-#tab-cptest .cpt-note { font-size: 12px; color: var(--text-muted); }
 
-/* ---- 🔌 実接続テスト ---- */
+/* ---- 🔌 接続・照会 ---- */
 #tab-cptest .cpt-card .cpt-form + .cpt-form { margin-top: 8px; }
 #tab-cptest .cpt-hint { font-size: 12px; color: var(--text-muted); }
 #tab-cptest .cpt-live { margin-top: 10px; }
