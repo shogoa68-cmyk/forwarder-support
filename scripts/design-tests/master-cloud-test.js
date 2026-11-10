@@ -49,6 +49,7 @@ const http = require('http'), fs = require('fs'), path = require('path');
   async function open(loggedIn, opts = {}) {
     const ctx = await b.newContext({ viewport: { width: +(process.env.W || 1400), height: +(process.env.H || 900) }, locale: 'ja-JP' });
     if (process.env.THEME) await ctx.addInitScript(() => { try { localStorage.setItem('forwarderTheme_v1', JSON.stringify({ site: true, doc: true })); } catch (e) {} });
+    if (process.env.QUIET) await ctx.addInitScript(() => { try { localStorage.setItem('forwarderTheme_v1', JSON.stringify({ quiet: true })); } catch (e) {} });
     await ctx.addInitScript(({ seed, legacy, loggedIn, ME, opts }) => {
       try {
         localStorage.setItem('fwd.uiMode', 'detail');
@@ -695,20 +696,23 @@ const http = require('http'), fs = require('fs'), path = require('path');
     ok(L + '一覧に厳守・要確認のバッジが並ぶ', await p.evaluate(() => !!document.querySelector('#crPanel .cr-badge-strict') && !!document.querySelector('#crPanel .cr-badge-check')));
     // 見積タブのバナー：お客様だけ → 全体ルールのみ（担当者別は件数だけ）／担当者を入れる → 担当者のルールも
     await p.evaluate(async () => { document.getElementById('qf-customer').value = 'ルール商事'; document.getElementById('qf-person').value = ''; await crRefreshBanner(); });
-    await p.evaluate(() => { const b = document.querySelector('#crBanner [data-cr="toggle"]'); if (b && b.getAttribute('aria-expanded') !== 'true') b.click(); });   // 取引ルール帯は閉じたまま始まる（開くのは手動）
-    let t = await p.evaluate(() => { const b = document.getElementById('crBanner'); return { hidden: b.hidden, text: b.textContent.replace(/\s+/g, ' ') }; });
-    ok(L + '見積：お客様を選ぶとバナーが出て、厳守は開いて表示', !t.hidden && t.text.includes('請求書は月末締め') && t.text.includes('担当者別 1件'), t);
-    ok(L + '見積：担当者別ルールは担当者未入力では本文を出さない', !t.text.includes('USD建て'), t);
+    const chipT = () => p.evaluate(() => document.getElementById('crBanner').textContent.replace(/\s+/g, ' '));
+    const modalT = () => p.evaluate(() => { const m = document.getElementById('crModalBody'); return m ? m.textContent.replace(/\s+/g, ' ') : ''; });
+    let t = { hidden: await p.evaluate(() => document.getElementById('crBanner').hidden), text: await chipT() };
+    ok(L + '見積：お客様を選ぶと取引ルールのチップが出る（件数・厳守・担当者別）', !t.hidden && t.text.includes('取引ルール（1件・厳守1）') && t.text.includes('担当者別 1件'), t);
+    ok(L + '見積：チップには本文を出さない（押したときのモーダルで見る）', !t.text.includes('請求書は月末締め') && !(await p.evaluate(() => !!document.getElementById('crModal'))), t);
+    await p.evaluate(() => document.querySelector('#crBanner [data-cr="open"]').click()); await p.waitForTimeout(300);
+    ok(L + '見積：チップを押すとモーダルが開き、ルール本文を見られる（追加フォームもある）', (await modalT()).includes('請求書は月末締め') && await p.evaluate(() => !!document.querySelector('#crModal .cr-f-body')));
     await p.evaluate(async () => { document.getElementById('qf-person').value = '幸崎 様'; await crRefreshBanner(); });
-    t = await p.evaluate(() => document.getElementById('crBanner').textContent.replace(/\s+/g, ' '));
-    ok(L + '見積：担当者（敬称付きでも）を入れるとその担当者のルールも出る', t.includes('USD建て併記') && t.includes('請求書は月末締め'), t);
+    ok(L + '見積：担当者（敬称付きでも）を入れるとチップの件数が増える（2件）', (await chipT()).includes('取引ルール（2件') && (await modalT()).includes('USD建て併記'));
     await p.evaluate(async () => { document.getElementById('qf-person').value = '山田'; await crRefreshBanner(); });
-    ok(L + '見積：別の担当者のルールは出ない', await p.evaluate(() => !document.getElementById('crBanner').textContent.includes('USD建て')));
-    // 見積タブからの追加
+    ok(L + '見積：別の担当者のルールは件数に入らない（1件）', (await chipT()).includes('取引ルール（1件'));
+    // 見積タブのモーダルからの追加
     await p.evaluate(async () => { document.getElementById('qf-person').value = '幸崎'; await crRefreshBanner(); });
-    await p.evaluate(() => document.querySelector('#crBanner [data-cr="addtoggle"]').click()); await p.waitForTimeout(300);
-    await p.evaluate(() => { document.querySelector('#crBanner .cr-f-body').value = 'メールはCCに上司を入れる'; document.querySelector('#crBanner [data-cr="save"]').click(); }); await p.waitForTimeout(800);
-    ok(L + '見積タブからもルールを追加できる', await p.evaluate(() => window.__db.customer_rules.length === 3 && document.getElementById('crBanner').textContent.includes('CCに上司')));
+    await p.evaluate(() => { document.querySelector('#crModal .cr-f-body').value = 'メールはCCに上司を入れる'; document.querySelector('#crModal [data-cr="save"]').click(); }); await p.waitForTimeout(800);
+    ok(L + '見積タブのモーダルからもルールを追加できる', await p.evaluate(() => window.__db.customer_rules.length === 3) && (await modalT()).includes('CCに上司') && (await chipT()).includes('3件'));
+    await p.keyboard.press('Escape'); await p.waitForTimeout(200);
+    ok(L + 'Esc でモーダルが閉じる', !(await p.evaluate(() => !!document.getElementById('crModal'))));
     // 廃止すると見積に出ない／出力（御見積書・プレビュー）には出ない
     await p.evaluate(async () => { await crSetStatus(window.__db.customer_rules[0].id, 'retired'); });
     ok(L + '廃止したルールは見積に出ない', await p.evaluate(() => crFor('ルール商事', '幸崎').list.every(r => r.status !== 'retired')));
@@ -737,16 +741,17 @@ const http = require('http'), fs = require('fs'), path = require('path');
     ok(L + '再確認が必要なルールの案内が出る', m.notice && m.notice.includes('古いルール商事') && m.notice.includes('1件'), m);
     // 見積タブ：背景に案件番号が入る・古いルールに「いまも有効」
     await p.evaluate(async () => { document.getElementById('qf-ref').value = '2026-077'; document.getElementById('qf-customer').value = '古いルール商事'; document.getElementById('qf-person').value = ''; await crRefreshBanner(); });
-    await p.evaluate(() => { const b = document.querySelector('#crBanner [data-cr="toggle"]'); if (b && b.getAttribute('aria-expanded') !== 'true') b.click(); });
-    let t = await p.evaluate(() => document.getElementById('crBanner').textContent.replace(/\s+/g, ' '));
-    ok(L + '見積：⏳ 再確認 1件 と「いまも有効」ボタン', t.includes('再確認 1件') && t.includes('いまも有効'), t);
-    ok(L + '見積：ボタンが「この案件で気づいたことをルールにする」', t.includes('この案件で気づいたことをルールにする'), t);
-    await p.evaluate(() => document.querySelector('#crBanner [data-cr="addtoggle"]').click()); await p.waitForTimeout(300);
-    ok(L + '見積：背景に「案件 2026-077 で判明」が入った状態で開く', await p.evaluate(() => document.querySelector('#crBanner .cr-f-reason').value === '案件 2026-077 で判明'));
-    await p.evaluate(() => document.querySelector('#crBanner [data-cr="addtoggle"]').click());
-    await p.evaluate(() => document.querySelector('#crBanner [data-cr="confirm"]').click()); await p.waitForTimeout(800);
+    const chipT = () => p.evaluate(() => document.getElementById('crBanner').textContent.replace(/\s+/g, ' '));
+    let t = await chipT();
+    ok(L + '見積：チップに「⏳ 再確認 1件」', t.includes('再確認 1件'), t);
+    await p.evaluate(() => document.querySelector('#crBanner [data-cr="open"]').click()); await p.waitForTimeout(300);
+    const mt = await p.evaluate(() => document.getElementById('crModalBody').textContent.replace(/\s+/g, ' '));
+    ok(L + '見積：モーダルに「いまも有効」ボタンと追加フォーム', await p.evaluate(() => !!document.querySelector('#crModal [data-cr="confirm"]') && !!document.querySelector('#crModal .cr-f-body')));
+    ok(L + '見積：背景に「案件 2026-077 で判明」が入った状態でフォームが開く', await p.evaluate(() => document.querySelector('#crModal .cr-f-reason').value === '案件 2026-077 で判明'));
+    await p.evaluate(() => document.querySelector('#crModal [data-cr="confirm"]').click()); await p.waitForTimeout(800);
     const r1 = await p.evaluate(() => ({ at: window.__db.customer_rules.find(r => r.id === 'r1').confirmed_at, txt: document.getElementById('crBanner').textContent }));
     ok(L + '「いまも有効」で最終確認日が今日になり、再確認の表示が消える', Date.now() - new Date(r1.at).getTime() < 3600000 && !r1.txt.includes('再確認'), r1);
+    await p.click('#crModal .md-modal-close'); await p.waitForTimeout(150);
     ok(L + 'JS エラーなし', errs.length === 0, errs);
     await ctx.close();
   }
@@ -1185,6 +1190,49 @@ const http = require('http'), fs = require('fs'), path = require('path');
     r = await rows(); ok(L + 'クリアすると全部に戻る', r.length > 4, r);
     await p.evaluate(() => statsMasterSetFilter('sv')); await p.waitForTimeout(200);
     r = await q('検索'); ok(L + '種別の絞り込み（サブコン）と併用できる（お客様は出ない）', r.includes('検索テスト運輸') && !r.includes('検索荷主'), r);
+    ok(L + 'JS エラーなし', errs.length === 0, errs);
+    await ctx.close();
+  }
+
+  // ===== お客様マスター：取引形態ごとの色分け・まとめ表示 =====
+  {
+    const { ctx, p, errs } = await open(true, { legacy: {}, noLegacy: true });
+    const L = '[取引形態の色] ';
+    await p.evaluate(async () => {
+      const V = n => window.__db.master_votes.push({ field: 'customer', value: n, voter_email: 's@example.com' });
+      const D = (n, t) => window.__db.master_details.push({ field: 'customer', value: n, details: t ? { dealType: t } : {} });
+      V('荷主甲'); D('荷主甲', '荷主（直接）'); V('荷主乙'); D('荷主乙', '荷主（直接）');
+      V('同業丙'); D('同業丙', '同業者（フォワーダー・代理店）');
+      V('その他丁'); D('その他丁', 'その他'); V('未設定戊');
+      await statsLoadMasterCache(); await mdLoadCloud();
+    });
+    await p.evaluate(() => { switchCategory('master', document.querySelector('[onclick*="switchCategory(\'master"]')); }); await p.waitForTimeout(1000);
+    await p.evaluate(() => statsMasterSetFilter('customer')); await p.waitForTimeout(300);
+    const deal = n => p.evaluate(v => (document.querySelector('#statsPane-master tr[data-mvalue="' + v + '"]') || { dataset: {} }).dataset.deal || '', n);
+    ok(L + '行に取引形態の印が付く（荷主＝ship／同業者＝fwd／その他＝other／未設定＝none）', [await deal('荷主甲'), await deal('同業丙'), await deal('その他丁'), await deal('未設定戊')].join() === 'ship,fwd,other,none');
+    const bg = n => p.evaluate(v => getComputedStyle(document.querySelector('#statsPane-master tr[data-mvalue="' + v + '"]')).backgroundColor, n);
+    const cs = [await bg('荷主甲'), await bg('同業丙'), await bg('その他丁')];
+    ok(L + '取引形態ごとに行の色が違う（荷主・同業者・その他）', new Set(cs).size === 3, cs);
+    ok(L + '「取引形態ごとにまとめる」のボタンが出る（お客様のときだけ）', await p.evaluate(() => [...document.querySelectorAll('.master-sort-chip')].some(c => c.textContent.includes('取引形態ごと'))));
+    await p.evaluate(() => statsMasterSetSort('deal')); await p.waitForTimeout(300);
+    const seq = await p.evaluate(() => [...document.querySelectorAll('#statsPane-master tbody tr')].filter(r => r.classList.contains('mtg-deal') || r.dataset.mvalue).map(r => r.classList.contains('mtg-deal') ? '#' + r.dataset.deal + ':' + r.querySelector('.mtg-count').textContent : r.dataset.mvalue).filter(x => x.startsWith('#') || /^(荷主|同業|その他|未設定)/.test(x)));
+    ok(L + '荷主→同業者→その他→未設定の順に見出しと件数つきで並ぶ', seq.join('|') === '#ship:2社|荷主乙|荷主甲|#fwd:1社|同業丙|#other:1社|その他丁|#none:1社|未設定戊', seq);
+    // カード表示：最大 3 カラム・詳細は会社名のクリックで開く（取引形態のチップは常に表示）
+    await p.evaluate(() => statsMasterSetSort('name')); await p.waitForTimeout(200);
+    await p.evaluate(() => { const d = (window.__db.master_details.find(m => m.value === '荷主甲') || {}); d.details = Object.assign({}, d.details, { location: '東京' }); });
+    await p.evaluate(async () => { await mdLoadCloud(); statsRerenderActive(); }); await p.waitForTimeout(300);
+    const cols = await p.evaluate(() => getComputedStyle(document.querySelector('#statsPane-master table.master-grid > tbody')).gridTemplateColumns.split(' ').length);
+    ok(L + 'カード表示（広い画面では 3 カラム）', cols === 3, cols);
+    ok(L + '詳細（所在地など）は初期状態では見えず、取引形態のチップは見える', await p.evaluate(() => { const tr = document.querySelector('#statsPane-master tr[data-mvalue="荷主甲"]'); const vis = e => e && getComputedStyle(e).display !== 'none'; const fold = [...tr.querySelectorAll('.md-fold-chip')]; return fold.length > 0 && fold.every(c => !vis(c)) && vis(tr.querySelector('.stats-md-deal')); }));
+    await p.evaluate(() => document.querySelector('#statsPane-master tr[data-mvalue="荷主甲"] .master-name-toggle').click()); await p.waitForTimeout(150);
+    ok(L + '会社名をクリックすると詳細が開く', await p.evaluate(() => { const tr = document.querySelector('#statsPane-master tr[data-mvalue="荷主甲"]'); return tr.classList.contains('is-open') && [...tr.querySelectorAll('.md-fold-chip')].every(c => getComputedStyle(c).display !== 'none'); }));
+    await p.fill('#masterSearch', '荷主'); await p.waitForTimeout(400);
+    ok(L + '描き直しても開いたままになる', await p.evaluate(() => document.querySelector('#statsPane-master tr[data-mvalue="荷主甲"]').classList.contains('is-open')));
+    await p.evaluate(() => document.querySelector('#statsPane-master tr[data-mvalue="荷主甲"] .master-name-toggle').click()); await p.waitForTimeout(150);
+    ok(L + 'もう一度クリックすると閉じる', await p.evaluate(() => !document.querySelector('#statsPane-master tr[data-mvalue="荷主甲"]').classList.contains('is-open')));
+    await p.evaluate(() => statsMasterClearQuery()); await p.waitForTimeout(200);
+    await p.evaluate(() => statsMasterSetFilter('sv')); await p.waitForTimeout(300);
+    ok(L + 'サブコンでは「取引形態ごと」は出ない', await p.evaluate(() => ![...document.querySelectorAll('.master-sort-chip')].some(c => c.textContent.includes('取引形態ごと'))));
     ok(L + 'JS エラーなし', errs.length === 0, errs);
     await ctx.close();
   }

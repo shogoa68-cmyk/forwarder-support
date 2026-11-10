@@ -241,3 +241,19 @@ html.mode-simple #tab-quote-make .pal-jump-btn { display: none !important; }
 
 /* 管理番号入力：かんたん表示では管理者の一時機能・空の「前の案件」案内を出さない（DOM は残す） */
 html.mode-simple #adminCreatorNew, html.mode-simple #qfCopiedFromInfo:has(.qf-cf-empty) { display: none !important; }
+
+/* 手順の道しるべ（①条件 ②貨物 ③費用 ④出力）：4 つの枠は同じ高さ・同じ幅。「費用」などが縦書きに割れないよう、狭い幅では字と余白を縮める */
+html.mode-simple #tab-quote-make .qp-guide-steps { align-items: stretch; }
+html.mode-simple #tab-quote-make .qp-guide-steps li { display: flex; }
+html.mode-simple #tab-quote-make .qp-guide-step { flex: 1; white-space: nowrap; min-width: 0; }
+html.mode-simple #tab-quote-make .qp-guide-l, html.mode-simple #tab-quote-make .qp-guide-n { white-space: nowrap; }
+@media (max-width: 560px) {
+  html.mode-simple #tab-quote-make .qp-guide-step { gap: 4px; padding: var(--sp-10) 2px; }
+  html.mode-simple #tab-quote-make .qp-guide-n { font-size: var(--fs-15, 15px); }
+  html.mode-simple #tab-quote-make .qp-guide-l { font-size: var(--fs-12, 12px); }
+  html.mode-simple #tab-quote-make .qp-guide-step.is-done .qp-guide-n::after { font-size: 12px; margin-left: 1px; }
+}
+@media (max-width: 400px) {
+  html.mode-simple #tab-quote-make .qp-guide-n { font-size: 14px; }
+  html.mode-simple #tab-quote-make .qp-guide-l { font-size: 12px; }
+}

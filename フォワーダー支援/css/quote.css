@@ -105,7 +105,7 @@
   flex-direction: column;
 }
 /* 添付ファイルは常に全幅で下段に */
-#tab-quote-make .quote-field-attach { grid-column: 1 / -1; }
+#tab-quote-make .quote-field-sources { grid-column: 1 / -1; }
 /* 取引ルールの帯（#crBanner）が出ているときは、左カラムが 1 行増えるので、メモの高さもその分（9 行）に合わせる */
 @media (min-width: 681px) {
   #tab-quote-make .quote-header.has-cr .quote-field-memo { grid-row: 1 / span 9; }
@@ -238,32 +238,6 @@
 }
 .pt-route-opt:hover { background: #e4eefb; border-color: #9fb6d6; }
 .pt-route-clear { color: var(--c-8a7a64); background: var(--bg); border-color: var(--border); }
-/* ===== 参照URL（自動リンク化） ===== */
-#tab-quote-make .quote-field-refurl { grid-column: 1 / -1; margin-top: var(--sp-6); }
-#tab-quote-make #qf-refurl {
-  width: 100%; resize: vertical; font-family: inherit; font-size: var(--fs-12);
-  padding: var(--sp-6) var(--sp-8); border: 1px solid var(--border-md, var(--border-md)); border-radius: var(--r-6);
-  background: var(--surface); color: var(--accent-dk); box-sizing: border-box;
-}
-#tab-quote-make #qf-refurl:focus { border-color: var(--gold); outline: none; }
-#tab-quote-make #qf-refurl::placeholder { color: var(--c-9a8878); font-size: var(--fs-11); }
-#tab-quote-make .qf-refurl-view {
-  display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-8);
-  padding: var(--sp-7) var(--sp-9); border: 1px solid var(--border); border-radius: var(--r-6); background: var(--card-bg);
-}
-#tab-quote-make .qf-refurl-links { display: flex; flex-wrap: wrap; gap: var(--sp-6); flex: 1; min-width: 0; }
-#tab-quote-make .qf-refurl-link {
-  display: inline-flex; align-items: center; gap: var(--sp-2); max-width: 100%;
-  font-size: var(--fs-12); color: var(--blue-dk); text-decoration: none;
-  background: var(--blue-95); border: 1px solid #cfdcf0; border-radius: var(--r-pill); padding: var(--sp-2) var(--sp-9);
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-}
-#tab-quote-make .qf-refurl-link:hover { background: #dde9f8; text-decoration: underline; }
-#tab-quote-make .qf-refurl-edit {
-  font-size: var(--fs-11); font-family: inherit; cursor: pointer; white-space: nowrap;
-  color: var(--accent); background: var(--surface); border: 1px solid var(--border-md); border-radius: var(--r-6); padding: var(--sp-3) var(--sp-9);
-}
-#tab-quote-make .qf-refurl-edit:hover { background: var(--accent-lt); }
 /* ===== 作業範囲（自由入力） ===== */
 #tab-quote-make .scope-body { padding: var(--sp-4) var(--sp-2) var(--sp-2); }
 #tab-quote-make #qf-scope {
@@ -274,17 +248,80 @@
 }
 #tab-quote-make #qf-scope:focus { border-color: var(--gold); outline: none; }
 #tab-quote-make #qf-scope::placeholder { color: var(--c-9a8878); font-size: var(--fs-12); }
-/* ===== 添付ファイル ===== */
-#tab-quote-make .quote-field-attach { margin-top: var(--sp-6); }
-#tab-quote-make .qf-attach-drop {
-  display: flex; align-items: center; justify-content: center; text-align: center;
-  border: 1.5px dashed var(--c-d5c8b0); border-radius: var(--r-8); background: var(--card-bg);
-  padding: var(--sp-12); cursor: pointer; transition: background .12s, border-color .12s;
+/* ===== 参照資料（URL・ファイルを 1 つの一覧に。追加はダイアログ）===== */
+#tab-quote-make .quote-field-sources { margin-top: var(--sp-6); }
+#tab-quote-make .src-card { border: 1px solid var(--border); border-radius: var(--r-8); background: var(--card-bg); padding: var(--sp-8) var(--sp-10); }
+#tab-quote-make .src-list .qf-attach-list { margin-top: 0; }
+#tab-quote-make .src-list .qf-attach-list:empty { display: none; }
+#tab-quote-make .src-list .qf-attach-list + .qf-attach-list { margin-top: var(--sp-5); }
+#tab-quote-make .src-list .qf-attach-empty[hidden] { display: none; }
+#tab-quote-make .src-url-link { text-decoration: none; }
+#tab-quote-make .src-url-link:hover { text-decoration: underline; }
+#tab-quote-make .src-add-btn {
+  margin-top: var(--sp-8); font-family: inherit; font-size: var(--fs-12); font-weight: 700; cursor: pointer;
+  color: var(--accent); background: var(--surface); border: 1px dashed var(--border-md); border-radius: var(--r-pill); padding: var(--sp-5) var(--sp-14);
 }
-#tab-quote-make .qf-attach-drop:hover { background: var(--accent-lt); border-color: #b8a98f; }
-#tab-quote-make .qf-attach-drop.is-drag { background: #eef4e6; border-color: var(--green-leaf); }
-#tab-quote-make .qf-attach-hint { font-size: var(--fs-11-5); color: var(--text-muted); line-height: 1.5; }
+#tab-quote-make .src-add-btn:hover { background: var(--accent-lt); }
+/* 資料を追加ダイアログ（Gemini NotebookLM の「ソースを追加」風） */
+#tab-quote-make #srcAddModal {
+  display: none; position: fixed; inset: 0; background: rgba(0,0,0,.45); z-index: 9000;
+  align-items: center; justify-content: center; padding: var(--sp-12);
+}
+#tab-quote-make #srcAddModal.open { display: flex; }
+#tab-quote-make #srcAddBox {
+  position: relative; width: min(94vw, 640px); max-height: 92vh; overflow-y: auto; box-sizing: border-box;
+  background: var(--surface); border-radius: 24px; padding: 28px 28px 22px; box-shadow: 0 12px 40px rgba(0,0,0,.28);
+}
+#tab-quote-make #srcAddBox .src-close {
+  position: absolute; top: 14px; right: 16px; width: 32px; height: 32px; border: none; border-radius: 50%;
+  background: transparent; font-size: var(--fs-16); color: var(--text-muted); cursor: pointer; line-height: 1;
+}
+#tab-quote-make #srcAddBox .src-close:hover { background: var(--accent-lt); color: var(--text); }
+#tab-quote-make #srcAddBox h3 { margin: 4px 0 18px; text-align: center; font-size: var(--fs-18, 18px); font-weight: 700; line-height: 1.5; color: var(--text); }
+#tab-quote-make #srcAddBox h3 em { font-style: normal; color: var(--blue-dk, #2a5db0); }
+#tab-quote-make .src-urlbox {
+  display: flex; align-items: flex-end; gap: var(--sp-8); background: var(--card-bg); border: 1px solid var(--border);
+  border-radius: 18px; padding: 12px 12px 12px 18px;
+}
+#tab-quote-make .src-urlbox:focus-within { border-color: var(--gold); box-shadow: 0 0 0 2px rgba(201,165,95,.25); }
+#tab-quote-make #srcUrlInput {
+  flex: 1; min-width: 0; resize: none; border: none; outline: none; background: transparent; font-family: inherit;
+  font-size: var(--fs-14, 14px); line-height: 1.5; color: var(--text); padding: 4px 0; min-height: 28px; max-height: 132px;
+}
+#tab-quote-make #srcUrlInput::placeholder { color: var(--c-9a8878); }
+#tab-quote-make .src-url-go {
+  flex: none; width: 34px; height: 34px; border-radius: 50%; border: none; cursor: pointer; font-size: var(--fs-16);
+  background: var(--accent); color: var(--surface); line-height: 1;
+}
+#tab-quote-make .src-url-go:hover { filter: brightness(1.1); }
+#tab-quote-make .src-url-msg { min-height: 20px; margin: 6px 6px 0; font-size: var(--fs-11-5); color: var(--green-leaf); }
+#tab-quote-make .src-url-msg.is-err { color: #c0492b; }
+#tab-quote-make .src-pills { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; margin: 10px 0 18px; }
+#tab-quote-make .src-pill {
+  font-family: inherit; font-size: var(--fs-13); color: var(--text); cursor: pointer; background: var(--surface);
+  border: 1px solid var(--border-md); border-radius: var(--r-pill); padding: 8px 18px; display: inline-flex; align-items: center; gap: 6px;
+}
+#tab-quote-make .src-pill:hover { background: var(--accent-lt); }
+#tab-quote-make #srcAddBox .qf-attach-drop {
+  display: flex; align-items: center; justify-content: center; text-align: center; min-height: 140px;
+  border: 1.5px dashed var(--c-d5c8b0); border-radius: 20px; background: var(--surface);
+  padding: var(--sp-18); cursor: pointer; transition: background .12s, border-color .12s;
+}
+#tab-quote-make #srcAddBox .qf-attach-drop:hover { background: var(--accent-lt); border-color: #b8a98f; }
+#tab-quote-make #srcAddBox .qf-attach-drop.is-drag { background: #eef4e6; border-color: var(--green-leaf); }
+#tab-quote-make #srcAddBox .qf-attach-drop.is-disabled { opacity: .55; }
+#tab-quote-make .qf-attach-hint { font-size: var(--fs-12); color: var(--text-muted); line-height: 1.7; }
 #tab-quote-make .qf-attach-hint small { color: var(--c-9a8a70); }
+#tab-quote-make .src-drop-ic { display: block; font-size: 22px; line-height: 1; margin-bottom: 8px; color: var(--text-muted); }
+#tab-quote-make .src-note { margin: 10px 4px 0; font-size: var(--fs-11-5); color: #8a5a00; background: #fff6e0; border-radius: var(--r-6); padding: 6px 10px; }
+#tab-quote-make .src-note[hidden] { display: none; }
+#tab-quote-make #srcAddBox .qf-attach-meter { margin: 16px 2px 0; }
+#tab-quote-make #srcAddBox .qf-meter-bar { height: 10px; border-radius: 999px; }
+#tab-quote-make #srcAddBox .qf-meter-fill { border-radius: 999px; min-width: 6px; }
+@media (max-width: 680px) {
+  #tab-quote-make #srcAddBox { padding: 22px 16px 16px; border-radius: 18px; }
+  #tab-quote-make #srcAddBox h3 { font-size: var(--fs-16); }
+}
 /* ストレージ残量メーター */
 #tab-quote-make .qf-attach-meter { margin: var(--sp-8) 0 var(--sp-4); }
 #tab-quote-make .qf-meter-row { display: flex; justify-content: space-between; font-size: var(--fs-10-5); color: var(--text-muted); margin-bottom: var(--sp-3); }
@@ -1320,7 +1357,7 @@
 /* CD 行（通常は非表示、必要時に表示） */
 #tab-quote-make .row-cd { display: none; align-items: center; gap: var(--sp-3); margin-top: var(--sp-2); }
 #tab-quote-make #quoteTable.show-cd .row-cd { display: flex; }
-#tab-quote-make .row-cd-lbl { font-size: 8px; color: var(--c-a08060); }
+#tab-quote-make .row-cd-lbl { font-size: 12px; color: var(--c-a08060); }
 #tab-quote-make .row-cd .w-cd { width: 100%; font-size: var(--fs-10); padding: 0 var(--sp-2); height: 18px; }
 
 /* 数量·単位セル */
@@ -2059,7 +2096,7 @@
 /* コンテナチップの内寸・外寸（＋容積/最大重量）表示（OT/FR 寸法入力の .cc-dim* とは別系統） */
 #tab-quote-make .cc-chip-dims { display: flex; flex-direction: column; gap: 0; margin: -2px 0 1px; min-width: 0; }
 #tab-quote-make .cc-chip-dim {
-  font-size: var(--fs-9); line-height: 1.4; color: #6f6456;
+  font-size: var(--text-2xs); line-height: 1.4; color: #6f6456;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   letter-spacing: -.2px; max-width: 100%;
 }
@@ -2634,7 +2671,7 @@
 #tab-quote-make .cond-inco-select:focus { border-color: var(--accent); }
 /* hidden 属性（JS が付け外し）を、下の display:flex 等が上書きしないように：片道の案件で復路インコタームズ、
    URL 未入力のときの参照 URL のリンク表示が出たままになっていた */
-#tab-quote-make #incoRetGroup[hidden], #tab-quote-make .qf-refurl-view[hidden], #tab-quote-make #qf-refurl[hidden] { display: none; }
+#tab-quote-make #incoRetGroup[hidden], #tab-quote-make #qf-refurl[hidden], #tab-quote-make .quote-field-corerf[hidden] { display: none; }
 #tab-quote-make .cond-prim-group {
   display: flex;
   flex-direction: column;
@@ -5532,6 +5569,16 @@ body.qp-dash-active #quoteActionDock { display: none !important; }
   padding: var(--sp-16) var(--sp-20) var(--sp-18); width: min(96vw, 1080px); max-height: 92vh;
   overflow-y: auto; box-shadow: 0 8px 32px rgba(0,0,0,.25);
 }
+/* 📝 リマーク候補（メール取込の確認画面） */
+#tab-quote-make .ei-remarks { margin-top: var(--sp-12); border: 1px solid var(--border); border-radius: var(--r-8); background: var(--card-bg); padding: var(--sp-8) var(--sp-10); }
+#tab-quote-make .ei-rem-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--sp-8); margin-bottom: var(--sp-6); }
+#tab-quote-make .ei-rem-hint { font-size: var(--fs-11); color: var(--text-muted); }
+#tab-quote-make .ei-rem-table { width: 100%; border-collapse: collapse; }
+#tab-quote-make .ei-rem-table th { text-align: left; font-size: var(--fs-11); color: var(--text-muted); font-weight: 700; padding: var(--sp-3) var(--sp-6); }
+#tab-quote-make .ei-rem-table td { padding: var(--sp-3) var(--sp-6); border-top: 1px solid var(--border); vertical-align: middle; }
+#tab-quote-make .ei-rem-table .ei-rem-to { width: 100%; max-width: 240px; }
+#tab-quote-make .ei-rem-table .ei-rem-text { width: 100%; min-width: 260px; }
+#tab-quote-make .ei-rem-only { margin: var(--sp-6) 0; font-size: var(--fs-12); color: var(--text-muted); }
 #tab-quote-make .ei-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: var(--sp-4); }
 #tab-quote-make .ei-head h3 { margin: 0; font-size: var(--fs-15); color: var(--accent-dk); }
 #tab-quote-make .ei-close {
@@ -8465,7 +8512,7 @@ body.qp-dash-active #quoteActionDock { display: none !important; }
   flex-shrink: 0; display: flex; flex-direction: column; align-items: flex-end; gap: 0; line-height: 1.25;
 }
 #tab-quote-make .qsp-dig-row-meta {
-  display: flex; gap: var(--sp-5); font-size: 8.5px; margin-top: 1px; white-space: nowrap;
+  display: flex; gap: var(--sp-5); font-size: 12px; margin-top: 1px; white-space: nowrap;
 }
 #tab-quote-make .qsp-dig-row-mk { color: #8a6a30; }
 #tab-quote-make .qsp-dig-row-mg { color: #2a6a3a; font-weight: 600; }
@@ -10079,7 +10126,7 @@ button.um-memberno--empty:hover { background: var(--accent-lt); border-color: #c
 }
 #tab-quote-make .q-secnav-btn:hover { background: var(--bg); color: var(--text); }
 #tab-quote-make .q-secnav-btn .q-secnav-ico { font-size: var(--fs-16, 16px); line-height: 1.2; }
-#tab-quote-make .q-secnav-btn em { font-style: normal; font-size: var(--fs-9-5); font-weight: 700; line-height: 1.2; white-space: nowrap; }
+#tab-quote-make .q-secnav-btn em { font-style: normal; font-size: var(--text-2xs); font-weight: 700; line-height: 1.2; white-space: nowrap; }
 #tab-quote-make .q-secnav-btn .q-secnav-dot {
   position: absolute; top: 4px; right: 4px; width: 7px; height: 7px; border-radius: 50%; box-sizing: border-box;
   border: 1.5px solid var(--border-md); background: transparent;
@@ -10542,7 +10589,7 @@ button.um-memberno--empty:hover { background: var(--accent-lt); border-color: #c
 #tab-quote-make .qp-sub-cells { display:inline-flex; gap:var(--sp-2); align-items:center; }
 #tab-quote-make .qp-sub { width:6px; height:6px; border-radius:1.5px; background:var(--c-d5c8b0); }
 #tab-quote-make .qp-sub.is-done { background:var(--green-leaf); }
-#tab-quote-make .qp-sub-more { font-size:8px; color:var(--c-8a7a64); }
+#tab-quote-make .qp-sub-more { font-size:12px; color:var(--c-8a7a64); }
 
 /* ===== 見積サマリ チャットタブ ===== */
 #tab-quote-make #qspPane-chat.is-active {
@@ -11275,12 +11322,12 @@ button.um-memberno--empty:hover { background: var(--accent-lt); border-color: #c
   padding: var(--sp-8) var(--sp-2); cursor: pointer; transition: all .12s;
 }
 #tab-quote-make .qrc-rail-ico { font-size: 17px; line-height: 1; }
-#tab-quote-make .qrc-rail-btn em { font-size: 8.5px; font-style: normal; font-weight: 700; color: #8a7558; }
+#tab-quote-make .qrc-rail-btn em { font-size: var(--text-2xs); white-space: nowrap; font-style: normal; font-weight: 700; color: #8a7558; }
 #tab-quote-make .qrc-rail-btn:hover { border-color: #b89a5e; background: var(--card-bg); }
 #tab-quote-make .qrc-rail-btn.is-on { border-color: var(--green-leaf); background: #f1f5e8; }
 #tab-quote-make .qrc-rail-btn.is-on em { color: #4a6a26; }
 #tab-quote-make .qrc-rail-badge {
-  position: absolute; top: 3px; right: 4px; font-size: 8.5px; font-weight: 800;
+  position: absolute; top: 3px; right: 4px; font-size: 12px; font-weight: 800;
   color: var(--surface); background: var(--green-leaf); border-radius: var(--r-8); min-width: 14px;
   text-align: center; padding: 0 var(--sp-3); line-height: 14px;
 }
@@ -11596,13 +11643,13 @@ body.is-row-dragging { cursor: grabbing; user-select: none; }
 #tab-quote-make .cloud-card-crt-edit:hover { opacity: 1; color: var(--accent); }
 .admin-creator-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.4); z-index: 10050; display: flex; align-items: center; justify-content: center; }
 .admin-creator-box { background: #fff; color: #222; border-radius: 10px; padding: 18px 20px; width: min(440px, 92vw); box-shadow: 0 10px 40px rgba(0,0,0,.3); }
-.admin-creator-title { font-weight: 700; font-size: 15px; margin-bottom: 6px; }
-.admin-creator-title small { font-weight: 400; font-size: 11px; color: #a33; margin-left: 6px; }
+.admin-creator-title { font-weight: 700; font-size: 14px; margin-bottom: 6px; }
+.admin-creator-title small { font-weight: 400; font-size: 12px; color: #a33; margin-left: 6px; }
 .admin-creator-case { font-size: 13px; font-weight: 600; margin-bottom: 2px; word-break: break-all; }
 .admin-creator-now { font-size: 12px; color: #666; margin-bottom: 10px; word-break: break-all; }
 .admin-creator-lbl { display: block; font-size: 12px; margin-bottom: 4px; }
 .admin-creator-box input { width: 100%; box-sizing: border-box; padding: 7px 9px; border: 1px solid #bbb; border-radius: 6px; font-size: 13px; }
-.admin-creator-note { font-size: 11px; color: #777; margin: 8px 0 12px; }
+.admin-creator-note { font-size: 12px; color: #777; margin: 8px 0 12px; }
 .admin-creator-actions { display: flex; justify-content: flex-end; gap: 8px; }
 .admin-creator-actions button { padding: 6px 14px; border-radius: 6px; border: 1px solid #bbb; background: #f3f3f3; cursor: pointer; font-size: 13px; }
 .admin-creator-actions .admin-creator-ok { background: #2e6fd0; border-color: #2e6fd0; color: #fff; font-weight: 600; }
@@ -11662,7 +11709,7 @@ body.is-row-dragging { cursor: grabbing; user-select: none; }
 #tab-quote-make #tableBody tr.drag-over-cross { outline: 2px dashed #e0a030; outline-offset: -2px; }
 #tab-quote-make .cross-move-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.4); z-index: 10060; display: flex; align-items: center; justify-content: center; }
 #tab-quote-make .cross-move-box { background: var(--surface, #fff); color: var(--text, #222); border-radius: 10px; padding: 16px 20px; width: min(440px, 92vw); box-shadow: 0 10px 40px rgba(0,0,0,.3); }
-#tab-quote-make .cross-move-title { font-weight: 700; font-size: 15px; margin-bottom: 8px; }
+#tab-quote-make .cross-move-title { font-weight: 700; font-size: 14px; margin-bottom: 8px; }
 #tab-quote-make .cross-move-body { font-size: 13px; line-height: 1.7; }
 #tab-quote-make .cross-move-diff { margin: 8px 0; padding: 6px 10px; background: #fff8e6; border: 1px solid #f0dca0; border-radius: 6px; word-break: break-all; }
 #tab-quote-make .cross-move-skip { display: flex; align-items: center; gap: 6px; font-size: 12px; color: #666; margin: 10px 0 12px; cursor: pointer; }
@@ -11695,16 +11742,16 @@ body.is-row-dragging { cursor: grabbing; user-select: none; }
   box-shadow: 0 -4px 14px rgba(0,0,0,.28);
 }
 #tab-quote-make #totFloat[hidden] { display: none; }
-#tab-quote-make #totFloat .tf-note { flex: 1; min-width: 0; font-size: 11px; color: #c9d4e0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#tab-quote-make #totFloat .tf-note { flex: 1; min-width: 0; font-size: 12px; color: #c9d4e0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 #tab-quote-make #totFloat .tf-label { font-weight: 700; font-size: 13px; white-space: nowrap; }
-#tab-quote-make #totFloat .tf-label small { font-weight: 400; font-size: 10px; letter-spacing: .06em; color: #aab8c8; margin-left: 4px; }
+#tab-quote-make #totFloat .tf-label small { font-weight: 400; font-size: 12px; letter-spacing: .06em; color: #aab8c8; margin-left: 4px; }
 #tab-quote-make #totFloat .tf-amts { display: flex; flex-direction: column; align-items: flex-end; line-height: 1.25; }
 #tab-quote-make #totFloat .tf-sell-v { font-size: 20px; letter-spacing: .02em; }
 #tab-quote-make #totFloat .tf-cost { font-size: 12px; color: #c9d4e0; }
-#tab-quote-make #totFloat .tf-tag { font-size: 10px; font-weight: 700; color: #8fb6e0; margin-right: 6px; }
+#tab-quote-make #totFloat .tf-tag { font-size: 12px; font-weight: 700; color: #8fb6e0; margin-right: 6px; }
 #tab-quote-make #totFloat .tf-profit { font-weight: 700; font-size: 14px; text-align: right; color: #b8d4f2; white-space: nowrap; min-width: 150px; }
 #tab-quote-make #totFloat .tf-profit.is-neg { color: #ffb4a8; }
-#tab-quote-make #totFloat .tf-profit small { display: block; font-size: 11px; font-weight: 600; color: #8fb6e0; }
+#tab-quote-make #totFloat .tf-profit small { display: block; font-size: 12px; font-weight: 600; color: #8fb6e0; }
 #tab-quote-make #totFloat .tf-profit.is-neg small { color: #ffb4a8; }
 @media print { #tab-quote-make #totFloat { display: none !important; } }
 
@@ -11716,14 +11763,14 @@ body.is-row-dragging { cursor: grabbing; user-select: none; }
 }
 #tab-quote-make #totFloat[data-compact] .tf-note { display: none; }
 #tab-quote-make #totFloat[data-compact] .tf-label { grid-area: label; font-size: 12px; align-self: center; }
-#tab-quote-make #totFloat[data-compact] .tf-label small { display: block; margin: 0; font-size: 9px; }
-#tab-quote-make #totFloat[data-compact].has-range .tf-label::after { content: "幅あり"; display: block; margin-top: 1px; font-size: 9px; font-weight: 700; color: #ffd48a; }
+#tab-quote-make #totFloat[data-compact] .tf-label small { display: block; margin: 0; font-size: 12px; }
+#tab-quote-make #totFloat[data-compact].has-range .tf-label::after { content: "幅あり"; display: block; margin-top: 1px; font-size: 12px; font-weight: 700; color: #ffd48a; }
 #tab-quote-make #totFloat[data-compact] .tf-amts { display: contents; }
 #tab-quote-make #totFloat[data-compact] .tf-sell { grid-area: sell; justify-self: end; text-align: right; min-width: 0; }
 #tab-quote-make #totFloat[data-compact] .tf-sell-v { font-size: 17px; line-height: 1.2; overflow-wrap: anywhere; }
-#tab-quote-make #totFloat[data-compact] .tf-cost { grid-area: cost; font-size: 11px; white-space: nowrap; }
+#tab-quote-make #totFloat[data-compact] .tf-cost { grid-area: cost; font-size: 12px; white-space: nowrap; }
 #tab-quote-make #totFloat[data-compact] .tf-profit { grid-area: profit; justify-self: end; min-width: 0; font-size: 12px; white-space: normal; text-align: right; overflow-wrap: anywhere; }
-#tab-quote-make #totFloat[data-compact] .tf-profit small { display: inline; margin-left: 6px; font-size: 10px; }
+#tab-quote-make #totFloat[data-compact] .tf-profit small { display: inline; margin-left: 6px; font-size: 12px; }
 
 /* 緊急タグの案件（ダッシュボードの先頭に固定表示。タグを外すと通常の並びに戻る） */
 #tab-quote-make .cloud-card.is-urgent { border-left: 4px solid #d94a3d; background-image: linear-gradient(90deg, rgba(217,74,61,.07), transparent 38%); }
@@ -11765,13 +11812,13 @@ body.is-row-dragging { cursor: grabbing; user-select: none; }
 #tab-quote-make .succ-sub { padding: 8px 16px 0; font-size: 12px; color: var(--text-md, #666); line-height: 1.6; }
 #tab-quote-make .succ-search { margin: 8px 16px; padding: 7px 10px; border: 1px solid var(--border, #bbb); border-radius: 6px; font-size: 13px; background: var(--surface, #fff); }
 #tab-quote-make .succ-list { flex: 1; min-height: 120px; overflow: auto; padding: 0 16px 8px; display: flex; flex-direction: column; gap: 4px; }
-#tab-quote-make .succ-item { display: grid; grid-template-columns: auto auto auto 1fr auto; align-items: center; gap: 8px; text-align: left; padding: 7px 10px; border: 1px solid var(--border, #ddd); border-radius: 6px; background: var(--card-bg, #fafafa); cursor: pointer; font-family: inherit; font-size: 12.5px; }
+#tab-quote-make .succ-item { display: grid; grid-template-columns: auto auto auto 1fr auto; align-items: center; gap: 8px; text-align: left; padding: 7px 10px; border: 1px solid var(--border, #ddd); border-radius: 6px; background: var(--card-bg, #fafafa); cursor: pointer; font-family: inherit; font-size: 13px; }
 #tab-quote-make .succ-item:hover, #tab-quote-make .succ-item:focus-visible { background: #eef3fb; border-color: #8aa0b8; outline: none; }
 #tab-quote-make .succ-ref { font-weight: 700; }
-#tab-quote-make .succ-badge { font-size: 10px; font-weight: 700; color: #1f6a3a; background: #dff3e6; border-radius: 8px; padding: 1px 6px; }
-#tab-quote-make .succ-gen { font-size: 10px; font-weight: 700; color: #7a4a10; background: #fbeccf; border-radius: 8px; padding: 1px 6px; }
+#tab-quote-make .succ-badge { font-size: 12px; font-weight: 700; color: #1f6a3a; background: #dff3e6; border-radius: 8px; padding: 1px 6px; }
+#tab-quote-make .succ-gen { font-size: 12px; font-weight: 700; color: #7a4a10; background: #fbeccf; border-radius: 8px; padding: 1px 6px; }
 #tab-quote-make .succ-cust { color: var(--text-md, #555); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; grid-column: 4; }
-#tab-quote-make .succ-meta { font-size: 11px; color: #888; white-space: nowrap; grid-column: 5; }
+#tab-quote-make .succ-meta { font-size: 12px; color: #888; white-space: nowrap; grid-column: 5; }
 #tab-quote-make .succ-none { padding: 24px; text-align: center; color: #888; font-size: 13px; }
 #tab-quote-make .succ-foot { display: flex; align-items: center; gap: 8px; padding: 10px 16px; border-top: 1px solid var(--border, #eee); }
 #tab-quote-make .succ-count { font-size: 12px; color: #888; margin-right: auto; }
@@ -11790,9 +11837,9 @@ body.is-row-dragging { cursor: grabbing; user-select: none; }
 #tab-quote-make .ci-layout .ci-cell-cust { grid-row: 2; }
 #tab-quote-make .ci-layout .ci-cell-person { grid-row: 2; }
 #tab-quote-make .ci-layout .quote-field { grid-column: auto; grid-row: auto; margin: 0; }
-#tab-quote-make .ci-auto, #tab-quote-make .ci-chip { display: inline-block; font-size: 10.5px; font-weight: 600; padding: 1px 7px; border-radius: 9px; background: #e8eef5; color: #35506e; vertical-align: middle; }
+#tab-quote-make .ci-auto, #tab-quote-make .ci-chip { display: inline-block; font-size: 12px; font-weight: 600; padding: 1px 7px; border-radius: 9px; background: #e8eef5; color: #35506e; vertical-align: middle; }
 #tab-quote-make .ci-auto.is-std { background: #e6f1e9; color: #2d6a3f; }
-#tab-quote-make .ci-hint { font-size: 11px; color: var(--text-md, #666); min-height: 0; margin-top: 3px; }
+#tab-quote-make .ci-hint { font-size: 12px; color: var(--text-md, #666); min-height: 0; margin-top: 3px; }
 #tab-quote-make .ci-hint:empty { display: none; }
 #tab-quote-make .ci-opt-btn, #tab-quote-make .ci-link-btn { background: none; border: 1px dashed var(--border, #bbb); border-radius: 6px; padding: 5px 10px; font-size: 12px; color: var(--text-md, #555); cursor: pointer; text-align: left; margin-top: 6px; }
 #tab-quote-make .ci-opt-btn:hover, #tab-quote-make .ci-link-btn:hover { border-color: #35506e; color: #35506e; }
@@ -11811,7 +11858,7 @@ body.is-row-dragging { cursor: grabbing; user-select: none; }
 #tab-quote-make .ci-layout .qf-status-btns:not(.ci-more-open) .qf-status-btn[data-more]:not(.active) { display: none; }
 /* 社内メモは右下の付箋に集約（欄は保存の値の保持役として残し、画面からは隠す） */
 #tab-quote-make .ci-layout ~ .quote-field-memo, #tab-quote-make .quote-field-memo { display: none; }
-.qf-memo-fab { position: fixed; right: 72px; bottom: 74px; box-sizing: border-box; z-index: 55; display: none; padding: 8px 14px; border: 1px solid #d9b96a; border-radius: 18px; background: #fff3c4; color: #5a3a10; font-size: 12.5px; font-weight: 700; cursor: pointer; box-shadow: 0 3px 10px rgba(0,0,0,.16); }
+.qf-memo-fab { position: fixed; right: 72px; bottom: 74px; box-sizing: border-box; z-index: 55; display: none; padding: 8px 14px; border: 1px solid #d9b96a; border-radius: 18px; background: #fff3c4; color: #5a3a10; font-size: 13px; font-weight: 700; cursor: pointer; box-shadow: 0 3px 10px rgba(0,0,0,.16); }
 body:has(#tab-quote-make.active) .qf-memo-fab { display: block; }
 body.qp-dash-active .qf-memo-fab, body:has(#qfMemoFloat:not([hidden])) .qf-memo-fab { display: none; }
 @media (max-width: 680px) {
@@ -11827,9 +11874,9 @@ body.qp-dash-active .qf-memo-fab, body:has(#qfMemoFloat:not([hidden])) .qf-memo-
 #tab-quote-make .cf-crumbs { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 8px; margin: 0 0 10px; }
 #tab-quote-make .cf-crumbs[hidden] { display: none; }
 #tab-quote-make .cf-crumb { display: inline-flex; align-items: baseline; gap: 6px; min-height: 36px; padding: 4px 12px; border: 1px solid var(--border, #bbb); border-radius: 6px; background: var(--surface, #fff); cursor: pointer; font-size: 13px; }
-#tab-quote-make .cf-crumb small { color: var(--text-md, #666); font-size: 11px; }
+#tab-quote-make .cf-crumb small { color: var(--text-md, #666); font-size: 12px; }
 #tab-quote-make .cf-crumb b { font-weight: 700; }
-#tab-quote-make .cf-crumb i { font-style: normal; color: var(--text-md, #888); font-size: 11px; }
+#tab-quote-make .cf-crumb i { font-style: normal; color: var(--text-md, #888); font-size: 12px; }
 #tab-quote-make .cf-crumb:hover { border-color: #35506e; }
 #tab-quote-make .cf-arrow { color: var(--text-md, #888); }
 #tab-quote-make .cf-opt { background: none; border: 1px dashed var(--border, #bbb); border-radius: 6px; padding: 5px 10px; font-size: 12px; color: var(--text-md, #555); cursor: pointer; }
@@ -11848,7 +11895,7 @@ body.qp-dash-active .qf-memo-fab, body:has(#qfMemoFloat:not([hidden])) .qf-memo-
 #tab-quote-make .rf-opt[hidden], #tab-quote-make .rf-carrier-opt[hidden], #tab-quote-make .z2-relay-fields.rf-hide { display: none; }
 #tab-quote-make .rf-carrier-btn { margin-left: 0; margin-top: 6px; }
 #tab-quote-make .rf-relay-btn { margin-left: 0; }
-#tab-quote-make .rf-chip { display: inline-block; margin-left: 8px; font-size: 10.5px; font-weight: 600; padding: 1px 7px; border-radius: 9px; background: #e8eef5; color: #35506e; }
+#tab-quote-make .rf-chip { display: inline-block; margin-left: 8px; font-size: 12px; font-weight: 600; padding: 1px 7px; border-radius: 9px; background: #e8eef5; color: #35506e; }
 #tab-quote-make .rf-chip[hidden] { display: none; }
 
 /* Design 回答（2026-11）：見出し下の空の帯を消す（hidden でも display が効いていた） */
@@ -11906,13 +11953,13 @@ body.qp-dash-active .qf-memo-fab, body:has(#qfMemoFloat:not([hidden])) .qf-memo-
 #tab-quote-make .cg-opt.has-kind { color: #35506e; }
 #tab-quote-make .cg-opt.has-haz { background: #fbf4e6; color: #7a3622; border-color: #c9a96a; }
 #tab-quote-make .cg-link { color: #35506e; }
-#tab-quote-make .cg-badge { background: #8a5a2b; color: #fff; font-size: 11px; padding: 0 6px; }
-#tab-quote-make .cg-arrow { font-size: 10px; }
+#tab-quote-make .cg-badge { background: #8a5a2b; color: #fff; font-size: 12px; padding: 0 6px; }
+#tab-quote-make .cg-arrow { font-size: 12px; }
 #tab-quote-make .cg-panel { margin: -8px 0 0; padding: 14px; border: 1px solid var(--border-md, #98989b); border-top: 0; background: var(--surface-alt, #f7f9fb); }
 #tab-quote-make .cg-panel[hidden] { display: none; }
 #tab-quote-make .cg-temp-switch { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 10px; }
 #tab-quote-make .cg-temp-switch[hidden] { display: none; }
-#tab-quote-make .cg-temp-switch small { font-size: 11px; color: var(--text-md, #666); }
+#tab-quote-make .cg-temp-switch small { font-size: 12px; color: var(--text-md, #666); }
 #tab-quote-make .cg-seg { display: inline-flex; }
 #tab-quote-make .cg-seg button { height: 34px; padding: 0 16px; border: 1px solid var(--text, #222); background: #fff; font: inherit; font-weight: 700; cursor: pointer; }
 #tab-quote-make .cg-seg button + button { border-left: 0; }
@@ -11927,7 +11974,7 @@ body.qp-dash-active .qf-memo-fab, body:has(#qfMemoFloat:not([hidden])) .qf-memo-
 #tab-quote-make .rm-tabs:empty { display: none; }
 #tab-quote-make .rm-tab { padding: 8px 14px; border: 1px solid var(--border-md, #bbb); border-bottom-color: transparent; background: var(--surface-alt, #f3f5f8); color: var(--text, #222); font: inherit; font-size: 13px; font-weight: 700; cursor: pointer; }
 #tab-quote-make .rm-tab.is-on { background: var(--surface, #fff); border-top: 3px solid #416180; margin-bottom: -1px; position: relative; z-index: 1; border-bottom-color: var(--surface, #fff); }
-#tab-quote-make .rm-count { font-weight: 400; font-size: 11px; color: var(--text-md, #666); }
+#tab-quote-make .rm-count { font-weight: 400; font-size: 12px; color: var(--text-md, #666); }
 #tab-quote-make .remark-presets.rm-tabbed { border: 1px solid var(--border-md, #bbb); padding: 14px 16px; min-height: 62px; align-content: flex-start; }
 #tab-quote-make .remark-presets.rm-tabbed > :not(.rt-on) { display: none; }
 /* 案件名の入力（管理番号入力「まず入れるもの」。ご担当者の下・全幅） */
@@ -11935,10 +11982,10 @@ body.qp-dash-active .qf-memo-fab, body:has(#qfMemoFloat:not([hidden])) .qf-memo-
 @media (max-width: 680px) { #tab-quote-make .ci-layout .ci-grid > .ci-cell.ci-cell-case { grid-column: 1 !important; grid-row: auto !important; } }
 
 /* 付箋ボタンは隠せる（✕。「⋯」メニューから開ける） */
-.qf-memo-fab .qmf-x { margin-left: 8px; padding: 0 4px; font-size: 11px; color: #8a6a2b; border-radius: 50%; cursor: pointer; }
+.qf-memo-fab .qmf-x { margin-left: 8px; padding: 0 4px; font-size: 12px; color: #8a6a2b; border-radius: 50%; cursor: pointer; }
 .qf-memo-fab .qmf-x:hover { background: rgba(0,0,0,.12); color: #5a3a10; }
 body.memo-fab-off .qf-memo-fab { display: none !important; }
-@media (max-width: 680px) { .qf-memo-fab .qmf-x { position: absolute; top: -6px; left: -6px; width: 20px; height: 20px; line-height: 18px; margin: 0; padding: 0; background: #fff; border: 1px solid #d9b96a; font-size: 10px; text-align: center; } }
+@media (max-width: 680px) { .qf-memo-fab .qmf-x { position: absolute; top: -6px; left: -6px; width: 20px; height: 20px; line-height: 18px; margin: 0; padding: 0; background: #fff; border: 1px solid #d9b96a; font-size: 12px; text-align: center; } }
 
 /* ===== スマホ（〜600px）の崩れ修正（Design 2026-11-09・mobile-fixes.css） ===== */
 @media (max-width: 600px) {
@@ -11981,11 +12028,11 @@ body.memo-fab-off .qf-memo-fab { display: none !important; }
   #tab-quote-make .mc-row.is-out { opacity: .6; }
   #tab-quote-make .mc-sub { font-size: 12px; color: #5d5d60; }
   #tab-quote-make .mc-tags { display: flex; flex-wrap: wrap; gap: 4px; }
-  #tab-quote-make .mc-tag { font-size: 10.5px; padding: 0 6px; border: 1px solid #c9ccd1; color: #5d5d60; background: #f5f5f8; font-weight: 600; }
+  #tab-quote-make .mc-tag { font-size: 12px; padding: 0 6px; border: 1px solid #c9ccd1; color: #5d5d60; background: #f5f5f8; font-weight: 600; }
   #tab-quote-make .mc-tag.t-pend { background: #fbf1d3; border-color: #d9a21b; color: #6b4e00; }
   #tab-quote-make .mc-tag.t-done { background: #e3f3e8; border-color: #3f8f55; color: #1f5a31; }
   #tab-quote-make .mc-amt { flex: none; text-align: right; font-weight: 700; font-size: 14px; display: flex; flex-direction: column; }
-  #tab-quote-make .mc-amt small { font-weight: 400; font-size: 10px; color: #5d5d60; }
+  #tab-quote-make .mc-amt small { font-weight: 400; font-size: 12px; color: #5d5d60; }
   #tab-quote-make .mc-go { flex: none; color: #8a8a8d; font-size: 18px; }
   #tab-quote-make .mc-addrow { margin: 10px 12px; height: 44px; border: 1px dashed #5d5d60; background: #fff; font: inherit; font-weight: 700; cursor: pointer; }
   #tab-quote-make .mc-total { position: sticky; bottom: calc(var(--dock-h, 52px) + env(safe-area-inset-bottom)); display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; padding: 10px 12px; background: #eef6ff; border-top: 2px solid #416180; font-weight: 700; z-index: 2; }
@@ -12004,7 +12051,7 @@ body.memo-fab-off .qf-memo-fab { display: none !important; }
 .mcs-nav { width: 44px; height: 44px; border: 1px solid #c3ccd6; background: #fff; font-size: 22px; cursor: pointer; }
 .mcs-nav:disabled { opacity: .35; }
 .mcs-pos { flex: 1; text-align: center; font-weight: 700; font-size: 14px; }
-.mcs-done { height: 44px; padding: 0 20px; border: 0; background: #2c455d; color: #fff; font-weight: 700; font-size: 15px; cursor: pointer; }
+.mcs-done { height: 44px; padding: 0 20px; border: 0; background: #2c455d; color: #fff; font-weight: 700; font-size: 14px; cursor: pointer; }
 .mcs-body { flex: 1 1 auto; overflow-y: auto; padding: 12px 14px calc(18px + env(safe-area-inset-bottom)); display: flex; flex-direction: column; gap: 12px; -webkit-overflow-scrolling: touch; }
 .mcs-f { display: flex; flex-direction: column; gap: 4px; font-size: 12px; font-weight: 700; color: #424244; min-width: 0; }
 .mcs-f small { font-weight: 400; color: #5d5d60; }
@@ -12013,10 +12060,10 @@ body.memo-fab-off .qf-memo-fab { display: none !important; }
 .mcs-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
 .mcs-grid > .mcs-f:first-child:nth-last-child(3) { grid-column: 1 / -1; }
 .mcs-sect { font-size: 12px; font-weight: 700; color: #35506e; border-bottom: 1px solid #d4d4d7; padding-bottom: 3px; margin-top: 4px; }
-.mcs-tag { display: inline-block; font-size: 10px; padding: 0 5px; color: #fff; font-weight: 700; }
+.mcs-tag { display: inline-block; font-size: 12px; padding: 0 5px; color: #fff; font-weight: 700; }
 .mcs-tag.t-cost { background: #6b7785; } .mcs-tag.t-sell { background: #2c455d; }
 .mcs-calc { display: flex; justify-content: space-between; gap: 10px; padding: 8px 10px; background: #eef6ff; border-left: 4px solid #416180; font-size: 13px; }
-.mcs-calc b { font-size: 15px; }
+.mcs-calc b { font-size: 14px; }
 .mcs-cd { padding: 8px 10px; background: #fbf1d3; border-left: 4px solid #d9a21b; font-size: 12px; }
 .mcs-cd[hidden] { display: none; }
 .mcs-row2, .mcs-row3 { display: grid; gap: 8px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -12034,3 +12081,102 @@ body.mcs-open { overflow: hidden; }
 html.mode-simple .mcs-more { display: none; }
 @media (min-width: 601px) { .mcs-overlay { display: none !important; } }
 .mcs-f > .mcs-tag { align-self: flex-start; }
+
+/* ===== 見積入力の 2 カラム配置（広い画面・js/quote/layout-cols.js）：左＝① 条件、右＝② 貨物。入力欄はコンパクトに ===== */
+#tab-quote-make .qm-cols { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 0 20px; align-items: start; }
+#tab-quote-make .qm-col { display: flex; flex-direction: column; min-width: 0; }
+#tab-quote-make .qm-col > .condition-section { margin-left: 0; margin-right: 0; }
+body.qm-2col #tab-quote-make .ci-layout { max-width: none; }
+body.qm-2col #tab-quote-make #cargoCondGrid.cg-flow { max-width: none; }
+body.qm-2col #tab-quote-make .qm-col .zone-builder { flex-direction: column; }
+/* 1 カラムのときも、条件のセクションは同じ幅にそろえる（管理番号入力だけ細く、他が横いっぱい…というガタつきをなくす） */
+#tab-quote-make .quote-main > .condition-section:not(#section-table) { max-width: 1000px; }
+#tab-quote-make .qm-col > .condition-section { max-width: none; }
+#tab-quote-make .quote-header.ci-layout { max-width: none; }
+
+/* 案件名の入力に統合した「📝 社内メモ」（付箋を開く）。右下の付箋ボタンは出さない */
+.qf-memo-fab { display: none !important; }
+#tab-quote-make .ci-case-row { display: flex; gap: 8px; align-items: stretch; }
+#tab-quote-make .ci-case-row > input { flex: 1 1 auto; min-width: 0; }
+#tab-quote-make .ci-memo-btn { position: relative; flex: none; display: inline-flex; align-items: center; gap: 4px; padding: 0 14px; border: 1px solid #d9b96a; background: #fff3c4; color: #5a3a10; font: inherit; font-size: 13px; font-weight: 700; cursor: pointer; white-space: nowrap; }
+#tab-quote-make .ci-memo-btn:hover, #tab-quote-make .ci-memo-btn.is-open { background: #f5e19a; }
+#tab-quote-make .ci-memo-dot { display: none; width: 8px; height: 8px; border-radius: 50%; background: #d9534f; }
+#tab-quote-make .ci-memo-btn.has-memo .ci-memo-dot { display: inline-block; }
+@media (max-width: 680px) { #tab-quote-make .ci-memo-btn { padding: 0 10px; } }
+
+/* 経由地を出していないとき：POL と POD をレールで直接つなぎ、途中の「＋ 経由地」はレール上の小さなボタンにする（間延び・レールの途切れをなくす） */
+#tab-quote-make .zone-main.rf-flow .z2-pol-pod-row.rf-via-off { gap: 30px; }
+#tab-quote-make .zone-main.rf-flow .z2-pol-pod-row.rf-via-off .z2-port:not(:last-child)::after { bottom: -48px; }
+#tab-quote-make .zone-main.rf-flow .z2-port > .rf-via-btn { position: absolute; left: 0; top: -26px; width: auto; margin: 0; padding: 0 8px 0 0; height: 20px; line-height: 18px; display: inline-flex; align-items: center; gap: 4px; border: 0; background: transparent; color: #35506e; font-size: 12px; font-weight: 600; text-align: left; z-index: 2; }
+#tab-quote-make .zone-main.rf-flow .z2-port > .rf-via-btn::before { content: '+'; display: inline-flex; align-items: center; justify-content: center; width: 17px; height: 17px; margin-left: 0; border-radius: 50%; border: 1px solid #35506e; background: #fff; font-size: 13px; line-height: 1; }
+#tab-quote-make .zone-main.rf-flow .z2-port > .rf-via-btn:hover { color: #1d2f43; }
+#tab-quote-make .zone-main.rf-flow .z2-port > .rf-via-btn:hover::before { background: #35506e; color: #fff; }
+#tab-quote-make .zone-main.rf-flow .z2-port > .rf-via-btn[hidden] { display: none; }
+#tab-quote-make .zone-main.rf-flow .rf-carrier-btn { margin-left: 28px; }
+/* 「貼り付けで一括登録」は一旦非表示（ボタン・モーダル・処理は残す。hidden を外すと戻る） */
+.pki-open-btn[hidden] { display: none !important; }
+
+/* 「作業範囲・条件」は全体リマークとの使い分けが曖昧なため、一旦非表示（セクション・入力欄・保存・左ナビの項目は残す。CSS の下の 1 行を消すと戻る） */
+#tab-quote-make #section-scope, #tab-quote-make .q-secnav-btn[data-sec="section-scope"] { display: none !important; }
+
+/* 幹線輸送：POD とキャリア情報の間をあける／役割・実運送人はキャリアの直下のオプション／サービス名と T/T は横並び */
+#tab-quote-make .zone-main.rf-flow .rf-carrier-btn { margin-top: 22px; }
+#tab-quote-make .zone-main.rf-flow .rf-carrier-opt { margin-top: 22px; }
+#tab-quote-make .zone-main.rf-flow .rf-carrier-opt .z2-label { display: none; }
+#tab-quote-make .zone-main.rf-flow .rf-relay-btn { margin: 0 0 8px; }
+#tab-quote-make .zone-main.rf-flow .rf-svc-tt { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 8px; }
+#tab-quote-make .zone-main.rf-flow .rf-svc-tt > .z2-row { margin: 0; min-width: 0; flex: 1 1 120px; }
+#tab-quote-make .zone-main.rf-flow .rf-svc-tt .z2-service-input, #tab-quote-make .zone-main.rf-flow .rf-svc-tt .z2-tt-input { width: 100%; min-width: 0; }
+#tab-quote-make .zone-main.rf-flow .rf-svc-tt .z2-tt-row { gap: 6px; }
+#tab-quote-make .zone-main.rf-flow .rf-route-add-row { display: flex; justify-content: flex-end; margin: 0 0 6px; }
+#tab-quote-make .zone-main.rf-flow .rf-carrier-opt .z2-relay-fields { margin-bottom: 8px; }
+#tab-quote-make .zone-main.rf-flow .rf-svc-tt .z2-tt-prefix { white-space: nowrap; font-size: 12px; }
+#tab-quote-make .zone-main.rf-flow .rf-svc-tt .z2-tt-input::placeholder, #tab-quote-make .zone-main.rf-flow .rf-svc-tt .z2-service-input::placeholder { font-size: 12px; }
+
+/* 幹線輸送：港名と国の枠は 1 行にまとめる（ラベル行の下に「港名｜🌐 国」を横並び）。経由地・POL・POD とも */
+#tab-quote-make .zone-main.rf-flow .z2-port { display: grid; grid-template-columns: minmax(0, 1fr) minmax(96px, 150px); column-gap: 8px; row-gap: 4px; align-items: stretch; }
+#tab-quote-make .zone-main.rf-flow .z2-port > .z2-port-head { display: contents; }
+#tab-quote-make .zone-main.rf-flow .z2-port .z2-port-label { grid-column: 1 / -1; grid-row: 1; }
+#tab-quote-make .zone-main.rf-flow .z2-port > .z2-input { grid-column: 1; grid-row: 2; min-width: 0; }
+#tab-quote-make .zone-main.rf-flow .z2-port .z2-country { grid-column: 2; grid-row: 2; height: auto; max-width: none; width: auto; min-width: 0; padding: 0 8px; font-size: var(--fs-12, 12px); text-align: left; box-sizing: border-box; }
+#tab-quote-make .zone-main.rf-flow .z2-port > .rf-via-btn { grid-column: 1 / -1; grid-row: 0; }
+
+/* ===== 特殊コンテナ（RF／OT・FR）の入力部分のレイアウト崩れの修正 ===== */
+/* RF／OT・FR の切替は、同じ幅で横に並べる（ボタンの大きさが凸凹しない） */
+#tab-quote-make .cc-sub-tabs { flex-wrap: nowrap; }
+#tab-quote-make .cc-sub-tab { flex: 1 1 0; min-width: 0; text-align: center; white-space: normal; }
+#tab-quote-make .cc-og-qtylbl { display: none; font-size: 12px; color: var(--text-md, #666); }
+@media (max-width: 600px) {
+  #tab-quote-make .cc-spec { padding: 10px; gap: 10px 12px; }
+  #tab-quote-make .cc-spec-field { flex: 1 1 100%; min-width: 0; }
+  #tab-quote-make .cc-spec-input { width: 100%; min-width: 0; box-sizing: border-box; }
+  #tab-quote-make .cc-spec-field .cc-seg { display: flex; width: 100%; }
+  #tab-quote-make .cc-spec-field .cc-seg-btn { flex: 1 1 0; min-width: 0; }
+  /* OT/FR のはみ出しシミュレーション：項目を縦に積み、入力欄は幅いっぱい・行は折り返す */
+  #tab-quote-make .cc-og-head { flex-direction: column; align-items: stretch; }
+  #tab-quote-make .cc-og-controls { flex-direction: column; align-items: stretch; gap: 10px; }
+  #tab-quote-make .cc-og-ctn { flex-direction: column; align-items: stretch; gap: 4px; }
+  #tab-quote-make .cc-og-ctn .cc-spec-input, #tab-quote-make .cc-og-cols { min-width: 0; width: 100%; height: 36px; }
+  #tab-quote-make .cc-og-add { width: 100%; height: 36px; }
+  #tab-quote-make .cc-og-listhead { display: none; }
+  #tab-quote-make .cc-og-row { gap: 8px; }
+  #tab-quote-make .cc-og-row .cc-dims { display: flex; align-items: center; gap: 4px; width: 100%; min-width: 0; }
+  #tab-quote-make .cc-og-row .cc-dims .cc-dim { flex: 1 1 0; min-width: 0; width: auto; }
+  #tab-quote-make .cc-og-row .cc-dims .cc-dim-x, #tab-quote-make .cc-og-row .cc-dims .cc-dim-unit { flex: none; }
+  #tab-quote-make .cc-og-qtylbl { display: inline; }
+  #tab-quote-make .cc-og-row .og-qty { width: 64px; min-width: 64px; }
+  #tab-quote-make .cc-og-rowresult { flex: 1 1 0; min-width: 0; white-space: normal; }
+}
+
+/* 見積入力ツールバー：狭い幅では「ダッシュボードに戻る」を「←」だけにし、ボタンの高さをそろえる */
+@media (max-width: 680px) {
+  #tab-quote-make #qmDash { font-size: 0; padding: 0 14px; min-width: 44px; }
+  #tab-quote-make #qmDash::before { content: "←"; font-size: 20px; font-weight: 700; line-height: 1; }
+}
+@media (max-width: 680px) {
+  #tab-quote-make #saveToolbar .qm-btn, #tab-quote-make #saveToolbar .qm-banner, #tab-quote-make #saveToolbar .tb-menu-btn { min-height: 44px; box-sizing: border-box; display: inline-flex; align-items: center; }
+}
+@media (max-width: 600px) {
+  #tab-quote-make .cc-spec--og > *, #tab-quote-make .cc-og-head, #tab-quote-make .cc-og-controls, #tab-quote-make .cc-og-list, #tab-quote-make .cc-og-row, #tab-quote-make .cc-og-sim { min-width: 0; max-width: 100%; box-sizing: border-box; }
+  #tab-quote-make .cc-og-ctn select { max-width: 100%; text-overflow: ellipsis; }
+}

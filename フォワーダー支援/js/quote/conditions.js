@@ -943,36 +943,51 @@
       return s.length > 48 ? s.slice(0, 47) + '…' : s;
     } catch (_) { return u.length > 48 ? u.slice(0, 47) + '…' : u; }
   }
-  // テキストエリアの内容から URL を抽出し、リンク表示（view）へ切り替える。
-  // URL が無ければ編集用テキストエリアのまま。
+  // 参照URLの一覧（「📚 参照資料」カードの #qfSrcUrls）を、保存用の #qf-refurl の内容から描き直す。
+  // 案件を開いたとき・URL を足す／消したときに呼ぶ。保存形式は従来どおり（URL を改行区切りで #qf-refurl に持つ）。
   window.renderRefUrlLinks = function () {
     const ta = document.getElementById('qf-refurl');
-    const view = document.getElementById('qf-refurl-view');
-    if (!ta || !view) return;
+    const wrap = document.getElementById('qfSrcUrls');
+    if (!ta || !wrap) return;
     const links = _ruExtract(ta.value);
-    const wrap = view.querySelector('.qf-refurl-links');
-    if (!links.length) {
-      if (wrap) wrap.innerHTML = '';   // 別案件へ切り替わった際に古いリンクが残らないようにする
-      view.hidden = true; ta.hidden = false; return;
-    }
-    if (wrap) {
-      wrap.innerHTML = links.map(u =>
-        '<a class="qf-refurl-link" href="' + _ruEsc(u) + '" target="_blank" rel="noopener noreferrer" title="' +
-        _ruEsc(u) + '">🔗 ' + _ruEsc(_ruShort(u)) + '</a>'
-      ).join('');
-    }
-    ta.hidden = true;
-    view.hidden = false;
+    wrap.innerHTML = links.map(u =>
+      '<div class="qf-attach-item src-url-item">' +
+        '<a class="qf-att-open src-url-link" href="' + _ruEsc(u) + '" target="_blank" rel="noopener noreferrer" title="' + _ruEsc(u) + '">🔗 ' + _ruEsc(_ruShort(u)) + '</a>' +
+        '<span class="qf-att-meta">URL</span>' +
+        '<button type="button" class="qf-att-del src-url-del" data-url="' + _ruEsc(u) + '" title="この URL を外す">✕</button>' +
+      '</div>'
+    ).join('');
+    if (typeof window.srcSyncEmpty === 'function') window.srcSyncEmpty();
   };
-  // リンク表示から編集モード（テキストエリア）へ戻す
-  window.editRefUrl = function () {
+  // 互換：以前の「✎ 編集」。いまは資料を追加するダイアログを開く
+  window.editRefUrl = function () { if (typeof window.srcAddOpen === 'function') window.srcAddOpen(); };
+  // URL の取り出し・短縮表示・1 件の削除（資料を追加するダイアログ sources.js からも使う）
+  window.refUrlExtract = _ruExtract;
+  window.refUrlRemove = function (url) {
     const ta = document.getElementById('qf-refurl');
-    const view = document.getElementById('qf-refurl-view');
-    if (!ta || !view) return;
-    view.hidden = true;
-    ta.hidden = false;
-    ta.focus();
+    if (!ta) return;
+    const re = /https?:\/\/[^\s<>"'）)】」]+/g;
+    let removed = false;
+    const next = ta.value.replace(re, m => {
+      if (removed) return m;
+      const u = m.replace(/[.,;:!?！？）)、。]+$/, '');
+      if (u === url) { removed = true; return ''; }
+      return m;
+    });
+    ta.value = next.split(/\r?\n/).map(l => l.replace(/[ \t　]+$/, '')).filter(l => l.trim()).join('\n');
+    if (!_ruExtract(ta.value).length) ta.value = '';   // URL が 1 件も無くなったら、一覧に出ない文の残りも消す（見えないごみを残さない）
+    ta.dispatchEvent(new Event('input', { bubbles: true }));
+    ta.dispatchEvent(new Event('change', { bubbles: true }));
+    window.renderRefUrlLinks();
+    if (typeof window.ciSync === 'function') window.ciSync();
   };
+  // 一覧の ✕（URL を外す）は一覧のどこでも効くように委譲する
+  document.addEventListener('click', function (e) {
+    const btn = e.target.closest && e.target.closest('.src-url-del');
+    if (!btn) return;
+    e.preventDefault();
+    window.refUrlRemove(btn.dataset.url || '');
+  });
 
   // ===== 貨物セクション：関連知識・他法令 =====
   // 知識タブ（カテゴリ cat の サブタブ tabId）へジャンプし、任意で anchorId へスクロール
@@ -1786,6 +1801,7 @@
         <input type="number" class="cc-dim og-w" min="0" step="1" placeholder="幅" inputmode="numeric" value="${v(item.w)}" oninput="recalcOverGauge()" /><span class="cc-dim-x">×</span>
         <input type="number" class="cc-dim og-h" min="0" step="1" placeholder="高さ" inputmode="numeric" value="${v(item.h)}" oninput="recalcOverGauge()" /><span class="cc-dim-unit">cm</span>
       </div>
+      <span class="cc-og-qtylbl">個数</span>
       <input type="number" class="cc-dim og-qty" min="1" step="1" value="${v(qty)}" inputmode="numeric" title="個数" oninput="recalcOverGauge()" />
       <span class="cc-og-rowresult" data-state="empty">—</span>
       <button type="button" class="cc-og-del" onclick="removeOverGaugeRow(this)" title="このサイズを削除" aria-label="削除">✕</button>

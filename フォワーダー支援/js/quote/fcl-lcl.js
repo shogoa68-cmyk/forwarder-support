@@ -202,7 +202,7 @@
         現在の物量（${cargo.cbm.toFixed(2)} CBM）では
         <b>${fclWin ? 'FCL（' + _esc(r.now.fcl.name) + ' × ' + r.now.fcl.n + '）' : 'LCL'}</b> が
         <b>${FMT(diff)}</b> 有利<br>
-        <span style="font-size:11px;color:#6a5a40">LCL ${FMT(l)} ／ FCL ${FMT(f)}（${_esc(r.now.fcl.name)} × ${r.now.fcl.n}）</span>
+        <span style="font-size:12px;color:#6a5a40">LCL ${FMT(l)} ／ FCL ${FMT(f)}（${_esc(r.now.fcl.name)} × ${r.now.fcl.n}）</span>
       </div>`;
     }
     if (r.breakEvens.length) {
