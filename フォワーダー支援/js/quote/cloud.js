@@ -1634,6 +1634,7 @@
   }
   // ロックを失った（管理者が強制解放 or 他メンバーが引き継ぎ）→ 閲覧モードへ落とす
   function _onLockLost(id) {
+    _dirtyKept = _quoteDirty;   // 未保存の入力は残る。再度「編集」しても未保存の印を消さない
     _stopLockHeartbeat();
     if (_lockHeldId === id) _lockHeldId = null;
     _setEditing(null);
@@ -1642,6 +1643,7 @@
   }
   // 自分が長時間放置 → 自分でロックを解放して閲覧モードへ（他メンバーが編集できるように）
   function _onSelfIdleRelease(id) {
+    _dirtyKept = _quoteDirty;   // 未保存の入力は残る。再度「編集」しても未保存の印を消さない
     _stopLockHeartbeat();
     _releaseLock(id);
     if (_lockHeldId === id) _lockHeldId = null;
@@ -1674,6 +1676,7 @@
   }
 
   // ========== 作業モード（閲覧／編集）：開く=閲覧、編集でロック取得、保存=作業終了で解放 ==========
+  var _dirtyKept = false;   // 編集権を失って閲覧に落ちたとき、未保存の入力があったか（再編集しても未保存扱いを続ける）
   let _shareMode = 'edit';   // 'edit'（新規・自分が編集中）| 'view'（共有案件を閲覧中・読み取り専用）
 
   function _applyShareMode(mode) {
@@ -1729,7 +1732,8 @@
     }
     _setEditing(_loadedCloudId);     // Presence：あなたが作業中
     _applyShareMode('edit');
-    _resetQuoteDirty();              // 編集開始直後は未保存なし
+    if (_dirtyKept) { _dirtyKept = false; _quoteDirty = true; }   // 放置・奪取で閲覧に落ちた時の未保存の入力は残っている
+    else _resetQuoteDirty();         // 編集開始直後は未保存なし
     quoteShowToast('✏️ 編集を開始しました（あなたが作業中・他メンバーは削除/上書き不可）', 'success', 3500);
   }
 
@@ -1789,7 +1793,7 @@
   // 未保存検知：編集モード中のユーザー入力で dirty=true、保存/読込/新規でクリア
   var _quoteDirty = false;
   function _markQuoteDirty() { if (_shareMode === 'edit') _quoteDirty = true; }
-  function _resetQuoteDirty() { setTimeout(function () { _quoteDirty = false; }, 0); }
+  function _resetQuoteDirty() { _dirtyKept = false; setTimeout(function () { _quoteDirty = false; }, 0); }
   // 未保存の変更があるときの確認ダイアログ（保存／破棄／中止の 3 択）。
   // ブラウザ標準の confirm は 2 択しか作れず「その場で保存する」導線が作れないため、
   // 専用のモーダルを出す。戻り値 true＝そのまま進んでよい／false＝操作を中止する。
