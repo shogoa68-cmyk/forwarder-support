@@ -251,8 +251,8 @@
       .filter(r => r.sv || r.nm);
   }
 
-  function _build(source) {
-    const period = document.getElementById('statsPeriod')?.value || 'all';
+  function _build(source, allTime) {
+    const period = allTime ? 'all' : (document.getElementById('statsPeriod')?.value || 'all');
     const now = Date.now();
     const CUTOFF = { all: 0, month: now - 30*86400000, q3: now - 91*86400000, year: now - 365*86400000 };
     const cutoff = CUTOFF[period] || 0;
@@ -2781,6 +2781,7 @@
     const act = document.activeElement;
     const keep = act && act.id === 'masterSearch' ? { s: act.selectionStart, e: act.selectionEnd } : null;
     _renderMasterInner();
+    if (typeof window.driftRenderCard === 'function') window.driftRenderCard();   // 🔍 ゆらぎチェックのカード（js/drift-check.js）
     const inp = document.getElementById('masterSearch');
     if (inp && keep) { inp.focus(); try { inp.setSelectionRange(keep.s, keep.e); } catch (e) { /* 無視 */ } }
     const c = document.getElementById('masterSearchCount');
@@ -2967,7 +2968,7 @@
       _masterHitCount = rowsAll.length;
     }
 
-    const headH = _masterHeadHtml(totalCount, allSyn.length) + _crStaleNotice() + (typeof window.masterTopNoticeHtml === 'function' ? window.masterTopNoticeHtml() : '') + _requestsHtml();
+    const headH = _masterHeadHtml(totalCount, allSyn.length) + '<div id="driftCard" class="drift-card"></div>' + _crStaleNotice() + (typeof window.masterTopNoticeHtml === 'function' ? window.masterTopNoticeHtml() : '') + _requestsHtml();
     if (!rowsAll.length) {
       e.innerHTML = headH + formH + chipsH + (_terms.length
         ? '<p class="stats-empty">「' + _esc(_masterQuery.trim()) + '」に一致するマスターはありません。<br><button type="button" class="master-type-preset" onclick="statsMasterClearQuery()">検索をクリア</button>（種別の絞り込みも確認してください）</p>'
@@ -4122,6 +4123,14 @@
       btn.disabled = false;
     });
   };
+
+  // ゆらぎチェック（js/drift-check.js）用：全期間の表記グループと、判定に使う正規化・読み込み状態
+  window.statsDriftInput = function () {
+    const d = _build('both', true);
+    return { customer: d.customerGroups, sv: d.svGroups, port: d.portGroups, nm: d.nmGroups, un: d.unGroups };
+  };
+  window.statsNormalizeKey = _normalize;
+  window.statsMastersReady = () => _cloud() && _cvMap !== null;
 
   window.statsRefresh = async function () {
     const btn = document.querySelector('.stats-refresh-btn');
