@@ -54,6 +54,13 @@ const ok = (n, c, x) => console.log((c ? 'PASS ' : 'FAIL ') + n + (c ? '' : ' �
   await p.evaluate(id => document.querySelector(`#row-${id} .row-select-chk`).click(), id);
   await p.evaluate(() => deleteSelectedRows());
   ok('一括削除：親行にぶら下がるリマーク行も消える', await p.evaluate(id => !document.querySelector(`#tableBody tr[data-parent-id="${id}"]`) && !document.getElementById('row-' + id), id));
+  // ⑤ 選択モード中に行の操作ボタンを押しても、その行の選択は切り替わらない
+  await p.evaluate(() => { addRow(); addRow(); });
+  const ids = await p.evaluate(() => [...document.querySelectorAll('#tableBody tr[id^=row-]:not([data-type])')].slice(-2).map(r => r.id));
+  await p.evaluate(i => document.querySelector(`#${i[0]} .row-select-chk`).click(), ids);
+  await p.evaluate(i => document.querySelector(`#${i[1]} .row-done-btn`).click(), ids);
+  await p.evaluate(i => document.querySelector(`#${i[1]} .row-add-btn`).click(), ids);
+  ok('選択モード：行のボタン（完了・追加）を押しても選択は変わらない', await p.evaluate(() => [...document.querySelectorAll('.row-select-chk:checked')].length) === 1);
   ok('JS エラーなし', errs.length === 0, errs);
   await b.close(); srv.close();
 })();
