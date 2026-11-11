@@ -289,10 +289,10 @@ body:has(#tab-master.active) #backToQuoteFab { display: none !important; }
 /* ===== 全体リマークの引き出し（remark-sheet.js）に合わせた固定要素の持ち上げ =====
    現行 CSS は、引き出しの高さ分（--rms-lift）だけ右下のドック・付箋を上へ避ける。Design の元ファイルは固定値（18px／80px）のため、
    現行との差分から作る Industry 版が元の固定値へ戻してしまい、ドックが引き出しの上に重なる（引き出しが隠れる）。ここで同じ計算式に戻す。 */
-#quoteActionDock { bottom: calc(18px + var(--rms-lift, 0px)); }
+#quoteActionDock { bottom: calc(18px + var(--rms-bar, 0px)); }
 .qf-memo-float { bottom: calc(80px + var(--rms-lift, 0px)); }
 @media (max-width: 680px) {
-  #quoteActionDock { bottom: calc(10px + var(--rms-lift, 0px)); }
+  #quoteActionDock { bottom: calc(10px + var(--rms-bar, 0px)); }
 }
 
 /* ===== ダッシュボードのお客様種別タグ（cloud.js _custDealChip・quote.css .cloud-deal） =====

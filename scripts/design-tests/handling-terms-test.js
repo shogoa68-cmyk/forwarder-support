@@ -22,7 +22,8 @@ const ok=(n,c,x)=>console.log((c?'PASS ':'FAIL ')+n+(c?'':' → '+JSON.stringify
  await p.waitForTimeout(400);
  await p.evaluate(()=>{document.getElementById('qf-customer').value='株式会社サンプル';document.getElementById('qf-person').value='山田';});
 
- const vis=()=>p.evaluate(()=>{const g=document.getElementById('handlingGroup');return !!g&&!g.hidden&&g.getClientRects().length>0;});
+ const vis=()=>p.evaluate(()=>{const g=document.getElementById('handlingGroup');return !!g&&!g.hidden&&g.getClientRects().length>0&&getComputedStyle(g).display!=='none';});
+ ok('新規作成の直後（輸送モード未選択）は、荷役条件の欄は画面に出ていない（hidden が display:flex に負けない）',await p.evaluate(()=>{const g=document.getElementById('handlingGroup');return !!g&&g.hidden&&getComputedStyle(g).display==='none'&&g.getClientRects().length===0;}));
  const hint=()=>p.evaluate(()=>{const h=document.getElementById('cond-handling-hint');return h&&getComputedStyle(h).display!=='none'?h.textContent.trim():'';});
  const setInco=v=>p.evaluate(v=>{const s=document.getElementById('cond-incoterms');const o=[...s.options].find(o=>o.value.startsWith(v));s.value=o.value;s.dispatchEvent(new Event('change',{bubbles:true}));},v);
  await setInco('FOB');
