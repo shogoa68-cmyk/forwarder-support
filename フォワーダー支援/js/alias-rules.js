@@ -1586,6 +1586,8 @@
   //   同業者の先がさらに同業者でもよい（何段でも）。children は仮想の項目（自分の詳細には保存せず、先のお客様側の via を書き換える）
   const _DEAL_SHIPPER = '荷主（直接）', _DEAL_FWD = '同業者（フォワーダー・代理店）';
   window.MD_DEAL_FWD = _DEAL_FWD;
+  // 先のお客様を持てる取引形態（同業者・海外代理店）
+  window.mdIsDealer = v => v === _DEAL_FWD || v === '海外代理店';
   const _DEAL_FIELD = { key: 'dealType', label: '取引形態', options: [
     { value: '', label: '（未設定）' }, { value: _DEAL_SHIPPER, label: _DEAL_SHIPPER }, { value: _DEAL_FWD, label: _DEAL_FWD }, { value: '海外代理店', label: '海外代理店' }, { value: 'その他', label: 'その他' },
   ] };

@@ -1196,6 +1196,13 @@ const http = require('http'), fs = require('fs'), path = require('path');
     ok(L + 'サブコン側に「お客様にも登録」の印', (await chip('ABC Agency')).includes('お客様にも登録') && (await chip('サブコンだけ社')) === '');
     await p.click('#statsPane-master tr[data-mvalue="ABC Agency"] .stats-md-both'); await p.waitForTimeout(900);
     ok(L + '印を押すと、もう一方（お客様）の同じ会社へ移る', await p.evaluate(() => !!document.querySelector('#statsPane-master tr[data-mfield="customer"][data-mvalue="ABC Agency"]')));
+    await p.evaluate(() => statsMasterSetFilter('customer')); await p.waitForTimeout(250);
+    await p.evaluate(() => document.querySelector('#statsPane-master tr[data-mvalue="お客様だけ社"] .stats-master-detail-btn').click()); await p.waitForTimeout(400);
+    ok(L + '「経由する同業者」の候補に海外代理店も出る', await p.evaluate(() => [...document.querySelectorAll('#md_via_list option, #md_via option')].some(o => o.value === 'ABC Agency')));
+    await p.evaluate(() => statsCloseMasterDetail());
+    await p.evaluate(() => document.querySelector('#statsPane-master tr[data-mvalue="ABC Agency"] .stats-master-detail-btn').click()); await p.waitForTimeout(400);
+    ok(L + '海外代理店にも「先のお客様」の欄が出る', await p.evaluate(() => { const h = document.querySelector('.master-detail-via'); return !!h && !h.hidden; }));
+    await p.evaluate(() => statsCloseMasterDetail());
     ok(L + 'JS エラーなし', errs.length === 0, errs);
     await ctx.close();
   }

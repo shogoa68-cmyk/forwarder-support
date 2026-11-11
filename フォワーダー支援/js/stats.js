@@ -3002,7 +3002,7 @@
     const banned = new Set([self].concat(typeof window.mdViaDescendants === 'function' ? window.mdViaDescendants(self) : []));
     const fwd = window.MD_DEAL_FWD;
     const names = window.statsGetMasters().filter(m => m.field === 'customer').map(m => m.value)
-      .filter(n => !banned.has(n) && (n === cur || ((window.mdGet('customer', n) || { details: {} }).details.dealType === fwd)));
+      .filter(n => !banned.has(n) && (n === cur || ((window.mdGet('customer', n) || { details: {} }).details.dealType === fwd || (window.mdGet('customer', n) || { details: {} }).details.dealType === '海外代理店')));
     if (cur && !names.includes(cur)) names.push(cur);
     names.sort((a, b) => a.localeCompare(b, 'ja'));
     const opts = '<option value="">（なし）</option>' + names.map(n => `<option value="${_eav(n)}"${n === cur ? ' selected' : ''}>${_esc(n)}</option>`).join('');
