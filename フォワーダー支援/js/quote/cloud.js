@@ -15,6 +15,7 @@
 
   let _sbClient   = null;   // Supabase クライアント（遅延生成）
   let _cloudUser  = null;   // ログイン中ユーザー（null = 未ログイン）
+  let _authReady  = false;  // ログインの確認が終わったか（終わるまでダッシュボードは「案内」も「一覧」も出さない＝ログイン済みの人に案内が一瞬映らないように）
   let _cloudInited = false;
 
   // 案件ステータス定義（順序＝表示順、key は DB 保存値）
@@ -1857,8 +1858,9 @@
   function _renderQpdAuth() {
     const login = document.getElementById('qpdLogin');
     const main  = document.getElementById('qpdMain');
-    if (login) login.hidden = !!_cloudUser;
-    if (main)  main.hidden  = !_cloudUser;
+    // 確認中（_authReady=false）は、どちらも出さない。確認が終わった時点で _renderCloudAuth から改めて呼ばれる
+    if (login) login.hidden = !_authReady || !!_cloudUser;
+    if (main)  main.hidden  = !_authReady || !_cloudUser;
     _renderLocalMigrateNotice();
   }
 
@@ -3524,22 +3526,26 @@
     window.addEventListener('pagehide', () => { if (_lockHeldId) _dropLock(); });
     window.addEventListener('beforeunload', () => { if (_lockHeldId) _dropLock(); });
     const c = _getClient();
-    if (!c) { _renderCloudAuth(); return; }
+    if (!c) { _authReady = true; _renderCloudAuth(); return; }
+    // 確認が長引いても（通信が遅い等）、案内が永久に出ないことがないよう、4 秒で「未ログイン」として確定する
+    setTimeout(() => { if (!_authReady) { _authReady = true; _renderCloudAuth(); } }, 4000);
 
     // 既存セッション復元（OAuth リダイレクト直後もここで拾える）
     c.auth.getSession().then(({ data }) => {
       _cloudUser = (data && data.session && data.session.user) || null;
+      _authReady = true;
       _renderCloudAuth();
       if (_cloudUser) {
         _loadProfiles().then(_renderCloudAuth); _initPresence();
         if (typeof window.statsLoadMasterCache === 'function') window.statsLoadMasterCache();   // クラウドのマスターを入力補完（品名・サブコン等）へ
         if (document.body.classList.contains('qp-dash-active')) cloudListPresets(true);
       }
-    });
+    }).catch(() => { _authReady = true; _renderCloudAuth(); });
 
     // ログイン状態変化を監視
     c.auth.onAuthStateChange((_event, session) => {
       _cloudUser = (session && session.user) || null;
+      _authReady = true;
       _renderCloudAuth();
       if (_cloudUser) {
         _loadProfiles().then(_renderCloudAuth);   // 自分のアバター/名前を反映
