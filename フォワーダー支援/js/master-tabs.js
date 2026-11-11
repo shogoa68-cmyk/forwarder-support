@@ -39,7 +39,7 @@
     // 取引形態に応じた条件表示：同業者のときだけ「先のお客様」を出す
     const deal = modal.querySelector('#md_dealType'), kids = holder(form, 'md_viaChildren', '.master-detail-via');
     const fwd = window.MD_DEAL_FWD || '同業者（フォワーダー・代理店）';
-    const cond = () => { if (kids) kids.hidden = !!deal && deal.value !== fwd && !kids.querySelector('.stats-md-via-chip'); };
+    const cond = () => { if (kids) kids.hidden = !!deal && deal.value !== fwd && deal.value !== '海外代理店' && !kids.querySelector('.stats-md-via-chip'); };
     if (deal) deal.addEventListener('change', cond); cond();
     // 要約
     const sum = (k, t) => { const s = bar.querySelector('.mt-tab[data-mt="' + k + '"] .mt-sum'); if (s) { s.textContent = t || ''; s.hidden = !t; } };

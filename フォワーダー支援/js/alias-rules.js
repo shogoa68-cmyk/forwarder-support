@@ -1586,8 +1586,10 @@
   //   同業者の先がさらに同業者でもよい（何段でも）。children は仮想の項目（自分の詳細には保存せず、先のお客様側の via を書き換える）
   const _DEAL_SHIPPER = '荷主（直接）', _DEAL_FWD = '同業者（フォワーダー・代理店）';
   window.MD_DEAL_FWD = _DEAL_FWD;
+  // 先のお客様を持てる取引形態（同業者・海外代理店）
+  window.mdIsDealer = v => v === _DEAL_FWD || v === '海外代理店';
   const _DEAL_FIELD = { key: 'dealType', label: '取引形態', options: [
-    { value: '', label: '（未設定）' }, { value: _DEAL_SHIPPER, label: _DEAL_SHIPPER }, { value: _DEAL_FWD, label: _DEAL_FWD }, { value: 'その他', label: 'その他' },
+    { value: '', label: '（未設定）' }, { value: _DEAL_SHIPPER, label: _DEAL_SHIPPER }, { value: _DEAL_FWD, label: _DEAL_FWD }, { value: '海外代理店', label: '海外代理店' }, { value: 'その他', label: 'その他' },
   ] };
   const _VIA_FIELD = { key: 'via', label: '経由する同業者', via: true };
   const _CHILDREN_FIELD = { key: 'viaChildren', label: '先のお客様（この同業者のお客様）', children: true };
@@ -1647,6 +1649,7 @@
     sv:      [
       _FURIGANA_FIELD,
       _EN_FIELD,
+      { key: 'website', label: 'ウェブサイト（URL）', link: true, placeholder: '例）https://example.com' },
       // 種別（複数選べる。ひな形のほか、自由に追加した種別はチーム内で候補に出る）
       { key: 'svTypes', label: 'サブコン種別', tags: true, addPlaceholder: '種別を追加（例：トラック手配）',
         presets: ['通関業者', '倉庫業者', '運送業者', 'FCL CARRIER', 'LCL CARRIER', 'AIR CARRIER', 'RORO CARRIER', '在来船 CARRIER', '海外代理店', '保険会社', 'サーベイヤー'] },

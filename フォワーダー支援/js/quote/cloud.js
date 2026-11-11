@@ -789,6 +789,20 @@
       def.ico + ' ' + def.lbl + '</span>';
   }
   window.quoteCustomerDealChip = _custDealChip;
+  // お客様名。マスターに登録済みなら押せるボタンにし、押すとその場でお客様詳細（担当者・連絡先・取引形態・添付など）を
+  // 読み取り専用のポップアップで開く（見積タブの「詳細」ボタンと同じ mdShowDetailPopup）。未登録は従来どおり文字のまま。
+  function _custNameHtml(customer) {
+    const name = String(customer == null ? '' : customer).trim();
+    if (!name) return '';
+    const has = typeof window.mdGetCanon === 'function' && window.mdGetCanon('customer', name);
+    if (!has) return escHtml(name);
+    return '<button type="button" class="cloud-cust-link" onclick="event.stopPropagation();dashShowCustomerDetail(\'' + encodeURIComponent(name).replace(/'/g, '%27') + '\')" ' +
+      'title="お客様の詳細を見る（担当者・連絡先・取引形態・添付など）">' + escHtml(name) + '</button>';
+  }
+  window.quoteCustomerNameHtml = _custNameHtml;
+  window.dashShowCustomerDetail = function (enc) {
+    if (typeof window.mdShowDetailPopup === 'function') window.mdShowDetailPopup('customer', decodeURIComponent(enc));
+  };
   // マスターが後から読み込まれたとき、取引形態の印を出すために一覧だけ描き直す（見積タブ初期化の mdLoadCloud 完了後に呼ぶ）
   window.cloudRefreshDashList = function () { if (_cloudRows && _cloudRows.length) _applyCloudFilter(); };
 
@@ -942,7 +956,7 @@
         ((inco && inco !== '設定なし') ? '<span class="cloud-tag cloud-tag-inco">' + escHtml(String(inco).split('（')[0]) + '</span>' : '') +
         (mode ? '<span class="cloud-tag cloud-tag-mode">' + escHtml(mode) + '</span>' : '');
       const personH = person && (window.formatPersonWithHonorific ? window.formatPersonWithHonorific(person) : person);
-      const custDd = _custDealChip(customer) + [customer && escHtml(customer), personH && escHtml(personH)].filter(Boolean).join('・');
+      const custDd = _custDealChip(customer) + [customer && _custNameHtml(customer), personH && escHtml(personH)].filter(Boolean).join('・');
       const titleText = (m && m.ref) ? m.ref : r.name;   // 見出しは仮REF#のみ（顧客/担当は下に別掲）
       const memoLine  = (m && m.memo) ? m.memo : '';
       // 締切バッジ（締切超過／締切まで）は下書き中の案件のみ表示。提出済み以降は締切が無意味なため出さない
@@ -1197,7 +1211,7 @@
         linkChk +
         _statusSelect(idAttr, status, lockedBy, 'qpd-row-status') +
         '<span class="qpd-row-title">' + (_pendingImport(r) ? '<span class="qpd-pend-mark" title="自由入力で保管したまま、まだ表に取り込んでいない原文があります">📩 未取込 ' + _pendingImport(r).length + '件</span>' : '') + '<b class="qpd-row-headline">' + escHtml(headline) + '</b><small class="qpd-row-ref">' + escHtml(title) + '</small></span>' +
-        '<span class="qpd-row-cust">' + _custDealChip(cust) + escHtml(cust) + (person ? ' <small>/ ' + escHtml(person) + '</small>' : '') + '</span>' +
+        '<span class="qpd-row-cust">' + _custDealChip(cust) + _custNameHtml(cust) + (person ? ' <small>/ ' + escHtml(person) + '</small>' : '') + '</span>' +
         '<span class="qpd-row-route">' + escHtml(routePlain) + '</span>' +
         '<span class="qpd-row-ts">' + ts + '</span>' +
         '<span class="qpd-row-open" onclick="event.stopPropagation()"><button type="button" class="btn-preset-load qpd-row-open-btn" onclick="cloudLoadPreset(\'' + idAttr + '\')">開く</button></span>' +
@@ -1208,7 +1222,7 @@
       linkChk +
       _statusSelect(idAttr, status, lockedBy, 'qpd-row-status') +
       '<span class="qpd-row-title">' + (_pendingImport(r) ? '<span class="qpd-pend-mark" title="自由入力で保管したまま、まだ表に取り込んでいない原文があります">📩 未取込 ' + _pendingImport(r).length + '件</span>' : '') + escHtml(title) + '</span>' +
-      '<span class="qpd-row-cust">' + _custDealChip(cust) + escHtml(cust) + (person ? ' <small>/ ' + escHtml(person) + '</small>' : '') + '</span>' +
+      '<span class="qpd-row-cust">' + _custDealChip(cust) + _custNameHtml(cust) + (person ? ' <small>/ ' + escHtml(person) + '</small>' : '') + '</span>' +
       '<span class="qpd-row-who" title="' + escHtml(_whoTitle(r)) + '">' + escHtml(who) +
         (others > 0 ? '<span class="cloud-card-edn">+' + others + '</span>' : '') + '</span>' +
       '<span class="qpd-row-ts">' + ts + '</span>' +
