@@ -769,6 +769,29 @@
 
   // 🔔 料金更新フォロー（暫定料金で提示し、最新料金が出たら更新したい案件）
   function _priceFollow(r) { return (r && r.data && r.data.priceFollow) || null; }
+
+  // お客様種別（マスターの取引形態 details.dealType）。荷主（直接）／同業者（フォワーダー・代理店）／その他。
+  // 別名で入力された名前でも代表名のマスターを引く（mdGetCanon）。未設定・マスター未登録・未読込は '' を返す（空欄で目立たせない）。
+  const _DEAL_CHIPS = {
+    '荷主（直接）':                   { k: 'ship',  ico: '🏭', lbl: '荷主' },
+    '同業者（フォワーダー・代理店）': { k: 'fwd',   ico: '🤝', lbl: '同業者' },
+    'その他':                         { k: 'other', ico: '📁', lbl: 'その他' },
+  };
+  function _custDealChip(customer) {
+    const name = String(customer == null ? '' : customer).trim();
+    if (!name || typeof window.mdGetCanon !== 'function') return '';
+    const rec = window.mdGetCanon('customer', name);
+    const d = rec && rec.details;
+    const def = d && _DEAL_CHIPS[d.dealType];
+    if (!def) return '';
+    const via = d.via ? '／経由：' + d.via : '';   // 同業者の先のお客様なら経由先も添える
+    return '<span class="cloud-deal cloud-deal--' + def.k + '" title="取引形態：' + escHtml(d.dealType + via) + '">' +
+      def.ico + ' ' + def.lbl + '</span>';
+  }
+  window.quoteCustomerDealChip = _custDealChip;
+  // マスターが後から読み込まれたとき、取引形態の印を出すために一覧だけ描き直す（見積タブ初期化の mdLoadCloud 完了後に呼ぶ）
+  window.cloudRefreshDashList = function () { if (_cloudRows && _cloudRows.length) _applyCloudFilter(); };
+
   // 📩 未取込（自由入力で保管した原文のうち、まだ表に取り込んでいないもの＝配列・無ければ null）。判定は email-import.js の eiPendingOf
   function _pendingImport(r) { return (r && r.data && typeof window.eiPendingOf === 'function') ? window.eiPendingOf(r.data) : null; }
   function _mmdd(dateStr) {
@@ -919,7 +942,7 @@
         ((inco && inco !== '設定なし') ? '<span class="cloud-tag cloud-tag-inco">' + escHtml(String(inco).split('（')[0]) + '</span>' : '') +
         (mode ? '<span class="cloud-tag cloud-tag-mode">' + escHtml(mode) + '</span>' : '');
       const personH = person && (window.formatPersonWithHonorific ? window.formatPersonWithHonorific(person) : person);
-      const custDd = [customer && escHtml(customer), personH && escHtml(personH)].filter(Boolean).join('・');
+      const custDd = _custDealChip(customer) + [customer && escHtml(customer), personH && escHtml(personH)].filter(Boolean).join('・');
       const titleText = (m && m.ref) ? m.ref : r.name;   // 見出しは仮REF#のみ（顧客/担当は下に別掲）
       const memoLine  = (m && m.memo) ? m.memo : '';
       // 締切バッジ（締切超過／締切まで）は下書き中の案件のみ表示。提出済み以降は締切が無意味なため出さない
@@ -1174,7 +1197,7 @@
         linkChk +
         _statusSelect(idAttr, status, lockedBy, 'qpd-row-status') +
         '<span class="qpd-row-title">' + (_pendingImport(r) ? '<span class="qpd-pend-mark" title="自由入力で保管したまま、まだ表に取り込んでいない原文があります">📩 未取込 ' + _pendingImport(r).length + '件</span>' : '') + '<b class="qpd-row-headline">' + escHtml(headline) + '</b><small class="qpd-row-ref">' + escHtml(title) + '</small></span>' +
-        '<span class="qpd-row-cust">' + escHtml(cust) + (person ? ' <small>/ ' + escHtml(person) + '</small>' : '') + '</span>' +
+        '<span class="qpd-row-cust">' + _custDealChip(cust) + escHtml(cust) + (person ? ' <small>/ ' + escHtml(person) + '</small>' : '') + '</span>' +
         '<span class="qpd-row-route">' + escHtml(routePlain) + '</span>' +
         '<span class="qpd-row-ts">' + ts + '</span>' +
         '<span class="qpd-row-open" onclick="event.stopPropagation()"><button type="button" class="btn-preset-load qpd-row-open-btn" onclick="cloudLoadPreset(\'' + idAttr + '\')">開く</button></span>' +
@@ -1185,7 +1208,7 @@
       linkChk +
       _statusSelect(idAttr, status, lockedBy, 'qpd-row-status') +
       '<span class="qpd-row-title">' + (_pendingImport(r) ? '<span class="qpd-pend-mark" title="自由入力で保管したまま、まだ表に取り込んでいない原文があります">📩 未取込 ' + _pendingImport(r).length + '件</span>' : '') + escHtml(title) + '</span>' +
-      '<span class="qpd-row-cust">' + escHtml(cust) + (person ? ' <small>/ ' + escHtml(person) + '</small>' : '') + '</span>' +
+      '<span class="qpd-row-cust">' + _custDealChip(cust) + escHtml(cust) + (person ? ' <small>/ ' + escHtml(person) + '</small>' : '') + '</span>' +
       '<span class="qpd-row-who" title="' + escHtml(_whoTitle(r)) + '">' + escHtml(who) +
         (others > 0 ? '<span class="cloud-card-edn">+' + others + '</span>' : '') + '</span>' +
       '<span class="qpd-row-ts">' + ts + '</span>' +
@@ -2536,6 +2559,7 @@
     const dir = f['cond-direction'];
     if (dir) condRows.push(_cpKV('方向', dirLabel(dir) || dir));
     if (f['cond-incoterms']) condRows.push(_cpKV('インコタームズ', f['cond-incoterms']));
+    if (f['cond-handling']) condRows.push(_cpKV('荷役条件', f['cond-handling']));
     if (f['cond-mode'])      condRows.push(_cpKV('輸送モード', f['cond-mode']));
     const ins = f['cond-insurance-on'] === 'true' || f['cond-insurance-on'] === true;
     if (ins) condRows.push(_cpKV('保険', '付保あり'));

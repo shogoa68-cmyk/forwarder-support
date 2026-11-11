@@ -28,13 +28,14 @@
 <!-- 「かんたん表示」（Claude Design 案）。<html class="mode-simple"> のときだけ効く。クラスが無ければ従来の「詳細表示」のまま。 -->
 <link rel="stylesheet" href="css/simple-mode.css">
 <link rel="stylesheet" href="css/feedback.css">
+<link rel="stylesheet" href="css/announcements.css">
 <link rel="stylesheet" href="css/workfolder.css">
 <link rel="stylesheet" href="css/cp-test.css">
 <script>
 /* テーマ切替の早期適用（画面の描画前に実行して、ちらつきを防ぐ）。設定は js/tweaks.js のパネル「デザイン」で変更。
    ?theme=industry / ?theme=classic のURLパラメータでも一時的に切替可（localStorage に保存される）。 */
 (function () {
-  var KEY = 'forwarderTheme_v1', t = { site: false, doc: false, quiet: false };
+  var KEY = 'forwarderTheme_v1', t = { site: true, doc: true, quiet: false }; /* 既定は Industry（保存済みの選択があればそれを優先） */
   try { t = Object.assign(t, JSON.parse(localStorage.getItem(KEY) || '{}')); } catch (e) {}
   try {
     var q = new URLSearchParams(location.search).get('theme');
@@ -119,7 +120,7 @@
     <button class="cat-btn cat-btn-bookmark active" role="tab" aria-selected="true"  aria-controls="tab-quote-make"   onclick="switchCategory('quote',  this)">💼 見積</button>
     <button class="cat-btn cat-btn-bookmark"        role="tab" aria-selected="false" aria-controls="tab-stats"         onclick="switchCategory('stats',   this)">📊 統計</button>
     <button class="cat-btn cat-btn-bookmark"        role="tab" aria-selected="false" aria-controls="tab-master"        onclick="switchCategory('master',  this)">🗂 マスター管理</button>
-    <button class="cat-btn cat-btn-bookmark" role="tab" aria-selected="false" aria-controls="tab-cptest"       title="サイバーポート連携の画面テスト（サンプル表示と、読み取りのみの実接続テスト）" onclick="switchCategory('cptest', this)">🧪 CPテスト</button>
+    <button class="cat-btn cat-btn-bookmark" role="tab" aria-selected="false" aria-controls="tab-cptest"       title="サイバーポート連携（読み取りのみ）" onclick="switchCategory('cptest', this)">🚢 サイバーポート</button>
     <!-- 日常で使う頻度の低い 7 カテゴリ（諸チャージ含む）は「その他」メニューに集約（ボタン・id・onclick は不変。js/cat-more.js が開閉と選択中の表示を担当） -->
     <div class="cat-more" id="catMore">
       <button type="button" class="cat-btn cat-more-btn" id="catMoreBtn" aria-haspopup="true" aria-expanded="false" aria-controls="catMorePanel" title="諸チャージ・カレンダー・作業フォルダ・本船・航路・Booking/SI・書類・通関・計算・知識・参考">📂 <span class="cat-more-label">その他</span> <span class="cat-more-caret" aria-hidden="true">▾</span></button>
@@ -3132,6 +3133,17 @@
               <option>国内手配のみ</option>
             </select>
           </div>
+          <div class="cond-prim-group cond-prim-group-handling" id="handlingGroup" hidden>
+            <span class="cond-prim-label" title="RO/RO・在来船の運賃見積で使う、積み・揚げの荷役費の負担条件（インコタームズとは別。FOB など と併記します）">🚢 荷役条件</span>
+            <select id="cond-handling" class="cond-inco-select" title="積み・揚げの荷役費を誰が負担するか（船積条件・Liner terms）">
+              <option value="">— なし —</option>
+              <option>BTBT（Berth Term to Berth Term）</option>
+              <option>FILO（Free In, Liner Out）</option>
+              <option>LIFO（Liner In, Free Out）</option>
+              <option>FIOS（Free In Out Stowed）</option>
+              <option>FIOST（Free In Out Stowed &amp; Trimmed）</option>
+            </select>
+          </div>
           <div class="cond-prim-group">
             <span class="cond-prim-label">オプション</span>
             <div class="cond-prim-btns">
@@ -3141,6 +3153,7 @@
           </div>
         </div>
         <span id="cond-incoterms-hint" class="cond-incoterms-hint"></span>
+        <span id="cond-handling-hint" class="cond-incoterms-hint"></span>
 
         <div class="zone-builder" id="zoneBuilder">
           <div class="zone-card zone-origin zone-off" id="zone1Card" data-tier="adv" data-adv-key="zone1" data-adv-label="出発地ゾーン（集荷など）">
@@ -4914,7 +4927,7 @@
     <div class="wf-root" id="wfRoot"><div class="wf-empty">読み込み中…</div></div>
   </div><!-- /#tab-workfolder -->
 
-  <!-- 🧪 CP(TEST)：サイバーポート連携の画面テスト（サンプル表示＋読み取りのみの実接続テスト）。ロジックは js/cp-test.js・js/integrations/cyberport.js、設計は docs/サイバーポート連携_設計案.md -->
+  <!-- 🚢 サイバーポート：連携の画面（読み取りのみ）。ロジックは js/cp-test.js・js/integrations/cyberport.js、設計は docs/サイバーポート連携_設計案.md -->
   <div class="tab-content" id="tab-cptest">
     <div class="cpt-root" id="cptRoot"></div>
   </div><!-- /#tab-cptest -->
@@ -4984,6 +4997,7 @@
 <script src="js/quote/constants.js"></script>
 <script src="js/quote/row.js"></script>
 <script src="js/quote/row-layout.js"></script>
+<script src="js/quote/incoterms-diagram.js"></script>
 <script src="js/quote/preview.js"></script>
 <script src="js/quote/cargo.js"></script>
 <script src="js/quote/conditions.js"></script>
@@ -5007,6 +5021,7 @@
 <script src="js/quote/case-info.js"></script>
 <script src="js/quote/sources.js"></script>
 <script src="js/quote/cond-flow.js"></script>
+<script src="js/quote/handling-terms.js"></script>
 <script src="js/quote/route-flow.js"></script>
 <script src="js/quote/cargo-flow.js"></script>
 <script src="js/quote/remark-tabs.js"></script>
@@ -5025,6 +5040,7 @@
 <script src="js/quote/fcl-lcl.js"></script>
 <script src="js/quote/right-rail.js"></script>
 <script src="js/ui-confirm.js"></script>
+<script src="js/announcements.js"></script>
 <script src="js/feedback-md.js"></script>
 <script src="js/feedback-annotate.js"></script>
 <script src="js/feedback.js"></script>
@@ -5035,6 +5051,7 @@
 <script src="js/workfolder.js"></script>
 <script src="js/integrations/cyberport.js"></script>
 <script src="js/integrations/cp-events.js"></script>
+<script src="js/cp-notify.js"></script>
 <script src="js/cp-test.js"></script>
 <script src="js/cat-more.js"></script>
 <script src="js/stats.js"></script>
@@ -5157,6 +5174,7 @@
     <div class="um-tabs">
       <button class="um-tab is-active" id="umTabMembers" onclick="switchUmTab('members')">メンバー</button>
       <button class="um-tab" id="umTabPerms" onclick="switchUmTab('perms')">ロールと権限</button>
+      <button class="um-tab" id="umTabAnn" onclick="switchUmTab('ann')" hidden>📢 お知らせ</button>
     </div>
 
     <div id="umMembersPane" class="um-pane">
@@ -5188,6 +5206,8 @@
         <div id="umMemberList"></div>
       </div>
     </div>
+
+    <div id="umAnnPane" class="um-pane" hidden></div>
 
     <div id="umPermsPane" class="um-pane" hidden>
       <div class="um-perm-wrap">

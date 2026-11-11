@@ -1,6 +1,6 @@
 // Edge Function を「1 枚のファイル」にまとめる（Supabase ダッシュボードの編集画面に貼り付けて置くため）。
 // 元：supabase/functions/<名前>/{logic.ts, index.ts}   出力：supabase/<名前>-single/index.ts
-// 使い方：node scripts/cp-tests/build-edge-single.mjs cp-proxy    （または cp-webhook）
+// 使い方：node scripts/cp-tests/build-edge-single.mjs cp-webhook   （cp-proxy は build-cp-proxy-single.mjs）
 //   ※ 出力ファイルは手で直さない（元の 2 ファイルを直したら、このスクリプトで作り直す）。
 //   ※ supabase/functions/ の外に置くのは、CLI の deploy が別の関数として拾わないようにするため。
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';

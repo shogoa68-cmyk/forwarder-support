@@ -440,6 +440,7 @@
   "qspTabBtn-fin",
   "qspTabBtn-flow",
   "qtyPatternBar",
+  "quoteActionDock",
   "quoteFxBar",
   "quoteGlossary",
   "quoteSummaryPanel",
@@ -548,6 +549,7 @@
   "tot-row-label",
   "tot-subtotal",
   "totPsRow",
+  "umAnnPane",
   "umHeadSub",
   "umInviteBtn",
   "umInviteEmail",
@@ -560,6 +562,7 @@
   "umPermsPane",
   "umRoleFilter",
   "umSearch",
+  "umTabAnn",
   "umTabMembers",
   "umTabPerms",
   "unit-list",
@@ -1779,7 +1782,7 @@
    "defined": true
   },
   "switchUmTab": {
-   "uses": 2,
+   "uses": 3,
    "defined": true
   },
   "toggleAllCsvCols": {
@@ -1899,6 +1902,10 @@
   "admin-creator-ok": {
    "css": true,
    "html": false
+  },
+  "app": {
+   "css": true,
+   "html": true
   },
   "bm-carrier-locked": {
    "css": true,
@@ -2336,6 +2343,14 @@
    "css": true,
    "html": false
   },
+  "cpt-seg": {
+   "css": true,
+   "html": false
+  },
+  "cpt-tab": {
+   "css": true,
+   "html": false
+  },
   "cr-f-body": {
    "css": false,
    "html": false
@@ -2765,7 +2780,15 @@
    "html": false
   },
   "is-none": {
-   "css": false,
+   "css": true,
+   "html": false
+  },
+  "is-nudging": {
+   "css": true,
+   "html": false
+  },
+  "is-off": {
+   "css": true,
    "html": false
   },
   "is-on": {
@@ -3509,7 +3532,11 @@
    "html": false
   },
   "rms-open": {
-   "css": false,
+   "css": true,
+   "html": false
+  },
+  "rms-panel": {
+   "css": true,
    "html": false
   },
   "rn-plan-chk": {
@@ -4558,6 +4585,10 @@
    "html": false,
    "js": true
   },
+  "for": {
+   "html": false,
+   "js": true
+  },
   "formula-just-entered": {
    "html": false,
    "js": true
@@ -4599,6 +4630,10 @@
    "js": true
   },
   "hide-quote": {
+   "html": false,
+   "js": true
+  },
+  "ht-init": {
    "html": false,
    "js": true
   },
@@ -5121,6 +5156,7 @@
   "js/quote/constants.js",
   "js/quote/row.js",
   "js/quote/row-layout.js",
+  "js/quote/incoterms-diagram.js",
   "js/quote/preview.js",
   "js/quote/cargo.js",
   "js/quote/conditions.js",
@@ -5144,6 +5180,7 @@
   "js/quote/case-info.js",
   "js/quote/sources.js",
   "js/quote/cond-flow.js",
+  "js/quote/handling-terms.js",
   "js/quote/route-flow.js",
   "js/quote/cargo-flow.js",
   "js/quote/remark-tabs.js",
@@ -5162,12 +5199,14 @@
   "js/quote/fcl-lcl.js",
   "js/quote/right-rail.js",
   "js/ui-confirm.js",
+  "js/announcements.js",
   "js/feedback-md.js",
   "js/feedback-annotate.js",
   "js/feedback.js",
   "js/theme-quiet.js",
   "js/hint-fold.js",
   "js/workfolder.js",
+  "js/integrations/cyberport.js",
   "js/cp-test.js",
   "js/cat-more.js",
   "js/stats.js",

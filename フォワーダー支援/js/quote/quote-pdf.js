@@ -82,6 +82,7 @@
     grandTotal:     ['合計見積額', 'Grand Total'],
     subtotal:       ['小計', 'Subtotal'],
     incoterms:      ['建値（INCOTERMS）', 'Incoterms'],
+    handling:       ['荷役条件', 'Handling Terms'],
     route:          ['航路', 'Route'],
     pol:            ['積み地（POL）', 'Port of Loading (POL)'],
     pod:            ['揚げ地（POD）', 'Port of Discharge (POD)'],
@@ -105,6 +106,7 @@
     estimateTag:    ['約', 'Approx.'],
     unpriced:       ['実費', 'At Cost'],
     minApplied:     ['[MIN適用]', '[MIN applied]'],
+    rateApplied:    ['[従量適用]', '[Rate applied]'],   // 最低料金がある行で、数量×単価（従量）のほうが最低料金を上回り、従量で請求している
     conditional:    ['（発生時/必要時のみ）', '(If applicable)'],
     reference:      ['（参考情報）', '(For reference)'],
     noPattern:      ['（パターン未設定）', '(No pattern)'],
@@ -365,6 +367,18 @@
     } else {
       push(t('incoterms'), _incotermsDisp(cond.incoterms));
     }
+    // 貿易条件の図解（設定パネルで ON のときだけ）：貿易条件の行の直下に全幅で出す
+    if (typeof window.incoDiagramEnabled === 'function' && window.incoDiagramEnabled() && typeof window.incoDiagramBlockHTML === 'function') {
+      const _ro = dirIsRound(cond.direction);
+      const _dg = window.incoDiagramBlockHTML(cond.incoterms, _ro ? cond.incotermsRet : '', {
+        en: _curLangEn,
+        legNames: _ro ? { out: `${t('outbound')}${_curLangEn ? ` (${dirLegName(cond.direction, 'out', true)})` : `（${dirLegName(cond.direction, 'out', false)}）`}`,
+                          ret: `${t('returnLeg')}${_curLangEn ? ` (${dirLegName(cond.direction, 'ret', true)})` : `（${dirLegName(cond.direction, 'ret', false)}）`}` } : null,
+      });
+      if (_dg) meta.push(['', { html: _dg, full: true }]);
+    }
+    // 荷役条件（RO/RO・在来船の BTBT／FILO など）：建値（と図解）の下に別の行で出す
+    push(t('handling'), _curLangEn && cond.handling ? cond.handling.replace('（', ' (').replace('）', ')') : cond.handling);
     // 航路：1件以上の登録があれば航路ごとに via・キャリア・サービス名を含めて全件併記
     if (_hasRoutes) {
       (_legItems || cond.routes.map((r, i) => ({ r, label: cond.routes.length === 1 ? t('route') : `${t('route')} ${i + 1}` }))).forEach(({ r, label }) => {
@@ -658,8 +672,8 @@
           : isNonJpy
           ? `${fmtNum(r.bp, 2)} ${esc(r.bc)}`
           : `${Number.isInteger(r.bp) ? fmtInt(r.bp) : fmtNum(r.bp, 2)} JPY`)
-        // 最低料金が「数量 × 単価」を上回り、最低料金で請求している行は、その旨を明記する
-        + (sub > (r.bq || 0) * (r.bp || 0) ? ` <span class="qd-min-tag">${t('minApplied')}</span>` : '');
+        // 最低料金がある行は、どちらで請求しているか（最低料金／従量＝数量×単価）を明記する。幅（〜）の行は最低料金を適用したときだけ
+        + (() => { const k = (typeof minAppliedKind === 'function') ? minAppliedKind(r.bq, r.bp, r.bpmin) : null; return (k === 'min' || (k === 'rate' && !_rg && !isActual)) ? ` <span class="qd-min-tag qd-min-${k}">${t(k === 'min' ? 'minApplied' : 'rateApplied')}</span>` : ''; })();
       // 御見積書は客先向け公式文書のため、社内メモ(r.note)は出力しない（E-1 備考漏洩対策）
       // 数量は金額の根拠（sub = bq×bp）と一致させる。未入力時に「1」を捏造しない（B/台帳 C）
       const qtyDisp = (r.bq && r.bq > 0) ? fmtNum(r.bq, 4) : '—';
@@ -790,7 +804,9 @@
     ].filter(Boolean).join('<br>');
 
     const metaRows = subj.meta.map(([k, v]) =>
-      `<div class="qd-srow"><span class="qd-sk">${esc(k)}</span><span class="qd-sv">${(v && typeof v === 'object') ? v.html : nl2br(v)}</span></div>`
+      (v && typeof v === 'object' && v.full)
+        ? `<div class="qd-srow qd-srow-full"><span class="qd-sv">${v.html}</span></div>`
+        : `<div class="qd-srow"><span class="qd-sk">${esc(k)}</span><span class="qd-sv">${(v && typeof v === 'object') ? v.html : nl2br(v)}</span></div>`
     ).join('');
 
     return `
@@ -911,6 +927,10 @@
                 <span class="qd-toggle-l">合計・税サマリを非表示<small>パターン比較用</small></span>
                 <input type="checkbox" id="qdHideTotal"><span class="qd-toggle-sw"></span>
               </label>
+              <label class="qd-toggle" title="ONにすると、貿易条件（インコタームズ）の下に、費用とリスクを売主・買主のどちらが負うかを示す図を入れます。往復案件で往路と復路の条件が違うときは2つ並べます。">
+                <span class="qd-toggle-l">📐 貿易条件の図解<small>売主／買主の分担</small></span>
+                <input type="checkbox" id="qdIncoDiagram"><span class="qd-toggle-sw"></span>
+              </label>
               <label class="qd-toggle" id="qdMultiWrap" title="ONにすると、物量パターン（例：FCL案／LCL案）の比較表と、案ごとの明細・条件・合計を1つの御見積書にまとめて出力します。タブの🔒（見積書に表示しない）を付けたパターンは含みません。パターンが2つ以上あるときに使えます。">
                 <span class="qd-toggle-l">🆚 パターンを併記<small>FCL案／LCL案など</small></span>
                 <input type="checkbox" id="qdMultiOut"><span class="qd-toggle-sw"></span>
@@ -941,6 +961,11 @@
       if (hideChk) {
         hideChk.addEventListener('change', () => { saveHideTotal(hideChk.checked); refreshQuoteDoc(); });
       }
+      const incoChk = overlay.querySelector('#qdIncoDiagram');
+      if (incoChk) incoChk.addEventListener('change', () => {
+        if (typeof window.setIncoDiagramEnabled === 'function') window.setIncoDiagramEnabled(incoChk.checked);
+        refreshQuoteDoc();
+      });
       const autoChk = overlay.querySelector('#qdAutoStatus');
       if (autoChk) autoChk.addEventListener('change', () => saveAutoStatus(autoChk.checked));
       const langChk = overlay.querySelector('#qdLangEn');
@@ -957,6 +982,8 @@
     // チェック状態・ファイル名を保存値に同期（オーバーレイ再利用時も整合）
     const hideChk = overlay.querySelector('#qdHideTotal');
     if (hideChk) hideChk.checked = loadHideTotal();
+    const incoChk2 = overlay.querySelector('#qdIncoDiagram');
+    if (incoChk2) incoChk2.checked = typeof window.incoDiagramEnabled === 'function' && window.incoDiagramEnabled();
     const autoChk2 = overlay.querySelector('#qdAutoStatus');
     if (autoChk2) autoChk2.checked = loadAutoStatus();
     const langChk2 = overlay.querySelector('#qdLangEn');

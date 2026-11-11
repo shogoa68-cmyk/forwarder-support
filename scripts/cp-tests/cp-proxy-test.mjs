@@ -10,6 +10,7 @@ import path from 'node:path';
 
 const dir = path.join(path.dirname(fileURLToPath(import.meta.url)), '../../supabase/functions/cp-proxy');
 const L = await import(path.join(dir, 'logic.ts'));
+const WT = await import(path.join(dir, 'watch.ts'));
 
 let pass = 0, failN = 0;
 function ok(cond, name, extra = '') { if (cond) { pass++; } else { failN++; console.log('✗ NG:', name, extra); } }
@@ -145,20 +146,20 @@ function makeEnv(extra = {}) {
   return env;
 }
 
-function load(env, fetchImpl, { member = true, user = 'taro@example.com' } = {}) {
+function load(env, fetchImpl, { member = true, user = 'taro@example.com', sb = null } = {}) {
   // CP_TARGET=single … ダッシュボード貼り付け用の 1 枚版（supabase/cp-proxy-single/index.ts）を試験する
   const entry = process.env.CP_TARGET === 'single' ? path.join(dir, '../../cp-proxy-single/index.ts') : path.join(dir, 'index.ts');
   const src = readFileSync(entry, 'utf8').replace(/^import .*$/gm, '');
   const js = stripTypeScriptTypes(src);
   let handler = null;
   const DenoFake = { env: { get: (k) => env[k] }, serve: (h) => { handler = h; } };
-  const createClient = () => ({
+  const createClient = (_url, key) => (key === 'SERVICE-KEY-123' && sb) ? sb : ({
     auth: { getUser: async () => (user ? { data: { user: { email: user } }, error: null } : { data: null, error: { message: 'x' } }) },
     rpc: async () => ({ data: member, error: null }),
   });
-  const fn = new Function('Deno', 'createClient', 'allowRate', 'backoffMs', 'buildQuery', 'classifyStatus', 'matchAllowed', 'truncate', 'isOriginAllowed', 'parseOrigins', 'formBody', 'resolveConfig', 'tokenFromResponse', 'fetch', 'setTimeout', 'console', js);
+  const fn = new Function('Deno', 'createClient', 'safeEqual', 'runWatchBatch', 'allowRate', 'backoffMs', 'buildQuery', 'classifyStatus', 'matchAllowed', 'truncate', 'isOriginAllowed', 'parseOrigins', 'formBody', 'resolveConfig', 'tokenFromResponse', 'fetch', 'setTimeout', 'console', js);
   const noWait = (cb) => { cb(); return 0; };
-  fn(DenoFake, createClient, L.allowRate, L.backoffMs, L.buildQuery, L.classifyStatus, L.matchAllowed, L.truncate, L.isOriginAllowed, L.parseOrigins, L.formBody, L.resolveConfig, L.tokenFromResponse, fetchImpl, noWait, { log() {}, error() {}, warn(m) { warnings.push(String(m)); } });
+  fn(DenoFake, createClient, L.safeEqual, WT.runWatchBatch, L.allowRate, L.backoffMs, L.buildQuery, L.classifyStatus, L.matchAllowed, L.truncate, L.isOriginAllowed, L.parseOrigins, L.formBody, L.resolveConfig, L.tokenFromResponse, fetchImpl, noWait, { log() {}, error() {}, warn(m) { warnings.push(String(m)); } });
   return handler;
 }
 
@@ -422,6 +423,121 @@ const form = (init) => Object.fromEntries(new URLSearchParams(String(init.body))
   let last = 0;
   for (let i = 0; i < 31; i++) last = (await call(h, { action: 'get', path: '/API/v2/Trades/Search' })).status;
   eq(last, 429, '1 分に 30 回を超えると 429');
+}
+
+
+// ---- 予約実行（動静の自動確認・合言葉つきの入口）
+{
+  const WS = 'watch-secret-0123456789-abcdefghij';   // 24 文字以上
+  const SK = 'SERVICE-KEY-123';
+  const NOW = Date.now();
+  const impRec = { terminalCode: 'T1', container: { containerNo: 'ABCD1234567' }, outboundAvailability: true,
+    loadedContainerPickup: { dueAt: new Date(NOW + 5 * 86400000).toISOString() }, emptyContainerReturn: { actualAt: null },
+    vessel: { vesselName: 'EVER TEST', voyageNo: '12E', portOfDischarge: { portCode: 'JPTYO', portName: 'TOKYO', estimatedTimeOfArrival: new Date(NOW - 86400000).toISOString() } } };
+  function mkSb(st) {
+    const q = (t) => ({
+      insert(rows) {
+        st.inserts.push([t, rows]);
+        const o = { select: () => ({ single: async () => (st.noTables ? { data: null, error: { message: 'relation does not exist' } } : { data: { id: 77 }, error: null }) }), then: (res) => res({ error: st.insertError || null }) };
+        return o;
+      },
+      update(u) { st.updates.push([t, u]); return { eq: async (c, v) => { st.eqs.push([t, c, v]); return { error: st.updateError || null }; } }; },
+    });
+    return { from: q, rpc: async (name, a) => { st.rpcs.push([name, a]); return name === 'cp_watch_pick' ? (st.pickError ? { data: null, error: { message: 'x' } } : { data: st.targets, error: null }) : { data: true, error: null }; } };
+  }
+  const st0 = () => ({ inserts: [], updates: [], eqs: [], rpcs: [], targets: [{ preset_id: 'p1', direction: 'import', bl_no: 'BL1', booking_no: null, container_nos: [], snapshot: null, consecutive_errors: 1, state: 'active' }] });
+  const wreq = (body, { secret = WS, auth = 'Bearer anon' } = {}) =>
+    new Request('https://x.supabase.co/functions/v1/cp-proxy', { method: 'POST', headers: { 'content-type': 'application/json', ...(auth ? { authorization: auth } : {}), ...(secret === null ? {} : { 'x-cp-watch-secret': secret }) }, body: JSON.stringify(body) });
+  const runW = async (h, body, o) => { const res = await h(wreq(body, o)); const text = await res.text(); let j = null; try { j = JSON.parse(text); } catch { /* */ } return { status: res.status, j, text }; };
+
+  // 合言葉：なし・違う・短い・未設定は通さない
+  let st = st0();
+  let f = net({ api: () => R(200, [impRec]) });
+  let h = load(makeEnv({ CP_WATCH_SECRET: WS, SUPABASE_SERVICE_ROLE_KEY: SK }), f, { sb: mkSb(st) });
+  eq((await runW(h, { action: 'watch_run' }, { secret: 'wrong-secret-0123456789-abcdefghij' })).status, 401, '予約実行：合言葉が違う → 401');
+  eq((await runW(h, { action: 'watch_run' }, { secret: '' })).status, 401, '予約実行：合言葉が空 → 401');
+  eq(f.calls.length + st.rpcs.length + st.inserts.length, 0, '予約実行：合言葉が違うときは何も通信・保存しない');
+  h = load(makeEnv({ SUPABASE_SERVICE_ROLE_KEY: SK }), f, { sb: mkSb(st) });
+  eq((await runW(h, { action: 'watch_run' }, { secret: 'anything-long-enough-0123456789' })).status, 401, '予約実行：合言葉が未設定なら無効（401）');
+  h = load(makeEnv({ CP_WATCH_SECRET: 'short', SUPABASE_SERVICE_ROLE_KEY: SK }), f, { sb: mkSb(st) });
+  eq((await runW(h, { action: 'watch_run' }, { secret: 'short' })).status, 401, '予約実行：短すぎる合言葉は受け付けない（401）');
+  h = load(makeEnv({ CP_WATCH_SECRET: WS, SUPABASE_SERVICE_ROLE_KEY: SK }), f, { sb: mkSb(st) });
+  // ログイン中の人は、合言葉なしでは watch_run を使えない
+  const lr = await call(h, { action: 'watch_run' });
+  eq([lr.status, lr.j.error], [400, 'bad_action'], 'ログイン中の人は watch_run を使えない（不明な操作）');
+  eq(st.rpcs.length + st.inserts.length, 0, 'ログインの入口からは確認も保存も動かない');
+  // 合言葉があっても、watch_run 以外は使えない（ping / get は通らない）
+  eq((await runW(h, { action: 'ping' })).j.error, 'bad_action', '予約実行の入口では watch_run 以外は使えない');
+  eq((await runW(h, { action: 'get', path: '/API/v2/Trades/Search' })).j.error, 'bad_action', '予約実行の入口から任意の API は呼べない');
+  eq(f.calls.length, 0, '上の呼び出しで、サイバーポートへは通信していない');
+
+  // 設定の不足
+  h = load(makeEnv({ CP_WATCH_SECRET: WS }), f, { sb: mkSb(st0()) });
+  eq((await runW(h, { action: 'watch_run' })).j.error, 'watch_not_configured', 'サービス用の鍵が無い → 503 watch_not_configured');
+  st = st0(); st.noTables = true;
+  h = load(makeEnv({ CP_WATCH_SECRET: WS, SUPABASE_SERVICE_ROLE_KEY: SK }), f, { sb: mkSb(st) });
+  eq((await runW(h, { action: 'watch_run' })).j.error, 'watch_tables_missing', '表が無い → 503 watch_tables_missing（SQL の案内）');
+
+  // 正常：1 件確認して保存
+  st = st0(); f = net({ api: (init, u) => (u.includes('ImportContainers') ? R(200, [impRec]) : R(200, [])) });
+  h = load(makeEnv({ CP_WATCH_SECRET: WS, SUPABASE_SERVICE_ROLE_KEY: SK }), f, { sb: mkSb(st) });
+  let r = await runW(h, { action: 'watch_run', n: 3 });
+  eq([r.status, r.j.ok, r.j.summary.picked, r.j.summary.ok, r.j.summary.failed], [200, true, 1, 1, 0], '予約実行：1 件を確認して成功（応答の ok と集計の件数が別になっている）');
+  ok(!r.text.includes(WS) && !r.text.includes(SK) && !r.text.includes(SECRET) && !r.text.includes(CTOK) && !r.text.includes(UTOK) && !r.text.includes(PASS), '応答に合言葉・鍵・トークン・パスワードが含まれない');
+  eq(st.rpcs[0], ['cp_watch_pick', { p_n: 3 }], '確認する件数（n）を選ぶ関数に渡す');
+  const apiCalls = f.api();
+  ok(apiCalls.length >= 1 && apiCalls.every((c) => (c.init.method || 'GET') === 'GET'), 'サイバーポートへは GET だけ');
+  ok(apiCalls.every((c) => /\/ColinsViewers\//.test(c.url)), '呼ぶのは COLINS の読み取りだけ');
+  const upd = st.updates.find((x) => x[0] === 'cp_watch_targets');
+  ok(upd && upd[1].last_status === 'ok' && Array.isArray(upd[1].snapshot) && upd[1].consecutive_errors === 0 && upd[1].state === 'active', '名簿：確認結果（写し・状態・失敗回数 0）を保存');
+  eq(st.eqs.find((x) => x[0] === 'cp_watch_targets'), ['cp_watch_targets', 'preset_id', 'p1'], '名簿は案件の ID で更新');
+  const runUpd = st.updates.find((x) => x[0] === 'cp_watch_runs');
+  ok(runUpd && runUpd[1].picked === 1 && runUpd[1].ok === 1 && runUpd[1].finished_at, '実行記録：件数と終了時刻を保存');
+  eq(st.inserts.filter((x) => x[0] === 'cp_changes').length, 0, '初回は変化の記録なし（基準を作るだけ）');
+  // n の範囲
+  st = st0(); h = load(makeEnv({ CP_WATCH_SECRET: WS, SUPABASE_SERVICE_ROLE_KEY: SK }), net({ api: () => R(200, []) }), { sb: mkSb(st) });
+  await runW(h, { action: 'watch_run', n: 999 }); eq(st.rpcs[0][1].p_n, 10, 'n は 10 まで');
+  st = st0(); h = load(makeEnv({ CP_WATCH_SECRET: WS, SUPABASE_SERVICE_ROLE_KEY: SK }), net({ api: () => R(200, []) }), { sb: mkSb(st) });
+  await runW(h, { action: 'watch_run', n: 'abc' }); eq(st.rpcs[0][1].p_n, 5, 'n が不正なら 5');
+
+  // 2 回目：前回の写しとの差が変化の記録になる
+  const prevItems = upd[1].snapshot.map((x) => (x.k === 'c:ABCD1234567:outOk' ? Object.assign({}, x, { val: 'false' }) : x));
+  st = st0(); st.targets[0].snapshot = prevItems;
+  h = load(makeEnv({ CP_WATCH_SECRET: WS, SUPABASE_SERVICE_ROLE_KEY: SK }), net({ api: (init, u) => (u.includes('ImportContainers') ? R(200, [impRec]) : R(200, [])) }), { sb: mkSb(st) });
+  r = await runW(h, { action: 'watch_run' });
+  const chIns = st.inserts.find((x) => x[0] === 'cp_changes');
+  ok(chIns && chIns[1].length === 1 && chIns[1][0].label === '搬出可否' && chIns[1][0].old_val === 'false' && chIns[1][0].new_val === 'true' && chIns[1][0].run_id === 77, '変化（搬出可否 false→true）が実行 ID つきで記録される');
+  eq(r.j.summary.changed, 1, '応答に変化のあった件数');
+
+  // 通信エラー：失敗を数え、連続失敗の回数を増やし、写しは触らない
+  st = st0();
+  h = load(makeEnv({ CP_WATCH_SECRET: WS, SUPABASE_SERVICE_ROLE_KEY: SK }), net({ api: () => R(500, { message: 'boom' }) }), { sb: mkSb(st) });
+  r = await runW(h, { action: 'watch_run' });
+  eq([r.status, r.j.summary.failed, r.j.ok], [200, 1, true], '相手先が失敗しても入口は成功（失敗 1 件として数える）');
+  const eu = st.updates.find((x) => x[0] === 'cp_watch_targets')[1];
+  ok(eu.last_status === 'error' && eu.consecutive_errors === 2 && !('snapshot' in eu) && /upstream/.test(eu.last_error || ''), '失敗：連続失敗 1→2・写しは更新しない・理由を記録');
+
+  // 追跡の終わり：状態の変化が記録される
+  st = st0();
+  const retRec = JSON.parse(JSON.stringify(impRec)); retRec.emptyContainerReturn.actualAt = new Date(NOW - 3600000).toISOString();
+  h = load(makeEnv({ CP_WATCH_SECRET: WS, SUPABASE_SERVICE_ROLE_KEY: SK }), net({ api: (init, u) => (u.includes('ImportContainers') ? R(200, [retRec]) : R(200, [])) }), { sb: mkSb(st) });
+  await runW(h, { action: 'watch_run' });
+  const du = st.updates.find((x) => x[0] === 'cp_watch_targets')[1];
+  ok(du.state === 'done' && du.state_at && /返却/.test(du.state_note), '追跡完了：状態・時刻・理由を保存');
+  ok(st.inserts.some((x) => x[0] === 'cp_changes' && x[1].some((c) => c.kind === 'state' && c.label === '追跡完了')), '追跡完了が変化の記録（ダイジェストの元）に入る');
+
+  // 選ぶ関数が無い（SQL 未実行）→ 失敗として記録して返す
+  st = st0(); st.pickError = true;
+  h = load(makeEnv({ CP_WATCH_SECRET: WS, SUPABASE_SERVICE_ROLE_KEY: SK }), net(), { sb: mkSb(st) });
+  r = await runW(h, { action: 'watch_run' });
+  eq([r.status, r.j.error], [500, 'watch_pick_failed'], '選ぶ関数が無い → 500 watch_pick_failed');
+  ok(st.updates.some((x) => x[0] === 'cp_watch_runs' && /watch_pick_failed/.test(x[1].note || '')), '実行記録に失敗の理由を残す');
+
+  // 保存の失敗（表への書き込み失敗）は、実行記録の注意に出る
+  st = st0(); st.updateError = { message: 'boom' };
+  h = load(makeEnv({ CP_WATCH_SECRET: WS, SUPABASE_SERVICE_ROLE_KEY: SK }), net({ api: (init, u) => (u.includes('ImportContainers') ? R(200, [impRec]) : R(200, [])) }), { sb: mkSb(st) });
+  r = await runW(h, { action: 'watch_run' });
+  eq([r.status, r.j.summary.saveErrors], [200, 1], '保存に失敗しても入口は落ちない・件数を返す');
 }
 
 console.log(`\ncp-proxy 試験：${pass} 件合格 / ${failN} 件失敗`);

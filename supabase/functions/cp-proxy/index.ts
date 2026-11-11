@@ -10,6 +10,11 @@
 //   {action:'ping'}                              → 接続情報でトークンが取れるかだけ確かめる（API は呼ばない）
 //   {action:'get', path:'/API/v2/…', query:{…}}  → 許可された読み取り API を 1 回呼ぶ
 //
+// 予約実行（毎朝・毎夕の動静確認）専用の入口：ヘッダー x-cp-watch-secret に合言葉（CP_WATCH_SECRET）を付けて呼ぶ。
+//   {action:'watch_run', n:5}  → 追跡中の案件を古い順・急ぐ順に n 件（最大 10）確認し、結果を表に保存する（Supabase の pg_cron から）
+//   ログイン中の人向けの入口とは完全に分けてある（合言葉が無い・違うと 401。ログインでは watch_run は使えない）。
+//   読み取りの GET しか呼ばない（許可リストは同じ）。保存先は docs/sql/cp-watch.sql。
+//
 // 認証は「2 つのトークン」（Ver.2 API利用ガイダンス Ver.1.0 P.14・16〜24）
 //   ① システム用：POST <base>/Token（client_credentials）→ X-Authorization ヘッダー
 //   ② 利用者用：B2C の token（grant_type=password・橋渡しユーザーのメール/パスワード）→ Authorization: Bearer ヘッダー
@@ -19,13 +24,16 @@
 //   CP_APP_ID                       … アプリケーションID（同じタブ。OpenID 認証の client_id）
 //   CP_USER_EMAIL / CP_USER_PASSWORD … 橋渡し用「API接続用ユーザー」のメールアドレスとパスワード
 //   CP_ALLOWED_ORIGINS … 画面を公開している URL（カンマ区切り。例：https://example.github.io。余計な引用符・空白・末尾の / は無視する）
+//   CP_WATCH_SECRET … 予約実行の合言葉（24 文字以上のランダムな文字列。pg_cron 側の Vault にも同じ値を入れる）。未設定なら予約実行は無効
 //   CP_ENV        … sandbox にすると検証環境（省略時は本番）。接続情報は同じ環境どうしの組を使う
 //   CP_BASE_URL / CP_TOKEN_URL / CP_OPENID_URL / CP_OPENID_SCOPE … 通常は設定しない（環境ごとの公式の既定値を使う）
-//   ※ SUPABASE_URL / SUPABASE_ANON_KEY は Supabase が自動で渡す
+//   ※ SUPABASE_URL / SUPABASE_ANON_KEY / SUPABASE_SERVICE_ROLE_KEY は Supabase が自動で渡す
 // 手順は docs/サイバーポート連携-セットアップ.md
 // ============================================================
 import { createClient } from 'npm:@supabase/supabase-js@2';
-import { allowRate, backoffMs, buildQuery, classifyStatus, formBody, isOriginAllowed, matchAllowed, parseOrigins, resolveConfig, tokenFromResponse, truncate } from './logic.ts';
+import { allowRate, backoffMs, buildQuery, classifyStatus, formBody, isOriginAllowed, matchAllowed, parseOrigins, resolveConfig, safeEqual, tokenFromResponse, truncate } from './logic.ts';
+import { runWatchBatch } from './watch.ts';
+import type { TargetResult, WatchTarget } from './watch.ts';
 
 const SB_URL = Deno.env.get('SUPABASE_URL')!;
 const SB_ANON = Deno.env.get('SUPABASE_ANON_KEY')!;
@@ -208,12 +216,101 @@ async function callGet(pathAndQuery: string): Promise<{ status: number; data: un
   throw lastErr ?? new CpError('upstream_error', 502, 'サイバーポート側のエラーです');
 }
 
+// ---------- 予約実行（動静の自動確認）：合言葉を持つ予約からだけ呼ばれる ----------
+const WATCH_BUDGET_MS = 100_000; // 1 回の実行は 100 秒まで（残りの案件は次の回に回す）
+
+async function handleWatchRun(req: Request): Promise<Response> {
+  let body: Record<string, unknown> = {};
+  try { body = await req.json(); } catch (_e) { return fail(req, 400, 'bad_json', '送る内容（JSON）が読めません'); }
+  if (body.action !== 'watch_run') return fail(req, 400, 'bad_action', '予約実行で使えるのは watch_run だけです');
+  const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+  if (!serviceKey) return fail(req, 503, 'watch_not_configured', '予約実行に必要な設定（SUPABASE_SERVICE_ROLE_KEY）がありません');
+  const n = Math.max(1, Math.min(10, Math.floor(Number(body.n)) || 5));
+  const sb = createClient(SB_URL, serviceKey, { auth: { persistSession: false } });
+  const started = Date.now();
+  const ins = await sb.from('cp_watch_runs').insert({ started_at: new Date(started).toISOString() }).select('id').single();
+  if (ins.error) return fail(req, 503, 'watch_tables_missing', '自動確認の表がありません（docs/sql/cp-watch.sql を実行してください）');
+  const runId = (ins.data as { id: number } | null)?.id ?? null;
+
+  const byId = new Map<string, WatchTarget>();
+  const deps = {
+    pick: async (k: number): Promise<WatchTarget[]> => {
+      const r = await sb.rpc('cp_watch_pick', { p_n: k });
+      if (r.error) throw new CpError('watch_pick_failed', 500, '確認する案件を選べませんでした（docs/sql/cp-watch.sql を実行してください）');
+      const list = (r.data ?? []) as WatchTarget[];
+      for (const t of list) byId.set(t.preset_id, t);
+      return list;
+    },
+    get: async (path: string, query: Record<string, unknown>): Promise<unknown> => {
+      if (!matchAllowed(path)) throw new CpError('path_not_allowed', 403, 'この API は許可されていません');
+      const q = buildQuery(query);
+      if (!q.ok) throw new CpError('bad_query', 400, q.reason);
+      return (await callGet(path + q.qs)).data;
+    },
+    save: async (r: TargetResult): Promise<void> => {
+      const tg = byId.get(r.preset_id);
+      const upd: Record<string, unknown> = {
+        last_checked_at: r.checked_at, last_status: r.status, last_error: r.error, updated_at: r.checked_at,
+        consecutive_errors: r.status === 'error' ? (tg?.consecutive_errors ?? 0) + 1 : 0,
+      };
+      if (r.status === 'ok') {   // 該当なし・失敗のときは前回の写しを残す
+        upd.snapshot = r.items; upd.urgent_at = r.urgent_at; upd.state = r.state; upd.state_note = r.state_note;
+        if (r.state !== (tg?.state ?? 'active')) upd.state_at = r.checked_at;
+      }
+      const u = await sb.from('cp_watch_targets').update(upd).eq('preset_id', r.preset_id);
+      if (u.error) throw new Error(truncate(u.error.message, 200));
+      const rows: Record<string, unknown>[] = r.changes.slice(0, 200).map((c) => ({
+        preset_id: r.preset_id, run_id: runId, detected_at: r.checked_at, k: c.k, scope: c.scope, label: c.label,
+        old_val: c.from, new_val: c.to, kind: c.kind, sev: c.sev, note: c.note ?? null,
+      }));
+      if (r.status === 'ok' && r.state !== 'active') {
+        rows.push({ preset_id: r.preset_id, run_id: runId, detected_at: r.checked_at, k: 'state', scope: '追跡',
+          label: r.state === 'done' ? '追跡完了' : '終了の確認', old_val: null, new_val: r.state_note, kind: 'state',
+          sev: r.state === 'done' ? 'info' : 'warn', note: null });
+      }
+      if (rows.length) {
+        const c = await sb.from('cp_changes').insert(rows);
+        if (c.error) throw new Error(truncate(c.error.message, 200));
+      }
+    },
+    now: () => Date.now(),
+    stopAt: started + WATCH_BUDGET_MS,
+  };
+
+  try {
+    const sum = await runWatchBatch(deps, n);
+    const note = sum.skipped ? '時間切れで ' + sum.skipped + ' 件を次回に回しました' : sum.saveErrors ? '保存に失敗した案件が ' + sum.saveErrors + ' 件あります' : null;
+    await sb.from('cp_watch_runs').update({
+      finished_at: new Date().toISOString(), picked: sum.picked, ok: sum.ok, nodata: sum.nodata, failed: sum.failed, changed: sum.changed, calls: sum.calls, note,
+    }).eq('id', runId);
+    console.log(JSON.stringify({ at: new Date().toISOString(), action: 'watch_run', run: runId, summary: sum }));
+    return json(req, { ok: true, run_id: runId, summary: sum });   // 集計は summary にまとめる（sum.ok は「成功した件数」で、応答の ok と名前がぶつかるため）
+  } catch (e) {
+    const code = e instanceof CpError ? e.code : 'internal';
+    const msg = e instanceof CpError ? e.message : '予期しないエラーです';
+    await sb.from('cp_watch_runs').update({ finished_at: new Date().toISOString(), note: code + ': ' + truncate(msg, 150) }).eq('id', runId);
+    console.log(JSON.stringify({ at: new Date().toISOString(), action: 'watch_run', run: runId, error: code }));
+    return fail(req, e instanceof CpError ? e.status : 500, code, msg);
+  }
+}
+
 // ---------- 入口 ----------
 const hits = new Map<string, number[]>();
 
 Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') return new Response(null, { status: 204, headers: corsFor(req) });
   if (req.method !== 'POST') return fail(req, 405, 'method', 'POST だけ使えます');
+
+  // 予約実行（動静の自動確認）：合言葉のヘッダーが付いているときだけ。ログイン中の人向けの処理とは完全に分ける。
+  const watchSecret = req.headers.get('x-cp-watch-secret');
+  if (watchSecret !== null) {
+    const expected = Deno.env.get('CP_WATCH_SECRET') ?? '';
+    if (expected.length < 24 || !safeEqual(watchSecret, expected)) return fail(req, 401, 'unauthorized', '予約実行の合言葉が正しくありません');
+    try { return await handleWatchRun(req); } catch (e) {
+      console.error('cp-proxy watch unexpected', e instanceof Error ? e.message : e);
+      return fail(req, 500, 'internal', '予期しないエラーです');
+    }
+  }
 
   const user = await authUser(req);
   if (!user) return fail(req, 401, 'unauthorized', 'ログインが必要です（チームメンバーのみ使えます）');

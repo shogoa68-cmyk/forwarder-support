@@ -194,3 +194,12 @@ export function tokenFromResponse(j: Record<string, unknown>, nowMs: number): { 
   const exp = Number.isFinite(ei) && ei > 0 ? nowMs + Math.max(ei * 1000 - 60_000, ei * 500) : tokenExpiryMs(token, nowMs);
   return { token, exp };
 }
+
+// 合言葉の比較（長さが違ってもかかる時間が変わらないようにする）。空どうしは一致にしない。
+export function safeEqual(a: string, b: string): boolean {
+  if (!a || !b) return false;
+  let diff = a.length ^ b.length;
+  const n = Math.max(a.length, b.length);
+  for (let i = 0; i < n; i++) diff |= (a.charCodeAt(i % a.length) ^ b.charCodeAt(i % b.length));
+  return diff === 0;
+}

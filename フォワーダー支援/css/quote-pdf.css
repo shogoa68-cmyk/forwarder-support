@@ -357,3 +357,34 @@
 .qd-remark-fixed { margin-top: 10px; }
 /* ミニマム（最低料金）で請求している行の明記 */
 .qd-min-tag { font-weight: 700; white-space: nowrap; }
+
+/* ===== 貿易条件の図解（js/quote/incoterms-diagram.js）：御見積書・画面プレビュー共通 ===== */
+.qd-srow-full .qd-sv { grid-column: 1 / -1; }
+.incd { margin: 6px 0 2px; font-size: var(--doc-fs-small); color: var(--doc-ink); break-inside: avoid; }
+.incd-leg { margin-top: 8px; font-weight: 700; font-size: var(--doc-fs-small); color: var(--doc-text-sub); }
+.incd-head { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 8px; margin-bottom: 4px; }
+.incd-code { font-weight: 700; font-size: var(--doc-fs-strong); letter-spacing: .02em; }
+.incd-name { color: var(--doc-text-sub); }
+.incd-sea { font-size: var(--doc-fs-tiny); border: 1px solid var(--doc-line); border-radius: 9px; padding: 0 7px; color: var(--doc-text-sub); background: var(--doc-fill-faint); }
+.incd-grid { display: grid; grid-template-columns: repeat(10, minmax(0, 1fr)); }
+.incd-st { text-align: center; font-size: var(--doc-fs-tiny); color: var(--doc-text-sub); line-height: 1.25; padding: 0 1px 3px; }
+.incd-bar { position: relative; }
+.incd-seg { display: flex; align-items: center; justify-content: center; height: 20px; box-sizing: border-box; font-size: var(--doc-fs-tiny); font-weight: 700; border-left: 1px solid var(--doc-paper, #fff); }
+.incd-seg:first-child { border-left: 0; }
+.incd-seg.is-seller { background: var(--doc-head-bg); color: var(--doc-paper, #fff); }
+.incd-seg.is-buyer { background: var(--doc-fill); color: var(--doc-text-sub); border-top: 1px solid var(--doc-line); border-bottom: 1px solid var(--doc-line); }
+.incd-riskwrap { position: absolute; top: 50%; transform: translate(-50%, -50%); line-height: 0; z-index: 1; }
+.incd-risk { display: block; }
+.incd-insrow { margin-top: 3px; }
+.incd-ins { height: 5px; background: #d6336c; border-radius: 3px; }
+.incd-legend { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 14px; margin-top: 5px; font-size: var(--doc-fs-tiny); color: var(--doc-text-sub); }
+.incd-lg { display: inline-flex; align-items: center; gap: 4px; }
+.incd-lg svg { width: 12px; height: 11px; }
+.incd-sw { display: inline-block; width: 18px; height: 8px; border-radius: 2px; box-sizing: border-box; }
+.incd-sw.is-seller { background: var(--doc-head-bg); }
+.incd-sw.is-buyer { background: var(--doc-fill); border: 1px solid var(--doc-line); }
+.incd-sw.is-ins { background: #d6336c; height: 5px; }
+.incd-note { margin-top: 4px; font-size: var(--doc-fs-tiny); color: var(--doc-text-faint); }
+/* 画面プレビュー（引き合い条件の箱）の中 */
+.pv-inco-toggle { display: inline-flex; align-items: center; gap: 6px; margin-top: 8px; font-size: var(--text-xs, 12px); color: var(--doc-text-sub, #666); cursor: pointer; }
+#pvCondBox .incd { margin-top: 8px; }
