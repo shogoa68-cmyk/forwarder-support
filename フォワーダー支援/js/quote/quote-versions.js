@@ -67,6 +67,9 @@
   // ---- 編集画面：ステータスが提示済みになった（setQuoteStatus から） ----
   window.qvOnStatus = function (status) {
     if (!isPresented(status)) return;
+    // 回答スピードの記録：初めて提示済みにした日時を 1 度だけ残す（以後は上書きしない）
+    const fp = $('qf-first-presented');
+    if (fp && !fp.value) { fp.value = new Date().toISOString(); fp.dispatchEvent(new Event('change', { bubbles: true })); if (typeof window.ciSync === 'function') window.ciSync(); }
     const user = (window._cloudUserEmail || (typeof window.quoteCurrentUserEmail === 'function' ? window.quoteCurrentUserEmail() : '')) || '';
     const next = appended(getList(), currentSnap(), status, user, currentFull());
     if (!next) return;

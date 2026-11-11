@@ -2,10 +2,12 @@
  * 既存の .fb-* モーダルの見た目（quote.css）には手を入れず、追加分だけをここに置く。 */
 
 /* ---------- 常駐ボタン（右下ドックの真上・小さく） ---------- */
+/* 全体リマークの引き出しを開いているあいだは、引き出しの裏に隠れる（追従しない） */
+body.rms-open .fb-quick-fab { z-index: 999; }
 .fb-quick-fab {
   position: fixed;
   right: max(18px, calc(18px + env(safe-area-inset-right)));
-  bottom: calc(max(72px, calc(72px + env(safe-area-inset-bottom))) + var(--rms-lift, 0px));
+  bottom: calc(max(72px, calc(72px + env(safe-area-inset-bottom))) + var(--rms-bar, 0px));
   width: 36px; height: 36px; padding: 0;
   border-radius: 50%;
   border: 1px solid var(--border-md, #c9bfa9);
@@ -116,7 +118,7 @@
 .fbr-ta { width: 100%; box-sizing: border-box; border: 1px solid var(--border-md, #ccc); border-radius: var(--r-8, 8px); padding: var(--sp-6, 6px) var(--sp-8, 8px); font: inherit; font-size: var(--fs-13, 13px); resize: vertical; background: var(--surface, #fff); }
 
 @media (max-width: 640px) {
-  .fb-quick-fab { bottom: calc(max(64px, calc(64px + env(safe-area-inset-bottom))) + var(--rms-lift, 0px)); }
+  .fb-quick-fab { bottom: calc(max(64px, calc(64px + env(safe-area-inset-bottom))) + var(--rms-bar, 0px)); }
   .fbr-ttl { flex-basis: 100%; }
 }
 

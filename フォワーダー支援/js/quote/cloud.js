@@ -2172,6 +2172,8 @@
       const vj = window.qvOnPresentedData(newData, status, _cloudUser.email);
       if (vj) newData.fields['qf-versions'] = vj;
     }
+    // 回答スピードの記録：初めて提示済みにした日時を 1 度だけ残す（quote-versions.js と同じ）
+    if (newData && ['提示済み', '提出済み', 'ヨコヨコ提示'].includes(status) && !newData.fields['qf-first-presented']) newData.fields['qf-first-presented'] = new Date().toISOString();
     const updatePayload = { status, owner_email: _cloudUser.email, updated_at: new Date().toISOString() };
     if (newData) updatePayload.data = newData;
     const { error } = await c.from(_table())
@@ -2199,6 +2201,46 @@
       label: '元に戻す',
       fn: () => cloudSetStatus(rawId, prev),
     });
+    // 失注・辞退にしたら、理由を記録できるようにする（あとで統計の受注分析に使う。スキップ可）
+    if ((status === '失注' || status === '辞退') && row && !(row.data && row.data.fields && row.data.fields['qf-lost-reason'])) {
+      _askLostReason(id, status);
+    }
+  }
+
+  // 失注・辞退の理由を聞く小さな確認画面（ダッシュボードでステータスを変えた直後）。「あとで」で何も保存しない。
+  function _askLostReason(id, status) {
+    document.getElementById('lostReasonOverlay')?.remove();
+    const reasons = window.QF_LOST_REASONS || [];
+    const ov = document.createElement('div');
+    ov.id = 'lostReasonOverlay'; ov.className = 'confirm-overlay';
+    ov.innerHTML =
+      '<div class="confirm-dialog" role="dialog" aria-modal="true">' +
+        '<h3 class="confirm-title">「' + escHtml(status) + '」の理由を記録しますか？</h3>' +
+        '<div class="confirm-body">' +
+          '<p>あとで見積の傾向（価格が原因か、当て馬か等）を振り返るのに使います。社内用で、見積書には出ません。</p>' +
+          '<select id="lrReason" style="width:100%;margin:6px 0">' +
+            '<option value="">— 理由を選ぶ —</option>' + reasons.map(r => '<option value="' + escHtml(r) + '">' + escHtml(r) + '</option>').join('') + '</select>' +
+          '<input type="text" id="lrNote" maxlength="200" placeholder="補足（競合の金額・先方のコメントなど）" style="width:100%">' +
+        '</div>' +
+        '<div class="confirm-actions"><button type="button" class="btn-cancel" id="lrSkip">あとで</button><button type="button" class="btn-primary" id="lrSave">記録する</button></div>' +
+      '</div>';
+    document.body.appendChild(ov);
+    const close = () => ov.remove();
+    ov.querySelector('#lrSkip').onclick = close;
+    ov.addEventListener('mousedown', e => { if (e.target === ov) close(); });
+    ov.querySelector('#lrSave').onclick = async () => {
+      const reason = ov.querySelector('#lrReason').value, note = ov.querySelector('#lrNote').value.trim();
+      if (!reason && !note) { close(); return; }
+      const c = _getClient(); const row = _cloudRows.find(r => r.id === id);
+      if (!c || !row || !row.data) { close(); return; }
+      const newData = Object.assign({}, row.data, { fields: Object.assign({}, row.data.fields, { 'qf-lost-reason': reason, 'qf-lost-note': note }) });
+      const { error } = await c.from(_table()).update({ data: newData, owner_email: _cloudUser.email, updated_at: new Date().toISOString() }).eq('id', id);
+      if (error) { quoteShowToast('⚠️ 理由の保存に失敗：' + error.message, 'warn', 5000); return; }
+      row.data = newData;
+      close();
+      quoteShowToast('📉 理由を記録しました', 'success', 2500);
+    };
+    ov.querySelector('#lrReason').focus();
   }
 
   // 保留放置の自動復帰（_checkStaleHolds）を、この案件だけ個別に止める/再開する。
@@ -3289,6 +3331,9 @@
     const newRef = typeof generateQuoteRefValue === 'function' ? generateQuoteRefValue() : null;
     if (newRef) newData.fields['qf-ref'] = newRef;
     delete newData.fields['qf-core-ref'];   // 基幹REF#は手配した案件に固有のため、コピーには引き継がない
+    ['qf-lost-reason', 'qf-lost-note', 'qf-inq-kind', 'qf-inq-channel', 'qf-inq-spec'].forEach(k => delete newData.fields[k]);   // 失注理由・引き合いの経路は元の案件／依頼に固有
+    delete newData.fields['qf-first-presented'];   // 初回の提示日時（回答スピード）もコピー元のもの
+    delete newData.fields['qf-recv-time'];   // 受信時刻も元の依頼に固有
     delete newData.fields['qf-versions'];   // 提示履歴（版）はコピー元の案件のものなので引き継がない
     delete newData.fields['qf-related-data'];   // 関連番号・メール件名も元の引き合いに固有のため引き継がない
     const existingNames = _cloudRows.map(r => r.name);

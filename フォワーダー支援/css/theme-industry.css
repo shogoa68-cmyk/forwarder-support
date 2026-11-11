@@ -10368,14 +10368,14 @@ html.theme-industry {
   overflow-wrap: anywhere;
 }
 :where(html.theme-industry) #quoteActionDock {
-  bottom: calc(18px + var(--rms-lift, 0px));
+  bottom: calc(18px + var(--rms-bar, 0px));
 }
 :where(html.theme-industry) .qf-memo-float {
   bottom: calc(80px + var(--rms-lift, 0px));
 }
 @media (max-width: 680px) {
   :where(html.theme-industry) #quoteActionDock {
-    bottom: calc(10px + var(--rms-lift, 0px));
+    bottom: calc(10px + var(--rms-bar, 0px));
   }
 }
 :where(html.theme-industry) #tab-quote-make .cloud-deal {

@@ -440,6 +440,7 @@
   "qspTabBtn-fin",
   "qspTabBtn-flow",
   "qtyPatternBar",
+  "quoteActionDock",
   "quoteFxBar",
   "quoteGlossary",
   "quoteSummaryPanel",
@@ -3531,7 +3532,7 @@
    "html": false
   },
   "rms-open": {
-   "css": false,
+   "css": true,
    "html": false
   },
   "rms-panel": {

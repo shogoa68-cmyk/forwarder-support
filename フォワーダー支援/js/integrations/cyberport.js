@@ -77,6 +77,10 @@
       var port = String(portCode == null ? '' : portCode).replace(/[\s\u3000]+/g, '').toUpperCase();
       return this.get('/API/v2/Terminals/GetList', port ? { portCode: port } : {});
     },
+    // 通知できる操作の一覧（Webhook で何を知らせてもらえるか）。応答は [{notifiableOperationCode, operationType, reportType, process}]
+    notifiableOperations: function () { return this.get('/API/v2/Master/NotifiableOperations/GetList', {}); },
+    // 操作履歴 1 件の詳細（Webhook の通知に入っている historyId で引く）
+    tradeHistory: function (historyId) { return this.get('/API/v2/Trades/Histories/Get/' + encodeURIComponent(historyId)); },
     colinsImportContainers: function (query) { return this.get('/API/v2/ColinsViewers/GetImportContainers', query); },
     colinsExportContainers: function (query) { return this.get('/API/v2/ColinsViewers/GetExportContainers', query); }
   };

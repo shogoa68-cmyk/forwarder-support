@@ -3,7 +3,8 @@
 //   ・上へドラッグ／スワイプ（または押す）で開く。開いたあとはつまみをドラッグして高さを変えられる。
 //     下へ引き下げる／取っ手を押す／Esc で閉じる。背景（見積もりテーブル）は開いたまま操作できる（モーダルにしない）。
 //   ・中身は既存の #section-remark（入力欄・定型文タブ・画像添付）を要素ごと移すだけ（id・保存・出力は変えない）。
-//   ・合計バー・保存ドック・🐞・付箋は、引き出しの高さ分だけ上へ持ち上げる（CSS 変数 --rms-lift）。
+//   ・合計バー・保存ドック・🐞・付箋ボタンは、取っ手バーの高さ分だけ上へ避ける（CSS 変数 --rms-bar）。引き出しを開いても持ち上げず、
+//     重なる部分は引き出しの裏に隠れる（追従させない）。--rms-lift（取っ手＋開いた高さ）は、表の下余白と、開いて使う付箋の窓だけが使う。
 (function () {
   'use strict';
   const $ = id => document.getElementById(id);
@@ -73,8 +74,12 @@
     // 開閉のアニメーション中でも、最終的な高さ（取っ手＋中身＋下の余白）を先に渡す（ほかの固定要素が一度に避けるように）
     const lift = vis ? Math.round(handle.getBoundingClientRect().height + bodyH + (parseFloat(getComputedStyle(sheet).paddingBottom) || 0) + 1) : 0;
     root.style.setProperty('--rms-lift', lift + 'px');
+    // 取っ手バーだけの高さ（閉じているときの持ち上げ量）。開いても変えない＝右下のボタンは引き出しに追従せず、裏に隠れる
+    const bar = vis ? Math.round(handle.getBoundingClientRect().height + (parseFloat(getComputedStyle(sheet).paddingBottom) || 0) + 1) : 0;
+    root.style.setProperty('--rms-bar', bar + 'px');
     document.body.classList.toggle('rms-open', !!(vis && open));
     if (typeof window.totFloatRefresh === 'function') window.totFloatRefresh();
+    if (typeof window.pvWarnGuidePlace === 'function') window.pvWarnGuidePlace();   // 出力前の確認ガイドは、引き出し・ドックの上に避ける
     // 見積入力画面が出たとき（ダッシュボード・他のタブ・オーバーレイから戻ったとき）に、存在を知らせる
     if (vis && !wasVisible && !open) { nudgeRepeats = 0; scheduleNudge(NUDGE_FIRST_MS); }
     else if (!vis && wasVisible) { clearTimeout(nudgeTimer); nudgeTimer = null; if (sheet) sheet.classList.remove('is-nudging'); }
