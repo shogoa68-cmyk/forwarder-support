@@ -5873,3 +5873,35 @@ tr.is-open .master-name-toggle::before { content: "▾ "; }
 }
 /* 数字は桁をそろえる（金額・数量の列が揃って読める） */
 input[type="number"], .num, td, th { font-variant-numeric: tabular-nums; }
+
+/* ===== 🔍 ゆらぎチェックのカード（マスター管理の上部・js/drift-check.js／2026-11） ===== */
+.drift-card { margin: 0 0 var(--sp-12, 12px); }
+.drift-card:empty { display: none; }
+.drift-card { border: 1px solid var(--border, #d9dee5); border-radius: 10px; padding: 10px 12px; background: var(--surface, #fff); }
+.drift-head { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; }
+.drift-title { font-size: var(--text-base); font-weight: 700; }
+.drift-sub { font-size: var(--text-xs); color: var(--text-muted, #6b7683); flex: 1 1 auto; }
+.drift-btn { font: inherit; font-size: var(--text-xs); padding: 3px 10px; border: 1px solid var(--border, #c9d0d9); border-radius: 6px; background: var(--surface, #fff); cursor: pointer; margin: 2px 4px 2px 0; }
+.drift-btn:hover:not(:disabled) { background: var(--bg-subtle, #f2f5f8); }
+.drift-btn:disabled { opacity: .5; cursor: default; }
+.drift-primary { background: var(--accent, #2d6a9f); color: #fff; border-color: var(--accent, #2d6a9f); }
+.drift-primary:hover:not(:disabled) { background: var(--accent-hover, #245a87); }
+.drift-ghost { color: var(--text-muted, #52606d); }
+.drift-sec { margin-top: 8px; border-top: 1px solid var(--border, #e3e8ee); padding-top: 6px; }
+.drift-sec > summary { cursor: pointer; font-size: var(--text-sm); font-weight: 600; list-style: none; }
+.drift-sec > summary::-webkit-details-marker { display: none; }
+.drift-sec > summary::before { content: '▸ '; }
+.drift-sec[open] > summary::before { content: '▾ '; }
+.drift-count { margin-left: 6px; font-size: var(--text-xs); padding: 0 7px; border-radius: 999px; background: #eef1f5; color: #44505c; }
+.drift-review .drift-count { background: #fdecd8; color: #9a4a00; }
+.drift-human .drift-count { background: #e1ecf8; color: #1f4f82; }
+.drift-auto .drift-count { background: #e3f4e8; color: #1d6b36; }
+.drift-list { list-style: none; margin: 6px 0 0; padding: 0; display: grid; gap: 8px; }
+.drift-list li { font-size: var(--text-sm); line-height: var(--lh-body, 1.7); }
+.drift-fld { display: inline-block; font-size: var(--text-xs); padding: 0 6px; margin-right: 6px; border-radius: 4px; background: #eef1f5; color: #44505c; }
+.drift-why { display: block; font-size: var(--text-xs); color: var(--text-muted, #6b7683); }
+.drift-lead, .drift-note, .drift-ok { margin: 6px 0 0; font-size: var(--text-xs); color: var(--text-muted, #6b7683); line-height: var(--lh-body, 1.7); }
+.drift-ok { color: #1d6b36; font-size: var(--text-sm); }
+.drift-actions { margin-top: 2px; }
+.drift-more { color: var(--text-muted, #6b7683); }
+.drift-tab-badge { margin-left: 6px; font-size: var(--text-xs); padding: 0 6px; border-radius: 999px; background: #e8870e; color: #fff; font-weight: 700; }
