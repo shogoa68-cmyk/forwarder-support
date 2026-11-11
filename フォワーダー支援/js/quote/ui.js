@@ -2877,6 +2877,8 @@
     }
     // Escape → 見積タブ内のモーダルをすべて閉じる（電卓・fb は上の優先度ブロックで処理済み）
     if (e.key === 'Escape') {
+      // お客様（マスター）詳細ポップアップ（ダッシュボード・見積入力の「詳細」から開く）
+      if (document.getElementById('customerDetailOverlay') && !document.getElementById('customerDetailOverlay').hidden) { qfCloseCustomerDetail(); return; }
       if (document.getElementById('cmdPalette')?.classList.contains('open'))     { closeCmdPalette(); return; }
       if (document.getElementById('rpEditOverlay')?.classList.contains('open'))   { closeRowPatternEdit(); return; }
       if (document.getElementById('rowPatternModal')?.classList.contains('open')) { closeRowPatternMgr(); return; }

@@ -6742,6 +6742,13 @@ body.qp-dash-active #quoteActionDock { display: none !important; }
 #tab-quote-make .cloud-deal--ship  { color: #1f4f82; background: #d9e8f7; border-color: #b7d1ea; }
 #tab-quote-make .cloud-deal--fwd   { color: #8a4b0a; background: #fde3c2; border-color: #f0c48f; }
 #tab-quote-make .cloud-deal--other { color: #4a5561; background: #e1e4e8; border-color: #c9ced4; }
+/* お客様名（マスター登録済み）＝押すとその場で詳細ポップアップ。見た目は文字のまま、点線の下線でリンクと分かるようにする */
+#tab-quote-make .cloud-cust-link {
+  font: inherit; color: inherit; background: none; border: 0; padding: 0; margin: 0; text-align: left; cursor: pointer;
+  border-bottom: 1px dotted currentColor; border-radius: 0;
+}
+#tab-quote-make .cloud-cust-link:hover { color: var(--accent); border-bottom-style: solid; }
+#tab-quote-make .cloud-cust-link:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 #tab-quote-make .cloud-kv-arrow { color: #94a3ad; }
 #tab-quote-make .cloud-kv-tags { display: flex; flex-wrap: wrap; gap: var(--sp-4); }
 #tab-quote-make .cloud-kv-sub  { display: flex; flex-wrap: wrap; gap: var(--sp-4) var(--sp-8); }
