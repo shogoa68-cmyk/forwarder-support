@@ -5538,7 +5538,7 @@
 <div id="toast-container"></div>
 
 <!-- 見積もりタブへ戻るフローティングボタン（見積以外のタブ表示中だけ出る） -->
-<button id="backToQuoteFab" type="button" hidden onclick="switchCategory('quote', document.querySelector('.cat-btn'))" title="見積もりタブへ戻る">← 見積もりに戻る</button>
+<button id="backToQuoteFab" type="button" hidden onclick="switchCategory('quote', document.querySelector('.cat-btn[aria-controls=tab-quote-make]'))" title="見積もりタブへ戻る">← 見積もりに戻る</button>
 
 <!-- ======= ブックマーク追加モーダル ======= -->
 <div id="bmAddModal" class="bm-modal-overlay" onclick="closeAddBmModal(event)">
