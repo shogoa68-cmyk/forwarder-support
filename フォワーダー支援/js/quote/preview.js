@@ -807,7 +807,7 @@
       const _rg      = _ac ? null : rowRange(d.bp, d.bphi);   // 幅（売単価〜上限）
       const _rgAmt   = _rg ? rowRangeAmt(d.bq, d.bp, d.bphi, d.bpmin) : null;
       const bpCell   = _ac ? _acTxt : (_rg ? fmtMoney(_rg.lo) + '〜' + fmtMoney(_rg.hi) : (minPriceText(d.bp, d.bpmin, d.bc, d.un) || fmtMoney(d.bp))) +
-        (d.bill > (d.bq || 0) * (d.bp || 0) ? ' <span class="pv-min-tag">[MIN適用]</span>' : '');   // 最低料金で請求している行
+        (() => { const k = minAppliedKind(d.bq, d.bp, d.bpmin); return (k === 'min' || (k === 'rate' && !_rg && !_ac)) ? ` <span class="pv-min-tag">${k === 'min' ? '[MIN適用]' : '[従量適用]'}</span>` : ''; })();   // 最低料金がある行は、どちらで請求しているか（最低料金／従量）を示す
       const mkCell   = _ac ? '' : fmtMoney(d.mk);
       // 参考情報行の金額は括弧書き＋グレーで「合計外の参考値」であることを示す
       const subCell  = _ac ? _acTxt
@@ -1519,7 +1519,7 @@
     { hdr: 'CD',       fn: d => d._actual ? '' : fmtRaw(d.cd),     pvGroup: 'pay',    role: 'cd'     },
     { hdr: '数量',     fn: d => fmtRaw(d.bq),          pvGroup: 'bill',   role: 'bq'     },
     { hdr: '通貨',     fn: d => d.bc,                  pvGroup: 'bill',   role: 'bc'     },
-    { hdr: '単価',     fn: d => d._actual ? '実費' : (_rgRaw(d) || minPriceText(d.bp, d.bpmin, d.bc, d.un) || fmtRaw(d.bp)), pvGroup: 'bill',   role: 'bp'     },
+    { hdr: '単価',     fn: d => d._actual ? '実費' : (_rgRaw(d) || minPriceText(d.bp, d.bpmin, d.bc, d.un, d.bq) || fmtRaw(d.bp)), pvGroup: 'bill',   role: 'bp'     },
     { hdr: '乗せ幅',       fn: d => d._actual ? '' : fmtRaw(d.mk),     pvGroup: 'mk',       role: 'mk'     },
     { hdr: '円換算(JPY)', fn: d => { if (d._actual) return '実費'; const s = minAmt((d.bq||0)*(d.bp||0), d.bpmin); return (d.bc && d.bc !== 'JPY') ? fmtRaw(typeof toJPY === 'function' ? Math.ceil(toJPY(s, d.bc)) : s) : '—'; }, pvGroup: 'jpy-conv', role: 'jpyConv' },
     { hdr: '利益',         fn: d => d._actual ? '—' : fmtRaw(d.profit), pvGroup: 'profit',   role: 'profit' },
@@ -1952,7 +1952,7 @@
     { key: 'cd',     hdr: 'CD',             fn: d => d._actual ? '' : fmtRaw(d.cd) },
     { key: 'bq',     hdr: '数量(請求)',     fn: d => fmtRaw(d.bq) },
     { key: 'bc',     hdr: '通貨(請求)',     fn: d => d.bc },
-    { key: 'bp',     hdr: '単価(請求)',     fn: d => d._actual ? '実費' : (_rgRaw(d) || minPriceText(d.bp, d.bpmin, d.bc, d.un) || fmtRaw(d.bp)) },
+    { key: 'bp',     hdr: '単価(請求)',     fn: d => d._actual ? '実費' : (_rgRaw(d) || minPriceText(d.bp, d.bpmin, d.bc, d.un, d.bq) || fmtRaw(d.bp)) },
     { key: 'mk',     hdr: '乗せ幅',         fn: d => d._actual ? '' : fmtRaw(d.mk) },
     { key: 'sub',    hdr: '小計',           fn: d => d._actual ? '実費' : fmtRaw(minAmt((d.bq||0)*(d.bp||0), d.bpmin)) },
     { key: 'profit', hdr: '利益',           fn: d => d._actual ? '—' : fmtRaw(d.profit) },

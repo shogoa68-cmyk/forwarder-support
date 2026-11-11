@@ -106,7 +106,21 @@ const http = require('http'), fs = require('fs'), path = require('path');
   const r3 = await p.evaluate(id => ({ sub: document.querySelector('#row-' + id + ' td.subtotal-cell .st-main').textContent.trim(), applied: document.getElementById('row-' + id).dataset.minApplied }), id);
   ok('数量 × 単価が上回る：小計＝45、MIN 適用なし', r3.sub === '45' && !r3.applied, r3);
   const d2 = await docText();
-  ok('御見積書：数量 × 単価が上回る行には [MIN適用] を付けない', d2.includes('Air Freight') && !d2.includes('[MIN適用]'), d2);
+  ok('御見積書：数量 × 単価が上回る行は [MIN適用] ではなく [従量適用] と明記する（どちらの単価で請求しているかが分かる）', d2.includes('Air Freight') && !d2.includes('[MIN適用]') && d2.includes('[従量適用]') && d2.includes('Min. $28.00 or $0.15/kg'), d2);
+  ok('御見積書：最低料金の行は [従量適用] を付けない', !d1.includes('[従量適用]'), d1);
+  // 英語出力の HTML・メール本文・Excel/CSV 用の単価文字列にも、どちらで請求しているかが出る
+  ok('御見積書（HTML）：従量適用のタグ（qd-min-rate）が付く', await p.evaluate(() => buildQuoteDocHTML().includes('qd-min-tag qd-min-rate')));
+  const mail2 = await p.evaluate(async () => {
+    let got = '';
+    try { Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText: t => { got = t; return Promise.resolve(); } } }); } catch (e) {}
+    window.copyQuoteEmail();
+    await new Promise(r => setTimeout(r, 300));
+    return got;
+  });
+  ok('メール本文：従量で請求している行は [従量適用]（[MIN適用] ではない）', mail2.includes('Min. $28.00 or $0.15/kg [従量適用]') && !mail2.includes('[MIN適用]'), mail2.split('\n').filter(l => /Air/.test(l)));
+  const txt = await p.evaluate(() => ({ rate: minPriceText(0.15, 28, 'USD', 'kg', 300), min: minPriceText(0.15, 28, 'USD', 'kg', 100), none: minPriceText(0.15, 0, 'USD', 'kg', 100), plain: minPriceText(0.15, 28, 'USD', 'kg'), kinds: [minAppliedKind(300, 0.15, 28), minAppliedKind(100, 0.15, 28), minAppliedKind(100, 0.15, 0), minAppliedKind(186.67, 0.15, 28)] }));
+  ok('Excel/CSV 用の単価文字列：従量＝[従量適用]／最低料金＝[MIN適用]／最低料金なし＝null／数量を渡さなければタグなし', txt.rate === 'Min. $28.00 or $0.15/kg [従量適用]' && txt.min === 'Min. $28.00 or $0.15/kg [MIN適用]' && txt.none === null && txt.plain === 'Min. $28.00 or $0.15/kg', txt);
+  ok('minAppliedKind：従量／最低料金／なし／ちょうど同額は従量', JSON.stringify(txt.kinds) === JSON.stringify(['rate', 'min', null, 'rate']), txt.kinds);
 
   // 保存 → 復元
   await p.fill('#pq-' + id, '100'); await p.dispatchEvent('#pq-' + id, 'input'); await p.waitForTimeout(200);
