@@ -222,6 +222,21 @@ const http = require('http'), fs = require('fs'), path = require('path');
     ok('JS エラーなし（未登録の点線）', errs.length === 0, errs);
     await ctx.close();
   }
+  {
+    const { ctx, p, errs } = await open(true, { legacy: {}, approval: false, role: 'admin' });
+    const bm = () => p.evaluate(() => { const e = document.querySelector('#tableBody tr.subcon-group-header .sv-hdr-bm'); return !!e && !e.hidden && e.offsetParent !== null; });
+    await setSv(p, 'テスト運送');
+    await p.evaluate(async () => { await window.bmEnsureCarrierTypes(); window.refreshAllRowSvChips(); });
+    ok('ブックマークが無い運送業者の見出しに「BOOKMARK」は出ない', !(await bm()), null);
+    await p.evaluate(async () => { window.__db.bookmarks.push({ id: 'b9', label: 'テスト運送の運賃表', url: 'https://t.example', carrier: 'テスト運送', function: 'tracking' }); await window._bmLoad(); });
+    await p.waitForTimeout(300);
+    ok('ブックマークを足して読み直すと、見出しの「BOOKMARK」がその場で出る', await bm(), null);
+    await p.evaluate(async () => { await window.bmDelete('b9'); });
+    await p.waitForTimeout(300);
+    ok('削除すると、その場で消える', !(await bm()), null);
+    ok('JS エラーなし（ブックマーク）', errs.length === 0, errs);
+    await ctx.close();
+  }
   await b.close(); srv.close();
   console.log(out.join('\n'));
   process.exit(out.some(l => l.startsWith('FAIL')) ? 1 : 0);
