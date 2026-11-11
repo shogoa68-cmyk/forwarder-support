@@ -2559,6 +2559,7 @@
     const dir = f['cond-direction'];
     if (dir) condRows.push(_cpKV('方向', dirLabel(dir) || dir));
     if (f['cond-incoterms']) condRows.push(_cpKV('インコタームズ', f['cond-incoterms']));
+    if (f['cond-handling']) condRows.push(_cpKV('荷役条件', f['cond-handling']));
     if (f['cond-mode'])      condRows.push(_cpKV('輸送モード', f['cond-mode']));
     const ins = f['cond-insurance-on'] === 'true' || f['cond-insurance-on'] === true;
     if (ins) condRows.push(_cpKV('保険', '付保あり'));

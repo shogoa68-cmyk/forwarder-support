@@ -2776,6 +2776,10 @@
    "css": true,
    "html": false
   },
+  "is-nudging": {
+   "css": true,
+   "html": false
+  },
   "is-off": {
    "css": true,
    "html": false
@@ -3522,6 +3526,10 @@
   },
   "rms-open": {
    "css": false,
+   "html": false
+  },
+  "rms-panel": {
+   "css": true,
    "html": false
   },
   "rn-plan-chk": {
@@ -4618,6 +4626,10 @@
    "html": false,
    "js": true
   },
+  "ht-init": {
+   "html": false,
+   "js": true
+  },
   "i": {
    "html": false,
    "js": true
@@ -5161,6 +5173,7 @@
   "js/quote/case-info.js",
   "js/quote/sources.js",
   "js/quote/cond-flow.js",
+  "js/quote/handling-terms.js",
   "js/quote/route-flow.js",
   "js/quote/cargo-flow.js",
   "js/quote/remark-tabs.js",
