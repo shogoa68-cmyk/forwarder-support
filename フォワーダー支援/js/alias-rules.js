@@ -496,10 +496,15 @@
   }
   window.arRefreshDatalist = function () {
     _refreshDatalist.apply(this, arguments);
+    _remarkUnregistered();   // すでに「未登録」の印が付いている欄は、マスターに登録された・別名になったら印を外す
     if (typeof window.qfRefreshCarrierMasterCandidates === 'function') window.qfRefreshCarrierMasterCandidates();   // サブコンのマスター（種別がキャリア）を幹線輸送のキャリア候補へ
     if (typeof window.zscRefreshLists === 'function') window.zscRefreshLists();   // 出発地側・到着地側のデフォルトサブコンの候補（得意エリアで絞る）
     if (typeof window.ptcRefreshLists === 'function') window.ptcRefreshLists();   // 国で絞った港の候補（POL／経由地／POD）も作り直す
     if (typeof window.refreshAllRowSvChips === 'function') window.refreshAllRowSvChips();   // マスターが読み込まれた・変わったら、行の「サブコン未登録」の印も更新
+    // お客様の詳細ボタン・ご担当者の候補・取引ルールの帯、品名の詳細ボタンも、マスター（詳細・別名）の変更に追従させる
+    // （以前は見積タブを開いた最初の読込直後と、お客様名を打ったときしか更新されなかった）
+    if (document.getElementById('qf-customer') && typeof window.qfRefreshCustomerDetailBtn === 'function') window.qfRefreshCustomerDetailBtn();
+    if (typeof window.refreshAllRowMasterDetailBtns === 'function') window.refreshAllRowMasterDetailBtns();
   };
 
   // === クイック登録ステート ===
@@ -744,7 +749,7 @@
   };
 
   async function _afterChange() {
-    _refreshDatalist();
+    window.arRefreshDatalist();   // 入力候補だけでなく、サブコン見出しの印・国で絞った港の候補なども更新する
     if (typeof window.arRenderPane === 'function') await window.arRenderPane();
   }
 
@@ -949,6 +954,15 @@
     } else if (input.dataset.titleOrig !== undefined) {
       input.title = input.dataset.titleOrig; delete input.dataset.titleOrig;
     }
+  }
+
+  // 印は欄を確定（change）したときにだけ付け外ししていたため、あとからマスターに登録しても点線が残った。
+  // 印が付いている欄だけ、マスターの変更のたびに判定し直す（新しく印を付けることはしない＝入力していない欄は触らない）
+  function _remarkUnregistered() {
+    document.querySelectorAll('#tab-quote-make input.name-unregistered').forEach(inp => {
+      const field = _LIST_FIELD[inp.getAttribute('list')];
+      if (field) _markUnregistered(inp, field, !_canonicalFor(field, inp.value));
+    });
   }
 
   // お客様ご担当者：読み（ひらがな／カタカナ）をそのまま確定したら、マスター登録の氏名へ変換
@@ -1292,7 +1306,7 @@
 
   async function _synAfter(toast) {
     await window.synLoadCloud();
-    _refreshDatalist();
+    window.arRefreshDatalist();   // 別名・マスター名が変わったら、サブコン見出しの印・詳細ボタン・港の候補も更新する
     if (typeof window.statsRerenderActive === 'function') window.statsRerenderActive();
     else if (typeof window.statsRefresh === 'function') await window.statsRefresh();
     const failed = _synWriteFailed; _synWriteFailed = false;   // 書き込みが失敗していたら成功表示は出さない（理由は _synFail が出している）
@@ -1594,16 +1608,22 @@
   const _VIA_FIELD = { key: 'via', label: '経由する同業者', via: true };
   const _CHILDREN_FIELD = { key: 'viaChildren', label: '先のお客様（この同業者のお客様）', children: true };
   // 先のお客様（直下）の名前一覧
+  // 経由する同業者の名前は、保存した時点の名前のまま持つ。同業者のマスター名を変えたり別名にしたりしても先のお客様が外れないよう、代表名にそろえて読む
+  window.mdViaOf = function (name) {
+    const r = window.mdGet('customer', name);
+    const v = r && r.details && r.details.via;
+    if (!v) return '';
+    return (typeof window.nameCanon === 'function' ? window.nameCanon('customer', v) : v) || v;
+  };
   window.mdViaChildren = function (parent) {
-    return window.mdGetAll('customer').filter(m => m.details && m.details.via === parent).map(m => m.value).sort((a, b) => a.localeCompare(b, 'ja'));
+    return window.mdGetAll('customer').filter(m => m.details && m.details.via && window.mdViaOf(m.value) === parent).map(m => m.value).sort((a, b) => a.localeCompare(b, 'ja'));
   };
   // 上位（経由する同業者を順にたどる。近い順・循環しても止まる）
   window.mdViaChain = function (name) {
     const out = [], seen = new Set([name]);
     let cur = name;
     for (let i = 0; i < 20; i++) {
-      const r = window.mdGet('customer', cur);
-      const v = r && r.details && r.details.via;
+      const v = window.mdViaOf(cur);
       if (!v || seen.has(v)) break;
       out.push(v); seen.add(v); cur = v;
     }
