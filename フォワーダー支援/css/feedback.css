@@ -2,10 +2,12 @@
  * 既存の .fb-* モーダルの見た目（quote.css）には手を入れず、追加分だけをここに置く。 */
 
 /* ---------- 常駐ボタン（右下ドックの真上・小さく） ---------- */
+/* 全体リマークの引き出しを開いているあいだは、引き出しの裏に隠れる（追従しない） */
+body.rms-open .fb-quick-fab { z-index: 999; }
 .fb-quick-fab {
   position: fixed;
   right: max(18px, calc(18px + env(safe-area-inset-right)));
-  bottom: max(72px, calc(72px + env(safe-area-inset-bottom)));
+  bottom: calc(max(72px, calc(72px + env(safe-area-inset-bottom))) + var(--rms-bar, 0px));
   width: 36px; height: 36px; padding: 0;
   border-radius: 50%;
   border: 1px solid var(--border-md, #c9bfa9);
@@ -116,7 +118,7 @@
 .fbr-ta { width: 100%; box-sizing: border-box; border: 1px solid var(--border-md, #ccc); border-radius: var(--r-8, 8px); padding: var(--sp-6, 6px) var(--sp-8, 8px); font: inherit; font-size: var(--fs-13, 13px); resize: vertical; background: var(--surface, #fff); }
 
 @media (max-width: 640px) {
-  .fb-quick-fab { bottom: max(64px, calc(64px + env(safe-area-inset-bottom))); }
+  .fb-quick-fab { bottom: calc(max(64px, calc(64px + env(safe-area-inset-bottom))) + var(--rms-bar, 0px)); }
   .fbr-ttl { flex-basis: 100%; }
 }
 
@@ -131,9 +133,9 @@
 @keyframes fbrAskPulse { 50% { box-shadow: 0 0 0 4px rgba(46,134,222,.22); } }
 .fbr-banner { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-12, 12px); flex-wrap: wrap; margin-bottom: var(--sp-12, 12px); padding: var(--sp-10, 10px) var(--sp-14, 14px); background: #e8f1fb; border: 1px solid #9cc4ee; border-radius: var(--r-8, 8px); font-size: var(--fs-13, 13px); color: #174f8c; }
 .fbr-banner[hidden] { display: none; }
-.hdr-fb-badge { display: inline-block; min-width: 16px; margin-left: 6px; padding: 0 5px; border-radius: 999px; background: #e5484d; color: #fff; font-size: 11px; font-weight: 800; line-height: 16px; text-align: center; vertical-align: 1px; }
+.hdr-fb-badge { display: inline-block; min-width: 16px; margin-left: 6px; padding: 0 5px; border-radius: 999px; background: #e5484d; color: #fff; font-size: 12px; font-weight: 800; line-height: 16px; text-align: center; vertical-align: 1px; }
 .fb-quick-fab.has-badge { opacity: 1; box-shadow: 0 0 0 2px #e5484d, 0 2px 10px rgba(0,0,0,.3); }
-.fb-quick-fab.has-badge::after { content: attr(data-n); position: absolute; top: -6px; right: -6px; min-width: 16px; padding: 0 4px; border-radius: 999px; background: #e5484d; color: #fff; font-size: 11px; font-weight: 800; line-height: 16px; }
+.fb-quick-fab.has-badge::after { content: attr(data-n); position: absolute; top: -6px; right: -6px; min-width: 16px; padding: 0 4px; border-radius: 999px; background: #e5484d; color: #fff; font-size: 12px; font-weight: 800; line-height: 16px; }
 
 /* ---------- やりとり（スレッド） ---------- */
 .fbr-thread { margin-top: var(--sp-10, 10px); padding: var(--sp-10, 10px) var(--sp-12, 12px); background: #f3f8fe; border: 1px solid #cfe1f5; border-radius: var(--r-8, 8px); }
@@ -184,7 +186,7 @@
 .fbr-mode { border: 0; background: transparent; font: inherit; font-size: var(--fs-14, 14px); font-weight: 700; color: var(--text-muted, #777); padding: var(--sp-8, 8px) var(--sp-16, 16px); cursor: pointer; border-bottom: 3px solid transparent; margin-bottom: -2px; }
 .fbr-mode:hover { color: var(--text, #333); }
 .fbr-mode.is-on { color: var(--accent, #8a6d3b); border-bottom-color: var(--accent, #8a6d3b); }
-.fbr-mode-n { display: inline-block; min-width: 18px; margin-left: 4px; padding: 0 6px; border-radius: 999px; background: var(--border-md, #e4e4e4); color: var(--text, #333); font-size: 11px; font-weight: 700; line-height: 18px; text-align: center; }
+.fbr-mode-n { display: inline-block; min-width: 18px; margin-left: 4px; padding: 0 6px; border-radius: 999px; background: var(--border-md, #e4e4e4); color: var(--text, #333); font-size: 12px; font-weight: 700; line-height: 18px; text-align: center; }
 .fbr-mode-n:empty { display: none; }
 .fbr-mode.is-on .fbr-mode-n { background: var(--accent, #8a6d3b); color: #fff; }
 

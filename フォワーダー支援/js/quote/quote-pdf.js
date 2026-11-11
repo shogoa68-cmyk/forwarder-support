@@ -82,6 +82,7 @@
     grandTotal:     ['合計見積額', 'Grand Total'],
     subtotal:       ['小計', 'Subtotal'],
     incoterms:      ['建値（INCOTERMS）', 'Incoterms'],
+    handling:       ['荷役条件', 'Handling Terms'],
     route:          ['航路', 'Route'],
     pol:            ['積み地（POL）', 'Port of Loading (POL)'],
     pod:            ['揚げ地（POD）', 'Port of Discharge (POD)'],
@@ -105,6 +106,7 @@
     estimateTag:    ['約', 'Approx.'],
     unpriced:       ['実費', 'At Cost'],
     minApplied:     ['[MIN適用]', '[MIN applied]'],
+    rateApplied:    ['[従量適用]', '[Rate applied]'],   // 最低料金がある行で、数量×単価（従量）のほうが最低料金を上回り、従量で請求している
     conditional:    ['（発生時/必要時のみ）', '(If applicable)'],
     reference:      ['（参考情報）', '(For reference)'],
     noPattern:      ['（パターン未設定）', '(No pattern)'],
@@ -188,7 +190,8 @@
     const m = s.match(/^([^\d\-]*)(.*)$/);     // 先頭の記号（≈ 等）を分離
     const prefix = m ? m[1] : '';
     const rest   = m ? m[2] : s;
-    return esc(prefix) + '¥' + esc(rest);
+    // 幅（「下限〜上限」）は両端に ¥ を付ける
+    return esc(prefix) + rest.split('〜').map(x => '¥' + esc(x)).join('〜');
   }
 
   // 課税行の品名から先頭の課税マーク * を1つ除去（表示直前）。
@@ -364,6 +367,18 @@
     } else {
       push(t('incoterms'), _incotermsDisp(cond.incoterms));
     }
+    // 貿易条件の図解（設定パネルで ON のときだけ）：貿易条件の行の直下に全幅で出す
+    if (typeof window.incoDiagramEnabled === 'function' && window.incoDiagramEnabled() && typeof window.incoDiagramBlockHTML === 'function') {
+      const _ro = dirIsRound(cond.direction);
+      const _dg = window.incoDiagramBlockHTML(cond.incoterms, _ro ? cond.incotermsRet : '', {
+        en: _curLangEn,
+        legNames: _ro ? { out: `${t('outbound')}${_curLangEn ? ` (${dirLegName(cond.direction, 'out', true)})` : `（${dirLegName(cond.direction, 'out', false)}）`}`,
+                          ret: `${t('returnLeg')}${_curLangEn ? ` (${dirLegName(cond.direction, 'ret', true)})` : `（${dirLegName(cond.direction, 'ret', false)}）`}` } : null,
+      });
+      if (_dg) meta.push(['', { html: _dg, full: true }]);
+    }
+    // 荷役条件（RO/RO・在来船の BTBT／FILO など）：建値（と図解）の下に別の行で出す
+    push(t('handling'), _curLangEn && cond.handling ? cond.handling.replace('（', ' (').replace('）', ')') : cond.handling);
     // 航路：1件以上の登録があれば航路ごとに via・キャリア・サービス名を含めて全件併記
     if (_hasRoutes) {
       (_legItems || cond.routes.map((r, i) => ({ r, label: cond.routes.length === 1 ? t('route') : `${t('route')} ${i + 1}` }))).forEach(({ r, label }) => {
@@ -567,6 +582,7 @@
 
     // 集計
     let taxableSub = 0, exemptSub = 0, taxSum = 0;
+    let taxableSubHi = 0, exemptSubHi = 0, taxSumHi = 0;   // 幅（〜）のある行を上限で数えた場合の合計（下限＝上記）
     const lineHTML = [];
     // サブコン別グループが有効（2+ サブコン）なら、グループ境界に売値小計を挿入（顧客向けのため金額のみ）
     // 揺らぎ吸収：境界判定・エイリアス参照は正規化キーで、表示は元の綴りで行う
@@ -581,26 +597,33 @@
       scPatternSets[sk].add(_ptNorm(d));
     });
     const _scActive = (new Set(data.map(_scNorm)).size >= 2);
-    let _scKey = null, _scLabel = null, _scHeadLabel = null, _scJpy = 0, _scHas = false;
+    let _scKey = null, _scLabel = null, _scHeadLabel = null, _scJpy = 0, _scJpyHi = 0, _scHas = false;   // …Hi＝幅（〜）のある行を上限で数えた小計
     let _catKey = null;   // サブコン内の現在カテゴリ（サブコンが変わると null にリセット）
-    let _ptActive = false, _ptSubOn = false, _ptKey = null, _ptJpy = 0, _ptHas = false;
+    let _ptActive = false, _ptSubOn = false, _ptKey = null, _ptJpy = 0, _ptJpyHi = 0, _ptHas = false;
+    // 小計の金額表示：上限が下限と違うときは「¥下限〜¥上限」（合計・手動の小計行と同じ書式）
+    const _subYen = (lo, hi) => (hi !== lo) ? `¥${fmtInt(lo)}〜¥${fmtInt(hi)}` : `¥${fmtInt(lo)}`;
     const _ptPush = () => {
       // パターン小計はサブコン内に2パターン以上あるときだけ出す
       // （1パターンのみだと直後のサブコン小計と同額の小計行が2行並び冗長）
       if (_ptActive && _ptSubOn && _ptHas) {
         // パターン名は見出し行に表示済みのため、小計行では繰り返さず「小計」のみ
-        lineHTML.push(`<tr class="qd-pattern-sub"><td colspan="4">↳ ${t('subtotal')}</td><td class="qd-num">¥${fmtInt(_ptJpy)}</td></tr>`);
+        lineHTML.push(`<tr class="qd-pattern-sub"><td colspan="4">↳ ${t('subtotal')}</td><td class="qd-num">${_subYen(_ptJpy, _ptJpyHi)}</td></tr>`);
       }
-      _ptJpy = 0; _ptHas = false;
+      _ptJpy = 0; _ptJpyHi = 0; _ptHas = false;
     };
     const _scPush = () => {
       _ptPush(); // サブコン小計前にパターン小計をフラッシュ
-      if (_scActive && _scHas) {
+      // 「合計・税サマリを非表示」（パターン比較用）のとき、サブコン内に複数パターンがあれば、サブコン小計は
+      // 案どうしの合算（比較用の案を足した意味のない金額）になるので出さない。パターンごとの小計だけを残す。
+      // この時点の _ptSubOn は、いま閉じようとしているサブコンのもの（次のサブコンの判定は境界の後）
+      const _scSumMeaningless = hideTotal && _ptSubOn;
+      if (_scActive && _scHas && !_scSumMeaningless) {
         // サブコン小計はページが分かれると見出し行が前ページに残り会社名が分からなくなるため、
         // 「小計」だけでなくサブコン名も併記する（例：「SEABRIDGE 小計」）
-        lineHTML.push(`<tr class="qd-subcon-sub"><td colspan="4">↳ ${esc(_scHeadLabel || '')} ${t('subtotal')}</td><td class="qd-num">¥${fmtInt(_scJpy)}</td></tr>`);
+        lineHTML.push(`<tr class="qd-subcon-sub"><td colspan="4">↳ ${esc(_scHeadLabel || '')} ${t('subtotal')}</td><td class="qd-num">${_subYen(_scJpy, _scJpyHi)}</td></tr>`);
       }
     };
+    let _hasRangeRow = false;   // 幅（〜）で示した行があるか（あれば合計の注記を出す）
     rows.forEach(r => {
       if (r._type === 'remark') {
         if (r.internal) return; // 社内メモは PDF に出力しない
@@ -613,18 +636,27 @@
       }
       // data
       const sub = minAmt((r.bq || 0) * (r.bp || 0), r.bpmin);  // 請求通貨建ての金額（ミニマム＝最低料金があれば、それを下回らない）
+      // 幅（売単価〜上限）：単価・金額を「1,000〜2,500」と示す。合計・小計は売単価（下限）で計算する
+      const _rg    = r._actual ? null : rowRange(r.bp, r.bphi);
+      const _rgAmt = _rg ? rowRangeAmt(r.bq, r.bp, r.bphi, r.bpmin) : null;
+      if (_rg) _hasRangeRow = true;
       const jpy = Math.ceil(_toJPY(sub, r.bc || 'JPY'));      // JPY換算
+      const _jpyHi = _rgAmt ? Math.ceil(_toJPY(_rgAmt.hi, r.bc || 'JPY')) : jpy;   // 幅のある行の上限（JPY）。サブコン・パターン小計の「下限〜上限」用
       // 外貨建ては輸出免税が原則（Excel/プレビューと同一ポリシー）。課税は JPY 建て行のみ。
       // 消費税は行ごとに切り上げて積み上げ、各出力経路（御見積書/プレビュー/Excel）で一致させる。
       const isActual = r._actual;   // 実費（金額未確定・合計除外・単価/金額は「実費」表示）
       const isCond   = r._cond;     // 都度請求（発生時のみ・金額は表示・合計に加算しない）
       const isRef    = r._ref;      // 参考情報（金額は表示・合計に加算しない）
       if (!isActual && !isCond && !isRef) {
+        const jpyHi = _rgAmt ? Math.ceil(_toJPY(_rgAmt.hi, r.bc || 'JPY')) : jpy;   // 幅のある行の上限（JPY）
         if (r.taxed && (r.bc || 'JPY') === 'JPY') {
           taxableSub += jpy;
           taxSum += Math.ceil(jpy * taxRate);
+          taxableSubHi += jpyHi;
+          taxSumHi += Math.ceil(jpyHi * taxRate);
         } else {
           exemptSub += jpy;
+          exemptSubHi += jpyHi;
         }
       }
       const isNonJpy = r.bc && r.bc !== 'JPY';
@@ -634,12 +666,14 @@
       // JPY 単価は端数があるときだけ小数表示（単価×数量＝金額の検算が崩れないように）
       const unitDisp = isActual
         ? t('unpriced')
-        : estTag + (minPriceText(r.bp, r.bpmin, r.bc || 'JPY', r.un || '') ? esc(minPriceText(r.bp, r.bpmin, r.bc || 'JPY', r.un || ''))
+        : estTag + (_rg ? (isNonJpy ? `${fmtNum(_rg.lo, 2)}〜${fmtNum(_rg.hi, 2)} ${esc(r.bc)}`
+                                    : `${Number.isInteger(_rg.lo) && Number.isInteger(_rg.hi) ? fmtInt(_rg.lo) + '〜' + fmtInt(_rg.hi) : fmtNum(_rg.lo, 2) + '〜' + fmtNum(_rg.hi, 2)} JPY`)
+          : minPriceText(r.bp, r.bpmin, r.bc || 'JPY', r.un || '') ? esc(minPriceText(r.bp, r.bpmin, r.bc || 'JPY', r.un || ''))
           : isNonJpy
           ? `${fmtNum(r.bp, 2)} ${esc(r.bc)}`
           : `${Number.isInteger(r.bp) ? fmtInt(r.bp) : fmtNum(r.bp, 2)} JPY`)
-        // 最低料金が「数量 × 単価」を上回り、最低料金で請求している行は、その旨を明記する
-        + (sub > (r.bq || 0) * (r.bp || 0) ? ` <span class="qd-min-tag">${t('minApplied')}</span>` : '');
+        // 最低料金がある行は、どちらで請求しているか（最低料金／従量＝数量×単価）を明記する。幅（〜）の行は最低料金を適用したときだけ
+        + (() => { const k = (typeof minAppliedKind === 'function') ? minAppliedKind(r.bq, r.bp, r.bpmin) : null; return (k === 'min' || (k === 'rate' && !_rg && !isActual)) ? ` <span class="qd-min-tag qd-min-${k}">${t(k === 'min' ? 'minApplied' : 'rateApplied')}</span>` : ''; })();
       // 御見積書は客先向け公式文書のため、社内メモ(r.note)は出力しない（E-1 備考漏洩対策）
       // 数量は金額の根拠（sub = bq×bp）と一致させる。未入力時に「1」を捏造しない（B/台帳 C）
       const qtyDisp = (r.bq && r.bq > 0) ? fmtNum(r.bq, 4) : '—';
@@ -647,7 +681,7 @@
       if (_scActive) {
         const k = _scNorm(r);
         if (_scHas && k !== _scKey) {
-          _scPush(); _scJpy = 0; _scHas = false; _catKey = null;
+          _scPush(); _scJpy = 0; _scJpyHi = 0; _scHas = false; _catKey = null;
           _ptActive = false; _ptKey = null;
         }
         if (!_scHas) {
@@ -665,9 +699,9 @@
           const ps = scPatternSets[k] || new Set();
           _ptActive = ps.size >= 2 || (ps.size === 1 && !ps.has(''));
           _ptSubOn  = ps.size >= 2;
-          _ptKey = null; _ptJpy = 0; _ptHas = false;
+          _ptKey = null; _ptJpy = 0; _ptJpyHi = 0; _ptHas = false;
         }
-        _scJpy += ((isActual || isCond || isRef) ? 0 : jpy); _scHas = true;   // 実費・都度請求・参考情報は小計に含めない
+        _scJpy += ((isActual || isCond || isRef) ? 0 : jpy); _scJpyHi += ((isActual || isCond || isRef) ? 0 : _jpyHi); _scHas = true;   // 実費・都度請求・参考情報は小計に含めない
       } else {
         // サブコンが1社のみの場合もパターン表示を判定（初回のみ）
         if (_ptKey === null) {
@@ -693,7 +727,7 @@
           }
           _catKey = null;
         }
-        if (!isActual && !isCond && !isRef) _ptJpy += jpy;
+        if (!isActual && !isCond && !isRef) { _ptJpy += jpy; _ptJpyHi += _jpyHi; }
         _ptHas = true;
       }
       // カテゴリー境界：サブコン配下でカテゴリが変わったら見出し行を挿入（ツリー第2階層）
@@ -725,14 +759,20 @@
           <td class="qd-num">${qtyDisp}</td>
           <td class="qd-ctr">${esc(r.un || '')}</td>
           <td class="qd-num">${unitDisp}</td>
-          <td class="qd-num">${isActual ? t('unpriced') : isCond ? '' : isRef ? '<span style="color:var(--doc-note-ref-amt);">(¥' + fmtInt(jpy) + ')</span>' : estTag + '¥' + fmtInt(jpy)}</td>
+          <td class="qd-num">${isActual ? t('unpriced') : isCond ? '' : isRef ? '<span style="color:var(--doc-note-ref-amt);">(¥' + fmtInt(jpy) + ')</span>' : estTag + (_rgAmt ? '¥' + fmtInt(Math.ceil(_toJPY(_rgAmt.lo, r.bc || 'JPY'))) + '〜¥' + fmtInt(Math.ceil(_toJPY(_rgAmt.hi, r.bc || 'JPY'))) : '¥' + fmtInt(jpy))}</td>
         </tr>`
       );
     });
     _scPush();   // 末尾グループの売値小計
+    if (_hasRangeRow) {   // 幅のある項目の合計の扱いを明記（誤解防止）
+      lineHTML.push(`<tr class="qd-remark"><td colspan="5">※ ${_curLangEn ? 'Totals are shown as a range because some items are quoted as a range (lower to upper amount).' : '「〜」で幅を示した項目を含むため、合計も下限〜上限の幅で表示しています。'}</td></tr>`);
+    }
 
     const tax   = taxSum;   // 行ごと切り上げの合計（Math.floor 一括計算からの修正）
     const total = taxableSub + exemptSub + tax;
+    const totalHi = taxableSubHi + exemptSubHi + taxSumHi;   // 幅（〜）のある行を上限で数えた合計
+    // 幅のある行を含むときは、合計を「下限〜上限」で表示する
+    const rgY = (lo, hi, sp) => (_hasRangeRow && hi !== lo) ? `¥${sp || ''}${fmtInt(lo)}〜¥${sp || ''}${fmtInt(hi)}` : `¥${sp || ''}${fmtInt(lo)}`;
 
     const subj = opts.compare ? { title: '', meta: [] } : buildSubject(cond);   // 比較ページは案ごとの内容を持たない
     _lastBuild = { total, tax, subjTitle: opts.compare ? '' : subj.title, container: opts.compare ? '' : (cond && cond.container) || '' };
@@ -764,7 +804,9 @@
     ].filter(Boolean).join('<br>');
 
     const metaRows = subj.meta.map(([k, v]) =>
-      `<div class="qd-srow"><span class="qd-sk">${esc(k)}</span><span class="qd-sv">${(v && typeof v === 'object') ? v.html : nl2br(v)}</span></div>`
+      (v && typeof v === 'object' && v.full)
+        ? `<div class="qd-srow qd-srow-full"><span class="qd-sv">${v.html}</span></div>`
+        : `<div class="qd-srow"><span class="qd-sk">${esc(k)}</span><span class="qd-sv">${(v && typeof v === 'object') ? v.html : nl2br(v)}</span></div>`
     ).join('');
 
     return `
@@ -789,7 +831,7 @@
         ${metaRows ? `<div class="qd-meta">${metaRows}</div>` : ''}
         ${(!hideTotal || validStr) ? `<div class="qd-amt-row">
           <span>${hideTotal ? '' : t('totalAmount')}${validStr ? `　<span class="qd-valid">${t('validUntil')}：${esc(validStr)}</span>` : ''}</span>
-          ${hideTotal ? '' : `<span class="qd-amt">¥ ${fmtInt(total)} <span class="qd-jpy">(JPY)</span></span>`}
+          ${hideTotal ? '' : `<span class="qd-amt">${rgY(total, totalHi, ' ')} <span class="qd-jpy">(JPY)</span></span>`}
         </div>` : ''}
       </div>
 
@@ -812,10 +854,10 @@
         </div>
         ${hideTotal ? '' : `<div class="qd-sum">
           <table>
-            <tr><td class="qd-sk2">${t('exemptSub')}</td><td class="qd-num">¥${fmtInt(exemptSub)}</td></tr>
-            <tr><td class="qd-sk2">${t('taxableSub')}</td><td class="qd-num">¥${fmtInt(taxableSub)}</td></tr>
-            <tr><td class="qd-sk2">${t('tax')}（${Math.round(taxRate * 100)}%）</td><td class="qd-num">¥${fmtInt(tax)}</td></tr>
-            <tr class="qd-total"><td>${t('grandTotal')}</td><td class="qd-num">¥${fmtInt(total)}</td></tr>
+            <tr><td class="qd-sk2">${t('exemptSub')}</td><td class="qd-num">${rgY(exemptSub, exemptSubHi)}</td></tr>
+            <tr><td class="qd-sk2">${t('taxableSub')}</td><td class="qd-num">${rgY(taxableSub, taxableSubHi)}</td></tr>
+            <tr><td class="qd-sk2">${t('tax')}（${Math.round(taxRate * 100)}%）</td><td class="qd-num">${rgY(tax, taxSumHi)}</td></tr>
+            <tr class="qd-total"><td>${t('grandTotal')}</td><td class="qd-num">${rgY(total, totalHi)}</td></tr>
           </table>
         </div>`}
       </div>
@@ -881,9 +923,13 @@
                 <span class="qd-toggle-l">🌐 英語で出力<small>固定ラベルのみ</small></span>
                 <input type="checkbox" id="qdLangEn"><span class="qd-toggle-sw"></span>
               </label>
-              <label class="qd-toggle" title="ONにすると上部の御見積額・下部の合計／税サマリを非表示にします。小計行でパターンA/B比較を行う用途向け。">
+              <label class="qd-toggle" title="ONにすると上部の御見積額・下部の合計／税サマリを非表示にします。小計行でパターンA/B比較を行う用途向け。複数のパターン（FCL案／LCL案など）があるサブコンでは、案どうしを足したサブコン小計も出しません（パターンごとの小計は残ります）。">
                 <span class="qd-toggle-l">合計・税サマリを非表示<small>パターン比較用</small></span>
                 <input type="checkbox" id="qdHideTotal"><span class="qd-toggle-sw"></span>
+              </label>
+              <label class="qd-toggle" title="ONにすると、貿易条件（インコタームズ）の下に、費用とリスクを売主・買主のどちらが負うかを示す図を入れます。往復案件で往路と復路の条件が違うときは2つ並べます。">
+                <span class="qd-toggle-l">📐 貿易条件の図解<small>売主／買主の分担</small></span>
+                <input type="checkbox" id="qdIncoDiagram"><span class="qd-toggle-sw"></span>
               </label>
               <label class="qd-toggle" id="qdMultiWrap" title="ONにすると、物量パターン（例：FCL案／LCL案）の比較表と、案ごとの明細・条件・合計を1つの御見積書にまとめて出力します。タブの🔒（見積書に表示しない）を付けたパターンは含みません。パターンが2つ以上あるときに使えます。">
                 <span class="qd-toggle-l">🆚 パターンを併記<small>FCL案／LCL案など</small></span>
@@ -915,6 +961,11 @@
       if (hideChk) {
         hideChk.addEventListener('change', () => { saveHideTotal(hideChk.checked); refreshQuoteDoc(); });
       }
+      const incoChk = overlay.querySelector('#qdIncoDiagram');
+      if (incoChk) incoChk.addEventListener('change', () => {
+        if (typeof window.setIncoDiagramEnabled === 'function') window.setIncoDiagramEnabled(incoChk.checked);
+        refreshQuoteDoc();
+      });
       const autoChk = overlay.querySelector('#qdAutoStatus');
       if (autoChk) autoChk.addEventListener('change', () => saveAutoStatus(autoChk.checked));
       const langChk = overlay.querySelector('#qdLangEn');
@@ -931,6 +982,8 @@
     // チェック状態・ファイル名を保存値に同期（オーバーレイ再利用時も整合）
     const hideChk = overlay.querySelector('#qdHideTotal');
     if (hideChk) hideChk.checked = loadHideTotal();
+    const incoChk2 = overlay.querySelector('#qdIncoDiagram');
+    if (incoChk2) incoChk2.checked = typeof window.incoDiagramEnabled === 'function' && window.incoDiagramEnabled();
     const autoChk2 = overlay.querySelector('#qdAutoStatus');
     if (autoChk2) autoChk2.checked = loadAutoStatus();
     const langChk2 = overlay.querySelector('#qdLangEn');

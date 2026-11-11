@@ -35,20 +35,23 @@
 
   let tweaks = load();
 
-  // ---- デザインテーマ（Industry 案。既定は現行。index.html 先頭の早期スクリプトと同じキー） ----
+  // ---- デザインテーマ（Industry 案。既定は Industry（保存済みの選択を優先）。index.html 先頭の早期スクリプトと同じキー） ----
   //  site＝サイト画面 / doc＝御見積書。css/theme-industry*.css は <html> のクラスがある間だけ効くので、
   //  クラスを外せば（＝「現行」に戻せば）元のデザインにそのまま戻る。
   const THEME_KEY = 'forwarderTheme_v1';
   function loadTheme() {
-    try { return Object.assign({ site: false, doc: false }, JSON.parse(localStorage.getItem(THEME_KEY) || '{}')); }
-    catch (_) { return { site: false, doc: false }; }
+    try { return Object.assign({ site: true, doc: true, quiet: false }, JSON.parse(localStorage.getItem(THEME_KEY) || '{}')); }
+    catch (_) { return { site: true, doc: true, quiet: false }; }
   }
   let theme = loadTheme();
   function applyTheme() {
     const h = document.documentElement;
     h.classList.toggle('theme-industry', !!theme.site);
     h.classList.toggle('theme-industry-doc', !!theme.doc);
-    const on = { fonts: theme.site || theme.doc, site: theme.site, doc: theme.doc };
+    if (theme.site) theme.quiet = false; // Industry と Quiet は同時に使わない
+    h.classList.toggle('theme-quiet', !!theme.quiet);
+    if (theme.quiet) h.setAttribute('data-theme', 'quiet'); else if (h.getAttribute('data-theme') === 'quiet') h.removeAttribute('data-theme');
+    const on = { fonts: theme.site || theme.doc, site: theme.site, doc: theme.doc, quiet: !!theme.quiet, 'quiet-fonts': !!theme.quiet };
     document.querySelectorAll('link[data-theme-css]').forEach(l => {
       l.media = on[l.getAttribute('data-theme-css')] ? 'all' : 'not all';
     });
@@ -59,8 +62,8 @@
     const root = document.documentElement;
     const acc = ACCENTS[tweaks.accent] || ACCENTS.sand;
     const base = BASES[tweaks.base] || BASES.washi;
-    if (theme.site) {
-      // Industry 中は配色をテーマ側（スタイルシート）に任せる：Tweaks の色（アクセント／基調）は適用しない
+    if (theme.site || theme.quiet) {
+      // Industry／Quiet 中は配色をテーマ側（スタイルシート）に任せる：Tweaks の色（アクセント／基調）は適用しない
       [...Object.keys(acc.vars), ...Object.keys(base.vars)].forEach(k => root.style.removeProperty(k));
     } else {
       Object.entries(acc.vars).forEach(([k, v]) => root.style.setProperty(k, v));
@@ -69,7 +72,7 @@
     const b = document.body;
     if (!b) return;
     b.classList.remove('twk-base-washi', 'twk-base-white');
-    if (!theme.site) b.classList.add('twk-base-' + tweaks.base);
+    if (!theme.site && !theme.quiet) b.classList.add('twk-base-' + tweaks.base);
     b.classList.remove('twk-density-comfy', 'twk-density-standard', 'twk-density-compact');
     b.classList.add('twk-density-' + tweaks.density);
   }
@@ -121,7 +124,7 @@
       width: 24px; height: 24px; border-radius: 7px; cursor: pointer; font-size: 15px; line-height: 1; }
     .twk-x:hover { background: rgba(0,0,0,.06); color: #2d2418; }
     .twk-body { padding: 4px 15px 16px; display: flex; flex-direction: column; gap: 15px; }
-    .twk-sect { font-size: 10px; font-weight: 700; letter-spacing: .06em;
+    .twk-sect { font-size: 12px; font-weight: 700; letter-spacing: .06em;
       color: rgba(45,36,24,.5); margin-bottom: 7px; }
     .twk-sect small { font-weight: 400; letter-spacing: 0; }
     .twk-seg { display: flex; gap: 3px; padding: 3px; border-radius: 9px; background: rgba(0,0,0,.06); }
@@ -137,7 +140,7 @@
     .twk-sw button:hover { background: rgba(0,0,0,.04); }
     .twk-sw button.on { border-color: rgba(45,36,24,.55); background: rgba(255,255,255,.55); }
     .twk-sw .dot { width: 26px; height: 26px; border-radius: 50%; box-shadow: 0 1px 3px rgba(0,0,0,.2); }
-    .twk-sw .nm { font-size: 11px; font-weight: 600; color: rgba(45,36,24,.75); }
+    .twk-sw .nm { font-size: 12px; font-weight: 600; color: rgba(45,36,24,.75); }
     @media print { .twk-panel { display: none !important; } }
   `;
 
@@ -158,6 +161,10 @@
         <div class="twk-grp" data-theme="site">
           <div class="twk-sect">デザイン（画面） <small>Industry案</small></div>
           <div class="twk-seg"><button data-v="off">現行</button><button data-v="on">Industry</button></div>
+        </div>
+        <div class="twk-grp" data-theme="quiet">
+          <div class="twk-sect">デザイン（Quiet） <small>3つ目の案・画面のみ</small></div>
+          <div class="twk-seg"><button data-v="off">オフ</button><button data-v="on">Quiet</button></div>
         </div>
         <div class="twk-grp" data-theme="doc">
           <div class="twk-sect">デザイン（御見積書） <small>画面とは別に切替</small></div>
@@ -199,6 +206,8 @@
       grp.querySelectorAll('button[data-v]').forEach(btn => {
         btn.addEventListener('click', () => {
           theme[key] = btn.getAttribute('data-v') === 'on';
+          if (key === 'site' && theme.site) theme.quiet = false;
+          if (key === 'quiet' && theme.quiet) theme.site = false;
           try { localStorage.setItem(THEME_KEY, JSON.stringify(theme)); } catch (_) {}
           applyTheme();
           apply();
@@ -222,7 +231,7 @@
     // Industry 中は色のTweaks（アクセント／基調）が効かないので、パネル上でも無効表示にする
     ['accent', 'base'].forEach(k => {
       const g = panelEl.querySelector(`.twk-grp[data-grp="${k}"]`);
-      if (g) { g.style.opacity = theme.site ? '.4' : ''; g.style.pointerEvents = theme.site ? 'none' : ''; g.title = theme.site ? 'デザイン（画面）が Industry の間は無効です' : ''; }
+      if (g) { g.style.opacity = (theme.site || theme.quiet) ? '.4' : ''; g.style.pointerEvents = (theme.site || theme.quiet) ? 'none' : ''; g.title = (theme.site || theme.quiet) ? 'デザイン（画面）が Industry／Quiet の間は無効です' : ''; }
     });
     panelEl.querySelectorAll('.twk-grp[data-grp]').forEach(grp => {
       const key = grp.getAttribute('data-grp');

@@ -200,60 +200,60 @@
     if (document.body.contains(el)) _paint(el);
   };
 
-  // ---- 見積タブのバナー（お客様・ご担当者を選ぶと、当てはまるルールを出す）----
-  let _bannerOpen = null;   // null＝自動（厳守があれば開く）
-  let _bannerAdd = false;
+  // ---- 見積タブ：取引ルールのチップ（お客様・ご担当者を選ぶと、当てはまるルールの件数をチップで出す）----
+  //   チップを押すと、取引ルールのモーダルが開き、そこで閲覧・追加・編集・確認・廃止ができる（Design／ユーザー要望 2026-11）
   function _bannerEl() { return document.getElementById('crBanner'); }
   window.crRefreshBanner = async function () {
     const el = _bannerEl();
     if (!el) return;
     const customer = (document.getElementById('qf-customer') || {}).value || '';
     const person = (document.getElementById('qf-person') || {}).value || '';
-    const _host = el.parentElement;   // 帯が出ているときだけ、メモの高さを 1 行分広げる（quote.css .quote-header.has-cr）
+    const _host = el.parentElement;
     const _show = on => { el.hidden = !on; if (_host) _host.classList.toggle('has-cr', !!on); };
-    if (!customer.trim() || !_cloud()) { _show(false); el.innerHTML = ''; return; }
+    if (!customer.trim() || !_cloud()) { _show(false); el.innerHTML = ''; _closeModal(); return; }
     await window.crLoad();
     if (_missing) { _show(false); return; }
     const { list, otherContact } = window.crFor(customer, person);
     const n = k => list.filter(r => r.level === k).length;
     _show(true);
-    const ref = ((document.getElementById('qf-ref') || {}).value || '').trim();
-    el._cr = { customer: customer.trim(), person: person.trim(), editId: null, onChange: () => window.crRefreshBanner(), reasonDefault: ref ? '案件 ' + ref + ' で判明' : '' };
     const staleN = list.filter(_stale).length;
-    const open = _bannerOpen === null ? n('strict') > 0 : _bannerOpen;
-    const chips = ['strict', 'check', 'memo'].filter(k => n(k)).map(k => `<span class="cr-badge cr-badge-${k}">${LV[k].icon} ${LV[k].label} ${n(k)}</span>`).join('');
-    let h = `<div class="cr-bar"><button type="button" class="cr-toggle" data-cr="toggle" aria-expanded="${open}">${open ? '▼' : '▶'} 📌 このお客様の取引ルール` +
-      (list.length ? `（${list.length}件）` : '（なし）') + `</button>${chips}` +
-      (otherContact ? `<span class="cr-other" title="ご担当者を入力すると、その担当者のルールも出ます">👤 担当者別 ${otherContact}件</span>` : '') +
-      (staleN ? `<span class="cr-stale" title="最終確認から半年以上たったルールがあります。開いて「いまも有効」か「廃止」を選んでください">⏳ 再確認 ${staleN}件</span>` : '') +
-      `<button type="button" class="cr-add-btn" data-cr="addtoggle" title="この案件で気づいた決まりごとを、このお客様（や担当者）のルールとして残します">📌 この案件で気づいたことをルールにする</button></div>`;
-    if (open && list.length) h += `<div class="cr-list">${list.map(r => _itemHtml(r, { edit: false, quick: true })).join('')}</div>`;
-    if (_bannerAdd) h += _formHtml(el, el._cr);
-    el.innerHTML = h;
+    const label = list.length ? `（${list.length}件${n('strict') ? '・厳守' + n('strict') : ''}）` : '（なし）';
+    el.innerHTML = `<button type="button" class="cr-chip${n('strict') ? ' has-strict' : ''}${list.length ? ' has-rules' : ''}" data-cr="open" aria-haspopup="dialog" ` +
+      `title="取引ルールを見る・追加・編集する（社内専用・お客様向けの出力には出ません）">📌 取引ルール${label}</button>` +
+      (otherContact ? `<span class="cr-chip cr-chip-sub" title="ご担当者を入力すると、その担当者のルールも出ます">👤 担当者別 ${otherContact}件</span>` : '') +
+      (staleN ? `<button type="button" class="cr-chip cr-chip-stale" data-cr="open" title="最終確認から半年以上たったルールがあります。開いて「いまも有効」か「廃止」を選んでください">⏳ 再確認 ${staleN}件</button>` : '');
     if (!el._crBound) {
-      el.addEventListener('click', ev => {
-        const b = ev.target.closest('[data-cr]');
-        if (!b) return;
-        if (b.dataset.cr === 'toggle') { const cur = el.querySelector('.cr-toggle').getAttribute('aria-expanded') === 'true'; _bannerOpen = !cur; window.crRefreshBanner(); return; }
-        if (b.dataset.cr === 'addtoggle') { _bannerAdd = !_bannerAdd; window.crRefreshBanner(); return; }
-        if (b.dataset.cr === 'cancel') { _bannerAdd = false; window.crRefreshBanner(); return; }
-        if (b.dataset.cr === 'confirm') { window.crConfirm(b.dataset.id).then(() => window.crRefreshBanner()); return; }
-        if (b.dataset.cr === 'retire') {
-          const id = b.dataset.id, r = _rules.find(x => x.id === id);
-          const go = () => window.crSetStatus(id, 'retired').then(() => window.crRefreshBanner());
-          if (typeof window.uiConfirm === 'function') window.uiConfirm({ title: 'このルールを廃止しますか？', lines: ['「' + (r ? r.body.slice(0, 40) : '') + '」を、見積画面に出さないようにします。', '履歴には残り、マスター管理の「廃止したルール」から復活できます。'], okLabel: '廃止する', danger: true }).then(ok => { if (ok) go(); });
-          else if (confirm('このルールを廃止しますか？')) go();
-          return;
-        }
-        if (b.dataset.cr === 'save') {
-          const ctx = el._cr;
-          window.crSave({ customer: ctx.customer, contact: el.querySelector('.cr-f-contact').value, level: el.querySelector('.cr-f-level').value,
-            body: el.querySelector('.cr-f-body').value, reason: el.querySelector('.cr-f-reason').value }).then(ok => { if (ok) { _bannerAdd = false; _bannerOpen = true; } window.crRefreshBanner(); });
-        }
-      });
+      el.addEventListener('click', ev => { if (ev.target.closest('[data-cr="open"]')) _openModal(); });
       el._crBound = true;
     }
+    if (_modalEl()) _paintModal();
   };
+
+  // ---- 取引ルールのモーダル（見積タブ）----
+  function _modalEl() { return document.getElementById('crModal'); }
+  function _closeModal() { const m = _modalEl(); if (m) { m.remove(); document.body.classList.remove('md-modal-open'); } }
+  function _paintModal() {
+    const m = _modalEl(); if (!m) return;
+    const body = m.querySelector('#crModalBody'); if (!body) return;
+    const customer = (document.getElementById('qf-customer') || {}).value || '';
+    const person = (document.getElementById('qf-person') || {}).value || '';
+    const ref = ((document.getElementById('qf-ref') || {}).value || '').trim();
+    const keep = body._cr && body._cr.editId;
+    body._cr = { customer: customer.trim(), person: person.trim(), editId: keep || null, onChange: () => window.crRefreshBanner(), reasonDefault: ref ? '案件 ' + ref + ' で判明' : '' };
+    if (!body._crBound) { body.addEventListener('click', ev => _handle(body, ev)); body._crBound = true; }
+    const t = m.querySelector('.md-modal-head h3'); if (t) t.textContent = '📌 取引ルール　' + customer.trim() + (person.trim() ? '／' + person.trim() + ' 様' : '');
+    _paint(body);
+  }
+  function _openModal() {
+    if (_modalEl()) return;
+    const m = document.createElement('div'); m.id = 'crModal'; m.className = 'md-modal-overlay'; m.setAttribute('role', 'dialog'); m.setAttribute('aria-modal', 'true');
+    m.innerHTML = '<div class="md-modal cr-modal"><div class="md-modal-head"><h3></h3><button type="button" class="md-modal-close" title="閉じる（Esc）" aria-label="閉じる">✕</button></div>' +
+      '<div class="md-modal-body"><p class="cr-modal-note">このお客様・ご担当者の決まりごとです。見積を作るときに表示され、出力前の確認にも出ます（社内専用）。</p><div id="crModalBody" class="cr-panel"></div></div></div>';
+    document.body.appendChild(m); document.body.classList.add('md-modal-open');
+    m.addEventListener('click', ev => { if (ev.target === m || ev.target.closest('.md-modal-close')) _closeModal(); });
+    _paintModal();
+  }
+  document.addEventListener('keydown', e => { if (e.key === 'Escape' && _modalEl() && !document.querySelector('.confirm-dialog, .ui-confirm-overlay')) _closeModal(); });
   // ご担当者を入れ替えたときもバナーを更新（お客様名の変更は qfRefreshCustomerDetailBtn から）
   document.addEventListener('input', e => {
     if (e.target && e.target.id === 'qf-person') { clearTimeout(window.__crT); window.__crT = setTimeout(() => window.crRefreshBanner(), 200); }

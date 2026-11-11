@@ -119,6 +119,15 @@
     return prefix + (parts.length ? parts.join('_') : '見積もり_' + today) + '.' + ext;
   }
 
+  // 幅（売単価〜上限）の単価文字列（Excel/CSV 用。「1,000〜2,500」）。幅なしなら null
+  function _rgRaw(d) {
+    const rg = (typeof rowRange === 'function') ? rowRange(d.bp, d.bphi) : null;
+    if (!rg) return null;
+    const dec = (d.bc && d.bc !== 'JPY') ? 2 : 0;
+    const f = n => Number(n).toLocaleString('en-US', { minimumFractionDigits: dec, maximumFractionDigits: dec });
+    return f(rg.lo) + '〜' + f(rg.hi);
+  }
+
   function collectAllRows() {
     const rows = [];
     // 物量パターン別の出力（FCL案／LCL案の併記）：window._outputPatternView が設定されている間は、
@@ -183,7 +192,7 @@
       // 客先出力・小計・PDF/Excel/CSV の除外は _hideQuote 一本で判定する（PROFIT SHARE も客先には出さない）。
       // 適用期間外は「参考」指定があれば例外的に出力する（金額は括弧書き・合計外のまま、客先へ参考提示したい場合）
       const _hideQuote  = _hideManual || (_outRange && !_ref) || _ps;
-      rows.push({ _type: 'data', taxed, cat, name, pq, un, pc, pp, cd, bq, bc, bp, mk, cost, bill, profit, ppmin: val(`ppmin-${id}`), bpmin: val(`bpmin-${id}`), note, sv, pt, vf, vt, zc, uid, _actual, _ps, _cond, _ref, _estimate, _hideQuote, _hideManual, _outRange, _outReason });
+      rows.push({ _type: 'data', taxed, cat, name, pq, un, pc, pp, cd, bq, bc, bp, mk, cost, bill, profit, ppmin: val(`ppmin-${id}`), bpmin: val(`bpmin-${id}`), bphi: val(`bphi-${id}`), note, sv, pt, vf, vt, zc, uid, _actual, _ps, _cond, _ref, _estimate, _hideQuote, _hideManual, _outRange, _outReason });
     });
     return rows;
   }
@@ -220,7 +229,7 @@
       const _actual = tr.dataset.actual === '1';   // 実費（金額未確定）
       const _cond   = tr.dataset.cond === '1';     // 都度請求（発生時のみ・合計外）
       const _ref    = tr.dataset.refInfo === '1';  // 参考情報（金額は表示・合計外）
-      data.push({ taxed, cat, name, pq, un, pc, pp, cd, bq, bc, bp, mk, cost, bill, profit, ppmin: val(`ppmin-${id}`), bpmin: val(`bpmin-${id}`), note, sv, _actual, _cond, _ref });
+      data.push({ taxed, cat, name, pq, un, pc, pp, cd, bq, bc, bp, mk, cost, bill, profit, ppmin: val(`ppmin-${id}`), bpmin: val(`bpmin-${id}`), bphi: val(`bphi-${id}`), note, sv, _actual, _cond, _ref });
     });
     return data;
   }
@@ -432,9 +441,43 @@
       );
     }
     panel.style.display = '';
+    _placePvWarnGuide();
     _pvWarnGuideFocusCurrent();
     return false;
   }
+
+  // 出力前の確認ガイド（右下に出る）を、右下の固定ボタン（PDF出力／プレビュー／保存のドック）と、
+  // 画面下の全体リマークの引き出しの上へ避けて置く（ボタンや「このまま出力」が互いに隠れないように）。
+  // 引き出しの上端は、開閉のアニメーション中でも最終の高さ（--rms-lift）で数える。
+  function _placePvWarnGuide() {
+    const panel = document.getElementById('pvWarnGuide');
+    if (!panel || panel.style.display === 'none') return;
+    panel.style.bottom = '';                                   // いったん CSS の既定（下から 80px）へ
+    const vh = window.innerHeight || document.documentElement.clientHeight;
+    const g = panel.getBoundingClientRect();
+    const overlapsX = r => r.width > 0 && r.right > g.left && r.left < g.right;
+    let top = vh;
+    const dock = document.getElementById('quoteActionDock');
+    if (dock && getComputedStyle(dock).display !== 'none') {
+      dock.querySelectorAll('.qad-btn').forEach(b => { const r = b.getBoundingClientRect(); if (overlapsX(r)) top = Math.min(top, r.top); });
+    }
+    const sheet = document.getElementById('rmSheet');
+    const sp = sheet && sheet.querySelector('.rms-panel');
+    if (sp && sheet.getClientRects().length > 0 && overlapsX(sp.getBoundingClientRect())) {
+      const lift = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--rms-lift')) || 0;
+      top = Math.min(top, vh - lift);
+    }
+    const GAP = 10, MIN_BOTTOM = 80;
+    panel.style.bottom = Math.max(MIN_BOTTOM, Math.round(vh - top + GAP)) + 'px';
+    // 上に余白が足りない小さな画面では、一覧をその分だけ短くする
+    const list = document.getElementById('pvWarnGuideList');
+    if (list) {
+      const room = Math.max(80, Math.round(top - GAP - 16 - 130));   // 見出し・ボタンの分（約 130px）と上の余白を引く
+      list.style.maxHeight = Math.min(200, room) + 'px';
+    }
+  }
+  window.pvWarnGuidePlace = _placePvWarnGuide;
+  window.addEventListener('resize', () => _placePvWarnGuide());
 
   // ヘッダーフィールド編集時にハイライトを自動解除（初回のみ登録）
   function initPreviewWarningListeners() {
@@ -795,13 +838,15 @@
       const _acTxt   = '<span class="pv-actual-txt">実費</span>';
       const ppCell   = _ac ? _acTxt : (minPriceText(d.pp, d.ppmin, d.pc, d.un) || fmtMoney(d.pp));
       const cdCell   = _ac ? '' : fmtMoney(d.cd);
-      const bpCell   = _ac ? _acTxt : (minPriceText(d.bp, d.bpmin, d.bc, d.un) || fmtMoney(d.bp)) +
-        (d.bill > (d.bq || 0) * (d.bp || 0) ? ' <span class="pv-min-tag">[MIN適用]</span>' : '');   // 最低料金で請求している行
+      const _rg      = _ac ? null : rowRange(d.bp, d.bphi);   // 幅（売単価〜上限）
+      const _rgAmt   = _rg ? rowRangeAmt(d.bq, d.bp, d.bphi, d.bpmin) : null;
+      const bpCell   = _ac ? _acTxt : (_rg ? fmtMoney(_rg.lo) + '〜' + fmtMoney(_rg.hi) : (minPriceText(d.bp, d.bpmin, d.bc, d.un) || fmtMoney(d.bp))) +
+        (() => { const k = minAppliedKind(d.bq, d.bp, d.bpmin); return (k === 'min' || (k === 'rate' && !_rg && !_ac)) ? ` <span class="pv-min-tag">${k === 'min' ? '[MIN適用]' : '[従量適用]'}</span>` : ''; })();   // 最低料金がある行は、どちらで請求しているか（最低料金／従量）を示す
       const mkCell   = _ac ? '' : fmtMoney(d.mk);
       // 参考情報行の金額は括弧書き＋グレーで「合計外の参考値」であることを示す
       const subCell  = _ac ? _acTxt
         : d._ref ? `<span class="pv-ref-amt">(${fmtMoney(sub)})</span>${subJpyHint}`
-        : (fmtMoney(sub) + subJpyHint);
+        : (_rgAmt ? fmtMoney(_rgAmt.lo) + '〜' + fmtMoney(_rgAmt.hi) + ' <span class="pv-min-tag" title="合計は売単価（' + fmtMoney(sub) + '）で計算しています">幅</span>' + subJpyHint : fmtMoney(sub) + subJpyHint);
       const jpyCell2 = _ac ? ''
         : (d._ref && jpyCellText !== '—') ? `<span class="pv-ref-amt">(${jpyCellText})</span>`
         : jpyCellText;
@@ -917,6 +962,7 @@
       ...(dirIsRound(cond.direction) && cond.incotermsRet && cond.incotermsRet !== cond.incoterms
         ? [{ lbl: `インコタームズ 往路（${dirLegName(cond.direction, 'out')}）`, val: cond.incoterms }, { lbl: `インコタームズ 復路（${dirLegName(cond.direction, 'ret')}）`, val: cond.incotermsRet }]
         : [{ lbl: 'インコタームズ',  val: cond.incoterms }]),
+      { lbl: '荷役条件',        val: cond.handling },
       { lbl: '輸送モード',      val: cond.mode },
       { lbl: 'コンテナ',        val: cond.container },
       { lbl: '貨物名',          val: cond.cargo },
@@ -944,6 +990,24 @@
         `<div class="pv-cond-item"><span class="pv-cond-lbl">${escHtml(f.lbl)}：</span><span class="pv-cond-val">${escHtml(f.val)}</span></div>`
       ).join('');
       pvCond.innerHTML = `<strong>🚢 引き合い条件</strong><div class="pv-cond-grid">${condHtml}</div>`;
+      // 貿易条件の図解（御見積書と同じ設定。ここでも切り替えられる）
+      if (cond.incoterms && typeof window.incoDiagramBlockHTML === 'function') {
+        const _incoOn = typeof window.incoDiagramEnabled === 'function' && window.incoDiagramEnabled();
+        pvCond.innerHTML += `<label class="pv-inco-toggle"><input type="checkbox" id="pvIncoDiagram"${_incoOn ? ' checked' : ''}> 📐 貿易条件の図解を表示（御見積書にも反映）</label>`;
+        if (_incoOn) {
+          const _ro = dirIsRound(cond.direction);
+          pvCond.innerHTML += window.incoDiagramBlockHTML(cond.incoterms, _ro ? cond.incotermsRet : '', {
+            en: false,
+            legNames: _ro ? { out: `往路（${dirLegName(cond.direction, 'out')}）`, ret: `復路（${dirLegName(cond.direction, 'ret')}）` } : null,
+          });
+        }
+        const _chk = pvCond.querySelector('#pvIncoDiagram');
+        if (_chk) _chk.addEventListener('change', () => {
+          window.setIncoDiagramEnabled(_chk.checked);
+          _pvBypassed = true;   // 確認ガイドは出し直さず、同じ内容で描き直す
+          openPreview();
+        });
+      }
       if (cond.free) pvCond.innerHTML += `<div class="pv-cond-free">${escHtml(cond.free)}</div>`;
       pvCond.style.display = 'block';
     } else {
@@ -1508,7 +1572,7 @@
     { hdr: 'CD',       fn: d => d._actual ? '' : fmtRaw(d.cd),     pvGroup: 'pay',    role: 'cd'     },
     { hdr: '数量',     fn: d => fmtRaw(d.bq),          pvGroup: 'bill',   role: 'bq'     },
     { hdr: '通貨',     fn: d => d.bc,                  pvGroup: 'bill',   role: 'bc'     },
-    { hdr: '単価',     fn: d => d._actual ? '実費' : (minPriceText(d.bp, d.bpmin, d.bc, d.un) || fmtRaw(d.bp)), pvGroup: 'bill',   role: 'bp'     },
+    { hdr: '単価',     fn: d => d._actual ? '実費' : (_rgRaw(d) || minPriceText(d.bp, d.bpmin, d.bc, d.un, d.bq) || fmtRaw(d.bp)), pvGroup: 'bill',   role: 'bp'     },
     { hdr: '乗せ幅',       fn: d => d._actual ? '' : fmtRaw(d.mk),     pvGroup: 'mk',       role: 'mk'     },
     { hdr: '円換算(JPY)', fn: d => { if (d._actual) return '実費'; const s = minAmt((d.bq||0)*(d.bp||0), d.bpmin); return (d.bc && d.bc !== 'JPY') ? fmtRaw(typeof toJPY === 'function' ? Math.ceil(toJPY(s, d.bc)) : s) : '—'; }, pvGroup: 'jpy-conv', role: 'jpyConv' },
     { hdr: '利益',         fn: d => d._actual ? '—' : fmtRaw(d.profit), pvGroup: 'profit',   role: 'profit' },
@@ -1829,6 +1893,7 @@
       ...(dirIsRound(cExcel.direction) && cExcel.incotermsRet && cExcel.incotermsRet !== cExcel.incoterms
         ? [[`インコタームズ 往路（${dirLegName(cExcel.direction, 'out')}）`, cExcel.incoterms], [`インコタームズ 復路（${dirLegName(cExcel.direction, 'ret')}）`, cExcel.incotermsRet]]
         : [['インコタームズ', cExcel.incoterms]]),
+      ['荷役条件', cExcel.handling],
       ['輸送モード', cExcel.mode],
       ['コンテナ', cExcel.container], ['貨物名', cExcel.cargo],
     ].filter(([, v]) => v);
@@ -1941,7 +2006,7 @@
     { key: 'cd',     hdr: 'CD',             fn: d => d._actual ? '' : fmtRaw(d.cd) },
     { key: 'bq',     hdr: '数量(請求)',     fn: d => fmtRaw(d.bq) },
     { key: 'bc',     hdr: '通貨(請求)',     fn: d => d.bc },
-    { key: 'bp',     hdr: '単価(請求)',     fn: d => d._actual ? '実費' : (minPriceText(d.bp, d.bpmin, d.bc, d.un) || fmtRaw(d.bp)) },
+    { key: 'bp',     hdr: '単価(請求)',     fn: d => d._actual ? '実費' : (_rgRaw(d) || minPriceText(d.bp, d.bpmin, d.bc, d.un, d.bq) || fmtRaw(d.bp)) },
     { key: 'mk',     hdr: '乗せ幅',         fn: d => d._actual ? '' : fmtRaw(d.mk) },
     { key: 'sub',    hdr: '小計',           fn: d => d._actual ? '実費' : fmtRaw(minAmt((d.bq||0)*(d.bp||0), d.bpmin)) },
     { key: 'profit', hdr: '利益',           fn: d => d._actual ? '—' : fmtRaw(d.profit) },

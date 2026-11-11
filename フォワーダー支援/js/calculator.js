@@ -252,8 +252,8 @@ function sendCalcResultToQuote(btn) {
   ta.dispatchEvent(new Event('change', { bubbles: true }));
 
   // リマーク欄へスクロール＋ハイライト
-  const section = document.getElementById('section-remark') || ta;
-  section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  if (typeof window.rmsOpen === 'function') window.rmsOpen();   // 全体リマークは画面下の引き出し
+  else (document.getElementById('section-remark') || ta).scrollIntoView({ behavior: 'smooth', block: 'start' });
   ta.classList.add('flash-reflect');
   setTimeout(() => ta.classList.remove('flash-reflect'), 1200);
 
@@ -295,8 +295,8 @@ function exportCalcResultPdf(btn) {
     const statsText  = host.querySelector('.van3d-stats')?.textContent?.trim() || '';
     const imgHtml = dataUrl
       ? `<img src="${dataUrl}" style="max-width:100%;border:1px solid #d8c8ae;border-radius:6px;">`
-      : `<p style="font-size:11px;color:#a08a60;">（3Dプレビューはこの環境では生成できませんでした）</p>`;
-    host.outerHTML = `${legendHtml}<div style="margin:8px 0;">${imgHtml}</div><div style="font-size:11px;color:#718096;">${statsText}</div>`;
+      : `<p style="font-size:12px;color:#a08a60;">（3Dプレビューはこの環境では生成できませんでした）</p>`;
+    host.outerHTML = `${legendHtml}<div style="margin:8px 0;">${imgHtml}</div><div style="font-size:12px;color:#718096;">${statsText}</div>`;
   });
 
   _openCalcPdfOverlay(pdfTitle, summary, clone.innerHTML);
@@ -891,7 +891,7 @@ function calcPalletize() {
       `× ${r.qty}個`
     ]);
     const short = leftoverByOrig[i] > 0
-      ? ` <span style="color:#e53e3e;font-size:11px;font-weight:700;">⚠️ 積み残し${leftoverByOrig[i]}個</span>` : '';
+      ? ` <span style="color:#e53e3e;font-size:12px;font-weight:700;">⚠️ 積み残し${leftoverByOrig[i]}個</span>` : '';
     return `<div style="margin-bottom:6px;">
       <div class="calc-row-label">品種${i + 1}　${lbl}</div>
       <div style="font-size:12px;color:var(--text-md);">配置 ${placed}/${r.qty}個${short}</div>
@@ -908,12 +908,12 @@ function calcPalletize() {
     return `<div class="calc-item${overWeight ? '' : ' hl'}">
       <div class="calc-item-label">パレット ${bi + 1}</div>
       <div class="calc-item-value" style="font-size:13px;">${items}</div>
-      <div style="font-size:11px;color:#718096;margin-top:3px;">積載率 ${b.utilization.toFixed(1)}%${wLine}</div>
+      <div style="font-size:12px;color:#718096;margin-top:3px;">積載率 ${b.utilization.toFixed(1)}%${wLine}</div>
     </div>`;
   }).join('');
 
   const leftoverWarn = leftoverTotal > 0
-    ? `<p style="font-size:11px;color:#c53030;margin-top:8px;">⚠️ ${leftoverTotal}個は配置できませんでした。パレットサイズ・高さ上限に対して寸法が大きすぎる品種、または 1個の重量が最大積載重量を超える品種がある可能性があります。</p>`
+    ? `<p style="font-size:12px;color:#c53030;margin-top:8px;">⚠️ ${leftoverTotal}個は配置できませんでした。パレットサイズ・高さ上限に対して寸法が大きすぎる品種、または 1個の重量が最大積載重量を超える品種がある可能性があります。</p>`
     : '';
 
   const inputLine = formatRowInputSummary([
@@ -927,21 +927,21 @@ function calcPalletize() {
   const van3dIds = preview3dBins.map(() => `van3d-host-${++_van3dSeq}`);
   const preview3dHtml = preview3dBins.map((b, bi) =>
     `<div style="margin-top:14px;">
-      <div style="font-size:11px;font-weight:700;color:var(--text-md);margin-bottom:6px;">🧊 3D積み付けプレビュー（パレット${bi + 1}）</div>
+      <div style="font-size:12px;font-weight:700;color:var(--text-md);margin-bottom:6px;">🧊 3D積み付けプレビュー（パレット${bi + 1}）</div>
       <div id="${van3dIds[bi]}"></div>
     </div>`
   ).join('');
   const preview3dOmitNote = bins.length > MAX_3D_PALLETS
-    ? `<p style="font-size:11px;color:#718096;margin-top:10px;">※ 3Dプレビューは先頭${MAX_3D_PALLETS}パレット分のみ表示しています（同時描画数の制限のため）。${MAX_3D_PALLETS + 1}枚目以降は上記「パレット別 推奨配分」の内訳をご確認ください。</p>`
+    ? `<p style="font-size:12px;color:#718096;margin-top:10px;">※ 3Dプレビューは先頭${MAX_3D_PALLETS}パレット分のみ表示しています（同時描画数の制限のため）。${MAX_3D_PALLETS + 1}枚目以降は上記「パレット別 推奨配分」の内訳をご確認ください。</p>`
     : '';
 
   appendCalcResult('pal-result',
     `<div style="margin-bottom:10px;">
-      <div style="font-size:11px;font-weight:700;color:var(--text-md);margin-bottom:6px;">📦 品種別内訳</div>
+      <div style="font-size:12px;font-weight:700;color:var(--text-md);margin-bottom:6px;">📦 品種別内訳</div>
       ${detailHtml}
     </div>
     <div style="margin-bottom:10px;">
-      <div style="font-size:11px;font-weight:700;color:var(--text-md);margin-bottom:6px;">🗂 パレット別 推奨配分</div>
+      <div style="font-size:12px;font-weight:700;color:var(--text-md);margin-bottom:6px;">🗂 パレット別 推奨配分</div>
       <div class="calc-row">${binsHtml}</div>
     </div>
     ${leftoverWarn}
@@ -950,7 +950,7 @@ function calcPalletize() {
         <div class="calc-item hl" style="flex:1;"><div class="calc-item-label">合計必要パレット数</div><div class="calc-item-value">${bins.length} パレット</div></div>
       </div>
     </div>
-    <p style="font-size:11px;color:#718096;margin-top:10px;">※ 段ごとの敷き詰め（複数のやり方を試して最も少ないパレット数を採用。箱を縦横互い違いに組む配置を含む）による理論値${maxWeight > 0 ? `。1パレットの重量が ${maxWeight.toLocaleString()}kg 以内になるようパレットを分けています` : ''}。互い違いの配置は荷崩れしにくいか現場でご確認ください。実際の積み付けは現場でご確認ください。</p>
+    <p style="font-size:12px;color:#718096;margin-top:10px;">※ 段ごとの敷き詰め（複数のやり方を試して最も少ないパレット数を採用。箱を縦横互い違いに組む配置を含む）による理論値${maxWeight > 0 ? `。1パレットの重量が ${maxWeight.toLocaleString()}kg 以内になるようパレットを分けています` : ''}。互い違いの配置は荷崩れしにくいか現場でご確認ください。実際の積み付けは現場でご確認ください。</p>
     ${preview3dOmitNote}
     ${preview3dHtml}`,
     inputLine, { pdfTitle: 'パレタイズ計算結果' });
@@ -1337,14 +1337,14 @@ function calcVanning() {
 
     const cardsHtml = contRows.map(r => {
       const isRec = r.key===rec.key;
-      const badge = isRec ? '<span style="background:#d4edda;color:#155724;font-size:10px;font-weight:700;padding:2px 6px;border-radius:4px;margin-left:6px;">✅ 推奨</span>' : '';
+      const badge = isRec ? '<span style="background:#d4edda;color:#155724;font-size:12px;font-weight:700;padding:2px 6px;border-radius:4px;margin-left:6px;">✅ 推奨</span>' : '';
       const main  = r.need ? `${r.need} 本必要` : `最大 ${r.maxPer.toLocaleString()} 個/本`;
       const kgLine= r.totalKg ? `概算 ${r.totalKg.toLocaleString()} kg／上限 ${(r.c.maxPay*(r.need||1)).toLocaleString()} kg` : '';
-      const warn  = r.overW ? ' <span style="color:#e53e3e;font-size:10px;">⚠️ 重量超過</span>' : '';
+      const warn  = r.overW ? ' <span style="color:#e53e3e;font-size:12px;">⚠️ 重量超過</span>' : '';
       return `<div class="calc-item ${isRec?'hl':''}">
         <div class="calc-item-label">${r.c.label}${badge}</div>
         <div class="calc-item-value" style="font-size:14px;">${main}${warn}</div>
-        <div style="font-size:11px;color:#718096;margin-top:3px;">CBM使用率 ${r.util}%　${kgLine}</div>
+        <div style="font-size:12px;color:#718096;margin-top:3px;">CBM使用率 ${r.util}%　${kgLine}</div>
       </div>`;
     }).join('');
 
@@ -1359,8 +1359,8 @@ function calcVanning() {
     appendCalcResult('van-result',
       renderInputEcho(inputLine) +
       `<div class="calc-row">${cardsHtml}</div>
-      <p style="font-size:11px;color:#718096;margin-top:10px;">※ ダンネージなしの理論値。実際の積み付けは現場でご確認ください。</p>
-      <div style="margin-top:12px;font-size:11px;font-weight:700;color:var(--text-md);">🧊 3D積み付けプレビュー</div>
+      <p style="font-size:12px;color:#718096;margin-top:10px;">※ ダンネージなしの理論値。実際の積み付けは現場でご確認ください。</p>
+      <div style="margin-top:12px;font-size:12px;font-weight:700;color:var(--text-md);">🧊 3D積み付けプレビュー</div>
       <div id="${van3dId}"></div>`,
       inputLine, { pdfTitle: 'バンニング計算結果' });
     window.Vanning3D && window.Vanning3D.mountPreview('#'+van3dId, cargo, CONT, rec.key);
@@ -1457,9 +1457,9 @@ function calcVanning() {
           .reduce((b, r) => (score(r) < score(b) || (score(r) === score(b) && (r.need < b.need || (r.need === b.need && r.contCBM < b.contCBM)))) ? r : b, firstRec);
         if (best !== firstRec) {
           rec = best;
-          recNote = `<p style="font-size:11px;color:#b45309;margin-top:6px;">⚠️ CBM 上は ${firstRec.c.label} ${firstRec.need} 本でも、3D 積み付けで検証すると${firstRec.need3d === null ? '入りきらない箱があり' : ` ${firstRec.need3d} 本必要`}でした。3D の結果が少ない <b>${rec.c.label}（${rec.need3d} 本）</b>を推奨にしています。</p>`;
+          recNote = `<p style="font-size:12px;color:#b45309;margin-top:6px;">⚠️ CBM 上は ${firstRec.c.label} ${firstRec.need} 本でも、3D 積み付けで検証すると${firstRec.need3d === null ? '入りきらない箱があり' : ` ${firstRec.need3d} 本必要`}でした。3D の結果が少ない <b>${rec.c.label}（${rec.need3d} 本）</b>を推奨にしています。</p>`;
         } else if (firstRec.need3d !== null && firstRec.need3d > firstRec.need) {
-          recNote = `<p style="font-size:11px;color:#b45309;margin-top:6px;">⚠️ CBM 上は ${firstRec.need} 本でも、3D 積み付けで検証すると <b>${firstRec.need3d} 本</b>必要でした（箱の形・向きにより積み残しが出ます）。</p>`;
+          recNote = `<p style="font-size:12px;color:#b45309;margin-top:6px;">⚠️ CBM 上は ${firstRec.need} 本でも、3D 積み付けで検証すると <b>${firstRec.need3d} 本</b>必要でした（箱の形・向きにより積み残しが出ます）。</p>`;
         }
       }
     }
@@ -1467,36 +1467,36 @@ function calcVanning() {
 
   const cardsHtml = contRows.map(r => {
     const isRec = r.key===rec.key;
-    const badge = isRec ? '<span style="background:#d4edda;color:#155724;font-size:10px;font-weight:700;padding:2px 6px;border-radius:4px;margin-left:6px;">✅ 推奨</span>' : '';
+    const badge = isRec ? '<span style="background:#d4edda;color:#155724;font-size:12px;font-weight:700;padding:2px 6px;border-radius:4px;margin-left:6px;">✅ 推奨</span>' : '';
     const showN = (r.need3d !== undefined && r.need3d !== null) ? r.need3d : r.need;   // 3D で検証した本数があればそれを表示
     const kgLine= totalKg>0 ? `概算 ${totalKg.toLocaleString()} kg／上限 ${(r.c.maxPay*showN).toLocaleString()} kg` : '';
-    const warn  = r.overW ? ' <span style="color:#e53e3e;font-size:10px;">⚠️ 重量超過</span>' : '';
+    const warn  = r.overW ? ' <span style="color:#e53e3e;font-size:12px;">⚠️ 重量超過</span>' : '';
     const diff  = (r.need3d !== undefined && r.need3d !== null && r.need3d !== r.need)
-      ? `<div style="font-size:11px;color:#b45309;margin-top:2px;">🧊 3D積み付け ${r.need3d} 本（CBM上の目安は ${r.need} 本）</div>`
-      : (r.need3d === null ? '<div style="font-size:11px;color:#b45309;margin-top:2px;">🧊 3D積み付け：入りきらない箱があります</div>' : '');
+      ? `<div style="font-size:12px;color:#b45309;margin-top:2px;">🧊 3D積み付け ${r.need3d} 本（CBM上の目安は ${r.need} 本）</div>`
+      : (r.need3d === null ? '<div style="font-size:12px;color:#b45309;margin-top:2px;">🧊 3D積み付け：入りきらない箱があります</div>' : '');
     return `<div class="calc-item ${isRec?'hl':''}">
       <div class="calc-item-label">${r.c.label}${badge}</div>
       <div class="calc-item-value" style="font-size:14px;">${showN} 本必要${warn}</div>
-      <div style="font-size:11px;color:#718096;margin-top:3px;">CBM充填率 ${r.util}%　${kgLine}</div>${diff}
+      <div style="font-size:12px;color:#718096;margin-top:3px;">CBM充填率 ${r.util}%　${kgLine}</div>${diff}
     </div>`;
   }).join('');
 
   const noStackCount = cargoDetail.filter(r => r.rowNoStack).length;
   const stackNote = noStackCount > 0
-    ? `<p style="font-size:11px;color:#b45309;margin-top:6px;">⚠️ 段積み不可の品種が ${noStackCount} 件あります（床面積占有を簡易補正）。</p>`
+    ? `<p style="font-size:12px;color:#b45309;margin-top:6px;">⚠️ 段積み不可の品種が ${noStackCount} 件あります（床面積占有を簡易補正）。</p>`
     : '';
 
   const van3dId = `van3d-host-${++_van3dSeq}`;
   appendCalcResult('van-result',
     `<div style="margin-bottom:10px;">
-      <div style="font-size:11px;font-weight:700;color:var(--text-md);margin-bottom:6px;">📦 品種別内訳（合計 ${totalCBM.toFixed(4)} CBM${totalKg>0?' / '+totalKg.toLocaleString()+' kg':''}）</div>
+      <div style="font-size:12px;font-weight:700;color:var(--text-md);margin-bottom:6px;">📦 品種別内訳（合計 ${totalCBM.toFixed(4)} CBM${totalKg>0?' / '+totalKg.toLocaleString()+' kg':''}）</div>
       ${detailHtml}
     </div>
     <div class="calc-row">${cardsHtml}</div>
     ${recNote}
     ${stackNote}
-    <p style="font-size:11px;color:#718096;margin-top:10px;">※ 本数は CBM ベースの理論値を 3D 積み付けで検証したものです（箱型コンテナのみ）。混載バンニングは積み合わせ次第で変わります。実際の積み付けは現場でご確認ください。</p>
-    <div style="margin-top:12px;font-size:11px;font-weight:700;color:var(--text-md);">🧊 3D積み付けプレビュー（推奨コンテナ：${rec.c.label}）</div>
+    <p style="font-size:12px;color:#718096;margin-top:10px;">※ 本数は CBM ベースの理論値を 3D 積み付けで検証したものです（箱型コンテナのみ）。混載バンニングは積み合わせ次第で変わります。実際の積み付けは現場でご確認ください。</p>
+    <div style="margin-top:12px;font-size:12px;font-weight:700;color:var(--text-md);">🧊 3D積み付けプレビュー（推奨コンテナ：${rec.c.label}）</div>
     <div id="${van3dId}"></div>`,
     `${cargo.length}品種 / 合計${totalCBM.toFixed(3)}CBM${globalNoStack?' / 全行段積み不可':noStackCount>0?' / 一部段積み不可':''}`,
     { pdfTitle: 'バンニング計算結果' });
@@ -1553,7 +1553,7 @@ async function calcRate() {
       return `<div class="calc-item hl" style="min-width:170px;">
         <div class="calc-item-label">${info.flag} ${code}　${info.name}</div>
         <div class="calc-item-value">${fmtAmt(converted, info.dec)}</div>
-        <div style="font-size:11px;color:#718096;margin-top:3px;">1 ${from} = ${fmtRate(rate, info.dec)} ${code}</div>
+        <div style="font-size:12px;color:#718096;margin-top:3px;">1 ${from} = ${fmtRate(rate, info.dec)} ${code}</div>
       </div>`;
     }).join('');
 
@@ -1591,7 +1591,7 @@ function calcInsurance() {
   const tableRows = rows.map(([lbl,val,note]) =>
     `<tr><td style="padding:5px 10px;color:#4a5568;width:140px;">${lbl}</td>
          <td style="padding:5px 10px;font-weight:600;text-align:right;">${val}</td>
-         <td style="padding:5px 10px;font-size:11px;color:#718096;">${note||''}</td></tr>`
+         <td style="padding:5px 10px;font-size:12px;color:#718096;">${note||''}</td></tr>`
   ).join('');
   appendCalcResult('ins-result',
     `<table style="width:100%;border-collapse:collapse;">${tableRows}</table>`,
@@ -1619,7 +1619,7 @@ function calcDuty() {
          <strong>🌿 少額免税適用</strong><br>
          課税価格：¥${fmt0(cifRaw)}<br>
          関税：¥0／消費税：¥0／地方消費税：¥0<br>
-         <span style="font-size:11px;">${note}</span>
+         <span style="font-size:12px;">${note}</span>
        </div>`,
       `少額免税 / CIF ¥${fmt0(cifRaw)} → 税合計 ¥0`);
     return;
@@ -1664,11 +1664,11 @@ function calcDuty() {
     return `<tr style="${highlight}">
       <td style="padding:5px 10px;color:#4a5568;width:210px;">${lbl}</td>
       <td style="padding:5px 10px;font-weight:600;text-align:right;">${val}</td>
-      <td style="padding:5px 10px;font-size:11px;color:#718096;">${note}</td></tr>`;
+      <td style="padding:5px 10px;font-size:12px;color:#718096;">${note}</td></tr>`;
   }).join('');
 
   const simpleNote = simpleMode
-    ? `<div style="margin-top:10px;padding:8px 12px;background:#fff3cd;border-left:3px solid #e8c870;font-size:11px;color:#7a5500;line-height:1.6;">
+    ? `<div style="margin-top:10px;padding:8px 12px;background:#fff3cd;border-left:3px solid #e8c870;font-size:12px;color:#7a5500;line-height:1.6;">
          💡 <strong>簡易税率モード参考表示</strong>：課税価格 20 万円以下では HS 詳細不要の<strong>少額輸入貨物簡易税率</strong>が選択可。
          代表的な区分（<strong>関税定率法別表附則・2025年4月現在参考値</strong>）：酒類等（除外）・コーヒー類 15%・衣類 10%・履物 30%・一般雑貨 3%。
          上記計算は <strong>通常税率</strong>での試算。実適用時は税関サイトで最新の簡易税率表を確認のこと。毎年4月改定の可能性あり。

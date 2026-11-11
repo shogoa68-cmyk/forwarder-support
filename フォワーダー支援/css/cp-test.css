@@ -1,0 +1,169 @@
+/* cp-test.css — 🚢 サイバーポート（連携の画面・案C：左で選ぶ、右で流れを見る）。
+ * すべて #tab-cptest / .cpt-* の中だけに効く。色は css/tokens.css の共通トークン（--accent／--border／--red など）を使う
+ * （現行・Industry・Quiet のどれでも崩れないように、固定色は持たない）。設計は Design の 17「サイバーポート画面の設計（案C）」。 */
+#tab-cptest {
+  --cpt-ok: var(--green-ok, #1e7a4a); --cpt-ok-bg: #e8f4ee; --cpt-ok-line: #bfe0cd;
+  --cpt-over: var(--red, #b42318); --cpt-over-bg: #fdecea; --cpt-over-line: #f0c4bf;
+  --cpt-warn: var(--amber, #8a5a2b); --cpt-warn-bg: #fbf4e6; --cpt-warn-line: #e6d3ae; --cpt-warn-dot: #d9a441;
+  --cpt-line: var(--border, #e2e6ec); --cpt-line2: var(--border-md, #c8cfd9);
+  --cpt-sunken: var(--surface-warm, #f6f7f9); --cpt-ink3: var(--text-muted, #667085);
+}
+#tab-cptest .cpt-root { display: flex; flex-direction: column; gap: 14px; max-width: 1180px; padding-bottom: 88px; /* 画面下の固定ボタン（← 見積もりに戻る）に、一覧の最後の行が隠れないように */ }
+#tab-cptest .cpt-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+#tab-cptest .cpt-title { margin: 0; font-size: var(--text-xl, 18px); color: var(--accent-dk); }
+#tab-cptest .cpt-head-r { margin-left: auto; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+
+/* 札・ボタン・入力 */
+#tab-cptest .cpt-chip { display: inline-flex; align-items: center; gap: 4px; height: 24px; padding: 0 10px; border-radius: 999px; font-size: var(--text-xs, 12px); font-weight: 600; background: var(--cpt-sunken); color: var(--text-md); border: 1px solid var(--cpt-line); white-space: nowrap; }
+#tab-cptest .cpt-chip.is-s { height: 20px; padding: 0 8px; }
+#tab-cptest .cpt-chip.is-ok { background: var(--cpt-ok-bg); color: var(--cpt-ok); border-color: var(--cpt-ok-line); }
+#tab-cptest .cpt-chip.is-over { background: var(--cpt-over-bg); color: var(--cpt-over); border-color: var(--cpt-over-line); }
+#tab-cptest .cpt-chip.is-warn { background: var(--cpt-warn-bg); color: var(--cpt-warn); border-color: var(--cpt-warn-line); }
+#tab-cptest .cpt-chip.is-now { background: var(--accent-lt); color: var(--accent); border-color: var(--accent); }
+#tab-cptest .cpt-chip.is-nodata { background: transparent; color: var(--cpt-ink3); border-style: dashed; }
+#tab-cptest .cpt-btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: 36px; padding: 0 14px; font-size: var(--text-sm, 13px); font-weight: 600; border: 1px solid var(--cpt-line2); border-radius: 6px; background: var(--surface); color: var(--text); cursor: pointer; white-space: nowrap; font-family: inherit; }
+#tab-cptest .cpt-btn:hover { background: var(--cpt-sunken); }
+#tab-cptest .cpt-btn.is-s { height: 30px; padding: 0 10px; }
+#tab-cptest .cpt-btn.is-primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+#tab-cptest .cpt-btn.is-primary:hover { background: var(--accent-dk); }
+#tab-cptest .cpt-btn.is-g { border-color: transparent; background: transparent; color: var(--accent); padding-left: 0; }
+#tab-cptest .cpt-btn:disabled { opacity: .5; cursor: not-allowed; }
+#tab-cptest .cpt-input { flex: 1 1 260px; min-width: 0; height: 36px; padding: 0 10px; font-size: var(--text-base, 14px); font-family: inherit; border: 1px solid var(--cpt-line2); border-radius: 6px; background: var(--surface); color: var(--text); box-sizing: border-box; }
+#tab-cptest .cpt-input.cpt-input-s { flex: 0 1 120px; min-width: 100px; }
+#tab-cptest .cpt-input.cpt-input-m { flex: 1 1 160px; }
+#tab-cptest .cpt-select { height: 36px; border: 1px solid var(--cpt-line2); border-radius: 6px; background: var(--surface); color: var(--text); }
+#tab-cptest .cpt-hint { flex: 1 0 100%; font-size: var(--text-xs, 12px); color: var(--cpt-ink3); }
+#tab-cptest [hidden] { display: none !important; }
+#tab-cptest .cpt-seg { display: inline-flex; padding: 2px; background: var(--cpt-sunken); border-radius: 8px; border: 1px solid var(--cpt-line); }
+#tab-cptest .cpt-seg button { all: unset; cursor: pointer; height: 30px; padding: 0 14px; font-size: var(--text-sm, 13px); font-weight: 600; color: var(--text-md); border-radius: 6px; display: inline-flex; align-items: center; }
+#tab-cptest .cpt-seg button[aria-pressed="true"] { background: var(--surface); color: var(--text); box-shadow: 0 1px 2px rgba(16,24,40,.12); }
+#tab-cptest button:focus-visible, #tab-cptest input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* カード・タブ・検索欄 */
+#tab-cptest .cpt-card { background: var(--surface); border: 1px solid var(--cpt-line); border-radius: 10px; }
+/* overflow:hidden だと中の sticky（右の詳細の追従）が効かないので、角を切るだけの clip にする（対応外の古い端末は hidden のまま） */
+#tab-cptest .cpt-shell { overflow: hidden; overflow: clip; }
+#tab-cptest .cpt-tabs { display: flex; padding: 0 16px; border-bottom: 1px solid var(--cpt-line); overflow-x: auto; }
+#tab-cptest .cpt-tab { all: unset; cursor: pointer; padding: 12px 4px; margin-right: 22px; font-size: var(--text-base, 14px); font-weight: 600; color: var(--cpt-ink3); border-bottom: 2px solid transparent; white-space: nowrap; display: inline-flex; align-items: center; gap: 6px; }
+#tab-cptest .cpt-tab[aria-selected="true"] { color: var(--text); border-bottom-color: var(--accent); }
+#tab-cptest .cpt-search { padding: 12px 16px; display: flex; gap: 8px; flex-wrap: wrap; align-items: center; border-bottom: 1px solid var(--cpt-line); }
+
+/* メッセージ（帯の左に太い線。色は意味どおり） */
+#tab-cptest .cpt-live { margin: 14px 16px; }
+#tab-cptest .cpt-msg { padding: 10px 14px; border-left: 4px solid var(--accent); background: var(--accent-lt); border-radius: 0 6px 6px 0; font-size: var(--text-sm, 13px); line-height: 1.6; }
+#tab-cptest .cpt-msg-b { margin-top: 2px; color: var(--text-md); }
+#tab-cptest .cpt-msg-d { margin-top: 6px; font-size: var(--text-xs, 12px); color: var(--cpt-ink3); word-break: break-all; }
+#tab-cptest .cpt-msg.is-ok { border-left-color: var(--cpt-ok); background: var(--cpt-ok-bg); }
+#tab-cptest .cpt-msg.is-error, #tab-cptest .cpt-msg.is-invalid { border-left-color: var(--cpt-over); background: var(--cpt-over-bg); }
+
+/* 左右分割：左＝一覧、右＝詳細（流れ）。スマホは一覧 → 詳細の切替 */
+#tab-cptest .cpt-split { display: flex; flex-wrap: wrap; }
+#tab-cptest .cpt-listpane { flex: 1 1 300px; max-width: 100%; border-right: 1px solid var(--cpt-line); min-width: 0; }
+#tab-cptest .cpt-detailpane { flex: 2 1 360px; padding: 16px 20px; min-width: 0; display: flex; flex-direction: column; gap: 14px; }
+/* 一覧を下へスクロールしても、選んだ 1 件の詳細（流れ）は画面の上に残す（左右に並んでいるとき）。詳細が長いときは、その中だけスクロール */
+@media (min-width: 761px) {
+  #tab-cptest .cpt-detailpane {
+    position: sticky; top: calc(var(--nav-cat-h, 56px) + 8px); align-self: flex-start;
+    max-height: calc(100vh - var(--nav-cat-h, 56px) - 24px); overflow-y: auto;
+  }
+}
+#tab-cptest .cpt-filter { padding: 8px 14px; display: flex; gap: 6px; flex-wrap: wrap; align-items: center; border-bottom: 1px solid var(--cpt-line); }
+#tab-cptest .cpt-filter:empty { display: none; }
+#tab-cptest .cpt-legend { flex: 1 0 100%; font-size: var(--text-xs, 12px); color: var(--cpt-ink3); }
+#tab-cptest .cpt-gb { display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 10px; border: 1px dashed var(--cpt-line2); border-radius: 6px; background: var(--surface); font-size: var(--text-sm, 13px); color: var(--text-md); cursor: pointer; font-family: inherit; }
+#tab-cptest .cpt-gb[aria-pressed="true"] { border-style: solid; border-color: var(--accent); background: var(--accent-lt); color: var(--accent); }
+#tab-cptest .cpt-sw { width: 10px; height: 10px; border-radius: 2px; background: var(--cpt-ok); }
+#tab-cptest .cpt-sw.is-over { background: var(--cpt-over); } #tab-cptest .cpt-sw.is-warn { background: var(--cpt-warn-dot); }
+#tab-cptest .cpt-row { all: unset; box-sizing: border-box; width: 100%; display: flex; gap: 10px; align-items: center; padding: 11px 14px; border-bottom: 1px solid var(--cpt-line); cursor: pointer; background: var(--surface); font-size: var(--text-base, 14px); }
+#tab-cptest .cpt-row:hover { background: var(--accent-lt); }
+#tab-cptest .cpt-row[aria-pressed="true"] { background: var(--accent-lt); box-shadow: inset 3px 0 0 var(--accent); }
+#tab-cptest .cpt-row:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+#tab-cptest .cpt-row-m { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+#tab-cptest .cpt-row-m b { overflow-wrap: anywhere; }
+#tab-cptest .cpt-row-s { font-size: var(--text-xs, 12px); color: var(--cpt-ink3); }
+#tab-cptest .cpt-row-go { color: var(--cpt-ink3); }
+#tab-cptest .cpt-dot { width: 10px; height: 10px; border-radius: 50%; flex: none; background: var(--cpt-ok); }
+#tab-cptest .cpt-dot.is-over { background: var(--cpt-over); } #tab-cptest .cpt-dot.is-warn { background: var(--cpt-warn-dot); }
+#tab-cptest .cpt-dot.is-now { background: var(--accent); }
+#tab-cptest .cpt-dot.is-none { background: transparent; border: 2px solid var(--cpt-line2); box-sizing: border-box; }
+#tab-cptest .is-nodata { color: var(--cpt-ink3); font-style: italic; }
+#tab-cptest .cpt-empty { padding: 20px 16px; color: var(--cpt-ink3); font-size: var(--text-sm, 13px); line-height: 1.7; }
+
+/* 詳細：見出し・流れ・すべての項目 */
+#tab-cptest .cpt-back { display: none; align-self: flex-start; }
+#tab-cptest .cpt-dt { display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; } #tab-cptest .cpt-dt b { font-size: var(--text-xl, 18px); overflow-wrap: anywhere; }
+#tab-cptest .cpt-ds { font-size: var(--text-sm, 13px); color: var(--cpt-ink3); margin-top: 2px; }
+#tab-cptest .cpt-flow-h { font-size: var(--text-sm, 13px); font-weight: 700; margin-bottom: 8px; }
+#tab-cptest .cpt-flow { list-style: none; margin: 0; padding: 0; }
+#tab-cptest .cpt-step { display: flex; gap: 12px; min-height: 46px; }
+#tab-cptest .cpt-rail { display: flex; flex-direction: column; align-items: center; width: 14px; flex: none; }
+#tab-cptest .cpt-node { width: 12px; height: 12px; border-radius: 50%; border: 2px solid var(--cpt-line2); background: var(--surface); margin-top: 4px; box-sizing: border-box; }
+#tab-cptest .cpt-node.is-done { border-color: var(--cpt-ok); background: var(--cpt-ok); }
+#tab-cptest .cpt-node.is-over { border-color: var(--cpt-over); background: var(--cpt-over); }
+#tab-cptest .cpt-node.is-warn { border-color: var(--cpt-warn-dot); background: var(--cpt-warn-dot); }
+#tab-cptest .cpt-node.is-now { border-color: var(--accent); background: var(--surface); }
+#tab-cptest .cpt-node.is-none { border-style: dashed; }
+#tab-cptest .cpt-line { flex: 1; width: 2px; background: var(--cpt-line); }
+#tab-cptest .cpt-step:last-child .cpt-line { background: transparent; }
+#tab-cptest .cpt-step-b { flex: 1; padding-bottom: 10px; min-width: 0; font-size: var(--text-base, 14px); }
+#tab-cptest .cpt-step-v { font-size: var(--text-sm, 13px); color: var(--text-md); overflow-wrap: anywhere; }
+#tab-cptest .cpt-future { border: 1px dashed var(--cpt-line2); border-radius: 8px; padding: 12px 14px; color: var(--cpt-ink3); line-height: 1.8; font-size: var(--text-sm, 13px); }
+#tab-cptest .cpt-dl { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 10px 20px; margin: 0; }
+#tab-cptest .cpt-dl dt { font-size: var(--text-xs, 12px); color: var(--cpt-ink3); }
+#tab-cptest .cpt-dl dd { margin: 0; font-weight: 500; font-size: var(--text-sm, 13px); overflow-wrap: anywhere; font-variant-numeric: tabular-nums; }
+#tab-cptest .cpt-dl dd.cpt-due-over { background: var(--cpt-over-bg); color: var(--cpt-over); font-weight: 700; padding: 0 4px; border-radius: 3px; }
+#tab-cptest .cpt-dl dd.cpt-due-warn { background: var(--cpt-warn-bg); color: var(--cpt-warn); font-weight: 700; padding: 0 4px; border-radius: 3px; }
+
+/* 開発者向け情報 */
+#tab-cptest .cpt-devwrap .cpt-btn.is-g { padding-left: 0; }
+#tab-cptest .cpt-dev { padding: 12px 16px; margin-top: 6px; font-size: var(--text-xs, 12px); color: var(--text-md); line-height: 1.8; }
+#tab-cptest .cpt-stlist { list-style: none; margin: 0 0 8px; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+#tab-cptest .cpt-st { display: flex; gap: 10px; flex-wrap: wrap; font-size: var(--text-xs, 12px); }
+#tab-cptest .cpt-st-k { min-width: 15em; color: var(--text-md); }
+#tab-cptest .cpt-st.is-off .cpt-st-v { color: var(--cpt-ink3); }
+#tab-cptest .cpt-st.is-ok .cpt-st-v { color: var(--cpt-ok); }
+#tab-cptest .cpt-dev-x { color: var(--cpt-over); margin-bottom: 6px; word-break: break-all; }
+#tab-cptest .cpt-raw { margin-top: 6px; } #tab-cptest .cpt-raw summary { cursor: pointer; }
+#tab-cptest .cpt-raw pre { max-height: 260px; overflow: auto; margin: 6px 0 0; padding: 8px; background: var(--cpt-sunken); border: 1px solid var(--cpt-line); border-radius: 6px; white-space: pre-wrap; word-break: break-all; }
+
+/* スマホ：一覧 → 詳細の順（表の横スクロールはなくなる） */
+@media (max-width: 760px) {
+  #tab-cptest .cpt-search .cpt-input, #tab-cptest .cpt-search .cpt-btn { flex: 1 1 100%; width: 100%; }
+  #tab-cptest .cpt-input.cpt-input-s { flex: 1 1 100%; }
+  #tab-cptest .cpt-split[data-mv="list"] .cpt-detailpane { display: none; }
+  #tab-cptest .cpt-split[data-mv="detail"] .cpt-listpane { display: none; }
+  #tab-cptest .cpt-listpane { border-right: 0; flex-basis: 100%; }
+  #tab-cptest .cpt-back { display: inline-flex; }
+  #tab-cptest .cpt-input, #tab-cptest .cpt-select { font-size: var(--text-lg, 16px); height: 44px; }
+  #tab-cptest .cpt-btn { height: 44px; }
+  #tab-cptest .cpt-btn.is-s { height: 36px; }
+}
+#tab-cptest .cpt-detailpane > .cpt-btn.is-g { align-self: flex-start; }
+#tab-cptest .cpt-note { padding: 8px 14px; font-size: var(--text-xs, 12px); color: var(--cpt-ink3); border-bottom: 1px solid var(--cpt-line); line-height: 1.6; }
+#tab-cptest .cpt-sortbar { padding: 8px 14px; display: flex; gap: 8px; align-items: center; border-bottom: 1px solid var(--cpt-line); font-size: var(--text-xs, 12px); color: var(--cpt-ink3); }
+#tab-cptest .cpt-select.is-s { height: 30px; font-size: var(--text-sm, 13px); padding: 0 6px; }
+
+/* 港の選択（一覧から選ぶ。一覧に無い港は「その他」を選ぶと、コードの入力欄が出る） */
+#tab-cptest .cpt-port-sel { flex: 0 1 200px; min-width: 150px; padding: 0 8px; }
+#tab-cptest .cpt-input.is-off { display: none; }
+@media (max-width: 760px) { #tab-cptest .cpt-port-sel { flex: 1 1 100%; } }
+
+/* ---- 📨 受信した通知（Webhook）／通知できる操作（js/cp-notify.js） ---- */
+#tab-cptest .cpt-notify { margin-top: 12px; padding: 12px 16px; }
+#tab-cptest .cpt-notify-h { margin-bottom: 4px; font-weight: 700; font-size: var(--text-base, 14px); }
+#tab-cptest .cpt-notify .cpt-form { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; margin: 8px 0; }
+#tab-cptest .cpt-notify .cpt-hint { font-size: var(--text-xs, 12px); color: var(--cpt-ink3); line-height: 1.6; }
+#tab-cptest .cpt-notify .cpt-tablewrap { margin-top: 6px; overflow-x: auto; }
+#tab-cptest .cpt-notify .cpt-table { width: 100%; border-collapse: collapse; font-size: var(--text-sm, 13px); }
+#tab-cptest .cpt-notify .cpt-table th, #tab-cptest .cpt-notify .cpt-table td { padding: 4px 8px; border-bottom: 1px solid var(--cpt-line); text-align: left; white-space: nowrap; }
+#tab-cptest .cpt-notify .cpt-table th { background: var(--cpt-sunken); font-size: var(--text-xs, 12px); color: var(--text-md); }
+#tab-cptest .cpt-notify-ops { margin-top: 10px; font-size: var(--text-sm, 13px); }
+#tab-cptest .cpt-notify-ops summary { cursor: pointer; color: var(--text-md); }
+#tab-cptest .cpt-ev-status { font-size: var(--text-xs, 12px); color: var(--text-md); display: inline-flex; align-items: center; gap: 6px; }
+#tab-cptest .cpt-live-dot { display: inline-block; width: 8px; height: 8px; margin-right: 4px; border-radius: 50%; background: #b9b3a8; }
+#tab-cptest .cpt-live-dot.is-on { background: #2f9e44; box-shadow: 0 0 0 3px rgba(47, 158, 68, .2); }
+#tab-cptest .cpt-mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: var(--text-xs, 12px); }
+#tab-cptest .cpt-ev-new td { animation: cptEvFlash 3s ease-out; }
+@keyframes cptEvFlash { from { background: #fff4d6; } to { background: transparent; } }
+#tab-cptest .cpt-ev-detail td { white-space: normal; background: var(--cpt-sunken); }
+#tab-cptest .cpt-ev-detail pre { max-height: 320px; overflow: auto; margin: 0 0 6px; padding: 8px; font-size: var(--text-xs, 12px); background: var(--surface); border: 1px solid var(--cpt-line); border-radius: 6px; white-space: pre-wrap; word-break: break-all; }

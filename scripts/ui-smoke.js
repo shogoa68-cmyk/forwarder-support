@@ -144,10 +144,10 @@ async function main() {
 
   // ② サンプルデータの入力（ヘッダー・条件・明細）
   await page.fill('#qf-ref', '99-2601150-001'); await page.fill('#qf-customer', 'サンプル商事株式会社'); await page.fill('#qf-person', '山田');
-  await page.click('#dirBtns [data-dir="export"]');
+  await page.selectOption('#cond-incoterms',{label:'FOB（本船渡し）'});await page.click('#dirBtns [data-dir="export"]');
   await page.evaluate(() => setTransport('fcl'));
-  await page.selectOption('#cond-incoterms', { label: 'FOB（本船渡し）' });
-  await page.fill('#z2Carrier', 'Maersk'); await page.fill('#z2Pol', 'NAGOYA'); await page.fill('#z2Pod', 'XIAMEN'); await page.evaluate(() => addRouteEntry());
+  
+  await page.evaluate(() => window.rfOpenCarrier && window.rfOpenCarrier()); await page.fill('#z2Carrier', 'Maersk'); await page.fill('#z2Pol', 'NAGOYA'); await page.fill('#z2Pod', 'XIAMEN'); await page.evaluate(() => addRouteEntry());
   const rows = [['海上運賃', 'A社', 100000, 20000], ['THC', 'B社', 30000, 5000], ['書類作成料', 'C社', 8000, 2000]];
   for (let i = 0; i < rows.length; i++) {
     if (i > 0) { await page.evaluate(() => window.addRow()); await page.waitForTimeout(80); }
@@ -188,14 +188,15 @@ async function main() {
   check('メール本文の生成', /御見積額/.test(mail) && /サンプル商事/.test(mail), mail.slice(0, 60));
 
   // ⑥ 往復案件（輸出→輸入）と往路・復路
-  await page.click('#dirBtns [data-dir="export_import"]');
-  await page.fill('#z2Carrier', 'ECU'); await page.fill('#z2Pol', 'XIAMEN'); await page.fill('#z2Pod', 'NAGOYA'); await page.evaluate(() => addRouteEntry());
+  await page.evaluate(() => setDirection('export_import'));
+  await page.evaluate(() => window.rfOpenCarrier && window.rfOpenCarrier()); await page.fill('#z2Carrier', 'ECU'); await page.fill('#z2Pol', 'XIAMEN'); await page.fill('#z2Pod', 'NAGOYA'); await page.evaluate(() => addRouteEntry());
   await page.selectOption('#cond-incoterms-ret', { label: 'CIF（運賃・保険料込み）' });
   const rt = await page.evaluate(() => { const d = document.createElement('div'); d.innerHTML = buildQuoteDocHTML(); return d.querySelector('.qd-subj').innerText.replace(/\s+/g, ' '); });
   check('往復案件の件名・往路／復路・建値', /輸出→輸入/.test(rt) && /往路（輸出）/.test(rt) && /復路（輸入）/.test(rt) && /CIF/.test(rt), rt.slice(0, 120));
-  await page.click('#dirBtns [data-dir="export"]');
+  await page.evaluate(() => setDirection('export'));
 
   // ⑦ 全体リマーク（品物別・常時付記）
+  await page.evaluate(() => window.rmsOpen && window.rmsOpen()); await page.waitForTimeout(500);   // 全体リマークは画面下の引き出し
   await page.selectOption('#remarkCargoSel', '医療機器・健康効果');
   await page.locator('#presetBtns button', { hasText: '薬機法' }).click();
   const rm = await page.inputValue('#remarkTextarea');

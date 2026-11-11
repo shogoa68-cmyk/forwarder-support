@@ -14,7 +14,7 @@
   'use strict';
 
   // conditions.js の ROW_CELL_FIELDS と同順（cells[0]=選択チェック）。変更時は要同期
-  const CELL_FIELDS = ['cat','sv','tx','nm','pq','un','bq','pc','bc','pp','bp','cd','mk','nt','zc','vf','vt','ac','pt','ps','co','lu','ppmode','pprate','ppbase','uid','ppref','ri','es','ppmin','bpmin','ic','cn'];
+  const CELL_FIELDS = ['cat','sv','tx','nm','pq','un','bq','pc','bc','pp','bp','cd','mk','nt','zc','vf','vt','ac','pt','ps','co','lu','ppmode','pprate','ppbase','uid','ppref','ri','es','ppmin','bpmin','ic','cn','bphi'];
 
   const CCY_LIST = ['USD','EUR','CNY','KRW','THB','SGD','GBP','AUD','HKD','TWD','VND','IDR','MYR','PHP','INR','JPY'];
   const CCY_RE = CCY_LIST.join('|');
@@ -85,6 +85,22 @@
     const fields = {};
     const entries = [];
     let inScope = false;   // 【作業範囲】以降は明細抽出しない
+    // リマーク候補：{ text, itemIdx }（itemIdx＝付ける明細の番号（明細だけ数えた 0 始まり）。null＝全体リマーク）
+    //  ・【リマーク】（【備考】【注記】）の見出し以降の行（次の【見出し】か罫線まで）＝全体リマーク（「品名：注記」なら該当の明細へ）
+    //  ・行頭が「※」の行＝直前の行が明細ならその明細へ、そうでなければ全体リマーク
+    //  ・行末の「※備考」は従来どおり、その明細行の備考（remarks には入れない）
+    const remarks = [];
+    let inRemarks = false;
+    let itemCount = 0;
+    let lastItemIdx = -1;   // 直前の行が明細だったとき、その明細の番号
+    const pushItem = o => { entries.push(o); lastItemIdx = itemCount; itemCount++; };
+    const _AUTO_NOTE_RE = /為替レートにより請求金額が変動|「〜」で幅を示した項目を含むため/;   // 本アプリが自動で付ける注記は、取り込まない
+    const pushRemark = (raw, itemIdx) => {
+      const text = String(raw || '').replace(/^[・･\-\*●○※\s　]+/, '').trim();
+      if (!text || _AUTO_NOTE_RE.test(text)) return;
+      if (remarks.some(r => r.text === text && r.itemIdx === itemIdx)) return;
+      remarks.push({ text, itemIdx: itemIdx == null ? null : itemIdx });
+    };
 
     // 冒頭の宛先（「〇〇 様 / 御中」）を顧客名として拾う
     for (let i = 0; i < Math.min(lines.length, 6); i++) {
@@ -98,14 +114,21 @@
     lines.forEach(raw => {
       const line = raw.replace(/\s+$/, '');
       const t = line.trim();
-      if (!t) return;
+      if (!t) { lastItemIdx = -1; return; }   // 空行をはさんだ「※」は、直前の明細の注記にしない（全体リマーク）
+      const prevItem = lastItemIdx; lastItemIdx = -1;   // 明細の直後だけ「※…」をその明細の注記として扱う
 
       // ヘッダー項目
       let m = t.match(/^【見積番号】\s*(.+)$/);            if (m) { fields.ref = m[1].trim(); return; }
       m = t.match(/^【有効期限】\s*([\d/\-年月日\.]+)/);   if (m) { fields.validUntil = m[1].trim().replace(/\//g, '-').replace(/年|月/g, '-').replace(/日/, '').replace(/--/g, '-'); return; }
-      if (/^【作業範囲】/.test(t)) { inScope = true; return; }
-      if (/^【/.test(t)) { inScope = false; return; }
+      m = t.match(/^【(?:全体)?(?:リマーク|備考|注記)】\s*(.*)$/);
+      if (m) { inRemarks = true; inScope = false; if (m[1]) pushRemark(m[1], null); return; }
+      if (/^【作業範囲】/.test(t)) { inScope = true; inRemarks = false; return; }
+      if (/^【/.test(t)) { inScope = false; inRemarks = false; return; }
       if (inScope) return;
+      if (inRemarks) {
+        if (/^[─═―_\-=]{4,}/.test(t)) { inRemarks = false; return; }   // 罫線でブロックを終える
+        pushRemark(t, null); return;
+      }
 
       // グループ見出し 《…》
       m = t.match(/^《(.+)》$/);
@@ -114,7 +137,8 @@
       // スキップ：罫線・サマリ・署名・注記
       if (/^[─═―_\-=]{4,}/.test(t)) return;
       if (/^(　)?(小計|課税対象小計|御見積額|消費税|仕入合計|売値合計|合計)/.test(t)) return;
-      if (/^(※|■(?!.*[×＝])|TEL|FAX|Mail|E-?mail)/i.test(t)) return;
+      if (/^※/.test(t)) { pushRemark(t, prevItem >= 0 ? prevItem : null); lastItemIdx = prevItem; return; }   // 続く「※」も同じ明細へ
+      if (/^(■(?!.*[×＝])|TEL|FAX|Mail|E-?mail)/i.test(t)) return;
       // サマリの区間行（ラベル＋空白＋¥金額のみ）は明細と重複するためスキップ
       if (/^　.+\s{2,}[¥￥][\d,]+$/.test(line)) return;
 
@@ -144,7 +168,7 @@
         const price = parseMoney(m[4]);
         const amt   = parseMoney(m[5]);
         if (price || amt) {
-          entries.push({
+          pushItem({
             _kind: 'item', conf: 'high',
             name: m[1].trim(), qty: _num(m[2]) ?? 1, unit: (m[3] || '').trim(),
             ccy: (price || amt).ccy, price: price ? price.v : (amt ? amt.v / (_num(m[2]) || 1) : null),
@@ -158,7 +182,7 @@
       if (/(^|\s)実費(\s|$)/.test(body)) {
         const nm2 = body.replace(/(^|\s)実費(\s|$)/, ' ').replace(/\s+/g, ' ').trim();
         if (nm2) {
-          entries.push({ _kind: 'item', conf: 'high', name: nm2, qty: '', unit: '', ccy: 'JPY', price: null, actual: true, taxed, taxSrc: tax, cond, ref: refFlg, note });
+          pushItem({ _kind: 'item', conf: 'high', name: nm2, qty: '', unit: '', ccy: 'JPY', price: null, actual: true, taxed, taxSrc: tax, cond, ref: refFlg, note });
           return;
         }
       }
@@ -179,7 +203,7 @@
         const qm = nm3.match(/\s([\d.,]+)\s*(R\/T|RT|CBM|M3|KGS?|CNTR|B\/L|BL|SHPT|VAN|件|台|本|枚|式|梱|才|20'?\S*|40'?\S*)$/i);
         if (qm) { qty = _num(qm[1]) ?? 1; unit = qm[2]; nm3 = nm3.slice(0, qm.index).trim(); }
         if (nm3 && !/^(以上|宜しく|よろしく|お願い|下記|毎度|拝啓|敬具)/.test(nm3)) {
-          entries.push({
+          pushItem({
             _kind: 'item', conf: isBullet ? 'mid' : 'low',
             name: nm3, qty, unit, ccy: money.ccy, price: money.v / (qty || 1),
             taxed, taxSrc: tax, cond, ref: refFlg, note,
@@ -188,7 +212,20 @@
       }
     });
 
-    return { fields, entries };
+    // 「品名：注記」の形のリマークは、その品名の明細へ付ける（品名は大文字小文字・空白の違いを無視して、含む・含まれるで照合）
+    const items = entries.filter(e => e._kind === 'item');
+    const nz = v => String(v || '').toLowerCase().replace(/[\s　]+/g, '');
+    remarks.forEach(r => {
+      if (r.itemIdx != null) return;
+      const mm = r.text.match(/^[［\[【]?\s*(.{2,40}?)\s*[］\]】]?\s*[:：]\s*(.+)$/);
+      if (!mm) return;
+      const key = nz(mm[1]);
+      if (key.length < 2) return;
+      const idx = items.findIndex(it => { const n = nz(it.name); return n && (n === key || n.includes(key) || key.includes(n)); });
+      if (idx >= 0) { r.itemIdx = idx; r.text = mm[2].trim(); }
+    });
+
+    return { fields, entries, remarks };
   }
 
   // ====== レビュー UI ======
@@ -483,7 +520,8 @@
     if (!wrap || !_parsed) return;
     const { fields, entries } = _parsed;
     const items = entries.filter(e => e._kind === 'item');
-    if (!items.length) {
+    const rems = _parsed.remarks || [];
+    if (!items.length && !rems.length) {
       wrap.innerHTML = '<div class="preset-empty">明細行を抽出できませんでした。<br><small>金額（¥1,234 / 100 USD 等）を含む行が対象です。書式を確認してください。</small></div>';
       document.getElementById('eiActions').hidden = true;
       return;
@@ -502,7 +540,8 @@
       '<label class="ei-sellmode-label" title="既存システムからの移植等、取り込む単価が「売値」しか分からない場合向け。チェックすると、取り込んだ単価は売単価として登録され、仕入単価は空欄になります。挿入後に見積テーブルで行ごとに「仕入単価」を入力すると、乗せ幅が自動で算出されます（売単価－仕入単価）。">' +
         '<input type="checkbox" id="eiSellMode"> 💰 単価を売値として取り込む（仕入を後で入力→乗せ幅を自動算出）</label>' +
       '</div>';
-    html += '<table class="ei-table"><thead><tr>' +
+    if (!items.length) html += '<div class="ei-rem-only">💡 明細行は抽出できませんでした。リマークだけを取り込めます（下のリマーク候補）。</div>';
+    if (items.length) html += '<table class="ei-table"><thead><tr>' +
       '<th><input type="checkbox" id="eiChkAll" checked onchange="eiToggleAll(this.checked)"></th>' +
       '<th>グループ</th><th>カテゴリ</th><th>サブコン</th><th>品名</th><th>数量</th><th>単位</th><th>通貨</th><th>単価</th><th class="ei-tax-th" title="課税対象の行にチェック。見出しのチェックで全行を一括切替">課税 <input type="checkbox" id="eiTaxAll" onchange="eiToggleAllTax(this.checked)"></th><th>フラグ</th><th>備考</th><th>確度</th>' +
       '</tr></thead><tbody>';
@@ -530,12 +569,62 @@
         `<td>${confBadge(e.conf)}</td>` +
         `</tr>`;
     });
-    html += '</tbody></table>';
+    if (items.length) html += '</tbody></table>';
+    html += _remarksHtml(items, rems);
     html += '<datalist id="eiCcyList">' + CCY_LIST.map(c => `<option value="${c}">`).join('') + '</datalist>';
     html += '<p class="ei-hint">💡 通常は単価が仕入・売の両方に入ります（粗利0）。仕入額が分かる場合は挿入後に修正してください。「💰 単価を売値として取り込む」をONにすると、単価は売値としてのみ登録され、挿入後に仕入単価を入力すれば乗せ幅が自動算出されます。「課税」列は本文の語（[課税]・課税対象・税別・非課税・免税 等）から判定した結果です。違う行はチェックで直してください。「要確認」行は品名・金額を必ず確認。</p>';
     wrap.innerHTML = html;
     document.getElementById('eiActions').hidden = false;
     _updateInsertTarget();
+  }
+
+  // 📝 リマーク候補（チェック・付ける先・文を直してから挿入）
+  //  付ける先：「全体リマーク」（見積全体の条件・リマーク欄へ追記）／「明細：品名」（その明細行の備考へ追記）
+  function _remarksHtml(items, rems) {
+    if (!rems.length) return '';
+    const opts = sel => '<option value="g"' + (sel == null ? ' selected' : '') + '>全体リマーク</option>' +
+      items.map((it, gi) => '<option value="' + gi + '"' + (sel === gi ? ' selected' : '') + '>明細' + (gi + 1) + '：' + _esc(String(it.name || '').slice(0, 30)) + '</option>').join('');
+    let h = '<div class="ei-remarks"><div class="ei-rem-head"><b>📝 リマーク候補</b>' +
+      '<span class="ei-rem-hint">チェックしたものを挿入します。「付ける先」で、見積全体のリマーク欄／特定の明細の備考を選べます（文は直せます）。</span></div>' +
+      '<table class="ei-rem-table"><thead><tr><th><input type="checkbox" id="eiRemAll" checked onchange="document.querySelectorAll(\'#eiReviewWrap .ei-rem-chk\').forEach(c=>{c.checked=this.checked})"></th><th>付ける先</th><th>内容</th></tr></thead><tbody>';
+    rems.forEach((r, i) => {
+      h += '<tr data-ri="' + i + '"><td><input type="checkbox" class="ei-rem-chk" checked></td>' +
+        '<td><select class="ei-in ei-rem-to">' + opts(r.itemIdx) + '</select></td>' +
+        '<td><input type="text" class="ei-in ei-rem-text" value="' + _esc(r.text) + '"></td></tr>';
+    });
+    return h + '</tbody></table></div>';
+  }
+  // チェックされたリマーク → { global: [文], perItem: { gi: [文] }, count }。付け先の明細が外されていれば全体へ（品名つき）
+  function _gatherRemarks(checkedGi) {
+    const items = (_parsed?.entries || []).filter(e => e._kind === 'item');
+    const out = { global: [], perItem: {}, count: 0 };
+    document.querySelectorAll('#eiReviewWrap .ei-remarks tbody tr').forEach(tr => {
+      if (!tr.querySelector('.ei-rem-chk')?.checked) return;
+      const text = (tr.querySelector('.ei-rem-text')?.value || '').trim();
+      if (!text) return;
+      const to = tr.querySelector('.ei-rem-to')?.value || 'g';
+      out.count++;
+      if (to === 'g') { out.global.push(text); return; }
+      const gi = parseInt(to, 10);
+      if (checkedGi.has(gi)) (out.perItem[gi] = out.perItem[gi] || []).push(text);
+      else out.global.push((items[gi] && items[gi].name ? items[gi].name + '：' : '') + text);
+    });
+    return out;
+  }
+  // 全体リマーク欄（#remarkTextarea）へ追記。すでにある同じ文は重ねない（「※」・空白の違いは無視）。追記した件数を返す
+  function _applyGlobalRemarks(lines) {
+    const ta = document.getElementById('remarkTextarea');
+    if (!ta || !lines.length) return 0;
+    const norm = t => String(t || '').replace(/^[\s　]*※[\s　]*/, '').replace(/[\s　]+/g, '').toLowerCase();
+    const have = new Set(ta.value.split('\n').map(norm).filter(Boolean));
+    const add = [];
+    lines.forEach(l => { const k = norm(l); if (k && !have.has(k)) { have.add(k); add.push(l.trim()); } });
+    if (!add.length) return 0;
+    const cur = ta.value.replace(/\s+$/, '');
+    ta.value = (cur ? cur + '\n' : '') + add.join('\n');
+    ta.dispatchEvent(new Event('input', { bubbles: true }));
+    if (typeof window.syncRemarkChips === 'function') window.syncRemarkChips();
+    return add.length;
   }
 
   // 「この見積へ挿入」の挿入先（＝今エディタで開いている見積名）を明示
@@ -600,7 +689,22 @@ THC 1 40FT × 20,000 JPY ＝ 20,000 JPY
 行末に ※備考の内容 の形式で追加してください。
 例：通関手数料 1 式 × 12,000 JPY ＝ 12,000 JPY ※輸出通関一式
 
-### 5. グループ分け（コンテナサイズ等で内訳が分かれる場合）
+### 5. リマーク（注記）
+・特定の明細だけに当てはまる注記は、上の「4. 備考」のとおり、その明細行の末尾に ※注記 を付けてください。
+・見積全体に当てはまる注記（有効期限・為替の扱い・免責・支払条件・運賃やサーチャージの変動・別途費用・フリータイム など）は、明細行の下に【リマーク】という見出しだけの行を 1 つ作り、その下に 1 行 1 件で書いてください（行頭の ・ は付けても構いません）。
+・全体の注記でも、特定の品名について書かれたものは「品名：注記」の形で書いてください（取り込み時にその明細へ付きます）。
+・注記は原文の意味を変えず、1 件 1 行に簡潔にまとめてください。挨拶・署名・連絡先は注記に入れないでください。
+
+例：
+海上運賃 1 40'GP × 1,680 USD ＝ 1,680 USD ※Zero Freight
+THC 1 40FT × 20,000 JPY ＝ 20,000 JPY
+
+【リマーク】
+・本見積の有効期限は発行から 14 日間です
+・運賃・サーチャージは船社の改定により変動する場合があります
+・THC：3 日間のフリータイムを含みます
+
+### 6. グループ分け（コンテナサイズ等で内訳が分かれる場合）
 区切りの直前に 《グループ名》 という行だけの見出しを入れてください。
 例：
 《20FTの場合》
@@ -608,10 +712,10 @@ THC 1 40FT × 20,000 JPY ＝ 20,000 JPY
 《40FTの場合》
 （40FT分の明細行…）
 
-### 6. 除外するもの
-小計・消費税・合計・御見積額などの集計行、注記（TEL/FAX/メールアドレス等）は出力しないでください。
+### 7. 除外するもの
+小計・消費税・合計・御見積額などの集計行、挨拶・署名・連絡先（TEL/FAX/メールアドレス等）は出力しないでください。ただし注記は捨てず、「5. リマーク」のとおり出力してください。
 
-### 7. 任意（分かれば先頭に1行ずつ）
+### 8. 任意（分かれば先頭に1行ずつ）
 【見積番号】見積書に記載の番号
 【有効期限】YYYY-MM-DD
 
@@ -644,6 +748,14 @@ THC 1 40FT × 20,000 JPY ＝ 20,000 JPY
   // そのまま登録する。これにより挿入後の編集画面で「20'コンテナの場合」等のグループが
   // 自動的にパターン単位の小計（仕入合計・売値合計・粗利率）としてまとまるため、
   // 別途グループ変更のたびに小計行（_type:'subtotal'）を差し込む必要はない。
+  // 明細（チェックの入った行）の番号の集合
+  function _checkedItemSet() {
+    const s = new Set();
+    document.querySelectorAll('#eiReviewWrap .ei-table tbody tr').forEach(tr => {
+      if (tr.querySelector('.ei-chk')?.checked) s.add(parseInt(tr.dataset.gi, 10));
+    });
+    return s;
+  }
   function _gatherReviewRows() {
     const items = (_parsed?.entries || []).filter(e => e._kind === 'item');
     // 売値として取り込む（既存システムからの移植等、売値しか分からない場合向け）：
@@ -652,7 +764,8 @@ THC 1 40FT × 20,000 JPY ＝ 20,000 JPY
     // 挿入後に見積テーブルで仕入単価(pp)を入力すると、乗せ幅(mk)が自動算出される
     const sellMode = document.getElementById('eiSellMode')?.checked;
     const out = [];
-    document.querySelectorAll('#eiReviewWrap tbody tr').forEach(tr => {
+    const rem = _gatherRemarks(_checkedItemSet());
+    document.querySelectorAll('#eiReviewWrap .ei-table tbody tr').forEach(tr => {
       if (!tr.querySelector('.ei-chk')?.checked) return;
       const gi = parseInt(tr.dataset.gi, 10);
       const src = items[gi] || {};
@@ -666,7 +779,7 @@ THC 1 40FT × 20,000 JPY ＝ 20,000 JPY
         pq: v('ei-qty'), un: v('ei-unit').trim(), bq: v('ei-qty'),
         pc: (v('ei-ccy').trim().toUpperCase() || 'JPY'), bc: (v('ei-ccy').trim().toUpperCase() || 'JPY'),
         pp: src.actual ? '' : (useSell ? '' : price), bp: src.actual ? '' : price,
-        cd: '', mk: '', nt: v('ei-note').trim(),
+        cd: '', mk: '', nt: [v('ei-note').trim()].concat(rem.perItem[gi] || []).filter(Boolean).join(' / '),
         zc: '', vf: '', vt: '', ac: src.actual ? '1' : '', pt: group,
         ps: '', co: src.cond ? '1' : '', lu: '', ppmode: useSell ? 'sell' : '', pprate: '', ppbase: '', uid: '', ppref: '',
         ri: src.ref ? '1' : '',
@@ -700,7 +813,7 @@ THC 1 40FT × 20,000 JPY ＝ 20,000 JPY
     if (!group) { if (window.quoteShowToast) quoteShowToast('⚠️ グループ名を入力してから登録してください', 'warn'); return; }
     const items = (_parsed?.entries || []).filter(e => e._kind === 'item');
     const rows = [];
-    document.querySelectorAll('#eiReviewWrap tbody tr').forEach(r => {
+    document.querySelectorAll('#eiReviewWrap .ei-table tbody tr').forEach(r => {
       if ((r.querySelector('.ei-group')?.value || '').trim() !== group) return;
       if (!r.querySelector('.ei-chk')?.checked) return;
       const gi = parseInt(r.dataset.gi, 10);
@@ -736,10 +849,12 @@ THC 1 40FT × 20,000 JPY ＝ 20,000 JPY
   // 現在の見積へ行を挿入
   function eiInsertRows() {
     const rows = _gatherReviewRows();
-    if (!rows.length) { if (window.quoteShowToast) quoteShowToast('⚠️ 挿入する行にチェックを入れてください', 'warn'); return; }
+    const rem = _gatherRemarks(_checkedItemSet());
+    if (!rows.length && !rem.count) { if (window.quoteShowToast) quoteShowToast('⚠️ 挿入する行（またはリマーク）にチェックを入れてください', 'warn'); return; }
     if (typeof window.appendQuoteRows !== 'function') return;
     if (_isViewMode()) { if (window.quoteShowToast) quoteShowToast('🔒 閲覧モードです。「✏️ 編集」を押してから挿入してください', 'warn'); return; }
-    const n = window.appendQuoteRows(rows);
+    const n = rows.length ? window.appendQuoteRows(rows) : 0;
+    const remN = _applyGlobalRemarks(rem.global);
     // 保管した自由入力から取り込んだときは、その 1 件を取込済みにする（原文は案件に残る）。
     // それ以外（貼り付けから直接）は、原文を案件の取込元メモ（#qf-import-src）に残す
     const doneId = _curEntryId;
@@ -753,7 +868,7 @@ THC 1 40FT × 20,000 JPY ＝ 20,000 JPY
     closeEmailImport();
     eiRefreshPendingBanner();
     if (typeof window.qpShowEditor === 'function') window.qpShowEditor();
-    if (window.quoteShowToast) quoteShowToast('📩 メールから ' + n + ' 行を挿入しました', 'success');
+    if (window.quoteShowToast) quoteShowToast('📩 メールから ' + n + ' 行を挿入しました' + (rem.count ? '（リマーク ' + rem.count + ' 件：全体 ' + remN + ' 件・明細の備考 ' + Object.keys(rem.perItem).reduce((a, k) => a + rem.perItem[k].length, 0) + ' 件）' : ''), 'success');
   }
 
   // 新規案件として展開（入力中の内容はクリア）
@@ -772,6 +887,7 @@ THC 1 40FT × 20,000 JPY ＝ 20,000 JPY
     } else if (typeof window.appendQuoteRows === 'function') {
       window.appendQuoteRows(rows);
     }
+    _applyGlobalRemarks(_gatherRemarks(_checkedItemSet()).global);   // 全体リマークは新しい案件の全体リマーク欄へ（明細の備考は rows に入っている）
     _stampImportSource();
     _markDirty();
     // 内部メモに取込記録を残す

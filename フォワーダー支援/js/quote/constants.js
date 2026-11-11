@@ -489,14 +489,39 @@ function applyRowMin(amount, id, side) {
 }
 // 単価の表示。最低料金があれば「Min. $28.00 or $0.15/kg」（記号の無い通貨は「SGD 28.00」）
 const _MIN_CCY_SYM = { USD: '$', EUR: '€', GBP: '£', JPY: '¥' };
-function minPriceText(price, min, ccy, unit) {
+// 最低料金がある行で、どちらが適用されたか：'min'（最低料金）／'rate'（従量＝数量×単価）／null（最低料金なし）
+function minAppliedKind(qty, price, min) {
+  const m = parseFloat(min) || 0;
+  if (!(m > 0)) return null;
+  return m > (Number(qty) || 0) * (Number(price) || 0) ? 'min' : 'rate';
+}
+window.minAppliedKind = minAppliedKind;
+// qty を渡すと、末尾にどちらが適用されたか（[MIN適用]／[従量適用]）を添える（Excel/CSV・メール本文用の文字列）
+function minPriceText(price, min, ccy, unit, qty) {
   const m = parseFloat(min) || 0;
   if (!(m > 0)) return null;
   const c = ccy || 'JPY';
   const f = n => Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: c === 'JPY' ? 0 : 2, maximumFractionDigits: c === 'JPY' ? 0 : 2 });
   const money = n => (_MIN_CCY_SYM[c] ? _MIN_CCY_SYM[c] + f(n) : c + ' ' + f(n));
-  return 'Min. ' + money(m) + ' or ' + money(price) + (unit ? '/' + unit : '');
+  const tag = (qty === undefined) ? '' : (minAppliedKind(qty, price, m) === 'min' ? ' [MIN適用]' : ' [従量適用]');
+  return 'Min. ' + money(m) + ' or ' + money(price) + (unit ? '/' + unit : '') + tag;
 }
+// 幅（金額の範囲）：売単価 bp〜上限 bphi。上限が売単価より大きいときだけ幅あり（未入力・0・以下は null）。
+// 売単価 bp が下限で、合計・小計はこの売単価で計算する（出力の注記「合計は幅の下限で算出」と一致）
+function rowRange(bp, bphi) {
+  const hi = parseFloat(bphi) || 0, lo = Number(bp) || 0;
+  if (!(hi > lo)) return null;
+  return { lo, hi };
+}
+window.rowRange = rowRange;
+// 幅の金額（数量×単価の範囲。最低料金があれば各端に適用）。幅なしなら null
+function rowRangeAmt(bq, bp, bphi, bpmin) {
+  const rg = rowRange(bp, bphi);
+  if (!rg) return null;
+  const q = Number(bq) || 0;
+  return { lo: minAmt(q * rg.lo, bpmin), hi: minAmt(q * rg.hi, bpmin) };
+}
+window.rowRangeAmt = rowRangeAmt;
 window.minAmt = minAmt;
 window.applyRowMin = applyRowMin;
 window.minPriceText = minPriceText;

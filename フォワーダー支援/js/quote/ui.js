@@ -1392,6 +1392,8 @@
       window.mdLoadCloud().then(() => {
         if (typeof window.qfRefreshCustomerDetailBtn === 'function') window.qfRefreshCustomerDetailBtn();
         if (typeof window.refreshAllRowMasterDetailBtns === 'function') window.refreshAllRowMasterDetailBtns();
+        // ダッシュボードのお客様種別（荷主／同業者／その他）はマスターの取引形態から出すため、読み込み後に一覧を描き直す
+        if (typeof window.cloudRefreshDashList === 'function') window.cloudRefreshDashList();
       });
     } else {
       if (typeof window.qfRefreshCustomerDetailBtn === 'function') window.qfRefreshCustomerDetailBtn();
@@ -1536,6 +1538,7 @@
   function scrollToSection(sectionId) {
     const el = document.getElementById(sectionId);
     if (!el) return;
+    if (sectionId === 'section-remark' && typeof window.rmsOpen === 'function') { window.rmsOpen(true); return; }   // 全体リマークは画面下の引き出し
     el.scrollIntoView({ behavior:'smooth', block:'start' });
     const prev = el.style.outline;
     el.style.transition = 'outline .2s';
@@ -1809,7 +1812,8 @@
       received:  (f['qf-received']    || '').trim(),
       due:       (f['qf-due']         || '').trim(),
       subcons:   (window.quoteExtractSubcons ? window.quoteExtractSubcons(p.data) : []),
-      memo:      (f['qf-memo']        || '').trim().split('\n')[0].trim(),
+      // 案件名：「案件名」欄があればそれ、無ければ付箋（社内メモ）の1行目（2 通りの付け方）
+      memo:      (f['qf-case-name']   || '').trim() || (f['qf-memo']        || '').trim().split('\n')[0].trim(),
     };
   }
   // チーム共有カードでも同じ表示にするため公開
@@ -3452,6 +3456,8 @@
 
     if (!activeRows.length) {
       panel.innerHTML = '<p class="qsp-empty">費用項目を入力すると<br>ここにまとめが表示されます</p>';
+      window._qspLast = null;
+      if (typeof window.qdgRender === 'function') window.qdgRender();
       return;
     }
 
@@ -3543,6 +3549,8 @@
       <div class="qsp-tax-row qsp-tax-amt"><span>${taxLabel}</span><span>¥${fmtJPY(taxAmt)}</span></div>
       ${hasFx ? '<p class="qsp-fx-note">※ 外貨は現在の参照レートで換算（概算）</p>' : ''}
     `;
+    window._qspLast = { count: activeRows.length, bill: totalBillJPY, cost: totalCostJPY, mk: mkPct, hasFx };   // 診断カード（diagnosis.js）が読む
+    if (typeof window.qdgRender === 'function') window.qdgRender();
     if (typeof window.renderQuoteSectionDigest === 'function') window.renderQuoteSectionDigest();
   };
 
@@ -3825,6 +3833,7 @@
   window.toggleQuoteSection = function(id) {
     const sec = document.getElementById(id);
     if (!sec) return;
+    if (id === 'section-remark' && typeof window.rmsToggle === 'function') { window.rmsToggle(); return; }
     sec.classList.remove('collapsed');   // 念のため常に展開
     sec.scrollIntoView({ block: 'start' });
   };
@@ -4444,6 +4453,7 @@
   window.openQuoteSectionFromDigest = function(id) {
     const sec = document.getElementById(id);
     if (!sec) return;
+    if (id === 'section-remark' && typeof window.rmsOpen === 'function') { window.rmsOpen(); return; }   // 全体リマークは画面下の引き出しを開く
     if (sec.classList.contains('collapsed') && typeof toggleQuoteSection === 'function') toggleQuoteSection(id);
     sec.scrollIntoView({ block: 'start' });
   };
@@ -4543,7 +4553,7 @@
     // 金額タブ：費用項目数
     const rows = document.querySelectorAll('#tableBody tr [data-field="nm"]').length;
     const finBtn = document.getElementById('qspTabBtn-fin');
-    if (finBtn) finBtn.innerHTML = '💰 金額' + (rows ? ' <span class="qsp-tab-badge">' + rows + '</span>' : '');
+    if (finBtn) finBtn.innerHTML = '💰 金額' + (rows ? ' <span class="qsp-tab-badge">' + rows + '</span>' : '') + (window._qdgCount ? ' <span class="qsp-tab-badge qsp-tab-badge-warn" title="見積の診断で要確認の点があります">!</span>' : '');
     // 輸送タブ：作業範囲が出ていれば●
     const hasFlow = document.getElementById('qspMilestones') && document.getElementById('qspMilestones').style.display !== 'none';
     const flowBtn = document.getElementById('qspTabBtn-flow');
@@ -4722,6 +4732,7 @@
     updateQuoteStatusUI();
     if (typeof window.qvOnStatus === 'function') window.qvOnStatus(status);   // 提示済みにした時点の内容を版として記録（quote-versions.js）
     if (typeof window.updateSectionSummaries === 'function') window.updateSectionSummaries();
+    if (typeof window.ciSync === 'function') window.ciSync();   // 受注のときだけ基幹システム REF# を出す（case-info.js）
   }
   function updateQuoteStatusUI() {
     const status = document.getElementById('qf-status')?.value || '下書き中';

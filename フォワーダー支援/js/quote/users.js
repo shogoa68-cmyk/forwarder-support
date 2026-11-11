@@ -44,6 +44,7 @@
       _myRole = null;
       window._myMemberNo = null;
       if (btn) btn.hidden = true;
+      if (typeof window.annOnAuth === 'function') window.annOnAuth(null);   // 📢 お知らせバーを消す
       return;
     }
     const db = _db();
@@ -69,6 +70,8 @@
     } catch (e) {}
     // 入口は管理者のみ
     if (btn) btn.hidden = (_myRole !== 'admin');
+    // 📢 管理者からのお知らせを読み込む（管理者には「お知らせ」タブも出す）。ロールが分かったこの時点で呼ぶ
+    if (typeof window.annOnAuth === 'function') window.annOnAuth(user);
   }
 
   // ---------- データ取得 ----------
@@ -270,10 +273,14 @@
     _curTab = tab;
     document.getElementById('umTabMembers')?.classList.toggle('is-active', tab === 'members');
     document.getElementById('umTabPerms')?.classList.toggle('is-active', tab === 'perms');
+    document.getElementById('umTabAnn')?.classList.toggle('is-active', tab === 'ann');
     const mp = document.getElementById('umMembersPane');
     const pp = document.getElementById('umPermsPane');
+    const ap = document.getElementById('umAnnPane');
     if (mp) mp.hidden = tab !== 'members';
     if (pp) pp.hidden = tab !== 'perms';
+    if (ap) ap.hidden = tab !== 'ann';
+    if (tab === 'ann' && typeof window.annAdminOpen === 'function') window.annAdminOpen();   // 📢 お知らせの管理（js/announcements.js）
   }
 
   // ---------- モーダル開閉 ----------

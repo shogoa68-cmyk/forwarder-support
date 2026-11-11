@@ -21,7 +21,7 @@
     const title = document.createElement('textarea');
     title.className = 'qm-title';
     title.rows = 1;
-    title.placeholder = '1行目がメモのタイトルになります';
+    title.placeholder = variant === 'float' ? '1行目＝案件名（「案件名」欄が空のとき）' : '1行目がメモのタイトルになります';
     title.setAttribute('aria-label', 'メモのタイトル（1行目）');
     const body = document.createElement('textarea');
     body.className = 'qm-body';

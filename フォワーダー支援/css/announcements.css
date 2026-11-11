@@ -1,0 +1,50 @@
+/* 📢 管理者からのお知らせ（js/announcements.js）。色は意味があるときだけ：重要＝赤み／メンテナンス＝琥珀／ふつう＝落ち着いた地色 */
+.ann-bar { display: flex; flex-direction: column; gap: var(--sp-6, 6px); margin: 0 0 var(--sp-12, 12px); }
+.ann-bar[hidden] { display: none; }
+.ann-item {
+  --ann-bg: var(--accent-lt, #f5ede0); --ann-bd: var(--border, #d9cbb5); --ann-fg: var(--text, #333);
+  display: flex; align-items: flex-start; gap: var(--sp-10, 10px);
+  padding: var(--sp-10, 10px) var(--sp-12, 12px);
+  background: var(--ann-bg); border: 1px solid var(--ann-bd); border-left-width: 4px; border-radius: var(--r-8, 8px); color: var(--ann-fg);
+}
+.ann-item.ann-lv-important   { --ann-bg: #fdeeee; --ann-bd: #e5484d; --ann-fg: #5c1a1c; }
+.ann-item.ann-lv-maintenance { --ann-bg: #fdf4e3; --ann-bd: #d99a1c; --ann-fg: #5a4210; }
+.ann-ic { flex: none; font-size: 16px; line-height: 1.5; }
+.ann-main { flex: 1; min-width: 0; }
+.ann-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; }
+.ann-tag { font-size: var(--fs-12, 12px); font-weight: 700; padding: 1px 8px; border-radius: 999px; background: rgba(0,0,0,.08); }
+.ann-title { font-size: var(--fs-14, 14px); }
+.ann-meta { font-size: var(--fs-12, 12px); opacity: .7; }
+.ann-body { margin-top: 4px; font-size: var(--fs-13, 13px); line-height: var(--lh-body, 1.7); white-space: pre-wrap; overflow-wrap: anywhere; max-height: 12em; overflow-y: auto; }
+.ann-body a { color: inherit; text-decoration: underline; }
+.ann-x { flex: none; border: 0; background: transparent; color: inherit; opacity: .6; font-size: 14px; cursor: pointer; padding: 2px 6px; border-radius: 6px; }
+.ann-x:hover { opacity: 1; background: rgba(0,0,0,.08); }
+.ann-toggle { align-self: flex-end; border: 0; background: transparent; color: var(--text-muted, #777); font: inherit; font-size: var(--fs-12, 12px); cursor: pointer; text-decoration: underline; padding: 0 4px; }
+
+/* 管理（チーム管理の「お知らせ」タブ） */
+.ann-admin { padding: var(--sp-14, 14px) var(--sp-18, 18px); overflow-y: auto; flex: 1 1 0; min-height: 0; }
+.ann-lead { font-size: var(--fs-12, 12px); color: var(--text-muted, #777); margin: 0 0 var(--sp-12, 12px); line-height: var(--lh-body, 1.7); }
+.ann-form { border: 1px solid var(--border, #ddd); border-radius: var(--r-8, 8px); padding: var(--sp-12, 12px); display: flex; flex-direction: column; gap: var(--sp-8, 8px); margin-bottom: var(--sp-16, 16px); }
+.ann-form-title, .ann-list-title { font-weight: 700; font-size: var(--fs-13, 13px); }
+.ann-in { border: 1px solid var(--border, #ccc); border-radius: var(--r-6, 6px); padding: var(--sp-6, 6px) var(--sp-10, 10px); font: inherit; font-size: var(--fs-13, 13px); background: var(--surface, #fff); color: inherit; box-sizing: border-box; max-width: 100%; }
+textarea.ann-in { width: 100%; resize: vertical; }
+.ann-form > input.ann-in { width: 100%; }
+.ann-form-row { display: flex; flex-wrap: wrap; gap: var(--sp-10, 10px) var(--sp-16, 16px); }
+.ann-form-row label { display: flex; flex-direction: column; gap: 2px; font-size: var(--fs-12, 12px); color: var(--text-muted, #666); }
+.ann-form-btns { display: flex; gap: var(--sp-8, 8px); align-items: center; }
+.ann-list-title { margin-bottom: var(--sp-6, 6px); }
+.ann-row { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--sp-8, 8px); padding: var(--sp-8, 8px) 0; border-top: 1px solid var(--border, #e4e4e4); }
+.ann-row--ended { opacity: .6; }
+.ann-row-main { min-width: 0; flex: 1 1 260px; font-size: var(--fs-13, 13px); }
+.ann-row-sub { font-size: var(--fs-12, 12px); color: var(--text-muted, #777); margin-top: 2px; }
+.ann-row-btns { display: flex; gap: var(--sp-6, 6px); }
+.ann-st { display: inline-block; font-size: var(--fs-12, 12px); font-weight: 700; padding: 1px 8px; border-radius: 999px; margin-right: 6px; background: #e4e4e4; color: #555; }
+.ann-st--active { background: #dff3e4; color: #1e6b36; }
+.ann-st--scheduled { background: #e8f1fb; color: #1b5fa8; }
+.ann-row .ann-tag { margin-right: 6px; }
+.um-btn-sm { border: 1px solid var(--border, #ccc); background: var(--surface, #fff); color: inherit; border-radius: var(--r-6, 6px); padding: var(--sp-4, 4px) var(--sp-10, 10px); font: inherit; font-size: var(--fs-12, 12px); cursor: pointer; }
+.um-btn-sm:hover { background: var(--accent-lt, #f5ede0); }
+.um-btn-danger { color: #b3261e; border-color: #e6b4b0; }
+.um-tab[hidden] { display: none; }
+/* チーム管理のタブ：.um-pane の display:flex が hidden に勝ち、切替えても全タブが表示されていた不具合の修正 */
+.um-pane[hidden] { display: none; }
