@@ -496,6 +496,7 @@
   }
   window.arRefreshDatalist = function () {
     _refreshDatalist.apply(this, arguments);
+    _remarkUnregistered();   // すでに「未登録」の印が付いている欄は、マスターに登録された・別名になったら印を外す
     if (typeof window.qfRefreshCarrierMasterCandidates === 'function') window.qfRefreshCarrierMasterCandidates();   // サブコンのマスター（種別がキャリア）を幹線輸送のキャリア候補へ
     if (typeof window.zscRefreshLists === 'function') window.zscRefreshLists();   // 出発地側・到着地側のデフォルトサブコンの候補（得意エリアで絞る）
     if (typeof window.ptcRefreshLists === 'function') window.ptcRefreshLists();   // 国で絞った港の候補（POL／経由地／POD）も作り直す
@@ -953,6 +954,15 @@
     } else if (input.dataset.titleOrig !== undefined) {
       input.title = input.dataset.titleOrig; delete input.dataset.titleOrig;
     }
+  }
+
+  // 印は欄を確定（change）したときにだけ付け外ししていたため、あとからマスターに登録しても点線が残った。
+  // 印が付いている欄だけ、マスターの変更のたびに判定し直す（新しく印を付けることはしない＝入力していない欄は触らない）
+  function _remarkUnregistered() {
+    document.querySelectorAll('#tab-quote-make input.name-unregistered').forEach(inp => {
+      const field = _LIST_FIELD[inp.getAttribute('list')];
+      if (field) _markUnregistered(inp, field, !_canonicalFor(field, inp.value));
+    });
   }
 
   // お客様ご担当者：読み（ひらがな／カタカナ）をそのまま確定したら、マスター登録の氏名へ変換

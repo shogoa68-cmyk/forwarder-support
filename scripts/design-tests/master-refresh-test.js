@@ -210,6 +210,18 @@ const http = require('http'), fs = require('fs'), path = require('path');
     ok('JS エラーなし（同業者の名前変更）', errs.length === 0, errs);
     await ctx.close();
   }
+  {
+    const { ctx, p, errs } = await open(true, { legacy: {}, approval: false, role: 'admin' });
+    const nmSel = '#tableBody tr[id^="row-"]:not([data-type]) [data-field="nm"]';
+    const unreg = () => p.evaluate(s => document.querySelector(s).classList.contains('name-unregistered'), nmSel);
+    await p.evaluate(s => { const el = document.querySelector(s); el.scrollIntoView({ block: 'center' }); el.value = '新しい品名X'; el.dispatchEvent(new Event('input', { bubbles: true })); el.dispatchEvent(new Event('change', { bubbles: true })); }, nmSel);
+    await p.waitForTimeout(300);
+    ok('マスターに無い品名には「未登録」の点線が付く', await unreg(), null);
+    await p.evaluate(async () => { await window.statsEnsureMaster('nm', '新しい品名X'); window.arRefreshDatalist(); });
+    ok('マスターに登録すると、その場で点線が消える', !(await unreg()), null);
+    ok('JS エラーなし（未登録の点線）', errs.length === 0, errs);
+    await ctx.close();
+  }
   await b.close(); srv.close();
   console.log(out.join('\n'));
   process.exit(out.some(l => l.startsWith('FAIL')) ? 1 : 0);

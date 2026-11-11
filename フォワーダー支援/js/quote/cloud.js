@@ -777,6 +777,7 @@
     '同業者（フォワーダー・代理店）': { k: 'fwd',   ico: '🤝', lbl: '同業者' },
     'その他':                         { k: 'other', ico: '📁', lbl: 'その他' },
   };
+  const nameCanonOrSelf = v => (typeof window.nameCanon === 'function' ? window.nameCanon('customer', v) : v) || v;   // 同業者の名前が変わっていても代表名で出す
   function _custDealChip(customer) {
     const name = String(customer == null ? '' : customer).trim();
     if (!name || typeof window.mdGetCanon !== 'function') return '';
@@ -784,7 +785,7 @@
     const d = rec && rec.details;
     const def = d && _DEAL_CHIPS[d.dealType];
     if (!def) return '';
-    const via = d.via ? '／経由：' + d.via : '';   // 同業者の先のお客様なら経由先も添える
+    const via = d.via ? '／経由：' + (nameCanonOrSelf(d.via)) : '';   // 同業者の先のお客様なら経由先も添える
     return '<span class="cloud-deal cloud-deal--' + def.k + '" title="取引形態：' + escHtml(d.dealType + via) + '">' +
       def.ico + ' ' + def.lbl + '</span>';
   }
