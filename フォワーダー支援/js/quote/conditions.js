@@ -2844,7 +2844,7 @@
     _qfSetTagsArr(_qfTagsArr().filter((_, i) => i !== idx));
   };
   window.qfTagsKeydown = function (e) {
-    if (e.key === 'Enter') { e.preventDefault(); window.qfAddTagFromInput(); }
+    if (e.key === 'Enter' && !e.isComposing) { e.preventDefault(); window.qfAddTagFromInput(); }
   };
   // ========== 🔖 関連番号・メール件名 ==========
   // 管理番号を取らずに見積対応を始めた案件を後からフォローするため、案件ごとに複数の
