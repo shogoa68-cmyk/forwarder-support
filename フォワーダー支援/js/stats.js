@@ -522,11 +522,17 @@
   const _nameToggle = (name, badge, key) => _cardMode && badge.indexOf('md-fold-chip') >= 0
     ? `<span class="master-name-toggle" role="button" tabindex="0" aria-expanded="${_openCards.has(key) ? 'true' : 'false'}" title="クリックで詳細情報を表示／非表示" onclick="statsToggleMasterCard(this)" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();statsToggleMasterCard(this)}">${_esc(name)}</span>`
     : _esc(name);
+  // サブコンとお客様の両方に登録されている会社（互恵関係）：もう一方の登録へ移れる印（常に表示）
+  function _bothChip(field, value) {
+    const other = field === 'sv' ? 'customer' : field === 'customer' ? 'sv' : '';
+    const has = other && typeof window.statsGetMasters === 'function' && (window.statsGetMasters().some(m => m.field === other && m.value === value) || (typeof window.synGetGroups === 'function' && window.synGetGroups(other).some(g => g.canonical === value)));
+    return has ? `<button type="button" class="stats-md-chip stats-md-deal stats-md-both" title="この会社は「${other === 'sv' ? 'サブコン' : 'お客様'}」にも登録されています（クリックで開く）" onclick="statsJumpToMaster('${other}','${_ea(value)}')">🔁 ${other === 'sv' ? 'サブコン' : 'お客様'}にも登録</button>` : '';
+  }
   function _mdBadge(field, value) {
     const schema = window.MD_SCHEMA && window.MD_SCHEMA[field];
     if (!schema) return '';
     const rec = typeof window.mdGet === 'function' ? window.mdGet(field, value) : null;
-    if (!rec) return '';
+    if (!rec) { const o = _bothChip(field, value); return o ? `<div class="stats-md-inline">${o}</div>` : ''; }
     const details = rec.details || {};
     const chips = [];
     schema.forEach(s => {
@@ -582,9 +588,10 @@
       const dk = s.key === 'dealType' ? (_DEAL_DEFS.find(x => x[1] === v) || [])[0] : '';
       chips.push(`<span class="stats-md-chip${dk ? ' stats-md-deal stats-md-deal-' + dk : ''}" title="${_eav(s.label + '：' + disp)}"><b>${_esc(s.label)}</b>${_esc(short)}</span>`);
     });
-    if (!chips.length) return '';
+    const otherChip = _bothChip(field, value);
+    if (!chips.length) return otherChip ? `<div class="stats-md-inline">${otherChip}</div>` : '';
     // 取引形態のチップだけを常に表示し、それ以外の詳細は、会社名をクリックしたときに表示する（カード表示・2026-11）
-    return `<div class="stats-md-inline">${chips.map(c => c.indexOf('stats-md-deal') >= 0 ? c : c.replace('class="stats-md-chip', 'class="md-fold-chip stats-md-chip')).join('')}</div>`;
+    return `<div class="stats-md-inline">${chips.map(c => c.indexOf('stats-md-deal') >= 0 ? c : c.replace('class="stats-md-chip', 'class="md-fold-chip stats-md-chip')).join('')}${otherChip}</div>`;
   }
 
   // 同義グループ操作ボタン（⭐代表 / ⤵統合 / →代表ピル）。field は sv/nm/customer/port。
@@ -2628,7 +2635,7 @@
   let _masterSort = 'name';
   window.statsMasterSetSort = function (m) { _masterSort = (m === 'tag' || m === 'group' || m === 'area' || m === 'deal') ? m : 'name'; _renderMaster(); };
   // お客様の取引形態（荷主／同業者／その他／未設定）。一覧の行の色・見出しの色・「取引形態ごとにまとめる」に使う
-  const _DEAL_DEFS = [['ship', '荷主（直接）', '🏭'], ['fwd', '同業者（フォワーダー・代理店）', '🤝'], ['other', 'その他', '📁'], ['none', '取引形態 未設定', '❔']];
+  const _DEAL_DEFS = [['ship', '荷主（直接）', '🏭'], ['fwd', '同業者（フォワーダー・代理店）', '🤝'], ['agent', '海外代理店', '🌏'], ['other', 'その他', '📁'], ['none', '取引形態 未設定', '❔']];
   const _dealKeyOf = (field, name) => {
     if (field !== 'customer') return '';
     const d = ((typeof window.mdGet === 'function' && window.mdGet('customer', name)) || { details: {} }).details || {};
@@ -3246,7 +3253,7 @@
     const banned = new Set([self].concat(typeof window.mdViaDescendants === 'function' ? window.mdViaDescendants(self) : []));
     const fwd = window.MD_DEAL_FWD;
     const names = window.statsGetMasters().filter(m => m.field === 'customer').map(m => m.value)
-      .filter(n => !banned.has(n) && (n === cur || ((window.mdGet('customer', n) || { details: {} }).details.dealType === fwd)));
+      .filter(n => !banned.has(n) && (n === cur || ((window.mdGet('customer', n) || { details: {} }).details.dealType === fwd || (window.mdGet('customer', n) || { details: {} }).details.dealType === '海外代理店')));
     if (cur && !names.includes(cur)) names.push(cur);
     names.sort((a, b) => a.localeCompare(b, 'ja'));
     const opts = '<option value="">（なし）</option>' + names.map(n => `<option value="${_eav(n)}"${n === cur ? ' selected' : ''}>${_esc(n)}</option>`).join('');
