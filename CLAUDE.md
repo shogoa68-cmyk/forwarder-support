@@ -49,9 +49,9 @@ github/202605_コード改修/
     └── *.bak ...              手動バックアップ群（運用上残置）
 ```
 
-## 🎨 Industry テーマ（Claude Design 案・既定オフ・元に戻せる）
+## 🎨 Industry テーマ（Claude Design 案・既定オン・元に戻せる）
 
-Design 製の Industry 版デザイン（鋼青のブループリント調）を、**現行 CSS を書き換えず**に切替式で載せている。入口はヘッダー「🎨 デザイン」（画面／御見積書を別々に切替）、`?theme=industry|classic` でも切替可。`<html class="theme-industry|theme-industry-doc">` のときだけ `css/theme-industry*.css`（`node scripts/build-industry-theme.js` が `docs/design-handoff/industry/css/` と現行の差分から生成。**手編集禁止**）が効く。Industry 時のみ `row.js _insertCatHeaders()` がカテゴリ見出し行（`tr.subcon-cat-header`・表示専用の仮想行）を挟む。詳細・戻し方は [docs/デザイン変更の安全手順.md](docs/デザイン変更の安全手順.md)。**現行 CSS（style/quote/quote-pdf/tokens）を変えたら `build-industry-theme.js` を再実行**（差分が変わるため）。
+Design 製の Industry 版デザイン（鋼青のブループリント調）を、**現行 CSS を書き換えず**に切替式で載せている。**既定は Industry（2026-11・保存済みの選択があればそれを優先。「現行」は `?theme=classic` かヘッダー「🎨 デザイン」で選べる）**。入口はヘッダー「🎨 デザイン」（画面／御見積書を別々に切替）、`?theme=industry|classic` でも切替可。`<html class="theme-industry|theme-industry-doc">` のときだけ `css/theme-industry*.css`（`node scripts/build-industry-theme.js` が `docs/design-handoff/industry/css/` と現行の差分から生成。**手編集禁止**）が効く。Industry 時のみ `row.js _insertCatHeaders()` がカテゴリ見出し行（`tr.subcon-cat-header`・表示専用の仮想行）を挟む。詳細・戻し方は [docs/デザイン変更の安全手順.md](docs/デザイン変更の安全手順.md)。**現行 CSS（style/quote/quote-pdf/tokens）を変えたら `build-industry-theme.js` を再実行**（差分が変わるため）。
 
 **見積テーブルの行レイアウト（Industry・2026-10）**：明細行は「3段固定（高さ 120px）」。add-on は `quote-row-stage1-industry.css`／`quote-row-stage2-industry.css`（Design v3）→ `code-overrides-industry.css`（列幅 992px・実構造への補正・客先モード）の順。構造は `js/quote/row-layout.js`（状態チップ `.st-state`・「その他 ▾」パネル `.row-detail-panel`・`tr[data-ccy-diff]`・使用中バッジ）と `row.js calc()` の小計・利益（`.st-main/.st-sub/.st-state`、`.pr-main/.pr-sub`）。**Industry のときだけ**、有効期間 `.w-valid`・フラグ群 `.row-mode-btns`・`.pct-group`・`.row-cd` をパネルへ「要素ごと」移す（classic に戻すと元の場所へ戻す。id・onclick・data-* は不変）。更新日（`.w-updated`・`.grp-updated`）は CSS で隠すだけ（データ・機能は残置）。`.bp-base-hint`（原価換算＝赤字ライン）は Industry では行から隠し、売単価欄の `title` と「その他 ▾」の内訳に出す。仕様は `docs/design-handoff/industry/css/ROW-LAYOUT-SPEC.md`。
 

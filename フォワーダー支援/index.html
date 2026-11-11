@@ -34,7 +34,7 @@
 /* テーマ切替の早期適用（画面の描画前に実行して、ちらつきを防ぐ）。設定は js/tweaks.js のパネル「デザイン」で変更。
    ?theme=industry / ?theme=classic のURLパラメータでも一時的に切替可（localStorage に保存される）。 */
 (function () {
-  var KEY = 'forwarderTheme_v1', t = { site: false, doc: false, quiet: false };
+  var KEY = 'forwarderTheme_v1', t = { site: true, doc: true, quiet: false }; /* 既定は Industry（保存済みの選択があればそれを優先） */
   try { t = Object.assign(t, JSON.parse(localStorage.getItem(KEY) || '{}')); } catch (e) {}
   try {
     var q = new URLSearchParams(location.search).get('theme');
