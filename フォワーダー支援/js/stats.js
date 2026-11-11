@@ -1790,6 +1790,28 @@
     return (n && bill > 0 && window.SharedCalc) ? SharedCalc.grossMarginPct(bill, cost) : null;
   }
 
+  // 回答スピード（依頼受信 → 初回の提示）。受信日（＋任意の時刻）と、初回の提示日時（qf-first-presented。無い古い案件は提示履歴の最初の版の時刻）から。
+  // 戻り値 {days: 暦日の差, mins: 受信時刻があれば分} か、計算できなければ null
+  const _RESP_BUCKETS = [{ label: '当日中', min: 0, max: 0 }, { label: '翌日', min: 1, max: 1 }, { label: '2〜3日', min: 2, max: 3 }, { label: '4日以上', min: 4, max: Infinity }];
+  function _firstPresentedOf(f) {
+    if (f['qf-first-presented']) { const t = new Date(f['qf-first-presented']); if (!isNaN(t)) return t; }
+    try {
+      const v = JSON.parse(f['qf-versions'] || '[]');
+      const ts = (Array.isArray(v) ? v : []).map(x => new Date(x && x.ts)).filter(d => !isNaN(d)).sort((a, b) => a - b);
+      if (ts.length) return ts[0];
+    } catch (e) { /* 履歴が読めなければ記録なし */ }
+    return null;
+  }
+  function _respOf(f) {
+    const r = (f['qf-received'] || '').trim(); if (!r) return null;
+    const t = (f['qf-recv-time'] || '').trim();
+    const start = new Date(r + 'T' + (t || '00:00') + ':00'), end = _firstPresentedOf(f);
+    if (isNaN(start) || !end) return null;
+    const sd = new Date(start.getFullYear(), start.getMonth(), start.getDate()), ed = new Date(end.getFullYear(), end.getMonth(), end.getDate());
+    return { days: Math.max(0, Math.round((ed - sd) / 86400000)), mins: t ? Math.max(0, Math.round((end - start) / 60000)) : null };
+  }
+  const _respBucket = days => _RESP_BUCKETS.find(b => days >= b.min && days <= b.max);
+
   function _wrCases(source, lostMode, allTime) {
     const period = allTime ? 'all' : (document.getElementById('statsPeriod')?.value || 'all');
     const now = Date.now();
@@ -1811,6 +1833,7 @@
         mode: ((isCloud ? p.transport_mode : f['cond-mode']) || '').trim(),
         dir: (f['cond-direction'] || '').trim(),
         margin: _caseMarginPct(d.rows),
+        resp: _respOf(f),
       });
     };
     if (source !== 'cloud') _getLocalPresets().forEach(p => add(p, false));
@@ -1848,6 +1871,8 @@
       const b = _WR_BANDS.find(x => opts.margin >= x.min && opts.margin < x.max);
       if (b) { const inB = cases.filter(c => c.margin != null && c.margin >= b.min && c.margin < b.max); out.band = { label: b.label, n: inB.length, won: won(inB) }; }
     }
+    // 回答スピード別（依頼受信 → 初回の提示）の受注実績
+    out.resp = _RESP_BUCKETS.map(b => { const inB = cases.filter(c => c.resp && c.resp.days >= b.min && c.resp.days <= b.max); return { label: b.label, min: b.min, max: b.max, n: inB.length, won: won(inB) }; });
     out.winRate = _winRatePct;
     return out;
   };
@@ -1955,6 +1980,19 @@
     h += '<h3 class="stats-kpi-section-title">引き合いの経路別の受注率</h3>' +
       (inqHtml ? '<p class="stats-syn-hint">案件の「引き合いの経路」欄（見積入力の「その他」内）の記録を集計します。当て馬になりやすい条件（金額のみの問い合わせ・新規・メール一括など）で受注率が低いかを見ます。</p>' + inqHtml
                : '<p class="stats-empty">まだ記録がありません。<br><small>見積入力の「その他」にある「引き合いの経路」（新規／既存・依頼の受け方・要件の具体性）を入れると、ここに集計されます。</small></p>');
+
+    // --- C2. 回答スピード別の受注率（依頼受信 → 初回の提示までの日数） ---
+    const respCases = cases.filter(c => c.resp);
+    h += '<h3 class="stats-kpi-section-title">回答スピード別の受注率</h3>';
+    if (!respCases.length) {
+      h += '<p class="stats-empty">まだ記録がありません。<br><small>「依頼受信日」と、案件を「提示済み」にした日時（自動で記録）から、依頼から提示までの日数を集計します。</small></p>';
+    } else {
+      const sameDay = respCases.filter(c => c.resp.mins != null && c.resp.days === 0);
+      h += `<p class="stats-syn-hint">依頼を受けてから初めて提示するまでの日数（暦日）ごとの受注率です。対象は、受信日と提示の記録がある ${respCases.length} 件（提示後 ${cases.length} 件のうち）。スピードが受注率に効いているかを見ます。` +
+        (sameDay.length ? ` 受信時刻が入っている当日提示 ${sameDay.length} 件の所要時間は平均 ${Math.round(sameDay.reduce((a, c) => a + c.resp.mins, 0) / sameDay.length)} 分です。` : '') + '</p>' +
+        '<table class="stats-table"><thead><tr><th>提示までの日数</th><th class="stats-num-col">提示後</th><th class="stats-num-col">受注</th><th class="stats-num-col">失注</th><th class="stats-num-col">結果待ち</th><th class="stats-num-col">受注率</th></tr></thead><tbody>' +
+        _RESP_BUCKETS.map(b => inqRow(b.label, respCases.filter(c => c.resp.days >= b.min && c.resp.days <= b.max))).join('') + '</tbody></table>';
+    }
 
     // --- D. 失注・辞退の理由の内訳 ---
     const lostAll = _wrCases(source, true).filter(c => (!_wr.mode || c.mode === _wr.mode) && (!_wr.dir || c.dir === _wr.dir));

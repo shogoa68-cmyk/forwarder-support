@@ -2172,6 +2172,8 @@
       const vj = window.qvOnPresentedData(newData, status, _cloudUser.email);
       if (vj) newData.fields['qf-versions'] = vj;
     }
+    // 回答スピードの記録：初めて提示済みにした日時を 1 度だけ残す（quote-versions.js と同じ）
+    if (newData && ['提示済み', '提出済み', 'ヨコヨコ提示'].includes(status) && !newData.fields['qf-first-presented']) newData.fields['qf-first-presented'] = new Date().toISOString();
     const updatePayload = { status, owner_email: _cloudUser.email, updated_at: new Date().toISOString() };
     if (newData) updatePayload.data = newData;
     const { error } = await c.from(_table())
@@ -3330,6 +3332,8 @@
     if (newRef) newData.fields['qf-ref'] = newRef;
     delete newData.fields['qf-core-ref'];   // 基幹REF#は手配した案件に固有のため、コピーには引き継がない
     ['qf-lost-reason', 'qf-lost-note', 'qf-inq-kind', 'qf-inq-channel', 'qf-inq-spec'].forEach(k => delete newData.fields[k]);   // 失注理由・引き合いの経路は元の案件／依頼に固有
+    delete newData.fields['qf-first-presented'];   // 初回の提示日時（回答スピード）もコピー元のもの
+    delete newData.fields['qf-recv-time'];   // 受信時刻も元の依頼に固有
     delete newData.fields['qf-versions'];   // 提示履歴（版）はコピー元の案件のものなので引き継がない
     delete newData.fields['qf-related-data'];   // 関連番号・メール件名も元の引き合いに固有のため引き継がない
     const existingNames = _cloudRows.map(r => r.name);

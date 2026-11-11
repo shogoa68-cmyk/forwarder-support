@@ -12307,3 +12307,10 @@ body:has(#compareOverlay.open) #rmSheet { display: none !important; }
 #tab-quote-make .qdg-hint .qdg-text { color: var(--text-muted, #6b7683); }
 #tab-quote-make .qdg-note { margin: 8px 0 0; font-size: var(--text-xs); color: var(--text-muted, #6b7683); line-height: var(--lh-body, 1.7); }
 #tab-quote-make .qsp-tab-badge-warn { background: #e8870e; color: #fff; }
+
+/* ===== 回答スピード（依頼受信の時刻・提示までの日数／2026-11） ===== */
+#tab-quote-make .ci-recv-row { display: flex; gap: 6px; align-items: center; }
+#tab-quote-make .ci-recv-row input[type="date"] { flex: 1 1 auto; min-width: 0; }
+#tab-quote-make .ci-recv-row input[type="time"] { flex: 0 0 auto; width: 6.5em; }
+#tab-quote-make .ci-resp-hint { margin-top: 4px; font-size: var(--text-xs); color: var(--text-muted, #6b7683); line-height: var(--lh-body, 1.7); }
+#tab-quote-make .ci-resp-hint[hidden] { display: none; }

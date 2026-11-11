@@ -55,6 +55,33 @@
     if (badge) { badge.hidden = false; badge.textContent = el.type === 'text' ? 'SPOT' : (isStd ? '標準' : (el.value ? '変更済み' : '未設定')); badge.classList.toggle('is-std', !!isStd); }
     if (hint) hint.textContent = el.type === 'text' ? '日付の代わりに文字で表記します（御見積書にそのまま出ます）' : (isStd ? '発行日の属する月の末日（標準）' : (el.value ? '標準（発行日の月末）から変更しています' : ''));
   }
+  // 回答スピード：依頼受信（日付＋任意の時刻）から初回の提示までの日数・時間を表示する。提示前は経過日数
+  function respInfo() {
+    const r = $('qf-received')?.value || ''; if (!r) return null;
+    const t = $('qf-recv-time')?.value || '';
+    const start = new Date(r + 'T' + (t || '00:00') + ':00');
+    if (isNaN(start)) return null;
+    const fpv = $('qf-first-presented')?.value || '';
+    const end = fpv ? new Date(fpv) : null;
+    return { start, hasTime: !!t, end: end && !isNaN(end) ? end : null };
+  }
+  function syncResp() {
+    const h = $('ciRespHint'); if (!h) return;
+    const i = respInfo();
+    if (!i) { h.hidden = true; h.textContent = ''; return; }
+    let txt;
+    if (i.end) {
+      const mins = Math.max(0, Math.round((i.end - i.start) / 60000));
+      const startDay = new Date(i.start.getFullYear(), i.start.getMonth(), i.start.getDate()), endDay = new Date(i.end.getFullYear(), i.end.getMonth(), i.end.getDate());
+      const days = Math.max(0, Math.round((endDay - startDay) / 86400000));
+      const hm = mins < 60 ? mins + '分' : (Math.floor(mins / 60) + '時間' + (mins % 60 ? (mins % 60) + '分' : ''));
+      txt = '⏱ 初回の提示まで ' + (days === 0 ? '当日' : days + '日') + (i.hasTime && days === 0 ? '（' + hm + '）' : '') + '（提示 ' + (i.end.getMonth() + 1) + '/' + i.end.getDate() + ' ' + String(i.end.getHours()).padStart(2, '0') + ':' + String(i.end.getMinutes()).padStart(2, '0') + '）';
+    } else {
+      const days = Math.max(0, Math.floor((Date.now() - i.start) / 86400000));
+      txt = '⏱ 受信から ' + days + '日経過（まだ提示していません）';
+    }
+    h.textContent = txt; h.hidden = false;
+  }
   function syncDates() {
     const d = $('qf-date'); const h = $('ciDateHint');
     if (h) h.textContent = '';
@@ -138,7 +165,7 @@
     }
     setTimeout(syncMemoDot, 0);
   };
-  function sync() { syncStatus(); syncCoreRef(); syncLostReason(); syncRel(); syncDates(); syncMore(); syncDatesSum(); syncMemoDot(); }
+  function sync() { syncStatus(); syncCoreRef(); syncLostReason(); syncResp(); syncRel(); syncDates(); syncMore(); syncDatesSum(); syncMemoDot(); }
 
   window.ciSync = sync;
   window.ciSetValidEom = function (plus) {

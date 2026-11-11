@@ -2896,7 +2896,12 @@
           <div class="ci-cell ci-cell-recv">
           <div class="quote-field">
             <label>📥 依頼受信日 <span class="ci-auto" id="ciAutoRecv" hidden>自動</span> <span class="qf-memo-note">引き合いを受けた日（経過日数を表示）</span></label>
-            <input type="date" id="qf-received" title="依頼を受信した日。ダッシュボードに経過日数を表示します" />
+            <div class="ci-recv-row">
+              <input type="date" id="qf-received" title="依頼を受信した日。ダッシュボードに経過日数を表示します" />
+              <input type="time" id="qf-recv-time" title="受信した時刻（任意）。入れると回答までの時間を時間単位で記録できます" aria-label="受信した時刻（任意）" />
+            </div>
+            <div class="ci-resp-hint" id="ciRespHint" hidden></div>
+            <input type="hidden" id="qf-first-presented" value="" />
           </div>
           </div>
           <div class="ci-cell ci-cell-cust">

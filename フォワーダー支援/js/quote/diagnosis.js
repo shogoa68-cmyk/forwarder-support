@@ -8,6 +8,7 @@
  *   ③ 当て馬の疑い（引き合いの経路：新規・メール一括・金額のみ の組み合わせ）
  *   ④ 過去の実績（お客様別の受注率・同じ粗利率帯の受注率。stats.js の statsDiagHistory）
  *   ⑤ 外貨換算が含まれることの注意
+ *   ⑥ 回答スピード（依頼受信からの経過日数・過去の早い提示／遅い提示の受注率）
  * 呼び出し：ui.js updateQuoteSummary の最後から window.qdgRender()。
  * 保存データは変更しない（読むだけ）。
  * =================================================================== */
@@ -98,6 +99,33 @@
         if (h.band && h.band.n >= MIN_N_BAND) {
           const r = rate(h.band.won, h.band.n);
           items.push({ lv: 'info', t: `同じ粗利率帯（${esc(h.band.label)}）の過去の受注率は <b>${r}%</b>（${h.band.n} 件中 ${h.band.won} 件）${overall != null ? `。全体は ${overall}%` : ''}。` });
+        }
+      }
+    }
+
+    // ⑥ 回答スピード（まだ提示していないとき：依頼受信からの経過日数と、過去の「早い提示／遅い提示」の受注率）
+    const recvV = val('qf-received');
+    if (recvV && !val('qf-first-presented')) {
+      const st = new Date(recvV + 'T' + (val('qf-recv-time') || '00:00') + ':00');
+      if (!isNaN(st)) {
+        const days = Math.max(0, Math.floor((Date.now() - st) / 86400000));
+        const st0 = val('qf-status');
+        if (days >= 1 && (st0 === '' || st0 === '下書き中' || st0 === '情報待ち' || st0 === '改定中')) {
+          let t = `依頼の受信から <b>${days} 日</b>経過しています（まだ提示していません）。`, lv = days >= 2 ? 'warn' : 'info';
+          if (typeof window.statsDiagHistory === 'function') {
+            try {
+              const hh = window.statsDiagHistory({});
+              const fast = hh.resp.filter(b => b.max <= 1), slow = hh.resp.filter(b => b.min >= 2);
+              const sum = a => a.reduce((x, b) => ({ n: x.n + b.n, won: x.won + b.won }), { n: 0, won: 0 });
+              const F = sum(fast), S = sum(slow);
+              if (F.n >= MIN_N_BAND && S.n >= MIN_N_BAND) {
+                const fr = Math.round(F.won / F.n * 100), sr = Math.round(S.won / S.n * 100);
+                t += ` 過去は、翌日までに提示した見積の受注率が <b>${fr}%</b>（${F.n} 件）、2 日以上かかった見積は <b>${sr}%</b>（${S.n} 件）です。`;
+                if (fr <= sr) lv = 'info';
+              }
+            } catch (e) { /* 履歴が読めなければ経過日数だけ */ }
+          }
+          items.push({ lv, t });
         }
       }
     }
