@@ -1,0 +1,38 @@
+/* 🏢 組織とチーム（js/org-teams.js・js/quote/cloud.js の _renderScopeBar） */
+/* ダッシュボード：案件の範囲（全体／組織／チーム／自分） */
+.qpd-scope { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-6, 6px) var(--sp-8, 8px); margin: 0 0 var(--sp-10, 10px); }
+.qpd-scope[hidden] { display: none; }
+.qpd-scope-lbl { font-size: var(--fs-12, 12px); color: var(--text-muted, #777); margin-right: 2px; }
+.qpd-scope-chip { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--border-md, #ccc); background: var(--surface, #fff); color: var(--text, #333); border-radius: 999px; padding: 4px 14px; font: inherit; font-size: var(--fs-13, 13px); cursor: pointer; }
+.qpd-scope-chip:hover { border-color: var(--accent, #8a6d3b); }
+.qpd-scope-chip.is-active { background: var(--accent, #8a6d3b); border-color: var(--accent, #8a6d3b); color: #fff; font-weight: 700; }
+.qpd-scope-chip.is-active .cloud-chip-n { background: rgba(255,255,255,.25); color: #fff; }
+.qpd-scope-sel { border: 1px solid var(--border-md, #ccc); border-radius: var(--r-8, 8px); padding: 4px 8px; font: inherit; font-size: var(--fs-13, 13px); background: var(--surface, #fff); color: inherit; max-width: 100%; }
+.qpd-scope-hint { font-size: var(--fs-12, 12px); color: var(--text-muted, #777); }
+
+/* チーム管理：「組織・チーム」タブ */
+.ot-admin { padding: var(--sp-14, 14px) var(--sp-18, 18px); overflow-y: auto; flex: 1 1 0; min-height: 0; }
+.ot-lead { font-size: var(--fs-12, 12px); color: var(--text-muted, #777); margin: 0 0 var(--sp-12, 12px); line-height: var(--lh-body, 1.7); }
+.ot-sec-title { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--sp-8, 8px); font-weight: 700; font-size: var(--fs-13, 13px); margin: var(--sp-14, 14px) 0 var(--sp-8, 8px); }
+.ot-in { border: 1px solid var(--border, #ccc); border-radius: var(--r-6, 6px); padding: var(--sp-4, 4px) var(--sp-8, 8px); font: inherit; font-size: var(--fs-13, 13px); background: var(--surface, #fff); color: inherit; box-sizing: border-box; max-width: 100%; }
+.ot-in:disabled { background: transparent; border-color: transparent; }
+.ot-org { border: 1px solid var(--border, #ddd); border-radius: var(--r-8, 8px); padding: var(--sp-10, 10px) var(--sp-12, 12px); margin-bottom: var(--sp-8, 8px); }
+.ot-org-head { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-8, 8px); }
+.ot-org-name { font-weight: 700; min-width: 0; flex: 1 1 140px; }
+.ot-n { font-size: var(--fs-12, 12px); color: var(--text-muted, #777); white-space: nowrap; }
+.ot-teams { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-6, 6px) var(--sp-10, 10px); margin-top: var(--sp-8, 8px); }
+.ot-team { display: inline-flex; align-items: center; gap: 4px; background: var(--accent-lt, #f5ede0); border-radius: 999px; padding: 2px 6px 2px 10px; }
+.ot-team .ot-in { width: 8em; border-color: transparent; background: transparent; padding: 2px 4px; }
+.ot-x { border: 0; background: transparent; color: inherit; opacity: .55; cursor: pointer; font-size: 12px; padding: 2px 5px; border-radius: 6px; }
+.ot-x:hover { opacity: 1; background: rgba(0,0,0,.08); }
+.ot-add { display: inline-flex; gap: 6px; align-items: center; font-weight: 400; }
+.ot-dim { font-size: var(--fs-12, 12px); color: var(--text-muted, #888); }
+.ot-table { width: 100%; border-collapse: collapse; font-size: var(--fs-13, 13px); }
+.ot-table th { text-align: left; font-size: var(--fs-12, 12px); color: var(--text-muted, #777); font-weight: 600; padding: 4px 8px; border-bottom: 1px solid var(--border, #ddd); }
+.ot-table td { padding: 6px 8px; border-bottom: 1px solid var(--border, #eee); vertical-align: middle; }
+.ot-who { min-width: 0; } .ot-who b { display: block; } .ot-who small { color: var(--text-muted, #888); font-size: var(--fs-12, 12px); overflow-wrap: anywhere; }
+.ot-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.ot-chip { border: 1px solid var(--border-md, #ccc); background: var(--surface, #fff); color: inherit; border-radius: 999px; padding: 2px 12px; font: inherit; font-size: var(--fs-12, 12px); cursor: pointer; }
+.ot-chip.is-on { background: var(--accent, #8a6d3b); border-color: var(--accent, #8a6d3b); color: #fff; font-weight: 700; }
+.ot-chip:disabled { cursor: default; }
+@media (max-width: 600px) { .ot-table thead { display: none; } .ot-table tr { display: block; padding: 6px 0; border-bottom: 1px solid var(--border, #ddd); } .ot-table td { display: block; border: 0; padding: 3px 0; } }
