@@ -281,3 +281,7 @@ IT に不慣れな新規ユーザーにも分かりやすいよう、Design 案�
 - **バックアップファイル多数**（`*.bak` `*.bak2` `index_bak_*` 等）：ユーザーは手動バックアップを取る運用。整理は明示依頼があるまで触らない
 - **Netlify デプロイ**は親プロジェクト `netlify/` 配下を別経路で配信中。`フォワーダー支援/` `見積支援/` のリネームは Netlify に影響しない（`netlify.toml` `deploy.sh` 確認済み）
 - **localStorage キー**は `SharedStorage.KEYS`（`shared/storage.js`）に集約予定だが、見積支援由来コードは一部直書きキー（`fxLastFetched_v1`, `stickyNote_v1`, `quoteFontSize` 等）混在。Phase 2c で統一予定
+
+## 📨 サイバーポートの Webhook 受信（2026-11）
+
+サイバーポートからの通知を受ける口：Edge Function `supabase/functions/cp-webhook`（貼り付け用 `supabase/cp-webhook-single/index.ts`・Verify JWT オフ・`x-cyberport-signature-256` の HMAC-SHA256 で検証・秘密は Secrets `CP_WEBHOOK_SECRET`）→ 表 `cp_events`（`docs/sql/cp-events.sql`・RLS＝チームメンバーのみ読み取り・同じ通知は 1 件にまとめる）。画面は 🚢 サイバーポートの「📨 受信した通知」（`js/cp-notify.js`・`js/integrations/cp-events.js`・新着はリアルタイム）と「通知してもらえる操作の一覧」（cp-proxy の `Master/NotifiableOperations/GetList`）。**読み取り専用の方針は維持**。手順は `docs/サイバーポート連携-Webhook.md`、引き継ぎは `docs/引き継ぎ-サイバーポート連携-2026-11-11.md`。試験：`cp-webhook-test.mjs`・`cp-notify-test.js`・`scripts/sql-tests/cp-events-sql-test.sh`。cp-webhook の貼り付け用は `node scripts/cp-tests/build-edge-single.mjs cp-webhook`（cp-proxy は `build-cp-proxy-single.mjs`）。ONE の EDIFACT 受信が Webhook の対象かは未確認（なければ ParseEdifacts の取得 API で読む）。
