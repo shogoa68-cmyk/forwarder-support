@@ -548,6 +548,7 @@
   "tot-row-label",
   "tot-subtotal",
   "totPsRow",
+  "umAnnPane",
   "umHeadSub",
   "umInviteBtn",
   "umInviteEmail",
@@ -560,6 +561,7 @@
   "umPermsPane",
   "umRoleFilter",
   "umSearch",
+  "umTabAnn",
   "umTabMembers",
   "umTabPerms",
   "unit-list",
@@ -1779,7 +1781,7 @@
    "defined": true
   },
   "switchUmTab": {
-   "uses": 2,
+   "uses": 3,
    "defined": true
   },
   "toggleAllCsvCols": {
@@ -1899,6 +1901,10 @@
   "admin-creator-ok": {
    "css": true,
    "html": false
+  },
+  "app": {
+   "css": true,
+   "html": true
   },
   "bm-carrier-locked": {
    "css": true,
@@ -5179,6 +5185,7 @@
   "js/quote/fcl-lcl.js",
   "js/quote/right-rail.js",
   "js/ui-confirm.js",
+  "js/announcements.js",
   "js/feedback-md.js",
   "js/feedback-annotate.js",
   "js/feedback.js",

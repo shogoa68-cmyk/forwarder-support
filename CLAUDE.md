@@ -195,6 +195,17 @@ IT に不慣れな新規ユーザーにも分かりやすいよう、Design 案�
 - **テスト**：`scripts/design-tests/workfolder-storage-test.js`（保存領域版の画面）・`workfolder-test.js`（ドライブ版の画面。ヘッダレス Chromium は日本語名の `download` 属性を「download」と報告する癖があるため、リンクに設定した名前を直接確認）・**`scripts/sql-tests/work-folders-sql-test.sh`（SQL の論理を、使い捨ての PostgreSQL に Supabase の簡易再現を作って実際に流す。41 項目：RLS・列の権限・予約→確定・申告ごまかし・他人のアクセス・冪等・旧版への上書き）**。いずれも本物の Supabase／ドライブへは接続していない。
 - **未実施**：コピー／共有／管理者の使用量画面／共有ドライブ対応（`supportsAllDrives`）／保存領域の 6MB 超ファイルの再開可能アップロード（TUS）／**本物の Supabase 保存領域・ドライブでの実機確認**。
 
+## 📢 管理者からのお知らせ（2026-11）
+
+管理者が全メンバーの画面にお知らせを出せる（`js/announcements.js`・`css/announcements.css`・テーブル `announcements`）。**`docs/sql/announcements.sql` を Supabase で実行する前提**（未実行でも他機能は無影響＝お知らせが出ず、管理画面に「SQL が未実行」と案内が出るだけ）。
+
+- **表示**：ヘッダーの直下に「お知らせバー」`#annBar`（ログイン中のメンバー全員・閲覧のみも）。**表示期間内**（`starts_at` ≦ いま ＜ `ends_at`。終了が空なら終わらせるまで）のものを、重要→メンテナンス→お知らせの順に並べる。種類は 3 つ（`info`＝📢 お知らせ／`important`＝❗ 重要＝赤み／`maintenance`＝🛠️ メンテナンス＝琥珀）。本文は改行そのまま・http(s) の URL だけリンク（新しいタブ・noopener。ほかの HTML は文字として出す＝XSS 対策）。
+- **閉じる**：メンバーは ✕ で閉じられる（端末の localStorage `annDismissed_v1` に `{id: updated_at}`）。**管理者が内容を直して保存すると `updated_at` が変わり（DB のトリガー）、閉じた人にも再び出る**。バー下端の「閉じたお知らせ N 件を表示」で見直せる。ページを開いたままの人には、10 分ごと／画面に戻ったとき（5 分以上あいていれば）に読み直し、新着はトースト（`annSeen_v1`・1 件につき 1 回）で知らせる。
+- **管理**：チーム管理（🧑‍💼）の「📢 お知らせ」タブ（**管理者のみ表示**・`#umTabAnn`／`#umAnnPane`）。投稿・編集・「終了にする」（いまの時刻で表示を止める）・削除（`uiConfirm`）。表示開始を未来にすると予約。終了が開始より前なら保存しない。自動更新で入力途中の文章は消さない（`formDirty`）。**書き込みは管理者だけ**（RLS：`get_my_role()='admin'`・UI の出し分けとは別にサーバー側でも強制）。
+- **連携**：`users.js` の `umOnAuth`（ログイン／ログアウト）から `annOnAuth(user)`。`switchUmTab('ann')` から `annAdminOpen()`。
+- **あわせて直した既存の不具合**：チーム管理の `.um-pane` は `display:flex` が `hidden` に勝っていて、タブを切り替えても全タブ（メンバー／ロールと権限）が常に表示されていた → `.um-pane[hidden]{display:none}` を `announcements.css` に追加。
+- テストは Chromium の疑似 Supabase で 31 項目（期間・並び・閉じる・再表示・XSS・トースト・投稿／編集／終了／削除・RLS・SQL 未実行・ログアウト）。
+
 ## 🔖 チームブックマーク（全面クラウド移行・編集履歴）
 
 船会社／サブコンのリンクを `bookmarks` テーブルで一元管理（`js/bookmarks.js`・`#tab-bookmark`）。見積タブ右カラムの「🔖 ブックマーク」タブ（`renderQuoteBookmarkRail` / `#bmRailPanel`）に案件連動で表示。
