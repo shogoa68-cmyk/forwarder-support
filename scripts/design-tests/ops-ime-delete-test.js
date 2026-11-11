@@ -61,6 +61,28 @@ const ok = (n, c, x) => console.log((c ? 'PASS ' : 'FAIL ') + n + (c ? '' : ' �
   await p.evaluate(i => document.querySelector(`#${i[1]} .row-done-btn`).click(), ids);
   await p.evaluate(i => document.querySelector(`#${i[1]} .row-add-btn`).click(), ids);
   ok('選択モード：行のボタン（完了・追加）を押しても選択は変わらない', await p.evaluate(() => [...document.querySelectorAll('.row-select-chk:checked')].length) === 1);
+  // ⑥ 元に戻す／やり直し：行の番号が振り直されても、続けて戻せる・やり直せる
+  const ctx2 = await b.newContext({ viewport: { width: 1400, height: 900 }, locale: 'ja-JP' });
+  if (process.env.THEME) await ctx2.addInitScript(() => { try { localStorage.setItem('forwarderTheme_v1', JSON.stringify({ site: true, doc: true })); } catch (e) {} });
+  await ctx2.route(u => !u.href.startsWith('http://127.0.0.1'), r => r.abort());
+  const q = await ctx2.newPage(); q.on('dialog', d => d.accept()); q.setDefaultTimeout(8000);
+  await q.goto(URL, { waitUntil: 'domcontentloaded' }); await q.waitForTimeout(700);
+  await q.evaluate(() => { const t = document.querySelector('[onclick*="quote-make"]'); t && t.click(); }); await q.waitForTimeout(900);
+  await q.evaluate(() => window.qpShowEditor && window.qpShowEditor()); await q.waitForTimeout(500);
+  const names = () => q.evaluate(() => [...document.querySelectorAll('#tableBody tr[id^=row-]:not([data-type])')].map(r => r.querySelector('[data-field=nm]').value).join(','));
+  await q.evaluate(() => { addRow(); addRow(); });
+  await q.fill('#nm-1', 'A'); await q.fill('#nm-2', 'B'); await q.fill('#nm-3', 'C'); await q.waitForTimeout(900);
+  await q.evaluate(() => document.querySelector('#row-2 .row-dup-btn').click()); await q.waitForTimeout(900);   // A,B,B,C
+  await q.evaluate(() => document.querySelector('#row-1 .row-del-btn').click()); await q.waitForTimeout(900);   // B,B,C（行番号が詰まる）
+  await q.evaluate(() => document.activeElement && document.activeElement.blur());
+  await q.keyboard.press('Control+z'); await q.waitForTimeout(500);
+  ok('元に戻す 1 回目：削除が戻る', await names() === 'A,B,B,C', await names());
+  await q.keyboard.press('Control+z'); await q.waitForTimeout(500);
+  ok('元に戻す 2 回目：複製が戻る（何も起きない 1 回を挟まない）', await names() === 'A,B,C', await names());
+  await q.keyboard.press('Control+y'); await q.waitForTimeout(500);
+  ok('やり直し 1 回目：複製が再度入る', await names() === 'A,B,B,C', await names());
+  await q.keyboard.press('Control+y'); await q.waitForTimeout(500);
+  ok('やり直し 2 回目：削除が再度行われる（やり直しの履歴が消えない）', await names() === 'B,B,C', await names());
   ok('JS エラーなし', errs.length === 0, errs);
   await b.close(); srv.close();
 })();

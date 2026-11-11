@@ -856,6 +856,15 @@
     if (typeof window.refreshAllRowMasterDetailBtns === 'function') window.refreshAllRowMasterDetailBtns();
   }
 
+  // 元に戻す／やり直しで表を組み直すと、行の番号（nm-2 → nm-1 など）が振り直され、保存した文字列と
+  // 「いまの状態」の文字列が（見た目は同じでも）食い違う。そのままだと次の Ctrl+Z が
+  // 「変更あり」と判定されて同じ状態を積み直し、何も戻らず・やり直しの履歴まで消えてしまう。
+  // 組み直しが落ち着いた時点の実際の状態を「最後の確定状態」にそろえておく。
+  function _resyncLastSnapshot() {
+    const cur = _currentSnapshot();
+    if (cur !== null) _lastSnapshot = cur;
+  }
+
   function quoteUndo() {
     snapshotNow(); // 入力途中の保留分を確定
     if (!_undoStack.length) {
@@ -872,7 +881,7 @@
     } catch(e) { /* ignore */ }
     _lastSnapshot = prev;
     // DOM 変更で発火する mutation/input は無視するため、少し遅らせて解除
-    setTimeout(() => { _historyApplying = false; }, 150);
+    setTimeout(() => { _historyApplying = false; _resyncLastSnapshot(); }, 150);
     _updateHistoryButtonsUI();
     quoteShowToast('↶ 元に戻しました', 'info', 1200);
   }
@@ -891,7 +900,7 @@
       _applyQuoteData(data);
     } catch(e) { /* ignore */ }
     _lastSnapshot = next;
-    setTimeout(() => { _historyApplying = false; }, 150);
+    setTimeout(() => { _historyApplying = false; _resyncLastSnapshot(); }, 150);
     _updateHistoryButtonsUI();
     quoteShowToast('↷ やり直しました', 'info', 1200);
   }
