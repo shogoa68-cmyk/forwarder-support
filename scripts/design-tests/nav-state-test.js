@@ -1,5 +1,6 @@
 // 画面遷移の回帰試験：①「← 見積もりに戻る」で上段の「見積」が選択中になる（BOOKMARK ではない）
 // ②編集権を失って閲覧に落ちたあと再び「編集」しても、未保存の入力は未保存扱いのまま（ダッシュボードへ戻るときに確認が出る）。
+// ③ダッシュボードを下へスクロールして案件を開いたとき、画面の先頭から表示する
 //   node scripts/design-tests/nav-state-test.js   （THEME=1 で Industry。②は約 35 秒かかる）
 const { chromium } = (() => { try { return require('playwright-core'); } catch (e) { return require('playwright'); } })();
 const http = require('http'), fs = require('fs'), path = require('path');
@@ -31,7 +32,10 @@ const http = require('http'), fs = require('fs'), path = require('path');
   await p.click('#backToQuoteFab'); await p.waitForTimeout(400);
   const s = await p.evaluate(() => ({ tab: document.getElementById('tab-quote-make').classList.contains('active'), act: [...document.querySelectorAll('.cat-btn.active')].map(e => e.textContent.trim()) }));
   ok('「見積もりに戻る」で見積タブが開き、選択中は「見積」だけ', s.tab && s.act.length === 1 && /見積/.test(s.act[0]), s);
+  await p.setViewportSize({ width: 1400, height: 500 });
+  await p.evaluate(() => window.scrollTo(0, 400));
   await p.evaluate(id => cloudLoadPreset(encodeURIComponent(id)), ID); await p.waitForTimeout(800);
+  ok('ダッシュボードを下へスクロールしてから案件を開いても、先頭から表示する', await p.evaluate(() => window.scrollY) === 0, null);
   await p.evaluate(() => quoteModeEdit()); await p.waitForTimeout(500);
   await p.fill('#qf-customer', 'CHANGED'); await p.waitForTimeout(200);
   await p.evaluate(() => { window.__lost = 1; }); await p.waitForTimeout(32000); await p.evaluate(() => { window.__lost = 0; });

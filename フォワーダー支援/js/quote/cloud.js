@@ -1971,6 +1971,7 @@
     if (typeof setCurrentQuoteName === 'function') setCurrentQuoteName('');
     _applyShareMode('edit');
     qpShowEditor();
+    window.scrollTo({ top: 0, behavior: 'instant' });   // ダッシュボードを下までスクロールしていても、新規は先頭から
     qfRenderAttachments();
     if (typeof window.ciApplyNewCaseDefaults === 'function') window.ciApplyNewCaseDefaults();
     _resetQuoteDirty();
@@ -3064,6 +3065,7 @@
     if (typeof closePresetMgr === 'function') closePresetMgr();
     _applyShareMode('view');   // 読み取り専用。編集するには「✏️ 編集」
     qpShowEditor();            // ダッシュボードからエディタ画面へ
+    window.scrollTo({ top: 0, behavior: 'instant' });   // 一覧を下までスクロールして開いても、案件は先頭（管理番号）から見せる
     if (typeof window.eiRefreshPendingBanner === 'function') window.eiRefreshPendingBanner();   // 📩 未取込の帯
     qfRenderAttachments();     // この案件の添付一覧を表示
     _resetQuoteDirty();        // 読込直後は未保存なし
