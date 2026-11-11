@@ -1596,16 +1596,22 @@
   const _VIA_FIELD = { key: 'via', label: '経由する同業者', via: true };
   const _CHILDREN_FIELD = { key: 'viaChildren', label: '先のお客様（この同業者のお客様）', children: true };
   // 先のお客様（直下）の名前一覧
+  // 経由する同業者の名前は、保存した時点の名前のまま持つ。同業者のマスター名を変えたり別名にしたりしても先のお客様が外れないよう、代表名にそろえて読む
+  window.mdViaOf = function (name) {
+    const r = window.mdGet('customer', name);
+    const v = r && r.details && r.details.via;
+    if (!v) return '';
+    return (typeof window.nameCanon === 'function' ? window.nameCanon('customer', v) : v) || v;
+  };
   window.mdViaChildren = function (parent) {
-    return window.mdGetAll('customer').filter(m => m.details && m.details.via === parent).map(m => m.value).sort((a, b) => a.localeCompare(b, 'ja'));
+    return window.mdGetAll('customer').filter(m => m.details && m.details.via && window.mdViaOf(m.value) === parent).map(m => m.value).sort((a, b) => a.localeCompare(b, 'ja'));
   };
   // 上位（経由する同業者を順にたどる。近い順・循環しても止まる）
   window.mdViaChain = function (name) {
     const out = [], seen = new Set([name]);
     let cur = name;
     for (let i = 0; i < 20; i++) {
-      const r = window.mdGet('customer', cur);
-      const v = r && r.details && r.details.via;
+      const v = window.mdViaOf(cur);
       if (!v || seen.has(v)) break;
       out.push(v); seen.add(v); cur = v;
     }

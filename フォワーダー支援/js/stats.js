@@ -3059,7 +3059,7 @@
       // お客様：同業者の先のお客様は、その同業者の行の直下に（字下げして）並べる。同業者が絞り込みで出ていないときは通常の行として出す
       const isCust = r => r.field === 'customer';
       const byName = new Map(rowsAll.filter(isCust).map(r => [r.name, r]));
-      const via = r => { const d = (window.mdGet('customer', r.name) || { details: {} }).details; return d && d.via; };
+      const via = r => window.mdViaOf(r.name);
       const kids = new Map();
       rowsAll.forEach(r => { if (!isCust(r)) return; const v = via(r); if (v && v !== r.name && byName.has(v)) { if (!kids.has(v)) kids.set(v, []); kids.get(v).push(r); } });
       if (!kids.size) rowsAll.forEach(_emitRow);
@@ -3267,7 +3267,7 @@
     const chain = new Set(typeof window.mdViaChain === 'function' ? window.mdViaChain(self) : []);
     return window.statsGetMasters().filter(m => m.field === 'customer').map(m => m.value).filter(n => {
       if (n === self || chain.has(n)) return false;
-      const r = window.mdGet('customer', n); const v = r && r.details && r.details.via;
+      const v = window.mdViaOf(n);
       return !v || v === self;
     }).sort((a, b) => a.localeCompare(b, 'ja'));
   }
@@ -3279,7 +3279,7 @@
     const known = window.statsGetMasters().some(m => m.field === 'customer' && m.value === n);
     if (!known) { warn('「' + n + '」はお客様のマスターにありません。先にマスターへ登録してください'); return; }
     if (n === self) { warn('自分自身は先のお客様にできません'); return; }
-    const r = window.mdGet('customer', n); const v = r && r.details && r.details.via;
+    const v = window.mdViaOf(n);
     if (v && v !== self) { warn('「' + n + '」はすでに「' + v + '」の先のお客様です（1 つの同業者にしか付けられません）'); return; }
     if (window.mdViaChain(self).includes(n)) { warn('「' + n + '」は、この同業者の上位にあたるため先のお客様にできません'); return; }
     if (!Array.from(wrap.querySelectorAll('.stats-md-via-chip')).some(c => c.dataset.name === n)) wrap.insertAdjacentHTML('beforeend', _mdViaChipHtml(n));
@@ -3307,7 +3307,7 @@
           `</div>`;
       }
       if (s.areas) return _mdAreasEditorHtml(id, s, Array.isArray(details[s.key]) ? details[s.key] : []);
-      if (s.via) return _mdViaSelectHtml(id, s, value, details[s.key] || '');
+      if (s.via) return _mdViaSelectHtml(id, s, value, (typeof window.mdViaOf === 'function' ? window.mdViaOf(value) : '') || details[s.key] || '');
       if (s.children) return _mdViaChildrenHtml(id, s, value);
       if (s.tags) {
         const list = Array.isArray(details[s.key]) ? details[s.key] : [];
@@ -3469,7 +3469,7 @@
       const items = [], skipped = [];
       viaAdd.forEach(n => {
         const cur = (window.mdGet('customer', n) || { details: {} }).details || {};
-        if ((cur.via && cur.via !== value) || chain.includes(n)) { skipped.push(n); return; }   // 保存の直前に、ほかで付けられた・上位だった
+        if ((cur.via && window.mdViaOf(n) !== value) || chain.includes(n)) { skipped.push(n); return; }   // 保存の直前に、ほかで付けられた・上位だった
         items.push({ value: n, details: Object.assign({}, cur, { via: value }) });
       });
       viaDel.forEach(n => { const cur = Object.assign({}, (window.mdGet('customer', n) || { details: {} }).details || {}); delete cur.via; items.push({ value: n, details: cur }); });

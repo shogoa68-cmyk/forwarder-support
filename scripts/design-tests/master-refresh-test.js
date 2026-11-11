@@ -196,6 +196,20 @@ const http = require('http'), fs = require('fs'), path = require('path');
     ok('JS エラーなし（お客様）', errs.length === 0, errs);
     await ctx.close();
   }
+  {
+    const { ctx, p, errs } = await open(true, { legacy: {}, approval: false, role: 'admin' });
+    const r = await p.evaluate(async () => {
+      await window.statsEnsureMaster('customer', '同業A'); await window.statsEnsureMaster('customer', '荷主B');
+      await window.mdSave('customer', '同業A', { dealType: window.MD_DEAL_FWD });
+      await window.mdSave('customer', '荷主B', { via: '同業A' });
+      const before = window.mdViaChildren('同業A').join();
+      await window.synRenameCanonical('customer', '同業A', '同業A改');
+      return { before, after: window.mdViaChildren('同業A改').join(), chain: window.mdViaChain('荷主B'), viaOf: window.mdViaOf('荷主B') };
+    });
+    ok('同業者のマスター名を変えても、先のお客様は新しい名前の下に残る', r.before === '荷主B' && r.after === '荷主B' && r.chain.join() === '同業A改' && r.viaOf === '同業A改', r);
+    ok('JS エラーなし（同業者の名前変更）', errs.length === 0, errs);
+    await ctx.close();
+  }
   await b.close(); srv.close();
   console.log(out.join('\n'));
   process.exit(out.some(l => l.startsWith('FAIL')) ? 1 : 0);
