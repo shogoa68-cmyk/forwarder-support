@@ -10378,3 +10378,6 @@ html.theme-industry {
     bottom: calc(10px + var(--rms-lift, 0px));
   }
 }
+:where(html.theme-industry) #tab-quote-make .cloud-deal {
+  border-radius: 0;
+}
