@@ -955,6 +955,24 @@
         `<div class="pv-cond-item"><span class="pv-cond-lbl">${escHtml(f.lbl)}：</span><span class="pv-cond-val">${escHtml(f.val)}</span></div>`
       ).join('');
       pvCond.innerHTML = `<strong>🚢 引き合い条件</strong><div class="pv-cond-grid">${condHtml}</div>`;
+      // 貿易条件の図解（御見積書と同じ設定。ここでも切り替えられる）
+      if (cond.incoterms && typeof window.incoDiagramBlockHTML === 'function') {
+        const _incoOn = typeof window.incoDiagramEnabled === 'function' && window.incoDiagramEnabled();
+        pvCond.innerHTML += `<label class="pv-inco-toggle"><input type="checkbox" id="pvIncoDiagram"${_incoOn ? ' checked' : ''}> 📐 貿易条件の図解を表示（御見積書にも反映）</label>`;
+        if (_incoOn) {
+          const _ro = dirIsRound(cond.direction);
+          pvCond.innerHTML += window.incoDiagramBlockHTML(cond.incoterms, _ro ? cond.incotermsRet : '', {
+            en: false,
+            legNames: _ro ? { out: `往路（${dirLegName(cond.direction, 'out')}）`, ret: `復路（${dirLegName(cond.direction, 'ret')}）` } : null,
+          });
+        }
+        const _chk = pvCond.querySelector('#pvIncoDiagram');
+        if (_chk) _chk.addEventListener('change', () => {
+          window.setIncoDiagramEnabled(_chk.checked);
+          _pvBypassed = true;   // 確認ガイドは出し直さず、同じ内容で描き直す
+          openPreview();
+        });
+      }
       if (cond.free) pvCond.innerHTML += `<div class="pv-cond-free">${escHtml(cond.free)}</div>`;
       pvCond.style.display = 'block';
     } else {

@@ -366,6 +366,16 @@
     } else {
       push(t('incoterms'), _incotermsDisp(cond.incoterms));
     }
+    // 貿易条件の図解（設定パネルで ON のときだけ）：貿易条件の行の直下に全幅で出す
+    if (typeof window.incoDiagramEnabled === 'function' && window.incoDiagramEnabled() && typeof window.incoDiagramBlockHTML === 'function') {
+      const _ro = dirIsRound(cond.direction);
+      const _dg = window.incoDiagramBlockHTML(cond.incoterms, _ro ? cond.incotermsRet : '', {
+        en: _curLangEn,
+        legNames: _ro ? { out: `${t('outbound')}${_curLangEn ? ` (${dirLegName(cond.direction, 'out', true)})` : `（${dirLegName(cond.direction, 'out', false)}）`}`,
+                          ret: `${t('returnLeg')}${_curLangEn ? ` (${dirLegName(cond.direction, 'ret', true)})` : `（${dirLegName(cond.direction, 'ret', false)}）`}` } : null,
+      });
+      if (_dg) meta.push(['', { html: _dg, full: true }]);
+    }
     // 航路：1件以上の登録があれば航路ごとに via・キャリア・サービス名を含めて全件併記
     if (_hasRoutes) {
       (_legItems || cond.routes.map((r, i) => ({ r, label: cond.routes.length === 1 ? t('route') : `${t('route')} ${i + 1}` }))).forEach(({ r, label }) => {
@@ -791,7 +801,9 @@
     ].filter(Boolean).join('<br>');
 
     const metaRows = subj.meta.map(([k, v]) =>
-      `<div class="qd-srow"><span class="qd-sk">${esc(k)}</span><span class="qd-sv">${(v && typeof v === 'object') ? v.html : nl2br(v)}</span></div>`
+      (v && typeof v === 'object' && v.full)
+        ? `<div class="qd-srow qd-srow-full"><span class="qd-sv">${v.html}</span></div>`
+        : `<div class="qd-srow"><span class="qd-sk">${esc(k)}</span><span class="qd-sv">${(v && typeof v === 'object') ? v.html : nl2br(v)}</span></div>`
     ).join('');
 
     return `
@@ -912,6 +924,10 @@
                 <span class="qd-toggle-l">合計・税サマリを非表示<small>パターン比較用</small></span>
                 <input type="checkbox" id="qdHideTotal"><span class="qd-toggle-sw"></span>
               </label>
+              <label class="qd-toggle" title="ONにすると、貿易条件（インコタームズ）の下に、費用とリスクを売主・買主のどちらが負うかを示す図を入れます。往復案件で往路と復路の条件が違うときは2つ並べます。">
+                <span class="qd-toggle-l">📐 貿易条件の図解<small>売主／買主の分担</small></span>
+                <input type="checkbox" id="qdIncoDiagram"><span class="qd-toggle-sw"></span>
+              </label>
               <label class="qd-toggle" id="qdMultiWrap" title="ONにすると、物量パターン（例：FCL案／LCL案）の比較表と、案ごとの明細・条件・合計を1つの御見積書にまとめて出力します。タブの🔒（見積書に表示しない）を付けたパターンは含みません。パターンが2つ以上あるときに使えます。">
                 <span class="qd-toggle-l">🆚 パターンを併記<small>FCL案／LCL案など</small></span>
                 <input type="checkbox" id="qdMultiOut"><span class="qd-toggle-sw"></span>
@@ -942,6 +958,11 @@
       if (hideChk) {
         hideChk.addEventListener('change', () => { saveHideTotal(hideChk.checked); refreshQuoteDoc(); });
       }
+      const incoChk = overlay.querySelector('#qdIncoDiagram');
+      if (incoChk) incoChk.addEventListener('change', () => {
+        if (typeof window.setIncoDiagramEnabled === 'function') window.setIncoDiagramEnabled(incoChk.checked);
+        refreshQuoteDoc();
+      });
       const autoChk = overlay.querySelector('#qdAutoStatus');
       if (autoChk) autoChk.addEventListener('change', () => saveAutoStatus(autoChk.checked));
       const langChk = overlay.querySelector('#qdLangEn');
@@ -958,6 +979,8 @@
     // チェック状態・ファイル名を保存値に同期（オーバーレイ再利用時も整合）
     const hideChk = overlay.querySelector('#qdHideTotal');
     if (hideChk) hideChk.checked = loadHideTotal();
+    const incoChk2 = overlay.querySelector('#qdIncoDiagram');
+    if (incoChk2) incoChk2.checked = typeof window.incoDiagramEnabled === 'function' && window.incoDiagramEnabled();
     const autoChk2 = overlay.querySelector('#qdAutoStatus');
     if (autoChk2) autoChk2.checked = loadAutoStatus();
     const langChk2 = overlay.querySelector('#qdLangEn');
