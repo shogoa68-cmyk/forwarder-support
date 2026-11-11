@@ -43,5 +43,13 @@ const http = require('http'), fs = require('fs'), path = require('path');
   await p.evaluate(() => quoteModeEdit()); await p.waitForTimeout(500);
   p.evaluate(() => qpBackToDashboard()).catch(() => {}); await p.waitForTimeout(500);
   ok('再編集後にダッシュボードへ戻ろうとすると、未保存の確認が出る', await p.evaluate(() => !!document.getElementById('qpLeaveConfirm') && document.getElementById('qpLeaveConfirm').classList.contains('open')), null);
+  // ④ダッシュボード表示中の Ctrl+S は、裏の編集画面を保存しない（確認ダイアログも出ない）
+  await p.evaluate(() => { window.__saveCalls = 0; });
+  await p.keyboard.press('Escape'); await p.waitForTimeout(300);
+  await p.evaluate(() => qpShowDashboard()); await p.waitForTimeout(300);
+  let dlg = 0; p.on('dialog', () => { dlg++; });
+  await p.evaluate(() => { window.__wrote = 0; });
+  await p.keyboard.press('Control+s'); await p.waitForTimeout(800);
+  ok('ダッシュボード表示中の Ctrl+S は何も保存しない（トーストが出ない）', await p.evaluate(() => !/保存/.test((document.getElementById('toast-container') || {}).textContent || '')), null);
   await b.close(); srv.close();
 })();

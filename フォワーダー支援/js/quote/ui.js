@@ -2806,9 +2806,10 @@
       const pal = document.getElementById('cmdPalette');
       pal.classList.contains('open') ? closeCmdPalette() : openCmdPalette();
     }
-    // Ctrl+S → チーム共有へ保存
+    // Ctrl+S → チーム共有へ保存（ダッシュボード表示中は、裏に隠れた編集画面を保存しない）
     if (ctrl && !e.shiftKey && !e.altKey && e.key === 's') {
       e.preventDefault();
+      if (quoteTab.classList.contains('qp-dash')) return;
       if (typeof cloudSaveCurrent === 'function') cloudSaveCurrent();
       return;
     }
