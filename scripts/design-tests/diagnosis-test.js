@@ -1,0 +1,47 @@
+// 見積の診断カード（js/quote/diagnosis.js）の確認：粗利率の水準・行の赤字・当て馬・お客様の過去実績・タブの印
+// 使い方: node scripts/design-tests/diagnosis-test.js   （THEME=1 で Industry）
+const { chromium } = require('playwright-core');
+const http = require('http'), fs = require('fs'), path = require('path');
+let pass = 0, fail = 0;
+const ok = (n, c, d) => { if (c) { pass++; console.log('  ok  ' + n); } else { fail++; console.log('  NG  ' + n + (d ? '  → ' + d : '')); } };
+(async () => {
+  const root = path.resolve(__dirname, '..', '..');
+  const srv = http.createServer((q, r) => { const f = path.join(root, decodeURIComponent(q.url.split('?')[0])); if (!fs.existsSync(f) || fs.statSync(f).isDirectory()) { r.writeHead(404); r.end(); return; } r.writeHead(200, { 'Content-Type': f.endsWith('.css') ? 'text/css' : f.endsWith('.js') ? 'text/javascript' : 'text/html; charset=utf-8' }); fs.createReadStream(f).pipe(r); });
+  await new Promise(r => srv.listen(0, '127.0.0.1', r));
+  const URL = `http://127.0.0.1:${srv.address().port}/${encodeURIComponent('フォワーダー支援')}/index.html`;
+  const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', args: ['--no-sandbox'] });
+  const ctx = await b.newContext({ viewport: { width: 1500, height: 1000 }, locale: 'ja-JP' });
+  if (process.env.THEME) await ctx.addInitScript(() => { try { localStorage.setItem('forwarderTheme_v1', JSON.stringify({ site: true, doc: true })); } catch (e) {} });
+  await ctx.route(u => !u.href.startsWith('http://127.0.0.1'), r => r.abort());
+  const p = await ctx.newPage(); const errs = []; p.on('pageerror', e => errs.push(e.message)); p.setDefaultTimeout(8000);
+  await p.goto(URL, { waitUntil: 'domcontentloaded' }); await p.waitForTimeout(700);
+  const hist = [];
+  for (let i = 0; i < 12; i++) hist.push({ id: 'h' + i, customer: '株式会社テスト', status: i < 2 ? '受注' : '失注', transport_mode: '海上輸送', updated_at: new Date().toISOString(), created_by: 'a@x', data: { fields: {}, rows: [] } });
+  for (let i = 0; i < 30; i++) hist.push({ id: 'o' + i, customer: '他社' + i, status: i < 24 ? '受注' : '失注', transport_mode: '海上輸送', updated_at: new Date().toISOString(), created_by: 'a@x', data: { fields: {}, rows: [] } });
+  await p.evaluate(h => { window.cloudGetAllRows = () => h; }, hist);
+  await p.evaluate(() => switchTab('quote-make', document.querySelector('.cat-btn[aria-controls="tab-quote-make"]'))); await p.waitForTimeout(900);
+  await p.evaluate(() => window.qpShowEditor && window.qpShowEditor()); await p.waitForTimeout(400);
+  await p.evaluate(() => qspSetTab('fin'));
+  const f = (n, i) => p.locator(`#tableBody tr:not([data-virtual]):not([data-type]) [data-field="${n}"]`).nth(i);
+  const diag = async () => { await p.waitForTimeout(700); return p.evaluate(() => { const e = document.getElementById('qspDiag'); return (e.hidden ? '[hidden]' : '') + e.textContent; }); };
+  ok('明細が無いときは非表示', (await diag()).startsWith('[hidden]'));
+  await f('nm', 0).fill('海上運賃'); await f('pq', 0).fill('1'); await f('pp', 0).fill('100000'); await f('mk', 0).fill('4000');
+  let t = await diag();
+  ok('粗利率 3.8% は「低め」', /粗利率 3\.8% は低め/.test(t), t);
+  ok('引き合いの経路が未入力なら案内', /引き合いの経路/.test(t));
+  ok('金額タブに「!」の印', await p.evaluate(() => /!/.test(document.getElementById('qspTabBtn-fin').textContent)));
+  await p.evaluate(() => addRow()); await f('nm', 1).fill('通関料'); await f('pq', 1).fill('1'); await f('pp', 1).fill('5000'); await f('mk', 1).fill('-1000');
+  t = await diag(); ok('行単位の赤字を品名つきで指摘', /赤字.*1 件.*通関料/.test(t), t);
+  await p.evaluate(() => { const q = (id, v) => { const e = document.getElementById(id); e.value = v; e.dispatchEvent(new Event('input', { bubbles: true })); e.dispatchEvent(new Event('change', { bubbles: true })); }; q('qf-customer', '株式会社テスト'); q('qf-inq-kind', '新規のお客様'); q('qf-inq-spec', '金額のみの問い合わせ'); });
+  await f('mk', 0).fill('30000'); await f('mk', 1).fill('1000');
+  t = await diag();
+  ok('粗利率が高いときは「高め」', /高めです/.test(t), t);
+  ok('当て馬の可能性（2つ以上の兆候）', /当て馬.*可能性/.test(t));
+  ok('お客様の過去の受注率（17%・半分未満の警告）', /17%/.test(t) && /歩留まりが低め/.test(t), t);
+  await f('mk', 0).fill('10000'); await f('mk', 1).fill('400');
+  t = await diag(); ok('粗利率 9.0% は「標準」', /9\.0% は標準的/.test(t), t);
+  ok('AI でなく外部送信なしの注記', /外部へは送信されません/.test(t));
+  ok('ページエラーなし', errs.length === 0, JSON.stringify(errs));
+  await b.close(); srv.close();
+  console.log(`\n${pass} 項目 OK / ${fail} 件 NG`); process.exit(fail ? 1 : 0);
+})();
