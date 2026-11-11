@@ -294,3 +294,7 @@ body:has(#tab-master.active) #backToQuoteFab { display: none !important; }
 @media (max-width: 680px) {
   #quoteActionDock { bottom: calc(10px + var(--rms-lift, 0px)); }
 }
+
+/* ===== ダッシュボードのお客様種別タグ（cloud.js _custDealChip・quote.css .cloud-deal） =====
+   現行は丸いタグ。Industry は他のタグ（.cloud-tag／.cloud-sc-role）が角型なので、同じく角型にそろえる。 */
+#tab-quote-make .cloud-deal { border-radius: 0; }

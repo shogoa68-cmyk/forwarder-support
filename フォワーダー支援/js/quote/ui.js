@@ -1392,6 +1392,8 @@
       window.mdLoadCloud().then(() => {
         if (typeof window.qfRefreshCustomerDetailBtn === 'function') window.qfRefreshCustomerDetailBtn();
         if (typeof window.refreshAllRowMasterDetailBtns === 'function') window.refreshAllRowMasterDetailBtns();
+        // ダッシュボードのお客様種別（荷主／同業者／その他）はマスターの取引形態から出すため、読み込み後に一覧を描き直す
+        if (typeof window.cloudRefreshDashList === 'function') window.cloudRefreshDashList();
       });
     } else {
       if (typeof window.qfRefreshCustomerDetailBtn === 'function') window.qfRefreshCustomerDetailBtn();

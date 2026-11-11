@@ -6707,6 +6707,36 @@ body.qp-dash-active #quoteActionDock { display: none !important; }
 #tab-quote-make .cloud-kv dd { font-size: var(--fs-11-5); color: #2c3e4a; margin: 0; }
 /* お客様／担当は視認性重視で約2倍に拡大（11.5px → 23px） */
 #tab-quote-make .cloud-kv dd.cloud-kv-cust { font-size: 23px; font-weight: 700; color: #1f2d36; line-height: 1.25; }
+
+/* === ダッシュボードのカードの文字を大きく（従来は大半が最小の 12px。ここだけ一段〜二段上げる） ===
+   値（ルート・条件・サブコン名）＝16px／ラベル・補助＝13px／タグ類＝14px／REF#・更新日時＝16px・14px。
+   モーダル側のカード・編集画面の同名クラスには影響させないよう #qpdListWrap に限定。スマホ幅は tokens.css が各段を一つ上げる。 */
+#tab-quote-make #qpdListWrap .cloud-card-name { font-size: var(--text-lg); font-weight: 700; }
+#tab-quote-make #qpdListWrap .cloud-kv { grid-template-columns: max-content minmax(0, 1fr); gap: var(--sp-6) var(--sp-12); }
+#tab-quote-make #qpdListWrap .cloud-kv dt { font-size: var(--text-sm); padding-top: 3px; white-space: nowrap; }
+#tab-quote-make #qpdListWrap .cloud-kv dd { font-size: var(--text-lg); line-height: 1.4; }
+#tab-quote-make #qpdListWrap .cloud-kv dd.cloud-kv-cust { font-size: 23px; line-height: 1.25; }
+#tab-quote-make #qpdListWrap .cloud-kv dd.cloud-kv-who { font-size: var(--text-base); }
+#tab-quote-make #qpdListWrap .cloud-kv-tags { gap: var(--sp-6); }
+#tab-quote-make #qpdListWrap .cloud-tag { font-size: var(--text-base); padding: var(--sp-2) var(--sp-8); }
+#tab-quote-make #qpdListWrap .cloud-kv-sub { gap: var(--sp-6) var(--sp-12); }
+#tab-quote-make #qpdListWrap .cloud-sc-role { font-size: var(--text-sm); line-height: 20px; padding: 0 var(--sp-6); }
+#tab-quote-make #qpdListWrap .cloud-sc-name { font-size: var(--text-lg); }
+#tab-quote-make #qpdListWrap .cloud-sc-more { font-size: var(--text-sm); }
+#tab-quote-make #qpdListWrap .cloud-kv .route-via { font-size: var(--text-sm); }
+#tab-quote-make #qpdListWrap .cloud-card-who { font-size: var(--text-base); }
+#tab-quote-make #qpdListWrap .cloud-card-edn { font-size: var(--text-xs); }
+
+/* お客様種別（マスターの取引形態：荷主／同業者／その他）。配色はマスター管理の取引形態の色分けと同じ（青／橙／灰）。
+   お客様名（23px）の前に置く小さなタグなので、親の文字サイズに引きずられないよう固定する。 */
+#tab-quote-make .cloud-deal {
+  display: inline-block; vertical-align: middle; margin-right: var(--sp-8);
+  font-size: var(--text-base); font-weight: 700; line-height: 1.5; white-space: nowrap;
+  padding: 0 var(--sp-10); border-radius: var(--r-pill); border: 1px solid transparent;
+}
+#tab-quote-make .cloud-deal--ship  { color: #1f4f82; background: #d9e8f7; border-color: #b7d1ea; }
+#tab-quote-make .cloud-deal--fwd   { color: #8a4b0a; background: #fde3c2; border-color: #f0c48f; }
+#tab-quote-make .cloud-deal--other { color: #4a5561; background: #e1e4e8; border-color: #c9ced4; }
 #tab-quote-make .cloud-kv-arrow { color: #94a3ad; }
 #tab-quote-make .cloud-kv-tags { display: flex; flex-wrap: wrap; gap: var(--sp-4); }
 #tab-quote-make .cloud-kv-sub  { display: flex; flex-wrap: wrap; gap: var(--sp-4) var(--sp-8); }
