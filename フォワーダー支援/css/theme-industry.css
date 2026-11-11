@@ -61,6 +61,20 @@ html.theme-industry {
   --amber-52: #bb814d;
   --amber-44: #a2733d;
   --gray-60: #95989d;
+  --fs-9: 9px;
+  --fs-9-5: 9.5px;
+  --fs-10: 10px;
+  --fs-10-5: 10.5px;
+  --fs-11: 11px;
+  --fs-11-5: 11.5px;
+  --fs-12: 12px;
+  --fs-12-5: 12.5px;
+  --fs-13: 13px;
+  --fs-13-5: 13.5px;
+  --fs-14: 14px;
+  --fs-15: 15px;
+  --fs-16: 16px;
+  --fs-18: 18px;
   --r-2: 0;
   --r-3: 0;
   --r-4: 0;
@@ -482,6 +496,9 @@ html.theme-industry {
 }
 :where(html.theme-industry) #backToQuoteFab:hover {
   background: #6f3f2a;
+}
+:where(html.theme-industry) #quoteActionDock {
+  bottom: 18px;
 }
 :where(html.theme-industry) #quoteActionDock .qad-btn {
   border-radius: 0;
@@ -2378,6 +2395,9 @@ html.theme-industry {
 :where(html.theme-industry) #tab-quote-make .quote-field input[type="date"] {
   font-family: var(--font-body,"Barlow"),"Noto Sans JP","Hiragino Kaku Gothic ProN",sans-serif;
 }
+:where(html.theme-industry) #tab-quote-make .quote-field-attach {
+  grid-column: 1 / -1;
+}
 :where(html.theme-industry) #tab-quote-make .qf-memo-expand-btn {
   color: #424447;
   border: 1px solid #b6b9bc;
@@ -2412,6 +2432,12 @@ html.theme-industry {
   border-radius: 0;
 }
 :where(html.theme-industry) .qf-memo-float {
+  bottom: 80px;
+  width: 280px;
+  min-width: 160px;
+  min-height: 100px;
+  max-width: min(480px, 90vw);
+  max-height: 50vh;
   background: #faf9f3;
   border: 1.5px solid #bfa055;
   border-radius: 0;
@@ -2476,36 +2502,111 @@ html.theme-industry {
   background: #ebf0f4;
   border-color: #a5bbd0;
 }
+:where(html.theme-industry) #tab-quote-make .quote-field-refurl {
+  grid-column: 1 / -1;
+  margin-top: var(--sp-6);
+}
 :where(html.theme-industry) #tab-quote-make #qf-refurl {
+  width: 100%;
+  resize: vertical;
   font-family: var(--font-body,"Barlow"),"Noto Sans JP","Hiragino Kaku Gothic ProN",sans-serif;
+  font-size: var(--fs-12);
+  padding: var(--sp-6) var(--sp-8);
+  border: 1px solid var(--border-md, var(--border-md));
   border-radius: 0;
+  background: var(--surface);
+  color: var(--accent-dk);
+  box-sizing: border-box;
+}
+:where(html.theme-industry) #tab-quote-make #qf-refurl:focus {
+  border-color: var(--gold);
+  outline: none;
+}
+:where(html.theme-industry) #tab-quote-make #qf-refurl::placeholder {
+  color: var(--c-9a8878);
+  font-size: var(--fs-11);
 }
 :where(html.theme-industry) #tab-quote-make .qf-refurl-view {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-8);
+  padding: var(--sp-7) var(--sp-9);
+  border: 1px solid var(--border);
   border-radius: 0;
+  background: var(--card-bg);
+}
+:where(html.theme-industry) #tab-quote-make .qf-refurl-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-6);
+  flex: 1;
+  min-width: 0;
 }
 :where(html.theme-industry) #tab-quote-make .qf-refurl-link {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  max-width: 100%;
+  font-size: var(--fs-12);
+  color: var(--blue-dk);
+  text-decoration: none;
+  background: var(--blue-95);
   border: 1px solid #d5e0ea;
   border-radius: 0;
+  padding: var(--sp-2) var(--sp-9);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 :where(html.theme-industry) #tab-quote-make .qf-refurl-link:hover {
   background: #e4ebf1;
+  text-decoration: underline;
 }
 :where(html.theme-industry) #tab-quote-make .qf-refurl-edit {
+  font-size: var(--fs-11);
   font-family: var(--font-body,"Barlow"),"Noto Sans JP","Hiragino Kaku Gothic ProN",sans-serif;
+  cursor: pointer;
+  white-space: nowrap;
+  color: var(--accent);
+  background: var(--surface);
+  border: 1px solid var(--border-md);
   border-radius: 0;
+  padding: var(--sp-3) var(--sp-9);
+}
+:where(html.theme-industry) #tab-quote-make .qf-refurl-edit:hover {
+  background: var(--accent-lt);
 }
 :where(html.theme-industry) #tab-quote-make #qf-scope {
   font-family: var(--font-body,"Barlow"),"Noto Sans JP","Hiragino Kaku Gothic ProN",sans-serif;
   border-radius: 0;
 }
+:where(html.theme-industry) #tab-quote-make .quote-field-attach {
+  margin-top: var(--sp-6);
+}
 :where(html.theme-industry) #tab-quote-make .qf-attach-drop {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  border: 1.5px dashed var(--c-d5c8b0);
   border-radius: 0;
+  background: var(--card-bg);
+  padding: var(--sp-12);
+  cursor: pointer;
+  transition: background .12s, border-color .12s;
 }
 :where(html.theme-industry) #tab-quote-make .qf-attach-drop:hover {
+  background: var(--accent-lt);
   border-color: #a0a3a7;
 }
 :where(html.theme-industry) #tab-quote-make .qf-attach-drop.is-drag {
   background: #e7edf3;
+  border-color: var(--green-leaf);
+}
+:where(html.theme-industry) #tab-quote-make .qf-attach-hint {
+  font-size: var(--fs-11-5);
+  line-height: 1.5;
 }
 :where(html.theme-industry) #tab-quote-make .qf-meter-bar {
   border-radius: 0;
@@ -2813,6 +2914,11 @@ html.theme-industry {
   border-radius: 0;
   box-shadow: 0 3px 10px rgba(39,41,43, 0.10);
 }
+@media (max-width: 680px) {
+  :where(html.theme-industry) #tab-quote-make .quote-cmdbar {
+    top: var(--nav-cat-h, 108px);
+  }
+}
 :where(html.theme-industry) #tab-quote-make .cmdbar-gear > summary.cmdbar-gear-summary {
   border-radius: 0;
 }
@@ -2857,6 +2963,9 @@ html.theme-industry {
 :where(html.theme-industry) #tab-quote-make .stk-sell .w-cur,
 :where(html.theme-industry) #tab-quote-make .stk-sell .w-price {
   border-color: #cfd9e3;
+}
+:where(html.theme-industry) #tab-quote-make .row-cd-lbl {
+  font-size: 8px;
 }
 :where(html.theme-industry) #tab-quote-make .catsv-cell .w-pattern {
   border: 1px dashed #c4d2e0;
@@ -3264,11 +3373,32 @@ html.theme-industry {
 :where(html.theme-industry) #tab-quote-make .cc-chip.is-active {
   box-shadow: 0 1px 5px rgba(74,109,144,.14);
 }
+:where(html.theme-industry) #tab-quote-make .cc-chip-dims {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  margin: -2px 0 1px;
+  min-width: 0;
+}
 :where(html.theme-industry) #tab-quote-make .cc-chip-dim {
+  font-size: var(--fs-9);
+  line-height: 1.4;
   color: #5f6266;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  letter-spacing: -.2px;
+  max-width: 100%;
 }
 :where(html.theme-industry) #tab-quote-make .cc-chip-dim-in {
   color: #344d65;
+  font-weight: 600;
+}
+:where(html.theme-industry) #tab-quote-make .cc-chip-dim-ex {
+  color: var(--c-7a6040);
+}
+:where(html.theme-industry) #tab-quote-make .cc-chip-dim-cap {
+  color: var(--c-9a8a70);
 }
 :where(html.theme-industry) #tab-quote-make .cc-chip.is-active .cc-chip-dim-in {
   color: #2e4358;
@@ -3491,6 +3621,11 @@ html.theme-industry {
 :where(html.theme-industry) #tab-quote-make .hs-tariff-link:hover {
   background: #3f5d7b;
   border-color: #3f5d7b;
+}
+@media (max-width: 600px) {
+  :where(html.theme-industry) #tab-quote-make .hs-rate-row {
+    grid-template-columns: 1fr;
+  }
 }
 :where(html.theme-industry) #tab-quote-make .hs-rate-field input {
   border-radius: 0;
@@ -4205,7 +4340,10 @@ html.theme-industry {
   color: #324a62;
 }
 :where(html.theme-industry) #qpDashboard .qpd-new {
+  background: var(--green-ok);
   border-radius: 0;
+  padding: var(--sp-8) var(--sp-16);
+  font-size: var(--fs-13);
 }
 :where(html.theme-industry) #qpDashboard .qpd-new:hover {
   background: #2c4054;
@@ -4483,8 +4621,23 @@ html.theme-industry {
   border-radius: 0;
 }
 :where(html.theme-industry) .fb-section-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-5);
+  margin-top: var(--sp-12);
+  background: var(--surface);
+  color: var(--accent);
+  border: 1px solid var(--accent);
   border-radius: 0;
+  cursor: pointer;
+  padding: var(--sp-5) var(--sp-12);
+  font-size: var(--fs-11);
   font-family: var(--font-body,"Barlow"),"Noto Sans JP","Hiragino Kaku Gothic ProN",sans-serif;
+  transition: background .15s, color .15s;
+}
+:where(html.theme-industry) .fb-section-btn:hover {
+  background: var(--accent);
+  color: var(--surface);
 }
 :where(html.theme-industry) #fbBox {
   border-radius: 0;
@@ -5400,6 +5553,90 @@ html.theme-industry {
 :where(html.theme-industry) #tab-quote-make .done-btn {
   border-radius: 0;
 }
+@media (max-width: 680px) {
+  :where(html.theme-industry) #tab-quote-make {
+    padding: var(--sp-10);
+  }
+  :where(html.theme-industry) #tab-quote-make .save-toolbar {
+    position: static;
+    padding: var(--sp-6) var(--sp-10);
+    gap: var(--sp-5);
+    flex-wrap: wrap;
+    box-shadow: none;
+  }
+  :where(html.theme-industry) #tab-quote-make .save-btn {
+    padding: var(--sp-4) var(--sp-9);
+    font-size: var(--fs-11);
+  }
+  :where(html.theme-industry) #tab-quote-make h1 {
+    font-size: var(--fs-15);
+  }
+  :where(html.theme-industry) #tab-quote-make .container {
+    padding: var(--sp-10);
+    overflow: visible;
+  }
+  :where(html.theme-industry) #tab-quote-make .condition-grid {
+    grid-template-columns: 1fr;
+  }
+  :where(html.theme-industry) #tab-quote-make .scope-btns {
+    gap: var(--sp-5);
+  }
+  :where(html.theme-industry) #tab-quote-make .scope-btn {
+    padding: var(--sp-5) var(--sp-10);
+    font-size: var(--fs-11);
+  }
+  :where(html.theme-industry) #tab-quote-make #previewBox {
+    padding: 0;
+    flex-direction: column;
+    max-height: 94vh;
+  }
+  :where(html.theme-industry) #tab-quote-make #previewBox .pv-rail {
+    width: 100%;
+    flex-basis: auto;
+    flex-direction: row;
+    flex-wrap: wrap;
+    border-right: none;
+    border-bottom: 1px solid var(--bg);
+  }
+  :where(html.theme-industry) #tab-quote-make .pv-rail-customize {
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: var(--sp-14);
+  }
+  :where(html.theme-industry) #tab-quote-make .quote-header {
+    grid-template-columns: 1fr;
+    gap: var(--sp-8);
+  }
+  :where(html.theme-industry) #tab-quote-make .quote-field-memo {
+    grid-column: 1;
+    grid-row: auto;
+    height: auto;
+    margin-top: var(--sp-4);
+  }
+  :where(html.theme-industry) #tab-quote-make #qf-ref,
+  :where(html.theme-industry) #tab-quote-make #qf-customer,
+  :where(html.theme-industry) #tab-quote-make #qf-person {
+    width: 100%;
+  }
+  :where(html.theme-industry) #tab-quote-make .pv-btns {
+    flex-wrap: wrap;
+  }
+  :where(html.theme-industry) #tab-quote-make td.check-cell,
+  :where(html.theme-industry) #tab-quote-make td.handle-cell,
+  :where(html.theme-industry) #tab-quote-make td.cat-cell,
+  :where(html.theme-industry) #tab-quote-make td.sv-cell,
+  :where(html.theme-industry) #tab-quote-make td.tax-cell,
+  :where(html.theme-industry) #tab-quote-make td.name-cell {
+    position: static !important;
+  }
+  :where(html.theme-industry) #tab-quote-make .action-cell .done-btn,
+  :where(html.theme-industry) #tab-quote-make .action-cell .btn-del,
+  :where(html.theme-industry) #tab-quote-make .action-cell .btn-ins {
+    width: 28px;
+    height: 28px;
+    font-size: var(--fs-13);
+  }
+}
 :where(html.theme-industry) #tab-quote-make .btn-bulk-copy {
   border-radius: 0;
   font-family: var(--font-body,"Barlow"),"Noto Sans JP","Hiragino Kaku Gothic ProN",sans-serif;
@@ -5873,6 +6110,11 @@ html.theme-industry {
 :where(html.theme-industry) #tab-quote-make .pv-customize-toggle:hover {
   background: #f0f3f7;
 }
+@media (max-width: 600px) {
+  :where(html.theme-industry) #tab-quote-make .zone-builder {
+    flex-direction: column;
+  }
+}
 :where(html.theme-industry) #tab-quote-make .cond-incoterms-hint {
   border-radius: 0;
 }
@@ -5970,6 +6212,9 @@ html.theme-industry {
 }
 :where(html.theme-industry) #tab-quote-make .qsp-dig-row-hide.is-on {
   border-color: #dfc1a9;
+}
+:where(html.theme-industry) #tab-quote-make .qsp-dig-row-meta {
+  font-size: 8.5px;
 }
 :where(html.theme-industry) #tab-quote-make .qsp-dig-row-mk {
   color: #595c61;
@@ -7024,6 +7269,9 @@ html.theme-industry {
 :where(html.theme-industry) #tab-quote-make .qp-sub {
   border-radius: 0;
 }
+:where(html.theme-industry) #tab-quote-make .qp-sub-more {
+  font-size: 8px;
+}
 :where(html.theme-industry) #tab-quote-make .sc-panel {
   border-radius: 0;
 }
@@ -7297,6 +7545,7 @@ html.theme-industry {
   border-radius: 0;
 }
 :where(html.theme-industry) #tab-quote-make .qrc-rail-btn em {
+  font-size: 8.5px;
   color: #6c7076;
 }
 :where(html.theme-industry) #tab-quote-make .qrc-rail-btn:hover {
@@ -7309,6 +7558,7 @@ html.theme-industry {
   color: #31485f;
 }
 :where(html.theme-industry) #tab-quote-make .qrc-rail-badge {
+  font-size: 8.5px;
   border-radius: 0;
 }
 :where(html.theme-industry) #tab-quote-make .qrc-rail-dot {
@@ -10116,4 +10366,18 @@ html.theme-industry {
 }
 :where(html.theme-industry) #tab-master .master-table td.stats-val {
   overflow-wrap: anywhere;
+}
+:where(html.theme-industry) #quoteActionDock {
+  bottom: calc(18px + var(--rms-bar, 0px));
+}
+:where(html.theme-industry) .qf-memo-float {
+  bottom: calc(80px + var(--rms-lift, 0px));
+}
+@media (max-width: 680px) {
+  :where(html.theme-industry) #quoteActionDock {
+    bottom: calc(10px + var(--rms-bar, 0px));
+  }
+}
+:where(html.theme-industry) #tab-quote-make .cloud-deal {
+  border-radius: 0;
 }

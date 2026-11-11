@@ -1,6 +1,6 @@
 /* feedback-md.js — 不具合報告を AI が読みやすい Markdown に整形する（純粋関数）
  *
- *   FeedbackMd.toMarkdown(rows, { nameOf, title, maxResolved })
+ *   FeedbackMd.toMarkdown(rows, { nameOf, title, maxResolved, stLabel })   ※ stLabel＝状態名の差し替え（アイデア用）、rows[].votes＝👍の数
  *
  * ブラウザ（不具合報告ページの「AI 用にコピー」）と Node（scripts/fetch-feedback.js）の
  * 両方から同じ出力にするため、DOM や Supabase には依存しない。
@@ -35,13 +35,16 @@
   }
 
   function itemMd(r, opts) {
-    var st = ST_LABEL[r.status] || r.status || '不明';
+    var L = opts.stLabel || ST_LABEL;
+    var st = L[r.status] || r.status || '不明';
     var icon = CAT_ICON[r.category] || '📌';
     var lines = [];
     var sec = (!r.section || r.section === 'わからない') ? '場所の指定なし' : r.section;
     lines.push('### ' + noOf(r) + ' [' + st + '] ' + icon + ' ' + (r.category || '') + '｜' + sec + '｜' + titleOf(r));
     lines.push('- 報告: ' + fmtDate(r.created_at) + ' / ' + who(r, opts.nameOf));
     var ctx = r.context || {};
+    if (ctx.idea && ctx.idea.type) lines.push('- アイデアの種類: ' + ctx.idea.type + ((ctx.idea.from || ctx.idea.to) ? '（' + (ctx.idea.from || '?') + ' ⇄ ' + (ctx.idea.to || '?') + '）' : ''));
+    if (r.votes != null) lines.push('- 👍 ' + r.votes + ' 票');
     var env = [];
     if (ctx.tab) env.push('画面=' + ctx.tab);
     if (ctx.viewport) env.push('表示=' + ctx.viewport);
@@ -81,19 +84,20 @@
   function toMarkdown(rows, opts) {
     opts = opts || {};
     rows = Array.isArray(rows) ? rows : [];
+    var L = opts.stLabel || ST_LABEL;
     var counts = {};
     rows.forEach(function (r) { var k = r.status || 'open'; counts[k] = (counts[k] || 0) + 1; });
     var out = [];
     out.push('# ' + (opts.title || '不具合報告一覧'));
     out.push('');
     out.push('取得: ' + fmtDate(new Date().toISOString()) + '（日本時間） / 全' + rows.length + '件 — ' +
-      ST_ORDER.map(function (k) { return ST_LABEL[k] + ' ' + (counts[k] || 0); }).join(' / '));
+      ST_ORDER.map(function (k) { return L[k] + ' ' + (counts[k] || 0); }).join(' / '));
     out.push('');
     var maxResolved = opts.maxResolved == null ? 10 : opts.maxResolved;
     ST_ORDER.forEach(function (k) {
       var list = rows.filter(function (r) { return (r.status || 'open') === k; });
       if (!list.length) return;
-      out.push('## ' + ST_LABEL[k] + '（' + list.length + '件）');
+      out.push('## ' + L[k] + '（' + list.length + '件）');
       out.push('');
       var closed = (k === 'resolved' || k === 'wontfix');
       var shown = closed ? list.slice(0, maxResolved) : list;

@@ -145,6 +145,7 @@
     return m.display_name || m.full_name || m.name || m.user_name || u.email || 'ログイン中';
   }
   function _renderCloudAuth() {
+    if (typeof window.qfRefreshCopiedFromInfo === 'function') window.qfRefreshCopiedFromInfo();   // 代替わり元の紐づけボタン（ログイン中だけ）
     if (typeof _renderQpdAuth === 'function') _renderQpdAuth();   // ダッシュボードのログイン出し分けも同期
     const stateEl   = document.getElementById('cloudAuthState');
     const hint      = document.getElementById('cloudLoginHint');
@@ -387,6 +388,7 @@
         r.name, r.customer, r.person, r.owner_email, r.created_by,
         m && m.ref, m && m.customer, m && m.person, m && m.memo,
         m && Array.isArray(m.subcons) && m.subcons.map(s => s.name).join(' '),
+        m && Array.isArray(m.related) && m.related.map(e => e.v).join(' '),   // 関連番号・メール件名
       ].filter(Boolean).join(' ').toLowerCase();
     }
     // 表示名（プロフィール）は後追いロードされるためキャッシュに含めず毎回付加
@@ -503,6 +505,15 @@
 
   // ダッシュボードの並び替え
   const _STATUS_ORDER = { '下書き中': 0, '提出済み': 1, '改定中': 2, '情報待ち': 3, 'ヨコヨコ提示': 4, '受注': 5, '失注': 6, '辞退': 7, '保留': 8 };
+  // 「緊急」「至急」「URGENT」のいずれかのタグが付いた案件は、並び替えの設定にかかわらず、タグを外すまでダッシュボードの一番上に出す
+  // （全角・半角、大文字・小文字の違いは同じタグとみなす）
+  const URGENT_TAGS = ['緊急', '至急', 'urgent'];
+  function _isUrgentTag(t) {
+    return URGENT_TAGS.indexOf(String(t == null ? '' : t).normalize('NFKC').trim().toLowerCase()) >= 0;
+  }
+  function _isUrgent(r) {
+    return !!(r && Array.isArray(r.tags) && r.tags.some(_isUrgentTag));
+  }
   function _sortCloudRows(rows) {
     const s = _cloudSort || 'updated';
     const upd = e => e.updated_at || '';
@@ -522,7 +533,8 @@
       r.sort((a, b) => tagKey(a).localeCompare(tagKey(b), 'ja') || upd(b).localeCompare(upd(a)));
     }
     else                       r.sort((a, b) => upd(b).localeCompare(upd(a)));   // updated（既定）
-    return r;
+    // 緊急タグの案件を先頭へ（それぞれの中は、上で並べた順のまま＝安定した振り分け）
+    return r.filter(_isUrgent).concat(r.filter(e => !_isUrgent(e)));
   }
 
   // 詳細検索ドロップダウンをロード済みデータから生成（モーダル＋ダッシュボード両方）
@@ -757,6 +769,29 @@
 
   // 🔔 料金更新フォロー（暫定料金で提示し、最新料金が出たら更新したい案件）
   function _priceFollow(r) { return (r && r.data && r.data.priceFollow) || null; }
+
+  // お客様種別（マスターの取引形態 details.dealType）。荷主（直接）／同業者（フォワーダー・代理店）／その他。
+  // 別名で入力された名前でも代表名のマスターを引く（mdGetCanon）。未設定・マスター未登録・未読込は '' を返す（空欄で目立たせない）。
+  const _DEAL_CHIPS = {
+    '荷主（直接）':                   { k: 'ship',  ico: '🏭', lbl: '荷主' },
+    '同業者（フォワーダー・代理店）': { k: 'fwd',   ico: '🤝', lbl: '同業者' },
+    'その他':                         { k: 'other', ico: '📁', lbl: 'その他' },
+  };
+  function _custDealChip(customer) {
+    const name = String(customer == null ? '' : customer).trim();
+    if (!name || typeof window.mdGetCanon !== 'function') return '';
+    const rec = window.mdGetCanon('customer', name);
+    const d = rec && rec.details;
+    const def = d && _DEAL_CHIPS[d.dealType];
+    if (!def) return '';
+    const via = d.via ? '／経由：' + d.via : '';   // 同業者の先のお客様なら経由先も添える
+    return '<span class="cloud-deal cloud-deal--' + def.k + '" title="取引形態：' + escHtml(d.dealType + via) + '">' +
+      def.ico + ' ' + def.lbl + '</span>';
+  }
+  window.quoteCustomerDealChip = _custDealChip;
+  // マスターが後から読み込まれたとき、取引形態の印を出すために一覧だけ描き直す（見積タブ初期化の mdLoadCloud 完了後に呼ぶ）
+  window.cloudRefreshDashList = function () { if (_cloudRows && _cloudRows.length) _applyCloudFilter(); };
+
   // 📩 未取込（自由入力で保管した原文のうち、まだ表に取り込んでいないもの＝配列・無ければ null）。判定は email-import.js の eiPendingOf
   function _pendingImport(r) { return (r && r.data && typeof window.eiPendingOf === 'function') ? window.eiPendingOf(r.data) : null; }
   function _mmdd(dateStr) {
@@ -830,6 +865,23 @@
   // ブラウザ保存（ui.js renderPresetList）からも共通利用する
   window.quoteExtractSubcons = _extractSubcons;
 
+  // 新しい見積を始める入口（かんたん表示）：案件の先頭の点線カード／0 件のときの案内。どちらも qpNewQuote() を呼ぶだけ
+  function _newCaseCardHtml() {
+    return '<button type="button" class="qpd-newcard" onclick="qpNewQuote()">'
+      + '<span class="qpd-newcard-plus" aria-hidden="true">＋</span>'
+      + '<span class="qpd-newcard-text"><b>新しい見積を作る</b><small>お客様名とご担当者を入れるところから始めます</small></span></button>';
+  }
+  function _newCaseWelcomeHtml() {
+    const steps = ['条件', '貨物', '費用', '出力'].map((t, i) => '<span class="qpd-welcome-step"><i>' + (i + 1) + '</i>' + t + '</span>').join('');
+    return '<div class="qpd-welcome">'
+      + '<h3>最初の見積を作ってみましょう</h3>'
+      + '<p>お客様の名前と担当者を入れるところから始まります。あとからいつでも直せるので、まずは1件作ってみてください。</p>'
+      + '<div class="qpd-welcome-steps">' + steps + '</div>'
+      + '<button type="button" class="qpd-welcome-btn" onclick="qpNewQuote()"><span aria-hidden="true">＋</span>新しい見積を作る</button>'
+      + '<small>メールの文面を貼って始めたい場合は、右上の「自由入力で保管」から。</small>'
+      + '</div>';
+  }
+
   function _renderCloudList(rows) {
     // チーム共有モーダルの一覧と、ダッシュボードの一覧の両方へ描画
     const wraps = [document.getElementById('cloudPresetListWrap'), document.getElementById('qpdListWrap')].filter(Boolean);
@@ -838,7 +890,9 @@
     if (!_cloudRows.length) {
       html = '<div class="preset-empty">共有案件はまだありません<br>'
         + '<small style="color:#9bb;">「🆕 新規見積を作成」から保存できます</small></div>';
-      wraps.forEach(w => w.innerHTML = html);
+      // かんたん表示のダッシュボードは、0 件のとき「ここから始める」の大きな案内を出す（モーダルは従来の文言のまま）
+      const simpleDash0 = !!(window.uiIsSimple && window.uiIsSimple());
+      wraps.forEach(w => { w.innerHTML = (simpleDash0 && w.id === 'qpdListWrap') ? _newCaseWelcomeHtml() : html; });
       return;
     }
     if (!rows.length) {
@@ -861,7 +915,8 @@
       // 最終更新者以外に何名が触ったか（＋N バッジ用）
       const edOthers = _editorsOf(r).filter(e => e.email !== r.owner_email).length;
       const whoDd =
-        '<span class="cloud-card-crt" title="作成者">👤 ' + escHtml(crtWho || '—') + '</span>' +
+        '<span class="cloud-card-crt" title="作成者">👤 ' + escHtml(crtWho || '—') +
+          (window.adminCreatorEditBtn ? window.adminCreatorEditBtn(r.id) : '') + '</span>' +   // 管理者の一時機能（admin-creator-edit.js）
         '<span class="cloud-card-upd" title="' + escHtml(_whoTitle(r)) + '">✏️ ' + escHtml(updWho || '—') +
           (edOthers > 0 ? '<span class="cloud-card-edn" title="ほかに ' + edOthers + ' 名が更新">+' + edOthers + '</span>' : '') +
         '</span>';
@@ -887,7 +942,7 @@
         ((inco && inco !== '設定なし') ? '<span class="cloud-tag cloud-tag-inco">' + escHtml(String(inco).split('（')[0]) + '</span>' : '') +
         (mode ? '<span class="cloud-tag cloud-tag-mode">' + escHtml(mode) + '</span>' : '');
       const personH = person && (window.formatPersonWithHonorific ? window.formatPersonWithHonorific(person) : person);
-      const custDd = [customer && escHtml(customer), personH && escHtml(personH)].filter(Boolean).join('・');
+      const custDd = _custDealChip(customer) + [customer && escHtml(customer), personH && escHtml(personH)].filter(Boolean).join('・');
       const titleText = (m && m.ref) ? m.ref : r.name;   // 見出しは仮REF#のみ（顧客/担当は下に別掲）
       const memoLine  = (m && m.memo) ? m.memo : '';
       // 締切バッジ（締切超過／締切まで）は下書き中の案件のみ表示。提出済み以降は締切が無意味なため出さない
@@ -983,6 +1038,7 @@
             '<span class="ccc-caret">▾</span>' +
           '</button>' +
           '<div class="ccc-panel"' + (sd ? ' hidden' : '') + '>' +
+            '<div class="ccc-panelbar"><button type="button" class="ccc-expand" onclick="event.stopPropagation();dashExpandCardChat(this)" title="申し送りを大きく表示">⤢ 拡大</button></div>' +
             '<div class="ccc-list">' + _chatListHtml + '</div>' +
             '<div class="ccc-compose">' +
               '<input type="text" class="ccc-input" placeholder="申し送りを入力…" onkeydown="dashCardChatKey(event,this)">' +
@@ -991,12 +1047,21 @@
           '</div>' +
         '</div>';
 
+      // 🔖 関連番号・メール件名：管理番号の直下にツリー表示（クリックでその値をコピー。メーラーでの検索用）
+      const relRowHtml = (m && Array.isArray(m.related) && m.related.length)
+        ? '<div class="cloud-ref-tree">' + m.related.map(e =>
+            '<button type="button" class="cloud-ref-tree-line" data-v="' + escHtml(e.v) + '" ' +
+              'onclick="event.stopPropagation();copyRelValue(this)" title="クリックでコピー">' +
+              '<span class="cloud-ref-tree-br">|_</span> ' + escHtml(e.v) + '</button>'
+          ).join('') + '</div>'
+        : '';
+
       // 🏷️ 案件タグ（ダッシュボードから直接追加/削除できる）
       const rowTags = Array.isArray(r.tags) ? r.tags : [];
       const tagsRowHtml =
         '<div class="cloud-preset-tags">' +
           rowTags.map((t, ti) =>
-            '<span class="cloud-tag-chip">🏷️ ' + escHtml(t) +
+            '<span class="cloud-tag-chip' + (_isUrgentTag(t) ? ' is-urgent' : '') + '">' + (_isUrgentTag(t) ? '🚨 ' : '🏷️ ') + escHtml(t) +
               '<button type="button" onclick="event.stopPropagation();cloudRemoveTag(\'' + idAttr + '\',' + ti + ')" title="このタグを外す">×</button>' +
             '</span>'
           ).join('') +
@@ -1008,7 +1073,7 @@
             (_cloudLinkSel.has(r.id) ? ' checked' : '') + ' title="この案件を選択して他の案件と関連付ける">'
         : '';
       return '' +
-        '<div class="cloud-card cloud-card-labeled' + (others.length ? ' is-editing' : '') + (_cloudLinkMode ? ' cloud-card--linkmode' : '') + '">' +
+        '<div class="cloud-card cloud-card-labeled' + (others.length ? ' is-editing' : '') + (_cloudLinkMode ? ' cloud-card--linkmode' : '') + (_isUrgent(r) ? ' is-urgent' : '') + '">' +
           '<div class="cloud-card-main">' +
           '<div class="cloud-card-row1">' +
             linkChk +
@@ -1016,6 +1081,8 @@
             '<span class="cloud-card-name" title="' + escHtml(r.name) + '">' + escHtml(titleText) + selfGenBadge + '</span>' +
             '<button class="btn-ref-copy" data-ref="' + escHtml(titleText) + '" onclick="copyRefNumber(this.dataset.ref,this)" title="管理番号をコピー（&quot;番号&quot;形式）"><svg class="icon-copy" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="1" width="9" height="9" rx="1.5"/><rect x="1" y="4" width="9" height="9" rx="1.5"/></svg></button>' +
           '</div>' +
+          relRowHtml +
+          ((window.qvCardBadge && m) ? window.qvCardBadge(r.data) : '') +
           // かんたん表示用：見出し（メモ1行目→ルート→REF#）とお客様名。詳細表示では CSS で非表示
           '<div class="cloud-card-headline" title="' + escHtml(headline) + '">' + escHtml(headline) + '</div>' +
           (custDd ? '<div class="cloud-card-cust">' + custDd + '</div>' : '') +
@@ -1075,7 +1142,7 @@
                 ? '<span>状態</span><span>案件名</span><span>お客様</span><span>ルート</span><span>更新日</span><span></span><span></span></div>'
                 : '<span>状態</span><span>見積番号</span><span>お客様 / 担当</span><span>作業者</span><span>更新</span><span></span></div>')
             + shown.map(r => _cloudListRow(r, simpleList)).join('') + moreBtn)
-        : (shown.map(r => _cloudCardHtml(r, true)).join('') + moreBtn);
+        : ((simpleList ? _newCaseCardHtml() : '') + shown.map(r => _cloudCardHtml(r, true)).join('') + moreBtn);
       if (!listMode) _loadDashChatSummaries(shown);   // 💬 申し送りの件数/最新は描画済みぶんだけ取得
       if (!listMode) _loadDashLinks(shown);           // 🔗 関連案件も描画済みぶんだけ一括取得
     }
@@ -1089,6 +1156,7 @@
         '<button type="button" role="menuitem" class="cloud-menu-item" onclick="uiCloseMenus();cloudPreviewPreset(\'' + idAttr + '\')">プレビュー</button>' +
         '<button type="button" role="menuitem" class="cloud-menu-item" onclick="uiCloseMenus();cloudPdfPreset(\'' + idAttr + '\')">PDF を出力</button>' +
         '<button type="button" role="menuitem" class="cloud-menu-item" onclick="uiCloseMenus();cloudDuplicatePreset(\'' + idAttr + '\')">コピーして新規作成</button>' +
+        '<button type="button" role="menuitem" class="cloud-menu-item" onclick="uiCloseMenus();cloudPickPredecessor(\'' + idAttr + '\')">🧬 代替わり元を設定…<small>前の案件を選んで、代替わり（世代）をつなぐ</small></button>' +
         '<button type="button" role="menuitem" class="cloud-menu-item" onclick="uiCloseMenus();eiOpenStoreForCard(\'' + idAttr + '\')">📝 自由入力を追加<small>この案件に、提示した見積の原文を保管します</small></button>' +
         '<div class="cloud-menu-sep" role="separator"></div>' +
         (lockedBy
@@ -1125,22 +1193,22 @@
       const rt0 = (m && m.routes && m.routes[0]) || { pol: (m ? m.pol : r.pol), pod: (m ? m.pod : r.pod) };
       const routePlain = [(rt0.pol || '').trim(), (rt0.pod || '').trim()].filter(Boolean).join(' → ');
       const headline = mem || routePlain || title;
-      return '<div class="qpd-row qpd-row--simple' + (_cloudLinkMode ? ' qpd-row--linkmode' : '') + '" onclick="' + rowClick + '" title="' + (_cloudLinkMode ? 'クリックで選択' : 'クリックで開く') + '">' +
+      return '<div class="qpd-row qpd-row--simple' + (_cloudLinkMode ? ' qpd-row--linkmode' : '') + (_isUrgent(r) ? ' is-urgent' : '') + '" onclick="' + rowClick + '" title="' + (_cloudLinkMode ? 'クリックで選択' : 'クリックで開く') + '">' +
         linkChk +
         _statusSelect(idAttr, status, lockedBy, 'qpd-row-status') +
         '<span class="qpd-row-title">' + (_pendingImport(r) ? '<span class="qpd-pend-mark" title="自由入力で保管したまま、まだ表に取り込んでいない原文があります">📩 未取込 ' + _pendingImport(r).length + '件</span>' : '') + '<b class="qpd-row-headline">' + escHtml(headline) + '</b><small class="qpd-row-ref">' + escHtml(title) + '</small></span>' +
-        '<span class="qpd-row-cust">' + escHtml(cust) + (person ? ' <small>/ ' + escHtml(person) + '</small>' : '') + '</span>' +
+        '<span class="qpd-row-cust">' + _custDealChip(cust) + escHtml(cust) + (person ? ' <small>/ ' + escHtml(person) + '</small>' : '') + '</span>' +
         '<span class="qpd-row-route">' + escHtml(routePlain) + '</span>' +
         '<span class="qpd-row-ts">' + ts + '</span>' +
         '<span class="qpd-row-open" onclick="event.stopPropagation()"><button type="button" class="btn-preset-load qpd-row-open-btn" onclick="cloudLoadPreset(\'' + idAttr + '\')">開く</button></span>' +
         '<span class="qpd-row-menu" onclick="event.stopPropagation()">' + _cardMenuHtml(idAttr, lockedBy) + '</span>' +
       '</div>';
     }
-    return '<div class="qpd-row' + (_cloudLinkMode ? ' qpd-row--linkmode' : '') + '" onclick="' + rowClick + '" title="' + (_cloudLinkMode ? 'クリックで選択' : 'クリックで開く') + '">' +
+    return '<div class="qpd-row' + (_cloudLinkMode ? ' qpd-row--linkmode' : '') + (_isUrgent(r) ? ' is-urgent' : '') + '" onclick="' + rowClick + '" title="' + (_cloudLinkMode ? 'クリックで選択' : 'クリックで開く') + '">' +
       linkChk +
       _statusSelect(idAttr, status, lockedBy, 'qpd-row-status') +
       '<span class="qpd-row-title">' + (_pendingImport(r) ? '<span class="qpd-pend-mark" title="自由入力で保管したまま、まだ表に取り込んでいない原文があります">📩 未取込 ' + _pendingImport(r).length + '件</span>' : '') + escHtml(title) + '</span>' +
-      '<span class="qpd-row-cust">' + escHtml(cust) + (person ? ' <small>/ ' + escHtml(person) + '</small>' : '') + '</span>' +
+      '<span class="qpd-row-cust">' + _custDealChip(cust) + escHtml(cust) + (person ? ' <small>/ ' + escHtml(person) + '</small>' : '') + '</span>' +
       '<span class="qpd-row-who" title="' + escHtml(_whoTitle(r)) + '">' + escHtml(who) +
         (others > 0 ? '<span class="cloud-card-edn">+' + others + '</span>' : '') + '</span>' +
       '<span class="qpd-row-ts">' + ts + '</span>' +
@@ -1215,6 +1283,8 @@
   const QPD_RANK_TOP = 8;      // 既定の表示件数（残りは「すべて表示」で展開）
   let _qpdRankExpanded = false;
 
+  // 受注率の分母になる「提示後」のステータス（統計タブの _SENT_STATUSES と同じ。提示済みは提出済みに正規化される）
+  const _QPD_SENT = ['提出済み', 'ヨコヨコ提示', '受注', '失注'];
   function _qpdCustomerRanking() {
     const map = new Map();   // key -> { key, label, total, won, lost }
     _cloudRows.forEach(r => {
@@ -1223,20 +1293,20 @@
       const key = _custKey(raw);
       if (!key) return;                       // お客様名が未入力の案件は集計対象外
       let e = map.get(key);
-      if (!e) { e = { key, label: raw, total: 0, won: 0, lost: 0, labels: {} }; map.set(key, e); }
+      if (!e) { e = { key, label: raw, total: 0, sent: 0, won: 0, lost: 0, labels: {} }; map.set(key, e); }
       e.total++;
       e.labels[raw] = (e.labels[raw] || 0) + 1;   // 表記ゆれは最頻の綴りで表示する
       const st = _normalizeStatus(r.status || CLOUD_STATUS_DEFAULT);
       if (st === _normalizeStatus('受注')) e.won++;
       else if (st === _normalizeStatus('失注')) e.lost++;
+      if (_QPD_SENT.includes(st)) e.sent++;
     });
     const list = [...map.values()];
     list.forEach(e => {
       e.label = Object.keys(e.labels).sort((a, b) => e.labels[b] - e.labels[a] || a.localeCompare(b, 'ja'))[0] || e.label;
-      // 受注率の分母は「そのお客様の総件数」。
-      // 受注 ÷（受注＋失注）にすると、失注は「はっきり失注と分かるタイミングが無く」
-      // 実務ではほとんど記録されないため、分母が受注だけになって必ず 100% になってしまう。
-      e.winRate = e.total ? Math.round(e.won / e.total * 100) : 0;
+      // 受注率の定義は統計タブと共通：受注 ÷ 提示後の案件（提出済み・ヨコヨコ提示・受注・失注）。
+      // 受注 ÷（受注＋失注）だと失注がほとんど記録されず 100% になり、総件数だと下書きで薄まる。
+      e.winRate = e.sent ? Math.round(e.won / e.sent * 100) : 0;
     });
     list.sort((a, b) => b.total - a.total || a.label.localeCompare(b.label, 'ja'));
     return list;
@@ -1267,7 +1337,7 @@
       // 受注が 1 件も無いお客様には出さない（0% を並べても読み取れる情報が無いため）。
       // ステータス絞り込み中は分母が絞り込み後の件数になり比率の意味が変わるので出さない
       // （例：「受注」で絞ると全社 100% になり読み取れる情報が無い）。
-      const rate = (e.won && !_cloudStatusFilter) ? '<span class="qpd-rank-rate" title="全 ' + e.total + ' 件のうち受注 ' + e.won +
+      const rate = (e.won && !_cloudStatusFilter) ? '<span class="qpd-rank-rate" title="提示後 ' + e.sent + ' 件のうち受注 ' + e.won +
         ' 件（' + e.winRate + '%）' + (e.lost ? '／失注 ' + e.lost + ' 件' : '') + '">受注 ' +
         e.won + '（' + e.winRate + '%）</span>' : '';
       return '<button type="button" class="qpd-rank-item' + (on ? ' is-active' : '') + '" ' +
@@ -1568,6 +1638,7 @@
     _shareMode = mode;
     const main = document.querySelector('#tab-quote-make .quote-main');
     if (main) main.inert = (mode === 'view');   // 閲覧中はフォーム全体を操作不可（マウス・キーボード）
+    if (typeof window.rmsApplyMode === 'function') window.rmsApplyMode(mode === 'view');   // 画面下の全体リマーク（引き出し）も閲覧中は読むだけ
     const tab = document.getElementById('tab-quote-make');
     if (tab) tab.classList.toggle('qmode-view', mode === 'view');
     const banner = document.getElementById('qmBanner');
@@ -1663,7 +1734,7 @@
     const SKIP = ['rowInsertPos','rowPatternInsertPos','bulkCatSet','bulkSubconSet','selectAllChk'];
     const emptyFields = {};
     // フォーム本体（.quote-main）配下のみ対象。ツールバー/コマンドバーは除外
-    document.querySelectorAll('#tab-quote-make .quote-main input[id], #tab-quote-make .quote-main select[id], #tab-quote-make .quote-main textarea[id]').forEach(el => {
+    document.querySelectorAll('#tab-quote-make .quote-main input[id], #tab-quote-make .quote-main select[id], #tab-quote-make .quote-main textarea[id], #rmSheet input[id], #rmSheet select[id], #rmSheet textarea[id]').forEach(el => {   // #rmSheet＝画面下の全体リマーク（引き出し）
       if (SKIP.includes(el.id) || el.closest('.quote-cmdbar')) return;
       emptyFields[el.id] = (el.type === 'checkbox') ? false : '';
     });
@@ -1855,6 +1926,7 @@
     _applyShareMode('edit');
     qpShowEditor();
     qfRenderAttachments();
+    if (typeof window.ciApplyNewCaseDefaults === 'function') window.ciApplyNewCaseDefaults();
     _resetQuoteDirty();
     quoteShowToast('🆕 新規見積を作成します', 'success', 2500);
   }
@@ -1925,8 +1997,8 @@
     var wrap = document.getElementById('qfAttachList');
     if (!wrap) return;
     var c = _getClient();
-    if (!c || !_cloudUser) { wrap.innerHTML = '<div class="qf-attach-empty">ログインすると添付の保存・閲覧ができます</div>'; return; }
-    if (!_loadedCloudId)   { wrap.innerHTML = '<div class="qf-attach-empty">案件を保存すると添付できます（💾 保存）</div>'; return; }
+    if (!c || !_cloudUser) { wrap.innerHTML = '<div class="qf-attach-empty">ファイルはログインすると保存・閲覧できます</div>'; if (window.srcSyncEmpty) window.srcSyncEmpty(); return; }
+    if (!_loadedCloudId)   { wrap.innerHTML = '<div class="qf-attach-empty">ファイルは案件を保存すると添付できます（💾 保存）</div>'; if (window.srcSyncEmpty) window.srcSyncEmpty(); return; }
     var res = await c.from('quote_attachments').select('id,file_name,file_size,mime_type,storage_path,uploaded_by,created_at').eq('preset_id', _loadedCloudId).order('created_at', { ascending: false });
     if (res.error) { wrap.innerHTML = '<div class="qf-attach-empty">⚠️ 取得失敗：' + escHtml(res.error.message) + '</div>'; return; }
     var now = Date.now();
@@ -1934,7 +2006,8 @@
       return !a.created_at || (now - new Date(a.created_at).getTime()) < ATT_TTL_DAYS * 86400000;
     });
     qfRenderStorageMeter();
-    if (!data.length) { wrap.innerHTML = '<div class="qf-attach-empty">添付はまだありません</div>'; return; }
+    if (window.srcSyncEmpty) setTimeout(window.srcSyncEmpty, 0);
+    if (!data.length) { wrap.innerHTML = ''; if (window.srcSyncEmpty) window.srcSyncEmpty(); return; }   // 「資料はまだありません」は資料カード側（sources.js）が URL と合わせて判定する
     wrap.innerHTML = data.map(function (a) {
       var who = _nameFor(a.uploaded_by);
       var ts = a.created_at ? new Date(a.created_at).toLocaleDateString('ja-JP', { month: '2-digit', day: '2-digit' }) : '';
@@ -1949,6 +2022,7 @@
         '<button type="button" class="qf-att-del" onclick="qfAttachDelete(\'' + a.id + '\',\'' + encodeURIComponent(a.storage_path) + '\')" title="削除">✕</button>' +
       '</div>';
     }).join('');
+    if (window.srcSyncEmpty) window.srcSyncEmpty();
   }
   // ストレージ残量インジケーター（チーム全体の添付合計 ÷ 目安容量）
   async function qfRenderStorageMeter() {
@@ -2064,6 +2138,13 @@
     const newData = baseData ? Object.assign({}, baseData, {
       fields: Object.assign({}, baseData.fields, { 'qf-status': status }),
     }) : undefined;
+    // 提示済み／ヨコヨコ提示にしたとき、その時点の客先向け内容を提示履歴（版）に積む（quote-versions.js）
+    if (newData && typeof window.qvOnPresentedData === 'function') {
+      const vj = window.qvOnPresentedData(newData, status, _cloudUser.email);
+      if (vj) newData.fields['qf-versions'] = vj;
+    }
+    // 回答スピードの記録：初めて提示済みにした日時を 1 度だけ残す（quote-versions.js と同じ）
+    if (newData && ['提示済み', '提出済み', 'ヨコヨコ提示'].includes(status) && !newData.fields['qf-first-presented']) newData.fields['qf-first-presented'] = new Date().toISOString();
     const updatePayload = { status, owner_email: _cloudUser.email, updated_at: new Date().toISOString() };
     if (newData) updatePayload.data = newData;
     const { error } = await c.from(_table())
@@ -2091,6 +2172,46 @@
       label: '元に戻す',
       fn: () => cloudSetStatus(rawId, prev),
     });
+    // 失注・辞退にしたら、理由を記録できるようにする（あとで統計の受注分析に使う。スキップ可）
+    if ((status === '失注' || status === '辞退') && row && !(row.data && row.data.fields && row.data.fields['qf-lost-reason'])) {
+      _askLostReason(id, status);
+    }
+  }
+
+  // 失注・辞退の理由を聞く小さな確認画面（ダッシュボードでステータスを変えた直後）。「あとで」で何も保存しない。
+  function _askLostReason(id, status) {
+    document.getElementById('lostReasonOverlay')?.remove();
+    const reasons = window.QF_LOST_REASONS || [];
+    const ov = document.createElement('div');
+    ov.id = 'lostReasonOverlay'; ov.className = 'confirm-overlay';
+    ov.innerHTML =
+      '<div class="confirm-dialog" role="dialog" aria-modal="true">' +
+        '<h3 class="confirm-title">「' + escHtml(status) + '」の理由を記録しますか？</h3>' +
+        '<div class="confirm-body">' +
+          '<p>あとで見積の傾向（価格が原因か、当て馬か等）を振り返るのに使います。社内用で、見積書には出ません。</p>' +
+          '<select id="lrReason" style="width:100%;margin:6px 0">' +
+            '<option value="">— 理由を選ぶ —</option>' + reasons.map(r => '<option value="' + escHtml(r) + '">' + escHtml(r) + '</option>').join('') + '</select>' +
+          '<input type="text" id="lrNote" maxlength="200" placeholder="補足（競合の金額・先方のコメントなど）" style="width:100%">' +
+        '</div>' +
+        '<div class="confirm-actions"><button type="button" class="btn-cancel" id="lrSkip">あとで</button><button type="button" class="btn-primary" id="lrSave">記録する</button></div>' +
+      '</div>';
+    document.body.appendChild(ov);
+    const close = () => ov.remove();
+    ov.querySelector('#lrSkip').onclick = close;
+    ov.addEventListener('mousedown', e => { if (e.target === ov) close(); });
+    ov.querySelector('#lrSave').onclick = async () => {
+      const reason = ov.querySelector('#lrReason').value, note = ov.querySelector('#lrNote').value.trim();
+      if (!reason && !note) { close(); return; }
+      const c = _getClient(); const row = _cloudRows.find(r => r.id === id);
+      if (!c || !row || !row.data) { close(); return; }
+      const newData = Object.assign({}, row.data, { fields: Object.assign({}, row.data.fields, { 'qf-lost-reason': reason, 'qf-lost-note': note }) });
+      const { error } = await c.from(_table()).update({ data: newData, owner_email: _cloudUser.email, updated_at: new Date().toISOString() }).eq('id', id);
+      if (error) { quoteShowToast('⚠️ 理由の保存に失敗：' + error.message, 'warn', 5000); return; }
+      row.data = newData;
+      close();
+      quoteShowToast('📉 理由を記録しました', 'success', 2500);
+    };
+    ov.querySelector('#lrReason').focus();
   }
 
   // 保留放置の自動復帰（_checkStaleHolds）を、この案件だけ個別に止める/再開する。
@@ -2415,6 +2536,7 @@
         _loadedCloudId = resp.data.id;
         _loadedCloudTs = resp.data.updated_at || new Date().toISOString();
         _resetQspChat();   // 保存した案件の申し送りに切り替える（まだ無ければ「まだコメントはありません」）
+        if (window.adminApplyCreatorToNew) await window.adminApplyCreatorToNew(resp.data.id);   // 管理者の一時機能：指定した作成者に付け替え（admin-creator-edit.js）
       }
     }
     if (resp.error) { quoteShowToast('⚠️ 保存に失敗：' + resp.error.message, 'warn', 5000); return; }
@@ -2458,6 +2580,7 @@
     const dir = f['cond-direction'];
     if (dir) condRows.push(_cpKV('方向', dirLabel(dir) || dir));
     if (f['cond-incoterms']) condRows.push(_cpKV('インコタームズ', f['cond-incoterms']));
+    if (f['cond-handling']) condRows.push(_cpKV('荷役条件', f['cond-handling']));
     if (f['cond-mode'])      condRows.push(_cpKV('輸送モード', f['cond-mode']));
     const ins = f['cond-insurance-on'] === 'true' || f['cond-insurance-on'] === true;
     if (ins) condRows.push(_cpKV('保険', '付保あり'));
@@ -3190,6 +3313,11 @@
     const newRef = typeof generateQuoteRefValue === 'function' ? generateQuoteRefValue() : null;
     if (newRef) newData.fields['qf-ref'] = newRef;
     delete newData.fields['qf-core-ref'];   // 基幹REF#は手配した案件に固有のため、コピーには引き継がない
+    ['qf-lost-reason', 'qf-lost-note', 'qf-inq-kind', 'qf-inq-channel', 'qf-inq-spec'].forEach(k => delete newData.fields[k]);   // 失注理由・引き合いの経路は元の案件／依頼に固有
+    delete newData.fields['qf-first-presented'];   // 初回の提示日時（回答スピード）もコピー元のもの
+    delete newData.fields['qf-recv-time'];   // 受信時刻も元の依頼に固有
+    delete newData.fields['qf-versions'];   // 提示履歴（版）はコピー元の案件のものなので引き継がない
+    delete newData.fields['qf-related-data'];   // 関連番号・メール件名も元の引き合いに固有のため引き継がない
     const existingNames = _cloudRows.map(r => r.name);
     let baseName = src.name + ' のコピー';
     let copyName = baseName;
@@ -3229,6 +3357,108 @@
     quoteShowToast('📋 「' + src.name + '」をコピーしました → 「' + copyName + '」', 'success', 3500);
     cloudListPresets();
   }
+
+  // ---------- 🧬 代替わり元（前の案件）をあとから紐づける ----------
+  // 代替わりは、新しい案件の data.copiedFrom（コピー元・世代 gen・オリジナル root）で持つ。
+  // 「コピーして新規作成」以外にも、新規作成した案件へ、あとから前の案件を紐づけて代替わりを設定できる。
+  const _succRef  = r => ((r.data && r.data.fields && r.data.fields['qf-ref']) || r.ref || '').trim();
+  const _succGen  = r => ((r.data && r.data.copiedFrom && r.data.copiedFrom.gen) || 1);
+  const _succRoot = r => ((r.data && r.data.copiedFrom && r.data.copiedFrom.root) || { id: r.id, name: r.name, ref: _succRef(r) });
+  // この案件から代替わりした案件（子・孫…）の id。選べない候補（循環を防ぐ）と世代の再計算に使う
+  function _succDescendants(id) {
+    const out = new Set(), queue = [id];
+    while (queue.length) {
+      const cur = queue.shift();
+      _cloudRows.forEach(r => {
+        const cf = r.data && r.data.copiedFrom;
+        if (cf && cf.id === cur && !out.has(r.id) && r.id !== id) { out.add(r.id); queue.push(r.id); }
+      });
+    }
+    return out;
+  }
+  function _makeCopiedFrom(pred) {
+    return { id: pred.id, name: pred.name, ref: _succRef(pred), gen: _succGen(pred) + 1, root: _succRoot(pred) };
+  }
+  // 紐づけ先に選べる案件の一覧（自分自身・自分から代替わりした案件は除く）
+  window.cloudSuccessionCandidates = function (selfId) {
+    const ex = new Set();
+    if (selfId) { ex.add(selfId); _succDescendants(selfId).forEach(x => ex.add(x)); }
+    return _cloudRows.filter(r => !ex.has(r.id)).map(r => ({
+      id: r.id, name: r.name, ref: _succRef(r), customer: r.customer || '', person: r.person || '',
+      status: r.status || '', updated_at: r.updated_at || '', gen: _succGen(r),
+    }));
+  };
+  window.cloudSuccessionDescendantCount = id => _succDescendants(id).size;
+  window.cloudMakeCopiedFrom = function (predId) {
+    const pred = _cloudRows.find(r => r.id === predId);
+    return pred ? _makeCopiedFrom(pred) : null;
+  };
+  window.cloudLoadedId = () => _loadedCloudId;
+  window.cloudHasRows = () => _cloudRows.length > 0;
+  // この案件から代替わりした案件の「世代」「オリジナル」を、新しいつながりに合わせて数え直す
+  async function _cascadeSuccession(parent) {
+    const c = _getClient();
+    let n = 0, failed = 0;
+    const seen = new Set([parent.id]), queue = [parent];
+    while (queue.length) {
+      const p = queue.shift();
+      const kids = _cloudRows.filter(r => r.data && r.data.copiedFrom && r.data.copiedFrom.id === p.id && !seen.has(r.id));
+      for (const k of kids) {
+        seen.add(k.id);
+        const { data: cur } = await c.from(_table()).select('data').eq('id', k.id).single();
+        if (!cur || !cur.data || !cur.data.copiedFrom) continue;
+        const nd = Object.assign({}, cur.data);
+        nd.copiedFrom = Object.assign({}, nd.copiedFrom, { gen: p.gen + 1, root: p.root });
+        const { data: u, error } = await c.from(_table()).update({ data: nd }).eq('id', k.id).select('id');   // 最終更新者・日時は変えない（世代の数え直しだけ）
+        if (error || !u || !u.length) { failed++; continue; }
+        k.data = nd; n++;
+        queue.push({ id: k.id, gen: p.gen + 1, root: p.root });
+      }
+    }
+    return { updated: n, failed };
+  }
+  // predId を代替わり元（前の案件）に設定する。null で解除。案件を開かずに、案件データだけ更新する
+  async function cloudSetPredecessor(rawId, predId) {
+    const c = _getClient();
+    if (!c || !_cloudUser) { quoteShowToast('⚠️ 先に Google でログインしてください', 'warn'); return false; }
+    const id = decodeURIComponent(rawId);
+    const row = _cloudRows.find(r => r.id === id);
+    if (!row) { quoteShowToast('⚠️ 案件が見つかりません', 'warn'); return false; }
+    const lockedBy = _lockedByOther(row);
+    if (lockedBy) { quoteShowToast('🔒 ' + _nameFor(lockedBy) + ' さんが作業中のため変更できません', 'warn', 4000); return false; }
+    let cf = null;
+    if (predId) {
+      const pred = _cloudRows.find(r => r.id === predId);
+      if (!pred) { quoteShowToast('⚠️ 選んだ案件が見つかりません', 'warn'); return false; }
+      if (predId === id || _succDescendants(id).has(predId)) { quoteShowToast('⚠️ 自分自身や、自分から代替わりした案件は選べません', 'warn', 4000); return false; }
+      cf = _makeCopiedFrom(pred);
+    }
+    const { data: cur, error } = await c.from(_table()).select('data').eq('id', id).single();
+    if (error || !cur) { quoteShowToast('⚠️ 案件を読み込めませんでした' + (error ? '：' + error.message : ''), 'warn', 5000); return false; }
+    const newData = Object.assign({}, cur.data || {});
+    if (cf) newData.copiedFrom = cf; else delete newData.copiedFrom;
+    const nowIso = new Date().toISOString();
+    const { data: upd, error: e2 } = await c.from(_table())
+      .update({ data: newData, owner_email: _cloudUser.email, updated_at: nowIso }).eq('id', id).select('id');
+    if (e2) { quoteShowToast('⚠️ 設定に失敗：' + e2.message, 'warn', 5000); return false; }
+    if (!upd || !upd.length) { quoteShowToast('🔒 他メンバーが編集中のため設定できません（作業が終わってからお試しください）', 'warn', 6500); return false; }
+    row.data = newData; row.owner_email = _cloudUser.email; row.updated_at = nowIso;
+    // この案件から代替わりした案件の世代・オリジナルを数え直す
+    const self = { id, gen: cf ? cf.gen : 1, root: cf ? cf.root : { id, name: row.name, ref: _succRef(row) } };
+    const cas = await _cascadeSuccession(self);
+    // 画面で開いている案件なら、画面側にも反映（あとの保存で消さない・競合検知の基準も更新）
+    if (_loadedCloudId === id) {
+      _loadedCloudTs = nowIso;
+      if (typeof window.qfSetCopiedFrom === 'function') window.qfSetCopiedFrom(cf, { fromDb: true });
+    }
+    quoteShowToast(cf ? '🧬 「' + (row.name || '') + '」を ' + cf.gen + ' 代目として、「' + (cf.name || '') + '」の代替わりに設定しました'
+                      : '🧬 代替わり元の設定を解除しました（オリジナルに戻しました）', 'success', 4500);
+    if (cas.updated) quoteShowToast('🔁 この案件から代替わりした ' + cas.updated + ' 件の世代も数え直しました', 'info', 3500);
+    if (cas.failed) quoteShowToast('⚠️ 編集中などで ' + cas.failed + ' 件の世代は更新できませんでした', 'warn', 6000);
+    cloudListPresets(true);
+    return true;
+  }
+  window.cloudSetPredecessor = cloudSetPredecessor;
 
   // プリセット管理モーダルが開かれたとき ui.js の openPresetMgr から呼ばれる
   function cloudOnPresetMgrOpen() {
@@ -3421,7 +3651,7 @@
       return;
     }
     _renderQspComments(data || []);
-    wrap.scrollTop = wrap.scrollHeight;
+    wrap.scrollTop = 0;   // 新しい順なので先頭（最新）へ
   }
 
   // 案件が切り替わった（新規・クリア・別の案件を開く・新規保存）とき、申し送りの表示を空にして作り直す。
@@ -3439,7 +3669,8 @@
     const wrap = document.getElementById('qspChatList');
     if (!wrap) return;
     if (!rows.length) { wrap.innerHTML = '<span class="cp-chat-empty">まだコメントはありません</span>'; return; }
-    wrap.innerHTML = rows.map(r => {
+    // 編集画面の右レールは「新しい投稿が上」（取得は古い順のまま、表示のときだけ反転）
+    wrap.innerHTML = rows.slice().reverse().map(r => {
       const isMine = _cloudUser && r.created_by === _cloudUser.email;
       const rawName = _nameFor(r.created_by);
       const name = escHtml(rawName);
@@ -3558,12 +3789,13 @@
     if (error) { listEl.innerHTML = '<span class="cp-chat-err">⚠️ 取得失敗</span>'; return; }
     box.dataset.loaded = '1';
     _renderCardThread(listEl, data || []);
-    listEl.scrollTop = listEl.scrollHeight;
+    listEl.scrollTop = 0;   // 新しい順なので先頭（最新）へ
   }
 
   function _cardThreadHtml(rows) {
     if (!rows || !rows.length) return '<span class="cp-chat-empty">まだ申し送りはありません</span>';
-    return rows.map(r => {
+    // ダッシュボードのカードは「新しい投稿が上」（取得・キャッシュは古い順のまま、表示のときだけ反転）
+    return rows.slice().reverse().map(r => {
       const isMine = _cloudUser && r.created_by === _cloudUser.email;
       const rawName = _nameFor(r.created_by);
       const name = escHtml(rawName);
@@ -3576,6 +3808,34 @@
   function _renderCardThread(listEl, rows) {
     listEl.innerHTML = _cardThreadHtml(rows);
   }
+
+  // 申し送りの拡大表示（モーダル）。投稿・新しい順の表示はカードと同じ（キャッシュ _dashChatCache を共有）
+  window.dashExpandCardChat = function (btn) {
+    const box = btn.closest('.cloud-card-chat'); if (!box) return;
+    const id = box.dataset.cid;
+    const title = (box.closest('.cloud-card') && box.closest('.cloud-card').querySelector('.cloud-card-name')?.textContent) || '';
+    const s = _dashChatCache[id] || { rows: [] };
+    document.getElementById('cccModal')?.remove();
+    const w = document.createElement('div');
+    w.id = 'cccModal'; w.className = 'ccc-overlay';
+    w.innerHTML =
+      '<div class="ccc-modal-box" role="dialog" aria-label="申し送り">' +
+        '<div class="ccc-modal-head"><span>💬 申し送り <small>' + escHtml(title) + '（新しい順）</small></span>' +
+          '<button type="button" class="ccc-modal-close" title="閉じる（Esc）">✕</button></div>' +
+        '<div class="cloud-card-chat ccc-open" data-cid="' + escHtml(id) + '">' +
+          '<div class="ccc-list ccc-list--big">' + _cardThreadHtml(s.rows) + '</div>' +
+          '<div class="ccc-compose"><input type="text" class="ccc-input" placeholder="申し送りを入力…" onkeydown="dashCardChatKey(event,this)">' +
+            '<button type="button" class="ccc-send" onclick="dashPostCardComment(this)">送信</button></div>' +
+        '</div>' +
+      '</div>';
+    (document.getElementById('tab-quote-make') || document.body).appendChild(w);   // 見積タブ内のスタイル（チャットの見た目）を使うためタブ内に置く
+    const close = () => { w.remove(); document.removeEventListener('keydown', onKey, true); };
+    const onKey = e => { if (e.key === 'Escape') { e.stopPropagation(); close(); } };
+    document.addEventListener('keydown', onKey, true);
+    w.addEventListener('click', e => { if (e.target === w) close(); });
+    w.querySelector('.ccc-modal-close').onclick = close;
+    w.querySelector('.ccc-input').focus();
+  };
 
   window.dashCardChatKey = function (ev, input) {
     if (ev.key === 'Enter' && !ev.shiftKey) { ev.preventDefault(); window.dashPostCardComment(input); }
@@ -3603,7 +3863,9 @@
       s.rows.push({ id: 'local-' + Date.now(), body, created_by: _cloudUser.email, created_at: new Date().toISOString() });
       _applyDashChatSummary(id);          // キャッシュから件数・プレビュー・スレッドを再描画（追加クエリなし）
       const listEl = box.querySelector('.ccc-list');
-      if (listEl) listEl.scrollTop = listEl.scrollHeight;
+      if (listEl) listEl.scrollTop = 0;   // 新しい順なので先頭（最新）へ
+      const big = document.querySelector('#cccModal .ccc-list');   // 拡大表示を開いていれば、そちらも更新
+      if (big) { _renderCardThread(big, s.rows); big.scrollTop = 0; }
     } catch (e) {
       quoteShowToast('⚠️ 送信失敗：' + (e.message || e), 'warn', 5000);
     } finally {
@@ -4006,6 +4268,7 @@
   window.qpShowDashboard   = qpShowDashboard;
   window.qpBackToDashboard = qpBackToDashboard;
   window.qpShowEditor      = qpShowEditor;
+  window.cloudIsUnsavedNew = () => !_loadedCloudId;   // 管理者の一時機能（admin-creator-edit.js）：未保存の新規案件か
   window.qpNewQuote        = qpNewQuote;
   window.qpDockAction      = qpDockAction;
   // ダッシュボード：詳細検索・並び替え・表示切替
@@ -4022,10 +4285,14 @@
   window.qfAttachOpen       = qfAttachOpen;
   window.qfAttachDelete     = qfAttachDelete;
   window.qfRenderAttachments = qfRenderAttachments;
+  window.qfRenderStorageMeter = qfRenderStorageMeter;
+  // 資料を追加ダイアログ（sources.js）が、ファイルを添付できる状態かを知るための読み取り口
+  window.qfAttachState = function () { return { loggedIn: !!_cloudUser, saved: !!_loadedCloudId, configured: !!_getClient() }; };
 
   // ---------- 他モジュール（行パターン等）からのログイン情報参照用 ----------
   window.quoteCloudUser   = function () { return _cloudUser; };
   window.quoteCloudClient = function () { return _getClient(); };
+  window.quoteCurrentUserEmail = function () { return (_cloudUser && _cloudUser.email) || ''; };   // 提示履歴（quote-versions.js）等が使う
   window.quoteCloudLoadedId = function () { return _loadedCloudId; };
   window.quoteDisplayName = function (email) { return (email && _profileMap[email]) || email || '—'; };
   window.quoteLoadProfiles = _loadProfiles;

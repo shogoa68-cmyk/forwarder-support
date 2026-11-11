@@ -24,9 +24,9 @@ const SUF=(MODE==='simple'?'-simple':'')+(process.env.THEME?'-industry':'');
  await p.evaluate(()=>{const t=document.querySelector('[onclick*="quote-make"]');t&&t.click();});await p.waitForTimeout(900);
  await p.evaluate(()=>window.qpShowEditor&&window.qpShowEditor());
  await p.fill('#qf-ref','10-261012-001');await p.fill('#qf-customer','サンプル商事株式会社');await p.fill('#qf-person','山田');
- await p.click('#dirBtns [data-dir="export"]');await p.evaluate(()=>setTransport('fcl'));
- await p.selectOption('#cond-incoterms',{label:'FOB（本船渡し）'});
- await p.fill('#z2Carrier','Maersk');await p.fill('#z2Pol','YOKOHAMA');await p.fill('#z2Pod','BANGKOK');await p.evaluate(()=>addRouteEntry());
+ await p.selectOption('#cond-incoterms',{label:'FOB（本船渡し）'});await p.click('#dirBtns [data-dir="export"]');await p.evaluate(()=>setTransport('fcl'));
+ 
+ await p.evaluate(() => window.rfOpenCarrier && window.rfOpenCarrier()); await p.fill('#z2Carrier','Maersk');await p.fill('#z2Pol','YOKOHAMA');await p.fill('#z2Pod','BANGKOK');await p.evaluate(()=>addRouteEntry());
  const rows=[['海上運賃','A海運','ocean',120000,20000],['THC','Bローカル','export-local',30000,5000],['通関料','C通関','customs-export',8000,2000]];
  for(let i=0;i<rows.length;i++){
   if(i>0){await p.evaluate(()=>window.addRow());await p.waitForTimeout(80);}

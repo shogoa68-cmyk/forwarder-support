@@ -73,7 +73,8 @@
     }
     submitBtn.disabled = true;
     submitBtn.textContent = '送信中…';
-    const bodyFinal = _fbExtraContext ? `【${_fbExtraContext}】\n${body}` : body;
+    const bodyIn = (typeof window.fbIdeaBody === 'function') ? window.fbIdeaBody(body) : body;   // アイデアなら種類などを見出しつきの本文に（js/feedback.js）
+    const bodyFinal = _fbExtraContext ? `【${_fbExtraContext}】\n${bodyIn}` : bodyIn;
     try {
       const { data: { session } } = await db.auth.getSession();
       const baseRow = {
@@ -95,7 +96,10 @@
         ({ error } = await db.from('feedbacks').insert({ ...baseRow, body: bodyFinal + note }));
       }
       if (error) throw error;
-      quoteShowToast('✅ 送信しました。ありがとうございます！ 対応状況は「🐞 不具合報告」で確認できます', 'success', 6000);
+      const _isIdea = typeof window.fbIsIdeaMode === 'function' && window.fbIsIdeaMode();
+      quoteShowToast(_isIdea
+        ? '✅ アイデアを送りました。ありがとうございます！ 「💡 アイデア」で他の人の案に 👍 もできます'
+        : '✅ 送信しました。ありがとうございます！ 対応状況は「🐞 不具合報告」で確認できます', 'success', 6000);
       _fbClearForm();
       if (typeof window.fbAfterSubmit === 'function') window.fbAfterSubmit();
       document.getElementById('fbOverlay').classList.remove('open');

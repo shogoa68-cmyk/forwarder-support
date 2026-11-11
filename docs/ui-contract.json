@@ -1,6 +1,8 @@
 {
  "note": "デザイン変更で壊してはいけない、画面（HTML/CSS）と機能（JS）のつなぎ目の基準。node scripts/check-ui-contract.js --update で再生成。",
  "ids": [
+  "adminCreatorNew",
+  "adminCreatorNewList",
   "air-divisor",
   "air-rows-wrap",
   "backToQuoteFab",
@@ -177,6 +179,7 @@
   "cpSelectAll",
   "cpTableBody",
   "cpTitle",
+  "cptRoot",
   "crBanner",
   "csvColModal",
   "csvDropZone",
@@ -204,8 +207,10 @@
   "emailImportBox",
   "emailImportModal",
   "fbBody",
+  "fbCategoryRadios",
   "fbForm",
   "fbHeadTitle",
+  "fbIdeaTypeRadios",
   "fbListContent",
   "fbListFilter",
   "fbListPane",
@@ -215,6 +220,7 @@
   "fbSubmitBtn",
   "fbTabList",
   "fbTabSend",
+  "fbrModes",
   "flPanel",
   "fxAutoModeChk",
   "fxFetchBtn",
@@ -229,7 +235,7 @@
   "hdrCloudUser",
   "hdrUserMgrBtn",
   "hz-entries-data",
-  "hz-un",
+  "hz-name",
   "hzEntryList",
   "incoLabel",
   "incoRetGroup",
@@ -364,7 +370,7 @@
   "qf-person",
   "qf-ref",
   "qf-refurl",
-  "qf-refurl-view",
+  "qf-related-data",
   "qf-revision-baseline",
   "qf-revision-hide-diff",
   "qf-scope",
@@ -376,14 +382,19 @@
   "qfAttachMeter",
   "qfCopiedFromInfo",
   "qfCustomerDetailBtn",
+  "qfMemoFab",
   "qfMemoFloat",
   "qfMemoFloatBtn",
   "qfMemoFloatHead",
   "qfMemoPopout",
   "qfPersonSuggestions",
+  "qfRelChips",
+  "qfRelInput",
+  "qfRelKind",
   "qfRevisionBtn",
   "qfRevisionFilters",
   "qfRevisionOptions",
+  "qfSrcUrls",
   "qfTagSuggestions",
   "qfTagsChips",
   "qfTagsInput",
@@ -429,6 +440,7 @@
   "qspTabBtn-fin",
   "qspTabBtn-flow",
   "qtyPatternBar",
+  "quoteActionDock",
   "quoteFxBar",
   "quoteGlossary",
   "quoteSummaryPanel",
@@ -437,6 +449,7 @@
   "rate-amount",
   "rate-from",
   "rate-status",
+  "remarkBody",
   "remarkCargoDel",
   "remarkCargoSel",
   "remarkChar",
@@ -482,6 +495,8 @@
   "scopePresetModal",
   "scopePresetTitle",
   "seaAirBtns",
+  "section-cargo",
+  "section-cond",
   "section-ref",
   "section-remark",
   "section-table",
@@ -534,6 +549,7 @@
   "tot-row-label",
   "tot-subtotal",
   "totPsRow",
+  "umAnnPane",
   "umHeadSub",
   "umInviteBtn",
   "umInviteEmail",
@@ -546,6 +562,7 @@
   "umPermsPane",
   "umRoleFilter",
   "umSearch",
+  "umTabAnn",
   "umTabMembers",
   "umTabPerms",
   "unit-list",
@@ -744,6 +761,14 @@
    "uses": 1,
    "defined": true
   },
+  "ciSetValidEom": {
+   "uses": 2,
+   "defined": true
+  },
+  "ciToggleMemo": {
+   "uses": 1,
+   "defined": true
+  },
   "clearCalcResult": {
    "uses": 8,
    "defined": true
@@ -869,7 +894,7 @@
    "defined": true
   },
   "closeTbMenus": {
-   "uses": 6,
+   "uses": 8,
    "defined": true
   },
   "closeUserMgr": {
@@ -984,10 +1009,6 @@
    "uses": 1,
    "defined": true
   },
-  "editRefUrl": {
-   "uses": 1,
-   "defined": true
-  },
   "eiApplyAsNew": {
    "uses": 1,
    "defined": true
@@ -1032,6 +1053,10 @@
    "uses": 1,
    "defined": true
   },
+  "fbOpenIdea": {
+   "uses": 1,
+   "defined": true
+  },
   "fbOpenQuick": {
    "uses": 1,
    "defined": true
@@ -1046,6 +1071,10 @@
   },
   "fbrReload": {
    "uses": 1,
+   "defined": true
+  },
+  "fbrSetMode": {
+   "uses": 4,
    "defined": true
   },
   "fillQuoteRef": {
@@ -1069,6 +1098,14 @@
    "defined": true
   },
   "handleRemarkImageFiles": {
+   "uses": 1,
+   "defined": true
+  },
+  "hzAiCopyPrompt": {
+   "uses": 1,
+   "defined": true
+  },
+  "hzAiImport": {
    "uses": 1,
    "defined": true
   },
@@ -1261,7 +1298,7 @@
    "defined": true
   },
   "onZ2CarrierChange": {
-   "uses": 1,
+   "uses": 2,
    "defined": true
   },
   "onZonePiecesInput": {
@@ -1298,10 +1335,6 @@
   },
   "openEmailImport": {
    "uses": 2,
-   "defined": true
-  },
-  "openFeedback": {
-   "uses": 8,
    "defined": true
   },
   "openMemoPopout": {
@@ -1392,6 +1425,10 @@
    "uses": 1,
    "defined": true
   },
+  "qfAddRelFromInput": {
+   "uses": 1,
+   "defined": true
+  },
   "qfAddTagFromInput": {
    "uses": 1,
    "defined": true
@@ -1405,6 +1442,10 @@
    "defined": true
   },
   "qfEditCustomerDetail": {
+   "uses": 1,
+   "defined": true
+  },
+  "qfRelKeydown": {
    "uses": 1,
    "defined": true
   },
@@ -1489,7 +1530,7 @@
    "defined": false
   },
   "quickQuotePdf": {
-   "uses": 1,
+   "uses": 2,
    "defined": true
   },
   "quoteRedo": {
@@ -1522,10 +1563,6 @@
   },
   "renderFxPanel": {
    "uses": 2,
-   "defined": true
-  },
-  "renderRefUrlLinks": {
-   "uses": 1,
    "defined": true
   },
   "renderUserCatPanel": {
@@ -1680,6 +1717,22 @@
    "uses": 1,
    "defined": true
   },
+  "srcAddClose": {
+   "uses": 2,
+   "defined": true
+  },
+  "srcAddOpen": {
+   "uses": 1,
+   "defined": true
+  },
+  "srcAddUrlsFromInput": {
+   "uses": 1,
+   "defined": true
+  },
+  "srcFocusUrl": {
+   "uses": 1,
+   "defined": true
+  },
   "startQuoteRevision": {
    "uses": 1,
    "defined": true
@@ -1713,7 +1766,7 @@
    "defined": true
   },
   "switchCategory": {
-   "uses": 13,
+   "uses": 16,
    "defined": true
   },
   "switchFbTab": {
@@ -1729,7 +1782,7 @@
    "defined": true
   },
   "switchUmTab": {
-   "uses": 2,
+   "uses": 3,
    "defined": true
   },
   "toggleAllCsvCols": {
@@ -1765,7 +1818,7 @@
    "defined": true
   },
   "toggleMemoFloat": {
-   "uses": 1,
+   "uses": 3,
    "defined": true
   },
   "togglePalCustom": {
@@ -1809,7 +1862,7 @@
    "defined": true
   },
   "uiToggleOpt": {
-   "uses": 2,
+   "uses": 1,
    "defined": true
   },
   "umFilter": {
@@ -1839,6 +1892,18 @@
    "html": true
   },
   "actual-cost-btn": {
+   "css": true,
+   "html": true
+  },
+  "admin-creator-cancel": {
+   "css": false,
+   "html": false
+  },
+  "admin-creator-ok": {
+   "css": true,
+   "html": false
+  },
+  "app": {
    "css": true,
    "html": true
   },
@@ -1998,13 +2063,17 @@
    "css": true,
    "html": true
   },
-  "cc-chip-dims": {
-   "css": true,
-   "html": false
-  },
   "cc-count": {
    "css": true,
    "html": true
+  },
+  "cc-info": {
+   "css": true,
+   "html": false
+  },
+  "cc-info-wrap": {
+   "css": true,
+   "html": false
   },
   "cc-label": {
    "css": true,
@@ -2038,6 +2107,10 @@
    "css": true,
    "html": false
   },
+  "ccc-modal-close": {
+   "css": true,
+   "html": false
+  },
   "ccc-open": {
    "css": true,
    "html": false
@@ -2062,7 +2135,51 @@
    "css": true,
    "html": true
   },
+  "cf-flow": {
+   "css": true,
+   "html": false
+  },
+  "cf-hide": {
+   "css": true,
+   "html": false
+  },
+  "cf-hint-top": {
+   "css": false,
+   "html": false
+  },
+  "cg-flow": {
+   "css": true,
+   "html": false
+  },
+  "cg-opt": {
+   "css": true,
+   "html": false
+  },
+  "cg-panel": {
+   "css": true,
+   "html": false
+  },
   "checked": {
+   "css": true,
+   "html": true
+  },
+  "ci-collapsed": {
+   "css": true,
+   "html": false
+  },
+  "ci-dates": {
+   "css": true,
+   "html": true
+  },
+  "ci-fold-arrow": {
+   "css": false,
+   "html": true
+  },
+  "ci-head": {
+   "css": true,
+   "html": true
+  },
+  "ci-more-open": {
    "css": true,
    "html": false
   },
@@ -2071,6 +2188,10 @@
    "html": false
   },
   "cloud-card-links": {
+   "css": true,
+   "html": false
+  },
+  "cloud-card-name": {
    "css": true,
    "html": false
   },
@@ -2106,6 +2227,34 @@
    "css": false,
    "html": false
   },
+  "cn-between": {
+   "css": true,
+   "html": false
+  },
+  "cn-ctrl": {
+   "css": true,
+   "html": true
+  },
+  "cn-end": {
+   "css": true,
+   "html": false
+  },
+  "cn-group": {
+   "css": true,
+   "html": true
+  },
+  "cn-hint": {
+   "css": true,
+   "html": true
+  },
+  "cn-mode-btn": {
+   "css": true,
+   "html": true
+  },
+  "cn-unknown": {
+   "css": false,
+   "html": false
+  },
   "cnt-link-btn": {
    "css": true,
    "html": true
@@ -2135,6 +2284,18 @@
    "html": false
   },
   "cond-prim-btn": {
+   "css": true,
+   "html": true
+  },
+  "cond-prim-group": {
+   "css": true,
+   "html": true
+  },
+  "cond-primary-bar": {
+   "css": true,
+   "html": true
+  },
+  "cond-rate-card": {
    "css": true,
    "html": true
   },
@@ -2182,6 +2343,14 @@
    "css": true,
    "html": false
   },
+  "cpt-seg": {
+   "css": true,
+   "html": false
+  },
+  "cpt-tab": {
+   "css": true,
+   "html": false
+  },
   "cr-f-body": {
    "css": false,
    "html": false
@@ -2198,7 +2367,19 @@
    "css": false,
    "html": false
   },
-  "cr-toggle": {
+  "cr-item": {
+   "css": true,
+   "html": false
+  },
+  "cr-lv-strict": {
+   "css": true,
+   "html": false
+  },
+  "cross-move-cancel": {
+   "css": false,
+   "html": false
+  },
+  "cross-move-ok": {
    "css": true,
    "html": false
   },
@@ -2219,6 +2400,10 @@
    "html": true
   },
   "drag-over-bottom": {
+   "css": true,
+   "html": false
+  },
+  "drag-over-cross": {
    "css": true,
    "html": false
   },
@@ -2258,6 +2443,22 @@
    "css": true,
    "html": false
   },
+  "ei-rem-chk": {
+   "css": false,
+   "html": false
+  },
+  "ei-rem-text": {
+   "css": true,
+   "html": false
+  },
+  "ei-rem-to": {
+   "css": true,
+   "html": false
+  },
+  "ei-remarks": {
+   "css": true,
+   "html": false
+  },
   "ei-store-case": {
    "css": true,
    "html": false
@@ -2267,6 +2468,10 @@
    "html": false
   },
   "ei-sv": {
+   "css": true,
+   "html": false
+  },
+  "ei-table": {
    "css": true,
    "html": false
   },
@@ -2315,6 +2520,14 @@
    "html": false
   },
   "fbr-composer-btns": {
+   "css": true,
+   "html": false
+  },
+  "fbr-mode": {
+   "css": true,
+   "html": true
+  },
+  "fbr-vote": {
    "css": true,
    "html": false
   },
@@ -2370,15 +2583,39 @@
    "css": true,
    "html": false
   },
+  "has-alias": {
+   "css": false,
+   "html": false
+  },
   "has-badge": {
    "css": true,
+   "html": false
+  },
+  "has-content": {
+   "css": false,
    "html": false
   },
   "has-cr": {
    "css": true,
    "html": false
   },
+  "has-haz": {
+   "css": true,
+   "html": false
+  },
   "has-img": {
+   "css": true,
+   "html": false
+  },
+  "has-kind": {
+   "css": true,
+   "html": false
+  },
+  "has-memo": {
+   "css": true,
+   "html": false
+  },
+  "has-range": {
    "css": true,
    "html": false
   },
@@ -2387,10 +2624,6 @@
    "html": false
   },
   "has-valid-inline": {
-   "css": true,
-   "html": false
-  },
-  "has-value": {
    "css": true,
    "html": false
   },
@@ -2406,6 +2639,18 @@
    "css": true,
    "html": false
   },
+  "hdr-roadmap": {
+   "css": true,
+   "html": true
+  },
+  "header": {
+   "css": true,
+   "html": true
+  },
+  "header-auth": {
+   "css": true,
+   "html": true
+  },
   "hide-pattern-linked": {
    "css": true,
    "html": false
@@ -2413,6 +2658,14 @@
   "hide-pattern-needs-check": {
    "css": true,
    "html": false
+  },
+  "hint-folded": {
+   "css": true,
+   "html": false
+  },
+  "hs-tariff-link": {
+   "css": true,
+   "html": true
   },
   "ic-chips": {
    "css": true,
@@ -2482,11 +2735,23 @@
    "css": true,
    "html": false
   },
+  "is-drop": {
+   "css": true,
+   "html": false
+  },
   "is-empty": {
    "css": true,
    "html": false
   },
+  "is-err": {
+   "css": true,
+   "html": false
+  },
   "is-excluded": {
+   "css": true,
+   "html": false
+  },
+  "is-filedrop": {
    "css": true,
    "html": false
   },
@@ -2502,6 +2767,10 @@
    "css": true,
    "html": false
   },
+  "is-idea": {
+   "css": true,
+   "html": false
+  },
   "is-linked": {
    "css": true,
    "html": false
@@ -2511,10 +2780,14 @@
    "html": false
   },
   "is-none": {
-   "css": false,
+   "css": true,
    "html": false
   },
-  "is-notes-open": {
+  "is-nudging": {
+   "css": true,
+   "html": false
+  },
+  "is-off": {
    "css": true,
    "html": false
   },
@@ -2546,7 +2819,15 @@
    "css": true,
    "html": false
   },
+  "is-pos": {
+   "css": false,
+   "html": false
+  },
   "is-pt-solo": {
+   "css": true,
+   "html": false
+  },
+  "is-retired": {
    "css": true,
    "html": false
   },
@@ -2563,6 +2844,10 @@
    "html": false
   },
   "is-shown": {
+   "css": true,
+   "html": false
+  },
+  "is-std": {
    "css": true,
    "html": false
   },
@@ -2666,7 +2951,15 @@
    "css": false,
    "html": false
   },
+  "master-admin-title": {
+   "css": false,
+   "html": false
+  },
   "master-area-btn": {
+   "css": true,
+   "html": false
+  },
+  "master-attach-item": {
    "css": true,
    "html": false
   },
@@ -2687,6 +2980,26 @@
    "html": true
   },
   "master-register": {
+   "css": true,
+   "html": false
+  },
+  "mc-flash": {
+   "css": true,
+   "html": false
+  },
+  "mc-on": {
+   "css": true,
+   "html": false
+  },
+  "mc-table-on": {
+   "css": true,
+   "html": false
+  },
+  "mcs-nav": {
+   "css": true,
+   "html": false
+  },
+  "mcs-open": {
    "css": true,
    "html": false
   },
@@ -2730,7 +3043,19 @@
    "css": true,
    "html": false
   },
+  "md-modal-head": {
+   "css": true,
+   "html": false
+  },
   "md-modal-open": {
+   "css": true,
+   "html": false
+  },
+  "md-modal-title": {
+   "css": false,
+   "html": false
+  },
+  "memo-fab-off": {
    "css": true,
    "html": false
   },
@@ -2757,6 +3082,14 @@
   "mode-simple": {
    "css": true,
    "html": true
+  },
+  "mt-body": {
+   "css": true,
+   "html": false
+  },
+  "mt-tab": {
+   "css": true,
+   "html": false
   },
   "name-unregistered": {
    "css": true,
@@ -2794,6 +3127,22 @@
    "css": true,
    "html": true
   },
+  "piece-item": {
+   "css": true,
+   "html": true
+  },
+  "pp-ccchk": {
+   "css": false,
+   "html": false
+  },
+  "pp-chk": {
+   "css": false,
+   "html": false
+  },
+  "pp-quick": {
+   "css": true,
+   "html": false
+  },
   "pq-pattern-linked": {
    "css": true,
    "html": false
@@ -2803,6 +3152,14 @@
    "html": false
   },
   "preset-btn": {
+   "css": true,
+   "html": false
+  },
+  "preset-btn-add": {
+   "css": true,
+   "html": false
+  },
+  "preset-tier-label": {
    "css": true,
    "html": false
   },
@@ -2817,6 +3174,14 @@
   "prof-save": {
    "css": true,
    "html": true
+  },
+  "profit-neg": {
+   "css": true,
+   "html": false
+  },
+  "profit-pos": {
+   "css": true,
+   "html": false
   },
   "profit-share-btn": {
    "css": true,
@@ -2918,6 +3283,10 @@
    "css": true,
    "html": true
   },
+  "qad-btn": {
+   "css": true,
+   "html": true
+  },
   "qad-edit": {
    "css": true,
    "html": false
@@ -2938,6 +3307,14 @@
    "css": false,
    "html": false
   },
+  "qf-attach-empty": {
+   "css": true,
+   "html": true
+  },
+  "qf-attach-item": {
+   "css": true,
+   "html": false
+  },
   "qf-expired": {
    "css": true,
    "html": false
@@ -2946,11 +3323,15 @@
    "css": true,
    "html": false
   },
-  "qf-refurl-links": {
+  "qf-status-btn": {
    "css": true,
    "html": true
   },
-  "qf-status-btn": {
+  "qm-2col": {
+   "css": true,
+   "html": false
+  },
+  "qmf-x": {
    "css": true,
    "html": true
   },
@@ -3050,10 +3431,6 @@
    "css": true,
    "html": true
   },
-  "quote-field-memo": {
-   "css": true,
-   "html": true
-  },
   "quote-main": {
    "css": true,
    "html": true
@@ -3070,9 +3447,21 @@
    "css": true,
    "html": false
   },
+  "qv-close": {
+   "css": true,
+   "html": false
+  },
   "qvm-customer": {
    "css": true,
    "html": false
+  },
+  "range-hint": {
+   "css": true,
+   "html": true
+  },
+  "range-mode-btn": {
+   "css": true,
+   "html": true
   },
   "rd-breakdown": {
    "css": true,
@@ -3085,6 +3474,10 @@
   "ref-info-btn": {
    "css": true,
    "html": true
+  },
+  "remark-img-item": {
+   "css": false,
+   "html": false
   },
   "remark-internal": {
    "css": true,
@@ -3110,7 +3503,39 @@
    "css": false,
    "html": false
   },
+  "rf-flow": {
+   "css": true,
+   "html": false
+  },
+  "rf-hide": {
+   "css": true,
+   "html": false
+  },
+  "rf-stack": {
+   "css": true,
+   "html": false
+  },
+  "rf-via-off": {
+   "css": true,
+   "html": false
+  },
   "rfx-add": {
+   "css": true,
+   "html": false
+  },
+  "rm-tab": {
+   "css": true,
+   "html": false
+  },
+  "rm-tabbed": {
+   "css": true,
+   "html": false
+  },
+  "rms-open": {
+   "css": true,
+   "html": false
+  },
+  "rms-panel": {
    "css": true,
    "html": false
   },
@@ -3134,6 +3559,10 @@
    "css": true,
    "html": false
   },
+  "row-add-btn": {
+   "css": false,
+   "html": true
+  },
   "row-bc-indep": {
    "css": true,
    "html": false
@@ -3142,9 +3571,17 @@
    "css": true,
    "html": false
   },
+  "row-cn-mode": {
+   "css": true,
+   "html": false
+  },
   "row-conditional": {
    "css": true,
    "html": false
+  },
+  "row-del-btn": {
+   "css": true,
+   "html": true
   },
   "row-detail-btn": {
    "css": true,
@@ -3226,6 +3663,10 @@
    "css": true,
    "html": false
   },
+  "row-range-mode": {
+   "css": true,
+   "html": false
+  },
   "row-ref-info": {
    "css": true,
    "html": false
@@ -3270,6 +3711,14 @@
    "css": false,
    "html": false
   },
+  "rt-label": {
+   "css": false,
+   "html": false
+  },
+  "rt-on": {
+   "css": true,
+   "html": false
+  },
   "save-btn-menu": {
    "css": true,
    "html": true
@@ -3311,6 +3760,10 @@
    "html": false
   },
   "section-toggle-head": {
+   "css": true,
+   "html": true
+  },
+  "section-toggle-title": {
    "css": true,
    "html": true
   },
@@ -3386,14 +3839,6 @@
    "css": true,
    "html": false
   },
-  "st-notes": {
-   "css": true,
-   "html": false
-  },
-  "st-notes-btn": {
-   "css": true,
-   "html": false
-  },
   "st-state": {
    "css": true,
    "html": false
@@ -3451,6 +3896,14 @@
    "html": true
   },
   "subcon-alias-input": {
+   "css": true,
+   "html": false
+  },
+  "subcon-alias-trigger": {
+   "css": true,
+   "html": false
+  },
+  "subcon-alias-view": {
    "css": true,
    "html": false
   },
@@ -3598,6 +4051,30 @@
    "css": false,
    "html": false
   },
+  "succ-cancel": {
+   "css": true,
+   "html": false
+  },
+  "succ-count": {
+   "css": true,
+   "html": false
+  },
+  "succ-item": {
+   "css": true,
+   "html": false
+  },
+  "succ-list": {
+   "css": true,
+   "html": false
+  },
+  "succ-search": {
+   "css": true,
+   "html": false
+  },
+  "succ-x": {
+   "css": true,
+   "html": false
+  },
   "sv-bm-pop-body": {
    "css": true,
    "html": false
@@ -3650,6 +4127,10 @@
    "css": true,
    "html": true
   },
+  "tf-profit": {
+   "css": true,
+   "html": false
+  },
   "theme-industry": {
    "css": true,
    "html": false
@@ -3657,6 +4138,10 @@
   "theme-industry-doc": {
    "css": true,
    "html": false
+  },
+  "theme-quiet": {
+   "css": true,
+   "html": true
   },
   "tier-opt-caret": {
    "css": true,
@@ -3786,11 +4271,59 @@
    "css": true,
    "html": true
   },
+  "wf-menu": {
+   "css": true,
+   "html": false
+  },
+  "wf-pv-body": {
+   "css": true,
+   "html": false
+  },
+  "wf-rename": {
+   "css": true,
+   "html": false
+  },
+  "wf-tree": {
+   "css": true,
+   "html": false
+  },
+  "z2-arrow": {
+   "css": true,
+   "html": true
+  },
+  "z2-pol-pod-row": {
+   "css": true,
+   "html": true
+  },
+  "z2-port": {
+   "css": true,
+   "html": true
+  },
+  "z2-route-add": {
+   "css": true,
+   "html": true
+  },
   "z2-route-chip": {
    "css": true,
    "html": false
   },
+  "z2-service-row": {
+   "css": true,
+   "html": true
+  },
+  "z2-tt-row": {
+   "css": true,
+   "html": true
+  },
+  "z2-via-port": {
+   "css": true,
+   "html": true
+  },
   "zero-confirm-btn": {
+   "css": true,
+   "html": true
+  },
+  "zone-card-title": {
    "css": true,
    "html": true
   },
@@ -3824,6 +4357,14 @@
    "html": false,
    "js": true
   },
+  "add": {
+   "html": false,
+   "js": true
+  },
+  "addrow": {
+   "html": false,
+   "js": true
+  },
   "adv-key": {
    "html": true,
    "js": true
@@ -3849,6 +4390,10 @@
    "js": true
   },
   "bc-indep": {
+   "html": false,
+   "js": true
+  },
+  "bind": {
    "html": false,
    "js": true
   },
@@ -3900,6 +4445,10 @@
    "html": false,
    "js": true
   },
+  "caret": {
+   "html": false,
+   "js": true
+  },
   "cat": {
    "html": true,
    "js": true
@@ -3912,6 +4461,10 @@
    "html": false,
    "js": true
   },
+  "cc": {
+   "html": false,
+   "js": true
+  },
   "ccy": {
    "html": false,
    "js": true
@@ -3920,7 +4473,23 @@
    "html": false,
    "js": true
   },
+  "cf": {
+   "html": false,
+   "js": true
+  },
+  "cf-init": {
+   "html": false,
+   "js": true
+  },
+  "cg-init": {
+   "html": false,
+   "js": true
+  },
   "cid": {
+   "html": false,
+   "js": true
+  },
+  "cn-unknown": {
    "html": false,
    "js": true
   },
@@ -3936,6 +4505,10 @@
    "html": true,
    "js": true
   },
+  "cold": {
+   "html": false,
+   "js": true
+  },
   "color": {
    "html": false,
    "js": true
@@ -3945,6 +4518,10 @@
    "js": true
   },
   "cr": {
+   "html": false,
+   "js": true
+  },
+  "crumb": {
    "html": false,
    "js": true
   },
@@ -3965,6 +4542,10 @@
    "js": true
   },
   "drag-inited": {
+   "html": false,
+   "js": true
+  },
+  "drop": {
    "html": false,
    "js": true
   },
@@ -4001,6 +4582,10 @@
    "js": true
   },
   "fld": {
+   "html": false,
+   "js": true
+  },
+  "for": {
    "html": false,
    "js": true
   },
@@ -4045,6 +4630,10 @@
    "js": true
   },
   "hide-quote": {
+   "html": false,
+   "js": true
+  },
+  "ht-init": {
    "html": false,
    "js": true
   },
@@ -4104,6 +4693,10 @@
    "html": false,
    "js": true
   },
+  "lc-init": {
+   "html": false,
+   "js": true
+  },
   "lc-label-bound": {
    "html": false,
    "js": true
@@ -4157,6 +4750,14 @@
    "js": true
   },
   "mode": {
+   "html": true,
+   "js": true
+  },
+  "mt": {
+   "html": false,
+   "js": true
+  },
+  "mt-done": {
    "html": false,
    "js": true
   },
@@ -4172,6 +4773,10 @@
    "html": false,
    "js": true
   },
+  "nav": {
+   "html": false,
+   "js": true
+  },
   "nt-auto": {
    "html": false,
    "js": true
@@ -4181,6 +4786,10 @@
    "js": true
   },
   "og-row": {
+   "html": false,
+   "js": true
+  },
+  "open": {
    "html": false,
    "js": true
   },
@@ -4212,6 +4821,10 @@
    "html": false,
    "js": true
   },
+  "placed": {
+   "html": false,
+   "js": true
+  },
   "port-pair": {
    "html": false,
    "js": true
@@ -4236,6 +4849,10 @@
    "html": false,
    "js": true
   },
+  "pv": {
+   "html": false,
+   "js": true
+  },
   "pv-hidden": {
    "html": false,
    "js": true
@@ -4252,6 +4869,10 @@
    "html": true,
    "js": true
   },
+  "q": {
+   "html": false,
+   "js": true
+  },
   "qpat": {
    "html": false,
    "js": true
@@ -4265,6 +4886,10 @@
    "js": true
   },
   "qvm": {
+   "html": false,
+   "js": true
+  },
+  "range": {
    "html": false,
    "js": true
   },
@@ -4288,7 +4913,27 @@
    "html": false,
    "js": true
   },
+  "rename": {
+   "html": false,
+   "js": true
+  },
   "rendered": {
+   "html": false,
+   "js": true
+  },
+  "rf-init": {
+   "html": false,
+   "js": true
+  },
+  "row": {
+   "html": false,
+   "js": true
+  },
+  "rt": {
+   "html": false,
+   "js": true
+  },
+  "rt-init": {
    "html": false,
    "js": true
   },
@@ -4310,6 +4955,10 @@
   },
   "sitab": {
    "html": true,
+   "js": true
+  },
+  "sort": {
+   "html": false,
    "js": true
   },
   "sort-bound": {
@@ -4373,7 +5022,7 @@
    "js": true
   },
   "theme": {
-   "html": false,
+   "html": true,
    "js": true
   },
   "theme-css": {
@@ -4392,6 +5041,14 @@
    "html": false,
    "js": true
   },
+  "tmode": {
+   "html": false,
+   "js": true
+  },
+  "tone": {
+   "html": true,
+   "js": true
+  },
   "tool": {
    "html": false,
    "js": true
@@ -4402,6 +5059,10 @@
   },
   "transport": {
    "html": true,
+   "js": true
+  },
+  "tree": {
+   "html": false,
    "js": true
   },
   "tx-user-set": {
@@ -4417,6 +5078,14 @@
    "js": true
   },
   "un-auto": {
+   "html": false,
+   "js": true
+  },
+  "url": {
+   "html": false,
+   "js": true
+  },
+  "user-closed": {
    "html": false,
    "js": true
   },
@@ -4437,6 +5106,10 @@
    "js": true
   },
   "view": {
+   "html": false,
+   "js": true
+  },
+  "view-only": {
    "html": false,
    "js": true
   },
@@ -4465,6 +5138,7 @@
   "https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js",
   "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js",
   "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js",
+  "js/no-autofocus-touch.js",
   "shared/supabase.js",
   "shared/fx.js",
   "shared/format.js",
@@ -4473,6 +5147,7 @@
   "shared/calc.js",
   "data/carriers.js",
   "data/countries.js",
+  "data/port-presets.js",
   "data/incoterms.js",
   "https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js",
   "js/vanning3d.js",
@@ -4481,6 +5156,7 @@
   "js/quote/constants.js",
   "js/quote/row.js",
   "js/quote/row-layout.js",
+  "js/quote/incoterms-diagram.js",
   "js/quote/preview.js",
   "js/quote/cargo.js",
   "js/quote/conditions.js",
@@ -4492,10 +5168,26 @@
   "js/quote/cloud-config.js",
   "js/quote/cloud.js",
   "js/quote/users.js",
+  "js/quote/hazmat-ai-import.js",
+  "js/quote/total-float.js",
+  "js/quote/succession-link.js",
+  "js/quote/quote-versions.js",
+  "js/quote/admin-creator-edit.js",
   "js/quote/subcon-insert.js",
   "js/quote/email-import.js",
   "js/quote/subcon-request-mail.js",
   "js/quote/memo-title.js",
+  "js/quote/case-info.js",
+  "js/quote/sources.js",
+  "js/quote/cond-flow.js",
+  "js/quote/handling-terms.js",
+  "js/quote/route-flow.js",
+  "js/quote/cargo-flow.js",
+  "js/quote/remark-tabs.js",
+  "js/quote/mobile-cost.js",
+  "js/quote/mobile-sheet.js",
+  "js/quote/layout-cols.js",
+  "js/quote/remark-sheet.js",
   "js/quote/packing-import.js",
   "js/tweaks.js",
   "js/ui-mode.js",
@@ -4507,14 +5199,22 @@
   "js/quote/fcl-lcl.js",
   "js/quote/right-rail.js",
   "js/ui-confirm.js",
+  "js/announcements.js",
   "js/feedback-md.js",
   "js/feedback-annotate.js",
   "js/feedback.js",
+  "js/theme-quiet.js",
+  "js/hint-fold.js",
+  "js/workfolder.js",
+  "js/integrations/cyberport.js",
+  "js/cp-test.js",
   "js/cat-more.js",
   "js/stats.js",
   "js/alias-rules.js",
   "js/port-country.js",
+  "js/zone-subcon.js",
   "js/customer-rules.js",
+  "js/master-tabs.js",
   "js/carrier-migration.js",
   "js/local-charges.js",
   "js/rate-notice.js",

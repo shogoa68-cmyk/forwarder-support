@@ -508,6 +508,20 @@
 
   // 名称セルに添える「詳細情報」インライン表示（一覧を見ただけで入力済みの内容が分かるように）。
   // 各項目を短いチップで表示。長い値は途中で省略しツールチップに全文を出す。
+  // 開いているカード（会社名をクリックして詳細を見ている行）。描き直しても開いたまま保つ
+  const _openCards = new Set();
+  window.statsToggleMasterCard = function (el) {
+    const tr = el && el.closest('tr'); if (!tr) return;
+    const key = tr.dataset.mfield + '\u0001' + tr.dataset.mvalue;
+    const on = tr.classList.toggle('is-open');
+    if (on) _openCards.add(key); else _openCards.delete(key);
+    el.setAttribute('aria-expanded', on ? 'true' : 'false');
+  };
+  // 会社名（詳細があるときは、クリックで詳細を開閉する）。badge は _mdBadge の結果
+  let _cardMode = false;   // カード表示（サブコン・お客様のときだけ。港・品名・単位・すべては従来のリスト）
+  const _nameToggle = (name, badge, key) => _cardMode && badge.indexOf('md-fold-chip') >= 0
+    ? `<span class="master-name-toggle" role="button" tabindex="0" aria-expanded="${_openCards.has(key) ? 'true' : 'false'}" title="クリックで詳細情報を表示／非表示" onclick="statsToggleMasterCard(this)" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();statsToggleMasterCard(this)}">${_esc(name)}</span>`
+    : _esc(name);
   function _mdBadge(field, value) {
     const schema = window.MD_SCHEMA && window.MD_SCHEMA[field];
     if (!schema) return '';
@@ -565,10 +579,12 @@
       const opt = s.options && s.options.find(o => o.value === v);
       const disp = opt ? opt.label : v;
       const short = disp.length > 14 ? disp.slice(0, 14) + '…' : disp;
-      chips.push(`<span class="stats-md-chip" title="${_eav(s.label + '：' + disp)}"><b>${_esc(s.label)}</b>${_esc(short)}</span>`);
+      const dk = s.key === 'dealType' ? (_DEAL_DEFS.find(x => x[1] === v) || [])[0] : '';
+      chips.push(`<span class="stats-md-chip${dk ? ' stats-md-deal stats-md-deal-' + dk : ''}" title="${_eav(s.label + '：' + disp)}"><b>${_esc(s.label)}</b>${_esc(short)}</span>`);
     });
     if (!chips.length) return '';
-    return `<div class="stats-md-inline">${chips.join('')}</div>`;
+    // 取引形態のチップだけを常に表示し、それ以外の詳細は、会社名をクリックしたときに表示する（カード表示・2026-11）
+    return `<div class="stats-md-inline">${chips.map(c => c.indexOf('stats-md-deal') >= 0 ? c : c.replace('class="stats-md-chip', 'class="md-fold-chip stats-md-chip')).join('')}</div>`;
   }
 
   // 同義グループ操作ボタン（⭐代表 / ⤵統合 / →代表ピル）。field は sv/nm/customer/port。
@@ -1157,6 +1173,31 @@
     if (cost == null || bill == null || !isFinite(cost) || !isFinite(bill)) return { skip: 'fx' };
     return { cost, bill };
   }
+  // 案件の幹線輸送（キャリア・航路）を「ONE：YOKOHAMA→LOS ANGELES」形式で返す。複数航路は ＋ でつなぐ。
+  // 未入力なら ''。
+  function _trunkLabel(p, f, isCloud) {
+    let legs = [], carriers = [];
+    try {
+      const rts = JSON.parse(f['z2-routes-data'] || '[]');
+      if (Array.isArray(rts)) rts.forEach(r => {
+        const leg = [r.pol, r.via, r.pod].map(v => (v || '').trim()).filter(Boolean).join('→');
+        if (leg) legs.push(leg);
+        const cr = (r.carrier || '').trim(); if (cr && !carriers.includes(cr)) carriers.push(cr);
+      });
+    } catch (e) {}
+    if (!legs.length) {
+      const pol = (f['z2Pol'] || (isCloud ? p.pol : '') || '').trim(), pod = (f['z2Pod'] || (isCloud ? p.pod : '') || '').trim();
+      const via = (f['z2Via'] || '').trim();
+      const leg = [pol, via, pod].filter(Boolean).join('→');
+      if (leg) legs.push(leg);
+      const cr = (f['z2Carrier'] || (isCloud ? p.carrier : '') || '').trim();
+      if (cr) carriers.push(cr);
+    }
+    const route = legs.join(' ＋ ');
+    const cr = carriers.join(' / ');
+    return cr && route ? cr + '：' + route : (cr || route);
+  }
+
   function _buildCustItemStats(source) {
     const map = new Map();   // customer + '\x00' + nm → 集計
     const add = (p, isCloud) => {
@@ -1165,6 +1206,7 @@
       const rows = (p.data || {}).rows;
       if (!Array.isArray(rows)) return;
       const ts = isCloud ? (p.updated_at ? new Date(p.updated_at).getTime() : 0) : (p.ts ? new Date(p.ts).getTime() : 0);
+      const trunk = _trunkLabel(p, f, isCloud);
       rows.forEach(r => {
         if (!r || r._type !== 'data' || !Array.isArray(r.cells)) return;
         const c  = r.cells;
@@ -1176,11 +1218,14 @@
         const un = (c[6] || '').trim();
         const key = customer + '\x00' + nm;
         if (!map.has(key)) {
-          map.set(key, { customer, nm, count: 0, lastTs: 0, lastPp: null, lastPc: 'JPY', lastBp: null, lastBc: 'JPY', lastUn: '', costSum: 0, billSum: 0, pairs: 0, skipped: 0 });
+          map.set(key, { customer, nm, count: 0, lastTs: 0, lastPp: null, lastPc: 'JPY', lastBp: null, lastBc: 'JPY', lastUn: '', costSum: 0, billSum: 0, pairs: 0, skipped: 0, lastTrunk: '', trunks: new Map(), patterns: new Map() });
         }
         const g = map.get(key);
         g.count++;
-        if (ts >= g.lastTs) { g.lastTs = ts; g.lastPp = pp; g.lastPc = pc; g.lastBp = bp; g.lastBc = bc; g.lastUn = un; }
+        if (ts >= g.lastTs) { g.lastTs = ts; g.lastPp = pp; g.lastPc = pc; g.lastBp = bp; g.lastBc = bc; g.lastUn = un; if (trunk) g.lastTrunk = trunk; }
+        if (trunk) g.trunks.set(trunk, (g.trunks.get(trunk) || 0) + 1);
+        const pt = (c[CI.pt] || '').trim();
+        if (pt) g.patterns.set(pt, (g.patterns.get(pt) || 0) + 1);
         const pr = _pairJ(c);
         if (pr.skip) g.skipped++; else { g.costSum += pr.cost; g.billSum += pr.bill; g.pairs++; }
       });
@@ -1209,6 +1254,21 @@
       const c = (cur || 'JPY').trim() || 'JPY';
       return c === 'JPY' ? '¥' + Math.round(n).toLocaleString('ja-JP') : c + ' ' + n.toLocaleString('ja-JP', { maximumFractionDigits: 2 });
     };
+    // 幹線輸送：直近の案件のキャリア・航路。他にも使われていれば「ほか N 種」（ホバーで内訳）。
+    const trunkCell = it => {
+      if (!it.lastTrunk) return '<span class="ldg-sub">—</span>';
+      const others = it.trunks.size - 1;
+      const tip = [...it.trunks.entries()].sort((a, b) => b[1] - a[1]).map(([k, n]) => `${k} ×${n}`).join('\n');
+      return `<span title="${_eav(tip)}">${_esc(it.lastTrunk)}</span>` + (others > 0 ? ` <small class="ldg-sub" title="${_eav(tip)}">ほか ${others} 種</small>` : '');
+    };
+    // パターン：この品名に付いていたパターン名（件数の多い順に最大3つ）。
+    const patternCell = it => {
+      if (!it.patterns.size) return '<span class="ldg-sub">—</span>';
+      const list = [...it.patterns.entries()].sort((a, b) => b[1] - a[1]);
+      const tip = list.map(([k, n]) => `${k} ×${n}`).join('\n');
+      return list.slice(0, 3).map(([k, n]) => `<span class="stats-chip" title="${_eav(tip)}"><span class="stats-chip-text">🔖 ${_esc(k)}</span><span class="stats-chip-cnt">×${n}</span></span>`).join('') +
+             (list.length > 3 ? ` <small class="ldg-sub" title="${_eav(tip)}">ほか ${list.length - 3} 種</small>` : '');
+    };
     const skippedRows = rows.reduce((n, r) => n + (r.skipped || 0), 0);
     const groups = new Map();
     rows.forEach(r => {
@@ -1223,7 +1283,7 @@
     let h = '<div class="svp-toolbar"><span class="svp-by-label">グループ基準</span>' +
             `<button class="svp-by-btn${by === 'customer' ? ' is-active' : ''}" onclick="statsCustItemBy('customer')">👤 お客様別</button>` +
             `<button class="svp-by-btn${by === 'nm' ? ' is-active' : ''}" onclick="statsCustItemBy('nm')">📝 品名別</button></div>` +
-            '<p class="stats-syn-hint">案件の明細行から、お客様ごと・品名ごとの仕入単価と売単価を集計します。単価は直近使用時の値（通貨そのまま）、粗利率は仕入・売の両方が入力済みの行だけをJPY換算して合計から算出します' +
+            '<p class="stats-syn-hint">案件の明細行から、お客様ごと・品名ごとの仕入単価と売単価を集計します。単価は直近使用時の値（通貨そのまま）、粗利率は仕入・売の両方が入力済みの行だけをJPY換算して合計から算出します。幹線輸送は直近の案件のキャリア・航路、パターンは明細の「パターン」欄の名前です' +
             (skippedRows ? `（仕入・売の片方のみ、または為替未取得の ${skippedRows} 行は粗利率から除外）` : '') + '。</p>';
 
     list.slice(0, _limitOf('statsPane-custitem')).forEach(g => {
@@ -1239,13 +1299,14 @@
                `<td class="stats-num-col">${it.count}</td>` +
                `<td class="stats-sv-price">${ppStr}</td>` +
                `<td class="stats-sv-price">${bpStr}</td>` +
-               `<td class="stats-num-col ${itMCls}">${itMargin == null ? '—' : itMargin.toFixed(1) + '%'}</td></tr>`;
+               `<td class="stats-num-col ${itMCls}">${itMargin == null ? '—' : itMargin.toFixed(1) + '%'}</td>` +
+               `<td>${trunkCell(it)}</td><td>${patternCell(it)}</td></tr>`;
       }).join('');
       h += `<details class="stats-sv-detail">` +
            `<summary><b>${_usageSpan(keyField, g.key)}</b>` +
            `<span class="stats-sv-detail-meta">${g.items.length}品目 · 売上 ${_jpy(g.bill)} · 粗利率 <span class="${mCls}">${margin == null ? '—' : margin.toFixed(1) + '%'}</span></span></summary>` +
            `<table class="stats-table sd-money-table stats-sv-charge-table"><thead><tr>` +
-           `<th>${otherLabel}</th><th class="stats-num-col">回数</th><th>直近仕入単価</th><th>直近売単価</th><th class="stats-num-col">粗利率</th>` +
+           `<th>${otherLabel}</th><th class="stats-num-col">回数</th><th>直近仕入単価</th><th>直近売単価</th><th class="stats-num-col">粗利率</th><th>幹線輸送（直近）</th><th>パターン</th>` +
            `</tr></thead><tbody>${rowsHtml}</tbody></table></details>`;
     });
     e.innerHTML = '<div class="stats-sv-charges-wrap">' + h + '</div>' + _moreHtml('statsPane-custitem', list.length);
@@ -1267,6 +1328,12 @@
   }
   // 「提示後」＝見積が客先へ出た状態。下書き中・保留・辞退などの試算は実際の乗せ幅ではないため既定で除く。
   const _SENT_STATUSES = ['提示済み', '提出済み', 'ヨコヨコ提示', '受注', '失注'];
+  // 受注率の定義（全画面で共通）：受注 ÷ 提示後の案件（提示済み・提出済み・ヨコヨコ提示・受注・失注）。
+  // 下書き・改定中・情報待ち・辞退・保留は、客先へ出していない／結果が出ない案件として分母に入れない。
+  // （受注÷(受注＋失注) だと失注がほとんど記録されず100%近くになり、総件数だと下書きで薄まるため）
+  const _isSent = st => _SENT_STATUSES.includes(st);
+  const _winRatePct = (won, sent) => sent > 0 ? Math.round(won / sent * 100) : null;
+  const _WIN_RATE_NOTE = '受注率＝受注 ÷ 提示後の案件（提示済み・提出済み・ヨコヨコ提示・受注・失注）';
   let _mdStatusMode = 'sent';   // 'sent'（提示後のみ）| 'all'
   let _mdMinCount   = 2;        // 作成者ごとの最小件数（これ未満は参考表示で、ばらつきの計算に使わない）
   function _buildMarginDiffStats() {
@@ -1696,6 +1763,257 @@
     toast(fellBack ? `📦 「${name}」を登録しました（大分類/タグは追加SQL適用後に保存されます）` : `📦 明細プリセット「${name}」を登録しました（${rows.length}行）`, fellBack ? 'warn' : 'success');
   };
 
+  // ===== 🎲 受注分析（粗利率の帯ごとの受注率／お客様別の歩留まり）=====
+  // 目標値を持たない実績の分析。「どのくらいの粗利率で出すと受注できているか」「見積は多いのに
+  // 受注が少ないお客様（当て馬の疑い）はどこか」を、自社の実績から見るための2つの表。
+  // 受注率の定義は全画面共通（受注 ÷ 提示後の案件）。失注がほとんど記録されないため、
+  // 「結果待ち」（提示済み等のまま受注・失注が付いていない案件）も別に数える。
+  const _wr = { mode: '', dir: '', sort: 'count' };
+  const _WR_BANDS = [
+    { label: '0%未満（赤字）', min: -Infinity, max: 0 },
+    { label: '0〜5%', min: 0, max: 5 },
+    { label: '5〜8%', min: 5, max: 8 },
+    { label: '8〜12%', min: 8, max: 12 },
+    { label: '12〜15%', min: 12, max: 15 },
+    { label: '15%以上', min: 15, max: Infinity },
+  ];
+  const _WR_MIN_N = 10;   // 帯の件数がこれ未満なら「参考（件数少）」
+
+  // 案件の粗利率：仕入・売の両方が入った明細行を JPY 換算して合計（売上が無ければ null）
+  function _caseMarginPct(rows) {
+    let bill = 0, cost = 0, n = 0;
+    (rows || []).forEach(r => {
+      if (!r || r._type !== 'data' || !Array.isArray(r.cells)) return;
+      const pr = _pairJ(r.cells);
+      if (!pr.skip) { bill += pr.bill; cost += pr.cost; n++; }
+    });
+    return (n && bill > 0 && window.SharedCalc) ? SharedCalc.grossMarginPct(bill, cost) : null;
+  }
+
+  // 回答スピード（依頼受信 → 初回の提示）。受信日（＋任意の時刻）と、初回の提示日時（qf-first-presented。無い古い案件は提示履歴の最初の版の時刻）から。
+  // 戻り値 {days: 暦日の差, mins: 受信時刻があれば分} か、計算できなければ null
+  const _RESP_BUCKETS = [{ label: '当日中', min: 0, max: 0 }, { label: '翌日', min: 1, max: 1 }, { label: '2〜3日', min: 2, max: 3 }, { label: '4日以上', min: 4, max: Infinity }];
+  function _firstPresentedOf(f) {
+    if (f['qf-first-presented']) { const t = new Date(f['qf-first-presented']); if (!isNaN(t)) return t; }
+    try {
+      const v = JSON.parse(f['qf-versions'] || '[]');
+      const ts = (Array.isArray(v) ? v : []).map(x => new Date(x && x.ts)).filter(d => !isNaN(d)).sort((a, b) => a - b);
+      if (ts.length) return ts[0];
+    } catch (e) { /* 履歴が読めなければ記録なし */ }
+    return null;
+  }
+  function _respOf(f) {
+    const r = (f['qf-received'] || '').trim(); if (!r) return null;
+    const t = (f['qf-recv-time'] || '').trim();
+    const start = new Date(r + 'T' + (t || '00:00') + ':00'), end = _firstPresentedOf(f);
+    if (isNaN(start) || !end) return null;
+    const sd = new Date(start.getFullYear(), start.getMonth(), start.getDate()), ed = new Date(end.getFullYear(), end.getMonth(), end.getDate());
+    return { days: Math.max(0, Math.round((ed - sd) / 86400000)), mins: t ? Math.max(0, Math.round((end - start) / 60000)) : null };
+  }
+  const _respBucket = days => _RESP_BUCKETS.find(b => days >= b.min && days <= b.max);
+
+  function _wrCases(source, lostMode, allTime) {
+    const period = allTime ? 'all' : (document.getElementById('statsPeriod')?.value || 'all');
+    const now = Date.now();
+    const cutoff = { all: 0, month: now - 30 * 86400000, q3: now - 91 * 86400000, year: now - 365 * 86400000 }[period] || 0;
+    const out = [];
+    const add = (p, isCloud) => {
+      const d = p.data || {}, f = d.fields || {};
+      const tsRaw = isCloud ? p.updated_at : (p.ts || p.updatedAt);
+      const ts = tsRaw ? new Date(tsRaw).getTime() : 0;
+      if (cutoff && ts && ts < cutoff) return;
+      const status = ((isCloud ? p.status : f['qf-status']) || '').trim();
+      // 通常は受注率の分母になる「提示後」だけ。lostMode のときは失注・辞退（理由の内訳用）
+      if (lostMode ? !(status === '失注' || status === '辞退') : !_isSent(status)) return;
+      out.push({
+        status, ts,
+        reason: (f['qf-lost-reason'] || '').trim(),
+        kind: (f['qf-inq-kind'] || '').trim(), channel: (f['qf-inq-channel'] || '').trim(), spec: (f['qf-inq-spec'] || '').trim(),
+        customer: ((isCloud ? p.customer : f['qf-customer']) || '').trim(),
+        mode: ((isCloud ? p.transport_mode : f['cond-mode']) || '').trim(),
+        dir: (f['cond-direction'] || '').trim(),
+        margin: _caseMarginPct(d.rows),
+        resp: _respOf(f),
+      });
+    };
+    if (source !== 'cloud') _getLocalPresets().forEach(p => add(p, false));
+    if (source !== 'local') (typeof window.cloudGetAllRows === 'function' ? window.cloudGetAllRows() : []).forEach(p => add(p, true));
+    return out;
+  }
+
+  // 見積入力画面の診断カード用：過去の提示後の案件から、お客様別・粗利率帯別の受注実績を返す（期間は全期間）。
+  // 案件ごとの粗利率の計算が重いので、結果は 60 秒（または案件数が変わるまで）使い回す。
+  let _diagCache = null;
+  function _diagCases() {
+    const rows = typeof window.cloudGetAllRows === 'function' ? window.cloudGetAllRows() : [];
+    const n = rows.length, now = Date.now();
+    if (_diagCache && _diagCache.n === n && now - _diagCache.at < 60000) return _diagCache.cases;
+    const cases = _wrCases('both', false, true);
+    cases.forEach(c => { c.cn = c.customer ? _normalize(c.customer, 'customer') : ''; });
+    _diagCache = { n, at: now, cases };
+    return cases;
+  }
+  // opts: {customer, mode, dir, margin}  →  {total:{n,won}, customer:{n,won,avgWon,avgLost}|null, band:{label,n,won}|null}
+  window.statsDiagHistory = function (opts) {
+    opts = opts || {};
+    let cases = _diagCases();
+    if (opts.mode) cases = cases.filter(c => !c.mode || c.mode === opts.mode);
+    if (opts.dir) cases = cases.filter(c => !c.dir || c.dir === opts.dir);
+    const won = list => list.filter(c => c.status === '受注').length;
+    const avg = list => { const v = list.filter(c => c.margin != null).map(c => c.margin); return v.length ? v.reduce((a, b) => a + b, 0) / v.length : null; };
+    const out = { total: { n: cases.length, won: won(cases) }, customer: null, band: null };
+    const cn = opts.customer ? _normalize(opts.customer, 'customer') : '';
+    if (cn) {
+      const mine = cases.filter(c => c.cn === cn);
+      if (mine.length) out.customer = { n: mine.length, won: won(mine), avgWon: avg(mine.filter(c => c.status === '受注')), avgLost: avg(mine.filter(c => c.status === '失注')) };
+    }
+    if (typeof opts.margin === 'number' && isFinite(opts.margin)) {
+      const b = _WR_BANDS.find(x => opts.margin >= x.min && opts.margin < x.max);
+      if (b) { const inB = cases.filter(c => c.margin != null && c.margin >= b.min && c.margin < b.max); out.band = { label: b.label, n: inB.length, won: won(inB) }; }
+    }
+    // 回答スピード別（依頼受信 → 初回の提示）の受注実績
+    out.resp = _RESP_BUCKETS.map(b => { const inB = cases.filter(c => c.resp && c.resp.days >= b.min && c.resp.days <= b.max); return { label: b.label, min: b.min, max: b.max, n: inB.length, won: won(inB) }; });
+    out.winRate = _winRatePct;
+    return out;
+  };
+
+  window.statsWrSet = function (key, val) {
+    _wr[key] = val; _listLimit = {};
+    _renderWinRate();
+  };
+
+  function _renderWinRate() {
+    const e = document.getElementById('statsPane-winrate');
+    if (!e) return;
+    const source = document.getElementById('statsSource')?.value || 'both';
+    const all = _wrCases(source);
+    if (!all.length) {
+      e.innerHTML = '<p class="stats-empty">提示後の案件がありません。<br><small>案件のステータスを「提示済み」以降にすると、ここに集計されます。</small></p>';
+      return;
+    }
+    const modes = [...new Set(all.map(c => c.mode).filter(Boolean))].sort();
+    const cases = all.filter(c => (!_wr.mode || c.mode === _wr.mode) && (!_wr.dir || c.dir === _wr.dir));
+    const sel = (key, opts) => `<select class="ldg-in" style="flex:0 1 200px" onchange="statsWrSet('${key}',this.value)">` +
+      opts.map(([v, l]) => `<option value="${_eav(v)}"${_wr[key] === v ? ' selected' : ''}>${_esc(l)}</option>`).join('') + '</select>';
+    let h = '<div class="ldg-filter">' +
+      sel('mode', [['', 'モード：すべて'], ...modes.map(m => [m, _MODE_LABEL[m] || m])]) +
+      sel('dir', [['', '輸出入：すべて'], ['export', '輸出'], ['import', '輸入']]) + '</div>' +
+      `<p class="stats-syn-hint">${_WIN_RATE_NOTE}。提示後の案件だけが対象で、期間は上の「期間」に従います。「結果待ち」は提示済み・提出済み・ヨコヨコ提示のまま受注・失注が記録されていない案件です（失注はあまり記録されないため、結果待ちが多いと受注率は低めに出ます）。</p>`;
+
+    const rateCell = (won, n) => {
+      const r = _winRatePct(won, n);
+      return `<td class="stats-num-col"><div class="stats-bar-wrap"><div class="stats-bar" style="width:${r == null ? 0 : r}%"></div><span class="stats-bar-label">${r == null ? '—' : r + '%'}</span></div></td>`;
+    };
+
+    // --- A. 粗利率の帯ごとの受注率 ---
+    const priced = cases.filter(c => c.margin != null);
+    const noMargin = cases.length - priced.length;
+    const overallWon = cases.filter(c => c.status === '受注').length;
+    h += `<h3 class="stats-kpi-section-title">粗利率の帯ごとの受注率</h3>` +
+         `<p class="stats-syn-hint">提示後 ${cases.length} 件（全体の受注率 ${_winRatePct(overallWon, cases.length) ?? '—'}%）のうち、粗利率が計算できる ${priced.length} 件を、案件全体の粗利率で帯に分けています` +
+         (noMargin ? `（仕入・売の単価が揃わない ${noMargin} 件は除外）` : '') + '。粗利率は仕入・売の両方が入った明細をJPY換算した合計です。</p>';
+    h += '<table class="stats-table"><thead><tr><th>粗利率の帯</th><th class="stats-num-col">提示後</th><th class="stats-num-col">受注</th><th class="stats-num-col">失注</th><th class="stats-num-col">結果待ち</th><th class="stats-num-col">受注率</th></tr></thead><tbody>';
+    _WR_BANDS.forEach(b => {
+      const rows = priced.filter(c => c.margin >= b.min && c.margin < b.max);
+      const won = rows.filter(c => c.status === '受注').length, lost = rows.filter(c => c.status === '失注').length;
+      const few = rows.length > 0 && rows.length < _WR_MIN_N;
+      h += `<tr${few ? ' style="opacity:.6"' : ''}><td class="stats-val">${b.label}${few ? ' <small class="ldg-sub">（参考：件数少）</small>' : ''}</td>` +
+           `<td class="stats-num-col">${rows.length}</td><td class="stats-num-col">${won}</td><td class="stats-num-col">${lost}</td>` +
+           `<td class="stats-num-col">${rows.length - won - lost}</td>${rateCell(won, rows.length)}</tr>`;
+    });
+    h += '</tbody></table>';
+
+    // --- B. お客様別の歩留まり ---
+    const cmap = new Map();
+    cases.forEach(c => {
+      const raw = c.customer || '（未入力）';
+      const key = _normalize(raw, 'customer');
+      if (!cmap.has(key)) cmap.set(key, { labels: {}, n: 0, won: 0, lost: 0, last: 0, mSum: 0, mN: 0 });
+      const g = cmap.get(key);
+      g.labels[raw] = (g.labels[raw] || 0) + 1;
+      g.n++; if (c.status === '受注') g.won++; if (c.status === '失注') g.lost++;
+      if (c.ts > g.last) g.last = c.ts;
+      if (c.margin != null) { g.mSum += c.margin; g.mN++; }
+    });
+    let list = [...cmap.values()].map(g => Object.assign(g, {
+      label: Object.keys(g.labels).sort((a, b) => g.labels[b] - g.labels[a])[0],
+      rate: _winRatePct(g.won, g.n),
+    }));
+    const overall = _winRatePct(overallWon, cases.length);
+    // 注意：提示が5件以上あるのに、全体の受注率の半分未満しか受注できていないお客様（当て馬・歩留まり不良の疑い）
+    list.forEach(g => { g.watch = overall != null && g.n >= 5 && g.rate != null && g.rate < overall / 2; });
+    if (_wr.sort === 'low') list = list.filter(g => g.n >= 3).sort((a, b) => (a.rate - b.rate) || (b.n - a.n));
+    else list.sort((a, b) => b.n - a.n || a.label.localeCompare(b.label, 'ja'));
+    const sortBtn = (v, l) => `<button class="svp-by-btn${_wr.sort === v ? ' is-active' : ''}" onclick="statsWrSet('sort','${v}')">${l}</button>`;
+    h += `<h3 class="stats-kpi-section-title">お客様別の歩留まり</h3>` +
+         '<div class="svp-toolbar"><span class="svp-by-label">並び順</span>' + sortBtn('count', '提示数の多い順') + sortBtn('low', '受注率の低い順（3件以上）') + '</div>' +
+         '<p class="stats-syn-hint">見積を多く出しているのに受注が少ないお客様を探します。「歩留まり注意」は、提示が5件以上あり、受注率が全体（' + (overall ?? '—') + '%）の半分未満のお客様です（当て馬・相見積もりの踏み台の可能性。新規かどうか・要件の具体性とあわせて判断してください）。</p>';
+    h += '<table class="stats-table"><thead><tr><th>お客様</th><th class="stats-num-col">提示後</th><th class="stats-num-col">受注</th><th class="stats-num-col">失注</th><th class="stats-num-col">結果待ち</th><th class="stats-num-col">受注率</th><th class="stats-num-col">平均粗利率</th><th>最後の提示</th></tr></thead><tbody>';
+    const lim = _limitOf('statsPane-winrate');
+    list.slice(0, lim).forEach(g => {
+      const m = g.mN ? g.mSum / g.mN : null;
+      h += `<tr><td class="stats-val">${_usageSpan('customer', g.label)}${g.watch ? ' <span class="stats-variant-badge" style="background:#fbe3d0;color:#a04a00" title="提示数が多いのに受注率が低い">⚠ 歩留まり注意</span>' : ''}</td>` +
+           `<td class="stats-num-col">${g.n}</td><td class="stats-num-col">${g.won}</td><td class="stats-num-col">${g.lost}</td>` +
+           `<td class="stats-num-col">${g.n - g.won - g.lost}</td>${rateCell(g.won, g.n)}` +
+           `<td class="stats-num-col">${m == null ? '—' : m.toFixed(1) + '%'}</td>` +
+           `<td>${g.last ? new Date(g.last).toLocaleDateString('ja-JP', { year: '2-digit', month: '2-digit', day: '2-digit' }) : '—'}</td></tr>`;
+    });
+    h += '</tbody></table>' + _moreHtml('statsPane-winrate', list.length);
+
+    // --- C. 引き合いの経路別の受注率（案件の「引き合いの経路」欄。未記入は「未記入」） ---
+    const inqRow = (label, rows) => {
+      const won = rows.filter(c => c.status === '受注').length, lost = rows.filter(c => c.status === '失注').length;
+      const few = rows.length > 0 && rows.length < _WR_MIN_N;
+      return `<tr${few ? ' style="opacity:.6"' : ''}><td class="stats-val">${_esc(label)}${few ? ' <small class="ldg-sub">（参考：件数少）</small>' : ''}</td>` +
+             `<td class="stats-num-col">${rows.length}</td><td class="stats-num-col">${won}</td><td class="stats-num-col">${lost}</td><td class="stats-num-col">${rows.length - won - lost}</td>${rateCell(won, rows.length)}</tr>`;
+    };
+    const inqTable = (title, key, choices) => {
+      const used = cases.filter(c => c[key]).length;
+      if (!used) return '';
+      const labels = [...choices, ...[...new Set(cases.map(c => c[key]).filter(v => v && !choices.includes(v)))]];
+      return `<h4 class="stats-kpi-section-title" style="font-size:var(--fs-13)">${title}</h4>` +
+        '<table class="stats-table"><thead><tr><th>区分</th><th class="stats-num-col">提示後</th><th class="stats-num-col">受注</th><th class="stats-num-col">失注</th><th class="stats-num-col">結果待ち</th><th class="stats-num-col">受注率</th></tr></thead><tbody>' +
+        labels.map(l => inqRow(l, cases.filter(c => c[key] === l))).join('') + inqRow('未記入', cases.filter(c => !c[key])) + '</tbody></table>';
+    };
+    const inq = window.QF_INQ || { kind: [], channel: [], spec: [] };
+    const inqHtml = inqTable('新規／既存', 'kind', inq.kind) + inqTable('依頼の受け方', 'channel', inq.channel) + inqTable('要件の具体性', 'spec', inq.spec);
+    h += '<h3 class="stats-kpi-section-title">引き合いの経路別の受注率</h3>' +
+      (inqHtml ? '<p class="stats-syn-hint">案件の「引き合いの経路」欄（見積入力の「その他」内）の記録を集計します。当て馬になりやすい条件（金額のみの問い合わせ・新規・メール一括など）で受注率が低いかを見ます。</p>' + inqHtml
+               : '<p class="stats-empty">まだ記録がありません。<br><small>見積入力の「その他」にある「引き合いの経路」（新規／既存・依頼の受け方・要件の具体性）を入れると、ここに集計されます。</small></p>');
+
+    // --- C2. 回答スピード別の受注率（依頼受信 → 初回の提示までの日数） ---
+    const respCases = cases.filter(c => c.resp);
+    h += '<h3 class="stats-kpi-section-title">回答スピード別の受注率</h3>';
+    if (!respCases.length) {
+      h += '<p class="stats-empty">まだ記録がありません。<br><small>「依頼受信日」と、案件を「提示済み」にした日時（自動で記録）から、依頼から提示までの日数を集計します。</small></p>';
+    } else {
+      const sameDay = respCases.filter(c => c.resp.mins != null && c.resp.days === 0);
+      h += `<p class="stats-syn-hint">依頼を受けてから初めて提示するまでの日数（暦日）ごとの受注率です。対象は、受信日と提示の記録がある ${respCases.length} 件（提示後 ${cases.length} 件のうち）。スピードが受注率に効いているかを見ます。` +
+        (sameDay.length ? ` 受信時刻が入っている当日提示 ${sameDay.length} 件の所要時間は平均 ${Math.round(sameDay.reduce((a, c) => a + c.resp.mins, 0) / sameDay.length)} 分です。` : '') + '</p>' +
+        '<table class="stats-table"><thead><tr><th>提示までの日数</th><th class="stats-num-col">提示後</th><th class="stats-num-col">受注</th><th class="stats-num-col">失注</th><th class="stats-num-col">結果待ち</th><th class="stats-num-col">受注率</th></tr></thead><tbody>' +
+        _RESP_BUCKETS.map(b => inqRow(b.label, respCases.filter(c => c.resp.days >= b.min && c.resp.days <= b.max))).join('') + '</tbody></table>';
+    }
+
+    // --- D. 失注・辞退の理由の内訳 ---
+    const lostAll = _wrCases(source, true).filter(c => (!_wr.mode || c.mode === _wr.mode) && (!_wr.dir || c.dir === _wr.dir));
+    const reasons = window.QF_LOST_REASONS || [];
+    const rcount = new Map();
+    lostAll.forEach(c => { const k = c.reason || ''; rcount.set(k, (rcount.get(k) || 0) + 1); });
+    h += '<h3 class="stats-kpi-section-title">失注・辞退の理由</h3>';
+    if (!lostAll.length) {
+      h += '<p class="stats-empty">失注・辞退の案件がありません。</p>';
+    } else {
+      const recorded = lostAll.filter(c => c.reason).length;
+      const order = [...reasons, ...[...rcount.keys()].filter(k => k && !reasons.includes(k))];
+      const maxN = Math.max(1, ...order.map(k => rcount.get(k) || 0));
+      h += `<p class="stats-syn-hint">失注・辞退 ${lostAll.length} 件のうち、理由が記録されているのは ${recorded} 件です。ダッシュボードで失注・辞退にしたときや、見積入力の「その他」で理由を記録できます。</p>` +
+        '<table class="stats-table"><thead><tr><th>理由</th><th class="stats-num-col">件数</th></tr></thead><tbody>' +
+        order.map(k => `<tr><td class="stats-val">${_esc(k)}</td><td class="stats-num-col"><div class="stats-bar-wrap"><div class="stats-bar" style="width:${Math.round((rcount.get(k) || 0) / maxN * 100)}%"></div><span class="stats-bar-label">${rcount.get(k) || 0}</span></div></td></tr>`).join('') +
+        `<tr><td class="stats-val">未記録</td><td class="stats-num-col">${rcount.get('') || 0}</td></tr></tbody></table>`;
+    }
+    e.innerHTML = h;
+  }
+
   function _renderUn() {
     const e = document.getElementById('statsPane-un');
     if (!e || !_data) return;
@@ -2007,8 +2325,8 @@
     cases.forEach(c => { const s = c.status || '（未設定）'; stCount[s] = (stCount[s] || 0) + 1; });
     const won  = stCount['受注'] || 0;
     const lost = stCount['失注'] || 0;
-    const decided  = won + lost;
-    const winRate  = decided > 0 ? Math.round(won / decided * 100) : null;
+    const sentCnt  = cases.filter(c => _isSent(c.status)).length;
+    const winRate  = _winRatePct(won, sentCnt);
     const stItems = Object.keys(stCount)
       .sort((a, b) => {
         const ia = _STATUS_ORDER.indexOf(a), ib = _STATUS_ORDER.indexOf(b);
@@ -2022,7 +2340,7 @@
         _kpi(cases.length, '総案件') +
         _kpi(won,  '受注', 'sd-kpi--won') +
         _kpi(lost, '失注', 'sd-kpi--lost') +
-        _kpi(winRate == null ? '—' : winRate + '%', '受注率（決着ベース）', 'sd-kpi--rate') +
+        _kpi(winRate == null ? '—' : winRate + '%', '受注率（提示後ベース）', 'sd-kpi--rate') +
       '</div>' + _barRows(stItems, stMax) + '</section>';
 
     // --- B. 金額・粗利 ---
@@ -2308,7 +2626,15 @@
   window.statsMasterSetSub = function (k) { _masterSub = k || ''; _masterSvType = ''; _renderMaster(); };
   // 並び順：'name'＝名前順（既定）／'tag'＝種別・タグごとにまとめて表示（サブコン・お客様のとき）
   let _masterSort = 'name';
-  window.statsMasterSetSort = function (m) { _masterSort = (m === 'tag' || m === 'group' || m === 'area') ? m : 'name'; _renderMaster(); };
+  window.statsMasterSetSort = function (m) { _masterSort = (m === 'tag' || m === 'group' || m === 'area' || m === 'deal') ? m : 'name'; _renderMaster(); };
+  // お客様の取引形態（荷主／同業者／その他／未設定）。一覧の行の色・見出しの色・「取引形態ごとにまとめる」に使う
+  const _DEAL_DEFS = [['ship', '荷主（直接）', '🏭'], ['fwd', '同業者（フォワーダー・代理店）', '🤝'], ['other', 'その他', '📁'], ['none', '取引形態 未設定', '❔']];
+  const _dealKeyOf = (field, name) => {
+    if (field !== 'customer') return '';
+    const d = ((typeof window.mdGet === 'function' && window.mdGet('customer', name)) || { details: {} }).details || {};
+    const f = _DEAL_DEFS.find(x => x[1] === d.dealType);
+    return f ? f[0] : 'none';
+  };
   // マスターの所属グループ（詳細の group）。別名で入力された名前でも代表名のグループを返す
   const _groupOfName = (field, name) => {
     const canon = typeof window.nameCanon === 'function' ? (window.nameCanon(field, name) || name) : name;
@@ -2388,7 +2714,56 @@
     return `<div class="cr-stale-notice">⏳ 取引ルールの再確認：${total}件（${list.slice(0, 5).map(x => _esc(x.customer) + ' ' + x.stale + '件').join('、')}${list.length > 5 ? ' ほか' : ''}）。お客様の「詳細」→「取引ルール」で「確認済み」か「廃止」を選んでください。</div>`;
   }
   let _crLoadKicked = false;
+  // === マスター管理の検索（2026-11） ===
+  //   名前・別名・詳細の中身（ふりがな・英語名・国・得意エリア・担当者・タグ・メモなど）を、スペース区切り（すべて含む＝AND）で絞り込む。
+  //   カタカナ・ひらがな・全角半角・大文字小文字の違いは無視。種別の絞り込みと併用でき、「すべて」のときは全種別から探す
+  let _masterQuery = '', _masterHitCount = null, _masterSearchTimer = null, _masterComposing = false;
+  const _qNorm = s => String(s == null ? '' : s).normalize('NFKC').toLowerCase().replace(/[ァ-ヶ]/g, c => String.fromCharCode(c.charCodeAt(0) - 0x60));
+  function _qFlatten(v, out) {
+    if (v == null || v === '') return;
+    if (Array.isArray(v)) { v.forEach(x => _qFlatten(x, out)); return; }
+    if (typeof v === 'object') { Object.keys(v).forEach(k => _qFlatten(v[k], out)); return; }
+    out.push(String(v));
+  }
+  function _masterSearchText(field, name, aliases) {
+    const parts = [name].concat(aliases || []);
+    const rec = typeof window.mdGet === 'function' ? window.mdGet(field, name) : null;
+    const d = (rec && rec.details) || {};
+    Object.keys(d).forEach(k => {
+      const v = d[k];
+      if (k === 'country' && v) { parts.push(window.countryLabel ? window.countryLabel(v) : v, v); return; }
+      if (k === 'areas' && Array.isArray(v)) { v.forEach(a => parts.push(window.areaLabel ? window.areaLabel(a) : a)); return; }
+      _qFlatten(v, parts);
+    });
+    if (field === 'customer' && typeof window.mdViaChildren === 'function') { parts.push.apply(parts, window.mdViaChildren(name)); }
+    return _qNorm(parts.join(' \n '));
+  }
+  function _masterSearchHtml() {
+    return '<div class="master-search"><span class="master-search-ico">🔍</span>' +
+      `<input id="masterSearch" type="search" class="ar-input master-search-input" autocomplete="off" placeholder="マスターを検索（名前・別名・ふりがな・国・担当者・タグなど。スペースで区切ると、すべてを含むものだけに絞ります）" value="${_eav(_masterQuery)}" ` +
+      `oninput="statsMasterSetQuery(this.value)" oncompositionstart="statsMasterCompose(true)" oncompositionend="statsMasterCompose(false, this.value)">` +
+      '<span class="master-search-count" id="masterSearchCount"></span></div>';
+  }
+  window.statsMasterCompose = function (on, v) { _masterComposing = on; if (!on) window.statsMasterSetQuery(v); };
+  window.statsMasterSetQuery = function (q) {
+    _masterQuery = String(q || '');
+    if (_masterComposing) return;   // 変換中は描き直さない（入力が途切れないように）
+    clearTimeout(_masterSearchTimer);
+    _masterSearchTimer = setTimeout(() => { _renderMaster(); }, 120);
+  };
+  window.statsMasterClearQuery = function () { _masterQuery = ''; _renderMaster(); };
+
+  // 検索ボックスに入力中の描き直しでも、入力の位置を保つ
   function _renderMaster() {
+    const act = document.activeElement;
+    const keep = act && act.id === 'masterSearch' ? { s: act.selectionStart, e: act.selectionEnd } : null;
+    _renderMasterInner();
+    const inp = document.getElementById('masterSearch');
+    if (inp && keep) { inp.focus(); try { inp.setSelectionRange(keep.s, keep.e); } catch (e) { /* 無視 */ } }
+    const c = document.getElementById('masterSearchCount');
+    if (c) c.textContent = _masterQuery.trim() && _masterHitCount != null ? '　' + _masterHitCount + ' 件ヒット' : '';
+  }
+  function _renderMasterInner() {
     const e = document.getElementById('statsPane-master');
     if (!e) return;
     // 取引ルールを一度だけ読み込み、件数の印を出す（読み込めたら描き直す）
@@ -2435,7 +2810,7 @@
     entries = entries.filter(m => !synCanonSet.has(m.field + '\x00' + m.value));
 
     // --- 種別絞り込みチップ（件数＝個別マスター＋同義グループの合算）---
-    const fieldOrder = ['sv', 'nm', 'customer', 'port', 'un'];
+    const fieldOrder = ['sv', 'customer', 'port', 'nm', 'un'];   // すべて｜サブコン｜お客様｜港｜品名｜単位
     const counts = {};
     fieldOrder.forEach(f => { counts[f] = 0; });
     entries.forEach(m => { counts[m.field] = (counts[m.field] || 0) + 1; });
@@ -2446,7 +2821,7 @@
     const chip = (f, label, n) =>
       `<button class="master-filter-chip${_masterFieldFilter === f ? ' is-active' : ''}" ` +
       `onclick="statsMasterSetFilter('${f}')">${label}<span class="master-filter-count">${n}</span></button>`;
-    let chipsH = '<div class="master-filter-chips">' +
+    let chipsH = _masterSearchHtml() + '<div class="master-filter-chips">' +
       chip('all', 'すべて', totalCount) +
       fieldOrder.filter(f => counts[f] > 0 || f === 'port').map(f => chip(f, labels[f], counts[f])).join('') +
       '</div>';
@@ -2537,29 +2912,41 @@
     // サブコンを見ているときだけ：旧「キャリア」から移行できているかの確認（読み取りのみ）
     if (_masterFieldFilter === 'sv') chipsH += '<div class="cm-entry"><span>🔀 旧「キャリア」のマスターはサブコンに統合しました（元のデータは読み取り専用で残しています）。キャリアは、サブコンの種別（FCL／LCL／AIR／RORO／在来船 CARRIER）で見分けます。</span><button type="button" class="cm-entry-btn" onclick="statsShowCarrierMigrationReport()">移行の状況を確認する（読み取りのみ）</button></div>';
     // 港を見ているときだけ：国がまだ付いていない港へ、国の候補を提案する
-    if (_masterFieldFilter === 'port') chipsH += '<div class="cm-entry"><span>🌐 過去の案件で使った港を、国つきで一括登録できます。登録済みの港には、国を自動で付けられます（将来は国ごとのルールを見積で参照できるようにします）。</span><button type="button" class="cm-entry-btn" onclick="statsShowPortCountryAssist()">港を一括登録・国を自動で付ける（候補を確認）</button></div>';
+    if (_masterFieldFilter === 'port') chipsH += '<div class="cm-entry"><span>🌐 過去の案件で使った港を、国つきで一括登録できます。登録済みの港には、国を自動で付けられます（将来は国ごとのルールを見積で参照できるようにします）。</span><button type="button" class="cm-entry-btn" onclick="statsShowPortCountryAssist()">港を一括登録・国を自動で付ける（候補を確認）</button></div>' +
+      '<div class="cm-entry"><span>📦 主要な港（日本・アジア・欧米など約 430 件）を、国ごとに選んでまとめて登録できます（英語名＋日本語の別名＋国）。</span><button type="button" class="cm-entry-btn" onclick="statsShowPortPreset()">港名のプリセットを登録</button></div>';
     // 並び順（名前順／種別・タグごと／所属グループごと）。サブコン・キャリアは「所属グループごと」も選べる
     const _hasGroup = _masterFieldFilter === 'sv' || _masterFieldFilter === 'carrier';
     if (_SUB_FILTER[_masterFieldFilter] || _hasGroup) {
       if (_masterSort === 'tag' && !_SUB_FILTER[_masterFieldFilter]) _masterSort = 'name';
       if ((_masterSort === 'group' || _masterSort === 'area') && !_hasGroup) _masterSort = 'name';
+      if (_masterSort === 'deal' && _masterFieldFilter !== 'customer') _masterSort = 'name';
       const sbtn = (m, label) => `<button class="master-filter-chip master-sort-chip${_masterSort === m ? ' is-active' : ''}" onclick="statsMasterSetSort('${m}')">${label}</button>`;
       chipsH += '<div class="master-filter-chips master-sort-chips"><span class="master-type-chips-label">並び順：</span>' + sbtn('name', '名前順') +
         (_SUB_FILTER[_masterFieldFilter] ? sbtn('tag', _SUB_FILTER[_masterFieldFilter].label + 'ごとにまとめる') : '') +
+        (_masterFieldFilter === 'customer' ? sbtn('deal', '🤝 取引形態ごとにまとめる') : '') +
         (_hasGroup ? sbtn('group', '🏢 所属グループごとにまとめる') + sbtn('area', '📍 得意エリアごとにまとめる') : '') + '</div>';
     }
 
     // 個別マスターと同義グループを 1 つの表にまとめる。別名を足しても行が別の表へ移らず、
     // 代表の行の「別名・略称」にそのまま付く（種別→名前の順なので、行の位置も変わらない）
-    const rowsAll = [
+    _cardMode = _masterFieldFilter === 'sv' || _masterFieldFilter === 'customer';
+    let rowsAll = [
       ...entries.map(m => ({ kind: 'ind', field: m.field, name: m.value, m })),
       ...synFiltered.map(g => ({ kind: 'grp', field: g.field, name: g.canonical, g })),
     ].sort((a, b) => (labels[a.field] || a.field).localeCompare(labels[b.field] || b.field) || (a.name || '').localeCompare(b.name || ''));
+    // 検索（種別の絞り込みのあとに、さらに絞る）
+    const _terms = _qNorm(_masterQuery).split(/\s+/).filter(Boolean);
+    _masterHitCount = null;
+    if (_terms.length) {
+      rowsAll = rowsAll.filter(r => { const t = _masterSearchText(r.field, r.name, r.kind === 'grp' ? (r.g.aliases || []) : []); return _terms.every(x => t.includes(x)); });
+      _masterHitCount = rowsAll.length;
+    }
 
     const headH = _masterHeadHtml(totalCount, allSyn.length) + _crStaleNotice() + (typeof window.masterTopNoticeHtml === 'function' ? window.masterTopNoticeHtml() : '') + _requestsHtml();
     if (!rowsAll.length) {
-      e.innerHTML = headH + formH + chipsH +
-        '<p class="stats-empty">マスター登録はまだありません。<br>各集計の「☆ 登録」、または上の「登録」から追加できます。</p>';
+      e.innerHTML = headH + formH + chipsH + (_terms.length
+        ? '<p class="stats-empty">「' + _esc(_masterQuery.trim()) + '」に一致するマスターはありません。<br><button type="button" class="master-type-preset" onclick="statsMasterClearQuery()">検索をクリア</button>（種別の絞り込みも確認してください）</p>'
+        : '<p class="stats-empty">マスター登録はまだありません。<br>各集計の「☆ 登録」、または上の「登録」から追加できます。</p>');
       return;
     }
     const usageDesc = {
@@ -2583,7 +2970,7 @@
             `<p class="stats-master-info-note">「☆ 登録」でマスターに追加、再クリックで解除できます。</p>` +
             `<p class="stats-master-info-note">「＋ 別名」で、略称・英語表記などをマスターの別名として登録できます（⭐の行）。別名の件数はマスターに合算され、入力補完にも反映されます。別名は独立した行にはならず、マスターの行に表示されます。${cloudOn ? '（チーム共有）' : '（このブラウザに保存）'}</p>` +
             '</div></details>' +
-            '<table class="stats-table master-table"><thead><tr>' +
+            '<table class="stats-table master-table' + (_cardMode ? ' master-grid' : '') + '"><thead><tr>' +
             '<th>種別</th><th>マスター名</th><th>別名・略称（英語表記・省略形）</th><th class="ops">操作</th>' +
             '</tr></thead><tbody>';
     const _emitRow = r => {
@@ -2595,8 +2982,9 @@
           ? `statsUnitRemoveAlias('${_ea(a)}','${_ea(g.canonical)}')`
           : `synRemoveAlias('${_ea(g.field)}','${_ea(a)}','${_ea(g.canonical)}')`;
         const chips = (g.aliases || []).map(a => `<span class="stats-syn-member">${_esc(a)}<button class="ua-chip-del" title="別名から外す" onclick="${delAlias(a)}">✕</button></span>`).join('');
-        h += `<tr class="stats-syn-row${r.viaDepth ? ' master-via-child' : ''}" data-mfield="${_eav(g.field)}" data-mvalue="${_eav(g.canonical)}"${r.viaDepth ? ` data-via-depth="${r.viaDepth}"` : ''}><td>${labels[g.field] || g.field}</td>` +
-             `<td class="stats-val">${_viaMark(r)}<span class="ua-star">⭐</span>${_esc(g.canonical)}${_crChip(g.field, g.canonical)}${_mdBadge(g.field, g.canonical)}</td>` +
+        const gBadge = _mdBadge(g.field, g.canonical), gKey = g.field + '\u0001' + g.canonical;
+        h += `<tr class="stats-syn-row${r.viaDepth ? ' master-via-child' : ''}${_openCards.has(gKey) ? ' is-open' : ''}" data-mfield="${_eav(g.field)}" data-mvalue="${_eav(g.canonical)}"${_dealKeyOf(g.field, g.canonical) ? ` data-deal="${_dealKeyOf(g.field, g.canonical)}"` : ''}${r.viaDepth ? ` data-via-depth="${r.viaDepth}"` : ''}><td>${labels[g.field] || g.field}</td>` +
+             `<td class="stats-val">${_viaMark(r)}<span class="ua-star">⭐</span>${_nameToggle(g.canonical, gBadge, gKey)}${_crChip(g.field, g.canonical)}${gBadge}</td>` +
              `<td class="stats-master-abbrev-cell">${chips}${addBtn(g.field, g.canonical)}</td>` +
              `<td class="ops"><button class="stats-master-merge" title="このマスターを別のマスターの別名にまとめる（別名ごと移動）" onclick="statsSynMergePicker('${_ea(g.field)}','${_ea(g.canonical)}',this)">他のマスターにまとめる</button>` +
              `<button class="stats-master-rename" title="マスター名を変更（旧名称は別名として残ります）" onclick="statsMasterRename('${_ea(g.field)}','${_ea(g.canonical)}')">✏️ 名称変更</button>` +
@@ -2604,15 +2992,25 @@
              `<button type="button" class="master-ops-more more" aria-haspopup="menu" title="その他の操作（別名をすべて外す）" onclick="statsOpsMenu(this,'group','${_ea(g.field)}','${_ea(g.canonical)}')">⋯</button></td></tr>`;
       } else {
         const m = r.m;
-        h += `<tr data-mfield="${_eav(m.field)}" data-mvalue="${_eav(m.value)}"${r.viaDepth ? ` class="master-via-child" data-via-depth="${r.viaDepth}"` : ''}>` +
+        const mBadge = _mdBadge(m.field, m.value), mKey = m.field + '\u0001' + m.value;
+        const mCls = [r.viaDepth ? 'master-via-child' : '', _openCards.has(mKey) ? 'is-open' : ''].filter(Boolean).join(' ');
+        h += `<tr data-mfield="${_eav(m.field)}" data-mvalue="${_eav(m.value)}"${_dealKeyOf(m.field, m.value) ? ` data-deal="${_dealKeyOf(m.field, m.value)}"` : ''}${mCls ? ` class="${mCls}"` : ''}${r.viaDepth ? ` data-via-depth="${r.viaDepth}"` : ''}>` +
              `<td>${labels[m.field] || m.field}</td>` +
-             `<td class="stats-val">${_viaMark(r)}${_esc(m.value)}${_crChip(m.field, m.value)}${_mdBadge(m.field, m.value)}</td>` +
+             `<td class="stats-val">${_viaMark(r)}${_nameToggle(m.value, mBadge, mKey)}${_crChip(m.field, m.value)}${mBadge}</td>` +
              `<td class="stats-master-abbrev-cell">${addBtn(m.field, m.value)}</td>` +
              `<td class="ops">${_mdDetailBtn(m.field, m.value)}${(_approvalOn() ? _isAdmin() : m.isMine) ? `<button type="button" class="master-ops-more more" aria-haspopup="menu" title="その他の操作（解除）" onclick="statsOpsMenu(this,'master','${_ea(m.field)}','${_ea(m.value)}')">⋯</button>` : ''}</td>` +
              `</tr>`;
       }
     };
-    if (_masterSort === 'tag' && _SUB_FILTER[_masterFieldFilter]) {
+    if (_masterSort === 'deal' && _masterFieldFilter === 'customer') {
+      // 取引形態ごとにまとめる（荷主→同業者→その他→未設定の順。件数つきの見出し行）
+      _DEAL_DEFS.forEach(([k, label, ico]) => {
+        const list = rowsAll.filter(x => _dealKeyOf(x.field, x.name) === k);
+        if (!list.length) return;
+        h += `<tr class="master-tag-group-row mtg-deal" data-deal="${k}"><td colspan="4"><span class="mtg-name">${ico} ${_esc(label)}</span><span class="mtg-count">${list.length}社</span></td></tr>`;
+        list.forEach(_emitRow);
+      });
+    } else if (_masterSort === 'tag' && _SUB_FILTER[_masterFieldFilter]) {
       // 種別・タグごとにまとめて表示。複数のタグを持つものは、それぞれのタグの下に出す（タグなしは最後）
       const groups = new Map(); const none = [];
       rowsAll.forEach(r => {
@@ -3186,8 +3584,8 @@
     // 全体KPI
     const won    = metas.filter(m => m.status === '受注').length;
     const lost   = metas.filter(m => m.status === '失注').length;
-    const sent   = metas.filter(m => ['提示済み','提出済み','受注','失注'].includes(m.status)).length;
-    const winRate = sent ? Math.round(won / sent * 100) : null;
+    const sent   = metas.filter(m => _isSent(m.status)).length;
+    const winRate = _winRatePct(won, sent);
 
     // 担当者別KPI
     const personMap = {};
@@ -3195,7 +3593,7 @@
       const k = m.person || '（未入力）';
       if (!personMap[k]) personMap[k] = { total: 0, won: 0, lost: 0, sent: 0 };
       personMap[k].total++;
-      if (['提示済み','提出済み','受注','失注'].includes(m.status)) personMap[k].sent++;
+      if (_isSent(m.status)) personMap[k].sent++;
       if (m.status === '受注') personMap[k].won++;
       if (m.status === '失注') personMap[k].lost++;
     });
@@ -3210,13 +3608,15 @@
 
     let h = '<div class="stats-kpi-cards">' +
       kpiCards.map(k => `<div class="stats-kpi-card"><div class="stats-kpi-value">${_esc(String(k.value))}</div><div class="stats-kpi-label">${_esc(k.label)}</div></div>`).join('') +
-      '</div>';
+      '</div>' +
+      `<p class="stats-syn-hint">${_WIN_RATE_NOTE}。下書き・改定中・情報待ち・辞退・保留は分母に入れません。</p>`;
 
     h += '<h3 class="stats-kpi-section-title">見積作成者別成績</h3>';
-    h += '<table class="stats-table"><thead><tr><th>作成者</th><th class="stats-num-col">総件数</th><th class="stats-num-col">提示済</th><th class="stats-num-col">受注</th><th class="stats-num-col">失注</th><th class="stats-num-col">受注率</th></tr></thead><tbody>';
+    h += '<table class="stats-table"><thead><tr><th>作成者</th><th class="stats-num-col">総件数</th><th class="stats-num-col">提示後</th><th class="stats-num-col">受注</th><th class="stats-num-col">失注</th><th class="stats-num-col">受注率</th></tr></thead><tbody>';
     persons.forEach(([person, d]) => {
-      const wr = d.sent ? Math.round(d.won / d.sent * 100) + '%' : '—';
-      const barW = d.sent ? Math.round(d.won / d.sent * 100) : 0;
+      const wrN = _winRatePct(d.won, d.sent);
+      const wr = wrN == null ? '—' : wrN + '%';
+      const barW = wrN == null ? 0 : wrN;
       h += `<tr>` +
         `<td class="stats-val">${_esc(person)}</td>` +
         `<td class="stats-num-col">${d.total}</td>` +
@@ -3243,7 +3643,7 @@
 
   // === 🔖 パターン別：受注率・粗利率 ===
   // パターンは明細行の属性（cells[CI.pt]）。案件ステータスを各パターンに紐付けて集計する。
-  //   受注率＝受注 ÷（提示済み/提出済み/受注/失注）… KPI と同じ「提示ベース」
+  //   受注率の定義は全画面共通（_WIN_RATE_NOTE）
   //   粗利率＝そのパターンの全行の (売上−仕入) ÷ 売上（JPY換算・加重平均）
   function _renderPattern() {
     const e = document.getElementById('statsPane-pattern');
@@ -3258,7 +3658,7 @@
     if (source !== 'cloud') _getLocalPresets().forEach(p => pushCase(((p.data || {}).fields || {})['qf-status'], p));
     if (source !== 'local') (typeof window.cloudGetAllRows === 'function' ? window.cloudGetAllRows() : []).forEach(p => pushCase(p.status, p));
 
-    const SENT = ['提示済み', '提出済み', '受注', '失注'];
+    const SENT = _SENT_STATUSES;
     let skippedRows = 0;
     // 正規化キー → { label, cases:Set index, won, lost, sent, sell, cost }
     const map = new Map();
@@ -3294,11 +3694,11 @@
       return;
     }
     const rows = Array.from(map.values()).sort((a, b) => b.cases - a.cases);
-    let h = '<p class="stats-syn-hint">明細の「パターン」を案件ステータスと紐付けて集計します。受注率＝受注 ÷（提示済み＋受注＋失注）、粗利率＝(売上−仕入)÷売上（仕入・売の両方が入力済みの行をJPY換算）。' +
+    let h = '<p class="stats-syn-hint">明細の「パターン」を案件ステータスと紐付けて集計します。受注率の定義は「📊 データ」と共通（受注 ÷ 提示後の案件）、粗利率＝(売上−仕入)÷売上（仕入・売の両方が入力済みの行をJPY換算）。' +
       (skippedRows ? `仕入・売の片方のみ／為替未取得の ${skippedRows} 行は粗利率から除外しています。` : '') + '</p>';
-    h += '<table class="stats-table"><thead><tr><th>パターン</th><th class="stats-num-col">案件数</th><th class="stats-num-col">提示</th><th class="stats-num-col">受注</th><th class="stats-num-col">失注</th><th class="stats-num-col">受注率</th><th class="stats-num-col">平均粗利率</th></tr></thead><tbody>';
+    h += '<table class="stats-table"><thead><tr><th>パターン</th><th class="stats-num-col">案件数</th><th class="stats-num-col">提示後</th><th class="stats-num-col">受注</th><th class="stats-num-col">失注</th><th class="stats-num-col">受注率</th><th class="stats-num-col">平均粗利率</th></tr></thead><tbody>';
     rows.forEach(g => {
-      const wr = g.sent ? Math.round(g.won / g.sent * 100) : null;
+      const wr = _winRatePct(g.won, g.sent);
       const barW = wr == null ? 0 : wr;
       const margin = g.sell > 0 ? ((g.sell - g.cost) / g.sell * 100) : null;
       const mCls = margin == null ? '' : (margin < 0 ? ' stats-neg' : '');
@@ -3332,6 +3732,7 @@
     else if (id === 'custitem') _renderCustItem();
     else if (id === 'margindiff') _renderMarginDiff();
     else if (id === 'ledger')   _renderLedger();
+    else if (id === 'winrate')  _renderWinRate();
     else if (id === 'charges')  _renderCharges();
     else if (id === 'master')   _renderMaster();
     else if (id === 'alias')    _renderAlias();
@@ -3369,6 +3770,7 @@
     else if (paneId === 'custitem') _renderCustItem();
     else if (paneId === 'margindiff') _renderMarginDiff();
     else if (paneId === 'ledger')   _renderLedger(true);
+    else if (paneId === 'winrate')  _renderWinRate();
     else if (paneId === 'pattern')  _renderPattern();
     else if (paneId === 'charges')  _renderCharges();
     else if (paneId === 'master')   _renderMaster();
@@ -3625,6 +4027,69 @@
       if (typeof window.statsLoadMasterCache === 'function') await window.statsLoadMasterCache();
       if (typeof window.arRefreshDatalist === 'function') window.arRefreshDatalist();
       if (typeof window.statsRerenderActive === 'function') window.statsRerenderActive();
+    });
+  };
+
+  // 港名のプリセット（data/port-presets.js）：主要な港を、国ごとに選んでまとめてマスターへ登録する。英語名＝マスター名・日本語名＝別名・国を付ける
+  window.statsShowPortPreset = async function () {
+    const list = window.PORT_PRESETS || [];
+    const old = document.getElementById('ppModal'); if (old) old.remove();
+    const wrap = document.createElement('div');
+    wrap.id = 'ppModal'; wrap.className = 'md-modal-overlay'; wrap.setAttribute('role', 'dialog'); wrap.setAttribute('aria-modal', 'true');
+    wrap.innerHTML = '<div class="md-modal"><div class="md-modal-head"><h3>📦 港名のプリセットを登録</h3><button type="button" class="md-modal-close" title="閉じる" onclick="document.getElementById(\'ppModal\').remove()">✕</button></div><div class="md-modal-body"><p>読み込み中…</p></div></div>';
+    document.body.appendChild(wrap);
+    const body = wrap.querySelector('.md-modal-body');
+    if (!list.length) { body.innerHTML = '<p class="stats-empty">プリセットのデータが読み込まれていません。</p>'; return; }
+    if (typeof window.mdLoadCloud === 'function') await window.mdLoadCloud();
+    const masterNames = new Set(window.statsGetMasters().filter(m => m.field === 'port').map(m => m.value));
+    const aliasTaken = new Set();
+    (typeof window.synGetGroups === 'function' ? window.synGetGroups('port') : []).forEach(g => { masterNames.add(g.canonical); (g.aliases || []).forEach(a => aliasTaken.add(a)); });
+    const rows = list.map(p => ({ p, state: masterNames.has(p.name) ? 'have' : (aliasTaken.has(p.name) ? 'alias' : 'new') }));
+    const byCc = new Map(); rows.forEach(r => { if (!byCc.has(r.p.cc)) byCc.set(r.p.cc, []); byCc.get(r.p.cc).push(r); });
+    const contOrder = (window.COUNTRY_CONTINENTS || []).map(x => x.key), subOrder = (window.COUNTRY_SUBREGIONS || []).map(x => x.key);
+    const ccKey = cc => { if (cc === 'JP') return -1; const r = window.countryRegion ? window.countryRegion(cc) : null; return r ? contOrder.indexOf(r.continent) * 100 + subOrder.indexOf(r.sub) : 9999; };   // 日本が先頭、そのあと大陸→小地域の順
+    const ccs = [...byCc.keys()].sort((x, y) => ccKey(x) - ccKey(y) || x.localeCompare(y));
+    const nNew = rows.filter(r => r.state === 'new').length;
+    const asia = new Set((window.COUNTRY_LIST || []).filter(c => { const r = window.countryRegion ? window.countryRegion(c.code) : null; return r && r.continent === 'AS'; }).map(c => c.code));
+    const admin = typeof _isAdmin === 'function' ? _isAdmin() : false;
+    const restricted = typeof window.statsAliasNeedsApproval === 'function' && window.statsAliasNeedsApproval();
+    const sec = cc => {
+      const rs = byCc.get(cc), nn = rs.filter(r => r.state === 'new').length;
+      return `<details class="pp-country" data-cc="${_eav(cc)}"${cc === 'JP' ? ' open' : ''}><summary><label><input type="checkbox" class="pp-ccchk" data-cc="${_eav(cc)}"${cc === 'JP' && nn ? ' checked' : ''}${nn ? '' : ' disabled'}> <b>${_esc(window.countryJa ? window.countryJa(cc) : cc)}</b>（${cc}）</label> <span class="pp-cnt">新規 ${nn} ／ 全 ${rs.length}</span></summary>` +
+        `<div class="pp-ports">${rs.map(r => `<label class="pp-port${r.state === 'new' ? '' : ' is-have'}"><input type="checkbox" class="pp-chk" data-name="${_eav(r.p.name)}"${r.state === 'new' && cc === 'JP' ? ' checked' : ''}${r.state === 'new' ? '' : ' disabled'}> ${_esc(r.p.name)}${r.p.ja ? `<span class="pp-ja">${_esc(r.p.ja)}</span>` : ''}${r.state === 'new' ? '' : '<span class="pp-state">' + (r.state === 'have' ? '登録済み' : '別名で登録済み') + '</span>'}</label>`).join('')}</div></details>`;
+    };
+    body.innerHTML =
+      `<p>プリセットの港 <b>${rows.length}</b> 件のうち、未登録は <b>${nNew}</b> 件です。登録したい港を選んでください（国ごとにまとめて選べます）。</p>` +
+      `<ul class="cm-facts"><li>英語名（大文字）がマスター名、日本語名は別名（横浜で入力しても YOKOHAMA になる）、国も付きます。</li><li>すでに登録済みの港は、選べません（変更しません）。</li>` +
+      (restricted && !admin ? '<li>承認制のため、登録は管理者への申請になります（日本語の別名は、承認後に管理者が追加します）。</li>' : '') + '</ul>' +
+      `<div class="pp-quick"><button type="button" class="master-type-preset" data-q="jp">日本だけ</button><button type="button" class="master-type-preset" data-q="asia">日本とアジア</button><button type="button" class="master-type-preset" data-q="all">すべて</button><button type="button" class="master-type-preset" data-q="none">すべて解除</button><span id="ppSel" class="pp-cnt"></span></div>` +
+      `<div class="pc-scroll">${ccs.map(sec).join('')}</div>` +
+      `<div class="cm-run"><button type="button" class="master-detail-save" id="ppApplyBtn">選んだ港を登録する</button><span id="ppMsg"></span></div>`;
+    const chks = () => [...body.querySelectorAll('.pp-chk:not(:disabled)')];
+    const upd = () => { const n = chks().filter(c => c.checked).length; body.querySelector('#ppSel').textContent = '　選択中 ' + n + ' 件'; const b = body.querySelector('#ppApplyBtn'); b.disabled = !n; b.textContent = n ? '選んだ ' + n + ' 件の港を登録する' : '選んだ港を登録する'; };
+    const setCc = (cc, on) => { body.querySelectorAll('.pp-chk').forEach(c => { const r = rows.find(x => x.p.name === c.dataset.name); if (r && r.p.cc === cc && !c.disabled) c.checked = on; }); const k = body.querySelector('.pp-ccchk[data-cc="' + cc + '"]'); if (k && !k.disabled) k.checked = on; };
+    body.addEventListener('change', e => { const t = e.target; if (t.classList.contains('pp-ccchk')) setCc(t.dataset.cc, t.checked); upd(); });
+    body.querySelectorAll('.pp-quick [data-q]').forEach(btn => btn.addEventListener('click', () => { const q = btn.dataset.q; ccs.forEach(cc => setCc(cc, q === 'all' || (q === 'jp' && cc === 'JP') || (q === 'asia' && (cc === 'JP' || asia.has(cc))))); upd(); }));
+    upd();
+    body.querySelector('#ppApplyBtn').addEventListener('click', async () => {
+      const btn = body.querySelector('#ppApplyBtn'), msg = body.querySelector('#ppMsg');
+      const picks = chks().filter(c => c.checked).map(c => rows.find(x => x.p.name === c.dataset.name).p);
+      if (!picks.length) return;
+      btn.disabled = true; msg.textContent = '　登録中…（件数が多いと少し時間がかかります）';
+      try {
+        const reg = await window.statsEnsureMasterMany('port', picks.map(p => p.name));
+        const items = [];
+        picks.forEach(p => { const cur = (window.mdGet('port', p.name) || {}).details || {}; if (!cur.country) items.push({ value: p.name, details: Object.assign({}, cur, { country: p.cc }) }); });
+        const res = reg.done && items.length ? await window.mdSaveMany('port', items) : { ok: 0, ng: 0 };
+        const al = reg.done ? await window.synAddAliasesMany('port', picks.filter(p => p.ja).map(p => ({ canonical: p.name, aliases: [p.ja] }))) : { added: 0, skipped: 0 };
+        msg.textContent = '　✅ 登録 ' + reg.done + ' 件' + (reg.requested ? '（承認待ちの申請 ' + reg.requested + ' 件）' : '') + '／国を付けた ' + res.ok + ' 件／日本語の別名 ' + al.added + ' 件' + (al.restricted ? '（承認制のため別名は管理者が追加）' : '') + (reg.failed ? '／失敗 ' + reg.failed + ' 件' : '');
+      } catch (e) {
+        msg.textContent = '　⚠ 実行できませんでした：' + (e && e.message || e);
+      }
+      if (typeof window.statsLoadMasterCache === 'function') await window.statsLoadMasterCache();
+      if (typeof window.arRefreshDatalist === 'function') window.arRefreshDatalist();
+      if (typeof window.statsRerenderActive === 'function') window.statsRerenderActive();
+      btn.disabled = false;
     });
   };
 

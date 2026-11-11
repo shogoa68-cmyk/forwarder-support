@@ -1392,6 +1392,8 @@
       window.mdLoadCloud().then(() => {
         if (typeof window.qfRefreshCustomerDetailBtn === 'function') window.qfRefreshCustomerDetailBtn();
         if (typeof window.refreshAllRowMasterDetailBtns === 'function') window.refreshAllRowMasterDetailBtns();
+        // ダッシュボードのお客様種別（荷主／同業者／その他）はマスターの取引形態から出すため、読み込み後に一覧を描き直す
+        if (typeof window.cloudRefreshDashList === 'function') window.cloudRefreshDashList();
       });
     } else {
       if (typeof window.qfRefreshCustomerDetailBtn === 'function') window.qfRefreshCustomerDetailBtn();
@@ -1536,6 +1538,7 @@
   function scrollToSection(sectionId) {
     const el = document.getElementById(sectionId);
     if (!el) return;
+    if (sectionId === 'section-remark' && typeof window.rmsOpen === 'function') { window.rmsOpen(true); return; }   // 全体リマークは画面下の引き出し
     el.scrollIntoView({ behavior:'smooth', block:'start' });
     const prev = el.style.outline;
     el.style.transition = 'outline .2s';
@@ -1701,6 +1704,9 @@
     return raw.slice(0, 2) + '-' + raw.slice(2, 8) + '-' + raw.slice(8);
   }
   function generateQuoteRefValue() {
+    // 管理者の一時機能（admin-creator-edit.js）：作成者を指定中は、その人の発番IDで採番する
+    const ov = window.adminCreatorRefOverride && window.adminCreatorRefOverride();
+    if (ov) return ov;
     const no = window._myMemberNo;
     if (no == null) return null;                       // 発番ID未取得（未ログイン or 未登録）
     const id2 = String(no).padStart(2, '0');
@@ -1736,6 +1742,7 @@
     if (v) _setRefValue(v);
   }
   window.fillQuoteRef     = fillQuoteRef;
+  window.generateQuoteRefValue = generateQuoteRefValue;   // 管理者の一時機能（admin-creator-edit.js）からも使う
   window.maybeAutoFillRef = maybeAutoFillRef;
 
   // 案件の保存・呼び出しは ☁️ チーム共有（クラウド）に一本化（ブラウザ保存は廃止）。
@@ -1784,7 +1791,17 @@
       pod     = routes.map(r => r.pod).filter(Boolean).join(', ');
       carrier = routes.map(r => r.carrier).filter(Boolean).join(', ');
     }
+    // 🔖 関連番号・メール件名（管理番号を取る前に始めた案件のフォロー用）
+    let related = [];
+    try {
+      const rl = JSON.parse(f['qf-related-data'] || '[]');
+      if (Array.isArray(rl)) {
+        related = rl.map(e => ({ k: (e && (e.k === 'num' || e.k === 'mail')) ? e.k : 'other', v: String((e && e.v) || '').trim() }))
+                    .filter(e => e.v);
+      }
+    } catch (e) {}
     return {
+      related,
       ref:       (f['qf-ref']         || '').trim(),
       customer:  (f['qf-customer']    || '').trim(),
       person:    (f['qf-person']      || '').trim(),
@@ -1795,7 +1812,8 @@
       received:  (f['qf-received']    || '').trim(),
       due:       (f['qf-due']         || '').trim(),
       subcons:   (window.quoteExtractSubcons ? window.quoteExtractSubcons(p.data) : []),
-      memo:      (f['qf-memo']        || '').trim().split('\n')[0].trim(),
+      // 案件名：「案件名」欄があればそれ、無ければ付箋（社内メモ）の1行目（2 通りの付け方）
+      memo:      (f['qf-case-name']   || '').trim() || (f['qf-memo']        || '').trim().split('\n')[0].trim(),
     };
   }
   // チーム共有カードでも同じ表示にするため公開
@@ -3393,6 +3411,7 @@
 
   // ===== 物量情報を見積サマリに表示 =====
   window.renderQuoteCargoInfo = function () {
+    if (typeof window.refreshRowConditions === 'function') window.refreshRowConditions();   // 行の表示条件（コンテナ本数・総個数など）を判定し直す
     const el = document.getElementById('qspCargoInfo');
     if (!el) return;
     if (typeof window.renderFclLcl === 'function') window.renderFclLcl();   // FCL/LCL 損益分岐パネルの物量を追随
@@ -3437,6 +3456,8 @@
 
     if (!activeRows.length) {
       panel.innerHTML = '<p class="qsp-empty">費用項目を入力すると<br>ここにまとめが表示されます</p>';
+      window._qspLast = null;
+      if (typeof window.qdgRender === 'function') window.qdgRender();
       return;
     }
 
@@ -3528,6 +3549,8 @@
       <div class="qsp-tax-row qsp-tax-amt"><span>${taxLabel}</span><span>¥${fmtJPY(taxAmt)}</span></div>
       ${hasFx ? '<p class="qsp-fx-note">※ 外貨は現在の参照レートで換算（概算）</p>' : ''}
     `;
+    window._qspLast = { count: activeRows.length, bill: totalBillJPY, cost: totalCostJPY, mk: mkPct, hasFx };   // 診断カード（diagnosis.js）が読む
+    if (typeof window.qdgRender === 'function') window.qdgRender();
     if (typeof window.renderQuoteSectionDigest === 'function') window.renderQuoteSectionDigest();
   };
 
@@ -3810,6 +3833,7 @@
   window.toggleQuoteSection = function(id) {
     const sec = document.getElementById(id);
     if (!sec) return;
+    if (id === 'section-remark' && typeof window.rmsToggle === 'function') { window.rmsToggle(); return; }
     sec.classList.remove('collapsed');   // 念のため常に展開
     sec.scrollIntoView({ block: 'start' });
   };
@@ -3889,7 +3913,6 @@
   const TAB_SKIP_SEL = [
     '.cc-step',                 // コンテナ本数の −／＋（数値欄は ↑↓ で増減できる）
     '.section-help-btn',        // 見出しの「?」（ホバーでも説明が出る）
-    '.fb-section-btn',          // セクションごとのフィードバック（右下の 💬 からも送れる）
     '.cargo-ref-chip',          // 貨物欄の参考リンク（他法令・税関・各省庁）
     '.hs-tariff-link',          // HS 欄の「WEBタリフ ↗」（参考リンクにも同じものがある）
     '#presetBtns button',       // リマークの定型文・区切り線（本文欄へ直接入れられる）
@@ -4430,6 +4453,7 @@
   window.openQuoteSectionFromDigest = function(id) {
     const sec = document.getElementById(id);
     if (!sec) return;
+    if (id === 'section-remark' && typeof window.rmsOpen === 'function') { window.rmsOpen(); return; }   // 全体リマークは画面下の引き出しを開く
     if (sec.classList.contains('collapsed') && typeof toggleQuoteSection === 'function') toggleQuoteSection(id);
     sec.scrollIntoView({ block: 'start' });
   };
@@ -4529,7 +4553,7 @@
     // 金額タブ：費用項目数
     const rows = document.querySelectorAll('#tableBody tr [data-field="nm"]').length;
     const finBtn = document.getElementById('qspTabBtn-fin');
-    if (finBtn) finBtn.innerHTML = '💰 金額' + (rows ? ' <span class="qsp-tab-badge">' + rows + '</span>' : '');
+    if (finBtn) finBtn.innerHTML = '💰 金額' + (rows ? ' <span class="qsp-tab-badge">' + rows + '</span>' : '') + (window._qdgCount ? ' <span class="qsp-tab-badge qsp-tab-badge-warn" title="見積の診断で要確認の点があります">!</span>' : '');
     // 輸送タブ：作業範囲が出ていれば●
     const hasFlow = document.getElementById('qspMilestones') && document.getElementById('qspMilestones').style.display !== 'none';
     const flowBtn = document.getElementById('qspTabBtn-flow');
@@ -4706,7 +4730,9 @@
       hidden.dispatchEvent(new Event('change', { bubbles: true }));
     }
     updateQuoteStatusUI();
+    if (typeof window.qvOnStatus === 'function') window.qvOnStatus(status);   // 提示済みにした時点の内容を版として記録（quote-versions.js）
     if (typeof window.updateSectionSummaries === 'function') window.updateSectionSummaries();
+    if (typeof window.ciSync === 'function') window.ciSync();   // 受注のときだけ基幹システム REF# を出す（case-info.js）
   }
   function updateQuoteStatusUI() {
     const status = document.getElementById('qf-status')?.value || '下書き中';
@@ -4725,6 +4751,7 @@
     // 種類フィルタは「表示する」設定のときだけ意味があるので、非表示設定中は畳んで隠す
     const revFilters = document.getElementById('qfRevisionFilters');
     if (revFilters) revFilters.hidden = !!document.getElementById('qf-revision-hide-diff')?.checked;
+    if (typeof window.qvRender === 'function') window.qvRender();   // 提示履歴（版）の一覧を更新
   }
   window.setQuoteStatus = setQuoteStatus;
   window.updateQuoteStatusUI = updateQuoteStatusUI;
@@ -4739,6 +4766,7 @@
       return;
     }
     if (!confirm('現在の内容を「前回提示分」として記録し、改定中にして編集を再開します。よろしいですか？')) return;
+    if (typeof window.qvOnStatus === 'function') window.qvOnStatus(status);   // 提示履歴に未記録なら、提示した内容を版として残してから改定に入る
     const snap = (typeof window.buildRevisionSnapshot === 'function') ? window.buildRevisionSnapshot() : null;
     const hid = document.getElementById('qf-revision-baseline');
     if (hid) {
@@ -4762,6 +4790,19 @@
     maybeAutoFillRef();          // 新規（REF空）なら仮REF#を自動採番
     // 初回はダッシュボード（ページ1）を表示。以降のタブ切替では現在ページを維持
     if (typeof window.qpShowDashboard === 'function') window.qpShowDashboard();
+  };
+
+  // 関連番号・メール件名（ダッシュボードのツリー行）を引用符で囲んでコピー（メーラー検索用）
+  window.copyRelValue = function(el) {
+    const raw = (el && el.dataset && el.dataset.v) || '';
+    if (!raw) return;
+    const text = '”' + raw + '”';   // 管理番号コピーと同じ引用符で囲む（Outlook のフレーズ検索の精度向上）
+    navigator.clipboard.writeText(text).then(() => {
+      if (el) { el.classList.add('copied'); setTimeout(() => el.classList.remove('copied'), 1200); }
+      if (typeof quoteShowToast === 'function') quoteShowToast('コピーしました：' + text, 'success', 2000);
+    }).catch(() => {
+      if (typeof quoteShowToast === 'function') quoteShowToast('⚠️ コピーに失敗しました', 'warn', 2000);
+    });
   };
 
   // 管理番号を "番号" 形式でクリップボードにコピー

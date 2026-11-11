@@ -15,7 +15,7 @@
      'cond-origin-country','cond-dest-country','z1Place','z1Country','z3Place','z3Country',
      'cond-container-count']
       .forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
-    ['cond-incoterms','cond-incoterms-ret','cond-mode','cond-container-type','cond-hazmat']
+    ['cond-incoterms','cond-incoterms-ret','cond-handling','cond-mode','cond-container-type','cond-hazmat']
       .forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
     const _unkEl = document.getElementById('cond-cargo-unknown');
     if (_unkEl) _unkEl.checked = false;
@@ -85,6 +85,8 @@
       incoterms: (g('cond-incoterms') === '設定なし' ? '' : g('cond-incoterms')), mode: g('cond-mode'), container,
       // 往復案件（輸出→輸入など）で、復路のインコタームズが往路と異なるときだけ入る（空＝往路と同じ）
       incotermsRet: (dirIsRound(_currentDirection) && g('cond-incoterms-ret') !== '設定なし') ? g('cond-incoterms-ret') : '',
+      // 荷役条件（RO/RO・在来船の BTBT／FILO／LIFO／FIOS／FIOST）。インコタームズとは別に併記する
+      handling: g('cond-handling'),
       cargo: g('cond-cargo'), hsCode: g('cond-hs'),
       hsBasic: g('cond-hs-basic'), hsPref: g('cond-hs-pref'), hsPrefNote: g('cond-hs-pref-note'),
       weight: (typeof window.getCargoWeightText === 'function')
@@ -259,10 +261,12 @@
   // 既存の保存データ（localStorage / JSON / クラウド）との互換のため、この順序は変更しないこと。
   // ※ 列の見た目の並び替えは row-tpl / thead 側だけで行い、ここは触らない。
   // 末尾の ppmin/bpmin（ミニマム＝最低料金：仕入／売値）も後方追加（保存配列の 30・31 番目）。
+  // さらに末尾の bphi（幅＝売単価の上限。例：1,000〜2,500 の 2,500）も後方追加（34 番目）。
   // その後ろの ic（適用する貿易条件：カンマ区切りのコード。空＝どの貿易条件でも有効）も後方追加（32 番目）。
+  // cn（表示条件：JSON {k,o,a,b}。空＝常に表示）は 33 番目。
   // 末尾の vf/vt（サーチャージ有効期限：開始/終了）は後方追加。既存保存データには無いが
   // _applyCells が undefined セルをスキップするため互換。順序は末尾以外変更しないこと。
-  const ROW_CELL_FIELDS = ['cat','sv','tx','nm','pq','un','bq','pc','bc','pp','bp','cd','mk','nt','zc','vf','vt','ac','pt','ps','co','lu','ppmode','pprate','ppbase','uid','ppref','ri','es','ppmin','bpmin','ic'];
+  const ROW_CELL_FIELDS = ['cat','sv','tx','nm','pq','un','bq','pc','bc','pp','bp','cd','mk','nt','zc','vf','vt','ac','pt','ps','co','lu','ppmode','pprate','ppbase','uid','ppref','ri','es','ppmin','bpmin','ic','cn','bphi'];
 
   function _applyCells(tr, cells) {
     // cells[0] = 選択チェック、cells[1..] = ROW_CELL_FIELDS 順（DOM 列順に依存しない）
@@ -360,11 +364,13 @@
 
   function _addDaysToValidUntil(n) {
     const el = document.getElementById('qf-valid-until');
-    if (!el || el.type !== 'date') return;
-    const base = el.value ? new Date(el.value + 'T00:00:00') : new Date();
+    if (!el) return;
+    if (el.type === 'text') _toggleValidUntilSpot();   // SPOT 表記から日付入力へ戻す
+    const base = new Date();   // 「今日から」n 日後（メニューの表記どおり）
     base.setDate(base.getDate() + n);
     el.value = base.toLocaleDateString('sv', { timeZone: 'Asia/Tokyo' }); // "YYYY-MM-DD" JST
     _checkValidUntil();
+    el.dispatchEvent(new Event('change', { bubbles: true }));
     if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
   }
 
@@ -462,6 +468,18 @@
     window.beginQuoteBulkUpdate();
     try { _rebuildTableRows(data); } finally { window.endQuoteBulkUpdate(); }
   }
+
+  // 明細（rows）だけを丸ごと置き換える（提示履歴 quote-versions.js の「この版に戻す」用）。
+  // 条件・貨物情報などの項目は現在のまま。置き換え前の状態を元に戻す（Ctrl+Z）の履歴へ積む。
+  window.quoteReplaceRows = function (rows) {
+    if (!Array.isArray(rows) || !rows.length) return false;
+    snapshotNow();                                   // 置き換え前の状態を確定（Ctrl+Z の戻り先）
+    const cur = gatherAllData();
+    cur.rows = JSON.parse(JSON.stringify(rows));
+    _applyQuoteData(cur);
+    scheduleSnapshot();                              // 置き換え後の状態を履歴へ
+    return true;
+  };
 
   function _rebuildTableRows(data) {
     document.getElementById('tableBody').innerHTML = '';
@@ -697,7 +715,20 @@
     const box = document.getElementById('qfCopiedFromInfo');
     if (!box) return;
     const cf = _loadedCopiedFrom;
-    if (!cf) { box.hidden = true; box.innerHTML = ''; return; }
+    // ログイン中は、代替わり元をあとから紐づけ・変更・解除できるボタンを出す（succession-link.js）
+    const loggedIn = typeof window.quoteCurrentUserEmail === 'function' && !!window.quoteCurrentUserEmail();
+    if (!cf) {
+      if (!loggedIn) { box.hidden = true; box.innerHTML = ''; return; }
+      box.innerHTML = '<div class="qf-copied-from-main qf-cf-empty">🧬 <button type="button" class="qf-cf-link-btn" onclick="qfPickPredecessor()" ' +
+        'title="前の案件を選んで、この案件をその次の代（代替わり）として管理します">代替わり元（前の案件）を紐づける</button>' +
+        '<span class="qf-cf-hint">前の案件を選ぶと、この案件はその次の代として管理されます</span></div>';
+      box.hidden = false;
+      return;
+    }
+    const cfActions = loggedIn
+      ? ' <span class="qf-cf-actions"><button type="button" class="qf-cf-btn" onclick="qfPickPredecessor()" title="代替わり元を別の案件に変更">変更</button>' +
+        '<button type="button" class="qf-cf-btn" onclick="qfClearPredecessor()" title="代替わり元の設定を解除（オリジナルに戻す）">解除</button></span>'
+      : '';
     const rows = (typeof _cloudRows !== 'undefined' && Array.isArray(_cloudRows)) ? _cloudRows : [];
     const origExists = cf.id && rows.some(row => row.id === cf.id);
     const cfRefBadge = cf.ref ? ' <span class="preset-cf-ref">(' + escHtml(cf.ref) + ')</span>' : '';
@@ -714,9 +745,20 @@
     box.innerHTML =
       '<div class="qf-copied-from-main">' + selfGenBadge + '📋 コピー元：<span class="cloud-cf-name">' + escHtml(cf.name || '不明') + cfRefBadge + '</span>' +
       (origExists ? ' <button type="button" class="btn-cf-preview" onclick="cloudPreviewPreset(\'' + encodeURIComponent(cf.id) + '\')" title="コピー元をプレビュー">プレビュー</button>' : '') +
-      '</div>' + rootHtml;
+      cfActions + '</div>' + rootHtml;
     box.hidden = false;
   }
+  window.qfRefreshCopiedFromInfo = _renderCopiedFromInfo;
+  // 代替わり元（copiedFrom）を設定・解除する。保存済みの案件は cloud.js の cloudSetPredecessor が DB を更新して呼ぶ（fromDb）。
+  // 新規で未保存の案件は、ここで保持して、通常の保存で一緒に保存される（gatherAllData が copiedFrom を付ける）
+  window.qfSetCopiedFrom = function (cf, opts) {
+    _loadedCopiedFrom = cf || null;
+    _renderCopiedFromInfo();
+    if (!(opts && opts.fromDb)) {
+      document.getElementById('qf-import-src')?.dispatchEvent(new Event('input', { bubbles: true }));   // 変更ありの印（未保存の確認・自動の履歴）
+      if (typeof scheduleSnapshot === 'function') scheduleSnapshot();
+    }
+  };
 
   // データを画面に適用（restoreAutoSave と同等。トースト・restoreBar 操作なし）
   function _applyQuoteData(data, { keepHeaderIfEmpty = false } = {}) {
@@ -740,9 +782,9 @@
     // ヘッダー項目（_HEADER_FIELD_IDS）は keepHeaderIfEmpty 指定時のみ対象外（現在値を保持）。
     // 案件を開く経路は指定せず、保存内容どおりに復元する（空の項目に前の案件の値を残さない）。
     // 一時的な UI 操作用フィールドも _clearQuoteForm と同じ SKIP で対象外にする。
-    const _SKIP_FIELDS = ['rowInsertPos', 'rowPatternInsertPos', 'bulkCatSet', 'bulkSubconSet', 'selectAllChk'];
+    const _SKIP_FIELDS = ['rowInsertPos', 'rowPatternInsertPos', 'bulkCatSet', 'bulkSubconSet', 'selectAllChk', 'qfRelKind', 'qfRelInput', 'hzAiReply'];
     document.querySelectorAll(
-      '#tab-quote-make .quote-main input[id], #tab-quote-make .quote-main select[id], #tab-quote-make .quote-main textarea[id]'
+      '#tab-quote-make .quote-main input[id], #tab-quote-make .quote-main select[id], #tab-quote-make .quote-main textarea[id], #rmSheet input[id], #rmSheet select[id], #rmSheet textarea[id]'   // #rmSheet＝画面下の全体リマーク（引き出し）
     ).forEach(el => {
       if (_SKIP_FIELDS.includes(el.id) || (keepHeaderIfEmpty && _HEADER_FIELD_IDS.includes(el.id))) return;
       if (el.closest('.quote-cmdbar')) return;
@@ -800,6 +842,12 @@
     _triggerCarrierBmFetch();
     if (typeof window.renderQuoteMilestones === 'function') window.renderQuoteMilestones();
     if (typeof window.qfRenderTagChips === 'function') window.qfRenderTagChips();
+    if (typeof window.qfRenderRelChips === 'function') window.qfRenderRelChips();
+    if (typeof window.ciSync === 'function') window.ciSync();
+    if (typeof window.cfSync === 'function') window.cfSync();
+    if (typeof window.htSync === 'function') window.htSync();
+    if (typeof window.rfSync === 'function') window.rfSync();
+    if (typeof window.cgSync === 'function') window.cgSync();
     if (typeof window.updateRemarkChar === 'function') window.updateRemarkChar();
     if (typeof window.syncRemarkChips === 'function') window.syncRemarkChips();
     if (typeof window.renderRemarkImages === 'function') window.renderRemarkImages();
@@ -898,36 +946,51 @@
       return s.length > 48 ? s.slice(0, 47) + '…' : s;
     } catch (_) { return u.length > 48 ? u.slice(0, 47) + '…' : u; }
   }
-  // テキストエリアの内容から URL を抽出し、リンク表示（view）へ切り替える。
-  // URL が無ければ編集用テキストエリアのまま。
+  // 参照URLの一覧（「📚 参照資料」カードの #qfSrcUrls）を、保存用の #qf-refurl の内容から描き直す。
+  // 案件を開いたとき・URL を足す／消したときに呼ぶ。保存形式は従来どおり（URL を改行区切りで #qf-refurl に持つ）。
   window.renderRefUrlLinks = function () {
     const ta = document.getElementById('qf-refurl');
-    const view = document.getElementById('qf-refurl-view');
-    if (!ta || !view) return;
+    const wrap = document.getElementById('qfSrcUrls');
+    if (!ta || !wrap) return;
     const links = _ruExtract(ta.value);
-    const wrap = view.querySelector('.qf-refurl-links');
-    if (!links.length) {
-      if (wrap) wrap.innerHTML = '';   // 別案件へ切り替わった際に古いリンクが残らないようにする
-      view.hidden = true; ta.hidden = false; return;
-    }
-    if (wrap) {
-      wrap.innerHTML = links.map(u =>
-        '<a class="qf-refurl-link" href="' + _ruEsc(u) + '" target="_blank" rel="noopener noreferrer" title="' +
-        _ruEsc(u) + '">🔗 ' + _ruEsc(_ruShort(u)) + '</a>'
-      ).join('');
-    }
-    ta.hidden = true;
-    view.hidden = false;
+    wrap.innerHTML = links.map(u =>
+      '<div class="qf-attach-item src-url-item">' +
+        '<a class="qf-att-open src-url-link" href="' + _ruEsc(u) + '" target="_blank" rel="noopener noreferrer" title="' + _ruEsc(u) + '">🔗 ' + _ruEsc(_ruShort(u)) + '</a>' +
+        '<span class="qf-att-meta">URL</span>' +
+        '<button type="button" class="qf-att-del src-url-del" data-url="' + _ruEsc(u) + '" title="この URL を外す">✕</button>' +
+      '</div>'
+    ).join('');
+    if (typeof window.srcSyncEmpty === 'function') window.srcSyncEmpty();
   };
-  // リンク表示から編集モード（テキストエリア）へ戻す
-  window.editRefUrl = function () {
+  // 互換：以前の「✎ 編集」。いまは資料を追加するダイアログを開く
+  window.editRefUrl = function () { if (typeof window.srcAddOpen === 'function') window.srcAddOpen(); };
+  // URL の取り出し・短縮表示・1 件の削除（資料を追加するダイアログ sources.js からも使う）
+  window.refUrlExtract = _ruExtract;
+  window.refUrlRemove = function (url) {
     const ta = document.getElementById('qf-refurl');
-    const view = document.getElementById('qf-refurl-view');
-    if (!ta || !view) return;
-    view.hidden = true;
-    ta.hidden = false;
-    ta.focus();
+    if (!ta) return;
+    const re = /https?:\/\/[^\s<>"'）)】」]+/g;
+    let removed = false;
+    const next = ta.value.replace(re, m => {
+      if (removed) return m;
+      const u = m.replace(/[.,;:!?！？）)、。]+$/, '');
+      if (u === url) { removed = true; return ''; }
+      return m;
+    });
+    ta.value = next.split(/\r?\n/).map(l => l.replace(/[ \t　]+$/, '')).filter(l => l.trim()).join('\n');
+    if (!_ruExtract(ta.value).length) ta.value = '';   // URL が 1 件も無くなったら、一覧に出ない文の残りも消す（見えないごみを残さない）
+    ta.dispatchEvent(new Event('input', { bubbles: true }));
+    ta.dispatchEvent(new Event('change', { bubbles: true }));
+    window.renderRefUrlLinks();
+    if (typeof window.ciSync === 'function') window.ciSync();
   };
+  // 一覧の ✕（URL を外す）は一覧のどこでも効くように委譲する
+  document.addEventListener('click', function (e) {
+    const btn = e.target.closest && e.target.closest('.src-url-del');
+    if (!btn) return;
+    e.preventDefault();
+    window.refUrlRemove(btn.dataset.url || '');
+  });
 
   // ===== 貨物セクション：関連知識・他法令 =====
   // 知識タブ（カテゴリ cat の サブタブ tabId）へジャンプし、任意で anchorId へスクロール
@@ -1119,8 +1182,9 @@
       });
     }
 
-    // IntersectionObserver：メモ欄が画面外に出たら自動表示
-    const memoField = document.querySelector('.quote-field-memo');
+    // IntersectionObserver：メモ欄が画面外に出たら自動表示（メモ欄を画面から隠した今は使わない。付箋は右下の「案件名・社内メモ」ボタンで開く。
+    //   開く度に勝手に出てきて「消せない」ように見えるため、自動表示は廃止）
+    const memoField = null;
     if (memoField && window.IntersectionObserver) {
       const obs = new IntersectionObserver(entries => {
         entries.forEach(entry => {
@@ -1141,7 +1205,7 @@
     // フォーム値
     const fields = {};
     document.querySelectorAll('input[id], select[id], textarea[id]').forEach(el => {
-      if (['csvFileInput','importFileInput','rowPatternImportFile','qf-memo-pop','qf-memo-float-ta'].includes(el.id)) return;
+      if (['csvFileInput','importFileInput','rowPatternImportFile','qf-memo-pop','qf-memo-float-ta','qfRelKind','qfRelInput','hzAiReply'].includes(el.id)) return;
       fields[el.id] = el.type === 'checkbox' ? el.checked : el.value;
     });
     // テーブル行（通常行 / 小計行 / リマーク行をすべて保存）
@@ -1453,6 +1517,7 @@
     applyZoneState();
     if (typeof window.renderQuoteMilestones === 'function') window.renderQuoteMilestones();
     if (typeof window.qfRenderTagChips === 'function') window.qfRenderTagChips();
+    if (typeof window.qfRenderRelChips === 'function') window.qfRenderRelChips();
   }
 
   /** インコタームズ選択時のヒント表示（index.html の onchange="showIncotermsHint()" から呼ばれる） */
@@ -1555,9 +1620,14 @@
     ).join('');
   }
 
-  // 各コンテナチップ（ドライ／RF／OT／FR）に内寸・外寸（＋容積/最大重量）を表示。
+  // 各コンテナチップ（ドライ／RF／OT／FR）の内寸・外寸（＋容積/最大重量）は、ラベル横の「ⓘ」にしまい、
+  // カーソルを乗せる（キーボードは焦点・タッチは押す）と小さな吹き出しで出す（チップ本体はすっきり保つ）。
   // ドライは SharedCalc.containerSpecs、RF/OT/FRは SPECIAL_CONTAINER_SPECS を情報源として m 換算表示。
   // FR（フラットラック）は高さ制限が無いため h が null になる想定で、その場合は「床面」表記にする。
+  // ゆくゆくはコンテナ解説ページへリンクする想定：CONTAINER_GUIDE_LINKS に { "20'GP": "https://…" } を足すと、
+  // 吹き出しの末尾に「📖 くわしく見る」を出す（空のうちは何も出さない）。
+  const CONTAINER_GUIDE_LINKS = {};
+  window.CONTAINER_GUIDE_LINKS = CONTAINER_GUIDE_LINKS;
   window.renderContainerChipDims = function () {
     const byName = {};
     if (window.SharedCalc && Array.isArray(SharedCalc.containerSpecs)) {
@@ -1565,38 +1635,43 @@
     }
     Object.assign(byName, SPECIAL_CONTAINER_SPECS);
     const m = v => (v / 100).toFixed(2);
+    const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
     document.querySelectorAll('.container-chip-grid .cc-chip[data-ctype]').forEach(chip => {
       const spec = byName[chip.dataset.ctype];
       if (!spec) return;
-      if (chip.querySelector('.cc-chip-dims')) return;   // 二重挿入防止
+      if (chip.querySelector('.cc-info-wrap')) return;   // 二重挿入防止
       const hasHeight = spec.dims && spec.dims.h != null;
-      const inn = !spec.dims ? ''
-        : hasHeight ? `内 ${m(spec.dims.l)}×${m(spec.dims.w)}×${m(spec.dims.h)}m`
-        : `床 ${m(spec.dims.l)}×${m(spec.dims.w)}m（高さ制限なし）`;
-      const ext = !spec.ext ? ''
-        : (spec.ext.h != null) ? `外 ${m(spec.ext.l)}×${m(spec.ext.w)}×${m(spec.ext.h)}m`
-        : `外 ${m(spec.ext.l)}×${m(spec.ext.w)}m`;
-      const cap = [spec.cbm ? `${spec.cbm}m³` : '', spec.maxKg ? `${(Number(spec.maxKg) / 1000).toFixed(1)}t` : '']
-        .filter(Boolean).join(' / ');
-      // ホバーで内寸・外寸・容積/最大重量のフル情報を表示
-      const full = [
-        !spec.dims ? '' : hasHeight ? `内寸 ${m(spec.dims.l)}×${m(spec.dims.w)}×${m(spec.dims.h)}m`
-          : `床面 ${m(spec.dims.l)}×${m(spec.dims.w)}m（高さ制限なし）`,
-        spec.ext ? (spec.ext.h != null ? `外寸 ${m(spec.ext.l)}×${m(spec.ext.w)}×${m(spec.ext.h)}m` : `外寸 ${m(spec.ext.l)}×${m(spec.ext.w)}m`) : '',
-        spec.cbm ? `容積 約${spec.cbm}m³` : '',
-        spec.maxKg ? `最大 ${Number(spec.maxKg).toLocaleString()}kg` : '',
-      ].filter(Boolean).join('\n');
-      const el = document.createElement('div');
-      el.className = 'cc-chip-dims';
-      el.title = full;
-      el.innerHTML =
-        (inn ? `<span class="cc-chip-dim cc-chip-dim-in" title="${full}">${inn}</span>` : '') +
-        (ext ? `<span class="cc-chip-dim cc-chip-dim-ex" title="${full}">${ext}</span>` : '') +
-        (cap ? `<span class="cc-chip-dim cc-chip-dim-cap" title="${full}">${cap}</span>` : '');
+      const rows = [];
+      if (spec.dims) rows.push(['内寸', hasHeight ? `${m(spec.dims.l)}×${m(spec.dims.w)}×${m(spec.dims.h)} m` : `${m(spec.dims.l)}×${m(spec.dims.w)} m（床面・高さ制限なし）`, 'in']);
+      if (spec.ext) rows.push(['外寸', spec.ext.h != null ? `${m(spec.ext.l)}×${m(spec.ext.w)}×${m(spec.ext.h)} m` : `${m(spec.ext.l)}×${m(spec.ext.w)} m`, 'ex']);
+      if (spec.cbm) rows.push(['容積', `約 ${spec.cbm} m³`, 'cap']);
+      if (spec.maxKg) rows.push(['最大重量', `${Number(spec.maxKg).toLocaleString()} kg（${(Number(spec.maxKg) / 1000).toFixed(1)} t）`, 'cap']);
+      if (!rows.length) return;
+      const name = (chip.querySelector('.cc-label b') || {}).textContent || chip.dataset.ctype;
+      const link = CONTAINER_GUIDE_LINKS[chip.dataset.ctype];
+      const wrap = document.createElement('span');
+      wrap.className = 'cc-info-wrap';
+      wrap.innerHTML =
+        `<button type="button" class="cc-info" aria-label="${esc(name)} の寸法・容積を見る" aria-haspopup="true">i</button>` +
+        `<span class="cc-info-pop" role="tooltip"><b class="cc-info-ttl">${esc(name)} の目安</b>` +
+        rows.map(r => `<span class="cc-info-row cc-info-${r[2]}"><span class="cc-info-k">${r[0]}</span><span class="cc-info-v">${esc(r[1])}</span></span>`).join('') +
+        (link ? `<a class="cc-info-link" href="${esc(link)}" target="_blank" rel="noopener">📖 くわしく見る ↗</a>` : '') +
+        `</span>`;
       const label = chip.querySelector('.cc-label');
-      if (label) label.insertAdjacentElement('afterend', el); else chip.insertBefore(el, chip.firstChild);
+      if (label) label.appendChild(wrap); else chip.insertBefore(wrap, chip.firstChild);
     });
   };
+  // タッチ端末など、ホバーできないときは「ⓘ」を押して開閉（外側を押す・Esc で閉じる）。ステップ操作とは干渉しない。
+  document.addEventListener('click', e => {
+    const btn = e.target.closest && e.target.closest('.cc-info');
+    document.querySelectorAll('.cc-info-wrap.is-open').forEach(w => { if (!btn || w !== btn.parentNode) w.classList.remove('is-open'); });
+    if (btn) { e.preventDefault(); btn.parentNode.classList.toggle('is-open'); }
+  });
+  document.addEventListener('keydown', e => {
+    if (e.key !== 'Escape') return;
+    document.querySelectorAll('.cc-info-wrap.is-open').forEach(w => w.classList.remove('is-open'));
+    const a = document.activeElement; if (a && a.classList && a.classList.contains('cc-info')) a.blur();   // 焦点で開いている吹き出しも閉じる
+  });
 
   // チップの本数入力（0以下で解除）。データ形は従来どおり _containerEntries=[{type,count}]
   window.setContainerChip = function (type, raw) {
@@ -1739,6 +1814,7 @@
         <input type="number" class="cc-dim og-w" min="0" step="1" placeholder="幅" inputmode="numeric" value="${v(item.w)}" oninput="recalcOverGauge()" /><span class="cc-dim-x">×</span>
         <input type="number" class="cc-dim og-h" min="0" step="1" placeholder="高さ" inputmode="numeric" value="${v(item.h)}" oninput="recalcOverGauge()" /><span class="cc-dim-unit">cm</span>
       </div>
+      <span class="cc-og-qtylbl">個数</span>
       <input type="number" class="cc-dim og-qty" min="1" step="1" value="${v(qty)}" inputmode="numeric" title="個数" oninput="recalcOverGauge()" />
       <span class="cc-og-rowresult" data-state="empty">—</span>
       <button type="button" class="cc-og-del" onclick="removeOverGaugeRow(this)" title="このサイズを削除" aria-label="削除">✕</button>
@@ -2533,11 +2609,17 @@
     // 重量・容積（概算）欄は廃止。明細合計を直接保持してプレビュー等で参照
     // hidden に R/T・CW も保持（プレビュー等で参照可能に）
     _lastCargoMetrics = { cbm: totCbm, kg: totKg, rt, cw, qty: totQty };
+    if (typeof window.refreshRowConditions === 'function') setTimeout(window.refreshRowConditions, 0);   // 行の表示条件を判定し直す
     if (typeof window.renderQuoteCargoInfo === 'function') window.renderQuoteCargoInfo();
     // 右カラム「数量」メニューのパターン選択欄（ud-pattern-select）も同期
     if (typeof window.udRefresh === 'function') window.udRefresh();
   }
   let _lastCargoMetrics = { cbm: 0, kg: 0, rt: 0, cw: 0, qty: 0 };
+
+  // 行の「表示条件」が参照できるよう、コンテナの種別・本数を公開（[{type, count}]）
+  window.getContainerEntries = function () {
+    return (_containerEntries || []).filter(e => e && e.type).map(e => ({ type: e.type, count: parseFloat(e.count) || 0 }));
+  };
 
   // 物量情報を見積サマリ等から参照できるよう公開
   window.getCargoMetrics = function () {
@@ -2766,6 +2848,64 @@
   window.qfTagsKeydown = function (e) {
     if (e.key === 'Enter') { e.preventDefault(); window.qfAddTagFromInput(); }
   };
+  // ========== 🔖 関連番号・メール件名 ==========
+  // 管理番号を取らずに見積対応を始めた案件を後からフォローするため、案件ごとに複数の
+  // 識別子（問い合わせ番号・メール件名など）を登録する。#qf-related-data（hidden・JSON配列
+  // [{k:'num'|'mail'|'other', v:'…'}]）が実データ。保存/復元は他の qf-* 項目と同じ汎用ループ任せ。
+  // ダッシュボードの検索対象・カード表示にも載る（ui.js _presetMeta().related）。
+  const _QF_REL_ICON = { num: '🔢', mail: '✉️', other: '📎' };
+  function _qfRelArr() {
+    try {
+      const a = JSON.parse(document.getElementById('qf-related-data')?.value || '[]');
+      return Array.isArray(a)
+        ? a.map(e => ({ k: (e && _QF_REL_ICON[e.k]) ? e.k : 'other', v: String((e && e.v) || '').trim() })).filter(e => e.v)
+        : [];
+    } catch (e) { return []; }
+  }
+  function _qfSetRelArr(arr) {
+    const el = document.getElementById('qf-related-data');
+    if (el) el.value = JSON.stringify(arr);
+    window.qfRenderRelChips();
+    if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
+  }
+  window.qfRenderRelChips = function () {
+    const box = document.getElementById('qfRelChips');
+    if (!box) return;
+    box.innerHTML = _qfRelArr().map((e, i) =>
+      '<span class="qf-tag-chip qf-rel-chip" title="クリックでコピー">' +
+        '<span class="qf-rel-text" onclick="qfCopyRel(' + i + ')">' + _QF_REL_ICON[e.k] + ' ' + escHtml(e.v) + '</span>' +
+        '<button type="button" onclick="qfRemoveRel(' + i + ')" title="この登録を外す">×</button></span>'
+    ).join('');
+  };
+  window.qfAddRelFromInput = function () {
+    const inp = document.getElementById('qfRelInput');
+    const v = (inp?.value || '').trim();
+    if (!v) return;
+    const k = document.getElementById('qfRelKind')?.value || 'num';
+    const cur = _qfRelArr();
+    if (cur.some(e => e.v === v)) {
+      if (typeof quoteShowToast === 'function') quoteShowToast('ℹ️ すでに登録されています', 'info', 2000);
+      inp.value = '';
+      return;
+    }
+    _qfSetRelArr([...cur, { k, v }]);
+    inp.value = '';
+    inp.focus();
+  };
+  window.qfRemoveRel = function (idx) {
+    _qfSetRelArr(_qfRelArr().filter((_, i) => i !== idx));
+  };
+  window.qfCopyRel = function (idx) {
+    const e = _qfRelArr()[idx];
+    if (!e) return;
+    const done = () => { if (typeof quoteShowToast === 'function') quoteShowToast('コピーしました：' + e.v, 'success', 2000); };
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(e.v).then(done, () => {});
+  };
+  window.qfRelKeydown = function (ev) {
+    // IME 変換確定の Enter では追加しない
+    if (ev.key === 'Enter' && !ev.isComposing) { ev.preventDefault(); window.qfAddRelFromInput(); }
+  };
+
   // タグ入力欄のサジェスト（全案件で使われている既知のタグ。取得はチーム共有ログイン時のみ）
   window.qfLoadTagSuggestions = async function () {
     const dl = document.getElementById('qfTagSuggestions');
@@ -2906,26 +3046,27 @@
   }
 
   // ========== 危険品・特殊貨物：複数件登録 ==========
-  // 入力欄（UN番号／クラス／PG／PI／消防法／PSN／引火点）を「1件分のフォーム」として使い、
+  // 入力欄（製品名／UN番号／クラス／PG／PI／消防法／PSN／引火点）を「1件分のフォーム」として使い、
   // ＋ 追加のたびに _hazEntries へ積んでフォームをクリアする（幹線輸送の航路チップと同じ設計）。
   // 後方互換：1件も追加せずフォームに直接入力しただけの旧来の使い方は、_hazEntries が空のまま
   // 残るため、PDF側（quote-pdf.js の _hazmatDetail）がフォームの値をフォールバックとして拾う。
-  let _hazEntries = [];   // [{ un, cls, pg, pi, fireLaw, psn, flash }, ...]
+  let _hazEntries = [];   // [{ name(製品名), un, cls, pg, pi, fireLaw, psn, flash }, ...]
 
   function _hazFormGet() {
     const v = id => (document.getElementById(id)?.value || '').trim();
-    return { un: v('hz-un'), cls: v('hz-class'), pg: v('hz-pg'), pi: v('hz-pi'),
+    return { name: v('hz-name'), un: v('hz-un'), cls: v('hz-class'), pg: v('hz-pg'), pi: v('hz-pi'),
              fireLaw: v('hz-fire-law'), psn: v('hz-psn'), flash: v('hz-flash') };
   }
   function _hazFormSet(e) {
     const set = (id, val) => { const el = document.getElementById(id); if (el) el.value = val || ''; };
-    set('hz-un', e.un); set('hz-class', e.cls); set('hz-pg', e.pg); set('hz-pi', e.pi);
+    set('hz-name', e.name); set('hz-un', e.un); set('hz-class', e.cls); set('hz-pg', e.pg); set('hz-pi', e.pi);
     set('hz-fire-law', e.fireLaw); set('hz-psn', e.psn); set('hz-flash', e.flash);
   }
   function _hazFormClear() { _hazFormSet({}); }
   // 表示用の要約テキスト（チップ・PDF共通）
   function _hazEntryLabel(e) {
     const parts = [];
+    if (e.name)    parts.push(e.name);   // 製品名（正式品名 PSN とは別）を先頭に
     if (e.un)      parts.push('UN' + e.un.replace(/^UN/i, ''));
     if (e.cls)     parts.push(e.cls);
     if (e.pg)      parts.push(e.pg);
@@ -2946,8 +3087,9 @@
       const label = _hazEntryLabel(e) || '（未入力）';
       return `<span class="hz-entry-chip">`
         + `<span class="hz-entry-idx">${i + 1}</span>`
-        + `<span class="hz-entry-label">${_escMulti(e.psn || e.un || label)}</span>`
+        + `<span class="hz-entry-label">${_escMulti(e.name || e.psn || e.un || label)}</span>`
         + `<span class="hz-entry-sub">${_escMulti(label)}</span>`
+        + (e.ai ? `<button type="button" class="hz-entry-ai" onclick="confirmHazEntry(${i})" title="AIから取り込んだ内容です。SDS・IMDG等と照合してください。押すと「照合済み」にします${e.src ? '（出典：' + _escMulti(e.src) + '）' : ''}">🤖要確認</button>` : '')
         + `<button type="button" class="hz-entry-edit" onclick="editHazEntry(${i})" title="編集（フォームに書き戻す）">✎</button>`
         + `<button type="button" class="me-chip-del" onclick="removeHazEntry(${i})" title="削除">×</button></span>`;
     }).join('');
@@ -2955,14 +3097,14 @@
 
   function addHazEntry() {
     const e = _hazFormGet();
-    if (!e.un && !e.psn) {
-      if (typeof quoteShowToast === 'function') quoteShowToast('⚠️ UN番号または正式品名（PSN）を入力してください', 'warn', 1800);
+    if (!e.name && !e.un && !e.psn) {
+      if (typeof quoteShowToast === 'function') quoteShowToast('⚠️ 製品名・UN番号・正式品名（PSN）のいずれかを入力してください', 'warn', 1800);
       return;
     }
     _hazEntries.push(e);
     _hazFormClear();
     _renderHazEntries();
-    document.getElementById('hz-un')?.focus();
+    document.getElementById('hz-name')?.focus();
     if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
     if (typeof scheduleSnapshot === 'function') scheduleSnapshot();
   }
@@ -2978,10 +3120,27 @@
     _hazFormSet(e);
     _hazEntries.splice(i, 1);
     _renderHazEntries();
-    document.getElementById('hz-un')?.focus();
+    document.getElementById('hz-name')?.focus();
     if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
     if (typeof scheduleSnapshot === 'function') scheduleSnapshot();
   }
+  // AI（Gemini / NotebookLM 等）の回答から取り込んだ危険品を追加する（hazmat-ai-import.js から呼ぶ）。
+  // 取り込み分には ai:true を付け、チップに「🤖要確認」を出す（SDS・IMDG との照合を促す）。
+  window.importHazEntries = function (list) {
+    if (!Array.isArray(list) || !list.length) return 0;
+    list.forEach(e => _hazEntries.push(Object.assign({}, e, { ai: true })));
+    _renderHazEntries();
+    if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
+    if (typeof scheduleSnapshot === 'function') scheduleSnapshot();
+    return list.length;
+  };
+  window.confirmHazEntry = function (i) {
+    const e = _hazEntries[i];
+    if (!e) return;
+    delete e.ai;
+    _renderHazEntries();
+    if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
+  };
   window.addHazEntry    = addHazEntry;
   window.removeHazEntry = removeHazEntry;
   window.editHazEntry   = editHazEntry;
@@ -3572,19 +3731,23 @@
 
   /** z2Carrier 入力時：一致するキャリアのリンクパネルを表示 */
   // A-1: z2 キャリア名を収集して QSP 用ブックマームを非同期フェッチ
+  // 幹線（z2）のブックマーク判定に使う会社名：実運送人（実際の船会社）があればそれ、
+  // 無ければ契約先のキャリアで判定する（例：契約先 INNEX・実運送人 EVERGREEN → EVERGREEN の
+  // ブックマークを表示）。登録済みの有効航路＋現在の入力欄が対象。
+  function _z2BmCarrierNames() {
+    const names = [];
+    const add = n => { n = (n || '').trim(); if (n && !names.includes(n)) names.push(n); };
+    if (_routeEntries && _routeEntries.length) {
+      _routeEntries.filter(r => r.enabled !== false).forEach(r => add(r.actualCarrier || r.carrier));
+    }
+    const g = id => (document.getElementById(id)?.value || '').trim();
+    add(g('z2ActualCarrier') || g('z2Carrier'));
+    return names;
+  }
+
   function _triggerCarrierBmFetch() {
     if (typeof window.fetchCarrierBmsForQSP !== 'function') return;
-    const names = [];
-    // z2: 幹線キャリア（有効航路のみ）。契約先（carrier）に加え、
-    // 実運送人（actualCarrier＝「as ○○」）が別会社の場合はそちらのブックマークも対象にする
-    if (_routeEntries && _routeEntries.length) {
-      _routeEntries.filter(r => r.enabled !== false).forEach(r => {
-        if (r.carrier && !names.includes(r.carrier)) names.push(r.carrier);
-        if (r.actualCarrier && !names.includes(r.actualCarrier)) names.push(r.actualCarrier);
-      });
-    }
-    const cur = (document.getElementById('z2Carrier')?.value || '').trim();
-    if (cur && !names.includes(cur)) names.push(cur);
+    const names = _z2BmCarrierNames();
     // z1/z3: デフォルトサブコン（複数登録分すべて）
     _getAllScValues('z1DefaultScArea').forEach(sc => { if (!names.includes(sc)) names.push(sc); });
     _getAllScValues('z3DefaultScArea').forEach(sc => { if (!names.includes(sc)) names.push(sc); });
@@ -3632,17 +3795,8 @@
   window.getCarrierLinkData = function () {
     const map  = _carrierMapForMode();
     const defs = _linkDefsForMode();
-    const names = [];
-    // 契約先（carrier）に加え、実運送人（actualCarrier＝「as ○○」）が別会社の場合は
-    // そちらのブックマークも別ブロックとして表示する（実際に船を運航するのは実運送人のため）
-    if (_routeEntries && _routeEntries.length) {
-      _routeEntries.filter(r => r.enabled !== false).forEach(r => {
-        if (r.carrier && !names.includes(r.carrier)) names.push(r.carrier);
-        if (r.actualCarrier && !names.includes(r.actualCarrier)) names.push(r.actualCarrier);
-      });
-    }
-    const cur = (document.getElementById('z2Carrier')?.value || '').trim();
-    if (cur && !names.includes(cur)) names.push(cur);
+    // 実運送人があればそれ、無ければキャリアで判定（_z2BmCarrierNames）
+    const names = _z2BmCarrierNames();
     const bmCache = window._qspBmCache || {};
     const getRelated = typeof window.bmGetRelated === 'function' ? window.bmGetRelated : () => [];
     // 全面クラウド移行（フェーズ3）：内蔵DBの静的リンクは廃止し、クラウドの

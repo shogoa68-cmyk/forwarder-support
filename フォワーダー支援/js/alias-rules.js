@@ -497,6 +497,7 @@
   window.arRefreshDatalist = function () {
     _refreshDatalist.apply(this, arguments);
     if (typeof window.qfRefreshCarrierMasterCandidates === 'function') window.qfRefreshCarrierMasterCandidates();   // サブコンのマスター（種別がキャリア）を幹線輸送のキャリア候補へ
+    if (typeof window.zscRefreshLists === 'function') window.zscRefreshLists();   // 出発地側・到着地側のデフォルトサブコンの候補（得意エリアで絞る）
     if (typeof window.ptcRefreshLists === 'function') window.ptcRefreshLists();   // 国で絞った港の候補（POL／経由地／POD）も作り直す
     if (typeof window.refreshAllRowSvChips === 'function') window.refreshAllRowSvChips();   // マスターが読み込まれた・変わったら、行の「サブコン未登録」の印も更新
   };
@@ -755,6 +756,7 @@
     svSuggestions: 'sv', nmSuggestions: 'nm', 'unit-list': 'un',
     custSuggestions: 'customer', portSuggestions: 'port', 'carriers-dl': 'carrier',
     z2PolList: 'port', z2ViaList: 'port', z2PodList: 'port',   // 国で絞った港の候補（js/port-country.js）
+    z1ScList: 'sv', z3ScList: 'sv',   // 出発地側・到着地側のデフォルトサブコンを、その国を得意エリアとするサブコンに絞った候補（js/zone-subcon.js）
   };
   // 入力値が「ある同義グループの統合表記（別名）」なら代表名を返す。代表名そのもの・未登録なら null。
   function _canonicalFor(field, value) {
@@ -877,6 +879,7 @@
         }
         _refreshDatalist();
         if (typeof window.ptcRefreshLists === 'function') window.ptcRefreshLists();
+        if (typeof window.zscRefreshLists === 'function') window.zscRefreshLists();
         _markUnregistered(input, 'port', true);
         if (typeof window.statsRerenderActive === 'function') window.statsRerenderActive();
       }),
@@ -1192,6 +1195,33 @@
     await _synAfter('⭐「' + value + '」を代表（マスター）に設定しました');
   };
 
+  // 別名をまとめて足す（1 回の書き込み・1 回の読み直し）。items＝[{canonical, aliases}]。管理者・従来（承認制でない）だけ。
+  //   すでに別のマスター・別名になっている名前、マスター名と同じ名前は足さない。戻り値＝{added, skipped}
+  window.synAddAliasesMany = async function (field, items) {
+    items = (items || []).filter(x => x && x.canonical && Array.isArray(x.aliases) && x.aliases.length);
+    if (!items.length) return { added: 0, skipped: 0 };
+    if (_synRestricted()) return { added: 0, skipped: items.reduce((s, x) => s + x.aliases.length, 0), restricted: true };
+    if (!_needCloud('同義グループ')) return { added: 0, skipped: items.reduce((s, x) => s + x.aliases.length, 0) };
+    const taken = new Set();
+    _synAll().filter(g => g.field === field).forEach(g => { taken.add(g.canonical); (g.aliases || []).forEach(a => taken.add(a)); });
+    (typeof window.statsGetMasters === 'function' ? window.statsGetMasters() : []).filter(m => m.field === field).forEach(m => taken.add(m.value));
+    let added = 0, skipped = 0; const rows = [];
+    const now = new Date().toISOString();
+    items.forEach(x => {
+      const g = _synAll().find(y => y.field === field && y.canonical === x.canonical);
+      const cur = (g && g.aliases) || [];
+      const add = [];
+      x.aliases.forEach(a => { if (!a || a === x.canonical || cur.includes(a) || taken.has(a)) { skipped++; return; } taken.add(a); add.push(a); });
+      if (!add.length) return;
+      added += add.length;
+      rows.push({ field, canonical: x.canonical, aliases: [...cur, ...add], updated_by: _me(), updated_at: now });
+    });
+    if (!rows.length) return { added, skipped };
+    const { error } = await _c().from(SYN_TABLE).upsert(rows, { onConflict: 'field,canonical' });
+    if (error) { if (_synMissingErr(error)) _synTableMissing = true; _synFail(error); return { added: 0, skipped: skipped + added, failed: true }; }
+    await window.synLoadCloud();
+    return { added, skipped };
+  };
   window.synAddAlias = async function (field, alias, canonical) {
     if (!field || !alias || !canonical || alias === canonical) return;
     // 承認制：メンバーの別名追加は申請になり、管理者が承認すると反映される

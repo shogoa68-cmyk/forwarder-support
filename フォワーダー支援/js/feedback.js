@@ -287,8 +287,12 @@
   async function fbBuildExtra() {
     const u = me();
     const extra = { page_url: String(location.href).slice(0, 500), context: buildContext() };
-    const title = ($('fbTitle') || {}).value;
-    if (title && title.trim()) extra.title = title.trim().slice(0, 120);
+    let title = (($('fbTitle') || {}).value || '').trim();
+    if (_ideaMode && _ideaDraft) {                // アイデア：種類などを context に持たせ、要約が空なら本文の頭から作る
+      extra.context.idea = { type: _ideaDraft.type, from: _ideaDraft.from, to: _ideaDraft.to };
+      if (!title) title = String(_ideaDraft.raw || '').replace(/\s+/g, ' ').trim().slice(0, 40);
+    }
+    if (title) extra.title = title.slice(0, 120);
     if (u && u.email) extra.reporter_email = u.email;
     if (!_pending.length) return extra;
     if (!u) throw new Error('添付にはログインが必要です。添付を外すか、ログインしてください');
@@ -323,13 +327,75 @@
   function fbAfterSubmit() {
     fbResetAttachments();
     if ($('fbTitle')) $('fbTitle').value = '';
+    _setIdeaMode(false);
     if ($('tab-bugreports') && $('tab-bugreports').classList.contains('active')) loadReports();
   }
   function fbOnOpen() {
     fbResetAttachments();
     if ($('fbTitle')) $('fbTitle').value = '';
+    _setIdeaMode(false);
     refreshAttachAvailability();
   }
+
+  // ---------- 💡 アイデアの投稿（同じフォームを「アイデア用」の表示にして使う） ----------
+  const IDEA_TYPE_ICON = { '改善案': '🔧', 'つなげたい': '🔗', '新機能': '✨', 'その他': '📌' };
+  const IDEA_BODY_HINT = {
+    '改善案': '例）見積テーブルの「小計」を、サブコンごとに折りたたんで見られるようにしたい',
+    'つなげたい': '例）過去の受注実績を見ながら、今回の見積の仕入れ先を選べるようにしたい。どうつながると嬉しいかを書いてください',
+    '新機能': '例）見積から、そのまま通関書類のひな形を作れる機能がほしい',
+    'その他': '思いついたことを自由に書いてください',
+  };
+  let _ideaMode = false;
+  let _ideaDraft = null;      // 送信時に組み立てた内容（fbBuildExtra が context に入れる）
+  function _ideaType() { const r = document.querySelector('#fbForm input[name="fbIdeaType"]:checked'); return r ? r.value : '改善案'; }
+  function _syncIdeaUi() {
+    const t = _ideaType();
+    document.querySelectorAll('#fbIdeaTypeRadios .fb-radio').forEach(l => { const i = l.querySelector('input'); l.classList.toggle('checked', !!(i && i.checked)); });
+    const lk = $('fbIdeaLinkField'); if (lk) lk.hidden = !(_ideaMode && t === 'つなげたい');
+    const body = $('fbBody'); if (body && _ideaMode) body.placeholder = IDEA_BODY_HINT[t] || '';
+  }
+  function _setIdeaMode(on) {
+    _ideaMode = !!on;
+    const f = $('fbForm'); if (f) f.classList.toggle('is-idea', _ideaMode);
+    const lbl = $('fbBodyLbl'); if (lbl) lbl.textContent = _ideaMode ? 'アイデア（どうなったら嬉しいですか？）' : '内容';
+    const sb = $('fbSubmitBtn'); if (sb) sb.textContent = _ideaMode ? 'アイデアを送る' : '送信';
+    const ttl = $('fbTitle'); if (ttl) ttl.placeholder = _ideaMode ? '例）サブコンごとに小計を折りたたみたい' : '例）見積テーブルで単価が反映されない';
+    if (!_ideaMode) {
+      _ideaDraft = null;
+      ['fbIdeaFrom', 'fbIdeaTo', 'fbIdeaWhy'].forEach(id => { const el = $(id); if (el) el.value = ''; });
+      const first = document.querySelector('#fbForm input[name="fbIdeaType"][value="改善案"]'); if (first) first.checked = true;
+      const body = $('fbBody'); if (body) body.placeholder = '例）〇〇のとき動作がおかしい / 〇〇機能を追加してほしい など。何をしたら、どうなったか（期待は何か）を書くと直しやすくなります';
+    }
+    _syncIdeaUi();
+  }
+  document.addEventListener('change', e => { if (e.target && e.target.name === 'fbIdeaType') _syncIdeaUi(); });
+
+  // ページ・ヘッダーの「アイデアを送る」から：改善要望を選んだ状態で、アイデア用の入力欄を出して開く
+  function fbOpenIdea() {
+    if (typeof window.openFeedback !== 'function') return;
+    window.openFeedback('全体');
+    _setIdeaMode(true);
+    const head = $('fbHeadTitle'); if (head) head.textContent = '💡 アイデアを送る';
+    const secSel = $('fbSection'); if (secSel) secSel.value = 'わからない';
+    const r = document.querySelector('#fbForm input[name="fbCategory"][value="改善要望"]');
+    if (r) { r.checked = true; document.querySelectorAll('#fbForm #fbCategoryRadios .fb-radio').forEach(x => x.classList.toggle('checked', x.contains(r))); }
+    refreshAttachAvailability();
+    setTimeout(() => { const t = $('fbTitle'); if (t) t.focus(); }, 60);
+  }
+  // 送信直前（save.js の submitFeedback から）：アイデアなら、種類などを見出しつきの本文にまとめる
+  function fbIdeaBody(body) {
+    if (!_ideaMode) return body;
+    const type = _ideaType();
+    const from = (($('fbIdeaFrom') || {}).value || '').trim(), to = (($('fbIdeaTo') || {}).value || '').trim();
+    const why = (($('fbIdeaWhy') || {}).value || '').trim();
+    _ideaDraft = { type, from: type === 'つなげたい' ? from : '', to: type === 'つなげたい' ? to : '', raw: body };
+    const lines = ['【種類】' + type];
+    if (type === 'つなげたい' && (from || to)) lines.push('【つなげたい情報】' + (from || '?') + ' ⇄ ' + (to || '?'));
+    if (why) lines.push('【困っていること・きっかけ】' + why);
+    lines.push('【アイデア】' + body);
+    return lines.join('\n');
+  }
+  function fbIsIdeaMode() { return _ideaMode; }
 
   // 常駐ボタン／ページの「報告する」から：バグ報告を選んだ状態で開く
   function fbOpenQuick() {
@@ -348,10 +414,17 @@
   const ST_KEYS = ['open', 'need_info', 'in_progress', 'resolved', 'wontfix'];
   const KIND_LABEL = { question: '❓ 質問', answer: '↩ 返信', comment: '💬 コメント' };
   const CAT = { 'バグ報告': '🐛', '改善要望': '💡', '質問': '❓', 'その他': '📌' };
+  // アイデア（category＝改善要望）の状態名。DB の status 値は同じで、見せ方だけ変える
+  const IDEA_ST = { open: '新着', need_info: '確認待ち', in_progress: '採用（対応予定）', resolved: '実装済み', wontfix: '見送り' };
+  const _isIdea = r => r.category === '改善要望';
+  const stl = (k, idea) => (idea ? IDEA_ST : ST)[k] || k;
   const fmt = iso => (window.FeedbackMd ? window.FeedbackMd.fmtDate(iso) : String(iso || ''));
 
   let _rows = [];
-  let _flt = { status: 'open+', cat: '', mine: false, q: '' };    // 'open+' = 未対応＋確認待ち＋対応中
+  let _flt = { status: 'open+', cat: '', itype: '', mine: false, q: '' };    // 'open+' = 未対応＋確認待ち＋対応中
+  let _mode = 'bug';          // 'bug'＝不具合報告 ／ 'idea'＝アイデア
+  let _votes = {};            // アイデアid → { n: 票数, mine: 自分が投票済みか }
+  let _votesOn = false;       // 投票の表（feedback_votes）が使えるか（SQL 未適用なら 👍 を出さない）
   let _comments = {};    // 報告id → コメント配列（開いたときに読む）
   let _open = new Set();
   let _loaded = false;
@@ -365,7 +438,19 @@
   }
   function _isMine(r) { const u = me(); return !!u && (r.user_id === u.id || (r.reporter_email && r.reporter_email === u.email)); }
   function _noOf(r) { return r.report_no != null ? '#' + r.report_no : '#' + String(r.id).slice(0, 6); }
-  function _titleOf(r) { const t = r.title || String(r.body || '').split('\n')[0]; return t.length > 70 ? t.slice(0, 70) + '…' : t; }
+  function _titleOf(r) {
+    const t = r.title || (_isIdea(r) ? String(parseIdea(r).idea || '').split('\n')[0] : '') || String(r.body || '').split('\n')[0];
+    return t.length > 70 ? t.slice(0, 70) + '…' : t;
+  }
+  // アイデアの本文（【種類】【つなげたい情報】【困っていること・きっかけ】【アイデア】）を分解する。見出しの無い昔の「改善要望」は全文をアイデアとして扱う
+  function parseIdea(r) {
+    const body = String(r.body || ''), secs = {};
+    body.replace(/【([^】\n]+)】([\s\S]*?)(?=\n【[^】\n]+】|$)/g, (m, k, v) => { secs[k] = v.trim(); return m; });
+    const ci = (r.context && r.context.idea) || {};
+    let from = ci.from || '', to = ci.to || '';
+    if (!from && !to && secs['つなげたい情報']) { const p = secs['つなげたい情報'].split('⇄'); from = (p[0] || '').trim(); to = (p[1] || '').trim(); }
+    return { type: ci.type || secs['種類'] || '', from, to, why: secs['困っていること・きっかけ'] || '', idea: secs['アイデア'] != null ? secs['アイデア'] : body };
+  }
 
   async function loadReports() {
     const list = $('fbrList');
@@ -378,12 +463,82 @@
     _rows = data || [];
     _loaded = true;
     renderReports();
+    loadVotes().then(changed => { if (changed) renderReports(); });
+  }
+
+  // 👍 投票を読む（表が無い＝SQL 未適用なら _votesOn=false のまま。👍 は出さず、他は通常どおり）
+  async function loadVotes() {
+    const u = me(), client = db();
+    const before = JSON.stringify([_votesOn, _votes]);
+    _votesOn = false; _votes = {};
+    if (!u || !client) return before !== JSON.stringify([_votesOn, _votes]);
+    try {
+      const { data, error } = await client.from('feedback_votes').select('feedback_id,user_id').limit(5000);
+      if (!error && data) {
+        _votesOn = true;
+        data.forEach(v => { const o = _votes[v.feedback_id] || (_votes[v.feedback_id] = { n: 0, mine: false }); o.n++; if (v.user_id === u.id) o.mine = true; });
+      }
+    } catch (e) {}
+    return before !== JSON.stringify([_votesOn, _votes]);
+  }
+  const _vote = r => _votes[r.id] || { n: 0, mine: false };
+  function _voteBtnHtml(r) {
+    const v = _vote(r);
+    return '<button type="button" class="fbr-vote' + (v.mine ? ' is-on' : '') + '" data-act="vote" aria-pressed="' + v.mine + '" title="' + (v.mine ? '👍 を取り消す' : 'いいね！と思ったら 👍') + '">👍 <b>' + v.n + '</b></button>';
+  }
+  async function _toggleVote(card) {
+    const id = card.dataset.id, u = me(), client = db();
+    if (!u) { toast('🔒 ログインしてください', 'warn'); return; }
+    if (!_votesOn || !client) return;
+    const v = _vote({ id }), want = !v.mine;
+    _votes[id] = { n: Math.max(0, v.n + (want ? 1 : -1)), mine: want };
+    const btn = card.querySelector('.fbr-vote'); if (btn) { btn.outerHTML = _voteBtnHtml({ id }); }
+    const res = want ? await client.from('feedback_votes').insert({ feedback_id: id, user_id: u.id })
+                     : await client.from('feedback_votes').delete().eq('feedback_id', id).eq('user_id', u.id);
+    if (res.error && res.error.code !== '23505') {          // 失敗したら元に戻す（23505＝すでに投票済み）
+      _votes[id] = v;
+      const b2 = card.querySelector('.fbr-vote'); if (b2) b2.outerHTML = _voteBtnHtml({ id });
+      toast('⚠️ 投票できませんでした：' + res.error.message, 'warn', 5000);
+    }
+  }
+
+  // ---------- 表示の切り替え（不具合報告／アイデア） ----------
+  function _applyMode() {
+    const idea = _mode === 'idea';
+    document.querySelectorAll('#fbrModes .fbr-mode').forEach(b => { const on = b.dataset.mode === _mode; b.classList.toggle('is-on', on); b.setAttribute('aria-selected', String(on)); });
+    const root = $('fbrRoot'); if (root) root.dataset.mode = _mode;
+    const set = (id, fn) => { const el = $(id); if (el) fn(el); };
+    set('fbrTitle', el => { el.textContent = idea ? '💡 アイデア' : '🐞 不具合報告'; });
+    set('fbrLead', el => { el.textContent = idea
+      ? '「ここをこうしたら使いやすい」「この情報とあの情報をつなげたい」「こんな機能がほしい」など、思いついたことを気軽に送ってください。他の人のアイデアには 👍 で応援できます（👍 が多いものから並びます）。採用・実装の状況はここで確認できます。'
+      : '使っていて「おかしい」と思ったら、画面右下の 🐞 からすぐ報告できます（画面の撮影・録画も添付できます）。報告はここに溜まり、対応状況をチーム全員が確認できます。担当者から確認の質問が届いたときは、ここ（と 🐞 の赤いバッジ）でお知らせします。'; });
+    set('fbrBtnBug', el => { el.hidden = idea; });
+    set('fbrBtnIdea', el => { el.hidden = !idea; });
+    set('fbrCat', el => { el.hidden = idea; });
+    set('fbrIdeaType', el => { el.hidden = !idea; });
+    set('fbrMineLbl', el => { el.textContent = idea ? '自分のアイデアのみ' : '自分の報告のみ'; });
+    set('fbrSearch', el => { el.placeholder = idea ? 'アイデアをキーワードで検索' : 'キーワードで検索'; });
+  }
+  function fbrSetMode(m) {
+    const next = m === 'idea' ? 'idea' : 'bug';
+    if (next !== _mode) {
+      _mode = next;
+      _flt.status = 'open+'; _flt.cat = ''; _flt.itype = ''; _flt.mine = false;
+      const c = $('fbrCat'); if (c) c.value = '';
+      const t = $('fbrIdeaType'); if (t) t.value = '';
+      const mi = $('fbrMine'); if (mi) mi.checked = false;
+    }
+    _applyMode();
+    renderReports();
   }
 
   function _filtered(ignoreStatus) {
     const q = _flt.q.trim().toLowerCase();
+    const idea = _mode === 'idea';
     return _rows.filter(r => {
-      if (_flt.cat && r.category !== _flt.cat) return false;
+      if (idea !== _isIdea(r)) return false;
+      if (!idea && _flt.cat && r.category !== _flt.cat) return false;
+      if (idea && _flt.itype && (parseIdea(r).type || 'その他') !== _flt.itype) return false;
       if (_flt.mine && !_isMine(r)) return false;
       if (q && !((r.title || '') + ' ' + (r.body || '') + ' ' + (r.section || '') + ' ' + (r.response || '')).toLowerCase().includes(q)) return false;
       if (!ignoreStatus) {
@@ -399,16 +554,19 @@
     const chips = $('fbrChips');
     const list = $('fbrList');
     if (!list) return;
+    const idea = _mode === 'idea';
     const base = _filtered(true);
     const cnt = {}; base.forEach(r => { const k = r.status || 'open'; cnt[k] = (cnt[k] || 0) + 1; });
     const open2 = (cnt.open || 0) + (cnt.need_info || 0) + (cnt.in_progress || 0);
-    const defs = [['open+', 'これから対応（' + open2 + '）'], ['', 'すべて（' + base.length + '）']]
-      .concat(ST_KEYS.map(k => [k, ST[k] + '（' + (cnt[k] || 0) + '）']));
+    const defs = [['open+', (idea ? 'これから（' : 'これから対応（') + open2 + '）'], ['', 'すべて（' + base.length + '）']]
+      .concat(ST_KEYS.map(k => [k, stl(k, idea) + '（' + (cnt[k] || 0) + '）']));
     if (chips) {
       chips.innerHTML = defs.map(d => '<button type="button" class="fbr-chip' + (_flt.status === d[0] ? ' is-on' : '') + '" data-st="' + d[0] + '">' + esc(d[1]) + '</button>').join('');
     }
     renderBanner();
+    renderModeCounts();
     const rows = _filtered(false);
+    if (idea) rows.sort((a, b) => (_vote(b).n - _vote(a).n) || (String(b.created_at) < String(a.created_at) ? -1 : 1));
     if (!me()) {
       list.innerHTML = '<p class="fbr-empty">🔒 ログインすると、チームの不具合報告と対応状況を確認できます。右上の「Google でログイン」からどうぞ。<br>ログインしなくても「＋ 不具合を報告する」から報告はできます。</p>';
       return;
@@ -416,6 +574,14 @@
     if (!rows.length) { list.innerHTML = '<p class="fbr-empty">該当する報告はありません</p>'; return; }
     list.innerHTML = rows.map(cardHtml).join('');
     rows.forEach(r => { if (_open.has(r.id)) _fillDetail(r.id); });
+  }
+
+  // 切り替えタブの件数：これから対応するもの（不具合）／アイデアの総数
+  function renderModeCounts() {
+    const live = r => ['open', 'need_info', 'in_progress'].includes(r.status || 'open');
+    const bug = _rows.filter(r => !_isIdea(r) && live(r)).length, ide = _rows.filter(_isIdea).length;
+    const set = (k, n) => { const el = document.querySelector('#fbrModes [data-n="' + k + '"]'); if (el) el.textContent = me() && n ? String(n) : ''; };
+    set('bug', bug); set('idea', ide);
   }
 
   // 「あなたの報告に質問が届いています」の案内（報告者本人にだけ出る）
@@ -431,13 +597,16 @@
     const st = r.status || 'open';
     const attN = Array.isArray(r.attachments) ? r.attachments.length : 0;
     const opened = _open.has(r.id);
-    return '<article class="fbr-card fbr-st-' + st + (opened ? ' is-open' : '') + '" data-id="' + esc(r.id) + '">' +
+    const idea = _isIdea(r), pi = idea ? parseIdea(r) : null;
+    const where = idea ? (pi.type ? (IDEA_TYPE_ICON[pi.type] || '📌') + ' ' + pi.type : '') : '📍' + _secLabel(r);
+    return '<article class="fbr-card fbr-st-' + st + (idea ? ' fbr-idea' : '') + (opened ? ' is-open' : '') + '" data-id="' + esc(r.id) + '">' +
       '<div class="fbr-card-head" data-act="toggle" tabindex="0" role="button" aria-expanded="' + opened + '">' +
+        (idea && _votesOn ? _voteBtnHtml(r) : '') +
         '<span class="fbr-no">' + esc(_noOf(r)) + '</span>' +
-        '<span class="fbr-status fbr-badge-' + st + '">' + esc(ST[st] || st) + '</span>' +
+        '<span class="fbr-status fbr-badge-' + st + '">' + esc(stl(st, idea)) + '</span>' +
         (st === 'need_info' && _isMine(r) ? '<span class="fbr-ask">あなたへの質問</span>' : '') +
         '<span class="fbr-ttl">' + (CAT[r.category] || '📌') + ' ' + esc(_titleOf(r)) + '</span>' +
-        '<span class="fbr-meta">📍' + esc(_secLabel(r)) + ' ・ ' + esc(r.reporter_email ? nameOf(r.reporter_email) : '匿名') + ' ・ ' + esc(fmt(r.created_at)) +
+        '<span class="fbr-meta">' + esc(where) + (where ? ' ・ ' : '') + esc(r.reporter_email ? nameOf(r.reporter_email) : '匿名') + ' ・ ' + esc(fmt(r.created_at)) +
           (attN ? ' ・ 📎' + attN : '') + (r.response ? ' ・ 💬対応メモあり' : '') + '</span>' +
       '</div>' +
       '<div class="fbr-card-body"' + (opened ? '' : ' hidden') + '></div>' +
@@ -455,15 +624,17 @@
     const ctxLine = [ctx.nav && ('画面: ' + ctx.nav), ctx.tab && ('タブ: ' + ctx.tab), ctx.viewport && ('表示: ' + ctx.viewport), ctx.browser, ctx.theme && ('テーマ: ' + ctx.theme), ctx.ver && ('版: ' + ctx.ver)].filter(Boolean).join(' ／ ');
     const errs = Array.isArray(ctx.errors) && ctx.errors.length
       ? '<details class="fbr-ctx"><summary>コンソールエラー（直近 ' + ctx.errors.length + ' 件）</summary><pre>' + esc(ctx.errors.join('\n')) + '</pre></details>' : '';
-    const opts = ST_KEYS.map(k => '<option value="' + k + '"' + ((r.status || 'open') === k ? ' selected' : '') + '>' + esc(ST[k]) + '</option>').join('');
-    const respTtl = '<div class="fbr-resp-ttl">💬 対応状況・メモ' + (r.responded_at ? '<small>（' + esc(r.responded_by ? nameOf(r.responded_by) : '') + ' ' + esc(fmt(r.responded_at)) + '）</small>' : '') + '</div>';
+    const idea = _isIdea(r);
+    const opts = ST_KEYS.map(k => '<option value="' + k + '"' + ((r.status || 'open') === k ? ' selected' : '') + '>' + esc(stl(k, idea)) + '</option>').join('');
+    const respTtl = '<div class="fbr-resp-ttl">' + (idea ? '💬 採用・実装の状況／メモ' : '💬 対応状況・メモ') + (r.responded_at ? '<small>（' + esc(r.responded_by ? nameOf(r.responded_by) : '') + ' ' + esc(fmt(r.responded_at)) + '）</small>' : '') + '</div>';
     const resp = _isStaff()
       ? '<div class="fbr-resp">' + respTtl +
           '<div class="fbr-resp-row"><select data-fld="status" class="fbr-sel">' + opts + '</select>' +
-          '<button type="button" class="fbr-btn fbr-btn-primary" data-act="save">保存</button></div>' +
-          '<textarea data-fld="response" class="fbr-ta" rows="3" placeholder="対応の状況や、直した内容・今後の予定など（報告者とチーム全員に表示されます）">' + esc(r.response || '') + '</textarea>' +
+          '<button type="button" class="fbr-btn fbr-btn-primary" data-act="save">保存</button>' +
+          (idea ? '<button type="button" class="fbr-btn" data-act="ledger" title="アイデア台帳（docs/アイデア台帳.md）の書式でコピーします。公開リポジトリのため、貼り付ける前に社内情報が無いか確認してください">📋 台帳用にコピー</button>' : '') + '</div>' +
+          '<textarea data-fld="response" class="fbr-ta" rows="3" placeholder="' + (idea ? '採用の判断、実装した内容・今後の予定、見送りの理由など（提案した人とチーム全員に表示されます）' : '対応の状況や、直した内容・今後の予定など（報告者とチーム全員に表示されます）') + '">' + esc(r.response || '') + '</textarea>' +
         '</div>'
-      : '<div class="fbr-resp">' + respTtl + '<div class="fbr-text">' + (r.response ? esc(r.response) : '<span class="fbr-dim">まだ対応メモはありません</span>') + '</div></div>';
+      : '<div class="fbr-resp">' + respTtl + '<div class="fbr-text">' + (r.response ? esc(r.response) : '<span class="fbr-dim">まだメモはありません</span>') + '</div></div>';
     body.innerHTML =
       '<div class="fbr-text">' + esc(r.body || '') + '</div>' +
       '<div class="fbr-atts" data-atts></div>' +
@@ -591,12 +762,39 @@
       card.classList.toggle('is-open', willOpen);
       actEl.setAttribute('aria-expanded', String(willOpen));
       if (willOpen) { _open.add(id); _fillDetail(id); } else { _open.delete(id); }
+    } else if (act === 'vote') {
+      _toggleVote(card);
+    } else if (act === 'ledger') {
+      _copyLedger(card);
     } else if (act === 'save') {
       _saveResp(card);
     } else if (act === 'post') {
       _postComment(card, actEl.dataset.kind);
     }
   }
+  // アイデアを「アイデア台帳」の書式にしてコピー（リポジトリへは自動で書き込まない＝公開リポジトリのため、内容を見てから貼る）
+  async function _copyLedger(card) {
+    const r = _rows.find(x => x.id === card.dataset.id);
+    if (!r) return;
+    const p = parseIdea(r), v = _votesOn ? _vote(r).n : null;
+    const title = (r.title || _titleOf(r)).replace(/\s+/g, ' ');
+    const expect = (p.type === 'つなげたい' && (p.from || p.to) ? '「' + (p.from || '?') + '」と「' + (p.to || '?') + '」をつなげる。' : '') + String(p.idea || '').trim();
+    const ctx = r.context || {};
+    const md = [
+      '- [ ] **' + title + '**',
+      '  - 背景/困っていること: ' + ((p.why || '').replace(/\s+/g, ' ') || '（未記入）'),
+      '  - 期待する動作: ' + expect.replace(/\n+/g, ' / '),
+      '  - 該当箇所（わかれば）: ' + (ctx.nav || ctx.tab || '（未記入）'),
+      '  - 出どころ: 利用者アイデア ' + _noOf(r) + '（' + (p.type || '種類なし') + (v != null ? '・👍' + v : '') + '・' + fmt(r.created_at).slice(0, 10) + '）',
+    ].join('\n');
+    try { await navigator.clipboard.writeText(md); }
+    catch (e) {
+      const ta = document.createElement('textarea'); ta.value = md; ta.style.position = 'fixed'; ta.style.opacity = '0';
+      document.body.appendChild(ta); ta.select(); try { document.execCommand('copy'); } catch (e2) {} ta.remove();
+    }
+    toast('📋 アイデア台帳の書式でコピーしました。docs/アイデア台帳.md に貼る前に、社内情報が含まれていないか確認してください', 'success', 6000);
+  }
+
   function _onBannerClick(e) {
     if (!e.target.closest('[data-act="banner"]')) return;
     _flt.status = 'need_info'; _flt.mine = true;
@@ -628,14 +826,15 @@
 
   async function fbrCopyForAI() {
     if (!window.FeedbackMd) return;
+    const idea = _mode === 'idea';
     const rows = _filtered(false);
-    if (!rows.length) { toast('コピーする報告がありません', 'info'); return; }
-    let list = rows.slice(0, 80);
+    if (!rows.length) { toast(idea ? 'コピーするアイデアがありません' : 'コピーする報告がありません', 'info'); return; }
+    let list = rows.slice(0, 80).map(r => (idea && _votesOn) ? Object.assign({}, r, { votes: _vote(r).n }) : r);
     try {                       // やりとり（質問・返信）も一緒に渡す。取れなければ本文だけ
       const cr = await db().from('feedback_comments').select('*').in('feedback_id', list.map(r => r.id)).order('created_at', { ascending: true });
       if (!cr.error && cr.data) { const g = {}; cr.data.forEach(c => { (g[c.feedback_id] = g[c.feedback_id] || []).push(c); }); list = list.map(r => Object.assign({}, r, { comments: g[r.id] || [] })); }
     } catch (e) {}
-    const md = window.FeedbackMd.toMarkdown(list, { nameOf, title: '不具合報告一覧（フォワーダー支援）' });
+    const md = window.FeedbackMd.toMarkdown(list, { nameOf, title: idea ? 'アイデア一覧（フォワーダー支援）' : '不具合報告一覧（フォワーダー支援）', stLabel: idea ? IDEA_ST : null });
     try { await navigator.clipboard.writeText(md); }
     catch (e) {
       const ta = document.createElement('textarea'); ta.value = md; ta.style.position = 'fixed'; ta.style.opacity = '0';
@@ -653,9 +852,11 @@
       $('fbrBanner').addEventListener('click', _onBannerClick);
       $('fbrChips').addEventListener('click', e => { const b = e.target.closest('.fbr-chip'); if (!b) return; _flt.status = b.dataset.st; renderReports(); });
       $('fbrCat').addEventListener('change', e => { _flt.cat = e.target.value; renderReports(); });
+      $('fbrIdeaType').addEventListener('change', e => { _flt.itype = e.target.value; renderReports(); });
       $('fbrMine').addEventListener('change', e => { _flt.mine = e.target.checked; renderReports(); });
       $('fbrSearch').addEventListener('input', e => { _flt.q = e.target.value; renderReports(); });
     }
+    _applyMode();
     loadReports();
     refreshBadge();
   }
@@ -693,6 +894,10 @@
   window.fbIsMissingColumn = fbIsMissingColumn;
   window.fbAfterSubmit = fbAfterSubmit;
   window.fbOpenQuick = fbOpenQuick;
+  window.fbOpenIdea = fbOpenIdea;
+  window.fbIdeaBody = fbIdeaBody;
+  window.fbIsIdeaMode = fbIsIdeaMode;
+  window.fbrSetMode = fbrSetMode;
   window.fbrReload = loadReports;
   window.fbRefreshBadge = refreshBadge;
   window.fbrCopyForAI = fbrCopyForAI;

@@ -47,7 +47,9 @@ const http = require('http'), fs = require('fs'), path = require('path');
 
   // opts.approval：申請テーブル（master_requests）を用意する＝承認制、opts.role：get_my_role() の結果
   async function open(loggedIn, opts = {}) {
-    const ctx = await b.newContext({ viewport: { width: 1400, height: 900 }, locale: 'ja-JP' });
+    const ctx = await b.newContext({ viewport: { width: +(process.env.W || 1400), height: +(process.env.H || 900) }, locale: 'ja-JP' });
+    if (process.env.THEME) await ctx.addInitScript(() => { try { localStorage.setItem('forwarderTheme_v1', JSON.stringify({ site: true, doc: true })); } catch (e) {} });
+    if (process.env.QUIET) await ctx.addInitScript(() => { try { localStorage.setItem('forwarderTheme_v1', JSON.stringify({ quiet: true })); } catch (e) {} });
     await ctx.addInitScript(({ seed, legacy, loggedIn, ME, opts }) => {
       try {
         localStorage.setItem('fwd.uiMode', 'detail');
@@ -675,12 +677,13 @@ const http = require('http'), fs = require('fs'), path = require('path');
     const L = '[取引ルール] ';
     await p.evaluate(async () => {
       window.__db.master_votes.push({ field: 'customer', value: 'ルール商事', voter_email: 's@example.com' });
-      window.__db.master_details.push({ field: 'customer', value: 'ルール商事', details: { contacts: [{ name: '幸崎' }, { name: '山田' }] } });
+      window.__db.master_details.push({ field: 'customer', value: 'ルール商事', details: { dealType: '同業者（フォワーダー・代理店）', contacts: [{ name: '幸崎' }, { name: '山田' }] } });
       await statsLoadMasterCache(); await mdLoadCloud();
     });
     await p.evaluate(() => { switchCategory('master', document.querySelector('[onclick*="switchCategory(\'master"]')); }); await p.waitForTimeout(1200);
     await p.evaluate(() => { statsMasterSetFilter('customer'); }); await p.waitForTimeout(300);
     await p.evaluate(() => document.querySelector('#statsPane-master tr[data-mvalue="ルール商事"] .stats-master-detail-btn').click()); await p.waitForTimeout(600);
+    await p.evaluate(() => { const t = document.querySelector('#mdDetailModal .mt-tab[data-mt="rules"]'); t && t.click(); });
     ok(L + 'お客様の詳細に取引ルール欄が出る', await p.evaluate(() => !!document.querySelector('#crPanel .cr-form')));
     ok(L + '対象に「お客様全体」と担当者が選べる', await p.evaluate(() => [...document.querySelectorAll('#crPanel .cr-f-contact option')].map(o => o.textContent).join('|').includes('幸崎')));
     // お客様全体の厳守ルールと、幸崎様だけの要確認ルールを登録
@@ -693,19 +696,23 @@ const http = require('http'), fs = require('fs'), path = require('path');
     ok(L + '一覧に厳守・要確認のバッジが並ぶ', await p.evaluate(() => !!document.querySelector('#crPanel .cr-badge-strict') && !!document.querySelector('#crPanel .cr-badge-check')));
     // 見積タブのバナー：お客様だけ → 全体ルールのみ（担当者別は件数だけ）／担当者を入れる → 担当者のルールも
     await p.evaluate(async () => { document.getElementById('qf-customer').value = 'ルール商事'; document.getElementById('qf-person').value = ''; await crRefreshBanner(); });
-    let t = await p.evaluate(() => { const b = document.getElementById('crBanner'); return { hidden: b.hidden, text: b.textContent.replace(/\s+/g, ' ') }; });
-    ok(L + '見積：お客様を選ぶとバナーが出て、厳守は開いて表示', !t.hidden && t.text.includes('請求書は月末締め') && t.text.includes('担当者別 1件'), t);
-    ok(L + '見積：担当者別ルールは担当者未入力では本文を出さない', !t.text.includes('USD建て'), t);
+    const chipT = () => p.evaluate(() => document.getElementById('crBanner').textContent.replace(/\s+/g, ' '));
+    const modalT = () => p.evaluate(() => { const m = document.getElementById('crModalBody'); return m ? m.textContent.replace(/\s+/g, ' ') : ''; });
+    let t = { hidden: await p.evaluate(() => document.getElementById('crBanner').hidden), text: await chipT() };
+    ok(L + '見積：お客様を選ぶと取引ルールのチップが出る（件数・厳守・担当者別）', !t.hidden && t.text.includes('取引ルール（1件・厳守1）') && t.text.includes('担当者別 1件'), t);
+    ok(L + '見積：チップには本文を出さない（押したときのモーダルで見る）', !t.text.includes('請求書は月末締め') && !(await p.evaluate(() => !!document.getElementById('crModal'))), t);
+    await p.evaluate(() => document.querySelector('#crBanner [data-cr="open"]').click()); await p.waitForTimeout(300);
+    ok(L + '見積：チップを押すとモーダルが開き、ルール本文を見られる（追加フォームもある）', (await modalT()).includes('請求書は月末締め') && await p.evaluate(() => !!document.querySelector('#crModal .cr-f-body')));
     await p.evaluate(async () => { document.getElementById('qf-person').value = '幸崎 様'; await crRefreshBanner(); });
-    t = await p.evaluate(() => document.getElementById('crBanner').textContent.replace(/\s+/g, ' '));
-    ok(L + '見積：担当者（敬称付きでも）を入れるとその担当者のルールも出る', t.includes('USD建て併記') && t.includes('請求書は月末締め'), t);
+    ok(L + '見積：担当者（敬称付きでも）を入れるとチップの件数が増える（2件）', (await chipT()).includes('取引ルール（2件') && (await modalT()).includes('USD建て併記'));
     await p.evaluate(async () => { document.getElementById('qf-person').value = '山田'; await crRefreshBanner(); });
-    ok(L + '見積：別の担当者のルールは出ない', await p.evaluate(() => !document.getElementById('crBanner').textContent.includes('USD建て')));
-    // 見積タブからの追加
+    ok(L + '見積：別の担当者のルールは件数に入らない（1件）', (await chipT()).includes('取引ルール（1件'));
+    // 見積タブのモーダルからの追加
     await p.evaluate(async () => { document.getElementById('qf-person').value = '幸崎'; await crRefreshBanner(); });
-    await p.evaluate(() => document.querySelector('#crBanner [data-cr="addtoggle"]').click()); await p.waitForTimeout(300);
-    await p.evaluate(() => { document.querySelector('#crBanner .cr-f-body').value = 'メールはCCに上司を入れる'; document.querySelector('#crBanner [data-cr="save"]').click(); }); await p.waitForTimeout(800);
-    ok(L + '見積タブからもルールを追加できる', await p.evaluate(() => window.__db.customer_rules.length === 3 && document.getElementById('crBanner').textContent.includes('CCに上司')));
+    await p.evaluate(() => { document.querySelector('#crModal .cr-f-body').value = 'メールはCCに上司を入れる'; document.querySelector('#crModal [data-cr="save"]').click(); }); await p.waitForTimeout(800);
+    ok(L + '見積タブのモーダルからもルールを追加できる', await p.evaluate(() => window.__db.customer_rules.length === 3) && (await modalT()).includes('CCに上司') && (await chipT()).includes('3件'));
+    await p.keyboard.press('Escape'); await p.waitForTimeout(200);
+    ok(L + 'Esc でモーダルが閉じる', !(await p.evaluate(() => !!document.getElementById('crModal'))));
     // 廃止すると見積に出ない／出力（御見積書・プレビュー）には出ない
     await p.evaluate(async () => { await crSetStatus(window.__db.customer_rules[0].id, 'retired'); });
     ok(L + '廃止したルールは見積に出ない', await p.evaluate(() => crFor('ルール商事', '幸崎').list.every(r => r.status !== 'retired')));
@@ -734,15 +741,17 @@ const http = require('http'), fs = require('fs'), path = require('path');
     ok(L + '再確認が必要なルールの案内が出る', m.notice && m.notice.includes('古いルール商事') && m.notice.includes('1件'), m);
     // 見積タブ：背景に案件番号が入る・古いルールに「いまも有効」
     await p.evaluate(async () => { document.getElementById('qf-ref').value = '2026-077'; document.getElementById('qf-customer').value = '古いルール商事'; document.getElementById('qf-person').value = ''; await crRefreshBanner(); });
-    let t = await p.evaluate(() => document.getElementById('crBanner').textContent.replace(/\s+/g, ' '));
-    ok(L + '見積：⏳ 再確認 1件 と「いまも有効」ボタン', t.includes('再確認 1件') && t.includes('いまも有効'), t);
-    ok(L + '見積：ボタンが「この案件で気づいたことをルールにする」', t.includes('この案件で気づいたことをルールにする'), t);
-    await p.evaluate(() => document.querySelector('#crBanner [data-cr="addtoggle"]').click()); await p.waitForTimeout(300);
-    ok(L + '見積：背景に「案件 2026-077 で判明」が入った状態で開く', await p.evaluate(() => document.querySelector('#crBanner .cr-f-reason').value === '案件 2026-077 で判明'));
-    await p.evaluate(() => document.querySelector('#crBanner [data-cr="addtoggle"]').click());
-    await p.evaluate(() => document.querySelector('#crBanner [data-cr="confirm"]').click()); await p.waitForTimeout(800);
+    const chipT = () => p.evaluate(() => document.getElementById('crBanner').textContent.replace(/\s+/g, ' '));
+    let t = await chipT();
+    ok(L + '見積：チップに「⏳ 再確認 1件」', t.includes('再確認 1件'), t);
+    await p.evaluate(() => document.querySelector('#crBanner [data-cr="open"]').click()); await p.waitForTimeout(300);
+    const mt = await p.evaluate(() => document.getElementById('crModalBody').textContent.replace(/\s+/g, ' '));
+    ok(L + '見積：モーダルに「いまも有効」ボタンと追加フォーム', await p.evaluate(() => !!document.querySelector('#crModal [data-cr="confirm"]') && !!document.querySelector('#crModal .cr-f-body')));
+    ok(L + '見積：背景に「案件 2026-077 で判明」が入った状態でフォームが開く', await p.evaluate(() => document.querySelector('#crModal .cr-f-reason').value === '案件 2026-077 で判明'));
+    await p.evaluate(() => document.querySelector('#crModal [data-cr="confirm"]').click()); await p.waitForTimeout(800);
     const r1 = await p.evaluate(() => ({ at: window.__db.customer_rules.find(r => r.id === 'r1').confirmed_at, txt: document.getElementById('crBanner').textContent }));
     ok(L + '「いまも有効」で最終確認日が今日になり、再確認の表示が消える', Date.now() - new Date(r1.at).getTime() < 3600000 && !r1.txt.includes('再確認'), r1);
+    await p.click('#crModal .md-modal-close'); await p.waitForTimeout(150);
     ok(L + 'JS エラーなし', errs.length === 0, errs);
     await ctx.close();
   }
@@ -764,6 +773,19 @@ const http = require('http'), fs = require('fs'), path = require('path');
     ok(L + '詳細がポップアップ（画面に固定・幅は画面いっぱいにならない・高さは画面内）', g.pos === 'fixed' && g.w <= 980 && g.w < g.vw && g.h <= g.vh && !g.inline, g);
     ok(L + '見出しに種別と名前が出る', g.title.includes('お客様') && g.title.includes('ポップ商事'), g);
     ok(L + '背景の画面はスクロールしない', await p.evaluate(() => document.body.classList.contains('md-modal-open')));
+    // タブ化（Design 回答 2026-11・案1）
+    const vis2 = sel => p.evaluate(x => { const e = document.querySelector(x); if (!e) return false; const r = e.getBoundingClientRect(); return r.width > 0 && r.height > 0; }, sel);
+    ok(L + '[タブ] 上に基本情報（ふりがな・英語名称・取引形態）が常に見える', await vis2('#mdDetailModal #md_furigana') && await vis2('#mdDetailModal #md_enName') && await vis2('#mdDetailModal #md_dealType'));
+    ok(L + '[タブ] 4 つのタブ（担当者／会社の詳細・タグ／取引ルール／メモ・添付）', (await p.$$eval('#mdDetailModal .mt-tab', els => els.map(e => e.textContent.replace(/\s+/g, ' ').trim().replace(/\s*\d.*$/, '')))).join('|').startsWith('担当者|会社の詳細・タグ|取引ルール|メモ・添付'));
+    ok(L + '[タブ] 最初は担当者タブ（担当者の入力欄が見え、メモ欄は見えない）', await vis2('#mdDetailModal .md-contact-name') && !(await vis2('#mdDetailModal #md_memo')));
+    ok(L + '[タブ] 担当者タブの要約に「1名」', (await p.textContent('#mdDetailModal .mt-tab[data-mt="people"] .mt-sum')).includes('1名'));
+    ok(L + '[タブ] 保存バーは本文のスクロールの外に常時表示', await p.evaluate(() => { const f = document.querySelector('#mdDetailModal .mt-foot'); const b = document.querySelector('#mdDetailModal .md-modal-body'); return !!f && !b.contains(f) && !!f.querySelector('.master-detail-save') && f.getBoundingClientRect().bottom <= innerHeight; }));
+    await p.click('#mdDetailModal .mt-tab[data-mt="memo"]'); ok(L + '[タブ] メモ・添付タブ：メモ欄と添付が見える・担当者は隠れる', await vis2('#mdDetailModal #md_memo') && await vis2('#mdDetailModal .master-attach-box') && !(await vis2('#mdDetailModal .md-contact-name')));
+    ok(L + '[タブ] どのタブでも保存ボタンが見える', await vis2('#mdDetailModal .mt-foot .master-detail-save'));
+    await p.click('#mdDetailModal .mt-tab[data-mt="company"]'); ok(L + '[タブ] 会社の詳細・タグタブ：所在地・タグが見える', await vis2('#mdDetailModal #md_location') && await vis2('#mdDetailModal .master-detail-tags'));
+    await p.click('#mdDetailModal .mt-tab[data-mt="rules"]'); ok(L + '[タブ] 取引ルールタブ：ルール欄が見える', await vis2('#mdDetailModal #crPanel'));
+    await p.click('#mdDetailModal .mt-tab[data-mt="people"]');
+    if (process.env.OUT) { for (const k of ['people', 'company', 'rules', 'memo']) { await p.click('#mdDetailModal .mt-tab[data-mt="' + k + '"]'); await p.waitForTimeout(300); await p.screenshot({ path: require('path').join(process.env.OUT, 'master-detail-' + k + '.png') }); } await p.click('#mdDetailModal .mt-tab[data-mt="people"]'); }
     if (process.env.OUT) await p.screenshot({ path: require('path').join(process.env.OUT, 'master-detail-modal.png') });
     await p.keyboard.press('Escape'); await p.waitForTimeout(200);
     ok(L + 'Esc で閉じる', await p.evaluate(() => !document.getElementById('mdDetailModal') && !document.body.classList.contains('md-modal-open')));
@@ -1133,6 +1155,147 @@ const http = require('http'), fs = require('fs'), path = require('path');
     await ctx.close();
   }
 
+  // ===== マスター管理の種別チップの並び：すべて｜サブコン｜お客様｜港｜品名｜単位 =====
+  {
+    const { ctx, p, errs } = await open(true, { legacy: {}, noLegacy: true });
+    const L = '[種別チップの並び] ';
+    await p.evaluate(async () => {
+      ['sv', 'customer', 'port', 'nm', 'un'].forEach(f => window.__db.master_votes.push({ field: f, value: 'テスト' + f, voter_email: 's@example.com' }));
+      await statsLoadMasterCache();
+    });
+    await p.evaluate(() => { switchCategory('master', document.querySelector('[onclick*="switchCategory(\'master"]')); }); await p.waitForTimeout(1000);
+    const names = await p.evaluate(() => [...document.querySelector('#statsPane-master .master-filter-chips').querySelectorAll('.master-filter-chip')].map(c => c.firstChild.textContent.trim()));
+    ok(L + 'すべて｜サブコン｜お客様｜港｜品名｜単位 の順', names.join('|') === 'すべて|サブコン|お客様|港|品名|単位', names);
+    ok(L + 'JS エラーなし', errs.length === 0, errs);
+    await ctx.close();
+  }
+
+  // ===== マスター管理の検索 =====
+  {
+    const { ctx, p, errs } = await open(true, { legacy: {}, noLegacy: true });
+    const L = '[マスター検索] ';
+    await p.evaluate(async () => {
+      const V = (f, v) => window.__db.master_votes.push({ field: f, value: v, voter_email: 's@example.com' });
+      const D = (f, v, d) => window.__db.master_details.push({ field: f, value: v, details: d });
+      V('sv', '検索テスト運輸'); D('sv', '検索テスト運輸', { furigana: 'けんさくてすとうんゆ', areas: ['JP-KAN'], contacts: [{ name: '田中', phone: '03-0000-0000' }] });
+      V('sv', '別の運送'); D('sv', '別の運送', { areas: ['JP-KIN'] });
+      V('customer', '検索荷主'); D('customer', '検索荷主', { tags: ['自動車部品'], memo: '月末締め' });
+      V('port', 'HAIPHONG'); D('port', 'HAIPHONG', { country: 'VN' });
+      window.__db.synonym_groups.push({ id: 'sq1', field: 'sv', canonical: '検索テスト運輸', aliases: ['KENSAKU TEST'] });
+      await statsLoadMasterCache(); await mdLoadCloud(); await synLoadCloud();
+    });
+    await p.evaluate(() => { switchCategory('master', document.querySelector('[onclick*="switchCategory(\'master"]')); }); await p.waitForTimeout(1000);
+    const rows = () => p.evaluate(() => [...document.querySelectorAll('#statsPane-master tbody tr[data-mvalue]')].map(r => r.dataset.mvalue));
+    const q = async t => { await p.fill('#masterSearch', t); await p.waitForTimeout(500); return rows(); };
+    ok(L + '検索ボックスが出る', await p.evaluate(() => !!document.querySelector('#masterSearch')));
+    let r = await q('検索テスト');
+    ok(L + '名前で絞れる（全種別から）', r.includes('検索テスト運輸') && !r.includes('別の運送') && !r.includes('検索荷主'), r);
+    r = await q('KENSAKU'); ok(L + '別名で見つかる（大文字小文字を問わない・kensaku）', r.includes('検索テスト運輸') && r.length === 1, r);
+    r = await q('ケンサク'); ok(L + 'ふりがな：カタカナで入力しても、ひらがなの登録に当たる', r.includes('検索テスト運輸') && r.length === 1, r);
+    r = await q('田中'); ok(L + '担当者名で見つかる', r.includes('検索テスト運輸') && r.length === 1, r);
+    r = await q('自動車'); ok(L + 'タグで見つかる', r.includes('検索荷主') && r.length === 1, r);
+    r = await q('月末'); ok(L + 'メモの中身でも見つかる', r.includes('検索荷主'), r);
+    r = await q('ベトナム'); ok(L + '国名（日本語）で見つかる', r.includes('HAIPHONG'), r);
+    r = await q('関東'); ok(L + '得意エリア名で見つかる（関東だけ・近畿は出ない）', r.includes('検索テスト運輸') && !r.includes('別の運送'), r);
+    r = await q('検索 運輸'); ok(L + 'スペース区切りは、すべてを含むものだけ（AND）', r.includes('検索テスト運輸') && !r.includes('検索荷主'), r);
+    ok(L + '件数が出る', await p.evaluate(() => /件ヒット/.test(document.querySelector('#masterSearchCount').textContent)));
+    r = await q('存在しない名前xyz'); ok(L + '一致なしの案内が出る', r.length === 0 && await p.evaluate(() => document.querySelector('#statsPane-master').textContent.includes('一致するマスターはありません')));
+    ok(L + '描き直しても検索ボックスの入力は残り、操作できる', await p.evaluate(() => document.querySelector('#masterSearch').value === '存在しない名前xyz'));
+    await p.evaluate(() => statsMasterClearQuery()); await p.waitForTimeout(300);
+    r = await rows(); ok(L + 'クリアすると全部に戻る', r.length > 4, r);
+    await p.evaluate(() => statsMasterSetFilter('sv')); await p.waitForTimeout(200);
+    r = await q('検索'); ok(L + '種別の絞り込み（サブコン）と併用できる（お客様は出ない）', r.includes('検索テスト運輸') && !r.includes('検索荷主'), r);
+    ok(L + 'JS エラーなし', errs.length === 0, errs);
+    await ctx.close();
+  }
+
+  // ===== お客様マスター：取引形態ごとの色分け・まとめ表示 =====
+  {
+    const { ctx, p, errs } = await open(true, { legacy: {}, noLegacy: true });
+    const L = '[取引形態の色] ';
+    await p.evaluate(async () => {
+      const V = n => window.__db.master_votes.push({ field: 'customer', value: n, voter_email: 's@example.com' });
+      const D = (n, t) => window.__db.master_details.push({ field: 'customer', value: n, details: t ? { dealType: t } : {} });
+      V('荷主甲'); D('荷主甲', '荷主（直接）'); V('荷主乙'); D('荷主乙', '荷主（直接）');
+      V('同業丙'); D('同業丙', '同業者（フォワーダー・代理店）');
+      V('その他丁'); D('その他丁', 'その他'); V('未設定戊');
+      await statsLoadMasterCache(); await mdLoadCloud();
+    });
+    await p.evaluate(() => { switchCategory('master', document.querySelector('[onclick*="switchCategory(\'master"]')); }); await p.waitForTimeout(1000);
+    await p.evaluate(() => statsMasterSetFilter('customer')); await p.waitForTimeout(300);
+    const deal = n => p.evaluate(v => (document.querySelector('#statsPane-master tr[data-mvalue="' + v + '"]') || { dataset: {} }).dataset.deal || '', n);
+    ok(L + '行に取引形態の印が付く（荷主＝ship／同業者＝fwd／その他＝other／未設定＝none）', [await deal('荷主甲'), await deal('同業丙'), await deal('その他丁'), await deal('未設定戊')].join() === 'ship,fwd,other,none');
+    const bg = n => p.evaluate(v => getComputedStyle(document.querySelector('#statsPane-master tr[data-mvalue="' + v + '"]')).backgroundColor, n);
+    const cs = [await bg('荷主甲'), await bg('同業丙'), await bg('その他丁')];
+    ok(L + '取引形態ごとに行の色が違う（荷主・同業者・その他）', new Set(cs).size === 3, cs);
+    ok(L + '「取引形態ごとにまとめる」のボタンが出る（お客様のときだけ）', await p.evaluate(() => [...document.querySelectorAll('.master-sort-chip')].some(c => c.textContent.includes('取引形態ごと'))));
+    await p.evaluate(() => statsMasterSetSort('deal')); await p.waitForTimeout(300);
+    const seq = await p.evaluate(() => [...document.querySelectorAll('#statsPane-master tbody tr')].filter(r => r.classList.contains('mtg-deal') || r.dataset.mvalue).map(r => r.classList.contains('mtg-deal') ? '#' + r.dataset.deal + ':' + r.querySelector('.mtg-count').textContent : r.dataset.mvalue).filter(x => x.startsWith('#') || /^(荷主|同業|その他|未設定)/.test(x)));
+    ok(L + '荷主→同業者→その他→未設定の順に見出しと件数つきで並ぶ', seq.join('|') === '#ship:2社|荷主乙|荷主甲|#fwd:1社|同業丙|#other:1社|その他丁|#none:1社|未設定戊', seq);
+    // カード表示：最大 3 カラム・詳細は会社名のクリックで開く（取引形態のチップは常に表示）
+    await p.evaluate(() => statsMasterSetSort('name')); await p.waitForTimeout(200);
+    await p.evaluate(() => { const d = (window.__db.master_details.find(m => m.value === '荷主甲') || {}); d.details = Object.assign({}, d.details, { location: '東京' }); });
+    await p.evaluate(async () => { await mdLoadCloud(); statsRerenderActive(); }); await p.waitForTimeout(300);
+    const cols = await p.evaluate(() => getComputedStyle(document.querySelector('#statsPane-master table.master-grid > tbody')).gridTemplateColumns.split(' ').length);
+    ok(L + 'カード表示（広い画面では 3 カラム）', cols === 3, cols);
+    ok(L + '詳細（所在地など）は初期状態では見えず、取引形態のチップは見える', await p.evaluate(() => { const tr = document.querySelector('#statsPane-master tr[data-mvalue="荷主甲"]'); const vis = e => e && getComputedStyle(e).display !== 'none'; const fold = [...tr.querySelectorAll('.md-fold-chip')]; return fold.length > 0 && fold.every(c => !vis(c)) && vis(tr.querySelector('.stats-md-deal')); }));
+    await p.evaluate(() => document.querySelector('#statsPane-master tr[data-mvalue="荷主甲"] .master-name-toggle').click()); await p.waitForTimeout(150);
+    ok(L + '会社名をクリックすると詳細が開く', await p.evaluate(() => { const tr = document.querySelector('#statsPane-master tr[data-mvalue="荷主甲"]'); return tr.classList.contains('is-open') && [...tr.querySelectorAll('.md-fold-chip')].every(c => getComputedStyle(c).display !== 'none'); }));
+    await p.fill('#masterSearch', '荷主'); await p.waitForTimeout(400);
+    ok(L + '描き直しても開いたままになる', await p.evaluate(() => document.querySelector('#statsPane-master tr[data-mvalue="荷主甲"]').classList.contains('is-open')));
+    await p.evaluate(() => document.querySelector('#statsPane-master tr[data-mvalue="荷主甲"] .master-name-toggle').click()); await p.waitForTimeout(150);
+    ok(L + 'もう一度クリックすると閉じる', await p.evaluate(() => !document.querySelector('#statsPane-master tr[data-mvalue="荷主甲"]').classList.contains('is-open')));
+    await p.evaluate(() => statsMasterClearQuery()); await p.waitForTimeout(200);
+    // 港・品名・単位・すべては従来のリスト表示（カードはサブコン・お客様だけ）
+    for (const f of ['port', 'nm', 'un', 'all']) {
+      await p.evaluate(ff => statsMasterSetFilter(ff), f); await p.waitForTimeout(250);
+      ok(L + f + 'はリスト表示（カードではない）', await p.evaluate(() => { const t = document.querySelector('#statsPane-master table.master-table'); return !t || (!t.classList.contains('master-grid') && getComputedStyle(t.querySelector('tbody')).display !== 'grid'); }));
+    }
+    await p.evaluate(() => statsMasterSetFilter('sv')); await p.waitForTimeout(250);
+    ok(L + 'サブコンはカード表示', await p.evaluate(() => !!document.querySelector('#statsPane-master table.master-grid')));
+    await p.evaluate(() => statsMasterSetFilter('sv')); await p.waitForTimeout(300);
+    ok(L + 'サブコンでは「取引形態ごと」は出ない', await p.evaluate(() => ![...document.querySelectorAll('.master-sort-chip')].some(c => c.textContent.includes('取引形態ごと'))));
+    ok(L + 'JS エラーなし', errs.length === 0, errs);
+    await ctx.close();
+  }
+
+  // ===== 港名のプリセット登録（英語名＝マスター・日本語名＝別名・国） =====
+  {
+    const { ctx, p, errs } = await open(true, { legacy: {}, noLegacy: true, role: 'admin' });
+    const L = '[港名プリセット] ';
+    await p.evaluate(async () => {
+      window.__db.master_votes.push({ field: 'port', value: 'YOKOHAMA', voter_email: 's@example.com' });
+      await statsLoadMasterCache(); await mdLoadCloud(); await synLoadCloud();
+    });
+    ok(L + 'プリセットのデータが読み込まれている（400 件以上・重複なし）', await p.evaluate(() => PORT_PRESETS.length > 400 && new Set(PORT_PRESETS.map(x => x.name)).size === PORT_PRESETS.length));
+    await p.evaluate(() => { switchCategory('master', document.querySelector('[onclick*="switchCategory(\'master"]')); }); await p.waitForTimeout(1000);
+    await p.evaluate(() => statsMasterSetFilter('port')); await p.waitForTimeout(300);
+    ok(L + '港を見ているとき「港名のプリセットを登録」ボタンが出る', await p.evaluate(() => [...document.querySelectorAll('.cm-entry-btn')].some(b => b.textContent.includes('港名のプリセット'))));
+    await p.evaluate(() => statsShowPortPreset()); await p.waitForTimeout(800);
+    ok(L + '日本が先頭・次にアジアの国', await p.evaluate(() => { const c = [...document.querySelectorAll('.pp-country')].map(d => d.dataset.cc); return c[0] === 'JP' && ['KR', 'CN', 'HK', 'TW'].includes(c[1]) && c.indexOf('VN') < c.indexOf('NL') && c.indexOf('NL') < c.indexOf('US'); }));
+    ok(L + '国ごとの一覧が出る・登録済みの港（YOKOHAMA）は選べない', await p.evaluate(() => document.querySelectorAll('.pp-country').length > 50 && document.querySelector('.pp-chk[data-name="YOKOHAMA"]').disabled));
+    ok(L + '初期状態は日本の未登録だけが選ばれている', await p.evaluate(() => { const on = [...document.querySelectorAll('.pp-chk:checked')].map(c => c.dataset.name); return on.includes('TOKYO') && !on.includes('SHANGHAI') && !on.includes('YOKOHAMA'); }));
+    await p.evaluate(() => document.querySelector('.pp-quick [data-q="asia"]').click());
+    ok(L + '「日本とアジア」で中国・ベトナムも選ばれる', await p.evaluate(() => { const on = new Set([...document.querySelectorAll('.pp-chk:checked')].map(c => c.dataset.name)); return on.has('SHANGHAI') && on.has('HAIPHONG') && !on.has('ROTTERDAM'); }));
+    await p.evaluate(() => document.querySelector('.pp-quick [data-q="none"]').click());
+    await p.evaluate(() => { document.querySelector('.pp-chk[data-name="TOKYO"]').click(); document.querySelector('.pp-chk[data-name="HAIPHONG"]').click(); });
+    await p.click('#ppApplyBtn'); await p.waitForTimeout(1500);
+    const st = await p.evaluate(() => ({
+      votes: window.__db.master_votes.filter(v => v.field === 'port').map(v => v.value),
+      cn: ['TOKYO', 'HAIPHONG'].map(n => ((window.__db.master_details.find(m => m.field === 'port' && m.value === n) || { details: {} }).details || {}).country),
+      al: (window.__db.synonym_groups.filter(g => g.field === 'port').find(g => g.canonical === 'TOKYO') || { aliases: [] }).aliases,
+      msg: document.querySelector('#ppMsg').textContent,
+    }));
+    ok(L + '選んだ 2 件だけがマスターに登録される', st.votes.includes('TOKYO') && st.votes.includes('HAIPHONG') && !st.votes.includes('SHANGHAI'), st);
+    ok(L + '国（JP・VN）が付く', st.cn[0] === 'JP' && st.cn[1] === 'VN', st.cn);
+    ok(L + '日本語名が別名になる（東京→TOKYO）', st.al.includes('東京'), st.al);
+    ok(L + '日本語名で入力しても代表名になる', await p.evaluate(() => { nameCacheClear(); return nameCanon('port', '東京') === 'TOKYO'; }));
+    await p.evaluate(() => statsShowPortPreset()); await p.waitForTimeout(600);
+    ok(L + '登録した港は次回から選べない（登録済み）', await p.evaluate(() => document.querySelector('.pp-chk[data-name="TOKYO"]').disabled));
+    ok(L + 'JS エラーなし', errs.length === 0, errs);
+    await ctx.close();
+  }
+
   // ===== 同業者のお客様の「先のお客様」（取引形態・経由する同業者・重複防止） =====
   {
     const { ctx, p, errs } = await open(true, { legacy: {}, noLegacy: true });
@@ -1147,6 +1310,9 @@ const http = require('http'), fs = require('fs'), path = require('path');
     await p.evaluate(() => statsMasterSetFilter('customer')); await p.waitForTimeout(300);
     const openDetail = async n => { await p.evaluate(v => document.querySelector('#statsPane-master tr[data-mvalue="' + v + '"] .stats-master-detail-btn').click(), n); await p.waitForTimeout(400); };
     await openDetail('同業A社');
+    const hs = []; for (const k of ['people', 'company', 'rules', 'memo']) { await p.evaluate(kk => document.querySelector('.mt-tab[data-mt="' + kk + '"]').click(), k); await p.waitForTimeout(150); hs.push(await p.evaluate(() => Math.round(document.querySelector('#mdDetailModal .md-modal').getBoundingClientRect().height))); }
+    ok(L + 'タブを切り替えても詳細ポップアップの高さが変わらない（固定）', hs.every(h => h === hs[0]) && hs[0] > 400, hs);
+    ok(L + '保存バーが常に見える（下に固定）', await p.evaluate(() => { const f = document.querySelector('#mdDetailModal .mt-foot').getBoundingClientRect(), m = document.querySelector('#mdDetailModal .md-modal').getBoundingClientRect(); return f.bottom <= m.bottom + 1 && f.height > 20; }));
     ok(L + '詳細に「取引形態」と「先のお客様」の欄がある', await p.evaluate(() => !!document.querySelector('#md_dealType') && !!document.querySelector('#md_viaChildren')));
     await p.fill('#md_viaChildren_input', '荷主X'); await p.keyboard.press('Enter');
     await p.fill('#md_viaChildren_input', '荷主Y'); await p.keyboard.press('Enter');

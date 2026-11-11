@@ -1,0 +1,15 @@
+/* Quiet theme（案）— 現行／Industry に続く「3つ目のデザイン」として追加する想定。
+   data-theme="quiet" のときだけ有効。機能・id・onclick・data-* は変えない。 */
+[data-theme="quiet"]{
+  --q-canvas:#f6f7f9; --q-surface:#fff; --q-sunken:#f1f3f6;
+  --q-line:#e2e6ec; --q-line-strong:#c8cfd9;
+  --q-ink:#101828; --q-ink-2:#475467; --q-ink-3:#667085;
+  --q-accent:#2f5fb3; --q-accent-hover:#234a8f; --q-accent-50:#eef3fb; --q-accent-100:#dbe6f6;
+  --q-ok:#1e7a4a; --q-ok-bg:#e8f4ee; --q-warn:#8a5a2b; --q-warn-bg:#fbf4e6; --q-warn-line:#e6d3ae;
+  --q-danger:#b42318; --q-danger-bg:#fdecea;
+  --q-r:6px; --q-r-lg:10px;
+  --q-sh:0 1px 2px rgba(16,24,40,.06),0 1px 3px rgba(16,24,40,.08);
+  --q-sh-lg:0 12px 32px rgba(16,24,40,.16);
+  --q-fs-12:12px; --q-fs-13:13px; --q-fs-14:14px; --q-fs-16:16px; --q-fs-18:18px; --q-fs-28:28px;
+  --q-sp-4:4px; --q-sp-8:8px; --q-sp-12:12px; --q-sp-16:16px; --q-sp-24:24px; --q-sp-32:32px;
+}

@@ -3,6 +3,9 @@
 //   （確認の吹き出しは alias-rules.js _checkPortMaster。申請に国を持たせる列は docs/sql/master-request-country.sql）。
 //   国は国コードで判定（data/countries.js findCountry）。国の入力欄は見積の項目として一緒に保存・復元される。
 //   国を選ばない／認識できない国のときは、従来どおり全港が候補（#portSuggestions）。
+//   逆引き：港名を入力して確定したとき、その港の国が空（または自動入力のまま）なら、①マスターの港の国 ②主要港の名前の対応表
+//   （data/countries.js guessPortCountry）の順で国を自動入力する。自分で選んだ国は上書きしない。自動入力した国は
+//   未登録港の「登録を申請」案内の対象にしない（ptcCountryOf が null を返す）。
 (function () {
   'use strict';
 
@@ -30,6 +33,7 @@
   function countryOf(portInput) {
     const f = portInput && FIELDS.find(x => x.port === portInput.id);
     const ci = f && $(f.country);
+    if (ci && _isAuto(ci)) return null;   // 港名からの自動入力は「選んだ国」とみなさない（登録案内を出さない）
     return ci ? findCountry(ci.value) : null;
   }
   window.ptcCountryOf = countryOf;
@@ -39,6 +43,36 @@
     const all = typeof window.mdGetAll === 'function' ? window.mdGetAll('port') : [];
     return all.filter(m => String((m.details || {}).country || '').toUpperCase() === code)
       .sort((a, b) => String(a.value).localeCompare(String(b.value), 'ja'));
+  }
+
+  // 自動入力した国か（入れた値とまだ同じなら自動。案件の読み込み等で値が変わっていれば手入力扱い）
+  const _isAuto = ci => !!ci.dataset.auto && ci.dataset.auto === ci.value.trim();
+
+  // 港名から国を逆引き：①マスターの港（別名・表記ゆれも同一視）の国 ②主要港の名前の対応表。分からなければ null
+  function _countryForPort(name) {
+    const v = String(name || '').trim();
+    if (!v) return null;
+    const all = typeof window.mdGetAll === 'function' ? window.mdGetAll('port') : [];
+    const same = typeof window.nameSame === 'function' ? window.nameSame : (a, b) => a === b;
+    const m = all.find(x => x.value === v) || all.find(x => { try { return same('port', x.value, v); } catch (e) { return false; } });
+    const code = m && (m.details || {}).country;
+    const c = code ? findCountry(String(code)) : null;
+    if (c) return c;
+    const g = typeof window.guessPortCountry === 'function' ? window.guessPortCountry(v) : null;
+    return g ? findCountry(g) : null;
+  }
+
+  // 港の確定時：国が空、または前回の自動入力のままなら、港名から国を入れ直す（自分で入力・選択した国は触らない）
+  function _autoCountry(f) {
+    const ci = $(f.country), pi = $(f.port);
+    if (!ci || !pi) return;
+    const manual = ci.value.trim() && !_isAuto(ci);
+    if (manual) return;
+    const c = _countryForPort(pi.value);
+    if (c) { ci.value = c.ja; ci.dataset.auto = c.ja; }
+    else if (_isAuto(ci)) { ci.value = ''; delete ci.dataset.auto; }   // 港を変えて分からなくなったら自動分を消す
+    else return;
+    ci.dispatchEvent(new Event('input', { bubbles: true }));   // 保存対象の変更として通知（候補の絞り込みも更新）
   }
 
   function _apply(f) {
@@ -96,8 +130,9 @@
     FIELDS.forEach(f => {
       const ci = $(f.country), pi = $(f.port);
       if (!ci || !pi) return;
-      ci.addEventListener('input', _note);
+      ci.addEventListener('input', () => _note());
       ci.addEventListener('change', () => { _normalizeCountryText(ci); _note(); });
+      pi.addEventListener('change', () => _autoCountry(f));
       pi.addEventListener('focus', _note);   // 案件の読み込み・新規作成で国の欄が変わっていても、触る前に候補を合わせる
     });
     _note();
