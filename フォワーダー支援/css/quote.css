@@ -2690,7 +2690,10 @@
 #tab-quote-make .cond-inco-select:focus { border-color: var(--accent); }
 /* hidden 属性（JS が付け外し）を、下の display:flex 等が上書きしないように：片道の案件で復路インコタームズ、
    URL 未入力のときの参照 URL のリンク表示が出たままになっていた */
-#tab-quote-make #incoRetGroup[hidden], #tab-quote-make #handlingGroup[hidden], #tab-quote-make #qf-refurl[hidden], #tab-quote-make .quote-field-corerf[hidden] { display: none; }
+#tab-quote-make #incoRetGroup[hidden], #tab-quote-make #handlingGroup[hidden], #tab-quote-make #qf-refurl[hidden], #tab-quote-make .quote-field-corerf[hidden], #tab-quote-make .quote-field-lostreason[hidden] { display: none; }
+#tab-quote-make .qf-inq-row { display: flex; flex-wrap: wrap; gap: var(--sp-6); }
+#tab-quote-make .qf-inq-row select { flex: 1 1 200px; min-width: 0; }
+#tab-quote-make .quote-field-lostreason { gap: var(--sp-6); }
 #tab-quote-make .cond-prim-group {
   display: flex;
   flex-direction: column;

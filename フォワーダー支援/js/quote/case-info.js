@@ -11,6 +11,24 @@
     return ymd(new Date(Date.UTC(y, m - 1 + plus + 1, 0, 3)));
   };
   const changed = el => { if (el) { el.dispatchEvent(new Event('input', { bubbles: true })); el.dispatchEvent(new Event('change', { bubbles: true })); } };
+  // 失注理由・引き合いの経路の選択肢（値＝表示名。統計の受注分析も同じ一覧を使う）
+  window.QF_LOST_REASONS = ['価格が高かった', '納期・スケジュールが合わなかった', '当て馬・相見積もりの踏み台だった', '案件自体が中止・変更になった', '他社に決まった（理由は不明）', 'その他'];
+  window.QF_INQ = {
+    kind:    ['新規のお客様', '既存のお客様'],
+    channel: ['メールで一括打診', 'メール（個別の依頼）', '電話・面談あり', '紹介', 'Web・展示会', 'その他'],
+    spec:    ['要件が具体的（スケジュール・フリータイム等の指定あり）', '金額のみの問い合わせ'],
+  };
+  function fillSelect(id, blank, list) {
+    const el = $(id); if (!el || el.options.length) return;
+    el.innerHTML = '<option value="">' + blank + '</option>' + list.map(v => '<option value="' + v.replace(/"/g, '&quot;') + '">' + v + '</option>').join('');
+  }
+  function fillChoices() {
+    fillSelect('qf-lost-reason', '— 理由を選ぶ —', window.QF_LOST_REASONS);
+    fillSelect('qf-inq-kind', '新規／既存（未選択）', window.QF_INQ.kind);
+    fillSelect('qf-inq-channel', '依頼の受け方（未選択）', window.QF_INQ.channel);
+    fillSelect('qf-inq-spec', '要件の具体性（未選択）', window.QF_INQ.spec);
+  }
+  fillChoices();
   const MORE_STATUS = ['改定中', '情報待ち', 'ヨコヨコ提示', '受注', '失注', '辞退', '保留'];
 
   function setOpen(btn, panel, open) {
@@ -57,8 +75,18 @@
     const show = ($('qf-status')?.value || '') === '受注' || !!inp.value.trim() || document.activeElement === inp;
     if (f.hidden === show) f.hidden = !show;
   }
+  // 失注・辞退の理由：ステータスが失注／辞退のときだけ出す。値が入っていれば出し続ける
+  function syncLostReason() {
+    const f = $('qfLostReasonField'); if (!f) return;
+    const st = $('qf-status')?.value || '';
+    const has = !!($('qf-lost-reason')?.value || $('qf-lost-note')?.value.trim());
+    const show = st === '失注' || st === '辞退' || has;
+    if (f.hidden === show) f.hidden = !show;
+  }
   function syncMore() {
     const parts = [];
+    { const st = $('qf-status')?.value || ''; if ((st === '失注' || st === '辞退') && !$('qf-lost-reason')?.value) parts.push('失注理由を記入'); else if ($('qf-lost-reason')?.value) parts.push('失注理由'); }
+    if ($('qf-inq-kind')?.value || $('qf-inq-channel')?.value || $('qf-inq-spec')?.value) parts.push('引き合い経路');
     const t = tagCount(); if (t) parts.push('タグ' + t);
     if ($('qf-core-ref')?.value.trim()) parts.push('REF#');
     if ($('qf-refurl')?.value.trim()) parts.push('URL');
@@ -110,7 +138,7 @@
     }
     setTimeout(syncMemoDot, 0);
   };
-  function sync() { syncStatus(); syncCoreRef(); syncRel(); syncDates(); syncMore(); syncDatesSum(); syncMemoDot(); }
+  function sync() { syncStatus(); syncCoreRef(); syncLostReason(); syncRel(); syncDates(); syncMore(); syncDatesSum(); syncMemoDot(); }
 
   window.ciSync = sync;
   window.ciSetValidEom = function (plus) {

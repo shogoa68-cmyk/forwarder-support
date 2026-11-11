@@ -1790,7 +1790,7 @@
     return (n && bill > 0 && window.SharedCalc) ? SharedCalc.grossMarginPct(bill, cost) : null;
   }
 
-  function _wrCases(source) {
+  function _wrCases(source, lostMode) {
     const period = document.getElementById('statsPeriod')?.value || 'all';
     const now = Date.now();
     const cutoff = { all: 0, month: now - 30 * 86400000, q3: now - 91 * 86400000, year: now - 365 * 86400000 }[period] || 0;
@@ -1801,9 +1801,12 @@
       const ts = tsRaw ? new Date(tsRaw).getTime() : 0;
       if (cutoff && ts && ts < cutoff) return;
       const status = ((isCloud ? p.status : f['qf-status']) || '').trim();
-      if (!_isSent(status)) return;   // 受注率の分母になる「提示後」だけ
+      // 通常は受注率の分母になる「提示後」だけ。lostMode のときは失注・辞退（理由の内訳用）
+      if (lostMode ? !(status === '失注' || status === '辞退') : !_isSent(status)) return;
       out.push({
         status, ts,
+        reason: (f['qf-lost-reason'] || '').trim(),
+        kind: (f['qf-inq-kind'] || '').trim(), channel: (f['qf-inq-channel'] || '').trim(), spec: (f['qf-inq-spec'] || '').trim(),
         customer: ((isCloud ? p.customer : f['qf-customer']) || '').trim(),
         mode: ((isCloud ? p.transport_mode : f['cond-mode']) || '').trim(),
         dir: (f['cond-direction'] || '').trim(),
@@ -1897,6 +1900,45 @@
            `<td>${g.last ? new Date(g.last).toLocaleDateString('ja-JP', { year: '2-digit', month: '2-digit', day: '2-digit' }) : '—'}</td></tr>`;
     });
     h += '</tbody></table>' + _moreHtml('statsPane-winrate', list.length);
+
+    // --- C. 引き合いの経路別の受注率（案件の「引き合いの経路」欄。未記入は「未記入」） ---
+    const inqRow = (label, rows) => {
+      const won = rows.filter(c => c.status === '受注').length, lost = rows.filter(c => c.status === '失注').length;
+      const few = rows.length > 0 && rows.length < _WR_MIN_N;
+      return `<tr${few ? ' style="opacity:.6"' : ''}><td class="stats-val">${_esc(label)}${few ? ' <small class="ldg-sub">（参考：件数少）</small>' : ''}</td>` +
+             `<td class="stats-num-col">${rows.length}</td><td class="stats-num-col">${won}</td><td class="stats-num-col">${lost}</td><td class="stats-num-col">${rows.length - won - lost}</td>${rateCell(won, rows.length)}</tr>`;
+    };
+    const inqTable = (title, key, choices) => {
+      const used = cases.filter(c => c[key]).length;
+      if (!used) return '';
+      const labels = [...choices, ...[...new Set(cases.map(c => c[key]).filter(v => v && !choices.includes(v)))]];
+      return `<h4 class="stats-kpi-section-title" style="font-size:var(--fs-13)">${title}</h4>` +
+        '<table class="stats-table"><thead><tr><th>区分</th><th class="stats-num-col">提示後</th><th class="stats-num-col">受注</th><th class="stats-num-col">失注</th><th class="stats-num-col">結果待ち</th><th class="stats-num-col">受注率</th></tr></thead><tbody>' +
+        labels.map(l => inqRow(l, cases.filter(c => c[key] === l))).join('') + inqRow('未記入', cases.filter(c => !c[key])) + '</tbody></table>';
+    };
+    const inq = window.QF_INQ || { kind: [], channel: [], spec: [] };
+    const inqHtml = inqTable('新規／既存', 'kind', inq.kind) + inqTable('依頼の受け方', 'channel', inq.channel) + inqTable('要件の具体性', 'spec', inq.spec);
+    h += '<h3 class="stats-kpi-section-title">引き合いの経路別の受注率</h3>' +
+      (inqHtml ? '<p class="stats-syn-hint">案件の「引き合いの経路」欄（見積入力の「その他」内）の記録を集計します。当て馬になりやすい条件（金額のみの問い合わせ・新規・メール一括など）で受注率が低いかを見ます。</p>' + inqHtml
+               : '<p class="stats-empty">まだ記録がありません。<br><small>見積入力の「その他」にある「引き合いの経路」（新規／既存・依頼の受け方・要件の具体性）を入れると、ここに集計されます。</small></p>');
+
+    // --- D. 失注・辞退の理由の内訳 ---
+    const lostAll = _wrCases(source, true).filter(c => (!_wr.mode || c.mode === _wr.mode) && (!_wr.dir || c.dir === _wr.dir));
+    const reasons = window.QF_LOST_REASONS || [];
+    const rcount = new Map();
+    lostAll.forEach(c => { const k = c.reason || ''; rcount.set(k, (rcount.get(k) || 0) + 1); });
+    h += '<h3 class="stats-kpi-section-title">失注・辞退の理由</h3>';
+    if (!lostAll.length) {
+      h += '<p class="stats-empty">失注・辞退の案件がありません。</p>';
+    } else {
+      const recorded = lostAll.filter(c => c.reason).length;
+      const order = [...reasons, ...[...rcount.keys()].filter(k => k && !reasons.includes(k))];
+      const maxN = Math.max(1, ...order.map(k => rcount.get(k) || 0));
+      h += `<p class="stats-syn-hint">失注・辞退 ${lostAll.length} 件のうち、理由が記録されているのは ${recorded} 件です。ダッシュボードで失注・辞退にしたときや、見積入力の「その他」で理由を記録できます。</p>` +
+        '<table class="stats-table"><thead><tr><th>理由</th><th class="stats-num-col">件数</th></tr></thead><tbody>' +
+        order.map(k => `<tr><td class="stats-val">${_esc(k)}</td><td class="stats-num-col"><div class="stats-bar-wrap"><div class="stats-bar" style="width:${Math.round((rcount.get(k) || 0) / maxN * 100)}%"></div><span class="stats-bar-label">${rcount.get(k) || 0}</span></div></td></tr>`).join('') +
+        `<tr><td class="stats-val">未記録</td><td class="stats-num-col">${rcount.get('') || 0}</td></tr></tbody></table>`;
+    }
     e.innerHTML = h;
   }
 

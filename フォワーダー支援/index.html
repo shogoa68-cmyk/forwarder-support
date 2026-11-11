@@ -2987,6 +2987,19 @@
                    placeholder="例）EX2410-0123" onchange="normalizeCoreRef(this)"
                    title="この見積を使って実際に手配した案件の、基幹システム上の REF# を登録します。半角の英数字（とハイフン・アンダースコア・スラッシュ・ピリオド）が使えます。全角は半角に直します。" />
           </div>
+          <div class="quote-field quote-field-lostreason" id="qfLostReasonField" hidden>
+            <label>📉 失注・辞退の理由 <span class="qf-memo-note">失注・辞退のときに記録（社内用。見積書などの出力には含まれません）。統計の「受注分析」に使います</span></label>
+            <select id="qf-lost-reason" title="失注・辞退になった理由（当てはまるものを選びます）"></select>
+            <input type="text" id="qf-lost-note" maxlength="200" autocomplete="off" placeholder="補足（競合の金額・先方のコメントなど）" />
+          </div>
+          <div class="quote-field quote-field-inquiry" id="qfInquiryField">
+            <label>📨 引き合いの経路 <span class="qf-memo-note">任意・社内用。当て馬かどうかの傾向分析に使います（見積書などの出力には含まれません）</span></label>
+            <div class="qf-inq-row">
+              <select id="qf-inq-kind" title="新規のお客様か、既存のお客様か"></select>
+              <select id="qf-inq-channel" title="依頼の受け方"></select>
+              <select id="qf-inq-spec" title="依頼の要件の具体性"></select>
+            </div>
+          </div>
           <div class="quote-field quote-field-sources" id="qfSources">
             <label>📚 参照資料 <span class="qf-memo-note">レート表・船社サイト等のURLと、この案件に保存・チーム共有するファイル。出力には含まれません</span></label>
             <!-- 参照URLの保存用（URL を改行区切りで保持。案件データには従来どおりこの欄の値が入る） -->
