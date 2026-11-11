@@ -3526,7 +3526,12 @@
     if (_qtab) { _qtab.addEventListener('input', _markUnlessImportModal); _qtab.addEventListener('change', _markUnlessImportModal); }
     // タブを閉じる/離れる時はロックを即時解放（best-effort。失敗しても90秒で自動失効）
     window.addEventListener('pagehide', () => { if (_lockHeldId) _dropLock(); });
-    window.addEventListener('beforeunload', () => { if (_lockHeldId) _dropLock(); });
+    window.addEventListener('beforeunload', (e) => {
+      // 編集中に未保存の変更があるまま再読込・タブを閉じようとしたら、ブラウザ標準の確認を出す（自動保存は廃止済みで、そのままだと入力が消える）。
+      // 実際に離れるとき（pagehide）にロックは解放されるので、ここでは確認を出す場合は解放しない（「このページに留まる」を選んでも編集を続けられる）。
+      if (_quoteDirty && _shareMode === 'edit') { e.preventDefault(); e.returnValue = ''; return; }
+      if (_lockHeldId) _dropLock();
+    });
     const c = _getClient();
     if (!c) { _renderCloudAuth(); return; }
 
