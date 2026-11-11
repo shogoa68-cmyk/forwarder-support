@@ -3,7 +3,7 @@
 このディレクトリは、フォワーディング業務向けの Vanilla JS フロントエンドアプリ群を集約・統合する作業ディレクトリ。
 
 > **作業前に読むこと**：製品方針 [PRODUCT_VISION.md](PRODUCT_VISION.md) / デザイン方針 [DESIGN_VISION.md](DESIGN_VISION.md)（リポジトリ直下）。不具合・改修の棚卸しは [docs/バグ台帳.md](docs/バグ台帳.md)。機能アイデア・改修要望は [docs/アイデア台帳.md](docs/アイデア台帳.md)。
-> **開発の方向を決める設計思想**：[docs/設計思想-共同で育てる知識.md](docs/設計思想-共同で育てる知識.md)（全員対等・根拠と検証で信頼性を育てる・履歴は追記のみ。最初の一歩＝マスターの履歴記録。案と SQL は [docs/マスター履歴-設計案.md](docs/マスター履歴-設計案.md)・`docs/sql/master-history.sql`＝**未実行**・テスト `scripts/sql-tests/master-history-sql-test.sh`）。**製品／デザイン方針と食い違うときは、この文書の方向を優先して相談すること**（VISION 文書は 2026-05-30 のままで、実態とズレている部分がある）。
+> **開発の方向を決める設計思想**：[docs/設計思想-共同で育てる知識.md](docs/設計思想-共同で育てる知識.md)（全員対等・根拠と検証で信頼性を育てる・履歴は追記のみ。最初の一歩＝マスターの履歴記録。案と SQL は [docs/マスター履歴-設計案.md](docs/マスター履歴-設計案.md)・`docs/sql/master-history.sql`＝**未実行**・テスト `scripts/sql-tests/master-history-sql-test.sh`。**履歴の画面は実装済み**＝`js/master-history.js`／`css/master-history.css`：マスター管理の絞り込みの行「🕘 履歴」と、マスター詳細ポップアップの「🕘 この名前の履歴」から開く読み取り専用の一覧（stats.js は無変更＝画面ができたあとにボタンを足し、詳細を開く関数を包む）。SQL 未実行の環境では案内だけを出す。テスト `scripts/design-tests/master-history-test.js`）。**製品／デザイン方針と食い違うときは、この文書の方向を優先して相談すること**（VISION 文書は 2026-05-30 のままで、実態とズレている部分がある）。
 > ※ VISION 文書は公開対象（GitHub Pages = `フォワーダー支援/`）に含めないため、リポジトリ直下に置く。
 > ※ ユーザー公開ロードマップ：`docs/アイデア台帳.md` から `node scripts/build-roadmap.js` で `フォワーダー支援/roadmap.html` を生成（ヘッダー「📣 改修予定・アイデア」からリンク）。**台帳を編集したら再生成すること**。事業化・売却方針や内部技術詳細は生成時に自動除外。
 
