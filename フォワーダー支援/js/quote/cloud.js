@@ -1465,56 +1465,11 @@
   let _myEditingId = null;
 
   // ---------- 非アクティブ自動解放 ----------
-  const INACTIVITY_TIMEOUT_MS = 5 * 60 * 1000; // 5分
-  const INACTIVITY_RECOVERY_KEY = 'cloudEditRecovery_v1';
-  let _inactivityTimer = null;
-
-  function _releaseOnInactivity() {
-    if (!_myEditingId) return;
-    // 入力中データをブラウザに保存
-    try {
-      if (typeof gatherAllData === 'function') {
-        const snapshot = gatherAllData();
-        localStorage.setItem(INACTIVITY_RECOVERY_KEY, JSON.stringify({
-          data: snapshot,
-          savedAt: Date.now(),
-          presetId: _myEditingId,
-        }));
-      }
-    } catch (e) {}
-    _setEditing(null);
-    quoteShowToast(
-      '⏱️ 未操作状態が続いたため閲覧モードに戻りました。入力データはブラウザに保存済みです（プリセット保存ボタンで復元できます）。',
-      'warn', 8000
-    );
-  }
-
-  function _resetInactivityTimer() {
-    if (!_myEditingId) return;
-    clearTimeout(_inactivityTimer);
-    _inactivityTimer = setTimeout(_releaseOnInactivity, INACTIVITY_TIMEOUT_MS);
-  }
-
-  function _startInactivityWatch() {
-    clearTimeout(_inactivityTimer);
-    _inactivityTimer = setTimeout(_releaseOnInactivity, INACTIVITY_TIMEOUT_MS);
-    ['mousemove', 'keydown', 'mousedown', 'touchstart', 'scroll', 'input', 'change'].forEach(evt =>
-      document.addEventListener(evt, _onUserActivity, { passive: true })
-    );
-  }
-
-  function _stopInactivityWatch() {
-    clearTimeout(_inactivityTimer);
-    _inactivityTimer = null;
-    ['mousemove', 'keydown', 'mousedown', 'touchstart', 'scroll', 'input', 'change'].forEach(evt =>
-      document.removeEventListener(evt, _onUserActivity)
-    );
-  }
-
-  function _onUserActivity() {
-    if (_myEditingId) _resetInactivityTimer();
-    else _stopInactivityWatch();
-  }
+  // 放置の解放は、下の「編集ロック」側の 10 分タイマー（LOCK_IDLE_LIMIT_MS・_onSelfIdleRelease）に一本化。
+  // 以前ここにあった 5 分タイマーは「閲覧モードに戻りました」と出すだけで、実際はロックも編集画面も
+  // そのままだった（表示と実際がずれていた）ため廃止した。
+  function _startInactivityWatch() {}
+  function _stopInactivityWatch() {}
 
   function _presenceOthers(presetId) {
     const arr = _presence[presetId] || [];
@@ -1635,11 +1590,14 @@
       // 10分以上 無操作なら「放置」とみなし、自分でロックを解放して閲覧モードへ
       if (Date.now() - _lastLockActivity > LOCK_IDLE_LIMIT_MS) { _onSelfIdleRelease(id); return; }
       const held = await _renewLock(id);     // 更新のみ
+      // 通信中に自分で保存・解放・放置解放した場合は何もしない（解放済みのロックを握り直さない）
+      if (_lockHeldId !== id) return;
       if (held === false) {
         // 更新できない＝ロックが自分名義でない。ただし「自分の別タブが放置/クローズで
         // クリアしただけ」なら握り直せる。管理者が強制解放した場合は acquire が
         // 'COOLDOWN' を返して拒否される（＝本当に失った）。
         const r = await _acquireLock(id);
+        if (_lockHeldId !== id) { if (r === 'OK') _releaseLock(id); return; }   // 通信中に解放済み→握ったロックを返す
         if (r === 'OK') return;              // 握り直せた（自分の別タブがクリア等）→ 継続
         if (r === 'COOLDOWN' || (typeof r === 'string' && r.indexOf('@') >= 0)) _onLockLost(id);
         // r === null / 'NOTFOUND' / 'DENIED' は不明 → 誤った閲覧モード化を避けて継続
@@ -2159,6 +2117,18 @@
     _applyCloudFilter();
   }
 
+  // 一覧のキャッシュ（_cloudRows）は読込後に他メンバーが保存していると古い。そのまま data 全体を
+  // 書き戻すと相手の保存を巻き戻してしまうため、書く直前に最新の data を取り直す。
+  // 取得に失敗したときは、従来どおりキャッシュの data を使う。
+  async function _freshRowData(id, row) {
+    try {
+      const c = _getClient();
+      const { data, error } = await c.from(_table()).select('data').eq('id', id).single();
+      if (!error && data && data.data) return data.data;
+    } catch (e) {}
+    return (row && row.data) || undefined;
+  }
+
   // 行のステータス変更
   async function cloudSetStatus(rawId, status) {
     const c = _getClient();
@@ -2178,8 +2148,9 @@
     // status 列だけでなく data.fields['qf-status'] も一緒に更新する。ここを揃えて
     // おかないと、次にこの案件を開いたとき（_applyQuoteData が data.fields から
     // 復元する）古いステータスに戻って見えてしまう（例：「🔄 更新」ボタンが出ない）。
-    const newData = (row && row.data) ? Object.assign({}, row.data, {
-      fields: Object.assign({}, row.data.fields, { 'qf-status': status }),
+    const baseData = row ? await _freshRowData(id, row) : undefined;
+    const newData = baseData ? Object.assign({}, baseData, {
+      fields: Object.assign({}, baseData.fields, { 'qf-status': status }),
     }) : undefined;
     // 提示済み／ヨコヨコ提示にしたとき、その時点の客先向け内容を提示履歴（版）に積む（quote-versions.js）
     if (newData && typeof window.qvOnPresentedData === 'function') {
@@ -2270,7 +2241,7 @@
       quoteShowToast('🔒 ' + _nameFor(lockedBy) + ' さんが作業中のため変更できません', 'warn', 4000);
       return;
     }
-    const newData = Object.assign({}, row.data, { holdReminderOff: !!off });
+    const newData = Object.assign({}, await _freshRowData(id, row), { holdReminderOff: !!off });
     const { error } = await c.from(_table()).update({ data: newData }).eq('id', id);
     if (error) {
       quoteShowToast('⚠️ 更新に失敗：' + error.message, 'warn', 5000);
@@ -2298,7 +2269,7 @@
     if (!row) return false;
     const lockedBy = _lockedByOther(row);
     if (lockedBy) { quoteShowToast('🔒 ' + _nameFor(lockedBy) + ' さんが作業中のため変更できません', 'warn', 4000); return false; }
-    const newData = Object.assign({}, row.data);
+    const newData = Object.assign({}, await _freshRowData(id, row));
     if (pf) newData.priceFollow = pf; else delete newData.priceFollow;
     const { error } = await c.from(_table()).update({ data: newData }).eq('id', id);
     if (error) { quoteShowToast('⚠️ 更新に失敗：' + error.message, 'warn', 5000); return false; }
@@ -2497,7 +2468,15 @@
   }
 
   // ---------- 保存（同名は上書き） ----------
+  // 保存中の二重実行（Ctrl+S 連打・ボタン連打）を防ぐ。新規案件だと同名の行が2件できてしまうため。
+  let _saveInFlight = false;
   async function cloudSaveCurrent(opts) {
+    if (_saveInFlight) return;
+    _saveInFlight = true;
+    try { return await _cloudSaveCurrentImpl(opts); }
+    finally { _saveInFlight = false; }
+  }
+  async function _cloudSaveCurrentImpl(opts) {
     const c = _getClient();
     if (!c || !_cloudUser) { quoteShowToast('⚠️ 先に Google でログインしてください', 'warn'); return; }
     // 保存名：読込中の案件名を優先（コピー元と名前が被っても混同しない）。未ロードなら自動生成
@@ -3120,6 +3099,9 @@
       return;
     }
     if (_lockHeldId === id) _dropLock();
+    // 画面に開いている案件を消した場合、読込済みIDを残すと次の保存が「存在しない行の更新」になり
+    // 0行＝「他メンバーが編集中」と誤表示されて保存できなくなる。新規扱いに戻す。
+    if (_loadedCloudId === id) { _loadedCloudId = null; _loadedCloudTs = null; if (_shareMode === 'view') _applyShareMode('edit'); }
     quoteShowToast('🗑️ 共有プリセットを削除しました', 'info');
     cloudListPresets();
   }

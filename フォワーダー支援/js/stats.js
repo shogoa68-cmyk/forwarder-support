@@ -2306,7 +2306,7 @@
       const pct = max > 0 ? Math.max(2, Math.round(it.count / max * 100)) : 0;
       const cls = it.cls ? ' ' + it.cls : '';
       return `<div class="sd-bar-row">` +
-             `<span class="sd-bar-label" title="${_esc(it.label)}">${_esc(it.label)}</span>` +
+             `<span class="sd-bar-label" title="${_eav(it.label)}">${_esc(it.label)}</span>` +
              `<span class="sd-bar-track"><span class="sd-bar-fill${cls}" style="width:${pct}%"></span></span>` +
              `<span class="sd-bar-val">${_esc(it.valText != null ? it.valText : String(it.count))}</span>` +
              `</div>`;
