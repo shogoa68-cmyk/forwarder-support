@@ -2690,7 +2690,10 @@
 #tab-quote-make .cond-inco-select:focus { border-color: var(--accent); }
 /* hidden 属性（JS が付け外し）を、下の display:flex 等が上書きしないように：片道の案件で復路インコタームズ、
    URL 未入力のときの参照 URL のリンク表示が出たままになっていた */
-#tab-quote-make #incoRetGroup[hidden], #tab-quote-make #handlingGroup[hidden], #tab-quote-make #qf-refurl[hidden], #tab-quote-make .quote-field-corerf[hidden] { display: none; }
+#tab-quote-make #incoRetGroup[hidden], #tab-quote-make #handlingGroup[hidden], #tab-quote-make #qf-refurl[hidden], #tab-quote-make .quote-field-corerf[hidden], #tab-quote-make .quote-field-lostreason[hidden] { display: none; }
+#tab-quote-make .qf-inq-row { display: flex; flex-wrap: wrap; gap: var(--sp-6); }
+#tab-quote-make .qf-inq-row select { flex: 1 1 200px; min-width: 0; }
+#tab-quote-make .quote-field-lostreason { gap: var(--sp-6); }
 #tab-quote-make .cond-prim-group {
   display: flex;
   flex-direction: column;
@@ -12289,3 +12292,25 @@ body:has(#compareOverlay.open) #rmSheet { display: none !important; }
 #tab-quote-make #rmSheet.is-nudging .rms-grab { background: var(--accent, #2a7ab0); }
 @media (prefers-reduced-motion: reduce) { #tab-quote-make #rmSheet.is-nudging > .rms-panel { animation: none; } }
 @media print { #rmSheet { display: none !important; } }
+
+/* ===== 見積の診断カード（js/quote/diagnosis.js・2026-11） ===== */
+#tab-quote-make .qdg { margin: var(--sp-10) var(--sp-12) var(--sp-12); padding: var(--sp-10) var(--sp-12); border: 1px solid var(--border, #d9dee5); border-radius: 10px; background: var(--surface, #fff); }
+#tab-quote-make .qdg[hidden] { display: none; }
+#tab-quote-make .qdg-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 6px; }
+#tab-quote-make .qdg-title { font-size: var(--text-sm); font-weight: 700; }
+#tab-quote-make .qdg-badge { font-size: var(--text-xs); font-weight: 700; padding: 1px 8px; border-radius: 999px; background: #fdecd8; color: #9a4a00; white-space: nowrap; }
+#tab-quote-make .qdg-badge-ok { background: #e3f4e8; color: #1d6b36; }
+#tab-quote-make .qdg-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+#tab-quote-make .qdg-item { display: flex; gap: 6px; align-items: flex-start; font-size: var(--text-sm); line-height: var(--lh-body, 1.7); }
+#tab-quote-make .qdg-dot { flex: none; font-size: var(--text-xs); line-height: 1.9; }
+#tab-quote-make .qdg-text { min-width: 0; overflow-wrap: anywhere; }
+#tab-quote-make .qdg-hint .qdg-text { color: var(--text-muted, #6b7683); }
+#tab-quote-make .qdg-note { margin: 8px 0 0; font-size: var(--text-xs); color: var(--text-muted, #6b7683); line-height: var(--lh-body, 1.7); }
+#tab-quote-make .qsp-tab-badge-warn { background: #e8870e; color: #fff; }
+
+/* ===== 回答スピード（依頼受信の時刻・提示までの日数／2026-11） ===== */
+#tab-quote-make .ci-recv-row { display: flex; gap: 6px; align-items: center; }
+#tab-quote-make .ci-recv-row input[type="date"] { flex: 1 1 auto; min-width: 0; }
+#tab-quote-make .ci-recv-row input[type="time"] { flex: 0 0 auto; width: 6.5em; }
+#tab-quote-make .ci-resp-hint { margin-top: 4px; font-size: var(--text-xs); color: var(--text-muted, #6b7683); line-height: var(--lh-body, 1.7); }
+#tab-quote-make .ci-resp-hint[hidden] { display: none; }
