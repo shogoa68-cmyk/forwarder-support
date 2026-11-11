@@ -1763,6 +1763,143 @@
     toast(fellBack ? `📦 「${name}」を登録しました（大分類/タグは追加SQL適用後に保存されます）` : `📦 明細プリセット「${name}」を登録しました（${rows.length}行）`, fellBack ? 'warn' : 'success');
   };
 
+  // ===== 🎲 受注分析（粗利率の帯ごとの受注率／お客様別の歩留まり）=====
+  // 目標値を持たない実績の分析。「どのくらいの粗利率で出すと受注できているか」「見積は多いのに
+  // 受注が少ないお客様（当て馬の疑い）はどこか」を、自社の実績から見るための2つの表。
+  // 受注率の定義は全画面共通（受注 ÷ 提示後の案件）。失注がほとんど記録されないため、
+  // 「結果待ち」（提示済み等のまま受注・失注が付いていない案件）も別に数える。
+  const _wr = { mode: '', dir: '', sort: 'count' };
+  const _WR_BANDS = [
+    { label: '0%未満（赤字）', min: -Infinity, max: 0 },
+    { label: '0〜5%', min: 0, max: 5 },
+    { label: '5〜8%', min: 5, max: 8 },
+    { label: '8〜12%', min: 8, max: 12 },
+    { label: '12〜15%', min: 12, max: 15 },
+    { label: '15%以上', min: 15, max: Infinity },
+  ];
+  const _WR_MIN_N = 10;   // 帯の件数がこれ未満なら「参考（件数少）」
+
+  // 案件の粗利率：仕入・売の両方が入った明細行を JPY 換算して合計（売上が無ければ null）
+  function _caseMarginPct(rows) {
+    let bill = 0, cost = 0, n = 0;
+    (rows || []).forEach(r => {
+      if (!r || r._type !== 'data' || !Array.isArray(r.cells)) return;
+      const pr = _pairJ(r.cells);
+      if (!pr.skip) { bill += pr.bill; cost += pr.cost; n++; }
+    });
+    return (n && bill > 0 && window.SharedCalc) ? SharedCalc.grossMarginPct(bill, cost) : null;
+  }
+
+  function _wrCases(source) {
+    const period = document.getElementById('statsPeriod')?.value || 'all';
+    const now = Date.now();
+    const cutoff = { all: 0, month: now - 30 * 86400000, q3: now - 91 * 86400000, year: now - 365 * 86400000 }[period] || 0;
+    const out = [];
+    const add = (p, isCloud) => {
+      const d = p.data || {}, f = d.fields || {};
+      const tsRaw = isCloud ? p.updated_at : (p.ts || p.updatedAt);
+      const ts = tsRaw ? new Date(tsRaw).getTime() : 0;
+      if (cutoff && ts && ts < cutoff) return;
+      const status = ((isCloud ? p.status : f['qf-status']) || '').trim();
+      if (!_isSent(status)) return;   // 受注率の分母になる「提示後」だけ
+      out.push({
+        status, ts,
+        customer: ((isCloud ? p.customer : f['qf-customer']) || '').trim(),
+        mode: ((isCloud ? p.transport_mode : f['cond-mode']) || '').trim(),
+        dir: (f['cond-direction'] || '').trim(),
+        margin: _caseMarginPct(d.rows),
+      });
+    };
+    if (source !== 'cloud') _getLocalPresets().forEach(p => add(p, false));
+    if (source !== 'local') (typeof window.cloudGetAllRows === 'function' ? window.cloudGetAllRows() : []).forEach(p => add(p, true));
+    return out;
+  }
+
+  window.statsWrSet = function (key, val) {
+    _wr[key] = val; _listLimit = {};
+    _renderWinRate();
+  };
+
+  function _renderWinRate() {
+    const e = document.getElementById('statsPane-winrate');
+    if (!e) return;
+    const source = document.getElementById('statsSource')?.value || 'both';
+    const all = _wrCases(source);
+    if (!all.length) {
+      e.innerHTML = '<p class="stats-empty">提示後の案件がありません。<br><small>案件のステータスを「提示済み」以降にすると、ここに集計されます。</small></p>';
+      return;
+    }
+    const modes = [...new Set(all.map(c => c.mode).filter(Boolean))].sort();
+    const cases = all.filter(c => (!_wr.mode || c.mode === _wr.mode) && (!_wr.dir || c.dir === _wr.dir));
+    const sel = (key, opts) => `<select class="ldg-in" style="flex:0 1 200px" onchange="statsWrSet('${key}',this.value)">` +
+      opts.map(([v, l]) => `<option value="${_eav(v)}"${_wr[key] === v ? ' selected' : ''}>${_esc(l)}</option>`).join('') + '</select>';
+    let h = '<div class="ldg-filter">' +
+      sel('mode', [['', 'モード：すべて'], ...modes.map(m => [m, _MODE_LABEL[m] || m])]) +
+      sel('dir', [['', '輸出入：すべて'], ['export', '輸出'], ['import', '輸入']]) + '</div>' +
+      `<p class="stats-syn-hint">${_WIN_RATE_NOTE}。提示後の案件だけが対象で、期間は上の「期間」に従います。「結果待ち」は提示済み・提出済み・ヨコヨコ提示のまま受注・失注が記録されていない案件です（失注はあまり記録されないため、結果待ちが多いと受注率は低めに出ます）。</p>`;
+
+    const rateCell = (won, n) => {
+      const r = _winRatePct(won, n);
+      return `<td class="stats-num-col"><div class="stats-bar-wrap"><div class="stats-bar" style="width:${r == null ? 0 : r}%"></div><span class="stats-bar-label">${r == null ? '—' : r + '%'}</span></div></td>`;
+    };
+
+    // --- A. 粗利率の帯ごとの受注率 ---
+    const priced = cases.filter(c => c.margin != null);
+    const noMargin = cases.length - priced.length;
+    const overallWon = cases.filter(c => c.status === '受注').length;
+    h += `<h3 class="stats-kpi-section-title">粗利率の帯ごとの受注率</h3>` +
+         `<p class="stats-syn-hint">提示後 ${cases.length} 件（全体の受注率 ${_winRatePct(overallWon, cases.length) ?? '—'}%）のうち、粗利率が計算できる ${priced.length} 件を、案件全体の粗利率で帯に分けています` +
+         (noMargin ? `（仕入・売の単価が揃わない ${noMargin} 件は除外）` : '') + '。粗利率は仕入・売の両方が入った明細をJPY換算した合計です。</p>';
+    h += '<table class="stats-table"><thead><tr><th>粗利率の帯</th><th class="stats-num-col">提示後</th><th class="stats-num-col">受注</th><th class="stats-num-col">失注</th><th class="stats-num-col">結果待ち</th><th class="stats-num-col">受注率</th></tr></thead><tbody>';
+    _WR_BANDS.forEach(b => {
+      const rows = priced.filter(c => c.margin >= b.min && c.margin < b.max);
+      const won = rows.filter(c => c.status === '受注').length, lost = rows.filter(c => c.status === '失注').length;
+      const few = rows.length > 0 && rows.length < _WR_MIN_N;
+      h += `<tr${few ? ' style="opacity:.6"' : ''}><td class="stats-val">${b.label}${few ? ' <small class="ldg-sub">（参考：件数少）</small>' : ''}</td>` +
+           `<td class="stats-num-col">${rows.length}</td><td class="stats-num-col">${won}</td><td class="stats-num-col">${lost}</td>` +
+           `<td class="stats-num-col">${rows.length - won - lost}</td>${rateCell(won, rows.length)}</tr>`;
+    });
+    h += '</tbody></table>';
+
+    // --- B. お客様別の歩留まり ---
+    const cmap = new Map();
+    cases.forEach(c => {
+      const raw = c.customer || '（未入力）';
+      const key = _normalize(raw, 'customer');
+      if (!cmap.has(key)) cmap.set(key, { labels: {}, n: 0, won: 0, lost: 0, last: 0, mSum: 0, mN: 0 });
+      const g = cmap.get(key);
+      g.labels[raw] = (g.labels[raw] || 0) + 1;
+      g.n++; if (c.status === '受注') g.won++; if (c.status === '失注') g.lost++;
+      if (c.ts > g.last) g.last = c.ts;
+      if (c.margin != null) { g.mSum += c.margin; g.mN++; }
+    });
+    let list = [...cmap.values()].map(g => Object.assign(g, {
+      label: Object.keys(g.labels).sort((a, b) => g.labels[b] - g.labels[a])[0],
+      rate: _winRatePct(g.won, g.n),
+    }));
+    const overall = _winRatePct(overallWon, cases.length);
+    // 注意：提示が5件以上あるのに、全体の受注率の半分未満しか受注できていないお客様（当て馬・歩留まり不良の疑い）
+    list.forEach(g => { g.watch = overall != null && g.n >= 5 && g.rate != null && g.rate < overall / 2; });
+    if (_wr.sort === 'low') list = list.filter(g => g.n >= 3).sort((a, b) => (a.rate - b.rate) || (b.n - a.n));
+    else list.sort((a, b) => b.n - a.n || a.label.localeCompare(b.label, 'ja'));
+    const sortBtn = (v, l) => `<button class="svp-by-btn${_wr.sort === v ? ' is-active' : ''}" onclick="statsWrSet('sort','${v}')">${l}</button>`;
+    h += `<h3 class="stats-kpi-section-title">お客様別の歩留まり</h3>` +
+         '<div class="svp-toolbar"><span class="svp-by-label">並び順</span>' + sortBtn('count', '提示数の多い順') + sortBtn('low', '受注率の低い順（3件以上）') + '</div>' +
+         '<p class="stats-syn-hint">見積を多く出しているのに受注が少ないお客様を探します。「歩留まり注意」は、提示が5件以上あり、受注率が全体（' + (overall ?? '—') + '%）の半分未満のお客様です（当て馬・相見積もりの踏み台の可能性。新規かどうか・要件の具体性とあわせて判断してください）。</p>';
+    h += '<table class="stats-table"><thead><tr><th>お客様</th><th class="stats-num-col">提示後</th><th class="stats-num-col">受注</th><th class="stats-num-col">失注</th><th class="stats-num-col">結果待ち</th><th class="stats-num-col">受注率</th><th class="stats-num-col">平均粗利率</th><th>最後の提示</th></tr></thead><tbody>';
+    const lim = _limitOf('statsPane-winrate');
+    list.slice(0, lim).forEach(g => {
+      const m = g.mN ? g.mSum / g.mN : null;
+      h += `<tr><td class="stats-val">${_usageSpan('customer', g.label)}${g.watch ? ' <span class="stats-variant-badge" style="background:#fbe3d0;color:#a04a00" title="提示数が多いのに受注率が低い">⚠ 歩留まり注意</span>' : ''}</td>` +
+           `<td class="stats-num-col">${g.n}</td><td class="stats-num-col">${g.won}</td><td class="stats-num-col">${g.lost}</td>` +
+           `<td class="stats-num-col">${g.n - g.won - g.lost}</td>${rateCell(g.won, g.n)}` +
+           `<td class="stats-num-col">${m == null ? '—' : m.toFixed(1) + '%'}</td>` +
+           `<td>${g.last ? new Date(g.last).toLocaleDateString('ja-JP', { year: '2-digit', month: '2-digit', day: '2-digit' }) : '—'}</td></tr>`;
+    });
+    h += '</tbody></table>' + _moreHtml('statsPane-winrate', list.length);
+    e.innerHTML = h;
+  }
+
   function _renderUn() {
     const e = document.getElementById('statsPane-un');
     if (!e || !_data) return;
@@ -3481,6 +3618,7 @@
     else if (id === 'custitem') _renderCustItem();
     else if (id === 'margindiff') _renderMarginDiff();
     else if (id === 'ledger')   _renderLedger();
+    else if (id === 'winrate')  _renderWinRate();
     else if (id === 'charges')  _renderCharges();
     else if (id === 'master')   _renderMaster();
     else if (id === 'alias')    _renderAlias();
@@ -3518,6 +3656,7 @@
     else if (paneId === 'custitem') _renderCustItem();
     else if (paneId === 'margindiff') _renderMarginDiff();
     else if (paneId === 'ledger')   _renderLedger(true);
+    else if (paneId === 'winrate')  _renderWinRate();
     else if (paneId === 'pattern')  _renderPattern();
     else if (paneId === 'charges')  _renderCharges();
     else if (paneId === 'master')   _renderMaster();
