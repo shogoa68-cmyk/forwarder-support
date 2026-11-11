@@ -172,6 +172,24 @@ begin
   delete from public.quote_presets where id = A;
   perform t.ok('案件を消すと名簿・変化の記録も消える', not exists (select 1 from public.cp_watch_targets where preset_id = A) and not exists (select 1 from public.cp_changes where preset_id = A));
 
+  -- ④b 取引を直接追いかける（案件なし）
+  perform t.as_user('alice@example.com');
+  insert into public.cp_watch_targets (source, trade_no, title, direction, bl_no, created_by) values ('trade', 'IMP_TEST001', 'テスト取引', 'import', 'BLT1', 'alice@example.com');
+  perform t.ok('メンバーは取引（案件なし）を追跡に入れられる', exists (select 1 from public.cp_watch_targets where trade_no = 'IMP_TEST001' and source = 'trade'));
+  perform t.err('同じ取引は二重に入れられない', $q$insert into public.cp_watch_targets (source, trade_no, direction) values ('trade', 'IMP_TEST001', 'import')$q$, 'duplicate key');
+  perform t.err('取引の追跡は取引番号が必須', $q$insert into public.cp_watch_targets (source, direction) values ('trade', 'import')$q$, 'check constraint');
+  perform t.err('追跡の種類は case／trade だけ', $q$insert into public.cp_watch_targets (source, trade_no, direction) values ('zzz', 'X', 'import')$q$, 'check constraint');
+  update public.cp_watch_targets set title = '名前を変えた' where trade_no = 'IMP_TEST001';
+  perform t.ok('メンバーは取引の名前を変えられる', (select title from public.cp_watch_targets where trade_no = 'IMP_TEST001') = '名前を変えた');
+  perform t.err('取引番号は後から書き換えられない（名簿の同一性を保つ）', $q$update public.cp_watch_targets set trade_no = 'IMP_OTHER' where trade_no = 'IMP_TEST001'$q$, 'permission denied');
+  perform t.as_service();
+  perform t.ok('取引の追跡は案件がなくても選ばれる', exists (select 1 from public.cp_watch_pick(20) where trade_no = 'IMP_TEST001'));
+  insert into public.cp_changes (preset_id, scope, label, kind, sev) select preset_id, 's', 'l', 'new', 'info' from public.cp_watch_targets where trade_no = 'IMP_TEST001';
+  perform t.as_user('alice@example.com');
+  delete from public.cp_watch_targets where trade_no = 'IMP_TEST001';
+  perform t.as_admin();
+  perform t.ok('取引の追跡を外すと、その変化の記録も消える', not exists (select 1 from public.cp_changes where label = 'l' and scope = 's'));
+
   -- ⑤ 掃除
   insert into public.cp_changes (preset_id, scope, label, kind, sev, detected_at) values (B, 's', 'old', 'new', 'info', now() - interval '100 days');
   insert into public.cp_watch_runs (picked, started_at) values (1, now() - interval '40 days');

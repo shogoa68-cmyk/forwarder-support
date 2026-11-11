@@ -384,8 +384,8 @@
   var LV_CHIP = { over: '超過', warn: '48時間以内', ok: '順調', none: '情報なし' };
 
   // ---- 状態（タブごとの結果・選択・絞り込みは、ここに残す＝タブを切り替えても消えない。保存はしない） ----
-  var ST = { tab: 'ctn', dir: 'import', mv: 'list', allOpen: false, devOpen: false, conn: 'none', connHost: '', store: {}, devRaw: '', devErr: '', busy: false };
-  function keyOf() { return ST.tab === 'trade' ? 'trade' : ST.tab + ':' + ST.dir; }
+  var ST = { tab: 'ctn', dir: 'import', mv: 'list', allOpen: false, devOpen: false, conn: 'none', connHost: '', store: {}, devRaw: '', devErr: '', busy: false, watch: { rows: null, chg: {}, err: '', form: null } };
+  function keyOf() { return ST.tab === 'trade' ? 'trade' : ST.tab === 'watch' ? 'watch' : ST.tab + ':' + ST.dir; }
   function slot() { var k = keyOf(); return ST.store[k] || (ST.store[k] = { items: null, sel: 0, filter: 'all', msg: null, meta: {} }); }
   function root() { return document.getElementById('cptRoot'); }
   function $id(i) { return document.getElementById(i); }
@@ -397,9 +397,12 @@
     var meta = s.meta || {}, names = meta.names || {}, out = [];
     s.items.forEach(function (x, i) {
       var r;
-      if (k === 'trade') {
+      if (k === 'watch') {
+        var wst = wState(x);
+        r = { i: i, title: wTitle(x), sub: (x.source === 'trade' ? '取引' : '見積案件') + '　' + (x.direction === 'export' ? '輸出' : '輸入') + wKeysText(x, '　'), dot: wst.dot, chip: wst.label, cls: wst.cls, lv: wst.lv };
+      } else if (k === 'trade') {
         var done = /完了|complete/i.test(String(g(x, 'tradeStatus') || ''));
-        r = { i: i, title: g(x, 'tradeNo') || '（番号なし）', sub: g(x, 'tradeName') || '', dot: done ? 'ok' : 'now', chip: g(x, 'tradeStatus') || '', cls: done ? 'is-ok' : '', lv: null };
+        r = { i: i, title: g(x, 'tradeNo') || '（番号なし）', sub: g(x, 'tradeName') || '', dot: done ? 'ok' : 'now', chip: g(x, 'tradeStatus') || '', cls: done ? 'is-ok' : '', lv: null, star: !!watchedTrade(g(x, 'tradeNo')) };
       } else if (k.indexOf('vessel:') === 0) {
         var dir = meta.dir, port = meta.port, at = atPort(x, port, dir), eta = g(at, 'estimatedTimeOfArrival'), ata = g(at, 'actualTimeOfArrival');
         var lv = levelOfVessel(x, port, dir, now), cyc = levelOf(g(x, 'cargoTransfer.cyCutAt'), now);
@@ -426,6 +429,7 @@
   var LV_RANK = { over: 0, warn: 1, ok: 2 };
   function sortKeys(k, x, meta, now, r) {
     var rank = r.lv == null ? 3 : LV_RANK[r.lv];
+    if (k === 'watch') return { no: wTitle(x), chk: msOf(x.last_checked_at), rank: rank };
     if (k === 'trade') return { no: String(g(x, 'tradeNo') || ''), upd: msOf(g(x, 'updatedAt')), rank: rank };
     if (k.indexOf('vessel:') === 0) { var at = atPort(x, meta.port, meta.dir); return { name: vesselTitle(x), eta: msOf(g(at, 'actualTimeOfArrival')) != null ? msOf(g(at, 'actualTimeOfArrival')) : msOf(g(at, 'estimatedTimeOfArrival')), etd: msOf(g(at, 'actualTimeOfDeparture')) != null ? msOf(g(at, 'actualTimeOfDeparture')) : msOf(g(at, 'estimatedTimeOfDeparture')), cyc: msOf(g(x, 'cargoTransfer.cyCutAt')), cfs: msOf(g(x, 'cargoTransfer.cfsCutAt')), rank: rank }; }
     if (k === 'ctn:import') return { no: String(g(x, 'container.containerNo') || ''), pick: msOf(g(x, 'loadedContainerPickup.dueAt')), ret: msOf(g(x, 'emptyContainerReturn.dueAt')), rank: rank };
@@ -433,6 +437,7 @@
   }
   // 並べ替えの選択肢：[値, 表示, 並べ替えのキー, 昇順(1)／降順(-1)]。先頭の 'default' は取得した順（本船は入港予定の早い順）
   function sortOptions(k) {
+    if (k === 'watch') return [['default', '追加した順'], ['rank-asc', '要注意が先', 'rank', 1], ['chk-desc', '最近確認した順', 'chk', -1], ['no-asc', '名前順', 'no', 1]];
     if (k === 'trade') return [['default', '取得した順'], ['upd-desc', '更新日時が新しい順', 'upd', -1], ['upd-asc', '更新日時が古い順', 'upd', 1], ['no-asc', '取引番号順', 'no', 1]];
     if (k.indexOf('vessel:') === 0) return [['default', '入港予定の早い順'], ['eta-desc', '入港予定の遅い順', 'eta', -1], ['cyc-asc', 'CYカットが近い順', 'cyc', 1], ['cfs-asc', 'CFSカットが近い順', 'cfs', 1], ['etd-asc', '出港予定の早い順', 'etd', 1], ['name-asc', '本船名順', 'name', 1], ['rank-asc', '要注意が先', 'rank', 1]];
     if (k === 'ctn:import') return [['default', '取得した順'], ['rank-asc', '要注意が先', 'rank', 1], ['pick-asc', '搬出期限が近い順', 'pick', 1], ['ret-asc', '返却期限が近い順', 'ret', 1], ['no-asc', 'コンテナ番号順', 'no', 1]];
@@ -456,6 +461,167 @@
     return rowsFor(k, now).filter(function (r) { return r.lv === 'over' || r.lv === 'warn'; }).length;
   }
 
+
+  // ---- 追いかけ（ウォッチ）：取引を選んで「朝夕の自動確認」の対象にする。保存は Supabase の cp_watch_targets（チームで共有） ----
+  var W_SETUP = '追いかけの保存先（サーバー側の準備）がまだのようです。管理者に「docs/sql/cp-watch.sql を Supabase で実行」を依頼してください。';
+  var W_LOGIN = 'ログインすると、追いかけを使えます（右上の「Google でログイン」）。';
+  function wClient() { try { return window.cloudGetClient ? window.cloudGetClient() : null; } catch (e) { return null; } }
+  async function wEmail(sb) { try { var r = await sb.auth.getSession(); var u = r && r.data && r.data.session && r.data.session.user; return u ? (u.email || '') : null; } catch (e) { return null; } }
+  function watchedTrade(no) {
+    var w = ST.watch.rows; if (!w || !no) return null;
+    for (var i = 0; i < w.length; i++) if (w[i].source === 'trade' && w[i].trade_no === no) return w[i];
+    return null;
+  }
+  function wTitle(w) { return w.title || w.trade_no || w.bl_no || w.booking_no || (w.container_nos && w.container_nos[0]) || '（名前なし）'; }
+  function wKeysText(w, sep) {
+    var a = [];
+    if (w.bl_no) a.push('B/L ' + w.bl_no);
+    if (w.booking_no) a.push('ブッキング ' + w.booking_no);
+    if (w.container_nos && w.container_nos.length) a.push('コンテナ ' + w.container_nos.length + '本');
+    return a.length ? sep + a.join(sep) : '';
+  }
+  // 状態の見せ方：一時停止／追跡完了／確認待ち（到着の実績が取れず予定を過ぎた）／確認エラー／追跡中
+  function wState(w) {
+    if (!w.trace) return { label: '一時停止', dot: 'none', cls: 'is-nodata', lv: null };
+    if (w.state === 'done') return { label: '追跡完了', dot: 'ok', cls: 'is-ok', lv: null };
+    if (w.state === 'ask') return { label: '確認待ち', dot: 'warn', cls: 'is-warn', lv: 'warn' };
+    if (w.last_status === 'error') return { label: '確認エラー', dot: 'over', cls: 'is-over', lv: 'over' };
+    return { label: '追跡中', dot: 'now', cls: '', lv: 'ok' };
+  }
+  function syncWatchStore() {
+    var s = ST.store.watch || (ST.store.watch = { items: null, sel: 0, filter: 'all', msg: null, meta: {} });
+    var W = ST.watch;
+    s.items = W.rows;
+    if (W.rows && s.sel >= W.rows.length) s.sel = 0;
+    s.msg = W.err ? { kind: W.err === W_LOGIN ? 'invalid' : 'error', title: W.err, body: '' } : null;
+  }
+  function paintWatchBadge() {
+    var b = $id('cptWatchBadge'); if (!b) return;
+    var n = (ST.watch.rows || []).filter(function (w) { return w.state === 'ask'; }).length;
+    b.hidden = !n; b.textContent = '確認待ち ' + n;
+  }
+  async function loadWatch() {
+    var sb = wClient(), W = ST.watch;
+    if (!sb) { W.rows = null; W.err = W_LOGIN; syncWatchStore(); paint(); return; }
+    try {
+      var email = await wEmail(sb);
+      if (!email) { W.rows = null; W.err = W_LOGIN; syncWatchStore(); paint(); return; }
+      var a = await sb.from('cp_watch_targets').select('*').order('created_at', { ascending: false });
+      if (a.error) throw a.error;
+      var c = await sb.from('cp_changes').select('*').order('detected_at', { ascending: false }).limit(300);
+      W.rows = a.data || []; W.chg = {};
+      ((c && c.data) || []).forEach(function (q) { (W.chg[q.preset_id] = W.chg[q.preset_id] || []).push(q); });
+      W.err = '';
+    } catch (e) {
+      var m = (e && (e.message || e.code)) || String(e);
+      W.rows = null; W.err = /does not exist|42P01|schema cache|relation/i.test(m) ? W_SETUP : '追いかけの一覧を読み込めませんでした：' + m;
+    }
+    syncWatchStore(); paint();
+  }
+  function wToast(msg) { try { if (window.SharedUI && window.SharedUI.showToast) window.SharedUI.showToast(msg); } catch (e) {} }
+  function wGuessDir(x) { var no = String(g(x, 'tradeNo') || ''), t = String(g(x, 'tradeType') || ''); return (/^EXP/i.test(no) || /export|輸出/i.test(t)) ? 'export' : 'import'; }
+  var SEV_L = { alert: '要対応', warn: '注意', info: 'お知らせ' };
+  function wFormHtml(f) {
+    return '<div class="cpt-wform" id="cptWf"><b>追いかける手がかり</b>' +
+      '<div class="cpt-wf-note">サイバーポート（COLINS）の動きは、B/L番号（輸入）・ブッキング番号（輸出）・コンテナ番号のどれかで調べます。どれか1つは入れてください。</div>' +
+      '<div class="cpt-seg" role="group" aria-label="輸入か輸出か"><button type="button" data-wdir="import" aria-pressed="' + (f.dir !== 'export') + '">輸入</button><button type="button" data-wdir="export" aria-pressed="' + (f.dir === 'export') + '">輸出</button></div>' +
+      '<label class="cpt-wf-l">B/L番号（輸入）<input type="text" id="cptWfBl" class="cpt-input" maxlength="40" autocomplete="off" value="' + esc(f.bl) + '"></label>' +
+      '<label class="cpt-wf-l">ブッキング番号（輸出）<input type="text" id="cptWfBk" class="cpt-input" maxlength="40" autocomplete="off" value="' + esc(f.bk) + '"></label>' +
+      '<label class="cpt-wf-l">コンテナ番号（複数ならスペースで区切る・10本まで）<input type="text" id="cptWfCtn" class="cpt-input" maxlength="200" autocomplete="off" value="' + esc(f.ctn) + '"></label>' +
+      '<label class="cpt-wf-l">一覧に出す名前<input type="text" id="cptWfTitle" class="cpt-input" maxlength="80" autocomplete="off" value="' + esc(f.title) + '"></label>' +
+      (f.err ? '<div class="cpt-wf-err" role="alert">' + esc(f.err) + '</div>' : '') +
+      '<div class="cpt-wf-btns"><button type="button" class="cpt-btn is-primary is-s" data-act="w-save">' + (f.mode === 'edit' ? '保存する' : '追いかけを始める') + '</button><button type="button" class="cpt-btn is-s" data-act="w-cancel">やめる</button></div></div>';
+  }
+  // 取引の詳細に出す「☆ 追いかける」
+  function wTradeExtra(x) {
+    var no = String(g(x, 'tradeNo') || ''), f = ST.watch.form;
+    if (!no) return '';
+    var w = watchedTrade(no);
+    if (w) return '<div class="cpt-wbar"><span class="cpt-chip is-ok">★ 追いかけ中</span><button type="button" class="cpt-btn is-s" data-act="w-open">追いかけ中の画面で見る</button></div>';
+    if (f && f.mode === 'add' && f.tradeNo === no) return wFormHtml(f);
+    return '<div class="cpt-wbar"><button type="button" class="cpt-btn is-s" data-act="w-add">☆ 追いかける</button><span class="cpt-wbar-n">朝夕に自動で動きを確認し、変化を記録します。</span></div>';
+  }
+  // 追いかけ中の詳細（状態・操作・変化の記録）
+  function wExtra(w) {
+    var f = ST.watch.form, st = wState(w), out = [];
+    out.push('<div class="cpt-wst">' + (w.last_checked_at ? '最後に確認：' + esc(fmtDt(w.last_checked_at)) + (w.last_status === 'error' ? '（エラー：' + esc(w.last_error || '') + '）' : w.last_status === 'nodata' ? '（COLINSに情報がありません）' : '（成功）') : 'まだ確認していません。次の朝・夕の自動確認で調べます。') + '</div>');
+    if (w.state === 'ask') out.push('<div class="cpt-msg is-info cpt-wask"><b>終わりにしてよいか、確認してください</b><div class="cpt-msg-b">' + esc(w.state_note || '到着の実績が取れないまま、予定を過ぎました。') + '</div><div class="cpt-wf-btns"><button type="button" class="cpt-btn is-s" data-act="w-snooze">もう少し追う（3日）</button><button type="button" class="cpt-btn is-s" data-act="w-del">追いかけをやめる</button></div></div>');
+    if (f && f.mode === 'edit' && f.id === w.preset_id) out.push(wFormHtml(f));
+    else out.push('<div class="cpt-wbar"><button type="button" class="cpt-btn is-s" data-act="w-toggle">' + (w.trace ? '一時停止' : '再開') + '</button><button type="button" class="cpt-btn is-s" data-act="w-edit">手がかりを直す</button><button type="button" class="cpt-btn is-s" data-act="w-del">追いかけをやめる</button></div>');
+    var ch = (ST.watch.chg[w.preset_id] || []).slice(0, 20);
+    out.push('<div class="cpt-flow-h">最近の変化</div>' + (ch.length ? '<ul class="cpt-wchg">' + ch.map(function (c) {
+      var fv = function (v) { return v && /^\d{4}-\d{2}-\d{2}T/.test(v) ? fmtDt(v) : (v || '—'); };
+      var mv = c.kind === 'new' ? '（新しく取得）' : (c.old_val || c.new_val) ? '：' + esc(fv(c.old_val)) + ' → ' + esc(fv(c.new_val)) : '';
+      return '<li class="is-' + esc(c.sev) + '"><span class="cpt-wchg-t">' + esc(fmtDt(c.detected_at)) + '</span> <span class="cpt-chip is-s">' + esc(SEV_L[c.sev] || c.sev) + '</span> <b>' + esc(c.scope) + '　' + esc(c.label) + '</b>' + mv + (c.note ? '　' + esc(c.note) : '') + '</li>';
+    }).join('') + '</ul>' : '<div class="cpt-empty">まだ変化の記録はありません（朝夕の自動確認で、前回との違いを記録します）。</div>'));
+    return out.join('');
+  }
+  function wCurrent() { var s = slot(); return s.items && s.items[s.sel] ? s.items[s.sel] : null; }
+  async function wSave() {
+    var f = ST.watch.form; if (!f) return;
+    var N = window.CyberPort ? window.CyberPort.normalizeNo : normalizeNo;
+    var bl = N(f.bl || ''), bk = N(f.bk || ''), ctns = String(f.ctn || '').split(/[\s,、;]+/).map(N).filter(Boolean);
+    var bad = ctns.filter(function (c) { return !/^[A-Z]{4}\d{7}$/.test(c); });
+    f.err = '';
+    if (bad.length) f.err = 'コンテナ番号の形が違います（英字4文字＋数字7桁）：' + bad.join('、');
+    else if (ctns.length > 10) f.err = 'コンテナ番号は10本までです。';
+    else if (!(f.dir === 'export' ? (bk || ctns.length) : (bl || ctns.length))) f.err = (f.dir === 'export' ? 'ブッキング番号' : 'B/L番号') + 'かコンテナ番号を入れてください（これが無いと動きを調べられません）。';
+    if (f.err) { paint(); return; }
+    var sb = wClient(), email = sb ? await wEmail(sb) : null;
+    if (!sb || !email) { f.err = W_LOGIN; paint(); return; }
+    var rec = { direction: f.dir === 'export' ? 'export' : 'import', bl_no: bl || null, booking_no: bk || null, container_nos: ctns, title: String(f.title || '').trim() || null, updated_by: email };
+    var r;
+    if (f.mode === 'edit') { rec.updated_at = new Date().toISOString(); r = await sb.from('cp_watch_targets').update(rec).eq('preset_id', f.id); }
+    else r = await sb.from('cp_watch_targets').insert(Object.assign({ source: 'trade', trade_no: f.tradeNo, trace: true, state: 'active', created_by: email }, rec));
+    if (r.error) {
+      var m = r.error.message || r.error.code || '';
+      f.err = r.error.code === '23505' ? 'この取引は、すでに追いかけています。' : /does not exist|42P01|schema cache|relation|column/i.test(m) ? W_SETUP : '保存できませんでした：' + m;
+      paint(); return;
+    }
+    ST.watch.form = null;
+    wToast(f.mode === 'edit' ? '手がかりを保存しました' : '追いかけを始めました（朝夕に自動で確認します）');
+    await loadWatch();
+  }
+  async function wUpdate(w, patch, okMsg) {
+    var sb = wClient(), email = sb ? await wEmail(sb) : null;
+    if (!sb || !email) { ST.watch.err = W_LOGIN; syncWatchStore(); paint(); return; }
+    var r = await sb.from('cp_watch_targets').update(Object.assign({ updated_by: email, updated_at: new Date().toISOString() }, patch)).eq('preset_id', w.preset_id);
+    if (r.error) { wToast('変更できませんでした：' + (r.error.message || r.error.code)); return; }
+    if (okMsg) wToast(okMsg);
+    await loadWatch();
+  }
+  async function wDelete(w) {
+    var ok = window.uiConfirm ? await window.uiConfirm({ title: '追いかけをやめますか？', lines: ['「' + wTitle(w) + '」の追いかけをやめます。', 'これまでの変化の記録も、この一覧から消えます。'], irreversible: '消した記録は戻せません。', okLabel: 'やめる', danger: true }) : window.confirm('追いかけをやめますか？（変化の記録も消えます）');
+    if (!ok) return;
+    var sb = wClient();
+    if (!sb) return;
+    var r = await sb.from('cp_watch_targets').delete().eq('preset_id', w.preset_id);
+    if (r.error) { wToast('やめられませんでした：' + (r.error.message || r.error.code)); return; }
+    wToast('追いかけをやめました');
+    await loadWatch();
+  }
+  function wAction(a) {
+    var W = ST.watch;
+    if (a === 'w-add') {
+      var x = wCurrent(); if (!x) return;
+      var no = String(g(x, 'tradeNo') || '');
+      W.form = { mode: 'add', tradeNo: no, dir: wGuessDir(x), bl: String(g(x, 'blNo') || ''), bk: '', ctn: '', title: String(g(x, 'tradeName') || no), err: '' };
+      paint(); return;
+    }
+    if (a === 'w-cancel') { W.form = null; paint(); return; }
+    if (a === 'w-save') { wSave(); return; }
+    if (a === 'w-open') {
+      var t = wCurrent(), w0 = t ? watchedTrade(String(g(t, 'tradeNo') || '')) : null;
+      if (!w0) return;
+      ST.tab = 'watch'; syncWatchStore(); slot().sel = Math.max(0, (W.rows || []).indexOf(w0)); ST.mv = 'detail'; ST.allOpen = false; W.form = null; paint(); return;
+    }
+    var w = wCurrent(); if (!w) return;
+    if (a === 'w-edit') { W.form = { mode: 'edit', id: w.preset_id, tradeNo: w.trade_no || '', dir: w.direction, bl: w.bl_no || '', bk: w.booking_no || '', ctn: (w.container_nos || []).join(' '), title: w.title || '', err: '' }; paint(); return; }
+    if (a === 'w-toggle') { wUpdate(w, { trace: !w.trace }, w.trace ? '一時停止しました' : '再開しました'); return; }
+    if (a === 'w-snooze') { wUpdate(w, { state: 'active', state_note: null, ask_snooze_until: new Date(Date.now() + 3 * 86400000).toISOString() }, '3日後まで、確認の知らせを止めて追いかけます'); return; }
+    if (a === 'w-del') { wDelete(w); return; }
+  }
+
   // ---- 詳細（右）：見出し・流れ・すべての項目 ----
   function detailFor(k, x, now) {
     var meta = (ST.store[k] || {}).meta || {}, names = meta.names || {};
@@ -465,10 +631,19 @@
         return { k: c[0], v: has(v) && v !== '' ? String(v) : '', cls: cls, nd: nd };
       });
     };
+    if (k === 'watch') {
+      var wst2 = wState(x), dirL = x.direction === 'export' ? '輸出' : '輸入';
+      var wdl = [['種類', x.source === 'trade' ? '取引（サイバーポート）' : '見積の案件'], ['取引番号', x.trade_no || ''], ['向き', dirL], ['B/L番号', x.bl_no || ''], ['ブッキング番号', x.booking_no || ''],
+        ['コンテナ番号', (x.container_nos || []).join('・')], ['状態', wst2.label + (x.state_note ? '（' + x.state_note + '）' : '')], ['最後に確認', x.last_checked_at ? fmtDt(x.last_checked_at) : ''],
+        ['最後の結果', x.last_status === 'ok' ? '取得できた' : x.last_status === 'nodata' ? 'COLINSに情報なし' : x.last_status === 'error' ? 'エラー' : ''], ['エラーの内容', x.last_error || ''],
+        ['追いかけを始めた人', x.created_by || ''], ['始めた日時', x.created_at ? fmtDt(x.created_at) : '']];
+      return { title: wTitle(x), sub: (x.source === 'trade' ? '取引 ' + (x.trade_no || '') : '見積の案件からの追跡'), chips: [dirL, wst2.label], flowTitle: '', steps: null,
+        dl: wdl.map(function (q) { return { k: q[0], v: q[1], cls: '', nd: '—' }; }), kind: 'watch', extra: wExtra(x) };
+    }
     if (k === 'trade') {
       var keys = ['tradeNo', 'tradeType', 'tradeStatus', 'tradeName', 'blNo', 'updatedAt'], lbl = { tradeNo: '取引番号', tradeType: '種別', tradeStatus: '状態', tradeName: '取引名', blNo: 'B/L', updatedAt: '更新日時' };
       var dl = keys.map(function (q) { var v = x[q]; return { k: lbl[q], v: has(v) ? (q === 'updatedAt' ? fmtDt(v) : String(v)) : '', cls: '', nd: NODATA_T_S }; });
-      return { title: x.tradeNo || '（番号なし）', sub: x.tradeName || '', chips: [x.tradeType, x.tradeStatus].filter(Boolean), flowTitle: '', steps: null, dl: dl, kind: 'trade' };
+      return { title: x.tradeNo || '（番号なし）', sub: x.tradeName || '', chips: [x.tradeType, x.tradeStatus].filter(Boolean), flowTitle: '', steps: null, dl: dl, kind: 'trade', extra: wTradeExtra(x) };
     }
     if (k.indexOf('vessel:') === 0) {
       var dir = meta.dir, port = meta.port, at = atPort(x, port, dir), term = termCell(names)(x);
@@ -493,11 +668,12 @@
 
   function paint() {
     var r = root(); if (!r) return;
-    var now = nowMs(), k = keyOf(), s = slot(), isCtn = ST.tab === 'ctn', isVessel = ST.tab === 'vessel', isTrade = ST.tab === 'trade';
+    var now = nowMs(), k = keyOf(), s = slot(), isCtn = ST.tab === 'ctn', isVessel = ST.tab === 'vessel', isTrade = ST.tab === 'trade', isWatch = ST.tab === 'watch';
     // 接続の札・メッセージ
     var conn = $id('cptConn'); if (conn) { conn.className = 'cpt-chip' + (ST.conn === 'ok' ? ' is-ok' : ''); conn.textContent = ST.conn === 'ok' ? '● 接続できています' : '接続は未確認'; }
     r.setAttribute('data-tab', ST.tab);
     [].forEach.call(r.querySelectorAll('.cpt-tab'), function (b) { b.setAttribute('aria-selected', b.getAttribute('data-tab') === ST.tab ? 'true' : 'false'); });
+    paintWatchBadge();
     var nb = caution('ctn:import', now) + caution('ctn:export', now), bd = $id('cptBadge'); if (bd) { bd.hidden = !nb; bd.textContent = '要注意 ' + nb; }
     [].forEach.call(r.querySelectorAll('[data-for]'), function (e) { e.hidden = e.getAttribute('data-for').split(' ').indexOf(ST.tab) < 0; });
     [].forEach.call(r.querySelectorAll('.cpt-seg [data-dir]'), function (b) { b.setAttribute('aria-pressed', b.getAttribute('data-dir') === ST.dir ? 'true' : 'false'); });
@@ -533,18 +709,18 @@
     var note = $id('cptNote'); if (note) { var nt = has0 && s.meta && s.meta.note ? s.meta.note : ''; note.hidden = !nt; note.textContent = nt; }
     var shown = rows.filter(function (q) { return !isCtn || s.filter === 'all' || q.lv === s.filter; });
     var list = $id('cptList');
-    if (!has0) list.innerHTML = '<div class="cpt-empty">上の欄に入力して、検索してください。</div>';
-    else if (!shown.length) list.innerHTML = '<div class="cpt-empty">この条件に当てはまるものはありません。</div>';
+    if (!has0) list.innerHTML = '<div class="cpt-empty">' + (isWatch ? '読み込み中です…' : '上の欄に入力して、検索してください。') + '</div>';
+    else if (!shown.length) list.innerHTML = '<div class="cpt-empty">' + (isWatch ? '追いかけているものは、まだありません。「取引」タブで取引を選び、「☆ 追いかける」を押してください。' : 'この条件に当てはまるものはありません。') + '</div>';
     else list.innerHTML = shown.slice(0, 50).map(function (q) {
       return '<button type="button" class="cpt-row" data-i="' + q.i + '" aria-pressed="' + (q.i === s.sel) + '">' + dotHtml(q.dot) +
-        '<span class="cpt-row-m"><b>' + esc(q.title) + '</b><span class="cpt-row-s' + (/情報なし/.test(q.sub) ? ' is-nodata' : '') + '">' + esc(q.sub) + '</span></span>' +
+        '<span class="cpt-row-m"><b>' + (q.star ? '<span class="cpt-star" title="追いかけ中">★</span> ' : '') + esc(q.title) + '</b><span class="cpt-row-s' + (/情報なし/.test(q.sub) ? ' is-nodata' : '') + '">' + esc(q.sub) + '</span></span>' +
         (q.chip ? '<span class="cpt-chip ' + q.cls + '">' + esc(q.chip) + '</span>' : '') + '<span class="cpt-row-go" aria-hidden="true">›</span></button>';
     }).join('') + (shown.length > 50 ? '<div class="cpt-empty">先頭50件を表示しています（全 ' + shown.length + ' 件）。</div>' : '');
     // 詳細
     var det = $id('cptDetail');
     var cur = has0 && s.items[s.sel] ? s.items[s.sel] : (shown.length ? s.items[shown[0].i] : null);
     if (cur && shown.length && !shown.some(function (q) { return q.i === s.sel; })) { s.sel = shown[0].i; cur = s.items[s.sel]; }
-    if (!has0 || !cur) { det.innerHTML = '<div class="cpt-empty">左で 1 件選ぶと、ここに流れと項目が出ます。</div>'; }
+    if (!has0 || !cur) { det.innerHTML = '<div class="cpt-empty">' + (isWatch ? '左で 1 件選ぶと、ここに状態と変化の記録が出ます。' : '左で 1 件選ぶと、ここに流れと項目が出ます。') + '</div>'; }
     else {
       var d = detailFor(k, cur, now);
       var flow = d.steps ? '<div class="cpt-flow-h">' + esc(d.flowTitle) + '</div><ol class="cpt-flow">' + d.steps.map(function (p) {
@@ -552,13 +728,13 @@
         return '<li class="cpt-step"><span class="cpt-rail"><span class="cpt-node is-' + dot + '"></span><span class="cpt-line"></span></span><span class="cpt-step-b"><b>' + esc(p.t) + '</b> <span class="cpt-chip is-s ' + p.cls + '">' + esc(p.badge) + '</span>' +
           '<div class="cpt-step-v' + (p.st === 'nodata' ? ' is-nodata' : '') + '">' + esc(p.v) + '</div></span></li>';
       }).join('') + '</ol>' : '';
-      var future = d.kind === 'trade' ? '<div class="cpt-future"><b>今後ここに入る予定</b><br>この取引に結び付いた案件・本船・コンテナの動静、取引内チャットの読み取り（いまは表示しません）。</div>' : '';
+      var future = d.kind === 'trade' ? '<div class="cpt-future"><b>今後ここに入る予定</b><br>この取引に結び付いた見積の案件・取引内チャットの読み取り（いまは表示しません）。動きの確認は、上の「☆ 追いかける」で始められます。</div>' : '';
       var dl = ST.allOpen ? '<dl class="cpt-dl">' + d.dl.map(function (q) {
         return '<div><dt>' + esc(q.k) + '</dt><dd' + (q.cls ? ' class="' + q.cls + '"' : '') + (q.v === '' ? ' class="is-nodata"' : '') + '>' + (q.v === '' ? esc(q.nd) : esc(q.v)) + '</dd></div>';
       }).join('') + '</dl>' : '';
       det.innerHTML = '<button type="button" class="cpt-btn is-s cpt-back" data-act="back">← 一覧へ戻る</button>' +
         '<div class="cpt-dh"><div class="cpt-dt"><b>' + esc(d.title) + '</b>' + d.chips.map(function (c) { return '<span class="cpt-chip">' + esc(c) + '</span>'; }).join('') + '</div><div class="cpt-ds">' + esc(d.sub) + '</div></div>' +
-        flow + future +
+        (d.extra || '') + flow + future +
         '<button type="button" class="cpt-btn is-g is-s" data-act="all" aria-expanded="' + ST.allOpen + '">' + (ST.allOpen ? '閉じる' : 'すべての項目を見る') + '</button>' + dl;
     }
     $id('cptSplit').setAttribute('data-mv', ST.mv);
@@ -710,7 +886,8 @@
       '<div class="cpt-tabs" role="tablist" aria-label="照会の種類">' +
       '<button type="button" role="tab" class="cpt-tab" data-tab="trade" aria-selected="false">取引</button>' +
       '<button type="button" role="tab" class="cpt-tab" data-tab="vessel" aria-selected="false">本船の動静</button>' +
-      '<button type="button" role="tab" class="cpt-tab" data-tab="ctn" aria-selected="true">コンテナの状況<span class="cpt-chip is-over is-s" id="cptBadge" hidden></span></button></div>' +
+      '<button type="button" role="tab" class="cpt-tab" data-tab="ctn" aria-selected="true">コンテナの状況<span class="cpt-chip is-over is-s" id="cptBadge" hidden></span></button>' +
+      '<button type="button" role="tab" class="cpt-tab" data-tab="watch" aria-selected="false">追いかけ中<span class="cpt-chip is-warn is-s" id="cptWatchBadge" hidden></span></button></div>' +
       '<div class="cpt-search">' +
       '<select id="cptDir" class="cpt-select" aria-label="輸入・輸出" hidden><option value="import">輸入</option><option value="export">輸出</option></select>' +
       '<input type="text" id="cptKw" class="cpt-input" data-for="trade" maxlength="45" autocomplete="off" placeholder="取引番号・B/L・ブッキング・社内管理番号（空なら直近30日の更新）" aria-label="取引の検索">' +
@@ -722,6 +899,8 @@
       '<button type="button" class="cpt-btn is-primary" id="cptColinsV" data-for="vessel">本船の動静を調べる</button>' +
       '<input type="text" id="cptCtn" class="cpt-input" data-for="ctn" maxlength="40" autocomplete="off" placeholder="コンテナ番号／B/L番号（輸入）／ブッキング番号（輸出）" aria-label="コンテナの検索">' +
       '<button type="button" class="cpt-btn is-primary" id="cptColinsC" data-for="ctn">コンテナの状況を調べる</button>' +
+      '<button type="button" class="cpt-btn is-s" id="cptWatchReload" data-for="watch">一覧を更新</button>' +
+      '<div class="cpt-hint" id="cptWatchHint" data-for="watch">「取引」タブで取引を選んで「☆ 追いかける」を押すと、ここに入ります。朝・夕に自動で動きを確認し、前回との違いを記録します（読み取りのみ）。</div>' +
       '<div class="cpt-hint" id="cptDirHintV" data-for="vessel">港は一覧から選びます（一覧に無い港は「その他」を選んで、UN/LOCODE の5桁コードを入力します。例：JPTYO＝東京）。「輸入／輸出」はコンテナの照会と共通です。動静は、照会した日の前後2週間のものを表示します。</div></div>' +
       '<div id="cptLive" class="cpt-live" aria-live="polite" hidden></div>' +
       '<div id="cptMain" class="cpt-main"><div class="cpt-split" id="cptSplit" data-mv="list"><div class="cpt-listpane"><div id="cptSortBar" class="cpt-sortbar" hidden></div><div id="cptNote" class="cpt-note" hidden></div><div id="cptFilter" class="cpt-filter"></div><div id="cptList"></div></div><div class="cpt-detailpane" id="cptDetail"></div></div></div></div>' +
@@ -739,14 +918,20 @@
     $id('cptCtn').addEventListener('keydown', function (e) { if (e.key === 'Enter') liveColinsContainers(); });
     $id('cptDir').addEventListener('change', function () { ST.dir = this.value === 'export' ? 'export' : 'import'; ST.mv = 'list'; paint(); });
     $id('cptDevBtn').addEventListener('click', function () { ST.devOpen = !ST.devOpen; paintDev(); });
+    $id('cptWatchReload').addEventListener('click', loadWatch);
+    r.addEventListener('input', function (e) {
+      var f = ST.watch.form, id = e.target && e.target.id; if (!f || !id) return;
+      if (id === 'cptWfBl') f.bl = e.target.value; else if (id === 'cptWfBk') f.bk = e.target.value; else if (id === 'cptWfCtn') f.ctn = e.target.value; else if (id === 'cptWfTitle') f.title = e.target.value;
+    });
     r.addEventListener('change', function (e) { if (e.target && e.target.id === 'cptSort') { slot().sort = e.target.value; paint(); } });
     r.addEventListener('click', function (e) {
       var t = e.target.closest ? e.target : null; if (!t) return;
-      var tab = t.closest('.cpt-tab'); if (tab) { ST.tab = tab.getAttribute('data-tab'); ST.mv = 'list'; ST.allOpen = false; paint(); if (ST.tab === 'vessel') prefetchPorts(); return; }
+      var tab = t.closest('.cpt-tab'); if (tab) { ST.tab = tab.getAttribute('data-tab'); ST.mv = 'list'; ST.allOpen = false; ST.watch.form = null; syncWatchStore(); paint(); if (ST.tab === 'vessel') prefetchPorts(); if (ST.tab === 'watch') loadWatch(); return; }
+      var wd = t.closest('[data-wdir]'); if (wd && ST.watch.form) { ST.watch.form.dir = wd.getAttribute('data-wdir'); paint(); return; }
       var sg = t.closest('.cpt-seg [data-dir]'); if (sg) { ST.dir = sg.getAttribute('data-dir'); ST.mv = 'list'; ST.allOpen = false; paint(); return; }
       var gb = t.closest('.cpt-gb'); if (gb) { var s = slot(); var f = gb.getAttribute('data-f'); s.filter = (f !== 'all' && s.filter === f) ? 'all' : f; paint(); return; }
       var row = t.closest('.cpt-row'); if (row) { slot().sel = +row.getAttribute('data-i'); ST.mv = 'detail'; ST.allOpen = false; paint(); return; }
-      var act = t.closest('[data-act]'); if (act) { var a = act.getAttribute('data-act'); if (a === 'back') { ST.mv = 'list'; paint(); } else if (a === 'all') { ST.allOpen = !ST.allOpen; paint(); } }
+      var act = t.closest('[data-act]'); if (act) { var a = act.getAttribute('data-act'); if (a.indexOf('w-') === 0) wAction(a); else if (a === 'back') { ST.mv = 'list'; paint(); } else if (a === 'all') { ST.allOpen = !ST.allOpen; paint(); } }
     });
     paint();
   }
@@ -756,6 +941,7 @@
     if (_inited) return;
     _inited = true;
     render();
+    loadWatch();
   };
   window.CpTest = {
     inVesselWindow: inVesselWindow, sortOptions: sortOptions,

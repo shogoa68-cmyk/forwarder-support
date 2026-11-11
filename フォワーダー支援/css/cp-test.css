@@ -147,3 +147,22 @@
 #tab-cptest .cpt-port-sel { flex: 0 1 200px; min-width: 150px; padding: 0 8px; }
 #tab-cptest .cpt-input.is-off { display: none; }
 @media (max-width: 760px) { #tab-cptest .cpt-port-sel { flex: 1 1 100%; } }
+
+/* ---- 追いかけ（ウォッチ）：取引を選んで朝夕の自動確認の対象にする ---- */
+#tab-cptest .cpt-star { color: var(--cpt-warn-dot); }
+#tab-cptest .cpt-wbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 0 0 14px; }
+#tab-cptest .cpt-wbar-n { font-size: var(--text-xs, 12px); color: var(--cpt-ink3); }
+#tab-cptest .cpt-wst { font-size: var(--text-sm, 13px); color: var(--text-md); margin: 0 0 10px; line-height: 1.7; overflow-wrap: anywhere; }
+#tab-cptest .cpt-wask { margin: 0 0 12px; }
+#tab-cptest .cpt-wform { border: 1px solid var(--cpt-line2); border-radius: 8px; padding: 12px 14px; margin: 0 0 14px; display: flex; flex-direction: column; gap: 8px; background: var(--cpt-sunken); }
+#tab-cptest .cpt-wf-note { font-size: var(--text-xs, 12px); color: var(--cpt-ink3); line-height: 1.7; }
+#tab-cptest .cpt-wf-l { display: flex; flex-direction: column; gap: 3px; font-size: var(--text-xs, 12px); color: var(--text-md); }
+#tab-cptest .cpt-wf-l .cpt-input { flex: none; width: 100%; }
+#tab-cptest .cpt-wf-err { padding: 8px 10px; border-left: 4px solid var(--cpt-over); background: var(--cpt-over-bg); border-radius: 0 6px 6px 0; font-size: var(--text-sm, 13px); }
+#tab-cptest .cpt-wf-btns { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 6px; }
+#tab-cptest .cpt-wform .cpt-seg { align-self: flex-start; }
+#tab-cptest .cpt-wchg { list-style: none; margin: 4px 0 16px; padding: 0; display: flex; flex-direction: column; gap: 6px; font-size: var(--text-sm, 13px); line-height: 1.7; }
+#tab-cptest .cpt-wchg li { padding: 6px 10px; border-left: 3px solid var(--cpt-line2); background: var(--surface); border-radius: 0 6px 6px 0; overflow-wrap: anywhere; }
+#tab-cptest .cpt-wchg li.is-alert { border-left-color: var(--cpt-over); background: var(--cpt-over-bg); }
+#tab-cptest .cpt-wchg li.is-warn { border-left-color: var(--cpt-warn-dot); background: var(--cpt-warn-bg); }
+#tab-cptest .cpt-wchg-t { color: var(--cpt-ink3); font-size: var(--text-xs, 12px); font-variant-numeric: tabular-nums; }
