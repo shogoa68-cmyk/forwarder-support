@@ -35,13 +35,13 @@
 
   let tweaks = load();
 
-  // ---- デザインテーマ（Industry 案。既定は現行。index.html 先頭の早期スクリプトと同じキー） ----
+  // ---- デザインテーマ（Industry 案。既定は Industry（保存済みの選択を優先）。index.html 先頭の早期スクリプトと同じキー） ----
   //  site＝サイト画面 / doc＝御見積書。css/theme-industry*.css は <html> のクラスがある間だけ効くので、
   //  クラスを外せば（＝「現行」に戻せば）元のデザインにそのまま戻る。
   const THEME_KEY = 'forwarderTheme_v1';
   function loadTheme() {
-    try { return Object.assign({ site: false, doc: false, quiet: false }, JSON.parse(localStorage.getItem(THEME_KEY) || '{}')); }
-    catch (_) { return { site: false, doc: false, quiet: false }; }
+    try { return Object.assign({ site: true, doc: true, quiet: false }, JSON.parse(localStorage.getItem(THEME_KEY) || '{}')); }
+    catch (_) { return { site: true, doc: true, quiet: false }; }
   }
   let theme = loadTheme();
   function applyTheme() {
