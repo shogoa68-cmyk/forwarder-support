@@ -1251,7 +1251,8 @@
   box-shadow: 0 10px 30px rgba(60, 48, 30, 0.22);
 }
 @media (max-width: 700px) {
-  #tab-quote-make .cmdbar-gear-pop { width: 92vw; right: auto; left: 0; }
+  /* ⚙ は操作バーの右端にあり、left:0 だと画面の右に切れる → 画面幅に固定して中央に出す */
+  #tab-quote-make .cmdbar-gear-pop { position: fixed; top: 124px; left: 8px; right: 8px; width: auto; max-width: none; max-height: calc(100vh - 140px); }
 }
 
 
@@ -5478,7 +5479,7 @@ body.qp-dash-active #quoteActionDock { display: none !important; }
   position: fixed;
   top: calc(var(--nav-cat-h) + var(--nav-sub-h) + 6px);
   right: 20px;
-  z-index: 9999;
+  z-index: 100010;
   display: flex;
   flex-direction: column;
   gap: var(--sp-8);
@@ -6718,6 +6719,7 @@ body.qp-dash-active #quoteActionDock { display: none !important; }
 #tab-quote-make #qpdListWrap .cloud-kv { grid-template-columns: max-content minmax(0, 1fr); gap: var(--sp-6) var(--sp-12); }
 #tab-quote-make #qpdListWrap .cloud-kv dt { font-size: var(--text-sm); padding-top: 3px; white-space: nowrap; }
 #tab-quote-make #qpdListWrap .cloud-kv dd { font-size: var(--text-lg); line-height: 1.4; }
+#tab-quote-make #qpdListWrap .cloud-kv dd { min-width: 0; overflow-wrap: anywhere; }   /* 空白の無い長い名前で行幅が押し広げられない */
 #tab-quote-make #qpdListWrap .cloud-kv dd.cloud-kv-cust { font-size: 23px; line-height: 1.25; }
 #tab-quote-make #qpdListWrap .cloud-kv dd.cloud-kv-who { font-size: var(--text-base); }
 #tab-quote-make #qpdListWrap .cloud-kv-tags { gap: var(--sp-6); }
@@ -7825,7 +7827,7 @@ body.qp-dash-active #quoteActionDock { display: none !important; }
 #tab-quote-make .cmdbar-more > summary:hover { background: var(--c-e8d8c0); }
 #tab-quote-make .cmdbar-more[open] > summary { background: var(--c-e0d4bc); border-color: #c9b98f; }
 #tab-quote-make .cmdbar-more-pop {
-  position: absolute; top: calc(100% + 6px); left: 0; z-index: 50;
+  position: absolute; top: calc(100% + 6px); right: 0; left: auto; z-index: 50; /* ⋯ は操作バーの右端にあるので右端そろえ（左そろえだと 900px 以下で画面の右に切れる） */
   width: 330px; max-width: 88vw;
   background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-8);
   box-shadow: 0 8px 24px rgba(60,48,30,.16);
@@ -11394,7 +11396,7 @@ button.um-memberno--empty:hover { background: var(--accent-lt); border-color: #c
 /* ---- モバイル/タブレット（既存 900px ブレークに合わせる） ---- */
 @media (max-width: 900px) {
   #tab-quote-make .quote-right-col--rail { width: 100%; flex: 1 1 auto; flex-direction: column; }
-  #tab-quote-make .qrc-rail { flex-direction: row; width: 100%; justify-content: space-around; }
+  #tab-quote-make .qrc-rail { flex-direction: row; flex-wrap: wrap; width: 100%; justify-content: space-around; padding: var(--sp-9) var(--sp-6); }
   #tab-quote-make .qrc-rail-btn { flex-direction: row; width: auto; gap: var(--sp-6); padding: var(--sp-7) var(--sp-12); }
   #tab-quote-make .qrc-drawer { width: 100% !important; }
 }
@@ -12038,6 +12040,13 @@ body.qp-dash-active .qf-memo-fab, body:has(#qfMemoFloat:not([hidden])) .qf-memo-
 .qf-memo-fab .qmf-x:hover { background: rgba(0,0,0,.12); color: #5a3a10; }
 body.memo-fab-off .qf-memo-fab { display: none !important; }
 @media (max-width: 680px) { .qf-memo-fab .qmf-x { position: absolute; top: -6px; left: -6px; width: 20px; height: 20px; line-height: 18px; margin: 0; padding: 0; background: #fff; border: 1px solid #d9b96a; font-size: 12px; text-align: center; } }
+
+/* 601〜700px でも物量情報のコンテナのタブが枠の右へはみ出す（min-width:auto が原因）→ 600px 以下と同じ扱い */
+@media (max-width: 700px) {
+  #tab-quote-make .cond-field, #tab-quote-make .multi-entry { min-width: 0; max-width: 100%; }
+  #tab-quote-make .cc-cat-tabs { flex-wrap: nowrap; }
+  #tab-quote-make .cc-cat-tab { flex: 1 1 0; min-width: 0; padding-inline: var(--sp-6); }
+}
 
 /* ===== スマホ（〜600px）の崩れ修正（Design 2026-11-09・mobile-fixes.css） ===== */
 @media (max-width: 600px) {
