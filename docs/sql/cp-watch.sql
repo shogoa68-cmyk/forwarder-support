@@ -147,6 +147,77 @@ revoke all on function public.cp_watch_purge() from public, anon, authenticated;
 grant execute on function public.cp_watch_purge() to service_role;
 
 -- ============================================================
+-- 6b) 「取引」を直接追いかける（見積の案件がなくても追える）
+--   ・source='case'  … 見積の案件を追う（従来どおり。preset_id＝案件の id。案件が「受注」のものだけ確認する）
+--   ・source='trade' … サイバーポートの「取引」を追う（preset_id＝この名簿専用の id・trade_no＝取引番号）。案件の状態は見ない。
+--   ・同じ取引は 1 行だけ（チームで共有。二重に確認しない）。
+--   ・案件の外部キーは外した（取引だけの行は、案件に無い id を持つため）。代わりに、案件を消したら
+--     案件の追跡と変化も一緒に消えるようにトリガーを置く。名簿の行を消したときも、その変化を一緒に消す。
+-- ============================================================
+alter table public.cp_watch_targets add column if not exists source   text not null default 'case';
+alter table public.cp_watch_targets add column if not exists trade_no text;
+alter table public.cp_watch_targets add column if not exists title    text;       -- 一覧に出す名前（取引名など）
+do $$ begin
+  alter table public.cp_watch_targets add constraint cp_watch_targets_source_chk check (source in ('case', 'trade'));
+exception when duplicate_object then null; end $$;
+do $$ begin
+  alter table public.cp_watch_targets add constraint cp_watch_targets_trade_chk check (source <> 'trade' or trade_no is not null);
+exception when duplicate_object then null; end $$;
+do $$ declare r record; begin
+  for r in select conrelid::regclass::text as tbl, conname from pg_constraint
+            where contype = 'f' and confrelid = 'public.quote_presets'::regclass
+              and conrelid in ('public.cp_watch_targets'::regclass, 'public.cp_changes'::regclass) loop
+    execute format('alter table %s drop constraint %I', r.tbl, r.conname);
+  end loop;
+end $$;
+alter table public.cp_watch_targets alter column preset_id set default gen_random_uuid();
+create unique index if not exists cp_watch_targets_trade_uidx on public.cp_watch_targets (trade_no) where source = 'trade';
+
+create or replace function public.cp_watch_case_deleted() returns trigger
+language plpgsql security definer set search_path = public as $$
+begin
+  delete from public.cp_watch_targets where preset_id = old.id and source = 'case';
+  return old;
+end $$;
+drop trigger if exists cp_watch_case_deleted on public.quote_presets;
+create trigger cp_watch_case_deleted after delete on public.quote_presets for each row execute function public.cp_watch_case_deleted();
+
+create or replace function public.cp_watch_target_deleted() returns trigger
+language plpgsql security definer set search_path = public as $$
+begin
+  delete from public.cp_changes where preset_id = old.preset_id;
+  return old;
+end $$;
+drop trigger if exists cp_watch_target_deleted on public.cp_watch_targets;
+create trigger cp_watch_target_deleted after delete on public.cp_watch_targets for each row execute function public.cp_watch_target_deleted();
+
+-- 画面から書ける列を足す（取引の追跡の開始・名前の変更）。結果の列は引き続き書けない
+grant insert (source, trade_no, title) on public.cp_watch_targets to authenticated;
+grant update (title) on public.cp_watch_targets to authenticated;
+
+-- 次に確認するものを選ぶ：取引の追跡は案件の状態を見ない。案件の追跡は従来どおり「受注」だけ
+create or replace function public.cp_watch_pick(p_n integer default 5, p_min_gap interval default interval '2 hours')
+returns setof public.cp_watch_targets
+language sql
+security definer
+set search_path = public
+as $$
+  select t.*
+    from public.cp_watch_targets t
+    left join public.quote_presets q on q.id = t.preset_id
+   where t.trace
+     and t.state = 'active'
+     and (t.source = 'trade' or q.status in ('受注', 'won'))
+     and (t.last_checked_at is null or t.last_checked_at < now() - p_min_gap)
+     and (t.consecutive_errors < 3 or t.last_checked_at < now() - interval '6 hours')
+   order by (case when t.urgent_at is not null and t.urgent_at <= now() + interval '48 hours' then 0 else 1 end),
+            t.last_checked_at asc nulls first
+   limit greatest(1, least(coalesce(p_n, 5), 20));
+$$;
+revoke all on function public.cp_watch_pick(integer, interval) from public, anon, authenticated;
+grant execute on function public.cp_watch_pick(integer, interval) to service_role;
+
+-- ============================================================
 -- 7) 予約実行（pg_cron ＋ pg_net）…ここから下は「準備（秘密の登録）が済んでから」1 回だけ実行する
 --    秘密（合言葉・鍵）は、このファイルには書かない。Supabase の Vault に入れて、予約の中から読む。
 --
