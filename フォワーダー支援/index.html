@@ -28,6 +28,7 @@
 <!-- 「かんたん表示」（Claude Design 案）。<html class="mode-simple"> のときだけ効く。クラスが無ければ従来の「詳細表示」のまま。 -->
 <link rel="stylesheet" href="css/simple-mode.css">
 <link rel="stylesheet" href="css/feedback.css">
+<link rel="stylesheet" href="css/announcements.css">
 <link rel="stylesheet" href="css/workfolder.css">
 <link rel="stylesheet" href="css/cp-test.css">
 <script>
@@ -3132,6 +3133,17 @@
               <option>国内手配のみ</option>
             </select>
           </div>
+          <div class="cond-prim-group cond-prim-group-handling" id="handlingGroup" hidden>
+            <span class="cond-prim-label" title="RO/RO・在来船の運賃見積で使う、積み・揚げの荷役費の負担条件（インコタームズとは別。FOB など と併記します）">🚢 荷役条件</span>
+            <select id="cond-handling" class="cond-inco-select" title="積み・揚げの荷役費を誰が負担するか（船積条件・Liner terms）">
+              <option value="">— なし —</option>
+              <option>BTBT（Berth Term to Berth Term）</option>
+              <option>FILO（Free In, Liner Out）</option>
+              <option>LIFO（Liner In, Free Out）</option>
+              <option>FIOS（Free In Out Stowed）</option>
+              <option>FIOST（Free In Out Stowed &amp; Trimmed）</option>
+            </select>
+          </div>
           <div class="cond-prim-group">
             <span class="cond-prim-label">オプション</span>
             <div class="cond-prim-btns">
@@ -3141,6 +3153,7 @@
           </div>
         </div>
         <span id="cond-incoterms-hint" class="cond-incoterms-hint"></span>
+        <span id="cond-handling-hint" class="cond-incoterms-hint"></span>
 
         <div class="zone-builder" id="zoneBuilder">
           <div class="zone-card zone-origin zone-off" id="zone1Card" data-tier="adv" data-adv-key="zone1" data-adv-label="出発地ゾーン（集荷など）">
@@ -5008,6 +5021,7 @@
 <script src="js/quote/case-info.js"></script>
 <script src="js/quote/sources.js"></script>
 <script src="js/quote/cond-flow.js"></script>
+<script src="js/quote/handling-terms.js"></script>
 <script src="js/quote/route-flow.js"></script>
 <script src="js/quote/cargo-flow.js"></script>
 <script src="js/quote/remark-tabs.js"></script>
@@ -5026,6 +5040,7 @@
 <script src="js/quote/fcl-lcl.js"></script>
 <script src="js/quote/right-rail.js"></script>
 <script src="js/ui-confirm.js"></script>
+<script src="js/announcements.js"></script>
 <script src="js/feedback-md.js"></script>
 <script src="js/feedback-annotate.js"></script>
 <script src="js/feedback.js"></script>
@@ -5157,6 +5172,7 @@
     <div class="um-tabs">
       <button class="um-tab is-active" id="umTabMembers" onclick="switchUmTab('members')">メンバー</button>
       <button class="um-tab" id="umTabPerms" onclick="switchUmTab('perms')">ロールと権限</button>
+      <button class="um-tab" id="umTabAnn" onclick="switchUmTab('ann')" hidden>📢 お知らせ</button>
     </div>
 
     <div id="umMembersPane" class="um-pane">
@@ -5188,6 +5204,8 @@
         <div id="umMemberList"></div>
       </div>
     </div>
+
+    <div id="umAnnPane" class="um-pane" hidden></div>
 
     <div id="umPermsPane" class="um-pane" hidden>
       <div class="um-perm-wrap">

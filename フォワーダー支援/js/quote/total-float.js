@@ -81,7 +81,7 @@
           dock.querySelectorAll('.qad-btn').forEach(b => { const r = b.getBoundingClientRect(); if (r.width && r.right > L && r.left < R && r.bottom > visBottom - 140) minTop = Math.min(minTop, r.top); });
           if (isFinite(minTop)) bottom = Math.max(bottom, layoutH - minTop + 6);
         }
-        const lift = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--rms-lift')) || 0;   // 画面下の全体リマーク（引き出し）の上へ
+        const lift = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--rms-bar')) || 0;   // 画面下の全体リマーク（引き出し）の取っ手の上へ（開いても追従しない）
         bottom = Math.max(bottom, lift);
         bar.style.bottom = Math.round(bottom) + 'px';
       }

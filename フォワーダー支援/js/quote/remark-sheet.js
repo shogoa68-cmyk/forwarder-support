@@ -3,7 +3,8 @@
 //   ・上へドラッグ／スワイプ（または押す）で開く。開いたあとはつまみをドラッグして高さを変えられる。
 //     下へ引き下げる／取っ手を押す／Esc で閉じる。背景（見積もりテーブル）は開いたまま操作できる（モーダルにしない）。
 //   ・中身は既存の #section-remark（入力欄・定型文タブ・画像添付）を要素ごと移すだけ（id・保存・出力は変えない）。
-//   ・合計バー・保存ドック・🐞・付箋は、引き出しの高さ分だけ上へ持ち上げる（CSS 変数 --rms-lift）。
+//   ・合計バー・保存ドック・🐞・付箋ボタンは、取っ手バーの高さ分だけ上へ避ける（CSS 変数 --rms-bar）。引き出しを開いても持ち上げず、
+//     重なる部分は引き出しの裏に隠れる（追従させない）。--rms-lift（取っ手＋開いた高さ）は、表の下余白と、開いて使う付箋の窓だけが使う。
 (function () {
   'use strict';
   const $ = id => document.getElementById(id);
@@ -11,6 +12,11 @@
   const BAR_H = 36;                    // 取っ手バーの高さ（px）
   const MIN_OPEN = 140;                // これより小さく引き下げたら閉じる
   let sheet = null, body = null, handle = null, open = false, bodyH = 0, storedH = 0;
+  const SEEN_KEY = 'quoteRemarkSheetSeen_v1';   // 一度でも開いたら「存在に気づいた」とみなし、跳ねる合図を出さない
+  const NUDGE_FIRST_MS = 1200;                   // 見積入力画面が出てから最初に跳ねるまで
+  const NUDGE_REPEAT_MS = 45000;                 // 気づかれないときの再合図の間隔
+  const NUDGE_MAX_REPEAT = 3;                    // 再合図の上限（初回のほか、ページを開いている間に最大 3 回）
+  let nudgeTimer = null, nudgeRepeats = 0, wasVisible = false;
 
   const maxH = () => Math.max(MIN_OPEN + 40, Math.round((window.innerHeight || 800) * 0.85) - BAR_H);
   const defH = () => Math.round(Math.min(Math.max((window.innerHeight || 800) * 0.5 - BAR_H, 220), maxH()));
@@ -23,6 +29,44 @@
   }
   function saveH() { try { localStorage.setItem(KEY, String(Math.round(storedH))); } catch (e) {} }
 
+  // ---- 存在を知らせる「跳ねる」合図（Mac の Dock のアイコンのように、小さくなりながら数回跳ねる）----
+  function seen() { try { return localStorage.getItem(SEEN_KEY) === '1'; } catch (e) { return false; } }
+  function markSeen() {
+    try { localStorage.setItem(SEEN_KEY, '1'); } catch (e) {}
+    clearTimeout(nudgeTimer); nudgeTimer = null;
+    if (sheet) sheet.classList.remove('is-nudging');
+  }
+  const reducedMotion = () => !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+  const isVisible = () => !!sheet && sheet.getClientRects().length > 0;
+  function typingNow() {
+    const a = document.activeElement;
+    return !!(a && (a.tagName === 'INPUT' || a.tagName === 'TEXTAREA' || a.tagName === 'SELECT' || a.isContentEditable));
+  }
+  // 跳ねてよい状況か：閉じている・未入力・表示中・一度も開いていない・入力中／ドラッグ中ではない
+  function canNudge() {
+    return !!sheet && !open && isVisible() && !seen() && !reducedMotion()
+      && !sheet.classList.contains('has-content') && !sheet.classList.contains('is-dragging') && !typingNow();
+  }
+  window.rmsNudge = function (force) {
+    if (!sheet) return false;
+    if (!force && !canNudge()) return false;
+    const panel = sheet.querySelector('.rms-panel');
+    sheet.classList.remove('is-nudging'); void panel.offsetWidth;      // 連続で呼んでも最初から再生
+    sheet.classList.add('is-nudging');
+    return true;
+  };
+  function scheduleNudge(ms) {
+    clearTimeout(nudgeTimer);
+    if (seen()) return;
+    nudgeTimer = setTimeout(() => {
+      nudgeTimer = null;
+      if (seen()) return;
+      // 入力中などで見送ったときは、数秒後にもう一度様子を見る（再合図の回数には数えない）
+      if (!window.rmsNudge()) { if (isVisible() && !open && !sheet.classList.contains('has-content')) scheduleNudge(8000); return; }
+      if (nudgeRepeats++ < NUDGE_MAX_REPEAT) scheduleNudge(NUDGE_REPEAT_MS);
+    }, ms);
+  }
+
   // 引き出しが画面に出ている高さ。ほかの固定要素が上に避けるための値（CSS 変数）
   function publishLift() {
     const root = document.documentElement;
@@ -30,8 +74,16 @@
     // 開閉のアニメーション中でも、最終的な高さ（取っ手＋中身＋下の余白）を先に渡す（ほかの固定要素が一度に避けるように）
     const lift = vis ? Math.round(handle.getBoundingClientRect().height + bodyH + (parseFloat(getComputedStyle(sheet).paddingBottom) || 0) + 1) : 0;
     root.style.setProperty('--rms-lift', lift + 'px');
+    // 取っ手バーだけの高さ（閉じているときの持ち上げ量）。開いても変えない＝右下のボタンは引き出しに追従せず、裏に隠れる
+    const bar = vis ? Math.round(handle.getBoundingClientRect().height + (parseFloat(getComputedStyle(sheet).paddingBottom) || 0) + 1) : 0;
+    root.style.setProperty('--rms-bar', bar + 'px');
     document.body.classList.toggle('rms-open', !!(vis && open));
     if (typeof window.totFloatRefresh === 'function') window.totFloatRefresh();
+    if (typeof window.pvWarnGuidePlace === 'function') window.pvWarnGuidePlace();   // 出力前の確認ガイドは、引き出し・ドックの上に避ける
+    // 見積入力画面が出たとき（ダッシュボード・他のタブ・オーバーレイから戻ったとき）に、存在を知らせる
+    if (vis && !wasVisible && !open) { nudgeRepeats = 0; scheduleNudge(NUDGE_FIRST_MS); }
+    else if (!vis && wasVisible) { clearTimeout(nudgeTimer); nudgeTimer = null; if (sheet) sheet.classList.remove('is-nudging'); }
+    wasVisible = vis;
   }
 
   function setH(h, animate) {
@@ -42,6 +94,7 @@
   }
   function setOpen(v, h) {
     open = !!v;
+    if (open) markSeen();
     if (open && h) storedH = clamp(h, MIN_OPEN, maxH());
     sheet.dataset.open = open ? '1' : '0';
     handle.setAttribute('aria-expanded', open ? 'true' : 'false');
@@ -134,6 +187,9 @@
   function init() {
     if (window.__rmsInit) return; if (!build()) return; window.__rmsInit = true;
     loadH(); bindDrag(); setOpen(false); updateMeta();
+    sheet.addEventListener('animationend', e => { if (e.target === sheet.querySelector('.rms-panel')) sheet.classList.remove('is-nudging'); });
+    // 入力欄に触れたら、その時点で「使い始めた」とみなす（リマークの入力が始まったら合図は不要）
+    const ta0 = $('remarkTextarea'); if (ta0) ta0.addEventListener('focus', markSeen);
     // 文字数・画像の変化で取っ手の表示を更新
     const rc = $('remarkChar'); if (rc) new MutationObserver(updateMeta).observe(rc, { childList: true, characterData: true, subtree: true });
     const ta = $('remarkTextarea'); if (ta) ta.addEventListener('input', updateMeta);

@@ -82,6 +82,7 @@
     grandTotal:     ['合計見積額', 'Grand Total'],
     subtotal:       ['小計', 'Subtotal'],
     incoterms:      ['建値（INCOTERMS）', 'Incoterms'],
+    handling:       ['荷役条件', 'Handling Terms'],
     route:          ['航路', 'Route'],
     pol:            ['積み地（POL）', 'Port of Loading (POL)'],
     pod:            ['揚げ地（POD）', 'Port of Discharge (POD)'],
@@ -376,6 +377,8 @@
       });
       if (_dg) meta.push(['', { html: _dg, full: true }]);
     }
+    // 荷役条件（RO/RO・在来船の BTBT／FILO など）：建値（と図解）の下に別の行で出す
+    push(t('handling'), _curLangEn && cond.handling ? cond.handling.replace('（', ' (').replace('）', ')') : cond.handling);
     // 航路：1件以上の登録があれば航路ごとに via・キャリア・サービス名を含めて全件併記
     if (_hasRoutes) {
       (_legItems || cond.routes.map((r, i) => ({ r, label: cond.routes.length === 1 ? t('route') : `${t('route')} ${i + 1}` }))).forEach(({ r, label }) => {

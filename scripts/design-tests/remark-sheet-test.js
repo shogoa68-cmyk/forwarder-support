@@ -26,11 +26,21 @@ let fails = 0; const ok = (n, c, x) => { if (!c) fails++; console.log((c ? 'PASS
   ok('全体リマークは見積もりテーブルの下のセクションではなく、引き出しの中にある', await p.evaluate(() => { const sec = document.getElementById('section-remark'); return !!sec && !!sec.closest('#rmsBody') && !document.querySelector('#tab-quote-make .quote-main #section-remark'); }));
   ok('取っ手に「未入力」と出る', /未入力/.test(s.meta), s.meta);
   ok('保存ドックは取っ手の上に避けている', s.dockBottom <= s.sheetTop + 1, s);
+  const closedDockTop = s.dockTop;
   // クリックで開く
   await p.click('#rmsHandle'); await p.waitForTimeout(500); s = await st();
   const half = Math.round(H * 0.5 - 36);
   ok('取っ手を押すと下から半分ほどの高さで開く（文章欄が見える）', s.exp === 'true' && Math.abs(s.bodyH - half) <= 40 && s.taVisible, { s, half });
-  ok('開くと保存ドックはさらに上へ避ける（重ならない）', s.dockBottom <= s.sheetTop + 1 && +s.lift.replace('px', '') >= s.bodyH + 30, s);
+  ok('開いても保存ドックは引き出しに追従して持ち上がらない（閉じているときと同じ位置）', s.dockTop === closedDockTop && +s.lift.replace('px', '') >= s.bodyH + 30, { s, closedDockTop });
+  const behind = await p.evaluate(() => {
+    const dock = document.getElementById('quoteActionDock'), sp = document.querySelector('#rmSheet .rms-panel').getBoundingClientRect();
+    const zs = getComputedStyle(document.getElementById('rmSheet')).zIndex, zd = getComputedStyle(dock).zIndex;
+    const res = [...dock.querySelectorAll('.qad-btn')].map(b => { const r = b.getBoundingClientRect(), x = r.left + r.width / 2, y = r.top + r.height / 2, top = document.elementFromPoint(x, y);
+      const under = x > sp.left && x < sp.right && y > sp.top;      // 引き出しと重なる位置
+      return { under, ok: under ? !!(top && top.closest('#rmSheet')) : !!(top && top.closest('#quoteActionDock')) }; });
+    return { zs: +zs, zd: +zd, res };
+  });
+  ok('開いているあいだ、ドックは引き出しの裏に隠れる（重なるボタンは引き出しが上・重ならないボタンは見えたまま押せる）', behind.zd < behind.zs && behind.res.every(r => r.ok), behind);
   ok('開いても背景（上の入力欄）は操作できる（引き出しが覆わない）', await p.evaluate(async () => { const el = document.getElementById('qf-customer'); window.scrollBy(0, el.getBoundingClientRect().top - 260); await new Promise(r => setTimeout(r, 250)); const r = el.getBoundingClientRect(); const t = document.elementFromPoint(r.left + 20, r.top + r.height / 2); return { onTop: t === el, y: Math.round(r.top) }; }).then(x => x.onTop), 'elementFromPoint');
   await p.fill('#qf-customer', 'ABC商事'); ok('開いたまま上の欄に入力できる', (await p.inputValue('#qf-customer')) === 'ABC商事');
   // 入力・定型文・保存
@@ -72,12 +82,13 @@ let fails = 0; const ok = (n, c, x) => { if (!c) fails++; console.log((c ? 'PASS
   ok('閲覧モードを戻すと編集できる・取っ手で閉じられる', (await st()).exp === 'false' && await p.evaluate(() => !document.getElementById('remarkTextarea').readOnly));
   // 合計バー（画面下固定）は引き出しの上へ避ける
   await p.evaluate(async () => { for (let i = 0; i < 25; i++) addRow(); document.getElementById('tableScrollWrap').scrollIntoView({ block: 'start' }); window.scrollBy(0, 120); await new Promise(r => setTimeout(r, 400)); });
-  const tf = async () => p.evaluate(() => { const t = document.getElementById('totFloat'), sh = document.getElementById('rmSheet'); return { shown: !t.hidden, tb: Math.round(t.getBoundingClientRect().bottom), st: Math.round(sh.getBoundingClientRect().top), vh: innerHeight }; });
+  const tf = async () => p.evaluate(() => { const t = document.getElementById('totFloat'), sh = document.getElementById('rmSheet'); return { shown: !t.hidden, tb: Math.round(t.getBoundingClientRect().bottom), st: Math.round(sh.getBoundingClientRect().top), vh: innerHeight, z: +getComputedStyle(t).zIndex, sz: +getComputedStyle(sh).zIndex }; });
   let t1 = await tf();
+  const closedTb = t1.tb;
   ok('合計バーは閉じた引き出し（取っ手）の上に出る', !t1.shown || t1.tb <= t1.st + 1, t1);
   await p.click('#rmsHandle'); await p.waitForTimeout(600); await p.evaluate(() => window.scrollBy(0, 5)); await p.waitForTimeout(300);
   t1 = await tf();
-  ok('引き出しを開くと、合計バーはその上へ避ける（重ならない）', !t1.shown || t1.tb <= t1.st + 1, t1);
+  ok('引き出しを開いても、合計バーは追従して持ち上がらない（閉じているときと同じ位置・引き出しの裏）', !t1.shown || (t1.tb === closedTb && t1.z < t1.sz), { t1, closedTb });
   await p.click('#rmsHandle'); await p.waitForTimeout(450);
   // 他のタブ・ダッシュボードでは出さない
   await p.evaluate(() => document.body.classList.add('qp-dash-active')); await p.waitForTimeout(150);

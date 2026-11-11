@@ -441,9 +441,43 @@
       );
     }
     panel.style.display = '';
+    _placePvWarnGuide();
     _pvWarnGuideFocusCurrent();
     return false;
   }
+
+  // 出力前の確認ガイド（右下に出る）を、右下の固定ボタン（PDF出力／プレビュー／保存のドック）と、
+  // 画面下の全体リマークの引き出しの上へ避けて置く（ボタンや「このまま出力」が互いに隠れないように）。
+  // 引き出しの上端は、開閉のアニメーション中でも最終の高さ（--rms-lift）で数える。
+  function _placePvWarnGuide() {
+    const panel = document.getElementById('pvWarnGuide');
+    if (!panel || panel.style.display === 'none') return;
+    panel.style.bottom = '';                                   // いったん CSS の既定（下から 80px）へ
+    const vh = window.innerHeight || document.documentElement.clientHeight;
+    const g = panel.getBoundingClientRect();
+    const overlapsX = r => r.width > 0 && r.right > g.left && r.left < g.right;
+    let top = vh;
+    const dock = document.getElementById('quoteActionDock');
+    if (dock && getComputedStyle(dock).display !== 'none') {
+      dock.querySelectorAll('.qad-btn').forEach(b => { const r = b.getBoundingClientRect(); if (overlapsX(r)) top = Math.min(top, r.top); });
+    }
+    const sheet = document.getElementById('rmSheet');
+    const sp = sheet && sheet.querySelector('.rms-panel');
+    if (sp && sheet.getClientRects().length > 0 && overlapsX(sp.getBoundingClientRect())) {
+      const lift = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--rms-lift')) || 0;
+      top = Math.min(top, vh - lift);
+    }
+    const GAP = 10, MIN_BOTTOM = 80;
+    panel.style.bottom = Math.max(MIN_BOTTOM, Math.round(vh - top + GAP)) + 'px';
+    // 上に余白が足りない小さな画面では、一覧をその分だけ短くする
+    const list = document.getElementById('pvWarnGuideList');
+    if (list) {
+      const room = Math.max(80, Math.round(top - GAP - 16 - 130));   // 見出し・ボタンの分（約 130px）と上の余白を引く
+      list.style.maxHeight = Math.min(200, room) + 'px';
+    }
+  }
+  window.pvWarnGuidePlace = _placePvWarnGuide;
+  window.addEventListener('resize', () => _placePvWarnGuide());
 
   // ヘッダーフィールド編集時にハイライトを自動解除（初回のみ登録）
   function initPreviewWarningListeners() {
@@ -928,6 +962,7 @@
       ...(dirIsRound(cond.direction) && cond.incotermsRet && cond.incotermsRet !== cond.incoterms
         ? [{ lbl: `インコタームズ 往路（${dirLegName(cond.direction, 'out')}）`, val: cond.incoterms }, { lbl: `インコタームズ 復路（${dirLegName(cond.direction, 'ret')}）`, val: cond.incotermsRet }]
         : [{ lbl: 'インコタームズ',  val: cond.incoterms }]),
+      { lbl: '荷役条件',        val: cond.handling },
       { lbl: '輸送モード',      val: cond.mode },
       { lbl: 'コンテナ',        val: cond.container },
       { lbl: '貨物名',          val: cond.cargo },
@@ -1858,6 +1893,7 @@
       ...(dirIsRound(cExcel.direction) && cExcel.incotermsRet && cExcel.incotermsRet !== cExcel.incoterms
         ? [[`インコタームズ 往路（${dirLegName(cExcel.direction, 'out')}）`, cExcel.incoterms], [`インコタームズ 復路（${dirLegName(cExcel.direction, 'ret')}）`, cExcel.incotermsRet]]
         : [['インコタームズ', cExcel.incoterms]]),
+      ['荷役条件', cExcel.handling],
       ['輸送モード', cExcel.mode],
       ['コンテナ', cExcel.container], ['貨物名', cExcel.cargo],
     ].filter(([, v]) => v);
