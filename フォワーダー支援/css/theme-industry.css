@@ -2929,6 +2929,13 @@ html.theme-industry {
   border-radius: 0;
   box-shadow: 0 10px 30px rgba(43,45,47, 0.22);
 }
+@media (max-width: 700px) {
+  :where(html.theme-industry) #tab-quote-make .cmdbar-gear-pop {
+    width: 92vw;
+    right: auto;
+    left: 0;
+  }
+}
 :where(html.theme-industry) #tab-quote-make .t-cost {
   color: #ae9442;
 }
@@ -4726,6 +4733,9 @@ html.theme-industry {
   border-radius: 0;
   box-shadow: 0 8px 24px rgba(39,41,43, 0.18), 0 2px 4px rgba(39,41,43, 0.08);
 }
+:where(html.theme-industry) #toast-container {
+  z-index: 9999;
+}
 :where(html.theme-industry) .toast {
   border-radius: 0;
 }
@@ -5959,6 +5969,7 @@ html.theme-industry {
   border-color: #a9abaf;
 }
 :where(html.theme-industry) #tab-quote-make .cmdbar-more-pop {
+  left: 0;
   border-radius: 0;
   box-shadow: 0 8px 24px rgba(43,45,47,.16);
 }
@@ -10367,6 +10378,17 @@ html.theme-industry {
 :where(html.theme-industry) #tab-master .master-table td.stats-val {
   overflow-wrap: anywhere;
 }
+@media (max-width: 760px) {
+  :where(html.theme-industry) #tab-master .master-table th:nth-child(1) {
+    width: 64px;
+  }
+  :where(html.theme-industry) #tab-master .master-table th:nth-child(2) {
+    width: 28%;
+  }
+  :where(html.theme-industry) #tab-master .master-table th.ops {
+    width: 180px;
+  }
+}
 :where(html.theme-industry) #quoteActionDock {
   bottom: calc(18px + var(--rms-bar, 0px));
 }
@@ -10380,4 +10402,22 @@ html.theme-industry {
 }
 :where(html.theme-industry) #tab-quote-make .cloud-deal {
   border-radius: 0;
+}
+:where(html.theme-industry) #tab-quote-make .cmdbar-more-pop {
+  left: auto;
+  right: 0;
+}
+@media (max-width: 700px) {
+  :where(html.theme-industry) #tab-quote-make .cmdbar-gear-pop {
+    position: fixed;
+    top: 124px;
+    left: 8px;
+    right: 8px;
+    width: auto;
+    max-width: none;
+    max-height: calc(100vh - 140px);
+  }
+}
+:where(html.theme-industry) #toast-container {
+  z-index: 100010;
 }
