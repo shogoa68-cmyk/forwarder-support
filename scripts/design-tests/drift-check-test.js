@@ -47,7 +47,16 @@ const ok = (n, c, d) => { if (c) { pass++; console.log('  ok  ' + n); } else { f
     window.synAddAliasesMany = async (field, items) => { window.__calls.push(['many', field, JSON.stringify(items)]); items.forEach(it => { let g = window.__groups.find(x => x.field === field && x.canonical === it.canonical); if (!g) window.__groups.push(g = { field, canonical: it.canonical, aliases: [] }); g.aliases = [...new Set([...g.aliases, ...it.aliases])]; }); return { added: items.reduce((s, x) => s + x.aliases.length, 0), skipped: 0 }; };
     window.synRemoveAlias = async (field, alias, canonical) => { window.__calls.push(['remove', field, alias, canonical]); const g = window.__groups.find(x => x.field === field && x.canonical === canonical); if (g) g.aliases = g.aliases.filter(a => a !== alias); };
     window.synAddAlias = async (...a) => { window.__calls.push(['one', ...a]); };
-    localStorage.removeItem('driftLog_v1'); localStorage.removeItem('driftLastRun_v1'); localStorage.removeItem('driftDismissed_v1');
+    ['driftLog_v1', 'driftLastRun_v1', 'driftDismissed_v1', 'driftLog_v2'].forEach(k => localStorage.removeItem(k));
+    // 共有の記録（drift_log）の疑似テーブル。window.__noTable = true で「SQL 未実行」を再現
+    window.__driftStore = []; window.__noTable = false; window.__insFail = false;
+    window.cloudGetClient = () => ({ from: t => {
+      if (t !== 'drift_log') return { select: () => ({}) };
+      const o = {};
+      o.select = () => o; o.order = () => o; o.limit = () => Promise.resolve(window.__noTable ? { data: null, error: { message: 'relation "drift_log" does not exist' } } : { data: window.__driftStore.slice().sort((a, b) => new Date(a.at) - new Date(b.at)), error: null });
+      o.insert = rows => Promise.resolve(window.__insFail ? { error: { message: 'denied' } } : (window.__driftStore.push(...rows.map(r => Object.assign({ id: 'id' + Math.random() }, r))), { error: null }));
+      return o;
+    } });
     const d = document.createElement('div'); d.id = 'driftCard'; d.className = 'drift-card'; document.body.prepend(d);
   }, rows);
 
@@ -62,7 +71,10 @@ const ok = (n, c, d) => { if (c) { pass++; console.log('  ok  ' + n); } else { f
   ok('代表が決まっていない読み違いの表記（ABC運輸）は「代表を選ぶ」に出る', res.pick.some(x => x.variants.map(v => v.value).includes('ABC運輸')));
   ok('綴り違い（Hapag Lloyd／Loyd）が「似ている」に出る', res.near.some(n => /Hapag/.test(n.a + n.b)), JSON.stringify(res.near.map(n => [n.a, n.b])));
   ok('代表が 2 つある（Alpha Co／ALPHA CO）は人が判断に出る', res.human.some(h => h.kind === 'multi-master'));
-  ok('実行日を記録した', await p.evaluate(() => !!localStorage.getItem('driftLastRun_v1')));
+  const st1 = await p.evaluate(() => ({ shared: window.driftDebug.shared(), store: window.__driftStore.map(e => [e.kind, e.mode, e.by]), lastRun: window.driftDebug.derive().lastRun, due: window.driftDebug.due(), local: localStorage.getItem('driftLog_v2') }));
+  ok('記録がチーム共有（drift_log）に書かれる（別名＝自動・実行記録）', st1.shared && st1.store.some(e => e[0] === 'alias' && e[1] === 'auto' && e[2] === 'admin@x') && st1.store.some(e => e[0] === 'run'), JSON.stringify(st1));
+  ok('共有できているときは、この端末には記録を残さない', st1.local === null);
+  ok('前回の実行日時が共有の記録から分かり、1 週間は次の自動チェックが走らない', st1.lastRun > 0 && st1.due === false);
 
   // 2) カード
   await p.evaluate(() => window.driftRenderCard());
@@ -88,6 +100,33 @@ const ok = (n, c, d) => { if (c) { pass++; console.log('  ok  ' + n); } else { f
   await p.evaluate(() => window.driftDebug.run({ apply: true }));
   const many2 = await p.evaluate(() => window.__calls.filter(c => c[0] === 'many').length);
   ok('元に戻した別名は、次の自動対応で付け直されない', many2 === 2, 'many=' + many2);
+  ok('「元に戻す」と「別物」も共有の記録に残る', await p.evaluate(() => window.__driftStore.some(e => e.kind === 'undo') && window.__driftStore.some(e => e.kind === 'dismiss')));
+
+  // 別の管理者の端末：共有の記録に「元に戻した」があれば、こちらの端末でも自動で付け直さない
+  await p.evaluate(() => { window.__calls.length = 0; window.__groups = [{ field: 'customer', canonical: 'Maersk Line', aliases: [] }]; window.__driftStore.length = 0; window.__driftStore.push({ at: new Date().toISOString(), kind: 'undo', field: 'customer', alias: 'MAERSK LINE', canonical: 'Maersk Line', by: 'other@x' }); });
+  await p.evaluate(() => window.driftDebug.run({ apply: true }));
+  const calls3 = await p.evaluate(() => window.__calls.filter(c => c[0] === 'many').map(c => c[2]));
+  ok('他の管理者が元に戻した別名は、こちらの自動対応でも付け直さない（残りは登録される）', calls3.length === 1 && !/"MAERSK LINE"/.test(calls3[0]) && /ＭＡＥＲＳＫ/.test(calls3[0]), JSON.stringify(calls3));
+  // 前回の実行が 10 日前なら、次の自動チェックの時期
+  await p.evaluate(() => { window.__driftStore.forEach(e => { if (e.kind === 'run') e.at = new Date(Date.now() - 10 * 86400000).toISOString(); }); });
+  await p.evaluate(() => window.driftDebug.loadLog());
+  ok('前回の実行から 1 週間以上たてば、次の自動チェックの時期になる', await p.evaluate(() => window.driftDebug.due()));
+
+  // 共有テーブルが無い（SQL 未実行）ときは、この端末に記録して動き続ける
+  await p.evaluate(() => { window.__noTable = true; window.__calls.length = 0; window.__groups = [{ field: 'customer', canonical: 'Maersk Line', aliases: [] }]; });
+  await p.evaluate(() => window.driftDebug.run({ apply: true }));
+  const st2 = await p.evaluate(() => ({ shared: window.driftDebug.shared(), local: JSON.parse(localStorage.getItem('driftLog_v2') || '[]').map(e => e.kind) }));
+  ok('共有テーブルが無いときは、この端末に記録して自動対応は動く', !st2.shared && st2.local.includes('alias') && st2.local.includes('run'), JSON.stringify(st2));
+  // SQL を実行したら、この端末の記録は一度だけ共有へ移る（管理者）
+  await p.evaluate(() => { window.__noTable = false; window.__driftStore.length = 0; });
+  await p.evaluate(() => window.driftDebug.loadLog());
+  const st3 = await p.evaluate(() => ({ shared: window.driftDebug.shared(), store: window.__driftStore.map(e => e.kind), local: localStorage.getItem('driftLog_v2') }));
+  ok('共有できるようになると、この端末の記録が共有へ移り、端末側は消える', st3.shared && st3.store.includes('alias') && st3.store.includes('run') && st3.local === null, JSON.stringify(st3));
+  // 共有に書けない（権限など）ときは、この端末に残す
+  await p.evaluate(() => { window.__insFail = true; });
+  await p.evaluate(() => window.driftDebug.run({ apply: true }));
+  ok('共有に書けなかったときは、この端末に残して止まらない', await p.evaluate(() => (JSON.parse(localStorage.getItem('driftLog_v2') || '[]')).some(e => e.kind === 'run')));
+  await p.evaluate(() => { window.__insFail = false; localStorage.removeItem('driftLog_v2'); });
 
   // 6) メンバー（管理者でない）は自動登録しない
   await p.evaluate(() => { window._myRole = 'member'; window.__calls.length = 0; window.__groups = [{ field: 'customer', canonical: 'Maersk Line', aliases: [] }]; localStorage.removeItem('driftDismissed_v1'); });

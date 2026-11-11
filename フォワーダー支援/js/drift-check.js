@@ -6,18 +6,18 @@
  *      1 回の上限 100 件。登録は「別名」＝元の案件データは書き換えない。元に戻せる）
  *   ② 要確認：代表が未決定のゆらぎ・綴りや社名の一部がよく似た別々の名前 → マスター管理の上部のカードに出し、1 クリックで決められる
  *   ③ 人間が判断：代表が複数ある・単位（意味が変わりうる）→ 理由つきで一覧に出すだけ（自動では触らない）
- * に仕分ける。AI・外部への送信はなし。保存は、別名＝既存の synonym_groups、記録（自動対応のログ・別物と決めた組・前回の実行日）はこのブラウザ
- * （localStorage）。SQL は不要。
+ * に仕分ける。AI・外部への送信はなし。保存は、別名＝既存の synonym_groups。記録（登録した別名・元に戻したもの・別物と決めた組・前回の実行日）は
+ * チーム共有のテーブル drift_log（docs/sql/drift-log.sql を実行すると共有される。未実行の間はこの端末のブラウザ localStorage に残す）。
  * =================================================================== */
 (function () {
   'use strict';
 
   const FIELDS = [['customer', 'お客様'], ['sv', 'サブコン'], ['port', '港'], ['nm', '品名'], ['un', '単位']];
   const LBL = Object.fromEntries(FIELDS);
-  const LOG_KEY = 'driftLog_v1', RUN_KEY = 'driftLastRun_v1', DISMISS_KEY = 'driftDismissed_v1';
+  const LEGACY_LOG = 'driftLog_v1', LEGACY_RUN = 'driftLastRun_v1', LEGACY_DISMISS = 'driftDismissed_v1';   // 共有化の前の保存（取り込んだら消す）
+  const LOCAL_KEY = 'driftLog_v2', TABLE = 'drift_log';
   const INTERVAL_MS = 7 * 86400000;   // 前回の自動チェックからこれだけ経っていれば、管理者のログイン時に走らせる
   const AUTO_CAP = 100;               // 1 回の自動登録の上限（残りは次回）
-  const LOG_MAX = 200;
 
   const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const jget = (k, d) => { try { const v = JSON.parse(localStorage.getItem(k) || 'null'); return v == null ? d : v; } catch (e) { return d; } };
@@ -27,6 +27,84 @@
   const cloudOn = () => typeof window.cloudCurrentUser === 'function' && !!window.cloudCurrentUser();
   const needsApproval = () => typeof window.statsAliasNeedsApproval === 'function' && window.statsAliasNeedsApproval();
   const fmt = t => { const d = new Date(t); return isNaN(d) ? '' : (d.getMonth() + 1) + '/' + d.getDate() + ' ' + String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0'); };
+
+  // ---------- 記録（チーム共有テーブル drift_log。使えない間はこの端末のブラウザだけ） ----------
+  // 1 件＝{id, at, kind:'alias'|'undo'|'dismiss'|'run', mode:'auto'|'manual', field, alias, canonical, by}。追記のみ（書き換え・削除はしない）
+  let _entries = [];
+  let _shared = false;      // 共有テーブルが使えているか
+  let _loaded = false;
+  let _warned = false;
+  const client = () => (typeof window.cloudGetClient === 'function' ? window.cloudGetClient() : null);
+  const me = () => { const u = typeof window.cloudCurrentUser === 'function' ? window.cloudCurrentUser() : null; return (u && u.email) || ''; };
+  const keyOf = e => e.field + '\x00' + e.alias + '\x00' + e.canonical;
+  const dayOf = e => +new Date(e.at) || 0;
+
+  function localEntries() {
+    let a = jget(LOCAL_KEY, null);
+    if (Array.isArray(a)) return a;
+    a = [];   // 共有化の前（v1）の保存を、同じ形に直して引き継ぐ
+    jget(LEGACY_LOG, []).forEach(x => {
+      a.push({ id: x.id, at: x.at, kind: 'alias', mode: x.mode, field: x.field, alias: x.alias, canonical: x.canonical, by: x.by || '' });
+      if (x.undone) a.push({ at: x.at, kind: 'undo', field: x.field, alias: x.alias, canonical: x.canonical, by: x.by || '' });
+    });
+    jget(LEGACY_DISMISS, []).forEach(k => { const [f, x, y] = String(k).split('\x00'); if (f && x && y) a.push({ at: new Date(0).toISOString(), kind: 'dismiss', field: f, alias: x, canonical: y, by: '' }); });
+    const lr = jget(LEGACY_RUN, 0); if (lr) a.push({ at: new Date(lr).toISOString(), kind: 'run', by: '' });
+    jset(LOCAL_KEY, a);
+    return a;
+  }
+  async function loadLog() {
+    const c = client();
+    if (c && cloudOn()) {
+      try {
+        const { data, error } = await c.from(TABLE).select('*').order('at', { ascending: true }).limit(5000);
+        if (!error) {
+          _shared = true; _entries = data || []; _loaded = true;
+          await migrateLocal();
+          return;
+        }
+      } catch (e) { /* 共有テーブルが無い（SQL 未実行）ときは、この端末の保存を使う */ }
+    }
+    _shared = false; _entries = localEntries(); _loaded = true;
+  }
+  // 共有テーブルが使えるようになったら、この端末に残っていた記録を一度だけ共有へ移す（管理者だけ。別名・元に戻す・実行記録は管理者しか書けないため）
+  async function migrateLocal() {
+    const loc = jget(LOCAL_KEY, null);
+    const legacy = jget(LEGACY_LOG, []).length || jget(LEGACY_DISMISS, []).length || jget(LEGACY_RUN, 0);
+    if (!isAdmin() || (!(Array.isArray(loc) && loc.length) && !legacy)) return;
+    const rows = localEntries().map(e => ({ at: e.at, kind: e.kind, mode: e.mode || null, field: e.field || null, alias: e.alias || null, canonical: e.canonical || null, by: me() }));
+    if (rows.length) {
+      const { error } = await client().from(TABLE).insert(rows);
+      if (error) return;   // 移せなければ、この端末の保存はそのまま残す
+      _entries = _entries.concat(rows);
+    }
+    [LOCAL_KEY, LEGACY_LOG, LEGACY_RUN, LEGACY_DISMISS].forEach(k => { try { localStorage.removeItem(k); } catch (e) { /* 無視 */ } });
+    toast('🔍 この端末のゆらぎチェックの記録を、チーム共有へ移しました（' + rows.length + ' 件）', 'info', 5000);
+  }
+  async function append(list) {
+    const now = new Date().toISOString();
+    const rows = list.map(e => Object.assign({ id: Date.now() + '-' + Math.random().toString(36).slice(2, 7), at: now, by: me() }, e));
+    if (_shared) {
+      const { error } = await client().from(TABLE).insert(rows.map(r => ({ at: r.at, kind: r.kind, mode: r.mode || null, field: r.field || null, alias: r.alias || null, canonical: r.canonical || null, by: r.by })));
+      if (!error) { _entries = _entries.concat(rows); return true; }
+      if (!_warned) { _warned = true; toast('⚠️ ゆらぎチェックの記録を共有に書けませんでした（この端末にだけ残します）：' + error.message, 'warn', 6000); }
+    }
+    const loc = localEntries().concat(rows); jset(LOCAL_KEY, loc);
+    _entries = _entries.concat(rows);
+    return false;
+  }
+  // 記録から、前回の実行日時・「別物／元に戻した」の組・いま有効な登録の一覧（新しい順）を求める
+  function derive() {
+    const sorted = _entries.slice().sort((a, b) => dayOf(a) - dayOf(b));
+    let lastRun = 0; const dismissed = new Set(); const active = new Map();
+    sorted.forEach(e => {
+      if (e.kind === 'run') lastRun = Math.max(lastRun, dayOf(e));
+      else if (e.kind === 'alias') active.set(keyOf(e), e);
+      else if (e.kind === 'undo') { active.delete(keyOf(e)); if (window.DriftEngine) dismissed.add(window.DriftEngine.pairKey(e.field, e.alias, e.canonical)); }
+      else if (e.kind === 'dismiss') { if (window.DriftEngine) dismissed.add(window.DriftEngine.pairKey(e.field, e.alias, e.canonical)); }
+    });
+    return { lastRun, dismissed, history: [...active.values()].reverse() };
+  }
+  const who = by => (by && typeof window.quoteDisplayName === 'function' ? window.quoteDisplayName(by) : by) || '';
 
   let _res = null;        // 最新の分析 {field: {auto, pick, near, human}}
   let _resAt = 0;
@@ -39,7 +117,8 @@
   async function analyzeAll() {
     if (typeof window.statsDriftInput !== 'function' || !window.DriftEngine) return null;
     const input = window.statsDriftInput();
-    const dismissed = new Set(jget(DISMISS_KEY, []));
+    if (!_loaded) await loadLog();
+    const dismissed = derive().dismissed;
     const masters = typeof window.statsGetMasters === 'function' ? window.statsGetMasters() : [];
     const res = {};
     for (const [f] of FIELDS) {
@@ -81,16 +160,12 @@
     }
     const r = await window.synAddAliasesMany(field, items);
     const after = window.synGetNormalizeMap(field);
-    const log = jget(LOG_KEY, []);
-    let added = 0;
+    const entries = [];
     items.forEach(it => it.aliases.forEach(a => {
-      if (after[a] === it.canonical && before[a] !== it.canonical) {
-        added++;
-        log.unshift({ id: Date.now() + '-' + Math.random().toString(36).slice(2, 7), at: new Date().toISOString(), field, alias: a, canonical: it.canonical, mode, by: (window.cloudCurrentUser && window.cloudCurrentUser() && window.cloudCurrentUser().email) || '' });
-      }
+      if (after[a] === it.canonical && before[a] !== it.canonical) entries.push({ kind: 'alias', mode, field, alias: a, canonical: it.canonical });
     }));
-    jset(LOG_KEY, log.slice(0, LOG_MAX));
-    return Object.assign({ added }, r && r.restricted ? { restricted: true } : {});
+    if (entries.length) await append(entries);
+    return Object.assign({ added: entries.length }, r && r.restricted ? { restricted: true } : {});
   }
 
   async function applyAuto(res) {
@@ -114,6 +189,7 @@
     if (_busy) return null;
     _busy = true; render();
     try {
+      await loadLog();   // 他の管理者の記録（元に戻した・別物・前回の実行日）も取り込む
       let res = await analyzeAll();
       if (!res) return null;
       let applied = null;
@@ -121,7 +197,7 @@
         applied = await applyAuto(res);
         res = await analyzeAll();   // 登録後の状態で判定し直す
       }
-      if (opts.apply) jset(RUN_KEY, Date.now());
+      if (opts.apply && isAdmin()) await append([{ kind: 'run' }]);
       if (opts.notify) {
         const c = counts(res);
         if (applied && applied.added) toast('🔍 ゆらぎチェック：別名 ' + applied.added + ' 件を自動登録しました' + (c.review + c.human ? '（要確認 ' + (c.review + c.human) + ' 件：マスター管理で確認できます）' : ''), 'success', 6000);
@@ -149,15 +225,16 @@
       return;
     }
     const c = counts(_res);
-    const last = jget(RUN_KEY, 0);
+    const dv = derive();
+    const last = dv.lastRun;
     const head = '<div class="drift-head"><span class="drift-title">🔍 ゆらぎチェック</span>' +
-      `<span class="drift-sub">${last ? '前回の自動チェック ' + esc(fmt(last)) : '自動チェックはまだ実行されていません'}（管理者のログイン時、1 週間おき）</span>` +
+      `<span class="drift-sub">${last ? '前回の自動チェック ' + esc(fmt(last)) : '自動チェックはまだ実行されていません'}（管理者のログイン時、1 週間おき）${_shared ? '・🌐 チームで共有' : '・この端末だけに記録（docs/sql/drift-log.sql を実行すると共有されます）'}</span>` +
       `<button type="button" class="drift-btn drift-run" onclick="driftRunNow()"${_busy ? ' disabled' : ''}>${_busy ? '確認中…' : '今すぐチェック'}</button></div>`;
     const hint = '<p class="drift-note">別名にしても、過去の案件に入っている表記は書き換わりません（統計はまとめて数えられます）。過去の案件の表記も揃えたいときは「エイリアス是正」の一括置換から。</p>';
     let body = '';
 
     // 自動対応（管理者の実行で登録されたもの＝ログ）＋これから自動で登録されるもの
-    const log = jget(LOG_KEY, []).filter(x => !x.undone);
+    const log = dv.history;
     const sec = (key, title, n, inner, tone) => `<details class="drift-sec drift-${tone}"${_openSec[key] ? ' open' : ''} ontoggle="driftToggle('${key}', this.open)"><summary>${title}<span class="drift-count">${n}</span></summary>${inner}</details>`;
     const pend = FIELDS.flatMap(([f]) => (_res[f] ? _res[f].auto.map(x => Object.assign({ field: f }, x)) : []));
     let autoInner = '';
@@ -168,7 +245,7 @@
     }
     if (log.length) {
       autoInner += `<p class="drift-lead">最近、登録された別名（自動・手動）。間違いは「元に戻す」で別名を外せます。</p><ul class="drift-list">` +
-        log.slice(0, 12).map(x => `<li><span class="drift-fld">${esc(LBL[x.field] || x.field)}</span>「${esc(x.alias)}」→「${esc(x.canonical)}」<small>${esc(fmt(x.at))}・${x.mode === 'auto' ? '自動' : '手動'}</small> ${isAdmin() ? nameBtn(act({ t: 'undo', id: x.id }), '元に戻す', 'drift-ghost') : ''}</li>`).join('') + '</ul>';
+        log.slice(0, 12).map(x => `<li><span class="drift-fld">${esc(LBL[x.field] || x.field)}</span>「${esc(x.alias)}」→「${esc(x.canonical)}」<small>${esc(fmt(x.at))}・${x.mode === 'auto' ? '自動' : '手動'}${x.by ? '・' + esc(who(x.by)) : ''}</small> ${isAdmin() ? nameBtn(act({ t: 'undo', id: x.id }), '元に戻す', 'drift-ghost') : ''}</li>`).join('') + '</ul>';
     }
     if (autoInner) body += sec('auto', '✅ 自動対応（読みが完全に同じ）', pend.length + log.slice(0, 12).length, autoInner, 'auto');
 
@@ -209,18 +286,16 @@
   window.driftAct = async function (i) {
     const a = _acts[i]; if (!a) return;
     if (a.t === 'dismiss') {
-      const k = window.DriftEngine.pairKey(a.field, a.a, a.b);
-      const d = jget(DISMISS_KEY, []); if (!d.includes(k)) d.push(k); jset(DISMISS_KEY, d);
-      await analyzeAll(); render(); toast('別物として記録しました（この端末で、今後は候補に出しません）', 'info', 3000); return;
+      await append([{ kind: 'dismiss', field: a.field, alias: a.a, canonical: a.b }]);
+      await analyzeAll(); render(); toast('別物として記録しました（今後は候補に出しません' + (_shared ? '。チーム全員に反映されます' : '・この端末のみ') + '）', 'info', 3500); return;
     }
     if (a.t === 'jump') { if (typeof window.statsJumpToMaster === 'function') window.statsJumpToMaster(a.field, a.value, true); return; }
     if (a.t === 'undo') {
       if (!isAdmin()) return;
-      const log = jget(LOG_KEY, []); const x = log.find(y => y.id === a.id); if (!x) return;
+      const x = _entries.find(y => y.id === a.id); if (!x) return;
       if (typeof window.synRemoveAlias === 'function') await window.synRemoveAlias(x.field, x.alias, x.canonical);
-      x.undone = true; jset(LOG_KEY, log);
-      // 外した名前を、次の自動チェックですぐ同じ別名にしないよう「別物」と同様に覚える
-      const d = jget(DISMISS_KEY, []); const k = window.DriftEngine.pairKey(x.field, x.alias, x.canonical); if (!d.includes(k)) d.push(k); jset(DISMISS_KEY, d);
+      // 外した名前を、次の自動チェックで（他の管理者の端末も含めて）同じ別名にし直さないよう記録する
+      await append([{ kind: 'undo', field: x.field, alias: x.alias, canonical: x.canonical }]);
       await analyzeAll(); render(); return;
     }
     if (a.t === 'alias') {
@@ -242,7 +317,8 @@
     const rows = typeof window.cloudGetAllRows === 'function' ? window.cloudGetAllRows() : [];
     if (!rows.length) return setTimeout(tick, 3000);
     _scheduled = true;
-    if (Date.now() - jget(RUN_KEY, 0) < INTERVAL_MS) { return; }   // まだ前回から間もない
+    await loadLog();
+    if (Date.now() - derive().lastRun < INTERVAL_MS) { return; }   // まだ前回から間もない（共有の記録なので、管理者が何人いても週 1 回だけ）
     try {
       if (typeof window.statsRefresh === 'function') await window.statsRefresh();   // 投票（マスター）・別名・詳細を読み込む
     } catch (e) { /* 読めなければ次回 */ }
@@ -250,5 +326,5 @@
     await run({ apply: true, notify: true });
   }
   window.addEventListener('load', () => setTimeout(tick, 4000));
-  window.driftDebug = { analyzeAll, run, counts: () => counts(_res), res: () => _res };
+  window.driftDebug = { analyzeAll, run, loadLog, derive, counts: () => counts(_res), res: () => _res, entries: () => _entries, shared: () => _shared, due: () => Date.now() - derive().lastRun >= INTERVAL_MS };
 })();
