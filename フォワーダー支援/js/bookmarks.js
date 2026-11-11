@@ -179,6 +179,13 @@ async function bmEnsureCarrierTypes(force) {
 // 見積のサブコン見出し用：その名前（マスターの別名・代表名も含む）でブックマークが1件でも登録されているか。
 // 同期関数。会社名の一覧が未取得のときは裏で取得し、取得できたら見出しを再描画する（それまでは false）。
 let _bmHasLoading = false;
+// ブックマークを追加・削除・読み直したあと：軽い一覧（会社名・種別）も同じ内容にそろえ、見積のサブコン見出しの「BOOKMARK」の出し分けと、
+// 幹線輸送のキャリア候補を更新する（以前は、ブックマークを足しても見積画面の見出しは次の更新まで古いままだった）
+function _bmRowsChanged() {
+  _bmLightRows = _bmRows.filter(r => r.carrier).map(r => ({ carrier: r.carrier, carrier_type: r.carrier_type }));
+  if (typeof window.refreshAllRowSvChips === 'function') window.refreshAllRowSvChips();
+  if (typeof window.qfRefreshCarrierMasterCandidates === 'function') window.qfRefreshCarrierMasterCandidates();
+}
 function bmHasBookmarks(name) {
   name = String(name || '').trim();
   if (!name) return false;
@@ -256,6 +263,7 @@ async function _bmLoad() {
     return;
   }
   _bmRows = data || [];
+  _bmRowsChanged();
 
   // リンク確認記録＋表示名を取得（テーブル未作成でもエラーは握りつぶして 0 件扱い）
   _bmMyEmail = user.email || '';
@@ -1011,6 +1019,7 @@ async function bmDelete(id) {
   if (target?.file_path) { try { await db.storage.from('bookmark-files').remove([target.file_path]); } catch (e) {} }
   quoteShowToast('✅ 削除しました', 'success', 2000);
   _bmRows = _bmRows.filter(r => r.id !== id);
+  _bmRowsChanged();
   _bmApply();
   if (typeof window.lcRefreshBmChips === 'function') window.lcRefreshBmChips();
 }
@@ -1640,6 +1649,7 @@ async function bmDedupMerge(idx) {
   const { error: delErr } = await db.from('bookmarks').delete().in('id', ids);
   if (delErr) { quoteShowToast('⚠️ 削除に失敗：' + delErr.message, 'warn', 6000); return; }
   _bmRows = _bmRows.filter(r => !ids.includes(r.id));
+  _bmRowsChanged();
   quoteShowToast(`✅ ${ids.length}件を統合・削除しました`, 'success', 3000);
   _bmApply();
   if (typeof window.lcRefreshBmChips === 'function') window.lcRefreshBmChips();

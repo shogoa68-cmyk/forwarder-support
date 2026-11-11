@@ -1337,10 +1337,22 @@
       return;
     }
     const rows = Array.from(checkboxes).map(chk => chk.closest('tr')).filter(Boolean);
-    rows.forEach(tr => tr.remove());
+    // 親行にぶら下がる子リマーク行も一緒に消す（1 行ずつ削除する delRow と同じ。残すと宙に浮いたリマークが出る）
+    rows.forEach(tr => {
+      if (tr.id && !tr.dataset.type && typeof getChildRemarks === 'function') {
+        getChildRemarks(tr.id.replace('row-', '')).forEach(r => r.remove());
+      }
+      tr.remove();
+    });
     const allChk = document.getElementById('selectAllChk');
     if (allChk) allChk.checked = false;
     updateTotals();
+    // サブコン別グループの見出し・小計（仮想行）を作り直す（全行を消したグループの見出しが残らないように）
+    if (typeof renderSubconGroups === 'function') {
+      const y = window.scrollY;
+      renderSubconGroups();
+      window.scrollTo({ top: y, behavior: 'instant' });
+    }
     // 削除した行が統合先だった場合、統合先を失った行を自動的に統合解除する
     window.refreshMergeBadges?.();
     quoteShowToast(`🗑️ ${rows.length}行を削除しました`, 'info');
@@ -1513,6 +1525,8 @@
   }
 
   function cmdKeydown(e) {
+    // 日本語入力の変換中（候補選択の ↑↓・確定の Enter・取消の Esc）は、パレットの操作として扱わない
+    if (e.isComposing || e.keyCode === 229) return;
     const len = _cmdFiltered.length;
     if (!len) return;
     if (e.key === 'ArrowDown') {
@@ -2806,9 +2820,10 @@
       const pal = document.getElementById('cmdPalette');
       pal.classList.contains('open') ? closeCmdPalette() : openCmdPalette();
     }
-    // Ctrl+S → チーム共有へ保存
+    // Ctrl+S → チーム共有へ保存（ダッシュボード表示中は、裏に隠れた編集画面を保存しない）
     if (ctrl && !e.shiftKey && !e.altKey && e.key === 's') {
       e.preventDefault();
+      if (quoteTab.classList.contains('qp-dash')) return;
       if (typeof cloudSaveCurrent === 'function') cloudSaveCurrent();
       return;
     }

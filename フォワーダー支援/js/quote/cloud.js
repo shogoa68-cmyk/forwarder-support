@@ -777,6 +777,7 @@
     '同業者（フォワーダー・代理店）': { k: 'fwd',   ico: '🤝', lbl: '同業者' },
     'その他':                         { k: 'other', ico: '📁', lbl: 'その他' },
   };
+  const nameCanonOrSelf = v => (typeof window.nameCanon === 'function' ? window.nameCanon('customer', v) : v) || v;   // 同業者の名前が変わっていても代表名で出す
   function _custDealChip(customer) {
     const name = String(customer == null ? '' : customer).trim();
     if (!name || typeof window.mdGetCanon !== 'function') return '';
@@ -784,7 +785,7 @@
     const d = rec && rec.details;
     const def = d && _DEAL_CHIPS[d.dealType];
     if (!def) return '';
-    const via = d.via ? '／経由：' + d.via : '';   // 同業者の先のお客様なら経由先も添える
+    const via = d.via ? '／経由：' + (nameCanonOrSelf(d.via)) : '';   // 同業者の先のお客様なら経由先も添える
     return '<span class="cloud-deal cloud-deal--' + def.k + '" title="取引形態：' + escHtml(d.dealType + via) + '">' +
       def.ico + ' ' + def.lbl + '</span>';
   }
@@ -1606,6 +1607,7 @@
   }
   // ロックを失った（管理者が強制解放 or 他メンバーが引き継ぎ）→ 閲覧モードへ落とす
   function _onLockLost(id) {
+    _dirtyKept = _quoteDirty;   // 未保存の入力は残る。再度「編集」しても未保存の印を消さない
     _stopLockHeartbeat();
     if (_lockHeldId === id) _lockHeldId = null;
     _setEditing(null);
@@ -1614,6 +1616,7 @@
   }
   // 自分が長時間放置 → 自分でロックを解放して閲覧モードへ（他メンバーが編集できるように）
   function _onSelfIdleRelease(id) {
+    _dirtyKept = _quoteDirty;   // 未保存の入力は残る。再度「編集」しても未保存の印を消さない
     _stopLockHeartbeat();
     _releaseLock(id);
     if (_lockHeldId === id) _lockHeldId = null;
@@ -1646,6 +1649,7 @@
   }
 
   // ========== 作業モード（閲覧／編集）：開く=閲覧、編集でロック取得、保存=作業終了で解放 ==========
+  var _dirtyKept = false;   // 編集権を失って閲覧に落ちたとき、未保存の入力があったか（再編集しても未保存扱いを続ける）
   let _shareMode = 'edit';   // 'edit'（新規・自分が編集中）| 'view'（共有案件を閲覧中・読み取り専用）
 
   function _applyShareMode(mode) {
@@ -1701,7 +1705,8 @@
     }
     _setEditing(_loadedCloudId);     // Presence：あなたが作業中
     _applyShareMode('edit');
-    _resetQuoteDirty();              // 編集開始直後は未保存なし
+    if (_dirtyKept) { _dirtyKept = false; _quoteDirty = true; }   // 放置・奪取で閲覧に落ちた時の未保存の入力は残っている
+    else _resetQuoteDirty();         // 編集開始直後は未保存なし
     quoteShowToast('✏️ 編集を開始しました（あなたが作業中・他メンバーは削除/上書き不可）', 'success', 3500);
   }
 
@@ -1761,7 +1766,7 @@
   // 未保存検知：編集モード中のユーザー入力で dirty=true、保存/読込/新規でクリア
   var _quoteDirty = false;
   function _markQuoteDirty() { if (_shareMode === 'edit') _quoteDirty = true; }
-  function _resetQuoteDirty() { setTimeout(function () { _quoteDirty = false; }, 0); }
+  function _resetQuoteDirty() { _dirtyKept = false; setTimeout(function () { _quoteDirty = false; }, 0); }
   // 未保存の変更があるときの確認ダイアログ（保存／破棄／中止の 3 択）。
   // ブラウザ標準の confirm は 2 択しか作れず「その場で保存する」導線が作れないため、
   // 専用のモーダルを出す。戻り値 true＝そのまま進んでよい／false＝操作を中止する。
@@ -1939,6 +1944,7 @@
     if (typeof setCurrentQuoteName === 'function') setCurrentQuoteName('');
     _applyShareMode('edit');
     qpShowEditor();
+    window.scrollTo({ top: 0, behavior: 'instant' });   // ダッシュボードを下までスクロールしていても、新規は先頭から
     qfRenderAttachments();
     if (typeof window.ciApplyNewCaseDefaults === 'function') window.ciApplyNewCaseDefaults();
     _resetQuoteDirty();
@@ -3053,6 +3059,7 @@
     if (typeof closePresetMgr === 'function') closePresetMgr();
     _applyShareMode('view');   // 読み取り専用。編集するには「✏️ 編集」
     qpShowEditor();            // ダッシュボードからエディタ画面へ
+    window.scrollTo({ top: 0, behavior: 'instant' });   // 一覧を下までスクロールして開いても、案件は先頭（管理番号）から見せる
     if (typeof window.eiRefreshPendingBanner === 'function') window.eiRefreshPendingBanner();   // 📩 未取込の帯
     qfRenderAttachments();     // この案件の添付一覧を表示
     _resetQuoteDirty();        // 読込直後は未保存なし
@@ -3518,7 +3525,12 @@
     if (_qtab) { _qtab.addEventListener('input', _markUnlessImportModal); _qtab.addEventListener('change', _markUnlessImportModal); }
     // タブを閉じる/離れる時はロックを即時解放（best-effort。失敗しても90秒で自動失効）
     window.addEventListener('pagehide', () => { if (_lockHeldId) _dropLock(); });
-    window.addEventListener('beforeunload', () => { if (_lockHeldId) _dropLock(); });
+    window.addEventListener('beforeunload', (e) => {
+      // 編集中に未保存の変更があるまま再読込・タブを閉じようとしたら、ブラウザ標準の確認を出す（自動保存は廃止済みで、そのままだと入力が消える）。
+      // 実際に離れるとき（pagehide）にロックは解放されるので、ここでは確認を出す場合は解放しない（「このページに留まる」を選んでも編集を続けられる）。
+      if (_quoteDirty && _shareMode === 'edit') { e.preventDefault(); e.returnValue = ''; return; }
+      if (_lockHeldId) _dropLock();
+    });
     const c = _getClient();
     if (!c) { _renderCloudAuth(); return; }
 

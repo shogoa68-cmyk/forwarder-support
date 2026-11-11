@@ -92,6 +92,12 @@ body {
   .hdr-cloud-login { padding: var(--sp-6) var(--sp-10); font-size: var(--fs-12); }
 }
 
+/* ===== タブレット幅：ボタンが多く、見出しが 1 文字ずつ縦に潰れる／ページが横に溢れるため折り返す ===== */
+@media (min-width: 601px) and (max-width: 1000px) {
+  .header { flex-wrap: wrap; row-gap: var(--sp-10); }
+  .header-main { flex: 1 1 100%; }
+}
+
 /* ===== スマホ：ヘッダーをコンパクト化 ===== */
 @media (max-width: 600px) {
   .header {
