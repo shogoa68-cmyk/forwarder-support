@@ -19,7 +19,7 @@ const ok=(n,c,x)=>{console.log((c?'PASS ':'FAIL ')+n+(c?'':' → '+JSON.stringif
   await p.goto(URL,{waitUntil:'domcontentloaded'});await p.waitForTimeout(700);
   await p.evaluate(()=>{const t=document.querySelector('[onclick*="quote-make"]');t&&t.click();});await p.waitForTimeout(900);
   await p.evaluate(()=>window.qpShowEditor&&window.qpShowEditor());await p.waitForTimeout(500);
-  const chk=sel=>p.evaluate(s=>{const e=document.querySelector(s);const r=e.getBoundingClientRect();const cy=(Math.max(r.top,0)+Math.min(r.bottom,innerHeight))/2;const h=document.elementFromPoint(Math.min(Math.max(r.left+r.width/2,0),innerWidth-1),cy);return {top:Math.round(r.top),bot:Math.round(r.bottom),el:h&&(h.tagName+'.'+String(h.className).slice(0,30)),l:Math.round(r.left),r:Math.round(r.right),vw:innerWidth,in:r.left>=-1&&r.right<=innerWidth+1,hit:!!(h&&h.closest(s))};},sel);
+  const chk=sel=>p.evaluate(s=>{const e=document.querySelector(s);const r=e.getBoundingClientRect();const cy=(Math.max(r.top,0)+Math.min(r.bottom,innerHeight))/2;const h=document.elementFromPoint(Math.min(Math.max(r.left+r.width/2,0),innerWidth-1),cy);return {l:Math.round(r.left),r:Math.round(r.right),vw:innerWidth,in:r.left>=-1&&r.right<=innerWidth+1,hit:!!(h&&h.closest(s))};},sel);
   await p.evaluate(()=>{document.getElementById('section-table').scrollIntoView();window.scrollBy(0,200)});await p.waitForTimeout(300);
   await p.evaluate(()=>{document.getElementById('cmdbarMore').open=true});await p.waitForTimeout(250);
   const m=await chk('.cmdbar-more-pop');ok(`${w}px：「⋯」のメニューが画面内に収まり押せる`,m.in&&m.hit,m);
