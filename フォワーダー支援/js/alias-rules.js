@@ -1647,6 +1647,7 @@
     sv:      [
       _FURIGANA_FIELD,
       _EN_FIELD,
+      { key: 'website', label: 'ウェブサイト（URL）', link: true, placeholder: '例）https://example.com' },
       // 種別（複数選べる。ひな形のほか、自由に追加した種別はチーム内で候補に出る）
       { key: 'svTypes', label: 'サブコン種別', tags: true, addPlaceholder: '種別を追加（例：トラック手配）',
         presets: ['通関業者', '倉庫業者', '運送業者', 'FCL CARRIER', 'LCL CARRIER', 'AIR CARRIER', 'RORO CARRIER', '在来船 CARRIER', '海外代理店', '保険会社', 'サーベイヤー'] },

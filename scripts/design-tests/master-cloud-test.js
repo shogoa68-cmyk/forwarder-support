@@ -1155,6 +1155,23 @@ const http = require('http'), fs = require('fs'), path = require('path');
     await ctx.close();
   }
 
+  // ===== サブコンの詳細にウェブサイト（URL）を入れられる =====
+  {
+    const { ctx, p, errs } = await open(true, { legacy: {}, noLegacy: true });
+    const L = '[サブコンのURL] ';
+    await p.evaluate(async () => { window.__db.master_votes.push({ field: 'sv', value: 'URLテスト運輸', voter_email: 's@example.com' }); await statsLoadMasterCache(); await mdLoadCloud(); });
+    await p.evaluate(() => { switchCategory('master', document.querySelector('[onclick*="switchCategory(\'master"]')); }); await p.waitForTimeout(1000);
+    await p.evaluate(() => statsMasterSetFilter('sv')); await p.waitForTimeout(300);
+    await p.evaluate(() => document.querySelector('#statsPane-master tr[data-mvalue="URLテスト運輸"] .stats-master-detail-btn').click()); await p.waitForTimeout(500);
+    ok(L + '詳細にウェブサイト（URL）の欄がある', await p.evaluate(() => !!document.querySelector('#md_website')));
+    await p.fill('#md_website', 'https://sub.example.com/'); await p.click('.master-detail-save'); await p.waitForTimeout(800);
+    ok(L + '保存される', await p.evaluate(() => ((window.__db.master_details.find(m => m.value === 'URLテスト運輸') || { details: {} }).details || {}).website === 'https://sub.example.com/'));
+    await p.click('#statsPane-master tr[data-mvalue="URLテスト運輸"] .master-name-toggle'); await p.waitForTimeout(200);
+    ok(L + 'カードを開くとリンクとして表示される', await p.evaluate(() => { const a = document.querySelector('#statsPane-master tr[data-mvalue="URLテスト運輸"] a.stats-md-link'); return !!a && a.getAttribute('href') === 'https://sub.example.com/' && a.target === '_blank'; }));
+    ok(L + 'JS エラーなし', errs.length === 0, errs);
+    await ctx.close();
+  }
+
   // ===== マスター管理の種別チップの並び：すべて｜サブコン｜お客様｜港｜品名｜単位 =====
   {
     const { ctx, p, errs } = await open(true, { legacy: {}, noLegacy: true });
