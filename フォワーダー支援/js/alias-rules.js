@@ -500,6 +500,10 @@
     if (typeof window.zscRefreshLists === 'function') window.zscRefreshLists();   // 出発地側・到着地側のデフォルトサブコンの候補（得意エリアで絞る）
     if (typeof window.ptcRefreshLists === 'function') window.ptcRefreshLists();   // 国で絞った港の候補（POL／経由地／POD）も作り直す
     if (typeof window.refreshAllRowSvChips === 'function') window.refreshAllRowSvChips();   // マスターが読み込まれた・変わったら、行の「サブコン未登録」の印も更新
+    // お客様の詳細ボタン・ご担当者の候補・取引ルールの帯、品名の詳細ボタンも、マスター（詳細・別名）の変更に追従させる
+    // （以前は見積タブを開いた最初の読込直後と、お客様名を打ったときしか更新されなかった）
+    if (document.getElementById('qf-customer') && typeof window.qfRefreshCustomerDetailBtn === 'function') window.qfRefreshCustomerDetailBtn();
+    if (typeof window.refreshAllRowMasterDetailBtns === 'function') window.refreshAllRowMasterDetailBtns();
   };
 
   // === クイック登録ステート ===
@@ -744,7 +748,7 @@
   };
 
   async function _afterChange() {
-    _refreshDatalist();
+    window.arRefreshDatalist();   // 入力候補だけでなく、サブコン見出しの印・国で絞った港の候補なども更新する
     if (typeof window.arRenderPane === 'function') await window.arRenderPane();
   }
 
@@ -1292,7 +1296,7 @@
 
   async function _synAfter(toast) {
     await window.synLoadCloud();
-    _refreshDatalist();
+    window.arRefreshDatalist();   // 別名・マスター名が変わったら、サブコン見出しの印・詳細ボタン・港の候補も更新する
     if (typeof window.statsRerenderActive === 'function') window.statsRerenderActive();
     else if (typeof window.statsRefresh === 'function') await window.statsRefresh();
     const failed = _synWriteFailed; _synWriteFailed = false;   // 書き込みが失敗していたら成功表示は出さない（理由は _synFail が出している）
