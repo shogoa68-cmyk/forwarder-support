@@ -1790,8 +1790,8 @@
     return (n && bill > 0 && window.SharedCalc) ? SharedCalc.grossMarginPct(bill, cost) : null;
   }
 
-  function _wrCases(source, lostMode) {
-    const period = document.getElementById('statsPeriod')?.value || 'all';
+  function _wrCases(source, lostMode, allTime) {
+    const period = allTime ? 'all' : (document.getElementById('statsPeriod')?.value || 'all');
     const now = Date.now();
     const cutoff = { all: 0, month: now - 30 * 86400000, q3: now - 91 * 86400000, year: now - 365 * 86400000 }[period] || 0;
     const out = [];
@@ -1817,6 +1817,40 @@
     if (source !== 'local') (typeof window.cloudGetAllRows === 'function' ? window.cloudGetAllRows() : []).forEach(p => add(p, true));
     return out;
   }
+
+  // 見積入力画面の診断カード用：過去の提示後の案件から、お客様別・粗利率帯別の受注実績を返す（期間は全期間）。
+  // 案件ごとの粗利率の計算が重いので、結果は 60 秒（または案件数が変わるまで）使い回す。
+  let _diagCache = null;
+  function _diagCases() {
+    const rows = typeof window.cloudGetAllRows === 'function' ? window.cloudGetAllRows() : [];
+    const n = rows.length, now = Date.now();
+    if (_diagCache && _diagCache.n === n && now - _diagCache.at < 60000) return _diagCache.cases;
+    const cases = _wrCases('both', false, true);
+    cases.forEach(c => { c.cn = c.customer ? _normalize(c.customer, 'customer') : ''; });
+    _diagCache = { n, at: now, cases };
+    return cases;
+  }
+  // opts: {customer, mode, dir, margin}  →  {total:{n,won}, customer:{n,won,avgWon,avgLost}|null, band:{label,n,won}|null}
+  window.statsDiagHistory = function (opts) {
+    opts = opts || {};
+    let cases = _diagCases();
+    if (opts.mode) cases = cases.filter(c => !c.mode || c.mode === opts.mode);
+    if (opts.dir) cases = cases.filter(c => !c.dir || c.dir === opts.dir);
+    const won = list => list.filter(c => c.status === '受注').length;
+    const avg = list => { const v = list.filter(c => c.margin != null).map(c => c.margin); return v.length ? v.reduce((a, b) => a + b, 0) / v.length : null; };
+    const out = { total: { n: cases.length, won: won(cases) }, customer: null, band: null };
+    const cn = opts.customer ? _normalize(opts.customer, 'customer') : '';
+    if (cn) {
+      const mine = cases.filter(c => c.cn === cn);
+      if (mine.length) out.customer = { n: mine.length, won: won(mine), avgWon: avg(mine.filter(c => c.status === '受注')), avgLost: avg(mine.filter(c => c.status === '失注')) };
+    }
+    if (typeof opts.margin === 'number' && isFinite(opts.margin)) {
+      const b = _WR_BANDS.find(x => opts.margin >= x.min && opts.margin < x.max);
+      if (b) { const inB = cases.filter(c => c.margin != null && c.margin >= b.min && c.margin < b.max); out.band = { label: b.label, n: inB.length, won: won(inB) }; }
+    }
+    out.winRate = _winRatePct;
+    return out;
+  };
 
   window.statsWrSet = function (key, val) {
     _wr[key] = val; _listLimit = {};

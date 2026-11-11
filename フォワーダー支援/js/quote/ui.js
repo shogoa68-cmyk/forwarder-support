@@ -3456,6 +3456,8 @@
 
     if (!activeRows.length) {
       panel.innerHTML = '<p class="qsp-empty">費用項目を入力すると<br>ここにまとめが表示されます</p>';
+      window._qspLast = null;
+      if (typeof window.qdgRender === 'function') window.qdgRender();
       return;
     }
 
@@ -3547,6 +3549,8 @@
       <div class="qsp-tax-row qsp-tax-amt"><span>${taxLabel}</span><span>¥${fmtJPY(taxAmt)}</span></div>
       ${hasFx ? '<p class="qsp-fx-note">※ 外貨は現在の参照レートで換算（概算）</p>' : ''}
     `;
+    window._qspLast = { count: activeRows.length, bill: totalBillJPY, cost: totalCostJPY, mk: mkPct, hasFx };   // 診断カード（diagnosis.js）が読む
+    if (typeof window.qdgRender === 'function') window.qdgRender();
     if (typeof window.renderQuoteSectionDigest === 'function') window.renderQuoteSectionDigest();
   };
 
@@ -4549,7 +4553,7 @@
     // 金額タブ：費用項目数
     const rows = document.querySelectorAll('#tableBody tr [data-field="nm"]').length;
     const finBtn = document.getElementById('qspTabBtn-fin');
-    if (finBtn) finBtn.innerHTML = '💰 金額' + (rows ? ' <span class="qsp-tab-badge">' + rows + '</span>' : '');
+    if (finBtn) finBtn.innerHTML = '💰 金額' + (rows ? ' <span class="qsp-tab-badge">' + rows + '</span>' : '') + (window._qdgCount ? ' <span class="qsp-tab-badge qsp-tab-badge-warn" title="見積の診断で要確認の点があります">!</span>' : '');
     // 輸送タブ：作業範囲が出ていれば●
     const hasFlow = document.getElementById('qspMilestones') && document.getElementById('qspMilestones').style.display !== 'none';
     const flowBtn = document.getElementById('qspTabBtn-flow');
