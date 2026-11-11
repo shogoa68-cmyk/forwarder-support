@@ -43,7 +43,8 @@
 
   // クリック対象が「選択トグルの対象外」(操作ボタン・ドラッグハンドル・チェック自身)か
   function isExempt(target) {
-    return !!(target.closest('.btn-del, .btn-add, .btn-subtotal, .btn-remark-ins, .drag-handle, .cnt-link-btn')
+    // 行の操作ボタン（➕複製🗑️・その他 ▾・フラグ類など）は <button>。押しても選択は切り替えない
+    return !!(target.closest('button, a[href], .btn-del, .btn-add, .btn-subtotal, .btn-remark-ins, .drag-handle, .cnt-link-btn')
            || (target.classList && target.classList.contains('row-select-chk')));
   }
 
