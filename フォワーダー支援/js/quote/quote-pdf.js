@@ -105,6 +105,7 @@
     estimateTag:    ['約', 'Approx.'],
     unpriced:       ['実費', 'At Cost'],
     minApplied:     ['[MIN適用]', '[MIN applied]'],
+    rateApplied:    ['[従量適用]', '[Rate applied]'],   // 最低料金がある行で、数量×単価（従量）のほうが最低料金を上回り、従量で請求している
     conditional:    ['（発生時/必要時のみ）', '(If applicable)'],
     reference:      ['（参考情報）', '(For reference)'],
     noPattern:      ['（パターン未設定）', '(No pattern)'],
@@ -658,8 +659,8 @@
           : isNonJpy
           ? `${fmtNum(r.bp, 2)} ${esc(r.bc)}`
           : `${Number.isInteger(r.bp) ? fmtInt(r.bp) : fmtNum(r.bp, 2)} JPY`)
-        // 最低料金が「数量 × 単価」を上回り、最低料金で請求している行は、その旨を明記する
-        + (sub > (r.bq || 0) * (r.bp || 0) ? ` <span class="qd-min-tag">${t('minApplied')}</span>` : '');
+        // 最低料金がある行は、どちらで請求しているか（最低料金／従量＝数量×単価）を明記する。幅（〜）の行は最低料金を適用したときだけ
+        + (() => { const k = (typeof minAppliedKind === 'function') ? minAppliedKind(r.bq, r.bp, r.bpmin) : null; return (k === 'min' || (k === 'rate' && !_rg && !isActual)) ? ` <span class="qd-min-tag qd-min-${k}">${t(k === 'min' ? 'minApplied' : 'rateApplied')}</span>` : ''; })();
       // 御見積書は客先向け公式文書のため、社内メモ(r.note)は出力しない（E-1 備考漏洩対策）
       // 数量は金額の根拠（sub = bq×bp）と一致させる。未入力時に「1」を捏造しない（B/台帳 C）
       const qtyDisp = (r.bq && r.bq > 0) ? fmtNum(r.bq, 4) : '—';
