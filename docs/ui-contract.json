@@ -4684,6 +4684,10 @@
    "html": true,
    "js": true
   },
+  "latest": {
+   "html": false,
+   "js": true
+  },
   "lc-carrier": {
    "html": false,
    "js": true
@@ -5199,6 +5203,7 @@
   "js/quote/right-rail.js",
   "js/ui-confirm.js",
   "js/announcements.js",
+  "js/update-check.js",
   "js/feedback-md.js",
   "js/feedback-annotate.js",
   "js/feedback.js",
