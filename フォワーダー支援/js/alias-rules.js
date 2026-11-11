@@ -1587,7 +1587,7 @@
   const _DEAL_SHIPPER = '荷主（直接）', _DEAL_FWD = '同業者（フォワーダー・代理店）';
   window.MD_DEAL_FWD = _DEAL_FWD;
   const _DEAL_FIELD = { key: 'dealType', label: '取引形態', options: [
-    { value: '', label: '（未設定）' }, { value: _DEAL_SHIPPER, label: _DEAL_SHIPPER }, { value: _DEAL_FWD, label: _DEAL_FWD }, { value: 'その他', label: 'その他' },
+    { value: '', label: '（未設定）' }, { value: _DEAL_SHIPPER, label: _DEAL_SHIPPER }, { value: _DEAL_FWD, label: _DEAL_FWD }, { value: '海外代理店', label: '海外代理店' }, { value: 'その他', label: 'その他' },
   ] };
   const _VIA_FIELD = { key: 'via', label: '経由する同業者', via: true };
   const _CHILDREN_FIELD = { key: 'viaChildren', label: '先のお客様（この同業者のお客様）', children: true };

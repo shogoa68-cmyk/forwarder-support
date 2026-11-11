@@ -1172,6 +1172,34 @@ const http = require('http'), fs = require('fs'), path = require('path');
     await ctx.close();
   }
 
+  // ===== 海外代理店（取引形態）／サブコンとお客様の両方に登録されている会社 =====
+  {
+    const { ctx, p, errs } = await open(true, { legacy: {}, noLegacy: true });
+    const L = '[海外代理店・互恵] ';
+    await p.evaluate(async () => {
+      const V = (f, v) => window.__db.master_votes.push({ field: f, value: v, voter_email: 's@example.com' });
+      V('customer', 'ABC Agency'); window.__db.master_details.push({ field: 'customer', value: 'ABC Agency', details: { dealType: '海外代理店' } });
+      V('sv', 'ABC Agency'); V('sv', 'サブコンだけ社'); V('customer', 'お客様だけ社');
+      await statsLoadMasterCache(); await mdLoadCloud();
+    });
+    await p.evaluate(() => { switchCategory('master', document.querySelector('[onclick*="switchCategory(\'master"]')); }); await p.waitForTimeout(1000);
+    await p.evaluate(() => statsMasterSetFilter('customer')); await p.waitForTimeout(300);
+    ok(L + '取引形態に「海外代理店」がある', await p.evaluate(() => { statsToggleMasterDetail('customer', 'ABC Agency'); return [...document.querySelectorAll('#md_dealType option')].some(o => o.value === '海外代理店'); }));
+    await p.evaluate(() => statsCloseMasterDetail());
+    ok(L + '海外代理店は専用の色（agent）になる', await p.evaluate(() => (document.querySelector('#statsPane-master tr[data-mvalue="ABC Agency"]') || { dataset: {} }).dataset.deal === 'agent'));
+    await p.evaluate(() => statsMasterSetSort('deal')); await p.waitForTimeout(250);
+    ok(L + '「取引形態ごとにまとめる」に海外代理店の見出しが出る', await p.evaluate(() => !!document.querySelector('#statsPane-master tr.mtg-deal[data-deal="agent"]')));
+    await p.evaluate(() => statsMasterSetSort('name')); await p.waitForTimeout(250);
+    const chip = n => p.evaluate(v => { const c = document.querySelector('#statsPane-master tr[data-mvalue="' + v + '"] .stats-md-both'); return c ? c.textContent.trim() : ''; }, n);
+    ok(L + 'お客様側に「サブコンにも登録」の印（両方に登録された会社だけ）', (await chip('ABC Agency')).includes('サブコンにも登録') && (await chip('お客様だけ社')) === '');
+    await p.evaluate(() => statsMasterSetFilter('sv')); await p.waitForTimeout(250);
+    ok(L + 'サブコン側に「お客様にも登録」の印', (await chip('ABC Agency')).includes('お客様にも登録') && (await chip('サブコンだけ社')) === '');
+    await p.click('#statsPane-master tr[data-mvalue="ABC Agency"] .stats-md-both'); await p.waitForTimeout(900);
+    ok(L + '印を押すと、もう一方（お客様）の同じ会社へ移る', await p.evaluate(() => !!document.querySelector('#statsPane-master tr[data-mfield="customer"][data-mvalue="ABC Agency"]')));
+    ok(L + 'JS エラーなし', errs.length === 0, errs);
+    await ctx.close();
+  }
+
   // ===== マスター管理の種別チップの並び：すべて｜サブコン｜お客様｜港｜品名｜単位 =====
   {
     const { ctx, p, errs } = await open(true, { legacy: {}, noLegacy: true });
