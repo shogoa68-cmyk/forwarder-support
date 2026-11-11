@@ -234,6 +234,30 @@ function eq(a, b, name) { ok(JSON.stringify(a) === JSON.stringify(b), name, ' �
     await p.selectOption('#cptPortSel', 'JPTYO');
   }
 
+  // 一覧が長くても、下へスクロールしたときに右の詳細（流れ）が画面に残る・最後の行が固定ボタンに隠れない
+  {
+    const many = Array.from({ length: 30 }, (_, i) => ({ terminalCode: 'TYOAJ00C', vessel: { vesselName: 'LONG-' + String(i + 1).padStart(2, '0'), voyageNo: 'L' + i, portOfDischarge: portObj('JPTYO', 'B' + i, iso((i + 1) * 5 * H), iso((i + 1) * 5 * H + 20 * H)) } }));
+    respond = router({ '/API/v2/Terminals/GetList': () => okBody('Terminals/GetList', termList), '/API/v2/ColinsViewers/GetImportVessels': () => okBody('ColinsViewers/Vessels', many) });
+    await p.selectOption('#cptPortSel', 'JPTYO'); await p.click('.cpt-seg [data-dir="import"]'); await p.fill('#cptVessel', '');
+    await p.click('#cptColinsV');
+    await p.waitForFunction(() => document.querySelectorAll('#cptList .cpt-row').length === 30);
+    await p.evaluate(() => window.scrollTo(0, 0));
+    const pane = () => p.evaluate(() => { const e = document.querySelector('#cptSplit .cpt-detailpane'); const r = e.getBoundingClientRect(); return { top: Math.round(r.top), bottom: Math.round(r.bottom), h: window.innerHeight, pos: getComputedStyle(e).position }; });
+    eq((await pane()).pos, 'sticky', '一覧が長いとき：右の詳細は画面に追従する設定（sticky）');
+    await p.evaluate(() => window.scrollTo(0, 900));
+    const a = await pane();
+    ok(a.top >= 0 && a.top <= 130 && a.bottom > 200, '一覧を下へスクロールしても、右の詳細は画面の上のほうに残る', JSON.stringify(a));
+    await p.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+    const b = await pane();
+    ok(b.top >= 0 && b.top <= 130, '一番下までスクロールしても、右の詳細は画面に残る', JSON.stringify(b));
+    const last = await p.evaluate(() => { const rows = document.querySelectorAll('#cptList .cpt-row'); const r = rows[rows.length - 1].getBoundingClientRect(); return { bottom: Math.round(r.bottom), h: window.innerHeight }; });
+    ok(last.bottom <= last.h - 60, '一番下までスクロールすると、最後の行は画面下の固定ボタンより上に出る（隠れない）', JSON.stringify(last));
+    await p.evaluate(() => window.scrollTo(0, 0));
+    await p.setViewportSize({ width: 600, height: 900 });
+    eq(await p.evaluate(() => getComputedStyle(document.querySelector('#cptSplit .cpt-detailpane')).position), 'static', 'スマホ幅では追従させない（一覧→詳細の切替のまま）');
+    await p.setViewportSize({ width: 1280, height: 1000 });
+  }
+
   // ===== コンテナ（輸入） =====
   await p.click('.cpt-tab[data-tab="ctn"]'); await p.click('.cpt-seg [data-dir="import"]');
   const c3 = (no, pick, ret, over) => Object.assign({ terminalCode: 'TYOAJ00C', container: { containerNo: no, lengthName: '40ft', containerTypeName: 'HC' }, vessel: { vesselName: 'V', voyageNo: '1' },

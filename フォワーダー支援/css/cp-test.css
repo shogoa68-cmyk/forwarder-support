@@ -8,7 +8,7 @@
   --cpt-line: var(--border, #e2e6ec); --cpt-line2: var(--border-md, #c8cfd9);
   --cpt-sunken: var(--surface-warm, #f6f7f9); --cpt-ink3: var(--text-muted, #667085);
 }
-#tab-cptest .cpt-root { display: flex; flex-direction: column; gap: 14px; max-width: 1180px; }
+#tab-cptest .cpt-root { display: flex; flex-direction: column; gap: 14px; max-width: 1180px; padding-bottom: 88px; /* 画面下の固定ボタン（← 見積もりに戻る）に、一覧の最後の行が隠れないように */ }
 #tab-cptest .cpt-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 #tab-cptest .cpt-title { margin: 0; font-size: var(--text-xl, 18px); color: var(--accent-dk); }
 #tab-cptest .cpt-head-r { margin-left: auto; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
@@ -41,7 +41,8 @@
 
 /* カード・タブ・検索欄 */
 #tab-cptest .cpt-card { background: var(--surface); border: 1px solid var(--cpt-line); border-radius: 10px; }
-#tab-cptest .cpt-shell { overflow: hidden; }
+/* overflow:hidden だと中の sticky（右の詳細の追従）が効かないので、角を切るだけの clip にする（対応外の古い端末は hidden のまま） */
+#tab-cptest .cpt-shell { overflow: hidden; overflow: clip; }
 #tab-cptest .cpt-tabs { display: flex; padding: 0 16px; border-bottom: 1px solid var(--cpt-line); overflow-x: auto; }
 #tab-cptest .cpt-tab { all: unset; cursor: pointer; padding: 12px 4px; margin-right: 22px; font-size: var(--text-base, 14px); font-weight: 600; color: var(--cpt-ink3); border-bottom: 2px solid transparent; white-space: nowrap; display: inline-flex; align-items: center; gap: 6px; }
 #tab-cptest .cpt-tab[aria-selected="true"] { color: var(--text); border-bottom-color: var(--accent); }
@@ -59,6 +60,13 @@
 #tab-cptest .cpt-split { display: flex; flex-wrap: wrap; }
 #tab-cptest .cpt-listpane { flex: 1 1 300px; max-width: 100%; border-right: 1px solid var(--cpt-line); min-width: 0; }
 #tab-cptest .cpt-detailpane { flex: 2 1 360px; padding: 16px 20px; min-width: 0; display: flex; flex-direction: column; gap: 14px; }
+/* 一覧を下へスクロールしても、選んだ 1 件の詳細（流れ）は画面の上に残す（左右に並んでいるとき）。詳細が長いときは、その中だけスクロール */
+@media (min-width: 761px) {
+  #tab-cptest .cpt-detailpane {
+    position: sticky; top: calc(var(--nav-cat-h, 56px) + 8px); align-self: flex-start;
+    max-height: calc(100vh - var(--nav-cat-h, 56px) - 24px); overflow-y: auto;
+  }
+}
 #tab-cptest .cpt-filter { padding: 8px 14px; display: flex; gap: 6px; flex-wrap: wrap; align-items: center; border-bottom: 1px solid var(--cpt-line); }
 #tab-cptest .cpt-filter:empty { display: none; }
 #tab-cptest .cpt-legend { flex: 1 0 100%; font-size: var(--text-xs, 12px); color: var(--cpt-ink3); }
