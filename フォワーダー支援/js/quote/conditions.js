@@ -15,7 +15,7 @@
      'cond-origin-country','cond-dest-country','z1Place','z1Country','z3Place','z3Country',
      'cond-container-count']
       .forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
-    ['cond-incoterms','cond-incoterms-ret','cond-mode','cond-container-type','cond-hazmat']
+    ['cond-incoterms','cond-incoterms-ret','cond-handling','cond-mode','cond-container-type','cond-hazmat']
       .forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
     const _unkEl = document.getElementById('cond-cargo-unknown');
     if (_unkEl) _unkEl.checked = false;
@@ -85,6 +85,8 @@
       incoterms: (g('cond-incoterms') === '設定なし' ? '' : g('cond-incoterms')), mode: g('cond-mode'), container,
       // 往復案件（輸出→輸入など）で、復路のインコタームズが往路と異なるときだけ入る（空＝往路と同じ）
       incotermsRet: (dirIsRound(_currentDirection) && g('cond-incoterms-ret') !== '設定なし') ? g('cond-incoterms-ret') : '',
+      // 荷役条件（RO/RO・在来船の BTBT／FILO／LIFO／FIOS／FIOST）。インコタームズとは別に併記する
+      handling: g('cond-handling'),
       cargo: g('cond-cargo'), hsCode: g('cond-hs'),
       hsBasic: g('cond-hs-basic'), hsPref: g('cond-hs-pref'), hsPrefNote: g('cond-hs-pref-note'),
       weight: (typeof window.getCargoWeightText === 'function')
@@ -843,6 +845,7 @@
     if (typeof window.qfRenderRelChips === 'function') window.qfRenderRelChips();
     if (typeof window.ciSync === 'function') window.ciSync();
     if (typeof window.cfSync === 'function') window.cfSync();
+    if (typeof window.htSync === 'function') window.htSync();
     if (typeof window.rfSync === 'function') window.rfSync();
     if (typeof window.cgSync === 'function') window.cgSync();
     if (typeof window.updateRemarkChar === 'function') window.updateRemarkChar();

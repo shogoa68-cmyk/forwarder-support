@@ -12274,4 +12274,18 @@ body:has(#compareOverlay.open) #rmSheet { display: none !important; }
   #tab-quote-make #rmSheet .rms-grab { top: 6px; }
 }
 @media (prefers-reduced-motion: reduce) { #tab-quote-make #rmSheet .rms-body, #tab-quote-make #rmSheet .rms-chev { transition: none; } }
+/* 存在を知らせる合図：Mac の Dock のアイコンのように、小さくなりながら 3 回跳ねる（上りは減速・下りは加速）。
+   視差効果を減らす設定のときは動かさない。バーの高さ・持ち上げ量（--rms-lift）は変えない（transform のみ） */
+@keyframes rmsBounce {
+  0%   { transform: translateY(0);     animation-timing-function: cubic-bezier(.2, .7, .4, 1); }
+  14%  { transform: translateY(-22px); animation-timing-function: cubic-bezier(.6, 0, .9, .5); }
+  28%  { transform: translateY(0);     animation-timing-function: cubic-bezier(.2, .7, .4, 1); }
+  42%  { transform: translateY(-12px); animation-timing-function: cubic-bezier(.6, 0, .9, .5); }
+  56%  { transform: translateY(0);     animation-timing-function: cubic-bezier(.2, .7, .4, 1); }
+  68%  { transform: translateY(-5px);  animation-timing-function: cubic-bezier(.6, 0, .9, .5); }
+  78%, 100% { transform: translateY(0); }
+}
+#tab-quote-make #rmSheet.is-nudging > .rms-panel { animation: rmsBounce 1.15s both; }
+#tab-quote-make #rmSheet.is-nudging .rms-grab { background: var(--accent, #2a7ab0); }
+@media (prefers-reduced-motion: reduce) { #tab-quote-make #rmSheet.is-nudging > .rms-panel { animation: none; } }
 @media print { #rmSheet { display: none !important; } }

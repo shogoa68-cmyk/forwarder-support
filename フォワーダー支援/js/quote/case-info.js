@@ -127,7 +127,7 @@
     if (d && !d.value) { d.value = today(); changed(d); $('ciAutoDate') && ($('ciAutoDate').hidden = false); }
     if (v && v.type === 'date' && !v.value) { v.value = eom(d?.value || '', 0); changed(v); }
     sync();
-    if (window.cfSync) window.cfSync(); if (window.rfSync) window.rfSync();
+    if (window.cfSync) window.cfSync(); if (window.htSync) window.htSync(); if (window.rfSync) window.rfSync();
   };
 
   function init() {

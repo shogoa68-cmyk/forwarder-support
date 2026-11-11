@@ -90,6 +90,7 @@
     } else {
       add(ov, '建値', cond.incoterms);
     }
+    add(ov, '荷役条件', cond.handling);
     if (routes.length) {
       (routeLegItems(cond.direction, routes, false) || routes.map((r, i) => ({ r, label: routes.length === 1 ? '航路' : `航路${i + 1}` }))).forEach(({ r, label }) => {
         const carrier = [r.carrier, r.service ? `(${r.service})` : ''].filter(Boolean).join(' ');
