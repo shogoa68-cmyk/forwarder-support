@@ -1,0 +1,265 @@
+{
+  "_meta": {
+    "baseline": "2026-11-12"
+  },
+  "docs/sql/admin-edit-creator.sql": {
+    "status": "legacy",
+    "date": "2026-11-12",
+    "hash": "fb13e5cd4486ad9932096f33b1489f3b30c16699"
+  },
+  "docs/sql/alias-rules-add-customer.sql": {
+    "status": "legacy",
+    "date": "2026-11-12",
+    "hash": "995cdef31081baec6e30e70cda61deae5c58bac5"
+  },
+  "docs/sql/announcements.sql": {
+    "status": "legacy",
+    "date": "2026-11-12",
+    "hash": "eb394636385b9f05752fab96d6f03750dc6e830f"
+  },
+  "docs/sql/bookmark-clicks.sql": {
+    "status": "legacy",
+    "date": "2026-11-12",
+    "hash": "616b9260739990e5e3d3fe69a414c6a65493be42"
+  },
+  "docs/sql/bookmarks-files.sql": {
+    "status": "legacy",
+    "date": "2026-11-12",
+    "hash": "a2c97f87e132e20558d5153f34b25c2d76120f4e"
+  },
+  "docs/sql/bookmarks-migration.sql": {
+    "status": "legacy",
+    "date": "2026-11-12",
+    "hash": "d4abb381dad11f36771af412f0d86bacefb33c09"
+  },
+  "docs/sql/bookmarks-update-policy.sql": {
+    "status": "legacy",
+    "date": "2026-11-12",
+    "hash": "8533a4e4411f17d1fd650a734846d5dd9dfd7638"
+  },
+  "docs/sql/bookmarks-verifications.sql": {
+    "status": "legacy",
+    "date": "2026-11-12",
+    "hash": "e0e4aa85915261fa4eb6e795d8e03b7b912cf7a6"
+  },
+  "docs/sql/calendar-migration.sql": {
+    "status": "legacy",
+    "date": "2026-11-12",
+    "hash": "d38845946b7eac8842c0b34dc76d52838ab5972b"
+  },
+  "docs/sql/carrier-contacts.sql": {
+    "status": "legacy",
+    "date": "2026-11-12",
+    "hash": "cc134a3b556e0688747c008b2e382ff24b3ff892"
+  },
+  "docs/sql/carrier-relations.sql": {
+    "status": "legacy",
+    "date": "2026-11-12",
+    "hash": "11e0c4cbf7bcf4c1ac67ddb867602cb159e1d891"
+  },
+  "docs/sql/carrier-sv-migration-count.sql": {
+    "status": "legacy",
+    "date": "2026-11-12",
+    "hash": "a5003d86b81ebb9eee454c49b8d225e07f7695a2"
+  },
+  "docs/sql/cp-events.sql": {
+    "status": "legacy",
+    "date": "2026-11-12",
+    "hash": "44ae0e3559c0f8112500740fa089038286d311b2"
+  },
+  "docs/sql/cp-watch.sql": {
+    "status": "legacy",
+    "date": "2026-11-12",
+    "hash": "38f122827a984f20f0359777d998afe6450198e5"
+  },
+  "docs/sql/customer-cases.sql": {
+    "status": "legacy",
+    "date": "2026-11-12",
+    "hash": "c1aadd11c2626bfeb586457f5d138ee58f00b369"
+  },
+  "docs/sql/customer-rules.sql": {
+    "status": "legacy",
+    "date": "2026-11-12",
+    "hash": "904b474facb07b811ee94b7386bccefaa1760c1f"
+  },
+  "docs/sql/drift-log.sql": {
+    "status": "legacy",
+    "date": "2026-11-12",
+    "hash": "4f863a537d815dc452c0d32b0ec8275bba3d05ac"
+  },
+  "docs/sql/feedback-ai-export.sql": {
+    "status": "legacy",
+    "date": "2026-11-12",
+    "hash": "6e8ae85a9cbab426158b8d686a578eb4d2100045"
+  },
+  "docs/sql/feedback-comments.sql": {
+    "status": "legacy",
+    "date": "2026-11-12",
+    "hash": "957860f56b3ef47538a8d07e4f9122a5c4c086f2"
+  },
+  "docs/sql/feedback-reports.sql": {
+    "status": "legacy",
+    "date": "2026-11-12",
+    "hash": "3067825a24f1546a7378228db83001192bb89ecd"
+  },
+  "docs/sql/feedback-votes.sql": {
+    "status": "legacy",
+    "date": "2026-11-12",
+    "hash": "3d50bd91424f63f5f0bc0cf9531f20a758880ae8"
+  },
+  "docs/sql/master-approval.sql": {
+    "status": "legacy",
+    "date": "2026-11-12",
+    "hash": "123486b27cc60cb939324fa014bcd10d37502a1c"
+  },
+  "docs/sql/master-news.sql": {
+    "status": "legacy",
+    "date": "2026-11-12",
+    "hash": "6270c1445abc3f9d07b9394b15dba001297f6890"
+  },
+  "docs/sql/master-request-country.sql": {
+    "status": "legacy",
+    "date": "2026-11-12",
+    "hash": "a21e3049c0368f382147acdc41e78bb555c60282"
+  },
+  "docs/sql/quote-preset-editors.sql": {
+    "status": "legacy",
+    "date": "2026-11-12",
+    "hash": "3d96d9ea19b50ae67d56f17ec448a0ad18d38732"
+  },
+  "docs/sql/quote-preset-links.sql": {
+    "status": "legacy",
+    "date": "2026-11-12",
+    "hash": "91480af6220f915d8fb66499defe2ea6bbbbc3ca"
+  },
+  "docs/sql/quote-preset-ref.sql": {
+    "status": "legacy",
+    "date": "2026-11-12",
+    "hash": "c3944ef93f055b1c0decdf9adcc5c4474e72428b"
+  },
+  "docs/sql/quote-preset-tags.sql": {
+    "status": "legacy",
+    "date": "2026-11-12",
+    "hash": "9435623f0a2bac76bee3a313a7b77a36f72ec20e"
+  },
+  "docs/sql/remark-presets-cargo-verify.sql": {
+    "status": "legacy",
+    "date": "2026-11-12",
+    "hash": "3acb99b9dc7c0adeaefc5a4607de072f52770c97"
+  },
+  "docs/sql/stats-exclusions.sql": {
+    "status": "legacy",
+    "date": "2026-11-12",
+    "hash": "71180b6b0fcf88f10e4eba45ab1b8fb6561b5de4"
+  },
+  "docs/sql/synonym-groups-approval.sql": {
+    "status": "legacy",
+    "date": "2026-11-12",
+    "hash": "2ea558fcea95d34a6436a72fbe193a4c98dfbb23"
+  },
+  "docs/sql/translation-dict.sql": {
+    "status": "legacy",
+    "date": "2026-11-12",
+    "hash": "71acf9c2a320153f8fa3caf0025adbc14f9820e9"
+  },
+  "docs/sql/work-folders-storage.sql": {
+    "status": "legacy",
+    "date": "2026-11-12",
+    "hash": "f4a005d449de59d6157769ead17fc852275c4597"
+  },
+  "docs/sql/work-folders.sql": {
+    "status": "legacy",
+    "date": "2026-11-12",
+    "hash": "06fc4ee0d610d50a4fb9549606b2cef1dc0982d7"
+  },
+  "docs/supabase-alias-rules-setup.sql": {
+    "status": "legacy",
+    "date": "2026-11-12",
+    "hash": "cb54157a43d7b2d7445fa834f4f16ef93edd0b65"
+  },
+  "docs/supabase-attachments-setup.sql": {
+    "status": "legacy",
+    "date": "2026-11-12",
+    "hash": "fdb5473326b4b024d30216ca0433b2fe453cc7c7"
+  },
+  "docs/supabase-charge-notices.sql": {
+    "status": "legacy",
+    "date": "2026-11-12",
+    "hash": "f20ace98c88aef559becd07dde23d2a0b5ee7536"
+  },
+  "docs/supabase-chat-setup.sql": {
+    "status": "legacy",
+    "date": "2026-11-12",
+    "hash": "5da7a814f3e227a77b0c38e5701484220b5e3ff2"
+  },
+  "docs/supabase-local-charges-migration.sql": {
+    "status": "legacy",
+    "date": "2026-11-12",
+    "hash": "5b949810537bd253dea9f688e270dad18a70206a"
+  },
+  "docs/supabase-local-charges-setup.sql": {
+    "status": "legacy",
+    "date": "2026-11-12",
+    "hash": "30bc6952cbc20010fac3e6745114f89e2b9989e6"
+  },
+  "docs/supabase-local-charges-storage.sql": {
+    "status": "legacy",
+    "date": "2026-11-12",
+    "hash": "2f795de794007f230aba05a72368d939d1fb76ba"
+  },
+  "docs/supabase-local-charges-taxable.sql": {
+    "status": "legacy",
+    "date": "2026-11-12",
+    "hash": "4433f84bd54fab6aa85b3d2c3b1a0cf931f7b7c2"
+  },
+  "docs/supabase-master-attachments-setup.sql": {
+    "status": "legacy",
+    "date": "2026-11-12",
+    "hash": "1cccedd50a7473bc32dd84a0ef8c01b75f3bcf70"
+  },
+  "docs/supabase-master-details-setup.sql": {
+    "status": "legacy",
+    "date": "2026-11-12",
+    "hash": "bdc73c9717f53b8318849d38622b47b084981004"
+  },
+  "docs/supabase-master-votes-setup.sql": {
+    "status": "legacy",
+    "date": "2026-11-12",
+    "hash": "bf82583dba32a056a02d9b87bcdea1a5e43f2b62"
+  },
+  "docs/supabase-remark-presets-setup.sql": {
+    "status": "legacy",
+    "date": "2026-11-12",
+    "hash": "36960ad8bb71a214b4555bca008459fb83ef36c1"
+  },
+  "docs/supabase-row-patterns-direction-tags.sql": {
+    "status": "legacy",
+    "date": "2026-11-12",
+    "hash": "b1497302d34a48d28c6ce7a0f47d812493c7467e"
+  },
+  "docs/supabase-schema.sql": {
+    "status": "legacy",
+    "date": "2026-11-12",
+    "hash": "84d659e66b47673d244192c97a470c194d7011bb"
+  },
+  "docs/supabase-synonym-groups-setup.sql": {
+    "status": "legacy",
+    "date": "2026-11-12",
+    "hash": "406e957cf8a6f205a76faa53eeb689b49adc7981"
+  },
+  "fn:cp-proxy": {
+    "status": "legacy",
+    "date": "2026-11-12",
+    "hash": "9d01a8be9dea22870a9f4702ae5863bc5935dcf6"
+  },
+  "fn:cp-webhook": {
+    "status": "legacy",
+    "date": "2026-11-12",
+    "hash": "6ef33a0b0cdd2fe2cad45cc722776ab9396f69cd"
+  },
+  "fn:workfolder": {
+    "status": "legacy",
+    "date": "2026-11-12",
+    "hash": "b25593f5634a8234eeeeff8665fd68048547826d"
+  }
+}
