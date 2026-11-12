@@ -172,13 +172,46 @@
     }
   }
 
+
+  // ---- 名寄せの画面：絞り込みチップ（すべて／未整理のみ N／ゆらぎあり N）。既存の 2 つのチェックを操作するだけ ----
+  const NAME_PANES = ['sv', 'carrier', 'customer', 'nm', 'un', 'port'];
+  function injectFilter(paneKey) {
+    const pane = $('statsPane-' + paneKey); if (!pane || !mobile()) return;
+    const un = pane.querySelector('.sm-f-unorg input'), fl = pane.querySelector('.sm-f-fluct input');
+    let bar = pane.querySelector(':scope > .sm-fbar');
+    if (!un || !fl) { if (bar) bar.remove(); return; }
+    const S = typeof window.statsTodaySummary === 'function' ? window.statsTodaySummary({ names: true }) : null;
+    const c = (S && S.byPane && S.byPane[paneKey]) || null;
+    const all = !un.checked && !fl.checked;
+    const html = '<button type="button" class="sm-fchip" data-f="all" aria-pressed="' + all + '">すべて</button>' +
+      '<button type="button" class="sm-fchip" data-f="unorg" aria-pressed="' + un.checked + '">未整理のみ' + (c ? ' ' + c.unorg : '') + '</button>' +
+      '<button type="button" class="sm-fchip" data-f="fluct" aria-pressed="' + fl.checked + '">ゆらぎあり' + (c ? ' ' + c.blur : '') + '</button>';
+    if (bar && bar.dataset.h === html) return;
+    if (!bar) { bar = document.createElement('div'); bar.className = 'sm-fbar'; pane.insertBefore(bar, pane.firstChild); bar.addEventListener('click', e => {
+      const b = e.target.closest('[data-f]'); if (!b) return;
+      const p2 = pane, u = p2.querySelector('.sm-f-unorg input'), f2 = p2.querySelector('.sm-f-fluct input'); if (!u || !f2) return;
+      const k = b.getAttribute('data-f');
+      if (k === 'all') { if (u.checked) u.click(); const f3 = (p2.querySelector('.sm-f-fluct input')); if (f3 && f3.checked) f3.click(); }
+      else if (k === 'unorg') { if (f2.checked) { f2.click(); } const u2 = $('statsPane-' + paneKey).querySelector('.sm-f-unorg input'); if (u2) u2.click(); }
+      else { if (u.checked) { u.click(); } const f4 = $('statsPane-' + paneKey).querySelector('.sm-f-fluct input'); if (f4) f4.click(); }
+    }); }
+    bar.dataset.h = html; bar.innerHTML = html;
+  }
+  let moT = null;
+  function watchPanes() {
+    NAME_PANES.forEach(k => {
+      const pane = $('statsPane-' + k); if (!pane || pane.__smMo) return; pane.__smMo = true;
+      new MutationObserver(() => { clearTimeout(moT); moT = setTimeout(() => injectFilter(k), 30); }).observe(pane, { childList: true });
+    });
+  }
+
   // stats.js が集計を終えたとき（案件・マスターの読み込み後など）に今日の確認を更新する
   window.smOnStatsReady = function () { if (inited && mobile() && view === 'home') render(); };
   window.smShowHome = function () { if (!inited) init(); show('home'); };
 
   function init() {
     if (inited) return;
-    build(); wrapWrites(); inited = true; show('home');
+    build(); wrapWrites(); watchPanes(); inited = true; show('home');
   }
   function onMq() { const r = root(); if (!r) return; if (!mobile()) { r.classList.remove('sm-on', 'sm-view-home', 'sm-view-pane'); closeSheet(); } else { init(); show(view); } }
   if (mq.addEventListener) mq.addEventListener('change', onMq); else if (mq.addListener) mq.addListener(onMq);

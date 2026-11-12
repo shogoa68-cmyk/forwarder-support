@@ -820,9 +820,9 @@
     return '<div class="stats-sort-toolbar"><span class="stats-sort-label">並び替え</span>' +
            `<button class="stats-sort-btn${by === 'count' ? ' is-active' : ''}" onclick="statsSetSort('count')">件数順</button>` +
            `<button class="stats-sort-btn${by === 'name' ? ' is-active' : ''}" onclick="statsSetSort('name')">名前順（あ→ん）</button>` +
-           `<label class="stats-unorg-toggle" title="⭐マスター登録済み・別名として整理済みの項目を隠し、未整理の項目だけ表示します">` +
+           `<label class="stats-unorg-toggle sm-f-unorg" title="⭐マスター登録済み・別名として整理済みの項目を隠し、未整理の項目だけ表示します">` +
            `<input type="checkbox" onchange="statsToggleUnorganized()"${_statsUnorganizedOnly ? ' checked' : ''}> 未整理のみ表示</label>` +
-           `<label class="stats-unorg-toggle" title="表記ゆれ（同じ読みで複数の表記）がある項目だけ表示します">` +
+           `<label class="stats-unorg-toggle sm-f-fluct" title="表記ゆれ（同じ読みで複数の表記）がある項目だけ表示します">` +
            `<input type="checkbox" onchange="statsToggleFluct()"${_statsFluctOnly ? ' checked' : ''}> ゆらぎありのみ表示</label></div>`;
   }
 
@@ -3644,24 +3644,27 @@
     try { const x = parseFloat(localStorage.getItem('statsLowMarginPct')); if (isFinite(x) && x > 0 && x < 100) n = x; } catch (e) {}
     return n;
   };
-  window.statsTodaySummary = function () {
+  window.statsTodaySummary = function (opts) {
     const source = document.getElementById('statsSource')?.value || 'both';
     if (!_data) { try { _data = _build(source); } catch (e) { return null; } }
     const out = { blur: 0, unorg: 0, low: { n: 0, th: window.statsLowMarginPct(), worst: null, skipped: 0 }, win: { won: 0, sent: 0, rate: null, lost: 0, topReason: null, topN: 0, reasoned: 0 } };
     // ゆらぎ（複数表記のグループ）と未整理（まだマスターにも別名にもなっていない項目）
-    const FIELDS = [['sv', _data.svGroups], ['sv', _data.carrierGroups], ['customer', _data.customerGroups], ['nm', _data.nmGroups], ['un', _data.unGroups]];
-    FIELDS.forEach(([mf, groups]) => {
+    const FIELDS = [['sv', _data.svGroups, 'sv'], ['sv', _data.carrierGroups, 'carrier'], ['customer', _data.customerGroups, 'customer'], ['nm', _data.nmGroups, 'nm'], ['un', _data.unGroups, 'un']];
+    out.byPane = {};
+    FIELDS.forEach(([mf, groups, pane]) => {
       if (!groups) return;
+      const bp = out.byPane[pane] = { unorg: 0, blur: 0 };
       const syn = typeof window.synGetGroups === 'function' ? window.synGetGroups(mf) : [];
       const canons = new Set(syn.map(g => g.canonical)), consumed = new Set();
       syn.forEach(g => { consumed.add(g.canonical); (g.aliases || []).forEach(a => consumed.add(a)); });
       groups.forEach(g => {
         const vs = g.variants.filter(v => !consumed.has(v.value));
         if (!vs.length) return;
-        if (g.variants.length > 1) out.blur++;
-        if (vs.length > 1 || !_masterRegistered(mf, vs[0].value, null, canons)) out.unorg++;
+        if (g.variants.length > 1) { out.blur++; bp.blur++; }
+        if (vs.length > 1 || !_masterRegistered(mf, vs[0].value, null, canons)) { out.unorg++; bp.unorg++; }
       });
     });
+    if (opts && opts.names) return out;   // 名寄せの画面の件数だけ欲しいとき（重い集計を省く）
     // 粗利率の低い明細（粗利率が計算できる明細だけ・基準は statsLowMarginPct）
     try {
       const rows = _ledgerBuild(source);

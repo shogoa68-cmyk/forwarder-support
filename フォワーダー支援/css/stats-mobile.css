@@ -62,4 +62,48 @@
   /* 実行後に数秒出す「元に戻す」 */
   .sm-undo { display: flex; align-items: center; justify-content: space-between; gap: 12px; position: fixed; left: 12px; right: 12px; bottom: 84px; z-index: 1190; padding: 10px 14px; border-radius: 10px; background: #101828; color: #fff; font-size: var(--text-sm, 13px); box-shadow: 0 6px 20px rgba(0, 0, 0, .3); }
   .sm-undo button { min-height: 44px; padding: 0 12px; border: 0; background: none; color: #9ec0ff; font: inherit; font-weight: 700; cursor: pointer; }
+
+  /* ---- 第 2 回：名寄せ（サブコン／キャリア／お客様／品名／単位）は 1 表記＝1 カード ---- */
+  .sm-fbar { display: flex; gap: 8px; overflow-x: auto; padding: 2px 0 10px; }
+  .sm-fchip { flex: none; min-height: 40px; padding: 0 14px; border: 1px solid var(--border-md, #bbb); border-radius: 999px; background: var(--card-bg, #fff); color: var(--text-md, #555); font: inherit; font-size: var(--text-sm, 13px); font-weight: 600; cursor: pointer; }
+  .sm-fchip[aria-pressed="true"] { background: var(--accent-lt, #eef3fb); border-color: var(--accent, #2f5fb3); color: var(--accent-dk, #234a8f); }
+  #tab-stats.sm-on .sm-f-unorg, #tab-stats.sm-on .sm-f-fluct { display: none; }
+  #tab-stats.sm-on .stats-sort-toolbar { gap: 6px; flex-wrap: wrap; }
+  #tab-stats.sm-on .stats-sort-toolbar .stats-sort-btn { min-height: 40px; }
+
+  #tab-stats.sm-on :is(#statsPane-sv, #statsPane-carrier, #statsPane-customer, #statsPane-nm, #statsPane-un, #statsPane-port) table { display: block; border: 0; background: none; }
+  #tab-stats.sm-on :is(#statsPane-sv, #statsPane-carrier, #statsPane-customer, #statsPane-nm, #statsPane-un, #statsPane-port) thead { display: none; }
+  #tab-stats.sm-on :is(#statsPane-sv, #statsPane-carrier, #statsPane-customer, #statsPane-nm, #statsPane-un, #statsPane-port) tbody { display: flex; flex-direction: column; gap: 10px; }
+  #tab-stats.sm-on :is(#statsPane-sv, #statsPane-carrier, #statsPane-customer, #statsPane-nm, #statsPane-un, #statsPane-port) tbody > tr { display: flex; flex-direction: column; gap: 8px; padding: 14px; border: 1px solid var(--border, #ddd); border-radius: 10px; background: var(--card-bg, #fff); }
+  #tab-stats.sm-on :is(#statsPane-sv, #statsPane-carrier, #statsPane-customer, #statsPane-nm, #statsPane-un, #statsPane-port) tbody > tr.stats-has-variant { border-color: var(--amber, #c9a24a); background: var(--amber-94, #fbf4e6); }
+  #tab-stats.sm-on :is(#statsPane-sv, #statsPane-carrier, #statsPane-customer, #statsPane-nm, #statsPane-un, #statsPane-port) tbody > tr.stats-syn-row { border-color: var(--green-ok, #1e7a4a); }
+  #tab-stats.sm-on :is(#statsPane-sv, #statsPane-carrier, #statsPane-customer, #statsPane-nm, #statsPane-un, #statsPane-port) tbody > tr > td { display: block; padding: 0; border: 0; text-align: left; }
+  /* 名前＋状態バッジ */
+  #tab-stats.sm-on td.stats-val { font-size: var(--text-lg, 16px); font-weight: 700; word-break: break-all; }
+  #tab-stats.sm-on td.stats-val .stats-variant-badge, #tab-stats.sm-on td.stats-val .stats-syn-grp-badge { margin-left: 6px; font-size: var(--text-xs, 12px); min-height: 28px; }
+  /* 使用 N 件（棒グラフは隠す） */
+  #tab-stats.sm-on td.stats-num-col { font-size: var(--text-sm, 13px); color: var(--text-md, #555); }
+  #tab-stats.sm-on td.stats-num-col .stats-bar { display: none; }
+  #tab-stats.sm-on td.stats-num-col .stats-bar-wrap { display: inline; }
+  #tab-stats.sm-on td.stats-num-col::before { content: '使用 '; }
+  #tab-stats.sm-on td.stats-num-col::after { content: '件'; }
+  #tab-stats.sm-on td.stats-num-col .stats-bar-label::after { content: ''; }
+  /* 表記（チップ）ごとに 1 ブロック。ボタンは 44px */
+  #tab-stats.sm-on td.stats-chips-cell { display: flex !important; flex-direction: column; gap: 8px; }
+  #tab-stats.sm-on td.stats-chips-cell .stats-chip { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 8px 10px; border: 1px solid var(--border, #ddd); border-radius: 8px; background: var(--surface, #fff); width: auto; max-width: 100%; box-sizing: border-box; }
+  #tab-stats.sm-on td.stats-chips-cell .stats-chip-text { flex: 1 1 100%; font-size: var(--text-base, 14px); font-weight: 600; word-break: break-all; }
+  #tab-stats.sm-on td.stats-chips-cell .stats-chip-cnt { font-size: var(--text-sm, 13px); color: var(--text-md, #555); }
+  #tab-stats.sm-on td.stats-chips-cell :is(button, .stats-syn-into) { min-height: 44px; padding: 0 12px; font-size: var(--text-sm, 13px); }
+  #tab-stats.sm-on td.stats-chips-cell .stats-syn-into { display: inline-flex; align-items: center; }
+  #tab-stats.sm-on td.stats-chips-cell .stats-syn-merge { background: var(--accent-dk, #1f3f7a); border-color: var(--accent-dk, #1f3f7a); color: #fff; font-weight: 700; flex: 1 1 100%; }
+  #tab-stats.sm-on td.stats-chips-cell :is(.stats-vote-btn, .stats-syn-star) { flex: 1 1 auto; }
+  #tab-stats.sm-on td.stats-chips-cell .stats-syn-merge-canon, #tab-stats.sm-on td.stats-chips-cell .stats-syn-dissolve { align-self: flex-start; }
+  #tab-stats.sm-on .stats-syn-hint { font-size: var(--text-xs, 12px); line-height: 1.6; }
+
+  /* ---- 取り消しにくい操作の確認（uiConfirm）は、スマホ幅では下から出る確認シートにする（一括置換・申請の却下ほか） ---- */
+  .confirm-overlay { align-items: flex-end; }
+  .confirm-overlay .confirm-dialog { width: 100%; max-width: none; border-radius: 16px 16px 0 0; border-width: 1px 0 0; padding: 18px 16px max(16px, env(safe-area-inset-bottom)); max-height: 85vh; overflow-y: auto; }
+  .confirm-overlay .confirm-dialog .confirm-body { font-size: var(--text-base, 14px); }
+  .confirm-overlay .confirm-dialog .confirm-actions { gap: 10px; }
+  .confirm-overlay .confirm-dialog .confirm-actions button { flex: 1; min-height: 44px; font-size: var(--text-base, 14px); }
 }

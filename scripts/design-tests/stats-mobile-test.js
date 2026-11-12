@@ -80,6 +80,31 @@ srv.listen(0, async () => {
       ok('SP: 実行 → 元の登録処理が呼ばれる', (await p.evaluate(() => window.__need)) === 1);
       ok('SP: 実行後に確認シートは閉じる', !(await vis(p, '#smSheet')));
     }
+    // ---- 第 2 回：名寄せは 1 表記＝1 カード ----
+    await p.evaluate(() => { const o = document.getElementById('smSheet'); if (o) o.remove(); document.body.classList.remove('sm-sheet-open'); });
+    const chips = await p.$$eval('#statsPane-sv .sm-fchip', e => e.map(x => x.textContent.replace(/\s+/g, ' ').trim()).join('|')); ok('SP2: 名寄せの絞り込みチップ（すべて・未整理のみ N・ゆらぎあり N）', chips === 'すべて|未整理のみ 3|ゆらぎあり 1', chips);
+    ok('SP2: 元のチェック 2 つは隠れる（DOM は残る）', !(await vis(p, '#statsPane-sv .sm-f-unorg')) && (await p.$$eval('#statsPane-sv .sm-f-unorg input, #statsPane-sv .sm-f-fluct input', e => e.length)) === 2);
+    ok('SP2: 表のヘッダーは隠れ、行はカード（縦並び・枠つき）', !(await vis(p, '#statsPane-sv thead')) && await p.$eval('#statsPane-sv tbody > tr', e => { const c = getComputedStyle(e); return c.display === 'flex' && c.flexDirection === 'column' && parseFloat(c.borderTopWidth) >= 1; }));
+    ok('SP2: 使用 N件 の表示', await p.$$eval('#statsPane-sv td.stats-num-col', els => els.length > 0 && els.every(e => getComputedStyle(e, '::before').content.includes('使用'))));
+    ok('SP2: カード内のボタンは 44px 以上', await p.$$eval('#statsPane-sv td.stats-chips-cell button', els => els.filter(b => b.getBoundingClientRect().height > 0).every(b => b.getBoundingClientRect().height >= 43.5)));
+    ok('SP2: カードが横にはみ出さない', await p.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
+    await p.click('#statsPane-sv .sm-fchip[data-f="fluct"]'); await p.waitForTimeout(500);
+    ok('SP2: ゆらぎありで絞る（カード 1 枚・チップが押された状態）', (await p.$$eval('#statsPane-sv tbody > tr', e => e.length)) === 1 && (await p.getAttribute('#statsPane-sv .sm-fchip[data-f="fluct"]', 'aria-pressed')) === 'true' && (await p.getAttribute('#statsPane-sv .sm-fchip[data-f="all"]', 'aria-pressed')) === 'false');
+    await p.click('#statsPane-sv .sm-fchip[data-f="unorg"]'); await p.waitForTimeout(500);
+    ok('SP2: 未整理のみに切り替え（ゆらぎは外れる）', (await p.getAttribute('#statsPane-sv .sm-fchip[data-f="unorg"]', 'aria-pressed')) === 'true' && (await p.getAttribute('#statsPane-sv .sm-fchip[data-f="fluct"]', 'aria-pressed')) === 'false');
+    await p.click('#statsPane-sv .sm-fchip[data-f="all"]'); await p.waitForTimeout(500);
+    const nAll = await p.$$eval('#statsPane-sv tbody > tr', e => e.length); ok('SP2: すべてで元に戻る', nAll === 3, nAll);
+    await p.click('#smPick'); await p.click('#smSheet [data-pane="customer"]'); await p.waitForTimeout(800);
+    ok('SP2: お客様の画面もカード（絞り込みチップあり）', (await p.$$eval('#statsPane-customer .sm-fchip', e => e.length)) === 3 && await p.$eval('#statsPane-customer tbody > tr', e => getComputedStyle(e).display === 'flex'));
+    await p.click('#smPick'); await p.click('#smSheet [data-pane="un"]'); await p.waitForTimeout(800);
+    ok('SP2: 単位の画面も崩れない（横にはみ出さない）', await p.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
+    // 取り消しにくい操作（一括置換ほか）の確認は下から出るシート
+    await p.evaluate(() => { window.__c = window.uiConfirm({ title: '品名の表記を一括置換しますか？', lines: ['書き換わる案件：クラウド 12 件'], irreversible: 'バックアップを自動でダウンロードします。', okLabel: '置換する', danger: true }); });
+    await p.waitForTimeout(200);
+    const cg = await p.evaluate(() => { const d = document.querySelector('.confirm-dialog'), r = d.getBoundingClientRect(), a = d.querySelectorAll('.confirm-actions button'); return { w: Math.round(r.width), vw: innerWidth, bottom: Math.round(r.bottom), vh: innerHeight, btn: [...a].map(x => Math.round(x.getBoundingClientRect().height)), text: d.innerText }; });
+    ok('SP2: 確認は下から出るシート（幅いっぱい・画面の下に付く）', cg.w >= cg.vw - 2 && cg.bottom >= cg.vh - 2, cg);
+    ok('SP2: 確認の件数が出て、ボタンは 44px', /12 件/.test(cg.text) && cg.btn.every(h => h >= 43.5), cg);
+    await p.click('.confirm-dialog .btn-cancel'); await p.waitForTimeout(100);
     // 基準値
     ok('SP: 粗利率の基準を変える入口がある', await vis(p, '#smHome') || true);
     // PC 幅に戻すと元の画面
