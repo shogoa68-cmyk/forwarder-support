@@ -2,20 +2,22 @@
 
 > ⚙️ **この表は `node scripts/sql-ledger.js` が自動で作ります。手で直さないでください**（印は `docs/sql-ledger.json` に入ります）。
 
-全ブランチ（別セッションで作った分も）と作業ツリーの `docs/sql/*.sql`・`docs/supabase-*.sql` を自動で集めて、「渡した／まだ」を表にしています。
+全ブランチ（別セッションで作った分も）と作業ツリーの **SQL**（`docs/sql/*.sql`・`docs/supabase-*.sql`）と **Edge Function**（`supabase/functions/<名前>/`＋貼り付け用 `supabase/<名前>-single/`）を自動で集めて、「渡した／まだ」を表にしています。
+
+> Edge Function は **1 関数＝1 件**。関数のファイルのどれかが変わると「変更あり」。「渡した」は Supabase にデプロイ（またはダッシュボードに貼り付け）したこと。**Secrets（鍵）と Verify JWT の設定はコードではないので追えません**（必要なら `--note` にメモ）。
 
 | 状態 | 件数 | 意味 |
 |---|---|---|
-| 🔴 未渡し | 3 | 新しい SQL。まだ Supabase で実行していない（main にも入っていない分を含む） |
-| 🟠 変更あり | 0 | 渡し済みの SQL を、そのあと書き換えた。再実行が必要か確認する |
-| ⚪ 不明 | 49 | 過去に作った SQL で、実行したか記録がない（確認待ち） |
-| 🟢 渡し済み | 0 | 実行済み（日付つき） |
+| 🔴 未渡し | 3 | 新しい SQL／関数。まだ Supabase で実行（デプロイ）していない（main にも入っていない分を含む） |
+| 🟠 変更あり | 0 | 渡し済みの SQL／関数を、そのあと書き換えた。再実行（再デプロイ）が必要か確認する |
+| ⚪ 不明 | 52 | 過去に作った SQL／関数で、渡したか記録がない（確認待ち） |
+| 🟢 渡し済み | 0 | 実行・デプロイ済み（日付つき） |
 
 ## 使い方
 
 1. SQL を新しく作る → 台帳には何もしなくてよい（`node scripts/sql-ledger.js` で自動的に「未渡し」に出る）。
-2. 渡していない SQL をまとめて出す：`node scripts/sql-ledger.js --pending`（Supabase の SQL Editor に貼る）。
-3. 実行したら：`node scripts/sql-ledger.js --mark <ファイル名>`（例：`--mark master-news.sql`）。Claude に「○○ を渡した」と伝えても同じ。
+2. 渡していない SQL をまとめて出す：`node scripts/sql-ledger.js --pending`（Supabase の SQL Editor に貼る）。関数は一覧と貼り付け用ファイルの場所が出る。
+3. 実行・デプロイしたら：`node scripts/sql-ledger.js --mark <名前>`（例：`--mark master-news.sql`／`--mark cp-proxy`）。Claude に「○○ を渡した」と伝えても同じ。
 4. 過去分で実行済みのものは `--mark-unknown`（不明をまとめて渡し済みに）か、1 本ずつ `--mark`。
 5. 台帳（このファイル）は `node scripts/sql-ledger.js` で作り直す。**別セッションの分を見るには先に `--fetch`**（全ブランチの最新を取り込む）。
 
@@ -34,7 +36,7 @@
 
 （なし）
 
-## ⚪ 不明（過去分・実行したか記録なし）（49）
+## ⚪ 不明（過去分・実行したか記録なし）（52）
 
 | ファイル | 何のための SQL か | どこにある | メモ |
 |---|---|---|---|
@@ -87,6 +89,9 @@
 | `docs/supabase-row-patterns-direction-tags.sql` | 明細プリセット（row_patterns）: 大分類（輸出/輸入）とタグの追加 | main |  |
 | `docs/supabase-schema.sql` | フォワーダー支援 — Supabase スキーマ定義 | main |  |
 | `docs/supabase-synonym-groups-setup.sql` | 統計タブ: 同義グループテーブル（⭐代表 → 統合・非破壊・チーム共有） | main |  |
+| 🧩 関数 `cp-proxy` | 🧪 サイバーポート（Cyber Port Ver.2）用 Edge Function（Supabase / Deno）— 読み取り専用 | main |  |
+| 🧩 関数 `cp-webhook` | 📨 サイバーポート（Cyber Port Ver.2）Webhook の受け口 Edge Function（Supabase / Deno | main |  |
+| 🧩 関数 `workfolder` | 📁 作業フォルダ用 Edge Function（Supabase / Deno） | main |  |
 
 ## 🟢 渡し済み（0）
 
