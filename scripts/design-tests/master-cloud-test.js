@@ -882,6 +882,7 @@ const http = require('http'), fs = require('fs'), path = require('path');
     await p.evaluate(() => document.querySelector('#mdDetailModal .mt-tab[data-mt="company"]').click());
     ok(L + '[サブコン詳細] 会社タブに種別・得意エリア・所属グループがある', await vis2('#mdDetailModal #md_areas') && await vis2('#mdDetailModal #md_group') && await vis2('#mdDetailModal #md_svTypes'));
     await p.evaluate(() => statsCloseMasterDetail && statsCloseMasterDetail()); await p.evaluate(() => statsMasterSetFilter('customer')); await p.waitForTimeout(300);
+    await p.evaluate(() => document.querySelector('#statsPane-master tr[data-mvalue="ポップ商事"] .stats-master-detail-btn').click()); await p.waitForTimeout(600);
     ok(L + '[タブ] 保存バーは本文のスクロールの外に常時表示', await p.evaluate(() => { const f = document.querySelector('#mdDetailModal .mt-foot'); const b = document.querySelector('#mdDetailModal .md-modal-body'); return !!f && !b.contains(f) && !!f.querySelector('.master-detail-save') && f.getBoundingClientRect().bottom <= innerHeight; }));
     await p.click('#mdDetailModal .mt-tab[data-mt="memo"]'); ok(L + '[タブ] メモ・添付タブ：メモ欄と添付が見える・担当者は隠れる', await vis2('#mdDetailModal #md_memo') && await vis2('#mdDetailModal .master-attach-box') && !(await vis2('#mdDetailModal .md-contact-name')));
     ok(L + '[タブ] どのタブでも保存ボタンが見える', await vis2('#mdDetailModal .mt-foot .master-detail-save'));
