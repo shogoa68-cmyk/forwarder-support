@@ -29,7 +29,7 @@
 | ファイル | 何のための SQL か | どこにある | メモ |
 |---|---|---|---|
 | `docs/sql/master-history.sql` | マスターの変更履歴（追記のみ・書き換え不可）【案・まだ Supabase では実行していない】 | claude/wonderful-wright-e7b23p |  |
-| `docs/sql/org-teams.sql` | 🏢 組織とチーム（名簿の整理・ダッシュボードの「全体／組織／チーム／自分」の絞り込み用） | claude/kind-bohr-9c4b0x |  |
+| `docs/sql/org-teams.sql` | 🏢 組織とチーム（名簿の整理・ダッシュボードの「全体／組織／チーム／自分」の絞り込み用） | main |  |
 | `docs/sql/trash-quote-presets.sql` | 削除の「ゴミ箱」化・段階 1（案件 quote_presets ＋ 連鎖で消える quote_preset_links） | claude/security-policy-ledger |  |
 
 ## 🟠 変更あり（渡したあとに書き換えた）（0）
