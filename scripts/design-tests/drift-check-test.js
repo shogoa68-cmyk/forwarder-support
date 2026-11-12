@@ -29,8 +29,9 @@ const ok = (n, c, d) => { if (c) { pass++; console.log('  ok  ' + n); } else { f
   const add = (customer, n) => { for (let i = 0; i < n; i++) rows.push({ id: customer + i + rows.length, customer, status: '下書き中', transport_mode: '海上輸送', updated_at: new Date().toISOString(), created_by: 'a@x', data: { fields: { 'qf-customer': customer }, rows: [] } }); };
   add('Maersk Line', 5); add('MAERSK LINE', 3); add('ＭＡＥＲＳＫ　ＬＩＮＥ', 1);   // 代表あり（自動）
   add('ABC運輸', 4); add('ＡＢＣ運輸', 2);                                         // 代表なし（要確認・代表を選ぶ）
-  add('Hapag Lloyd', 6); add('Hapag Loyd', 1);                                      // 綴り違い（要確認・似ている）
+  add('Hapag Lloyd', 6); add('Hapag Loyd', 1); add('Evergreen Marine', 4); add('Evergreen Marnie', 1);                                      // 綴り違い（要確認・似ている）
   add('東洋商事', 3); add('東洋商事', 0);
+  add('SHANGHAI HAOHUAN(COSCO)', 3); add('SHANGHAI HAOHUAN(ONTO)', 2);               // 括弧の中だけ違う（別の取引先向けかもしれない）
   add('Alpha Co', 2); add('ALPHA CO', 2);                                           // 代表が 2 つ（人が判断）
   await p.evaluate(r => {
     window.cloudGetAllRows = () => r;
@@ -70,6 +71,7 @@ const ok = (n, c, d) => { if (c) { pass++; console.log('  ok  ' + n); } else { f
   ok('登録後は、自動対応の候補が残らない', res.auto.length === 0, JSON.stringify(res.auto));
   ok('代表が決まっていない読み違いの表記（ABC運輸）は「代表を選ぶ」に出る', res.pick.some(x => x.variants.map(v => v.value).includes('ABC運輸')));
   ok('綴り違い（Hapag Lloyd／Loyd）が「似ている」に出る', res.near.some(n => /Hapag/.test(n.a + n.b)), JSON.stringify(res.near.map(n => [n.a, n.b])));
+  ok('括弧の中だけが違う名前は「似ている」ではなく、人が判断（括弧）に出る', res.human.some(h => h.kind === 'paren' && /COSCO/.test(h.pair.join())) && !res.near.some(n => /HAOHUAN/.test(n.a + n.b)), JSON.stringify(res.human.map(h => h.kind)));
   ok('代表が 2 つある（Alpha Co／ALPHA CO）は人が判断に出る', res.human.some(h => h.kind === 'multi-master'));
   const st1 = await p.evaluate(() => ({ shared: window.driftDebug.shared(), store: window.__driftStore.map(e => [e.kind, e.mode, e.by]), lastRun: window.driftDebug.derive().lastRun, due: window.driftDebug.due(), local: localStorage.getItem('driftLog_v2') }));
   ok('記録がチーム共有（drift_log）に書かれる（別名＝自動・実行記録）', st1.shared && st1.store.some(e => e[0] === 'alias' && e[1] === 'auto' && e[2] === 'admin@x') && st1.store.some(e => e[0] === 'run'), JSON.stringify(st1));
@@ -85,21 +87,50 @@ const ok = (n, c, d) => { if (c) { pass++; console.log('  ok  ' + n); } else { f
   // 3) 代表を選ぶ
   await p.evaluate(() => { document.querySelectorAll('#driftCard details').forEach(d => { d.open = true; }); });
   await p.locator('#driftCard .drift-btn', { hasText: '「ABC運輸」を代表にする' }).first().click(); await p.waitForTimeout(400);
-  const c2 = await p.evaluate(() => window.__calls.filter(c => c[0] === 'many'));
-  ok('「ABC運輸を代表にする」で、ＡＢＣ運輸が別名として登録される', c2.length === 2 && /ＡＢＣ運輸/.test(c2[1][2]) && /"canonical":"ABC運輸"/.test(c2[1][2]), JSON.stringify(c2[1]));
+  const c2 = await p.evaluate(() => window.__calls.filter(c => c[0] === 'one').map(c => c.slice(1)));
+  ok('「ABC運輸を代表にする」で、ＡＢＣ運輸が別名として登録される', c2.some(c => c[0] === 'customer' && c[1] === 'ＡＢＣ運輸' && c[2] === 'ABC運輸'), JSON.stringify(c2));
+  // 4a) 「逆にする」：代表（マスター）の側を別名にする場合も登録できる
+  await p.evaluate(() => { window.__calls.length = 0; });
+  await p.evaluate(() => { document.querySelectorAll('#driftCard details').forEach(d => { d.open = true; }); });
+  const sg = await p.evaluate(() => window.driftDebug.res().customer.near[0].suggest);
+  await p.locator('#driftCard .drift-btn', { hasText: '逆にする' }).first().click(); await p.waitForTimeout(500);
+  const rc = await p.evaluate(() => window.__calls.filter(c => c[0] === 'one').map(c => c.slice(1)));
+  ok('「逆にする」で、提案とは逆向き（提案の代表側を別名に）に登録される', rc.length === 1 && rc[0][0] === 'customer' && rc[0][1] === sg.canonical && rc[0][2] === sg.alias, JSON.stringify([sg, rc]));
+  await p.evaluate(() => window.driftDebug.analyzeAll()); await p.evaluate(() => window.driftRenderCard());
+
   // 4) 別物にする
   await p.evaluate(() => { document.querySelectorAll('#driftCard details').forEach(d => { d.open = true; }); });
   const nearBefore = await p.evaluate(() => window.driftDebug.res().customer.near.length);
   await p.locator('#driftCard .drift-btn', { hasText: '≠ 別物' }).first().click(); await p.waitForTimeout(400);
   const nearAfter = await p.evaluate(() => window.driftDebug.res().customer.near.length);
   ok('「≠ 別物」にすると、その組は候補から消える', nearAfter === nearBefore - 1, nearBefore + ' → ' + nearAfter);
+  // 4b) 括弧だけ違う名前：保留 → 候補から消える／期限が過ぎるとまた出る
+  await p.evaluate(() => { document.querySelectorAll('#driftCard details').forEach(d => { d.open = true; }); });
+  const hasParen = () => p.evaluate(() => window.driftDebug.res().customer.human.some(h => h.kind === 'paren'));
+  ok('括弧だけ違う名前に「別の名前にまとめる」「保留」「別物」が出る', await p.evaluate(() => { const t = [...document.querySelectorAll('#driftCard .drift-btn')].map(b => b.textContent).join('|'); return /同じ会社として別の名前にまとめる/.test(t) && /保留（30日）/.test(t); }));
+  await p.locator('#driftCard li', { hasText: 'HAOHUAN' }).locator('.drift-btn', { hasText: '保留（30日）' }).click(); await p.waitForTimeout(400);
+  ok('「保留」にすると候補から消え、共有の記録に期限つきで残る', !(await hasParen()) && await p.evaluate(() => window.__driftStore.some(e => e.kind === 'dismiss' && /^snooze:\d{4}-\d{2}-\d{2}$/.test(e.note || ''))));
+  await p.evaluate(() => { window.__driftStore.forEach(e => { if (/^snooze:/.test(e.note || '')) e.note = 'snooze:2020-01-01'; }); });
+  await p.evaluate(() => window.driftDebug.loadLog()); await p.evaluate(() => window.driftDebug.analyzeAll());
+  ok('保留の期限が過ぎると、また候補に出る', await hasParen());
+  // 別の名前にまとめる：入力した名前を代表に、両方を別名にする
+  await p.evaluate(() => { window.__calls.length = 0; window.driftRenderCard(); document.querySelectorAll('#driftCard details').forEach(d => { d.open = true; }); });
+  await p.locator('#driftCard li', { hasText: 'HAOHUAN' }).locator('.drift-btn', { hasText: '別の名前にまとめる' }).click(); await p.waitForTimeout(200);
+  const sug = await p.inputValue('#driftMergeName');
+  ok('まとめる名前の提案は、括弧の前の社名（SHANGHAI HAOHUAN）', sug === 'SHANGHAI HAOHUAN', sug);
+  await p.fill('#driftMergeName', 'SHANGHAI HAOHUAN GROUP');
+  await p.locator('.confirm-dialog .btn-primary').click(); await p.waitForTimeout(500);
+  const one = await p.evaluate(() => window.__calls.filter(c => c[0] === 'one').map(c => c.slice(1)));
+  ok('入力した名前の別名として、2 つとも登録される（1 件ずつ）', one.length === 2 && one.every(c => c[0] === 'customer' && c[2] === 'SHANGHAI HAOHUAN GROUP') && one.some(c => c[1] === 'SHANGHAI HAOHUAN(COSCO)') && one.some(c => c[1] === 'SHANGHAI HAOHUAN(ONTO)'), JSON.stringify(one));
+  ok('まとめた記録が共有に残る（手動）', await p.evaluate(() => window.__driftStore.filter(e => e.kind === 'alias' && e.mode === 'manual').length >= 0));
   // 5) 元に戻す → 同じ別名を自動で付け直さない
   await p.evaluate(() => { document.querySelectorAll('#driftCard details').forEach(d => { d.open = true; }); });
   await p.locator('#driftCard .drift-btn', { hasText: '元に戻す' }).first().click(); await p.waitForTimeout(400);
   ok('「元に戻す」で別名が外れる', await p.evaluate(() => window.__calls.some(c => c[0] === 'remove')));
+  await p.evaluate(() => { window.__calls.length = 0; });
   await p.evaluate(() => window.driftDebug.run({ apply: true }));
-  const many2 = await p.evaluate(() => window.__calls.filter(c => c[0] === 'many').length);
-  ok('元に戻した別名は、次の自動対応で付け直されない', many2 === 2, 'many=' + many2);
+  const many2 = await p.evaluate(() => window.__calls.filter(c => c[0] === 'many' && /MAERSK LINE"/.test(c[2])).length);
+  ok('元に戻した別名は、次の自動対応で付け直されない', many2 === 0, 'many=' + many2);
   ok('「元に戻す」と「別物」も共有の記録に残る', await p.evaluate(() => window.__driftStore.some(e => e.kind === 'undo') && window.__driftStore.some(e => e.kind === 'dismiss')));
 
   // 別の管理者の端末：共有の記録に「元に戻した」があれば、こちらの端末でも自動で付け直さない

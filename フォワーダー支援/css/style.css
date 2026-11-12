@@ -5971,3 +5971,5 @@ input[type="number"], .num, td, th { font-variant-numeric: tabular-nums; }
 /* 一括置換の最近の履歴（alias-rules.js／2026-11） */
 .ar-apply-log { margin: 4px 0 0; padding-left: 1.2em; font-size: var(--text-xs); color: var(--text-muted, #6b7683); line-height: var(--lh-body, 1.7); }
 .ar-apply-log small { opacity: .8; }
+.drift-merge-input { width: 100%; box-sizing: border-box; margin-top: 6px; padding: 6px 8px; font: inherit; border: 1px solid var(--border, #c9d0d9); border-radius: 6px; }
+.confirm-body p { white-space: pre-line; }

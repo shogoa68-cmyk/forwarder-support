@@ -71,7 +71,7 @@
     const loc = jget(LOCAL_KEY, null);
     const legacy = jget(LEGACY_LOG, []).length || jget(LEGACY_DISMISS, []).length || jget(LEGACY_RUN, 0);
     if (!isAdmin() || (!(Array.isArray(loc) && loc.length) && !legacy)) return;
-    const rows = localEntries().map(e => ({ at: e.at, kind: e.kind, mode: e.mode || null, field: e.field || null, alias: e.alias || null, canonical: e.canonical || null, by: me() }));
+    const rows = localEntries().map(e => ({ at: e.at, kind: e.kind, mode: e.mode || null, field: e.field || null, alias: e.alias || null, canonical: e.canonical || null, by: me(), note: e.note || null }));
     if (rows.length) {
       const { error } = await client().from(TABLE).insert(rows);
       if (error) return;   // 移せなければ、この端末の保存はそのまま残す
@@ -84,7 +84,7 @@
     const now = new Date().toISOString();
     const rows = list.map(e => Object.assign({ id: Date.now() + '-' + Math.random().toString(36).slice(2, 7), at: now, by: me() }, e));
     if (_shared) {
-      const { error } = await client().from(TABLE).insert(rows.map(r => ({ at: r.at, kind: r.kind, mode: r.mode || null, field: r.field || null, alias: r.alias || null, canonical: r.canonical || null, by: r.by })));
+      const { error } = await client().from(TABLE).insert(rows.map(r => ({ at: r.at, kind: r.kind, mode: r.mode || null, field: r.field || null, alias: r.alias || null, canonical: r.canonical || null, by: r.by, note: r.note || null })));
       if (!error) { _entries = _entries.concat(rows); return true; }
       if (!_warned) { _warned = true; toast('⚠️ ゆらぎチェックの記録を共有に書けませんでした（この端末にだけ残します）：' + error.message, 'warn', 6000); }
     }
@@ -100,7 +100,11 @@
       if (e.kind === 'run') lastRun = Math.max(lastRun, dayOf(e));
       else if (e.kind === 'alias') active.set(keyOf(e), e);
       else if (e.kind === 'undo') { active.delete(keyOf(e)); if (window.DriftEngine) dismissed.add(window.DriftEngine.pairKey(e.field, e.alias, e.canonical)); }
-      else if (e.kind === 'dismiss') { if (window.DriftEngine) dismissed.add(window.DriftEngine.pairKey(e.field, e.alias, e.canonical)); }
+      else if (e.kind === 'dismiss') {
+        const sn = /^snooze:(\d{4}-\d{2}-\d{2})/.exec(e.note || '');   // 「保留」＝期限まで候補から外す（期限が過ぎたらまた出る）
+        if (sn && Date.now() >= +new Date(sn[1] + 'T00:00:00')) return;
+        if (window.DriftEngine) dismissed.add(window.DriftEngine.pairKey(e.field, e.alias, e.canonical));
+      }
     });
     return { lastRun, dismissed, history: [...active.values()].reverse() };
   }
@@ -151,14 +155,17 @@
   }
 
   // ---------- 別名の登録（自動・手動の共通） ----------
-  async function registerAliases(field, items, mode) {
+  async function registerAliases(field, items, mode, opts) {
     // items: [{canonical, aliases:[...]}]
     const before = typeof window.synGetNormalizeMap === 'function' ? window.synGetNormalizeMap(field) : {};
     if (needsApproval()) {   // 承認制のメンバーは、1 件ずつ申請になる
       for (const it of items) for (const a of it.aliases) await window.synAddAlias(field, a, it.canonical);
       return { added: 0, requested: items.reduce((s, x) => s + x.aliases.length, 0) };
     }
-    const r = await window.synAddAliasesMany(field, items);
+    // seq：すでにマスターの名前も別名にできるよう、1 件ずつ synAddAlias（詳細の合流・旧別名の引き継ぎも行う）で登録する
+    let r = null;
+    if (opts && opts.seq) { for (const it of items) for (const a of it.aliases) await window.synAddAlias(field, a, it.canonical); }
+    else r = await window.synAddAliasesMany(field, items);
     const after = window.synGetNormalizeMap(field);
     const entries = [];
     items.forEach(it => it.aliases.forEach(a => {
@@ -211,6 +218,40 @@
   }
   window.driftRunNow = () => run({ apply: isAdmin(), notify: true });
 
+  // ---------- 「別の名前にまとめる」用：名前の入力ダイアログと、提案する名前 ----------
+  function askName(opts) {
+    return new Promise(resolve => {
+      const ov = document.createElement('div'); ov.className = 'confirm-overlay';
+      const dlg = document.createElement('div'); dlg.className = 'confirm-dialog'; dlg.setAttribute('role', 'dialog'); dlg.setAttribute('aria-modal', 'true');
+      const h = document.createElement('h3'); h.className = 'confirm-title'; h.textContent = opts.title; dlg.appendChild(h);
+      const body = document.createElement('div'); body.className = 'confirm-body';
+      (opts.lines || []).forEach(t => { const p = document.createElement('p'); p.textContent = t; body.appendChild(p); });
+      const inp = document.createElement('input'); inp.type = 'text'; inp.id = 'driftMergeName'; inp.className = 'drift-merge-input'; inp.value = opts.value || ''; inp.setAttribute('data-allow-focus', '1');
+      body.appendChild(inp); dlg.appendChild(body);
+      const act = document.createElement('div'); act.className = 'confirm-actions';
+      const cancel = document.createElement('button'); cancel.type = 'button'; cancel.className = 'btn-cancel'; cancel.textContent = 'やめる';
+      const ok = document.createElement('button'); ok.type = 'button'; ok.className = 'btn-primary'; ok.textContent = opts.okLabel || 'まとめる';
+      act.appendChild(cancel); act.appendChild(ok); dlg.appendChild(act); ov.appendChild(dlg); document.body.appendChild(ov);
+      const done = v => { document.removeEventListener('keydown', onKey, true); ov.remove(); resolve(v); };
+      const onKey = e => { if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); done(null); } else if (e.key === 'Enter' && document.activeElement === inp) { e.preventDefault(); done(inp.value.trim() || null); } };
+      document.addEventListener('keydown', onKey, true);
+      cancel.addEventListener('click', () => done(null));
+      ok.addEventListener('click', () => done(inp.value.trim() || null));
+      ov.addEventListener('pointerdown', e => { if (e.target === ov) done(null); });
+      inp.focus(); inp.select();
+    });
+  }
+  // まとめる名前の提案：全部が「社名(括弧)」で社名が同じなら社名、そうでなければ共通の先頭部分、無ければ先頭の名前
+  function suggestName(names) {
+    const P = window.DriftEngine && window.DriftEngine.parenOf;
+    const ps = names.map(n => (P ? P(n) : null));
+    if (ps.every(Boolean) && new Set(ps.map(x => x.base.toLowerCase())).size === 1) return ps[0].base;
+    let pre = names[0];
+    names.forEach(n => { let i = 0; while (i < pre.length && i < n.length && pre[i].toLowerCase() === n[i].toLowerCase()) i++; pre = pre.slice(0, i); });
+    pre = pre.replace(/[\s\-_/.,(（・]+$/, '');
+    return pre.length >= 3 ? pre : names[0];
+  }
+
   // ---------- カード ----------
   const nameBtn = (idx, label, cls) => `<button type="button" class="drift-btn${cls ? ' ' + cls : ''}" onclick="driftAct(${idx})">${label}</button>`;
   const act = a => { _acts.push(a); return _acts.length - 1; };
@@ -256,12 +297,15 @@
       r.pick.forEach(p => {
         rev += `<li><span class="drift-fld">${esc(LBL[f])}</span>読みが同じ表記が複数あります（代表が未決定）：` +
           p.variants.map(v => `「${esc(v.value)}」<small>${v.count}件</small>`).join(' ') + '<div class="drift-actions">' +
-          p.variants.map(v => nameBtn(act({ t: 'alias', field: f, canonical: v.value, aliases: p.variants.filter(x => x !== v).map(x => x.value) }), `「${esc(v.value)}」を代表にする`, v.value === p.suggested ? 'drift-primary' : '')).join('') + '</div></li>';
+          p.variants.map(v => nameBtn(act({ t: 'alias', field: f, canonical: v.value, aliases: p.variants.filter(x => x !== v).map(x => x.value) }), `「${esc(v.value)}」を代表にする`, v.value === p.suggested ? 'drift-primary' : '')).join('') +
+          nameBtn(act({ t: 'merge', field: f, names: p.variants.map(v => v.value) }), '別の名前にまとめる…', 'drift-ghost') + '</div></li>';
       });
       r.near.slice(0, 40).forEach(n => {
         rev += `<li><span class="drift-fld">${esc(LBL[f])}</span>「${esc(n.a)}」<small>${n.aCount}件</small> ≈ 「${esc(n.b)}」<small>${n.bCount}件</small><span class="drift-why">${esc(n.reason)}</span><div class="drift-actions">` +
           nameBtn(act({ t: 'alias', field: f, canonical: n.suggest.canonical, aliases: [n.suggest.alias] }), `「${esc(n.suggest.alias)}」を「${esc(n.suggest.canonical)}」の別名にする`, 'drift-primary') +
           nameBtn(act({ t: 'alias', field: f, canonical: n.suggest.alias, aliases: [n.suggest.canonical] }), '逆にする', 'drift-ghost') +
+          nameBtn(act({ t: 'merge', field: f, names: [n.a, n.b] }), '別の名前にまとめる…', 'drift-ghost') +
+          nameBtn(act({ t: 'snooze', field: f, a: n.a, b: n.b }), '保留（30日）', 'drift-ghost') +
           nameBtn(act({ t: 'dismiss', field: f, a: n.a, b: n.b }), '≠ 別物', 'drift-ghost') + '</div></li>';
       });
       if (r.near.length > 40) rev += `<li class="drift-more">${esc(LBL[f])}：ほか ${r.near.length - 40} 件（上から順に片付けると出てきます）</li>`;
@@ -273,7 +317,11 @@
     FIELDS.forEach(([f]) => (_res[f] ? _res[f].human : []).forEach(h => {
       const vs = h.variants.map(v => `「${esc(v.value)}」<small>${v.count}件</small>`).join(' ');
       hum += `<li><span class="drift-fld">${esc(LBL[f])}</span>${vs}<span class="drift-why">${esc(h.note)}</span>` +
-        (h.kind === 'multi-master' ? '<div class="drift-actions">' + h.masters.slice(0, 3).map(m => nameBtn(act({ t: 'jump', field: f, value: m }), `「${esc(m)}」を開く`, 'drift-ghost')).join('') + '</div>' : '') + '</li>';
+        (h.kind === 'multi-master' ? '<div class="drift-actions">' + h.masters.slice(0, 3).map(m => nameBtn(act({ t: 'jump', field: f, value: m }), `「${esc(m)}」を開く`, 'drift-ghost')).join('') + '</div>' : '') +
+        (h.kind === 'paren' ? '<div class="drift-actions">' +
+          nameBtn(act({ t: 'merge', field: f, names: h.pair }), '同じ会社として別の名前にまとめる…', 'drift-primary') +
+          nameBtn(act({ t: 'snooze', field: f, a: h.pair[0], b: h.pair[1] }), '保留（30日）', 'drift-ghost') +
+          nameBtn(act({ t: 'dismiss', field: f, a: h.pair[0], b: h.pair[1] }), '≠ 別物（このまま）', 'drift-ghost') + '</div>' : '') + '</li>';
     }));
     if (hum) body += sec('human', '🔵 人が判断（自動では触りません）', c.human, '<ul class="drift-list">' + hum + '</ul>', 'human');
 
@@ -289,6 +337,24 @@
       await append([{ kind: 'dismiss', field: a.field, alias: a.a, canonical: a.b }]);
       await analyzeAll(); render(); toast('別物として記録しました（今後は候補に出しません' + (_shared ? '。チーム全員に反映されます' : '・この端末のみ') + '）', 'info', 3500); return;
     }
+    if (a.t === 'snooze') {
+      const d = new Date(Date.now() + 30 * 86400000);
+      const ymd = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+      await append([{ kind: 'dismiss', field: a.field, alias: a.a, canonical: a.b, note: 'snooze:' + ymd }]);
+      await analyzeAll(); render(); toast('30 日間（' + ymd + ' まで）保留にしました。そのあとまた候補に出ます', 'info', 3500); return;
+    }
+    if (a.t === 'merge') {
+      const name = await askName({
+        title: '別の名前にまとめる',
+        lines: ['次の表記を、ひとつの名前の別名としてまとめます。まとめる名前（マスター名）を入れてください。', a.names.map(n => '・' + n).join('\n'), '過去の案件の表記は書き換わりません（統計はまとめて数えられます）。'],
+        value: suggestName(a.names), okLabel: 'この名前でまとめる',
+      });
+      if (!name) return;
+      const r = await registerAliases(a.field, [{ canonical: name, aliases: a.names.filter(x => x !== name) }], 'manual', { seq: true });
+      if (r.requested) toast('📨 管理者への申請を出しました（' + r.requested + ' 件）', 'success');
+      else if (r.added) toast('✅「' + name + '」に ' + r.added + ' 件をまとめました', 'success');
+      await analyzeAll(); render(); return;
+    }
     if (a.t === 'jump') { if (typeof window.statsJumpToMaster === 'function') window.statsJumpToMaster(a.field, a.value, true); return; }
     if (a.t === 'undo') {
       if (!isAdmin()) return;
@@ -299,10 +365,12 @@
       await analyzeAll(); render(); return;
     }
     if (a.t === 'alias') {
-      const r = await registerAliases(a.field, [{ canonical: a.canonical, aliases: a.aliases }], 'manual');
+      // 手動の操作は、マスターの名前を別名にする場合（「逆にする」など）もあるため、1 件ずつ synAddAlias（マスターの付け替え・詳細の合流つき）で登録する
+      const r = await registerAliases(a.field, [{ canonical: a.canonical, aliases: a.aliases }], 'manual', { seq: true });
       if (r.requested) toast('📨 管理者への申請を出しました（' + r.requested + ' 件）', 'success');
       else if (r.restricted) toast('マスター・別名の変更は管理者が行います', 'warn');
       else if (r.added) toast('✅ 別名 ' + r.added + ' 件を登録しました', 'success');
+      else toast('別名を登録できませんでした（すでに登録済みか、書き込みに失敗しました）。マスター管理で状態を確認してください', 'warn', 6000);
       await analyzeAll(); render();
     }
   };

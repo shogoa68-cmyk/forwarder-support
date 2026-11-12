@@ -67,6 +67,11 @@
     return null;
   }
 
+  // 末尾の括弧書き（例：SHANGHAI HAOHUAN(COSCO)）→ {base:括弧の前, inner:括弧の中}。括弧書きが無ければ null
+  function parenOf(v) {
+    const m = String(v).match(/^(.*?)\s*[(（]\s*([^()（）]*?)\s*[)）]\s*$/);
+    return m && m[1].trim() && m[2].trim() ? { base: m[1].trim(), inner: m[2].trim().toLowerCase() } : null;
+  }
   const pairKey = (field, a, b) => field + '\x00' + (a < b ? a + '\x00' + b : b + '\x00' + a);
 
   /**
@@ -119,6 +124,14 @@
       for (let i = 0; i < items.length; i++) {
         for (let j = i + 1; j < items.length; j++) {
           const A = items[i], B = items[j];
+          // 括弧の中だけが違う（SHANGHAI HAOHUAN(COSCO)／(ONTO) など）：括弧の中は「どの取引先向けか」を表すことが多く、綴りの間違いではない。
+          // 同じ会社の別の表記なのか別の取引先なのかは、人が決める
+          const pa = parenOf(A.value), pb = parenOf(B.value);
+          if (pa && pb && pa.inner !== pb.inner && norm(pa.base) === norm(pb.base)) {
+            const kp = pairKey(field, A.value, B.value);
+            if (!dismissed.has(kp) && A.canonical !== B.canonical) out.human.push({ kind: 'paren', pair: [A.value, B.value], variants: [{ value: A.value, count: A.count }, { value: B.value, count: B.count }], note: '括弧の中だけが違います。同じ会社の別の表記なのか、別の取引先なのかは人が決めます' });
+            continue;
+          }
           const sim = similarPre(field, A, B);
           if (!sim) continue;
           const k = pairKey(field, A.value, B.value);
@@ -137,7 +150,7 @@
     return out;
   }
 
-  const api = { analyze, similar, levenshtein, pairKey };
+  const api = { analyze, similar, levenshtein, pairKey, parenOf };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   root.DriftEngine = api;
 })(typeof window !== 'undefined' ? window : globalThis);
