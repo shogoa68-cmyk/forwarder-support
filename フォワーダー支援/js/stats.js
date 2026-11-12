@@ -3128,11 +3128,18 @@
       if (!kids.size) rowsAll.forEach(_emitRow);
       else {
         const done = new Set();
+        // カード表示のときは、同業者のカードの中に先のお客様のカードを入れ子で入れる（何段でも）。リスト表示は従来どおり直下に字下げ
         const walk = (r, depth) => {
           if (done.has(r.name) && isCust(r)) return;
           if (isCust(r)) done.add(r.name);
-          r.viaDepth = depth; _emitRow(r);
-          (kids.get(r.name) || []).forEach(c => walk(c, depth + 1));
+          r.viaDepth = depth;
+          const cs = kids.get(r.name) || [];
+          if (!_cardMode || !cs.length) { _emitRow(r); cs.forEach(c => walk(c, depth + 1)); return; }
+          const saved = h; h = ''; _emitRow(r); const own = h; h = '';
+          cs.forEach(c => walk(c, depth + 1));
+          const inner = h; h = saved;
+          if (!inner) { h += own; return; }
+          h += own.replace('<tr ', '<tr data-nest="1" ').replace(/<\/tr>\s*$/, `<td class="master-nest-cell"><div class="master-nest-title">👥 先のお客様 ${cs.length}社</div><table class="master-nest"><tbody>${inner}</tbody></table></td></tr>`);
         };
         rowsAll.forEach(r => { if (isCust(r) && via(r) && byName.has(via(r)) && via(r) !== r.name) return; walk(r, 0); });
         rowsAll.forEach(r => { if (isCust(r) && !done.has(r.name)) walk(r, 0); });   // 循環などで取りこぼした行

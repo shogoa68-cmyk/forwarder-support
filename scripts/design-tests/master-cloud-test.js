@@ -1552,6 +1552,30 @@ const http = require('http'), fs = require('fs'), path = require('path');
     const order = await p.evaluate(() => [...document.querySelectorAll('#statsPane-master tbody tr[data-mvalue]')].map(r => r.dataset.mvalue + ':' + (r.dataset.viaDepth || 0)));
     const iB = order.indexOf('同業B社:0');
     ok(L + '一覧：先のお客様は同業者の直下に字下げして並ぶ（B→A→X・Y）', iB >= 0 && order[iB + 1] === '同業A社:1' && order[iB + 2].startsWith('荷主') && order[iB + 2].endsWith(':2') && order[iB + 3].endsWith(':2'), order);
+    ok(L + 'カード表示：同業者のカードの中に先のお客様のカードが入れ子で入る（B の中に A、A の中に X・Y）', await p.evaluate(() => {
+      const B = document.querySelector('#statsPane-master table.master-grid > tbody > tr[data-mvalue="同業B社"]');
+      const A = B && B.querySelector(':scope > td.master-nest-cell tr[data-mvalue="同業A社"]');
+      const X = A && A.querySelector(':scope > td.master-nest-cell tr[data-mvalue="荷主X"]');
+      const Y = A && A.querySelector(':scope > td.master-nest-cell tr[data-mvalue="荷主Y"]');
+      return !!B && B.hasAttribute('data-nest') && !!A && !!X && !!Y && /先のお客様 1社/.test(B.querySelector('.master-nest-title').textContent) && /先のお客様 2社/.test(A.querySelector('.master-nest-title').textContent);
+    }));
+    ok(L + '先のお客様のカードは外には並ばない（最上位に重複して出ない）', await p.evaluate(() => !document.querySelector('#statsPane-master table.master-grid > tbody > tr[data-mvalue="荷主X"]') && !document.querySelector('#statsPane-master table.master-grid > tbody > tr[data-mvalue="同業A社"]')));
+    ok(L + '外枠は全幅・中のカードは外のカードと同じ見た目（枠・角丸）', await p.evaluate(() => {
+      const B = document.querySelector('#statsPane-master table.master-grid > tbody > tr[data-mvalue="同業B社"]');
+      const X = B.querySelector('tr[data-mvalue="荷主X"]');
+      const cs = getComputedStyle(X);
+      return getComputedStyle(B).gridColumnStart === '1' && getComputedStyle(B).gridColumnEnd === '-1' && parseFloat(cs.borderTopLeftRadius) >= 8 && cs.display === 'flex';
+    }));
+    if (process.env.OUT) { await p.evaluate(() => { const e = document.querySelector('#statsPane-master tr[data-mvalue="同業B社"]'); e && e.scrollIntoView(); window.scrollBy(0, -70); }); await p.waitForTimeout(200); await p.screenshot({ path: require('path').join(process.env.OUT, 'master-nest.png') }); }
+    ok(L + '外のカードの詳細を開いても、中のカードの詳細は開かない（独立して開閉）', await p.evaluate(() => {
+      const B = document.querySelector('#statsPane-master table.master-grid > tbody > tr[data-mvalue="同業B社"]');
+      const X = B.querySelector('tr[data-mvalue="荷主X"]');
+      const t = B.querySelector(':scope > td.stats-val .master-name-toggle');
+      if (t) t.click();
+      const closedInner = !X.classList.contains('is-open');
+      if (t) t.click();
+      return closedInner;
+    }));
     await openDetail('同業A社');
     ok(L + '循環は候補・選択肢に出ない（上位の同業B社は先のお客様にできない）', await p.evaluate(() => !([...document.querySelectorAll('#md_viaChildren_list option')].map(x => x.value).includes('同業B社'))));
     // 経由する同業者の選択（先のお客様の側）
