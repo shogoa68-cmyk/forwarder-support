@@ -1442,7 +1442,7 @@ body:has(#compareOverlay.open) #quoteActionDock { display: none; }
 }
 #quoteActionDock .qad-save:disabled { background: var(--c-d5c8b0); color: var(--surface); opacity: .75; cursor: not-allowed; transform: none; box-shadow: 0 4px 14px rgba(45,36,24,0.18); }
 
-/* ===========================================================
+/* ====================================================
    フローティング電卓ウィジェット（サイト全体スコープ）
    =========================================================== */
 #calcWidget {
@@ -5874,6 +5874,68 @@ tr.is-open .master-name-toggle::before { content: "▾ "; }
 /* 数字は桁をそろえる（金額・数量の列が揃って読める） */
 input[type="number"], .num, td, th { font-variant-numeric: tabular-nums; }
 
+/* ===== サブコン・お客様の「ニュース」（master-news.js） ===== */
+.mn-section { margin-top: 12px; }
+.mn-panel { display: flex; flex-direction: column; gap: 8px; margin-top: 6px; }
+.mn-timeline { position: relative; display: flex; flex-direction: column; gap: 8px; padding-left: 12px; border-left: 2px solid #d5dde6; }
+.mn-item { position: relative; display: grid; grid-template-columns: 84px 1fr auto; gap: 8px; align-items: start; border: 1px solid #e4e4e8; background: #fff; border-radius: 6px; padding: 6px 8px; }
+.mn-item::before { content: ""; position: absolute; left: -19px; top: 12px; width: 10px; height: 10px; border-radius: 50%; background: #7a8fa6; border: 2px solid #fff; }
+.mn-item.mn-k-move::before { background: #2a7d6b; } .mn-item.mn-k-contact::before { background: #c07a00; } .mn-item.mn-k-org::before { background: #7a4fb0; } .mn-item.mn-k-terms::before { background: #c0392b; }
+.mn-date { font-size: 13px; font-weight: 700; color: #3a4a5c; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.mn-head { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.mn-title { font-weight: 700; font-size: 14px; }
+.mn-badge { font-size: 12px; font-weight: 700; padding: 1px 8px; border-radius: 10px; background: #e6ebf1; color: #3a4a5c; white-space: nowrap; }
+.mn-badge-move { background: #d8efe9; color: #1d5c4e; } .mn-badge-contact { background: #f6e3bd; color: #6b4300; } .mn-badge-org { background: #e8dcf5; color: #4a2c78; } .mn-badge-terms { background: #f5d6d2; color: #7a1f14; }
+.mn-body { margin-top: 3px; font-size: 13px; white-space: pre-wrap; }
+.mn-link { margin-top: 2px; font-size: 12px; word-break: break-all; }
+.mn-meta { margin-top: 3px; font-size: 12px; color: #6b7684; }
+.mn-btns { display: flex; gap: 4px; }
+.mn-btns button { font-size: 12px; padding: 1px 8px; border: 1px solid #c8d0da; background: #fff; border-radius: 4px; cursor: pointer; }
+.mn-form { display: flex; flex-direction: column; gap: 6px; border: 1px dashed #b8c4d2; background: #f8fafc; border-radius: 6px; padding: 8px; }
+.mn-form-row { display: flex; flex-wrap: wrap; gap: 8px; }
+.mn-form-row label { display: flex; flex-direction: column; gap: 2px; font-size: 12px; color: #4a5766; }
+.mn-form input[type=text], .mn-form textarea { width: 100%; box-sizing: border-box; font-size: 13px; }
+.mn-form-actions { display: flex; gap: 6px; }
+.mn-save { font-size: 13px; padding: 3px 12px; }
+.mn-empty { font-size: 13px; color: #6b7684; padding: 6px 2px; }
+.mn-chip { display: inline-block; font-size: 12px; padding: 1px 8px; border-radius: 10px; background: #eef2f6; color: #3a4a5c; border: 1px solid #d5dde6; white-space: nowrap; }
+.mn-chip.is-recent { background: #fff0c9; border-color: #d4a72c; color: #6b4300; font-weight: 700; }
+@media (max-width: 600px) { .mn-item { grid-template-columns: 1fr; } .mn-btns { justify-content: flex-end; } }
+
+/* ===== お客様の「顧客カルテ」（customer-cases.js） ===== */
+.cc-section { margin-top: 12px; }
+.cc-panel { display: flex; flex-direction: column; gap: 8px; margin-top: 6px; }
+.cc-list { display: flex; flex-direction: column; gap: 8px; }
+.cc-summary { font-size: 13px; font-weight: 700; color: #8a3b12; }
+.cc-item { display: grid; grid-template-columns: 84px 1fr auto; gap: 8px; align-items: start; border: 1px solid #e4e4e8; border-left-width: 4px; background: #fff; border-radius: 6px; padding: 8px; }
+.cc-item.cc-st-open { border-left-color: #c0392b; background: #fffaf8; }
+.cc-item.cc-st-done { border-left-color: #2a7d6b; }
+.cc-date { font-size: 13px; font-weight: 700; color: #3a4a5c; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.cc-head { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.cc-title { font-weight: 700; font-size: 14px; }
+.cc-badge { font-size: 12px; font-weight: 700; padding: 1px 8px; border-radius: 10px; background: #e6ebf1; color: #3a4a5c; white-space: nowrap; }
+.cc-state { font-size: 12px; font-weight: 700; padding: 1px 8px; border-radius: 10px; white-space: nowrap; }
+.cc-state.is-open { background: #c0392b; color: #fff; } .cc-state.is-done { background: #d8efe9; color: #1d5c4e; }
+.cc-promoted { font-size: 12px; color: #5a4a1f; background: #fff0c9; border-radius: 10px; padding: 1px 8px; }
+.cc-sec { display: flex; gap: 8px; margin-top: 4px; font-size: 13px; }
+.cc-lab { flex: none; width: 9.5em; font-weight: 700; color: #4a5766; }
+.cc-txt { white-space: pre-wrap; min-width: 0; }
+.cc-meta { margin-top: 4px; font-size: 12px; color: #6b7684; }
+.cc-btns { display: flex; flex-direction: column; gap: 4px; }
+.cc-btns button { font-size: 12px; padding: 1px 8px; border: 1px solid #c8d0da; background: #fff; border-radius: 4px; cursor: pointer; white-space: nowrap; }
+.cc-form { display: flex; flex-direction: column; gap: 6px; border: 1px dashed #b8c4d2; background: #f8fafc; border-radius: 6px; padding: 8px; }
+.cc-form-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: flex-end; }
+.cc-form-row label { display: flex; flex-direction: column; gap: 2px; font-size: 12px; color: #4a5766; }
+.cc-form .cc-f-chk { flex-direction: row; align-items: center; gap: 4px; }
+.cc-form input[type=text], .cc-form textarea { width: 100%; box-sizing: border-box; font-size: 13px; }
+.cc-form-actions { display: flex; gap: 6px; }
+.cc-hint, .cc-empty { font-size: 12px; color: #6b7684; }
+.cc-empty { font-size: 13px; padding: 6px 2px; }
+.cc-chip { display: inline-block; font-size: 12px; padding: 1px 8px; border-radius: 10px; background: #eef2f6; color: #3a4a5c; border: 1px solid #d5dde6; white-space: nowrap; cursor: pointer; }
+.cc-chip.has-open { background: #fde8e4; border-color: #c0392b; color: #8a1f14; font-weight: 700; }
+#crBanner .cc-chip { margin-left: 6px; }
+@media (max-width: 600px) { .cc-item { grid-template-columns: 1fr; } .cc-btns { flex-direction: row; flex-wrap: wrap; } .cc-sec { flex-direction: column; gap: 0; } }
+=======
 /* ===== 🔍 ゆらぎチェックのカード（マスター管理の上部・js/drift-check.js／2026-11） ===== */
 .drift-card { margin: 0 0 var(--sp-12, 12px); }
 .drift-card:empty { display: none; }

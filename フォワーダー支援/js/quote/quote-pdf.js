@@ -212,6 +212,15 @@
     return en || value;
   }
 
+  // 英語出力：リマーク（定型文は定型の英文に、そのほかは英訳辞書で）。辞書で訳せない文は日本語のまま残る（ja-en-dict.js）
+  function _enText(text) {
+    let s = String(text == null ? '' : text);
+    if (!_curLangEn) return s;
+    if (typeof window.translateRemarkToEn === 'function') s = window.translateRemarkToEn(s);
+    if (typeof window.jeTranslate === 'function') s = window.jeTranslate(s);
+    return s;
+  }
+
   function _taxName(name, taxed) {
     const s = String(name == null ? '' : name);
     const jaName = taxed ? s.replace(/^\*\s?/, '') : s;
@@ -223,6 +232,7 @@
       const rec = (typeof window.mdGet === 'function') ? (window.mdGetCanon || window.mdGet)('nm', jaName) : null;
       const en = rec && rec.details && rec.details.enName && String(rec.details.enName).trim();
       if (en) return en;
+      if (typeof window.jeTranslate === 'function') return window.jeTranslate(jaName);   // 英語品名が未登録なら英訳辞書で
     }
     return jaName;
   }
@@ -471,6 +481,7 @@
   function buildQuoteDocHTML() {
     _curLangEn = loadLangEn();
     window._outputLangEn = _curLangEn;
+    if (typeof window.jeResetMissing === 'function') window.jeResetMissing();
     try {
       // 物量パターンの併記（FCL案／LCL案など）：比較表＋案ごとの明細を1つの文書にまとめる
       const views = (typeof window.getOutputPatternViews === 'function') ? window.getOutputPatternViews() : null;
@@ -520,7 +531,7 @@
     })());
     parts.push((() => {
         let rt = (typeof getRemarkText === 'function') ? getRemarkText() : (cond && cond.free) || '';
-        if (_curLangEn && typeof window.translateRemarkToEn === 'function') rt = window.translateRemarkToEn(rt);   // 定型文を英文に
+        rt = _enText(rt);   // 定型文は定型の英文に・そのほかは英訳辞書で
         const imgHtml = (typeof remarkImagesOutputHTML === 'function') ? remarkImagesOutputHTML('qd-remark-images') : '';
         if (!rt && !imgHtml) return '';
         const bodyHtml = rt ? `<div class="qd-remark-body">${nl2brLink(rt)}</div>` : '';
@@ -530,7 +541,7 @@
         // 常時付記：全体リマークの下に固定で出す（設定は「全体リマーク」欄の📎常時付記）
         let fx = (typeof window.getFixedRemarkText === 'function') ? window.getFixedRemarkText() : '';
         if (!fx) return '';
-        if (_curLangEn && typeof window.translateRemarkToEn === 'function') fx = window.translateRemarkToEn(fx);
+        fx = _enText(fx);
         return `<div class="qd-remark-block qd-remark-fixed"><div class="qd-remark-body">${nl2brLink(fx)}</div></div>`;
     })());
     parts.push((() => {
@@ -627,7 +638,7 @@
     rows.forEach(r => {
       if (r._type === 'remark') {
         if (r.internal) return; // 社内メモは PDF に出力しない
-        lineHTML.push(`<tr class="qd-remark"><td colspan="5">※ ${linkify(esc(_curLangEn && typeof window.translateRemarkToEn === 'function' ? window.translateRemarkToEn(r.text) : r.text))}</td></tr>`);
+        lineHTML.push(`<tr class="qd-remark"><td colspan="5">※ ${linkify(esc(_enText(r.text)))}</td></tr>`);
         return;
       }
       if (r._type === 'subtotal') {
@@ -693,7 +704,7 @@
           // サブコン別リマーク（「見積書に表示」がONのときのみ御見積書PDFにも表示）
           const _rmH = (typeof getSubconRemarks === 'function' ? getSubconRemarks()[_scKey] : null);
           if (_rmH && _rmH.show && _rmH.text && _rmH.text.trim()) {
-            lineHTML.push(`<tr class="qd-subcon-remark"><td colspan="5">📝 ${linkify(esc(_rmH.text))}</td></tr>`);
+            lineHTML.push(`<tr class="qd-subcon-remark"><td colspan="5">📝 ${linkify(esc(_enText(_rmH.text)))}</td></tr>`);
           }
           _catKey = null;   // 新しいサブコンに入ったのでカテゴリ見出しを再出させる
           const ps = scPatternSets[k] || new Set();
@@ -722,7 +733,7 @@
           if (_ptKey) {
             const _rmP = (typeof getSubconRemarks === 'function' ? getSubconRemarks()[_scKey + '||' + _ptKey] : null);
             if (_rmP && _rmP.show && _rmP.text && _rmP.text.trim()) {
-              lineHTML.push(`<tr class="qd-pattern-remark"><td colspan="5">📝 ${linkify(esc(_rmP.text))}</td></tr>`);
+              lineHTML.push(`<tr class="qd-pattern-remark"><td colspan="5">📝 ${linkify(esc(_enText(_rmP.text)))}</td></tr>`);
             }
           }
           _catKey = null;
@@ -923,6 +934,7 @@
                 <span class="qd-toggle-l">🌐 英語で出力<small>固定ラベルのみ</small></span>
                 <input type="checkbox" id="qdLangEn"><span class="qd-toggle-sw"></span>
               </label>
+              <button type="button" class="qd-je-btn" id="qdJeBtn" title="英語で出力するとき、品名・リマークを英語にする辞書です。訳せていない文があれば、ここで英語を登録できます（AI・外部送信なし）">📖 英訳辞書<span id="qdJeCnt"></span></button>
               <label class="qd-toggle" title="ONにすると上部の御見積額・下部の合計／税サマリを非表示にします。小計行でパターンA/B比較を行う用途向け。複数のパターン（FCL案／LCL案など）があるサブコンでは、案どうしを足したサブコン小計も出しません（パターンごとの小計は残ります）。">
                 <span class="qd-toggle-l">合計・税サマリを非表示<small>パターン比較用</small></span>
                 <input type="checkbox" id="qdHideTotal"><span class="qd-toggle-sw"></span>
@@ -970,6 +982,8 @@
       if (autoChk) autoChk.addEventListener('change', () => saveAutoStatus(autoChk.checked));
       const langChk = overlay.querySelector('#qdLangEn');
       if (langChk) langChk.addEventListener('change', () => { saveLangEn(langChk.checked); refreshQuoteDoc(); });
+      const jeBtn = overlay.querySelector('#qdJeBtn');
+      if (jeBtn) jeBtn.addEventListener('click', () => { if (typeof window.jeOpenDialog === 'function') { window.jeOnChange = refreshQuoteDoc; window.jeOpenDialog(); } });
       const multiChk = overlay.querySelector('#qdMultiOut');
       if (multiChk) multiChk.addEventListener('change', () => {
         const f = document.getElementById('qf-multi-out');
@@ -1030,6 +1044,9 @@
     const prev = document.getElementById('qdPreview');
     if (prev) prev.innerHTML = buildQuoteDocHTML();
     _renderIssuerSummary();
+    // 英語出力で訳せなかった文の件数を、英訳辞書のボタンに出す
+    const jc = document.getElementById('qdJeCnt');
+    if (jc) { const n = _curLangEn && typeof window.jeMissing === 'function' ? window.jeMissing().length : 0; jc.textContent = n ? '　未訳 ' + n + '件' : ''; jc.parentElement.classList.toggle('has-miss', !!n); }
   }
 
   // 右パネルの発行元サマリ（会社名＋住所など）を描画
@@ -1137,4 +1154,5 @@
   window.closeQuoteDoc = closeQuoteDoc;
   window.printQuoteDoc = printQuoteDoc;
   window.buildQuoteDocHTML = buildQuoteDocHTML;
+  window.quoteDocLangEnOn = loadLangEn;   // 英語出力が ON か（出力前の確認ガイドが使う）
 })();

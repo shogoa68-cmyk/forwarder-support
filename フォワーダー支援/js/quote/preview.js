@@ -525,6 +525,14 @@
       if (unk.length)  infoItems.push({ msg: `表示条件を判定できない行が ${unk.length} 件あります（値が未入力のため表示のまま）：${list(unk)}`, focusEl: null });
     }
 
+    // 英語出力が ON のとき、英訳辞書で訳せていない品名・リマークを知らせる（日本語のまま出るので、辞書に英語を登録する）
+    try {
+      if (typeof window.jeScanCurrent === 'function' && typeof window.quoteDocLangEnOn === 'function' && window.quoteDocLangEnOn()) {
+        const miss = window.jeScanCurrent();
+        if (miss.length) infoItems.push({ msg: `英語出力で、英語にできていない文が ${miss.length} 件あります（日本語のまま出ます）：${miss.slice(0, 4).map(x => '「' + (x.ja.length > 24 ? x.ja.slice(0, 24) + '…' : x.ja) + '」').join('')}${miss.length > 4 ? ' ほか' : ''}。御見積書の設定の「📖 英訳辞書」で英語を登録できます`, focusEl: null });
+      }
+    } catch (e) {}
+
     if (!data.length) {
       infoItems.push({ msg: '見積もり行が 1 件もありません', focusEl: null });
     } else {
