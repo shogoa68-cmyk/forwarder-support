@@ -148,6 +148,13 @@
     _toast((approve ? '✅ 承認しました：' : '却下しました：') + r.value, approve ? 'success' : 'info');
   }
   window.statsApproveRequest = id => _decide(id, true);
+  window.statsDecideRequest = _decide;   // スマホ版（js/master-mobile.js）が理由シートのあとに呼ぶ
+  // スマホ版「今日やること」用：読み取りだけ
+  window.statsMasterMobileInfo = function () {
+    const me = _me(), admin = _isAdmin();
+    const rq = r => ({ id: r.id, field: r.field, label: _FIELD_LABEL[r.field] || r.field, value: r.value, alias_of: r.alias_of || '', who: (r.requested_by || '').split('@')[0], status: r.status, mine: r.requested_by === me });
+    return { approvalOn: _approvalOn(), admin, pending: _reqs.filter(r => r.status === 'pending').map(rq), mine: _reqs.filter(r => r.requested_by === me && r.status === 'pending').map(rq) };
+  };
   window.statsRejectRequest  = async function (id) {
     const r = _reqs.find(x => x.id === id);
     if (!r) return;
