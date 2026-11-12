@@ -2674,21 +2674,31 @@
   };
   window.statsMasterToggleRegister = function () {
     if (_regModalEl()) { window.statsMasterCloseRegister(); return; }
+    window.statsCloseMasterDetail();
     const cur = _REG_FIELDS.some(f => f[0] === _masterFieldFilter) ? _masterFieldFilter : 'sv';
     const m = document.createElement('div');
     m.id = 'masterNewModal'; m.className = 'md-modal-overlay'; m.setAttribute('role', 'dialog'); m.setAttribute('aria-modal', 'true');
     m.innerHTML = '<div class="md-modal master-new-modal"><div class="md-modal-head"><h3>＋ マスターを新規登録</h3><button type="button" class="md-modal-close" title="閉じる（Esc）" aria-label="閉じる">✕</button></div>' +
       '<div class="md-modal-body">' +
-        '<label class="master-detail-label">種別<select id="masterNewField" class="ar-select">' + _REG_FIELDS.map(f => `<option value="${f[0]}"${f[0] === cur ? ' selected' : ''}>${f[1]}</option>`).join('') + '</select></label>' +
-        '<label class="master-detail-label">マスター名（正しい名前）<input id="masterNewValue" class="ar-input" type="text" autocomplete="off"></label>' +
-        '<p class="master-new-hint">実際の入力値に無い名称でも登録できます。登録後、各マスターの「＋ 別名」で略称・英語表記を足せます。</p>' +
-        '<label class="master-new-more"><input type="checkbox" id="masterNewMore"> 続けて登録する（登録後も閉じない）</label>' +
+        '<div class="mnr-top">' +
+          '<label class="mnr-lab mnr-kind">種別<select id="masterNewField" class="ar-select">' + _REG_FIELDS.map(f => `<option value="${f[0]}"${f[0] === cur ? ' selected' : ''}>${f[1]}</option>`).join('') + '</select></label>' +
+          '<label class="mnr-lab mnr-name">マスター名（正しい名前）<input id="masterNewValue" class="ar-input" type="text" autocomplete="off"></label>' +
+        '</div>' +
+        '<div class="master-detail-form mnr-fields" id="masterNewFields"></div>' +
+        '<p class="master-new-hint">実際の入力値に無い名称でも登録できます。種別ごとの詳細は、わかる範囲で入れておけます（あとから「詳細」でも追加できます）。添付ファイル・ニュース・顧客カルテ・取引ルールは、登録後の「詳細」から追加します。</p>' +
       '</div>' +
-      '<div class="mt-foot master-new-foot"><button type="button" class="master-new-btn" onclick="statsMasterAddCanonical()">登録</button><button type="button" class="master-new-cancel" onclick="statsMasterCloseRegister()">キャンセル</button></div></div>';
+      '<div class="mt-foot master-new-foot"><label class="master-new-more"><input type="checkbox" id="masterNewMore"> 続けて登録する</label><span class="mnr-spacer"></span>' +
+        '<button type="button" class="master-new-btn" onclick="statsMasterAddCanonical()">登録</button><button type="button" class="master-new-cancel" onclick="statsMasterCloseRegister()">キャンセル</button></div></div>';
     document.body.appendChild(m); document.body.classList.add('md-modal-open');
-    const inp = m.querySelector('#masterNewValue'), sel = m.querySelector('#masterNewField');
-    const ph = () => { const f = _REG_FIELDS.find(x => x[0] === sel.value); inp.placeholder = f ? f[2] : ''; };
-    sel.addEventListener('change', ph); ph();
+    const inp = m.querySelector('#masterNewValue'), sel = m.querySelector('#masterNewField'), box = m.querySelector('#masterNewFields');
+    const paint = () => {
+      const f = _REG_FIELDS.find(x => x[0] === sel.value);
+      inp.placeholder = f ? f[2] : '';
+      _mdEditField = sel.value;
+      box.innerHTML = _mdFieldsHtml(sel.value, '', {});
+      box.hidden = !box.innerHTML.trim();
+    };
+    sel.addEventListener('change', paint); paint();
     inp.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.isComposing) { e.preventDefault(); window.statsMasterAddCanonical(); } });
     m.addEventListener('click', e => { if (e.target === m || e.target.closest('.md-modal-close')) window.statsMasterCloseRegister(); });
     inp.focus();
@@ -3167,15 +3177,32 @@
     if (!fSel || !inp) return;
     const field = fSel.value;
     const value = (inp.value || '').trim();
-    if (!value) { if (typeof window.quoteShowToast === 'function') window.quoteShowToast('マスター名を入力してください', 'warn'); return; }
+    const toast = (msg, t) => { if (typeof window.quoteShowToast === 'function') window.quoteShowToast(msg, t || 'success', t === 'warn' ? 5000 : undefined); };
+    if (!value) { toast('マスター名を入力してください', 'warn'); inp.focus(); return; }
+    // 1. マスターに登録（承認制のメンバーは申請になる）
     if (field === 'un') {
       if (typeof window.uaSetCanonical === 'function') window.uaSetCanonical(value);
     } else if (typeof window.synSetCanonical === 'function') {
       await window.synSetCanonical(field, value);
     }
-    if (typeof window.quoteShowToast === 'function') window.quoteShowToast('✅ 「' + value + '」をマスターに登録しました');
+    // 2. 入力した詳細を保存（マスターとして登録できたときだけ。1 つも入力が無ければ何も書かない）
+    const registered = field === 'un' || (typeof window.statsGetMasters === 'function' && window.statsGetMasters().some(x => x.field === field && x.value === value))
+      || (typeof window.synGetGroups === 'function' && window.synGetGroups(field).some(g => g.canonical === value));
+    if (!registered) { toast('マスターに登録できませんでした（承認制の場合は申請になります）', 'warn'); return; }
+    let detailSaved = true;
+    const schema = (window.MD_SCHEMA && window.MD_SCHEMA[field]) || [];
+    const hasInput = schema.length > 0;
+    if (hasInput) {
+      detailSaved = !!(await window.statsSaveMasterDetail(field, value));
+      if (!detailSaved) { toast('詳細を保存できませんでした。入力内容は残してあります（名前だけはマスターに登録済みです）', 'warn'); return; }
+    } else {
+      toast('✅ 「' + value + '」をマスターに登録しました');
+    }
     const more = document.getElementById('masterNewMore');
-    if (more && more.checked) { inp.value = ''; inp.focus(); } else window.statsMasterCloseRegister();
+    if (more && more.checked) {
+      inp.value = ''; inp.focus();
+      const sel = document.getElementById('masterNewField'); if (sel) sel.dispatchEvent(new Event('change'));   // 詳細欄も空に戻す
+    } else window.statsMasterCloseRegister();
     if (typeof window.statsRerenderActive === 'function') window.statsRerenderActive();
   };
   // マスター管理: 代表名を編集（リネーム）。旧名称は別名として残る
@@ -3333,14 +3360,10 @@
     inp.value = '';
   };
 
-  window.statsToggleMasterDetail = function (field, value, btn) {
-    // 詳細は画面いっぱいに広がらないよう、ポップアップ（モーダル）で開く（2026-10）
-    window.statsCloseMasterDetail();
+  // 詳細フォームの入力欄（種別ごとのひな形 MD_SCHEMA から）。詳細ポップアップと、新規登録モーダルの両方で使う
+  function _mdFieldsHtml(field, value, details) {
     const schema = (window.MD_SCHEMA && window.MD_SCHEMA[field]) || [];
-    _mdEditField = field;
-    const existing = (typeof window.mdGet === 'function') ? window.mdGet(field, value) : null;
-    const details = (existing && existing.details) || {};
-    const fieldsHtml = schema.map(s => {
+    return schema.map(s => {
       const id = 'md_' + s.key;
       if (s.contacts) {
         // 旧・単一担当者フィールド（details.contact）からの非破壊移行：
@@ -3393,6 +3416,15 @@
         ? `<label class="master-detail-label">${s.label}<textarea id="${id}" class="ar-input master-detail-textarea" rows="2">${_esc(details[s.key] || '')}</textarea></label>`
         : `<label class="master-detail-label">${s.label}<input id="${id}" class="ar-input" type="text" value="${_eav(details[s.key] || '')}"${s.placeholder ? ` placeholder="${_eav(s.placeholder)}"` : ''} /></label>`;
     }).join('');
+  }
+  window.statsToggleMasterDetail = function (field, value, btn) {
+    // 詳細は画面いっぱいに広がらないよう、ポップアップ（モーダル）で開く（2026-10）
+    window.statsCloseMasterDetail();
+    const schema = (window.MD_SCHEMA && window.MD_SCHEMA[field]) || [];
+    _mdEditField = field;
+    const existing = (typeof window.mdGet === 'function') ? window.mdGet(field, value) : null;
+    const details = (existing && existing.details) || {};
+    const fieldsHtml = _mdFieldsHtml(field, value, details);
     const row = document.createElement('div');
     row.id = 'mdDetailModal';
     row.className = 'md-modal-overlay';
@@ -3533,6 +3565,7 @@
     if (typeof window.arRefreshDatalist === 'function') window.arRefreshDatalist();  // ふりがなを入力補完へ即反映
     window.statsCloseMasterDetail();
     if (typeof window.statsRerenderActive === 'function') window.statsRerenderActive(); else _renderMaster();
+    return true;
   };
 
   window.statsDeleteMasterDetail = async function (field, value) {
