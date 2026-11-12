@@ -5973,3 +5973,16 @@ input[type="number"], .num, td, th { font-variant-numeric: tabular-nums; }
 .ar-apply-log small { opacity: .8; }
 .drift-merge-input { width: 100%; box-sizing: border-box; margin-top: 6px; padding: 6px 8px; font: inherit; border: 1px solid var(--border, #c9d0d9); border-radius: 6px; }
 .confirm-body p { white-space: pre-line; }
+
+/* ===== マスターの新規登録モーダル（stats.js statsMasterToggleRegister）===== */
+#tab-master .master-register-bar .master-register-toggle { display: inline-flex; align-items: center; gap: 4px; padding: 6px 16px; font-weight: 700; border: 1px solid var(--accent, #416180); background: #fff; color: var(--accent, #2c455d); border-radius: 6px; margin: 0 0 8px; }
+#tab-master .master-register-bar .master-register-toggle:hover { background: #eaf0f7; }
+.md-modal.master-new-modal { width: min(520px, 100%); }
+.master-new-modal .md-modal-body { display: flex; flex-direction: column; gap: 10px; }
+.master-new-modal .master-detail-label { display: flex; flex-direction: column; gap: 4px; font-size: 13px; font-weight: 700; color: #3a4a5c; }
+.master-new-modal .ar-select, .master-new-modal .ar-input { width: 100%; box-sizing: border-box; font-size: 14px; padding: 6px 8px; font-weight: 400; }
+.master-new-modal .master-new-hint { margin: 0; font-size: 12px; color: #6b7684; }
+.master-new-modal .master-new-more { font-size: 13px; display: flex; align-items: center; gap: 6px; cursor: pointer; }
+.master-new-foot { display: flex; gap: 8px; justify-content: flex-end; }
+.master-new-foot .master-new-btn { padding: 6px 22px; font-weight: 700; background: #416180; color: #fff; border: 1px solid #416180; border-radius: 6px; cursor: pointer; }
+.master-new-foot .master-new-cancel { padding: 6px 16px; background: #fff; border: 1px solid #c3ccd6; border-radius: 6px; cursor: pointer; }
