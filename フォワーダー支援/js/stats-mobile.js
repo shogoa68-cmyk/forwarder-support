@@ -172,13 +172,112 @@
     }
   }
 
+
+  // ---- 名寄せの画面：絞り込みチップ（すべて／未整理のみ N／ゆらぎあり N）。既存の 2 つのチェックを操作するだけ ----
+  const NAME_PANES = ['sv', 'carrier', 'customer', 'nm', 'un', 'port'];
+  function injectFilter(paneKey) {
+    const pane = $('statsPane-' + paneKey); if (!pane || !mobile()) return;
+    const un = pane.querySelector('.sm-f-unorg input'), fl = pane.querySelector('.sm-f-fluct input');
+    let bar = pane.querySelector(':scope > .sm-fbar');
+    if (!un || !fl) { if (bar) bar.remove(); return; }
+    const S = typeof window.statsTodaySummary === 'function' ? window.statsTodaySummary({ names: true }) : null;
+    const c = (S && S.byPane && S.byPane[paneKey]) || null;
+    const all = !un.checked && !fl.checked;
+    const html = '<button type="button" class="sm-fchip" data-f="all" aria-pressed="' + all + '">すべて</button>' +
+      '<button type="button" class="sm-fchip" data-f="unorg" aria-pressed="' + un.checked + '">未整理のみ' + (c ? ' ' + c.unorg : '') + '</button>' +
+      '<button type="button" class="sm-fchip" data-f="fluct" aria-pressed="' + fl.checked + '">ゆらぎあり' + (c ? ' ' + c.blur : '') + '</button>';
+    if (bar && bar.dataset.h === html) return;
+    if (!bar) { bar = document.createElement('div'); bar.className = 'sm-fbar'; pane.insertBefore(bar, pane.firstChild); bar.addEventListener('click', e => {
+      const b = e.target.closest('[data-f]'); if (!b) return;
+      const p2 = pane, u = p2.querySelector('.sm-f-unorg input'), f2 = p2.querySelector('.sm-f-fluct input'); if (!u || !f2) return;
+      const k = b.getAttribute('data-f');
+      if (k === 'all') { if (u.checked) u.click(); const f3 = (p2.querySelector('.sm-f-fluct input')); if (f3 && f3.checked) f3.click(); }
+      else if (k === 'unorg') { if (f2.checked) { f2.click(); } const u2 = $('statsPane-' + paneKey).querySelector('.sm-f-unorg input'); if (u2) u2.click(); }
+      else { if (u.checked) { u.click(); } const f4 = $('statsPane-' + paneKey).querySelector('.sm-f-fluct input'); if (f4) f4.click(); }
+    }); }
+    bar.dataset.h = html; bar.innerHTML = html;
+  }
+  let moT = null;
+  function watchPanes() {
+    NAME_PANES.forEach(k => {
+      const pane = $('statsPane-' + k); if (!pane || pane.__smMo) return; pane.__smMo = true;
+      new MutationObserver(() => { clearTimeout(moT); moT = setTimeout(() => injectFilter(k), 30); }).observe(pane, { childList: true });
+    });
+  }
+
+
+  // ---- 第 3 回：分析の画面の表を 1 行＝1 カードに（見出しの文字を各項目の名前に）。列が多い表は「詳細を見る」 ----
+  const CARD_PANES = ['winrate', 'ledger', 'svport', 'custitem', 'margindiff', 'pattern', 'data', 'charges', 'kpi'];
+  function cardize(pane) {
+    pane.querySelectorAll('table:not([data-sm-c])').forEach(t => {
+      t.setAttribute('data-sm-c', '1');
+      const hr = t.querySelectorAll('thead tr'); const head = hr.length ? hr[hr.length - 1] : null;
+      const labels = head ? [...head.children].map(th => th.textContent.replace(/\s+/g, ' ').trim()) : [];
+      if (!labels.length) return;
+      t.classList.add('sm-ct');
+      const wide = labels.length >= 6; if (wide) t.classList.add('sm-wide');
+      t.querySelectorAll('tbody > tr').forEach(tr => {
+        const tds = [...tr.children];
+        if (tds.length === labels.length) tds.forEach((td, i) => { if (labels[i]) td.setAttribute('data-label', labels[i]); if (i > 0 && !td.textContent.replace(/[\s—–-]/g, '')) td.classList.add('sm-empty'); });
+        if (wide && tds.length >= 6) {
+          const td = document.createElement('td'); td.className = 'sm-more-td';
+          const b = document.createElement('button'); b.type = 'button'; b.className = 'sm-more'; b.textContent = '詳細を見る ▾';
+          b.addEventListener('click', ev => { ev.stopPropagation(); const o = tr.classList.toggle('sm-open'); b.textContent = o ? '詳細をとじる ▴' : '詳細を見る ▾'; });
+          td.appendChild(b); tr.appendChild(td);
+        }
+      });
+    });
+  }
+  // 受注分析：上に 4 指標、見出しごとのチップ（1 つだけ見せる）
+  function winrateLayer() {
+    const pane = $('statsPane-winrate'); if (!pane || !mobile()) return;
+    const kids = [...pane.children].filter(e => !e.classList.contains('sm-wtiles') && !e.classList.contains('sm-wchips'));
+    const secs = []; let cur = 'always';
+    kids.forEach(e => {
+      if (e.matches('h3.stats-kpi-section-title')) { cur = String(secs.length); secs.push(e.textContent.replace(/\s+/g, ' ').trim()); }
+      e.setAttribute('data-sm-s', cur);
+    });
+    if (!secs.length) return;
+    const S = typeof window.statsTodaySummary === 'function' ? window.statsTodaySummary({ names: true }) : null;
+    // 4 指標は今日の確認と同じ集計（受注率・受注・失注・結果待ち）。names:true では軽量版のため、ここだけ別に取る
+    const W = (typeof window.statsTodaySummary === 'function' ? window.statsTodaySummary() : null);
+    const w = W && W.win;
+    let tiles = pane.querySelector(':scope > .sm-wtiles');
+    const th = '<div class="sm-wtile"><b>' + (w && w.rate != null ? w.rate + '%' : '—') + '</b><span>受注率</span></div>' +
+      '<div class="sm-wtile is-ok"><b>' + (w ? w.won : '—') + '</b><span>受注</span></div>' +
+      '<div class="sm-wtile is-ng"><b>' + (w ? w.lost : '—') + '</b><span>失注</span></div>' +
+      '<div class="sm-wtile"><b>' + (w ? w.pending : '—') + '</b><span>結果待ち</span></div>';
+    if (!tiles) { tiles = document.createElement('div'); tiles.className = 'sm-wtiles'; pane.insertBefore(tiles, pane.firstChild); }
+    if (tiles.dataset.h !== th) { tiles.dataset.h = th; tiles.innerHTML = th; }
+    let chips = pane.querySelector(':scope > .sm-wchips');
+    if (!chips) { chips = document.createElement('div'); chips.className = 'sm-wchips'; tiles.after(chips);
+      chips.addEventListener('click', e => { const b = e.target.closest('[data-i]'); if (!b) return; pane.__smSec = b.getAttribute('data-i'); applySec(pane); }); }
+    const nm = secs.map(t => t.replace(/^[^\wぁ-んァ-ヶ一-龠]+/, ''));
+    const ch = nm.map((t, i) => '<button type="button" class="sm-fchip" data-i="' + i + '" aria-pressed="false">' + esc(t) + '</button>').join('');
+    if (chips.dataset.h !== ch) { chips.dataset.h = ch; chips.innerHTML = ch; }
+    if (pane.__smSec == null || +pane.__smSec >= secs.length) pane.__smSec = '0';
+    applySec(pane);
+  }
+  function applySec(pane) {
+    const i = pane.__smSec;
+    pane.querySelectorAll(':scope > [data-sm-s]').forEach(e => { const s = e.getAttribute('data-sm-s'); e.classList.toggle('sm-hid', s !== 'always' && s !== i); });
+    pane.querySelectorAll(':scope > .sm-wchips [data-i]').forEach(b => b.setAttribute('aria-pressed', String(b.getAttribute('data-i') === i)));
+  }
+  function watchCards() {
+    CARD_PANES.forEach(k => {
+      const pane = $('statsPane-' + k); if (!pane || pane.__smMc) return; pane.__smMc = true;
+      let t = null;
+      new MutationObserver(() => { clearTimeout(t); t = setTimeout(() => { if (!mobile()) return; cardize(pane); if (k === 'winrate') winrateLayer(); }, 30); }).observe(pane, { childList: true, subtree: true });
+    });
+  }
+
   // stats.js が集計を終えたとき（案件・マスターの読み込み後など）に今日の確認を更新する
   window.smOnStatsReady = function () { if (inited && mobile() && view === 'home') render(); };
   window.smShowHome = function () { if (!inited) init(); show('home'); };
 
   function init() {
     if (inited) return;
-    build(); wrapWrites(); inited = true; show('home');
+    build(); wrapWrites(); watchPanes(); watchCards(); inited = true; show('home');
   }
   function onMq() { const r = root(); if (!r) return; if (!mobile()) { r.classList.remove('sm-on', 'sm-view-home', 'sm-view-pane'); closeSheet(); } else { init(); show(view); } }
   if (mq.addEventListener) mq.addEventListener('change', onMq); else if (mq.addListener) mq.addListener(onMq);
