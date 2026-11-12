@@ -1343,6 +1343,38 @@ const http = require('http'), fs = require('fs'), path = require('path');
     await ctx.close();
   }
 
+  // ===== 紹介元（誰かから紹介されたお客様） =====
+  {
+    const { ctx, p, errs } = await open(true, { legacy: {}, noLegacy: true });
+    const L = '[紹介元] ';
+    await p.evaluate(async () => {
+      const V = (f, v) => window.__db.master_votes.push({ field: f, value: v, voter_email: 's@example.com' });
+      V('customer', '紹介元商事'); V('customer', '新規のお客様'); V('customer', '別のお客様'); V('sv', '紹介元サブコン');
+      await statsLoadMasterCache(); await mdLoadCloud();
+    });
+    await p.evaluate(() => { switchCategory('master', document.querySelector('[onclick*="switchCategory(\'master"]')); }); await p.waitForTimeout(1000);
+    await p.evaluate(() => statsMasterSetFilter('customer')); await p.waitForTimeout(300);
+    await p.evaluate(() => document.querySelector('#statsPane-master tr[data-mvalue="新規のお客様"] .stats-master-detail-btn').click()); await p.waitForTimeout(400);
+    ok(L + 'お客様の詳細に「紹介元」「紹介の経緯・時期」の欄がある', await p.evaluate(() => !!document.querySelector('#md_referrer') && !!document.querySelector('#md_referralNote')));
+    ok(L + '紹介元の候補にお客様・サブコンのマスター名が出る（自分自身は出ない）', await p.evaluate(() => { const o = [...document.querySelectorAll('#md_referrer_list option')].map(x => x.value); return o.includes('紹介元商事') && o.includes('紹介元サブコン') && !o.includes('新規のお客様'); }));
+    await p.fill('#md_referrer', '紹介元商事'); await p.fill('#md_referralNote', '2026-10 展示会で紹介');
+    await p.click('.master-detail-save'); await p.waitForTimeout(800);
+    ok(L + '保存される', await p.evaluate(() => { const d = (window.__db.master_details.find(m => m.value === '新規のお客様') || { details: {} }).details; return d.referrer === '紹介元商事' && d.referralNote === '2026-10 展示会で紹介'; }));
+    await p.evaluate(() => document.querySelector('#statsPane-master tr[data-mvalue="別のお客様"] .stats-master-detail-btn').click()); await p.waitForTimeout(400);
+    await p.fill('#md_referrer', '紹介元サブコン'); await p.click('.master-detail-save'); await p.waitForTimeout(800);
+    ok(L + '紹介元の側に「🤝 紹介したお客様 1社」の印（詳細が未登録の会社でも）', await p.evaluate(() => { const c = document.querySelector('#statsPane-master tr[data-mvalue="紹介元商事"] .stats-md-refd'); return !!c && c.textContent.includes('1社') && c.title.includes('新規のお客様'); }));
+    await p.evaluate(() => statsMasterSetFilter('sv')); await p.waitForTimeout(300);
+    ok(L + 'サブコンが紹介元のときも印が出る', await p.evaluate(() => { const c = document.querySelector('#statsPane-master tr[data-mvalue="紹介元サブコン"] .stats-md-refd'); return !!c && c.title.includes('別のお客様'); }));
+    await p.evaluate(() => statsMasterSetFilter('customer')); await p.waitForTimeout(300);
+    await p.evaluate(() => statsMasterSetQuery('展示会')); await p.waitForTimeout(500);
+    ok(L + '検索で紹介の経緯が見つかる', await p.evaluate(() => !!document.querySelector('#statsPane-master tr[data-mvalue="新規のお客様"]') && !document.querySelector('#statsPane-master tr[data-mvalue="別のお客様"]')));
+    await p.evaluate(() => statsMasterSetQuery('')); await p.waitForTimeout(300);
+    await p.evaluate(() => statsMasterSetQuery('新規のお客様')); await p.waitForTimeout(500);
+    await p.evaluate(() => statsMasterSetQuery('')); await p.waitForTimeout(200);
+    ok(L + 'JS エラーなし', errs.length === 0, errs);
+    await ctx.close();
+  }
+
   // ===== マスター管理の種別チップの並び：すべて｜サブコン｜お客様｜港｜品名｜単位 =====
   {
     const { ctx, p, errs } = await open(true, { legacy: {}, noLegacy: true });

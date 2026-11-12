@@ -11,7 +11,7 @@
     const actions = $(form, '.master-detail-actions'), attach = $(modal, '.master-attach-box'), cr = $(modal, '.cr-section'), mn = $(modal, '.mn-section'), cc = $(modal, '.cc-section');
     const L = (id) => holder(form, id, '.master-detail-label');
     const isSv = modal.dataset.mtField === 'sv';
-    const basic = [L('md_furigana'), L('md_enName'), L('md_dealType'), L('md_via'), holder(form, 'md_viaChildren', '.master-detail-via')].filter(Boolean);
+    const basic = [L('md_furigana'), L('md_enName'), L('md_dealType'), L('md_via'), L('md_referrer'), L('md_referralNote'), holder(form, 'md_viaChildren', '.master-detail-via')].filter(Boolean);
     const people = [holder(form, 'md_contacts', '.master-detail-contacts')].filter(Boolean);
     const company = isSv
       ? [L('md_location'), L('md_website'), holder(form, 'md_svTypes', '.master-detail-tags'), holder(form, 'md_areas', '.master-detail-areas'), L('md_group')].filter(Boolean)
