@@ -42,6 +42,14 @@
   let _cloudFilterCustomer = '';  // お客様別ランキングからの絞り込み（正規化キー）
   let _cloudFilterTag     = '';   // タグ絞り込み（'' = すべて）
   let _cloudFollowFilter  = false; // 🔔 料金更新フォロー（要フォロー）だけに絞り込む
+  // 案件の範囲：全体／組織／チーム／自分（作成者の所属で絞る。見える範囲は変えない＝全員が全案件を見られる）。
+  //   _cloudScopeSel＝組織・チームの id（空＝自分の所属）。選択は端末に覚える（qpdScope_v1）。組織とチームの所属は js/org-teams.js
+  let _cloudScope = 'all';
+  let _cloudScopeSel = '';
+  try {
+    const _sc = JSON.parse(localStorage.getItem('qpdScope_v1') || 'null');
+    if (_sc && ['all', 'org', 'team', 'mine'].indexOf(_sc.scope) >= 0) { _cloudScope = _sc.scope; _cloudScopeSel = _sc.sel || ''; }
+  } catch (e) {}
   let _cloudPendingFilter = false; // 📩 未取込（自由入力で保管・まだ表に取り込んでいない）だけに絞り込む
   let _followEditId       = null;  // 料金フォローのインライン編集中の案件ID
   let _cloudAdvOpen       = false;
@@ -323,6 +331,7 @@
     _cloudRows = data || [];
     await _checkStaleHolds();
     _notifyPriceFollows();
+    _renderScopeBar();
     _renderStatusChips();
     _renderTagChips();
     _renderQpdStats();
@@ -437,6 +446,7 @@
     const pol = _cloudFilterPol.trim().toLowerCase();
     const pod = _cloudFilterPod.trim().toLowerCase();
     const car = _cloudFilterCarrier.trim().toLowerCase();
+    if (!_inScope(r, _cloudScope, _cloudScopeSel)) return false;   // 全体／組織／チーム／自分
     if (_cloudFollowFilter && !_priceFollow(r)) return false;   // 🔔 要フォローのみ
     if (_cloudPendingFilter && !_pendingImport(r)) return false; // 📩 未取込のみ
     if (_cloudStatusFilter) {
@@ -463,7 +473,7 @@
     // 絞り込み・並び替えが変わったときだけ先頭ページに戻す（ステータス変更や Presence 等の
     // 付随的な再描画では表示件数を保つ＝スクロール位置・展開状態を崩さない）
     const sig = JSON.stringify([_cloudSearch, _cloudStatusFilter, _cloudFilterCustomer, _cloudFilterTag,
-      _cloudFilterMode, _cloudFilterInco, _cloudFilterPol, _cloudFilterPod, _cloudFilterCarrier, _cloudSort, _cloudView, _cloudFollowFilter, _cloudPendingFilter]);
+      _cloudFilterMode, _cloudFilterInco, _cloudFilterPol, _cloudFilterPod, _cloudFilterCarrier, _cloudSort, _cloudView, _cloudFollowFilter, _cloudPendingFilter, _cloudScope, _cloudScopeSel]);
     if (sig !== _dashFilterSig) { _dashFilterSig = sig; _dashLimit = DASH_PAGE; }
     _renderCloudList(rows);
     _renderTagChips();        // タグチップは現在の絞り込み（ステータス等）に連動して件数・顔ぶれを更新
@@ -479,7 +489,7 @@
 
   // 何らかの絞り込みが効いているか（「すべて解除」ボタンの出し分けに使う）
   function _anyFilterActive() {
-    return !!(_cloudSearch.trim() || _cloudStatusFilter || _cloudFilterCustomer || _cloudFilterTag ||
+    return !!(_cloudScope !== 'all' || _cloudSearch.trim() || _cloudStatusFilter || _cloudFilterCustomer || _cloudFilterTag ||
               _cloudFilterMode || _cloudFilterInco || _cloudFollowFilter || _cloudPendingFilter ||
               _cloudFilterPol.trim() || _cloudFilterPod.trim() || _cloudFilterCarrier.trim());
   }
@@ -498,12 +508,14 @@
     _cloudFilterTag = '';
     _cloudFollowFilter = false;
     _cloudPendingFilter = false;
+    _cloudScope = 'all'; _cloudScopeSel = ''; _saveScope();
     _cloudFilterMode = _cloudFilterInco = _cloudFilterPol = _cloudFilterPod = _cloudFilterCarrier = '';
     ['qpdSearch', 'cloudSearchInput'].forEach(id => { const e = document.getElementById(id); if (e) e.value = ''; });
     ['qpdFilterMode','qpdFilterInco','qpdFilterPol','qpdFilterPod','qpdFilterCarrier']
       .forEach(id => { const e = document.getElementById(id); if (e) e.value = ''; });
     const clr = document.getElementById('qpdSearchClear');
     if (clr) clr.hidden = true;
+    _renderScopeBar();
     _renderStatusChips();
     _renderTagChips();
     _renderQpdStats();
@@ -600,6 +612,59 @@
   }
 
   // ステータス絞り込みチップ（件数バッジ付き）
+  // ---------- 案件の範囲（全体／組織／チーム／自分） ----------
+  function _creatorOf(r) { return (r && (r.created_by || r.owner_email)) || ''; }
+  function _inScope(r, scope, sel) {
+    if (!scope || scope === 'all') return true;
+    const who = String(_creatorOf(r)).trim().toLowerCase();
+    if (scope === 'mine') return !!who && !!_cloudUser && who === String(_cloudUser.email || '').trim().toLowerCase();
+    if (!(window.orgDir && window.orgDir.available())) return true;     // 組織・チームの表が無いあいだは絞らない
+    return window.orgDir.scopeMatch(who, scope, sel);
+  }
+  function _saveScope() { try { localStorage.setItem('qpdScope_v1', JSON.stringify({ scope: _cloudScope, sel: _cloudScopeSel })); } catch (e) {} }
+  function _renderScopeBar() {
+    const box = document.getElementById('qpdScope');
+    if (!box) return;
+    if (!_cloudUser) { box.hidden = true; box.innerHTML = ''; return; }
+    const od = window.orgDir, hasOrg = !!(od && od.available());
+    // 組織・チームの表が無いのに「組織／チーム」が選ばれたまま残っていたら、全体に戻す
+    if (!hasOrg && (_cloudScope === 'org' || _cloudScope === 'team')) { _cloudScope = 'all'; _cloudScopeSel = ''; }
+    const selFor = sc => (_cloudScope === sc ? _cloudScopeSel : '');
+    const count = sc => _cloudRows.filter(r => _inScope(r, sc, selFor(sc))).length;
+    const defs = [['all', '🌐 全体']];
+    if (hasOrg) defs.push(['org', '🏢 組織'], ['team', '👥 チーム']);
+    defs.push(['mine', '🙋 自分']);
+    let html = '<span class="qpd-scope-lbl">案件の範囲</span>' + defs.map(d =>
+      '<button type="button" class="qpd-scope-chip' + (_cloudScope === d[0] ? ' is-active' : '') + '" aria-pressed="' + (_cloudScope === d[0]) + '" onclick="cloudFilterScope(\'' + d[0] + '\')">' +
+      escHtml(d[1]) + '<span class="cloud-chip-n">' + count(d[0]) + '</span></button>').join('');
+    if (hasOrg && _cloudScope === 'org') {
+      const mine = od.myOrgId();
+      html += '<select class="qpd-scope-sel" aria-label="組織を選ぶ" onchange="cloudScopeSelect(this.value)">' +
+        '<option value="">' + (mine ? '自分の組織（' + escHtml(od.orgName(mine)) + '）' : '組織を選んでください') + '</option>' +
+        od.orgs().filter(o => o.id !== mine).map(o => '<option value="' + escHtml(o.id) + '"' + (_cloudScopeSel === o.id ? ' selected' : '') + '>' + escHtml(o.name) + '</option>').join('') + '</select>';
+      if (!mine && !_cloudScopeSel) html += '<span class="qpd-scope-hint">あなたは組織に所属していません。上のリストから組織を選べます。</span>';
+    } else if (hasOrg && _cloudScope === 'team') {
+      const mineIds = od.myTeamIds();
+      const label = t => (od.orgs().length > 1 ? od.orgName(t.org_id) + ' / ' : '') + t.name;
+      html += '<select class="qpd-scope-sel" aria-label="チームを選ぶ" onchange="cloudScopeSelect(this.value)">' +
+        '<option value="">' + (mineIds.length ? '自分のチーム（' + mineIds.map(id => escHtml(od.teamName(id))).join('・') + '）' : 'チームを選んでください') + '</option>' +
+        od.teams().map(t => '<option value="' + escHtml(t.id) + '"' + (_cloudScopeSel === t.id ? ' selected' : '') + '>' + escHtml(label(t)) + '</option>').join('') + '</select>';
+      if (!mineIds.length && !_cloudScopeSel) html += '<span class="qpd-scope-hint">あなたはチームに所属していません。上のリストから、チームを選べます。</span>';
+    }
+    box.innerHTML = html;
+    box.hidden = false;
+  }
+  function cloudFilterScope(scope) {
+    _cloudScope = scope; _cloudScopeSel = ''; _saveScope();
+    _renderScopeBar(); _renderStatusChips(); _renderTagChips(); _renderQpdStats(); _applyCloudFilter();
+  }
+  function cloudScopeSelect(val) {
+    _cloudScopeSel = val || ''; _saveScope();
+    _renderScopeBar(); _renderStatusChips(); _renderTagChips(); _renderQpdStats(); _applyCloudFilter();
+  }
+  // 組織・チームの所属を読み込み終えた（ログイン直後・管理画面での変更後）：範囲のチップと一覧を描き直す
+  document.addEventListener('orgdir:loaded', () => { if (_cloudRows.length || _cloudUser) { _renderScopeBar(); _renderQpdStats(); _applyCloudFilter(); } });
+
   function _renderStatusChips() {
     const box = document.getElementById('cloudStatusChips');
     if (!box) return;
@@ -4259,6 +4324,8 @@
   window.cloudOnPresetMgrOpen = cloudOnPresetMgrOpen;
   window.cloudSearchInput      = cloudSearchInput;
   window.cloudFilterStatus     = cloudFilterStatus;
+  window.cloudFilterScope      = cloudFilterScope;
+  window.cloudScopeSelect      = cloudScopeSelect;
   window.cloudSetStatus        = cloudSetStatus;
   window.cloudToggleHoldReminder = cloudToggleHoldReminder;
   window.cloudEditFollow        = cloudEditFollow;

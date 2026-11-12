@@ -1706,6 +1706,22 @@
   window.mdViaChildren = function (parent) {
     return window.mdGetAll('customer').filter(m => m.details && m.details.via && window.mdViaOf(m.value) === parent).map(m => m.value).sort((a, b) => a.localeCompare(b, 'ja'));
   };
+  // 紹介元（details.referrer）の名前は、保存した時点の名前のまま持つ。紹介元がお客様・サブコンのマスターなら、代表名にそろえて読む
+  window.mdReferrerOf = function (name) {
+    const r = window.mdGet('customer', name);
+    const v = r && r.details && String(r.details.referrer || '').trim();
+    return v || '';
+  };
+  // 「この会社（お客様 or サブコン）から紹介されたお客様」の名前一覧（紹介元の表記ゆれ・別名は代表名にそろえて照合）
+  window.mdReferredCustomers = function (name, field) {
+    const f = field === 'sv' ? 'sv' : 'customer';
+    const canon = v => (typeof window.nameCanon === 'function' ? window.nameCanon(f, v) : v) || v;
+    const me = canon(name);
+    return window.mdGetAll('customer').filter(m => {
+      const v = m.details && String(m.details.referrer || '').trim();
+      return v && m.value !== name && canon(v) === me;
+    }).map(m => m.value).sort((a, b) => a.localeCompare(b, 'ja'));
+  };
   // 上位（経由する同業者を順にたどる。近い順・循環しても止まる）
   window.mdViaChain = function (name) {
     const out = [], seen = new Set([name]);
@@ -1730,6 +1746,9 @@
       _DEAL_FIELD,
       _VIA_FIELD,
       _CHILDREN_FIELD,
+      // 紹介元（誰かから紹介されたお客様）。お客様・サブコンのマスター名が候補に出る（人の名前・マスターに無い会社名もそのまま入力できる）
+      { key: 'referrer',     label: '紹介元（誰から紹介されたか）', refer: true, placeholder: '例）○○商事の山田さん／株式会社○○（お客様・サブコンの名前が候補に出ます）' },
+      { key: 'referralNote', label: '紹介の経緯・時期', placeholder: '例）2026-10 展示会で山田氏から紹介' },
       { key: 'contacts',     label: '担当者', contacts: true },
       { key: 'location',     label: '所在地' },
       { key: 'mainGoods',    label: 'メイン商材' },
@@ -1757,6 +1776,7 @@
     sv:      [
       _FURIGANA_FIELD,
       _EN_FIELD,
+      { key: 'location', label: '住所（所在地）', placeholder: '例）東京都港区○○1-2-3 ○○ビル 5F（本社・主な拠点の住所）' },
       { key: 'website', label: 'ウェブサイト（URL）', link: true, placeholder: '例）https://example.com' },
       // 種別（複数選べる。ひな形のほか、自由に追加した種別はチーム内で候補に出る）
       { key: 'svTypes', label: 'サブコン種別', tags: true, addPlaceholder: '種別を追加（例：トラック手配）',

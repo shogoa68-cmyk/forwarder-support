@@ -5769,7 +5769,7 @@ body.md-modal-open { overflow: hidden; }
 #statsPane-master table.master-grid > tbody > tr[data-deal="other"] { background: #f1f2f4; border-left: 5px solid #9aa5b1; }
 /* 詳細情報は、会社名をクリックしたときだけ表示（取引形態のチップは常に表示） */
 #statsPane-master table.master-grid .md-fold-chip { display: none; }
-#statsPane-master table.master-grid tr.is-open .md-fold-chip { display: inline-flex; }
+#statsPane-master table.master-grid tr.is-open > td:not(.master-nest-cell) .md-fold-chip { display: inline-flex; }
 .master-name-toggle { cursor: pointer; border-bottom: 1px dotted #8a97a6; }
 .master-name-toggle::before { content: "▸ "; font-size: 11px; color: #6b7a8c; }
 tr.is-open .master-name-toggle::before { content: "▾ "; }
@@ -5971,3 +5971,44 @@ input[type="number"], .num, td, th { font-variant-numeric: tabular-nums; }
 /* 一括置換の最近の履歴（alias-rules.js／2026-11） */
 .ar-apply-log { margin: 4px 0 0; padding-left: 1.2em; font-size: var(--text-xs); color: var(--text-muted, #6b7683); line-height: var(--lh-body, 1.7); }
 .ar-apply-log small { opacity: .8; }
+.drift-merge-input { width: 100%; box-sizing: border-box; margin-top: 6px; padding: 6px 8px; font: inherit; border: 1px solid var(--border, #c9d0d9); border-radius: 6px; }
+.confirm-body p { white-space: pre-line; }
+
+/* ===== マスターの新規登録モーダル（stats.js statsMasterToggleRegister）===== */
+#tab-master .master-register-bar .master-register-toggle { display: inline-flex; align-items: center; gap: 4px; padding: 6px 16px; font-weight: 700; border: 1px solid var(--accent, #416180); background: #fff; color: var(--accent, #2c455d); border-radius: 6px; margin: 0 0 8px; }
+#tab-master .master-register-bar .master-register-toggle:hover { background: #eaf0f7; }
+.md-modal.master-new-modal { width: min(980px, 100%); }
+.master-new-modal .md-modal-body { display: block; }
+.master-new-modal .mnr-top { display: grid; grid-template-columns: 200px 1fr; gap: 12px; margin-bottom: 12px; }
+.master-new-modal .mnr-lab { display: block; font-size: 13px; font-weight: 700; color: #3a4a5c; }
+.master-new-modal .mnr-lab > .ar-select, .master-new-modal .mnr-lab > .ar-input { display: block; width: 100%; height: auto; flex: none; box-sizing: border-box; margin-top: 4px; font-size: 14px; padding: 6px 8px; font-weight: 400; }
+.master-new-modal .mnr-fields { margin-bottom: 10px; }
+.master-new-modal .mnr-fields[hidden] { display: none; }
+.master-new-modal .mnr-spacer { flex: 1; }
+@media (max-width: 600px) { .master-new-modal .mnr-top { grid-template-columns: 1fr; } }
+.master-new-modal .master-new-hint { margin: 0; font-size: 12px; color: #6b7684; }
+.master-new-modal .master-new-more { font-size: 13px; display: flex; align-items: center; gap: 6px; cursor: pointer; }
+.master-new-foot { display: flex; gap: 8px; justify-content: flex-end; }
+.master-new-foot .master-new-btn { padding: 6px 22px; font-weight: 700; background: #416180; color: #fff; border: 1px solid #416180; border-radius: 6px; cursor: pointer; }
+.master-new-foot .master-new-cancel { padding: 6px 16px; background: #fff; border: 1px solid #c3ccd6; border-radius: 6px; cursor: pointer; }
+
+/* 入れ子のカード（同業者のカードの中に先のお客様のカード）。外枠は全幅、中は小さなカードを並べる */
+#statsPane-master table.master-grid > tbody > tr[data-nest] { grid-column: 1 / -1; }
+#statsPane-master table.master-grid > tbody > tr > td.master-nest-cell { order: 99; padding-top: 8px; margin-top: 4px; border-top: 1px dashed #d4a972; }
+.master-nest-title { font-size: 12px; font-weight: 700; color: #7a5a2c; margin-bottom: 6px; }
+#statsPane-master table.master-grid .master-nest { display: block; width: 100%; border: 0; background: transparent; }
+#statsPane-master table.master-grid .master-nest > thead { display: none; }
+#statsPane-master table.master-grid .master-nest > tbody { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 8px; align-items: start; }
+#statsPane-master table.master-grid .master-nest > tbody > tr[data-nest] { grid-column: 1 / -1; }
+#statsPane-master table.master-grid .master-nest .master-via-mark { display: none; }
+#statsPane-master table.master-grid .master-nest > tbody > tr { display: flex; flex-direction: column; gap: 4px; background: var(--surface, #fff); border: 1px solid var(--border, #d9dee5); border-radius: 12px; padding: 10px 12px; box-shadow: 0 1px 3px rgba(60, 46, 30, .05); transition: box-shadow .14s; min-width: 0; }
+#statsPane-master table.master-grid .master-nest > tbody > tr:hover { box-shadow: 0 6px 18px rgba(60, 46, 30, .12); }
+#statsPane-master table.master-grid .master-nest > tbody > tr > td { display: block; padding: 0; border: 0; background: transparent !important; box-shadow: none !important; text-align: left; min-width: 0; width: auto; }
+#statsPane-master table.master-grid .master-nest > tbody > tr > td:first-child { order: -1; font-size: 11px; color: #6b7a8c; }
+#statsPane-master table.master-grid .master-nest > tbody > tr > td.stats-val { font-size: 14px; font-weight: 700; overflow-wrap: anywhere; padding-left: 0; }
+#statsPane-master table.master-grid .master-nest > tbody > tr > td.ops { white-space: normal; text-align: left; min-width: 0; display: flex; flex-wrap: wrap; gap: 4px; padding-top: 6px; margin-top: 2px; border-top: 1px dashed #e2e6ec; }
+#statsPane-master table.master-grid .master-nest > tbody > tr > td.stats-master-abbrev-cell { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
+#statsPane-master table.master-grid .master-nest > tbody > tr[data-deal="ship"] { background: #eef5fc; border-left: 5px solid #3b7bbf; }
+#statsPane-master table.master-grid .master-nest > tbody > tr[data-deal="fwd"] { background: #fff4e6; border-left: 5px solid #e08a2c; }
+#statsPane-master table.master-grid .master-nest > tbody > tr[data-deal="other"] { background: #f1f2f4; border-left: 5px solid #9aa5b1; }
+#statsPane-master table.master-grid .master-nest > tbody > tr[data-deal="agent"] { background: #f5effb; border-left: 5px solid #8a5cc2; }

@@ -48,3 +48,15 @@ textarea.ann-in { width: 100%; resize: vertical; }
 .um-tab[hidden] { display: none; }
 /* チーム管理のタブ：.um-pane の display:flex が hidden に勝ち、切替えても全タブが表示されていた不具合の修正 */
 .um-pane[hidden] { display: none; }
+
+/* 🔄 新しいバージョンのお知らせ（js/update-check.js）：お知らせバーと同じ並びに出る琥珀色の帯 */
+.upd-bar { display: flex; align-items: center; gap: var(--sp-10, 10px); margin: 0 0 var(--sp-12, 12px); padding: var(--sp-10, 10px) var(--sp-12, 12px); background: #fdf4e3; border: 1px solid #d99a1c; border-left-width: 4px; border-radius: var(--r-8, 8px); color: #5a4210; }
+.upd-bar[hidden] { display: none; }
+.upd-ic { flex: none; font-size: 16px; }
+.upd-msg { flex: 1; min-width: 0; font-size: var(--fs-13, 13px); line-height: var(--lh-body, 1.7); }
+.upd-msg b { display: block; font-size: var(--fs-14, 14px); }
+.upd-btns { flex: none; display: flex; gap: var(--sp-6, 6px); }
+.upd-go { border: 0; background: #b07a10; color: #fff; font: inherit; font-size: var(--fs-13, 13px); font-weight: 700; padding: var(--sp-6, 6px) var(--sp-14, 14px); border-radius: var(--r-6, 6px); cursor: pointer; }
+.upd-go:hover { background: #946509; }
+.upd-later { border: 1px solid #d9b873; background: transparent; color: inherit; font: inherit; font-size: var(--fs-13, 13px); padding: var(--sp-6, 6px) var(--sp-12, 12px); border-radius: var(--r-6, 6px); cursor: pointer; }
+@media (max-width: 600px) { .upd-bar { flex-wrap: wrap; } .upd-btns { width: 100%; } .upd-go, .upd-later { flex: 1; padding-top: 10px; padding-bottom: 10px; } }

@@ -46,6 +46,7 @@
       window._myMemberNo = null;
       if (btn) btn.hidden = true;
       if (typeof window.annOnAuth === 'function') window.annOnAuth(null);   // 📢 お知らせバーを消す
+      if (typeof window.otOnAuth === 'function') window.otOnAuth(null);     // 🏢 組織・チームの情報を空に
       return;
     }
     const db = _db();
@@ -73,6 +74,8 @@
     if (btn) btn.hidden = (_myRole !== 'admin');
     // 📢 管理者からのお知らせを読み込む（管理者には「お知らせ」タブも出す）。ロールが分かったこの時点で呼ぶ
     if (typeof window.annOnAuth === 'function') window.annOnAuth(user);
+    // 🏢 組織・チームの所属を読み込む（ダッシュボードの「全体／組織／チーム／自分」で使う）
+    if (typeof window.otOnAuth === 'function') window.otOnAuth(user);
   }
 
   // ---------- データ取得 ----------
@@ -275,12 +278,16 @@
     document.getElementById('umTabMembers')?.classList.toggle('is-active', tab === 'members');
     document.getElementById('umTabPerms')?.classList.toggle('is-active', tab === 'perms');
     document.getElementById('umTabAnn')?.classList.toggle('is-active', tab === 'ann');
+    document.getElementById('umTabOrg')?.classList.toggle('is-active', tab === 'org');
     const mp = document.getElementById('umMembersPane');
     const pp = document.getElementById('umPermsPane');
     const ap = document.getElementById('umAnnPane');
+    const op = document.getElementById('umOrgPane');
     if (mp) mp.hidden = tab !== 'members';
     if (pp) pp.hidden = tab !== 'perms';
     if (ap) ap.hidden = tab !== 'ann';
+    if (op) op.hidden = tab !== 'org';
+    if (tab === 'org' && typeof window.otAdminOpen === 'function') window.otAdminOpen();   // 🏢 組織・チームの管理（js/org-teams.js）
     if (tab === 'ann' && typeof window.annAdminOpen === 'function') window.annAdminOpen();   // 📢 お知らせの管理（js/announcements.js）
   }
 
@@ -327,5 +334,7 @@
     umOnAuth, openUserMgr, closeUserMgr, switchUmTab,
     umChangeRole, umEditMemberNo, umDeleteMember, umInvite, umToggleInvite,
     umFilter: _applyFilters, umRefreshIfOpen,
+    // 🏢 組織・チームの管理画面がメンバー一覧を使う（最新を読み直して返す）
+    umLoadMembers: async () => { await _loadMembers(); return _members.map(m => ({ email: m.email, name: _displayName(m.email), role: m.role })); },
   });
 })();

@@ -29,8 +29,11 @@
 <link rel="stylesheet" href="css/simple-mode.css">
 <link rel="stylesheet" href="css/feedback.css">
 <link rel="stylesheet" href="css/announcements.css">
+<link rel="stylesheet" href="css/org-teams.css">
 <link rel="stylesheet" href="css/workfolder.css">
 <link rel="stylesheet" href="css/cp-test.css">
+<link rel="stylesheet" href="css/stats-mobile.css">
+<link rel="stylesheet" href="css/master-mobile.css">
 <script>
 /* テーマ切替の早期適用（画面の描画前に実行して、ちらつきを防ぐ）。設定は js/tweaks.js のパネル「デザイン」で変更。
    ?theme=industry / ?theme=classic のURLパラメータでも一時的に切替可（localStorage に保存される）。 */
@@ -2256,6 +2259,8 @@
         <!-- このブラウザに残っている旧「ブラウザ保存」の案件を、チーム共有へ移す案内（ある場合のみ表示） -->
         <div class="master-cloud-notice is-migrate" id="qpdLocalMigrate" hidden></div>
         <div class="qpd-stats" id="qpdStats"></div>
+        <!-- 案件の範囲：全体／組織／チーム／自分（js/quote/cloud.js の _renderScopeBar・組織とチームの所属は js/org-teams.js） -->
+        <div class="qpd-scope" id="qpdScope" hidden></div>
         <div class="qpd-tools">
           <div class="qpd-search-wrap">
             <input type="text" id="qpdSearch" class="qpd-search" placeholder="🔍 REF#・案件名・お客様・担当者・メモ・サブコン・タグで検索（スペースでAND）" oninput="cloudSearchInput(this.value)" />
@@ -5065,6 +5070,10 @@
 <script src="js/quote/right-rail.js"></script>
 <script src="js/ui-confirm.js"></script>
 <script src="js/announcements.js"></script>
+<!-- 組織とチーム（名簿の整理・ダッシュボードの絞り込み。js/org-teams.js） -->
+<script src="js/org-teams.js"></script>
+<!-- 古い版を開いたままの人に「更新してください」を知らせる（js/update-check.js） -->
+<script src="js/update-check.js"></script>
 <script src="js/feedback-md.js"></script>
 <script src="js/feedback-annotate.js"></script>
 <script src="js/feedback.js"></script>
@@ -5080,6 +5089,8 @@
 <script src="js/cat-more.js"></script>
 <script src="js/stats.js"></script>
 <script src="js/alias-rules.js"></script>
+<script src="js/stats-mobile.js"></script>
+<script src="js/master-mobile.js"></script>
 <script src="js/drift-engine.js"></script>
 <script src="js/drift-check.js"></script>
 <script src="js/port-country.js"></script>
@@ -5202,6 +5213,7 @@
     <div class="um-tabs">
       <button class="um-tab is-active" id="umTabMembers" onclick="switchUmTab('members')">メンバー</button>
       <button class="um-tab" id="umTabPerms" onclick="switchUmTab('perms')">ロールと権限</button>
+      <button class="um-tab" id="umTabOrg" onclick="switchUmTab('org')">🏢 組織・チーム</button>
       <button class="um-tab" id="umTabAnn" onclick="switchUmTab('ann')" hidden>📢 お知らせ</button>
     </div>
 
@@ -5235,6 +5247,7 @@
       </div>
     </div>
 
+    <div id="umOrgPane" class="um-pane" hidden></div>
     <div id="umAnnPane" class="um-pane" hidden></div>
 
     <div id="umPermsPane" class="um-pane" hidden>

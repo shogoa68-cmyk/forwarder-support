@@ -148,6 +148,13 @@
     _toast((approve ? '✅ 承認しました：' : '却下しました：') + r.value, approve ? 'success' : 'info');
   }
   window.statsApproveRequest = id => _decide(id, true);
+  window.statsDecideRequest = _decide;   // スマホ版（js/master-mobile.js）が理由シートのあとに呼ぶ
+  // スマホ版「今日やること」用：読み取りだけ
+  window.statsMasterMobileInfo = function () {
+    const me = _me(), admin = _isAdmin();
+    const rq = r => ({ id: r.id, field: r.field, label: _FIELD_LABEL[r.field] || r.field, value: r.value, alias_of: r.alias_of || '', who: (r.requested_by || '').split('@')[0], status: r.status, mine: r.requested_by === me });
+    return { approvalOn: _approvalOn(), admin, pending: _reqs.filter(r => r.status === 'pending').map(rq), mine: _reqs.filter(r => r.requested_by === me && r.status === 'pending').map(rq) };
+  };
   window.statsRejectRequest  = async function (id) {
     const r = _reqs.find(x => x.id === id);
     if (!r) return;
@@ -528,11 +535,18 @@
     const has = other && typeof window.statsGetMasters === 'function' && (window.statsGetMasters().some(m => m.field === other && m.value === value) || (typeof window.synGetGroups === 'function' && window.synGetGroups(other).some(g => g.canonical === value)));
     return has ? `<button type="button" class="stats-md-chip stats-md-deal stats-md-both" title="この会社は「${other === 'sv' ? 'サブコン' : 'お客様'}」にも登録されています（クリックで開く）" onclick="statsJumpToMaster('${other}','${_ea(value)}')">🔁 ${other === 'sv' ? 'サブコン' : 'お客様'}にも登録</button>` : '';
   }
+  // 「紹介したお客様 N社」の印（紹介元になっているお客様・サブコンのとき。詳細が未登録でも出る）
+  function _refChip(field, value) {
+    if ((field !== 'customer' && field !== 'sv') || typeof window.mdReferredCustomers !== 'function') return '';
+    const kids = window.mdReferredCustomers(value, field);
+    if (!kids.length) return '';
+    return `<span class="stats-md-chip stats-md-via stats-md-refd" title="${_eav('この会社から紹介されたお客様：' + kids.join('、'))}"><b>🤝 紹介したお客様</b>${kids.length}社</span>`;
+  }
   function _mdBadge(field, value) {
     const schema = window.MD_SCHEMA && window.MD_SCHEMA[field];
     if (!schema) return '';
     const rec = typeof window.mdGet === 'function' ? window.mdGet(field, value) : null;
-    if (!rec) { const o = _bothChip(field, value); return o ? `<div class="stats-md-inline">${o}</div>` : ''; }
+    if (!rec) { const o = _bothChip(field, value) + _refChip(field, value); return o ? `<div class="stats-md-inline">${o}</div>` : ''; }
     const details = rec.details || {};
     const chips = [];
     schema.forEach(s => {
@@ -588,7 +602,7 @@
       const dk = s.key === 'dealType' ? (_DEAL_DEFS.find(x => x[1] === v) || [])[0] : '';
       chips.push(`<span class="stats-md-chip${dk ? ' stats-md-deal stats-md-deal-' + dk : ''}" title="${_eav(s.label + '：' + disp)}"><b>${_esc(s.label)}</b>${_esc(short)}</span>`);
     });
-    const otherChip = _bothChip(field, value);
+    const otherChip = _bothChip(field, value) + _refChip(field, value);
     if (!chips.length) return otherChip ? `<div class="stats-md-inline">${otherChip}</div>` : '';
     // 取引形態のチップだけを常に表示し、それ以外の詳細は、会社名をクリックしたときに表示する（カード表示・2026-11）
     return `<div class="stats-md-inline">${chips.map(c => c.indexOf('stats-md-deal') >= 0 ? c : c.replace('class="stats-md-chip', 'class="md-fold-chip stats-md-chip')).join('')}${otherChip}</div>`;
@@ -813,9 +827,9 @@
     return '<div class="stats-sort-toolbar"><span class="stats-sort-label">並び替え</span>' +
            `<button class="stats-sort-btn${by === 'count' ? ' is-active' : ''}" onclick="statsSetSort('count')">件数順</button>` +
            `<button class="stats-sort-btn${by === 'name' ? ' is-active' : ''}" onclick="statsSetSort('name')">名前順（あ→ん）</button>` +
-           `<label class="stats-unorg-toggle" title="⭐マスター登録済み・別名として整理済みの項目を隠し、未整理の項目だけ表示します">` +
+           `<label class="stats-unorg-toggle sm-f-unorg" title="⭐マスター登録済み・別名として整理済みの項目を隠し、未整理の項目だけ表示します">` +
            `<input type="checkbox" onchange="statsToggleUnorganized()"${_statsUnorganizedOnly ? ' checked' : ''}> 未整理のみ表示</label>` +
-           `<label class="stats-unorg-toggle" title="表記ゆれ（同じ読みで複数の表記）がある項目だけ表示します">` +
+           `<label class="stats-unorg-toggle sm-f-fluct" title="表記ゆれ（同じ読みで複数の表記）がある項目だけ表示します">` +
            `<input type="checkbox" onchange="statsToggleFluct()"${_statsFluctOnly ? ' checked' : ''}> ゆらぎありのみ表示</label></div>`;
   }
 
@@ -2664,11 +2678,47 @@
   const _honor = n => typeof window.formatPersonWithHonorific === 'function' ? window.formatPersonWithHonorific(n) : (n ? n + ' 様' : '');
 
   let _regOpen = false;   // 「代表を新規登録」の開閉（Industry。再描画しても保つ）
-  window.statsMasterToggleRegister = function () {
-    _regOpen = !_regOpen;
-    document.querySelector('#statsPane-master .master-register')?.classList.toggle('is-open', _regOpen);
-    if (_regOpen) document.getElementById('masterNewValue')?.focus();
+  // マスターの新規登録は、詳細ポップアップと同じ見た目のモーダルで行う（種別・マスター名・続けて登録）
+  const _REG_FIELDS = [['sv', 'サブコン', '例）ABC Logistics Co., Ltd.'], ['customer', 'お客様', '例）ABC Corporation Ltd.'], ['nm', '品名', '例）海上運賃'], ['port', '港', '例）Yokohama'], ['un', '単位', '例）CONTAINER']];
+  function _regModalEl() { return document.getElementById('masterNewModal'); }
+  window.statsMasterCloseRegister = function () {
+    const m = _regModalEl(); if (!m) return;
+    m.remove();
+    if (!document.getElementById('mdDetailModal')) document.body.classList.remove('md-modal-open');
   };
+  window.statsMasterToggleRegister = function () {
+    if (_regModalEl()) { window.statsMasterCloseRegister(); return; }
+    window.statsCloseMasterDetail();
+    const cur = _REG_FIELDS.some(f => f[0] === _masterFieldFilter) ? _masterFieldFilter : 'sv';
+    const m = document.createElement('div');
+    m.id = 'masterNewModal'; m.className = 'md-modal-overlay'; m.setAttribute('role', 'dialog'); m.setAttribute('aria-modal', 'true');
+    m.innerHTML = '<div class="md-modal master-new-modal"><div class="md-modal-head"><h3>＋ マスターを新規登録</h3><button type="button" class="md-modal-close" title="閉じる（Esc）" aria-label="閉じる">✕</button></div>' +
+      '<div class="md-modal-body">' +
+        '<div class="mnr-top">' +
+          '<label class="mnr-lab mnr-kind">種別<select id="masterNewField" class="ar-select">' + _REG_FIELDS.map(f => `<option value="${f[0]}"${f[0] === cur ? ' selected' : ''}>${f[1]}</option>`).join('') + '</select></label>' +
+          '<label class="mnr-lab mnr-name">マスター名（正しい名前）<input id="masterNewValue" class="ar-input" type="text" autocomplete="off"></label>' +
+        '</div>' +
+        '<div class="master-detail-form mnr-fields" id="masterNewFields"></div>' +
+        '<p class="master-new-hint">実際の入力値に無い名称でも登録できます。種別ごとの詳細は、わかる範囲で入れておけます（あとから「詳細」でも追加できます）。添付ファイル・ニュース・顧客カルテ・取引ルールは、登録後の「詳細」から追加します。</p>' +
+      '</div>' +
+      '<div class="mt-foot master-new-foot"><label class="master-new-more"><input type="checkbox" id="masterNewMore"> 続けて登録する</label><span class="mnr-spacer"></span>' +
+        '<button type="button" class="master-new-btn" onclick="statsMasterAddCanonical()">登録</button><button type="button" class="master-new-cancel" onclick="statsMasterCloseRegister()">キャンセル</button></div></div>';
+    document.body.appendChild(m); document.body.classList.add('md-modal-open');
+    const inp = m.querySelector('#masterNewValue'), sel = m.querySelector('#masterNewField'), box = m.querySelector('#masterNewFields');
+    const paint = () => {
+      const f = _REG_FIELDS.find(x => x[0] === sel.value);
+      inp.placeholder = f ? f[2] : '';
+      _mdEditField = sel.value;
+      box.innerHTML = _mdFieldsHtml(sel.value, '', {});
+      box.hidden = !box.innerHTML.trim();
+    };
+    sel.addEventListener('change', paint); paint();
+    inp.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.isComposing) { e.preventDefault(); window.statsMasterAddCanonical(); } });
+    m.addEventListener('click', e => { if (e.target === m || e.target.closest('.md-modal-close')) window.statsMasterCloseRegister(); });
+    inp.focus();
+  };
+  document.addEventListener('keydown', e => { if (e.key === 'Escape' && _regModalEl() && !document.querySelector('.confirm-dialog')) { e.stopPropagation(); window.statsMasterCloseRegister(); } }, true);
+
   // 操作の「⋯」メニュー（解除など、取り消しにくい操作をここに置く）。本体は body へ出す（表の overflow に切られないように）
   function _closeOpsMenu() { document.querySelectorAll('.master-ops-menu').forEach(m => m.remove()); }
   window.statsOpsMenu = function (btn, kind, field, value) {
@@ -2759,6 +2809,7 @@
       _qFlatten(v, parts);
     });
     if (field === 'customer' && typeof window.mdViaChildren === 'function') { parts.push.apply(parts, window.mdViaChildren(name)); }
+    if ((field === 'customer' || field === 'sv') && typeof window.mdReferredCustomers === 'function') { parts.push.apply(parts, window.mdReferredCustomers(name, field)); }
     return _qNorm(parts.join(' \n '));
   }
   function _masterSearchHtml() {
@@ -2814,14 +2865,7 @@
     // --- マスターを新規登録するフォーム（実データに無い名称も登録可）---
     const fieldOpts = [['sv', 'サブコン'], ['nm', '品名'], ['customer', 'お客様'], ['port', '港'], ['un', '単位']]
       .map(([v, l]) => `<option value="${v}"${v === _masterFieldFilter ? ' selected' : ''}>${l}</option>`).join('');
-    const formH = '<div class="master-register-bar"><button type="button" class="master-register-toggle" onclick="statsMasterToggleRegister()">＋ マスターを新規登録</button></div>' +
-      '<div class="master-new-form master-register' + (_regOpen ? ' is-open' : '') + '">' +
-      '<span class="master-new-label">➕ マスターを新規登録</span>' +
-      `<select id="masterNewField" class="ar-select">${fieldOpts}</select>` +
-      '<input id="masterNewValue" class="ar-input" type="text" placeholder="マスター名（例: ABC Corporation Ltd.）" onkeydown="if(event.key===\'Enter\')statsMasterAddCanonical()" />' +
-      '<button class="master-new-btn" onclick="statsMasterAddCanonical()">登録</button>' +
-      '<span class="master-new-hint">実際の入力値に無い名称でも登録できます。登録後、各マスターの「＋ 別名」で略称・英語表記を足せます。</span>' +
-      '</div>';
+    const formH = '<div class="master-register-bar"><button type="button" class="master-register-toggle" onclick="statsMasterToggleRegister()">＋ マスターを新規登録</button></div>';
 
     // --- マスター＋別名の一覧（単位も同じ synonym_groups）---
     const synGroups = (typeof window.synGetGroups === 'function' ? window.synGetGroups() : []).slice();
@@ -3091,11 +3135,18 @@
       if (!kids.size) rowsAll.forEach(_emitRow);
       else {
         const done = new Set();
+        // カード表示のときは、同業者のカードの中に先のお客様のカードを入れ子で入れる（何段でも）。リスト表示は従来どおり直下に字下げ
         const walk = (r, depth) => {
           if (done.has(r.name) && isCust(r)) return;
           if (isCust(r)) done.add(r.name);
-          r.viaDepth = depth; _emitRow(r);
-          (kids.get(r.name) || []).forEach(c => walk(c, depth + 1));
+          r.viaDepth = depth;
+          const cs = kids.get(r.name) || [];
+          if (!_cardMode || !cs.length) { _emitRow(r); cs.forEach(c => walk(c, depth + 1)); return; }
+          const saved = h; h = ''; _emitRow(r); const own = h; h = '';
+          cs.forEach(c => walk(c, depth + 1));
+          const inner = h; h = saved;
+          if (!inner) { h += own; return; }
+          h += own.replace('<tr ', '<tr data-nest="1" ').replace(/<\/tr>\s*$/, `<td class="master-nest-cell"><div class="master-nest-title">👥 先のお客様 ${cs.length}社</div><table class="master-nest"><tbody>${inner}</tbody></table></td></tr>`);
         };
         rowsAll.forEach(r => { if (isCust(r) && via(r) && byName.has(via(r)) && via(r) !== r.name) return; walk(r, 0); });
         rowsAll.forEach(r => { if (isCust(r) && !done.has(r.name)) walk(r, 0); });   // 循環などで取りこぼした行
@@ -3148,13 +3199,32 @@
     if (!fSel || !inp) return;
     const field = fSel.value;
     const value = (inp.value || '').trim();
-    if (!value) { if (typeof window.quoteShowToast === 'function') window.quoteShowToast('マスター名を入力してください', 'warn'); return; }
+    const toast = (msg, t) => { if (typeof window.quoteShowToast === 'function') window.quoteShowToast(msg, t || 'success', t === 'warn' ? 5000 : undefined); };
+    if (!value) { toast('マスター名を入力してください', 'warn'); inp.focus(); return; }
+    // 1. マスターに登録（承認制のメンバーは申請になる）
     if (field === 'un') {
       if (typeof window.uaSetCanonical === 'function') window.uaSetCanonical(value);
     } else if (typeof window.synSetCanonical === 'function') {
       await window.synSetCanonical(field, value);
     }
-    inp.value = '';
+    // 2. 入力した詳細を保存（マスターとして登録できたときだけ。1 つも入力が無ければ何も書かない）
+    const registered = field === 'un' || (typeof window.statsGetMasters === 'function' && window.statsGetMasters().some(x => x.field === field && x.value === value))
+      || (typeof window.synGetGroups === 'function' && window.synGetGroups(field).some(g => g.canonical === value));
+    if (!registered) { toast('マスターに登録できませんでした（承認制の場合は申請になります）', 'warn'); return; }
+    let detailSaved = true;
+    const schema = (window.MD_SCHEMA && window.MD_SCHEMA[field]) || [];
+    const hasInput = schema.length > 0;
+    if (hasInput) {
+      detailSaved = !!(await window.statsSaveMasterDetail(field, value));
+      if (!detailSaved) { toast('詳細を保存できませんでした。入力内容は残してあります（名前だけはマスターに登録済みです）', 'warn'); return; }
+    } else {
+      toast('✅ 「' + value + '」をマスターに登録しました');
+    }
+    const more = document.getElementById('masterNewMore');
+    if (more && more.checked) {
+      inp.value = ''; inp.focus();
+      const sel = document.getElementById('masterNewField'); if (sel) sel.dispatchEvent(new Event('change'));   // 詳細欄も空に戻す
+    } else window.statsMasterCloseRegister();
     if (typeof window.statsRerenderActive === 'function') window.statsRerenderActive();
   };
   // マスター管理: 代表名を編集（リネーム）。旧名称は別名として残る
@@ -3312,14 +3382,10 @@
     inp.value = '';
   };
 
-  window.statsToggleMasterDetail = function (field, value, btn) {
-    // 詳細は画面いっぱいに広がらないよう、ポップアップ（モーダル）で開く（2026-10）
-    window.statsCloseMasterDetail();
+  // 詳細フォームの入力欄（種別ごとのひな形 MD_SCHEMA から）。詳細ポップアップと、新規登録モーダルの両方で使う
+  function _mdFieldsHtml(field, value, details) {
     const schema = (window.MD_SCHEMA && window.MD_SCHEMA[field]) || [];
-    _mdEditField = field;
-    const existing = (typeof window.mdGet === 'function') ? window.mdGet(field, value) : null;
-    const details = (existing && existing.details) || {};
-    const fieldsHtml = schema.map(s => {
+    return schema.map(s => {
       const id = 'md_' + s.key;
       if (s.contacts) {
         // 旧・単一担当者フィールド（details.contact）からの非破壊移行：
@@ -3361,6 +3427,15 @@
         return `<label class="master-detail-label">${s.label}<input id="${id}" class="ar-input" type="text" list="${id}_list" value="${_eav(cur ? (window.countryLabel ? window.countryLabel(cur) : cur) : '')}"${s.placeholder ? ` placeholder="${_eav(s.placeholder)}"` : ''} autocomplete="off" />` +
           `<datalist id="${id}_list">${opts}</datalist></label>`;
       }
+      if (s.refer) {
+        // 紹介元：お客様・サブコンのマスター名を候補に出す（人の名前など、マスターに無いものも自由に入力できる）
+        const names = new Set();
+        ['customer', 'sv'].forEach(f => (typeof window.mdGetAll === 'function' ? window.mdGetAll(f) : []).forEach(m => names.add(m.value)));
+        (typeof window.statsGetMasters === 'function' ? window.statsGetMasters() : []).filter(m => m.field === 'customer' || m.field === 'sv').forEach(m => names.add(m.value));
+        names.delete(value);
+        return `<label class="master-detail-label">${s.label}<input id="${id}" class="ar-input" type="text" list="${id}_list" value="${_eav(details[s.key] || '')}"${s.placeholder ? ` placeholder="${_eav(s.placeholder)}"` : ''} autocomplete="off" />` +
+          `<datalist id="${id}_list">${[...names].sort((a, b) => a.localeCompare(b, 'ja')).map(v => `<option value="${_eav(v)}">`).join('')}</datalist></label>`;
+      }
       if (s.suggest) {
         // 入力済みの値を候補に出す（所属グループなど。表記ゆれを防ぐ）
         const used = new Set();
@@ -3372,6 +3447,15 @@
         ? `<label class="master-detail-label">${s.label}<textarea id="${id}" class="ar-input master-detail-textarea" rows="2">${_esc(details[s.key] || '')}</textarea></label>`
         : `<label class="master-detail-label">${s.label}<input id="${id}" class="ar-input" type="text" value="${_eav(details[s.key] || '')}"${s.placeholder ? ` placeholder="${_eav(s.placeholder)}"` : ''} /></label>`;
     }).join('');
+  }
+  window.statsToggleMasterDetail = function (field, value, btn) {
+    // 詳細は画面いっぱいに広がらないよう、ポップアップ（モーダル）で開く（2026-10）
+    window.statsCloseMasterDetail();
+    const schema = (window.MD_SCHEMA && window.MD_SCHEMA[field]) || [];
+    _mdEditField = field;
+    const existing = (typeof window.mdGet === 'function') ? window.mdGet(field, value) : null;
+    const details = (existing && existing.details) || {};
+    const fieldsHtml = _mdFieldsHtml(field, value, details);
     const row = document.createElement('div');
     row.id = 'mdDetailModal';
     row.className = 'md-modal-overlay';
@@ -3512,6 +3596,7 @@
     if (typeof window.arRefreshDatalist === 'function') window.arRefreshDatalist();  // ふりがなを入力補完へ即反映
     window.statsCloseMasterDetail();
     if (typeof window.statsRerenderActive === 'function') window.statsRerenderActive(); else _renderMaster();
+    return true;
   };
 
   window.statsDeleteMasterDetail = async function (field, value) {
@@ -3555,7 +3640,57 @@
     // マスター候補数
     const masterCount = _cloud() && _cvMap ? _cvMap.size : 0;
     set('statsMasterCount', masterCount);
+    try { if (typeof window.smOnStatsReady === 'function') window.smOnStatsReady(); } catch (e) {}
   }
+
+  // ===== スマホ版「今日の確認」（js/stats-mobile.js）用の要約 =====
+  // 読み取りだけ（保存・表示は変えない）。ゆらぎ・未整理・粗利率の低い明細・受注率と失注の件数を返す。
+  window.statsLowMarginPct = function (v) {
+    if (v !== undefined) { try { localStorage.setItem('statsLowMarginPct', String(v)); } catch (e) {} }
+    let n = 10;
+    try { const x = parseFloat(localStorage.getItem('statsLowMarginPct')); if (isFinite(x) && x > 0 && x < 100) n = x; } catch (e) {}
+    return n;
+  };
+  window.statsTodaySummary = function (opts) {
+    const source = document.getElementById('statsSource')?.value || 'both';
+    if (!_data) { try { _data = _build(source); } catch (e) { return null; } }
+    const out = { blur: 0, unorg: 0, low: { n: 0, th: window.statsLowMarginPct(), worst: null, skipped: 0 }, win: { won: 0, sent: 0, rate: null, lost: 0, topReason: null, topN: 0, reasoned: 0 } };
+    // ゆらぎ（複数表記のグループ）と未整理（まだマスターにも別名にもなっていない項目）
+    const FIELDS = [['sv', _data.svGroups, 'sv'], ['sv', _data.carrierGroups, 'carrier'], ['customer', _data.customerGroups, 'customer'], ['nm', _data.nmGroups, 'nm'], ['un', _data.unGroups, 'un']];
+    out.byPane = {};
+    FIELDS.forEach(([mf, groups, pane]) => {
+      if (!groups) return;
+      const bp = out.byPane[pane] = { unorg: 0, blur: 0 };
+      const syn = typeof window.synGetGroups === 'function' ? window.synGetGroups(mf) : [];
+      const canons = new Set(syn.map(g => g.canonical)), consumed = new Set();
+      syn.forEach(g => { consumed.add(g.canonical); (g.aliases || []).forEach(a => consumed.add(a)); });
+      groups.forEach(g => {
+        const vs = g.variants.filter(v => !consumed.has(v.value));
+        if (!vs.length) return;
+        if (g.variants.length > 1) { out.blur++; bp.blur++; }
+        if (vs.length > 1 || !_masterRegistered(mf, vs[0].value, null, canons)) { out.unorg++; bp.unorg++; }
+      });
+    });
+    if (opts && opts.names) return out;   // 名寄せの画面の件数だけ欲しいとき（重い集計を省く）
+    // 粗利率の低い明細（粗利率が計算できる明細だけ・基準は statsLowMarginPct）
+    try {
+      const rows = _ledgerBuild(source);
+      const low = rows.filter(r => r.margin != null && r.margin < out.low.th).sort((a, b) => a.margin - b.margin);
+      out.low.n = low.length; out.low.worst = low[0] ? { nm: low[0].nm || low[0].sv || '', margin: low[0].margin } : null;
+      out.low.skipped = rows.filter(r => r.margin == null).length;
+    } catch (e) {}
+    // 受注率（提示後ベース）・失注件数・失注の最多の理由（理由が入っている案件のみ）
+    try {
+      const sent = _wrCases(source), lost = _wrCases(source, true).filter(c => c.status === '失注');
+      out.win.sent = sent.length; out.win.won = sent.filter(c => c.status === '受注').length; out.win.rate = _winRatePct(out.win.won, sent.length);
+      out.win.lost = lost.length; out.win.pending = sent.filter(c => c.status !== '受注' && c.status !== '失注').length;
+      const cnt = {}; lost.forEach(c => { if (c.reason) cnt[c.reason] = (cnt[c.reason] || 0) + 1; });
+      const top = Object.entries(cnt).sort((a, b) => b[1] - a[1])[0];
+      out.win.reasoned = Object.values(cnt).reduce((a, b) => a + b, 0);
+      if (top) { out.win.topReason = top[0]; out.win.topN = top[1]; }
+    } catch (e) {}
+    return out;
+  };
 
   // ===== KPI ペイン =====
 

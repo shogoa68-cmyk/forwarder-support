@@ -420,6 +420,7 @@
   "qpdRankCard",
   "qpdRankList",
   "qpdResetAll",
+  "qpdScope",
   "qpdSearch",
   "qpdSearchClear",
   "qpdStats",
@@ -527,6 +528,7 @@
   "statsPane-pattern",
   "statsPane-svport",
   "statsPane-un",
+  "statsPane-winrate",
   "statsPeriod",
   "subconListWrap",
   "subconSearchInput",
@@ -558,12 +560,14 @@
   "umMemberList",
   "umMembersPane",
   "umModal",
+  "umOrgPane",
   "umOverlay",
   "umPermsPane",
   "umRoleFilter",
   "umSearch",
   "umTabAnn",
   "umTabMembers",
+  "umTabOrg",
   "umTabPerms",
   "unit-list",
   "userCatList",
@@ -1746,7 +1750,7 @@
    "defined": true
   },
   "statsSetPane": {
-   "uses": 13,
+   "uses": 14,
    "defined": true
   },
   "statsToggleHelp": {
@@ -1782,7 +1786,7 @@
    "defined": true
   },
   "switchUmTab": {
-   "uses": 3,
+   "uses": 4,
    "defined": true
   },
   "toggleAllCsvCols": {
@@ -4557,6 +4561,10 @@
    "html": false,
    "js": true
   },
+  "email": {
+   "html": false,
+   "js": true
+  },
   "en": {
    "html": false,
    "js": true
@@ -4685,6 +4693,10 @@
    "html": true,
    "js": true
   },
+  "latest": {
+   "html": false,
+   "js": true
+  },
   "lc-carrier": {
    "html": false,
    "js": true
@@ -4777,6 +4789,10 @@
    "html": false,
    "js": true
   },
+  "newteam": {
+   "html": false,
+   "js": true
+  },
   "nt-auto": {
    "html": false,
    "js": true
@@ -4790,6 +4806,10 @@
    "js": true
   },
   "open": {
+   "html": false,
+   "js": true
+  },
+  "org": {
    "html": false,
    "js": true
   },
@@ -5021,6 +5041,10 @@
    "html": true,
    "js": true
   },
+  "team": {
+   "html": false,
+   "js": true
+  },
   "theme": {
    "html": true,
    "js": true
@@ -5178,6 +5202,7 @@
   "js/quote/subcon-request-mail.js",
   "js/quote/memo-title.js",
   "js/quote/case-info.js",
+  "js/quote/diagnosis.js",
   "js/quote/sources.js",
   "js/quote/cond-flow.js",
   "js/quote/handling-terms.js",
@@ -5200,6 +5225,8 @@
   "js/quote/right-rail.js",
   "js/ui-confirm.js",
   "js/announcements.js",
+  "js/org-teams.js",
+  "js/update-check.js",
   "js/feedback-md.js",
   "js/feedback-annotate.js",
   "js/feedback.js",
@@ -5207,6 +5234,8 @@
   "js/hint-fold.js",
   "js/workfolder.js",
   "js/integrations/cyberport.js",
+  "js/integrations/cp-events.js",
+  "js/cp-notify.js",
   "js/cp-test.js",
   "js/cat-more.js",
   "js/stats.js",
