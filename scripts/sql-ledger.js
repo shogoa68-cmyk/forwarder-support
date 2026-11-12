@@ -17,7 +17,8 @@
  *   node scripts/sql-ledger.js --pending        未渡し・変更ありの SQL を 1 つにまとめて出力（貼り付け用）
  *   node scripts/sql-ledger.js --mark a.sql cp-proxy [--date 2026-11-12] [--note メモ]
  *                                               「渡し済み」にする（SQL は docs/sql/ 以降だけでも可。関数は名前だけ）
- *   node scripts/sql-ledger.js --mark-unknown   「不明（過去分）」をまとめて「渡し済み」にする
+ *   node scripts/sql-ledger.js --baseline       いまある「不明」を「過去分（管理対象外）」にして基準日を決める（以降の新規分だけ管理）
+ *   node scripts/sql-ledger.js --mark-unknown   「不明」をまとめて「渡し済み」にする（本当に実行済みのときだけ）
  *   node scripts/sql-ledger.js --unmark a.sql   印を外す（未渡しに戻す）
  *   node scripts/sql-ledger.js --json           状態を JSON で出力（別のツール用）
  */
@@ -203,8 +204,18 @@ const STATUS = {
   pending: '未渡し',
   changed: '変更あり',
   unknown: '不明',
+  legacy: '過去分',
   applied: '渡し済み',
 };
+
+// 状態の判定。基準日（--baseline）を決めたあとは、印のないものは「新しい分＝未渡し」として扱う
+function judge(m, hash, onMain, marks) {
+  if (m && m.status === 'legacy') return m.hash === hash ? 'legacy' : 'changed';
+  if (m && m.status === 'skip') return 'applied';
+  if (m) return m.hash === hash ? 'applied' : 'changed';
+  const hasBaseline = !!(marks._meta && marks._meta.baseline);
+  return (onMain && !hasBaseline) ? 'unknown' : 'pending';
+}
 
 function build() {
   const { found, mainBlobs } = collect();
@@ -214,10 +225,7 @@ function build() {
     const m = marks[e.path];
     const onMain = mainBlobs.has(e.path);
     let status;
-    if (m && m.status === 'skip') status = 'applied';
-    else if (m && m.hash === e.blob) status = 'applied';
-    else if (m) status = 'changed';
-    else status = onMain ? 'unknown' : 'pending';
+    status = judge(m, e.blob, onMain, marks);
     const text = readFileVersion(e);
     rows.push({
       path: e.path, blob: e.blob, status, onMain,
@@ -235,10 +243,7 @@ function build() {
     const m = marks[key];
     const onMain = fnc.mainFp.has(e.name);
     let status;
-    if (m && m.status === 'skip') status = 'applied';
-    else if (m && m.hash === e.fp) status = 'applied';
-    else if (m) status = 'changed';
-    else status = onMain ? 'unknown' : 'pending';
+    status = judge(m, e.fp, onMain, marks);
     const single = 'supabase/' + e.name + '-single/index.ts';
     rows.push({
       kind: 'fn', path: key, label: e.name, blob: e.fp, status, onMain,
@@ -252,7 +257,8 @@ function build() {
   return { rows, marks };
 }
 
-function renderMd(rows) {
+function renderMd(rows, meta) {
+  const basel = meta && meta.baseline;
   const by = (s) => rows.filter((r) => r.status === s);
   const cnt = (s) => by(s).length;
   const esc = (s) => String(s || '').replace(/\|/g, '/');
@@ -264,13 +270,14 @@ function renderMd(rows) {
   o += '| 状態 | 件数 | 意味 |\n|---|---|---|\n';
   o += `| 🔴 未渡し | ${cnt('pending')} | 新しい SQL／関数。まだ Supabase で実行（デプロイ）していない（main にも入っていない分を含む） |\n`;
   o += `| 🟠 変更あり | ${cnt('changed')} | 渡し済みの SQL／関数を、そのあと書き換えた。再実行（再デプロイ）が必要か確認する |\n`;
-  o += `| ⚪ 不明 | ${cnt('unknown')} | 過去に作った SQL／関数で、渡したか記録がない（確認待ち） |\n`;
+  if (cnt('unknown')) o += `| ⚪ 不明 | ${cnt('unknown')} | 渡したか記録がない（確認待ち） |\n`;
+  o += `| 📦 過去分 | ${cnt('legacy')} | 基準日より前に作った分。**管理対象外**（見つけ次第対応）。基準日のあとに書き換えると「変更あり」になる |\n`;
   o += `| 🟢 渡し済み | ${cnt('applied')} | 実行・デプロイ済み（日付つき） |\n\n`;
   o += '## 使い方\n\n';
   o += '1. SQL を新しく作る → 台帳には何もしなくてよい（`node scripts/sql-ledger.js` で自動的に「未渡し」に出る）。\n';
   o += '2. 渡していない SQL をまとめて出す：`node scripts/sql-ledger.js --pending`（Supabase の SQL Editor に貼る）。関数は一覧と貼り付け用ファイルの場所が出る。\n';
   o += '3. 実行・デプロイしたら：`node scripts/sql-ledger.js --mark <名前>`（例：`--mark master-news.sql`／`--mark cp-proxy`）。Claude に「○○ を渡した」と伝えても同じ。\n';
-  o += '4. 過去分で実行済みのものは `--mark-unknown`（不明をまとめて渡し済みに）か、1 本ずつ `--mark`。\n';
+  o += '4. 過去分は管理しない方針（`--baseline` で基準日を決めて「過去分」にする）。あとで未実行と分かったら `--unmark`。\n';
   o += '5. 台帳（このファイル）は `node scripts/sql-ledger.js` で作り直す。**別セッションの分を見るには先に `--fetch`**（全ブランチの最新を取り込む）。\n\n';
   o += '※ まだ push していないブランチの SQL は、その作業ツリーでしか見えません。別セッションの SQL は、そのセッションが push した時点で拾えます。\n';
   o += '※ 台帳ファイルを別ブランチと同時に編集して競合したら、どちらかを採用してから `node scripts/sql-ledger.js` を実行すれば作り直せます（印は json 側。json が競合したら両方の行を残す）。\n\n';
@@ -292,8 +299,13 @@ function renderMd(rows) {
   }
   table('🔴 未渡し', by('pending'), false);
   table('🟠 変更あり（渡したあとに書き換えた）', by('changed'), false);
-  table('⚪ 不明（過去分・実行したか記録なし）', by('unknown'), false);
+  if (cnt('unknown')) table('⚪ 不明（実行したか記録なし）', by('unknown'), false);
   table('🟢 渡し済み', by('applied'), true);
+  o += `<details><summary>📦 過去分（管理対象外・${cnt('legacy')} 件）${basel ? '・基準日 ' + basel : ''}</summary>\n\n`;
+  o += '基準日より前に作った SQL／関数です。渡したかどうかは管理していません。あとで「実行していなかった」と分かったら `node scripts/sql-ledger.js --unmark <名前>` で未渡しに戻せます。\n\n';
+  o += '| 名前 | 何のためか |\n|---|---|\n';
+  for (const r of by('legacy')) o += `| ${r.kind === 'fn' ? '🧩 関数 `' + r.label + '`' : '`' + r.path + '`'} | ${esc(r.purpose)} |\n`;
+  o += '\n</details>\n';
   return o;
 }
 
@@ -311,7 +323,14 @@ if (has('--fetch')) { try { execFileSync('git', ['fetch', '-q', '--all'], { cwd:
 
 const { rows, marks } = build();
 
-if (has('--mark') || has('--mark-unknown')) {
+if (has('--baseline')) {
+  const date = opt('--date') || today();
+  const targets = rows.filter((r) => r.status === 'unknown');
+  for (const r of targets) marks[r.path] = { status: 'legacy', date, hash: r.blob };
+  marks._meta = Object.assign({}, marks._meta, { baseline: date });
+  saveMarks(marks);
+  console.error(`📦 基準日を ${date} にしました。いまある「不明」${targets.length} 件を「過去分（管理対象外）」にしました。これ以降の新しい SQL／関数は「未渡し」から管理します`);
+} else if (has('--mark') || has('--mark-unknown')) {
   const date = opt('--date') || today();
   const note = opt('--note') || '';
   let targets;
@@ -336,7 +355,7 @@ if (has('--mark') || has('--mark-unknown')) {
   saveMarks(marks);
 }
 
-const final = (has('--mark') || has('--mark-unknown') || has('--unmark')) ? build().rows : rows;
+const final = (has('--baseline') || has('--mark') || has('--mark-unknown') || has('--unmark')) ? build().rows : rows;
 
 if (has('--pending')) {
   const list = final.filter((r) => r.kind === 'sql' && (r.status === 'pending' || r.status === 'changed'));
@@ -363,8 +382,8 @@ if (has('--json')) {
   process.exit(0);
 }
 
-fs.writeFileSync(MD_FILE, renderMd(final), 'utf8');
+fs.writeFileSync(MD_FILE, renderMd(final, loadMarks()._meta), 'utf8');
 const c = (s) => final.filter((r) => r.status === s).length;
 console.log(`台帳を作り直しました: ${path.relative(ROOT, MD_FILE)}`);
-console.log(`  🔴 未渡し ${c('pending')} ／ 🟠 変更あり ${c('changed')} ／ ⚪ 不明 ${c('unknown')} ／ 🟢 渡し済み ${c('applied')}`);
+console.log(`  🔴 未渡し ${c('pending')} ／ 🟠 変更あり ${c('changed')} ／ 🟢 渡し済み ${c('applied')} ／ 📦 過去分 ${c('legacy')}` + (c('unknown') ? ` ／ ⚪ 不明 ${c('unknown')}` : ''));
 for (const r of final.filter((x) => x.status === 'pending' || x.status === 'changed')) console.log(`  - [${STATUS[r.status]}] ${r.kind === 'fn' ? '🧩 関数 ' + r.label : r.path}  (${r.source})`);

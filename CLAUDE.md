@@ -3,7 +3,7 @@
 このディレクトリは、フォワーディング業務向けの Vanilla JS フロントエンドアプリ群を集約・統合する作業ディレクトリ。
 
 > **作業前に読むこと**：製品方針 [PRODUCT_VISION.md](PRODUCT_VISION.md) / デザイン方針 [DESIGN_VISION.md](DESIGN_VISION.md)（リポジトリ直下）。不具合・改修の棚卸しは [docs/バグ台帳.md](docs/バグ台帳.md)。機能アイデア・改修要望は [docs/アイデア台帳.md](docs/アイデア台帳.md)。
-> **Supabase に渡す SQL は [docs/Supabase適用台帳.md](docs/Supabase適用台帳.md) で「渡した／未渡し」を管理**（`node scripts/sql-ledger.js` が全ブランチの `docs/sql/*.sql` と Edge Function（`supabase/functions/<名前>/`＋`supabase/<名前>-single/`・1 関数＝1 件）を自動で集めて台帳を作る。台帳は手で直さない。Secrets・Verify JWT の設定は追えない）。SQL・Edge Function を新規作成・変更したら `node scripts/sql-ledger.js` で台帳を作り直し、ユーザーが Supabase で実行・デプロイしたと伝えたら `node scripts/sql-ledger.js --mark <SQLファイル名または関数名>`（渡し済み・日付つき）を実行する。「渡していない SQL を出して」と言われたら `--pending`。別セッションの分も見るときは先に `--fetch`。
+> **Supabase に渡す SQL は [docs/Supabase適用台帳.md](docs/Supabase適用台帳.md) で「渡した／未渡し」を管理**（`node scripts/sql-ledger.js` が全ブランチの `docs/sql/*.sql` と Edge Function（`supabase/functions/<名前>/`＋`supabase/<名前>-single/`・1 関数＝1 件）を自動で集めて台帳を作る。台帳は手で直さない。Secrets・Verify JWT の設定は追えない）。**過去分（基準日 2026-11-12 より前）は管理対象外**＝「📦 過去分」で、これ以降に作った・書き換えた分だけを「未渡し／変更あり」で管理する（過去分が未実行と分かったら `--unmark <名前>` で未渡しに戻す）。SQL・Edge Function を新規作成・変更したら `node scripts/sql-ledger.js` で台帳を作り直し、ユーザーが Supabase で実行・デプロイしたと伝えたら `node scripts/sql-ledger.js --mark <SQLファイル名または関数名>`（渡し済み・日付つき）を実行する。「渡していない SQL を出して」と言われたら `--pending`。別セッションの分も見るときは先に `--fetch`。
 > ※ VISION 文書は公開対象（GitHub Pages = `フォワーダー支援/`）に含めないため、リポジトリ直下に置く。
 > ※ ユーザー公開ロードマップ：`docs/アイデア台帳.md` から `node scripts/build-roadmap.js` で `フォワーダー支援/roadmap.html` を生成（ヘッダー「📣 改修予定・アイデア」からリンク）。**台帳を編集したら再生成すること**。事業化・売却方針や内部技術詳細は生成時に自動除外。
 
