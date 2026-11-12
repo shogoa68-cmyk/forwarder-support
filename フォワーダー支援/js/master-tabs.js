@@ -10,9 +10,12 @@
     if (!form || !body || !box || modal.dataset.mtDone) return; modal.dataset.mtDone = '1';
     const actions = $(form, '.master-detail-actions'), attach = $(modal, '.master-attach-box'), cr = $(modal, '.cr-section'), mn = $(modal, '.mn-section'), cc = $(modal, '.cc-section');
     const L = (id) => holder(form, id, '.master-detail-label');
+    const isSv = modal.dataset.mtField === 'sv';
     const basic = [L('md_furigana'), L('md_enName'), L('md_dealType'), L('md_via'), holder(form, 'md_viaChildren', '.master-detail-via')].filter(Boolean);
     const people = [holder(form, 'md_contacts', '.master-detail-contacts')].filter(Boolean);
-    const company = [L('md_location'), L('md_mainGoods'), L('md_destCountry'), L('md_tendency'), L('md_website'), holder(form, 'md_tags', '.master-detail-tags')].filter(Boolean);
+    const company = isSv
+      ? [L('md_website'), holder(form, 'md_svTypes', '.master-detail-tags'), holder(form, 'md_areas', '.master-detail-areas'), L('md_group')].filter(Boolean)
+      : [L('md_location'), L('md_mainGoods'), L('md_destCountry'), L('md_tendency'), L('md_website'), holder(form, 'md_tags', '.master-detail-tags')].filter(Boolean);
     const memo = [L('md_memo')].filter(Boolean);
     // 基本情報
     const top = document.createElement('div'); top.className = 'mt-basic';
@@ -20,7 +23,9 @@
     // タブ
     const bar = document.createElement('div'); bar.className = 'mt-tabs'; bar.setAttribute('role', 'tablist');
     const panels = {};
-    const defs = [['people', '担当者'], ['company', '会社の詳細・タグ'], ['cases', '顧客カルテ'], ['rules', '取引ルール'], ['news', 'ニュース'], ['memo', 'メモ・添付']];
+    const defs = isSv
+      ? [['people', '担当者'], ['company', '会社の詳細・種別・エリア'], ['news', 'ニュース'], ['memo', 'メモ・添付']]
+      : [['people', '担当者'], ['company', '会社の詳細・タグ'], ['cases', '顧客カルテ'], ['rules', '取引ルール'], ['news', 'ニュース'], ['memo', 'メモ・添付']];
     defs.forEach(([k, label]) => {
       const p = document.createElement('div'); p.className = 'mt-panel'; p.dataset.mt = k; p.setAttribute('role', 'tabpanel'); panels[k] = p;
       const b = document.createElement('button'); b.type = 'button'; b.className = 'mt-tab'; b.dataset.mt = k; b.setAttribute('role', 'tab');
@@ -46,9 +51,9 @@
     function refresh() {
       const named = [...modal.querySelectorAll('#md_contacts .md-contact-name')].filter(i => i.value.trim()).length;
       sum('people', named ? named + '名' : '');
-      const tags = modal.querySelectorAll('#md_tags .stats-md-tag-chip').length;
-      const filled = ['md_location', 'md_mainGoods', 'md_destCountry', 'md_tendency', 'md_website'].filter(i => (modal.querySelector('#' + i)?.value || '').trim()).length;
-      sum('company', [filled ? filled + '項目' : '', tags ? 'タグ' + tags : ''].filter(Boolean).join('・'));
+      const tags = modal.querySelectorAll(isSv ? '#md_svTypes .stats-md-tag-chip, #md_areas .stats-md-tag-chip' : '#md_tags .stats-md-tag-chip').length;
+      const filled = (isSv ? ['md_website', 'md_group'] : ['md_location', 'md_mainGoods', 'md_destCountry', 'md_tendency', 'md_website']).filter(i => (modal.querySelector('#' + i)?.value || '').trim()).length;
+      sum('company', [filled ? filled + '項目' : '', tags ? (isSv ? '種別・エリア' : 'タグ') + tags : ''].filter(Boolean).join('・'));
       const items = modal.querySelectorAll('#crPanel .cr-item:not(.is-retired)'), strict = modal.querySelectorAll('#crPanel .cr-item.cr-lv-strict:not(.is-retired)').length;
       sum('rules', items.length ? items.length + '件' + (strict ? '・厳守' + strict : '') : '');
       const cItems = modal.querySelectorAll('#ccPanel .cc-item'), cOpen = modal.querySelectorAll('#ccPanel .cc-st-open').length; sum('cases', cItems.length ? cItems.length + '件' + (cOpen ? '・未解決' + cOpen : '') : '');
@@ -68,7 +73,7 @@
     if (typeof orig !== 'function' || orig.__mt) return false;
     const w = function (field, value, btn) {
       const r = orig.apply(this, arguments);
-      if (field === 'customer') { const m = document.getElementById('mdDetailModal'); if (m) organize(m); }
+      if (field === 'customer' || field === 'sv') { const m = document.getElementById('mdDetailModal'); if (m) { m.dataset.mtField = field; organize(m); } }
       return r;
     };
     w.__mt = true; window.statsToggleMasterDetail = w; return true;
