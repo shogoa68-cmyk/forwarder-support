@@ -685,6 +685,7 @@ const http = require('http'), fs = require('fs'), path = require('path');
     // サブコン：詳細に「ニュース」欄
     await p.evaluate(() => statsMasterSetFilter('sv')); await p.waitForTimeout(300);
     await p.evaluate(() => document.querySelector('#statsPane-master tr[data-mvalue="ニュース運輸"] .stats-master-detail-btn').click()); await p.waitForTimeout(600);
+    await p.evaluate(() => { const t = document.querySelector('#mdDetailModal .mt-tab[data-mt="news"]'); t && t.click(); });
     ok(L + 'サブコンの詳細にニュース欄と追加フォームが出る', await p.evaluate(() => !!document.querySelector('#mnPanel .mn-form')));
     const add = async (d, k, t, b, u) => { await p.fill('#mnPanel .mn-f-date', d); await p.selectOption('#mnPanel .mn-f-kind', k); await p.fill('#mnPanel .mn-f-title', t); await p.fill('#mnPanel .mn-f-body', b || ''); await p.fill('#mnPanel .mn-f-url', u || ''); await p.click('#mnPanel [data-mn="save"]'); await p.waitForTimeout(500); };
     await add('2026-01-10', 'contact', '営業担当が田中さんに変更', '前任は鈴木');
