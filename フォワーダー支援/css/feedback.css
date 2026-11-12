@@ -24,6 +24,40 @@ body.rms-open .fb-quick-fab { z-index: 999; }
 .fb-quick-fab[hidden] { display: none; }
 @media print { .fb-quick-fab, .fb-rec-bar { display: none !important; } }
 
+/* ---------- 初めての人向けの合図：吹き出し＋ボタンの波紋（動きは transform／opacity だけ） ---------- */
+.fb-quick-fab.fb-hint-pulse { opacity: 1; animation: fbFabWiggle 2.6s ease-in-out infinite; }
+.fb-quick-fab.fb-hint-pulse::before {
+  content: ''; position: absolute; inset: -2px; border-radius: 50%;
+  border: 2px solid #e5484d; pointer-events: none;
+  animation: fbFabRing 1.8s ease-out infinite;
+}
+@keyframes fbFabRing { 0% { transform: scale(1); opacity: .85; } 100% { transform: scale(1.9); opacity: 0; } }
+@keyframes fbFabWiggle { 0%, 70%, 100% { transform: rotate(0); } 76% { transform: rotate(-14deg); } 82% { transform: rotate(12deg); } 88% { transform: rotate(-8deg); } 94% { transform: rotate(4deg); } }
+.fb-fab-hint {
+  position: fixed; z-index: 1151; display: flex; align-items: stretch;
+  max-width: min(300px, calc(100vw - 80px));
+  background: #1f2937; color: #fff; border-radius: 12px;
+  box-shadow: 0 6px 20px rgba(0,0,0,.3);
+  animation: fbHintIn .35s cubic-bezier(.2,.8,.3,1) both;
+}
+.fb-fab-hint::after {                                  /* 🐞 を指す三角（右向き） */
+  content: ''; position: absolute; right: -7px; bottom: 11px;
+  border: 7px solid transparent; border-right: 0; border-left: 8px solid #1f2937;
+}
+.fb-fab-hint .fbh-main { all: unset; box-sizing: border-box; display: flex; flex-direction: column; gap: 2px; padding: 10px 6px 10px 14px; cursor: pointer; line-height: 1.5; min-height: 44px; }
+.fb-fab-hint .fbh-main b { font-size: var(--text-sm, 13px); }
+.fb-fab-hint .fbh-main span { font-size: var(--text-xs, 12px); opacity: .85; }
+.fb-fab-hint .fbh-main:focus-visible, .fb-fab-hint .fbh-x:focus-visible { outline: 2px solid #fff; outline-offset: -2px; border-radius: 10px; }
+.fb-fab-hint .fbh-x { all: unset; box-sizing: border-box; width: 36px; min-height: 44px; display: flex; align-items: flex-start; justify-content: center; padding-top: 9px; font-size: var(--text-xs, 12px); cursor: pointer; opacity: .75; }
+.fb-fab-hint .fbh-x:hover { opacity: 1; }
+@keyframes fbHintIn { from { opacity: 0; transform: translateX(10px) scale(.96); } to { opacity: 1; transform: none; } }
+body.rms-open .fb-fab-hint { z-index: 999; }
+@media (prefers-reduced-motion: reduce) {
+  .fb-quick-fab.fb-hint-pulse, .fb-quick-fab.fb-hint-pulse::before, .fb-fab-hint { animation: none; }
+  .fb-quick-fab.fb-hint-pulse { box-shadow: 0 0 0 3px rgba(229,72,77,.5), 0 2px 8px rgba(0,0,0,.18); }
+}
+@media print { .fb-fab-hint { display: none !important; } }
+
 /* ---------- 送信モーダル内：添付 ---------- */
 .fb-optional { color: var(--text-muted, #888); font-size: var(--fs-10, 10px); font-weight: 400; }
 .fb-att-actions { display: flex; flex-wrap: wrap; gap: var(--sp-8, 8px); }

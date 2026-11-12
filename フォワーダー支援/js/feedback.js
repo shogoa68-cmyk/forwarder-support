@@ -877,6 +877,78 @@
     document.body.appendChild(b);
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', mountFab); else mountFab();
+
+  // ---------- 初めての人に気づいてもらう合図（吹き出し＋ボタンの波紋） ----------
+  //   ・読み込みの約 4 秒後に、🐞 の左へ吹き出し「不具合・ご意見はここから」を出し、ボタンに波紋を出す。
+  //   ・🐞 または吹き出しを押した（＝気づいた）／✕ を押したら、以後ずっと出さない（localStorage fbFabHintDone_v1）。
+  //   ・気づかれなければ、最大 3 回まで（fbFabHintN_v1）。1 回は 14 秒で自動的にしまう（次回の表示でまた出る）。
+  //   ・入力中・ほかの画面（モーダル）を開いているときは出さず、8 秒後に様子を見る。動きは視差効果を減らす設定では止める。
+  const HINT_DONE = 'fbFabHintDone_v1', HINT_N = 'fbFabHintN_v1', HINT_MAX = 3, HINT_SHOW_MS = 14000;
+  let _hintEl = null, _hintTimer = 0, _hintPosTimer = 0;
+  const _ls = {
+    get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } },
+    set(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
+  };
+  function _hintPlace() {
+    const f = $('fbQuickFab');
+    if (!_hintEl || !f) return;
+    const r = f.getBoundingClientRect();
+    _hintEl.style.right = Math.max(8, window.innerWidth - r.left + 12) + 'px';
+    _hintEl.style.bottom = Math.max(8, window.innerHeight - r.bottom - 2) + 'px';
+  }
+  function fbHintHide(done) {
+    clearTimeout(_hintTimer); clearInterval(_hintPosTimer);
+    if (_hintEl) { _hintEl.remove(); _hintEl = null; }
+    const f = $('fbQuickFab'); if (f) f.classList.remove('fb-hint-pulse');
+    if (done) _ls.set(HINT_DONE, '1');
+  }
+  function _hintBusy() {
+    const a = document.activeElement;
+    if (a && (/^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName) || a.isContentEditable)) return true;
+    return !!document.querySelector('#fbOverlay.open, #previewOverlay.open');
+  }
+  function fbHintShow(force) {
+    const f = $('fbQuickFab');
+    if (!f || f.hidden || _hintEl) return;
+    if (!force) {
+      if (_ls.get(HINT_DONE) === '1') return;
+      const n = parseInt(_ls.get(HINT_N) || '0', 10) || 0;
+      if (n >= HINT_MAX) return;
+      if (document.hidden || _hintBusy()) { setTimeout(() => fbHintShow(false), 8000); return; }
+      _ls.set(HINT_N, String(n + 1));
+    }
+    const el = document.createElement('div');
+    el.id = 'fbFabHint';
+    el.className = 'fb-fab-hint';
+    el.setAttribute('role', 'status');
+    el.innerHTML =
+      '<button type="button" class="fbh-main" data-act="open">' +
+        '<b>🐞 不具合・ご意見はここから</b>' +
+        '<span>画面の写真・録画も添えて送れます</span>' +
+      '</button>' +
+      '<button type="button" class="fbh-x" data-act="close" aria-label="このヒントを閉じる">✕</button>';
+    el.addEventListener('click', e => {
+      const b = e.target.closest('[data-act]');
+      if (!b) return;
+      if (b.dataset.act === 'close') { fbHintHide(true); return; }
+      fbHintHide(true); fbOpenQuick();
+    });
+    document.body.appendChild(el);
+    _hintEl = el;
+    f.classList.add('fb-hint-pulse');
+    _hintPlace();
+    _hintPosTimer = setInterval(_hintPlace, 500);     // 全体リマークの引き出し等でボタンの位置が動いても追従
+    _hintTimer = setTimeout(() => fbHintHide(false), HINT_SHOW_MS);
+  }
+  window.addEventListener('resize', _hintPlace);
+  document.addEventListener('keydown', e => { if (e.key === 'Escape' && _hintEl) fbHintHide(false); });
+  document.addEventListener('click', e => {
+    // 🐞 を押した（＝気づいた）ら、合図は役目を終える
+    if (e.target.closest && e.target.closest('#fbQuickFab')) fbHintHide(true);
+  }, true);
+  setTimeout(() => fbHintShow(false), 4000);
+  window.fbHintShow = fbHintShow;                      // 試験・手動確認用（引数 true で条件を無視して出す）
+  window.fbHintHide = fbHintHide;
   // 通知バッジは、読み込み後・画面に戻ってきたとき（1分以上あいていれば）・5分ごとに更新
   setTimeout(refreshBadge, 3000);
   window.addEventListener('focus', () => { if (Date.now() - _badgeAt > 60000) refreshBadge(); });
