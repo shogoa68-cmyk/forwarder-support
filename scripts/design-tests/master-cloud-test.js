@@ -121,6 +121,16 @@ const http = require('http'), fs = require('fs'), path = require('path');
     await p.evaluate(() => { const t = document.querySelector('[onclick*="quote-make"]'); t && t.click(); }); await p.waitForTimeout(1000);
     await p.evaluate(() => window.qpShowEditor && window.qpShowEditor()); await p.waitForTimeout(1200);
     await p.evaluate(async () => { if (window.statsLoadMasterCache) await window.statsLoadMasterCache(); if (window.arRefreshDatalist) window.arRefreshDatalist(); });
+    // 詳細ポップアップはタブ形式：隠れているタブの中の入力欄を操作するときは、先にそのタブを開く
+    for (const m of ['fill', 'click', 'selectOption']) {
+      const orig = p[m].bind(p);
+      p[m] = async (sel, ...r) => {
+        if (typeof sel === 'string' && sel.includes('#md')) {
+          await p.evaluate(s => { const e = document.querySelector(s); const pn = e && e.closest('.mt-panel'); if (pn && pn.hidden) { const t = document.querySelector('#mdDetailModal .mt-tab[data-mt="' + pn.dataset.mt + '"]'); t && t.click(); } }, sel).catch(() => {});
+        }
+        return orig(sel, ...r);
+      };
+    }
     return { ctx, p, errs, dlg };
   }
   // 取り消しにくい操作の確認画面（uiConfirm）：開くのを待ち、本文を返して、指定のボタンを押す（which：'ok'＝実行／'cancel'＝やめる）
