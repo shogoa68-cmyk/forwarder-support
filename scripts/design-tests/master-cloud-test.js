@@ -323,8 +323,21 @@ const http = require('http'), fs = require('fs'), path = require('path');
     const gr = await confirmDlg(p, 'ok'); await p.waitForTimeout(500);
     ok(L + 'グループの解除も確認つき', gr.text.includes('別名をすべて外しますか') && await p.evaluate(() => !window.__db.synonym_groups.some(g => g.canonical === 'Yokohama')), gr);
     // 代表を新規登録の開閉
-    await p.evaluate(() => statsMasterToggleRegister());
-    ok(L + '「マスターを新規登録」が開く', await p.evaluate(() => document.querySelector('#statsPane-master .master-register').classList.contains('is-open')));
+    ok(L + '「＋ マスターを新規登録」のボタンが画面に出ている（インラインの入力帯は無い）', await p.evaluate(() => { const b = document.querySelector('#statsPane-master .master-register-toggle'); return !!b && getComputedStyle(b).display !== 'none' && !document.querySelector('#statsPane-master .master-register'); }));
+    await p.evaluate(() => { statsMasterSetFilter('port'); }); await p.waitForTimeout(250);
+    await p.click('#statsPane-master .master-register-toggle'); await p.waitForTimeout(250);
+    ok(L + '押すとモーダル（詳細ポップアップと同じ見た目）が開き、いまの種別が選ばれる', await p.evaluate(() => { const m = document.getElementById('masterNewModal'); return !!m && m.classList.contains('md-modal-overlay') && !!m.querySelector('.md-modal-head') && document.getElementById('masterNewField').value === 'port' && document.activeElement.id === 'masterNewValue'; }));
+    ok(L + '種別を変えると入力例が変わる', await p.evaluate(() => { const s = document.getElementById('masterNewField'); s.value = 'nm'; s.dispatchEvent(new Event('change')); const r = document.getElementById('masterNewValue').placeholder.includes('海上運賃'); s.value = 'port'; s.dispatchEvent(new Event('change')); return r; }));
+    await p.fill('#masterNewValue', 'モーダル登録港'); await p.keyboard.press('Enter'); await p.waitForTimeout(600);
+    ok(L + 'Enter で登録され、モーダルが閉じる', await p.evaluate(() => !document.getElementById('masterNewModal') && window.__db.master_votes.concat(window.__db.synonym_groups).some(r => r.value === 'モーダル登録港' || r.canonical === 'モーダル登録港')));
+    await p.click('#statsPane-master .master-register-toggle'); await p.waitForTimeout(200);
+    await p.evaluate(() => { document.getElementById('masterNewMore').checked = true; });
+    await p.fill('#masterNewValue', '連続登録A'); await p.click('#masterNewModal .master-new-btn'); await p.waitForTimeout(500);
+    ok(L + '「続けて登録」なら閉じず、入力欄が空になる', await p.evaluate(() => !!document.getElementById('masterNewModal') && document.getElementById('masterNewValue').value === ''));
+    await p.click('#masterNewModal .master-new-btn'); await p.waitForTimeout(200);
+    ok(L + '名前が空のままでは登録しない', await p.evaluate(() => !!document.getElementById('masterNewModal')));
+    await p.keyboard.press('Escape'); await p.waitForTimeout(200);
+    ok(L + 'Esc で閉じる', await p.evaluate(() => !document.getElementById('masterNewModal')));
     // 表の列：個別マスターと同義グループは 1 つの表（同じ列）
     const cols = await p.evaluate(() => [...document.querySelectorAll('#statsPane-master table.master-table')].map(t => [...t.querySelectorAll('thead th')].map(h => h.textContent.trim()).join('|')));
     ok(L + '表は 1 つで、列は 種別｜マスター名｜別名・略称｜操作', cols.length === 1 && cols[0] === '種別|マスター名|別名・略称（英語表記・省略形）|操作', cols);
@@ -1266,7 +1279,8 @@ const http = require('http'), fs = require('fs'), path = require('path');
     ok(L + '旧キャリアのマスターの別名も、これまでどおり効く', await p.evaluate(() => nameCanon('carrier', 'Ocean Network Express') === 'ONE'));
     await p.evaluate(() => { switchCategory('master', document.querySelector('[onclick*="switchCategory(\'master"]')); }); await p.waitForTimeout(1000);
     ok(L + 'マスター管理に「キャリア」の絞り込み・行は出ない（旧データは残る）', await p.evaluate(() => !document.querySelector('.master-filter-chip[onclick*="\'carrier\'"]') && !document.querySelector('#statsPane-master tr[data-mfield="carrier"]') && window.__db.master_votes.some(v => v.field === 'carrier')));
-    ok(L + '新規登録の種別にキャリアは無い', await p.evaluate(() => ![...document.querySelectorAll('#masterNewField option')].some(o => o.value === 'carrier')));
+    await p.evaluate(() => statsMasterToggleRegister()); await p.waitForTimeout(150);
+    ok(L + '新規登録の種別にキャリアは無い', await p.evaluate(() => { const o = [...document.querySelectorAll('#masterNewField option')]; return o.length > 0 && !o.some(x => x.value === 'carrier'); })); await p.evaluate(() => statsMasterCloseRegister());
     ok(L + 'JS エラーなし', errs.length === 0, errs);
     await ctx.close();
   }
