@@ -1,0 +1,101 @@
+/* マスター管理のスマホ版（Design 案A「今日やること」・2026-11）。〜600px のときだけ効く。PC は変えない。 */
+#mmHome, #mmBar, #mmWork, .mm-fbtn, .mm-more, .mm-nestbtn { display: none; }
+.mm-hide { display: none !important; }
+
+@media (max-width: 600px) {
+  /* ---- 出し分け ---- */
+  #tab-master.mm-on .stats-tabs { display: none; }
+  #tab-master.mm-on.mm-view-home #statsPane-master,
+  #tab-master.mm-on.mm-view-home #statsPane-alias { display: none !important; }
+  #tab-master.mm-on.mm-view-work:not(.mm-wtab-drift) #statsPane-master { display: none !important; }
+  #tab-master.mm-on.mm-view-work.mm-wtab-drift #statsPane-master > :not(#driftCard) { display: none !important; }
+  #tab-master.mm-on.mm-view-list #driftCard,
+  #tab-master.mm-on.mm-view-list .master-head,
+  #tab-master.mm-on.mm-view-list .master-kpis,
+  #tab-master.mm-on.mm-view-list .stats-req-section,
+  #tab-master.mm-on.mm-view-list .master-help,
+  #tab-master.mm-on.mm-view-list .cm-entry { display: none !important; }
+  #tab-master.mm-on.mm-view-work .master-head,
+  #tab-master.mm-on.mm-view-alias .mm-fix { display: none; }
+  #tab-master.mm-on #mmBar { display: flex; align-items: center; gap: 8px; position: sticky; top: 0; z-index: 20; padding: 6px 4px; background: var(--surface, #fff); border-bottom: 1px solid var(--border, #ddd); }
+  #tab-master.mm-on.mm-view-home #mmBar .mm-back, #tab-master.mm-on.mm-view-home #mmBar .mm-cur { display: none; }
+  #tab-master.mm-on.mm-view-home #mmBar::before { content: '🗂 マスター管理'; font-weight: 700; font-size: var(--text-lg, 16px); flex: 1; }
+  #tab-master.mm-on #mmBar .mm-cur { flex: 1; text-align: center; font-size: var(--text-lg, 16px); }
+  #tab-master.mm-on #mmBar .mm-back, #tab-master.mm-on #mmBar .mm-fix { min-height: 44px; padding: 0 10px; border: 0; background: none; color: var(--accent, #2c455d); font: inherit; font-size: var(--text-base, 14px); font-weight: 700; cursor: pointer; }
+  #tab-master.mm-on.mm-view-home #mmHome, #tab-master.mm-on.mm-view-work #mmWork { display: block; padding: 8px 4px 88px; }
+
+  /* ---- 今日やること ---- */
+  .mm-lead { margin: 6px 2px 10px; font-size: var(--text-sm, 13px); color: var(--text-muted, #667); }
+  .mm-act { display: flex; align-items: center; gap: 12px; width: 100%; min-height: 64px; margin-bottom: 10px; padding: 14px; box-sizing: border-box; text-align: left; border: 1px solid var(--border, #ddd); border-radius: 10px; background: var(--card-bg, #fff); color: var(--text, #222); font: inherit; cursor: pointer; }
+  .mm-act.is-warn { border-color: var(--amber, #c9a24a); background: var(--amber-94, #fbf4e6); }
+  .mm-ico { font-size: 22px; } .mm-body { flex: 1; min-width: 0; } .mm-body b { display: block; font-size: var(--text-base, 14px); }
+  .mm-sub { display: block; margin-top: 2px; font-size: var(--text-sm, 13px); color: var(--text-muted, #667); line-height: 1.5; }
+  .mm-chev { font-size: 20px; color: var(--text-muted, #667); }
+  .mm-myreq { display: block; width: 100%; min-height: 44px; margin: 0 0 10px; padding: 0 12px; text-align: left; border: 0; background: none; color: var(--accent, #2c455d); font: inherit; font-size: var(--text-sm, 13px); font-weight: 700; }
+
+  /* ---- 作業画面 ---- */
+  .mm-wtabs { display: flex; gap: 6px; margin-bottom: 10px; }
+  .mm-wt { flex: 1; min-height: 44px; border: 1px solid var(--border, #ddd); border-radius: 22px; background: var(--surface, #fff); color: var(--text, #222); font: inherit; font-size: var(--text-sm, 13px); font-weight: 700; }
+  .mm-wt.is-on { background: var(--accent, #2c455d); border-color: var(--accent, #2c455d); color: #fff; }
+  .mm-empty { padding: 24px 8px; text-align: center; color: var(--text-muted, #667); }
+  .mm-card { margin-bottom: 10px; padding: 12px; border: 1px solid var(--border, #ddd); border-radius: 10px; background: var(--card-bg, #fff); }
+  .mm-card-t { display: flex; flex-direction: column; gap: 2px; font-size: var(--text-base, 14px); overflow-wrap: anywhere; }
+  .mm-fld { font-size: var(--text-xs, 12px); color: var(--text-muted, #667); }
+  .mm-card-s { margin-top: 4px; font-size: var(--text-sm, 13px); color: var(--text-muted, #667); }
+  .mm-card-b, .mm-sheet-b { display: flex; gap: 8px; margin-top: 10px; }
+  .mm-btn { flex: 1; min-height: 44px; border: 1px solid var(--border, #ccd); border-radius: 8px; background: var(--surface, #fff); color: var(--text, #222); font: inherit; font-size: var(--text-base, 14px); font-weight: 700; cursor: pointer; }
+  .mm-btn.is-primary { background: var(--accent, #2c455d); border-color: var(--accent, #2c455d); color: #fff; }
+  .mm-btn.is-danger { background: #b3261e; border-color: #b3261e; color: #fff; }
+  .mm-btn:disabled { opacity: .45; }
+  /* ゆらぎ（既存カードを作業画面に出す）：タップしやすく */
+  #tab-master.mm-wtab-drift #driftCard .drift-btn { min-height: 44px; }
+  #tab-master.mm-wtab-drift #driftCard .drift-head { flex-wrap: wrap; }
+  #tab-master.mm-on.mm-view-work.mm-wtab-drift #mmWork { padding-bottom: 0; }
+
+  /* ---- シート ---- */
+  .mm-sheet-body { padding: 0 14px 14px; }
+  .mm-sheet-p { margin: 0 0 8px; font-size: var(--text-base, 14px); line-height: 1.6; }
+  .mm-reasons { display: flex; flex-wrap: wrap; gap: 8px; }
+  .mm-chip { min-height: 44px; padding: 0 14px; border: 1px solid var(--border, #ccd); border-radius: 22px; background: var(--surface, #fff); color: var(--text, #222); font: inherit; font-size: var(--text-sm, 13px); }
+  .mm-chip.is-on { background: var(--accent, #2c455d); border-color: var(--accent, #2c455d); color: #fff; }
+  .mm-other { width: 100%; box-sizing: border-box; margin-top: 8px; padding: 8px; font: inherit; font-size: var(--text-base, 14px); border: 1px solid var(--border, #ccd); border-radius: 8px; }
+  .mm-fl { margin: 10px 0 6px; font-size: var(--text-xs, 12px); color: var(--text-muted, #667); font-weight: 700; }
+  .mm-menu { display: block; width: 100%; min-height: 48px; text-align: left; padding: 0 4px; border: 0; border-bottom: 1px solid var(--border, #e3e6ea); background: none; color: var(--text, #222); font: inherit; font-size: var(--text-base, 14px); }
+  .mm-menu.is-danger { color: #b3261e; }
+  .mm-toast { bottom: 84px; }
+
+  /* ---- 一覧（第 2 回）---- */
+  #tab-master.mm-view-list #statsPane-master { display: flex; flex-direction: column; padding-bottom: 88px; }
+  #tab-master.mm-view-list .master-register-bar { order: 99; margin-top: 12px; }
+  #tab-master.mm-view-list .master-register-bar .master-register-toggle { width: 100%; min-height: 48px; border: 2px dashed var(--accent, #416180); border-radius: 10px; }
+  #tab-master.mm-view-list .master-search-input { min-width: 0; min-height: 44px; font-size: var(--text-base, 14px); }
+  #tab-master.mm-view-list .master-filter-chips:not(.master-type-chips):not(.master-sort-chips) { flex-wrap: nowrap; overflow-x: auto; -webkit-overflow-scrolling: touch; padding-bottom: 4px; }
+  #tab-master.mm-view-list .master-filter-chip { min-height: 44px; flex: none; }
+  #tab-master.mm-view-list .master-type-chips, #tab-master.mm-view-list .master-sort-chips { display: none !important; }
+  #tab-master.mm-view-list .mm-fbtn { display: flex; align-items: center; justify-content: space-between; gap: 8px; width: 100%; min-height: 44px; margin: 6px 0; padding: 0 12px; box-sizing: border-box; border: 1px solid var(--border, #ccd); border-radius: 8px; background: var(--surface, #fff); color: var(--text, #222); font: inherit; font-size: var(--text-sm, 13px); font-weight: 700; }
+  #tab-master.mm-view-list .mm-fbtn small { font-weight: 400; color: var(--text-muted, #667); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #tab-master.mm-view-list .mm-fbtn[hidden] { display: none; }
+  /* カード：「詳細」と「⋯」だけ */
+  #tab-master.mm-view-list table.master-grid > tbody > tr > td.stats-master-abbrev-cell { display: none; }
+  #tab-master.mm-view-list table.master-grid > tbody > tr > td.ops > :not(.master-ops-more):not([class*="detail"]) { display: none !important; }
+  #tab-master.mm-view-list table.master-grid > tbody > tr > td.ops button { min-height: 44px; }
+  #tab-master.mm-view-list .mm-more { display: inline-block; margin-left: 4px; font-size: var(--text-xs, 12px); color: var(--text-muted, #667); }
+  #tab-master.mm-view-list .master-name-toggle { min-height: 44px; }
+  /* 先のお客様は 1 段ずつ開く */
+  #tab-master.mm-view-list .master-nest-cell .master-nest-title, #tab-master.mm-view-list .master-nest-cell > table { display: none; }
+  #tab-master.mm-view-list .master-nest-cell.mm-nest-open > table { display: block; }
+  #tab-master.mm-view-list .mm-nestbtn { display: block; width: 100%; min-height: 44px; border: 0; background: none; text-align: left; color: var(--accent, #2c455d); font: inherit; font-size: var(--text-sm, 13px); font-weight: 700; }
+
+  /* ---- 詳細（第 3 回）：全画面・タブは件数つきチップ・保存バーは常時表示 ---- */
+  #mdDetailModal .md-modal { position: fixed; inset: 0; width: 100% !important; max-width: none !important; height: 100% !important; max-height: none !important; border-radius: 0 !important; margin: 0; }
+  #mdDetailModal .mt-tabs { display: flex; flex-wrap: nowrap; overflow-x: auto; -webkit-overflow-scrolling: touch; gap: 6px; padding-bottom: 4px; }
+  #mdDetailModal .mt-tab { flex: none; min-height: 44px; border-radius: 22px; white-space: nowrap; }
+  #mdDetailModal .mt-body { padding-bottom: 72px; }
+  #mdDetailModal .mt-foot { position: sticky; bottom: 0; z-index: 3; display: flex; gap: 8px; padding: 8px 12px; background: var(--surface, #fff); border-top: 1px solid var(--border, #ddd); }
+  #mdDetailModal .mt-foot button { min-height: 44px; flex: 1; }
+  #mdDetailModal .cr-item, #mdDetailModal .cc-item, #mdDetailModal .mn-item { margin-bottom: 8px; padding: 10px; border: 1px solid var(--border, #ddd); border-radius: 10px; }
+  #mdDetailModal .cr-item.cr-lv-strict { border-color: #8a5a2b; background: #f7efe6; }
+  #mdDetailModal .cr-item.cr-lv-strict .cr-lv, #mdDetailModal .cr-item.cr-lv-strict b { color: #8a5a2b; }
+  /* ⋯ メニュー（旧）の代わりに下のシートを使う */
+  .master-ops-menu { display: none !important; }
+}
