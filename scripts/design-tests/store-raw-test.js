@@ -220,6 +220,19 @@ const http = require('http'), fs = require('fs'), path = require('path');
   ok('その案件は未取込として判定される', await p.evaluate(r => !!window.eiPendingOf(r.data), last));
   ok('保存後も保管欄が出ている（閲覧モードでも）', await vis('#eiFreePanel'));
 
+  // 9) 旧形式の 1 件を削除すると、取込元メモも空になり、読み込み直しても復活しない
+  await p.evaluate(() => {
+    document.getElementById('tab-quote-make').classList.remove('qmode-view');   // 編集中の状態にする
+    document.getElementById('qf-free-entries').value = '';
+    document.getElementById('qf-import-src').value = JSON.stringify({ type: 'email-paste', rawText: '旧形式の原文', importedAt: '2026-11-02T00:00:00Z' });
+    document.querySelectorAll('#tableBody tr:not([data-virtual]):not([data-type]) [data-field="nm"]').forEach(i => { i.value = ''; });
+    window.eiRefreshPendingBanner();
+  });
+  ok('旧形式の原文が保管欄に 1 件出る', (await p.evaluate(() => document.querySelectorAll('#eiFreePanel .ei-fe-row').length)) === 1);
+  await p.evaluate(() => { window.eiFeDelete('legacy'); }); await p.waitForTimeout(400);
+  await p.click('.confirm-dialog .btn-danger'); await p.waitForTimeout(500);
+  ok('旧形式の 1 件を削除したら復活しない（保管欄が隠れる・取込元メモも空）', await p.evaluate(() => document.getElementById('eiFreePanel').hidden && document.getElementById('qf-import-src').value === ''), await p.evaluate(() => ({ rows: document.querySelectorAll('#eiFreePanel .ei-fe-row').length, src: document.getElementById('qf-import-src').value, fe: document.getElementById('qf-free-entries').value })));
+
   ok('JS エラーなし', errs.length === 0, errs);
   await ctx.close(); await b.close(); srv.close();
   const fails = out.filter(l => l.startsWith('FAIL')).length;

@@ -2296,7 +2296,7 @@
             <input type="text" id="qpdTagQuickFilter" list="qpdTagSuggestions" class="qpd-tag-quickfilter-input"
                    placeholder="🔍 タグ名で絞り込み（候補から選択 or Enter）"
                    oninput="qpdTagQuickFilterInput(this.value)"
-                   onkeydown="if(event.key==='Enter'){event.preventDefault();qpdTagQuickFilterCommit(this.value);}" />
+                   onkeydown="if(event.key==='Enter'&&!event.isComposing){event.preventDefault();qpdTagQuickFilterCommit(this.value);}" />
             <datalist id="qpdTagSuggestions"></datalist>
           </div>
           <div class="qpd-tag-chips" id="qpdTagChips"></div>
@@ -2692,13 +2692,13 @@
           <div class="preset-save-row">
             <input type="text" class="preset-name-input" id="rowPatternNameInput"
                    placeholder="例）輸出ローカル一式" maxlength="30"
-                   onkeydown="if(event.key==='Enter')document.getElementById('rowPatternNoteInput').focus()" />
+                   onkeydown="if(event.key==='Enter'&&!event.isComposing)document.getElementById('rowPatternNoteInput').focus()" />
             <button class="btn-preset-save-new" onclick="saveRowPatternFromChecked()">💾 チェック行を保存</button>
           </div>
           <div class="preset-save-row">
             <input type="text" class="preset-name-input" id="rowPatternNoteInput"
                    placeholder="メモ（任意・チームに共有されます）" maxlength="120"
-                   onkeydown="if(event.key==='Enter')saveRowPatternFromChecked()" />
+                   onkeydown="if(event.key==='Enter'&&!event.isComposing)saveRowPatternFromChecked()" />
           </div>
           <div class="preset-list-wrap" id="rowPatternListWrap">
             <div class="preset-empty">保存済みの行パターンはありません</div>
@@ -4012,7 +4012,7 @@
                           <input type="text" id="newCatInput" class="user-cat-input"
                                  placeholder="例）🔴 スポット費用"
                                  maxlength="20"
-                                 onkeydown="if(event.key==='Enter')doAddUserCat()" />
+                                 onkeydown="if(event.key==='Enter'&&!event.isComposing)doAddUserCat()" />
                           <button type="button" class="user-cat-add-btn" onclick="doAddUserCat()">＋ 追加</button>
                         </div>
                         <div style="margin-top:5px; font-size:12px; color:#888;">※ カテゴリ削除後、そのカテゴリが設定された行は「未設定」になります。<br>※ カスタムカテゴリはブラウザの localStorage に保存されます（同じブラウザ内のみ有効）。</div>
@@ -4046,16 +4046,16 @@
                 <option value="__none__">💱 通貨一括設定…</option>
               </select>
               <input type="text" id="bulkUnitSet" class="bulk-subcon-input" placeholder="📐 単位一括設定…" list="unit-list" maxlength="20"
-                     onkeydown="if(event.key==='Enter'){applyBulkUnitSet();}" title="チェックした行の単位を一括設定" />
+                     onkeydown="if(event.key==='Enter'&&!event.isComposing){applyBulkUnitSet();}" title="チェックした行の単位を一括設定" />
               <button class="btn-bulk-subcon" onclick="applyBulkUnitSet()" title="チェックした行の単位に左の値を一括設定">設定</button>
               <input type="text" id="bulkSubconSet" class="bulk-subcon-input" placeholder="サブコン一括設定…" maxlength="40"
-                     onkeydown="if(event.key==='Enter'){applyBulkSubcon();}" title="チェックした行のサブコンを一括設定" />
+                     onkeydown="if(event.key==='Enter'&&!event.isComposing){applyBulkSubcon();}" title="チェックした行のサブコンを一括設定" />
               <button class="btn-bulk-subcon" onclick="applyBulkSubcon()" title="チェックした行のサブコンに左の値を一括設定">設定</button>
               <input type="text" id="bulkPatternSet" class="bulk-subcon-input" placeholder="📋 パターン一括設定…" maxlength="40"
-                     onkeydown="if(event.key==='Enter'){applyBulkPattern();}" title="チェックした行のパターンを一括設定" />
+                     onkeydown="if(event.key==='Enter'&&!event.isComposing){applyBulkPattern();}" title="チェックした行のパターンを一括設定" />
               <button class="btn-bulk-subcon" onclick="applyBulkPattern()" title="チェックした行のパターンに左の値を一括設定">設定</button>
               <input type="number" id="bulkMarkupSet" class="bulk-subcon-input bulk-markup-input" placeholder="＋ 乗せ幅一括…" min="0" step="any"
-                     onkeydown="if(event.key==='Enter'){applyBulkMarkupSet();}" title="チェックした行の乗せ幅（仕入単価に加算）を一括設定" />
+                     onkeydown="if(event.key==='Enter'&&!event.isComposing){applyBulkMarkupSet();}" title="チェックした行の乗せ幅（仕入単価に加算）を一括設定" />
               <button class="btn-bulk-subcon" onclick="applyBulkMarkupSet()" title="チェックした行の乗せ幅に左の値を一括設定">設定</button>
               <span class="ctx-sep" aria-hidden="true">|</span>
               <button class="btn-bulk-merge" onclick="mergeSelectedRowsFromToolbar()" title="チェックした行を1行にまとめる（先頭のチェック行が統合先。仕入・売の合計を反映し、残りの行は見積書非表示＋「統合先」ラベル付きで区別されます）">🔗 統合</button>
@@ -5028,6 +5028,7 @@
 <script src="js/quote/conditions.js"></script>
 <script src="js/quote/save.js"></script>
 <script src="js/quote/ui.js"></script>
+<script src="js/quote/ja-en-dict.js"></script>
 <script src="js/quote/quote-pdf.js"></script>
 <script src="js/quote/quote-email.js"></script>
 <script src="js/quote/select-mode.js"></script>
@@ -5086,9 +5087,13 @@
 <script src="js/cat-more.js"></script>
 <script src="js/stats.js"></script>
 <script src="js/alias-rules.js"></script>
+<script src="js/drift-engine.js"></script>
+<script src="js/drift-check.js"></script>
 <script src="js/port-country.js"></script>
 <script src="js/zone-subcon.js"></script>
 <script src="js/customer-rules.js"></script>
+<script src="js/master-news.js"></script>
+<script src="js/customer-cases.js"></script>
 <script src="js/master-tabs.js"></script>
 <script src="js/carrier-migration.js"></script>
 <script src="js/local-charges.js"></script>
@@ -5547,7 +5552,7 @@
 <div id="toast-container"></div>
 
 <!-- 見積もりタブへ戻るフローティングボタン（見積以外のタブ表示中だけ出る） -->
-<button id="backToQuoteFab" type="button" hidden onclick="switchCategory('quote', document.querySelector('.cat-btn'))" title="見積もりタブへ戻る">← 見積もりに戻る</button>
+<button id="backToQuoteFab" type="button" hidden onclick="switchCategory('quote', document.querySelector('.cat-btn[aria-controls=tab-quote-make]'))" title="見積もりタブへ戻る">← 見積もりに戻る</button>
 
 <!-- ======= ブックマーク追加モーダル ======= -->
 <div id="bmAddModal" class="bm-modal-overlay" onclick="closeAddBmModal(event)">

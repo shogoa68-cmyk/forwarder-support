@@ -856,6 +856,15 @@
     if (typeof window.refreshAllRowMasterDetailBtns === 'function') window.refreshAllRowMasterDetailBtns();
   }
 
+  // 元に戻す／やり直しで表を組み直すと、行の番号（nm-2 → nm-1 など）が振り直され、保存した文字列と
+  // 「いまの状態」の文字列が（見た目は同じでも）食い違う。そのままだと次の Ctrl+Z が
+  // 「変更あり」と判定されて同じ状態を積み直し、何も戻らず・やり直しの履歴まで消えてしまう。
+  // 組み直しが落ち着いた時点の実際の状態を「最後の確定状態」にそろえておく。
+  function _resyncLastSnapshot() {
+    const cur = _currentSnapshot();
+    if (cur !== null) _lastSnapshot = cur;
+  }
+
   function quoteUndo() {
     snapshotNow(); // 入力途中の保留分を確定
     if (!_undoStack.length) {
@@ -872,7 +881,7 @@
     } catch(e) { /* ignore */ }
     _lastSnapshot = prev;
     // DOM 変更で発火する mutation/input は無視するため、少し遅らせて解除
-    setTimeout(() => { _historyApplying = false; }, 150);
+    setTimeout(() => { _historyApplying = false; _resyncLastSnapshot(); }, 150);
     _updateHistoryButtonsUI();
     quoteShowToast('↶ 元に戻しました', 'info', 1200);
   }
@@ -891,7 +900,7 @@
       _applyQuoteData(data);
     } catch(e) { /* ignore */ }
     _lastSnapshot = next;
-    setTimeout(() => { _historyApplying = false; }, 150);
+    setTimeout(() => { _historyApplying = false; _resyncLastSnapshot(); }, 150);
     _updateHistoryButtonsUI();
     quoteShowToast('↷ やり直しました', 'info', 1200);
   }
@@ -2169,6 +2178,7 @@
   // 今の内容を土台に FCL案／LCL案 の2パターンを作る（現在のモードが LCL なら LCL案が土台）
   window.createFclLclPatterns = function () {
     if (_packingPatterns.some(pt => pt.mode)) return;
+    _syncActivePatternContainers();   // 複製の元になる、いまのコンテナ指定を確定してから読む
     const baseMode  = (_currentTransport === 'sea' && _currentSeaSub === 'lcl') ? 'lcl' : 'fcl';
     const otherMode = baseMode === 'fcl' ? 'lcl' : 'fcl';
     const label = m => m.toUpperCase() + '案';
@@ -2473,6 +2483,7 @@
 
   // 表示中のパターンを複製して新しいパターンを作る（似た構成から差分だけ直したい場合向け）
   window.duplicatePackingPattern = function () {
+    _syncActivePatternContainers();   // 複製の元になる、いまのコンテナ指定を確定してから読む
     const src = _packingPatterns[_packingActiveIdx];
     if (!src) return;
     const srcLabel = src.name || `パターン${_packingActiveIdx + 1}`;
@@ -2844,7 +2855,7 @@
     _qfSetTagsArr(_qfTagsArr().filter((_, i) => i !== idx));
   };
   window.qfTagsKeydown = function (e) {
-    if (e.key === 'Enter') { e.preventDefault(); window.qfAddTagFromInput(); }
+    if (e.key === 'Enter' && !e.isComposing) { e.preventDefault(); window.qfAddTagFromInput(); }
   };
   // ========== 🔖 関連番号・メール件名 ==========
   // 管理番号を取らずに見積対応を始めた案件を後からフォローするため、案件ごとに複数の

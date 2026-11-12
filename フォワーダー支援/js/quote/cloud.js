@@ -429,13 +429,20 @@
     return canon.toLowerCase();
   }
 
+  // 検索語を空白区切りの語に分ける。語の前後の引用符（" ' ` “ ” ‘ ’ ＂ ＇ 「 」 『 』 など）は無視する
+  // （管理番号のコピーは「"99-261106-008"」の形で入るため、そのまま貼り付けても検索できるようにする）。
+  const _QUOTE_EDGE = /^[\s"'`´‘’‚‛“”„‟＂＇｀「」『』〝〞〟«»‹›]+|[\s"'`´‘’‚‛“”„‟＂＇｀「」『』〝〞〟«»‹›]+$/g;
+  function _searchTerms(str) {
+    return String(str || '').toLowerCase().split(/[\s　]+/)
+      .map(t => t.replace(_QUOTE_EDGE, '')).filter(Boolean);
+  }
   // 絞り込み条件に一致するか。opts.skipCustomer=true でお客様絞り込みだけ、
   // opts.skipTag=true でタグ絞り込みだけを無視する（各ランキングが「他の条件は
   // 効かせたまま、自分自身の軸だけは選び直せる」よう、その条件だけ外して集計するため）。
   function _rowMatchesFilters(r, opts) {
     const skipCustomer = !!(opts && opts.skipCustomer);
     const skipTag = !!(opts && opts.skipTag);
-    const terms = _cloudSearch.trim().toLowerCase().split(/[\s　]+/).filter(Boolean);
+    const terms = _searchTerms(_cloudSearch);
     const pol = _cloudFilterPol.trim().toLowerCase();
     const pod = _cloudFilterPod.trim().toLowerCase();
     const car = _cloudFilterCarrier.trim().toLowerCase();
@@ -842,6 +849,7 @@
     '同業者（フォワーダー・代理店）': { k: 'fwd',   ico: '🤝', lbl: '同業者' },
     'その他':                         { k: 'other', ico: '📁', lbl: 'その他' },
   };
+  const nameCanonOrSelf = v => (typeof window.nameCanon === 'function' ? window.nameCanon('customer', v) : v) || v;   // 同業者の名前が変わっていても代表名で出す
   function _custDealChip(customer) {
     const name = String(customer == null ? '' : customer).trim();
     if (!name || typeof window.mdGetCanon !== 'function') return '';
@@ -849,11 +857,25 @@
     const d = rec && rec.details;
     const def = d && _DEAL_CHIPS[d.dealType];
     if (!def) return '';
-    const via = d.via ? '／経由：' + d.via : '';   // 同業者の先のお客様なら経由先も添える
+    const via = d.via ? '／経由：' + (nameCanonOrSelf(d.via)) : '';   // 同業者の先のお客様なら経由先も添える
     return '<span class="cloud-deal cloud-deal--' + def.k + '" title="取引形態：' + escHtml(d.dealType + via) + '">' +
       def.ico + ' ' + def.lbl + '</span>';
   }
   window.quoteCustomerDealChip = _custDealChip;
+  // お客様名。マスターに登録済みなら押せるボタンにし、押すとその場でお客様詳細（担当者・連絡先・取引形態・添付など）を
+  // 読み取り専用のポップアップで開く（見積タブの「詳細」ボタンと同じ mdShowDetailPopup）。未登録は従来どおり文字のまま。
+  function _custNameHtml(customer) {
+    const name = String(customer == null ? '' : customer).trim();
+    if (!name) return '';
+    const has = typeof window.mdGetCanon === 'function' && window.mdGetCanon('customer', name);
+    if (!has) return escHtml(name);
+    return '<button type="button" class="cloud-cust-link" onclick="event.stopPropagation();dashShowCustomerDetail(\'' + encodeURIComponent(name).replace(/'/g, '%27') + '\')" ' +
+      'title="お客様の詳細を見る（担当者・連絡先・取引形態・添付など）">' + escHtml(name) + '</button>';
+  }
+  window.quoteCustomerNameHtml = _custNameHtml;
+  window.dashShowCustomerDetail = function (enc) {
+    if (typeof window.mdShowDetailPopup === 'function') window.mdShowDetailPopup('customer', decodeURIComponent(enc));
+  };
   // マスターが後から読み込まれたとき、取引形態の印を出すために一覧だけ描き直す（見積タブ初期化の mdLoadCloud 完了後に呼ぶ）
   window.cloudRefreshDashList = function () { if (_cloudRows && _cloudRows.length) _applyCloudFilter(); };
 
@@ -1007,7 +1029,7 @@
         ((inco && inco !== '設定なし') ? '<span class="cloud-tag cloud-tag-inco">' + escHtml(String(inco).split('（')[0]) + '</span>' : '') +
         (mode ? '<span class="cloud-tag cloud-tag-mode">' + escHtml(mode) + '</span>' : '');
       const personH = person && (window.formatPersonWithHonorific ? window.formatPersonWithHonorific(person) : person);
-      const custDd = _custDealChip(customer) + [customer && escHtml(customer), personH && escHtml(personH)].filter(Boolean).join('・');
+      const custDd = _custDealChip(customer) + [customer && _custNameHtml(customer), personH && escHtml(personH)].filter(Boolean).join('・');
       const titleText = (m && m.ref) ? m.ref : r.name;   // 見出しは仮REF#のみ（顧客/担当は下に別掲）
       const memoLine  = (m && m.memo) ? m.memo : '';
       // 締切バッジ（締切超過／締切まで）は下書き中の案件のみ表示。提出済み以降は締切が無意味なため出さない
@@ -1262,7 +1284,7 @@
         linkChk +
         _statusSelect(idAttr, status, lockedBy, 'qpd-row-status') +
         '<span class="qpd-row-title">' + (_pendingImport(r) ? '<span class="qpd-pend-mark" title="自由入力で保管したまま、まだ表に取り込んでいない原文があります">📩 未取込 ' + _pendingImport(r).length + '件</span>' : '') + '<b class="qpd-row-headline">' + escHtml(headline) + '</b><small class="qpd-row-ref">' + escHtml(title) + '</small></span>' +
-        '<span class="qpd-row-cust">' + _custDealChip(cust) + escHtml(cust) + (person ? ' <small>/ ' + escHtml(person) + '</small>' : '') + '</span>' +
+        '<span class="qpd-row-cust">' + _custDealChip(cust) + _custNameHtml(cust) + (person ? ' <small>/ ' + escHtml(person) + '</small>' : '') + '</span>' +
         '<span class="qpd-row-route">' + escHtml(routePlain) + '</span>' +
         '<span class="qpd-row-ts">' + ts + '</span>' +
         '<span class="qpd-row-open" onclick="event.stopPropagation()"><button type="button" class="btn-preset-load qpd-row-open-btn" onclick="cloudLoadPreset(\'' + idAttr + '\')">開く</button></span>' +
@@ -1273,7 +1295,7 @@
       linkChk +
       _statusSelect(idAttr, status, lockedBy, 'qpd-row-status') +
       '<span class="qpd-row-title">' + (_pendingImport(r) ? '<span class="qpd-pend-mark" title="自由入力で保管したまま、まだ表に取り込んでいない原文があります">📩 未取込 ' + _pendingImport(r).length + '件</span>' : '') + escHtml(title) + '</span>' +
-      '<span class="qpd-row-cust">' + _custDealChip(cust) + escHtml(cust) + (person ? ' <small>/ ' + escHtml(person) + '</small>' : '') + '</span>' +
+      '<span class="qpd-row-cust">' + _custDealChip(cust) + _custNameHtml(cust) + (person ? ' <small>/ ' + escHtml(person) + '</small>' : '') + '</span>' +
       '<span class="qpd-row-who" title="' + escHtml(_whoTitle(r)) + '">' + escHtml(who) +
         (others > 0 ? '<span class="cloud-card-edn">+' + others + '</span>' : '') + '</span>' +
       '<span class="qpd-row-ts">' + ts + '</span>' +
@@ -1516,56 +1538,11 @@
   let _myEditingId = null;
 
   // ---------- 非アクティブ自動解放 ----------
-  const INACTIVITY_TIMEOUT_MS = 5 * 60 * 1000; // 5分
-  const INACTIVITY_RECOVERY_KEY = 'cloudEditRecovery_v1';
-  let _inactivityTimer = null;
-
-  function _releaseOnInactivity() {
-    if (!_myEditingId) return;
-    // 入力中データをブラウザに保存
-    try {
-      if (typeof gatherAllData === 'function') {
-        const snapshot = gatherAllData();
-        localStorage.setItem(INACTIVITY_RECOVERY_KEY, JSON.stringify({
-          data: snapshot,
-          savedAt: Date.now(),
-          presetId: _myEditingId,
-        }));
-      }
-    } catch (e) {}
-    _setEditing(null);
-    quoteShowToast(
-      '⏱️ 未操作状態が続いたため閲覧モードに戻りました。入力データはブラウザに保存済みです（プリセット保存ボタンで復元できます）。',
-      'warn', 8000
-    );
-  }
-
-  function _resetInactivityTimer() {
-    if (!_myEditingId) return;
-    clearTimeout(_inactivityTimer);
-    _inactivityTimer = setTimeout(_releaseOnInactivity, INACTIVITY_TIMEOUT_MS);
-  }
-
-  function _startInactivityWatch() {
-    clearTimeout(_inactivityTimer);
-    _inactivityTimer = setTimeout(_releaseOnInactivity, INACTIVITY_TIMEOUT_MS);
-    ['mousemove', 'keydown', 'mousedown', 'touchstart', 'scroll', 'input', 'change'].forEach(evt =>
-      document.addEventListener(evt, _onUserActivity, { passive: true })
-    );
-  }
-
-  function _stopInactivityWatch() {
-    clearTimeout(_inactivityTimer);
-    _inactivityTimer = null;
-    ['mousemove', 'keydown', 'mousedown', 'touchstart', 'scroll', 'input', 'change'].forEach(evt =>
-      document.removeEventListener(evt, _onUserActivity)
-    );
-  }
-
-  function _onUserActivity() {
-    if (_myEditingId) _resetInactivityTimer();
-    else _stopInactivityWatch();
-  }
+  // 放置の解放は、下の「編集ロック」側の 10 分タイマー（LOCK_IDLE_LIMIT_MS・_onSelfIdleRelease）に一本化。
+  // 以前ここにあった 5 分タイマーは「閲覧モードに戻りました」と出すだけで、実際はロックも編集画面も
+  // そのままだった（表示と実際がずれていた）ため廃止した。
+  function _startInactivityWatch() {}
+  function _stopInactivityWatch() {}
 
   function _presenceOthers(presetId) {
     const arr = _presence[presetId] || [];
@@ -1686,11 +1663,14 @@
       // 10分以上 無操作なら「放置」とみなし、自分でロックを解放して閲覧モードへ
       if (Date.now() - _lastLockActivity > LOCK_IDLE_LIMIT_MS) { _onSelfIdleRelease(id); return; }
       const held = await _renewLock(id);     // 更新のみ
+      // 通信中に自分で保存・解放・放置解放した場合は何もしない（解放済みのロックを握り直さない）
+      if (_lockHeldId !== id) return;
       if (held === false) {
         // 更新できない＝ロックが自分名義でない。ただし「自分の別タブが放置/クローズで
         // クリアしただけ」なら握り直せる。管理者が強制解放した場合は acquire が
         // 'COOLDOWN' を返して拒否される（＝本当に失った）。
         const r = await _acquireLock(id);
+        if (_lockHeldId !== id) { if (r === 'OK') _releaseLock(id); return; }   // 通信中に解放済み→握ったロックを返す
         if (r === 'OK') return;              // 握り直せた（自分の別タブがクリア等）→ 継続
         if (r === 'COOLDOWN' || (typeof r === 'string' && r.indexOf('@') >= 0)) _onLockLost(id);
         // r === null / 'NOTFOUND' / 'DENIED' は不明 → 誤った閲覧モード化を避けて継続
@@ -1699,6 +1679,7 @@
   }
   // ロックを失った（管理者が強制解放 or 他メンバーが引き継ぎ）→ 閲覧モードへ落とす
   function _onLockLost(id) {
+    _dirtyKept = _quoteDirty;   // 未保存の入力は残る。再度「編集」しても未保存の印を消さない
     _stopLockHeartbeat();
     if (_lockHeldId === id) _lockHeldId = null;
     _setEditing(null);
@@ -1707,6 +1688,7 @@
   }
   // 自分が長時間放置 → 自分でロックを解放して閲覧モードへ（他メンバーが編集できるように）
   function _onSelfIdleRelease(id) {
+    _dirtyKept = _quoteDirty;   // 未保存の入力は残る。再度「編集」しても未保存の印を消さない
     _stopLockHeartbeat();
     _releaseLock(id);
     if (_lockHeldId === id) _lockHeldId = null;
@@ -1739,6 +1721,7 @@
   }
 
   // ========== 作業モード（閲覧／編集）：開く=閲覧、編集でロック取得、保存=作業終了で解放 ==========
+  var _dirtyKept = false;   // 編集権を失って閲覧に落ちたとき、未保存の入力があったか（再編集しても未保存扱いを続ける）
   let _shareMode = 'edit';   // 'edit'（新規・自分が編集中）| 'view'（共有案件を閲覧中・読み取り専用）
 
   function _applyShareMode(mode) {
@@ -1794,7 +1777,8 @@
     }
     _setEditing(_loadedCloudId);     // Presence：あなたが作業中
     _applyShareMode('edit');
-    _resetQuoteDirty();              // 編集開始直後は未保存なし
+    if (_dirtyKept) { _dirtyKept = false; _quoteDirty = true; }   // 放置・奪取で閲覧に落ちた時の未保存の入力は残っている
+    else _resetQuoteDirty();         // 編集開始直後は未保存なし
     quoteShowToast('✏️ 編集を開始しました（あなたが作業中・他メンバーは削除/上書き不可）', 'success', 3500);
   }
 
@@ -1854,7 +1838,7 @@
   // 未保存検知：編集モード中のユーザー入力で dirty=true、保存/読込/新規でクリア
   var _quoteDirty = false;
   function _markQuoteDirty() { if (_shareMode === 'edit') _quoteDirty = true; }
-  function _resetQuoteDirty() { setTimeout(function () { _quoteDirty = false; }, 0); }
+  function _resetQuoteDirty() { _dirtyKept = false; setTimeout(function () { _quoteDirty = false; }, 0); }
   // 未保存の変更があるときの確認ダイアログ（保存／破棄／中止の 3 択）。
   // ブラウザ標準の confirm は 2 択しか作れず「その場で保存する」導線が作れないため、
   // 専用のモーダルを出す。戻り値 true＝そのまま進んでよい／false＝操作を中止する。
@@ -2032,6 +2016,7 @@
     if (typeof setCurrentQuoteName === 'function') setCurrentQuoteName('');
     _applyShareMode('edit');
     qpShowEditor();
+    window.scrollTo({ top: 0, behavior: 'instant' });   // ダッシュボードを下までスクロールしていても、新規は先頭から
     qfRenderAttachments();
     if (typeof window.ciApplyNewCaseDefaults === 'function') window.ciApplyNewCaseDefaults();
     _resetQuoteDirty();
@@ -2210,6 +2195,18 @@
     _applyCloudFilter();
   }
 
+  // 一覧のキャッシュ（_cloudRows）は読込後に他メンバーが保存していると古い。そのまま data 全体を
+  // 書き戻すと相手の保存を巻き戻してしまうため、書く直前に最新の data を取り直す。
+  // 取得に失敗したときは、従来どおりキャッシュの data を使う。
+  async function _freshRowData(id, row) {
+    try {
+      const c = _getClient();
+      const { data, error } = await c.from(_table()).select('data').eq('id', id).single();
+      if (!error && data && data.data) return data.data;
+    } catch (e) {}
+    return (row && row.data) || undefined;
+  }
+
   // 行のステータス変更
   async function cloudSetStatus(rawId, status) {
     const c = _getClient();
@@ -2229,8 +2226,9 @@
     // status 列だけでなく data.fields['qf-status'] も一緒に更新する。ここを揃えて
     // おかないと、次にこの案件を開いたとき（_applyQuoteData が data.fields から
     // 復元する）古いステータスに戻って見えてしまう（例：「🔄 更新」ボタンが出ない）。
-    const newData = (row && row.data) ? Object.assign({}, row.data, {
-      fields: Object.assign({}, row.data.fields, { 'qf-status': status }),
+    const baseData = row ? await _freshRowData(id, row) : undefined;
+    const newData = baseData ? Object.assign({}, baseData, {
+      fields: Object.assign({}, baseData.fields, { 'qf-status': status }),
     }) : undefined;
     // 提示済み／ヨコヨコ提示にしたとき、その時点の客先向け内容を提示履歴（版）に積む（quote-versions.js）
     if (newData && typeof window.qvOnPresentedData === 'function') {
@@ -2321,7 +2319,7 @@
       quoteShowToast('🔒 ' + _nameFor(lockedBy) + ' さんが作業中のため変更できません', 'warn', 4000);
       return;
     }
-    const newData = Object.assign({}, row.data, { holdReminderOff: !!off });
+    const newData = Object.assign({}, await _freshRowData(id, row), { holdReminderOff: !!off });
     const { error } = await c.from(_table()).update({ data: newData }).eq('id', id);
     if (error) {
       quoteShowToast('⚠️ 更新に失敗：' + error.message, 'warn', 5000);
@@ -2349,7 +2347,7 @@
     if (!row) return false;
     const lockedBy = _lockedByOther(row);
     if (lockedBy) { quoteShowToast('🔒 ' + _nameFor(lockedBy) + ' さんが作業中のため変更できません', 'warn', 4000); return false; }
-    const newData = Object.assign({}, row.data);
+    const newData = Object.assign({}, await _freshRowData(id, row));
     if (pf) newData.priceFollow = pf; else delete newData.priceFollow;
     const { error } = await c.from(_table()).update({ data: newData }).eq('id', id);
     if (error) { quoteShowToast('⚠️ 更新に失敗：' + error.message, 'warn', 5000); return false; }
@@ -2548,7 +2546,15 @@
   }
 
   // ---------- 保存（同名は上書き） ----------
+  // 保存中の二重実行（Ctrl+S 連打・ボタン連打）を防ぐ。新規案件だと同名の行が2件できてしまうため。
+  let _saveInFlight = false;
   async function cloudSaveCurrent(opts) {
+    if (_saveInFlight) return;
+    _saveInFlight = true;
+    try { return await _cloudSaveCurrentImpl(opts); }
+    finally { _saveInFlight = false; }
+  }
+  async function _cloudSaveCurrentImpl(opts) {
     const c = _getClient();
     if (!c || !_cloudUser) { quoteShowToast('⚠️ 先に Google でログインしてください', 'warn'); return; }
     // 保存名：読込中の案件名を優先（コピー元と名前が被っても混同しない）。未ロードなら自動生成
@@ -3125,6 +3131,7 @@
     if (typeof closePresetMgr === 'function') closePresetMgr();
     _applyShareMode('view');   // 読み取り専用。編集するには「✏️ 編集」
     qpShowEditor();            // ダッシュボードからエディタ画面へ
+    window.scrollTo({ top: 0, behavior: 'instant' });   // 一覧を下までスクロールして開いても、案件は先頭（管理番号）から見せる
     if (typeof window.eiRefreshPendingBanner === 'function') window.eiRefreshPendingBanner();   // 📩 未取込の帯
     qfRenderAttachments();     // この案件の添付一覧を表示
     _resetQuoteDirty();        // 読込直後は未保存なし
@@ -3171,6 +3178,9 @@
       return;
     }
     if (_lockHeldId === id) _dropLock();
+    // 画面に開いている案件を消した場合、読込済みIDを残すと次の保存が「存在しない行の更新」になり
+    // 0行＝「他メンバーが編集中」と誤表示されて保存できなくなる。新規扱いに戻す。
+    if (_loadedCloudId === id) { _loadedCloudId = null; _loadedCloudTs = null; if (_shareMode === 'view') _applyShareMode('edit'); }
     quoteShowToast('🗑️ 共有プリセットを削除しました', 'info');
     cloudListPresets();
   }
@@ -3587,7 +3597,12 @@
     if (_qtab) { _qtab.addEventListener('input', _markUnlessImportModal); _qtab.addEventListener('change', _markUnlessImportModal); }
     // タブを閉じる/離れる時はロックを即時解放（best-effort。失敗しても90秒で自動失効）
     window.addEventListener('pagehide', () => { if (_lockHeldId) _dropLock(); });
-    window.addEventListener('beforeunload', () => { if (_lockHeldId) _dropLock(); });
+    window.addEventListener('beforeunload', (e) => {
+      // 編集中に未保存の変更があるまま再読込・タブを閉じようとしたら、ブラウザ標準の確認を出す（自動保存は廃止済みで、そのままだと入力が消える）。
+      // 実際に離れるとき（pagehide）にロックは解放されるので、ここでは確認を出す場合は解放しない（「このページに留まる」を選んでも編集を続けられる）。
+      if (_quoteDirty && _shareMode === 'edit') { e.preventDefault(); e.returnValue = ''; return; }
+      if (_lockHeldId) _dropLock();
+    });
     const c = _getClient();
     if (!c) { _renderCloudAuth(); return; }
 

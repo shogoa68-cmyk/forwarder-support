@@ -251,8 +251,8 @@
       .filter(r => r.sv || r.nm);
   }
 
-  function _build(source) {
-    const period = document.getElementById('statsPeriod')?.value || 'all';
+  function _build(source, allTime) {
+    const period = allTime ? 'all' : (document.getElementById('statsPeriod')?.value || 'all');
     const now = Date.now();
     const CUTOFF = { all: 0, month: now - 30*86400000, q3: now - 91*86400000, year: now - 365*86400000 };
     const cutoff = CUTOFF[period] || 0;
@@ -522,11 +522,17 @@
   const _nameToggle = (name, badge, key) => _cardMode && badge.indexOf('md-fold-chip') >= 0
     ? `<span class="master-name-toggle" role="button" tabindex="0" aria-expanded="${_openCards.has(key) ? 'true' : 'false'}" title="クリックで詳細情報を表示／非表示" onclick="statsToggleMasterCard(this)" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();statsToggleMasterCard(this)}">${_esc(name)}</span>`
     : _esc(name);
+  // サブコンとお客様の両方に登録されている会社（互恵関係）：もう一方の登録へ移れる印（常に表示）
+  function _bothChip(field, value) {
+    const other = field === 'sv' ? 'customer' : field === 'customer' ? 'sv' : '';
+    const has = other && typeof window.statsGetMasters === 'function' && (window.statsGetMasters().some(m => m.field === other && m.value === value) || (typeof window.synGetGroups === 'function' && window.synGetGroups(other).some(g => g.canonical === value)));
+    return has ? `<button type="button" class="stats-md-chip stats-md-deal stats-md-both" title="この会社は「${other === 'sv' ? 'サブコン' : 'お客様'}」にも登録されています（クリックで開く）" onclick="statsJumpToMaster('${other}','${_ea(value)}')">🔁 ${other === 'sv' ? 'サブコン' : 'お客様'}にも登録</button>` : '';
+  }
   function _mdBadge(field, value) {
     const schema = window.MD_SCHEMA && window.MD_SCHEMA[field];
     if (!schema) return '';
     const rec = typeof window.mdGet === 'function' ? window.mdGet(field, value) : null;
-    if (!rec) return '';
+    if (!rec) { const o = _bothChip(field, value); return o ? `<div class="stats-md-inline">${o}</div>` : ''; }
     const details = rec.details || {};
     const chips = [];
     schema.forEach(s => {
@@ -582,9 +588,10 @@
       const dk = s.key === 'dealType' ? (_DEAL_DEFS.find(x => x[1] === v) || [])[0] : '';
       chips.push(`<span class="stats-md-chip${dk ? ' stats-md-deal stats-md-deal-' + dk : ''}" title="${_eav(s.label + '：' + disp)}"><b>${_esc(s.label)}</b>${_esc(short)}</span>`);
     });
-    if (!chips.length) return '';
+    const otherChip = _bothChip(field, value);
+    if (!chips.length) return otherChip ? `<div class="stats-md-inline">${otherChip}</div>` : '';
     // 取引形態のチップだけを常に表示し、それ以外の詳細は、会社名をクリックしたときに表示する（カード表示・2026-11）
-    return `<div class="stats-md-inline">${chips.map(c => c.indexOf('stats-md-deal') >= 0 ? c : c.replace('class="stats-md-chip', 'class="md-fold-chip stats-md-chip')).join('')}</div>`;
+    return `<div class="stats-md-inline">${chips.map(c => c.indexOf('stats-md-deal') >= 0 ? c : c.replace('class="stats-md-chip', 'class="md-fold-chip stats-md-chip')).join('')}${otherChip}</div>`;
   }
 
   // 同義グループ操作ボタン（⭐代表 / ⤵統合 / →代表ピル）。field は sv/nm/customer/port。
@@ -2299,7 +2306,7 @@
       const pct = max > 0 ? Math.max(2, Math.round(it.count / max * 100)) : 0;
       const cls = it.cls ? ' ' + it.cls : '';
       return `<div class="sd-bar-row">` +
-             `<span class="sd-bar-label" title="${_esc(it.label)}">${_esc(it.label)}</span>` +
+             `<span class="sd-bar-label" title="${_eav(it.label)}">${_esc(it.label)}</span>` +
              `<span class="sd-bar-track"><span class="sd-bar-fill${cls}" style="width:${pct}%"></span></span>` +
              `<span class="sd-bar-val">${_esc(it.valText != null ? it.valText : String(it.count))}</span>` +
              `</div>`;
@@ -2628,7 +2635,7 @@
   let _masterSort = 'name';
   window.statsMasterSetSort = function (m) { _masterSort = (m === 'tag' || m === 'group' || m === 'area' || m === 'deal') ? m : 'name'; _renderMaster(); };
   // お客様の取引形態（荷主／同業者／その他／未設定）。一覧の行の色・見出しの色・「取引形態ごとにまとめる」に使う
-  const _DEAL_DEFS = [['ship', '荷主（直接）', '🏭'], ['fwd', '同業者（フォワーダー・代理店）', '🤝'], ['other', 'その他', '📁'], ['none', '取引形態 未設定', '❔']];
+  const _DEAL_DEFS = [['ship', '荷主（直接）', '🏭'], ['fwd', '同業者（フォワーダー・代理店）', '🤝'], ['agent', '海外代理店', '🌏'], ['other', 'その他', '📁'], ['none', '取引形態 未設定', '❔']];
   const _dealKeyOf = (field, name) => {
     if (field !== 'customer') return '';
     const d = ((typeof window.mdGet === 'function' && window.mdGet('customer', name)) || { details: {} }).details || {};
@@ -2705,6 +2712,22 @@
     return `<span class="cr-chip${s.strict ? ' has-strict' : ''}${s.stale ? ' has-stale' : ''}" title="お客様の「詳細」で内容を見られます">📌 ルール${s.n}件` +
       (s.strict ? ` ⛔${s.strict}` : '') + (s.stale ? ` ⏳${s.stale}` : '') + `</span>`;
   }
+  // サブコン・お客様の行に「📰 ニュース N件（最新：種類 日付）」の印（master-news.js）。30 日以内の新着は強調
+  function _mnChip(field, value) {
+    if ((field !== 'sv' && field !== 'customer') || typeof window.mnStats !== 'function') return '';
+    const s = window.mnStats(field, value);
+    if (!s.n) return '';
+    const k = (window.MN_KINDS || {})[s.latest.kind] || { icon: '📰', label: '' };
+    const d = String(s.latest.news_date || '').slice(5).replace('-', '/');
+    return `<span class="mn-chip${s.recent ? ' is-recent' : ''}" title="${_esc(k.label + '：' + s.latest.title)}（詳細の「ニュース」で時系列を見られます）">📰 ニュース${s.n}件 ${k.icon}${_esc(d)}</span>`;
+  }
+  // お客様の行に「🗂 事例N件（未解決n）」の印（顧客カルテ＝customer-cases.js）
+  function _ccChip(field, value) {
+    if (field !== 'customer' || typeof window.ccStats !== 'function') return '';
+    const s = window.ccStats(value);
+    if (!s.n) return '';
+    return `<span class="cc-chip${s.open ? ' has-open' : ' has-cases'}" title="お客様の「詳細」→「顧客カルテ」で事例を見られます">🗂 事例${s.n}件${s.open ? ' 未解決' + s.open : ''}</span>`;
+  }
   // 再確認が必要な取引ルールの案内（半年以上、確認されていないもの）
   function _crStaleNotice() {
     if (typeof window.crStaleSummary !== 'function') return '';
@@ -2758,6 +2781,7 @@
     const act = document.activeElement;
     const keep = act && act.id === 'masterSearch' ? { s: act.selectionStart, e: act.selectionEnd } : null;
     _renderMasterInner();
+    if (typeof window.driftRenderCard === 'function') window.driftRenderCard();   // 🔍 ゆらぎチェックのカード（js/drift-check.js）
     const inp = document.getElementById('masterSearch');
     if (inp && keep) { inp.focus(); try { inp.setSelectionRange(keep.s, keep.e); } catch (e) { /* 無視 */ } }
     const c = document.getElementById('masterSearchCount');
@@ -2770,6 +2794,8 @@
     if (!_crLoadKicked && typeof window.crLoad === 'function' && _cloud()) {
       _crLoadKicked = true;
       window.crLoad().then(ok => { if (ok && document.getElementById('statsPane-master')) _renderMaster(); });
+      if (typeof window.ccLoad === 'function') window.ccLoad().then(ok => { if (ok && document.getElementById('statsPane-master')) _renderMaster(); });
+      if (typeof window.mnLoad === 'function') window.mnLoad().then(ok => { if (ok && document.getElementById('statsPane-master')) _renderMaster(); });
     }
 
     const cloudOn = _cloud() && _cvMap !== null;
@@ -2942,7 +2968,7 @@
       _masterHitCount = rowsAll.length;
     }
 
-    const headH = _masterHeadHtml(totalCount, allSyn.length) + _crStaleNotice() + (typeof window.masterTopNoticeHtml === 'function' ? window.masterTopNoticeHtml() : '') + _requestsHtml();
+    const headH = _masterHeadHtml(totalCount, allSyn.length) + '<div id="driftCard" class="drift-card"></div>' + _crStaleNotice() + (typeof window.masterTopNoticeHtml === 'function' ? window.masterTopNoticeHtml() : '') + _requestsHtml();
     if (!rowsAll.length) {
       e.innerHTML = headH + formH + chipsH + (_terms.length
         ? '<p class="stats-empty">「' + _esc(_masterQuery.trim()) + '」に一致するマスターはありません。<br><button type="button" class="master-type-preset" onclick="statsMasterClearQuery()">検索をクリア</button>（種別の絞り込みも確認してください）</p>'
@@ -2984,7 +3010,7 @@
         const chips = (g.aliases || []).map(a => `<span class="stats-syn-member">${_esc(a)}<button class="ua-chip-del" title="別名から外す" onclick="${delAlias(a)}">✕</button></span>`).join('');
         const gBadge = _mdBadge(g.field, g.canonical), gKey = g.field + '\u0001' + g.canonical;
         h += `<tr class="stats-syn-row${r.viaDepth ? ' master-via-child' : ''}${_openCards.has(gKey) ? ' is-open' : ''}" data-mfield="${_eav(g.field)}" data-mvalue="${_eav(g.canonical)}"${_dealKeyOf(g.field, g.canonical) ? ` data-deal="${_dealKeyOf(g.field, g.canonical)}"` : ''}${r.viaDepth ? ` data-via-depth="${r.viaDepth}"` : ''}><td>${labels[g.field] || g.field}</td>` +
-             `<td class="stats-val">${_viaMark(r)}<span class="ua-star">⭐</span>${_nameToggle(g.canonical, gBadge, gKey)}${_crChip(g.field, g.canonical)}${gBadge}</td>` +
+             `<td class="stats-val">${_viaMark(r)}<span class="ua-star">⭐</span>${_nameToggle(g.canonical, gBadge, gKey)}${_crChip(g.field, g.canonical)}${_mnChip(g.field, g.canonical)}${_ccChip(g.field, g.canonical)}${gBadge}</td>` +
              `<td class="stats-master-abbrev-cell">${chips}${addBtn(g.field, g.canonical)}</td>` +
              `<td class="ops"><button class="stats-master-merge" title="このマスターを別のマスターの別名にまとめる（別名ごと移動）" onclick="statsSynMergePicker('${_ea(g.field)}','${_ea(g.canonical)}',this)">他のマスターにまとめる</button>` +
              `<button class="stats-master-rename" title="マスター名を変更（旧名称は別名として残ります）" onclick="statsMasterRename('${_ea(g.field)}','${_ea(g.canonical)}')">✏️ 名称変更</button>` +
@@ -2996,7 +3022,7 @@
         const mCls = [r.viaDepth ? 'master-via-child' : '', _openCards.has(mKey) ? 'is-open' : ''].filter(Boolean).join(' ');
         h += `<tr data-mfield="${_eav(m.field)}" data-mvalue="${_eav(m.value)}"${_dealKeyOf(m.field, m.value) ? ` data-deal="${_dealKeyOf(m.field, m.value)}"` : ''}${mCls ? ` class="${mCls}"` : ''}${r.viaDepth ? ` data-via-depth="${r.viaDepth}"` : ''}>` +
              `<td>${labels[m.field] || m.field}</td>` +
-             `<td class="stats-val">${_viaMark(r)}${_nameToggle(m.value, mBadge, mKey)}${_crChip(m.field, m.value)}${mBadge}</td>` +
+             `<td class="stats-val">${_viaMark(r)}${_nameToggle(m.value, mBadge, mKey)}${_crChip(m.field, m.value)}${_mnChip(m.field, m.value)}${_ccChip(m.field, m.value)}${mBadge}</td>` +
              `<td class="stats-master-abbrev-cell">${addBtn(m.field, m.value)}</td>` +
              `<td class="ops">${_mdDetailBtn(m.field, m.value)}${(_approvalOn() ? _isAdmin() : m.isMine) ? `<button type="button" class="master-ops-more more" aria-haspopup="menu" title="その他の操作（解除）" onclick="statsOpsMenu(this,'master','${_ea(m.field)}','${_ea(m.value)}')">⋯</button>` : ''}</td>` +
              `</tr>`;
@@ -3059,7 +3085,7 @@
       // お客様：同業者の先のお客様は、その同業者の行の直下に（字下げして）並べる。同業者が絞り込みで出ていないときは通常の行として出す
       const isCust = r => r.field === 'customer';
       const byName = new Map(rowsAll.filter(isCust).map(r => [r.name, r]));
-      const via = r => { const d = (window.mdGet('customer', r.name) || { details: {} }).details; return d && d.via; };
+      const via = r => window.mdViaOf(r.name);
       const kids = new Map();
       rowsAll.forEach(r => { if (!isCust(r)) return; const v = via(r); if (v && v !== r.name && byName.has(v)) { if (!kids.has(v)) kids.set(v, []); kids.get(v).push(r); } });
       if (!kids.size) rowsAll.forEach(_emitRow);
@@ -3246,7 +3272,7 @@
     const banned = new Set([self].concat(typeof window.mdViaDescendants === 'function' ? window.mdViaDescendants(self) : []));
     const fwd = window.MD_DEAL_FWD;
     const names = window.statsGetMasters().filter(m => m.field === 'customer').map(m => m.value)
-      .filter(n => !banned.has(n) && (n === cur || ((window.mdGet('customer', n) || { details: {} }).details.dealType === fwd)));
+      .filter(n => !banned.has(n) && (n === cur || ((window.mdGet('customer', n) || { details: {} }).details.dealType === fwd || (window.mdGet('customer', n) || { details: {} }).details.dealType === '海外代理店')));
     if (cur && !names.includes(cur)) names.push(cur);
     names.sort((a, b) => a.localeCompare(b, 'ja'));
     const opts = '<option value="">（なし）</option>' + names.map(n => `<option value="${_eav(n)}"${n === cur ? ' selected' : ''}>${_esc(n)}</option>`).join('');
@@ -3267,7 +3293,7 @@
     const chain = new Set(typeof window.mdViaChain === 'function' ? window.mdViaChain(self) : []);
     return window.statsGetMasters().filter(m => m.field === 'customer').map(m => m.value).filter(n => {
       if (n === self || chain.has(n)) return false;
-      const r = window.mdGet('customer', n); const v = r && r.details && r.details.via;
+      const v = window.mdViaOf(n);
       return !v || v === self;
     }).sort((a, b) => a.localeCompare(b, 'ja'));
   }
@@ -3279,7 +3305,7 @@
     const known = window.statsGetMasters().some(m => m.field === 'customer' && m.value === n);
     if (!known) { warn('「' + n + '」はお客様のマスターにありません。先にマスターへ登録してください'); return; }
     if (n === self) { warn('自分自身は先のお客様にできません'); return; }
-    const r = window.mdGet('customer', n); const v = r && r.details && r.details.via;
+    const v = window.mdViaOf(n);
     if (v && v !== self) { warn('「' + n + '」はすでに「' + v + '」の先のお客様です（1 つの同業者にしか付けられません）'); return; }
     if (window.mdViaChain(self).includes(n)) { warn('「' + n + '」は、この同業者の上位にあたるため先のお客様にできません'); return; }
     if (!Array.from(wrap.querySelectorAll('.stats-md-via-chip')).some(c => c.dataset.name === n)) wrap.insertAdjacentHTML('beforeend', _mdViaChipHtml(n));
@@ -3307,7 +3333,7 @@
           `</div>`;
       }
       if (s.areas) return _mdAreasEditorHtml(id, s, Array.isArray(details[s.key]) ? details[s.key] : []);
-      if (s.via) return _mdViaSelectHtml(id, s, value, details[s.key] || '');
+      if (s.via) return _mdViaSelectHtml(id, s, value, (typeof window.mdViaOf === 'function' ? window.mdViaOf(value) : '') || details[s.key] || '');
       if (s.children) return _mdViaChildrenHtml(id, s, value);
       if (s.tags) {
         const list = Array.isArray(details[s.key]) ? details[s.key] : [];
@@ -3365,12 +3391,16 @@
         `<div class="master-attach-list" id="mdAttachList"><span class="master-attach-loading">読み込み中…</span></div>` +
       `</div>` +
       // お客様：取引ルール（お客様・担当者ごとの決まりごと。customer-rules.js）
+      (field === 'sv' || field === 'customer' ? `<div class="mn-section"><div class="master-attach-hdr"><span>📰 ニュース（新着・事務所移転・担当変更など／時系列・チーム共有）</span></div><div class="mn-panel" id="mnPanel"></div></div>` : '') +
+      (field === 'customer' ? `<div class="cc-section"><div class="master-attach-hdr"><span>🗂 顧客カルテ（案件ごとのイレギュラー・解決策・改善案／チーム共有）</span></div><div class="cc-panel" id="ccPanel"></div></div>` : '') +
       (field === 'customer' ? `<div class="cr-section"><div class="master-attach-hdr"><span>📌 取引ルール（お客様・担当者ごと／チーム共有）</span></div><div class="cr-panel" id="crPanel"></div></div>` : '') +
       `</div></div>`;
     document.body.appendChild(row);
     document.body.classList.add('md-modal-open');
     const firstInput = row.querySelector('input,textarea,select'); if (firstInput) firstInput.focus();
     window.statsRefreshMasterAttachments(field, value);
+    if ((field === 'sv' || field === 'customer') && typeof window.mnMountPanel === 'function') window.mnMountPanel(document.getElementById('mnPanel'), field, value);
+    if (field === 'customer' && typeof window.ccMountPanel === 'function') window.ccMountPanel(document.getElementById('ccPanel'), value);
     if (field === 'customer' && typeof window.crMountPanel === 'function') window.crMountPanel(document.getElementById('crPanel'), value);
   };
 
@@ -3396,6 +3426,7 @@
     }).join('');
   };
 
+  window.statsRefreshMasterList = function () { if (document.getElementById('statsPane-master')) _renderMaster(); };
   window.statsCloseMasterDetail = function () {
     const m = document.getElementById('mdDetailModal');
     if (m) m.remove();
@@ -3469,7 +3500,7 @@
       const items = [], skipped = [];
       viaAdd.forEach(n => {
         const cur = (window.mdGet('customer', n) || { details: {} }).details || {};
-        if ((cur.via && cur.via !== value) || chain.includes(n)) { skipped.push(n); return; }   // 保存の直前に、ほかで付けられた・上位だった
+        if ((cur.via && window.mdViaOf(n) !== value) || chain.includes(n)) { skipped.push(n); return; }   // 保存の直前に、ほかで付けられた・上位だった
         items.push({ value: n, details: Object.assign({}, cur, { via: value }) });
       });
       viaDel.forEach(n => { const cur = Object.assign({}, (window.mdGet('customer', n) || { details: {} }).details || {}); delete cur.via; items.push({ value: n, details: cur }); });
@@ -4092,6 +4123,14 @@
       btn.disabled = false;
     });
   };
+
+  // ゆらぎチェック（js/drift-check.js）用：全期間の表記グループと、判定に使う正規化・読み込み状態
+  window.statsDriftInput = function () {
+    const d = _build('both', true);
+    return { customer: d.customerGroups, sv: d.svGroups, port: d.portGroups, nm: d.nmGroups, un: d.unGroups };
+  };
+  window.statsNormalizeKey = _normalize;
+  window.statsMastersReady = () => _cloud() && _cvMap !== null;
 
   window.statsRefresh = async function () {
     const btn = document.querySelector('.stats-refresh-btn');
