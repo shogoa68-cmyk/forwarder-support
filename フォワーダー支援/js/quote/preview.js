@@ -229,7 +229,7 @@
       const _actual = tr.dataset.actual === '1';   // 実費（金額未確定）
       const _cond   = tr.dataset.cond === '1';     // 都度請求（発生時のみ・合計外）
       const _ref    = tr.dataset.refInfo === '1';  // 参考情報（金額は表示・合計外）
-      data.push({ taxed, cat, name, pq, un, pc, pp, cd, bq, bc, bp, mk, cost, bill, profit, ppmin: val(`ppmin-${id}`), bpmin: val(`bpmin-${id}`), bphi: val(`bphi-${id}`), note, sv, _actual, _cond, _ref });
+      data.push({ taxed, cat, name, pq, un, pc, pp, cd, bq, bc, bp, mk, cost, bill, profit, ppmin: val(`ppmin-${id}`), bpmin: val(`bpmin-${id}`), bphi: val(`bphi-${id}`), note, sv, _actual, _cond, _ref, zc: document.getElementById(`zc-${id}`)?.value === '1' });
     });
     return data;
   }
@@ -524,6 +524,14 @@
       if (outs.length) infoItems.push({ msg: `表示条件に合わず、客先向けの出力と合計から外れる行が ${outs.length} 件あります：${list(outs)}`, focusEl: null });
       if (unk.length)  infoItems.push({ msg: `表示条件を判定できない行が ${unk.length} 件あります（値が未入力のため表示のまま）：${list(unk)}`, focusEl: null });
     }
+
+    // 英語出力が ON のとき、英訳辞書で訳せていない品名・リマークを知らせる（日本語のまま出るので、辞書に英語を登録する）
+    try {
+      if (typeof window.jeScanCurrent === 'function' && typeof window.quoteDocLangEnOn === 'function' && window.quoteDocLangEnOn()) {
+        const miss = window.jeScanCurrent();
+        if (miss.length) infoItems.push({ msg: `英語出力で、英語にできていない文が ${miss.length} 件あります（日本語のまま出ます）：${miss.slice(0, 4).map(x => '「' + (x.ja.length > 24 ? x.ja.slice(0, 24) + '…' : x.ja) + '」').join('')}${miss.length > 4 ? ' ほか' : ''}。御見積書の設定の「📖 英訳辞書」で英語を登録できます`, focusEl: null });
+      }
+    } catch (e) {}
 
     if (!data.length) {
       infoItems.push({ msg: '見積もり行が 1 件もありません', focusEl: null });
@@ -1580,15 +1588,25 @@
   ];
 
   function copyTSV() {
-    const data = collectData();
+    const data = collectData().filter(d => !d.zc);   // 0円確認済み行はプレビューと同じく出力しない
     if (!data.length) return;
     if (!_pvBypassed && !preOutputValidationGate('クリップボードコピー', copyTSV)) return;
     _pvBypassed = false;
     if (!sensitiveColumnsGate('クリップボードコピー')) return;
     const hdr = getQuoteHeader();
     let totCost = 0, totBill = 0, totMk = 0;
-    data.forEach(d => { if (d._actual || d._cond || d._ref) return; totCost += d.cost; totBill += d.bill; totMk += d.mk; });
-    const totPr = totBill - totCost;
+    // 外貨が混じるときは通貨の違う数値をそのまま足さず、JPY 換算で集計する（Excel 出力・プレビューと同じ考え方）
+    let totPrJpy = 0, totMkJpy = 0, hasFxTsv = false;
+    const _toJ = (a, c) => (c && c !== 'JPY' && typeof toJPY === 'function') ? toJPY(a, c) : a;
+    data.forEach(d => {
+      if (d._actual || d._cond || d._ref) return;
+      totCost += d.cost; totBill += d.bill; totMk += d.mk;
+      totPrJpy += Math.ceil(_toJ(d.bill, d.bc)) - Math.ceil(_toJ(d.cost, d.pc));
+      totMkJpy += _toJ(d.mk, d.bc);
+      if ((d.bc && d.bc !== 'JPY') || (d.pc && d.pc !== 'JPY')) hasFxTsv = true;
+    });
+    const totPr = hasFxTsv ? totPrJpy : totBill - totCost;
+    if (hasFxTsv) totMk = Math.ceil(totMkJpy);
     const vis = getPreviewVisibility();
     const visCols = TSV_COL_DEFS.filter(c => !c.pvGroup || vis[c.pvGroup]);
     const idxOf = role => visCols.findIndex(c => c.role === role);
@@ -1608,7 +1626,7 @@
     data.forEach(d => lines.push(visCols.map(c => c.fn(d)).join('\t')));
     // 合計行（先頭セルに「合計」、利益／乗せ幅列に値、CD/通貨は「—」または空）
     const totalRow = visCols.map(c => {
-      if (c.role === 'cat')    return '合計';
+      if (c.role === 'cat')    return hasFxTsv ? '合計（≈JPY換算）' : '合計';
       if (c.role === 'cd')     return '—';
       if (c.role === 'mk')     return fmtRaw(totMk);
       if (c.role === 'profit') return fmtRaw(totPr);
@@ -1815,6 +1833,7 @@
     const ccyData = {};
     allRows.forEach(d => {
       if (d._type !== 'data') return;
+      if (d._actual || d._cond || d._ref) return;   // 実費・都度請求・参考情報は合計に含めない（本体の合計行と同じ）
       const bc  = d.bc || 'JPY';
       const sub = minAmt((d.bq || 0) * (d.bp || 0), d.bpmin);
       if (!ccyData[bc]) ccyData[bc] = { sub: 0, taxedSub: 0, exemptSub: 0 };
@@ -1856,7 +1875,7 @@
     if (!_pvBypassed && !preOutputValidationGate('Excel 出力', exportExcel)) return;
     _pvBypassed = false;
     if (!sensitiveColumnsGate('Excel 出力')) return;
-    const allRows = collectAllRows().filter(r => !r._hideQuote);  // 見積書非表示の行は出力しない
+    const allRows = collectAllRows().filter(r => !r._hideQuote && !r.zc);  // 見積書非表示・0円確認済みの行は出力しない（プレビューと同じ）
     const data = allRows.filter(r => r._type === 'data');
     if (!data.length) { alert('行がありません。'); return; }
     const hdr = getQuoteHeader();
@@ -1924,7 +1943,7 @@
         return;
       }
       const sub     = minAmt((d.bq || 0) * (d.bp || 0), d.bpmin);
-      const cost    = (d.pq || 0) * (d.pp || 0);
+      const cost    = d.cost;   // 最低料金（ミニマム）適用後の仕入。行の利益(d.profit)と同じ基準にそろえる
       const jpy     = typeof toJPY === 'function' ? Math.ceil(toJPY(sub, d.bc))  : sub;
       const costJpy = typeof toJPY === 'function' ? Math.ceil(toJPY(cost, d.pc)) : cost;
       const taxAmt  = (d.taxed && !d._actual) ? sub * getEffectiveTaxRate() : 0;

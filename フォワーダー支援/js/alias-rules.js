@@ -199,6 +199,88 @@
     return count;
   };
 
+  // === 一括置換のバックアップ・履歴・復元（2026-11） ===
+  // クラウドの案件を書き換える前に、書き換わる案件の「元の内容」をバックアップ（JSON）として自動で保存し、履歴を残す。
+  // 復元は、置換のあとに編集されていない案件だけ（置換直後の内容のハッシュが一致するものだけ）元へ戻す。
+  const APPLY_LOG_KEY = 'aliasApplyLog_v1';
+  function _hash(s) { let h = 5381; for (let i = 0; i < s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) | 0; return (h >>> 0) + ':' + s.length; }
+  function _downloadJson(name, text) {
+    try {
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(new Blob([text], { type: 'application/json' }));
+      a.download = name; document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+    } catch (e) { /* ダウンロードできなくても履歴は残る */ }
+  }
+  const _pad = n => String(n).padStart(2, '0');
+  function _afterApply(rules, changes) {
+    const d = new Date();
+    const name = 'alias-apply-backup-' + d.getFullYear() + _pad(d.getMonth() + 1) + _pad(d.getDate()) + '-' + _pad(d.getHours()) + _pad(d.getMinutes()) + '.json';
+    const bk = { kind: 'alias-apply-backup', version: 1, at: d.toISOString(), by: _me(), rules: rules.map(r => ({ field: r.field, from: r.from_value, to: r.to_value })), items: changes };
+    _downloadJson(name, JSON.stringify(bk));
+    let log; try { log = JSON.parse(localStorage.getItem(APPLY_LOG_KEY) || '[]'); } catch (e) { log = []; }
+    log.unshift({ at: bk.at, by: bk.by, count: changes.length, rules: bk.rules.length, file: name });
+    try { localStorage.setItem(APPLY_LOG_KEY, JSON.stringify(log.slice(0, 30))); } catch (e) { /* 履歴が残せなくても続ける */ }
+    if (typeof window.quoteShowToast === 'function') window.quoteShowToast('💾 元の内容のバックアップ（' + name + '）をダウンロードしました', 'info', 6000);
+  }
+
+  function _applyLogHtml() {
+    let log; try { log = JSON.parse(localStorage.getItem(APPLY_LOG_KEY) || '[]'); } catch (e) { log = []; }
+    if (!log.length) return '';
+    const fmt = t => { const d = new Date(t); return isNaN(d) ? '' : d.getFullYear() + '/' + (d.getMonth() + 1) + '/' + d.getDate() + ' ' + _pad(d.getHours()) + ':' + _pad(d.getMinutes()); };
+    return '<p class="ar-bulk-desc">この端末での最近の一括置換：</p><ul class="ar-apply-log">' +
+      log.slice(0, 5).map(x => `<li>${_esc(fmt(x.at))}　${x.count} 件・ルール ${x.rules} 件　<small>${_esc(x.file || '')}</small></li>`).join('') + '</ul>';
+  }
+
+  window.arRestoreFromBackup = function () {
+    if (!_cloud()) { if (typeof window.quoteShowToast === 'function') window.quoteShowToast('クラウドにログインしてください', 'warn'); return; }
+    const inp = document.createElement('input');
+    inp.type = 'file'; inp.accept = '.json,application/json';
+    inp.onchange = async () => {
+      const f = inp.files && inp.files[0]; if (!f) return;
+      let bk;
+      try { bk = JSON.parse(await f.text()); } catch (e) { bk = null; }
+      if (!bk || bk.kind !== 'alias-apply-backup' || !Array.isArray(bk.items)) {
+        if (typeof window.quoteShowToast === 'function') window.quoteShowToast('⚠️ 一括置換のバックアップファイルではありません', 'warn', 5000);
+        return;
+      }
+      await _restoreFrom(bk);
+    };
+    inp.click();
+  };
+  async function _restoreFrom(bk) {
+    const c = _c(); if (!c) return;
+    const ids = bk.items.map(x => x.id);
+    const cur = new Map();
+    for (let i = 0; i < ids.length; i += 100) {
+      const { data, error } = await c.from(PRESETS_TABLE).select('id,data').in('id', ids.slice(i, i + 100));
+      if (error) { if (typeof window.quoteShowToast === 'function') window.quoteShowToast('⚠️ 案件を読み込めませんでした：' + error.message, 'warn', 6000); return; }
+      (data || []).forEach(r => cur.set(r.id, r.data));
+    }
+    const ok = [], changed = [], gone = [];
+    bk.items.forEach(x => {
+      if (!cur.has(x.id)) { gone.push(x); return; }
+      (_hash(JSON.stringify(cur.get(x.id))) === x.afterHash ? ok : changed).push(x);
+    });
+    if (!ok.length) {
+      if (typeof window.quoteShowToast === 'function') window.quoteShowToast('元に戻せる案件がありません（置換のあとに編集されたか、削除されています：編集済み ' + changed.length + '・削除 ' + gone.length + '）', 'warn', 7000);
+      return;
+    }
+    const lines = ['元に戻せる案件：' + ok.length + ' 件', '置換のあとに編集された案件（戻さない）：' + changed.length + ' 件', '削除された案件：' + gone.length + ' 件', '一括置換した日時：' + (bk.at || '').slice(0, 16).replace('T', ' ')];
+    const go = await (typeof window.uiConfirm === 'function' ? window.uiConfirm({ title: '一括置換の前の内容に戻しますか？', lines, irreversible: '戻した案件は、置換前の表記になります。', okLabel: '元に戻す', danger: true }) : Promise.resolve(confirm(lines.join('\n'))));
+    if (!go) return;
+    let done = 0, fail = 0;
+    for (const x of ok) {
+      const upd = { data: x.before };
+      const pc = _derivePortCols(x.before), cc = _deriveCustCarrierCols(x.before);
+      Object.assign(upd, { pol: pc.pol, pod: pc.pod, customer: cc.customer, carrier: cc.carrier });
+      const { error } = await c.from(PRESETS_TABLE).update(upd).eq('id', x.id);
+      if (error) fail++; else done++;
+    }
+    if (typeof window.quoteShowToast === 'function') window.quoteShowToast(fail ? '⚠️ ' + done + ' 件を戻しました（' + fail + ' 件は失敗：編集中などの可能性があります）' : '✅ ' + done + ' 件を置換前の内容に戻しました', fail ? 'warn' : 'success', 6000);
+    if (typeof window.statsRefresh === 'function') await window.statsRefresh();
+  }
+
   window.arApplyCloud = async function (rules, dryRun) {
     const c = _c();
     if (!c || !rules || !rules.length) return 0;
@@ -208,6 +290,7 @@
     const { data: presets } = await c.from(PRESETS_TABLE).select('id,data');
     if (!presets) return 0;
     let count = 0;
+    const changes = [];   // バックアップ用：書き換えた案件の元の内容
     for (const p of presets) {
       const before = JSON.stringify(p.data);
       const after  = _applyToData(p.data, rules);
@@ -222,10 +305,13 @@
           if (hasCust) upd.customer = cc.customer;
           if (hasCar)  upd.carrier  = cc.carrier;
         }
-        await c.from(PRESETS_TABLE).update(upd).eq('id', p.id);
+        const { error: uerr } = await c.from(PRESETS_TABLE).update(upd).eq('id', p.id);
+        if (uerr) continue;   // 編集中の案件などは書き換わらない（バックアップにも入れない）
+        changes.push({ id: p.id, before: p.data, afterHash: _hash(JSON.stringify(after)) });
         count++;
       }
     }
+    if (changes.length) _afterApply(rules, changes);
     return count;
   };
 
@@ -496,10 +582,15 @@
   }
   window.arRefreshDatalist = function () {
     _refreshDatalist.apply(this, arguments);
+    _remarkUnregistered();   // すでに「未登録」の印が付いている欄は、マスターに登録された・別名になったら印を外す
     if (typeof window.qfRefreshCarrierMasterCandidates === 'function') window.qfRefreshCarrierMasterCandidates();   // サブコンのマスター（種別がキャリア）を幹線輸送のキャリア候補へ
     if (typeof window.zscRefreshLists === 'function') window.zscRefreshLists();   // 出発地側・到着地側のデフォルトサブコンの候補（得意エリアで絞る）
     if (typeof window.ptcRefreshLists === 'function') window.ptcRefreshLists();   // 国で絞った港の候補（POL／経由地／POD）も作り直す
     if (typeof window.refreshAllRowSvChips === 'function') window.refreshAllRowSvChips();   // マスターが読み込まれた・変わったら、行の「サブコン未登録」の印も更新
+    // お客様の詳細ボタン・ご担当者の候補・取引ルールの帯、品名の詳細ボタンも、マスター（詳細・別名）の変更に追従させる
+    // （以前は見積タブを開いた最初の読込直後と、お客様名を打ったときしか更新されなかった）
+    if (document.getElementById('qf-customer') && typeof window.qfRefreshCustomerDetailBtn === 'function') window.qfRefreshCustomerDetailBtn();
+    if (typeof window.refreshAllRowMasterDetailBtns === 'function') window.refreshAllRowMasterDetailBtns();
   };
 
   // === クイック登録ステート ===
@@ -634,12 +725,14 @@
     const cloudOn = _cloud();
     h += `<div class="ar-bulk-section">
   <h4 class="ar-section-title">一括置換</h4>
-  <p class="ar-bulk-desc">登録済みルールでプリセットの表記を一括置換します。<strong>この操作は元に戻せません。</strong></p>
+  <p class="ar-bulk-desc">登録済みルールでプリセットの表記を一括置換します。クラウドの案件を書き換える前に、<strong>元の内容を自動でバックアップ（ファイルのダウンロード）</strong>します。ブラウザ内のプリセットへの適用は元に戻せません。</p>
   <div class="ar-bulk-btns">
     <button class="ar-bulk-btn ar-bulk-local" onclick="arApplyWithConfirm('local')"${!hasAny?' disabled':''}>💾 ローカルに適用</button>
     ${cloudOn ? `<button class="ar-bulk-btn ar-bulk-cloud" onclick="arApplyWithConfirm('cloud')"${!hasAny?' disabled':''}>☁️ クラウドに適用</button>` : ''}
     ${cloudOn ? `<button class="ar-bulk-btn ar-bulk-both"  onclick="arApplyWithConfirm('both')"${!hasAny?' disabled':''}>🔄 両方に適用</button>` : ''}
+    ${cloudOn ? `<button class="ar-bulk-btn ar-bulk-restore" onclick="arRestoreFromBackup()" title="一括置換のときにダウンロードしたバックアップ（JSON）を選ぶと、置換のあとに編集されていない案件を置換前の内容に戻します">↩ バックアップから元に戻す</button>` : ''}
   </div>
+  ${_applyLogHtml()}
 </div>`;
 
     // 略称辞書セクション
@@ -731,7 +824,7 @@
     const ok = await (typeof window.uiConfirm === 'function' ? window.uiConfirm({
       title: `${labels[target]}の表記を一括置換しますか？`,
       lines: [`書き換わる案件：${counts}`, `適用するルール（${rules.length} 件）`, ...ruleLines, ...unLines],
-      irreversible: '元に戻せません。提示済み・受注済みの案件も書き換わります。必要なら先にバックアップを取ってください。',
+      irreversible: '実行する前に、書き換わる案件の元の内容をバックアップ（JSON ファイル）として自動でダウンロードします。提示済み・受注済みの案件も書き換わります。間違えたときは、一括置換の欄の「バックアップから元に戻す」で戻せます（置換のあとに編集された案件は戻せません）。',
       okLabel: '置換する',
       danger: true,
     }) : Promise.resolve(confirm(`${counts} を書き換えます。元に戻せません。続けますか？`)));
@@ -744,7 +837,7 @@
   };
 
   async function _afterChange() {
-    _refreshDatalist();
+    window.arRefreshDatalist();   // 入力候補だけでなく、サブコン見出しの印・国で絞った港の候補なども更新する
     if (typeof window.arRenderPane === 'function') await window.arRenderPane();
   }
 
@@ -949,6 +1042,15 @@
     } else if (input.dataset.titleOrig !== undefined) {
       input.title = input.dataset.titleOrig; delete input.dataset.titleOrig;
     }
+  }
+
+  // 印は欄を確定（change）したときにだけ付け外ししていたため、あとからマスターに登録しても点線が残った。
+  // 印が付いている欄だけ、マスターの変更のたびに判定し直す（新しく印を付けることはしない＝入力していない欄は触らない）
+  function _remarkUnregistered() {
+    document.querySelectorAll('#tab-quote-make input.name-unregistered').forEach(inp => {
+      const field = _LIST_FIELD[inp.getAttribute('list')];
+      if (field) _markUnregistered(inp, field, !_canonicalFor(field, inp.value));
+    });
   }
 
   // お客様ご担当者：読み（ひらがな／カタカナ）をそのまま確定したら、マスター登録の氏名へ変換
@@ -1230,7 +1332,7 @@
     // （途中で止まっても、最悪「二重に所属している」だけで、別名が失われることはない）
     let absorbed = [];
     const aliasGroup = _synAll().find(g => g.field === field && g.canonical === alias);
-    if (aliasGroup) absorbed = aliasGroup.aliases || [];   // alias 自体が別グループの代表なら、その配下も吸収する（チェーン化を防ぐ）
+    if (aliasGroup) absorbed = (aliasGroup.aliases || []).filter(x => x !== canonical);   // 新しい代表自身が旧配下に居ても、自分を別名にしない   // alias 自体が別グループの代表なら、その配下も吸収する（チェーン化を防ぐ）
     const g = _synAll().find(x => x.field === field && x.canonical === canonical);
     const aliases = [...new Set([...((g && g.aliases) || []), alias, ...absorbed])];
     if (!(await _synUpsert(field, canonical, aliases))) return _synAfter();   // 書けなかったら、何も変えない（別名側のマスター解除なども行わない）
@@ -1292,7 +1394,7 @@
 
   async function _synAfter(toast) {
     await window.synLoadCloud();
-    _refreshDatalist();
+    window.arRefreshDatalist();   // 別名・マスター名が変わったら、サブコン見出しの印・詳細ボタン・港の候補も更新する
     if (typeof window.statsRerenderActive === 'function') window.statsRerenderActive();
     else if (typeof window.statsRefresh === 'function') await window.statsRefresh();
     const failed = _synWriteFailed; _synWriteFailed = false;   // 書き込みが失敗していたら成功表示は出さない（理由は _synFail が出している）
@@ -1594,16 +1696,22 @@
   const _VIA_FIELD = { key: 'via', label: '経由する同業者', via: true };
   const _CHILDREN_FIELD = { key: 'viaChildren', label: '先のお客様（この同業者のお客様）', children: true };
   // 先のお客様（直下）の名前一覧
+  // 経由する同業者の名前は、保存した時点の名前のまま持つ。同業者のマスター名を変えたり別名にしたりしても先のお客様が外れないよう、代表名にそろえて読む
+  window.mdViaOf = function (name) {
+    const r = window.mdGet('customer', name);
+    const v = r && r.details && r.details.via;
+    if (!v) return '';
+    return (typeof window.nameCanon === 'function' ? window.nameCanon('customer', v) : v) || v;
+  };
   window.mdViaChildren = function (parent) {
-    return window.mdGetAll('customer').filter(m => m.details && m.details.via === parent).map(m => m.value).sort((a, b) => a.localeCompare(b, 'ja'));
+    return window.mdGetAll('customer').filter(m => m.details && m.details.via && window.mdViaOf(m.value) === parent).map(m => m.value).sort((a, b) => a.localeCompare(b, 'ja'));
   };
   // 上位（経由する同業者を順にたどる。近い順・循環しても止まる）
   window.mdViaChain = function (name) {
     const out = [], seen = new Set([name]);
     let cur = name;
     for (let i = 0; i < 20; i++) {
-      const r = window.mdGet('customer', cur);
-      const v = r && r.details && r.details.via;
+      const v = window.mdViaOf(cur);
       if (!v || seen.has(v)) break;
       out.push(v); seen.add(v); cur = v;
     }

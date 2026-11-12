@@ -285,6 +285,12 @@ body:has(#tab-master.active) #backToQuoteFab { display: none !important; }
 #tab-master .master-table td.ops .stats-syn-picker .stats-syn-sel { max-width: 180px; }
 #tab-master .master-table td.stats-master-abbrev-cell { white-space: normal; overflow-wrap: anywhere; }
 #tab-master .master-table td.stats-val { overflow-wrap: anywhere; }
+/* 狭い幅：操作列が 330px のままだと「別名・略称」列が 1 文字幅に潰れて縦に伸びる。操作列を細くして別名の幅を確保する */
+@media (max-width: 760px) {
+  #tab-master .master-table th:nth-child(1) { width: 64px; }
+  #tab-master .master-table th:nth-child(2) { width: 28%; }
+  #tab-master .master-table th.ops { width: 180px; }
+}
 
 /* ===== 全体リマークの引き出し（remark-sheet.js）に合わせた固定要素の持ち上げ =====
    現行 CSS は、引き出しの高さ分（--rms-lift）だけ右下のドック・付箋を上へ避ける。Design の元ファイルは固定値（18px／80px）のため、
@@ -298,3 +304,14 @@ body:has(#tab-master.active) #backToQuoteFab { display: none !important; }
 /* ===== ダッシュボードのお客様種別タグ（cloud.js _custDealChip・quote.css .cloud-deal） =====
    現行は丸いタグ。Industry は他のタグ（.cloud-tag／.cloud-sc-role）が角型なので、同じく角型にそろえる。 */
 #tab-quote-make .cloud-deal { border-radius: 0; }
+
+/* ===== 見積操作バーの「⋯」「⚙」ポップアップを画面内に収める（現行 quote.css の修正を Design の元の値で上書きされないように）=====
+   「⋯」「⚙」は操作バーの右端にあるため、左そろえ（left:0）だと 900px 以下で画面の右へ切れる。 */
+#tab-quote-make .cmdbar-more-pop { left: auto; right: 0; }
+@media (max-width: 700px) {
+  #tab-quote-make .cmdbar-gear-pop { position: fixed; top: 124px; left: 8px; right: 8px; width: auto; max-width: none; max-height: calc(100vh - 140px); }
+}
+
+/* ===== トーストは確認画面・各モーダル（z-index 〜100002）より前に出す =====
+   現行は quote.css で 100010。Design の元ファイルは 9999 のため、差分から作る Industry 版が 9999 に戻してしまう。ここで打ち消す。 */
+#toast-container { z-index: 100010; }

@@ -671,6 +671,98 @@ const http = require('http'), fs = require('fs'), path = require('path');
     await ctx.close();
   }
 
+  // ===== ニュース（サブコン・お客様ごと／時系列） =====
+  {
+    const { ctx, p, errs } = await open(true, { legacy: {}, noLegacy: true });
+    const L = '[ニュース] ';
+    await p.evaluate(async () => {
+      window.__db.master_votes.push({ field: 'customer', value: 'ニュース商事', voter_email: 's@example.com' }, { field: 'sv', value: 'ニュース運輸', voter_email: 's@example.com' });
+      window.__db.master_details.push({ field: 'customer', value: 'ニュース商事', details: { dealType: '荷主（直接）' } });
+      await statsLoadMasterCache(); await mdLoadCloud();
+    });
+    await p.evaluate(() => { switchCategory('master', document.querySelector('[onclick*="switchCategory(\'master"]')); }); await p.waitForTimeout(1200);
+    // サブコン：詳細に「ニュース」欄
+    await p.evaluate(() => statsMasterSetFilter('sv')); await p.waitForTimeout(300);
+    await p.evaluate(() => document.querySelector('#statsPane-master tr[data-mvalue="ニュース運輸"] .stats-master-detail-btn').click()); await p.waitForTimeout(600);
+    ok(L + 'サブコンの詳細にニュース欄と追加フォームが出る', await p.evaluate(() => !!document.querySelector('#mnPanel .mn-form')));
+    const add = async (d, k, t, b, u) => { await p.fill('#mnPanel .mn-f-date', d); await p.selectOption('#mnPanel .mn-f-kind', k); await p.fill('#mnPanel .mn-f-title', t); await p.fill('#mnPanel .mn-f-body', b || ''); await p.fill('#mnPanel .mn-f-url', u || ''); await p.click('#mnPanel [data-mn="save"]'); await p.waitForTimeout(500); };
+    await add('2026-01-10', 'contact', '営業担当が田中さんに変更', '前任は鈴木');
+    await add('2026-03-05', 'move', '本社を新宿へ移転', '新住所：東京都新宿区…', 'https://example.com/news');
+    await add('2026-02-01', 'news', '新サービスを開始');
+    ok(L + '3 件がクラウドに保存される（サブコン）', await p.evaluate(() => window.__db.master_news.length === 3 && window.__db.master_news.every(n => n.field === 'sv' && n.name === 'ニュース運輸' && n.created_by)));
+    ok(L + '日付の新しい順（時系列）に並ぶ', await p.evaluate(() => [...document.querySelectorAll('#mnPanel .mn-item .mn-title')].map(e => e.textContent).join('|') === '本社を新宿へ移転|新サービスを開始|営業担当が田中さんに変更'));
+    ok(L + '種類のバッジとリンクが出る', await p.evaluate(() => !!document.querySelector('#mnPanel .mn-badge-move') && !!document.querySelector('#mnPanel .mn-badge-contact') && document.querySelector('#mnPanel .mn-link a').target === '_blank'));
+    await p.fill('#mnPanel .mn-f-title', '不正リンク'); await p.fill('#mnPanel .mn-f-url', 'javascript:alert(1)'); await p.click('#mnPanel [data-mn="save"]'); await p.waitForTimeout(400);
+    ok(L + 'http(s) 以外のリンクは保存しない', await p.evaluate(() => window.__db.master_news.length === 3));
+    // 編集
+    await p.evaluate(() => document.querySelector('#mnPanel .mn-item [data-mn="edit"]').click());
+    await p.fill('#mnPanel .mn-f-title', '本社を渋谷へ移転'); await p.click('#mnPanel [data-mn="save"]'); await p.waitForTimeout(500);
+    ok(L + '編集して更新できる', await p.evaluate(() => window.__db.master_news.some(n => n.title === '本社を渋谷へ移転') && window.__db.master_news.length === 3));
+    await p.evaluate(() => statsCloseMasterDetail()); await p.waitForTimeout(300);
+    ok(L + '一覧に「ニュース3件」の印（最新の種類・日付つき）', await p.evaluate(() => { const c = document.querySelector('#statsPane-master tr[data-mvalue="ニュース運輸"] .mn-chip'); return !!c && c.textContent.includes('ニュース3件') && c.textContent.includes('03/05'); }));
+    // お客様：タブ「ニュース」
+    await p.evaluate(() => statsMasterSetFilter('customer')); await p.waitForTimeout(300);
+    await p.evaluate(() => document.querySelector('#statsPane-master tr[data-mvalue="ニュース商事"] .stats-master-detail-btn').click()); await p.waitForTimeout(600);
+    ok(L + 'お客様の詳細にタブ「ニュース」がある', await p.evaluate(() => !!document.querySelector('#mdDetailModal .mt-tab[data-mt="news"]')));
+    await p.evaluate(() => document.querySelector('#mdDetailModal .mt-tab[data-mt="news"]').click());
+    await add('2026-04-01', 'org', '社名を変更');
+    ok(L + 'お客様のニュースはお客様側に保存され、サブコンの分と混ざらない', await p.evaluate(() => window.__db.master_news.filter(n => n.field === 'customer' && n.name === 'ニュース商事').length === 1 && document.querySelectorAll('#mnPanel .mn-item').length === 1));
+    ok(L + 'タブに件数の要約が出る', await p.evaluate(() => (document.querySelector('#mdDetailModal .mt-tab[data-mt="news"] .mt-sum') || { textContent: '' }).textContent.includes('1件')));
+    // 削除
+    await p.evaluate(() => document.querySelector('#mnPanel [data-mn="del"]').click()); await p.waitForTimeout(400);
+    await confirmDlg(p, 'ok'); await p.waitForTimeout(500);
+    ok(L + '削除できる', await p.evaluate(() => window.__db.master_news.filter(n => n.field === 'customer').length === 0));
+    ok(L + 'JS エラーなし', errs.length === 0, errs);
+    await ctx.close();
+  }
+
+  // ===== 顧客カルテ（案件ごとの事例：イレギュラー／解決策／改善案） =====
+  {
+    const { ctx, p, errs } = await open(true, { legacy: {}, noLegacy: true });
+    const L = '[顧客カルテ] ';
+    await p.evaluate(async () => {
+      window.__db.master_votes.push({ field: 'customer', value: 'カルテ商事', voter_email: 's@example.com' });
+      window.__db.master_details.push({ field: 'customer', value: 'カルテ商事', details: { dealType: '荷主（直接）', contacts: [{ name: '幸崎' }] } });
+      await statsLoadMasterCache(); await mdLoadCloud();
+    });
+    await p.evaluate(() => { switchCategory('master', document.querySelector('[onclick*="switchCategory(\'master"]')); }); await p.waitForTimeout(1200);
+    await p.evaluate(() => statsMasterSetFilter('customer')); await p.waitForTimeout(300);
+    await p.evaluate(() => document.querySelector('#statsPane-master tr[data-mvalue="カルテ商事"] .stats-master-detail-btn').click()); await p.waitForTimeout(600);
+    ok(L + 'お客様の詳細にタブ「顧客カルテ」がある', await p.evaluate(() => !!document.querySelector('#mdDetailModal .mt-tab[data-mt="cases"]')));
+    await p.evaluate(() => document.querySelector('#mdDetailModal .mt-tab[data-mt="cases"]').click());
+    ok(L + '追加フォームが出る', await p.evaluate(() => !!document.querySelector('#ccPanel .cc-form')));
+    const add = async (d, k, ref, t, s1, a1, i1, resolved) => {
+      await p.fill('#ccPanel .cc-f-date', d); await p.selectOption('#ccPanel .cc-f-kind', k); await p.fill('#ccPanel .cc-f-ref', ref); await p.fill('#ccPanel .cc-f-title', t);
+      await p.fill('#ccPanel .cc-f-situation', s1); await p.fill('#ccPanel .cc-f-action', a1); await p.fill('#ccPanel .cc-f-improvement', i1);
+      await p.evaluate(r => { document.querySelector('#ccPanel .cc-f-resolved').checked = r; }, !!resolved);
+      await p.click('#ccPanel [data-cc="save"]'); await p.waitForTimeout(500);
+    };
+    await add('2026-02-01', 'doc', 'R-001', '原本が間に合わず1便遅れ', '原本の郵送が遅れた', '電子B/Lに切替', 'B/L原本は船積3営業日前までに依頼', true);
+    await add('2026-03-10', 'cost', 'R-002', '請求書の宛先違い', '旧住所宛てに発行', '', '', false);
+    ok(L + '2 件が保存される（お客様・案件・3 項目）', await p.evaluate(() => window.__db.customer_cases.length === 2 && window.__db.customer_cases.every(c => c.customer === 'カルテ商事' && c.ref && c.created_by) && window.__db.customer_cases.some(c => c.improvement && c.status === 'resolved')));
+    ok(L + '日付の新しい順・未解決が目立つ', await p.evaluate(() => [...document.querySelectorAll('#ccPanel .cc-item .cc-title')].map(e => e.textContent).join('|') === '請求書の宛先違い|原本が間に合わず1便遅れ' && !!document.querySelector('#ccPanel .cc-state.is-open') && /未解決 1件/.test(document.querySelector('#ccPanel .cc-summary').textContent)));
+    ok(L + '「次回どうすれば良いか」がある事例だけ「ルールにする」が出る', await p.evaluate(() => document.querySelectorAll('#ccPanel [data-cc="promote"]').length === 1));
+    // 未解決 → 解決済み
+    await p.evaluate(() => document.querySelector('#ccPanel .cc-st-open [data-cc="resolve"]').click()); await p.waitForTimeout(400);
+    ok(L + '解決済みにできる', await p.evaluate(() => window.__db.customer_cases.every(c => c.status === 'resolved')));
+    // ルール昇格
+    await p.evaluate(() => document.querySelector('#ccPanel [data-cc="promote"]').click()); await p.waitForTimeout(700);
+    ok(L + '取引ルール（要確認）に昇格し、ルール化済みの印が付く', await p.evaluate(() => (window.__db.customer_rules || []).some(r => r.customer === 'カルテ商事' && r.level === 'check' && r.body.includes('B/L原本') && r.reason.includes('R-001')) && window.__db.customer_cases.some(c => c.promoted_at) && !!document.querySelector('#ccPanel .cc-promoted') && document.querySelectorAll('#ccPanel [data-cc="promote"]').length === 0));
+    await p.evaluate(() => statsCloseMasterDetail()); await p.waitForTimeout(300);
+    ok(L + '一覧に「事例2件」の印', await p.evaluate(() => /事例2件/.test((document.querySelector('#statsPane-master tr[data-mvalue="カルテ商事"]') || { textContent: '' }).textContent)));
+    // 見積タブの帯
+    await p.evaluate(async () => { document.getElementById('qf-ref').value = 'R-009'; document.getElementById('qf-customer').value = 'カルテ商事'; document.getElementById('qf-person').value = ''; await crRefreshBanner(); });
+    ok(L + '見積タブの帯に「過去の事例（2件）」が並ぶ', await p.evaluate(() => { const c = document.querySelector('#crBanner .cc-chip'); return !!c && c.textContent.includes('2件'); }));
+    await p.evaluate(() => document.querySelector('#crBanner .cc-chip').click()); await p.waitForTimeout(400);
+    ok(L + '押すと事例一覧のモーダルが開き、案件番号が初期値に入る', await p.evaluate(() => !!document.getElementById('ccModal') && document.querySelectorAll('#ccModalBody .cc-item').length === 2 && document.querySelector('#ccModalBody .cc-f-ref').value === 'R-009'));
+    await p.fill('#ccModalBody .cc-f-title', 'この案件の新しい事例'); await p.click('#ccModalBody [data-cc="save"]'); await p.waitForTimeout(500);
+    ok(L + '見積タブからも事例を追加でき、帯の件数が増える', await p.evaluate(() => window.__db.customer_cases.length === 3 && window.__db.customer_cases.some(c => c.ref === 'R-009') && document.querySelector('#crBanner .cc-chip').textContent.includes('3件')));
+    await p.keyboard.press('Escape'); await p.waitForTimeout(200);
+    ok(L + 'Esc でモーダルが閉じる', await p.evaluate(() => !document.getElementById('ccModal')));
+    ok(L + 'JS エラーなし', errs.length === 0, errs);
+    await ctx.close();
+  }
+
   // ===== 取引ルール（お客様・担当者ごと） =====
   {
     const { ctx, p, errs } = await open(true, { legacy: {}, noLegacy: true });
@@ -776,7 +868,7 @@ const http = require('http'), fs = require('fs'), path = require('path');
     // タブ化（Design 回答 2026-11・案1）
     const vis2 = sel => p.evaluate(x => { const e = document.querySelector(x); if (!e) return false; const r = e.getBoundingClientRect(); return r.width > 0 && r.height > 0; }, sel);
     ok(L + '[タブ] 上に基本情報（ふりがな・英語名称・取引形態）が常に見える', await vis2('#mdDetailModal #md_furigana') && await vis2('#mdDetailModal #md_enName') && await vis2('#mdDetailModal #md_dealType'));
-    ok(L + '[タブ] 4 つのタブ（担当者／会社の詳細・タグ／取引ルール／メモ・添付）', (await p.$$eval('#mdDetailModal .mt-tab', els => els.map(e => e.textContent.replace(/\s+/g, ' ').trim().replace(/\s*\d.*$/, '')))).join('|').startsWith('担当者|会社の詳細・タグ|取引ルール|メモ・添付'));
+    ok(L + '[タブ] 6 つのタブ（担当者／会社の詳細・タグ／顧客カルテ／取引ルール／ニュース／メモ・添付）', (await p.$$eval('#mdDetailModal .mt-tab', els => els.map(e => e.textContent.replace(/\s+/g, ' ').trim().replace(/\s*\d.*$/, '')))).join('|').startsWith('担当者|会社の詳細・タグ|顧客カルテ|取引ルール|ニュース|メモ・添付'));
     ok(L + '[タブ] 最初は担当者タブ（担当者の入力欄が見え、メモ欄は見えない）', await vis2('#mdDetailModal .md-contact-name') && !(await vis2('#mdDetailModal #md_memo')));
     ok(L + '[タブ] 担当者タブの要約に「1名」', (await p.textContent('#mdDetailModal .mt-tab[data-mt="people"] .mt-sum')).includes('1名'));
     ok(L + '[タブ] 保存バーは本文のスクロールの外に常時表示', await p.evaluate(() => { const f = document.querySelector('#mdDetailModal .mt-foot'); const b = document.querySelector('#mdDetailModal .md-modal-body'); return !!f && !b.contains(f) && !!f.querySelector('.master-detail-save') && f.getBoundingClientRect().bottom <= innerHeight; }));

@@ -60,8 +60,8 @@
     const taxRate = (typeof getEffectiveTaxRate === 'function') ? getEffectiveTaxRate() : 0.10;
     const issuer = loadIssuer();
 
-    let taxableSub = 0, exemptSub = 0, hasFx = false;
-    let taxableSubHi = 0, exemptSubHi = 0, hasRange = false;   // 幅（〜）のある行を上限で数えた合計（下限＝上記）
+    let taxableSub = 0, exemptSub = 0, taxSum = 0, hasFx = false;
+    let taxableSubHi = 0, exemptSubHi = 0, taxSumHi = 0, hasRange = false;   // 幅（〜）のある行を上限で数えた合計（下限＝上記）
     const zones = [];
     let zoneSum = 0, zoneSumHi = 0;
     const remarks = [];
@@ -93,7 +93,12 @@
         const rgA = (typeof rowRangeAmt === 'function') ? rowRangeAmt(qty, price, r.bphi, r.bpmin) : null;   // 幅（売単価〜上限）
         const jpyHi = rgA ? Math.ceil(toJPYx(rgA.hi, r.bc || 'JPY')) : jpy;
         if (rgA) hasRange = true;
-        if (r.taxed) { taxableSub += jpy; taxableSubHi += jpyHi; } else { exemptSub += jpy; exemptSubHi += jpyHi; }
+        // 外貨建ては輸出免税が原則（御見積書PDF・Excel・プレビューと同一ポリシー）。課税は JPY 建て行のみ、
+        // 消費税は行ごとに切り上げて積み上げる（一括 floor だと御見積書と数円ズレるため）。上限側も同じ扱い
+        if (r.taxed && (r.bc || 'JPY') === 'JPY') {
+          taxableSub += jpy; taxSum += Math.ceil(jpy * taxRate);
+          taxableSubHi += jpyHi; taxSumHi += Math.ceil(jpyHi * taxRate);
+        } else { exemptSub += jpy; exemptSubHi += jpyHi; }
         zoneSum += jpy; zoneSumHi += jpyHi;
       }
       // 明細行（名前か金額があるもの、または実費・都度・参考行）
@@ -125,9 +130,9 @@
       }
     }
 
-    const tax = Math.floor(taxableSub * taxRate);
+    const tax = taxSum;
     const total = taxableSub + exemptSub + tax;
-    const taxHi = Math.floor(taxableSubHi * taxRate);
+    const taxHi = taxSumHi;
     const totalHi = taxableSubHi + exemptSubHi + taxHi;
 
     // 注記の組み立て：先頭の「※」重複を除去。為替に言及するリマークがあれば自動FX注記は省く。
