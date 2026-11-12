@@ -121,6 +121,16 @@ const http = require('http'), fs = require('fs'), path = require('path');
     await p.evaluate(() => { const t = document.querySelector('[onclick*="quote-make"]'); t && t.click(); }); await p.waitForTimeout(1000);
     await p.evaluate(() => window.qpShowEditor && window.qpShowEditor()); await p.waitForTimeout(1200);
     await p.evaluate(async () => { if (window.statsLoadMasterCache) await window.statsLoadMasterCache(); if (window.arRefreshDatalist) window.arRefreshDatalist(); });
+    // 詳細ポップアップはタブ形式：隠れているタブの中の入力欄を操作するときは、先にそのタブを開く
+    for (const m of ['fill', 'click', 'selectOption']) {
+      const orig = p[m].bind(p);
+      p[m] = async (sel, ...r) => {
+        if (typeof sel === 'string' && sel.includes('#md')) {
+          await p.evaluate(s => { const e = document.querySelector(s); const pn = e && e.closest('.mt-panel'); if (pn && pn.hidden) { const t = document.querySelector('#mdDetailModal .mt-tab[data-mt="' + pn.dataset.mt + '"]'); t && t.click(); } }, sel).catch(() => {});
+        }
+        return orig(sel, ...r);
+      };
+    }
     return { ctx, p, errs, dlg };
   }
   // 取り消しにくい操作の確認画面（uiConfirm）：開くのを待ち、本文を返して、指定のボタンを押す（which：'ok'＝実行／'cancel'＝やめる）
@@ -569,6 +579,7 @@ const http = require('http'), fs = require('fs'), path = require('path');
     await p.evaluate(() => { switchCategory('master', document.querySelector('[onclick*="switchCategory(\'master"]')); }); await p.waitForTimeout(1200);
     await p.evaluate(() => document.querySelector('#statsPane-master tr[data-mvalue="テスト運送"] .stats-master-detail-btn').click());
     await p.waitForTimeout(300);
+    await p.evaluate(() => { const t = document.querySelector('#mdDetailModal .mt-tab[data-mt="company"]'); t && t.click(); });
     const presets = await p.evaluate(() => [...document.querySelectorAll('.master-type-preset')].map(b => b.textContent));
     ok(L + 'ひな形 9 種が並ぶ', ['通関業者', '倉庫業者', '運送業者', 'FCL CARRIER', 'LCL CARRIER', 'AIR CARRIER', '海外代理店', '保険会社', 'サーベイヤー'].every(t => presets.includes(t)), presets);
     ok(L + 'ほかの人が追加した種別も候補に出る', presets.includes('保税蔵置場'), presets);
@@ -684,6 +695,7 @@ const http = require('http'), fs = require('fs'), path = require('path');
     // サブコン：詳細に「ニュース」欄
     await p.evaluate(() => statsMasterSetFilter('sv')); await p.waitForTimeout(300);
     await p.evaluate(() => document.querySelector('#statsPane-master tr[data-mvalue="ニュース運輸"] .stats-master-detail-btn').click()); await p.waitForTimeout(600);
+    await p.evaluate(() => { const t = document.querySelector('#mdDetailModal .mt-tab[data-mt="news"]'); t && t.click(); });
     ok(L + 'サブコンの詳細にニュース欄と追加フォームが出る', await p.evaluate(() => !!document.querySelector('#mnPanel .mn-form')));
     const add = async (d, k, t, b, u) => { await p.fill('#mnPanel .mn-f-date', d); await p.selectOption('#mnPanel .mn-f-kind', k); await p.fill('#mnPanel .mn-f-title', t); await p.fill('#mnPanel .mn-f-body', b || ''); await p.fill('#mnPanel .mn-f-url', u || ''); await p.click('#mnPanel [data-mn="save"]'); await p.waitForTimeout(500); };
     await add('2026-01-10', 'contact', '営業担当が田中さんに変更', '前任は鈴木');
@@ -871,6 +883,16 @@ const http = require('http'), fs = require('fs'), path = require('path');
     ok(L + '[タブ] 6 つのタブ（担当者／会社の詳細・タグ／顧客カルテ／取引ルール／ニュース／メモ・添付）', (await p.$$eval('#mdDetailModal .mt-tab', els => els.map(e => e.textContent.replace(/\s+/g, ' ').trim().replace(/\s*\d.*$/, '')))).join('|').startsWith('担当者|会社の詳細・タグ|顧客カルテ|取引ルール|ニュース|メモ・添付'));
     ok(L + '[タブ] 最初は担当者タブ（担当者の入力欄が見え、メモ欄は見えない）', await vis2('#mdDetailModal .md-contact-name') && !(await vis2('#mdDetailModal #md_memo')));
     ok(L + '[タブ] 担当者タブの要約に「1名」', (await p.textContent('#mdDetailModal .mt-tab[data-mt="people"] .mt-sum')).includes('1名'));
+
+    // サブコンの詳細もお客様と同じタブ形式
+    await p.evaluate(() => statsCloseMasterDetail && statsCloseMasterDetail()); await p.evaluate(() => statsMasterSetFilter('sv')); await p.waitForTimeout(300);
+    await p.evaluate(() => document.querySelector('#statsPane-master tr[data-mvalue="テスト運送"] .stats-master-detail-btn').click()); await p.waitForTimeout(600);
+    ok(L + '[サブコン詳細] お客様と同じタブ形式（担当者／会社の詳細・種別・エリア／ニュース／メモ・添付）', (await p.$$eval('#mdDetailModal .mt-tab', els => els.map(e => e.textContent.replace(/\s+/g, ' ').trim().replace(/\s*\d.*$/, '')))).join('|').startsWith('担当者|会社の詳細・種別・エリア|ニュース|メモ・添付'));
+    ok(L + '[サブコン詳細] 上にふりがな・英語名称、下に保存バー', await vis2('#mdDetailModal #md_furigana') && await vis2('#mdDetailModal #md_enName') && await p.evaluate(() => !!document.querySelector('#mdDetailModal .mt-foot .master-detail-save')));
+    await p.evaluate(() => document.querySelector('#mdDetailModal .mt-tab[data-mt="company"]').click());
+    ok(L + '[サブコン詳細] 会社タブに種別・得意エリア・所属グループがある', await vis2('#mdDetailModal #md_areas') && await vis2('#mdDetailModal #md_group') && await vis2('#mdDetailModal #md_svTypes'));
+    await p.evaluate(() => statsCloseMasterDetail && statsCloseMasterDetail()); await p.evaluate(() => statsMasterSetFilter('customer')); await p.waitForTimeout(300);
+    await p.evaluate(() => document.querySelector('#statsPane-master tr[data-mvalue="ポップ商事"] .stats-master-detail-btn').click()); await p.waitForTimeout(600);
     ok(L + '[タブ] 保存バーは本文のスクロールの外に常時表示', await p.evaluate(() => { const f = document.querySelector('#mdDetailModal .mt-foot'); const b = document.querySelector('#mdDetailModal .md-modal-body'); return !!f && !b.contains(f) && !!f.querySelector('.master-detail-save') && f.getBoundingClientRect().bottom <= innerHeight; }));
     await p.click('#mdDetailModal .mt-tab[data-mt="memo"]'); ok(L + '[タブ] メモ・添付タブ：メモ欄と添付が見える・担当者は隠れる', await vis2('#mdDetailModal #md_memo') && await vis2('#mdDetailModal .master-attach-box') && !(await vis2('#mdDetailModal .md-contact-name')));
     ok(L + '[タブ] どのタブでも保存ボタンが見える', await vis2('#mdDetailModal .mt-foot .master-detail-save'));
@@ -918,6 +940,7 @@ const http = require('http'), fs = require('fs'), path = require('path');
     // 詳細の入力欄：グループ名の候補に、入力済みの名前が出る
     await p.evaluate(() => statsMasterSetFilter('sv')); await p.waitForTimeout(300);
     await p.evaluate(() => document.querySelector('#statsPane-master tr[data-mvalue="単独社"] .stats-master-detail-btn').click()); await p.waitForTimeout(500);
+    await p.evaluate(() => { const t = document.querySelector('#mdDetailModal .mt-tab[data-mt="company"]'); t && t.click(); });
     const opts = await p.evaluate(() => [...document.querySelectorAll('#md_group_list option')].map(o => o.value));
     ok(L + '詳細の「所属グループ」欄に、入力済みのグループ名が候補で出る', opts.includes('CMA CGM グループ') && opts.includes('ONE グループ'), opts);
     await p.fill('#md_group', 'ONE グループ'); await p.click('.master-detail-save'); await p.waitForTimeout(700);
@@ -1140,6 +1163,7 @@ const http = require('http'), fs = require('fs'), path = require('path');
     await p.evaluate(() => statsMasterSetAreaKind('')); await p.waitForTimeout(200);
     // 入力：ボタンで地方・小地域を選び、国は候補から追加
     await p.evaluate(() => document.querySelector('#statsPane-master tr[data-mvalue="エリア無し運送"] .stats-master-detail-btn').click()); await p.waitForTimeout(500);
+    await p.evaluate(() => { const t = document.querySelector('#mdDetailModal .mt-tab[data-mt="company"]'); t && t.click(); });
     ok(L + '詳細に「得意エリア」（国内の地方・海外の小地域のボタン）がある', await p.evaluate(() => !!document.querySelector('#md_areas') && document.querySelectorAll('.master-area-btn').length > 25));
     await p.evaluate(() => { [...document.querySelectorAll('.master-area-btn')].find(b => b.textContent === '関西' || b.textContent === '近畿').click(); [...document.querySelectorAll('.master-area-btn')].find(b => b.textContent === '東アジア').click(); });
     await p.fill('#md_areas_input', 'ベトナム'); await p.keyboard.press('Enter'); await p.waitForTimeout(200);
