@@ -528,11 +528,18 @@
     const has = other && typeof window.statsGetMasters === 'function' && (window.statsGetMasters().some(m => m.field === other && m.value === value) || (typeof window.synGetGroups === 'function' && window.synGetGroups(other).some(g => g.canonical === value)));
     return has ? `<button type="button" class="stats-md-chip stats-md-deal stats-md-both" title="この会社は「${other === 'sv' ? 'サブコン' : 'お客様'}」にも登録されています（クリックで開く）" onclick="statsJumpToMaster('${other}','${_ea(value)}')">🔁 ${other === 'sv' ? 'サブコン' : 'お客様'}にも登録</button>` : '';
   }
+  // 「紹介したお客様 N社」の印（紹介元になっているお客様・サブコンのとき。詳細が未登録でも出る）
+  function _refChip(field, value) {
+    if ((field !== 'customer' && field !== 'sv') || typeof window.mdReferredCustomers !== 'function') return '';
+    const kids = window.mdReferredCustomers(value, field);
+    if (!kids.length) return '';
+    return `<span class="stats-md-chip stats-md-via stats-md-refd" title="${_eav('この会社から紹介されたお客様：' + kids.join('、'))}"><b>🤝 紹介したお客様</b>${kids.length}社</span>`;
+  }
   function _mdBadge(field, value) {
     const schema = window.MD_SCHEMA && window.MD_SCHEMA[field];
     if (!schema) return '';
     const rec = typeof window.mdGet === 'function' ? window.mdGet(field, value) : null;
-    if (!rec) { const o = _bothChip(field, value); return o ? `<div class="stats-md-inline">${o}</div>` : ''; }
+    if (!rec) { const o = _bothChip(field, value) + _refChip(field, value); return o ? `<div class="stats-md-inline">${o}</div>` : ''; }
     const details = rec.details || {};
     const chips = [];
     schema.forEach(s => {
@@ -588,7 +595,7 @@
       const dk = s.key === 'dealType' ? (_DEAL_DEFS.find(x => x[1] === v) || [])[0] : '';
       chips.push(`<span class="stats-md-chip${dk ? ' stats-md-deal stats-md-deal-' + dk : ''}" title="${_eav(s.label + '：' + disp)}"><b>${_esc(s.label)}</b>${_esc(short)}</span>`);
     });
-    const otherChip = _bothChip(field, value);
+    const otherChip = _bothChip(field, value) + _refChip(field, value);
     if (!chips.length) return otherChip ? `<div class="stats-md-inline">${otherChip}</div>` : '';
     // 取引形態のチップだけを常に表示し、それ以外の詳細は、会社名をクリックしたときに表示する（カード表示・2026-11）
     return `<div class="stats-md-inline">${chips.map(c => c.indexOf('stats-md-deal') >= 0 ? c : c.replace('class="stats-md-chip', 'class="md-fold-chip stats-md-chip')).join('')}${otherChip}</div>`;
@@ -2795,6 +2802,7 @@
       _qFlatten(v, parts);
     });
     if (field === 'customer' && typeof window.mdViaChildren === 'function') { parts.push.apply(parts, window.mdViaChildren(name)); }
+    if ((field === 'customer' || field === 'sv') && typeof window.mdReferredCustomers === 'function') { parts.push.apply(parts, window.mdReferredCustomers(name, field)); }
     return _qNorm(parts.join(' \n '));
   }
   function _masterSearchHtml() {
@@ -3120,11 +3128,18 @@
       if (!kids.size) rowsAll.forEach(_emitRow);
       else {
         const done = new Set();
+        // カード表示のときは、同業者のカードの中に先のお客様のカードを入れ子で入れる（何段でも）。リスト表示は従来どおり直下に字下げ
         const walk = (r, depth) => {
           if (done.has(r.name) && isCust(r)) return;
           if (isCust(r)) done.add(r.name);
-          r.viaDepth = depth; _emitRow(r);
-          (kids.get(r.name) || []).forEach(c => walk(c, depth + 1));
+          r.viaDepth = depth;
+          const cs = kids.get(r.name) || [];
+          if (!_cardMode || !cs.length) { _emitRow(r); cs.forEach(c => walk(c, depth + 1)); return; }
+          const saved = h; h = ''; _emitRow(r); const own = h; h = '';
+          cs.forEach(c => walk(c, depth + 1));
+          const inner = h; h = saved;
+          if (!inner) { h += own; return; }
+          h += own.replace('<tr ', '<tr data-nest="1" ').replace(/<\/tr>\s*$/, `<td class="master-nest-cell"><div class="master-nest-title">👥 先のお客様 ${cs.length}社</div><table class="master-nest"><tbody>${inner}</tbody></table></td></tr>`);
         };
         rowsAll.forEach(r => { if (isCust(r) && via(r) && byName.has(via(r)) && via(r) !== r.name) return; walk(r, 0); });
         rowsAll.forEach(r => { if (isCust(r) && !done.has(r.name)) walk(r, 0); });   // 循環などで取りこぼした行
@@ -3404,6 +3419,15 @@
         const opts = (window.COUNTRY_LIST || []).map(c => `<option value="${_eav(c.ja + '（' + c.code + '）')}">${_esc(c.en)}</option>`).join('');
         return `<label class="master-detail-label">${s.label}<input id="${id}" class="ar-input" type="text" list="${id}_list" value="${_eav(cur ? (window.countryLabel ? window.countryLabel(cur) : cur) : '')}"${s.placeholder ? ` placeholder="${_eav(s.placeholder)}"` : ''} autocomplete="off" />` +
           `<datalist id="${id}_list">${opts}</datalist></label>`;
+      }
+      if (s.refer) {
+        // 紹介元：お客様・サブコンのマスター名を候補に出す（人の名前など、マスターに無いものも自由に入力できる）
+        const names = new Set();
+        ['customer', 'sv'].forEach(f => (typeof window.mdGetAll === 'function' ? window.mdGetAll(f) : []).forEach(m => names.add(m.value)));
+        (typeof window.statsGetMasters === 'function' ? window.statsGetMasters() : []).filter(m => m.field === 'customer' || m.field === 'sv').forEach(m => names.add(m.value));
+        names.delete(value);
+        return `<label class="master-detail-label">${s.label}<input id="${id}" class="ar-input" type="text" list="${id}_list" value="${_eav(details[s.key] || '')}"${s.placeholder ? ` placeholder="${_eav(s.placeholder)}"` : ''} autocomplete="off" />` +
+          `<datalist id="${id}_list">${[...names].sort((a, b) => a.localeCompare(b, 'ja')).map(v => `<option value="${_eav(v)}">`).join('')}</datalist></label>`;
       }
       if (s.suggest) {
         // 入力済みの値を候補に出す（所属グループなど。表記ゆれを防ぐ）

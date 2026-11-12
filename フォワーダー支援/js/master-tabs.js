@@ -11,10 +11,10 @@
     const actions = $(form, '.master-detail-actions'), attach = $(modal, '.master-attach-box'), cr = $(modal, '.cr-section'), mn = $(modal, '.mn-section'), cc = $(modal, '.cc-section');
     const L = (id) => holder(form, id, '.master-detail-label');
     const isSv = modal.dataset.mtField === 'sv';
-    const basic = [L('md_furigana'), L('md_enName'), L('md_dealType'), L('md_via'), holder(form, 'md_viaChildren', '.master-detail-via')].filter(Boolean);
+    const basic = [L('md_furigana'), L('md_enName'), L('md_dealType'), L('md_via'), L('md_referrer'), L('md_referralNote'), holder(form, 'md_viaChildren', '.master-detail-via')].filter(Boolean);
     const people = [holder(form, 'md_contacts', '.master-detail-contacts')].filter(Boolean);
     const company = isSv
-      ? [L('md_website'), holder(form, 'md_svTypes', '.master-detail-tags'), holder(form, 'md_areas', '.master-detail-areas'), L('md_group')].filter(Boolean)
+      ? [L('md_location'), L('md_website'), holder(form, 'md_svTypes', '.master-detail-tags'), holder(form, 'md_areas', '.master-detail-areas'), L('md_group')].filter(Boolean)
       : [L('md_location'), L('md_mainGoods'), L('md_destCountry'), L('md_tendency'), L('md_website'), holder(form, 'md_tags', '.master-detail-tags')].filter(Boolean);
     const memo = [L('md_memo')].filter(Boolean);
     // 基本情報
@@ -52,7 +52,7 @@
       const named = [...modal.querySelectorAll('#md_contacts .md-contact-name')].filter(i => i.value.trim()).length;
       sum('people', named ? named + '名' : '');
       const tags = modal.querySelectorAll(isSv ? '#md_svTypes .stats-md-tag-chip, #md_areas .stats-md-tag-chip' : '#md_tags .stats-md-tag-chip').length;
-      const filled = (isSv ? ['md_website', 'md_group'] : ['md_location', 'md_mainGoods', 'md_destCountry', 'md_tendency', 'md_website']).filter(i => (modal.querySelector('#' + i)?.value || '').trim()).length;
+      const filled = (isSv ? ['md_location', 'md_website', 'md_group'] : ['md_location', 'md_mainGoods', 'md_destCountry', 'md_tendency', 'md_website']).filter(i => (modal.querySelector('#' + i)?.value || '').trim()).length;
       sum('company', [filled ? filled + '項目' : '', tags ? (isSv ? '種別・エリア' : 'タグ') + tags : ''].filter(Boolean).join('・'));
       const items = modal.querySelectorAll('#crPanel .cr-item:not(.is-retired)'), strict = modal.querySelectorAll('#crPanel .cr-item.cr-lv-strict:not(.is-retired)').length;
       sum('rules', items.length ? items.length + '件' + (strict ? '・厳守' + strict : '') : '');

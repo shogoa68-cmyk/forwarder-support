@@ -602,9 +602,11 @@ const http = require('http'), fs = require('fs'), path = require('path');
     ok(L + 'ほかの人が追加した種別も候補に出る', presets.includes('保税蔵置場'), presets);
     await p.click('.master-type-preset:text("通関業者")'); await p.click('.master-type-preset:text("倉庫業者")');
     await p.fill('#md_svTypes_input', 'トラック手配'); await p.keyboard.press('Enter');
+    await p.fill('#md_location', '東京都港区海岸1-2-3'); 
     await p.click('.master-detail-save'); await p.waitForTimeout(800);
     const d = await p.evaluate(() => (window.__db.master_details.find(m => m.value === 'テスト運送') || {}).details);
     ok(L + '複数の種別（ひな形＋自由入力）が保存される', d && JSON.stringify(d.svTypes) === JSON.stringify(['通関業者', '倉庫業者', 'トラック手配']), d);
+    ok(L + 'サブコンにも住所（所在地）が保存され、一覧のチップに出る', d && d.location === '東京都港区海岸1-2-3' && await p.evaluate(() => document.querySelector('#statsPane-master tr[data-mvalue="テスト運送"]').textContent.includes('東京都港区海岸1-2-3')), d);
     ok(L + '一覧の名称欄にも種別が出る', await p.evaluate(() => document.querySelector('#statsPane-master tr[data-mvalue="テスト運送"]').textContent.includes('通関業者')));
     ok(L + 'JS エラーなし', errs.length === 0, errs);
     await ctx.close();
@@ -1341,6 +1343,38 @@ const http = require('http'), fs = require('fs'), path = require('path');
     await ctx.close();
   }
 
+  // ===== 紹介元（誰かから紹介されたお客様） =====
+  {
+    const { ctx, p, errs } = await open(true, { legacy: {}, noLegacy: true });
+    const L = '[紹介元] ';
+    await p.evaluate(async () => {
+      const V = (f, v) => window.__db.master_votes.push({ field: f, value: v, voter_email: 's@example.com' });
+      V('customer', '紹介元商事'); V('customer', '新規のお客様'); V('customer', '別のお客様'); V('sv', '紹介元サブコン');
+      await statsLoadMasterCache(); await mdLoadCloud();
+    });
+    await p.evaluate(() => { switchCategory('master', document.querySelector('[onclick*="switchCategory(\'master"]')); }); await p.waitForTimeout(1000);
+    await p.evaluate(() => statsMasterSetFilter('customer')); await p.waitForTimeout(300);
+    await p.evaluate(() => document.querySelector('#statsPane-master tr[data-mvalue="新規のお客様"] .stats-master-detail-btn').click()); await p.waitForTimeout(400);
+    ok(L + 'お客様の詳細に「紹介元」「紹介の経緯・時期」の欄がある', await p.evaluate(() => !!document.querySelector('#md_referrer') && !!document.querySelector('#md_referralNote')));
+    ok(L + '紹介元の候補にお客様・サブコンのマスター名が出る（自分自身は出ない）', await p.evaluate(() => { const o = [...document.querySelectorAll('#md_referrer_list option')].map(x => x.value); return o.includes('紹介元商事') && o.includes('紹介元サブコン') && !o.includes('新規のお客様'); }));
+    await p.fill('#md_referrer', '紹介元商事'); await p.fill('#md_referralNote', '2026-10 展示会で紹介');
+    await p.click('.master-detail-save'); await p.waitForTimeout(800);
+    ok(L + '保存される', await p.evaluate(() => { const d = (window.__db.master_details.find(m => m.value === '新規のお客様') || { details: {} }).details; return d.referrer === '紹介元商事' && d.referralNote === '2026-10 展示会で紹介'; }));
+    await p.evaluate(() => document.querySelector('#statsPane-master tr[data-mvalue="別のお客様"] .stats-master-detail-btn').click()); await p.waitForTimeout(400);
+    await p.fill('#md_referrer', '紹介元サブコン'); await p.click('.master-detail-save'); await p.waitForTimeout(800);
+    ok(L + '紹介元の側に「🤝 紹介したお客様 1社」の印（詳細が未登録の会社でも）', await p.evaluate(() => { const c = document.querySelector('#statsPane-master tr[data-mvalue="紹介元商事"] .stats-md-refd'); return !!c && c.textContent.includes('1社') && c.title.includes('新規のお客様'); }));
+    await p.evaluate(() => statsMasterSetFilter('sv')); await p.waitForTimeout(300);
+    ok(L + 'サブコンが紹介元のときも印が出る', await p.evaluate(() => { const c = document.querySelector('#statsPane-master tr[data-mvalue="紹介元サブコン"] .stats-md-refd'); return !!c && c.title.includes('別のお客様'); }));
+    await p.evaluate(() => statsMasterSetFilter('customer')); await p.waitForTimeout(300);
+    await p.evaluate(() => statsMasterSetQuery('展示会')); await p.waitForTimeout(500);
+    ok(L + '検索で紹介の経緯が見つかる', await p.evaluate(() => !!document.querySelector('#statsPane-master tr[data-mvalue="新規のお客様"]') && !document.querySelector('#statsPane-master tr[data-mvalue="別のお客様"]')));
+    await p.evaluate(() => statsMasterSetQuery('')); await p.waitForTimeout(300);
+    await p.evaluate(() => statsMasterSetQuery('新規のお客様')); await p.waitForTimeout(500);
+    await p.evaluate(() => statsMasterSetQuery('')); await p.waitForTimeout(200);
+    ok(L + 'JS エラーなし', errs.length === 0, errs);
+    await ctx.close();
+  }
+
   // ===== マスター管理の種別チップの並び：すべて｜サブコン｜お客様｜港｜品名｜単位 =====
   {
     const { ctx, p, errs } = await open(true, { legacy: {}, noLegacy: true });
@@ -1518,6 +1552,30 @@ const http = require('http'), fs = require('fs'), path = require('path');
     const order = await p.evaluate(() => [...document.querySelectorAll('#statsPane-master tbody tr[data-mvalue]')].map(r => r.dataset.mvalue + ':' + (r.dataset.viaDepth || 0)));
     const iB = order.indexOf('同業B社:0');
     ok(L + '一覧：先のお客様は同業者の直下に字下げして並ぶ（B→A→X・Y）', iB >= 0 && order[iB + 1] === '同業A社:1' && order[iB + 2].startsWith('荷主') && order[iB + 2].endsWith(':2') && order[iB + 3].endsWith(':2'), order);
+    ok(L + 'カード表示：同業者のカードの中に先のお客様のカードが入れ子で入る（B の中に A、A の中に X・Y）', await p.evaluate(() => {
+      const B = document.querySelector('#statsPane-master table.master-grid > tbody > tr[data-mvalue="同業B社"]');
+      const A = B && B.querySelector(':scope > td.master-nest-cell tr[data-mvalue="同業A社"]');
+      const X = A && A.querySelector(':scope > td.master-nest-cell tr[data-mvalue="荷主X"]');
+      const Y = A && A.querySelector(':scope > td.master-nest-cell tr[data-mvalue="荷主Y"]');
+      return !!B && B.hasAttribute('data-nest') && !!A && !!X && !!Y && /先のお客様 1社/.test(B.querySelector('.master-nest-title').textContent) && /先のお客様 2社/.test(A.querySelector('.master-nest-title').textContent);
+    }));
+    ok(L + '先のお客様のカードは外には並ばない（最上位に重複して出ない）', await p.evaluate(() => !document.querySelector('#statsPane-master table.master-grid > tbody > tr[data-mvalue="荷主X"]') && !document.querySelector('#statsPane-master table.master-grid > tbody > tr[data-mvalue="同業A社"]')));
+    ok(L + '外枠は全幅・中のカードは外のカードと同じ見た目（枠・角丸）', await p.evaluate(() => {
+      const B = document.querySelector('#statsPane-master table.master-grid > tbody > tr[data-mvalue="同業B社"]');
+      const X = B.querySelector('tr[data-mvalue="荷主X"]');
+      const cs = getComputedStyle(X);
+      return getComputedStyle(B).gridColumnStart === '1' && getComputedStyle(B).gridColumnEnd === '-1' && parseFloat(cs.borderTopLeftRadius) >= 8 && cs.display === 'flex';
+    }));
+    if (process.env.OUT) { await p.evaluate(() => { const e = document.querySelector('#statsPane-master tr[data-mvalue="同業B社"]'); e && e.scrollIntoView(); window.scrollBy(0, -70); }); await p.waitForTimeout(200); await p.screenshot({ path: require('path').join(process.env.OUT, 'master-nest.png') }); }
+    ok(L + '外のカードの詳細を開いても、中のカードの詳細は開かない（独立して開閉）', await p.evaluate(() => {
+      const B = document.querySelector('#statsPane-master table.master-grid > tbody > tr[data-mvalue="同業B社"]');
+      const X = B.querySelector('tr[data-mvalue="荷主X"]');
+      const t = B.querySelector(':scope > td.stats-val .master-name-toggle');
+      if (t) t.click();
+      const closedInner = !X.classList.contains('is-open');
+      if (t) t.click();
+      return closedInner;
+    }));
     await openDetail('同業A社');
     ok(L + '循環は候補・選択肢に出ない（上位の同業B社は先のお客様にできない）', await p.evaluate(() => !([...document.querySelectorAll('#md_viaChildren_list option')].map(x => x.value).includes('同業B社'))));
     // 経由する同業者の選択（先のお客様の側）
