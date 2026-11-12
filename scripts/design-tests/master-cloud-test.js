@@ -890,7 +890,7 @@ const http = require('http'), fs = require('fs'), path = require('path');
     ok(L + '[サブコン詳細] お客様と同じタブ形式（担当者／会社の詳細・種別・エリア／ニュース／メモ・添付）', (await p.$$eval('#mdDetailModal .mt-tab', els => els.map(e => e.textContent.replace(/\s+/g, ' ').trim().replace(/\s*\d.*$/, '')))).join('|').startsWith('担当者|会社の詳細・種別・エリア|ニュース|メモ・添付'));
     ok(L + '[サブコン詳細] 上にふりがな・英語名称、下に保存バー', await vis2('#mdDetailModal #md_furigana') && await vis2('#mdDetailModal #md_enName') && await p.evaluate(() => !!document.querySelector('#mdDetailModal .mt-foot .master-detail-save')));
     await p.evaluate(() => document.querySelector('#mdDetailModal .mt-tab[data-mt="company"]').click());
-    ok(L + '[サブコン詳細] 会社タブに種別・得意エリア・所属グループがある', await vis2('#mdDetailModal #md_areas') && await vis2('#mdDetailModal #md_group') && await vis2('#mdDetailModal #md_svTypes'));
+    ok(L + '[サブコン詳細] 会社タブに種別・得意エリア・所属グループがある', await vis2('#mdDetailModal .master-detail-areas') && await vis2('#mdDetailModal #md_group') && await vis2('#mdDetailModal .master-detail-tags'));
     await p.evaluate(() => statsCloseMasterDetail && statsCloseMasterDetail()); await p.evaluate(() => statsMasterSetFilter('customer')); await p.waitForTimeout(300);
     await p.evaluate(() => document.querySelector('#statsPane-master tr[data-mvalue="ポップ商事"] .stats-master-detail-btn').click()); await p.waitForTimeout(600);
     ok(L + '[タブ] 保存バーは本文のスクロールの外に常時表示', await p.evaluate(() => { const f = document.querySelector('#mdDetailModal .mt-foot'); const b = document.querySelector('#mdDetailModal .md-modal-body'); return !!f && !b.contains(f) && !!f.querySelector('.master-detail-save') && f.getBoundingClientRect().bottom <= innerHeight; }));
