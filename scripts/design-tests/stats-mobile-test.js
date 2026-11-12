@@ -105,6 +105,25 @@ srv.listen(0, async () => {
     ok('SP2: 確認は下から出るシート（幅いっぱい・画面の下に付く）', cg.w >= cg.vw - 2 && cg.bottom >= cg.vh - 2, cg);
     ok('SP2: 確認の件数が出て、ボタンは 44px', /12 件/.test(cg.text) && cg.btn.every(h => h >= 43.5), cg);
     await p.click('.confirm-dialog .btn-cancel'); await p.waitForTimeout(100);
+    // ---- 第 3 回：分析の画面（受注分析・明細台帳ほか）----
+    const goPane = async id => { await p.click('#smPick'); await p.click('#smSheet [data-pane="' + id + '"]'); await p.waitForTimeout(900); };
+    await goPane('winrate');
+    const tiles = await p.$$eval('#statsPane-winrate .sm-wtile', e => e.map(x => x.innerText.replace(/\s+/g, ' ').trim()));
+    ok('SP3: 受注分析に 4 指標（受注率・受注・失注・結果待ち）', tiles.length === 4 && /受注率/.test(tiles[0]) && /^\d+ 受注$/.test(tiles[1]) && /^\d+ 失注$/.test(tiles[2]) && /結果待ち/.test(tiles[3]), tiles);
+    const wchips = await p.$$eval('#statsPane-winrate .sm-wchips [data-i]', e => e.map(x => x.textContent.trim()));
+    ok('SP3: 見出しごとのチップ（横スクロール）', wchips.length >= 3, wchips);
+    const visSecs = () => p.$$eval('#statsPane-winrate > [data-sm-s]:not(.sm-hid)', e => e.map(x => x.getAttribute('data-sm-s')).join(','));
+    ok('SP3: 最初は 1 つの見出しだけ見える', /^always(,always)*,0(,0)*$/.test(await visSecs()) || (await visSecs()).split(',').filter(x => x !== 'always').every(x => x === '0'), await visSecs());
+    if (wchips.length > 1) { await p.click('#statsPane-winrate .sm-wchips [data-i="1"]'); await p.waitForTimeout(200);
+      ok('SP3: チップで切り替わる', (await visSecs()).split(',').filter(x => x !== 'always').every(x => x === '1') && (await p.getAttribute('#statsPane-winrate .sm-wchips [data-i="1"]', 'aria-pressed')) === 'true'); }
+    ok('SP3: 受注分析の表は 1 行＝1 カード（見出しの文字が項目名）', await p.$$eval('#statsPane-winrate .sm-ct', ts => ts.length > 0 && ts.every(t => getComputedStyle(t.querySelector('tbody > tr')).display === 'flex')) && (await p.$$eval('#statsPane-winrate td[data-label]', e => e.length)) > 0);
+    ok('SP3: 受注分析が横にはみ出さない', await p.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
+    await goPane('ledger');
+    ok('SP3: 明細台帳はカード（見出しは隠れ、項目名つき）', !(await vis(p, '#statsPane-ledger thead')) && await p.$$eval('#statsPane-ledger .sm-ct td[data-label]', e => e.length > 5));
+    ok('SP3: 列が多い表は「詳細を見る」で残りを開く', await p.evaluate(() => { const tr = [...document.querySelectorAll('#statsPane-ledger .sm-wide tbody > tr')].find(r => r.querySelector('.sm-more')); if (!tr) return false; const hid = tr.querySelector('td:nth-child(6)'); const before = getComputedStyle(hid).display === 'none'; tr.querySelector('.sm-more').click(); const after = getComputedStyle(hid).display !== 'none'; return before && after && tr.classList.contains('sm-open'); }));
+    ok('SP3: 明細台帳が横にはみ出さない（カードが画面幅に収まる）', await p.evaluate(() => document.documentElement.scrollWidth <= innerWidth && [...document.querySelectorAll('#statsPane-ledger .sm-ct tbody > tr')].every(r => r.getBoundingClientRect().right <= innerWidth + 1)));
+    ok('SP3: 台帳の絞り込み欄は 44px', await p.$$eval('#statsPane-ledger .ldg-filter :is(input, select, button)', e => e.every(x => x.getBoundingClientRect().height >= 43.5)));
+    for (const id of ['svport', 'custitem', 'margindiff', 'pattern', 'data', 'charges', 'kpi']) { await goPane(id); ok('SP3: ' + id + ' が横にはみ出さない', await p.evaluate(() => document.documentElement.scrollWidth <= innerWidth)); }
     // 基準値
     ok('SP: 粗利率の基準を変える入口がある', await vis(p, '#smHome') || true);
     // PC 幅に戻すと元の画面

@@ -3676,7 +3676,7 @@
     try {
       const sent = _wrCases(source), lost = _wrCases(source, true).filter(c => c.status === '失注');
       out.win.sent = sent.length; out.win.won = sent.filter(c => c.status === '受注').length; out.win.rate = _winRatePct(out.win.won, sent.length);
-      out.win.lost = lost.length;
+      out.win.lost = lost.length; out.win.pending = sent.filter(c => c.status !== '受注' && c.status !== '失注').length;
       const cnt = {}; lost.forEach(c => { if (c.reason) cnt[c.reason] = (cnt[c.reason] || 0) + 1; });
       const top = Object.entries(cnt).sort((a, b) => b[1] - a[1])[0];
       out.win.reasoned = Object.values(cnt).reduce((a, b) => a + b, 0);

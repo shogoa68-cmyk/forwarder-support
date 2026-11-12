@@ -79,15 +79,15 @@
   #tab-stats.sm-on :is(#statsPane-sv, #statsPane-carrier, #statsPane-customer, #statsPane-nm, #statsPane-un, #statsPane-port) tbody > tr.stats-syn-row { border-color: var(--green-ok, #1e7a4a); }
   #tab-stats.sm-on :is(#statsPane-sv, #statsPane-carrier, #statsPane-customer, #statsPane-nm, #statsPane-un, #statsPane-port) tbody > tr > td { display: block; padding: 0; border: 0; text-align: left; }
   /* 名前＋状態バッジ */
-  #tab-stats.sm-on td.stats-val { font-size: var(--text-lg, 16px); font-weight: 700; word-break: break-all; }
-  #tab-stats.sm-on td.stats-val .stats-variant-badge, #tab-stats.sm-on td.stats-val .stats-syn-grp-badge { margin-left: 6px; font-size: var(--text-xs, 12px); min-height: 28px; }
+  #tab-stats.sm-on :is(#statsPane-sv, #statsPane-carrier, #statsPane-customer, #statsPane-nm, #statsPane-un, #statsPane-port) td.stats-val { font-size: var(--text-lg, 16px); font-weight: 700; word-break: break-all; }
+  #tab-stats.sm-on :is(#statsPane-sv, #statsPane-carrier, #statsPane-customer, #statsPane-nm, #statsPane-un, #statsPane-port) td.stats-val .stats-variant-badge, #tab-stats.sm-on :is(#statsPane-sv, #statsPane-carrier, #statsPane-customer, #statsPane-nm, #statsPane-un, #statsPane-port) td.stats-val .stats-syn-grp-badge { margin-left: 6px; font-size: var(--text-xs, 12px); min-height: 28px; }
   /* 使用 N 件（棒グラフは隠す） */
-  #tab-stats.sm-on td.stats-num-col { font-size: var(--text-sm, 13px); color: var(--text-md, #555); }
-  #tab-stats.sm-on td.stats-num-col .stats-bar { display: none; }
-  #tab-stats.sm-on td.stats-num-col .stats-bar-wrap { display: inline; }
-  #tab-stats.sm-on td.stats-num-col::before { content: '使用 '; }
-  #tab-stats.sm-on td.stats-num-col::after { content: '件'; }
-  #tab-stats.sm-on td.stats-num-col .stats-bar-label::after { content: ''; }
+  #tab-stats.sm-on :is(#statsPane-sv, #statsPane-carrier, #statsPane-customer, #statsPane-nm, #statsPane-un, #statsPane-port) td.stats-num-col { font-size: var(--text-sm, 13px); color: var(--text-md, #555); }
+  #tab-stats.sm-on :is(#statsPane-sv, #statsPane-carrier, #statsPane-customer, #statsPane-nm, #statsPane-un, #statsPane-port) td.stats-num-col .stats-bar { display: none; }
+  #tab-stats.sm-on :is(#statsPane-sv, #statsPane-carrier, #statsPane-customer, #statsPane-nm, #statsPane-un, #statsPane-port) td.stats-num-col .stats-bar-wrap { display: inline; }
+  #tab-stats.sm-on :is(#statsPane-sv, #statsPane-carrier, #statsPane-customer, #statsPane-nm, #statsPane-un, #statsPane-port) td.stats-num-col::before { content: '使用 '; }
+  #tab-stats.sm-on :is(#statsPane-sv, #statsPane-carrier, #statsPane-customer, #statsPane-nm, #statsPane-un, #statsPane-port) td.stats-num-col::after { content: '件'; }
+  #tab-stats.sm-on :is(#statsPane-sv, #statsPane-carrier, #statsPane-customer, #statsPane-nm, #statsPane-un, #statsPane-port) td.stats-num-col .stats-bar-label::after { content: ''; }
   /* 表記（チップ）ごとに 1 ブロック。ボタンは 44px */
   #tab-stats.sm-on td.stats-chips-cell { display: flex !important; flex-direction: column; gap: 8px; }
   #tab-stats.sm-on td.stats-chips-cell .stats-chip { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 8px 10px; border: 1px solid var(--border, #ddd); border-radius: 8px; background: var(--surface, #fff); width: auto; max-width: 100%; box-sizing: border-box; }
@@ -106,4 +106,39 @@
   .confirm-overlay .confirm-dialog .confirm-body { font-size: var(--text-base, 14px); }
   .confirm-overlay .confirm-dialog .confirm-actions { gap: 10px; }
   .confirm-overlay .confirm-dialog .confirm-actions button { flex: 1; min-height: 44px; font-size: var(--text-base, 14px); }
+
+  /* ---- 第 3 回：分析の画面（受注分析・明細台帳・サブコン×港・お客様×品名・マージンばらつき・パターン別・データ・チャージ）の表は
+          1 行＝1 カード（見出しの文字を各項目の名前に）。列が多い表は主な 4 項目だけ見せ「詳細を見る」で残りを開く。DOM は残す ---- */
+  #tab-stats.sm-on .sm-ct { display: block; border: 0; background: none; width: 100% !important; min-width: 0 !important; max-width: 100%; }
+  #tab-stats.sm-on .ldg-scroll, #tab-stats.sm-on .stats-table-wrap { overflow-x: visible; }
+  #tab-stats.sm-on .sm-ct thead, #tab-stats.sm-on .sm-ct tfoot { display: none; }
+  #tab-stats.sm-on .sm-ct tbody { display: flex; flex-direction: column; gap: 10px; }
+  #tab-stats.sm-on .sm-ct tbody > tr { display: flex; flex-direction: column; gap: 6px; padding: 12px; border: 1px solid var(--border, #ddd); border-radius: 10px; background: var(--card-bg, #fff); }
+  #tab-stats.sm-on .sm-ct tbody > tr > td { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; padding: 0; border: 0; text-align: right; font-size: var(--text-sm, 13px); word-break: break-all; background: none; }
+  #tab-stats.sm-on .sm-ct tbody > tr > td { white-space: normal; min-width: 0; }
+  #tab-stats.sm-on .sm-ct tbody > tr > td.sm-empty, #tab-stats.sm-on .sm-ct tbody > tr > td:empty { display: none; }
+  #tab-stats.sm-on .sm-ct tbody > tr { min-width: 0; box-sizing: border-box; }
+  #tab-stats.sm-on .sm-ct td[data-label]::before { content: attr(data-label); flex: none; max-width: 46%; text-align: left; color: var(--text-md, #555); word-break: keep-all; }
+  #tab-stats.sm-on .sm-ct tbody > tr > td:first-child { font-size: var(--text-lg, 16px); font-weight: 700; text-align: left; justify-content: flex-start; }
+  #tab-stats.sm-on .sm-ct tbody > tr > td:first-child::before { display: none; }
+  #tab-stats.sm-on .sm-ct.sm-wide tbody > tr:not(.sm-open) > td:nth-child(n+5):not(.sm-more-td) { display: none; }
+  #tab-stats.sm-on .sm-ct td.sm-more-td { justify-content: flex-start; }
+  #tab-stats.sm-on .sm-ct td.sm-more-td::before { display: none; }
+  #tab-stats.sm-on .sm-more { min-height: 44px; padding: 0 12px; border: 1px solid var(--border-md, #bbb); border-radius: 8px; background: var(--surface, #fff); color: var(--accent, #2f5fb3); font: inherit; font-size: var(--text-sm, 13px); font-weight: 600; cursor: pointer; }
+  #tab-stats.sm-on :is(#statsPane-winrate, #statsPane-ledger, #statsPane-svport, #statsPane-custitem, #statsPane-margindiff, #statsPane-pattern, #statsPane-data, #statsPane-charges, #statsPane-kpi) { overflow-x: hidden; }
+  #tab-stats.sm-on :is(#statsPane-winrate, #statsPane-ledger, #statsPane-svport, #statsPane-custitem, #statsPane-margindiff, #statsPane-pattern, #statsPane-charges) .stats-syn-hint { font-size: var(--text-xs, 12px); line-height: 1.6; }
+  #tab-stats.sm-on .ldg-filter { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  #tab-stats.sm-on .ldg-filter :is(input, select, button) { min-height: 44px; }
+
+  /* 受注分析：上に 4 指標、その下に横スクロールのチップ（見出しごとに 1 つだけ見せる） */
+  .sm-wtiles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 10px; }
+  .sm-wtile { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 10px 4px; border: 1px solid var(--border, #ddd); border-radius: 10px; background: var(--card-bg, #fff); }
+  .sm-wtile b { font-size: 22px; font-variant-numeric: tabular-nums; }
+  .sm-wtile span { font-size: var(--text-xs, 12px); color: var(--text-md, #555); }
+  .sm-wtile.is-ok b { color: var(--green-ok, #1e7a4a); }
+  .sm-wtile.is-ng b { color: var(--red, #b42318); }
+  .sm-wchips { display: flex; gap: 8px; overflow-x: auto; padding: 2px 0 10px; }
+  .sm-wchips .sm-fchip { flex: none; }
+  #tab-stats.sm-on #statsPane-winrate .sm-hid { display: none !important; }
+  #tab-stats.sm-on #statsPane-winrate .stats-kpi-section-title { display: none !important; }
 }
