@@ -930,6 +930,7 @@ const http = require('http'), fs = require('fs'), path = require('path');
     // 詳細の入力欄：グループ名の候補に、入力済みの名前が出る
     await p.evaluate(() => statsMasterSetFilter('sv')); await p.waitForTimeout(300);
     await p.evaluate(() => document.querySelector('#statsPane-master tr[data-mvalue="単独社"] .stats-master-detail-btn').click()); await p.waitForTimeout(500);
+    await p.evaluate(() => { const t = document.querySelector('#mdDetailModal .mt-tab[data-mt="company"]'); t && t.click(); });
     const opts = await p.evaluate(() => [...document.querySelectorAll('#md_group_list option')].map(o => o.value));
     ok(L + '詳細の「所属グループ」欄に、入力済みのグループ名が候補で出る', opts.includes('CMA CGM グループ') && opts.includes('ONE グループ'), opts);
     await p.fill('#md_group', 'ONE グループ'); await p.click('.master-detail-save'); await p.waitForTimeout(700);
@@ -1152,6 +1153,7 @@ const http = require('http'), fs = require('fs'), path = require('path');
     await p.evaluate(() => statsMasterSetAreaKind('')); await p.waitForTimeout(200);
     // 入力：ボタンで地方・小地域を選び、国は候補から追加
     await p.evaluate(() => document.querySelector('#statsPane-master tr[data-mvalue="エリア無し運送"] .stats-master-detail-btn').click()); await p.waitForTimeout(500);
+    await p.evaluate(() => { const t = document.querySelector('#mdDetailModal .mt-tab[data-mt="company"]'); t && t.click(); });
     ok(L + '詳細に「得意エリア」（国内の地方・海外の小地域のボタン）がある', await p.evaluate(() => !!document.querySelector('#md_areas') && document.querySelectorAll('.master-area-btn').length > 25));
     await p.evaluate(() => { [...document.querySelectorAll('.master-area-btn')].find(b => b.textContent === '関西' || b.textContent === '近畿').click(); [...document.querySelectorAll('.master-area-btn')].find(b => b.textContent === '東アジア').click(); });
     await p.fill('#md_areas_input', 'ベトナム'); await p.keyboard.press('Enter'); await p.waitForTimeout(200);
