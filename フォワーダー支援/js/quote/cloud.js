@@ -420,13 +420,20 @@
     return canon.toLowerCase();
   }
 
+  // 検索語を空白区切りの語に分ける。語の前後の引用符（" ' ` “ ” ‘ ’ ＂ ＇ 「 」 『 』 など）は無視する
+  // （管理番号のコピーは「"99-261106-008"」の形で入るため、そのまま貼り付けても検索できるようにする）。
+  const _QUOTE_EDGE = /^[\s"'`´‘’‚‛“”„‟＂＇｀「」『』〝〞〟«»‹›]+|[\s"'`´‘’‚‛“”„‟＂＇｀「」『』〝〞〟«»‹›]+$/g;
+  function _searchTerms(str) {
+    return String(str || '').toLowerCase().split(/[\s　]+/)
+      .map(t => t.replace(_QUOTE_EDGE, '')).filter(Boolean);
+  }
   // 絞り込み条件に一致するか。opts.skipCustomer=true でお客様絞り込みだけ、
   // opts.skipTag=true でタグ絞り込みだけを無視する（各ランキングが「他の条件は
   // 効かせたまま、自分自身の軸だけは選び直せる」よう、その条件だけ外して集計するため）。
   function _rowMatchesFilters(r, opts) {
     const skipCustomer = !!(opts && opts.skipCustomer);
     const skipTag = !!(opts && opts.skipTag);
-    const terms = _cloudSearch.trim().toLowerCase().split(/[\s　]+/).filter(Boolean);
+    const terms = _searchTerms(_cloudSearch);
     const pol = _cloudFilterPol.trim().toLowerCase();
     const pod = _cloudFilterPod.trim().toLowerCase();
     const car = _cloudFilterCarrier.trim().toLowerCase();
