@@ -31,6 +31,7 @@
 <link rel="stylesheet" href="css/announcements.css">
 <link rel="stylesheet" href="css/workfolder.css">
 <link rel="stylesheet" href="css/cp-test.css">
+<style>html.theme-wait body{visibility:hidden}</style><!-- テーマ CSS が届くまでの間だけ（下のスクリプトが付け外し。最長 2.5 秒） -->
 <script>
 /* テーマ切替の早期適用（画面の描画前に実行して、ちらつきを防ぐ）。設定は js/tweaks.js のパネル「デザイン」で変更。
    ?theme=industry / ?theme=classic のURLパラメータでも一時的に切替可（localStorage に保存される）。 */
@@ -64,6 +65,18 @@
   [].forEach.call(document.querySelectorAll('link[data-theme-css]'), function (l) {
     l.media = on[l.getAttribute('data-theme-css')] ? 'all' : 'not all';
   });
+  /* テーマの CSS がまだ届いていない間は、画面を出さない（届く前の「素のデザイン」が一瞬映って、色が切り替わるのを防ぐ）。
+     書体（fonts）は待たない（display=swap）。届いた／失敗した時点で解除。何があっても 2.5 秒後には必ず出す。 */
+  var pend = 0;
+  function release() { h.classList.remove('theme-wait'); }
+  [].forEach.call(document.querySelectorAll('link[data-theme-css]'), function (l) {
+    var k = l.getAttribute('data-theme-css');
+    if (k === 'fonts' || !on[k] || l.sheet) return;
+    pend++;
+    var done = function () { if (--pend <= 0) release(); };
+    l.addEventListener('load', done); l.addEventListener('error', done);
+  });
+  if (pend > 0) { h.classList.add('theme-wait'); setTimeout(release, 2500); }
 })();
 </script>
 <!-- 見積タブで CSV/Excel/PDF 出力に使用（SheetJS） -->
@@ -75,7 +88,7 @@
 <!-- タッチ端末では、ボタンで欄を開いたときに自動でキーボードを出さない（js/no-autofocus-touch.js） -->
 <script src="js/no-autofocus-touch.js"></script>
 </head>
-<body>
+<body class="qp-dash-active"><!-- 見積タブの最初の画面はダッシュボード。JS（initQuoteTab→qpShowDashboard）が付ける印を最初から付け、入力画面が一瞬映るのを防ぐ -->
 <!-- #clipboard-toast は Phase 2c-Step2 で削除（callers ゼロ、quoteShowToast に統一） -->
 <div class="app">
 
@@ -2208,7 +2221,7 @@
   <!-- ===================== Tab: 見積もり作成（見積支援アプリを統合・直接マージ版） =====
        Phase 2b 完了時点：見積支援/index.html の body 内容を直接マージ。
        初期化は js/app.js の switchTab() フックから window.initQuoteTab() を呼ぶ。 -->
-  <div class="tab-content active" id="tab-quote-make">
+  <div class="tab-content active qp-dash" id="tab-quote-make">
 
 
     <!-- ========== ページ1：ダッシュボード（qp-dash 時に表示） ========== -->
