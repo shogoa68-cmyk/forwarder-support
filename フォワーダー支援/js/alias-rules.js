@@ -1757,6 +1757,7 @@
     sv:      [
       _FURIGANA_FIELD,
       _EN_FIELD,
+      { key: 'location', label: '住所（所在地）', placeholder: '例）東京都港区○○1-2-3 ○○ビル 5F（本社・主な拠点の住所）' },
       { key: 'website', label: 'ウェブサイト（URL）', link: true, placeholder: '例）https://example.com' },
       // 種別（複数選べる。ひな形のほか、自由に追加した種別はチーム内で候補に出る）
       { key: 'svTypes', label: 'サブコン種別', tags: true, addPlaceholder: '種別を追加（例：トラック手配）',
