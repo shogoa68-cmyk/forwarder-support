@@ -3633,7 +3633,54 @@
     // マスター候補数
     const masterCount = _cloud() && _cvMap ? _cvMap.size : 0;
     set('statsMasterCount', masterCount);
+    try { if (typeof window.smOnStatsReady === 'function') window.smOnStatsReady(); } catch (e) {}
   }
+
+  // ===== スマホ版「今日の確認」（js/stats-mobile.js）用の要約 =====
+  // 読み取りだけ（保存・表示は変えない）。ゆらぎ・未整理・粗利率の低い明細・受注率と失注の件数を返す。
+  window.statsLowMarginPct = function (v) {
+    if (v !== undefined) { try { localStorage.setItem('statsLowMarginPct', String(v)); } catch (e) {} }
+    let n = 10;
+    try { const x = parseFloat(localStorage.getItem('statsLowMarginPct')); if (isFinite(x) && x > 0 && x < 100) n = x; } catch (e) {}
+    return n;
+  };
+  window.statsTodaySummary = function () {
+    const source = document.getElementById('statsSource')?.value || 'both';
+    if (!_data) { try { _data = _build(source); } catch (e) { return null; } }
+    const out = { blur: 0, unorg: 0, low: { n: 0, th: window.statsLowMarginPct(), worst: null, skipped: 0 }, win: { won: 0, sent: 0, rate: null, lost: 0, topReason: null, topN: 0, reasoned: 0 } };
+    // ゆらぎ（複数表記のグループ）と未整理（まだマスターにも別名にもなっていない項目）
+    const FIELDS = [['sv', _data.svGroups], ['sv', _data.carrierGroups], ['customer', _data.customerGroups], ['nm', _data.nmGroups], ['un', _data.unGroups]];
+    FIELDS.forEach(([mf, groups]) => {
+      if (!groups) return;
+      const syn = typeof window.synGetGroups === 'function' ? window.synGetGroups(mf) : [];
+      const canons = new Set(syn.map(g => g.canonical)), consumed = new Set();
+      syn.forEach(g => { consumed.add(g.canonical); (g.aliases || []).forEach(a => consumed.add(a)); });
+      groups.forEach(g => {
+        const vs = g.variants.filter(v => !consumed.has(v.value));
+        if (!vs.length) return;
+        if (g.variants.length > 1) out.blur++;
+        if (vs.length > 1 || !_masterRegistered(mf, vs[0].value, null, canons)) out.unorg++;
+      });
+    });
+    // 粗利率の低い明細（粗利率が計算できる明細だけ・基準は statsLowMarginPct）
+    try {
+      const rows = _ledgerBuild(source);
+      const low = rows.filter(r => r.margin != null && r.margin < out.low.th).sort((a, b) => a.margin - b.margin);
+      out.low.n = low.length; out.low.worst = low[0] ? { nm: low[0].nm || low[0].sv || '', margin: low[0].margin } : null;
+      out.low.skipped = rows.filter(r => r.margin == null).length;
+    } catch (e) {}
+    // 受注率（提示後ベース）・失注件数・失注の最多の理由（理由が入っている案件のみ）
+    try {
+      const sent = _wrCases(source), lost = _wrCases(source, true).filter(c => c.status === '失注');
+      out.win.sent = sent.length; out.win.won = sent.filter(c => c.status === '受注').length; out.win.rate = _winRatePct(out.win.won, sent.length);
+      out.win.lost = lost.length;
+      const cnt = {}; lost.forEach(c => { if (c.reason) cnt[c.reason] = (cnt[c.reason] || 0) + 1; });
+      const top = Object.entries(cnt).sort((a, b) => b[1] - a[1])[0];
+      out.win.reasoned = Object.values(cnt).reduce((a, b) => a + b, 0);
+      if (top) { out.win.topReason = top[0]; out.win.topN = top[1]; }
+    } catch (e) {}
+    return out;
+  };
 
   // ===== KPI ペイン =====
 
