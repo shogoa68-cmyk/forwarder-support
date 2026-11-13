@@ -201,6 +201,10 @@ IT に不慣れな新規ユーザーにも分かりやすいよう、Design 案�
 - **未設定でも安全に no-op**：`cloud-config.js` がプレースホルダのままなら `cloudIsConfigured()` が false を返し「未設定」表示で停止
 - **OAuth リダイレクト**：`signInWithOAuth` の `redirectTo` は現在URL。Supabase の Authentication → URL Configuration の Redirect URLs に公開URL/ローカルURL（`http://localhost:PORT/**`）を登録しておくこと
 
+## 🌳 関連付けの「メイン／サブ」（入れ子ツリー・2026-11）
+
+案件の関連付け（`quote_preset_links`・もとは A—B の対称な 1 行）に、メイン側を示す `parent_id`（NULL＝ただの関連・`preset_a`／`preset_b` のどちらか）を足した（`docs/sql/quote-preset-links-hierarchy.sql`＝Supabase で実行する前提・冪等。未実行でも従来の関連付けは動き、メイン／サブを選ぶと案内が出る＝`cloud.js` の `_linkHierarchyMissing`・`_selectLinks` が列なしで取り直す）。1 サブ 1 メイン・循環禁止は画面側で確認（`_checkHierarchy`）。基準の案件から見た相手の位置づけは `child`（相手がサブ）／`parent`（相手がメイン）／`peer`（`_linkRel`）。取得は `cloudFetchPresetLinks(id)`＝`[{linkId, otherId, note, rel, preset, kids}]`（`kids`＝サブのツリー）、ダッシュボードは一括（`_loadDashLinks`＝リンク 1 クエリ＋`_fetchKidMap` で 1 段 1 クエリ・最大 `LINK_TREE_DEPTH=3` 段＋メタ 1 クエリ）で `_dashLinkCache[id] = {parent, kids, peers}`。**表示**：ダッシュボードは全案件をカードのまま、メインのカードに「🌳 サブ案件（N）」の入れ子（`.clink-tree`）、サブのカード上部に「↳ サブ：○○」（`.cloud-card-parentline`）。編集画面の関連パネル（`similar-quotes.js`）も同じツリー。**設定**：関連付けるとき（編集画面の理由バーのラジオ／一括モードの `#qpdLinkBarRole`）と、あとから（各行の「🔗 関連／🌱 サブ／👑 メイン」＝`cloudSetLinkRole(linkId, anchorId, role)`）。テストは `scripts/design-tests/link-hierarchy-test.js`（現行／`THEME=1`）。
+
 ## 🐞 不具合報告（フィードバック拡張・常駐ボタン／スクショ・録画／対応状況）
 
 既存のフィードバック送信（`save.js` の `openFeedback/submitFeedback`・`feedbacks` テーブル）を拡張。ロジックは `js/feedback.js`、AI 用の整形は `js/feedback-md.js`（ブラウザと Node 共用の純粋関数）、見た目は `css/feedback.css`。
