@@ -113,6 +113,21 @@ const http = require('http'), fs = require('fs'), path = require('path');
     // 選択は端末に覚える
     await clickScope(p, 'チーム');
     ok('選んだ範囲は端末に記憶される', await p.evaluate(() => JSON.parse(localStorage.getItem('qpdScope_v1')).scope === 'team'));
+    // 余白（2026-11）：案件の範囲・検索窓・ツール行・タグ欄が詰まらない（id の強い共通ルールに負けていないこと）
+    const sp = await p.evaluate(() => {
+      const r = q => document.querySelector(q).getBoundingClientRect(), cs = q => getComputedStyle(document.querySelector(q));
+      return {
+        scopeTop: r('#qpdScope').top - r('#qpdStats').bottom, scopeToSearch: r('#qpdSearch').top - r('#qpdScope').bottom,
+        searchH: r('#qpdSearch').height, searchToRow: r('.qpd-tools-row').top - r('#qpdSearch').bottom,
+        rowToTag: r('.qpd-tag-quickfilter-input').top - r('.qpd-tools-row').bottom,
+        lblGap: r('#qpdScope .qpd-scope-chip').left - r('#qpdScope .qpd-scope-lbl').right, tagPad: cs('.qpd-tag-quickfilter-input').paddingLeft,
+      };
+    });
+    ok('案件の範囲の上に余白（統計から20px以上）', sp.scopeTop >= 20, sp);
+    ok('案件の範囲と検索窓の間が14px以上', sp.scopeToSearch >= 14, sp);
+    ok('検索窓の高さが36px以上', sp.searchH >= 36, sp);
+    ok('検索窓とツール行・ツール行とタグ欄の間が10px以上', sp.searchToRow >= 10 && sp.rowToTag >= 10, sp);
+    ok('「案件の範囲」の見出しとチップの間が10px以上', sp.lblGap >= 10, sp);
     ok('ページエラーなし', errs.length === 0, errs);
     await p.screenshot({ path: path.join(process.env.OUT || '/tmp', 'org-scope.png'), clip: { x: 0, y: 100, width: 1400, height: 420 } }).catch(() => {});
     await ctx.close();

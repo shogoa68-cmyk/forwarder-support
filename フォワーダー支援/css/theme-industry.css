@@ -4483,11 +4483,19 @@ html.theme-industry {
   color: #964739;
   border-color: #c5c7c9;
 }
+:where(html.theme-industry) #qpDashboard .qpd-tools {
+  margin-bottom: var(--sp-12);
+  gap: var(--sp-8);
+}
 :where(html.theme-industry) #qpDashboard .qpd-search {
+  padding: var(--sp-9) 36px var(--sp-9) var(--sp-12);
   border-radius: 0;
 }
 :where(html.theme-industry) #qpDashboard .qpd-search-clear {
   border-radius: 0;
+}
+:where(html.theme-industry) #qpDashboard .qpd-tools-row {
+  gap: var(--sp-10);
 }
 :where(html.theme-industry) #qpDashboard .qpd-adv-toggle {
   border-radius: 0;
@@ -4553,12 +4561,19 @@ html.theme-industry {
   color: #293c4f;
   border-radius: 0;
 }
+:where(html.theme-industry) #qpDashboard .qpd-tag-quickfilter {
+  margin-top: var(--sp-8);
+}
 :where(html.theme-industry) #qpDashboard .qpd-tag-quickfilter-input {
   font-family: var(--font-body,"Barlow"),"Noto Sans JP","Hiragino Kaku Gothic ProN",sans-serif;
   border-radius: 0;
 }
 :where(html.theme-industry) #qpDashboard .qpd-tag-quickfilter-input:focus {
   border-color: #84888e;
+}
+:where(html.theme-industry) #qpDashboard .qpd-tag-chips {
+  gap: var(--sp-5);
+  margin-top: var(--sp-8);
 }
 :where(html.theme-industry) #qpDashboard .cloud-tag-filter-chip {
   font-family: var(--font-body,"Barlow"),"Noto Sans JP","Hiragino Kaku Gothic ProN",sans-serif;
@@ -10492,4 +10507,24 @@ html.theme-industry {
 }
 :where(html.theme-industry) #tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) > td.subtotal-cell > .st-doneinfo .di-name {
   font-weight: 600;
+}
+:where(html.theme-industry) #qpDashboard .qpd-tools {
+  margin-bottom: var(--sp-16);
+  gap: var(--sp-12);
+}
+:where(html.theme-industry) #tab-quote-make #qpDashboard .qpd-search {
+  padding: var(--sp-12) 36px var(--sp-12) var(--sp-14);
+}
+:where(html.theme-industry) #tab-quote-make #qpDashboard .qpd-tag-quickfilter-input {
+  padding: var(--sp-9) var(--sp-14);
+}
+:where(html.theme-industry) #qpDashboard .qpd-tools-row {
+  gap: var(--sp-12);
+}
+:where(html.theme-industry) #qpDashboard .qpd-tag-quickfilter {
+  margin-top: var(--sp-4);
+}
+:where(html.theme-industry) #qpDashboard .qpd-tag-chips {
+  gap: var(--sp-6);
+  margin-top: var(--sp-4);
 }

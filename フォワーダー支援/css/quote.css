@@ -4596,13 +4596,13 @@ body.qp-dash-active #quoteActionDock { display: none !important; }
 /* [hidden] を確実に効かせる（.qpd-login 等の display 指定が UA の [hidden] を上書きするのを防ぐ） */
 #qpDashboard [hidden] { display: none !important; }
 /* 検索＋ツール */
-#qpDashboard .qpd-tools { margin-bottom: var(--sp-12); display: flex; flex-direction: column; gap: var(--sp-8); }
+#qpDashboard .qpd-tools { margin-bottom: var(--sp-16); display: flex; flex-direction: column; gap: var(--sp-12); }
 #qpDashboard .qpd-search-wrap { position: relative; display: flex; align-items: center; }
-#qpDashboard .qpd-search { width: 100%; box-sizing: border-box; font-size: var(--fs-13); padding: var(--sp-9) 36px var(--sp-9) var(--sp-12); border: 1px solid var(--border); border-radius: var(--r-8); }
+#qpDashboard .qpd-search { width: 100%; box-sizing: border-box; font-size: var(--fs-13); padding: var(--sp-12) 36px var(--sp-12) var(--sp-14, 14px); border: 1px solid var(--border); border-radius: var(--r-8); }
 #qpDashboard .qpd-search-clear { position: absolute; right: 8px; background: none; border: none; color: var(--gray-lt); font-size: var(--fs-13); cursor: pointer; padding: var(--sp-4) var(--sp-6); border-radius: var(--r-4); line-height: 1; }
 #qpDashboard .qpd-search-clear:hover { background: var(--accent-lt); color: var(--c-5a4a35); }
 #qpDashboard .qpd-search-clear[hidden] { display: none; }
-#qpDashboard .qpd-tools-row { display: flex; align-items: center; gap: var(--sp-10); flex-wrap: wrap; }
+#qpDashboard .qpd-tools-row { display: flex; align-items: center; gap: var(--sp-12); flex-wrap: wrap; }
 #qpDashboard .qpd-adv-toggle { background: var(--accent-lt); border: 1px solid var(--c-d5c8b0); color: var(--accent); border-radius: var(--r-7); padding: var(--sp-6) var(--sp-12); font-size: var(--fs-12); font-weight: 700; cursor: pointer; }
 #qpDashboard .qpd-adv-toggle:hover { background: var(--c-e8d8c0); }
 #qpDashboard .qpd-sort { font-size: var(--fs-12); color: var(--accent); display: inline-flex; align-items: center; gap: var(--sp-5); margin-left: auto; }
@@ -4673,14 +4673,17 @@ body.qp-dash-active #quoteActionDock { display: none !important; }
 }
 #qpDashboard .qpd-row-chk { justify-self: center; }
 /* 🏷️ タグ名クイック絞り込み（テキスト入力＋候補） */
-#qpDashboard .qpd-tag-quickfilter { margin-top: var(--sp-8); }
+#qpDashboard .qpd-tag-quickfilter { margin-top: var(--sp-4); }
 #qpDashboard .qpd-tag-quickfilter-input {
   width: 100%; box-sizing: border-box; font-family: inherit; font-size: var(--fs-11-5);
   border: 1px solid var(--border); border-radius: var(--r-8); padding: var(--sp-5) var(--sp-10); background: var(--surface-warm);
 }
 #qpDashboard .qpd-tag-quickfilter-input:focus { outline: none; border-color: #b8985a; }
+/* 検索窓・タグ絞り込み欄の余白：入力共通（#tab-quote-make input[type=text]）の padding に負けないよう id を重ねる */
+#tab-quote-make #qpDashboard .qpd-search { padding: var(--sp-12) 36px var(--sp-12) var(--sp-14); }
+#tab-quote-make #qpDashboard .qpd-tag-quickfilter-input { padding: var(--sp-9) var(--sp-14); }
 /* 🏷️ タグ絞り込みチップ */
-#qpDashboard .qpd-tag-chips { display: flex; flex-wrap: wrap; gap: var(--sp-5); margin-top: var(--sp-8); }
+#qpDashboard .qpd-tag-chips { display: flex; flex-wrap: wrap; gap: var(--sp-6); margin-top: var(--sp-4); }
 #qpDashboard .qpd-tag-chips:empty { display: none; margin-top: 0; }
 #qpDashboard .cloud-tag-filter-chip {
   cursor: pointer; font-family: inherit; font-size: var(--fs-11); color: var(--accent);

@@ -279,6 +279,8 @@ IT に不慣れな新規ユーザーにも分かりやすいよう、Design 案�
 - **今後の案**：組織・チーム単位の📢お知らせの宛先指定／チーム別の既定の担当／統計タブの組織・チーム別集計／（必要なら）案件・マスターの見える範囲そのものの制限（RLS の変更が要る）。
 - テストは `scripts/design-tests/org-teams-test.js`（偽の Supabase・現行／`THEME=1` の Industry とも全項目：所属の読み込み・範囲ごとの件数・選び直し・未所属の案内・SQL 未実行・管理画面の追加／割り当て／チーム入れ替え／名前変更／削除・読み取りのみ）。
 
+**ダッシュボードの絞り込み欄の余白（2026-11）**：「案件の範囲」の行・検索窓・ツール行・タグ欄が詰まって見えた。原因は、見積タブの共通ルール（`#tab-quote-make *{margin:0}`・`#tab-quote-make input[type=text]{padding:…}`＝id 付き）が、クラスだけのセレクタ（`.qpd-scope{margin}`・`#qpDashboard .qpd-search{padding}`）に勝っていて、書いてあった余白が**もともと効いていなかった**こと。`org-teams.css` は `#qpDashboard .qpd-scope`（上 22px・下 16px・チップの間 10/12px・チップ padding 6/16px）、`quote.css` は `#tab-quote-make #qpDashboard .qpd-search`（高さ約 42px）・`…-tag-quickfilter-input` と、ツール欄の gap 12px・タグ欄の余白で、id を重ねて指定する。**Industry は Design の元の狭い値へ戻されるため、`code-overrides-industry.css` 末尾に同じ値を書いている**（`build-industry-theme.js` の再実行後も残る）。クラスだけの余白が効かないときは、まず `#tab-quote-make` 配下の共通ルールを疑う。テストは `scripts/design-tests/org-teams-test.js` の余白 5 項目。
+
 ## 🔖 チームブックマーク（全面クラウド移行・編集履歴）
 
 船会社／サブコンのリンクを `bookmarks` テーブルで一元管理（`js/bookmarks.js`・`#tab-bookmark`）。見積タブ右カラムの「🔖 ブックマーク」タブ（`renderQuoteBookmarkRail` / `#bmRailPanel`）に案件連動で表示。
