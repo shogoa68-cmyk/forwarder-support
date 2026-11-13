@@ -1308,8 +1308,7 @@
       _refreshRowMasterDetailBtn(nmEl.closest('tr'));
       if (!value) return;
       const rec = (window.mdGetCanon || window.mdGet)('nm', value);   // 別名で入力しても代表名の詳細で補完
-      if (!rec) return;
-      const details = rec.details || {};
+      const details = (rec && rec.details) || {};
       const tr = nmEl.closest('tr');
       if (!tr) return;
       const rid = tr.id.replace('row-', '');
@@ -1317,11 +1316,17 @@
       const ntEl = tr.querySelector('[data-field="nt"]');
       const catEl = document.getElementById('cat-' + rid);
       let filled = false;
-      if (details.defaultUnit && unEl && (!unEl.value.trim() || tr.dataset.unAuto === '1')) {
-        unEl.value = details.defaultUnit; tr.dataset.unAuto = '1'; filled = true;
+      // 単位：空・自動入力のまま・複製元から引き継いだままのときは、新しい品名の単位で置き換える
+      //   （複製して品名だけ変えたとき、複製元の単位が残って手で直す手間をなくす）。
+      //   単位の出どころは、マスターの既定単位 → この見積の同じ品名の行の単位 の順。
+      if (unEl && (!unEl.value.trim() || tr.dataset.unAuto === '1' || tr.dataset.unInherit === '1')) {
+        const nu = details.defaultUnit || _peerValue(tr, value, 'un');
+        if (nu && unEl.value !== nu) {
+          unEl.value = nu; tr.dataset.unAuto = '1'; delete tr.dataset.unInherit; filled = true;
+        }
       }
-      if (details.defaultNote && ntEl && (!ntEl.value.trim() || tr.dataset.ntAuto === '1')) {
-        ntEl.value = details.defaultNote; tr.dataset.ntAuto = '1'; filled = true;
+      if (details.defaultNote && ntEl && (!ntEl.value.trim() || tr.dataset.ntAuto === '1' || tr.dataset.ntInherit === '1')) {
+        ntEl.value = details.defaultNote; tr.dataset.ntAuto = '1'; delete tr.dataset.ntInherit; filled = true;
       }
       // カテゴリ：未選択のときだけマスターの既定カテゴリを補完
       if (details.defaultCat && catEl && !catEl.value) {
@@ -1355,11 +1360,26 @@
       if (!el.matches) return;
       const tr = el.closest('tr');
       if (!tr) return;
-      if (el.matches('[data-field="un"]')) delete tr.dataset.unAuto;
-      else if (el.matches('[data-field="nt"]')) delete tr.dataset.ntAuto;
+      if (el.matches('[data-field="un"]')) { delete tr.dataset.unAuto; delete tr.dataset.unInherit; }
+      else if (el.matches('[data-field="nt"]')) { delete tr.dataset.ntAuto; delete tr.dataset.ntInherit; }
     });
   }
   window.initNmAutofill = initNmAutofill;
+
+  // この見積の中で、同じ品名（大文字小文字・空白・先頭の * を無視）の行が使っている値（単位など）のうち、いちばん多いもの
+  function _peerValue(selfTr, name, field) {
+    const norm = x => String(x || '').replace(/^\*+/, '').replace(/\s+/g, '').toLowerCase();
+    const want = norm(name); if (!want) return '';
+    const cnt = {};
+    document.querySelectorAll('#tableBody tr[id^="row-"]:not([data-type]):not([data-virtual])').forEach(r => {
+      if (r === selfTr) return;
+      if (norm(r.querySelector('[data-field="nm"]')?.value) !== want) return;
+      const v = (r.querySelector('[data-field="' + field + '"]')?.value || '').trim();
+      if (v) cnt[v] = (cnt[v] || 0) + 1;
+    });
+    const k = Object.keys(cnt).sort((x, y) => cnt[y] - cnt[x]);
+    return k[0] || '';
+  }
 
   // 代表単価の参考表示フォーマット
   function _fmtRef(v, ccy) {
@@ -1669,6 +1689,10 @@
     if (srcTrEl && dstTrEl) {
       if (srcTrEl.dataset.unAuto === '1') dstTrEl.dataset.unAuto = '1'; else delete dstTrEl.dataset.unAuto;
       if (srcTrEl.dataset.ntAuto === '1') dstTrEl.dataset.ntAuto = '1'; else delete dstTrEl.dataset.ntAuto;
+      // 手で入れた単位・備考も「複製元から引き継いだだけ」の印を付ける（品名を変えたとき、新しい品名の単位・備考に置き換えられる）
+      delete dstTrEl.dataset.unInherit; delete dstTrEl.dataset.ntInherit;
+      if (dstTrEl.dataset.unAuto !== '1' && (document.getElementById(`un-${newId}`)?.value || '').trim()) dstTrEl.dataset.unInherit = '1';
+      if (dstTrEl.dataset.ntAuto !== '1' && (document.getElementById(`nt-${newId}`)?.value || '').trim()) dstTrEl.dataset.ntInherit = '1';
     }
 
     // 売通貨独立モード（pc≠bc）を引き継ぐ：onPay で上書きされないよう先にフラグ・UI を設定

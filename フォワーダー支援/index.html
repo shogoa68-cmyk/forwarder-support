@@ -2485,6 +2485,9 @@
           <button type="button" class="tb-menu-item tb-mi-simple" id="btnQuoteRedoMenu" onclick="quoteRedo(); closeTbMenus()" disabled>
             <span class="tb-mi-icon">↷</span><span class="tb-mi-body"><span class="tb-mi-title">やり直す</span><span class="tb-mi-sub">Ctrl+Y / Ctrl+Shift+Z</span></span>
           </button>
+          <button type="button" class="tb-menu-item tb-mi-simple" data-pip-btn onclick="quotePipToggle(); closeTbMenus()">
+            <span class="tb-mi-icon">🪟</span><span class="tb-mi-body"><span class="tb-mi-title" data-pip-label>常に前面</span><span class="tb-mi-sub">明細だけの小窓を他のアプリの上に出す（Chrome／Edge）</span></span>
+          </button>
           <button type="button" class="tb-menu-item tb-mi-simple" onclick="toggleMemoFloat(); closeTbMenus()">
             <span class="tb-mi-icon">📝</span><span class="tb-mi-body"><span class="tb-mi-title">社内メモ（付箋）を開く／閉じる</span><span class="tb-mi-sub">案件名欄の「📝 社内メモ」と同じ</span></span>
           </button>
@@ -3948,6 +3951,7 @@
               <button data-tier="adv" class="btn-ins-sub cmdbar-icon-btn" onclick="toolbarInsertSubtotal()" title="小計行を追加（出力にも含まれます。費用行・リマーク・社内メモの追加は各明細行の ➕📋🗑️💬🔒 アイコンから）">＝</button>
               <button class="btn-bulk-pattern cmdbar-pattern-btn" onclick="openRowPatternMgr()" title="行パターン：チェックした行を保存／保存パターンを挿入">🗂️ 行パターン</button>
               <button class="cmdbar-lc-btn" onclick="lcOpenPicker()" title="諸チャージマスターから行を追加">📦 チャージ</button>
+              <button type="button" class="cmdbar-pip-btn" data-pip-btn onclick="quotePipToggle()" title="明細だけの小窓を、他のアプリ・ブラウザの上に常に前面で表示します（船会社の料金表を見ながら入力できます。Chrome／Edge）">🪟 <span data-pip-label>常に前面</span></button>
               <span class="btn-group-label" data-tier="adv">挿入位置</span>
               <select id="rowInsertPos" data-tier="adv" class="row-insert-pos" title="追加ボタンの挿入位置">
                 <option value="end">末尾に追加</option>
@@ -5056,6 +5060,7 @@
 <script src="js/quote/remark-tabs.js"></script>
 <script src="js/quote/mobile-cost.js"></script>
 <script src="js/quote/mobile-sheet.js"></script>
+<script src="js/quote/pip-compact.js"></script>
 <script src="js/quote/layout-cols.js"></script>
 <script src="js/quote/remark-sheet.js"></script>
 <script src="js/quote/packing-import.js"></script>

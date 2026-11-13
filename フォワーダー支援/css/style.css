@@ -4652,6 +4652,14 @@ a.bm-contact-item:hover { background: #2e6b3e; color: var(--surface); border-col
   white-space: nowrap; transition: all 0.15s;
 }
 .cmdbar-lc-btn:hover { background: linear-gradient(135deg, #ffe2b8 0%, #fcb96a 100%); }
+/* 🪟 常に前面（明細の小窓・js/quote/pip-compact.js） */
+.cmdbar-pip-btn {
+  padding: var(--sp-4) var(--sp-10); font-size: var(--fs-12); font-weight: 600;
+  background: var(--surface); border: 1px solid var(--border-md, #b9c0c8); border-radius: var(--r-6); cursor: pointer; color: var(--text);
+  white-space: nowrap;
+}
+.cmdbar-pip-btn:hover { background: var(--accent-lt, #eef2f6); }
+.cmdbar-pip-btn.is-on { background: var(--accent, #3a5470); border-color: var(--accent, #3a5470); color: #fff; }
 
 /* ===================== ローカルチャージ モーダル共通 ===================== */
 .lc-modal-overlay {

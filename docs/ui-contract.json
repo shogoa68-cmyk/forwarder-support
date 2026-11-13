@@ -899,7 +899,7 @@
    "defined": true
   },
   "closeTbMenus": {
-   "uses": 8,
+   "uses": 9,
    "defined": true
   },
   "closeUserMgr": {
@@ -1539,6 +1539,10 @@
    "defined": false
   },
   "quickQuotePdf": {
+   "uses": 2,
+   "defined": true
+  },
+  "quotePipToggle": {
    "uses": 2,
    "defined": true
   },
@@ -2796,6 +2800,10 @@
    "css": true,
    "html": false
   },
+  "is-hide": {
+   "css": false,
+   "html": false
+  },
   "is-idea": {
    "css": true,
    "html": false
@@ -2838,6 +2846,10 @@
   },
   "is-pattern": {
    "css": true,
+   "html": false
+  },
+  "is-pend": {
+   "css": false,
    "html": false
   },
   "is-pending": {
@@ -3670,6 +3682,10 @@
   },
   "rn-plan-row--sel": {
    "css": true,
+   "html": false
+  },
+  "row": {
+   "css": false,
    "html": false
   },
   "row-act-ico": {
@@ -4658,6 +4674,10 @@
    "html": false,
    "js": true
   },
+  "calc": {
+   "html": false,
+   "js": true
+  },
   "cancel": {
    "html": false,
    "js": true
@@ -4819,6 +4839,10 @@
    "js": true
   },
   "filled": {
+   "html": false,
+   "js": true
+  },
+  "flag": {
    "html": false,
    "js": true
   },
@@ -5062,6 +5086,10 @@
    "html": false,
    "js": true
   },
+  "nt-inherit": {
+   "html": false,
+   "js": true
+  },
   "off": {
    "html": false,
    "js": true
@@ -5111,6 +5139,14 @@
    "js": true
   },
   "pid": {
+   "html": false,
+   "js": true
+  },
+  "pip-btn": {
+   "html": false,
+   "js": true
+  },
+  "pip-label": {
    "html": false,
    "js": true
   },
@@ -5394,6 +5430,10 @@
    "html": false,
    "js": true
   },
+  "un-inherit": {
+   "html": false,
+   "js": true
+  },
   "url": {
    "html": false,
    "js": true
@@ -5505,6 +5545,7 @@
   "js/quote/remark-tabs.js",
   "js/quote/mobile-cost.js",
   "js/quote/mobile-sheet.js",
+  "js/quote/pip-compact.js",
   "js/quote/layout-cols.js",
   "js/quote/remark-sheet.js",
   "js/quote/packing-import.js",
