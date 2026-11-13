@@ -3025,6 +3025,17 @@
     return SharedCalc.grossMarginPct(bill, cost);
   }
 
+  // 明細ごとの「入力完了」の日時・ユーザー（引用元で確認された時期の目安）。インポートすると、この情報も行に付く
+  function _cpDoneTag(row) {
+    const at = row && (row.doneAt || row.srcDoneAt);
+    if (!at || typeof window.rowDoneFormat !== 'function') return '';
+    const isSrc = !row.doneAt;
+    const f = window.rowDoneFormat(at, isSrc ? row.srcDoneBy : row.doneBy);
+    if (!f.text) return '';
+    const tip = (isSrc ? '引用元の入力完了' : '入力完了') + '：' + f.text + (isSrc && row.srcFrom ? '（案件「' + row.srcFrom + '」）' : '');
+    return `<span class="cp-done-tag${isSrc ? ' is-src' : ''}" title="${escHtml(tip)}">${isSrc ? '📥' : '✓'} ${escHtml(f.text)}</span>`;
+  }
+
   function _cpRenderTable(rows) {
     const catLabel = _CAT_LABEL();
     const tbody = document.getElementById('cpTableBody');
@@ -3111,7 +3122,7 @@
         return ptHeader + `<tr class="${rowCls}" data-sv="${escHtml(g.sv)}" data-idx="${idx}">
           <td><input type="checkbox" class="cp-chk" checked onchange="cpUpdateSelCount()"></td>
           <td class="cp-cat">${escHtml(catLbl)}</td>
-          <td class="cp-nm">${escHtml(nm)}</td>
+          <td class="cp-nm">${escHtml(nm)}${_cpDoneTag(row)}</td>
           <td class="cp-qty">${qty}</td>
           <td class="cp-price cp-pp">${ac ? '実費' : _cpMoney(pp, pc)}</td>
           <td class="cp-price cp-mk">${ac ? '—' : (_cpNum(mk) ? _cpMoney(mk, bc) : '—')}</td>
@@ -3200,7 +3211,10 @@
     let remarkN = 0;
     dataRows.forEach((r, i) => {
       if (!checked.has(i)) return;
-      selected.push(r);
+      // 引用元で「入力完了」が押されていた日時・ユーザーを、インポートした行に「引用元の入力完了」として持たせる
+      // （入力完了マーク自体は付けない＝この案件では未確認。引用元の行がさらに引用だったときも、その記録を引き継ぐ）
+      const at = r.doneAt || r.srcDoneAt;
+      selected.push(at ? Object.assign({}, r, { srcDoneAt: at, srcDoneBy: r.doneAt ? (r.doneBy || '') : (r.srcDoneBy || ''), srcFrom: r.doneAt ? (_cpFullName || '') : (r.srcFrom || '') }) : r);
       // 明細に紐づくリマーク行（💬 見積書に表示／🔒 社内メモ）も、明細の直後へ一緒に追加する
       if (withRemarks) (_cpRemarksByIdx[i] || []).forEach(m => { selected.push(m); remarkN++; });
     });
@@ -3792,7 +3806,7 @@
     const newData = JSON.parse(JSON.stringify(src.data));
     if (!newData.fields) newData.fields = {};
     // 新規案件としてのコピーのため、コピー元の「入力完了」マークは引き継がない
-    if (Array.isArray(newData.rows)) newData.rows.forEach(r => { if (r) { delete r.done; delete r.doneAt; delete r.doneBy; } });
+    if (Array.isArray(newData.rows)) newData.rows.forEach(r => { if (r) { delete r.done; delete r.doneAt; delete r.doneBy; delete r.srcDoneAt; delete r.srcDoneBy; delete r.srcFrom; } });
     // ステータスもコピー元を引き継がず「下書き中」に戻す（下の insert の status 列と揃える）。
     // ここを揃えないと、コピー直後にこの案件を開いた際 data.fields の古いステータスで
     // 復元されてしまう（cloudSetStatus と同じ理由の食い違い）。
