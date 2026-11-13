@@ -10,7 +10,7 @@
 
   function clearConditions() {
     if (!confirm('貨物情報・引き合い条件をクリアしますか？')) return;
-    ['z2Carrier','z2Service','z2CarrierRole','z2ActualCarrier','z2Pol','z2Via','z2Pod','z2PolCountry','z2ViaCountry','z2PodCountry','z2Tt','cond-origin','cond-dest','cond-cargo','cond-hs','cond-hs-basic','cond-hs-pref','cond-hs-pref-note',
+    ['z2Carrier','z2Service','z2CarrierRole','z2ActualCarrier','z2Pol','z2Via','z2Pod','z2Icd','z2PolCountry','z2ViaCountry','z2PodCountry','z2Tt','cond-origin','cond-dest','cond-cargo','cond-hs','cond-hs-basic','cond-hs-pref','cond-hs-pref-note',
      'cond-packing','cond-packing-preset','condFreeText','cond-cargo-unknown-note',
      'cond-origin-country','cond-dest-country','z1Place','z1Country','z3Place','z3Country',
      'cond-container-count']
@@ -87,6 +87,8 @@
       incotermsRet: (dirIsRound(_currentDirection) && g('cond-incoterms-ret') !== '設定なし') ? g('cond-incoterms-ret') : '',
       // 荷役条件（RO/RO・在来船の BTBT／FILO／LIFO／FIOS／FIOST）。インコタームズとは別に併記する
       handling: g('cond-handling'),
+      // ICD（インランドデポ）：有効な航路の ICD（複数あれば重複を除いて ' / ' でつなぐ）。航路に無いときは入力欄の値
+      icd: (() => { const a = _activeRoutes.map(r => r.icd).filter(Boolean); return a.length ? [...new Set(a)].join(' / ') : g('z2Icd'); })(),
       cargo: g('cond-cargo'), hsCode: g('cond-hs'),
       hsBasic: g('cond-hs-basic'), hsPref: g('cond-hs-pref'), hsPrefNote: g('cond-hs-pref-note'),
       weight: (typeof window.getCargoWeightText === 'function')
@@ -850,6 +852,7 @@
     if (typeof window.ciSync === 'function') window.ciSync();
     if (typeof window.cfSync === 'function') window.cfSync();
     if (typeof window.htSync === 'function') window.htSync();
+    if (typeof window.icdRefresh === 'function') window.icdRefresh();
     if (typeof window.rfSync === 'function') window.rfSync();
     if (typeof window.cgSync === 'function') window.cgSync();
     if (typeof window.updateRemarkChar === 'function') window.updateRemarkChar();
@@ -3216,6 +3219,7 @@
       if (r.pol) parts.push(_escMulti(r.pol));
       if (r.via) parts.push('<span class="z2-route-via">via:' + _escMulti(r.via) + '</span>');
       if (r.pod) parts.push(_escMulti(r.pod));
+      if (r.icd) parts.push('<span class="z2-route-icd" title="ICD（インランドデポ）">🚉 ' + _escMulti(r.icd) + '</span>');
       const route = parts.length ? parts.join(' → ') : 'ポート未設定';
       const _roleLabel = ROUTE_ROLE_LABELS[r.carrierRole] || '';
       const _roleChip  = _roleLabel ? `<span class="z2-route-role" title="契約先の役割">${_escMulti(_roleLabel)}</span>` : '';
@@ -3323,6 +3327,7 @@
     const via = (document.getElementById('z2Via')?.value || '').trim();
     const pod = (document.getElementById('z2Pod')?.value || '').trim();
     const tt  = (document.getElementById('z2Tt')?.value || '').trim();
+    const icd = (document.getElementById('z2Icd')?.value || '').trim();   // ICD（インランドデポ）：POD の国がインドのとき（js/icd.js）。POL/POD と同じく、次の航路追加のあとも残す
     if (!carrier && !pol && !pod) {
       if (typeof quoteShowToast==='function') quoteShowToast('⚠️ キャリアまたはPOL/PODを入力してください', 'warn', 1800);
       return;
@@ -3330,7 +3335,7 @@
     // carrier=契約先（ブッキング/支払先）、carrierRole=その役割、actualCarrier=実運送人（実際の船会社）
     const flags = _pendingRouteFlags || { enabled: true, ng: false, ngReason: '', rid: null, leg: '' };
     _pendingRouteFlags = null;
-    _routeEntries.push({ carrier, service, carrierRole, actualCarrier, pol, via, pod, tt,
+    _routeEntries.push({ carrier, service, carrierRole, actualCarrier, pol, via, pod, icd, tt,
                          enabled: flags.enabled, ng: flags.ng, ngReason: flags.ngReason, rid: flags.rid || _newRouteId(), leg: flags.leg || '' });
     if (flags.ng && typeof quoteShowToast === 'function') {
       quoteShowToast('🚫 使用不可の記録を引き継ぎました', 'info', 1800);
@@ -3429,6 +3434,7 @@
     set('z2Pol', r.pol);
     set('z2Via', r.via);
     set('z2Pod', r.pod);
+    set('z2Icd', r.icd);
     set('z2Tt', r.tt);
     // 契約形態パネルは常時表示のため展開処理は不要
     // 無効・使用不可の状態・rid（パターン紐付けの識別子）は再登録時に引き継ぐ（✎ で消えてしまわないように）
@@ -3437,6 +3443,7 @@
     _routeEntries.splice(i, 1);
     _renderRouteEntries();
     if (typeof onZ2CarrierChange === 'function') onZ2CarrierChange();
+    if (typeof window.icdRefresh === 'function') window.icdRefresh();
     document.getElementById('z2Pol')?.focus();   // 欄の並び（POL → POD → キャリア）の先頭へ
     if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
     if (typeof scheduleSnapshot === 'function') scheduleSnapshot();

@@ -3220,6 +3220,12 @@
 #tab-quote-make .z2-country.is-bad { border-color: #c0392b; }
 #tab-quote-make .z2-country-note { margin: 2px 0 var(--sp-4); font-size: var(--fs-10); color: var(--accent-dk); line-height: 1.5; }
 #tab-quote-make .z2-country-note[hidden] { display: none; }
+/* ICD（インランドデポ）：POD の国がインドのときだけ出る行（js/icd.js） */
+#tab-quote-make .z2-icd-row { display: flex; flex-direction: column; gap: var(--sp-4); margin: var(--sp-6) 0 var(--sp-8); }
+#tab-quote-make .z2-icd-row[hidden] { display: none; }
+#tab-quote-make .z2-icd-label { font-size: var(--fs-12); font-weight: 700; color: var(--accent-dk); }
+#tab-quote-make .z2-icd-row .z2-input { width: 100%; }
+#tab-quote-make .z2-route-icd { font-size: var(--fs-12); color: var(--accent-dk); white-space: nowrap; }
 /* 出発地側・到着地側のデフォルトサブコン：国（得意エリア）で絞った候補の説明（js/zone-subcon.js） */
 #tab-quote-make .zone-sc-note { margin: 2px 0 var(--sp-4); font-size: var(--fs-10); color: var(--accent-dk); line-height: 1.5; }
 #tab-quote-make .zone-sc-note[hidden] { display: none; }

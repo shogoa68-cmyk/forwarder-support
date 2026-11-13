@@ -51,7 +51,8 @@
     input,select{font:inherit;font-size:13px;color:#1f2a36;background:#fff;border:1px solid #b9c0c8;border-radius:5px;padding:3px 6px;min-width:0}
     input:focus,select:focus{outline:2px solid #3a6ea5;outline-offset:0;border-color:#3a6ea5}
     input:disabled,input[readonly]{background:#eef0f2;color:#5b6672}
-    .nm,.sv{width:100%}.pt{width:96px}
+    .nm,.sv{width:100%}
+    input.tx{width:15px;height:15px;padding:0;accent-color:#2f4458}.pt{width:96px}
     .q{width:64px}.u{width:84px}.p{width:86px}.m{width:70px}.cc{width:68px}
     .tg{font-size:12px;border-radius:4px;padding:0 5px;white-space:nowrap}
     .tg.c{background:#e7edf3;color:#2f4458}.tg.s{background:#fbeccd;color:#6a4a00}
@@ -61,6 +62,9 @@
     .btns button{font:inherit;font-size:13px;line-height:1;border:1px solid #c3cad2;background:#fff;border-radius:5px;padding:4px 6px;cursor:pointer;color:#2f4458}
     .btns button:hover{background:#eef2f6}
     .flag{font-size:12px}
+    .btns button.done{white-space:nowrap}
+    .btns button:disabled{opacity:.35;cursor:default}
+    .btns button.done.is-on{background:#2f8f5b;border-color:#2f8f5b;color:#fff}
     .add{margin:2px 8px 12px;font:inherit;font-size:13px;padding:8px;border:1px dashed #8d99a6;background:#fff;border-radius:6px;cursor:pointer;color:#2f4458}
     .add:hover{background:#eef2f6}
     .empty{padding:24px 12px;text-align:center;color:#6b7683}
@@ -74,6 +78,12 @@
   function send(el, ev) {
     const tr = $(el.closest('.row').dataset.row), t = fld(tr, el.dataset.bind);
     if (!t) return;
+    if (el.type === 'checkbox') {   // 課税：元のチェックを合わせて change だけ発火（元の onchange が「手で操作した」印と課税の計算をする）
+      if (ev !== 'change') return;
+      if (t.checked !== el.checked) t.checked = el.checked;
+      t.dispatchEvent(new Event('change', { bubbles: true }));
+      return;
+    }
     if (t.value !== el.value) t.value = el.value;
     t.dispatchEvent(new Event(ev, { bubbles: true }));
   }
@@ -86,6 +96,9 @@
       + '<input class="nm" type="text" data-bind="nm" list="nmSuggestions" autocomplete="off" placeholder="品名">'
       + (scope.sv === null ? '<input class="sv" type="text" data-bind="sv" list="svSuggestions" autocomplete="off" placeholder="サブコン">' : '<span></span>')
       + '<span class="btns"><span class="flag" data-flag></span>'
+      + '<button type="button" class="done" data-act="done" aria-pressed="false" title="入力完了にする">✓ 完了</button>'
+      + '<button type="button" data-act="up" title="上へ（同じサブコン・パターンの中で並び替え）">▲</button>'
+      + '<button type="button" data-act="down" title="下へ（同じサブコン・パターンの中で並び替え）">▼</button>'
       + '<button type="button" data-act="jump" title="元の画面でこの行へ移動">↗</button>'
       + '<button type="button" data-act="add" title="この行の下に追加">＋</button>'
       + '<button type="button" data-act="del" title="この行を削除">🗑</button></span></div>'
@@ -94,10 +107,19 @@
       + '<label>数量<input class="q" type="number" inputmode="decimal" data-bind="pq" min="0"></label>'
       + '<label>単位<input class="u" type="text" data-bind="un" list="unit-list" autocomplete="off"></label>'
       + '<label><span class="tg c">仕</span>' + sel('pc') + '<input class="p" type="number" inputmode="decimal" data-bind="pp" min="0"></label>'
+      + '<label title="課税対象の行（御見積書の税サマリに計上）"><input class="tx" type="checkbox" data-bind="tx">課税</label>'
       + '<label>＋乗せ<input class="m" type="number" inputmode="decimal" data-bind="mk" min="0"></label>'
       + '<label><span class="tg s">売</span>' + sel('bc') + '</label>'
       + '<span class="calc">単価 <b data-calc="bp">—</b>　金額 <b data-calc="st">—</b></span>'
       + '</div></div>';
+  }
+
+  // 並び替えの相手：同じサブコン・パターン（グループ）の中で、前／後ろにいちばん近い行（グループをまたぐ移動は元の画面と同じく禁止）
+  function neighbor(tr, dir) {
+    if (typeof window.canMoveTableRowWithinGroup !== 'function') return null;
+    const all = rowsNow(), i = all.indexOf(tr);
+    for (let j = i + dir; j >= 0 && j < all.length; j += dir) if (window.canMoveTableRowWithinGroup(tr.id, all[j].id)) return all[j];
+    return null;
   }
 
   // 行の値を小窓へ反映する（いま入力中の欄は触らない）
@@ -108,6 +130,7 @@
       const t = fld(tr, c.dataset.bind);
       if (!t) return;
       if (c.tagName === 'SELECT' && c.options.length !== t.options.length) c.innerHTML = t.innerHTML;
+      if (c.type === 'checkbox') { if (c.checked !== t.checked) c.checked = t.checked; c.disabled = !!t.disabled; return; }
       if (doc.activeElement !== c && c.value !== t.value) c.value = t.value;
       c.disabled = !!t.disabled;
       c.readOnly = !!t.readOnly;
@@ -128,6 +151,19 @@
     if (d.done === '1') flags.push('✓');
     if (d.outRange) flags.push('⏳');
     el.querySelector('[data-flag]').textContent = flags.join('');
+    // 並び替えボタン：動かせる相手がいないときは押せない
+    const ub = el.querySelector('[data-act="up"]'), dbn = el.querySelector('[data-act="down"]');
+    if (ub) ub.disabled = !neighbor(tr, -1);
+    if (dbn) dbn.disabled = !neighbor(tr, 1);
+    // 入力完了ボタンの状態（押した日時・ユーザーは吹き出しに）
+    const db = el.querySelector('[data-act="done"]');
+    if (db) {
+      const on = d.done === '1';
+      db.classList.toggle('is-on', on); db.setAttribute('aria-pressed', on ? 'true' : 'false');
+      db.textContent = on ? '✓ 完了済み' : '✓ 完了';
+      const inf = on && typeof window.rowDoneInfo === 'function' ? window.rowDoneInfo(tr) : null;
+      db.title = on ? '入力完了（クリックで解除）' + (inf && inf.text ? '：' + inf.text : '') : '入力完了にする';
+    }
   }
 
   function copyDatalists() {
@@ -196,7 +232,7 @@
     list.querySelectorAll('.row').forEach(syncRow);
     syncScope();
     syncHeader();
-    const n = doc.getElementById('pcCount'); if (n) n.textContent = rows.length + ' 行' + (scope.sv !== null ? '（全 ' + rowsNow().length + ' 行中）' : '');
+    const n = doc.getElementById('pcCount'); if (n) n.textContent = rows.length + ' 行' + (scope.sv !== null ? '（全 ' + rowsNow().length + ' 行中）' : '') + '・完了 ' + rows.filter(r => r.dataset.done === '1').length;
   }
 
   function build() {
@@ -218,6 +254,11 @@
       const row = b.closest('.row'), tr = $(row.dataset.row); if (!tr) return;
       const act = b.dataset.act;
       if (act === 'jump') { try { window.focus(); } catch (x) {} tr.scrollIntoView({ block: 'center', behavior: 'smooth' }); tr.classList.add('mc-flash'); setTimeout(() => tr.classList.remove('mc-flash'), 1600); }
+      else if (act === 'up' || act === 'down') {
+        const nb = neighbor(tr, act === 'up' ? -1 : 1);
+        if (nb && window.moveTableRowWithinGroup) { window.moveTableRowWithinGroup(tr.id, nb.id, act === 'down'); sync(true); focusMoved(tr.id, act); }
+      }
+      else if (act === 'done') { tr.querySelector('.row-done-btn')?.click(); setTimeout(() => sync(), 60); }
       else if (act === 'add') { const before = new Set(rowsNow().map(r => r.id)); tr.querySelector('.row-add-btn')?.click(); focusNew(before); }
       else if (act === 'del') { tr.querySelector('.row-del-btn')?.click(); setTimeout(() => sync(), 80); }
     });
@@ -231,6 +272,12 @@
     doc.getElementById('pcClose').addEventListener('click', () => { try { win.close(); } catch (e) {} });
     doc.getElementById('pcBack').addEventListener('click', () => { try { window.focus(); } catch (e) {} });
     doc.addEventListener('keydown', e => { if (e.key === 'Escape' && !(e.target && /^(INPUT|SELECT)$/.test(e.target.tagName))) { try { win.close(); } catch (x) {} } });
+  }
+
+  // 並び替えのあと、動かした行のボタンへ焦点を戻す（続けて押せる）
+  function focusMoved(id, act) {
+    const b = doc.querySelector('.row[data-row="' + id + '"] [data-act="' + act + '"]');
+    if (b && !b.disabled) b.focus(); else doc.querySelector('.row[data-row="' + id + '"] [data-bind="nm"]')?.focus();
   }
 
   function focusNew(before) {
