@@ -309,6 +309,7 @@ const http = require('http'), fs = require('fs'), path = require('path');
     });
     ok('案件が 1 件増え、名前は「◯◯ のサブ」・状態は下書き中', r.made && r.count === before + 1 && r.status === '下書き中', r);
     ok('コピー元 Z がメイン（parent_id＝Z）としてサブに関連付く', r.parent === 'Z', r);
+    ok('サブ作成の番号は、メインの番号の末尾に (A) を付けたもの（R-Z → R-Z(A)）で、列 ref にも入る', r.ref === 'R-Z(A)' && await p.evaluate(() => window.__db.quote_presets.find(x => x.name === '案件Z のサブ').ref === 'R-Z(A)'), r);
     ok('サブには代替わり（copiedFrom）を付けない', r.hasCopied === false, r);
     const zc = await card(p, 'Z');
     const zod = await order(p), zi = zod.findIndex(x => x.id === 'Z');
@@ -318,6 +319,7 @@ const http = require('http'), fs = require('fs'), path = require('path');
     await p.waitForTimeout(1800);
     const zc2 = await card(p, 'Z');
     const zod2 = await order(p), zi2 = zod2.findIndex(x => x.id === 'Z');
+    ok('もう一度作ると番号は (B)（R-Z(B)）になる', await p.evaluate(() => window.__db.quote_presets.find(x => x.name === '案件Z のサブ_2').data.fields['qf-ref'] === 'R-Z(B)'), await p.evaluate(() => window.__db.quote_presets.find(x => x.name === '案件Z のサブ_2').data.fields['qf-ref']));
     ok('もう一度作ると、名前が重ならず（_2）サブが 2 件になり、どちらもメインの直下に並ぶ', zc2 && zc2.head.join('|') === '🌳 サブ案件（2）' && zod2[zi2 + 1].sub && zod2[zi2 + 2].sub && !zod2[zi2 + 3].sub, [zc2, zod2.map(x => x.id + (x.sub ? '*' : ''))]);
     // サブの上でもさらにサブを作れる（孫）
     ok('ページエラーなし', errs.length === 0, errs);
@@ -346,6 +348,8 @@ const http = require('http'), fs = require('fs'), path = require('path');
     // 2) サブ（S3＝P1 のサブ・サブなし）をコピー → 同じメイン P1 のサブ（兄弟）
     await clickCopy('S3'); await p.waitForTimeout(1800);
     ok('サブのコピー：確認は出ず、コピーも同じメイン（P1）のサブとして付く', !(await dialog()) && (await lk('案件S3 のコピー')).parent === '案件P1', await lk('案件S3 のコピー'));
+    const refOf = name => p.evaluate(n => { const q = window.__db.quote_presets.find(x => x.name === n); return q && q.data.fields['qf-ref']; }, name);
+    ok('サブのコピー（兄弟）の番号も、メインの番号 + (A)（R-P1(A)）', (await refOf('案件S3 のコピー')) === 'R-P1(A)', await refOf('案件S3 のコピー'));
     const c1 = await card(p, 'P1');
     ok('メインのカードのサブが 1 件増える（S1・S3・S3のコピー＋孫 S2）', c1 && c1.head[0] === '🌳 サブ案件（4）', c1 && c1.head);
 
@@ -365,6 +369,7 @@ const http = require('http'), fs = require('fs'), path = require('path');
     const tree = await card(p, 'P1');   // 元のメインは変わらない
     ok('選んだサブ（S1）がコピーされ、コピーしたメインのサブとして付く', s1c && s1c.parent === '案件P1 のコピー', s1c);
     ok('孫（S2）もコピーされ、S1 のコピーのサブとして付く（ツリーごと）', s2c && s2c.parent === '案件S1 のコピー', s2c);
+    ok('メインと一緒にコピーしたサブの番号は、コピーしたメインの番号 + (英字)：S1 のコピー＝R-P1(B)（A は兄弟のコピーで使用済み）・孫 S2 のコピー＝R-P1(B)(A)', (await refOf('案件S1 のコピー')) === 'R-P1(B)' && (await refOf('案件S2 のコピー')) === 'R-P1(B)(A)', [await refOf('案件S1 のコピー'), await refOf('案件S2 のコピー')]);
     ok('チェックを外したサブ（S3）はコピーされない', !(await p.evaluate(() => window.__db.quote_presets.some(x => x.name === '案件S3 のコピー_2'))), s3c);
     const od3 = await order(p), pi = od3.findIndex(x => x.id === 'P1');
     ok('元のメイン P1 のサブは変わらない（P1 の直下に S3・S1 が並ぶ）', pi >= 0 && od3[pi + 1].id === 'S3' && od3[pi + 2].id === 'S1', od3.map(x => x.id));

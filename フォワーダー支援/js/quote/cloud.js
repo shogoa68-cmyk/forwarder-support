@@ -3644,25 +3644,42 @@
       picked = await _pickSubsToCopy(srcRow ? srcRow.name : 'この案件', kidNodes);
       if (!picked) return;   // やめる
     }
-    const usedNames = new Set();
-    const main = await _dupCore(c, id, { parentId: parentLink ? parentLink.otherId : null, usedNames });
+    const usedNames = new Set(), usedRefs = new Set();
+    // サブをコピーしたとき、コピーは同じメインの兄弟＝メインの番号に (A)(B)… を付ける
+    const main = await _dupCore(c, id, { parentId: parentLink ? parentLink.otherId : null, parentRef: parentLink ? ((parentLink.preset && parentLink.preset.ref) || '') : '', usedNames, usedRefs });
     if (!main || !main.id) return;
     let copiedSubs = 0, failedSubs = 0;
-    const copyTree = async (nodes, newParentId) => {
+    const copyTree = async (nodes, newParentId, newParentRef) => {
       for (const n of nodes) {
         if (!picked.has(n.id)) continue;   // 外したサブは、その下のサブもコピーしない
-        const r = await _dupCore(c, n.id, { parentId: newParentId, usedNames });
+        const r = await _dupCore(c, n.id, { parentId: newParentId, parentRef: newParentRef, usedNames, usedRefs });
         if (!r || !r.id) { failedSubs++; continue; }
         copiedSubs++;
-        await copyTree(n.kids || [], r.id);
+        await copyTree(n.kids || [], r.id, r.ref);
       }
     };
-    if (picked && picked.size) await copyTree(kidNodes, main.id);
+    if (picked && picked.size) await copyTree(kidNodes, main.id, main.ref);
     let msg = '📋 「' + main.srcName + '」をコピーしました → 「' + main.name + '」';
     if (parentLink) msg += main.linked ? '（同じメイン「' + (parentLink.preset.name || '') + '」のサブとして関連付けました）' : '（メインへの関連付けはできませんでした）';
     if (copiedSubs) msg += '／サブ ' + copiedSubs + ' 件も一緒にコピー';
     quoteShowToast(failedSubs ? '⚠️ ' + msg + '（サブ ' + failedSubs + ' 件はコピーできませんでした）' : msg, failedSubs ? 'warn' : 'success', 5000);
     cloudListPresets();
+  }
+
+  // 🔢 サブ案件の採番：親（メイン）の見積番号の末尾に (A)(B)(C)…（26 を超えたら (AA)(AB)…）を付ける。
+  // すでにある同じ親のサブ（番号が「親の番号(英字)」の案件）の最大の次を使う（途中が消えていても詰め直さない＝番号の使い回しを避ける）
+  function _subRefLetters(i) { let s = ''; i++; while (i > 0) { const m = (i - 1) % 26; s = String.fromCharCode(65 + m) + s; i = Math.floor((i - 1) / 26); } return s; }
+  function _subRefIndex(letters) { let n = 0; for (const ch of letters) n = n * 26 + (ch.charCodeAt(0) - 64); return n - 1; }
+  const _sessionSubRefs = new Set();   // この画面で作ったサブの番号（一覧の取り直しが間に合う前に続けて作っても重ならないように）
+  function _nextSubRef(parentRef, usedRefs) {
+    const esc = parentRef.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const re = new RegExp('^' + esc + '\\(([A-Z]+)\\)$');
+    let max = -1;
+    const scan = ref => { const m = re.exec((ref || '').trim()); if (m) max = Math.max(max, _subRefIndex(m[1])); };
+    _cloudRows.forEach(r => scan((r.data && r.data.fields && r.data.fields['qf-ref']) || r.ref));
+    if (usedRefs) usedRefs.forEach(scan);
+    _sessionSubRefs.forEach(scan);
+    return parentRef + '(' + _subRefLetters(max + 1) + ')';
   }
 
   // 「サブも一緒にコピーしますか？」：サブ案件ツリーのチェック一覧。戻り値＝コピーする案件の id の Set（やめる＝null）
@@ -3748,8 +3765,15 @@
       };
     }
     // 発番ID取得済みなら新REF#をコピー時点で採番（未取得の場合はコピー元番号を保持）
-    const newRef = typeof generateQuoteRefValue === 'function' ? generateQuoteRefValue() : null;
+    // サブ（サブ案件を作成・サブのコピー・メインと一緒にコピーするサブ）は、親の番号 + (A)(B)… で採番する。
+    // 親の番号が無いときは、通常のコピーと同じ（新しい番号／無ければコピー元の番号）
+    const subParentRef = asSub ? srcRef : (opts.parentId ? (opts.parentRef || '').trim() : '');
+    const newRef = subParentRef
+      ? _nextSubRef(subParentRef, opts.usedRefs)
+      : (typeof generateQuoteRefValue === 'function' ? generateQuoteRefValue() : null);
     if (newRef) newData.fields['qf-ref'] = newRef;
+    if (newRef && opts.usedRefs) opts.usedRefs.add(newRef);
+    if (newRef && subParentRef) _sessionSubRefs.add(newRef);
     delete newData.fields['qf-core-ref'];   // 基幹REF#は手配した案件に固有のため、コピーには引き継がない
     ['qf-lost-reason', 'qf-lost-note', 'qf-inq-kind', 'qf-inq-channel', 'qf-inq-spec'].forEach(k => delete newData.fields[k]);   // 失注理由・引き合いの経路は元の案件／依頼に固有
     delete newData.fields['qf-first-presented'];   // 初回の提示日時（回答スピード）もコピー元のもの
@@ -3804,13 +3828,13 @@
         const lk = await cloudLinkPresets(opts.parentId, newId, '', { silent: true, parent: opts.parentId });
         linked = !!lk.ok;
       }
-      return { id: newId, name: copyName, srcName: src.name, linked };
+      return { id: newId, name: copyName, srcName: src.name, linked, ref: (newData.fields['qf-ref'] || '').trim() };
     }
     // ---- サブ案件：できた案件をコピー元のサブとして関連付ける ----
     if (!newId) { quoteShowToast('⚠️ サブ案件は作成しましたが、関連付けできませんでした（一覧から関連付けてください）', 'warn', 7000); cloudListPresets(); return; }
     let lk = await cloudLinkPresets(src.id, newId, '', { silent: true, parent: src.id });
     if (lk.ok) {
-      quoteShowToast('🌱 「' + src.name + '」のサブ案件を作成しました → 「' + copyName + '」', 'success', 3500);
+      quoteShowToast('🌱 「' + src.name + '」のサブ案件を作成しました → 「' + copyName + '」' + (newData.fields['qf-ref'] ? '（番号 ' + newData.fields['qf-ref'] + '）' : ''), 'success', 4000);
     } else {
       // メイン／サブの列が無い（SQL 未実行）ときなどは、ただの関連として付けておく
       const plain = await cloudLinkPresets(src.id, newId, '', { silent: true });
@@ -3820,7 +3844,7 @@
         : '⚠️ サブ案件は作成しましたが、関連付けに失敗しました（一覧の「関連付けモード」から付けてください）', 'warn', 8000);
     }
     cloudListPresets();
-    return { id: newId, name: copyName, srcName: src.name, linked: !!lk.ok };
+    return { id: newId, name: copyName, srcName: src.name, linked: !!lk.ok, ref: (newData.fields['qf-ref'] || '').trim() };
   }
   // 「🌱 サブ作成」＝この案件をコピーして、サブ案件として関連付ける
   function cloudCreateSubPreset(rawId) { return cloudDuplicatePreset(rawId, { asSub: true }); }
