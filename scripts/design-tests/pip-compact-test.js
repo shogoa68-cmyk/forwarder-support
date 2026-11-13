@@ -42,7 +42,7 @@ let fails = 0; const ok = (n, c, x) => { if (!c) fails++; console.log((c ? 'PASS
   await p.evaluate(() => window.quotePipToggle());
   const pop = await popupP; await pop.waitForLoadState().catch(() => {}); await pop.waitForTimeout(600);
   ok('小窓が開く', !!pop);
-  const q = f => pop.evaluate(f);
+  const q = (f, a) => pop.evaluate(f, a);
   ok('小窓に明細が 1 行出る（品名・サブコン・数量・単位が元の行の値）', await q(() => { const r = document.querySelector('.row'); return !!r && r.querySelector('[data-bind="nm"]').value === 'THC 20' && r.querySelector('[data-bind="sv"]').value === 'WAN HAI' && r.querySelector('[data-bind="pq"]').value === '1' && r.querySelector('[data-bind="un"]').value === "20'GP" && r.querySelector('[data-bind="pp"]').value === '36000'; }));
   ok('ボタンは「表示中」になる', await p.evaluate(() => /表示中/.test(document.querySelector('.cmdbar-pip-btn').textContent) && document.querySelector('.cmdbar-pip-btn').classList.contains('is-on')));
   ok('合計（仕・売・粗利）が小窓の見出しに出る', await q(() => document.getElementById('pcSell').textContent.trim() !== '' && document.getElementById('pcCost').textContent.trim() !== ''));
@@ -107,6 +107,60 @@ let fails = 0; const ok = (n, c, x) => { if (!c) fails++; console.log((c ? 'PASS
     ok('別のサブコン（KMTC）に切り替えると、パターンの選択は「すべて」に戻り、KMTC の行だけ', JSON.stringify(await names()) === JSON.stringify(['CFS']), await names());
     await pop.selectOption('#pcSv', { label: 'すべてのサブコン' }); await pop.waitForTimeout(300);
     ok('「すべてのサブコン」に戻すと全行が出て、パターン欄も戻る', (await names()).length >= 5 && await q(() => !!document.querySelector('.row [data-bind="sv"]') && document.getElementById('pcPt').hidden));
+  }
+  // ---- 入力完了のボタン ----
+  {
+    const id0 = (await rowIds())[0];
+    ok('各行に「入力完了」ボタンがあり、最初は未完了', await q(() => { const b = document.querySelector('.row [data-act="done"]'); return !!b && b.getAttribute('aria-pressed') === 'false' && !b.classList.contains('is-on'); }));
+    await p.evaluate(() => { window.cloudCurrentUser = () => ({ email: 'taro@example.com' }); window.cloudNameFor = () => '山田太郎'; });
+    await pop.click('.row:nth-child(1) [data-act="done"]'); await pop.waitForTimeout(500);
+    ok('押すと、元の行が入力完了になる（日時・ユーザーも記録）', await p.evaluate(id => { const t = document.getElementById('row-' + id); return t.dataset.done === '1' && !!t.dataset.doneAt && t.dataset.doneBy === 'taro@example.com'; }, id0));
+    ok('小窓のボタンが「完了済み」（緑）になり、吹き出しに日時・ユーザーが出る', await q(() => { const b = document.querySelector('.row [data-act="done"]'); return b.classList.contains('is-on') && /完了済み/.test(b.textContent) && /山田太郎/.test(b.title); }));
+    ok('見出しの「完了 N」に数える', await q(() => /完了 1/.test(document.getElementById('pcCount').textContent)));
+    await set(id0, 'pq', '4'); await p.waitForTimeout(100);
+    // 元の画面で解除 → 小窓へ
+    await p.evaluate(id => document.querySelector(`#tableBody tr#row-${id} .row-done-btn`).click(), id0); await pop.waitForTimeout(1900);
+    ok('元の画面で完了を解除すると、小窓のボタンも未完了に戻る', await q(() => { const b = document.querySelector('.row [data-act="done"]'); return !b.classList.contains('is-on') && /✓ 完了$/.test(b.textContent); }));
+    await pop.click('.row:nth-child(1) [data-act="done"]'); await pop.waitForTimeout(400);
+    await pop.click('.row:nth-child(1) [data-act="done"]'); await pop.waitForTimeout(400);
+    ok('もう一度押すと解除され、記録も消える', await p.evaluate(id => { const t = document.getElementById('row-' + id); return !t.dataset.done && !t.dataset.doneAt; }, id0));
+  }
+  // ---- 並び替え（▲▼）----
+  {
+    // 同じサブコン・パターンの行を 3 つ（A・B・C）用意する
+    const idsNow = await rowIds();
+    for (let k = idsNow.length; k < 3; k++) { await pop.click('#pcAdd'); await pop.waitForTimeout(500); }
+    const three = (await rowIds()).slice(0, 3);
+    for (const [i, id] of three.entries()) { await set(id, 'sv', 'ORD CO'); await set(id, 'pt', ''); await set(id, 'nm', 'ROW' + 'ABC'[i]); }
+    await p.waitForTimeout(1800);
+    await pop.selectOption('#pcSv', { label: 'ORD CO' }); await pop.waitForTimeout(400);
+    const names = () => q(() => [...document.querySelectorAll('.row [data-bind="nm"]')].map(x => x.value));
+    const mainOrder = () => p.evaluate(() => [...document.querySelectorAll('#tableBody tr[id^="row-"]:not([data-virtual]):not([data-type]) [data-field="nm"]')].map(x => x.value).filter(v => /^ROW/.test(v)));
+    ok('並び替えボタンがある。先頭の行の▲と末尾の行の▼は押せない', await q(() => { const rs = document.querySelectorAll('.row'); return rs[0].querySelector('[data-act="up"]').disabled && !rs[0].querySelector('[data-act="down"]').disabled && rs[rs.length - 1].querySelector('[data-act="down"]').disabled; }));
+    await pop.click('.row:nth-child(1) [data-act="down"]'); await pop.waitForTimeout(700);
+    ok('▼で 1 つ下へ動く（小窓）', JSON.stringify(await names()) === JSON.stringify(['ROWB', 'ROWA', 'ROWC']), await names());
+    ok('元の画面の並びも変わる', JSON.stringify(await mainOrder()) === JSON.stringify(['ROWB', 'ROWA', 'ROWC']), await mainOrder());
+    await pop.click('.row:nth-child(3) [data-act="up"]'); await pop.waitForTimeout(700);
+    ok('▲で 1 つ上へ動く', JSON.stringify(await names()) === JSON.stringify(['ROWB', 'ROWC', 'ROWA']), await names());
+    ok('動かした行のボタンに焦点が残り、続けて押せる', await q(() => document.activeElement && document.activeElement.dataset.act === 'up'));
+    // グループをまたがない：別のサブコンの行とは入れ替わらない
+    await pop.selectOption('#pcSv', { label: 'すべてのサブコン' }); await pop.waitForTimeout(400);
+    const before = await mainOrder();
+    await pop.click('.row[data-row] >> nth=0').catch(() => {});
+    ok('サブコンが違う行どうしでは動かない（グループの端の▲▼は押せない）', await q(() => { const rs = [...document.querySelectorAll('.row')]; return rs.every(r => { const sv = r.querySelector('[data-bind="sv"]').value; const same = rs.filter(x => x.querySelector('[data-bind="sv"]').value === sv); return same.length > 1 || (r.querySelector('[data-act="up"]').disabled && r.querySelector('[data-act="down"]').disabled); }); }));
+  }
+  // ---- 課税 ----
+  {
+    const id0 = (await rowIds())[0];
+    const txMain = () => p.evaluate(id => ({ c: document.querySelector(`#tableBody tr#row-${id} [data-field="tx"]`).checked, nm: document.querySelector(`#tableBody tr#row-${id} [data-field="nm"]`).value, u: document.getElementById('row-' + id).dataset.txUserSet || '' }), id0);
+    ok('各行に「課税」のチェックがあり、元の行と同じ状態', await q(() => !!document.querySelector('.row [data-bind="tx"]')) && (await q(() => document.querySelector('.row [data-bind="tx"]').checked)) === (await txMain()).c);
+    const was = (await txMain()).c;
+    await pop.click('.row:nth-child(1) [data-bind="tx"]'); await pop.waitForTimeout(500);
+    const m = await txMain();
+    ok('小窓で課税をチェックすると、元の行も切り替わる（元の onchange が働き、手で操作した印が付く）', m.c === !was && m.u === '1', m);
+    ok(was ? '課税を外すと品名の「*」が外れる' : '課税にすると品名の先頭に「*」が付く（小窓の品名にも反映）', was ? !/^\*/.test(m.nm) : /^\*/.test(m.nm) && await q(() => /^\*/.test(document.querySelector('.row [data-bind="nm"]').value)), m);
+    await p.evaluate(([id, w]) => { const c = document.querySelector(`#tableBody tr#row-${id} [data-field="tx"]`); c.checked = w; c.dispatchEvent(new Event('change', { bubbles: true })); }, [id0, was]); await pop.waitForTimeout(1900);
+    ok('元の画面で課税を戻すと、小窓のチェックも戻る', await q(w => document.querySelector('.row [data-bind="tx"]').checked === w, was));
   }
   // 閉じる
   await pop.click('#pcClose').catch(() => {}); await p.waitForTimeout(600);

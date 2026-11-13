@@ -80,7 +80,7 @@
   const _pendingReq = (field, value) => _reqs.find(r => r.status === 'pending' && !r.alias_of && r.field === field && r.value === value);
   // メンバーの別名追加・マスター名変更などは、承認制のとき管理者が行う（別名の追加だけは申請になる）
   window.statsAliasNeedsApproval = () => _approvalOn() && !_isAdmin() && _aliasReqOn;
-  const _FIELD_LABEL = { sv: 'サブコン', carrier: 'キャリア', nm: '品名', un: '単位', customer: 'お客様', port: '港' };
+  const _FIELD_LABEL = { sv: 'サブコン', carrier: 'キャリア', nm: '品名', un: '単位', customer: 'お客様', port: '港', icd: 'ICD' };
   function _toast(msg, type, ms) { if (typeof window.quoteShowToast === 'function') window.quoteShowToast(msg, type || 'success', ms || 3200); }
 
   async function _request(field, value, country) {
@@ -2680,7 +2680,7 @@
 
   let _regOpen = false;   // 「代表を新規登録」の開閉（Industry。再描画しても保つ）
   // マスターの新規登録は、詳細ポップアップと同じ見た目のモーダルで行う（種別・マスター名・続けて登録）
-  const _REG_FIELDS = [['sv', 'サブコン', '例）ABC Logistics Co., Ltd.'], ['customer', 'お客様', '例）ABC Corporation Ltd.'], ['nm', '品名', '例）海上運賃'], ['port', '港', '例）Yokohama'], ['un', '単位', '例）CONTAINER']];
+  const _REG_FIELDS = [['sv', 'サブコン', '例）ABC Logistics Co., Ltd.'], ['customer', 'お客様', '例）ABC Corporation Ltd.'], ['nm', '品名', '例）海上運賃'], ['port', '港', '例）Yokohama'], ['icd', 'ICD（インランドデポ）', '例）ICD Tughlakabad'], ['un', '単位', '例）CONTAINER']];
   function _regModalEl() { return document.getElementById('masterNewModal'); }
   window.statsMasterCloseRegister = function () {
     const m = _regModalEl(); if (!m) return;
@@ -2861,10 +2861,10 @@
         entries.push({ field, value, votes: total, isMine, promoted: true });
       });
     }
-    const labels = { sv: 'サブコン', carrier: 'キャリア', nm: '品名', un: '単位', customer: 'お客様', port: '港' };
+    const labels = { sv: 'サブコン', carrier: 'キャリア', nm: '品名', un: '単位', customer: 'お客様', port: '港', icd: 'ICD' };
 
     // --- マスターを新規登録するフォーム（実データに無い名称も登録可）---
-    const fieldOpts = [['sv', 'サブコン'], ['nm', '品名'], ['customer', 'お客様'], ['port', '港'], ['un', '単位']]
+    const fieldOpts = [['sv', 'サブコン'], ['nm', '品名'], ['customer', 'お客様'], ['port', '港'], ['icd', 'ICD'], ['un', '単位']]
       .map(([v, l]) => `<option value="${v}"${v === _masterFieldFilter ? ' selected' : ''}>${l}</option>`).join('');
     const formH = '<div class="master-register-bar"><button type="button" class="master-register-toggle" onclick="statsMasterToggleRegister()">＋ マスターを新規登録</button></div>';
 
@@ -2881,20 +2881,20 @@
     entries = entries.filter(m => !synCanonSet.has(m.field + '\x00' + m.value));
 
     // --- 種別絞り込みチップ（件数＝個別マスター＋同義グループの合算）---
-    const fieldOrder = ['sv', 'customer', 'port', 'nm', 'un'];   // すべて｜サブコン｜お客様｜港｜品名｜単位
+    const fieldOrder = ['sv', 'customer', 'port', 'icd', 'nm', 'un'];   // すべて｜サブコン｜お客様｜港｜品名｜単位
     const counts = {};
     fieldOrder.forEach(f => { counts[f] = 0; });
     entries.forEach(m => { counts[m.field] = (counts[m.field] || 0) + 1; });
     allSyn.forEach(g => { counts[g.field] = (counts[g.field] || 0) + 1; });
     const totalCount = Object.values(counts).reduce((s, n) => s + n, 0);
     // 現在の絞り込み種別が0件になったら「すべて」に戻す（削除・解除で空になった場合）
-    if (_masterFieldFilter !== 'all' && !counts[_masterFieldFilter] && _masterFieldFilter !== 'port') _masterFieldFilter = 'all';   // 港は、マスターが 0 件でも選べる（一括登録の入口があるため）
+    if (_masterFieldFilter !== 'all' && !counts[_masterFieldFilter] && _masterFieldFilter !== 'port' && _masterFieldFilter !== 'icd') _masterFieldFilter = 'all';   // 港は、マスターが 0 件でも選べる（一括登録の入口があるため）
     const chip = (f, label, n) =>
       `<button class="master-filter-chip${_masterFieldFilter === f ? ' is-active' : ''}" ` +
       `onclick="statsMasterSetFilter('${f}')">${label}<span class="master-filter-count">${n}</span></button>`;
     let chipsH = _masterSearchHtml() + '<div class="master-filter-chips">' +
       chip('all', 'すべて', totalCount) +
-      fieldOrder.filter(f => counts[f] > 0 || f === 'port').map(f => chip(f, labels[f], counts[f])).join('') +
+      fieldOrder.filter(f => counts[f] > 0 || f === 'port' || f === 'icd').map(f => chip(f, labels[f], counts[f])).join('') +
       '</div>';
 
     // 絞り込みを適用
@@ -4349,7 +4349,7 @@
   };
 
   window.statsMasterAddAbbrev = function (field, value) {
-    const labels = { sv: 'サブコン', carrier: 'キャリア', nm: '品名', un: '単位', customer: 'お客様', port: '港' };
+    const labels = { sv: 'サブコン', carrier: 'キャリア', nm: '品名', un: '単位', customer: 'お客様', port: '港', icd: 'ICD' };
     const safeId = 'abbrev-inline-' + Math.random().toString(36).slice(2, 7);
     const tr = Array.from(document.querySelectorAll('#statsPane-master tr[data-mfield]'))
       .find(r => r.dataset.mfield === field && r.dataset.mvalue === value);

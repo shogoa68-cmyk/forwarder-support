@@ -640,7 +640,7 @@
 
     const rules = await window.arGetRules();
     const fields = ['sv', 'carrier', 'customer', 'nm', 'un', 'port'];
-    const fieldLabel = { sv: 'サブコン', carrier: 'キャリア', nm: '品名', un: '単位', port: '港', customer: 'お客様' };
+    const fieldLabel = { sv: 'サブコン', carrier: 'キャリア', nm: '品名', un: '単位', port: '港', customer: 'お客様', icd: 'ICD' };
     const grouped = {};
     fields.forEach(f => { grouped[f] = rules.filter(r => r.field === f); });
 
@@ -737,7 +737,7 @@
 
     // 略称辞書セクション
     const abbrevPairs = _loadAbbrevPairs();
-    const abbrevFieldLabel = { sv: 'サブコン', carrier: 'キャリア', nm: '品名', un: '単位', customer: 'お客様', port: '港' };
+    const abbrevFieldLabel = { sv: 'サブコン', carrier: 'キャリア', nm: '品名', un: '単位', customer: 'お客様', port: '港', icd: 'ICD' };
     h += `<div class="ar-abbrev-section">
   <h4 class="ar-section-title">📖 略称・別名の登録${abbrevPairs.length ? `（${abbrevPairs.length}件）` : ''}</h4>
   <p class="ar-abbrev-desc">略称・英語表記を、正式名称（マスター）の「別名」として登録します。マスター管理の「＋ 別名」と同じ登録で、チームで共有されます（例：NTL ＝ NAIGAI TRANS LINES）。</p>${_abbrevShareHtml(abbrevPairs)}
@@ -761,7 +761,7 @@
     // 除外リスト
     const excl = _exclAll();
     if (excl.length > 0) {
-      const fl = { sv: 'サブコン', carrier: 'キャリア', nm: '品名', un: '単位', port: '港', customer: 'お客様' };
+      const fl = { sv: 'サブコン', carrier: 'キャリア', nm: '品名', un: '単位', port: '港', customer: 'お客様', icd: 'ICD' };
       h += `<div class="ar-excl-section">
   <h4 class="ar-section-title">🚫 ゆらぎ判定 除外リスト（${excl.length}件）</h4>
   <p class="ar-excl-desc">以下の表記はゆらぎ判定から外れています（別物として扱います）。</p>
@@ -814,7 +814,7 @@
       if (typeof window.quoteShowToast === 'function') window.quoteShowToast('置換の対象になる案件はありませんでした', 'info');
       return;
     }
-    const fl = { sv: 'サブコン', carrier: 'キャリア', customer: 'お客様', nm: '品名', un: '単位', port: '港' };
+    const fl = { sv: 'サブコン', carrier: 'キャリア', customer: 'お客様', nm: '品名', un: '単位', port: '港', icd: 'ICD' };
     const ruleLines = rules.slice(0, 6).map(r => `・${fl[r.field] || r.field}：「${r.from_value}」→「${r.to_value}」`);
     if (rules.length > 6) ruleLines.push(`　ほか ${rules.length - 6} 件のルール`);
     const counts = [doLocal ? `ブラウザ ${nLocal} 件` : '', doCloud ? `クラウド ${nCloud} 件` : ''].filter(Boolean).join('／');
@@ -849,6 +849,7 @@
     svSuggestions: 'sv', nmSuggestions: 'nm', 'unit-list': 'un',
     custSuggestions: 'customer', portSuggestions: 'port', 'carriers-dl': 'carrier',
     z2PolList: 'port', z2ViaList: 'port', z2PodList: 'port',   // 国で絞った港の候補（js/port-country.js）
+    z2IcdList: 'icd',   // 幹線輸送の ICD（インランドデポ）の入力候補（js/icd.js）
     z1ScList: 'sv', z3ScList: 'sv',   // 出発地側・到着地側のデフォルトサブコンを、その国を得意エリアとするサブコンに絞った候補（js/zone-subcon.js）
   };
   // 入力値が「ある同義グループの統合表記（別名）」なら代表名を返す。代表名そのもの・未登録なら null。
@@ -955,25 +956,27 @@
 
   // 港（POL／経由地／POD）：国を選んだうえで、マスターに無い港名を確定したとき、その国の港として登録（承認制は申請）するか確認する
   //   国の選択は js/port-country.js（ptcCountryOf）。国を選んでいない・マスターが 1 件も無い間（未整備・読込前）は出さない
-  function _showPortRegisterSuggest(input, value, c) {
+  function _showPortRegisterSuggest(input, value, c, kind) {
+    const fld = kind === 'icd' ? 'icd' : 'port', lbl = kind === 'icd' ? 'ICD（インランドデポ）' : '港';
     const asRequest = typeof window.statsIsApprovalOn === 'function' && window.statsIsApprovalOn();
     _openSuggest(input,
-      `<span class="syn-suggest-msg">⚠️ 「<b>${_esc(value)}</b>」は港のマスターに未登録です</span>` +
-      `<button type="button" class="syn-suggest-apply">🌐 ${_esc(c.ja)}の港として${asRequest ? '登録を申請' : 'マスター登録'}</button>` +
+      `<span class="syn-suggest-msg">⚠️ 「<b>${_esc(value)}</b>」は${lbl}のマスターに未登録です</span>` +
+      `<button type="button" class="syn-suggest-apply">🌐 ${_esc(c.ja)}の${lbl}として${asRequest ? '登録を申請' : 'マスター登録'}</button>` +
       `<button type="button" class="syn-suggest-dismiss" title="登録せずこのまま使う">このまま使う</button>`,
       el => el.querySelector('.syn-suggest-apply').addEventListener('click', async () => {
         _dismissSuggest();
         // 誤字のまま登録されると、チーム全員の候補に出て表記の揺れの元になるため、ひと呼吸おく
-        if (!confirm('港「' + value + '」を、' + c.ja + '（' + c.code + '）の港として' + (asRequest ? 'マスター登録を申請します（管理者の承認後に、チーム全員の入力候補に出ます）。' : 'マスターに登録します。') +
+        if (!confirm(lbl + '「' + value + '」を、' + c.ja + '（' + c.code + '）の' + lbl + 'として' + (asRequest ? 'マスター登録を申請します（管理者の承認後に、チーム全員の入力候補に出ます）。' : 'マスターに登録します。') +
           '\n表記（スペル・大文字小文字）と国に誤りがないか確認してください。\n\nよろしいですか？')) return;
         if (typeof window.statsRegisterWithCountry === 'function') {
-          const r = await window.statsRegisterWithCountry('port', value, c.code);
-          if (r && r.status === 'registered' && typeof window.quoteShowToast === 'function') window.quoteShowToast('📇 港「' + value + '」を' + c.ja + 'の港としてマスター登録しました', 'success', 2800);
+          const r = await window.statsRegisterWithCountry(fld, value, c.code);
+          if (r && r.status === 'registered' && typeof window.quoteShowToast === 'function') window.quoteShowToast('📇 ' + lbl + '「' + value + '」を' + c.ja + 'の' + lbl + 'としてマスター登録しました', 'success', 2800);
         }
         _refreshDatalist();
         if (typeof window.ptcRefreshLists === 'function') window.ptcRefreshLists();
+        if (typeof window.icdRefresh === 'function') window.icdRefresh();
         if (typeof window.zscRefreshLists === 'function') window.zscRefreshLists();
-        _markUnregistered(input, 'port', true);
+        _markUnregistered(input, fld, true);
         if (typeof window.statsRerenderActive === 'function') window.statsRerenderActive();
       }),
       12000);
@@ -985,6 +988,18 @@
     const masters = _masterValues('port');
     if (!masters.length || masters.includes(v)) { _dismissSuggest(); return; }
     _showPortRegisterSuggest(input, v, c);
+  }
+
+  // ICD（インランドデポ）：マスターに無い名前を確定したら、その国のICDとして登録（承認制は申請）するか確認する。
+  //   港と違い、ICD のマスターは最初は 0 件なので、0 件でも確認を出す（登録の入口になる）。国は POD の国（js/icd.js icdCountry）
+  function _checkIcdMaster(input) {
+    const v = (input.value || '').trim();
+    if (!v) { _dismissSuggest(); return; }
+    const masters = _masterValues('icd');
+    if (masters.includes(v)) { _dismissSuggest(); return; }
+    const c = typeof window.icdCountry === 'function' ? window.icdCountry() : null;
+    if (!c) { _dismissSuggest(); return; }
+    _showPortRegisterSuggest(input, v, c, 'icd');
   }
 
   // 入力確定（change＝blur時など）で別名一致を判定して提案
@@ -1014,6 +1029,7 @@
     if (canon) _showSynSuggest(t, canon);
     else if (field === 'sv') _checkSubconMaster(t);   // サブコンはマスター引用：未登録なら確認
     else if (field === 'port' && /^z2(Pol|Via|Pod)$/.test(t.id)) _checkPortMaster(t);   // 国を選んだ港は、その国の港として登録を促す
+    else if (field === 'icd' && t.id === 'z2Icd') _checkIcdMaster(t);   // ICD は、POD の国のICDとして登録を促す
     else _dismissSuggest();
     if (field === 'sv' && typeof window.refreshAllRowSvChips === 'function') window.refreshAllRowSvChips();
   });
@@ -1792,6 +1808,8 @@
     ],
     carrier: [_FURIGANA_FIELD, _EN_FIELD, _AREAS_FIELD, _GROUP_FIELD, _CONTACTS_FIELD],
     // 港の「国」（国コードで保存・表示は日本語名。POL/POD の国ごとの情報の土台。data/countries.js の候補から選ぶ）
+    // ICD（インランドデポ）：インドの内陸通関拠点など。国で絞って、幹線輸送のPODがその国のときに候補に出す（js/icd.js）
+    icd:     [_FURIGANA_FIELD, _EN_FIELD, { key: 'country', label: '国', country: true, placeholder: '例）インド（国名・国コード IN のどちらでも。候補から選べます）' }],
     port:    [_FURIGANA_FIELD, _EN_FIELD, { key: 'country', label: '国', country: true, placeholder: '例）ベトナム（国名・国コード VN のどちらでも。候補から選べます）' }],
   };
 

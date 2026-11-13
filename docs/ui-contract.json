@@ -581,6 +581,7 @@
   "z2Carrier",
   "z2CarrierLinks",
   "z2CarrierRole",
+  "z2Icd",
   "z2ModeIcon",
   "z2Pod",
   "z2Pol",
@@ -5290,6 +5291,10 @@
    "html": false,
    "js": true
   },
+  "sig": {
+   "html": false,
+   "js": true
+  },
   "sitab": {
    "html": true,
    "js": true
@@ -5580,6 +5585,7 @@
   "js/master-mobile.js",
   "js/drift-engine.js",
   "js/drift-check.js",
+  "js/icd.js",
   "js/port-country.js",
   "js/zone-subcon.js",
   "js/customer-rules.js",
