@@ -6208,6 +6208,18 @@ body.qp-dash-active #quoteActionDock { display: none !important; }
 }
 #tab-quote-make .cp-kv-v { font-size: var(--fs-11); color: #2a1a08; word-break: break-all; }
 #tab-quote-make .cp-cond-empty { font-size: var(--fs-11); color: #9a8070; width: 100%; }
+/* 航路をチェックして現在の見積へ追加（類似案件プレビュー） */
+#tab-quote-make .cp-kv-route { align-items: flex-start; }
+#tab-quote-make .cp-route-pick { display: inline-flex; align-items: center; flex-shrink: 0; padding-top: 1px; cursor: pointer; }
+#tab-quote-make .cp-route-pick input { margin: 0; width: 15px; height: 15px; cursor: pointer; }
+#tab-quote-make .cp-route-copybar { display: flex; align-items: center; flex-wrap: wrap; gap: var(--sp-8); margin-top: var(--sp-6); }
+#tab-quote-make .cp-btn-route {
+  font-size: var(--fs-12); font-weight: 600; padding: 5px 12px; border-radius: 6px; cursor: pointer;
+  background: #fff; color: #1f5f8b; border: 1px solid #1f5f8b; min-height: 30px;
+}
+#tab-quote-make .cp-btn-route:hover:not(:disabled) { background: #1f5f8b; color: #fff; }
+#tab-quote-make .cp-btn-route:disabled { opacity: .45; cursor: default; }
+#tab-quote-make .cp-route-count { font-size: var(--fs-12); color: #9a8070; }
 /* ---- end 引き合い条件 ---- */
 #tab-quote-make .cloud-preview-body { flex: 1; overflow-y: auto; overflow-x: auto; padding: 0; }
 #tab-quote-make .cp-table {

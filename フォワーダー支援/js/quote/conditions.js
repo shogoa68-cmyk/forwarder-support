@@ -3452,6 +3452,41 @@
   window.editRouteEntry    = editRouteEntry;
   window.toggleRouteNg     = toggleRouteNg;
   window.editRouteNgReason = editRouteNgReason;
+  // 類似案件のプレビューから、選んだ航路を現在の見積の航路へ追加する（cloud.js cpCopyRoutes から）。
+  // 同じ航路（キャリア・サービス・POL・経由・POD・ICD が一致）は重ねない。rid は新しく振り直し、
+  // 往路／復路の指定（leg）は引き継がない（往復の組み立てはコピー先の案件で決めるため）。
+  // 使用不可（ng）の記録は理由ごと引き継ぐ。戻り値＝{added, skipped}
+  window.appendRouteEntries = function (routes) {
+    const norm = s => String(s == null ? '' : s).trim().toLowerCase().replace(/\s+/g, ' ');
+    const keyOf = r => [r.carrier, r.service, r.pol, r.via, r.pod, r.icd].map(norm).join('|');
+    const have = new Set(_routeEntries.map(keyOf));
+    let added = 0, skipped = 0;
+    (routes || []).forEach(src => {
+      if (!src) return;
+      const r = {
+        carrier: src.carrier || '', service: src.service || '',
+        carrierRole: src.carrierRole || '', actualCarrier: src.actualCarrier || '',
+        pol: src.pol || '', via: src.via || '', pod: src.pod || '', icd: src.icd || '', tt: src.tt || '',
+        enabled: src.ng ? false : src.enabled !== false, ng: !!src.ng, ngReason: src.ng ? (src.ngReason || '') : '',
+        rid: _newRouteId(), leg: ''
+      };
+      if (!r.carrier && !r.pol && !r.pod) return;
+      const k = keyOf(r);
+      if (have.has(k)) { skipped++; return; }
+      have.add(k);
+      _routeEntries.push(r);
+      added++;
+    });
+    if (added) {
+      _renderRouteEntries();
+      if (typeof window.icdRefresh === 'function') window.icdRefresh();
+      if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
+      if (typeof scheduleSnapshot === 'function') scheduleSnapshot();
+      _triggerCarrierBmFetch();
+    }
+    return { added, skipped };
+  };
+
   // 復元用
   function syncRouteEntries() {
     const data = document.getElementById('z2-routes-data');

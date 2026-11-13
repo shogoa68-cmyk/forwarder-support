@@ -2758,7 +2758,16 @@
     return `<div class="cp-kv"><span class="cp-kv-k">${escHtml(k)}</span><span class="cp-kv-v">${escHtml(String(v || ''))}</span></div>`;
   }
 
-  function _cpRenderCondInfo(fields) {
+  // プレビュー中の案件の航路（チェックして現在の見積へ追加できる）。添字は data-ridx
+  let _cpRoutes = [];
+  function _cpRouteKV(k, v, idx, checked) {
+    return `<div class="cp-kv cp-kv-route"><label class="cp-route-pick"><input type="checkbox" class="cp-route-chk" data-ridx="${idx}"${checked ? ' checked' : ''} onchange="cpUpdateRouteCount()" title="この航路を現在の見積へ追加する"></label>`
+      + `<span class="cp-kv-k">${escHtml(k)}</span><span class="cp-kv-v">${escHtml(String(v || ''))}</span></div>`;
+  }
+
+  function _cpRenderCondInfo(fields, opts) {
+    _cpRoutes = [];
+    const canCopyRoutes = !(opts && opts.noRouteCopy);
     if (!fields || !Object.keys(fields).length) {
       return '<div class="cp-cond-empty">引き合い条件情報なし</div>';
     }
@@ -2789,26 +2798,41 @@
         else if (r.enabled !== false) routeEntries.push(r);
       });
     } catch(e) {}
+    const _cpLine = r => {
+      const leg  = [r.pol, r.via, r.pod].filter(Boolean).join(' → ');
+      const tt   = r.tt ? `T/T: ${r.tt}` : '';
+      const carrierLine = (typeof window.formatRouteCarrierLine === 'function')
+        ? window.formatRouteCarrierLine(r)
+        : [r.carrier, r.service ? `(${r.service})` : ''].filter(Boolean).join(' ');
+      return [carrierLine, leg, r.icd ? `ICD: ${r.icd}` : '', tt].filter(Boolean).join('  ');
+    };
+    const _cpAddRoute = (label, r, checked) => {
+      const line = _cpLine(r);
+      if (!line) return;
+      if (!canCopyRoutes) { condRows.push(_cpKV(label, line)); return; }
+      _cpRoutes.push(r);
+      condRows.push(_cpRouteKV(label, line, _cpRoutes.length - 1, checked));
+    };
     if (routeEntries.length) {
-      routeEntries.forEach((r, i) => {
-        const leg  = [r.pol, r.via, r.pod].filter(Boolean).join(' → ');
-        const tt   = r.tt ? `T/T: ${r.tt}` : '';
-        const carrierLine = (typeof window.formatRouteCarrierLine === 'function')
-          ? window.formatRouteCarrierLine(r)
-          : [r.carrier, r.service ? `(${r.service})` : ''].filter(Boolean).join(' ');
-        const line = [carrierLine, leg, tt].filter(Boolean).join('  ');
-        if (line) condRows.push(_cpKV(i === 0 ? '航路' : '　', line));
-      });
+      routeEntries.forEach((r, i) => _cpAddRoute(i === 0 ? '航路' : '　', r, true));
     } else {
       if (f['z2Pol'] || f['z2Pod']) {
         condRows.push(_cpKV('POL → POD', [f['z2Pol'] || '—', f['z2Pod'] || '—'].join(' → ')));
       }
       if (f['z2Carrier']) condRows.push(_cpKV('キャリア', f['z2Carrier']));
+      // 複数航路の記録が無い古い案件：単一の入力欄を 1 本の航路として追加できるようにする
+      if (canCopyRoutes && (f['z2Pol'] || f['z2Pod'] || f['z2Carrier'])) {
+        const one = { carrier: f['z2Carrier'] || '', service: f['z2Service'] || '', pol: f['z2Pol'] || '', via: f['z2Via'] || '', pod: f['z2Pod'] || '', icd: f['z2Icd'] || '', tt: f['z2Tt'] || '' };
+        _cpRoutes.push(one);
+        condRows.push(_cpRouteKV('→ 追加用', _cpLine(one), _cpRoutes.length - 1, true));
+      }
     }
     ngRoutes.forEach((r, i) => {
       const leg  = [r.pol, r.via, r.pod].filter(Boolean).join(' → ');
       const line = [r.carrier || '—', leg, r.ngReason ? `理由: ${r.ngReason}` : ''].filter(Boolean).join('  ');
-      condRows.push(_cpKV(i === 0 ? '🚫 使用不可' : '　', line));
+      if (!canCopyRoutes) { condRows.push(_cpKV(i === 0 ? '🚫 使用不可' : '　', line)); return; }
+      _cpRoutes.push(r);   // 使用不可の記録も追加できる（既定はチェックなし）
+      condRows.push(_cpRouteKV(i === 0 ? '🚫 使用不可' : '　', line, _cpRoutes.length - 1, false));
     });
     const z3On = f['cond-zone3-on'] === 'true' || f['cond-zone3-on'] === true;
     if (z3On) {
@@ -2846,7 +2870,10 @@
     } catch(e) {}
 
     let html = '';
-    if (condRows.length) html += `<div class="cp-cond-section"><div class="cp-cond-section-title">貿易条件・輸送</div><div class="cp-cond-rows">${condRows.join('')}</div></div>`;
+    const _routeBar = (canCopyRoutes && _cpRoutes.length)
+      ? `<div class="cp-route-copybar"><button type="button" class="cp-btn-route" id="cpRouteCopyBtn" onclick="cpCopyRoutes()" title="チェックした航路（キャリア・サービス・POL・経由・POD・T/T）を、現在編集中の見積の航路へ追加します。同じ航路は重ねません。">🚢 選択した航路を見積に追加</button><span class="cp-route-count" id="cpRouteCount"></span></div>`
+      : '';
+    if (condRows.length) html += `<div class="cp-cond-section"><div class="cp-cond-section-title">貿易条件・輸送</div><div class="cp-cond-rows">${condRows.join('')}</div>${_routeBar}</div>`;
     if (cargoRows.length) html += `<div class="cp-cond-section"><div class="cp-cond-section-title">貨物情報</div><div class="cp-cond-rows">${cargoRows.join('')}</div></div>`;
     if (volRows.length)   html += `<div class="cp-cond-section"><div class="cp-cond-section-title">物量</div><div class="cp-cond-rows">${volRows.join('')}</div></div>`;
     return html || '<div class="cp-cond-empty">引き合い条件情報なし</div>';
@@ -2902,7 +2929,11 @@
 
     // 引き合い条件セクション
     const condEl = document.getElementById('cpCondInfo');
-    if (condEl) condEl.innerHTML = _cpRenderCondInfo(rawData?.fields || {});
+    if (condEl) {
+      // 自分自身（編集中の案件）の航路は追加の意味が無いので、航路のチェック・ボタンは出さない
+      condEl.innerHTML = _cpRenderCondInfo(rawData?.fields || {}, { noRouteCopy: _loadedCloudId === _cpId });
+      cpUpdateRouteCount();
+    }
 
     _cpRenderTable(rows);
     _cpUpdateSelCount();
@@ -3134,6 +3165,30 @@
       window.switchTab(backTo);
     }
   }
+
+  function cpUpdateRouteCount() {
+    const total = document.querySelectorAll('#cpCondInfo .cp-route-chk').length;
+    const sel   = document.querySelectorAll('#cpCondInfo .cp-route-chk:checked').length;
+    const el = document.getElementById('cpRouteCount');
+    if (el) el.textContent = `${sel} / ${total} 本選択中`;
+    const btn = document.getElementById('cpRouteCopyBtn');
+    if (btn) btn.disabled = sel === 0;
+  }
+
+  // プレビュー中の案件の、チェックした航路を現在の見積の航路へ追加する
+  function cpCopyRoutes() {
+    const picked = [...document.querySelectorAll('#cpCondInfo .cp-route-chk:checked')]
+      .map(c => _cpRoutes[parseInt(c.dataset.ridx, 10)]).filter(Boolean);
+    if (!picked.length) { quoteShowToast('⚠️ 追加する航路にチェックを入れてください', 'warn'); return; }
+    if (typeof window.appendRouteEntries !== 'function') { quoteShowToast('⚠️ 航路追加の関数が未ロードです', 'warn'); return; }
+    const r = window.appendRouteEntries(picked);
+    document.getElementById('cloudPreviewModal').style.display = 'none';
+    quoteShowToast(r.added
+      ? `✅ 航路を ${r.added} 本追加しました` + (r.skipped ? `（同じ航路 ${r.skipped} 本は追加済みのため除く）` : '')
+      : 'ℹ️ 選んだ航路はすべて追加済みです', r.added ? 'success' : 'info', 3500);
+  }
+  window.cpUpdateRouteCount = cpUpdateRouteCount;
+  window.cpCopyRoutes = cpCopyRoutes;
 
   function cloudImportSelectedRows() {
     const dataRows = _cpRows.filter(r => r._type === 'data' && r.cells?.length);
