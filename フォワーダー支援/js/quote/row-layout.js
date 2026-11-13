@@ -124,15 +124,20 @@
     if (st && !box) { box = document.createElement('div'); box.className = 'st-state'; st.appendChild(box); }
     const inline = on.length ? chipHtml(on[0], tr) + (on.length > 1 ? `<span class="state-more" title="${esc(on.slice(1).map(s => s.label).join('・'))}">＋${on.length - 1}</span>` : '') : '';
     if (box && box._rdHtml !== inline) { box.innerHTML = inline; box._rdHtml = inline; }
-    // 入力完了を押した日時とユーザー名（「11/13 14:05」「山田太郎」）。完了していて記録があるときだけ、チップの下に出す
+    // 入力完了を押した日時とユーザー名（「11/13 14:05」「山田太郎」）。完了していて記録があるときだけ、チップの下に出す。
+    // 完了していない行で、引用元（類似案件のインポート）の入力完了の記録があるときは、同じ場所に「📥 引用元」として出す
     {
       let di = st && st.querySelector('.st-doneinfo');
       const info = tr.classList.contains('row-input-done') && typeof window.rowDoneInfo === 'function' ? window.rowDoneInfo(tr) : null;
-      const html = info ? (info.when ? `<span class="di-when">${esc(info.when)}</span>` : '') + (info.when && info.name ? ' ' : '') + (info.name ? `<span class="di-name">${esc(info.name)}</span>` : '') : '';
+      const src = !info && typeof window.rowSrcDoneInfo === 'function' ? window.rowSrcDoneInfo(tr) : null;
+      const html = info ? (info.when ? `<span class="di-when">${esc(info.when)}</span>` : '') + (info.when && info.name ? ' ' : '') + (info.name ? `<span class="di-name">${esc(info.name)}</span>` : '')
+        : src ? `<span class="di-when">📥 ${esc(src.when)}</span>` + (src.when && src.name ? ' ' : '') + (src.name ? `<span class="di-name">${esc(src.name)}</span>` : '') : '';
+      tr.classList.toggle('row-src-done', !!src);
       if (st && !di && html) { di = document.createElement('div'); di.className = 'st-doneinfo'; st.appendChild(di); }
       if (di) {
         if (di._rdHtml !== html) { di.innerHTML = html; di._rdHtml = html; }
-        di.title = info ? '入力完了を押した日時とユーザー：' + info.text : '';
+        di.classList.toggle('is-src', !!src);
+        di.title = info ? '入力完了を押した日時とユーザー：' + info.text : (src ? src.tip : '');
         di.hidden = !html;
       }
     }

@@ -552,6 +552,7 @@
         if (typeof window.rowSyncDoneBtn === 'function') window.rowSyncDoneBtn(tr);
         else { const db = tr.querySelector('.row-done-btn'); if (db) { db.classList.add('is-on'); db.title = '入力完了（クリックで解除）'; } }
       }
+      else _applySrcDone(tr, row);   // 入力完了ではない行に残っている「引用元の入力完了」の記録
       // 港ペア（子グループキー）を復元
       // 旧データの港ペアはパターンへ統合（パターン未設定時のみ移行）
       if (row.portPair) { const ptEl = tr.querySelector('[data-field="pt"]'); if (ptEl && !ptEl.value) ptEl.value = row.portPair; }
@@ -1255,6 +1256,11 @@
         rowObj.done = true;
         if (tr.dataset.doneAt) rowObj.doneAt = tr.dataset.doneAt;
         if (tr.dataset.doneBy) rowObj.doneBy = tr.dataset.doneBy;
+      }
+      else if (tr.dataset.srcDoneAt) {                                // 引用元の入力完了（類似案件からインポートした行・この案件では未確認）
+        rowObj.srcDoneAt = tr.dataset.srcDoneAt;
+        if (tr.dataset.srcDoneBy) rowObj.srcDoneBy = tr.dataset.srcDoneBy;
+        if (tr.dataset.srcFrom) rowObj.srcFrom = tr.dataset.srcFrom;
       }
       if (tr.dataset.portPair) rowObj.portPair = tr.dataset.portPair; // 港ペア（子グループ）
       rows.push(rowObj);
@@ -3452,6 +3458,41 @@
   window.editRouteEntry    = editRouteEntry;
   window.toggleRouteNg     = toggleRouteNg;
   window.editRouteNgReason = editRouteNgReason;
+  // 類似案件のプレビューから、選んだ航路を現在の見積の航路へ追加する（cloud.js cpCopyRoutes から）。
+  // 同じ航路（キャリア・サービス・POL・経由・POD・ICD が一致）は重ねない。rid は新しく振り直し、
+  // 往路／復路の指定（leg）は引き継がない（往復の組み立てはコピー先の案件で決めるため）。
+  // 使用不可（ng）の記録は理由ごと引き継ぐ。戻り値＝{added, skipped}
+  window.appendRouteEntries = function (routes) {
+    const norm = s => String(s == null ? '' : s).trim().toLowerCase().replace(/\s+/g, ' ');
+    const keyOf = r => [r.carrier, r.service, r.pol, r.via, r.pod, r.icd].map(norm).join('|');
+    const have = new Set(_routeEntries.map(keyOf));
+    let added = 0, skipped = 0;
+    (routes || []).forEach(src => {
+      if (!src) return;
+      const r = {
+        carrier: src.carrier || '', service: src.service || '',
+        carrierRole: src.carrierRole || '', actualCarrier: src.actualCarrier || '',
+        pol: src.pol || '', via: src.via || '', pod: src.pod || '', icd: src.icd || '', tt: src.tt || '',
+        enabled: src.ng ? false : src.enabled !== false, ng: !!src.ng, ngReason: src.ng ? (src.ngReason || '') : '',
+        rid: _newRouteId(), leg: ''
+      };
+      if (!r.carrier && !r.pol && !r.pod) return;
+      const k = keyOf(r);
+      if (have.has(k)) { skipped++; return; }
+      have.add(k);
+      _routeEntries.push(r);
+      added++;
+    });
+    if (added) {
+      _renderRouteEntries();
+      if (typeof window.icdRefresh === 'function') window.icdRefresh();
+      if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
+      if (typeof scheduleSnapshot === 'function') scheduleSnapshot();
+      _triggerCarrierBmFetch();
+    }
+    return { added, skipped };
+  };
+
   // 復元用
   function syncRouteEntries() {
     const data = document.getElementById('z2-routes-data');
@@ -3893,6 +3934,15 @@
 
 
 
+// 行オブジェクトに残っている「引用元の入力完了」（srcDoneAt／srcDoneBy／srcFrom）を、行へ戻す
+function _applySrcDone(tr, row) {
+  if (!tr || !row || !row.srcDoneAt) return;
+  tr.dataset.srcDoneAt = row.srcDoneAt;
+  if (row.srcDoneBy) tr.dataset.srcDoneBy = row.srcDoneBy; else delete tr.dataset.srcDoneBy;
+  if (row.srcFrom) tr.dataset.srcFrom = row.srcFrom; else delete tr.dataset.srcFrom;
+  tr.classList.add('row-src-done');
+}
+
 // 選択した行オブジェクト配列を現在のテーブル末尾に追加する
 window.appendQuoteRows = function(rowObjects) {
   if (!rowObjects || !rowObjects.length) return 0;
@@ -3931,6 +3981,7 @@ window.appendQuoteRows = function(rowObjects) {
     addRow();
     const tr = tbody.lastElementChild;
     _applyCells(tr, cells);
+    _applySrcDone(tr, row);   // 類似案件からのインポート：引用元で入力完了が押されていた日時・ユーザー（入力完了マーク自体は付けない）
     regularTrs.push(tr);
     parentTr = tr;
   });

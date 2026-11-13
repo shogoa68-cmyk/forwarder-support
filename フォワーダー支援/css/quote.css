@@ -6208,6 +6208,18 @@ body.qp-dash-active #quoteActionDock { display: none !important; }
 }
 #tab-quote-make .cp-kv-v { font-size: var(--fs-11); color: #2a1a08; word-break: break-all; }
 #tab-quote-make .cp-cond-empty { font-size: var(--fs-11); color: #9a8070; width: 100%; }
+/* 航路をチェックして現在の見積へ追加（類似案件プレビュー） */
+#tab-quote-make .cp-kv-route { align-items: flex-start; }
+#tab-quote-make .cp-route-pick { display: inline-flex; align-items: center; flex-shrink: 0; padding-top: 1px; cursor: pointer; }
+#tab-quote-make .cp-route-pick input { margin: 0; width: 15px; height: 15px; cursor: pointer; }
+#tab-quote-make .cp-route-copybar { display: flex; align-items: center; flex-wrap: wrap; gap: var(--sp-8); margin-top: var(--sp-6); }
+#tab-quote-make .cp-btn-route {
+  font-size: var(--fs-12); font-weight: 600; padding: 5px 12px; border-radius: 6px; cursor: pointer;
+  background: #fff; color: #1f5f8b; border: 1px solid #1f5f8b; min-height: 30px;
+}
+#tab-quote-make .cp-btn-route:hover:not(:disabled) { background: #1f5f8b; color: #fff; }
+#tab-quote-make .cp-btn-route:disabled { opacity: .45; cursor: default; }
+#tab-quote-make .cp-route-count { font-size: var(--fs-12); color: #9a8070; }
 /* ---- end 引き合い条件 ---- */
 #tab-quote-make .cloud-preview-body { flex: 1; overflow-y: auto; overflow-x: auto; padding: 0; }
 #tab-quote-make .cp-table {
@@ -11618,6 +11630,11 @@ body.is-row-dragging { cursor: grabbing; user-select: none; }
 }
 #tab-quote-make td.subtotal-cell > .st-doneinfo .di-when, #tab-quote-make td.subtotal-cell > .st-doneinfo .di-name { display: inline-block; max-width: 100%; }
 #tab-quote-make td.subtotal-cell > .st-doneinfo[hidden] { display: none; }
+/* 引用元の入力完了（類似案件からインポートした行・この案件では未確認）：完了済みの緑ではなく、控えめな青灰で区別する */
+#tab-quote-make td.subtotal-cell > .st-doneinfo.is-src { color: #3a5f86; font-style: italic; }
+/* 類似案件のプレビュー：明細ごとの入力完了の日時・ユーザー */
+#tab-quote-make .cp-done-tag { display: inline-block; margin-left: var(--sp-6); padding: 0 6px; font-size: var(--text-xs, 12px); font-weight: 600; color: #1f5a31; background: #e3f3e8; border: 1px solid #3f8f55; border-radius: 999px; white-space: nowrap; vertical-align: baseline; }
+#tab-quote-make .cp-done-tag.is-src { color: #3a5f86; background: #eaf1f8; border-color: #8fb0d3; }
 /* classic の小計・利益：新しい div 構造（.st-main／.st-sub／.pr-main／.pr-sub）でも従来どおり縦に並ぶだけ */
 #tab-quote-make td.subtotal-cell > .st-sub,
 #tab-quote-make td.profit-cell > .pr-sub { line-height: 1.2; }
@@ -12084,6 +12101,7 @@ body.memo-fab-off .qf-memo-fab { display: none !important; }
   #tab-quote-make .mc-tag { font-size: 12px; padding: 0 6px; border: 1px solid #c9ccd1; color: #5d5d60; background: #f5f5f8; font-weight: 600; }
   #tab-quote-make .mc-tag.t-pend { background: #fbf1d3; border-color: #d9a21b; color: #6b4e00; }
   #tab-quote-make .mc-tag.t-done { background: #e3f3e8; border-color: #3f8f55; color: #1f5a31; }
+  #tab-quote-make .mc-tag.t-src { background: #eaf1f8; border-color: #8fb0d3; color: #3a5f86; }
   #tab-quote-make .mc-amt { flex: none; text-align: right; font-weight: 700; font-size: 14px; display: flex; flex-direction: column; }
   #tab-quote-make .mc-amt small { font-weight: 400; font-size: 12px; color: #5d5d60; }
   #tab-quote-make .mc-go { flex: none; color: #8a8a8d; font-size: 18px; }

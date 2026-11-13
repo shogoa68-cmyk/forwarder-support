@@ -10491,6 +10491,18 @@ html.theme-industry {
 :where(html.theme-industry) #tab-quote-make #quoteTable > tbody > tr.row-input-done:not([data-virtual]):not([data-type]) > td.subtotal-cell > .st-state {
   height: 22px;
 }
+:where(html.theme-industry) #tab-quote-make #quoteTable > tbody > tr.row-src-done:not([data-virtual]):not([data-type]) > td.subtotal-cell > .st-sub {
+  height: 20px;
+  line-height: 20px;
+  margin-bottom: 1px;
+}
+:where(html.theme-industry) #tab-quote-make #quoteTable > tbody > tr.row-src-done:not([data-virtual]):not([data-type]) > td.subtotal-cell > .st-state {
+  height: 22px;
+}
+:where(html.theme-industry) #tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) > td.subtotal-cell > .st-doneinfo.is-src {
+  color: #3a5f86;
+  font-style: italic;
+}
 :where(html.theme-industry) #tab-quote-make #quoteTable > tbody > tr:not([data-virtual]):not([data-type]) > td.subtotal-cell > .st-doneinfo {
   margin: 1px 0 0;
   font-size: 11px;
