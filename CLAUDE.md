@@ -339,6 +339,10 @@ IT に不慣れな新規ユーザーにも分かりやすいよう、Design 案�
 - **Netlify デプロイ**は親プロジェクト `netlify/` 配下を別経路で配信中。`フォワーダー支援/` `見積支援/` のリネームは Netlify に影響しない（`netlify.toml` `deploy.sh` 確認済み）
 - **localStorage キー**は `SharedStorage.KEYS`（`shared/storage.js`）に集約予定だが、見積支援由来コードは一部直書きキー（`fxLastFetched_v1`, `stickyNote_v1`, `quoteFontSize` 等）混在。Phase 2c で統一予定
 
+## 🔎 COLINS に情報が無いとき、船会社のトラッキングへ案内（2026-11・`js/cp-carrier-guide.js`）
+
+サイバーポート画面の「コンテナの状況」で、COLINS に情報が無いとき（0 件・または 1 件の流れが全部「情報なし」）に、**船会社のトラッキングページへ誘導する案内**（`.cpt-guide`）を出す。番号（B/L・コンテナ）の頭 4 文字（SCAC／コンテナ所有者コード）から船会社を推測し（`CpCarrierGuide.guess`・`PREFIX`＝確かな 15 社だけ：Maersk／MSC／CMA CGM／ONE／Hapag-Lloyd／Evergreen／COSCO／OOCL／Yang Ming／HMM／ZIM／Wan Hai／PIL／SITC／KMTC）、`data/carriers.js` の `tracking(番号)` で「○○のトラッキングを開く ↗」（新しいタブ・noopener）を作る。推測できない番号（ブッキング番号など）は「船会社を選ぶ」（全社の一覧を開いた状態）、推測できたときも「ほかの船会社で確認する」（閉じた状態）で選べる。番号を URL で受けない船会社（`trackingClipboard`：MSC・CMA CGM・Evergreen・Yang Ming・PIL・Wan Hai ほか）のチップには 📋 を付け、開くときに番号をクリップボードへコピーする（`data-cg-copy`・失敗してもページは開く）。**通信エラーのときは出さない**（情報が無いのではなく取得できなかったため）。外部サイトを開くだけで、アプリにもサイバーポートにも何も送らない。画面は `msgHtml` が `m.html`（自分で組み立てた安全な HTML）を足し、詳細は `detailFor` の `extra`。試験は `cp-test-page-test.js`（118 項目）。**今後の候補**：取引・本船のタブへの横展開、船会社の追加（`PREFIX` に確かな頭文字だけ足す）。
+
 ## 📨 サイバーポートの Webhook 受信（2026-11）
 
 サイバーポートからの通知を受ける口：Edge Function `supabase/functions/cp-webhook`（貼り付け用 `supabase/cp-webhook-single/index.ts`・Verify JWT オフ・`x-cyberport-signature-256` の HMAC-SHA256 で検証・秘密は Secrets `CP_WEBHOOK_SECRET`）→ 表 `cp_events`（`docs/sql/cp-events.sql`・RLS＝チームメンバーのみ読み取り・同じ通知は 1 件にまとめる）。画面は 🚢 サイバーポートの「📨 受信した通知」（`js/cp-notify.js`・`js/integrations/cp-events.js`・新着はリアルタイム）と「通知してもらえる操作の一覧」（cp-proxy の `Master/NotifiableOperations/GetList`）。**読み取り専用の方針は維持**。手順は `docs/サイバーポート連携-Webhook.md`、引き継ぎは `docs/引き継ぎ-サイバーポート連携-2026-11-11.md`。試験：`cp-webhook-test.mjs`・`cp-notify-test.js`・`scripts/sql-tests/cp-events-sql-test.sh`。cp-webhook の貼り付け用は `node scripts/cp-tests/build-edge-single.mjs cp-webhook`（cp-proxy は `build-cp-proxy-single.mjs`）。ONE の EDIFACT 受信が Webhook の対象かは未確認（なければ ParseEdifacts の取得 API で読む）。
