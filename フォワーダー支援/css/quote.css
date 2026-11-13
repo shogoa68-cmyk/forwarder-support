@@ -12348,3 +12348,26 @@ body:has(#compareOverlay.open) #rmSheet { display: none !important; }
   font-family: inherit; font-size: var(--fs-12); padding: var(--sp-6) var(--sp-8);
   border: 1px solid #a9d3bc; border-radius: var(--r-6); background: var(--surface); color: #234;
 }
+
+/* 🌳 メイン／サブ：サブはメインのすぐ下にインデントして並べる（カード表示・リスト表示とも） */
+#tab-quote-make #qpdListWrap .cloud-card.is-sub {
+  margin-left: calc(var(--sub-depth, 1) * 34px);
+  position: relative;
+  border-left: 4px solid var(--accent);
+}
+/* 枝線：上のカード（メイン／兄弟）から伸びてきて、このカードの左へ折れる */
+#tab-quote-make #qpdListWrap .cloud-card.is-sub::before {
+  content: ''; position: absolute; left: -22px; top: -14px; width: 16px; height: 34px;
+  border-left: 2px solid var(--accent); border-bottom: 2px solid var(--accent); border-bottom-left-radius: 10px;
+  pointer-events: none;
+}
+#tab-quote-make #qpdListWrap .cloud-card.has-subs { border-bottom-left-radius: 0; }
+#tab-quote-make #qpdListWrap .cloud-card-links-note { margin-left: var(--sp-8); font-weight: 400; color: var(--text-muted); font-size: var(--fs-12); }
+/* リスト行 */
+#qpDashboard .qpd-row.qpd-row--sub { box-shadow: inset 4px 0 0 var(--accent); background: var(--card-bg); }
+#qpDashboard .qpd-row.qpd-row--sub .qpd-row-title { padding-left: calc(var(--sub-depth, 1) * 20px); }
+#qpDashboard .qpd-sub-mark { display: inline-block; margin-right: var(--sp-6); color: var(--accent); font-weight: 700; }
+#qpDashboard .qpd-main-mark {
+  display: inline-block; margin-left: var(--sp-8); padding: 0 var(--sp-6); border-radius: var(--r-6);
+  background: var(--accent-lt); color: var(--accent-dk); font-size: var(--fs-12); white-space: nowrap;
+}

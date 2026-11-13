@@ -19,15 +19,15 @@ const http = require('http'), fs = require('fs'), path = require('path');
   const ok = (n, c, d) => { if (!c) fails++; console.log((c ? 'PASS ' : 'FAIL ') + n + (c ? '' : ' → ' + JSON.stringify(d))); };
 
   // links: [id, a, b, parent|null]  ／ 案件 P1(メイン)→S1→S2（孫）, P1→S3, P1—PEER（ただの関連）, X—Y（別の関連）
-  async function open({ noParentCol = false } = {}) {
+  async function open({ noParentCol = false, fillers = 0 } = {}) {
     const ctx = await b.newContext({ viewport: { width: 1400, height: 1000 }, locale: 'ja-JP' });
     if (process.env.THEME) await ctx.addInitScript(() => { try { localStorage.setItem('forwarderTheme_v1', JSON.stringify({ site: true, doc: true })); } catch (e) {} });
-    await ctx.addInitScript(({ noParentCol }) => {
+    await ctx.addInitScript(({ noParentCol, fillers }) => {
       try { localStorage.setItem('fwd.uiMode', 'detail'); } catch (e) {}
       const mk = (id, ct) => ({ id, name: '案件' + id, status: '下書き中', customer: 'X社', created_by: 'me@x.com', owner_email: 'me@x.com', updated_at: '2026-11-' + ct + 'T00:00:00Z', ref: 'R-' + id, data: { fields: { 'qf-ref': 'R-' + id }, rows: [] } });
       const L = (id, a, b, parent, note) => ({ id, preset_a: a, preset_b: b, parent_id: parent || null, note: note || '', created_by: 'me@x.com' });
       const db = {
-        quote_presets: ['P1', 'S1', 'S2', 'S3', 'PEER', 'X', 'Y', 'Z'].map((id, i) => mk(id, '1' + i)),
+        quote_presets: ['P1', 'S1', 'S2', 'S3', 'PEER', 'X', 'Y', 'Z'].map((id, i) => mk(id, '1' + i)).concat(Array.from({ length: fillers }, (_, i) => mk('F' + (i + 1), String(20 + i)))),
         quote_preset_links: [L('l1', 'P1', 'S1', 'P1', '追加分'), L('l2', 'S1', 'S2', 'S1'), L('l3', 'S3', 'P1', 'P1'), L('l4', 'P1', 'PEER', null, '代替案'), L('l5', 'X', 'Y', null)],
         allowed_emails: [{ email: 'me@x.com', role: 'admin', member_no: 1 }], user_profiles: [], quote_comments: [],
         master_votes: [], synonym_groups: [], master_details: [], alias_rules: [], organizations: [], teams: [], org_members: [], team_members: [],
@@ -82,7 +82,7 @@ const http = require('http'), fs = require('fs'), path = require('path');
         storage: { from: () => ({ upload: async () => ({ error: null }), remove: async () => ({ error: null }), createSignedUrls: async () => ({ data: [], error: null }) }) },
       };
       window.supabase = { createClient: () => client };
-    }, { noParentCol });
+    }, { noParentCol, fillers });
     await ctx.route(u => !u.href.startsWith('http://127.0.0.1'), r => r.abort());
     const p = await ctx.newPage();
     const errs = [];
@@ -99,7 +99,8 @@ const http = require('http'), fs = require('fs'), path = require('path');
     const box = el.querySelector('.cloud-card-links'), pl = el.querySelector('.cloud-card-parentline');
     return {
       parentLine: pl ? pl.textContent.trim() : '',
-      head: [...box.querySelectorAll('.cloud-card-links-head')].map(h => h.textContent.trim()),
+      head: [...box.querySelectorAll('.cloud-card-links-head')].map(h => h.childNodes[0].textContent.trim()),
+      headNote: [...box.querySelectorAll('.cloud-card-links-note')].map(n => n.textContent.trim()),
       treeRoot: [...box.querySelectorAll('.clink-tree--root > .clink-tree-node > .cloud-clink-wrap .clink-name')].map(n => n.textContent),
       nested: [...box.querySelectorAll('.clink-tree .clink-tree .clink-name')].map(n => n.textContent),
       peers: [...box.querySelectorAll('.cloud-clink-list .clink-name')].map(n => n.textContent),
@@ -107,18 +108,26 @@ const http = require('http'), fs = require('fs'), path = require('path');
     };
   }, id);
 
+  // カードの並び（上から）：{id, sub, ml}＝案件 id・サブ（インデント付き）か・左の余白(px)
+  const order = p => p.evaluate(() => [...document.querySelectorAll('#qpdListWrap .cloud-card')].map(c => ({ id: c.querySelector('.cloud-card-links').dataset.lid, sub: c.classList.contains('is-sub'), ml: parseFloat(getComputedStyle(c).marginLeft) })));
+
   // ===== ダッシュボードのツリー =====
   {
     const { ctx, p, errs } = await open();
     const c1 = await card(p, 'P1');
     ok('メインのカードに「🌳 サブ案件（3）」（孫も数える）と「🔗 関連案件（1）」', c1 && c1.head.join('|') === '🌳 サブ案件（3）|🔗 関連案件（1）', c1);
-    ok('ツリー直下は S1・S3（別の向きで登録した l3 も）', c1 && c1.treeRoot.sort().join() === '案件S1,案件S3', c1);
-    ok('孫 S2 は S1 の下に入れ子で出る', c1 && c1.nested.join() === '案件S2', c1);
+    // サブはメインの直下に、深さぶん右へインデントして並ぶ（P1 → S3・S1 → S1 の下に S2）
+    const od = await order(p);
+    ok('サブは必ずメインの直下に並ぶ（Z・Y・X・PEER の次に P1・S3・S1・S2）', od.map(x => x.id).join() === 'Z,Y,X,PEER,P1,S3,S1,S2', od.map(x => x.id).join());
+    const ml = id => od.find(x => x.id === id).ml;
+    ok('サブは右にインデント（メイン 0 ＜ サブ ＜ サブのサブ）', ml('P1') === 0 && ml('S3') > 0 && ml('S1') === ml('S3') && ml('S2') > ml('S1'), od);
+    ok('サブのカードに is-sub が付き、メインと単独のカードには付かない', od.filter(x => x.sub).map(x => x.id).sort().join() === 'S1,S2,S3', od);
+    ok('メインのカードのサブ欄は、下のカードに出ているサブを重ねて出さない（件数とメモだけ）', c1 && c1.treeRoot.length === 0 && c1.headNote.join() === '下のカードに表示', c1);
     ok('ただの関連 PEER は関連案件のリストに出る', c1 && c1.peers.join() === '案件PEER', c1);
-    ok('関連付けの理由が出る（追加分／代替案）', c1 && c1.notes.join() === '追加分,代替案' || (c1 && c1.notes.sort().join() === '📝 代替案,📝 追加分'), c1 && c1.notes);
+    ok('関連付けの理由が出る（関連案件の「代替案」はメインのカード・サブの「追加分」はサブ S1 のカードの「↳ サブ」行）', c1 && c1.notes.join() === '📝 代替案' && (await card(p, 'S1')).parentLine.includes('追加分'), [c1 && c1.notes, (await card(p, 'S1')).parentLine]);
     const s1 = await card(p, 'S1');
     ok('サブ S1 のカードに「↳ サブ」とメイン P1 の行', s1 && s1.parentLine.includes('↳ サブ') && s1.parentLine.includes('案件P1'), s1);
-    ok('S1 のカードにも自分のサブ S2 のツリー', s1 && s1.treeRoot.join() === '案件S2', s1);
+    ok('S1 のカードにも「サブ案件（1）」（S2 は下のカードに表示）', s1 && s1.head[0] === '🌳 サブ案件（1）' && s1.headNote.join() === '下のカードに表示', s1);
     const s2 = await card(p, 'S2');
     ok('孫 S2 のカードは S1 のサブ', s2 && s2.parentLine.includes('案件S1'), s2);
     const xy = await card(p, 'X');
@@ -139,9 +148,8 @@ const http = require('http'), fs = require('fs'), path = require('path');
     ok('DB：l4 の parent_id が P1', await p.evaluate(() => window.__db.quote_preset_links.find(l => l.id === 'l4').parent_id === 'P1'));
     // サブ S3 をただの関連に戻す
     await p.evaluate(() => {
-      const el = [...document.querySelectorAll('#qpdListWrap .cloud-card')].find(c => c.querySelector('.cloud-card-links[data-lid="P1"]'));
-      const wrap = [...el.querySelectorAll('.clink-tree--root > .clink-tree-node > .cloud-clink-wrap')].find(w => w.textContent.includes('案件S3'));
-      const sel = wrap.querySelector('select.clink-role'); sel.value = 'none'; sel.dispatchEvent(new Event('change', { bubbles: true }));
+      const el = [...document.querySelectorAll('#qpdListWrap .cloud-card')].find(c => c.querySelector('.cloud-card-links[data-lid="S3"]'));
+      const sel = el.querySelector('.cloud-card-parentline select.clink-role'); sel.value = 'none'; sel.dispatchEvent(new Event('change', { bubbles: true }));
     });
     await p.waitForTimeout(1200);
     ok('サブ→関連に戻す：l3 の parent_id が空・P1 の関連案件に S3', await (async () => { const c = await card(p, 'P1'); return (await p.evaluate(() => window.__db.quote_preset_links.find(l => l.id === 'l3').parent_id)) === null && c.peers.join() === '案件S3'; })(), await card(p, 'P1'));
@@ -248,6 +256,44 @@ const http = require('http'), fs = require('fs'), path = require('path');
     await ctx.close();
   }
 
+  // ===== 並びと見せ方（ページ送り・リスト表示・サブが見えていないとき・取得の競合）=====
+  {
+    // ページ送り：メインが 10 件目に来ても、サブは家族ごと続けて出す（途中で切らない）
+    const { ctx, p, errs } = await open({ fillers: 5 });
+    const od = await order(p);
+    ok('ページ送りの境目でも家族を切らない（10 件の上限でも、P1 とそのサブ 3 件まで 13 件出る）', od.length === 13 && od[9].id === 'P1' && od.slice(10).map(x => x.id).join() === 'S3,S1,S2', od.map(x => x.id));
+    ok('「さらに読み込む」は出ない（全部出ているため）', await p.evaluate(() => !document.querySelector('#qpdListWrap .qpd-load-more')));
+    await ctx.close();
+  }
+  {
+    const { ctx, p, errs } = await open();
+    // リスト表示：同じ並び・インデント・印（サブ「↳」／メイン「👑 サブ N」）
+    await p.evaluate(() => window.qpdSetView('list')); await p.waitForTimeout(600);
+    const rows = await p.evaluate(() => [...document.querySelectorAll('#qpdListWrap .qpd-row')].map(r => ({ t: r.querySelector('.qpd-row-title').textContent.replace(/\s+/g, ' ').trim(), sub: r.classList.contains('qpd-row--sub'), pad: parseFloat(getComputedStyle(r.querySelector('.qpd-row-title')).paddingLeft), mark: !!r.querySelector('.qpd-sub-mark'), main: (r.querySelector('.qpd-main-mark') || {}).textContent || '' })));
+    ok('リスト表示でも、サブはメインの直下（Z・Y・X・PEER の次に P1・S3・S1・S2）', rows.map(r => r.t.replace(/👑.*$/, '').replace(/^↳/, '')).join() === 'R-Z,R-Y,R-X,R-PEER,R-P1,R-S3,R-S1,R-S2', rows.map(r => r.t));
+    ok('リスト表示：サブの行に「↳」とインデント・サブのサブはさらに右', rows.filter(r => r.sub).length === 3 && rows.filter(r => r.mark).length === 3 && Math.max(...rows.map(r => r.pad)) > Math.min(...rows.filter(r => r.sub).map(r => r.pad)), rows);
+    ok('リスト表示：メイン P1 に「👑 サブ 2」、S1 に「👑 サブ 1」', rows.some(r => /👑 サブ 2/.test(r.main)) && rows.some(r => /👑 サブ 1/.test(r.main)), rows.map(r => r.main));
+    await p.evaluate(() => window.qpdSetView('card')); await p.waitForTimeout(600);
+    // サブが見えていないとき（検索でメインだけに絞る）は、メインのカードの中にサブをツリーで残す
+    await p.evaluate(() => { const i = document.getElementById('qpdSearch'); i.value = 'P1'; i.dispatchEvent(new Event('input', { bubbles: true })); }); await p.waitForTimeout(900);
+    const c1 = await card(p, 'P1');
+    ok('絞り込みでサブが出ていないときは、メインのカードの中にサブのツリー（S1・S3・孫 S2）が残る', c1 && c1.treeRoot.sort().join() === '案件S1,案件S3' && c1.nested.join() === '案件S2' && c1.headNote.length === 0, c1);
+    ok('そのときサブのカードは出ない', (await order(p)).map(x => x.id).join() === 'P1');
+    await ctx.close();
+  }
+  {
+    // 取得の競合：関連付けの変更の途中で古い取得結果が戻っても、メインのカードがサブを失わない
+    const { ctx, p, errs } = await open();
+    await p.evaluate(() => { window.__db.quote_preset_links.push({ id: 'lz', preset_a: 'Z', preset_b: 'Y', parent_id: 'Z', note: '', created_by: 'me@x.com' }); });
+    await p.evaluate(() => cloudSetLinkRole('lz', 'Z', 'sub'));   // 既存の関連を更新（_invalidateDashLinks が走る）
+    await p.waitForTimeout(300);
+    await p.evaluate(() => cloudListPresets()); await p.waitForTimeout(1800);
+    const zc = await card(p, 'Z'), od = await order(p), zi = od.findIndex(x => x.id === 'Z');
+    ok('関連付けを変えた直後に一覧を取り直しても、メイン Z のカードにサブ欄が出て、直下に Y が並ぶ', zc && zc.head[0] === '🌳 サブ案件（1）' && od[zi + 1] && od[zi + 1].id === 'Y' && od[zi + 1].sub, [zc, od.map(x => x.id)]);
+    ok('ページエラーなし', errs.length === 0, errs);
+    await ctx.close();
+  }
+
   // ===== カードの「🌱 サブ作成」（この案件をコピーして、サブとして関連付ける）=====
   {
     const { ctx, p, errs } = await open();
@@ -265,13 +311,87 @@ const http = require('http'), fs = require('fs'), path = require('path');
     ok('コピー元 Z がメイン（parent_id＝Z）としてサブに関連付く', r.parent === 'Z', r);
     ok('サブには代替わり（copiedFrom）を付けない', r.hasCopied === false, r);
     const zc = await card(p, 'Z');
-    ok('ダッシュボード：Z のカードに「🌳 サブ案件（1）」が出る', zc && zc.head.join('|') === '🌳 サブ案件（1）' && zc.treeRoot.join() === '案件Z のサブ', zc);
+    const zod = await order(p), zi = zod.findIndex(x => x.id === 'Z');
+    ok('ダッシュボード：Z のカードに「🌳 サブ案件（1）」、直下にサブのカード（インデント付き）', zc && zc.head.join('|') === '🌳 サブ案件（1）' && zod[zi + 1] && zod[zi + 1].sub && zod[zi + 1].ml > 0, [zc, zod]);
     // 同じ案件でもう一度 → 「のサブ_2」で 2 件目
     await p.evaluate(() => document.querySelector('#qpdListWrap .cloud-card:has(.cloud-card-links[data-lid="Z"]) .btn-preset-sub').click());
     await p.waitForTimeout(1800);
     const zc2 = await card(p, 'Z');
-    ok('もう一度作ると、名前が重ならず（_2）サブが 2 件になる', zc2 && zc2.head.join('|') === '🌳 サブ案件（2）' && zc2.treeRoot.sort().join() === '案件Z のサブ,案件Z のサブ_2', zc2);
+    const zod2 = await order(p), zi2 = zod2.findIndex(x => x.id === 'Z');
+    ok('もう一度作ると、名前が重ならず（_2）サブが 2 件になり、どちらもメインの直下に並ぶ', zc2 && zc2.head.join('|') === '🌳 サブ案件（2）' && zod2[zi2 + 1].sub && zod2[zi2 + 2].sub && !zod2[zi2 + 3].sub, [zc2, zod2.map(x => x.id + (x.sub ? '*' : ''))]);
     // サブの上でもさらにサブを作れる（孫）
+    ok('ページエラーなし', errs.length === 0, errs);
+    await ctx.close();
+  }
+
+  // ===== 通常のコピーと関連付け（サブ＝同じメインの兄弟として／メイン＝サブも一緒に）=====
+  {
+    const { ctx, p, errs } = await open();
+    const lk = (name) => p.evaluate((name) => {
+      const db = window.__db, made = db.quote_presets.find(x => x.name === name);
+      if (!made) return null;
+      const mine = db.quote_preset_links.filter(x => [x.preset_a, x.preset_b].includes(made.id));
+      const up = mine.find(x => x.parent_id && x.parent_id !== made.id);   // 自分が「サブ」側の関連（自分がメインの関連は数えない）
+      const nm = id => (db.quote_presets.find(x => x.id === id) || {}).name;
+      return { parent: up ? nm(up.parent_id) : null, linked: mine.length > 0 };
+    }, name);
+    const clickCopy = (id) => p.evaluate(id => document.querySelector('#qpdListWrap .cloud-card:has(.cloud-card-links[data-lid="' + id + '"]) .btn-preset-copy:not(.btn-preset-sub)').click(), id);
+    const dialog = () => p.evaluate(() => { const d = document.querySelector('.confirm-dialog'); return d ? { title: d.querySelector('.confirm-title').textContent, boxes: [...d.querySelectorAll('.dup-subs input')].map(x => ({ nm: x.nextSibling.textContent, on: x.checked, dis: x.disabled })) } : null; });
+
+    // 1) ただのコピー（関連なし）：確認なし・単独
+    const n0 = await p.evaluate(() => window.__db.quote_presets.length);
+    await clickCopy('Z'); await p.waitForTimeout(1500);
+    ok('関連のない案件のコピー：確認は出ず、単独のコピーができる', !(await dialog()) && (await p.evaluate(() => window.__db.quote_presets.length)) === n0 + 1 && (await lk('案件Z のコピー')).linked === false, await lk('案件Z のコピー'));
+
+    // 2) サブ（S3＝P1 のサブ・サブなし）をコピー → 同じメイン P1 のサブ（兄弟）
+    await clickCopy('S3'); await p.waitForTimeout(1800);
+    ok('サブのコピー：確認は出ず、コピーも同じメイン（P1）のサブとして付く', !(await dialog()) && (await lk('案件S3 のコピー')).parent === '案件P1', await lk('案件S3 のコピー'));
+    const c1 = await card(p, 'P1');
+    ok('メインのカードのサブが 1 件増える（S1・S3・S3のコピー＋孫 S2）', c1 && c1.head[0] === '🌳 サブ案件（4）', c1 && c1.head);
+
+    // 3) メイン P1 をコピー → 確認画面（サブのツリー）。S3 のチェックを外し、S1 を残して OK
+    await clickCopy('P1'); await p.waitForTimeout(600);
+    const dg = await dialog();
+    ok('メインのコピー：サブ選択の確認画面が出る（S1・S2・S3・S3のコピーが並び、既定はすべてチェック）', dg && dg.title.includes('サブ案件も一緒に') && dg.boxes.length === 4 && dg.boxes.every(b => b.on), dg);
+    // S1 のチェックを外す → 孫 S2 は自動で外れて選べなくなる
+    await p.evaluate(() => { const b = [...document.querySelectorAll('.dup-subs input')].find(x => x.nextSibling.textContent === '案件S1'); b.click(); });
+    const dg2 = await dialog();
+    ok('サブのチェックを外すと、その下（孫 S2）も外れて選べなくなる', dg2.boxes.find(b => b.nm === '案件S2').on === false && dg2.boxes.find(b => b.nm === '案件S2').dis === true, dg2);
+    await p.evaluate(() => { const b = [...document.querySelectorAll('.dup-subs input')].find(x => x.nextSibling.textContent === '案件S1'); b.click(); });   // S1 を戻す（S2 も戻る）
+    await p.evaluate(() => { const b = [...document.querySelectorAll('.dup-subs input')].find(x => x.nextSibling.textContent === '案件S3'); b.click(); });   // S3 を外す
+    await p.evaluate(() => document.querySelector('.confirm-dialog .btn-primary').click()); await p.waitForTimeout(2500);
+    const m = await lk('案件P1 のコピー'), s1c = await lk('案件S1 のコピー'), s2c = await lk('案件S2 のコピー'), s3c = await lk('案件S3 のコピー_2');
+    ok('メインのコピー：コピーしたメインは単独（親なし）', m && m.parent === null, m);
+    const tree = await card(p, 'P1');   // 元のメインは変わらない
+    ok('選んだサブ（S1）がコピーされ、コピーしたメインのサブとして付く', s1c && s1c.parent === '案件P1 のコピー', s1c);
+    ok('孫（S2）もコピーされ、S1 のコピーのサブとして付く（ツリーごと）', s2c && s2c.parent === '案件S1 のコピー', s2c);
+    ok('チェックを外したサブ（S3）はコピーされない', !(await p.evaluate(() => window.__db.quote_presets.some(x => x.name === '案件S3 のコピー_2'))), s3c);
+    const od3 = await order(p), pi = od3.findIndex(x => x.id === 'P1');
+    ok('元のメイン P1 のサブは変わらない（P1 の直下に S3・S1 が並ぶ）', pi >= 0 && od3[pi + 1].id === 'S3' && od3[pi + 2].id === 'S1', od3.map(x => x.id));
+
+    // 4) やめる → 何も作られない
+    const n1 = await p.evaluate(() => window.__db.quote_presets.length);
+    await clickCopy('P1'); await p.waitForTimeout(500);
+    await p.evaluate(() => document.querySelector('.confirm-dialog .btn-cancel').click()); await p.waitForTimeout(500);
+    ok('確認画面で「やめる」：何もコピーされない', (await p.evaluate(() => window.__db.quote_presets.length)) === n1);
+
+    // 5) すべて外してコピー → メインだけ
+    await clickCopy('P1'); await p.waitForTimeout(500);
+    await p.evaluate(() => { [...document.querySelectorAll('.dup-subs > li > label input')].forEach(x => { if (x.checked) x.click(); }); document.querySelector('.confirm-dialog .btn-primary').click(); }); await p.waitForTimeout(2000);
+    ok('すべてのチェックを外すと、メインだけがコピーされる（+1 件）', (await p.evaluate(() => window.__db.quote_presets.length)) === n1 + 1, await p.evaluate(() => window.__db.quote_presets.length));
+
+    // 6) サブでもあり、サブを持つ案件（S1）：確認画面（S2）が出て、コピーは P1 の兄弟＋S2 のコピーがその下
+    await clickCopy('S1'); await p.waitForTimeout(600);
+    const dg3 = await dialog();
+    ok('サブを持つサブ（S1）のコピー：サブ（S2）の選択が出る', dg3 && dg3.boxes.map(b => b.nm).join() === '案件S2', dg3);
+    await p.evaluate(() => document.querySelector('.confirm-dialog .btn-primary').click()); await p.waitForTimeout(2500);
+    const sib = await p.evaluate(() => {
+      const db = window.__db, byName = n => db.quote_presets.find(x => x.name === n);
+      const parentOf = n => { const q = byName(n); const l = q && db.quote_preset_links.find(x => [x.preset_a, x.preset_b].includes(q.id) && x.parent_id && x.parent_id !== q.id); return l && (db.quote_presets.find(x => x.id === l.parent_id) || {}).name; };
+      return { s1: parentOf('案件S1 のコピー_2'), s2: parentOf('案件S2 のコピー_2') };
+    });
+    ok('S1 のコピーは P1 の兄弟として付く', sib.s1 === '案件P1', sib);
+    ok('S2 のコピーは、その S1 のコピーの下に付く（ツリーごと）', sib.s2 === '案件S1 のコピー_2', sib);
     ok('ページエラーなし', errs.length === 0, errs);
     await ctx.close();
   }
