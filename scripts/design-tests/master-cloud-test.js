@@ -1343,6 +1343,32 @@ const http = require('http'), fs = require('fs'), path = require('path');
     await ctx.close();
   }
 
+  // ===== 取引形態「乙仲」・契約形態（業務委託） =====
+  {
+    const { ctx, p, errs } = await open(true, { legacy: {}, noLegacy: true });
+    const L = '[乙仲・契約形態] ';
+    await p.evaluate(async () => {
+      const V = (f, v) => window.__db.master_votes.push({ field: f, value: v, voter_email: 's@example.com' });
+      V('customer', '乙仲A社'); V('customer', '同業C社');
+      await statsLoadMasterCache(); await mdLoadCloud();
+    });
+    await p.evaluate(() => { switchCategory('master', document.querySelector('[onclick*="switchCategory(\'master"]')); }); await p.waitForTimeout(1000);
+    await p.evaluate(() => statsMasterSetFilter('customer')); await p.waitForTimeout(300);
+    await p.evaluate(() => document.querySelector('#statsPane-master tr[data-mvalue="乙仲A社"] .stats-master-detail-btn').click()); await p.waitForTimeout(400);
+    ok(L + '取引形態に「乙仲」がある', await p.evaluate(() => [...document.querySelectorAll('#md_dealType option')].some(o => o.value === '乙仲')));
+    ok(L + '契約形態の選択肢（未設定／通常取引／業務委託契約）がある', await p.evaluate(() => { const o = [...document.querySelectorAll('#md_contractType option')].map(x => x.value); return o.join() === ',通常取引,業務委託'; }));
+    await p.selectOption('#md_dealType', '乙仲'); await p.click('.master-detail-save'); await p.waitForTimeout(800);
+    ok(L + '乙仲は専用の色（otsu）になる', await p.evaluate(() => (document.querySelector('#statsPane-master tr[data-mvalue="乙仲A社"]') || { dataset: {} }).dataset.deal === 'otsu'));
+    await p.evaluate(() => document.querySelector('#statsPane-master tr[data-mvalue="同業C社"] .stats-master-detail-btn').click()); await p.waitForTimeout(400);
+    await p.selectOption('#md_dealType', '同業者（フォワーダー・代理店）'); await p.selectOption('#md_contractType', '業務委託'); await p.click('.master-detail-save'); await p.waitForTimeout(800);
+    ok(L + '契約形態が保存される', await p.evaluate(() => (window.__db.master_details.find(m => m.value === '同業C社') || { details: {} }).details.contractType === '業務委託'));
+    ok(L + '一覧に「契約形態 業務委託契約」の印が常に出る（折りたたみに入らない）', await p.evaluate(() => { const c = document.querySelector('#statsPane-master tr[data-mvalue="同業C社"] .stats-md-contract'); return !!c && c.textContent.includes('契約形態') && !c.classList.contains('md-fold-chip'); }));
+    await p.evaluate(() => statsMasterSetSort('deal')); await p.waitForTimeout(250);
+    ok(L + '「取引形態ごとにまとめる」に乙仲の見出しが出る', await p.evaluate(() => !!document.querySelector('#statsPane-master tr.mtg-deal[data-deal="otsu"]')));
+    ok(L + 'JS エラーなし', errs.length === 0, errs);
+    await ctx.close();
+  }
+
   // ===== 紹介元（誰かから紹介されたお客様） =====
   {
     const { ctx, p, errs } = await open(true, { legacy: {}, noLegacy: true });
